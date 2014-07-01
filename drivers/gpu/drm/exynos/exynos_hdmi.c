@@ -84,6 +84,7 @@ struct hdmi_resources {
 	struct clk			*sclk_hdmiphy;
 	struct clk			*mout_hdmi;
 	struct regulator_bulk_data	*regul_bulk;
+	struct regulator		*reg_hdmi_en;
 	int				regul_count;
 };
 
@@ -2167,7 +2168,6 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	struct device *dev = hdata->dev;
 	struct hdmi_resources *res = &hdata->res;
 	static char *supply[] = {
-		"hdmi-en",
 		"vdd",
 		"vdd_osc",
 		"vdd_pll",
@@ -2226,6 +2226,20 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 		return ret;
 	}
 	res->regul_count = ARRAY_SIZE(supply);
+
+	res->reg_hdmi_en = devm_regulator_get(dev, "hdmi-en");
+	if (IS_ERR(res->reg_hdmi_en) && PTR_ERR(res->reg_hdmi_en) != -ENOENT) {
+		DRM_ERROR("failed to get hdmi-en regulator\n");
+		return PTR_ERR(res->reg_hdmi_en);
+	}
+	if (!IS_ERR(res->reg_hdmi_en)) {
+		ret = regulator_enable(res->reg_hdmi_en);
+		if (ret) {
+			DRM_ERROR("failed to enable hdmi-en regulator\n");
+			return ret;
+		}
+	} else
+		res->reg_hdmi_en = NULL;
 
 	return ret;
 fail:
@@ -2492,6 +2506,9 @@ static int hdmi_remove(struct platform_device *pdev)
 	struct hdmi_context *hdata = hdmi_display.ctx;
 
 	cancel_delayed_work_sync(&hdata->hotplug_work);
+
+	if (hdata->res.reg_hdmi_en)
+		regulator_disable(hdata->res.reg_hdmi_en);
 
 	put_device(&hdata->hdmiphy_port->dev);
 	put_device(&hdata->ddc_adpt->dev);
