@@ -1,6 +1,7 @@
 /dts-v1/;
 
 #include "rk3288.dtsi"
+#include "lcd-b101ew05.dtsi"
 
 / {
 	memory {
@@ -9,13 +10,46 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyFIQ0 rockchip_jtag";
+		bootargs = "initrd=0x04ff0000,0x2000000 init=/init console=ttyFIQ0 androidboot.console=ttyFIQ0 androidboot.hardware=rk30board rockchip_jtag loglevel=1";
 	};
 
 	fiq-debugger {
 		status = "okay";
 	};
-    
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "vdd_arm";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+		};
+
+		regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "vdd_gpu";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+		};
+
+		regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "vdd_logic";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-always-on;
+		};
+	};
+
         rockchip_ft_test {            
             // firs rate is setting in rockchip_clocks_init,so it is set 0xfffffffff            
             //rockchip,arm_rate =<0xffffffff 456000000 504000000 552000000>;     
@@ -29,6 +63,10 @@
                                                //ready_pin idle_pin
            rockchip,ft_vol_gpios= <GPIO0_C2 GPIO0_A0>;   
         };
+};
+
+&lcdc0 {
+	status = "okay";
 };
 
  &rockchip_clocks_init {
@@ -51,6 +89,28 @@
 			<&clk_tspout 80000000>, <&clk_mac 125000000>;
 };
 
+&clk_core_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		126000 1000000
+		216000 1000000
+		312000 1000000
+		408000 1000000
+		600000 1000000
+		696000 1000000
+		816000 1000000
+		1008000 1000000
+		>;
+	status="okay";
+};
 
-
-
+&clk_gpu_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		100000 1000000
+		200000 1000000
+		300000 1000000
+		400000 1000000
+		>;
+	status="okay";
+};
