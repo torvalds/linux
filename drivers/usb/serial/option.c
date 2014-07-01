@@ -1925,6 +1925,7 @@ static int option_send_setup(struct usb_serial_port *port)
 	struct option_private *priv = intfdata->private;
 	struct usb_wwan_port_private *portdata;
 	int val = 0;
+	int res;
 
 	portdata = usb_get_serial_port_data(port);
 
@@ -1933,9 +1934,17 @@ static int option_send_setup(struct usb_serial_port *port)
 	if (portdata->rts_state)
 		val |= 0x02;
 
-	return usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+	res = usb_autopm_get_interface(serial->interface);
+	if (res)
+		return res;
+
+	res = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 				0x22, 0x21, val, priv->bInterfaceNumber, NULL,
 				0, USB_CTRL_SET_TIMEOUT);
+
+	usb_autopm_put_interface(serial->interface);
+
+	return res;
 }
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
