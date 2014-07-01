@@ -3508,8 +3508,7 @@ struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 
 /* This function requires the caller holds hdev->lock */
 int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
-			u8 auto_connect, u16 conn_min_interval,
-			u16 conn_max_interval)
+			u8 auto_connect)
 {
 	struct hci_conn_params *params;
 
@@ -3517,8 +3516,6 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 	if (!params)
 		return -EIO;
 
-	params->conn_min_interval = conn_min_interval;
-	params->conn_max_interval = conn_max_interval;
 	params->auto_connect = auto_connect;
 
 	switch (auto_connect) {
@@ -3532,9 +3529,8 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 		break;
 	}
 
-	BT_DBG("addr %pMR (type %u) auto_connect %u conn_min_interval 0x%.4x "
-	       "conn_max_interval 0x%.4x", addr, addr_type, auto_connect,
-	       conn_min_interval, conn_max_interval);
+	BT_DBG("addr %pMR (type %u) auto_connect %u", addr, addr_type,
+	       auto_connect);
 
 	return 0;
 }
