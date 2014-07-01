@@ -1649,32 +1649,13 @@ static void soc_unregister_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
 }
 #endif
 
-static struct snd_soc_codec *soc_find_matching_codec(struct snd_soc_card *card,
-	int num)
-{
-	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
-	struct snd_soc_codec *codec;
-
-	/* find CODEC from registered CODECs */
-	list_for_each_entry(codec, &codec_list, list) {
-		if (aux_dev->codec_of_node &&
-		   (codec->dev->of_node != aux_dev->codec_of_node))
-			continue;
-		if (aux_dev->codec_name &&
-			strcmp(codec->component.name, aux_dev->codec_name))
-			continue;
-		return codec;
-	}
-
-	return NULL;
-}
-
 static int soc_check_aux_dev(struct snd_soc_card *card, int num)
 {
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	const char *codecname = aux_dev->codec_name;
-	struct snd_soc_codec *codec = soc_find_matching_codec(card, num);
+	struct snd_soc_codec *codec;
 
+	codec = soc_find_codec(aux_dev->codec_of_node, aux_dev->codec_name);
 	if (codec)
 		return 0;
 	if (aux_dev->codec_of_node)
@@ -1689,8 +1670,9 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	const char *codecname = aux_dev->codec_name;
 	int ret = -ENODEV;
-	struct snd_soc_codec *codec = soc_find_matching_codec(card, num);
+	struct snd_soc_codec *codec;
 
+	codec = soc_find_codec(aux_dev->codec_of_node, aux_dev->codec_name);
 	if (!codec) {
 		if (aux_dev->codec_of_node)
 			codecname = of_node_full_name(aux_dev->codec_of_node);
