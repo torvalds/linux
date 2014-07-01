@@ -758,24 +758,6 @@ config ARCH_S3C64XX
 	help
 	  Samsung S3C64XX series based systems
 
-config ARCH_S5P64X0
-	bool "Samsung S5P6440 S5P6450"
-	select ATAGS
-	select CLKDEV_LOOKUP
-	select CLKSRC_SAMSUNG_PWM
-	select CPU_V6
-	select GENERIC_CLOCKEVENTS
-	select GPIO_SAMSUNG
-	select HAVE_S3C2410_I2C if I2C
-	select HAVE_S3C2410_WATCHDOG if WATCHDOG
-	select HAVE_S3C_RTC if RTC_CLASS
-	select NEED_MACH_GPIO_H
-	select SAMSUNG_ATAGS
-	select SAMSUNG_WDT_RESET
-	help
-	  Samsung S5P64X0 CPU based systems, such as the Samsung SMDK6440,
-	  SMDK6450.
-
 config ARCH_S5PC100
 	bool "Samsung S5PC100"
 	select ARCH_REQUIRE_GPIOLIB
@@ -1003,8 +985,6 @@ source "arch/arm/mach-sti/Kconfig"
 source "arch/arm/mach-s3c24xx/Kconfig"
 
 source "arch/arm/mach-s3c64xx/Kconfig"
-
-source "arch/arm/mach-s5p64x0/Kconfig"
 
 source "arch/arm/mach-s5pc100/Kconfig"
 
@@ -1569,7 +1549,7 @@ source kernel/Kconfig.preempt
 
 config HZ_FIXED
 	int
-	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || ARCH_S5P64X0 || \
+	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE_LEGACY

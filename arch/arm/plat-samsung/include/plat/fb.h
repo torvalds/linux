@@ -61,11 +61,4 @@ extern void s5pv210_fb_gpio_setup_24bpp(void);
  */
 extern void exynos4_fimd0_gpio_setup_24bpp(void);
 
-/**
- * s5p64x0_fb_gpio_setup_24bpp() - S5P6440/S5P6450 setup function for 24bpp LCD
- *
- * Initialise the GPIO for an 24bpp LCD display on the RGB interface.
- */
-extern void s5p64x0_fb_gpio_setup_24bpp(void);
-
 #endif /* __PLAT_S3C_FB_H */

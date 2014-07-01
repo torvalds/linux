@@ -15,7 +15,7 @@ config PLAT_SAMSUNG
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
+	depends on (ARCH_S5PC100 || ARCH_S5PV210)
 	default y
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_VIC
@@ -29,7 +29,7 @@ config PLAT_S5P
 
 config SAMSUNG_PM
 	bool
-	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX || ARCH_S5P64X0 || S5P_PM)
+	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX || S5P_PM)
 	default y
 	help
 	  Base platform power management code for samsung code
@@ -78,14 +78,14 @@ config SAMSUNG_CLKSRC
 	  used by newer systems such as the S3C64XX.
 
 config S5P_CLOCK
-	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
+	def_bool (ARCH_S5PC100 || ARCH_S5PV210)
 	help
 	  Support common clock part for ARCH_S5P and ARCH_EXYNOS SoCs
 
 # options for IRQ support
 
 config S5P_IRQ
-	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
+	def_bool (ARCH_S5PC100 || ARCH_S5PV210)
 	help
 	  Support common interrupt part for ARCH_S5P SoCs
 
@@ -93,7 +93,6 @@ config S5P_EXT_INT
 	bool
 	help
 	  Use the external interrupts (other than GPIO interrupts.)
-	  Note: Do not choose this for S5P6440 and S5P6450.
 
 config S5P_GPIO_INT
 	bool
@@ -143,7 +142,7 @@ config S3C_GPIO_TRACK
 
 config S5P_DEV_UART
 	def_bool y
-	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
+	depends on (ARCH_S5PC100 || ARCH_S5PV210)
 
 # ADC driver
 
@@ -397,7 +396,7 @@ config SAMSUNG_PM_GPIO
 
 config SAMSUNG_DMADEV
 	bool "Use legacy Samsung DMA abstraction"
-	depends on CPU_S5PV210 || CPU_S5PC100 || ARCH_S5P64X0 || ARCH_S3C64XX
+	depends on CPU_S5PV210 || CPU_S5PC100 || ARCH_S3C64XX
 	select DMADEVICES
 	default y
 	help
@@ -474,7 +473,6 @@ config S5P_PM
 	bool
 	help
 	  Common code for power management support on S5P and newer SoCs
-	  Note: Do not select this for S5P6440 and S5P6450.
 
 config S5P_SLEEP
 	bool

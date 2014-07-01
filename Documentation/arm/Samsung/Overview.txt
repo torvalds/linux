@@ -13,7 +13,6 @@ Introduction
 
   - S3C24XX: See Documentation/arm/Samsung-S3C24XX/Overview.txt for full list
   - S3C64XX: S3C6400 and S3C6410
-  - S5P6440
   - S5PC100
   - S5PC110 / S5PV210
 
@@ -34,7 +33,6 @@ Configuration
   A number of configurations are supplied, as there is no current way of
   unifying all the SoCs into one kernel.
 
-  s5p6440_defconfig - S5P6440 specific default configuration
   s5pc100_defconfig - S5PC100 specific default configuration
   s5pc110_defconfig - S5PC110 specific default configuration
   s5pv210_defconfig - S5PV210 specific default configuration
