@@ -1787,7 +1787,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) ||
-	    (changed & BSS_CHANGED_BEACON_INT)) {
+	    (changed & BSS_CHANGED_BEACON_INT) ||
+	    (changed & BSS_CHANGED_BEACON_INFO)) {
 		if (changed & BSS_CHANGED_BEACON_ENABLED)
 			ath9k_calculate_summary_state(sc, avp->chanctx);
 		ath9k_beacon_config(sc, vif, changed);

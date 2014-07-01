@@ -57,7 +57,7 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 				 struct ath9k_beacon_state *bs)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	int dtim_intval;
+	int dtim_intval, sleepduration;
 	u64 tsf;
 
 	/* No need to configure beacon if we are not associated */
@@ -75,6 +75,7 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 	 * last beacon we received (which may be none).
 	 */
 	dtim_intval = conf->intval * conf->dtim_period;
+	sleepduration = ah->hw->conf.listen_interval * conf->intval;
 
 	/*
 	 * Pull nexttbtt forward to reflect the current
@@ -112,7 +113,7 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 	 */
 
 	bs->bs_sleepduration = TU_TO_USEC(roundup(IEEE80211_MS_TO_TU(100),
-						 conf->intval));
+						  sleepduration));
 	if (bs->bs_sleepduration > bs->bs_dtimperiod)
 		bs->bs_sleepduration = bs->bs_dtimperiod;
 
