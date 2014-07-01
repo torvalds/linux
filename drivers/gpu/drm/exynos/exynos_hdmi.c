@@ -593,6 +593,13 @@ static struct hdmi_driver_data exynos4212_hdmi_driver_data = {
 	.is_apb_phy	= 0,
 };
 
+static struct hdmi_driver_data exynos4210_hdmi_driver_data = {
+	.type		= HDMI_TYPE13,
+	.phy_confs	= hdmiphy_v13_configs,
+	.phy_conf_count	= ARRAY_SIZE(hdmiphy_v13_configs),
+	.is_apb_phy	= 0,
+};
+
 static struct hdmi_driver_data exynos5_hdmi_driver_data = {
 	.type		= HDMI_TYPE14,
 	.phy_confs	= hdmiphy_v13_configs,
@@ -2275,6 +2282,9 @@ static struct of_device_id hdmi_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmi",
 		.data = &exynos5_hdmi_driver_data,
+	}, {
+		.compatible = "samsung,exynos4210-hdmi",
+		.data = &exynos4210_hdmi_driver_data,
 	}, {
 		.compatible = "samsung,exynos4212-hdmi",
 		.data = &exynos4212_hdmi_driver_data,
