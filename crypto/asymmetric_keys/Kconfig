@@ -46,4 +46,17 @@ config PKCS7_MESSAGE_PARSER
 	  This option provides support for parsing PKCS#7 format messages for
 	  signature data and provides the ability to verify the signature.
 
+config PKCS7_TEST_KEY
+	tristate "PKCS#7 testing key type"
+	depends on PKCS7_MESSAGE_PARSER
+	select SYSTEM_TRUSTED_KEYRING
+	help
+	  This option provides a type of key that can be loaded up from a
+	  PKCS#7 message - provided the message is signed by a trusted key.  If
+	  it is, the PKCS#7 wrapper is discarded and reading the key returns
+	  just the payload.  If it isn't, adding the key will fail with an
+	  error.
+
+	  This is intended for testing the PKCS#7 parser.
+
 endif # ASYMMETRIC_KEY_TYPE
