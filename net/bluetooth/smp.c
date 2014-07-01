@@ -859,6 +859,17 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 	return true;
 }
 
+bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
+{
+	if (sec_level == BT_SECURITY_LOW)
+		return true;
+
+	if (hcon->sec_level >= sec_level)
+		return true;
+
+	return false;
+}
+
 static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_security_req *rp = (void *) skb->data;
@@ -876,6 +887,9 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		return SMP_CMD_NOTSUPP;
 
 	sec_level = authreq_to_seclevel(rp->auth_req);
+	if (smp_sufficient_security(hcon, sec_level))
+		return 0;
+
 	if (sec_level > hcon->pending_sec_level)
 		hcon->pending_sec_level = sec_level;
 
@@ -902,17 +916,6 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	clear_bit(SMP_FLAG_INITIATOR, &smp->flags);
 
 	return 0;
-}
-
-bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
-{
-	if (sec_level == BT_SECURITY_LOW)
-		return true;
-
-	if (hcon->sec_level >= sec_level)
-		return true;
-
-	return false;
 }
 
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
