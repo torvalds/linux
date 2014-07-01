@@ -78,16 +78,16 @@ static int msglevel = MSG_LEVEL_INFO;
 #define CRITICAL_PACKET_LEN      256    // if packet size < 256 -> in-direct send
                                         //    packet size >= 256 -> direct send
 
-const unsigned short wTimeStampOff[2][MAX_RATE] = {
+static const unsigned short wTimeStampOff[2][MAX_RATE] = {
 	{384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23}, // Long Preamble
 	{384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23}, // Short Preamble
 };
 
-const unsigned short wFB_Opt0[2][5] = {
+static const unsigned short wFB_Opt0[2][5] = {
 	{RATE_12M, RATE_18M, RATE_24M, RATE_36M, RATE_48M}, // fallback_rate0
 	{RATE_12M, RATE_12M, RATE_18M, RATE_24M, RATE_36M}, // fallback_rate1
 };
-const unsigned short wFB_Opt1[2][5] = {
+static const unsigned short wFB_Opt1[2][5] = {
 	{RATE_12M, RATE_18M, RATE_24M, RATE_24M, RATE_36M}, // fallback_rate0
 	{RATE_6M , RATE_6M,  RATE_12M, RATE_12M, RATE_18M}, // fallback_rate1
 };
