@@ -5306,6 +5306,7 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	if (!test_bit(HCI_UP, &hdev->flags) ||
 	    test_bit(HCI_INIT, &hdev->flags) ||
 	    test_bit(HCI_SETUP, &hdev->dev_flags) ||
+	    test_bit(HCI_AUTO_OFF, &hdev->dev_flags) ||
 	    test_bit(HCI_UNREGISTER, &hdev->dev_flags))
 		return;
 
