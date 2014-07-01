@@ -355,6 +355,7 @@ enum {
 #define HCI_LK_AUTH_COMBINATION_P256	0x08
 
 /* ---- HCI Error Codes ---- */
+#define HCI_ERROR_UNKNOWN_CONN_ID	0x02
 #define HCI_ERROR_AUTH_FAILURE		0x05
 #define HCI_ERROR_MEMORY_EXCEEDED	0x07
 #define HCI_ERROR_CONNECTION_TIMEOUT	0x08
@@ -364,6 +365,7 @@ enum {
 #define HCI_ERROR_REMOTE_POWER_OFF	0x15
 #define HCI_ERROR_LOCAL_HOST_TERM	0x16
 #define HCI_ERROR_PAIRING_NOT_ALLOWED	0x18
+#define HCI_ERROR_INVALID_LL_PARAMS	0x1E
 #define HCI_ERROR_ADVERTISING_TIMEOUT	0x3c
 
 /* Flow control modes */
@@ -1305,6 +1307,23 @@ struct hci_rp_le_read_supported_states {
 	__u8	le_states[8];
 } __packed;
 
+#define HCI_OP_LE_CONN_PARAM_REQ_REPLY	0x2020
+struct hci_cp_le_conn_param_req_reply {
+	__le16	handle;
+	__le16	interval_min;
+	__le16	interval_max;
+	__le16	latency;
+	__le16	timeout;
+	__le16	min_ce_len;
+	__le16	max_ce_len;
+} __packed;
+
+#define HCI_OP_LE_CONN_PARAM_REQ_NEG_REPLY	0x2021
+struct hci_cp_le_conn_param_req_neg_reply {
+	__le16	handle;
+	__u8	reason;
+} __packed;
+
 /* ---- HCI Events ---- */
 #define HCI_EV_INQUIRY_COMPLETE		0x01
 
@@ -1698,6 +1717,15 @@ struct hci_ev_le_ltk_req {
 	__le16	handle;
 	__le64	rand;
 	__le16	ediv;
+} __packed;
+
+#define HCI_EV_LE_REMOTE_CONN_PARAM_REQ	0x06
+struct hci_ev_le_remote_conn_param_req {
+	__le16 handle;
+	__le16 interval_min;
+	__le16 interval_max;
+	__le16 latency;
+	__le16 timeout;
 } __packed;
 
 /* Advertising report event types */

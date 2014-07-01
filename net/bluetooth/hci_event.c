@@ -4382,6 +4382,52 @@ not_found:
 	hci_dev_unlock(hdev);
 }
 
+static void send_conn_param_neg_reply(struct hci_dev *hdev, u16 handle,
+				      u8 reason)
+{
+	struct hci_cp_le_conn_param_req_neg_reply cp;
+
+	cp.handle = cpu_to_le16(handle);
+	cp.reason = reason;
+
+	hci_send_cmd(hdev, HCI_OP_LE_CONN_PARAM_REQ_NEG_REPLY, sizeof(cp),
+		     &cp);
+}
+
+static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
+					     struct sk_buff *skb)
+{
+	struct hci_ev_le_remote_conn_param_req *ev = (void *) skb->data;
+	struct hci_cp_le_conn_param_req_reply cp;
+	struct hci_conn *hcon;
+	u16 handle, min, max, latency, timeout;
+
+	handle = le16_to_cpu(ev->handle);
+	min = le16_to_cpu(ev->interval_min);
+	max = le16_to_cpu(ev->interval_max);
+	latency = le16_to_cpu(ev->latency);
+	timeout = le16_to_cpu(ev->timeout);
+
+	hcon = hci_conn_hash_lookup_handle(hdev, handle);
+	if (!hcon || hcon->state != BT_CONNECTED)
+		return send_conn_param_neg_reply(hdev, handle,
+						 HCI_ERROR_UNKNOWN_CONN_ID);
+
+	if (hci_check_conn_params(min, max, latency, timeout))
+		return send_conn_param_neg_reply(hdev, handle,
+						 HCI_ERROR_INVALID_LL_PARAMS);
+
+	cp.handle = ev->handle;
+	cp.interval_min = ev->interval_min;
+	cp.interval_max = ev->interval_max;
+	cp.latency = ev->latency;
+	cp.timeout = ev->timeout;
+	cp.min_ce_len = 0;
+	cp.max_ce_len = 0;
+
+	hci_send_cmd(hdev, HCI_OP_LE_CONN_PARAM_REQ_REPLY, sizeof(cp), &cp);
+}
+
 static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_le_meta *le_ev = (void *) skb->data;
@@ -4403,6 +4449,10 @@ static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_LE_LTK_REQ:
 		hci_le_ltk_request_evt(hdev, skb);
+		break;
+
+	case HCI_EV_LE_REMOTE_CONN_PARAM_REQ:
+		hci_le_remote_conn_param_req_evt(hdev, skb);
 		break;
 
 	default:
