@@ -8,6 +8,9 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef _AT91_GENERIC_H
+#define _AT91_GENERIC_H
+
 #include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/reboot.h>
@@ -84,3 +87,5 @@ extern int  __init at91_gpio_of_irq_setup(struct device_node *node,
 					  struct device_node *parent);
 
 extern u32 at91_get_extern_irq(void);
+
+#endif /* _AT91_GENERIC_H */
