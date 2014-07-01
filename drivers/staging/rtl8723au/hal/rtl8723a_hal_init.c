@@ -49,93 +49,14 @@ static void _FWDownloadEnable(struct rtw_adapter *padapter, bool enable)
 
 static int _BlockWrite(struct rtw_adapter *padapter, void *buffer, u32 buffSize)
 {
-	int ret = _SUCCESS;
-	/*  (Default) Phase #1 : PCI muse use 4-byte write to download FW */
-	u32 blockSize_p1 = 4;
-	/*  Phase #2 : Use 8-byte, if Phase#1 use big size to write FW. */
-	u32 blockSize_p2 = 8;
-	/*  Phase #3 : Use 1-byte, the remnant of FW image. */
-	u32 blockSize_p3 = 1;
-	u32 blockCount_p1 = 0, blockCount_p2 = 0, blockCount_p3 = 0;
-	u32 remainSize_p1 = 0, remainSize_p2 = 0;
-	u8 *bufferPtr = (u8 *) buffer;
-	u32 i = 0, offset = 0;
+	int ret;
 
-	blockSize_p1 = 254;
+	if (buffSize > MAX_PAGE_SIZE)
+		return _FAIL;
 
-	/* 3 Phase #1 */
-	blockCount_p1 = buffSize / blockSize_p1;
-	remainSize_p1 = buffSize % blockSize_p1;
+	ret = rtl8723au_writeN(padapter, FW_8723A_START_ADDRESS,
+			       buffSize, buffer);
 
-	if (blockCount_p1) {
-		RT_TRACE(_module_hal_init_c_, _drv_notice_,
-			 ("_BlockWrite: [P1] buffSize(%d) blockSize_p1(%d) "
-			  "blockCount_p1(%d) remainSize_p1(%d)\n",
-			  buffSize, blockSize_p1, blockCount_p1,
-			  remainSize_p1));
-	}
-
-	for (i = 0; i < blockCount_p1; i++) {
-		ret = rtl8723au_writeN(padapter, (FW_8723A_START_ADDRESS +
-						  i * blockSize_p1),
-				       blockSize_p1,
-				       (bufferPtr + i * blockSize_p1));
-		if (ret == _FAIL)
-			goto exit;
-	}
-
-	/* 3 Phase #2 */
-	if (remainSize_p1) {
-		offset = blockCount_p1 * blockSize_p1;
-
-		blockCount_p2 = remainSize_p1 / blockSize_p2;
-		remainSize_p2 = remainSize_p1 % blockSize_p2;
-
-		if (blockCount_p2) {
-			RT_TRACE(_module_hal_init_c_, _drv_notice_,
-				 ("_BlockWrite: [P2] buffSize_p2(%d) "
-				  "blockSize_p2(%d) blockCount_p2(%d) "
-				  "remainSize_p2(%d)\n",
-				  (buffSize - offset), blockSize_p2,
-				  blockCount_p2, remainSize_p2));
-		}
-
-		for (i = 0; i < blockCount_p2; i++) {
-			ret = rtl8723au_writeN(padapter,
-					       (FW_8723A_START_ADDRESS +
-						offset + i * blockSize_p2),
-					       blockSize_p2,
-					       (bufferPtr + offset +
-						i * blockSize_p2));
-
-			if (ret == _FAIL)
-				goto exit;
-		}
-	}
-
-	/* 3 Phase #3 */
-	if (remainSize_p2) {
-		offset = (blockCount_p1 * blockSize_p1) +
-			(blockCount_p2 * blockSize_p2);
-
-		blockCount_p3 = remainSize_p2 / blockSize_p3;
-
-		RT_TRACE(_module_hal_init_c_, _drv_notice_,
-			 ("_BlockWrite: [P3] buffSize_p3(%d) blockSize_p3(%d) "
-			  "blockCount_p3(%d)\n",
-			  (buffSize - offset), blockSize_p3, blockCount_p3));
-
-		for (i = 0; i < blockCount_p3; i++) {
-			ret = rtl8723au_write8(padapter,
-					       (FW_8723A_START_ADDRESS + offset + i),
-					       *(bufferPtr + offset + i));
-
-			if (ret == _FAIL)
-				goto exit;
-		}
-	}
-
-exit:
 	return ret;
 }
 
