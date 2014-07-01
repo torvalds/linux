@@ -55,44 +55,6 @@ struct ad7418_data {
 	u16			in[4];
 };
 
-static int ad7418_probe(struct i2c_client *client,
-			const struct i2c_device_id *id);
-static int ad7418_remove(struct i2c_client *client);
-
-static const struct i2c_device_id ad7418_id[] = {
-	{ "ad7416", ad7416 },
-	{ "ad7417", ad7417 },
-	{ "ad7418", ad7418 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, ad7418_id);
-
-static struct i2c_driver ad7418_driver = {
-	.driver = {
-		.name	= "ad7418",
-	},
-	.probe		= ad7418_probe,
-	.remove		= ad7418_remove,
-	.id_table	= ad7418_id,
-};
-
-static void ad7418_init_client(struct i2c_client *client)
-{
-	struct ad7418_data *data = i2c_get_clientdata(client);
-
-	int reg = i2c_smbus_read_byte_data(client, AD7418_REG_CONF);
-	if (reg < 0) {
-		dev_err(&client->dev, "cannot read configuration register\n");
-	} else {
-		dev_info(&client->dev, "configuring for mode 1\n");
-		i2c_smbus_write_byte_data(client, AD7418_REG_CONF, reg & 0xfe);
-
-		if (data->type == ad7417 || data->type == ad7418)
-			i2c_smbus_write_byte_data(client,
-						AD7418_REG_CONF2, 0x00);
-	}
-}
-
 static struct ad7418_data *ad7418_update_device(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -219,6 +181,23 @@ static struct attribute *ad7418_attributes[] = {
 	NULL
 };
 
+static void ad7418_init_client(struct i2c_client *client)
+{
+	struct ad7418_data *data = i2c_get_clientdata(client);
+
+	int reg = i2c_smbus_read_byte_data(client, AD7418_REG_CONF);
+	if (reg < 0) {
+		dev_err(&client->dev, "cannot read configuration register\n");
+	} else {
+		dev_info(&client->dev, "configuring for mode 1\n");
+		i2c_smbus_write_byte_data(client, AD7418_REG_CONF, reg & 0xfe);
+
+		if (data->type == ad7417 || data->type == ad7418)
+			i2c_smbus_write_byte_data(client,
+						AD7418_REG_CONF2, 0x00);
+	}
+}
+
 static int ad7418_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -287,6 +266,23 @@ static int ad7418_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &data->attrs);
 	return 0;
 }
+
+static const struct i2c_device_id ad7418_id[] = {
+	{ "ad7416", ad7416 },
+	{ "ad7417", ad7417 },
+	{ "ad7418", ad7418 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ad7418_id);
+
+static struct i2c_driver ad7418_driver = {
+	.driver = {
+		.name	= "ad7418",
+	},
+	.probe		= ad7418_probe,
+	.remove		= ad7418_remove,
+	.id_table	= ad7418_id,
+};
 
 module_i2c_driver(ad7418_driver);
 
