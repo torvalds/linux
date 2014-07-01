@@ -214,12 +214,6 @@ struct pwrctrl_priv {
 	unsigned long PS_BBRegBackup[PSBBREG_TOTALCNT];
 };
 
-#define rtw_get_ips_mode_req(pwrctrlpriv) \
-	((pwrctrlpriv)->ips_mode_req)
-
-#define rtw_ips_mode_req(pwrctrlpriv, ips_mode) \
-	((pwrctrlpriv)->ips_mode_req = (ips_mode))
-
 #define RTW_PWR_STATE_CHK_INTERVAL 2000
 
 #define _rtw_set_pwr_state_check_timer(pwrctrlpriv, ms) \

@@ -615,19 +615,16 @@ int rtw_pm_set_ips23a(struct rtw_adapter *padapter, u8 mode)
 {
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
-	if (mode == IPS_NORMAL || mode == IPS_LEVEL_2) {
-		rtw_ips_mode_req(pwrctrlpriv, mode);
-		DBG_8723A("%s %s\n", __func__,
-			  mode == IPS_NORMAL?"IPS_NORMAL":"IPS_LEVEL_2");
-		return 0;
-	} else if (mode == IPS_NONE) {
-		rtw_ips_mode_req(pwrctrlpriv, mode);
+	if (mode != IPS_NORMAL && mode != IPS_LEVEL_2 && mode != IPS_NONE)
+		return -EINVAL;
+
+	pwrctrlpriv->ips_mode_req = mode;
+	if (mode == IPS_NONE) {
 		DBG_8723A("%s %s\n", __func__, "IPS_NONE");
 		if (padapter->bSurpriseRemoved == 0 &&
 		    rtw_pwr_wakeup(padapter) == _FAIL)
 			return -EFAULT;
-	} else
-		return -EINVAL;
+	}
 
 	return 0;
 }
