@@ -120,6 +120,55 @@ error_no_desc:
 }
 
 /*
+ * Find the key (X.509 certificate) to use to verify a PKCS#7 message.  PKCS#7
+ * uses the issuer's name and the issuing certificate serial number for
+ * matching purposes.  These must match the certificate issuer's name (not
+ * subject's name) and the certificate serial number [RFC 2315 6.7].
+ */
+static int pkcs7_find_key(struct pkcs7_message *pkcs7,
+			  struct pkcs7_signed_info *sinfo)
+{
+	struct x509_certificate *x509;
+	unsigned certix = 1;
+
+	kenter("%u,%u,%u",
+	       sinfo->index, sinfo->raw_serial_size, sinfo->raw_issuer_size);
+
+	for (x509 = pkcs7->certs; x509; x509 = x509->next, certix++) {
+		/* I'm _assuming_ that the generator of the PKCS#7 message will
+		 * encode the fields from the X.509 cert in the same way in the
+		 * PKCS#7 message - but I can't be 100% sure of that.  It's
+		 * possible this will need element-by-element comparison.
+		 */
+		if (x509->raw_serial_size != sinfo->raw_serial_size ||
+		    memcmp(x509->raw_serial, sinfo->raw_serial,
+			   sinfo->raw_serial_size) != 0)
+			continue;
+		pr_devel("Sig %u: Found cert serial match X.509[%u]\n",
+			 sinfo->index, certix);
+
+		if (x509->raw_issuer_size != sinfo->raw_issuer_size ||
+		    memcmp(x509->raw_issuer, sinfo->raw_issuer,
+			   sinfo->raw_issuer_size) != 0) {
+			pr_warn("Sig %u: X.509 subject and PKCS#7 issuer don't match\n",
+				sinfo->index);
+			continue;
+		}
+
+		if (x509->pub->pkey_algo != sinfo->sig.pkey_algo) {
+			pr_warn("Sig %u: X.509 algo and PKCS#7 sig algo don't match\n",
+				sinfo->index);
+			continue;
+		}
+
+		sinfo->signer = x509;
+		return 0;
+	}
+	pr_warn("Sig %u: Issuing X.509 cert not found (#%*ph)\n",
+		sinfo->index, sinfo->raw_serial_size, sinfo->raw_serial);
+	return -ENOKEY;
+}
+
 /*
  * Verify one signed information block from a PKCS#7 message.
  */
@@ -136,6 +185,21 @@ static int pkcs7_verify_one(struct pkcs7_message *pkcs7,
 	ret = pkcs7_digest(pkcs7, sinfo);
 	if (ret < 0)
 		return ret;
+
+	/* Find the key for the signature */
+	ret = pkcs7_find_key(pkcs7, sinfo);
+	if (ret < 0)
+		return ret;
+
+	pr_devel("Using X.509[%u] for sig %u\n",
+		 sinfo->signer->index, sinfo->index);
+
+	/* Verify the PKCS#7 binary against the key */
+	ret = public_key_verify_signature(sinfo->signer->pub, &sinfo->sig);
+	if (ret < 0)
+		return ret;
+
+	pr_devel("Verified signature %u\n", sinfo->index);
 
 	return 0;
 }

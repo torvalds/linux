@@ -21,3 +21,8 @@ extern void pkcs7_free_message(struct pkcs7_message *pkcs7);
 extern int pkcs7_get_content_data(const struct pkcs7_message *pkcs7,
 				  const void **_data, size_t *_datalen,
 				  bool want_wrapper);
+
+/*
+ * pkcs7_verify.c
+ */
+extern int pkcs7_verify(struct pkcs7_message *pkcs7);
