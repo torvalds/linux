@@ -369,8 +369,6 @@ int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev)
 static int gdm_wimax_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	int ret = 0;
-	struct nic *nic = netdev_priv(dev);
-	struct fsm_s *fsm = (struct fsm_s *)nic->sdk_data[SIOC_DATA_FSM].buf;
 
 	dump_eth_packet(dev, "TX", skb->data, skb->len);
 
@@ -379,17 +377,6 @@ static int gdm_wimax_tx(struct sk_buff *skb, struct net_device *dev)
 		skb_pull(skb, HCI_HEADER_SIZE);
 		return ret;
 	}
-
-	#if !defined(LOOPBACK_TEST)
-	if (!fsm) {
-		netdev_err(dev, "ASSERTION ERROR: fsm is NULL!!\n");
-	} else if (fsm->m_status != M_CONNECTED) {
-		netdev_emerg(dev, "ASSERTION ERROR: Device is NOT ready. status=%d\n",
-			     fsm->m_status);
-		kfree_skb(skb);
-		return 0;
-	}
-	#endif
 
 #if defined(CONFIG_WIMAX_GDM72XX_QOS)
 	ret = gdm_qos_send_hci_pkt(skb, dev);
@@ -921,12 +908,7 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)
 	if (ret)
 		goto cleanup;
 
-	#if defined(LOOPBACK_TEST)
-	netif_start_queue(dev);
-	netif_carrier_on(dev);
-	#else
 	netif_carrier_off(dev);
-	#endif
 
 #ifdef CONFIG_WIMAX_GDM72XX_QOS
 	gdm_qos_init(nic);
