@@ -29,7 +29,8 @@ struct samsung_usb2_phy_instance {
 	const struct samsung_usb2_common_phy *cfg;
 	struct phy *phy;
 	struct samsung_usb2_phy_driver *drv;
-	bool enabled;
+	int int_cnt;
+	int ext_cnt;
 };
 
 struct samsung_usb2_phy_driver {
