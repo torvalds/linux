@@ -845,12 +845,6 @@ done:
 	return status;
 }
 
-int gpio_request(unsigned gpio, const char *label)
-{
-	return gpiod_request(gpio_to_desc(gpio), label);
-}
-EXPORT_SYMBOL_GPL(gpio_request);
-
 static bool __gpiod_free(struct gpio_desc *desc)
 {
 	bool			ret = false;
@@ -890,93 +884,6 @@ void gpiod_free(struct gpio_desc *desc)
 	else
 		WARN_ON(extra_checks);
 }
-
-void gpio_free(unsigned gpio)
-{
-	gpiod_free(gpio_to_desc(gpio));
-}
-EXPORT_SYMBOL_GPL(gpio_free);
-
-/**
- * gpio_request_one - request a single GPIO with initial configuration
- * @gpio:	the GPIO number
- * @flags:	GPIO configuration as specified by GPIOF_*
- * @label:	a literal description string of this GPIO
- */
-int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
-{
-	struct gpio_desc *desc;
-	int err;
-
-	desc = gpio_to_desc(gpio);
-
-	err = gpiod_request(desc, label);
-	if (err)
-		return err;
-
-	if (flags & GPIOF_OPEN_DRAIN)
-		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
-
-	if (flags & GPIOF_OPEN_SOURCE)
-		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
-
-	if (flags & GPIOF_DIR_IN)
-		err = gpiod_direction_input(desc);
-	else
-		err = gpiod_direction_output_raw(desc,
-				(flags & GPIOF_INIT_HIGH) ? 1 : 0);
-
-	if (err)
-		goto free_gpio;
-
-	if (flags & GPIOF_EXPORT) {
-		err = gpiod_export(desc, flags & GPIOF_EXPORT_CHANGEABLE);
-		if (err)
-			goto free_gpio;
-	}
-
-	return 0;
-
- free_gpio:
-	gpiod_free(desc);
-	return err;
-}
-EXPORT_SYMBOL_GPL(gpio_request_one);
-
-/**
- * gpio_request_array - request multiple GPIOs in a single call
- * @array:	array of the 'struct gpio'
- * @num:	how many GPIOs in the array
- */
-int gpio_request_array(const struct gpio *array, size_t num)
-{
-	int i, err;
-
-	for (i = 0; i < num; i++, array++) {
-		err = gpio_request_one(array->gpio, array->flags, array->label);
-		if (err)
-			goto err_free;
-	}
-	return 0;
-
-err_free:
-	while (i--)
-		gpio_free((--array)->gpio);
-	return err;
-}
-EXPORT_SYMBOL_GPL(gpio_request_array);
-
-/**
- * gpio_free_array - release multiple GPIOs in a single call
- * @array:	array of the 'struct gpio'
- * @num:	how many GPIOs in the array
- */
-void gpio_free_array(const struct gpio *array, size_t num)
-{
-	while (num--)
-		gpio_free((array++)->gpio);
-}
-EXPORT_SYMBOL_GPL(gpio_free_array);
 
 /**
  * gpiochip_is_requested - return string iff signal was requested
@@ -1545,12 +1452,6 @@ int gpiod_lock_as_irq(struct gpio_desc *desc)
 }
 EXPORT_SYMBOL_GPL(gpiod_lock_as_irq);
 
-int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
-{
-	return gpiod_lock_as_irq(gpiochip_get_desc(chip, offset));
-}
-EXPORT_SYMBOL_GPL(gpio_lock_as_irq);
-
 /**
  * gpiod_unlock_as_irq() - unlock a GPIO used as IRQ
  * @gpio: the GPIO line to unlock from IRQ usage
@@ -1566,12 +1467,6 @@ void gpiod_unlock_as_irq(struct gpio_desc *desc)
 	clear_bit(FLAG_USED_AS_IRQ, &desc->flags);
 }
 EXPORT_SYMBOL_GPL(gpiod_unlock_as_irq);
-
-void gpio_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
-{
-	return gpiod_unlock_as_irq(gpiochip_get_desc(chip, offset));
-}
-EXPORT_SYMBOL_GPL(gpio_unlock_as_irq);
 
 /**
  * gpiod_get_raw_value_cansleep() - return a gpio's raw value
