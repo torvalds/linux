@@ -38,6 +38,11 @@
 DEFINE_WW_CLASS(reservation_ww_class);
 EXPORT_SYMBOL(reservation_ww_class);
 
+struct lock_class_key reservation_seqcount_class;
+EXPORT_SYMBOL(reservation_seqcount_class);
+
+const char reservation_seqcount_string[] = "reservation_seqcount";
+EXPORT_SYMBOL(reservation_seqcount_string);
 /*
  * Reserve space to add a shared fence to a reservation_object,
  * must be called with obj->lock held.
@@ -82,27 +87,37 @@ reservation_object_add_shared_inplace(struct reservation_object *obj,
 {
 	u32 i;
 
+	fence_get(fence);
+
+	preempt_disable();
+	write_seqcount_begin(&obj->seq);
+
 	for (i = 0; i < fobj->shared_count; ++i) {
-		if (fobj->shared[i]->context == fence->context) {
-			struct fence *old_fence = fobj->shared[i];
+		struct fence *old_fence;
 
-			fence_get(fence);
+		old_fence = rcu_dereference_protected(fobj->shared[i],
+						reservation_object_held(obj));
 
-			fobj->shared[i] = fence;
+		if (old_fence->context == fence->context) {
+			/* memory barrier is added by write_seqcount_begin */
+			RCU_INIT_POINTER(fobj->shared[i], fence);
+			write_seqcount_end(&obj->seq);
+			preempt_enable();
 
 			fence_put(old_fence);
 			return;
 		}
 	}
 
-	fence_get(fence);
-	fobj->shared[fobj->shared_count] = fence;
 	/*
-	 * make the new fence visible before incrementing
-	 * fobj->shared_count
+	 * memory barrier is added by write_seqcount_begin,
+	 * fobj->shared_count is protected by this lock too
 	 */
-	smp_wmb();
+	RCU_INIT_POINTER(fobj->shared[fobj->shared_count], fence);
 	fobj->shared_count++;
+
+	write_seqcount_end(&obj->seq);
+	preempt_enable();
 }
 
 static void
@@ -112,11 +127,12 @@ reservation_object_add_shared_replace(struct reservation_object *obj,
 				      struct fence *fence)
 {
 	unsigned i;
+	struct fence *old_fence = NULL;
 
 	fence_get(fence);
 
 	if (!old) {
-		fobj->shared[0] = fence;
+		RCU_INIT_POINTER(fobj->shared[0], fence);
 		fobj->shared_count = 1;
 		goto done;
 	}
@@ -130,19 +146,38 @@ reservation_object_add_shared_replace(struct reservation_object *obj,
 	fobj->shared_count = old->shared_count;
 
 	for (i = 0; i < old->shared_count; ++i) {
-		if (fence && old->shared[i]->context == fence->context) {
-			fence_put(old->shared[i]);
-			fobj->shared[i] = fence;
-			fence = NULL;
+		struct fence *check;
+
+		check = rcu_dereference_protected(old->shared[i],
+						reservation_object_held(obj));
+
+		if (!old_fence && check->context == fence->context) {
+			old_fence = check;
+			RCU_INIT_POINTER(fobj->shared[i], fence);
 		} else
-			fobj->shared[i] = old->shared[i];
+			RCU_INIT_POINTER(fobj->shared[i], check);
 	}
-	if (fence)
-		fobj->shared[fobj->shared_count++] = fence;
+	if (!old_fence) {
+		RCU_INIT_POINTER(fobj->shared[fobj->shared_count], fence);
+		fobj->shared_count++;
+	}
 
 done:
-	obj->fence = fobj;
-	kfree(old);
+	preempt_disable();
+	write_seqcount_begin(&obj->seq);
+	/*
+	 * RCU_INIT_POINTER can be used here,
+	 * seqcount provides the necessary barriers
+	 */
+	RCU_INIT_POINTER(obj->fence, fobj);
+	write_seqcount_end(&obj->seq);
+	preempt_enable();
+
+	if (old)
+		kfree_rcu(old, rcu);
+
+	if (old_fence)
+		fence_put(old_fence);
 }
 
 /*
@@ -158,7 +193,7 @@ void reservation_object_add_shared_fence(struct reservation_object *obj,
 	obj->staged = NULL;
 
 	if (!fobj) {
-		BUG_ON(old->shared_count == old->shared_max);
+		BUG_ON(old->shared_count >= old->shared_max);
 		reservation_object_add_shared_inplace(obj, old, fence);
 	} else
 		reservation_object_add_shared_replace(obj, old, fobj, fence);
@@ -168,26 +203,275 @@ EXPORT_SYMBOL(reservation_object_add_shared_fence);
 void reservation_object_add_excl_fence(struct reservation_object *obj,
 				       struct fence *fence)
 {
-	struct fence *old_fence = obj->fence_excl;
+	struct fence *old_fence = reservation_object_get_excl(obj);
 	struct reservation_object_list *old;
 	u32 i = 0;
 
 	old = reservation_object_get_list(obj);
-	if (old) {
+	if (old)
 		i = old->shared_count;
-		old->shared_count = 0;
-	}
 
 	if (fence)
 		fence_get(fence);
 
-	obj->fence_excl = fence;
+	preempt_disable();
+	write_seqcount_begin(&obj->seq);
+	/* write_seqcount_begin provides the necessary memory barrier */
+	RCU_INIT_POINTER(obj->fence_excl, fence);
+	if (old)
+		old->shared_count = 0;
+	write_seqcount_end(&obj->seq);
+	preempt_enable();
 
 	/* inplace update, no shared fences */
 	while (i--)
-		fence_put(old->shared[i]);
+		fence_put(rcu_dereference_protected(old->shared[i],
+						reservation_object_held(obj)));
 
 	if (old_fence)
 		fence_put(old_fence);
 }
 EXPORT_SYMBOL(reservation_object_add_excl_fence);
+
+int reservation_object_get_fences_rcu(struct reservation_object *obj,
+				      struct fence **pfence_excl,
+				      unsigned *pshared_count,
+				      struct fence ***pshared)
+{
+	unsigned shared_count = 0;
+	unsigned retry = 1;
+	struct fence **shared = NULL, *fence_excl = NULL;
+	int ret = 0;
+
+	while (retry) {
+		struct reservation_object_list *fobj;
+		unsigned seq;
+
+		seq = read_seqcount_begin(&obj->seq);
+
+		rcu_read_lock();
+
+		fobj = rcu_dereference(obj->fence);
+		if (fobj) {
+			struct fence **nshared;
+			size_t sz = sizeof(*shared) * fobj->shared_max;
+
+			nshared = krealloc(shared, sz,
+					   GFP_NOWAIT | __GFP_NOWARN);
+			if (!nshared) {
+				rcu_read_unlock();
+				nshared = krealloc(shared, sz, GFP_KERNEL);
+				if (nshared) {
+					shared = nshared;
+					continue;
+				}
+
+				ret = -ENOMEM;
+				shared_count = 0;
+				break;
+			}
+			shared = nshared;
+			memcpy(shared, fobj->shared, sz);
+			shared_count = fobj->shared_count;
+		} else
+			shared_count = 0;
+		fence_excl = rcu_dereference(obj->fence_excl);
+
+		retry = read_seqcount_retry(&obj->seq, seq);
+		if (retry)
+			goto unlock;
+
+		if (!fence_excl || fence_get_rcu(fence_excl)) {
+			unsigned i;
+
+			for (i = 0; i < shared_count; ++i) {
+				if (fence_get_rcu(shared[i]))
+					continue;
+
+				/* uh oh, refcount failed, abort and retry */
+				while (i--)
+					fence_put(shared[i]);
+
+				if (fence_excl) {
+					fence_put(fence_excl);
+					fence_excl = NULL;
+				}
+
+				retry = 1;
+				break;
+			}
+		} else
+			retry = 1;
+
+unlock:
+		rcu_read_unlock();
+	}
+	*pshared_count = shared_count;
+	if (shared_count)
+		*pshared = shared;
+	else {
+		*pshared = NULL;
+		kfree(shared);
+	}
+	*pfence_excl = fence_excl;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(reservation_object_get_fences_rcu);
+
+long reservation_object_wait_timeout_rcu(struct reservation_object *obj,
+					 bool wait_all, bool intr,
+					 unsigned long timeout)
+{
+	struct fence *fence;
+	unsigned seq, shared_count, i = 0;
+	long ret = timeout;
+
+retry:
+	fence = NULL;
+	shared_count = 0;
+	seq = read_seqcount_begin(&obj->seq);
+	rcu_read_lock();
+
+	if (wait_all) {
+		struct reservation_object_list *fobj = rcu_dereference(obj->fence);
+
+		if (fobj)
+			shared_count = fobj->shared_count;
+
+		if (read_seqcount_retry(&obj->seq, seq))
+			goto unlock_retry;
+
+		for (i = 0; i < shared_count; ++i) {
+			struct fence *lfence = rcu_dereference(fobj->shared[i]);
+
+			if (test_bit(FENCE_FLAG_SIGNALED_BIT, &lfence->flags))
+				continue;
+
+			if (!fence_get_rcu(lfence))
+				goto unlock_retry;
+
+			if (fence_is_signaled(lfence)) {
+				fence_put(lfence);
+				continue;
+			}
+
+			fence = lfence;
+			break;
+		}
+	}
+
+	if (!shared_count) {
+		struct fence *fence_excl = rcu_dereference(obj->fence_excl);
+
+		if (read_seqcount_retry(&obj->seq, seq))
+			goto unlock_retry;
+
+		if (fence_excl &&
+		    !test_bit(FENCE_FLAG_SIGNALED_BIT, &fence_excl->flags)) {
+			if (!fence_get_rcu(fence_excl))
+				goto unlock_retry;
+
+			if (fence_is_signaled(fence_excl))
+				fence_put(fence_excl);
+			else
+				fence = fence_excl;
+		}
+	}
+
+	rcu_read_unlock();
+	if (fence) {
+		ret = fence_wait_timeout(fence, intr, ret);
+		fence_put(fence);
+		if (ret > 0 && wait_all && (i + 1 < shared_count))
+			goto retry;
+	}
+	return ret;
+
+unlock_retry:
+	rcu_read_unlock();
+	goto retry;
+}
+EXPORT_SYMBOL_GPL(reservation_object_wait_timeout_rcu);
+
+
+static inline int
+reservation_object_test_signaled_single(struct fence *passed_fence)
+{
+	struct fence *fence, *lfence = passed_fence;
+	int ret = 1;
+
+	if (!test_bit(FENCE_FLAG_SIGNALED_BIT, &lfence->flags)) {
+		int ret;
+
+		fence = fence_get_rcu(lfence);
+		if (!fence)
+			return -1;
+
+		ret = !!fence_is_signaled(fence);
+		fence_put(fence);
+	}
+	return ret;
+}
+
+bool reservation_object_test_signaled_rcu(struct reservation_object *obj,
+					  bool test_all)
+{
+	unsigned seq, shared_count;
+	int ret = true;
+
+retry:
+	shared_count = 0;
+	seq = read_seqcount_begin(&obj->seq);
+	rcu_read_lock();
+
+	if (test_all) {
+		unsigned i;
+
+		struct reservation_object_list *fobj = rcu_dereference(obj->fence);
+
+		if (fobj)
+			shared_count = fobj->shared_count;
+
+		if (read_seqcount_retry(&obj->seq, seq))
+			goto unlock_retry;
+
+		for (i = 0; i < shared_count; ++i) {
+			struct fence *fence = rcu_dereference(fobj->shared[i]);
+
+			ret = reservation_object_test_signaled_single(fence);
+			if (ret < 0)
+				goto unlock_retry;
+			else if (!ret)
+				break;
+		}
+
+		/*
+		 * There could be a read_seqcount_retry here, but nothing cares
+		 * about whether it's the old or newer fence pointers that are
+		 * signaled. That race could still have happened after checking
+		 * read_seqcount_retry. If you care, use ww_mutex_lock.
+		 */
+	}
+
+	if (!shared_count) {
+		struct fence *fence_excl = rcu_dereference(obj->fence_excl);
+
+		if (read_seqcount_retry(&obj->seq, seq))
+			goto unlock_retry;
+
+		if (fence_excl) {
+			ret = reservation_object_test_signaled_single(fence_excl);
+			if (ret < 0)
+				goto unlock_retry;
+		}
+	}
+
+	rcu_read_unlock();
+	return ret;
+
+unlock_retry:
+	rcu_read_unlock();
+	goto retry;
+}
+EXPORT_SYMBOL_GPL(reservation_object_test_signaled_rcu);

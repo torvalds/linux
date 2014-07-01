@@ -137,7 +137,7 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 	struct reservation_object_list *fobj;
 	struct fence *fence_excl;
 	unsigned long events;
-	unsigned shared_count;
+	unsigned shared_count, seq;
 
 	dmabuf = file->private_data;
 	if (!dmabuf || !dmabuf->resv)
@@ -151,14 +151,20 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 	if (!events)
 		return 0;
 
-	ww_mutex_lock(&resv->lock, NULL);
+retry:
+	seq = read_seqcount_begin(&resv->seq);
+	rcu_read_lock();
 
-	fobj = resv->fence;
-	if (!fobj)
-		goto out;
-
-	shared_count = fobj->shared_count;
-	fence_excl = resv->fence_excl;
+	fobj = rcu_dereference(resv->fence);
+	if (fobj)
+		shared_count = fobj->shared_count;
+	else
+		shared_count = 0;
+	fence_excl = rcu_dereference(resv->fence_excl);
+	if (read_seqcount_retry(&resv->seq, seq)) {
+		rcu_read_unlock();
+		goto retry;
+	}
 
 	if (fence_excl && (!(events & POLLOUT) || shared_count == 0)) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_excl;
@@ -176,14 +182,20 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 		spin_unlock_irq(&dmabuf->poll.lock);
 
 		if (events & pevents) {
-			if (!fence_add_callback(fence_excl, &dcb->cb,
+			if (!fence_get_rcu(fence_excl)) {
+				/* force a recheck */
+				events &= ~pevents;
+				dma_buf_poll_cb(NULL, &dcb->cb);
+			} else if (!fence_add_callback(fence_excl, &dcb->cb,
 						       dma_buf_poll_cb)) {
 				events &= ~pevents;
+				fence_put(fence_excl);
 			} else {
 				/*
 				 * No callback queued, wake up any additional
 				 * waiters.
 				 */
+				fence_put(fence_excl);
 				dma_buf_poll_cb(NULL, &dcb->cb);
 			}
 		}
@@ -205,13 +217,26 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 			goto out;
 
 		for (i = 0; i < shared_count; ++i) {
-			struct fence *fence = fobj->shared[i];
+			struct fence *fence = rcu_dereference(fobj->shared[i]);
 
+			if (!fence_get_rcu(fence)) {
+				/*
+				 * fence refcount dropped to zero, this means
+				 * that fobj has been freed
+				 *
+				 * call dma_buf_poll_cb and force a recheck!
+				 */
+				events &= ~POLLOUT;
+				dma_buf_poll_cb(NULL, &dcb->cb);
+				break;
+			}
 			if (!fence_add_callback(fence, &dcb->cb,
 						dma_buf_poll_cb)) {
+				fence_put(fence);
 				events &= ~POLLOUT;
 				break;
 			}
+			fence_put(fence);
 		}
 
 		/* No callback queued, wake up any additional waiters. */
@@ -220,7 +245,7 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 	}
 
 out:
-	ww_mutex_unlock(&resv->lock);
+	rcu_read_unlock();
 	return events;
 }
 

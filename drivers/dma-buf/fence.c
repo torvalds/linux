@@ -184,7 +184,7 @@ EXPORT_SYMBOL(fence_release);
 
 void fence_free(struct fence *fence)
 {
-	kfree(fence);
+	kfree_rcu(fence, rcu);
 }
 EXPORT_SYMBOL(fence_free);
 
