@@ -1450,9 +1450,10 @@ static int soc_probe_codec_dai(struct snd_soc_card *card,
 
 static int soc_link_dai_widgets(struct snd_soc_card *card,
 				struct snd_soc_dai_link *dai_link,
-				struct snd_soc_dai *cpu_dai,
-				struct snd_soc_dai *codec_dai)
+				struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dapm_widget *play_w, *capture_w;
 	int ret;
 
@@ -1570,8 +1571,7 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 						codec2codec_close_delayed_work);
 
 			/* link the DAI widgets */
-			ret = soc_link_dai_widgets(card, dai_link,
-					cpu_dai, codec_dai);
+			ret = soc_link_dai_widgets(card, dai_link, rtd);
 			if (ret)
 				return ret;
 		}
