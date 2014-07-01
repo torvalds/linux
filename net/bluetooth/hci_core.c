@@ -1437,13 +1437,6 @@ static void hci_setup_event_mask(struct hci_request *req)
 		events[7] |= 0x20;	/* LE Meta-Event */
 
 	hci_req_add(req, HCI_OP_SET_EVENT_MASK, sizeof(events), events);
-
-	if (lmp_le_capable(hdev)) {
-		memset(events, 0, sizeof(events));
-		events[0] = 0x1f;
-		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK,
-			    sizeof(events), events);
-	}
 }
 
 static void hci_init2_req(struct hci_request *req, unsigned long opt)
@@ -1613,8 +1606,16 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);
 
-	if (lmp_le_capable(hdev))
+	if (lmp_le_capable(hdev)) {
+		u8 events[8];
+
+		memset(events, 0, sizeof(events));
+		events[0] = 0x1f;
+		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
+			    events);
+
 		hci_set_le_support(req);
+	}
 
 	/* Read features beyond page 1 if available */
 	for (p = 2; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
