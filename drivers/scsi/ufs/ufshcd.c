@@ -2231,47 +2231,42 @@ static void ufshcd_transfer_req_compl(struct ufs_hba *hba)
 	u32 tr_doorbell;
 	int result;
 	int index;
-	bool int_aggr_reset = false;
+
+	/* Resetting interrupt aggregation counters first and reading the
+	 * DOOR_BELL afterward allows us to handle all the completed requests.
+	 * In order to prevent other interrupts starvation the DB is read once
+	 * after reset. The down side of this solution is the possibility of
+	 * false interrupt if device completes another request after resetting
+	 * aggregation and before reading the DB.
+	 */
+	ufshcd_reset_intr_aggr(hba);
 
 	tr_doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
 	completed_reqs = tr_doorbell ^ hba->outstanding_reqs;
 
-	for (index = 0; index < hba->nutrs; index++) {
-		if (test_bit(index, &completed_reqs)) {
-			lrbp = &hba->lrb[index];
-			cmd = lrbp->cmd;
-			/*
-			 * Don't skip resetting interrupt aggregation counters
-			 * if a regular command is present.
-			 */
-			int_aggr_reset |= !lrbp->intr_cmd;
-
-			if (cmd) {
-				result = ufshcd_transfer_rsp_status(hba, lrbp);
-				scsi_dma_unmap(cmd);
-				cmd->result = result;
-				/* Mark completed command as NULL in LRB */
-				lrbp->cmd = NULL;
-				clear_bit_unlock(index, &hba->lrb_in_use);
-				/* Do not touch lrbp after scsi done */
-				cmd->scsi_done(cmd);
-			} else if (lrbp->command_type ==
-					UTP_CMD_TYPE_DEV_MANAGE) {
-				if (hba->dev_cmd.complete)
-					complete(hba->dev_cmd.complete);
-			}
-		} /* end of if */
-	} /* end of for */
+	for_each_set_bit(index, &completed_reqs, hba->nutrs) {
+		lrbp = &hba->lrb[index];
+		cmd = lrbp->cmd;
+		if (cmd) {
+			result = ufshcd_transfer_rsp_status(hba, lrbp);
+			scsi_dma_unmap(cmd);
+			cmd->result = result;
+			/* Mark completed command as NULL in LRB */
+			lrbp->cmd = NULL;
+			clear_bit_unlock(index, &hba->lrb_in_use);
+			/* Do not touch lrbp after scsi done */
+			cmd->scsi_done(cmd);
+		} else if (lrbp->command_type == UTP_CMD_TYPE_DEV_MANAGE) {
+			if (hba->dev_cmd.complete)
+				complete(hba->dev_cmd.complete);
+		}
+	}
 
 	/* clear corresponding bits of completed commands */
 	hba->outstanding_reqs ^= completed_reqs;
 
 	/* we might have free'd some tags above */
 	wake_up(&hba->dev_cmd.tag_wq);
-
-	/* Reset interrupt aggregation counters */
-	if (int_aggr_reset)
-		ufshcd_reset_intr_aggr(hba);
 }
 
 /**
@@ -2876,6 +2871,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	int poll_cnt;
 	u8 resp = 0xF;
 	struct ufshcd_lrb *lrbp;
+	u32 reg;
 
 	host = cmd->device->host;
 	hba = shost_priv(host);
@@ -2885,6 +2881,13 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	if (!(test_bit(tag, &hba->outstanding_reqs)))
 		goto out;
 
+	reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
+	if (!(reg & (1 << tag))) {
+		dev_err(hba->dev,
+		"%s: cmd was completed, but without a notifying intr, tag = %d",
+		__func__, tag);
+	}
+
 	lrbp = &hba->lrb[tag];
 	for (poll_cnt = 100; poll_cnt; poll_cnt--) {
 		err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
@@ -2893,8 +2896,6 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 			/* cmd pending in the device */
 			break;
 		} else if (!err && resp == UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
-			u32 reg;
-
 			/*
 			 * cmd not pending in the device, check if it is
 			 * in transition.
