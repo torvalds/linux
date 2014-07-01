@@ -530,6 +530,8 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 			}
 #endif
 		}
+		if (!size_read)
+			IWL_ERR(mvm, "OTP is blank\n");
 		kfree(nvm_buffer);
 	}
 
