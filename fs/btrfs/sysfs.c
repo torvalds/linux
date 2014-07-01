@@ -363,7 +363,8 @@ static ssize_t btrfs_label_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
-	return snprintf(buf, PAGE_SIZE, "%s\n", fs_info->super_copy->label);
+	char *label = fs_info->super_copy->label;
+	return snprintf(buf, PAGE_SIZE, label[0] ? "%s\n" : "%s", label);
 }
 
 static ssize_t btrfs_label_store(struct kobject *kobj,
@@ -374,8 +375,15 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = fs_info->fs_root;
 	int ret;
+	size_t p_len;
 
-	if (len >= BTRFS_LABEL_SIZE)
+	/*
+	 * p_len is the len until the first occurrence of either
+	 * '\n' or '\0'
+	 */
+	p_len = strcspn(buf, "\n");
+
+	if (p_len >= BTRFS_LABEL_SIZE)
 		return -EINVAL;
 
 	trans = btrfs_start_transaction(root, 0);
@@ -383,7 +391,8 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 		return PTR_ERR(trans);
 
 	spin_lock(&root->fs_info->super_lock);
-	strcpy(fs_info->super_copy->label, buf);
+	memset(fs_info->super_copy->label, 0, BTRFS_LABEL_SIZE);
+	memcpy(fs_info->super_copy->label, buf, p_len);
 	spin_unlock(&root->fs_info->super_lock);
 	ret = btrfs_commit_transaction(trans, root);
 
