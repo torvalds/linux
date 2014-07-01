@@ -257,8 +257,6 @@ struct rtw_adapter {
 	u8 bFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
-	/* The driver will show the desired chan nor when this flag is 1. */
-	u8 bNotifyChannelChange;
 
 	/* extend to support multi interface */
 	/* IFACE_ID0 is equals to PRIMARY_ADAPTER */

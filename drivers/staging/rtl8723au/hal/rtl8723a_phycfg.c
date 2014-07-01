@@ -1098,9 +1098,6 @@ static void _PHY_SwChnl8723A(struct rtw_adapter *Adapter, u8 channel)
 	u32 param1, param2;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 
-	if (Adapter->bNotifyChannelChange)
-		DBG_8723A("[%s] ch = %d\n", __func__, channel);
-
 	/* s1. pre common command - CmdID_SetTxPowerLevel */
 	PHY_SetTxPowerLevel8723A(Adapter, channel);
 

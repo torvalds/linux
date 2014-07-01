@@ -425,7 +425,6 @@ static int rtw_init_default_value(struct rtw_adapter *padapter)
 	/* misc. */
 	padapter->bReadPortCancel = false;
 	padapter->bWritePortCancel = false;
-	padapter->bNotifyChannelChange = 0;
 	return ret;
 }
 

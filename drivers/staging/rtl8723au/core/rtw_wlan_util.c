@@ -360,10 +360,6 @@ void set_channel_bwmode23a(struct rtw_adapter *padapter, unsigned char channel,
 {
 	u8 center_ch;
 
-	if (padapter->bNotifyChannelChange)
-		DBG_8723A("[%s] ch = %d, offset = %d, bwmode = %d\n",
-			  __func__, channel, channel_offset, bwmode);
-
 	if (bwmode == HT_CHANNEL_WIDTH_20 ||
 	    channel_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE) {
 		/* SelectChannel23a(padapter, channel); */
