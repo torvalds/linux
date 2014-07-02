@@ -5790,15 +5790,15 @@ void mgmt_new_csrk(struct hci_dev *hdev, struct smp_csrk *csrk,
 }
 
 void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			 u8 bdaddr_type, u16 min_interval, u16 max_interval,
-			 u16 latency, u16 timeout)
+			 u8 bdaddr_type, u8 store_hint, u16 min_interval,
+			 u16 max_interval, u16 latency, u16 timeout)
 {
 	struct mgmt_ev_new_conn_param ev;
 
 	memset(&ev, 0, sizeof(ev));
 	bacpy(&ev.addr.bdaddr, bdaddr);
 	ev.addr.type = link_to_bdaddr(LE_LINK, bdaddr_type);
-	ev.store_hint = 0x00;
+	ev.store_hint = store_hint;
 	ev.min_interval = cpu_to_le16(min_interval);
 	ev.max_interval = cpu_to_le16(max_interval);
 	ev.latency = cpu_to_le16(latency);

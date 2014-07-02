@@ -4431,6 +4431,7 @@ static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
 
 	if (test_bit(HCI_CONN_MASTER, &hcon->flags)) {
 		struct hci_conn_params *params;
+		u8 store_hint;
 
 		hci_dev_lock(hdev);
 
@@ -4441,12 +4442,15 @@ static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
 			params->conn_max_interval = max;
 			params->conn_latency = latency;
 			params->supervision_timeout = timeout;
+			store_hint = 0x01;
+		} else{
+			store_hint = 0x00;
 		}
 
 		hci_dev_unlock(hdev);
 
-		mgmt_new_conn_param(hdev, &hcon->dst, hcon->dst_type, min, max,
-				    latency, timeout);
+		mgmt_new_conn_param(hdev, &hcon->dst, hcon->dst_type,
+				    store_hint, min, max, latency, timeout);
 	}
 
 	cp.handle = ev->handle;

@@ -5250,10 +5250,14 @@ static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 		       sizeof(rsp), &rsp);
 
 	if (!err) {
-		mgmt_new_conn_param(hcon->hdev, &hcon->dst, hcon->dst_type,
-				    min, max, latency, to_multiplier);
+		u8 store_hint;
 
-		hci_le_conn_update(hcon, min, max, latency, to_multiplier);
+		store_hint = hci_le_conn_update(hcon, min, max, latency,
+						to_multiplier);
+		mgmt_new_conn_param(hcon->hdev, &hcon->dst, hcon->dst_type,
+				    store_hint, min, max, latency,
+				    to_multiplier);
+
 	}
 
 	return 0;
