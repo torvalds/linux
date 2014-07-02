@@ -124,9 +124,9 @@ static int bcm_sysport_set_rx_csum(struct net_device *dev,
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	u32 reg;
 
-	priv->rx_csum_en = !!(wanted & NETIF_F_RXCSUM);
+	priv->rx_chk_en = !!(wanted & NETIF_F_RXCSUM);
 	reg = rxchk_readl(priv, RXCHK_CONTROL);
-	if (priv->rx_csum_en)
+	if (priv->rx_chk_en)
 		reg |= RXCHK_EN;
 	else
 		reg &= ~RXCHK_EN;
@@ -134,7 +134,7 @@ static int bcm_sysport_set_rx_csum(struct net_device *dev,
 	/* If UniMAC forwards CRC, we need to skip over it to get
 	 * a valid CHK bit to be set in the per-packet status word
 	 */
-	if (priv->rx_csum_en && priv->crc_fwd)
+	if (priv->rx_chk_en && priv->crc_fwd)
 		reg |= RXCHK_SKIP_FCS;
 	else
 		reg &= ~RXCHK_SKIP_FCS;
@@ -1674,7 +1674,7 @@ static int bcm_sysport_suspend(struct device *d)
 	}
 
 	/* Disable RXCHK if enabled */
-	if (priv->rx_csum_en) {
+	if (priv->rx_chk_en) {
 		reg = rxchk_readl(priv, RXCHK_CONTROL);
 		reg &= ~RXCHK_EN;
 		rxchk_writel(priv, reg, RXCHK_CONTROL);
@@ -1750,7 +1750,7 @@ static int bcm_sysport_resume(struct device *d)
 	}
 
 	/* Enable rxhck */
-	if (priv->rx_csum_en) {
+	if (priv->rx_chk_en) {
 		reg = rxchk_readl(priv, RXCHK_CONTROL);
 		reg |= RXCHK_EN;
 		rxchk_writel(priv, reg, RXCHK_CONTROL);
