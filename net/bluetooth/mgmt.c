@@ -119,6 +119,7 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_DEVICE_REMOVED,
 	MGMT_EV_NEW_CONN_PARAM,
 	MGMT_EV_UNCONF_INDEX_ADDED,
+	MGMT_EV_UNCONF_INDEX_REMOVED,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
@@ -5395,7 +5396,10 @@ void mgmt_index_removed(struct hci_dev *hdev)
 
 	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
 
-	mgmt_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0, NULL);
+	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
+		mgmt_event(MGMT_EV_UNCONF_INDEX_REMOVED, hdev, NULL, 0, NULL);
+	else
+		mgmt_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0, NULL);
 }
 
 /* This function requires the caller holds hdev->lock */
