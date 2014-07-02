@@ -228,6 +228,10 @@ extern u16 cpu_mask;
  */
 struct ti_clk_features {
 	u32 flags;
+	long fint_min;
+	long fint_max;
+	long fint_band1_max;
+	long fint_band2_min;
 };
 extern struct ti_clk_features ti_clk_features;
 

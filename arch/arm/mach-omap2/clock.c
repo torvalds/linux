@@ -51,6 +51,19 @@ u16 cpu_mask;
  */
 struct ti_clk_features ti_clk_features;
 
+/* DPLL valid Fint frequency band limits - from 34xx TRM Section 4.7.6.2 */
+#define OMAP3430_DPLL_FINT_BAND1_MIN	750000
+#define OMAP3430_DPLL_FINT_BAND1_MAX	2100000
+#define OMAP3430_DPLL_FINT_BAND2_MIN	7500000
+#define OMAP3430_DPLL_FINT_BAND2_MAX	21000000
+
+/*
+ * DPLL valid Fint frequency range for OMAP36xx and OMAP4xxx.
+ * From device data manual section 4.3 "DPLL and DLL Specifications".
+ */
+#define OMAP3PLUS_DPLL_FINT_MIN		32000
+#define OMAP3PLUS_DPLL_FINT_MAX		52000000
+
 /*
  * clkdm_control: if true, then when a clock is enabled in the
  * hardware, its clockdomain will first be enabled; and when a clock
@@ -744,4 +757,14 @@ void __init omap2_clk_print_new_rates(const char *hfclkin_ck_name,
  */
 void __init ti_clk_init_features(void)
 {
+	/* Fint setup for DPLLs */
+	if (cpu_is_omap3430()) {
+		ti_clk_features.fint_min = OMAP3430_DPLL_FINT_BAND1_MIN;
+		ti_clk_features.fint_max = OMAP3430_DPLL_FINT_BAND2_MAX;
+		ti_clk_features.fint_band1_max = OMAP3430_DPLL_FINT_BAND1_MAX;
+		ti_clk_features.fint_band2_min = OMAP3430_DPLL_FINT_BAND2_MIN;
+	} else {
+		ti_clk_features.fint_min = OMAP3PLUS_DPLL_FINT_MIN;
+		ti_clk_features.fint_max = OMAP3PLUS_DPLL_FINT_MAX;
+	}
 }
