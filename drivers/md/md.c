@@ -5599,7 +5599,7 @@ static int get_array_info(struct mddev * mddev, void __user * arg)
 	if (mddev->in_sync)
 		info.state = (1<<MD_SB_CLEAN);
 	if (mddev->bitmap && mddev->bitmap_info.offset)
-		info.state = (1<<MD_SB_BITMAP_PRESENT);
+		info.state |= (1<<MD_SB_BITMAP_PRESENT);
 	info.active_disks  = insync;
 	info.working_disks = working;
 	info.failed_disks  = failed;
