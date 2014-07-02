@@ -1439,15 +1439,10 @@ static void xennet_disconnect_backend(struct netfront_info *info)
 	unsigned int i = 0;
 	unsigned int num_queues = info->netdev->real_num_tx_queues;
 
+	netif_carrier_off(info->netdev);
+
 	for (i = 0; i < num_queues; ++i) {
 		struct netfront_queue *queue = &info->queues[i];
-
-		/* Stop old i/f to prevent errors whilst we rebuild the state. */
-		spin_lock_bh(&queue->rx_lock);
-		spin_lock_irq(&queue->tx_lock);
-		netif_carrier_off(queue->info->netdev);
-		spin_unlock_irq(&queue->tx_lock);
-		spin_unlock_bh(&queue->rx_lock);
 
 		if (queue->tx_irq && (queue->tx_irq == queue->rx_irq))
 			unbind_from_irqhandler(queue->tx_irq, queue);
@@ -1457,6 +1452,8 @@ static void xennet_disconnect_backend(struct netfront_info *info)
 		}
 		queue->tx_evtchn = queue->rx_evtchn = 0;
 		queue->tx_irq = queue->rx_irq = 0;
+
+		napi_synchronize(&queue->napi);
 
 		/* End access and free the pages */
 		xennet_end_access(queue->tx_ring_ref, queue->tx.sring);
