@@ -1754,13 +1754,6 @@ static int __bond_release_one(struct net_device *bond_dev,
 	if (!bond_has_slaves(bond)) {
 		bond_set_carrier(bond);
 		eth_hw_addr_random(bond_dev);
-
-		if (vlan_uses_dev(bond_dev)) {
-			pr_warn("%s: Warning: clearing HW address of %s while it still has VLANs\n",
-				bond_dev->name, bond_dev->name);
-			pr_warn("%s: When re-adding slaves, make sure the bond's HW address matches its VLANs\n",
-				bond_dev->name);
-		}
 	}
 
 	unblock_netpoll_tx();
