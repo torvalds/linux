@@ -143,10 +143,14 @@
 #define XGBE_MAX_DMA_CHANNELS	16
 
 /* DMA cache settings - Outer sharable, write-back, write-allocate */
-#define XGBE_DMA_ARDOMAIN	0x2
-#define XGBE_DMA_ARCACHE	0xb
-#define XGBE_DMA_AWDOMAIN	0x2
-#define XGBE_DMA_AWCACHE	0xf
+#define XGBE_DMA_OS_AXDOMAIN	0x2
+#define XGBE_DMA_OS_ARCACHE	0xb
+#define XGBE_DMA_OS_AWCACHE	0xf
+
+/* DMA cache settings - System, no caches used */
+#define XGBE_DMA_SYS_AXDOMAIN	0x3
+#define XGBE_DMA_SYS_ARCACHE	0x0
+#define XGBE_DMA_SYS_AWCACHE	0x0
 
 #define XGBE_DMA_INTERRUPT_MASK	0x31c7
 
@@ -535,6 +539,11 @@ struct xgbe_prv_data {
 
 	struct xgbe_hw_if hw_if;
 	struct xgbe_desc_if desc_if;
+
+	/* AXI DMA settings */
+	unsigned int axdomain;
+	unsigned int arcache;
+	unsigned int awcache;
 
 	/* Rings for Tx/Rx on a DMA channel */
 	struct xgbe_channel *channel;

@@ -297,6 +297,16 @@ static int xgbe_probe(struct platform_device *pdev)
 	*(dev->dma_mask) = DMA_BIT_MASK(40);
 	dev->coherent_dma_mask = DMA_BIT_MASK(40);
 
+	if (of_property_read_bool(dev->of_node, "dma-coherent")) {
+		pdata->axdomain = XGBE_DMA_OS_AXDOMAIN;
+		pdata->arcache = XGBE_DMA_OS_ARCACHE;
+		pdata->awcache = XGBE_DMA_OS_AWCACHE;
+	} else {
+		pdata->axdomain = XGBE_DMA_SYS_AXDOMAIN;
+		pdata->arcache = XGBE_DMA_SYS_ARCACHE;
+		pdata->awcache = XGBE_DMA_SYS_AWCACHE;
+	}
+
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
 		dev_err(dev, "platform_get_irq failed\n");
