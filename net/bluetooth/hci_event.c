@@ -4225,11 +4225,32 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	bool match;
 	u32 flags;
 
-	/* Passive scanning shouldn't trigger any device found events */
+	/* Passive scanning shouldn't trigger any device found events,
+	 * except for devices marked as CONN_REPORT for which we do send
+	 * device found events.
+	 */
 	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
+		struct hci_conn_params *param;
+
 		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND)
 			check_pending_le_conn(hdev, bdaddr, bdaddr_type);
-		return;
+
+		if (!hdev->pend_le_reports)
+			return;
+
+		if (type == LE_ADV_DIRECT_IND)
+			return;
+
+		param = hci_conn_params_lookup(hdev, bdaddr, bdaddr_type);
+		if (!param || param->auto_connect != HCI_AUTO_CONN_REPORT)
+			return;
+
+		if (type == LE_ADV_NONCONN_IND || type == LE_ADV_SCAN_IND)
+			flags = MGMT_DEV_FOUND_NOT_CONNECTABLE;
+		else
+			flags = 0;
+		mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL,
+				  rssi, flags, data, len, NULL, 0);
 	}
 
 	/* When receiving non-connectable or scannable undirected

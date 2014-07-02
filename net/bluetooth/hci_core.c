@@ -5380,9 +5380,10 @@ void hci_update_background_scan(struct hci_dev *hdev)
 
 	hci_req_init(&req, hdev);
 
-	if (list_empty(&hdev->pend_le_conns)) {
-		/* If there is no pending LE connections, we should stop
-		 * the background scanning.
+	if (list_empty(&hdev->pend_le_conns) && !hdev->pend_le_reports) {
+		/* If there is no pending LE connections or devices
+		 * to be scanned for, we should stop the background
+		 * scanning.
 		 */
 
 		/* If controller is not scanning we are done. */
