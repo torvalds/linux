@@ -2503,13 +2503,13 @@ static ssize_t ab8500_gpadc_trig_timer_write(struct file *file,
 	if (err)
 		return err;
 
-	if (user_trig_timer <= 255) {
-		trig_timer = (u8) user_trig_timer;
-	} else {
-		dev_err(dev, "debugfs error input: "
-			"should be beetween 0 to 255\n");
+	if (user_trig_timer & ~0xFF) {
+		dev_err(dev,
+			"debugfs error input: should be beetween 0 to 255\n");
 		return -EINVAL;
 	}
+
+	trig_timer = (u8) user_trig_timer;
 
 	return count;
 }
@@ -2764,8 +2764,8 @@ static ssize_t show_irq(struct device *dev,
 	irq_index = name - irq_first;
 	if (irq_index >= num_irqs)
 		return -EINVAL;
-	else
-		return sprintf(buf, "%u\n", irq_count[irq_index]);
+
+	return sprintf(buf, "%u\n", irq_count[irq_index]);
 }
 
 static ssize_t ab8500_subscribe_write(struct file *file,
