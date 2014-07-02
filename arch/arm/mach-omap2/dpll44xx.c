@@ -16,8 +16,6 @@
 #include <linux/bitops.h>
 
 #include "clock.h"
-#include "clock44xx.h"
-#include "cm-regbits-44xx.h"
 
 /*
  * Maximum DPLL input frequency (FINT) and output frequency (FOUT) that
@@ -27,6 +25,16 @@
  */
 #define OMAP4_DPLL_LP_FINT_MAX	1000000
 #define OMAP4_DPLL_LP_FOUT_MAX	100000000
+
+/*
+ * Bitfield declarations
+ */
+#define OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK		(1 << 8)
+#define OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK		(1 << 10)
+#define OMAP4430_DPLL_REGM4XEN_MASK			(1 << 11)
+
+/* Static rate multiplier for OMAP4 REGM4XEN clocks */
+#define OMAP4430_REGM4XEN_MULT				4
 
 /* Supported only on OMAP4 */
 int omap4_dpllmx_gatectrl_read(struct clk_hw_omap *clk)
