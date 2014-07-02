@@ -3551,8 +3551,13 @@ static void dw_mci_dealwith_timeout(struct dw_mci *host)
                                 ret = -ENODEV;
                                 return ;
                         }
+
+                        /* NO requirement to reclaim slave chn using external dmac */
+                        #ifdef CONFIG_MMC_DW_IDMAC
                         if (host->use_dma && host->dma_ops->init)
 	                        host->dma_ops->init(host);
+                        #endif
+
                         /*
                          * Restore the initial value at FIFOTH register
                          * And Invalidate the prev_blksz with zero
