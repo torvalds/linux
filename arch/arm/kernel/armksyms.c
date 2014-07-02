@@ -158,6 +158,6 @@ EXPORT_SYMBOL(__gnu_mcount_nc);
 #endif
 
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
-EXPORT_SYMBOL(__pv_phys_offset);
+EXPORT_SYMBOL(__pv_phys_pfn_offset);
 EXPORT_SYMBOL(__pv_offset);
 #endif

@@ -20,7 +20,8 @@
 #include <asm/smp-ops.h>
 #include <asm/traps.h>
 #include <asm/fw/fw.h>
-#include <asm/gcmpregs.h>
+#include <asm/mips-cm.h>
+#include <asm/mips-cpc.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/malta.h>
 
@@ -110,7 +111,10 @@ static void __init mips_ejtag_setup(void)
 	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
 }
 
-extern struct plat_smp_ops msmtc_smp_ops;
+phys_t mips_cpc_default_phys_base(void)
+{
+	return CPC_BASE_ADDR;
+}
 
 void __init prom_init(void)
 {
@@ -238,10 +242,23 @@ mips_pci_controller:
 			  MSC01_PCI_SWAP_BYTESWAP << MSC01_PCI_SWAP_MEM_SHF |
 			  MSC01_PCI_SWAP_BYTESWAP << MSC01_PCI_SWAP_BAR0_SHF);
 #endif
+#ifndef CONFIG_EVA
 		/* Fix up target memory mapping.  */
 		MSC_READ(MSC01_PCI_BAR0, mask);
 		MSC_WRITE(MSC01_PCI_P2SCMSKL, mask & MSC01_PCI_BAR0_SIZE_MSK);
+#else
+		/*
+		 * Setup the Malta max (2GB) memory for PCI DMA in host bridge
+		 * in transparent addressing mode, starting from 0x80000000.
+		 */
+		mask = PHYS_OFFSET | (1<<3);
+		MSC_WRITE(MSC01_PCI_BAR0, mask);
 
+		mask = PHYS_OFFSET;
+		MSC_WRITE(MSC01_PCI_HEAD4, mask);
+		MSC_WRITE(MSC01_PCI_P2SCMSKL, mask);
+		MSC_WRITE(MSC01_PCI_P2SCMAPL, mask);
+#endif
 		/* Don't handle target retries indefinitely.  */
 		if ((data & MSC01_PCI_CFG_MAXRTRY_MSK) ==
 		    MSC01_PCI_CFG_MAXRTRY_MSK)
@@ -276,14 +293,13 @@ mips_pci_controller:
 	console_config();
 #endif
 	/* Early detection of CMP support */
-	if (gcmp_probe(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ))
-		if (!register_cmp_smp_ops())
-			return;
+	mips_cm_probe();
+	mips_cpc_probe();
 
+	if (!register_cps_smp_ops())
+		return;
+	if (!register_cmp_smp_ops())
+		return;
 	if (!register_vsmp_smp_ops())
 		return;
-
-#ifdef CONFIG_MIPS_MT_SMTC
-	register_smp_ops(&msmtc_smp_ops);
-#endif
 }

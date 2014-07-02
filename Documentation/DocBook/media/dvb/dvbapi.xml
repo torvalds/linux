@@ -18,7 +18,7 @@
 <firstname>Mauro</firstname>
 <othername role="mi">Carvalho</othername>
 <surname>Chehab</surname>
-<affiliation><address><email>mchehab@redhat.com</email></address></affiliation>
+<affiliation><address><email>m.chehab@samsung.com</email></address></affiliation>
 <contrib>Ported document to Docbook XML.</contrib>
 </author>
 </authorgroup>
@@ -28,7 +28,7 @@
 	<holder>Convergence GmbH</holder>
 </copyright>
 <copyright>
-	<year>2009-2012</year>
+	<year>2009-2014</year>
 	<holder>Mauro Carvalho Chehab</holder>
 </copyright>
 

@@ -14,7 +14,8 @@ config SND_BF5XX_SOC_SSM2602
 	depends on SND_BF5XX_I2S && SND_SOC_I2C_AND_SPI
 	select SND_BF5XX_SOC_I2S if !BF60x
 	select SND_BF6XX_SOC_I2S if BF60x
-	select SND_SOC_SSM2602
+	select SND_SOC_SSM2602_SPI if SPI_MASTER
+	select SND_SOC_SSM2602_I2C if I2C
 	help
 	  Say Y if you want to add support for the Analog Devices
 	  SSM2602 Audio Codec Add-On Card.
@@ -42,11 +43,38 @@ config SND_SOC_BFIN_EVAL_ADAU1373
 	  Note: This driver assumes that first ADAU1373 DAI is connected to the
 	  first SPORT port on the BF5XX board.
 
+config SND_SOC_BFIN_EVAL_ADAU1X61
+	tristate "Support for the EVAL-ADAU1X61 board on Blackfin eval boards"
+	depends on SND_BF5XX_I2S && I2C
+	select SND_BF5XX_SOC_I2S
+	select SND_SOC_ADAU1761_I2C
+	help
+	  Say Y if you want to add support for the Analog Devices EVAL-ADAU1X61
+	  board connected to one of the Blackfin evaluation boards like the
+	  BF5XX-STAMP or BF5XX-EZKIT.
+
+	  Note: This driver assumes that the ADAU1X61 is connected to the
+	  first SPORT port on the BF5XX board.
+
+config SND_SOC_BFIN_EVAL_ADAU1X81
+	tristate "Support for the EVAL-ADAU1X81 boards on Blackfin eval boards"
+	depends on SND_BF5XX_I2S && I2C
+	select SND_BF5XX_SOC_I2S
+	select SND_SOC_ADAU1781_I2C
+	help
+	  Say Y if you want to add support for the Analog Devices EVAL-ADAU1X81
+	  board connected to one of the Blackfin evaluation boards like the
+	  BF5XX-STAMP or BF5XX-EZKIT.
+
+	  Note: This driver assumes that the ADAU1X81 is connected to the
+	  first SPORT port on the BF5XX board.
+
 config SND_SOC_BFIN_EVAL_ADAV80X
 	tristate "Support for the EVAL-ADAV80X boards on Blackfin eval boards"
 	depends on SND_BF5XX_I2S && SND_SOC_I2C_AND_SPI
 	select SND_BF5XX_SOC_I2S
-	select SND_SOC_ADAV80X
+	select SND_SOC_ADAV801 if SPI_MASTER
+	select SND_SOC_ADAV803 if I2C
 	help
 	  Say Y if you want to add support for the Analog Devices EVAL-ADAV801 or
 	  EVAL-ADAV803 board connected to one of the Blackfin evaluation boards
@@ -67,7 +95,8 @@ config SND_BF5XX_SOC_AD193X
 	tristate "SoC AD193X Audio support for Blackfin"
 	depends on SND_BF5XX_I2S && SND_SOC_I2C_AND_SPI
 	select SND_BF5XX_SOC_I2S
-	select SND_SOC_AD193X
+	select SND_SOC_AD193X_I2C if I2C
+	select SND_SOC_AD193X_SPI if SPI_MASTER
 	help
 	  Say Y if you want to add support for AD193X codec on Blackfin.
 	  This driver supports AD1936, AD1937, AD1938 and AD1939.

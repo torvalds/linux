@@ -30,26 +30,6 @@
 
 static int num;
 
-/* We need only to blacklist devices that have already an acpi driver that
- * can't use pnp layer. We don't need to blacklist device that are directly
- * used by the kernel (PCI root, ...), as it is harmless and there were
- * already present in pnpbios. But there is an exception for devices that
- * have irqs (PIC, Timer) because we call acpi_register_gsi.
- * Finally, only devices that have a CRS method need to be in this list.
- */
-static struct acpi_device_id excluded_id_list[] __initdata = {
-	{"PNP0C09", 0},		/* EC */
-	{"PNP0C0F", 0},		/* Link device */
-	{"PNP0000", 0},		/* PIC */
-	{"PNP0100", 0},		/* Timer */
-	{"", 0},
-};
-
-static inline int __init is_exclusive_device(struct acpi_device *dev)
-{
-	return (!acpi_match_device_ids(dev, excluded_id_list));
-}
-
 /*
  * Compatible Device IDs
  */
@@ -83,8 +63,7 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 {
 	struct acpi_device *acpi_dev;
 	acpi_handle handle;
-	struct acpi_buffer buffer;
-	int ret;
+	int ret = 0;
 
 	pnp_dbg(&dev->dev, "set resources\n");
 
@@ -97,19 +76,26 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 	if (WARN_ON_ONCE(acpi_dev != dev->data))
 		dev->data = acpi_dev;
 
-	ret = pnpacpi_build_resource_template(dev, &buffer);
-	if (ret)
-		return ret;
-	ret = pnpacpi_encode_resources(dev, &buffer);
-	if (ret) {
+	if (acpi_has_method(handle, METHOD_NAME__SRS)) {
+		struct acpi_buffer buffer;
+
+		ret = pnpacpi_build_resource_template(dev, &buffer);
+		if (ret)
+			return ret;
+
+		ret = pnpacpi_encode_resources(dev, &buffer);
+		if (!ret) {
+			acpi_status status;
+
+			status = acpi_set_current_resources(handle, &buffer);
+			if (ACPI_FAILURE(status))
+				ret = -EIO;
+		}
 		kfree(buffer.pointer);
-		return ret;
 	}
-	if (ACPI_FAILURE(acpi_set_current_resources(handle, &buffer)))
-		ret = -EINVAL;
-	else if (acpi_bus_power_manageable(handle))
+	if (!ret && acpi_bus_power_manageable(handle))
 		ret = acpi_bus_set_power(handle, ACPI_STATE_D0);
-	kfree(buffer.pointer);
+
 	return ret;
 }
 
@@ -117,7 +103,7 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 {
 	struct acpi_device *acpi_dev;
 	acpi_handle handle;
-	int ret;
+	acpi_status status;
 
 	dev_dbg(&dev->dev, "disable resources\n");
 
@@ -128,13 +114,15 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 	}
 
 	/* acpi_unregister_gsi(pnp_irq(dev, 0)); */
-	ret = 0;
 	if (acpi_bus_power_manageable(handle))
 		acpi_bus_set_power(handle, ACPI_STATE_D3_COLD);
-		/* continue even if acpi_bus_set_power() fails */
-	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_DIS", NULL, NULL)))
-		ret = -ENODEV;
-	return ret;
+
+	/* continue even if acpi_bus_set_power() fails */
+	status = acpi_evaluate_object(handle, "_DIS", NULL, NULL);
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
+		return -ENODEV;
+
+	return 0;
 }
 
 #ifdef CONFIG_ACPI_SLEEP
@@ -258,7 +246,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	if (!pnpid)
 		return 0;
 
-	if (is_exclusive_device(device) || !device->status.present)
+	if (!device->status.present)
 		return 0;
 
 	dev = pnp_alloc_dev(&pnpacpi_protocol, num, pnpid);
@@ -318,10 +306,10 @@ static acpi_status __init pnpacpi_add_device_handler(acpi_handle handle,
 {
 	struct acpi_device *device;
 
-	if (!acpi_bus_get_device(handle, &device))
-		pnpacpi_add_device(device);
-	else
+	if (acpi_bus_get_device(handle, &device))
 		return AE_CTRL_DEPTH;
+	if (acpi_is_pnp_device(device))
+		pnpacpi_add_device(device);
 	return AE_OK;
 }
 

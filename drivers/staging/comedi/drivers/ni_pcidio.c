@@ -263,9 +263,6 @@ enum FPGA_Control_Bits {
 #define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
 #endif
 
-static int ni_pcidio_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
-
 enum nidio_boardid {
 	BOARD_PCIDIO_32HS,
 	BOARD_PXI6533,
@@ -353,17 +350,6 @@ static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
-static void ni_pcidio_event(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
-{
-	if (s->
-	    async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
-			     COMEDI_CB_OVERFLOW)) {
-		ni_pcidio_cancel(dev, s);
-	}
-	comedi_event(dev, s);
-}
-
 static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct nidio96_private *devpriv = dev->private;
@@ -373,7 +359,7 @@ static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
-		mite_sync_input_dma(devpriv->di_mite_chan, s->async);
+		mite_sync_input_dma(devpriv->di_mite_chan, s);
 	spin_unlock(&devpriv->mite_channel_lock);
 	count = s->async->buf_write_count - s->async->buf_read_count;
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
@@ -419,7 +405,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 			writel(CHOR_CLRLC,
 			       mite->mite_io_addr +
 			       MITE_CHOR(devpriv->di_mite_chan->channel));
-			mite_sync_input_dma(devpriv->di_mite_chan, s->async);
+			mite_sync_input_dma(devpriv->di_mite_chan, s);
 			/* XXX need to byteswap */
 		}
 		if (m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY |
@@ -461,8 +447,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 					  Group_1_FIFO);
 				data1 = auxdata & 0xffff;
 				data2 = (auxdata & 0xffff0000) >> 16;
-				comedi_buf_put(async, data1);
-				comedi_buf_put(async, data2);
+				comedi_buf_put(s, data1);
+				comedi_buf_put(s, data2);
 				flags = readb(devpriv->mite->daq_io_addr +
 					      Group_1_Flags);
 			}
@@ -501,7 +487,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	}
 
 out:
-	ni_pcidio_event(dev, s);
+	cfc_handle_events(dev, s);
 #if 0
 	if (!tag) {
 		writeb(0x03,
@@ -550,7 +536,7 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -609,11 +595,9 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		ni_pcidio_ns_to_timer(&cmd->scan_begin_arg,
-				      cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		ni_pcidio_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
@@ -773,7 +757,7 @@ static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 		return retval;
 
 	/* write alloc the entire buffer */
-	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->di_mite_chan) {
@@ -787,11 +771,13 @@ static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 static int ni_pcidio_inttrig(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int trignum)
+			     struct comedi_subdevice *s,
+			     unsigned int trig_num)
 {
 	struct nidio96_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	writeb(devpriv->OpModeBits, devpriv->mite->daq_io_addr + OpMode);
@@ -818,7 +804,7 @@ static int ni_pcidio_change(struct comedi_device *dev,
 	struct nidio96_private *devpriv = dev->private;
 	int ret;
 
-	ret = mite_buf_change(devpriv->di_mite_ring, s->async);
+	ret = mite_buf_change(devpriv->di_mite_ring, s);
 	if (ret < 0)
 		return ret;
 

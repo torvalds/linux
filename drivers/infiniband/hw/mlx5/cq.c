@@ -32,6 +32,7 @@
 
 #include <linux/kref.h>
 #include <rdma/ib_umem.h>
+#include <rdma/ib_user_verbs.h>
 #include "mlx5_ib.h"
 #include "user.h"
 
@@ -366,6 +367,38 @@ static void free_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf)
 	mlx5_buf_free(&dev->mdev, &buf->buf);
 }
 
+static void get_sig_err_item(struct mlx5_sig_err_cqe *cqe,
+			     struct ib_sig_err *item)
+{
+	u16 syndrome = be16_to_cpu(cqe->syndrome);
+
+#define GUARD_ERR   (1 << 13)
+#define APPTAG_ERR  (1 << 12)
+#define REFTAG_ERR  (1 << 11)
+
+	if (syndrome & GUARD_ERR) {
+		item->err_type = IB_SIG_BAD_GUARD;
+		item->expected = be32_to_cpu(cqe->expected_trans_sig) >> 16;
+		item->actual = be32_to_cpu(cqe->actual_trans_sig) >> 16;
+	} else
+	if (syndrome & REFTAG_ERR) {
+		item->err_type = IB_SIG_BAD_REFTAG;
+		item->expected = be32_to_cpu(cqe->expected_reftag);
+		item->actual = be32_to_cpu(cqe->actual_reftag);
+	} else
+	if (syndrome & APPTAG_ERR) {
+		item->err_type = IB_SIG_BAD_APPTAG;
+		item->expected = be32_to_cpu(cqe->expected_trans_sig) & 0xffff;
+		item->actual = be32_to_cpu(cqe->actual_trans_sig) & 0xffff;
+	} else {
+		pr_err("Got signature completion error with bad syndrome %04x\n",
+		       syndrome);
+	}
+
+	item->sig_err_offset = be64_to_cpu(cqe->err_offset);
+	item->key = be32_to_cpu(cqe->mkey);
+}
+
 static int mlx5_poll_one(struct mlx5_ib_cq *cq,
 			 struct mlx5_ib_qp **cur_qp,
 			 struct ib_wc *wc)
@@ -375,6 +408,9 @@ static int mlx5_poll_one(struct mlx5_ib_cq *cq,
 	struct mlx5_cqe64 *cqe64;
 	struct mlx5_core_qp *mqp;
 	struct mlx5_ib_wq *wq;
+	struct mlx5_sig_err_cqe *sig_err_cqe;
+	struct mlx5_core_mr *mmr;
+	struct mlx5_ib_mr *mr;
 	uint8_t opcode;
 	uint32_t qpn;
 	u16 wqe_ctr;
@@ -475,6 +511,33 @@ repoll:
 			}
 		}
 		break;
+	case MLX5_CQE_SIG_ERR:
+		sig_err_cqe = (struct mlx5_sig_err_cqe *)cqe64;
+
+		read_lock(&dev->mdev.priv.mr_table.lock);
+		mmr = __mlx5_mr_lookup(&dev->mdev,
+				       mlx5_base_mkey(be32_to_cpu(sig_err_cqe->mkey)));
+		if (unlikely(!mmr)) {
+			read_unlock(&dev->mdev.priv.mr_table.lock);
+			mlx5_ib_warn(dev, "CQE@CQ %06x for unknown MR %6x\n",
+				     cq->mcq.cqn, be32_to_cpu(sig_err_cqe->mkey));
+			return -EINVAL;
+		}
+
+		mr = to_mibmr(mmr);
+		get_sig_err_item(sig_err_cqe, &mr->sig->err_item);
+		mr->sig->sig_err_exists = true;
+		mr->sig->sigerr_count++;
+
+		mlx5_ib_warn(dev, "CQN: 0x%x Got SIGERR on key: 0x%x err_type %x err_offset %llx expected %x actual %x\n",
+			     cq->mcq.cqn, mr->sig->err_item.key,
+			     mr->sig->err_item.err_type,
+			     mr->sig->err_item.sig_err_offset,
+			     mr->sig->err_item.expected,
+			     mr->sig->err_item.actual);
+
+		read_unlock(&dev->mdev.priv.mr_table.lock);
+		goto repoll;
 	}
 
 	return 0;
@@ -540,13 +603,23 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 			  int *cqe_size, int *index, int *inlen)
 {
 	struct mlx5_ib_create_cq ucmd;
+	size_t ucmdlen;
 	int page_shift;
 	int npages;
 	int ncont;
 	int err;
 
-	if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd)))
+	ucmdlen =
+		(udata->inlen - sizeof(struct ib_uverbs_cmd_hdr) <
+		 sizeof(ucmd)) ? (sizeof(ucmd) -
+				  sizeof(ucmd.reserved)) : sizeof(ucmd);
+
+	if (ib_copy_from_udata(&ucmd, udata, ucmdlen))
 		return -EFAULT;
+
+	if (ucmdlen == sizeof(ucmd) &&
+	    ucmd.reserved != 0)
+		return -EINVAL;
 
 	if (ucmd.cqe_size != 64 && ucmd.cqe_size != 128)
 		return -EINVAL;

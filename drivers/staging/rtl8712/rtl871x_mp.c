@@ -53,8 +53,9 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 	_init_mp_priv_(pmp_priv);
 	_init_queue(&pmp_priv->free_mp_xmitqueue);
 	pmp_priv->pallocated_mp_xmitframe_buf = NULL;
-	pmp_priv->pallocated_mp_xmitframe_buf = _malloc(NR_MP_XMITFRAME *
-					 sizeof(struct mp_xmit_frame) + 4);
+	pmp_priv->pallocated_mp_xmitframe_buf = kmalloc(NR_MP_XMITFRAME *
+							sizeof(struct mp_xmit_frame) + 4,
+							GFP_ATOMIC);
 	if (pmp_priv->pallocated_mp_xmitframe_buf == NULL) {
 		res = _FAIL;
 		goto _exit_init_mp_priv;
@@ -80,9 +81,8 @@ _exit_init_mp_priv:
 
 static int free_mp_priv(struct mp_priv *pmp_priv)
 {
-	int res = 0;
 	kfree(pmp_priv->pallocated_mp_xmitframe_buf);
-	return res;
+	return 0;
 }
 
 void mp871xinit(struct _adapter *padapter)
@@ -281,11 +281,10 @@ void r8712_SetChannel(struct _adapter *pAdapter)
 	struct SetChannel_parm *pparm = NULL;
 	u16 code = GEN_CMD_CODE(_SetChannel);
 
-	pcmd = (struct cmd_obj *)_malloc(sizeof(struct cmd_obj));
+	pcmd = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return;
-	pparm = (struct SetChannel_parm *)_malloc(sizeof(struct
-					 SetChannel_parm));
+	pparm = kmalloc(sizeof(struct SetChannel_parm), GFP_ATOMIC);
 	if (pparm == NULL) {
 		kfree(pcmd);
 		return;

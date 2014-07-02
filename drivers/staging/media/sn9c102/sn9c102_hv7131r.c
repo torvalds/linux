@@ -23,7 +23,7 @@
 #include "sn9c102_devtable.h"
 
 
-static int hv7131r_init(struct sn9c102_device* cam)
+static int hv7131r_init(struct sn9c102_device *cam)
 {
 	int err = 0;
 
@@ -137,31 +137,36 @@ static int hv7131r_init(struct sn9c102_device* cam)
 }
 
 
-static int hv7131r_get_ctrl(struct sn9c102_device* cam,
-			    struct v4l2_control* ctrl)
+static int hv7131r_get_ctrl(struct sn9c102_device *cam,
+			    struct v4l2_control *ctrl)
 {
 	switch (ctrl->id) {
 	case V4L2_CID_GAIN:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x30)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x30);
+		if (ctrl->value < 0)
 			return -EIO;
 		return 0;
 	case V4L2_CID_RED_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x31)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x31);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = ctrl->value & 0x3f;
 		return 0;
 	case V4L2_CID_BLUE_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x33)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x33);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = ctrl->value & 0x3f;
 		return 0;
 	case SN9C102_V4L2_CID_GREEN_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x32)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x32);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = ctrl->value & 0x3f;
 		return 0;
 	case V4L2_CID_BLACK_LEVEL:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x01)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x01);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = (ctrl->value & 0x08) ? 1 : 0;
 		return 0;
@@ -171,8 +176,8 @@ static int hv7131r_get_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int hv7131r_set_ctrl(struct sn9c102_device* cam,
-			    const struct v4l2_control* ctrl)
+static int hv7131r_set_ctrl(struct sn9c102_device *cam,
+			    const struct v4l2_control *ctrl)
 {
 	int err = 0;
 
@@ -192,6 +197,7 @@ static int hv7131r_set_ctrl(struct sn9c102_device* cam,
 	case V4L2_CID_BLACK_LEVEL:
 		{
 			int r = sn9c102_i2c_read(cam, 0x01);
+
 			if (r < 0)
 				return -EIO;
 			err += sn9c102_i2c_write(cam, 0x01,
@@ -206,10 +212,10 @@ static int hv7131r_set_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int hv7131r_set_crop(struct sn9c102_device* cam,
-			    const struct v4l2_rect* rect)
+static int hv7131r_set_crop(struct sn9c102_device *cam,
+			    const struct v4l2_rect *rect)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	int err = 0;
 	u8 h_start = (u8)(rect->left - s->cropcap.bounds.left) + 1,
 	   v_start = (u8)(rect->top - s->cropcap.bounds.top) + 1;
@@ -221,8 +227,8 @@ static int hv7131r_set_crop(struct sn9c102_device* cam,
 }
 
 
-static int hv7131r_set_pix_format(struct sn9c102_device* cam,
-				  const struct v4l2_pix_format* pix)
+static int hv7131r_set_pix_format(struct sn9c102_device *cam,
+				  const struct v4l2_pix_format *pix)
 {
 	int err = 0;
 
@@ -342,7 +348,7 @@ static const struct sn9c102_sensor hv7131r = {
 };
 
 
-int sn9c102_probe_hv7131r(struct sn9c102_device* cam)
+int sn9c102_probe_hv7131r(struct sn9c102_device *cam)
 {
 	int devid, err;
 

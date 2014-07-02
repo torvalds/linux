@@ -26,14 +26,16 @@
 /* Nasty hack. Better have per device instances */
 static u32 mem_addr;
 static u32 dbg_txdesc_index;
+static u32 dbg_vring_index; /* 24+ for Rx, 0..23 for Tx */
 
 static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
-			    const char *name, struct vring *vring)
+			    const char *name, struct vring *vring,
+			    char _s, char _h)
 {
 	void __iomem *x = wmi_addr(wil, vring->hwtail);
 
 	seq_printf(s, "VRING %s = {\n", name);
-	seq_printf(s, "  pa     = 0x%016llx\n", (unsigned long long)vring->pa);
+	seq_printf(s, "  pa     = %pad\n", &vring->pa);
 	seq_printf(s, "  va     = 0x%p\n", vring->va);
 	seq_printf(s, "  size   = %d\n", vring->size);
 	seq_printf(s, "  swtail = %d\n", vring->swtail);
@@ -50,8 +52,8 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 			volatile struct vring_tx_desc *d = &vring->va[i].tx;
 			if ((i % 64) == 0 && (i != 0))
 				seq_printf(s, "\n");
-			seq_printf(s, "%s", (d->dma.status & BIT(0)) ?
-					"S" : (vring->ctx[i].skb ? "H" : "h"));
+			seq_printf(s, "%c", (d->dma.status & BIT(0)) ?
+					_s : (vring->ctx[i].skb ? _h : 'h'));
 		}
 		seq_printf(s, "\n");
 	}
@@ -63,14 +65,19 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 	uint i;
 	struct wil6210_priv *wil = s->private;
 
-	wil_print_vring(s, wil, "rx", &wil->vring_rx);
+	wil_print_vring(s, wil, "rx", &wil->vring_rx, 'S', '_');
 
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
 		struct vring *vring = &(wil->vring_tx[i]);
 		if (vring->va) {
+			int cid = wil->vring2cid_tid[i][0];
+			int tid = wil->vring2cid_tid[i][1];
 			char name[10];
 			snprintf(name, sizeof(name), "tx_%2d", i);
-			wil_print_vring(s, wil, name, vring);
+
+			seq_printf(s, "\n%pM CID %d TID %d\n",
+				   wil->sta[cid].addr, cid, tid);
+			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
 	}
 
@@ -390,57 +397,98 @@ static const struct file_operations fops_reset = {
 	.write = wil_write_file_reset,
 	.open  = simple_open,
 };
-/*---------Tx descriptor------------*/
 
+static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
+			    const char *prefix)
+{
+	char printbuf[16 * 3 + 2];
+	int i = 0;
+	while (i < len) {
+		int l = min(len - i, 16);
+		hex_dump_to_buffer(p + i, l, 16, 1, printbuf,
+				   sizeof(printbuf), false);
+		seq_printf(s, "%s%s\n", prefix, printbuf);
+		i += l;
+	}
+}
+
+static void wil_seq_print_skb(struct seq_file *s, struct sk_buff *skb)
+{
+	int i = 0;
+	int len = skb_headlen(skb);
+	void *p = skb->data;
+	int nr_frags = skb_shinfo(skb)->nr_frags;
+
+	seq_printf(s, "    len = %d\n", len);
+	wil_seq_hexdump(s, p, len, "      : ");
+
+	if (nr_frags) {
+		seq_printf(s, "    nr_frags = %d\n", nr_frags);
+		for (i = 0; i < nr_frags; i++) {
+			const struct skb_frag_struct *frag =
+					&skb_shinfo(skb)->frags[i];
+
+			len = skb_frag_size(frag);
+			p = skb_frag_address_safe(frag);
+			seq_printf(s, "    [%2d] : len = %d\n", i, len);
+			wil_seq_hexdump(s, p, len, "      : ");
+		}
+	}
+}
+
+/*---------Tx/Rx descriptor------------*/
 static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
-	struct vring *vring = &(wil->vring_tx[0]);
+	struct vring *vring;
+	bool tx = (dbg_vring_index < WIL6210_MAX_TX_RINGS);
+	if (tx)
+		vring = &(wil->vring_tx[dbg_vring_index]);
+	else
+		vring = &wil->vring_rx;
 
 	if (!vring->va) {
-		seq_printf(s, "No Tx VRING\n");
+		if (tx)
+			seq_printf(s, "No Tx[%2d] VRING\n", dbg_vring_index);
+		else
+			seq_puts(s, "No Rx VRING\n");
 		return 0;
 	}
 
 	if (dbg_txdesc_index < vring->size) {
+		/* use struct vring_tx_desc for Rx as well,
+		 * only field used, .dma.length, is the same
+		 */
 		volatile struct vring_tx_desc *d =
 				&(vring->va[dbg_txdesc_index].tx);
 		volatile u32 *u = (volatile u32 *)d;
 		struct sk_buff *skb = vring->ctx[dbg_txdesc_index].skb;
 
-		seq_printf(s, "Tx[%3d] = {\n", dbg_txdesc_index);
+		if (tx)
+			seq_printf(s, "Tx[%2d][%3d] = {\n", dbg_vring_index,
+				   dbg_txdesc_index);
+		else
+			seq_printf(s, "Rx[%3d] = {\n", dbg_txdesc_index);
 		seq_printf(s, "  MAC = 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			   u[0], u[1], u[2], u[3]);
 		seq_printf(s, "  DMA = 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			   u[4], u[5], u[6], u[7]);
-		seq_printf(s, "  SKB = %p\n", skb);
+		seq_printf(s, "  SKB = 0x%p\n", skb);
 
 		if (skb) {
-			char printbuf[16 * 3 + 2];
-			int i = 0;
-			int len = le16_to_cpu(d->dma.length);
-			void *p = skb->data;
-
-			if (len != skb_headlen(skb)) {
-				seq_printf(s, "!!! len: desc = %d skb = %d\n",
-					   len, skb_headlen(skb));
-				len = min_t(int, len, skb_headlen(skb));
-			}
-
-			seq_printf(s, "    len = %d\n", len);
-
-			while (i < len) {
-				int l = min(len - i, 16);
-				hex_dump_to_buffer(p + i, l, 16, 1, printbuf,
-						   sizeof(printbuf), false);
-				seq_printf(s, "      : %s\n", printbuf);
-				i += l;
-			}
+			skb_get(skb);
+			wil_seq_print_skb(s, skb);
+			kfree_skb(skb);
 		}
 		seq_printf(s, "}\n");
 	} else {
-		seq_printf(s, "TxDesc index (%d) >= size (%d)\n",
-			   dbg_txdesc_index, vring->size);
+		if (tx)
+			seq_printf(s, "[%2d] TxDesc index (%d) >= size (%d)\n",
+				   dbg_vring_index, dbg_txdesc_index,
+				   vring->size);
+		else
+			seq_printf(s, "RxDesc index (%d) >= size (%d)\n",
+				   dbg_txdesc_index, vring->size);
 	}
 
 	return 0;
@@ -570,6 +618,69 @@ static const struct file_operations fops_temp = {
 	.llseek		= seq_lseek,
 };
 
+/*---------Station matrix------------*/
+static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
+{
+	int i;
+	u16 index = ((r->head_seq_num - r->ssn) & 0xfff) % r->buf_size;
+	seq_printf(s, "0x%03x [", r->head_seq_num);
+	for (i = 0; i < r->buf_size; i++) {
+		if (i == index)
+			seq_printf(s, "%c", r->reorder_buf[i] ? 'O' : '|');
+		else
+			seq_printf(s, "%c", r->reorder_buf[i] ? '*' : '_');
+	}
+	seq_puts(s, "]\n");
+}
+
+static int wil_sta_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	int i, tid;
+
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+		struct wil_sta_info *p = &wil->sta[i];
+		char *status = "unknown";
+		switch (p->status) {
+		case wil_sta_unused:
+			status = "unused   ";
+			break;
+		case wil_sta_conn_pending:
+			status = "pending  ";
+			break;
+		case wil_sta_connected:
+			status = "connected";
+			break;
+		}
+		seq_printf(s, "[%d] %pM %s%s\n", i, p->addr, status,
+			   (p->data_port_open ? " data_port_open" : ""));
+
+		if (p->status == wil_sta_connected) {
+			for (tid = 0; tid < WIL_STA_TID_NUM; tid++) {
+				struct wil_tid_ampdu_rx *r = p->tid_rx[tid];
+				if (r) {
+					seq_printf(s, "[%2d] ", tid);
+					wil_print_rxtid(s, r);
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int wil_sta_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_sta_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_sta = {
+	.open		= wil_sta_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
 /*----------------*/
 int wil6210_debugfs_init(struct wil6210_priv *wil)
 {
@@ -581,9 +692,13 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 
 	debugfs_create_file("mbox", S_IRUGO, dbg, wil, &fops_mbox);
 	debugfs_create_file("vrings", S_IRUGO, dbg, wil, &fops_vring);
-	debugfs_create_file("txdesc", S_IRUGO, dbg, wil, &fops_txdesc);
-	debugfs_create_u32("txdesc_index", S_IRUGO | S_IWUSR, dbg,
+	debugfs_create_file("stations", S_IRUGO, dbg, wil, &fops_sta);
+	debugfs_create_file("desc", S_IRUGO, dbg, wil, &fops_txdesc);
+	debugfs_create_u32("desc_index", S_IRUGO | S_IWUSR, dbg,
 			   &dbg_txdesc_index);
+	debugfs_create_u32("vring_index", S_IRUGO | S_IWUSR, dbg,
+			   &dbg_vring_index);
+
 	debugfs_create_file("bf", S_IRUGO, dbg, wil, &fops_bf);
 	debugfs_create_file("ssid", S_IRUGO | S_IWUSR, dbg, wil, &fops_ssid);
 	debugfs_create_u32("secure_pcp", S_IRUGO | S_IWUSR, dbg,

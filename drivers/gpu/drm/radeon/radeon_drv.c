@@ -79,9 +79,12 @@
  *   2.35.0 - Add CIK macrotile mode array query
  *   2.36.0 - Fix CIK DCE tiling setup
  *   2.37.0 - allow GS ring setup on r6xx/r7xx
+ *   2.38.0 - RADEON_GEM_OP (GET_INITIAL_DOMAIN, SET_INITIAL_DOMAIN),
+ *            CIK: 1D and linear tiling modes contain valid PIPE_CONFIG
+ *   2.39.0 - Add INFO query for number of active CUs
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	37
+#define KMS_DRIVER_MINOR	39
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -113,6 +116,7 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 				      unsigned int flags,
 				      int *vpos, int *hpos, ktime_t *stime,
 				      ktime_t *etime);
+extern bool radeon_is_px(struct drm_device *dev);
 extern const struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
@@ -142,11 +146,9 @@ void radeon_debugfs_cleanup(struct drm_minor *minor);
 #if defined(CONFIG_VGA_SWITCHEROO)
 void radeon_register_atpx_handler(void);
 void radeon_unregister_atpx_handler(void);
-bool radeon_is_px(void);
 #else
 static inline void radeon_register_atpx_handler(void) {}
 static inline void radeon_unregister_atpx_handler(void) {}
-static inline bool radeon_is_px(void) { return false; }
 #endif
 
 int radeon_no_wb;
@@ -171,6 +173,8 @@ int radeon_dpm = -1;
 int radeon_aspm = -1;
 int radeon_runtime_pm = -1;
 int radeon_hard_reset = 0;
+int radeon_vm_size = 4096;
+int radeon_vm_block_size = 9;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -184,7 +188,7 @@ module_param_named(dynclks, radeon_dynclks, int, 0444);
 MODULE_PARM_DESC(r4xx_atom, "Enable ATOMBIOS modesetting for R4xx");
 module_param_named(r4xx_atom, radeon_r4xx_atom, int, 0444);
 
-MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing");
+MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, radeon_vram_limit, int, 0600);
 
 MODULE_PARM_DESC(agpmode, "AGP Mode (-1 == PCI)");
@@ -237,6 +241,12 @@ module_param_named(runpm, radeon_runtime_pm, int, 0444);
 
 MODULE_PARM_DESC(hard_reset, "PCI config reset (1 = force enable, 0 = disable (default))");
 module_param_named(hard_reset, radeon_hard_reset, int, 0444);
+
+MODULE_PARM_DESC(vm_size, "VM address space size in megabytes (default 4GB)");
+module_param_named(vm_size, radeon_vm_size, int, 0444);
+
+MODULE_PARM_DESC(vm_block_size, "VM page table size in bits (default 9)");
+module_param_named(vm_block_size, radeon_vm_block_size, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
@@ -403,11 +413,10 @@ static int radeon_pmops_runtime_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (radeon_runtime_pm == 0)
-		return -EINVAL;
-
-	if (radeon_runtime_pm == -1 && !radeon_is_px())
-		return -EINVAL;
+	if (!radeon_is_px(drm_dev)) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 	drm_kms_helper_poll_disable(drm_dev);
@@ -428,10 +437,7 @@ static int radeon_pmops_runtime_resume(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (radeon_runtime_pm == 0)
-		return -EINVAL;
-
-	if (radeon_runtime_pm == -1 && !radeon_is_px())
+	if (!radeon_is_px(drm_dev))
 		return -EINVAL;
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
@@ -456,12 +462,8 @@ static int radeon_pmops_runtime_idle(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	struct drm_crtc *crtc;
 
-	if (radeon_runtime_pm == 0)
-		return -EBUSY;
-
-	/* are we PX enabled? */
-	if (radeon_runtime_pm == -1 && !radeon_is_px()) {
-		DRM_DEBUG_DRIVER("failing to power off - not px\n");
+	if (!radeon_is_px(drm_dev)) {
+		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
 
@@ -526,7 +528,6 @@ static struct drm_driver kms_driver = {
 	    DRIVER_USE_AGP |
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
 	    DRIVER_PRIME | DRIVER_RENDER,
-	.dev_priv_size = 0,
 	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
 	.preclose = radeon_driver_preclose_kms,

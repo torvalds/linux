@@ -514,36 +514,36 @@ struct sbecom_port_param
     };
     typedef struct wancfg wcfg_t;
 
-    extern wcfg_t *wancfg_init (char *, char *);
-    extern int  wancfg_card_blink (wcfg_t *, int);
-    extern int  wancfg_ctl (wcfg_t *, int, void *, int, void *, int);
-    extern int  wancfg_del_card_stats (wcfg_t *);
-    extern int  wancfg_del_chan_stats (wcfg_t *, int);
-    extern int  wancfg_enable_ports (wcfg_t *, int);
-    extern int  wancfg_free (wcfg_t *);
-    extern int  wancfg_get_brdaddr (wcfg_t *, struct sbe_brd_addr *);
-    extern int  wancfg_get_brdinfo (wcfg_t *, struct sbe_brd_info *);
-    extern int  wancfg_get_card (wcfg_t *, struct sbecom_card_param *);
-    extern int  wancfg_get_card_chan_stats (wcfg_t *, struct sbecom_chan_stats *);
-    extern int  wancfg_get_card_sn (wcfg_t *);
-    extern int  wancfg_get_card_stats (wcfg_t *, struct temux_card_stats *);
-    extern int  wancfg_get_chan (wcfg_t *, int, struct sbecom_chan_param *);
-    extern int  wancfg_get_chan_stats (wcfg_t *, int, struct sbecom_chan_stats *);
-    extern int  wancfg_get_drvinfo (wcfg_t *, int, struct sbe_drv_info *);
-    extern int  wancfg_get_framer (wcfg_t *, int, struct sbecom_framer_param *);
-    extern int  wancfg_get_iid (wcfg_t *, int, struct sbe_iid_info *);
-    extern int  wancfg_get_sn (wcfg_t *, unsigned int *);
-    extern int  wancfg_read (wcfg_t *, int, struct sbecom_wrt_vec *);
-    extern int  wancfg_reset_device (wcfg_t *, int);
-    extern int  wancfg_set_card (wcfg_t *, struct sbecom_card_param *);
-    extern int  wancfg_set_chan (wcfg_t *, int, struct sbecom_chan_param *);
-    extern int  wancfg_set_framer (wcfg_t *, int, struct sbecom_framer_param *);
-    extern int  wancfg_set_loglevel (wcfg_t *, uint);
-    extern int  wancfg_write (wcfg_t *, int, struct sbecom_wrt_vec *);
+    extern wcfg_t *wancfg_init(char *, char *);
+    extern int wancfg_card_blink(wcfg_t *, int);
+    extern int wancfg_ctl(wcfg_t *, int, void *, int, void *, int);
+    extern int wancfg_del_card_stats(wcfg_t *);
+    extern int wancfg_del_chan_stats(wcfg_t *, int);
+    extern int wancfg_enable_ports(wcfg_t *, int);
+    extern int wancfg_free(wcfg_t *);
+    extern int wancfg_get_brdaddr(wcfg_t *, struct sbe_brd_addr *);
+    extern int wancfg_get_brdinfo(wcfg_t *, struct sbe_brd_info *);
+    extern int wancfg_get_card(wcfg_t *, struct sbecom_card_param *);
+    extern int wancfg_get_card_chan_stats(wcfg_t *, struct sbecom_chan_stats *);
+    extern int wancfg_get_card_sn(wcfg_t *);
+    extern int wancfg_get_card_stats(wcfg_t *, struct temux_card_stats *);
+    extern int wancfg_get_chan(wcfg_t *, int, struct sbecom_chan_param *);
+    extern int wancfg_get_chan_stats(wcfg_t *, int, struct sbecom_chan_stats *);
+    extern int wancfg_get_drvinfo(wcfg_t *, int, struct sbe_drv_info *);
+    extern int wancfg_get_framer(wcfg_t *, int, struct sbecom_framer_param *);
+    extern int wancfg_get_iid(wcfg_t *, int, struct sbe_iid_info *);
+    extern int wancfg_get_sn(wcfg_t *, unsigned int *);
+    extern int wancfg_read(wcfg_t *, int, struct sbecom_wrt_vec *);
+    extern int wancfg_reset_device(wcfg_t *, int);
+    extern int wancfg_set_card(wcfg_t *, struct sbecom_card_param *);
+    extern int wancfg_set_chan(wcfg_t *, int, struct sbecom_chan_param *);
+    extern int wancfg_set_framer(wcfg_t *, int, struct sbecom_framer_param *);
+    extern int wancfg_set_loglevel(wcfg_t *, uint);
+    extern int wancfg_write(wcfg_t *, int, struct sbecom_wrt_vec *);
 
 #ifdef NOT_YET_COMMON
-    extern int  wancfg_get_tsioc (wcfg_t *, struct wanc1t3_ts_hdr *, struct wanc1t3_ts_param *);
-    extern int  wancfg_set_tsioc (wcfg_t *, struct wanc1t3_ts_param *);
+    extern int  wancfg_get_tsioc(wcfg_t *, struct wanc1t3_ts_hdr *, struct wanc1t3_ts_param *);
+    extern int  wancfg_set_tsioc(wcfg_t *, struct wanc1t3_ts_param *);
 #endif
 
 #endif                          /*** _INC_LIBSBEW_H_ ***/

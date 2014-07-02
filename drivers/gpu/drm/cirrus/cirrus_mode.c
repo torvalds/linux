@@ -149,7 +149,7 @@ static int cirrus_crtc_do_set_base(struct drm_crtc *crtc,
 		cirrus_bo_unreserve(bo);
 	}
 
-	cirrus_fb = to_cirrus_framebuffer(crtc->fb);
+	cirrus_fb = to_cirrus_framebuffer(crtc->primary->fb);
 	obj = cirrus_fb->obj;
 	bo = gem_to_cirrus_bo(obj);
 
@@ -268,7 +268,7 @@ static int cirrus_crtc_mode_set(struct drm_crtc *crtc,
 	sr07 = RREG8(SEQ_DATA);
 	sr07 &= 0xe0;
 	hdr = 0;
-	switch (crtc->fb->bits_per_pixel) {
+	switch (crtc->primary->fb->bits_per_pixel) {
 	case 8:
 		sr07 |= 0x11;
 		break;
@@ -291,13 +291,13 @@ static int cirrus_crtc_mode_set(struct drm_crtc *crtc,
 	WREG_SEQ(0x7, sr07);
 
 	/* Program the pitch */
-	tmp = crtc->fb->pitches[0] / 8;
+	tmp = crtc->primary->fb->pitches[0] / 8;
 	WREG_CRT(VGA_CRTC_OFFSET, tmp);
 
 	/* Enable extended blanking and pitch bits, and enable full memory */
 	tmp = 0x22;
-	tmp |= (crtc->fb->pitches[0] >> 7) & 0x10;
-	tmp |= (crtc->fb->pitches[0] >> 6) & 0x40;
+	tmp |= (crtc->primary->fb->pitches[0] >> 7) & 0x10;
+	tmp |= (crtc->primary->fb->pitches[0] >> 6) & 0x40;
 	WREG_CRT(0x1b, tmp);
 
 	/* Enable high-colour modes */
@@ -308,6 +308,9 @@ static int cirrus_crtc_mode_set(struct drm_crtc *crtc,
 
 	WREG_HDR(hdr);
 	cirrus_crtc_do_set_base(crtc, old_fb, x, y, 0);
+
+	/* Unblank (needed on S3 resume, vgabios doesn't do it then) */
+	outb(0x20, 0x3c0);
 	return 0;
 }
 
@@ -502,13 +505,6 @@ static int cirrus_vga_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static int cirrus_vga_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
-{
-	/* Any mode we've added is valid */
-	return MODE_OK;
-}
-
 static struct drm_encoder *cirrus_connector_best_encoder(struct drm_connector
 						  *connector)
 {
@@ -543,7 +539,6 @@ static void cirrus_connector_destroy(struct drm_connector *connector)
 
 struct drm_connector_helper_funcs cirrus_vga_connector_helper_funcs = {
 	.get_modes = cirrus_vga_get_modes,
-	.mode_valid = cirrus_vga_mode_valid,
 	.best_encoder = cirrus_connector_best_encoder,
 };
 

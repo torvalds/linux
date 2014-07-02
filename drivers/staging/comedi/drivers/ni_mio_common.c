@@ -256,7 +256,6 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ni_read_eeprom(struct comedi_device *dev, int addr);
 
-static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s);
 #ifndef PCIDMA
 static void ni_handle_fifo_half_full(struct comedi_device *dev);
 static int ni_ao_fifo_half_empty(struct comedi_device *dev,
@@ -272,15 +271,12 @@ static void shutdown_ai_command(struct comedi_device *dev);
 static int ni_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 			 unsigned int trignum);
 
-static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s);
-
 static int ni_8255_callback(int dir, int port, int data, unsigned long arg);
 
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 #endif
-static int ni_gpct_cancel(struct comedi_device *dev,
-			  struct comedi_subdevice *s);
 static void handle_gpct_interrupt(struct comedi_device *dev,
 				  unsigned short counter_index);
 
@@ -687,12 +683,22 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
+	static const int timeout = 10000;
+	int i;
 
 	if (board->reg_type == ni_reg_6143) {
 		/*  Flush the 6143 data FIFO */
 		ni_writel(0x10, AIFIFO_Control_6143);	/*  Flush fifo */
 		ni_writel(0x00, AIFIFO_Control_6143);	/*  Flush fifo */
-		while (ni_readl(AIFIFO_Status_6143) & 0x10) ;	/*  Wait for complete */
+		/*  Wait for complete */
+		for (i = 0; i < timeout; i++) {
+			if (!(ni_readl(AIFIFO_Status_6143) & 0x10))
+				break;
+			udelay(1);
+		}
+		if (i == timeout) {
+			comedi_error(dev, "FIFO flush timeout.");
+		}
 	} else {
 		devpriv->stc_writew(dev, 1, ADC_FIFO_Clear);
 		if (board->reg_type == ni_reg_625x) {
@@ -858,7 +864,7 @@ static void ni_sync_ai_dma(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ai_mite_chan)
-		mite_sync_input_dma(devpriv->ai_mite_chan, s->async);
+		mite_sync_input_dma(devpriv->ai_mite_chan, s);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
@@ -871,7 +877,7 @@ static void mite_handle_b_linkc(struct mite_struct *mite,
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ao_mite_chan)
-		mite_sync_output_dma(devpriv->ao_mite_chan, s->async);
+		mite_sync_output_dma(devpriv->ao_mite_chan, s);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
@@ -937,32 +943,6 @@ static void shutdown_ai_command(struct comedi_device *dev)
 	s->async->events |= COMEDI_CB_EOA;
 }
 
-static void ni_event(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	if (s->
-	    async->events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW |
-			     COMEDI_CB_EOA)) {
-		switch (s->index) {
-		case NI_AI_SUBDEV:
-			ni_ai_reset(dev, s);
-			break;
-		case NI_AO_SUBDEV:
-			ni_ao_reset(dev, s);
-			break;
-		case NI_GPCT0_SUBDEV:
-		case NI_GPCT1_SUBDEV:
-			ni_gpct_cancel(dev, s);
-			break;
-		case NI_DIO_SUBDEV:
-			ni_cdio_cancel(dev, s);
-			break;
-		default:
-			break;
-		}
-	}
-	comedi_event(dev, s);
-}
-
 static void handle_gpct_interrupt(struct comedi_device *dev,
 				  unsigned short counter_index)
 {
@@ -974,8 +954,7 @@ static void handle_gpct_interrupt(struct comedi_device *dev,
 
 	ni_tio_handle_interrupt(&devpriv->counter_dev->counters[counter_index],
 				s);
-	if (s->async->events)
-		ni_event(dev, s);
+	cfc_handle_events(dev, s);
 #endif
 }
 
@@ -1033,7 +1012,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			if (comedi_is_subdevice_running(s)) {
 				s->async->events |=
 				    COMEDI_CB_ERROR | COMEDI_CB_EOA;
-				ni_event(dev, s);
+				cfc_handle_events(dev, s);
 			}
 			return;
 		}
@@ -1048,8 +1027,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			if (status & (AI_Overrun_St | AI_Overflow_St))
 				s->async->events |= COMEDI_CB_OVERFLOW;
 
-			ni_event(dev, s);
-
+			cfc_handle_events(dev, s);
 			return;
 		}
 		if (status & AI_SC_TC_St) {
@@ -1076,7 +1054,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 	if ((status & AI_STOP_St))
 		ni_handle_eos(dev, s);
 
-	ni_event(dev, s);
+	cfc_handle_events(dev, s);
 }
 
 static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
@@ -1151,7 +1129,7 @@ static void handle_b_interrupt(struct comedi_device *dev,
 	}
 #endif
 
-	ni_event(dev, s);
+	cfc_handle_events(dev, s);
 }
 
 #ifndef PCIDMA
@@ -1171,7 +1149,7 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 
 	chan = async->cur_chan;
 	for (i = 0; i < n; i++) {
-		err &= comedi_buf_get(async, &d);
+		err &= comedi_buf_get(s, &d);
 		if (err == 0)
 			break;
 
@@ -1181,7 +1159,7 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 			packed_data = d & 0xffff;
 			/* 6711 only has 16 bit wide ao fifo */
 			if (board->reg_type != ni_reg_6711) {
-				err &= comedi_buf_get(async, &d);
+				err &= comedi_buf_get(s, &d);
 				if (err == 0)
 					break;
 				chan++;
@@ -1222,7 +1200,7 @@ static int ni_ao_fifo_half_empty(struct comedi_device *dev,
 	const struct ni_board_struct *board = comedi_board(dev);
 	int n;
 
-	n = comedi_buf_read_n_available(s->async);
+	n = comedi_buf_read_n_available(s);
 	if (n == 0) {
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return 0;
@@ -1252,7 +1230,7 @@ static int ni_ao_prep_fifo(struct comedi_device *dev,
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 
 	/* load some data */
-	n = comedi_buf_read_n_available(s->async);
+	n = comedi_buf_read_n_available(s);
 	if (n == 0)
 		return 0;
 
@@ -1490,10 +1468,11 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct ni_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
-	unsigned int i;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int length = num_bytes / bytes_per_sample(s);
 	unsigned short *array = data;
 	unsigned int *larray = data;
+	unsigned int i;
 
 	for (i = 0; i < length; i++) {
 #ifdef PCIDMA
@@ -1507,7 +1486,7 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 		else
 			array[i] += devpriv->ai_offset[chan_index];
 		chan_index++;
-		chan_index %= async->cmd.chanlist_len;
+		chan_index %= cmd->chanlist_len;
 	}
 }
 
@@ -1527,7 +1506,7 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 /* printk("comedi_debug: using mite channel %i for ai.\n", devpriv->ai_mite_chan->channel); */
 
 	/* write alloc the entire buffer */
-	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ai_mite_chan == NULL) {
@@ -1567,7 +1546,7 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 		return retval;
 
 	/* read alloc the entire buffer */
-	comedi_buf_read_alloc(s->async, s->async->prealloc_bufsz);
+	comedi_buf_read_alloc(s, s->async->prealloc_bufsz);
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ao_mite_chan) {
@@ -2102,7 +2081,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	int err = 0;
-	int tmp;
+	unsigned int tmp;
 	unsigned int sources;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -2141,17 +2120,19 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src == TRIG_EXT) {
-		/* external trigger */
-		unsigned int tmp = CR_CHAN(cmd->start_arg);
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+	case TRIG_INT:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		tmp = CR_CHAN(cmd->start_arg);
 
 		if (tmp > 16)
 			tmp = 16;
 		tmp |= (cmd->start_arg & (CR_INVERT | CR_EDGE));
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, tmp);
-	} else {
-		/* true for both TRIG_NOW and TRIG_INT */
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -2532,30 +2513,28 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 #endif
 
-	switch (cmd->start_src) {
-	case TRIG_NOW:
+	if (cmd->start_src == TRIG_NOW) {
 		/* AI_START1_Pulse */
 		devpriv->stc_writew(dev, AI_START1_Pulse | devpriv->ai_cmd2,
 				    AI_Command_2_Register);
 		s->async->inttrig = NULL;
-		break;
-	case TRIG_EXT:
+	} else if (cmd->start_src == TRIG_EXT) {
 		s->async->inttrig = NULL;
-		break;
-	case TRIG_INT:
-		s->async->inttrig = &ni_ai_inttrig;
-		break;
+	} else {	/* TRIG_INT */
+		s->async->inttrig = ni_ai_inttrig;
 	}
 
 	return 0;
 }
 
-static int ni_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-			 unsigned int trignum)
+static int ni_ai_inttrig(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 unsigned int trig_num)
 {
 	struct ni_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	devpriv->stc_writew(dev, AI_START1_Pulse | devpriv->ai_cmd2,
@@ -2732,22 +2711,22 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int length = num_bytes / sizeof(short);
+	unsigned int offset = 1 << (board->aobits - 1);
+	unsigned short *array = data;
 	unsigned int range;
 	unsigned int i;
-	unsigned int offset;
-	unsigned int length = num_bytes / sizeof(short);
-	unsigned short *array = data;
 
-	offset = 1 << (board->aobits - 1);
 	for (i = 0; i < length; i++) {
-		range = CR_RANGE(async->cmd.chanlist[chan_index]);
+		range = CR_RANGE(cmd->chanlist[chan_index]);
 		if (board->ao_unipolar == 0 || (range & 1) == 0)
 			array[i] -= offset;
 #ifdef PCIDMA
 		array[i] = cpu_to_le16(array[i]);
 #endif
 		chan_index++;
-		chan_index %= async->cmd.chanlist_len;
+		chan_index %= cmd->chanlist_len;
 	}
 }
 
@@ -2968,17 +2947,19 @@ static int ni_ao_insn_config(struct comedi_device *dev,
 	return -EINVAL;
 }
 
-static int ni_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-			 unsigned int trignum)
+static int ni_ao_inttrig(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 unsigned int trig_num)
 {
 	const struct ni_board_struct *board __maybe_unused = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
 	int interrupt_b_bits;
 	int i;
 	static const int timeout = 1000;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	/* Null trig at beginning prevent ao start trigger from executing more than
@@ -3239,7 +3220,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			    AO_BC_TC_Interrupt_Enable, 1);
 	}
 
-	s->async->inttrig = &ni_ao_inttrig;
+	s->async->inttrig = ni_ao_inttrig;
 
 	return 0;
 }
@@ -3250,7 +3231,7 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	int err = 0;
-	int tmp;
+	unsigned int tmp;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -3280,17 +3261,18 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src == TRIG_EXT) {
-		/* external trigger */
-		unsigned int tmp = CR_CHAN(cmd->start_arg);
+	switch (cmd->start_src) {
+	case TRIG_INT:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		tmp = CR_CHAN(cmd->start_arg);
 
 		if (tmp > 18)
 			tmp = 18;
 		tmp |= (cmd->start_arg & (CR_INVERT | CR_EDGE));
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, tmp);
-	} else {
-		/* true for both TRIG_NOW and TRIG_INT */
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -3325,11 +3307,6 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	}
 	if (err)
 		return 4;
-
-	/* step 5: fix up chanlist */
-
-	if (err)
-		return 5;
 
 	return 0;
 }
@@ -3461,12 +3438,27 @@ static int ni_m_series_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int ni_cdio_check_chanlist(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_cmd *cmd)
+{
+	int i;
+
+	for (i = 0; i < cmd->chanlist_len; ++i) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+		if (chan != i)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ni_cdio_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
-	unsigned i;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -3506,12 +3498,9 @@ static int ni_cdio_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/* step 5: check chanlist */
-
-	for (i = 0; i < cmd->chanlist_len; ++i) {
-		if (cmd->chanlist[i] != i)
-			err = 1;
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= ni_cdio_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -3552,25 +3541,32 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	retval = ni_request_cdo_mite_channel(dev);
 	if (retval < 0)
 		return retval;
-	s->async->inttrig = &ni_cdo_inttrig;
+
+	s->async->inttrig = ni_cdo_inttrig;
+
 	return 0;
 }
 
-static int ni_cdo_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-			  unsigned int trignum)
+static int ni_cdo_inttrig(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  unsigned int trig_num)
 {
 #ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 #endif
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval = 0;
 	unsigned i;
 	const unsigned timeout = 1000;
 
+	if (trig_num != cmd->start_arg)
+		return -EINVAL;
+
 	s->async->inttrig = NULL;
 
 	/* read alloc the entire buffer */
-	comedi_buf_read_alloc(s->async, s->async->prealloc_bufsz);
+	comedi_buf_read_alloc(s, s->async->prealloc_bufsz);
 
 #ifdef PCIDMA
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -3645,7 +3641,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 			       devpriv->mite->mite_io_addr +
 			       MITE_CHOR(devpriv->cdo_mite_chan->channel));
 		}
-		mite_sync_output_dma(devpriv->cdo_mite_chan, s->async);
+		mite_sync_output_dma(devpriv->cdo_mite_chan, s);
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif
@@ -3662,7 +3658,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 			  M_Offset_CDIO_Command);
 		/* s->async->events |= COMEDI_CB_EOA; */
 	}
-	ni_event(dev, s);
+	cfc_handle_events(dev, s);
 }
 
 static int ni_serial_insn_config(struct comedi_device *dev,
@@ -4282,10 +4278,14 @@ static int ni_E_init(struct comedi_device *dev)
 
 	/* 8255 device */
 	s = &dev->subdevices[NI_8255_DIO_SUBDEV];
-	if (board->has_8255)
-		subdev_8255_init(dev, s, ni_8255_callback, (unsigned long)dev);
-	else
+	if (board->has_8255) {
+		ret = subdev_8255_init(dev, s, ni_8255_callback,
+				       (unsigned long)dev);
+		if (ret)
+			return ret;
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/* formerly general purpose counter/timer device, but no longer used */
 	s = &dev->subdevices[NI_UNUSED_SUBDEV];
@@ -4393,6 +4393,9 @@ static int ni_E_init(struct comedi_device *dev)
 							&ni_gpct_read_register,
 							counter_variant,
 							NUM_GPCT);
+	if (!devpriv->counter_dev)
+		return -ENOMEM;
+
 	/* General purpose counters */
 	for (j = 0; j < NUM_GPCT; ++j) {
 		s = &dev->subdevices[NI_GPCT_SUBDEV(j)];
@@ -4483,7 +4486,6 @@ static int ni_E_init(struct comedi_device *dev)
 		ni_writeb(0x0, M_Offset_AO_Calibration);
 	}
 
-	printk("\n");
 	return 0;
 }
 
@@ -4992,9 +4994,9 @@ static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 #endif
 
+#ifdef PCIDMA
 static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-#ifdef PCIDMA
 	struct ni_gpct *counter = s->private;
 	int retval;
 
@@ -5002,10 +5004,8 @@ static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 0);
 	ni_release_gpct_mite_channel(dev, counter->counter_index);
 	return retval;
-#else
-	return 0;
-#endif
 }
+#endif
 
 /*
  *

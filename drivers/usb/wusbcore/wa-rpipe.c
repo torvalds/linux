@@ -298,7 +298,7 @@ static struct usb_wireless_ep_comp_descriptor *rpipe_epc_find(
 			break;
 		}
 		itr += hdr->bLength;
-		itr_size -= hdr->bDescriptorType;
+		itr_size -= hdr->bLength;
 	}
 out:
 	return epcd;
@@ -524,7 +524,7 @@ void rpipe_ep_disable(struct wahc *wa, struct usb_host_endpoint *ep)
 		u16 index = le16_to_cpu(rpipe->descr.wRPipeIndex);
 
 		usb_control_msg(
-			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
+			wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			USB_REQ_RPIPE_ABORT,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
 			0, index, NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -545,7 +545,7 @@ void rpipe_clear_feature_stalled(struct wahc *wa, struct usb_host_endpoint *ep)
 		u16 index = le16_to_cpu(rpipe->descr.wRPipeIndex);
 
 		usb_control_msg(
-			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
+			wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			USB_REQ_CLEAR_FEATURE,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
 			RPIPE_STALL, index, NULL, 0, USB_CTRL_SET_TIMEOUT);

@@ -9,8 +9,8 @@
     - USB/IP device drivers
 	Found in the staging directory of the Linux kernel.
 
-    - sysfsutils >= 2.0.0
-	sysfsutils library
+    - libudev >= 2.0
+	libudev library
 
     - libwrap0-dev
 	tcp wrapper library
@@ -18,6 +18,10 @@
     - gcc >= 4.0
 
     - libtool, automake >= 1.9, autoconf >= 2.5.0, pkg-config
+
+[Optional]
+    - hwdata
+        Contains USB device identification data.
 
 
 [Install]
@@ -191,7 +195,6 @@ Detach the imported device:
     - Shutdown firewall.
 	- usbip now uses TCP port 3240.
     - Disable SELinux.
-    - If possible, compile your kernel with CONFIG_USB_DEBUG flag and try again.
     - Check the kernel and daemon messages.
 
 

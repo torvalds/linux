@@ -197,34 +197,35 @@ static const struct nouveau_bitfield nv50_pgraph_status[] = {
 	{ 0x00000080, "UNK7" },
 	{ 0x00000100, "CTXPROG" },
 	{ 0x00000200, "VFETCH" },
-	{ 0x00000400, "CCACHE_UNK4" },
-	{ 0x00000800, "STRMOUT_GSCHED_UNK5" },
-	{ 0x00001000, "UNK14XX" },
-	{ 0x00002000, "UNK24XX_CSCHED" },
-	{ 0x00004000, "UNK1CXX" },
+	{ 0x00000400, "CCACHE_PREGEOM" },
+	{ 0x00000800, "STRMOUT_VATTR_POSTGEOM" },
+	{ 0x00001000, "VCLIP" },
+	{ 0x00002000, "RATTR_APLANE" },
+	{ 0x00004000, "TRAST" },
 	{ 0x00008000, "CLIPID" },
 	{ 0x00010000, "ZCULL" },
 	{ 0x00020000, "ENG2D" },
-	{ 0x00040000, "UNK34XX" },
-	{ 0x00080000, "TPRAST" },
-	{ 0x00100000, "TPROP" },
-	{ 0x00200000, "TEX" },
-	{ 0x00400000, "TPVP" },
-	{ 0x00800000, "MP" },
+	{ 0x00040000, "RMASK" },
+	{ 0x00080000, "TPC_RAST" },
+	{ 0x00100000, "TPC_PROP" },
+	{ 0x00200000, "TPC_TEX" },
+	{ 0x00400000, "TPC_GEOM" },
+	{ 0x00800000, "TPC_MP" },
 	{ 0x01000000, "ROP" },
 	{}
 };
 
 static const char *const nv50_pgraph_vstatus_0[] = {
-	"VFETCH", "CCACHE", "UNK4", "UNK5", "GSCHED", "STRMOUT", "UNK14XX", NULL
+	"VFETCH", "CCACHE", "PREGEOM", "POSTGEOM", "VATTR", "STRMOUT", "VCLIP",
+	NULL
 };
 
 static const char *const nv50_pgraph_vstatus_1[] = {
-	"TPRAST", "TPROP", "TEXTURE", "TPVP", "MP", NULL
+	"TPC_RAST", "TPC_PROP", "TPC_TEX", "TPC_GEOM", "TPC_MP", NULL
 };
 
 static const char *const nv50_pgraph_vstatus_2[] = {
-	"UNK24XX", "CSCHED", "UNK1CXX", "CLIPID", "ZCULL", "ENG2D", "UNK34XX",
+	"RATTR", "APLANE", "TRAST", "CLIPID", "ZCULL", "ENG2D", "RMASK",
 	"ROP", NULL
 };
 
@@ -326,6 +327,15 @@ static const struct nouveau_bitfield nv50_mpc_traps[] = {
 	{ 0x0040000, "GLOBAL_LIMIT_RED" },
 	{ 0x0400000, "GLOBAL_LIMIT_ATOM" },
 	{ 0x4000000, "MP2" },
+	{}
+};
+
+static const struct nouveau_bitfield nv50_tex_traps[] = {
+	{ 0x00000001, "" }, /* any bit set? */
+	{ 0x00000002, "FAULT" },
+	{ 0x00000004, "STORAGE_TYPE_MISMATCH" },
+	{ 0x00000008, "LINEAR_MISMATCH" },
+	{ 0x00000020, "WRONG_MEMTYPE" },
 	{}
 };
 
@@ -531,6 +541,13 @@ nv50_priv_tp_trap(struct nv50_graph_priv *priv, int type, u32 ustatus_old,
 				for (r = ustatus_addr + 4; r <= ustatus_addr + 0x10; r += 4)
 					nv_error(priv, "\t0x%08x: 0x%08x\n", r,
 						nv_rd32(priv, r));
+				if (ustatus) {
+					nv_error(priv, "%s - TP%d:", name, i);
+					nouveau_bitfield_print(nv50_tex_traps,
+							       ustatus);
+					pr_cont("\n");
+					ustatus = 0;
+				}
 			}
 			break;
 		case 7: /* MP error */
@@ -884,7 +901,7 @@ nv50_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		nv_engine(priv)->sclass = nvaf_graph_sclass;
 		break;
 
-	};
+	}
 
 	/* unfortunate hw bug workaround... */
 	if (nv_device(priv)->chipset != 0x50 &&
@@ -959,7 +976,6 @@ nv50_graph_init(struct nouveau_object *object)
 		break;
 	case 0xa0:
 	default:
-		nv_wr32(priv, 0x402cc0, 0x00000000);
 		if (nv_device(priv)->chipset == 0xa0 ||
 		    nv_device(priv)->chipset == 0xaa ||
 		    nv_device(priv)->chipset == 0xac) {
@@ -974,10 +990,10 @@ nv50_graph_init(struct nouveau_object *object)
 
 	/* zero out zcull regions */
 	for (i = 0; i < 8; i++) {
-		nv_wr32(priv, 0x402c20 + (i * 8), 0x00000000);
-		nv_wr32(priv, 0x402c24 + (i * 8), 0x00000000);
-		nv_wr32(priv, 0x402c28 + (i * 8), 0x00000000);
-		nv_wr32(priv, 0x402c2c + (i * 8), 0x00000000);
+		nv_wr32(priv, 0x402c20 + (i * 0x10), 0x00000000);
+		nv_wr32(priv, 0x402c24 + (i * 0x10), 0x00000000);
+		nv_wr32(priv, 0x402c28 + (i * 0x10), 0x00000000);
+		nv_wr32(priv, 0x402c2c + (i * 0x10), 0x00000000);
 	}
 	return 0;
 }

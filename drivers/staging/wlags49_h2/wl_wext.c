@@ -159,15 +159,12 @@ static int hermes_set_tkip_keys(ltv_t *ltv, u16 key_idx, u8 *addr,
 /* Set up the LTV to clear the appropriate key */
 static int hermes_clear_tkip_keys(ltv_t *ltv, u16 key_idx, u8 *addr)
 {
-	int ret;
-
 	switch (key_idx) {
 	case 0:
 		if (!is_broadcast_ether_addr(addr)) {
 			ltv->len = 7;
 			ltv->typ = CFG_REMOVE_TKIP_MAPPED_KEY;
 			memcpy(&ltv->u.u8[0], addr, ETH_ALEN);
-			ret = 0;
 		}
 		break;
 	case 1:
@@ -178,13 +175,12 @@ static int hermes_clear_tkip_keys(ltv_t *ltv, u16 key_idx, u8 *addr)
 		ltv->typ = CFG_REMOVE_TKIP_DEFAULT_KEY;
 		ltv->u.u16[0] = cpu_to_le16(key_idx);
 
-		ret = 0;
 		break;
 	default:
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 /* Set the WEP keys in the wl_private structure */
@@ -3027,13 +3023,10 @@ static int wireless_set_genie(struct net_device *dev,
 			      struct iw_point *data, char *extra)
 
 {
-	int   ret = 0;
-
 	/* We can't write this to the card, but apparently this
 	 * operation needs to succeed */
-	ret = 0;
 
-	return ret;
+	return 0;
 }
 /*============================================================================*/
 
@@ -3354,7 +3347,7 @@ void wl_wext_event_essid( struct net_device *dev )
 	   the call to wireless_send_event() must also point to where the ESSID
 	   lives */
 	wrqu.essid.length  = strlen( lp->NetworkName );
-	wrqu.essid.pointer = (caddr_t)lp->NetworkName;
+	wrqu.essid.pointer = (void __user *)lp->NetworkName;
 	wrqu.essid.flags   = 1;
 
 	wireless_send_event( dev, SIOCSIWESSID, &wrqu, lp->NetworkName );
@@ -3419,7 +3412,7 @@ void wl_wext_event_encode( struct net_device *dev )
 
 		/* Only provide the key if permissions allow */
 		if( capable( CAP_NET_ADMIN )) {
-			wrqu.encoding.pointer = (caddr_t)lp->DefaultKeys.key[index].key;
+			wrqu.encoding.pointer = (void __user *)lp->DefaultKeys.key[index].key;
 			wrqu.encoding.length  = lp->DefaultKeys.key[index].len;
 		} else {
 			wrqu.encoding.flags |= IW_ENCODE_NOKEY;
@@ -3778,7 +3771,7 @@ static const iw_handler wl_private_handler[] =
 #endif
 };
 
-struct iw_priv_args wl_priv_args[] = {
+static struct iw_priv_args wl_priv_args[] = {
         {SIOCSIWNETNAME,    IW_PRIV_TYPE_CHAR | HCF_MAX_NAME_LEN, 0, "snetwork_name" },
         {SIOCGIWNETNAME, 0, IW_PRIV_TYPE_CHAR | HCF_MAX_NAME_LEN,    "gnetwork_name" },
         {SIOCSIWSTANAME,    IW_PRIV_TYPE_CHAR | HCF_MAX_NAME_LEN, 0, "sstation_name" },

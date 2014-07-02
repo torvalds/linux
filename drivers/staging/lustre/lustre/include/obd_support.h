@@ -641,8 +641,8 @@ do {									      \
 #define OBD_ALLOC_GFP(ptr, size, gfp_mask)				      \
 	__OBD_MALLOC_VERBOSE(ptr, NULL, 0, size, gfp_mask)
 
-#define OBD_ALLOC(ptr, size) OBD_ALLOC_GFP(ptr, size, __GFP_IO)
-#define OBD_ALLOC_WAIT(ptr, size) OBD_ALLOC_GFP(ptr, size, GFP_IOFS)
+#define OBD_ALLOC(ptr, size) OBD_ALLOC_GFP(ptr, size, GFP_NOFS)
+#define OBD_ALLOC_WAIT(ptr, size) OBD_ALLOC_GFP(ptr, size, GFP_KERNEL)
 #define OBD_ALLOC_PTR(ptr) OBD_ALLOC(ptr, sizeof(*(ptr)))
 #define OBD_ALLOC_PTR_WAIT(ptr) OBD_ALLOC_WAIT(ptr, sizeof(*(ptr)))
 
@@ -650,7 +650,7 @@ do {									      \
 	__OBD_MALLOC_VERBOSE(ptr, cptab, cpt, size, gfp_mask)
 
 #define OBD_CPT_ALLOC(ptr, cptab, cpt, size)				      \
-	OBD_CPT_ALLOC_GFP(ptr, cptab, cpt, size, __GFP_IO)
+	OBD_CPT_ALLOC_GFP(ptr, cptab, cpt, size, GFP_NOFS)
 
 #define OBD_CPT_ALLOC_PTR(ptr, cptab, cpt)				      \
 	OBD_CPT_ALLOC(ptr, cptab, cpt, sizeof(*(ptr)))
@@ -681,7 +681,7 @@ do {									      \
  *
  * Be very careful when changing this value, especially when decreasing it,
  * since vmalloc in Linux doesn't perform well on multi-cores system, calling
- * vmalloc in critical path would hurt peformance badly. See LU-66.
+ * vmalloc in critical path would hurt performance badly. See LU-66.
  */
 #define OBD_ALLOC_BIG (4 * PAGE_CACHE_SIZE)
 
@@ -793,10 +793,10 @@ do {									  \
 } while(0)
 
 #define OBD_SLAB_ALLOC(ptr, slab, size)					      \
-	OBD_SLAB_ALLOC_GFP(ptr, slab, size, __GFP_IO)
+	OBD_SLAB_ALLOC_GFP(ptr, slab, size, GFP_NOFS)
 
 #define OBD_SLAB_CPT_ALLOC(ptr, slab, cptab, cpt, size)			      \
-	OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, size, __GFP_IO)
+	OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, size, GFP_NOFS)
 
 #define OBD_SLAB_ALLOC_PTR(ptr, slab)					      \
 	OBD_SLAB_ALLOC(ptr, slab, sizeof(*(ptr)))

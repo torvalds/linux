@@ -98,7 +98,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	}
 
 	/* locate specific data set for the attached memory */
-	strap = nvbios_ramcfg_index(bios);
+	strap = nvbios_ramcfg_index(nv_subdev(pfb));
 	if (strap >= cnt) {
 		nv_error(pfb, "invalid ramcfg strap\n");
 		return -EINVAL;
@@ -309,7 +309,7 @@ nva3_ram_prog(struct nouveau_fb *pfb)
 	struct nouveau_device *device = nv_device(pfb);
 	struct nva3_ram *ram = (void *)pfb->ram;
 	struct nva3_ramfuc *fuc = &ram->fuc;
-	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", false));
+	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", true));
 	return 0;
 }
 
@@ -335,21 +335,23 @@ nva3_ram_init(struct nouveau_object *object)
 	/* prepare for ddr link training, and load training patterns */
 	switch (ram->base.type) {
 	case NV_MEM_TYPE_DDR3: {
-		static const u32 pattern[16] = {
-			0xaaaaaaaa, 0xcccccccc, 0xdddddddd, 0xeeeeeeee,
-			0x00000000, 0x11111111, 0x44444444, 0xdddddddd,
-			0x33333333, 0x55555555, 0x77777777, 0x66666666,
-			0x99999999, 0x88888888, 0xeeeeeeee, 0xbbbbbbbb,
-		};
+		if (nv_device(pfb)->chipset == 0xa8) {
+			static const u32 pattern[16] = {
+				0xaaaaaaaa, 0xcccccccc, 0xdddddddd, 0xeeeeeeee,
+				0x00000000, 0x11111111, 0x44444444, 0xdddddddd,
+				0x33333333, 0x55555555, 0x77777777, 0x66666666,
+				0x99999999, 0x88888888, 0xeeeeeeee, 0xbbbbbbbb,
+			};
 
-		nv_wr32(pfb, 0x100538, 0x10001ff6); /*XXX*/
-		nv_wr32(pfb, 0x1005a8, 0x0000ffff);
-		nv_mask(pfb, 0x10f800, 0x00000001, 0x00000001);
-		for (i = 0; i < 0x30; i++) {
-			nv_wr32(pfb, 0x10f8c0, (i << 8) | i);
-			nv_wr32(pfb, 0x10f8e0, (i << 8) | i);
-			nv_wr32(pfb, 0x10f900, pattern[i % 16]);
-			nv_wr32(pfb, 0x10f920, pattern[i % 16]);
+			nv_wr32(pfb, 0x100538, 0x10001ff6); /*XXX*/
+			nv_wr32(pfb, 0x1005a8, 0x0000ffff);
+			nv_mask(pfb, 0x10f800, 0x00000001, 0x00000001);
+			for (i = 0; i < 0x30; i++) {
+				nv_wr32(pfb, 0x10f8c0, (i << 8) | i);
+				nv_wr32(pfb, 0x10f8e0, (i << 8) | i);
+				nv_wr32(pfb, 0x10f900, pattern[i % 16]);
+				nv_wr32(pfb, 0x10f920, pattern[i % 16]);
+			}
 		}
 	}
 		break;

@@ -1,7 +1,7 @@
 /*
  * net/tipc/core.c: TIPC module code
  *
- * Copyright (c) 2003-2006, Ericsson AB
+ * Copyright (c) 2003-2006, 2013, Ericsson AB
  * Copyright (c) 2005-2006, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -50,7 +50,6 @@ int tipc_random __read_mostly;
 u32 tipc_own_addr __read_mostly;
 int tipc_max_ports __read_mostly;
 int tipc_net_id __read_mostly;
-int tipc_remote_management __read_mostly;
 int sysctl_tipc_rmem[3] __read_mostly;	/* min/default/max */
 
 /**
@@ -81,11 +80,9 @@ struct sk_buff *tipc_buf_acquire(u32 size)
  */
 static void tipc_core_stop(void)
 {
-	tipc_handler_stop();
 	tipc_net_stop();
 	tipc_bearer_cleanup();
 	tipc_netlink_stop();
-	tipc_cfg_stop();
 	tipc_subscr_stop();
 	tipc_nametbl_stop();
 	tipc_ref_table_stop();
@@ -101,10 +98,6 @@ static int tipc_core_start(void)
 	int err;
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
-
-	err = tipc_handler_start();
-	if (err)
-		goto out_handler;
 
 	err = tipc_ref_table_init(tipc_max_ports, tipc_random);
 	if (err)
@@ -130,18 +123,12 @@ static int tipc_core_start(void)
 	if (err)
 		goto out_subscr;
 
-	err = tipc_cfg_init();
-	if (err)
-		goto out_cfg;
-
 	err = tipc_bearer_setup();
 	if (err)
 		goto out_bearer;
 
 	return 0;
 out_bearer:
-	tipc_cfg_stop();
-out_cfg:
 	tipc_subscr_stop();
 out_subscr:
 	tipc_unregister_sysctl();
@@ -154,8 +141,6 @@ out_netlink:
 out_nametbl:
 	tipc_ref_table_stop();
 out_reftbl:
-	tipc_handler_stop();
-out_handler:
 	return err;
 }
 
@@ -166,14 +151,14 @@ static int __init tipc_init(void)
 	pr_info("Activated (version " TIPC_MOD_VER ")\n");
 
 	tipc_own_addr = 0;
-	tipc_remote_management = 1;
 	tipc_max_ports = CONFIG_TIPC_PORTS;
 	tipc_net_id = 4711;
 
-	sysctl_tipc_rmem[0] = CONN_OVERLOAD_LIMIT >> 4 << TIPC_LOW_IMPORTANCE;
-	sysctl_tipc_rmem[1] = CONN_OVERLOAD_LIMIT >> 4 <<
+	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
+			      TIPC_LOW_IMPORTANCE;
+	sysctl_tipc_rmem[1] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
 			      TIPC_CRITICAL_IMPORTANCE;
-	sysctl_tipc_rmem[2] = CONN_OVERLOAD_LIMIT;
+	sysctl_tipc_rmem[2] = TIPC_CONN_OVERLOAD_LIMIT;
 
 	res = tipc_core_start();
 	if (res)

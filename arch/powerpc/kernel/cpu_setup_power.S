@@ -56,7 +56,7 @@ _GLOBAL(__setup_cpu_power8)
 	li	r0,0
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
-	oris	r3, r3, LPCR_AIL_3@h
+	ori	r3, r3, LPCR_PECEDH
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power8
@@ -75,7 +75,7 @@ _GLOBAL(__restore_cpu_power8)
 	li	r0,0
 	mtspr	SPRN_LPID,r0
 	mfspr   r3,SPRN_LPCR
-	oris	r3, r3, LPCR_AIL_3@h
+	ori	r3, r3, LPCR_PECEDH
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power8

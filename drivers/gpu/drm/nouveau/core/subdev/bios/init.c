@@ -98,15 +98,16 @@ static u8
 init_conn(struct nvbios_init *init)
 {
 	struct nouveau_bios *bios = init->bios;
-	u8  ver, len;
-	u16 conn;
+	struct nvbios_connE connE;
+	u8  ver, hdr;
+	u32 conn;
 
 	if (init_exec(init)) {
 		if (init->outp) {
 			conn = init->outp->connector;
-			conn = dcb_conn(bios, conn, &ver, &len);
+			conn = nvbios_connEp(bios, conn, &ver, &hdr, &connE);
 			if (conn)
-				return nv_ro08(bios, conn);
+				return connE.type;
 		}
 
 		error("script needs connector type\n");
@@ -118,6 +119,8 @@ init_conn(struct nvbios_init *init)
 static inline u32
 init_nvreg(struct nvbios_init *init, u32 reg)
 {
+	struct nouveau_devinit *devinit = nouveau_devinit(init->bios);
+
 	/* C51 (at least) sometimes has the lower bits set which the VBIOS
 	 * interprets to mean that access needs to go through certain IO
 	 * ports instead.  The NVIDIA binary driver has been seen to access
@@ -147,6 +150,9 @@ init_nvreg(struct nvbios_init *init, u32 reg)
 
 	if (reg & ~0x00fffffc)
 		warn("unknown bits in register 0x%08x\n", reg);
+
+	if (devinit->mmio)
+		reg = devinit->mmio(devinit, reg);
 	return reg;
 }
 
@@ -154,7 +160,7 @@ static u32
 init_rd32(struct nvbios_init *init, u32 reg)
 {
 	reg = init_nvreg(init, reg);
-	if (init_exec(init))
+	if (reg != ~0 && init_exec(init))
 		return nv_rd32(init->subdev, reg);
 	return 0x00000000;
 }
@@ -163,7 +169,7 @@ static void
 init_wr32(struct nvbios_init *init, u32 reg, u32 val)
 {
 	reg = init_nvreg(init, reg);
-	if (init_exec(init))
+	if (reg != ~0 && init_exec(init))
 		nv_wr32(init->subdev, reg, val);
 }
 
@@ -171,7 +177,7 @@ static u32
 init_mask(struct nvbios_init *init, u32 reg, u32 mask, u32 val)
 {
 	reg = init_nvreg(init, reg);
-	if (init_exec(init)) {
+	if (reg != ~0 && init_exec(init)) {
 		u32 tmp = nv_rd32(init->subdev, reg);
 		nv_wr32(init->subdev, reg, (tmp & ~mask) | val);
 		return tmp;
@@ -410,7 +416,7 @@ init_ram_restrict(struct nvbios_init *init)
 	 * in case *not* re-reading the strap causes similar breakage.
 	 */
 	if (!init->ramcfg || init->bios->version.major < 0x70)
-		init->ramcfg = 0x80000000 | nvbios_ramcfg_index(init->bios);
+		init->ramcfg = 0x80000000 | nvbios_ramcfg_index(init->subdev);
 	return (init->ramcfg & 0x7fffffff);
 }
 
@@ -845,9 +851,8 @@ init_idx_addr_latched(struct nvbios_init *init)
 	u32 data = nv_ro32(bios, init->offset + 13);
 	u8 count = nv_ro08(bios, init->offset + 17);
 
-	trace("INDEX_ADDRESS_LATCHED\t"
-	      "R[0x%06x] : R[0x%06x]\n\tCTRL &= 0x%08x |= 0x%08x\n",
-	      creg, dreg, mask, data);
+	trace("INDEX_ADDRESS_LATCHED\tR[0x%06x] : R[0x%06x]\n", creg, dreg);
+	trace("\tCTRL &= 0x%08x |= 0x%08x\n", mask, data);
 	init->offset += 18;
 
 	while (count--) {

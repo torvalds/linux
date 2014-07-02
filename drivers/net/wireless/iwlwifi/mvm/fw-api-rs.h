@@ -257,7 +257,8 @@ enum {
 
 /* Bit 17-18: (0) SS, (1) SS*2 */
 #define RATE_MCS_STBC_POS		17
-#define RATE_MCS_STBC_MSK		(1 << RATE_MCS_STBC_POS)
+#define RATE_MCS_HT_STBC_MSK		(3 << RATE_MCS_STBC_POS)
+#define RATE_MCS_VHT_STBC_MSK		(1 << RATE_MCS_STBC_POS)
 
 /* Bit 19: (0) Beamforming is off, (1) Beamforming is on */
 #define RATE_MCS_BF_POS			19
@@ -333,7 +334,7 @@ enum {
  */
 struct iwl_lq_cmd {
 	u8 sta_id;
-	u8 reserved1;
+	u8 reduced_tpc;
 	u16 control;
 	/* LINK_QUAL_GENERAL_PARAMS_API_S_VER_1 */
 	u8 flags;

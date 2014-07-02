@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -583,13 +583,26 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		goto unlock_and_exit;
 	}
 
+	/* Validate the parent device */
+
+	if (node->type != ACPI_TYPE_DEVICE) {
+		status = AE_TYPE;
+		goto unlock_and_exit;
+	}
+
+	if (node->object) {
+		status = AE_ALREADY_EXISTS;
+		goto unlock_and_exit;
+	}
+
 	/*
 	 * For user-installed GPE Block Devices, the gpe_block_base_number
 	 * is always zero
 	 */
-	status =
-	    acpi_ev_create_gpe_block(node, gpe_block_address, register_count, 0,
-				     interrupt_number, &gpe_block);
+	status = acpi_ev_create_gpe_block(node, gpe_block_address->address,
+					  gpe_block_address->space_id,
+					  register_count, 0, interrupt_number,
+					  &gpe_block);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}
@@ -663,6 +676,13 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 	node = acpi_ns_validate_handle(gpe_device);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
+		goto unlock_and_exit;
+	}
+
+	/* Validate the parent device */
+
+	if (node->type != ACPI_TYPE_DEVICE) {
+		status = AE_TYPE;
 		goto unlock_and_exit;
 	}
 

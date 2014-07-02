@@ -55,4 +55,6 @@
 #define	AT91_PS_CR	(AT91_PS + 0)	/* PS Control register */
 #define	AT91_PS_CR_CPU	(1 << 0)	/* CPU clock disable bit */
 
+#define AT91X40_MASTER_CLOCK	40000000
+
 #endif /* AT91X40_H */

@@ -334,7 +334,7 @@ bool rtl8723ae_rx_query_desc(struct ieee80211_hw *hw,
 			/* during testing, hdr could be NULL here */
 			return false;
 		}
-		if ((ieee80211_is_robust_mgmt_frame(hdr)) &&
+		if ((_ieee80211_is_robust_mgmt_frame(hdr)) &&
 			(ieee80211_has_protected(hdr->frame_control)))
 			rx_status->flag &= ~RX_FLAG_DECRYPTED;
 		else
@@ -365,7 +365,7 @@ bool rtl8723ae_rx_query_desc(struct ieee80211_hw *hw,
 
 void rtl8723ae_tx_fill_desc(struct ieee80211_hw *hw,
 			    struct ieee80211_hdr *hdr, u8 *pdesc_tx,
-			    struct ieee80211_tx_info *info,
+			    u8 *pbd_desc_tx, struct ieee80211_tx_info *info,
 			    struct ieee80211_sta *sta,
 			    struct sk_buff *skb, u8 hw_queue,
 			    struct rtl_tcb_desc *ptcdesc)
@@ -375,7 +375,7 @@ void rtl8723ae_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool defaultadapter = true;
-	u8 *pdesc = (u8 *) pdesc_tx;
+	u8 *pdesc = pdesc_tx;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
 	u8 fw_qsel = _rtl8723ae_map_hwqueue_to_fwqueue(skb, hw_queue);
@@ -577,7 +577,7 @@ void rtl8723ae_tx_fill_cmddesc(struct ieee80211_hw *hw,
 
 	SET_TX_DESC_OWN(pdesc, 1);
 
-	SET_TX_DESC_PKT_SIZE((u8 *) pdesc, (u16) (skb->len));
+	SET_TX_DESC_PKT_SIZE(pdesc, (u16) (skb->len));
 
 	SET_TX_DESC_FIRST_SEG(pdesc, 1);
 	SET_TX_DESC_LAST_SEG(pdesc, 1);
@@ -597,7 +597,8 @@ void rtl8723ae_tx_fill_cmddesc(struct ieee80211_hw *hw,
 		      pdesc, TX_DESC_SIZE);
 }
 
-void rtl8723ae_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
+void rtl8723ae_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+			u8 desc_name, u8 *val)
 {
 	if (istx == true) {
 		switch (desc_name) {

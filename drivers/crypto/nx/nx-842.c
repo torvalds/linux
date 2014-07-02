@@ -1197,12 +1197,7 @@ static int __init nx842_probe(struct vio_dev *viodev,
 	}
 
 	rcu_read_lock();
-	if (dev_set_drvdata(&viodev->dev, rcu_dereference(devdata))) {
-		rcu_read_unlock();
-		dev_err(&viodev->dev, "failed to set driver data for device\n");
-		ret = -1;
-		goto error;
-	}
+	dev_set_drvdata(&viodev->dev, rcu_dereference(devdata));
 	rcu_read_unlock();
 
 	if (sysfs_create_group(&viodev->dev.kobj, &nx842_attribute_group)) {
@@ -1234,7 +1229,7 @@ static int __exit nx842_remove(struct vio_dev *viodev)
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
 	of_reconfig_notifier_unregister(&nx842_of_nb);
-	rcu_assign_pointer(devdata, NULL);
+	RCU_INIT_POINTER(devdata, NULL);
 	spin_unlock_irqrestore(&devdata_mutex, flags);
 	synchronize_rcu();
 	dev_set_drvdata(&viodev->dev, NULL);
@@ -1285,7 +1280,7 @@ static void __exit nx842_exit(void)
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
-	rcu_assign_pointer(devdata, NULL);
+	RCU_INIT_POINTER(devdata, NULL);
 	spin_unlock_irqrestore(&devdata_mutex, flags);
 	synchronize_rcu();
 	if (old_devdata)

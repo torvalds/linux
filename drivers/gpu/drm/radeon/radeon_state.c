@@ -3054,7 +3054,7 @@ static int radeon_cp_getparam(struct drm_device *dev, void *data, struct drm_fil
 		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
 			value = 0;
 		else
-			value = drm_dev_to_irq(dev);
+			value = dev->pdev->irq;
 		break;
 	case RADEON_PARAM_GART_BASE:
 		value = dev_priv->gart_vm_start;
@@ -3258,4 +3258,4 @@ struct drm_ioctl_desc radeon_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_CS, r600_cs_legacy_ioctl, DRM_AUTH)
 };
 
-int radeon_max_ioctl = DRM_ARRAY_SIZE(radeon_ioctls);
+int radeon_max_ioctl = ARRAY_SIZE(radeon_ioctls);

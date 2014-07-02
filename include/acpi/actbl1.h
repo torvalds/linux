@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -675,7 +675,7 @@ enum acpi_madt_type {
 };
 
 /*
- * MADT Sub-tables, correspond to Type in struct acpi_subtable_header
+ * MADT Subtables, correspond to Type in struct acpi_subtable_header
  */
 
 /* 0: Processor Local APIC */
@@ -918,7 +918,7 @@ enum acpi_srat_type {
 };
 
 /*
- * SRAT Sub-tables, correspond to Type in struct acpi_subtable_header
+ * SRAT Subtables, correspond to Type in struct acpi_subtable_header
  */
 
 /* 0: Processor Local APIC/SAPIC Affinity */

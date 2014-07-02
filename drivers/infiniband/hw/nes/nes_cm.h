@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2011 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2014 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -58,6 +58,8 @@
 #define IETF_RDMA0_WRITE        0x8000
 #define IETF_RDMA0_READ         0x4000
 #define IETF_NO_IRD_ORD         0x3FFF
+#define NES_MAX_IRD		 0x40
+#define NES_MAX_ORD		 0x7F
 
 enum ietf_mpa_flags {
 	IETF_MPA_FLAGS_MARKERS = 0x80,	/* receive Markers */
@@ -291,8 +293,8 @@ struct nes_cm_listener {
 	struct list_head           list;
 	struct nes_cm_core         *cm_core;
 	u8                         loc_mac[ETH_ALEN];
-	nes_addr_t                 loc_addr;
-	u16                        loc_port;
+	nes_addr_t                 loc_addr, mapped_loc_addr;
+	u16                        loc_port, mapped_loc_port;
 	struct iw_cm_id            *cm_id;
 	enum nes_cm_conn_type      conn_type;
 	atomic_t                   ref_count;
@@ -306,7 +308,9 @@ struct nes_cm_listener {
 /* per connection node and node state information */
 struct nes_cm_node {
 	nes_addr_t                loc_addr, rem_addr;
+	nes_addr_t                mapped_loc_addr, mapped_rem_addr;
 	u16                       loc_port, rem_port;
+	u16                       mapped_loc_port, mapped_rem_port;
 
 	u8                        loc_mac[ETH_ALEN];
 	u8                        rem_mac[ETH_ALEN];
@@ -333,6 +337,7 @@ struct nes_cm_node {
 	enum mpa_frame_version    mpa_frame_rev;
 	u16			  ird_size;
 	u16                       ord_size;
+	u16			  mpav2_ird_ord;
 
 	u16                       mpa_frame_size;
 	struct iw_cm_id           *cm_id;
@@ -361,6 +366,10 @@ struct nes_cm_info {
 	u16 rem_port;
 	nes_addr_t loc_addr;
 	nes_addr_t rem_addr;
+	u16 mapped_loc_port;
+	u16 mapped_rem_port;
+	nes_addr_t mapped_loc_addr;
+	nes_addr_t mapped_rem_addr;
 
 	enum nes_cm_conn_type  conn_type;
 	int backlog;

@@ -117,7 +117,8 @@ static int dprintk(int level, const char *fmt, ...)
 			sizeof(printk_buf)-len, fmt, args);
 	va_end(args);
 
-	return pr_debug("%s", printk_buf);
+	pr_debug("%s", printk_buf);
+	return len;
 }
 #else
 static int dprintk(int level, const char *fmt, ...)

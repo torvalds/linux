@@ -22,20 +22,20 @@
 #include <drm/i915_powerwell.h>
 #include "hda_i915.h"
 
-static void (*get_power)(void);
-static void (*put_power)(void);
+static int (*get_power)(void);
+static int (*put_power)(void);
 
-void hda_display_power(bool enable)
+int hda_display_power(bool enable)
 {
 	if (!get_power || !put_power)
-		return;
+		return -ENODEV;
 
-	snd_printdd("HDA display power %s \n",
+	pr_debug("HDA display power %s \n",
 			enable ? "Enable" : "Disable");
 	if (enable)
-		get_power();
+		return get_power();
 	else
-		put_power();
+		return put_power();
 }
 
 int hda_i915_init(void)
@@ -44,7 +44,7 @@ int hda_i915_init(void)
 
 	get_power = symbol_request(i915_request_power_well);
 	if (!get_power) {
-		snd_printk(KERN_WARNING "hda-i915: get_power symbol get fail\n");
+		pr_warn("hda-i915: get_power symbol get fail\n");
 		return -ENODEV;
 	}
 
@@ -55,7 +55,7 @@ int hda_i915_init(void)
 		return -ENODEV;
 	}
 
-	snd_printd("HDA driver get symbol successfully from i915 module\n");
+	pr_debug("HDA driver get symbol successfully from i915 module\n");
 
 	return err;
 }

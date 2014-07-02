@@ -1551,7 +1551,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	dev->subdevices[NI_GPCT_SUBDEV(1)].buf_change = &pcimio_gpct1_change;
 	dev->subdevices[NI_DIO_SUBDEV].buf_change = &pcimio_dio_change;
 
-	return ret;
+	return 0;
 }
 
 static int pcimio_ai_change(struct comedi_device *dev,
@@ -1560,7 +1560,7 @@ static int pcimio_ai_change(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	int ret;
 
-	ret = mite_buf_change(devpriv->ai_mite_ring, s->async);
+	ret = mite_buf_change(devpriv->ai_mite_ring, s);
 	if (ret < 0)
 		return ret;
 
@@ -1573,7 +1573,7 @@ static int pcimio_ao_change(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	int ret;
 
-	ret = mite_buf_change(devpriv->ao_mite_ring, s->async);
+	ret = mite_buf_change(devpriv->ao_mite_ring, s);
 	if (ret < 0)
 		return ret;
 
@@ -1587,7 +1587,7 @@ static int pcimio_gpct0_change(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	int ret;
 
-	ret = mite_buf_change(devpriv->gpct_mite_ring[0], s->async);
+	ret = mite_buf_change(devpriv->gpct_mite_ring[0], s);
 	if (ret < 0)
 		return ret;
 
@@ -1601,7 +1601,7 @@ static int pcimio_gpct1_change(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	int ret;
 
-	ret = mite_buf_change(devpriv->gpct_mite_ring[1], s->async);
+	ret = mite_buf_change(devpriv->gpct_mite_ring[1], s);
 	if (ret < 0)
 		return ret;
 
@@ -1614,7 +1614,7 @@ static int pcimio_dio_change(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	int ret;
 
-	ret = mite_buf_change(devpriv->cdo_mite_ring, s->async);
+	ret = mite_buf_change(devpriv->cdo_mite_ring, s);
 	if (ret < 0)
 		return ret;
 

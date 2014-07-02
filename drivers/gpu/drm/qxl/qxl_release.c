@@ -349,7 +349,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 		qxl_fence_add_release_locked(&qbo->fence, release->id);
 
 		ttm_bo_add_to_lru(bo);
-		ww_mutex_unlock(&bo->resv->lock);
+		__ttm_bo_unreserve(bo);
 		entry->reserved = false;
 	}
 	spin_unlock(&bdev->fence_lock);

@@ -2,10 +2,6 @@ config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
 	depends on PCI && MAC80211 && HAS_IOMEM
 	select FW_LOADER
-	select NEW_LEDS
-	select LEDS_CLASS
-	select LEDS_TRIGGERS
-	select MAC80211_LEDS
 	---help---
 	  Select to build the driver supporting the:
 
@@ -43,6 +39,14 @@ config IWLWIFI
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwlwifi.
 
+config IWLWIFI_LEDS
+	bool
+	depends on IWLWIFI
+	depends on LEDS_CLASS=y || LEDS_CLASS=IWLWIFI
+	select LEDS_TRIGGERS
+	select MAC80211_LEDS
+	default y
+
 config IWLDVM
 	tristate "Intel Wireless WiFi DVM Firmware support"
 	depends on IWLWIFI
@@ -67,6 +71,19 @@ config IWLWIFI_OPMODE_MODULAR
 
 comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
 	depends on IWLWIFI && IWLDVM=n && IWLMVM=n
+
+config IWLWIFI_BCAST_FILTERING
+	bool "Enable broadcast filtering"
+	depends on IWLMVM
+	help
+	  Say Y here to enable default bcast filtering configuration.
+
+	  Enabling broadcast filtering will drop any incoming wireless
+	  broadcast frames, except some very specific predefined
+	  patterns (e.g. incoming arp requests).
+
+	  If unsure, don't enable this option, as some programs might
+	  expect incoming broadcasts for their normal operations.
 
 menu "Debugging Options"
 	depends on IWLWIFI

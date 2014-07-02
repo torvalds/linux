@@ -181,7 +181,7 @@ lnet_net_lock_current(void)
 #define MAX_PORTALS     64
 
 /* these are only used by code with LNET_USE_LIB_FREELIST, but we still
- * exported them to !LNET_USE_LIB_FREELIST for easy implemetation */
+ * exported them to !LNET_USE_LIB_FREELIST for easy implementation */
 #define LNET_FL_MAX_MES		2048
 #define LNET_FL_MAX_MDS		2048
 #define LNET_FL_MAX_EQS		512
@@ -628,7 +628,7 @@ void lnet_ni_free(lnet_ni_t *ni);
 static inline int
 lnet_nid2peerhash(lnet_nid_t nid)
 {
-	return cfs_hash_long(nid, LNET_PEER_HASH_BITS);
+	return hash_long(nid, LNET_PEER_HASH_BITS);
 }
 
 static inline struct list_head *

@@ -29,10 +29,13 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
+#include "tegra_asoc_utils.h"
+
 #define DRV_NAME "tegra-snd-wm9712"
 
 struct tegra_wm9712 {
 	struct platform_device *codec;
+	struct tegra_asoc_utils_data util_data;
 };
 
 static const struct snd_soc_dapm_widget tegra_wm9712_dapm_widgets[] = {
@@ -47,9 +50,7 @@ static int tegra_wm9712_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
-
-	return snd_soc_dapm_sync(dapm);
+	return snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
 }
 
 static struct snd_soc_dai_link tegra_wm9712_dai = {
@@ -118,15 +119,25 @@ static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 
 	tegra_wm9712_dai.platform_of_node = tegra_wm9712_dai.cpu_of_node;
 
+	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
+	if (ret)
+		goto codec_unregister;
+
+	ret = tegra_asoc_utils_set_ac97_rate(&machine->util_data);
+	if (ret)
+		goto asoc_utils_fini;
+
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
-		goto codec_unregister;
+		goto asoc_utils_fini;
 	}
 
 	return 0;
 
+asoc_utils_fini:
+	tegra_asoc_utils_fini(&machine->util_data);
 codec_unregister:
 	platform_device_del(machine->codec);
 codec_put:
@@ -140,6 +151,8 @@ static int tegra_wm9712_driver_remove(struct platform_device *pdev)
 	struct tegra_wm9712 *machine = snd_soc_card_get_drvdata(card);
 
 	snd_soc_unregister_card(card);
+
+	tegra_asoc_utils_fini(&machine->util_data);
 
 	platform_device_unregister(machine->codec);
 

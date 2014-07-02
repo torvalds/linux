@@ -211,7 +211,7 @@ static int lp872x_get_timestep_usec(struct lp872x *lp)
 
 	ret = lp872x_read_byte(lp, LP872X_GENERAL_CFG, &val);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	val = (val & mask) >> shift;
 	if (val >= size)
@@ -229,7 +229,7 @@ static int lp872x_regulator_enable_time(struct regulator_dev *rdev)
 	u8 addr, val;
 
 	if (time_step_us < 0)
-		return -EINVAL;
+		return time_step_us;
 
 	switch (rid) {
 	case LP8720_ID_LDO1 ... LP8720_ID_BUCK:

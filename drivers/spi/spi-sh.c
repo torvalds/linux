@@ -322,7 +322,8 @@ static void spi_sh_work(struct work_struct *work)
 		spin_lock_irqsave(&ss->lock, flags);
 
 		mesg->status = 0;
-		mesg->complete(mesg->context);
+		if (mesg->complete)
+			mesg->complete(mesg->context);
 	}
 
 	clear_fifo(ss);
@@ -340,7 +341,8 @@ static void spi_sh_work(struct work_struct *work)
 
  error:
 	mesg->status = ret;
-	mesg->complete(mesg->context);
+	if (mesg->complete)
+		mesg->complete(mesg->context);
 
 	spi_sh_clear_bit(ss, SPI_SH_SSA | SPI_SH_SSDB | SPI_SH_SSD,
 			 SPI_SH_CR1);

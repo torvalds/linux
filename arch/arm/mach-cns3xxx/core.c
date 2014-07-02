@@ -47,6 +47,38 @@ static struct map_desc cns3xxx_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(CNS3XXX_PM_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
+#ifdef CONFIG_PCI
+	}, {
+		.virtual	= CNS3XXX_PCIE0_HOST_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE0_HOST_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE0_CFG0_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE0_CFG0_BASE),
+		.length		= SZ_64K, /* really 4 KiB at offset 32 KiB */
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE0_CFG1_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE0_CFG1_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE1_HOST_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE1_HOST_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE1_CFG0_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE1_CFG0_BASE),
+		.length		= SZ_64K, /* really 4 KiB at offset 32 KiB */
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE1_CFG1_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE1_CFG1_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE,
+#endif
 	},
 };
 
@@ -155,7 +187,7 @@ static irqreturn_t cns3xxx_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction cns3xxx_timer_irq = {
 	.name		= "timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= cns3xxx_timer_interrupt,
 };
 
@@ -240,9 +272,9 @@ void __init cns3xxx_l2x0_init(void)
 	 *
 	 * 1 cycle of latency for setup, read and write accesses
 	 */
-	val = readl(base + L2X0_TAG_LATENCY_CTRL);
+	val = readl(base + L310_TAG_LATENCY_CTRL);
 	val &= 0xfffff888;
-	writel(val, base + L2X0_TAG_LATENCY_CTRL);
+	writel(val, base + L310_TAG_LATENCY_CTRL);
 
 	/*
 	 * Data RAM Control register
@@ -253,12 +285,12 @@ void __init cns3xxx_l2x0_init(void)
 	 *
 	 * 1 cycle of latency for setup, read and write accesses
 	 */
-	val = readl(base + L2X0_DATA_LATENCY_CTRL);
+	val = readl(base + L310_DATA_LATENCY_CTRL);
 	val &= 0xfffff888;
-	writel(val, base + L2X0_DATA_LATENCY_CTRL);
+	writel(val, base + L310_DATA_LATENCY_CTRL);
 
 	/* 32 KiB, 8-way, parity disable */
-	l2x0_init(base, 0x00540000, 0xfe000fff);
+	l2x0_init(base, 0x00500000, 0xfe0f0fff);
 }
 
 #endif /* CONFIG_CACHE_L2X0 */
@@ -368,7 +400,6 @@ static const char *cns3xxx_dt_compat[] __initdata = {
 
 DT_MACHINE_START(CNS3XXX_DT, "Cavium Networks CNS3xxx")
 	.dt_compat	= cns3xxx_dt_compat,
-	.nr_irqs	= NR_IRQS_CNS3XXX,
 	.map_io		= cns3xxx_map_io,
 	.init_irq	= cns3xxx_init_irq,
 	.init_time	= cns3xxx_timer_init,

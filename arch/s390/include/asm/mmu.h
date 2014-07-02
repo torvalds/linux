@@ -1,9 +1,11 @@
 #ifndef __MMU_H
 #define __MMU_H
 
+#include <linux/cpumask.h>
 #include <linux/errno.h>
 
 typedef struct {
+	cpumask_t cpu_attach_mask;
 	atomic_t attach_count;
 	unsigned int flush_mm;
 	spinlock_t list_lock;
@@ -14,6 +16,8 @@ typedef struct {
 	unsigned long vdso_base;
 	/* The mmu context has extended page tables. */
 	unsigned int has_pgste:1;
+	/* The mmu context uses storage keys. */
+	unsigned int use_skey:1;
 } mm_context_t;
 
 #define INIT_MM_CONTEXT(name)						      \

@@ -75,6 +75,54 @@ static const struct file_operations mei_dbgfs_fops_meclients = {
 	.llseek = generic_file_llseek,
 };
 
+static ssize_t mei_dbgfs_read_active(struct file *fp, char __user *ubuf,
+					size_t cnt, loff_t *ppos)
+{
+	struct mei_device *dev = fp->private_data;
+	struct mei_cl *cl;
+	const size_t bufsz = 1024;
+	char *buf;
+	int i = 0;
+	int pos = 0;
+	int ret;
+
+	if (!dev)
+		return -ENODEV;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if  (!buf)
+		return -ENOMEM;
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"  |me|host|state|rd|wr|\n");
+
+	mutex_lock(&dev->device_lock);
+
+	/*  if the driver is not enabled the list won't b consitent */
+	if (dev->dev_state != MEI_DEV_ENABLED)
+		goto out;
+
+	list_for_each_entry(cl, &dev->file_list, link) {
+
+		pos += scnprintf(buf + pos, bufsz - pos,
+			"%2d|%2d|%4d|%5d|%2d|%2d|\n",
+			i, cl->me_client_id, cl->host_client_id, cl->state,
+			cl->reading_state, cl->writing_state);
+		i++;
+	}
+out:
+	mutex_unlock(&dev->device_lock);
+	ret = simple_read_from_buffer(ubuf, cnt, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations mei_dbgfs_fops_active = {
+	.open = simple_open,
+	.read = mei_dbgfs_read_active,
+	.llseek = generic_file_llseek,
+};
+
 static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 					size_t cnt, loff_t *ppos)
 {
@@ -124,6 +172,12 @@ int mei_dbgfs_register(struct mei_device *dev, const char *name)
 
 	f = debugfs_create_file("meclients", S_IRUSR, dir,
 				dev, &mei_dbgfs_fops_meclients);
+	if (!f) {
+		dev_err(&dev->pdev->dev, "meclients: registration failed\n");
+		goto err;
+	}
+	f = debugfs_create_file("active", S_IRUSR, dir,
+				dev, &mei_dbgfs_fops_active);
 	if (!f) {
 		dev_err(&dev->pdev->dev, "meclients: registration failed\n");
 		goto err;

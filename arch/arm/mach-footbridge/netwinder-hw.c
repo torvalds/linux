@@ -620,7 +620,7 @@ __initcall(nw_hw_init);
  * the parameter page.
  */
 static void __init
-fixup_netwinder(struct tag *tags, char **cmdline, struct meminfo *mi)
+fixup_netwinder(struct tag *tags, char **cmdline)
 {
 #ifdef CONFIG_ISAPNP
 	extern int isapnp_disable;

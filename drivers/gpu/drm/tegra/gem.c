@@ -8,14 +8,9 @@
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
 #include <linux/dma-buf.h>
@@ -174,7 +169,8 @@ err:
 	return ERR_PTR(ret);
 }
 
-struct tegra_bo *tegra_bo_import(struct drm_device *drm, struct dma_buf *buf)
+static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
+					struct dma_buf *buf)
 {
 	struct dma_buf_attachment *attach;
 	struct tegra_bo *bo;
@@ -394,6 +390,18 @@ static int tegra_gem_prime_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 	return -EINVAL;
 }
 
+static void *tegra_gem_prime_vmap(struct dma_buf *buf)
+{
+	struct drm_gem_object *gem = buf->priv;
+	struct tegra_bo *bo = to_tegra_bo(gem);
+
+	return bo->vaddr;
+}
+
+static void tegra_gem_prime_vunmap(struct dma_buf *buf, void *vaddr)
+{
+}
+
 static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.map_dma_buf = tegra_gem_prime_map_dma_buf,
 	.unmap_dma_buf = tegra_gem_prime_unmap_dma_buf,
@@ -403,6 +411,8 @@ static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.kmap = tegra_gem_prime_kmap,
 	.kunmap = tegra_gem_prime_kunmap,
 	.mmap = tegra_gem_prime_mmap,
+	.vmap = tegra_gem_prime_vmap,
+	.vunmap = tegra_gem_prime_vunmap,
 };
 
 struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,

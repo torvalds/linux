@@ -48,10 +48,9 @@
 #include "power.h"
 #include "wctl.h"
 #include "baseband.h"
-#include "control.h"
+#include "usbpipe.h"
 #include "rxtx.h"
 #include "rf.h"
-#include "rndis.h"
 #include "channel.h"
 #include "iowpa.h"
 
@@ -279,6 +278,7 @@ void vRunCommand(struct work_struct *work)
 	int ii;
 	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	u8 byData;
+	unsigned long flags;
 
 	if (pDevice->Flags & fMP_DISCONNECTED)
 		return;
@@ -286,24 +286,16 @@ void vRunCommand(struct work_struct *work)
 	if (pDevice->bCmdRunning != true)
 		return;
 
-	spin_lock_irq(&pDevice->lock);
-
 	switch (pDevice->eCommandState) {
 
 	case WLAN_CMD_SCAN_START:
 
 		pDevice->byReAssocCount = 0;
-		if (pDevice->bRadioOff == true) {
-			s_bCommandComplete(pDevice);
-			spin_unlock_irq(&pDevice->lock);
-			return;
-		}
+		if (pDevice->bRadioOff == true)
+			break;
 
-		if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
-			s_bCommandComplete(pDevice);
-			spin_unlock_irq(&pDevice->lock);
-			return;
-		}
+		if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)
+			break;
 
 		pItemSSID = (PWLAN_IE_SSID)pMgmt->abyScanSSID;
 
@@ -311,16 +303,12 @@ void vRunCommand(struct work_struct *work)
 			pMgmt->uScanChannel = pDevice->byMinChannel;
 		if (pMgmt->uScanChannel > pDevice->byMaxChannel) {
 			pDevice->eCommandState = WLAN_CMD_SCAN_END;
-			s_bCommandComplete(pDevice);
-			spin_unlock_irq(&pDevice->lock);
-			return;
+			break;
 		} else {
 			if (!ChannelValid(pDevice->byZoneType, pMgmt->uScanChannel)) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d\n", pMgmt->uScanChannel);
 				pMgmt->uScanChannel++;
-				s_bCommandComplete(pDevice);
-				spin_unlock_irq(&pDevice->lock);
-				return;
+				break;
 			}
 			if (pMgmt->uScanChannel == pDevice->byMinChannel) {
 				// pMgmt->eScanType = WMAC_SCAN_ACTIVE;          //mike mark
@@ -356,11 +344,10 @@ void vRunCommand(struct work_struct *work)
 			CARDbSetMediaChannel(pDevice, pMgmt->uScanChannel);
 			// Set Baseband to be more sensitive.
 
-			if (pDevice->bUpdateBBVGA) {
-				BBvSetShortSlotTime(pDevice);
-				BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
-				BBvUpdatePreEDThreshold(pDevice, true);
-			}
+			BBvSetShortSlotTime(pDevice);
+			BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
+			BBvUpdatePreEDThreshold(pDevice, true);
+
 			pMgmt->uScanChannel++;
 
 			while (!ChannelValid(pDevice->byZoneType, pMgmt->uScanChannel) &&
@@ -375,11 +362,9 @@ void vRunCommand(struct work_struct *work)
 			if ((pMgmt->b11hEnable == false) ||
 			    (pMgmt->uScanChannel < CB_MAX_CHANNEL_24G)) {
 				s_vProbeChannel(pDevice);
-				spin_unlock_irq(&pDevice->lock);
 				vCommandTimerWait((void *) pDevice, 100);
 				return;
 			} else {
-				spin_unlock_irq(&pDevice->lock);
 				vCommandTimerWait((void *) pDevice, WCMD_PASSIVE_SCAN_TIME);
 				return;
 			}
@@ -395,11 +380,9 @@ void vRunCommand(struct work_struct *work)
 			CARDvSetBSSMode(pDevice);
 		}
 
-		if (pDevice->bUpdateBBVGA) {
-			BBvSetShortSlotTime(pDevice);
-			BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
-			BBvUpdatePreEDThreshold(pDevice, false);
-		}
+		BBvSetShortSlotTime(pDevice);
+		BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
+		BBvUpdatePreEDThreshold(pDevice, false);
 
 		// Set channel back
 		vAdHocBeaconRestart(pDevice);
@@ -420,16 +403,13 @@ void vRunCommand(struct work_struct *work)
 		memset(&wrqu, 0, sizeof(wrqu));
 		wireless_send_event(pDevice->dev, SIOCGIWSCAN, &wrqu, NULL);
 
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_DISASSOCIATE_START:
 		pDevice->byReAssocCount = 0;
 		if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
 		    (pMgmt->eCurrState != WMAC_STATE_ASSOC)) {
-			s_bCommandComplete(pDevice);
-			spin_unlock_irq(&pDevice->lock);
-			return;
+			break;
 		} else {
 			pDevice->bwextstep0 = false;
 			pDevice->bwextstep1 = false;
@@ -446,7 +426,9 @@ void vRunCommand(struct work_struct *work)
 					     (8),
 					     &Status);
 			pDevice->bLinkPass = false;
-			ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_SLOW);
+
+			vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
+
 			// unlock command busy
 			pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
 			pItemSSID->len = 0;
@@ -458,17 +440,14 @@ void vRunCommand(struct work_struct *work)
 		netif_stop_queue(pDevice->dev);
 		if (pDevice->bNeedRadioOFF == true)
 			CARDbRadioPowerOff(pDevice);
-		s_bCommandComplete(pDevice);
+
 		break;
 
 	case WLAN_CMD_SSID_START:
 
 		pDevice->byReAssocCount = 0;
-		if (pDevice->bRadioOff == true) {
-			s_bCommandComplete(pDevice);
-			spin_unlock_irq(&pDevice->lock);
-			return;
-		}
+		if (pDevice->bRadioOff == true)
+			break;
 
 		memcpy(pMgmt->abyAdHocSSID, pMgmt->abyDesireSSID,
 		       ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->len + WLAN_IEHDR_LEN);
@@ -489,15 +468,14 @@ void vRunCommand(struct work_struct *work)
 		if ((pMgmt->eCurrState == WMAC_STATE_ASSOC) ||
 		    ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) && (pMgmt->eCurrState == WMAC_STATE_JOINTED))) {
 			if (pItemSSID->len == pItemSSIDCurr->len) {
-				if (memcmp(pItemSSID->abySSID, pItemSSIDCurr->abySSID, pItemSSID->len) == 0) {
-					s_bCommandComplete(pDevice);
-					spin_unlock_irq(&pDevice->lock);
-					return;
-				}
+				if (!memcmp(pItemSSID->abySSID,
+					pItemSSIDCurr->abySSID, pItemSSID->len))
+					break;
 			}
 			netif_stop_queue(pDevice->dev);
 			pDevice->bLinkPass = false;
-			ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_SLOW);
+
+			vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
 		}
 		// set initial state
 		pMgmt->eCurrState = WMAC_STATE_IDLE;
@@ -522,7 +500,6 @@ void vRunCommand(struct work_struct *work)
 				pDevice->byLinkWaitCount = 0;
 				pDevice->eCommandState = WLAN_AUTHENTICATE_WAIT;
 				vCommandTimerWait((void *) pDevice, AUTHENTICATE_TIMEOUT);
-				spin_unlock_irq(&pDevice->lock);
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Set eCommandState = WLAN_AUTHENTICATE_WAIT\n");
 				return;
 			}
@@ -533,7 +510,9 @@ void vRunCommand(struct work_struct *work)
 				if (netif_queue_stopped(pDevice->dev))
 					netif_wake_queue(pDevice->dev);
 				pDevice->bLinkPass = true;
-				ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_INTER);
+
+				vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
+
 				pMgmt->sNodeDBTable[0].bActive = true;
 				pMgmt->sNodeDBTable[0].uInActiveCount = 0;
 			} else {
@@ -564,7 +543,6 @@ void vRunCommand(struct work_struct *work)
 				s_bClearBSSID_SCAN(pDevice);
 /*
 				pDevice->bLinkPass = true;
-				ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
 				if (netif_queue_stopped(pDevice->dev)){
 					netif_wake_queue(pDevice->dev);
 				}
@@ -582,7 +560,6 @@ void vRunCommand(struct work_struct *work)
 				}
 			}
 		}
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_AUTHENTICATE_WAIT:
@@ -597,7 +574,6 @@ void vRunCommand(struct work_struct *work)
 				pDevice->byLinkWaitCount = 0;
 				pDevice->eCommandState = WLAN_ASSOCIATE_WAIT;
 				vCommandTimerWait((void *) pDevice, ASSOCIATE_TIMEOUT);
-				spin_unlock_irq(&pDevice->lock);
 				return;
 			}
 		} else if (pMgmt->eCurrState < WMAC_STATE_AUTHPENDING) {
@@ -606,13 +582,11 @@ void vRunCommand(struct work_struct *work)
 			//mike add:wait another 2 sec if authenticated_frame delay!
 			pDevice->byLinkWaitCount++;
 			printk("WLAN_AUTHENTICATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
-			spin_unlock_irq(&pDevice->lock);
 			vCommandTimerWait((void *) pDevice, AUTHENTICATE_TIMEOUT/2);
 			return;
 		}
 		pDevice->byLinkWaitCount = 0;
 
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_ASSOCIATE_WAIT:
@@ -630,7 +604,9 @@ void vRunCommand(struct work_struct *work)
 			pDevice->byLinkWaitCount = 0;
 			pDevice->byReAssocCount = 0;
 			pDevice->bLinkPass = true;
-			ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_INTER);
+
+			vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
+
 			s_bClearBSSID_SCAN(pDevice);
 
 			if (netif_queue_stopped(pDevice->dev))
@@ -642,12 +618,10 @@ void vRunCommand(struct work_struct *work)
 			//mike add:wait another 2 sec if associated_frame delay!
 			pDevice->byLinkWaitCount++;
 			printk("WLAN_ASSOCIATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
-			spin_unlock_irq(&pDevice->lock);
 			vCommandTimerWait((void *) pDevice, ASSOCIATE_TIMEOUT/2);
 			return;
 		}
 
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_AP_MODE_START:
@@ -658,11 +632,11 @@ void vRunCommand(struct work_struct *work)
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
 			pMgmt->eCurrMode = WMAC_MODE_STANDBY;
 			pDevice->bLinkPass = false;
-			ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_SLOW);
-			if (pDevice->bEnableHostWEP == true)
-				BSSvClearNodeDBTable(pDevice, 1);
-			else
-				BSSvClearNodeDBTable(pDevice, 0);
+
+			vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
+
+			BSSvClearNodeDBTable(pDevice, 0);
+
 			pDevice->uAssocCount = 0;
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
 			pDevice->bFixRate = false;
@@ -680,10 +654,11 @@ void vRunCommand(struct work_struct *work)
 			if (netif_queue_stopped(pDevice->dev))
 				netif_wake_queue(pDevice->dev);
 			pDevice->bLinkPass = true;
-			ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_INTER);
+
+			vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
+
 			schedule_delayed_work(&pDevice->second_callback_work, HZ);
 		}
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_TX_PSPACKET_START:
@@ -697,8 +672,12 @@ void vRunCommand(struct work_struct *work)
 					pDevice->bMoreData = true;
 				}
 
-				if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0)
+				spin_lock_irqsave(&pDevice->lock, flags);
+
+				if (nsDMA_tx_packet(pDevice, skb) != 0)
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail\n");
+
+				spin_unlock_irqrestore(&pDevice->lock, flags);
 
 				pMgmt->sNodeDBTable[0].wEnQueueCnt--;
 			}
@@ -720,8 +699,12 @@ void vRunCommand(struct work_struct *work)
 						pDevice->bMoreData = true;
 					}
 
-					if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0)
+					spin_lock_irqsave(&pDevice->lock, flags);
+
+					if (nsDMA_tx_packet(pDevice, skb) != 0)
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail\n");
+
+					spin_unlock_irqrestore(&pDevice->lock, flags);
 
 					pMgmt->sNodeDBTable[ii].wEnQueueCnt--;
 					// check if sta ps enable, wait next pspoll
@@ -738,8 +721,6 @@ void vRunCommand(struct work_struct *work)
 				pMgmt->sNodeDBTable[ii].bRxPSPoll = false;
 			}
 		}
-
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_RADIO_START:
@@ -753,18 +734,15 @@ void vRunCommand(struct work_struct *work)
 			int ntStatus = STATUS_SUCCESS;
 			u8            byTmp;
 
-			ntStatus = CONTROLnsRequestIn(pDevice,
+			ntStatus = vnt_control_in(pDevice,
 					MESSAGE_TYPE_READ,
 					MAC_REG_GPIOCTL1,
 					MESSAGE_REQUEST_MACREG,
 					1,
 					&byTmp);
 
-			if (ntStatus != STATUS_SUCCESS) {
-				s_bCommandComplete(pDevice);
-				spin_unlock_irq(&pDevice->lock);
-				return;
-			}
+			if (ntStatus != STATUS_SUCCESS)
+				break;
 			if ((byTmp & GPIO3_DATA) == 0) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" WLAN_CMD_RADIO_START_OFF........................\n");
 				// Old commands are useless.
@@ -779,9 +757,9 @@ void vRunCommand(struct work_struct *work)
 
 				pDevice->byKeyIndex = 0;
 				pDevice->bTransmitKey = false;
-				spin_unlock_irq(&pDevice->lock);
+
 				KeyvInitTable(pDevice, &pDevice->sKey);
-				spin_lock_irq(&pDevice->lock);
+
 				pMgmt->byCSSPK = KEY_CTL_NONE;
 				pMgmt->byCSSGK = KEY_CTL_NONE;
 
@@ -822,18 +800,20 @@ void vRunCommand(struct work_struct *work)
 				netif_stop_queue(pDevice->dev);
 				CARDbRadioPowerOff(pDevice);
 				MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
-				ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_OFF);
+
+				vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_OFF);
+
 				pDevice->bHWRadioOff = true;
 			} else {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" WLAN_CMD_RADIO_START_ON........................\n");
 				pDevice->bHWRadioOff = false;
 				CARDbRadioPowerOn(pDevice);
 				MACvRegBitsOff(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
-				ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_ON);
+
+				vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_ON);
 			}
 		}
 
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_CHANGE_BBSENSITIVITY_START:
@@ -843,24 +823,21 @@ void vRunCommand(struct work_struct *work)
 		BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Change sensitivity pDevice->byBBVGACurrent = %x\n", pDevice->byBBVGACurrent);
 		pDevice->bStopDataPkt = false;
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_TBTT_WAKEUP_START:
 		PSbIsNextTBTTWakeUp(pDevice);
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_BECON_SEND_START:
 		bMgrPrepareBeaconToSend(pDevice, pMgmt);
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_SETPOWER_START:
 
-		RFbSetPower(pDevice, pDevice->wCurrentRate, pMgmt->uCurrChannel);
+		vnt_rf_setpower(pDevice, pDevice->wCurrentRate,
+							pMgmt->uCurrChannel);
 
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_CHANGE_ANTENNA_START:
@@ -878,19 +855,17 @@ void vRunCommand(struct work_struct *work)
 			else
 				BBvSetAntennaMode(pDevice, ANT_RXA);
 		}
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_REMOVE_ALLKEY_START:
 		KeybRemoveAllKey(pDevice, &(pDevice->sKey), pDevice->abyBSSID);
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_MAC_DISPOWERSAVING_START:
-		ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
+		vnt_control_in_u8(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
 		if ((byData & PSCTL_PS) != 0) {
 			// disable power saving hw function
-			CONTROLnsRequestOut(pDevice,
+			vnt_control_out(pDevice,
 					MESSAGE_TYPE_DISABLE_PS,
 					0,
 					0,
@@ -898,7 +873,6 @@ void vRunCommand(struct work_struct *work)
 					NULL
 					);
 		}
-		s_bCommandComplete(pDevice);
 		break;
 
 	case WLAN_CMD_11H_CHSW_START:
@@ -906,15 +880,17 @@ void vRunCommand(struct work_struct *work)
 		pDevice->bChannelSwitch = false;
 		pMgmt->uCurrChannel = pDevice->byNewChannel;
 		pDevice->bStopDataPkt = false;
-		s_bCommandComplete(pDevice);
 		break;
 
+	case WLAN_CMD_CONFIGURE_FILTER_START:
+		vnt_configure_filter(pDevice);
+		break;
 	default:
-		s_bCommandComplete(pDevice);
 		break;
 	} //switch
 
-	spin_unlock_irq(&pDevice->lock);
+	s_bCommandComplete(pDevice);
+
 	return;
 }
 
@@ -1007,6 +983,11 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
 
 		case WLAN_CMD_11H_CHSW:
 			pDevice->eCommandState = WLAN_CMD_11H_CHSW_START;
+			break;
+
+		case WLAN_CMD_CONFIGURE_FILTER:
+			pDevice->eCommandState =
+						WLAN_CMD_CONFIGURE_FILTER_START;
 			break;
 
 		default:

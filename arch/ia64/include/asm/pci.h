@@ -50,12 +50,6 @@ struct pci_dev;
 extern unsigned long ia64_max_iommu_merge_mask;
 #define PCI_DMA_BUS_IS_PHYS	(ia64_max_iommu_merge_mask == ~0UL)
 
-static inline void
-pcibios_penalize_isa_irq (int irq, int active)
-{
-	/* We don't do dynamic PCI IRQ allocation */
-}
-
 #include <asm-generic/pci-dma-compat.h>
 
 #ifdef CONFIG_PCI
@@ -98,7 +92,7 @@ struct pci_controller {
 	struct acpi_device *companion;
 	void *iommu;
 	int segment;
-	int node;		/* nearest node with memory or -1 for global allocation */
+	int node;		/* nearest node with memory or NUMA_NO_NODE for global allocation */
 
 	void *platform_data;
 };

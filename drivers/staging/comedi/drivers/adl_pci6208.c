@@ -73,19 +73,17 @@ struct pci6208_private {
 	unsigned int ao_readback[PCI6208_MAX_AO_CHANNELS];
 };
 
-static int pci6208_ao_wait_for_data_send(struct comedi_device *dev,
-					 unsigned int timeout)
+static int pci6208_ao_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
 {
 	unsigned int status;
 
-	while (timeout--) {
-		status = inw(dev->iobase + PCI6208_AO_STATUS);
-		if ((status & PCI6208_AO_STATUS_DATA_SEND) == 0)
-			return 0;
-		udelay(1);
-	}
-
-	return -ETIME;
+	status = inw(dev->iobase + PCI6208_AO_STATUS);
+	if ((status & PCI6208_AO_STATUS_DATA_SEND) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int pci6208_ao_insn_write(struct comedi_device *dev,
@@ -102,8 +100,8 @@ static int pci6208_ao_insn_write(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 
-		/* D/A transfer rate is 2.2us, wait up to 10us */
-		ret = pci6208_ao_wait_for_data_send(dev, 10);
+		/* D/A transfer rate is 2.2us */
+		ret = comedi_timeout(dev, s, insn, pci6208_ao_eoc, 0);
 		if (ret)
 			return ret;
 

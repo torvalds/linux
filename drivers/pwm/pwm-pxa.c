@@ -127,12 +127,12 @@ static struct pwm_ops pxa_pwm_ops = {
 
 #ifdef CONFIG_OF
 /*
- * Device tree users must create one device instance for each pwm channel.
+ * Device tree users must create one device instance for each PWM channel.
  * Hence we dispense with the HAS_SECONDARY_PWM and "tell" the original driver
  * code that this is a single channel pxa25x-pwm.  Currently all devices are
  * supported identically.
  */
-static struct of_device_id pwm_of_match[] = {
+static const struct of_device_id pwm_of_match[] = {
 	{ .compatible = "marvell,pxa250-pwm", .data = &pwm_id_table[0]},
 	{ .compatible = "marvell,pxa270-pwm", .data = &pwm_id_table[0]},
 	{ .compatible = "marvell,pxa168-pwm", .data = &pwm_id_table[0]},
@@ -179,10 +179,8 @@ static int pwm_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
-	if (pwm == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (pwm == NULL)
 		return -ENOMEM;
-	}
 
 	pwm->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pwm->clk))

@@ -96,7 +96,7 @@ enum iwl_disable_11n {
  *	use IWL_[DIS,EN]ABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 0
  * @restart_fw: restart firmware, default = 1
- * @wd_disable: enable stuck queue check, default = 0
+ * @wd_disable: disable stuck queue check, default = 1
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
  * @power_save: disable power save, default = false
@@ -119,6 +119,7 @@ struct iwl_mod_params {
 #endif
 	int ant_coupling;
 	char *nvm_file;
+	bool uapsd_disable;
 };
 
 #endif /* #__iwl_modparams_h__ */

@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/hdmi.h>
 
 #include "msm_drv.h"
 #include "hdmi.xml.h"
@@ -30,6 +31,12 @@
 struct hdmi_phy;
 struct hdmi_platform_config;
 
+struct hdmi_audio {
+	bool enabled;
+	struct hdmi_audio_infoframe infoframe;
+	int rate;
+};
+
 struct hdmi {
 	struct kref refcount;
 
@@ -37,6 +44,13 @@ struct hdmi {
 	struct platform_device *pdev;
 
 	const struct hdmi_platform_config *config;
+
+	/* audio state: */
+	struct hdmi_audio audio;
+
+	/* video state: */
+	bool power_on;
+	unsigned long int pixclock;
 
 	void __iomem *mmio;
 
@@ -73,6 +87,7 @@ struct hdmi_platform_config {
 
 	/* clks that need to be on for hpd: */
 	const char **hpd_clk_names;
+	const long unsigned *hpd_freq;
 	int hpd_clk_cnt;
 
 	/* clks that need to be on for screen pwr (ie pixel clk): */
@@ -130,6 +145,17 @@ struct hdmi_phy {
 struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi);
 struct hdmi_phy *hdmi_phy_8x60_init(struct hdmi *hdmi);
 struct hdmi_phy *hdmi_phy_8x74_init(struct hdmi *hdmi);
+
+/*
+ * audio:
+ */
+
+int hdmi_audio_update(struct hdmi *hdmi);
+int hdmi_audio_info_setup(struct hdmi *hdmi, bool enabled,
+	uint32_t num_of_channels, uint32_t channel_allocation,
+	uint32_t level_shift, bool down_mix);
+void hdmi_audio_set_sample_rate(struct hdmi *hdmi, int rate);
+
 
 /*
  * hdmi bridge:

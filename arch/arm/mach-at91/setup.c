@@ -351,7 +351,7 @@ void __init at91_ioremap_matrix(u32 base_addr)
 		panic("Impossible to ioremap at91_matrix_base\n");
 }
 
-#if defined(CONFIG_OF)
+#if defined(CONFIG_OF) && !defined(CONFIG_ARCH_AT91X40)
 static struct of_device_id rstc_ids[] = {
 	{ .compatible = "atmel,at91sam9260-rstc", .data = at91sam9_alt_restart },
 	{ .compatible = "atmel,at91sam9g45-rstc", .data = at91sam9g45_restart },

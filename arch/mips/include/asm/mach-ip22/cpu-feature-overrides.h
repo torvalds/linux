@@ -39,6 +39,10 @@
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1
 
+#define cpu_has_mips_2		1
+#define cpu_has_mips_3		1
+#define cpu_has_mips_5		0
+
 #define cpu_has_mips32r1	0
 #define cpu_has_mips32r2	0
 #define cpu_has_mips64r1	0

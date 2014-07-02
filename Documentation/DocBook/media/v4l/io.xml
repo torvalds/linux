@@ -125,7 +125,7 @@ location of the buffers in device memory can be determined with the
 <structfield>m.offset</structfield> and <structfield>length</structfield>
 returned in a &v4l2-buffer; are passed as sixth and second parameter to the
 <function>mmap()</function> function. When using the multi-planar API,
-struct &v4l2-buffer; contains an array of &v4l2-plane; structures, each
+&v4l2-buffer; contains an array of &v4l2-plane; structures, each
 containing its own <structfield>m.offset</structfield> and
 <structfield>length</structfield>. When using the multi-planar API, every
 plane of every buffer has to be mapped separately, so the number of
@@ -339,8 +339,8 @@ returns immediately with an &EAGAIN; when no buffer is available. The
 queues as a side effect. Since there is no notion of doing anything
 "now" on a multitasking system, if an application needs to synchronize
 with another event it should examine the &v4l2-buffer;
-<structfield>timestamp</structfield> of captured buffers, or set the
-field before enqueuing buffers for output.</para>
+<structfield>timestamp</structfield> of captured or outputted buffers.
+</para>
 
     <para>Drivers implementing memory mapping I/O must
 support the <constant>VIDIOC_REQBUFS</constant>,
@@ -457,7 +457,7 @@ queues and unlocks all buffers as a side effect. Since there is no
 notion of doing anything "now" on a multitasking system, if an
 application needs to synchronize with another event it should examine
 the &v4l2-buffer; <structfield>timestamp</structfield> of captured
-buffers, or set the field before enqueuing buffers for output.</para>
+or outputted buffers.</para>
 
     <para>Drivers implementing user pointer I/O must
 support the <constant>VIDIOC_REQBUFS</constant>,
@@ -620,8 +620,7 @@ returns immediately with an &EAGAIN; when no buffer is available. The
 unlocks all buffers as a side effect. Since there is no notion of doing
 anything "now" on a multitasking system, if an application needs to synchronize
 with another event it should examine the &v4l2-buffer;
-<structfield>timestamp</structfield> of captured buffers, or set the field
-before enqueuing buffers for output.</para>
+<structfield>timestamp</structfield> of captured or outputted buffers.</para>
 
     <para>Drivers implementing DMABUF importing I/O must support the
 <constant>VIDIOC_REQBUFS</constant>, <constant>VIDIOC_QBUF</constant>,
@@ -654,38 +653,19 @@ plane, are stored in struct <structname>v4l2_plane</structname> instead.
 In that case, struct <structname>v4l2_buffer</structname> contains an array of
 plane structures.</para>
 
-      <para>Nominally timestamps refer to the first data byte transmitted.
-In practice however the wide range of hardware covered by the V4L2 API
-limits timestamp accuracy. Often an interrupt routine will
-sample the system clock shortly after the field or frame was stored
-completely in memory. So applications must expect a constant
-difference up to one field or frame period plus a small (few scan
-lines) random error. The delay and error can be much
-larger due to compression or transmission over an external bus when
-the frames are not properly stamped by the sender. This is frequently
-the case with USB cameras. Here timestamps refer to the instant the
-field or frame was received by the driver, not the capture time. These
-devices identify by not enumerating any video standards, see <xref
-linkend="standard" />.</para>
-
-      <para>Similar limitations apply to output timestamps. Typically
-the video hardware locks to a clock controlling the video timing, the
-horizontal and vertical synchronization pulses. At some point in the
-line sequence, possibly the vertical blanking, an interrupt routine
-samples the system clock, compares against the timestamp and programs
-the hardware to repeat the previous field or frame, or to display the
-buffer contents.</para>
-
-      <para>Apart of limitations of the video device and natural
-inaccuracies of all clocks, it should be noted system time itself is
-not perfectly stable. It can be affected by power saving cycles,
-warped to insert leap seconds, or even turned back or forth by the
-system administrator affecting long term measurements. <footnote>
-	  <para>Since no other Linux multimedia
-API supports unadjusted time it would be foolish to introduce here. We
-must use a universally supported clock to synchronize different media,
-hence time of day.</para>
-	</footnote></para>
+    <para>Dequeued video buffers come with timestamps. The driver
+    decides at which part of the frame and with which clock the
+    timestamp is taken. Please see flags in the masks
+    <constant>V4L2_BUF_FLAG_TIMESTAMP_MASK</constant> and
+    <constant>V4L2_BUF_FLAG_TSTAMP_SRC_MASK</constant> in <xref
+    linkend="buffer-flags" />. These flags are always valid and constant
+    across all buffers during the whole video stream. Changes in these
+    flags may take place as a side effect of &VIDIOC-S-INPUT; or
+    &VIDIOC-S-OUTPUT; however. The
+    <constant>V4L2_BUF_FLAG_TIMESTAMP_COPY</constant> timestamp type
+    which is used by e.g. on mem-to-mem devices is an exception to the
+    rule: the timestamp source flags are copied from the OUTPUT video
+    buffer to the CAPTURE video buffer.</para>
 
     <table frame="none" pgwide="1" id="v4l2-buffer">
       <title>struct <structname>v4l2_buffer</structname></title>
@@ -696,10 +676,11 @@ hence time of day.</para>
 	    <entry>__u32</entry>
 	    <entry><structfield>index</structfield></entry>
 	    <entry></entry>
-	    <entry>Number of the buffer, set by the application. This
-field is only used for <link linkend="mmap">memory mapping</link> I/O
-and can range from zero to the number of buffers allocated
-with the &VIDIOC-REQBUFS; ioctl (&v4l2-requestbuffers; <structfield>count</structfield>) minus one.</entry>
+	    <entry>Number of the buffer, set by the application except
+when calling &VIDIOC-DQBUF;, then it is set by the driver.
+This field can range from zero to the number of buffers allocated
+with the &VIDIOC-REQBUFS; ioctl (&v4l2-requestbuffers; <structfield>count</structfield>),
+plus any buffers allocated with &VIDIOC-CREATE-BUFS; minus one.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -718,7 +699,12 @@ linkend="v4l2-buf-type" /></entry>
 buffer. It depends on the negotiated data format and may change with
 each buffer for compressed variable size data like JPEG images.
 Drivers must set this field when <structfield>type</structfield>
-refers to an input stream, applications when an output stream.</entry>
+refers to an input stream, applications when it refers to an output stream.
+If the application sets this to 0 for an output stream, then
+<structfield>bytesused</structfield> will be set to the size of the
+buffer (see the <structfield>length</structfield> field of this struct) by
+the driver. For multiplanar formats this field is ignored and the
+<structfield>planes</structfield> pointer is used instead.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -735,7 +721,7 @@ linkend="buffer-flags" />.</entry>
 buffer, see <xref linkend="v4l2-field" />. This field is not used when
 the buffer contains VBI data. Drivers must set it when
 <structfield>type</structfield> refers to an input stream,
-applications when an output stream.</entry>
+applications when it refers to an output stream.</entry>
 	  </row>
 	  <row>
 	    <entry>struct timeval</entry>
@@ -745,15 +731,13 @@ applications when an output stream.</entry>
 	    byte was captured, as returned by the
 	    <function>clock_gettime()</function> function for the relevant
 	    clock id; see <constant>V4L2_BUF_FLAG_TIMESTAMP_*</constant> in
-	    <xref linkend="buffer-flags" />. For output streams the data
-	    will not be displayed before this time, secondary to the nominal
-	    frame rate determined by the current video standard in enqueued
-	    order. Applications can for example zero this field to display
-	    frames as soon as possible. The driver stores the time at which
-	    the first data byte was actually sent out in the
-	    <structfield>timestamp</structfield> field. This permits
+	    <xref linkend="buffer-flags" />. For output streams the driver
+	    stores the time at which the last data byte was actually sent out
+	    in the  <structfield>timestamp</structfield> field. This permits
 	    applications to monitor the drift between the video and system
-	    clock.</para></entry>
+	    clock. For output streams that use <constant>V4L2_BUF_FLAG_TIMESTAMP_COPY</constant>
+	    the application has to fill in the timestamp which will be copied
+	    by the driver to the capture stream.</para></entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-timecode;</entry>
@@ -846,7 +830,8 @@ is the file descriptor associated with a DMABUF buffer.</entry>
 	    <entry><structfield>length</structfield></entry>
 	    <entry></entry>
 	    <entry>Size of the buffer (not the payload) in bytes for the
-	    single-planar API. For the multi-planar API the application sets
+	    single-planar API. This is set by the driver based on the calls to
+	    &VIDIOC-REQBUFS; and/or &VIDIOC-CREATE-BUFS;. For the multi-planar API the application sets
 	    this to the number of elements in the <structfield>planes</structfield>
 	    array. The driver will fill in the actual number of valid elements in
 	    that array.
@@ -880,13 +865,19 @@ should set this to 0.</entry>
 	    <entry><structfield>bytesused</structfield></entry>
 	    <entry></entry>
 	    <entry>The number of bytes occupied by data in the plane
-	    (its payload).</entry>
+	      (its payload). Drivers must set this field when <structfield>type</structfield>
+	      refers to an input stream, applications when it refers to an output stream.
+	      If the application sets this to 0 for an output stream, then
+	      <structfield>bytesused</structfield> will be set to the size of the
+	      plane (see the <structfield>length</structfield> field of this struct)
+	      by the driver.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>length</structfield></entry>
 	    <entry></entry>
-	    <entry>Size in bytes of the plane (not its payload).</entry>
+	    <entry>Size in bytes of the plane (not its payload). This is set by the driver
+	    based on the calls to &VIDIOC-REQBUFS; and/or &VIDIOC-CREATE-BUFS;.</entry>
 	  </row>
 	  <row>
 	    <entry>union</entry>
@@ -925,7 +916,9 @@ should set this to 0.</entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>data_offset</structfield></entry>
 	    <entry></entry>
-	    <entry>Offset in bytes to video data in the plane, if applicable.
+	    <entry>Offset in bytes to video data in the plane.
+	      Drivers must set this field when <structfield>type</structfield>
+	      refers to an input stream, applications when it refers to an output stream.
 	    </entry>
 	  </row>
 	  <row>
@@ -1005,6 +998,12 @@ should set this to 0.</entry>
 	    <entry>Buffer for video output overlay (OSD), see <xref
 		linkend="osd" />.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant></entry>
+	    <entry>11</entry>
+	    <entry>Buffer for Software Defined Radio (SDR), see <xref
+		linkend="sdr" />.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
@@ -1016,7 +1015,7 @@ should set this to 0.</entry>
 	<tbody valign="top">
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_MAPPED</constant></entry>
-	    <entry>0x0001</entry>
+	    <entry>0x00000001</entry>
 	    <entry>The buffer resides in device memory and has been mapped
 into the application's address space, see <xref linkend="mmap" /> for details.
 Drivers set or clear this flag when the
@@ -1026,7 +1025,7 @@ Drivers set or clear this flag when the
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_QUEUED</constant></entry>
-	    <entry>0x0002</entry>
+	    <entry>0x00000002</entry>
 	  <entry>Internally drivers maintain two buffer queues, an
 incoming and outgoing queue. When this flag is set, the buffer is
 currently on the incoming queue. It automatically moves to the
@@ -1039,7 +1038,7 @@ cleared.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_DONE</constant></entry>
-	    <entry>0x0004</entry>
+	    <entry>0x00000004</entry>
 	    <entry>When this flag is set, the buffer is currently on
 the outgoing queue, ready to be dequeued from the driver. Drivers set
 or clear this flag when the <constant>VIDIOC_QUERYBUF</constant> ioctl
@@ -1049,11 +1048,11 @@ buffer cannot be on both queues at the same time, the
 <constant>V4L2_BUF_FLAG_QUEUED</constant> and
 <constant>V4L2_BUF_FLAG_DONE</constant> flag are mutually exclusive.
 They can be both cleared however, then the buffer is in "dequeued"
-state, in the application domain to say so.</entry>
+state, in the application domain so to say.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_ERROR</constant></entry>
-	    <entry>0x0040</entry>
+	    <entry>0x00000040</entry>
 	    <entry>When this flag is set, the buffer has been dequeued
 	    successfully, although the data might have been corrupted.
 	    This is recoverable, streaming may continue as normal and
@@ -1063,35 +1062,43 @@ state, in the application domain to say so.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_KEYFRAME</constant></entry>
-	    <entry>0x0008</entry>
+	    <entry>0x00000008</entry>
 	  <entry>Drivers set or clear this flag when calling the
 <constant>VIDIOC_DQBUF</constant> ioctl. It may be set by video
 capture devices when the buffer contains a compressed image which is a
-key frame (or field), &ie; can be decompressed on its own.</entry>
+key frame (or field), &ie; can be decompressed on its own. Also know as
+an I-frame.  Applications can set this bit when <structfield>type</structfield>
+refers to an output stream.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_PFRAME</constant></entry>
-	    <entry>0x0010</entry>
+	    <entry>0x00000010</entry>
 	    <entry>Similar to <constant>V4L2_BUF_FLAG_KEYFRAME</constant>
 this flags predicted frames or fields which contain only differences to a
-previous key frame.</entry>
+previous key frame. Applications can set this bit when <structfield>type</structfield>
+refers to an output stream.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_BFRAME</constant></entry>
-	    <entry>0x0020</entry>
-	    <entry>Similar to <constant>V4L2_BUF_FLAG_PFRAME</constant>
-	this is a bidirectional predicted frame or field. [ooc tbd]</entry>
+	    <entry>0x00000020</entry>
+	    <entry>Similar to <constant>V4L2_BUF_FLAG_KEYFRAME</constant>
+this flags a bi-directional predicted frame or field which contains only
+the differences between the current frame and both the preceding and following
+key frames to specify its content. Applications can set this bit when
+<structfield>type</structfield> refers to an output stream.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_TIMECODE</constant></entry>
-	    <entry>0x0100</entry>
+	    <entry>0x00000100</entry>
 	    <entry>The <structfield>timecode</structfield> field is valid.
 Drivers set or clear this flag when the <constant>VIDIOC_DQBUF</constant>
-ioctl is called.</entry>
+ioctl is called.  Applications can set this bit and the corresponding
+<structfield>timecode</structfield> structure when <structfield>type</structfield>
+refers to an output stream.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_PREPARED</constant></entry>
-	    <entry>0x0400</entry>
+	    <entry>0x00000400</entry>
 	    <entry>The buffer has been prepared for I/O and can be queued by the
 application. Drivers set or clear this flag when the
 <link linkend="vidioc-querybuf">VIDIOC_QUERYBUF</link>, <link
@@ -1101,7 +1108,7 @@ application. Drivers set or clear this flag when the
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_NO_CACHE_INVALIDATE</constant></entry>
-	    <entry>0x0800</entry>
+	    <entry>0x00000800</entry>
 	    <entry>Caches do not have to be invalidated for this buffer.
 Typically applications shall use this flag if the data captured in the buffer
 is not going to be touched by the CPU, instead the buffer will, probably, be
@@ -1110,7 +1117,7 @@ passed on to a DMA-capable hardware unit for further processing or output.
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_NO_CACHE_CLEAN</constant></entry>
-	    <entry>0x1000</entry>
+	    <entry>0x00001000</entry>
 	    <entry>Caches do not have to be cleaned for this buffer.
 Typically applications shall use this flag for output buffers if the data
 in this buffer has not been created by the CPU but by some DMA-capable unit,
@@ -1118,7 +1125,7 @@ in which case caches have not been used.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_MASK</constant></entry>
-	    <entry>0xe000</entry>
+	    <entry>0x0000e000</entry>
 	    <entry>Mask for timestamp types below. To test the
 	    timestamp type, mask out bits not belonging to timestamp
 	    type by performing a logical and operation with buffer
@@ -1126,7 +1133,7 @@ in which case caches have not been used.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN</constant></entry>
-	    <entry>0x0000</entry>
+	    <entry>0x00000000</entry>
 	    <entry>Unknown timestamp type. This type is used by
 	    drivers before Linux 3.9 and may be either monotonic (see
 	    below) or realtime (wall clock). Monotonic clock has been
@@ -1139,7 +1146,7 @@ in which case caches have not been used.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC</constant></entry>
-	    <entry>0x2000</entry>
+	    <entry>0x00002000</entry>
 	    <entry>The buffer timestamp has been taken from the
 	    <constant>CLOCK_MONOTONIC</constant> clock. To access the
 	    same clock outside V4L2, use
@@ -1147,9 +1154,41 @@ in which case caches have not been used.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_COPY</constant></entry>
-	    <entry>0x4000</entry>
+	    <entry>0x00004000</entry>
 	    <entry>The CAPTURE buffer timestamp has been taken from the
 	    corresponding OUTPUT buffer. This flag applies only to mem2mem devices.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TSTAMP_SRC_MASK</constant></entry>
+	    <entry>0x00070000</entry>
+	    <entry>Mask for timestamp sources below. The timestamp source
+	    defines the point of time the timestamp is taken in relation to
+	    the frame. Logical 'and' operation between the
+	    <structfield>flags</structfield> field and
+	    <constant>V4L2_BUF_FLAG_TSTAMP_SRC_MASK</constant> produces the
+	    value of the timestamp source. Applications must set the timestamp
+	    source when <structfield>type</structfield> refers to an output stream
+	    and <constant>V4L2_BUF_FLAG_TIMESTAMP_COPY</constant> is set.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TSTAMP_SRC_EOF</constant></entry>
+	    <entry>0x00000000</entry>
+	    <entry>End Of Frame. The buffer timestamp has been taken
+	    when the last pixel of the frame has been received or the
+	    last pixel of the frame has been transmitted. In practice,
+	    software generated timestamps will typically be read from
+	    the clock a small amount of time after the last pixel has
+	    been received or transmitten, depending on the system and
+	    other activity in it.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TSTAMP_SRC_SOE</constant></entry>
+	    <entry>0x00010000</entry>
+	    <entry>Start Of Exposure. The buffer timestamp has been
+	    taken when the exposure of the frame has begun. This is
+	    only valid for the
+	    <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant> buffer
+	    type.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -1440,10 +1479,9 @@ or application, depending on data direction, must set &v4l2-buffer;
 <constant>V4L2_FIELD_BOTTOM</constant>. Any two successive fields pair
 to build a frame. If fields are successive, without any dropped fields
 between them (fields can drop individually), can be determined from
-the &v4l2-buffer; <structfield>sequence</structfield> field. Image
-sizes refer to the frame, not fields. This format cannot be selected
-when using the read/write I/O method.<!-- Where it's indistinguishable
-from V4L2_FIELD_SEQ_*. --></entry>
+the &v4l2-buffer; <structfield>sequence</structfield> field. This format
+cannot be selected when using the read/write I/O method since there
+is no way to communicate if a field was a top or bottom field.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_FIELD_INTERLACED_TB</constant></entry>

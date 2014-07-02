@@ -194,7 +194,7 @@ int ptlrpc_set_import_discon(struct obd_import *imp, __u32 conn_cnt)
 /* Must be called with imp_lock held! */
 static void ptlrpc_deactivate_and_unlock_import(struct obd_import *imp)
 {
-	LASSERT(spin_is_locked(&imp->imp_lock));
+	assert_spin_locked(&imp->imp_lock);
 
 	CDEBUG(D_HA, "setting import %s INVALID\n", obd2cli_tgt(imp->imp_obd));
 	imp->imp_invalid = 1;
@@ -381,6 +381,11 @@ void ptlrpc_activate_import(struct obd_import *imp)
 	struct obd_device *obd = imp->imp_obd;
 
 	spin_lock(&imp->imp_lock);
+	if (imp->imp_deactive != 0) {
+		spin_unlock(&imp->imp_lock);
+		return;
+	}
+
 	imp->imp_invalid = 0;
 	spin_unlock(&imp->imp_lock);
 	obd_import_event(obd, imp, IMP_EVENT_ACTIVE);
@@ -560,17 +565,30 @@ static int ptlrpc_first_transno(struct obd_import *imp, __u64 *transno)
 	struct ptlrpc_request *req;
 	struct list_head *tmp;
 
-	if (list_empty(&imp->imp_replay_list))
-		return 0;
-	tmp = imp->imp_replay_list.next;
-	req = list_entry(tmp, struct ptlrpc_request, rq_replay_list);
-	*transno = req->rq_transno;
-	if (req->rq_transno == 0) {
-		DEBUG_REQ(D_ERROR, req, "zero transno in replay");
-		LBUG();
+	/* The requests in committed_list always have smaller transnos than
+	 * the requests in replay_list */
+	if (!list_empty(&imp->imp_committed_list)) {
+		tmp = imp->imp_committed_list.next;
+		req = list_entry(tmp, struct ptlrpc_request, rq_replay_list);
+		*transno = req->rq_transno;
+		if (req->rq_transno == 0) {
+			DEBUG_REQ(D_ERROR, req,
+				  "zero transno in committed_list");
+			LBUG();
+		}
+		return 1;
 	}
-
-	return 1;
+	if (!list_empty(&imp->imp_replay_list)) {
+		tmp = imp->imp_replay_list.next;
+		req = list_entry(tmp, struct ptlrpc_request, rq_replay_list);
+		*transno = req->rq_transno;
+		if (req->rq_transno == 0) {
+			DEBUG_REQ(D_ERROR, req, "zero transno in replay_list");
+			LBUG();
+		}
+		return 1;
+	}
+	return 0;
 }
 
 /**
@@ -627,7 +645,7 @@ int ptlrpc_connect_import(struct obd_import *imp)
 	if (rc)
 		GOTO(out, rc);
 
-	rc = sptlrpc_import_sec_adapt(imp, NULL, 0);
+	rc = sptlrpc_import_sec_adapt(imp, NULL, NULL);
 	if (rc)
 		GOTO(out, rc);
 
@@ -1042,7 +1060,7 @@ finish:
 			if ((ocd->ocd_cksum_types &
 			     cksum_types_supported_client()) == 0) {
 				LCONSOLE_WARN("The negotiation of the checksum "
-					      "alogrithm to use with server %s "
+					      "algorithm to use with server %s "
 					      "failed (%x/%x), disabling "
 					      "checksums\n",
 					      obd2cli_tgt(imp->imp_obd),
@@ -1260,7 +1278,7 @@ static int ptlrpc_invalidate_import_thread(void *data)
 /**
  * This is the state machine for client-side recovery on import.
  *
- * Typicaly we have two possibly paths. If we came to server and it is not
+ * Typically we have two possibly paths. If we came to server and it is not
  * in recovery, we just enter IMP_EVICTED state, invalidate our import
  * state and reconnect from scratch.
  * If we came to server that is in recovery, we enter IMP_REPLAY import state.
@@ -1386,25 +1404,32 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 {
 	struct ptlrpc_request *req;
 	int rq_opc, rc = 0;
-	int nowait = imp->imp_obd->obd_force;
 
-	if (nowait)
+	if (imp->imp_obd->obd_force)
 		GOTO(set_state, rc);
 
 	switch (imp->imp_connect_op) {
-	case OST_CONNECT: rq_opc = OST_DISCONNECT; break;
-	case MDS_CONNECT: rq_opc = MDS_DISCONNECT; break;
-	case MGS_CONNECT: rq_opc = MGS_DISCONNECT; break;
+	case OST_CONNECT:
+		rq_opc = OST_DISCONNECT;
+		break;
+	case MDS_CONNECT:
+		rq_opc = MDS_DISCONNECT;
+		break;
+	case MGS_CONNECT:
+		rq_opc = MGS_DISCONNECT;
+		break;
 	default:
-		CERROR("don't know how to disconnect from %s (connect_op %d)\n",
-		       obd2cli_tgt(imp->imp_obd), imp->imp_connect_op);
-		return -EINVAL;
+		rc = -EINVAL;
+		CERROR("%s: don't know how to disconnect from %s "
+		       "(connect_op %d): rc = %d\n",
+		       imp->imp_obd->obd_name, obd2cli_tgt(imp->imp_obd),
+		       imp->imp_connect_op, rc);
+		return rc;
 	}
 
 	if (ptlrpc_import_in_recovery(imp)) {
 		struct l_wait_info lwi;
 		cfs_duration_t timeout;
-
 
 		if (AT_OFF) {
 			if (imp->imp_server_timeout)
@@ -1428,7 +1453,6 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_state != LUSTRE_IMP_FULL)
 		GOTO(out, 0);
-
 	spin_unlock(&imp->imp_lock);
 
 	req = ptlrpc_request_alloc_pack(imp, &RQF_MDS_DISCONNECT,
@@ -1460,6 +1484,9 @@ out:
 		IMPORT_SET_STATE_NOLOCK(imp, LUSTRE_IMP_CLOSED);
 	memset(&imp->imp_remote_handle, 0, sizeof(imp->imp_remote_handle));
 	spin_unlock(&imp->imp_lock);
+
+	if (rc == -ETIMEDOUT || rc == -ENOTCONN || rc == -ESHUTDOWN)
+		rc = 0;
 
 	return rc;
 }

@@ -54,7 +54,7 @@ mmio_list_base:
 #ifdef INCLUDE_CODE
 // reports an exception to the host
 //
-// In: $r15 error code (see nvc0.fuc)
+// In: $r15 error code (see os.h)
 //
 error:
 	push $r14
@@ -78,7 +78,12 @@ error:
 //
 init:
 	clear b32 $r0
-	mov $sp $r0
+
+	// setup stack
+	nv_iord($r1, NV_PGRAPH_GPCX_GPCCS_CAPS, 0)
+	extr $r1 $r1 9:17
+	shl b32 $r1 8
+	mov $sp $r1
 
 	// enable fifo access
 	mov $r2 NV_PGRAPH_GPCX_GPCCS_ACCESS_FIFO

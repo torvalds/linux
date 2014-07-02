@@ -95,7 +95,7 @@ void proc_fork_connector(struct task_struct *task)
 	msg->len = sizeof(*ev);
 	msg->flags = 0; /* not used */
 	/*  If cn_netlink_send() failed, the data is not sent */
-	cn_netlink_send(msg, CN_IDX_PROC, GFP_KERNEL);
+	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_KERNEL);
 }
 
 void proc_exec_connector(struct task_struct *task)
@@ -122,7 +122,7 @@ void proc_exec_connector(struct task_struct *task)
 	msg->ack = 0; /* not used */
 	msg->len = sizeof(*ev);
 	msg->flags = 0; /* not used */
-	cn_netlink_send(msg, CN_IDX_PROC, GFP_KERNEL);
+	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_KERNEL);
 }
 
 void proc_id_connector(struct task_struct *task, int which_id)
@@ -163,7 +163,7 @@ void proc_id_connector(struct task_struct *task, int which_id)
 	msg->ack = 0; /* not used */
 	msg->len = sizeof(*ev);
 	msg->flags = 0; /* not used */
-	cn_netlink_send(msg, CN_IDX_PROC, GFP_KERNEL);
+	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_KERNEL);
 }
 
 void proc_sid_connector(struct task_struct *task)
@@ -190,7 +190,7 @@ void proc_sid_connector(struct task_struct *task)
 	msg->ack = 0; /* not used */
 	msg->len = sizeof(*ev);
 	msg->flags = 0; /* not used */
-	cn_netlink_send(msg, CN_IDX_PROC, GFP_KERNEL);
+	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_KERNEL);
 }
 
 void proc_ptrace_connector(struct task_struct *task, int ptrace_id)
@@ -225,7 +225,7 @@ void proc_ptrace_connector(struct task_struct *task, int ptrace_id)
 	msg->ack = 0; /* not used */
 	msg->len = sizeof(*ev);
 	msg->flags = 0; /* not used */
-	cn_netlink_send(msg, CN_IDX_PROC, GFP_KERNEL);
+	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_KERNEL);
 }
 
 void proc_comm_connector(struct task_struct *task)
@@ -253,7 +253,7 @@ void proc_comm_connector(struct task_struct *task)
 	msg->ack = 0; /* not used */
 	msg->len = sizeof(*ev);
 	msg->flags = 0; /* not used */
-	cn_netlink_send(msg, CN_IDX_PROC, GFP_KERNEL);
+	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_KERNEL);
 }
 
 void proc_coredump_connector(struct task_struct *task)
@@ -280,7 +280,7 @@ void proc_coredump_connector(struct task_struct *task)
 	msg->ack = 0; /* not used */
 	msg->len = sizeof(*ev);
 	msg->flags = 0; /* not used */
-	cn_netlink_send(msg, CN_IDX_PROC, GFP_KERNEL);
+	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_KERNEL);
 }
 
 void proc_exit_connector(struct task_struct *task)
@@ -309,7 +309,7 @@ void proc_exit_connector(struct task_struct *task)
 	msg->ack = 0; /* not used */
 	msg->len = sizeof(*ev);
 	msg->flags = 0; /* not used */
-	cn_netlink_send(msg, CN_IDX_PROC, GFP_KERNEL);
+	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_KERNEL);
 }
 
 /*
@@ -343,7 +343,7 @@ static void cn_proc_ack(int err, int rcvd_seq, int rcvd_ack)
 	msg->ack = rcvd_ack + 1;
 	msg->len = sizeof(*ev);
 	msg->flags = 0; /* not used */
-	cn_netlink_send(msg, CN_IDX_PROC, GFP_KERNEL);
+	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_KERNEL);
 }
 
 /**
@@ -369,7 +369,7 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 		return;
 
 	/* Can only change if privileged. */
-	if (!capable(CAP_NET_ADMIN)) {
+	if (!__netlink_ns_capable(nsp, &init_user_ns, CAP_NET_ADMIN)) {
 		err = EPERM;
 		goto out;
 	}

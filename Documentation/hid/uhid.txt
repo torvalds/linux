@@ -93,6 +93,11 @@ the request was handled successfully.
   event to the kernel. The payload is of type struct uhid_create_req and
   contains information about your device. You can start I/O now.
 
+  UHID_CREATE2:
+  Same as UHID_CREATE, but the HID report descriptor data (rd_data) is an array
+  inside struct uhid_create2_req, instead of a pointer to a separate array.
+  Enables use from languages that don't support pointers, e.g. Python.
+
   UHID_DESTROY:
   This destroys the internal HID device. No further I/O will be accepted. There
   may still be pending messages that you can receive with read() but no further
@@ -105,6 +110,12 @@ the request was handled successfully.
   contains a data-payload. This is the raw data that you read from your device.
   The kernel will parse the HID reports and react on it.
 
+  UHID_INPUT2:
+  Same as UHID_INPUT, but the data array is the last field of uhid_input2_req.
+  Enables userspace to write only the required bytes to kernel (ev.type +
+  ev.u.input2.size + the part of the data array that matters), instead of
+  the entire struct uhid_input2_req.
+
   UHID_FEATURE_ANSWER:
   If you receive a UHID_FEATURE request you must answer with this request. You
   must copy the "id" field from the request into the answer. Set the "err" field
@@ -114,7 +125,7 @@ the request was handled successfully.
 
 read()
 ------
-read() will return a queued ouput report. These output reports can be of type
+read() will return a queued output report. These output reports can be of type
 UHID_START, UHID_STOP, UHID_OPEN, UHID_CLOSE, UHID_OUTPUT or UHID_OUTPUT_EV. No
 reaction is required to any of them but you should handle them according to your
 needs. Only UHID_OUTPUT and UHID_OUTPUT_EV have payloads.

@@ -102,23 +102,17 @@ EXPORT_SYMBOL(obd_dirty_transit_pages);
 char obd_jobid_var[JOBSTATS_JOBID_VAR_MAX_LEN + 1] = JOBSTATS_DISABLE;
 EXPORT_SYMBOL(obd_jobid_var);
 
-/* Get jobid of current process by reading the environment variable
+char obd_jobid_node[JOBSTATS_JOBID_SIZE + 1];
+
+/* Get jobid of current process from stored variable or calculate
+ * it from pid and user_id.
+ *
+ * Historically this was also done by reading the environment variable
  * stored in between the "env_start" & "env_end" of task struct.
- *
- * TODO:
- * It's better to cache the jobid for later use if there is any
- * efficient way, the cl_env code probably could be reused for this
- * purpose.
- *
- * If some job scheduler doesn't store jobid in the "env_start/end",
- * then an upcall could be issued here to get the jobid by utilizing
- * the userspace tools/api. Then, the jobid must be cached.
+ * This is now deprecated.
  */
 int lustre_get_jobid(char *jobid)
 {
-	int jobid_len = JOBSTATS_JOBID_SIZE;
-	int rc = 0;
-
 	memset(jobid, 0, JOBSTATS_JOBID_SIZE);
 	/* Jobstats isn't enabled */
 	if (strcmp(obd_jobid_var, JOBSTATS_DISABLE) == 0)
@@ -132,31 +126,13 @@ int lustre_get_jobid(char *jobid)
 		return 0;
 	}
 
-	rc = cfs_get_environ(obd_jobid_var, jobid, &jobid_len);
-	if (rc) {
-		if (rc == -EOVERFLOW) {
-			/* For the PBS_JOBID and LOADL_STEP_ID keys (which are
-			 * variable length strings instead of just numbers), it
-			 * might make sense to keep the unique parts for JobID,
-			 * instead of just returning an error.  That means a
-			 * larger temp buffer for cfs_get_environ(), then
-			 * truncating the string at some separator to fit into
-			 * the specified jobid_len.  Fix later if needed. */
-			static bool printed;
-			if (unlikely(!printed)) {
-				LCONSOLE_ERROR_MSG(0x16b, "%s value too large "
-						   "for JobID buffer (%d)\n",
-						   obd_jobid_var, jobid_len);
-				printed = true;
-			}
-		} else {
-			CDEBUG((rc == -ENOENT || rc == -EINVAL ||
-				rc == -EDEADLK) ? D_INFO : D_ERROR,
-			       "Get jobid for (%s) failed: rc = %d\n",
-			       obd_jobid_var, rc);
-		}
+	/* Whole node dedicated to single job */
+	if (strcmp(obd_jobid_var, JOBSTATS_NODELOCAL) == 0) {
+		strcpy(jobid, obd_jobid_node);
+		return 0;
 	}
-	return rc;
+
+	return -ENOENT;
 }
 EXPORT_SYMBOL(lustre_get_jobid);
 

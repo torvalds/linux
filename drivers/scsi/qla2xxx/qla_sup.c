@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -568,7 +568,7 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 	else if (IS_P3P_TYPE(ha)) {
 		*start = FA_FLASH_LAYOUT_ADDR_82;
 		goto end;
-	} else if (IS_QLA83XX(ha)) {
+	} else if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
 		*start = FA_FLASH_LAYOUT_ADDR_83;
 		goto end;
 	}
@@ -682,7 +682,7 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	/* Assign FCP prio region since older adapters may not have FLT, or
 	   FCP prio region in it's FLT.
 	 */
-	ha->flt_region_fcp_prio = ha->flags.port0 ?
+	ha->flt_region_fcp_prio = (ha->port_no == 0) ?
 	    fcp_prio_cfg0[def] : fcp_prio_cfg1[def];
 
 	ha->flt_region_flt = flt_addr;
@@ -743,47 +743,71 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 			ha->flt_region_vpd_nvram = start;
 			if (IS_P3P_TYPE(ha))
 				break;
-			if (ha->flags.port0)
+			if (ha->port_no == 0)
 				ha->flt_region_vpd = start;
 			break;
 		case FLT_REG_VPD_1:
 			if (IS_P3P_TYPE(ha) || IS_QLA8031(ha))
 				break;
-			if (!ha->flags.port0)
+			if (ha->port_no == 1)
+				ha->flt_region_vpd = start;
+			break;
+		case FLT_REG_VPD_2:
+			if (!IS_QLA27XX(ha))
+				break;
+			if (ha->port_no == 2)
+				ha->flt_region_vpd = start;
+			break;
+		case FLT_REG_VPD_3:
+			if (!IS_QLA27XX(ha))
+				break;
+			if (ha->port_no == 3)
 				ha->flt_region_vpd = start;
 			break;
 		case FLT_REG_NVRAM_0:
 			if (IS_QLA8031(ha))
 				break;
-			if (ha->flags.port0)
+			if (ha->port_no == 0)
 				ha->flt_region_nvram = start;
 			break;
 		case FLT_REG_NVRAM_1:
 			if (IS_QLA8031(ha))
 				break;
-			if (!ha->flags.port0)
+			if (ha->port_no == 1)
+				ha->flt_region_nvram = start;
+			break;
+		case FLT_REG_NVRAM_2:
+			if (!IS_QLA27XX(ha))
+				break;
+			if (ha->port_no == 2)
+				ha->flt_region_nvram = start;
+			break;
+		case FLT_REG_NVRAM_3:
+			if (!IS_QLA27XX(ha))
+				break;
+			if (ha->port_no == 3)
 				ha->flt_region_nvram = start;
 			break;
 		case FLT_REG_FDT:
 			ha->flt_region_fdt = start;
 			break;
 		case FLT_REG_NPIV_CONF_0:
-			if (ha->flags.port0)
+			if (ha->port_no == 0)
 				ha->flt_region_npiv_conf = start;
 			break;
 		case FLT_REG_NPIV_CONF_1:
-			if (!ha->flags.port0)
+			if (ha->port_no == 1)
 				ha->flt_region_npiv_conf = start;
 			break;
 		case FLT_REG_GOLD_FW:
 			ha->flt_region_gold_fw = start;
 			break;
 		case FLT_REG_FCP_PRIO_0:
-			if (ha->flags.port0)
+			if (ha->port_no == 0)
 				ha->flt_region_fcp_prio = start;
 			break;
 		case FLT_REG_FCP_PRIO_1:
-			if (!ha->flags.port0)
+			if (ha->port_no == 1)
 				ha->flt_region_fcp_prio = start;
 			break;
 		case FLT_REG_BOOT_CODE_82XX:
@@ -813,13 +837,13 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		case FLT_REG_FCOE_NVRAM_0:
 			if (!(IS_QLA8031(ha) || IS_QLA8044(ha)))
 				break;
-			if (ha->flags.port0)
+			if (ha->port_no == 0)
 				ha->flt_region_nvram = start;
 			break;
 		case FLT_REG_FCOE_NVRAM_1:
 			if (!(IS_QLA8031(ha) || IS_QLA8044(ha)))
 				break;
-			if (!ha->flags.port0)
+			if (ha->port_no == 1)
 				ha->flt_region_nvram = start;
 			break;
 		}
@@ -832,12 +856,12 @@ no_flash_data:
 	ha->flt_region_fw = def_fw[def];
 	ha->flt_region_boot = def_boot[def];
 	ha->flt_region_vpd_nvram = def_vpd_nvram[def];
-	ha->flt_region_vpd = ha->flags.port0 ?
+	ha->flt_region_vpd = (ha->port_no == 0) ?
 	    def_vpd0[def] : def_vpd1[def];
-	ha->flt_region_nvram = ha->flags.port0 ?
+	ha->flt_region_nvram = (ha->port_no == 0) ?
 	    def_nvram0[def] : def_nvram1[def];
 	ha->flt_region_fdt = def_fdt[def];
-	ha->flt_region_npiv_conf = ha->flags.port0 ?
+	ha->flt_region_npiv_conf = (ha->port_no == 0) ?
 	    def_npiv_conf0[def] : def_npiv_conf1[def];
 done:
 	ql_dbg(ql_dbg_init, vha, 0x004a,
@@ -989,7 +1013,7 @@ qla2xxx_get_flash_info(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha) &&
-	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha))
+	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha) && !IS_QLA27XX(ha))
 		return QLA_SUCCESS;
 
 	ret = qla2xxx_find_flt_start(vha, &flt_addr);
@@ -1192,7 +1216,8 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	struct qla_hw_data *ha = vha->hw;
 
 	/* Prepare burst-capable write on supported ISPs. */
-	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha)) &&
+	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) ||
+	    IS_QLA27XX(ha)) &&
 	    !(faddr & 0xfff) && dwords > OPTROM_BURST_DWORDS) {
 		optrom = dma_alloc_coherent(&ha->pdev->dev, OPTROM_BURST_SIZE,
 		    &optrom_dma, GFP_KERNEL);
@@ -1675,7 +1700,7 @@ qla83xx_select_led_port(struct qla_hw_data *ha)
 	if (!IS_QLA83XX(ha))
 		goto out;
 
-	if (ha->flags.port0)
+	if (ha->port_no == 0)
 		led_select_value = QLA83XX_LED_PORT0;
 	else
 		led_select_value = QLA83XX_LED_PORT1;
@@ -1702,11 +1727,8 @@ qla83xx_beacon_blink(struct scsi_qla_host *vha)
 	if (IS_QLA2031(ha)) {
 		led_select_value = qla83xx_select_led_port(ha);
 
-		qla83xx_wr_reg(vha, led_select_value, 0x40002000);
-		qla83xx_wr_reg(vha, led_select_value + 4, 0x40002000);
-		msleep(1000);
-		qla83xx_wr_reg(vha, led_select_value, 0x40004000);
-		qla83xx_wr_reg(vha, led_select_value + 4, 0x40004000);
+		qla83xx_wr_reg(vha, led_select_value, 0x40000230);
+		qla83xx_wr_reg(vha, led_select_value + 4, 0x40000230);
 	} else if (IS_QLA8031(ha)) {
 		led_select_value = qla83xx_select_led_port(ha);
 
@@ -2332,7 +2354,7 @@ qla2x00_write_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
 				 */
 				rest_addr = 0xffff;
 				sec_mask = 0x10000;
-				break;   
+				break;
 			}
 			/*
 			 * ST m29w010b part - 16kb sector size
@@ -2558,7 +2580,7 @@ qla25xx_read_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
 	uint32_t faddr, left, burst;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (IS_QLA25XX(ha) || IS_QLA81XX(ha))
+	if (IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA27XX(ha))
 		goto try_fast;
 	if (offset & 0xfff)
 		goto slow_read;

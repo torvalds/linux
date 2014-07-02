@@ -574,7 +574,7 @@ static irqreturn_t st_i2c_isr_thread(int irq, void *data)
 		writel_relaxed(it, i2c_dev->base + SSC_IEN);
 
 		st_i2c_set_bits(i2c_dev->base + SSC_I2C, SSC_I2C_STOPG);
-		c->result = -EIO;
+		c->result = -EAGAIN;
 		break;
 
 	default:
@@ -847,7 +847,7 @@ static int st_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id st_i2c_match[] = {
+static const struct of_device_id st_i2c_match[] = {
 	{ .compatible = "st,comms-ssc-i2c", },
 	{ .compatible = "st,comms-ssc4-i2c", },
 	{},

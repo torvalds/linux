@@ -72,6 +72,9 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 
 	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 
+	if (!reg_size)
+		return 0;
+
 	mutex_init(&codec->cache_rw_mutex);
 
 	dev_dbg(codec->dev, "ASoC: Initializing cache for %s codec\n",
@@ -96,8 +99,7 @@ int snd_soc_cache_exit(struct snd_soc_codec *codec)
 {
 	dev_dbg(codec->dev, "ASoC: Destroying cache for %s codec\n",
 			codec->name);
-	if (!codec->reg_cache)
-		return 0;
+
 	kfree(codec->reg_cache);
 	codec->reg_cache = NULL;
 	return 0;
@@ -117,8 +119,9 @@ int snd_soc_cache_read(struct snd_soc_codec *codec,
 		return -EINVAL;
 
 	mutex_lock(&codec->cache_rw_mutex);
-	*value = snd_soc_get_cache_val(codec->reg_cache, reg,
-				       codec->driver->reg_word_size);
+	if (!ZERO_OR_NULL_PTR(codec->reg_cache))
+		*value = snd_soc_get_cache_val(codec->reg_cache, reg,
+					       codec->driver->reg_word_size);
 	mutex_unlock(&codec->cache_rw_mutex);
 
 	return 0;
@@ -136,8 +139,9 @@ int snd_soc_cache_write(struct snd_soc_codec *codec,
 			unsigned int reg, unsigned int value)
 {
 	mutex_lock(&codec->cache_rw_mutex);
-	snd_soc_set_cache_val(codec->reg_cache, reg, value,
-			      codec->driver->reg_word_size);
+	if (!ZERO_OR_NULL_PTR(codec->reg_cache))
+		snd_soc_set_cache_val(codec->reg_cache, reg, value,
+				      codec->driver->reg_word_size);
 	mutex_unlock(&codec->cache_rw_mutex);
 
 	return 0;
@@ -160,8 +164,6 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 			if (snd_soc_get_cache_val(codec_drv->reg_cache_default,
 						  i, codec_drv->reg_word_size) == val)
 				continue;
-
-		WARN_ON(!snd_soc_codec_writable_register(codec, i));
 
 		ret = snd_soc_write(codec, i, val);
 		if (ret)

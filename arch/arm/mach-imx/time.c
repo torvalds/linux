@@ -25,8 +25,12 @@
 #include <linux/irq.h>
 #include <linux/clockchips.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/sched_clock.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
 
@@ -116,10 +120,21 @@ static u64 notrace mxc_read_sched_clock(void)
 	return sched_clock_reg ? __raw_readl(sched_clock_reg) : 0;
 }
 
+static struct delay_timer imx_delay_timer;
+
+static unsigned long imx_read_current_timer(void)
+{
+	return __raw_readl(sched_clock_reg);
+}
+
 static int __init mxc_clocksource_init(struct clk *timer_clk)
 {
 	unsigned int c = clk_get_rate(timer_clk);
 	void __iomem *reg = timer_base + (timer_is_v2() ? V2_TCN : MX1_2_TCN);
+
+	imx_delay_timer.read_current_timer = &imx_read_current_timer;
+	imx_delay_timer.freq = c;
+	register_current_timer_delay(&imx_delay_timer);
 
 	sched_clock_reg = reg;
 
@@ -315,4 +330,16 @@ void __init mxc_timer_init(void __iomem *base, int irq)
 
 	/* Make irqs happen */
 	setup_irq(irq, &mxc_timer_irq);
+}
+
+void __init mxc_timer_init_dt(struct device_node *np)
+{
+	void __iomem *base;
+	int irq;
+
+	base = of_iomap(np, 0);
+	WARN_ON(!base);
+	irq = irq_of_parse_and_map(np, 0);
+
+	mxc_timer_init(base, irq);
 }

@@ -465,8 +465,8 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 	if (changed & IEEE802515_AFILT_SADDR_CHANGED) {
 		/* Short Addr */
 		u8 addrh, addrl;
-		addrh = filt->short_addr >> 8 & 0xff;
-		addrl = filt->short_addr & 0xff;
+		addrh = le16_to_cpu(filt->short_addr) >> 8 & 0xff;
+		addrl = le16_to_cpu(filt->short_addr) & 0xff;
 
 		write_short_reg(devrec, REG_SADRH, addrh);
 		write_short_reg(devrec, REG_SADRL, addrl);
@@ -476,15 +476,16 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 
 	if (changed & IEEE802515_AFILT_IEEEADDR_CHANGED) {
 		/* Device Address */
-		int i;
+		u8 i, addr[8];
+
+		memcpy(addr, &filt->ieee_addr, 8);
 		for (i = 0; i < 8; i++)
-			write_short_reg(devrec, REG_EADR0+i,
-					filt->ieee_addr[7-i]);
+			write_short_reg(devrec, REG_EADR0 + i, addr[i]);
 
 #ifdef DEBUG
 		printk(KERN_DEBUG "Set long addr to: ");
 		for (i = 0; i < 8; i++)
-			printk("%02hhx ", filt->ieee_addr[i]);
+			printk("%02hhx ", addr[7 - i]);
 		printk(KERN_DEBUG "\n");
 #endif
 	}
@@ -492,8 +493,8 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 	if (changed & IEEE802515_AFILT_PANID_CHANGED) {
 		/* PAN ID */
 		u8 panidl, panidh;
-		panidh = filt->pan_id >> 8 & 0xff;
-		panidl = filt->pan_id & 0xff;
+		panidh = le16_to_cpu(filt->pan_id) >> 8 & 0xff;
+		panidl = le16_to_cpu(filt->pan_id) & 0xff;
 		write_short_reg(devrec, REG_PANIDH, panidh);
 		write_short_reg(devrec, REG_PANIDL, panidl);
 
@@ -617,12 +618,12 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 	printk(KERN_INFO "mrf24j40: probe(). IRQ: %d\n", spi->irq);
 
-	devrec = kzalloc(sizeof(struct mrf24j40), GFP_KERNEL);
+	devrec = devm_kzalloc(&spi->dev, sizeof(struct mrf24j40), GFP_KERNEL);
 	if (!devrec)
-		goto err_devrec;
-	devrec->buf = kzalloc(3, GFP_KERNEL);
+		goto err_ret;
+	devrec->buf = devm_kzalloc(&spi->dev, 3, GFP_KERNEL);
 	if (!devrec->buf)
-		goto err_buf;
+		goto err_ret;
 
 	spi->mode = SPI_MODE_0; /* TODO: Is this appropriate for right here? */
 	if (spi->max_speed_hz > MAX_SPI_SPEED_HZ)
@@ -637,7 +638,7 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 	devrec->dev = ieee802154_alloc_device(0, &mrf24j40_ops);
 	if (!devrec->dev)
-		goto err_alloc_dev;
+		goto err_ret;
 
 	devrec->dev->priv = devrec;
 	devrec->dev->parent = &devrec->spi->dev;
@@ -675,12 +676,13 @@ static int mrf24j40_probe(struct spi_device *spi)
 	val &= ~0x3; /* Clear RX mode (normal) */
 	write_short_reg(devrec, REG_RXMCR, val);
 
-	ret = request_threaded_irq(spi->irq,
-				   NULL,
-				   mrf24j40_isr,
-				   IRQF_TRIGGER_LOW|IRQF_ONESHOT,
-				   dev_name(&spi->dev),
-				   devrec);
+	ret = devm_request_threaded_irq(&spi->dev,
+					spi->irq,
+					NULL,
+					mrf24j40_isr,
+					IRQF_TRIGGER_LOW|IRQF_ONESHOT,
+					dev_name(&spi->dev),
+					devrec);
 
 	if (ret) {
 		dev_err(printdev(devrec), "Unable to get IRQ");
@@ -694,11 +696,7 @@ err_read_reg:
 	ieee802154_unregister_device(devrec->dev);
 err_register_device:
 	ieee802154_free_device(devrec->dev);
-err_alloc_dev:
-	kfree(devrec->buf);
-err_buf:
-	kfree(devrec);
-err_devrec:
+err_ret:
 	return ret;
 }
 
@@ -708,15 +706,11 @@ static int mrf24j40_remove(struct spi_device *spi)
 
 	dev_dbg(printdev(devrec), "remove\n");
 
-	free_irq(spi->irq, devrec);
 	ieee802154_unregister_device(devrec->dev);
 	ieee802154_free_device(devrec->dev);
 	/* TODO: Will ieee802154_free_device() wait until ->xmit() is
 	 * complete? */
 
-	/* Clean up the SPI stuff. */
-	kfree(devrec->buf);
-	kfree(devrec);
 	return 0;
 }
 

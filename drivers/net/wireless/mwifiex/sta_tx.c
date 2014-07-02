@@ -95,6 +95,9 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 		}
 	}
 
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_TDLS_PKT)
+		local_tx_pd->flags |= MWIFIEX_TXPD_FLAGS_TDLS_PACKET;
+
 	/* Offset of actual data */
 	pkt_offset = sizeof(struct txpd) + pad;
 	if (pkt_type == PKT_TYPE_MGMT) {
@@ -125,6 +128,7 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct txpd *local_tx_pd;
+	struct mwifiex_tx_param tx_param;
 /* sizeof(struct txpd) + Interface specific header */
 #define NULL_PACKET_HDR 64
 	u32 data_len = NULL_PACKET_HDR;
@@ -165,8 +169,9 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 						   skb, NULL);
 	} else {
 		skb_push(skb, INTF_HEADER_LEN);
+		tx_param.next_pkt_len = 0;
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-						   skb, NULL);
+						   skb, &tx_param);
 	}
 	switch (ret) {
 	case -EBUSY:

@@ -964,7 +964,7 @@ static void exofs_invalidatepage(struct page *page, unsigned int offset,
 
  /* TODO: Should be easy enough to do proprly */
 static ssize_t exofs_direct_IO(int rw, struct kiocb *iocb,
-		const struct iovec *iov, loff_t offset, unsigned long nr_segs)
+		struct iov_iter *iter, loff_t offset)
 {
 	return 0;
 }
@@ -1486,7 +1486,7 @@ void exofs_evict_inode(struct inode *inode)
 	struct ore_io_state *ios;
 	int ret;
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 
 	/* TODO: should do better here */
 	if (inode->i_nlink || is_bad_inode(inode))

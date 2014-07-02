@@ -37,9 +37,9 @@
 #endif
 	.endm
 
-	.macro	alignment_trap, rtemp
+	.macro	alignment_trap, rtemp, label
 #ifdef CONFIG_ALIGNMENT_TRAP
-	ldr	\rtemp, .LCcralign
+	ldr	\rtemp, \label
 	ldr	\rtemp, [\rtemp]
 	mcr	p15, 0, \rtemp, c1, c0
 #endif
@@ -131,6 +131,10 @@
 	subne	r2, r2, #4
 	orrne	r5, V7M_xPSR_FRAMEPTRALIGN
 	biceq	r5, V7M_xPSR_FRAMEPTRALIGN
+
+	@ ensure bit 0 is cleared in the PC, otherwise behaviour is
+	@ unpredictable
+	bic	r4, #1
 
 	@ write basic exception frame
 	stmdb	r2!, {r1, r3-r5}
@@ -236,11 +240,6 @@
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 	.endm
 
-	.macro	get_thread_info, rd
-	mov	\rd, sp, lsr #13
-	mov	\rd, \rd, lsl #13
-	.endm
-
 	@
 	@ 32-bit wide "mov pc, reg"
 	@
@@ -305,12 +304,6 @@
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 	.endm
 #endif	/* ifdef CONFIG_CPU_V7M / else */
-
-	.macro	get_thread_info, rd
-	mov	\rd, sp
-	lsr	\rd, \rd, #13
-	mov	\rd, \rd, lsl #13
-	.endm
 
 	@
 	@ 32-bit wide "mov pc, reg"

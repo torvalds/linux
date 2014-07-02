@@ -25,7 +25,6 @@
 #include <linux/cache.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
-#include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
 #include <linux/dma-attrs.h>
 #include <asm/io.h>

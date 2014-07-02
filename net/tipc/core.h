@@ -56,7 +56,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-
+#include <linux/rtnetlink.h>
+#include <linux/etherdevice.h>
 
 #define TIPC_MOD_VER "2.0.0"
 
@@ -79,7 +80,6 @@ int tipc_snprintf(char *buf, int len, const char *fmt, ...);
 extern u32 tipc_own_addr __read_mostly;
 extern int tipc_max_ports __read_mostly;
 extern int tipc_net_id __read_mostly;
-extern int tipc_remote_management __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 
 /*
@@ -90,8 +90,6 @@ extern int tipc_random __read_mostly;
 /*
  * Routines available to privileged subsystems
  */
-int tipc_handler_start(void);
-void tipc_handler_stop(void);
 int tipc_netlink_start(void);
 void tipc_netlink_stop(void);
 int tipc_socket_init(void);
@@ -110,11 +108,9 @@ void tipc_unregister_sysctl(void);
 #endif
 
 /*
- * TIPC timer and signal code
+ * TIPC timer code
  */
 typedef void (*Handler) (unsigned long);
-
-u32 tipc_k_signal(Handler routine, unsigned long argument);
 
 /**
  * k_init_timer - initialize a timer
@@ -192,6 +188,7 @@ static inline void k_term_timer(struct timer_list *timer)
 struct tipc_skb_cb {
 	void *handle;
 	bool deferred;
+	struct sk_buff *tail;
 };
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))

@@ -80,7 +80,7 @@ config MTD_DATAFLASH_OTP
 
 config MTD_M25P80
 	tristate "Support most SPI Flash chips (AT26DF, M25P, W25X, ...)"
-	depends on SPI_MASTER
+	depends on SPI_MASTER && MTD_SPI_NOR
 	help
 	  This enables access to most modern SPI flash chips, used for
 	  program and data storage.   Series supported include Atmel AT26DF,
@@ -209,6 +209,14 @@ config MTD_DOCG3
 	  The driver provides access to G3 DiskOnChip, distributed by
 	  M-Systems and now Sandisk. The support is very experimental,
 	  and doesn't give access to any write operations.
+
+config MTD_ST_SPI_FSM
+	tristate "ST Microelectronics SPI FSM Serial Flash Controller"
+	depends on ARCH_STI
+	help
+	  This provides an MTD device driver for the ST Microelectronics
+	  SPI Fast Sequence Mode (FSM) Serial Flash Controller and support
+	  for a subset of connected Serial Flash devices.
 
 if MTD_DOCG3
 config BCH_CONST_M

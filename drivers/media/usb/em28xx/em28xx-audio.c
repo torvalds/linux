@@ -92,7 +92,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 
 	if (dev->disconnected) {
 		dprintk("device disconnected while streaming. URB status=%d.\n", urb->status);
-		atomic_set(&dev->stream_started, 0);
+		atomic_set(&dev->adev.stream_started, 0);
 		return;
 	}
 
@@ -109,7 +109,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 		break;
 	}
 
-	if (atomic_read(&dev->stream_started) == 0)
+	if (atomic_read(&dev->adev.stream_started) == 0)
 		return;
 
 	if (dev->adev.capture_pcm_substream) {
@@ -185,7 +185,7 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 			em28xx_errdev("submit of audio urb failed (error=%i)\n",
 				      errCode);
 			em28xx_deinit_isoc_audio(dev);
-			atomic_set(&dev->stream_started, 0);
+			atomic_set(&dev->adev.stream_started, 0);
 			return errCode;
 		}
 
@@ -252,7 +252,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int ret = 0;
+	int nonblock, ret = 0;
 
 	if (!dev) {
 		em28xx_err("BUG: em28xx can't find device struct."
@@ -265,44 +265,47 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
+	nonblock = !!(substream->f_flags & O_NONBLOCK);
+	if (nonblock) {
+		if (!mutex_trylock(&dev->lock))
+		return -EAGAIN;
+	} else
+		mutex_lock(&dev->lock);
+
 	runtime->hw = snd_em28xx_hw_capture;
-	if ((dev->alt == 0 || dev->is_audio_only) && dev->adev.users == 0) {
-		int nonblock = !!(substream->f_flags & O_NONBLOCK);
 
-		if (nonblock) {
-			if (!mutex_trylock(&dev->lock))
-				return -EAGAIN;
-		} else
-			mutex_lock(&dev->lock);
-		if (dev->is_audio_only)
-			/* vendor audio is on a separate interface */
-			dev->alt = 1;
-		else
-			/* vendor audio is on the same interface as video */
-			dev->alt = 7;
-			/*
-			 * FIXME: The intention seems to be to select the alt
-			 * setting with the largest wMaxPacketSize for the video
-			 * endpoint.
-			 * At least dev->alt should be used instead, but we
-			 * should probably not touch it at all if it is
-			 * already >0, because wMaxPacketSize of the audio
-			 * endpoints seems to be the same for all.
-			 */
-
-		dprintk("changing alternate number on interface %d to %d\n",
-			dev->ifnum, dev->alt);
-		usb_set_interface(dev->udev, dev->ifnum, dev->alt);
+	if (dev->adev.users == 0) {
+		if (dev->alt == 0 || dev->is_audio_only) {
+			if (dev->is_audio_only)
+				/* audio is on a separate interface */
+				dev->alt = 1;
+			else
+				/* audio is on the same interface as video */
+				dev->alt = 7;
+				/*
+				 * FIXME: The intention seems to be to select
+				 * the alt setting with the largest
+				 * wMaxPacketSize for the video endpoint.
+				 * At least dev->alt should be used instead, but
+				 * we should probably not touch it at all if it
+				 * is already >0, because wMaxPacketSize of the
+				 * audio endpoints seems to be the same for all.
+				 */
+			dprintk("changing alternate number on interface %d to %d\n",
+				dev->ifnum, dev->alt);
+			usb_set_interface(dev->udev, dev->ifnum, dev->alt);
+		}
 
 		/* Sets volume, mute, etc */
 		dev->mute = 0;
 		ret = em28xx_audio_analog_set(dev);
 		if (ret < 0)
 			goto err;
-
-		dev->adev.users++;
-		mutex_unlock(&dev->lock);
 	}
+
+	kref_get(&dev->ref);
+	dev->adev.users++;
+	mutex_unlock(&dev->lock);
 
 	/* Dynamically adjust the period size */
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
@@ -329,9 +332,9 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 	dev->mute = 1;
 	mutex_lock(&dev->lock);
 	dev->adev.users--;
-	if (atomic_read(&dev->stream_started) > 0) {
-		atomic_set(&dev->stream_started, 0);
-		schedule_work(&dev->wq_trigger);
+	if (atomic_read(&dev->adev.stream_started) > 0) {
+		atomic_set(&dev->adev.stream_started, 0);
+		schedule_work(&dev->adev.wq_trigger);
 	}
 
 	em28xx_audio_analog_set(dev);
@@ -341,6 +344,7 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 		substream->runtime->dma_area = NULL;
 	}
 	mutex_unlock(&dev->lock);
+	kref_put(&dev->ref, em28xx_free_device);
 
 	return 0;
 }
@@ -377,12 +381,13 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 static int snd_em28xx_hw_capture_free(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
+	struct em28xx_audio *adev = &dev->adev;
 
 	dprintk("Stop capture, if needed\n");
 
-	if (atomic_read(&dev->stream_started) > 0) {
-		atomic_set(&dev->stream_started, 0);
-		schedule_work(&dev->wq_trigger);
+	if (atomic_read(&adev->stream_started) > 0) {
+		atomic_set(&adev->stream_started, 0);
+		schedule_work(&adev->wq_trigger);
 	}
 
 	return 0;
@@ -403,9 +408,11 @@ static int snd_em28xx_prepare(struct snd_pcm_substream *substream)
 
 static void audio_trigger(struct work_struct *work)
 {
-	struct em28xx *dev = container_of(work, struct em28xx, wq_trigger);
+	struct em28xx_audio *adev =
+			    container_of(work, struct em28xx_audio, wq_trigger);
+	struct em28xx *dev = container_of(adev, struct em28xx, adev);
 
-	if (atomic_read(&dev->stream_started)) {
+	if (atomic_read(&adev->stream_started)) {
 		dprintk("starting capture");
 		em28xx_init_audio_isoc(dev);
 	} else {
@@ -427,17 +434,17 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE: /* fall through */
 	case SNDRV_PCM_TRIGGER_RESUME: /* fall through */
 	case SNDRV_PCM_TRIGGER_START:
-		atomic_set(&dev->stream_started, 1);
+		atomic_set(&dev->adev.stream_started, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH: /* fall through */
 	case SNDRV_PCM_TRIGGER_SUSPEND: /* fall through */
 	case SNDRV_PCM_TRIGGER_STOP:
-		atomic_set(&dev->stream_started, 0);
+		atomic_set(&dev->adev.stream_started, 0);
 		break;
 	default:
 		retval = -EINVAL;
 	}
-	schedule_work(&dev->wq_trigger);
+	schedule_work(&dev->adev.wq_trigger);
 	return retval;
 }
 
@@ -895,13 +902,15 @@ static int em28xx_audio_init(struct em28xx *dev)
 
 	em28xx_info("Binding audio extension\n");
 
+	kref_get(&dev->ref);
+
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
 			 "Rechberger\n");
 	printk(KERN_INFO
 	       "em28xx-audio.c: Copyright (C) 2007-2014 Mauro Carvalho Chehab\n");
 
-	err = snd_card_create(index[devnr], "Em28xx Audio", THIS_MODULE, 0,
-			      &card);
+	err = snd_card_new(&dev->udev->dev, index[devnr], "Em28xx Audio",
+			   THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
@@ -918,12 +927,11 @@ static int em28xx_audio_init(struct em28xx *dev)
 	pcm->private_data = dev;
 	strcpy(pcm->name, "Empia 28xx Capture");
 
-	snd_card_set_dev(card, &dev->udev->dev);
 	strcpy(card->driver, "Em28xx-Audio");
 	strcpy(card->shortname, "Em28xx Audio");
 	strcpy(card->longname, "Empia Em28xx Audio");
 
-	INIT_WORK(&dev->wq_trigger, audio_trigger);
+	INIT_WORK(&adev->wq_trigger, audio_trigger);
 
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
 		em28xx_cvol_new(card, dev, "Video", AC97_VIDEO);
@@ -967,7 +975,7 @@ static int em28xx_audio_fini(struct em28xx *dev)
 	if (dev == NULL)
 		return 0;
 
-	if (dev->has_alsa_audio != 1) {
+	if (!dev->has_alsa_audio) {
 		/* This device does not support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
@@ -978,7 +986,7 @@ static int em28xx_audio_fini(struct em28xx *dev)
 
 	if (dev->adev.sndcard) {
 		snd_card_disconnect(dev->adev.sndcard);
-		flush_work(&dev->wq_trigger);
+		flush_work(&dev->adev.wq_trigger);
 
 		em28xx_audio_free_urb(dev);
 
@@ -986,6 +994,35 @@ static int em28xx_audio_fini(struct em28xx *dev)
 		dev->adev.sndcard = NULL;
 	}
 
+	kref_put(&dev->ref, em28xx_free_device);
+	return 0;
+}
+
+static int em28xx_audio_suspend(struct em28xx *dev)
+{
+	if (dev == NULL)
+		return 0;
+
+	if (!dev->has_alsa_audio)
+		return 0;
+
+	em28xx_info("Suspending audio extension");
+	em28xx_deinit_isoc_audio(dev);
+	atomic_set(&dev->adev.stream_started, 0);
+	return 0;
+}
+
+static int em28xx_audio_resume(struct em28xx *dev)
+{
+	if (dev == NULL)
+		return 0;
+
+	if (!dev->has_alsa_audio)
+		return 0;
+
+	em28xx_info("Resuming audio extension");
+	/* Nothing to do other than schedule_work() ?? */
+	schedule_work(&dev->adev.wq_trigger);
 	return 0;
 }
 
@@ -994,6 +1031,8 @@ static struct em28xx_ops audio_ops = {
 	.name = "Em28xx Audio Extension",
 	.init = em28xx_audio_init,
 	.fini = em28xx_audio_fini,
+	.suspend = em28xx_audio_suspend,
+	.resume = em28xx_audio_resume,
 };
 
 static int __init em28xx_alsa_register(void)
@@ -1008,7 +1047,7 @@ static void __exit em28xx_alsa_unregister(void)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Markus Rechberger <mrechberger@gmail.com>");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_DESCRIPTION(DRIVER_DESC " - audio interface");
 MODULE_VERSION(EM28XX_VERSION);
 

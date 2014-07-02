@@ -286,6 +286,45 @@ static int drm_version(struct drm_device *dev, void *data,
 }
 
 /**
+ * drm_ioctl_permit - Check ioctl permissions against caller
+ *
+ * @flags: ioctl permission flags.
+ * @file_priv: Pointer to struct drm_file identifying the caller.
+ *
+ * Checks whether the caller is allowed to run an ioctl with the
+ * indicated permissions. If so, returns zero. Otherwise returns an
+ * error code suitable for ioctl return.
+ */
+static int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
+{
+	/* ROOT_ONLY is only for CAP_SYS_ADMIN */
+	if (unlikely((flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)))
+		return -EACCES;
+
+	/* AUTH is only for authenticated or render client */
+	if (unlikely((flags & DRM_AUTH) && !drm_is_render_client(file_priv) &&
+		     !file_priv->authenticated))
+		return -EACCES;
+
+	/* MASTER is only for master or control clients */
+	if (unlikely((flags & DRM_MASTER) && !file_priv->is_master &&
+		     !drm_is_control_client(file_priv)))
+		return -EACCES;
+
+	/* Control clients must be explicitly allowed */
+	if (unlikely(!(flags & DRM_CONTROL_ALLOW) &&
+		     drm_is_control_client(file_priv)))
+		return -EACCES;
+
+	/* Render clients must be explicitly allowed */
+	if (unlikely(!(flags & DRM_RENDER_ALLOW) &&
+		     drm_is_render_client(file_priv)))
+		return -EACCES;
+
+	return 0;
+}
+
+/**
  * Called whenever a process performs an ioctl on /dev/drm.
  *
  * \param inode device inode.
@@ -344,65 +383,65 @@ long drm_ioctl(struct file *filp,
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
 		  task_pid_nr(current),
-		  (long)old_encode_dev(file_priv->minor->device),
+		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  file_priv->authenticated, ioctl->name);
 
 	/* Do not trust userspace, use our own definition */
 	func = ioctl->func;
 
-	if (!func) {
+	if (unlikely(!func)) {
 		DRM_DEBUG("no function\n");
 		retcode = -EINVAL;
-	} else if (((ioctl->flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)) ||
-		   ((ioctl->flags & DRM_AUTH) && !drm_is_render_client(file_priv) && !file_priv->authenticated) ||
-		   ((ioctl->flags & DRM_MASTER) && !file_priv->is_master) ||
-		   (!(ioctl->flags & DRM_CONTROL_ALLOW) && (file_priv->minor->type == DRM_MINOR_CONTROL)) ||
-		   (!(ioctl->flags & DRM_RENDER_ALLOW) && drm_is_render_client(file_priv))) {
-		retcode = -EACCES;
-	} else {
-		if (cmd & (IOC_IN | IOC_OUT)) {
-			if (asize <= sizeof(stack_kdata)) {
-				kdata = stack_kdata;
-			} else {
-				kdata = kmalloc(asize, GFP_KERNEL);
-				if (!kdata) {
-					retcode = -ENOMEM;
-					goto err_i1;
-				}
-			}
-			if (asize > usize)
-				memset(kdata + usize, 0, asize - usize);
-		}
+		goto err_i1;
+	}
 
-		if (cmd & IOC_IN) {
-			if (copy_from_user(kdata, (void __user *)arg,
-					   usize) != 0) {
-				retcode = -EFAULT;
+	retcode = drm_ioctl_permit(ioctl->flags, file_priv);
+	if (unlikely(retcode))
+		goto err_i1;
+
+	if (cmd & (IOC_IN | IOC_OUT)) {
+		if (asize <= sizeof(stack_kdata)) {
+			kdata = stack_kdata;
+		} else {
+			kdata = kmalloc(asize, GFP_KERNEL);
+			if (!kdata) {
+				retcode = -ENOMEM;
 				goto err_i1;
 			}
-		} else
-			memset(kdata, 0, usize);
-
-		if (ioctl->flags & DRM_UNLOCKED)
-			retcode = func(dev, kdata, file_priv);
-		else {
-			mutex_lock(&drm_global_mutex);
-			retcode = func(dev, kdata, file_priv);
-			mutex_unlock(&drm_global_mutex);
 		}
+		if (asize > usize)
+			memset(kdata + usize, 0, asize - usize);
+	}
 
-		if (cmd & IOC_OUT) {
-			if (copy_to_user((void __user *)arg, kdata,
-					 usize) != 0)
-				retcode = -EFAULT;
+	if (cmd & IOC_IN) {
+		if (copy_from_user(kdata, (void __user *)arg,
+				   usize) != 0) {
+			retcode = -EFAULT;
+			goto err_i1;
 		}
+	} else if (cmd & IOC_OUT) {
+		memset(kdata, 0, usize);
+	}
+
+	if (ioctl->flags & DRM_UNLOCKED)
+		retcode = func(dev, kdata, file_priv);
+	else {
+		mutex_lock(&drm_global_mutex);
+		retcode = func(dev, kdata, file_priv);
+		mutex_unlock(&drm_global_mutex);
+	}
+
+	if (cmd & IOC_OUT) {
+		if (copy_to_user((void __user *)arg, kdata,
+				 usize) != 0)
+			retcode = -EFAULT;
 	}
 
       err_i1:
 	if (!ioctl)
 		DRM_DEBUG("invalid ioctl: pid=%d, dev=0x%lx, auth=%d, cmd=0x%02x, nr=0x%02x\n",
 			  task_pid_nr(current),
-			  (long)old_encode_dev(file_priv->minor->device),
+			  (long)old_encode_dev(file_priv->minor->kdev->devt),
 			  file_priv->authenticated, cmd, nr);
 
 	if (kdata != stack_kdata)
@@ -412,3 +451,21 @@ long drm_ioctl(struct file *filp,
 	return retcode;
 }
 EXPORT_SYMBOL(drm_ioctl);
+
+/**
+ * drm_ioctl_flags - Check for core ioctl and return ioctl permission flags
+ *
+ * @nr: Ioctl number.
+ * @flags: Where to return the ioctl permission flags
+ */
+bool drm_ioctl_flags(unsigned int nr, unsigned int *flags)
+{
+	if ((nr >= DRM_COMMAND_END && nr < DRM_CORE_IOCTL_COUNT) ||
+	    (nr < DRM_COMMAND_BASE)) {
+		*flags = drm_ioctls[nr].flags;
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_ioctl_flags);

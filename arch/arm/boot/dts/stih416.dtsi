@@ -10,6 +10,7 @@
 #include "stih416-clock.dtsi"
 #include "stih416-pinctrl.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset-controller/stih416-resets.h>
 / {
 	L2: cache-controller {
 		compatible = "arm,pl310-cache";
@@ -26,6 +27,16 @@
 		interrupt-parent = <&intc>;
 		ranges;
 		compatible	= "simple-bus";
+
+		powerdown: powerdown-controller {
+			#reset-cells = <1>;
+			compatible = "st,stih416-powerdown";
+		};
+
+		softreset: softreset-controller {
+			#reset-cells = <1>;
+			compatible = "st,stih416-softreset";
+		};
 
 		syscfg_sbc:sbc-syscfg@fe600000{
 			compatible	= "st,stih416-sbc-syscfg", "syscon";
@@ -78,7 +89,7 @@
 			status 		= "disabled";
 			reg		= <0xfed32000 0x2c>;
 			interrupts	= <0 197 0>;
-			clocks          = <&CLK_S_ICN_REG_0>;
+			clocks 		= <&clk_s_a0_ls CLK_ICN_REG>;
 			pinctrl-names 	= "default";
 			pinctrl-0 	= <&pinctrl_serial2 &pinctrl_serial2_oe>;
 		};
@@ -91,14 +102,14 @@
 			interrupts	= <0 210 0>;
 			pinctrl-names 	= "default";
 			pinctrl-0 	= <&pinctrl_sbc_serial1>;
-			clocks          = <&CLK_SYSIN>;
+			clocks          = <&clk_sysin>;
 		};
 
 		i2c@fed40000 {
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfed40000 0x110>;
 			interrupts	= <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLK_S_ICN_REG_0>;
+			clocks 		= <&clk_s_a0_ls CLK_ICN_REG>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
@@ -111,7 +122,7 @@
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfed41000 0x110>;
 			interrupts	= <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLK_S_ICN_REG_0>;
+			clocks 		= <&clk_s_a0_ls CLK_ICN_REG>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
@@ -124,7 +135,7 @@
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfe540000 0x110>;
 			interrupts	= <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
@@ -137,13 +148,93 @@
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfe541000 0x110>;
 			interrupts	= <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
 			pinctrl-0	= <&pinctrl_sbc_i2c1_default>;
 
 			status		= "disabled";
+		};
+
+		ethernet0: dwmac@fe810000 {
+			device_type 	= "network";
+			compatible	= "st,stih416-dwmac", "snps,dwmac", "snps,dwmac-3.710";
+			status 		= "disabled";
+			reg 		= <0xfe810000 0x8000>, <0x8bc 0x4>;
+			reg-names	= "stmmaceth", "sti-ethconf";
+
+			interrupts = <0 133 0>, <0 134 0>, <0 135 0>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+
+			snps,pbl 	= <32>;
+			snps,mixed-burst;
+
+			st,syscon		= <&syscfg_rear>;
+			resets			= <&softreset STIH416_ETH0_SOFTRESET>;
+			reset-names		= "stmmaceth";
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_mii0>;
+			clock-names	= "stmmaceth", "sti-ethclk";
+			clocks		= <&clk_s_a1_ls CLK_ICN_IF_2>, <&clk_s_a1_ls CLK_GMAC0_PHY>;
+		};
+
+		ethernet1: dwmac@fef08000 {
+			device_type = "network";
+			compatible		= "st,stih416-dwmac", "snps,dwmac", "snps,dwmac-3.710";
+			status 		= "disabled";
+			reg		= <0xfef08000 0x8000>, <0x7f0 0x4>;
+			reg-names	= "stmmaceth", "sti-ethconf";
+			interrupts = <0 136 0>, <0 137 0>, <0 138 0>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+
+			snps,pbl	= <32>;
+			snps,mixed-burst;
+
+			st,syscon	= <&syscfg_sbc>;
+
+			resets		= <&softreset STIH416_ETH1_SOFTRESET>;
+			reset-names	= "stmmaceth";
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_mii1>;
+			clock-names	= "stmmaceth", "sti-ethclk";
+			clocks		= <&clk_s_a0_ls CLK_ICN_REG>, <&clk_s_a0_ls CLK_ETH1_PHY>;
+		};
+
+		rc: rc@fe518000 {
+			compatible	= "st,comms-irb";
+			reg		= <0xfe518000 0x234>;
+			interrupts	=  <0 203 0>;
+			rx-mode         = "infrared";
+			clocks		= <&clk_sysin>;
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_ir>;
+			resets		= <&softreset STIH416_IRB_SOFTRESET>;
+		};
+
+		/* FSM */
+		spifsm: spifsm@fe902000 {
+			compatible	   = "st,spi-fsm";
+			reg		   = <0xfe902000 0x1000>;
+			pinctrl-0	   = <&pinctrl_fsm>;
+
+			st,syscfg	   = <&syscfg_rear>;
+			st,boot-device-reg = <0x958>;
+			st,boot-device-spi = <0x1a>;
+
+			status = "disabled";
+		};
+
+		keyscan: keyscan@fe4b0000 {
+			compatible = "st,sti-keyscan";
+			status = "disabled";
+			reg = <0xfe4b0000 0x2000>;
+			interrupts = <GIC_SPI 212 IRQ_TYPE_NONE>;
+			clocks = <&clk_sysin>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_keyscan>;
+			resets	= <&powerdown STIH416_KEYSCAN_POWERDOWN>,
+				  <&softreset STIH416_KEYSCAN_SOFTRESET>;
 		};
 	};
 };

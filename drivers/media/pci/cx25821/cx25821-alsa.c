@@ -645,8 +645,9 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[devno], id[devno], THIS_MODULE,
-			sizeof(struct cx25821_audio_dev), &card);
+	err = snd_card_new(&dev->pci->dev, index[devno], id[devno],
+			   THIS_MODULE,
+			   sizeof(struct cx25821_audio_dev), &card);
 	if (err < 0) {
 		pr_info("DEBUG ERROR: cannot create snd_card_new in %s\n",
 			__func__);
@@ -681,8 +682,6 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 			__func__);
 		goto error;
 	}
-
-	snd_card_set_dev(card, &chip->pci->dev);
 
 	strcpy(card->shortname, "cx25821");
 	sprintf(card->longname, "%s at 0x%lx irq %d", chip->dev->name,

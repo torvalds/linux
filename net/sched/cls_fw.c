@@ -29,11 +29,11 @@
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
 
-#define HTSIZE (PAGE_SIZE/sizeof(struct fw_filter *))
+#define HTSIZE 256
 
 struct fw_head {
-	struct fw_filter *ht[HTSIZE];
-	u32 mask;
+	u32			mask;
+	struct fw_filter	*ht[HTSIZE];
 };
 
 struct fw_filter {
@@ -46,30 +46,11 @@ struct fw_filter {
 	struct tcf_exts		exts;
 };
 
-static inline int fw_hash(u32 handle)
+static u32 fw_hash(u32 handle)
 {
-	if (HTSIZE == 4096)
-		return ((handle >> 24) & 0xFFF) ^
-		       ((handle >> 12) & 0xFFF) ^
-		       (handle & 0xFFF);
-	else if (HTSIZE == 2048)
-		return ((handle >> 22) & 0x7FF) ^
-		       ((handle >> 11) & 0x7FF) ^
-		       (handle & 0x7FF);
-	else if (HTSIZE == 1024)
-		return ((handle >> 20) & 0x3FF) ^
-		       ((handle >> 10) & 0x3FF) ^
-		       (handle & 0x3FF);
-	else if (HTSIZE == 512)
-		return (handle >> 27) ^
-		       ((handle >> 18) & 0x1FF) ^
-		       ((handle >> 9) & 0x1FF) ^
-		       (handle & 0x1FF);
-	else if (HTSIZE == 256) {
-		u8 *t = (u8 *) &handle;
-		return t[0] ^ t[1] ^ t[2] ^ t[3];
-	} else
-		return handle & (HTSIZE - 1);
+	handle ^= (handle >> 16);
+	handle ^= (handle >> 8);
+	return handle % HTSIZE;
 }
 
 static int fw_classify(struct sk_buff *skb, const struct tcf_proto *tp,
@@ -188,7 +169,7 @@ static const struct nla_policy fw_policy[TCA_FW_MAX + 1] = {
 
 static int
 fw_change_attrs(struct net *net, struct tcf_proto *tp, struct fw_filter *f,
-	struct nlattr **tb, struct nlattr **tca, unsigned long base)
+	struct nlattr **tb, struct nlattr **tca, unsigned long base, bool ovr)
 {
 	struct fw_head *head = tp->root;
 	struct tcf_exts e;
@@ -196,7 +177,7 @@ fw_change_attrs(struct net *net, struct tcf_proto *tp, struct fw_filter *f,
 	int err;
 
 	tcf_exts_init(&e, TCA_FW_ACT, TCA_FW_POLICE);
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
 	if (err < 0)
 		return err;
 
@@ -237,7 +218,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle,
 		     struct nlattr **tca,
-		     unsigned long *arg)
+		     unsigned long *arg, bool ovr)
 {
 	struct fw_head *head = tp->root;
 	struct fw_filter *f = (struct fw_filter *) *arg;
@@ -255,7 +236,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	if (f != NULL) {
 		if (f->id != handle && handle)
 			return -EINVAL;
-		return fw_change_attrs(net, tp, f, tb, tca, base);
+		return fw_change_attrs(net, tp, f, tb, tca, base, ovr);
 	}
 
 	if (!handle)
@@ -283,7 +264,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	tcf_exts_init(&f->exts, TCA_FW_ACT, TCA_FW_POLICE);
 	f->id = handle;
 
-	err = fw_change_attrs(net, tp, f, tb, tca, base);
+	err = fw_change_attrs(net, tp, f, tb, tca, base, ovr);
 	if (err < 0)
 		goto errout;
 

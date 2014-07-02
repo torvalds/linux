@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
+#include <asm/barrier.h>
 
 /*
  * Hardware assisted read-modify-write using ARC700 LLOCK/SCOND insns.
@@ -495,10 +496,6 @@ static inline __attribute__ ((const)) int __ffs(unsigned long word)
  * @return:[0-31], 32 if all 1's
  */
 #define ffz(x)	__ffs(~(x))
-
-/* TODO does this affect uni-processor code */
-#define smp_mb__before_clear_bit()  barrier()
-#define smp_mb__after_clear_bit()   barrier()
 
 #include <asm-generic/bitops/hweight.h>
 #include <asm-generic/bitops/fls64.h>

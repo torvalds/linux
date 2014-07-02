@@ -1627,74 +1627,7 @@ static const u32 b43_ntab_tdtrn_r3[] = {
 	0xfa58fc00, 0x0b64fc7e, 0x0800f7b6, 0x00f006be,
 };
 
-static const u32 b43_ntab_noisevar0_r3[] = {
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
-};
-
-static const u32 b43_ntab_noisevar1_r3[] = {
+static const u32 b43_ntab_noisevar_r3[] = {
 	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
 	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
 	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
@@ -3109,31 +3042,32 @@ static void b43_nphy_tables_init_rev3(struct b43_wldev *dev)
 		antswlut = sprom->fem.ghz2.antswlut;
 
 	/* Static tables */
-	ntab_upload(dev, B43_NTAB_FRAMESTRUCT_R3, b43_ntab_framestruct_r3);
-	ntab_upload(dev, B43_NTAB_PILOT_R3, b43_ntab_pilot_r3);
-	ntab_upload(dev, B43_NTAB_TMAP_R3, b43_ntab_tmap_r3);
-	ntab_upload(dev, B43_NTAB_INTLEVEL_R3, b43_ntab_intlevel_r3);
-	ntab_upload(dev, B43_NTAB_TDTRN_R3, b43_ntab_tdtrn_r3);
-	ntab_upload(dev, B43_NTAB_NOISEVAR0_R3, b43_ntab_noisevar0_r3);
-	ntab_upload(dev, B43_NTAB_NOISEVAR1_R3, b43_ntab_noisevar1_r3);
-	ntab_upload(dev, B43_NTAB_MCS_R3, b43_ntab_mcs_r3);
-	ntab_upload(dev, B43_NTAB_TDI20A0_R3, b43_ntab_tdi20a0_r3);
-	ntab_upload(dev, B43_NTAB_TDI20A1_R3, b43_ntab_tdi20a1_r3);
-	ntab_upload(dev, B43_NTAB_TDI40A0_R3, b43_ntab_tdi40a0_r3);
-	ntab_upload(dev, B43_NTAB_TDI40A1_R3, b43_ntab_tdi40a1_r3);
-	ntab_upload(dev, B43_NTAB_PILOTLT_R3, b43_ntab_pilotlt_r3);
-	ntab_upload(dev, B43_NTAB_CHANEST_R3, b43_ntab_channelest_r3);
-	ntab_upload(dev, B43_NTAB_FRAMELT_R3, b43_ntab_framelookup_r3);
-	ntab_upload(dev, B43_NTAB_C0_ESTPLT_R3, b43_ntab_estimatepowerlt0_r3);
-	ntab_upload(dev, B43_NTAB_C1_ESTPLT_R3, b43_ntab_estimatepowerlt1_r3);
-	ntab_upload(dev, B43_NTAB_C0_ADJPLT_R3, b43_ntab_adjustpower0_r3);
-	ntab_upload(dev, B43_NTAB_C1_ADJPLT_R3, b43_ntab_adjustpower1_r3);
-	ntab_upload(dev, B43_NTAB_C0_GAINCTL_R3, b43_ntab_gainctl0_r3);
-	ntab_upload(dev, B43_NTAB_C1_GAINCTL_R3, b43_ntab_gainctl1_r3);
-	ntab_upload(dev, B43_NTAB_C0_IQLT_R3, b43_ntab_iqlt0_r3);
-	ntab_upload(dev, B43_NTAB_C1_IQLT_R3, b43_ntab_iqlt1_r3);
-	ntab_upload(dev, B43_NTAB_C0_LOFEEDTH_R3, b43_ntab_loftlt0_r3);
-	ntab_upload(dev, B43_NTAB_C1_LOFEEDTH_R3, b43_ntab_loftlt1_r3);
+	if (dev->phy.do_full_init) {
+		ntab_upload(dev, B43_NTAB_FRAMESTRUCT_R3, b43_ntab_framestruct_r3);
+		ntab_upload(dev, B43_NTAB_PILOT_R3, b43_ntab_pilot_r3);
+		ntab_upload(dev, B43_NTAB_TMAP_R3, b43_ntab_tmap_r3);
+		ntab_upload(dev, B43_NTAB_INTLEVEL_R3, b43_ntab_intlevel_r3);
+		ntab_upload(dev, B43_NTAB_TDTRN_R3, b43_ntab_tdtrn_r3);
+		ntab_upload(dev, B43_NTAB_NOISEVAR_R3, b43_ntab_noisevar_r3);
+		ntab_upload(dev, B43_NTAB_MCS_R3, b43_ntab_mcs_r3);
+		ntab_upload(dev, B43_NTAB_TDI20A0_R3, b43_ntab_tdi20a0_r3);
+		ntab_upload(dev, B43_NTAB_TDI20A1_R3, b43_ntab_tdi20a1_r3);
+		ntab_upload(dev, B43_NTAB_TDI40A0_R3, b43_ntab_tdi40a0_r3);
+		ntab_upload(dev, B43_NTAB_TDI40A1_R3, b43_ntab_tdi40a1_r3);
+		ntab_upload(dev, B43_NTAB_PILOTLT_R3, b43_ntab_pilotlt_r3);
+		ntab_upload(dev, B43_NTAB_CHANEST_R3, b43_ntab_channelest_r3);
+		ntab_upload(dev, B43_NTAB_FRAMELT_R3, b43_ntab_framelookup_r3);
+		ntab_upload(dev, B43_NTAB_C0_ESTPLT_R3, b43_ntab_estimatepowerlt0_r3);
+		ntab_upload(dev, B43_NTAB_C1_ESTPLT_R3, b43_ntab_estimatepowerlt1_r3);
+		ntab_upload(dev, B43_NTAB_C0_ADJPLT_R3, b43_ntab_adjustpower0_r3);
+		ntab_upload(dev, B43_NTAB_C1_ADJPLT_R3, b43_ntab_adjustpower1_r3);
+		ntab_upload(dev, B43_NTAB_C0_GAINCTL_R3, b43_ntab_gainctl0_r3);
+		ntab_upload(dev, B43_NTAB_C1_GAINCTL_R3, b43_ntab_gainctl1_r3);
+		ntab_upload(dev, B43_NTAB_C0_IQLT_R3, b43_ntab_iqlt0_r3);
+		ntab_upload(dev, B43_NTAB_C1_IQLT_R3, b43_ntab_iqlt1_r3);
+		ntab_upload(dev, B43_NTAB_C0_LOFEEDTH_R3, b43_ntab_loftlt0_r3);
+		ntab_upload(dev, B43_NTAB_C1_LOFEEDTH_R3, b43_ntab_loftlt1_r3);
+	}
 
 	/* Volatile tables */
 	if (antswlut < ARRAY_SIZE(b43_ntab_antswctl_r3))
@@ -3146,20 +3080,22 @@ static void b43_nphy_tables_init_rev3(struct b43_wldev *dev)
 static void b43_nphy_tables_init_rev0(struct b43_wldev *dev)
 {
 	/* Static tables */
-	ntab_upload(dev, B43_NTAB_FRAMESTRUCT, b43_ntab_framestruct);
-	ntab_upload(dev, B43_NTAB_FRAMELT, b43_ntab_framelookup);
-	ntab_upload(dev, B43_NTAB_TMAP, b43_ntab_tmap);
-	ntab_upload(dev, B43_NTAB_TDTRN, b43_ntab_tdtrn);
-	ntab_upload(dev, B43_NTAB_INTLEVEL, b43_ntab_intlevel);
-	ntab_upload(dev, B43_NTAB_PILOT, b43_ntab_pilot);
-	ntab_upload(dev, B43_NTAB_TDI20A0, b43_ntab_tdi20a0);
-	ntab_upload(dev, B43_NTAB_TDI20A1, b43_ntab_tdi20a1);
-	ntab_upload(dev, B43_NTAB_TDI40A0, b43_ntab_tdi40a0);
-	ntab_upload(dev, B43_NTAB_TDI40A1, b43_ntab_tdi40a1);
-	ntab_upload(dev, B43_NTAB_CHANEST, b43_ntab_channelest);
-	ntab_upload(dev, B43_NTAB_MCS, b43_ntab_mcs);
-	ntab_upload(dev, B43_NTAB_NOISEVAR10, b43_ntab_noisevar10);
-	ntab_upload(dev, B43_NTAB_NOISEVAR11, b43_ntab_noisevar11);
+	if (dev->phy.do_full_init) {
+		ntab_upload(dev, B43_NTAB_FRAMESTRUCT, b43_ntab_framestruct);
+		ntab_upload(dev, B43_NTAB_FRAMELT, b43_ntab_framelookup);
+		ntab_upload(dev, B43_NTAB_TMAP, b43_ntab_tmap);
+		ntab_upload(dev, B43_NTAB_TDTRN, b43_ntab_tdtrn);
+		ntab_upload(dev, B43_NTAB_INTLEVEL, b43_ntab_intlevel);
+		ntab_upload(dev, B43_NTAB_PILOT, b43_ntab_pilot);
+		ntab_upload(dev, B43_NTAB_TDI20A0, b43_ntab_tdi20a0);
+		ntab_upload(dev, B43_NTAB_TDI20A1, b43_ntab_tdi20a1);
+		ntab_upload(dev, B43_NTAB_TDI40A0, b43_ntab_tdi40a0);
+		ntab_upload(dev, B43_NTAB_TDI40A1, b43_ntab_tdi40a1);
+		ntab_upload(dev, B43_NTAB_CHANEST, b43_ntab_channelest);
+		ntab_upload(dev, B43_NTAB_MCS, b43_ntab_mcs);
+		ntab_upload(dev, B43_NTAB_NOISEVAR10, b43_ntab_noisevar10);
+		ntab_upload(dev, B43_NTAB_NOISEVAR11, b43_ntab_noisevar11);
+	}
 
 	/* Volatile tables */
 	ntab_upload(dev, B43_NTAB_BDI, b43_ntab_bdi);

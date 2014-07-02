@@ -186,7 +186,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
-	struct i915_hw_context *ctx;
+	struct intel_context *ctx;
 	u32 *temp = NULL; /* Just here to make handling failures easy */
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
@@ -263,15 +263,19 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
+	intel_runtime_pm_get(dev_priv);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
 		u32 freq;
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		ret = vlv_gpu_freq(dev_priv, (freq >> 8) & 0xff);
 	} else {
-		ret = dev_priv->rps.cur_delay * GT_FREQUENCY_MULTIPLIER;
+		ret = dev_priv->rps.cur_freq * GT_FREQUENCY_MULTIPLIER;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_runtime_pm_put(dev_priv);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
@@ -284,7 +288,7 @@ static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-			vlv_gpu_freq(dev_priv, dev_priv->rps.rpe_delay));
+			vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
 }
 
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
@@ -298,9 +302,9 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev))
-		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.max_delay);
+		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
 	else
-		ret = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
+		ret = dev_priv->rps.max_freq_softlimit * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
@@ -313,7 +317,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val, rp_state_cap, hw_max, hw_min, non_oc_max;
+	u32 val;
 	ssize_t ret;
 
 	ret = kstrtou32(buf, 0, &val);
@@ -324,38 +328,34 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	if (IS_VALLEYVIEW(dev_priv->dev)) {
+	if (IS_VALLEYVIEW(dev_priv->dev))
 		val = vlv_freq_opcode(dev_priv, val);
-
-		hw_max = valleyview_rps_max_freq(dev_priv);
-		hw_min = valleyview_rps_min_freq(dev_priv);
-		non_oc_max = hw_max;
-	} else {
+	else
 		val /= GT_FREQUENCY_MULTIPLIER;
 
-		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		hw_max = dev_priv->rps.hw_max;
-		non_oc_max = (rp_state_cap & 0xff);
-		hw_min = ((rp_state_cap & 0xff0000) >> 16);
-	}
-
-	if (val < hw_min || val > hw_max ||
-	    val < dev_priv->rps.min_delay) {
+	if (val < dev_priv->rps.min_freq ||
+	    val > dev_priv->rps.max_freq ||
+	    val < dev_priv->rps.min_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
-	if (val > non_oc_max)
+	if (val > dev_priv->rps.rp0_freq)
 		DRM_DEBUG("User requested overclocking to %d\n",
 			  val * GT_FREQUENCY_MULTIPLIER);
 
-	dev_priv->rps.max_delay = val;
+	dev_priv->rps.max_freq_softlimit = val;
 
-	if (dev_priv->rps.cur_delay > val) {
+	if (dev_priv->rps.cur_freq > val) {
 		if (IS_VALLEYVIEW(dev))
 			valleyview_set_rps(dev, val);
 		else
 			gen6_set_rps(dev, val);
+	} else if (!IS_VALLEYVIEW(dev)) {
+		/* We still need gen6_set_rps to process the new max_delay and
+		 * update the interrupt limits even though frequency request is
+		 * unchanged. */
+		gen6_set_rps(dev, dev_priv->rps.cur_freq);
 	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -374,9 +374,9 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev))
-		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.min_delay);
+		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
 	else
-		ret = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
+		ret = dev_priv->rps.min_freq_softlimit * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
@@ -389,7 +389,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val, rp_state_cap, hw_max, hw_min;
+	u32 val;
 	ssize_t ret;
 
 	ret = kstrtou32(buf, 0, &val);
@@ -400,31 +400,30 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev))
 		val = vlv_freq_opcode(dev_priv, val);
-
-		hw_max = valleyview_rps_max_freq(dev_priv);
-		hw_min = valleyview_rps_min_freq(dev_priv);
-	} else {
+	else
 		val /= GT_FREQUENCY_MULTIPLIER;
 
-		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-		hw_max = dev_priv->rps.hw_max;
-		hw_min = ((rp_state_cap & 0xff0000) >> 16);
-	}
-
-	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_delay) {
+	if (val < dev_priv->rps.min_freq ||
+	    val > dev_priv->rps.max_freq ||
+	    val > dev_priv->rps.max_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
-	dev_priv->rps.min_delay = val;
+	dev_priv->rps.min_freq_softlimit = val;
 
-	if (dev_priv->rps.cur_delay < val) {
+	if (dev_priv->rps.cur_freq < val) {
 		if (IS_VALLEYVIEW(dev))
 			valleyview_set_rps(dev, val);
 		else
 			gen6_set_rps(dev, val);
+	} else if (!IS_VALLEYVIEW(dev)) {
+		/* We still need gen6_set_rps to process the new min_delay and
+		 * update the interrupt limits even though frequency request is
+		 * unchanged. */
+		gen6_set_rps(dev, dev_priv->rps.cur_freq);
 	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);

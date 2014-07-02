@@ -49,6 +49,8 @@ Required properties for dp-controller:
 	-samsung,lane-count:
 		number of lanes supported by the panel.
 			LANE_COUNT1 = 1, LANE_COUNT2 = 2, LANE_COUNT4 = 4
+	- display-timings: timings for the connected panel as described by
+		Documentation/devicetree/bindings/video/display-timing.txt
 
 Optional properties for dp-controller:
 	-interlaced:
@@ -60,6 +62,10 @@ Optional properties for dp-controller:
 	-hsync-active-high:
 		HSYNC polarity configuration.
 			High if defined, Low if not defined
+	-samsung,hpd-gpio:
+		Hotplug detect GPIO.
+			Indicates which GPIO should be used for hotplug
+			detection
 
 Example:
 
@@ -84,4 +90,19 @@ Board Specific portion:
 		samsung,color-depth = <1>;
 		samsung,link-rate = <0x0a>;
 		samsung,lane-count = <4>;
+
+		display-timings {
+			native-mode = <&lcd_timing>;
+			lcd_timing: 1366x768 {
+				clock-frequency = <70589280>;
+				hactive = <1366>;
+				vactive = <768>;
+				hfront-porch = <40>;
+				hback-porch = <40>;
+				hsync-len = <32>;
+				vback-porch = <10>;
+				vfront-porch = <12>;
+				vsync-len = <6>;
+			};
+		};
 	};

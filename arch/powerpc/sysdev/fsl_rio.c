@@ -391,8 +391,10 @@ int fsl_rio_setup(struct platform_device *dev)
 	ops->get_inb_message = fsl_get_inb_message;
 
 	rmu_node = of_parse_phandle(dev->dev.of_node, "fsl,srio-rmu-handle", 0);
-	if (!rmu_node)
+	if (!rmu_node) {
+		dev_err(&dev->dev, "No valid fsl,srio-rmu-handle property\n");
 		goto err_rmu;
+	}
 	rc = of_address_to_resource(rmu_node, 0, &rmu_regs);
 	if (rc) {
 		dev_err(&dev->dev, "Can't get %s property 'reg'\n",
@@ -413,6 +415,7 @@ int fsl_rio_setup(struct platform_device *dev)
 	/*set up doobell node*/
 	np = of_find_compatible_node(NULL, NULL, "fsl,srio-dbell-unit");
 	if (!np) {
+		dev_err(&dev->dev, "No fsl,srio-dbell-unit node\n");
 		rc = -ENODEV;
 		goto err_dbell;
 	}
@@ -441,6 +444,7 @@ int fsl_rio_setup(struct platform_device *dev)
 	/*set up port write node*/
 	np = of_find_compatible_node(NULL, NULL, "fsl,srio-port-write-unit");
 	if (!np) {
+		dev_err(&dev->dev, "No fsl,srio-port-write-unit node\n");
 		rc = -ENODEV;
 		goto err_pw;
 	}
@@ -531,6 +535,7 @@ int fsl_rio_setup(struct platform_device *dev)
 		sprintf(port->name, "RIO mport %d", i);
 
 		priv->dev = &dev->dev;
+		port->dev.parent = &dev->dev;
 		port->ops = ops;
 		port->priv = priv;
 		port->phys_efptr = 0x100;
@@ -632,14 +637,18 @@ int fsl_rio_setup(struct platform_device *dev)
 	return 0;
 err:
 	kfree(pw);
+	pw = NULL;
 err_pw:
 	kfree(dbell);
+	dbell = NULL;
 err_dbell:
 	iounmap(rmu_regs_win);
+	rmu_regs_win = NULL;
 err_rmu:
 	kfree(ops);
 err_ops:
 	iounmap(rio_regs_win);
+	rio_regs_win = NULL;
 err_rio_regs:
 	return rc;
 }

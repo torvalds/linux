@@ -403,14 +403,15 @@ static void iwl_mvm_tt_tx_protection(struct iwl_mvm *mvm, bool enable)
 	}
 }
 
-static void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff)
+void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff)
 {
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_THERMAL_MNG_BACKOFF,
 		.len = { sizeof(u32), },
 		.data = { &backoff, },
-		.flags = CMD_SYNC,
 	};
+
+	backoff = max(backoff, mvm->thermal_throttle.min_backoff);
 
 	if (iwl_mvm_send_cmd(mvm, &cmd) == 0) {
 		IWL_DEBUG_TEMP(mvm, "Set Thermal Tx backoff to: %u\n",
@@ -466,13 +467,14 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 	}
 
 	if (params->support_tx_backoff) {
-		tx_backoff = 0;
+		tx_backoff = tt->min_backoff;
 		for (i = 0; i < TT_TX_BACKOFF_SIZE; i++) {
 			if (temperature < params->tx_backoff[i].temperature)
 				break;
-			tx_backoff = params->tx_backoff[i].backoff;
+			tx_backoff = max(tt->min_backoff,
+					 params->tx_backoff[i].backoff);
 		}
-		if (tx_backoff != 0)
+		if (tx_backoff != tt->min_backoff)
 			throttle_enable = true;
 		if (tt->tx_backoff != tx_backoff)
 			iwl_mvm_tt_tx_backoff(mvm, tx_backoff);
@@ -482,7 +484,8 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 		IWL_WARN(mvm,
 			 "Due to high temperature thermal throttling initiated\n");
 		tt->throttle = true;
-	} else if (tt->throttle && !tt->dynamic_smps && tt->tx_backoff == 0 &&
+	} else if (tt->throttle && !tt->dynamic_smps &&
+		   tt->tx_backoff == tt->min_backoff &&
 		   temperature <= params->tx_protection_exit) {
 		IWL_WARN(mvm,
 			 "Temperature is back to normal thermal throttling stopped\n");
@@ -534,7 +537,7 @@ static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
 	.support_tx_backoff = true,
 };
 
-void iwl_mvm_tt_initialize(struct iwl_mvm *mvm)
+void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff)
 {
 	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
 
@@ -546,6 +549,7 @@ void iwl_mvm_tt_initialize(struct iwl_mvm *mvm)
 		tt->params = &iwl7000_tt_params;
 
 	tt->throttle = false;
+	tt->min_backoff = min_backoff;
 	INIT_DELAYED_WORK(&tt->ct_kill_exit, check_exit_ctkill);
 }
 

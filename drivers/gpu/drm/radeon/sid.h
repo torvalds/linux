@@ -107,8 +107,8 @@
 #define		SPLL_CHG_STATUS				(1 << 1)
 #define	SPLL_CNTL_MODE					0x618
 #define		SPLL_SW_DIR_CONTROL			(1 << 0)
-#	define SPLL_REFCLK_SEL(x)			((x) << 8)
-#	define SPLL_REFCLK_SEL_MASK			0xFF00
+#	define SPLL_REFCLK_SEL(x)			((x) << 26)
+#	define SPLL_REFCLK_SEL_MASK			(3 << 26)
 
 #define	CG_SPLL_SPREAD_SPECTRUM				0x620
 #define		SSEN					(1 << 0)
@@ -362,6 +362,7 @@
 #define		READ_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 16)
 #define		WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 18)
 #define		WRITE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 19)
+#define		PAGE_TABLE_BLOCK_SIZE(x)			(((x) & 0xF) << 24)
 #define VM_CONTEXT1_CNTL				0x1414
 #define VM_CONTEXT0_CNTL2				0x1430
 #define VM_CONTEXT1_CNTL2				0x1434
@@ -1797,5 +1798,52 @@
 #define	DMA_PACKET_SRBM_WRITE				  0x9
 #define	DMA_PACKET_CONSTANT_FILL			  0xd
 #define	DMA_PACKET_NOP					  0xf
+
+#define VCE_STATUS					0x20004
+#define VCE_VCPU_CNTL					0x20014
+#define		VCE_CLK_EN				(1 << 0)
+#define VCE_VCPU_CACHE_OFFSET0				0x20024
+#define VCE_VCPU_CACHE_SIZE0				0x20028
+#define VCE_VCPU_CACHE_OFFSET1				0x2002c
+#define VCE_VCPU_CACHE_SIZE1				0x20030
+#define VCE_VCPU_CACHE_OFFSET2				0x20034
+#define VCE_VCPU_CACHE_SIZE2				0x20038
+#define VCE_SOFT_RESET					0x20120
+#define 	VCE_ECPU_SOFT_RESET			(1 << 0)
+#define 	VCE_FME_SOFT_RESET			(1 << 2)
+#define VCE_RB_BASE_LO2					0x2016c
+#define VCE_RB_BASE_HI2					0x20170
+#define VCE_RB_SIZE2					0x20174
+#define VCE_RB_RPTR2					0x20178
+#define VCE_RB_WPTR2					0x2017c
+#define VCE_RB_BASE_LO					0x20180
+#define VCE_RB_BASE_HI					0x20184
+#define VCE_RB_SIZE					0x20188
+#define VCE_RB_RPTR					0x2018c
+#define VCE_RB_WPTR					0x20190
+#define VCE_CLOCK_GATING_A				0x202f8
+#define VCE_CLOCK_GATING_B				0x202fc
+#define VCE_UENC_CLOCK_GATING				0x205bc
+#define VCE_UENC_REG_CLOCK_GATING			0x205c0
+#define VCE_FW_REG_STATUS				0x20e10
+#	define VCE_FW_REG_STATUS_BUSY			(1 << 0)
+#	define VCE_FW_REG_STATUS_PASS			(1 << 3)
+#	define VCE_FW_REG_STATUS_DONE			(1 << 11)
+#define VCE_LMI_FW_START_KEYSEL				0x20e18
+#define VCE_LMI_FW_PERIODIC_CTRL			0x20e20
+#define VCE_LMI_CTRL2					0x20e74
+#define VCE_LMI_CTRL					0x20e98
+#define VCE_LMI_VM_CTRL					0x20ea0
+#define VCE_LMI_SWAP_CNTL				0x20eb4
+#define VCE_LMI_SWAP_CNTL1				0x20eb8
+#define VCE_LMI_CACHE_CTRL				0x20ef4
+
+#define VCE_CMD_NO_OP					0x00000000
+#define VCE_CMD_END					0x00000001
+#define VCE_CMD_IB					0x00000002
+#define VCE_CMD_FENCE					0x00000003
+#define VCE_CMD_TRAP					0x00000004
+#define VCE_CMD_IB_AUTO					0x00000005
+#define VCE_CMD_SEMAPHORE				0x00000006
 
 #endif

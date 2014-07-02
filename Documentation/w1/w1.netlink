@@ -5,8 +5,8 @@ Message types.
 =============
 
 There are three types of messages between w1 core and userspace:
-1. Events. They are generated each time new master or slave device
-	found either due to automatic or requested search.
+1. Events. They are generated each time a new master or slave device
+	is found either due to automatic or requested search.
 2. Userspace commands.
 3. Replies to userspace commands.
 
@@ -30,7 +30,7 @@ Protocol.
 			W1_SLAVE_CMD
 				userspace command for slave device
 				(read/write/touch)
-	__u8 res	- reserved
+	__u8 status	- error indication from kernel
 	__u16 len	- size of data attached to this header data
 	union {
 		__u8 id[8];			 - slave unique device id
@@ -44,10 +44,14 @@ Protocol.
 	__u8 cmd	- command opcode.
 			W1_CMD_READ 	- read command
 			W1_CMD_WRITE	- write command
-			W1_CMD_TOUCH	- touch command
-				(write and sample data back to userspace)
 			W1_CMD_SEARCH	- search command
 			W1_CMD_ALARM_SEARCH - alarm search command
+			W1_CMD_TOUCH	- touch command
+				(write and sample data back to userspace)
+			W1_CMD_RESET	- send bus reset
+			W1_CMD_SLAVE_ADD	- add slave to kernel list
+			W1_CMD_SLAVE_REMOVE	- remove slave from kernel list
+			W1_CMD_LIST_SLAVES	- get slaves list from kernel
 	__u8 res	- reserved
 	__u16 len	- length of data for this command
 		For read command data must be allocated like for write command
@@ -87,8 +91,7 @@ format:
 	id0 ... idN
 
 	Each message is at most 4k in size, so if number of master devices
-	exceeds this, it will be split into several messages,
-	cn.seq will be increased for each one.
+	exceeds this, it will be split into several messages.
 
 W1 search and alarm search commands.
 request:
@@ -131,7 +134,7 @@ of the w1_netlink_cmd structure and cn_msg.len will be equal to the sum
 of the sizeof(struct w1_netlink_msg) and sizeof(struct w1_netlink_cmd).
 If reply is generated for master or root command (which do not have
 w1_netlink_cmd attached), reply will contain only cn_msg and w1_netlink_msg
-structires.
+structures.
 
 w1_netlink_msg.status field will carry positive error value
 (EINVAL for example) or zero in case of success.
@@ -160,7 +163,7 @@ procedure is started to select given device.
 Then all requested in w1_netlink_msg operations are performed one by one.
 If command requires reply (like read command) it is sent on command completion.
 
-When all commands (w1_netlink_cmd) are processed muster device is unlocked
+When all commands (w1_netlink_cmd) are processed master device is unlocked
 and next w1_netlink_msg header processing started.
 
 

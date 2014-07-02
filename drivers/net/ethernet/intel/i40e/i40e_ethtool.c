@@ -46,6 +46,8 @@ struct i40e_stats {
 		I40E_STAT(struct i40e_pf, _name, _stat)
 #define I40E_VSI_STAT(_name, _stat) \
 		I40E_STAT(struct i40e_vsi, _name, _stat)
+#define I40E_VEB_STAT(_name, _stat) \
+		I40E_STAT(struct i40e_veb, _name, _stat)
 
 static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(rx_packets),
@@ -56,11 +58,38 @@ static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(tx_errors),
 	I40E_NETDEV_STAT(rx_dropped),
 	I40E_NETDEV_STAT(tx_dropped),
-	I40E_NETDEV_STAT(multicast),
 	I40E_NETDEV_STAT(collisions),
 	I40E_NETDEV_STAT(rx_length_errors),
 	I40E_NETDEV_STAT(rx_crc_errors),
 };
+
+static const struct i40e_stats i40e_gstrings_veb_stats[] = {
+	I40E_VEB_STAT("rx_bytes", stats.rx_bytes),
+	I40E_VEB_STAT("tx_bytes", stats.tx_bytes),
+	I40E_VEB_STAT("rx_unicast", stats.rx_unicast),
+	I40E_VEB_STAT("tx_unicast", stats.tx_unicast),
+	I40E_VEB_STAT("rx_multicast", stats.rx_multicast),
+	I40E_VEB_STAT("tx_multicast", stats.tx_multicast),
+	I40E_VEB_STAT("rx_broadcast", stats.rx_broadcast),
+	I40E_VEB_STAT("tx_broadcast", stats.tx_broadcast),
+	I40E_VEB_STAT("rx_discards", stats.rx_discards),
+	I40E_VEB_STAT("tx_discards", stats.tx_discards),
+	I40E_VEB_STAT("tx_errors", stats.tx_errors),
+	I40E_VEB_STAT("rx_unknown_protocol", stats.rx_unknown_protocol),
+};
+
+static const struct i40e_stats i40e_gstrings_misc_stats[] = {
+	I40E_VSI_STAT("rx_unicast", eth_stats.rx_unicast),
+	I40E_VSI_STAT("tx_unicast", eth_stats.tx_unicast),
+	I40E_VSI_STAT("rx_multicast", eth_stats.rx_multicast),
+	I40E_VSI_STAT("tx_multicast", eth_stats.tx_multicast),
+	I40E_VSI_STAT("rx_broadcast", eth_stats.rx_broadcast),
+	I40E_VSI_STAT("tx_broadcast", eth_stats.tx_broadcast),
+	I40E_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
+};
+
+static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
+				 struct ethtool_rxnfc *cmd);
 
 /* These PF_STATs might look like duplicates of some NETDEV_STATs,
  * but they are separate.  This device supports Virtualization, and
@@ -75,7 +104,12 @@ static const struct i40e_stats i40e_gstrings_net_stats[] = {
 static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("rx_bytes", stats.eth.rx_bytes),
 	I40E_PF_STAT("tx_bytes", stats.eth.tx_bytes),
-	I40E_PF_STAT("rx_errors", stats.eth.rx_errors),
+	I40E_PF_STAT("rx_unicast", stats.eth.rx_unicast),
+	I40E_PF_STAT("tx_unicast", stats.eth.tx_unicast),
+	I40E_PF_STAT("rx_multicast", stats.eth.rx_multicast),
+	I40E_PF_STAT("tx_multicast", stats.eth.tx_multicast),
+	I40E_PF_STAT("rx_broadcast", stats.eth.rx_broadcast),
+	I40E_PF_STAT("tx_broadcast", stats.eth.tx_broadcast),
 	I40E_PF_STAT("tx_errors", stats.eth.tx_errors),
 	I40E_PF_STAT("rx_dropped", stats.eth.rx_discards),
 	I40E_PF_STAT("tx_dropped", stats.eth.tx_discards),
@@ -84,6 +118,8 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("illegal_bytes", stats.illegal_bytes),
 	I40E_PF_STAT("mac_local_faults", stats.mac_local_faults),
 	I40E_PF_STAT("mac_remote_faults", stats.mac_remote_faults),
+	I40E_PF_STAT("tx_timeout", tx_timeout_count),
+	I40E_PF_STAT("rx_csum_bad", hw_csum_rx_error),
 	I40E_PF_STAT("rx_length_errors", stats.rx_length_errors),
 	I40E_PF_STAT("link_xon_rx", stats.link_xon_rx),
 	I40E_PF_STAT("link_xoff_rx", stats.link_xoff_rx),
@@ -108,16 +144,26 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("rx_oversize", stats.rx_oversize),
 	I40E_PF_STAT("rx_jabber", stats.rx_jabber),
 	I40E_PF_STAT("VF_admin_queue_requests", vf_aq_requests),
-	I40E_PF_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
 	I40E_PF_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
+	I40E_PF_STAT("fdir_atr_match", stats.fd_atr_match),
+	I40E_PF_STAT("fdir_sb_match", stats.fd_sb_match),
+
+	/* LPI stats */
+	I40E_PF_STAT("tx_lpi_status", stats.tx_lpi_status),
+	I40E_PF_STAT("rx_lpi_status", stats.rx_lpi_status),
+	I40E_PF_STAT("tx_lpi_count", stats.tx_lpi_count),
+	I40E_PF_STAT("rx_lpi_count", stats.rx_lpi_count),
 };
 
 #define I40E_QUEUE_STATS_LEN(n) \
-  ((((struct i40e_netdev_priv *)netdev_priv((n)))->vsi->num_queue_pairs + \
-    ((struct i40e_netdev_priv *)netdev_priv((n)))->vsi->num_queue_pairs) * 2)
+	(((struct i40e_netdev_priv *)netdev_priv((n)))->vsi->num_queue_pairs \
+	    * 2 /* Tx and Rx together */                                     \
+	    * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
 #define I40E_GLOBAL_STATS_LEN	ARRAY_SIZE(i40e_gstrings_stats)
 #define I40E_NETDEV_STATS_LEN   ARRAY_SIZE(i40e_gstrings_net_stats)
+#define I40E_MISC_STATS_LEN	ARRAY_SIZE(i40e_gstrings_misc_stats)
 #define I40E_VSI_STATS_LEN(n)   (I40E_NETDEV_STATS_LEN + \
+				 I40E_MISC_STATS_LEN + \
 				 I40E_QUEUE_STATS_LEN((n)))
 #define I40E_PFC_STATS_LEN ( \
 		(FIELD_SIZEOF(struct i40e_pf, stats.priority_xoff_rx) + \
@@ -126,6 +172,7 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_tx) + \
 		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_2_xoff)) \
 		 / sizeof(u64))
+#define I40E_VEB_STATS_LEN	ARRAY_SIZE(i40e_gstrings_veb_stats)
 #define I40E_PF_STATS_LEN(n)	(I40E_GLOBAL_STATS_LEN + \
 				 I40E_PFC_STATS_LEN + \
 				 I40E_VSI_STATS_LEN((n)))
@@ -387,7 +434,7 @@ static int i40e_get_eeprom(struct net_device *netdev,
 		ret_val = i40e_aq_read_nvm(hw, 0x0,
 				eeprom->offset + (I40E_NVM_SECTOR_SIZE * i),
 				len,
-				(u8 *)eeprom_buff + (I40E_NVM_SECTOR_SIZE * i),
+				eeprom_buff + (I40E_NVM_SECTOR_SIZE * i),
 				last, NULL);
 		if (ret_val) {
 			dev_info(&pf->pdev->dev,
@@ -399,7 +446,7 @@ static int i40e_get_eeprom(struct net_device *netdev,
 
 release_nvm:
 	i40e_release_nvm(hw);
-	memcpy(bytes, (u8 *)eeprom_buff, eeprom->len);
+	memcpy(bytes, eeprom_buff, eeprom->len);
 free_buff:
 	kfree(eeprom_buff);
 	return ret_val;
@@ -611,10 +658,15 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_TEST:
 		return I40E_TEST_LEN;
 	case ETH_SS_STATS:
-		if (vsi == pf->vsi[pf->lan_vsi])
-			return I40E_PF_STATS_LEN(netdev);
-		else
+		if (vsi == pf->vsi[pf->lan_vsi]) {
+			int len = I40E_PF_STATS_LEN(netdev);
+
+			if (pf->lan_veb != I40E_NO_VEB)
+				len += I40E_VEB_STATS_LEN;
+			return len;
+		} else {
 			return I40E_VSI_STATS_LEN(netdev);
+		}
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -624,6 +676,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 				   struct ethtool_stats *stats, u64 *data)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_ring *tx_ring, *rx_ring;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	int i = 0;
@@ -639,47 +692,63 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 		data[i++] = (i40e_gstrings_net_stats[j].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
+	for (j = 0; j < I40E_MISC_STATS_LEN; j++) {
+		p = (char *)vsi + i40e_gstrings_misc_stats[j].stat_offset;
+		data[i++] = (i40e_gstrings_misc_stats[j].sizeof_stat ==
+			    sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
 	rcu_read_lock();
-	for (j = 0; j < vsi->num_queue_pairs; j++, i += 4) {
-		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
-		struct i40e_ring *rx_ring;
+	for (j = 0; j < vsi->num_queue_pairs; j++) {
+		tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
 
 		if (!tx_ring)
 			continue;
 
 		/* process Tx ring statistics */
 		do {
-			start = u64_stats_fetch_begin_bh(&tx_ring->syncp);
+			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
 			data[i] = tx_ring->stats.packets;
 			data[i + 1] = tx_ring->stats.bytes;
-		} while (u64_stats_fetch_retry_bh(&tx_ring->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
+		i += 2;
 
 		/* Rx ring is the 2nd half of the queue pair */
 		rx_ring = &tx_ring[1];
 		do {
-			start = u64_stats_fetch_begin_bh(&rx_ring->syncp);
-			data[i + 2] = rx_ring->stats.packets;
-			data[i + 3] = rx_ring->stats.bytes;
-		} while (u64_stats_fetch_retry_bh(&rx_ring->syncp, start));
+			start = u64_stats_fetch_begin_irq(&rx_ring->syncp);
+			data[i] = rx_ring->stats.packets;
+			data[i + 1] = rx_ring->stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&rx_ring->syncp, start));
+		i += 2;
 	}
 	rcu_read_unlock();
-	if (vsi == pf->vsi[pf->lan_vsi]) {
-		for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
-			p = (char *)pf + i40e_gstrings_stats[j].stat_offset;
-			data[i++] = (i40e_gstrings_stats[j].sizeof_stat ==
-				   sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	if (vsi != pf->vsi[pf->lan_vsi])
+		return;
+
+	if (pf->lan_veb != I40E_NO_VEB) {
+		struct i40e_veb *veb = pf->veb[pf->lan_veb];
+		for (j = 0; j < I40E_VEB_STATS_LEN; j++) {
+			p = (char *)veb;
+			p += i40e_gstrings_veb_stats[j].stat_offset;
+			data[i++] = (i40e_gstrings_veb_stats[j].sizeof_stat ==
+				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 		}
-		for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
-			data[i++] = pf->stats.priority_xon_tx[j];
-			data[i++] = pf->stats.priority_xoff_tx[j];
-		}
-		for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
-			data[i++] = pf->stats.priority_xon_rx[j];
-			data[i++] = pf->stats.priority_xoff_rx[j];
-		}
-		for (j = 0; j < I40E_MAX_USER_PRIORITY; j++)
-			data[i++] = pf->stats.priority_xon_2_xoff[j];
 	}
+	for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
+		p = (char *)pf + i40e_gstrings_stats[j].stat_offset;
+		data[i++] = (i40e_gstrings_stats[j].sizeof_stat ==
+			     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+	for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
+		data[i++] = pf->stats.priority_xon_tx[j];
+		data[i++] = pf->stats.priority_xoff_tx[j];
+	}
+	for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
+		data[i++] = pf->stats.priority_xon_rx[j];
+		data[i++] = pf->stats.priority_xoff_rx[j];
+	}
+	for (j = 0; j < I40E_MAX_USER_PRIORITY; j++)
+		data[i++] = pf->stats.priority_xon_2_xoff[j];
 }
 
 static void i40e_get_strings(struct net_device *netdev, u32 stringset,
@@ -704,6 +773,11 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 				 i40e_gstrings_net_stats[i].stat_string);
 			p += ETH_GSTRING_LEN;
 		}
+		for (i = 0; i < I40E_MISC_STATS_LEN; i++) {
+			snprintf(p, ETH_GSTRING_LEN, "%s",
+				 i40e_gstrings_misc_stats[i].stat_string);
+			p += ETH_GSTRING_LEN;
+		}
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			snprintf(p, ETH_GSTRING_LEN, "tx-%u.tx_packets", i);
 			p += ETH_GSTRING_LEN;
@@ -714,33 +788,41 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.rx_bytes", i);
 			p += ETH_GSTRING_LEN;
 		}
-		if (vsi == pf->vsi[pf->lan_vsi]) {
-			for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
-				snprintf(p, ETH_GSTRING_LEN, "port.%s",
-					 i40e_gstrings_stats[i].stat_string);
+		if (vsi != pf->vsi[pf->lan_vsi])
+			return;
+
+		if (pf->lan_veb != I40E_NO_VEB) {
+			for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
+				snprintf(p, ETH_GSTRING_LEN, "veb.%s",
+					i40e_gstrings_veb_stats[i].stat_string);
 				p += ETH_GSTRING_LEN;
 			}
-			for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.tx_priority_%u_xon", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.tx_priority_%u_xoff", i);
-				p += ETH_GSTRING_LEN;
-			}
-			for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.rx_priority_%u_xon", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.rx_priority_%u_xoff", i);
-				p += ETH_GSTRING_LEN;
-			}
-			for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.rx_priority_%u_xon_2_xoff", i);
-				p += ETH_GSTRING_LEN;
-			}
+		}
+		for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
+			snprintf(p, ETH_GSTRING_LEN, "port.%s",
+				 i40e_gstrings_stats[i].stat_string);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.tx_priority_%u_xon", i);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.tx_priority_%u_xoff", i);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.rx_priority_%u_xon", i);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.rx_priority_%u_xoff", i);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.rx_priority_%u_xon_2_xoff", i);
+			p += ETH_GSTRING_LEN;
 		}
 		/* BUG_ON(p - data != I40E_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
@@ -998,14 +1080,13 @@ static int i40e_get_coalesce(struct net_device *netdev,
 	ec->rx_max_coalesced_frames_irq = vsi->work_limit;
 
 	if (ITR_IS_DYNAMIC(vsi->rx_itr_setting))
-		ec->rx_coalesce_usecs = 1;
-	else
-		ec->rx_coalesce_usecs = vsi->rx_itr_setting;
+		ec->use_adaptive_rx_coalesce = 1;
 
 	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting))
-		ec->tx_coalesce_usecs = 1;
-	else
-		ec->tx_coalesce_usecs = vsi->tx_itr_setting;
+		ec->use_adaptive_tx_coalesce = 1;
+
+	ec->rx_coalesce_usecs = vsi->rx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->tx_coalesce_usecs = vsi->tx_itr_setting & ~I40E_ITR_DYNAMIC;
 
 	return 0;
 }
@@ -1024,37 +1105,27 @@ static int i40e_set_coalesce(struct net_device *netdev,
 	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
 		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
 
-	switch (ec->rx_coalesce_usecs) {
-	case 0:
-		vsi->rx_itr_setting = 0;
-		break;
-	case 1:
-		vsi->rx_itr_setting = (I40E_ITR_DYNAMIC |
-				       ITR_REG_TO_USEC(I40E_ITR_RX_DEF));
-		break;
-	default:
-		if ((ec->rx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		    (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1)))
-			return -EINVAL;
+	if ((ec->rx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
+	    (ec->rx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
 		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
-		break;
-	}
+	else
+		return -EINVAL;
 
-	switch (ec->tx_coalesce_usecs) {
-	case 0:
-		vsi->tx_itr_setting = 0;
-		break;
-	case 1:
-		vsi->tx_itr_setting = (I40E_ITR_DYNAMIC |
-				       ITR_REG_TO_USEC(I40E_ITR_TX_DEF));
-		break;
-	default:
-		if ((ec->tx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		    (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1)))
-			return -EINVAL;
+	if ((ec->tx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
+	    (ec->tx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
 		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
-		break;
-	}
+	else
+		return -EINVAL;
+
+	if (ec->use_adaptive_rx_coalesce)
+		vsi->rx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		vsi->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+
+	if (ec->use_adaptive_tx_coalesce)
+		vsi->tx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		vsi->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	vector = vsi->base_vector;
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
@@ -1112,6 +1183,92 @@ static int i40e_get_rss_hash_opts(struct i40e_pf *pf, struct ethtool_rxnfc *cmd)
 }
 
 /**
+ * i40e_get_ethtool_fdir_all - Populates the rule count of a command
+ * @pf: Pointer to the physical function struct
+ * @cmd: The command to get or set Rx flow classification rules
+ * @rule_locs: Array of used rule locations
+ *
+ * This function populates both the total and actual rule count of
+ * the ethtool flow classification command
+ *
+ * Returns 0 on success or -EMSGSIZE if entry not found
+ **/
+static int i40e_get_ethtool_fdir_all(struct i40e_pf *pf,
+				     struct ethtool_rxnfc *cmd,
+				     u32 *rule_locs)
+{
+	struct i40e_fdir_filter *rule;
+	struct hlist_node *node2;
+	int cnt = 0;
+
+	/* report total rule count */
+	cmd->data = i40e_get_fd_cnt_all(pf);
+
+	hlist_for_each_entry_safe(rule, node2,
+				  &pf->fdir_filter_list, fdir_node) {
+		if (cnt == cmd->rule_cnt)
+			return -EMSGSIZE;
+
+		rule_locs[cnt] = rule->fd_id;
+		cnt++;
+	}
+
+	cmd->rule_cnt = cnt;
+
+	return 0;
+}
+
+/**
+ * i40e_get_ethtool_fdir_entry - Look up a filter based on Rx flow
+ * @pf: Pointer to the physical function struct
+ * @cmd: The command to get or set Rx flow classification rules
+ *
+ * This function looks up a filter based on the Rx flow classification
+ * command and fills the flow spec info for it if found
+ *
+ * Returns 0 on success or -EINVAL if filter not found
+ **/
+static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
+				       struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp =
+			(struct ethtool_rx_flow_spec *)&cmd->fs;
+	struct i40e_fdir_filter *rule = NULL;
+	struct hlist_node *node2;
+
+	hlist_for_each_entry_safe(rule, node2,
+				  &pf->fdir_filter_list, fdir_node) {
+		if (fsp->location <= rule->fd_id)
+			break;
+	}
+
+	if (!rule || fsp->location != rule->fd_id)
+		return -EINVAL;
+
+	fsp->flow_type = rule->flow_type;
+	if (fsp->flow_type == IP_USER_FLOW) {
+		fsp->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
+		fsp->h_u.usr_ip4_spec.proto = 0;
+		fsp->m_u.usr_ip4_spec.proto = 0;
+	}
+
+	/* Reverse the src and dest notion, since the HW views them from
+	 * Tx perspective where as the user expects it from Rx filter view.
+	 */
+	fsp->h_u.tcp_ip4_spec.psrc = rule->dst_port;
+	fsp->h_u.tcp_ip4_spec.pdst = rule->src_port;
+	fsp->h_u.tcp_ip4_spec.ip4src = rule->dst_ip[0];
+	fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip[0];
+
+	if (rule->dest_ctl == I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET)
+		fsp->ring_cookie = RX_CLS_FLOW_DISC;
+	else
+		fsp->ring_cookie = rule->q_index;
+
+	return 0;
+}
+
+/**
  * i40e_get_rxnfc - command to get RX flow classification rules
  * @netdev: network interface device structure
  * @cmd: ethtool rxnfc command
@@ -1135,15 +1292,17 @@ static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		ret = i40e_get_rss_hash_opts(pf, cmd);
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
-		cmd->rule_cnt = 10;
+		cmd->rule_cnt = pf->fdir_pf_active_filters;
+		/* report total rule count */
+		cmd->data = i40e_get_fd_cnt_all(pf);
 		ret = 0;
 		break;
 	case ETHTOOL_GRXCLSRULE:
-		ret = 0;
+		ret = i40e_get_ethtool_fdir_entry(pf, cmd);
 		break;
 	case ETHTOOL_GRXCLSRLALL:
-		cmd->data = 500;
-		ret = 0;
+		ret = i40e_get_ethtool_fdir_all(pf, cmd, rule_locs);
+		break;
 	default:
 		break;
 	}
@@ -1204,16 +1363,12 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	case UDP_V4_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &=
-			~(((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
+			hena &= ~(((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
+				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |=
-			(((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP)  |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
+			hena |= (((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
+				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
 			break;
 		default:
 			return -EINVAL;
@@ -1222,16 +1377,12 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	case UDP_V6_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &=
-			~(((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
+			hena &= ~(((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
+				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |=
-			(((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP)  |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
+			hena |= (((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
+				 ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
 			break;
 		default:
 			return -EINVAL;
@@ -1274,289 +1425,187 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	return 0;
 }
 
-#define IP_HEADER_OFFSET 14
-#define I40E_UDPIP_DUMMY_PACKET_LEN 42
 /**
- * i40e_add_del_fdir_udpv4 - Add/Remove UDPv4 Flow Director filters for
- * a specific flow spec
- * @vsi: pointer to the targeted VSI
- * @fd_data: the flow director data required from the FDir descriptor
- * @ethtool_rx_flow_spec: the flow spec
- * @add: true adds a filter, false removes it
+ * i40e_match_fdir_input_set - Match a new filter against an existing one
+ * @rule: The filter already added
+ * @input: The new filter to comapre against
  *
- * Returns 0 if the filters were successfully added or removed
+ * Returns true if the two input set match
  **/
-static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
-				   struct i40e_fdir_data *fd_data,
-				   struct ethtool_rx_flow_spec *fsp, bool add)
+static bool i40e_match_fdir_input_set(struct i40e_fdir_filter *rule,
+				      struct i40e_fdir_filter *input)
 {
+	if ((rule->dst_ip[0] != input->dst_ip[0]) ||
+	    (rule->src_ip[0] != input->src_ip[0]) ||
+	    (rule->dst_port != input->dst_port) ||
+	    (rule->src_port != input->src_port))
+		return false;
+	return true;
+}
+
+/**
+ * i40e_update_ethtool_fdir_entry - Updates the fdir filter entry
+ * @vsi: Pointer to the targeted VSI
+ * @input: The filter to update or NULL to indicate deletion
+ * @sw_idx: Software index to the filter
+ * @cmd: The command to get or set Rx flow classification rules
+ *
+ * This function updates (or deletes) a Flow Director entry from
+ * the hlist of the corresponding PF
+ *
+ * Returns 0 on success
+ **/
+static int i40e_update_ethtool_fdir_entry(struct i40e_vsi *vsi,
+					  struct i40e_fdir_filter *input,
+					  u16 sw_idx,
+					  struct ethtool_rxnfc *cmd)
+{
+	struct i40e_fdir_filter *rule, *parent;
 	struct i40e_pf *pf = vsi->back;
-	struct udphdr *udp;
-	struct iphdr *ip;
-	bool err = false;
-	int ret;
-	int i;
-	char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
-			 0x45, 0, 0, 0x1c, 0, 0, 0x40, 0, 0x40, 0x11,
-			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			 0, 0, 0, 0, 0, 0, 0, 0};
+	struct hlist_node *node2;
+	int err = -EINVAL;
 
-	memcpy(fd_data->raw_packet, packet, I40E_UDPIP_DUMMY_PACKET_LEN);
+	parent = NULL;
+	rule = NULL;
 
-	ip = (struct iphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET);
-	udp = (struct udphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET
-	      + sizeof(struct iphdr));
-
-	ip->saddr = fsp->h_u.tcp_ip4_spec.ip4src;
-	ip->daddr = fsp->h_u.tcp_ip4_spec.ip4dst;
-	udp->source = fsp->h_u.tcp_ip4_spec.psrc;
-	udp->dest = fsp->h_u.tcp_ip4_spec.pdst;
-
-	for (i = I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP;
-	     i <= I40E_FILTER_PCTYPE_NONF_IPV4_UDP; i++) {
-		fd_data->pctype = i;
-		ret = i40e_program_fdir_filter(fd_data, pf, add);
-
-		if (ret) {
-			dev_info(&pf->pdev->dev,
-				 "Filter command send failed for PCTYPE %d (ret = %d)\n",
-				 fd_data->pctype, ret);
-			err = true;
-		} else {
-			dev_info(&pf->pdev->dev,
-				 "Filter OK for PCTYPE %d (ret = %d)\n",
-				 fd_data->pctype, ret);
-		}
+	hlist_for_each_entry_safe(rule, node2,
+				  &pf->fdir_filter_list, fdir_node) {
+		/* hash found, or no matching entry */
+		if (rule->fd_id >= sw_idx)
+			break;
+		parent = rule;
 	}
 
-	return err ? -EOPNOTSUPP : 0;
-}
-
-#define I40E_TCPIP_DUMMY_PACKET_LEN 54
-/**
- * i40e_add_del_fdir_tcpv4 - Add/Remove TCPv4 Flow Director filters for
- * a specific flow spec
- * @vsi: pointer to the targeted VSI
- * @fd_data: the flow director data required from the FDir descriptor
- * @ethtool_rx_flow_spec: the flow spec
- * @add: true adds a filter, false removes it
- *
- * Returns 0 if the filters were successfully added or removed
- **/
-static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
-				   struct i40e_fdir_data *fd_data,
-				   struct ethtool_rx_flow_spec *fsp, bool add)
-{
-	struct i40e_pf *pf = vsi->back;
-	struct tcphdr *tcp;
-	struct iphdr *ip;
-	bool err = false;
-	int ret;
-	/* Dummy packet */
-	char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
-			 0x45, 0, 0, 0x28, 0, 0, 0x40, 0, 0x40, 0x6,
-			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			 0x80, 0x11, 0x0, 0x72, 0, 0, 0, 0};
-
-	memcpy(fd_data->raw_packet, packet, I40E_TCPIP_DUMMY_PACKET_LEN);
-
-	ip = (struct iphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET);
-	tcp = (struct tcphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET
-	      + sizeof(struct iphdr));
-
-	ip->daddr = fsp->h_u.tcp_ip4_spec.ip4dst;
-	tcp->dest = fsp->h_u.tcp_ip4_spec.pdst;
-	ip->saddr = fsp->h_u.tcp_ip4_spec.ip4src;
-	tcp->source = fsp->h_u.tcp_ip4_spec.psrc;
-
-	if (add) {
-		if (pf->flags & I40E_FLAG_FD_ATR_ENABLED) {
-			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
-			pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
-		}
+	/* if there is an old rule occupying our place remove it */
+	if (rule && (rule->fd_id == sw_idx)) {
+		if (input && !i40e_match_fdir_input_set(rule, input))
+			err = i40e_add_del_fdir(vsi, rule, false);
+		else if (!input)
+			err = i40e_add_del_fdir(vsi, rule, false);
+		hlist_del(&rule->fdir_node);
+		kfree(rule);
+		pf->fdir_pf_active_filters--;
 	}
 
-	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN;
-	ret = i40e_program_fdir_filter(fd_data, pf, add);
+	/* If no input this was a delete, err should be 0 if a rule was
+	 * successfully found and removed from the list else -EINVAL
+	 */
+	if (!input)
+		return err;
 
-	if (ret) {
-		dev_info(&pf->pdev->dev,
-			 "Filter command send failed for PCTYPE %d (ret = %d)\n",
-			 fd_data->pctype, ret);
-		err = true;
-	} else {
-		dev_info(&pf->pdev->dev, "Filter OK for PCTYPE %d (ret = %d)\n",
-			 fd_data->pctype, ret);
-	}
+	/* initialize node and set software index */
+	INIT_HLIST_NODE(&input->fdir_node);
 
-	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
+	/* add filter to the list */
+	if (parent)
+		hlist_add_after(&parent->fdir_node, &input->fdir_node);
+	else
+		hlist_add_head(&input->fdir_node,
+			       &pf->fdir_filter_list);
 
-	ret = i40e_program_fdir_filter(fd_data, pf, add);
-	if (ret) {
-		dev_info(&pf->pdev->dev,
-			 "Filter command send failed for PCTYPE %d (ret = %d)\n",
-			 fd_data->pctype, ret);
-		err = true;
-	} else {
-		dev_info(&pf->pdev->dev, "Filter OK for PCTYPE %d (ret = %d)\n",
-			  fd_data->pctype, ret);
-	}
+	/* update counts */
+	pf->fdir_pf_active_filters++;
 
-	return err ? -EOPNOTSUPP : 0;
+	return 0;
 }
 
 /**
- * i40e_add_del_fdir_sctpv4 - Add/Remove SCTPv4 Flow Director filters for
- * a specific flow spec
- * @vsi: pointer to the targeted VSI
- * @fd_data: the flow director data required from the FDir descriptor
- * @ethtool_rx_flow_spec: the flow spec
- * @add: true adds a filter, false removes it
+ * i40e_del_fdir_entry - Deletes a Flow Director filter entry
+ * @vsi: Pointer to the targeted VSI
+ * @cmd: The command to get or set Rx flow classification rules
  *
- * Returns 0 if the filters were successfully added or removed
- **/
-static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
-				    struct i40e_fdir_data *fd_data,
-				    struct ethtool_rx_flow_spec *fsp, bool add)
-{
-	return -EOPNOTSUPP;
-}
-
-#define I40E_IP_DUMMY_PACKET_LEN 34
-/**
- * i40e_add_del_fdir_ipv4 - Add/Remove IPv4 Flow Director filters for
- * a specific flow spec
- * @vsi: pointer to the targeted VSI
- * @fd_data: the flow director data required for the FDir descriptor
- * @fsp: the ethtool flow spec
- * @add: true adds a filter, false removes it
+ * The function removes a Flow Director filter entry from the
+ * hlist of the corresponding PF
  *
- * Returns 0 if the filters were successfully added or removed
- **/
-static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
-				  struct i40e_fdir_data *fd_data,
-				  struct ethtool_rx_flow_spec *fsp, bool add)
+ * Returns 0 on success
+ */
+static int i40e_del_fdir_entry(struct i40e_vsi *vsi,
+			       struct ethtool_rxnfc *cmd)
 {
-	struct i40e_pf *pf = vsi->back;
-	struct iphdr *ip;
-	bool err = false;
-	int ret;
-	int i;
-	char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
-			 0x45, 0, 0, 0x14, 0, 0, 0x40, 0, 0x40, 0x10,
-			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-	memcpy(fd_data->raw_packet, packet, I40E_IP_DUMMY_PACKET_LEN);
-	ip = (struct iphdr *)(fd_data->raw_packet + IP_HEADER_OFFSET);
-
-	ip->saddr = fsp->h_u.usr_ip4_spec.ip4src;
-	ip->daddr = fsp->h_u.usr_ip4_spec.ip4dst;
-	ip->protocol = fsp->h_u.usr_ip4_spec.proto;
-
-	for (i = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
-	     i <= I40E_FILTER_PCTYPE_FRAG_IPV4;	i++) {
-		fd_data->pctype = i;
-		ret = i40e_program_fdir_filter(fd_data, pf, add);
-
-		if (ret) {
-			dev_info(&pf->pdev->dev,
-				 "Filter command send failed for PCTYPE %d (ret = %d)\n",
-				 fd_data->pctype, ret);
-			err = true;
-		} else {
-			dev_info(&pf->pdev->dev,
-				 "Filter OK for PCTYPE %d (ret = %d)\n",
-				 fd_data->pctype, ret);
-		}
-	}
-
-	return err ? -EOPNOTSUPP : 0;
-}
-
-/**
- * i40e_add_del_fdir_ethtool - Add/Remove Flow Director filters for
- * a specific flow spec based on their protocol
- * @vsi: pointer to the targeted VSI
- * @cmd: command to get or set RX flow classification rules
- * @add: true adds a filter, false removes it
- *
- * Returns 0 if the filters were successfully added or removed
- **/
-static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
-			struct ethtool_rxnfc *cmd, bool add)
-{
-	struct i40e_fdir_data fd_data;
-	int ret = -EINVAL;
-	struct i40e_pf *pf;
 	struct ethtool_rx_flow_spec *fsp =
 		(struct ethtool_rx_flow_spec *)&cmd->fs;
+	struct i40e_pf *pf = vsi->back;
+	int ret = 0;
+
+	ret = i40e_update_ethtool_fdir_entry(vsi, NULL, fsp->location, cmd);
+
+	i40e_fdir_check_and_reenable(pf);
+	return ret;
+}
+
+/**
+ * i40e_add_fdir_ethtool - Add/Remove Flow Director filters
+ * @vsi: pointer to the targeted VSI
+ * @cmd: command to get or set RX flow classification rules
+ *
+ * Add Flow Director filters for a specific flow spec based on their
+ * protocol.  Returns 0 if the filters were successfully added.
+ **/
+static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
+				 struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp;
+	struct i40e_fdir_filter *input;
+	struct i40e_pf *pf;
+	int ret = -EINVAL;
 
 	if (!vsi)
 		return -EINVAL;
 
 	pf = vsi->back;
 
+	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
+		return -EOPNOTSUPP;
+
+	if (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)
+		return -ENOSPC;
+
+	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
+
+	if (fsp->location >= (pf->hw.func_caps.fd_filters_best_effort +
+			      pf->hw.func_caps.fd_filters_guaranteed)) {
+		return -EINVAL;
+	}
+
 	if ((fsp->ring_cookie != RX_CLS_FLOW_DISC) &&
 	    (fsp->ring_cookie >= vsi->num_queue_pairs))
 		return -EINVAL;
 
-	/* Populate the Flow Director that we have at the moment
-	 * and allocate the raw packet buffer for the calling functions
-	 */
-	fd_data.raw_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_LOOKUP,
-				     GFP_KERNEL);
+	input = kzalloc(sizeof(*input), GFP_KERNEL);
 
-	if (!fd_data.raw_packet) {
-		dev_info(&pf->pdev->dev, "Could not allocate memory\n");
+	if (!input)
 		return -ENOMEM;
-	}
 
-	fd_data.q_index = fsp->ring_cookie;
-	fd_data.flex_off = 0;
-	fd_data.pctype = 0;
-	fd_data.dest_vsi = vsi->id;
-	fd_data.dest_ctl = I40E_FILTER_PROGRAM_DESC_DEST_DIRECT_PACKET_QINDEX;
-	fd_data.fd_status = I40E_FILTER_PROGRAM_DESC_FD_STATUS_FD_ID;
-	fd_data.cnt_index = 0;
-	fd_data.fd_id = 0;
+	input->fd_id = fsp->location;
 
-	switch (fsp->flow_type & ~FLOW_EXT) {
-	case TCP_V4_FLOW:
-		ret = i40e_add_del_fdir_tcpv4(vsi, &fd_data, fsp, add);
-		break;
-	case UDP_V4_FLOW:
-		ret = i40e_add_del_fdir_udpv4(vsi, &fd_data, fsp, add);
-		break;
-	case SCTP_V4_FLOW:
-		ret = i40e_add_del_fdir_sctpv4(vsi, &fd_data, fsp, add);
-		break;
-	case IPV4_FLOW:
-		ret = i40e_add_del_fdir_ipv4(vsi, &fd_data, fsp, add);
-		break;
-	case IP_USER_FLOW:
-		switch (fsp->h_u.usr_ip4_spec.proto) {
-		case IPPROTO_TCP:
-			ret = i40e_add_del_fdir_tcpv4(vsi, &fd_data, fsp, add);
-			break;
-		case IPPROTO_UDP:
-			ret = i40e_add_del_fdir_udpv4(vsi, &fd_data, fsp, add);
-			break;
-		case IPPROTO_SCTP:
-			ret = i40e_add_del_fdir_sctpv4(vsi, &fd_data, fsp, add);
-			break;
-		default:
-			ret = i40e_add_del_fdir_ipv4(vsi, &fd_data, fsp, add);
-			break;
-		}
-		break;
-	default:
-		dev_info(&pf->pdev->dev, "Could not specify spec type\n");
-		ret = -EINVAL;
-	}
+	if (fsp->ring_cookie == RX_CLS_FLOW_DISC)
+		input->dest_ctl = I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET;
+	else
+		input->dest_ctl =
+			     I40E_FILTER_PROGRAM_DESC_DEST_DIRECT_PACKET_QINDEX;
 
-	kfree(fd_data.raw_packet);
-	fd_data.raw_packet = NULL;
+	input->q_index = fsp->ring_cookie;
+	input->flex_off = 0;
+	input->pctype = 0;
+	input->dest_vsi = vsi->id;
+	input->fd_status = I40E_FILTER_PROGRAM_DESC_FD_STATUS_FD_ID;
+	input->cnt_index  = pf->fd_sb_cnt_idx;
+	input->flow_type = fsp->flow_type;
+	input->ip4_proto = fsp->h_u.usr_ip4_spec.proto;
+
+	/* Reverse the src and dest notion, since the HW expects them to be from
+	 * Tx perspective where as the input from user is from Rx filter view.
+	 */
+	input->dst_port = fsp->h_u.tcp_ip4_spec.psrc;
+	input->src_port = fsp->h_u.tcp_ip4_spec.pdst;
+	input->dst_ip[0] = fsp->h_u.tcp_ip4_spec.ip4src;
+	input->src_ip[0] = fsp->h_u.tcp_ip4_spec.ip4dst;
+
+	ret = i40e_add_del_fdir(vsi, input, true);
+	if (ret)
+		kfree(input);
+	else
+		i40e_update_ethtool_fdir_entry(vsi, input, fsp->location, NULL);
 
 	return ret;
 }
@@ -1580,10 +1629,10 @@ static int i40e_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 		ret = i40e_set_rss_hash_opt(pf, cmd);
 		break;
 	case ETHTOOL_SRXCLSRLINS:
-		ret = i40e_add_del_fdir_ethtool(vsi, cmd, true);
+		ret = i40e_add_fdir_ethtool(vsi, cmd);
 		break;
 	case ETHTOOL_SRXCLSRLDEL:
-		ret = i40e_add_del_fdir_ethtool(vsi, cmd, false);
+		ret = i40e_del_fdir_entry(vsi, cmd);
 		break;
 	default:
 		break;
@@ -1712,5 +1761,5 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 
 void i40e_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &i40e_ethtool_ops);
+	netdev->ethtool_ops = &i40e_ethtool_ops;
 }

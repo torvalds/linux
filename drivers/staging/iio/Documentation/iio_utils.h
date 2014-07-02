@@ -318,7 +318,7 @@ inline int build_channel_array(const char *device_dir,
 				free(filename);
 				goto error_close_dir;
 			}
-			fscanf(sysfsfp, "%u", &ret);
+			fscanf(sysfsfp, "%i", &ret);
 			if (ret == 1)
 				(*counter)++;
 			fclose(sysfsfp);
@@ -350,7 +350,7 @@ inline int build_channel_array(const char *device_dir,
 				ret = -errno;
 				goto error_cleanup_array;
 			}
-			fscanf(sysfsfp, "%u", &current_enabled);
+			fscanf(sysfsfp, "%i", &current_enabled);
 			fclose(sysfsfp);
 
 			if (!current_enabled) {
@@ -647,6 +647,28 @@ int read_sysfs_float(char *filename, char *basedir, float *val)
 		goto error_free;
 	}
 	fscanf(sysfsfp, "%f\n", val);
+	fclose(sysfsfp);
+error_free:
+	free(temp);
+	return ret;
+}
+
+read_sysfs_string(const char *filename, const char *basedir, char *str)
+{
+	float ret = 0;
+	FILE  *sysfsfp;
+	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
+	if (temp == NULL) {
+		printf("Memory allocation failed");
+		return -ENOMEM;
+	}
+	sprintf(temp, "%s/%s", basedir, filename);
+	sysfsfp = fopen(temp, "r");
+	if (sysfsfp == NULL) {
+		ret = -errno;
+		goto error_free;
+	}
+	fscanf(sysfsfp, "%s\n", str);
 	fclose(sysfsfp);
 error_free:
 	free(temp);

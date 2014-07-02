@@ -223,10 +223,6 @@ typedef struct {
 	unsigned int	id;
 	unsigned int	active;
 	unsigned long	vdso_base;
-#ifdef CONFIG_PPC_ICSWX
-	struct spinlock *cop_lockp;	/* guard cop related stuff */
-	unsigned long acop;		/* mask of enabled coprocessor types */
-#endif /* CONFIG_PPC_ICSWX */
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;   /* SLB page size encodings */
 	u64 high_slices_psize;  /* 4 bits per slice for now */
@@ -287,11 +283,14 @@ extern int mmu_linear_psize;
 extern int mmu_vmemmap_psize;
 
 struct tlb_core_data {
+	/*
+	 * Per-core spinlock for e6500 TLB handlers (no tlbsrx.)
+	 * Must be the first struct element.
+	 */
+	u8 lock;
+
 	/* For software way selection, as on Freescale TLB1 */
 	u8 esel_next, esel_max, esel_first;
-
-	/* Per-core spinlock for e6500 TLB handlers (no tlbsrx.) */
-	u8 lock;
 };
 
 #ifdef CONFIG_PPC64

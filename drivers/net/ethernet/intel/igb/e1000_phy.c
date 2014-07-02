@@ -1,29 +1,25 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #include <linux/if_ether.h>
 #include <linux/delay.h>
@@ -390,77 +386,6 @@ s32 igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data)
 	}
 	*data = (u8) data_local & 0xFF;
 
-	return 0;
-}
-
-/**
- *  e1000_write_sfp_data_byte - Writes SFP module data.
- *  @hw: pointer to the HW structure
- *  @offset: byte location offset to write to
- *  @data: data to write
- *
- *  Writes one byte to SFP module data stored
- *  in SFP resided EEPROM memory or SFP diagnostic area.
- *  Function should be called with
- *  E1000_I2CCMD_SFP_DATA_ADDR(<byte offset>) for SFP module database access
- *  E1000_I2CCMD_SFP_DIAG_ADDR(<byte offset>) for SFP diagnostics parameters
- *  access
- **/
-s32 e1000_write_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 data)
-{
-	u32 i = 0;
-	u32 i2ccmd = 0;
-	u32 data_local = 0;
-
-	if (offset > E1000_I2CCMD_SFP_DIAG_ADDR(255)) {
-		hw_dbg("I2CCMD command address exceeds upper limit\n");
-		return -E1000_ERR_PHY;
-	}
-	/* The programming interface is 16 bits wide
-	 * so we need to read the whole word first
-	 * then update appropriate byte lane and write
-	 * the updated word back.
-	 */
-	/* Set up Op-code, EEPROM Address,in the I2CCMD
-	 * register. The MAC will take care of interfacing
-	 * with an EEPROM to write the data given.
-	 */
-	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
-		  E1000_I2CCMD_OPCODE_READ);
-	/* Set a command to read single word */
-	wr32(E1000_I2CCMD, i2ccmd);
-	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
-		udelay(50);
-		/* Poll the ready bit to see if lastly
-		 * launched I2C operation completed
-		 */
-		i2ccmd = rd32(E1000_I2CCMD);
-		if (i2ccmd & E1000_I2CCMD_READY) {
-			/* Check if this is READ or WRITE phase */
-			if ((i2ccmd & E1000_I2CCMD_OPCODE_READ) ==
-			    E1000_I2CCMD_OPCODE_READ) {
-				/* Write the selected byte
-				 * lane and update whole word
-				 */
-				data_local = i2ccmd & 0xFF00;
-				data_local |= data;
-				i2ccmd = ((offset <<
-					E1000_I2CCMD_REG_ADDR_SHIFT) |
-					E1000_I2CCMD_OPCODE_WRITE | data_local);
-				wr32(E1000_I2CCMD, i2ccmd);
-			} else {
-				break;
-			}
-		}
-	}
-	if (!(i2ccmd & E1000_I2CCMD_READY)) {
-		hw_dbg("I2CCMD Write did not complete\n");
-		return -E1000_ERR_PHY;
-	}
-	if (i2ccmd & E1000_I2CCMD_ERROR) {
-		hw_dbg("I2CCMD Error bit set\n");
-		return -E1000_ERR_PHY;
-	}
 	return 0;
 }
 
@@ -996,8 +921,7 @@ static s32 igb_copper_link_autoneg(struct e1000_hw *hw)
 	if (phy->autoneg_wait_to_complete) {
 		ret_val = igb_wait_autoneg(hw);
 		if (ret_val) {
-			hw_dbg("Error while waiting for "
-			       "autoneg to complete\n");
+			hw_dbg("Error while waiting for autoneg to complete\n");
 			goto out;
 		}
 	}
@@ -2280,16 +2204,10 @@ s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
 void igb_power_up_phy_copper(struct e1000_hw *hw)
 {
 	u16 mii_reg = 0;
-	u16 power_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
 	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
 	mii_reg &= ~MII_CR_POWER_DOWN;
-	if (hw->phy.type == e1000_phy_i210) {
-		hw->phy.ops.read_reg(hw, GS40G_COPPER_SPEC, &power_reg);
-		power_reg &= ~GS40G_CS_POWER_DOWN;
-		hw->phy.ops.write_reg(hw, GS40G_COPPER_SPEC, power_reg);
-	}
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
 }
 
@@ -2303,20 +2221,12 @@ void igb_power_up_phy_copper(struct e1000_hw *hw)
 void igb_power_down_phy_copper(struct e1000_hw *hw)
 {
 	u16 mii_reg = 0;
-	u16 power_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
 	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
 	mii_reg |= MII_CR_POWER_DOWN;
-
-	/* i210 Phy requires an additional bit for power up/down */
-	if (hw->phy.type == e1000_phy_i210) {
-		hw->phy.ops.read_reg(hw, GS40G_COPPER_SPEC, &power_reg);
-		power_reg |= GS40G_CS_POWER_DOWN;
-		hw->phy.ops.write_reg(hw, GS40G_COPPER_SPEC, power_reg);
-	}
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
-	msleep(1);
+	usleep_range(1000, 2000);
 }
 
 /**

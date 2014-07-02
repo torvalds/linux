@@ -1,7 +1,7 @@
 /*
  * vsp1.h  --  R-Car VSP1 Driver
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -28,6 +28,7 @@ struct clk;
 struct device;
 
 struct vsp1_platform_data;
+struct vsp1_bru;
 struct vsp1_hsit;
 struct vsp1_lif;
 struct vsp1_lut;
@@ -45,11 +46,11 @@ struct vsp1_device {
 
 	void __iomem *mmio;
 	struct clk *clock;
-	struct clk *rt_clock;
 
 	struct mutex lock;
 	int ref_count;
 
+	struct vsp1_bru *bru;
 	struct vsp1_hsit *hsi;
 	struct vsp1_hsit *hst;
 	struct vsp1_lif *lif;

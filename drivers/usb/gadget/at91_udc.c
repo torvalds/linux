@@ -1709,16 +1709,6 @@ static int at91udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (pdev->num_resources != 2) {
-		DBG("invalid num_resources\n");
-		return -ENODEV;
-	}
-	if ((pdev->resource[0].flags != IORESOURCE_MEM)
-			|| (pdev->resource[1].flags != IORESOURCE_IRQ)) {
-		DBG("invalid resource type\n");
-		return -ENODEV;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENXIO;
@@ -1758,15 +1748,15 @@ static int at91udc_probe(struct platform_device *pdev)
 
 	/* newer chips have more FIFO memory than rm9200 */
 	if (cpu_is_at91sam9260() || cpu_is_at91sam9g20()) {
-		usb_ep_set_maxpacket_limit(&udc->ep[0].ep, 64);
-		usb_ep_set_maxpacket_limit(&udc->ep[3].ep, 64);
-		usb_ep_set_maxpacket_limit(&udc->ep[4].ep, 512);
-		usb_ep_set_maxpacket_limit(&udc->ep[5].ep, 512);
+		udc->ep[0].maxpacket = 64;
+		udc->ep[3].maxpacket = 64;
+		udc->ep[4].maxpacket = 512;
+		udc->ep[5].maxpacket = 512;
 	} else if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()) {
-		usb_ep_set_maxpacket_limit(&udc->ep[3].ep, 64);
+		udc->ep[3].maxpacket = 64;
 	} else if (cpu_is_at91sam9263()) {
-		usb_ep_set_maxpacket_limit(&udc->ep[0].ep, 64);
-		usb_ep_set_maxpacket_limit(&udc->ep[3].ep, 64);
+		udc->ep[0].maxpacket = 64;
+		udc->ep[3].maxpacket = 64;
 	}
 
 	udc->udp_baseaddr = ioremap(res->start, resource_size(res));

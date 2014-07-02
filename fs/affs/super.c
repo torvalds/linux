@@ -46,7 +46,7 @@ static void
 affs_put_super(struct super_block *sb)
 {
 	struct affs_sb_info *sbi = AFFS_SB(sb);
-	pr_debug("AFFS: put_super()\n");
+	pr_debug("%s()\n", __func__);
 
 	cancel_delayed_work_sync(&sbi->sb_work);
 }
@@ -128,7 +128,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	affs_inode_cachep = kmem_cache_create("affs_inode_cache",
 					     sizeof(struct affs_inode_info),
@@ -163,7 +163,7 @@ static const struct super_operations affs_sops = {
 };
 
 enum {
-	Opt_bs, Opt_mode, Opt_mufs, Opt_prefix, Opt_protect,
+	Opt_bs, Opt_mode, Opt_mufs, Opt_notruncate, Opt_prefix, Opt_protect,
 	Opt_reserved, Opt_root, Opt_setgid, Opt_setuid,
 	Opt_verbose, Opt_volume, Opt_ignore, Opt_err,
 };
@@ -172,6 +172,7 @@ static const match_table_t tokens = {
 	{Opt_bs, "bs=%u"},
 	{Opt_mode, "mode=%o"},
 	{Opt_mufs, "mufs"},
+	{Opt_notruncate, "nofilenametruncate"},
 	{Opt_prefix, "prefix=%s"},
 	{Opt_protect, "protect"},
 	{Opt_reserved, "reserved=%u"},
@@ -219,7 +220,7 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 				return 0;
 			if (n != 512 && n != 1024 && n != 2048
 			    && n != 4096) {
-				printk ("AFFS: Invalid blocksize (512, 1024, 2048, 4096 allowed)\n");
+				pr_warn("Invalid blocksize (512, 1024, 2048, 4096 allowed)\n");
 				return 0;
 			}
 			*blocksize = n;
@@ -232,6 +233,9 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			break;
 		case Opt_mufs:
 			*mount_opts |= SF_MUFS;
+			break;
+		case Opt_notruncate:
+			*mount_opts |= SF_NO_TRUNCATE;
 			break;
 		case Opt_prefix:
 			*prefix = match_strdup(&args[0]);
@@ -281,8 +285,8 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 		 	/* Silently ignore the quota options */
 			break;
 		default:
-			printk("AFFS: Unrecognized mount option \"%s\" "
-					"or missing value\n", p);
+			pr_warn("Unrecognized mount option \"%s\" or missing value\n",
+				p);
 			return 0;
 		}
 	}
@@ -315,7 +319,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 
 	save_mount_options(sb, data);
 
-	pr_debug("AFFS: read_super(%s)\n",data ? (const char *)data : "no options");
+	pr_debug("read_super(%s)\n", data ? (const char *)data : "no options");
 
 	sb->s_magic             = AFFS_SUPER_MAGIC;
 	sb->s_op                = &affs_sops;
@@ -335,9 +339,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!parse_options(data,&uid,&gid,&i,&reserved,&root_block,
 				&blocksize,&sbi->s_prefix,
 				sbi->s_volume, &mount_flags)) {
-		printk(KERN_ERR "AFFS: Error parsing options\n");
-		kfree(sbi->s_prefix);
-		kfree(sbi);
+		pr_err("Error parsing options\n");
 		return -EINVAL;
 	}
 	/* N.B. after this point s_prefix must be released */
@@ -354,7 +356,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 
 	size = sb->s_bdev->bd_inode->i_size >> 9;
-	pr_debug("AFFS: initial blocksize=%d, #blocks=%d\n", 512, size);
+	pr_debug("initial blocksize=%d, #blocks=%d\n", 512, size);
 
 	affs_set_blocksize(sb, PAGE_SIZE);
 	/* Try to find root block. Its location depends on the block size. */
@@ -369,7 +371,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		sbi->s_root_block = root_block;
 		if (root_block < 0)
 			sbi->s_root_block = (reserved + size - 1) / 2;
-		pr_debug("AFFS: setting blocksize to %d\n", blocksize);
+		pr_debug("setting blocksize to %d\n", blocksize);
 		affs_set_blocksize(sb, blocksize);
 		sbi->s_partition_size = size;
 
@@ -384,7 +386,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		 * block behind the calculated one. So we check this one, too.
 		 */
 		for (num_bm = 0; num_bm < 2; num_bm++) {
-			pr_debug("AFFS: Dev %s, trying root=%u, bs=%d, "
+			pr_debug("Dev %s, trying root=%u, bs=%d, "
 				"size=%d, reserved=%d\n",
 				sb->s_id,
 				sbi->s_root_block + num_bm,
@@ -405,8 +407,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		}
 	}
 	if (!silent)
-		printk(KERN_ERR "AFFS: No valid root block on device %s\n",
-			sb->s_id);
+		pr_err("No valid root block on device %s\n", sb->s_id);
 	return -EINVAL;
 
 	/* N.B. after this point bh must be released */
@@ -418,7 +419,7 @@ got_root:
 	/* Find out which kind of FS we have */
 	boot_bh = sb_bread(sb, 0);
 	if (!boot_bh) {
-		printk(KERN_ERR "AFFS: Cannot read boot block\n");
+		pr_err("Cannot read boot block\n");
 		return -EINVAL;
 	}
 	memcpy(sig, boot_bh->b_data, 4);
@@ -431,8 +432,7 @@ got_root:
 	 */
 	if ((chksum == FS_DCFFS || chksum == MUFS_DCFFS || chksum == FS_DCOFS
 	     || chksum == MUFS_DCOFS) && !(sb->s_flags & MS_RDONLY)) {
-		printk(KERN_NOTICE "AFFS: Dircache FS - mounting %s read only\n",
-			sb->s_id);
+		pr_notice("Dircache FS - mounting %s read only\n", sb->s_id);
 		sb->s_flags |= MS_RDONLY;
 	}
 	switch (chksum) {
@@ -466,14 +466,14 @@ got_root:
 			sb->s_flags |= MS_NOEXEC;
 			break;
 		default:
-			printk(KERN_ERR "AFFS: Unknown filesystem on device %s: %08X\n",
-				sb->s_id, chksum);
+			pr_err("Unknown filesystem on device %s: %08X\n",
+			       sb->s_id, chksum);
 			return -EINVAL;
 	}
 
 	if (mount_flags & SF_VERBOSE) {
 		u8 len = AFFS_ROOT_TAIL(sb, root_bh)->disk_name[0];
-		printk(KERN_NOTICE "AFFS: Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
+		pr_notice("Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
 			len > 31 ? 31 : len,
 			AFFS_ROOT_TAIL(sb, root_bh)->disk_name + 1,
 			sig, sig[3] + '0', blocksize);
@@ -504,11 +504,11 @@ got_root:
 
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
-		printk(KERN_ERR "AFFS: Get root inode failed\n");
+		pr_err("AFFS: Get root inode failed\n");
 		return -ENOMEM;
 	}
 
-	pr_debug("AFFS: s_flags=%lX\n",sb->s_flags);
+	pr_debug("s_flags=%lX\n", sb->s_flags);
 	return 0;
 }
 
@@ -528,8 +528,9 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	char			 volume[32];
 	char			*prefix = NULL;
 
-	pr_debug("AFFS: remount(flags=0x%x,opts=\"%s\")\n",*flags,data);
+	pr_debug("%s(flags=0x%x,opts=\"%s\")\n", __func__, *flags, data);
 
+	sync_filesystem(sb);
 	*flags |= MS_NODIRATIME;
 
 	memcpy(volume, sbi->s_volume, 32);
@@ -575,8 +576,9 @@ affs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	int		 free;
 	u64		 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
-	pr_debug("AFFS: statfs() partsize=%d, reserved=%d\n",AFFS_SB(sb)->s_partition_size,
-	     AFFS_SB(sb)->s_reserved);
+	pr_debug("%s() partsize=%d, reserved=%d\n",
+		 __func__, AFFS_SB(sb)->s_partition_size,
+		 AFFS_SB(sb)->s_reserved);
 
 	free          = affs_count_free_blocks(sb);
 	buf->f_type    = AFFS_SUPER_MAGIC;

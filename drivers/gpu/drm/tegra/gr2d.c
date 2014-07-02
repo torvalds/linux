@@ -1,17 +1,9 @@
 /*
  * Copyright (c) 2012-2013, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -36,7 +28,7 @@ static inline struct gr2d *to_gr2d(struct tegra_drm_client *client)
 static int gr2d_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->parent);
 	unsigned long flags = HOST1X_SYNCPT_HAS_BASE;
 	struct gr2d *gr2d = to_gr2d(drm);
 
@@ -50,17 +42,17 @@ static int gr2d_init(struct host1x_client *client)
 		return -ENOMEM;
 	}
 
-	return tegra_drm_register_client(tegra, drm);
+	return tegra_drm_register_client(dev->dev_private, drm);
 }
 
 static int gr2d_exit(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->parent);
 	struct gr2d *gr2d = to_gr2d(drm);
 	int err;
 
-	err = tegra_drm_unregister_client(tegra, drm);
+	err = tegra_drm_unregister_client(dev->dev_private, drm);
 	if (err < 0)
 		return err;
 

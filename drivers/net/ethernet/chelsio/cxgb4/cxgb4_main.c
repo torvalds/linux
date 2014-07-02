@@ -254,6 +254,14 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 	CH_DEVICE(0x5011, 4),
 	CH_DEVICE(0x5012, 4),
 	CH_DEVICE(0x5013, 4),
+	CH_DEVICE(0x5014, 4),
+	CH_DEVICE(0x5015, 4),
+	CH_DEVICE(0x5080, 4),
+	CH_DEVICE(0x5081, 4),
+	CH_DEVICE(0x5082, 4),
+	CH_DEVICE(0x5083, 4),
+	CH_DEVICE(0x5084, 4),
+	CH_DEVICE(0x5085, 4),
 	CH_DEVICE(0x5401, 4),
 	CH_DEVICE(0x5402, 4),
 	CH_DEVICE(0x5403, 4),
@@ -273,6 +281,14 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 	CH_DEVICE(0x5411, 4),
 	CH_DEVICE(0x5412, 4),
 	CH_DEVICE(0x5413, 4),
+	CH_DEVICE(0x5414, 4),
+	CH_DEVICE(0x5415, 4),
+	CH_DEVICE(0x5480, 4),
+	CH_DEVICE(0x5481, 4),
+	CH_DEVICE(0x5482, 4),
+	CH_DEVICE(0x5483, 4),
+	CH_DEVICE(0x5484, 4),
+	CH_DEVICE(0x5485, 4),
 	{ 0, }
 };
 
@@ -423,14 +439,17 @@ static void link_report(struct net_device *dev)
 		const struct port_info *p = netdev_priv(dev);
 
 		switch (p->link_cfg.speed) {
-		case SPEED_10000:
+		case 10000:
 			s = "10Gbps";
 			break;
-		case SPEED_1000:
+		case 1000:
 			s = "1000Mbps";
 			break;
-		case SPEED_100:
+		case 100:
 			s = "100Mbps";
+			break;
+		case 40000:
+			s = "40Gbps";
 			break;
 		}
 
@@ -799,12 +818,17 @@ static void name_msix_vecs(struct adapter *adap)
 	for_each_rdmarxq(&adap->sge, i)
 		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-rdma%d",
 			 adap->port[0]->name, i);
+
+	for_each_rdmaciq(&adap->sge, i)
+		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-rdma-ciq%d",
+			 adap->port[0]->name, i);
 }
 
 static int request_msix_queue_irqs(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int err, ethqidx, ofldqidx = 0, rdmaqidx = 0, msi_index = 2;
+	int err, ethqidx, ofldqidx = 0, rdmaqidx = 0, rdmaciqqidx = 0;
+	int msi_index = 2;
 
 	err = request_irq(adap->msix_info[1].vec, t4_sge_intr_msix, 0,
 			  adap->msix_info[1].desc, &s->fw_evtq);
@@ -838,9 +862,21 @@ static int request_msix_queue_irqs(struct adapter *adap)
 			goto unwind;
 		msi_index++;
 	}
+	for_each_rdmaciq(s, rdmaciqqidx) {
+		err = request_irq(adap->msix_info[msi_index].vec,
+				  t4_sge_intr_msix, 0,
+				  adap->msix_info[msi_index].desc,
+				  &s->rdmaciq[rdmaciqqidx].rspq);
+		if (err)
+			goto unwind;
+		msi_index++;
+	}
 	return 0;
 
 unwind:
+	while (--rdmaciqqidx >= 0)
+		free_irq(adap->msix_info[--msi_index].vec,
+			 &s->rdmaciq[rdmaciqqidx].rspq);
 	while (--rdmaqidx >= 0)
 		free_irq(adap->msix_info[--msi_index].vec,
 			 &s->rdmarxq[rdmaqidx].rspq);
@@ -866,6 +902,8 @@ static void free_msix_queue_irqs(struct adapter *adap)
 		free_irq(adap->msix_info[msi_index++].vec, &s->ofldrxq[i].rspq);
 	for_each_rdmarxq(s, i)
 		free_irq(adap->msix_info[msi_index++].vec, &s->rdmarxq[i].rspq);
+	for_each_rdmaciq(s, i)
+		free_irq(adap->msix_info[msi_index++].vec, &s->rdmaciq[i].rspq);
 }
 
 /**
@@ -1028,7 +1066,8 @@ freeout:	t4_free_sge_resources(adap);
 		if (msi_idx > 0)
 			msi_idx++;
 		err = t4_sge_alloc_rxq(adap, &q->rspq, false, dev, msi_idx,
-				       &q->fl, uldrx_handler);
+				       q->fl.size ? &q->fl : NULL,
+				       uldrx_handler);
 		if (err)
 			goto freeout;
 		memset(&q->stats, 0, sizeof(q->stats));
@@ -1045,11 +1084,26 @@ freeout:	t4_free_sge_resources(adap);
 		if (msi_idx > 0)
 			msi_idx++;
 		err = t4_sge_alloc_rxq(adap, &q->rspq, false, adap->port[i],
-				       msi_idx, &q->fl, uldrx_handler);
+				       msi_idx, q->fl.size ? &q->fl : NULL,
+				       uldrx_handler);
 		if (err)
 			goto freeout;
 		memset(&q->stats, 0, sizeof(q->stats));
 		s->rdma_rxq[i] = q->rspq.abs_id;
+	}
+
+	for_each_rdmaciq(s, i) {
+		struct sge_ofld_rxq *q = &s->rdmaciq[i];
+
+		if (msi_idx > 0)
+			msi_idx++;
+		err = t4_sge_alloc_rxq(adap, &q->rspq, false, adap->port[i],
+				       msi_idx, q->fl.size ? &q->fl : NULL,
+				       uldrx_handler);
+		if (err)
+			goto freeout;
+		memset(&q->stats, 0, sizeof(q->stats));
+		s->rdma_ciq[i] = q->rspq.abs_id;
 	}
 
 	for_each_port(adap, i) {
@@ -2061,7 +2115,7 @@ static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		0x40200, 0x40298,
 		0x402ac, 0x4033c,
 		0x403f8, 0x403fc,
-		0x41300, 0x413c4,
+		0x41304, 0x413c4,
 		0x41400, 0x4141c,
 		0x41480, 0x414d0,
 		0x44000, 0x44078,
@@ -2089,7 +2143,7 @@ static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		0x48200, 0x48298,
 		0x482ac, 0x4833c,
 		0x483f8, 0x483fc,
-		0x49300, 0x493c4,
+		0x49304, 0x493c4,
 		0x49400, 0x4941c,
 		0x49480, 0x494d0,
 		0x4c000, 0x4c078,
@@ -2199,6 +2253,8 @@ static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
 	else if (type == FW_PORT_TYPE_FIBER_XFI ||
 		 type == FW_PORT_TYPE_FIBER_XAUI || type == FW_PORT_TYPE_SFP)
 		v |= SUPPORTED_FIBRE;
+	else if (type == FW_PORT_TYPE_BP40_BA)
+		v |= SUPPORTED_40000baseSR4_Full;
 
 	if (caps & FW_PORT_CAP_ANEG)
 		v |= SUPPORTED_Autoneg;
@@ -2215,6 +2271,8 @@ static unsigned int to_fw_linkcaps(unsigned int caps)
 		v |= FW_PORT_CAP_SPEED_1G;
 	if (caps & ADVERTISED_10000baseT_Full)
 		v |= FW_PORT_CAP_SPEED_10G;
+	if (caps & ADVERTISED_40000baseSR4_Full)
+		v |= FW_PORT_CAP_SPEED_40G;
 	return v;
 }
 
@@ -2229,12 +2287,19 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	else if (p->port_type == FW_PORT_TYPE_FIBER_XFI ||
 		 p->port_type == FW_PORT_TYPE_FIBER_XAUI)
 		cmd->port = PORT_FIBRE;
-	else if (p->port_type == FW_PORT_TYPE_SFP) {
-		if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
-		    p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
+	else if (p->port_type == FW_PORT_TYPE_SFP ||
+		 p->port_type == FW_PORT_TYPE_QSFP_10G ||
+		 p->port_type == FW_PORT_TYPE_QSFP) {
+		if (p->mod_type == FW_PORT_MOD_TYPE_LR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_SR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_ER ||
+		    p->mod_type == FW_PORT_MOD_TYPE_LRM)
+			cmd->port = PORT_FIBRE;
+		else if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
+			 p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
 			cmd->port = PORT_DA;
 		else
-			cmd->port = PORT_FIBRE;
+			cmd->port = PORT_OTHER;
 	} else
 		cmd->port = PORT_OTHER;
 
@@ -2263,12 +2328,14 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static unsigned int speed_to_caps(int speed)
 {
-	if (speed == SPEED_100)
+	if (speed == 100)
 		return FW_PORT_CAP_SPEED_100M;
-	if (speed == SPEED_1000)
+	if (speed == 1000)
 		return FW_PORT_CAP_SPEED_1G;
-	if (speed == SPEED_10000)
+	if (speed == 10000)
 		return FW_PORT_CAP_SPEED_10G;
+	if (speed == 40000)
+		return FW_PORT_CAP_SPEED_40G;
 	return 0;
 }
 
@@ -2296,8 +2363,10 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		cap = speed_to_caps(speed);
 
-		if (!(lc->supported & cap) || (speed == SPEED_1000) ||
-		    (speed == SPEED_10000))
+		if (!(lc->supported & cap) ||
+		    (speed == 1000) ||
+		    (speed == 10000) ||
+		    (speed == 40000))
 			return -EINVAL;
 		lc->requested_speed = cap;
 		lc->advertising = 0;
@@ -2434,8 +2503,7 @@ static unsigned int qtimer_val(const struct adapter *adap,
 }
 
 /**
- *	set_rxq_intr_params - set a queue's interrupt holdoff parameters
- *	@adap: the adapter
+ *	set_rspq_intr_params - set a queue's interrupt holdoff parameters
  *	@q: the Rx queue
  *	@us: the hold-off time in us, or 0 to disable timer
  *	@cnt: the hold-off packet count, or 0 to disable counter
@@ -2443,9 +2511,11 @@ static unsigned int qtimer_val(const struct adapter *adap,
  *	Sets an Rx queue's interrupt hold-off time and packet count.  At least
  *	one of the two needs to be enabled for the queue to generate interrupts.
  */
-static int set_rxq_intr_params(struct adapter *adap, struct sge_rspq *q,
-			       unsigned int us, unsigned int cnt)
+static int set_rspq_intr_params(struct sge_rspq *q,
+				unsigned int us, unsigned int cnt)
 {
+	struct adapter *adap = q->adap;
+
 	if ((us | cnt) == 0)
 		cnt = 1;
 
@@ -2472,24 +2542,34 @@ static int set_rxq_intr_params(struct adapter *adap, struct sge_rspq *q,
 	return 0;
 }
 
+/**
+ * set_rx_intr_params - set a net devices's RX interrupt holdoff paramete!
+ * @dev: the network device
+ * @us: the hold-off time in us, or 0 to disable timer
+ * @cnt: the hold-off packet count, or 0 to disable counter
+ *
+ * Set the RX interrupt hold-off parameters for a network device.
+ */
+static int set_rx_intr_params(struct net_device *dev,
+			      unsigned int us, unsigned int cnt)
+{
+	int i, err;
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_rxq *q = &adap->sge.ethrxq[pi->first_qset];
+
+	for (i = 0; i < pi->nqsets; i++, q++) {
+		err = set_rspq_intr_params(&q->rspq, us, cnt);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
-	const struct port_info *pi = netdev_priv(dev);
-	struct adapter *adap = pi->adapter;
-	struct sge_rspq *q;
-	int i;
-	int r = 0;
-
-	for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++) {
-		q = &adap->sge.ethrxq[i].rspq;
-		r = set_rxq_intr_params(adap, q, c->rx_coalesce_usecs,
-			c->rx_max_coalesced_frames);
-		if (r) {
-			dev_err(&dev->dev, "failed to set coalesce %d\n", r);
-			break;
-		}
-	}
-	return r;
+	return set_rx_intr_params(dev, c->rx_coalesce_usecs,
+				  c->rx_max_coalesced_frames);
 }
 
 static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
@@ -2705,7 +2785,7 @@ static u32 get_rss_table_size(struct net_device *dev)
 	return pi->rss_size;
 }
 
-static int get_rss_table(struct net_device *dev, u32 *p)
+static int get_rss_table(struct net_device *dev, u32 *p, u8 *key)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	unsigned int n = pi->rss_size;
@@ -2715,7 +2795,7 @@ static int get_rss_table(struct net_device *dev, u32 *p)
 	return 0;
 }
 
-static int set_rss_table(struct net_device *dev, const u32 *p)
+static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key)
 {
 	unsigned int i;
 	struct port_info *pi = netdev_priv(dev);
@@ -2817,8 +2897,8 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.set_wol           = set_wol,
 	.get_rxnfc         = get_rxnfc,
 	.get_rxfh_indir_size = get_rss_table_size,
-	.get_rxfh_indir    = get_rss_table,
-	.set_rxfh_indir    = set_rss_table,
+	.get_rxfh	   = get_rss_table,
+	.set_rxfh	   = set_rss_table,
 	.flash_device      = set_flash,
 };
 
@@ -3205,8 +3285,8 @@ static int cxgb4_clip_get(const struct net_device *dev,
 	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
 			FW_CMD_REQUEST | FW_CMD_WRITE);
 	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_ALLOC | FW_LEN16(c));
-	*(__be64 *)&c.ip_hi = *(__be64 *)(lip->s6_addr);
-	*(__be64 *)&c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
+	c.ip_hi = *(__be64 *)(lip->s6_addr);
+	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
 }
 
@@ -3221,8 +3301,8 @@ static int cxgb4_clip_release(const struct net_device *dev,
 	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
 			FW_CMD_REQUEST | FW_CMD_READ);
 	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_FREE | FW_LEN16(c));
-	*(__be64 *)&c.ip_hi = *(__be64 *)(lip->s6_addr);
-	*(__be64 *)&c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
+	c.ip_hi = *(__be64 *)(lip->s6_addr);
+	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
 }
 
@@ -3357,6 +3437,77 @@ unsigned int cxgb4_best_mtu(const unsigned short *mtus, unsigned short mtu,
 	return mtus[i];
 }
 EXPORT_SYMBOL(cxgb4_best_mtu);
+
+/**
+ *     cxgb4_best_aligned_mtu - find best MTU, [hopefully] data size aligned
+ *     @mtus: the HW MTU table
+ *     @header_size: Header Size
+ *     @data_size_max: maximum Data Segment Size
+ *     @data_size_align: desired Data Segment Size Alignment (2^N)
+ *     @mtu_idxp: HW MTU Table Index return value pointer (possibly NULL)
+ *
+ *     Similar to cxgb4_best_mtu() but instead of searching the Hardware
+ *     MTU Table based solely on a Maximum MTU parameter, we break that
+ *     parameter up into a Header Size and Maximum Data Segment Size, and
+ *     provide a desired Data Segment Size Alignment.  If we find an MTU in
+ *     the Hardware MTU Table which will result in a Data Segment Size with
+ *     the requested alignment _and_ that MTU isn't "too far" from the
+ *     closest MTU, then we'll return that rather than the closest MTU.
+ */
+unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
+				    unsigned short header_size,
+				    unsigned short data_size_max,
+				    unsigned short data_size_align,
+				    unsigned int *mtu_idxp)
+{
+	unsigned short max_mtu = header_size + data_size_max;
+	unsigned short data_size_align_mask = data_size_align - 1;
+	int mtu_idx, aligned_mtu_idx;
+
+	/* Scan the MTU Table till we find an MTU which is larger than our
+	 * Maximum MTU or we reach the end of the table.  Along the way,
+	 * record the last MTU found, if any, which will result in a Data
+	 * Segment Length matching the requested alignment.
+	 */
+	for (mtu_idx = 0, aligned_mtu_idx = -1; mtu_idx < NMTUS; mtu_idx++) {
+		unsigned short data_size = mtus[mtu_idx] - header_size;
+
+		/* If this MTU minus the Header Size would result in a
+		 * Data Segment Size of the desired alignment, remember it.
+		 */
+		if ((data_size & data_size_align_mask) == 0)
+			aligned_mtu_idx = mtu_idx;
+
+		/* If we're not at the end of the Hardware MTU Table and the
+		 * next element is larger than our Maximum MTU, drop out of
+		 * the loop.
+		 */
+		if (mtu_idx+1 < NMTUS && mtus[mtu_idx+1] > max_mtu)
+			break;
+	}
+
+	/* If we fell out of the loop because we ran to the end of the table,
+	 * then we just have to use the last [largest] entry.
+	 */
+	if (mtu_idx == NMTUS)
+		mtu_idx--;
+
+	/* If we found an MTU which resulted in the requested Data Segment
+	 * Length alignment and that's "not far" from the largest MTU which is
+	 * less than or equal to the maximum MTU, then use that.
+	 */
+	if (aligned_mtu_idx >= 0 &&
+	    mtu_idx - aligned_mtu_idx <= 1)
+		mtu_idx = aligned_mtu_idx;
+
+	/* If the caller has passed in an MTU Index pointer, pass the
+	 * MTU Index back.  Return the MTU value.
+	 */
+	if (mtu_idxp)
+		*mtu_idxp = mtu_idx;
+	return mtus[mtu_idx];
+}
+EXPORT_SYMBOL(cxgb4_best_aligned_mtu);
 
 /**
  *	cxgb4_port_chan - get the HW channel of a port
@@ -3563,14 +3714,25 @@ static void drain_db_fifo(struct adapter *adap, int usecs)
 
 static void disable_txq_db(struct sge_txq *q)
 {
-	spin_lock_irq(&q->db_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->db_lock, flags);
 	q->db_disabled = 1;
-	spin_unlock_irq(&q->db_lock);
+	spin_unlock_irqrestore(&q->db_lock, flags);
 }
 
-static void enable_txq_db(struct sge_txq *q)
+static void enable_txq_db(struct adapter *adap, struct sge_txq *q)
 {
 	spin_lock_irq(&q->db_lock);
+	if (q->db_pidx_inc) {
+		/* Make sure that all writes to the TX descriptors
+		 * are committed before we tell HW about them.
+		 */
+		wmb();
+		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
+			     QID(q->cntxt_id) | PIDX(q->db_pidx_inc));
+		q->db_pidx_inc = 0;
+	}
 	q->db_disabled = 0;
 	spin_unlock_irq(&q->db_lock);
 }
@@ -3592,11 +3754,32 @@ static void enable_dbs(struct adapter *adap)
 	int i;
 
 	for_each_ethrxq(&adap->sge, i)
-		enable_txq_db(&adap->sge.ethtxq[i].q);
+		enable_txq_db(adap, &adap->sge.ethtxq[i].q);
 	for_each_ofldrxq(&adap->sge, i)
-		enable_txq_db(&adap->sge.ofldtxq[i].q);
+		enable_txq_db(adap, &adap->sge.ofldtxq[i].q);
 	for_each_port(adap, i)
-		enable_txq_db(&adap->sge.ctrlq[i].q);
+		enable_txq_db(adap, &adap->sge.ctrlq[i].q);
+}
+
+static void notify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
+{
+	if (adap->uld_handle[CXGB4_ULD_RDMA])
+		ulds[CXGB4_ULD_RDMA].control(adap->uld_handle[CXGB4_ULD_RDMA],
+				cmd);
+}
+
+static void process_db_full(struct work_struct *work)
+{
+	struct adapter *adap;
+
+	adap = container_of(work, struct adapter, db_full_task);
+
+	drain_db_fifo(adap, dbfifo_drain_delay);
+	enable_dbs(adap);
+	notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
+	t4_set_reg_field(adap, SGE_INT_ENABLE3,
+			 DBFIFO_HP_INT | DBFIFO_LP_INT,
+			 DBFIFO_HP_INT | DBFIFO_LP_INT);
 }
 
 static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
@@ -3604,7 +3787,7 @@ static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
 	u16 hw_pidx, hw_cidx;
 	int ret;
 
-	spin_lock_bh(&q->db_lock);
+	spin_lock_irq(&q->db_lock);
 	ret = read_eq_indices(adap, (u16)q->cntxt_id, &hw_pidx, &hw_cidx);
 	if (ret)
 		goto out;
@@ -3621,7 +3804,8 @@ static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
 	}
 out:
 	q->db_disabled = 0;
-	spin_unlock_bh(&q->db_lock);
+	q->db_pidx_inc = 0;
+	spin_unlock_irq(&q->db_lock);
 	if (ret)
 		CH_WARN(adap, "DB drop recovery failed.\n");
 }
@@ -3637,29 +3821,6 @@ static void recover_all_queues(struct adapter *adap)
 		sync_txq_pidx(adap, &adap->sge.ctrlq[i].q);
 }
 
-static void notify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
-{
-	mutex_lock(&uld_mutex);
-	if (adap->uld_handle[CXGB4_ULD_RDMA])
-		ulds[CXGB4_ULD_RDMA].control(adap->uld_handle[CXGB4_ULD_RDMA],
-				cmd);
-	mutex_unlock(&uld_mutex);
-}
-
-static void process_db_full(struct work_struct *work)
-{
-	struct adapter *adap;
-
-	adap = container_of(work, struct adapter, db_full_task);
-
-	notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
-	drain_db_fifo(adap, dbfifo_drain_delay);
-	t4_set_reg_field(adap, SGE_INT_ENABLE3,
-			 DBFIFO_HP_INT | DBFIFO_LP_INT,
-			 DBFIFO_HP_INT | DBFIFO_LP_INT);
-	notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
-}
-
 static void process_db_drop(struct work_struct *work)
 {
 	struct adapter *adap;
@@ -3667,11 +3828,13 @@ static void process_db_drop(struct work_struct *work)
 	adap = container_of(work, struct adapter, db_drop_task);
 
 	if (is_t4(adap->params.chip)) {
-		disable_dbs(adap);
+		drain_db_fifo(adap, dbfifo_drain_delay);
 		notify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
-		drain_db_fifo(adap, 1);
+		drain_db_fifo(adap, dbfifo_drain_delay);
 		recover_all_queues(adap);
+		drain_db_fifo(adap, dbfifo_drain_delay);
 		enable_dbs(adap);
+		notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
 	} else {
 		u32 dropped_db = t4_read_reg(adap, 0x010ac);
 		u16 qid = (dropped_db >> 15) & 0x1ffff;
@@ -3712,6 +3875,8 @@ static void process_db_drop(struct work_struct *work)
 void t4_db_full(struct adapter *adap)
 {
 	if (is_t4(adap->params.chip)) {
+		disable_dbs(adap);
+		notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
 		t4_set_reg_field(adap, SGE_INT_ENABLE3,
 				 DBFIFO_HP_INT | DBFIFO_LP_INT, 0);
 		queue_work(workq, &adap->db_full_task);
@@ -3720,8 +3885,11 @@ void t4_db_full(struct adapter *adap)
 
 void t4_db_dropped(struct adapter *adap)
 {
-	if (is_t4(adap->params.chip))
-		queue_work(workq, &adap->db_drop_task);
+	if (is_t4(adap->params.chip)) {
+		disable_dbs(adap);
+		notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
+	}
+	queue_work(workq, &adap->db_drop_task);
 }
 
 static void uld_attach(struct adapter *adap, unsigned int uld)
@@ -3738,7 +3906,9 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.mtus = adap->params.mtus;
 	if (uld == CXGB4_ULD_RDMA) {
 		lli.rxq_ids = adap->sge.rdma_rxq;
+		lli.ciq_ids = adap->sge.rdma_ciq;
 		lli.nrxq = adap->sge.rdmaqs;
+		lli.nciq = adap->sge.rdmaciqs;
 	} else if (uld == CXGB4_ULD_ISCSI) {
 		lli.rxq_ids = adap->sge.ofld_rxq;
 		lli.nrxq = adap->sge.ofldqsets;
@@ -3765,6 +3935,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.dbfifo_int_thresh = dbfifo_int_thresh;
 	lli.sge_pktshift = adap->sge.pktshift;
 	lli.enable_fw_ofld_conn = adap->flags & FW_OFLD_CONN;
+	lli.ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;
 
 	handle = ulds[uld].add(&lli);
 	if (IS_ERR(handle)) {
@@ -3886,22 +4057,19 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 EXPORT_SYMBOL(cxgb4_unregister_uld);
 
 /* Check if netdev on which event is occured belongs to us or not. Return
- * suceess (1) if it belongs otherwise failure (0).
+ * success (true) if it belongs otherwise failure (false).
+ * Called with rcu_read_lock() held.
  */
-static int cxgb4_netdev(struct net_device *netdev)
+static bool cxgb4_netdev(const struct net_device *netdev)
 {
 	struct adapter *adap;
 	int i;
 
-	spin_lock(&adap_rcu_lock);
 	list_for_each_entry_rcu(adap, &adap_rcu_list, rcu_node)
 		for (i = 0; i < MAX_NPORTS; i++)
-			if (adap->port[i] == netdev) {
-				spin_unlock(&adap_rcu_lock);
-				return 1;
-			}
-	spin_unlock(&adap_rcu_lock);
-	return 0;
+			if (adap->port[i] == netdev)
+				return true;
+	return false;
 }
 
 static int clip_add(struct net_device *event_dev, struct inet6_ifaddr *ifa,
@@ -4016,7 +4184,7 @@ static int update_root_dev_clip(struct net_device *dev)
 
 	/* Parse all bond and vlan devices layered on top of the physical dev */
 	for (i = 0; i < VLAN_N_VID; i++) {
-		root_dev = __vlan_find_dev_deep(dev, htons(ETH_P_8021Q), i);
+		root_dev = __vlan_find_dev_deep_rcu(dev, htons(ETH_P_8021Q), i);
 		if (!root_dev)
 			continue;
 
@@ -5370,6 +5538,21 @@ static int adap_init0(struct adapter *adap)
 	(void) t4_set_params(adap, adap->mbox, adap->fn, 0, 1, params, val);
 
 	/*
+	 * Find out whether we're allowed to use the T5+ ULPTX MEMWRITE DSGL
+	 * capability.  Earlier versions of the firmware didn't have the
+	 * ULPTX_MEMWRITE_DSGL so we'll interpret a query failure as no
+	 * permission to use ULPTX MEMWRITE DSGL.
+	 */
+	if (is_t4(adap->params.chip)) {
+		adap->params.ulptx_memwrite_dsgl = false;
+	} else {
+		params[0] = FW_PARAM_DEV(ULPTX_MEMWRITE_DSGL);
+		ret = t4_query_params(adap, adap->mbox, adap->fn, 0,
+				      1, params, val);
+		adap->params.ulptx_memwrite_dsgl = (ret == 0 && val[0] != 0);
+	}
+
+	/*
 	 * Get device capabilities so we can determine what resources we need
 	 * to manage.
 	 */
@@ -5468,13 +5651,41 @@ static int adap_init0(struct adapter *adap)
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV
 
-	/*
-	 * These are finalized by FW initialization, load their values now.
+	/* The MTU/MSS Table is initialized by now, so load their values.  If
+	 * we're initializing the adapter, then we'll make any modifications
+	 * we want to the MTU/MSS Table and also initialize the congestion
+	 * parameters.
 	 */
 	t4_read_mtu_tbl(adap, adap->params.mtus, NULL);
-	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
-		     adap->params.b_wnd);
+	if (state != DEV_STATE_INIT) {
+		int i;
 
+		/* The default MTU Table contains values 1492 and 1500.
+		 * However, for TCP, it's better to have two values which are
+		 * a multiple of 8 +/- 4 bytes apart near this popular MTU.
+		 * This allows us to have a TCP Data Payload which is a
+		 * multiple of 8 regardless of what combination of TCP Options
+		 * are in use (always a multiple of 4 bytes) which is
+		 * important for performance reasons.  For instance, if no
+		 * options are in use, then we have a 20-byte IP header and a
+		 * 20-byte TCP header.  In this case, a 1500-byte MSS would
+		 * result in a TCP Data Payload of 1500 - 40 == 1460 bytes
+		 * which is not a multiple of 8.  So using an MSS of 1488 in
+		 * this case results in a TCP Data Payload of 1448 bytes which
+		 * is a multiple of 8.  On the other hand, if 12-byte TCP Time
+		 * Stamps have been negotiated, then an MTU of 1500 bytes
+		 * results in a TCP Data Payload of 1448 bytes which, as
+		 * above, is a multiple of 8 bytes ...
+		 */
+		for (i = 0; i < NMTUS; i++)
+			if (adap->params.mtus[i] == 1492) {
+				adap->params.mtus[i] = 1488;
+				break;
+			}
+
+		t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
+			     adap->params.b_wnd);
+	}
 	t4_init_tp_params(adap);
 	adap->flags |= FW_OK;
 	return 0;
@@ -5603,17 +5814,18 @@ static const struct pci_error_handlers cxgb4_eeh = {
 	.resume         = eeh_resume,
 };
 
-static inline bool is_10g_port(const struct link_config *lc)
+static inline bool is_x_10g_port(const struct link_config *lc)
 {
-	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0;
+	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0 ||
+	       (lc->supported & FW_PORT_CAP_SPEED_40G) != 0;
 }
 
-static inline void init_rspq(struct sge_rspq *q, u8 timer_idx, u8 pkt_cnt_idx,
+static inline void init_rspq(struct adapter *adap, struct sge_rspq *q,
+			     unsigned int us, unsigned int cnt,
 			     unsigned int size, unsigned int iqe_size)
 {
-	q->intr_params = QINTR_TIMER_IDX(timer_idx) |
-			 (pkt_cnt_idx < SGE_NCOUNTERS ? QINTR_CNT_EN : 0);
-	q->pktcnt_idx = pkt_cnt_idx < SGE_NCOUNTERS ? pkt_cnt_idx : 0;
+	q->adap = adap;
+	set_rspq_intr_params(q, us, cnt);
 	q->iqe_len = iqe_size;
 	q->size = size;
 }
@@ -5627,9 +5839,10 @@ static void cfg_queues(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
 	int i, q10g = 0, n10g = 0, qidx = 0;
+	int ciq_size;
 
 	for_each_port(adap, i)
-		n10g += is_10g_port(&adap2pinfo(adap, i)->link_cfg);
+		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
 
 	/*
 	 * We default to 1 queue per non-10G port and up to # of cores queues
@@ -5644,7 +5857,7 @@ static void cfg_queues(struct adapter *adap)
 		struct port_info *pi = adap2pinfo(adap, i);
 
 		pi->first_qset = qidx;
-		pi->nqsets = is_10g_port(&pi->link_cfg) ? q10g : 1;
+		pi->nqsets = is_x_10g_port(&pi->link_cfg) ? q10g : 1;
 		qidx += pi->nqsets;
 	}
 
@@ -5665,12 +5878,13 @@ static void cfg_queues(struct adapter *adap)
 			s->ofldqsets = adap->params.nports;
 		/* For RDMA one Rx queue per channel suffices */
 		s->rdmaqs = adap->params.nports;
+		s->rdmaciqs = adap->params.nports;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
 		struct sge_eth_rxq *r = &s->ethrxq[i];
 
-		init_rspq(&r->rspq, 0, 0, 1024, 64);
+		init_rspq(adap, &r->rspq, 5, 10, 1024, 64);
 		r->fl.size = 72;
 	}
 
@@ -5686,7 +5900,7 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->ofldrxq); i++) {
 		struct sge_ofld_rxq *r = &s->ofldrxq[i];
 
-		init_rspq(&r->rspq, 0, 0, 1024, 64);
+		init_rspq(adap, &r->rspq, 5, 1, 1024, 64);
 		r->rspq.uld = CXGB4_ULD_ISCSI;
 		r->fl.size = 72;
 	}
@@ -5694,13 +5908,26 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->rdmarxq); i++) {
 		struct sge_ofld_rxq *r = &s->rdmarxq[i];
 
-		init_rspq(&r->rspq, 0, 0, 511, 64);
+		init_rspq(adap, &r->rspq, 5, 1, 511, 64);
 		r->rspq.uld = CXGB4_ULD_RDMA;
 		r->fl.size = 72;
 	}
 
-	init_rspq(&s->fw_evtq, 6, 0, 512, 64);
-	init_rspq(&s->intrq, 6, 0, 2 * MAX_INGQ, 64);
+	ciq_size = 64 + adap->vres.cq.size + adap->tids.nftids;
+	if (ciq_size > SGE_MAX_IQ_SIZE) {
+		CH_WARN(adap, "CIQ size too small for available IQs\n");
+		ciq_size = SGE_MAX_IQ_SIZE;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(s->rdmaciq); i++) {
+		struct sge_ofld_rxq *r = &s->rdmaciq[i];
+
+		init_rspq(adap, &r->rspq, 5, 1, ciq_size, 64);
+		r->rspq.uld = CXGB4_ULD_RDMA;
+	}
+
+	init_rspq(adap, &s->fw_evtq, 0, 1, 1024, 64);
+	init_rspq(adap, &s->intrq, 0, 1, 2 * MAX_INGQ, 64);
 }
 
 /*
@@ -5737,7 +5964,7 @@ static void reduce_ethqs(struct adapter *adap, int n)
 static int enable_msix(struct adapter *adap)
 {
 	int ofld_need = 0;
-	int i, err, want, need;
+	int i, want, need;
 	struct sge *s = &adap->sge;
 	unsigned int nchan = adap->params.nports;
 	struct msix_entry entries[MAX_INGQ + 1];
@@ -5747,38 +5974,36 @@ static int enable_msix(struct adapter *adap)
 
 	want = s->max_ethqsets + EXTRA_VECS;
 	if (is_offload(adap)) {
-		want += s->rdmaqs + s->ofldqsets;
+		want += s->rdmaqs + s->rdmaciqs + s->ofldqsets;
 		/* need nchan for each possible ULD */
-		ofld_need = 2 * nchan;
+		ofld_need = 3 * nchan;
 	}
 	need = adap->params.nports + EXTRA_VECS + ofld_need;
 
-	while ((err = pci_enable_msix(adap->pdev, entries, want)) >= need)
-		want = err;
+	want = pci_enable_msix_range(adap->pdev, entries, need, want);
+	if (want < 0)
+		return want;
 
-	if (!err) {
-		/*
-		 * Distribute available vectors to the various queue groups.
-		 * Every group gets its minimum requirement and NIC gets top
-		 * priority for leftovers.
-		 */
-		i = want - EXTRA_VECS - ofld_need;
-		if (i < s->max_ethqsets) {
-			s->max_ethqsets = i;
-			if (i < s->ethqsets)
-				reduce_ethqs(adap, i);
-		}
-		if (is_offload(adap)) {
-			i = want - EXTRA_VECS - s->max_ethqsets;
-			i -= ofld_need - nchan;
-			s->ofldqsets = (i / nchan) * nchan;  /* round down */
-		}
-		for (i = 0; i < want; ++i)
-			adap->msix_info[i].vec = entries[i].vector;
-	} else if (err > 0)
-		dev_info(adap->pdev_dev,
-			 "only %d MSI-X vectors left, not using MSI-X\n", err);
-	return err;
+	/*
+	 * Distribute available vectors to the various queue groups.
+	 * Every group gets its minimum requirement and NIC gets top
+	 * priority for leftovers.
+	 */
+	i = want - EXTRA_VECS - ofld_need;
+	if (i < s->max_ethqsets) {
+		s->max_ethqsets = i;
+		if (i < s->ethqsets)
+			reduce_ethqs(adap, i);
+	}
+	if (is_offload(adap)) {
+		i = want - EXTRA_VECS - s->max_ethqsets;
+		i -= ofld_need - nchan;
+		s->ofldqsets = (i / nchan) * nchan;  /* round down */
+	}
+	for (i = 0; i < want; ++i)
+		adap->msix_info[i].vec = entries[i].vector;
+
+	return 0;
 }
 
 #undef EXTRA_VECS
@@ -5801,11 +6026,6 @@ static int init_rss(struct adapter *adap)
 
 static void print_port_info(const struct net_device *dev)
 {
-	static const char *base[] = {
-		"R XFI", "R XAUI", "T SGMII", "T XFI", "T XAUI", "KX4", "CX4",
-		"KX", "KR", "R SFP+", "KR/KX", "KR/KX/KX4"
-	};
-
 	char buf[80];
 	char *bufp = buf;
 	const char *spd = "";
@@ -5816,6 +6036,8 @@ static void print_port_info(const struct net_device *dev)
 		spd = " 2.5 GT/s";
 	else if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_5_0GB)
 		spd = " 5 GT/s";
+	else if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_8_0GB)
+		spd = " 8 GT/s";
 
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100M)
 		bufp += sprintf(bufp, "100/");
@@ -5823,9 +6045,11 @@ static void print_port_info(const struct net_device *dev)
 		bufp += sprintf(bufp, "1000/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
 		bufp += sprintf(bufp, "10G/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
+		bufp += sprintf(bufp, "40G/");
 	if (bufp != buf)
 		--bufp;
-	sprintf(bufp, "BASE-%s", base[pi->port_type]);
+	sprintf(bufp, "BASE-%s", t4_get_port_type_description(pi->port_type));
 
 	netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
 		    adap->params.vpd.id,
@@ -5833,8 +6057,8 @@ static void print_port_info(const struct net_device *dev)
 		    is_offload(adap) ? "R" : "", adap->params.pci.width, spd,
 		    (adap->flags & USING_MSIX) ? " MSI-X" :
 		    (adap->flags & USING_MSI) ? " MSI" : "");
-	netdev_info(dev, "S/N: %s, E/C: %s\n",
-		    adap->params.vpd.sn, adap->params.vpd.ec);
+	netdev_info(dev, "S/N: %s, P/N: %s\n",
+		    adap->params.vpd.sn, adap->params.vpd.pn);
 }
 
 static void enable_pcie_relaxed_ordering(struct pci_dev *dev)
@@ -6018,7 +6242,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		netdev->netdev_ops = &cxgb4_netdev_ops;
-		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
+		netdev->ethtool_ops = &cxgb_ethtool_ops;
 	}
 
 	pci_set_drvdata(pdev, adapter);
@@ -6169,6 +6393,7 @@ static void remove_one(struct pci_dev *pdev)
 			adapter->flags &= ~DEV_ENABLED;
 		}
 		pci_release_regions(pdev);
+		synchronize_rcu();
 		kfree(adapter);
 	} else
 		pci_release_regions(pdev);

@@ -111,6 +111,9 @@ struct nfc_target {
 	u8 sensf_res[NFC_SENSF_RES_MAXSIZE];
 	u8 hci_reader_gate;
 	u8 logical_idx;
+	u8 is_iso15693;
+	u8 iso15693_dsfid;
+	u8 iso15693_uid[NFC_ISO15693_UID_MAXSIZE];
 };
 
 /**
@@ -260,5 +263,8 @@ void nfc_driver_failure(struct nfc_dev *dev, int err);
 int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
 int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
 struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx);
+
+void nfc_send_to_raw_sock(struct nfc_dev *dev, struct sk_buff *skb,
+			  u8 payload_type, u8 direction);
 
 #endif /* __NET_NFC_H */

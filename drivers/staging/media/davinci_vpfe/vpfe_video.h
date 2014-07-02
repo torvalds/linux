@@ -32,7 +32,7 @@ struct vpfe_device;
  *		if there was no buffer previously queued.
  */
 struct vpfe_video_operations {
-	int(*queue) (struct vpfe_device *vpfe_dev, unsigned long addr);
+	int (*queue)(struct vpfe_device *vpfe_dev, unsigned long addr);
 };
 
 enum vpfe_pipeline_stream_state {
@@ -102,8 +102,6 @@ struct vpfe_video_device {
 	 * user has selected
 	 */
 	enum v4l2_memory			memory;
-	/* Used to keep track of state of the priority */
-	struct v4l2_prio_state			prio;
 	/* number of open instances of the channel */
 	u32					usrs;
 	/* flag to indicate whether decoder is initialized */

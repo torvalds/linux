@@ -24,6 +24,12 @@ config AMD_PHY
 	---help---
 	  Currently supports the am79c874
 
+config AMD_XGBE_PHY
+	tristate "Driver for the AMD 10GbE (amd-xgbe) PHYs"
+	depends on OF
+	---help---
+	  Currently supports the AMD 10GbE PHY
+
 config MARVELL_PHY
 	tristate "Drivers for Marvell PHYs"
 	---help---
@@ -70,6 +76,12 @@ config BCM63XX_PHY
 	depends on BCM63XX
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
+
+config BCM7XXX_PHY
+	tristate "Drivers for Broadcom 7xxx SOCs internal PHYs"
+	---help---
+	  Currently supports the BCM7366, BCM7439, BCM7445, and
+	  40nm and 65nm generation of BCM7xxx Set Top Box SoCs.
 
 config BCM87XX_PHY
 	tristate "Driver for Broadcom BCM8706 and BCM8727 PHYs"

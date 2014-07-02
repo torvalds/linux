@@ -8,7 +8,9 @@ Required properties:
 
 - compatible : should be one of
 	"arm,armv8-pmuv3"
+	"arm,cortex-a17-pmu"
 	"arm,cortex-a15-pmu"
+	"arm,cortex-a12-pmu"
 	"arm,cortex-a9-pmu"
 	"arm,cortex-a8-pmu"
 	"arm,cortex-a7-pmu"
@@ -16,7 +18,14 @@ Required properties:
 	"arm,arm11mpcore-pmu"
 	"arm,arm1176-pmu"
 	"arm,arm1136-pmu"
-- interrupts : 1 combined interrupt or 1 per core.
+	"qcom,krait-pmu"
+- interrupts : 1 combined interrupt or 1 per core. If the interrupt is a per-cpu
+               interrupt (PPI) then 1 interrupt should be specified.
+
+Optional properties:
+
+- qcom,no-pc-write : Indicates that this PMU doesn't support the 0xc and 0xd
+                     events.
 
 Example:
 

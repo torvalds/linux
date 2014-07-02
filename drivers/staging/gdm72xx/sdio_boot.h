@@ -16,6 +16,6 @@
 
 struct sdio_func;
 
-extern int sdio_boot(struct sdio_func *func);
+int sdio_boot(struct sdio_func *func);
 
 #endif /* __SDIO_BOOT_H__ */

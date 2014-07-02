@@ -94,9 +94,7 @@ static int ast_drm_thaw(struct drm_device *dev)
 	ast_post_gpu(dev);
 
 	drm_mode_config_reset(dev);
-	drm_modeset_lock_all(dev);
 	drm_helper_resume_force_mode(dev);
-	drm_modeset_unlock_all(dev);
 
 	console_lock();
 	ast_fbdev_set_suspend(dev, 0);
@@ -198,7 +196,6 @@ static const struct file_operations ast_fops = {
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
-	.dev_priv_size = 0,
 
 	.load = ast_driver_load,
 	.unload = ast_driver_unload,

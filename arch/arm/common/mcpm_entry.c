@@ -48,6 +48,11 @@ int __init mcpm_platform_register(const struct mcpm_platform_ops *ops)
 	return 0;
 }
 
+bool mcpm_is_available(void)
+{
+	return (platform_ops) ? true : false;
+}
+
 int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster)
 {
 	if (!platform_ops)
@@ -101,14 +106,14 @@ void mcpm_cpu_power_down(void)
 	BUG();
 }
 
-int mcpm_cpu_power_down_finish(unsigned int cpu, unsigned int cluster)
+int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster)
 {
 	int ret;
 
-	if (WARN_ON_ONCE(!platform_ops || !platform_ops->power_down_finish))
+	if (WARN_ON_ONCE(!platform_ops || !platform_ops->wait_for_powerdown))
 		return -EUNATCH;
 
-	ret = platform_ops->power_down_finish(cpu, cluster);
+	ret = platform_ops->wait_for_powerdown(cpu, cluster);
 	if (ret)
 		pr_warn("%s: cpu %u, cluster %u failed to power down (%d)\n",
 			__func__, cpu, cluster, ret);

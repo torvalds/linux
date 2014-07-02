@@ -182,7 +182,8 @@ static __be32 nfsacld_proc_access(struct svc_rqst *rqstp, struct nfsd3_accessarg
 static int nfsaclsvc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclargs *argp)
 {
-	if (!(p = nfs2svc_decode_fh(p, &argp->fh)))
+	p = nfs2svc_decode_fh(p, &argp->fh);
+	if (!p)
 		return 0;
 	argp->mask = ntohl(*p); p++;
 
@@ -197,7 +198,8 @@ static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
 	unsigned int base;
 	int n;
 
-	if (!(p = nfs2svc_decode_fh(p, &argp->fh)))
+	p = nfs2svc_decode_fh(p, &argp->fh);
+	if (!p)
 		return 0;
 	argp->mask = ntohl(*p++);
 	if (argp->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT) ||
@@ -218,7 +220,8 @@ static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
 static int nfsaclsvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd_fhandle *argp)
 {
-	if (!(p = nfs2svc_decode_fh(p, &argp->fh)))
+	p = nfs2svc_decode_fh(p, &argp->fh);
+	if (!p)
 		return 0;
 	return xdr_argsize_check(rqstp, p);
 }
@@ -226,7 +229,8 @@ static int nfsaclsvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p,
 static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_accessargs *argp)
 {
-	if (!(p = nfs2svc_decode_fh(p, &argp->fh)))
+	p = nfs2svc_decode_fh(p, &argp->fh);
+	if (!p)
 		return 0;
 	argp->access = ntohl(*p++);
 

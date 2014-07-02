@@ -29,7 +29,7 @@
 	.idVendor = (vend), .idProduct = (prod), .bInterfaceClass = (intf)
 
 #define EMERGENCY_PID		0x720f
-#define BL_PID_MASK			0xffc0
+#define BL_PID_MASK		0xffc0
 
 #define USB_DEVICE_BOOTLOADER(vid, pid)	\
 	{USB_DEVICE((vid), ((pid)&BL_PID_MASK)|B_DOWNLOAD)},	\

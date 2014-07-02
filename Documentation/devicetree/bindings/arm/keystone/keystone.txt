@@ -8,3 +8,13 @@ Required properties:
  - compatible: All TI specific devices present in Keystone SOC should be in
    the form "ti,keystone-*". Generic devices like gic, arch_timers, ns16550
    type UART should use the specified compatible for those devices.
+
+Boards:
+-  Keystone 2 Hawking/Kepler EVM
+   compatible = "ti,k2hk-evm","ti,keystone"
+
+-  Keystone 2 Lamarr EVM
+   compatible = "ti,k2l-evm","ti,keystone"
+
+-  Keystone 2 Edison EVM
+   compatible = "ti,k2e-evm","ti,keystone"

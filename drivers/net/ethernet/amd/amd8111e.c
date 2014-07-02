@@ -720,6 +720,9 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 	int rx_pkt_limit = budget;
 	unsigned long flags;
 
+	if (rx_pkt_limit <= 0)
+		goto rx_not_empty;
+
 	do{
 		/* process receive packets until we use the quota*/
 		/* If we own the next entry, it's a new packet. Send it up. */
@@ -1897,7 +1900,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	/* Initialize driver entry points */
 	dev->netdev_ops = &amd8111e_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 	dev->irq =pdev->irq;
 	dev->watchdog_timeo = AMD8111E_TX_TIMEOUT;
 	netif_napi_add(dev, &lp->napi, amd8111e_rx_poll, 32);

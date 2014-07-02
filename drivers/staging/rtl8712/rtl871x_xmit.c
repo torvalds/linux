@@ -87,8 +87,8 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	and initialize free_xmit_frame below.
 	Please also apply  free_txobj to link_up all the xmit_frames...
 	*/
-	pxmitpriv->pallocated_frame_buf = _malloc(NR_XMITFRAME *
-					  sizeof(struct xmit_frame) + 4);
+	pxmitpriv->pallocated_frame_buf = kmalloc(NR_XMITFRAME * sizeof(struct xmit_frame) + 4,
+						  GFP_ATOMIC);
 	if (pxmitpriv->pallocated_frame_buf == NULL) {
 		pxmitpriv->pxmit_frame_buf = NULL;
 		return _FAIL;
@@ -126,8 +126,8 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	/*init xmit_buf*/
 	_init_queue(&pxmitpriv->free_xmitbuf_queue);
 	_init_queue(&pxmitpriv->pending_xmitbuf_queue);
-	pxmitpriv->pallocated_xmitbuf = _malloc(NR_XMITBUFF *
-					sizeof(struct xmit_buf) + 4);
+	pxmitpriv->pallocated_xmitbuf = kmalloc(NR_XMITBUFF * sizeof(struct xmit_buf) + 4,
+						GFP_ATOMIC);
 	if (pxmitpriv->pallocated_xmitbuf  == NULL)
 		return _FAIL;
 	pxmitpriv->pxmitbuf = pxmitpriv->pallocated_xmitbuf + 4 -
@@ -135,8 +135,8 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmitbuf;
 	for (i = 0; i < NR_XMITBUFF; i++) {
 		_init_listhead(&pxmitbuf->list);
-		pxmitbuf->pallocated_buf = _malloc(MAX_XMITBUF_SZ +
-					   XMITBUF_ALIGN_SZ);
+		pxmitbuf->pallocated_buf = kmalloc(MAX_XMITBUF_SZ + XMITBUF_ALIGN_SZ,
+						   GFP_ATOMIC);
 		if (pxmitbuf->pallocated_buf == NULL)
 			return _FAIL;
 		pxmitbuf->pbuf = pxmitbuf->pallocated_buf + XMITBUF_ALIGN_SZ -
@@ -955,8 +955,8 @@ static void alloc_hwxmits(struct _adapter *padapter)
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
 	pxmitpriv->hwxmit_entry = HWXMIT_ENTRY;
-	pxmitpriv->hwxmits = (struct hw_xmit *)_malloc(sizeof(struct hw_xmit) *
-			     pxmitpriv->hwxmit_entry);
+	pxmitpriv->hwxmits = kmalloc(sizeof(struct hw_xmit) * pxmitpriv->hwxmit_entry,
+				     GFP_ATOMIC);
 	if (pxmitpriv->hwxmits == NULL)
 		return;
 	hwxmits = pxmitpriv->hwxmits;

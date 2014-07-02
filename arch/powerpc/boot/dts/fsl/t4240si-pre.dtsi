@@ -67,62 +67,86 @@
 		cpu0: PowerPC,e6500@0 {
 			device_type = "cpu";
 			reg = <0 1>;
+			clocks = <&mux0>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu1: PowerPC,e6500@2 {
 			device_type = "cpu";
 			reg = <2 3>;
+			clocks = <&mux0>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu2: PowerPC,e6500@4 {
 			device_type = "cpu";
 			reg = <4 5>;
+			clocks = <&mux0>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu3: PowerPC,e6500@6 {
 			device_type = "cpu";
 			reg = <6 7>;
+			clocks = <&mux0>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu4: PowerPC,e6500@8 {
 			device_type = "cpu";
 			reg = <8 9>;
+			clocks = <&mux1>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
 		};
 		cpu5: PowerPC,e6500@10 {
 			device_type = "cpu";
 			reg = <10 11>;
+			clocks = <&mux1>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
 		};
 		cpu6: PowerPC,e6500@12 {
 			device_type = "cpu";
 			reg = <12 13>;
+			clocks = <&mux1>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
 		};
 		cpu7: PowerPC,e6500@14 {
 			device_type = "cpu";
 			reg = <14 15>;
+			clocks = <&mux1>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
 		};
 		cpu8: PowerPC,e6500@16 {
 			device_type = "cpu";
 			reg = <16 17>;
+			clocks = <&mux2>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
 		};
 		cpu9: PowerPC,e6500@18 {
 			device_type = "cpu";
 			reg = <18 19>;
+			clocks = <&mux2>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
 		};
 		cpu10: PowerPC,e6500@20 {
 			device_type = "cpu";
 			reg = <20 21>;
+			clocks = <&mux2>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
 		};
 		cpu11: PowerPC,e6500@22 {
 			device_type = "cpu";
 			reg = <22 23>;
+			clocks = <&mux2>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
 		};
 	};
 };

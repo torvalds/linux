@@ -492,6 +492,8 @@ int mls_convert_context(struct policydb *oldp,
 			rc = ebitmap_set_bit(&bitmap, catdatum->value - 1, 1);
 			if (rc)
 				return rc;
+
+			cond_resched();
 		}
 		ebitmap_destroy(&c->range.level[l].cat);
 		c->range.level[l].cat = bitmap;

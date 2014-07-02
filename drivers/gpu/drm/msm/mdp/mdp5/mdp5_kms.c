@@ -20,6 +20,10 @@
 #include "msm_mmu.h"
 #include "mdp5_kms.h"
 
+static const char *iommu_ports[] = {
+		"mdp_0",
+};
+
 static struct mdp5_platform_config *mdp5_get_config(struct platform_device *dev);
 
 static int mdp5_hw_init(struct msm_kms *kms)
@@ -104,6 +108,12 @@ static void mdp5_preclose(struct msm_kms *kms, struct drm_file *file)
 static void mdp5_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	struct msm_mmu *mmu = mdp5_kms->mmu;
+
+	if (mmu) {
+		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
+		mmu->funcs->destroy(mmu);
+	}
 	kfree(mdp5_kms);
 }
 
@@ -216,10 +226,6 @@ fail:
 	return ret;
 }
 
-static const char *iommu_ports[] = {
-		"mdp_0",
-};
-
 static int get_clk(struct platform_device *pdev, struct clk **clkp,
 		const char *name)
 {
@@ -280,12 +286,22 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk") ||
-			get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk") ||
-			get_clk(pdev, &mdp5_kms->src_clk, "core_clk_src") ||
-			get_clk(pdev, &mdp5_kms->core_clk, "core_clk") ||
-			get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk") ||
-			get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk");
+	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->src_clk, "core_clk_src");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->core_clk, "core_clk");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk");
 	if (ret)
 		goto fail;
 
@@ -307,17 +323,23 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		mmu = msm_iommu_new(dev, config->iommu);
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
+			dev_err(dev->dev, "failed to init iommu: %d\n", ret);
 			goto fail;
 		}
+
 		ret = mmu->funcs->attach(mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
-		if (ret)
+		if (ret) {
+			dev_err(dev->dev, "failed to attach iommu: %d\n", ret);
+			mmu->funcs->destroy(mmu);
 			goto fail;
+		}
 	} else {
 		dev_info(dev->dev, "no iommu, fallback to phys "
 				"contig buffers for scanout\n");
 		mmu = NULL;
 	}
+	mdp5_kms->mmu = mmu;
 
 	mdp5_kms->id = msm_register_mmu(dev, mmu);
 	if (mdp5_kms->id < 0) {

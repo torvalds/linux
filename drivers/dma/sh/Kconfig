@@ -4,7 +4,7 @@
 
 config SH_DMAE_BASE
 	bool "Renesas SuperH DMA Engine support"
-	depends on (SUPERH && SH_DMA) || (ARM && ARCH_SHMOBILE)
+	depends on (SUPERH && SH_DMA) || ARCH_SHMOBILE || COMPILE_TEST
 	depends on !SH_DMA_API
 	default y
 	select DMA_ENGINE
@@ -28,6 +28,12 @@ config RCAR_HPB_DMAE
 	depends on SH_DMAE_BASE
 	help
 	  Enable support for the Renesas R-Car series DMA controllers.
+
+config RCAR_AUDMAC_PP
+	tristate "Renesas R-Car Audio DMAC Peripheral Peripheral support"
+	depends on SH_DMAE_BASE
+	help
+	  Enable support for the Renesas R-Car Audio DMAC Peripheral Peripheral controllers.
 
 config SHDMA_R8A73A4
 	def_bool y

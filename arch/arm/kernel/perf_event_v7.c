@@ -18,6 +18,10 @@
 
 #ifdef CONFIG_CPU_V7
 
+#include <asm/cp15.h>
+#include <asm/vfp.h>
+#include "../vfp/vfpinstr.h"
+
 /*
  * Common ARMv7 event types
  *
@@ -107,6 +111,33 @@ enum armv7_a15_perf_types {
 	ARMV7_A15_PERFCTR_L2_CACHE_REFILL_WRITE		= 0x53,
 
 	ARMV7_A15_PERFCTR_PC_WRITE_SPEC			= 0x76,
+};
+
+/* ARMv7 Cortex-A12 specific event types */
+enum armv7_a12_perf_types {
+	ARMV7_A12_PERFCTR_L1_DCACHE_ACCESS_READ		= 0x40,
+	ARMV7_A12_PERFCTR_L1_DCACHE_ACCESS_WRITE	= 0x41,
+
+	ARMV7_A12_PERFCTR_L2_CACHE_ACCESS_READ		= 0x50,
+	ARMV7_A12_PERFCTR_L2_CACHE_ACCESS_WRITE		= 0x51,
+
+	ARMV7_A12_PERFCTR_PC_WRITE_SPEC			= 0x76,
+
+	ARMV7_A12_PERFCTR_PF_TLB_REFILL			= 0xe7,
+};
+
+/* ARMv7 Krait specific event types */
+enum krait_perf_types {
+	KRAIT_PMRESR0_GROUP0				= 0xcc,
+	KRAIT_PMRESR1_GROUP0				= 0xd0,
+	KRAIT_PMRESR2_GROUP0				= 0xd4,
+	KRAIT_VPMRESR0_GROUP0				= 0xd8,
+
+	KRAIT_PERFCTR_L1_ICACHE_ACCESS			= 0x10011,
+	KRAIT_PERFCTR_L1_ICACHE_MISS			= 0x10010,
+
+	KRAIT_PERFCTR_L1_ITLB_ACCESS			= 0x12222,
+	KRAIT_PERFCTR_L1_DTLB_ACCESS			= 0x12210,
 };
 
 /*
@@ -732,6 +763,262 @@ static const unsigned armv7_a7_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 };
 
 /*
+ * Cortex-A12 HW events mapping
+ */
+static const unsigned armv7_a12_perf_map[PERF_COUNT_HW_MAX] = {
+	[PERF_COUNT_HW_CPU_CYCLES]		= ARMV7_PERFCTR_CPU_CYCLES,
+	[PERF_COUNT_HW_INSTRUCTIONS]		= ARMV7_PERFCTR_INSTR_EXECUTED,
+	[PERF_COUNT_HW_CACHE_REFERENCES]	= ARMV7_PERFCTR_L1_DCACHE_ACCESS,
+	[PERF_COUNT_HW_CACHE_MISSES]		= ARMV7_PERFCTR_L1_DCACHE_REFILL,
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= ARMV7_A12_PERFCTR_PC_WRITE_SPEC,
+	[PERF_COUNT_HW_BRANCH_MISSES]		= ARMV7_PERFCTR_PC_BRANCH_MIS_PRED,
+	[PERF_COUNT_HW_BUS_CYCLES]		= ARMV7_PERFCTR_BUS_CYCLES,
+	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND]	= HW_OP_UNSUPPORTED,
+	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND]	= HW_OP_UNSUPPORTED,
+};
+
+static const unsigned armv7_a12_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
+					[PERF_COUNT_HW_CACHE_OP_MAX]
+					[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
+	[C(L1D)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_A12_PERFCTR_L1_DCACHE_ACCESS_READ,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_DCACHE_REFILL,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_A12_PERFCTR_L1_DCACHE_ACCESS_WRITE,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_DCACHE_REFILL,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(L1I)] = {
+		/*
+		 * Not all performance counters differentiate between read
+		 * and write accesses/misses so we're not always strictly
+		 * correct, but it's the best we can do. Writes and reads get
+		 * combined in these cases.
+		 */
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_L1_ICACHE_ACCESS,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_ICACHE_REFILL,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(LL)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_A12_PERFCTR_L2_CACHE_ACCESS_READ,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L2_CACHE_REFILL,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_A12_PERFCTR_L2_CACHE_ACCESS_WRITE,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L2_CACHE_REFILL,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(DTLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_DTLB_REFILL,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_DTLB_REFILL,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= ARMV7_A12_PERFCTR_PF_TLB_REFILL,
+		},
+	},
+	[C(ITLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_ITLB_REFILL,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_ITLB_REFILL,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(BPU)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_PC_BRANCH_PRED,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_PC_BRANCH_MIS_PRED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_PC_BRANCH_PRED,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_PC_BRANCH_MIS_PRED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(NODE)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+};
+
+/*
+ * Krait HW events mapping
+ */
+static const unsigned krait_perf_map[PERF_COUNT_HW_MAX] = {
+	[PERF_COUNT_HW_CPU_CYCLES]	    = ARMV7_PERFCTR_CPU_CYCLES,
+	[PERF_COUNT_HW_INSTRUCTIONS]	    = ARMV7_PERFCTR_INSTR_EXECUTED,
+	[PERF_COUNT_HW_CACHE_REFERENCES]    = HW_OP_UNSUPPORTED,
+	[PERF_COUNT_HW_CACHE_MISSES]	    = HW_OP_UNSUPPORTED,
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = ARMV7_PERFCTR_PC_WRITE,
+	[PERF_COUNT_HW_BRANCH_MISSES]	    = ARMV7_PERFCTR_PC_BRANCH_MIS_PRED,
+	[PERF_COUNT_HW_BUS_CYCLES]	    = ARMV7_PERFCTR_CLOCK_CYCLES,
+};
+
+static const unsigned krait_perf_map_no_branch[PERF_COUNT_HW_MAX] = {
+	[PERF_COUNT_HW_CPU_CYCLES]	    = ARMV7_PERFCTR_CPU_CYCLES,
+	[PERF_COUNT_HW_INSTRUCTIONS]	    = ARMV7_PERFCTR_INSTR_EXECUTED,
+	[PERF_COUNT_HW_CACHE_REFERENCES]    = HW_OP_UNSUPPORTED,
+	[PERF_COUNT_HW_CACHE_MISSES]	    = HW_OP_UNSUPPORTED,
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = HW_OP_UNSUPPORTED,
+	[PERF_COUNT_HW_BRANCH_MISSES]	    = ARMV7_PERFCTR_PC_BRANCH_MIS_PRED,
+	[PERF_COUNT_HW_BUS_CYCLES]	    = ARMV7_PERFCTR_CLOCK_CYCLES,
+};
+
+static const unsigned krait_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
+					  [PERF_COUNT_HW_CACHE_OP_MAX]
+					  [PERF_COUNT_HW_CACHE_RESULT_MAX] = {
+	[C(L1D)] = {
+		/*
+		 * The performance counters don't differentiate between read
+		 * and write accesses/misses so this isn't strictly correct,
+		 * but it's the best we can do. Writes and reads get
+		 * combined.
+		 */
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_L1_DCACHE_ACCESS,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_DCACHE_REFILL,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_L1_DCACHE_ACCESS,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_DCACHE_REFILL,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(L1I)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= KRAIT_PERFCTR_L1_ICACHE_ACCESS,
+			[C(RESULT_MISS)]	= KRAIT_PERFCTR_L1_ICACHE_MISS,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(LL)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(DTLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= KRAIT_PERFCTR_L1_DTLB_ACCESS,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= KRAIT_PERFCTR_L1_DTLB_ACCESS,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(ITLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= KRAIT_PERFCTR_L1_ITLB_ACCESS,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= KRAIT_PERFCTR_L1_ITLB_ACCESS,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(BPU)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_PC_BRANCH_PRED,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_PC_BRANCH_MIS_PRED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= ARMV7_PERFCTR_PC_BRANCH_PRED,
+			[C(RESULT_MISS)]	= ARMV7_PERFCTR_PC_BRANCH_MIS_PRED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(NODE)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+};
+
+/*
  * Perf Events' indices
  */
 #define	ARMV7_IDX_CYCLE_COUNTER	0
@@ -1212,6 +1499,24 @@ static int armv7_a7_map_event(struct perf_event *event)
 				&armv7_a7_perf_cache_map, 0xFF);
 }
 
+static int armv7_a12_map_event(struct perf_event *event)
+{
+	return armpmu_map_event(event, &armv7_a12_perf_map,
+				&armv7_a12_perf_cache_map, 0xFF);
+}
+
+static int krait_map_event(struct perf_event *event)
+{
+	return armpmu_map_event(event, &krait_perf_map,
+				&krait_perf_cache_map, 0xFFFFF);
+}
+
+static int krait_map_event_no_branch(struct perf_event *event)
+{
+	return armpmu_map_event(event, &krait_perf_map_no_branch,
+				&krait_perf_cache_map, 0xFFFFF);
+}
+
 static void armv7pmu_init(struct arm_pmu *cpu_pmu)
 {
 	cpu_pmu->handle_irq	= armv7pmu_handle_irq;
@@ -1283,6 +1588,415 @@ static int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
 	return 0;
 }
+
+static int armv7_a12_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	armv7pmu_init(cpu_pmu);
+	cpu_pmu->name		= "ARMv7 Cortex-A12";
+	cpu_pmu->map_event	= armv7_a12_map_event;
+	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
+	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
+	return 0;
+}
+
+static int armv7_a17_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	armv7_a12_pmu_init(cpu_pmu);
+	cpu_pmu->name = "ARMv7 Cortex-A17";
+	return 0;
+}
+
+/*
+ * Krait Performance Monitor Region Event Selection Register (PMRESRn)
+ *
+ *            31   30     24     16     8      0
+ *            +--------------------------------+
+ *  PMRESR0   | EN |  CC  |  CC  |  CC  |  CC  |   N = 1, R = 0
+ *            +--------------------------------+
+ *  PMRESR1   | EN |  CC  |  CC  |  CC  |  CC  |   N = 1, R = 1
+ *            +--------------------------------+
+ *  PMRESR2   | EN |  CC  |  CC  |  CC  |  CC  |   N = 1, R = 2
+ *            +--------------------------------+
+ *  VPMRESR0  | EN |  CC  |  CC  |  CC  |  CC  |   N = 2, R = ?
+ *            +--------------------------------+
+ *              EN | G=3  | G=2  | G=1  | G=0
+ *
+ *  Event Encoding:
+ *
+ *      hwc->config_base = 0xNRCCG
+ *
+ *      N  = prefix, 1 for Krait CPU (PMRESRn), 2 for Venum VFP (VPMRESR)
+ *      R  = region register
+ *      CC = class of events the group G is choosing from
+ *      G  = group or particular event
+ *
+ *  Example: 0x12021 is a Krait CPU event in PMRESR2's group 1 with code 2
+ *
+ *  A region (R) corresponds to a piece of the CPU (execution unit, instruction
+ *  unit, etc.) while the event code (CC) corresponds to a particular class of
+ *  events (interrupts for example). An event code is broken down into
+ *  groups (G) that can be mapped into the PMU (irq, fiqs, and irq+fiqs for
+ *  example).
+ */
+
+#define KRAIT_EVENT		(1 << 16)
+#define VENUM_EVENT		(2 << 16)
+#define KRAIT_EVENT_MASK	(KRAIT_EVENT | VENUM_EVENT)
+#define PMRESRn_EN		BIT(31)
+
+static u32 krait_read_pmresrn(int n)
+{
+	u32 val;
+
+	switch (n) {
+	case 0:
+		asm volatile("mrc p15, 1, %0, c9, c15, 0" : "=r" (val));
+		break;
+	case 1:
+		asm volatile("mrc p15, 1, %0, c9, c15, 1" : "=r" (val));
+		break;
+	case 2:
+		asm volatile("mrc p15, 1, %0, c9, c15, 2" : "=r" (val));
+		break;
+	default:
+		BUG(); /* Should be validated in krait_pmu_get_event_idx() */
+	}
+
+	return val;
+}
+
+static void krait_write_pmresrn(int n, u32 val)
+{
+	switch (n) {
+	case 0:
+		asm volatile("mcr p15, 1, %0, c9, c15, 0" : : "r" (val));
+		break;
+	case 1:
+		asm volatile("mcr p15, 1, %0, c9, c15, 1" : : "r" (val));
+		break;
+	case 2:
+		asm volatile("mcr p15, 1, %0, c9, c15, 2" : : "r" (val));
+		break;
+	default:
+		BUG(); /* Should be validated in krait_pmu_get_event_idx() */
+	}
+}
+
+static u32 krait_read_vpmresr0(void)
+{
+	u32 val;
+	asm volatile("mrc p10, 7, %0, c11, c0, 0" : "=r" (val));
+	return val;
+}
+
+static void krait_write_vpmresr0(u32 val)
+{
+	asm volatile("mcr p10, 7, %0, c11, c0, 0" : : "r" (val));
+}
+
+static void krait_pre_vpmresr0(u32 *venum_orig_val, u32 *fp_orig_val)
+{
+	u32 venum_new_val;
+	u32 fp_new_val;
+
+	BUG_ON(preemptible());
+	/* CPACR Enable CP10 and CP11 access */
+	*venum_orig_val = get_copro_access();
+	venum_new_val = *venum_orig_val | CPACC_SVC(10) | CPACC_SVC(11);
+	set_copro_access(venum_new_val);
+
+	/* Enable FPEXC */
+	*fp_orig_val = fmrx(FPEXC);
+	fp_new_val = *fp_orig_val | FPEXC_EN;
+	fmxr(FPEXC, fp_new_val);
+}
+
+static void krait_post_vpmresr0(u32 venum_orig_val, u32 fp_orig_val)
+{
+	BUG_ON(preemptible());
+	/* Restore FPEXC */
+	fmxr(FPEXC, fp_orig_val);
+	isb();
+	/* Restore CPACR */
+	set_copro_access(venum_orig_val);
+}
+
+static u32 krait_get_pmresrn_event(unsigned int region)
+{
+	static const u32 pmresrn_table[] = { KRAIT_PMRESR0_GROUP0,
+					     KRAIT_PMRESR1_GROUP0,
+					     KRAIT_PMRESR2_GROUP0 };
+	return pmresrn_table[region];
+}
+
+static void krait_evt_setup(int idx, u32 config_base)
+{
+	u32 val;
+	u32 mask;
+	u32 vval, fval;
+	unsigned int region;
+	unsigned int group;
+	unsigned int code;
+	unsigned int group_shift;
+	bool venum_event;
+
+	venum_event = !!(config_base & VENUM_EVENT);
+	region = (config_base >> 12) & 0xf;
+	code   = (config_base >> 4) & 0xff;
+	group  = (config_base >> 0)  & 0xf;
+
+	group_shift = group * 8;
+	mask = 0xff << group_shift;
+
+	/* Configure evtsel for the region and group */
+	if (venum_event)
+		val = KRAIT_VPMRESR0_GROUP0;
+	else
+		val = krait_get_pmresrn_event(region);
+	val += group;
+	/* Mix in mode-exclusion bits */
+	val |= config_base & (ARMV7_EXCLUDE_USER | ARMV7_EXCLUDE_PL1);
+	armv7_pmnc_write_evtsel(idx, val);
+
+	asm volatile("mcr p15, 0, %0, c9, c15, 0" : : "r" (0));
+
+	if (venum_event) {
+		krait_pre_vpmresr0(&vval, &fval);
+		val = krait_read_vpmresr0();
+		val &= ~mask;
+		val |= code << group_shift;
+		val |= PMRESRn_EN;
+		krait_write_vpmresr0(val);
+		krait_post_vpmresr0(vval, fval);
+	} else {
+		val = krait_read_pmresrn(region);
+		val &= ~mask;
+		val |= code << group_shift;
+		val |= PMRESRn_EN;
+		krait_write_pmresrn(region, val);
+	}
+}
+
+static u32 krait_clear_pmresrn_group(u32 val, int group)
+{
+	u32 mask;
+	int group_shift;
+
+	group_shift = group * 8;
+	mask = 0xff << group_shift;
+	val &= ~mask;
+
+	/* Don't clear enable bit if entire region isn't disabled */
+	if (val & ~PMRESRn_EN)
+		return val |= PMRESRn_EN;
+
+	return 0;
+}
+
+static void krait_clearpmu(u32 config_base)
+{
+	u32 val;
+	u32 vval, fval;
+	unsigned int region;
+	unsigned int group;
+	bool venum_event;
+
+	venum_event = !!(config_base & VENUM_EVENT);
+	region = (config_base >> 12) & 0xf;
+	group  = (config_base >> 0)  & 0xf;
+
+	if (venum_event) {
+		krait_pre_vpmresr0(&vval, &fval);
+		val = krait_read_vpmresr0();
+		val = krait_clear_pmresrn_group(val, group);
+		krait_write_vpmresr0(val);
+		krait_post_vpmresr0(vval, fval);
+	} else {
+		val = krait_read_pmresrn(region);
+		val = krait_clear_pmresrn_group(val, group);
+		krait_write_pmresrn(region, val);
+	}
+}
+
+static void krait_pmu_disable_event(struct perf_event *event)
+{
+	unsigned long flags;
+	struct hw_perf_event *hwc = &event->hw;
+	int idx = hwc->idx;
+	struct pmu_hw_events *events = cpu_pmu->get_hw_events();
+
+	/* Disable counter and interrupt */
+	raw_spin_lock_irqsave(&events->pmu_lock, flags);
+
+	/* Disable counter */
+	armv7_pmnc_disable_counter(idx);
+
+	/*
+	 * Clear pmresr code (if destined for PMNx counters)
+	 */
+	if (hwc->config_base & KRAIT_EVENT_MASK)
+		krait_clearpmu(hwc->config_base);
+
+	/* Disable interrupt for this counter */
+	armv7_pmnc_disable_intens(idx);
+
+	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
+}
+
+static void krait_pmu_enable_event(struct perf_event *event)
+{
+	unsigned long flags;
+	struct hw_perf_event *hwc = &event->hw;
+	int idx = hwc->idx;
+	struct pmu_hw_events *events = cpu_pmu->get_hw_events();
+
+	/*
+	 * Enable counter and interrupt, and set the counter to count
+	 * the event that we're interested in.
+	 */
+	raw_spin_lock_irqsave(&events->pmu_lock, flags);
+
+	/* Disable counter */
+	armv7_pmnc_disable_counter(idx);
+
+	/*
+	 * Set event (if destined for PMNx counters)
+	 * We set the event for the cycle counter because we
+	 * have the ability to perform event filtering.
+	 */
+	if (hwc->config_base & KRAIT_EVENT_MASK)
+		krait_evt_setup(idx, hwc->config_base);
+	else
+		armv7_pmnc_write_evtsel(idx, hwc->config_base);
+
+	/* Enable interrupt for this counter */
+	armv7_pmnc_enable_intens(idx);
+
+	/* Enable counter */
+	armv7_pmnc_enable_counter(idx);
+
+	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
+}
+
+static void krait_pmu_reset(void *info)
+{
+	u32 vval, fval;
+
+	armv7pmu_reset(info);
+
+	/* Clear all pmresrs */
+	krait_write_pmresrn(0, 0);
+	krait_write_pmresrn(1, 0);
+	krait_write_pmresrn(2, 0);
+
+	krait_pre_vpmresr0(&vval, &fval);
+	krait_write_vpmresr0(0);
+	krait_post_vpmresr0(vval, fval);
+}
+
+static int krait_event_to_bit(struct perf_event *event, unsigned int region,
+			      unsigned int group)
+{
+	int bit;
+	struct hw_perf_event *hwc = &event->hw;
+	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
+
+	if (hwc->config_base & VENUM_EVENT)
+		bit = KRAIT_VPMRESR0_GROUP0;
+	else
+		bit = krait_get_pmresrn_event(region);
+	bit -= krait_get_pmresrn_event(0);
+	bit += group;
+	/*
+	 * Lower bits are reserved for use by the counters (see
+	 * armv7pmu_get_event_idx() for more info)
+	 */
+	bit += ARMV7_IDX_COUNTER_LAST(cpu_pmu) + 1;
+
+	return bit;
+}
+
+/*
+ * We check for column exclusion constraints here.
+ * Two events cant use the same group within a pmresr register.
+ */
+static int krait_pmu_get_event_idx(struct pmu_hw_events *cpuc,
+				   struct perf_event *event)
+{
+	int idx;
+	int bit = -1;
+	unsigned int prefix;
+	unsigned int region;
+	unsigned int code;
+	unsigned int group;
+	bool krait_event;
+	struct hw_perf_event *hwc = &event->hw;
+
+	region = (hwc->config_base >> 12) & 0xf;
+	code   = (hwc->config_base >> 4) & 0xff;
+	group  = (hwc->config_base >> 0) & 0xf;
+	krait_event = !!(hwc->config_base & KRAIT_EVENT_MASK);
+
+	if (krait_event) {
+		/* Ignore invalid events */
+		if (group > 3 || region > 2)
+			return -EINVAL;
+		prefix = hwc->config_base & KRAIT_EVENT_MASK;
+		if (prefix != KRAIT_EVENT && prefix != VENUM_EVENT)
+			return -EINVAL;
+		if (prefix == VENUM_EVENT && (code & 0xe0))
+			return -EINVAL;
+
+		bit = krait_event_to_bit(event, region, group);
+		if (test_and_set_bit(bit, cpuc->used_mask))
+			return -EAGAIN;
+	}
+
+	idx = armv7pmu_get_event_idx(cpuc, event);
+	if (idx < 0 && bit >= 0)
+		clear_bit(bit, cpuc->used_mask);
+
+	return idx;
+}
+
+static void krait_pmu_clear_event_idx(struct pmu_hw_events *cpuc,
+				      struct perf_event *event)
+{
+	int bit;
+	struct hw_perf_event *hwc = &event->hw;
+	unsigned int region;
+	unsigned int group;
+	bool krait_event;
+
+	region = (hwc->config_base >> 12) & 0xf;
+	group  = (hwc->config_base >> 0) & 0xf;
+	krait_event = !!(hwc->config_base & KRAIT_EVENT_MASK);
+
+	if (krait_event) {
+		bit = krait_event_to_bit(event, region, group);
+		clear_bit(bit, cpuc->used_mask);
+	}
+}
+
+static int krait_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	armv7pmu_init(cpu_pmu);
+	cpu_pmu->name		= "ARMv7 Krait";
+	/* Some early versions of Krait don't support PC write events */
+	if (of_property_read_bool(cpu_pmu->plat_device->dev.of_node,
+				  "qcom,no-pc-write"))
+		cpu_pmu->map_event = krait_map_event_no_branch;
+	else
+		cpu_pmu->map_event = krait_map_event;
+	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
+	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
+	cpu_pmu->reset		= krait_pmu_reset;
+	cpu_pmu->enable		= krait_pmu_enable_event;
+	cpu_pmu->disable	= krait_pmu_disable_event;
+	cpu_pmu->get_event_idx	= krait_pmu_get_event_idx;
+	cpu_pmu->clear_event_idx = krait_pmu_clear_event_idx;
+	return 0;
+}
 #else
 static inline int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 {
@@ -1305,6 +2019,21 @@ static inline int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 }
 
 static inline int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	return -ENODEV;
+}
+
+static inline int armv7_a12_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	return -ENODEV;
+}
+
+static inline int armv7_a17_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	return -ENODEV;
+}
+
+static inline int krait_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	return -ENODEV;
 }

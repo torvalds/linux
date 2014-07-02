@@ -676,6 +676,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 		return 0;
 	}
 
+	kref_get(&dev->ref);
+
 	if (dev->board.buttons)
 		em28xx_init_buttons(dev);
 
@@ -725,7 +727,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
 			rc->map_name = RC_MAP_HAUPPAUGE;
 			ir->get_key_i2c = em28xx_get_key_em_haup;
-			rc->allowed_protos = RC_BIT_RC5;
+			rc_set_allowed_protocols(rc, RC_BIT_RC5);
 			break;
 		case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
 			rc->map_name = RC_MAP_WINFAST_USBII_DELUXE;
@@ -741,7 +743,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		switch (dev->chip_id) {
 		case CHIP_ID_EM2860:
 		case CHIP_ID_EM2883:
-			rc->allowed_protos = RC_BIT_RC5 | RC_BIT_NEC;
+			rc_set_allowed_protocols(rc, RC_BIT_RC5 | RC_BIT_NEC);
 			ir->get_key = default_polling_getkey;
 			break;
 		case CHIP_ID_EM2884:
@@ -749,8 +751,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 		case CHIP_ID_EM28174:
 		case CHIP_ID_EM28178:
 			ir->get_key = em2874_polling_getkey;
-			rc->allowed_protos = RC_BIT_RC5 | RC_BIT_NEC |
-					     RC_BIT_RC6_0;
+			rc_set_allowed_protocols(rc, RC_BIT_RC5 | RC_BIT_NEC |
+						 RC_BIT_RC6_0);
 			break;
 		default:
 			err = -ENODEV;
@@ -816,7 +818,7 @@ static int em28xx_ir_fini(struct em28xx *dev)
 
 	/* skip detach on non attached boards */
 	if (!ir)
-		return 0;
+		goto ref_put;
 
 	if (ir->rc)
 		rc_unregister_device(ir->rc);
@@ -824,6 +826,45 @@ static int em28xx_ir_fini(struct em28xx *dev)
 	/* done */
 	kfree(ir);
 	dev->ir = NULL;
+
+ref_put:
+	kref_put(&dev->ref, em28xx_free_device);
+
+	return 0;
+}
+
+static int em28xx_ir_suspend(struct em28xx *dev)
+{
+	struct em28xx_IR *ir = dev->ir;
+
+	if (dev->is_audio_only)
+		return 0;
+
+	em28xx_info("Suspending input extension");
+	if (ir)
+		cancel_delayed_work_sync(&ir->work);
+	cancel_delayed_work_sync(&dev->buttons_query_work);
+	/* is canceling delayed work sufficient or does the rc event
+	   kthread needs stopping? kthread is stopped in
+	   ir_raw_event_unregister() */
+	return 0;
+}
+
+static int em28xx_ir_resume(struct em28xx *dev)
+{
+	struct em28xx_IR *ir = dev->ir;
+
+	if (dev->is_audio_only)
+		return 0;
+
+	em28xx_info("Resuming input extension");
+	/* if suspend calls ir_raw_event_unregister(), the should call
+	   ir_raw_event_register() */
+	if (ir)
+		schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
+	if (dev->num_button_polling_addresses)
+		schedule_delayed_work(&dev->buttons_query_work,
+			       msecs_to_jiffies(dev->button_polling_interval));
 	return 0;
 }
 
@@ -832,6 +873,8 @@ static struct em28xx_ops rc_ops = {
 	.name = "Em28xx Input Extension",
 	.init = em28xx_ir_init,
 	.fini = em28xx_ir_fini,
+	.suspend = em28xx_ir_suspend,
+	.resume = em28xx_ir_resume,
 };
 
 static int __init em28xx_rc_register(void)
@@ -845,7 +888,7 @@ static void __exit em28xx_rc_unregister(void)
 }
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_DESCRIPTION(DRIVER_DESC " - input interface");
 MODULE_VERSION(EM28XX_VERSION);
 

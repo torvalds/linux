@@ -25,6 +25,23 @@ struct xfs_trans;
 struct zone;
 struct xfs_dir_ops;
 
+/*
+ * Directory/attribute geometry information. There will be one of these for each
+ * data fork type, and it will be passed around via the xfs_da_args. Global
+ * structures will be attached to the xfs_mount.
+ */
+struct xfs_da_geometry {
+	int		blksize;	/* da block size in bytes */
+	int		fsbcount;	/* da block size in filesystem blocks */
+	uint8_t		fsblog;		/* log2 of _filesystem_ block size */
+	uint8_t		blklog;		/* log2 of da block size */
+	uint		node_ents;	/* # of entries in a danode */
+	int		magicpct;	/* 37% of block size in bytes */
+	xfs_dablk_t	datablk;	/* blockno of dir data v2 */
+	xfs_dablk_t	leafblk;	/* blockno of leaf data v2 */
+	xfs_dablk_t	freeblk;	/* blockno of free data v2 */
+};
+
 /*========================================================================
  * Btree searching and modification structure definitions.
  *========================================================================*/
@@ -42,6 +59,7 @@ enum xfs_dacmp {
  * Structure to ease passing around component names.
  */
 typedef struct xfs_da_args {
+	struct xfs_da_geometry *geo;	/* da block geometry */
 	const __uint8_t	*name;		/* string (maybe not NULL terminated) */
 	int		namelen;	/* length of string (maybe no NULL) */
 	__uint8_t	filetype;	/* filetype of inode for directories */
@@ -60,10 +78,12 @@ typedef struct xfs_da_args {
 	int		index;		/* index of attr of interest in blk */
 	xfs_dablk_t	rmtblkno;	/* remote attr value starting blkno */
 	int		rmtblkcnt;	/* remote attr value block count */
+	int		rmtvaluelen;	/* remote attr value length in bytes */
 	xfs_dablk_t	blkno2;		/* blkno of 2nd attr leaf of interest */
 	int		index2;		/* index of 2nd attr in blk */
 	xfs_dablk_t	rmtblkno2;	/* remote attr value starting blkno */
 	int		rmtblkcnt2;	/* remote attr value block count */
+	int		rmtvaluelen2;	/* remote attr value length in bytes */
 	int		op_flags;	/* operation flags */
 	enum xfs_dacmp	cmpresult;	/* name compare result for lookups */
 } xfs_da_args_t;
@@ -108,8 +128,6 @@ typedef struct xfs_da_state_path {
 typedef struct xfs_da_state {
 	xfs_da_args_t		*args;		/* filename arguments */
 	struct xfs_mount	*mp;		/* filesystem mount point */
-	unsigned int		blocksize;	/* logical block size */
-	unsigned int		node_ents;	/* how many entries in danode */
 	xfs_da_state_path_t	path;		/* search/split paths */
 	xfs_da_state_path_t	altpath;	/* alternate path for join */
 	unsigned char		inleaf;		/* insert into 1->lf, 0->splf */
@@ -183,9 +201,9 @@ int	xfs_da_read_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 			       xfs_dablk_t bno, xfs_daddr_t mappedbno,
 			       struct xfs_buf **bpp, int whichfork,
 			       const struct xfs_buf_ops *ops);
-xfs_daddr_t	xfs_da_reada_buf(struct xfs_trans *trans, struct xfs_inode *dp,
-				xfs_dablk_t bno, xfs_daddr_t mapped_bno,
-				int whichfork, const struct xfs_buf_ops *ops);
+xfs_daddr_t	xfs_da_reada_buf(struct xfs_inode *dp, xfs_dablk_t bno,
+				xfs_daddr_t mapped_bno, int whichfork,
+				const struct xfs_buf_ops *ops);
 int	xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 					  struct xfs_buf *dead_buf);
 

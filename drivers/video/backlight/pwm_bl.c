@@ -10,8 +10,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
-#include <linux/of_gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -32,8 +32,7 @@ struct pwm_bl_data {
 	unsigned int		*levels;
 	bool			enabled;
 	struct regulator	*power_supply;
-	int			enable_gpio;
-	unsigned long		enable_gpio_flags;
+	struct gpio_desc	*enable_gpio;
 	unsigned int		scale;
 	int			(*notify)(struct device *,
 					  int brightness);
@@ -54,12 +53,8 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness)
 	if (err < 0)
 		dev_err(pb->dev, "failed to enable power supply\n");
 
-	if (gpio_is_valid(pb->enable_gpio)) {
-		if (pb->enable_gpio_flags & PWM_BACKLIGHT_GPIO_ACTIVE_LOW)
-			gpio_set_value(pb->enable_gpio, 0);
-		else
-			gpio_set_value(pb->enable_gpio, 1);
-	}
+	if (pb->enable_gpio)
+		gpiod_set_value(pb->enable_gpio, 1);
 
 	pwm_enable(pb->pwm);
 	pb->enabled = true;
@@ -73,12 +68,8 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	pwm_config(pb->pwm, 0, pb->period);
 	pwm_disable(pb->pwm);
 
-	if (gpio_is_valid(pb->enable_gpio)) {
-		if (pb->enable_gpio_flags & PWM_BACKLIGHT_GPIO_ACTIVE_LOW)
-			gpio_set_value(pb->enable_gpio, 1);
-		else
-			gpio_set_value(pb->enable_gpio, 0);
-	}
+	if (pb->enable_gpio)
+		gpiod_set_value(pb->enable_gpio, 0);
 
 	regulator_disable(pb->power_supply);
 	pb->enabled = false;
@@ -148,7 +139,6 @@ static int pwm_backlight_parse_dt(struct device *dev,
 				  struct platform_pwm_backlight_data *data)
 {
 	struct device_node *node = dev->of_node;
-	enum of_gpio_flags flags;
 	struct property *prop;
 	int length;
 	u32 value;
@@ -188,14 +178,6 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		data->dft_brightness = value;
 		data->max_brightness--;
 	}
-
-	data->enable_gpio = of_get_named_gpio_flags(node, "enable-gpios", 0,
-						    &flags);
-	if (data->enable_gpio == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-
-	if (gpio_is_valid(data->enable_gpio) && (flags & OF_GPIO_ACTIVE_LOW))
-		data->enable_gpio_flags |= PWM_BACKLIGHT_GPIO_ACTIVE_LOW;
 
 	return 0;
 }
@@ -256,8 +238,6 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	} else
 		pb->scale = data->max_brightness;
 
-	pb->enable_gpio = data->enable_gpio;
-	pb->enable_gpio_flags = data->enable_gpio_flags;
 	pb->notify = data->notify;
 	pb->notify_after = data->notify_after;
 	pb->check_fb = data->check_fb;
@@ -265,26 +245,38 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	pb->dev = &pdev->dev;
 	pb->enabled = false;
 
-	if (gpio_is_valid(pb->enable_gpio)) {
-		unsigned long flags;
-
-		if (pb->enable_gpio_flags & PWM_BACKLIGHT_GPIO_ACTIVE_LOW)
-			flags = GPIOF_OUT_INIT_HIGH;
+	pb->enable_gpio = devm_gpiod_get(&pdev->dev, "enable");
+	if (IS_ERR(pb->enable_gpio)) {
+		ret = PTR_ERR(pb->enable_gpio);
+		if (ret == -ENOENT)
+			pb->enable_gpio = NULL;
 		else
-			flags = GPIOF_OUT_INIT_LOW;
+			goto err_alloc;
+	}
 
-		ret = gpio_request_one(pb->enable_gpio, flags, "enable");
+	/*
+	 * Compatibility fallback for drivers still using the integer GPIO
+	 * platform data. Must go away soon.
+	 */
+	if (!pb->enable_gpio && gpio_is_valid(data->enable_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, data->enable_gpio,
+					    GPIOF_OUT_INIT_HIGH, "enable");
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to request GPIO#%d: %d\n",
-				pb->enable_gpio, ret);
+				data->enable_gpio, ret);
 			goto err_alloc;
 		}
+
+		pb->enable_gpio = gpio_to_desc(data->enable_gpio);
 	}
+
+	if (pb->enable_gpio)
+		gpiod_direction_output(pb->enable_gpio, 1);
 
 	pb->power_supply = devm_regulator_get(&pdev->dev, "power");
 	if (IS_ERR(pb->power_supply)) {
 		ret = PTR_ERR(pb->power_supply);
-		goto err_gpio;
+		goto err_alloc;
 	}
 
 	pb->pwm = devm_pwm_get(&pdev->dev, NULL);
@@ -295,7 +287,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		if (IS_ERR(pb->pwm)) {
 			dev_err(&pdev->dev, "unable to request legacy PWM\n");
 			ret = PTR_ERR(pb->pwm);
-			goto err_gpio;
+			goto err_alloc;
 		}
 	}
 
@@ -304,12 +296,15 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	/*
 	 * The DT case will set the pwm_period_ns field to 0 and store the
 	 * period, parsed from the DT, in the PWM device. For the non-DT case,
-	 * set the period from platform data.
+	 * set the period from platform data if it has not already been set
+	 * via the PWM lookup table.
 	 */
-	if (data->pwm_period_ns > 0)
-		pwm_set_period(pb->pwm, data->pwm_period_ns);
-
 	pb->period = pwm_get_period(pb->pwm);
+	if (!pb->period && (data->pwm_period_ns > 0)) {
+		pb->period = data->pwm_period_ns;
+		pwm_set_period(pb->pwm, data->pwm_period_ns);
+	}
+
 	pb->lth_brightness = data->lth_brightness * (pb->period / pb->scale);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
@@ -320,7 +315,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		ret = PTR_ERR(bl);
-		goto err_gpio;
+		goto err_alloc;
 	}
 
 	if (data->dft_brightness > data->max_brightness) {
@@ -336,9 +331,6 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bl);
 	return 0;
 
-err_gpio:
-	if (gpio_is_valid(pb->enable_gpio))
-		gpio_free(pb->enable_gpio);
 err_alloc:
 	if (data->exit)
 		data->exit(&pdev->dev);
@@ -357,6 +349,14 @@ static int pwm_backlight_remove(struct platform_device *pdev)
 		pb->exit(&pdev->dev);
 
 	return 0;
+}
+
+static void pwm_backlight_shutdown(struct platform_device *pdev)
+{
+	struct backlight_device *bl = platform_get_drvdata(pdev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
+
+	pwm_backlight_power_off(pb);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -404,6 +404,7 @@ static struct platform_driver pwm_backlight_driver = {
 	},
 	.probe		= pwm_backlight_probe,
 	.remove		= pwm_backlight_remove,
+	.shutdown	= pwm_backlight_shutdown,
 };
 
 module_platform_driver(pwm_backlight_driver);

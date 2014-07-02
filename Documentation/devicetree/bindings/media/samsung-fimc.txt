@@ -15,11 +15,21 @@ Common 'camera' node
 
 Required properties:
 
-- compatible	: must be "samsung,fimc", "simple-bus"
-- clocks	: list of clock specifiers, corresponding to entries in
-		  the clock-names property;
-- clock-names	: must contain "sclk_cam0", "sclk_cam1", "pxl_async0",
-		  "pxl_async1" entries, matching entries in the clocks property.
+- compatible: must be "samsung,fimc", "simple-bus"
+- clocks: list of clock specifiers, corresponding to entries in
+  the clock-names property;
+- clock-names : must contain "sclk_cam0", "sclk_cam1", "pxl_async0",
+  "pxl_async1" entries, matching entries in the clocks property.
+
+- #clock-cells: from the common clock bindings (../clock/clock-bindings.txt),
+  must be 1. A clock provider is associated with the 'camera' node and it should
+  be referenced by external sensors that use clocks provided by the SoC on
+  CAM_*_CLKOUT pins. The clock specifier cell stores an index of a clock.
+  The indices are 0, 1 for CAM_A_CLKOUT, CAM_B_CLKOUT clocks respectively.
+
+- clock-output-names: from the common clock bindings, should contain names of
+  clocks registered by the camera subsystem corresponding to CAM_A_CLKOUT,
+  CAM_B_CLKOUT output clocks respectively.
 
 The pinctrl bindings defined in ../pinctrl/pinctrl-bindings.txt must be used
 to define a required pinctrl state named "default" and optional pinctrl states:
@@ -31,6 +41,7 @@ and the port B deactivated and for the state "active-b" it should be the other
 way around.
 
 The 'camera' node must include at least one 'fimc' child node.
+
 
 'fimc' device nodes
 -------------------
@@ -88,8 +99,8 @@ port nodes specifies data input - 0, 1 indicates input A, B respectively.
 
 Optional properties
 
-- samsung,camclk-out : specifies clock output for remote sensor,
-		       0 - CAM_A_CLKOUT, 1 - CAM_B_CLKOUT;
+- samsung,camclk-out (deprecated) : specifies clock output for remote sensor,
+  0 - CAM_A_CLKOUT, 1 - CAM_B_CLKOUT;
 
 Image sensor nodes
 ------------------
@@ -97,8 +108,6 @@ Image sensor nodes
 The sensor device nodes should be added to their control bus controller (e.g.
 I2C0) nodes and linked to a port node in the csis or the parallel-ports node,
 using the common video interfaces bindings, defined in video-interfaces.txt.
-The implementation of this bindings requires clock-frequency property to be
-present in the sensor device nodes.
 
 Example:
 
@@ -114,7 +123,7 @@ Example:
 			vddio-supply = <...>;
 
 			clock-frequency = <24000000>;
-			clocks = <...>;
+			clocks = <&camera 1>;
 			clock-names = "mclk";
 
 			port {
@@ -135,7 +144,7 @@ Example:
 			vddio-supply = <...>;
 
 			clock-frequency = <24000000>;
-			clocks = <...>;
+			clocks = <&camera 0>;
 			clock-names = "mclk";
 
 			port {
@@ -149,12 +158,17 @@ Example:
 
 	camera {
 		compatible = "samsung,fimc", "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		status = "okay";
-
+		clocks = <&clock 132>, <&clock 133>, <&clock 351>,
+			 <&clock 352>;
+		clock-names = "sclk_cam0", "sclk_cam1", "pxl_async0",
+			      "pxl_async1";
+		#clock-cells = <1>;
+		clock-output-names = "cam_a_clkout", "cam_b_clkout";
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_port_a_clk_active>;
+		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <1>;
 
 		/* parallel camera ports */
 		parallel-ports {

@@ -421,7 +421,7 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 				  clips[i].x2 - clips[i].x1,
 				  clips[i].y2 - clips[i].y1);
 		if (ret)
-			goto unlock;
+			break;
 	}
 
 	if (ufb->obj->base.import_attach) {

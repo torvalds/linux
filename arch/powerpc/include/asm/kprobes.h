@@ -30,6 +30,7 @@
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 #include <asm/probes.h>
+#include <asm/code-patching.h>
 
 #define  __ARCH_WANT_KPROBES_INSN_SLOT
 
@@ -56,9 +57,9 @@ typedef ppc_opcode_t kprobe_opcode_t;
 		if ((colon = strchr(name, ':')) != NULL) {		\
 			colon++;					\
 			if (*colon != '\0' && *colon != '.')		\
-				addr = *(kprobe_opcode_t **)addr;	\
+				addr = (kprobe_opcode_t *)ppc_function_entry(addr); \
 		} else if (name[0] != '.')				\
-			addr = *(kprobe_opcode_t **)addr;		\
+			addr = (kprobe_opcode_t *)ppc_function_entry(addr); \
 	} else {							\
 		char dot_name[KSYM_NAME_LEN];				\
 		dot_name[0] = '.';					\

@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 
@@ -31,7 +32,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <plat/regs-serial.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
@@ -507,9 +507,14 @@ static struct syscore_ops jive_pm_syscore_ops = {
 static void __init jive_map_io(void)
 {
 	s3c24xx_init_io(jive_iodesc, ARRAY_SIZE(jive_iodesc));
-	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(jive_uartcfgs, ARRAY_SIZE(jive_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init jive_init_time(void)
+{
+	s3c2412_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void jive_power_off(void)
@@ -665,6 +670,6 @@ MACHINE_START(JIVE, "JIVE")
 	.init_irq	= s3c2412_init_irq,
 	.map_io		= jive_map_io,
 	.init_machine	= jive_machine_init,
-	.init_time	= samsung_timer_init,
+	.init_time	= jive_init_time,
 	.restart	= s3c2412_restart,
 MACHINE_END

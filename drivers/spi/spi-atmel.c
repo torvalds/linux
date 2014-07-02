@@ -9,7 +9,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -26,6 +25,7 @@
 
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/pinctrl/consumer.h>
 
 /* SPI register offsets */
 #define SPI_CR					0x0000
@@ -224,7 +224,7 @@ struct atmel_spi {
 	struct platform_device	*pdev;
 
 	struct spi_transfer	*current_transfer;
-	unsigned long		current_remaining_bytes;
+	int			current_remaining_bytes;
 	int			done_status;
 
 	struct completion	xfer_completion;
@@ -874,8 +874,9 @@ atmel_spi_pump_pio_data(struct atmel_spi *as, struct spi_transfer *xfer)
 		spi_readl(as, RDR);
 	}
 	if (xfer->bits_per_word > 8) {
-		as->current_remaining_bytes -= 2;
-		if (as->current_remaining_bytes < 0)
+		if (as->current_remaining_bytes > 2)
+			as->current_remaining_bytes -= 2;
+		else
 			as->current_remaining_bytes = 0;
 	} else {
 		as->current_remaining_bytes--;
@@ -993,13 +994,6 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	as = spi_master_get_devdata(spi->master);
 
-	if (spi->chip_select > spi->master->num_chipselect) {
-		dev_dbg(&spi->dev,
-				"setup: invalid chipselect %u (%u defined)\n",
-				spi->chip_select, spi->master->num_chipselect);
-		return -EINVAL;
-	}
-
 	/* see notes above re chipselect */
 	if (!atmel_spi_is_v2(as)
 			&& spi->chip_select == 0
@@ -1087,14 +1081,6 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 		}
 	}
 
-	if (xfer->bits_per_word > 8) {
-		if (xfer->len % 2) {
-			dev_dbg(&spi->dev,
-			"buffer len should be 16 bits aligned\n");
-			return -EINVAL;
-		}
-	}
-
 	/*
 	 * DMA map early, for performance (empties dcache ASAP) and
 	 * better fault reporting.
@@ -1125,13 +1111,18 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 				atmel_spi_next_xfer_pio(master, xfer);
 			} else {
 				as->current_remaining_bytes -= len;
+				if (as->current_remaining_bytes < 0)
+					as->current_remaining_bytes = 0;
 			}
 		} else {
 			atmel_spi_next_xfer_pio(master, xfer);
 		}
 
+		/* interrupts are disabled, so free the lock for schedule */
+		atmel_spi_unlock(as);
 		ret = wait_for_completion_timeout(&as->xfer_completion,
 							SPI_DMA_TIMEOUT);
+		atmel_spi_lock(as);
 		if (WARN_ON(ret == 0)) {
 			dev_err(&spi->dev,
 				"spi trasfer timeout, err %d\n", ret);
@@ -1221,9 +1212,6 @@ static int atmel_spi_transfer_one_message(struct spi_master *master,
 	dev_dbg(&spi->dev, "new message %p submitted for %s\n",
 					msg, dev_name(&spi->dev));
 
-	if (unlikely(list_empty(&msg->transfers)))
-		return -EINVAL;
-
 	atmel_spi_lock(as);
 	cs_activate(as, spi);
 
@@ -1244,10 +1232,10 @@ static int atmel_spi_transfer_one_message(struct spi_master *master,
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		dev_dbg(&spi->dev,
-			"  xfer %p: len %u tx %p/%08x rx %p/%08x\n",
+			"  xfer %p: len %u tx %p/%pad rx %p/%pad\n",
 			xfer, xfer->len,
-			xfer->tx_buf, xfer->tx_dma,
-			xfer->rx_buf, xfer->rx_dma);
+			xfer->tx_buf, &xfer->tx_dma,
+			xfer->rx_buf, &xfer->rx_dma);
 	}
 
 msg_done:
@@ -1302,6 +1290,9 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	int			ret;
 	struct spi_master	*master;
 	struct atmel_spi	*as;
+
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(&pdev->dev);
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
@@ -1465,6 +1456,9 @@ static int atmel_spi_suspend(struct device *dev)
 	}
 
 	clk_disable_unprepare(as->clk);
+
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
@@ -1473,6 +1467,8 @@ static int atmel_spi_resume(struct device *dev)
 	struct spi_master	*master = dev_get_drvdata(dev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 	int ret;
+
+	pinctrl_pm_select_default_state(dev);
 
 	clk_prepare_enable(as->clk);
 

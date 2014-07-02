@@ -14,7 +14,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/workqueue.h>
@@ -127,8 +126,7 @@ static int da9052_led_probe(struct platform_device *pdev)
 	led = devm_kzalloc(&pdev->dev,
 			   sizeof(struct da9052_led) * pled->num_leds,
 			   GFP_KERNEL);
-	if (led == NULL) {
-		dev_err(&pdev->dev, "Failed to alloc memory\n");
+	if (!led) {
 		error = -ENOMEM;
 		goto err;
 	}

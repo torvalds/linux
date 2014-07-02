@@ -449,7 +449,7 @@ void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
 {
 	LASSERT(policy != NULL);
 	LASSERT(info != NULL);
-	LASSERT(spin_is_locked(&policy->pol_nrs->nrs_lock));
+	assert_spin_locked(&policy->pol_nrs->nrs_lock);
 
 	memcpy(info->pi_name, policy->pol_desc->pd_name, NRS_POL_NAME_MAX);
 
@@ -616,7 +616,7 @@ out:
 }
 
 /**
- * The longest valid command string is the maxium policy name size, plus the
+ * The longest valid command string is the maximum policy name size, plus the
  * length of the " reg" substring
  */
 #define LPROCFS_NRS_WR_MAX_CMD	(NRS_POL_NAME_MAX + sizeof(" reg") - 1)
@@ -1184,13 +1184,13 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	}
 	tmpbuf = cfs_firststr(kbuf, min_t(unsigned long, BUFLEN - 1, count));
 	/* Kludge code(deadlock situation): the lprocfs lock has been held
-	 * since the client is evicted by writting client's
+	 * since the client is evicted by writing client's
 	 * uuid/nid to procfs "evict_client" entry. However,
 	 * obd_export_evict_by_uuid() will call lprocfs_remove() to destroy
 	 * the proc entries under the being destroyed export{}, so I have
 	 * to drop the lock at first here.
 	 * - jay, jxiong@clusterfs.com */
-	class_incref(obd, __FUNCTION__, current);
+	class_incref(obd, __func__, current);
 
 	if (strncmp(tmpbuf, "nid:", 4) == 0)
 		obd_export_evict_by_nid(obd, tmpbuf + 4);
@@ -1199,7 +1199,7 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	else
 		obd_export_evict_by_uuid(obd, tmpbuf);
 
-	class_decref(obd, __FUNCTION__, current);
+	class_decref(obd, __func__, current);
 
 out:
 	OBD_FREE(kbuf, BUFLEN);

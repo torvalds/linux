@@ -155,6 +155,36 @@ int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /**
+ * comedi_timeout() - busy-wait for a driver condition to occur.
+ * @dev: comedi_device struct
+ * @s: comedi_subdevice struct
+ * @insn: comedi_insn struct
+ * @cb: callback to check for the condition
+ * @context: private context from the driver
+ */
+int comedi_timeout(struct comedi_device *dev,
+		   struct comedi_subdevice *s,
+		   struct comedi_insn *insn,
+		   int (*cb)(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context),
+		   unsigned long context)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(COMEDI_TIMEOUT_MS);
+	int ret;
+
+	while (time_before(jiffies, timeout)) {
+		ret = cb(dev, s, insn, context);
+		if (ret != -EBUSY)
+			return ret;	/* success (0) or non EBUSY errno */
+		cpu_relax();
+	}
+	return -ETIMEDOUT;
+}
+EXPORT_SYMBOL_GPL(comedi_timeout);
+
+/**
  * comedi_dio_insn_config() - boilerplate (*insn_config) for DIO subdevices.
  * @dev: comedi_device struct
  * @s: comedi_subdevice struct
@@ -228,6 +258,7 @@ static int insn_rw_emulate_bits(struct comedi_device *dev,
 	const unsigned base_bitfield_channel =
 	    (chan < channels_per_bitfield) ? 0 : chan;
 	unsigned int new_data[2];
+
 	memset(new_data, 0, sizeof(new_data));
 	memset(&new_insn, 0, sizeof(new_insn));
 	new_insn.insn = INSN_BITS;
@@ -276,7 +307,6 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 		return -ENOMEM;
 
 	init_waitqueue_head(&async->wait_head);
-	async->subdevice = s;
 	s->async = async;
 
 	async->max_bufsize = comedi_default_buf_maxsize_kb * 1024;

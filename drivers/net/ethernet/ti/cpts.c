@@ -26,14 +26,12 @@
 #include <linux/time.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
+#include <linux/if_ether.h>
+#include <linux/if_vlan.h>
 
 #include "cpts.h"
 
 #ifdef CONFIG_TI_CPTS
-
-static struct sock_filter ptp_filter[] = {
-	PTP_FILTER
-};
 
 #define cpts_read32(c, r)	__raw_readl(&c->reg->r)
 #define cpts_write32(c, v, r)	__raw_writel(v, &c->reg->r)
@@ -217,6 +215,7 @@ static struct ptp_clock_info cpts_info = {
 	.name		= "CTPS timer",
 	.max_adj	= 1000000,
 	.n_ext_ts	= 0,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= cpts_ptp_adjfreq,
 	.adjtime	= cpts_ptp_adjtime,
@@ -237,13 +236,11 @@ static void cpts_overflow_check(struct work_struct *work)
 	schedule_delayed_work(&cpts->overflow_work, CPTS_OVERFLOW_PERIOD);
 }
 
-#define CPTS_REF_CLOCK_NAME "cpsw_cpts_rft_clk"
-
-static void cpts_clk_init(struct cpts *cpts)
+static void cpts_clk_init(struct device *dev, struct cpts *cpts)
 {
-	cpts->refclk = clk_get(NULL, CPTS_REF_CLOCK_NAME);
+	cpts->refclk = devm_clk_get(dev, "cpts");
 	if (IS_ERR(cpts->refclk)) {
-		pr_err("Failed to clk_get %s\n", CPTS_REF_CLOCK_NAME);
+		dev_err(dev, "Failed to get cpts refclk\n");
 		cpts->refclk = NULL;
 		return;
 	}
@@ -253,7 +250,6 @@ static void cpts_clk_init(struct cpts *cpts)
 static void cpts_clk_release(struct cpts *cpts)
 {
 	clk_disable(cpts->refclk);
-	clk_put(cpts->refclk);
 }
 
 static int cpts_match(struct sk_buff *skb, unsigned int ptp_class,
@@ -300,7 +296,7 @@ static u64 cpts_find_ts(struct cpts *cpts, struct sk_buff *skb, int ev_type)
 	u64 ns = 0;
 	struct cpts_event *event;
 	struct list_head *this, *next;
-	unsigned int class = sk_run_filter(skb, ptp_filter);
+	unsigned int class = ptp_classify_raw(skb);
 	unsigned long flags;
 	u16 seqid;
 	u8 mtype;
@@ -371,10 +367,6 @@ int cpts_register(struct device *dev, struct cpts *cpts,
 	int err, i;
 	unsigned long flags;
 
-	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter))) {
-		pr_err("cpts: bad ptp filter\n");
-		return -EINVAL;
-	}
 	cpts->info = cpts_info;
 	cpts->clock = ptp_clock_register(&cpts->info, dev);
 	if (IS_ERR(cpts->clock)) {
@@ -395,7 +387,7 @@ int cpts_register(struct device *dev, struct cpts *cpts,
 	for (i = 0; i < CPTS_MAX_EVENTS; i++)
 		list_add(&cpts->pool_data[i].list, &cpts->pool);
 
-	cpts_clk_init(cpts);
+	cpts_clk_init(dev, cpts);
 	cpts_write32(cpts, CPTS_EN, control);
 	cpts_write32(cpts, TS_PEND_EN, int_enable);
 

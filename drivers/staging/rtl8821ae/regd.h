@@ -30,8 +30,8 @@
 #ifndef __RTL_REGD_H__
 #define __RTL_REGD_H__
 
-#define IEEE80211_CHAN_NO_IBSS		1<<2
-#define IEEE80211_CHAN_PASSIVE_SCAN	1<<1
+#define IEEE80211_CHAN_NO_IBSS		(1 << 2)
+#define IEEE80211_CHAN_PASSIVE_SCAN	(1 << 1)
 #define WIPHY_FLAG_CUSTOM_REGULATORY	BIT(0)
 #define WIPHY_FLAG_STRICT_REGULATORY	BIT(1)
 #define WIPHY_FLAG_DISABLE_BEACON_HINTS	BIT(2)
@@ -60,16 +60,8 @@ enum country_code_type_t {
 	COUNTRY_CODE_MAX
 };
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
 int rtl_regd_init(struct ieee80211_hw *hw,
 		  void (*reg_notifier) (struct wiphy *wiphy,
 				        struct regulatory_request *request));
 void rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
-#else
-int rtl_regd_init(struct ieee80211_hw *hw,
-		  int (*reg_notifier) (struct wiphy *wiphy,
-				       struct regulatory_request *request));
-int rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
-#endif
-
 #endif

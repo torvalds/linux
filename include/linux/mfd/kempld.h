@@ -51,6 +51,8 @@
 #define	KEMPLD_TYPE_DEBUG		0x1
 #define	KEMPLD_TYPE_CUSTOM		0x2
 
+#define KEMPLD_VERSION_LEN		10
+
 /**
  * struct kempld_info - PLD device information structure
  * @major:	PLD major revision
@@ -60,6 +62,7 @@
  * @type:	PLD type
  * @spec_major:	PLD FW specification major revision
  * @spec_minor:	PLD FW specification minor revision
+ * @version:	PLD version string
  */
 struct kempld_info {
 	unsigned int major;
@@ -69,6 +72,7 @@ struct kempld_info {
 	unsigned int type;
 	unsigned int spec_major;
 	unsigned int spec_minor;
+	char version[KEMPLD_VERSION_LEN];
 };
 
 /**

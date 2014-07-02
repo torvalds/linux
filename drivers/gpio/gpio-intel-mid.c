@@ -1,7 +1,7 @@
 /*
- * Moorestown platform Langwell chip GPIO driver
+ * Intel MID GPIO driver
  *
- * Copyright (c) 2008, 2009, 2013, Intel Corporation.
+ * Copyright (c) 2008-2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* Supports:
@@ -235,23 +231,23 @@ static void intel_mid_irq_mask(struct irq_data *d)
 {
 }
 
-static unsigned int intel_mid_irq_startup(struct irq_data *d)
+static int intel_mid_irq_reqres(struct irq_data *d)
 {
 	struct intel_mid_gpio *priv = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&priv->chip, irqd_to_hwirq(d)))
+	if (gpio_lock_as_irq(&priv->chip, irqd_to_hwirq(d))) {
 		dev_err(priv->chip.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			irqd_to_hwirq(d));
-	intel_mid_irq_unmask(d);
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void intel_mid_irq_shutdown(struct irq_data *d)
+static void intel_mid_irq_relres(struct irq_data *d)
 {
 	struct intel_mid_gpio *priv = irq_data_get_irq_chip_data(d);
 
-	intel_mid_irq_mask(d);
 	gpio_unlock_as_irq(&priv->chip, irqd_to_hwirq(d));
 }
 
@@ -260,8 +256,8 @@ static struct irq_chip intel_mid_irqchip = {
 	.irq_mask	= intel_mid_irq_mask,
 	.irq_unmask	= intel_mid_irq_unmask,
 	.irq_set_type	= intel_mid_irq_type,
-	.irq_startup	= intel_mid_irq_startup,
-	.irq_shutdown	= intel_mid_irq_shutdown,
+	.irq_request_resources = intel_mid_irq_reqres,
+	.irq_release_resources = intel_mid_irq_relres,
 };
 
 static const struct intel_mid_gpio_ddata gpio_lincroft = {

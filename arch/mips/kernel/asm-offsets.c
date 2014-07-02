@@ -14,8 +14,10 @@
 #include <linux/mm.h>
 #include <linux/kbuild.h>
 #include <linux/suspend.h>
+#include <asm/pm.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
+#include <asm/smp-cps.h>
 
 #include <linux/kvm_host.h>
 
@@ -63,9 +65,6 @@ void output_ptreg_defines(void)
 	OFFSET(PT_BVADDR, pt_regs, cp0_badvaddr);
 	OFFSET(PT_STATUS, pt_regs, cp0_status);
 	OFFSET(PT_CAUSE, pt_regs, cp0_cause);
-#ifdef CONFIG_MIPS_MT_SMTC
-	OFFSET(PT_TCSTATUS, pt_regs, cp0_tcstatus);
-#endif /* CONFIG_MIPS_MT_SMTC */
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	OFFSET(PT_MPL, pt_regs, mpl);
 	OFFSET(PT_MTP, pt_regs, mtp);
@@ -167,6 +166,72 @@ void output_thread_fpu_defines(void)
 	OFFSET(THREAD_FPR29, task_struct, thread.fpu.fpr[29]);
 	OFFSET(THREAD_FPR30, task_struct, thread.fpu.fpr[30]);
 	OFFSET(THREAD_FPR31, task_struct, thread.fpu.fpr[31]);
+
+	/* the least significant 64 bits of each FP register */
+	OFFSET(THREAD_FPR0_LS64, task_struct,
+	       thread.fpu.fpr[0].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR1_LS64, task_struct,
+	       thread.fpu.fpr[1].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR2_LS64, task_struct,
+	       thread.fpu.fpr[2].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR3_LS64, task_struct,
+	       thread.fpu.fpr[3].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR4_LS64, task_struct,
+	       thread.fpu.fpr[4].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR5_LS64, task_struct,
+	       thread.fpu.fpr[5].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR6_LS64, task_struct,
+	       thread.fpu.fpr[6].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR7_LS64, task_struct,
+	       thread.fpu.fpr[7].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR8_LS64, task_struct,
+	       thread.fpu.fpr[8].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR9_LS64, task_struct,
+	       thread.fpu.fpr[9].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR10_LS64, task_struct,
+	       thread.fpu.fpr[10].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR11_LS64, task_struct,
+	       thread.fpu.fpr[11].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR12_LS64, task_struct,
+	       thread.fpu.fpr[12].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR13_LS64, task_struct,
+	       thread.fpu.fpr[13].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR14_LS64, task_struct,
+	       thread.fpu.fpr[14].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR15_LS64, task_struct,
+	       thread.fpu.fpr[15].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR16_LS64, task_struct,
+	       thread.fpu.fpr[16].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR17_LS64, task_struct,
+	       thread.fpu.fpr[17].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR18_LS64, task_struct,
+	       thread.fpu.fpr[18].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR19_LS64, task_struct,
+	       thread.fpu.fpr[19].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR20_LS64, task_struct,
+	       thread.fpu.fpr[20].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR21_LS64, task_struct,
+	       thread.fpu.fpr[21].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR22_LS64, task_struct,
+	       thread.fpu.fpr[22].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR23_LS64, task_struct,
+	       thread.fpu.fpr[23].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR24_LS64, task_struct,
+	       thread.fpu.fpr[24].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR25_LS64, task_struct,
+	       thread.fpu.fpr[25].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR26_LS64, task_struct,
+	       thread.fpu.fpr[26].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR27_LS64, task_struct,
+	       thread.fpu.fpr[27].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR28_LS64, task_struct,
+	       thread.fpu.fpr[28].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR29_LS64, task_struct,
+	       thread.fpu.fpr[29].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR30_LS64, task_struct,
+	       thread.fpu.fpr[30].val64[FPR_IDX(64, 0)]);
+	OFFSET(THREAD_FPR31_LS64, task_struct,
+	       thread.fpu.fpr[31].val64[FPR_IDX(64, 0)]);
 
 	OFFSET(THREAD_FCR31, task_struct, thread.fpu.fcr31);
 	BLANK();
@@ -334,6 +399,20 @@ void output_pbe_defines(void)
 }
 #endif
 
+#ifdef CONFIG_CPU_PM
+void output_pm_defines(void)
+{
+	COMMENT(" PM offsets. ");
+#ifdef CONFIG_EVA
+	OFFSET(SSS_SEGCTL0,	mips_static_suspend_state, segctl[0]);
+	OFFSET(SSS_SEGCTL1,	mips_static_suspend_state, segctl[1]);
+	OFFSET(SSS_SEGCTL2,	mips_static_suspend_state, segctl[2]);
+#endif
+	OFFSET(SSS_SP,		mips_static_suspend_state, sp);
+	BLANK();
+}
+#endif
+
 void output_kvm_defines(void)
 {
 	COMMENT(" KVM/MIPS Specfic offsets. ");
@@ -397,3 +476,19 @@ void output_kvm_defines(void)
 	OFFSET(COP0_STATUS, mips_coproc, reg[MIPS_CP0_STATUS][0]);
 	BLANK();
 }
+
+#ifdef CONFIG_MIPS_CPS
+void output_cps_defines(void)
+{
+	COMMENT(" MIPS CPS offsets. ");
+
+	OFFSET(COREBOOTCFG_VPEMASK, core_boot_config, vpe_mask);
+	OFFSET(COREBOOTCFG_VPECONFIG, core_boot_config, vpe_config);
+	DEFINE(COREBOOTCFG_SIZE, sizeof(struct core_boot_config));
+
+	OFFSET(VPEBOOTCFG_PC, vpe_boot_config, pc);
+	OFFSET(VPEBOOTCFG_SP, vpe_boot_config, sp);
+	OFFSET(VPEBOOTCFG_GP, vpe_boot_config, gp);
+	DEFINE(VPEBOOTCFG_SIZE, sizeof(struct vpe_boot_config));
+}
+#endif

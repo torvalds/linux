@@ -54,7 +54,6 @@
 #include <linux/slab.h>
 #include <linux/crypto.h>
 #include <linux/mutex.h>
-#include <linux/crypto.h>
 
 #include <obd.h>
 #include <obd_class.h>
@@ -679,7 +678,8 @@ __s32 krb5_make_checksum(__u32 enctype,
 	__u32		  code = GSS_S_FAILURE;
 	int		    rc;
 
-	if (!(tfm = ll_crypto_alloc_hash(ke->ke_hash_name, 0, 0))) {
+	tfm = ll_crypto_alloc_hash(ke->ke_hash_name, 0, 0);
+	if (!tfm) {
 		CERROR("failed to alloc TFM: %s\n", ke->ke_hash_name);
 		return GSS_S_FAILURE;
 	}

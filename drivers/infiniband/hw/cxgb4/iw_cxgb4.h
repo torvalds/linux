@@ -52,6 +52,8 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/iw_cm.h>
+#include <rdma/rdma_netlink.h>
+#include <rdma/iw_portmap.h>
 
 #include "cxgb4.h"
 #include "cxgb4_uld.h"
@@ -109,6 +111,7 @@ struct c4iw_dev_ucontext {
 
 enum c4iw_rdev_flags {
 	T4_FATAL_ERROR = (1<<0),
+	T4_STATUS_PAGE_DISABLED = (1<<1),
 };
 
 struct c4iw_stat {
@@ -130,6 +133,7 @@ struct c4iw_stats {
 	u64  db_empty;
 	u64  db_drop;
 	u64  db_state_transitions;
+	u64  db_fc_interruptions;
 	u64  tcam_full;
 	u64  act_ofld_conn_fails;
 	u64  pas_ofld_conn_fails;
@@ -147,9 +151,12 @@ struct c4iw_rdev {
 	struct gen_pool *ocqp_pool;
 	u32 flags;
 	struct cxgb4_lld_info lldi;
+	unsigned long bar2_pa;
+	void __iomem *bar2_kva;
 	unsigned long oc_mw_pa;
 	void __iomem *oc_mw_kva;
 	struct c4iw_stats stats;
+	struct t4_dev_status_page *status_page;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
@@ -211,7 +218,8 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 enum db_state {
 	NORMAL = 0,
 	FLOW_CONTROL = 1,
-	RECOVERY = 2
+	RECOVERY = 2,
+	STOPPED = 3
 };
 
 struct c4iw_dev {
@@ -225,10 +233,10 @@ struct c4iw_dev {
 	struct mutex db_mutex;
 	struct dentry *debugfs_root;
 	enum db_state db_state;
-	int qpcnt;
 	struct idr hwtid_idr;
 	struct idr atid_idr;
 	struct idr stid_idr;
+	struct list_head db_fc_list;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -369,6 +377,7 @@ struct c4iw_fr_page_list {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	dma_addr_t dma_addr;
 	struct c4iw_dev *dev;
+	int pll_len;
 };
 
 static inline struct c4iw_fr_page_list *to_c4iw_fr_page_list(
@@ -428,10 +437,12 @@ struct c4iw_qp_attributes {
 	u8 ecode;
 	u16 sq_db_inc;
 	u16 rq_db_inc;
+	u8 send_term;
 };
 
 struct c4iw_qp {
 	struct ib_qp ibqp;
+	struct list_head db_fc_entry;
 	struct c4iw_dev *rhp;
 	struct c4iw_ep *ep;
 	struct c4iw_qp_attributes attr;
@@ -441,6 +452,7 @@ struct c4iw_qp {
 	atomic_t refcnt;
 	wait_queue_head_t wait;
 	struct timer_list timer;
+	int sq_sig_all;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -718,6 +730,7 @@ enum c4iw_ep_flags {
 	CLOSE_SENT		= 3,
 	TIMEOUT                 = 4,
 	QP_REFERENCED           = 5,
+	RELEASE_MAPINFO		= 6,
 };
 
 enum c4iw_ep_history {
@@ -754,6 +767,8 @@ struct c4iw_ep_common {
 	struct mutex mutex;
 	struct sockaddr_storage local_addr;
 	struct sockaddr_storage remote_addr;
+	struct sockaddr_storage mapped_local_addr;
+	struct sockaddr_storage mapped_remote_addr;
 	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
 	unsigned long history;
@@ -795,7 +810,48 @@ struct c4iw_ep {
 	u8 retry_with_mpa_v1;
 	u8 tried_with_mpa_v1;
 	unsigned int retry_count;
+	int snd_win;
+	int rcv_win;
 };
+
+static inline void print_addr(struct c4iw_ep_common *epc, const char *func,
+			      const char *msg)
+{
+
+#define SINA(a) (&(((struct sockaddr_in *)(a))->sin_addr.s_addr))
+#define SINP(a) ntohs(((struct sockaddr_in *)(a))->sin_port)
+#define SIN6A(a) (&(((struct sockaddr_in6 *)(a))->sin6_addr))
+#define SIN6P(a) ntohs(((struct sockaddr_in6 *)(a))->sin6_port)
+
+	if (c4iw_debug) {
+		switch (epc->local_addr.ss_family) {
+		case AF_INET:
+			PDBG("%s %s %pI4:%u/%u <-> %pI4:%u/%u\n",
+			     func, msg, SINA(&epc->local_addr),
+			     SINP(&epc->local_addr),
+			     SINP(&epc->mapped_local_addr),
+			     SINA(&epc->remote_addr),
+			     SINP(&epc->remote_addr),
+			     SINP(&epc->mapped_remote_addr));
+			break;
+		case AF_INET6:
+			PDBG("%s %s %pI6:%u/%u <-> %pI6:%u/%u\n",
+			     func, msg, SIN6A(&epc->local_addr),
+			     SIN6P(&epc->local_addr),
+			     SIN6P(&epc->mapped_local_addr),
+			     SIN6A(&epc->remote_addr),
+			     SIN6P(&epc->remote_addr),
+			     SIN6P(&epc->mapped_remote_addr));
+			break;
+		default:
+			break;
+		}
+	}
+#undef SINA
+#undef SINP
+#undef SIN6A
+#undef SIN6P
+}
 
 static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)
 {

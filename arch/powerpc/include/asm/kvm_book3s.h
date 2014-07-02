@@ -268,9 +268,10 @@ static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 	return vcpu->arch.pc;
 }
 
+static inline u64 kvmppc_get_msr(struct kvm_vcpu *vcpu);
 static inline bool kvmppc_need_byteswap(struct kvm_vcpu *vcpu)
 {
-	return (vcpu->arch.shared->msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
+	return (kvmppc_get_msr(vcpu) & MSR_LE) != (MSR_KERNEL & MSR_LE);
 }
 
 static inline u32 kvmppc_get_last_inst_internal(struct kvm_vcpu *vcpu, ulong pc)
@@ -302,6 +303,11 @@ static inline u32 kvmppc_get_last_sc(struct kvm_vcpu *vcpu)
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault_dar;
+}
+
+static inline bool is_kvmppc_resume_guest(int r)
+{
+	return (r == RESUME_GUEST || r == RESUME_GUEST_NV);
 }
 
 /* Magic register values loaded into r3 and r4 before the 'sc' assembly

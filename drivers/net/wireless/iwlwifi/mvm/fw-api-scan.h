@@ -169,8 +169,12 @@ enum iwl_scan_type {
 	SCAN_TYPE_DISCOVERY_FORCED	= 6,
 }; /* SCAN_ACTIVITY_TYPE_E_VER_1 */
 
-/* Maximal number of channels to scan */
-#define MAX_NUM_SCAN_CHANNELS 0x24
+/**
+ * Maximal number of channels to scan
+ * it should be equal to:
+ * max(IWL_NUM_CHANNELS, IWL_NUM_CHANNELS_FAMILY_8000)
+ */
+#define MAX_NUM_SCAN_CHANNELS 50
 
 /**
  * struct iwl_scan_cmd - scan request command
@@ -183,9 +187,9 @@ enum iwl_scan_type {
  *	this number of packets were received (typically 1)
  * @passive2active: is auto switching from passive to active during scan allowed
  * @rxchain_sel_flags: RXON_RX_CHAIN_*
- * @max_out_time: in usecs, max out of serving channel time
+ * @max_out_time: in TUs, max out of serving channel time
  * @suspend_time: how long to pause scan when returning to service channel:
- *	bits 0-19: beacon interal in usecs (suspend before executing)
+ *	bits 0-19: beacon interal in TUs (suspend before executing)
  *	bits 20-23: reserved
  *	bits 24-31: number of beacons (suspend between channels)
  * @rxon_flags: RXON_FLG_*
@@ -383,8 +387,8 @@ enum scan_framework_client {
  * @quiet_plcp_th:	quiet channel num of packets threshold
  * @good_CRC_th:	passive to active promotion threshold
  * @rx_chain:		RXON rx chain.
- * @max_out_time:	max uSec to be out of assoceated channel
- * @suspend_time:	pause scan this long when returning to service channel
+ * @max_out_time:	max TUs to be out of assoceated channel
+ * @suspend_time:	pause scan this TUs when returning to service channel
  * @flags:		RXON flags
  * @filter_flags:	RXONfilter
  * @tx_cmd:		tx command for active scan; for 2GHz and for 5GHz.
@@ -534,13 +538,16 @@ struct iwl_scan_offload_schedule {
  *
  * IWL_SCAN_OFFLOAD_FLAG_PASS_ALL: pass all results - no filtering.
  * IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL: add cached channels to partial scan.
- * IWL_SCAN_OFFLOAD_FLAG_ENERGY_SCAN: use energy based scan before partial scan
- *	on A band.
+ * IWL_SCAN_OFFLOAD_FLAG_EBS_QUICK_MODE: EBS duration is 100mSec - typical
+ *	beacon period. Finding channel activity in this mode is not guaranteed.
+ * IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE: EBS duration is 200mSec.
+ *	Assuming beacon period is 100ms finding channel activity is guaranteed.
  */
 enum iwl_scan_offload_flags {
 	IWL_SCAN_OFFLOAD_FLAG_PASS_ALL		= BIT(0),
 	IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL	= BIT(2),
-	IWL_SCAN_OFFLOAD_FLAG_ENERGY_SCAN	= BIT(3),
+	IWL_SCAN_OFFLOAD_FLAG_EBS_QUICK_MODE	= BIT(5),
+	IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE	= BIT(6),
 };
 
 /**
@@ -563,17 +570,24 @@ enum iwl_scan_offload_compleate_status {
 	IWL_SCAN_OFFLOAD_ABORTED	= 2,
 };
 
+enum iwl_scan_ebs_status {
+	IWL_SCAN_EBS_SUCCESS,
+	IWL_SCAN_EBS_FAILED,
+	IWL_SCAN_EBS_CHAN_NOT_FOUND,
+};
+
 /**
  * iwl_scan_offload_complete - SCAN_OFFLOAD_COMPLETE_NTF_API_S_VER_1
  * @last_schedule_line:		last schedule line executed (fast or regular)
  * @last_schedule_iteration:	last scan iteration executed before scan abort
  * @status:			enum iwl_scan_offload_compleate_status
+ * @ebs_status: last EBS status, see IWL_SCAN_EBS_*
  */
 struct iwl_scan_offload_complete {
 	u8 last_schedule_line;
 	u8 last_schedule_iteration;
 	u8 status;
-	u8 reserved;
+	u8 ebs_status;
 } __packed;
 
 /**

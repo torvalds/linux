@@ -71,18 +71,16 @@ __setup("ima_hash=", hash_setup);
  * ima_rdwr_violation_check
  *
  * Only invalidate the PCR for measured files:
- * 	- Opening a file for write when already open for read,
+ *	- Opening a file for write when already open for read,
  *	  results in a time of measure, time of use (ToMToU) error.
  *	- Opening a file for read when already open for write,
- * 	  could result in a file measurement error.
+ *	  could result in a file measurement error.
  *
  */
 static void ima_rdwr_violation_check(struct file *file)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = file_inode(file);
 	fmode_t mode = file->f_mode;
-	int must_measure;
 	bool send_tomtou = false, send_writers = false;
 	char *pathbuf = NULL;
 	const char *pathname;
@@ -93,26 +91,25 @@ static void ima_rdwr_violation_check(struct file *file)
 	mutex_lock(&inode->i_mutex);	/* file metadata: permissions, xattr */
 
 	if (mode & FMODE_WRITE) {
-		if (atomic_read(&inode->i_readcount) && IS_IMA(inode))
-			send_tomtou = true;
-		goto out;
+		if (atomic_read(&inode->i_readcount) && IS_IMA(inode)) {
+			struct integrity_iint_cache *iint;
+			iint = integrity_iint_find(inode);
+			/* IMA_MEASURE is set from reader side */
+			if (iint && (iint->flags & IMA_MEASURE))
+				send_tomtou = true;
+		}
+	} else {
+		if ((atomic_read(&inode->i_writecount) > 0) &&
+		    ima_must_measure(inode, MAY_READ, FILE_CHECK))
+			send_writers = true;
 	}
 
-	must_measure = ima_must_measure(inode, MAY_READ, FILE_CHECK);
-	if (!must_measure)
-		goto out;
-
-	if (atomic_read(&inode->i_writecount) > 0)
-		send_writers = true;
-out:
 	mutex_unlock(&inode->i_mutex);
 
 	if (!send_tomtou && !send_writers)
 		return;
 
 	pathname = ima_d_path(&file->f_path, &pathbuf);
-	if (!pathname || strlen(pathname) > IMA_EVENT_NAME_LEN_MAX)
-		pathname = dentry->d_name.name;
 
 	if (send_tomtou)
 		ima_add_violation(file, pathname, "invalid_pcr", "ToMToU");
@@ -217,12 +214,13 @@ static int process_measurement(struct file *file, const char *filename,
 		xattr_ptr = &xattr_value;
 
 	rc = ima_collect_measurement(iint, file, xattr_ptr, &xattr_len);
-	if (rc != 0)
+	if (rc != 0) {
+		if (file->f_flags & O_DIRECT)
+			rc = (iint->flags & IMA_PERMIT_DIRECTIO) ? 0 : -EACCES;
 		goto out_digsig;
+	}
 
-	pathname = !filename ? ima_d_path(&file->f_path, &pathbuf) : filename;
-	if (!pathname)
-		pathname = (const char *)file->f_dentry->d_name.name;
+	pathname = filename ?: ima_d_path(&file->f_path, &pathbuf);
 
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname,

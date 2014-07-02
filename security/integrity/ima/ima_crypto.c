@@ -10,8 +10,10 @@
  * the Free Software Foundation, version 2 of the License.
  *
  * File: ima_crypto.c
- * 	Calculates md5/sha1 file hash, template hash, boot-aggreate hash
+ *	Calculates md5/sha1 file hash, template hash, boot-aggreate hash
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/file.h>
@@ -24,6 +26,36 @@
 #include "ima.h"
 
 static struct crypto_shash *ima_shash_tfm;
+
+/**
+ * ima_kernel_read - read file content
+ *
+ * This is a function for reading file content instead of kernel_read().
+ * It does not perform locking checks to ensure it cannot be blocked.
+ * It does not perform security checks because it is irrelevant for IMA.
+ *
+ */
+static int ima_kernel_read(struct file *file, loff_t offset,
+			   char *addr, unsigned long count)
+{
+	mm_segment_t old_fs;
+	char __user *buf = addr;
+	ssize_t ret;
+
+	if (!(file->f_mode & FMODE_READ))
+		return -EBADF;
+	if (!file->f_op->read && !file->f_op->aio_read)
+		return -EINVAL;
+
+	old_fs = get_fs();
+	set_fs(get_ds());
+	if (file->f_op->read)
+		ret = file->f_op->read(file, buf, count, &offset);
+	else
+		ret = do_sync_read(file, buf, count, &offset);
+	set_fs(old_fs);
+	return ret;
+}
 
 int ima_init_crypto(void)
 {
@@ -85,20 +117,24 @@ static int ima_calc_file_hash_tfm(struct file *file,
 	if (rc != 0)
 		return rc;
 
-	rbuf = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!rbuf) {
-		rc = -ENOMEM;
+	i_size = i_size_read(file_inode(file));
+
+	if (i_size == 0)
 		goto out;
-	}
+
+	rbuf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!rbuf)
+		return -ENOMEM;
+
 	if (!(file->f_mode & FMODE_READ)) {
 		file->f_mode |= FMODE_READ;
 		read = 1;
 	}
-	i_size = i_size_read(file_inode(file));
+
 	while (offset < i_size) {
 		int rbuf_len;
 
-		rbuf_len = kernel_read(file, offset, rbuf, PAGE_SIZE);
+		rbuf_len = ima_kernel_read(file, offset, rbuf, PAGE_SIZE);
 		if (rbuf_len < 0) {
 			rc = rbuf_len;
 			break;
@@ -111,12 +147,12 @@ static int ima_calc_file_hash_tfm(struct file *file,
 		if (rc)
 			break;
 	}
-	kfree(rbuf);
-	if (!rc)
-		rc = crypto_shash_final(&desc.shash, hash->digest);
 	if (read)
 		file->f_mode &= ~FMODE_READ;
+	kfree(rbuf);
 out:
+	if (!rc)
+		rc = crypto_shash_final(&desc.shash, hash->digest);
 	return rc;
 }
 
@@ -161,15 +197,22 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 		return rc;
 
 	for (i = 0; i < num_fields; i++) {
+		u8 buffer[IMA_EVENT_NAME_LEN_MAX + 1] = { 0 };
+		u8 *data_to_hash = field_data[i].data;
+		u32 datalen = field_data[i].len;
+
 		if (strcmp(td->name, IMA_TEMPLATE_IMA_NAME) != 0) {
 			rc = crypto_shash_update(&desc.shash,
 						(const u8 *) &field_data[i].len,
 						sizeof(field_data[i].len));
 			if (rc)
 				break;
+		} else if (strcmp(td->fields[i]->field_id, "n") == 0) {
+			memcpy(buffer, data_to_hash, datalen);
+			data_to_hash = buffer;
+			datalen = IMA_EVENT_NAME_LEN_MAX + 1;
 		}
-		rc = crypto_shash_update(&desc.shash, field_data[i].data,
-					 field_data[i].len);
+		rc = crypto_shash_update(&desc.shash, data_to_hash, datalen);
 		if (rc)
 			break;
 	}
@@ -205,7 +248,7 @@ static void __init ima_pcrread(int idx, u8 *pcr)
 		return;
 
 	if (tpm_pcr_read(TPM_ANY_NUM, idx, pcr) != 0)
-		pr_err("IMA: Error Communicating to TPM chip\n");
+		pr_err("Error Communicating to TPM chip\n");
 }
 
 /*

@@ -555,7 +555,7 @@ void ath_mci_intr(struct ath_softc *sc)
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_GPM;
 
 		while (more_data == MCI_GPM_MORE) {
-			if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+			if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 				return;
 
 			pgpm = mci->gpm_buf.bf_addr;

@@ -514,6 +514,7 @@ static struct ptp_clock_info ptp_pch_caps = {
 	.name		= "PCH timer",
 	.max_adj	= 50000000,
 	.n_ext_ts	= N_EXT_TS,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= ptp_pch_adjfreq,
 	.adjtime	= ptp_pch_adjtime,

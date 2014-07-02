@@ -24,7 +24,7 @@
 #include "sn9c102_devtable.h"
 
 
-static int pas106b_init(struct sn9c102_device* cam)
+static int pas106b_init(struct sn9c102_device *cam)
 {
 	int err = 0;
 
@@ -48,8 +48,8 @@ static int pas106b_init(struct sn9c102_device* cam)
 }
 
 
-static int pas106b_get_ctrl(struct sn9c102_device* cam,
-			    struct v4l2_control* ctrl)
+static int pas106b_get_ctrl(struct sn9c102_device *cam,
+			    struct v4l2_control *ctrl)
 {
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
@@ -62,32 +62,38 @@ static int pas106b_get_ctrl(struct sn9c102_device* cam,
 		}
 		return 0;
 	case V4L2_CID_RED_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0c)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x0c);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x1f;
 		return 0;
 	case V4L2_CID_BLUE_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x09)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x09);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x1f;
 		return 0;
 	case V4L2_CID_GAIN:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0e)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x0e);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x1f;
 		return 0;
 	case V4L2_CID_CONTRAST:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0f)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x0f);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x07;
 		return 0;
 	case SN9C102_V4L2_CID_GREEN_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0a)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x0a);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = (ctrl->value & 0x1f) << 1;
 		return 0;
 	case SN9C102_V4L2_CID_DAC_MAGNITUDE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x08)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x08);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0xf8;
 		return 0;
@@ -97,8 +103,8 @@ static int pas106b_get_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int pas106b_set_ctrl(struct sn9c102_device* cam,
-			    const struct v4l2_control* ctrl)
+static int pas106b_set_ctrl(struct sn9c102_device *cam,
+			    const struct v4l2_control *ctrl)
 {
 	int err = 0;
 
@@ -135,10 +141,10 @@ static int pas106b_set_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int pas106b_set_crop(struct sn9c102_device* cam,
-			    const struct v4l2_rect* rect)
+static int pas106b_set_crop(struct sn9c102_device *cam,
+			    const struct v4l2_rect *rect)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	int err = 0;
 	u8 h_start = (u8)(rect->left - s->cropcap.bounds.left) + 4,
 	   v_start = (u8)(rect->top - s->cropcap.bounds.top) + 3;
@@ -150,8 +156,8 @@ static int pas106b_set_crop(struct sn9c102_device* cam,
 }
 
 
-static int pas106b_set_pix_format(struct sn9c102_device* cam,
-				  const struct v4l2_pix_format* pix)
+static int pas106b_set_pix_format(struct sn9c102_device *cam,
+				  const struct v4l2_pix_format *pix)
 {
 	int err = 0;
 
@@ -272,7 +278,7 @@ static const struct sn9c102_sensor pas106b = {
 };
 
 
-int sn9c102_probe_pas106b(struct sn9c102_device* cam)
+int sn9c102_probe_pas106b(struct sn9c102_device *cam)
 {
 	int r0 = 0, r1 = 0;
 	unsigned int pid = 0;

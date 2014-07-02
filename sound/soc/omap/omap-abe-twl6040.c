@@ -47,8 +47,7 @@ static int omap_abe_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_card *card = rtd->card;
 	struct abe_twl6040 *priv = snd_soc_card_get_drvdata(card);
 	int clk_id, freq;
 	int ret;
@@ -168,7 +167,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_card *card = rtd->card;
 	struct abe_twl6040 *priv = snd_soc_card_get_drvdata(card);
 	int hs_trim;
 	int ret = 0;
@@ -203,8 +202,7 @@ static const struct snd_soc_dapm_route dmic_audio_map[] = {
 
 static int omap_abe_dmic_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
 
 	return snd_soc_dapm_add_routes(dapm, dmic_audio_map,
 				ARRAY_SIZE(dmic_audio_map));
@@ -215,9 +213,7 @@ static struct snd_soc_dai_link abe_twl6040_dai_links[] = {
 	{
 		.name = "TWL6040",
 		.stream_name = "TWL6040",
-		.cpu_dai_name = "omap-mcpdm",
 		.codec_dai_name = "twl6040-legacy",
-		.platform_name = "omap-pcm-audio",
 		.codec_name = "twl6040-codec",
 		.init = omap_abe_twl6040_init,
 		.ops = &omap_abe_ops,
@@ -225,9 +221,7 @@ static struct snd_soc_dai_link abe_twl6040_dai_links[] = {
 	{
 		.name = "DMIC",
 		.stream_name = "DMIC Capture",
-		.cpu_dai_name = "omap-dmic",
 		.codec_dai_name = "dmic-hifi",
-		.platform_name = "omap-pcm-audio",
 		.codec_name = "dmic-codec",
 		.init = omap_abe_dmic_init,
 		.ops = &omap_abe_dmic_ops,
@@ -282,14 +276,14 @@ static int omap_abe_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "McPDM node is not provided\n");
 		return -EINVAL;
 	}
-	abe_twl6040_dai_links[0].cpu_dai_name  = NULL;
 	abe_twl6040_dai_links[0].cpu_of_node = dai_node;
+	abe_twl6040_dai_links[0].platform_of_node = dai_node;
 
 	dai_node = of_parse_phandle(node, "ti,dmic", 0);
 	if (dai_node) {
 		num_links = 2;
-		abe_twl6040_dai_links[1].cpu_dai_name  = NULL;
 		abe_twl6040_dai_links[1].cpu_of_node = dai_node;
+		abe_twl6040_dai_links[1].platform_of_node = dai_node;
 
 		priv->dmic_codec_dev = platform_device_register_simple(
 						"dmic-codec", -1, NULL, 0);

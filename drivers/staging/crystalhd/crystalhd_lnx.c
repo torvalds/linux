@@ -28,7 +28,7 @@ static struct crystalhd_adp *g_adp_info;
 
 static irqreturn_t chd_dec_isr(int irq, void *arg)
 {
-	struct crystalhd_adp *adp = (struct crystalhd_adp *) arg;
+	struct crystalhd_adp *adp = arg;
 	int rc = 0;
 	if (adp)
 		rc = crystalhd_cmd_interrupt(&adp->cmds);
@@ -111,8 +111,8 @@ static void chd_dec_free_iodata(struct crystalhd_adp *adp,
 	spin_unlock_irqrestore(&adp->lock, flags);
 }
 
-static inline int crystalhd_user_data(unsigned long ud, void *dr,
-			 int size, int set)
+static inline int crystalhd_user_data(void __user *ud, void *dr,
+				      int size, int set)
 {
 	int rc;
 
@@ -122,9 +122,9 @@ static inline int crystalhd_user_data(unsigned long ud, void *dr,
 	}
 
 	if (set)
-		rc = copy_to_user((void *)ud, dr, size);
+		rc = copy_to_user(ud, dr, size);
 	else
-		rc = copy_from_user(dr, (void *)ud, size);
+		rc = copy_from_user(dr, ud, size);
 
 	if (rc) {
 		BCMLOG_ERR("Invalid args for command\n");
@@ -135,7 +135,8 @@ static inline int crystalhd_user_data(unsigned long ud, void *dr,
 }
 
 static int chd_dec_fetch_cdata(struct crystalhd_adp *adp,
-	 struct crystalhd_ioctl_data *io, uint32_t m_sz, unsigned long ua)
+			       struct crystalhd_ioctl_data *io, uint32_t m_sz,
+			       unsigned long ua)
 {
 	unsigned long ua_off;
 	int rc = 0;
@@ -153,7 +154,8 @@ static int chd_dec_fetch_cdata(struct crystalhd_adp *adp,
 
 	io->add_cdata_sz = m_sz;
 	ua_off = ua + sizeof(io->udata);
-	rc = crystalhd_user_data(ua_off, io->add_cdata, io->add_cdata_sz, 0);
+	rc = crystalhd_user_data((void __user *)ua_off, io->add_cdata,
+				 io->add_cdata_sz, 0);
 	if (rc) {
 		BCMLOG_ERR("failed to pull add_cdata sz:%x ua_off:%x\n",
 			   io->add_cdata_sz, (unsigned int)ua_off);
@@ -166,7 +168,8 @@ static int chd_dec_fetch_cdata(struct crystalhd_adp *adp,
 }
 
 static int chd_dec_release_cdata(struct crystalhd_adp *adp,
-			 struct crystalhd_ioctl_data *io, unsigned long ua)
+				 struct crystalhd_ioctl_data *io,
+				 unsigned long ua)
 {
 	unsigned long ua_off;
 	int rc;
@@ -178,8 +181,8 @@ static int chd_dec_release_cdata(struct crystalhd_adp *adp,
 
 	if (io->cmd != BCM_IOC_FW_DOWNLOAD) {
 		ua_off = ua + sizeof(io->udata);
-		rc = crystalhd_user_data(ua_off, io->add_cdata,
-					io->add_cdata_sz, 1);
+		rc = crystalhd_user_data((void __user *)ua_off, io->add_cdata,
+					 io->add_cdata_sz, 1);
 		if (rc) {
 			BCMLOG_ERR(
 				"failed to push add_cdata sz:%x ua_off:%x\n",
@@ -208,7 +211,8 @@ static int chd_dec_proc_user_data(struct crystalhd_adp *adp,
 		return -EINVAL;
 	}
 
-	rc = crystalhd_user_data(ua, &io->udata, sizeof(io->udata), set);
+	rc = crystalhd_user_data((void __user *)ua, &io->udata,
+				 sizeof(io->udata), set);
 	if (rc) {
 		BCMLOG_ERR("failed to %s iodata\n", (set ? "set" : "get"));
 		return rc;
@@ -380,7 +384,7 @@ static int chd_dec_init_chdev(struct crystalhd_adp *adp)
 	}
 
 	dev = device_create(crystalhd_class, NULL,
-			 MKDEV(adp->chd_dec_major, 0), NULL, "crystalhd");
+			    MKDEV(adp->chd_dec_major, 0), NULL, "crystalhd");
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);
 		BCMLOG_ERR("failed to create device\n");
@@ -395,8 +399,7 @@ static int chd_dec_init_chdev(struct crystalhd_adp *adp)
 
 	/* Allocate general purpose ioctl pool. */
 	for (i = 0; i < CHD_IODATA_POOL_SZ; i++) {
-		temp = kzalloc(sizeof(struct crystalhd_ioctl_data),
-					 GFP_KERNEL);
+		temp = kzalloc(sizeof(*temp), GFP_KERNEL);
 		if (!temp) {
 			BCMLOG_ERR("ioctl data pool kzalloc failed\n");
 			rc = -ENOMEM;
@@ -546,11 +549,12 @@ static int chd_dec_pci_probe(struct pci_dev *pdev,
 	int rc;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
 
-	BCMLOG(BCMLOG_DBG, "PCI_INFO: Vendor:0x%04x Device:0x%04x s_vendor:0x%04x s_device: 0x%04x\n",
+	BCMLOG(BCMLOG_DBG,
+	       "PCI_INFO: Vendor:0x%04x Device:0x%04x s_vendor:0x%04x s_device: 0x%04x\n",
 	       pdev->vendor, pdev->device, pdev->subsystem_vendor,
 	       pdev->subsystem_device);
 
-	pinfo = kzalloc(sizeof(struct crystalhd_adp), GFP_KERNEL);
+	pinfo = kzalloc(sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo) {
 		BCMLOG_ERR("Failed to allocate memory\n");
 		return -ENOMEM;

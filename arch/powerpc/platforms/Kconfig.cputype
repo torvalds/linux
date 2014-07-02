@@ -73,6 +73,7 @@ config PPC_BOOK3S_64
 	select SYS_SUPPORTS_HUGETLBFS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if PPC_64K_PAGES
 	select ARCH_SUPPORTS_NUMA_BALANCING
+	select IRQ_WORK
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -146,10 +147,6 @@ config POWER3
 config POWER4
 	depends on PPC64 && PPC_BOOK3S
 	def_bool y
-
-config PPC_A2
-	bool
-	depends on PPC_BOOK3E_64
 
 config TUNE_CELL
 	bool "Optimize for Cell Broadband Engine"
@@ -279,7 +276,7 @@ config VSX
 
 config PPC_ICSWX
 	bool "Support for PowerPC icswx coprocessor instruction"
-	depends on POWER4 || PPC_A2
+	depends on POWER4
 	default n
 	---help---
 
@@ -421,6 +418,7 @@ config CPU_BIG_ENDIAN
 
 config CPU_LITTLE_ENDIAN
 	bool "Build little endian kernel"
+	select PPC64_BOOT_WRAPPER
 	help
 	  Build a little endian kernel.
 
@@ -429,3 +427,7 @@ config CPU_LITTLE_ENDIAN
 	  little endian powerpc.
 
 endchoice
+
+config PPC64_BOOT_WRAPPER
+	def_bool n
+	depends on CPU_LITTLE_ENDIAN

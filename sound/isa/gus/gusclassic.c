@@ -149,7 +149,7 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 	struct snd_gus_card *gus;
 	int error;
 
-	error = snd_card_create(index[n], id[n], THIS_MODULE, 0, &card);
+	error = snd_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
 	if (error < 0)
 		return error;
 
@@ -198,8 +198,6 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 	if (gus->gf1.dma2 >= 0)
 		sprintf(card->longname + strlen(card->longname),
 			"&%d", gus->gf1.dma2);
-
-	snd_card_set_dev(card, dev);
 
 	error = snd_card_register(card);
 	if (error < 0)

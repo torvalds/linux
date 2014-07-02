@@ -1,12 +1,24 @@
+#include <asm/vdso.h>
+
 /*
  * Linker script for vDSO.  This is an ELF shared object prelinked to
  * its virtual address, and with only one read-only segment.
  * This script controls its layout.
  */
 
+#if defined(BUILD_VDSO64)
+# define SHDR_SIZE 64
+#elif defined(BUILD_VDSO32) || defined(BUILD_VDSOX32)
+# define SHDR_SIZE 40
+#else
+# error unknown VDSO target
+#endif
+
+#define NUM_FAKE_SHDRS 13
+
 SECTIONS
 {
-	. = VDSO_PRELINK + SIZEOF_HEADERS;
+	. = SIZEOF_HEADERS;
 
 	.hash		: { *(.hash) }			:text
 	.gnu.hash	: { *(.gnu.hash) }
@@ -16,34 +28,82 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
+	.dynamic	: { *(.dynamic) }		:text	:dynamic
+
+	.rodata		: {
+		*(.rodata*)
+		*(.data*)
+		*(.sdata*)
+		*(.got.plt) *(.got)
+		*(.gnu.linkonce.d.*)
+		*(.bss*)
+		*(.dynbss*)
+		*(.gnu.linkonce.b.*)
+
+		/*
+		 * Ideally this would live in a C file, but that won't
+		 * work cleanly for x32 until we start building the x32
+		 * C code using an x32 toolchain.
+		 */
+		VDSO_FAKE_SECTION_TABLE_START = .;
+		. = . + NUM_FAKE_SHDRS * SHDR_SIZE;
+		VDSO_FAKE_SECTION_TABLE_END = .;
+	}						:text
+
+	.fake_shstrtab	: { *(.fake_shstrtab) }		:text
+
+
 	.note		: { *(.note.*) }		:text	:note
 
 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
 	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
 
-	.dynamic	: { *(.dynamic) }		:text	:dynamic
-
-	.rodata		: { *(.rodata*) }		:text
-	.data		: {
-	      *(.data*)
-	      *(.sdata*)
-	      *(.got.plt) *(.got)
-	      *(.gnu.linkonce.d.*)
-	      *(.bss*)
-	      *(.dynbss*)
-	      *(.gnu.linkonce.b.*)
-	}
-
-	.altinstructions	: { *(.altinstructions) }
-	.altinstr_replacement	: { *(.altinstr_replacement) }
 
 	/*
-	 * Align the actual code well away from the non-instruction data.
-	 * This is the best thing for the I-cache.
+	 * Text is well-separated from actual data: there's plenty of
+	 * stuff that isn't used at runtime in between.
 	 */
-	. = ALIGN(0x100);
 
-	.text		: { *(.text*) }			:text	=0x90909090
+	.text		: { *(.text*) }			:text	=0x90909090,
+
+	/*
+	 * At the end so that eu-elflint stays happy when vdso2c strips
+	 * these.  A better implementation would avoid allocating space
+	 * for these.
+	 */
+	.altinstructions	: { *(.altinstructions) }	:text
+	.altinstr_replacement	: { *(.altinstr_replacement) }	:text
+
+	/*
+	 * The remainder of the vDSO consists of special pages that are
+	 * shared between the kernel and userspace.  It needs to be at the
+	 * end so that it doesn't overlap the mapping of the actual
+	 * vDSO image.
+	 */
+
+	. = ALIGN(PAGE_SIZE);
+	vvar_page = .;
+
+	/* Place all vvars at the offsets in asm/vvar.h. */
+#define EMIT_VVAR(name, offset) vvar_ ## name = vvar_page + offset;
+#define __VVAR_KERNEL_LDS
+#include <asm/vvar.h>
+#undef __VVAR_KERNEL_LDS
+#undef EMIT_VVAR
+
+	. = vvar_page + PAGE_SIZE;
+
+	hpet_page = .;
+	. = . + PAGE_SIZE;
+
+	. = ALIGN(PAGE_SIZE);
+	end_mapping = .;
+
+	/DISCARD/ : {
+		*(.discard)
+		*(.discard.*)
+		*(__bug_table)
+	}
 }
 
 /*

@@ -90,10 +90,26 @@ nouveau_bios_shadow_pramin(struct nouveau_bios *bios)
 	int i;
 
 	if (device->card_type >= NV_50) {
-		if (  device->card_type < NV_C0 ||
-		    !(nv_rd32(bios, 0x022500) & 0x00000001))
-			addr = (u64)(nv_rd32(bios, 0x619f04) & 0xffffff00) << 8;
+		if (device->card_type >= NV_C0 && device->card_type < GM100) {
+			if (nv_rd32(bios, 0x022500) & 0x00000001)
+				return;
+		} else
+		if (device->card_type >= GM100) {
+			if (nv_rd32(bios, 0x021c04) & 0x00000001)
+				return;
+		}
 
+		addr = nv_rd32(bios, 0x619f04);
+		if (!(addr & 0x00000008)) {
+			nv_debug(bios, "... not enabled\n");
+			return;
+		}
+		if ( (addr & 0x00000003) != 1) {
+			nv_debug(bios, "... not in vram\n");
+			return;
+		}
+
+		addr = (addr & 0xffffff00) << 8;
 		if (!addr) {
 			addr  = (u64)nv_rd32(bios, 0x001700) << 16;
 			addr += 0xf0000;
@@ -141,6 +157,10 @@ nouveau_bios_shadow_prom(struct nouveau_bios *bios)
 		pcireg = 0x001850;
 	access = nv_mask(bios, pcireg, 0x00000001, 0x00000000);
 
+	/* WARNING: PROM accesses should always be 32-bits aligned. Other
+	 * accesses work on most chipset but do not on Kepler chipsets
+	 */
+
 	/* bail if no rom signature, with a workaround for a PROM reading
 	 * issue on some chipsets.  the first read after a period of
 	 * inactivity returns the wrong result, so retry the first header
@@ -148,31 +168,35 @@ nouveau_bios_shadow_prom(struct nouveau_bios *bios)
 	 */
 	i = 16;
 	do {
-		if (nv_rd08(bios, 0x300000) == 0x55)
+		u32 data = le32_to_cpu(nv_rd32(bios, 0x300000)) & 0xffff;
+		if (data == 0xaa55)
 			break;
 	} while (i--);
 
-	if (!i || nv_rd08(bios, 0x300001) != 0xaa)
-		goto out;
-
-	/* additional check (see note below) - read PCI record header */
-	pcir = nv_rd08(bios, 0x300018) |
-	       nv_rd08(bios, 0x300019) << 8;
-	if (nv_rd08(bios, 0x300000 + pcir) != 'P' ||
-	    nv_rd08(bios, 0x300001 + pcir) != 'C' ||
-	    nv_rd08(bios, 0x300002 + pcir) != 'I' ||
-	    nv_rd08(bios, 0x300003 + pcir) != 'R')
+	if (!i)
 		goto out;
 
 	/* read entire bios image to system memory */
-	bios->size = nv_rd08(bios, 0x300002) * 512;
+	bios->size = (le32_to_cpu(nv_rd32(bios, 0x300000)) >> 16) & 0xff;
+	bios->size = bios->size * 512;
 	if (!bios->size)
 		goto out;
 
 	bios->data = kmalloc(bios->size, GFP_KERNEL);
-	if (bios->data) {
-		for (i = 0; i < bios->size; i++)
-			nv_wo08(bios, i, nv_rd08(bios, 0x300000 + i));
+	if (!bios->data)
+		goto out;
+
+	for (i = 0; i < bios->size; i += 4)
+		((u32 *)bios->data)[i/4] = nv_rd32(bios, 0x300000 + i);
+
+	/* check the PCI record header */
+	pcir = nv_ro16(bios, 0x0018);
+	if (bios->data[pcir + 0] != 'P' ||
+	    bios->data[pcir + 1] != 'C' ||
+	    bios->data[pcir + 2] != 'I' ||
+	    bios->data[pcir + 3] != 'R') {
+		bios->size = 0;
+		kfree(bios->data);
 	}
 
 out:

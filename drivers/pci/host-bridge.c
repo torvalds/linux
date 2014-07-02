@@ -3,7 +3,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/module.h>
 
@@ -32,11 +31,6 @@ void pci_set_host_bridge_release(struct pci_host_bridge *bridge,
 	bridge->release_data = release_data;
 }
 
-static bool resource_contains(struct resource *res1, struct resource *res2)
-{
-	return res1->start <= res2->start && res1->end >= res2->end;
-}
-
 void pcibios_resource_to_bus(struct pci_bus *bus, struct pci_bus_region *region,
 			     struct resource *res)
 {
@@ -45,9 +39,6 @@ void pcibios_resource_to_bus(struct pci_bus *bus, struct pci_bus_region *region,
 	resource_size_t offset = 0;
 
 	list_for_each_entry(window, &bridge->windows, list) {
-		if (resource_type(res) != resource_type(window->res))
-			continue;
-
 		if (resource_contains(window->res, res)) {
 			offset = window->offset;
 			break;

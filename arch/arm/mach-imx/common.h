@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2014 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -17,6 +17,7 @@ struct irq_data;
 struct platform_device;
 struct pt_regs;
 struct clk;
+struct device_node;
 enum mxc_cpu_pwr_mode;
 
 void mx1_map_io(void);
@@ -56,6 +57,7 @@ void imx51_init_late(void);
 void imx53_init_late(void);
 void epit_timer_init(void __iomem *base, int irq);
 void mxc_timer_init(void __iomem *, int);
+void mxc_timer_init_dt(struct device_node *);
 int mx1_clocks_init(unsigned long fref);
 int mx21_clocks_init(unsigned long lref, unsigned long fref);
 int mx25_clocks_init(void);
@@ -99,24 +101,10 @@ enum mx3_cpu_pwr_mode {
 void mx3_cpu_lp_set(enum mx3_cpu_pwr_mode mode);
 void imx_print_silicon_rev(const char *cpu, int srev);
 
-void avic_handle_irq(struct pt_regs *);
-void tzic_handle_irq(struct pt_regs *);
-
-#define imx1_handle_irq avic_handle_irq
-#define imx21_handle_irq avic_handle_irq
-#define imx25_handle_irq avic_handle_irq
-#define imx27_handle_irq avic_handle_irq
-#define imx31_handle_irq avic_handle_irq
-#define imx35_handle_irq avic_handle_irq
-#define imx50_handle_irq tzic_handle_irq
-#define imx51_handle_irq tzic_handle_irq
-#define imx53_handle_irq tzic_handle_irq
-
 void imx_enable_cpu(int cpu, bool enable);
 void imx_set_cpu_jump(int cpu, void *jump_addr);
 u32 imx_get_cpu_arg(int cpu);
 void imx_set_cpu_arg(int cpu, u32 arg);
-void v7_cpu_resume(void);
 #ifdef CONFIG_SMP
 void v7_secondary_startup(void);
 void imx_scu_map_io(void);
@@ -139,13 +127,25 @@ void imx_anatop_init(void);
 void imx_anatop_pre_suspend(void);
 void imx_anatop_post_resume(void);
 int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
-void imx6q_set_chicken_bit(void);
+void imx6q_set_int_mem_clk_lpm(void);
+void imx6sl_set_wait_clk(bool enter);
 
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
 
+#ifdef CONFIG_SUSPEND
+void v7_cpu_resume(void);
+void imx6_suspend(void __iomem *ocram_vbase);
+#else
+static inline void v7_cpu_resume(void) {}
+static inline void imx6_suspend(void __iomem *ocram_vbase) {}
+#endif
+
 void imx6q_pm_init(void);
+void imx6dl_pm_init(void);
+void imx6sl_pm_init(void);
 void imx6q_pm_set_ccm_base(void __iomem *base);
+
 #ifdef CONFIG_PM
 void imx5_pm_init(void);
 #else

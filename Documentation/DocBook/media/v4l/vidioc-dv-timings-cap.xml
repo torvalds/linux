@@ -1,11 +1,12 @@
 <refentry id="vidioc-dv-timings-cap">
   <refmeta>
-    <refentrytitle>ioctl VIDIOC_DV_TIMINGS_CAP</refentrytitle>
+    <refentrytitle>ioctl VIDIOC_DV_TIMINGS_CAP, VIDIOC_SUBDEV_DV_TIMINGS_CAP</refentrytitle>
     &manvol;
   </refmeta>
 
   <refnamediv>
     <refname>VIDIOC_DV_TIMINGS_CAP</refname>
+    <refname>VIDIOC_SUBDEV_DV_TIMINGS_CAP</refname>
     <refpurpose>The capabilities of the Digital Video receiver/transmitter</refpurpose>
   </refnamediv>
 
@@ -33,7 +34,7 @@
       <varlistentry>
 	<term><parameter>request</parameter></term>
 	<listitem>
-	  <para>VIDIOC_DV_TIMINGS_CAP</para>
+	  <para>VIDIOC_DV_TIMINGS_CAP, VIDIOC_SUBDEV_DV_TIMINGS_CAP</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -54,9 +55,18 @@
       interface and may change in the future.</para>
     </note>
 
-    <para>To query the capabilities of the DV receiver/transmitter applications can call
-this ioctl and the driver will fill in the structure. Note that drivers may return
+    <para>To query the capabilities of the DV receiver/transmitter applications
+can call the <constant>VIDIOC_DV_TIMINGS_CAP</constant> ioctl on a video node
+and the driver will fill in the structure. Note that drivers may return
 different values after switching the video input or output.</para>
+
+    <para>When implemented by the driver DV capabilities of subdevices can be
+queried by calling the <constant>VIDIOC_SUBDEV_DV_TIMINGS_CAP</constant> ioctl
+directly on a subdevice node. The capabilities are specific to inputs (for DV
+receivers) or outputs (for DV transmitters), applications must specify the
+desired pad number in the &v4l2-dv-timings-cap; <structfield>pad</structfield>
+field. Attempts to query capabilities on a pad that doesn't support them will
+return an &EINVAL;.</para>
 
     <table pgwide="1" frame="none" id="v4l2-bt-timings-cap">
       <title>struct <structname>v4l2_bt_timings_cap</structname></title>
@@ -127,7 +137,14 @@ different values after switching the video input or output.</para>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>reserved</structfield>[3]</entry>
+	    <entry><structfield>pad</structfield></entry>
+	    <entry>Pad number as reported by the media controller API. This field
+	    is only used when operating on a subdevice node. When operating on a
+	    video node applications must set this field to zero.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[2]</entry>
 	    <entry>Reserved for future extensions. Drivers must set the array to zero.</entry>
 	  </row>
 	  <row>

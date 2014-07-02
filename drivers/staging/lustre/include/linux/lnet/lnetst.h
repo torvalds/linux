@@ -402,7 +402,7 @@ typedef struct {
 /* add stat in session */
 typedef struct {
 	int		     lstio_sta_key;	  /* IN: session key */
-	int		     lstio_sta_timeout;      /* IN: timeout for stat requst */
+	int		     lstio_sta_timeout;      /* IN: timeout for stat request */
 	int		     lstio_sta_nmlen;	/* IN: group name length */
 	char		   *lstio_sta_namep;	/* IN: group name */
 	int		     lstio_sta_count;	/* IN: # of pid */

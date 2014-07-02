@@ -85,6 +85,10 @@ The decompressed kernel image contains a 64-byte header as follows:
 Header notes:
 
 - code0/code1 are responsible for branching to stext.
+- when booting through EFI, code0/code1 are initially skipped.
+  res5 is an offset to the PE header and the PE header has the EFI
+  entry point (efi_stub_entry). When the stub has done its work, it
+  jumps to code0 to resume the normal boot process.
 
 The image must be placed at the specified offset (currently 0x80000)
 from the start of the system RAM and called there. The start of the
@@ -111,8 +115,14 @@ Before jumping into the kernel, the following conditions must be met:
 - Caches, MMUs
   The MMU must be off.
   Instruction cache may be on or off.
-  Data cache must be off and invalidated.
-  External caches (if present) must be configured and disabled.
+  The address range corresponding to the loaded kernel image must be
+  cleaned to the PoC. In the presence of a system cache or other
+  coherent masters with caches enabled, this will typically require
+  cache maintenance by VA rather than set/way operations.
+  System caches which respect the architected cache maintenance by VA
+  operations must be configured and may be enabled.
+  System caches which do not respect architected cache maintenance by VA
+  operations (not recommended) must be configured and disabled.
 
 - Architected timers
   CNTFRQ must be programmed with the timer frequency and CNTVOFF must

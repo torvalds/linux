@@ -103,10 +103,6 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 		IWL_DEBUG_POWER(mvm, "tx_data_timeout=%d\n", val);
 		dbgfs_pm->tx_data_timeout = val;
 		break;
-	case MVM_DEBUGFS_PM_DISABLE_POWER_OFF:
-		IWL_DEBUG_POWER(mvm, "disable_power_off=%d\n", val);
-		dbgfs_pm->disable_power_off = val;
-		break;
 	case MVM_DEBUGFS_PM_LPRX_ENA:
 		IWL_DEBUG_POWER(mvm, "lprx %s\n", val ? "enabled" : "disabled");
 		dbgfs_pm->lprx_ena = val;
@@ -154,12 +150,6 @@ static ssize_t iwl_dbgfs_pm_params_write(struct ieee80211_vif *vif, char *buf,
 		if (sscanf(buf + 16, "%d", &val) != 1)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_TX_DATA_TIMEOUT;
-	} else if (!strncmp("disable_power_off=", buf, 18) &&
-		   !(mvm->fw->ucode_capa.flags &
-		     IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD)) {
-		if (sscanf(buf + 18, "%d", &val) != 1)
-			return -EINVAL;
-		param = MVM_DEBUGFS_PM_DISABLE_POWER_OFF;
 	} else if (!strncmp("lprx=", buf, 5)) {
 		if (sscanf(buf + 5, "%d", &val) != 1)
 			return -EINVAL;
@@ -185,7 +175,7 @@ static ssize_t iwl_dbgfs_pm_params_write(struct ieee80211_vif *vif, char *buf,
 
 	mutex_lock(&mvm->mutex);
 	iwl_dbgfs_update_pm(mvm, vif, param, val);
-	ret = iwl_mvm_power_update_mode(mvm, vif);
+	ret = iwl_mvm_power_update_mac(mvm);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -202,7 +192,7 @@ static ssize_t iwl_dbgfs_pm_params_read(struct file *file,
 	int bufsz = sizeof(buf);
 	int pos;
 
-	pos = iwl_mvm_power_dbgfs_read(mvm, vif, buf, bufsz);
+	pos = iwl_mvm_power_mac_dbgfs_read(mvm, vif, buf, bufsz);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -224,6 +214,29 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 	mutex_lock(&mvm->mutex);
 
 	ap_sta_id = mvmvif->ap_sta_id;
+
+	switch (ieee80211_vif_type_p2p(vif)) {
+	case NL80211_IFTYPE_ADHOC:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: ibss\n");
+		break;
+	case NL80211_IFTYPE_STATION:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: bss\n");
+		break;
+	case NL80211_IFTYPE_AP:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: ap\n");
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: p2p client\n");
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: p2p go\n");
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		pos += scnprintf(buf+pos, bufsz-pos, "type: p2p dev\n");
+		break;
+	default:
+		break;
+	}
 
 	pos += scnprintf(buf+pos, bufsz-pos, "mac id/color: %d / %d\n",
 			 mvmvif->id, mvmvif->color);
@@ -403,9 +416,9 @@ static ssize_t iwl_dbgfs_bf_params_write(struct ieee80211_vif *vif, char *buf,
 	mutex_lock(&mvm->mutex);
 	iwl_dbgfs_update_bf(vif, param, value);
 	if (param == MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER && !value)
-		ret = iwl_mvm_disable_beacon_filter(mvm, vif);
+		ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
 	else
-		ret = iwl_mvm_enable_beacon_filter(mvm, vif);
+		ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -460,6 +473,41 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+static ssize_t iwl_dbgfs_low_latency_write(struct ieee80211_vif *vif, char *buf,
+					   size_t count, loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	u8 value;
+	int ret;
+
+	ret = kstrtou8(buf, 0, &value);
+	if (ret)
+		return ret;
+	if (value > 1)
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_update_low_latency(mvm, vif, value);
+	mutex_unlock(&mvm->mutex);
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct ieee80211_vif *vif = file->private_data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	char buf[3];
+
+	buf[0] = mvmvif->low_latency ? '1' : '0';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, sizeof(buf));
+}
+
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
@@ -473,6 +521,7 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 MVM_DEBUGFS_READ_FILE_OPS(mac_params);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(pm_params, 32);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bf_params, 256);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(low_latency, 10);
 
 void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
@@ -499,12 +548,13 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM &&
 	    ((vif->type == NL80211_IFTYPE_STATION && !vif->p2p) ||
 	     (vif->type == NL80211_IFTYPE_STATION && vif->p2p &&
-	      mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PS)))
+	      mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BSS_P2P_PS_DCM)))
 		MVM_DEBUGFS_ADD_FILE_VIF(pm_params, mvmvif->dbgfs_dir, S_IWUSR |
 					 S_IRUSR);
 
-	MVM_DEBUGFS_ADD_FILE_VIF(mac_params, mvmvif->dbgfs_dir,
-				 S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE_VIF(mac_params, mvmvif->dbgfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE_VIF(low_latency, mvmvif->dbgfs_dir,
+				 S_IRUSR | S_IWUSR);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    mvmvif == mvm->bf_allowed_vif)

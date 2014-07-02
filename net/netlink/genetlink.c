@@ -317,7 +317,7 @@ static void genl_unregister_mc_groups(struct genl_family *family)
 	}
 }
 
-static int genl_validate_ops(struct genl_family *family)
+static int genl_validate_ops(const struct genl_family *family)
 {
 	const struct genl_ops *ops = family->ops;
 	unsigned int n_ops = family->n_ops;
@@ -336,10 +336,6 @@ static int genl_validate_ops(struct genl_family *family)
 			if (ops[i].cmd == ops[j].cmd)
 				return -EINVAL;
 	}
-
-	/* family is not registered yet, so no locking needed */
-	family->ops = ops;
-	family->n_ops = n_ops;
 
 	return 0;
 }
@@ -561,7 +557,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 		return -EOPNOTSUPP;
 
 	if ((ops->flags & GENL_ADMIN_PERM) &&
-	    !capable(CAP_NET_ADMIN))
+	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if ((nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP) {

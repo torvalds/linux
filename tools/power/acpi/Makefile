@@ -19,6 +19,8 @@ OUTDIR := $(shell cd $(OUTPUT) && /bin/pwd)
 $(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does not exist))
 endif
 
+SUBDIRS = tools/ec
+
 # --- CONFIGURATION BEGIN ---
 
 # Set the following to `true' to make a unstripped, unoptimized
@@ -68,7 +70,8 @@ WARNINGS += $(call cc-supports,-Wstrict-prototypes)
 WARNINGS += $(call cc-supports,-Wdeclaration-after-statement)
 
 KERNEL_INCLUDE := ../../../include
-CFLAGS += -D_LINUX -DDEFINE_ALTERNATE_TYPES -I$(KERNEL_INCLUDE)
+ACPICA_INCLUDE := ../../../drivers/acpi/acpica
+CFLAGS += -D_LINUX -I$(KERNEL_INCLUDE) -I$(ACPICA_INCLUDE)
 CFLAGS += $(WARNINGS)
 
 ifeq ($(strip $(V)),false)
@@ -89,22 +92,32 @@ else
 	STRIPCMD = $(STRIP) -s --remove-section=.note --remove-section=.comment
 endif
 
-# if DEBUG is enabled, then we do not strip or optimize
-ifeq ($(strip $(DEBUG)),true)
-	CFLAGS += -O1 -g -DDEBUG
-	STRIPCMD = /bin/true -Since_we_are_debugging
-else
-	CFLAGS += $(OPTIMIZATION) -fomit-frame-pointer
-	STRIPCMD = $(STRIP) -s --remove-section=.note --remove-section=.comment
-endif
-
 # --- ACPIDUMP BEGIN ---
 
 vpath %.c \
-	tools/acpidump
+	../../../drivers/acpi/acpica\
+	tools/acpidump\
+	common\
+	os_specific/service_layers
+
+CFLAGS += -DACPI_DUMP_APP -Itools/acpidump
 
 DUMP_OBJS = \
-	acpidump.o
+	apdump.o\
+	apfiles.o\
+	apmain.o\
+	osunixdir.o\
+	osunixmap.o\
+	tbprint.o\
+	tbxfroot.o\
+	utbuffer.o\
+	utexcep.o\
+	utmath.o\
+	utstring.o\
+	utxferror.o\
+	oslinuxtbl.o\
+	cmfsize.o\
+	getopt.o
 
 DUMP_OBJS := $(addprefix $(OUTPUT)tools/acpidump/,$(DUMP_OBJS))
 
@@ -128,7 +141,7 @@ clean:
 	-rm -f $(OUTPUT)acpidump
 
 install-tools:
-	$(INSTALL) -d $(DESTDIR)${bindir}
+	$(INSTALL) -d $(DESTDIR)${sbindir}
 	$(INSTALL_PROGRAM) $(OUTPUT)acpidump $(DESTDIR)${sbindir}
 
 install-man:

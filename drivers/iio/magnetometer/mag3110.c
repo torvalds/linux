@@ -183,14 +183,29 @@ static int mag3110_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
-		*val2 = 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		switch (chan->type) {
+		case IIO_MAGN:
+			*val = 0;
+			*val2 = 1000;
+			return IIO_VAL_INT_PLUS_MICRO;
+		case IIO_TEMP:
+			*val = 1000;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		i = data->ctrl_reg1 >> MAG3110_CTRL_DR_SHIFT;
 		*val = mag3110_samp_freq[i][0];
 		*val2 = mag3110_samp_freq[i][1];
 		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_CALIBBIAS:
+		ret = i2c_smbus_read_word_swapped(data->client,
+			MAG3110_OFF_X +	2 * chan->scan_index);
+		if (ret < 0)
+			return ret;
+		*val = sign_extend32(ret >> 1, 14);
+		return IIO_VAL_INT;
 	}
 	return -EINVAL;
 }
@@ -215,6 +230,11 @@ static int mag3110_write_raw(struct iio_dev *indio_dev,
 		data->ctrl_reg1 |= rate << MAG3110_CTRL_DR_SHIFT;
 		return i2c_smbus_write_byte_data(data->client,
 			MAG3110_CTRL_REG1, data->ctrl_reg1);
+	case IIO_CHAN_INFO_CALIBBIAS:
+		if (val < -10000 || val > 10000)
+			return -EINVAL;
+		return i2c_smbus_write_word_swapped(data->client,
+			MAG3110_OFF_X + 2 * chan->scan_index, val << 1);
 	default:
 		return -EINVAL;
 	}
@@ -252,7 +272,8 @@ done:
 	.type = IIO_MAGN, \
 	.modified = 1, \
 	.channel2 = IIO_MOD_##axis, \
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
+		BIT(IIO_CHAN_INFO_CALIBBIAS), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) | \
 		BIT(IIO_CHAN_INFO_SCALE), \
 	.scan_index = idx, \
@@ -270,7 +291,8 @@ static const struct iio_chan_spec mag3110_channels[] = {
 	MAG3110_CHANNEL(Z, 2),
 	{
 		.type = IIO_TEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = 3,
 		.scan_type = {
 			.sign = 's',
@@ -329,14 +351,14 @@ static int mag3110_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(mag3110_channels);
 	indio_dev->available_scan_masks = mag3110_scan_masks;
 
-	data->ctrl_reg1 = MAG3110_CTRL_DR_DEFAULT;
+	data->ctrl_reg1 = MAG3110_CTRL_DR_DEFAULT << MAG3110_CTRL_DR_SHIFT;
 	ret = i2c_smbus_write_byte_data(client, MAG3110_CTRL_REG1,
 		data->ctrl_reg1);
 	if (ret < 0)
 		return ret;
 
 	ret = i2c_smbus_write_byte_data(client, MAG3110_CTRL_REG2,
-		MAG3110_CTRL_AUTO_MRST_EN | MAG3110_CTRL_RAW);
+		MAG3110_CTRL_AUTO_MRST_EN);
 	if (ret < 0)
 		return ret;
 

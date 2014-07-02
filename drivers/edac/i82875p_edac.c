@@ -275,7 +275,6 @@ static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 {
 	struct pci_dev *dev;
 	void __iomem *window;
-	int err;
 
 	*ovrfl_pdev = NULL;
 	*ovrfl_window = NULL;
@@ -293,13 +292,8 @@ static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 		if (dev == NULL)
 			return 1;
 
-		err = pci_bus_add_device(dev);
-		if (err) {
-			i82875p_printk(KERN_ERR,
-				"%s(): pci_bus_add_device() Failed\n",
-				__func__);
-		}
 		pci_bus_assign_resources(dev->bus);
+		pci_bus_add_device(dev);
 	}
 
 	*ovrfl_pdev = dev;
@@ -405,8 +399,6 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	struct i82875p_error_info discard;
 
 	edac_dbg(0, "\n");
-
-	ovrfl_pdev = pci_get_device(PCI_VEND_DEV(INTEL, 82875_6), NULL);
 
 	if (i82875p_setup_overfl_dev(pdev, &ovrfl_pdev, &ovrfl_window))
 		return -ENODEV;

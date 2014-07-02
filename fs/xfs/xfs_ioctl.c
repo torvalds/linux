@@ -271,32 +271,6 @@ xfs_open_by_handle(
 	return error;
 }
 
-/*
- * This is a copy from fs/namei.c:vfs_readlink(), except for removing it's
- * unused first argument.
- */
-STATIC int
-do_readlink(
-	char __user		*buffer,
-	int			buflen,
-	const char		*link)
-{
-        int len;
-
-	len = PTR_ERR(link);
-	if (IS_ERR(link))
-		goto out;
-
-	len = strlen(link);
-	if (len > (unsigned) buflen)
-		len = buflen;
-	if (copy_to_user(buffer, link, len))
-		len = -EFAULT;
- out:
-	return len;
-}
-
-
 int
 xfs_readlink_by_handle(
 	struct file		*parfilp,
@@ -334,7 +308,7 @@ xfs_readlink_by_handle(
 	error = -xfs_readlink(XFS_I(dentry->d_inode), link);
 	if (error)
 		goto out_kfree;
-	error = do_readlink(hreq->ohandle, olen, link);
+	error = readlink_copy(hreq->ohandle, olen, link);
 	if (error)
 		goto out_kfree;
 
@@ -569,10 +543,11 @@ xfs_attrmulti_by_handle(
 
 	ops = memdup_user(am_hreq.ops, size);
 	if (IS_ERR(ops)) {
-		error = PTR_ERR(ops);
+		error = -PTR_ERR(ops);
 		goto out_dput;
 	}
 
+	error = ENOMEM;
 	attr_name = kmalloc(MAXNAMELEN, GFP_KERNEL);
 	if (!attr_name)
 		goto out_kfree_ops;
@@ -582,7 +557,7 @@ xfs_attrmulti_by_handle(
 		ops[i].am_error = strncpy_from_user((char *)attr_name,
 				ops[i].am_attrname, MAXNAMELEN);
 		if (ops[i].am_error == 0 || ops[i].am_error == MAXNAMELEN)
-			error = -ERANGE;
+			error = ERANGE;
 		if (ops[i].am_error < 0)
 			break;
 
@@ -1241,7 +1216,7 @@ xfs_ioctl_setattr(
 		 * cleared upon successful return from chown()
 		 */
 		if ((ip->i_d.di_mode & (S_ISUID|S_ISGID)) &&
-		    !inode_capable(VFS_I(ip), CAP_FSETID))
+		    !capable_wrt_inode_uidgid(VFS_I(ip), CAP_FSETID))
 			ip->i_d.di_mode &= ~(S_ISUID|S_ISGID);
 
 		/*
@@ -1253,15 +1228,8 @@ xfs_ioctl_setattr(
 				olddquot = xfs_qm_vop_chown(tp, ip,
 							&ip->i_pdquot, pdqp);
 			}
+			ASSERT(ip->i_d.di_version > 1);
 			xfs_set_projid(ip, fa->fsx_projid);
-
-			/*
-			 * We may have to rev the inode as well as
-			 * the superblock version number since projids didn't
-			 * exist before DINODE_VERSION_2 and SB_VERSION_NLINK.
-			 */
-			if (ip->i_d.di_version == 1)
-				xfs_bump_ino_vers2(tp, ip);
 		}
 
 	}

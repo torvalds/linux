@@ -123,10 +123,7 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 	pmd_t *pmdp = (pmd_t *) ptep;
 	pte_t pte = huge_ptep_get(ptep);
 
-	if (MACHINE_HAS_IDTE)
-		__pmd_idte(addr, pmdp);
-	else
-		__pmd_csp(pmdp);
+	pmdp_flush_direct(mm, addr, pmdp);
 	pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
 	return pte;
 }
@@ -221,11 +218,6 @@ int pmd_huge(pmd_t pmd)
 int pud_huge(pud_t pud)
 {
 	return 0;
-}
-
-int pmd_huge_support(void)
-{
-	return 1;
 }
 
 struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,

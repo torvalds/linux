@@ -1,7 +1,9 @@
 /*
  * Copyright 2013 Ideas On Board SPRL
+ * Copyright 2013, 2014 Horms Solutions Ltd.
  *
  * Contact: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+ * Contact: Simon Horman <horms@verge.net.au>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,6 +16,7 @@
 
 #include <linux/types.h>
 
+void r8a7779_clocks_init(u32 mode);
 void rcar_gen2_clocks_init(u32 mode);
 
 #endif

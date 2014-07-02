@@ -45,7 +45,7 @@
 
 static int get_offset(unsigned int last_mmap)
 {
-	return (last_mmap & (SHMLBA-1)) >> PAGE_SHIFT;
+	return (last_mmap & (SHM_COLOUR-1)) >> PAGE_SHIFT;
 }
 
 static unsigned long shared_align_offset(unsigned int last_mmap,
@@ -57,8 +57,8 @@ static unsigned long shared_align_offset(unsigned int last_mmap,
 static inline unsigned long COLOR_ALIGN(unsigned long addr,
 			 unsigned int last_mmap, unsigned long pgoff)
 {
-	unsigned long base = (addr+SHMLBA-1) & ~(SHMLBA-1);
-	unsigned long off  = (SHMLBA-1) &
+	unsigned long base = (addr+SHM_COLOUR-1) & ~(SHM_COLOUR-1);
+	unsigned long off  = (SHM_COLOUR-1) &
 		(shared_align_offset(last_mmap, pgoff) << PAGE_SHIFT);
 
 	return base + off;
@@ -72,10 +72,10 @@ static unsigned long mmap_upper_limit(void)
 {
 	unsigned long stack_base;
 
-	/* Limit stack size to 1GB - see setup_arg_pages() in fs/exec.c */
+	/* Limit stack size - see setup_arg_pages() in fs/exec.c */
 	stack_base = rlimit_max(RLIMIT_STACK);
-	if (stack_base > (1 << 30))
-		stack_base = 1 << 30;
+	if (stack_base > STACK_SIZE_MAX)
+		stack_base = STACK_SIZE_MAX;
 
 	return PAGE_ALIGN(STACK_TOP - stack_base);
 }
@@ -101,7 +101,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	if (flags & MAP_FIXED) {
 		if ((flags & MAP_SHARED) && last_mmap &&
 		    (addr - shared_align_offset(last_mmap, pgoff))
-				& (SHMLBA - 1))
+				& (SHM_COLOUR - 1))
 			return -EINVAL;
 		goto found_addr;
 	}
@@ -122,7 +122,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	info.length = len;
 	info.low_limit = mm->mmap_legacy_base;
 	info.high_limit = mmap_upper_limit();
-	info.align_mask = last_mmap ? (PAGE_MASK & (SHMLBA - 1)) : 0;
+	info.align_mask = last_mmap ? (PAGE_MASK & (SHM_COLOUR - 1)) : 0;
 	info.align_offset = shared_align_offset(last_mmap, pgoff);
 	addr = vm_unmapped_area(&info);
 
@@ -161,7 +161,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	if (flags & MAP_FIXED) {
 		if ((flags & MAP_SHARED) && last_mmap &&
 		    (addr - shared_align_offset(last_mmap, pgoff))
-			& (SHMLBA - 1))
+			& (SHM_COLOUR - 1))
 			return -EINVAL;
 		goto found_addr;
 	}
@@ -182,7 +182,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	info.length = len;
 	info.low_limit = PAGE_SIZE;
 	info.high_limit = mm->mmap_base;
-	info.align_mask = last_mmap ? (PAGE_MASK & (SHMLBA - 1)) : 0;
+	info.align_mask = last_mmap ? (PAGE_MASK & (SHM_COLOUR - 1)) : 0;
 	info.align_offset = shared_align_offset(last_mmap, pgoff);
 	addr = vm_unmapped_area(&info);
 	if (!(addr & ~PAGE_MASK))

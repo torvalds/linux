@@ -37,6 +37,8 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/clk.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 #include "core.h"
@@ -86,7 +88,7 @@ enum rockchip_pin_bank_type {
  */
 struct rockchip_pin_bank {
 	void __iomem			*reg_base;
-	void __iomem			*reg_pull;
+	struct regmap			*regmap_pull;
 	struct clk			*clk;
 	int				irq;
 	u32				pin_base;
@@ -120,8 +122,9 @@ struct rockchip_pin_ctrl {
 	char				*label;
 	enum rockchip_pinctrl_type	type;
 	int				mux_offset;
-	void	(*pull_calc_reg)(struct rockchip_pin_bank *bank, int pin_num,
-				 void __iomem **reg, u8 *bit);
+	void	(*pull_calc_reg)(struct rockchip_pin_bank *bank,
+				    int pin_num, struct regmap **regmap,
+				    int *reg, u8 *bit);
 };
 
 struct rockchip_pin_config {
@@ -159,8 +162,10 @@ struct rockchip_pmx_func {
 };
 
 struct rockchip_pinctrl {
-	void __iomem			*reg_base;
-	void __iomem			*reg_pull;
+	struct regmap			*regmap_base;
+	int				reg_size;
+	struct regmap			*regmap_pull;
+	struct regmap			*regmap_pmu;
 	struct device			*dev;
 	struct rockchip_pin_ctrl	*ctrl;
 	struct pinctrl_desc		pctl;
@@ -169,6 +174,12 @@ struct rockchip_pinctrl {
 	unsigned int			ngroups;
 	struct rockchip_pmx_func	*functions;
 	unsigned int			nfunctions;
+};
+
+static struct regmap_config rockchip_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
 };
 
 static inline struct rockchip_pin_bank *gc_to_pin_bank(struct gpio_chip *gc)
@@ -329,6 +340,29 @@ static const struct pinctrl_ops rockchip_pctrl_ops = {
  * Hardware access
  */
 
+static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+	unsigned int val;
+	int reg, ret;
+	u8 bit;
+
+	if (bank->bank_type == RK3188_BANK0 && pin < 16)
+		return RK_FUNC_GPIO;
+
+	/* get basic quadrupel of mux registers and the correct reg inside */
+	reg = info->ctrl->mux_offset;
+	reg += bank->bank_num * 0x10;
+	reg += (pin / 8) * 4;
+	bit = (pin % 8) * 2;
+
+	ret = regmap_read(info->regmap_base, reg, &val);
+	if (ret)
+		return ret;
+
+	return ((val >> bit) & 3);
+}
+
 /*
  * Set a new mux function for a pin.
  *
@@ -342,18 +376,33 @@ static const struct pinctrl_ops rockchip_pctrl_ops = {
  * @pin: pin to change
  * @mux: new mux function to set
  */
-static void rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
+static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
-	void __iomem *reg = info->reg_base + info->ctrl->mux_offset;
+	int reg, ret;
 	unsigned long flags;
 	u8 bit;
 	u32 data;
+
+	/*
+	 * The first 16 pins of rk3188_bank0 are always gpios and do not have
+	 * a mux register at all.
+	 */
+	if (bank->bank_type == RK3188_BANK0 && pin < 16) {
+		if (mux != RK_FUNC_GPIO) {
+			dev_err(info->dev,
+				"pin %d only supports a gpio mux\n", pin);
+			return -ENOTSUPP;
+		} else {
+			return 0;
+		}
+	}
 
 	dev_dbg(info->dev, "setting mux of GPIO%d-%d to %d\n",
 						bank->bank_num, pin, mux);
 
 	/* get basic quadrupel of mux registers and the correct reg inside */
+	reg = info->ctrl->mux_offset;
 	reg += bank->bank_num * 0x10;
 	reg += (pin / 8) * 4;
 	bit = (pin % 8) * 2;
@@ -362,9 +411,11 @@ static void rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 
 	data = (3 << (bit + 16));
 	data |= (mux & 3) << bit;
-	writel(data, reg);
+	ret = regmap_write(info->regmap_base, reg, data);
 
 	spin_unlock_irqrestore(&bank->slock, flags);
+
+	return ret;
 }
 
 #define RK2928_PULL_OFFSET		0x118
@@ -372,34 +423,46 @@ static void rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 #define RK2928_PULL_BANK_STRIDE		8
 
 static void rk2928_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
-				    int pin_num, void __iomem **reg, u8 *bit)
+				    int pin_num, struct regmap **regmap,
+				    int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 
-	*reg = info->reg_base + RK2928_PULL_OFFSET;
+	*regmap = info->regmap_base;
+	*reg = RK2928_PULL_OFFSET;
 	*reg += bank->bank_num * RK2928_PULL_BANK_STRIDE;
 	*reg += (pin_num / RK2928_PULL_PINS_PER_REG) * 4;
 
 	*bit = pin_num % RK2928_PULL_PINS_PER_REG;
 };
 
+#define RK3188_PULL_OFFSET		0x164
 #define RK3188_PULL_BITS_PER_PIN	2
 #define RK3188_PULL_PINS_PER_REG	8
 #define RK3188_PULL_BANK_STRIDE		16
+#define RK3188_PULL_PMU_OFFSET		0x64
 
 static void rk3188_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
-				    int pin_num, void __iomem **reg, u8 *bit)
+				    int pin_num, struct regmap **regmap,
+				    int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 
 	/* The first 12 pins of the first bank are located elsewhere */
 	if (bank->bank_type == RK3188_BANK0 && pin_num < 12) {
-		*reg = bank->reg_pull +
-				((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
+		*regmap = info->regmap_pmu ? info->regmap_pmu
+					   : bank->regmap_pull;
+		*reg = info->regmap_pmu ? RK3188_PULL_PMU_OFFSET : 0;
+		*reg += ((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
 		*bit = pin_num % RK3188_PULL_PINS_PER_REG;
 		*bit *= RK3188_PULL_BITS_PER_PIN;
 	} else {
-		*reg = info->reg_pull - 4;
+		*regmap = info->regmap_pull ? info->regmap_pull
+					    : info->regmap_base;
+		*reg = info->regmap_pull ? 0 : RK3188_PULL_OFFSET;
+
+		/* correct the offset, as it is the 2nd pull register */
+		*reg -= 4;
 		*reg += bank->bank_num * RK3188_PULL_BANK_STRIDE;
 		*reg += ((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
 
@@ -417,7 +480,8 @@ static int rockchip_get_pull(struct rockchip_pin_bank *bank, int pin_num)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
-	void __iomem *reg;
+	struct regmap *regmap;
+	int reg, ret;
 	u8 bit;
 	u32 data;
 
@@ -425,15 +489,19 @@ static int rockchip_get_pull(struct rockchip_pin_bank *bank, int pin_num)
 	if (ctrl->type == RK3066B)
 		return PIN_CONFIG_BIAS_DISABLE;
 
-	ctrl->pull_calc_reg(bank, pin_num, &reg, &bit);
+	ctrl->pull_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+
+	ret = regmap_read(regmap, reg, &data);
+	if (ret)
+		return ret;
 
 	switch (ctrl->type) {
 	case RK2928:
-		return !(readl_relaxed(reg) & BIT(bit))
+		return !(data & BIT(bit))
 				? PIN_CONFIG_BIAS_PULL_PIN_DEFAULT
 				: PIN_CONFIG_BIAS_DISABLE;
 	case RK3188:
-		data = readl_relaxed(reg) >> bit;
+		data >>= bit;
 		data &= (1 << RK3188_PULL_BITS_PER_PIN) - 1;
 
 		switch (data) {
@@ -460,7 +528,8 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
-	void __iomem *reg;
+	struct regmap *regmap;
+	int reg, ret;
 	unsigned long flags;
 	u8 bit;
 	u32 data;
@@ -472,7 +541,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 	if (ctrl->type == RK3066B)
 		return pull ? -EINVAL : 0;
 
-	ctrl->pull_calc_reg(bank, pin_num, &reg, &bit);
+	ctrl->pull_calc_reg(bank, pin_num, &regmap, &reg, &bit);
 
 	switch (ctrl->type) {
 	case RK2928:
@@ -481,7 +550,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 		data = BIT(bit + 16);
 		if (pull == PIN_CONFIG_BIAS_DISABLE)
 			data |= BIT(bit);
-		writel(data, reg);
+		ret = regmap_write(regmap, reg, data);
 
 		spin_unlock_irqrestore(&bank->slock, flags);
 		break;
@@ -510,7 +579,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 			return -EINVAL;
 		}
 
-		writel(data, reg);
+		ret = regmap_write(regmap, reg, data);
 
 		spin_unlock_irqrestore(&bank->slock, flags);
 		break;
@@ -519,7 +588,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -560,7 +629,7 @@ static int rockchip_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	const unsigned int *pins = info->groups[group].pins;
 	const struct rockchip_pin_config *data = info->groups[group].data;
 	struct rockchip_pin_bank *bank;
-	int cnt;
+	int cnt, ret = 0;
 
 	dev_dbg(info->dev, "enable function %s group %s\n",
 		info->functions[selector].name, info->groups[group].name);
@@ -571,8 +640,18 @@ static int rockchip_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	 */
 	for (cnt = 0; cnt < info->groups[group].npins; cnt++) {
 		bank = pin_to_bank(info, pins[cnt]);
-		rockchip_set_mux(bank, pins[cnt] - bank->pin_base,
-				 data[cnt].func);
+		ret = rockchip_set_mux(bank, pins[cnt] - bank->pin_base,
+				       data[cnt].func);
+		if (ret)
+			break;
+	}
+
+	if (ret) {
+		/* revert the already done pin settings */
+		for (cnt--; cnt >= 0; cnt--)
+			rockchip_set_mux(bank, pins[cnt] - bank->pin_base, 0);
+
+		return ret;
 	}
 
 	return 0;
@@ -607,7 +686,7 @@ static int rockchip_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct rockchip_pin_bank *bank;
 	struct gpio_chip *chip;
-	int pin;
+	int pin, ret;
 	u32 data;
 
 	chip = range->gc;
@@ -617,7 +696,9 @@ static int rockchip_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	dev_dbg(info->dev, "gpio_direction for pin %u as %s-%d to %s\n",
 		 offset, range->name, pin, input ? "input" : "output");
 
-	rockchip_set_mux(bank, pin, RK_FUNC_GPIO);
+	ret = rockchip_set_mux(bank, pin, RK_FUNC_GPIO);
+	if (ret < 0)
+		return ret;
 
 	data = readl_relaxed(bank->reg_base + GPIO_SWPORT_DDR);
 	/* set bit to 1 for output, 0 for input */
@@ -659,6 +740,10 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 	return false;
 }
 
+static int rockchip_gpio_direction_output(struct gpio_chip *gc,
+					  unsigned offset, int value);
+static int rockchip_gpio_get(struct gpio_chip *gc, unsigned offset);
+
 /* set the pin config settings for a specified pin */
 static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				unsigned long *configs, unsigned num_configs)
@@ -696,6 +781,13 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			if (rc)
 				return rc;
 			break;
+		case PIN_CONFIG_OUTPUT:
+			rc = rockchip_gpio_direction_output(&bank->gpio_chip,
+							    pin - bank->pin_base,
+							    arg);
+			if (rc)
+				return rc;
+			break;
 		default:
 			return -ENOTSUPP;
 			break;
@@ -712,13 +804,15 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct rockchip_pin_bank *bank = pin_to_bank(info, pin);
 	enum pin_config_param param = pinconf_to_config_param(*config);
+	u16 arg;
+	int rc;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 		if (rockchip_get_pull(bank, pin - bank->pin_base) != param)
 			return -EINVAL;
 
-		*config = 0;
+		arg = 0;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
@@ -730,12 +824,25 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		if (rockchip_get_pull(bank, pin - bank->pin_base) != param)
 			return -EINVAL;
 
-		*config = 1;
+		arg = 1;
+		break;
+	case PIN_CONFIG_OUTPUT:
+		rc = rockchip_get_mux(bank, pin - bank->pin_base);
+		if (rc != RK_FUNC_GPIO)
+			return -EINVAL;
+
+		rc = rockchip_gpio_get(&bank->gpio_chip, pin - bank->pin_base);
+		if (rc < 0)
+			return rc;
+
+		arg = rc ? 1 : 0;
 		break;
 	default:
 		return -ENOTSUPP;
 		break;
 	}
+
+	*config = pinconf_to_config_packed(param, arg);
 
 	return 0;
 }
@@ -1144,9 +1251,13 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 	u32 polarity;
 	u32 level;
 	u32 data;
+	int ret;
 
 	/* make sure the pin is configured as gpio input */
-	rockchip_set_mux(bank, d->hwirq, RK_FUNC_GPIO);
+	ret = rockchip_set_mux(bank, d->hwirq, RK_FUNC_GPIO);
+	if (ret < 0)
+		return ret;
+
 	data = readl_relaxed(bank->reg_base + GPIO_SWPORT_DDR);
 	data &= ~mask;
 	writel_relaxed(data, bank->reg_base + GPIO_SWPORT_DDR);
@@ -1333,16 +1444,17 @@ static int rockchip_gpiolib_unregister(struct platform_device *pdev,
 }
 
 static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
-				  struct device *dev)
+				  struct rockchip_pinctrl *info)
 {
 	struct resource res;
+	void __iomem *base;
 
 	if (of_address_to_resource(bank->of_node, 0, &res)) {
-		dev_err(dev, "cannot find IO resource for bank\n");
+		dev_err(info->dev, "cannot find IO resource for bank\n");
 		return -ENOENT;
 	}
 
-	bank->reg_base = devm_ioremap_resource(dev, &res);
+	bank->reg_base = devm_ioremap_resource(info->dev, &res);
 	if (IS_ERR(bank->reg_base))
 		return PTR_ERR(bank->reg_base);
 
@@ -1352,16 +1464,30 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 	 */
 	if (of_device_is_compatible(bank->of_node,
 				    "rockchip,rk3188-gpio-bank0")) {
+		struct device_node *node;
+
 		bank->bank_type = RK3188_BANK0;
 
-		if (of_address_to_resource(bank->of_node, 1, &res)) {
-			dev_err(dev, "cannot find IO resource for bank\n");
-			return -ENOENT;
+		node = of_parse_phandle(bank->of_node->parent,
+					"rockchip,pmu", 0);
+		if (!node) {
+			if (of_address_to_resource(bank->of_node, 1, &res)) {
+				dev_err(info->dev, "cannot find IO resource for bank\n");
+				return -ENOENT;
+			}
+
+			base = devm_ioremap_resource(info->dev, &res);
+			if (IS_ERR(base))
+				return PTR_ERR(base);
+			rockchip_regmap_config.max_register =
+						    resource_size(&res) - 4;
+			rockchip_regmap_config.name =
+					    "rockchip,rk3188-gpio-bank0-pull";
+			bank->regmap_pull = devm_regmap_init_mmio(info->dev,
+						    base,
+						    &rockchip_regmap_config);
 		}
 
-		bank->reg_pull = devm_ioremap_resource(dev, &res);
-		if (IS_ERR(bank->reg_pull))
-			return PTR_ERR(bank->reg_pull);
 	} else {
 		bank->bank_type = COMMON_BANK;
 	}
@@ -1401,7 +1527,7 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 			if (!strcmp(bank->name, np->name)) {
 				bank->of_node = np;
 
-				if (!rockchip_get_bank_data(bank, &pdev->dev))
+				if (!rockchip_get_bank_data(bank, d))
 					bank->valid = true;
 
 				break;
@@ -1425,7 +1551,9 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	struct rockchip_pinctrl *info;
 	struct device *dev = &pdev->dev;
 	struct rockchip_pin_ctrl *ctrl;
+	struct device_node *np = pdev->dev.of_node, *node;
 	struct resource *res;
+	void __iomem *base;
 	int ret;
 
 	if (!dev->of_node) {
@@ -1437,25 +1565,56 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
+	info->dev = dev;
+
 	ctrl = rockchip_pinctrl_get_soc_data(info, pdev);
 	if (!ctrl) {
 		dev_err(dev, "driver data not available\n");
 		return -EINVAL;
 	}
 	info->ctrl = ctrl;
-	info->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(info->reg_base))
-		return PTR_ERR(info->reg_base);
+	node = of_parse_phandle(np, "rockchip,grf", 0);
+	if (node) {
+		info->regmap_base = syscon_node_to_regmap(node);
+		if (IS_ERR(info->regmap_base))
+			return PTR_ERR(info->regmap_base);
+	} else {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(base))
+			return PTR_ERR(base);
 
-	/* The RK3188 has its pull registers in a separate place */
-	if (ctrl->type == RK3188) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		info->reg_pull = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(info->reg_pull))
-			return PTR_ERR(info->reg_pull);
+		rockchip_regmap_config.max_register = resource_size(res) - 4;
+		rockchip_regmap_config.name = "rockchip,pinctrl";
+		info->regmap_base = devm_regmap_init_mmio(&pdev->dev, base,
+						    &rockchip_regmap_config);
+
+		/* to check for the old dt-bindings */
+		info->reg_size = resource_size(res);
+
+		/* Honor the old binding, with pull registers as 2nd resource */
+		if (ctrl->type == RK3188 && info->reg_size < 0x200) {
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+			base = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(base))
+				return PTR_ERR(base);
+
+			rockchip_regmap_config.max_register =
+							resource_size(res) - 4;
+			rockchip_regmap_config.name = "rockchip,pinctrl-pull";
+			info->regmap_pull = devm_regmap_init_mmio(&pdev->dev,
+						    base,
+						    &rockchip_regmap_config);
+		}
+	}
+
+	/* try to find the optional reference to the pmu syscon */
+	node = of_parse_phandle(np, "rockchip,pmu", 0);
+	if (node) {
+		info->regmap_pmu = syscon_node_to_regmap(node);
+		if (IS_ERR(info->regmap_pmu))
+			return PTR_ERR(info->regmap_pmu);
 	}
 
 	ret = rockchip_gpiolib_register(pdev, info);
@@ -1534,7 +1693,7 @@ static struct rockchip_pin_ctrl rk3188_pin_ctrl = {
 		.nr_banks		= ARRAY_SIZE(rk3188_pin_banks),
 		.label			= "RK3188-GPIO",
 		.type			= RK3188,
-		.mux_offset		= 0x68,
+		.mux_offset		= 0x60,
 		.pull_calc_reg		= rk3188_calc_pull_reg_and_bit,
 };
 

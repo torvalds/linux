@@ -76,16 +76,48 @@
 		compatible = "fsl,b4420-l3-cache-controller", "cache";
 	};
 
-	corenet-cf@18000 {
-		compatible = "fsl,b4420-corenet-cf";
-	};
-
 	guts: global-utilities@e0000 {
 		compatible = "fsl,b4420-device-config", "fsl,qoriq-device-config-2.0";
 	};
 
 	clockgen: global-utilities@e1000 {
 		compatible = "fsl,b4420-clockgen", "fsl,qoriq-clockgen-2.0";
+		ranges = <0x0 0xe1000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sysclk: sysclk {
+			#clock-cells = <0>;
+			compatible = "fsl,qoriq-sysclk-2.0";
+			clock-output-names = "sysclk";
+		};
+
+		pll0: pll0@800 {
+			#clock-cells = <1>;
+			reg = <0x800 0x4>;
+			compatible = "fsl,qoriq-core-pll-2.0";
+			clocks = <&sysclk>;
+			clock-output-names = "pll0", "pll0-div2", "pll0-div4";
+		};
+
+		pll1: pll1@820 {
+			#clock-cells = <1>;
+			reg = <0x820 0x4>;
+			compatible = "fsl,qoriq-core-pll-2.0";
+			clocks = <&sysclk>;
+			clock-output-names = "pll1", "pll1-div2", "pll1-div4";
+		};
+
+		mux0: mux0@0 {
+			#clock-cells = <0>;
+			reg = <0x0 0x4>;
+			compatible = "fsl,qoriq-core-mux-2.0";
+			clocks = <&pll0 0>, <&pll0 1>, <&pll0 2>,
+				<&pll1 0>, <&pll1 1>, <&pll1 2>;
+			clock-names = "pll0", "pll0-div2", "pll0-div4",
+				"pll1", "pll1-div2", "pll1-div4";
+			clock-output-names = "cmux0";
+		};
 	};
 
 	rcpm: global-utilities@e2000 {

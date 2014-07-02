@@ -65,7 +65,7 @@ static inline int radeon_bo_reserve(struct radeon_bo *bo, bool no_intr)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, false, 0);
+	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, false, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(bo->rdev->dev, "%p reserve failed\n", bo);
@@ -138,9 +138,8 @@ extern int radeon_bo_evict_vram(struct radeon_device *rdev);
 extern void radeon_bo_force_delete(struct radeon_device *rdev);
 extern int radeon_bo_init(struct radeon_device *rdev);
 extern void radeon_bo_fini(struct radeon_device *rdev);
-extern void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
-				struct list_head *head);
-extern int radeon_bo_list_validate(struct ww_acquire_ctx *ticket,
+extern int radeon_bo_list_validate(struct radeon_device *rdev,
+				   struct ww_acquire_ctx *ticket,
 				   struct list_head *head, int ring);
 extern int radeon_bo_fbdev_mmap(struct radeon_bo *bo,
 				struct vm_area_struct *vma);
@@ -151,7 +150,7 @@ extern void radeon_bo_get_tiling_flags(struct radeon_bo *bo,
 extern int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 				bool force_drop);
 extern void radeon_bo_move_notify(struct ttm_buffer_object *bo,
-					struct ttm_mem_reg *mem);
+				  struct ttm_mem_reg *new_mem);
 extern int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
 
@@ -181,7 +180,7 @@ extern int radeon_sa_bo_manager_suspend(struct radeon_device *rdev,
 extern int radeon_sa_bo_new(struct radeon_device *rdev,
 			    struct radeon_sa_manager *sa_manager,
 			    struct radeon_sa_bo **sa_bo,
-			    unsigned size, unsigned align, bool block);
+			    unsigned size, unsigned align);
 extern void radeon_sa_bo_free(struct radeon_device *rdev,
 			      struct radeon_sa_bo **sa_bo,
 			      struct radeon_fence *fence);

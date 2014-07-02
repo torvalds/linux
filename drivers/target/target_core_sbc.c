@@ -81,7 +81,7 @@ sbc_emulate_readcapacity(struct se_cmd *cmd)
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd_with_length(cmd, GOOD, 8);
 	return 0;
 }
 
@@ -89,6 +89,7 @@ static sense_reason_t
 sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
 	unsigned char *rbuf;
 	unsigned char buf[32];
 	unsigned long long blocks = dev->transport->get_blocks(dev);
@@ -109,8 +110,10 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	/*
 	 * Set P_TYPE and PROT_EN bits for DIF support
 	 */
-	if (dev->dev_attrib.pi_prot_type)
-		buf[12] = (dev->dev_attrib.pi_prot_type - 1) << 1 | 0x1;
+	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
+		if (dev->dev_attrib.pi_prot_type)
+			buf[12] = (dev->dev_attrib.pi_prot_type - 1) << 1 | 0x1;
+	}
 
 	if (dev->transport->get_lbppbe)
 		buf[13] = dev->transport->get_lbppbe(dev) & 0x0f;
@@ -134,7 +137,7 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd_with_length(cmd, GOOD, 32);
 	return 0;
 }
 
@@ -171,24 +174,6 @@ sbc_emulate_noop(struct se_cmd *cmd)
 static inline u32 sbc_get_size(struct se_cmd *cmd, u32 sectors)
 {
 	return cmd->se_dev->dev_attrib.block_size * sectors;
-}
-
-static int sbc_check_valid_sectors(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	unsigned long long end_lba;
-	u32 sectors;
-
-	sectors = cmd->data_length / dev->dev_attrib.block_size;
-	end_lba = dev->transport->get_blocks(dev) + 1;
-
-	if (cmd->t_task_lba + sectors > end_lba) {
-		pr_err("target: lba %llu, sectors %u exceeds end lba %llu\n",
-			cmd->t_task_lba, sectors, end_lba);
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static inline u32 transport_get_sectors_6(unsigned char *cdb)
@@ -425,13 +410,14 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 		goto out;
 	}
 
-	write_sg = kzalloc(sizeof(struct scatterlist) * cmd->t_data_nents,
+	write_sg = kmalloc(sizeof(struct scatterlist) * cmd->t_data_nents,
 			   GFP_KERNEL);
 	if (!write_sg) {
 		pr_err("Unable to allocate compare_and_write sg\n");
 		ret = TCM_OUT_OF_RESOURCES;
 		goto out;
 	}
+	sg_init_table(write_sg, cmd->t_data_nents);
 	/*
 	 * Setup verify and write data payloads from total NumberLBAs.
 	 */
@@ -569,30 +555,85 @@ sbc_compare_and_write(struct se_cmd *cmd)
 	return TCM_NO_SENSE;
 }
 
+static int
+sbc_set_prot_op_checks(u8 protect, enum target_prot_type prot_type,
+		       bool is_write, struct se_cmd *cmd)
+{
+	if (is_write) {
+		cmd->prot_op = protect ? TARGET_PROT_DOUT_PASS :
+					 TARGET_PROT_DOUT_INSERT;
+		switch (protect) {
+		case 0x0:
+		case 0x3:
+			cmd->prot_checks = 0;
+			break;
+		case 0x1:
+		case 0x5:
+			cmd->prot_checks = TARGET_DIF_CHECK_GUARD;
+			if (prot_type == TARGET_DIF_TYPE1_PROT)
+				cmd->prot_checks |= TARGET_DIF_CHECK_REFTAG;
+			break;
+		case 0x2:
+			if (prot_type == TARGET_DIF_TYPE1_PROT)
+				cmd->prot_checks = TARGET_DIF_CHECK_REFTAG;
+			break;
+		case 0x4:
+			cmd->prot_checks = TARGET_DIF_CHECK_GUARD;
+			break;
+		default:
+			pr_err("Unsupported protect field %d\n", protect);
+			return -EINVAL;
+		}
+	} else {
+		cmd->prot_op = protect ? TARGET_PROT_DIN_PASS :
+					 TARGET_PROT_DIN_STRIP;
+		switch (protect) {
+		case 0x0:
+		case 0x1:
+		case 0x5:
+			cmd->prot_checks = TARGET_DIF_CHECK_GUARD;
+			if (prot_type == TARGET_DIF_TYPE1_PROT)
+				cmd->prot_checks |= TARGET_DIF_CHECK_REFTAG;
+			break;
+		case 0x2:
+			if (prot_type == TARGET_DIF_TYPE1_PROT)
+				cmd->prot_checks = TARGET_DIF_CHECK_REFTAG;
+			break;
+		case 0x3:
+			cmd->prot_checks = 0;
+			break;
+		case 0x4:
+			cmd->prot_checks = TARGET_DIF_CHECK_GUARD;
+			break;
+		default:
+			pr_err("Unsupported protect field %d\n", protect);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static bool
 sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
-	       u32 sectors)
+	       u32 sectors, bool is_write)
 {
-	if (!cmd->t_prot_sg || !cmd->t_prot_nents)
+	u8 protect = cdb[1] >> 5;
+
+	if ((!cmd->t_prot_sg || !cmd->t_prot_nents) && cmd->prot_pto)
 		return true;
 
 	switch (dev->dev_attrib.pi_prot_type) {
 	case TARGET_DIF_TYPE3_PROT:
-		if (!(cdb[1] & 0xe0))
-			return true;
-
 		cmd->reftag_seed = 0xffffffff;
 		break;
 	case TARGET_DIF_TYPE2_PROT:
-		if (cdb[1] & 0xe0)
+		if (protect)
 			return false;
 
 		cmd->reftag_seed = cmd->t_task_lba;
 		break;
 	case TARGET_DIF_TYPE1_PROT:
-		if (!(cdb[1] & 0xe0))
-			return true;
-
 		cmd->reftag_seed = cmd->t_task_lba;
 		break;
 	case TARGET_DIF_TYPE0_PROT:
@@ -600,9 +641,26 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 		return true;
 	}
 
+	if (sbc_set_prot_op_checks(protect, dev->dev_attrib.pi_prot_type,
+				   is_write, cmd))
+		return false;
+
 	cmd->prot_type = dev->dev_attrib.pi_prot_type;
 	cmd->prot_length = dev->prot_length * sectors;
-	cmd->prot_handover = PROT_SEPERATED;
+
+	/**
+	 * In case protection information exists over the wire
+	 * we modify command data length to describe pure data.
+	 * The actual transfer length is data length + protection
+	 * length
+	 **/
+	if (protect)
+		cmd->data_length = sectors * dev->dev_attrib.block_size;
+
+	pr_debug("%s: prot_type=%d, data_length=%d, prot_length=%d "
+		 "prot_op=%d prot_checks=%d\n",
+		 __func__, cmd->prot_type, cmd->data_length, cmd->prot_length,
+		 cmd->prot_op, cmd->prot_checks);
 
 	return true;
 }
@@ -628,7 +686,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_10(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 
-		if (!sbc_check_prot(dev, cmd, cdb, sectors))
+		if (!sbc_check_prot(dev, cmd, cdb, sectors, false))
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
@@ -639,7 +697,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_12(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 
-		if (!sbc_check_prot(dev, cmd, cdb, sectors))
+		if (!sbc_check_prot(dev, cmd, cdb, sectors, false))
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
@@ -650,7 +708,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_16(cdb);
 		cmd->t_task_lba = transport_lba_64(cdb);
 
-		if (!sbc_check_prot(dev, cmd, cdb, sectors))
+		if (!sbc_check_prot(dev, cmd, cdb, sectors, false))
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
@@ -669,7 +727,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_10(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 
-		if (!sbc_check_prot(dev, cmd, cdb, sectors))
+		if (!sbc_check_prot(dev, cmd, cdb, sectors, true))
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 		if (cdb[1] & 0x8)
@@ -682,7 +740,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_12(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 
-		if (!sbc_check_prot(dev, cmd, cdb, sectors))
+		if (!sbc_check_prot(dev, cmd, cdb, sectors, true))
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 		if (cdb[1] & 0x8)
@@ -695,7 +753,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		sectors = transport_get_sectors_16(cdb);
 		cmd->t_task_lba = transport_lba_64(cdb);
 
-		if (!sbc_check_prot(dev, cmd, cdb, sectors))
+		if (!sbc_check_prot(dev, cmd, cdb, sectors, true))
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 		if (cdb[1] & 0x8)
@@ -812,15 +870,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		break;
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
-		if (!ops->execute_sync_cache) {
-			size = 0;
-			cmd->execute_cmd = sbc_emulate_noop;
-			break;
-		}
-
-		/*
-		 * Extract LBA and range to be flushed for emulated SYNCHRONIZE_CACHE
-		 */
 		if (cdb[0] == SYNCHRONIZE_CACHE) {
 			sectors = transport_get_sectors_10(cdb);
 			cmd->t_task_lba = transport_lba_32(cdb);
@@ -828,18 +877,12 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			sectors = transport_get_sectors_16(cdb);
 			cmd->t_task_lba = transport_lba_64(cdb);
 		}
-
-		size = sbc_get_size(cmd, sectors);
-
-		/*
-		 * Check to ensure that LBA + Range does not exceed past end of
-		 * device for IBLOCK and FILEIO ->do_sync_cache() backend calls
-		 */
-		if (cmd->t_task_lba || sectors) {
-			if (sbc_check_valid_sectors(cmd) < 0)
-				return TCM_ADDRESS_OUT_OF_RANGE;
+		if (ops->execute_sync_cache) {
+			cmd->execute_cmd = ops->execute_sync_cache;
+			goto check_lba;
 		}
-		cmd->execute_cmd = ops->execute_sync_cache;
+		size = 0;
+		cmd->execute_cmd = sbc_emulate_noop;
 		break;
 	case UNMAP:
 		if (!ops->execute_unmap)
@@ -882,8 +925,10 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		break;
 	case VERIFY:
 		size = 0;
+		sectors = transport_get_sectors_10(cdb);
+		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->execute_cmd = sbc_emulate_noop;
-		break;
+		goto check_lba;
 	case REZERO_UNIT:
 	case SEEK_6:
 	case SEEK_10:
@@ -923,7 +968,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 				dev->dev_attrib.hw_max_sectors);
 			return TCM_INVALID_CDB_FIELD;
 		}
-
+check_lba:
 		end_lba = dev->transport->get_blocks(dev) + 1;
 		if (cmd->t_task_lba + sectors > end_lba) {
 			pr_err("cmd exceeds last lba %llu "
@@ -1030,6 +1075,50 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL(sbc_execute_unmap);
+
+void
+sbc_dif_generate(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	struct se_dif_v1_tuple *sdt;
+	struct scatterlist *dsg, *psg = cmd->t_prot_sg;
+	sector_t sector = cmd->t_task_lba;
+	void *daddr, *paddr;
+	int i, j, offset = 0;
+
+	for_each_sg(cmd->t_data_sg, dsg, cmd->t_data_nents, i) {
+		daddr = kmap_atomic(sg_page(dsg)) + dsg->offset;
+		paddr = kmap_atomic(sg_page(psg)) + psg->offset;
+
+		for (j = 0; j < dsg->length; j += dev->dev_attrib.block_size) {
+
+			if (offset >= psg->length) {
+				kunmap_atomic(paddr);
+				psg = sg_next(psg);
+				paddr = kmap_atomic(sg_page(psg)) + psg->offset;
+				offset = 0;
+			}
+
+			sdt = paddr + offset;
+			sdt->guard_tag = cpu_to_be16(crc_t10dif(daddr + j,
+						dev->dev_attrib.block_size));
+			if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT)
+				sdt->ref_tag = cpu_to_be32(sector & 0xffffffff);
+			sdt->app_tag = 0;
+
+			pr_debug("DIF WRITE INSERT sector: %llu guard_tag: 0x%04x"
+				 " app_tag: 0x%04x ref_tag: %u\n",
+				 (unsigned long long)sector, sdt->guard_tag,
+				 sdt->app_tag, be32_to_cpu(sdt->ref_tag));
+
+			sector++;
+			offset += sizeof(struct se_dif_v1_tuple);
+		}
+
+		kunmap_atomic(paddr);
+		kunmap_atomic(daddr);
+	}
+}
 
 static sense_reason_t
 sbc_dif_v1_verify(struct se_device *dev, struct se_dif_v1_tuple *sdt,
@@ -1162,9 +1251,9 @@ sbc_dif_verify_write(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 }
 EXPORT_SYMBOL(sbc_dif_verify_write);
 
-sense_reason_t
-sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
-		    unsigned int ei_lba, struct scatterlist *sg, int sg_off)
+static sense_reason_t
+__sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
+		      unsigned int ei_lba, struct scatterlist *sg, int sg_off)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_dif_v1_tuple *sdt;
@@ -1217,8 +1306,31 @@ sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 		kunmap_atomic(paddr);
 		kunmap_atomic(daddr);
 	}
-	sbc_dif_copy_prot(cmd, sectors, true, sg, sg_off);
 
+	return 0;
+}
+
+sense_reason_t
+sbc_dif_read_strip(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	u32 sectors = cmd->prot_length / dev->prot_length;
+
+	return __sbc_dif_verify_read(cmd, cmd->t_task_lba, sectors, 0,
+				     cmd->t_prot_sg, 0);
+}
+
+sense_reason_t
+sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
+		    unsigned int ei_lba, struct scatterlist *sg, int sg_off)
+{
+	sense_reason_t rc;
+
+	rc = __sbc_dif_verify_read(cmd, start, sectors, ei_lba, sg, sg_off);
+	if (rc)
+		return rc;
+
+	sbc_dif_copy_prot(cmd, sectors, true, sg, sg_off);
 	return 0;
 }
 EXPORT_SYMBOL(sbc_dif_verify_read);

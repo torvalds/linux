@@ -50,6 +50,7 @@
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
+#include "gpio.h"
 
 /*
  * board revision encoding

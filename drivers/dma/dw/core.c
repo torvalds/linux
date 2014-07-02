@@ -33,8 +33,8 @@
  * of which use ARM any more).  See the "Databook" from Synopsys for
  * information beyond what licensees probably provide.
  *
- * The driver has currently been tested only with the Atmel AT32AP7000,
- * which does not support descriptor writeback.
+ * The driver has been tested with the Atmel AT32AP7000, which does not
+ * support descriptor writeback.
  */
 
 static inline bool is_request_line_unset(struct dw_dma_chan *dwc)
@@ -1479,13 +1479,26 @@ static void dw_dma_off(struct dw_dma *dw)
 int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 {
 	struct dw_dma		*dw;
-	size_t			size;
 	bool			autocfg;
 	unsigned int		dw_params;
 	unsigned int		nr_channels;
 	unsigned int		max_blk_size = 0;
 	int			err;
 	int			i;
+
+	dw = devm_kzalloc(chip->dev, sizeof(*dw), GFP_KERNEL);
+	if (!dw)
+		return -ENOMEM;
+
+	dw->regs = chip->regs;
+	chip->dw = dw;
+
+	dw->clk = devm_clk_get(chip->dev, "hclk");
+	if (IS_ERR(dw->clk))
+		return PTR_ERR(dw->clk);
+	err = clk_prepare_enable(dw->clk);
+	if (err)
+		return err;
 
 	dw_params = dma_read_byaddr(chip->regs, DW_PARAMS);
 	autocfg = dw_params >> DW_PARAMS_EN & 0x1;
@@ -1494,33 +1507,31 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 	if (!pdata && autocfg) {
 		pdata = devm_kzalloc(chip->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
+		if (!pdata) {
+			err = -ENOMEM;
+			goto err_pdata;
+		}
 
 		/* Fill platform data with the default values */
 		pdata->is_private = true;
 		pdata->chan_allocation_order = CHAN_ALLOCATION_ASCENDING;
 		pdata->chan_priority = CHAN_PRIORITY_ASCENDING;
-	} else if (!pdata || pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS)
-		return -EINVAL;
+	} else if (!pdata || pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS) {
+		err = -EINVAL;
+		goto err_pdata;
+	}
 
 	if (autocfg)
 		nr_channels = (dw_params >> DW_PARAMS_NR_CHAN & 0x7) + 1;
 	else
 		nr_channels = pdata->nr_channels;
 
-	size = sizeof(struct dw_dma) + nr_channels * sizeof(struct dw_dma_chan);
-	dw = devm_kzalloc(chip->dev, size, GFP_KERNEL);
-	if (!dw)
-		return -ENOMEM;
-
-	dw->clk = devm_clk_get(chip->dev, "hclk");
-	if (IS_ERR(dw->clk))
-		return PTR_ERR(dw->clk);
-	clk_prepare_enable(dw->clk);
-
-	dw->regs = chip->regs;
-	chip->dw = dw;
+	dw->chan = devm_kcalloc(chip->dev, nr_channels, sizeof(*dw->chan),
+				GFP_KERNEL);
+	if (!dw->chan) {
+		err = -ENOMEM;
+		goto err_pdata;
+	}
 
 	/* Get hardware configuration parameters */
 	if (autocfg) {
@@ -1545,20 +1556,21 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	/* Disable BLOCK interrupts as well */
 	channel_clear_bit(dw, MASK.BLOCK, dw->all_chan_mask);
 
-	err = devm_request_irq(chip->dev, chip->irq, dw_dma_interrupt,
-			       IRQF_SHARED, "dw_dmac", dw);
-	if (err)
-		return err;
-
 	/* Create a pool of consistent memory blocks for hardware descriptors */
 	dw->desc_pool = dmam_pool_create("dw_dmac_desc_pool", chip->dev,
 					 sizeof(struct dw_desc), 4, 0);
 	if (!dw->desc_pool) {
 		dev_err(chip->dev, "No memory for descriptors dma pool\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_pdata;
 	}
 
 	tasklet_init(&dw->tasklet, dw_dma_tasklet, (unsigned long)dw);
+
+	err = request_irq(chip->irq, dw_dma_interrupt, IRQF_SHARED,
+			  "dw_dmac", dw);
+	if (err)
+		goto err_pdata;
 
 	INIT_LIST_HEAD(&dw->dma.channels);
 	for (i = 0; i < nr_channels; i++) {
@@ -1647,12 +1659,20 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 
+	err = dma_async_device_register(&dw->dma);
+	if (err)
+		goto err_dma_register;
+
 	dev_info(chip->dev, "DesignWare DMA Controller, %d channels\n",
 		 nr_channels);
 
-	dma_async_device_register(&dw->dma);
-
 	return 0;
+
+err_dma_register:
+	free_irq(chip->irq, dw);
+err_pdata:
+	clk_disable_unprepare(dw->clk);
+	return err;
 }
 EXPORT_SYMBOL_GPL(dw_dma_probe);
 
@@ -1664,6 +1684,7 @@ int dw_dma_remove(struct dw_dma_chip *chip)
 	dw_dma_off(dw);
 	dma_async_device_unregister(&dw->dma);
 
+	free_irq(chip->irq, dw);
 	tasklet_kill(&dw->tasklet);
 
 	list_for_each_entry_safe(dwc, _dwc, &dw->dma.channels,
@@ -1671,6 +1692,8 @@ int dw_dma_remove(struct dw_dma_chip *chip)
 		list_del(&dwc->chan.device_node);
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 	}
+
+	clk_disable_unprepare(dw->clk);
 
 	return 0;
 }

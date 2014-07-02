@@ -1,3 +1,8 @@
+/*
+ * CPU <-> hardware queue mapping helpers
+ *
+ * Copyright (C) 2013-2014 Jens Axboe
+ */
 #include <linux/kernel.h>
 #include <linux/threads.h>
 #include <linux/module.h>
@@ -8,15 +13,6 @@
 #include <linux/blk-mq.h>
 #include "blk.h"
 #include "blk-mq.h"
-
-static void show_map(unsigned int *map, unsigned int nr)
-{
-	int i;
-
-	pr_info("blk-mq: CPU -> queue map\n");
-	for_each_online_cpu(i)
-		pr_info("  CPU%2u -> Queue %u\n", i, map[i]);
-}
 
 static int cpu_to_queue_index(unsigned int nr_cpus, unsigned int nr_queues,
 			      const int cpu)
@@ -85,24 +81,39 @@ int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues)
 			map[i] = map[first_sibling];
 	}
 
-	show_map(map, nr_cpus);
 	free_cpumask_var(cpus);
 	return 0;
 }
 
-unsigned int *blk_mq_make_queue_map(struct blk_mq_reg *reg)
+unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set)
 {
 	unsigned int *map;
 
 	/* If cpus are offline, map them to first hctx */
 	map = kzalloc_node(sizeof(*map) * num_possible_cpus(), GFP_KERNEL,
-				reg->numa_node);
+				set->numa_node);
 	if (!map)
 		return NULL;
 
-	if (!blk_mq_update_queue_map(map, reg->nr_hw_queues))
+	if (!blk_mq_update_queue_map(map, set->nr_hw_queues))
 		return map;
 
 	kfree(map);
 	return NULL;
+}
+
+/*
+ * We have no quick way of doing reverse lookups. This is only used at
+ * queue init time, so runtime isn't important.
+ */
+int blk_mq_hw_queue_to_node(unsigned int *mq_map, unsigned int index)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		if (index == mq_map[i])
+			return cpu_to_node(i);
+	}
+
+	return NUMA_NO_NODE;
 }

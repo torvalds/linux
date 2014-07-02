@@ -23,31 +23,22 @@
 #include <linux/irqchip/versatile-fpga.h>
 #include <linux/gfp.h>
 #include <linux/mtd/physmap.h>
-#include <linux/platform_data/clk-integrator.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/sys_soc.h>
+#include <linux/sched_clock.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/arm_timer.h>
-#include <asm/hardware/icst.h>
-
-#include <mach/lm.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <asm/hardware/timer-sp.h>
-
 #include <plat/clcd.h>
-#include <plat/sched_clock.h>
 
+#include "hardware.h"
 #include "cm.h"
 #include "common.h"
 
@@ -234,11 +225,14 @@ static struct clcd_board clcd_data = {
 
 #define REFCOUNTER (__io_address(INTEGRATOR_HDR_BASE) + 0x28)
 
+static u64 notrace intcp_read_sched_clock(void)
+{
+	return readl(REFCOUNTER);
+}
+
 static void __init intcp_init_early(void)
 {
-#ifdef CONFIG_PLAT_VERSATILE_SCHED_CLOCK
-	versatile_sched_clock_init(REFCOUNTER, 24000000);
-#endif
+	sched_clock_register(intcp_read_sched_clock, 32, 24000000);
 }
 
 static const struct of_device_id fpga_irq_of_match[] __initconst = {
@@ -250,7 +244,6 @@ static void __init intcp_init_irq_of(void)
 {
 	cm_init();
 	of_irq_init(fpga_irq_of_match);
-	integrator_clk_init(true);
 }
 
 /*
@@ -286,20 +279,13 @@ static const struct of_device_id intcp_syscon_match[] = {
 
 static void __init intcp_init_of(void)
 {
-	struct device_node *root;
 	struct device_node *cpcon;
 	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
 	u32 intcp_sc_id;
-	int err;
 
-	/* Here we create an SoC device for the root node */
-	root = of_find_node_by_path("/");
-	if (!root)
-		return;
-
-	cpcon = of_find_matching_node(root, intcp_syscon_match);
+	cpcon = of_find_matching_node(NULL, intcp_syscon_match);
 	if (!cpcon)
 		return;
 
@@ -307,19 +293,17 @@ static void __init intcp_init_of(void)
 	if (!intcp_con_base)
 		return;
 
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     intcp_auxdata_lookup, NULL);
+
 	intcp_sc_id = readl(intcp_con_base);
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
 		return;
 
-	err = of_property_read_string(root, "compatible",
-				      &soc_dev_attr->soc_id);
-	if (err)
-		return;
-	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
-	if (err)
-		return;
+	soc_dev_attr->soc_id = "XCV";
+	soc_dev_attr->machine = "Integrator/CP";
 	soc_dev_attr->family = "Integrator";
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
 					   'A' + (intcp_sc_id & 0x0f));
@@ -333,8 +317,6 @@ static void __init intcp_init_of(void)
 
 	parent = soc_device_to_device(soc_dev);
 	integrator_init_sysfs(parent, intcp_sc_id);
-	of_platform_populate(root, of_default_bus_match_table,
-			intcp_auxdata_lookup, parent);
 }
 
 static const char * intcp_dt_board_compat[] = {

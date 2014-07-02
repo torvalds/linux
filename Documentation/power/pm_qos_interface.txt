@@ -88,17 +88,19 @@ node.
 
 2. PM QoS per-device latency and flags framework
 
-For each device, there are two lists of PM QoS requests. One is maintained
-along with the aggregated target of latency value and the other is for PM QoS
-flags. Values are updated in response to changes of the request list.
+For each device, there are three lists of PM QoS requests. Two of them are
+maintained along with the aggregated targets of resume latency and active
+state latency tolerance (in microseconds) and the third one is for PM QoS flags.
+Values are updated in response to changes of the request list.
 
-Target latency value is simply the minimum of the request values held in the
-parameter list elements.  The PM QoS flags aggregate value is a gather (bitwise
-OR) of all list elements' values. Two device PM QoS flags are defined currently:
-PM_QOS_FLAG_NO_POWER_OFF and PM_QOS_FLAG_REMOTE_WAKEUP.
+The target values of resume latency and active state latency tolerance are
+simply the minimum of the request values held in the parameter list elements.
+The PM QoS flags aggregate value is a gather (bitwise OR) of all list elements'
+values.  Two device PM QoS flags are defined currently: PM_QOS_FLAG_NO_POWER_OFF
+and PM_QOS_FLAG_REMOTE_WAKEUP.
 
-Note: the aggregated target value is implemented as an atomic variable so that
-reading the aggregated value does not require any locking mechanism.
+Note: The aggregated target values are implemented in such a way that reading
+the aggregated value does not require any locking mechanism.
 
 
 From kernel mode the use of this interface is the following:
@@ -132,19 +134,21 @@ The meaning of the return values is as follows:
 	PM_QOS_FLAGS_UNDEFINED: The device's PM QoS structure has not been
 			initialized or the list of requests is empty.
 
-int dev_pm_qos_add_ancestor_request(dev, handle, value)
+int dev_pm_qos_add_ancestor_request(dev, handle, type, value)
 Add a PM QoS request for the first direct ancestor of the given device whose
-power.ignore_children flag is unset.
+power.ignore_children flag is unset (for DEV_PM_QOS_RESUME_LATENCY requests)
+or whose power.set_latency_tolerance callback pointer is not NULL (for
+DEV_PM_QOS_LATENCY_TOLERANCE requests).
 
 int dev_pm_qos_expose_latency_limit(device, value)
-Add a request to the device's PM QoS list of latency constraints and create
-a sysfs attribute pm_qos_resume_latency_us under the device's power directory
-allowing user space to manipulate that request.
+Add a request to the device's PM QoS list of resume latency constraints and
+create a sysfs attribute pm_qos_resume_latency_us under the device's power
+directory allowing user space to manipulate that request.
 
 void dev_pm_qos_hide_latency_limit(device)
 Drop the request added by dev_pm_qos_expose_latency_limit() from the device's
-PM QoS list of latency constraints and remove sysfs attribute pm_qos_resume_latency_us
-from the device's power directory.
+PM QoS list of resume latency constraints and remove sysfs attribute
+pm_qos_resume_latency_us from the device's power directory.
 
 int dev_pm_qos_expose_flags(device, value)
 Add a request to the device's PM QoS list of flags and create sysfs attributes
@@ -163,7 +167,7 @@ a per-device notification tree and a global notification tree.
 int dev_pm_qos_add_notifier(device, notifier):
 Adds a notification callback function for the device.
 The callback is called when the aggregated value of the device constraints list
-is changed.
+is changed (for resume latency device PM QoS only).
 
 int dev_pm_qos_remove_notifier(device, notifier):
 Removes the notification callback function for the device.
@@ -171,14 +175,48 @@ Removes the notification callback function for the device.
 int dev_pm_qos_add_global_notifier(notifier):
 Adds a notification callback function in the global notification tree of the
 framework.
-The callback is called when the aggregated value for any device is changed.
+The callback is called when the aggregated value for any device is changed
+(for resume latency device PM QoS only).
 
 int dev_pm_qos_remove_global_notifier(notifier):
 Removes the notification callback function from the global notification tree
 of the framework.
 
 
-From user mode:
-No API for user space access to the per-device latency constraints is provided
-yet - still under discussion.
+Active state latency tolerance
 
+This device PM QoS type is used to support systems in which hardware may switch
+to energy-saving operation modes on the fly.  In those systems, if the operation
+mode chosen by the hardware attempts to save energy in an overly aggressive way,
+it may cause excess latencies to be visible to software, causing it to miss
+certain protocol requirements or target frame or sample rates etc.
+
+If there is a latency tolerance control mechanism for a given device available
+to software, the .set_latency_tolerance callback in that device's dev_pm_info
+structure should be populated.  The routine pointed to by it is should implement
+whatever is necessary to transfer the effective requirement value to the
+hardware.
+
+Whenever the effective latency tolerance changes for the device, its
+.set_latency_tolerance() callback will be executed and the effective value will
+be passed to it.  If that value is negative, which means that the list of
+latency tolerance requirements for the device is empty, the callback is expected
+to switch the underlying hardware latency tolerance control mechanism to an
+autonomous mode if available.  If that value is PM_QOS_LATENCY_ANY, in turn, and
+the hardware supports a special "no requirement" setting, the callback is
+expected to use it.  That allows software to prevent the hardware from
+automatically updating the device's latency tolerance in response to its power
+state changes (e.g. during transitions from D3cold to D0), which generally may
+be done in the autonomous latency tolerance control mode.
+
+If .set_latency_tolerance() is present for the device, sysfs attribute
+pm_qos_latency_tolerance_us will be present in the devivce's power directory.
+Then, user space can use that attribute to specify its latency tolerance
+requirement for the device, if any.  Writing "any" to it means "no requirement,
+but do not let the hardware control latency tolerance" and writing "auto" to it
+allows the hardware to be switched to the autonomous mode if there are no other
+requirements from the kernel side in the device's list.
+
+Kernel code can use the functions described above along with the
+DEV_PM_QOS_LATENCY_TOLERANCE device PM QoS type to add, remove and update
+latency tolerance requirements for devices.

@@ -52,7 +52,7 @@ static int at32_set_target(struct cpufreq_policy *policy, unsigned int index)
 static int at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 {
 	unsigned int frequency, rate, min_freq;
-	static struct clk *cpuclk;
+	struct clk *cpuclk;
 	int retval, steps, i;
 
 	if (policy->cpu != 0)

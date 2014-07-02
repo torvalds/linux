@@ -44,8 +44,8 @@
 		#size-cells = <1>;
 		controller = <&mbusc>;
 		interrupt-parent = <&mpic>;
-		pcie-mem-aperture = <0xe0000000 0x8000000>;
-		pcie-io-aperture  = <0xe8000000 0x100000>;
+		pcie-mem-aperture = <0xf8000000 0x7e00000>;
+		pcie-io-aperture  = <0xffe00000 0x100000>;
 
 		devbus-bootcs {
 			compatible = "marvell,mvebu-devbus";
@@ -157,6 +157,7 @@
 				reg-shift = <2>;
 				interrupts = <41>;
 				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 			serial@12100 {
@@ -165,6 +166,7 @@
 				reg-shift = <2>;
 				interrupts = <42>;
 				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 
@@ -199,6 +201,15 @@
 				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
 			};
 
+			watchdog@20300 {
+				reg = <0x20300 0x34>, <0x20704 0x4>;
+			};
+
+			pmsu@22000 {
+				compatible = "marvell,armada-370-pmsu";
+				reg = <0x22000 0x1000>;
+			};
+
 			usb@50000 {
 				compatible = "marvell,orion-ehci";
 				reg = <0x50000 0x500>;
@@ -226,6 +237,7 @@
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
 				reg = <0x72004 0x4>;
+				clocks = <&gateclk 4>;
 			};
 
 			eth1: ethernet@74000 {

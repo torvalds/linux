@@ -85,6 +85,13 @@ static inline void flush_cache_page(struct vm_area_struct *vma,
 }
 
 /*
+ * Cache maintenance functions used by the DMA API. No to be used directly.
+ */
+extern void __dma_map_area(const void *, size_t, int);
+extern void __dma_unmap_area(const void *, size_t, int);
+extern void __dma_flush_range(const void *, const void *);
+
+/*
  * Copy user data from/to a page which is mapped into a different
  * processes address space.  Really, we want to allow our "user
  * space" model to handle this.
@@ -116,7 +123,7 @@ extern void flush_dcache_page(struct page *);
 static inline void __flush_icache_all(void)
 {
 	asm("ic	ialluis");
-	dsb();
+	dsb(ish);
 }
 
 #define flush_dcache_mmap_lock(mapping) \
@@ -143,7 +150,7 @@ static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 	 * set_pte_at() called from vmap_pte_range() does not
 	 * have a DSB after cleaning the cache line.
 	 */
-	dsb();
+	dsb(ish);
 }
 
 static inline void flush_cache_vunmap(unsigned long start, unsigned long end)

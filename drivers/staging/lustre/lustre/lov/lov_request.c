@@ -39,7 +39,6 @@
 #include <linux/libcfs/libcfs.h>
 
 #include <obd_class.h>
-#include <obd_lov.h>
 #include <lustre/lustre_idl.h>
 
 #include "lov_internal.h"
@@ -50,7 +49,7 @@ static void lov_init_set(struct lov_request_set *set)
 	atomic_set(&set->set_completes, 0);
 	atomic_set(&set->set_success, 0);
 	atomic_set(&set->set_finish_checked, 0);
-	set->set_cookies = 0;
+	set->set_cookies = NULL;
 	INIT_LIST_HEAD(&set->set_list);
 	atomic_set(&set->set_refcount, 1);
 	init_waitqueue_head(&set->set_waitq);

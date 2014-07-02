@@ -127,6 +127,14 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	}
 
 	for (i = 0; i < config->hpd_clk_cnt; i++) {
+		if (config->hpd_freq && config->hpd_freq[i]) {
+			ret = clk_set_rate(hdmi->hpd_clks[i],
+					config->hpd_freq[i]);
+			if (ret)
+				dev_warn(dev->dev, "failed to set clk %s (%d)\n",
+						config->hpd_clk_names[i], ret);
+		}
+
 		ret = clk_prepare_enable(hdmi->hpd_clks[i]);
 		if (ret) {
 			dev_err(dev->dev, "failed to enable hpd clk: %s (%d)\n",
@@ -247,36 +255,49 @@ void hdmi_connector_irq(struct drm_connector *connector)
 	}
 }
 
+static enum drm_connector_status detect_reg(struct hdmi *hdmi)
+{
+	uint32_t hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);
+	return (hpd_int_status & HDMI_HPD_INT_STATUS_CABLE_DETECTED) ?
+			connector_status_connected : connector_status_disconnected;
+}
+
+static enum drm_connector_status detect_gpio(struct hdmi *hdmi)
+{
+	const struct hdmi_platform_config *config = hdmi->config;
+	return gpio_get_value(config->hpd_gpio) ?
+			connector_status_connected :
+			connector_status_disconnected;
+}
+
 static enum drm_connector_status hdmi_connector_detect(
 		struct drm_connector *connector, bool force)
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
 	struct hdmi *hdmi = hdmi_connector->hdmi;
-	const struct hdmi_platform_config *config = hdmi->config;
-	uint32_t hpd_int_status;
+	enum drm_connector_status stat_gpio, stat_reg;
 	int retry = 20;
 
-	hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);
+	do {
+		stat_gpio = detect_gpio(hdmi);
+		stat_reg  = detect_reg(hdmi);
 
-	/* sense seems to in some cases be momentarily de-asserted, don't
-	 * let that trick us into thinking the monitor is gone:
-	 */
-	while (retry-- && !(hpd_int_status & HDMI_HPD_INT_STATUS_CABLE_DETECTED)) {
-		/* hdmi debounce logic seems to get stuck sometimes,
-		 * read directly the gpio to get a second opinion:
-		 */
-		if (gpio_get_value(config->hpd_gpio)) {
-			DBG("gpio tells us we are connected!");
-			hpd_int_status |= HDMI_HPD_INT_STATUS_CABLE_DETECTED;
+		if (stat_gpio == stat_reg)
 			break;
-		}
+
 		mdelay(10);
-		hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);
-		DBG("status=%08x", hpd_int_status);
+	} while (--retry);
+
+	/* the status we get from reading gpio seems to be more reliable,
+	 * so trust that one the most if we didn't manage to get hdmi and
+	 * gpio status to agree:
+	 */
+	if (stat_gpio != stat_reg) {
+		DBG("HDMI_HPD_INT_STATUS tells us: %d", stat_reg);
+		DBG("hpd gpio tells us: %d", stat_gpio);
 	}
 
-	return (hpd_int_status & HDMI_HPD_INT_STATUS_CABLE_DETECTED) ?
-			connector_status_connected : connector_status_disconnected;
+	return stat_gpio;
 }
 
 static void hdmi_connector_destroy(struct drm_connector *connector)
@@ -389,7 +410,8 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 			DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
 
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+			DRM_CONNECTOR_POLL_DISCONNECT;
 
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;

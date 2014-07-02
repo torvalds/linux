@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <uapi/asm/perf_event.h>
 
+/* Update perf_event_print_debug() if this changes */
 #define MAX_HWEVENTS		8
 #define MAX_EVENT_ALTERNATIVES	8
 #define MAX_LIMITED_HWCOUNTERS	2

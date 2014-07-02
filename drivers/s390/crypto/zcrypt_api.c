@@ -356,7 +356,7 @@ struct zcrypt_ops *zcrypt_msgtype_request(unsigned char *name, int variant)
 
 	zops = __ops_lookup(name, variant);
 	if (!zops) {
-		request_module(name);
+		request_module("%s", name);
 		zops = __ops_lookup(name, variant);
 	}
 	if ((!zops) || (!try_module_get(zops->owner)))
@@ -626,8 +626,8 @@ static long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 			return -ENOMEM;
 
 		if (copy_from_user(ep11_dev_list.targets,
-				   (struct ep11_target_dev *)xcrb->targets,
-				   xcrb->targets_num *
+				   (struct ep11_target_dev __force __user *)
+				   xcrb->targets, xcrb->targets_num *
 				   sizeof(struct ep11_target_dev)))
 			return -EFAULT;
 	}

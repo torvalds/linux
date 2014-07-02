@@ -42,7 +42,7 @@ xfs_log_calc_max_attrsetm_res(
 	int			size;
 	int			nblks;
 
-	size = xfs_attr_leaf_entsize_local_max(mp->m_sb.sb_blocksize) -
+	size = xfs_attr_leaf_entsize_local_max(mp->m_attr_geo->blksize) -
 	       MAXNAMELEN - 1;
 	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
 	nblks += XFS_B_TO_FSB(mp, size);

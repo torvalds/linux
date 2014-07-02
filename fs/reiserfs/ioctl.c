@@ -15,7 +15,8 @@
  * reiserfs_ioctl - handler for ioctl for inode
  * supported commands:
  *  1) REISERFS_IOC_UNPACK - try to unpack tail from direct item into indirect
- *                           and prevent packing file (argument arg has to be non-zero)
+ *                           and prevent packing file (argument arg has t
+ *			      be non-zero)
  *  2) REISERFS_IOC_[GS]ETFLAGS, REISERFS_IOC_[GS]ETVERSION
  *  3) That's all for a while ...
  */
@@ -132,7 +133,10 @@ setversion_out:
 long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
-	/* These are just misnamed, they actually get/put from/to user an int */
+	/*
+	 * These are just misnamed, they actually
+	 * get/put from/to user an int
+	 */
 	switch (cmd) {
 	case REISERFS_IOC32_UNPACK:
 		cmd = REISERFS_IOC_UNPACK;
@@ -160,10 +164,10 @@ long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 int reiserfs_commit_write(struct file *f, struct page *page,
 			  unsigned from, unsigned to);
 /*
-** reiserfs_unpack
-** Function try to convert tail from direct item into indirect.
-** It set up nopack attribute in the REISERFS_I(inode)->nopack
-*/
+ * reiserfs_unpack
+ * Function try to convert tail from direct item into indirect.
+ * It set up nopack attribute in the REISERFS_I(inode)->nopack
+ */
 int reiserfs_unpack(struct inode *inode, struct file *filp)
 {
 	int retval = 0;
@@ -194,9 +198,10 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 		goto out;
 	}
 
-	/* we unpack by finding the page with the tail, and calling
-	 ** __reiserfs_write_begin on that page.  This will force a
-	 ** reiserfs_get_block to unpack the tail for us.
+	/*
+	 * we unpack by finding the page with the tail, and calling
+	 * __reiserfs_write_begin on that page.  This will force a
+	 * reiserfs_get_block to unpack the tail for us.
 	 */
 	index = inode->i_size >> PAGE_CACHE_SHIFT;
 	mapping = inode->i_mapping;
@@ -214,11 +219,11 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	retval = reiserfs_commit_write(NULL, page, write_from, write_from);
 	REISERFS_I(inode)->i_flags |= i_nopack_mask;
 
-      out_unlock:
+out_unlock:
 	unlock_page(page);
 	page_cache_release(page);
 
-      out:
+out:
 	mutex_unlock(&inode->i_mutex);
 	reiserfs_write_unlock(inode->i_sb);
 	return retval;

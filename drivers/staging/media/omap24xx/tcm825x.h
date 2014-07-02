@@ -21,8 +21,8 @@
 
 #define TCM825X_NAME "tcm825x"
 
-#define TCM825X_MASK(x)  x & 0x00ff
-#define TCM825X_ADDR(x) (x & 0xff00) >> 8
+#define TCM825X_MASK(x) (x & 0x00ff)
+#define TCM825X_ADDR(x) ((x & 0xff00) >> 8)
 
 /* The TCM825X I2C sensor chip has a fixed slave address of 0x3d. */
 #define TCM825X_I2C_ADDR	0x3d
@@ -178,7 +178,7 @@ struct tcm825x_platform_data {
 	/* Set power state, zero is off, non-zero is on. */
 	int (*power_set)(int power);
 	/* Default registers written after power-on or reset. */
-	const struct tcm825x_reg *(*default_regs)(void);
+	const struct tcm825x_reg * (*default_regs)(void);
 	int (*needs_reset)(struct v4l2_int_device *s, void *buf,
 			   struct v4l2_pix_format *fmt);
 	int (*ifparm)(struct v4l2_ifparm *p);

@@ -36,7 +36,7 @@
 #include <scsi/scsi_transport_iscsi.h>
 
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"10.0.659.0"
+#define BUILD_STR		"10.2.273.0"
 #define BE_NAME			"Emulex OneConnect" \
 				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
@@ -71,8 +71,8 @@
 
 #define BEISCSI_SGLIST_ELEMENTS	30
 
-#define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
-#define BEISCSI_MAX_SECTORS	2048	/* scsi_host->max_sectors */
+#define BEISCSI_CMD_PER_LUN	128 /* scsi_host->cmd_per_lun */
+#define BEISCSI_MAX_SECTORS	1024 /* scsi_host->max_sectors */
 #define BEISCSI_TEMPLATE_HDR_PER_CXN_SIZE 128 /* Template size per cxn */
 
 #define BEISCSI_MAX_CMD_LEN	16	/* scsi_host->max_cmd_len */
@@ -97,9 +97,14 @@
 
 #define INVALID_SESS_HANDLE	0xFFFFFFFF
 
+/**
+ * Adapter States
+ **/
 #define BE_ADAPTER_LINK_UP	0x001
 #define BE_ADAPTER_LINK_DOWN	0x002
 #define BE_ADAPTER_PCI_ERR	0x004
+#define BE_ADAPTER_STATE_SHUTDOWN	0x008
+
 
 #define BEISCSI_CLEAN_UNLOAD	0x01
 #define BEISCSI_EEH_UNLOAD	0x02
@@ -135,11 +140,15 @@
 #define DB_RXULP0_OFFSET 0xA0
 /********* Event Q door bell *************/
 #define DB_EQ_OFFSET			DB_CQ_OFFSET
-#define DB_EQ_RING_ID_MASK		0x1FF	/* bits 0 - 8 */
+#define DB_EQ_RING_ID_LOW_MASK		0x1FF	/* bits 0 - 8 */
 /* Clear the interrupt for this eq */
 #define DB_EQ_CLR_SHIFT			(9)	/* bit 9 */
 /* Must be 1 */
 #define DB_EQ_EVNT_SHIFT		(10)	/* bit 10 */
+/* Higher Order EQ_ID bit */
+#define DB_EQ_RING_ID_HIGH_MASK	0x1F /* bits 11 - 15 */
+#define DB_EQ_HIGH_SET_SHIFT	11
+#define DB_EQ_HIGH_FEILD_SHIFT	9
 /* Number of event entries processed */
 #define DB_EQ_NUM_POPPED_SHIFT		(16)	/* bits 16 - 28 */
 /* Rearm bit */
@@ -147,7 +156,12 @@
 
 /********* Compl Q door bell *************/
 #define DB_CQ_OFFSET			0x120
-#define DB_CQ_RING_ID_MASK		0x3FF	/* bits 0 - 9 */
+#define DB_CQ_RING_ID_LOW_MASK		0x3FF	/* bits 0 - 9 */
+/* Higher Order CQ_ID bit */
+#define DB_CQ_RING_ID_HIGH_MASK	0x1F /* bits 11 - 15 */
+#define DB_CQ_HIGH_SET_SHIFT	11
+#define DB_CQ_HIGH_FEILD_SHIFT	10
+
 /* Number of event entries processed */
 #define DB_CQ_NUM_POPPED_SHIFT		(16)	/* bits 16 - 28 */
 /* Rearm bit */
@@ -413,6 +427,7 @@ struct beiscsi_hba {
 	struct mgmt_session_info boot_sess;
 	struct invalidate_command_table inv_tbl[128];
 
+	struct be_aic_obj aic_obj[MAX_CPUS];
 	unsigned int attr_log_enable;
 	int (*iotask_fn)(struct iscsi_task *,
 			struct scatterlist *sg,
@@ -821,6 +836,9 @@ void beiscsi_process_all_cqs(struct work_struct *work);
 void beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
 				     struct iscsi_task *task);
 
+void hwi_ring_cq_db(struct beiscsi_hba *phba,
+		     unsigned int id, unsigned int num_processed,
+		     unsigned char rearm, unsigned char event);
 static inline bool beiscsi_error(struct beiscsi_hba *phba)
 {
 	return phba->ue_detected || phba->fw_timeout;

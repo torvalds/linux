@@ -193,13 +193,10 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 
 	hsit->inverse = inverse;
 
-	if (inverse) {
+	if (inverse)
 		hsit->entity.type = VSP1_ENTITY_HSI;
-		hsit->entity.id = VI6_DPR_NODE_HSI;
-	} else {
+	else
 		hsit->entity.type = VSP1_ENTITY_HST;
-		hsit->entity.id = VI6_DPR_NODE_HST;
-	}
 
 	ret = vsp1_entity_init(vsp1, &hsit->entity, 2);
 	if (ret < 0)

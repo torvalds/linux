@@ -6,14 +6,19 @@ config FRAME_POINTER
 	bool
 	default y
 
-config EARLY_PRINTK
-	bool "Early printk support"
-	default y
+config STRICT_DEVMEM
+	bool "Filter access to /dev/mem"
+	depends on MMU
 	help
-	  Say Y here if you want to have an early console using the
-	  earlyprintk=<name>[,<addr>][,<options>] kernel parameter. It
-	  is assumed that the early console device has been initialised
-	  by the boot loader prior to starting the Linux kernel.
+	  If this option is disabled, you allow userspace (root) access to all
+	  of memory, including kernel and userspace memory. Accidental
+	  access to this is obviously disastrous, but specific access can
+	  be used by people debugging the kernel.
+
+	  If this option is switched on, the /dev/mem file only allows
+	  userspace access to memory mapped peripherals.
+
+	  If in doubt, say Y.
 
 config PID_IN_CONTEXTIDR
 	bool "Write the current PID to the CONTEXTIDR register"

@@ -33,7 +33,6 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	if (!tegra)
 		return -ENOMEM;
 
-	dev_set_drvdata(drm->dev, tegra);
 	mutex_init(&tegra->clients_lock);
 	INIT_LIST_HEAD(&tegra->clients);
 	drm->dev_private = tegra;
@@ -640,14 +639,40 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 	return 0;
 }
 
-static int host1x_drm_probe(struct host1x_device *device)
+static int host1x_drm_probe(struct host1x_device *dev)
 {
-	return drm_host1x_init(&tegra_drm_driver, device);
+	struct drm_driver *driver = &tegra_drm_driver;
+	struct drm_device *drm;
+	int err;
+
+	drm = drm_dev_alloc(driver, &dev->dev);
+	if (!drm)
+		return -ENOMEM;
+
+	drm_dev_set_unique(drm, dev_name(&dev->dev));
+	dev_set_drvdata(&dev->dev, drm);
+
+	err = drm_dev_register(drm, 0);
+	if (err < 0)
+		goto unref;
+
+	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n", driver->name,
+		 driver->major, driver->minor, driver->patchlevel,
+		 driver->date, drm->primary->index);
+
+	return 0;
+
+unref:
+	drm_dev_unref(drm);
+	return err;
 }
 
-static int host1x_drm_remove(struct host1x_device *device)
+static int host1x_drm_remove(struct host1x_device *dev)
 {
-	drm_host1x_exit(&tegra_drm_driver, device);
+	struct drm_device *drm = dev_get_drvdata(&dev->dev);
+
+	drm_dev_unregister(drm);
+	drm_dev_unref(drm);
 
 	return 0;
 }
@@ -665,6 +690,8 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra114-hdmi", },
 	{ .compatible = "nvidia,tegra114-gr3d", },
 	{ .compatible = "nvidia,tegra124-dc", },
+	{ .compatible = "nvidia,tegra124-sor", },
+	{ .compatible = "nvidia,tegra124-hdmi", },
 	{ /* sentinel */ }
 };
 
@@ -691,13 +718,21 @@ static int __init host1x_drm_init(void)
 	if (err < 0)
 		goto unregister_dc;
 
-	err = platform_driver_register(&tegra_hdmi_driver);
+	err = platform_driver_register(&tegra_sor_driver);
 	if (err < 0)
 		goto unregister_dsi;
 
-	err = platform_driver_register(&tegra_gr2d_driver);
+	err = platform_driver_register(&tegra_hdmi_driver);
+	if (err < 0)
+		goto unregister_sor;
+
+	err = platform_driver_register(&tegra_dpaux_driver);
 	if (err < 0)
 		goto unregister_hdmi;
+
+	err = platform_driver_register(&tegra_gr2d_driver);
+	if (err < 0)
+		goto unregister_dpaux;
 
 	err = platform_driver_register(&tegra_gr3d_driver);
 	if (err < 0)
@@ -707,8 +742,12 @@ static int __init host1x_drm_init(void)
 
 unregister_gr2d:
 	platform_driver_unregister(&tegra_gr2d_driver);
+unregister_dpaux:
+	platform_driver_unregister(&tegra_dpaux_driver);
 unregister_hdmi:
 	platform_driver_unregister(&tegra_hdmi_driver);
+unregister_sor:
+	platform_driver_unregister(&tegra_sor_driver);
 unregister_dsi:
 	platform_driver_unregister(&tegra_dsi_driver);
 unregister_dc:
@@ -723,7 +762,9 @@ static void __exit host1x_drm_exit(void)
 {
 	platform_driver_unregister(&tegra_gr3d_driver);
 	platform_driver_unregister(&tegra_gr2d_driver);
+	platform_driver_unregister(&tegra_dpaux_driver);
 	platform_driver_unregister(&tegra_hdmi_driver);
+	platform_driver_unregister(&tegra_sor_driver);
 	platform_driver_unregister(&tegra_dsi_driver);
 	platform_driver_unregister(&tegra_dc_driver);
 	host1x_driver_unregister(&host1x_drm_driver);

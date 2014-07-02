@@ -18,6 +18,7 @@
 	} while (0)
 
 extern pte_t *pkmap_page_table;
+extern pte_t *fixmap_page_table;
 
 extern void *kmap_high(struct page *page);
 extern void kunmap_high(struct page *page);

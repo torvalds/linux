@@ -24,16 +24,59 @@
  * Authors:
  *    Jerome Glisse <glisse@freedesktop.org>
  */
+#include <linux/list_sort.h>
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_trace.h"
 
+#define RADEON_CS_MAX_PRIORITY		32u
+#define RADEON_CS_NUM_BUCKETS		(RADEON_CS_MAX_PRIORITY + 1)
+
+/* This is based on the bucket sort with O(n) time complexity.
+ * An item with priority "i" is added to bucket[i]. The lists are then
+ * concatenated in descending order.
+ */
+struct radeon_cs_buckets {
+	struct list_head bucket[RADEON_CS_NUM_BUCKETS];
+};
+
+static void radeon_cs_buckets_init(struct radeon_cs_buckets *b)
+{
+	unsigned i;
+
+	for (i = 0; i < RADEON_CS_NUM_BUCKETS; i++)
+		INIT_LIST_HEAD(&b->bucket[i]);
+}
+
+static void radeon_cs_buckets_add(struct radeon_cs_buckets *b,
+				  struct list_head *item, unsigned priority)
+{
+	/* Since buffers which appear sooner in the relocation list are
+	 * likely to be used more often than buffers which appear later
+	 * in the list, the sort mustn't change the ordering of buffers
+	 * with the same priority, i.e. it must be stable.
+	 */
+	list_add_tail(item, &b->bucket[min(priority, RADEON_CS_MAX_PRIORITY)]);
+}
+
+static void radeon_cs_buckets_get_list(struct radeon_cs_buckets *b,
+				       struct list_head *out_list)
+{
+	unsigned i;
+
+	/* Connect the sorted buckets in the output list. */
+	for (i = 0; i < RADEON_CS_NUM_BUCKETS; i++) {
+		list_splice(&b->bucket[i], out_list);
+	}
+}
+
 static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 {
 	struct drm_device *ddev = p->rdev->ddev;
 	struct radeon_cs_chunk *chunk;
+	struct radeon_cs_buckets buckets;
 	unsigned i, j;
 	bool duplicate;
 
@@ -52,8 +95,12 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	if (p->relocs == NULL) {
 		return -ENOMEM;
 	}
+
+	radeon_cs_buckets_init(&buckets);
+
 	for (i = 0; i < p->nrelocs; i++) {
 		struct drm_radeon_cs_reloc *r;
+		unsigned priority;
 
 		duplicate = false;
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
@@ -78,8 +125,14 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		}
 		p->relocs_ptr[i] = &p->relocs[i];
 		p->relocs[i].robj = gem_to_radeon_bo(p->relocs[i].gobj);
-		p->relocs[i].lobj.bo = p->relocs[i].robj;
-		p->relocs[i].lobj.written = !!r->write_domain;
+
+		/* The userspace buffer priorities are from 0 to 15. A higher
+		 * number means the buffer is more important.
+		 * Also, the buffers used for write have a higher priority than
+		 * the buffers used for read only, which doubles the range
+		 * to 0 to 31. 32 is reserved for the kernel driver.
+		 */
+		priority = (r->flags & 0xf) * 2 + !!r->write_domain;
 
 		/* the first reloc of an UVD job is the msg and that must be in
 		   VRAM, also but everything into VRAM on AGP cards to avoid
@@ -87,29 +140,44 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
 		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev))) {
 			/* TODO: is this still needed for NI+ ? */
-			p->relocs[i].lobj.domain =
+			p->relocs[i].prefered_domains =
 				RADEON_GEM_DOMAIN_VRAM;
 
-			p->relocs[i].lobj.alt_domain =
+			p->relocs[i].allowed_domains =
 				RADEON_GEM_DOMAIN_VRAM;
 
+			/* prioritize this over any other relocation */
+			priority = RADEON_CS_MAX_PRIORITY;
 		} else {
 			uint32_t domain = r->write_domain ?
 				r->write_domain : r->read_domains;
 
-			p->relocs[i].lobj.domain = domain;
+			if (domain & RADEON_GEM_DOMAIN_CPU) {
+				DRM_ERROR("RADEON_GEM_DOMAIN_CPU is not valid "
+					  "for command submission\n");
+				return -EINVAL;
+			}
+
+			p->relocs[i].prefered_domains = domain;
 			if (domain == RADEON_GEM_DOMAIN_VRAM)
 				domain |= RADEON_GEM_DOMAIN_GTT;
-			p->relocs[i].lobj.alt_domain = domain;
+			p->relocs[i].allowed_domains = domain;
 		}
 
-		p->relocs[i].lobj.tv.bo = &p->relocs[i].robj->tbo;
+		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
 		p->relocs[i].handle = r->handle;
 
-		radeon_bo_list_add_object(&p->relocs[i].lobj,
-					  &p->validated);
+		radeon_cs_buckets_add(&buckets, &p->relocs[i].tv.head,
+				      priority);
 	}
-	return radeon_bo_list_validate(&p->ticket, &p->validated, p->ring);
+
+	radeon_cs_buckets_get_list(&buckets, &p->validated);
+
+	if (p->cs_flags & RADEON_CS_USE_VM)
+		p->vm_bos = radeon_vm_get_bos(p->rdev, p->ib.vm,
+					      &p->validated);
+
+	return radeon_bo_list_validate(p->rdev, &p->ticket, &p->validated, p->ring);
 }
 
 static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority)
@@ -146,6 +214,10 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 		break;
 	case RADEON_CS_RING_UVD:
 		p->ring = R600_RING_TYPE_UVD_INDEX;
+		break;
+	case RADEON_CS_RING_VCE:
+		/* TODO: only use the low priority ring for now */
+		p->ring = TN_RING_TYPE_VCE1_INDEX;
 		break;
 	}
 	return 0;
@@ -276,14 +348,31 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			return -EINVAL;
 
 		/* we only support VM on some SI+ rings */
-		if ((p->rdev->asic->ring[p->ring]->cs_parse == NULL) &&
-		   ((p->cs_flags & RADEON_CS_USE_VM) == 0)) {
-			DRM_ERROR("Ring %d requires VM!\n", p->ring);
-			return -EINVAL;
+		if ((p->cs_flags & RADEON_CS_USE_VM) == 0) {
+			if (p->rdev->asic->ring[p->ring]->cs_parse == NULL) {
+				DRM_ERROR("Ring %d requires VM!\n", p->ring);
+				return -EINVAL;
+			}
+		} else {
+			if (p->rdev->asic->ring[p->ring]->ib_parse == NULL) {
+				DRM_ERROR("VM not supported on ring %d!\n",
+					  p->ring);
+				return -EINVAL;
+			}
 		}
 	}
 
 	return 0;
+}
+
+static int cmp_size_smaller_first(void *priv, struct list_head *a,
+				  struct list_head *b)
+{
+	struct radeon_cs_reloc *la = list_entry(a, struct radeon_cs_reloc, tv.head);
+	struct radeon_cs_reloc *lb = list_entry(b, struct radeon_cs_reloc, tv.head);
+
+	/* Sort A before B if A is smaller. */
+	return (int)la->robj->tbo.num_pages - (int)lb->robj->tbo.num_pages;
 }
 
 /**
@@ -299,6 +388,18 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 	unsigned i;
 
 	if (!error) {
+		/* Sort the buffer list from the smallest to largest buffer,
+		 * which affects the order of buffers in the LRU list.
+		 * This assures that the smallest buffers are added first
+		 * to the LRU list, so they are likely to be later evicted
+		 * first, instead of large buffers whose eviction is more
+		 * expensive.
+		 *
+		 * This slightly lowers the number of bytes moved by TTM
+		 * per frame under memory pressure.
+		 */
+		list_sort(NULL, &parser->validated, cmp_size_smaller_first);
+
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 					    &parser->validated,
 					    parser->ib.fence);
@@ -316,6 +417,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 	kfree(parser->track);
 	kfree(parser->relocs);
 	kfree(parser->relocs_ptr);
+	kfree(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);
@@ -343,6 +445,9 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
 		radeon_uvd_note_usage(rdev);
+	else if ((parser->ring == TN_RING_TYPE_VCE1_INDEX) ||
+		 (parser->ring == TN_RING_TYPE_VCE2_INDEX))
+		radeon_vce_note_usage(rdev);
 
 	radeon_cs_sync_rings(parser);
 	r = radeon_ib_schedule(rdev, &parser->ib, NULL);
@@ -352,24 +457,32 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 	return r;
 }
 
-static int radeon_bo_vm_update_pte(struct radeon_cs_parser *parser,
+static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 				   struct radeon_vm *vm)
 {
-	struct radeon_device *rdev = parser->rdev;
-	struct radeon_bo_list *lobj;
-	struct radeon_bo *bo;
-	int r;
+	struct radeon_device *rdev = p->rdev;
+	int i, r;
 
-	r = radeon_vm_bo_update(rdev, vm, rdev->ring_tmp_bo.bo, &rdev->ring_tmp_bo.bo->tbo.mem);
-	if (r) {
+	r = radeon_vm_update_page_directory(rdev, vm);
+	if (r)
 		return r;
-	}
-	list_for_each_entry(lobj, &parser->validated, tv.head) {
-		bo = lobj->bo;
-		r = radeon_vm_bo_update(parser->rdev, vm, bo, &bo->tbo.mem);
-		if (r) {
+
+	r = radeon_vm_bo_update(rdev, vm, rdev->ring_tmp_bo.bo,
+				&rdev->ring_tmp_bo.bo->tbo.mem);
+	if (r)
+		return r;
+
+	for (i = 0; i < p->nrelocs; i++) {
+		struct radeon_bo *bo;
+
+		/* ignore duplicates */
+		if (p->relocs_ptr[i] != &p->relocs[i])
+			continue;
+
+		bo = p->relocs[i].robj;
+		r = radeon_vm_bo_update(rdev, vm, bo, &bo->tbo.mem);
+		if (r)
 			return r;
-		}
 	}
 	return 0;
 }
@@ -401,20 +514,13 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
 		radeon_uvd_note_usage(rdev);
 
-	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
-	r = radeon_vm_alloc_pt(rdev, vm);
-	if (r) {
-		goto out;
-	}
 	r = radeon_bo_vm_update_pte(parser, vm);
 	if (r) {
 		goto out;
 	}
 	radeon_cs_sync_rings(parser);
 	radeon_semaphore_sync_to(parser->ib.semaphore, vm->fence);
-	radeon_semaphore_sync_to(parser->ib.semaphore,
-				 radeon_vm_grab_id(rdev, vm, parser->ring));
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
@@ -423,14 +529,8 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	}
 
-	if (!r) {
-		radeon_vm_fence(rdev, vm, parser->ib.fence);
-	}
-
 out:
-	radeon_vm_add_to_lru(rdev, vm);
 	mutex_unlock(&vm->mutex);
-	mutex_unlock(&rdev->vm_manager.lock);
 	return r;
 }
 
@@ -698,9 +798,9 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 	/* FIXME: we assume reloc size is 4 dwords */
 	if (nomm) {
 		*cs_reloc = p->relocs;
-		(*cs_reloc)->lobj.gpu_offset =
+		(*cs_reloc)->gpu_offset =
 			(u64)relocs_chunk->kdata[idx + 3] << 32;
-		(*cs_reloc)->lobj.gpu_offset |= relocs_chunk->kdata[idx + 0];
+		(*cs_reloc)->gpu_offset |= relocs_chunk->kdata[idx + 0];
 	} else
 		*cs_reloc = p->relocs_ptr[(idx / 4)];
 	return 0;

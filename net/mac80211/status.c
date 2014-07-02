@@ -314,10 +314,9 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 	    !is_multicast_ether_addr(hdr->addr1))
 		txflags |= IEEE80211_RADIOTAP_F_TX_FAIL;
 
-	if ((info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) ||
-	    (info->status.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT))
+	if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		txflags |= IEEE80211_RADIOTAP_F_TX_CTS;
-	else if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
+	if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
 		txflags |= IEEE80211_RADIOTAP_F_TX_RTS;
 
 	put_unaligned_le16(txflags, pos);
@@ -479,7 +478,7 @@ static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
 	u32 msrmnt;
 	u16 tid;
 	u8 *qc;
-	int i, bin_range_count, bin_count;
+	int i, bin_range_count;
 	u32 *bin_ranges;
 	__le16 fc;
 	struct ieee80211_tx_latency_stat *tx_lat;
@@ -522,7 +521,6 @@ static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
 	/* count how many Tx frames transmitted with the appropriate latency */
 	bin_range_count = tx_latency->n_ranges;
 	bin_ranges = tx_latency->ranges;
-	bin_count = tx_lat->bin_count;
 
 	for (i = 0; i < bin_range_count; i++) {
 		if (msrmnt <= bin_ranges[i]) {
@@ -542,6 +540,23 @@ static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
  *  - current throughput (higher value for higher tpt)?
  */
 #define STA_LOST_PKT_THRESHOLD	50
+
+static void ieee80211_lost_packet(struct sta_info *sta, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	/* This packet was aggregated but doesn't carry status info */
+	if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
+	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
+		return;
+
+	if (++sta->lost_packets < STA_LOST_PKT_THRESHOLD)
+		return;
+
+	cfg80211_cqm_pktloss_notify(sta->sdata->dev, sta->sta.addr,
+				    sta->lost_packets, GFP_ATOMIC);
+	sta->lost_packets = 0;
+}
 
 void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -619,6 +634,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 					sta, true, acked);
 
 		if ((local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL) &&
+		    (ieee80211_is_data(hdr->frame_control)) &&
 		    (rates_idx != -1))
 			sta->last_tx_rate = info->status.rates[rates_idx];
 
@@ -681,12 +697,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			if (info->flags & IEEE80211_TX_STAT_ACK) {
 				if (sta->lost_packets)
 					sta->lost_packets = 0;
-			} else if (++sta->lost_packets >= STA_LOST_PKT_THRESHOLD) {
-				cfg80211_cqm_pktloss_notify(sta->sdata->dev,
-							    sta->sta.addr,
-							    sta->lost_packets,
-							    GFP_ATOMIC);
-				sta->lost_packets = 0;
+			} else {
+				ieee80211_lost_packet(sta, skb);
 			}
 		}
 

@@ -35,7 +35,6 @@
 
 int
 xfs_calc_dquots_per_chunk(
-	struct xfs_mount	*mp,
 	unsigned int		nbblks)	/* basic block units */
 {
 	unsigned int	ndquots;
@@ -194,7 +193,7 @@ xfs_dquot_buf_verify_crc(
 	if (mp->m_quotainfo)
 		ndquots = mp->m_quotainfo->qi_dqperchunk;
 	else
-		ndquots = xfs_calc_dquots_per_chunk(mp,
+		ndquots = xfs_calc_dquots_per_chunk(
 					XFS_BB_TO_FSB(mp, bp->b_length));
 
 	for (i = 0; i < ndquots; i++, d++) {
@@ -225,7 +224,7 @@ xfs_dquot_buf_verify(
 	if (mp->m_quotainfo)
 		ndquots = mp->m_quotainfo->qi_dqperchunk;
 	else
-		ndquots = xfs_calc_dquots_per_chunk(mp, bp->b_length);
+		ndquots = xfs_calc_dquots_per_chunk(bp->b_length);
 
 	/*
 	 * On the first read of the buffer, verify that each dquot is valid.
@@ -257,10 +256,13 @@ xfs_dquot_buf_read_verify(
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
-	if (!xfs_dquot_buf_verify_crc(mp, bp) || !xfs_dquot_buf_verify(mp, bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+	if (!xfs_dquot_buf_verify_crc(mp, bp))
+		xfs_buf_ioerror(bp, EFSBADCRC);
+	else if (!xfs_dquot_buf_verify(mp, bp))
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	}
+
+	if (bp->b_error)
+		xfs_verifier_error(bp);
 }
 
 /*
@@ -275,8 +277,8 @@ xfs_dquot_buf_write_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
 	if (!xfs_dquot_buf_verify(mp, bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_verifier_error(bp);
 		return;
 	}
 }

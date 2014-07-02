@@ -439,11 +439,9 @@ ep_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	/* FIXME writebehind for O_NONBLOCK and poll(), qlen = 1 */
 
 	value = -ENOMEM;
-	kbuf = kmalloc (len, GFP_KERNEL);
-	if (!kbuf)
-		goto free1;
-	if (copy_from_user (kbuf, buf, len)) {
-		value = -EFAULT;
+	kbuf = memdup_user(buf, len);
+	if (!kbuf) {
+		value = PTR_ERR(kbuf);
 		goto free1;
 	}
 
@@ -452,7 +450,6 @@ ep_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		data->name, len, (int) value);
 free1:
 	mutex_unlock(&data->lock);
-	kfree (kbuf);
 	return value;
 }
 
@@ -1497,6 +1494,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		 */
 		if (value == 0) {
 			INFO (dev, "configuration #%d\n", dev->current_config);
+			usb_gadget_set_state(gadget, USB_STATE_CONFIGURED);
 			if (dev->usermode_setup) {
 				dev->setup_can_stall = 0;
 				goto delegate;
@@ -1504,7 +1502,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		}
 		break;
 
-#ifndef	CONFIG_USB_GADGET_PXA25X
+#ifndef	CONFIG_USB_PXA25X
 	/* PXA automagically handles this request too */
 	case USB_REQ_GET_CONFIGURATION:
 		if (ctrl->bRequestType != 0x80)
@@ -2046,6 +2044,7 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 		return -ESRCH;
 
 	/* fake probe to determine $CHIP */
+	CHIP = NULL;
 	usb_gadget_probe_driver(&probe_driver);
 	if (!CHIP)
 		return -ENODEV;

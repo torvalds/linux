@@ -414,7 +414,7 @@ static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		}
 		bucket->deficit = weight * q->quantum;
 	}
-	if (++sch->q.qlen < sch->limit)
+	if (++sch->q.qlen <= sch->limit)
 		return NET_XMIT_SUCCESS;
 
 	q->drop_overlimit++;
@@ -494,12 +494,7 @@ static void *hhf_zalloc(size_t sz)
 
 static void hhf_free(void *addr)
 {
-	if (addr) {
-		if (is_vmalloc_addr(addr))
-			vfree(addr);
-		else
-			kfree(addr);
-	}
+	kvfree(addr);
 }
 
 static void hhf_destroy(struct Qdisc *sch)
@@ -553,11 +548,6 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 	if (err < 0)
 		return err;
 
-	sch_tree_lock(sch);
-
-	if (tb[TCA_HHF_BACKLOG_LIMIT])
-		sch->limit = nla_get_u32(tb[TCA_HHF_BACKLOG_LIMIT]);
-
 	if (tb[TCA_HHF_QUANTUM])
 		new_quantum = nla_get_u32(tb[TCA_HHF_QUANTUM]);
 
@@ -567,6 +557,12 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 	non_hh_quantum = (u64)new_quantum * new_hhf_non_hh_weight;
 	if (non_hh_quantum > INT_MAX)
 		return -EINVAL;
+
+	sch_tree_lock(sch);
+
+	if (tb[TCA_HHF_BACKLOG_LIMIT])
+		sch->limit = nla_get_u32(tb[TCA_HHF_BACKLOG_LIMIT]);
+
 	q->quantum = new_quantum;
 	q->hhf_non_hh_weight = new_hhf_non_hh_weight;
 
@@ -691,8 +687,7 @@ static int hhf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_HHF_NON_HH_WEIGHT, q->hhf_non_hh_weight))
 		goto nla_put_failure;
 
-	nla_nest_end(skb, opts);
-	return skb->len;
+	return nla_nest_end(skb, opts);
 
 nla_put_failure:
 	return -1;

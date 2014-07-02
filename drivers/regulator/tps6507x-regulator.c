@@ -359,7 +359,6 @@ static struct regulator_ops tps6507x_pmic_ops = {
 	.map_voltage = regulator_map_voltage_ascend,
 };
 
-#ifdef CONFIG_OF
 static struct of_regulator_match tps6507x_matches[] = {
 	{ .name = "VDCDC1"},
 	{ .name = "VDCDC2"},
@@ -381,12 +380,10 @@ static struct tps6507x_board *tps6507x_parse_dt_reg_data(
 
 	tps_board = devm_kzalloc(&pdev->dev, sizeof(*tps_board),
 					GFP_KERNEL);
-	if (!tps_board) {
-		dev_err(&pdev->dev, "Failure to alloc pdata for regulators.\n");
+	if (!tps_board)
 		return NULL;
-	}
 
-	regulators = of_find_node_by_name(np, "regulators");
+	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
 		dev_err(&pdev->dev, "regulator node not found\n");
 		return NULL;
@@ -396,6 +393,7 @@ static struct tps6507x_board *tps6507x_parse_dt_reg_data(
 	matches = tps6507x_matches;
 
 	ret = of_regulator_match(&pdev->dev, regulators, matches, count);
+	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
 			ret);
@@ -406,10 +404,8 @@ static struct tps6507x_board *tps6507x_parse_dt_reg_data(
 
 	reg_data = devm_kzalloc(&pdev->dev, (sizeof(struct regulator_init_data)
 					* TPS6507X_NUM_REGULATOR), GFP_KERNEL);
-	if (!reg_data) {
-		dev_err(&pdev->dev, "Failure to alloc init data for regulators.\n");
+	if (!reg_data)
 		return NULL;
-	}
 
 	tps_board->tps6507x_pmic_init_data = reg_data;
 
@@ -424,15 +420,7 @@ static struct tps6507x_board *tps6507x_parse_dt_reg_data(
 
 	return tps_board;
 }
-#else
-static inline struct tps6507x_board *tps6507x_parse_dt_reg_data(
-			struct platform_device *pdev,
-			struct of_regulator_match **tps6507x_reg_matches)
-{
-	*tps6507x_reg_matches = NULL;
-	return NULL;
-}
-#endif
+
 static int tps6507x_pmic_probe(struct platform_device *pdev)
 {
 	struct tps6507x_dev *tps6507x_dev = dev_get_drvdata(pdev->dev.parent);
@@ -453,9 +441,10 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 	 */
 
 	tps_board = dev_get_platdata(tps6507x_dev->dev);
-	if (!tps_board && tps6507x_dev->dev->of_node)
+	if (IS_ENABLED(CONFIG_OF) && !tps_board &&
+		tps6507x_dev->dev->of_node)
 		tps_board = tps6507x_parse_dt_reg_data(pdev,
-						&tps6507x_reg_matches);
+				&tps6507x_reg_matches);
 	if (!tps_board)
 		return -EINVAL;
 
@@ -481,7 +470,7 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 		tps->info[i] = info;
 		if (init_data->driver_data) {
 			struct tps6507x_reg_platform_data *data =
-							init_data->driver_data;
+					init_data->driver_data;
 			tps->info[i]->defdcdc_default = data->defdcdc_default;
 		}
 

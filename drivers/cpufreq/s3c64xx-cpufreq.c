@@ -37,19 +37,19 @@ static struct s3c64xx_dvfs s3c64xx_dvfs_table[] = {
 };
 
 static struct cpufreq_frequency_table s3c64xx_freq_table[] = {
-	{ 0,  66000 },
-	{ 0, 100000 },
-	{ 0, 133000 },
-	{ 1, 200000 },
-	{ 1, 222000 },
-	{ 1, 266000 },
-	{ 2, 333000 },
-	{ 2, 400000 },
-	{ 2, 532000 },
-	{ 2, 533000 },
-	{ 3, 667000 },
-	{ 4, 800000 },
-	{ 0, CPUFREQ_TABLE_END },
+	{ 0, 0,  66000 },
+	{ 0, 0, 100000 },
+	{ 0, 0, 133000 },
+	{ 0, 1, 200000 },
+	{ 0, 1, 222000 },
+	{ 0, 1, 266000 },
+	{ 0, 2, 333000 },
+	{ 0, 2, 400000 },
+	{ 0, 2, 532000 },
+	{ 0, 2, 533000 },
+	{ 0, 3, 667000 },
+	{ 0, 4, 800000 },
+	{ 0, 0, CPUFREQ_TABLE_END },
 };
 #endif
 
@@ -118,11 +118,10 @@ static void __init s3c64xx_cpufreq_config_regulator(void)
 		pr_err("Unable to check supported voltages\n");
 	}
 
-	freq = s3c64xx_freq_table;
-	while (count > 0 && freq->frequency != CPUFREQ_TABLE_END) {
-		if (freq->frequency == CPUFREQ_ENTRY_INVALID)
-			continue;
+	if (!count)
+		goto out;
 
+	cpufreq_for_each_valid_entry(freq, s3c64xx_freq_table) {
 		dvfs = &s3c64xx_dvfs_table[freq->driver_data];
 		found = 0;
 
@@ -137,10 +136,9 @@ static void __init s3c64xx_cpufreq_config_regulator(void)
 				 freq->frequency);
 			freq->frequency = CPUFREQ_ENTRY_INVALID;
 		}
-
-		freq++;
 	}
 
+out:
 	/* Guess based on having to do an I2C/SPI write; in future we
 	 * will be able to query the regulator performance here. */
 	regulator_latency = 1 * 1000 * 1000;
@@ -179,8 +177,7 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 	}
 #endif
 
-	freq = s3c64xx_freq_table;
-	while (freq->frequency != CPUFREQ_TABLE_END) {
+	cpufreq_for_each_entry(freq, s3c64xx_freq_table) {
 		unsigned long r;
 
 		/* Check for frequencies we can generate */
@@ -196,8 +193,6 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 		 * frequency is the maximum we can support. */
 		if (!vddarm && freq->frequency > clk_get_rate(policy->clk) / 1000)
 			freq->frequency = CPUFREQ_ENTRY_INVALID;
-
-		freq++;
 	}
 
 	/* Datasheet says PLL stabalisation time (if we were to use

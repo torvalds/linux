@@ -98,7 +98,7 @@ static void vss_send_op(struct work_struct *dummy)
 	vss_msg->vss_hdr.operation = op;
 	msg->len = sizeof(struct hv_vss_msg);
 
-	cn_netlink_send(msg, 0, GFP_ATOMIC);
+	cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
 	kfree(msg);
 
 	return;

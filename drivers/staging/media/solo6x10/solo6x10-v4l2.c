@@ -336,13 +336,12 @@ static int solo_start_streaming(struct vb2_queue *q, unsigned int count)
 	return solo_start_thread(solo_dev);
 }
 
-static int solo_stop_streaming(struct vb2_queue *q)
+static void solo_stop_streaming(struct vb2_queue *q)
 {
 	struct solo_dev *solo_dev = vb2_get_drv_priv(q);
 
 	solo_stop_thread(solo_dev);
 	INIT_LIST_HEAD(&solo_dev->vidq_active);
-	return 0;
 }
 
 static void solo_buf_queue(struct vb2_buffer *vb)
@@ -676,7 +675,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	solo_dev->vidq.ops = &solo_video_qops;
 	solo_dev->vidq.mem_ops = &vb2_dma_contig_memops;
 	solo_dev->vidq.drv_priv = solo_dev;
-	solo_dev->vidq.timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	solo_dev->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	solo_dev->vidq.gfp_flags = __GFP_DMA32;
 	solo_dev->vidq.buf_struct_size = sizeof(struct solo_vb2_buf);
 	solo_dev->vidq.lock = &solo_dev->lock;

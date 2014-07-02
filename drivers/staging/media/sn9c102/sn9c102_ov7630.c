@@ -23,7 +23,7 @@
 #include "sn9c102_devtable.h"
 
 
-static int ov7630_init(struct sn9c102_device* cam)
+static int ov7630_init(struct sn9c102_device *cam)
 {
 	int err = 0;
 
@@ -252,15 +252,16 @@ static int ov7630_init(struct sn9c102_device* cam)
 }
 
 
-static int ov7630_get_ctrl(struct sn9c102_device* cam,
-			   struct v4l2_control* ctrl)
+static int ov7630_get_ctrl(struct sn9c102_device *cam,
+			   struct v4l2_control *ctrl)
 {
 	enum sn9c102_bridge bridge = sn9c102_get_bridge(cam);
 	int err = 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x10)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x10);
+		if (ctrl->value < 0)
 			return -EIO;
 		break;
 	case V4L2_CID_RED_BALANCE:
@@ -280,37 +281,44 @@ static int ov7630_get_ctrl(struct sn9c102_device* cam,
 		break;
 		break;
 	case V4L2_CID_GAIN:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x00)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x00);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x3f;
 		break;
 	case V4L2_CID_DO_WHITE_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0c)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x0c);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x3f;
 		break;
 	case V4L2_CID_WHITENESS:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0d)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x0d);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x3f;
 		break;
 	case V4L2_CID_AUTOGAIN:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x13)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x13);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x01;
 		break;
 	case V4L2_CID_VFLIP:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x75)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x75);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = (ctrl->value & 0x80) ? 1 : 0;
 		break;
 	case SN9C102_V4L2_CID_GAMMA:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x14)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x14);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = (ctrl->value & 0x02) ? 1 : 0;
 		break;
 	case SN9C102_V4L2_CID_BAND_FILTER:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x2d)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x2d);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = (ctrl->value & 0x02) ? 1 : 0;
 		break;
@@ -322,8 +330,8 @@ static int ov7630_get_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int ov7630_set_ctrl(struct sn9c102_device* cam,
-			   const struct v4l2_control* ctrl)
+static int ov7630_set_ctrl(struct sn9c102_device *cam,
+			   const struct v4l2_control *ctrl)
 {
 	enum sn9c102_bridge bridge = sn9c102_get_bridge(cam);
 	int err = 0;
@@ -377,10 +385,10 @@ static int ov7630_set_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int ov7630_set_crop(struct sn9c102_device* cam,
-			   const struct v4l2_rect* rect)
+static int ov7630_set_crop(struct sn9c102_device *cam,
+			   const struct v4l2_rect *rect)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	int err = 0;
 	u8 h_start = 0, v_start = (u8)(rect->top - s->cropcap.bounds.top) + 1;
 
@@ -405,8 +413,8 @@ static int ov7630_set_crop(struct sn9c102_device* cam,
 }
 
 
-static int ov7630_set_pix_format(struct sn9c102_device* cam,
-				 const struct v4l2_pix_format* pix)
+static int ov7630_set_pix_format(struct sn9c102_device *cam,
+				 const struct v4l2_pix_format *pix)
 {
 	int err = 0;
 
@@ -586,7 +594,7 @@ static const struct sn9c102_sensor ov7630 = {
 };
 
 
-int sn9c102_probe_ov7630(struct sn9c102_device* cam)
+int sn9c102_probe_ov7630(struct sn9c102_device *cam)
 {
 	int pid, ver, err = 0;
 

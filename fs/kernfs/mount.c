@@ -19,21 +19,59 @@
 
 struct kmem_cache *kernfs_node_cache;
 
-static const struct super_operations kernfs_sops = {
+static int kernfs_sop_remount_fs(struct super_block *sb, int *flags, char *data)
+{
+	struct kernfs_root *root = kernfs_info(sb)->root;
+	struct kernfs_syscall_ops *scops = root->syscall_ops;
+
+	if (scops && scops->remount_fs)
+		return scops->remount_fs(root, flags, data);
+	return 0;
+}
+
+static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
+{
+	struct kernfs_root *root = kernfs_root(dentry->d_fsdata);
+	struct kernfs_syscall_ops *scops = root->syscall_ops;
+
+	if (scops && scops->show_options)
+		return scops->show_options(sf, root);
+	return 0;
+}
+
+const struct super_operations kernfs_sops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
 	.evict_inode	= kernfs_evict_inode,
+
+	.remount_fs	= kernfs_sop_remount_fs,
+	.show_options	= kernfs_sop_show_options,
 };
 
-static int kernfs_fill_super(struct super_block *sb)
+/**
+ * kernfs_root_from_sb - determine kernfs_root associated with a super_block
+ * @sb: the super_block in question
+ *
+ * Return the kernfs_root associated with @sb.  If @sb is not a kernfs one,
+ * %NULL is returned.
+ */
+struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
+{
+	if (sb->s_op == &kernfs_sops)
+		return kernfs_info(sb)->root;
+	return NULL;
+}
+
+static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
 	struct inode *inode;
 	struct dentry *root;
 
+	info->sb = sb;
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
-	sb->s_magic = SYSFS_MAGIC;
+	sb->s_magic = magic;
 	sb->s_op = &kernfs_sops;
 	sb->s_time_gran = 1;
 
@@ -94,6 +132,7 @@ const void *kernfs_super_ns(struct super_block *sb)
  * @fs_type: file_system_type of the fs being mounted
  * @flags: mount flags specified for the mount
  * @root: kernfs_root of the hierarchy being mounted
+ * @magic: file system specific magic number
  * @new_sb_created: tell the caller if we allocated a new superblock
  * @ns: optional namespace tag of the mount
  *
@@ -105,8 +144,8 @@ const void *kernfs_super_ns(struct super_block *sb)
  * The return value can be passed to the vfs layer verbatim.
  */
 struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
-			       struct kernfs_root *root, bool *new_sb_created,
-			       const void *ns)
+				struct kernfs_root *root, unsigned long magic,
+				bool *new_sb_created, const void *ns)
 {
 	struct super_block *sb;
 	struct kernfs_super_info *info;
@@ -129,12 +168,18 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 		*new_sb_created = !sb->s_root;
 
 	if (!sb->s_root) {
-		error = kernfs_fill_super(sb);
+		struct kernfs_super_info *info = kernfs_info(sb);
+
+		error = kernfs_fill_super(sb, magic);
 		if (error) {
 			deactivate_locked_super(sb);
 			return ERR_PTR(error);
 		}
 		sb->s_flags |= MS_ACTIVE;
+
+		mutex_lock(&kernfs_mutex);
+		list_add(&info->node, &root->supers);
+		mutex_unlock(&kernfs_mutex);
 	}
 
 	return dget(sb->s_root);
@@ -152,6 +197,10 @@ void kernfs_kill_sb(struct super_block *sb)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
 	struct kernfs_node *root_kn = sb->s_root->d_fsdata;
+
+	mutex_lock(&kernfs_mutex);
+	list_del(&info->node);
+	mutex_unlock(&kernfs_mutex);
 
 	/*
 	 * Remove the superblock from fs_supers/s_instances

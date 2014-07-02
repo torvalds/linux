@@ -1,0 +1,36 @@
+* Texas Instruments TRF7970A RFID/NFC/15693 Transceiver
+
+Required properties:
+- compatible: Should be "ti,trf7970a".
+- spi-max-frequency: Maximum SPI frequency (<= 2000000).
+- interrupt-parent: phandle of parent interrupt handler.
+- interrupts: A single interrupt specifier.
+- ti,enable-gpios: Two GPIO entries used for 'EN' and 'EN2' pins on the
+  TRF7970A.
+- vin-supply: Regulator for supply voltage to VIN pin
+
+Optional SoC Specific Properties:
+- pinctrl-names: Contains only one value - "default".
+- pintctrl-0: Specifies the pin control groups used for this controller.
+- autosuspend-delay: Specify autosuspend delay in milliseconds.
+
+Example (for ARM-based BeagleBone with TRF7970A on SPI1):
+
+&spi1 {
+	status = "okay";
+
+	nfc@0 {
+		compatible = "ti,trf7970a";
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&trf7970a_default>;
+		spi-max-frequency = <2000000>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <14 0>;
+		ti,enable-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>,
+				  <&gpio2 5 GPIO_ACTIVE_LOW>;
+		vin-supply = <&ldo3_reg>;
+		autosuspend-delay = <30000>;
+		status = "okay";
+	};
+};

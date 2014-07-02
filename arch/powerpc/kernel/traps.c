@@ -295,6 +295,8 @@ long machine_check_early(struct pt_regs *regs)
 {
 	long handled = 0;
 
+	__get_cpu_var(irq_stat).mce_exceptions++;
+
 	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
 		handled = cur_cpu_spec->machine_check_early(regs);
 	return handled;
@@ -1379,8 +1381,9 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-	pr_err("%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
-	       hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
+	pr_err_ratelimited(
+		"%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
+		hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
 
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
@@ -1867,6 +1870,7 @@ struct ppc_emulated ppc_emulated = {
 #ifdef CONFIG_PPC64
 	WARN_EMULATED_SETUP(mfdscr),
 	WARN_EMULATED_SETUP(mtdscr),
+	WARN_EMULATED_SETUP(lq_stq),
 #endif
 };
 

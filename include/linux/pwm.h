@@ -7,7 +7,7 @@
 struct pwm_device;
 struct seq_file;
 
-#if IS_ENABLED(CONFIG_PWM) || IS_ENABLED(CONFIG_HAVE_PWM)
+#if IS_ENABLED(CONFIG_PWM)
 /*
  * pwm_request - request a PWM device
  */
@@ -274,14 +274,18 @@ struct pwm_lookup {
 	unsigned int index;
 	const char *dev_id;
 	const char *con_id;
+	unsigned int period;
+	enum pwm_polarity polarity;
 };
 
-#define PWM_LOOKUP(_provider, _index, _dev_id, _con_id)	\
+#define PWM_LOOKUP(_provider, _index, _dev_id, _con_id, _period, _polarity) \
 	{						\
 		.provider = _provider,			\
 		.index = _index,			\
 		.dev_id = _dev_id,			\
 		.con_id = _con_id,			\
+		.period = _period,			\
+		.polarity = _polarity			\
 	}
 
 #if IS_ENABLED(CONFIG_PWM)

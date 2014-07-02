@@ -1,70 +1,16 @@
-/dts-v1/;
-
-/include/ "skeleton.dtsi"
-
-#include <dt-bindings/clock/qcom,gcc-msm8960.h>
+#include "qcom-msm8960.dtsi"
 
 / {
 	model = "Qualcomm MSM8960 CDP";
 	compatible = "qcom,msm8960-cdp", "qcom,msm8960";
-	interrupt-parent = <&intc>;
 
-	intc: interrupt-controller@2000000 {
-		compatible = "qcom,msm-qgic2";
-		interrupt-controller;
-		#interrupt-cells = <3>;
-		reg = < 0x02000000 0x1000 >,
-		      < 0x02002000 0x1000 >;
-	};
-
-	timer@200a000 {
-		compatible = "qcom,kpss-timer", "qcom,msm-timer";
-		interrupts = <1 1 0x301>,
-			     <1 2 0x301>,
-			     <1 3 0x301>;
-		reg = <0x0200a000 0x100>;
-		clock-frequency = <27000000>,
-				  <32768>;
-		cpu-offset = <0x80000>;
-	};
-
-	msmgpio: gpio@800000 {
-		compatible = "qcom,msm-gpio";
-		gpio-controller;
-		#gpio-cells = <2>;
-		ngpio = <150>;
-		interrupts = <0 16 0x4>;
-		interrupt-controller;
-		#interrupt-cells = <2>;
-		reg = <0x800000 0x4000>;
-	};
-
-	gcc: clock-controller@900000 {
-		compatible = "qcom,gcc-msm8960";
-		#clock-cells = <1>;
-		#reset-cells = <1>;
-		reg = <0x900000 0x4000>;
-	};
-
-	clock-controller@4000000 {
-		compatible = "qcom,mmcc-msm8960";
-		reg = <0x4000000 0x1000>;
-		#clock-cells = <1>;
-		#reset-cells = <1>;
-	};
-
-	serial@16440000 {
-		compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
-		reg = <0x16440000 0x1000>,
-		      <0x16400000 0x1000>;
-		interrupts = <0 154 0x0>;
-		clocks = <&gcc GSBI5_UART_CLK>, <&gcc GSBI5_H_CLK>;
-		clock-names = "core", "iface";
-	};
-
-	qcom,ssbi@500000 {
-		compatible = "qcom,ssbi";
-		reg = <0x500000 0x1000>;
-		qcom,controller-type = "pmic-arbiter";
+	soc {
+		gsbi@16400000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+			serial@16440000 {
+				status = "ok";
+			};
+		};
 	};
 };

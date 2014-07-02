@@ -78,7 +78,8 @@ static inline int selinux_authorizable_xfrm(struct xfrm_state *x)
  * xfrm_user_sec_ctx context.
  */
 static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
-				   struct xfrm_user_sec_ctx *uctx)
+				   struct xfrm_user_sec_ctx *uctx,
+				   gfp_t gfp)
 {
 	int rc;
 	const struct task_security_struct *tsec = current_security();
@@ -94,7 +95,7 @@ static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
 	if (str_len >= PAGE_SIZE)
 		return -ENOMEM;
 
-	ctx = kmalloc(sizeof(*ctx) + str_len + 1, GFP_KERNEL);
+	ctx = kmalloc(sizeof(*ctx) + str_len + 1, gfp);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -103,7 +104,7 @@ static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
 	ctx->ctx_len = str_len;
 	memcpy(ctx->ctx_str, &uctx[1], str_len);
 	ctx->ctx_str[str_len] = '\0';
-	rc = security_context_to_sid(ctx->ctx_str, str_len, &ctx->ctx_sid);
+	rc = security_context_to_sid(ctx->ctx_str, str_len, &ctx->ctx_sid, gfp);
 	if (rc)
 		goto err;
 
@@ -282,9 +283,10 @@ int selinux_xfrm_skb_sid(struct sk_buff *skb, u32 *sid)
  * LSM hook implementation that allocs and transfers uctx spec to xfrm_policy.
  */
 int selinux_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
-			      struct xfrm_user_sec_ctx *uctx)
+			      struct xfrm_user_sec_ctx *uctx,
+			      gfp_t gfp)
 {
-	return selinux_xfrm_alloc_user(ctxp, uctx);
+	return selinux_xfrm_alloc_user(ctxp, uctx, gfp);
 }
 
 /*
@@ -332,7 +334,7 @@ int selinux_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 int selinux_xfrm_state_alloc(struct xfrm_state *x,
 			     struct xfrm_user_sec_ctx *uctx)
 {
-	return selinux_xfrm_alloc_user(&x->security, uctx);
+	return selinux_xfrm_alloc_user(&x->security, uctx, GFP_KERNEL);
 }
 
 /*

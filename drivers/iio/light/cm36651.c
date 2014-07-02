@@ -652,7 +652,19 @@ static int cm36651_probe(struct i2c_client *client,
 	cm36651->client = client;
 	cm36651->ps_client = i2c_new_dummy(client->adapter,
 						     CM36651_I2C_ADDR_PS);
+	if (!cm36651->ps_client) {
+		dev_err(&client->dev, "%s: new i2c device failed\n", __func__);
+		ret = -ENODEV;
+		goto error_disable_reg;
+	}
+
 	cm36651->ara_client = i2c_new_dummy(client->adapter, CM36651_ARA);
+	if (!cm36651->ara_client) {
+		dev_err(&client->dev, "%s: new i2c device failed\n", __func__);
+		ret = -ENODEV;
+		goto error_i2c_unregister_ps;
+	}
+
 	mutex_init(&cm36651->lock);
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = cm36651_channels;
@@ -664,7 +676,7 @@ static int cm36651_probe(struct i2c_client *client,
 	ret = cm36651_setup_reg(cm36651);
 	if (ret) {
 		dev_err(&client->dev, "%s: register setup failed\n", __func__);
-		goto error_disable_reg;
+		goto error_i2c_unregister_ara;
 	}
 
 	ret = request_threaded_irq(client->irq, NULL, cm36651_irq_handler,
@@ -672,7 +684,7 @@ static int cm36651_probe(struct i2c_client *client,
 							"cm36651", indio_dev);
 	if (ret) {
 		dev_err(&client->dev, "%s: request irq failed\n", __func__);
-		goto error_disable_reg;
+		goto error_i2c_unregister_ara;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -685,6 +697,10 @@ static int cm36651_probe(struct i2c_client *client,
 
 error_free_irq:
 	free_irq(client->irq, indio_dev);
+error_i2c_unregister_ara:
+	i2c_unregister_device(cm36651->ara_client);
+error_i2c_unregister_ps:
+	i2c_unregister_device(cm36651->ps_client);
 error_disable_reg:
 	regulator_disable(cm36651->vled_reg);
 	return ret;
@@ -698,6 +714,8 @@ static int cm36651_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 	regulator_disable(cm36651->vled_reg);
 	free_irq(client->irq, indio_dev);
+	i2c_unregister_device(cm36651->ps_client);
+	i2c_unregister_device(cm36651->ara_client);
 
 	return 0;
 }

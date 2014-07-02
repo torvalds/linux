@@ -37,15 +37,6 @@ drop:
 	return NET_RX_DROP;
 }
 
-int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
-		    int encap_type)
-{
-	XFRM_SPI_SKB_CB(skb)->family = AF_INET;
-	XFRM_SPI_SKB_CB(skb)->daddroff = offsetof(struct iphdr, daddr);
-	return xfrm_input(skb, nexthdr, spi, encap_type);
-}
-EXPORT_SYMBOL(xfrm4_rcv_encap);
-
 int xfrm4_transport_finish(struct sk_buff *skb, int async)
 {
 	struct iphdr *iph = ip_hdr(skb);

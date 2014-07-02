@@ -94,7 +94,7 @@ xfs_bmap_compute_maxlevels(
 		maxleafents = MAXAEXTNUM;
 		sz = XFS_BMDR_SPACE_CALC(MINABTPTRS);
 	}
-	maxrootrecs = xfs_bmdr_maxrecs(mp, sz, 0);
+	maxrootrecs = xfs_bmdr_maxrecs(sz, 0);
 	minleafrecs = mp->m_bmap_dmnr[0];
 	minnoderecs = mp->m_bmap_dmnr[1];
 	maxblocks = (maxleafents + minleafrecs - 1) / minleafrecs;
@@ -233,7 +233,6 @@ xfs_default_attroffset(
  */
 STATIC void
 xfs_bmap_forkoff_reset(
-	xfs_mount_t	*mp,
 	xfs_inode_t	*ip,
 	int		whichfork)
 {
@@ -905,7 +904,7 @@ xfs_bmap_local_to_extents_empty(
 	ASSERT(ifp->if_bytes == 0);
 	ASSERT(XFS_IFORK_NEXTENTS(ip, whichfork) == 0);
 
-	xfs_bmap_forkoff_reset(ip->i_mount, ip, whichfork);
+	xfs_bmap_forkoff_reset(ip, whichfork);
 	ifp->if_flags &= ~XFS_IFINLINE;
 	ifp->if_flags |= XFS_IFEXTENTS;
 	XFS_IFORK_FMT_SET(ip, whichfork, XFS_DINODE_FMT_EXTENTS);
@@ -1099,10 +1098,11 @@ xfs_bmap_add_attrfork_local(
 
 	if (S_ISDIR(ip->i_d.di_mode)) {
 		memset(&dargs, 0, sizeof(dargs));
+		dargs.geo = ip->i_mount->m_dir_geo;
 		dargs.dp = ip;
 		dargs.firstblock = firstblock;
 		dargs.flist = flist;
-		dargs.total = ip->i_mount->m_dirblkfsbs;
+		dargs.total = dargs.geo->fsbcount;
 		dargs.whichfork = XFS_DATA_FORK;
 		dargs.trans = tp;
 		return xfs_dir2_sf_to_block(&dargs);
@@ -1675,7 +1675,6 @@ xfs_bmap_isaeof(
  */
 int
 xfs_bmap_last_offset(
-	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	xfs_fileoff_t		*last_block,
 	int			whichfork)
@@ -3517,6 +3516,67 @@ xfs_bmap_adjacent(
 #undef ISVALID
 }
 
+static int
+xfs_bmap_longest_free_extent(
+	struct xfs_trans	*tp,
+	xfs_agnumber_t		ag,
+	xfs_extlen_t		*blen,
+	int			*notinit)
+{
+	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_perag	*pag;
+	xfs_extlen_t		longest;
+	int			error = 0;
+
+	pag = xfs_perag_get(mp, ag);
+	if (!pag->pagf_init) {
+		error = xfs_alloc_pagf_init(mp, tp, ag, XFS_ALLOC_FLAG_TRYLOCK);
+		if (error)
+			goto out;
+
+		if (!pag->pagf_init) {
+			*notinit = 1;
+			goto out;
+		}
+	}
+
+	longest = xfs_alloc_longest_free_extent(mp, pag);
+	if (*blen < longest)
+		*blen = longest;
+
+out:
+	xfs_perag_put(pag);
+	return error;
+}
+
+static void
+xfs_bmap_select_minlen(
+	struct xfs_bmalloca	*ap,
+	struct xfs_alloc_arg	*args,
+	xfs_extlen_t		*blen,
+	int			notinit)
+{
+	if (notinit || *blen < ap->minlen) {
+		/*
+		 * Since we did a BUF_TRYLOCK above, it is possible that
+		 * there is space for this request.
+		 */
+		args->minlen = ap->minlen;
+	} else if (*blen < args->maxlen) {
+		/*
+		 * If the best seen length is less than the request length,
+		 * use the best as the minimum.
+		 */
+		args->minlen = *blen;
+	} else {
+		/*
+		 * Otherwise we've seen an extent as big as maxlen, use that
+		 * as the minimum.
+		 */
+		args->minlen = args->maxlen;
+	}
+}
+
 STATIC int
 xfs_bmap_btalloc_nullfb(
 	struct xfs_bmalloca	*ap,
@@ -3524,111 +3584,74 @@ xfs_bmap_btalloc_nullfb(
 	xfs_extlen_t		*blen)
 {
 	struct xfs_mount	*mp = ap->ip->i_mount;
-	struct xfs_perag	*pag;
 	xfs_agnumber_t		ag, startag;
 	int			notinit = 0;
 	int			error;
 
-	if (ap->userdata && xfs_inode_is_filestream(ap->ip))
-		args->type = XFS_ALLOCTYPE_NEAR_BNO;
-	else
-		args->type = XFS_ALLOCTYPE_START_BNO;
+	args->type = XFS_ALLOCTYPE_START_BNO;
 	args->total = ap->total;
 
-	/*
-	 * Search for an allocation group with a single extent large enough
-	 * for the request.  If one isn't found, then adjust the minimum
-	 * allocation size to the largest space found.
-	 */
 	startag = ag = XFS_FSB_TO_AGNO(mp, args->fsbno);
 	if (startag == NULLAGNUMBER)
 		startag = ag = 0;
 
-	pag = xfs_perag_get(mp, ag);
 	while (*blen < args->maxlen) {
-		if (!pag->pagf_init) {
-			error = xfs_alloc_pagf_init(mp, args->tp, ag,
-						    XFS_ALLOC_FLAG_TRYLOCK);
-			if (error) {
-				xfs_perag_put(pag);
-				return error;
-			}
-		}
+		error = xfs_bmap_longest_free_extent(args->tp, ag, blen,
+						     &notinit);
+		if (error)
+			return error;
 
-		/*
-		 * See xfs_alloc_fix_freelist...
-		 */
-		if (pag->pagf_init) {
-			xfs_extlen_t	longest;
-			longest = xfs_alloc_longest_free_extent(mp, pag);
-			if (*blen < longest)
-				*blen = longest;
-		} else
-			notinit = 1;
-
-		if (xfs_inode_is_filestream(ap->ip)) {
-			if (*blen >= args->maxlen)
-				break;
-
-			if (ap->userdata) {
-				/*
-				 * If startag is an invalid AG, we've
-				 * come here once before and
-				 * xfs_filestream_new_ag picked the
-				 * best currently available.
-				 *
-				 * Don't continue looping, since we
-				 * could loop forever.
-				 */
-				if (startag == NULLAGNUMBER)
-					break;
-
-				error = xfs_filestream_new_ag(ap, &ag);
-				xfs_perag_put(pag);
-				if (error)
-					return error;
-
-				/* loop again to set 'blen'*/
-				startag = NULLAGNUMBER;
-				pag = xfs_perag_get(mp, ag);
-				continue;
-			}
-		}
 		if (++ag == mp->m_sb.sb_agcount)
 			ag = 0;
 		if (ag == startag)
 			break;
-		xfs_perag_put(pag);
-		pag = xfs_perag_get(mp, ag);
 	}
-	xfs_perag_put(pag);
+
+	xfs_bmap_select_minlen(ap, args, blen, notinit);
+	return 0;
+}
+
+STATIC int
+xfs_bmap_btalloc_filestreams(
+	struct xfs_bmalloca	*ap,
+	struct xfs_alloc_arg	*args,
+	xfs_extlen_t		*blen)
+{
+	struct xfs_mount	*mp = ap->ip->i_mount;
+	xfs_agnumber_t		ag;
+	int			notinit = 0;
+	int			error;
+
+	args->type = XFS_ALLOCTYPE_NEAR_BNO;
+	args->total = ap->total;
+
+	ag = XFS_FSB_TO_AGNO(mp, args->fsbno);
+	if (ag == NULLAGNUMBER)
+		ag = 0;
+
+	error = xfs_bmap_longest_free_extent(args->tp, ag, blen, &notinit);
+	if (error)
+		return error;
+
+	if (*blen < args->maxlen) {
+		error = xfs_filestream_new_ag(ap, &ag);
+		if (error)
+			return error;
+
+		error = xfs_bmap_longest_free_extent(args->tp, ag, blen,
+						     &notinit);
+		if (error)
+			return error;
+
+	}
+
+	xfs_bmap_select_minlen(ap, args, blen, notinit);
 
 	/*
-	 * Since the above loop did a BUF_TRYLOCK, it is
-	 * possible that there is space for this request.
+	 * Set the failure fallback case to look in the selected AG as stream
+	 * may have moved.
 	 */
-	if (notinit || *blen < ap->minlen)
-		args->minlen = ap->minlen;
-	/*
-	 * If the best seen length is less than the request
-	 * length, use the best as the minimum.
-	 */
-	else if (*blen < args->maxlen)
-		args->minlen = *blen;
-	/*
-	 * Otherwise we've seen an extent as big as maxlen,
-	 * use that as the minimum.
-	 */
-	else
-		args->minlen = args->maxlen;
-
-	/*
-	 * set the failure fallback case to look in the selected
-	 * AG as the stream may have moved.
-	 */
-	if (xfs_inode_is_filestream(ap->ip))
-		ap->blkno = args->fsbno = XFS_AGB_TO_FSB(mp, ag, 0);
-
+	ap->blkno = args->fsbno = XFS_AGB_TO_FSB(mp, ag, 0);
 	return 0;
 }
 
@@ -3708,7 +3731,15 @@ xfs_bmap_btalloc(
 	args.firstblock = *ap->firstblock;
 	blen = 0;
 	if (nullfb) {
-		error = xfs_bmap_btalloc_nullfb(ap, &args, &blen);
+		/*
+		 * Search for an allocation group with a single extent large
+		 * enough for the request.  If one isn't found, then adjust
+		 * the minimum allocation size to the largest space found.
+		 */
+		if (ap->userdata && xfs_inode_is_filestream(ap->ip))
+			error = xfs_bmap_btalloc_filestreams(ap, &args, &blen);
+		else
+			error = xfs_bmap_btalloc_nullfb(ap, &args, &blen);
 		if (error)
 			return error;
 	} else if (ap->flist->xbf_low) {
@@ -5376,5 +5407,203 @@ error0:
 		xfs_btree_del_cursor(cur,
 			error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
 	}
+	return error;
+}
+
+/*
+ * Shift extent records to the left to cover a hole.
+ *
+ * The maximum number of extents to be shifted in a single operation
+ * is @num_exts, and @current_ext keeps track of the current extent
+ * index we have shifted. @offset_shift_fsb is the length by which each
+ * extent is shifted. If there is no hole to shift the extents
+ * into, this will be considered invalid operation and we abort immediately.
+ */
+int
+xfs_bmap_shift_extents(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	int			*done,
+	xfs_fileoff_t		start_fsb,
+	xfs_fileoff_t		offset_shift_fsb,
+	xfs_extnum_t		*current_ext,
+	xfs_fsblock_t		*firstblock,
+	struct xfs_bmap_free	*flist,
+	int			num_exts)
+{
+	struct xfs_btree_cur		*cur;
+	struct xfs_bmbt_rec_host	*gotp;
+	struct xfs_bmbt_irec            got;
+	struct xfs_bmbt_irec		left;
+	struct xfs_mount		*mp = ip->i_mount;
+	struct xfs_ifork		*ifp;
+	xfs_extnum_t			nexts = 0;
+	xfs_fileoff_t			startoff;
+	int				error = 0;
+	int				i;
+	int				whichfork = XFS_DATA_FORK;
+	int				logflags;
+	xfs_filblks_t			blockcount = 0;
+	int				total_extents;
+
+	if (unlikely(XFS_TEST_ERROR(
+	    (XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_EXTENTS &&
+	     XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE),
+	     mp, XFS_ERRTAG_BMAPIFORMAT, XFS_RANDOM_BMAPIFORMAT))) {
+		XFS_ERROR_REPORT("xfs_bmap_shift_extents",
+				 XFS_ERRLEVEL_LOW, mp);
+		return XFS_ERROR(EFSCORRUPTED);
+	}
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return XFS_ERROR(EIO);
+
+	ASSERT(current_ext != NULL);
+
+	ifp = XFS_IFORK_PTR(ip, whichfork);
+	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
+		/* Read in all the extents */
+		error = xfs_iread_extents(tp, ip, whichfork);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * If *current_ext is 0, we would need to lookup the extent
+	 * from where we would start shifting and store it in gotp.
+	 */
+	if (!*current_ext) {
+		gotp = xfs_iext_bno_to_ext(ifp, start_fsb, current_ext);
+		/*
+		 * gotp can be null in 2 cases: 1) if there are no extents
+		 * or 2) start_fsb lies in a hole beyond which there are
+		 * no extents. Either way, we are done.
+		 */
+		if (!gotp) {
+			*done = 1;
+			return 0;
+		}
+	}
+
+	/* We are going to change core inode */
+	logflags = XFS_ILOG_CORE;
+	if (ifp->if_flags & XFS_IFBROOT) {
+		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
+		cur->bc_private.b.firstblock = *firstblock;
+		cur->bc_private.b.flist = flist;
+		cur->bc_private.b.flags = 0;
+	} else {
+		cur = NULL;
+		logflags |= XFS_ILOG_DEXT;
+	}
+
+	/*
+	 * There may be delalloc extents in the data fork before the range we
+	 * are collapsing out, so we cannot
+	 * use the count of real extents here. Instead we have to calculate it
+	 * from the incore fork.
+	 */
+	total_extents = ifp->if_bytes / sizeof(xfs_bmbt_rec_t);
+	while (nexts++ < num_exts && *current_ext < total_extents) {
+
+		gotp = xfs_iext_get_ext(ifp, *current_ext);
+		xfs_bmbt_get_all(gotp, &got);
+		startoff = got.br_startoff - offset_shift_fsb;
+
+		/*
+		 * Before shifting extent into hole, make sure that the hole
+		 * is large enough to accomodate the shift.
+		 */
+		if (*current_ext) {
+			xfs_bmbt_get_all(xfs_iext_get_ext(ifp,
+						*current_ext - 1), &left);
+
+			if (startoff < left.br_startoff + left.br_blockcount)
+				error = XFS_ERROR(EINVAL);
+		} else if (offset_shift_fsb > got.br_startoff) {
+			/*
+			 * When first extent is shifted, offset_shift_fsb
+			 * should be less than the stating offset of
+			 * the first extent.
+			 */
+			error = XFS_ERROR(EINVAL);
+		}
+
+		if (error)
+			goto del_cursor;
+
+		if (cur) {
+			error = xfs_bmbt_lookup_eq(cur, got.br_startoff,
+						   got.br_startblock,
+						   got.br_blockcount,
+						   &i);
+			if (error)
+				goto del_cursor;
+			XFS_WANT_CORRUPTED_GOTO(i == 1, del_cursor);
+		}
+
+		/* Check if we can merge 2 adjacent extents */
+		if (*current_ext &&
+		    left.br_startoff + left.br_blockcount == startoff &&
+		    left.br_startblock + left.br_blockcount ==
+				got.br_startblock &&
+		    left.br_state == got.br_state &&
+		    left.br_blockcount + got.br_blockcount <= MAXEXTLEN) {
+			blockcount = left.br_blockcount +
+				got.br_blockcount;
+			xfs_iext_remove(ip, *current_ext, 1, 0);
+			if (cur) {
+				error = xfs_btree_delete(cur, &i);
+				if (error)
+					goto del_cursor;
+				XFS_WANT_CORRUPTED_GOTO(i == 1, del_cursor);
+			}
+			XFS_IFORK_NEXT_SET(ip, whichfork,
+				XFS_IFORK_NEXTENTS(ip, whichfork) - 1);
+			gotp = xfs_iext_get_ext(ifp, --*current_ext);
+			xfs_bmbt_get_all(gotp, &got);
+
+			/* Make cursor point to the extent we will update */
+			if (cur) {
+				error = xfs_bmbt_lookup_eq(cur, got.br_startoff,
+							   got.br_startblock,
+							   got.br_blockcount,
+							   &i);
+				if (error)
+					goto del_cursor;
+				XFS_WANT_CORRUPTED_GOTO(i == 1, del_cursor);
+			}
+
+			xfs_bmbt_set_blockcount(gotp, blockcount);
+			got.br_blockcount = blockcount;
+		} else {
+			/* We have to update the startoff */
+			xfs_bmbt_set_startoff(gotp, startoff);
+			got.br_startoff = startoff;
+		}
+
+		if (cur) {
+			error = xfs_bmbt_update(cur, got.br_startoff,
+						got.br_startblock,
+						got.br_blockcount,
+						got.br_state);
+			if (error)
+				goto del_cursor;
+		}
+
+		(*current_ext)++;
+		total_extents = ifp->if_bytes / sizeof(xfs_bmbt_rec_t);
+	}
+
+	/* Check if we are done */
+	if (*current_ext == total_extents)
+		*done = 1;
+
+del_cursor:
+	if (cur)
+		xfs_btree_del_cursor(cur,
+			error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+
+	xfs_trans_log_inode(tp, ip, logflags);
 	return error;
 }

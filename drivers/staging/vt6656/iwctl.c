@@ -34,13 +34,12 @@
 #include "iwctl.h"
 #include "mac.h"
 #include "card.h"
-#include "hostap.h"
 #include "power.h"
 #include "rf.h"
 #include "iowpa.h"
 #include "wpactl.h"
-#include "control.h"
-#include "rndis.h"
+#include "usbpipe.h"
+#include "baseband.h"
 
 static const long frequency_list[] = {
 	2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484,
@@ -57,8 +56,8 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	struct vnt_private *pDevice = netdev_priv(dev);
 	long ldBm;
 
-	pDevice->wstats.status = pDevice->eOPMode;
-	RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
+	pDevice->wstats.status = pDevice->op_mode;
+	vnt_rf_rssi_to_dbm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
 	pDevice->wstats.qual.level = ldBm;
 	pDevice->wstats.qual.noise = 0;
 	pDevice->wstats.qual.updated = 1;
@@ -92,6 +91,7 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 	struct iw_scan_req *req = (struct iw_scan_req *)extra;
 	u8 abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
 	PWLAN_IE_SSID pItemSSID = NULL;
+	unsigned long flags;
 
 	if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
 		return -EINVAL;
@@ -116,7 +116,7 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 		return 0;
 	}
 
-	spin_lock_irq(&pDevice->lock);
+	spin_lock_irqsave(&pDevice->lock, flags);
 
 	BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
 
@@ -137,7 +137,8 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 			PRINT_K("SIOCSIWSCAN:[desired_ssid=%s,len=%d]\n", ((PWLAN_IE_SSID)abyScanSSID)->abySSID,
 				((PWLAN_IE_SSID)abyScanSSID)->len);
 			bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
-			spin_unlock_irq(&pDevice->lock);
+
+			spin_unlock_irqrestore(&pDevice->lock, flags);
 
 			return 0;
 		} else if (req->scan_type == IW_SCAN_TYPE_PASSIVE) { // passive scan
@@ -149,7 +150,8 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 
 	pMgmt->eScanType = WMAC_SCAN_PASSIVE;
 	bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-	spin_unlock_irq(&pDevice->lock);
+
+	spin_unlock_irqrestore(&pDevice->lock, flags);
 
 	return 0;
 }
@@ -233,7 +235,7 @@ int iwctl_giwscan(struct net_device *dev, struct iw_request_info *info,
 			// ADD quality
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVQUAL;
-			RFvRSSITodBm(pDevice, (u8)(pBSS->uRSSI), &ldBm);
+			vnt_rf_rssi_to_dbm(pDevice, (u8)(pBSS->uRSSI), &ldBm);
 			iwe.u.qual.level = ldBm;
 			iwe.u.qual.noise = 0;
 
@@ -376,18 +378,13 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 	struct vnt_private *pDevice = netdev_priv(dev);
 	__u32 *wmode = &wrqu->mode;
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	unsigned long flags;
 	int rc = 0;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWMODE\n");
 
 	if (pMgmt == NULL)
 		return -EFAULT;
-
-	if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP && pDevice->bEnableHostapd) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"Can't set operation mode, hostapd is running\n");
-		return rc;
-	}
 
 	switch (*wmode) {
 	case IW_MODE_ADHOC:
@@ -408,17 +405,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to infrastructure\n");
 		break;
 	case IW_MODE_MASTER:
-
-		pMgmt->eConfigMode = WMAC_CONFIG_ESS_STA;
 		rc = -EOPNOTSUPP;
-		break;
-
-		if (pMgmt->eConfigMode != WMAC_CONFIG_AP) {
-			pMgmt->eConfigMode = WMAC_CONFIG_AP;
-			if (pDevice->flags & DEVICE_FLAGS_OPENED)
-				pDevice->bCommit = true;
-		}
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to Access Point\n");
 		break;
 
 	case IW_MODE_REPEAT:
@@ -432,15 +419,16 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 	if (pDevice->bCommit) {
 		if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
 			netif_stop_queue(pDevice->dev);
-			spin_lock_irq(&pDevice->lock);
+
+			spin_lock_irqsave(&pDevice->lock, flags);
+
 			bScheduleCommand((void *) pDevice,
 				WLAN_CMD_RUN_AP, NULL);
-			spin_unlock_irq(&pDevice->lock);
+
+			spin_unlock_irqrestore(&pDevice->lock, flags);
 		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"Commit the settings\n");
-
-			spin_lock_irq(&pDevice->lock);
 
 			if (pDevice->bLinkPass &&
 				memcmp(pMgmt->abyCurrSSID,
@@ -454,9 +442,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 				memset(pMgmt->abyCurrBSSID, 0, 6);
 			}
 
-			ControlvMaskByte(pDevice,
-				MESSAGE_REQUEST_MACREG,	MAC_REG_PAPEDELAY,
-					LEDSTS_STS, LEDSTS_SLOW);
+			vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
 
 			netif_stop_queue(pDevice->dev);
 
@@ -470,8 +456,6 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 			bScheduleCommand((void *) pDevice,
 				 WLAN_CMD_SSID,
 				 NULL);
-
-			spin_unlock_irq(&pDevice->lock);
 		}
 		pDevice->bCommit = false;
 	}
@@ -724,10 +708,10 @@ int iwctl_giwaplist(struct net_device *dev, struct iw_request_info *info,
 	if (!wrq->pointer)
 		return -EINVAL;
 
-	sock = kzalloc(sizeof(struct sockaddr) * IW_MAX_AP, GFP_KERNEL);
+	sock = kcalloc(IW_MAX_AP, sizeof(struct sockaddr), GFP_KERNEL);
 	if (sock == NULL)
 		return -ENOMEM;
-	qual = kzalloc(sizeof(struct iw_quality) * IW_MAX_AP, GFP_KERNEL);
+	qual = kcalloc(IW_MAX_AP, sizeof(struct iw_quality), GFP_KERNEL);
 	if (qual == NULL) {
 		kfree(sock);
 		return -ENOMEM;
@@ -1171,7 +1155,7 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 	struct iw_point *wrq = &wrqu->encoding;
 	u32 dwKeyIndex = (u32)(wrq->flags & IW_ENCODE_INDEX);
 	int ii;
-	int uu;
+	u8 uu;
 	int rc = 0;
 	int index = (wrq->flags & IW_ENCODE_INDEX);
 
@@ -1211,14 +1195,12 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pDevice->abyKey[ii]);
 
 		if (pDevice->flags & DEVICE_FLAGS_OPENED) {
-			spin_lock_irq(&pDevice->lock);
 			KeybSetDefaultKey(pDevice,
 					&(pDevice->sKey),
 					dwKeyIndex | (1 << 31),
 					wrq->length, NULL,
 					pDevice->abyKey,
 					KEY_CTL_WEP);
-			spin_unlock_irq(&pDevice->lock);
 		}
 		pDevice->byKeyIndex = (u8)dwKeyIndex;
 		pDevice->uKeyLength = wrq->length;
@@ -1241,10 +1223,8 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 		pDevice->bEncryptionEnable = false;
 		pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 		if (pDevice->flags & DEVICE_FLAGS_OPENED) {
-			spin_lock_irq(&pDevice->lock);
 			for (uu = 0; uu < MAX_KEY_TABLE; uu++)
 				MACvDisableKeyEntry(pDevice, uu);
-			spin_unlock_irq(&pDevice->lock);
 		}
 	}
 	if (wrq->flags & IW_ENCODE_RESTRICTED) {
@@ -1341,12 +1321,9 @@ int iwctl_siwpower(struct net_device *dev, struct iw_request_info *info,
 		return rc;
 	}
 
-	spin_lock_irq(&pDevice->lock);
-
 	if (wrq->disabled) {
 		pDevice->ePSMode = WMAC_POWER_CAM;
 		PSvDisablePowerSaving(pDevice);
-		spin_unlock_irq(&pDevice->lock);
 		return rc;
 	}
 	if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {
@@ -1357,8 +1334,6 @@ int iwctl_siwpower(struct net_device *dev, struct iw_request_info *info,
 		pDevice->ePSMode = WMAC_POWER_FAST;
 		PSvEnablePowerSaving((void *)pDevice, pMgmt->wListenInterval);
 	}
-
-	spin_unlock_irq(&pDevice->lock);
 
 	switch (wrq->flags & IW_POWER_MODE) {
 	case IW_POWER_UNICAST_R:
@@ -1394,7 +1369,8 @@ int iwctl_giwpower(struct net_device *dev, struct iw_request_info *info,
 	if (pMgmt == NULL)
 		return -EFAULT;
 
-	if ((wrq->disabled = (mode == WMAC_POWER_CAM)))
+	wrq->disabled = (mode == WMAC_POWER_CAM);
+	if (wrq->disabled)
 		return 0;
 
 	if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {
@@ -1423,7 +1399,7 @@ int iwctl_giwsens(struct net_device *dev, struct iw_request_info *info,
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWSENS\n");
 	if (pDevice->bLinkPass == true) {
-		RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
+		vnt_rf_rssi_to_dbm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
 		wrq->value = ldBm;
 	} else {
 		wrq->value = 0;
@@ -1721,9 +1697,7 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 		KeyvInitTable(pDevice, &pDevice->sKey);
 	}
 /*******/
-	spin_lock_irq(&pDevice->lock);
 	ret = wpa_set_keys(pDevice, param);
-	spin_unlock_irq(&pDevice->lock);
 
 error:
 	kfree(buf);

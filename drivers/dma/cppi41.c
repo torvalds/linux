@@ -620,12 +620,15 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 	u32 desc_phys;
 	int ret;
 
+	desc_phys = lower_32_bits(c->desc_phys);
+	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
+	if (!cdd->chan_busy[desc_num])
+		return 0;
+
 	ret = cppi41_tear_down_chan(c);
 	if (ret)
 		return ret;
 
-	desc_phys = lower_32_bits(c->desc_phys);
-	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
 	WARN_ON(!cdd->chan_busy[desc_num]);
 	cdd->chan_busy[desc_num] = NULL;
 

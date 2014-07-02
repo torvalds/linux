@@ -34,8 +34,7 @@ static ssize_t ieee80211_if_read(
 	ssize_t ret = -EINVAL;
 
 	read_lock(&dev_base_lock);
-	if (sdata->dev->reg_state == NETREG_REGISTERED)
-		ret = (*format)(sdata, buf, sizeof(buf));
+	ret = (*format)(sdata, buf, sizeof(buf));
 	read_unlock(&dev_base_lock);
 
 	if (ret >= 0)
@@ -62,8 +61,7 @@ static ssize_t ieee80211_if_write(
 
 	ret = -ENODEV;
 	rtnl_lock();
-	if (sdata->dev->reg_state == NETREG_REGISTERED)
-		ret = (*write)(sdata, buf, count);
+	ret = (*write)(sdata, buf, count);
 	rtnl_unlock();
 
 	return ret;
@@ -358,6 +356,18 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 }
 IEEE80211_IF_FILE_W(tkip_mic_test);
 
+static ssize_t ieee80211_if_parse_beacon_loss(
+	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
+{
+	if (!ieee80211_sdata_running(sdata) || !sdata->vif.bss_conf.assoc)
+		return -ENOTCONN;
+
+	ieee80211_beacon_loss(&sdata->vif);
+
+	return buflen;
+}
+IEEE80211_IF_FILE_W(beacon_loss);
+
 static ssize_t ieee80211_if_fmt_uapsd_queues(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
 {
@@ -569,6 +579,7 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(beacon_timeout);
 	DEBUGFS_ADD_MODE(smps, 0600);
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
+	DEBUGFS_ADD_MODE(beacon_loss, 0200);
 	DEBUGFS_ADD_MODE(uapsd_queues, 0600);
 	DEBUGFS_ADD_MODE(uapsd_max_sp_len, 0600);
 }

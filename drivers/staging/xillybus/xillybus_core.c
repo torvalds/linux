@@ -2094,7 +2094,7 @@ struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
 {
 	struct xilly_endpoint *endpoint;
 
-	endpoint = kzalloc(sizeof(*endpoint), GFP_KERNEL);
+	endpoint = devm_kzalloc(dev, sizeof(*endpoint), GFP_KERNEL);
 	if (!endpoint) {
 		dev_err(dev, "Failed to allocate memory. Aborting.\n");
 		return NULL;
@@ -2318,8 +2318,12 @@ static int __init xillybus_init(void)
 	}
 
 	xillybus_wq = alloc_workqueue(xillyname, 0, 0);
+	if (!xillybus_wq) {
+		class_destroy(xillybus_class);
+		rc = -ENOMEM;
+	}
 
-	return 0; /* Success */
+	return rc;
 }
 
 static void __exit xillybus_exit(void)
