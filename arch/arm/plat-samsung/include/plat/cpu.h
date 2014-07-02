@@ -149,7 +149,6 @@ extern struct bus_type s3c2440_subsys;
 extern struct bus_type s3c2442_subsys;
 extern struct bus_type s3c2443_subsys;
 extern struct bus_type s3c6410_subsys;
-extern struct bus_type s5pv210_subsys;
 
 extern void (*s5pc1xx_idle)(void);
 
