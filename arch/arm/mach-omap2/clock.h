@@ -232,6 +232,7 @@ struct ti_clk_features {
 	long fint_max;
 	long fint_band1_max;
 	long fint_band2_min;
+	u8 dpll_bypass_vals;
 };
 extern struct ti_clk_features ti_clk_features;
 

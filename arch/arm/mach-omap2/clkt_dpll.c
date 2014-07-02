@@ -184,18 +184,19 @@ static int _dpll_test_mult(int *m, int n, unsigned long *new_rate,
  */
 static int _omap2_dpll_is_in_bypass(u32 v)
 {
-	if (cpu_is_omap24xx()) {
-		if (v == OMAP2XXX_EN_DPLL_LPBYPASS ||
-		    v == OMAP2XXX_EN_DPLL_FRBYPASS)
-			return 1;
-	} else if (cpu_is_omap34xx()) {
-		if (v == OMAP3XXX_EN_DPLL_LPBYPASS ||
-		    v == OMAP3XXX_EN_DPLL_FRBYPASS)
-			return 1;
-	} else if (soc_is_am33xx() || cpu_is_omap44xx() || soc_is_am43xx()) {
-		if (v == OMAP4XXX_EN_DPLL_LPBYPASS ||
-		    v == OMAP4XXX_EN_DPLL_FRBYPASS ||
-		    v == OMAP4XXX_EN_DPLL_MNBYPASS)
+	u8 mask, val;
+
+	mask = ti_clk_features.dpll_bypass_vals;
+
+	/*
+	 * Each set bit in the mask corresponds to a bypass value equal
+	 * to the bitshift. Go through each set-bit in the mask and
+	 * compare against the given register value.
+	 */
+	while (mask) {
+		val = __ffs(mask);
+		mask ^= (1 << val);
+		if (v == val)
 			return 1;
 	}
 

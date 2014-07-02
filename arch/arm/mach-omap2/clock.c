@@ -767,4 +767,21 @@ void __init ti_clk_init_features(void)
 		ti_clk_features.fint_min = OMAP3PLUS_DPLL_FINT_MIN;
 		ti_clk_features.fint_max = OMAP3PLUS_DPLL_FINT_MAX;
 	}
+
+	/* Bypass value setup for DPLLs */
+	if (cpu_is_omap24xx()) {
+		ti_clk_features.dpll_bypass_vals |=
+			(1 << OMAP2XXX_EN_DPLL_LPBYPASS) |
+			(1 << OMAP2XXX_EN_DPLL_FRBYPASS);
+	} else if (cpu_is_omap34xx()) {
+		ti_clk_features.dpll_bypass_vals |=
+			(1 << OMAP3XXX_EN_DPLL_LPBYPASS) |
+			(1 << OMAP3XXX_EN_DPLL_FRBYPASS);
+	} else if (soc_is_am33xx() || cpu_is_omap44xx() || soc_is_am43xx() ||
+		   soc_is_omap54xx() || soc_is_dra7xx()) {
+		ti_clk_features.dpll_bypass_vals |=
+			(1 << OMAP4XXX_EN_DPLL_LPBYPASS) |
+			(1 << OMAP4XXX_EN_DPLL_FRBYPASS) |
+			(1 << OMAP4XXX_EN_DPLL_MNBYPASS);
+	}
 }
