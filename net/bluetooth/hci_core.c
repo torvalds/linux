@@ -3545,12 +3545,18 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 	if (!params)
 		return -EIO;
 
-	params->auto_connect = auto_connect;
+	if (params->auto_connect == HCI_AUTO_CONN_REPORT &&
+	    auto_connect != HCI_AUTO_CONN_REPORT)
+		hdev->pend_le_reports--;
 
 	switch (auto_connect) {
 	case HCI_AUTO_CONN_DISABLED:
-	case HCI_AUTO_CONN_REPORT:
 	case HCI_AUTO_CONN_LINK_LOSS:
+		hci_pend_le_conn_del(hdev, addr, addr_type);
+		break;
+	case HCI_AUTO_CONN_REPORT:
+		if (params->auto_connect != HCI_AUTO_CONN_REPORT)
+			hdev->pend_le_reports++;
 		hci_pend_le_conn_del(hdev, addr, addr_type);
 		break;
 	case HCI_AUTO_CONN_ALWAYS:
@@ -3558,6 +3564,8 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 			hci_pend_le_conn_add(hdev, addr, addr_type);
 		break;
 	}
+
+	params->auto_connect = auto_connect;
 
 	BT_DBG("addr %pMR (type %u) auto_connect %u", addr, addr_type,
 	       auto_connect);
@@ -3573,6 +3581,9 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 	params = hci_conn_params_lookup(hdev, addr, addr_type);
 	if (!params)
 		return;
+
+	if (params->auto_connect == HCI_AUTO_CONN_REPORT)
+		hdev->pend_le_reports--;
 
 	hci_pend_le_conn_del(hdev, addr, addr_type);
 
@@ -3605,6 +3616,8 @@ void hci_conn_params_clear_enabled(struct hci_dev *hdev)
 	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list) {
 		if (params->auto_connect == HCI_AUTO_CONN_DISABLED)
 			continue;
+		if (params->auto_connect == HCI_AUTO_CONN_REPORT)
+			hdev->pend_le_reports--;
 		list_del(&params->list);
 		kfree(params);
 	}

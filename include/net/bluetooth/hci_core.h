@@ -312,6 +312,7 @@ struct hci_dev {
 	struct list_head	le_white_list;
 	struct list_head	le_conn_params;
 	struct list_head	pend_le_conns;
+	unsigned int		pend_le_reports;
 
 	struct hci_dev_stats	stat;
 
