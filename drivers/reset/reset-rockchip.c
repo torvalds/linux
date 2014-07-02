@@ -16,6 +16,7 @@
 
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/reset-controller.h>
 #include <linux/spinlock.h>
 #include <linux/of_address.h>
