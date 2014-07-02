@@ -140,9 +140,9 @@ static u16 iwl_mvm_dts_get_ptat_deviation_offset(struct iwl_mvm *mvm)
 
 	/* TODO: move parsing to NVM code */
 	calib = mvm->nvm_sections[NVM_SECTION_TYPE_CALIBRATION].data;
-	ptat = calib[OTP_DTS_DIODE_DEVIATION];
-	pa1 = calib[OTP_DTS_DIODE_DEVIATION + 1];
-	pa2 = calib[OTP_DTS_DIODE_DEVIATION + 2];
+	ptat = calib[OTP_DTS_DIODE_DEVIATION * 2];
+	pa1 = calib[OTP_DTS_DIODE_DEVIATION * 2 + 1];
+	pa2 = calib[OTP_DTS_DIODE_DEVIATION * 2 + 2];
 
 	/* get the median: */
 	if (ptat > pa1) {
