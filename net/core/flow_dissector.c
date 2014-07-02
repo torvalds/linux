@@ -80,6 +80,8 @@ ip:
 	case htons(ETH_P_IPV6): {
 		const struct ipv6hdr *iph;
 		struct ipv6hdr _iph;
+		__be32 flow_label;
+
 ipv6:
 		iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
 		if (!iph)
@@ -89,6 +91,21 @@ ipv6:
 		flow->src = (__force __be32)ipv6_addr_hash(&iph->saddr);
 		flow->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
 		nhoff += sizeof(struct ipv6hdr);
+
+		flow_label = ip6_flowlabel(iph);
+		if (flow_label) {
+			/* Awesome, IPv6 packet has a flow label so we can
+			 * use that to represent the ports without any
+			 * further dissection.
+			 */
+			flow->n_proto = proto;
+			flow->ip_proto = ip_proto;
+			flow->ports = flow_label;
+			flow->thoff = (u16)nhoff;
+
+			return true;
+		}
+
 		break;
 	}
 	case htons(ETH_P_8021AD):
