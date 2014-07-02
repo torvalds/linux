@@ -412,9 +412,12 @@ static void xgbe_napi_enable(struct xgbe_prv_data *pdata, unsigned int add)
 	napi_enable(&pdata->napi);
 }
 
-static void xgbe_napi_disable(struct xgbe_prv_data *pdata)
+static void xgbe_napi_disable(struct xgbe_prv_data *pdata, unsigned int del)
 {
 	napi_disable(&pdata->napi);
+
+	if (del)
+		netif_napi_del(&pdata->napi);
 }
 
 void xgbe_init_tx_coalesce(struct xgbe_prv_data *pdata)
@@ -518,7 +521,7 @@ int xgbe_powerdown(struct net_device *netdev, unsigned int caller)
 		netif_device_detach(netdev);
 
 	netif_tx_stop_all_queues(netdev);
-	xgbe_napi_disable(pdata);
+	xgbe_napi_disable(pdata, 0);
 
 	/* Powerdown Tx/Rx */
 	hw_if->powerdown_tx(pdata);
@@ -607,7 +610,7 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 	phy_stop(pdata->phydev);
 
 	netif_tx_stop_all_queues(netdev);
-	xgbe_napi_disable(pdata);
+	xgbe_napi_disable(pdata, 1);
 
 	xgbe_stop_tx_timers(pdata);
 
