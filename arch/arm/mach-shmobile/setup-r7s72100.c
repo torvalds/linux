@@ -24,7 +24,6 @@
 
 #include "common.h"
 
-#ifdef CONFIG_USE_OF
 static const char *r7s72100_boards_compat_dt[] __initdata = {
 	"renesas,r7s72100",
 	NULL,
@@ -34,4 +33,3 @@ DT_MACHINE_START(R7S72100_DT, "Generic R7S72100 (Flattened Device Tree)")
 	.init_early	= shmobile_init_delay,
 	.dt_compat	= r7s72100_boards_compat_dt,
 MACHINE_END
-#endif /* CONFIG_USE_OF */

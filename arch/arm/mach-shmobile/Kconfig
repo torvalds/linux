@@ -145,14 +145,6 @@ config ARCH_R8A7791
 	select SYS_SUPPORTS_SH_CMT
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 
-config ARCH_R7S72100
-	bool "RZ/A1H (R7S72100)"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select CPU_V7
-	select SH_CLK_CPG
-	select SYS_SUPPORTS_SH_MTU2
-
 comment "Renesas ARM SoCs Board Type"
 
 config MACH_APE6EVM
