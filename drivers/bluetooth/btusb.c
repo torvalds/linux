@@ -1382,6 +1382,23 @@ exit_mfg_deactivate:
 	return 0;
 }
 
+static int btusb_set_bdaddr_intel(struct hci_dev *hdev, const bdaddr_t *bdaddr)
+{
+	struct sk_buff *skb;
+	long ret;
+
+	skb = __hci_cmd_sync(hdev, 0xfc31, 6, bdaddr, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		BT_ERR("%s: changing Intel device address failed (%ld)",
+			hdev->name, ret);
+		return ret;
+	}
+	kfree_skb(skb);
+
+	return 0;
+}
+
 static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
@@ -1657,8 +1674,10 @@ static int btusb_probe(struct usb_interface *intf,
 		hdev->set_bdaddr = btusb_set_bdaddr_bcm;
 	}
 
-	if (id->driver_info & BTUSB_INTEL)
+	if (id->driver_info & BTUSB_INTEL) {
 		hdev->setup = btusb_setup_intel;
+		hdev->set_bdaddr = btusb_set_bdaddr_intel;
+	}
 
 	/* Interface numbers are hardcoded in the specification */
 	data->isoc = usb_ifnum_to_if(data->udev, 1);
