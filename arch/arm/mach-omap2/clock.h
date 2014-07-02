@@ -234,6 +234,9 @@ struct ti_clk_features {
 	long fint_band2_min;
 	u8 dpll_bypass_vals;
 };
+
+#define TI_CLK_DPLL_HAS_FREQSEL		(1 << 0)
+
 extern struct ti_clk_features ti_clk_features;
 
 extern const struct clkops clkops_omap2_dflt_wait;

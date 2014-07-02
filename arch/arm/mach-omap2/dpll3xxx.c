@@ -310,7 +310,7 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 	 * Set jitter correction. Jitter correction applicable for OMAP343X
 	 * only since freqsel field is no longer present on other devices.
 	 */
-	if (cpu_is_omap343x()) {
+	if (ti_clk_features.flags & TI_CLK_DPLL_HAS_FREQSEL) {
 		v = omap2_clk_readl(clk, dd->control_reg);
 		v &= ~dd->freqsel_mask;
 		v |= freqsel << __ffs(dd->freqsel_mask);
@@ -512,7 +512,7 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 			return -EINVAL;
 
 		/* Freqsel is available only on OMAP343X devices */
-		if (cpu_is_omap343x()) {
+		if (ti_clk_features.flags & TI_CLK_DPLL_HAS_FREQSEL) {
 			freqsel = _omap3_dpll_compute_freqsel(clk,
 						dd->last_rounded_n);
 			WARN_ON(!freqsel);

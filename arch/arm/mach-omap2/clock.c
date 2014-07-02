@@ -784,4 +784,8 @@ void __init ti_clk_init_features(void)
 			(1 << OMAP4XXX_EN_DPLL_FRBYPASS) |
 			(1 << OMAP4XXX_EN_DPLL_MNBYPASS);
 	}
+
+	/* Jitter correction only available on OMAP343X */
+	if (cpu_is_omap343x())
+		ti_clk_features.flags |= TI_CLK_DPLL_HAS_FREQSEL;
 }
