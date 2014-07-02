@@ -305,13 +305,7 @@ void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
 	 * 34xx reverses this, just to keep us on our toes
 	 * AM35xx uses both, depending on the module.
 	 */
-	if (cpu_is_omap24xx())
-		*idlest_val = OMAP24XX_CM_IDLEST_VAL;
-	else if (cpu_is_omap34xx())
-		*idlest_val = OMAP34XX_CM_IDLEST_VAL;
-	else
-		BUG();
-
+	*idlest_val = ti_clk_features.cm_idlest_val;
 }
 
 /**
@@ -788,4 +782,14 @@ void __init ti_clk_init_features(void)
 	/* Jitter correction only available on OMAP343X */
 	if (cpu_is_omap343x())
 		ti_clk_features.flags |= TI_CLK_DPLL_HAS_FREQSEL;
+
+	/* Idlest value for interface clocks.
+	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.
+	 * 34xx reverses this, just to keep us on our toes
+	 * AM35xx uses both, depending on the module.
+	 */
+	if (cpu_is_omap24xx())
+		ti_clk_features.cm_idlest_val = OMAP24XX_CM_IDLEST_VAL;
+	else if (cpu_is_omap34xx())
+		ti_clk_features.cm_idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }

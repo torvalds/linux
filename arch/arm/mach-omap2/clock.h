@@ -233,6 +233,7 @@ struct ti_clk_features {
 	long fint_band1_max;
 	long fint_band2_min;
 	u8 dpll_bypass_vals;
+	u8 cm_idlest_val;
 };
 
 #define TI_CLK_DPLL_HAS_FREQSEL		(1 << 0)
