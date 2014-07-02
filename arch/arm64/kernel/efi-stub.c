@@ -69,7 +69,7 @@ static efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 		if (*image_addr != (dram_base + TEXT_OFFSET)) {
 			pr_efi_err(sys_table, "Failed to alloc kernel memory\n");
 			efi_free(sys_table, kernel_memsize, *image_addr);
-			return EFI_ERROR;
+			return EFI_LOAD_ERROR;
 		}
 		*image_size = kernel_memsize;
 	}
