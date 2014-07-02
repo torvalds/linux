@@ -5388,6 +5388,7 @@ static int dgap_param(struct tty_struct *tty)
 	 */
 	if (bd->bd_flags & BD_FEP5PLUS) {
 		u16 hflow2 = 0;
+
 		if (ch->ch_digi.digi_flags & DIGI_RTS_TOGGLE)
 			hflow2 |= (D_RTS(ch));
 		if (ch->ch_digi.digi_flags & DIGI_DTR_TOGGLE)
@@ -5797,6 +5798,7 @@ static int dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
 static void dgap_remove_driver_sysfiles(struct pci_driver *dgap_driver)
 {
 	struct device_driver *driverfs = &dgap_driver->driver;
+
 	driver_remove_file(driverfs, &driver_attr_version);
 	driver_remove_file(driverfs, &driver_attr_boards);
 	driver_remove_file(driverfs, &driver_attr_maxboards);
@@ -6390,6 +6392,7 @@ static ssize_t dgap_tty_name_show(struct device *d,
 
 		if (cptr->type == TNODE && found == TRUE) {
 			char *ptr1;
+
 			if (strstr(cptr->u.ttyname, "tty")) {
 				ptr1 = cptr->u.ttyname;
 				ptr1 += 3;
