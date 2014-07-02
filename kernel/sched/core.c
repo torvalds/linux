@@ -245,6 +245,7 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	char buf[64];
 	char *cmp;
 	int i;
+	struct inode *inode;
 
 	if (cnt > 63)
 		cnt = 63;
@@ -255,7 +256,11 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	buf[cnt] = 0;
 	cmp = strstrip(buf);
 
+	/* Ensure the static_key remains in a consistent state */
+	inode = file_inode(filp);
+	mutex_lock(&inode->i_mutex);
 	i = sched_feat_set(cmp);
+	mutex_unlock(&inode->i_mutex);
 	if (i == __SCHED_FEAT_NR)
 		return -EINVAL;
 
