@@ -202,6 +202,33 @@ static __always_inline u32 __flow_hash_1word(u32 a)
 	return jhash_1word(a, hashrnd);
 }
 
+static inline u32 __flow_hash_from_keys(struct flow_keys *keys)
+{
+	u32 hash;
+
+	/* get a consistent hash (same value on both flow directions) */
+	if (((__force u32)keys->dst < (__force u32)keys->src) ||
+	    (((__force u32)keys->dst == (__force u32)keys->src) &&
+	     ((__force u16)keys->port16[1] < (__force u16)keys->port16[0]))) {
+		swap(keys->dst, keys->src);
+		swap(keys->port16[0], keys->port16[1]);
+	}
+
+	hash = __flow_hash_3words((__force u32)keys->dst,
+				  (__force u32)keys->src,
+				  (__force u32)keys->ports);
+	if (!hash)
+		hash = 1;
+
+	return hash;
+}
+
+u32 flow_hash_from_keys(struct flow_keys *keys)
+{
+	return __flow_hash_from_keys(keys);
+}
+EXPORT_SYMBOL(flow_hash_from_keys);
+
 /*
  * __skb_get_hash: calculate a flow hash based on src/dst addresses
  * and src/dst port numbers.  Sets hash in skb to non-zero hash value
@@ -211,7 +238,6 @@ static __always_inline u32 __flow_hash_1word(u32 a)
 void __skb_get_hash(struct sk_buff *skb)
 {
 	struct flow_keys keys;
-	u32 hash;
 
 	if (!skb_flow_dissect(skb, &keys))
 		return;
@@ -219,21 +245,7 @@ void __skb_get_hash(struct sk_buff *skb)
 	if (keys.ports)
 		skb->l4_hash = 1;
 
-	/* get a consistent hash (same value on both flow directions) */
-	if (((__force u32)keys.dst < (__force u32)keys.src) ||
-	    (((__force u32)keys.dst == (__force u32)keys.src) &&
-	     ((__force u16)keys.port16[1] < (__force u16)keys.port16[0]))) {
-		swap(keys.dst, keys.src);
-		swap(keys.port16[0], keys.port16[1]);
-	}
-
-	hash = __flow_hash_3words((__force u32)keys.dst,
-				  (__force u32)keys.src,
-				  (__force u32)keys.ports);
-	if (!hash)
-		hash = 1;
-
-	skb->hash = hash;
+	skb->hash = __flow_hash_from_keys(&keys);
 }
 EXPORT_SYMBOL(__skb_get_hash);
 

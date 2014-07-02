@@ -29,4 +29,5 @@ struct flow_keys {
 
 bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow);
 __be32 skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto);
+u32 flow_hash_from_keys(struct flow_keys *keys);
 #endif
