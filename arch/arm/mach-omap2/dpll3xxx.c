@@ -28,11 +28,8 @@
 #include <linux/bitops.h>
 #include <linux/clkdev.h>
 
-#include "soc.h"
 #include "clockdomain.h"
 #include "clock.h"
-#include "cm2xxx_3xxx.h"
-#include "cm-regbits-34xx.h"
 
 /* CM_AUTOIDLE_PLL*.AUTO_* bit values */
 #define DPLL_AUTOIDLE_DISABLE			0x0
