@@ -11,22 +11,7 @@
  */
 #include <linux/efi.h>
 #include <asm/efi.h>
-#include <linux/libfdt.h>
 #include <asm/sections.h>
-
-static void efi_char16_printk(efi_system_table_t *sys_table_arg,
-			      efi_char16_t *str);
-
-static efi_status_t efi_open_volume(efi_system_table_t *sys_table,
-				    void *__image, void **__fh);
-static efi_status_t efi_file_close(void *handle);
-
-static efi_status_t
-efi_file_read(void *handle, unsigned long *size, void *addr);
-
-static efi_status_t
-efi_file_size(efi_system_table_t *sys_table, void *__fh,
-	      efi_char16_t *filename_16, void **handle, u64 *file_sz);
 
 /* Include shared EFI stub code */
 #include "../../../drivers/firmware/efi/efi-stub-helper.c"
@@ -34,13 +19,13 @@ efi_file_size(efi_system_table_t *sys_table, void *__fh,
 #include "../../../drivers/firmware/efi/arm-stub.c"
 
 
-static efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
-					unsigned long *image_addr,
-					unsigned long *image_size,
-					unsigned long *reserve_addr,
-					unsigned long *reserve_size,
-					unsigned long dram_base,
-					efi_loaded_image_t *image)
+efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
+				 unsigned long *image_addr,
+				 unsigned long *image_size,
+				 unsigned long *reserve_addr,
+				 unsigned long *reserve_size,
+				 unsigned long dram_base,
+				 efi_loaded_image_t *image)
 {
 	efi_status_t status;
 	unsigned long kernel_size, kernel_memsize = 0;

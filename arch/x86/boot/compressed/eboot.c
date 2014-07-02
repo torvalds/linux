@@ -45,8 +45,7 @@ static void setup_boot_services##bits(struct efi_config *c)		\
 BOOT_SERVICES(32);
 BOOT_SERVICES(64);
 
-static void efi_printk(efi_system_table_t *, char *);
-static void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
+void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
 
 static efi_status_t
 __file_size32(void *__fh, efi_char16_t *filename_16,
@@ -153,7 +152,7 @@ grow:
 
 	return status;
 }
-static efi_status_t
+efi_status_t
 efi_file_size(efi_system_table_t *sys_table, void *__fh,
 	      efi_char16_t *filename_16, void **handle, u64 *file_sz)
 {
@@ -163,7 +162,7 @@ efi_file_size(efi_system_table_t *sys_table, void *__fh,
 	return __file_size32(__fh, filename_16, handle, file_sz);
 }
 
-static inline efi_status_t
+efi_status_t
 efi_file_read(void *handle, unsigned long *size, void *addr)
 {
 	unsigned long func;
@@ -181,7 +180,7 @@ efi_file_read(void *handle, unsigned long *size, void *addr)
 	}
 }
 
-static inline efi_status_t efi_file_close(void *handle)
+efi_status_t efi_file_close(void *handle)
 {
 	if (efi_early->is64) {
 		efi_file_handle_64_t *fh = handle;
@@ -246,7 +245,7 @@ static inline efi_status_t __open_volume64(void *__image, void **__fh)
 	return status;
 }
 
-static inline efi_status_t
+efi_status_t
 efi_open_volume(efi_system_table_t *sys_table, void *__image, void **__fh)
 {
 	if (efi_early->is64)
@@ -255,7 +254,7 @@ efi_open_volume(efi_system_table_t *sys_table, void *__image, void **__fh)
 	return __open_volume32(__image, __fh);
 }
 
-static void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
+void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 {
 	unsigned long output_string;
 	size_t offset;

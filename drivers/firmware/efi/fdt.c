@@ -10,13 +10,17 @@
  *
  */
 
-static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
-			       unsigned long orig_fdt_size,
-			       void *fdt, int new_fdt_size, char *cmdline_ptr,
-			       u64 initrd_addr, u64 initrd_size,
-			       efi_memory_desc_t *memory_map,
-			       unsigned long map_size, unsigned long desc_size,
-			       u32 desc_ver)
+#include <linux/efi.h>
+#include <linux/libfdt.h>
+#include <asm/efi.h>
+
+efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
+			unsigned long orig_fdt_size,
+			void *fdt, int new_fdt_size, char *cmdline_ptr,
+			u64 initrd_addr, u64 initrd_size,
+			efi_memory_desc_t *memory_map,
+			unsigned long map_size, unsigned long desc_size,
+			u32 desc_ver)
 {
 	int node, prev;
 	int status;
@@ -255,7 +259,7 @@ fail:
 	return EFI_LOAD_ERROR;
 }
 
-static void *get_fdt(efi_system_table_t *sys_table)
+void *get_fdt(efi_system_table_t *sys_table)
 {
 	efi_guid_t fdt_guid = DEVICE_TREE_GUID;
 	efi_config_table_t *tables;

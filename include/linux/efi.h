@@ -1163,4 +1163,46 @@ static inline void
 efi_runtime_map_setup(void *map, int nr_entries, u32 desc_size) {}
 #endif
 
+/* prototypes shared between arch specific and generic stub code */
+
+#define pr_efi(sys_table, msg)     efi_printk(sys_table, "EFI stub: "msg)
+#define pr_efi_err(sys_table, msg) efi_printk(sys_table, "EFI stub: ERROR: "msg)
+
+void efi_printk(efi_system_table_t *sys_table_arg, char *str);
+
+void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
+	      unsigned long addr);
+
+char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
+			  efi_loaded_image_t *image, int *cmd_line_len);
+
+efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
+				efi_memory_desc_t **map,
+				unsigned long *map_size,
+				unsigned long *desc_size,
+				u32 *desc_ver,
+				unsigned long *key_ptr);
+
+efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
+			   unsigned long size, unsigned long align,
+			   unsigned long *addr);
+
+efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
+			    unsigned long size, unsigned long align,
+			    unsigned long *addr, unsigned long max);
+
+efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
+				 unsigned long *image_addr,
+				 unsigned long image_size,
+				 unsigned long alloc_size,
+				 unsigned long preferred_addr,
+				 unsigned long alignment);
+
+efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
+				  efi_loaded_image_t *image,
+				  char *cmd_line, char *option_string,
+				  unsigned long max_addr,
+				  unsigned long *load_addr,
+				  unsigned long *load_size);
+
 #endif /* _LINUX_EFI_H */
