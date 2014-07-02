@@ -486,7 +486,7 @@ static void xgbe_enable_mtl_interrupts(struct xgbe_prv_data *pdata)
 		XGMAC_MTL_IOWRITE(pdata, i, MTL_Q_ISR, mtl_q_isr);
 
 		/* No MTL interrupts to be enabled */
-		XGMAC_MTL_IOWRITE(pdata, i, MTL_Q_ISR, 0);
+		XGMAC_MTL_IOWRITE(pdata, i, MTL_Q_IER, 0);
 	}
 }
 
