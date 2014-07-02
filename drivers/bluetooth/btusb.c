@@ -1448,6 +1448,8 @@ static int btusb_set_bdaddr_intel(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 	return 0;
 }
 
+#define BDADDR_BCM20702A0 (&(bdaddr_t) {{0x00, 0xa0, 0x02, 0x70, 0x20, 0x00}})
+
 static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
@@ -1461,6 +1463,7 @@ static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 	u16 opcode;
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *ver;
+	struct hci_rp_read_bd_addr *bda;
 	long ret;
 
 	snprintf(fw_name, sizeof(fw_name), "brcm/%s-%04x-%04x.hcd",
@@ -1470,8 +1473,7 @@ static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 
 	ret = request_firmware(&fw, fw_name, &hdev->dev);
 	if (ret < 0) {
-		BT_INFO("%s: BCM: patch %s not found", hdev->name,
-			fw_name);
+		BT_INFO("%s: BCM: patch %s not found", hdev->name, fw_name);
 		return 0;
 	}
 
@@ -1588,6 +1590,42 @@ reset_fw:
 	BT_INFO("%s: BCM: firmware hci_ver=%02x hci_rev=%04x lmp_ver=%02x "
 		"lmp_subver=%04x", hdev->name, ver->hci_ver, ver->hci_rev,
 		ver->lmp_ver, ver->lmp_subver);
+	kfree_skb(skb);
+
+	/* Read BD Address */
+	skb = __hci_cmd_sync(hdev, HCI_OP_READ_BD_ADDR, 0, NULL,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		BT_ERR("%s: HCI_OP_READ_BD_ADDR failed (%ld)",
+			hdev->name, ret);
+		goto done;
+	}
+
+	if (skb->len != sizeof(*bda)) {
+		BT_ERR("%s: HCI_OP_READ_BD_ADDR event length mismatch",
+			hdev->name);
+		kfree_skb(skb);
+		ret = -EIO;
+		goto done;
+	}
+
+	bda = (struct hci_rp_read_bd_addr *) skb->data;
+	if (bda->status) {
+		BT_ERR("%s: HCI_OP_READ_BD_ADDR error status (%02x)",
+		       hdev->name, bda->status);
+		kfree_skb(skb);
+		ret = -bt_to_errno(bda->status);
+		goto done;
+	}
+
+	/* The address 00:20:70:02:A0:00 indicates a BCM20702A0 controller
+	 * with no configured address.
+	 */
+	if (!bacmp(&bda->bdaddr, BDADDR_BCM20702A0))
+		BT_INFO("%s: BCM: using default device address (%pMR)",
+			hdev->name, &bda->bdaddr);
+
 	kfree_skb(skb);
 
 done:
