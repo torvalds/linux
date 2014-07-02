@@ -1241,14 +1241,13 @@ static void hdmi_reg_acr(struct hdmi_context *hdata, u8 *acr)
 
 static void hdmi_audio_init(struct hdmi_context *hdata)
 {
-	u32 sample_rate, bits_per_sample, frame_size_code;
+	u32 sample_rate, bits_per_sample;
 	u32 data_num, bit_ch, sample_frq;
 	u32 val;
 	u8 acr[7];
 
 	sample_rate = 44100;
 	bits_per_sample = 16;
-	frame_size_code = 0;
 
 	switch (bits_per_sample) {
 	case 20:
