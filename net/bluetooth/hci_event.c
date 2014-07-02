@@ -4038,6 +4038,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	struct hci_ev_le_conn_complete *ev = (void *) skb->data;
 	struct hci_conn *conn;
 	struct smp_irk *irk;
+	u8 addr_type;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
 
@@ -4117,6 +4118,17 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (irk) {
 		bacpy(&conn->dst, &irk->bdaddr);
 		conn->dst_type = irk->addr_type;
+	}
+
+	if (conn->dst_type == ADDR_LE_DEV_PUBLIC)
+		addr_type = BDADDR_LE_PUBLIC;
+	else
+		addr_type = BDADDR_LE_RANDOM;
+
+	/* Drop the connection if he device is blocked */
+	if (hci_blacklist_lookup(hdev, &conn->dst, addr_type)) {
+		hci_conn_drop(conn);
+		goto unlock;
 	}
 
 	if (ev->status) {
