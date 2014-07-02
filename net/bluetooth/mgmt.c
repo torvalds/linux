@@ -118,6 +118,7 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_DEVICE_ADDED,
 	MGMT_EV_DEVICE_REMOVED,
 	MGMT_EV_NEW_CONN_PARAM,
+	MGMT_EV_UNCONF_INDEX_ADDED,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
@@ -5373,7 +5374,13 @@ void mgmt_index_added(struct hci_dev *hdev)
 	if (hdev->dev_type != HCI_BREDR)
 		return;
 
-	mgmt_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0, NULL);
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+		return;
+
+	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
+		mgmt_event(MGMT_EV_UNCONF_INDEX_ADDED, hdev, NULL, 0, NULL);
+	else
+		mgmt_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0, NULL);
 }
 
 void mgmt_index_removed(struct hci_dev *hdev)
@@ -5381,6 +5388,9 @@ void mgmt_index_removed(struct hci_dev *hdev)
 	u8 status = MGMT_STATUS_INVALID_INDEX;
 
 	if (hdev->dev_type != HCI_BREDR)
+		return;
+
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		return;
 
 	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);

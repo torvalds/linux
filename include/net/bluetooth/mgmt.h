@@ -640,3 +640,5 @@ struct mgmt_ev_new_conn_param {
 	__le16 latency;
 	__le16 timeout;
 } __packed;
+
+#define MGMT_EV_UNCONF_INDEX_ADDED	0x001d

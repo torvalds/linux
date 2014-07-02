@@ -2806,14 +2806,18 @@ static void hci_power_on(struct work_struct *work)
 	if (test_and_clear_bit(HCI_SETUP, &hdev->dev_flags)) {
 		/* For unconfigured devices, set the HCI_RAW flag
 		 * so that userspace can easily identify them.
-		 *
-		 * If the device is fully configured and ready for
-		 * operation, announce it via management interface.
 		 */
 		if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
 			set_bit(HCI_RAW, &hdev->flags);
-		else
-			mgmt_index_added(hdev);
+
+		/* For fully configured devices, this will send
+		 * the Index Added event. For unconfigured devices,
+		 * it will send Unconfigued Index Added event.
+		 *
+		 * Devices with HCI_QUIRK_RAW_DEVICE are ignored
+		 * and no event will be send.
+		 */
+		mgmt_index_added(hdev);
 	}
 }
 
@@ -4032,8 +4036,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	cancel_work_sync(&hdev->power_on);
 
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
-	    !test_bit(HCI_SETUP, &hdev->dev_flags) &&
-	    !test_bit(HCI_UNCONFIGURED, &hdev->dev_flags)) {
+	    !test_bit(HCI_SETUP, &hdev->dev_flags)) {
 		hci_dev_lock(hdev);
 		mgmt_index_removed(hdev);
 		hci_dev_unlock(hdev);
