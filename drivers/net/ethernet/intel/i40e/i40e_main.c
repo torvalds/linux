@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 17
+#define DRV_VERSION_BUILD 19
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -8636,6 +8636,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Reset here to make sure all is clean and to define PF 'n' */
+	i40e_clear_hw(hw);
 	err = i40e_pf_reset(hw);
 	if (err) {
 		dev_info(&pdev->dev, "Initial pf_reset failed: %d\n", err);

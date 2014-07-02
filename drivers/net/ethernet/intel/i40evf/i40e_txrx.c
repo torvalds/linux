@@ -1336,6 +1336,7 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 	/* cpu_to_le32 and assign to struct fields */
 	context_desc->tunneling_params = cpu_to_le32(cd_tunneling);
 	context_desc->l2tag2 = cpu_to_le16(cd_l2tag2);
+	context_desc->rsvd = cpu_to_le16(0);
 	context_desc->type_cmd_tso_mss = cpu_to_le64(cd_type_cmd_tso_mss);
 }
 

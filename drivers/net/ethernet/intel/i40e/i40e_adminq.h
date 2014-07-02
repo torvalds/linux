@@ -56,6 +56,8 @@ struct i40e_adminq_ring {
 	u32 head;
 	u32 tail;
 	u32 len;
+	u32 bah;
+	u32 bal;
 };
 
 /* ASQ transaction details */
@@ -82,6 +84,7 @@ struct i40e_arq_event_info {
 struct i40e_adminq_info {
 	struct i40e_adminq_ring arq;    /* receive queue */
 	struct i40e_adminq_ring asq;    /* send queue */
+	u32 asq_cmd_timeout;            /* send queue cmd write back timeout*/
 	u16 num_arq_entries;            /* receive queue depth */
 	u16 num_asq_entries;            /* send queue depth */
 	u16 arq_buf_size;               /* receive queue buffer size */

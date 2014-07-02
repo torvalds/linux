@@ -25,7 +25,6 @@
  ******************************************************************************/
 
 #include "i40e.h"
-#include <linux/export.h>
 #include <linux/ptp_classify.h>
 
 /* The XL710 timesync is very much like Intel's 82599 design when it comes to

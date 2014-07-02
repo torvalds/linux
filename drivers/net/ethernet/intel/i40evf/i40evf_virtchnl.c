@@ -248,11 +248,11 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 		vqpi++;
 	}
 
+	adapter->aq_pending |= I40EVF_FLAG_AQ_CONFIGURE_QUEUES;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_CONFIGURE_QUEUES;
 	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES,
 			   (u8 *)vqci, len);
 	kfree(vqci);
-	adapter->aq_pending |= I40EVF_FLAG_AQ_CONFIGURE_QUEUES;
-	adapter->aq_required &= ~I40EVF_FLAG_AQ_CONFIGURE_QUEUES;
 }
 
 /**
@@ -275,10 +275,10 @@ void i40evf_enable_queues(struct i40evf_adapter *adapter)
 	vqs.vsi_id = adapter->vsi_res->vsi_id;
 	vqs.tx_queues = (1 << adapter->vsi_res->num_queue_pairs) - 1;
 	vqs.rx_queues = vqs.tx_queues;
-	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_ENABLE_QUEUES,
-			   (u8 *)&vqs, sizeof(vqs));
 	adapter->aq_pending |= I40EVF_FLAG_AQ_ENABLE_QUEUES;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_ENABLE_QUEUES;
+	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_ENABLE_QUEUES,
+			   (u8 *)&vqs, sizeof(vqs));
 }
 
 /**
@@ -301,10 +301,10 @@ void i40evf_disable_queues(struct i40evf_adapter *adapter)
 	vqs.vsi_id = adapter->vsi_res->vsi_id;
 	vqs.tx_queues = (1 << adapter->vsi_res->num_queue_pairs) - 1;
 	vqs.rx_queues = vqs.tx_queues;
-	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_DISABLE_QUEUES,
-			   (u8 *)&vqs, sizeof(vqs));
 	adapter->aq_pending |= I40EVF_FLAG_AQ_DISABLE_QUEUES;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_DISABLE_QUEUES;
+	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_DISABLE_QUEUES,
+			   (u8 *)&vqs, sizeof(vqs));
 }
 
 /**
@@ -352,11 +352,11 @@ void i40evf_map_queues(struct i40evf_adapter *adapter)
 	vimi->vecmap[v_idx].txq_map = 0;
 	vimi->vecmap[v_idx].rxq_map = 0;
 
+	adapter->aq_pending |= I40EVF_FLAG_AQ_MAP_VECTORS;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_MAP_VECTORS;
 	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP,
 			   (u8 *)vimi, len);
 	kfree(vimi);
-	adapter->aq_pending |= I40EVF_FLAG_AQ_MAP_VECTORS;
-	adapter->aq_required &= ~I40EVF_FLAG_AQ_MAP_VECTORS;
 }
 
 /**
@@ -413,12 +413,11 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 			f->add = false;
 		}
 	}
+	adapter->aq_pending |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_ADD_MAC_FILTER;
 	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_ADD_ETHER_ADDRESS,
 			   (u8 *)veal, len);
 	kfree(veal);
-	adapter->aq_pending |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
-	adapter->aq_required &= ~I40EVF_FLAG_AQ_ADD_MAC_FILTER;
-
 }
 
 /**
@@ -475,11 +474,11 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 			kfree(f);
 		}
 	}
+	adapter->aq_pending |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_DEL_MAC_FILTER;
 	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_DEL_ETHER_ADDRESS,
 			   (u8 *)veal, len);
 	kfree(veal);
-	adapter->aq_pending |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
-	adapter->aq_required &= ~I40EVF_FLAG_AQ_DEL_MAC_FILTER;
 }
 
 /**
@@ -536,10 +535,10 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 			f->add = false;
 		}
 	}
-	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_ADD_VLAN, (u8 *)vvfl, len);
-	kfree(vvfl);
 	adapter->aq_pending |= I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
+	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_ADD_VLAN, (u8 *)vvfl, len);
+	kfree(vvfl);
 }
 
 /**
@@ -597,10 +596,10 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 			kfree(f);
 		}
 	}
-	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_DEL_VLAN, (u8 *)vvfl, len);
-	kfree(vvfl);
 	adapter->aq_pending |= I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
+	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_DEL_VLAN, (u8 *)vvfl, len);
+	kfree(vvfl);
 }
 
 /**
