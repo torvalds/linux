@@ -46,6 +46,7 @@ struct at86rf2xx_chip_data {
 	int rssi_base_val;
 
 	int (*set_channel)(struct at86rf230_local *, int, int);
+	int (*get_desense_steps)(struct at86rf230_local *, s32);
 };
 
 struct at86rf230_local {
@@ -819,17 +820,27 @@ at86rf230_set_cca_mode(struct ieee802154_dev *dev, u8 mode)
 }
 
 static int
+at86rf212_get_desens_steps(struct at86rf230_local *lp, s32 level)
+{
+	return (level - lp->data->rssi_base_val) * 100 / 207;
+}
+
+static int
+at86rf23x_get_desens_steps(struct at86rf230_local *lp, s32 level)
+{
+	return (level - lp->data->rssi_base_val) / 2;
+}
+
+static int
 at86rf230_set_cca_ed_level(struct ieee802154_dev *dev, s32 level)
 {
 	struct at86rf230_local *lp = dev->priv;
-	int desens_steps;
 
 	if (level < lp->data->rssi_base_val || level > 30)
 		return -EINVAL;
 
-	desens_steps = (level - lp->data->rssi_base_val) * 100 / 207;
-
-	return at86rf230_write_subreg(lp, SR_CCA_ED_THRES, desens_steps);
+	return at86rf230_write_subreg(lp, SR_CCA_ED_THRES,
+				      lp->data->get_desense_steps(lp, level));
 }
 
 static int
@@ -889,16 +900,19 @@ static struct ieee802154_ops at86rf230_ops = {
 static struct at86rf2xx_chip_data at86rf233_data = {
 	.rssi_base_val = -91,
 	.set_channel = at86rf23x_set_channel,
+	.get_desense_steps = at86rf23x_get_desens_steps
 };
 
 static struct at86rf2xx_chip_data at86rf231_data = {
 	.rssi_base_val = -91,
 	.set_channel = at86rf23x_set_channel,
+	.get_desense_steps = at86rf23x_get_desens_steps
 };
 
 static struct at86rf2xx_chip_data at86rf212_data = {
 	.rssi_base_val = -100,
 	.set_channel = at86rf212_set_channel,
+	.get_desense_steps = at86rf212_get_desens_steps
 };
 
 static void at86rf230_irqwork(struct work_struct *work)
