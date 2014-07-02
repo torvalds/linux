@@ -38,11 +38,18 @@
 #include <net/mac802154.h>
 #include <net/wpan-phy.h>
 
+struct at86rf230_local;
+/* at86rf2xx chip depend data.
+ * All timings are in us.
+ */
+struct at86rf2xx_chip_data {
+	int rssi_base_val;
+
+	int (*set_channel)(struct at86rf230_local *, int, int);
+};
+
 struct at86rf230_local {
 	struct spi_device *spi;
-
-	u8 part;
-	u8 vers;
 
 	u8 buf[2];
 	struct mutex bmux;
@@ -56,15 +63,10 @@ struct at86rf230_local {
 	spinlock_t lock;
 	bool irq_busy;
 	bool is_tx;
+
+	struct at86rf2xx_chip_data *data;
 	bool tx_aret;
-
-	int rssi_base_val;
 };
-
-static bool is_rf212(struct at86rf230_local *local)
-{
-	return local->part == 7;
-}
 
 #define	RG_TRX_STATUS	(0x01)
 #define	SR_TRX_STATUS		0x01, 0x1f, 0
@@ -593,10 +595,8 @@ at86rf230_stop(struct ieee802154_dev *dev)
 }
 
 static int
-at86rf230_set_channel(struct at86rf230_local *lp, int page, int channel)
+at86rf23x_set_channel(struct at86rf230_local *lp, int page, int channel)
 {
-	lp->rssi_base_val = -91;
-
 	return at86rf230_write_subreg(lp, SR_CHANNEL, channel);
 }
 
@@ -614,10 +614,10 @@ at86rf212_set_channel(struct at86rf230_local *lp, int page, int channel)
 
 	if (page == 0) {
 		rc = at86rf230_write_subreg(lp, SR_BPSK_QPSK, 0);
-		lp->rssi_base_val = -100;
+		lp->data->rssi_base_val = -100;
 	} else {
 		rc = at86rf230_write_subreg(lp, SR_BPSK_QPSK, 1);
-		lp->rssi_base_val = -98;
+		lp->data->rssi_base_val = -98;
 	}
 	if (rc < 0)
 		return rc;
@@ -639,10 +639,7 @@ at86rf230_channel(struct ieee802154_dev *dev, int page, int channel)
 		return -EINVAL;
 	}
 
-	if (is_rf212(lp))
-		rc = at86rf212_set_channel(lp, page, channel);
-	else
-		rc = at86rf230_set_channel(lp, page, channel);
+	rc = lp->data->set_channel(lp, page, channel);
 	if (rc < 0)
 		return rc;
 
@@ -827,10 +824,10 @@ at86rf230_set_cca_ed_level(struct ieee802154_dev *dev, s32 level)
 	struct at86rf230_local *lp = dev->priv;
 	int desens_steps;
 
-	if (level < lp->rssi_base_val || level > 30)
+	if (level < lp->data->rssi_base_val || level > 30)
 		return -EINVAL;
 
-	desens_steps = (level - lp->rssi_base_val) * 100 / 207;
+	desens_steps = (level - lp->data->rssi_base_val) * 100 / 207;
 
 	return at86rf230_write_subreg(lp, SR_CCA_ED_THRES, desens_steps);
 }
@@ -887,6 +884,21 @@ static struct ieee802154_ops at86rf230_ops = {
 	.set_cca_ed_level = at86rf230_set_cca_ed_level,
 	.set_csma_params = at86rf230_set_csma_params,
 	.set_frame_retries = at86rf230_set_frame_retries,
+};
+
+static struct at86rf2xx_chip_data at86rf233_data = {
+	.rssi_base_val = -91,
+	.set_channel = at86rf23x_set_channel,
+};
+
+static struct at86rf2xx_chip_data at86rf231_data = {
+	.rssi_base_val = -91,
+	.set_channel = at86rf23x_set_channel,
+};
+
+static struct at86rf2xx_chip_data at86rf212_data = {
+	.rssi_base_val = -100,
+	.set_channel = at86rf212_set_channel,
 };
 
 static void at86rf230_irqwork(struct work_struct *work)
@@ -1061,8 +1073,6 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		return -EINVAL;
 	}
 
-	lp->part = part;
-	lp->vers = version;
 	lp->dev->extra_tx_headroom = 0;
 	lp->dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
 			 IEEE802154_HW_TXPOWER | IEEE802154_HW_CSMA;
@@ -1074,11 +1084,13 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		break;
 	case 3:
 		chip = "at86rf231";
+		lp->data = &at86rf231_data;
 		lp->dev->phy->channels_supported[0] = 0x7FFF800;
 		break;
 	case 7:
 		chip = "at86rf212";
 		if (version == 1) {
+			lp->data = &at86rf212_data;
 			lp->dev->flags |= IEEE802154_HW_LBT;
 			lp->dev->phy->channels_supported[0] = 0x00007FF;
 			lp->dev->phy->channels_supported[2] = 0x00007FF;
@@ -1088,6 +1100,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		break;
 	case 11:
 		chip = "at86rf233";
+		lp->data = &at86rf233_data;
 		lp->dev->phy->channels_supported[0] = 0x7FFF800;
 		break;
 	default:
