@@ -1179,6 +1179,18 @@ static inline bool hci_bdaddr_is_rpa(bdaddr_t *bdaddr, u8 addr_type)
 	return false;
 }
 
+static inline bool hci_is_identity_address(bdaddr_t *addr, u8 addr_type)
+{
+	if (addr_type == ADDR_LE_DEV_PUBLIC)
+		return true;
+
+	/* Check for Random Static address type */
+	if ((addr->b[5] & 0xc0) == 0xc0)
+		return true;
+
+	return false;
+}
+
 static inline struct smp_irk *hci_get_irk(struct hci_dev *hdev,
 					  bdaddr_t *bdaddr, u8 addr_type)
 {
