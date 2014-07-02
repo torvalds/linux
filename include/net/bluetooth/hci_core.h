@@ -449,6 +449,7 @@ struct hci_conn_params {
 
 	enum {
 		HCI_AUTO_CONN_DISABLED,
+		HCI_AUTO_CONN_REPORT,
 		HCI_AUTO_CONN_ALWAYS,
 		HCI_AUTO_CONN_LINK_LOSS,
 	} auto_connect;

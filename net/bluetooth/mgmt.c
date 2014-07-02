@@ -5034,7 +5034,7 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	if (cp->action)
 		auto_conn = HCI_AUTO_CONN_ALWAYS;
 	else
-		auto_conn = HCI_AUTO_CONN_DISABLED;
+		auto_conn = HCI_AUTO_CONN_REPORT;
 
 	/* If the connection parameters don't exist for this device,
 	 * they will be created and configured with defaults.

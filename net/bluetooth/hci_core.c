@@ -3547,6 +3547,7 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 
 	switch (auto_connect) {
 	case HCI_AUTO_CONN_DISABLED:
+	case HCI_AUTO_CONN_REPORT:
 	case HCI_AUTO_CONN_LINK_LOSS:
 		hci_pend_le_conn_del(hdev, addr, addr_type);
 		break;
