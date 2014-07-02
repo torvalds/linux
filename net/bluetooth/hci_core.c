@@ -3580,6 +3580,38 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 }
 
 /* This function requires the caller holds hdev->lock */
+void hci_conn_params_clear_disabled(struct hci_dev *hdev)
+{
+	struct hci_conn_params *params, *tmp;
+
+	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list) {
+		if (params->auto_connect != HCI_AUTO_CONN_DISABLED)
+			continue;
+		list_del(&params->list);
+		kfree(params);
+	}
+
+	BT_DBG("All LE disabled connection parameters were removed");
+}
+
+/* This function requires the caller holds hdev->lock */
+void hci_conn_params_clear_enabled(struct hci_dev *hdev)
+{
+	struct hci_conn_params *params, *tmp;
+
+	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list) {
+		if (params->auto_connect == HCI_AUTO_CONN_DISABLED)
+			continue;
+		list_del(&params->list);
+		kfree(params);
+	}
+
+	hci_pend_le_conns_clear(hdev);
+
+	BT_DBG("All enabled LE connection parameters were removed");
+}
+
+/* This function requires the caller holds hdev->lock */
 void hci_conn_params_clear_all(struct hci_dev *hdev)
 {
 	struct hci_conn_params *params, *tmp;
