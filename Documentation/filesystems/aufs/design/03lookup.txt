@@ -27,6 +27,34 @@ For d_revalidate, aufs implements three levels of revalidate tests. See
 "Revalidate Dentry and UDBA" in detail.
 
 
+Test Only the Highest One for the Directory Permission (dirperm1 option)
+----------------------------------------------------------------------
+Let's try case study.
+- aufs has two branches, upper readwrite and lower readonly.
+  /au = /rw + /ro
+- "dirA" exists under /ro, but /rw. and its mode is 0700.
+- user invoked "chmod a+rx /au/dirA"
+- the internal copy-up is activated and "/rw/dirA" is created and its
+  permission bits are set to world readble.
+- then "/au/dirA" becomes world readable?
+
+In this case, /ro/dirA is still 0700 since it exists in readonly branch,
+or it may be a natively readonly filesystem. If aufs respects the lower
+branch, it should not respond readdir request from other users. But user
+allowed it by chmod. Should really aufs rejects showing the entries
+under /ro/dirA?
+
+To be honest, I don't have a best solution for this case. So aufs
+implements 'dirperm1' and 'nodirperm1' and leave it to users.
+When dirperm1 is specified, aufs checks only the highest one for the
+directory permission, and shows the entries. Otherwise, as usual, checks
+every dir existing on all branches and rejects the request.
+
+As a side effect, dirperm1 option improves the performance of aufs
+because the number of permission check is reduced when the number of
+branch is many.
+
+
 Loopback Mount
 ----------------------------------------------------------------------
 Basically aufs supports any type of filesystem and block device for a

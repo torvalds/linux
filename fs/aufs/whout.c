@@ -50,8 +50,7 @@ int au_wh_name_alloc(struct qstr *wh, const struct qstr *name)
  * test if the @wh_name exists under @h_parent.
  * @try_sio specifies the necessary of super-io.
  */
-int au_wh_test(struct dentry *h_parent, struct qstr *wh_name,
-	       struct au_branch *br, int try_sio)
+int au_wh_test(struct dentry *h_parent, struct qstr *wh_name, int try_sio)
 {
 	int err;
 	struct dentry *wh_dentry;
@@ -59,7 +58,7 @@ int au_wh_test(struct dentry *h_parent, struct qstr *wh_name,
 	if (!try_sio)
 		wh_dentry = vfsub_lkup_one(wh_name, h_parent);
 	else
-		wh_dentry = au_sio_lkup_one(wh_name, h_parent, br);
+		wh_dentry = au_sio_lkup_one(wh_name, h_parent);
 	err = PTR_ERR(wh_dentry);
 	if (IS_ERR(wh_dentry))
 		goto out;
@@ -85,13 +84,13 @@ out:
 /*
  * test if the @h_dentry sets opaque or not.
  */
-int au_diropq_test(struct dentry *h_dentry, struct au_branch *br)
+int au_diropq_test(struct dentry *h_dentry)
 {
 	int err;
 	struct inode *h_dir;
 
 	h_dir = h_dentry->d_inode;
-	err = au_wh_test(h_dentry, &diropq_name, br,
+	err = au_wh_test(h_dentry, &diropq_name,
 			 au_test_h_perm_sio(h_dir, MAY_EXEC));
 	return err;
 }
@@ -135,7 +134,7 @@ struct dentry *au_whtmp_lkup(struct dentry *h_parent, struct au_branch *br,
 	qs.name = name;
 	for (i = 0; i < 3; i++) {
 		sprintf(p, "%.*x", AUFS_WH_TMP_LEN, cnt++);
-		dentry = au_sio_lkup_one(&qs, h_parent, br);
+		dentry = au_sio_lkup_one(&qs, h_parent);
 		if (IS_ERR(dentry) || !dentry->d_inode)
 			goto out_name;
 		dput(dentry);
