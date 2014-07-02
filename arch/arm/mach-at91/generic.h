@@ -37,6 +37,8 @@ extern int  __init at91_aic5_of_init(struct device_node *node,
 extern void __init at91_sysirq_mask_rtc(u32 rtc_base);
 extern void __init at91_sysirq_mask_rtt(u32 rtt_base);
 
+ /* Devices */
+extern void __init at91_register_devices(void);
 
  /* Timer */
 extern void at91rm9200_ioremap_st(u32 addr);

@@ -510,3 +510,8 @@ void __init at91_initialize(unsigned long main_clock)
 
 	pinctrl_provide_dummies();
 }
+
+void __init at91_register_devices(void)
+{
+	at91_boot_soc.register_devices();
+}
