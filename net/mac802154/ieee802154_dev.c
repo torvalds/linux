@@ -304,29 +304,61 @@ EXPORT_SYMBOL(ieee802154_free_device);
 int ieee802154_register_device(struct ieee802154_dev *dev)
 {
 	struct mac802154_priv *priv = mac802154_to_priv(dev);
-	int rc = -ENOMEM;
+	int rc = -ENOSYS;
+
+	if (dev->flags & IEEE802154_HW_TXPOWER) {
+		if (!priv->ops->set_txpower)
+			goto out;
+
+		priv->phy->set_txpower = mac802154_set_txpower;
+	}
+
+	if (dev->flags & IEEE802154_HW_LBT) {
+		if (!priv->ops->set_lbt)
+			goto out;
+
+		priv->phy->set_lbt = mac802154_set_lbt;
+	}
+
+	if (dev->flags & IEEE802154_HW_CCA_MODE) {
+		if (!priv->ops->set_cca_mode)
+			goto out;
+
+		priv->phy->set_cca_mode = mac802154_set_cca_mode;
+	}
+
+	if (dev->flags & IEEE802154_HW_CCA_ED_LEVEL) {
+		if (!priv->ops->set_cca_ed_level)
+			goto out;
+
+		priv->phy->set_cca_ed_level = mac802154_set_cca_ed_level;
+	}
+
+	if (dev->flags & IEEE802154_HW_CSMA_PARAMS) {
+		if (!priv->ops->set_csma_params)
+			goto out;
+
+		priv->phy->set_csma_params = mac802154_set_csma_params;
+	}
+
+	if (dev->flags & IEEE802154_HW_FRAME_RETRIES) {
+		if (!priv->ops->set_frame_retries)
+			goto out;
+
+		priv->phy->set_frame_retries = mac802154_set_frame_retries;
+	}
 
 	priv->dev_workqueue =
 		create_singlethread_workqueue(wpan_phy_name(priv->phy));
-	if (!priv->dev_workqueue)
+	if (!priv->dev_workqueue) {
+		rc = -ENOMEM;
 		goto out;
+	}
 
 	wpan_phy_set_dev(priv->phy, priv->hw.parent);
 
 	priv->phy->add_iface = mac802154_add_iface;
 	priv->phy->del_iface = mac802154_del_iface;
-	if (priv->ops->set_txpower)
-		priv->phy->set_txpower = mac802154_set_txpower;
-	if (priv->ops->set_lbt)
-		priv->phy->set_lbt = mac802154_set_lbt;
-	if (priv->ops->set_cca_mode)
-		priv->phy->set_cca_mode = mac802154_set_cca_mode;
-	if (priv->ops->set_cca_ed_level)
-		priv->phy->set_cca_ed_level = mac802154_set_cca_ed_level;
-	if (priv->ops->set_csma_params)
-		priv->phy->set_csma_params = mac802154_set_csma_params;
-	if (priv->ops->set_frame_retries)
-		priv->phy->set_frame_retries = mac802154_set_frame_retries;
 
 	rc = wpan_phy_register(priv->phy);
 	if (rc < 0)

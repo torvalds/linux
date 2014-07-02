@@ -784,7 +784,7 @@ at86rf230_set_hw_addr_filt(struct ieee802154_dev *dev,
 }
 
 static int
-at86rf212_set_txpower(struct ieee802154_dev *dev, int db)
+at86rf230_set_txpower(struct ieee802154_dev *dev, int db)
 {
 	struct at86rf230_local *lp = dev->priv;
 
@@ -803,7 +803,7 @@ at86rf212_set_txpower(struct ieee802154_dev *dev, int db)
 }
 
 static int
-at86rf212_set_lbt(struct ieee802154_dev *dev, bool on)
+at86rf230_set_lbt(struct ieee802154_dev *dev, bool on)
 {
 	struct at86rf230_local *lp = dev->priv;
 
@@ -811,7 +811,7 @@ at86rf212_set_lbt(struct ieee802154_dev *dev, bool on)
 }
 
 static int
-at86rf212_set_cca_mode(struct ieee802154_dev *dev, u8 mode)
+at86rf230_set_cca_mode(struct ieee802154_dev *dev, u8 mode)
 {
 	struct at86rf230_local *lp = dev->priv;
 
@@ -819,7 +819,7 @@ at86rf212_set_cca_mode(struct ieee802154_dev *dev, u8 mode)
 }
 
 static int
-at86rf212_set_cca_ed_level(struct ieee802154_dev *dev, s32 level)
+at86rf230_set_cca_ed_level(struct ieee802154_dev *dev, s32 level)
 {
 	struct at86rf230_local *lp = dev->priv;
 	int desens_steps;
@@ -833,7 +833,7 @@ at86rf212_set_cca_ed_level(struct ieee802154_dev *dev, s32 level)
 }
 
 static int
-at86rf212_set_csma_params(struct ieee802154_dev *dev, u8 min_be, u8 max_be,
+at86rf230_set_csma_params(struct ieee802154_dev *dev, u8 min_be, u8 max_be,
 			  u8 retries)
 {
 	struct at86rf230_local *lp = dev->priv;
@@ -854,7 +854,7 @@ at86rf212_set_csma_params(struct ieee802154_dev *dev, u8 min_be, u8 max_be,
 }
 
 static int
-at86rf212_set_frame_retries(struct ieee802154_dev *dev, s8 retries)
+at86rf230_set_frame_retries(struct ieee802154_dev *dev, s8 retries)
 {
 	struct at86rf230_local *lp = dev->priv;
 	int rc = 0;
@@ -878,22 +878,12 @@ static struct ieee802154_ops at86rf230_ops = {
 	.start = at86rf230_start,
 	.stop = at86rf230_stop,
 	.set_hw_addr_filt = at86rf230_set_hw_addr_filt,
-};
-
-static struct ieee802154_ops at86rf212_ops = {
-	.owner = THIS_MODULE,
-	.xmit = at86rf230_xmit,
-	.ed = at86rf230_ed,
-	.set_channel = at86rf230_channel,
-	.start = at86rf230_start,
-	.stop = at86rf230_stop,
-	.set_hw_addr_filt = at86rf230_set_hw_addr_filt,
-	.set_txpower = at86rf212_set_txpower,
-	.set_lbt = at86rf212_set_lbt,
-	.set_cca_mode = at86rf212_set_cca_mode,
-	.set_cca_ed_level = at86rf212_set_cca_ed_level,
-	.set_csma_params = at86rf212_set_csma_params,
-	.set_frame_retries = at86rf212_set_frame_retries,
+	.set_txpower = at86rf230_set_txpower,
+	.set_lbt = at86rf230_set_lbt,
+	.set_cca_mode = at86rf230_set_cca_mode,
+	.set_cca_ed_level = at86rf230_set_cca_ed_level,
+	.set_csma_params = at86rf230_set_csma_params,
+	.set_frame_retries = at86rf230_set_frame_retries,
 };
 
 static void at86rf230_irqwork(struct work_struct *work)
@@ -1048,7 +1038,6 @@ static int at86rf230_probe(struct spi_device *spi)
 	work_func_t irq_worker;
 	int rc, irq_type;
 	const char *chip;
-	struct ieee802154_ops *ops = NULL;
 
 	if (!spi->irq) {
 		dev_err(&spi->dev, "no IRQ specified\n");
@@ -1084,44 +1073,7 @@ static int at86rf230_probe(struct spi_device *spi)
 		usleep_range(120, 240);
 	}
 
-	rc = __at86rf230_detect_device(spi, &man_id, &part, &version);
-	if (rc < 0)
-		return rc;
-
-	if (man_id != 0x001f) {
-		dev_err(&spi->dev, "Non-Atmel dev found (MAN_ID %02x %02x)\n",
-			man_id >> 8, man_id & 0xFF);
-		return -EINVAL;
-	}
-
-	switch (part) {
-	case 2:
-		chip = "at86rf230";
-		/* FIXME: should be easy to support; */
-		break;
-	case 3:
-		chip = "at86rf231";
-		ops = &at86rf230_ops;
-		break;
-	case 7:
-		chip = "at86rf212";
-		if (version == 1)
-			ops = &at86rf212_ops;
-		break;
-	case 11:
-		chip = "at86rf233";
-		ops = &at86rf230_ops;
-		break;
-	default:
-		chip = "UNKNOWN";
-		break;
-	}
-
-	dev_info(&spi->dev, "Detected %s chip version %d\n", chip, version);
-	if (!ops)
-		return -ENOTSUPP;
-
-	dev = ieee802154_alloc_device(sizeof(*lp), ops);
+	dev = ieee802154_alloc_device(sizeof(*lp), &at86rf230_ops);
 	if (!dev)
 		return -ENOMEM;
 
@@ -1134,7 +1086,47 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	dev->parent = &spi->dev;
 	dev->extra_tx_headroom = 0;
-	dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK;
+	dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
+		     IEEE802154_HW_TXPOWER | IEEE802154_HW_CSMA;
+
+	rc = __at86rf230_detect_device(spi, &man_id, &part, &version);
+	if (rc < 0)
+		goto free_dev;
+
+	if (man_id != 0x001f) {
+		dev_err(&spi->dev, "Non-Atmel dev found (MAN_ID %02x %02x)\n",
+			man_id >> 8, man_id & 0xFF);
+		return -EINVAL;
+	}
+
+	switch (part) {
+	case 2:
+		chip = "at86rf230";
+		rc = -ENOTSUPP;
+		/* FIXME: should be easy to support; */
+		break;
+	case 3:
+		chip = "at86rf231";
+		break;
+	case 7:
+		chip = "at86rf212";
+		if (version == 1)
+			dev->flags |= IEEE802154_HW_LBT;
+		else
+			rc = -ENOTSUPP;
+		break;
+	case 11:
+		chip = "at86rf233";
+		break;
+	default:
+		chip = "UNKNOWN";
+		rc = -ENOTSUPP;
+		break;
+	}
+
+	dev_info(&spi->dev, "Detected %s chip version %d\n", chip, version);
+	if (rc < 0)
+		goto free_dev;
 
 	irq_type = irq_get_trigger_type(spi->irq);
 	if (!irq_type)
@@ -1185,6 +1177,7 @@ static int at86rf230_probe(struct spi_device *spi)
 err_hw_init:
 	flush_work(&lp->irqwork);
 	mutex_destroy(&lp->bmux);
+free_dev:
 	ieee802154_free_device(lp->dev);
 
 	return rc;
