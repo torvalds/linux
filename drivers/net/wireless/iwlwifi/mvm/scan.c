@@ -588,9 +588,7 @@ static void iwl_build_scan_cmd(struct iwl_mvm *mvm,
 			       struct iwl_scan_offload_cmd *scan,
 			       struct iwl_mvm_scan_params *params)
 {
-	scan->channel_count =
-		mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels +
-		mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
+	scan->channel_count = req->n_channels;
 	scan->quiet_time = cpu_to_le16(IWL_ACTIVE_QUIET_TIME);
 	scan->quiet_plcp_th = cpu_to_le16(IWL_PLCP_QUIET_THRESH);
 	scan->good_CRC_th = IWL_GOOD_CRC_TH_DEFAULT;
@@ -669,61 +667,37 @@ static void iwl_build_channel_cfg(struct iwl_mvm *mvm,
 				  struct cfg80211_sched_scan_request *req,
 				  struct iwl_scan_channel_cfg *channels,
 				  enum ieee80211_band band,
-				  int *head, int *tail,
+				  int *head,
 				  u32 ssid_bitmap,
 				  struct iwl_mvm_scan_params *params)
 {
-	struct ieee80211_supported_band *s_band;
-	int n_channels = req->n_channels;
-	int i, j, index = 0;
-	bool partial;
+	int i, index = 0;
 
-	/*
-	 * We have to configure all supported channels, even if we don't want to
-	 * scan on them, but we have to send channels in the order that we want
-	 * to scan. So add requested channels to head of the list and others to
-	 * the end.
-	*/
-	s_band = &mvm->nvm_data->bands[band];
+	for (i = 0; i < req->n_channels; i++) {
+		struct ieee80211_channel *chan = req->channels[i];
 
-	for (i = 0; i < s_band->n_channels && *head <= *tail; i++) {
-		partial = false;
-		for (j = 0; j < n_channels; j++)
-			if (s_band->channels[i].center_freq ==
-						req->channels[j]->center_freq) {
-				index = *head;
-				(*head)++;
-				/*
-				 * Channels that came with the request will be
-				 * in partial scan .
-				 */
-				partial = true;
-				break;
-			}
-		if (!partial) {
-			index = *tail;
-			(*tail)--;
-		}
-		channels->channel_number[index] =
-			cpu_to_le16(ieee80211_frequency_to_channel(
-					s_band->channels[i].center_freq));
+		if (chan->band != band)
+			continue;
+
+		index = *head;
+		(*head)++;
+
+		channels->channel_number[index] = cpu_to_le16(chan->hw_value);
 		channels->dwell_time[index][0] = params->dwell[band].active;
 		channels->dwell_time[index][1] = params->dwell[band].passive;
 
 		channels->iter_count[index] = cpu_to_le16(1);
 		channels->iter_interval[index] = 0;
 
-		if (!(s_band->channels[i].flags & IEEE80211_CHAN_NO_IR))
+		if (!(chan->flags & IEEE80211_CHAN_NO_IR))
 			channels->type[index] |=
 				cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_ACTIVE);
 
 		channels->type[index] |=
-				cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_FULL);
-		if (partial)
-			channels->type[index] |=
-				cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_PARTIAL);
+				cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_FULL |
+					    IWL_SCAN_OFFLOAD_CHANNEL_PARTIAL);
 
-		if (s_band->channels[i].flags & IEEE80211_CHAN_NO_HT40)
+		if (chan->flags & IEEE80211_CHAN_NO_HT40)
 			channels->type[index] |=
 				cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_NARROW);
 
@@ -740,7 +714,6 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 	int band_2ghz = mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels;
 	int band_5ghz = mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
 	int head = 0;
-	int tail = band_2ghz + band_5ghz - 1;
 	u32 ssid_bitmap;
 	int cmd_len;
 	int ret;
@@ -772,7 +745,7 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 					      &scan_cfg->scan_cmd.tx_cmd[0],
 					      scan_cfg->data);
 		iwl_build_channel_cfg(mvm, req, &scan_cfg->channel_cfg,
-				      IEEE80211_BAND_2GHZ, &head, &tail,
+				      IEEE80211_BAND_2GHZ, &head,
 				      ssid_bitmap, &params);
 	}
 	if (band_5ghz) {
@@ -782,7 +755,7 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 					      scan_cfg->data +
 						SCAN_OFFLOAD_PROBE_REQ_SIZE);
 		iwl_build_channel_cfg(mvm, req, &scan_cfg->channel_cfg,
-				      IEEE80211_BAND_5GHZ, &head, &tail,
+				      IEEE80211_BAND_5GHZ, &head,
 				      ssid_bitmap, &params);
 	}
 
