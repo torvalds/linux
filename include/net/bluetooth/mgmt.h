@@ -464,6 +464,13 @@ struct mgmt_cp_load_conn_param {
 } __packed;
 #define MGMT_LOAD_CONN_PARAM_SIZE	2
 
+#define MGMT_OP_READ_UNCONF_INDEX_LIST	0x0036
+#define MGMT_READ_UNCONF_INDEX_LIST_SIZE 0
+struct mgmt_rp_read_unconf_index_list {
+	__le16	num_controllers;
+	__le16	index[0];
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;
