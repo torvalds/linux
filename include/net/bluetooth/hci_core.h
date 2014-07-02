@@ -861,7 +861,7 @@ struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 			u8 auto_connect);
 void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
-void hci_conn_params_clear(struct hci_dev *hdev);
+void hci_conn_params_clear_all(struct hci_dev *hdev);
 
 struct bdaddr_list *hci_pend_le_conn_lookup(struct hci_dev *hdev,
 					    bdaddr_t *addr, u8 addr_type);

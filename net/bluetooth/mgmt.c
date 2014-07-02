@@ -5104,7 +5104,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			goto unlock;
 		}
 
-		hci_conn_params_clear(hdev);
+		hci_conn_params_clear_all(hdev);
 	}
 
 	err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,

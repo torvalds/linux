@@ -3580,7 +3580,7 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 }
 
 /* This function requires the caller holds hdev->lock */
-void hci_conn_params_clear(struct hci_dev *hdev)
+void hci_conn_params_clear_all(struct hci_dev *hdev)
 {
 	struct hci_conn_params *params, *tmp;
 
@@ -4038,7 +4038,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_smp_irks_clear(hdev);
 	hci_remote_oob_data_clear(hdev);
 	hci_white_list_clear(hdev);
-	hci_conn_params_clear(hdev);
+	hci_conn_params_clear_all(hdev);
 	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
