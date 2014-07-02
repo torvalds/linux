@@ -42,6 +42,7 @@ struct at86rf230_local;
  * All timings are in us.
  */
 struct at86rf2xx_chip_data {
+	u16 t_reset_to_off;
 	u16 t_off_to_aack;
 	u16 t_off_to_tx_on;
 	u16 t_frame;
@@ -578,6 +579,16 @@ at86rf230_async_state_delay(void *context)
 				goto change;
 			}
 			break;
+		default:
+			break;
+		}
+		break;
+	/* Default value, means RESET state */
+	case STATE_P_ON:
+		switch (ctx->to_state) {
+		case STATE_TRX_OFF:
+			usleep_range(c->t_reset_to_off, c->t_reset_to_off + 10);
+			goto change;
 		default:
 			break;
 		}
@@ -1236,6 +1247,7 @@ static struct ieee802154_ops at86rf230_ops = {
 };
 
 static struct at86rf2xx_chip_data at86rf233_data = {
+	.t_reset_to_off = 26,
 	.t_off_to_aack = 80,
 	.t_off_to_tx_on = 80,
 	.t_frame = 4096,
@@ -1249,6 +1261,7 @@ static struct at86rf2xx_chip_data at86rf233_data = {
 };
 
 static struct at86rf2xx_chip_data at86rf231_data = {
+	.t_reset_to_off = 37,
 	.t_off_to_aack = 110,
 	.t_off_to_tx_on = 110,
 	.t_frame = 4096,
@@ -1262,6 +1275,7 @@ static struct at86rf2xx_chip_data at86rf231_data = {
 };
 
 static struct at86rf2xx_chip_data at86rf212_data = {
+	.t_reset_to_off = 26,
 	.t_off_to_aack = 200,
 	.t_off_to_tx_on = 200,
 	.t_frame = 4096,
@@ -1280,7 +1294,7 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	unsigned int dvdd;
 	u8 csma_seed[2];
 
-	rc = at86rf230_write_subreg(lp, SR_TRX_CMD, STATE_FORCE_TRX_OFF);
+	rc = at86rf230_sync_state_change(lp, STATE_FORCE_TRX_OFF);
 	if (rc)
 		return rc;
 
