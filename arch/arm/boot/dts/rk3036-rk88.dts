@@ -1,0 +1,146 @@
+/dts-v1/;
+
+#include "rk3036.dtsi"
+
+/ {
+
+	fiq-debugger {
+		status = "okay";
+	};
+
+    wireless-wlan {
+        compatible = "wlan-platdata";
+
+        wifi_chip_type = "";
+        sdio_vref = <1800>; //1800mv or 3300mv
+
+        //power_ctrl_by_pmu;
+        //power_pmu_regulator = "act_ldo3";
+        //power_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+        //vref_ctrl_enable;
+        //vref_ctrl_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+        //vref_pmu_regulator = "act_ldo3";
+        //vref_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+        //WIFI,poweren_gpio = <&gpio4 GPIO_D4 GPIO_ACTIVE_HIGH>;
+        //WIFI,host_wake_irq = <&gpio4 GPIO_D6 GPIO_ACTIVE_HIGH>;
+        //WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+
+        status = "okay";
+    };
+
+    wireless-bluetooth {
+        compatible = "bluetooth-platdata";
+
+        //wifi-bt-power-toggle;
+
+        //uart_rts_gpios = <&gpio4 GPIO_C3 GPIO_ACTIVE_LOW>;
+        //pinctrl-names = "default","rts_gpio";
+        //pinctrl-0 = <&uart0_rts>;
+        //pinctrl-1 = <&uart0_rts_gpio>;
+
+        //BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
+        //BT,reset_gpio = <&gpio4 GPIO_D5 GPIO_ACTIVE_HIGH>;
+        //BT,wake_gpio = <&gpio4 GPIO_D2 GPIO_ACTIVE_HIGH>;
+        //BT,wake_host_irq = <&gpio4 GPIO_D7 GPIO_ACTIVE_LOW>;
+
+        status = "okay";
+
+    };
+};
+
+&nandc {
+	status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
+};  
+
+&emmc {
+	clock-frequency = <100000000>;
+	clock-freq-min-max = <400000 100000000>;
+
+        supports-highspeed;
+	supports-emmc;
+        bootpart-no-access;
+
+	//supports-DDR_MODE; //you should set the two value in your project. only close in RK3288-SDK board.
+	//caps2-mmc-hs200;
+
+        ignore-pm-notify;
+	keep-power-in-suspend;
+	
+	//poll-hw-reset 
+	status = "okay";
+};
+    
+&sdmmc {
+		clock-frequency = <50000000>;
+		clock-freq-min-max = <400000 50000000>;
+		supports-highspeed;
+		supports-sd;
+		broken-cd;
+		card-detect-delay = <200>;
+
+		ignore-pm-notify;
+        	keep-power-in-suspend;
+	
+        	//vmmc-supply = <&rk808_ldo5_reg>;
+		status = "okay";
+};
+		
+&sdio {
+		clock-frequency = <50000000>;
+		clock-freq-min-max = <200000 50000000>;
+		supports-highspeed;
+		supports-sdio;
+		ignore-pm-notify;
+		keep-power-in-suspend;
+		//cap-sdio-irq;
+		status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+	max-freq = <48000000>;	
+	/*
+	spi_test@00 {
+     		compatible = "rockchip,spi_test_bus0_cs0";
+                reg = <0>;
+                spi-max-frequency = <24000000>;
+                //spi-cpha;
+		//spi-cpol;
+                poll_mode = <0>;
+	        type = <0>;
+		enable_dma = <0>;
+
+	};
+
+	spi_test@01 {
+	        compatible = "rockchip,spi_test_bus0_cs1";
+	        reg = <1>;
+	        spi-max-frequency = <24000000>;
+	        spi-cpha;
+		spi-cpol;
+	        poll_mode = <0>;
+	        type = <0>;
+		enable_dma = <0>;	        
+	};
+	*/
+};
+
+&uart0 {
+        status = "okay";
+        dma-names = "!tx", "!rx";
+        //pinctrl-0 = <&uart0_xfer &uart0_cts>;
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
