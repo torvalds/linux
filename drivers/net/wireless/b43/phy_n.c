@@ -3369,7 +3369,11 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 	*/
 
 	for (i = 0; i < 2; i++) {
-		txgain = *(b43_nphy_get_tx_gain_table(dev) + txpi[i]);
+		const u32 *table = b43_nphy_get_tx_gain_table(dev);
+
+		if (!table)
+			break;
+		txgain = *(table + txpi[i]);
 
 		if (dev->phy.rev >= 3)
 			radio_gain = (txgain >> 16) & 0x1FFFF;
@@ -3783,6 +3787,9 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
 	int i;
 
 	table = b43_nphy_get_tx_gain_table(dev);
+	if (!table)
+		return;
+
 	b43_ntab_write_bulk(dev, B43_NTAB32(26, 192), 128, table);
 	b43_ntab_write_bulk(dev, B43_NTAB32(27, 192), 128, table);
 
@@ -4488,6 +4495,9 @@ static struct nphy_txgains b43_nphy_get_tx_gains(struct b43_wldev *dev)
 
 		for (i = 0; i < 2; ++i) {
 			table = b43_nphy_get_tx_gain_table(dev);
+			if (!table)
+				break;
+
 			if (dev->phy.rev >= 3) {
 				target.ipa[i] = (table[index[i]] >> 16) & 0xF;
 				target.pad[i] = (table[index[i]] >> 20) & 0xF;
