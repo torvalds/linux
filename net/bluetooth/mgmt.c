@@ -6472,8 +6472,16 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	struct smp_irk *irk;
 	size_t ev_size;
 
-	if (!hci_discovery_active(hdev))
-		return;
+	/* Don't send events for a non-kernel initiated discovery. With
+	 * LE one exception is if we have pend_le_reports > 0 in which
+	 * case we're doing passive scanning and want these events.
+	 */
+	if (!hci_discovery_active(hdev)) {
+		if (link_type == ACL_LINK)
+			return;
+		if (link_type == LE_LINK && !hdev->pend_le_reports)
+			return;
+	}
 
 	/* Make sure that the buffer is big enough. The 5 extra bytes
 	 * are for the potential CoD field.
