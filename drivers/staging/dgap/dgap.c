@@ -202,7 +202,7 @@ static int dgap_test_bios(struct board_t *brd);
 static int dgap_test_fep(struct board_t *brd);
 static int dgap_tty_register_ports(struct board_t *brd);
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
-			      struct board_t* brd);
+			      struct board_t *brd);
 
 static void dgap_cleanup_module(void);
 
@@ -574,7 +574,7 @@ static int dgap_init_pci(void)
 static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
-	struct board_t* brd;
+	struct board_t *brd;
 
 	if (dgap_numboards >= MAXBOARDS)
 		return -EPERM;
@@ -872,7 +872,7 @@ static void dgap_free_irq(struct board_t *brd)
 }
 
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
-			      struct board_t* brd)
+			      struct board_t *brd)
 {
 	const struct firmware *fw;
 	char *tmp_ptr;
