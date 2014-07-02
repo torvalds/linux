@@ -45,6 +45,8 @@ int request_firmware_nowait(
 	struct module *module, bool uevent,
 	const char *name, struct device *device, gfp_t gfp, void *context,
 	void (*cont)(const struct firmware *fw, void *context));
+int request_firmware_direct(const struct firmware **fw, const char *name,
+			    struct device *device);
 
 void release_firmware(const struct firmware *fw);
 #else
@@ -66,13 +68,12 @@ static inline void release_firmware(const struct firmware *fw)
 {
 }
 
-#endif
+static inline int request_firmware_direct(const struct firmware **fw,
+					  const char *name,
+					  struct device *device)
+{
+	return -EINVAL;
+}
 
-#ifdef CONFIG_FW_LOADER_USER_HELPER_FALLBACK
-int request_firmware_direct(const struct firmware **fw, const char *name,
-			    struct device *device);
-#else
-#define request_firmware_direct	request_firmware
 #endif
-
 #endif
