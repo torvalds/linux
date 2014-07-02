@@ -14,6 +14,12 @@
 
 #include <linux/mm_types.h>
 
+/*
+ * This flag is used to indicate that the page pointed to by a pte is clean
+ * and does not require cleaning before returning it to the user.
+ */
+#define PG_dcache_clean PG_arch_1
+
 struct mm_struct;
 
 extern void flush_cache_all(void);

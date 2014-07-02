@@ -183,11 +183,12 @@ void flush_dcache_page(struct page *page)
 	/* Flush this page if there are aliases. */
 	if (mapping) {
 		if (!mapping_mapped(mapping)) {
-			clear_bit(PG_arch_1, &page->flags);
+			clear_bit(PG_dcache_clean, &page->flags);
 		} else if (mapping) {
 			unsigned long start = (unsigned long)page_address(page);
 			__flush_dcache(start, start + PAGE_SIZE);
 			flush_aliases(mapping,  page);
+			set_bit(PG_dcache_clean, &page->flags);
 		}
 	}
 }
@@ -204,7 +205,8 @@ void update_mmu_cache(struct vm_area_struct *vma,
 
 	page = pfn_to_page(pfn);
 
-	if (!PageReserved(page) && !test_bit(PG_arch_1, &page->flags)) {
+	if (!PageReserved(page) &&
+	     !test_and_set_bit(PG_dcache_clean, &page->flags)) {
 		unsigned long start = page_to_virt(page);
 		struct address_space *mapping;
 
@@ -213,7 +215,6 @@ void update_mmu_cache(struct vm_area_struct *vma,
 		mapping = page_mapping(page);
 		if (mapping)
 			flush_aliases(mapping, page);
-		set_bit(PG_arch_1, &page->flags);
 	}
 }
 
