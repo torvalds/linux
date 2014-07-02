@@ -2314,10 +2314,8 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 		cmd->params.vlan_dmac_b4_to_b5 |=
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;
 		cmd->flags |= OCRDMA_QP_PARA_VLAN_EN_VALID;
-		/* override the sl with default priority if 0 */
 		cmd->params.rnt_rc_sl_fl |=
-			(ah_attr->sl ? ah_attr->sl :
-				qp->dev->sl) << OCRDMA_QP_PARAMS_SL_SHIFT;
+			(qp->dev->sl & 0x07) << OCRDMA_QP_PARAMS_SL_SHIFT;
 	}
 	return 0;
 }
