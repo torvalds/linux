@@ -101,31 +101,6 @@ struct clockdomain;
 	};							\
 	DEFINE_STRUCT_CLK(_name, _parent_names, _ops);
 
-#define DEFINE_CLK_OMAP_HSDIVIDER(_name, _parent_name,		\
-				_parent_ptr, _flags,		\
-				_clksel_reg, _clksel_mask)	\
-	static const struct clksel _name##_div[] = {		\
-		{						\
-			.parent = _parent_ptr,			\
-			.rates = div31_1to31_rates		\
-		},						\
-		{ .parent = NULL },				\
-	};							\
-	static struct clk _name;				\
-	static const char *_name##_parent_names[] = {		\
-		_parent_name,					\
-	};							\
-	static struct clk_hw_omap _name##_hw = {		\
-		.hw = {						\
-			.clk = &_name,				\
-		},						\
-		.clksel		= _name##_div,			\
-		.clksel_reg	= _clksel_reg,			\
-		.clksel_mask	= _clksel_mask,			\
-		.ops		= &clkhwops_omap4_dpllmx,	\
-	};							\
-	DEFINE_STRUCT_CLK(_name, _name##_parent_names, omap_hsdivider_ops);
-
 /* struct clksel_rate.flags possibilities */
 #define RATE_IN_242X		(1 << 0)
 #define RATE_IN_243X		(1 << 1)
