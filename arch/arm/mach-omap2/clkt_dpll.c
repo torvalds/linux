@@ -21,10 +21,7 @@
 
 #include <asm/div64.h>
 
-#include "soc.h"
 #include "clock.h"
-#include "cm-regbits-24xx.h"
-#include "cm-regbits-34xx.h"
 
 /* DPLL rate rounding: minimum DPLL multiplier, divider values */
 #define DPLL_MIN_MULTIPLIER		2
