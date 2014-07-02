@@ -4231,6 +4231,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 */
 	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
 		struct hci_conn_params *param;
+		struct smp_irk *irk;
 
 		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND)
 			check_pending_le_conn(hdev, bdaddr, bdaddr_type);
@@ -4239,6 +4240,17 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 			return;
 
 		if (type == LE_ADV_DIRECT_IND)
+			return;
+
+		/* Check if we need to convert to identity address */
+		irk = hci_get_irk(hdev, bdaddr, bdaddr_type);
+		if (irk) {
+			bdaddr = &irk->bdaddr;
+			bdaddr_type = irk->addr_type;
+		}
+
+		/* The conn params list only contains identity addresses */
+		if (!hci_is_identity_address(bdaddr, bdaddr_type))
 			return;
 
 		param = hci_conn_params_lookup(hdev, bdaddr, bdaddr_type);
