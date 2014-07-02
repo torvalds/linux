@@ -2336,7 +2336,7 @@ static void mlx4_en_add_vxlan_port(struct  net_device *dev,
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	__be16 current_port;
 
-	if (!(priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS))
+	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
 		return;
 
 	if (sa_family == AF_INET6)
