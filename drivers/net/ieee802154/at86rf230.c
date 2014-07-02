@@ -19,6 +19,7 @@
  * Written by:
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Aring <aar@pengutronix.de>
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
