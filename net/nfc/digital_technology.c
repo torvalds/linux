@@ -944,6 +944,13 @@ static int digital_tg_send_sel_res(struct nfc_digital_dev *ddev)
 	if (!DIGITAL_DRV_CAPS_TG_CRC(ddev))
 		digital_skb_add_crc_a(skb);
 
+	rc = digital_tg_configure_hw(ddev, NFC_DIGITAL_CONFIG_FRAMING,
+				     NFC_DIGITAL_FRAMING_NFCA_ANTICOL_COMPLETE);
+	if (rc) {
+		kfree_skb(skb);
+		return rc;
+	}
+
 	rc = digital_tg_send_cmd(ddev, skb, 300, digital_tg_recv_atr_req,
 				 NULL);
 	if (rc)
@@ -1002,6 +1009,13 @@ static int digital_tg_send_sdd_res(struct nfc_digital_dev *ddev)
 	for (i = 0; i < 4; i++)
 		sdd_res->bcc ^= sdd_res->nfcid1[i];
 
+	rc = digital_tg_configure_hw(ddev, NFC_DIGITAL_CONFIG_FRAMING,
+				NFC_DIGITAL_FRAMING_NFCA_STANDARD_WITH_CRC_A);
+	if (rc) {
+		kfree_skb(skb);
+		return rc;
+	}
+
 	rc = digital_tg_send_cmd(ddev, skb, 300, digital_tg_recv_sel_req,
 				 NULL);
 	if (rc)
@@ -1053,6 +1067,13 @@ static int digital_tg_send_sens_res(struct nfc_digital_dev *ddev)
 
 	sens_res[0] = (DIGITAL_SENS_RES_NFC_DEP >> 8) & 0xFF;
 	sens_res[1] = DIGITAL_SENS_RES_NFC_DEP & 0xFF;
+
+	rc = digital_tg_configure_hw(ddev, NFC_DIGITAL_CONFIG_FRAMING,
+				     NFC_DIGITAL_FRAMING_NFCA_STANDARD);
+	if (rc) {
+		kfree_skb(skb);
+		return rc;
+	}
 
 	rc = digital_tg_send_cmd(ddev, skb, 300, digital_tg_recv_sdd_req,
 				 NULL);
