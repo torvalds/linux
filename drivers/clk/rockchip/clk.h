@@ -321,4 +321,18 @@ void rockchip_clk_register_branches(struct rockchip_clk_branch *clk_list,
 void rockchip_clk_register_plls(struct rockchip_pll_clock *pll_list,
 				unsigned int nr_pll, int grf_lock_offset);
 
+#define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)
+
+#ifdef CONFIG_RESET_CONTROLLER
+void rockchip_register_softrst(struct device_node *np,
+			       unsigned int num_regs,
+			       void __iomem *base, u8 flags);
+#else
+static inline void rockchip_register_softrst(struct device_node *np,
+			       unsigned int num_regs,
+			       void __iomem *base, u8 flags)
+{
+}
+#endif
+
 #endif
