@@ -15,7 +15,6 @@
 #include <linux/io.h>
 #include <linux/bitops.h>
 
-#include "soc.h"
 #include "clock.h"
 #include "clock44xx.h"
 #include "cm-regbits-44xx.h"
@@ -35,7 +34,7 @@ int omap4_dpllmx_gatectrl_read(struct clk_hw_omap *clk)
 	u32 v;
 	u32 mask;
 
-	if (!clk || !clk->clksel_reg || !cpu_is_omap44xx())
+	if (!clk || !clk->clksel_reg)
 		return -EINVAL;
 
 	mask = clk->flags & CLOCK_CLKOUTX2 ?
@@ -54,7 +53,7 @@ void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk)
 	u32 v;
 	u32 mask;
 
-	if (!clk || !clk->clksel_reg || !cpu_is_omap44xx())
+	if (!clk || !clk->clksel_reg)
 		return;
 
 	mask = clk->flags & CLOCK_CLKOUTX2 ?
@@ -72,7 +71,7 @@ void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk)
 	u32 v;
 	u32 mask;
 
-	if (!clk || !clk->clksel_reg || !cpu_is_omap44xx())
+	if (!clk || !clk->clksel_reg)
 		return;
 
 	mask = clk->flags & CLOCK_CLKOUTX2 ?
