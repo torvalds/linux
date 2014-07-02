@@ -12,7 +12,7 @@ obj-				:=
 
 # Core
 
-obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_PM_SLEEP)		+= pm.o sleep.o
 
 # machine support
 
