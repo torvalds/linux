@@ -525,7 +525,7 @@ static int ocrdma_mbx_mq_cq_create(struct ocrdma_dev *dev,
 
 	cmd->ev_cnt_flags = OCRDMA_CREATE_CQ_DEF_FLAGS;
 	cmd->eqn = eq->id;
-	cmd->cqe_count = cq->size / sizeof(struct ocrdma_mcqe);
+	cmd->pdid_cqecnt = cq->size / sizeof(struct ocrdma_mcqe);
 
 	ocrdma_build_q_pages(&cmd->pa[0], cq->size / OCRDMA_MIN_Q_PAGE_SIZE,
 			     cq->dma, PAGE_SIZE_4K);
@@ -1265,7 +1265,9 @@ static int ocrdma_mbx_get_ctrl_attribs(struct ocrdma_dev *dev)
 		ctrl_attr_rsp = (struct ocrdma_get_ctrl_attribs_rsp *)dma.va;
 		hba_attribs = &ctrl_attr_rsp->ctrl_attribs.hba_attribs;
 
-		dev->hba_port_num = hba_attribs->phy_port;
+		dev->hba_port_num = (hba_attribs->ptpnum_maxdoms_hbast_cv &
+					OCRDMA_HBA_ATTRB_PTNUM_MASK)
+					>> OCRDMA_HBA_ATTRB_PTNUM_SHIFT;
 		strncpy(dev->model_number,
 			hba_attribs->controller_model_number, 31);
 	}
@@ -1315,7 +1317,8 @@ int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed)
 		goto mbx_err;
 
 	rsp = (struct ocrdma_get_link_speed_rsp *)cmd;
-	*lnk_speed = rsp->phys_port_speed;
+	*lnk_speed = (rsp->pflt_pps_ld_pnum & OCRDMA_PHY_PS_MASK)
+			>> OCRDMA_PHY_PS_SHIFT;
 
 mbx_err:
 	kfree(cmd);
@@ -1341,11 +1344,16 @@ static int ocrdma_mbx_get_phy_info(struct ocrdma_dev *dev)
 		goto mbx_err;
 
 	rsp = (struct ocrdma_get_phy_info_rsp *)cmd;
-	dev->phy.phy_type = le16_to_cpu(rsp->phy_type);
+	dev->phy.phy_type =
+			(rsp->ityp_ptyp & OCRDMA_PHY_TYPE_MASK);
+	dev->phy.interface_type =
+			(rsp->ityp_ptyp & OCRDMA_IF_TYPE_MASK)
+				>> OCRDMA_IF_TYPE_SHIFT;
 	dev->phy.auto_speeds_supported  =
-			le16_to_cpu(rsp->auto_speeds_supported);
+			(rsp->fspeed_aspeed & OCRDMA_ASPEED_SUPP_MASK);
 	dev->phy.fixed_speeds_supported =
-			le16_to_cpu(rsp->fixed_speeds_supported);
+			(rsp->fspeed_aspeed & OCRDMA_FSPEED_SUPP_MASK)
+				>> OCRDMA_FSPEED_SUPP_SHIFT;
 mbx_err:
 	kfree(cmd);
 	return status;
@@ -1470,8 +1478,8 @@ static int ocrdma_mbx_create_ah_tbl(struct ocrdma_dev *dev)
 
 	pbes = (struct ocrdma_pbe *)dev->av_tbl.pbl.va;
 	for (i = 0; i < dev->av_tbl.size / OCRDMA_MIN_Q_PAGE_SIZE; i++) {
-		pbes[i].pa_lo = (u32) (pa & 0xffffffff);
-		pbes[i].pa_hi = (u32) upper_32_bits(pa);
+		pbes[i].pa_lo = (u32)cpu_to_le32(pa & 0xffffffff);
+		pbes[i].pa_hi = (u32)cpu_to_le32(upper_32_bits(pa));
 		pa += PAGE_SIZE;
 	}
 	cmd->tbl_addr[0].lo = (u32)(dev->av_tbl.pbl.pa & 0xFFFFFFFF);
@@ -1638,14 +1646,16 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 			cmd->cmd.pgsz_pgcnt |= OCRDMA_CREATE_CQ_DPP <<
 				OCRDMA_CREATE_CQ_TYPE_SHIFT;
 		cq->phase_change = false;
-		cmd->cmd.cqe_count = (cq->len / cqe_size);
+		cmd->cmd.pdid_cqecnt = (cq->len / cqe_size);
 	} else {
-		cmd->cmd.cqe_count = (cq->len / cqe_size) - 1;
+		cmd->cmd.pdid_cqecnt = (cq->len / cqe_size) - 1;
 		cmd->cmd.ev_cnt_flags |= OCRDMA_CREATE_CQ_FLAGS_AUTO_VALID;
 		cq->phase_change = true;
 	}
 
-	cmd->cmd.pd_id = pd_id; /* valid only for v3 */
+	/* pd_id valid only for v3 */
+	cmd->cmd.pdid_cqecnt |= (pd_id <<
+		OCRDMA_CREATE_CQ_CMD_PDID_SHIFT);
 	ocrdma_build_q_pages(&cmd->cmd.pa[0], hw_pages, cq->pa, page_size);
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	if (status)
