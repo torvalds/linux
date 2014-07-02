@@ -42,6 +42,7 @@ struct at86rf230_local;
  * All timings are in us.
  */
 struct at86rf2xx_chip_data {
+	u16 t_sleep_cycle;
 	u16 t_channel_switch;
 	u16 t_reset_to_off;
 	u16 t_off_to_aack;
@@ -1250,6 +1251,7 @@ static struct ieee802154_ops at86rf230_ops = {
 };
 
 static struct at86rf2xx_chip_data at86rf233_data = {
+	.t_sleep_cycle = 330,
 	.t_channel_switch = 11,
 	.t_reset_to_off = 26,
 	.t_off_to_aack = 80,
@@ -1265,6 +1267,7 @@ static struct at86rf2xx_chip_data at86rf233_data = {
 };
 
 static struct at86rf2xx_chip_data at86rf231_data = {
+	.t_sleep_cycle = 330,
 	.t_channel_switch = 24,
 	.t_reset_to_off = 37,
 	.t_off_to_aack = 110,
@@ -1280,6 +1283,7 @@ static struct at86rf2xx_chip_data at86rf231_data = {
 };
 
 static struct at86rf2xx_chip_data at86rf212_data = {
+	.t_sleep_cycle = 330,
 	.t_channel_switch = 11,
 	.t_reset_to_off = 26,
 	.t_off_to_aack = 200,
@@ -1338,7 +1342,8 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	if (rc)
 		return rc;
 	/* Wait the next SLEEP cycle */
-	msleep(100);
+	usleep_range(lp->data->t_sleep_cycle,
+		     lp->data->t_sleep_cycle + 100);
 
 	rc = at86rf230_read_subreg(lp, SR_DVDD_OK, &dvdd);
 	if (rc)
