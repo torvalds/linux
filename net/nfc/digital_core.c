@@ -299,6 +299,7 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 	int rc;
 	u8 framing;
 	u8 rf_tech;
+	u8 poll_tech_count;
 	int (*check_crc)(struct sk_buff *skb);
 	void (*add_crc)(struct sk_buff *skb);
 
@@ -375,11 +376,15 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		return rc;
 
 	target->supported_protocols = (1 << protocol);
-	rc = nfc_targets_found(ddev->nfc_dev, target, 1);
-	if (rc)
-		return rc;
 
+	poll_tech_count = ddev->poll_tech_count;
 	ddev->poll_tech_count = 0;
+
+	rc = nfc_targets_found(ddev->nfc_dev, target, 1);
+	if (rc) {
+		ddev->poll_tech_count = poll_tech_count;
+		return rc;
+	}
 
 	return 0;
 }
