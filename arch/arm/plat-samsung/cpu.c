@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-
 #include <plat/map-base.h>
 #include <plat/cpu.h>
 
