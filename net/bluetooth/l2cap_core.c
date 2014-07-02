@@ -6878,9 +6878,6 @@ static void l2cap_att_channel(struct l2cap_conn *conn,
 
 	BT_DBG("chan %p, len %d", chan, skb->len);
 
-	if (hci_blacklist_lookup(hcon->hdev, &hcon->dst, hcon->dst_type))
-		goto drop;
-
 	if (chan->imtu < skb->len)
 		goto drop;
 
@@ -6909,6 +6906,12 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 	len = __le16_to_cpu(lh->len);
 
 	if (len != skb->len) {
+		kfree_skb(skb);
+		return;
+	}
+
+	if (hci_blacklist_lookup(hcon->hdev, &hcon->dst,
+				 bdaddr_type(hcon, hcon->dst_type))) {
 		kfree_skb(skb);
 		return;
 	}
