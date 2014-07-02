@@ -1069,8 +1069,10 @@ int __init acpi_ec_ecdt_probe(void)
 	/* fall through */
 	}
 
-	if (EC_FLAGS_SKIP_DSDT_SCAN)
+	if (EC_FLAGS_SKIP_DSDT_SCAN) {
+		kfree(saved_ec);
 		return -ENODEV;
+	}
 
 	/* This workaround is needed only on some broken machines,
 	 * which require early EC, but fail to provide ECDT */
@@ -1108,6 +1110,7 @@ install:
 	}
 error:
 	kfree(boot_ec);
+	kfree(saved_ec);
 	boot_ec = NULL;
 	return -ENODEV;
 }
