@@ -140,6 +140,12 @@ struct kvm_vcpu_arch {
 #define vcpu_sys_reg(v,r)	((v)->arch.ctxt.sys_regs[(r)])
 #define vcpu_cp15(v,r)		((v)->arch.ctxt.cp15[(r)])
 
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define vcpu_cp15_64_low(v,r) ((v)->arch.ctxt.cp15[((r) + 1)])
+#else
+#define vcpu_cp15_64_low(v,r) ((v)->arch.ctxt.cp15[((r) + 0)])
+#endif
+
 struct kvm_vm_stat {
 	u32 remote_tlb_flush;
 };
