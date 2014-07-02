@@ -1010,12 +1010,7 @@ err:
 static int
 at86rf230_start(struct ieee802154_dev *dev)
 {
-	struct at86rf230_local *lp = dev->priv;
 	u8 rc;
-
-	rc = at86rf230_write_subreg(lp, SR_RX_SAFE_MODE, 1);
-	if (rc)
-		return rc;
 
 	rc = at86rf230_state(dev, STATE_TX_ON);
 	if (rc)
@@ -1297,6 +1292,10 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 		irq_pol = IRQ_ACTIVE_HIGH;
 
 	rc = at86rf230_write_subreg(lp, SR_IRQ_POLARITY, irq_pol);
+	if (rc)
+		return rc;
+
+	rc = at86rf230_write_subreg(lp, SR_RX_SAFE_MODE, 1);
 	if (rc)
 		return rc;
 
