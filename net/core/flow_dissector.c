@@ -256,6 +256,8 @@ void __skb_get_hash(struct sk_buff *skb)
 	if (keys.ports)
 		skb->l4_hash = 1;
 
+	skb->sw_hash = 1;
+
 	skb->hash = __flow_hash_from_keys(&keys);
 }
 EXPORT_SYMBOL(__skb_get_hash);
