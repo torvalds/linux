@@ -28,7 +28,6 @@
 #include <asm/suspend.h>
 
 #include <plat/pm-common.h>
-#include <plat/pll.h>
 #include <plat/regs-srom.h>
 
 #include <mach/map.h>

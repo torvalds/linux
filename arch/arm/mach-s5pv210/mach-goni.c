@@ -46,7 +46,6 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
-#include <plat/clock.h>
 #include <plat/samsung-time.h>
 #include <plat/mfc.h>
 

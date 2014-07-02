@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/device.h>
 #include <clocksource/samsung_pwm.h>
@@ -36,12 +37,6 @@
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
-
-#ifdef CONFIG_S5P_CLOCK
-#include <plat/clock.h>
-#else
-#include <linux/clk-provider.h>
-#endif
 
 #include <plat/devs.h>
 #include <plat/sdhci.h>
@@ -239,16 +234,7 @@ void __init s5pv210_map_io(void)
 
 void __init s5pv210_init_clocks(int xtal)
 {
-#ifdef CONFIG_S5P_CLOCK
-	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
-
-	s3c24xx_register_baseclocks(xtal);
-	s5p_register_clocks(xtal);
-	s5pv210_register_clocks();
-	s5pv210_setup_clocks();
-#else
 	xusbxti_f = xtal;
-#endif
 }
 
 void __init s5pv210_init_irq(void)

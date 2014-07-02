@@ -23,7 +23,6 @@ config PLAT_S5P
 	select PLAT_SAMSUNG
 	select S3C_GPIO_TRACK
 	select S5P_GPIO_DRVSTR
-	select SAMSUNG_CLKSRC if !COMMON_CLK
 	help
 	  Base platform code for Samsung's S5P series SoC.
 
@@ -64,23 +63,6 @@ config SAMSUNG_ATAGS
 	   this option.
 
 if SAMSUNG_ATAGS
-
-# clock options
-
-config SAMSUNG_CLOCK
-	bool
-	default y if !COMMON_CLK
-
-config SAMSUNG_CLKSRC
-	bool
-	help
-	  Select the clock code for the clksrc implementation
-	  used by newer systems such as the S3C64XX.
-
-config S5P_CLOCK
-	bool
-	help
-	  Support common clock part for ARCH_S5P and ARCH_EXYNOS SoCs
 
 # options for IRQ support
 

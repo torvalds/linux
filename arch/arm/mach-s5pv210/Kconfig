@@ -13,7 +13,6 @@ config CPU_S5PV210
 	bool
 	select ARM_AMBA
 	select PL330_DMA if DMADEVICES
-	select S5P_CLOCK if !COMMON_CLK
 	select S5P_EXT_INT
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
@@ -70,14 +69,6 @@ config S5PV210_SETUP_USB_PHY
 	bool
 	help
 	  Common setup code for USB PHY controller
-
-config COMMON_CLK_S5PV210
-	bool "Common Clock Framework support"
-	default y
-	select COMMON_CLK_SAMSUNG
-	help
-	  Enable this option to use new clock driver
-	  based on Common Clock Framework.
 
 menu "S5PC110 Machines"
 

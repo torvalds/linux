@@ -47,7 +47,6 @@
 #include <plat/samsung-time.h>
 #include <plat/backlight.h>
 #include <plat/mfc.h>
-#include <plat/clock.h>
 
 #include "common.h"
 
