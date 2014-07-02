@@ -3796,6 +3796,7 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->link_mode = (HCI_LM_ACCEPT);
 	hdev->num_iac = 0x01;		/* One IAC support is mandatory */
 	hdev->io_capability = 0x03;	/* No Input No Output */
+	hdev->manufacturer = 0xffff;	/* Default to internal use */
 	hdev->inq_tx_power = HCI_TX_POWER_INVALID;
 	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
 
