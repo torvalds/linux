@@ -607,8 +607,8 @@ int ab8500_suspend(struct ab8500 *ab8500)
 {
 	if (atomic_read(&ab8500->transfer_ongoing))
 		return -EINVAL;
-	else
-		return 0;
+
+	return 0;
 }
 
 static struct resource ab8500_gpadc_resources[] = {
