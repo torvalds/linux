@@ -144,6 +144,30 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
 }
 
 /*
+ * Read a 32-bit PCI Configuration Space register via the PCI-E backdoor
+ * mechanism.  This guarantees that we get the real value even if we're
+ * operating within a Virtual Machine and the Hypervisor is trapping our
+ * Configuration Space accesses.
+ */
+void t4_hw_pci_read_cfg4(struct adapter *adap, int reg, u32 *val)
+{
+	u32 req = ENABLE | FUNCTION(adap->fn) | reg;
+
+	if (is_t4(adap->params.chip))
+		req |= F_LOCALCFG;
+
+	t4_write_reg(adap, PCIE_CFG_SPACE_REQ, req);
+	*val = t4_read_reg(adap, PCIE_CFG_SPACE_DATA);
+
+	/* Reset ENABLE to 0 so reads of PCIE_CFG_SPACE_DATA won't cause a
+	 * Configuration Space read.  (None of the other fields matter when
+	 * ENABLE is 0 so a simple register write is easier than a
+	 * read-modify-write via t4_set_reg_field().)
+	 */
+	t4_write_reg(adap, PCIE_CFG_SPACE_REQ, 0);
+}
+
+/*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
  */
 static void get_mbox_rpl(struct adapter *adap, __be64 *rpl, int nflit,
@@ -389,78 +413,41 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	return 0;
 }
 
-/*
- *	t4_mem_win_rw - read/write memory through PCIE memory window
- *	@adap: the adapter
- *	@addr: address of first byte requested
- *	@data: MEMWIN0_APERTURE bytes of data containing the requested address
- *	@dir: direction of transfer 1 => read, 0 => write
- *
- *	Read/write MEMWIN0_APERTURE bytes of data from MC starting at a
- *	MEMWIN0_APERTURE-byte-aligned address that covers the requested
- *	address @addr.
- */
-static int t4_mem_win_rw(struct adapter *adap, u32 addr, __be32 *data, int dir)
-{
-	int i;
-	u32 win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
-
-	/*
-	 * Setup offset into PCIE memory window.  Address must be a
-	 * MEMWIN0_APERTURE-byte-aligned address.  (Read back MA register to
-	 * ensure that changes propagate before we attempt to use the new
-	 * values.)
-	 */
-	t4_write_reg(adap, PCIE_MEM_ACCESS_OFFSET,
-		     (addr & ~(MEMWIN0_APERTURE - 1)) | win_pf);
-	t4_read_reg(adap, PCIE_MEM_ACCESS_OFFSET);
-
-	/* Collecting data 4 bytes at a time upto MEMWIN0_APERTURE */
-	for (i = 0; i < MEMWIN0_APERTURE; i = i+0x4) {
-		if (dir)
-			*data++ = (__force __be32) t4_read_reg(adap,
-							(MEMWIN0_BASE + i));
-		else
-			t4_write_reg(adap, (MEMWIN0_BASE + i),
-				     (__force u32) *data++);
-	}
-
-	return 0;
-}
-
 /**
  *	t4_memory_rw - read/write EDC 0, EDC 1 or MC via PCIE memory window
  *	@adap: the adapter
+ *	@win: PCI-E Memory Window to use
  *	@mtype: memory type: MEM_EDC0, MEM_EDC1 or MEM_MC
  *	@addr: address within indicated memory type
  *	@len: amount of memory to transfer
  *	@buf: host memory buffer
- *	@dir: direction of transfer 1 => read, 0 => write
+ *	@dir: direction of transfer T4_MEMORY_READ (1) or T4_MEMORY_WRITE (0)
  *
  *	Reads/writes an [almost] arbitrary memory region in the firmware: the
- *	firmware memory address, length and host buffer must be aligned on
- *	32-bit boudaries.  The memory is transferred as a raw byte sequence
- *	from/to the firmware's memory.  If this memory contains data
- *	structures which contain multi-byte integers, it's the callers
- *	responsibility to perform appropriate byte order conversions.
+ *	firmware memory address and host buffer must be aligned on 32-bit
+ *	boudaries; the length may be arbitrary.  The memory is transferred as
+ *	a raw byte sequence from/to the firmware's memory.  If this memory
+ *	contains data structures which contain multi-byte integers, it's the
+ *	caller's responsibility to perform appropriate byte order conversions.
  */
-static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
-			__be32 *buf, int dir)
+int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
+		 u32 len, __be32 *buf, int dir)
 {
-	u32 pos, start, end, offset, memoffset;
-	u32 edc_size, mc_size;
-	int ret = 0;
-	__be32 *data;
+	u32 pos, offset, resid, memoffset;
+	u32 edc_size, mc_size, win_pf, mem_reg, mem_aperture, mem_base;
 
-	/*
-	 * Argument sanity checks ...
+	/* Argument sanity checks ...
 	 */
-	if ((addr & 0x3) || (len & 0x3))
+	if (addr & 0x3)
 		return -EINVAL;
 
-	data = vmalloc(MEMWIN0_APERTURE);
-	if (!data)
-		return -ENOMEM;
+	/* It's convenient to be able to handle lengths which aren't a
+	 * multiple of 32-bits because we often end up transferring files to
+	 * the firmware.  So we'll handle that by normalizing the length here
+	 * and then handling any residual transfer at the end.
+	 */
+	resid = len & 0x3;
+	len -= resid;
 
 	/* Offset into the region of memory which is being accessed
 	 * MEM_EDC0 = 0
@@ -481,66 +468,98 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 	/* Determine the PCIE_MEM_ACCESS_OFFSET */
 	addr = addr + memoffset;
 
-	/*
-	 * The underlaying EDC/MC read routines read MEMWIN0_APERTURE bytes
-	 * at a time so we need to round down the start and round up the end.
-	 * We'll start copying out of the first line at (addr - start) a word
-	 * at a time.
+	/* Each PCI-E Memory Window is programmed with a window size -- or
+	 * "aperture" -- which controls the granularity of its mapping onto
+	 * adapter memory.  We need to grab that aperture in order to know
+	 * how to use the specified window.  The window is also programmed
+	 * with the base address of the Memory Window in BAR0's address
+	 * space.  For T4 this is an absolute PCI-E Bus Address.  For T5
+	 * the address is relative to BAR0.
 	 */
-	start = addr & ~(MEMWIN0_APERTURE-1);
-	end = (addr + len + MEMWIN0_APERTURE-1) & ~(MEMWIN0_APERTURE-1);
-	offset = (addr - start)/sizeof(__be32);
+	mem_reg = t4_read_reg(adap,
+			      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN,
+						  win));
+	mem_aperture = 1 << (GET_WINDOW(mem_reg) + 10);
+	mem_base = GET_PCIEOFST(mem_reg) << 10;
+	if (is_t4(adap->params.chip))
+		mem_base -= adap->t4_bar0;
+	win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
 
-	for (pos = start; pos < end; pos += MEMWIN0_APERTURE, offset = 0) {
+	/* Calculate our initial PCI-E Memory Window Position and Offset into
+	 * that Window.
+	 */
+	pos = addr & ~(mem_aperture-1);
+	offset = addr - pos;
 
-		/*
-		 * If we're writing, copy the data from the caller's memory
-		 * buffer
+	/* Set up initial PCI-E Memory Window to cover the start of our
+	 * transfer.  (Read it back to ensure that changes propagate before we
+	 * attempt to use the new value.)
+	 */
+	t4_write_reg(adap,
+		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, win),
+		     pos | win_pf);
+	t4_read_reg(adap,
+		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, win));
+
+	/* Transfer data to/from the adapter as long as there's an integral
+	 * number of 32-bit transfers to complete.
+	 */
+	while (len > 0) {
+		if (dir == T4_MEMORY_READ)
+			*buf++ = (__force __be32) t4_read_reg(adap,
+							mem_base + offset);
+		else
+			t4_write_reg(adap, mem_base + offset,
+				     (__force u32) *buf++);
+		offset += sizeof(__be32);
+		len -= sizeof(__be32);
+
+		/* If we've reached the end of our current window aperture,
+		 * move the PCI-E Memory Window on to the next.  Note that
+		 * doing this here after "len" may be 0 allows us to set up
+		 * the PCI-E Memory Window for a possible final residual
+		 * transfer below ...
 		 */
-		if (!dir) {
-			/*
-			 * If we're doing a partial write, then we need to do
-			 * a read-modify-write ...
-			 */
-			if (offset || len < MEMWIN0_APERTURE) {
-				ret = t4_mem_win_rw(adap, pos, data, 1);
-				if (ret)
-					break;
-			}
-			while (offset < (MEMWIN0_APERTURE/sizeof(__be32)) &&
-			       len > 0) {
-				data[offset++] = *buf++;
-				len -= sizeof(__be32);
-			}
+		if (offset == mem_aperture) {
+			pos += mem_aperture;
+			offset = 0;
+			t4_write_reg(adap,
+				     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET,
+							 win), pos | win_pf);
+			t4_read_reg(adap,
+				    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET,
+							win));
 		}
-
-		/*
-		 * Transfer a block of memory and bail if there's an error.
-		 */
-		ret = t4_mem_win_rw(adap, pos, data, dir);
-		if (ret)
-			break;
-
-		/*
-		 * If we're reading, copy the data into the caller's memory
-		 * buffer.
-		 */
-		if (dir)
-			while (offset < (MEMWIN0_APERTURE/sizeof(__be32)) &&
-			       len > 0) {
-				*buf++ = data[offset++];
-				len -= sizeof(__be32);
-			}
 	}
 
-	vfree(data);
-	return ret;
-}
+	/* If the original transfer had a length which wasn't a multiple of
+	 * 32-bits, now's where we need to finish off the transfer of the
+	 * residual amount.  The PCI-E Memory Window has already been moved
+	 * above (if necessary) to cover this final transfer.
+	 */
+	if (resid) {
+		union {
+			__be32 word;
+			char byte[4];
+		} last;
+		unsigned char *bp;
+		int i;
 
-int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
-		    __be32 *buf)
-{
-	return t4_memory_rw(adap, mtype, addr, len, buf, 0);
+		if (dir == T4_MEMORY_WRITE) {
+			last.word = (__force __be32) t4_read_reg(adap,
+							mem_base + offset);
+			for (bp = (unsigned char *)buf, i = resid; i < 4; i++)
+				bp[i] = last.byte[i];
+		} else {
+			last.word = *buf;
+			for (i = resid; i < 4; i++)
+				last.byte[i] = 0;
+			t4_write_reg(adap, mem_base + offset,
+				     (__force u32) last.word);
+		}
+	}
+
+	return 0;
 }
 
 #define EEPROM_STAT_ADDR   0x7bfc
@@ -2502,39 +2521,6 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 	c.u.addrval.val = htonl(val);
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
-}
-
-/**
- *     t4_mem_win_read_len - read memory through PCIE memory window
- *     @adap: the adapter
- *     @addr: address of first byte requested aligned on 32b.
- *     @data: len bytes to hold the data read
- *     @len: amount of data to read from window.  Must be <=
- *            MEMWIN0_APERATURE after adjusting for 16B for T4 and
- *            128B for T5 alignment requirements of the the memory window.
- *
- *     Read len bytes of data from MC starting at @addr.
- */
-int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len)
-{
-	int i, off;
-	u32 win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
-
-	/* Align on a 2KB boundary.
-	 */
-	off = addr & MEMWIN0_APERTURE;
-	if ((addr & 3) || (len + off) > MEMWIN0_APERTURE)
-		return -EINVAL;
-
-	t4_write_reg(adap, PCIE_MEM_ACCESS_OFFSET,
-		     (addr & ~MEMWIN0_APERTURE) | win_pf);
-	t4_read_reg(adap, PCIE_MEM_ACCESS_OFFSET);
-
-	for (i = 0; i < len; i += 4)
-		*data++ = (__force __be32) t4_read_reg(adap,
-						(MEMWIN0_BASE + off + i));
-
-	return 0;
 }
 
 /**
