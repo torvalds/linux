@@ -405,6 +405,7 @@ int nfsd_create_serv(struct net *net)
 	if (nn->nfsd_serv == NULL)
 		return -ENOMEM;
 
+	nn->nfsd_serv->sv_maxconn = nn->max_connections;
 	error = svc_bind(nn->nfsd_serv, net);
 	if (error < 0) {
 		svc_destroy(nn->nfsd_serv);
@@ -563,6 +564,7 @@ nfsd(void *vrqstp)
 	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
 	struct svc_xprt *perm_sock = list_entry(rqstp->rq_server->sv_permsocks.next, typeof(struct svc_xprt), xpt_list);
 	struct net *net = perm_sock->xpt_net;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int err;
 
 	/* Lock module and set up kernel thread */
@@ -596,6 +598,9 @@ nfsd(void *vrqstp)
 	 * The main request loop
 	 */
 	for (;;) {
+		/* Update sv_maxconn if it has changed */
+		rqstp->rq_server->sv_maxconn = nn->max_connections;
+
 		/*
 		 * Find a socket with data available and call its
 		 * recvfrom routine.

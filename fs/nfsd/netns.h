@@ -102,6 +102,12 @@ struct nfsd_net {
 	 */
 	struct timeval nfssvc_boot;
 
+	/*
+	 * Max number of connections this nfsd container will allow. Defaults
+	 * to '0' which is means that it bases this on the number of threads.
+	 */
+	unsigned int max_connections;
+
 	struct svc_serv *nfsd_serv;
 };
 
