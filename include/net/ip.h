@@ -31,6 +31,7 @@
 #include <net/route.h>
 #include <net/snmp.h>
 #include <net/flow.h>
+#include <net/flow_keys.h>
 
 struct sock;
 
@@ -351,6 +352,19 @@ static inline __wsum inet_compute_pseudo(struct sk_buff *skb, int proto)
 {
 	return csum_tcpudp_nofold(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 				  skb->len, proto, 0);
+}
+
+static inline void inet_set_txhash(struct sock *sk)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	struct flow_keys keys;
+
+	keys.src = inet->inet_saddr;
+	keys.dst = inet->inet_daddr;
+	keys.port16[0] = inet->inet_sport;
+	keys.port16[1] = inet->inet_dport;
+
+	sk->sk_txhash = flow_hash_from_keys(&keys);
 }
 
 /*
