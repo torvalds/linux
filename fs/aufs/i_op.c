@@ -89,7 +89,9 @@ static int aufs_permission(struct inode *inode, int mask)
 		goto out;
 #endif
 
-	if (!isdir || write_mask) {
+	if (!isdir
+	    || write_mask
+	    || au_opt_test(au_mntflags(sb), DIRPERM1)) {
 		err = au_busy_or_stale();
 		h_inode = au_h_iptr(inode, au_ibstart(inode));
 		if (unlikely(!h_inode

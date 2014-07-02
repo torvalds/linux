@@ -28,7 +28,8 @@ struct super_block;
 #define AuOpt_UDBA_HNOTIFY	(1 << 4)
 #define AuOpt_SHWH		(1 << 5)	/* show whiteout */
 #define AuOpt_PLINK		(1 << 6)	/* pseudo-link */
-#define AuOpt_DIRPERM1		(1 << 7)	/* unimplemented */
+#define AuOpt_DIRPERM1		(1 << 7)	/* ignore the lower dir's perm
+						   bits */
 #define AuOpt_REFROF		(1 << 8)	/* unimplemented */
 #define AuOpt_ALWAYS_DIROPQ	(1 << 9)	/* policy to creating diropq */
 #define AuOpt_SUM		(1 << 10)	/* summation for statfs(2) */
