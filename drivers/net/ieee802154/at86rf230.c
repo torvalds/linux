@@ -42,6 +42,7 @@ struct at86rf230_local;
  * All timings are in us.
  */
 struct at86rf2xx_chip_data {
+	u16 t_channel_switch;
 	u16 t_reset_to_off;
 	u16 t_off_to_aack;
 	u16 t_off_to_tx_on;
@@ -1079,7 +1080,9 @@ at86rf230_channel(struct ieee802154_dev *dev, int page, int channel)
 	if (rc < 0)
 		return rc;
 
-	msleep(1); /* Wait for PLL */
+	/* Wait for PLL */
+	usleep_range(lp->data->t_channel_switch,
+		     lp->data->t_channel_switch + 10);
 	dev->phy->current_channel = channel;
 	dev->phy->current_page = page;
 
@@ -1247,6 +1250,7 @@ static struct ieee802154_ops at86rf230_ops = {
 };
 
 static struct at86rf2xx_chip_data at86rf233_data = {
+	.t_channel_switch = 11,
 	.t_reset_to_off = 26,
 	.t_off_to_aack = 80,
 	.t_off_to_tx_on = 80,
@@ -1261,6 +1265,7 @@ static struct at86rf2xx_chip_data at86rf233_data = {
 };
 
 static struct at86rf2xx_chip_data at86rf231_data = {
+	.t_channel_switch = 24,
 	.t_reset_to_off = 37,
 	.t_off_to_aack = 110,
 	.t_off_to_tx_on = 110,
@@ -1275,6 +1280,7 @@ static struct at86rf2xx_chip_data at86rf231_data = {
 };
 
 static struct at86rf2xx_chip_data at86rf212_data = {
+	.t_channel_switch = 11,
 	.t_reset_to_off = 26,
 	.t_off_to_aack = 200,
 	.t_off_to_tx_on = 200,
