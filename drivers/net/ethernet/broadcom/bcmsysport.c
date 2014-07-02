@@ -1236,15 +1236,15 @@ static void bcm_sysport_set_rx_mode(struct net_device *dev)
 }
 
 static inline void umac_enable_set(struct bcm_sysport_priv *priv,
-					unsigned int enable)
+					u32 mask, unsigned int enable)
 {
 	u32 reg;
 
 	reg = umac_readl(priv, UMAC_CMD);
 	if (enable)
-		reg |= CMD_RX_EN | CMD_TX_EN;
+		reg |= mask;
 	else
-		reg &= ~(CMD_RX_EN | CMD_TX_EN);
+		reg &= ~mask;
 	umac_writel(priv, reg, UMAC_CMD);
 
 	/* UniMAC stops on a packet boundary, wait for a full-sized packet
@@ -1313,7 +1313,7 @@ static int bcm_sysport_open(struct net_device *dev)
 	topctrl_flush(priv);
 
 	/* Disable the UniMAC RX/TX */
-	umac_enable_set(priv, 0);
+	umac_enable_set(priv, CMD_RX_EN | CMD_TX_EN, 0);
 
 	/* Enable RBUF 2bytes alignment and Receive Status Block */
 	reg = rbuf_readl(priv, RBUF_CONTROL);
@@ -1398,7 +1398,7 @@ static int bcm_sysport_open(struct net_device *dev)
 	napi_enable(&priv->napi);
 
 	/* Turn on UniMAC TX/RX */
-	umac_enable_set(priv, 1);
+	umac_enable_set(priv, CMD_RX_EN | CMD_TX_EN, 1);
 
 	phy_start(priv->phydev);
 
@@ -1429,7 +1429,6 @@ static int bcm_sysport_stop(struct net_device *dev)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	unsigned int i;
-	u32 reg;
 	int ret;
 
 	/* stop all software from updating hardware */
@@ -1444,9 +1443,7 @@ static int bcm_sysport_stop(struct net_device *dev)
 	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
 
 	/* Disable UniMAC RX */
-	reg = umac_readl(priv, UMAC_CMD);
-	reg &= ~CMD_RX_EN;
-	umac_writel(priv, reg, UMAC_CMD);
+	umac_enable_set(priv, CMD_RX_EN, 0);
 
 	ret = tdma_enable_set(priv, 0);
 	if (ret) {
@@ -1464,9 +1461,7 @@ static int bcm_sysport_stop(struct net_device *dev)
 	}
 
 	/* Disable UniMAC TX */
-	reg = umac_readl(priv, UMAC_CMD);
-	reg &= ~CMD_TX_EN;
-	umac_writel(priv, reg, UMAC_CMD);
+	umac_enable_set(priv, CMD_TX_EN, 0);
 
 	/* Free RX/TX rings SW structures */
 	for (i = 0; i < dev->num_tx_queues; i++)
