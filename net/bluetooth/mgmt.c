@@ -353,7 +353,7 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 		if (test_bit(HCI_USER_CHANNEL, &d->dev_flags))
 			continue;
 
-		if (test_bit(HCI_QUIRK_RAW_DEVICE, &d->quirks))
+		if (test_bit(HCI_UNCONFIGURED, &d->dev_flags))
 			continue;
 
 		if (d->dev_type == HCI_BREDR) {
@@ -5317,8 +5317,8 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		}
 
 		if (test_bit(HCI_SETUP, &hdev->dev_flags) ||
-		    test_bit(HCI_USER_CHANNEL, &hdev->dev_flags) ||
-		    test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks)) {
+		    test_bit(HCI_UNCONFIGURED, &hdev->dev_flags) ||
+		    test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
 			err = cmd_status(sk, index, opcode,
 					 MGMT_STATUS_INVALID_INDEX);
 			goto done;
