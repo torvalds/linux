@@ -1276,7 +1276,7 @@ static struct at86rf2xx_chip_data at86rf212_data = {
 
 static int at86rf230_hw_init(struct at86rf230_local *lp)
 {
-	int rc, irq_pol, irq_type;
+	int rc, irq_type, irq_pol = IRQ_ACTIVE_HIGH;
 	unsigned int dvdd;
 	u8 csma_seed[2];
 
@@ -1285,11 +1285,8 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 		return rc;
 
 	irq_type = irq_get_trigger_type(lp->spi->irq);
-	/* configure irq polarity, defaults to high active */
-	if (irq_type & (IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW))
+	if (irq_type == IRQ_TYPE_EDGE_FALLING)
 		irq_pol = IRQ_ACTIVE_LOW;
-	else
-		irq_pol = IRQ_ACTIVE_HIGH;
 
 	rc = at86rf230_write_subreg(lp, SR_IRQ_POLARITY, irq_pol);
 	if (rc)
