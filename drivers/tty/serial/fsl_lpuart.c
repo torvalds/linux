@@ -720,13 +720,6 @@ static int lpuart_dma_rx_request(struct uart_port *port)
 	sport->dma_rx_buf_bus = dma_bus;
 	sport->dma_rx_in_progress = 0;
 
-	sport->dma_rx_timeout = (sport->port.timeout - HZ / 50) *
-				FSL_UART_RX_DMA_BUFFER_SIZE * 3 /
-				sport->rxfifo_size / 2;
-
-	if (sport->dma_rx_timeout < msecs_to_jiffies(20))
-		sport->dma_rx_timeout = msecs_to_jiffies(20);
-
 	return 0;
 }
 
@@ -917,6 +910,17 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* update the per-port timeout */
 	uart_update_timeout(port, termios->c_cflag, baud);
+
+	if (sport->lpuart_dma_use) {
+		/* Calculate delay for 1.5 DMA buffers */
+		sport->dma_rx_timeout = (sport->port.timeout - HZ / 50) *
+					FSL_UART_RX_DMA_BUFFER_SIZE * 3 /
+					sport->rxfifo_size / 2;
+		dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
+			sport->dma_rx_timeout * 1000 / HZ, sport->port.timeout);
+		if (sport->dma_rx_timeout < msecs_to_jiffies(20))
+			sport->dma_rx_timeout = msecs_to_jiffies(20);
+	}
 
 	/* wait transmit engin complete */
 	while (!(readb(sport->port.membase + UARTSR1) & UARTSR1_TC))
