@@ -3,3 +3,4 @@
 #
 
 obj-y	+= clk-rockchip.o
+obj-y	+= clk.o
