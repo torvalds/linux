@@ -1295,6 +1295,22 @@ static void topctrl_flush(struct bcm_sysport_priv *priv)
 	topctrl_writel(priv, 0, TX_FLUSH_CNTL);
 }
 
+static void bcm_sysport_netif_start(struct net_device *dev)
+{
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
+
+	/* Enable NAPI */
+	napi_enable(&priv->napi);
+
+	phy_start(priv->phydev);
+
+	/* Enable TX interrupts for the 32 TXQs */
+	intrl2_1_mask_clear(priv, 0xffffffff);
+
+	/* Last call before we start the real business */
+	netif_tx_start_all_queues(dev);
+}
+
 static int bcm_sysport_open(struct net_device *dev)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
@@ -1394,19 +1410,10 @@ static int bcm_sysport_open(struct net_device *dev)
 	if (ret)
 		goto out_clear_rx_int;
 
-	/* Enable NAPI */
-	napi_enable(&priv->napi);
-
 	/* Turn on UniMAC TX/RX */
 	umac_enable_set(priv, CMD_RX_EN | CMD_TX_EN, 1);
 
-	phy_start(priv->phydev);
-
-	/* Enable TX interrupts for the 32 TXQs */
-	intrl2_1_mask_clear(priv, 0xffffffff);
-
-	/* Last call before we start the real business */
-	netif_tx_start_all_queues(dev);
+	bcm_sysport_netif_start(dev);
 
 	return 0;
 
@@ -1425,11 +1432,9 @@ out_phy_disconnect:
 	return ret;
 }
 
-static int bcm_sysport_stop(struct net_device *dev)
+static void bcm_sysport_netif_stop(struct net_device *dev)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
-	unsigned int i;
-	int ret;
 
 	/* stop all software from updating hardware */
 	netif_tx_stop_all_queues(dev);
@@ -1441,6 +1446,15 @@ static int bcm_sysport_stop(struct net_device *dev)
 	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
 	intrl2_1_mask_set(priv, 0xffffffff);
 	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
+}
+
+static int bcm_sysport_stop(struct net_device *dev)
+{
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	unsigned int i;
+	int ret;
+
+	bcm_sysport_netif_stop(dev);
 
 	/* Disable UniMAC RX */
 	umac_enable_set(priv, CMD_RX_EN, 0);
