@@ -13,12 +13,6 @@
 #include <asm/efi.h>
 #include <asm/sections.h>
 
-/* Include shared EFI stub code */
-#include "../../../drivers/firmware/efi/efi-stub-helper.c"
-#include "../../../drivers/firmware/efi/fdt.c"
-#include "../../../drivers/firmware/efi/arm-stub.c"
-
-
 efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 				 unsigned long *image_addr,
 				 unsigned long *image_size,
