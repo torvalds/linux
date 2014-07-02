@@ -566,7 +566,10 @@ u64 rk_fb_get_prmry_screen_framedone_t(void)
 {
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
 
-	return dev_drv->frame_time.framedone_t;
+	if (unlikely(!dev_drv))
+		return 0;
+	else
+		return dev_drv->frame_time.framedone_t;
 }
 
 /*
@@ -575,8 +578,12 @@ u64 rk_fb_get_prmry_screen_framedone_t(void)
 int rk_fb_set_prmry_screen_status(int status)
 {
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
-	struct rk_screen *screen = dev_drv->cur_screen;
+	struct rk_screen *screen;
 
+	if (unlikely(!dev_drv))
+		return 0;
+
+	screen = dev_drv->cur_screen;
 	switch (status) {
 	case SCREEN_PREPARE_DDR_CHANGE:
 		if (screen->type == SCREEN_MIPI
@@ -625,7 +632,11 @@ static struct rk_lcdc_driver *rk_get_extend_lcdc_drv(void)
 u32 rk_fb_get_prmry_screen_pixclock(void)
 {
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
-	return dev_drv->pixclock;
+
+	if (unlikely(!dev_drv))
+		return 0;
+	else
+		return dev_drv->pixclock;
 }
 
 int rk_fb_poll_prmry_screen_vblank(void)
