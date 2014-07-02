@@ -231,7 +231,7 @@ static int enic_set_coalesce(struct net_device *netdev,
 		if (ecmd->use_adaptive_rx_coalesce	||
 		    ecmd->rx_coalesce_usecs_low		||
 		    ecmd->rx_coalesce_usecs_high)
-			return -EOPNOTSUPP;
+			return -EINVAL;
 
 		intr = enic_legacy_io_intr();
 		vnic_intr_coalescing_timer_set(&enic->intr[intr],
@@ -243,34 +243,29 @@ static int enic_set_coalesce(struct net_device *netdev,
 		if (ecmd->use_adaptive_rx_coalesce	||
 		    ecmd->rx_coalesce_usecs_low		||
 		    ecmd->rx_coalesce_usecs_high)
-			return -EOPNOTSUPP;
+			return -EINVAL;
 
 		vnic_intr_coalescing_timer_set(&enic->intr[0],
 			tx_coalesce_usecs);
 		break;
 	case VNIC_DEV_INTR_MODE_MSIX:
+		if (ecmd->rx_coalesce_usecs_high &&
+		    (rx_coalesce_usecs_high <
+		     rx_coalesce_usecs_low + ENIC_AIC_LARGE_PKT_DIFF))
+				return -EINVAL;
+
 		for (i = 0; i < enic->wq_count; i++) {
 			intr = enic_msix_wq_intr(enic, i);
 			vnic_intr_coalescing_timer_set(&enic->intr[intr],
 				tx_coalesce_usecs);
 		}
 
-		if (rxcoal->use_adaptive_rx_coalesce) {
-			if (!ecmd->use_adaptive_rx_coalesce) {
-				rxcoal->use_adaptive_rx_coalesce = 0;
-				enic_intr_coal_set_rx(enic, rx_coalesce_usecs);
-			}
-		} else {
-			if (ecmd->use_adaptive_rx_coalesce)
-				rxcoal->use_adaptive_rx_coalesce = 1;
-			else
-				enic_intr_coal_set_rx(enic, rx_coalesce_usecs);
-		}
+		rxcoal->use_adaptive_rx_coalesce =
+					!!ecmd->use_adaptive_rx_coalesce;
+		if (!rxcoal->use_adaptive_rx_coalesce)
+			enic_intr_coal_set_rx(enic, rx_coalesce_usecs);
 
 		if (ecmd->rx_coalesce_usecs_high) {
-			if (rx_coalesce_usecs_high <
-			    (rx_coalesce_usecs_low + ENIC_AIC_LARGE_PKT_DIFF))
-				return -EINVAL;
 			rxcoal->range_end = rx_coalesce_usecs_high;
 			rxcoal->small_pkt_range_start = rx_coalesce_usecs_low;
 			rxcoal->large_pkt_range_start = rx_coalesce_usecs_low +
