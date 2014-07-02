@@ -2046,13 +2046,15 @@ static int xennet_connect(struct net_device *dev)
 	/* By now, the queue structures have been set up */
 	for (j = 0; j < num_queues; ++j) {
 		queue = &np->queues[j];
-		spin_lock_bh(&queue->rx_lock);
-		spin_lock_irq(&queue->tx_lock);
 
 		/* Step 1: Discard all pending TX packet fragments. */
+		spin_lock_irq(&queue->tx_lock);
 		xennet_release_tx_bufs(queue);
+		spin_unlock_irq(&queue->tx_lock);
 
 		/* Step 2: Rebuild the RX buffer freelist and the RX ring itself. */
+		spin_lock_bh(&queue->rx_lock);
+
 		for (requeue_idx = 0, i = 0; i < NET_RX_RING_SIZE; i++) {
 			skb_frag_t *frag;
 			const struct page *page;
@@ -2076,6 +2078,8 @@ static int xennet_connect(struct net_device *dev)
 		}
 
 		queue->rx.req_prod_pvt = requeue_idx;
+
+		spin_unlock_bh(&queue->rx_lock);
 	}
 
 	/*
@@ -2087,13 +2091,17 @@ static int xennet_connect(struct net_device *dev)
 	netif_carrier_on(np->netdev);
 	for (j = 0; j < num_queues; ++j) {
 		queue = &np->queues[j];
+
 		notify_remote_via_irq(queue->tx_irq);
 		if (queue->tx_irq != queue->rx_irq)
 			notify_remote_via_irq(queue->rx_irq);
-		xennet_tx_buf_gc(queue);
-		xennet_alloc_rx_buffers(queue);
 
+		spin_lock_irq(&queue->tx_lock);
+		xennet_tx_buf_gc(queue);
 		spin_unlock_irq(&queue->tx_lock);
+
+		spin_lock_bh(&queue->rx_lock);
+		xennet_alloc_rx_buffers(queue);
 		spin_unlock_bh(&queue->rx_lock);
 	}
 
