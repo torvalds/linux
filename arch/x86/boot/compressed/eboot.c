@@ -19,10 +19,7 @@
 
 static efi_system_table_t *sys_table;
 
-static struct efi_config *efi_early;
-
-#define efi_call_early(f, ...)						\
-	efi_early->call(efi_early->f, __VA_ARGS__);
+struct efi_config *efi_early;
 
 #define BOOT_SERVICES(bits)						\
 static void setup_boot_services##bits(struct efi_config *c)		\

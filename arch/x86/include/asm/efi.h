@@ -158,6 +158,31 @@ static inline efi_status_t efi_thunk_set_virtual_address_map(
 	return EFI_SUCCESS;
 }
 #endif /* CONFIG_EFI_MIXED */
+
+
+/* arch specific definitions used by the stub code */
+
+struct efi_config {
+	u64 image_handle;
+	u64 table;
+	u64 allocate_pool;
+	u64 allocate_pages;
+	u64 get_memory_map;
+	u64 free_pool;
+	u64 free_pages;
+	u64 locate_handle;
+	u64 handle_protocol;
+	u64 exit_boot_services;
+	u64 text_output;
+	efi_status_t (*call)(unsigned long, ...);
+	bool is64;
+} __packed;
+
+extern struct efi_config *efi_early;
+
+#define efi_call_early(f, ...)						\
+	efi_early->call(efi_early->f, __VA_ARGS__);
+
 #else
 /*
  * IF EFI is not configured, have the EFI calls return -ENOSYS.
