@@ -108,6 +108,7 @@ typedef int16_t aufs_bindex_t;
 #define AUFS_BRATTR_UNPIN	"unpin"
 #define AUFS_BRRATTR_WH		"wh"
 #define AUFS_BRWATTR_NLWH	"nolwh"
+#define AUFS_BRWATTR_MOO	"moo"
 
 /* ---------------------------------------------------------------------- */
 
