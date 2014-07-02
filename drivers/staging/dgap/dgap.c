@@ -3077,8 +3077,6 @@ static void dgap_tty_send_xchar(struct tty_struct *tty, char c)
 
 	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-
-	return;
 }
 
 /*
