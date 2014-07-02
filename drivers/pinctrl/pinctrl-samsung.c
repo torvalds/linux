@@ -333,57 +333,12 @@ static int samsung_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-/*
- * The calls to gpio_direction_output() and gpio_direction_input()
- * leads to this function call (via the pinctrl_gpio_direction_{input|output}()
- * function called from the gpiolib interface).
- */
-static int samsung_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
-		struct pinctrl_gpio_range *range, unsigned offset, bool input)
-{
-	struct samsung_pin_bank_type *type;
-	struct samsung_pin_bank *bank;
-	struct samsung_pinctrl_drv_data *drvdata;
-	void __iomem *reg;
-	u32 data, pin_offset, mask, shift;
-	unsigned long flags;
-
-	bank = gc_to_pin_bank(range->gc);
-	type = bank->type;
-	drvdata = pinctrl_dev_get_drvdata(pctldev);
-
-	pin_offset = offset - bank->pin_base;
-	reg = drvdata->virt_base + bank->pctl_offset +
-					type->reg_offset[PINCFG_TYPE_FUNC];
-
-	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
-	shift = pin_offset * type->fld_width[PINCFG_TYPE_FUNC];
-	if (shift >= 32) {
-		/* Some banks have two config registers */
-		shift -= 32;
-		reg += 4;
-	}
-
-	spin_lock_irqsave(&bank->slock, flags);
-
-	data = readl(reg);
-	data &= ~(mask << shift);
-	if (!input)
-		data |= FUNC_OUTPUT << shift;
-	writel(data, reg);
-
-	spin_unlock_irqrestore(&bank->slock, flags);
-
-	return 0;
-}
-
 /* list of pinmux callbacks for the pinmux vertical in pinctrl core */
 static const struct pinmux_ops samsung_pinmux_ops = {
 	.get_functions_count	= samsung_get_functions_count,
 	.get_function_name	= samsung_pinmux_get_fname,
 	.get_function_groups	= samsung_pinmux_get_groups,
 	.enable			= samsung_pinmux_enable,
-	.gpio_set_direction	= samsung_pinmux_gpio_set_direction,
 };
 
 /* set or get the pin config settings for a specified pin */
@@ -532,25 +487,59 @@ static int samsung_gpio_get(struct gpio_chip *gc, unsigned offset)
 }
 
 /*
- * gpiolib gpio_direction_input callback function. The setting of the pin
- * mux function as 'gpio input' will be handled by the pinctrl susbsystem
- * interface.
+ * The calls to gpio_direction_output() and gpio_direction_input()
+ * leads to this function call.
  */
-static int samsung_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
+static int samsung_gpio_set_direction(struct gpio_chip *gc,
+					     unsigned offset, bool input)
 {
-	return pinctrl_gpio_direction_input(gc->base + offset);
+	struct samsung_pin_bank_type *type;
+	struct samsung_pin_bank *bank;
+	struct samsung_pinctrl_drv_data *drvdata;
+	void __iomem *reg;
+	u32 data, mask, shift;
+	unsigned long flags;
+
+	bank = gc_to_pin_bank(gc);
+	type = bank->type;
+	drvdata = bank->drvdata;
+
+	reg = drvdata->virt_base + bank->pctl_offset +
+					type->reg_offset[PINCFG_TYPE_FUNC];
+
+	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
+	shift = offset * type->fld_width[PINCFG_TYPE_FUNC];
+	if (shift >= 32) {
+		/* Some banks have two config registers */
+		shift -= 32;
+		reg += 4;
+	}
+
+	spin_lock_irqsave(&bank->slock, flags);
+
+	data = readl(reg);
+	data &= ~(mask << shift);
+	if (!input)
+		data |= FUNC_OUTPUT << shift;
+	writel(data, reg);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
+
+	return 0;
 }
 
-/*
- * gpiolib gpio_direction_output callback function. The setting of the pin
- * mux function as 'gpio output' will be handled by the pinctrl susbsystem
- * interface.
- */
+/* gpiolib gpio_direction_input callback function. */
+static int samsung_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
+{
+	return samsung_gpio_set_direction(gc, offset, true);
+}
+
+/* gpiolib gpio_direction_output callback function. */
 static int samsung_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
 							int value)
 {
 	samsung_gpio_set(gc, offset, value);
-	return pinctrl_gpio_direction_output(gc->base + offset);
+	return samsung_gpio_set_direction(gc, offset, false);
 }
 
 /*
