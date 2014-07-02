@@ -213,8 +213,8 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 	return true;
 }
 
-void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
-			u16 latency, u16 to_multiplier)
+u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
+		      u16 to_multiplier)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_conn_params *params;
@@ -242,6 +242,11 @@ void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 	cp.max_ce_len		= cpu_to_le16(0x0000);
 
 	hci_send_cmd(hdev, HCI_OP_LE_CONN_UPDATE, sizeof(cp), &cp);
+
+	if (params)
+		return 0x01;
+
+	return 0x00;
 }
 
 void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __le64 rand,

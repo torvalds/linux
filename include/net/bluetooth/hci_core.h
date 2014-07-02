@@ -1368,8 +1368,8 @@ struct hci_sec_filter {
 #define hci_req_lock(d)		mutex_lock(&d->req_lock)
 #define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
 
-void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
-					u16 latency, u16 to_multiplier);
+u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
+		      u16 to_multiplier);
 void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __le64 rand,
 							__u8 ltk[16]);
 
