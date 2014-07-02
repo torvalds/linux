@@ -728,6 +728,8 @@ int __init omap_clk_init(void)
 	if (!omap_clk_soc_init)
 		return 0;
 
+	ti_clk_init_features();
+
 	ret = of_prcm_init();
 	if (!ret)
 		ret = omap_clk_soc_init();

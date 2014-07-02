@@ -47,6 +47,11 @@
 u16 cpu_mask;
 
 /*
+ * Clock features setup. Used instead of CPU type checks.
+ */
+struct ti_clk_features ti_clk_features;
+
+/*
  * clkdm_control: if true, then when a clock is enabled in the
  * hardware, its clockdomain will first be enabled; and when a clock
  * is disabled in the hardware, its clockdomain will be disabled
@@ -730,4 +735,13 @@ void __init omap2_clk_print_new_rates(const char *hfclkin_ck_name,
 		(hfclkin_rate / 1000000), ((hfclkin_rate / 100000) % 10),
 		(clk_get_rate(core_ck) / 1000000),
 		(clk_get_rate(mpu_ck) / 1000000));
+}
+
+/**
+ * ti_clk_init_features - init clock features struct for the SoC
+ *
+ * Initializes the clock features struct based on the SoC type.
+ */
+void __init ti_clk_init_features(void)
+{
 }
