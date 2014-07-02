@@ -24,7 +24,7 @@ Optional properties :
  - cm-thermal-zone : name of external thermometer's thermal zone
  - cm-battery-* : threshold battery temperature for charging
 	-cold : critical cold temperature of battery for charging
-	-cold-in-minus : flag that cold temerature is in minus degree
+	-cold-in-minus : flag that cold temperature is in minus degrees
 	-hot : critical hot temperature of battery for charging
 	-temp-diff : temperature difference to allow recharging
  - cm-dis/charging-max = limits of charging duration

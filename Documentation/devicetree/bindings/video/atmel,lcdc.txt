@@ -39,8 +39,8 @@ Atmel LCDC Display
 -----------------------------------------------------
 Required properties (as per of_videomode_helper):
 
- - atmel,dmacon: dma controler configuration
- - atmel,lcdcon2: lcd controler configuration
+ - atmel,dmacon: dma controller configuration
+ - atmel,lcdcon2: lcd controller configuration
  - atmel,guard-time: lcd guard time (Delay in frame periods)
  - bits-per-pixel: lcd panel bit-depth.
 
