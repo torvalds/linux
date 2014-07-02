@@ -116,7 +116,7 @@ static bool tmp103_regmap_is_volatile(struct device *dev, unsigned int reg)
 	return reg == TMP103_TEMP_REG;
 }
 
-static struct regmap_config tmp103_regmap_config = {
+static const struct regmap_config tmp103_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = TMP103_THIGH_REG,
