@@ -378,6 +378,7 @@ int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type)
 	fq = fq_find(net, frag_info, &source, &dest);
 	if (fq != NULL) {
 		int ret;
+
 		spin_lock(&fq->q.lock);
 		ret = lowpan_frag_queue(fq, skb, frag_type);
 		spin_unlock(&fq->q.lock);
