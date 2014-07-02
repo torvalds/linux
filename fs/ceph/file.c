@@ -470,8 +470,11 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *i,
 			size_t left = ret;
 
 			while (left) {
-				int copy = min_t(size_t, PAGE_SIZE, left);
-				l = copy_page_to_iter(pages[k++], 0, copy, i);
+				size_t page_off = off & ~PAGE_MASK;
+				size_t copy = min_t(size_t,
+						    PAGE_SIZE - page_off, left);
+				l = copy_page_to_iter(pages[k++], page_off,
+						      copy, i);
 				off += l;
 				left -= l;
 				if (l < copy)
