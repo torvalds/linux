@@ -73,7 +73,7 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 	attr->page_size_cap = 0xffff000;
 	attr->vendor_id = dev->nic_info.pdev->vendor;
 	attr->vendor_part_id = dev->nic_info.pdev->device;
-	attr->hw_ver = 0;
+	attr->hw_ver = dev->asic_id;
 	attr->max_qp = dev->attr.max_qp;
 	attr->max_ah = OCRDMA_MAX_AH;
 	attr->max_qp_wr = dev->attr.max_wqe;
