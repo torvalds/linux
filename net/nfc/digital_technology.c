@@ -318,6 +318,8 @@ static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 
 	if (DIGITAL_SEL_RES_IS_T2T(sel_res)) {
 		nfc_proto = NFC_PROTO_MIFARE;
+	} else if (DIGITAL_SEL_RES_IS_NFC_DEP(sel_res)) {
+		nfc_proto = NFC_PROTO_NFC_DEP;
 	} else if (DIGITAL_SEL_RES_IS_T4T(sel_res)) {
 		rc = digital_in_send_rats(ddev, target);
 		if (rc)
@@ -327,8 +329,6 @@ static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 		 * done when receiving the ATS
 		 */
 		goto exit_free_skb;
-	} else if (DIGITAL_SEL_RES_IS_NFC_DEP(sel_res)) {
-		nfc_proto = NFC_PROTO_NFC_DEP;
 	} else {
 		rc = -EOPNOTSUPP;
 		goto exit;
