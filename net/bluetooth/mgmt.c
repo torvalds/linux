@@ -5079,6 +5079,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (bacmp(&cp->addr.bdaddr, BDADDR_ANY)) {
+		struct hci_conn_params *params;
 		u8 addr_type;
 
 		if (!bdaddr_type_is_le(cp->addr.type)) {
@@ -5093,7 +5094,25 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 		else
 			addr_type = ADDR_LE_DEV_RANDOM;
 
-		hci_conn_params_del(hdev, &cp->addr.bdaddr, addr_type);
+		params = hci_conn_params_lookup(hdev, &cp->addr.bdaddr,
+						addr_type);
+		if (!params) {
+			err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,
+					   MGMT_STATUS_INVALID_PARAMS,
+					   &cp->addr, sizeof(cp->addr));
+			goto unlock;
+		}
+
+		if (params->auto_connect == HCI_AUTO_CONN_DISABLED) {
+			err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,
+					   MGMT_STATUS_INVALID_PARAMS,
+					   &cp->addr, sizeof(cp->addr));
+			goto unlock;
+		}
+
+		hci_pend_le_conn_del(hdev, &cp->addr.bdaddr, addr_type);
+		list_del(&params->list);
+		kfree(params);
 
 		device_removed(sk, hdev, &cp->addr.bdaddr, cp->addr.type);
 	} else {
@@ -5104,7 +5123,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			goto unlock;
 		}
 
-		hci_conn_params_clear_all(hdev);
+		hci_conn_params_clear_enabled(hdev);
 	}
 
 	err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,
