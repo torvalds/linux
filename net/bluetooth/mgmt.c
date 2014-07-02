@@ -5795,6 +5795,9 @@ void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
 {
 	struct mgmt_ev_new_conn_param ev;
 
+	if (!hci_is_identity_address(bdaddr, bdaddr_type))
+		return;
+
 	memset(&ev, 0, sizeof(ev));
 	bacpy(&ev.addr.bdaddr, bdaddr);
 	ev.addr.type = link_to_bdaddr(LE_LINK, bdaddr_type);
