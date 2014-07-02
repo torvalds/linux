@@ -42,6 +42,8 @@ struct at86rf230_local;
  * All timings are in us.
  */
 struct at86rf2xx_chip_data {
+	u16 t_off_to_aack;
+	u16 t_off_to_tx_on;
 	u16 t_frame;
 	u16 t_p_ack;
 	/* short interframe spacing time */
@@ -76,6 +78,9 @@ struct at86rf230_local {
 	struct ieee802154_dev *dev;
 	struct at86rf2xx_chip_data *data;
 	struct regmap *regmap;
+
+	struct completion state_complete;
+	struct at86rf230_state_change state;
 
 	struct at86rf230_state_change irq;
 
@@ -547,6 +552,19 @@ at86rf230_async_state_delay(void *context)
 	}
 
 	switch (ctx->from_state) {
+	case STATE_TRX_OFF:
+		switch (ctx->to_state) {
+		case STATE_RX_AACK_ON:
+			usleep_range(c->t_off_to_aack, c->t_off_to_aack + 10);
+			goto change;
+		case STATE_TX_ON:
+			usleep_range(c->t_off_to_tx_on,
+				     c->t_off_to_tx_on + 10);
+			goto change;
+		default:
+			break;
+		}
+		break;
 	case STATE_BUSY_RX_AACK:
 		switch (ctx->to_state) {
 		case STATE_TX_ON:
@@ -629,6 +647,39 @@ at86rf230_async_state_change(struct at86rf230_local *lp,
 	ctx->complete = complete;
 	return at86rf230_async_read_reg(lp, RG_TRX_STATUS, ctx,
 					at86rf230_async_state_change_start);
+}
+
+static void
+at86rf230_sync_state_change_complete(void *context)
+{
+	struct at86rf230_state_change *ctx = context;
+	struct at86rf230_local *lp = ctx->lp;
+
+	complete(&lp->state_complete);
+}
+
+/* This function do a sync framework above the async state change.
+ * Some callbacks of the IEEE 802.15.4 driver interface need to be
+ * handled synchronously.
+ */
+static int
+at86rf230_sync_state_change(struct at86rf230_local *lp, unsigned int state)
+{
+	int rc;
+
+	rc = at86rf230_async_state_change(lp, &lp->state, state,
+					  at86rf230_sync_state_change_complete);
+	if (rc) {
+		at86rf230_async_error(lp, &lp->state, rc);
+		return rc;
+	}
+
+	rc = wait_for_completion_timeout(&lp->state_complete,
+					 msecs_to_jiffies(100));
+	if (!rc)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 static void
@@ -957,72 +1008,15 @@ at86rf230_ed(struct ieee802154_dev *dev, u8 *level)
 }
 
 static int
-at86rf230_state(struct ieee802154_dev *dev, int state)
-{
-	struct at86rf230_local *lp = dev->priv;
-	int rc;
-	unsigned int val;
-	u8 desired_status;
-
-	might_sleep();
-
-	if (state == STATE_FORCE_TX_ON)
-		desired_status = STATE_TX_ON;
-	else if (state == STATE_FORCE_TRX_OFF)
-		desired_status = STATE_TRX_OFF;
-	else
-		desired_status = state;
-
-	do {
-		rc = at86rf230_read_subreg(lp, SR_TRX_STATUS, &val);
-		if (rc)
-			goto err;
-	} while (val == STATE_TRANSITION_IN_PROGRESS);
-
-	if (val == desired_status)
-		return 0;
-
-	/* state is equal to phy states */
-	rc = at86rf230_write_subreg(lp, SR_TRX_CMD, state);
-	if (rc)
-		goto err;
-
-	do {
-		rc = at86rf230_read_subreg(lp, SR_TRX_STATUS, &val);
-		if (rc)
-			goto err;
-	} while (val == STATE_TRANSITION_IN_PROGRESS);
-
-
-	if (val == desired_status ||
-	    (desired_status == STATE_RX_ON && val == STATE_BUSY_RX) ||
-	    (desired_status == STATE_RX_AACK_ON && val == STATE_BUSY_RX_AACK))
-		return 0;
-
-	pr_err("unexpected state change: %d, asked for %d\n", val, state);
-	return -EBUSY;
-
-err:
-	pr_err("error: %d\n", rc);
-	return rc;
-}
-
-static int
 at86rf230_start(struct ieee802154_dev *dev)
 {
-	u8 rc;
-
-	rc = at86rf230_state(dev, STATE_TX_ON);
-	if (rc)
-		return rc;
-
-	return at86rf230_state(dev, STATE_RX_AACK_ON);
+	return at86rf230_sync_state_change(dev->priv, STATE_RX_AACK_ON);
 }
 
 static void
 at86rf230_stop(struct ieee802154_dev *dev)
 {
-	at86rf230_state(dev, STATE_FORCE_TRX_OFF);
+	at86rf230_sync_state_change(dev->priv, STATE_FORCE_TRX_OFF);
 }
 
 static int
@@ -1242,6 +1236,8 @@ static struct ieee802154_ops at86rf230_ops = {
 };
 
 static struct at86rf2xx_chip_data at86rf233_data = {
+	.t_off_to_aack = 80,
+	.t_off_to_tx_on = 80,
 	.t_frame = 4096,
 	.t_p_ack = 545,
 	.t_sifs = 192,
@@ -1253,6 +1249,8 @@ static struct at86rf2xx_chip_data at86rf233_data = {
 };
 
 static struct at86rf2xx_chip_data at86rf231_data = {
+	.t_off_to_aack = 110,
+	.t_off_to_tx_on = 110,
 	.t_frame = 4096,
 	.t_p_ack = 545,
 	.t_sifs = 192,
@@ -1264,6 +1262,8 @@ static struct at86rf2xx_chip_data at86rf231_data = {
 };
 
 static struct at86rf2xx_chip_data at86rf212_data = {
+	.t_off_to_aack = 200,
+	.t_off_to_tx_on = 200,
 	.t_frame = 4096,
 	.t_p_ack = 545,
 	.t_sifs = 192,
@@ -1427,6 +1427,13 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 static void
 at86rf230_setup_spi_messages(struct at86rf230_local *lp)
 {
+	lp->state.lp = lp;
+	spi_message_init(&lp->state.msg);
+	lp->state.msg.context = &lp->state;
+	lp->state.trx.tx_buf = lp->state.buf;
+	lp->state.trx.rx_buf = lp->state.buf;
+	spi_message_add_tail(&lp->state.trx, &lp->state.msg);
+
 	lp->irq.lp = lp;
 	spi_message_init(&lp->irq.msg);
 	lp->irq.msg.context = &lp->irq;
@@ -1509,6 +1516,7 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	spin_lock_init(&lp->lock);
 	init_completion(&lp->tx_complete);
+	init_completion(&lp->state_complete);
 
 	spi_set_drvdata(spi, lp);
 
