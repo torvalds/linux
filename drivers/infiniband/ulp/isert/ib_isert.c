@@ -3215,7 +3215,7 @@ static void isert_wait_conn(struct iscsi_conn *conn)
 	pr_debug("isert_wait_conn: Starting \n");
 
 	mutex_lock(&isert_conn->conn_mutex);
-	if (isert_conn->conn_cm_id) {
+	if (isert_conn->conn_cm_id && !isert_conn->disconnect) {
 		pr_debug("Calling rdma_disconnect from isert_wait_conn\n");
 		rdma_disconnect(isert_conn->conn_cm_id);
 	}
