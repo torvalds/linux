@@ -156,16 +156,21 @@ static void xgbe_enable_rx_tx_ints(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_channel *channel;
+	enum xgbe_int int_id;
 	unsigned int i;
 
 	channel = pdata->channel;
 	for (i = 0; i < pdata->channel_count; i++, channel++) {
-		if (channel->tx_ring)
-			hw_if->enable_int(channel,
-					  XGMAC_INT_DMA_CH_SR_TI);
-		if (channel->rx_ring)
-			hw_if->enable_int(channel,
-					  XGMAC_INT_DMA_CH_SR_RI);
+		if (channel->tx_ring && channel->rx_ring)
+			int_id = XGMAC_INT_DMA_CH_SR_TI_RI;
+		else if (channel->tx_ring)
+			int_id = XGMAC_INT_DMA_CH_SR_TI;
+		else if (channel->rx_ring)
+			int_id = XGMAC_INT_DMA_CH_SR_RI;
+		else
+			continue;
+
+		hw_if->enable_int(channel, int_id);
 	}
 }
 
@@ -173,16 +178,21 @@ static void xgbe_disable_rx_tx_ints(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_channel *channel;
+	enum xgbe_int int_id;
 	unsigned int i;
 
 	channel = pdata->channel;
 	for (i = 0; i < pdata->channel_count; i++, channel++) {
-		if (channel->tx_ring)
-			hw_if->disable_int(channel,
-					   XGMAC_INT_DMA_CH_SR_TI);
-		if (channel->rx_ring)
-			hw_if->disable_int(channel,
-					   XGMAC_INT_DMA_CH_SR_RI);
+		if (channel->tx_ring && channel->rx_ring)
+			int_id = XGMAC_INT_DMA_CH_SR_TI_RI;
+		else if (channel->tx_ring)
+			int_id = XGMAC_INT_DMA_CH_SR_TI;
+		else if (channel->rx_ring)
+			int_id = XGMAC_INT_DMA_CH_SR_RI;
+		else
+			continue;
+
+		hw_if->disable_int(channel, int_id);
 	}
 }
 
@@ -1114,6 +1124,22 @@ struct net_device_ops *xgbe_get_netdev_ops(void)
 	return (struct net_device_ops *)&xgbe_netdev_ops;
 }
 
+static void xgbe_rx_refresh(struct xgbe_channel *channel)
+{
+	struct xgbe_prv_data *pdata = channel->pdata;
+	struct xgbe_desc_if *desc_if = &pdata->desc_if;
+	struct xgbe_ring *ring = channel->rx_ring;
+	struct xgbe_ring_data *rdata;
+
+	desc_if->realloc_skb(channel);
+
+	/* Update the Rx Tail Pointer Register with address of
+	 * the last cleaned entry */
+	rdata = XGBE_GET_DESC_DATA(ring, ring->rx.realloc_index - 1);
+	XGMAC_DMA_IOWRITE(channel, DMA_CH_RDTR_LO,
+			  lower_32_bits(rdata->rdesc_dma));
+}
+
 static int xgbe_tx_poll(struct xgbe_channel *channel)
 {
 	struct xgbe_prv_data *pdata = channel->pdata;
@@ -1171,7 +1197,6 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 {
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	struct xgbe_desc_if *desc_if = &pdata->desc_if;
 	struct xgbe_ring *ring = channel->rx_ring;
 	struct xgbe_ring_data *rdata;
 	struct xgbe_packet_data *packet;
@@ -1198,6 +1223,9 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 		cur_len = 0;
 
 read_again:
+		if (ring->dirty > (XGBE_RX_DESC_CNT >> 3))
+			xgbe_rx_refresh(channel);
+
 		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 
 		if (hw_if->dev_read(channel))
@@ -1285,16 +1313,6 @@ read_again:
 		napi_gro_receive(&pdata->napi, skb);
 	}
 
-	if (received) {
-		desc_if->realloc_skb(channel);
-
-		/* Update the Rx Tail Pointer Register with address of
-		 * the last cleaned entry */
-		rdata = XGBE_GET_DESC_DATA(ring, ring->rx.realloc_index - 1);
-		XGMAC_DMA_IOWRITE(channel, DMA_CH_RDTR_LO,
-				  lower_32_bits(rdata->rdesc_dma));
-	}
-
 	DBGPR("<--xgbe_rx_poll: received = %d\n", received);
 
 	return received;
@@ -1305,21 +1323,28 @@ static int xgbe_poll(struct napi_struct *napi, int budget)
 	struct xgbe_prv_data *pdata = container_of(napi, struct xgbe_prv_data,
 						   napi);
 	struct xgbe_channel *channel;
-	int processed;
+	int ring_budget;
+	int processed, last_processed;
 	unsigned int i;
 
 	DBGPR("-->xgbe_poll: budget=%d\n", budget);
 
-	/* Cleanup Tx ring first */
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++)
-		xgbe_tx_poll(channel);
-
-	/* Process Rx ring next */
 	processed = 0;
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++)
-		processed += xgbe_rx_poll(channel, budget - processed);
+	ring_budget = budget / pdata->rx_ring_count;
+	do {
+		last_processed = processed;
+
+		channel = pdata->channel;
+		for (i = 0; i < pdata->channel_count; i++, channel++) {
+			/* Cleanup Tx ring first */
+			xgbe_tx_poll(channel);
+
+			/* Process Rx ring next */
+			if (ring_budget > (budget - processed))
+				ring_budget = budget - processed;
+			processed += xgbe_rx_poll(channel, ring_budget);
+		}
+	} while ((processed < budget) && (processed != last_processed));
 
 	/* If we processed everything, we are done */
 	if (processed < budget) {

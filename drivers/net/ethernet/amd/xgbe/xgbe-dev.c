@@ -1306,55 +1306,47 @@ static int xgbe_is_last_desc(struct xgbe_ring_desc *rdesc)
 	return XGMAC_GET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, LD);
 }
 
-static void xgbe_save_interrupt_status(struct xgbe_channel *channel,
-				       enum xgbe_int_state int_state)
-{
-	unsigned int dma_ch_ier;
-
-	if (int_state == XGMAC_INT_STATE_SAVE) {
-		channel->saved_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
-		channel->saved_ier &= XGBE_DMA_INTERRUPT_MASK;
-	} else {
-		dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
-		dma_ch_ier |= channel->saved_ier;
-		XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
-	}
-}
-
 static int xgbe_enable_int(struct xgbe_channel *channel,
 			   enum xgbe_int int_id)
 {
+	unsigned int dma_ch_ier;
+
+	dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
+
 	switch (int_id) {
-	case XGMAC_INT_DMA_ISR_DC0IS:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, TIE, 1);
-		break;
 	case XGMAC_INT_DMA_CH_SR_TI:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, TIE, 1);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TPS:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, TXSE, 1);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TXSE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TBU:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, TBUE, 1);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TBUE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RI:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, RIE, 1);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RBU:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, RBUE, 1);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RPS:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, RSE, 1);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RSE, 1);
+		break;
+	case XGMAC_INT_DMA_CH_SR_TI_RI:
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_FBE:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, FBEE, 1);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, FBEE, 1);
 		break;
 	case XGMAC_INT_DMA_ALL:
-		xgbe_save_interrupt_status(channel, XGMAC_INT_STATE_RESTORE);
+		dma_ch_ier |= channel->saved_ier;
 		break;
 	default:
 		return -1;
 	}
+
+	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
 
 	return 0;
 }
@@ -1364,41 +1356,43 @@ static int xgbe_disable_int(struct xgbe_channel *channel,
 {
 	unsigned int dma_ch_ier;
 
+	dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
+
 	switch (int_id) {
-	case XGMAC_INT_DMA_ISR_DC0IS:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, TIE, 0);
-		break;
 	case XGMAC_INT_DMA_CH_SR_TI:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, TIE, 0);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TPS:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, TXSE, 0);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TXSE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TBU:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, TBUE, 0);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TBUE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RI:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, RIE, 0);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RBU:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, RBUE, 0);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RPS:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, RSE, 0);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RSE, 0);
+		break;
+	case XGMAC_INT_DMA_CH_SR_TI_RI:
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 0);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_FBE:
-		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_IER, FBEE, 0);
+		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, FBEE, 0);
 		break;
 	case XGMAC_INT_DMA_ALL:
-		xgbe_save_interrupt_status(channel, XGMAC_INT_STATE_SAVE);
-
-		dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
+		channel->saved_ier = dma_ch_ier & XGBE_DMA_INTERRUPT_MASK;
 		dma_ch_ier &= ~XGBE_DMA_INTERRUPT_MASK;
-		XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
 		break;
 	default:
 		return -1;
 	}
+
+	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
 
 	return 0;
 }
@@ -1453,6 +1447,7 @@ static void xgbe_config_dma_bus(struct xgbe_prv_data *pdata)
 
 	/* Set the System Bus mode */
 	XGMAC_IOWRITE_BITS(pdata, DMA_SBMR, UNDEF, 1);
+	XGMAC_IOWRITE_BITS(pdata, DMA_SBMR, BLEN_256, 1);
 }
 
 static void xgbe_config_dma_cache(struct xgbe_prv_data *pdata)
