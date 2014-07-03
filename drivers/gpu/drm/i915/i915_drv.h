@@ -589,12 +589,15 @@ struct i915_ctx_hang_stats {
 struct intel_context {
 	struct kref ref;
 	int id;
-	bool is_initialized;
 	uint8_t remap_slice;
 	struct drm_i915_file_private *file_priv;
-	struct drm_i915_gem_object *obj;
 	struct i915_ctx_hang_stats hang_stats;
 	struct i915_address_space *vm;
+
+	struct {
+		struct drm_i915_gem_object *rcs_state;
+		bool initialized;
+	} legacy_hw_ctx;
 
 	struct list_head link;
 };
