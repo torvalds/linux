@@ -503,15 +503,6 @@ static struct samsung_mux_clock s5p6442_mux_clks[] __initdata = {
 	MUX(MOUT_CLKSEL, "mout_clksel", mout_clksel_6442_p, CLK_OUT, 12, 5),
 };
 
-/*
- * Common fixed rate clocks generated outside the SoC.
- * NOTE: Needed only to support legacy board files.
- */
-static struct samsung_fixed_rate_clock ext_clks[] __initdata = {
-	[xxti] = FRATE(0, "xxti", NULL, CLK_IS_ROOT, 0),
-	[xusbxti] = FRATE(0, "xusbxti", NULL, CLK_IS_ROOT, 0),
-};
-
 /* S5PV210-specific fixed rate clocks generated inside the SoC. */
 static struct samsung_fixed_rate_clock s5pv210_frate_clks[] __initdata = {
 	FRATE(SCLK_HDMI27M, "sclk_hdmi27m", NULL, CLK_IS_ROOT, 27000000),
@@ -758,103 +749,10 @@ static struct samsung_gate_clock s5p6442_gate_clks[] __initdata = {
  * NOTE: Needed only to support legacy board files.
  */
 static struct samsung_clock_alias s5pv210_aliases[] = {
-	ALIAS(CLK_FIMC0, "s5pv210-fimc.0", "fimc"),
-	ALIAS(CLK_FIMC1, "s5pv210-fimc.1", "fimc"),
-	ALIAS(CLK_FIMC2, "s5pv210-fimc.2", "fimc"),
-	ALIAS(SCLK_FIMC0, "s5pv210-fimc.0", "sclk_fimc"),
-	ALIAS(SCLK_FIMC1, "s5pv210-fimc.1", "sclk_fimc"),
-	ALIAS(SCLK_FIMC2, "s5pv210-fimc.2", "sclk_fimc"),
 	ALIAS(DOUT_APLL, NULL, "armclk"),
 	ALIAS(DOUT_HCLKM, NULL, "hclk_msys"),
 	ALIAS(MOUT_DMC0, NULL, "sclk_dmc0"),
-	ALIAS(CLK_UART0, "s5pv210-uart.0", "uart"),
-	ALIAS(CLK_UART1, "s5pv210-uart.1", "uart"),
-	ALIAS(CLK_UART2, "s5pv210-uart.2", "uart"),
-	ALIAS(CLK_UART3, "s5pv210-uart.3", "uart"),
-	ALIAS(CLK_UART0, "s5pv210-uart.0", "clk_uart_baud0"),
-	ALIAS(CLK_UART1, "s5pv210-uart.1", "clk_uart_baud0"),
-	ALIAS(CLK_UART2, "s5pv210-uart.2", "clk_uart_baud0"),
-	ALIAS(CLK_UART3, "s5pv210-uart.3", "clk_uart_baud0"),
-	ALIAS(SCLK_UART0, "s5pv210-uart.0", "clk_uart_baud1"),
-	ALIAS(SCLK_UART1, "s5pv210-uart.1", "clk_uart_baud1"),
-	ALIAS(SCLK_UART2, "s5pv210-uart.2", "clk_uart_baud1"),
-	ALIAS(SCLK_UART3, "s5pv210-uart.3", "clk_uart_baud1"),
-	ALIAS(CLK_HSMMC0, "s3c-sdhci.0", "hsmmc"),
-	ALIAS(CLK_HSMMC1, "s3c-sdhci.1", "hsmmc"),
-	ALIAS(CLK_HSMMC2, "s3c-sdhci.2", "hsmmc"),
-	ALIAS(CLK_HSMMC3, "s3c-sdhci.3", "hsmmc"),
-	ALIAS(CLK_HSMMC0, "s3c-sdhci.0", "mmc_busclk.0"),
-	ALIAS(CLK_HSMMC1, "s3c-sdhci.1", "mmc_busclk.0"),
-	ALIAS(CLK_HSMMC2, "s3c-sdhci.2", "mmc_busclk.0"),
-	ALIAS(CLK_HSMMC3, "s3c-sdhci.3", "mmc_busclk.0"),
-	ALIAS(SCLK_MMC0, "s3c-sdhci.0", "mmc_busclk.2"),
-	ALIAS(SCLK_MMC1, "s3c-sdhci.1", "mmc_busclk.2"),
-	ALIAS(SCLK_MMC2, "s3c-sdhci.2", "mmc_busclk.2"),
-	ALIAS(SCLK_MMC3, "s3c-sdhci.3", "mmc_busclk.2"),
-	ALIAS(CLK_SPI0, "s5pv210-spi.0", "spi_busclk0"),
-	ALIAS(CLK_SPI1, "s5pv210-spi.1", "spi_busclk0"),
-	ALIAS(SCLK_SPI0, "s5pv210-spi.0", "spi_busclk1"),
-	ALIAS(SCLK_SPI1, "s5pv210-spi.1", "spi_busclk1"),
-	ALIAS(CLK_PDMA0, "dma-pl330.0", "apb_pclk"),
-	ALIAS(CLK_PDMA1, "dma-pl330.1", "apb_pclk"),
-	ALIAS(CLK_PWM, NULL, "timers"),
-	ALIAS(CLK_NANDXL, "s5pc110-onenand", "gate"),
-	ALIAS(CLK_JPEG, NULL, "jpeg"),
-	ALIAS(CLK_MFC, "s5p-mfc", "mfc"),
-	ALIAS(CLK_TVENC, "s5p-sdo", "dac"),
-	ALIAS(CLK_MIXER, "s5p-mixer", "mixer"),
-	ALIAS(CLK_VP, "s5p-mixer", "vp"),
-	ALIAS(CLK_HDMI, "s5p-hdmi", "hdmi"),
-	ALIAS(SCLK_HDMI, "s5p-hdmi", "hdmiphy"),
-	ALIAS(SCLK_DAC, NULL, "sclk_dac"),
-	ALIAS(CLK_USB_OTG, NULL, "usbotg"),
-	ALIAS(CLK_USB_OTG, NULL, "otg"),
-	ALIAS(CLK_USB_HOST, NULL, "usb-host"),
-	ALIAS(CLK_USB_HOST, NULL, "usbhost"),
-	ALIAS(CLK_FIMD, "s5pv210-fb", "lcd"),
-	ALIAS(CLK_CFCON, "s5pv210-pata.0", "cfcon"),
-	ALIAS(CLK_WDT, NULL, "watchdog"),
-	ALIAS(CLK_RTC, NULL, "rtc"),
-	ALIAS(CLK_I2C0, "s3c2440-i2c.0", "i2c"),
-	ALIAS(CLK_I2C1, "s3c2440-i2c.1", "i2c"),
-	ALIAS(CLK_I2C2, "s3c2440-i2c.2", "i2c"),
-	ALIAS(CLK_I2C_HDMI_PHY, "s3c2440-hdmiphy-i2c", "i2c"),
-	ALIAS(CLK_TSADC, NULL, "adc"),
-	ALIAS(CLK_KEYIF, "s5pv210-keypad", "keypad"),
-	ALIAS(CLK_I2S0, "samsung-i2s.0", "iis"),
-	ALIAS(CLK_I2S1, "samsung-i2s.1", "iis"),
-	ALIAS(CLK_I2S2, "samsung-i2s.2", "iis"),
-	ALIAS(CLK_SPDIF, NULL, "spdif"),
-	ALIAS(SCLK_AUDIO0, "soc-audio.0", "sclk_audio"),
-	ALIAS(SCLK_AUDIO1, "soc-audio.1", "sclk_audio"),
-	ALIAS(SCLK_AUDIO2, "soc-audio.2", "sclk_audio"),
-	ALIAS(CLK_MFC, "s5p-mfc", "sclk_mfc"),
-	ALIAS(SCLK_CAM0, "sclk_cam0", "sclk_cam0"),
-	ALIAS(SCLK_CAM1, "sclk_cam1", "sclk_cam1"),
-	ALIAS(CLK_G2D, "s5p-g2d", "fimg2d"),
-	ALIAS(DOUT_G2D, "s5p-g2d", "sclk_fimg2d"),
-	ALIAS(CLK_CSIS, "s5p-mipi-csis", "csis"),
-	ALIAS(SCLK_CSIS, "s5p-mipi-csis", "sclk_csis"),
-	ALIAS(SCLK_PWM, "samsung-pwm", "pwm-tclk0"),
-	ALIAS(SCLK_PWM, "samsung-pwm", "pwm-tclk1"),
-	ALIAS(SCLK_FIMD, NULL, "sclk_fimd"),
-	ALIAS(MOUT_CAM0, NULL, "mout_cam0"),
-	ALIAS(MOUT_CAM1, NULL, "mout_cam1"),
-	ALIAS(MOUT_CSIS, NULL, "mout_csis"),
-	ALIAS(MOUT_VPLL, NULL, "sclk_vpll"),
-	ALIAS(SCLK_MIXER, NULL, "sclk_mixer"),
-	ALIAS(SCLK_HDMI, NULL, "sclk_hdmi"),
 };
-
-static void __init s5pv210_clk_register_fixed_ext(
-					struct samsung_clk_provider *ctx,
-					unsigned long xxti_f,
-					unsigned long xusbxti_f)
-{
-	ext_clks[xxti].fixed_rate = xxti_f;
-	ext_clks[xusbxti].fixed_rate = xusbxti_f;
-	samsung_clk_register_fixed_rate(ctx, ext_clks, ARRAY_SIZE(ext_clks));
-}
 
 /* S5PV210-specific PLLs. */
 static struct samsung_pll_clock s5pv210_pll_clks[] __initdata = {
@@ -890,10 +788,6 @@ static void __init __s5pv210_clk_init(struct device_node *np,
 	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
 	if (!ctx)
 		panic("%s: unable to allocate context.\n", __func__);
-
-	/* Register external clocks (needed by board files). */
-	if (!np)
-		s5pv210_clk_register_fixed_ext(ctx, xxti_f, xusbxti_f);
 
 	samsung_clk_register_mux(ctx, early_mux_clks,
 					ARRAY_SIZE(early_mux_clks));
@@ -939,20 +833,6 @@ static void __init __s5pv210_clk_init(struct device_node *np,
 		is_s5p6442 ? "S5P6442" : "S5PV210",
 		_get_rate("mout_apll"), _get_rate("mout_mpll"),
 		_get_rate("mout_epll"), _get_rate("mout_vpll"));
-}
-
-/**
- * s5pv210_clk_init
- * @xxti_f: Rate of XXTI input clock.
- * @xusbxti_f: Rate of XUSBXTI input clock.
- * @base:
- */
-void __init s5pv210_clk_init(unsigned long xxti_f, unsigned long xusbxti_f,
-			     void __iomem *base)
-{
-	reg_base = base;
-
-	__s5pv210_clk_init(NULL, xxti_f, xusbxti_f, false);
 }
 
 static void __init s5pv210_clk_dt_init(struct device_node *np)
