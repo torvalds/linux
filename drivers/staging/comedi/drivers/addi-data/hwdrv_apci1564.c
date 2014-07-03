@@ -21,8 +21,6 @@
  *
  */
 
-#include "../addi_watchdog.h"
-
 #define APCI1564_ADDRESS_RANGE				128
 
 /* Digital Input IRQ Function Selection */
