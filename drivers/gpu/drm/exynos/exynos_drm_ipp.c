@@ -172,18 +172,8 @@ static void *ipp_find_obj(struct idr *id_idr, struct mutex *lock, u32 id)
 {
 	void *obj;
 
-	DRM_DEBUG_KMS("id[%d]\n", id);
-
 	mutex_lock(lock);
-
-	/* find object using handle */
 	obj = idr_find(id_idr, id);
-	if (!obj) {
-		DRM_ERROR("failed to find object.\n");
-		mutex_unlock(lock);
-		return ERR_PTR(-ENODEV);
-	}
-
 	mutex_unlock(lock);
 
 	return obj;
@@ -215,9 +205,9 @@ static struct exynos_drm_ippdrv *ipp_find_driver(struct ipp_context *ctx,
 		/* find ipp driver using idr */
 		ippdrv = ipp_find_obj(&ctx->ipp_idr, &ctx->ipp_lock,
 			ipp_id);
-		if (IS_ERR(ippdrv)) {
+		if (!ippdrv) {
 			DRM_ERROR("not found ipp%d driver.\n", ipp_id);
-			return ippdrv;
+			return ERR_PTR(-ENODEV);
 		}
 
 		/*
@@ -339,10 +329,10 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 		 */
 		ippdrv = ipp_find_obj(&ctx->ipp_idr, &ctx->ipp_lock,
 						prop_list->ipp_id);
-		if (IS_ERR(ippdrv)) {
+		if (!ippdrv) {
 			DRM_ERROR("not found ipp%d driver.\n",
 					prop_list->ipp_id);
-			return PTR_ERR(ippdrv);
+			return -ENODEV;
 		}
 
 		*prop_list = ippdrv->prop_list;
@@ -920,9 +910,9 @@ int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
 	/* find command node */
 	c_node = ipp_find_obj(&ctx->prop_idr, &ctx->prop_lock,
 		qbuf->prop_id);
-	if (IS_ERR(c_node)) {
+	if (!c_node) {
 		DRM_ERROR("failed to get command node.\n");
-		return PTR_ERR(c_node);
+		return -ENODEV;
 	}
 
 	/* buffer control */
@@ -1055,9 +1045,9 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 
 	c_node = ipp_find_obj(&ctx->prop_idr, &ctx->prop_lock,
 		cmd_ctrl->prop_id);
-	if (IS_ERR(c_node)) {
+	if (!c_node) {
 		DRM_ERROR("invalid command node list.\n");
-		return PTR_ERR(c_node);
+		return -ENODEV;
 	}
 
 	if (!exynos_drm_ipp_check_valid(ippdrv->dev, cmd_ctrl->ctrl,
