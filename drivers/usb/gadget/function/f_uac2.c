@@ -348,14 +348,34 @@ static int uac2_pcm_open(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		spin_lock_init(&uac2->p_prm.lock);
 		runtime->hw.rate_min = p_srate;
-		runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE; /* ! p_ssize ! */
+		switch (p_ssize) {
+		case 3:
+			runtime->hw.formats = SNDRV_PCM_FMTBIT_S24_3LE;
+			break;
+		case 4:
+			runtime->hw.formats = SNDRV_PCM_FMTBIT_S32_LE;
+			break;
+		default:
+			runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
+			break;
+		}
 		runtime->hw.channels_min = num_channels(p_chmask);
 		runtime->hw.period_bytes_min = 2 * uac2->p_prm.max_psize
 						/ runtime->hw.periods_min;
 	} else {
 		spin_lock_init(&uac2->c_prm.lock);
 		runtime->hw.rate_min = c_srate;
-		runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE; /* ! c_ssize ! */
+		switch (c_ssize) {
+		case 3:
+			runtime->hw.formats = SNDRV_PCM_FMTBIT_S24_3LE;
+			break;
+		case 4:
+			runtime->hw.formats = SNDRV_PCM_FMTBIT_S32_LE;
+			break;
+		default:
+			runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
+			break;
+		}
 		runtime->hw.channels_min = num_channels(c_chmask);
 		runtime->hw.period_bytes_min = 2 * uac2->c_prm.max_psize
 						/ runtime->hw.periods_min;
