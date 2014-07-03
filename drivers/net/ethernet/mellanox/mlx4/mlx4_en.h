@@ -343,6 +343,7 @@ struct mlx4_en_cq {
 #define CQ_USER_PEND (MLX4_EN_CQ_STATE_POLL | MLX4_EN_CQ_STATE_POLL_YIELD)
 	spinlock_t poll_lock; /* protects from LLS/napi conflicts */
 #endif  /* CONFIG_NET_RX_BUSY_POLL */
+	struct irq_desc *irq_desc;
 };
 
 struct mlx4_en_port_profile {
