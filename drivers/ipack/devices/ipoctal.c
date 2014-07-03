@@ -323,13 +323,6 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 			 &block_regs[i].w.imr);
 	}
 
-	/*
-	 * IP-OCTAL has different addresses to copy its IRQ vector.
-	 * Depending of the carrier these addresses are accesible or not.
-	 * More info in the datasheet.
-	 */
-	ipoctal->dev->bus->ops->request_irq(ipoctal->dev,
-				       ipoctal_irq_handler, ipoctal);
 	/* Dummy write */
 	iowrite8(1, ipoctal->mem8_space + 1);
 
@@ -389,6 +382,14 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		}
 		dev_set_drvdata(tty_dev, channel);
 	}
+
+	/*
+	 * IP-OCTAL has different addresses to copy its IRQ vector.
+	 * Depending of the carrier these addresses are accesible or not.
+	 * More info in the datasheet.
+	 */
+	ipoctal->dev->bus->ops->request_irq(ipoctal->dev,
+				       ipoctal_irq_handler, ipoctal);
 
 	return 0;
 }
