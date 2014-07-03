@@ -285,7 +285,10 @@ static int apci1564_cos_insn_config(struct comedi_device *dev,
 			devpriv->ctrl = 0;
 			devpriv->mode1 = 0;
 			devpriv->mode2 = 0;
-			apci1564_reset(dev);
+			outl(0x0, devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
+			inl(devpriv->amcc_iobase + APCI1564_DI_INT_STATUS_REG);
+			outl(0x0, devpriv->amcc_iobase + APCI1564_DI_INT_MODE1_REG);
+			outl(0x0, devpriv->amcc_iobase + APCI1564_DI_INT_MODE2_REG);
 			break;
 		case COMEDI_DIGITAL_TRIG_ENABLE_EDGES:
 			if (devpriv->ctrl != (APCI1564_DI_INT_ENABLE |
