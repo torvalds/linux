@@ -1708,7 +1708,14 @@ static void complete_scsi_command(struct CommandList *cp)
 
 	cmd->result |= ei->ScsiStatus;
 
-	/* copy the sense data whether we need to or not. */
+	scsi_set_resid(cmd, ei->ResidualCnt);
+	if (ei->CommandStatus == 0) {
+		cmd_free(h, cp);
+		cmd->scsi_done(cmd);
+		return;
+	}
+
+	/* copy the sense data */
 	if (SCSI_SENSE_BUFFERSIZE < sizeof(ei->SenseInfo))
 		sense_data_size = SCSI_SENSE_BUFFERSIZE;
 	else
@@ -1717,13 +1724,6 @@ static void complete_scsi_command(struct CommandList *cp)
 		sense_data_size = ei->SenseLen;
 
 	memcpy(cmd->sense_buffer, ei->SenseInfo, sense_data_size);
-	scsi_set_resid(cmd, ei->ResidualCnt);
-
-	if (ei->CommandStatus == 0) {
-		cmd_free(h, cp);
-		cmd->scsi_done(cmd);
-		return;
-	}
 
 	/* For I/O accelerator commands, copy over some fields to the normal
 	 * CISS header used below for error handling.
