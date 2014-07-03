@@ -187,6 +187,24 @@
 		#size-cells = <1>;
 		ranges;
 
+		ahb1_rst: reset@01c202c0 {
+			#reset-cells = <1>;
+			compatible = "allwinner,sun6i-a31-clock-reset";
+			reg = <0x01c202c0 0xc>;
+		};
+
+		apb1_rst: reset@01c202d0 {
+			#reset-cells = <1>;
+			compatible = "allwinner,sun6i-a31-clock-reset";
+			reg = <0x01c202d0 0x4>;
+		};
+
+		apb2_rst: reset@01c202d8 {
+			#reset-cells = <1>;
+			compatible = "allwinner,sun6i-a31-clock-reset";
+			reg = <0x01c202d8 0x4>;
+		};
+
 		timer@01c20c00 {
 			compatible = "allwinner,sun4i-a10-timer";
 			reg = <0x01c20c00 0xa0>;
@@ -208,6 +226,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 16>;
+			resets = <&apb2_rst 16>;
 			status = "disabled";
 		};
 
@@ -218,6 +237,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 17>;
+			resets = <&apb2_rst 17>;
 			status = "disabled";
 		};
 
@@ -228,6 +248,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 18>;
+			resets = <&apb2_rst 18>;
 			status = "disabled";
 		};
 
@@ -238,6 +259,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 19>;
+			resets = <&apb2_rst 19>;
 			status = "disabled";
 		};
 
@@ -248,6 +270,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 20>;
+			resets = <&apb2_rst 20>;
 			status = "disabled";
 		};
 
