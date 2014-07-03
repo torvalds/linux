@@ -184,16 +184,16 @@ ENDPROC(cpu_pj4b_do_suspend)
 
 ENTRY(cpu_pj4b_do_resume)
 	ldmia	r0!, {r6 - r10}
-	mcr	p15, 1, r6, c15, c1, 0  @ save CP15 - extra features
-	mcr	p15, 1, r7, c15, c2, 0	@ save CP15 - Aux Func Modes Ctrl 0
-	mcr	p15, 1, r8, c15, c1, 2	@ save CP15 - Aux Debug Modes Ctrl 2
-	mcr	p15, 1, r9, c15, c1, 1  @ save CP15 - Aux Debug Modes Ctrl 1
-	mcr	p15, 0, r10, c9, c14, 0  @ save CP15 - PMC
+	mcr	p15, 1, r6, c15, c1, 0  @ restore CP15 - extra features
+	mcr	p15, 1, r7, c15, c2, 0	@ restore CP15 - Aux Func Modes Ctrl 0
+	mcr	p15, 1, r8, c15, c1, 2	@ restore CP15 - Aux Debug Modes Ctrl 2
+	mcr	p15, 1, r9, c15, c1, 1  @ restore CP15 - Aux Debug Modes Ctrl 1
+	mcr	p15, 0, r10, c9, c14, 0  @ restore CP15 - PMC
 	b cpu_v7_do_resume
 ENDPROC(cpu_pj4b_do_resume)
 #endif
 .globl	cpu_pj4b_suspend_size
-.equ	cpu_pj4b_suspend_size, 4 * 14
+.equ	cpu_pj4b_suspend_size, cpu_v7_suspend_size + 4 * 5
 
 #endif
 
