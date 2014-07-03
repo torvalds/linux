@@ -5198,6 +5198,9 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			goto unlock;
 		}
 
+		if (params->auto_connect == HCI_AUTO_CONN_REPORT)
+			hdev->pend_le_reports--;
+
 		hci_pend_le_conn_del(hdev, &cp->addr.bdaddr, addr_type);
 		list_del(&params->list);
 		kfree(params);
