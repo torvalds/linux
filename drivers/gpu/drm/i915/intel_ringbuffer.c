@@ -48,9 +48,8 @@ static inline int __ring_space(int head, int tail, int size)
 	return space;
 }
 
-static inline int ring_space(struct intel_engine_cs *ring)
+static inline int ring_space(struct intel_ringbuffer *ringbuf)
 {
-	struct intel_ringbuffer *ringbuf = ring->buffer;
 	return __ring_space(ringbuf->head & HEAD_ADDR, ringbuf->tail, ringbuf->size);
 }
 
@@ -545,7 +544,7 @@ static int init_ring_common(struct intel_engine_cs *ring)
 	else {
 		ringbuf->head = I915_READ_HEAD(ring);
 		ringbuf->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
-		ringbuf->space = ring_space(ring);
+		ringbuf->space = ring_space(ringbuf);
 		ringbuf->last_retired_head = -1;
 	}
 
@@ -1639,7 +1638,7 @@ static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
 		ringbuf->head = ringbuf->last_retired_head;
 		ringbuf->last_retired_head = -1;
 
-		ringbuf->space = ring_space(ring);
+		ringbuf->space = ring_space(ringbuf);
 		if (ringbuf->space >= n)
 			return 0;
 	}
@@ -1662,7 +1661,7 @@ static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
 	ringbuf->head = ringbuf->last_retired_head;
 	ringbuf->last_retired_head = -1;
 
-	ringbuf->space = ring_space(ring);
+	ringbuf->space = ring_space(ringbuf);
 	return 0;
 }
 
@@ -1691,7 +1690,7 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 	trace_i915_ring_wait_begin(ring);
 	do {
 		ringbuf->head = I915_READ_HEAD(ring);
-		ringbuf->space = ring_space(ring);
+		ringbuf->space = ring_space(ringbuf);
 		if (ringbuf->space >= n) {
 			ret = 0;
 			break;
@@ -1743,7 +1742,7 @@ static int intel_wrap_ring_buffer(struct intel_engine_cs *ring)
 		iowrite32(MI_NOOP, virt++);
 
 	ringbuf->tail = 0;
-	ringbuf->space = ring_space(ring);
+	ringbuf->space = ring_space(ringbuf);
 
 	return 0;
 }
