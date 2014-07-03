@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/clk/at91_pmc.h>
 
 #include <asm/proc-fns.h>
@@ -344,6 +345,30 @@ static void __init at91sam9263_initialize(void)
 	at91_gpio_init(at91sam9263_gpio, 5);
 }
 
+static struct resource rstc_resources[] = {
+	[0] = {
+		.start  = AT91SAM9263_BASE_RSTC,
+		.end    = AT91SAM9263_BASE_RSTC + SZ_16 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = AT91SAM9263_BASE_SDRAMC0,
+		.end    = AT91SAM9263_BASE_SDRAMC0 + SZ_512 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device rstc_device = {
+	.name           = "at91-sam9260-reset",
+	.resource       = rstc_resources,
+	.num_resources  = ARRAY_SIZE(rstc_resources),
+};
+
+static void __init at91sam9263_register_devices(void)
+{
+	platform_device_register(&rstc_device);
+}
+
 /* --------------------------------------------------------------------
  *  Interrupt initialization
  * -------------------------------------------------------------------- */
@@ -392,5 +417,6 @@ AT91_SOC_START(at91sam9263)
 	.extern_irq = (1 << AT91SAM9263_ID_IRQ0) | (1 << AT91SAM9263_ID_IRQ1),
 	.ioremap_registers = at91sam9263_ioremap_registers,
 	.register_clocks = at91sam9263_register_clocks,
+	.register_devices = at91sam9263_register_devices,
 	.init = at91sam9263_initialize,
 AT91_SOC_END

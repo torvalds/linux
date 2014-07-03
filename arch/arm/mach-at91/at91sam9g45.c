@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk/at91_pmc.h>
+#include <linux/platform_device.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -393,6 +394,35 @@ static void __init at91sam9g45_initialize(void)
 	at91_gpio_init(at91sam9g45_gpio, 5);
 }
 
+static struct resource rstc_resources[] = {
+	[0] = {
+		.start  = AT91SAM9G45_BASE_RSTC,
+		.end    = AT91SAM9G45_BASE_RSTC + SZ_16 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = AT91SAM9G45_BASE_DDRSDRC1,
+		.end    = AT91SAM9G45_BASE_DDRSDRC1 + SZ_512 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[2] = {
+		.start  = AT91SAM9G45_BASE_DDRSDRC0,
+		.end    = AT91SAM9G45_BASE_DDRSDRC0 + SZ_512 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device rstc_device = {
+	.name           = "at91-sam9g45-reset",
+	.resource       = rstc_resources,
+	.num_resources  = ARRAY_SIZE(rstc_resources),
+};
+
+static void __init at91sam9g45_register_devices(void)
+{
+	platform_device_register(&rstc_device);
+}
+
 /* --------------------------------------------------------------------
  *  Interrupt initialization
  * -------------------------------------------------------------------- */
@@ -441,5 +471,6 @@ AT91_SOC_START(at91sam9g45)
 	.extern_irq = (1 << AT91SAM9G45_ID_IRQ0),
 	.ioremap_registers = at91sam9g45_ioremap_registers,
 	.register_clocks = at91sam9g45_register_clocks,
+	.register_devices = at91sam9g45_register_devices,
 	.init = at91sam9g45_initialize,
 AT91_SOC_END
