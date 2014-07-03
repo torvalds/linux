@@ -455,6 +455,7 @@
 	status = "okay";
 	rockchip,mirror = <NO_MIRROR>;
 	rockchip,cabc_mode = <0>;
+	rockchip,iommu-enabled = <0>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
 		/*
@@ -481,6 +482,7 @@
 &lcdc1 {
 	status = "okay";
 	rockchip,mirror = <NO_MIRROR>;
+	rockchip,iommu-enabled = <0>;
 };
 
 &hdmi {
