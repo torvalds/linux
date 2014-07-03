@@ -388,27 +388,6 @@ static inline int sctp_list_single_entry(struct list_head *head)
 	return (head->next != head) && (head->next == head->prev);
 }
 
-/* Generate a random jitter in the range of -50% ~ +50% of input RTO. */
-static inline __s32 sctp_jitter(__u32 rto)
-{
-	static __u32 sctp_rand;
-	__s32 ret;
-
-	/* Avoid divide by zero. */
-	if (!rto)
-		rto = 1;
-
-	sctp_rand += jiffies;
-	sctp_rand ^= (sctp_rand << 12);
-	sctp_rand ^= (sctp_rand >> 20);
-
-	/* Choose random number from 0 to rto, then move to -50% ~ +50%
-	 * of rto.
-	 */
-	ret = sctp_rand % rto - (rto >> 1);
-	return ret;
-}
-
 /* Break down data chunks at this point.  */
 static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 {
