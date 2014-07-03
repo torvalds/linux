@@ -11670,6 +11670,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Acer C720 and C720P Chromebooks (Celeron 2955U) have backlights */
 	{ 0x0a06, 0x1025, 0x0a11, quirk_backlight_present },
+
+	/* Toshiba CB35 Chromebook (Celeron 2955U) */
+	{ 0x0a06, 0x1179, 0x0a88, quirk_backlight_present },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
