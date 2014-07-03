@@ -30,6 +30,7 @@ struct rk_hdmi_device {
 	int regsize_phy;
 	struct clk *pd;
 	struct clk *hclk;	/* HDMI AHP clk */
+	struct clk *pclk;	/* HDMI APB clk */
 	struct delayed_work rk616_delay_work;
 	struct work_struct rk616_irq_work_struct;
 	struct mfd_rk616 *rk616_drv;

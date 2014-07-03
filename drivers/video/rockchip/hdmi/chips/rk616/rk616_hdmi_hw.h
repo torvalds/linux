@@ -1,6 +1,8 @@
 #ifndef _RK616_HDMI_HW_H
 #define _RK616_HDMI_HW_H
 
+#define SOC_CONFIG_RK3036
+
 #define RK616_HDMI_BASE 0x400
 enum PWR_MODE {
 	NORMAL,
@@ -223,7 +225,9 @@ enum {
 
 #define INTERRUPT_MASK1			0xc0
 #define INTERRUPT_STATUS1		0xc1
+	#ifndef SOC_CONFIG_RK3036
 #define m_INT_HOTPLUG		(1 << 7)
+	#endif
 #define	m_INT_ACTIVE_VSYNC	(1 << 5)
 #define m_INT_EDID_READY	(1 << 2)
 
@@ -234,9 +238,15 @@ enum {
 #define m_INT_HDCP_OK		(1 << 4)
 
 #define HDMI_STATUS			0xc8
-#define m_HOTPLUG		(1 << 7)
-#define m_DDC_SDA		(1 << 5)
-#define m_DDC_SDC		(1 << 4)
+	#define m_HOTPLUG	(1 << 7)
+	#ifndef SOC_CONFIG_RK3036
+	#define m_DDC_SDA	(1 << 5)
+	#define m_DDC_SDC	(1 << 4)
+	#else
+	#define m_MASK_INT_HOTPLUG	(1 << 5)
+	#define m_INT_HOTPLUG		(1 << 1)
+	#endif
+
 
 #define HDMI_COLORBAR                   0xc9
 
@@ -282,7 +292,7 @@ enum {
 #define PHY_PRE_DIV_RATIO		0xed
 #define v_PRE_DIV_RATIO(n)	(n & 0x1f)
 
-#ifndef CONFIG_ARCH_RK3026
+#if !defined(CONFIG_ARCH_RK3026) && !defined(SOC_CONFIG_RK3036)
 static inline int hdmi_readl(struct rk_hdmi_device *hdmi_dev,
 			     u16 offset, u32 *val)
 {
@@ -342,17 +352,18 @@ static inline int hdmi_msk_reg(struct rk_hdmi_device *hdmi_dev, u16 offset,
 	int ret = 0;
 	u32 temp;
 
-	temp = readl_relaxed(hdmi->regbase + (offset) * 0x04) & (0xFF - (msk));
-	writel_relaxed(temp | ((val) & (msk)), hdmi->regbase + (offset) * 0x04);
+	temp = readl_relaxed(hdmi_dev->regbase + (offset) * 0x04) & (0xFF - (msk));
+	writel_relaxed(temp | ((val) & (msk)), hdmi_dev->regbase + (offset) * 0x04);
 	return ret;
 }
-
+#if defined(CONFIG_ARCH_RK3026)
 static inline void rk3028_hdmi_reset_pclk(void)
 {
 	writel_relaxed(0x00010001, RK2928_CRU_BASE + 0x128);
 	msleep(100);
 	writel_relaxed(0x00010000, RK2928_CRU_BASE + 0x128);
 }
+#endif
 #endif
 
 extern int rk616_hdmi_initial(struct hdmi *hdmi);

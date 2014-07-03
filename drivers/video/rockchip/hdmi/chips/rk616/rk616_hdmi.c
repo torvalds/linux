@@ -92,7 +92,7 @@ static const struct file_operations rk616_hdmi_reg_fops = {
 };
 #endif
 
-#if defined(CONFIG_ARCH_RK3026)
+#if defined(CONFIG_ARCH_RK3026) || defined(SOC_CONFIG_RK3036)
 static int rk616_hdmi_clk_enable(struct rk_hdmi_device *hdmi_dev)
 {
 	if (!hdmi_dev->clk_on) {
@@ -261,7 +261,7 @@ static irqreturn_t rk616_hdmi_irq(int irq, void *dev_id)
 		disable_irq_nosync(hdmi_drv->irq);
 		queue_work(hdmi_drv->workqueue, rk616_irq_work_struct);
 	} else {
-		/* 3028a hdmi */
+		/* 3028a/3036 hdmi */
 		if ((hdmi_drv->suspend == 0) && (hdmi_drv->enable == 1)) {
 			hdmi_dbg(hdmi_drv->dev,
 				 "line = %d, rk616_hdmi_irq irq triggered.\n",
@@ -284,7 +284,7 @@ static int rk616_hdmi_drv_init(struct hdmi *hdmi_drv)
 	lcdc_id = (screen.lcdc_id == 0) ? 1 : 0;
 	/* lcdc source select */
 	/* wait to modify!!
-#if defined(CONFIG_ARCH_RK3026)
+#if defined(CONFIG_ARCH_RK3026) || defined(SOC_CONFIG_RK3036)
 	grf_writel(HDMI_SEL_LCDC(lcdc_id), RK3036_GRF_SOC_CON6);
 #endif
 	*/
@@ -310,10 +310,20 @@ static int rk616_hdmi_drv_init(struct hdmi *hdmi_drv)
 	return ret;
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id rk616_hdmi_of_match[] = {
+	{.compatible = "rockchip,rk616-hdmi",},
+	{.compatible = "rockchip,rk3036-hdmi",},
+	{}
+};
+
+MODULE_DEVICE_TABLE(of, rk616_hdmi_of_match);
+#endif
+
 static int rk616_hdmi_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct rk_hdmi_device *hdmi_dev;
+	//struct rk_hdmi_device *hdmi_dev;
 	struct hdmi *hdmi_drv;
 	struct resource __maybe_unused *mem;
 	struct resource __maybe_unused *res;
@@ -330,7 +340,7 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hdmi_dev);
 	spin_lock_init(&hdmi_dev->reg_lock);
 
-#ifdef CONFIG_ARCH_RK3026
+#if defined(CONFIG_ARCH_RK3026) || defined(SOC_CONFIG_RK3036)
 	hdmi_dev->rk616_drv = NULL;
 #else
 	hdmi_dev->rk616_drv = dev_get_drvdata(pdev->dev.parent);
@@ -354,7 +364,7 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&(hdmi_drv->delay_work), hdmi_work);
 	INIT_DELAYED_WORK(&hdmi_dev->rk616_delay_work, rk616_delay_work_func);
 
-#ifdef CONFIG_ARCH_RK3026
+#if defined(CONFIG_ARCH_RK3026) || defined(SOC_CONFIG_RK3036)
 	/* enable clk */
 	hdmi_dev->hclk = devm_clk_get(hdmi_drv->dev, "pclk_hdmi");
 	if (IS_ERR(hdmi_dev->hclk)) {
@@ -362,12 +372,12 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err1;
 	}
-	rk616_hdmi_clk_enable();	/* enable clk may move to irq func */
+	rk616_hdmi_clk_enable(hdmi_dev);	/* enable clk may move to irq func */
 
 	/* request and remap iomem */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(hdmi_dev->dev, "Unable to get register resource\n");
+		dev_err(hdmi_drv->dev, "Unable to get register resource\n");
 		ret = -ENXIO;
 		goto err2;
 	}
@@ -384,8 +394,8 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 	/* get the IRQ */
 	hdmi_drv->irq = platform_get_irq(pdev, 0);
 	if (hdmi_drv->irq <= 0) {
-		dev_err(hdmi->dev, "failed to get hdmi irq resource (%d).\n",
-			hdmi->irq);
+		dev_err(hdmi_drv->dev, "failed to get hdmi irq resource (%d).\n",
+			hdmi_drv->irq);
 		hdmi_drv->irq = 0;
 	} else {
 		/* request the IRQ */
@@ -459,7 +469,7 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 	dev_info(hdmi_drv->dev, "rk616 hdmi probe success.\n");
 	return 0;
 
-#if defined(CONFIG_ARCH_RK3026)
+#if defined(CONFIG_ARCH_RK3026) || defined(SOC_CONFIG_RK3036)
 err2:
 	rk616_hdmi_clk_disable(hdmi_dev);
 #endif
@@ -520,7 +530,8 @@ static int rk616_hdmi_remove(struct platform_device *pdev)
 
 static void rk616_hdmi_shutdown(struct platform_device *pdev)
 {
-	struct hdmi *hdmi_drv;
+	struct rk_hdmi_device *hdmi_dev = platform_get_drvdata(pdev);
+	struct hdmi *hdmi_drv = NULL;
 
 	if (hdmi_dev) {
 		hdmi_drv = &hdmi_dev->driver;
@@ -541,26 +552,14 @@ static void rk616_hdmi_shutdown(struct platform_device *pdev)
 	hdmi_dbg(hdmi_drv->dev, "rk616 hdmi shut down.\n");
 }
 
-#if defined(CONFIG_OF)
-static const struct of_device_id rk616_hdmi_of_match[] = {
-	{.compatible = "rockchip,rk616-hdmi",},
-	{}
-};
-
-MODULE_DEVICE_TABLE(of, rk616_hdmi_of_match);
-#endif
 
 static struct platform_driver rk616_hdmi_driver = {
 	.probe = rk616_hdmi_probe,
 	.remove = rk616_hdmi_remove,
 	.driver = {
-#ifdef CONFIG_ARCH_RK3026
-		   .name = "rk3026-hdmi",
-#else
 		   .name = "rk616-hdmi",
-#endif
 		   .owner = THIS_MODULE,
-		   .of_match_table = of_match_ptr(rk616_hdmi_of_match),
+		   .of_match_table = of_match_ptr(rk616_hdmi_of_match),		   
 		   },
 	.shutdown = rk616_hdmi_shutdown,
 };

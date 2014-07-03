@@ -399,6 +399,19 @@
 		clocks = <&clk_gates1 6>, <&clk_gates7 3>;
 		clock-names = "clk_usbphy1", "hclk_usb1";
 	};
+	  
+	hdmi: hdmi@20034000 {
+		compatible = "rockchip,rk3036-hdmi";
+		reg = <0x20034000 0x4000>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,hdmi_lcdc_source = <0>;
+		//pinctrl-names = "default", "gpio";
+		//pinctrl-0 = <&i2c5_sda &i2c5_scl>;
+		//pinctrl-1 = <&i2c5_gpio>;
+		clocks = <&clk_gates3 8>;
+		clock-names = "pclk_hdmi";	
+		status = "disabled";
+	};
 
         vpu: vpu_service@10108000 {
 		compatible = "vpu_service";

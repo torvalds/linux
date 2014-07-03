@@ -39,7 +39,7 @@ endif
 
 config  HDMI_RK616
         bool "RK616 HDMI support"
-        depends on MFD_RK616 || ARCH_RK3026
+#depends on MFD_RK616 || ARCH_RK3026
 		default y
         help
            Support rk616 hdmi if you say y here
