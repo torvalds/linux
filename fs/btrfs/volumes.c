@@ -508,6 +508,33 @@ static noinline int device_list_add(const char *path,
 		ret = 1;
 		device->fs_devices = fs_devices;
 	} else if (!device->name || strcmp(device->name->str, path)) {
+		/*
+		 * When FS is already mounted.
+		 * 1. If you are here and if the device->name is NULL that
+		 *    means this device was missing at time of FS mount.
+		 * 2. If you are here and if the device->name is different
+		 *    from 'path' that means either
+		 *      a. The same device disappeared and reappeared with
+		 *         different name. or
+		 *      b. The missing-disk-which-was-replaced, has
+		 *         reappeared now.
+		 *
+		 * We must allow 1 and 2a above. But 2b would be a spurious
+		 * and unintentional.
+		 *
+		 * Further in case of 1 and 2a above, the disk at 'path'
+		 * would have missed some transaction when it was away and
+		 * in case of 2a the stale bdev has to be updated as well.
+		 * 2b must not be allowed at all time.
+		 */
+
+		/*
+		 * As of now don't allow update to btrfs_fs_device through
+		 * the btrfs dev scan cli, after FS has been mounted.
+		 */
+		if (fs_devices->opened)
+			return -EBUSY;
+
 		name = rcu_string_strdup(path, GFP_NOFS);
 		if (!name)
 			return -ENOMEM;
