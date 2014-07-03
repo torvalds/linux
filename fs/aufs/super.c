@@ -975,6 +975,7 @@ static void aufs_kill_sb(struct super_block *sb)
 	if (sbinfo) {
 		au_sbilist_del(sb);
 		aufs_write_lock(sb->s_root);
+		au_fhsm_fin(sb);
 		if (sbinfo->si_wbr_create_ops->fin)
 			sbinfo->si_wbr_create_ops->fin(sb);
 		if (au_opt_test(sbinfo->si_mntflags, UDBA_HNOTIFY)) {

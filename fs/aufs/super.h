@@ -312,6 +312,7 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *arg);
 
 #ifdef CONFIG_AUFS_FHSM
 /* fhsm.c */
+
 static inline pid_t au_fhsm_pid(struct au_fhsm *fhsm)
 {
 	pid_t pid;
@@ -323,13 +324,20 @@ static inline pid_t au_fhsm_pid(struct au_fhsm *fhsm)
 	return pid;
 }
 
+void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force);
+void au_fhsm_wrote_all(struct super_block *sb, int force);
 int au_fhsm_fd(struct super_block *sb, int oflags);
+void au_fhsm_fin(struct super_block *sb);
 void au_fhsm_init(struct au_sbinfo *sbinfo);
 void au_fhsm_set(struct au_sbinfo *sbinfo, unsigned int sec);
 void au_fhsm_show(struct seq_file *seq, struct au_sbinfo *sbinfo);
 #else
+AuStubVoid(au_fhsm_wrote, struct super_block *sb, aufs_bindex_t bindex,
+	   int force)
+AuStubVoid(au_fhsm_wrote_all, struct super_block *sb, int force)
 AuStub(int, au_fhsm_fd, return -EOPNOTSUPP, struct super_block *sb, int oflags)
 AuStub(pid_t, au_fhsm_pid, return 0, struct au_fhsm *fhsm);
+AuStubVoid(au_fhsm_fin, struct super_block *sb)
 AuStubVoid(au_fhsm_init, struct au_sbinfo *sbinfo)
 AuStubVoid(au_fhsm_set, struct au_sbinfo *sbinfo, unsigned int sec)
 AuStubVoid(au_fhsm_show, struct seq_file *seq, struct au_sbinfo *sbinfo)

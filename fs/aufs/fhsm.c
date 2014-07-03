@@ -23,7 +23,136 @@
 #include <linux/anon_inodes.h>
 #include <linux/poll.h>
 #include <linux/seq_file.h>
+#include <linux/statfs.h>
 #include "aufs.h"
+
+static int au_fhsm_test_jiffy(struct au_sbinfo *sbinfo, struct au_branch *br)
+{
+	struct au_wbr *wbr;
+
+	wbr = br->br_wbr;
+	MtxMustLock(&wbr->wbr_fhsm_notify.lock);
+
+	return !wbr->wbr_fhsm_notify.readable
+		|| time_after(jiffies,
+			      wbr->wbr_fhsm_notify.jiffy
+			      + sbinfo->si_fhsm.fhsm_expire);
+}
+
+/* ---------------------------------------------------------------------- */
+
+static void au_fhsm_notify(struct super_block *sb, int val)
+{
+	struct au_sbinfo *sbinfo;
+	struct au_fhsm *fhsm;
+
+	SiMustAnyLock(sb);
+
+	sbinfo = au_sbi(sb);
+	fhsm = &sbinfo->si_fhsm;
+	if (au_fhsm_pid(fhsm)
+	    && atomic_read(&fhsm->fhsm_readable) != -1) {
+		atomic_set(&fhsm->fhsm_readable, val);
+		if (val)
+			wake_up(&fhsm->fhsm_wqh);
+	}
+}
+
+static int au_fhsm_stfs(struct super_block *sb, aufs_bindex_t bindex,
+			struct aufs_stfs *rstfs, int do_lock, int do_notify)
+{
+	int err;
+	struct au_branch *br;
+	struct au_wbr *wbr;
+
+	br = au_sbr(sb, bindex);
+	AuDebugOn(au_br_rdonly(br));
+	wbr = br->br_wbr;
+	AuDebugOn(!wbr);
+
+	if (do_lock)
+		mutex_lock(&wbr->wbr_fhsm_notify.lock);
+	else
+		MtxMustLock(&wbr->wbr_fhsm_notify.lock);
+
+	/* sb->s_root for NFS is unreliable */
+	err = au_br_stfs(br, &wbr->wbr_fhsm_notify.stfs);
+	if (unlikely(err)) {
+		AuErr1("FHSM failed (%d), b%d, ignored.\n", bindex, err);
+		goto out;
+	}
+
+	wbr->wbr_fhsm_notify.jiffy = jiffies;
+	wbr->wbr_fhsm_notify.readable = 1;
+	if (do_notify)
+		au_fhsm_notify(sb, /*val*/1);
+	if (rstfs)
+		*rstfs = wbr->wbr_fhsm_notify.stfs;
+
+out:
+	if (do_lock)
+		mutex_unlock(&wbr->wbr_fhsm_notify.lock);
+	au_fhsm_notify(sb, /*val*/1);
+
+	return err;
+}
+
+void au_fhsm_wrote(struct super_block *sb, aufs_bindex_t bindex, int force)
+{
+	int err;
+	unsigned char do_notify;
+	aufs_bindex_t bend, blower;
+	struct au_sbinfo *sbinfo;
+	struct au_fhsm *fhsm;
+	struct au_branch *br;
+	struct au_wbr *wbr;
+
+	AuDbg("b%d, force %d\n", bindex, force);
+	SiMustAnyLock(sb);
+
+	sbinfo = au_sbi(sb);
+	fhsm = &sbinfo->si_fhsm;
+	if (!au_ftest_si(sbinfo, FHSM)
+	    || !au_fhsm_pid(fhsm))
+		return;
+
+	do_notify = 0;
+	bend = au_sbend(sb);
+	for (blower = bindex + 1; blower <= bend; blower++) {
+		br = au_sbr(sb, blower);
+		if (au_br_fhsm(br->br_perm)) {
+			do_notify = 1;
+			break;
+		}
+	}
+	if (!do_notify)
+		return;
+
+	br = au_sbr(sb, bindex);
+	wbr = br->br_wbr;
+	AuDebugOn(!wbr);
+	mutex_lock(&wbr->wbr_fhsm_notify.lock);
+	if (force || au_fhsm_test_jiffy(sbinfo, br))
+		err = au_fhsm_stfs(sb, bindex, /*rstfs*/NULL, /*do_lock*/0,
+				  /*do_notify*/1);
+	mutex_unlock(&wbr->wbr_fhsm_notify.lock);
+}
+
+void au_fhsm_wrote_all(struct super_block *sb, int force)
+{
+	aufs_bindex_t bindex, bend;
+	struct au_branch *br;
+
+	/* exclude the bottom */
+	bend = au_sbend(sb);
+	for (bindex = 0; bindex < bend; bindex++) {
+		br = au_sbr(sb, bindex);
+		if (au_br_fhsm(br->br_perm))
+			au_fhsm_wrote(sb, bindex, force);
+	}
+}
+
+/* ---------------------------------------------------------------------- */
 
 static unsigned int au_fhsm_poll(struct file *file,
 				 struct poll_table_struct *wait)
@@ -225,6 +354,11 @@ out:
 }
 
 /* ---------------------------------------------------------------------- */
+
+void au_fhsm_fin(struct super_block *sb)
+{
+	au_fhsm_notify(sb, /*val*/-1);
+}
 
 void au_fhsm_init(struct au_sbinfo *sbinfo)
 {
