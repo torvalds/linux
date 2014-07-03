@@ -198,6 +198,36 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	kfree(ctx);
 }
 
+static struct drm_i915_gem_object *
+i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
+{
+	struct drm_i915_gem_object *obj;
+	int ret;
+
+	obj = i915_gem_alloc_object(dev, size);
+	if (obj == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * Try to make the context utilize L3 as well as LLC.
+	 *
+	 * On VLV we don't have L3 controls in the PTEs so we
+	 * shouldn't touch the cache level, especially as that
+	 * would make the object snooped which might have a
+	 * negative performance impact.
+	 */
+	if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev)) {
+		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
+		/* Failure shouldn't ever happen this early */
+		if (WARN_ON(ret)) {
+			drm_gem_object_unreference(&obj->base);
+			return ERR_PTR(ret);
+		}
+	}
+
+	return obj;
+}
+
 static struct i915_hw_ppgtt *
 create_vm_for_ctx(struct drm_device *dev, struct intel_context *ctx)
 {
@@ -234,27 +264,13 @@ __create_hw_context(struct drm_device *dev,
 	list_add_tail(&ctx->link, &dev_priv->context_list);
 
 	if (dev_priv->hw_context_size) {
-		ctx->obj = i915_gem_alloc_object(dev, dev_priv->hw_context_size);
-		if (ctx->obj == NULL) {
-			ret = -ENOMEM;
+		struct drm_i915_gem_object *obj =
+				i915_gem_alloc_context_obj(dev, dev_priv->hw_context_size);
+		if (IS_ERR(obj)) {
+			ret = PTR_ERR(obj);
 			goto err_out;
 		}
-
-		/*
-		 * Try to make the context utilize L3 as well as LLC.
-		 *
-		 * On VLV we don't have L3 controls in the PTEs so we
-		 * shouldn't touch the cache level, especially as that
-		 * would make the object snooped which might have a
-		 * negative performance impact.
-		 */
-		if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev)) {
-			ret = i915_gem_object_set_cache_level(ctx->obj,
-							      I915_CACHE_L3_LLC);
-			/* Failure shouldn't ever happen this early */
-			if (WARN_ON(ret))
-				goto err_out;
-		}
+		ctx->obj = obj;
 	}
 
 	/* Default context will never have a file_priv */
