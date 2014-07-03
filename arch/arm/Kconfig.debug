@@ -617,6 +617,7 @@ choice
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
 		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
+		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 0 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -627,6 +628,7 @@ choice
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
 		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
+		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 1 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -637,6 +639,7 @@ choice
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
 		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
+		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 2 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -644,8 +647,9 @@ choice
 		  by the boot-loader before use.
 
 	config DEBUG_S3C_UART3
-		depends on PLAT_SAMSUNG && ARCH_EXYNOS
-		select DEBUG_EXYNOS_UART
+		depends on PLAT_SAMSUNG && (ARCH_EXYNOS || ARCH_S5PV210)
+		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
+		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 3 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -937,6 +941,9 @@ config DEBUG_S3C2410_UART
 config DEBUG_S3C24XX_UART
 	bool
 
+config DEBUG_S5PV210_UART
+	bool
+
 config DEBUG_OMAP2PLUS_UART
 	bool
 	depends on ARCH_OMAP2PLUS
@@ -997,6 +1004,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/msm.S" if DEBUG_MSM_UART || DEBUG_QCOM_UARTDM
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/s3c24xx.S" if DEBUG_S3C24XX_UART
+	default "debug/s5pv210.S" if DEBUG_S5PV210_UART
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
 	default "debug/sti.S" if DEBUG_STI_UART
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
