@@ -395,24 +395,26 @@ static void at91_dt_ramc(void)
 {
 	struct device_node *np;
 	const struct of_device_id *of_id;
+	int idx = 0;
 
-	np = of_find_matching_node(NULL, ramc_ids);
-	if (!np)
+	for_each_matching_node(np, ramc_ids) {
+		at91_ramc_base[idx] = of_iomap(np, 0);
+		if (!at91_ramc_base[idx])
+			panic(pr_fmt("unable to map ramc[%d] cpu registers\n"), idx);
+
+		idx++;
+	}
+
+	if (!idx)
 		panic(pr_fmt("unable to find compatible ram controller node in dtb\n"));
 
-	at91_ramc_base[0] = of_iomap(np, 0);
-	if (!at91_ramc_base[0])
-		panic(pr_fmt("unable to map ramc[0] cpu registers\n"));
-	/* the controller may have 2 banks */
-	at91_ramc_base[1] = of_iomap(np, 1);
-
 	of_id = of_match_node(ramc_ids, np);
-	if (!of_id)
+	if (!of_id) {
 		pr_warn("ramc no standby function available\n");
-	else
-		at91_pm_set_standby(of_id->data);
+		return;
+	}
 
-	of_node_put(np);
+	at91_pm_set_standby(of_id->data);
 }
 
 static struct of_device_id shdwc_ids[] = {
