@@ -290,7 +290,8 @@ static void sirfsoc_uart_start_tx(struct uart_port *port)
 	if (sirfport->tx_dma_chan)
 		sirfsoc_uart_tx_with_dma(sirfport);
 	else {
-		sirfsoc_uart_pio_tx_chars(sirfport, 1);
+		sirfsoc_uart_pio_tx_chars(sirfport,
+			SIRFSOC_UART_IO_TX_REASONABLE_CNT);
 		wr_regl(port, ureg->sirfsoc_tx_fifo_op, SIRFUART_FIFO_START);
 		if (!sirfport->is_marco)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
