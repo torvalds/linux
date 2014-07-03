@@ -174,18 +174,18 @@ static void *ipp_find_obj(struct idr *id_idr, struct mutex *lock, u32 id)
 	return obj;
 }
 
-static inline bool ipp_check_dedicated(struct exynos_drm_ippdrv *ippdrv,
-		enum drm_exynos_ipp_cmd	cmd)
+static int ipp_check_driver(struct exynos_drm_ippdrv *ippdrv,
+			    struct drm_exynos_ipp_property *property)
 {
-	/*
-	 * check dedicated flag and WB, OUTPUT operation with
-	 * power on state.
-	 */
-	if (ippdrv->dedicated || (!ipp_is_m2m_cmd(cmd) &&
-	    !pm_runtime_suspended(ippdrv->dev)))
-		return true;
+	if (ippdrv->dedicated || (!ipp_is_m2m_cmd(property->cmd) &&
+				  !pm_runtime_suspended(ippdrv->dev)))
+		return -EBUSY;
 
-	return false;
+	if (ippdrv->check_property &&
+	    ippdrv->check_property(ippdrv->dev, property))
+		return -EINVAL;
+
+	return 0;
 }
 
 static struct exynos_drm_ippdrv *ipp_find_driver(struct ipp_context *ctx,
@@ -193,62 +193,30 @@ static struct exynos_drm_ippdrv *ipp_find_driver(struct ipp_context *ctx,
 {
 	struct exynos_drm_ippdrv *ippdrv;
 	u32 ipp_id = property->ipp_id;
-
-	DRM_DEBUG_KMS("ipp_id[%d]\n", ipp_id);
+	int ret;
 
 	if (ipp_id) {
-		/* find ipp driver using idr */
-		ippdrv = ipp_find_obj(&ctx->ipp_idr, &ctx->ipp_lock,
-			ipp_id);
+		ippdrv = ipp_find_obj(&ctx->ipp_idr, &ctx->ipp_lock, ipp_id);
 		if (!ippdrv) {
-			DRM_ERROR("not found ipp%d driver.\n", ipp_id);
+			DRM_DEBUG("ipp%d driver not found\n", ipp_id);
 			return ERR_PTR(-ENODEV);
 		}
 
-		/*
-		 * WB, OUTPUT opertion not supported multi-operation.
-		 * so, make dedicated state at set property ioctl.
-		 * when ipp driver finished operations, clear dedicated flags.
-		 */
-		if (ipp_check_dedicated(ippdrv, property->cmd)) {
-			DRM_ERROR("already used choose device.\n");
-			return ERR_PTR(-EBUSY);
-		}
-
-		/*
-		 * This is necessary to find correct device in ipp drivers.
-		 * ipp drivers have different abilities,
-		 * so need to check property.
-		 */
-		if (ippdrv->check_property &&
-		    ippdrv->check_property(ippdrv->dev, property)) {
-			DRM_ERROR("not support property.\n");
-			return ERR_PTR(-EINVAL);
+		ret = ipp_check_driver(ippdrv, property);
+		if (ret < 0) {
+			DRM_DEBUG("ipp%d driver check error %d\n", ipp_id, ret);
+			return ERR_PTR(ret);
 		}
 
 		return ippdrv;
 	} else {
-		/*
-		 * This case is search all ipp driver for finding.
-		 * user application don't set ipp_id in this case,
-		 * so ipp subsystem search correct driver in driver list.
-		 */
 		list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
-			if (ipp_check_dedicated(ippdrv, property->cmd)) {
-				DRM_DEBUG_KMS("used device.\n");
-				continue;
-			}
-
-			if (ippdrv->check_property &&
-			    ippdrv->check_property(ippdrv->dev, property)) {
-				DRM_DEBUG_KMS("not support property.\n");
-				continue;
-			}
-
-			return ippdrv;
+			ret = ipp_check_driver(ippdrv, property);
+			if (ret == 0)
+				return ippdrv;
 		}
 
-		DRM_ERROR("not support ipp driver operations.\n");
+		DRM_DEBUG("cannot find driver suitable for given property.\n");
 	}
 
 	return ERR_PTR(-ENODEV);
