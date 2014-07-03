@@ -40,6 +40,9 @@ Optional properties:
 - arm,filter-ranges : <start length> Starting address and length of window to
   filter. Addresses in the filter window are directed to the M1 port. Other
   addresses will go to the M0 port.
+- arm,io-coherent : indicates that the system is operating in an hardware
+  I/O coherent mode. Valid only when the arm,pl310-cache compatible
+  string is used.
 - interrupts : 1 combined interrupt.
 - cache-id-part: cache id part number to be used if it is not present
   on hardware

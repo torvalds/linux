@@ -477,7 +477,7 @@ pnx8xxx_set_termios(struct uart_port *port, struct ktermios *termios,
 		sport->port.read_status_mask |=
 			FIFO_TO_SM(PNX8XXX_UART_FIFO_RXFE) |
 			FIFO_TO_SM(PNX8XXX_UART_FIFO_RXPAR);
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		sport->port.read_status_mask |=
 			ISTAT_TO_SM(PNX8XXX_UART_INT_BREAK);
 

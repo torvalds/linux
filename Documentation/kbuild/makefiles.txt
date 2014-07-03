@@ -1171,7 +1171,7 @@ When kbuild executes, the following steps are followed (roughly):
 	      obvious reason.
 
     dtc
-	Create flattend device tree blob object suitable for linking
+	Create flattened device tree blob object suitable for linking
 	into vmlinux. Device tree blobs linked into vmlinux are placed
 	in an init section in the image. Platform code *must* copy the
 	blob to non-init memory prior to calling unflatten_device_tree().

@@ -1,6 +1,5 @@
-config ARCH_MXC
+menuconfig ARCH_MXC
 	bool "Freescale i.MX family" if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_CPU_SUSPEND if PM
@@ -13,8 +12,7 @@ config ARCH_MXC
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
-menu "Freescale i.MX support"
-	depends on ARCH_MXC
+if ARCH_MXC
 
 config MXC_TZIC
 	bool
@@ -99,7 +97,6 @@ config SOC_IMX25
 
 config SOC_IMX27
 	bool
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select CPU_ARM926T
 	select IMX_HAVE_IOMUX_V1
@@ -124,7 +121,6 @@ config SOC_IMX35
 
 config SOC_IMX5
 	bool
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select ARCH_MXC_IOMUX_V3
 	select MXC_TZIC
@@ -738,9 +734,9 @@ config SOC_IMX6
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
 	select MFD_SYSCON
-	select PL310_ERRATA_588369 if CACHE_PL310
-	select PL310_ERRATA_727915 if CACHE_PL310
-	select PL310_ERRATA_769419 if CACHE_PL310
+	select PL310_ERRATA_588369 if CACHE_L2X0
+	select PL310_ERRATA_727915 if CACHE_L2X0
+	select PL310_ERRATA_769419 if CACHE_L2X0
 
 config SOC_IMX6Q
 	bool "i.MX6 Quad/DualLite support"
@@ -775,9 +771,9 @@ config SOC_VF610
 	select ARM_GIC
 	select PINCTRL_VF610
 	select VF_PIT_TIMER
-	select PL310_ERRATA_588369 if CACHE_PL310
-	select PL310_ERRATA_727915 if CACHE_PL310
-	select PL310_ERRATA_769419 if CACHE_PL310
+	select PL310_ERRATA_588369 if CACHE_L2X0
+	select PL310_ERRATA_727915 if CACHE_L2X0
+	select PL310_ERRATA_769419 if CACHE_L2X0
 
 	help
 	  This enable support for Freescale Vybrid VF610 processor.
@@ -786,4 +782,4 @@ endif
 
 source "arch/arm/mach-imx/devices/Kconfig"
 
-endmenu
+endif

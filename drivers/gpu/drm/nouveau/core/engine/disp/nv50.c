@@ -1270,7 +1270,7 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk, u32 *conf)
 	i--;
 
 	outp = exec_lookup(priv, head, i, ctrl, &data, &ver, &hdr, &cnt, &len, &info1);
-	if (!data)
+	if (!outp)
 		return NULL;
 
 	if (outp->info.location == 0) {
