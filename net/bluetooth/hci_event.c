@@ -4185,18 +4185,18 @@ static void hci_le_conn_update_complete_evt(struct hci_dev *hdev,
 }
 
 /* This function requires the caller holds hdev->lock */
-static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
+static bool check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 				  u8 addr_type)
 {
 	struct hci_conn *conn;
 
 	if (!hci_pend_le_conn_lookup(hdev, addr, addr_type))
-		return;
+		return false;
 
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
 			      HCI_AT_NO_BONDING);
 	if (!IS_ERR(conn))
-		return;
+		return true;
 
 	switch (PTR_ERR(conn)) {
 	case -EBUSY:
@@ -4209,6 +4209,8 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	default:
 		BT_DBG("Failed to connect: err %ld", PTR_ERR(conn));
 	}
+
+	return true;
 }
 
 static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
@@ -4233,8 +4235,10 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 			bdaddr_type = irk->addr_type;
 		}
 
-		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND)
-			check_pending_le_conn(hdev, bdaddr, bdaddr_type);
+		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND) {
+			if (check_pending_le_conn(hdev, bdaddr, bdaddr_type))
+				return;
+		}
 
 		if (!hdev->pend_le_reports)
 			return;
