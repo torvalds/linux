@@ -129,9 +129,6 @@ void exynos_platform_device_ipp_unregister(void)
 
 int exynos_drm_ippdrv_register(struct exynos_drm_ippdrv *ippdrv)
 {
-	if (!ippdrv)
-		return -EINVAL;
-
 	mutex_lock(&exynos_drm_ippdrv_lock);
 	list_add_tail(&ippdrv->drv_list, &exynos_drm_ippdrv_list);
 	mutex_unlock(&exynos_drm_ippdrv_lock);
@@ -141,9 +138,6 @@ int exynos_drm_ippdrv_register(struct exynos_drm_ippdrv *ippdrv)
 
 int exynos_drm_ippdrv_unregister(struct exynos_drm_ippdrv *ippdrv)
 {
-	if (!ippdrv)
-		return -EINVAL;
-
 	mutex_lock(&exynos_drm_ippdrv_lock);
 	list_del(&ippdrv->drv_list);
 	mutex_unlock(&exynos_drm_ippdrv_lock);
