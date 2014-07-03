@@ -5030,6 +5030,9 @@ struct nfs4_delegreturndata {
 	unsigned long timestamp;
 	struct nfs_fattr fattr;
 	int rpc_status;
+	struct inode *inode;
+	bool roc;
+	u32 roc_barrier;
 };
 
 static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
@@ -5043,7 +5046,6 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	switch (task->tk_status) {
 	case 0:
 		renew_lease(data->res.server, data->timestamp);
-		break;
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_BAD_STATEID:
@@ -5051,6 +5053,8 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	case -NFS4ERR_STALE_STATEID:
 	case -NFS4ERR_EXPIRED:
 		task->tk_status = 0;
+		if (data->roc)
+			pnfs_roc_set_barrier(data->inode, data->roc_barrier);
 		break;
 	default:
 		if (nfs4_async_handle_error(task, data->res.server, NULL) ==
@@ -5064,6 +5068,10 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 
 static void nfs4_delegreturn_release(void *calldata)
 {
+	struct nfs4_delegreturndata *data = calldata;
+
+	if (data->roc)
+		pnfs_roc_release(data->inode);
 	kfree(calldata);
 }
 
@@ -5072,6 +5080,10 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 	struct nfs4_delegreturndata *d_data;
 
 	d_data = (struct nfs4_delegreturndata *)data;
+
+	if (d_data->roc &&
+	    pnfs_roc_drain(d_data->inode, &d_data->roc_barrier, task))
+		return;
 
 	nfs4_setup_sequence(d_data->res.server,
 			&d_data->args.seq_args,
@@ -5116,6 +5128,9 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	nfs_fattr_init(data->res.fattr);
 	data->timestamp = jiffies;
 	data->rpc_status = 0;
+	data->inode = inode;
+	data->roc = list_empty(&NFS_I(inode)->open_files) ?
+		    pnfs_roc(inode) : false;
 
 	task_setup_data.callback_data = data;
 	msg.rpc_argp = &data->args;
