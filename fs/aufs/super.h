@@ -78,10 +78,11 @@ static inline int au_plink_hash(ino_t ino)
 /* File-based Hierarchical Storage Management */
 struct au_fhsm {
 #ifdef CONFIG_AUFS_FHSM
-	/* will be added more */
 	/* allow only one process who can receive the notification */
 	spinlock_t		fhsm_spin;
 	pid_t			fhsm_pid;
+	wait_queue_head_t	fhsm_wqh;
+	atomic_t		fhsm_readable;
 
 	/* only this is protected by si_rwsem */
 	unsigned long		fhsm_expire;
@@ -322,10 +323,12 @@ static inline pid_t au_fhsm_pid(struct au_fhsm *fhsm)
 	return pid;
 }
 
+int au_fhsm_fd(struct super_block *sb, int oflags);
 void au_fhsm_init(struct au_sbinfo *sbinfo);
 void au_fhsm_set(struct au_sbinfo *sbinfo, unsigned int sec);
 void au_fhsm_show(struct seq_file *seq, struct au_sbinfo *sbinfo);
 #else
+AuStub(int, au_fhsm_fd, return -EOPNOTSUPP, struct super_block *sb, int oflags)
 AuStub(pid_t, au_fhsm_pid, return 0, struct au_fhsm *fhsm);
 AuStubVoid(au_fhsm_init, struct au_sbinfo *sbinfo)
 AuStubVoid(au_fhsm_set, struct au_sbinfo *sbinfo, unsigned int sec)

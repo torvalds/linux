@@ -201,7 +201,8 @@ enum {
 	AuCtl_WBR_FD,	/* pathconf wrapper */
 	AuCtl_IBUSY,	/* busy inode */
 	AuCtl_MVDOWN,	/* move-down */
-	AuCtl_BR	/* info about branches */
+	AuCtl_BR,	/* info about branches */
+	AuCtl_FHSM_FD	/* connection for fhsm */
 };
 
 /* borrowed from linux/include/linux/kernel.h */
@@ -373,5 +374,6 @@ union aufs_brinfo {
 #define AUFS_CTL_MVDOWN		_IOWR(AuCtlType, AuCtl_MVDOWN, \
 				      struct aufs_mvdown)
 #define AUFS_CTL_BRINFO		_IOW(AuCtlType, AuCtl_BR, union aufs_brinfo)
+#define AUFS_CTL_FHSM_FD	_IOW(AuCtlType, AuCtl_FHSM_FD, int)
 
 #endif /* __AUFS_TYPE_H__ */
