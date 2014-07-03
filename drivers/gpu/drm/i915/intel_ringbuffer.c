@@ -1482,15 +1482,25 @@ static int init_phys_status_page(struct intel_engine_cs *ring)
 	return 0;
 }
 
-static int allocate_ring_buffer(struct intel_engine_cs *ring)
+static void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 {
-	struct drm_device *dev = ring->dev;
+	if (!ringbuf->obj)
+		return;
+
+	iounmap(ringbuf->virtual_start);
+	i915_gem_object_ggtt_unpin(ringbuf->obj);
+	drm_gem_object_unreference(&ringbuf->obj->base);
+	ringbuf->obj = NULL;
+}
+
+static int intel_alloc_ringbuffer_obj(struct drm_device *dev,
+				      struct intel_ringbuffer *ringbuf)
+{
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_ringbuffer *ringbuf = ring->buffer;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	if (intel_ring_initialized(ring))
+	if (ringbuf->obj)
 		return 0;
 
 	obj = NULL;
@@ -1562,7 +1572,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 			goto error;
 	}
 
-	ret = allocate_ring_buffer(ring);
+	ret = intel_alloc_ringbuffer_obj(dev, ringbuf);
 	if (ret) {
 		DRM_ERROR("Failed to allocate ringbuffer %s: %d\n", ring->name, ret);
 		goto error;
@@ -1603,11 +1613,7 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 	intel_stop_ring_buffer(ring);
 	WARN_ON(!IS_GEN2(ring->dev) && (I915_READ_MODE(ring) & MODE_IDLE) == 0);
 
-	iounmap(ringbuf->virtual_start);
-
-	i915_gem_object_ggtt_unpin(ringbuf->obj);
-	drm_gem_object_unreference(&ringbuf->obj->base);
-	ringbuf->obj = NULL;
+	intel_destroy_ringbuffer_obj(ringbuf);
 	ring->preallocated_lazy_request = NULL;
 	ring->outstanding_lazy_seqno = 0;
 
