@@ -762,10 +762,10 @@ retry_flush_dents:
 	 * until finishing nat/sit flush.
 	 */
 retry_flush_nodes:
-	mutex_lock(&sbi->node_write);
+	down_write(&sbi->node_write);
 
 	if (get_pages(sbi, F2FS_DIRTY_NODES)) {
-		mutex_unlock(&sbi->node_write);
+		up_write(&sbi->node_write);
 		sync_node_pages(sbi, 0, &wbc);
 		goto retry_flush_nodes;
 	}
@@ -774,7 +774,7 @@ retry_flush_nodes:
 
 static void unblock_operations(struct f2fs_sb_info *sbi)
 {
-	mutex_unlock(&sbi->node_write);
+	up_write(&sbi->node_write);
 	f2fs_unlock_all(sbi);
 }
 

@@ -1231,12 +1231,12 @@ static int f2fs_write_node_page(struct page *page,
 	if (wbc->for_reclaim)
 		goto redirty_out;
 
-	mutex_lock(&sbi->node_write);
+	down_read(&sbi->node_write);
 	set_page_writeback(page);
 	write_node_page(sbi, page, &fio, nid, ni.blk_addr, &new_addr);
 	set_node_addr(sbi, &ni, new_addr, is_fsync_dnode(page));
 	dec_page_count(sbi, F2FS_DIRTY_NODES);
-	mutex_unlock(&sbi->node_write);
+	up_read(&sbi->node_write);
 	unlock_page(page);
 	return 0;
 
