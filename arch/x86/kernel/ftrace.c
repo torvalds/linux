@@ -48,7 +48,7 @@ int ftrace_arch_code_modify_post_process(void)
 union ftrace_code_union {
 	char code[MCOUNT_INSN_SIZE];
 	struct {
-		char e8;
+		unsigned char e8;
 		int offset;
 	} __attribute__((packed));
 };
@@ -797,12 +797,26 @@ static unsigned long create_trampoline(struct ftrace_ops *ops)
 	return (unsigned long)trampoline;
 }
 
+static unsigned long calc_trampoline_call_offset(bool save_regs)
+{
+	unsigned long start_offset;
+	unsigned long call_offset;
+
+	if (save_regs) {
+		start_offset = (unsigned long)ftrace_regs_caller;
+		call_offset = (unsigned long)ftrace_regs_call;
+	} else {
+		start_offset = (unsigned long)ftrace_caller;
+		call_offset = (unsigned long)ftrace_call;
+	}
+
+	return call_offset - start_offset;
+}
+
 void arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 {
 	ftrace_func_t func;
 	unsigned char *new;
-	unsigned long start_offset;
-	unsigned long call_offset;
 	unsigned long offset;
 	unsigned long ip;
 	int ret;
@@ -820,15 +834,7 @@ void arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 			return;
 	}
 
-	if (ops->flags & FTRACE_OPS_FL_SAVE_REGS) {
-		start_offset = (unsigned long)ftrace_regs_caller;
-		call_offset = (unsigned long)ftrace_regs_call;
-	} else {
-		start_offset = (unsigned long)ftrace_caller;
-		call_offset = (unsigned long)ftrace_call;
-	}
-
-	offset = call_offset - start_offset;
+	offset = calc_trampoline_call_offset(ops->flags & FTRACE_OPS_FL_SAVE_REGS);
 	ip = ops->trampoline + offset;
 
 	func = ftrace_ops_get_func(ops);
@@ -840,6 +846,74 @@ void arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 	/* The update should never fail */
 	WARN_ON(ret);
 }
+
+/* Return the address of the function the trampoline calls */
+static void *addr_from_call(void *ptr)
+{
+	union ftrace_code_union calc;
+	int ret;
+
+	ret = probe_kernel_read(&calc, ptr, MCOUNT_INSN_SIZE);
+	if (WARN_ON_ONCE(ret < 0))
+		return NULL;
+
+	/* Make sure this is a call */
+	if (WARN_ON_ONCE(calc.e8 != 0xe8)) {
+		pr_warn("Expected e8, got %x\n", calc.e8);
+		return NULL;
+	}
+
+	return ptr + MCOUNT_INSN_SIZE + calc.offset;
+}
+
+void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
+			   unsigned long frame_pointer);
+
+/*
+ * If the ops->trampoline was not allocated, then it probably
+ * has a static trampoline func, or is the ftrace caller itself.
+ */
+static void *static_tramp_func(struct ftrace_ops *ops, struct dyn_ftrace *rec)
+{
+	unsigned long offset;
+	bool save_regs = rec->flags & FTRACE_FL_REGS_EN;
+	void *ptr;
+
+	if (ops && ops->trampoline) {
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+		/*
+		 * We only know about function graph tracer setting as static
+		 * trampoline.
+		 */
+		if (ops->trampoline == FTRACE_GRAPH_ADDR)
+			return (void *)prepare_ftrace_return;
+#endif
+		return NULL;
+	}
+
+	offset = calc_trampoline_call_offset(save_regs);
+
+	if (save_regs)
+		ptr = (void *)FTRACE_REGS_ADDR + offset;
+	else
+		ptr = (void *)FTRACE_ADDR + offset;
+
+	return addr_from_call(ptr);
+}
+
+void *arch_ftrace_trampoline_func(struct ftrace_ops *ops, struct dyn_ftrace *rec)
+{
+	unsigned long offset;
+
+	/* If we didn't allocate this trampoline, consider it static */
+	if (!ops || !(ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP))
+		return static_tramp_func(ops, rec);
+
+	offset = calc_trampoline_call_offset(ops->flags & FTRACE_OPS_FL_SAVE_REGS);
+	return addr_from_call((void *)ops->trampoline + offset);
+}
+
+
 #endif /* CONFIG_X86_64 */
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
