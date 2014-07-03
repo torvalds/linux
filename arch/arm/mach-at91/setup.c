@@ -320,24 +320,6 @@ void __init at91_map_io(void)
 		at91_boot_soc.map_io();
 }
 
-void __iomem *at91_shdwc_base = NULL;
-
-void __init at91_ioremap_shdwc(u32 base_addr)
-{
-	at91_shdwc_base = ioremap(base_addr, 16);
-	if (!at91_shdwc_base)
-		panic(pr_fmt("Impossible to ioremap at91_shdwc_base\n"));
-}
-
-void __iomem *at91_rstc_base;
-
-void __init at91_ioremap_rstc(u32 base_addr)
-{
-	at91_rstc_base = ioremap(base_addr, 16);
-	if (!at91_rstc_base)
-		panic(pr_fmt("Impossible to ioremap at91_rstc_base\n"));
-}
-
 void __iomem *at91_matrix_base;
 EXPORT_SYMBOL_GPL(at91_matrix_base);
 

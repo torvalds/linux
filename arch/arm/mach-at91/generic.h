@@ -64,12 +64,6 @@ extern void at91_irq_resume(void);
 /* idle */
 extern void at91sam9_idle(void);
 
-/* reset */
-extern void at91_ioremap_rstc(u32 base_addr);
-
-/* shutdown */
-extern void at91_ioremap_shdwc(u32 base_addr);
-
 /* Matrix */
 extern void at91_ioremap_matrix(u32 base_addr);
 
