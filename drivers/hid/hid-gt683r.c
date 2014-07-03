@@ -227,6 +227,9 @@ static int gt683r_led_probe(struct hid_device *hdev,
 	if (!led)
 		return -ENOMEM;
 
+	mutex_init(&led->lock);
+	INIT_WORK(&led->work, gt683r_led_work);
+
 	led->mode = GT683R_LED_NORMAL;
 	led->hdev = hdev;
 	hid_set_drvdata(hdev, led);
@@ -270,9 +273,6 @@ static int gt683r_led_probe(struct hid_device *hdev,
 		hid_err(hdev, "could not make mode attribute file\n");
 		goto fail;
 	}
-
-	mutex_init(&led->lock);
-	INIT_WORK(&led->work, gt683r_led_work);
 
 	return 0;
 
