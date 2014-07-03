@@ -342,6 +342,10 @@ int au_fhsm_fd(struct super_block *sb, int oflags)
 
 	/* succeed reglardless 'fhsm' status */
 	kobject_get(&sbinfo->si_kobj);
+	si_noflush_read_lock(sb);
+	if (au_ftest_si(sbinfo, FHSM))
+		au_fhsm_wrote_all(sb, /*force*/0);
+	si_read_unlock(sb);
 	goto out; /* success */
 
 out_pid:

@@ -800,6 +800,7 @@ static int aufs_remount_fs(struct super_block *sb, int *flags, char *data)
 		au_dy_arefresh(do_dx);
 	}
 
+	au_fhsm_wrote_all(sb, /*force*/1); /* ?? */
 	aufs_write_unlock(root);
 
 out_mtx:

@@ -359,6 +359,7 @@ static int do_rename(struct au_ren_args *a)
 	if (a->thargs)
 		au_ren_del_whtmp(a); /* ignore this error */
 
+	au_fhsm_wrote(a->src_dentry->d_sb, a->btgt, /*force*/0);
 	err = 0;
 	goto out_success;
 

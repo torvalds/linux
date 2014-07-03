@@ -563,6 +563,8 @@ static void reinit_br_wh(void *arg)
 	wbr_wh_write_unlock(wbr);
 	au_hn_imtx_unlock(hdir);
 	di_read_unlock(a->sb->s_root, AuLock_IR);
+	if (!err)
+		au_fhsm_wrote(a->sb, bindex, /*force*/0);
 
 out:
 	if (wbr)
@@ -644,6 +646,8 @@ static int link_or_create_wh(struct super_block *sb, aufs_bindex_t bindex,
 
 	/* return this error in this context */
 	err = vfsub_create(h_dir, &h_path, WH_MASK, /*want_excl*/true);
+	if (!err)
+		au_fhsm_wrote(sb, bindex, /*force*/0);
 
 out:
 	wbr_wh_read_unlock(wbr);
@@ -768,9 +772,10 @@ struct dentry *au_wh_create(struct dentry *dentry, aufs_bindex_t bindex,
 	wh_dentry = au_wh_lkup(h_parent, &dentry->d_name, au_sbr(sb, bindex));
 	if (!IS_ERR(wh_dentry) && !wh_dentry->d_inode) {
 		err = link_or_create_wh(sb, bindex, wh_dentry);
-		if (!err)
+		if (!err) {
 			au_set_dbwh(dentry, bindex);
-		else {
+			au_fhsm_wrote(sb, bindex, /*force*/0);
+		} else {
 			dput(wh_dentry);
 			wh_dentry = ERR_PTR(err);
 		}
