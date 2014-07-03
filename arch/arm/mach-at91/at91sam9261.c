@@ -24,7 +24,6 @@
 #include <mach/hardware.h>
 
 #include "at91_aic.h"
-#include "at91_rstc.h"
 #include "soc.h"
 #include "generic.h"
 #include "sam9_smc.h"

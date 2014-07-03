@@ -22,7 +22,6 @@
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 
-#include "at91_shdwc.h"
 #include "soc.h"
 #include "generic.h"
 #include "pm.h"
