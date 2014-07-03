@@ -234,7 +234,10 @@ certainly invest a bit more effort into libata core layer).
   -----------------------------
 
 MEM
+  devm_kmalloc()
   devm_kzalloc()
+  devm_kmalloc_array()
+  devm_kcalloc()
   devm_kfree()
   devm_kmemdup()
   devm_get_free_pages()
