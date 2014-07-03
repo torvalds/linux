@@ -97,6 +97,7 @@ struct mgmt_rp_read_index_list {
 #define MGMT_SETTING_SECURE_CONN	0x00000800
 #define MGMT_SETTING_DEBUG_KEYS		0x00001000
 #define MGMT_SETTING_PRIVACY		0x00002000
+#define MGMT_SETTING_CONFIGURATION	0x00004000
 
 #define MGMT_OP_READ_INFO		0x0004
 #define MGMT_READ_INFO_SIZE		0
@@ -469,6 +470,16 @@ struct mgmt_cp_load_conn_param {
 struct mgmt_rp_read_unconf_index_list {
 	__le16	num_controllers;
 	__le16	index[0];
+} __packed;
+
+#define MGMT_OPTION_PUBLIC_ADDRESS	0x00000001
+
+#define MGMT_OP_READ_CONFIG_INFO	0x0037
+#define MGMT_READ_CONFIG_INFO_SIZE	0
+struct mgmt_rp_read_config_info {
+	__le16	manufacturer;
+	__le32	supported_options;
+	__le32	missing_options;
 } __packed;
 
 #define MGMT_EV_CMD_COMPLETE		0x0001

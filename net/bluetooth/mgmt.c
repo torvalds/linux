@@ -90,6 +90,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_REMOVE_DEVICE,
 	MGMT_OP_LOAD_CONN_PARAM,
 	MGMT_OP_READ_UNCONF_INDEX_LIST,
+	MGMT_OP_READ_CONFIG_INFO,
 };
 
 static const u16 mgmt_events[] = {
@@ -440,6 +441,29 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 	return err;
 }
 
+static int read_config_info(struct sock *sk, struct hci_dev *hdev,
+			    void *data, u16 data_len)
+{
+	struct mgmt_rp_read_config_info rp;
+
+	BT_DBG("sock %p %s", sk, hdev->name);
+
+	hci_dev_lock(hdev);
+
+	memset(&rp, 0, sizeof(rp));
+	rp.manufacturer = cpu_to_le16(hdev->manufacturer);
+	if (hdev->set_bdaddr)
+		rp.supported_options = cpu_to_le32(MGMT_OPTION_PUBLIC_ADDRESS);
+	else
+		rp.supported_options = cpu_to_le32(0);
+	rp.missing_options = cpu_to_le32(0);
+
+	hci_dev_unlock(hdev);
+
+	return cmd_complete(sk, hdev->id, MGMT_OP_READ_CONFIG_INFO, 0, &rp,
+			    sizeof(rp));
+}
+
 static u32 get_supported_settings(struct hci_dev *hdev)
 {
 	u32 settings = 0;
@@ -471,6 +495,9 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 		settings |= MGMT_SETTING_ADVERTISING;
 		settings |= MGMT_SETTING_PRIVACY;
 	}
+
+	if (hdev->set_bdaddr)
+		settings |= MGMT_SETTING_CONFIGURATION;
 
 	return settings;
 }
@@ -5371,6 +5398,7 @@ static const struct mgmt_handler {
 	{ remove_device,          false, MGMT_REMOVE_DEVICE_SIZE },
 	{ load_conn_param,        true,  MGMT_LOAD_CONN_PARAM_SIZE },
 	{ read_unconf_index_list, false, MGMT_READ_UNCONF_INDEX_LIST_SIZE },
+	{ read_config_info,       false, MGMT_READ_CONFIG_INFO_SIZE },
 };
 
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
