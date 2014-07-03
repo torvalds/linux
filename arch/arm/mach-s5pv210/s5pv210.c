@@ -59,6 +59,7 @@ static void s5pv210_dt_restart(enum reboot_mode mode, const char *cmd)
 
 static void __init s5pv210_dt_init_late(void)
 {
+	platform_device_register_simple("s5pv210-cpufreq", -1, NULL, 0);
 	s5pv210_pm_init();
 }
 
