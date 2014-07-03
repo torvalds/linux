@@ -441,7 +441,7 @@ enum rtl_register_content {
 #define BYTE_EN_END_MASK	0xf0
 
 #define RTL8152_RMS		(VLAN_ETH_FRAME_LEN + VLAN_HLEN)
-#define RTL8152_TX_TIMEOUT	(HZ)
+#define RTL8152_TX_TIMEOUT	(5 * HZ)
 
 /* rtl8152 flags */
 enum rtl8152_flags {
