@@ -23,6 +23,7 @@
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
@@ -1450,10 +1451,12 @@ static u32 mxt_calculate_crc(u8 *base, off_t start_off, off_t end_off)
 static int mxt_check_retrigen(struct mxt_data *data)
 {
 	struct i2c_client *client = data->client;
+	struct irq_data *irqd;
 	int error;
 	int val;
 
-	if (data->pdata->irqflags & IRQF_TRIGGER_LOW)
+	irqd = irq_get_irq_data(data->irq);
+	if (irqd_get_trigger_type(irqd) & IRQF_TRIGGER_LOW)
 		return 0;
 
 	if (data->T18_address) {
@@ -3154,9 +3157,6 @@ static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 	/* reset gpio */
 	pdata->gpio_reset = of_get_named_gpio_flags(dev->of_node,
 		"atmel,reset-gpio", 0, NULL);
-
-	/* Default to this. Properties can be added to configure it later */
-	pdata->irqflags = IRQF_TRIGGER_FALLING;
 
 	of_property_read_string(dev->of_node, "atmel,cfg_name",
 				&pdata->cfg_name);
