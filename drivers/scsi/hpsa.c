@@ -6914,8 +6914,12 @@ static int hpsa_offline_devices_ready(struct ctlr_info *h)
 		d = list_entry(this, struct offline_device_entry,
 				offline_list);
 		spin_unlock_irqrestore(&h->offline_device_lock, flags);
-		if (!hpsa_volume_offline(h, d->scsi3addr))
+		if (!hpsa_volume_offline(h, d->scsi3addr)) {
+			spin_lock_irqsave(&h->offline_device_lock, flags);
+			list_del(&d->offline_list);
+			spin_unlock_irqrestore(&h->offline_device_lock, flags);
 			return 1;
+		}
 		spin_lock_irqsave(&h->offline_device_lock, flags);
 	}
 	spin_unlock_irqrestore(&h->offline_device_lock, flags);
