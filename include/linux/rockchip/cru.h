@@ -322,6 +322,7 @@ enum rk3288_cru_soft_reset {
 	RK3288_SOFT_RST_TSP_27M,
 };
 
+
 static inline void rk3288_cru_set_soft_reset(enum rk3288_cru_soft_reset idx, bool on)
 {
 	void __iomem *reg = RK_CRU_VIRT + RK3288_CRU_SOFTRSTS_CON(idx >> 4);
@@ -329,5 +330,28 @@ static inline void rk3288_cru_set_soft_reset(enum rk3288_cru_soft_reset idx, boo
 	writel_relaxed(val, reg);
 	dsb();
 }
+
+#define RK3036_CRU_GLB_SRST_FST_VALUE 0x00100
+#define RK3036_CRU_GLB_SRST_SND_VALUE 0x00104
+#define RK3036_CRU_SOFTRST0_CON 0x00110
+#define RK3036_CRU_SOFTRST1_CON 0x00114
+#define RK3036_CRU_SOFTRST2_CON 0x00118
+#define RK3036_CRU_SOFTRST3_CON 0x0011c
+#define RK3036_CRU_SOFTRST4_CON 0x00120
+#define RK3036_CRU_SOFTRST5_CON 0x00124
+#define RK3036_CRU_SOFTRST6_CON 0x00128
+#define RK3036_CRU_SOFTRST7_CON 0x0012c
+#define RK3036_CRU_SOFTRST8_CON 0x00130
+#define RK3036_CRU_MISC_CON 0x00134
+#define RK3036_CRU_GLB_CNT_TH 0x00140
+#define RK3036_CRU_SDMMC_CON0 0x00144
+#define RK3036_CRU_SDMMC_CON1 0x00148
+#define RK3036_CRU_SDIO_CON0 0x0014c
+#define RK3036_CRU_SDIO_CON1 0x00150
+#define RK3036_CRU_EMMC_CON0 0x00154
+#define RK3036_CRU_EMMC_CON1 0x00158
+#define RK3036_CRU_RST_ST 0x00160
+#define RK3036_CRU_PLL_MASK_CON 0x001f0
+
 
 #endif
