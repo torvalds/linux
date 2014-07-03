@@ -3313,20 +3313,43 @@ err:
 	return status;
 }
 
-static struct be_nic_res_desc *be_get_nic_desc(u8 *buf, u32 desc_count)
+/* Descriptor type */
+enum {
+	FUNC_DESC = 1,
+	VFT_DESC = 2
+};
+
+static struct be_nic_res_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
+					       int desc_type)
 {
 	struct be_res_desc_hdr *hdr = (struct be_res_desc_hdr *)buf;
+	struct be_nic_res_desc *nic;
 	int i;
 
 	for (i = 0; i < desc_count; i++) {
 		if (hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V0 ||
-		    hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V1)
-			return (struct be_nic_res_desc *)hdr;
+		    hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V1) {
+			nic = (struct be_nic_res_desc *)hdr;
+			if (desc_type == FUNC_DESC ||
+			    (desc_type == VFT_DESC &&
+			     nic->flags & (1 << VFT_SHIFT)))
+				return nic;
+		}
 
 		hdr->desc_len = hdr->desc_len ? : RESOURCE_DESC_SIZE_V0;
 		hdr = (void *)hdr + hdr->desc_len;
 	}
 	return NULL;
+}
+
+static struct be_nic_res_desc *be_get_vft_desc(u8 *buf, u32 desc_count)
+{
+	return be_get_nic_desc(buf, desc_count, VFT_DESC);
+}
+
+static struct be_nic_res_desc *be_get_func_nic_desc(u8 *buf, u32 desc_count)
+{
+	return be_get_nic_desc(buf, desc_count, FUNC_DESC);
 }
 
 static struct be_pcie_res_desc *be_get_pcie_desc(u8 devfn, u8 *buf,
@@ -3424,7 +3447,7 @@ int be_cmd_get_func_config(struct be_adapter *adapter, struct be_resources *res)
 		u32 desc_count = le32_to_cpu(resp->desc_count);
 		struct be_nic_res_desc *desc;
 
-		desc = be_get_nic_desc(resp->func_param, desc_count);
+		desc = be_get_func_nic_desc(resp->func_param, desc_count);
 		if (!desc) {
 			status = -EINVAL;
 			goto err;
@@ -3440,76 +3463,17 @@ err:
 	return status;
 }
 
-/* Uses mbox */
-static int be_cmd_get_profile_config_mbox(struct be_adapter *adapter,
-					  u8 domain, struct be_dma_mem *cmd)
-{
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_get_profile_config *req;
-	int status;
-
-	if (mutex_lock_interruptible(&adapter->mbox_lock))
-		return -1;
-	wrb = wrb_from_mbox(adapter);
-
-	req = cmd->va;
-	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			       OPCODE_COMMON_GET_PROFILE_CONFIG,
-			       cmd->size, wrb, cmd);
-
-	req->type = ACTIVE_PROFILE_TYPE;
-	req->hdr.domain = domain;
-	if (!lancer_chip(adapter))
-		req->hdr.version = 1;
-
-	status = be_mbox_notify_wait(adapter);
-
-	mutex_unlock(&adapter->mbox_lock);
-	return status;
-}
-
-/* Uses sync mcc */
-static int be_cmd_get_profile_config_mccq(struct be_adapter *adapter,
-					  u8 domain, struct be_dma_mem *cmd)
-{
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_get_profile_config *req;
-	int status;
-
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-
-	req = cmd->va;
-	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			       OPCODE_COMMON_GET_PROFILE_CONFIG,
-			       cmd->size, wrb, cmd);
-
-	req->type = ACTIVE_PROFILE_TYPE;
-	req->hdr.domain = domain;
-	if (!lancer_chip(adapter))
-		req->hdr.version = 1;
-
-	status = be_mcc_notify_wait(adapter);
-
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
-	return status;
-}
-
-/* Uses sync mcc, if MCCQ is already created otherwise mbox */
+/* Will use MBOX only if MCCQ has not been created */
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 domain)
 {
 	struct be_cmd_resp_get_profile_config *resp;
+	struct be_cmd_req_get_profile_config *req;
+	struct be_nic_res_desc *vf_res;
 	struct be_pcie_res_desc *pcie;
 	struct be_port_res_desc *port;
 	struct be_nic_res_desc *nic;
-	struct be_queue_info *mccq = &adapter->mcc_obj.q;
+	struct be_mcc_wrb wrb = {0};
 	struct be_dma_mem cmd;
 	u32 desc_count;
 	int status;
@@ -3520,10 +3484,17 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 	if (!cmd.va)
 		return -ENOMEM;
 
-	if (!mccq->created)
-		status = be_cmd_get_profile_config_mbox(adapter, domain, &cmd);
-	else
-		status = be_cmd_get_profile_config_mccq(adapter, domain, &cmd);
+	req = cmd.va;
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_PROFILE_CONFIG,
+			       cmd.size, &wrb, &cmd);
+
+	req->hdr.domain = domain;
+	if (!lancer_chip(adapter))
+		req->hdr.version = 1;
+	req->type = ACTIVE_PROFILE_TYPE;
+
+	status = be_cmd_notify_wait(adapter, &wrb);
 	if (status)
 		goto err;
 
@@ -3539,48 +3510,52 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 	if (port)
 		adapter->mc_type = port->mc_type;
 
-	nic = be_get_nic_desc(resp->func_param, desc_count);
+	nic = be_get_func_nic_desc(resp->func_param, desc_count);
 	if (nic)
 		be_copy_nic_desc(res, nic);
 
+	vf_res = be_get_vft_desc(resp->func_param, desc_count);
+	if (vf_res)
+		res->vf_if_cap_flags = vf_res->cap_flags;
 err:
 	if (cmd.va)
 		pci_free_consistent(adapter->pdev, cmd.size, cmd.va, cmd.dma);
 	return status;
 }
 
-int be_cmd_set_profile_config(struct be_adapter *adapter, void *desc,
-			      int size, u8 version, u8 domain)
+/* Will use MBOX only if MCCQ has not been created */
+static int be_cmd_set_profile_config(struct be_adapter *adapter, void *desc,
+				     int size, int count, u8 version, u8 domain)
 {
 	struct be_cmd_req_set_profile_config *req;
-	struct be_mcc_wrb *wrb;
+	struct be_mcc_wrb wrb = {0};
+	struct be_dma_mem cmd;
 	int status;
 
-	spin_lock_bh(&adapter->mcc_lock);
+	memset(&cmd, 0, sizeof(struct be_dma_mem));
+	cmd.size = sizeof(struct be_cmd_req_set_profile_config);
+	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size, &cmd.dma);
+	if (!cmd.va)
+		return -ENOMEM;
 
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-
-	req = embedded_payload(wrb);
+	req = cmd.va;
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			       OPCODE_COMMON_SET_PROFILE_CONFIG, sizeof(*req),
-			       wrb, NULL);
+			       OPCODE_COMMON_SET_PROFILE_CONFIG, cmd.size,
+			       &wrb, &cmd);
 	req->hdr.version = version;
 	req->hdr.domain = domain;
-	req->desc_count = cpu_to_le32(1);
+	req->desc_count = cpu_to_le32(count);
 	memcpy(req->desc, desc, size);
 
-	status = be_mcc_notify_wait(adapter);
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
+	status = be_cmd_notify_wait(adapter, &wrb);
+
+	if (cmd.va)
+		pci_free_consistent(adapter->pdev, cmd.size, cmd.va, cmd.dma);
 	return status;
 }
 
 /* Mark all fields invalid */
-void be_reset_nic_desc(struct be_nic_res_desc *nic)
+static void be_reset_nic_desc(struct be_nic_res_desc *nic)
 {
 	memset(nic, 0, sizeof(*nic));
 	nic->unicast_mac_count = 0xFFFF;
@@ -3601,7 +3576,18 @@ void be_reset_nic_desc(struct be_nic_res_desc *nic)
 	nic->wol_param = 0x0F;
 	nic->tunnel_iface_count = 0xFFFF;
 	nic->direct_tenant_iface_count = 0xFFFF;
+	nic->bw_min = 0xFFFFFFFF;
 	nic->bw_max = 0xFFFFFFFF;
+}
+
+/* Mark all fields invalid */
+static void be_reset_pcie_desc(struct be_pcie_res_desc *pcie)
+{
+	memset(pcie, 0, sizeof(*pcie));
+	pcie->sriov_state = 0xFF;
+	pcie->pf_state = 0xFF;
+	pcie->pf_type = 0xFF;
+	pcie->num_vfs = 0xFFFF;
 }
 
 int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
@@ -3634,7 +3620,63 @@ int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
 
 	return be_cmd_set_profile_config(adapter, &nic_desc,
 					 nic_desc.hdr.desc_len,
-					 version, domain);
+					 1, version, domain);
+}
+
+int be_cmd_set_sriov_config(struct be_adapter *adapter,
+			    struct be_resources res, u16 num_vfs)
+{
+	struct {
+		struct be_pcie_res_desc pcie;
+		struct be_nic_res_desc nic_vft;
+	} __packed desc;
+	u16 vf_q_count;
+
+	if (BEx_chip(adapter) || lancer_chip(adapter))
+		return 0;
+
+	/* PF PCIE descriptor */
+	be_reset_pcie_desc(&desc.pcie);
+	desc.pcie.hdr.desc_type = PCIE_RESOURCE_DESC_TYPE_V1;
+	desc.pcie.hdr.desc_len = RESOURCE_DESC_SIZE_V1;
+	desc.pcie.flags = (1 << IMM_SHIFT) | (1 << NOSV_SHIFT);
+	desc.pcie.pf_num = adapter->pdev->devfn;
+	desc.pcie.sriov_state = num_vfs ? 1 : 0;
+	desc.pcie.num_vfs = cpu_to_le16(num_vfs);
+
+	/* VF NIC Template descriptor */
+	be_reset_nic_desc(&desc.nic_vft);
+	desc.nic_vft.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V1;
+	desc.nic_vft.hdr.desc_len = RESOURCE_DESC_SIZE_V1;
+	desc.nic_vft.flags = (1 << VFT_SHIFT) | (1 << IMM_SHIFT) |
+				(1 << NOSV_SHIFT);
+	desc.nic_vft.pf_num = adapter->pdev->devfn;
+	desc.nic_vft.vf_num = 0;
+
+	if (num_vfs && res.vf_if_cap_flags & BE_IF_FLAGS_RSS) {
+		/* If number of VFs requested is 8 less than max supported,
+		 * assign 8 queue pairs to the PF and divide the remaining
+		 * resources evenly among the VFs
+		 */
+		if (num_vfs < (be_max_vfs(adapter) - 8))
+			vf_q_count = (res.max_rss_qs - 8) / num_vfs;
+		else
+			vf_q_count = res.max_rss_qs / num_vfs;
+
+		desc.nic_vft.rq_count = cpu_to_le16(vf_q_count);
+		desc.nic_vft.txq_count = cpu_to_le16(vf_q_count);
+		desc.nic_vft.rssq_count = cpu_to_le16(vf_q_count - 1);
+		desc.nic_vft.cq_count = cpu_to_le16(3 * vf_q_count);
+	} else {
+		desc.nic_vft.txq_count = cpu_to_le16(1);
+		desc.nic_vft.rq_count = cpu_to_le16(1);
+		desc.nic_vft.rssq_count = cpu_to_le16(0);
+		/* One CQ for each TX, RX and MCCQ */
+		desc.nic_vft.cq_count = cpu_to_le16(3);
+	}
+
+	return be_cmd_set_profile_config(adapter, &desc,
+					 2 * RESOURCE_DESC_SIZE_V1, 2, 1, 0);
 }
 
 int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op)
@@ -3686,7 +3728,7 @@ int be_cmd_set_vxlan_port(struct be_adapter *adapter, __be16 port)
 	}
 
 	return be_cmd_set_profile_config(adapter, &port_desc,
-					 RESOURCE_DESC_SIZE_V1, 1, 0);
+					 RESOURCE_DESC_SIZE_V1, 1, 1, 0);
 }
 
 int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,

@@ -1172,20 +1172,15 @@ static int be_vlan_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	int status = 0;
 
 	/* Packets with VID 0 are always received by Lancer by default */
 	if (lancer_chip(adapter) && vid == 0)
-		goto ret;
+		return 0;
 
 	clear_bit(vid, adapter->vids);
-	status = be_vid_config(adapter);
-	if (!status)
-		adapter->vlans_added--;
-	else
-		set_bit(vid, adapter->vids);
-ret:
-	return status;
+	adapter->vlans_added--;
+
+	return be_vid_config(adapter);
 }
 
 static void be_clear_promisc(struct be_adapter *adapter)
@@ -3098,6 +3093,13 @@ static int be_clear(struct be_adapter *adapter)
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
 
+	/* Re-configure FW to distribute resources evenly across max-supported
+	 * number of VFs, only when VFs are not already enabled.
+	 */
+	if (be_physfn(adapter) && !pci_vfs_assigned(adapter->pdev))
+		be_cmd_set_sriov_config(adapter, adapter->pool_res,
+					pci_sriov_get_totalvfs(adapter->pdev));
+
 #ifdef CONFIG_BE2NET_VXLAN
 	be_disable_vxlan_offloads(adapter);
 #endif
@@ -3170,19 +3172,6 @@ static int be_vf_setup(struct be_adapter *adapter)
 	u32 privileges;
 
 	old_vfs = pci_num_vf(adapter->pdev);
-	if (old_vfs) {
-		dev_info(dev, "%d VFs are already enabled\n", old_vfs);
-		if (old_vfs != num_vfs)
-			dev_warn(dev, "Ignoring num_vfs=%d setting\n", num_vfs);
-		adapter->num_vfs = old_vfs;
-	} else {
-		if (num_vfs > be_max_vfs(adapter))
-			dev_info(dev, "Device supports %d VFs and not %d\n",
-				 be_max_vfs(adapter), num_vfs);
-		adapter->num_vfs = min_t(u16, num_vfs, be_max_vfs(adapter));
-		if (!adapter->num_vfs)
-			return 0;
-	}
 
 	status = be_vf_setup_init(adapter);
 	if (status)
@@ -3194,17 +3183,15 @@ static int be_vf_setup(struct be_adapter *adapter)
 			if (status)
 				goto err;
 		}
-	} else {
-		status = be_vfs_if_create(adapter);
-		if (status)
-			goto err;
-	}
 
-	if (old_vfs) {
 		status = be_vfs_mac_query(adapter);
 		if (status)
 			goto err;
 	} else {
+		status = be_vfs_if_create(adapter);
+		if (status)
+			goto err;
+
 		status = be_vf_eth_addr_config(adapter);
 		if (status)
 			goto err;
@@ -3270,19 +3257,7 @@ static u8 be_convert_mc_type(u32 function_mode)
 static void BEx_get_resources(struct be_adapter *adapter,
 			      struct be_resources *res)
 {
-	struct pci_dev *pdev = adapter->pdev;
-	bool use_sriov = false;
-	int max_vfs = 0;
-
-	if (be_physfn(adapter) && BE3_chip(adapter)) {
-		be_cmd_get_profile_config(adapter, res, 0);
-		/* Some old versions of BE3 FW don't report max_vfs value */
-		if (res->max_vfs == 0) {
-			max_vfs = pci_sriov_get_totalvfs(pdev);
-			res->max_vfs = max_vfs > 0 ? min(MAX_VFS, max_vfs) : 0;
-		}
-		use_sriov = res->max_vfs && sriov_want(adapter);
-	}
+	bool use_sriov = adapter->num_vfs ? 1 : 0;
 
 	if (be_physfn(adapter))
 		res->max_uc_mac = BE_UC_PMAC_COUNT;
@@ -3349,6 +3324,54 @@ static void be_setup_init(struct be_adapter *adapter)
 		adapter->cmd_privileges = MIN_PRIVILEGES;
 }
 
+static int be_get_sriov_config(struct be_adapter *adapter)
+{
+	struct device *dev = &adapter->pdev->dev;
+	struct be_resources res = {0};
+	int status, max_vfs, old_vfs;
+
+	status = be_cmd_get_profile_config(adapter, &res, 0);
+	if (status)
+		return status;
+
+	adapter->pool_res = res;
+
+	/* Some old versions of BE3 FW don't report max_vfs value */
+	if (BE3_chip(adapter) && !res.max_vfs) {
+		max_vfs = pci_sriov_get_totalvfs(adapter->pdev);
+		res.max_vfs = max_vfs > 0 ? min(MAX_VFS, max_vfs) : 0;
+	}
+
+	adapter->pool_res.max_vfs = res.max_vfs;
+	pci_sriov_set_totalvfs(adapter->pdev, be_max_vfs(adapter));
+
+	if (!be_max_vfs(adapter)) {
+		if (num_vfs)
+			dev_warn(dev, "device doesn't support SRIOV\n");
+		adapter->num_vfs = 0;
+		return 0;
+	}
+
+	/* validate num_vfs module param */
+	old_vfs = pci_num_vf(adapter->pdev);
+	if (old_vfs) {
+		dev_info(dev, "%d VFs are already enabled\n", old_vfs);
+		if (old_vfs != num_vfs)
+			dev_warn(dev, "Ignoring num_vfs=%d setting\n", num_vfs);
+		adapter->num_vfs = old_vfs;
+	} else {
+		if (num_vfs > be_max_vfs(adapter)) {
+			dev_info(dev, "Resources unavailable to init %d VFs\n",
+				 num_vfs);
+			dev_info(dev, "Limiting to %d VFs\n",
+				 be_max_vfs(adapter));
+		}
+		adapter->num_vfs = min_t(u16, num_vfs, be_max_vfs(adapter));
+	}
+
+	return 0;
+}
+
 static int be_get_resources(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
@@ -3374,13 +3397,6 @@ static int be_get_resources(struct be_adapter *adapter)
 			res.max_evt_qs /= 2;
 		adapter->res = res;
 
-		if (be_physfn(adapter)) {
-			status = be_cmd_get_profile_config(adapter, &res, 0);
-			if (status)
-				return status;
-			adapter->res.max_vfs = res.max_vfs;
-		}
-
 		dev_info(dev, "Max: txqs %d, rxqs %d, rss %d, eqs %d, vfs %d\n",
 			 be_max_txqs(adapter), be_max_rxqs(adapter),
 			 be_max_rss(adapter), be_max_eqs(adapter),
@@ -3393,7 +3409,6 @@ static int be_get_resources(struct be_adapter *adapter)
 	return 0;
 }
 
-/* Routine to query per function resource limits */
 static int be_get_config(struct be_adapter *adapter)
 {
 	u16 profile_id;
@@ -3411,6 +3426,26 @@ static int be_get_config(struct be_adapter *adapter)
 		if (!status)
 			dev_info(&adapter->pdev->dev,
 				 "Using profile 0x%x\n", profile_id);
+
+		status = be_get_sriov_config(adapter);
+		if (status)
+			return status;
+
+		/* When the HW is in SRIOV capable configuration, the PF-pool
+		 * resources are equally distributed across the max-number of
+		 * VFs. The user may request only a subset of the max-vfs to be
+		 * enabled. Based on num_vfs, redistribute the resources across
+		 * num_vfs so that each VF will have access to more number of
+		 * resources. This facility is not available in BE3 FW.
+		 * Also, this is done by FW in Lancer chip.
+		 */
+		if (!pci_num_vf(adapter->pdev)) {
+			status = be_cmd_set_sriov_config(adapter,
+							 adapter->pool_res,
+							 adapter->num_vfs);
+			if (status)
+				return status;
+		}
 	}
 
 	status = be_get_resources(adapter);
@@ -3596,12 +3631,8 @@ static int be_setup(struct be_adapter *adapter)
 		be_cmd_set_logical_link_config(adapter,
 					       IFLA_VF_LINK_STATE_AUTO, 0);
 
-	if (sriov_want(adapter)) {
-		if (be_max_vfs(adapter))
-			be_vf_setup(adapter);
-		else
-			dev_warn(dev, "device doesn't support SRIOV\n");
-	}
+	if (adapter->num_vfs)
+		be_vf_setup(adapter);
 
 	status = be_cmd_get_phy_info(adapter);
 	if (!status && be_pause_supported(adapter))
