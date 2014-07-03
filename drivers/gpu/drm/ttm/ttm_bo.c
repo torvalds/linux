@@ -784,7 +784,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 	int ret;
 
 	do {
-		ret = (*man->func->get_node)(man, bo, placement, mem);
+		ret = (*man->func->get_node)(man, bo, placement, 0, mem);
 		if (unlikely(ret != 0))
 			return ret;
 		if (mem->mm_node)
@@ -897,7 +897,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 
 		if (man->has_type && man->use_type) {
 			type_found = true;
-			ret = (*man->func->get_node)(man, bo, placement, mem);
+			ret = (*man->func->get_node)(man, bo, placement,
+						     cur_flags, mem);
 			if (unlikely(ret))
 				return ret;
 		}
@@ -936,7 +937,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		 */
 		ttm_flag_masked(&cur_flags, placement->busy_placement[i],
 				~TTM_PL_MASK_MEMTYPE);
-
 
 		if (mem_type == TTM_PL_SYSTEM) {
 			mem->mem_type = mem_type;
