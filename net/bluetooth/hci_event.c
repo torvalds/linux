@@ -4186,16 +4186,6 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 				  u8 addr_type)
 {
 	struct hci_conn *conn;
-	struct smp_irk *irk;
-
-	/* If this is a resolvable address, we should resolve it and then
-	 * update address and address type variables.
-	 */
-	irk = hci_get_irk(hdev, addr, addr_type);
-	if (irk) {
-		addr = &irk->bdaddr;
-		addr_type = irk->addr_type;
-	}
 
 	if (!hci_pend_le_conn_lookup(hdev, addr, addr_type))
 		return;
@@ -4233,6 +4223,13 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		struct hci_conn_params *param;
 		struct smp_irk *irk;
 
+		/* Check if we need to convert to identity address */
+		irk = hci_get_irk(hdev, bdaddr, bdaddr_type);
+		if (irk) {
+			bdaddr = &irk->bdaddr;
+			bdaddr_type = irk->addr_type;
+		}
+
 		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND)
 			check_pending_le_conn(hdev, bdaddr, bdaddr_type);
 
@@ -4241,13 +4238,6 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 
 		if (type == LE_ADV_DIRECT_IND)
 			return;
-
-		/* Check if we need to convert to identity address */
-		irk = hci_get_irk(hdev, bdaddr, bdaddr_type);
-		if (irk) {
-			bdaddr = &irk->bdaddr;
-			bdaddr_type = irk->addr_type;
-		}
 
 		/* The conn params list only contains identity addresses */
 		if (!hci_is_identity_address(bdaddr, bdaddr_type))
