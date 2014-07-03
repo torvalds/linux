@@ -680,15 +680,14 @@ static struct drm_exynos_ipp_mem_node
 		struct drm_exynos_ipp_queue_buf *qbuf)
 {
 	struct drm_exynos_ipp_mem_node *m_node;
-	struct drm_exynos_ipp_buf_info buf_info;
+	struct drm_exynos_ipp_buf_info *buf_info;
 	int i;
 
 	m_node = kzalloc(sizeof(*m_node), GFP_KERNEL);
 	if (!m_node)
 		return ERR_PTR(-ENOMEM);
 
-	/* clear base address for error handling */
-	memset(&buf_info, 0x0, sizeof(buf_info));
+	buf_info = &m_node->buf_info;
 
 	/* operations, buffer id */
 	m_node->ops_id = qbuf->ops_id;
@@ -712,15 +711,14 @@ static struct drm_exynos_ipp_mem_node
 				goto err_clear;
 			}
 
-			buf_info.handles[i] = qbuf->handle[i];
-			buf_info.base[i] = *addr;
-			DRM_DEBUG_KMS("i[%d]base[0x%x]hd[0x%x]\n",
-				i, buf_info.base[i], (int)buf_info.handles[i]);
+			buf_info->handles[i] = qbuf->handle[i];
+			buf_info->base[i] = *addr;
+			DRM_DEBUG_KMS("i[%d]base[0x%x]hd[0x%lx]\n", i,
+				      buf_info->base[i], buf_info->handles[i]);
 		}
 	}
 
 	m_node->filp = file;
-	m_node->buf_info = buf_info;
 	mutex_lock(&c_node->mem_lock);
 	list_add_tail(&m_node->list, &c_node->mem_list[qbuf->ops_id]);
 	mutex_unlock(&c_node->mem_lock);
