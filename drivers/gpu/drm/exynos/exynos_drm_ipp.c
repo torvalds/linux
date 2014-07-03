@@ -574,42 +574,18 @@ static void ipp_clean_cmd_node(struct ipp_context *ctx,
 	kfree(c_node);
 }
 
-static int ipp_check_mem_list(struct drm_exynos_ipp_cmd_node *c_node)
+static bool ipp_check_mem_list(struct drm_exynos_ipp_cmd_node *c_node)
 {
-	struct drm_exynos_ipp_property *property = &c_node->property;
-	struct drm_exynos_ipp_mem_node *m_node;
-	struct list_head *head;
-	int ret, i, count[EXYNOS_DRM_OPS_MAX] = { 0, };
-
-	for_each_ipp_ops(i) {
-		/* source/destination memory list */
-		head = &c_node->mem_list[i];
-
-		/* find memory node entry */
-		list_for_each_entry(m_node, head, list) {
-			DRM_DEBUG_KMS("%s,count[%d]m_node[0x%x]\n",
-				i ? "dst" : "src", count[i], (int)m_node);
-			count[i]++;
-		}
+	switch (c_node->property.cmd) {
+	case IPP_CMD_WB:
+		return !list_empty(&c_node->mem_list[EXYNOS_DRM_OPS_DST]);
+	case IPP_CMD_OUTPUT:
+		return !list_empty(&c_node->mem_list[EXYNOS_DRM_OPS_SRC]);
+	case IPP_CMD_M2M:
+	default:
+		return !list_empty(&c_node->mem_list[EXYNOS_DRM_OPS_SRC]) &&
+		       !list_empty(&c_node->mem_list[EXYNOS_DRM_OPS_DST]);
 	}
-
-	DRM_DEBUG_KMS("min[%d]max[%d]\n",
-		min(count[EXYNOS_DRM_OPS_SRC], count[EXYNOS_DRM_OPS_DST]),
-		max(count[EXYNOS_DRM_OPS_SRC], count[EXYNOS_DRM_OPS_DST]));
-
-	/*
-	 * M2M operations should be need paired memory address.
-	 * so, need to check minimum count about src, dst.
-	 * other case not use paired memory, so use maximum count
-	 */
-	if (ipp_is_m2m_cmd(property->cmd))
-		ret = min(count[EXYNOS_DRM_OPS_SRC],
-			count[EXYNOS_DRM_OPS_DST]);
-	else
-		ret = max(count[EXYNOS_DRM_OPS_SRC],
-			count[EXYNOS_DRM_OPS_DST]);
-
-	return ret;
 }
 
 static struct drm_exynos_ipp_mem_node
