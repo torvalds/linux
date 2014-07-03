@@ -308,8 +308,7 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv = file->driver_priv;
-	struct exynos_drm_ipp_private *priv = file_priv->ipp_priv;
-	struct device *dev = priv->dev;
+	struct device *dev = file_priv->ipp_dev;
 	struct ipp_context *ctx = get_ipp_context(dev);
 	struct drm_exynos_ipp_prop_list *prop_list = data;
 	struct exynos_drm_ippdrv *ippdrv;
@@ -441,8 +440,7 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv = file->driver_priv;
-	struct exynos_drm_ipp_private *priv = file_priv->ipp_priv;
-	struct device *dev = priv->dev;
+	struct device *dev = file_priv->ipp_dev;
 	struct ipp_context *ctx = get_ipp_context(dev);
 	struct drm_exynos_ipp_property *property = data;
 	struct exynos_drm_ippdrv *ippdrv;
@@ -501,7 +499,7 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 		property->prop_id, property->cmd, (int)ippdrv);
 
 	/* stored property information and ippdrv in private data */
-	c_node->priv = priv;
+	c_node->dev = dev;
 	c_node->property = *property;
 	c_node->state = IPP_STATE_IDLE;
 
@@ -929,8 +927,7 @@ int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv = file->driver_priv;
-	struct exynos_drm_ipp_private *priv = file_priv->ipp_priv;
-	struct device *dev = priv->dev;
+	struct device *dev = file_priv->ipp_dev;
 	struct ipp_context *ctx = get_ipp_context(dev);
 	struct drm_exynos_ipp_queue_buf *qbuf = data;
 	struct drm_exynos_ipp_cmd_node *c_node;
@@ -1061,9 +1058,8 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv = file->driver_priv;
-	struct exynos_drm_ipp_private *priv = file_priv->ipp_priv;
 	struct exynos_drm_ippdrv *ippdrv = NULL;
-	struct device *dev = priv->dev;
+	struct device *dev = file_priv->ipp_dev;
 	struct ipp_context *ctx = get_ipp_context(dev);
 	struct drm_exynos_ipp_cmd_ctrl *cmd_ctrl = data;
 	struct drm_exynos_ipp_cmd_work *cmd_work;
@@ -1775,16 +1771,10 @@ static int ipp_subdrv_open(struct drm_device *drm_dev, struct device *dev,
 		struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv = file->driver_priv;
-	struct exynos_drm_ipp_private *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-	priv->dev = dev;
-	file_priv->ipp_priv = priv;
+	file_priv->ipp_dev = dev;
 
-
-	DRM_DEBUG_KMS("done priv[0x%x]\n", (int)priv);
+	DRM_DEBUG_KMS("done priv[0x%x]\n", (int)dev);
 
 	return 0;
 }
@@ -1793,13 +1783,12 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 		struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv = file->driver_priv;
-	struct exynos_drm_ipp_private *priv = file_priv->ipp_priv;
 	struct exynos_drm_ippdrv *ippdrv = NULL;
 	struct ipp_context *ctx = get_ipp_context(dev);
 	struct drm_exynos_ipp_cmd_node *c_node, *tc_node;
 	int count = 0;
 
-	DRM_DEBUG_KMS("for priv[0x%x]\n", (int)priv);
+	DRM_DEBUG_KMS("for priv[0x%x]\n", (int)file_priv->ipp_dev);
 
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
 		mutex_lock(&ippdrv->cmd_lock);
@@ -1808,7 +1797,7 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 			DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n",
 				count++, (int)ippdrv);
 
-			if (c_node->priv == priv) {
+			if (c_node->dev == file_priv->ipp_dev) {
 				/*
 				 * userland goto unnormal state. process killed.
 				 * and close the file.
@@ -1830,7 +1819,6 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 		mutex_unlock(&ippdrv->cmd_lock);
 	}
 
-	kfree(priv);
 	return;
 }
 

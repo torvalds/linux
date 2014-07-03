@@ -237,13 +237,9 @@ struct exynos_drm_g2d_private {
 	struct list_head	userptr_list;
 };
 
-struct exynos_drm_ipp_private {
-	struct device	*dev;
-};
-
 struct drm_exynos_file_private {
 	struct exynos_drm_g2d_private	*g2d_priv;
-	struct exynos_drm_ipp_private	*ipp_priv;
+	struct device			*ipp_dev;
 	struct file			*anon_filp;
 };
 
