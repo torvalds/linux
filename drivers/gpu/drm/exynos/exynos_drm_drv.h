@@ -239,7 +239,6 @@ struct exynos_drm_g2d_private {
 
 struct exynos_drm_ipp_private {
 	struct device	*dev;
-	struct list_head	event_list;
 };
 
 struct drm_exynos_file_private {

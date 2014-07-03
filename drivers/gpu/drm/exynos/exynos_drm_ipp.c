@@ -534,7 +534,6 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 		INIT_LIST_HEAD(&c_node->mem_list[i]);
 
 	INIT_LIST_HEAD(&c_node->event_list);
-	list_splice_init(&priv->event_list, &c_node->event_list);
 	mutex_lock(&ippdrv->cmd_lock);
 	list_add_tail(&c_node->list, &ippdrv->cmd_list);
 	mutex_unlock(&ippdrv->cmd_lock);
@@ -1784,7 +1783,6 @@ static int ipp_subdrv_open(struct drm_device *drm_dev, struct device *dev,
 	priv->dev = dev;
 	file_priv->ipp_priv = priv;
 
-	INIT_LIST_HEAD(&priv->event_list);
 
 	DRM_DEBUG_KMS("done priv[0x%x]\n", (int)priv);
 
