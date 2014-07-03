@@ -2209,7 +2209,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			/* Fall through */
 
 		case HCI_AUTO_CONN_ALWAYS:
-			hci_pend_le_conn_add(hdev, &conn->dst, conn->dst_type);
+			hci_pend_le_conn_add(hdev, params);
 			break;
 
 		default:
@@ -4036,6 +4036,7 @@ static void hci_disconn_phylink_complete_evt(struct hci_dev *hdev,
 static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_le_conn_complete *ev = (void *) skb->data;
+	struct hci_conn_params *params;
 	struct hci_conn *conn;
 	struct smp_irk *irk;
 	u8 addr_type;
@@ -4152,7 +4153,9 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_proto_connect_cfm(conn, ev->status);
 
-	hci_pend_le_conn_del(hdev, &conn->dst, conn->dst_type);
+	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	if (params)
+		hci_pend_le_conn_del(hdev, params);
 
 unlock:
 	hci_dev_unlock(hdev);

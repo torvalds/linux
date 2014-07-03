@@ -439,6 +439,7 @@ struct hci_chan {
 
 struct hci_conn_params {
 	struct list_head list;
+	struct list_head pend_le_conn;
 
 	bdaddr_t addr;
 	u8 addr_type;
@@ -867,10 +868,10 @@ void hci_conn_params_clear_all(struct hci_dev *hdev);
 void hci_conn_params_clear_disabled(struct hci_dev *hdev);
 void hci_conn_params_clear_enabled(struct hci_dev *hdev);
 
-struct bdaddr_list *hci_pend_le_conn_lookup(struct hci_dev *hdev,
-					    bdaddr_t *addr, u8 addr_type);
-void hci_pend_le_conn_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
-void hci_pend_le_conn_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
+struct hci_conn_params *hci_pend_le_conn_lookup(struct hci_dev *hdev,
+						bdaddr_t *addr, u8 addr_type);
+void hci_pend_le_conn_add(struct hci_dev *hdev, struct hci_conn_params *params);
+void hci_pend_le_conn_del(struct hci_dev *hdev, struct hci_conn_params *params);
 void hci_pend_le_conns_clear(struct hci_dev *hdev);
 
 void hci_update_background_scan(struct hci_dev *hdev);

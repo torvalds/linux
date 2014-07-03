@@ -5201,7 +5201,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 		if (params->auto_connect == HCI_AUTO_CONN_REPORT)
 			hdev->pend_le_reports--;
 
-		hci_pend_le_conn_del(hdev, &cp->addr.bdaddr, addr_type);
+		hci_pend_le_conn_del(hdev, params);
 		list_del(&params->list);
 		kfree(params);
 
@@ -5514,7 +5514,7 @@ static void restart_le_auto_conns(struct hci_dev *hdev)
 
 	list_for_each_entry(p, &hdev->le_conn_params, list) {
 		if (p->auto_connect == HCI_AUTO_CONN_ALWAYS) {
-			hci_pend_le_conn_add(hdev, &p->addr, p->addr_type);
+			hci_pend_le_conn_add(hdev, p);
 			added = true;
 		}
 	}

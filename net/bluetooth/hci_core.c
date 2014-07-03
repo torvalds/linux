@@ -3427,73 +3427,46 @@ static bool is_connected(struct hci_dev *hdev, bdaddr_t *addr, u8 type)
 }
 
 /* This function requires the caller holds hdev->lock */
-struct bdaddr_list *hci_pend_le_conn_lookup(struct hci_dev *hdev,
-					    bdaddr_t *addr, u8 addr_type)
+struct hci_conn_params *hci_pend_le_conn_lookup(struct hci_dev *hdev,
+						bdaddr_t *addr, u8 addr_type)
 {
-	struct bdaddr_list *entry;
+	struct hci_conn_params *param;
 
-	list_for_each_entry(entry, &hdev->pend_le_conns, list) {
-		if (bacmp(&entry->bdaddr, addr) == 0 &&
-		    entry->bdaddr_type == addr_type)
-			return entry;
+	list_for_each_entry(param, &hdev->pend_le_conns, pend_le_conn) {
+		if (bacmp(&param->addr, addr) == 0 &&
+		    param->addr_type == addr_type)
+			return param;
 	}
 
 	return NULL;
 }
 
 /* This function requires the caller holds hdev->lock */
-void hci_pend_le_conn_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
+void hci_pend_le_conn_add(struct hci_dev *hdev, struct hci_conn_params *params)
 {
-	struct bdaddr_list *entry;
+	list_del_init(&params->pend_le_conn);
+	list_add(&params->pend_le_conn, &hdev->pend_le_conns);
 
-	entry = hci_pend_le_conn_lookup(hdev, addr, addr_type);
-	if (entry)
-		goto done;
+	BT_DBG("addr %pMR (type %u)", &params->addr, params->addr_type);
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
-		BT_ERR("Out of memory");
-		return;
-	}
-
-	bacpy(&entry->bdaddr, addr);
-	entry->bdaddr_type = addr_type;
-
-	list_add(&entry->list, &hdev->pend_le_conns);
-
-	BT_DBG("addr %pMR (type %u)", addr, addr_type);
-
-done:
 	hci_update_background_scan(hdev);
 }
 
 /* This function requires the caller holds hdev->lock */
-void hci_pend_le_conn_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
+void hci_pend_le_conn_del(struct hci_dev *hdev, struct hci_conn_params *params)
 {
-	struct bdaddr_list *entry;
+	list_del_init(&params->pend_le_conn);
 
-	entry = hci_pend_le_conn_lookup(hdev, addr, addr_type);
-	if (!entry)
-		goto done;
+	BT_DBG("addr %pMR (type %u)", &params->addr, params->addr_type);
 
-	list_del(&entry->list);
-	kfree(entry);
-
-	BT_DBG("addr %pMR (type %u)", addr, addr_type);
-
-done:
 	hci_update_background_scan(hdev);
 }
 
 /* This function requires the caller holds hdev->lock */
 void hci_pend_le_conns_clear(struct hci_dev *hdev)
 {
-	struct bdaddr_list *entry, *tmp;
-
-	list_for_each_entry_safe(entry, tmp, &hdev->pend_le_conns, list) {
-		list_del(&entry->list);
-		kfree(entry);
-	}
+	while (!list_empty(&hdev->pend_le_conns))
+		list_del_init(hdev->pend_le_conns.next);
 
 	BT_DBG("All LE pending connections cleared");
 
@@ -3523,6 +3496,7 @@ struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 	params->addr_type = addr_type;
 
 	list_add(&params->list, &hdev->le_conn_params);
+	INIT_LIST_HEAD(&params->pend_le_conn);
 
 	params->conn_min_interval = hdev->le_conn_min_interval;
 	params->conn_max_interval = hdev->le_conn_max_interval;
@@ -3552,16 +3526,16 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 	switch (auto_connect) {
 	case HCI_AUTO_CONN_DISABLED:
 	case HCI_AUTO_CONN_LINK_LOSS:
-		hci_pend_le_conn_del(hdev, addr, addr_type);
+		hci_pend_le_conn_del(hdev, params);
 		break;
 	case HCI_AUTO_CONN_REPORT:
 		if (params->auto_connect != HCI_AUTO_CONN_REPORT)
 			hdev->pend_le_reports++;
-		hci_pend_le_conn_del(hdev, addr, addr_type);
+		hci_pend_le_conn_del(hdev, params);
 		break;
 	case HCI_AUTO_CONN_ALWAYS:
 		if (!is_connected(hdev, addr, addr_type))
-			hci_pend_le_conn_add(hdev, addr, addr_type);
+			hci_pend_le_conn_add(hdev, params);
 		break;
 	}
 
@@ -3585,7 +3559,7 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 	if (params->auto_connect == HCI_AUTO_CONN_REPORT)
 		hdev->pend_le_reports--;
 
-	hci_pend_le_conn_del(hdev, addr, addr_type);
+	hci_pend_le_conn_del(hdev, params);
 
 	list_del(&params->list);
 	kfree(params);
