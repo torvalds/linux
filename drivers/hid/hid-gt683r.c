@@ -84,12 +84,13 @@ static void gt683r_brightness_set(struct led_classdev *led_cdev,
 	}
 }
 
-static ssize_t leds_mode_show(struct device *dev,
+static ssize_t mode_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
 	u8 sysfs_mode;
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = container_of(dev->parent,
+					struct hid_device, dev);
 	struct gt683r_led *led = hid_get_drvdata(hdev);
 
 	if (led->mode == GT683R_LED_NORMAL)
@@ -102,12 +103,13 @@ static ssize_t leds_mode_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%u\n", sysfs_mode);
 }
 
-static ssize_t leds_mode_store(struct device *dev,
+static ssize_t mode_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	u8 sysfs_mode;
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = container_of(dev->parent,
+					struct hid_device, dev);
 	struct gt683r_led *led = hid_get_drvdata(hdev);
 
 
@@ -212,7 +214,22 @@ fail:
 	mutex_unlock(&led->lock);
 }
 
-static DEVICE_ATTR_RW(leds_mode);
+static DEVICE_ATTR_RW(mode);
+
+static struct attribute *gt683r_led_attrs[] = {
+	&dev_attr_mode.attr,
+	NULL
+};
+
+static const struct attribute_group gt683r_led_group = {
+	.name = "gt683r",
+	.attrs = gt683r_led_attrs,
+};
+
+static const struct attribute_group *gt683r_led_groups[] = {
+	&gt683r_led_group,
+	NULL
+};
 
 static int gt683r_led_probe(struct hid_device *hdev,
 			const struct hid_device_id *id)
@@ -261,17 +278,13 @@ static int gt683r_led_probe(struct hid_device *hdev,
 		led->led_devs[i].name = name;
 		led->led_devs[i].max_brightness = 1;
 		led->led_devs[i].brightness_set = gt683r_brightness_set;
+		led->led_devs[i].groups = gt683r_led_groups;
+
 		ret = led_classdev_register(&hdev->dev, &led->led_devs[i]);
 		if (ret) {
 			hid_err(hdev, "could not register led device\n");
 			goto fail;
 		}
-	}
-
-	ret = device_create_file(&led->hdev->dev, &dev_attr_leds_mode);
-	if (ret) {
-		hid_err(hdev, "could not make mode attribute file\n");
-		goto fail;
 	}
 
 	return 0;
@@ -288,7 +301,6 @@ static void gt683r_led_remove(struct hid_device *hdev)
 	int i;
 	struct gt683r_led *led = hid_get_drvdata(hdev);
 
-	device_remove_file(&hdev->dev, &dev_attr_leds_mode);
 	for (i = 0; i < GT683R_LED_COUNT; i++)
 		led_classdev_unregister(&led->led_devs[i]);
 	flush_work(&led->work);

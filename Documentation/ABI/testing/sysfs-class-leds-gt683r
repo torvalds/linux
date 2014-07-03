@@ -1,9 +1,11 @@
-What:		/sys/class/hidraw/<hidraw>/device/leds_mode
+What:		/sys/class/leds/<led>/gt683r/mode
 Date:		Jun 2014
 KernelVersion:	3.17
 Contact:	Janne Kanniainen <janne.kanniainen@gmail.com>
 Description:
-		Set the mode of LEDs
+		Set the mode of LEDs. You should notice that changing the mode
+		of one LED will update the mode of its two sibling devices as
+		well.
 
 		0 - normal
 		1 - audio
