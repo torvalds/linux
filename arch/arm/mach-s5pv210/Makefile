@@ -5,6 +5,8 @@
 #
 # Licensed under GPLv2
 
+ccflags-$(CONFIG_ARCH_MULTIPLATFORM) += -I$(srctree)/$(src)/include -I$(srctree)/arch/arm/plat-samsung/include
+
 obj-y				:=
 obj-m				:=
 obj-n				:=
@@ -16,7 +18,4 @@ obj-$(CONFIG_PM_SLEEP)		+= pm.o sleep.o
 
 # machine support
 
-obj-$(CONFIG_MACH_S5PV210_DT)	+= s5pv210.o
-# device support
-
-obj-y					+= setup-i2c0.o
+obj-y				+= s5pv210.o

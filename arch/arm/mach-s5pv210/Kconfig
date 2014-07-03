@@ -7,32 +7,28 @@
 
 # Configuration options for the S5PV210/S5PC110
 
+config ARCH_S5PV210
+	bool "Samsung S5PV210/S5PC110" if ARCH_MULTI_V7
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_VIC
+	select CLKSRC_SAMSUNG_PWM
+	select COMMON_CLK_SAMSUNG
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select HAVE_S3C_RTC if RTC_CLASS
+	select PINCTRL
+	select PINCTRL_EXYNOS
+	help
+	  Samsung S5PV210/S5PC110 series based systems
+
 if ARCH_S5PV210
 
 config CPU_S5PV210
-	bool
+	def_bool y
 	select ARM_AMBA
 	select PL330_DMA if DMADEVICES
-	select S5P_EXT_INT
 	help
 	  Enable S5PV210 CPU support
-
-menu "S5PV210 Machines"
-
-config MACH_S5PV210_DT
-	bool "Samsung S5PV210/S5PC110 machine using Device Tree"
-	select CLKSRC_OF
-	select CPU_S5PV210
-	select PINCTRL
-	select PINCTRL_EXYNOS
-	select USE_OF
-	help
-	  Machine support for Samsung S5PV210/S5PC110 machines with Device Tree
-	  enabled.
-	  Select this if a fdt blob is available for your S5PV210 SoC based
-	  board.
-	  Note: This is under development and not all peripherals can be
-	  supported with this machine file.
-endmenu
 
 endif
