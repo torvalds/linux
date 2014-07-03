@@ -145,20 +145,15 @@ int exynos_drm_ippdrv_unregister(struct exynos_drm_ippdrv *ippdrv)
 	return 0;
 }
 
-static int ipp_create_id(struct idr *id_idr, struct mutex *lock, void *obj,
-		u32 *idp)
+static int ipp_create_id(struct idr *id_idr, struct mutex *lock, void *obj)
 {
 	int ret;
 
-	/* do the allocation under our mutexlock */
 	mutex_lock(lock);
 	ret = idr_alloc(id_idr, obj, 1, 0, GFP_KERNEL);
 	mutex_unlock(lock);
-	if (ret < 0)
-		return ret;
 
-	*idp = ret;
-	return 0;
+	return ret;
 }
 
 static void ipp_remove_id(struct idr *id_idr, struct mutex *lock, u32 id)
@@ -471,13 +466,12 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 	if (!c_node)
 		return -ENOMEM;
 
-	/* create property id */
-	ret = ipp_create_id(&ctx->prop_idr, &ctx->prop_lock, c_node,
-		&property->prop_id);
-	if (ret) {
+	ret = ipp_create_id(&ctx->prop_idr, &ctx->prop_lock, c_node);
+	if (ret < 0) {
 		DRM_ERROR("failed to create id.\n");
 		goto err_clear;
 	}
+	property->prop_id = ret;
 
 	DRM_DEBUG_KMS("created prop_id[%d]cmd[%d]ippdrv[0x%x]\n",
 		property->prop_id, property->cmd, (int)ippdrv);
@@ -1636,21 +1630,17 @@ static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 
 	/* get ipp driver entry */
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
-		u32 ipp_id;
-
 		ippdrv->drm_dev = drm_dev;
 
-		ret = ipp_create_id(&ctx->ipp_idr, &ctx->ipp_lock, ippdrv,
-				    &ipp_id);
-		if (ret || ipp_id == 0) {
+		ret = ipp_create_id(&ctx->ipp_idr, &ctx->ipp_lock, ippdrv);
+		if (ret < 0) {
 			DRM_ERROR("failed to create id.\n");
 			goto err;
 		}
+		ippdrv->prop_list.ipp_id = ret;
 
 		DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]ipp_id[%d]\n",
-			count++, (int)ippdrv, ipp_id);
-
-		ippdrv->prop_list.ipp_id = ipp_id;
+			count++, (int)ippdrv, ret);
 
 		/* store parent device for node */
 		ippdrv->parent_dev = dev;
