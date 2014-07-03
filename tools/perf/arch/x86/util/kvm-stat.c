@@ -136,6 +136,11 @@ struct kvm_reg_events_ops kvm_reg_events_ops[] = {
 	{ NULL, NULL },
 };
 
+const char * const kvm_skip_events[] = {
+	"HLT",
+	NULL,
+};
+
 int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
 {
 	if (strstr(cpuid, "Intel")) {
