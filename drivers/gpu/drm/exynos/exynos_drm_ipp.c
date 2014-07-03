@@ -681,7 +681,6 @@ static struct drm_exynos_ipp_mem_node
 {
 	struct drm_exynos_ipp_mem_node *m_node;
 	struct drm_exynos_ipp_buf_info buf_info;
-	void *addr;
 	int i;
 
 	m_node = kzalloc(sizeof(*m_node), GFP_KERNEL);
@@ -704,6 +703,8 @@ static struct drm_exynos_ipp_mem_node
 
 		/* get dma address by handle */
 		if (qbuf->handle[i]) {
+			dma_addr_t *addr;
+
 			addr = exynos_drm_gem_get_dma_addr(drm_dev,
 					qbuf->handle[i], file);
 			if (IS_ERR(addr)) {
@@ -712,7 +713,7 @@ static struct drm_exynos_ipp_mem_node
 			}
 
 			buf_info.handles[i] = qbuf->handle[i];
-			buf_info.base[i] = *(dma_addr_t *) addr;
+			buf_info.base[i] = *addr;
 			DRM_DEBUG_KMS("i[%d]base[0x%x]hd[0x%x]\n",
 				i, buf_info.base[i], (int)buf_info.handles[i]);
 		}
