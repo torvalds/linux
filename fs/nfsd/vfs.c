@@ -463,7 +463,7 @@ out_put_write_access:
 	if (size_change)
 		put_write_access(inode);
 	if (!err)
-		err = commit_metadata(fhp);
+		err = nfserrno(commit_metadata(fhp));
 out:
 	return err;
 }
@@ -1122,7 +1122,7 @@ nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *resfhp,
 	if (iap->ia_valid)
 		return nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
 	/* Callers expect file metadata to be committed here */
-	return commit_metadata(resfhp);
+	return nfserrno(commit_metadata(resfhp));
 }
 
 /* HPUX client sometimes creates a file in mode 000, and sets size to 0.
