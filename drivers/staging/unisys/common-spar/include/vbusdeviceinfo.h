@@ -50,12 +50,12 @@ typedef struct _ULTRA_VBUS_DEVICEINFO {
  * to a buffer at <p>, had it been infinitely big.
  */
 static inline int
-vbuschannel_sanitize_buffer(char *p, int remain, char __iomem *src, int srcmax)
+vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 {
 	int chars = 0;
 	int nonprintable_streak = 0;
 	while (srcmax > 0) {
-		if ((readb(src) >= ' ') && (readb(src) < 0x7f)) {
+		if ((*src >= ' ') && (*src < 0x7f)) {
 			if (nonprintable_streak) {
 				if (remain > 0) {
 					*p = ' ';
@@ -67,7 +67,7 @@ vbuschannel_sanitize_buffer(char *p, int remain, char __iomem *src, int srcmax)
 				nonprintable_streak = 0;
 			}
 			if (remain > 0) {
-				*p = readb(src);
+				*p = *src;
 				p++;
 				remain--;
 				chars++;
@@ -146,10 +146,10 @@ vbuschannel_itoa(char *p, int remain, int num)
  * Returns the number of bytes written to <p>.
  */
 static inline int
-vbuschannel_devinfo_to_string(ULTRA_VBUS_DEVICEINFO __iomem *devinfo,
+vbuschannel_devinfo_to_string(ULTRA_VBUS_DEVICEINFO *devinfo,
 				  char *p, int remain, int devix)
 {
-	char __iomem *psrc;
+	char *psrc;
 	int nsrc, x, i, pad;
 	int chars = 0;
 
