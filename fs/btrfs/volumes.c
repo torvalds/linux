@@ -532,8 +532,19 @@ static noinline int device_list_add(const char *path,
 		 * As of now don't allow update to btrfs_fs_device through
 		 * the btrfs dev scan cli, after FS has been mounted.
 		 */
-		if (fs_devices->opened)
+		if (fs_devices->opened) {
 			return -EBUSY;
+		} else {
+			/*
+			 * That is if the FS is _not_ mounted and if you
+			 * are here, that means there is more than one
+			 * disk with same uuid and devid.We keep the one
+			 * with larger generation number or the last-in if
+			 * generation are equal.
+			 */
+			if (found_transid < device->generation)
+				return -EEXIST;
+		}
 
 		name = rcu_string_strdup(path, GFP_NOFS);
 		if (!name)
@@ -545,6 +556,15 @@ static noinline int device_list_add(const char *path,
 			device->missing = 0;
 		}
 	}
+
+	/*
+	 * Unmount does not free the btrfs_device struct but would zero
+	 * generation along with most of the other members. So just update
+	 * it back. We need it to pick the disk with largest generation
+	 * (as above).
+	 */
+	if (!fs_devices->opened)
+		device->generation = found_transid;
 
 	if (found_transid > fs_devices->latest_trans) {
 		fs_devices->latest_devid = devid;
