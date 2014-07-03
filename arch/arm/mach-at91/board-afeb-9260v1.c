@@ -167,6 +167,8 @@ static struct at91_cf_data afeb9260_cf_data = {
 
 static void __init afeb9260_board_init(void)
 {
+	at91_register_devices();
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);

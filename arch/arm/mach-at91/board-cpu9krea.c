@@ -322,6 +322,8 @@ static struct mci_platform_data __initdata cpu9krea_mci0_data = {
 
 static void __init cpu9krea_board_init(void)
 {
+	at91_register_devices();
+
 	/* NOR */
 	cpu9krea_add_device_nor();
 	/* Serial */
