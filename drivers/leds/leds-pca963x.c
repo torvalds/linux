@@ -423,9 +423,13 @@ static int pca963x_probe(struct i2c_client *client,
 	/* Disable LED all-call address and set normal mode */
 	i2c_smbus_write_byte_data(client, PCA963X_MODE1, 0x00);
 
-	/* Configure output: open-drain or totem pole (push-pull) */
-	if (pdata && pdata->outdrv == PCA963X_OPEN_DRAIN)
-		i2c_smbus_write_byte_data(client, PCA963X_MODE2, 0x01);
+	if (pdata) {
+		/* Configure output: open-drain or totem pole (push-pull) */
+		if (pdata->outdrv == PCA963X_OPEN_DRAIN)
+			i2c_smbus_write_byte_data(client, PCA963X_MODE2, 0x01);
+		else
+			i2c_smbus_write_byte_data(client, PCA963X_MODE2, 0x05);
+	}
 
 	return 0;
 
