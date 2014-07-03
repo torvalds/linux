@@ -6995,8 +6995,10 @@ reinit_after_soft_reset:
 
 	/* Allocate and clear per-cpu variable lockup_detected */
 	h->lockup_detected = alloc_percpu(u32);
-	if (!h->lockup_detected)
+	if (!h->lockup_detected) {
+		rc = -ENOMEM;
 		goto clean1;
+	}
 	set_lockup_detected_for_all_cpus(h, 0);
 
 	rc = hpsa_pci_init(h);
