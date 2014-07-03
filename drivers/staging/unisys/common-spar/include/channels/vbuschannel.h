@@ -94,8 +94,8 @@ typedef struct _ULTRA_VBUS_CHANNEL_PROTOCOL {
 						sizeof(ULTRA_VBUS_DEVICEINFO)))
 #define VBUS_CH_SIZE(MAXDEVICES) COVER(VBUS_CH_SIZE_EXACT(MAXDEVICES), 4096)
 
-static INLINE void
-ULTRA_VBUS_init_channel(ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *x,
+static inline void
+ultra_vbus_init_channel(ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *x,
 			int bytesAllocated)
 {
 	/* Please note that the memory at <x> does NOT necessarily have space

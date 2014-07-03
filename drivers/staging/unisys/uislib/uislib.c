@@ -148,7 +148,7 @@ init_vbus_channel(U64 channelAddr, U32 channelBytes, int isServer)
 			rc = NULL;
 			goto Away;
 		}
-		ULTRA_VBUS_init_channel(pChan, channelBytes);
+		ultra_vbus_init_channel(pChan, channelBytes);
 	} else {
 		if (!ULTRA_VBUS_CHANNEL_OK_CLIENT(pChan, NULL)) {
 			ERRDRV("%s channel cannot be used", __func__);
