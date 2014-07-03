@@ -1636,10 +1636,10 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		un->un_open_count = 1;
 	}
 
-	if (--un->un_open_count < 0) {
+	if (un->un_open_count)
+		un->un_open_count--;
+	else
 		APR(("bad serial port open count of %d\n", un->un_open_count));
-		un->un_open_count = 0;
-	}
 
 	ch->ch_open_count--;
 
