@@ -71,10 +71,14 @@
 				reg = <0xfffffc00 0x100>;
 			};
 
-			ramc: ramc@ffffe200 {
+			ramc0: ramc@ffffe200 {
 				compatible = "atmel,at91sam9260-sdramc";
-				reg = <0xffffe200 0x200
-				       0xffffe800 0x200>;
+				reg = <0xffffe200 0x200>;
+			};
+
+			ramc1: ramc@ffffe800 {
+				compatible = "atmel,at91sam9260-sdramc";
+				reg = <0xffffe800 0x200>;
 			};
 
 			pit: timer@fffffd30 {
