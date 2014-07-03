@@ -1035,18 +1035,22 @@ out:
 	pnfs_put_lseg(freeme);
 }
 
-static struct list_head *
-filelayout_choose_commit_list(struct nfs_page *req,
-			      struct pnfs_layout_segment *lseg,
-			      struct nfs_commit_info *cinfo)
+static void
+filelayout_mark_request_commit(struct nfs_page *req,
+			       struct pnfs_layout_segment *lseg,
+			       struct nfs_commit_info *cinfo)
+
 {
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
 	u32 i, j;
 	struct list_head *list;
 	struct pnfs_commit_bucket *buckets;
 
-	if (fl->commit_through_mds)
-		return &cinfo->mds->list;
+	if (fl->commit_through_mds) {
+		list = &cinfo->mds->list;
+		spin_lock(cinfo->lock);
+		goto mds_commit;
+	}
 
 	/* Note that we are calling nfs4_fl_calc_j_index on each page
 	 * that ends up being committed to a data server.  An attractive
@@ -1070,19 +1074,22 @@ filelayout_choose_commit_list(struct nfs_page *req,
 	}
 	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 	cinfo->ds->nwritten++;
+
+mds_commit:
+	/* nfs_request_add_commit_list(). We need to add req to list without
+	 * dropping cinfo lock.
+	 */
+	set_bit(PG_CLEAN, &(req)->wb_flags);
+	nfs_list_add_request(req, list);
+	cinfo->mds->ncommit++;
 	spin_unlock(cinfo->lock);
-	return list;
-}
-
-static void
-filelayout_mark_request_commit(struct nfs_page *req,
-			       struct pnfs_layout_segment *lseg,
-			       struct nfs_commit_info *cinfo)
-{
-	struct list_head *list;
-
-	list = filelayout_choose_commit_list(req, lseg, cinfo);
-	nfs_request_add_commit_list(req, list, cinfo);
+	if (!cinfo->dreq) {
+		inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+		inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
+			     BDI_RECLAIMABLE);
+		__mark_inode_dirty(req->wb_context->dentry->d_inode,
+				   I_DIRTY_DATASYNC);
+	}
 }
 
 static u32 calc_ds_index_from_commit(struct pnfs_layout_segment *lseg, u32 i)
