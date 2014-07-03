@@ -25,6 +25,7 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 	void __iomem *reg;
 	int gate_id;
 	int ngates;
+	int gate_max = 0;
 	int i;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -72,9 +73,12 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 							    reg, gate_id,
 							    0, NULL);
 		WARN_ON(IS_ERR(clk_data->clks[gate_id]));
+
+		if (gate_id > gate_max)
+			gate_max = gate_id;
 	}
 
-	clk_data->clk_num = ngates;
+	clk_data->clk_num = gate_max + 1;
 
 	return of_clk_add_provider(np, of_clk_src_onecell_get, clk_data);
 }
