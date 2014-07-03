@@ -1185,6 +1185,11 @@
 				reg = <0xfffffe00 0x10>;
 			};
 
+			shutdown-controller@fffffe10 {
+				compatible = "atmel,at91sam9x5-shdwc";
+				reg = <0xfffffe10 0x10>;
+			};
+
 			pit: timer@fffffe30 {
 				compatible = "atmel,at91sam9260-pit";
 				reg = <0xfffffe30 0xf>;
