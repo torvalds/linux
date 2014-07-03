@@ -432,7 +432,7 @@ static struct drm_exynos_ipp_event_work *ipp_create_event_work(void)
 	if (!event_work)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_WORK((struct work_struct *)event_work, ipp_sched_event);
+	INIT_WORK(&event_work->work, ipp_sched_event);
 
 	return event_work;
 }
