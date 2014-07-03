@@ -1876,7 +1876,7 @@ static int per_file_ctx(int id, void *ptr, void *data)
 	if (i915_gem_context_is_default(ctx))
 		seq_puts(m, "  default context:\n");
 	else
-		seq_printf(m, "  context %d:\n", ctx->id);
+		seq_printf(m, "  context %d:\n", ctx->user_handle);
 	ppgtt->debug_dump(ppgtt, m);
 
 	return 0;

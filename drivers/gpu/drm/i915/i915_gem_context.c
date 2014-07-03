@@ -276,14 +276,14 @@ __create_hw_context(struct drm_device *dev,
 	/* Default context will never have a file_priv */
 	if (file_priv != NULL) {
 		ret = idr_alloc(&file_priv->context_idr, ctx,
-				DEFAULT_CONTEXT_ID, 0, GFP_KERNEL);
+				DEFAULT_CONTEXT_HANDLE, 0, GFP_KERNEL);
 		if (ret < 0)
 			goto err_out;
 	} else
-		ret = DEFAULT_CONTEXT_ID;
+		ret = DEFAULT_CONTEXT_HANDLE;
 
 	ctx->file_priv = file_priv;
-	ctx->id = ret;
+	ctx->user_handle = ret;
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there
 	 * is no remap info, it will be a NOP. */
@@ -793,7 +793,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	args->ctx_id = ctx->id;
+	args->ctx_id = ctx->user_handle;
 	DRM_DEBUG_DRIVER("HW context %d created\n", args->ctx_id);
 
 	return 0;
@@ -807,7 +807,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	struct intel_context *ctx;
 	int ret;
 
-	if (args->ctx_id == DEFAULT_CONTEXT_ID)
+	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE)
 		return -ENOENT;
 
 	ret = i915_mutex_lock_interruptible(dev);
@@ -820,7 +820,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 		return PTR_ERR(ctx);
 	}
 
-	idr_remove(&ctx->file_priv->context_idr, ctx->id);
+	idr_remove(&ctx->file_priv->context_idr, ctx->user_handle);
 	i915_gem_context_unreference(ctx);
 	mutex_unlock(&dev->struct_mutex);
 

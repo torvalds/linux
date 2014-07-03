@@ -585,10 +585,10 @@ struct i915_ctx_hang_stats {
 };
 
 /* This must match up with the value previously used for execbuf2.rsvd1. */
-#define DEFAULT_CONTEXT_ID 0
+#define DEFAULT_CONTEXT_HANDLE 0
 struct intel_context {
 	struct kref ref;
-	int id;
+	int user_handle;
 	uint8_t remap_slice;
 	struct drm_i915_file_private *file_priv;
 	struct i915_ctx_hang_stats hang_stats;
@@ -2469,7 +2469,7 @@ static inline void i915_gem_context_unreference(struct intel_context *ctx)
 
 static inline bool i915_gem_context_is_default(const struct intel_context *c)
 {
-	return c->id == DEFAULT_CONTEXT_ID;
+	return c->user_handle == DEFAULT_CONTEXT_HANDLE;
 }
 
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
