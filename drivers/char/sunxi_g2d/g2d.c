@@ -138,7 +138,8 @@ int g2d_blit(g2d_blt * para)
 	__s32 err = 0;
 
 	/* check the parameter valid */
-    if(((para->src_rect.x < 0)&&((-para->src_rect.x) > para->src_rect.w)) ||
+    if(para->src_rect.w == 0 || para->src_rect.h == 0 ||
+       ((para->src_rect.x < 0)&&((-para->src_rect.x) > para->src_rect.w)) ||
        ((para->src_rect.y < 0)&&((-para->src_rect.y) > para->src_rect.h)) ||
        ((para->dst_x < 0)&&((-para->dst_x) > para->src_rect.w)) ||
        ((para->dst_y < 0)&&((-para->dst_y) > para->src_rect.h)) ||
@@ -204,7 +205,8 @@ int g2d_fill(g2d_fillrect * para)
 	__s32 err = 0;
 
 	/* check the parameter valid */
-	if(((para->dst_rect.x < 0)&&((-para->dst_rect.x)>para->dst_rect.w)) ||
+	if(para->dst_rect.w == 0 || para->dst_rect.h == 0 ||
+	   ((para->dst_rect.x < 0)&&((-para->dst_rect.x)>para->dst_rect.w)) ||
 	   ((para->dst_rect.y < 0)&&((-para->dst_rect.y)>para->dst_rect.h)) ||
 	   ((para->dst_rect.x > 0)&&(para->dst_rect.x > para->dst_image.w - 1)) ||
 	   ((para->dst_rect.y > 0)&&(para->dst_rect.y > para->dst_image.h - 1)))
@@ -245,7 +247,9 @@ int g2d_stretchblit(g2d_stretchblt * para)
 	__s32 err = 0;
 
 	/* check the parameter valid */
-    if(((para->src_rect.x < 0)&&((-para->src_rect.x) > para->src_rect.w)) ||
+    if(para->src_rect.w == 0 || para->src_rect.h == 0 ||
+       para->dst_rect.w == 0 || para->dst_rect.h == 0 ||
+       ((para->src_rect.x < 0)&&((-para->src_rect.x) > para->src_rect.w)) ||
        ((para->src_rect.y < 0)&&((-para->src_rect.y) > para->src_rect.h)) ||
        ((para->dst_rect.x < 0)&&((-para->dst_rect.x) > para->dst_rect.w)) ||
        ((para->dst_rect.y < 0)&&((-para->dst_rect.y) > para->dst_rect.h)) ||
