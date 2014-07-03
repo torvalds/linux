@@ -3430,11 +3430,4 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		return -ENOIOCTLCMD;
 	}
-
-	DGNC_UNLOCK(ch->ch_lock, lock_flags);
-
-	DPR_IOCTL(("dgnc_tty_ioctl end - cmd %s (%x), arg %lx\n",
-		dgnc_ioctl_name(cmd), cmd, arg));
-
-	return 0;
 }
