@@ -355,7 +355,6 @@ static void __init at91sam9260_ioremap_registers(void)
 static void __init at91sam9260_initialize(void)
 {
 	arm_pm_idle = at91sam9_idle;
-	arm_pm_restart = at91sam9_alt_restart;
 
 	at91_sysirq_mask_rtt(AT91SAM9260_BASE_RTT);
 

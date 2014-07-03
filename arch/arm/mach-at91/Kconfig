@@ -33,14 +33,6 @@ config OLD_IRQ_AT91
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 
-config AT91_SAM9_ALT_RESET
-	bool
-	default !ARCH_AT91X40
-
-config AT91_SAM9G45_RESET
-	bool
-	default !ARCH_AT91X40
-
 config AT91_SAM9_TIME
 	bool
 
