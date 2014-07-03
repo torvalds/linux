@@ -12,6 +12,7 @@ struct event_key {
 	#define INVALID_KEY     (~0ULL)
 	u64 key;
 	int info;
+	struct exit_reasons_table *exit_reasons;
 };
 
 struct kvm_event_stats {
@@ -41,12 +42,20 @@ struct kvm_event_key {
 
 struct perf_kvm_stat;
 
+struct child_event_ops {
+	void (*get_key)(struct perf_evsel *evsel,
+			struct perf_sample *sample,
+			struct event_key *key);
+	const char *name;
+};
+
 struct kvm_events_ops {
 	bool (*is_begin_event)(struct perf_evsel *evsel,
 			       struct perf_sample *sample,
 			       struct event_key *key);
 	bool (*is_end_event)(struct perf_evsel *evsel,
 			     struct perf_sample *sample, struct event_key *key);
+	struct child_event_ops *child_ops;
 	void (*decode_key)(struct perf_kvm_stat *kvm, struct event_key *key,
 			   char *decode);
 	const char *name;

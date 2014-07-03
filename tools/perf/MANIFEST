@@ -38,3 +38,5 @@ arch/x86/include/uapi/asm/svm.h
 arch/x86/include/uapi/asm/vmx.h
 arch/x86/include/uapi/asm/kvm.h
 arch/x86/include/uapi/asm/kvm_perf.h
+arch/s390/include/uapi/asm/sie.h
+arch/s390/include/uapi/asm/kvm_perf.h
