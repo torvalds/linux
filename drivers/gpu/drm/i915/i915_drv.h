@@ -586,6 +586,23 @@ struct i915_ctx_hang_stats {
 
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_HANDLE 0
+/**
+ * struct intel_context - as the name implies, represents a context.
+ * @ref: reference count.
+ * @user_handle: userspace tracking identity for this context.
+ * @remap_slice: l3 row remapping information.
+ * @file_priv: filp associated with this context (NULL for global default
+ *	       context).
+ * @hang_stats: information about the role of this context in possible GPU
+ *		hangs.
+ * @vm: virtual memory space used by this context.
+ * @legacy_hw_ctx: render context backing object and whether it is correctly
+ *                initialized (legacy ring submission mechanism only).
+ * @link: link in the global list of contexts.
+ *
+ * Contexts are memory images used by the hardware to store copies of their
+ * internal state.
+ */
 struct intel_context {
 	struct kref ref;
 	int user_handle;
