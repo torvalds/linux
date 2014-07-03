@@ -200,9 +200,6 @@ int dgnc_tty_register(struct dgnc_board *brd)
 
 	DPR_INIT(("tty_register start\n"));
 
-	memset(&brd->SerialDriver, 0, sizeof(brd->SerialDriver));
-	memset(&brd->PrintDriver, 0, sizeof(brd->PrintDriver));
-
 	brd->SerialDriver.magic = TTY_DRIVER_MAGIC;
 
 	snprintf(brd->SerialName, MAXTTYNAMELEN, "tty_dgnc_%d_", brd->boardnum);
