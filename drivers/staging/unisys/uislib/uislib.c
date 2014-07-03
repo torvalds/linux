@@ -129,7 +129,7 @@ init_msg_header(CONTROLVM_MESSAGE *msg, U32 id, uint rsp, uint svr)
 }
 
 static __iomem void *
-init_vbus_channel(U64 channelAddr, U32 channelBytes, int isServer)
+init_vbus_channel(U64 channelAddr, U32 channelBytes)
 {
 	void __iomem *rc = NULL;
 	void __iomem *pChan = uislib_ioremap_cache(channelAddr, channelBytes);
@@ -140,22 +140,11 @@ init_vbus_channel(U64 channelAddr, U32 channelBytes, int isServer)
 		rc = NULL;
 		goto Away;
 	}
-	if (isServer) {
-		memset_io(pChan, 0, channelBytes);
-		if (!ULTRA_VBUS_CHANNEL_OK_SERVER(channelBytes, NULL)) {
-			ERRDRV("%s channel cannot be used", __func__);
-			uislib_iounmap(pChan);
-			rc = NULL;
-			goto Away;
-		}
-		ultra_vbus_init_channel(pChan, channelBytes);
-	} else {
-		if (!ULTRA_VBUS_CHANNEL_OK_CLIENT(pChan, NULL)) {
-			ERRDRV("%s channel cannot be used", __func__);
-			uislib_iounmap(pChan);
-			rc = NULL;
-			goto Away;
-		}
+	if (!ULTRA_VBUS_CHANNEL_OK_CLIENT(pChan, NULL)) {
+		ERRDRV("%s channel cannot be used", __func__);
+		uislib_iounmap(pChan);
+		rc = NULL;
+		goto Away;
 	}
 	rc = pChan;
 Away:
@@ -235,8 +224,7 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 		bus->busChannelBytes = msg->cmd.createBus.channelBytes;
 		bus->pBusChannel =
 		    init_vbus_channel(msg->cmd.createBus.channelAddr,
-				      msg->cmd.createBus.channelBytes,
-				      msg->hdr.Flags.server);
+				      msg->cmd.createBus.channelBytes);
 	}
 	/* the msg is bound for virtpci; send guest_msgs struct to callback */
 	if (!msg->hdr.Flags.server) {
