@@ -717,6 +717,7 @@ nfserrno (int errno)
 		{ nfserr_noent, -ENOENT },
 		{ nfserr_io, -EIO },
 		{ nfserr_nxio, -ENXIO },
+		{ nfserr_fbig, -E2BIG },
 		{ nfserr_acces, -EACCES },
 		{ nfserr_exist, -EEXIST },
 		{ nfserr_xdev, -EXDEV },
@@ -751,7 +752,7 @@ nfserrno (int errno)
 		if (nfs_errtbl[i].syserr == errno)
 			return nfs_errtbl[i].nfserr;
 	}
-	printk (KERN_INFO "nfsd: non-standard errno: %d\n", errno);
+	WARN(1, "nfsd: non-standard errno: %d\n", errno);
 	return nfserr_io;
 }
 
