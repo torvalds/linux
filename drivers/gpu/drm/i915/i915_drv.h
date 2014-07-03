@@ -902,6 +902,12 @@ struct vlv_s0ix_state {
 	u32 clock_gate_dis2;
 };
 
+struct intel_rps_ei_calc {
+	u32 cz_ts_ei;
+	u32 render_ei_c0;
+	u32 media_ei_c0;
+};
+
 struct intel_gen6_power_mgmt {
 	/* work and pm_iir are protected by dev_priv->irq_lock */
 	struct work_struct work;
@@ -925,6 +931,8 @@ struct intel_gen6_power_mgmt {
 	u8 efficient_freq;	/* AKA RPe. Pre-determined balanced frequency */
 	u8 rp1_freq;		/* "less than" RP0 power/freqency */
 	u8 rp0_freq;		/* Non-overclocked max frequency. */
+
+	u32 ei_interrupt_count;
 
 	int last_adj;
 	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
@@ -1526,6 +1534,13 @@ struct drm_i915_private {
 
 	/* gen6+ rps state */
 	struct intel_gen6_power_mgmt rps;
+
+	/* rps wa up ei calculation */
+	struct intel_rps_ei_calc rps_up_ei;
+
+	/* rps wa down ei calculation */
+	struct intel_rps_ei_calc rps_down_ei;
+
 
 	/* ilk-only ips/rps state. Everything in here is protected by the global
 	 * mchdev_lock in intel_pm.c */
