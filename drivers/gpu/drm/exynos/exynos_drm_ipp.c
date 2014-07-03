@@ -1277,11 +1277,6 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 
 			m_node = list_first_entry(head,
 				struct drm_exynos_ipp_mem_node, list);
-			if (!m_node) {
-				DRM_ERROR("failed to get node.\n");
-				ret = -EFAULT;
-				goto err_unlock;
-			}
 
 			DRM_DEBUG_KMS("m_node[0x%x]\n", (int)m_node);
 
@@ -1539,11 +1534,6 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 
 			m_node = list_first_entry(head,
 				struct drm_exynos_ipp_mem_node, list);
-			if (!m_node) {
-				DRM_ERROR("empty memory node.\n");
-				ret = -ENOMEM;
-				goto err_mem_unlock;
-			}
 
 			tbuf_id[i] = m_node->buf_id;
 			DRM_DEBUG_KMS("%s buf_id[%d]\n",
@@ -1580,11 +1570,6 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 
 		m_node = list_first_entry(head,
 			struct drm_exynos_ipp_mem_node, list);
-		if (!m_node) {
-			DRM_ERROR("empty memory node.\n");
-			ret = -ENOMEM;
-			goto err_mem_unlock;
-		}
 
 		tbuf_id[EXYNOS_DRM_OPS_SRC] = m_node->buf_id;
 
