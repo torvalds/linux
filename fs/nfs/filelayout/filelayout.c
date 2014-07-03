@@ -1237,15 +1237,33 @@ restart:
 	spin_unlock(cinfo->lock);
 }
 
+static void filelayout_retry_commit(struct nfs_commit_info *cinfo, int idx)
+{
+	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
+	struct pnfs_commit_bucket *bucket = fl_cinfo->buckets;
+	struct pnfs_layout_segment *freeme;
+	int i;
+
+	for (i = idx; i < fl_cinfo->nbuckets; i++, bucket++) {
+		if (list_empty(&bucket->committing))
+			continue;
+		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo);
+		spin_lock(cinfo->lock);
+		freeme = bucket->clseg;
+		bucket->clseg = NULL;
+		spin_unlock(cinfo->lock);
+		pnfs_put_lseg(freeme);
+	}
+}
+
 static unsigned int
 alloc_ds_commits(struct nfs_commit_info *cinfo, struct list_head *list)
 {
 	struct pnfs_ds_commit_info *fl_cinfo;
 	struct pnfs_commit_bucket *bucket;
 	struct nfs_commit_data *data;
-	int i, j;
+	int i;
 	unsigned int nreq = 0;
-	struct pnfs_layout_segment *freeme;
 
 	fl_cinfo = cinfo->ds;
 	bucket = fl_cinfo->buckets;
@@ -1265,16 +1283,7 @@ alloc_ds_commits(struct nfs_commit_info *cinfo, struct list_head *list)
 	}
 
 	/* Clean up on error */
-	for (j = i; j < fl_cinfo->nbuckets; j++, bucket++) {
-		if (list_empty(&bucket->committing))
-			continue;
-		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo);
-		spin_lock(cinfo->lock);
-		freeme = bucket->clseg;
-		bucket->clseg = NULL;
-		spin_unlock(cinfo->lock);
-		pnfs_put_lseg(freeme);
-	}
+	filelayout_retry_commit(cinfo, i);
 	/* Caller will clean up entries put on list */
 	return nreq;
 }
@@ -1294,8 +1303,12 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 			data->lseg = NULL;
 			list_add(&data->pages, &list);
 			nreq++;
-		} else
+		} else {
 			nfs_retry_commit(mds_pages, NULL, cinfo);
+			filelayout_retry_commit(cinfo, 0);
+			cinfo->completion_ops->error_cleanup(NFS_I(inode));
+			return -ENOMEM;
+		}
 	}
 
 	nreq += alloc_ds_commits(cinfo, &list);
