@@ -7401,7 +7401,7 @@ L:	linux-kernel@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
 F:	Documentation/RCU/torture.txt
-F:	kernel/rcu/torture.c
+F:	kernel/rcu/rcutorture.c
 
 RCUTORTURE TEST FRAMEWORK
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
@@ -7445,7 +7445,7 @@ X:	Documentation/RCU/torture.txt
 F:	include/linux/rcu*
 X:	include/linux/srcu.h
 F:	kernel/rcu/
-X:	kernel/rcu/torture.c
+X:	kernel/torture.c
 
 REAL TIME CLOCK (RTC) SUBSYSTEM
 M:	Alessandro Zummo <a.zummo@towertech.it>
