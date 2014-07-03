@@ -376,7 +376,7 @@ static short U14Control1401(short sHand, LONG lCode, TCSBLOCK* pBlk)
 ** SafeTickCount
 ** Gets time in approximately units of a millisecond.
 *****************************************************************************/
-static long SafeTickCount()
+static long SafeTickCount(void)
 {
 #ifdef _IS_WINDOWS_
     return GetTickCount();
