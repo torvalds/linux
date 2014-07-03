@@ -417,10 +417,8 @@ int dgnc_tty_init(struct dgnc_board *brd)
  */
 void dgnc_tty_post_uninit(void)
 {
-	if (dgnc_TmpWriteBuf) {
-		kfree(dgnc_TmpWriteBuf);
-		dgnc_TmpWriteBuf = NULL;
-	}
+	kfree(dgnc_TmpWriteBuf);
+	dgnc_TmpWriteBuf = NULL;
 }
 
 
@@ -456,14 +454,10 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 		brd->dgnc_Major_TransparentPrint_Registered = FALSE;
 	}
 
-	if (brd->SerialDriver.ttys) {
-		kfree(brd->SerialDriver.ttys);
-		brd->SerialDriver.ttys = NULL;
-	}
-	if (brd->PrintDriver.ttys) {
-		kfree(brd->PrintDriver.ttys);
-		brd->PrintDriver.ttys = NULL;
-	}
+	kfree(brd->SerialDriver.ttys);
+	brd->SerialDriver.ttys = NULL;
+	kfree(brd->PrintDriver.ttys);
+	brd->PrintDriver.ttys = NULL;
 }
 
 
