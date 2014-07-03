@@ -4583,12 +4583,31 @@ out:
 	return ret;
 }
 
+static inline int btrfs_chunk_max_errors(struct map_lookup *map)
+{
+	int max_errors;
+
+	if (map->type & (BTRFS_BLOCK_GROUP_RAID1 |
+			 BTRFS_BLOCK_GROUP_RAID10 |
+			 BTRFS_BLOCK_GROUP_RAID5 |
+			 BTRFS_BLOCK_GROUP_DUP)) {
+		max_errors = 1;
+	} else if (map->type & BTRFS_BLOCK_GROUP_RAID6) {
+		max_errors = 2;
+	} else {
+		max_errors = 0;
+	}
+
+	return max_errors;
+}
+
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
 	struct btrfs_mapping_tree *map_tree = &root->fs_info->mapping_tree;
 	int readonly = 0;
+	int miss_ndevs = 0;
 	int i;
 
 	read_lock(&map_tree->map_tree.lock);
@@ -4597,18 +4616,27 @@ int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset)
 	if (!em)
 		return 1;
 
-	if (btrfs_test_opt(root, DEGRADED)) {
-		free_extent_map(em);
-		return 0;
-	}
-
 	map = (struct map_lookup *)em->bdev;
 	for (i = 0; i < map->num_stripes; i++) {
+		if (map->stripes[i].dev->missing) {
+			miss_ndevs++;
+			continue;
+		}
+
 		if (!map->stripes[i].dev->writeable) {
 			readonly = 1;
-			break;
+			goto end;
 		}
 	}
+
+	/*
+	 * If the number of missing devices is larger than max errors,
+	 * we can not write the data into that chunk successfully, so
+	 * set it readonly.
+	 */
+	if (miss_ndevs > btrfs_chunk_max_errors(map))
+		readonly = 1;
+end:
 	free_extent_map(em);
 	return readonly;
 }
@@ -5219,16 +5247,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		}
 	}
 
-	if (rw & (REQ_WRITE | REQ_GET_READ_MIRRORS)) {
-		if (map->type & (BTRFS_BLOCK_GROUP_RAID1 |
-				 BTRFS_BLOCK_GROUP_RAID10 |
-				 BTRFS_BLOCK_GROUP_RAID5 |
-				 BTRFS_BLOCK_GROUP_DUP)) {
-			max_errors = 1;
-		} else if (map->type & BTRFS_BLOCK_GROUP_RAID6) {
-			max_errors = 2;
-		}
-	}
+	if (rw & (REQ_WRITE | REQ_GET_READ_MIRRORS))
+		max_errors = btrfs_chunk_max_errors(map);
 
 	if (dev_replace_is_ongoing && (rw & (REQ_WRITE | REQ_DISCARD)) &&
 	    dev_replace->tgtdev != NULL) {
