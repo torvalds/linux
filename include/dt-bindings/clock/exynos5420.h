@@ -63,7 +63,6 @@
 #define CLK_SCLK_MPHY_IXTAL24	161
 
 /* gate clocks */
-#define CLK_ACLK66_PERIC	256
 #define CLK_UART0		257
 #define CLK_UART1		258
 #define CLK_UART2		259
