@@ -264,7 +264,7 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 	l.srli  r6,r6,26                   // check opcode for write access
 #endif
 
-	l.sfgeui r6,0x34		   // check opcode for write access
+	l.sfgeui r6,0x33		   // check opcode for write access
 	l.bnf   1f
 	l.sfleui r6,0x37
 	l.bnf   1f
