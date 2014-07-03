@@ -121,6 +121,12 @@ struct btrfs_inode {
 	u64 delalloc_bytes;
 
 	/*
+	 * total number of bytes pending defrag, used by stat to check whether
+	 * it needs COW.
+	 */
+	u64 defrag_bytes;
+
+	/*
 	 * the size of the file stored in the metadata on disk.  data=ordered
 	 * means the in-memory i_size might be larger than the size on disk
 	 * because not all the blocks are written yet.
