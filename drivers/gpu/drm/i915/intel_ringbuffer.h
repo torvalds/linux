@@ -386,9 +386,9 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev);
 u64 intel_ring_get_active_head(struct intel_engine_cs *ring);
 void intel_ring_setup_status_page(struct intel_engine_cs *ring);
 
-static inline u32 intel_ring_get_tail(struct intel_engine_cs *ring)
+static inline u32 intel_ring_get_tail(struct intel_ringbuffer *ringbuf)
 {
-	return ring->buffer->tail;
+	return ringbuf->tail;
 }
 
 static inline u32 intel_ring_get_seqno(struct intel_engine_cs *ring)

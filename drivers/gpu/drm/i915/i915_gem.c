@@ -2330,7 +2330,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	u32 request_ring_position, request_start;
 	int ret;
 
-	request_start = intel_ring_get_tail(ring);
+	request_start = intel_ring_get_tail(ring->buffer);
 	/*
 	 * Emit any outstanding flushes - execbuf can fail to emit the flush
 	 * after having emitted the batchbuffer command. Hence we need to fix
@@ -2351,7 +2351,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
-	request_ring_position = intel_ring_get_tail(ring);
+	request_ring_position = intel_ring_get_tail(ring->buffer);
 
 	ret = ring->add_request(ring);
 	if (ret)
