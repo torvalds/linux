@@ -2324,6 +2324,10 @@ static void ftrace_run_modify_code(struct ftrace_ops *ops, int command,
 static ftrace_func_t saved_ftrace_func;
 static int ftrace_start_up;
 
+void __weak arch_ftrace_trampoline_free(struct ftrace_ops *ops)
+{
+}
+
 static void control_ops_free(struct ftrace_ops *ops)
 {
 	free_percpu(ops->disabled);
@@ -2474,6 +2478,8 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	 */
 	if (ops->flags & (FTRACE_OPS_FL_DYNAMIC | FTRACE_OPS_FL_CONTROL)) {
 		schedule_on_each_cpu(ftrace_sync);
+
+		arch_ftrace_trampoline_free(ops);
 
 		if (ops->flags & FTRACE_OPS_FL_CONTROL)
 			control_ops_free(ops);
@@ -4725,9 +4731,21 @@ void __weak arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 
 static void ftrace_update_trampoline(struct ftrace_ops *ops)
 {
+
+/*
+ * Currently there's no safe way to free a trampoline when the kernel
+ * is configured with PREEMPT. That is because a task could be preempted
+ * when it jumped to the trampoline, it may be preempted for a long time
+ * depending on the system load, and currently there's no way to know
+ * when it will be off the trampoline. If the trampoline is freed
+ * too early, when the task runs again, it will be executing on freed
+ * memory and crash.
+ */
+#ifdef CONFIG_PREEMPT
 	/* Currently, only non dynamic ops can have a trampoline */
 	if (ops->flags & FTRACE_OPS_FL_DYNAMIC)
 		return;
+#endif
 
 	arch_ftrace_update_trampoline(ops);
 }
