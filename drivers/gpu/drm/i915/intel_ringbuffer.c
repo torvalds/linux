@@ -1432,6 +1432,7 @@ static int init_status_page(struct intel_engine_cs *ring)
 	struct drm_i915_gem_object *obj;
 
 	if ((obj = ring->status_page.obj) == NULL) {
+		unsigned flags;
 		int ret;
 
 		obj = i915_gem_alloc_object(ring->dev, 4096);
@@ -1444,7 +1445,20 @@ static int init_status_page(struct intel_engine_cs *ring)
 		if (ret)
 			goto err_unref;
 
-		ret = i915_gem_obj_ggtt_pin(obj, 4096, 0);
+		flags = 0;
+		if (!HAS_LLC(ring->dev))
+			/* On g33, we cannot place HWS above 256MiB, so
+			 * restrict its pinning to the low mappable arena.
+			 * Though this restriction is not documented for
+			 * gen4, gen5, or byt, they also behave similarly
+			 * and hang if the HWS is placed at the top of the
+			 * GTT. To generalise, it appears that all !llc
+			 * platforms have issues with us placing the HWS
+			 * above the mappable region (even though we never
+			 * actualy map it).
+			 */
+			flags |= PIN_MAPPABLE;
+		ret = i915_gem_obj_ggtt_pin(obj, 4096, flags);
 		if (ret) {
 err_unref:
 			drm_gem_object_unreference(&obj->base);
