@@ -2468,6 +2468,8 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 			  u16 len)
 {
 	struct mgmt_cp_load_link_keys *cp = data;
+	const u16 max_key_count = ((U16_MAX - sizeof(*cp)) /
+				   sizeof(struct mgmt_link_key_info));
 	u16 key_count, expected_len;
 	bool changed;
 	int i;
@@ -2479,6 +2481,12 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
 	key_count = __le16_to_cpu(cp->key_count);
+	if (key_count > max_key_count) {
+		BT_ERR("load_link_keys: too big key_count value %u",
+		       key_count);
+		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_LINK_KEYS,
+				  MGMT_STATUS_INVALID_PARAMS);
+	}
 
 	expected_len = sizeof(*cp) + key_count *
 					sizeof(struct mgmt_link_key_info);
@@ -4568,6 +4576,8 @@ static int load_irks(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 		     u16 len)
 {
 	struct mgmt_cp_load_irks *cp = cp_data;
+	const u16 max_irk_count = ((U16_MAX - sizeof(*cp)) /
+				   sizeof(struct mgmt_irk_info));
 	u16 irk_count, expected_len;
 	int i, err;
 
@@ -4578,6 +4588,11 @@ static int load_irks(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
 	irk_count = __le16_to_cpu(cp->irk_count);
+	if (irk_count > max_irk_count) {
+		BT_ERR("load_irks: too big irk_count value %u", irk_count);
+		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_IRKS,
+				  MGMT_STATUS_INVALID_PARAMS);
+	}
 
 	expected_len = sizeof(*cp) + irk_count * sizeof(struct mgmt_irk_info);
 	if (expected_len != len) {
@@ -4647,6 +4662,8 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 			       void *cp_data, u16 len)
 {
 	struct mgmt_cp_load_long_term_keys *cp = cp_data;
+	const u16 max_key_count = ((U16_MAX - sizeof(*cp)) /
+				   sizeof(struct mgmt_ltk_info));
 	u16 key_count, expected_len;
 	int i, err;
 
@@ -4657,6 +4674,11 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
 	key_count = __le16_to_cpu(cp->key_count);
+	if (key_count > max_key_count) {
+		BT_ERR("load_ltks: too big key_count value %u", key_count);
+		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_LONG_TERM_KEYS,
+				  MGMT_STATUS_INVALID_PARAMS);
+	}
 
 	expected_len = sizeof(*cp) + key_count *
 					sizeof(struct mgmt_ltk_info);
@@ -5204,6 +5226,8 @@ static int load_conn_param(struct sock *sk, struct hci_dev *hdev, void *data,
 			   u16 len)
 {
 	struct mgmt_cp_load_conn_param *cp = data;
+	const u16 max_param_count = ((U16_MAX - sizeof(*cp)) /
+				     sizeof(struct mgmt_conn_param));
 	u16 param_count, expected_len;
 	int i;
 
@@ -5212,6 +5236,12 @@ static int load_conn_param(struct sock *sk, struct hci_dev *hdev, void *data,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
 	param_count = __le16_to_cpu(cp->param_count);
+	if (param_count > max_param_count) {
+		BT_ERR("load_conn_param: too big param_count value %u",
+		       param_count);
+		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_CONN_PARAM,
+				  MGMT_STATUS_INVALID_PARAMS);
+	}
 
 	expected_len = sizeof(*cp) + param_count *
 					sizeof(struct mgmt_conn_param);
