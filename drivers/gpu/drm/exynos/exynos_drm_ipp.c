@@ -1152,7 +1152,6 @@ static int ipp_set_property(struct exynos_drm_ippdrv *ippdrv,
 	/* reset h/w block */
 	if (ippdrv->reset &&
 	    ippdrv->reset(ippdrv->dev)) {
-		DRM_ERROR("failed to reset.\n");
 		return -EINVAL;
 	}
 
@@ -1170,30 +1169,24 @@ static int ipp_set_property(struct exynos_drm_ippdrv *ippdrv,
 		/* set format */
 		if (ops->set_fmt) {
 			ret = ops->set_fmt(ippdrv->dev, config->fmt);
-			if (ret) {
-				DRM_ERROR("not support format.\n");
+			if (ret)
 				return ret;
-			}
 		}
 
 		/* set transform for rotation, flip */
 		if (ops->set_transf) {
 			ret = ops->set_transf(ippdrv->dev, config->degree,
 				config->flip, &swap);
-			if (ret) {
-				DRM_ERROR("not support tranf.\n");
-				return -EINVAL;
-			}
+			if (ret)
+				return ret;
 		}
 
 		/* set size */
 		if (ops->set_size) {
 			ret = ops->set_size(ippdrv->dev, swap, &config->pos,
 				&config->sz);
-			if (ret) {
-				DRM_ERROR("not support size.\n");
+			if (ret)
 				return ret;
-			}
 		}
 	}
 
