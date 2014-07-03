@@ -30,9 +30,7 @@
 #include <math.h>
 
 #ifdef HAVE_KVM_STAT_SUPPORT
-#include <asm/svm.h>
-#include <asm/vmx.h>
-#include <asm/kvm.h>
+#include <asm/kvm_perf.h>
 
 struct event_key {
 	#define INVALID_KEY     (~0ULL)
@@ -75,7 +73,7 @@ struct kvm_events_ops {
 	bool (*is_end_event)(struct perf_evsel *evsel,
 			     struct perf_sample *sample, struct event_key *key);
 	void (*decode_key)(struct perf_kvm_stat *kvm, struct event_key *key,
-			   char decode[20]);
+			   char *decode);
 	const char *name;
 };
 
@@ -126,12 +124,12 @@ static void exit_event_get_key(struct perf_evsel *evsel,
 			       struct event_key *key)
 {
 	key->info = 0;
-	key->key = perf_evsel__intval(evsel, sample, "exit_reason");
+	key->key = perf_evsel__intval(evsel, sample, KVM_EXIT_REASON);
 }
 
 static bool kvm_exit_event(struct perf_evsel *evsel)
 {
-	return !strcmp(evsel->name, "kvm:kvm_exit");
+	return !strcmp(evsel->name, KVM_EXIT_TRACE);
 }
 
 static bool exit_event_begin(struct perf_evsel *evsel,
@@ -147,7 +145,7 @@ static bool exit_event_begin(struct perf_evsel *evsel,
 
 static bool kvm_entry_event(struct perf_evsel *evsel)
 {
-	return !strcmp(evsel->name, "kvm:kvm_entry");
+	return !strcmp(evsel->name, KVM_ENTRY_TRACE);
 }
 
 static bool exit_event_end(struct perf_evsel *evsel,
@@ -182,12 +180,12 @@ static const char *get_exit_reason(struct perf_kvm_stat *kvm,
 
 static void exit_event_decode_key(struct perf_kvm_stat *kvm,
 				  struct event_key *key,
-				  char decode[20])
+				  char *decode)
 {
 	const char *exit_reason = get_exit_reason(kvm, kvm->exit_reasons,
 						  key->key);
 
-	scnprintf(decode, 20, "%s", exit_reason);
+	scnprintf(decode, DECODE_STR_LEN, "%s", exit_reason);
 }
 
 static struct kvm_events_ops exit_events = {
@@ -249,9 +247,9 @@ static bool mmio_event_end(struct perf_evsel *evsel, struct perf_sample *sample,
 
 static void mmio_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 				  struct event_key *key,
-				  char decode[20])
+				  char *decode)
 {
-	scnprintf(decode, 20, "%#lx:%s", (unsigned long)key->key,
+	scnprintf(decode, DECODE_STR_LEN, "%#lx:%s", (unsigned long)key->key,
 				key->info == KVM_TRACE_MMIO_WRITE ? "W" : "R");
 }
 
@@ -292,9 +290,9 @@ static bool ioport_event_end(struct perf_evsel *evsel,
 
 static void ioport_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 				    struct event_key *key,
-				    char decode[20])
+				    char *decode)
 {
-	scnprintf(decode, 20, "%#llx:%s", (unsigned long long)key->key,
+	scnprintf(decode, DECODE_STR_LEN, "%#llx:%s", (unsigned long long)key->key,
 				key->info ? "POUT" : "PIN");
 }
 
@@ -524,7 +522,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 	time_diff = sample->time - time_begin;
 
 	if (kvm->duration && time_diff > kvm->duration) {
-		char decode[32];
+		char decode[DECODE_STR_LEN];
 
 		kvm->events_ops->decode_key(kvm, &event->key, decode);
 		if (strcmp(decode, "HLT")) {
@@ -552,7 +550,7 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 			return NULL;
 		}
 
-		vcpu_record->vcpu_id = perf_evsel__intval(evsel, sample, "vcpu_id");
+		vcpu_record->vcpu_id = perf_evsel__intval(evsel, sample, VCPU_ID);
 		thread->priv = vcpu_record;
 	}
 
@@ -739,7 +737,7 @@ static void show_timeofday(void)
 
 static void print_result(struct perf_kvm_stat *kvm)
 {
-	char decode[20];
+	char decode[DECODE_STR_LEN];
 	struct kvm_event *event;
 	int vcpu = kvm->trace_vcpu;
 
@@ -750,7 +748,7 @@ static void print_result(struct perf_kvm_stat *kvm)
 
 	pr_info("\n\n");
 	print_vcpu_info(kvm);
-	pr_info("%20s ", kvm->events_ops->name);
+	pr_info("%*s ", DECODE_STR_LEN, kvm->events_ops->name);
 	pr_info("%10s ", "Samples");
 	pr_info("%9s ", "Samples%");
 
@@ -769,7 +767,7 @@ static void print_result(struct perf_kvm_stat *kvm)
 		min = get_event_min(event, vcpu);
 
 		kvm->events_ops->decode_key(kvm, &event->key, decode);
-		pr_info("%20s ", decode);
+		pr_info("%*s ", DECODE_STR_LEN, decode);
 		pr_info("%10llu ", (unsigned long long)ecount);
 		pr_info("%8.2f%% ", (double)ecount / kvm->total_count * 100);
 		pr_info("%8.2f%% ", (double)etime / kvm->total_time * 100);
