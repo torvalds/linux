@@ -608,7 +608,7 @@
 			};
 
 			sdma: sdma@020ec000 {
-				compatible = "fsl,imx6sl-sdma", "fsl,imx35-sdma";
+				compatible = "fsl,imx6sl-sdma", "fsl,imx6q-sdma";
 				reg = <0x020ec000 0x4000>;
 				interrupts = <0 2 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SL_CLK_SDMA>,
