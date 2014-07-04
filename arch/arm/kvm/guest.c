@@ -124,16 +124,6 @@ static bool is_timer_reg(u64 index)
 	return false;
 }
 
-int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
-{
-	return 0;
-}
-
-u64 kvm_arm_timer_get_reg(struct kvm_vcpu *vcpu, u64 regid)
-{
-	return 0;
-}
-
 #else
 
 #define NUM_TIMER_REGS 3
