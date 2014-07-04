@@ -298,6 +298,7 @@ config EFI
 	select LIBFDT
 	select UCS2_STRING
 	select EFI_PARAMS_FROM_FDT
+	select EFI_RUNTIME_WRAPPERS
 	default y
 	help
 	  This option provides support for runtime services provided
