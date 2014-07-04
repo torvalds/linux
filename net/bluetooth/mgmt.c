@@ -5533,28 +5533,27 @@ void mgmt_index_removed(struct hci_dev *hdev)
 }
 
 /* This function requires the caller holds hdev->lock */
-static void restart_le_auto_conns(struct hci_dev *hdev)
+static void restart_le_actions(struct hci_dev *hdev)
 {
 	struct hci_conn_params *p;
-	bool added = false;
 
 	list_for_each_entry(p, &hdev->le_conn_params, list) {
-		if (p->auto_connect == HCI_AUTO_CONN_ALWAYS) {
-			hci_pend_le_conn_add(hdev, p);
-			added = true;
+		/* Needed for AUTO_OFF case where might not "really"
+		 * have been powered off.
+		 */
+		list_del_init(&p->action);
+
+		switch (p->auto_connect) {
+		case HCI_AUTO_CONN_ALWAYS:
+			list_add(&p->action, &hdev->pend_le_conns);
+			break;
+		case HCI_AUTO_CONN_REPORT:
+			list_add(&p->action, &hdev->pend_le_reports);
+			break;
+		default:
+			break;
 		}
 	}
-
-	/* Calling hci_pend_le_conn_add will actually already trigger
-	 * background scanning when needed. So no need to trigger it
-	 * just another time.
-	 *
-	 * This check is here to avoid an unneeded restart of the
-	 * passive scanning. Since this is during the controller
-	 * power up phase the duplicate filtering is not an issue.
-	 */
-	if (added)
-		return;
 
 	hci_update_background_scan(hdev);
 }
@@ -5567,7 +5566,7 @@ static void powered_complete(struct hci_dev *hdev, u8 status)
 
 	hci_dev_lock(hdev);
 
-	restart_le_auto_conns(hdev);
+	restart_le_actions(hdev);
 
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
