@@ -8,6 +8,31 @@
 		status = "okay";
 	};
 
+	pwm_regulator {
+		compatible = "rockchip_pwm_regulator";
+		pwms = <&pwm2 0 25000>;
+		rockchip,pwm_id= <2>;
+		rockchip,pwm_voltage_map= <950000 975000 1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000 1325000 1350000 1375000 1400000 1425000 1450000>;
+		rockchip,pwm_voltage= <1250000>;
+		rockchip,pwm_min_voltage= <950000>;
+		rockchip,pwm_max_voltage= <1450000>;
+		rockchip,pwm_suspend_voltage= <1250000>;
+		rockchip,pwm_coefficient= <500>;
+		status = "disabled";
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pwm_reg0: regulator@0 {
+				regulator-compatible = "pwm_dcdc1";
+				regulator-name= "vdd_arm";
+				regulator-min-microvolt = <950000>;
+				regulator-max-microvolt = <1450000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};
+
     wireless-wlan {
         compatible = "wlan-platdata";
 
