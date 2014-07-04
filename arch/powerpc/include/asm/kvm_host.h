@@ -255,7 +255,6 @@ struct kvm_arch {
 	atomic_t hpte_mod_interest;
 	spinlock_t slot_phys_lock;
 	cpumask_t need_tlb_flush;
-	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 	int hpt_cma_alloc;
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
@@ -273,6 +272,10 @@ struct kvm_arch {
 	struct kvmppc_xics *xics;
 #endif
 	struct kvmppc_ops *kvm_ops;
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	/* This array can grow quite large, keep it at the end */
+	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
+#endif
 };
 
 /*
