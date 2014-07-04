@@ -2246,9 +2246,16 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	atomic_set(&hdev->cmd_cnt, 1);
 	set_bit(HCI_INIT, &hdev->flags);
 
-	if (hdev->setup && test_bit(HCI_SETUP, &hdev->dev_flags)) {
-		ret = hdev->setup(hdev);
+	if (test_bit(HCI_SETUP, &hdev->dev_flags)) {
+		if (hdev->setup)
+			ret = hdev->setup(hdev);
 
+		/* The transport driver can set these quirks before
+		 * creating the HCI device or in its setup callback.
+		 *
+		 * In case any of them is set, the controller has to
+		 * start up as unconfigured.
+		 */
 		if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) ||
 		    test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks))
 			set_bit(HCI_UNCONFIGURED, &hdev->dev_flags);
