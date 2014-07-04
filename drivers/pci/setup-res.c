@@ -305,14 +305,16 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	if (ret < 0)
 		ret = pci_revert_fw_address(res, dev, resno, size);
 
-	if (!ret) {
-		res->flags &= ~IORESOURCE_UNSET;
-		res->flags &= ~IORESOURCE_STARTALIGN;
-		dev_info(&dev->dev, "BAR %d: assigned %pR\n", resno, res);
-		if (resno < PCI_BRIDGE_RESOURCES)
-			pci_update_resource(dev, resno);
-	}
-	return ret;
+	if (ret)
+		return ret;
+
+	res->flags &= ~IORESOURCE_UNSET;
+	res->flags &= ~IORESOURCE_STARTALIGN;
+	dev_info(&dev->dev, "BAR %d: assigned %pR\n", resno, res);
+	if (resno < PCI_BRIDGE_RESOURCES)
+		pci_update_resource(dev, resno);
+
+	return 0;
 }
 EXPORT_SYMBOL(pci_assign_resource);
 
@@ -335,19 +337,20 @@ int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsiz
 	/* already aligned with min_align */
 	new_size = resource_size(res) + addsize;
 	ret = _pci_assign_resource(dev, resno, new_size, min_align);
-	if (!ret) {
-		res->flags &= ~IORESOURCE_UNSET;
-		res->flags &= ~IORESOURCE_STARTALIGN;
-		dev_info(&dev->dev, "BAR %d: reassigned %pR\n", resno, res);
-		if (resno < PCI_BRIDGE_RESOURCES)
-			pci_update_resource(dev, resno);
-	} else {
+	if (ret) {
 		res->flags = flags;
 		dev_info(&dev->dev, "BAR %d: %pR (failed to expand by %#llx)\n",
 			 resno, res, (unsigned long long) addsize);
+		return ret;
 	}
 
-	return ret;
+	res->flags &= ~IORESOURCE_UNSET;
+	res->flags &= ~IORESOURCE_STARTALIGN;
+	dev_info(&dev->dev, "BAR %d: reassigned %pR\n", resno, res);
+	if (resno < PCI_BRIDGE_RESOURCES)
+		pci_update_resource(dev, resno);
+
+	return 0;
 }
 
 int pci_enable_resources(struct pci_dev *dev, int mask)
