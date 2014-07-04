@@ -46,31 +46,36 @@ static void __hsr_set_operstate(struct net_device *dev, int transition)
 	}
 }
 
-void hsr_set_operstate(struct net_device *hsr_dev, struct net_device *slave1,
-		       struct net_device *slave2)
+static void hsr_set_operstate(struct net_device *hsr_dev, bool has_carrier)
 {
 	if (!is_admin_up(hsr_dev)) {
 		__hsr_set_operstate(hsr_dev, IF_OPER_DOWN);
 		return;
 	}
 
-	if (is_slave_up(slave1) || is_slave_up(slave2))
+	if (has_carrier)
 		__hsr_set_operstate(hsr_dev, IF_OPER_UP);
 	else
 		__hsr_set_operstate(hsr_dev, IF_OPER_LOWERLAYERDOWN);
 }
 
-void hsr_set_carrier(struct net_device *hsr_dev, struct net_device *slave1,
-		     struct net_device *slave2)
+static bool hsr_check_carrier(struct hsr_priv *hsr)
 {
-	if (is_slave_up(slave1) || is_slave_up(slave2))
-		netif_carrier_on(hsr_dev);
+	bool has_carrier;
+
+	has_carrier = (is_slave_up(hsr->slave[0]) || is_slave_up(hsr->slave[1]));
+
+	if (has_carrier)
+		netif_carrier_on(hsr->dev);
 	else
-		netif_carrier_off(hsr_dev);
+		netif_carrier_off(hsr->dev);
+
+	return has_carrier;
 }
 
 
-void hsr_check_announce(struct net_device *hsr_dev, int old_operstate)
+static void hsr_check_announce(struct net_device *hsr_dev,
+			       unsigned char old_operstate)
 {
 	struct hsr_priv *hsr;
 
@@ -87,6 +92,20 @@ void hsr_check_announce(struct net_device *hsr_dev, int old_operstate)
 	if ((hsr_dev->operstate != IF_OPER_UP) && (old_operstate == IF_OPER_UP))
 		/* Went down */
 		del_timer(&hsr->announce_timer);
+}
+
+void hsr_check_carrier_and_operstate(struct hsr_priv *hsr)
+{
+	unsigned char old_operstate;
+	bool has_carrier;
+
+	/* netif_stacked_transfer_operstate() cannot be used here since
+	 * it doesn't set IF_OPER_LOWERLAYERDOWN (?)
+	 */
+	old_operstate = hsr->dev->operstate;
+	has_carrier = hsr_check_carrier(hsr);
+	hsr_set_operstate(hsr->dev, has_carrier);
+	hsr_check_announce(hsr->dev, old_operstate);
 }
 
 

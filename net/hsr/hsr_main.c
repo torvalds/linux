@@ -91,7 +91,6 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 {
 	struct net_device *slave, *other_slave;
 	struct hsr_priv *hsr;
-	int old_operstate;
 	int mtu_max;
 	int res;
 	struct net_device *dev;
@@ -115,13 +114,7 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 	case NETDEV_UP:		/* Administrative state DOWN */
 	case NETDEV_DOWN:	/* Administrative state UP */
 	case NETDEV_CHANGE:	/* Link (carrier) state changes */
-		old_operstate = hsr->dev->operstate;
-		hsr_set_carrier(hsr->dev, slave, other_slave);
-		/* netif_stacked_transfer_operstate() cannot be used here since
-		 * it doesn't set IF_OPER_LOWERLAYERDOWN (?)
-		 */
-		hsr_set_operstate(hsr->dev, slave, other_slave);
-		hsr_check_announce(hsr->dev, old_operstate);
+		hsr_check_carrier_and_operstate(hsr);
 		break;
 	case NETDEV_CHANGEADDR:
 
