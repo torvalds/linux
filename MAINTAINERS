@@ -9406,12 +9406,6 @@ S:	Maintained
 F:	drivers/usb/host/isp116x*
 F:	include/linux/usb/isp116x.h
 
-USB KAWASAKI LSI DRIVER
-M:	Oliver Neukum <oliver@neukum.org>
-L:	linux-usb@vger.kernel.org
-S:	Maintained
-F:	drivers/usb/serial/kl5kusb105.*
-
 USB MASS STORAGE DRIVER
 M:	Matthew Dharm <mdharm-usb@one-eyed-alien.net>
 L:	linux-usb@vger.kernel.org
@@ -9438,12 +9432,6 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/ohci.txt
 F:	drivers/usb/host/ohci*
-
-USB OPTION-CARD DRIVER
-M:	Matthias Urlichs <smurf@smurf.noris.de>
-L:	linux-usb@vger.kernel.org
-S:	Maintained
-F:	drivers/usb/serial/option.c
 
 USB PEGASUS DRIVER
 M:	Petko Manolov <petkan@nucleusys.com>
@@ -9477,7 +9465,7 @@ S:	Maintained
 F:	drivers/net/usb/rtl8150.c
 
 USB SERIAL SUBSYSTEM
-M:	Johan Hovold <jhovold@gmail.com>
+M:	Johan Hovold <johan@kernel.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/usb-serial.txt
