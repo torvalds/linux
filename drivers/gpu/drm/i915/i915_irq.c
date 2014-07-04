@@ -3467,7 +3467,9 @@ static void gen8_irq_reset(struct drm_device *dev)
 	gen8_gt_irq_reset(dev_priv);
 
 	for_each_pipe(pipe)
-		GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
+		if (intel_display_power_enabled(dev_priv,
+						POWER_DOMAIN_PIPE(pipe)))
+			GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
 
 	GEN5_IRQ_RESET(GEN8_DE_PORT_);
 	GEN5_IRQ_RESET(GEN8_DE_MISC_);
@@ -3800,8 +3802,11 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	dev_priv->de_irq_mask[PIPE_C] = ~de_pipe_masked;
 
 	for_each_pipe(pipe)
-		GEN8_IRQ_INIT_NDX(DE_PIPE, pipe, dev_priv->de_irq_mask[pipe],
-				  de_pipe_enables);
+		if (intel_display_power_enabled(dev_priv,
+				POWER_DOMAIN_PIPE(pipe)))
+			GEN8_IRQ_INIT_NDX(DE_PIPE, pipe,
+					  dev_priv->de_irq_mask[pipe],
+					  de_pipe_enables);
 
 	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~GEN8_AUX_CHANNEL_A, GEN8_AUX_CHANNEL_A);
 }
