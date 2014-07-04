@@ -1,0 +1,95 @@
+#
+# This confidential and proprietary software may be used only as
+# authorised by a licensing agreement from ARM Limited
+# (C) COPYRIGHT 2008-2012 ARM Limited
+# ALL RIGHTS RESERVED
+# The entire notice above must be reproduced on all authorised
+# copies and copies may only be made to the extent permitted
+# by a licensing agreement from ARM Limited.
+#
+
+# Set default configuration to use, if Makefile didn't provide one.
+# Change this to use a different config.h
+CONFIG ?= pb-virtex5-m400-4
+
+# Validate selected config
+ifneq ($(shell [ -d $(src)/arch-$(CONFIG) ] && [ -f  $(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
+$(warning Current directory is $(src))
+$(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
+else
+# Link arch to the selected arch-config directory
+$(shell [ -L $(src)/arch ] && rm $(src)/arch)
+$(shell ln -sf arch-$(CONFIG) $(src)/arch)
+$(shell touch $(src)/arch/config.h)
+endif
+
+UDD_FILE_PREFIX = ../mali/
+
+# Get subversion revision number, fall back to 0000 if no svn info is available
+SVN_INFO = (cd $(src); svn info 2>/dev/null)
+
+ifneq ($(shell $(SVN_INFO) 2>/dev/null),)
+# SVN detected
+SVN_REV := $(shell $(SVN_INFO) | grep '^Revision: '| sed -e 's/^Revision: //' 2>/dev/null)
+DRIVER_REV := $(MALI_RELEASE_NAME)-r$(SVN_REV)
+CHANGE_DATE := $(shell $(SVN_INFO) | grep '^Last Changed Date: ' | cut -d: -f2- | cut -b2-)
+CHANGED_REVISION := $(shell $(SVN_INFO) | grep '^Last Changed Rev: ' | cut -d: -f2- | cut -b2-)
+REPO_URL := $(shell $(SVN_INFO) | grep '^URL: ' | cut -d: -f2- | cut -b2-)
+
+else # SVN
+GIT_REV := $(shell cd $(src); git describe --always 2>/dev/null)
+ifneq ($(GIT_REV),)
+# Git detected
+DRIVER_REV := $(MALI_RELEASE_NAME)-$(GIT_REV)
+CHANGE_DATE := $(shell cd $(src); git log -1 --format="%ci")
+CHANGED_REVISION := $(GIT_REV)
+REPO_URL := $(shell cd $(src); git describe --all --always 2>/dev/null)
+
+else # Git
+# No Git or SVN detected
+DRIVER_REV := $(MALI_RELEASE_NAME)
+CHANGE_DATE := $(MALI_RELEASE_NAME)
+CHANGED_REVISION := $(MALI_RELEASE_NAME)
+endif
+endif
+
+ccflags-y += -DSVN_REV=$(SVN_REV)
+ccflags-y += -DSVN_REV_STRING=\"$(DRIVER_REV)\"
+
+ccflags-y += -I$(src) -I$(src)/common -I$(src)/linux -I$(src)/../mali/common -I$(src)/../mali/linux -I$(src)/../include/ump
+ccflags-y += -DMALI_STATE_TRACKING=0
+ccflags-y += -DMALI_ENABLE_CPU_CYCLES=0
+ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
+
+# For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
+# The ARM proprietary product will only include the license/proprietary directory
+# The GPL product will only include the license/gpl directory
+
+ifeq ($(wildcard $(src)/linux/license/gpl/*),)
+ccflags-y += -I$(src)/linux/license/proprietary -I$(src)/../mali/linux/license/proprietary
+else
+ccflags-y += -I$(src)/linux/license/gpl -I$(src)/../mali/linux/license/gpl
+endif
+
+ump-y = common/ump_kernel_common.o \
+	common/ump_kernel_descriptor_mapping.o \
+	common/ump_kernel_api.o \
+	common/ump_kernel_ref_drv.o \
+	linux/ump_kernel_linux.o \
+	linux/ump_kernel_memory_backend_os.o \
+	linux/ump_kernel_memory_backend_dedicated.o \
+	linux/ump_memory_backend.o \
+	linux/ump_ukk_wrappers.o \
+	linux/ump_ukk_ref_wrappers.o \
+	linux/ump_osk_atomics.o \
+	linux/ump_osk_low_level_mem.o \
+	linux/ump_osk_misc.o 
+ifeq ($(CONFIG_UMP),m)
+ump-y += $(UDD_FILE_PREFIX)linux/mali_osk_atomics.o 
+ump-y += $(UDD_FILE_PREFIX)linux/mali_osk_locks.o 
+ump-y += $(UDD_FILE_PREFIX)linux/mali_osk_memory.o 
+ump-y += $(UDD_FILE_PREFIX)linux/mali_osk_math.o 
+ump-y += $(UDD_FILE_PREFIX)linux/mali_osk_misc.o
+endif
+obj-$(CONFIG_UMP) := ump.o
+

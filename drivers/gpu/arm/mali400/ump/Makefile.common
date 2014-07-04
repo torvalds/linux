@@ -1,0 +1,20 @@
+#
+# This confidential and proprietary software may be used only as
+# authorised by a licensing agreement from ARM Limited
+# (C) COPYRIGHT 2008-2011, 2013 ARM Limited
+# ALL RIGHTS RESERVED
+# The entire notice above must be reproduced on all authorised
+# copies and copies may only be made to the extent permitted
+# by a licensing agreement from ARM Limited.
+#
+
+SRC = $(UMP_FILE_PREFIX)common/ump_kernel_common.c \
+	$(UMP_FILE_PREFIX)common/ump_kernel_descriptor_mapping.c \
+	$(UMP_FILE_PREFIX)common/ump_kernel_api.c \
+	$(UMP_FILE_PREFIX)common/ump_kernel_ref_drv.c
+
+# Get subversion revision number, fall back to 0000 if no svn info is available
+SVN_REV:=$(shell ((svnversion | grep -qv exported && echo -n 'Revision: ' && svnversion) || git svn info | sed -e 's/$$$$/M/' | grep '^Revision: ' || echo ${MALI_RELEASE_NAME}) 2>/dev/null | sed -e 's/^Revision: //')
+
+EXTRA_CFLAGS += -DSVN_REV=$(SVN_REV)
+EXTRA_CFLAGS += -DSVN_REV_STRING=\"$(SVN_REV)\"
