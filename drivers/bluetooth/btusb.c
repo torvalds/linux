@@ -1216,9 +1216,11 @@ static int btusb_check_bdaddr_intel(struct hci_dev *hdev)
 	 * fully operational, but have the danger of duplicate addresses
 	 * and that in turn can cause problems with Bluetooth operation.
 	 */
-	if (!bacmp(&rp->bdaddr, BDADDR_INTEL))
+	if (!bacmp(&rp->bdaddr, BDADDR_INTEL)) {
 		BT_ERR("%s found Intel default device address (%pMR)",
 		       hdev->name, &rp->bdaddr);
+		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+	}
 
 	kfree_skb(skb);
 
