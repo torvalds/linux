@@ -2209,7 +2209,9 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			/* Fall through */
 
 		case HCI_AUTO_CONN_ALWAYS:
-			hci_pend_le_conn_add(hdev, params);
+			list_del_init(&params->action);
+			list_add(&params->action, &hdev->pend_le_conns);
+			hci_update_background_scan(hdev);
 			break;
 
 		default:
