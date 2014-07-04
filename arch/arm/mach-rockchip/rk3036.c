@@ -135,8 +135,6 @@ static void __init rk3036_dt_init_timer(void)
 
 static void __init rk3036_init_late(void)
 {
-    if (rockchip_jtag_enabled)
-    	clk_prepare_enable(clk_get_sys(NULL, "clk_jtag"));
     return;
 }
 
