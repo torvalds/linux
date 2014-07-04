@@ -75,4 +75,7 @@ config OF_MTD
 	depends on MTD
 	def_bool y
 
+config OF_RESOLVE
+	bool
+
 endmenu # OF
