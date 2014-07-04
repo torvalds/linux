@@ -5455,8 +5455,14 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		}
 
 		if (test_bit(HCI_SETUP, &hdev->dev_flags) ||
-		    test_bit(HCI_UNCONFIGURED, &hdev->dev_flags) ||
 		    test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+			err = cmd_status(sk, index, opcode,
+					 MGMT_STATUS_INVALID_INDEX);
+			goto done;
+		}
+
+		if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags) &&
+		    opcode != MGMT_OP_READ_CONFIG_INFO) {
 			err = cmd_status(sk, index, opcode,
 					 MGMT_STATUS_INVALID_INDEX);
 			goto done;
