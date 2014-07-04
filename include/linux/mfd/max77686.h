@@ -89,8 +89,6 @@ struct max77686_opmode_data {
 };
 
 struct max77686_platform_data {
-	/* IRQ */
-	int irq_gpio;
 	int ono;
 	int wakeup;
 

@@ -181,9 +181,6 @@ enum max77686_rtc_reg {
 	MAX77686_ALARM2_DATE		= 0x1B,
 };
 
-#define MAX77686_IRQSRC_PMIC	(0)
-#define MAX77686_IRQSRC_RTC		(1 << 0)
-
 enum max77686_irq_source {
 	PMIC_INT1 = 0,
 	PMIC_INT2,
@@ -205,15 +202,32 @@ enum max77686_irq {
 	MAX77686_PMICIRQ_140C,
 	MAX77686_PMICIRQ_120C,
 
-	MAX77686_RTCIRQ_RTC60S,
+	MAX77686_RTCIRQ_RTC60S = 0,
 	MAX77686_RTCIRQ_RTCA1,
 	MAX77686_RTCIRQ_RTCA2,
 	MAX77686_RTCIRQ_SMPL,
 	MAX77686_RTCIRQ_RTC1S,
 	MAX77686_RTCIRQ_WTSR,
-
-	MAX77686_IRQ_NR,
 };
+
+#define MAX77686_INT1_PWRONF_MSK	BIT(0)
+#define MAX77686_INT1_PWRONR_MSK	BIT(1)
+#define MAX77686_INT1_JIGONBF_MSK	BIT(2)
+#define MAX77686_INT1_JIGONBR_MSK	BIT(3)
+#define MAX77686_INT1_ACOKBF_MSK	BIT(4)
+#define MAX77686_INT1_ACOKBR_MSK	BIT(5)
+#define MAX77686_INT1_ONKEY1S_MSK	BIT(6)
+#define MAX77686_INT1_MRSTB_MSK		BIT(7)
+
+#define MAX77686_INT2_140C_MSK		BIT(0)
+#define MAX77686_INT2_120C_MSK		BIT(1)
+
+#define MAX77686_RTCINT_RTC60S_MSK	BIT(0)
+#define MAX77686_RTCINT_RTCA1_MSK	BIT(1)
+#define MAX77686_RTCINT_RTCA2_MSK	BIT(2)
+#define MAX77686_RTCINT_SMPL_MSK	BIT(3)
+#define MAX77686_RTCINT_RTC1S_MSK	BIT(4)
+#define MAX77686_RTCINT_WTSR_MSK	BIT(5)
 
 struct max77686_dev {
 	struct device *dev;
@@ -224,11 +238,10 @@ struct max77686_dev {
 
 	struct regmap *regmap;		/* regmap for mfd */
 	struct regmap *rtc_regmap;	/* regmap for rtc */
-
-	struct irq_domain *irq_domain;
+	struct regmap_irq_chip_data *irq_data;
+	struct regmap_irq_chip_data *rtc_irq_data;
 
 	int irq;
-	int irq_gpio;
 	bool wakeup;
 	struct mutex irqlock;
 	int irq_masks_cur[MAX77686_IRQ_GROUP_NR];

@@ -25,6 +25,8 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
 #include <linux/mfd/core.h>
@@ -44,6 +46,54 @@ static const struct mfd_cell max77686_devs[] = {
 static struct regmap_config max77686_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+};
+
+static struct regmap_config max77686_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+};
+
+static const struct regmap_irq max77686_irqs[] = {
+	/* INT1 interrupts */
+	{ .reg_offset = 0, .mask = MAX77686_INT1_PWRONF_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_INT1_PWRONR_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_INT1_JIGONBF_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_INT1_JIGONBR_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_INT1_ACOKBF_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_INT1_ACOKBR_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_INT1_ONKEY1S_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_INT1_MRSTB_MSK, },
+	/* INT2 interrupts */
+	{ .reg_offset = 1, .mask = MAX77686_INT2_140C_MSK, },
+	{ .reg_offset = 1, .mask = MAX77686_INT2_120C_MSK, },
+};
+
+static const struct regmap_irq_chip max77686_irq_chip = {
+	.name			= "max77686-pmic",
+	.status_base		= MAX77686_REG_INT1,
+	.mask_base		= MAX77686_REG_INT1MSK,
+	.num_regs		= 2,
+	.irqs			= max77686_irqs,
+	.num_irqs		= ARRAY_SIZE(max77686_irqs),
+};
+
+static const struct regmap_irq max77686_rtc_irqs[] = {
+	/* RTC interrupts */
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTC60S_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTCA1_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTCA2_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_SMPL_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTC1S_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_WTSR_MSK, },
+};
+
+static const struct regmap_irq_chip max77686_rtc_irq_chip = {
+	.name			= "max77686-rtc",
+	.status_base		= MAX77686_RTC_INT,
+	.mask_base		= MAX77686_RTC_INTM,
+	.num_regs		= 1,
+	.irqs			= max77686_rtc_irqs,
+	.num_irqs		= ARRAY_SIZE(max77686_rtc_irqs),
 };
 
 #ifdef CONFIG_OF
@@ -101,7 +151,6 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 	max77686->type = id->driver_data;
 
 	max77686->wakeup = pdata->wakeup;
-	max77686->irq_gpio = pdata->irq_gpio;
 	max77686->irq = i2c->irq;
 
 	max77686->regmap = devm_regmap_init_i2c(i2c, &max77686_regmap_config);
@@ -117,8 +166,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 		dev_err(max77686->dev,
 			"device not found on this channel (this is not an error)\n");
 		return -ENODEV;
-	} else
-		dev_info(max77686->dev, "device found\n");
+	}
 
 	max77686->rtc = i2c_new_dummy(i2c->adapter, I2C_ADDR_RTC);
 	if (!max77686->rtc) {
@@ -127,14 +175,47 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 	}
 	i2c_set_clientdata(max77686->rtc, max77686);
 
-	max77686_irq_init(max77686);
+	max77686->rtc_regmap = devm_regmap_init_i2c(max77686->rtc,
+						    &max77686_rtc_regmap_config);
+	if (IS_ERR(max77686->rtc_regmap)) {
+		ret = PTR_ERR(max77686->rtc_regmap);
+		dev_err(max77686->dev, "failed to allocate RTC regmap: %d\n",
+			ret);
+		goto err_unregister_i2c;
+	}
+
+	ret = regmap_add_irq_chip(max77686->regmap, max77686->irq,
+				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
+				  IRQF_SHARED, 0, &max77686_irq_chip,
+				  &max77686->irq_data);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "failed to add PMIC irq chip: %d\n", ret);
+		goto err_unregister_i2c;
+	}
+	ret = regmap_add_irq_chip(max77686->rtc_regmap, max77686->irq,
+				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
+				  IRQF_SHARED, 0, &max77686_rtc_irq_chip,
+				  &max77686->rtc_irq_data);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "failed to add RTC irq chip: %d\n", ret);
+		goto err_del_irqc;
+	}
 
 	ret = mfd_add_devices(max77686->dev, -1, max77686_devs,
 			      ARRAY_SIZE(max77686_devs), NULL, 0, NULL);
 	if (ret < 0) {
-		mfd_remove_devices(max77686->dev);
-		i2c_unregister_device(max77686->rtc);
+		dev_err(&i2c->dev, "failed to add MFD devices: %d\n", ret);
+		goto err_del_rtc_irqc;
 	}
+
+	return 0;
+
+err_del_rtc_irqc:
+	regmap_del_irq_chip(max77686->irq, max77686->rtc_irq_data);
+err_del_irqc:
+	regmap_del_irq_chip(max77686->irq, max77686->irq_data);
+err_unregister_i2c:
+	i2c_unregister_device(max77686->rtc);
 
 	return ret;
 }
@@ -144,6 +225,10 @@ static int max77686_i2c_remove(struct i2c_client *i2c)
 	struct max77686_dev *max77686 = i2c_get_clientdata(i2c);
 
 	mfd_remove_devices(max77686->dev);
+
+	regmap_del_irq_chip(max77686->irq, max77686->rtc_irq_data);
+	regmap_del_irq_chip(max77686->irq, max77686->irq_data);
+
 	i2c_unregister_device(max77686->rtc);
 
 	return 0;
