@@ -3432,6 +3432,9 @@ static int dib8000_get_frontend(struct dvb_frontend *fe)
 	case 1:
 		fe->dtv_property_cache.transmission_mode = TRANSMISSION_MODE_2K;
 		break;
+	case 2:
+		fe->dtv_property_cache.transmission_mode = TRANSMISSION_MODE_4K;
+		break;
 	case 3:
 	default:
 		fe->dtv_property_cache.transmission_mode = TRANSMISSION_MODE_8K;
