@@ -90,6 +90,9 @@ static const struct hc_driver xhci_plat_xhci_driver = {
 	.hub_status_data =	xhci_hub_status_data,
 	.bus_suspend =		xhci_bus_suspend,
 	.bus_resume =		xhci_bus_resume,
+
+	.enable_usb3_lpm_timeout =	xhci_enable_usb3_lpm_timeout,
+	.disable_usb3_lpm_timeout =	xhci_disable_usb3_lpm_timeout,
 };
 
 static int xhci_plat_probe(struct platform_device *pdev)
