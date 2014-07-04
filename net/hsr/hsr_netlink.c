@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Autronica Fire and Security AS
+/* Copyright 2011-2014 Autronica Fire and Security AS
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -6,7 +6,7 @@
  * any later version.
  *
  * Author(s):
- *	2011-2013 Arvid Brodin, arvid.brodin@xdin.com
+ *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
  *
  * Routines for handling Netlink messages for HSR.
  */
@@ -63,21 +63,21 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 
 static int hsr_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
-	struct hsr_priv *hsr_priv;
+	struct hsr_priv *hsr;
 
-	hsr_priv = netdev_priv(dev);
+	hsr = netdev_priv(dev);
 
-	if (hsr_priv->slave[0])
-		if (nla_put_u32(skb, IFLA_HSR_SLAVE1, hsr_priv->slave[0]->ifindex))
+	if (hsr->slave[0])
+		if (nla_put_u32(skb, IFLA_HSR_SLAVE1, hsr->slave[0]->ifindex))
 			goto nla_put_failure;
 
-	if (hsr_priv->slave[1])
-		if (nla_put_u32(skb, IFLA_HSR_SLAVE2, hsr_priv->slave[1]->ifindex))
+	if (hsr->slave[1])
+		if (nla_put_u32(skb, IFLA_HSR_SLAVE2, hsr->slave[1]->ifindex))
 			goto nla_put_failure;
 
 	if (nla_put(skb, IFLA_HSR_SUPERVISION_ADDR, ETH_ALEN,
-		    hsr_priv->sup_multicast_addr) ||
-	    nla_put_u16(skb, IFLA_HSR_SEQ_NR, hsr_priv->sequence_nr))
+		    hsr->sup_multicast_addr) ||
+	    nla_put_u16(skb, IFLA_HSR_SEQ_NR, hsr->sequence_nr))
 		goto nla_put_failure;
 
 	return 0;
@@ -128,7 +128,7 @@ static const struct genl_multicast_group hsr_mcgrps[] = {
  * over one of the slave interfaces. This would indicate an open network ring
  * (i.e. a link has failed somewhere).
  */
-void hsr_nl_ringerror(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN],
+void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
 		      enum hsr_dev_idx dev_idx)
 {
 	struct sk_buff *skb;
@@ -148,8 +148,8 @@ void hsr_nl_ringerror(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN],
 	if (res < 0)
 		goto nla_put_failure;
 
-	if (hsr_priv->slave[dev_idx])
-		ifindex = hsr_priv->slave[dev_idx]->ifindex;
+	if (hsr->slave[dev_idx])
+		ifindex = hsr->slave[dev_idx]->ifindex;
 	else
 		ifindex = -1;
 	res = nla_put_u32(skb, HSR_A_IFINDEX, ifindex);
@@ -165,13 +165,13 @@ nla_put_failure:
 	kfree_skb(skb);
 
 fail:
-	netdev_warn(hsr_priv->dev, "Could not send HSR ring error message\n");
+	netdev_warn(hsr->dev, "Could not send HSR ring error message\n");
 }
 
 /* This is called when we haven't heard from the node with MAC address addr for
  * some time (just before the node is removed from the node table/list).
  */
-void hsr_nl_nodedown(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN])
+void hsr_nl_nodedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN])
 {
 	struct sk_buff *skb;
 	void *msg_head;
@@ -199,7 +199,7 @@ nla_put_failure:
 	kfree_skb(skb);
 
 fail:
-	netdev_warn(hsr_priv->dev, "Could not send HSR node down\n");
+	netdev_warn(hsr->dev, "Could not send HSR node down\n");
 }
 
 
@@ -220,7 +220,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	/* For sending */
 	struct sk_buff *skb_out;
 	void *msg_head;
-	struct hsr_priv *hsr_priv;
+	struct hsr_priv *hsr;
 	unsigned char hsr_node_addr_b[ETH_ALEN];
 	int hsr_node_if1_age;
 	u16 hsr_node_if1_seq;
@@ -267,8 +267,8 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	if (res < 0)
 		goto nla_put_failure;
 
-	hsr_priv = netdev_priv(hsr_dev);
-	res = hsr_get_node_data(hsr_priv,
+	hsr = netdev_priv(hsr_dev);
+	res = hsr_get_node_data(hsr,
 			(unsigned char *) nla_data(info->attrs[HSR_A_NODE_ADDR]),
 			hsr_node_addr_b,
 			&addr_b_ifindex,
@@ -301,9 +301,9 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	res = nla_put_u16(skb_out, HSR_A_IF1_SEQ, hsr_node_if1_seq);
 	if (res < 0)
 		goto nla_put_failure;
-	if (hsr_priv->slave[0])
+	if (hsr->slave[0])
 		res = nla_put_u32(skb_out, HSR_A_IF1_IFINDEX,
-						hsr_priv->slave[0]->ifindex);
+						hsr->slave[0]->ifindex);
 	if (res < 0)
 		goto nla_put_failure;
 
@@ -313,9 +313,9 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	res = nla_put_u16(skb_out, HSR_A_IF2_SEQ, hsr_node_if2_seq);
 	if (res < 0)
 		goto nla_put_failure;
-	if (hsr_priv->slave[1])
+	if (hsr->slave[1])
 		res = nla_put_u32(skb_out, HSR_A_IF2_IFINDEX,
-						hsr_priv->slave[1]->ifindex);
+						hsr->slave[1]->ifindex);
 
 	genlmsg_end(skb_out, msg_head);
 	genlmsg_unicast(genl_info_net(info), skb_out, info->snd_portid);
@@ -345,7 +345,7 @@ static int hsr_get_node_list(struct sk_buff *skb_in, struct genl_info *info)
 	/* For sending */
 	struct sk_buff *skb_out;
 	void *msg_head;
-	struct hsr_priv *hsr_priv;
+	struct hsr_priv *hsr;
 	void *pos;
 	unsigned char addr[ETH_ALEN];
 	int res;
@@ -385,17 +385,17 @@ static int hsr_get_node_list(struct sk_buff *skb_in, struct genl_info *info)
 	if (res < 0)
 		goto nla_put_failure;
 
-	hsr_priv = netdev_priv(hsr_dev);
+	hsr = netdev_priv(hsr_dev);
 
 	rcu_read_lock();
-	pos = hsr_get_next_node(hsr_priv, NULL, addr);
+	pos = hsr_get_next_node(hsr, NULL, addr);
 	while (pos) {
 		res = nla_put(skb_out, HSR_A_NODE_ADDR, ETH_ALEN, addr);
 		if (res < 0) {
 			rcu_read_unlock();
 			goto nla_put_failure;
 		}
-		pos = hsr_get_next_node(hsr_priv, pos, addr);
+		pos = hsr_get_next_node(hsr, pos, addr);
 	}
 	rcu_read_unlock();
 

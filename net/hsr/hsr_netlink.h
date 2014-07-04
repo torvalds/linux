@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Autronica Fire and Security AS
+/* Copyright 2011-2014 Autronica Fire and Security AS
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -6,7 +6,7 @@
  * any later version.
  *
  * Author(s):
- *	2011-2013 Arvid Brodin, arvid.brodin@xdin.com
+ *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
  */
 
 #ifndef __HSR_NETLINK_H
@@ -21,9 +21,9 @@ struct hsr_priv;
 int __init hsr_netlink_init(void);
 void __exit hsr_netlink_exit(void);
 
-void hsr_nl_ringerror(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN],
+void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
 		      int dev_idx);
-void hsr_nl_nodedown(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN]);
+void hsr_nl_nodedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN]);
 void hsr_nl_framedrop(int dropcount, int dev_idx);
 void hsr_nl_linkdown(int dev_idx);
 

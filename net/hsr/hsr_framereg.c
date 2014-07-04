@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Autronica Fire and Security AS
+/* Copyright 2011-2014 Autronica Fire and Security AS
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -6,7 +6,7 @@
  * any later version.
  *
  * Author(s):
- *	2011-2013 Arvid Brodin, arvid.brodin@xdin.com
+ *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
  *
  * The HSR spec says never to forward the same frame twice on the same
  * interface. A frame is identified by its source MAC address and its HSR
@@ -23,17 +23,17 @@
 #include "hsr_netlink.h"
 
 
-struct node_entry {
-	struct list_head mac_list;
-	unsigned char	MacAddressA[ETH_ALEN];
-	unsigned char	MacAddressB[ETH_ALEN];
-	enum hsr_dev_idx   AddrB_if;	/* The local slave through which AddrB
-					 * frames are received from this node
-					 */
-	unsigned long	time_in[HSR_MAX_SLAVE];
-	bool		time_in_stale[HSR_MAX_SLAVE];
-	u16		seq_out[HSR_MAX_DEV];
-	struct rcu_head rcu_head;
+struct hsr_node {
+	struct list_head	mac_list;
+	unsigned char		MacAddressA[ETH_ALEN];
+	unsigned char		MacAddressB[ETH_ALEN];
+	enum hsr_dev_idx	AddrB_if;/* The local slave through which AddrB
+					  * frames are received from this node
+					  */
+	unsigned long		time_in[HSR_MAX_SLAVE];
+	bool			time_in_stale[HSR_MAX_SLAVE];
+	u16			seq_out[HSR_MAX_DEV];
+	struct rcu_head		rcu_head;
 };
 
 /*	TODO: use hash lists for mac addresses (linux/jhash.h)?    */
@@ -42,10 +42,10 @@ struct node_entry {
 
 /* Search for mac entry. Caller must hold rcu read lock.
  */
-static struct node_entry *find_node_by_AddrA(struct list_head *node_db,
-					     const unsigned char addr[ETH_ALEN])
+static struct hsr_node *find_node_by_AddrA(struct list_head *node_db,
+					   const unsigned char addr[ETH_ALEN])
 {
-	struct node_entry *node;
+	struct hsr_node *node;
 
 	list_for_each_entry_rcu(node, node_db, mac_list) {
 		if (ether_addr_equal(node->MacAddressA, addr))
@@ -58,10 +58,10 @@ static struct node_entry *find_node_by_AddrA(struct list_head *node_db,
 
 /* Search for mac entry. Caller must hold rcu read lock.
  */
-static struct node_entry *find_node_by_AddrB(struct list_head *node_db,
-					     const unsigned char addr[ETH_ALEN])
+static struct hsr_node *find_node_by_AddrB(struct list_head *node_db,
+					   const unsigned char addr[ETH_ALEN])
 {
-	struct node_entry *node;
+	struct hsr_node *node;
 
 	list_for_each_entry_rcu(node, node_db, mac_list) {
 		if (ether_addr_equal(node->MacAddressB, addr))
@@ -74,9 +74,9 @@ static struct node_entry *find_node_by_AddrB(struct list_head *node_db,
 
 /* Search for mac entry. Caller must hold rcu read lock.
  */
-struct node_entry *hsr_find_node(struct list_head *node_db, struct sk_buff *skb)
+struct hsr_node *hsr_find_node(struct list_head *node_db, struct sk_buff *skb)
 {
-	struct node_entry *node;
+	struct hsr_node *node;
 	struct ethhdr *ethhdr;
 
 	if (!skb_mac_header_was_set(skb))
@@ -102,7 +102,7 @@ int hsr_create_self_node(struct list_head *self_node_db,
 			 unsigned char addr_a[ETH_ALEN],
 			 unsigned char addr_b[ETH_ALEN])
 {
-	struct node_entry *node, *oldnode;
+	struct hsr_node *node, *oldnode;
 
 	node = kmalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
@@ -113,7 +113,7 @@ int hsr_create_self_node(struct list_head *self_node_db,
 
 	rcu_read_lock();
 	oldnode = list_first_or_null_rcu(self_node_db,
-						struct node_entry, mac_list);
+						struct hsr_node, mac_list);
 	if (oldnode) {
 		list_replace_rcu(&oldnode->mac_list, &node->mac_list);
 		rcu_read_unlock();
@@ -154,10 +154,10 @@ int hsr_create_self_node(struct list_head *self_node_db,
  * We also need to detect if the sender's SlaveA and SlaveB cables have been
  * swapped.
  */
-struct node_entry *hsr_merge_node(struct hsr_priv *hsr_priv,
-				  struct node_entry *node,
-				  struct sk_buff *skb,
-				  enum hsr_dev_idx dev_idx)
+struct hsr_node *hsr_merge_node(struct hsr_priv *hsr,
+				struct hsr_node *node,
+				struct sk_buff *skb,
+				enum hsr_dev_idx dev_idx)
 {
 	struct hsr_sup_payload *hsr_sp;
 	struct hsr_ethhdr_sp *hsr_ethsup;
@@ -194,7 +194,7 @@ struct node_entry *hsr_merge_node(struct hsr_priv *hsr_priv,
 	if (node)
 		return node;
 
-	node = find_node_by_AddrA(&hsr_priv->node_db, hsr_sp->MacAddressA);
+	node = find_node_by_AddrA(&hsr->node_db, hsr_sp->MacAddressA);
 	if (node) {
 		/* Node is known, but frame was received from an unknown
 		 * address. Node is PICS_SUBS capable; merge its AddrB.
@@ -224,7 +224,7 @@ struct node_entry *hsr_merge_node(struct hsr_priv *hsr_priv,
 	for (i = 0; i < HSR_MAX_DEV; i++)
 		node->seq_out[i] = ntohs(hsr_ethsup->hsr_sup.sequence_nr) - 1;
 
-	list_add_tail_rcu(&node->mac_list, &hsr_priv->node_db);
+	list_add_tail_rcu(&node->mac_list, &hsr->node_db);
 
 	return node;
 }
@@ -236,10 +236,10 @@ struct node_entry *hsr_merge_node(struct hsr_priv *hsr_priv,
  * address with that node's "official" address (MacAddressA) so that upper
  * layers recognize where it came from.
  */
-void hsr_addr_subst_source(struct hsr_priv *hsr_priv, struct sk_buff *skb)
+void hsr_addr_subst_source(struct hsr_priv *hsr, struct sk_buff *skb)
 {
 	struct ethhdr *ethhdr;
-	struct node_entry *node;
+	struct hsr_node *node;
 
 	if (!skb_mac_header_was_set(skb)) {
 		WARN_ONCE(1, "%s: Mac header not set\n", __func__);
@@ -248,7 +248,7 @@ void hsr_addr_subst_source(struct hsr_priv *hsr_priv, struct sk_buff *skb)
 	ethhdr = (struct ethhdr *) skb_mac_header(skb);
 
 	rcu_read_lock();
-	node = find_node_by_AddrB(&hsr_priv->node_db, ethhdr->h_source);
+	node = find_node_by_AddrB(&hsr->node_db, ethhdr->h_source);
 	if (node)
 		ether_addr_copy(ethhdr->h_source, node->MacAddressA);
 	rcu_read_unlock();
@@ -264,13 +264,13 @@ void hsr_addr_subst_source(struct hsr_priv *hsr_priv, struct sk_buff *skb)
  * This is needed to keep the packets flowing through switches that learn on
  * which "side" the different interfaces are.
  */
-void hsr_addr_subst_dest(struct hsr_priv *hsr_priv, struct ethhdr *ethhdr,
+void hsr_addr_subst_dest(struct hsr_priv *hsr, struct ethhdr *ethhdr,
 			 enum hsr_dev_idx dev_idx)
 {
-	struct node_entry *node;
+	struct hsr_node *node;
 
 	rcu_read_lock();
-	node = find_node_by_AddrA(&hsr_priv->node_db, ethhdr->h_dest);
+	node = find_node_by_AddrA(&hsr->node_db, ethhdr->h_dest);
 	if (node && (node->AddrB_if == dev_idx))
 		ether_addr_copy(ethhdr->h_dest, node->MacAddressB);
 	rcu_read_unlock();
@@ -295,7 +295,7 @@ static bool seq_nr_after(u16 a, u16 b)
 #define seq_nr_before_or_eq(a, b)	(!seq_nr_after((a), (b)))
 
 
-void hsr_register_frame_in(struct node_entry *node, enum hsr_dev_idx dev_idx)
+void hsr_register_frame_in(struct hsr_node *node, enum hsr_dev_idx dev_idx)
 {
 	if ((dev_idx < 0) || (dev_idx >= HSR_MAX_SLAVE)) {
 		WARN_ONCE(1, "%s: Invalid dev_idx (%d)\n", __func__, dev_idx);
@@ -314,7 +314,7 @@ void hsr_register_frame_in(struct node_entry *node, enum hsr_dev_idx dev_idx)
  *	 0 otherwise, or
  *	 negative error code on error
  */
-int hsr_register_frame_out(struct node_entry *node, enum hsr_dev_idx dev_idx,
+int hsr_register_frame_out(struct hsr_node *node, enum hsr_dev_idx dev_idx,
 			   struct sk_buff *skb)
 {
 	struct hsr_ethhdr *hsr_ethhdr;
@@ -340,7 +340,7 @@ int hsr_register_frame_out(struct node_entry *node, enum hsr_dev_idx dev_idx,
 
 
 
-static bool is_late(struct node_entry *node, enum hsr_dev_idx dev_idx)
+static bool is_late(struct hsr_node *node, enum hsr_dev_idx dev_idx)
 {
 	enum hsr_dev_idx other;
 
@@ -366,14 +366,14 @@ static bool is_late(struct node_entry *node, enum hsr_dev_idx dev_idx)
 /* Remove stale sequence_nr records. Called by timer every
  * HSR_LIFE_CHECK_INTERVAL (two seconds or so).
  */
-void hsr_prune_nodes(struct hsr_priv *hsr_priv)
+void hsr_prune_nodes(struct hsr_priv *hsr)
 {
-	struct node_entry *node;
+	struct hsr_node *node;
 	unsigned long timestamp;
 	unsigned long time_a, time_b;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(node, &hsr_priv->node_db, mac_list) {
+	list_for_each_entry_rcu(node, &hsr->node_db, mac_list) {
 		/* Shorthand */
 		time_a = node->time_in[HSR_DEV_SLAVE_A];
 		time_b = node->time_in[HSR_DEV_SLAVE_B];
@@ -399,17 +399,17 @@ void hsr_prune_nodes(struct hsr_priv *hsr_priv)
 					msecs_to_jiffies(1.5*MAX_SLAVE_DIFF))) {
 
 			if (is_late(node, HSR_DEV_SLAVE_A))
-				hsr_nl_ringerror(hsr_priv, node->MacAddressA,
+				hsr_nl_ringerror(hsr, node->MacAddressA,
 						 HSR_DEV_SLAVE_A);
 			else if (is_late(node, HSR_DEV_SLAVE_B))
-				hsr_nl_ringerror(hsr_priv, node->MacAddressA,
+				hsr_nl_ringerror(hsr, node->MacAddressA,
 						 HSR_DEV_SLAVE_B);
 		}
 
 		/* Prune old entries */
 		if (time_is_before_jiffies(timestamp +
 					msecs_to_jiffies(HSR_NODE_FORGET_TIME))) {
-			hsr_nl_nodedown(hsr_priv, node->MacAddressA);
+			hsr_nl_nodedown(hsr, node->MacAddressA);
 			list_del_rcu(&node->mac_list);
 			/* Note that we need to free this entry later: */
 			kfree_rcu(node, rcu_head);
@@ -419,21 +419,21 @@ void hsr_prune_nodes(struct hsr_priv *hsr_priv)
 }
 
 
-void *hsr_get_next_node(struct hsr_priv *hsr_priv, void *_pos,
+void *hsr_get_next_node(struct hsr_priv *hsr, void *_pos,
 			unsigned char addr[ETH_ALEN])
 {
-	struct node_entry *node;
+	struct hsr_node *node;
 
 	if (!_pos) {
-		node = list_first_or_null_rcu(&hsr_priv->node_db,
-						struct node_entry, mac_list);
+		node = list_first_or_null_rcu(&hsr->node_db,
+					      struct hsr_node, mac_list);
 		if (node)
 			ether_addr_copy(addr, node->MacAddressA);
 		return node;
 	}
 
 	node = _pos;
-	list_for_each_entry_continue_rcu(node, &hsr_priv->node_db, mac_list) {
+	list_for_each_entry_continue_rcu(node, &hsr->node_db, mac_list) {
 		ether_addr_copy(addr, node->MacAddressA);
 		return node;
 	}
@@ -442,7 +442,7 @@ void *hsr_get_next_node(struct hsr_priv *hsr_priv, void *_pos,
 }
 
 
-int hsr_get_node_data(struct hsr_priv *hsr_priv,
+int hsr_get_node_data(struct hsr_priv *hsr,
 		      const unsigned char *addr,
 		      unsigned char addr_b[ETH_ALEN],
 		      unsigned int *addr_b_ifindex,
@@ -451,12 +451,12 @@ int hsr_get_node_data(struct hsr_priv *hsr_priv,
 		      int *if2_age,
 		      u16 *if2_seq)
 {
-	struct node_entry *node;
+	struct hsr_node *node;
 	unsigned long tdiff;
 
 
 	rcu_read_lock();
-	node = find_node_by_AddrA(&hsr_priv->node_db, addr);
+	node = find_node_by_AddrA(&hsr->node_db, addr);
 	if (!node) {
 		rcu_read_unlock();
 		return -ENOENT;	/* No such entry */
@@ -488,8 +488,8 @@ int hsr_get_node_data(struct hsr_priv *hsr_priv,
 	*if1_seq = node->seq_out[HSR_DEV_SLAVE_B];
 	*if2_seq = node->seq_out[HSR_DEV_SLAVE_A];
 
-	if ((node->AddrB_if != HSR_DEV_NONE) && hsr_priv->slave[node->AddrB_if])
-		*addr_b_ifindex = hsr_priv->slave[node->AddrB_if]->ifindex;
+	if ((node->AddrB_if != HSR_DEV_NONE) && hsr->slave[node->AddrB_if])
+		*addr_b_ifindex = hsr->slave[node->AddrB_if]->ifindex;
 	else
 		*addr_b_ifindex = -1;
 

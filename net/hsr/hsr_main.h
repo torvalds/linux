@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Autronica Fire and Security AS
+/* Copyright 2011-2014 Autronica Fire and Security AS
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -6,11 +6,11 @@
  * any later version.
  *
  * Author(s):
- *	2011-2013 Arvid Brodin, arvid.brodin@xdin.com
+ *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
  */
 
-#ifndef _HSR_PRIVATE_H
-#define _HSR_PRIVATE_H
+#ifndef __HSR_PRIVATE_H
+#define __HSR_PRIVATE_H
 
 #include <linux/netdevice.h>
 #include <linux/list.h>
@@ -46,16 +46,16 @@
  * path, LSDU_size, sequence Nr }. But we let eth_header() create { h_dest,
  * h_source, h_proto = 0x88FB }, and add { path, LSDU_size, sequence Nr,
  * encapsulated protocol } instead.
+ *
+ * Field names as defined in the IEC:2010 standard for HSR.
  */
-#define HSR_TAGLEN	6
-
-/* Field names below as defined in the IEC:2010 standard for HSR. */
 struct hsr_tag {
 	__be16		path_and_LSDU_size;
 	__be16		sequence_nr;
 	__be16		encap_proto;
 } __packed;
 
+#define HSR_HLEN	6
 
 /* The helper functions below assumes that 'path' occupies the 4 most
  * significant bits of the 16-bit field shared by 'path' and 'LSDU_size' (or
@@ -159,8 +159,8 @@ struct hsr_priv {
 	unsigned char		sup_multicast_addr[ETH_ALEN];
 };
 
-void register_hsr_master(struct hsr_priv *hsr_priv);
-void unregister_hsr_master(struct hsr_priv *hsr_priv);
+void register_hsr_master(struct hsr_priv *hsr);
+void unregister_hsr_master(struct hsr_priv *hsr);
 bool is_hsr_slave(struct net_device *dev);
 
-#endif /*  _HSR_PRIVATE_H */
+#endif /*  __HSR_PRIVATE_H */

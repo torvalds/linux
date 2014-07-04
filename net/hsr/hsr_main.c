@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Autronica Fire and Security AS
+/* Copyright 2011-2014 Autronica Fire and Security AS
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -6,7 +6,7 @@
  * any later version.
  *
  * Author(s):
- *	2011-2013 Arvid Brodin, arvid.brodin@xdin.com
+ *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
  *
  * In addition to routines for registering and unregistering HSR support, this
  * file also contains the receive routine that handles all incoming frames with
@@ -26,30 +26,30 @@
 /* List of all registered virtual HSR devices */
 static LIST_HEAD(hsr_list);
 
-void register_hsr_master(struct hsr_priv *hsr_priv)
+void register_hsr_master(struct hsr_priv *hsr)
 {
-	list_add_tail_rcu(&hsr_priv->hsr_list, &hsr_list);
+	list_add_tail_rcu(&hsr->hsr_list, &hsr_list);
 }
 
-void unregister_hsr_master(struct hsr_priv *hsr_priv)
+void unregister_hsr_master(struct hsr_priv *hsr)
 {
-	struct hsr_priv *hsr_priv_it;
+	struct hsr_priv *hsr_it;
 
-	list_for_each_entry(hsr_priv_it, &hsr_list, hsr_list)
-		if (hsr_priv_it == hsr_priv) {
-			list_del_rcu(&hsr_priv_it->hsr_list);
+	list_for_each_entry(hsr_it, &hsr_list, hsr_list)
+		if (hsr_it == hsr) {
+			list_del_rcu(&hsr_it->hsr_list);
 			return;
 		}
 }
 
 bool is_hsr_slave(struct net_device *dev)
 {
-	struct hsr_priv *hsr_priv_it;
+	struct hsr_priv *hsr_it;
 
-	list_for_each_entry_rcu(hsr_priv_it, &hsr_list, hsr_list) {
-		if (dev == hsr_priv_it->slave[0])
+	list_for_each_entry_rcu(hsr_it, &hsr_list, hsr_list) {
+		if (dev == hsr_it->slave[0])
 			return true;
-		if (dev == hsr_priv_it->slave[1])
+		if (dev == hsr_it->slave[1])
 			return true;
 	}
 
@@ -62,14 +62,14 @@ bool is_hsr_slave(struct net_device *dev)
  */
 static struct hsr_priv *get_hsr_master(struct net_device *dev)
 {
-	struct hsr_priv *hsr_priv;
+	struct hsr_priv *hsr;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hsr_priv, &hsr_list, hsr_list)
-		if ((dev == hsr_priv->slave[0]) ||
-		    (dev == hsr_priv->slave[1])) {
+	list_for_each_entry_rcu(hsr, &hsr_list, hsr_list)
+		if ((dev == hsr->slave[0]) ||
+		    (dev == hsr->slave[1])) {
 			rcu_read_unlock();
-			return hsr_priv;
+			return hsr;
 		}
 
 	rcu_read_unlock();
@@ -80,13 +80,13 @@ static struct hsr_priv *get_hsr_master(struct net_device *dev)
 /* If dev is a HSR slave device, return the other slave device. Return NULL
  * otherwise.
  */
-static struct net_device *get_other_slave(struct hsr_priv *hsr_priv,
+static struct net_device *get_other_slave(struct hsr_priv *hsr,
 					  struct net_device *dev)
 {
-	if (dev == hsr_priv->slave[0])
-		return hsr_priv->slave[1];
-	if (dev == hsr_priv->slave[1])
-		return hsr_priv->slave[0];
+	if (dev == hsr->slave[0])
+		return hsr->slave[1];
+	if (dev == hsr->slave[1])
+		return hsr->slave[0];
 
 	return NULL;
 }
@@ -96,7 +96,7 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			     void *ptr)
 {
 	struct net_device *slave, *other_slave;
-	struct hsr_priv *hsr_priv;
+	struct hsr_priv *hsr;
 	int old_operstate;
 	int mtu_max;
 	int res;
@@ -104,68 +104,68 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 
 	dev = netdev_notifier_info_to_dev(ptr);
 
-	hsr_priv = get_hsr_master(dev);
-	if (hsr_priv) {
+	hsr = get_hsr_master(dev);
+	if (hsr) {
 		/* dev is a slave device */
 		slave = dev;
-		other_slave = get_other_slave(hsr_priv, slave);
+		other_slave = get_other_slave(hsr, slave);
 	} else {
 		if (!is_hsr_master(dev))
 			return NOTIFY_DONE;
-		hsr_priv = netdev_priv(dev);
-		slave = hsr_priv->slave[0];
-		other_slave = hsr_priv->slave[1];
+		hsr = netdev_priv(dev);
+		slave = hsr->slave[0];
+		other_slave = hsr->slave[1];
 	}
 
 	switch (event) {
 	case NETDEV_UP:		/* Administrative state DOWN */
 	case NETDEV_DOWN:	/* Administrative state UP */
 	case NETDEV_CHANGE:	/* Link (carrier) state changes */
-		old_operstate = hsr_priv->dev->operstate;
-		hsr_set_carrier(hsr_priv->dev, slave, other_slave);
+		old_operstate = hsr->dev->operstate;
+		hsr_set_carrier(hsr->dev, slave, other_slave);
 		/* netif_stacked_transfer_operstate() cannot be used here since
 		 * it doesn't set IF_OPER_LOWERLAYERDOWN (?)
 		 */
-		hsr_set_operstate(hsr_priv->dev, slave, other_slave);
-		hsr_check_announce(hsr_priv->dev, old_operstate);
+		hsr_set_operstate(hsr->dev, slave, other_slave);
+		hsr_check_announce(hsr->dev, old_operstate);
 		break;
 	case NETDEV_CHANGEADDR:
 
 		/* This should not happen since there's no ndo_set_mac_address()
 		 * for HSR devices - i.e. not supported.
 		 */
-		if (dev == hsr_priv->dev)
+		if (dev == hsr->dev)
 			break;
 
-		if (dev == hsr_priv->slave[0])
-			ether_addr_copy(hsr_priv->dev->dev_addr,
-					hsr_priv->slave[0]->dev_addr);
+		if (dev == hsr->slave[0])
+			ether_addr_copy(hsr->dev->dev_addr,
+					hsr->slave[0]->dev_addr);
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */
-		res = hsr_create_self_node(&hsr_priv->self_node_db,
-					   hsr_priv->dev->dev_addr,
-					   hsr_priv->slave[1] ?
-						hsr_priv->slave[1]->dev_addr :
-						hsr_priv->dev->dev_addr);
+		res = hsr_create_self_node(&hsr->self_node_db,
+					   hsr->dev->dev_addr,
+					   hsr->slave[1] ?
+						hsr->slave[1]->dev_addr :
+						hsr->dev->dev_addr);
 		if (res)
-			netdev_warn(hsr_priv->dev,
+			netdev_warn(hsr->dev,
 				    "Could not update HSR node address.\n");
 
-		if (dev == hsr_priv->slave[0])
-			call_netdevice_notifiers(NETDEV_CHANGEADDR, hsr_priv->dev);
+		if (dev == hsr->slave[0])
+			call_netdevice_notifiers(NETDEV_CHANGEADDR, hsr->dev);
 		break;
 	case NETDEV_CHANGEMTU:
-		if (dev == hsr_priv->dev)
+		if (dev == hsr->dev)
 			break; /* Handled in ndo_change_mtu() */
-		mtu_max = hsr_get_max_mtu(hsr_priv);
-		if (hsr_priv->dev->mtu > mtu_max)
-			dev_set_mtu(hsr_priv->dev, mtu_max);
+		mtu_max = hsr_get_max_mtu(hsr);
+		if (hsr->dev->mtu > mtu_max)
+			dev_set_mtu(hsr->dev, mtu_max);
 		break;
 	case NETDEV_UNREGISTER:
-		if (dev == hsr_priv->slave[0])
-			hsr_priv->slave[0] = NULL;
-		if (dev == hsr_priv->slave[1])
-			hsr_priv->slave[1] = NULL;
+		if (dev == hsr->slave[0])
+			hsr->slave[0] = NULL;
+		if (dev == hsr->slave[1])
+			hsr->slave[1] = NULL;
 
 		/* There should really be a way to set a new slave device... */
 
@@ -185,11 +185,11 @@ static struct timer_list prune_timer;
 
 static void prune_nodes_all(unsigned long data)
 {
-	struct hsr_priv *hsr_priv;
+	struct hsr_priv *hsr;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hsr_priv, &hsr_list, hsr_list)
-		hsr_prune_nodes(hsr_priv);
+	list_for_each_entry_rcu(hsr, &hsr_list, hsr_list)
+		hsr_prune_nodes(hsr);
 	rcu_read_unlock();
 
 	prune_timer.expires = jiffies + msecs_to_jiffies(PRUNE_PERIOD);
@@ -207,12 +207,12 @@ static struct sk_buff *hsr_pull_tag(struct sk_buff *skb)
 		goto err_free;
 	skb = skb2;
 
-	if (unlikely(!pskb_may_pull(skb, HSR_TAGLEN)))
+	if (unlikely(!pskb_may_pull(skb, HSR_HLEN)))
 		goto err_free;
 
 	hsr_tag = (struct hsr_tag *) skb->data;
 	skb->protocol = hsr_tag->encap_proto;
-	skb_pull(skb, HSR_TAGLEN);
+	skb_pull(skb, HSR_HLEN);
 
 	return skb;
 
@@ -237,12 +237,12 @@ err_free:
  * 3) Allow different MAC addresses for the two slave interfaces, using the
  *    MacAddressA field.
  */
-static bool is_supervision_frame(struct hsr_priv *hsr_priv, struct sk_buff *skb)
+static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 {
 	struct hsr_sup_tag *hsr_stag;
 
 	if (!ether_addr_equal(eth_hdr(skb)->h_dest,
-			      hsr_priv->sup_multicast_addr))
+			      hsr->sup_multicast_addr))
 		return false;
 
 	hsr_stag = (struct hsr_sup_tag *) skb->data;
@@ -263,25 +263,25 @@ static bool is_supervision_frame(struct hsr_priv *hsr_priv, struct sk_buff *skb)
 static int hsr_rcv(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct hsr_priv *hsr_priv;
+	struct hsr_priv *hsr;
 	struct net_device *other_slave;
-	struct node_entry *node;
+	struct hsr_node *node;
 	bool deliver_to_self;
 	struct sk_buff *skb_deliver;
 	enum hsr_dev_idx dev_in_idx, dev_other_idx;
 	bool dup_out;
 	int ret;
 
-	hsr_priv = get_hsr_master(dev);
+	hsr = get_hsr_master(dev);
 
-	if (!hsr_priv) {
+	if (!hsr) {
 		/* Non-HSR-slave device 'dev' is connected to a HSR network */
 		kfree_skb(skb);
 		dev->stats.rx_errors++;
 		return NET_RX_SUCCESS;
 	}
 
-	if (dev == hsr_priv->slave[0]) {
+	if (dev == hsr->slave[0]) {
 		dev_in_idx = HSR_DEV_SLAVE_A;
 		dev_other_idx = HSR_DEV_SLAVE_B;
 	} else {
@@ -289,7 +289,7 @@ static int hsr_rcv(struct sk_buff *skb, struct net_device *dev,
 		dev_other_idx = HSR_DEV_SLAVE_A;
 	}
 
-	node = hsr_find_node(&hsr_priv->self_node_db, skb);
+	node = hsr_find_node(&hsr->self_node_db, skb);
 	if (node) {
 		/* Always kill frames sent by ourselves */
 		kfree_skb(skb);
@@ -303,22 +303,22 @@ static int hsr_rcv(struct sk_buff *skb, struct net_device *dev,
 	    (skb->pkt_type == PACKET_BROADCAST))
 		deliver_to_self = true;
 	else if (ether_addr_equal(eth_hdr(skb)->h_dest,
-				     hsr_priv->dev->dev_addr)) {
+				     hsr->dev->dev_addr)) {
 		skb->pkt_type = PACKET_HOST;
 		deliver_to_self = true;
 	}
 
 
 	rcu_read_lock(); /* node_db */
-	node = hsr_find_node(&hsr_priv->node_db, skb);
+	node = hsr_find_node(&hsr->node_db, skb);
 
-	if (is_supervision_frame(hsr_priv, skb)) {
+	if (is_supervision_frame(hsr, skb)) {
 		skb_pull(skb, sizeof(struct hsr_sup_tag));
-		node = hsr_merge_node(hsr_priv, node, skb, dev_in_idx);
+		node = hsr_merge_node(hsr, node, skb, dev_in_idx);
 		if (!node) {
 			rcu_read_unlock(); /* node_db */
 			kfree_skb(skb);
-			hsr_priv->dev->stats.rx_dropped++;
+			hsr->dev->stats.rx_dropped++;
 			return NET_RX_DROP;
 		}
 		skb_push(skb, sizeof(struct hsr_sup_tag));
@@ -345,7 +345,7 @@ static int hsr_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	/* Forward this frame? */
 	if (!dup_out && (skb->pkt_type != PACKET_HOST))
-		other_slave = get_other_slave(hsr_priv, dev);
+		other_slave = get_other_slave(hsr, dev);
 	else
 		other_slave = NULL;
 
@@ -368,7 +368,7 @@ static int hsr_rcv(struct sk_buff *skb, struct net_device *dev,
 		skb_deliver = pskb_copy(skb, GFP_ATOMIC);
 		if (!skb_deliver) {
 			deliver_to_self = false;
-			hsr_priv->dev->stats.rx_dropped++;
+			hsr->dev->stats.rx_dropped++;
 		}
 	}
 
@@ -377,7 +377,7 @@ static int hsr_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		skb_deliver = hsr_pull_tag(skb_deliver);
 		if (!skb_deliver) {
-			hsr_priv->dev->stats.rx_dropped++;
+			hsr->dev->stats.rx_dropped++;
 			goto forward;
 		}
 #if !defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
@@ -386,7 +386,7 @@ static int hsr_rcv(struct sk_buff *skb, struct net_device *dev,
 		 * tag. In practice, this removes/overwrites the HSR tag in
 		 * the header and restores a "standard" packet.
 		 */
-		memmove(skb_deliver->data - HSR_TAGLEN, skb_deliver->data,
+		memmove(skb_deliver->data - HSR_HLEN, skb_deliver->data,
 			skb_headlen(skb_deliver));
 
 		/* Adjust skb members so they correspond with the move above.
@@ -397,20 +397,20 @@ static int hsr_rcv(struct sk_buff *skb, struct net_device *dev,
 		 * the mac header nor the head. So we only need to adjust data
 		 * and tail:
 		 */
-		skb_deliver->data -= HSR_TAGLEN;
-		skb_deliver->tail -= HSR_TAGLEN;
+		skb_deliver->data -= HSR_HLEN;
+		skb_deliver->tail -= HSR_HLEN;
 #endif
-		skb_deliver->dev = hsr_priv->dev;
-		hsr_addr_subst_source(hsr_priv, skb_deliver);
+		skb_deliver->dev = hsr->dev;
+		hsr_addr_subst_source(hsr, skb_deliver);
 		multicast_frame = (skb_deliver->pkt_type == PACKET_MULTICAST);
 		ret = netif_rx(skb_deliver);
 		if (ret == NET_RX_DROP) {
-			hsr_priv->dev->stats.rx_dropped++;
+			hsr->dev->stats.rx_dropped++;
 		} else {
-			hsr_priv->dev->stats.rx_packets++;
-			hsr_priv->dev->stats.rx_bytes += skb->len;
+			hsr->dev->stats.rx_packets++;
+			hsr->dev->stats.rx_bytes += skb->len;
 			if (multicast_frame)
-				hsr_priv->dev->stats.multicast++;
+				hsr->dev->stats.multicast++;
 		}
 	}
 
@@ -439,7 +439,7 @@ static int __init hsr_init(void)
 {
 	int res;
 
-	BUILD_BUG_ON(sizeof(struct hsr_tag) != HSR_TAGLEN);
+	BUILD_BUG_ON(sizeof(struct hsr_tag) != HSR_HLEN);
 
 	dev_add_pack(&hsr_pt);
 
