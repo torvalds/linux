@@ -693,6 +693,7 @@ void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
 void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void i9xx_check_fifo_underruns(struct drm_device *dev);
+void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv);
 
 
 /* intel_crt.c */

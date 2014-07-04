@@ -3478,6 +3478,18 @@ static void gen8_irq_reset(struct drm_device *dev)
 	ibx_irq_reset(dev);
 }
 
+void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_B, dev_priv->de_irq_mask[PIPE_B],
+			  ~dev_priv->de_irq_mask[PIPE_B]);
+	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_C, dev_priv->de_irq_mask[PIPE_C],
+			  ~dev_priv->de_irq_mask[PIPE_C]);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
 static void cherryview_irq_preinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
