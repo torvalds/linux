@@ -31,7 +31,7 @@ struct alias_prop {
 	char stem[0];
 };
 
-extern struct mutex of_aliases_mutex;
+extern struct mutex of_mutex;
 extern struct list_head aliases_lookup;
 
 static inline struct device_node *kobj_to_device_node(struct kobject *kobj)
