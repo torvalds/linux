@@ -82,15 +82,16 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 	ret = of_parse_phandle_with_args(np, propname, "#gpio-cells", index,
 					 &gg_data.gpiospec);
 	if (ret) {
-		pr_debug("%s: can't parse gpios property of node '%s[%d]'\n",
-			__func__, np->full_name, index);
+		pr_debug("%s: can't parse '%s' property of node '%s[%d]'\n",
+			__func__, propname, np->full_name, index);
 		return ERR_PTR(ret);
 	}
 
 	gpiochip_find(&gg_data, of_gpiochip_find_and_xlate);
 
 	of_node_put(gg_data.gpiospec.np);
-	pr_debug("%s exited with status %d\n", __func__,
+	pr_debug("%s: parsed '%s' property of node '%s[%d]' - status (%d)\n",
+		 __func__, propname, np->full_name, index,
 		 PTR_ERR_OR_ZERO(gg_data.out_gpio));
 	return gg_data.out_gpio;
 }
