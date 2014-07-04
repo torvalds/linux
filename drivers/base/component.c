@@ -293,10 +293,12 @@ int component_master_add_with_match(struct device *dev,
 	if (ops->add_components && match)
 		return -EINVAL;
 
-	/* Reallocate the match array for its true size */
-	match = component_match_realloc(dev, match, match->num);
-	if (IS_ERR(match))
-		return PTR_ERR(match);
+	if (match) {
+		/* Reallocate the match array for its true size */
+		match = component_match_realloc(dev, match, match->num);
+		if (IS_ERR(match))
+			return PTR_ERR(match);
+	}
 
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
