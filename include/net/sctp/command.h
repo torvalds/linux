@@ -210,19 +210,38 @@ typedef struct {
 /* Initialize a block of memory as a command sequence.
  * Return 0 if the initialization fails.
  */
-int sctp_init_cmd_seq(sctp_cmd_seq_t *seq);
+static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
+{
+	memset(seq, 0, sizeof(sctp_cmd_seq_t));
+	return 1;		/* We always succeed.  */
+}
+
 
 /* Add a command to an sctp_cmd_seq_t.
  *
  * Use the SCTP_* constructors defined by SCTP_ARG_CONSTRUCTOR() above
  * to wrap data which goes in the obj argument.
  */
-void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb, sctp_arg_t obj);
+static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
+				   sctp_arg_t obj)
+{
+	BUG_ON(seq->next_free_slot >= SCTP_MAX_NUM_COMMANDS);
+
+	seq->cmds[seq->next_free_slot].verb = verb;
+	seq->cmds[seq->next_free_slot++].obj = obj;
+}
 
 /* Return the next command structure in an sctp_cmd_seq.
  * Return NULL at the end of the sequence.
  */
-sctp_cmd_t *sctp_next_cmd(sctp_cmd_seq_t *seq);
+static inline sctp_cmd_t *sctp_next_cmd(sctp_cmd_seq_t *seq)
+{
+	sctp_cmd_t *retval = NULL;
+
+	if (seq->next_cmd < seq->next_free_slot)
+		retval = &seq->cmds[seq->next_cmd++];
+
+	return retval;
+}
 
 #endif /* __net_sctp_command_h__ */
-
