@@ -1179,9 +1179,7 @@ int omap_gem_op_sync(struct drm_gem_object *obj, enum omap_gem_op op)
 			}
 		}
 		spin_unlock(&sync_lock);
-
-		if (waiter)
-			kfree(waiter);
+		kfree(waiter);
 	}
 	return ret;
 }
