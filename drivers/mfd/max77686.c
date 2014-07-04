@@ -129,7 +129,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 
 	if (!pdata) {
 		dev_err(&i2c->dev, "No platform data found.\n");
-		return -EIO;
+		return -EINVAL;
 	}
 
 	max77686 = devm_kzalloc(&i2c->dev,
