@@ -3748,6 +3748,7 @@ static noinline uint32 ddr_change_freq_sram(void *arg)
     param.freq = freq;
     param.freq_slew = freq_slew;
     param.dqstr_value = dqstr_value;
+	rk_fb_set_prmry_screen_status(SCREEN_PREPARE_DDR_CHANGE);
 	if (screen.lcdc_id == 0)
 		cru_writel(0 | CRU_W_MSK_SETBITS(0xff, 8, 0xff),
 		RK3288_CRU_CLKSELS_CON(27));
@@ -3765,6 +3766,7 @@ static noinline uint32 ddr_change_freq_sram(void *arg)
 	else if (screen.lcdc_id == 1)
 		cru_writel(0 | CRU_W_MSK_SETBITS(dclk_div, 8, 0xff),
 		RK3288_CRU_CLKSELS_CON(29));
+	rk_fb_set_prmry_screen_status(SCREEN_UNPREPARE_DDR_CHANGE);
 
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
 end:
