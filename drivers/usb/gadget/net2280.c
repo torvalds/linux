@@ -1562,7 +1562,7 @@ static const struct usb_gadget_ops net2280_ops = {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef	CONFIG_USB_GADGET_PDEBUG_FILES
+#ifdef	CONFIG_USB_GADGET_DEBUG_FILES
 
 /* FIXME move these into procfs, and use seq_file.
  * Sysfs _still_ doesn't behave for arbitrarily sized files,
