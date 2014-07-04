@@ -25,11 +25,11 @@
 
 static LIST_HEAD(ahash_algs);
 
-static const __be32 std_iv_sha1[SHA256_DIGEST_SIZE / sizeof(__be32)] = {
+static const u32 std_iv_sha1[SHA256_DIGEST_SIZE / sizeof(u32)] = {
 	SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4, 0, 0, 0
 };
 
-static const __be32 std_iv_sha256[SHA256_DIGEST_SIZE / sizeof(__be32)] = {
+static const u32 std_iv_sha256[SHA256_DIGEST_SIZE / sizeof(u32)] = {
 	SHA256_H0, SHA256_H1, SHA256_H2, SHA256_H3,
 	SHA256_H4, SHA256_H5, SHA256_H6, SHA256_H7
 };
@@ -132,7 +132,7 @@ static int qce_ahash_init(struct ahash_request *req)
 {
 	struct qce_sha_reqctx *rctx = ahash_request_ctx(req);
 	struct qce_alg_template *tmpl = to_ahash_tmpl(req->base.tfm);
-	const __be32 *std_iv = tmpl->std_iv;
+	const u32 *std_iv = tmpl->std_iv;
 
 	memset(rctx, 0, sizeof(*rctx));
 	rctx->first_blk = true;
@@ -156,15 +156,15 @@ static int qce_ahash_export(struct ahash_request *req, void *out)
 		struct sha1_state *out_state = out;
 
 		out_state->count = rctx->count;
-		qce_cpu_to_be32p_array(out_state->state, rctx->digest,
-				       digestsize);
+		qce_cpu_to_be32p_array((__be32 *)out_state->state,
+				       rctx->digest, digestsize);
 		memcpy(out_state->buffer, rctx->buf, blocksize);
 	} else if (IS_SHA256(flags) || IS_SHA256_HMAC(flags)) {
 		struct sha256_state *out_state = out;
 
 		out_state->count = rctx->count;
-		qce_cpu_to_be32p_array(out_state->state, rctx->digest,
-				       digestsize);
+		qce_cpu_to_be32p_array((__be32 *)out_state->state,
+				       rctx->digest, digestsize);
 		memcpy(out_state->buf, rctx->buf, blocksize);
 	} else {
 		return -EINVAL;
@@ -199,8 +199,8 @@ static int qce_import_common(struct ahash_request *req, u64 in_count,
 			count += SHA_PADDING;
 	}
 
-	rctx->byte_count[0] = (__be32)(count & ~SHA_PADDING_MASK);
-	rctx->byte_count[1] = (__be32)(count >> 32);
+	rctx->byte_count[0] = (__force __be32)(count & ~SHA_PADDING_MASK);
+	rctx->byte_count[1] = (__force __be32)(count >> 32);
 	qce_cpu_to_be32p_array((__be32 *)rctx->digest, (const u8 *)state,
 			       digestsize);
 	rctx->buflen = (unsigned int)(in_count & (blocksize - 1));
@@ -454,7 +454,7 @@ struct qce_ahash_def {
 	unsigned int digestsize;
 	unsigned int blocksize;
 	unsigned int statesize;
-	const __be32 *std_iv;
+	const u32 *std_iv;
 };
 
 static const struct qce_ahash_def ahash_def[] = {

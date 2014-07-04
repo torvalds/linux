@@ -85,7 +85,7 @@ struct qce_alg_template {
 	struct list_head entry;
 	u32 crypto_alg_type;
 	unsigned long alg_flags;
-	const __be32 *std_iv;
+	const u32 *std_iv;
 	union {
 		struct crypto_alg crypto;
 		struct ahash_alg ahash;

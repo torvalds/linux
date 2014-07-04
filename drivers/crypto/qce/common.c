@@ -201,7 +201,8 @@ static void qce_xtskey(struct qce_device *qce, const u8 *enckey,
 	unsigned int xtsklen = enckeylen / (2 * sizeof(u32));
 	unsigned int xtsdusize;
 
-	qce_cpu_to_be32p_array(xtskey, enckey + enckeylen / 2, enckeylen / 2);
+	qce_cpu_to_be32p_array((__be32 *)xtskey, enckey + enckeylen / 2,
+			       enckeylen / 2);
 	qce_write_array(qce, REG_ENCR_XTS_KEY0, xtskey, xtsklen);
 
 	/* xts du size 512B */
@@ -262,7 +263,8 @@ static int qce_setup_regs_ahash(struct crypto_async_request *async_req,
 		u32 authkey_words = rctx->authklen / sizeof(u32);
 
 		qce_cpu_to_be32p_array(mackey, rctx->authkey, rctx->authklen);
-		qce_write_array(qce, REG_AUTH_KEY0, mackey, authkey_words);
+		qce_write_array(qce, REG_AUTH_KEY0, (u32 *)mackey,
+				authkey_words);
 	}
 
 	if (IS_CMAC(rctx->flags))
@@ -274,12 +276,13 @@ static int qce_setup_regs_ahash(struct crypto_async_request *async_req,
 		qce_cpu_to_be32p_array(auth, rctx->digest, digestsize);
 
 	iv_words = (IS_SHA1(rctx->flags) || IS_SHA1_HMAC(rctx->flags)) ? 5 : 8;
-	qce_write_array(qce, REG_AUTH_IV0, auth, iv_words);
+	qce_write_array(qce, REG_AUTH_IV0, (u32 *)auth, iv_words);
 
 	if (rctx->first_blk)
 		qce_clear_array(qce, REG_AUTH_BYTECNT0, 4);
 	else
-		qce_write_array(qce, REG_AUTH_BYTECNT0, rctx->byte_count, 2);
+		qce_write_array(qce, REG_AUTH_BYTECNT0,
+				(u32 *)rctx->byte_count, 2);
 
 	auth_cfg = qce_auth_cfg(rctx->flags, 0);
 
@@ -354,7 +357,7 @@ static int qce_setup_regs_ablkcipher(struct crypto_async_request *async_req,
 		return -EINVAL;
 	}
 
-	qce_write_array(qce, REG_ENCR_KEY0, enckey, enckey_words);
+	qce_write_array(qce, REG_ENCR_KEY0, (u32 *)enckey, enckey_words);
 
 	if (!IS_ECB(flags)) {
 		if (IS_XTS(flags))
@@ -362,7 +365,7 @@ static int qce_setup_regs_ablkcipher(struct crypto_async_request *async_req,
 		else
 			qce_cpu_to_be32p_array(enciv, rctx->iv, ivsize);
 
-		qce_write_array(qce, REG_CNTR0_IV0, enciv, enciv_words);
+		qce_write_array(qce, REG_CNTR0_IV0, (u32 *)enciv, enciv_words);
 	}
 
 	if (IS_ENCRYPT(flags))
