@@ -403,6 +403,7 @@ void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
 			I915_WRITE(WRPLL_CTL1, val & ~WRPLL_PLL_ENABLE);
 			POSTING_READ(WRPLL_CTL1);
 		}
+		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
 		break;
 	case PORT_CLK_SEL_WRPLL2:
 		plls->wrpll2_refcount--;
@@ -413,13 +414,12 @@ void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
 			I915_WRITE(WRPLL_CTL2, val & ~WRPLL_PLL_ENABLE);
 			POSTING_READ(WRPLL_CTL2);
 		}
+		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
 		break;
 	}
 
 	WARN(plls->wrpll1_refcount < 0, "Invalid WRPLL1 refcount\n");
 	WARN(plls->wrpll2_refcount < 0, "Invalid WRPLL2 refcount\n");
-
-	intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
 }
 
 #define LC_FREQ 2700
@@ -739,7 +739,6 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
-	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	int type = intel_encoder->type;
@@ -748,26 +747,7 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 
 	intel_ddi_put_crtc_pll(crtc);
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		switch (intel_dp->link_bw) {
-		case DP_LINK_BW_1_62:
-			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_LCPLL_810;
-			break;
-		case DP_LINK_BW_2_7:
-			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_LCPLL_1350;
-			break;
-		case DP_LINK_BW_5_4:
-			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_LCPLL_2700;
-			break;
-		default:
-			DRM_ERROR("Link bandwidth %d unsupported\n",
-				  intel_dp->link_bw);
-			return false;
-		}
-
-	} else if (type == INTEL_OUTPUT_HDMI) {
+	if (type == INTEL_OUTPUT_HDMI) {
 		uint32_t reg, val;
 		unsigned p, n2, r2;
 
@@ -808,14 +788,6 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 			plls->wrpll2_refcount++;
 			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
 		}
-
-	} else if (type == INTEL_OUTPUT_ANALOG) {
-		DRM_DEBUG_KMS("Using SPLL on pipe %c\n",
-			      pipe_name(pipe));
-		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_SPLL;
-	} else {
-		WARN(1, "Invalid DDI encoder type %d\n", type);
-		return false;
 	}
 
 	return true;

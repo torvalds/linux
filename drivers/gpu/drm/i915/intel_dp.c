@@ -746,6 +746,22 @@ intel_dp_connector_unregister(struct intel_connector *intel_connector)
 }
 
 static void
+hsw_dp_set_ddi_pll_sel(struct intel_crtc_config *pipe_config, int link_bw)
+{
+	switch (link_bw) {
+	case DP_LINK_BW_1_62:
+		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_810;
+		break;
+	case DP_LINK_BW_2_7:
+		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_1350;
+		break;
+	case DP_LINK_BW_5_4:
+		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_2700;
+		break;
+	}
+}
+
+static void
 intel_dp_set_clock(struct intel_encoder *encoder,
 		   struct intel_crtc_config *pipe_config, int link_bw)
 {
@@ -756,8 +772,6 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	if (IS_G4X(dev)) {
 		divisor = gen4_dpll;
 		count = ARRAY_SIZE(gen4_dpll);
-	} else if (HAS_DDI(dev)) {
-		/* Haswell has special-purpose DP DDI clocks. */
 	} else if (HAS_PCH_SPLIT(dev)) {
 		divisor = pch_dpll;
 		count = ARRAY_SIZE(pch_dpll);
@@ -928,7 +942,10 @@ found:
 				&pipe_config->dp_m2_n2);
 	}
 
-	intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
+	if (HAS_DDI(dev))
+		hsw_dp_set_ddi_pll_sel(pipe_config, intel_dp->link_bw);
+	else
+		intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
 
 	return true;
 }
