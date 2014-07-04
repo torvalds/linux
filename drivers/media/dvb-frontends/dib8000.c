@@ -3262,7 +3262,10 @@ static int dib8000_tune(struct dvb_frontend *fe)
 	case CT_DEMOD_STEP_10: /* 40 */
 		locks = dib8000_read_lock(fe);
 		if (locks&(1<<(7-state->longest_intlv_layer))) { /* mpeg lock : check the longest one */
-			dprintk("Mpeg locks [ L0 : %d | L1 : %d | L2 : %d ]", (locks>>7)&0x1, (locks>>6)&0x1, (locks>>5)&0x1);
+			dprintk("ISDB-T layer locks: Layer A %s, Layer B %s, Layer C %s",
+				c->layer[0].segment_count ? (locks >> 7) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled",
+				c->layer[1].segment_count ? (locks >> 6) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled",
+				c->layer[2].segment_count ? (locks >> 5) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled");
 			if (c->isdbt_sb_mode
 			    && c->isdbt_sb_subchannel < 14
 			    && !state->differential_constellation)
@@ -3278,8 +3281,13 @@ static int dib8000_tune(struct dvb_frontend *fe)
 				state->subchannel += 3;
 				*tune_state = CT_DEMOD_STEP_11;
 			} else { /* we are done mpeg of the longest interleaver xas not locking but let's try if an other layer has locked in the same time */
-				if (locks & (0x7<<5)) {
-					dprintk("Mpeg locks [ L0 : %d | L1 : %d | L2 : %d ]", (locks>>7)&0x1, (locks>>6)&0x1, (locks>>5)&0x1);
+				if (locks & (0x7 << 5)) {
+					dprintk("Not all ISDB-T layers locked in %d ms: Layer A %s, Layer B %s, Layer C %s",
+						jiffies_to_msecs(now - *timeout),
+						c->layer[0].segment_count ? (locks >> 7) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled",
+						c->layer[1].segment_count ? (locks >> 6) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled",
+						c->layer[2].segment_count ? (locks >> 5) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled");
+
 					state->status = FE_STATUS_DATA_LOCKED;
 				} else
 					state->status = FE_STATUS_TUNE_FAILED;
