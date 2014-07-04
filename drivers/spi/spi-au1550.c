@@ -925,8 +925,7 @@ err_no_txdma:
 	iounmap((void __iomem *)hw->regs);
 
 err_ioremap:
-	release_resource(hw->ioarea);
-	kfree(hw->ioarea);
+	release_mem_region(r->start, sizeof(psc_spi_t));
 
 err_no_iores:
 err_no_pdata:
@@ -946,8 +945,7 @@ static int au1550_spi_remove(struct platform_device *pdev)
 	spi_bitbang_stop(&hw->bitbang);
 	free_irq(hw->irq, hw);
 	iounmap((void __iomem *)hw->regs);
-	release_resource(hw->ioarea);
-	kfree(hw->ioarea);
+	release_mem_region(r->start, sizeof(psc_spi_t));
 
 	if (hw->usedma) {
 		au1550_spi_dma_rxtmp_free(hw);
