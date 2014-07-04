@@ -19,6 +19,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/pkt_sched.h>
 #include "hsr_device.h"
+#include "hsr_slave.h"
 #include "hsr_framereg.h"
 #include "hsr_main.h"
 
@@ -393,7 +394,6 @@ static void restore_slaves(struct net_device *hsr_dev)
 
 	rtnl_lock();
 
-	/* Restore promiscuity */
 	for (i = 0; i < HSR_MAX_SLAVE; i++) {
 		if (!hsr->slave[i])
 			continue;
@@ -402,7 +402,11 @@ static void restore_slaves(struct net_device *hsr_dev)
 			netdev_info(hsr_dev,
 				    "Cannot restore slave promiscuity (%s, %d)\n",
 				    hsr->slave[i]->name, res);
+
+		if (hsr->slave[i]->rx_handler == hsr_handle_frame)
+			netdev_rx_handler_unregister(hsr->slave[i]);
 	}
+
 
 	rtnl_unlock();
 }
@@ -573,6 +577,13 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 				    slave[i]->name, res);
 			goto fail;
 		}
+	}
+
+	for (i = 0; i < HSR_MAX_SLAVE; i++) {
+		res = netdev_rx_handler_register(slave[i], hsr_handle_frame,
+						 hsr);
+		if (res)
+			goto fail;
 	}
 
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */

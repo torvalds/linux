@@ -162,5 +162,8 @@ struct hsr_priv {
 void register_hsr_master(struct hsr_priv *hsr);
 void unregister_hsr_master(struct hsr_priv *hsr);
 bool is_hsr_slave(struct net_device *dev);
+struct hsr_priv *get_hsr_master(struct net_device *dev);
+struct net_device *get_other_slave(struct hsr_priv *hsr,
+				   struct net_device *dev);
 
 #endif /*  __HSR_PRIVATE_H */
