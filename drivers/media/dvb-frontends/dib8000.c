@@ -2351,6 +2351,9 @@ static void dib8000_set_isdbt_common_channel(struct dib8000_state *state, u8 seq
 	int init_prbs;
 	struct dtv_frontend_properties *c = &state->fe[0]->dtv_property_cache;
 
+	if (autosearching)
+		c->isdbt_partial_reception = 1;
+
 	/* P_mode */
 	dib8000_write_word(state, 10, (seq << 4));
 
