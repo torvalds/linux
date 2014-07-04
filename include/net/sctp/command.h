@@ -203,8 +203,8 @@ typedef struct {
 
 typedef struct {
 	sctp_cmd_t cmds[SCTP_MAX_NUM_COMMANDS];
-	__u8 next_free_slot;
-	__u8 next_cmd;
+	sctp_cmd_t *last_used_slot;
+	sctp_cmd_t *next_cmd;
 } sctp_cmd_seq_t;
 
 
@@ -213,8 +213,9 @@ typedef struct {
  */
 static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
 {
-	seq->next_free_slot = 0;
-	seq->next_cmd = 0;
+	/* cmds[] is filled backwards to simplify the overflow BUG() check */
+	seq->last_used_slot = seq->cmds + SCTP_MAX_NUM_COMMANDS;
+	seq->next_cmd = seq->last_used_slot;
 	return 1;		/* We always succeed.  */
 }
 
@@ -227,10 +228,13 @@ static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
 static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
 				   sctp_arg_t obj)
 {
-	BUG_ON(seq->next_free_slot >= SCTP_MAX_NUM_COMMANDS);
+	sctp_cmd_t *cmd = seq->last_used_slot - 1;
 
-	seq->cmds[seq->next_free_slot].verb = verb;
-	seq->cmds[seq->next_free_slot++].obj = obj;
+	BUG_ON(cmd < seq->cmds);
+
+	cmd->verb = verb;
+	cmd->obj = obj;
+	seq->last_used_slot = cmd;
 }
 
 /* Return the next command structure in an sctp_cmd_seq.
@@ -238,12 +242,10 @@ static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
  */
 static inline sctp_cmd_t *sctp_next_cmd(sctp_cmd_seq_t *seq)
 {
-	sctp_cmd_t *retval = NULL;
+	if (seq->next_cmd <= seq->last_used_slot)
+		return NULL;
 
-	if (seq->next_cmd < seq->next_free_slot)
-		retval = &seq->cmds[seq->next_cmd++];
-
-	return retval;
+	return --seq->next_cmd;
 }
 
 #endif /* __net_sctp_command_h__ */
