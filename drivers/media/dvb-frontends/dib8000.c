@@ -3154,7 +3154,6 @@ static int dib8000_tune(struct dvb_frontend *fe)
 		break;
 
 	case CT_DEMOD_STEP_3: /* 33 */
-		state->symbol_duration = dib8000_get_symbol_duration(state);
 		dib8000_set_isdbt_loop_params(state, LOOP_TUNE_1);
 		dib8000_set_isdbt_common_channel(state, 0, 0);/* setting the known channel parameters here */
 		*tune_state = CT_DEMOD_STEP_4;
