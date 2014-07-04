@@ -1624,9 +1624,11 @@ reset_fw:
 	/* The address 00:20:70:02:A0:00 indicates a BCM20702A0 controller
 	 * with no configured address.
 	 */
-	if (!bacmp(&bda->bdaddr, BDADDR_BCM20702A0))
+	if (!bacmp(&bda->bdaddr, BDADDR_BCM20702A0)) {
 		BT_INFO("%s: BCM: using default device address (%pMR)",
 			hdev->name, &bda->bdaddr);
+		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+	}
 
 	kfree_skb(skb);
 
