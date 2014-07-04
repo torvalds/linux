@@ -3461,16 +3461,6 @@ struct hci_conn_params *hci_pend_le_conn_lookup(struct hci_dev *hdev,
 }
 
 /* This function requires the caller holds hdev->lock */
-void hci_pend_le_conn_add(struct hci_dev *hdev, struct hci_conn_params *params)
-{
-	list_del_init(&params->action);
-	list_add(&params->action, &hdev->pend_le_conns);
-
-	BT_DBG("addr %pMR (type %u)", &params->addr, params->addr_type);
-
-	hci_update_background_scan(hdev);
-}
-
 struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 					    bdaddr_t *addr, u8 addr_type)
 {
