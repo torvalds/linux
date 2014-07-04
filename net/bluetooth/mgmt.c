@@ -441,10 +441,22 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 	return err;
 }
 
+static __le32 get_missing_options(struct hci_dev *hdev)
+{
+	u32 options = 0;
+
+	if (test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks) &&
+	    !bacmp(&hdev->public_addr, BDADDR_ANY))
+		options |= MGMT_OPTION_PUBLIC_ADDRESS;
+
+	return cpu_to_le32(options);
+}
+
 static int read_config_info(struct sock *sk, struct hci_dev *hdev,
 			    void *data, u16 data_len)
 {
 	struct mgmt_rp_read_config_info rp;
+	u32 options = 0;
 
 	BT_DBG("sock %p %s", sk, hdev->name);
 
@@ -452,11 +464,12 @@ static int read_config_info(struct sock *sk, struct hci_dev *hdev,
 
 	memset(&rp, 0, sizeof(rp));
 	rp.manufacturer = cpu_to_le16(hdev->manufacturer);
+
 	if (hdev->set_bdaddr)
-		rp.supported_options = cpu_to_le32(MGMT_OPTION_PUBLIC_ADDRESS);
-	else
-		rp.supported_options = cpu_to_le32(0);
-	rp.missing_options = cpu_to_le32(0);
+		options |= MGMT_OPTION_PUBLIC_ADDRESS;
+
+	rp.supported_options = cpu_to_le32(options);
+	rp.missing_options = get_missing_options(hdev);
 
 	hci_dev_unlock(hdev);
 

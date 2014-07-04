@@ -2246,8 +2246,12 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	atomic_set(&hdev->cmd_cnt, 1);
 	set_bit(HCI_INIT, &hdev->flags);
 
-	if (hdev->setup && test_bit(HCI_SETUP, &hdev->dev_flags))
+	if (hdev->setup && test_bit(HCI_SETUP, &hdev->dev_flags)) {
 		ret = hdev->setup(hdev);
+
+		if (test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks))
+			set_bit(HCI_UNCONFIGURED, &hdev->dev_flags);
+	}
 
 	/* If public address change is configured, ensure that the
 	 * address gets programmed. If the driver does not support
