@@ -218,7 +218,6 @@ static uint dgap_numboards;
 static struct board_t *dgap_board[MAXBOARDS];
 static ulong dgap_poll_counter;
 static int dgap_driver_state = DRIVER_INITIALIZED;
-static wait_queue_head_t dgap_dl_wait;
 static int dgap_poll_tick = 20;	/* Poll interval - 20 ms */
 
 static struct class *dgap_class;
@@ -1200,8 +1199,6 @@ static void dgap_init_globals(void)
 		dgap_board[i] = NULL;
 
 	init_timer(&dgap_poll_timer);
-
-	init_waitqueue_head(&dgap_dl_wait);
 }
 
 /************************************************************************
@@ -4161,11 +4158,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 static int dgap_alloc_flipbuf(struct board_t *brd)
 {
-	/*
-	 * Initialize KME waitqueues...
-	 */
-	init_waitqueue_head(&brd->kme_wait);
-
 	/*
 	 * allocate flip buffer for board.
 	 */

@@ -603,7 +603,6 @@ struct board_t {
 					/* by DPA                         */
 	u16		dpastatus;	/* The board "status", as defined */
 					/* by DPA                         */
-	wait_queue_head_t kme_wait;	/* Needed for DPA support         */
 
 	u32		conc_dl_status;	/* Status of any pending conc     */
 					/* download                       */
