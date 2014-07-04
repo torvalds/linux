@@ -81,4 +81,13 @@ extern int __of_attach_node_sysfs(struct device_node *np);
 extern void __of_detach_node(struct device_node *np);
 extern void __of_detach_node_sysfs(struct device_node *np);
 
+/* iterators for transactions, used for overlays */
+/* forward iterator */
+#define for_each_transaction_entry(_oft, _te) \
+	list_for_each_entry(_te, &(_oft)->te_list, node)
+
+/* reverse iterator */
+#define for_each_transaction_entry_reverse(_oft, _te) \
+	list_for_each_entry_reverse(_te, &(_oft)->te_list, node)
+
 #endif /* _LINUX_OF_PRIVATE_H */

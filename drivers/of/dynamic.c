@@ -314,3 +314,347 @@ struct device_node *__of_node_alloc(const char *full_name, gfp_t allocflags)
 	kfree(node);
 	return NULL;
 }
+
+static void __of_changeset_entry_destroy(struct of_changeset_entry *ce)
+{
+	of_node_put(ce->np);
+	list_del(&ce->node);
+	kfree(ce);
+}
+
+#ifdef DEBUG
+static void __of_changeset_entry_dump(struct of_changeset_entry *ce)
+{
+	switch (ce->action) {
+	case OF_RECONFIG_ADD_PROPERTY:
+		pr_debug("%p: %s %s/%s\n",
+			ce, "ADD_PROPERTY   ", ce->np->full_name,
+			ce->prop->name);
+		break;
+	case OF_RECONFIG_REMOVE_PROPERTY:
+		pr_debug("%p: %s %s/%s\n",
+			ce, "REMOVE_PROPERTY", ce->np->full_name,
+			ce->prop->name);
+		break;
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		pr_debug("%p: %s %s/%s\n",
+			ce, "UPDATE_PROPERTY", ce->np->full_name,
+			ce->prop->name);
+		break;
+	case OF_RECONFIG_ATTACH_NODE:
+		pr_debug("%p: %s %s\n",
+			ce, "ATTACH_NODE    ", ce->np->full_name);
+		break;
+	case OF_RECONFIG_DETACH_NODE:
+		pr_debug("%p: %s %s\n",
+			ce, "DETACH_NODE    ", ce->np->full_name);
+		break;
+	}
+}
+#else
+static inline void __of_changeset_entry_dump(struct of_changeset_entry *ce)
+{
+	/* empty */
+}
+#endif
+
+static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
+					  struct of_changeset_entry *rce)
+{
+	memcpy(rce, ce, sizeof(*rce));
+
+	switch (ce->action) {
+	case OF_RECONFIG_ATTACH_NODE:
+		rce->action = OF_RECONFIG_DETACH_NODE;
+		break;
+	case OF_RECONFIG_DETACH_NODE:
+		rce->action = OF_RECONFIG_ATTACH_NODE;
+		break;
+	case OF_RECONFIG_ADD_PROPERTY:
+		rce->action = OF_RECONFIG_REMOVE_PROPERTY;
+		break;
+	case OF_RECONFIG_REMOVE_PROPERTY:
+		rce->action = OF_RECONFIG_ADD_PROPERTY;
+		break;
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		rce->old_prop = ce->prop;
+		rce->prop = ce->old_prop;
+		break;
+	}
+}
+
+static void __of_changeset_entry_notify(struct of_changeset_entry *ce, bool revert)
+{
+	struct of_changeset_entry ce_inverted;
+	int ret;
+
+	if (revert) {
+		__of_changeset_entry_invert(ce, &ce_inverted);
+		ce = &ce_inverted;
+	}
+
+	switch (ce->action) {
+	case OF_RECONFIG_ATTACH_NODE:
+	case OF_RECONFIG_DETACH_NODE:
+		ret = of_reconfig_notify(ce->action, ce->np);
+		break;
+	case OF_RECONFIG_ADD_PROPERTY:
+	case OF_RECONFIG_REMOVE_PROPERTY:
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		ret = of_property_notify(ce->action, ce->np, ce->prop, ce->old_prop);
+		break;
+	default:
+		pr_err("%s: invalid devicetree changeset action: %i\n", __func__,
+			(int)ce->action);
+		return;
+	}
+
+	if (ret)
+		pr_err("%s: notifier error @%s\n", __func__, ce->np->full_name);
+}
+
+static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
+{
+	struct property *old_prop, **propp;
+	unsigned long flags;
+	int ret = 0;
+
+	__of_changeset_entry_dump(ce);
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+	switch (ce->action) {
+	case OF_RECONFIG_ATTACH_NODE:
+		__of_attach_node(ce->np);
+		break;
+	case OF_RECONFIG_DETACH_NODE:
+		__of_detach_node(ce->np);
+		break;
+	case OF_RECONFIG_ADD_PROPERTY:
+		/* If the property is in deadprops then it must be removed */
+		for (propp = &ce->np->deadprops; *propp; propp = &(*propp)->next) {
+			if (*propp == ce->prop) {
+				*propp = ce->prop->next;
+				ce->prop->next = NULL;
+				break;
+			}
+		}
+
+		ret = __of_add_property(ce->np, ce->prop);
+		if (ret) {
+			pr_err("%s: add_property failed @%s/%s\n",
+				__func__, ce->np->full_name,
+				ce->prop->name);
+			break;
+		}
+		break;
+	case OF_RECONFIG_REMOVE_PROPERTY:
+		ret = __of_remove_property(ce->np, ce->prop);
+		if (ret) {
+			pr_err("%s: remove_property failed @%s/%s\n",
+				__func__, ce->np->full_name,
+				ce->prop->name);
+			break;
+		}
+		break;
+
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		/* If the property is in deadprops then it must be removed */
+		for (propp = &ce->np->deadprops; *propp; propp = &(*propp)->next) {
+			if (*propp == ce->prop) {
+				*propp = ce->prop->next;
+				ce->prop->next = NULL;
+				break;
+			}
+		}
+
+		ret = __of_update_property(ce->np, ce->prop, &old_prop);
+		if (ret) {
+			pr_err("%s: update_property failed @%s/%s\n",
+				__func__, ce->np->full_name,
+				ce->prop->name);
+			break;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+	if (ret)
+		return ret;
+
+	switch (ce->action) {
+	case OF_RECONFIG_ATTACH_NODE:
+		__of_attach_node_sysfs(ce->np);
+		break;
+	case OF_RECONFIG_DETACH_NODE:
+		__of_detach_node_sysfs(ce->np);
+		break;
+	case OF_RECONFIG_ADD_PROPERTY:
+		/* ignore duplicate names */
+		__of_add_property_sysfs(ce->np, ce->prop);
+		break;
+	case OF_RECONFIG_REMOVE_PROPERTY:
+		__of_remove_property_sysfs(ce->np, ce->prop);
+		break;
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		__of_update_property_sysfs(ce->np, ce->prop, ce->old_prop);
+		break;
+	}
+
+	return 0;
+}
+
+static inline int __of_changeset_entry_revert(struct of_changeset_entry *ce)
+{
+	struct of_changeset_entry ce_inverted;
+
+	__of_changeset_entry_invert(ce, &ce_inverted);
+	return __of_changeset_entry_apply(&ce_inverted);
+}
+
+/**
+ * of_changeset_init - Initialize a changeset for use
+ *
+ * @ocs:	changeset pointer
+ *
+ * Initialize a changeset structure
+ */
+void of_changeset_init(struct of_changeset *ocs)
+{
+	memset(ocs, 0, sizeof(*ocs));
+	INIT_LIST_HEAD(&ocs->entries);
+}
+
+/**
+ * of_changeset_destroy - Destroy a changeset
+ *
+ * @ocs:	changeset pointer
+ *
+ * Destroys a changeset. Note that if a changeset is applied,
+ * its changes to the tree cannot be reverted.
+ */
+void of_changeset_destroy(struct of_changeset *ocs)
+{
+	struct of_changeset_entry *ce, *cen;
+
+	list_for_each_entry_safe_reverse(ce, cen, &ocs->entries, node)
+		__of_changeset_entry_destroy(ce);
+}
+
+/**
+ * of_changeset_apply - Applies a changeset
+ *
+ * @ocs:	changeset pointer
+ *
+ * Applies a changeset to the live tree.
+ * Any side-effects of live tree state changes are applied here on
+ * sucess, like creation/destruction of devices and side-effects
+ * like creation of sysfs properties and directories.
+ * Returns 0 on success, a negative error value in case of an error.
+ * On error the partially applied effects are reverted.
+ */
+int of_changeset_apply(struct of_changeset *ocs)
+{
+	struct of_changeset_entry *ce;
+	int ret;
+
+	/* perform the rest of the work */
+	pr_debug("of_changeset: applying...\n");
+	list_for_each_entry(ce, &ocs->entries, node) {
+		ret = __of_changeset_entry_apply(ce);
+		if (ret) {
+			pr_err("%s: Error applying changeset (%d)\n", __func__, ret);
+			list_for_each_entry_continue_reverse(ce, &ocs->entries, node)
+				__of_changeset_entry_revert(ce);
+			return ret;
+		}
+	}
+	pr_debug("of_changeset: applied, emitting notifiers.\n");
+
+	/* drop the global lock while emitting notifiers */
+	mutex_unlock(&of_mutex);
+	list_for_each_entry(ce, &ocs->entries, node)
+		__of_changeset_entry_notify(ce, 0);
+	mutex_lock(&of_mutex);
+	pr_debug("of_changeset: notifiers sent.\n");
+
+	return 0;
+}
+
+/**
+ * of_changeset_revert - Reverts an applied changeset
+ *
+ * @ocs:	changeset pointer
+ *
+ * Reverts a changeset returning the state of the tree to what it
+ * was before the application.
+ * Any side-effects like creation/destruction of devices and
+ * removal of sysfs properties and directories are applied.
+ * Returns 0 on success, a negative error value in case of an error.
+ */
+int of_changeset_revert(struct of_changeset *ocs)
+{
+	struct of_changeset_entry *ce;
+	int ret;
+
+	pr_debug("of_changeset: reverting...\n");
+	list_for_each_entry_reverse(ce, &ocs->entries, node) {
+		ret = __of_changeset_entry_revert(ce);
+		if (ret) {
+			pr_err("%s: Error reverting changeset (%d)\n", __func__, ret);
+			list_for_each_entry_continue(ce, &ocs->entries, node)
+				__of_changeset_entry_apply(ce);
+			return ret;
+		}
+	}
+	pr_debug("of_changeset: reverted, emitting notifiers.\n");
+
+	/* drop the global lock while emitting notifiers */
+	mutex_unlock(&of_mutex);
+	list_for_each_entry_reverse(ce, &ocs->entries, node)
+		__of_changeset_entry_notify(ce, 1);
+	mutex_lock(&of_mutex);
+	pr_debug("of_changeset: notifiers sent.\n");
+
+	return 0;
+}
+
+/**
+ * of_changeset_action - Perform a changeset action
+ *
+ * @ocs:	changeset pointer
+ * @action:	action to perform
+ * @np:		Pointer to device node
+ * @prop:	Pointer to property
+ *
+ * On action being one of:
+ * + OF_RECONFIG_ATTACH_NODE
+ * + OF_RECONFIG_DETACH_NODE,
+ * + OF_RECONFIG_ADD_PROPERTY
+ * + OF_RECONFIG_REMOVE_PROPERTY,
+ * + OF_RECONFIG_UPDATE_PROPERTY
+ * Returns 0 on success, a negative error value in case of an error.
+ */
+int of_changeset_action(struct of_changeset *ocs, unsigned long action,
+		struct device_node *np, struct property *prop)
+{
+	struct of_changeset_entry *ce;
+
+	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
+	if (!ce) {
+		pr_err("%s: Failed to allocate\n", __func__);
+		return -ENOMEM;
+	}
+	/* get a reference to the node */
+	ce->action = action;
+	ce->np = of_node_get(np);
+	ce->prop = prop;
+
+	if (action == OF_RECONFIG_UPDATE_PROPERTY && prop)
+		ce->old_prop = of_find_property(np, prop->name, NULL);
+
+	/* add it to the list */
+	list_add_tail(&ce->node, &ocs->entries);
+	return 0;
+}
