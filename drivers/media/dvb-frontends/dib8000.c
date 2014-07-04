@@ -3606,10 +3606,19 @@ static int dib8000_set_frontend(struct dvb_frontend *fe)
 			else if ((time_slave != FE_CALLBACK_TIME_NEVER) && (time_slave > time))
 				time = time_slave;
 		}
-		if (time != FE_CALLBACK_TIME_NEVER)
-			msleep(time / 10);
-		else
+		if (time == FE_CALLBACK_TIME_NEVER)
 			break;
+
+		/*
+		 * Despite dib8000_agc_startup returns time at a 0.1 ms range,
+		 * the actual sleep time depends on CONFIG_HZ. The worse case
+		 * is when CONFIG_HZ=100. In such case, the minimum granularity
+		 * is 10ms. On some real field tests, the tuner sometimes don't
+		 * lock when this timer is lower than 10ms. So, enforce a 10ms
+		 * granularity.
+		 */
+		time = 10 * (time + 99)/100;
+		usleep_range(time * 1000, (time + 1) * 1000);
 		exit_condition = 1;
 		for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 			if (dib8000_get_tune_state(state->fe[index_frontend]) != CT_AGC_STOP) {
