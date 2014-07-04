@@ -159,7 +159,7 @@ static void rk3036_restart(char mode, const char *cmd)
 	dsb();
 
 	/* pll enter slow mode */
-	writel_relaxed(0x30010000, RK_CRU_VIRT + RK3036_CRU_MODE_CON);
+	writel_relaxed(0x30110000, RK_CRU_VIRT + RK3036_CRU_MODE_CON);
 	dsb();
 	writel_relaxed(0xeca8, RK_CRU_VIRT + RK3036_CRU_GLB_SRST_SND_VALUE);
 	dsb();
