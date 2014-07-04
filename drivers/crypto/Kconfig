@@ -422,6 +422,7 @@ source "drivers/crypto/qat/Kconfig"
 
 config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"
+	depends on ARCH_QCOM || COMPILE_TEST
 	select CRYPTO_AES
 	select CRYPTO_DES
 	select CRYPTO_ECB
