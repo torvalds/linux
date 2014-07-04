@@ -4194,7 +4194,7 @@ static bool check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 {
 	struct hci_conn *conn;
 
-	if (!hci_pend_le_conn_lookup(hdev, addr, addr_type))
+	if (!hci_pend_le_action_lookup(&hdev->pend_le_conns, addr, addr_type))
 		return false;
 
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,

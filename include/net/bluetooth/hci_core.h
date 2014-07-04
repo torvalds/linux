@@ -868,8 +868,9 @@ void hci_conn_params_clear_all(struct hci_dev *hdev);
 void hci_conn_params_clear_disabled(struct hci_dev *hdev);
 void hci_conn_params_clear_enabled(struct hci_dev *hdev);
 
-struct hci_conn_params *hci_pend_le_conn_lookup(struct hci_dev *hdev,
-						bdaddr_t *addr, u8 addr_type);
+struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
+						  bdaddr_t *addr,
+						  u8 addr_type);
 
 void hci_update_background_scan(struct hci_dev *hdev);
 

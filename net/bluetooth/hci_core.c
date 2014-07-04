@@ -3442,8 +3442,8 @@ static bool is_connected(struct hci_dev *hdev, bdaddr_t *addr, u8 type)
 }
 
 /* This function requires the caller holds hdev->lock */
-struct hci_conn_params *hci_pend_le_conn_lookup(struct hci_dev *hdev,
-						bdaddr_t *addr, u8 addr_type)
+struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
+						  bdaddr_t *addr, u8 addr_type)
 {
 	struct hci_conn_params *param;
 
@@ -3451,7 +3451,7 @@ struct hci_conn_params *hci_pend_le_conn_lookup(struct hci_dev *hdev,
 	if (!hci_is_identity_address(addr, addr_type))
 		return NULL;
 
-	list_for_each_entry(param, &hdev->pend_le_conns, action) {
+	list_for_each_entry(param, list, action) {
 		if (bacmp(&param->addr, addr) == 0 &&
 		    param->addr_type == addr_type)
 			return param;
