@@ -4025,6 +4025,9 @@ static int _ddr_change_freq(uint32 nMHz)
 	{
 		ddr_freq_t.screen_ft_us = rk_fb_get_prmry_screen_ft();
 		ddr_freq_t.t0 = rk_fb_get_prmry_screen_framedone_t();
+		if (!ddr_freq_t.screen_ft_us)
+			return __ddr_change_freq(nMHz, ddr_freq_t);
+
 		tmp = cpu_clock(0) - ddr_freq_t.t0;
 		do_div(tmp, 1000);
 		pass_t = tmp;
