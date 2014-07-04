@@ -483,6 +483,12 @@ struct mgmt_rp_read_config_info {
 	__le32	missing_options;
 } __packed;
 
+#define MGMT_OP_SET_EXTERNAL_CONFIG	0x0038
+struct mgmt_cp_set_external_config {
+	__u8 config;
+} __packed;
+#define MGMT_SET_EXTERNAL_CONFIG_SIZE	1
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;
