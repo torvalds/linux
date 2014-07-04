@@ -400,4 +400,25 @@
 		clock-names = "clk_usbphy1", "hclk_usb1";
 	};
 
+        vpu: vpu_service@10108000 {
+		compatible = "vpu_service";
+		reg = <0x10108000 0x800>;
+		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_enc", "irq_dec";
+		clocks = <&clk_vdpu>, <&hclk_vdpu>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		name = "vpu_service";
+		status = "disabled";
+	};
+
+	hevc: hevc_service@1010c000 {
+		compatible = "rockchip,hevc_service";
+		reg = <0x1010c000 0x800>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		clocks = <&aclk_hevc>, <&hclk_hevc>, <&clk_hevc_core>, <&clk_hevc_cabac>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
+		name = "hevc_service";
+		status = "disabled";
+	};
 };
