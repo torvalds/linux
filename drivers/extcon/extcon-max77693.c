@@ -255,10 +255,10 @@ static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 	case ADC_DEBOUNCE_TIME_10MS:
 	case ADC_DEBOUNCE_TIME_25MS:
 	case ADC_DEBOUNCE_TIME_38_62MS:
-		ret = max77693_update_reg(info->max77693->regmap_muic,
+		ret = regmap_update_bits(info->max77693->regmap_muic,
 					  MAX77693_MUIC_REG_CTRL3,
-					  time << CONTROL3_ADCDBSET_SHIFT,
-					  CONTROL3_ADCDBSET_MASK);
+					  CONTROL3_ADCDBSET_MASK,
+					  time << CONTROL3_ADCDBSET_SHIFT);
 		if (ret) {
 			dev_err(info->dev, "failed to set ADC debounce time\n");
 			return ret;
@@ -286,15 +286,15 @@ static int max77693_muic_set_path(struct max77693_muic_info *info,
 		u8 val, bool attached)
 {
 	int ret = 0;
-	u8 ctrl1, ctrl2 = 0;
+	unsigned int ctrl1, ctrl2 = 0;
 
 	if (attached)
 		ctrl1 = val;
 	else
 		ctrl1 = CONTROL1_SW_OPEN;
 
-	ret = max77693_update_reg(info->max77693->regmap_muic,
-			MAX77693_MUIC_REG_CTRL1, ctrl1, COMP_SW_MASK);
+	ret = regmap_update_bits(info->max77693->regmap_muic,
+			MAX77693_MUIC_REG_CTRL1, COMP_SW_MASK, ctrl1);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
 		return ret;
@@ -305,9 +305,9 @@ static int max77693_muic_set_path(struct max77693_muic_info *info,
 	else
 		ctrl2 |= CONTROL2_LOWPWR_MASK;	/* LowPwr=1, CPEn=0 */
 
-	ret = max77693_update_reg(info->max77693->regmap_muic,
-			MAX77693_MUIC_REG_CTRL2, ctrl2,
-			CONTROL2_LOWPWR_MASK | CONTROL2_CPEN_MASK);
+	ret = regmap_update_bits(info->max77693->regmap_muic,
+			MAX77693_MUIC_REG_CTRL2,
+			CONTROL2_LOWPWR_MASK | CONTROL2_CPEN_MASK, ctrl2);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
 		return ret;
@@ -969,8 +969,8 @@ static void max77693_muic_irq_work(struct work_struct *work)
 		if (info->irq == muic_irqs[i].virq)
 			irq_type = muic_irqs[i].irq;
 
-	ret = max77693_bulk_read(info->max77693->regmap_muic,
-			MAX77693_MUIC_REG_STATUS1, 2, info->status);
+	ret = regmap_bulk_read(info->max77693->regmap_muic,
+			MAX77693_MUIC_REG_STATUS1, info->status, 2);
 	if (ret) {
 		dev_err(info->dev, "failed to read MUIC register\n");
 		mutex_unlock(&info->mutex);
@@ -1042,8 +1042,8 @@ static int max77693_muic_detect_accessory(struct max77693_muic_info *info)
 	mutex_lock(&info->mutex);
 
 	/* Read STATUSx register to detect accessory */
-	ret = max77693_bulk_read(info->max77693->regmap_muic,
-			MAX77693_MUIC_REG_STATUS1, 2, info->status);
+	ret = regmap_bulk_read(info->max77693->regmap_muic,
+			MAX77693_MUIC_REG_STATUS1, info->status, 2);
 	if (ret) {
 		dev_err(info->dev, "failed to read MUIC register\n");
 		mutex_unlock(&info->mutex);
@@ -1095,7 +1095,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	int delay_jiffies;
 	int ret;
 	int i;
-	u8 id;
+	unsigned int id;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max77693_muic_info),
 				   GFP_KERNEL);
@@ -1154,7 +1154,8 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		struct max77693_muic_irq *muic_irq = &muic_irqs[i];
 		unsigned int virq = 0;
 
-		virq = irq_create_mapping(max77693->irq_domain, muic_irq->irq);
+		virq = regmap_irq_get_virq(max77693->irq_data_muic,
+					muic_irq->irq);
 		if (!virq) {
 			ret = -EINVAL;
 			goto err_irq;
@@ -1204,7 +1205,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		enum max77693_irq_source irq_src
 				= MAX77693_IRQ_GROUP_NR;
 
-		max77693_write_reg(info->max77693->regmap_muic,
+		regmap_write(info->max77693->regmap_muic,
 				init_data[i].addr,
 				init_data[i].data);
 
@@ -1262,7 +1263,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	 max77693_muic_set_path(info, info->path_uart, true);
 
 	/* Check revision number of MUIC device*/
-	ret = max77693_read_reg(info->max77693->regmap_muic,
+	ret = regmap_read(info->max77693->regmap_muic,
 			MAX77693_MUIC_REG_ID, &id);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to read revision number\n");
