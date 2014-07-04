@@ -94,6 +94,15 @@ int of_property_notify(int action, struct device_node *np,
 	return of_reconfig_notify(action, &pr);
 }
 
+void __of_attach_node(struct device_node *np)
+{
+	np->sibling = np->parent->child;
+	np->allnext = np->parent->allnext;
+	np->parent->allnext = np;
+	np->parent->child = np;
+	of_node_clear_flag(np, OF_DETACHED);
+}
+
 /**
  * of_attach_node() - Plug a device node into the tree and global list.
  */
@@ -107,46 +116,23 @@ int of_attach_node(struct device_node *np)
 		return rc;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
-	np->sibling = np->parent->child;
-	np->allnext = np->parent->allnext;
-	np->parent->allnext = np;
-	np->parent->child = np;
-	of_node_clear_flag(np, OF_DETACHED);
+	__of_attach_node(np);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
 	of_node_add(np);
 	return 0;
 }
 
-/**
- * of_detach_node() - "Unplug" a node from the device tree.
- *
- * The caller must hold a reference to the node.  The memory associated with
- * the node is not freed until its refcount goes to zero.
- */
-int of_detach_node(struct device_node *np)
+void __of_detach_node(struct device_node *np)
 {
 	struct device_node *parent;
-	unsigned long flags;
-	int rc = 0;
 
-	rc = of_reconfig_notify(OF_RECONFIG_DETACH_NODE, np);
-	if (rc)
-		return rc;
-
-	raw_spin_lock_irqsave(&devtree_lock, flags);
-
-	if (of_node_check_flag(np, OF_DETACHED)) {
-		/* someone already detached it */
-		raw_spin_unlock_irqrestore(&devtree_lock, flags);
-		return rc;
-	}
+	if (WARN_ON(of_node_check_flag(np, OF_DETACHED)))
+		return;
 
 	parent = np->parent;
-	if (!parent) {
-		raw_spin_unlock_irqrestore(&devtree_lock, flags);
-		return rc;
-	}
+	if (WARN_ON(!parent))
+		return;
 
 	if (of_allnodes == np)
 		of_allnodes = np->allnext;
@@ -171,6 +157,25 @@ int of_detach_node(struct device_node *np)
 	}
 
 	of_node_set_flag(np, OF_DETACHED);
+}
+
+/**
+ * of_detach_node() - "Unplug" a node from the device tree.
+ *
+ * The caller must hold a reference to the node.  The memory associated with
+ * the node is not freed until its refcount goes to zero.
+ */
+int of_detach_node(struct device_node *np)
+{
+	unsigned long flags;
+	int rc = 0;
+
+	rc = of_reconfig_notify(OF_RECONFIG_DETACH_NODE, np);
+	if (rc)
+		return rc;
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+	__of_detach_node(np);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
 	of_node_remove(np);
