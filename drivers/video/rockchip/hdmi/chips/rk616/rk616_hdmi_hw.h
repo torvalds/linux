@@ -225,9 +225,9 @@ enum {
 
 #define INTERRUPT_MASK1			0xc0
 #define INTERRUPT_STATUS1		0xc1
-	#ifndef SOC_CONFIG_RK3036
+#ifndef SOC_CONFIG_RK3036
 #define m_INT_HOTPLUG		(1 << 7)
-	#endif
+#endif
 #define	m_INT_ACTIVE_VSYNC	(1 << 5)
 #define m_INT_EDID_READY	(1 << 2)
 
@@ -239,12 +239,12 @@ enum {
 
 #define HDMI_STATUS			0xc8
 	#define m_HOTPLUG	(1 << 7)
-	#ifndef SOC_CONFIG_RK3036
-	#define m_DDC_SDA	(1 << 5)
-	#define m_DDC_SDC	(1 << 4)
-	#else
+	#ifdef SOC_CONFIG_RK3036
 	#define m_MASK_INT_HOTPLUG	(1 << 5)
 	#define m_INT_HOTPLUG		(1 << 1)
+	#else
+	#define m_DDC_SDA	(1 << 5)
+	#define m_DDC_SDC	(1 << 4)	
 	#endif
 
 
