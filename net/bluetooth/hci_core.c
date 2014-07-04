@@ -3477,8 +3477,6 @@ void hci_pend_le_conns_clear(struct hci_dev *hdev)
 		list_del_init(hdev->pend_le_conns.next);
 
 	BT_DBG("All LE pending connections cleared");
-
-	hci_update_background_scan(hdev);
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -3601,13 +3599,12 @@ void hci_conn_params_clear_enabled(struct hci_dev *hdev)
 	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list) {
 		if (params->auto_connect == HCI_AUTO_CONN_DISABLED)
 			continue;
-		if (params->auto_connect == HCI_AUTO_CONN_REPORT)
-			list_del_init(&params->action);
+		list_del(&params->action);
 		list_del(&params->list);
 		kfree(params);
 	}
 
-	hci_pend_le_conns_clear(hdev);
+	hci_update_background_scan(hdev);
 
 	BT_DBG("All enabled LE connection parameters were removed");
 }
@@ -3618,11 +3615,12 @@ void hci_conn_params_clear_all(struct hci_dev *hdev)
 	struct hci_conn_params *params, *tmp;
 
 	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list) {
+		list_del(&params->action);
 		list_del(&params->list);
 		kfree(params);
 	}
 
-	hci_pend_le_conns_clear(hdev);
+	hci_update_background_scan(hdev);
 
 	BT_DBG("All LE connection parameters were removed");
 }
