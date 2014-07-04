@@ -247,7 +247,7 @@
 		//pinctrl-0 = <&spdif_tx>;
 	};
 
-	pwm: pwm@20050000 {
+	pwm0: pwm@20050000 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0x20050000 0x10>;
 		#pwm-cells = <2>;
@@ -257,6 +257,39 @@
 		clock-names = "pclk_pwm";
 		status = "disabled";
 	};
+
+        pwm1: pwm@20050010 {
+                compatible = "rockchip,rk-pwm";
+                reg = <0x20050010 0x10>;
+                #pwm-cells = <2>;
+                //pinctrl-names = "default";
+                //pinctrl-0 = <&pwm_pin>;
+                clocks = <&clk_gates7 10>;
+                clock-names = "pclk_pwm";
+                status = "disabled";
+        };
+
+        pwm2: pwm@20050020 {
+                compatible = "rockchip,rk-pwm";
+                reg = <0x20050020 0x10>;
+                #pwm-cells = <2>;
+                //pinctrl-names = "default";
+                //pinctrl-0 = <&pwm_pin>;
+                clocks = <&clk_gates7 10>;
+                clock-names = "pclk_pwm";
+                status = "disabled";
+        };
+
+        pwm3: pwm@20050030 {
+                compatible = "rockchip,rk-pwm";
+                reg = <0x20050030 0x10>;
+                #pwm-cells = <2>;
+                //pinctrl-names = "default";
+                //pinctrl-0 = <&pwm_pin>;
+                clocks = <&clk_gates7 10>;
+                clock-names = "pclk_pwm";
+                status = "disabled";
+        };
 
 	emmc: rksdmmc@1021c000 {
 		compatible = "rockchip,rk_mmc", "rockchip,rk3036-sdmmc";
