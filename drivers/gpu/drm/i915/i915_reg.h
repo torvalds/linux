@@ -5984,7 +5984,10 @@ enum punit_power_well {
 #define  LCPLL_CD_SOURCE_FCLK		(1<<21)
 #define  LCPLL_CD_SOURCE_FCLK_DONE	(1<<19)
 
-#define D_COMP				(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)
+/* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
+ * since on HSW we can't write to it using I915_WRITE. */
+#define D_COMP_HSW			(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)
+#define D_COMP_BDW			0x138144
 #define  D_COMP_RCOMP_IN_PROGRESS	(1<<9)
 #define  D_COMP_COMP_FORCE		(1<<8)
 #define  D_COMP_COMP_DISABLE		(1<<0)
