@@ -4239,6 +4239,10 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 			bdaddr_type = irk->addr_type;
 		}
 
+		/* Ignore if the device is blocked */
+		if (hci_blacklist_lookup(hdev, bdaddr, bdaddr_type))
+			return;
+
 		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND) {
 			if (check_pending_le_conn(hdev, bdaddr, bdaddr_type))
 				return;
