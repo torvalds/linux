@@ -2215,6 +2215,7 @@ static int max98090_probe(struct snd_soc_codec *codec)
 {
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
 	struct max98090_cdata *cdata;
+	enum max98090_type devtype;
 	int ret = 0;
 
 	dev_dbg(codec->dev, "max98090_probe\n");
@@ -2250,14 +2251,19 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	}
 
 	if ((ret >= M98090_REVA) && (ret <= M98090_REVA + 0x0f)) {
-		max98090->devtype = MAX98090;
+		devtype = MAX98090;
 		dev_info(codec->dev, "MAX98090 REVID=0x%02x\n", ret);
 	} else if ((ret >= M98091_REVA) && (ret <= M98091_REVA + 0x0f)) {
-		max98090->devtype = MAX98091;
+		devtype = MAX98091;
 		dev_info(codec->dev, "MAX98091 REVID=0x%02x\n", ret);
 	} else {
-		max98090->devtype = MAX98090;
+		devtype = MAX98090;
 		dev_err(codec->dev, "Unrecognized revision 0x%02x\n", ret);
+	}
+
+	if (max98090->devtype != devtype) {
+		dev_warn(codec->dev, "Mismatch in DT specified CODEC type.\n");
+		max98090->devtype = devtype;
 	}
 
 	max98090->jack_state = M98090_JACK_STATE_NO_HEADSET;
