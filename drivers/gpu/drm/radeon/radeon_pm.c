@@ -1400,9 +1400,7 @@ static void radeon_pm_fini_old(struct radeon_device *rdev)
 	}
 
 	radeon_hwmon_fini(rdev);
-
-	if (rdev->pm.power_state)
-		kfree(rdev->pm.power_state);
+	kfree(rdev->pm.power_state);
 }
 
 static void radeon_pm_fini_dpm(struct radeon_device *rdev)
@@ -1421,9 +1419,7 @@ static void radeon_pm_fini_dpm(struct radeon_device *rdev)
 	radeon_dpm_fini(rdev);
 
 	radeon_hwmon_fini(rdev);
-
-	if (rdev->pm.power_state)
-		kfree(rdev->pm.power_state);
+	kfree(rdev->pm.power_state);
 }
 
 void radeon_pm_fini(struct radeon_device *rdev)
