@@ -123,6 +123,7 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_NEW_CONN_PARAM,
 	MGMT_EV_UNCONF_INDEX_ADDED,
 	MGMT_EV_UNCONF_INDEX_REMOVED,
+	MGMT_EV_NEW_CONFIG_OPTIONS,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
@@ -498,6 +499,14 @@ static __le32 get_missing_options(struct hci_dev *hdev)
 		options |= MGMT_OPTION_PUBLIC_ADDRESS;
 
 	return cpu_to_le32(options);
+}
+
+static int new_options(struct hci_dev *hdev, struct sock *skip)
+{
+	__le32 options = get_missing_options(hdev);
+
+	return mgmt_event(MGMT_EV_NEW_CONFIG_OPTIONS, hdev, &options,
+			  sizeof(options), skip);
 }
 
 static int send_options_rsp(struct sock *sk, u16 opcode, struct hci_dev *hdev)
@@ -5414,6 +5423,8 @@ static int set_external_config(struct sock *sk, struct hci_dev *hdev,
 
 	if (!changed)
 		goto unlock;
+
+	err = new_options(hdev, sk);
 
 	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags) == is_configured(hdev)) {
 		mgmt_index_removed(hdev);

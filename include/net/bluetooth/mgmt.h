@@ -669,3 +669,5 @@ struct mgmt_ev_new_conn_param {
 #define MGMT_EV_UNCONF_INDEX_ADDED	0x001d
 
 #define MGMT_EV_UNCONF_INDEX_REMOVED	0x001e
+
+#define MGMT_EV_NEW_CONFIG_OPTIONS	0x001f
