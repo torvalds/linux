@@ -1094,11 +1094,6 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 	bool cur_state;
 	struct intel_dpll_hw_state hw_state;
 
-	if (HAS_PCH_LPT(dev_priv->dev)) {
-		DRM_DEBUG_DRIVER("LPT detected: skipping PCH PLL test\n");
-		return;
-	}
-
 	if (WARN (!pll,
 		  "asserting DPLL %s with no DPLL\n", state_string(state)))
 		return;
