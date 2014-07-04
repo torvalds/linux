@@ -4240,7 +4240,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 				return;
 		}
 
-		if (!hdev->pend_le_reports)
+		if (list_empty(&hdev->pend_le_reports))
 			return;
 
 		if (type == LE_ADV_DIRECT_IND)

@@ -3529,7 +3529,7 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 
 	if (params->auto_connect == HCI_AUTO_CONN_REPORT &&
 	    auto_connect != HCI_AUTO_CONN_REPORT)
-		hdev->pend_le_reports--;
+		list_del_init(&params->action);
 
 	switch (auto_connect) {
 	case HCI_AUTO_CONN_DISABLED:
@@ -3537,8 +3537,11 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 		hci_pend_le_conn_del(hdev, params);
 		break;
 	case HCI_AUTO_CONN_REPORT:
-		if (params->auto_connect != HCI_AUTO_CONN_REPORT)
-			hdev->pend_le_reports++;
+		if (params->auto_connect != HCI_AUTO_CONN_REPORT) {
+			list_del_init(&params->action);
+			list_add(&params->action,
+				 &hdev->pend_le_reports);
+		}
 		hci_pend_le_conn_del(hdev, params);
 		break;
 	case HCI_AUTO_CONN_ALWAYS:
@@ -3565,7 +3568,7 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 		return;
 
 	if (params->auto_connect == HCI_AUTO_CONN_REPORT)
-		hdev->pend_le_reports--;
+		list_del_init(&params->action);
 
 	hci_pend_le_conn_del(hdev, params);
 
@@ -3599,7 +3602,7 @@ void hci_conn_params_clear_enabled(struct hci_dev *hdev)
 		if (params->auto_connect == HCI_AUTO_CONN_DISABLED)
 			continue;
 		if (params->auto_connect == HCI_AUTO_CONN_REPORT)
-			hdev->pend_le_reports--;
+			list_del_init(&params->action);
 		list_del(&params->list);
 		kfree(params);
 	}
@@ -3859,6 +3862,7 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_LIST_HEAD(&hdev->le_white_list);
 	INIT_LIST_HEAD(&hdev->le_conn_params);
 	INIT_LIST_HEAD(&hdev->pend_le_conns);
+	INIT_LIST_HEAD(&hdev->pend_le_reports);
 	INIT_LIST_HEAD(&hdev->conn_hash.list);
 
 	INIT_WORK(&hdev->rx_work, hci_rx_work);
@@ -5362,7 +5366,8 @@ void hci_update_background_scan(struct hci_dev *hdev)
 
 	hci_req_init(&req, hdev);
 
-	if (list_empty(&hdev->pend_le_conns) && !hdev->pend_le_reports) {
+	if (list_empty(&hdev->pend_le_conns) &&
+	    list_empty(&hdev->pend_le_reports)) {
 		/* If there is no pending LE connections or devices
 		 * to be scanned for, we should stop the background
 		 * scanning.

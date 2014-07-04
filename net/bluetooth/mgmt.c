@@ -5226,7 +5226,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 		}
 
 		if (params->auto_connect == HCI_AUTO_CONN_REPORT)
-			hdev->pend_le_reports--;
+			list_del_init(&params->action);
 
 		hci_pend_le_conn_del(hdev, params);
 		list_del(&params->list);
@@ -6540,7 +6540,7 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	if (!hci_discovery_active(hdev)) {
 		if (link_type == ACL_LINK)
 			return;
-		if (link_type == LE_LINK && !hdev->pend_le_reports)
+		if (link_type == LE_LINK && list_empty(&hdev->pend_le_reports))
 			return;
 	}
 
