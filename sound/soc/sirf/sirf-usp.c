@@ -282,7 +282,7 @@ static struct snd_soc_dai_driver sirf_usp_pcm_dai = {
 	.ops = &sirf_usp_pcm_dai_ops,
 };
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int sirf_usp_pcm_runtime_suspend(struct device *dev)
 {
 	struct sirf_usp *usp = dev_get_drvdata(dev);
