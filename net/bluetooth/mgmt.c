@@ -5225,7 +5225,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			goto unlock;
 		}
 
-		list_del_init(&params->action);
+		list_del(&params->action);
 		list_del(&params->list);
 		kfree(params);
 		hci_update_background_scan(hdev);
