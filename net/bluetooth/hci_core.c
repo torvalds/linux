@@ -3440,7 +3440,7 @@ struct hci_conn_params *hci_pend_le_conn_lookup(struct hci_dev *hdev,
 	if (!hci_is_identity_address(addr, addr_type))
 		return NULL;
 
-	list_for_each_entry(param, &hdev->pend_le_conns, pend_le_conn) {
+	list_for_each_entry(param, &hdev->pend_le_conns, action) {
 		if (bacmp(&param->addr, addr) == 0 &&
 		    param->addr_type == addr_type)
 			return param;
@@ -3452,8 +3452,8 @@ struct hci_conn_params *hci_pend_le_conn_lookup(struct hci_dev *hdev,
 /* This function requires the caller holds hdev->lock */
 void hci_pend_le_conn_add(struct hci_dev *hdev, struct hci_conn_params *params)
 {
-	list_del_init(&params->pend_le_conn);
-	list_add(&params->pend_le_conn, &hdev->pend_le_conns);
+	list_del_init(&params->action);
+	list_add(&params->action, &hdev->pend_le_conns);
 
 	BT_DBG("addr %pMR (type %u)", &params->addr, params->addr_type);
 
@@ -3463,7 +3463,7 @@ void hci_pend_le_conn_add(struct hci_dev *hdev, struct hci_conn_params *params)
 /* This function requires the caller holds hdev->lock */
 void hci_pend_le_conn_del(struct hci_dev *hdev, struct hci_conn_params *params)
 {
-	list_del_init(&params->pend_le_conn);
+	list_del_init(&params->action);
 
 	BT_DBG("addr %pMR (type %u)", &params->addr, params->addr_type);
 
@@ -3504,7 +3504,7 @@ struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 	params->addr_type = addr_type;
 
 	list_add(&params->list, &hdev->le_conn_params);
-	INIT_LIST_HEAD(&params->pend_le_conn);
+	INIT_LIST_HEAD(&params->action);
 
 	params->conn_min_interval = hdev->le_conn_min_interval;
 	params->conn_max_interval = hdev->le_conn_max_interval;

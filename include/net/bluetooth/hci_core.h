@@ -439,7 +439,7 @@ struct hci_chan {
 
 struct hci_conn_params {
 	struct list_head list;
-	struct list_head pend_le_conn;
+	struct list_head action;
 
 	bdaddr_t addr;
 	u8 addr_type;
