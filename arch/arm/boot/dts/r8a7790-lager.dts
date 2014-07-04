@@ -215,9 +215,9 @@
 		renesas,function = "i2c2";
 	};
 
-	i2c3_pins: i2c3 {
-		renesas,groups = "i2c3";
-		renesas,function = "i2c3";
+	iic3_pins: iic3 {
+		renesas,groups = "iic3";
+		renesas,function = "iic3";
 	};
 
 	usb0_pins: usb0 {
@@ -368,9 +368,9 @@
 	pinctrl-names = "default";
 };
 
-&i2c3 {
+&iic3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-0 = <&iic3_pins>;
 	status = "okay";
 
 	vdd_dvfs: regulator@68 {
