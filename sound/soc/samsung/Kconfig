@@ -237,3 +237,11 @@ config SND_SOC_SNOW
 	help
 	  Say Y if you want to add audio support for various Snow
 	  boards based on Exynos5 series of SoCs.
+
+config SND_SOC_ODROIDX2
+	tristate "Audio support for Odroid-X2 and Odroid-U3"
+	depends on SND_SOC_SAMSUNG
+	select SND_SOC_MAX98090
+	select SND_SAMSUNG_I2S
+	help
+	  Say Y here to enable audio support for the Odroid-X2/U3.
