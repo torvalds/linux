@@ -1,0 +1,466 @@
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/pinctrl/rockchip-rk3036.h>
+
+/ { 
+	pinctrl: pinctrl@20008000 {
+		compatible = "rockchip,rk3036-pinctrl";
+		reg = <0x20008000 0xA8>,
+		      <0x200080A8 0x30>,
+		      <0x20008118 0x18>,
+		      <0x20008100 0x04>;
+		reg-names = "base", "mux", "pull", "drv";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio0: gpio0@2007c000 {
+			compatible = "rockchip,rk3036-gpio-bank0";
+			reg = <0x2007c000 0x100>,
+			      <0x2007c000 0>;
+
+			reg-names = "base", "pull_bank0";
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			//clocks = <&clk_gates8 9>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio1@20080000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x20080000 0x100>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates8 10>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio2@20084000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x20084000 0x100>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			//clocks = <&clk_gates8 11>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio15: gpio15@20086000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x20086000 0x100>;
+			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;//127 = 160-32-1
+			//clocks = <&clk_gates8 12>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		pcfg_pull_up: pcfg_pull_up {
+			bias-pull-up;
+		};
+
+		pcfg_pull_down: pcfg_pull_down {
+			bias-pull-down;
+		};
+
+		pcfg_pull_none: pcfg_pull_none {
+			bias-disable;
+		};
+
+		gpio1_uart0 {
+			uart0_xfer: uart0-xfer {
+				rockchip,pins = <UART0_SIN>,
+						<UART0_SOUT>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart0_cts: uart0-cts {
+				rockchip,pins = <UART0_CTSN>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart0_rts: uart0-rts {
+				rockchip,pins = <UART0_RTSN>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart0_rts_gpio: uart0-rts-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(UART0_RTSN)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+		};
+
+		gpio1_uart1 {
+			uart1_xfer: uart1-xfer {
+				rockchip,pins = <UART1_SIN>,
+						<UART1_SOUT>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+		};
+
+		gpio1_uart2 {
+			uart2_xfer: uart2-xfer {
+				rockchip,pins = <UART2_SIN>,
+						<UART2_SOUT>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+			/* no rts / cts for uart2 */
+		};
+
+
+		gpio1_i2c0 {
+			i2c0_sda:i2c0-sda {
+				rockchip,pins = <I2C0_SDA>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			i2c0_scl:i2c0-scl {
+				rockchip,pins = <I2C0_SCL>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			i2c0_gpio: i2c0-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C0_SDA)>, <FUNC_TO_GPIO(I2C0_SCL)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+		};
+
+		gpio1_i2c1 {
+			i2c1_sda:i2c1-sda {
+				rockchip,pins = <I2C1_SDA>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			i2c1_scl:i2c1-scl {
+				rockchip,pins = <I2C1_SCL>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			i2c1_gpio: i2c1-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C1_SDA)>, <FUNC_TO_GPIO(I2C1_SCL)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+		};
+
+		gpio1_i2c2 {
+			i2c2_sda:i2c2-sda {
+				rockchip,pins = <I2C2_SDA>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			i2c2_scl:i2c2-scl {
+				rockchip,pins = <I2C2_SCL>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			i2c2_gpio: i2c2-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2C2_SDA)>, <FUNC_TO_GPIO(I2C2_SCL)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+		};
+
+
+		gpio1_spi0 {
+			spi0_txd:spi0-txd {
+				rockchip,pins = <SPI0_TXD>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			spi0_rxd:spi0-rxd {
+				rockchip,pins = <SPI0_RXD>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			spi0_clk:spi0-clk {
+				rockchip,pins = <SPI0_CLK>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			spi0_cs0:spi0-cs0 {
+				rockchip,pins = <SPI0_CS0>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			spi0_cs1:spi0-cs1 {
+				rockchip,pins = <SPI0_CS1>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+		};
+
+
+		gpio1_i2s0 {
+
+			i2s0_mclk:i2s0-mclk {
+				rockchip,pins = <I2S0_MCLK>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+			};
+
+			i2s0_sclk:i2s0-sclk {
+				rockchip,pins = <I2S0_SCLK>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+			};
+
+			i2s0_lrckrx:i2s0-lrckrx {
+				rockchip,pins = <I2S0_LRCKRX>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+			};
+
+			i2s0_lrcktx:i2s0-lrcktx {
+				rockchip,pins = <I2S0_LRCKTX>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+			};
+
+			i2s0_sdo:i2s0-sdo {
+				rockchip,pins = <I2S0_SDO>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+			};
+
+			i2s0_sdi:i2s0-sdi {
+				rockchip,pins = <I2S0_SDI>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+			};
+
+			i2s0_gpio: i2s0-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2S0_MCLK)>,
+						<FUNC_TO_GPIO(I2S0_SCLK)>,
+						<FUNC_TO_GPIO(I2S0_LRCKRX)>,
+						<FUNC_TO_GPIO(I2S0_LRCKTX)>,
+						<FUNC_TO_GPIO(I2S0_SDO)>,
+						<FUNC_TO_GPIO(I2S0_SDI)>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+			};
+		};
+	
+
+		gpio1_spdif {
+			spdif_tx: spdif-tx {
+				rockchip,pins = <SPDIF_TX>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+			};
+		};
+		
+
+		vol_domain {
+			ap0_vcc:ap0-vcc {
+				rockchip,pins = <VIRTUAL_PIN_FOR_AP0_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+			
+			ap1_vcc:ap1-vcc {
+				rockchip,pins = <VIRTUAL_PIN_FOR_AP1_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+			
+			cif_vcc:cif-vcc {
+				rockchip,pins = <VIRTUAL_PIN_FOR_CIF_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+
+			flash_vcc:flash-vcc {
+				rockchip,pins = <VIRTUAL_PIN_FOR_FLASH_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+			
+			vccio0_vcc:vccio0-vcc {
+				rockchip,pins = <VIRTUAL_PIN_FOR_VCCIO0_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>; 
+			};
+
+			vccio1_vcc:vccio1-vcc {
+				rockchip,pins = <VIRTUAL_PIN_FOR_VCCIO1_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>; 
+			};
+
+			lcdc0_vcc:lcdc0-vcc {
+				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC0_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+
+			lcdc1_vcc:lcdc1-vcc {
+				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC1_VCC>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+			};
+
+			
+			
+			ap0_vcc_18:ap0-vcc-18 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_AP0_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+			
+			ap1_vcc_18:ap1-vcc-18 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_AP1_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+			
+			cif_vcc_18:cif-vcc-18 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_CIF_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+
+			flash_vcc_18:flash-vcc-18 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_FLASH_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+			
+			vccio0_vcc_18:vccio0-vcc-18 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_VCCIO0_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>; 
+			};
+
+			vccio1_vcc_18:vccio1-vcc-18 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_VCCIO1_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>; 
+			};
+
+			lcdc0_vcc_18:lcdc0-vcc-18 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC0_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+
+			lcdc1_vcc_18:lcdc1-vcc-18 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC1_VCC>;
+				rockchip,voltage = <VALUE_VOL_1V8>;
+			};
+
+			
+
+			ap0_vcc_33:ap0-vcc-33 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_AP0_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+			
+			ap1_vcc_33:ap1-vcc-33 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_AP1_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+			
+			cif_vcc_33:cif-vcc-33 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_CIF_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+
+			flash_vcc_33:flash-vcc-33 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_FLASH_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+			
+			vccio0_vcc_33:vccio0-vcc-33 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_VCCIO0_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>; 
+			};
+
+			vccio1_vcc_33:vccio1-vcc-33 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_VCCIO1_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>; 
+			};
+
+			lcdc0_vcc_33:lcdc0-vcc-33 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC0_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+
+			lcdc1_vcc_33:lcdc1-vcc-33 {
+				rockchip,pins = <VIRTUAL_PIN_FOR_LCDC1_VCC>;
+				rockchip,voltage = <VALUE_VOL_3V3>;
+			};
+
+
+		};
+
+		//to add
+	};
+};
