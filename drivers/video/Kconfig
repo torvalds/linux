@@ -25,9 +25,9 @@ source "drivers/gpu/host1x/Kconfig"
 
 source "drivers/gpu/arm/midgard/Kconfig"
 
-#source "drivers/gpu/arm/mali400/mali/Kconfig"
+source "drivers/gpu/arm/mali400/mali/Kconfig"
 
-#source "drivers/gpu/arm/mali400/ump/Kconfig"
+source "drivers/gpu/arm/mali400/ump/Kconfig"
 
 config VGASTATE
        tristate
