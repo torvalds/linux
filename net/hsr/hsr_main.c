@@ -17,6 +17,7 @@
 #include "hsr_device.h"
 #include "hsr_netlink.h"
 #include "hsr_framereg.h"
+#include "hsr_slave.h"
 
 
 /* List of all registered virtual HSR devices */
@@ -124,22 +125,21 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		if (dev == hsr->dev)
 			break;
 
-		if (dev == hsr->slave[0])
-			ether_addr_copy(hsr->dev->dev_addr,
-					hsr->slave[0]->dev_addr);
+		if (dev == hsr->slave[0]) {
+			ether_addr_copy(hsr->dev->dev_addr, dev->dev_addr);
+			call_netdevice_notifiers(NETDEV_CHANGEADDR, hsr->dev);
+		}
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */
+		other_slave = hsr->slave[1];
 		res = hsr_create_self_node(&hsr->self_node_db,
 					   hsr->dev->dev_addr,
-					   hsr->slave[1] ?
-						hsr->slave[1]->dev_addr :
+					   other_slave ?
+						other_slave->dev_addr :
 						hsr->dev->dev_addr);
 		if (res)
 			netdev_warn(hsr->dev,
 				    "Could not update HSR node address.\n");
-
-		if (dev == hsr->slave[0])
-			call_netdevice_notifiers(NETDEV_CHANGEADDR, hsr->dev);
 		break;
 	case NETDEV_CHANGEMTU:
 		if (dev == hsr->dev)
@@ -149,10 +149,14 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			dev_set_mtu(hsr->dev, mtu_max);
 		break;
 	case NETDEV_UNREGISTER:
-		if (dev == hsr->slave[0])
+		if (dev == hsr->slave[0]) {
 			hsr->slave[0] = NULL;
-		if (dev == hsr->slave[1])
+			hsr_del_slave(hsr, 0);
+		}
+		if (dev == hsr->slave[1]) {
 			hsr->slave[1] = NULL;
+			hsr_del_slave(hsr, 1);
+		}
 
 		/* There should really be a way to set a new slave device... */
 

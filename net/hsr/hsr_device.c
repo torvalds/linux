@@ -15,7 +15,6 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
-#include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/pkt_sched.h>
 #include "hsr_device.h"
@@ -108,22 +107,26 @@ void hsr_check_carrier_and_operstate(struct hsr_priv *hsr)
 	hsr_check_announce(hsr->dev, old_operstate);
 }
 
-
 int hsr_get_max_mtu(struct hsr_priv *hsr)
 {
-	int mtu_max;
+	unsigned int mtu_max;
+	struct net_device *slave;
 
-	if (hsr->slave[0] && hsr->slave[1])
-		mtu_max = min(hsr->slave[0]->mtu, hsr->slave[1]->mtu);
-	else if (hsr->slave[0])
-		mtu_max = hsr->slave[0]->mtu;
-	else if (hsr->slave[1])
-		mtu_max = hsr->slave[1]->mtu;
-	else
-		mtu_max = HSR_HLEN;
+	mtu_max = ETH_DATA_LEN;
+	rcu_read_lock();
+	slave = hsr->slave[0];
+	if (slave)
+		mtu_max = min(slave->mtu, mtu_max);
+	slave = hsr->slave[1];
+	if (slave)
+		mtu_max = min(slave->mtu, mtu_max);
+	rcu_read_unlock();
 
+	if (mtu_max < HSR_HLEN)
+		return 0;
 	return mtu_max - HSR_HLEN;
 }
+
 
 static int hsr_dev_change_mtu(struct net_device *dev, int new_mtu)
 {
@@ -145,18 +148,20 @@ static int hsr_dev_change_mtu(struct net_device *dev, int new_mtu)
 static int hsr_dev_open(struct net_device *dev)
 {
 	struct hsr_priv *hsr;
+	struct net_device *slave;
 	int i;
 	char *slave_name;
 
 	hsr = netdev_priv(dev);
 
 	for (i = 0; i < HSR_MAX_SLAVE; i++) {
-		if (hsr->slave[i])
-			slave_name = hsr->slave[i]->name;
+		slave = hsr->slave[i];
+		if (slave)
+			slave_name = slave->name;
 		else
 			slave_name = "null";
 
-		if (!is_slave_up(hsr->slave[i]))
+		if (!is_slave_up(slave))
 			netdev_warn(dev, "Slave %c (%s) is not up; please bring it up to get a working HSR network\n",
 				    'A' + i, slave_name);
 	}
@@ -223,6 +228,8 @@ static int slave_xmit(struct sk_buff *skb, struct hsr_priv *hsr,
 	hsr_ethhdr = (struct hsr_ethhdr *) skb->data;
 
 	skb->dev = hsr->slave[dev_idx];
+	if (unlikely(!skb->dev))
+		return NET_XMIT_DROP;
 
 	hsr_addr_subst_dest(hsr, &hsr_ethhdr->ethhdr, dev_idx);
 
@@ -252,14 +259,8 @@ static int hsr_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	skb2 = pskb_copy(skb, GFP_ATOMIC);
-
-	res1 = NET_XMIT_DROP;
-	if (likely(hsr->slave[HSR_DEV_SLAVE_A]))
-		res1 = slave_xmit(skb, hsr, HSR_DEV_SLAVE_A);
-
-	res2 = NET_XMIT_DROP;
-	if (likely(skb2 && hsr->slave[HSR_DEV_SLAVE_B]))
-		res2 = slave_xmit(skb2, hsr, HSR_DEV_SLAVE_B);
+	res1 = slave_xmit(skb, hsr, HSR_DEV_SLAVE_A);
+	res2 = slave_xmit(skb2, hsr, HSR_DEV_SLAVE_B);
 
 	if (likely(res1 == NET_XMIT_SUCCESS || res1 == NET_XMIT_CN ||
 		   res2 == NET_XMIT_SUCCESS || res2 == NET_XMIT_CN)) {
@@ -406,28 +407,10 @@ static void hsr_announce(unsigned long data)
 static void restore_slaves(struct net_device *hsr_dev)
 {
 	struct hsr_priv *hsr;
-	int i;
-	int res;
 
 	hsr = netdev_priv(hsr_dev);
-
-	rtnl_lock();
-
-	for (i = 0; i < HSR_MAX_SLAVE; i++) {
-		if (!hsr->slave[i])
-			continue;
-		res = dev_set_promiscuity(hsr->slave[i], -1);
-		if (res)
-			netdev_info(hsr_dev,
-				    "Cannot restore slave promiscuity (%s, %d)\n",
-				    hsr->slave[i]->name, res);
-
-		if (hsr->slave[i]->rx_handler == hsr_handle_frame)
-			netdev_rx_handler_unregister(hsr->slave[i]);
-	}
-
-
-	rtnl_unlock();
+	hsr_del_slave(hsr, 1);
+	hsr_del_slave(hsr, 0);
 }
 
 static void reclaim_hsr_dev(struct rcu_head *rh)
@@ -483,38 +466,6 @@ bool is_hsr_master(struct net_device *dev)
 	return (dev->netdev_ops->ndo_start_xmit == hsr_dev_xmit);
 }
 
-static int check_slave_ok(struct net_device *dev)
-{
-	/* Don't allow HSR on non-ethernet like devices */
-	if ((dev->flags & IFF_LOOPBACK) || (dev->type != ARPHRD_ETHER) ||
-	    (dev->addr_len != ETH_ALEN)) {
-		netdev_info(dev, "Cannot use loopback or non-ethernet device as HSR slave.\n");
-		return -EINVAL;
-	}
-
-	/* Don't allow enslaving hsr devices */
-	if (is_hsr_master(dev)) {
-		netdev_info(dev, "Cannot create trees of HSR devices.\n");
-		return -EINVAL;
-	}
-
-	if (is_hsr_slave(dev)) {
-		netdev_info(dev, "This device is already a HSR slave.\n");
-		return -EINVAL;
-	}
-
-	if (dev->priv_flags & IFF_802_1Q_VLAN) {
-		netdev_info(dev, "HSR on top of VLAN is not yet supported in this driver.\n");
-		return -EINVAL;
-	}
-
-	/* HSR over bonded devices has not been tested, but I'm not sure it
-	 * won't work...
-	 */
-
-	return 0;
-}
-
 
 /* Default multicast address for HSR Supervision frames */
 static const unsigned char def_multicast_addr[ETH_ALEN] __aligned(2) = {
@@ -525,15 +476,30 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 		     unsigned char multicast_spec)
 {
 	struct hsr_priv *hsr;
-	int i;
 	int res;
 
 	hsr = netdev_priv(hsr_dev);
 	hsr->dev = hsr_dev;
+	hsr->slave[0] = NULL;
+	hsr->slave[1] = NULL;
 	INIT_LIST_HEAD(&hsr->node_db);
 	INIT_LIST_HEAD(&hsr->self_node_db);
-	for (i = 0; i < HSR_MAX_SLAVE; i++)
-		hsr->slave[i] = slave[i];
+
+	ether_addr_copy(hsr_dev->dev_addr, slave[0]->dev_addr);
+
+	/* Make sure we recognize frames from ourselves in hsr_rcv() */
+	res = hsr_create_self_node(&hsr->self_node_db, hsr_dev->dev_addr,
+				   slave[1]->dev_addr);
+	if (res < 0)
+		return res;
+
+	hsr_dev->features = slave[0]->features & slave[1]->features;
+	/* Prevent recursive tx locking */
+	hsr_dev->features |= NETIF_F_LLTX;
+	/* VLAN on top of HSR needs testing and probably some work on
+	 * hsr_header_create() etc.
+	 */
+	hsr_dev->features |= NETIF_F_VLAN_CHALLENGED;
 
 	spin_lock_init(&hsr->seqnr_lock);
 	/* Overflow soon to find bugs easier: */
@@ -560,65 +526,21 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
  *			IFF_HSR_MASTER/SLAVE?
  */
 
-	for (i = 0; i < HSR_MAX_SLAVE; i++) {
-		res = check_slave_ok(slave[i]);
-		if (res)
-			return res;
-	}
-
-	hsr_dev->features = slave[0]->features & slave[1]->features;
-	/* Prevent recursive tx locking */
-	hsr_dev->features |= NETIF_F_LLTX;
-	/* VLAN on top of HSR needs testing and probably some work on
-	 * hsr_header_create() etc.
-	 */
-	hsr_dev->features |= NETIF_F_VLAN_CHALLENGED;
-
-	/* Set hsr_dev's MAC address to that of mac_slave1 */
-	ether_addr_copy(hsr_dev->dev_addr, hsr->slave[0]->dev_addr);
-
-	/* Set required header length */
-	for (i = 0; i < HSR_MAX_SLAVE; i++) {
-		if (slave[i]->hard_header_len + HSR_HLEN >
-						hsr_dev->hard_header_len)
-			hsr_dev->hard_header_len =
-					slave[i]->hard_header_len + HSR_HLEN;
-	}
-
-	/* MTU */
-	for (i = 0; i < HSR_MAX_SLAVE; i++)
-		if (slave[i]->mtu - HSR_HLEN < hsr_dev->mtu)
-			hsr_dev->mtu = slave[i]->mtu - HSR_HLEN;
-
 	/* Make sure the 1st call to netif_carrier_on() gets through */
 	netif_carrier_off(hsr_dev);
 
-	/* Promiscuity */
-	for (i = 0; i < HSR_MAX_SLAVE; i++) {
-		res = dev_set_promiscuity(slave[i], 1);
-		if (res) {
-			netdev_info(hsr_dev, "Cannot set slave promiscuity (%s, %d)\n",
-				    slave[i]->name, res);
-			goto fail;
-		}
-	}
-
-	for (i = 0; i < HSR_MAX_SLAVE; i++) {
-		res = netdev_rx_handler_register(slave[i], hsr_handle_frame,
-						 hsr);
-		if (res)
-			goto fail;
-	}
-
-	/* Make sure we recognize frames from ourselves in hsr_rcv() */
-	res = hsr_create_self_node(&hsr->self_node_db, hsr_dev->dev_addr,
-				   hsr->slave[1]->dev_addr);
-	if (res < 0)
-		goto fail;
-
 	res = register_netdevice(hsr_dev);
 	if (res)
-		goto fail;
+		return res;
+
+	res = hsr_add_slave(hsr, slave[0], 0);
+	if (res)
+		return res;
+	res = hsr_add_slave(hsr, slave[1], 1);
+	if (res) {
+		hsr_del_slave(hsr, 0);
+		return res;
+	}
 
 	hsr->prune_timer.expires = jiffies + msecs_to_jiffies(PRUNE_PERIOD);
 	add_timer(&hsr->prune_timer);
@@ -626,8 +548,4 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	register_hsr_master(hsr);
 
 	return 0;
-
-fail:
-	restore_slaves(hsr_dev);
-	return res;
 }

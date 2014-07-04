@@ -11,8 +11,43 @@
 
 #include "hsr_slave.h"
 #include <linux/etherdevice.h>
+#include <linux/if_arp.h>
 #include "hsr_main.h"
+#include "hsr_device.h"
 #include "hsr_framereg.h"
+
+
+static int check_slave_ok(struct net_device *dev)
+{
+	/* Don't allow HSR on non-ethernet like devices */
+	if ((dev->flags & IFF_LOOPBACK) || (dev->type != ARPHRD_ETHER) ||
+	    (dev->addr_len != ETH_ALEN)) {
+		netdev_info(dev, "Cannot use loopback or non-ethernet device as HSR slave.\n");
+		return -EINVAL;
+	}
+
+	/* Don't allow enslaving hsr devices */
+	if (is_hsr_master(dev)) {
+		netdev_info(dev, "Cannot create trees of HSR devices.\n");
+		return -EINVAL;
+	}
+
+	if (is_hsr_slave(dev)) {
+		netdev_info(dev, "This device is already a HSR slave.\n");
+		return -EINVAL;
+	}
+
+	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+		netdev_info(dev, "HSR on top of VLAN is not yet supported in this driver.\n");
+		return -EINVAL;
+	}
+
+	/* HSR over bonded devices has not been tested, but I'm not sure it
+	 * won't work...
+	 */
+
+	return 0;
+}
 
 
 static struct sk_buff *hsr_pull_tag(struct sk_buff *skb)
@@ -240,4 +275,60 @@ forward:
 	}
 
 	return RX_HANDLER_CONSUMED;
+}
+
+int hsr_add_slave(struct hsr_priv *hsr, struct net_device *dev, int idx)
+{
+	int res;
+
+	dev_hold(dev);
+
+	res = check_slave_ok(dev);
+	if (res)
+		goto fail;
+
+	res = dev_set_promiscuity(dev, 1);
+	if (res)
+		goto fail;
+
+	res = netdev_rx_handler_register(dev, hsr_handle_frame, hsr);
+	if (res)
+		goto fail_rx_handler;
+
+
+	hsr->slave[idx] = dev;
+
+	/* Set required header length */
+	if (dev->hard_header_len + HSR_HLEN > hsr->dev->hard_header_len)
+		hsr->dev->hard_header_len = dev->hard_header_len + HSR_HLEN;
+
+	dev_set_mtu(hsr->dev, hsr_get_max_mtu(hsr));
+
+	return 0;
+
+fail_rx_handler:
+	dev_set_promiscuity(dev, -1);
+
+fail:
+	dev_put(dev);
+	return res;
+}
+
+void hsr_del_slave(struct hsr_priv *hsr, int idx)
+{
+	struct net_device *slave;
+
+	slave = hsr->slave[idx];
+	hsr->slave[idx] = NULL;
+
+	netdev_update_features(hsr->dev);
+	dev_set_mtu(hsr->dev, hsr_get_max_mtu(hsr));
+
+	if (slave) {
+		netdev_rx_handler_unregister(slave);
+		dev_set_promiscuity(slave, -1);
+	}
+
+	synchronize_rcu();
+	dev_put(slave);
 }

@@ -64,16 +64,28 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 static int hsr_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct hsr_priv *hsr;
+	struct net_device *slave;
+	int res;
 
 	hsr = netdev_priv(dev);
 
-	if (hsr->slave[0])
-		if (nla_put_u32(skb, IFLA_HSR_SLAVE1, hsr->slave[0]->ifindex))
-			goto nla_put_failure;
+	res = 0;
 
-	if (hsr->slave[1])
-		if (nla_put_u32(skb, IFLA_HSR_SLAVE2, hsr->slave[1]->ifindex))
-			goto nla_put_failure;
+	rcu_read_lock();
+	slave = hsr->slave[0];
+	if (slave)
+		res = nla_put_u32(skb, IFLA_HSR_SLAVE1, slave->ifindex);
+	rcu_read_unlock();
+	if (res)
+		goto nla_put_failure;
+
+	rcu_read_lock();
+	slave = hsr->slave[1];
+	if (slave)
+		res = nla_put_u32(skb, IFLA_HSR_SLAVE2, slave->ifindex);
+	rcu_read_unlock();
+	if (res)
+		goto nla_put_failure;
 
 	if (nla_put(skb, IFLA_HSR_SUPERVISION_ADDR, ETH_ALEN,
 		    hsr->sup_multicast_addr) ||
@@ -132,6 +144,7 @@ void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
 		      enum hsr_dev_idx dev_idx)
 {
 	struct sk_buff *skb;
+	struct net_device *slave;
 	void *msg_head;
 	int res;
 	int ifindex;
@@ -148,10 +161,14 @@ void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
 	if (res < 0)
 		goto nla_put_failure;
 
-	if (hsr->slave[dev_idx])
-		ifindex = hsr->slave[dev_idx]->ifindex;
+	rcu_read_lock();
+	slave = hsr->slave[dev_idx];
+	if (slave)
+		ifindex = slave->ifindex;
 	else
 		ifindex = -1;
+	rcu_read_unlock();
+
 	res = nla_put_u32(skb, HSR_A_IFINDEX, ifindex);
 	if (res < 0)
 		goto nla_put_failure;
@@ -215,7 +232,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 {
 	/* For receiving */
 	struct nlattr *na;
-	struct net_device *hsr_dev;
+	struct net_device *hsr_dev, *slave;
 
 	/* For sending */
 	struct sk_buff *skb_out;
@@ -301,9 +318,11 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	res = nla_put_u16(skb_out, HSR_A_IF1_SEQ, hsr_node_if1_seq);
 	if (res < 0)
 		goto nla_put_failure;
-	if (hsr->slave[0])
-		res = nla_put_u32(skb_out, HSR_A_IF1_IFINDEX,
-						hsr->slave[0]->ifindex);
+	rcu_read_lock();
+	slave = hsr->slave[0];
+	if (slave)
+		res = nla_put_u32(skb_out, HSR_A_IF1_IFINDEX, slave->ifindex);
+	rcu_read_unlock();
 	if (res < 0)
 		goto nla_put_failure;
 
@@ -313,9 +332,13 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	res = nla_put_u16(skb_out, HSR_A_IF2_SEQ, hsr_node_if2_seq);
 	if (res < 0)
 		goto nla_put_failure;
-	if (hsr->slave[1])
-		res = nla_put_u32(skb_out, HSR_A_IF2_IFINDEX,
-						hsr->slave[1]->ifindex);
+	rcu_read_lock();
+	slave = hsr->slave[1];
+	if (slave)
+		res = nla_put_u32(skb_out, HSR_A_IF2_IFINDEX, slave->ifindex);
+	rcu_read_unlock();
+	if (res < 0)
+		goto nla_put_failure;
 
 	genlmsg_end(skb_out, msg_head);
 	genlmsg_unicast(genl_info_net(info), skb_out, info->snd_portid);

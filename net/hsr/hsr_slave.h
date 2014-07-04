@@ -14,7 +14,10 @@
 
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include "hsr_main.h"
 
+int hsr_add_slave(struct hsr_priv *hsr, struct net_device *dev, int idx);
+void hsr_del_slave(struct hsr_priv *hsr, int idx);
 rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb);
 
 #endif /* __HSR_SLAVE_H */

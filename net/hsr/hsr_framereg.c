@@ -455,6 +455,7 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 		      u16 *if2_seq)
 {
 	struct hsr_node *node;
+	struct net_device *slave;
 	unsigned long tdiff;
 
 
@@ -491,8 +492,9 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 	*if1_seq = node->seq_out[HSR_DEV_SLAVE_B];
 	*if2_seq = node->seq_out[HSR_DEV_SLAVE_A];
 
-	if ((node->AddrB_if != HSR_DEV_NONE) && hsr->slave[node->AddrB_if])
-		*addr_b_ifindex = hsr->slave[node->AddrB_if]->ifindex;
+	slave = hsr->slave[node->AddrB_if];
+	if ((node->AddrB_if != HSR_DEV_NONE) && slave)
+		*addr_b_ifindex = slave->ifindex;
 	else
 		*addr_b_ifindex = -1;
 
