@@ -2033,9 +2033,8 @@ static u16 dib8000_set_layer(struct dib8000_state *state, u8 layer_index, u16 ma
 			break;
 	}
 
-	if ((c->layer[layer_index].interleaving > 0) && ((c->layer[layer_index].interleaving <= 3) || (c->layer[layer_index].interleaving == 4 && c->isdbt_sb_mode == 1)))
-		time_intlv = c->layer[layer_index].interleaving;
-	else
+	time_intlv = fls(c->layer[layer_index].interleaving);
+	if (time_intlv > 3 && !(time_intlv == 4 && c->isdbt_sb_mode == 1))
 		time_intlv = 0;
 
 	dib8000_write_word(state, 2 + layer_index, (constellation << 10) | ((c->layer[layer_index].segment_count & 0xf) << 6) | (cr << 3) | time_intlv);
