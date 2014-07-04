@@ -304,7 +304,7 @@ static inline bool dma_pte_present(struct dma_pte *pte)
 
 static inline bool dma_pte_superpage(struct dma_pte *pte)
 {
-	return (pte->val & (1 << 7));
+	return (pte->val & DMA_PTE_LARGE_PAGE);
 }
 
 static inline int first_pte_in_page(struct dma_pte *pte)
