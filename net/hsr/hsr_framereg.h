@@ -18,18 +18,16 @@ struct hsr_node;
 
 struct hsr_node *hsr_find_node(struct list_head *node_db, struct sk_buff *skb);
 
-struct hsr_node *hsr_merge_node(struct hsr_priv *hsr,
-				struct hsr_node *node,
-				struct sk_buff *skb,
-				enum hsr_dev_idx dev_idx);
+struct hsr_node *hsr_merge_node(struct hsr_node *node, struct sk_buff *skb,
+				struct hsr_port *port);
 
 void hsr_addr_subst_source(struct hsr_priv *hsr, struct sk_buff *skb);
 void hsr_addr_subst_dest(struct hsr_priv *hsr, struct ethhdr *ethhdr,
-			 enum hsr_dev_idx dev_idx);
+			 struct hsr_port *port);
 
-void hsr_register_frame_in(struct hsr_node *node, enum hsr_dev_idx dev_idx);
+void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port);
 
-int hsr_register_frame_out(struct hsr_node *node, enum hsr_dev_idx dev_idx,
+int hsr_register_frame_out(struct hsr_node *node, struct hsr_port *port,
 			   struct sk_buff *skb);
 
 void hsr_prune_nodes(unsigned long data);

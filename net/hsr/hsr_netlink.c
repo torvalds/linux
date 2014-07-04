@@ -64,7 +64,7 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 static int hsr_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct hsr_priv *hsr;
-	struct net_device *slave;
+	struct hsr_port *port;
 	int res;
 
 	hsr = netdev_priv(dev);
@@ -72,17 +72,17 @@ static int hsr_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	res = 0;
 
 	rcu_read_lock();
-	slave = hsr->slave[0];
-	if (slave)
-		res = nla_put_u32(skb, IFLA_HSR_SLAVE1, slave->ifindex);
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
+	if (port)
+		res = nla_put_u32(skb, IFLA_HSR_SLAVE1, port->dev->ifindex);
 	rcu_read_unlock();
 	if (res)
 		goto nla_put_failure;
 
 	rcu_read_lock();
-	slave = hsr->slave[1];
-	if (slave)
-		res = nla_put_u32(skb, IFLA_HSR_SLAVE2, slave->ifindex);
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
+	if (port)
+		res = nla_put_u32(skb, IFLA_HSR_SLAVE2, port->dev->ifindex);
 	rcu_read_unlock();
 	if (res)
 		goto nla_put_failure;
@@ -141,13 +141,12 @@ static const struct genl_multicast_group hsr_mcgrps[] = {
  * (i.e. a link has failed somewhere).
  */
 void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
-		      enum hsr_dev_idx dev_idx)
+		      struct hsr_port *port)
 {
 	struct sk_buff *skb;
-	struct net_device *slave;
 	void *msg_head;
+	struct hsr_port *master;
 	int res;
-	int ifindex;
 
 	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
 	if (!skb)
@@ -161,15 +160,7 @@ void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
 	if (res < 0)
 		goto nla_put_failure;
 
-	rcu_read_lock();
-	slave = hsr->slave[dev_idx];
-	if (slave)
-		ifindex = slave->ifindex;
-	else
-		ifindex = -1;
-	rcu_read_unlock();
-
-	res = nla_put_u32(skb, HSR_A_IFINDEX, ifindex);
+	res = nla_put_u32(skb, HSR_A_IFINDEX, port->dev->ifindex);
 	if (res < 0)
 		goto nla_put_failure;
 
@@ -182,7 +173,10 @@ nla_put_failure:
 	kfree_skb(skb);
 
 fail:
-	netdev_warn(hsr->dev, "Could not send HSR ring error message\n");
+	rcu_read_lock();
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+	netdev_warn(master->dev, "Could not send HSR ring error message\n");
+	rcu_read_unlock();
 }
 
 /* This is called when we haven't heard from the node with MAC address addr for
@@ -192,6 +186,7 @@ void hsr_nl_nodedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN])
 {
 	struct sk_buff *skb;
 	void *msg_head;
+	struct hsr_port *master;
 	int res;
 
 	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
@@ -216,7 +211,10 @@ nla_put_failure:
 	kfree_skb(skb);
 
 fail:
-	netdev_warn(hsr->dev, "Could not send HSR node down\n");
+	rcu_read_lock();
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+	netdev_warn(master->dev, "Could not send HSR node down\n");
+	rcu_read_unlock();
 }
 
 
@@ -232,12 +230,13 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 {
 	/* For receiving */
 	struct nlattr *na;
-	struct net_device *hsr_dev, *slave;
+	struct net_device *hsr_dev;
 
 	/* For sending */
 	struct sk_buff *skb_out;
 	void *msg_head;
 	struct hsr_priv *hsr;
+	struct hsr_port *port;
 	unsigned char hsr_node_addr_b[ETH_ALEN];
 	int hsr_node_if1_age;
 	u16 hsr_node_if1_seq;
@@ -319,9 +318,10 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	if (res < 0)
 		goto nla_put_failure;
 	rcu_read_lock();
-	slave = hsr->slave[0];
-	if (slave)
-		res = nla_put_u32(skb_out, HSR_A_IF1_IFINDEX, slave->ifindex);
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
+	if (port)
+		res = nla_put_u32(skb_out, HSR_A_IF1_IFINDEX,
+				  port->dev->ifindex);
 	rcu_read_unlock();
 	if (res < 0)
 		goto nla_put_failure;
@@ -333,9 +333,10 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	if (res < 0)
 		goto nla_put_failure;
 	rcu_read_lock();
-	slave = hsr->slave[1];
-	if (slave)
-		res = nla_put_u32(skb_out, HSR_A_IF2_IFINDEX, slave->ifindex);
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
+	if (port)
+		res = nla_put_u32(skb_out, HSR_A_IF2_IFINDEX,
+				  port->dev->ifindex);
 	rcu_read_unlock();
 	if (res < 0)
 		goto nla_put_failure;

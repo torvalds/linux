@@ -27,12 +27,11 @@ struct hsr_node {
 	struct list_head	mac_list;
 	unsigned char		MacAddressA[ETH_ALEN];
 	unsigned char		MacAddressB[ETH_ALEN];
-	enum hsr_dev_idx	AddrB_if;/* The local slave through which AddrB
-					  * frames are received from this node
-					  */
-	unsigned long		time_in[HSR_MAX_SLAVE];
-	bool			time_in_stale[HSR_MAX_SLAVE];
-	u16			seq_out[HSR_MAX_DEV];
+	/* Local slave through which AddrB frames are received from this node */
+	enum hsr_port_type	AddrB_port;
+	unsigned long		time_in[HSR_PT_PORTS];
+	bool			time_in_stale[HSR_PT_PORTS];
+	u16			seq_out[HSR_PT_PORTS];
 	struct rcu_head		rcu_head;
 };
 
@@ -154,11 +153,10 @@ int hsr_create_self_node(struct list_head *self_node_db,
  * We also need to detect if the sender's SlaveA and SlaveB cables have been
  * swapped.
  */
-struct hsr_node *hsr_merge_node(struct hsr_priv *hsr,
-				struct hsr_node *node,
-				struct sk_buff *skb,
-				enum hsr_dev_idx dev_idx)
+struct hsr_node *hsr_merge_node(struct hsr_node *node, struct sk_buff *skb,
+				struct hsr_port *port)
 {
+	struct hsr_priv *hsr;
 	struct hsr_sup_payload *hsr_sp;
 	struct hsr_ethhdr_sp *hsr_ethsup;
 	int i;
@@ -166,6 +164,7 @@ struct hsr_node *hsr_merge_node(struct hsr_priv *hsr,
 
 	hsr_ethsup = (struct hsr_ethhdr_sp *) skb_mac_header(skb);
 	hsr_sp = (struct hsr_sup_payload *) skb->data;
+	hsr = port->hsr;
 
 	if (node && !ether_addr_equal(node->MacAddressA, hsr_sp->MacAddressA)) {
 		/* Node has changed its AddrA, frame was received from SlaveB */
@@ -174,7 +173,7 @@ struct hsr_node *hsr_merge_node(struct hsr_priv *hsr,
 		node = NULL;
 	}
 
-	if (node && (dev_idx == node->AddrB_if) &&
+	if (node && (port->type == node->AddrB_port) &&
 	    !ether_addr_equal(node->MacAddressB, hsr_ethsup->ethhdr.h_source)) {
 		/* Cables have been swapped */
 		list_del_rcu(&node->mac_list);
@@ -182,8 +181,8 @@ struct hsr_node *hsr_merge_node(struct hsr_priv *hsr,
 		node = NULL;
 	}
 
-	if (node && (dev_idx != node->AddrB_if) &&
-	    (node->AddrB_if != HSR_DEV_NONE) &&
+	if (node && (port->type != node->AddrB_port) &&
+	    (node->AddrB_port != HSR_PT_NONE) &&
 	    !ether_addr_equal(node->MacAddressA, hsr_ethsup->ethhdr.h_source)) {
 		/* Cables have been swapped */
 		list_del_rcu(&node->mac_list);
@@ -200,7 +199,7 @@ struct hsr_node *hsr_merge_node(struct hsr_priv *hsr,
 		 * address. Node is PICS_SUBS capable; merge its AddrB.
 		 */
 		ether_addr_copy(node->MacAddressB, hsr_ethsup->ethhdr.h_source);
-		node->AddrB_if = dev_idx;
+		node->AddrB_port = port->type;
 		return node;
 	}
 
@@ -211,17 +210,15 @@ struct hsr_node *hsr_merge_node(struct hsr_priv *hsr,
 	ether_addr_copy(node->MacAddressA, hsr_sp->MacAddressA);
 	ether_addr_copy(node->MacAddressB, hsr_ethsup->ethhdr.h_source);
 	if (!ether_addr_equal(hsr_sp->MacAddressA, hsr_ethsup->ethhdr.h_source))
-		node->AddrB_if = dev_idx;
-	else
-		node->AddrB_if = HSR_DEV_NONE;
+		node->AddrB_port = port->type;
 
 	/* We are only interested in time diffs here, so use current jiffies
 	 * as initialization. (0 could trigger an spurious ring error warning).
 	 */
 	now = jiffies;
-	for (i = 0; i < HSR_MAX_SLAVE; i++)
+	for (i = 0; i < HSR_PT_PORTS; i++)
 		node->time_in[i] = now;
-	for (i = 0; i < HSR_MAX_DEV; i++)
+	for (i = 0; i < HSR_PT_PORTS; i++)
 		node->seq_out[i] = ntohs(hsr_ethsup->hsr_sup.sequence_nr) - 1;
 
 	list_add_tail_rcu(&node->mac_list, &hsr->node_db);
@@ -265,13 +262,13 @@ void hsr_addr_subst_source(struct hsr_priv *hsr, struct sk_buff *skb)
  * which "side" the different interfaces are.
  */
 void hsr_addr_subst_dest(struct hsr_priv *hsr, struct ethhdr *ethhdr,
-			 enum hsr_dev_idx dev_idx)
+			 struct hsr_port *port)
 {
 	struct hsr_node *node;
 
 	rcu_read_lock();
 	node = find_node_by_AddrA(&hsr->node_db, ethhdr->h_dest);
-	if (node && (node->AddrB_if == dev_idx))
+	if (node && (node->AddrB_port == port->type))
 		ether_addr_copy(ethhdr->h_dest, node->MacAddressB);
 	rcu_read_unlock();
 }
@@ -295,14 +292,10 @@ static bool seq_nr_after(u16 a, u16 b)
 #define seq_nr_before_or_eq(a, b)	(!seq_nr_after((a), (b)))
 
 
-void hsr_register_frame_in(struct hsr_node *node, enum hsr_dev_idx dev_idx)
+void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port)
 {
-	if ((dev_idx < 0) || (dev_idx >= HSR_MAX_SLAVE)) {
-		WARN_ONCE(1, "%s: Invalid dev_idx (%d)\n", __func__, dev_idx);
-		return;
-	}
-	node->time_in[dev_idx] = jiffies;
-	node->time_in_stale[dev_idx] = false;
+	node->time_in[port->type] = jiffies;
+	node->time_in_stale[port->type] = false;
 }
 
 
@@ -314,16 +307,12 @@ void hsr_register_frame_in(struct hsr_node *node, enum hsr_dev_idx dev_idx)
  *	 0 otherwise, or
  *	 negative error code on error
  */
-int hsr_register_frame_out(struct hsr_node *node, enum hsr_dev_idx dev_idx,
+int hsr_register_frame_out(struct hsr_node *node, struct hsr_port *port,
 			   struct sk_buff *skb)
 {
 	struct hsr_ethhdr *hsr_ethhdr;
 	u16 sequence_nr;
 
-	if ((dev_idx < 0) || (dev_idx >= HSR_MAX_DEV)) {
-		WARN_ONCE(1, "%s: Invalid dev_idx (%d)\n", __func__, dev_idx);
-		return -EINVAL;
-	}
 	if (!skb_mac_header_was_set(skb)) {
 		WARN_ONCE(1, "%s: Mac header not set\n", __func__);
 		return -EINVAL;
@@ -331,35 +320,32 @@ int hsr_register_frame_out(struct hsr_node *node, enum hsr_dev_idx dev_idx,
 	hsr_ethhdr = (struct hsr_ethhdr *) skb_mac_header(skb);
 
 	sequence_nr = ntohs(hsr_ethhdr->hsr_tag.sequence_nr);
-	if (seq_nr_before_or_eq(sequence_nr, node->seq_out[dev_idx]))
+	if (seq_nr_before_or_eq(sequence_nr, node->seq_out[port->type]))
 		return 1;
 
-	node->seq_out[dev_idx] = sequence_nr;
+	node->seq_out[port->type] = sequence_nr;
 	return 0;
 }
 
 
-
-static bool is_late(struct hsr_node *node, enum hsr_dev_idx dev_idx)
+static struct hsr_port *get_late_port(struct hsr_priv *hsr,
+				      struct hsr_node *node)
 {
-	enum hsr_dev_idx other;
+	if (node->time_in_stale[HSR_PT_SLAVE_A])
+		return hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
+	if (node->time_in_stale[HSR_PT_SLAVE_B])
+		return hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
 
-	if (node->time_in_stale[dev_idx])
-		return true;
+	if (time_after(node->time_in[HSR_PT_SLAVE_B],
+		       node->time_in[HSR_PT_SLAVE_A] +
+					msecs_to_jiffies(MAX_SLAVE_DIFF)))
+		return hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
+	if (time_after(node->time_in[HSR_PT_SLAVE_A],
+		       node->time_in[HSR_PT_SLAVE_B] +
+					msecs_to_jiffies(MAX_SLAVE_DIFF)))
+		return hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
 
-	if (dev_idx == HSR_DEV_SLAVE_A)
-		other = HSR_DEV_SLAVE_B;
-	else
-		other = HSR_DEV_SLAVE_A;
-
-	if (node->time_in_stale[other])
-		return false;
-
-	if (time_after(node->time_in[other], node->time_in[dev_idx] +
-		       msecs_to_jiffies(MAX_SLAVE_DIFF)))
-		return true;
-
-	return false;
+	return NULL;
 }
 
 
@@ -370,6 +356,7 @@ void hsr_prune_nodes(unsigned long data)
 {
 	struct hsr_priv *hsr;
 	struct hsr_node *node;
+	struct hsr_port *port;
 	unsigned long timestamp;
 	unsigned long time_a, time_b;
 
@@ -378,35 +365,33 @@ void hsr_prune_nodes(unsigned long data)
 	rcu_read_lock();
 	list_for_each_entry_rcu(node, &hsr->node_db, mac_list) {
 		/* Shorthand */
-		time_a = node->time_in[HSR_DEV_SLAVE_A];
-		time_b = node->time_in[HSR_DEV_SLAVE_B];
+		time_a = node->time_in[HSR_PT_SLAVE_A];
+		time_b = node->time_in[HSR_PT_SLAVE_B];
 
 		/* Check for timestamps old enough to risk wrap-around */
 		if (time_after(jiffies, time_a + MAX_JIFFY_OFFSET/2))
-			node->time_in_stale[HSR_DEV_SLAVE_A] = true;
+			node->time_in_stale[HSR_PT_SLAVE_A] = true;
 		if (time_after(jiffies, time_b + MAX_JIFFY_OFFSET/2))
-			node->time_in_stale[HSR_DEV_SLAVE_B] = true;
+			node->time_in_stale[HSR_PT_SLAVE_B] = true;
 
 		/* Get age of newest frame from node.
 		 * At least one time_in is OK here; nodes get pruned long
 		 * before both time_ins can get stale
 		 */
 		timestamp = time_a;
-		if (node->time_in_stale[HSR_DEV_SLAVE_A] ||
-		    (!node->time_in_stale[HSR_DEV_SLAVE_B] &&
+		if (node->time_in_stale[HSR_PT_SLAVE_A] ||
+		    (!node->time_in_stale[HSR_PT_SLAVE_B] &&
 		    time_after(time_b, time_a)))
 			timestamp = time_b;
 
 		/* Warn of ring error only as long as we get frames at all */
 		if (time_is_after_jiffies(timestamp +
 					msecs_to_jiffies(1.5*MAX_SLAVE_DIFF))) {
-
-			if (is_late(node, HSR_DEV_SLAVE_A))
-				hsr_nl_ringerror(hsr, node->MacAddressA,
-						 HSR_DEV_SLAVE_A);
-			else if (is_late(node, HSR_DEV_SLAVE_B))
-				hsr_nl_ringerror(hsr, node->MacAddressA,
-						 HSR_DEV_SLAVE_B);
+			rcu_read_lock();
+			port = get_late_port(hsr, node);
+			if (port != NULL)
+				hsr_nl_ringerror(hsr, node->MacAddressA, port);
+			rcu_read_unlock();
 		}
 
 		/* Prune old entries */
@@ -455,7 +440,7 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 		      u16 *if2_seq)
 {
 	struct hsr_node *node;
-	struct net_device *slave;
+	struct hsr_port *port;
 	unsigned long tdiff;
 
 
@@ -468,8 +453,8 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 
 	ether_addr_copy(addr_b, node->MacAddressB);
 
-	tdiff = jiffies - node->time_in[HSR_DEV_SLAVE_A];
-	if (node->time_in_stale[HSR_DEV_SLAVE_A])
+	tdiff = jiffies - node->time_in[HSR_PT_SLAVE_A];
+	if (node->time_in_stale[HSR_PT_SLAVE_A])
 		*if1_age = INT_MAX;
 #if HZ <= MSEC_PER_SEC
 	else if (tdiff > msecs_to_jiffies(INT_MAX))
@@ -478,8 +463,8 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 	else
 		*if1_age = jiffies_to_msecs(tdiff);
 
-	tdiff = jiffies - node->time_in[HSR_DEV_SLAVE_B];
-	if (node->time_in_stale[HSR_DEV_SLAVE_B])
+	tdiff = jiffies - node->time_in[HSR_PT_SLAVE_B];
+	if (node->time_in_stale[HSR_PT_SLAVE_B])
 		*if2_age = INT_MAX;
 #if HZ <= MSEC_PER_SEC
 	else if (tdiff > msecs_to_jiffies(INT_MAX))
@@ -489,14 +474,15 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 		*if2_age = jiffies_to_msecs(tdiff);
 
 	/* Present sequence numbers as if they were incoming on interface */
-	*if1_seq = node->seq_out[HSR_DEV_SLAVE_B];
-	*if2_seq = node->seq_out[HSR_DEV_SLAVE_A];
+	*if1_seq = node->seq_out[HSR_PT_SLAVE_B];
+	*if2_seq = node->seq_out[HSR_PT_SLAVE_A];
 
-	slave = hsr->slave[node->AddrB_if];
-	if ((node->AddrB_if != HSR_DEV_NONE) && slave)
-		*addr_b_ifindex = slave->ifindex;
-	else
+	if (node->AddrB_port != HSR_PT_NONE) {
+		port = hsr_port_get_hsr(hsr, node->AddrB_port);
+		*addr_b_ifindex = port->dev->ifindex;
+	} else {
 		*addr_b_ifindex = -1;
+	}
 
 	rcu_read_unlock();
 

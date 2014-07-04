@@ -39,76 +39,25 @@ void unregister_hsr_master(struct hsr_priv *hsr)
 		}
 }
 
-bool is_hsr_slave(struct net_device *dev)
-{
-	struct hsr_priv *hsr_it;
-
-	list_for_each_entry_rcu(hsr_it, &hsr_list, hsr_list) {
-		if (dev == hsr_it->slave[0])
-			return true;
-		if (dev == hsr_it->slave[1])
-			return true;
-	}
-
-	return false;
-}
-
-/* If dev is a HSR slave device, return the virtual master device. Return NULL
- * otherwise.
- */
-struct hsr_priv *get_hsr_master(struct net_device *dev)
-{
-	struct hsr_priv *hsr;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(hsr, &hsr_list, hsr_list)
-		if ((dev == hsr->slave[0]) ||
-		    (dev == hsr->slave[1])) {
-			rcu_read_unlock();
-			return hsr;
-		}
-
-	rcu_read_unlock();
-	return NULL;
-}
-
-/* If dev is a HSR slave device, return the other slave device. Return NULL
- * otherwise.
- */
-struct net_device *get_other_slave(struct hsr_priv *hsr,
-				   struct net_device *dev)
-{
-	if (dev == hsr->slave[0])
-		return hsr->slave[1];
-	if (dev == hsr->slave[1])
-		return hsr->slave[0];
-
-	return NULL;
-}
-
 
 static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *slave, *other_slave;
+	struct net_device *dev;
+	struct hsr_port *port, *master;
 	struct hsr_priv *hsr;
 	int mtu_max;
 	int res;
-	struct net_device *dev;
 
 	dev = netdev_notifier_info_to_dev(ptr);
-
-	hsr = get_hsr_master(dev);
-	if (hsr) {
-		/* dev is a slave device */
-		slave = dev;
-		other_slave = get_other_slave(hsr, slave);
-	} else {
+	port = hsr_port_get_rtnl(dev);
+	if (port == NULL) {
 		if (!is_hsr_master(dev))
-			return NOTIFY_DONE;
+			return NOTIFY_DONE;	/* Not an HSR device */
 		hsr = netdev_priv(dev);
-		slave = hsr->slave[0];
-		other_slave = hsr->slave[1];
+		port = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+	} else {
+		hsr = port->hsr;
 	}
 
 	switch (event) {
@@ -118,48 +67,41 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		hsr_check_carrier_and_operstate(hsr);
 		break;
 	case NETDEV_CHANGEADDR:
-
-		/* This should not happen since there's no ndo_set_mac_address()
-		 * for HSR devices - i.e. not supported.
-		 */
-		if (dev == hsr->dev)
+		if (port->type == HSR_PT_MASTER) {
+			/* This should not happen since there's no
+			 * ndo_set_mac_address() for HSR devices - i.e. not
+			 * supported.
+			 */
 			break;
+		}
 
-		if (dev == hsr->slave[0]) {
-			ether_addr_copy(hsr->dev->dev_addr, dev->dev_addr);
-			call_netdevice_notifiers(NETDEV_CHANGEADDR, hsr->dev);
+		master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+
+		if (port->type == HSR_PT_SLAVE_A) {
+			ether_addr_copy(master->dev->dev_addr, dev->dev_addr);
+			call_netdevice_notifiers(NETDEV_CHANGEADDR, master->dev);
 		}
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */
-		other_slave = hsr->slave[1];
+		port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
 		res = hsr_create_self_node(&hsr->self_node_db,
-					   hsr->dev->dev_addr,
-					   other_slave ?
-						other_slave->dev_addr :
-						hsr->dev->dev_addr);
+					   master->dev->dev_addr,
+					   port ?
+						port->dev->dev_addr :
+						master->dev->dev_addr);
 		if (res)
-			netdev_warn(hsr->dev,
+			netdev_warn(master->dev,
 				    "Could not update HSR node address.\n");
 		break;
 	case NETDEV_CHANGEMTU:
-		if (dev == hsr->dev)
+		if (port->type == HSR_PT_MASTER)
 			break; /* Handled in ndo_change_mtu() */
-		mtu_max = hsr_get_max_mtu(hsr);
-		if (hsr->dev->mtu > mtu_max)
-			dev_set_mtu(hsr->dev, mtu_max);
+		mtu_max = hsr_get_max_mtu(port->hsr);
+		master = hsr_port_get_hsr(port->hsr, HSR_PT_MASTER);
+		master->dev->mtu = mtu_max;
 		break;
 	case NETDEV_UNREGISTER:
-		if (dev == hsr->slave[0]) {
-			hsr->slave[0] = NULL;
-			hsr_del_slave(hsr, 0);
-		}
-		if (dev == hsr->slave[1]) {
-			hsr->slave[1] = NULL;
-			hsr_del_slave(hsr, 1);
-		}
-
-		/* There should really be a way to set a new slave device... */
-
+		hsr_del_port(port);
 		break;
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* HSR works only on Ethernet devices. Refuse slave to change
@@ -171,6 +113,16 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 	return NOTIFY_DONE;
 }
 
+
+struct hsr_port *hsr_port_get_hsr(struct hsr_priv *hsr, enum hsr_port_type pt)
+{
+	struct hsr_port *port;
+
+	hsr_for_each_port(hsr, port)
+		if (port->type == pt)
+			return port;
+	return NULL;
+}
 
 static struct notifier_block hsr_nb = {
 	.notifier_call = hsr_netdev_notify,	/* Slave event notifications */

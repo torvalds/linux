@@ -17,7 +17,7 @@
 #include "hsr_framereg.h"
 
 
-static int check_slave_ok(struct net_device *dev)
+static int hsr_check_dev_ok(struct net_device *dev)
 {
 	/* Don't allow HSR on non-ethernet like devices */
 	if ((dev->flags & IFF_LOOPBACK) || (dev->type != ARPHRD_ETHER) ||
@@ -32,7 +32,7 @@ static int check_slave_ok(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	if (is_hsr_slave(dev)) {
+	if (hsr_port_exists(dev)) {
 		netdev_info(dev, "This device is already a HSR slave.\n");
 		return -EINVAL;
 	}
@@ -116,38 +116,29 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
-	struct net_device *dev = skb->dev;
+	struct hsr_port *port, *other_port, *master;
 	struct hsr_priv *hsr;
-	struct net_device *other_slave;
 	struct hsr_node *node;
 	bool deliver_to_self;
 	struct sk_buff *skb_deliver;
-	enum hsr_dev_idx dev_in_idx, dev_other_idx;
 	bool dup_out;
 	int ret;
 
 	if (eth_hdr(skb)->h_proto != htons(ETH_P_PRP))
 		return RX_HANDLER_PASS;
 
-	hsr = get_hsr_master(dev);
-	if (!hsr) {
-		WARN_ON_ONCE(1);
-		return RX_HANDLER_PASS;
-	}
+	rcu_read_lock(); /* ports & node */
 
-	if (dev == hsr->slave[0]) {
-		dev_in_idx = HSR_DEV_SLAVE_A;
-		dev_other_idx = HSR_DEV_SLAVE_B;
-	} else {
-		dev_in_idx = HSR_DEV_SLAVE_B;
-		dev_other_idx = HSR_DEV_SLAVE_A;
-	}
+	port = hsr_port_get_rcu(skb->dev);
+	hsr = port->hsr;
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
 	node = hsr_find_node(&hsr->self_node_db, skb);
 	if (node) {
 		/* Always kill frames sent by ourselves */
 		kfree_skb(skb);
-		return RX_HANDLER_CONSUMED;
+		ret = RX_HANDLER_CONSUMED;
+		goto finish;
 	}
 
 	/* Is this frame a candidate for local reception? */
@@ -156,23 +147,22 @@ rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 	    (skb->pkt_type == PACKET_MULTICAST) ||
 	    (skb->pkt_type == PACKET_BROADCAST))
 		deliver_to_self = true;
-	else if (ether_addr_equal(eth_hdr(skb)->h_dest, hsr->dev->dev_addr)) {
+	else if (ether_addr_equal(eth_hdr(skb)->h_dest,
+				  master->dev->dev_addr)) {
 		skb->pkt_type = PACKET_HOST;
 		deliver_to_self = true;
 	}
 
-
-	rcu_read_lock(); /* node_db */
 	node = hsr_find_node(&hsr->node_db, skb);
 
 	if (is_supervision_frame(hsr, skb)) {
 		skb_pull(skb, sizeof(struct hsr_sup_tag));
-		node = hsr_merge_node(hsr, node, skb, dev_in_idx);
+		node = hsr_merge_node(node, skb, port);
 		if (!node) {
-			rcu_read_unlock(); /* node_db */
 			kfree_skb(skb);
-			hsr->dev->stats.rx_dropped++;
-			return RX_HANDLER_CONSUMED;
+			master->dev->stats.rx_dropped++;
+			ret = RX_HANDLER_CONSUMED;
+			goto finish;
 		}
 		skb_push(skb, sizeof(struct hsr_sup_tag));
 		deliver_to_self = false;
@@ -182,46 +172,51 @@ rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 		/* Source node unknown; this might be a HSR frame from
 		 * another net (different multicast address). Ignore it.
 		 */
-		rcu_read_unlock(); /* node_db */
 		kfree_skb(skb);
-		return RX_HANDLER_CONSUMED;
+		ret = RX_HANDLER_CONSUMED;
+		goto finish;
 	}
+
+	if (port->type == HSR_PT_SLAVE_A)
+		other_port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
+	else
+		other_port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
 
 	/* Register ALL incoming frames as outgoing through the other interface.
 	 * This allows us to register frames as incoming only if they are valid
 	 * for the receiving interface, without using a specific counter for
 	 * incoming frames.
 	 */
-	dup_out = hsr_register_frame_out(node, dev_other_idx, skb);
+	if (other_port)
+		dup_out = hsr_register_frame_out(node, other_port, skb);
+	else
+		dup_out = 0;
 	if (!dup_out)
-		hsr_register_frame_in(node, dev_in_idx);
+		hsr_register_frame_in(node, port);
 
 	/* Forward this frame? */
-	if (!dup_out && (skb->pkt_type != PACKET_HOST))
-		other_slave = get_other_slave(hsr, dev);
-	else
-		other_slave = NULL;
+	if (dup_out || (skb->pkt_type == PACKET_HOST))
+		other_port = NULL;
 
-	if (hsr_register_frame_out(node, HSR_DEV_MASTER, skb))
+	if (hsr_register_frame_out(node, master, skb))
 		deliver_to_self = false;
 
-	rcu_read_unlock(); /* node_db */
-
-	if (!deliver_to_self && !other_slave) {
+	if (!deliver_to_self && !other_port) {
 		kfree_skb(skb);
 		/* Circulated frame; silently remove it. */
-		return RX_HANDLER_CONSUMED;
+		ret = RX_HANDLER_CONSUMED;
+		goto finish;
 	}
 
 	skb_deliver = skb;
-	if (deliver_to_self && other_slave) {
+	if (deliver_to_self && other_port) {
 		/* skb_clone() is not enough since we will strip the hsr tag
 		 * and do address substitution below
 		 */
 		skb_deliver = pskb_copy(skb, GFP_ATOMIC);
 		if (!skb_deliver) {
 			deliver_to_self = false;
-			hsr->dev->stats.rx_dropped++;
+			master->dev->stats.rx_dropped++;
 		}
 	}
 
@@ -230,7 +225,7 @@ rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 
 		skb_deliver = hsr_pull_tag(skb_deliver);
 		if (!skb_deliver) {
-			hsr->dev->stats.rx_dropped++;
+			master->dev->stats.rx_dropped++;
 			goto forward;
 		}
 #if !defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
@@ -253,82 +248,130 @@ rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 		skb_deliver->data -= HSR_HLEN;
 		skb_deliver->tail -= HSR_HLEN;
 #endif
-		skb_deliver->dev = hsr->dev;
+		skb_deliver->dev = master->dev;
 		hsr_addr_subst_source(hsr, skb_deliver);
 		multicast_frame = (skb_deliver->pkt_type == PACKET_MULTICAST);
 		ret = netif_rx(skb_deliver);
 		if (ret == NET_RX_DROP) {
-			hsr->dev->stats.rx_dropped++;
+			master->dev->stats.rx_dropped++;
 		} else {
-			hsr->dev->stats.rx_packets++;
-			hsr->dev->stats.rx_bytes += skb->len;
+			master->dev->stats.rx_packets++;
+			master->dev->stats.rx_bytes += skb->len;
 			if (multicast_frame)
-				hsr->dev->stats.multicast++;
+				master->dev->stats.multicast++;
 		}
 	}
 
 forward:
-	if (other_slave) {
+	if (other_port) {
 		skb_push(skb, ETH_HLEN);
-		skb->dev = other_slave;
+		skb->dev = other_port->dev;
 		dev_queue_xmit(skb);
 	}
 
-	return RX_HANDLER_CONSUMED;
+	ret = RX_HANDLER_CONSUMED;
+
+finish:
+	rcu_read_unlock();
+	return ret;
 }
 
-int hsr_add_slave(struct hsr_priv *hsr, struct net_device *dev, int idx)
+/* Setup device to be added to the HSR bridge. */
+static int hsr_portdev_setup(struct net_device *dev, struct hsr_port *port)
 {
 	int res;
 
 	dev_hold(dev);
-
-	res = check_slave_ok(dev);
-	if (res)
-		goto fail;
-
 	res = dev_set_promiscuity(dev, 1);
 	if (res)
-		goto fail;
-
-	res = netdev_rx_handler_register(dev, hsr_handle_frame, hsr);
+		goto fail_promiscuity;
+	res = netdev_rx_handler_register(dev, hsr_handle_frame, port);
 	if (res)
 		goto fail_rx_handler;
+	dev_disable_lro(dev);
 
-
-	hsr->slave[idx] = dev;
-
-	/* Set required header length */
-	if (dev->hard_header_len + HSR_HLEN > hsr->dev->hard_header_len)
-		hsr->dev->hard_header_len = dev->hard_header_len + HSR_HLEN;
-
-	dev_set_mtu(hsr->dev, hsr_get_max_mtu(hsr));
+	/* FIXME:
+	 * What does net device "adjacency" mean? Should we do
+	 * res = netdev_master_upper_dev_link(port->dev, port->hsr->dev); ?
+	 */
 
 	return 0;
 
 fail_rx_handler:
 	dev_set_promiscuity(dev, -1);
-
-fail:
+fail_promiscuity:
 	dev_put(dev);
+
 	return res;
 }
 
-void hsr_del_slave(struct hsr_priv *hsr, int idx)
+int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
+		 enum hsr_port_type type)
 {
-	struct net_device *slave;
+	struct hsr_port *port, *master;
+	int res;
 
-	slave = hsr->slave[idx];
-	hsr->slave[idx] = NULL;
-
-	netdev_update_features(hsr->dev);
-	dev_set_mtu(hsr->dev, hsr_get_max_mtu(hsr));
-
-	if (slave) {
-		netdev_rx_handler_unregister(slave);
-		dev_set_promiscuity(slave, -1);
+	if (type != HSR_PT_MASTER) {
+		res = hsr_check_dev_ok(dev);
+		if (res)
+			return res;
 	}
 
+	port = hsr_port_get_hsr(hsr, type);
+	if (port != NULL)
+		return -EBUSY;	/* This port already exists */
+
+	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	if (port == NULL)
+		return -ENOMEM;
+
+	if (type != HSR_PT_MASTER) {
+		res = hsr_portdev_setup(dev, port);
+		if (res)
+			goto fail_dev_setup;
+	}
+
+	port->hsr = hsr;
+	port->dev = dev;
+	port->type = type;
+
+	list_add_tail_rcu(&port->port_list, &hsr->ports);
 	synchronize_rcu();
-	dev_put(slave);
+
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+
+	/* Set required header length */
+	if (dev->hard_header_len + HSR_HLEN > master->dev->hard_header_len)
+		master->dev->hard_header_len = dev->hard_header_len + HSR_HLEN;
+
+	dev_set_mtu(master->dev, hsr_get_max_mtu(hsr));
+
+	return 0;
+
+fail_dev_setup:
+	kfree(port);
+	return res;
+}
+
+void hsr_del_port(struct hsr_port *port)
+{
+	struct hsr_priv *hsr;
+	struct hsr_port *master;
+
+	hsr = port->hsr;
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+	list_del_rcu(&port->port_list);
+
+	if (port != master) {
+		dev_set_mtu(master->dev, hsr_get_max_mtu(hsr));
+		netdev_rx_handler_unregister(port->dev);
+		dev_set_promiscuity(port->dev, -1);
+	}
+
+	/* FIXME?
+	 * netdev_upper_dev_unlink(port->dev, port->hsr->dev);
+	 */
+
+	synchronize_rcu();
+	dev_put(port->dev);
 }

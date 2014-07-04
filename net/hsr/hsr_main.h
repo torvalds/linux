@@ -136,20 +136,26 @@ struct hsr_ethhdr_sp {
 } __packed;
 
 
-enum hsr_dev_idx {
-	HSR_DEV_NONE = -1,
-	HSR_DEV_SLAVE_A = 0,
-	HSR_DEV_SLAVE_B,
-	HSR_DEV_MASTER,
+enum hsr_port_type {
+	HSR_PT_NONE = 0,	/* Must be 0, used by framereg */
+	HSR_PT_SLAVE_A,
+	HSR_PT_SLAVE_B,
+	HSR_PT_INTERLINK,
+	HSR_PT_MASTER,
+	HSR_PT_PORTS,	/* This must be the last item in the enum */
 };
-#define HSR_MAX_SLAVE	(HSR_DEV_SLAVE_B + 1)
-#define HSR_MAX_DEV	(HSR_DEV_MASTER + 1)
+
+struct hsr_port {
+	struct list_head	port_list;
+	struct net_device	*dev;
+	struct hsr_priv		*hsr;
+	enum hsr_port_type	type;
+};
 
 struct hsr_priv {
 	struct list_head	hsr_list;	/* List of hsr devices */
 	struct rcu_head		rcu_head;
-	struct net_device	*dev;
-	struct net_device	*slave[HSR_MAX_SLAVE];
+	struct list_head	ports;
 	struct list_head	node_db;	/* Other HSR nodes */
 	struct list_head	self_node_db;	/* MACs of slaves */
 	struct timer_list	announce_timer;	/* Supervision frame dispatch */
@@ -160,11 +166,6 @@ struct hsr_priv {
 	unsigned char		sup_multicast_addr[ETH_ALEN];
 };
 
-void register_hsr_master(struct hsr_priv *hsr);
-void unregister_hsr_master(struct hsr_priv *hsr);
-bool is_hsr_slave(struct net_device *dev);
-struct hsr_priv *get_hsr_master(struct net_device *dev);
-struct net_device *get_other_slave(struct hsr_priv *hsr,
-				   struct net_device *dev);
+struct hsr_port *hsr_port_get_hsr(struct hsr_priv *hsr, enum hsr_port_type pt);
 
 #endif /*  __HSR_PRIVATE_H */

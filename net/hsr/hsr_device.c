@@ -45,29 +45,38 @@ static void __hsr_set_operstate(struct net_device *dev, int transition)
 	}
 }
 
-static void hsr_set_operstate(struct net_device *hsr_dev, bool has_carrier)
+static void hsr_set_operstate(struct hsr_port *master, bool has_carrier)
 {
-	if (!is_admin_up(hsr_dev)) {
-		__hsr_set_operstate(hsr_dev, IF_OPER_DOWN);
+	if (!is_admin_up(master->dev)) {
+		__hsr_set_operstate(master->dev, IF_OPER_DOWN);
 		return;
 	}
 
 	if (has_carrier)
-		__hsr_set_operstate(hsr_dev, IF_OPER_UP);
+		__hsr_set_operstate(master->dev, IF_OPER_UP);
 	else
-		__hsr_set_operstate(hsr_dev, IF_OPER_LOWERLAYERDOWN);
+		__hsr_set_operstate(master->dev, IF_OPER_LOWERLAYERDOWN);
 }
 
-static bool hsr_check_carrier(struct hsr_priv *hsr)
+static bool hsr_check_carrier(struct hsr_port *master)
 {
+	struct hsr_port *port;
 	bool has_carrier;
 
-	has_carrier = (is_slave_up(hsr->slave[0]) || is_slave_up(hsr->slave[1]));
+	has_carrier = false;
+
+	rcu_read_lock();
+	hsr_for_each_port(master->hsr, port)
+		if ((port->type != HSR_PT_MASTER) && is_slave_up(port->dev)) {
+			has_carrier = true;
+			break;
+		}
+	rcu_read_unlock();
 
 	if (has_carrier)
-		netif_carrier_on(hsr->dev);
+		netif_carrier_on(master->dev);
 	else
-		netif_carrier_off(hsr->dev);
+		netif_carrier_off(master->dev);
 
 	return has_carrier;
 }
@@ -95,31 +104,30 @@ static void hsr_check_announce(struct net_device *hsr_dev,
 
 void hsr_check_carrier_and_operstate(struct hsr_priv *hsr)
 {
+	struct hsr_port *master;
 	unsigned char old_operstate;
 	bool has_carrier;
 
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 	/* netif_stacked_transfer_operstate() cannot be used here since
 	 * it doesn't set IF_OPER_LOWERLAYERDOWN (?)
 	 */
-	old_operstate = hsr->dev->operstate;
-	has_carrier = hsr_check_carrier(hsr);
-	hsr_set_operstate(hsr->dev, has_carrier);
-	hsr_check_announce(hsr->dev, old_operstate);
+	old_operstate = master->dev->operstate;
+	has_carrier = hsr_check_carrier(master);
+	hsr_set_operstate(master, has_carrier);
+	hsr_check_announce(master->dev, old_operstate);
 }
 
 int hsr_get_max_mtu(struct hsr_priv *hsr)
 {
 	unsigned int mtu_max;
-	struct net_device *slave;
+	struct hsr_port *port;
 
 	mtu_max = ETH_DATA_LEN;
 	rcu_read_lock();
-	slave = hsr->slave[0];
-	if (slave)
-		mtu_max = min(slave->mtu, mtu_max);
-	slave = hsr->slave[1];
-	if (slave)
-		mtu_max = min(slave->mtu, mtu_max);
+	hsr_for_each_port(hsr, port)
+		if (port->type != HSR_PT_MASTER)
+			mtu_max = min(port->dev->mtu, mtu_max);
 	rcu_read_unlock();
 
 	if (mtu_max < HSR_HLEN)
@@ -131,11 +139,13 @@ int hsr_get_max_mtu(struct hsr_priv *hsr)
 static int hsr_dev_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct hsr_priv *hsr;
+	struct hsr_port *master;
 
 	hsr = netdev_priv(dev);
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
 	if (new_mtu > hsr_get_max_mtu(hsr)) {
-		netdev_info(hsr->dev, "A HSR master's MTU cannot be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
+		netdev_info(master->dev, "A HSR master's MTU cannot be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
 			    HSR_HLEN);
 		return -EINVAL;
 	}
@@ -148,35 +158,42 @@ static int hsr_dev_change_mtu(struct net_device *dev, int new_mtu)
 static int hsr_dev_open(struct net_device *dev)
 {
 	struct hsr_priv *hsr;
-	struct net_device *slave;
-	int i;
-	char *slave_name;
+	struct hsr_port *port;
+	char designation;
 
 	hsr = netdev_priv(dev);
+	designation = '\0';
 
-	for (i = 0; i < HSR_MAX_SLAVE; i++) {
-		slave = hsr->slave[i];
-		if (slave)
-			slave_name = slave->name;
-		else
-			slave_name = "null";
-
-		if (!is_slave_up(slave))
-			netdev_warn(dev, "Slave %c (%s) is not up; please bring it up to get a working HSR network\n",
-				    'A' + i, slave_name);
+	rcu_read_lock();
+	hsr_for_each_port(hsr, port) {
+		if (port->type == HSR_PT_MASTER)
+			continue;
+		switch (port->type) {
+		case HSR_PT_SLAVE_A:
+			designation = 'A';
+			break;
+		case HSR_PT_SLAVE_B:
+			designation = 'B';
+			break;
+		default:
+			designation = '?';
+		}
+		if (!is_slave_up(port->dev))
+			netdev_warn(dev, "Slave %c (%s) is not up; please bring it up to get a fully working HSR network\n",
+				    designation, port->dev->name);
 	}
+	rcu_read_unlock();
+
+	if (designation == '\0')
+		netdev_warn(dev, "No slave devices configured\n");
 
 	return 0;
 }
 
+
 static int hsr_dev_close(struct net_device *dev)
 {
-	/* Nothing to do here. We could try to restore the state of the slaves
-	 * to what they were before being changed by the hsr master dev's state,
-	 * but they might have been changed manually in the mean time too, so
-	 * taking them up or down here might be confusing and is probably not a
-	 * good idea.
-	 */
+	/* Nothing to do here. */
 	return 0;
 }
 
@@ -220,18 +237,24 @@ static void hsr_fill_tag(struct hsr_ethhdr *hsr_ethhdr, struct hsr_priv *hsr)
 	hsr_ethhdr->ethhdr.h_proto = htons(ETH_P_PRP);
 }
 
-static int slave_xmit(struct sk_buff *skb, struct hsr_priv *hsr,
-		      enum hsr_dev_idx dev_idx)
+static int slave_xmit(struct hsr_priv *hsr, struct sk_buff *skb,
+		      enum hsr_port_type type)
 {
+	struct hsr_port *port;
 	struct hsr_ethhdr *hsr_ethhdr;
 
 	hsr_ethhdr = (struct hsr_ethhdr *) skb->data;
 
-	skb->dev = hsr->slave[dev_idx];
-	if (unlikely(!skb->dev))
+	rcu_read_lock();
+	port = hsr_port_get_hsr(hsr, type);
+	if (!port) {
+		rcu_read_unlock();
 		return NET_XMIT_DROP;
+	}
+	skb->dev = port->dev;
 
-	hsr_addr_subst_dest(hsr, &hsr_ethhdr->ethhdr, dev_idx);
+	hsr_addr_subst_dest(port->hsr, &hsr_ethhdr->ethhdr, port);
+	rcu_read_unlock();
 
 	/* Address substitution (IEC62439-3 pp 26, 50): replace mac
 	 * address of outgoing frame with that of the outgoing slave's.
@@ -241,10 +264,10 @@ static int slave_xmit(struct sk_buff *skb, struct hsr_priv *hsr,
 	return dev_queue_xmit(skb);
 }
 
-
 static int hsr_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hsr_priv *hsr;
+	struct hsr_port *master;
 	struct hsr_ethhdr *hsr_ethhdr;
 	struct sk_buff *skb2;
 	int res1, res2;
@@ -259,16 +282,23 @@ static int hsr_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	skb2 = pskb_copy(skb, GFP_ATOMIC);
-	res1 = slave_xmit(skb, hsr, HSR_DEV_SLAVE_A);
-	res2 = slave_xmit(skb2, hsr, HSR_DEV_SLAVE_B);
 
+	res1 = slave_xmit(hsr, skb, HSR_PT_SLAVE_A);
+	if (skb2)
+		res2 = slave_xmit(hsr, skb2, HSR_PT_SLAVE_B);
+	else
+		res2 = NET_XMIT_DROP;
+
+	rcu_read_lock();
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 	if (likely(res1 == NET_XMIT_SUCCESS || res1 == NET_XMIT_CN ||
 		   res2 == NET_XMIT_SUCCESS || res2 == NET_XMIT_CN)) {
-		hsr->dev->stats.tx_packets++;
-		hsr->dev->stats.tx_bytes += skb->len;
+		master->dev->stats.tx_packets++;
+		master->dev->stats.tx_bytes += skb->len;
 	} else {
-		hsr->dev->stats.tx_dropped++;
+		master->dev->stats.tx_dropped++;
 	}
+	rcu_read_unlock();
 
 	return NETDEV_TX_OK;
 }
@@ -322,31 +352,35 @@ static int hsr_pad(int size)
 static void send_hsr_supervision_frame(struct net_device *hsr_dev, u8 type)
 {
 	struct hsr_priv *hsr;
+	struct hsr_port *master;
 	struct sk_buff *skb;
 	int hlen, tlen;
 	struct hsr_sup_tag *hsr_stag;
 	struct hsr_sup_payload *hsr_sp;
 	unsigned long irqflags;
+	int res;
 
-	hlen = LL_RESERVED_SPACE(hsr_dev);
-	tlen = hsr_dev->needed_tailroom;
+	hsr = netdev_priv(hsr_dev);
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+
+	hlen = LL_RESERVED_SPACE(master->dev);
+	tlen = master->dev->needed_tailroom;
 	skb = alloc_skb(hsr_pad(sizeof(struct hsr_sup_payload)) + hlen + tlen,
 			GFP_ATOMIC);
 
 	if (skb == NULL)
 		return;
 
-	hsr = netdev_priv(hsr_dev);
-
 	skb_reserve(skb, hlen);
 
-	skb->dev = hsr_dev;
+	skb->dev = master->dev;
 	skb->protocol = htons(ETH_P_PRP);
 	skb->priority = TC_PRIO_CONTROL;
 
-	if (dev_hard_header(skb, skb->dev, ETH_P_PRP,
-			    hsr->sup_multicast_addr,
-			    skb->dev->dev_addr, skb->len) < 0)
+	res = dev_hard_header(skb, skb->dev, ETH_P_PRP,
+			      hsr->sup_multicast_addr,
+			      skb->dev->dev_addr, skb->len);
+	if (res <= 0)
 		goto out;
 
 	skb_pull(skb, sizeof(struct ethhdr));
@@ -367,12 +401,13 @@ static void send_hsr_supervision_frame(struct net_device *hsr_dev, u8 type)
 
 	/* Payload: MacAddressA */
 	hsr_sp = (typeof(hsr_sp)) skb_put(skb, sizeof(*hsr_sp));
-	ether_addr_copy(hsr_sp->MacAddressA, hsr_dev->dev_addr);
+	ether_addr_copy(hsr_sp->MacAddressA, master->dev->dev_addr);
 
 	dev_queue_xmit(skb);
 	return;
 
 out:
+	WARN_ON_ONCE("HSR: Could not send supervision frame\n");
 	kfree_skb(skb);
 }
 
@@ -382,14 +417,16 @@ out:
 static void hsr_announce(unsigned long data)
 {
 	struct hsr_priv *hsr;
+	struct hsr_port *master;
 
 	hsr = (struct hsr_priv *) data;
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
 	if (hsr->announce_count < 3) {
-		send_hsr_supervision_frame(hsr->dev, HSR_TLV_ANNOUNCE);
+		send_hsr_supervision_frame(master->dev, HSR_TLV_ANNOUNCE);
 		hsr->announce_count++;
 	} else {
-		send_hsr_supervision_frame(hsr->dev, HSR_TLV_LIFE_CHECK);
+		send_hsr_supervision_frame(master->dev, HSR_TLV_LIFE_CHECK);
 	}
 
 	if (hsr->announce_count < 3)
@@ -399,26 +436,8 @@ static void hsr_announce(unsigned long data)
 		hsr->announce_timer.expires = jiffies +
 				msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
 
-	if (is_admin_up(hsr->dev))
+	if (is_admin_up(master->dev))
 		add_timer(&hsr->announce_timer);
-}
-
-
-static void restore_slaves(struct net_device *hsr_dev)
-{
-	struct hsr_priv *hsr;
-
-	hsr = netdev_priv(hsr_dev);
-	hsr_del_slave(hsr, 1);
-	hsr_del_slave(hsr, 0);
-}
-
-static void reclaim_hsr_dev(struct rcu_head *rh)
-{
-	struct hsr_priv *hsr;
-
-	hsr = container_of(rh, struct hsr_priv, rcu_head);
-	free_netdev(hsr->dev);
 }
 
 
@@ -428,14 +447,17 @@ static void reclaim_hsr_dev(struct rcu_head *rh)
 static void hsr_dev_destroy(struct net_device *hsr_dev)
 {
 	struct hsr_priv *hsr;
+	struct hsr_port *port;
 
 	hsr = netdev_priv(hsr_dev);
+	hsr_for_each_port(hsr, port)
+		hsr_del_port(port);
 
 	del_timer_sync(&hsr->prune_timer);
 	del_timer_sync(&hsr->announce_timer);
-	unregister_hsr_master(hsr);    /* calls list_del_rcu on hsr */
-	restore_slaves(hsr_dev);
-	call_rcu(&hsr->rcu_head, reclaim_hsr_dev);   /* reclaim hsr */
+
+	synchronize_rcu();
+	free_netdev(hsr_dev);
 }
 
 static const struct net_device_ops hsr_device_ops = {
@@ -461,11 +483,10 @@ void hsr_dev_setup(struct net_device *dev)
 
 /* Return true if dev is a HSR master; return false otherwise.
  */
-bool is_hsr_master(struct net_device *dev)
+inline bool is_hsr_master(struct net_device *dev)
 {
 	return (dev->netdev_ops->ndo_start_xmit == hsr_dev_xmit);
 }
-
 
 /* Default multicast address for HSR Supervision frames */
 static const unsigned char def_multicast_addr[ETH_ALEN] __aligned(2) = {
@@ -476,12 +497,11 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 		     unsigned char multicast_spec)
 {
 	struct hsr_priv *hsr;
+	struct hsr_port *port;
 	int res;
 
 	hsr = netdev_priv(hsr_dev);
-	hsr->dev = hsr_dev;
-	hsr->slave[0] = NULL;
-	hsr->slave[1] = NULL;
+	INIT_LIST_HEAD(&hsr->ports);
 	INIT_LIST_HEAD(&hsr->node_db);
 	INIT_LIST_HEAD(&hsr->self_node_db);
 
@@ -516,36 +536,42 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;
 
-/* FIXME: should I modify the value of these?
- *
- * - hsr_dev->flags - i.e.
- *			IFF_MASTER/SLAVE?
- * - hsr_dev->priv_flags - i.e.
- *			IFF_EBRIDGE?
- *			IFF_TX_SKB_SHARING?
- *			IFF_HSR_MASTER/SLAVE?
- */
+	/* FIXME: should I modify the value of these?
+	 *
+	 * - hsr_dev->flags - i.e.
+	 *			IFF_MASTER/SLAVE?
+	 * - hsr_dev->priv_flags - i.e.
+	 *			IFF_EBRIDGE?
+	 *			IFF_TX_SKB_SHARING?
+	 *			IFF_HSR_MASTER/SLAVE?
+	 */
 
 	/* Make sure the 1st call to netif_carrier_on() gets through */
 	netif_carrier_off(hsr_dev);
 
-	res = register_netdevice(hsr_dev);
+	res = hsr_add_port(hsr, hsr_dev, HSR_PT_MASTER);
 	if (res)
 		return res;
 
-	res = hsr_add_slave(hsr, slave[0], 0);
+	res = register_netdevice(hsr_dev);
 	if (res)
-		return res;
-	res = hsr_add_slave(hsr, slave[1], 1);
-	if (res) {
-		hsr_del_slave(hsr, 0);
-		return res;
-	}
+		goto fail;
+
+	res = hsr_add_port(hsr, slave[0], HSR_PT_SLAVE_A);
+	if (res)
+		goto fail;
+	res = hsr_add_port(hsr, slave[1], HSR_PT_SLAVE_B);
+	if (res)
+		goto fail;
 
 	hsr->prune_timer.expires = jiffies + msecs_to_jiffies(PRUNE_PERIOD);
 	add_timer(&hsr->prune_timer);
 
-	register_hsr_master(hsr);
-
 	return 0;
+
+fail:
+	hsr_for_each_port(hsr, port)
+		hsr_del_port(port);
+
+	return res;
 }
