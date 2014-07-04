@@ -20,10 +20,8 @@ static struct crypto_shash *tfm;
 int __init btrfs_hash_init(void)
 {
 	tfm = crypto_alloc_shash("crc32c", 0, 0);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(tfm);
 }
 
 void btrfs_hash_exit(void)
