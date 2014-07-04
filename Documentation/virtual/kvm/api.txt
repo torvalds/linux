@@ -512,7 +512,7 @@ struct kvm_cpuid {
 4.21 KVM_SET_SIGNAL_MASK
 
 Capability: basic
-Architectures: x86
+Architectures: all
 Type: vcpu ioctl
 Parameters: struct kvm_signal_mask (in)
 Returns: 0 on success, -1 on error
