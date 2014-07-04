@@ -700,9 +700,8 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 	cpu = all_cpu_data[cpunum];
 
-	intel_pstate_get_cpu_pstates(cpu);
-
 	cpu->cpu = cpunum;
+	intel_pstate_get_cpu_pstates(cpu);
 
 	init_timer_deferrable(&cpu->timer);
 	cpu->timer.function = intel_pstate_timer_func;
