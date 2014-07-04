@@ -297,6 +297,15 @@ struct kvm_regs {
 	__u64 rip, rflags;
 };
 
+/* mips */
+struct kvm_regs {
+	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
+	__u64 gpr[32];
+	__u64 hi;
+	__u64 lo;
+	__u64 pc;
+};
+
 
 4.12 KVM_SET_REGS
 
@@ -378,7 +387,7 @@ struct kvm_translation {
 4.16 KVM_INTERRUPT
 
 Capability: basic
-Architectures: x86, ppc
+Architectures: x86, ppc, mips
 Type: vcpu ioctl
 Parameters: struct kvm_interrupt (in)
 Returns: 0 on success, -1 on error
@@ -422,6 +431,11 @@ c) KVM_INTERRUPT_SET_LEVEL
 
 Note that any value for 'irq' other than the ones stated above is invalid
 and incurs unexpected behavior.
+
+MIPS:
+
+Queues an external interrupt to be injected into the virtual CPU. A negative
+interrupt number dequeues the interrupt.
 
 
 4.17 KVM_DEBUG_GUEST
@@ -1890,6 +1904,35 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TM_VSCR           | 32
   PPC   | KVM_REG_PPC_TM_DSCR           | 64
   PPC   | KVM_REG_PPC_TM_TAR            | 64
+        |                               |
+  MIPS  | KVM_REG_MIPS_R0               | 64
+          ...
+  MIPS  | KVM_REG_MIPS_R31              | 64
+  MIPS  | KVM_REG_MIPS_HI               | 64
+  MIPS  | KVM_REG_MIPS_LO               | 64
+  MIPS  | KVM_REG_MIPS_PC               | 64
+  MIPS  | KVM_REG_MIPS_CP0_INDEX        | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONTEXT      | 64
+  MIPS  | KVM_REG_MIPS_CP0_USERLOCAL    | 64
+  MIPS  | KVM_REG_MIPS_CP0_PAGEMASK     | 32
+  MIPS  | KVM_REG_MIPS_CP0_WIRED        | 32
+  MIPS  | KVM_REG_MIPS_CP0_HWRENA       | 32
+  MIPS  | KVM_REG_MIPS_CP0_BADVADDR     | 64
+  MIPS  | KVM_REG_MIPS_CP0_COUNT        | 32
+  MIPS  | KVM_REG_MIPS_CP0_ENTRYHI      | 64
+  MIPS  | KVM_REG_MIPS_CP0_COMPARE      | 32
+  MIPS  | KVM_REG_MIPS_CP0_STATUS       | 32
+  MIPS  | KVM_REG_MIPS_CP0_CAUSE        | 32
+  MIPS  | KVM_REG_MIPS_CP0_EPC          | 64
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG       | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG1      | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG2      | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG3      | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG7      | 32
+  MIPS  | KVM_REG_MIPS_CP0_ERROREPC     | 64
+  MIPS  | KVM_REG_MIPS_COUNT_CTL        | 64
+  MIPS  | KVM_REG_MIPS_COUNT_RESUME     | 64
+  MIPS  | KVM_REG_MIPS_COUNT_HZ         | 64
 
 ARM registers are mapped using the lower 32 bits.  The upper 16 of that
 is the register group type, or coprocessor number:
@@ -1927,6 +1970,22 @@ arm64 CCSIDR registers are demultiplexed by CSSELR value:
 
 arm64 system registers have the following id bit patterns:
   0x6030 0000 0013 <op0:2> <op1:3> <crn:4> <crm:4> <op2:3>
+
+
+MIPS registers are mapped using the lower 32 bits.  The upper 16 of that is
+the register group type:
+
+MIPS core registers (see above) have the following id bit patterns:
+  0x7030 0000 0000 <reg:16>
+
+MIPS CP0 registers (see KVM_REG_MIPS_CP0_* above) have the following id bit
+patterns depending on whether they're 32-bit or 64-bit registers:
+  0x7020 0000 0001 00 <reg:5> <sel:3>   (32-bit)
+  0x7030 0000 0001 00 <reg:5> <sel:3>   (64-bit)
+
+MIPS KVM control registers (see above) have the following id bit patterns:
+  0x7030 0000 0002 <reg:16>
+
 
 4.69 KVM_GET_ONE_REG
 
@@ -2415,7 +2474,7 @@ in VCPU matching underlying host.
 4.84 KVM_GET_REG_LIST
 
 Capability: basic
-Architectures: arm, arm64
+Architectures: arm, arm64, mips
 Type: vcpu ioctl
 Parameters: struct kvm_reg_list (in/out)
 Returns: 0 on success; -1 on error
