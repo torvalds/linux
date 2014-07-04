@@ -1386,6 +1386,9 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 /* proAptiv */
 #define IS_BOTH_COUNTERS_PROAPTIV_EVENT(b)				\
 	((b) == 0 || (b) == 1)
+/* P5600 */
+#define IS_BOTH_COUNTERS_P5600_EVENT(b)					\
+	((b) == 0 || (b) == 1)
 
 /* 1004K */
 #define IS_BOTH_COUNTERS_1004K_EVENT(b)					\
@@ -1484,6 +1487,19 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 		else
 			raw_event.cntr_mask =
 				raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
+#ifdef CONFIG_MIPS_MT_SMP
+		raw_event.range = P;
+#endif
+		break;
+	case CPU_P5600:
+		/* 8-bit event numbers */
+		raw_id = config & 0x1ff;
+		base_id = raw_id & 0xff;
+		if (IS_BOTH_COUNTERS_P5600_EVENT(base_id))
+			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
+		else
+			raw_event.cntr_mask =
+				raw_id > 255 ? CNTR_ODD : CNTR_EVEN;
 #ifdef CONFIG_MIPS_MT_SMP
 		raw_event.range = P;
 #endif
@@ -1635,6 +1651,11 @@ init_hw_perf_events(void)
 		break;
 	case CPU_PROAPTIV:
 		mipspmu.name = "mips/proAptiv";
+		mipspmu.general_event_map = &mipsxxcore_event_map2;
+		mipspmu.cache_event_map = &mipsxxcore_cache_map2;
+		break;
+	case CPU_P5600:
+		mipspmu.name = "mips/P5600";
 		mipspmu.general_event_map = &mipsxxcore_event_map2;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map2;
 		break;
