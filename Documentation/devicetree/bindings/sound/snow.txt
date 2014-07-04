@@ -8,11 +8,15 @@ Required properties:
 - samsung,i2s-controller: The phandle of the Samsung I2S controller
 - samsung,audio-codec: The phandle of the audio codec
 
+Optional:
+- samsung,model: The name of the sound-card
+
 Example:
 
 sound {
 		compatible = "google,snow-audio-max98095";
 
+		samsung,model = "Snow-I2S-MAX98095";
 		samsung,i2s-controller = <&i2s0>;
 		samsung,audio-codec = <&max98095>;
 };
