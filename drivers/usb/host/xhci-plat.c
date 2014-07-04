@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/usb/xhci_pdriver.h>
 
 #include "xhci.h"
 #include "xhci-mvebu.h"
@@ -97,6 +98,8 @@ static const struct hc_driver xhci_plat_xhci_driver = {
 
 static int xhci_plat_probe(struct platform_device *pdev)
 {
+	struct device_node	*node = pdev->dev.of_node;
+	struct usb_xhci_pdata	*pdata = dev_get_platdata(&pdev->dev);
 	const struct hc_driver	*driver;
 	struct xhci_hcd		*xhci;
 	struct resource         *res;
@@ -185,6 +188,9 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		goto dealloc_usb2_hcd;
 	}
 
+	if ((node && of_property_read_bool(node, "usb3-lpm-capable")) ||
+			(pdata && pdata->usb3_lpm_capable))
+		xhci->quirks |= XHCI_LPM_SUPPORT;
 	/*
 	 * Set the xHCI pointer before xhci_plat_setup() (aka hcd_driver.reset)
 	 * is called by usb_add_hcd().
