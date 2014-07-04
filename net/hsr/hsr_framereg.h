@@ -32,7 +32,7 @@ void hsr_register_frame_in(struct hsr_node *node, enum hsr_dev_idx dev_idx);
 int hsr_register_frame_out(struct hsr_node *node, enum hsr_dev_idx dev_idx,
 			   struct sk_buff *skb);
 
-void hsr_prune_nodes(struct hsr_priv *hsr);
+void hsr_prune_nodes(unsigned long data);
 
 int hsr_create_self_node(struct list_head *self_node_db,
 			 unsigned char addr_a[ETH_ALEN],

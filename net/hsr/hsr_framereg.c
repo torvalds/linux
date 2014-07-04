@@ -366,11 +366,14 @@ static bool is_late(struct hsr_node *node, enum hsr_dev_idx dev_idx)
 /* Remove stale sequence_nr records. Called by timer every
  * HSR_LIFE_CHECK_INTERVAL (two seconds or so).
  */
-void hsr_prune_nodes(struct hsr_priv *hsr)
+void hsr_prune_nodes(unsigned long data)
 {
+	struct hsr_priv *hsr;
 	struct hsr_node *node;
 	unsigned long timestamp;
 	unsigned long time_a, time_b;
+
+	hsr = (struct hsr_priv *) data;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(node, &hsr->node_db, mac_list) {

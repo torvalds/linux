@@ -153,6 +153,7 @@ struct hsr_priv {
 	struct list_head	node_db;	/* Other HSR nodes */
 	struct list_head	self_node_db;	/* MACs of slaves */
 	struct timer_list	announce_timer;	/* Supervision frame dispatch */
+	struct timer_list	prune_timer;
 	int announce_count;
 	u16 sequence_nr;
 	spinlock_t seqnr_lock;			/* locking for sequence_nr */

@@ -175,22 +175,6 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 }
 
 
-static struct timer_list prune_timer;
-
-static void prune_nodes_all(unsigned long data)
-{
-	struct hsr_priv *hsr;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(hsr, &hsr_list, hsr_list)
-		hsr_prune_nodes(hsr);
-	rcu_read_unlock();
-
-	prune_timer.expires = jiffies + msecs_to_jiffies(PRUNE_PERIOD);
-	add_timer(&prune_timer);
-}
-
-
 static struct notifier_block hsr_nb = {
 	.notifier_call = hsr_netdev_notify,	/* Slave event notifications */
 };
@@ -202,14 +186,7 @@ static int __init hsr_init(void)
 
 	BUILD_BUG_ON(sizeof(struct hsr_tag) != HSR_HLEN);
 
-	init_timer(&prune_timer);
-	prune_timer.function = prune_nodes_all;
-	prune_timer.data = 0;
-	prune_timer.expires = jiffies + msecs_to_jiffies(PRUNE_PERIOD);
-	add_timer(&prune_timer);
-
 	register_netdevice_notifier(&hsr_nb);
-
 	res = hsr_netlink_init();
 
 	return res;
@@ -218,7 +195,6 @@ static int __init hsr_init(void)
 static void __exit hsr_exit(void)
 {
 	unregister_netdevice_notifier(&hsr_nb);
-	del_timer_sync(&prune_timer);
 	hsr_netlink_exit();
 }
 

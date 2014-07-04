@@ -429,7 +429,8 @@ static void hsr_dev_destroy(struct net_device *hsr_dev)
 
 	hsr = netdev_priv(hsr_dev);
 
-	del_timer(&hsr->announce_timer);
+	del_timer_sync(&hsr->prune_timer);
+	del_timer_sync(&hsr->announce_timer);
 	unregister_hsr_master(hsr);    /* calls list_del_rcu on hsr */
 	restore_slaves(hsr_dev);
 	call_rcu(&hsr->rcu_head, reclaim_hsr_dev);   /* reclaim hsr */
@@ -523,6 +524,10 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	hsr->announce_timer.function = hsr_announce;
 	hsr->announce_timer.data = (unsigned long) hsr;
 
+	init_timer(&hsr->prune_timer);
+	hsr->prune_timer.function = hsr_prune_nodes;
+	hsr->prune_timer.data = (unsigned long) hsr;
+
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;
 
@@ -595,6 +600,9 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	res = register_netdevice(hsr_dev);
 	if (res)
 		goto fail;
+
+	hsr->prune_timer.expires = jiffies + msecs_to_jiffies(PRUNE_PERIOD);
+	add_timer(&hsr->prune_timer);
 
 	register_hsr_master(hsr);
 
