@@ -863,4 +863,7 @@ static inline int of_changeset_update_property(struct of_changeset *ocs,
 }
 #endif
 
+/* CONFIG_OF_RESOLVE api */
+extern int of_resolve_phandles(struct device_node *tree);
+
 #endif /* _LINUX_OF_H */
