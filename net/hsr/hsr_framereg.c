@@ -35,9 +35,46 @@ struct hsr_node {
 	struct rcu_head		rcu_head;
 };
 
+
 /*	TODO: use hash lists for mac addresses (linux/jhash.h)?    */
 
 
+/* seq_nr_after(a, b) - return true if a is after (higher in sequence than) b,
+ * false otherwise.
+ */
+static bool seq_nr_after(u16 a, u16 b)
+{
+	/* Remove inconsistency where
+	 * seq_nr_after(a, b) == seq_nr_before(a, b)
+	 */
+	if ((int) b - a == 32768)
+		return false;
+
+	return (((s16) (b - a)) < 0);
+}
+#define seq_nr_before(a, b)		seq_nr_after((b), (a))
+#define seq_nr_after_or_eq(a, b)	(!seq_nr_before((a), (b)))
+#define seq_nr_before_or_eq(a, b)	(!seq_nr_after((a), (b)))
+
+
+bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr)
+{
+	struct hsr_node *node;
+
+	node = list_first_or_null_rcu(&hsr->self_node_db, struct hsr_node,
+				      mac_list);
+	if (!node) {
+		WARN_ONCE(1, "HSR: No self node\n");
+		return false;
+	}
+
+	if (ether_addr_equal(addr, node->MacAddressA))
+		return true;
+	if (ether_addr_equal(addr, node->MacAddressB))
+		return true;
+
+	return false;
+}
 
 /* Search for mac entry. Caller must hold rcu read lock.
  */
@@ -48,45 +85,6 @@ static struct hsr_node *find_node_by_AddrA(struct list_head *node_db,
 
 	list_for_each_entry_rcu(node, node_db, mac_list) {
 		if (ether_addr_equal(node->MacAddressA, addr))
-			return node;
-	}
-
-	return NULL;
-}
-
-
-/* Search for mac entry. Caller must hold rcu read lock.
- */
-static struct hsr_node *find_node_by_AddrB(struct list_head *node_db,
-					   const unsigned char addr[ETH_ALEN])
-{
-	struct hsr_node *node;
-
-	list_for_each_entry_rcu(node, node_db, mac_list) {
-		if (ether_addr_equal(node->MacAddressB, addr))
-			return node;
-	}
-
-	return NULL;
-}
-
-
-/* Search for mac entry. Caller must hold rcu read lock.
- */
-struct hsr_node *hsr_find_node(struct list_head *node_db, struct sk_buff *skb)
-{
-	struct hsr_node *node;
-	struct ethhdr *ethhdr;
-
-	if (!skb_mac_header_was_set(skb))
-		return NULL;
-
-	ethhdr = (struct ethhdr *) skb_mac_header(skb);
-
-	list_for_each_entry_rcu(node, node_db, mac_list) {
-		if (ether_addr_equal(node->MacAddressA, ethhdr->h_source))
-			return node;
-		if (ether_addr_equal(node->MacAddressB, ethhdr->h_source))
 			return node;
 	}
 
@@ -127,90 +125,22 @@ int hsr_create_self_node(struct list_head *self_node_db,
 }
 
 
-/* Add/merge node to the database of nodes. 'skb' must contain an HSR
- * supervision frame.
- * - If the supervision header's MacAddressA field is not yet in the database,
- * this frame is from an hitherto unknown node - add it to the database.
- * - If the sender's MAC address is not the same as its MacAddressA address,
- * the node is using PICS_SUBS (address substitution). Record the sender's
- * address as the node's MacAddressB.
- *
- * This function needs to work even if the sender node has changed one of its
- * slaves' MAC addresses. In this case, there are four different cases described
- * by (Addr-changed, received-from) pairs as follows. Note that changing the
- * SlaveA address is equal to changing the node's own address:
- *
- * - (AddrB, SlaveB): The new AddrB will be recorded by PICS_SUBS code since
- *		      node == NULL.
- * - (AddrB, SlaveA): Will work as usual (the AddrB change won't be detected
- *		      from this frame).
- *
- * - (AddrA, SlaveB): The old node will be found. We need to detect this and
- *		      remove the node.
- * - (AddrA, SlaveA): A new node will be registered (non-PICS_SUBS at first).
- *		      The old one will be pruned after HSR_NODE_FORGET_TIME.
- *
- * We also need to detect if the sender's SlaveA and SlaveB cables have been
- * swapped.
+/* Allocate an hsr_node and add it to node_db. 'addr' is the node's AddressA;
+ * seq_out is used to initialize filtering of outgoing duplicate frames
+ * originating from the newly added node.
  */
-struct hsr_node *hsr_merge_node(struct hsr_node *node, struct sk_buff *skb,
-				struct hsr_port *port)
+struct hsr_node *hsr_add_node(struct list_head *node_db, unsigned char addr[],
+			      u16 seq_out)
 {
-	struct hsr_priv *hsr;
-	struct hsr_sup_payload *hsr_sp;
-	struct hsr_ethhdr_sp *hsr_ethsup;
-	int i;
+	struct hsr_node *node;
 	unsigned long now;
-
-	hsr_ethsup = (struct hsr_ethhdr_sp *) skb_mac_header(skb);
-	hsr_sp = (struct hsr_sup_payload *) skb->data;
-	hsr = port->hsr;
-
-	if (node && !ether_addr_equal(node->MacAddressA, hsr_sp->MacAddressA)) {
-		/* Node has changed its AddrA, frame was received from SlaveB */
-		list_del_rcu(&node->mac_list);
-		kfree_rcu(node, rcu_head);
-		node = NULL;
-	}
-
-	if (node && (port->type == node->AddrB_port) &&
-	    !ether_addr_equal(node->MacAddressB, hsr_ethsup->ethhdr.h_source)) {
-		/* Cables have been swapped */
-		list_del_rcu(&node->mac_list);
-		kfree_rcu(node, rcu_head);
-		node = NULL;
-	}
-
-	if (node && (port->type != node->AddrB_port) &&
-	    (node->AddrB_port != HSR_PT_NONE) &&
-	    !ether_addr_equal(node->MacAddressA, hsr_ethsup->ethhdr.h_source)) {
-		/* Cables have been swapped */
-		list_del_rcu(&node->mac_list);
-		kfree_rcu(node, rcu_head);
-		node = NULL;
-	}
-
-	if (node)
-		return node;
-
-	node = find_node_by_AddrA(&hsr->node_db, hsr_sp->MacAddressA);
-	if (node) {
-		/* Node is known, but frame was received from an unknown
-		 * address. Node is PICS_SUBS capable; merge its AddrB.
-		 */
-		ether_addr_copy(node->MacAddressB, hsr_ethsup->ethhdr.h_source);
-		node->AddrB_port = port->type;
-		return node;
-	}
+	int i;
 
 	node = kzalloc(sizeof(*node), GFP_ATOMIC);
 	if (!node)
 		return NULL;
 
-	ether_addr_copy(node->MacAddressA, hsr_sp->MacAddressA);
-	ether_addr_copy(node->MacAddressB, hsr_ethsup->ethhdr.h_source);
-	if (!ether_addr_equal(hsr_sp->MacAddressA, hsr_ethsup->ethhdr.h_source))
-		node->AddrB_port = port->type;
+	ether_addr_copy(node->MacAddressA, addr);
 
 	/* We are only interested in time diffs here, so use current jiffies
 	 * as initialization. (0 could trigger an spurious ring error warning).
@@ -219,41 +149,120 @@ struct hsr_node *hsr_merge_node(struct hsr_node *node, struct sk_buff *skb,
 	for (i = 0; i < HSR_PT_PORTS; i++)
 		node->time_in[i] = now;
 	for (i = 0; i < HSR_PT_PORTS; i++)
-		node->seq_out[i] = ntohs(hsr_ethsup->hsr_sup.sequence_nr) - 1;
+		node->seq_out[i] = seq_out;
 
-	list_add_tail_rcu(&node->mac_list, &hsr->node_db);
+	list_add_tail_rcu(&node->mac_list, node_db);
 
 	return node;
+}
+
+/* Get the hsr_node from which 'skb' was sent.
+ */
+struct hsr_node *hsr_get_node(struct list_head *node_db, struct sk_buff *skb,
+			      bool is_sup)
+{
+	struct hsr_node *node;
+	struct ethhdr *ethhdr;
+	u16 seq_out;
+
+	if (!skb_mac_header_was_set(skb))
+		return NULL;
+
+	ethhdr = (struct ethhdr *) skb_mac_header(skb);
+
+	list_for_each_entry_rcu(node, node_db, mac_list) {
+		if (ether_addr_equal(node->MacAddressA, ethhdr->h_source))
+			return node;
+		if (ether_addr_equal(node->MacAddressB, ethhdr->h_source))
+			return node;
+	}
+
+	if (!is_sup)
+		return NULL; /* Only supervision frame may create node entry */
+
+	if (ethhdr->h_proto == htons(ETH_P_PRP)) {
+		/* Use the existing sequence_nr from the tag as starting point
+		 * for filtering duplicate frames.
+		 */
+		seq_out = hsr_get_skb_sequence_nr(skb) - 1;
+	} else {
+		WARN_ONCE(1, "%s: Non-HSR frame\n", __func__);
+		seq_out = 0;
+	}
+
+	return hsr_add_node(node_db, ethhdr->h_source, seq_out);
+}
+
+/* Use the Supervision frame's info about an eventual MacAddressB for merging
+ * nodes that has previously had their MacAddressB registered as a separate
+ * node.
+ */
+void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
+			  struct hsr_port *port_rcv)
+{
+	struct hsr_node *node_real;
+	struct hsr_sup_payload *hsr_sp;
+	struct list_head *node_db;
+	int i;
+
+	skb_pull(skb, sizeof(struct hsr_ethhdr_sp));
+	hsr_sp = (struct hsr_sup_payload *) skb->data;
+
+	if (ether_addr_equal(eth_hdr(skb)->h_source, hsr_sp->MacAddressA))
+		/* Not sent from MacAddressB of a PICS_SUBS capable node */
+		goto done;
+
+	/* Merge node_curr (registered on MacAddressB) into node_real */
+	node_db = &port_rcv->hsr->node_db;
+	node_real = find_node_by_AddrA(node_db, hsr_sp->MacAddressA);
+	if (!node_real)
+		/* No frame received from AddrA of this node yet */
+		node_real = hsr_add_node(node_db, hsr_sp->MacAddressA,
+					 HSR_SEQNR_START - 1);
+	if (!node_real)
+		goto done; /* No mem */
+	if (node_real == node_curr)
+		/* Node has already been merged */
+		goto done;
+
+	ether_addr_copy(node_real->MacAddressB, eth_hdr(skb)->h_source);
+	for (i = 0; i < HSR_PT_PORTS; i++) {
+		if (!node_curr->time_in_stale[i] &&
+		    time_after(node_curr->time_in[i], node_real->time_in[i])) {
+			node_real->time_in[i] = node_curr->time_in[i];
+			node_real->time_in_stale[i] = node_curr->time_in_stale[i];
+		}
+		if (seq_nr_after(node_curr->seq_out[i], node_real->seq_out[i]))
+			node_real->seq_out[i] = node_curr->seq_out[i];
+	}
+	node_real->AddrB_port = port_rcv->type;
+
+	list_del_rcu(&node_curr->mac_list);
+	kfree_rcu(node_curr, rcu_head);
+
+done:
+	skb_push(skb, sizeof(struct hsr_ethhdr_sp));
 }
 
 
 /* 'skb' is a frame meant for this host, that is to be passed to upper layers.
  *
- * If the frame was sent by a node's B interface, replace the sender
+ * If the frame was sent by a node's B interface, replace the source
  * address with that node's "official" address (MacAddressA) so that upper
  * layers recognize where it came from.
  */
-void hsr_addr_subst_source(struct hsr_priv *hsr, struct sk_buff *skb)
+void hsr_addr_subst_source(struct hsr_node *node, struct sk_buff *skb)
 {
-	struct ethhdr *ethhdr;
-	struct hsr_node *node;
-
 	if (!skb_mac_header_was_set(skb)) {
 		WARN_ONCE(1, "%s: Mac header not set\n", __func__);
 		return;
 	}
-	ethhdr = (struct ethhdr *) skb_mac_header(skb);
 
-	rcu_read_lock();
-	node = find_node_by_AddrB(&hsr->node_db, ethhdr->h_source);
-	if (node)
-		ether_addr_copy(ethhdr->h_source, node->MacAddressA);
-	rcu_read_unlock();
+	memcpy(&eth_hdr(skb)->h_source, node->MacAddressA, ETH_ALEN);
 }
 
-
 /* 'skb' is a frame meant for another host.
- * 'hsr_dev_idx' is the HSR index of the outgoing device
+ * 'port' is the outgoing interface
  *
  * Substitute the target (dest) MAC address if necessary, so the it matches the
  * recipient interface MAC address, regardless of whether that is the
@@ -261,43 +270,48 @@ void hsr_addr_subst_source(struct hsr_priv *hsr, struct sk_buff *skb)
  * This is needed to keep the packets flowing through switches that learn on
  * which "side" the different interfaces are.
  */
-void hsr_addr_subst_dest(struct hsr_priv *hsr, struct ethhdr *ethhdr,
+void hsr_addr_subst_dest(struct hsr_node *node_src, struct sk_buff *skb,
 			 struct hsr_port *port)
 {
-	struct hsr_node *node;
+	struct hsr_node *node_dst;
 
-	rcu_read_lock();
-	node = find_node_by_AddrA(&hsr->node_db, ethhdr->h_dest);
-	if (node && (node->AddrB_port == port->type))
-		ether_addr_copy(ethhdr->h_dest, node->MacAddressB);
-	rcu_read_unlock();
+	if (!skb_mac_header_was_set(skb)) {
+		WARN_ONCE(1, "%s: Mac header not set\n", __func__);
+		return;
+	}
+
+	if (!is_unicast_ether_addr(eth_hdr(skb)->h_dest))
+		return;
+
+	node_dst = find_node_by_AddrA(&port->hsr->node_db, eth_hdr(skb)->h_dest);
+	if (!node_dst) {
+		WARN_ONCE(1, "%s: Unknown node\n", __func__);
+		return;
+	}
+	if (port->type != node_dst->AddrB_port)
+		return;
+	if (!node_dst->MacAddressB) {
+		WARN_ONCE(1, "%s: No MacAddressB\n", __func__);
+		return;
+	}
+
+	ether_addr_copy(eth_hdr(skb)->h_dest, node_dst->MacAddressB);
 }
 
 
-/* seq_nr_after(a, b) - return true if a is after (higher in sequence than) b,
- * false otherwise.
- */
-static bool seq_nr_after(u16 a, u16 b)
+void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port,
+			   u16 sequence_nr)
 {
-	/* Remove inconsistency where
-	 * seq_nr_after(a, b) == seq_nr_before(a, b)
+	/* Don't register incoming frames without a valid sequence number. This
+	 * ensures entries of restarted nodes gets pruned so that they can
+	 * re-register and resume communications.
 	 */
-	if ((int) b - a == 32768)
-		return false;
+	if (seq_nr_before(sequence_nr, node->seq_out[port->type]))
+		return;
 
-	return (((s16) (b - a)) < 0);
-}
-#define seq_nr_before(a, b)		seq_nr_after((b), (a))
-#define seq_nr_after_or_eq(a, b)	(!seq_nr_before((a), (b)))
-#define seq_nr_before_or_eq(a, b)	(!seq_nr_after((a), (b)))
-
-
-void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port)
-{
 	node->time_in[port->type] = jiffies;
 	node->time_in_stale[port->type] = false;
 }
-
 
 /* 'skb' is a HSR Ethernet frame (with a HSR tag inserted), with a valid
  * ethhdr->h_source address and skb->mac_header set.
@@ -307,19 +321,9 @@ void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port)
  *	 0 otherwise, or
  *	 negative error code on error
  */
-int hsr_register_frame_out(struct hsr_node *node, struct hsr_port *port,
-			   struct sk_buff *skb)
+int hsr_register_frame_out(struct hsr_port *port, struct hsr_node *node,
+			   u16 sequence_nr)
 {
-	struct hsr_ethhdr *hsr_ethhdr;
-	u16 sequence_nr;
-
-	if (!skb_mac_header_was_set(skb)) {
-		WARN_ONCE(1, "%s: Mac header not set\n", __func__);
-		return -EINVAL;
-	}
-	hsr_ethhdr = (struct hsr_ethhdr *) skb_mac_header(skb);
-
-	sequence_nr = ntohs(hsr_ethhdr->hsr_tag.sequence_nr);
 	if (seq_nr_before_or_eq(sequence_nr, node->seq_out[port->type]))
 		return 1;
 

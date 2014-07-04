@@ -358,7 +358,7 @@ fail:
 	return res;
 }
 
-/* Get a list of MacAddressA of all nodes known to this node (other than self).
+/* Get a list of MacAddressA of all nodes known to this node (including self).
  */
 static int hsr_get_node_list(struct sk_buff *skb_in, struct genl_info *info)
 {

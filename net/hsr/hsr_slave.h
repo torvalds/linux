@@ -20,17 +20,7 @@
 int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
 		 enum hsr_port_type pt);
 void hsr_del_port(struct hsr_port *port);
-rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb);
-
-
-#define hsr_for_each_port(hsr, port) \
-	list_for_each_entry_rcu((port), &(hsr)->ports, port_list)
-
-
-static inline bool hsr_port_exists(const struct net_device *dev)
-{
-	return dev->rx_handler == hsr_handle_frame;
-}
+bool hsr_port_exists(const struct net_device *dev);
 
 static inline struct hsr_port *hsr_port_get_rtnl(const struct net_device *dev)
 {

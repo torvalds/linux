@@ -20,26 +20,6 @@
 #include "hsr_slave.h"
 
 
-/* List of all registered virtual HSR devices */
-static LIST_HEAD(hsr_list);
-
-void register_hsr_master(struct hsr_priv *hsr)
-{
-	list_add_tail_rcu(&hsr->hsr_list, &hsr_list);
-}
-
-void unregister_hsr_master(struct hsr_priv *hsr)
-{
-	struct hsr_priv *hsr_it;
-
-	list_for_each_entry(hsr_it, &hsr_list, hsr_list)
-		if (hsr_it == hsr) {
-			list_del_rcu(&hsr_it->hsr_list);
-			return;
-		}
-}
-
-
 static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			     void *ptr)
 {

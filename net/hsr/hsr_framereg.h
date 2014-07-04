@@ -16,19 +16,22 @@
 
 struct hsr_node;
 
-struct hsr_node *hsr_find_node(struct list_head *node_db, struct sk_buff *skb);
+struct hsr_node *hsr_add_node(struct list_head *node_db, unsigned char addr[],
+			      u16 seq_out);
+struct hsr_node *hsr_get_node(struct list_head *node_db, struct sk_buff *skb,
+			      bool is_sup);
+void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
+			  struct hsr_port *port);
+bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr);
 
-struct hsr_node *hsr_merge_node(struct hsr_node *node, struct sk_buff *skb,
-				struct hsr_port *port);
-
-void hsr_addr_subst_source(struct hsr_priv *hsr, struct sk_buff *skb);
-void hsr_addr_subst_dest(struct hsr_priv *hsr, struct ethhdr *ethhdr,
+void hsr_addr_subst_source(struct hsr_node *node, struct sk_buff *skb);
+void hsr_addr_subst_dest(struct hsr_node *node_src, struct sk_buff *skb,
 			 struct hsr_port *port);
 
-void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port);
-
-int hsr_register_frame_out(struct hsr_node *node, struct hsr_port *port,
-			   struct sk_buff *skb);
+void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port,
+			   u16 sequence_nr);
+int hsr_register_frame_out(struct hsr_port *port, struct hsr_node *node,
+			   u16 sequence_nr);
 
 void hsr_prune_nodes(unsigned long data);
 

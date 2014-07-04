@@ -29,6 +29,7 @@
  * each node differ before we notify of communication problem?
  */
 #define MAX_SLAVE_DIFF			 3000 /* ms */
+#define HSR_SEQNR_START			(USHRT_MAX - 1024)
 
 
 /* How often shall we check for broken ring and remove node entries older than
@@ -153,10 +154,9 @@ struct hsr_port {
 };
 
 struct hsr_priv {
-	struct list_head	hsr_list;	/* List of hsr devices */
 	struct rcu_head		rcu_head;
 	struct list_head	ports;
-	struct list_head	node_db;	/* Other HSR nodes */
+	struct list_head	node_db;	/* Known HSR nodes */
 	struct list_head	self_node_db;	/* MACs of slaves */
 	struct timer_list	announce_timer;	/* Supervision frame dispatch */
 	struct timer_list	prune_timer;
@@ -166,6 +166,18 @@ struct hsr_priv {
 	unsigned char		sup_multicast_addr[ETH_ALEN];
 };
 
+#define hsr_for_each_port(hsr, port) \
+	list_for_each_entry_rcu((port), &(hsr)->ports, port_list)
+
 struct hsr_port *hsr_port_get_hsr(struct hsr_priv *hsr, enum hsr_port_type pt);
+
+/* Caller must ensure skb is a valid HSR frame */
+static inline u16 hsr_get_skb_sequence_nr(struct sk_buff *skb)
+{
+	struct hsr_ethhdr *hsr_ethhdr;
+
+	hsr_ethhdr = (struct hsr_ethhdr *) skb_mac_header(skb);
+	return ntohs(hsr_ethhdr->hsr_tag.sequence_nr);
+}
 
 #endif /*  __HSR_PRIVATE_H */
