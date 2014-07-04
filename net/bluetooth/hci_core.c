@@ -3525,6 +3525,9 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 	if (!params)
 		return -EIO;
 
+	if (params->auto_connect == auto_connect)
+		return 0;
+
 	if (params->auto_connect == HCI_AUTO_CONN_REPORT &&
 	    auto_connect != HCI_AUTO_CONN_REPORT)
 		list_del_init(&params->action);
