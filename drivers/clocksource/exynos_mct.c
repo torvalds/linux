@@ -162,7 +162,17 @@ static void exynos4_mct_frc_start(void)
 	exynos4_mct_write(reg, EXYNOS4_MCT_G_TCON);
 }
 
-static cycle_t notrace _exynos4_frc_read(void)
+/**
+ * exynos4_read_count_64 - Read all 64-bits of the global counter
+ *
+ * This will read all 64-bits of the global counter taking care to make sure
+ * that the upper and lower half match.  Note that reading the MCT can be quite
+ * slow (hundreds of nanoseconds) so you should use the 32-bit (lower half
+ * only) version when possible.
+ *
+ * Returns the number of cycles in the global counter.
+ */
+static u64 exynos4_read_count_64(void)
 {
 	unsigned int lo, hi;
 	u32 hi2 = readl_relaxed(reg_base + EXYNOS4_MCT_G_CNT_U);
@@ -176,9 +186,22 @@ static cycle_t notrace _exynos4_frc_read(void)
 	return ((cycle_t)hi << 32) | lo;
 }
 
+/**
+ * exynos4_read_count_32 - Read the lower 32-bits of the global counter
+ *
+ * This will read just the lower 32-bits of the global counter.  This is marked
+ * as notrace so it can be used by the scheduler clock.
+ *
+ * Returns the number of cycles in the global counter (lower 32 bits).
+ */
+static u32 notrace exynos4_read_count_32(void)
+{
+	return readl_relaxed(reg_base + EXYNOS4_MCT_G_CNT_L);
+}
+
 static cycle_t exynos4_frc_read(struct clocksource *cs)
 {
-	return _exynos4_frc_read();
+	return exynos4_read_count_32();
 }
 
 static void exynos4_frc_resume(struct clocksource *cs)
@@ -190,21 +213,23 @@ struct clocksource mct_frc = {
 	.name		= "mct-frc",
 	.rating		= 400,
 	.read		= exynos4_frc_read,
-	.mask		= CLOCKSOURCE_MASK(64),
+	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	.resume		= exynos4_frc_resume,
 };
 
 static u64 notrace exynos4_read_sched_clock(void)
 {
-	return _exynos4_frc_read();
+	return exynos4_read_count_32();
 }
 
 static struct delay_timer exynos4_delay_timer;
 
 static cycles_t exynos4_read_current_timer(void)
 {
-	return _exynos4_frc_read();
+	BUILD_BUG_ON_MSG(sizeof(cycles_t) != sizeof(u32),
+			 "cycles_t needs to move to 32-bit for ARM64 usage");
+	return exynos4_read_count_32();
 }
 
 static void __init exynos4_clocksource_init(void)
@@ -218,7 +243,7 @@ static void __init exynos4_clocksource_init(void)
 	if (clocksource_register_hz(&mct_frc, clk_rate))
 		panic("%s: can't register clocksource\n", mct_frc.name);
 
-	sched_clock_register(exynos4_read_sched_clock, 64, clk_rate);
+	sched_clock_register(exynos4_read_sched_clock, 32, clk_rate);
 }
 
 static void exynos4_mct_comp0_stop(void)
@@ -245,7 +270,7 @@ static void exynos4_mct_comp0_start(enum clock_event_mode mode,
 		exynos4_mct_write(cycles, EXYNOS4_MCT_G_COMP0_ADD_INCR);
 	}
 
-	comp_cycle = exynos4_frc_read(&mct_frc) + cycles;
+	comp_cycle = exynos4_read_count_64() + cycles;
 	exynos4_mct_write((u32)comp_cycle, EXYNOS4_MCT_G_COMP0_L);
 	exynos4_mct_write((u32)(comp_cycle >> 32), EXYNOS4_MCT_G_COMP0_U);
 

@@ -127,6 +127,7 @@ config CLKSRC_METAG_GENERIC
 
 config CLKSRC_EXYNOS_MCT
 	def_bool y if ARCH_EXYNOS
+	depends on !ARM64
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
