@@ -293,6 +293,56 @@ static void __init of_selftest_property_copy(void)
 #endif
 }
 
+static void __init of_selftest_changeset(void)
+{
+#ifdef CONFIG_OF_DYNAMIC
+	struct property *ppadd, padd = { .name = "prop-add", .length = 0, .value = "" };
+	struct property *ppupdate, pupdate = { .name = "prop-update", .length = 5, .value = "abcd" };
+	struct property *ppremove;
+	struct device_node *n1, *n2, *n21, *nremove, *parent;
+	struct of_changeset chgset;
+
+	of_changeset_init(&chgset);
+	n1 = __of_node_alloc("/testcase-data/changeset/n1", GFP_KERNEL);
+	selftest(n1, "testcase setup failure\n");
+	n2 = __of_node_alloc("/testcase-data/changeset/n2", GFP_KERNEL);
+	selftest(n2, "testcase setup failure\n");
+	n21 = __of_node_alloc("/testcase-data/changeset/n2/n21", GFP_KERNEL);
+	selftest(n21, "testcase setup failure %p\n", n21);
+	nremove = of_find_node_by_path("/testcase-data/changeset/node-remove");
+	selftest(nremove, "testcase setup failure\n");
+	ppadd = __of_prop_dup(&padd, GFP_KERNEL);
+	selftest(ppadd, "testcase setup failure\n");
+	ppupdate = __of_prop_dup(&pupdate, GFP_KERNEL);
+	selftest(ppupdate, "testcase setup failure\n");
+	parent = nremove->parent;
+	n1->parent = parent;
+	n2->parent = parent;
+	n21->parent = n2;
+	n2->child = n21;
+	ppremove = of_find_property(parent, "prop-remove", NULL);
+	selftest(ppremove, "failed to find removal prop");
+
+	of_changeset_init(&chgset);
+	selftest(!of_changeset_attach_node(&chgset, n1), "fail attach n1\n");
+	selftest(!of_changeset_attach_node(&chgset, n2), "fail attach n2\n");
+	selftest(!of_changeset_detach_node(&chgset, nremove), "fail remove node\n");
+	selftest(!of_changeset_attach_node(&chgset, n21), "fail attach n21\n");
+	selftest(!of_changeset_add_property(&chgset, parent, ppadd), "fail add prop\n");
+	selftest(!of_changeset_update_property(&chgset, parent, ppupdate), "fail update prop\n");
+	selftest(!of_changeset_remove_property(&chgset, parent, ppremove), "fail remove prop\n");
+	mutex_lock(&of_mutex);
+	selftest(!of_changeset_apply(&chgset), "apply failed\n");
+	mutex_unlock(&of_mutex);
+
+	mutex_lock(&of_mutex);
+	selftest(!of_changeset_revert(&chgset), "revert failed\n");
+	mutex_unlock(&of_mutex);
+
+	of_changeset_destroy(&chgset);
+#endif
+}
+
 static void __init of_selftest_parse_interrupts(void)
 {
 	struct device_node *np;
@@ -561,6 +611,7 @@ static int __init of_selftest(void)
 	of_selftest_parse_phandle_with_args();
 	of_selftest_property_match_string();
 	of_selftest_property_copy();
+	of_selftest_changeset();
 	of_selftest_parse_interrupts();
 	of_selftest_parse_interrupts_extended();
 	of_selftest_match_node();
