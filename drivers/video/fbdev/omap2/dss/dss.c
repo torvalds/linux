@@ -37,6 +37,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
+#include <linux/regulator/consumer.h>
 
 #include <video/omapdss.h>
 
@@ -64,9 +65,6 @@ struct dss_reg {
 
 #define REG_FLD_MOD(idx, val, start, end) \
 	dss_write_reg(idx, FLD_MOD(dss_read_reg(idx), val, start, end))
-
-static int dss_runtime_get(void);
-static void dss_runtime_put(void);
 
 struct dss_features {
 	u8 fck_div_max;
@@ -99,6 +97,9 @@ static struct {
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
 
 	const struct dss_features *feat;
+
+	struct dss_pll	*video1_pll;
+	struct dss_pll	*video2_pll;
 } dss;
 
 static const char * const dss_generic_clk_source_names[] = {
@@ -760,7 +761,7 @@ static void dss_put_clocks(void)
 		clk_put(dss.parent_clk);
 }
 
-static int dss_runtime_get(void)
+int dss_runtime_get(void)
 {
 	int r;
 
@@ -771,7 +772,7 @@ static int dss_runtime_get(void)
 	return r < 0 ? r : 0;
 }
 
-static void dss_runtime_put(void)
+void dss_runtime_put(void)
 {
 	int r;
 
@@ -1023,6 +1024,7 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	u32 rev;
 	int r;
+	struct regulator *pll_regulator;
 
 	dss.pdev = pdev;
 
@@ -1094,6 +1096,40 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 		}
 	}
 
+	pll_regulator = devm_regulator_get(&pdev->dev, "vdda_video");
+	if (IS_ERR(pll_regulator)) {
+		r = PTR_ERR(pll_regulator);
+
+		switch (r) {
+		case -ENOENT:
+			pll_regulator = NULL;
+			break;
+
+		case -EPROBE_DEFER:
+			return -EPROBE_DEFER;
+
+		default:
+			DSSERR("can't get DPLL VDDA regulator\n");
+			return r;
+		}
+	}
+
+	if (of_property_match_string(np, "reg-names", "pll1") >= 0) {
+		dss.video1_pll = dss_video_pll_init(pdev, 0, pll_regulator);
+		if (IS_ERR(dss.video1_pll)) {
+			r = PTR_ERR(dss.video1_pll);
+			goto err_pll_init;
+		}
+	}
+
+	if (of_property_match_string(np, "reg-names", "pll2") >= 0) {
+		dss.video2_pll = dss_video_pll_init(pdev, 1, pll_regulator);
+		if (IS_ERR(dss.video2_pll)) {
+			r = PTR_ERR(dss.video2_pll);
+			goto err_pll_init;
+		}
+	}
+
 	rev = dss_read_reg(DSS_REVISION);
 	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
 			FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
@@ -1104,6 +1140,12 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_pll_init:
+	if (dss.video1_pll)
+		dss_video_pll_uninit(dss.video1_pll);
+
+	if (dss.video2_pll)
+		dss_video_pll_uninit(dss.video2_pll);
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
 err_setup_clocks:
@@ -1113,6 +1155,12 @@ err_setup_clocks:
 
 static int __exit omap_dsshw_remove(struct platform_device *pdev)
 {
+	if (dss.video1_pll)
+		dss_video_pll_uninit(dss.video1_pll);
+
+	if (dss.video2_pll)
+		dss_video_pll_uninit(dss.video2_pll);
+
 	dss_uninit_ports(pdev);
 
 	pm_runtime_disable(&pdev->dev);
