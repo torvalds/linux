@@ -40,10 +40,9 @@ static struct device_node *of_stdout;
 static struct kset *of_kset;
 
 /*
- * Used to protect the of_aliases; but also overloaded to hold off addition of
- * nodes to sysfs
+ * Used to protect the of_aliases, to hold off addition of nodes to sysfs
  */
-DEFINE_MUTEX(of_aliases_mutex);
+DEFINE_MUTEX(of_mutex);
 
 /* use when traversing tree through the allnext, child, sibling,
  * or parent members of struct device_node.
@@ -255,13 +254,13 @@ int of_node_add(struct device_node *np)
 	 * Grab the mutex here so that in a race condition between of_init() and
 	 * of_node_add(), node addition will still be consistent.
 	 */
-	mutex_lock(&of_aliases_mutex);
+	mutex_lock(&of_mutex);
 	if (of_kset)
 		rc = __of_node_add(np);
 	else
 		/* This scenario may be perfectly valid, but report it anyway */
 		pr_info("of_node_add(%s) before of_init()\n", np->full_name);
-	mutex_unlock(&of_aliases_mutex);
+	mutex_unlock(&of_mutex);
 	return rc;
 }
 
@@ -289,15 +288,15 @@ static int __init of_init(void)
 	struct device_node *np;
 
 	/* Create the kset, and register existing nodes */
-	mutex_lock(&of_aliases_mutex);
+	mutex_lock(&of_mutex);
 	of_kset = kset_create_and_add("devicetree", NULL, firmware_kobj);
 	if (!of_kset) {
-		mutex_unlock(&of_aliases_mutex);
+		mutex_unlock(&of_mutex);
 		return -ENOMEM;
 	}
 	for_each_of_allnodes(np)
 		__of_node_add(np);
-	mutex_unlock(&of_aliases_mutex);
+	mutex_unlock(&of_mutex);
 
 	/* Symlink in /proc as required by userspace ABI */
 	if (of_allnodes)
@@ -2122,7 +2121,7 @@ int of_alias_get_id(struct device_node *np, const char *stem)
 	struct alias_prop *app;
 	int id = -ENODEV;
 
-	mutex_lock(&of_aliases_mutex);
+	mutex_lock(&of_mutex);
 	list_for_each_entry(app, &aliases_lookup, link) {
 		if (strcmp(app->stem, stem) != 0)
 			continue;
@@ -2132,7 +2131,7 @@ int of_alias_get_id(struct device_node *np, const char *stem)
 			break;
 		}
 	}
-	mutex_unlock(&of_aliases_mutex);
+	mutex_unlock(&of_mutex);
 
 	return id;
 }

@@ -31,6 +31,6 @@ struct alias_prop {
 	char stem[0];
 };
 
-extern struct mutex of_aliases_mutex;
+extern struct mutex of_mutex;
 extern struct list_head aliases_lookup;
 #endif /* _LINUX_OF_PRIVATE_H */
