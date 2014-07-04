@@ -1814,6 +1814,8 @@ static void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	}
 	WARN_ON(pll->on);
 
+	intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
+
 	DRM_DEBUG_KMS("enabling %s\n", pll->name);
 	pll->enable(dev_priv, pll);
 	pll->on = true;
@@ -1850,6 +1852,8 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	DRM_DEBUG_KMS("disabling %s\n", pll->name);
 	pll->disable(dev_priv, pll);
 	pll->on = false;
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
 }
 
 static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
@@ -11302,6 +11306,9 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	uint32_t val;
 
+	if (!intel_display_power_enabled(dev_priv, POWER_DOMAIN_PLLS))
+		return false;
+
 	val = I915_READ(PCH_DPLL(pll->id));
 	hw_state->dpll = val;
 	hw_state->fp0 = I915_READ(PCH_FP0(pll->id));
@@ -12867,6 +12874,9 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		DRM_DEBUG_KMS("%s hw state readout: refcount %i, on %i\n",
 			      pll->name, pll->refcount, pll->on);
+
+		if (pll->refcount)
+			intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,

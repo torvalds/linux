@@ -2043,6 +2043,8 @@ static const char *power_domain_str(enum intel_display_power_domain domain)
 		return "VGA";
 	case POWER_DOMAIN_AUDIO:
 		return "AUDIO";
+	case POWER_DOMAIN_PLLS:
+		return "PLLS";
 	case POWER_DOMAIN_INIT:
 		return "INIT";
 	default:
