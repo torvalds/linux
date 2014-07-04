@@ -588,8 +588,8 @@ static int dib8000_set_adc_state(struct dib8000_state *state, enum dibx000_adc_s
 		break;
 
 	case DIBX000_ADC_OFF:	// leave the VBG voltage on
-		reg_907 |= (1 << 14) | (1 << 13) | (1 << 12);
-		reg_908 |= (1 << 5) | (1 << 4) | (1 << 3) | (1 << 2);
+		reg_907 = (1 << 13) | (1 << 12);
+		reg_908 = (1 << 6) | (1 << 5) | (1 << 4) | (1 << 3) | (1 << 1);
 		break;
 
 	case DIBX000_VBG_ENABLE:
