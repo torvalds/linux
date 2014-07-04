@@ -1509,7 +1509,8 @@ static int arm_smmu_domain_has_cap(struct iommu_domain *domain,
 				   unsigned long cap)
 {
 	struct arm_smmu_domain *smmu_domain = domain->priv;
-	u32 features = smmu_domain->smmu->features;
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	u32 features = smmu ? smmu->features : 0;
 
 	switch (cap) {
 	case IOMMU_CAP_CACHE_COHERENCY:
