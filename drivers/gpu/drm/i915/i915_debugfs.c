@@ -2390,6 +2390,7 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 		seq_printf(m, " dpll_md: 0x%08x\n", pll->hw_state.dpll_md);
 		seq_printf(m, " fp0:     0x%08x\n", pll->hw_state.fp0);
 		seq_printf(m, " fp1:     0x%08x\n", pll->hw_state.fp1);
+		seq_printf(m, " wrpll:   0x%08x\n", pll->hw_state.wrpll);
 	}
 	drm_modeset_unlock_all(dev);
 

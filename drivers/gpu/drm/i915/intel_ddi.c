@@ -790,6 +790,8 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
 			intel_crtc->config.shared_dpll = DPLL_ID_WRPLL2;
 		}
+
+		intel_crtc->config.dpll_hw_state.wrpll = val;
 	}
 
 	return true;
@@ -1317,6 +1319,21 @@ int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 	}
 }
 
+static bool hsw_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
+				     struct intel_shared_dpll *pll,
+				     struct intel_dpll_hw_state *hw_state)
+{
+	uint32_t val;
+
+	if (!intel_display_power_enabled(dev_priv, POWER_DOMAIN_PLLS))
+		return false;
+
+	val = I915_READ(WRPLL_CTL(pll->id));
+	hw_state->wrpll = val;
+
+	return val & WRPLL_PLL_ENABLE;
+}
+
 static char *hsw_ddi_pll_names[] = {
 	"WRPLL 1",
 	"WRPLL 2",
@@ -1335,6 +1352,8 @@ void intel_ddi_pll_init(struct drm_device *dev)
 	for (i = 0; i < 2; i++) {
 		dev_priv->shared_dplls[i].id = i;
 		dev_priv->shared_dplls[i].name = hsw_ddi_pll_names[i];
+		dev_priv->shared_dplls[i].get_hw_state =
+			hsw_ddi_pll_get_hw_state;
 	}
 
 	/* The LCPLL register should be turned on by the BIOS. For now let's

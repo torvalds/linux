@@ -7579,6 +7579,7 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_shared_dpll *pll;
 	enum port port;
 	uint32_t tmp;
 
@@ -7595,6 +7596,13 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 	case PORT_CLK_SEL_WRPLL2:
 		pipe_config->shared_dpll = DPLL_ID_WRPLL2;
 		break;
+	}
+
+	if (pipe_config->shared_dpll >= 0) {
+		pll = &dev_priv->shared_dplls[pipe_config->shared_dpll];
+
+		WARN_ON(!pll->get_hw_state(dev_priv, pll,
+					   &pipe_config->dpll_hw_state));
 	}
 
 	/*
@@ -10444,6 +10452,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_X(dpll_hw_state.dpll_md);
 	PIPE_CONF_CHECK_X(dpll_hw_state.fp0);
 	PIPE_CONF_CHECK_X(dpll_hw_state.fp1);
+	PIPE_CONF_CHECK_X(dpll_hw_state.wrpll);
 
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5)
 		PIPE_CONF_CHECK_I(pipe_bpp);

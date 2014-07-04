@@ -197,6 +197,7 @@ struct intel_dpll_hw_state {
 	uint32_t dpll_md;
 	uint32_t fp0;
 	uint32_t fp1;
+	uint32_t wrpll;
 };
 
 struct intel_shared_dpll {
