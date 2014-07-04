@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 
+#include "of_private.h"
+
 static struct selftest_results {
 	int passed;
 	int failed;
@@ -264,6 +266,31 @@ static void __init of_selftest_property_match_string(void)
 	selftest(rc == -ENODATA, "empty property; rc=%i", rc);
 	rc = of_property_match_string(np, "unterminated-string", "blah");
 	selftest(rc == -EILSEQ, "unterminated string; rc=%i", rc);
+}
+
+#define propcmp(p1, p2) (((p1)->length == (p2)->length) && \
+			(p1)->value && (p2)->value && \
+			!memcmp((p1)->value, (p2)->value, (p1)->length) && \
+			!strcmp((p1)->name, (p2)->name))
+static void __init of_selftest_property_copy(void)
+{
+#ifdef CONFIG_OF_DYNAMIC
+	struct property p1 = { .name = "p1", .length = 0, .value = "" };
+	struct property p2 = { .name = "p2", .length = 5, .value = "abcd" };
+	struct property *new;
+
+	new = __of_prop_dup(&p1, GFP_KERNEL);
+	selftest(new && propcmp(&p1, new), "empty property didn't copy correctly\n");
+	kfree(new->value);
+	kfree(new->name);
+	kfree(new);
+
+	new = __of_prop_dup(&p2, GFP_KERNEL);
+	selftest(new && propcmp(&p2, new), "non-empty property didn't copy correctly\n");
+	kfree(new->value);
+	kfree(new->name);
+	kfree(new);
+#endif
 }
 
 static void __init of_selftest_parse_interrupts(void)
@@ -533,6 +560,7 @@ static int __init of_selftest(void)
 	of_selftest_dynamic();
 	of_selftest_parse_phandle_with_args();
 	of_selftest_property_match_string();
+	of_selftest_property_copy();
 	of_selftest_parse_interrupts();
 	of_selftest_parse_interrupts_extended();
 	of_selftest_match_node();
