@@ -7326,8 +7326,9 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	WARN(I915_READ(PCH_PP_STATUS) & PP_ON, "Panel power on\n");
 	WARN(I915_READ(BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
 	     "CPU PWM1 enabled\n");
-	WARN(I915_READ(HSW_BLC_PWM2_CTL) & BLM_PWM_ENABLE,
-	     "CPU PWM2 enabled\n");
+	if (IS_HASWELL(dev))
+		WARN(I915_READ(HSW_BLC_PWM2_CTL) & BLM_PWM_ENABLE,
+		     "CPU PWM2 enabled\n");
 	WARN(I915_READ(BLC_PWM_PCH_CTL1) & BLM_PCH_PWM_ENABLE,
 	     "PCH PWM1 enabled\n");
 	WARN(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
