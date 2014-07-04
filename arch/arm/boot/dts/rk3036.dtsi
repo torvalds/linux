@@ -340,12 +340,26 @@
 		bus-width = <4>;
 	};
 	gpu {
-		      compatible = "arm,mali400";
-		      reg = <0x10090000 0x10000>;
-	          interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
-                           <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
-			  			   <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-			  interrupt-names = "GP", "MMU", "PP";
+		compatible = "arm,mali400";
+		reg = <0x10091000 0x200>,
+			  <0x10090000 0x100>,
+			  <0x10093000 0x100>,
+			  <0x10098000 0x1100>,
+			  <0x10094000 0x100>;
+		reg-names = "Mali_L2",
+					"Mali_GP",
+					"Mali_GP_MMU",
+					"Mali_PP0",
+					"Mali_PP0_MMU";
+
+	    interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+			  	     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+	    interrupt-names = "Mali_GP_IRQ", 
+						  "Mali_GP_MMU_IRQ", 
+						  "Mali_PP0_IRQ",
+						  "Mali_PP0_MMU_IRQ";
 	  };
 
 };
