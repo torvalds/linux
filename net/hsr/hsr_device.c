@@ -198,6 +198,39 @@ static int hsr_dev_close(struct net_device *dev)
 }
 
 
+static netdev_features_t hsr_features_recompute(struct hsr_priv *hsr,
+						netdev_features_t features)
+{
+	netdev_features_t mask;
+	struct hsr_port *port;
+
+	mask = features;
+
+	/* Mask out all features that, if supported by one device, should be
+	 * enabled for all devices (see NETIF_F_ONE_FOR_ALL).
+	 *
+	 * Anything that's off in mask will not be enabled - so only things
+	 * that were in features originally, and also is in NETIF_F_ONE_FOR_ALL,
+	 * may become enabled.
+	 */
+	features &= ~NETIF_F_ONE_FOR_ALL;
+	hsr_for_each_port(hsr, port)
+		features = netdev_increment_features(features,
+						     port->dev->features,
+						     mask);
+
+	return features;
+}
+
+static netdev_features_t hsr_fix_features(struct net_device *dev,
+					  netdev_features_t features)
+{
+	struct hsr_priv *hsr = netdev_priv(dev);
+
+	return hsr_features_recompute(hsr, features);
+}
+
+
 static void hsr_fill_tag(struct hsr_ethhdr *hsr_ethhdr, struct hsr_priv *hsr)
 {
 	unsigned long irqflags;
@@ -465,6 +498,7 @@ static const struct net_device_ops hsr_device_ops = {
 	.ndo_open = hsr_dev_open,
 	.ndo_stop = hsr_dev_close,
 	.ndo_start_xmit = hsr_dev_xmit,
+	.ndo_fix_features = hsr_fix_features,
 };
 
 
@@ -478,6 +512,19 @@ void hsr_dev_setup(struct net_device *dev)
 	dev->tx_queue_len	 = 0;
 
 	dev->destructor = hsr_dev_destroy;
+
+	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
+			   NETIF_F_GSO_MASK | NETIF_F_HW_CSUM |
+			   NETIF_F_HW_VLAN_CTAG_TX;
+
+	dev->features = dev->hw_features;
+
+	/* Prevent recursive tx locking */
+	dev->features |= NETIF_F_LLTX;
+	/* VLAN on top of HSR needs testing and probably some work on
+	 * hsr_header_create() etc.
+	 */
+	dev->features |= NETIF_F_VLAN_CHALLENGED;
 }
 
 
@@ -512,14 +559,6 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 				   slave[1]->dev_addr);
 	if (res < 0)
 		return res;
-
-	hsr_dev->features = slave[0]->features & slave[1]->features;
-	/* Prevent recursive tx locking */
-	hsr_dev->features |= NETIF_F_LLTX;
-	/* VLAN on top of HSR needs testing and probably some work on
-	 * hsr_header_create() etc.
-	 */
-	hsr_dev->features |= NETIF_F_VLAN_CHALLENGED;
 
 	spin_lock_init(&hsr->seqnr_lock);
 	/* Overflow soon to find bugs easier: */

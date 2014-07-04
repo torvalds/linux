@@ -344,6 +344,7 @@ int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
 	if (dev->hard_header_len + HSR_HLEN > master->dev->hard_header_len)
 		master->dev->hard_header_len = dev->hard_header_len + HSR_HLEN;
 
+	netdev_update_features(master->dev);
 	dev_set_mtu(master->dev, hsr_get_max_mtu(hsr));
 
 	return 0;
@@ -363,6 +364,7 @@ void hsr_del_port(struct hsr_port *port)
 	list_del_rcu(&port->port_list);
 
 	if (port != master) {
+		netdev_update_features(master->dev);
 		dev_set_mtu(master->dev, hsr_get_max_mtu(hsr));
 		netdev_rx_handler_unregister(port->dev);
 		dev_set_promiscuity(port->dev, -1);
