@@ -14,11 +14,17 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 
-static bool selftest_passed = true;
+#include "of_private.h"
+
+static struct selftest_results {
+	int passed;
+	int failed;
+} selftest_results;
+
 #define selftest(result, fmt, ...) { \
 	if (!(result)) { \
 		pr_err("FAIL %s:%i " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
-		selftest_passed = false; \
+		selftest_results.passed = false; \
 	} else { \
 		pr_info("pass %s:%i\n", __FILE__, __LINE__); \
 	} \
@@ -154,6 +160,31 @@ static void __init of_selftest_property_match_string(void)
 	selftest(rc == -EILSEQ, "unterminated string; rc=%i", rc);
 }
 
+#define propcmp(p1, p2) (((p1)->length == (p2)->length) && \
+			(p1)->value && (p2)->value && \
+			!memcmp((p1)->value, (p2)->value, (p1)->length) && \
+			!strcmp((p1)->name, (p2)->name))
+static void __init of_selftest_property_copy(void)
+{
+#ifdef CONFIG_OF_DYNAMIC
+	struct property p1 = { .name = "p1", .length = 0, .value = "" };
+	struct property p2 = { .name = "p2", .length = 5, .value = "abcd" };
+	struct property *new;
+
+	new = __of_prop_dup(&p1, GFP_KERNEL);
+	selftest(new && propcmp(&p1, new), "empty property didn't copy correctly\n");
+	kfree(new->value);
+	kfree(new->name);
+	kfree(new);
+
+	new = __of_prop_dup(&p2, GFP_KERNEL);
+	selftest(new && propcmp(&p2, new), "non-empty property didn't copy correctly\n");
+	kfree(new->value);
+	kfree(new->name);
+	kfree(new);
+#endif
+}
+
 static int __init of_selftest(void)
 {
 	struct device_node *np;
@@ -168,7 +199,9 @@ static int __init of_selftest(void)
 	pr_info("start of selftest - you will see error messages\n");
 	of_selftest_parse_phandle_with_args();
 	of_selftest_property_match_string();
-	pr_info("end of selftest - %s\n", selftest_passed ? "PASS" : "FAIL");
+	of_selftest_property_copy();
+	pr_info("end of selftest - %i passed, %i failed\n",
+		selftest_results.passed, selftest_results.failed);
 	return 0;
 }
 late_initcall(of_selftest);

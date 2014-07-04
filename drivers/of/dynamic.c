@@ -214,3 +214,80 @@ void of_node_release(struct kobject *kobj)
 	kfree(node->data);
 	kfree(node);
 }
+
+/**
+ * __of_prop_dup - Copy a property dynamically.
+ * @prop:	Property to copy
+ * @allocflags:	Allocation flags (typically pass GFP_KERNEL)
+ *
+ * Copy a property by dynamically allocating the memory of both the
+ * property stucture and the property name & contents. The property's
+ * flags have the OF_DYNAMIC bit set so that we can differentiate between
+ * dynamically allocated properties and not.
+ * Returns the newly allocated property or NULL on out of memory error.
+ */
+struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
+{
+	struct property *new;
+
+	new = kzalloc(sizeof(*new), allocflags);
+	if (!new)
+		return NULL;
+
+	/*
+	 * NOTE: There is no check for zero length value.
+	 * In case of a boolean property This will allocate a value
+	 * of zero bytes. We do this to work around the use
+	 * of of_get_property() calls on boolean values.
+	 */
+	new->name = kstrdup(prop->name, allocflags);
+	new->value = kmemdup(prop->value, prop->length, allocflags);
+	new->length = prop->length;
+	if (!new->name || !new->value)
+		goto err_free;
+
+	/* mark the property as dynamic */
+	of_property_set_flag(new, OF_DYNAMIC);
+
+	return new;
+
+ err_free:
+	kfree(new->name);
+	kfree(new->value);
+	kfree(new);
+	return NULL;
+}
+
+/**
+ * __of_node_alloc() - Create an empty device node dynamically.
+ * @full_name:	Full name of the new device node
+ * @allocflags:	Allocation flags (typically pass GFP_KERNEL)
+ *
+ * Create an empty device tree node, suitable for further modification.
+ * The node data are dynamically allocated and all the node flags
+ * have the OF_DYNAMIC & OF_DETACHED bits set.
+ * Returns the newly allocated node or NULL on out of memory error.
+ */
+struct device_node *__of_node_alloc(const char *full_name, gfp_t allocflags)
+{
+	struct device_node *node;
+
+	node = kzalloc(sizeof(*node), allocflags);
+	if (!node)
+		return NULL;
+
+	node->full_name = kstrdup(full_name, allocflags);
+	of_node_set_flag(node, OF_DYNAMIC);
+	of_node_set_flag(node, OF_DETACHED);
+	if (!node->full_name)
+		goto err_free;
+
+	of_node_init(node);
+
+	return node;
+
+ err_free:
+	kfree(node->full_name);
+	kfree(node);
+	return NULL;
+}

@@ -51,4 +51,14 @@ static inline int of_property_notify(int action, struct device_node *np,
 }
 #endif /* CONFIG_OF_DYNAMIC */
 
+/**
+ * General utilities for working with live trees.
+ *
+ * All functions with two leading underscores operate
+ * without taking node references, so you either have to
+ * own the devtree lock or work on detached trees only.
+ */
+struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags);
+struct device_node *__of_node_alloc(const char *full_name, gfp_t allocflags);
+
 #endif /* _LINUX_OF_PRIVATE_H */
