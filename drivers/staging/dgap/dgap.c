@@ -74,7 +74,6 @@ static struct board_t *dgap_found_board(struct pci_dev *pdev, int id,
 					int boardnum);
 static void dgap_cleanup_board(struct board_t *brd);
 static void dgap_poll_handler(ulong dummy);
-static int dgap_init_pci(void);
 static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void dgap_remove_one(struct pci_dev *dev);
 static int dgap_do_remap(struct board_t *brd);
@@ -479,7 +478,7 @@ static int dgap_init_module(void)
 	if (rc)
 		return rc;
 
-	rc = dgap_init_pci();
+	rc = pci_register_driver(&dgap_driver);
 	if (rc)
 		goto err_cleanup;
 
@@ -561,14 +560,6 @@ failed_device:
 failed_class:
 	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 	return rc;
-}
-
-/*
- * Register pci driver, and return how many boards we have.
- */
-static int dgap_init_pci(void)
-{
-	return pci_register_driver(&dgap_driver);
 }
 
 static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
