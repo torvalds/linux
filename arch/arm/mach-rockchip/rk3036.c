@@ -86,7 +86,24 @@ static void __init rk3036_boot_mode_init(void)
 
 static void usb_uart_init(void)
 {
-    return;
+	u32 soc_status0 = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_STATUS0);
+	writel_relaxed(0x34000000, RK_GRF_VIRT + RK3036_GRF_UOC1_CON4);
+#ifdef CONFIG_RK_USB_UART
+	if (!(soc_status0 & (1 << 14)) && (soc_status0 & (1 << 17))) {
+		/* software control usb phy enable */
+		writel_relaxed(0x007f0055, RK_GRF_VIRT + RK3036_GRF_UOC0_CON5);
+		writel_relaxed(0x34003000, RK_GRF_VIRT + RK3036_GRF_UOC1_CON4);
+	}
+#endif
+#ifdef RK_DEBUG_UART_VIRT
+    writel_relaxed(0x07, RK_DEBUG_UART_VIRT + 0x88);
+    writel_relaxed(0x07, RK_DEBUG_UART_VIRT + 0x88);
+    writel_relaxed(0x00, RK_DEBUG_UART_VIRT + 0x04);
+    writel_relaxed(0x83, RK_DEBUG_UART_VIRT + 0x0c);
+    writel_relaxed(0x0d, RK_DEBUG_UART_VIRT + 0x00);
+    writel_relaxed(0x00, RK_DEBUG_UART_VIRT + 0x04);
+    writel_relaxed(0x03, RK_DEBUG_UART_VIRT + 0x0c);
+#endif //end of DEBUG_UART_BASE
 }
 
 static void __init rk3036_dt_map_io(void)

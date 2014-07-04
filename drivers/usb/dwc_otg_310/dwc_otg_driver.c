@@ -86,6 +86,10 @@ static struct usb20otg_pdata_id usb20otg_pdata[] = {
 	 .name = "rk3288-usb20otg",
 	 .pdata = &usb20otg_pdata_rk3288,
 	 },
+	{
+	 .name = "rk3036-usb20otg",
+	 .pdata = &usb20otg_pdata_rk3036,
+	 },
 	{},
 };
 #endif
@@ -99,6 +103,10 @@ static struct usb20host_pdata_id usb20host_pdata[] = {
 	{
 	 .name = "rk3288-usb20host",
 	 .pdata = &usb20host_pdata_rk3288,
+	 },
+	{
+	 .name = "rk3288-usb20host",
+	 .pdata = &usb20host_pdata_rk3036,
 	 },
 	{},
 };
@@ -972,6 +980,10 @@ static const struct of_device_id usb20_host_of_match[] = {
 	 .compatible = "rockchip,rk3288_usb20_host",
 	 .data = &usb20host_pdata[RK3288_USB_CTLR],
 	 },
+	{
+	 .compatible = "rockchip,rk3036_usb20_host",
+	 .data = &usb20host_pdata[RK3036_USB_CTLR],
+	 },
 	{},
 };
 
@@ -1325,6 +1337,10 @@ static const struct of_device_id usb20_otg_of_match[] = {
 	{
 	 .compatible = "rockchip,rk3288_usb20_otg",
 	 .data = &usb20otg_pdata[RK3288_USB_CTLR],
+	 },
+	{
+	 .compatible = "rockchip,rk3036_usb20_otg",
+	 .data = &usb20otg_pdata[RK3036_USB_CTLR],
 	 },
 	{
 	 },
