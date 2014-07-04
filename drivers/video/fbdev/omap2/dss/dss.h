@@ -274,6 +274,10 @@ u32 dss_of_port_get_port_number(struct device_node *port);
 void dss_debug_dump_clocks(struct seq_file *s);
 #endif
 
+void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable);
+void dss_ctrl_pll_set_control_mux(enum dss_pll_id pll_id,
+	enum omap_channel channel);
+
 void dss_sdi_init(int datapairs);
 int dss_sdi_enable(void);
 void dss_sdi_disable(void);
