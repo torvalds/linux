@@ -445,6 +445,9 @@ static __le32 get_missing_options(struct hci_dev *hdev)
 {
 	u32 options = 0;
 
+	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks))
+		options |= MGMT_OPTION_EXTERNAL_CONFIG;
+
 	if (test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks) &&
 	    !bacmp(&hdev->public_addr, BDADDR_ANY))
 		options |= MGMT_OPTION_PUBLIC_ADDRESS;
@@ -464,6 +467,9 @@ static int read_config_info(struct sock *sk, struct hci_dev *hdev,
 
 	memset(&rp, 0, sizeof(rp));
 	rp.manufacturer = cpu_to_le16(hdev->manufacturer);
+
+	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks))
+		options |= MGMT_OPTION_EXTERNAL_CONFIG;
 
 	if (hdev->set_bdaddr)
 		options |= MGMT_OPTION_PUBLIC_ADDRESS;
@@ -509,7 +515,8 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 		settings |= MGMT_SETTING_PRIVACY;
 	}
 
-	if (hdev->set_bdaddr)
+	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) ||
+	    hdev->set_bdaddr)
 		settings |= MGMT_SETTING_CONFIGURATION;
 
 	return settings;

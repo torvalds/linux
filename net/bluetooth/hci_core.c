@@ -2249,7 +2249,8 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	if (hdev->setup && test_bit(HCI_SETUP, &hdev->dev_flags)) {
 		ret = hdev->setup(hdev);
 
-		if (test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks))
+		if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) ||
+		    test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks))
 			set_bit(HCI_UNCONFIGURED, &hdev->dev_flags);
 	}
 

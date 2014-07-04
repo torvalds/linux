@@ -111,6 +111,15 @@ enum {
 	 */
 	HCI_QUIRK_BROKEN_STORED_LINK_KEY,
 
+	/* When this quirk is set, an external configuration step
+	 * is required and will be indicated with the controller
+	 * configuation.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_EXTERNAL_CONFIG,
+
 	/* When this quirk is set, the public Bluetooth address
 	 * initially reported by HCI Read BD Address command
 	 * is considered invalid. Controller configuration is
