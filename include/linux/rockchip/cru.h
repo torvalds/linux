@@ -331,6 +331,8 @@ static inline void rk3288_cru_set_soft_reset(enum rk3288_cru_soft_reset idx, boo
 	dsb();
 }
 
+#define RK3036_CRU_MODE_CON 0x0040
+
 #define RK3036_CRU_GLB_SRST_FST_VALUE 0x00100
 #define RK3036_CRU_GLB_SRST_SND_VALUE 0x00104
 #define RK3036_CRU_SOFTRST0_CON 0x00110
