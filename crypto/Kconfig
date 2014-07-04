@@ -23,7 +23,7 @@ comment "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
-	depends on (CRYPTO_ANSI_CPRNG || CRYTPO_DRBG) && !CRYPTO_MANAGER_DISABLE_TESTS
+	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && !CRYPTO_MANAGER_DISABLE_TESTS
 	depends on MODULE_SIG
 	help
 	  This options enables the fips boot option which is
@@ -1394,39 +1394,39 @@ config CRYPTO_ANSI_CPRNG
 	  ANSI X9.31 A.2.4. Note that this option must be enabled if
 	  CRYPTO_FIPS is selected
 
-menuconfig CRYTPO_DRBG
+menuconfig CRYPTO_DRBG_MENU
 	tristate "NIST SP800-90A DRBG"
-	depends on CRYPTO
-	select CRYPTO_RNG
 	help
 	  NIST SP800-90A compliant DRBG. In the following submenu, one or
 	  more of the DRBG types must be selected.
 
-if CRYTPO_DRBG
+if CRYPTO_DRBG_MENU
 
 config CRYPTO_DRBG_HMAC
 	bool "Enable HMAC DRBG"
 	default y
-	depends on CRYTPO_DRBG
 	select CRYPTO_HMAC
 	help
 	  Enable the HMAC DRBG variant as defined in NIST SP800-90A.
 
 config CRYPTO_DRBG_HASH
 	bool "Enable Hash DRBG"
-	depends on CRYTPO_DRBG
 	select CRYPTO_HASH
 	help
 	  Enable the Hash DRBG variant as defined in NIST SP800-90A.
 
 config CRYPTO_DRBG_CTR
 	bool "Enable CTR DRBG"
-	depends on CRYTPO_DRBG
 	select CRYPTO_AES
 	help
 	  Enable the CTR DRBG variant as defined in NIST SP800-90A.
 
-endif #CRYTPO_DRBG
+config CRYPTO_DRBG
+	tristate
+	default CRYPTO_DRBG_MENU if (CRYPTO_DRBG_HMAC || CRYPTO_DRBG_HASH || CRYPTO_DRBG_CTR)
+	select CRYPTO_RNG
+
+endif	# if CRYPTO_DRBG_MENU
 
 config CRYPTO_USER_API
 	tristate

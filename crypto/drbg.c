@@ -99,12 +99,6 @@
 
 #include <crypto/drbg.h>
 
-#if !defined(CONFIG_CRYPTO_DRBG_HASH) && \
-	!defined(CONFIG_CRYPTO_DRBG_HMAC) && \
-	!defined(CONFIG_CRYPTO_DRBG_CTR)
-#warning "The DRBG code is useless without compiling at least one DRBG type"
-#endif
-
 /***************************************************************
  * Backend cipher definitions available to DRBG
  ***************************************************************/
