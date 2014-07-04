@@ -37,13 +37,17 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 	struct net_device *link[2];
 	unsigned char multicast_spec;
 
+	if (!data) {
+		netdev_info(dev, "HSR: No slave devices specified\n");
+		return -EINVAL;
+	}
 	if (!data[IFLA_HSR_SLAVE1]) {
-		netdev_info(dev, "IFLA_HSR_SLAVE1 missing!\n");
+		netdev_info(dev, "HSR: Slave1 device not specified\n");
 		return -EINVAL;
 	}
 	link[0] = __dev_get_by_index(src_net, nla_get_u32(data[IFLA_HSR_SLAVE1]));
 	if (!data[IFLA_HSR_SLAVE2]) {
-		netdev_info(dev, "IFLA_HSR_SLAVE2 missing!\n");
+		netdev_info(dev, "HSR: Slave2 device not specified\n");
 		return -EINVAL;
 	}
 	link[1] = __dev_get_by_index(src_net, nla_get_u32(data[IFLA_HSR_SLAVE2]));
