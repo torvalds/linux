@@ -4244,14 +4244,12 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 				return;
 		}
 
-		if (list_empty(&hdev->pend_le_reports))
-			return;
-
 		if (type == LE_ADV_DIRECT_IND)
 			return;
 
-		param = hci_conn_params_lookup(hdev, bdaddr, bdaddr_type);
-		if (!param || param->auto_connect != HCI_AUTO_CONN_REPORT)
+		param = hci_pend_le_action_lookup(&hdev->pend_le_reports,
+						  bdaddr, bdaddr_type);
+		if (!param)
 			return;
 
 		if (type == LE_ADV_NONCONN_IND || type == LE_ADV_SCAN_IND)
