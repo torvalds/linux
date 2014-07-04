@@ -1420,19 +1420,22 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 
 
 /*
- * User can use 0-255 raw events, where 0-127 for the events of even
- * counters, and 128-255 for odd counters. Note that bit 7 is used to
- * indicate the parity. So, for example, when user wants to take the
- * Event Num of 15 for odd counters (by referring to the user manual),
- * then 128 needs to be added to 15 as the input for the event config,
- * i.e., 143 (0x8F) to be used.
+ * For most cores the user can use 0-255 raw events, where 0-127 for the events
+ * of even counters, and 128-255 for odd counters. Note that bit 7 is used to
+ * indicate the even/odd bank selector. So, for example, when user wants to take
+ * the Event Num of 15 for odd counters (by referring to the user manual), then
+ * 128 needs to be added to 15 as the input for the event config, i.e., 143 (0x8F)
+ * to be used.
+ *
+ * Some newer cores have even more events, in which case the user can use raw
+ * events 0-511, where 0-255 are for the events of even counters, and 256-511
+ * are for odd counters, so bit 8 is used to indicate the even/odd bank selector.
  */
 static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 {
+	/* currently most cores have 7-bit event numbers */
 	unsigned int raw_id = config & 0xff;
 	unsigned int base_id = raw_id & 0x7f;
-
-	raw_event.event_id = base_id;
 
 	switch (current_cpu_type()) {
 	case CPU_24K:
@@ -1522,6 +1525,8 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 			raw_event.cntr_mask =
 				raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
 	}
+
+	raw_event.event_id = base_id;
 
 	return &raw_event;
 }
