@@ -125,11 +125,7 @@ void exynos_init_late(void);
 
 void exynos_firmware_init(void);
 
-#ifdef CONFIG_PINCTRL_EXYNOS
 extern u32 exynos_get_eint_wake_mask(void);
-#else
-static inline u32 exynos_get_eint_wake_mask(void) { return 0xffffffff; }
-#endif
 
 #ifdef CONFIG_PM_SLEEP
 extern void __init exynos_pm_init(void);
