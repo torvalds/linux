@@ -472,7 +472,8 @@ struct mgmt_rp_read_unconf_index_list {
 	__le16	index[0];
 } __packed;
 
-#define MGMT_OPTION_PUBLIC_ADDRESS	0x00000001
+#define MGMT_OPTION_EXTERNAL_CONFIG	0x00000001
+#define MGMT_OPTION_PUBLIC_ADDRESS	0x00000002
 
 #define MGMT_OP_READ_CONFIG_INFO	0x0037
 #define MGMT_READ_CONFIG_INFO_SIZE	0
