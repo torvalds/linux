@@ -118,6 +118,7 @@ typedef enum {
 #define SCTP_MAX_NUM_COMMANDS 14
 
 typedef union {
+	void *zero_all;	/* Set to NULL to clear the entire union */
 	__s32 i32;
 	__u32 u32;
 	__be32 be32;
@@ -154,7 +155,7 @@ typedef union {
 static inline sctp_arg_t	\
 SCTP_## name (type arg)		\
 { sctp_arg_t retval;\
-  memset(&retval, 0, sizeof(sctp_arg_t));\
+  retval.zero_all = NULL;\
   retval.elt = arg;\
   return retval;\
 }
@@ -191,7 +192,7 @@ static inline sctp_arg_t SCTP_NOFORCE(void)
 static inline sctp_arg_t SCTP_NULL(void)
 {
 	sctp_arg_t retval;
-	memset(&retval, 0, sizeof(sctp_arg_t));
+	retval.zero_all = NULL;
 	return retval;
 }
 
@@ -212,7 +213,8 @@ typedef struct {
  */
 static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
 {
-	memset(seq, 0, sizeof(sctp_cmd_seq_t));
+	seq->next_free_slot = 0;
+	seq->next_cmd = 0;
 	return 1;		/* We always succeed.  */
 }
 
