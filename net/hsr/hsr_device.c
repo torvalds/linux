@@ -501,15 +501,19 @@ static const struct net_device_ops hsr_device_ops = {
 	.ndo_fix_features = hsr_fix_features,
 };
 
+static struct device_type hsr_type = {
+	.name = "hsr",
+};
 
 void hsr_dev_setup(struct net_device *dev)
 {
 	random_ether_addr(dev->dev_addr);
 
 	ether_setup(dev);
-	dev->header_ops		 = &hsr_header_ops;
-	dev->netdev_ops		 = &hsr_device_ops;
-	dev->tx_queue_len	 = 0;
+	dev->header_ops = &hsr_header_ops;
+	dev->netdev_ops = &hsr_device_ops;
+	SET_NETDEV_DEVTYPE(dev, &hsr_type);
+	dev->tx_queue_len = 0;
 
 	dev->destructor = hsr_dev_destroy;
 
@@ -525,6 +529,10 @@ void hsr_dev_setup(struct net_device *dev)
 	 * hsr_header_create() etc.
 	 */
 	dev->features |= NETIF_F_VLAN_CHALLENGED;
+	/* Not sure about this. Taken from bridge code. netdev_features.h says
+	 * it means "Does not change network namespaces".
+	 */
+	dev->features |= NETIF_F_NETNS_LOCAL;
 }
 
 
