@@ -107,8 +107,8 @@ static int vhci_create_device(struct vhci_data *data, __u8 opcode)
 	if (dev_type != HCI_BREDR && dev_type != HCI_AMP)
 		return -EINVAL;
 
-	/* bits 2-6 are reserved (must be zero) */
-	if (opcode & 0x7c)
+	/* bits 2-5 are reserved (must be zero) */
+	if (opcode & 0x3c)
 		return -EINVAL;
 
 	skb = bt_skb_alloc(4, GFP_KERNEL);
@@ -131,6 +131,10 @@ static int vhci_create_device(struct vhci_data *data, __u8 opcode)
 	hdev->close = vhci_close_dev;
 	hdev->flush = vhci_flush;
 	hdev->send  = vhci_send_frame;
+
+	/* bit 6 is for external configuration */
+	if (opcode & 0x40)
+		set_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks);
 
 	/* bit 7 is for raw device */
 	if (opcode & 0x80)
