@@ -2200,17 +2200,6 @@ static struct snd_soc_dai_driver max98090_dai[] = {
 }
 };
 
-static void max98090_handle_pdata(struct snd_soc_codec *codec)
-{
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
-	struct max98090_pdata *pdata = max98090->pdata;
-
-	if (!pdata) {
-		dev_err(codec->dev, "No platform data\n");
-		return;
-	}
-}
-
 static int max98090_probe(struct snd_soc_codec *codec)
 {
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
@@ -2309,8 +2298,6 @@ static int max98090_probe(struct snd_soc_codec *codec)
 
 	snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
 		M98090_MBVSEL_MASK, M98090_MBVSEL_2V8);
-
-	max98090_handle_pdata(codec);
 
 	max98090_add_widgets(codec);
 
