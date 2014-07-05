@@ -74,15 +74,8 @@ static const u16 cwRXBCNTSFOff[MAX_RATE] =
 void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 {
 
-	if (priv->byBBType == BB_TYPE_11A) {
-		if ((connection_channel < (CB_MAX_CHANNEL_24G + 1)) ||
-					(connection_channel > CB_MAX_CHANNEL))
-			connection_channel = (CB_MAX_CHANNEL_24G + 1);
-	} else {
-		if ((connection_channel > CB_MAX_CHANNEL_24G) ||
-						(connection_channel == 0))
-			connection_channel = 1;
-	}
+	if (connection_channel > CB_MAX_CHANNEL || !connection_channel)
+		return;
 
 	/* clear NAV */
 	vnt_mac_reg_bits_on(priv, MAC_REG_MACCR, MACCR_CLRNAV);
@@ -92,20 +85,6 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 
 	vnt_control_out(priv, MESSAGE_TYPE_SELECT_CHANNLE,
 					connection_channel, 0, 0, NULL);
-
-	if (priv->byBBType == BB_TYPE_11A) {
-		priv->byCurPwr = 0xff;
-		vnt_rf_set_txpower(priv,
-			priv->abyOFDMAPwrTbl[connection_channel-15], RATE_54M);
-	} else if (priv->byBBType == BB_TYPE_11G) {
-		priv->byCurPwr = 0xff;
-		vnt_rf_set_txpower(priv,
-			priv->abyOFDMPwrTbl[connection_channel-1], RATE_54M);
-	} else {
-		priv->byCurPwr = 0xff;
-		vnt_rf_set_txpower(priv,
-			priv->abyCCKPwrTbl[connection_channel-1], RATE_1M);
-	}
 
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
 		(u8)(connection_channel|0x80));
