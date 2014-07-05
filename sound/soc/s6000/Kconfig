@@ -15,8 +15,9 @@ config SND_S6000_SOC_I2S
 	tristate
 
 config SND_S6000_SOC_S6IPCAM
-	tristate "SoC Audio support for Stretch 6105 IP Camera"
-	depends on SND_S6000_SOC
+	bool "SoC Audio support for Stretch 6105 IP Camera"
+	depends on SND_S6000_SOC=y
+	depends on I2C=y
 	depends on XTENSA_PLATFORM_S6105 || COMPILE_TEST
 	select SND_S6000_SOC_I2S
 	select SND_SOC_TLV320AIC3X
