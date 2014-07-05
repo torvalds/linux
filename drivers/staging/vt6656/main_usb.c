@@ -1074,6 +1074,8 @@ int vnt_init(struct vnt_private *priv)
 
 	priv->mac_hw = true;
 
+	vnt_radio_power_off(priv);
+
 	return 0;
 }
 
