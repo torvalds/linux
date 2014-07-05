@@ -384,6 +384,7 @@ config SPI_PXA2XX_PCI
 
 config SPI_ROCKCHIP
 	tristate "Rockchip SPI controller driver"
+	depends on ARM || ARM64 || AVR32 || HEXAGON || MIPS || SUPERH
 	help
 	  This selects a driver for Rockchip SPI controller.
 
