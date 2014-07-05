@@ -744,7 +744,10 @@ int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 	case RATE_2M:
 	case RATE_5M:
 	case RATE_11M:
-		power = priv->abyCCKPwrTbl[channel-1];
+		channel--;
+
+		if (channel < sizeof(priv->abyCCKPwrTbl))
+			power = priv->abyCCKPwrTbl[channel];
 		break;
 	case RATE_6M:
 	case RATE_9M:
