@@ -196,6 +196,7 @@
  *		14 Jun 2005	macro		Use irqreturn_t.
  *		23 Oct 2006	macro		Big-endian host support.
  *		14 Dec 2006	macro		TURBOchannel support.
+ *		01 Jul 2014	macro		Fixes for DMA on 64-bit hosts.
  */
 
 /* Include files */
@@ -224,8 +225,8 @@
 
 /* Version information string should be updated prior to each new release!  */
 #define DRV_NAME "defxx"
-#define DRV_VERSION "v1.10"
-#define DRV_RELDATE "2006/12/14"
+#define DRV_VERSION "v1.11"
+#define DRV_RELDATE "2014/07/01"
 
 static char version[] =
 	DRV_NAME ": " DRV_VERSION " " DRV_RELDATE
@@ -3026,7 +3027,7 @@ static void dfx_rcv_queue_process(
 	while (bp->rcv_xmt_reg.index.rcv_comp != p_type_2_cons->index.rcv_cons)
 		{
 		/* Process any errors */
-
+		dma_addr_t dma_addr;
 		int entry;
 
 		entry = bp->rcv_xmt_reg.index.rcv_comp;
@@ -3035,6 +3036,11 @@ static void dfx_rcv_queue_process(
 #else
 		p_buff = bp->p_rcv_buff_va[entry];
 #endif
+		dma_addr = bp->descr_block_virt->rcv_data[entry].long_1;
+		dma_sync_single_for_cpu(bp->bus_dev,
+					dma_addr + RCV_BUFF_K_DESCR,
+					sizeof(u32),
+					DMA_FROM_DEVICE);
 		memcpy(&descr, p_buff + RCV_BUFF_K_DESCR, sizeof(u32));
 
 		if (descr & PI_FMC_DESCR_M_RCC_FLUSH)
@@ -3082,7 +3088,7 @@ static void dfx_rcv_queue_process(
 
 						skb = (struct sk_buff *)bp->p_rcv_buff_va[entry];
 						dma_unmap_single(bp->bus_dev,
-							bp->descr_block_virt->rcv_data[entry].long_1,
+							dma_addr,
 							PI_RCV_DATA_K_SIZE_MAX,
 							DMA_FROM_DEVICE);
 						skb_reserve(skb, RCV_BUFF_K_PADDING);
@@ -3108,6 +3114,12 @@ static void dfx_rcv_queue_process(
 #endif
 					{
 						/* Receive buffer allocated, pass receive packet up */
+						dma_sync_single_for_cpu(
+							bp->bus_dev,
+							dma_addr +
+							RCV_BUFF_K_PADDING,
+							pkt_len + 3,
+							DMA_FROM_DEVICE);
 
 						skb_copy_to_linear_data(skb,
 							       p_buff + RCV_BUFF_K_PADDING,
