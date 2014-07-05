@@ -99,7 +99,7 @@ struct xilly_endpoint {
 
 	struct list_head ep_list;
 	int dma_using_dac; /* =1 if 64-bit DMA is used, =0 otherwise. */
-	__iomem u32 *registers;
+	__iomem void *registers;
 	int fatal_error;
 
 	struct mutex register_mutex;
