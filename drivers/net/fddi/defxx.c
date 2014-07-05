@@ -3447,8 +3447,13 @@ static void dfx_rcv_flush( DFX_board_t *bp )
 		{
 			struct sk_buff *skb;
 			skb = (struct sk_buff *)bp->p_rcv_buff_va[i+j];
-			if (skb)
+			if (skb) {
+				dma_unmap_single(bp->bus_dev,
+						 bp->descr_block_virt->rcv_data[i+j].long_1,
+						 PI_RCV_DATA_K_SIZE_MAX,
+						 DMA_FROM_DEVICE);
 				dev_kfree_skb(skb);
+			}
 			bp->p_rcv_buff_va[i+j] = NULL;
 		}
 
