@@ -192,16 +192,6 @@ struct platform_device *__init imx_add_mx3_sdc_fb(
 		const struct imx_ipu_core_data *data,
 		struct mx3fb_platform_data *pdata);
 
-#include <linux/platform_data/camera-mx1.h>
-struct imx_mx1_camera_data {
-	resource_size_t iobase;
-	resource_size_t iosize;
-	resource_size_t irq;
-};
-struct platform_device *__init imx_add_mx1_camera(
-		const struct imx_mx1_camera_data *data,
-		const struct mx1_camera_pdata *pdata);
-
 #include <linux/platform_data/camera-mx2.h>
 struct imx_mx2_camera_data {
 	const char *devid;
