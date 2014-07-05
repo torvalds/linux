@@ -39,10 +39,10 @@ struct au_mvd_args {
 };
 
 #define mvd_errno		mvdown.au_errno
-#define mvd_bsrc		mvdown.a[AUFS_MVDOWN_UPPER].bindex
-#define mvd_src_brid		mvdown.a[AUFS_MVDOWN_UPPER].brid
-#define mvd_bdst		mvdown.a[AUFS_MVDOWN_LOWER].bindex
-#define mvd_dst_brid		mvdown.a[AUFS_MVDOWN_LOWER].brid
+#define mvd_bsrc		mvdown.stbr[AUFS_MVDOWN_UPPER].bindex
+#define mvd_src_brid		mvdown.stbr[AUFS_MVDOWN_UPPER].brid
+#define mvd_bdst		mvdown.stbr[AUFS_MVDOWN_LOWER].bindex
+#define mvd_dst_brid		mvdown.stbr[AUFS_MVDOWN_LOWER].brid
 
 #define mvd_h_src_sb		info[AUFS_MVDOWN_UPPER].h_sb
 #define mvd_h_src_parent	info[AUFS_MVDOWN_UPPER].h_parent
@@ -214,6 +214,26 @@ static int au_do_unlink(const unsigned char dmsg, struct au_mvd_args *a)
 	return err;
 }
 
+/* Since mvdown succeeded, we ignore an error of this function */
+static void au_do_stfs(const unsigned char dmsg, struct au_mvd_args *a)
+{
+	int err;
+	struct au_branch *br;
+
+	a->mvdown.flags |= AUFS_MVDOWN_STFS_FAILED;
+	br = au_sbr(a->sb, a->mvd_bsrc);
+	err = au_br_stfs(br, &a->mvdown.stbr[AUFS_MVDOWN_UPPER].stfs);
+	if (!err) {
+		br = au_sbr(a->sb, a->mvd_bdst);
+		a->mvdown.stbr[AUFS_MVDOWN_LOWER].brid = br->br_id;
+		err = au_br_stfs(br, &a->mvdown.stbr[AUFS_MVDOWN_LOWER].stfs);
+	}
+	if (!err)
+		a->mvdown.flags &= ~AUFS_MVDOWN_STFS_FAILED;
+	else
+		AU_MVD_PR(dmsg, "statfs failed (%d), ignored\n", err);
+}
+
 /*
  * copy-down the file and unlink the bsrc file.
  * - unlink the bdst whout if exist
@@ -242,6 +262,9 @@ static int au_do_mvdown(const unsigned char dmsg, struct au_mvd_args *a)
 		err = au_do_unlink(dmsg, a);
 	if (unlikely(err))
 		goto out_unlock;
+
+	if (a->mvdown.flags & AUFS_MVDOWN_STFS)
+		au_do_stfs(dmsg, a);
 
 	/* maintain internal array */
 	if (!(a->mvdown.flags & AUFS_MVDOWN_KUPPER)) {
