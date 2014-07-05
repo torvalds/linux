@@ -19,7 +19,7 @@ static int armada510_crtc_init(struct armada_crtc *dcrtc, struct device *dev)
 {
 	struct clk *clk;
 
-	clk = devm_clk_get(dev, "ext_ref_clk_1");
+	clk = devm_clk_get(dev, "ext_ref_clk1");
 	if (IS_ERR(clk))
 		return PTR_ERR(clk) == -ENOENT ? -EPROBE_DEFER : PTR_ERR(clk);
 
