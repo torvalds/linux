@@ -143,7 +143,10 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	new_rsr = skb_data + 8 + pay_load_with_padding + 9;
 	rssi = skb_data + 8 + pay_load_with_padding + 10;
+
 	rsr = skb_data + 8 + pay_load_with_padding + 11;
+	if (*rsr & (RSR_IVLDTYP | RSR_IVLDLEN))
+		return false;
 
 	frame_size = *pay_load_len;
 
@@ -163,14 +166,24 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	rx_status.flag = 0;
 	rx_status.freq = hw->conf.chandef.chan->center_freq;
 
+	if (!(*rsr & RSR_CRCOK))
+		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
+
 	hdr = (struct ieee80211_hdr *)(skb->data);
 	fc = hdr->frame_control;
 
 	rx_status.rate_idx = rate_idx;
 
 	if (ieee80211_has_protected(fc)) {
-		if (priv->byLocalID > REV_ID_VT3253_A1)
-			rx_status.flag = RX_FLAG_DECRYPTED;
+		if (priv->byLocalID > REV_ID_VT3253_A1) {
+			rx_status.flag |= RX_FLAG_DECRYPTED;
+
+			/* Drop packet */
+			if (!(*new_rsr & NEWRSR_DECRYPTOK)) {
+				dev_kfree_skb(skb);
+				return true;
+			}
+		}
 	}
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
