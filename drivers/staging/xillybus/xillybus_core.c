@@ -267,6 +267,12 @@ irqreturn_t xillybus_isr(int irq, void *data)
 
 			break;
 		case XILLYMSG_OPCODE_FIFOEOF:
+			if ((msg_channel > ep->num_channels) ||
+			    (msg_channel == 0) || (!msg_dir) ||
+			    !ep->channels[msg_channel]->num_wr_buffers) {
+				malformed_message(ep, &buf[i]);
+				break;
+			}
 			channel = ep->channels[msg_channel];
 			spin_lock(&channel->wr_spinlock);
 			channel->wr_eof = msg_bufno;
