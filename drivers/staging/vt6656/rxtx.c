@@ -1021,6 +1021,8 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		}
 	}
 
+	tx_context->fb_option = fb_option;
+
 	duration_id = s_vGenerateTxParameter(tx_context, pkt_type, current_rate,
 				tx_buffer, &mic_hdr, need_mic, frame_size,
 						need_ack, NULL, need_rts);
@@ -1050,8 +1052,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 						IEEE80211_SCTL_SEQ) >> 4;
 
 	tx_buffer->tx_byte_count = cpu_to_le16(tx_bytes);
-	tx_buffer->byPKTNO = (u8)(((current_rate << 4) & 0xf0) |
-		(priv->wSeqCounter & 0xf));
+	tx_buffer->byPKTNO = tx_context->pkt_no;
 	tx_buffer->byType = 0x00;
 
 	tx_bytes += 4;
@@ -1147,8 +1148,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 	count = sizeof(struct vnt_tx_short_buf_head) + skb->len;
 
 	beacon_buffer->tx_byte_count = cpu_to_le16(count);
-	beacon_buffer->byPKTNO = (u8)(((current_rate << 4) & 0xf0) |
-				((priv->wSeqCounter - 1) & 0x000f));
+	beacon_buffer->byPKTNO = context->pkt_no;
 	beacon_buffer->byType = 0x01;
 
 	context->type = CONTEXT_BEACON_PACKET;

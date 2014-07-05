@@ -557,6 +557,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 
 		priv->apTD[ii] = tx_context;
 		tx_context->priv = priv;
+		tx_context->pkt_no = ii;
 
 		/* allocate URBs */
 		tx_context->urb = usb_alloc_urb(0, GFP_ATOMIC);

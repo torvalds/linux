@@ -398,7 +398,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 {
 	struct vnt_usb_send_context *context = urb->context;
 	struct vnt_private *priv = context->priv;
-	struct ieee80211_tx_info *info;
 
 	switch (urb->status) {
 	case 0:
@@ -415,25 +414,15 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 		break;
 	}
 
-	if (context->skb) {
-		s8 idx;
-
-		info = IEEE80211_SKB_CB(context->skb);
-
-		idx = info->control.rates[0].idx;
-
-		ieee80211_tx_info_clear_status(info);
-		info->status.rates[0].idx = idx;
-		info->status.rates[0].count = 0;
-		if (!urb->status)
-			info->flags |= IEEE80211_TX_STAT_ACK;
-		ieee80211_tx_status_irqsafe(priv->hw, context->skb);
-	}
-
 	if (context->type == CONTEXT_DATA_PACKET)
 		ieee80211_wake_queues(priv->hw);
 
-	context->in_use = false;
+	if (urb->status || context->type == CONTEXT_BEACON_PACKET) {
+		if (context->skb)
+			ieee80211_free_txskb(priv->hw, context->skb);
+
+		context->in_use = false;
+	}
 
 	return;
 }

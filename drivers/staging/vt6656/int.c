@@ -39,6 +39,22 @@
 
 static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
 
+static const u8 fallback_rate0[5][5] = {
+	{RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
+	{RATE_24M, RATE_24M, RATE_18M, RATE_12M, RATE_12M},
+	{RATE_36M, RATE_36M, RATE_24M, RATE_18M, RATE_18M},
+	{RATE_48M, RATE_48M, RATE_36M, RATE_24M, RATE_24M},
+	{RATE_54M, RATE_54M, RATE_48M, RATE_36M, RATE_36M}
+};
+
+static const u8 fallback_rate1[5][5] = {
+	{RATE_18M, RATE_18M, RATE_12M, RATE_6M, RATE_6M},
+	{RATE_24M, RATE_24M, RATE_18M, RATE_6M, RATE_6M},
+	{RATE_36M, RATE_36M, RATE_24M, RATE_12M, RATE_12M},
+	{RATE_48M, RATE_48M, RATE_24M, RATE_12M, RATE_12M},
+	{RATE_54M, RATE_54M, RATE_36M, RATE_18M, RATE_18M}
+};
+
 /*+
  *
  *  Function:   InterruptPollingThread
@@ -75,6 +91,62 @@ void INTvWorkItem(struct vnt_private *pDevice)
 	spin_unlock_irqrestore(&pDevice->lock, flags);
 }
 
+static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
+{
+	struct vnt_usb_send_context *context;
+	struct ieee80211_tx_info *info;
+	struct ieee80211_rate *rate;
+	u8 tx_retry = (tsr & 0xf0) >> 4;
+	s8 idx;
+
+	if (pkt_no >= priv->cbTD)
+		return -EINVAL;
+
+	context = priv->apTD[pkt_no];
+
+	if (!context->skb)
+		return -EINVAL;
+
+	info = IEEE80211_SKB_CB(context->skb);
+	idx = info->control.rates[0].idx;
+
+	if (context->fb_option && !(tsr & (TSR_TMO | TSR_RETRYTMO))) {
+		u8 tx_rate;
+		u8 retry = tx_retry;
+
+		rate = ieee80211_get_tx_rate(priv->hw, info);
+		tx_rate = rate->hw_value - RATE_18M;
+
+		if (retry > 4)
+			retry = 4;
+
+		if (context->fb_option == AUTO_FB_0)
+			tx_rate = fallback_rate0[tx_rate][retry];
+		else if (context->fb_option == AUTO_FB_1)
+			tx_rate = fallback_rate1[tx_rate][retry];
+
+		if (info->band == IEEE80211_BAND_5GHZ)
+			idx = tx_rate - RATE_6M;
+		else
+			idx = tx_rate;
+	}
+
+	ieee80211_tx_info_clear_status(info);
+
+	info->status.rates[0].count = tx_retry;
+
+	if (!(tsr & (TSR_TMO | TSR_RETRYTMO))) {
+		info->status.rates[0].idx = idx;
+		info->flags |= IEEE80211_TX_STAT_ACK;
+	}
+
+	ieee80211_tx_status_irqsafe(priv->hw, context->skb);
+
+	context->in_use = false;
+
+	return 0;
+}
+
 void INTnsProcessData(struct vnt_private *priv)
 {
 	struct vnt_interrupt_data *int_data;
@@ -85,33 +157,17 @@ void INTnsProcessData(struct vnt_private *priv)
 
 	int_data = (struct vnt_interrupt_data *)priv->int_buf.data_buf;
 
-	if (int_data->tsr0 & TSR_VALID) {
-		if (int_data->tsr0 & (TSR_TMO | TSR_RETRYTMO))
-			priv->wstats.discard.retries++;
-		else
-			stats->tx_packets++;
-	}
+	if (int_data->tsr0 & TSR_VALID)
+		vnt_int_report_rate(priv, int_data->pkt0, int_data->tsr0);
 
-	if (int_data->tsr1 & TSR_VALID) {
-		if (int_data->tsr1 & (TSR_TMO | TSR_RETRYTMO))
-			priv->wstats.discard.retries++;
-		else
-			stats->tx_packets++;
-	}
+	if (int_data->tsr1 & TSR_VALID)
+		vnt_int_report_rate(priv, int_data->pkt1, int_data->tsr1);
 
-	if (int_data->tsr2 & TSR_VALID) {
-		if (int_data->tsr2 & (TSR_TMO | TSR_RETRYTMO))
-			priv->wstats.discard.retries++;
-		else
-			stats->tx_packets++;
-	}
+	if (int_data->tsr2 & TSR_VALID)
+		vnt_int_report_rate(priv, int_data->pkt2, int_data->tsr2);
 
-	if (int_data->tsr3 & TSR_VALID) {
-		if (int_data->tsr3 & (TSR_TMO | TSR_RETRYTMO))
-			priv->wstats.discard.retries++;
-		else
-			stats->tx_packets++;
-	}
+	if (int_data->tsr3 & TSR_VALID)
+		vnt_int_report_rate(priv, int_data->pkt3, int_data->tsr3);
 
 	if (int_data->isr0 != 0) {
 		if (int_data->isr0 & ISR_BNTX &&
