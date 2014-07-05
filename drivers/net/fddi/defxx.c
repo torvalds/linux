@@ -3045,7 +3045,8 @@ static void dfx_rcv_queue_process(
 				if (pkt_len > SKBUFF_RX_COPYBREAK) {
 					struct sk_buff *newskb;
 
-					newskb = dev_alloc_skb(NEW_SKB_SIZE);
+					newskb = netdev_alloc_skb(bp->dev,
+								  NEW_SKB_SIZE);
 					if (newskb){
 						rx_in_place = 1;
 
@@ -3066,7 +3067,10 @@ static void dfx_rcv_queue_process(
 						skb = NULL;
 				} else
 #endif
-					skb = dev_alloc_skb(pkt_len+3);	/* alloc new buffer to pass up, add room for PRH */
+					/* Alloc new buffer to pass up,
+					 * add room for PRH. */
+					skb = netdev_alloc_skb(bp->dev,
+							       pkt_len + 3);
 				if (skb == NULL)
 					{
 					printk("%s: Could not allocate receive buffer.  Dropping packet.\n", bp->dev->name);
