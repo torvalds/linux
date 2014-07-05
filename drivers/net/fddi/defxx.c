@@ -2936,7 +2936,7 @@ static int dfx_rcv_init(DFX_board_t *bp, int get_buffers)
 			my_skb_align(newskb, 128);
 			bp->descr_block_virt->rcv_data[i + j].long_1 =
 				(u32)dma_map_single(bp->bus_dev, newskb->data,
-						    NEW_SKB_SIZE,
+						    PI_RCV_DATA_K_SIZE_MAX,
 						    DMA_FROM_DEVICE);
 			/*
 			 * p_rcv_buff_va is only used inside the
@@ -3053,14 +3053,14 @@ static void dfx_rcv_queue_process(
 						skb = (struct sk_buff *)bp->p_rcv_buff_va[entry];
 						dma_unmap_single(bp->bus_dev,
 							bp->descr_block_virt->rcv_data[entry].long_1,
-							NEW_SKB_SIZE,
+							PI_RCV_DATA_K_SIZE_MAX,
 							DMA_FROM_DEVICE);
 						skb_reserve(skb, RCV_BUFF_K_PADDING);
 						bp->p_rcv_buff_va[entry] = (char *)newskb;
 						bp->descr_block_virt->rcv_data[entry].long_1 =
 							(u32)dma_map_single(bp->bus_dev,
 								newskb->data,
-								NEW_SKB_SIZE,
+								PI_RCV_DATA_K_SIZE_MAX,
 								DMA_FROM_DEVICE);
 					} else
 						skb = NULL;
