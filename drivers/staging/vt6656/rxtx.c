@@ -900,7 +900,8 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	rate = ieee80211_get_tx_rate(priv->hw, info);
 
 	current_rate = rate->hw_value;
-	if (priv->wCurrentRate != current_rate) {
+	if (priv->wCurrentRate != current_rate &&
+			!(priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
 		priv->wCurrentRate = current_rate;
 		bScheduleCommand(priv, WLAN_CMD_SETPOWER, NULL);
 	}
