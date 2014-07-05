@@ -1123,17 +1123,16 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 
 	/* Display virtual and physical addresses if debug driver */
 
-	DBG_printk("%s: Descriptor block virt = %0lX, phys = %0X\n",
-		   print_name,
-		   (long)bp->descr_block_virt, bp->descr_block_phys);
-	DBG_printk("%s: Command Request buffer virt = %0lX, phys = %0X\n",
-		   print_name, (long)bp->cmd_req_virt, bp->cmd_req_phys);
-	DBG_printk("%s: Command Response buffer virt = %0lX, phys = %0X\n",
-		   print_name, (long)bp->cmd_rsp_virt, bp->cmd_rsp_phys);
-	DBG_printk("%s: Receive buffer block virt = %0lX, phys = %0X\n",
-		   print_name, (long)bp->rcv_block_virt, bp->rcv_block_phys);
-	DBG_printk("%s: Consumer block virt = %0lX, phys = %0X\n",
-		   print_name, (long)bp->cons_block_virt, bp->cons_block_phys);
+	DBG_printk("%s: Descriptor block virt = %p, phys = %pad\n",
+		   print_name, bp->descr_block_virt, &bp->descr_block_phys);
+	DBG_printk("%s: Command Request buffer virt = %p, phys = %pad\n",
+		   print_name, bp->cmd_req_virt, &bp->cmd_req_phys);
+	DBG_printk("%s: Command Response buffer virt = %p, phys = %pad\n",
+		   print_name, bp->cmd_rsp_virt, &bp->cmd_rsp_phys);
+	DBG_printk("%s: Receive buffer block virt = %p, phys = %pad\n",
+		   print_name, bp->rcv_block_virt, &bp->rcv_block_phys);
+	DBG_printk("%s: Consumer block virt = %p, phys = %pad\n",
+		   print_name, bp->cons_block_virt, &bp->cons_block_phys);
 
 	return DFX_K_SUCCESS;
 }
