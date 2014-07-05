@@ -810,6 +810,12 @@ static int
 tda998x_encoder_mode_valid(struct drm_encoder *encoder,
 			  struct drm_display_mode *mode)
 {
+	if (mode->clock > 150000)
+		return MODE_CLOCK_HIGH;
+	if (mode->htotal >= BIT(13))
+		return MODE_BAD_HVALUE;
+	if (mode->vtotal >= BIT(11))
+		return MODE_BAD_VVALUE;
 	return MODE_OK;
 }
 
@@ -1048,8 +1054,8 @@ read_edid_block(struct drm_encoder *encoder, uint8_t *buf, int blk)
 			return i;
 		}
 	} else {
-		for (i = 10; i > 0; i--) {
-			msleep(10);
+		for (i = 100; i > 0; i--) {
+			msleep(1);
 			ret = reg_read(priv, REG_INT_FLAGS_2);
 			if (ret < 0)
 				return ret;
@@ -1183,7 +1189,6 @@ static void
 tda998x_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct tda998x_priv *priv = to_tda998x_priv(encoder);
-	drm_i2c_encoder_destroy(encoder);
 
 	/* disable all IRQs and free the IRQ handler */
 	cec_write(priv, REG_CEC_RXSHPDINTENA, 0);
@@ -1193,6 +1198,7 @@ tda998x_encoder_destroy(struct drm_encoder *encoder)
 
 	if (priv->cec)
 		i2c_unregister_device(priv->cec);
+	drm_i2c_encoder_destroy(encoder);
 	kfree(priv);
 }
 
