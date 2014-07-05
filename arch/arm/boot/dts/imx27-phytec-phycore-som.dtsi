@@ -51,7 +51,7 @@
 			compatible = "usb-nop-xceiv";
 			reg = <0>;
 			vcc-supply = <&sw3_reg>;
-			clocks = <&clks 0>;
+			clocks = <&clks IMX27_CLK_DUMMY>;
 			clock-names = "main_clk";
 		};
 	};
