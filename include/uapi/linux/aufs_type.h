@@ -254,6 +254,7 @@ enum {
 #define AUFS_MVDOWN_BRID_LOWER	(1 << 8)	/* lower brid */
 #define AUFS_MVDOWN_STFS	(1 << 9)	/* req. stfs */
 #define AUFS_MVDOWN_STFS_FAILED	(1 << 10)	/* output: stfs is unusable */
+#define AUFS_MVDOWN_BOTTOM	(1 << 11)	/* output: no more lowers */
 
 /* index for move-down */
 enum {

@@ -61,6 +61,36 @@ struct au_mvd_args {
 			pr_err(__VA_ARGS__);		\
 	} while (0)
 
+static int find_lower_writable(struct au_mvd_args *a)
+{
+	struct super_block *sb;
+	aufs_bindex_t bindex, bend;
+	struct au_branch *br;
+
+	sb = a->sb;
+	bindex = a->mvd_bsrc;
+	bend = au_sbend(sb);
+	if (!(a->mvdown.flags & AUFS_MVDOWN_ROLOWER)) {
+		for (bindex++; bindex <= bend; bindex++) {
+			br = au_sbr(sb, bindex);
+			if (!au_br_rdonly(br))
+				return bindex;
+		}
+	} else {
+		for (bindex++; bindex <= bend; bindex++) {
+			br = au_sbr(sb, bindex);
+			if (!(au_br_sb(br)->s_flags & MS_RDONLY)) {
+				if (au_br_rdonly(br))
+					a->mvdown.flags
+						|= AUFS_MVDOWN_ROLOWER_R;
+				return bindex;
+			}
+		}
+	}
+
+	return -1;
+}
+
 /* make the parent dir on bdst */
 static int au_do_mkdir(const unsigned char dmsg, struct au_mvd_args *a)
 {
@@ -263,6 +293,9 @@ static int au_do_mvdown(const unsigned char dmsg, struct au_mvd_args *a)
 	if (unlikely(err))
 		goto out_unlock;
 
+	if (find_lower_writable(a) < 0)
+		a->mvdown.flags |= AUFS_MVDOWN_BOTTOM;
+
 	if (a->mvdown.flags & AUFS_MVDOWN_STFS)
 		au_do_stfs(dmsg, a);
 
@@ -286,36 +319,6 @@ out:
 }
 
 /* ---------------------------------------------------------------------- */
-
-static int find_lower_writable(struct au_mvd_args *a)
-{
-	struct super_block *sb;
-	aufs_bindex_t bindex, bend;
-	struct au_branch *br;
-
-	sb = a->sb;
-	bindex = a->mvd_bsrc;
-	bend = au_sbend(sb);
-	if (!(a->mvdown.flags & AUFS_MVDOWN_ROLOWER)) {
-		for (bindex++; bindex <= bend; bindex++) {
-			br = au_sbr(sb, bindex);
-			if (!au_br_rdonly(br))
-				return bindex;
-		}
-	} else {
-		for (bindex++; bindex <= bend; bindex++) {
-			br = au_sbr(sb, bindex);
-			if (!(au_br_sb(br)->s_flags & MS_RDONLY)) {
-				if (au_br_rdonly(br))
-					a->mvdown.flags
-						|= AUFS_MVDOWN_ROLOWER_R;
-				return bindex;
-			}
-		}
-	}
-
-	return -1;
-}
 
 /* make sure the file is idle */
 static int au_mvd_args_busy(const unsigned char dmsg, struct au_mvd_args *a)
