@@ -231,6 +231,47 @@ static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
 	return event;
 }
 
+static PyObject *get_field_numeric_entry(struct event_format *event,
+		struct format_field *field, void *data)
+{
+	bool is_array = field->flags & FIELD_IS_ARRAY;
+	PyObject *obj, *list = NULL;
+	unsigned long long val;
+	unsigned int item_size, n_items, i;
+
+	if (is_array) {
+		list = PyList_New(field->arraylen);
+		item_size = field->size / field->arraylen;
+		n_items = field->arraylen;
+	} else {
+		item_size = field->size;
+		n_items = 1;
+	}
+
+	for (i = 0; i < n_items; i++) {
+
+		val = read_size(event, data + field->offset + i * item_size,
+				item_size);
+		if (field->flags & FIELD_IS_SIGNED) {
+			if ((long long)val >= LONG_MIN &&
+					(long long)val <= LONG_MAX)
+				obj = PyInt_FromLong(val);
+			else
+				obj = PyLong_FromLongLong(val);
+		} else {
+			if (val <= LONG_MAX)
+				obj = PyInt_FromLong(val);
+			else
+				obj = PyLong_FromUnsignedLongLong(val);
+		}
+		if (is_array)
+			PyList_SET_ITEM(list, i, obj);
+	}
+	if (is_array)
+		obj = list;
+	return obj;
+}
+
 static void python_process_tracepoint(struct perf_sample *sample,
 				      struct perf_evsel *evsel,
 				      struct thread *thread,
@@ -239,7 +280,6 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	PyObject *handler, *retval, *context, *t, *obj, *dict = NULL;
 	static char handler_name[256];
 	struct format_field *field;
-	unsigned long long val;
 	unsigned long s, ns;
 	struct event_format *event;
 	unsigned n = 0;
@@ -303,20 +343,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 				offset = field->offset;
 			obj = PyString_FromString((char *)data + offset);
 		} else { /* FIELD_IS_NUMERIC */
-			val = read_size(event, data + field->offset,
-					field->size);
-			if (field->flags & FIELD_IS_SIGNED) {
-				if ((long long)val >= LONG_MIN &&
-				    (long long)val <= LONG_MAX)
-					obj = PyInt_FromLong(val);
-				else
-					obj = PyLong_FromLongLong(val);
-			} else {
-				if (val <= LONG_MAX)
-					obj = PyInt_FromLong(val);
-				else
-					obj = PyLong_FromUnsignedLongLong(val);
-			}
+			obj = get_field_numeric_entry(event, field, data);
 		}
 		if (handler)
 			PyTuple_SetItem(t, n++, obj);

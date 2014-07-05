@@ -1281,7 +1281,9 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 	u8 cpumode = PERF_RECORD_MISC_USER;
 	int chain_nr = min(max_stack, (int)chain->nr);
 	int i;
+	int j;
 	int err;
+	int skip_idx __maybe_unused;
 
 	callchain_cursor_reset(&callchain_cursor);
 
@@ -1290,14 +1292,26 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 		return 0;
 	}
 
+	/*
+	 * Based on DWARF debug information, some architectures skip
+	 * a callchain entry saved by the kernel.
+	 */
+	skip_idx = arch_skip_callchain_idx(machine, thread, chain);
+
 	for (i = 0; i < chain_nr; i++) {
 		u64 ip;
 		struct addr_location al;
 
 		if (callchain_param.order == ORDER_CALLEE)
-			ip = chain->ips[i];
+			j = i;
 		else
-			ip = chain->ips[chain->nr - i - 1];
+			j = chain->nr - i - 1;
+
+#ifdef HAVE_SKIP_CALLCHAIN_IDX
+		if (j == skip_idx)
+			continue;
+#endif
+		ip = chain->ips[j];
 
 		if (ip >= PERF_CONTEXT_MAX) {
 			switch (ip) {
