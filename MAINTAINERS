@@ -943,15 +943,9 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
 F:	arch/arm/mach-imx/
+F:	arch/arm/mach-mxs/
 F:	arch/arm/boot/dts/imx*
 F:	arch/arm/configs/imx*_defconfig
-
-ARM/FREESCALE MXS ARM ARCHITECTURE
-M:	Shawn Guo <shawn.guo@linaro.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
-F:	arch/arm/mach-mxs/
 
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -1052,8 +1046,32 @@ M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-keystone/
-F:	drivers/clk/keystone/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
+
+ARM/TEXAS INSTRUMENT KEYSTONE CLOCK FRAMEWORK
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/clk/keystone/
+
+ARM/TEXAS INSTRUMENT KEYSTONE ClOCKSOURCE
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/clocksource/timer-keystone.c
+
+ARM/TEXAS INSTRUMENT KEYSTONE RESET DRIVER
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/power/reset/keystone-reset.c
+
+ARM/TEXAS INSTRUMENT AEMIF/EMIF DRIVERS
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/memory/*emif*
 
 ARM/LOGICPD PXA270 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
