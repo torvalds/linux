@@ -1028,7 +1028,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *_fh,
 		f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	} else {
 		/* HDTV formats */
-		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE240M;
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
 		f->fmt.pix.field = V4L2_FIELD_NONE;
 	}
 	return 0;
