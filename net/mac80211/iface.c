@@ -841,10 +841,11 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	sdata_lock(sdata);
 	mutex_lock(&local->mtx);
 	sdata->vif.csa_active = false;
-	if (!ieee80211_csa_needs_block_tx(local))
-		ieee80211_wake_queues_by_reason(&local->hw,
-					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
+	if (sdata->csa_block_tx) {
+		ieee80211_wake_vif_queues(local, sdata,
+					  IEEE80211_QUEUE_STOP_REASON_CSA);
+		sdata->csa_block_tx = false;
+	}
 	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);
 
@@ -1671,6 +1672,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 			  ieee80211_dfs_cac_timer_work);
 	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
 			  ieee80211_delayed_tailroom_dec);
+	INIT_DELAYED_WORK(&sdata->tdls_peer_del_work,
+			  ieee80211_tdls_peer_del_work);
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		struct ieee80211_supported_band *sband;
@@ -1704,6 +1707,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		}
 
 		ndev->features |= local->hw.netdev_features;
+
+		netdev_set_default_ethtool_ops(ndev, &ieee80211_ethtool_ops);
 
 		ret = register_netdevice(ndev);
 		if (ret) {

@@ -3137,10 +3137,11 @@ exit:
 
 static int ath10k_hw_scan(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif,
-			  struct cfg80211_scan_request *req)
+			  struct ieee80211_scan_request *hw_req)
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct cfg80211_scan_request *req = &hw_req->req;
 	struct wmi_start_scan_arg arg;
 	int ret = 0;
 	int i;

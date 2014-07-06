@@ -15,7 +15,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/debugfs.h>
 #include <linux/pci.h>
 #include <linux/moduleparam.h>
 
@@ -27,11 +26,22 @@ MODULE_PARM_DESC(use_msi,
 		 " Use MSI interrupt: "
 		 "0 - don't, 1 - (default) - single, or 3");
 
+static bool debug_fw; /* = false; */
+module_param(debug_fw, bool, S_IRUGO);
+MODULE_PARM_DESC(debug_fw, " load driver if FW not ready. For FW debug");
+
 /* Bus ops */
 static int wil_if_pcie_enable(struct wil6210_priv *wil)
 {
 	struct pci_dev *pdev = wil->pdev;
 	int rc;
+	/* on platforms with buggy ACPI, pdev->msi_enabled may be set to
+	 * allow pci_enable_device to work. This indicates INTx was not routed
+	 * and only MSI should be used
+	 */
+	int msi_only = pdev->msi_enabled;
+
+	pdev->msi_enabled = 0;
 
 	pci_set_master(pdev);
 
@@ -63,6 +73,12 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 
 	wil->n_msi = use_msi;
 
+	if ((wil->n_msi == 0) && msi_only) {
+		wil_err(wil, "Interrupt pin not routed, unable to use INTx\n");
+		rc = -ENODEV;
+		goto stop_master;
+	}
+
 	rc = wil6210_init_irq(wil, pdev->irq);
 	if (rc)
 		goto stop_master;
@@ -71,6 +87,8 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	mutex_lock(&wil->mutex);
 	rc = wil_reset(wil);
 	mutex_unlock(&wil->mutex);
+	if (debug_fw)
+		rc = 0;
 	if (rc)
 		goto release_irq;
 
@@ -119,9 +137,16 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		dev_err(&pdev->dev, "pci_enable_device failed\n");
-		return -ENODEV;
+		dev_err(&pdev->dev,
+			"pci_enable_device failed, retry with MSI only\n");
+		/* Work around for platforms that can't allocate IRQ:
+		 * retry with MSI only
+		 */
+		pdev->msi_enabled = 1;
+		rc = pci_enable_device(pdev);
 	}
+	if (rc)
+		return -ENODEV;
 	/* rollback to err_disable_pdev */
 
 	rc = pci_request_region(pdev, 0, WIL_NAME);

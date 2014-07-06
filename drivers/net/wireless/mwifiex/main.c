@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: major functions
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -609,7 +609,6 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
-	struct timeval tv;
 
 	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d-%d): Data <= kernel\n",
 		jiffies, priv->bss_type, priv->bss_num);
@@ -656,8 +655,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * firmware for aggregate delay calculation for stats and
 	 * MSDU lifetime expiry.
 	 */
-	do_gettimeofday(&tv);
-	skb->tstamp = timeval_to_ktime(tv);
+	__net_timestamp(skb);
 
 	mwifiex_queue_tx_pkt(priv, skb);
 
@@ -881,6 +879,8 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 		goto err_kmalloc;
 
 	INIT_WORK(&adapter->main_work, mwifiex_main_work_queue);
+	if (adapter->if_ops.iface_work)
+		INIT_WORK(&adapter->iface_work, adapter->if_ops.iface_work);
 
 	/* Register the device. Fill up the private data structure with relevant
 	   information from the card. */

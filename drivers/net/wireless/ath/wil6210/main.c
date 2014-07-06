@@ -61,11 +61,24 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 {
 	uint i;
+	struct net_device *ndev = wil_to_ndev(wil);
+	struct wireless_dev *wdev = wil->wdev;
 	struct wil_sta_info *sta = &wil->sta[cid];
+	wil_dbg_misc(wil, "%s(CID %d, status %d)\n", __func__, cid,
+		     sta->status);
 
 	sta->data_port_open = false;
 	if (sta->status != wil_sta_unused) {
 		wmi_disconnect_sta(wil, sta->addr, WLAN_REASON_DEAUTH_LEAVING);
+		switch (wdev->iftype) {
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+			/* AP-like interface */
+			cfg80211_del_sta(ndev, sta->addr, GFP_KERNEL);
+			break;
+		default:
+			break;
+		}
 		sta->status = wil_sta_unused;
 	}
 
@@ -119,11 +132,6 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
 		clear_bit(wil_status_fwconnecting, &wil->status);
 		break;
 	default:
-		/* AP-like interface and monitor:
-		 * never scan, always connected
-		 */
-		if (bssid)
-			cfg80211_del_sta(ndev, bssid, GFP_KERNEL);
 		break;
 	}
 }
@@ -465,6 +473,7 @@ void wil_link_on(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	netif_carrier_on(ndev);
+	wil_dbg_misc(wil, "netif_tx_wake : link on\n");
 	netif_tx_wake_all_queues(ndev);
 }
 
@@ -475,6 +484,7 @@ void wil_link_off(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	netif_tx_stop_all_queues(ndev);
+	wil_dbg_misc(wil, "netif_tx_stop : link off\n");
 	netif_carrier_off(ndev);
 }
 
@@ -552,6 +562,8 @@ static int __wil_down(struct wil6210_priv *wil)
 	napi_disable(&wil->napi_tx);
 
 	if (wil->scan_request) {
+		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
+			     wil->scan_request);
 		del_timer_sync(&wil->scan_timer);
 		cfg80211_scan_done(wil->scan_request, true);
 		wil->scan_request = NULL;

@@ -141,8 +141,11 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
-	if (test_and_clear_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags))
+	if (test_and_clear_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags)) {
+		mutex_lock(&intf->beacon_skb_mutex);
 		rt2x00queue_update_beacon(rt2x00dev, vif);
+		mutex_unlock(&intf->beacon_skb_mutex);
+	}
 }
 
 static void rt2x00lib_intf_scheduled(struct work_struct *work)
@@ -216,7 +219,7 @@ static void rt2x00lib_beaconupdate_iter(void *data, u8 *mac,
 	 * never be called for USB devices.
 	 */
 	WARN_ON(rt2x00_is_usb(rt2x00dev));
-	rt2x00queue_update_beacon_locked(rt2x00dev, vif);
+	rt2x00queue_update_beacon(rt2x00dev, vif);
 }
 
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
@@ -1452,8 +1455,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Free the driver data.
 	 */
-	if (rt2x00dev->drv_data)
-		kfree(rt2x00dev->drv_data);
+	kfree(rt2x00dev->drv_data);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_remove_dev);
 

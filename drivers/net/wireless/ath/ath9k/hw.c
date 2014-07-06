@@ -791,7 +791,8 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 				refdiv = 5;
 			} else {
 				pll2_divint = 0x11;
-				pll2_divfrac = 0x26666;
+				pll2_divfrac =
+					AR_SREV_9531(ah) ? 0x26665 : 0x26666;
 				refdiv = 1;
 			}
 		}
@@ -1730,6 +1731,23 @@ fail:
 	return -EINVAL;
 }
 
+u32 ath9k_hw_get_tsf_offset(struct timespec *last, struct timespec *cur)
+{
+	struct timespec ts;
+	s64 usec;
+
+	if (!cur) {
+		getrawmonotonic(&ts);
+		cur = &ts;
+	}
+
+	usec = cur->tv_sec * 1000000ULL + cur->tv_nsec / 1000;
+	usec -= last->tv_sec * 1000000ULL + last->tv_nsec / 1000;
+
+	return (u32) usec;
+}
+EXPORT_SYMBOL(ath9k_hw_get_tsf_offset);
+
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   struct ath9k_hw_cal_data *caldata, bool fastcc)
 {
@@ -1739,7 +1757,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u32 saveDefAntenna;
 	u32 macStaId1;
 	u64 tsf = 0;
-	s64 usec = 0;
 	int r;
 	bool start_mci_reset = false;
 	bool save_fullsleep = ah->chip_fullsleep;
@@ -1785,7 +1802,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	/* Save TSF before chip reset, a cold reset clears it */
 	tsf = ath9k_hw_gettsf64(ah);
 	getrawmonotonic(&ts);
-	usec = ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000;
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
 		(AR_CFG_LED_ASSOC_CTL | AR_CFG_LED_MODE_SEL |
@@ -1818,9 +1834,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	/* Restore TSF */
-	getrawmonotonic(&ts);
-	usec = ts.tv_sec * 1000000ULL + ts.tv_nsec / 1000 - usec;
-	ath9k_hw_settsf64(ah, tsf + usec);
+	ath9k_hw_settsf64(ah, tsf + ath9k_hw_get_tsf_offset(&ts, NULL));
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);

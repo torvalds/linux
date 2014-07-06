@@ -259,7 +259,7 @@ static void ath_edma_start_recv(struct ath_softc *sc)
 	ath_rx_addbuffer_edma(sc, ATH9K_RX_QUEUE_HP);
 	ath_rx_addbuffer_edma(sc, ATH9K_RX_QUEUE_LP);
 	ath_opmode_init(sc);
-	ath9k_hw_startpcureceive(sc->sc_ah, !!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL));
+	ath9k_hw_startpcureceive(sc->sc_ah, sc->cur_chan->offchannel);
 }
 
 static void ath_edma_stop_recv(struct ath_softc *sc)
@@ -374,6 +374,7 @@ void ath_rx_cleanup(struct ath_softc *sc)
 
 u32 ath_calcrxfilter(struct ath_softc *sc)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u32 rfilt;
 
 	if (config_enabled(CONFIG_ATH9K_TX99))
@@ -424,6 +425,10 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (AR_SREV_9550(sc->sc_ah) || AR_SREV_9531(sc->sc_ah))
 		rfilt |= ATH9K_RX_FILTER_4ADDRESS;
 
+	if (ath9k_use_chanctx &&
+	    test_bit(ATH_OP_SCANNING, &common->op_flags))
+		rfilt |= ATH9K_RX_FILTER_BEACON;
+
 	return rfilt;
 
 }
@@ -457,7 +462,7 @@ int ath_startrecv(struct ath_softc *sc)
 
 start_recv:
 	ath_opmode_init(sc);
-	ath9k_hw_startpcureceive(ah, !!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL));
+	ath9k_hw_startpcureceive(ah, sc->cur_chan->offchannel);
 
 	return 0;
 }
@@ -540,7 +545,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		sc->ps_flags &= ~PS_BEACON_SYNC;
 		ath_dbg(common, PS,
 			"Reconfigure beacon timers based on synchronized timestamp\n");
-		if (!(WARN_ON_ONCE(sc->cur_beacon_conf.beacon_interval == 0)))
+		if (!(WARN_ON_ONCE(sc->cur_chan->beacon.beacon_interval == 0)))
 			ath9k_set_beacon(sc);
 		if (sc->p2p_ps_vif)
 			ath9k_update_p2p_ps(sc, sc->p2p_ps_vif->vif);
@@ -885,6 +890,11 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 			rx_stats->rs_rate);
 		RX_STAT_INC(rx_rate_err);
 		return -EINVAL;
+	}
+
+	if (rx_stats->is_mybeacon) {
+		sc->sched.next_tbtt = rx_stats->rs_tstamp;
+		ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_BEACON_RECEIVED);
 	}
 
 	ath9k_cmn_process_rssi(common, hw, rx_stats, rx_status);

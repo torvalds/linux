@@ -5629,16 +5629,6 @@ F:	Documentation/networking/mac80211-injection.txt
 F:	include/net/mac80211.h
 F:	net/mac80211/
 
-MAC80211 PID RATE CONTROL
-M:	Stefano Brivio <stefano.brivio@polimi.it>
-M:	Mattias Nissler <mattias.nissler@gmx.de>
-L:	linux-wireless@vger.kernel.org
-W:	http://wireless.kernel.org/en/developers/Documentation/mac80211/RateControl/PID
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
-S:	Maintained
-F:	net/mac80211/rc80211_pid*
-
 MACVLAN DRIVER
 M:	Patrick McHardy <kaber@trash.net>
 L:	netdev@vger.kernel.org

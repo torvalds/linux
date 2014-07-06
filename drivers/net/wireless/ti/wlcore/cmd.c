@@ -1124,7 +1124,8 @@ out:
 int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       u8 role_id, u8 band,
 			       const u8 *ssid, size_t ssid_len,
-			       const u8 *ie, size_t ie_len, bool sched_scan)
+			       const u8 *ie0, size_t ie0_len, const u8 *ie1,
+			       size_t ie1_len, bool sched_scan)
 {
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct sk_buff *skb;
@@ -1136,13 +1137,15 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	wl1271_debug(DEBUG_SCAN, "build probe request band %d", band);
 
 	skb = ieee80211_probereq_get(wl->hw, vif, ssid, ssid_len,
-				     ie_len);
+				     ie0_len + ie1_len);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	if (ie_len)
-		memcpy(skb_put(skb, ie_len), ie, ie_len);
+	if (ie0_len)
+		memcpy(skb_put(skb, ie0_len), ie0, ie0_len);
+	if (ie1_len)
+		memcpy(skb_put(skb, ie1_len), ie1, ie1_len);
 
 	if (sched_scan &&
 	    (wl->quirks & WLCORE_QUIRK_DUAL_PROBE_TMPL)) {
