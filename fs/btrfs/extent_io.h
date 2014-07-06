@@ -108,7 +108,6 @@ struct extent_state {
 	struct rb_node rb_node;
 
 	/* ADD NEW ELEMENTS AFTER THIS */
-	struct extent_io_tree *tree;
 	wait_queue_head_t wq;
 	atomic_t refs;
 	unsigned long state;
