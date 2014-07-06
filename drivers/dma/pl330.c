@@ -329,15 +329,6 @@ enum pl330_op_err {
 	PL330_ERR_FAIL,
 };
 
-enum pl330_chan_op {
-	/* Start the channel */
-	PL330_OP_START,
-	/* Abort the active xfer */
-	PL330_OP_ABORT,
-	/* Stop xfer and flush queue */
-	PL330_OP_FLUSH,
-};
-
 enum dmamov_dst {
 	SAR = 0,
 	CCR,
@@ -1623,55 +1614,6 @@ updt_exit:
 	return ret;
 }
 
-static int pl330_chan_ctrl(struct pl330_thread *thrd, enum pl330_chan_op op)
-{
-	struct pl330_dmac *pl330;
-	unsigned long flags;
-	int ret = 0, active;
-
-	if (!thrd || thrd->free || thrd->dmac->state == DYING)
-		return -EINVAL;
-
-	pl330 = thrd->dmac;
-	active = thrd->req_running;
-
-	spin_lock_irqsave(&pl330->lock, flags);
-
-	switch (op) {
-	case PL330_OP_FLUSH:
-		/* Make sure the channel is stopped */
-		_stop(thrd);
-
-		thrd->req[0].desc = NULL;
-		thrd->req[1].desc = NULL;
-		thrd->req_running = -1;
-		break;
-
-	case PL330_OP_ABORT:
-		/* Make sure the channel is stopped */
-		_stop(thrd);
-
-		/* ABORT is only for the active req */
-		if (active == -1)
-			break;
-
-		thrd->req[active].desc = NULL;
-		thrd->req_running = -1;
-
-		/* Start the next */
-	case PL330_OP_START:
-		if ((active == -1) && !_start(thrd))
-			ret = -EIO;
-		break;
-
-	default:
-		ret = -EINVAL;
-	}
-
-	spin_unlock_irqrestore(&pl330->lock, flags);
-	return ret;
-}
-
 /* Reserve an event */
 static inline int _alloc_event(struct pl330_thread *thrd)
 {
@@ -2033,7 +1975,9 @@ static void pl330_tasklet(unsigned long data)
 	fill_queue(pch);
 
 	/* Make sure the PL330 Channel thread is active */
-	pl330_chan_ctrl(pch->thread, PL330_OP_START);
+	spin_lock(&pch->thread->dmac->lock);
+	_start(pch->thread);
+	spin_unlock(&pch->thread->dmac->lock);
 
 	while (!list_empty(&pch->completed_list)) {
 		dma_async_tx_callback callback;
@@ -2133,8 +2077,13 @@ static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned 
 	case DMA_TERMINATE_ALL:
 		spin_lock_irqsave(&pch->lock, flags);
 
-		/* FLUSH the PL330 Channel thread */
-		pl330_chan_ctrl(pch->thread, PL330_OP_FLUSH);
+		spin_lock(&pl330->lock);
+		_stop(pch->thread);
+		spin_unlock(&pl330->lock);
+
+		pch->thread->req[0].desc = NULL;
+		pch->thread->req[1].desc = NULL;
+		pch->thread->req_running = -1;
 
 		/* Mark all desc done */
 		list_for_each_entry(desc, &pch->submitted_list, node) {
