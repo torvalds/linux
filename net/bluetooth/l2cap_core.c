@@ -7135,7 +7135,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 			dst_type = ADDR_LE_DEV_RANDOM;
 
 		hcon = hci_connect_le(hdev, dst, dst_type, chan->sec_level,
-				      auth_type);
+				      auth_type, HCI_LE_CONN_TIMEOUT);
 	} else {
 		hcon = hci_connect_acl(hdev, dst, chan->sec_level, auth_type);
 	}

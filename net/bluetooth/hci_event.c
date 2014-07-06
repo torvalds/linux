@@ -1073,7 +1073,7 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 		if (conn)
 			queue_delayed_work(hdev->workqueue,
 					   &conn->le_conn_timeout,
-					   HCI_LE_CONN_TIMEOUT);
+					   conn->conn_timeout);
 	}
 
 	mgmt_advertising(hdev, *sent);
@@ -1913,7 +1913,7 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, u8 status)
 	if (cp->filter_policy == HCI_LE_USE_PEER_ADDR)
 		queue_delayed_work(conn->hdev->workqueue,
 				   &conn->le_conn_timeout,
-				   HCI_LE_CONN_TIMEOUT);
+				   conn->conn_timeout);
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -4238,7 +4238,7 @@ static bool check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		return false;
 
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
-			      HCI_AT_NO_BONDING);
+			      HCI_AT_NO_BONDING, HCI_LE_AUTOCONN_TIMEOUT);
 	if (!IS_ERR(conn))
 		return true;
 
