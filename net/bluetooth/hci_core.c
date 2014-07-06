@@ -1813,6 +1813,9 @@ static int __hci_unconf_init(struct hci_dev *hdev)
 {
 	int err;
 
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+		return 0;
+
 	err = __hci_req_sync(hdev, hci_init0_req, 0, HCI_INIT_TIMEOUT);
 	if (err < 0)
 		return err;
