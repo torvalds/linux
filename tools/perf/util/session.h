@@ -12,19 +12,19 @@
 #include <linux/rbtree.h>
 #include <linux/perf_event.h>
 
-struct sample_queue;
+struct ordered_event;
 struct ip_callchain;
 struct thread;
 
-struct ordered_samples {
+struct ordered_events {
 	u64			last_flush;
 	u64			next_flush;
 	u64			max_timestamp;
 	struct list_head	samples;
 	struct list_head	sample_cache;
 	struct list_head	to_free;
-	struct sample_queue	*sample_buffer;
-	struct sample_queue	*last_sample;
+	struct ordered_event	*sample_buffer;
+	struct ordered_event	*last_sample;
 	int			sample_buffer_idx;
 	unsigned int		nr_samples;
 };
@@ -39,7 +39,7 @@ struct perf_session {
 	bool			one_mmap;
 	void			*one_mmap_addr;
 	u64			one_mmap_offset;
-	struct ordered_samples	ordered_samples;
+	struct ordered_events	ordered_events;
 	struct perf_data_file	*file;
 };
 

@@ -75,9 +75,9 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 		goto out;
 
 	session->repipe = repipe;
-	INIT_LIST_HEAD(&session->ordered_samples.samples);
-	INIT_LIST_HEAD(&session->ordered_samples.sample_cache);
-	INIT_LIST_HEAD(&session->ordered_samples.to_free);
+	INIT_LIST_HEAD(&session->ordered_events.samples);
+	INIT_LIST_HEAD(&session->ordered_events.sample_cache);
+	INIT_LIST_HEAD(&session->ordered_events.to_free);
 	machines__init(&session->machines);
 
 	if (file) {
@@ -444,7 +444,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
-struct sample_queue {
+struct ordered_event {
 	u64			timestamp;
 	u64			file_offset;
 	union perf_event	*event;
@@ -453,14 +453,14 @@ struct sample_queue {
 
 static void perf_session_free_sample_buffers(struct perf_session *session)
 {
-	struct ordered_samples *os = &session->ordered_samples;
+	struct ordered_events *oe = &session->ordered_events;
 
-	while (!list_empty(&os->to_free)) {
-		struct sample_queue *sq;
+	while (!list_empty(&oe->to_free)) {
+		struct ordered_event *event;
 
-		sq = list_entry(os->to_free.next, struct sample_queue, list);
-		list_del(&sq->list);
-		free(sq);
+		event = list_entry(oe->to_free.next, struct ordered_event, list);
+		list_del(&event->list);
+		free(event);
 	}
 }
 
@@ -470,15 +470,15 @@ static int perf_session_deliver_event(struct perf_session *session,
 				      struct perf_tool *tool,
 				      u64 file_offset);
 
-static int flush_sample_queue(struct perf_session *s,
-		       struct perf_tool *tool)
+static int ordered_events__flush(struct perf_session *s,
+				 struct perf_tool *tool)
 {
-	struct ordered_samples *os = &s->ordered_samples;
-	struct list_head *head = &os->samples;
-	struct sample_queue *tmp, *iter;
+	struct ordered_events *oe = &s->ordered_events;
+	struct list_head *head = &oe->samples;
+	struct ordered_event *tmp, *iter;
 	struct perf_sample sample;
-	u64 limit = os->next_flush;
-	u64 last_ts = os->last_sample ? os->last_sample->timestamp : 0ULL;
+	u64 limit = oe->next_flush;
+	u64 last_ts = oe->last_sample ? oe->last_sample->timestamp : 0ULL;
 	bool show_progress = limit == ULLONG_MAX;
 	struct ui_progress prog;
 	int ret;
@@ -487,7 +487,7 @@ static int flush_sample_queue(struct perf_session *s,
 		return 0;
 
 	if (show_progress)
-		ui_progress__init(&prog, os->nr_samples, "Processing time ordered events...");
+		ui_progress__init(&prog, oe->nr_samples, "Processing time ordered events...");
 
 	list_for_each_entry_safe(iter, tmp, head, list) {
 		if (session_done())
@@ -506,20 +506,20 @@ static int flush_sample_queue(struct perf_session *s,
 				return ret;
 		}
 
-		os->last_flush = iter->timestamp;
+		oe->last_flush = iter->timestamp;
 		list_del(&iter->list);
-		list_add(&iter->list, &os->sample_cache);
-		os->nr_samples--;
+		list_add(&iter->list, &oe->sample_cache);
+		oe->nr_samples--;
 
 		if (show_progress)
 			ui_progress__update(&prog, 1);
 	}
 
 	if (list_empty(head)) {
-		os->last_sample = NULL;
+		oe->last_sample = NULL;
 	} else if (last_ts <= limit) {
-		os->last_sample =
-			list_entry(head->prev, struct sample_queue, list);
+		oe->last_sample =
+			list_entry(head->prev, struct ordered_event, list);
 	}
 
 	return 0;
@@ -568,27 +568,27 @@ static int process_finished_round(struct perf_tool *tool,
 				  union perf_event *event __maybe_unused,
 				  struct perf_session *session)
 {
-	int ret = flush_sample_queue(session, tool);
+	int ret = ordered_events__flush(session, tool);
 	if (!ret)
-		session->ordered_samples.next_flush = session->ordered_samples.max_timestamp;
+		session->ordered_events.next_flush = session->ordered_events.max_timestamp;
 
 	return ret;
 }
 
 /* The queue is ordered by time */
-static void __queue_event(struct sample_queue *new, struct perf_session *s)
+static void __queue_event(struct ordered_event *new, struct perf_session *s)
 {
-	struct ordered_samples *os = &s->ordered_samples;
-	struct sample_queue *sample = os->last_sample;
+	struct ordered_events *oe = &s->ordered_events;
+	struct ordered_event *sample = oe->last_sample;
 	u64 timestamp = new->timestamp;
 	struct list_head *p;
 
-	++os->nr_samples;
-	os->last_sample = new;
+	++oe->nr_samples;
+	oe->last_sample = new;
 
 	if (!sample) {
-		list_add(&new->list, &os->samples);
-		os->max_timestamp = timestamp;
+		list_add(&new->list, &oe->samples);
+		oe->max_timestamp = timestamp;
 		return;
 	}
 
@@ -600,59 +600,59 @@ static void __queue_event(struct sample_queue *new, struct perf_session *s)
 	if (sample->timestamp <= timestamp) {
 		while (sample->timestamp <= timestamp) {
 			p = sample->list.next;
-			if (p == &os->samples) {
-				list_add_tail(&new->list, &os->samples);
-				os->max_timestamp = timestamp;
+			if (p == &oe->samples) {
+				list_add_tail(&new->list, &oe->samples);
+				oe->max_timestamp = timestamp;
 				return;
 			}
-			sample = list_entry(p, struct sample_queue, list);
+			sample = list_entry(p, struct ordered_event, list);
 		}
 		list_add_tail(&new->list, &sample->list);
 	} else {
 		while (sample->timestamp > timestamp) {
 			p = sample->list.prev;
-			if (p == &os->samples) {
-				list_add(&new->list, &os->samples);
+			if (p == &oe->samples) {
+				list_add(&new->list, &oe->samples);
 				return;
 			}
-			sample = list_entry(p, struct sample_queue, list);
+			sample = list_entry(p, struct ordered_event, list);
 		}
 		list_add(&new->list, &sample->list);
 	}
 }
 
-#define MAX_SAMPLE_BUFFER	(64 * 1024 / sizeof(struct sample_queue))
+#define MAX_SAMPLE_BUFFER	(64 * 1024 / sizeof(struct ordered_event))
 
 int perf_session_queue_event(struct perf_session *s, union perf_event *event,
 				    struct perf_sample *sample, u64 file_offset)
 {
-	struct ordered_samples *os = &s->ordered_samples;
-	struct list_head *sc = &os->sample_cache;
+	struct ordered_events *oe = &s->ordered_events;
+	struct list_head *sc = &oe->sample_cache;
 	u64 timestamp = sample->time;
-	struct sample_queue *new;
+	struct ordered_event *new;
 
 	if (!timestamp || timestamp == ~0ULL)
 		return -ETIME;
 
-	if (timestamp < s->ordered_samples.last_flush) {
+	if (timestamp < s->ordered_events.last_flush) {
 		printf("Warning: Timestamp below last timeslice flush\n");
 		return -EINVAL;
 	}
 
 	if (!list_empty(sc)) {
-		new = list_entry(sc->next, struct sample_queue, list);
+		new = list_entry(sc->next, struct ordered_event, list);
 		list_del(&new->list);
-	} else if (os->sample_buffer) {
-		new = os->sample_buffer + os->sample_buffer_idx;
-		if (++os->sample_buffer_idx == MAX_SAMPLE_BUFFER)
-			os->sample_buffer = NULL;
+	} else if (oe->sample_buffer) {
+		new = oe->sample_buffer + oe->sample_buffer_idx;
+		if (++oe->sample_buffer_idx == MAX_SAMPLE_BUFFER)
+			oe->sample_buffer = NULL;
 	} else {
-		os->sample_buffer = malloc(MAX_SAMPLE_BUFFER * sizeof(*new));
-		if (!os->sample_buffer)
+		oe->sample_buffer = malloc(MAX_SAMPLE_BUFFER * sizeof(*new));
+		if (!oe->sample_buffer)
 			return -ENOMEM;
-		list_add(&os->sample_buffer->list, &os->to_free);
-		os->sample_buffer_idx = 2;
-		new = os->sample_buffer + 1;
+		list_add(&oe->sample_buffer->list, &oe->to_free);
+		oe->sample_buffer_idx = 2;
+		new = oe->sample_buffer + 1;
 	}
 
 	new->timestamp = timestamp;
@@ -1222,8 +1222,8 @@ more:
 		goto more;
 done:
 	/* do the final flush for ordered samples */
-	session->ordered_samples.next_flush = ULLONG_MAX;
-	err = flush_sample_queue(session, tool);
+	session->ordered_events.next_flush = ULLONG_MAX;
+	err = ordered_events__flush(session, tool);
 out_err:
 	free(buf);
 	perf_session__warn_about_errors(session, tool);
@@ -1368,8 +1368,8 @@ more:
 
 out:
 	/* do the final flush for ordered samples */
-	session->ordered_samples.next_flush = ULLONG_MAX;
-	err = flush_sample_queue(session, tool);
+	session->ordered_events.next_flush = ULLONG_MAX;
+	err = ordered_events__flush(session, tool);
 out_err:
 	ui_progress__finish();
 	perf_session__warn_about_errors(session, tool);
