@@ -3932,7 +3932,7 @@ int hci_register_dev(struct hci_dev *hdev)
 {
 	int id, error;
 
-	if (!hdev->open || !hdev->close)
+	if (!hdev->open || !hdev->close || !hdev->send)
 		return -EINVAL;
 
 	/* Do not allow HCI_AMP devices to register at index 0,
