@@ -230,10 +230,12 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x08fd, 0x0002), .driver_info = BTUSB_IGNORE },
 
 	/* CSR BlueCore Bluetooth Sniffer */
-	{ USB_DEVICE(0x0a12, 0x0002), .driver_info = BTUSB_SNIFFER },
+	{ USB_DEVICE(0x0a12, 0x0002),
+	  .driver_info = BTUSB_SNIFFER | BTUSB_BROKEN_ISOC },
 
 	/* Frontline ComProbe Bluetooth Sniffer */
-	{ USB_DEVICE(0x16d3, 0x0002), .driver_info = BTUSB_SNIFFER },
+	{ USB_DEVICE(0x16d3, 0x0002),
+	  .driver_info = BTUSB_SNIFFER | BTUSB_BROKEN_ISOC },
 
 	/* Intel Bluetooth device */
 	{ USB_DEVICE(0x8087, 0x07dc), .driver_info = BTUSB_INTEL },
@@ -1804,8 +1806,6 @@ static int btusb_probe(struct usb_interface *intf,
 		/* New sniffer firmware has crippled HCI interface */
 		if (le16_to_cpu(udev->descriptor.bcdDevice) > 0x997)
 			set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
-
-		data->isoc = NULL;
 	}
 
 	if (id->driver_info & BTUSB_INTEL_BOOT) {
