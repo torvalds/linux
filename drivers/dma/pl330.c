@@ -398,8 +398,6 @@ enum pl330_cond {
 struct _pl330_req {
 	u32 mc_bus;
 	void *mc_cpu;
-	/* Number of bytes taken to setup MC for the req */
-	u32 mc_len;
 	struct pl330_req *r;
 };
 
@@ -999,7 +997,6 @@ static void mark_free(struct pl330_thread *thrd, int idx)
 	struct _pl330_req *req = &thrd->req[idx];
 
 	_emit_END(0, req->mc_cpu);
-	req->mc_len = 0;
 
 	thrd->req_running = -1;
 }
@@ -1536,8 +1533,8 @@ static int pl330_submit_req(void *ch_id, struct pl330_req *r)
 
 	/* Hook the request */
 	thrd->lstenq = idx;
-	thrd->req[idx].mc_len = _setup_req(0, thrd, idx, &xs);
 	thrd->req[idx].r = r;
+	_setup_req(0, thrd, idx, &xs);
 
 	ret = 0;
 
