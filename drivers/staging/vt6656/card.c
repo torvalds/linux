@@ -408,6 +408,36 @@ void vnt_update_ifs(struct vnt_private *priv)
 	priv->uCwMax = C_CWMAX;
 	priv->uEIFS = C_EIFS;
 
+	switch (priv->byRFType) {
+	case RF_VT3226D0:
+		if (priv->byBBType != BB_TYPE_11B) {
+			priv->uSIFS -= 1;
+			priv->uDIFS -= 1;
+			break;
+		}
+	case RF_AIROHA7230:
+	case RF_AL2230:
+	case RF_AL2230S:
+		if (priv->byBBType != BB_TYPE_11B)
+			break;
+	case RF_RFMD2959:
+	case RF_VT3226:
+	case RF_VT3342A0:
+		priv->uSIFS -= 3;
+		priv->uDIFS -= 3;
+		break;
+	case RF_MAXIM2829:
+		if (priv->byBBType == BB_TYPE_11A) {
+			priv->uSIFS -= 5;
+			priv->uDIFS -= 5;
+		} else {
+			priv->uSIFS -= 2;
+			priv->uDIFS -= 2;
+		}
+
+		break;
+	}
+
 	data[0] = (u8)priv->uSIFS;
 	data[1] = (u8)priv->uDIFS;
 	data[2] = (u8)priv->uEIFS;
