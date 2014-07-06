@@ -1420,21 +1420,6 @@ static inline u32 _prepare_ccr(const struct pl330_reqcfg *rqc)
 	return ccr;
 }
 
-static inline bool _is_valid(u32 ccr)
-{
-	enum pl330_cachectrl dcctl;
-	enum pl330_cachectrl scctl;
-
-	dcctl = (ccr >> CC_DSTCCTRL_SHFT) & CC_DRCCCTRL_MASK;
-	scctl = (ccr >> CC_SRCCCTRL_SHFT) & CC_SRCCCTRL_MASK;
-
-	if (dcctl == INVALID1 || dcctl == INVALID2
-			|| scctl == INVALID1 || scctl == INVALID2)
-		return false;
-	else
-		return true;
-}
-
 /*
  * Submit a list of xfers after which the client wants notification.
  * Client is not notified after each xfer unit, just once after all
@@ -1493,14 +1478,6 @@ static int pl330_submit_req(struct pl330_thread *thrd, struct pl330_req *r)
 		ccr = _prepare_ccr(r->cfg);
 	} else {
 		ccr = readl(regs + CC(thrd->id));
-	}
-
-	/* If this req doesn't have valid xfer settings */
-	if (!_is_valid(ccr)) {
-		ret = -EINVAL;
-		dev_info(thrd->dmac->pinfo->dev, "%s:%d Invalid CCR(%x)!\n",
-			__func__, __LINE__, ccr);
-		goto xfer_exit;
 	}
 
 	idx = IS_FREE(&thrd->req[0]) ? 0 : 1;
