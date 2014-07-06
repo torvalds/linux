@@ -375,35 +375,6 @@ struct pl330_req {
 	struct list_head rqd;
 };
 
-/*
- * To know the status of the channel and DMAC, the client
- * provides a pointer to this structure. The PL330 core
- * fills it with current information.
- */
-struct pl330_chanstatus {
-	/*
-	 * If the DMAC engine halted due to some error,
-	 * the client should remove-add DMAC.
-	 */
-	bool dmac_halted;
-	/*
-	 * If channel is halted due to some error,
-	 * the client should ABORT/FLUSH and START the channel.
-	 */
-	bool faulting;
-	/* Location of last load */
-	u32 src_addr;
-	/* Location of last store */
-	u32 dst_addr;
-	/*
-	 * Pointer to the currently active req, NULL if channel is
-	 * inactive, even though the requests may be present.
-	 */
-	struct pl330_req *top_req;
-	/* Pointer to req waiting second in the queue if any. */
-	struct pl330_req *wait_req;
-};
-
 enum pl330_chan_op {
 	/* Start the channel */
 	PL330_OP_START,
