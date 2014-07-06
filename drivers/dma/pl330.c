@@ -296,11 +296,6 @@ struct pl330_info {
 	void	*pl330_data;
 	/* Populated by the PL330 core driver during pl330_add */
 	struct pl330_config	pcfg;
-	/*
-	 * If the DMAC has some reset mechanism, then the
-	 * client may want to provide pointer to the method.
-	 */
-	void (*dmac_reset)(struct pl330_info *pi);
 };
 
 /**
@@ -2023,13 +2018,6 @@ static int pl330_add(struct pl330_info *pi)
 	/* If already added */
 	if (pi->pl330_data)
 		return -EINVAL;
-
-	/*
-	 * If the SoC can perform reset on the DMAC, then do it
-	 * before reading its configuration.
-	 */
-	if (pi->dmac_reset)
-		pi->dmac_reset(pi);
 
 	regs = pi->base;
 
