@@ -562,13 +562,7 @@ static inline bool _queue_full(struct pl330_thread *thrd)
 
 static inline bool is_manager(struct pl330_thread *thrd)
 {
-	struct pl330_dmac *pl330 = thrd->dmac;
-
-	/* MANAGER is indexed at the end */
-	if (thrd->id == pl330->pinfo->pcfg.num_chan)
-		return true;
-	else
-		return false;
+	return thrd->dmac->manager == thrd;
 }
 
 /* If manager of the thread is in Non-Secure mode */
