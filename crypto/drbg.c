@@ -1761,7 +1761,7 @@ static int drbg_kcapi_init(struct crypto_tfm *tfm)
 	bool pr = false;
 	int coreref = 0;
 
-	drbg_convert_tfm_core(crypto_tfm_alg_name(tfm), &coreref, &pr);
+	drbg_convert_tfm_core(crypto_tfm_alg_driver_name(tfm), &coreref, &pr);
 	/*
 	 * when personalization string is needed, the caller must call reset
 	 * and provide the personalization string as seed information
