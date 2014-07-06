@@ -4196,12 +4196,11 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_proto_connect_cfm(conn, ev->status);
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
-	if (params) {
+	if (params)
 		list_del_init(&params->action);
-		hci_update_background_scan(hdev);
-	}
 
 unlock:
+	hci_update_background_scan(hdev);
 	hci_dev_unlock(hdev);
 }
 
