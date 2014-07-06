@@ -351,10 +351,6 @@ struct pl330_req {
 	enum dma_transfer_direction rqtype;
 	/* Index of peripheral for the xfer. */
 	unsigned peri:5;
-	/* Unique token for this xfer, set by the client. */
-	void *token;
-	/* Callback to be called after xfer. */
-	void (*xfer_cb)(void *token, enum pl330_op_err err);
 	/* If NULL, req will be done at last set parameters. */
 	struct pl330_reqcfg *cfg;
 	/* Pointer to first xfer in the request. */
@@ -550,12 +546,6 @@ struct dma_pl330_desc {
 	/* The channel which currently holds this desc */
 	struct dma_pl330_chan *pchan;
 };
-
-static inline void _callback(struct pl330_req *r, enum pl330_op_err err)
-{
-	if (r && r->xfer_cb)
-		r->xfer_cb(r->token, err);
-}
 
 static inline bool _queue_empty(struct pl330_thread *thrd)
 {
@@ -1544,6 +1534,25 @@ xfer_exit:
 	return ret;
 }
 
+static void dma_pl330_rqcb(struct pl330_req *req, enum pl330_op_err err)
+{
+	struct dma_pl330_desc *desc = container_of(req, struct dma_pl330_desc, req);
+	struct dma_pl330_chan *pch = desc->pchan;
+	unsigned long flags;
+
+	/* If desc aborted */
+	if (!pch)
+		return;
+
+	spin_lock_irqsave(&pch->lock, flags);
+
+	desc->status = DONE;
+
+	spin_unlock_irqrestore(&pch->lock, flags);
+
+	tasklet_schedule(&pch->task);
+}
+
 static void pl330_dotask(unsigned long data)
 {
 	struct pl330_dmac *pl330 = (struct pl330_dmac *) data;
@@ -1585,10 +1594,8 @@ static void pl330_dotask(unsigned long data)
 				err = PL330_ERR_ABORT;
 
 			spin_unlock_irqrestore(&pl330->lock, flags);
-
-			_callback(thrd->req[1 - thrd->lstenq].r, err);
-			_callback(thrd->req[thrd->lstenq].r, err);
-
+			dma_pl330_rqcb(thrd->req[1 - thrd->lstenq].r, err);
+			dma_pl330_rqcb(thrd->req[thrd->lstenq].r, err);
 			spin_lock_irqsave(&pl330->lock, flags);
 
 			thrd->req[0].r = NULL;
@@ -1695,7 +1702,7 @@ static int pl330_update(const struct pl330_info *pi)
 		list_del(&rqdone->rqd);
 
 		spin_unlock_irqrestore(&pl330->lock, flags);
-		_callback(rqdone, PL330_ERR_NONE);
+		dma_pl330_rqcb(rqdone, PL330_ERR_NONE);
 		spin_lock_irqsave(&pl330->lock, flags);
 	}
 
@@ -1852,8 +1859,8 @@ static void pl330_release_channel(void *ch_id)
 
 	_stop(thrd);
 
-	_callback(thrd->req[1 - thrd->lstenq].r, PL330_ERR_ABORT);
-	_callback(thrd->req[thrd->lstenq].r, PL330_ERR_ABORT);
+	dma_pl330_rqcb(thrd->req[1 - thrd->lstenq].r, PL330_ERR_ABORT);
+	dma_pl330_rqcb(thrd->req[thrd->lstenq].r, PL330_ERR_ABORT);
 
 	pl330 = thrd->dmac;
 
@@ -2207,25 +2214,6 @@ static void pl330_tasklet(unsigned long data)
 	spin_unlock_irqrestore(&pch->lock, flags);
 }
 
-static void dma_pl330_rqcb(void *token, enum pl330_op_err err)
-{
-	struct dma_pl330_desc *desc = token;
-	struct dma_pl330_chan *pch = desc->pchan;
-	unsigned long flags;
-
-	/* If desc aborted */
-	if (!pch)
-		return;
-
-	spin_lock_irqsave(&pch->lock, flags);
-
-	desc->status = DONE;
-
-	spin_unlock_irqrestore(&pch->lock, flags);
-
-	tasklet_schedule(&pch->task);
-}
-
 bool pl330_filter(struct dma_chan *chan, void *param)
 {
 	u8 *peri_id;
@@ -2417,12 +2405,10 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 static inline void _init_desc(struct dma_pl330_desc *desc)
 {
 	desc->req.x = &desc->px;
-	desc->req.token = desc;
 	desc->rqcfg.swap = SWAP_NO;
 	desc->rqcfg.scctl = CCTRL0;
 	desc->rqcfg.dcctl = CCTRL0;
 	desc->req.cfg = &desc->rqcfg;
-	desc->req.xfer_cb = dma_pl330_rqcb;
 	desc->txd.tx_submit = pl330_tx_submit;
 
 	INIT_LIST_HEAD(&desc->node);
