@@ -303,6 +303,9 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 				spin_unlock_irqrestore(&priv->lock, flags);
 				return;
 			}
+		} else {
+			skb_push(rcb->skb, skb_headroom(rcb->skb));
+			skb_trim(rcb->skb, 0);
 		}
 
 		urb->transfer_buffer = skb_put(rcb->skb,
