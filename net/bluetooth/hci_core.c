@@ -2887,6 +2887,12 @@ static void hci_power_on(struct work_struct *work)
 		 */
 		mgmt_index_added(hdev);
 	} else if (test_and_clear_bit(HCI_CONFIG, &hdev->dev_flags)) {
+		/* When the controller is now configured, then it
+		 * is important to clear the HCI_RAW flag.
+		 */
+		if (!test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
+			clear_bit(HCI_RAW, &hdev->flags);
+
 		/* Powering on the controller with HCI_CONFIG set only
 		 * happens with the transition from unconfigured to
 		 * configured. This will send the Index Added event.
