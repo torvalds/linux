@@ -360,7 +360,7 @@ static struct perf_tool tool = {
 	.exit	= perf_event__process_exit,
 	.fork	= perf_event__process_fork,
 	.lost	= perf_event__process_lost,
-	.ordered_samples = true,
+	.ordered_events = true,
 	.ordering_requires_timestamps = true,
 };
 

@@ -104,9 +104,9 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 	}
 
 	if (tool && tool->ordering_requires_timestamps &&
-	    tool->ordered_samples && !perf_evlist__sample_id_all(session->evlist)) {
+	    tool->ordered_events && !perf_evlist__sample_id_all(session->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
-		tool->ordered_samples = false;
+		tool->ordered_events = false;
 	}
 
 	return session;
@@ -238,7 +238,7 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 	if (tool->build_id == NULL)
 		tool->build_id = process_finished_round_stub;
 	if (tool->finished_round == NULL) {
-		if (tool->ordered_samples)
+		if (tool->ordered_events)
 			tool->finished_round = process_finished_round;
 		else
 			tool->finished_round = process_finished_round_stub;
@@ -483,7 +483,7 @@ static int flush_sample_queue(struct perf_session *s,
 	struct ui_progress prog;
 	int ret;
 
-	if (!tool->ordered_samples || !limit)
+	if (!tool->ordered_events || !limit)
 		return 0;
 
 	if (show_progress)
@@ -1062,7 +1062,7 @@ static s64 perf_session__process_event(struct perf_session *session,
 	if (ret)
 		return ret;
 
-	if (tool->ordered_samples) {
+	if (tool->ordered_events) {
 		ret = perf_session_queue_event(session, event, &sample,
 					       file_offset);
 		if (ret != -ETIME)

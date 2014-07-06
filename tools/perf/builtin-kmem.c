@@ -256,7 +256,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 static struct perf_tool perf_kmem = {
 	.sample		 = process_sample_event,
 	.comm		 = perf_event__process_comm,
-	.ordered_samples = true,
+	.ordered_events	 = true,
 };
 
 static double fragmentation(unsigned long n_req, unsigned long n_alloc)
