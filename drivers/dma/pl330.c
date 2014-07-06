@@ -33,26 +33,15 @@
 #define PL330_MAX_IRQS		32
 #define PL330_MAX_PERI		32
 
-enum pl330_srccachectrl {
-	SCCTRL0,	/* Noncacheable and nonbufferable */
-	SCCTRL1,	/* Bufferable only */
-	SCCTRL2,	/* Cacheable, but do not allocate */
-	SCCTRL3,	/* Cacheable and bufferable, but do not allocate */
-	SINVALID1,
-	SINVALID2,
-	SCCTRL6,	/* Cacheable write-through, allocate on reads only */
-	SCCTRL7,	/* Cacheable write-back, allocate on reads only */
-};
-
-enum pl330_dstcachectrl {
-	DCCTRL0,	/* Noncacheable and nonbufferable */
-	DCCTRL1,	/* Bufferable only */
-	DCCTRL2,	/* Cacheable, but do not allocate */
-	DCCTRL3,	/* Cacheable and bufferable, but do not allocate */
-	DINVALID1,	/* AWCACHE = 0x1000 */
-	DINVALID2,
-	DCCTRL6,	/* Cacheable write-through, allocate on writes only */
-	DCCTRL7,	/* Cacheable write-back, allocate on writes only */
+enum pl330_cachectrl {
+	CCTRL0,		/* Noncacheable and nonbufferable */
+	CCTRL1,		/* Bufferable only */
+	CCTRL2,		/* Cacheable, but do not allocate */
+	CCTRL3,		/* Cacheable and bufferable, but do not allocate */
+	INVALID1,	/* AWCACHE = 0x1000 */
+	INVALID2,
+	CCTRL6,		/* Cacheable write-through, allocate on writes only */
+	CCTRL7,		/* Cacheable write-back, allocate on writes only */
 };
 
 enum pl330_byteswap {
@@ -337,8 +326,8 @@ struct pl330_reqcfg {
 	unsigned brst_len:5;
 	unsigned brst_size:3; /* in power of 2 */
 
-	enum pl330_dstcachectrl dcctl;
-	enum pl330_srccachectrl scctl;
+	enum pl330_cachectrl dcctl;
+	enum pl330_cachectrl scctl;
 	enum pl330_byteswap swap;
 	struct pl330_config *pcfg;
 };
@@ -1490,14 +1479,14 @@ static inline u32 _prepare_ccr(const struct pl330_reqcfg *rqc)
 
 static inline bool _is_valid(u32 ccr)
 {
-	enum pl330_dstcachectrl dcctl;
-	enum pl330_srccachectrl scctl;
+	enum pl330_cachectrl dcctl;
+	enum pl330_cachectrl scctl;
 
 	dcctl = (ccr >> CC_DSTCCTRL_SHFT) & CC_DRCCCTRL_MASK;
 	scctl = (ccr >> CC_SRCCCTRL_SHFT) & CC_SRCCCTRL_MASK;
 
-	if (dcctl == DINVALID1 || dcctl == DINVALID2
-			|| scctl == SINVALID1 || scctl == SINVALID2)
+	if (dcctl == INVALID1 || dcctl == INVALID2
+			|| scctl == INVALID1 || scctl == INVALID2)
 		return false;
 	else
 		return true;
@@ -2485,8 +2474,8 @@ static inline void _init_desc(struct dma_pl330_desc *desc)
 	desc->req.x = &desc->px;
 	desc->req.token = desc;
 	desc->rqcfg.swap = SWAP_NO;
-	desc->rqcfg.scctl = SCCTRL0;
-	desc->rqcfg.dcctl = DCCTRL0;
+	desc->rqcfg.scctl = CCTRL0;
+	desc->rqcfg.dcctl = CCTRL0;
 	desc->req.cfg = &desc->rqcfg;
 	desc->req.xfer_cb = dma_pl330_rqcb;
 	desc->txd.tx_submit = pl330_tx_submit;
