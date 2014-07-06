@@ -102,7 +102,7 @@ struct drbg_state_ops {
 		      int reseed);
 	int (*generate)(struct drbg_state *drbg,
 			unsigned char *buf, unsigned int buflen,
-			struct drbg_string *addtl);
+			struct list_head *addtl);
 	int (*crypto_init)(struct drbg_state *drbg);
 	int (*crypto_fini)(struct drbg_state *drbg);
 
