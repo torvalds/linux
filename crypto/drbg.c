@@ -356,6 +356,7 @@ static inline void drbg_add_buf(unsigned char *dst, size_t dstlen,
  ******************************************************************/
 
 #ifdef CONFIG_CRYPTO_DRBG_CTR
+#define CRYPTO_DRBG_CTR_STRING "CTR "
 static int drbg_kcapi_sym(struct drbg_state *drbg, const unsigned char *key,
 			  unsigned char *outval, const struct drbg_string *in);
 static int drbg_init_sym_kernel(struct drbg_state *drbg);
@@ -717,6 +718,7 @@ static int drbg_fini_hash_kernel(struct drbg_state *drbg);
 #endif /* (CONFIG_CRYPTO_DRBG_HASH || CONFIG_CRYPTO_DRBG_HMAC) */
 
 #ifdef CONFIG_CRYPTO_DRBG_HMAC
+#define CRYPTO_DRBG_HMAC_STRING "HMAC "
 /* update function of HMAC DRBG as defined in 10.1.2.2 */
 static int drbg_hmac_update(struct drbg_state *drbg, struct list_head *seed,
 			    int reseed)
@@ -836,6 +838,7 @@ static struct drbg_state_ops drbg_hmac_ops = {
  ******************************************************************/
 
 #ifdef CONFIG_CRYPTO_DRBG_HASH
+#define CRYPTO_DRBG_HASH_STRING "HASH "
 /*
  * scratchpad usage: as drbg_hash_update and drbg_hash_df are used
  * interlinked, the scratchpad is used as follows:
@@ -1867,7 +1870,7 @@ static inline int __init drbg_healthcheck_sanity(void)
 
 #ifdef CONFIG_CRYPTO_DRBG_CTR
 	drbg_convert_tfm_core("drbg_nopr_ctr_aes128", &coreref, &pr);
-#elif CONFIG_CRYPTO_DRBG_HASH
+#elif defined CONFIG_CRYPTO_DRBG_HASH
 	drbg_convert_tfm_core("drbg_nopr_sha256", &coreref, &pr);
 #else
 	drbg_convert_tfm_core("drbg_nopr_hmac_sha256", &coreref, &pr);
@@ -2009,16 +2012,19 @@ void __exit drbg_exit(void)
 
 module_init(drbg_init);
 module_exit(drbg_exit);
+#ifndef CRYPTO_DRBG_HASH_STRING
+#define CRYPTO_DRBG_HASH_STRING ""
+#endif
+#ifndef CRYPTO_DRBG_HMAC_STRING
+#define CRYPTO_DRBG_HMAC_STRING ""
+#endif
+#ifndef CRYPTO_DRBG_CTR_STRING
+#define CRYPTO_DRBG_CTR_STRING ""
+#endif
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
-MODULE_DESCRIPTION("NIST SP800-90A Deterministic Random Bit Generator (DRBG) using following cores:"
-#ifdef CONFIG_CRYPTO_DRBG_HMAC
-"HMAC "
-#endif
-#ifdef CONFIG_CRYPTO_DRBG_HASH
-"Hash "
-#endif
-#ifdef CONFIG_CRYPTO_DRBG_CTR
-"CTR"
-#endif
-);
+MODULE_DESCRIPTION("NIST SP800-90A Deterministic Random Bit Generator (DRBG) "
+		   "using following cores: "
+		   CRYPTO_DRBG_HASH_STRING
+		   CRYPTO_DRBG_HMAC_STRING
+		   CRYPTO_DRBG_CTR_STRING);
