@@ -92,6 +92,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_READ_UNCONF_INDEX_LIST,
 	MGMT_OP_READ_CONFIG_INFO,
 	MGMT_OP_SET_EXTERNAL_CONFIG,
+	MGMT_OP_SET_PUBLIC_ADDRESS,
 };
 
 static const u16 mgmt_events[] = {
@@ -5459,6 +5460,58 @@ unlock:
 	return err;
 }
 
+static int set_public_address(struct sock *sk, struct hci_dev *hdev,
+			      void *data, u16 len)
+{
+	struct mgmt_cp_set_public_address *cp = data;
+	bool changed;
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	if (hdev_is_powered(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PUBLIC_ADDRESS,
+				  MGMT_STATUS_REJECTED);
+
+	if (!bacmp(&cp->bdaddr, BDADDR_ANY))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PUBLIC_ADDRESS,
+				  MGMT_STATUS_INVALID_PARAMS);
+
+	if (!hdev->set_bdaddr)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PUBLIC_ADDRESS,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
+	hci_dev_lock(hdev);
+
+	changed = !!bacmp(&hdev->public_addr, &cp->bdaddr);
+	bacpy(&hdev->public_addr, &cp->bdaddr);
+
+	err = send_options_rsp(sk, MGMT_OP_SET_PUBLIC_ADDRESS, hdev);
+	if (err < 0)
+		goto unlock;
+
+	if (!changed)
+		goto unlock;
+
+	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
+		err = new_options(hdev, sk);
+
+	if (is_configured(hdev)) {
+		mgmt_index_removed(hdev);
+
+		clear_bit(HCI_UNCONFIGURED, &hdev->dev_flags);
+
+		set_bit(HCI_CONFIG, &hdev->dev_flags);
+		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+
+		queue_work(hdev->req_workqueue, &hdev->power_on);
+	}
+
+unlock:
+	hci_dev_unlock(hdev);
+	return err;
+}
+
 static const struct mgmt_handler {
 	int (*func) (struct sock *sk, struct hci_dev *hdev, void *data,
 		     u16 data_len);
@@ -5522,6 +5575,7 @@ static const struct mgmt_handler {
 	{ read_unconf_index_list, false, MGMT_READ_UNCONF_INDEX_LIST_SIZE },
 	{ read_config_info,       false, MGMT_READ_CONFIG_INFO_SIZE },
 	{ set_external_config,    false, MGMT_SET_EXTERNAL_CONFIG_SIZE },
+	{ set_public_address,     false, MGMT_SET_PUBLIC_ADDRESS_SIZE },
 };
 
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
@@ -5576,7 +5630,8 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 
 		if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags) &&
 		    opcode != MGMT_OP_READ_CONFIG_INFO &&
-		    opcode != MGMT_OP_SET_EXTERNAL_CONFIG) {
+		    opcode != MGMT_OP_SET_EXTERNAL_CONFIG &&
+		    opcode != MGMT_OP_SET_PUBLIC_ADDRESS) {
 			err = cmd_status(sk, index, opcode,
 					 MGMT_STATUS_INVALID_INDEX);
 			goto done;

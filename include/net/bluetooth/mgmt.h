@@ -489,6 +489,12 @@ struct mgmt_cp_set_external_config {
 } __packed;
 #define MGMT_SET_EXTERNAL_CONFIG_SIZE	1
 
+#define MGMT_OP_SET_PUBLIC_ADDRESS	0x0039
+struct mgmt_cp_set_public_address {
+	bdaddr_t bdaddr;
+} __packed;
+#define MGMT_SET_PUBLIC_ADDRESS_SIZE	6
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;

@@ -2302,12 +2302,14 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 			ret = __hci_unconf_init(hdev);
 	}
 
-	/* If public address change is configured, ensure that the
-	 * address gets programmed. If the driver does not support
-	 * changing the public address, fail the power on procedure.
-	 */
-	if (!ret && bacmp(&hdev->public_addr, BDADDR_ANY)) {
-		if (hdev->set_bdaddr)
+	if (test_bit(HCI_CONFIG, &hdev->dev_flags)) {
+		/* If public address change is configured, ensure that
+		 * the address gets programmed. If the driver does not
+		 * support changing the public address, fail the power
+		 * on procedure.
+		 */
+		if (bacmp(&hdev->public_addr, BDADDR_ANY) &&
+		    hdev->set_bdaddr)
 			ret = hdev->set_bdaddr(hdev, &hdev->public_addr);
 		else
 			ret = -EADDRNOTAVAIL;
