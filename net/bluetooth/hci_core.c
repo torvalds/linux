@@ -4339,6 +4339,8 @@ EXPORT_SYMBOL(hci_unregister_cb);
 
 static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
+	int err;
+
 	BT_DBG("%s type %d len %d", hdev->name, bt_cb(skb)->pkt_type, skb->len);
 
 	/* Time stamp */
@@ -4355,8 +4357,11 @@ static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	/* Get rid of skb owner, prior to sending to the driver. */
 	skb_orphan(skb);
 
-	if (hdev->send(hdev, skb) < 0)
-		BT_ERR("%s sending frame failed", hdev->name);
+	err = hdev->send(hdev, skb);
+	if (err < 0) {
+		BT_ERR("%s sending frame failed (%d)", hdev->name, err);
+		kfree_skb(skb);
+	}
 }
 
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
