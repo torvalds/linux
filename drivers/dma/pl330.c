@@ -495,10 +495,11 @@ struct dma_pl330_chan {
 	/* To protect channel manipulation */
 	spinlock_t lock;
 
-	/* Token of a hardware channel thread of PL330 DMAC
-	 * NULL if the channel is available to be acquired.
+	/*
+	 * Hardware channel thread of PL330 DMAC. NULL if the channel is
+	 * available.
 	 */
-	void *pl330_chid;
+	struct pl330_thread *thread;
 
 	/* For D-to-M and M-to-D channels */
 	int burst_sz; /* the peripheral fifo width */
@@ -1439,9 +1440,8 @@ static inline bool _is_valid(u32 ccr)
  * Client is not notified after each xfer unit, just once after all
  * xfer units are done or some error occurs.
  */
-static int pl330_submit_req(void *ch_id, struct pl330_req *r)
+static int pl330_submit_req(struct pl330_thread *thrd, struct pl330_req *r)
 {
-	struct pl330_thread *thrd = ch_id;
 	struct pl330_dmac *pl330;
 	struct pl330_info *pi;
 	struct _xfer_spec xs;
@@ -1719,9 +1719,8 @@ updt_exit:
 	return ret;
 }
 
-static int pl330_chan_ctrl(void *ch_id, enum pl330_chan_op op)
+static int pl330_chan_ctrl(struct pl330_thread *thrd, enum pl330_chan_op op)
 {
-	struct pl330_thread *thrd = ch_id;
 	struct pl330_dmac *pl330;
 	unsigned long flags;
 	int ret = 0, active;
@@ -1794,7 +1793,7 @@ static bool _chan_ns(const struct pl330_info *pi, int i)
 /* Upon success, returns IdentityToken for the
  * allocated channel, NULL otherwise.
  */
-static void *pl330_request_channel(const struct pl330_info *pi)
+static struct pl330_thread *pl330_request_channel(const struct pl330_info *pi)
 {
 	struct pl330_thread *thrd = NULL;
 	struct pl330_dmac *pl330;
@@ -1848,9 +1847,8 @@ static inline void _free_event(struct pl330_thread *thrd, int ev)
 		pl330->events[ev] = -1;
 }
 
-static void pl330_release_channel(void *ch_id)
+static void pl330_release_channel(struct pl330_thread *thrd)
 {
-	struct pl330_thread *thrd = ch_id;
 	struct pl330_dmac *pl330;
 	unsigned long flags;
 
@@ -2077,7 +2075,7 @@ static int dmac_free_threads(struct pl330_dmac *pl330)
 	/* Release Channel threads */
 	for (i = 0; i < chans; i++) {
 		thrd = &pl330->channels[i];
-		pl330_release_channel((void *)thrd);
+		pl330_release_channel(thrd);
 	}
 
 	/* Free memory */
@@ -2146,8 +2144,7 @@ static inline void fill_queue(struct dma_pl330_chan *pch)
 		if (desc->status == BUSY)
 			continue;
 
-		ret = pl330_submit_req(pch->pl330_chid,
-						&desc->req);
+		ret = pl330_submit_req(pch->thread, &desc->req);
 		if (!ret) {
 			desc->status = BUSY;
 		} else if (ret == -EAGAIN) {
@@ -2183,7 +2180,7 @@ static void pl330_tasklet(unsigned long data)
 	fill_queue(pch);
 
 	/* Make sure the PL330 Channel thread is active */
-	pl330_chan_ctrl(pch->pl330_chid, PL330_OP_START);
+	pl330_chan_ctrl(pch->thread, PL330_OP_START);
 
 	while (!list_empty(&pch->completed_list)) {
 		dma_async_tx_callback callback;
@@ -2254,8 +2251,8 @@ static int pl330_alloc_chan_resources(struct dma_chan *chan)
 	dma_cookie_init(chan);
 	pch->cyclic = false;
 
-	pch->pl330_chid = pl330_request_channel(&pdmac->pif);
-	if (!pch->pl330_chid) {
+	pch->thread = pl330_request_channel(&pdmac->pif);
+	if (!pch->thread) {
 		spin_unlock_irqrestore(&pch->lock, flags);
 		return -ENOMEM;
 	}
@@ -2281,7 +2278,7 @@ static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned 
 		spin_lock_irqsave(&pch->lock, flags);
 
 		/* FLUSH the PL330 Channel thread */
-		pl330_chan_ctrl(pch->pl330_chid, PL330_OP_FLUSH);
+		pl330_chan_ctrl(pch->thread, PL330_OP_FLUSH);
 
 		/* Mark all desc done */
 		list_for_each_entry(desc, &pch->submitted_list, node) {
@@ -2340,8 +2337,8 @@ static void pl330_free_chan_resources(struct dma_chan *chan)
 
 	spin_lock_irqsave(&pch->lock, flags);
 
-	pl330_release_channel(pch->pl330_chid);
-	pch->pl330_chid = NULL;
+	pl330_release_channel(pch->thread);
+	pch->thread = NULL;
 
 	if (pch->cyclic)
 		list_splice_tail_init(&pch->work_list, &pch->dmac->desc_pool);
@@ -2887,7 +2884,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		INIT_LIST_HEAD(&pch->work_list);
 		INIT_LIST_HEAD(&pch->completed_list);
 		spin_lock_init(&pch->lock);
-		pch->pl330_chid = NULL;
+		pch->thread = NULL;
 		pch->chan.device = pd;
 		pch->dmac = pdmac;
 
