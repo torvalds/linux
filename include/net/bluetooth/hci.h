@@ -163,6 +163,7 @@ enum {
  */
 enum {
 	HCI_SETUP,
+	HCI_CONFIG,
 	HCI_AUTO_OFF,
 	HCI_RFKILLED,
 	HCI_MGMT,

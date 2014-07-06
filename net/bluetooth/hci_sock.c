@@ -693,7 +693,8 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 
 		if (test_bit(HCI_UP, &hdev->flags) ||
 		    test_bit(HCI_INIT, &hdev->flags) ||
-		    test_bit(HCI_SETUP, &hdev->dev_flags)) {
+		    test_bit(HCI_SETUP, &hdev->dev_flags) ||
+		    test_bit(HCI_CONFIG, &hdev->dev_flags)) {
 			err = -EBUSY;
 			hci_dev_put(hdev);
 			goto done;

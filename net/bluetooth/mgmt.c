@@ -385,6 +385,7 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 	count = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (test_bit(HCI_SETUP, &d->dev_flags) ||
+		    test_bit(HCI_CONFIG, &d->dev_flags) ||
 		    test_bit(HCI_USER_CHANNEL, &d->dev_flags))
 			continue;
 
@@ -444,6 +445,7 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 	count = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (test_bit(HCI_SETUP, &d->dev_flags) ||
+		    test_bit(HCI_CONFIG, &d->dev_flags) ||
 		    test_bit(HCI_USER_CHANNEL, &d->dev_flags))
 			continue;
 
@@ -5441,8 +5443,15 @@ static int set_external_config(struct sock *sk, struct hci_dev *hdev,
 
 	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags) == is_configured(hdev)) {
 		mgmt_index_removed(hdev);
-		change_bit(HCI_UNCONFIGURED, &hdev->dev_flags);
-		mgmt_index_added(hdev);
+
+		if (test_and_change_bit(HCI_UNCONFIGURED, &hdev->dev_flags)) {
+			set_bit(HCI_CONFIG, &hdev->dev_flags);
+			set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+
+			queue_work(hdev->req_workqueue, &hdev->power_on);
+		} else {
+			mgmt_index_added(hdev);
+		}
 	}
 
 unlock:
@@ -5558,6 +5567,7 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		}
 
 		if (test_bit(HCI_SETUP, &hdev->dev_flags) ||
+		    test_bit(HCI_CONFIG, &hdev->dev_flags) ||
 		    test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
 			err = cmd_status(sk, index, opcode,
 					 MGMT_STATUS_INVALID_INDEX);

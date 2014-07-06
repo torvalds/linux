@@ -2232,7 +2232,8 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		goto done;
 	}
 
-	if (!test_bit(HCI_SETUP, &hdev->dev_flags)) {
+	if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
+	    !test_bit(HCI_CONFIG, &hdev->dev_flags)) {
 		/* Check for rfkill but allow the HCI setup stage to
 		 * proceed (which in itself doesn't cause any RF activity).
 		 */
@@ -2326,6 +2327,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
 		if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
+		    !test_bit(HCI_CONFIG, &hdev->dev_flags) &&
 		    !test_bit(HCI_UNCONFIGURED, &hdev->dev_flags) &&
 		    !test_bit(HCI_USER_CHANNEL, &hdev->dev_flags) &&
 		    hdev->dev_type == HCI_BREDR) {
@@ -2824,7 +2826,8 @@ static int hci_rfkill_set_block(void *data, bool blocked)
 
 	if (blocked) {
 		set_bit(HCI_RFKILLED, &hdev->dev_flags);
-		if (!test_bit(HCI_SETUP, &hdev->dev_flags))
+		if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
+		    !test_bit(HCI_CONFIG, &hdev->dev_flags))
 			hci_dev_do_close(hdev);
 	} else {
 		clear_bit(HCI_RFKILLED, &hdev->dev_flags);
@@ -2879,6 +2882,12 @@ static void hci_power_on(struct work_struct *work)
 		 *
 		 * Devices with HCI_QUIRK_RAW_DEVICE are ignored
 		 * and no event will be send.
+		 */
+		mgmt_index_added(hdev);
+	} else if (test_and_clear_bit(HCI_CONFIG, &hdev->dev_flags)) {
+		/* Powering on the controller with HCI_CONFIG set only
+		 * happens with the transition from unconfigured to
+		 * configured. This will send the Index Added event.
 		 */
 		mgmt_index_added(hdev);
 	}
@@ -4045,7 +4054,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	cancel_work_sync(&hdev->power_on);
 
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
-	    !test_bit(HCI_SETUP, &hdev->dev_flags)) {
+	    !test_bit(HCI_SETUP, &hdev->dev_flags) &&
+	    !test_bit(HCI_CONFIG, &hdev->dev_flags)) {
 		hci_dev_lock(hdev);
 		mgmt_index_removed(hdev);
 		hci_dev_unlock(hdev);
@@ -5370,6 +5380,7 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	if (!test_bit(HCI_UP, &hdev->flags) ||
 	    test_bit(HCI_INIT, &hdev->flags) ||
 	    test_bit(HCI_SETUP, &hdev->dev_flags) ||
+	    test_bit(HCI_CONFIG, &hdev->dev_flags) ||
 	    test_bit(HCI_AUTO_OFF, &hdev->dev_flags) ||
 	    test_bit(HCI_UNREGISTER, &hdev->dev_flags))
 		return;
