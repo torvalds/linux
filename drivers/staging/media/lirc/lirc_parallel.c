@@ -169,23 +169,22 @@ static unsigned int init_lirc_timer(void)
 			newtimer = (1000000*count)/timeelapsed;
 			pr_info("%u Hz timer detected\n", newtimer);
 			return newtimer;
-		}  else {
-			newtimer = (1000000*count)/timeelapsed;
-			if (abs(newtimer - default_timer) > default_timer/10) {
-				/* bad timer */
-				pr_notice("bad timer: %u Hz\n", newtimer);
-				pr_notice("using default timer: %u Hz\n",
-					  default_timer);
-				return default_timer;
-			} else {
-				pr_info("%u Hz timer detected\n", newtimer);
-				return newtimer; /* use detected value */
-			}
 		}
-	} else {
-		pr_notice("no timer detected\n");
-		return 0;
+		newtimer = (1000000*count)/timeelapsed;
+		if (abs(newtimer - default_timer) > default_timer/10) {
+			/* bad timer */
+			pr_notice("bad timer: %u Hz\n", newtimer);
+			pr_notice("using default timer: %u Hz\n",
+				  default_timer);
+			return default_timer;
+		} else {
+			pr_info("%u Hz timer detected\n", newtimer);
+			return newtimer; /* use detected value */
+		}
 	}
+
+	pr_notice("no timer detected\n");
+	return 0;
 }
 
 static int lirc_claim(void)
@@ -661,7 +660,8 @@ static int __init lirc_parallel_init(void)
 		goto exit_device_put;
 	}
 	ppdevice = parport_register_device(pport, LIRC_DRIVER_NAME,
-					   pf, kf, lirc_lirc_irq_handler, 0, NULL);
+					   pf, kf, lirc_lirc_irq_handler, 0,
+					   NULL);
 	parport_put_port(pport);
 	if (ppdevice == NULL) {
 		pr_notice("parport_register_device() failed\n");
