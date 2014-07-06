@@ -63,13 +63,6 @@ enum pl330_byteswap {
 	SWAP_16,
 };
 
-enum pl330_reqtype {
-	MEMTOMEM,
-	MEMTODEV,
-	DEVTOMEM,
-	DEVTODEV,
-};
-
 /* Register and Bit field Definitions */
 #define DS			0x0
 #define DS_ST_STOP		0x0
@@ -378,7 +371,7 @@ enum pl330_op_err {
 
 /* A request defining Scatter-Gather List ending with NULL xfer. */
 struct pl330_req {
-	enum pl330_reqtype rqtype;
+	enum dma_transfer_direction rqtype;
 	/* Index of peripheral for the xfer. */
 	unsigned peri:5;
 	/* Unique token for this xfer, set by the client. */
@@ -1296,13 +1289,13 @@ static int _bursts(unsigned dry_run, u8 buf[],
 	int off = 0;
 
 	switch (pxs->r->rqtype) {
-	case MEMTODEV:
+	case DMA_MEM_TO_DEV:
 		off += _ldst_memtodev(dry_run, &buf[off], pxs, cyc);
 		break;
-	case DEVTOMEM:
+	case DMA_DEV_TO_MEM:
 		off += _ldst_devtomem(dry_run, &buf[off], pxs, cyc);
 		break;
-	case MEMTOMEM:
+	case DMA_MEM_TO_MEM:
 		off += _ldst_memtomem(dry_run, &buf[off], pxs, cyc);
 		break;
 	default:
@@ -1543,7 +1536,7 @@ static int pl330_submit_req(void *ch_id, struct pl330_req *r)
 	}
 
 	/* If request for non-existing peripheral */
-	if (r->rqtype != MEMTOMEM && r->peri >= pi->pcfg.num_peri) {
+	if (r->rqtype != DMA_MEM_TO_MEM && r->peri >= pi->pcfg.num_peri) {
 		dev_info(thrd->dmac->pinfo->dev,
 				"%s:%d Invalid peripheral(%u)!\n",
 				__func__, __LINE__, r->peri);
@@ -2698,14 +2691,12 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 		case DMA_MEM_TO_DEV:
 			desc->rqcfg.src_inc = 1;
 			desc->rqcfg.dst_inc = 0;
-			desc->req.rqtype = MEMTODEV;
 			src = dma_addr;
 			dst = pch->fifo_addr;
 			break;
 		case DMA_DEV_TO_MEM:
 			desc->rqcfg.src_inc = 0;
 			desc->rqcfg.dst_inc = 1;
-			desc->req.rqtype = DEVTOMEM;
 			src = pch->fifo_addr;
 			dst = dma_addr;
 			break;
@@ -2713,6 +2704,7 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 			break;
 		}
 
+		desc->req.rqtype = direction;
 		desc->rqcfg.brst_size = pch->burst_sz;
 		desc->rqcfg.brst_len = 1;
 		fill_px(&desc->px, dst, src, period_len);
@@ -2754,7 +2746,7 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 
 	desc->rqcfg.src_inc = 1;
 	desc->rqcfg.dst_inc = 1;
-	desc->req.rqtype = MEMTOMEM;
+	desc->req.rqtype = DMA_MEM_TO_MEM;
 
 	/* Select max possible burst size */
 	burst = pi->pcfg.data_bus_width / 8;
@@ -2838,19 +2830,18 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		if (direction == DMA_MEM_TO_DEV) {
 			desc->rqcfg.src_inc = 1;
 			desc->rqcfg.dst_inc = 0;
-			desc->req.rqtype = MEMTODEV;
 			fill_px(&desc->px,
 				addr, sg_dma_address(sg), sg_dma_len(sg));
 		} else {
 			desc->rqcfg.src_inc = 0;
 			desc->rqcfg.dst_inc = 1;
-			desc->req.rqtype = DEVTOMEM;
 			fill_px(&desc->px,
 				sg_dma_address(sg), addr, sg_dma_len(sg));
 		}
 
 		desc->rqcfg.brst_size = pch->burst_sz;
 		desc->rqcfg.brst_len = 1;
+		desc->req.rqtype = direction;
 	}
 
 	/* Return the last desc in the chain */
