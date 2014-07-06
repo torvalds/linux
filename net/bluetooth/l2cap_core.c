@@ -6914,7 +6914,11 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 		return;
 	}
 
-	if (hci_blacklist_lookup(hcon->hdev, &hcon->dst,
+	/* Since we can't actively block incoming LE connections we must
+	 * at least ensure that we ignore incoming data from them.
+	 */
+	if (hcon->type == LE_LINK &&
+	    hci_blacklist_lookup(hcon->hdev, &hcon->dst,
 				 bdaddr_type(hcon, hcon->dst_type))) {
 		kfree_skb(skb);
 		return;
