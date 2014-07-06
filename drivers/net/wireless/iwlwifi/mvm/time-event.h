@@ -124,10 +124,12 @@
  * @min_duration: will start a new session if the current session will end
  *	in less than min_duration.
  * @max_delay: maximum delay before starting the time event (in TU)
+ * @wait_for_notif: true if it is required that a time event notification be
+ *	waited for (that the time event has been scheduled before returning)
  *
  * This function can be used to start a session protection which means that the
  * fw will stay on the channel for %duration_ms milliseconds. This function
- * will block (sleep) until the session starts. This function can also be used
+ * can block (sleep) until the session starts. This function can also be used
  * to extend a currently running session.
  * This function is meant to be used for BSS association for example, where we
  * want to make sure that the fw stays on the channel during the association.
@@ -135,7 +137,7 @@
 void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
 			     u32 duration, u32 min_duration,
-			     u32 max_delay);
+			     u32 max_delay, bool wait_for_notif);
 
 /**
  * iwl_mvm_stop_session_protection - cancel the session protection.

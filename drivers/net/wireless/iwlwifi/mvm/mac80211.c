@@ -1480,7 +1480,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				 */
 				u32 dur = (11 * vif->bss_conf.beacon_int) / 10;
 				iwl_mvm_protect_session(mvm, vif, dur, dur,
-							5 * dur);
+							5 * dur, false);
 			}
 
 			iwl_mvm_sf_update(mvm, vif, false);
@@ -2149,7 +2149,7 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 	/* Try really hard to protect the session and hear a beacon */
-	iwl_mvm_protect_session(mvm, vif, duration, min_duration, 500);
+	iwl_mvm_protect_session(mvm, vif, duration, min_duration, 500, false);
 	mutex_unlock(&mvm->mutex);
 
 	iwl_mvm_unref(mvm, IWL_MVM_REF_PREPARE_TX);
@@ -2170,7 +2170,7 @@ static void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 	/* Protect the session to hear the TDLS setup response on the channel */
-	iwl_mvm_protect_session(mvm, vif, duration, duration, 100);
+	iwl_mvm_protect_session(mvm, vif, duration, duration, 100, true);
 	mutex_unlock(&mvm->mutex);
 
 	iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_TDLS);
