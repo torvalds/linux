@@ -27,6 +27,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_tcq.h>
 #include <linux/seqlock.h>
 
 #define VIRTIO_SCSI_MEMPOOL_SZ 64
@@ -654,6 +655,36 @@ static int virtscsi_device_reset(struct scsi_cmnd *sc)
 	return virtscsi_tmf(vscsi, cmd);
 }
 
+/**
+ * virtscsi_change_queue_depth() - Change a virtscsi target's queue depth
+ * @sdev:	Virtscsi target whose queue depth to change
+ * @qdepth:	New queue depth
+ * @reason:	Reason for the queue depth change.
+ */
+static int virtscsi_change_queue_depth(struct scsi_device *sdev,
+				       int qdepth,
+				       int reason)
+{
+	struct Scsi_Host *shost = sdev->host;
+	int max_depth = shost->cmd_per_lun;
+
+	switch (reason) {
+	case SCSI_QDEPTH_QFULL: /* Drop qdepth in response to BUSY state */
+		scsi_track_queue_full(sdev, qdepth);
+		break;
+	case SCSI_QDEPTH_RAMP_UP: /* Raise qdepth after BUSY state resolved */
+	case SCSI_QDEPTH_DEFAULT: /* Manual change via sysfs */
+		scsi_adjust_queue_depth(sdev,
+					scsi_get_tag_type(sdev),
+					min(max_depth, qdepth));
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return sdev->queue_depth;
+}
+
 static int virtscsi_abort(struct scsi_cmnd *sc)
 {
 	struct virtio_scsi *vscsi = shost_priv(sc->device->host);
@@ -709,6 +740,7 @@ static struct scsi_host_template virtscsi_host_template_single = {
 	.this_id = -1,
 	.cmd_size = sizeof(struct virtio_scsi_cmd),
 	.queuecommand = virtscsi_queuecommand_single,
+	.change_queue_depth = virtscsi_change_queue_depth,
 	.eh_abort_handler = virtscsi_abort,
 	.eh_device_reset_handler = virtscsi_device_reset,
 
@@ -726,6 +758,7 @@ static struct scsi_host_template virtscsi_host_template_multi = {
 	.this_id = -1,
 	.cmd_size = sizeof(struct virtio_scsi_cmd),
 	.queuecommand = virtscsi_queuecommand_multi,
+	.change_queue_depth = virtscsi_change_queue_depth,
 	.eh_abort_handler = virtscsi_abort,
 	.eh_device_reset_handler = virtscsi_device_reset,
 
