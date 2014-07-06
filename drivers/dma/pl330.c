@@ -290,8 +290,6 @@ struct pl330_info {
 	unsigned mcbufsz;
 	/* ioremap'ed address of PL330 registers. */
 	void __iomem	*base;
-	/* Client can freely use it. */
-	void	*client_data;
 	/* PL330 core data, Client must not touch it. */
 	void	*pl330_data;
 	/* Populated by the PL330 core driver during pl330_add */
