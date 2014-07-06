@@ -5284,6 +5284,8 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 
 		device_removed(sk, hdev, &cp->addr.bdaddr, cp->addr.type);
 	} else {
+		struct hci_conn_params *p, *tmp;
+
 		if (cp->addr.type) {
 			err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,
 					   MGMT_STATUS_INVALID_PARAMS,
@@ -5291,7 +5293,18 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			goto unlock;
 		}
 
-		hci_conn_params_clear_enabled(hdev);
+		list_for_each_entry_safe(p, tmp, &hdev->le_conn_params, list) {
+			if (p->auto_connect == HCI_AUTO_CONN_DISABLED)
+				continue;
+			device_removed(sk, hdev, &p->addr, p->addr_type);
+			list_del(&p->action);
+			list_del(&p->list);
+			kfree(p);
+		}
+
+		BT_DBG("All LE connection parameters were removed");
+
+		hci_update_background_scan(hdev);
 	}
 
 	err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,
