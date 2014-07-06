@@ -334,11 +334,6 @@ struct pl330_xfer {
 	u32 dst_addr;
 	/* Size to xfer */
 	u32 bytes;
-	/*
-	 * Pointer to next xfer in the list.
-	 * The last xfer in the req must point to NULL.
-	 */
-	struct pl330_xfer *next;
 };
 
 /* The xfer callbacks are made with one of these arguments. */
@@ -1390,16 +1385,12 @@ static int _setup_req(unsigned dry_run, struct pl330_thread *thrd,
 	off += _emit_MOV(dry_run, &buf[off], CCR, pxs->ccr);
 
 	x = pxs->r->x;
-	do {
-		/* Error if xfer length is not aligned at burst size */
-		if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
-			return -EINVAL;
+	/* Error if xfer length is not aligned at burst size */
+	if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
+		return -EINVAL;
 
-		pxs->x = x;
-		off += _setup_xfer(dry_run, &buf[off], pxs);
-
-		x = x->next;
-	} while (x);
+	pxs->x = x;
+	off += _setup_xfer(dry_run, &buf[off], pxs);
 
 	/* DMASEV peripheral/event */
 	off += _emit_SEV(dry_run, &buf[off], thrd->ev);
@@ -2531,7 +2522,6 @@ static struct dma_pl330_desc *pl330_get_desc(struct dma_pl330_chan *pch)
 static inline void fill_px(struct pl330_xfer *px,
 		dma_addr_t dst, dma_addr_t src, size_t len)
 {
-	px->next = NULL;
 	px->bytes = len;
 	px->dst_addr = dst;
 	px->src_addr = src;
