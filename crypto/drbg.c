@@ -562,7 +562,21 @@ out:
 	return ret;
 }
 
-/* update function of CTR DRBG as defined in 10.2.1.2 */
+/*
+ * update function of CTR DRBG as defined in 10.2.1.2
+ *
+ * The reseed variable has an enhanced meaning compared to the update
+ * functions of the other DRBGs as follows:
+ * 0 => initial seed from initialization
+ * 1 => reseed via drbg_seed
+ * 2 => first invocation from drbg_ctr_update when addtl is present. In
+ *      this case, the df_data scratchpad is not deleted so that it is
+ *      available for another calls to prevent calling the DF function
+ *      again.
+ * 3 => second invocation from drbg_ctr_update. When the update function
+ *      was called with addtl, the df_data memory already contains the
+ *      DFed addtl information and we do not need to call DF again.
+ */
 static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 			   int reseed)
 {
@@ -577,7 +591,8 @@ static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 	unsigned char prefix = DRBG_PREFIX1;
 
 	memset(temp, 0, drbg_statelen(drbg) + drbg_blocklen(drbg));
-	memset(df_data, 0, drbg_statelen(drbg));
+	if (3 > reseed)
+		memset(df_data, 0, drbg_statelen(drbg));
 
 	/* 10.2.1.3.2 step 2 and 10.2.1.4.2 step 2 */
 	if (seed) {
@@ -619,7 +634,8 @@ static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 
 out:
 	memset(temp, 0, drbg_statelen(drbg) + drbg_blocklen(drbg));
-	memset(df_data, 0, drbg_statelen(drbg));
+	if (2 != reseed)
+		memset(df_data, 0, drbg_statelen(drbg));
 	return ret;
 }
 
@@ -644,7 +660,7 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 		LIST_HEAD(addtllist);
 
 		list_add_tail(&addtl->list, &addtllist);
-		ret = drbg_ctr_update(drbg, &addtllist, 1);
+		ret = drbg_ctr_update(drbg, &addtllist, 2);
 		if (ret)
 			return 0;
 	}
@@ -675,21 +691,8 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 			drbg_add_buf(drbg->V, drbg_blocklen(drbg), &prefix, 1);
 	}
 
-	/*
-	 * 10.2.1.5.2 step 6
-	 * The following call invokes the DF function again which could be
-	 * optimized. In step 2, the "additional_input" after step 2 is the
-	 * output of the DF function. If this result would be saved, the DF
-	 * function would not need to be invoked again at this point.
-	 */
-	if (addtl && 0 < addtl->len) {
-		LIST_HEAD(addtllist);
-
-		list_add_tail(&addtl->list, &addtllist);
-		ret = drbg_ctr_update(drbg, &addtllist, 1);
-	} else {
-		ret = drbg_ctr_update(drbg, NULL, 1);
-	}
+	/* 10.2.1.5.2 step 6 */
+	ret = drbg_ctr_update(drbg, NULL, 3);
 	if (ret)
 		len = ret;
 
