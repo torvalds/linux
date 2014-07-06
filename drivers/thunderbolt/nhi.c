@@ -570,10 +570,10 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_WORK(&nhi->interrupt_work, nhi_interrupt_work);
 
 	nhi->tx_rings = devm_kzalloc(&pdev->dev,
-				     nhi->hop_count * sizeof(struct tb_ring),
+				     nhi->hop_count * sizeof(*nhi->tx_rings),
 				     GFP_KERNEL);
 	nhi->rx_rings = devm_kzalloc(&pdev->dev,
-				     nhi->hop_count * sizeof(struct tb_ring),
+				     nhi->hop_count * sizeof(*nhi->rx_rings),
 				     GFP_KERNEL);
 	if (!nhi->tx_rings || !nhi->rx_rings)
 		return -ENOMEM;
