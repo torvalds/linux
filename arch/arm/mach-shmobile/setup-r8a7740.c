@@ -310,6 +310,10 @@ static struct platform_device ipmmu_device = {
 };
 
 static struct platform_device *r8a7740_devices_dt[] __initdata = {
+	&cmt1_device,
+};
+
+static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
@@ -319,10 +323,6 @@ static struct platform_device *r8a7740_devices_dt[] __initdata = {
 	&scif6_device,
 	&scif7_device,
 	&scif8_device,
-	&cmt1_device,
-};
-
-static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&irqpin0_device,
 	&irqpin1_device,
 	&irqpin2_device,
