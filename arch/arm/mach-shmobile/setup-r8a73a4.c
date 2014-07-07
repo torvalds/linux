@@ -187,12 +187,6 @@ static struct resource cmt1_resources[] = {
 
 void __init r8a73a4_add_dt_devices(void)
 {
-	r8a73a4_register_scif(0);
-	r8a73a4_register_scif(1);
-	r8a73a4_register_scif(2);
-	r8a73a4_register_scif(3);
-	r8a73a4_register_scif(4);
-	r8a73a4_register_scif(5);
 	r8a7790_register_cmt(1);
 }
 
@@ -287,6 +281,12 @@ static struct resource dma_resources[] = {
 void __init r8a73a4_add_standard_devices(void)
 {
 	r8a73a4_add_dt_devices();
+	r8a73a4_register_scif(0);
+	r8a73a4_register_scif(1);
+	r8a73a4_register_scif(2);
+	r8a73a4_register_scif(3);
+	r8a73a4_register_scif(4);
+	r8a73a4_register_scif(5);
 	r8a73a4_register_irqc(0);
 	r8a73a4_register_irqc(1);
 	r8a73a4_register_thermal();
