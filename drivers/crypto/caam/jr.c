@@ -498,7 +498,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	if (error) {
 		irq_dispose_mapping(jrpriv->irq);
 		return error;
-	}
+    }
 
 	jrpriv->dev = jrdev;
 	spin_lock(&driver_data.jr_alloc_lock);
