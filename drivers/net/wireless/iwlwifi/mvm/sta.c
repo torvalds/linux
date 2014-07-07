@@ -526,8 +526,12 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* Add the aux station, but without any queues */
-	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, 0,
+	/* Map Aux queue to fifo - needs to happen before adding Aux station */
+	iwl_trans_ac_txq_enable(mvm->trans, mvm->aux_queue,
+				IWL_MVM_TX_FIFO_MCAST);
+
+	/* Allocate aux station and assign to it the aux queue */
+	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
 				       NL80211_IFTYPE_UNSPECIFIED);
 	if (ret)
 		return ret;
