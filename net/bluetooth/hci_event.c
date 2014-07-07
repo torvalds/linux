@@ -4229,13 +4229,30 @@ static void hci_le_conn_update_complete_evt(struct hci_dev *hdev,
 
 /* This function requires the caller holds hdev->lock */
 static bool check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
-				  u8 addr_type)
+				  u8 addr_type, u8 adv_type)
 {
 	struct hci_conn *conn;
 
+	/* If the event is not connectable don't proceed further */
+	if (adv_type != LE_ADV_IND && adv_type != LE_ADV_DIRECT_IND)
+		return false;
+
+	/* Ignore if the device is blocked */
+	if (hci_blacklist_lookup(hdev, addr, addr_type))
+		return false;
+
+	/* If we're connectable, always connect any ADV_DIRECT_IND event */
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
+	    adv_type == LE_ADV_DIRECT_IND)
+		goto connect;
+
+	/* If we're not connectable only connect devices that we have in
+	 * our pend_le_conns list.
+	 */
 	if (!hci_pend_le_action_lookup(&hdev->pend_le_conns, addr, addr_type))
 		return false;
 
+connect:
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
 			      HCI_AT_NO_BONDING, HCI_LE_AUTOCONN_TIMEOUT);
 	if (!IS_ERR(conn))
@@ -4260,8 +4277,19 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 			       u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
 {
 	struct discovery_state *d = &hdev->discovery;
+	struct smp_irk *irk;
 	bool match;
 	u32 flags;
+
+	/* Check if we need to convert to identity address */
+	irk = hci_get_irk(hdev, bdaddr, bdaddr_type);
+	if (irk) {
+		bdaddr = &irk->bdaddr;
+		bdaddr_type = irk->addr_type;
+	}
+
+	/* Check if we have been requested to connect to this device */
+	check_pending_le_conn(hdev, bdaddr, bdaddr_type, type);
 
 	/* Passive scanning shouldn't trigger any device found events,
 	 * except for devices marked as CONN_REPORT for which we do send
@@ -4269,23 +4297,6 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 */
 	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
 		struct hci_conn_params *param;
-		struct smp_irk *irk;
-
-		/* Check if we need to convert to identity address */
-		irk = hci_get_irk(hdev, bdaddr, bdaddr_type);
-		if (irk) {
-			bdaddr = &irk->bdaddr;
-			bdaddr_type = irk->addr_type;
-		}
-
-		/* Ignore if the device is blocked */
-		if (hci_blacklist_lookup(hdev, bdaddr, bdaddr_type))
-			return;
-
-		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND) {
-			if (check_pending_le_conn(hdev, bdaddr, bdaddr_type))
-				return;
-		}
 
 		if (type == LE_ADV_DIRECT_IND)
 			return;
