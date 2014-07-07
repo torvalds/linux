@@ -161,7 +161,7 @@
 };
 
 &sata0 {
-       status = "okay";
+	status = "okay";
 };
 
 &sdhi0 {
