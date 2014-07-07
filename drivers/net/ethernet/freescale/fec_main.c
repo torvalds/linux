@@ -1215,9 +1215,6 @@ fec_enet_rx(struct net_device *ndev, int budget)
 		if ((status & BD_ENET_RX_LAST) == 0)
 			netdev_err(ndev, "rcv is not +last\n");
 
-		if (!fep->opened)
-			goto rx_processing_done;
-
 		/* Check for errors. */
 		if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_NO |
 			   BD_ENET_RX_CR | BD_ENET_RX_OV)) {
@@ -2172,7 +2169,6 @@ fec_enet_open(struct net_device *ndev)
 	napi_enable(&fep->napi);
 	phy_start(fep->phy_dev);
 	netif_start_queue(ndev);
-	fep->opened = 1;
 	return 0;
 }
 
@@ -2185,7 +2181,6 @@ fec_enet_close(struct net_device *ndev)
 
 	/* Don't know what to do yet. */
 	napi_disable(&fep->napi);
-	fep->opened = 0;
 	netif_tx_disable(ndev);
 	fec_stop(ndev);
 
