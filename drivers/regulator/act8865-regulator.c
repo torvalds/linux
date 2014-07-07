@@ -198,16 +198,30 @@ static struct of_regulator_match act8865_matches[] = {
 static int act8865_pdata_from_dt(struct device *dev,
 				 struct device_node **of_node,
 				 struct act8865_platform_data *pdata,
-				 struct of_regulator_match *matches,
-				 int num_matches)
+				 unsigned long type)
 {
-	int matched, i;
+	int matched, i, num_matches;
 	struct device_node *np;
 	struct act8865_regulator_data *regulator;
+	struct of_regulator_match *matches;
 
 	np = of_get_child_by_name(dev->of_node, "regulators");
 	if (!np) {
 		dev_err(dev, "missing 'regulators' subnode in DT\n");
+		return -EINVAL;
+	}
+
+	switch (type) {
+	case ACT8846:
+		matches = act8846_matches;
+		num_matches = ARRAY_SIZE(act8846_matches);
+		break;
+	case ACT8865:
+		matches = act8865_matches;
+		num_matches = ARRAY_SIZE(act8865_matches);
+		break;
+	default:
+		dev_err(dev, "invalid device id %lu\n", type);
 		return -EINVAL;
 	}
 
@@ -238,7 +252,8 @@ static int act8865_pdata_from_dt(struct device *dev,
 #else
 static inline int act8865_pdata_from_dt(struct device *dev,
 					struct device_node **of_node,
-					struct act8865_platform_data *pdata)
+					struct act8865_platform_data *pdata,
+					unsigned long type)
 {
 	return 0;
 }
@@ -265,7 +280,6 @@ static int act8865_pmic_probe(struct i2c_client *client,
 {
 	static const struct regulator_desc *regulators;
 	struct act8865_platform_data pdata_of, *pdata;
-	struct of_regulator_match *matches;
 	struct device *dev = &client->dev;
 	struct device_node **of_node;
 	int i, ret, num_regulators;
@@ -288,12 +302,10 @@ static int act8865_pmic_probe(struct i2c_client *client,
 
 	switch (type) {
 	case ACT8846:
-		matches = act8846_matches;
 		regulators = act8846_regulators;
 		num_regulators = ARRAY_SIZE(act8846_regulators);
 		break;
 	case ACT8865:
-		matches = act8865_matches;
 		regulators = act8865_regulators;
 		num_regulators = ARRAY_SIZE(act8865_regulators);
 		break;
@@ -308,8 +320,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	if (dev->of_node && !pdata) {
-		ret = act8865_pdata_from_dt(dev, of_node, &pdata_of, matches,
-					    num_regulators);
+		ret = act8865_pdata_from_dt(dev, of_node, &pdata_of, type);
 		if (ret < 0)
 			return ret;
 
