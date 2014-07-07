@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/init.h>
+#include <linux/kprobes.h>
 #include <linux/kgdb.h>
 #include <linux/smp.h>
 #include <linux/io.h>
@@ -20,6 +21,7 @@
 #include <asm/processor.h>
 #include <asm/debugreg.h>
 #include <asm/sections.h>
+#include <asm/vsyscall.h>
 #include <linux/topology.h>
 #include <linux/cpumask.h>
 #include <asm/pgtable.h>
@@ -284,8 +286,13 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 	raw_local_save_flags(eflags);
 	BUG_ON(eflags & X86_EFLAGS_AC);
 
-	if (cpu_has(c, X86_FEATURE_SMAP))
+	if (cpu_has(c, X86_FEATURE_SMAP)) {
+#ifdef CONFIG_X86_SMAP
 		set_in_cr4(X86_CR4_SMAP);
+#else
+		clear_in_cr4(X86_CR4_SMAP);
+#endif
+	}
 }
 
 /*
@@ -346,7 +353,8 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 /* Look up CPU names by table lookup. */
 static const char *table_lookup_model(struct cpuinfo_x86 *c)
 {
-	const struct cpu_model_info *info;
+#ifdef CONFIG_X86_32
+	const struct legacy_cpu_model_info *info;
 
 	if (c->x86_model >= 16)
 		return NULL;	/* Range check */
@@ -354,13 +362,14 @@ static const char *table_lookup_model(struct cpuinfo_x86 *c)
 	if (!this_cpu)
 		return NULL;
 
-	info = this_cpu->c_models;
+	info = this_cpu->legacy_models;
 
-	while (info && info->family) {
+	while (info->family) {
 		if (info->family == c->x86)
 			return info->model_names[c->x86_model];
 		info++;
 	}
+#endif
 	return NULL;		/* Not found */
 }
 
@@ -450,8 +459,8 @@ void cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
 	c->x86_tlbsize += ((ebx >> 16) & 0xfff) + (ebx & 0xfff);
 #else
 	/* do processor-specific cache resizing */
-	if (this_cpu->c_size_cache)
-		l2size = this_cpu->c_size_cache(c, l2size);
+	if (this_cpu->legacy_cache_size)
+		l2size = this_cpu->legacy_cache_size(c, l2size);
 
 	/* Allow user to override all this if necessary. */
 	if (cachesize_override != -1)
@@ -470,6 +479,7 @@ u16 __read_mostly tlb_lli_4m[NR_INFO];
 u16 __read_mostly tlb_lld_4k[NR_INFO];
 u16 __read_mostly tlb_lld_2m[NR_INFO];
 u16 __read_mostly tlb_lld_4m[NR_INFO];
+u16 __read_mostly tlb_lld_1g[NR_INFO];
 
 /*
  * tlb_flushall_shift shows the balance point in replacing cr3 write
@@ -484,13 +494,13 @@ void cpu_detect_tlb(struct cpuinfo_x86 *c)
 	if (this_cpu->c_detect_tlb)
 		this_cpu->c_detect_tlb(c);
 
-	printk(KERN_INFO "Last level iTLB entries: 4KB %d, 2MB %d, 4MB %d\n" \
-		"Last level dTLB entries: 4KB %d, 2MB %d, 4MB %d\n"	     \
+	printk(KERN_INFO "Last level iTLB entries: 4KB %d, 2MB %d, 4MB %d\n"
+		"Last level dTLB entries: 4KB %d, 2MB %d, 4MB %d, 1GB %d\n"
 		"tlb_flushall_shift: %d\n",
 		tlb_lli_4k[ENTRIES], tlb_lli_2m[ENTRIES],
 		tlb_lli_4m[ENTRIES], tlb_lld_4k[ENTRIES],
 		tlb_lld_2m[ENTRIES], tlb_lld_4m[ENTRIES],
-		tlb_flushall_shift);
+		tlb_lld_1g[ENTRIES], tlb_flushall_shift);
 }
 
 void detect_ht(struct cpuinfo_x86 *c)
@@ -945,6 +955,38 @@ static void vgetcpu_set_mode(void)
 	else
 		vgetcpu_mode = VGETCPU_LSL;
 }
+
+/* May not be __init: called during resume */
+static void syscall32_cpu_init(void)
+{
+	/* Load these always in case some future AMD CPU supports
+	   SYSENTER from compat mode too. */
+	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
+	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
+	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)ia32_sysenter_target);
+
+	wrmsrl(MSR_CSTAR, ia32_cstar_target);
+}
+#endif
+
+#ifdef CONFIG_X86_32
+void enable_sep_cpu(void)
+{
+	int cpu = get_cpu();
+	struct tss_struct *tss = &per_cpu(init_tss, cpu);
+
+	if (!boot_cpu_has(X86_FEATURE_SEP)) {
+		put_cpu();
+		return;
+	}
+
+	tss->x86_tss.ss1 = __KERNEL_CS;
+	tss->x86_tss.sp1 = sizeof(struct tss_struct) + (unsigned long) tss;
+	wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
+	wrmsr(MSR_IA32_SYSENTER_ESP, tss->x86_tss.sp1, 0);
+	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long) ia32_sysenter_target, 0);
+	put_cpu();
+}
 #endif
 
 void __init identify_boot_cpu(void)
@@ -1017,7 +1059,8 @@ __setup("show_msr=", setup_show_msr);
 
 static __init int setup_noclflush(char *arg)
 {
-	setup_clear_cpu_cap(X86_FEATURE_CLFLSH);
+	setup_clear_cpu_cap(X86_FEATURE_CLFLUSH);
+	setup_clear_cpu_cap(X86_FEATURE_CLFLUSHOPT);
 	return 1;
 }
 __setup("noclflush", setup_noclflush);
@@ -1070,6 +1113,10 @@ static __init int setup_disablecpuid(char *arg)
 }
 __setup("clearcpuid=", setup_disablecpuid);
 
+DEFINE_PER_CPU(unsigned long, kernel_stack) =
+	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
+EXPORT_PER_CPU_SYMBOL(kernel_stack);
+
 #ifdef CONFIG_X86_64
 struct desc_ptr idt_descr = { NR_VECTORS * 16 - 1, (unsigned long) idt_table };
 struct desc_ptr debug_idt_descr = { NR_VECTORS * 16 - 1,
@@ -1086,14 +1133,13 @@ DEFINE_PER_CPU(struct task_struct *, current_task) ____cacheline_aligned =
 	&init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
 
-DEFINE_PER_CPU(unsigned long, kernel_stack) =
-	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
-EXPORT_PER_CPU_SYMBOL(kernel_stack);
-
 DEFINE_PER_CPU(char *, irq_stack_ptr) =
 	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
 
 DEFINE_PER_CPU(unsigned int, irq_count) __visible = -1;
+
+DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
+EXPORT_PER_CPU_SYMBOL(__preempt_count);
 
 DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 
@@ -1148,6 +1194,7 @@ int is_debug_stack(unsigned long addr)
 		(addr <= __get_cpu_var(debug_stack_addr) &&
 		 addr > (__get_cpu_var(debug_stack_addr) - DEBUG_STKSZ));
 }
+NOKPROBE_SYMBOL(is_debug_stack);
 
 DEFINE_PER_CPU(u32, debug_idt_ctr);
 
@@ -1156,6 +1203,7 @@ void debug_stack_set_zero(void)
 	this_cpu_inc(debug_idt_ctr);
 	load_current_idt();
 }
+NOKPROBE_SYMBOL(debug_stack_set_zero);
 
 void debug_stack_reset(void)
 {
@@ -1164,11 +1212,14 @@ void debug_stack_reset(void)
 	if (this_cpu_dec_return(debug_idt_ctr) == 0)
 		load_current_idt();
 }
+NOKPROBE_SYMBOL(debug_stack_reset);
 
 #else	/* CONFIG_X86_64 */
 
 DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
+DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
+EXPORT_PER_CPU_SYMBOL(__preempt_count);
 DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 
 #ifdef CONFIG_CC_STACKPROTECTOR

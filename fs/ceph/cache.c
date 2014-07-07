@@ -68,7 +68,7 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
 {
 	fsc->fscache = fscache_acquire_cookie(ceph_cache_netfs.primary_index,
 					      &ceph_fscache_fsid_object_def,
-					      fsc);
+					      fsc, true);
 
 	if (fsc->fscache == NULL) {
 		pr_err("Unable to resgister fsid: %p fscache cookie", fsc);
@@ -204,7 +204,8 @@ void ceph_fscache_register_inode_cookie(struct ceph_fs_client* fsc,
 
 	ci->fscache = fscache_acquire_cookie(fsc->fscache,
 					     &ceph_fscache_inode_object_def,
-					     ci);
+					     ci, true);
+	fscache_check_consistency(ci->fscache);
 done:
 	mutex_unlock(&inode->i_mutex);
 
@@ -323,6 +324,9 @@ void ceph_readpage_to_fscache(struct inode *inode, struct page *page)
 void ceph_invalidate_fscache_page(struct inode* inode, struct page *page)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	if (!PageFsCache(page))
+		return;
 
 	fscache_wait_on_page_write(ci->fscache, page);
 	fscache_uncache_page(ci->fscache, page);

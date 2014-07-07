@@ -85,11 +85,6 @@ static int e750_ac97_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "PCBEEP");
 	snd_soc_dapm_nc_pin(dapm, "MIC2");
 
-	snd_soc_dapm_new_controls(dapm, e750_dapm_widgets,
-					ARRAY_SIZE(e750_dapm_widgets));
-
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
 	return 0;
 }
 
@@ -119,6 +114,11 @@ static struct snd_soc_card e750 = {
 	.owner = THIS_MODULE,
 	.dai_link = e750_dai,
 	.num_links = ARRAY_SIZE(e750_dai),
+
+	.dapm_widgets = e750_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(e750_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct gpio e750_audio_gpios[] = {
@@ -160,6 +160,7 @@ static struct platform_driver e750_driver = {
 	.driver		= {
 		.name	= "e750-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= e750_probe,
 	.remove		= e750_remove,

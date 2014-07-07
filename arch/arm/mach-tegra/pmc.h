@@ -18,6 +18,8 @@
 #ifndef __MACH_TEGRA_PMC_H
 #define __MACH_TEGRA_PMC_H
 
+#include <linux/reboot.h>
+
 enum tegra_suspend_mode {
 	TEGRA_SUSPEND_NONE = 0,
 	TEGRA_SUSPEND_LP2,	/* CPU voltage off */
@@ -39,6 +41,9 @@ bool tegra_pmc_cpu_is_powered(int cpuid);
 int tegra_pmc_cpu_power_on(int cpuid);
 int tegra_pmc_cpu_remove_clamping(int cpuid);
 
+void tegra_pmc_restart(enum reboot_mode mode, const char *cmd);
+
+void tegra_pmc_init_irq(void);
 void tegra_pmc_init(void);
 
 #endif

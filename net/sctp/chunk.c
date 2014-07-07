@@ -18,9 +18,8 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -201,7 +200,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 
 	max = asoc->frag_point;
 	/* If the the peer requested that we authenticate DATA chunks
-	 * we need to accound for bundling of the AUTH chunks along with
+	 * we need to account for bundling of the AUTH chunks along with
 	 * DATA.
 	 */
 	if (sctp_auth_send_cid(SCTP_CID_DATA, asoc)) {
@@ -255,7 +254,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		SCTP_INC_STATS_USER(sock_net(asoc->base.sk), SCTP_MIB_FRAGUSRMSGS);
 
 	/* Create chunks for all the full sized DATA chunks. */
-	for (i=0, len=first_len; i < whole; i++) {
+	for (i = 0, len = first_len; i < whole; i++) {
 		frag = SCTP_DATA_MIDDLE_FRAG;
 
 		if (0 == i)
@@ -318,7 +317,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 			goto errout;
 		}
 
-		err = sctp_user_addto_chunk(chunk, offset, over,msgh->msg_iov);
+		err = sctp_user_addto_chunk(chunk, offset, over, msgh->msg_iov);
 
 		/* Put the chunk->skb back into the form expected by send.  */
 		__skb_pull(chunk->skb, (__u8 *)chunk->chunk_hdr

@@ -132,6 +132,7 @@ enum bfa_status {
 	BFA_STATUS_ETIMER	= 5,	/*  Timer expired - Retry, if persists,
 					 *  contact support */
 	BFA_STATUS_EPROTOCOL	= 6,	/*  Protocol error */
+	BFA_STATUS_BADFLASH	= 9,	/*  Flash is bad */
 	BFA_STATUS_SFP_UNSUPP	= 10,	/*  Unsupported SFP - Replace SFP */
 	BFA_STATUS_UNKNOWN_VFID = 11,	/*  VF_ID not found */
 	BFA_STATUS_DATACORRUPTED = 12,  /*  Diag returned data corrupted */

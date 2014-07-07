@@ -49,10 +49,17 @@ extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 extern unsigned long set_phys_range_identity(unsigned long pfn_s,
 					     unsigned long pfn_e);
 
+extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
+				   struct gnttab_map_grant_ref *kmap_ops,
+				   struct page **pages, unsigned int count);
 extern int m2p_add_override(unsigned long mfn, struct page *page,
 			    struct gnttab_map_grant_ref *kmap_op);
+extern int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
+				     struct gnttab_map_grant_ref *kmap_ops,
+				     struct page **pages, unsigned int count);
 extern int m2p_remove_override(struct page *page,
-				struct gnttab_map_grant_ref *kmap_op);
+			       struct gnttab_map_grant_ref *kmap_op,
+			       unsigned long mfn);
 extern struct page *m2p_find_override(unsigned long mfn);
 extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
 
@@ -121,7 +128,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 		pfn = m2p_find_override_pfn(mfn, ~0);
 	}
 
-	/* 
+	/*
 	 * pfn is ~0 if there are no entries in the m2p for mfn or if the
 	 * entry doesn't map back to the mfn and m2p_override doesn't have a
 	 * valid entry for it.
@@ -167,7 +174,12 @@ static inline xpaddr_t machine_to_phys(xmaddr_t machine)
  */
 static inline unsigned long mfn_to_local_pfn(unsigned long mfn)
 {
-	unsigned long pfn = mfn_to_pfn(mfn);
+	unsigned long pfn;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return mfn;
+
+	pfn = mfn_to_pfn(mfn);
 	if (get_phys_to_machine(pfn) != mfn)
 		return -1; /* force !pfn_valid() */
 	return pfn;
@@ -222,5 +234,6 @@ void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
 
 #define xen_remap(cookie, size) ioremap((cookie), (size));
+#define xen_unmap(cookie) iounmap((cookie))
 
 #endif /* _ASM_X86_XEN_PAGE_H */

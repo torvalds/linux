@@ -16,7 +16,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
@@ -29,7 +28,7 @@ struct fw_config {
 	const char * const fw_name2;
 };
 
-struct fw_config fw_configs[] = {
+static struct fw_config fw_configs[] = {
 	{ 0x1943, 0xa250, "go7007/s2250-1.fw", "go7007/s2250-2.fw" },
 	{ 0x093b, 0xa002, "go7007/px-m402u.fw", NULL },
 	{ 0x093b, 0xa004, "go7007/px-tv402u.fw", NULL },
@@ -60,7 +59,7 @@ static int go7007_loader_probe(struct usb_interface *interface,
 
 	if (usbdev->descriptor.bNumConfigurations != 1) {
 		dev_err(&interface->dev, "can't handle multiple config\n");
-		return -ENODEV;
+		goto failed2;
 	}
 
 	vendor = le16_to_cpu(usbdev->descriptor.idVendor);
@@ -109,6 +108,7 @@ static int go7007_loader_probe(struct usb_interface *interface,
 	return 0;
 
 failed2:
+	usb_put_dev(usbdev);
 	dev_err(&interface->dev, "probe failed\n");
 	return -ENODEV;
 }
@@ -116,6 +116,7 @@ failed2:
 static void go7007_loader_disconnect(struct usb_interface *interface)
 {
 	dev_info(&interface->dev, "disconnect\n");
+	usb_put_dev(interface_to_usbdev(interface));
 	usb_set_intfdata(interface, NULL);
 }
 

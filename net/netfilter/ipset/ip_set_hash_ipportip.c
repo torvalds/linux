@@ -24,19 +24,21 @@
 #include <linux/netfilter/ipset/ip_set_getport.h>
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
-#define REVISION_MIN	0
-/*			1    SCTP and UDPLITE support added */
-#define REVISION_MAX	2 /* Counters support added */
+#define IPSET_TYPE_REV_MIN	0
+/*				1    SCTP and UDPLITE support added */
+/*				2    Counters support added */
+/*				3    Comments support added */
+#define IPSET_TYPE_REV_MAX	4 /* Forceadd support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-IP_SET_MODULE_DESC("hash:ip,port,ip", REVISION_MIN, REVISION_MAX);
+IP_SET_MODULE_DESC("hash:ip,port,ip", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_hash:ip,port,ip");
 
 /* Type specific function prefix */
 #define HTYPE		hash_ipportip
 
-/* IPv4 variants */
+/* IPv4 variant */
 
 /* Member elements  */
 struct hash_ipportip4_elem {
@@ -45,34 +47,6 @@ struct hash_ipportip4_elem {
 	__be16 port;
 	u8 proto;
 	u8 padding;
-};
-
-struct hash_ipportip4t_elem {
-	__be32 ip;
-	__be32 ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	unsigned long timeout;
-};
-
-struct hash_ipportip4c_elem {
-	__be32 ip;
-	__be32 ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	struct ip_set_counter counter;
-};
-
-struct hash_ipportip4ct_elem {
-	__be32 ip;
-	__be32 ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 static inline bool
@@ -120,10 +94,9 @@ hash_ipportip4_kadt(struct ip_set *set, const struct sk_buff *skb,
 		    const struct xt_action_param *par,
 		    enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_ipportip *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportip4_elem e = { };
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
 	if (!ip_set_get_ip4_port(skb, opt->flags & IPSET_DIM_TWO_SRC,
 				 &e.port, &e.proto))
@@ -141,8 +114,8 @@ hash_ipportip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct hash_ipportip *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportip4_elem e = { };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
-	u32 ip, ip_to, p = 0, port, port_to;
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
+	u32 ip, ip_to = 0, p = 0, port, port_to;
 	bool with_ports = false;
 	int ret;
 
@@ -231,7 +204,7 @@ hash_ipportip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	return ret;
 }
 
-/* IPv6 variants */
+/* IPv6 variant */
 
 struct hash_ipportip6_elem {
 	union nf_inet_addr ip;
@@ -239,34 +212,6 @@ struct hash_ipportip6_elem {
 	__be16 port;
 	u8 proto;
 	u8 padding;
-};
-
-struct hash_ipportip6t_elem {
-	union nf_inet_addr ip;
-	union nf_inet_addr ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	unsigned long timeout;
-};
-
-struct hash_ipportip6c_elem {
-	union nf_inet_addr ip;
-	union nf_inet_addr ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	struct ip_set_counter counter;
-};
-
-struct hash_ipportip6ct_elem {
-	union nf_inet_addr ip;
-	union nf_inet_addr ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */
@@ -319,10 +264,9 @@ hash_ipportip6_kadt(struct ip_set *set, const struct sk_buff *skb,
 		    const struct xt_action_param *par,
 		    enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_ipportip *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportip6_elem e = { };
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
 	if (!ip_set_get_ip6_port(skb, opt->flags & IPSET_DIM_TWO_SRC,
 				 &e.port, &e.proto))
@@ -340,7 +284,7 @@ hash_ipportip6_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct hash_ipportip *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportip6_elem e = { };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 port, port_to;
 	bool with_ports = false;
 	int ret;
@@ -414,8 +358,8 @@ static struct ip_set_type hash_ipportip_type __read_mostly = {
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_PORT | IPSET_TYPE_IP2,
 	.dimension	= IPSET_DIM_THREE,
 	.family		= NFPROTO_UNSPEC,
-	.revision_min	= REVISION_MIN,
-	.revision_max	= REVISION_MAX,
+	.revision_min	= IPSET_TYPE_REV_MIN,
+	.revision_max	= IPSET_TYPE_REV_MAX,
 	.create		= hash_ipportip_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
@@ -437,6 +381,7 @@ static struct ip_set_type hash_ipportip_type __read_mostly = {
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
+		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING },
 	},
 	.me		= THIS_MODULE,
 };

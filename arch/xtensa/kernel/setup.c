@@ -21,11 +21,11 @@
 #include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
-
-#ifdef CONFIG_OF
+#include <linux/percpu.h>
+#include <linux/clk-provider.h>
+#include <linux/cpu.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
-#endif
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 # include <linux/console.h>
@@ -40,6 +40,7 @@
 #endif
 
 #include <asm/bootparam.h>
+#include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/timex.h>
@@ -48,6 +49,8 @@
 #include <asm/setup.h>
 #include <asm/param.h>
 #include <asm/traps.h>
+#include <asm/smp.h>
+#include <asm/sysmem.h>
 
 #include <platform/hardware.h>
 
@@ -64,14 +67,13 @@ extern struct rtc_ops no_rtc_ops;
 struct rtc_ops *rtc_ops;
 
 #ifdef CONFIG_BLK_DEV_INITRD
-extern void *initrd_start;
-extern void *initrd_end;
+extern unsigned long initrd_start;
+extern unsigned long initrd_end;
 int initrd_is_mapped = 0;
 extern int initrd_below_start_ok;
 #endif
 
 #ifdef CONFIG_OF
-extern u32 __dtb_start[];
 void *dtb_start = __dtb_start;
 #endif
 
@@ -85,18 +87,6 @@ static char __initdata command_line[COMMAND_LINE_SIZE];
 #ifdef CONFIG_CMDLINE_BOOL
 static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 #endif
-
-sysmem_info_t __initdata sysmem;
-
-#ifdef CONFIG_MMU
-extern void init_mmu(void);
-#else
-static inline void init_mmu(void) { }
-#endif
-
-extern int mem_reserve(unsigned long, unsigned long, int);
-extern void bootmem_init(void);
-extern void zones_init(void);
 
 /*
  * Boot parameter parsing.
@@ -117,31 +107,14 @@ typedef struct tagtable {
 
 /* parse current tag */
 
-static int __init add_sysmem_bank(unsigned long type, unsigned long start,
-		unsigned long end)
-{
-	if (sysmem.nr_banks >= SYSMEM_BANKS_MAX) {
-		printk(KERN_WARNING
-				"Ignoring memory bank 0x%08lx size %ldKB\n",
-				start, end - start);
-		return -EINVAL;
-	}
-	sysmem.bank[sysmem.nr_banks].type  = type;
-	sysmem.bank[sysmem.nr_banks].start = PAGE_ALIGN(start);
-	sysmem.bank[sysmem.nr_banks].end   = end & PAGE_MASK;
-	sysmem.nr_banks++;
-
-	return 0;
-}
-
 static int __init parse_tag_mem(const bp_tag_t *tag)
 {
-	meminfo_t *mi = (meminfo_t *)(tag->data);
+	struct bp_meminfo *mi = (struct bp_meminfo *)(tag->data);
 
 	if (mi->type != MEMORY_TYPE_CONVENTIONAL)
 		return -1;
 
-	return add_sysmem_bank(mi->type, mi->start, mi->end);
+	return add_sysmem_bank(mi->start, mi->end);
 }
 
 __tagtable(BP_TAG_MEMORY, parse_tag_mem);
@@ -150,10 +123,10 @@ __tagtable(BP_TAG_MEMORY, parse_tag_mem);
 
 static int __init parse_tag_initrd(const bp_tag_t* tag)
 {
-	meminfo_t* mi;
-	mi = (meminfo_t*)(tag->data);
-	initrd_start = __va(mi->start);
-	initrd_end = __va(mi->end);
+	struct bp_meminfo *mi = (struct bp_meminfo *)(tag->data);
+
+	initrd_start = (unsigned long)__va(mi->start);
+	initrd_end = (unsigned long)__va(mi->end);
 
 	return 0;
 }
@@ -169,13 +142,6 @@ static int __init parse_tag_fdt(const bp_tag_t *tag)
 }
 
 __tagtable(BP_TAG_FDT, parse_tag_fdt);
-
-void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
-{
-	initrd_start = (void *)__va(start);
-	initrd_end = (void *)__va(end);
-	initrd_below_start_ok = 1;
-}
 
 #endif /* CONFIG_OF */
 
@@ -222,11 +188,51 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 }
 
 #ifdef CONFIG_OF
+bool __initdata dt_memory_scan = false;
+
+#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+unsigned long xtensa_kio_paddr = XCHAL_KIO_DEFAULT_PADDR;
+EXPORT_SYMBOL(xtensa_kio_paddr);
+
+static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
+		int depth, void *data)
+{
+	const __be32 *ranges;
+	int len;
+
+	if (depth > 1)
+		return 0;
+
+	if (!of_flat_dt_is_compatible(node, "simple-bus"))
+		return 0;
+
+	ranges = of_get_flat_dt_prop(node, "ranges", &len);
+	if (!ranges)
+		return 1;
+	if (len == 0)
+		return 1;
+
+	xtensa_kio_paddr = of_read_ulong(ranges+1, 1);
+	/* round down to nearest 256MB boundary */
+	xtensa_kio_paddr &= 0xf0000000;
+
+	return 1;
+}
+#else
+static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
+		int depth, void *data)
+{
+	return 1;
+}
+#endif
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
+	if (!dt_memory_scan)
+		return;
+
 	size &= PAGE_MASK;
-	add_sysmem_bank(MEMORY_TYPE_CONVENTIONAL, base, base + size);
+	add_sysmem_bank(base, base + size);
 }
 
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
@@ -236,36 +242,20 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 
 void __init early_init_devtree(void *params)
 {
-	/* Setup flat device-tree pointer */
-	initial_boot_params = params;
-
-	/* Retrieve various informations from the /chosen node of the
-	 * device-tree, including the platform type, initrd location and
-	 * size, TCE reserve, and more ...
-	 */
-	if (!command_line[0])
-		of_scan_flat_dt(early_init_dt_scan_chosen, command_line);
-
-	/* Scan memory nodes and rebuild MEMBLOCKs */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	if (sysmem.nr_banks == 0)
-		of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-}
+		dt_memory_scan = true;
 
-static void __init copy_devtree(void)
-{
-	void *alloc = early_init_dt_alloc_memory_arch(
-			be32_to_cpu(initial_boot_params->totalsize), 8);
-	if (alloc) {
-		memcpy(alloc, initial_boot_params,
-				be32_to_cpu(initial_boot_params->totalsize));
-		initial_boot_params = alloc;
-	}
+	early_init_dt_scan(params);
+	of_scan_flat_dt(xtensa_dt_io_area, NULL);
+
+	if (!command_line[0])
+		strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 }
 
 static int __init xtensa_device_probe(void)
 {
-	of_platform_populate(NULL, NULL, NULL, NULL);
+	of_clk_init(NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	return 0;
 }
 
@@ -279,8 +269,6 @@ device_initcall(xtensa_device_probe);
 
 void __init init_arch(bp_tag_t *bp_start)
 {
-	sysmem.nr_banks = 0;
-
 	/* Parse boot parameters */
 
 	if (bp_start)
@@ -291,10 +279,9 @@ void __init init_arch(bp_tag_t *bp_start)
 #endif
 
 	if (sysmem.nr_banks == 0) {
-		sysmem.nr_banks = 1;
-		sysmem.bank[0].start = PLATFORM_DEFAULT_MEM_START;
-		sysmem.bank[0].end = PLATFORM_DEFAULT_MEM_START
-				     + PLATFORM_DEFAULT_MEM_SIZE;
+		add_sysmem_bank(PLATFORM_DEFAULT_MEM_START,
+				PLATFORM_DEFAULT_MEM_START +
+				PLATFORM_DEFAULT_MEM_SIZE);
 	}
 
 #ifdef CONFIG_CMDLINE_BOOL
@@ -378,7 +365,8 @@ static inline int probed_compare_swap(int *v, int cmp, int set)
 
 /* Handle probed exception */
 
-void __init do_probed_exception(struct pt_regs *regs, unsigned long exccause)
+static void __init do_probed_exception(struct pt_regs *regs,
+		unsigned long exccause)
 {
 	if (regs->pc == rcw_probe_pc) {	/* exception on s32c1i ? */
 		regs->pc += 3;		/* skip the s32c1i instruction */
@@ -390,7 +378,7 @@ void __init do_probed_exception(struct pt_regs *regs, unsigned long exccause)
 
 /* Simple test of S32C1I (soc bringup assist) */
 
-void __init check_s32c1i(void)
+static int __init check_s32c1i(void)
 {
 	int n, cause1, cause2;
 	void *handbus, *handdata, *handaddr; /* temporarily saved handlers */
@@ -445,24 +433,21 @@ void __init check_s32c1i(void)
 	trap_set_handler(EXCCAUSE_LOAD_STORE_ERROR, handbus);
 	trap_set_handler(EXCCAUSE_LOAD_STORE_DATA_ERROR, handdata);
 	trap_set_handler(EXCCAUSE_LOAD_STORE_ADDR_ERROR, handaddr);
+	return 0;
 }
 
 #else /* XCHAL_HAVE_S32C1I */
 
 /* This condition should not occur with a commercially deployed processor.
    Display reminder for early engr test or demo chips / FPGA bitstreams */
-void __init check_s32c1i(void)
+static int __init check_s32c1i(void)
 {
 	pr_warn("Processor configuration lacks atomic compare-and-swap support!\n");
+	return 0;
 }
 
 #endif /* XCHAL_HAVE_S32C1I */
-#else /* CONFIG_S32C1I_SELFTEST */
-
-void __init check_s32c1i(void)
-{
-}
-
+early_initcall(check_s32c1i);
 #endif /* CONFIG_S32C1I_SELFTEST */
 
 
@@ -471,14 +456,12 @@ void __init setup_arch(char **cmdline_p)
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
-	check_s32c1i();
-
 	/* Reserve some memory regions */
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start < initrd_end) {
 		initrd_is_mapped = mem_reserve(__pa(initrd_start),
-					       __pa(initrd_end), 0);
+					       __pa(initrd_end), 0) == 0;
 		initrd_below_start_ok = 1;
 	} else {
 		initrd_start = 0;
@@ -523,14 +506,16 @@ void __init setup_arch(char **cmdline_p)
 		    __pa(&_Level6InterruptVector_text_end), 0);
 #endif
 
+	parse_early_param();
 	bootmem_init();
 
-#ifdef CONFIG_OF
-	copy_devtree();
-	unflatten_device_tree();
-#endif
+	unflatten_and_copy_device_tree();
 
 	platform_setup(cmdline_p);
+
+#ifdef CONFIG_SMP
+	smp_init_cpus();
+#endif
 
 	paging_init();
 	zones_init();
@@ -547,6 +532,22 @@ void __init setup_arch(char **cmdline_p)
 	platform_pcibios_init();
 #endif
 }
+
+static DEFINE_PER_CPU(struct cpu, cpu_data);
+
+static int __init topology_init(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct cpu *cpu = &per_cpu(cpu_data, i);
+		cpu->hotpluggable = !!i;
+		register_cpu(cpu, i);
+	}
+
+	return 0;
+}
+subsys_initcall(topology_init);
 
 void machine_restart(char * cmd)
 {
@@ -573,21 +574,27 @@ void machine_power_off(void)
 static int
 c_show(struct seq_file *f, void *slot)
 {
+	char buf[NR_CPUS * 5];
+
+	cpulist_scnprintf(buf, sizeof(buf), cpu_online_mask);
 	/* high-level stuff */
-	seq_printf(f,"processor\t: 0\n"
-		     "vendor_id\t: Tensilica\n"
-		     "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
-		     "core ID\t\t: " XCHAL_CORE_ID "\n"
-		     "build ID\t: 0x%x\n"
-		     "byte order\t: %s\n"
-		     "cpu MHz\t\t: %lu.%02lu\n"
-		     "bogomips\t: %lu.%02lu\n",
-		     XCHAL_BUILD_UNIQUE_ID,
-		     XCHAL_HAVE_BE ?  "big" : "little",
-		     ccount_freq/1000000,
-		     (ccount_freq/10000) % 100,
-		     loops_per_jiffy/(500000/HZ),
-		     (loops_per_jiffy/(5000/HZ)) % 100);
+	seq_printf(f, "CPU count\t: %u\n"
+		      "CPU list\t: %s\n"
+		      "vendor_id\t: Tensilica\n"
+		      "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
+		      "core ID\t\t: " XCHAL_CORE_ID "\n"
+		      "build ID\t: 0x%x\n"
+		      "byte order\t: %s\n"
+		      "cpu MHz\t\t: %lu.%02lu\n"
+		      "bogomips\t: %lu.%02lu\n",
+		      num_online_cpus(),
+		      buf,
+		      XCHAL_BUILD_UNIQUE_ID,
+		      XCHAL_HAVE_BE ?  "big" : "little",
+		      ccount_freq/1000000,
+		      (ccount_freq/10000) % 100,
+		      loops_per_jiffy/(500000/HZ),
+		      (loops_per_jiffy/(5000/HZ)) % 100);
 
 	seq_printf(f,"flags\t\t: "
 #if XCHAL_HAVE_NMI
@@ -699,7 +706,7 @@ c_show(struct seq_file *f, void *slot)
 static void *
 c_start(struct seq_file *f, loff_t *pos)
 {
-	return (void *) ((*pos == 0) ? (void *)1 : NULL);
+	return (*pos == 0) ? (void *)1 : NULL;
 }
 
 static void *
@@ -715,10 +722,10 @@ c_stop(struct seq_file *f, void *v)
 
 const struct seq_operations cpuinfo_op =
 {
-	start:  c_start,
-	next:   c_next,
-	stop:   c_stop,
-	show:   c_show
+	.start	= c_start,
+	.next	= c_next,
+	.stop	= c_stop,
+	.show	= c_show,
 };
 
 #endif /* CONFIG_PROC_FS */

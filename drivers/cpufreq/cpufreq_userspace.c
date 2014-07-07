@@ -38,18 +38,7 @@ static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 	if (!per_cpu(cpu_is_managed, policy->cpu))
 		goto err;
 
-	/*
-	 * We're safe from concurrent calls to ->target() here
-	 * as we hold the userspace_mutex lock. If we were calling
-	 * cpufreq_driver_target, a deadlock situation might occur:
-	 * A: cpufreq_set (lock userspace_mutex) ->
-	 *      cpufreq_driver_target(lock policy->lock)
-	 * B: cpufreq_set_policy(lock policy->lock) ->
-	 *      __cpufreq_governor ->
-	 *         cpufreq_governor_userspace (lock userspace_mutex)
-	 */
 	ret = __cpufreq_driver_target(policy, freq, CPUFREQ_RELATION_L);
-
  err:
 	mutex_unlock(&userspace_mutex);
 	return ret;

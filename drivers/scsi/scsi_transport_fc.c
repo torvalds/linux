@@ -261,6 +261,7 @@ static const struct {
 	{ FC_PORTSPEED_10GBIT,		"10 Gbit" },
 	{ FC_PORTSPEED_8GBIT,		"8 Gbit" },
 	{ FC_PORTSPEED_16GBIT,		"16 Gbit" },
+	{ FC_PORTSPEED_32GBIT,		"32 Gbit" },
 	{ FC_PORTSPEED_NOT_NEGOTIATED,	"Not Negotiated" },
 };
 fc_bitfield_name_search(port_speed, fc_port_speed_names)
@@ -2548,6 +2549,7 @@ fc_rport_final_delete(struct work_struct *work)
 			fc_flush_devloss(shost);
 		if (!cancel_delayed_work(&rport->dev_loss_work))
 			fc_flush_devloss(shost);
+		cancel_work_sync(&rport->scan_work);
 		spin_lock_irqsave(shost->host_lock, flags);
 		rport->flags &= ~FC_RPORT_DEVLOSS_PENDING;
 	}

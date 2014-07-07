@@ -13,10 +13,10 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/slab.h>
 
@@ -346,9 +346,9 @@ static void lp5562_write_program_memory(struct lp55xx_chip *chip,
 /* check the size of program count */
 static inline bool _is_pc_overflow(struct lp55xx_predef_pattern *ptn)
 {
-	return (ptn->size_r >= LP5562_PROGRAM_LENGTH ||
-		ptn->size_g >= LP5562_PROGRAM_LENGTH ||
-		ptn->size_b >= LP5562_PROGRAM_LENGTH);
+	return ptn->size_r >= LP5562_PROGRAM_LENGTH ||
+	       ptn->size_g >= LP5562_PROGRAM_LENGTH ||
+	       ptn->size_b >= LP5562_PROGRAM_LENGTH;
 }
 
 static int lp5562_run_predef_led_pattern(struct lp55xx_chip *chip, int mode)

@@ -1,0 +1,60 @@
+config SND_MFLD_MACHINE
+	tristate "SOC Machine Audio driver for Intel Medfield MID platform"
+	depends on INTEL_SCU_IPC
+	select SND_SOC_SN95031
+	select SND_SST_MFLD_PLATFORM
+	help
+          This adds support for ASoC machine driver for Intel(R) MID Medfield platform
+          used as alsa device in audio substem in Intel(R) MID devices
+          Say Y if you have such a device
+          If unsure select "N".
+
+config SND_SST_MFLD_PLATFORM
+	tristate
+
+config SND_SOC_INTEL_SST
+	tristate "ASoC support for Intel(R) Smart Sound Technology"
+	select SND_SOC_INTEL_SST_ACPI if ACPI
+	depends on (X86 || COMPILE_TEST)
+	help
+          This adds support for Intel(R) Smart Sound Technology (SST).
+          Say Y if you have such a device
+          If unsure select "N".
+
+config SND_SOC_INTEL_SST_ACPI
+	tristate
+
+config SND_SOC_INTEL_HASWELL
+	tristate
+
+config SND_SOC_INTEL_BAYTRAIL
+	tristate
+
+config SND_SOC_INTEL_HASWELL_MACH
+	tristate "ASoC Audio DSP support for Intel Haswell Lynxpoint"
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C
+	select SND_SOC_INTEL_HASWELL
+	select SND_SOC_RT5640
+	help
+	  This adds support for the Lynxpoint Audio DSP on Intel(R) Haswell
+	  Ultrabook platforms.
+	  Say Y if you have such a device
+	  If unsure select "N".
+
+config SND_SOC_INTEL_BYT_RT5640_MACH
+	tristate "ASoC Audio driver for Intel Baytrail with RT5640 codec"
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C
+	select SND_SOC_INTEL_BAYTRAIL
+	select SND_SOC_RT5640
+	help
+	  This adds audio driver for Intel Baytrail platform based boards
+	  with the RT5640 audio codec.
+
+config SND_SOC_INTEL_BYT_MAX98090_MACH
+	tristate "ASoC Audio driver for Intel Baytrail with MAX98090 codec"
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C
+	select SND_SOC_INTEL_BAYTRAIL
+	select SND_SOC_MAX98090
+	help
+	  This adds audio driver for Intel Baytrail platform based boards
+	  with the MAX98090 audio codec.

@@ -18,7 +18,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/fs.h>
@@ -187,7 +186,7 @@ static DEFINE_MUTEX(pch_mutex);
 #define PCI_DEVICE_ID_ML7223_I2C	0x8010
 #define PCI_DEVICE_ID_ML7831_I2C	0x8817
 
-static DEFINE_PCI_DEVICE_TABLE(pch_pcidev_id) = {
+static const struct pci_device_id pch_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH_I2C),   1, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_I2C), 2, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_I2C), 1, },
@@ -312,24 +311,6 @@ static void pch_i2c_start(struct i2c_algo_pch_data *adap)
 }
 
 /**
- * pch_i2c_getack() - to confirm ACK/NACK
- * @adap:	Pointer to struct i2c_algo_pch_data.
- */
-static s32 pch_i2c_getack(struct i2c_algo_pch_data *adap)
-{
-	u32 reg_val;
-	void __iomem *p = adap->pch_base_address;
-	reg_val = ioread32(p + PCH_I2CSR) & PCH_GETACK;
-
-	if (reg_val != 0) {
-		pch_err(adap, "return%d\n", -EPROTO);
-		return -EPROTO;
-	}
-
-	return 0;
-}
-
-/**
  * pch_i2c_stop() - generate stop condition in normal mode.
  * @adap:	Pointer to struct i2c_algo_pch_data.
  */
@@ -344,6 +325,7 @@ static void pch_i2c_stop(struct i2c_algo_pch_data *adap)
 static int pch_i2c_wait_for_check_xfer(struct i2c_algo_pch_data *adap)
 {
 	long ret;
+	void __iomem *p = adap->pch_base_address;
 
 	ret = wait_event_timeout(pch_event,
 			(adap->pch_event_flag != 0), msecs_to_jiffies(1000));
@@ -366,10 +348,9 @@ static int pch_i2c_wait_for_check_xfer(struct i2c_algo_pch_data *adap)
 
 	adap->pch_event_flag = 0;
 
-	if (pch_i2c_getack(adap)) {
-		pch_dbg(adap, "Receive NACK for slave address"
-			"setting\n");
-		return -EIO;
+	if (ioread32(p + PCH_I2CSR) & PCH_GETACK) {
+		pch_dbg(adap, "Receive NACK for slave address setting\n");
+		return -ENXIO;
 	}
 
 	return 0;
@@ -770,10 +751,8 @@ static int pch_i2c_probe(struct pci_dev *pdev,
 	pch_pci_dbg(pdev, "Entered.\n");
 
 	adap_info = kzalloc((sizeof(struct adapter_info)), GFP_KERNEL);
-	if (adap_info == NULL) {
-		pch_pci_err(pdev, "Memory allocation FAILED\n");
+	if (adap_info == NULL)
 		return -ENOMEM;
-	}
 
 	ret = pci_enable_device(pdev);
 	if (ret) {

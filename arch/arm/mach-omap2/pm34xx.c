@@ -50,6 +50,7 @@
 #include "sdrc.h"
 #include "sram.h"
 #include "control.h"
+#include "vc.h"
 
 /* pm34xx errata defined in pm.h */
 u16 pm34xx_errata;
@@ -120,7 +121,7 @@ static void omap3_save_secure_ram_context(void)
 		 * will hang the system.
 		 */
 		pwrdm_set_next_pwrst(mpu_pwrdm, PWRDM_POWER_ON);
-		ret = _omap_save_secure_sram((u32 *)
+		ret = _omap_save_secure_sram((u32 *)(unsigned long)
 				__pa(omap3_secure_ram_storage));
 		pwrdm_set_next_pwrst(mpu_pwrdm, mpu_next_state);
 		/* Following is for error tracking, it should not happen */
@@ -288,6 +289,9 @@ void omap_sram_idle(void)
 		}
 	}
 
+	/* Configure PMIC signaling for I2C4 or sys_off_mode */
+	omap3_vc_set_pmic_signaling(core_next_state);
+
 	omap3_intc_prepare_idle();
 
 	/*
@@ -330,10 +334,6 @@ void omap_sram_idle(void)
 			omap3_sram_restore_context();
 			omap2_sms_restore_context();
 		}
-		if (core_next_state == PWRDM_POWER_OFF)
-			omap2_prm_clear_mod_reg_bits(OMAP3430_AUTO_OFF_MASK,
-					       OMAP3430_GR_MOD,
-					       OMAP3_PRM_VOLTCTRL_OFFSET);
 	}
 	omap3_intc_resume_idle();
 
@@ -395,7 +395,8 @@ restore:
 
 	return ret;
 }
-
+#else
+#define omap3_pm_suspend NULL
 #endif /* CONFIG_SUSPEND */
 
 
@@ -430,8 +431,7 @@ static void __init omap3_iva_idle(void)
 			 OMAP3430_IVA2_MOD, CM_FCLKEN);
 
 	/* Set IVA2 boot mode to 'idle' */
-	omap_ctrl_writel(OMAP3_IVA2_BOOTMOD_IDLE,
-			 OMAP343X_CONTROL_IVA2_BOOTMOD);
+	omap3_ctrl_set_iva_bootmode_idle();
 
 	/* Un-reset IVA2 */
 	omap2_prm_write_mod_reg(0, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
@@ -710,9 +710,7 @@ int __init omap3_pm_init(void)
 	per_clkdm = clkdm_lookup("per_clkdm");
 	wkup_clkdm = clkdm_lookup("wkup_clkdm");
 
-#ifdef CONFIG_SUSPEND
-	omap_pm_suspend = omap3_pm_suspend;
-#endif
+	omap_common_suspend_init(omap3_pm_suspend);
 
 	arm_pm_idle = omap3_pm_idle;
 	omap3_idle_init();

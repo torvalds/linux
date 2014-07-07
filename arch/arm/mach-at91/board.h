@@ -107,8 +107,8 @@ extern void __init at91_add_device_pwm(u32 mask);
 extern void __init at91_add_device_ssc(unsigned id, unsigned pins);
 
  /* LCD Controller */
-struct atmel_lcdfb_info;
-extern void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data);
+struct atmel_lcdfb_pdata;
+extern void __init at91_add_device_lcdc(struct atmel_lcdfb_pdata *data);
 
  /* AC97 */
 extern void __init at91_add_device_ac97(struct ac97c_platform_data *data);
@@ -117,9 +117,6 @@ extern void __init at91_add_device_ac97(struct ac97c_platform_data *data);
 struct isi_platform_data;
 extern void __init at91_add_device_isi(struct isi_platform_data *data,
 		bool use_pck_as_mck);
-
- /* Touchscreen Controller */
-extern void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data);
 
 /* CAN */
 extern void __init at91_add_device_can(struct at91_can_data *data);

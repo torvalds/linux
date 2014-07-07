@@ -21,5 +21,10 @@ Optional properties:
 - fixed-divider : If clocks have a fixed divider value, use this property.
 - clk-gate : For "socfpga-gate-clk", clk-gate contains the gating register
         and the bit index.
-- div-reg : For "socfpga-gate-clk", div-reg contains the divider register, bit shift,
-        and width.
+- div-reg : For "socfpga-gate-clk" and "socfpga-periph-clock", div-reg contains
+	the divider register, bit shift, and width.
+- clk-phase : For the sdmmc_clk, contains the value of the clock phase that controls
+	the SDMMC CIU clock. The first value is the clk_sample(smpsel), and the second
+	value is the cclk_in_drv(drvsel). The clk-phase is used to enable the correct
+	hold/delay times that is needed for the SD/MMC CIU clock. The values of both
+	can be 0-315 degrees, in 45 degree increments.

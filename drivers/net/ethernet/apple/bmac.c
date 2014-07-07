@@ -1220,8 +1220,8 @@ static void bmac_reset_and_enable(struct net_device *dev)
 	if (skb != NULL) {
 		data = skb_put(skb, ETHERMINPACKET);
 		memset(data, 0, ETHERMINPACKET);
-		memcpy(data, dev->dev_addr, 6);
-		memcpy(data+6, dev->dev_addr, 6);
+		memcpy(data, dev->dev_addr, ETH_ALEN);
+		memcpy(data + ETH_ALEN, dev->dev_addr, ETH_ALEN);
 		bmac_transmit_packet(skb, dev);
 	}
 	spin_unlock_irqrestore(&bp->lock, flags);

@@ -108,12 +108,6 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	struct timespec ts;
 	cputime_t utime, stime, stimescaled, utimescaled;
 
-	/* Though tsk->delays accessed later, early exit avoids
-	 * unnecessary returning of other data
-	 */
-	if (!tsk->delays)
-		goto done;
-
 	tmp = (s64)d->cpu_run_real_total;
 	task_cputime(tsk, &utime, &stime);
 	cputime_to_timespec(utime + stime, &ts);
@@ -158,7 +152,6 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	d->freepages_count += tsk->delays->freepages_count;
 	spin_unlock_irqrestore(&tsk->delays->lock, flags);
 
-done:
 	return 0;
 }
 

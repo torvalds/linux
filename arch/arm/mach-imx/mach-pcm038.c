@@ -18,7 +18,7 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/io.h>
 #include <linux/mtd/plat-ram.h>
 #include <linux/mtd/physmap.h>
@@ -351,7 +351,6 @@ MACHINE_START(PCM038, "phyCORE-i.MX27")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.handle_irq = imx27_handle_irq,
 	.init_time	= pcm038_timer_init,
 	.init_machine = pcm038_init,
 	.restart	= mxc_restart,

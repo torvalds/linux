@@ -19,10 +19,6 @@
 #include <asm/uaccess.h>
 #include <asm/traps.h>
 
-#define PRINT_USER_FAULTS /* (turn this on if you want user faults to be */
-			 /*  dumped to the console via printk)          */
-
-
 /* Various important other fields */
 #define bit22set(x)		(x & 0x00000200)
 #define bits23_25set(x)		(x & 0x000001c0)
@@ -33,6 +29,8 @@
 
 
 DEFINE_PER_CPU(struct exception_data, exception_data);
+
+int show_unhandled_signals = 1;
 
 /*
  * parisc_acctyp(unsigned int inst) --
@@ -142,10 +140,16 @@ int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fix;
 
+	/* If we only stored 32bit addresses in the exception table we can drop
+	 * out if we faulted on a 64bit address. */
+	if ((sizeof(regs->iaoq[0]) > sizeof(fix->insn))
+		&& (regs->iaoq[0] >> 32))
+			return 0;
+
 	fix = search_exception_tables(regs->iaoq[0]);
 	if (fix) {
 		struct exception_data *d;
-		d = &__get_cpu_var(exception_data);
+		d = this_cpu_ptr(&exception_data);
 		d->fault_ip = regs->iaoq[0];
 		d->fault_space = regs->isr;
 		d->fault_addr = regs->ior;
@@ -167,24 +171,55 @@ int fixup_exception(struct pt_regs *regs)
 	return 0;
 }
 
+/*
+ * Print out info about fatal segfaults, if the show_unhandled_signals
+ * sysctl is set:
+ */
+static inline void
+show_signal_msg(struct pt_regs *regs, unsigned long code,
+		unsigned long address, struct task_struct *tsk,
+		struct vm_area_struct *vma)
+{
+	if (!unhandled_signal(tsk, SIGSEGV))
+		return;
+
+	if (!printk_ratelimit())
+		return;
+
+	pr_warn("\n");
+	pr_warn("do_page_fault() command='%s' type=%lu address=0x%08lx",
+	    tsk->comm, code, address);
+	print_vma_addr(KERN_CONT " in ", regs->iaoq[0]);
+	if (vma)
+		pr_warn(" vm_start = 0x%08lx, vm_end = 0x%08lx\n",
+				vma->vm_start, vma->vm_end);
+
+	show_regs(regs);
+}
+
 void do_page_fault(struct pt_regs *regs, unsigned long code,
 			      unsigned long address)
 {
 	struct vm_area_struct *vma, *prev_vma;
-	struct task_struct *tsk = current;
-	struct mm_struct *mm = tsk->mm;
+	struct task_struct *tsk;
+	struct mm_struct *mm;
 	unsigned long acc_type;
 	int fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags;
 
-	if (in_atomic() || !mm)
+	if (in_atomic())
 		goto no_context;
 
+	tsk = current;
+	mm = tsk->mm;
+	if (!mm)
+		goto no_context;
+
+	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
 
 	acc_type = parisc_acctyp(code, regs->iir);
-
 	if (acc_type & VM_WRITE)
 		flags |= FAULT_FLAG_WRITE;
 retry:
@@ -259,22 +294,42 @@ bad_area:
 	if (user_mode(regs)) {
 		struct siginfo si;
 
-#ifdef PRINT_USER_FAULTS
-		printk(KERN_DEBUG "\n");
-		printk(KERN_DEBUG "do_page_fault() pid=%d command='%s' type=%lu address=0x%08lx\n",
-		    task_pid_nr(tsk), tsk->comm, code, address);
-		if (vma) {
-			printk(KERN_DEBUG "vm_start = 0x%08lx, vm_end = 0x%08lx\n",
-					vma->vm_start, vma->vm_end);
+		show_signal_msg(regs, code, address, tsk, vma);
+
+		switch (code) {
+		case 15:	/* Data TLB miss fault/Data page fault */
+			/* send SIGSEGV when outside of vma */
+			if (!vma ||
+			    address < vma->vm_start || address > vma->vm_end) {
+				si.si_signo = SIGSEGV;
+				si.si_code = SEGV_MAPERR;
+				break;
+			}
+
+			/* send SIGSEGV for wrong permissions */
+			if ((vma->vm_flags & acc_type) != acc_type) {
+				si.si_signo = SIGSEGV;
+				si.si_code = SEGV_ACCERR;
+				break;
+			}
+
+			/* probably address is outside of mapped file */
+			/* fall through */
+		case 17:	/* NA data TLB miss / page fault */
+		case 18:	/* Unaligned access - PCXS only */
+			si.si_signo = SIGBUS;
+			si.si_code = (code == 18) ? BUS_ADRALN : BUS_ADRERR;
+			break;
+		case 16:	/* Non-access instruction TLB miss fault */
+		case 26:	/* PCXL: Data memory access rights trap */
+		default:
+			si.si_signo = SIGSEGV;
+			si.si_code = (code == 26) ? SEGV_ACCERR : SEGV_MAPERR;
+			break;
 		}
-		show_regs(regs);
-#endif
-		/* FIXME: actually we need to get the signo and code correct */
-		si.si_signo = SIGSEGV;
 		si.si_errno = 0;
-		si.si_code = SEGV_MAPERR;
 		si.si_addr = (void __user *) address;
-		force_sig_info(SIGSEGV, &si, current);
+		force_sig_info(si.si_signo, &si, current);
 		return;
 	}
 

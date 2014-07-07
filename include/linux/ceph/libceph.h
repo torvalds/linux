@@ -122,8 +122,8 @@ struct ceph_client {
 
 	int (*extra_mon_dispatch)(struct ceph_client *, struct ceph_msg *);
 
-	u32 supported_features;
-	u32 required_features;
+	u64 supported_features;
+	u64 required_features;
 
 	struct ceph_messenger msgr;   /* messenger instance */
 	struct ceph_mon_client monc;
@@ -173,15 +173,18 @@ static inline int calc_pages_for(u64 off, u64 len)
 		(off >> PAGE_CACHE_SHIFT);
 }
 
+extern struct kmem_cache *ceph_inode_cachep;
+extern struct kmem_cache *ceph_cap_cachep;
+extern struct kmem_cache *ceph_dentry_cachep;
+extern struct kmem_cache *ceph_file_cachep;
+
 /* ceph_common.c */
 extern bool libceph_compatible(void *data);
 
 extern const char *ceph_msg_type_name(int type);
 extern int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid);
-extern struct kmem_cache *ceph_inode_cachep;
-extern struct kmem_cache *ceph_cap_cachep;
-extern struct kmem_cache *ceph_dentry_cachep;
-extern struct kmem_cache *ceph_file_cachep;
+extern void *ceph_kvmalloc(size_t size, gfp_t flags);
+extern void ceph_kvfree(const void *ptr);
 
 extern struct ceph_options *ceph_parse_options(char *options,
 			      const char *dev_name, const char *dev_name_end,
@@ -192,8 +195,8 @@ extern int ceph_compare_options(struct ceph_options *new_opt,
 				struct ceph_client *client);
 extern struct ceph_client *ceph_create_client(struct ceph_options *opt,
 					      void *private,
-					      unsigned supported_features,
-					      unsigned required_features);
+					      u64 supported_features,
+					      u64 required_features);
 extern u64 ceph_client_id(struct ceph_client *client);
 extern void ceph_destroy_client(struct ceph_client *client);
 extern int __ceph_open_session(struct ceph_client *client,
@@ -218,8 +221,6 @@ extern void ceph_copy_to_page_vector(struct page **pages,
 				    loff_t off, size_t len);
 extern void ceph_copy_from_page_vector(struct page **pages,
 				    void *data,
-				    loff_t off, size_t len);
-extern int ceph_copy_page_vector_to_user(struct page **pages, void __user *data,
 				    loff_t off, size_t len);
 extern void ceph_zero_page_vector_range(int off, int len, struct page **pages);
 

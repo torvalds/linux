@@ -5,6 +5,7 @@ config DRM_CIRRUS_QEMU
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
 	select DRM_TTM
 	help
 	 This is a KMS driver for emulated cirrus device in qemu.

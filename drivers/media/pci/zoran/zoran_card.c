@@ -1293,7 +1293,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	result = request_irq(zr->pci_dev->irq, zoran_irq,
-			     IRQF_SHARED | IRQF_DISABLED, ZR_DEVNAME(zr), zr);
+			     IRQF_SHARED, ZR_DEVNAME(zr), zr);
 	if (result < 0) {
 		if (result == -EINVAL) {
 			dprintk(1,

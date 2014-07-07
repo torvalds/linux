@@ -236,8 +236,8 @@ static int fld_cache_shrink(struct fld_cache *cache)
 		num++;
 	}
 
-	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by "
-	       "%d entries\n", cache->fci_name, num);
+	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by %d entries\n",
+			cache->fci_name, num);
 
 	return 0;
 }
@@ -267,7 +267,7 @@ void fld_cache_punch_hole(struct fld_cache *cache,
 	const seqno_t new_end  = range->lsr_end;
 	struct fld_cache_entry *fldt;
 
-	OBD_ALLOC_GFP(fldt, sizeof *fldt, GFP_ATOMIC);
+	OBD_ALLOC_GFP(fldt, sizeof(*fldt), GFP_ATOMIC);
 	if (!fldt) {
 		OBD_FREE_PTR(f_new);
 		/* overlap is not allowed, so dont mess up list. */
@@ -307,7 +307,7 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 	const mdsno_t mdt = range->lsr_index;
 
 	/* this is overlap case, these case are checking overlapping with
-	 * prev range only. fixup will handle overlaping with next range. */
+	 * prev range only. fixup will handle overlapping with next range. */
 
 	if (f_curr->fce_range.lsr_index == mdt) {
 		f_curr->fce_range.lsr_start = min(f_curr->fce_range.lsr_start,
@@ -355,7 +355,7 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 		fld_cache_entry_add(cache, f_new, &f_curr->fce_list);
 	} else
 		CERROR("NEW range ="DRANGE" curr = "DRANGE"\n",
-		       PRANGE(range),PRANGE(&f_curr->fce_range));
+		       PRANGE(range), PRANGE(&f_curr->fce_range));
 }
 
 struct fld_cache_entry

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -124,7 +124,8 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	}
 
 	if (!source_desc) {
-		ACPI_ERROR((AE_INFO, "No object attached to node %p", node));
+		ACPI_ERROR((AE_INFO, "No object attached to node [%4.4s] %p",
+			    node->name.ascii, node));
 		return_ACPI_STATUS(AE_AML_NO_OPERAND);
 	}
 

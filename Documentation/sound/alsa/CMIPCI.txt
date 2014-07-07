@@ -87,7 +87,7 @@ with 4 channels,
 
 and use the interleaved 4 channel data.
 
-There are some control switchs affecting to the speaker connections:
+There are some control switches affecting to the speaker connections:
 
 "Line-In Mode"	- an enum control to change the behavior of line-in
 	jack.  Either "Line-In", "Rear Output" or "Bass Output" can

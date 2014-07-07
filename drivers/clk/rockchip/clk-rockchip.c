@@ -24,8 +24,7 @@ static DEFINE_SPINLOCK(clk_lock);
  * Gate clocks
  */
 
-static void __init rk2928_gate_clk_init(struct device_node *node,
-					 void *data)
+static void __init rk2928_gate_clk_init(struct device_node *node)
 {
 	struct clk_onecell_data *clk_data;
 	const char *clk_parent;

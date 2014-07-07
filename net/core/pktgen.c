@@ -389,6 +389,9 @@ struct pktgen_dev {
 #ifdef CONFIG_XFRM
 	__u8	ipsmode;		/* IPSEC mode (config) */
 	__u8	ipsproto;		/* IPSEC type (config) */
+	__u32	spi;
+	struct dst_entry dst;
+	struct dst_ops dstops;
 #endif
 	char result[512];
 };
@@ -473,23 +476,22 @@ static int pgctrl_show(struct seq_file *seq, void *v)
 static ssize_t pgctrl_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	int err = 0;
 	char data[128];
 	struct pktgen_net *pn = net_generic(current->nsproxy->net_ns, pg_net_id);
 
-	if (!capable(CAP_NET_ADMIN)) {
-		err = -EPERM;
-		goto out;
-	}
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (count == 0)
+		return -EINVAL;
 
 	if (count > sizeof(data))
 		count = sizeof(data);
 
-	if (copy_from_user(data, buf, count)) {
-		err = -EFAULT;
-		goto out;
-	}
-	data[count - 1] = 0;	/* Make string */
+	if (copy_from_user(data, buf, count))
+		return -EFAULT;
+
+	data[count - 1] = 0;	/* Strip trailing '\n' and terminate string */
 
 	if (!strcmp(data, "stop"))
 		pktgen_stop_all_threads_ifs(pn);
@@ -503,10 +505,7 @@ static ssize_t pgctrl_write(struct file *file, const char __user *buf,
 	else
 		pr_warning("Unknown command: %s\n", data);
 
-	err = count;
-
-out:
-	return err;
+	return count;
 }
 
 static int pgctrl_open(struct inode *inode, struct file *file)
@@ -574,7 +573,7 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 		   is_zero_ether_addr(pkt_dev->src_mac) ?
 			     pkt_dev->odev->dev_addr : pkt_dev->src_mac);
 
-	seq_printf(seq, "dst_mac: ");
+	seq_puts(seq, "dst_mac: ");
 	seq_printf(seq, "%pM\n", pkt_dev->dst_mac);
 
 	seq_printf(seq,
@@ -589,7 +588,7 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	if (pkt_dev->nr_labels) {
 		unsigned int i;
-		seq_printf(seq, "     mpls: ");
+		seq_puts(seq, "     mpls: ");
 		for (i = 0; i < pkt_dev->nr_labels; i++)
 			seq_printf(seq, "%08x%s", ntohl(pkt_dev->labels[i]),
 				   i == pkt_dev->nr_labels-1 ? "\n" : ", ");
@@ -614,64 +613,67 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 	if (pkt_dev->node >= 0)
 		seq_printf(seq, "     node: %d\n", pkt_dev->node);
 
-	seq_printf(seq, "     Flags: ");
+	seq_puts(seq, "     Flags: ");
 
 	if (pkt_dev->flags & F_IPV6)
-		seq_printf(seq, "IPV6  ");
+		seq_puts(seq, "IPV6  ");
 
 	if (pkt_dev->flags & F_IPSRC_RND)
-		seq_printf(seq, "IPSRC_RND  ");
+		seq_puts(seq, "IPSRC_RND  ");
 
 	if (pkt_dev->flags & F_IPDST_RND)
-		seq_printf(seq, "IPDST_RND  ");
+		seq_puts(seq, "IPDST_RND  ");
 
 	if (pkt_dev->flags & F_TXSIZE_RND)
-		seq_printf(seq, "TXSIZE_RND  ");
+		seq_puts(seq, "TXSIZE_RND  ");
 
 	if (pkt_dev->flags & F_UDPSRC_RND)
-		seq_printf(seq, "UDPSRC_RND  ");
+		seq_puts(seq, "UDPSRC_RND  ");
 
 	if (pkt_dev->flags & F_UDPDST_RND)
-		seq_printf(seq, "UDPDST_RND  ");
+		seq_puts(seq, "UDPDST_RND  ");
 
 	if (pkt_dev->flags & F_UDPCSUM)
-		seq_printf(seq, "UDPCSUM  ");
+		seq_puts(seq, "UDPCSUM  ");
 
 	if (pkt_dev->flags & F_MPLS_RND)
-		seq_printf(seq,  "MPLS_RND  ");
+		seq_puts(seq,  "MPLS_RND  ");
 
 	if (pkt_dev->flags & F_QUEUE_MAP_RND)
-		seq_printf(seq,  "QUEUE_MAP_RND  ");
+		seq_puts(seq,  "QUEUE_MAP_RND  ");
 
 	if (pkt_dev->flags & F_QUEUE_MAP_CPU)
-		seq_printf(seq,  "QUEUE_MAP_CPU  ");
+		seq_puts(seq,  "QUEUE_MAP_CPU  ");
 
 	if (pkt_dev->cflows) {
 		if (pkt_dev->flags & F_FLOW_SEQ)
-			seq_printf(seq,  "FLOW_SEQ  "); /*in sequence flows*/
+			seq_puts(seq,  "FLOW_SEQ  "); /*in sequence flows*/
 		else
-			seq_printf(seq,  "FLOW_RND  ");
+			seq_puts(seq,  "FLOW_RND  ");
 	}
 
 #ifdef CONFIG_XFRM
-	if (pkt_dev->flags & F_IPSEC_ON)
-		seq_printf(seq,  "IPSEC  ");
+	if (pkt_dev->flags & F_IPSEC_ON) {
+		seq_puts(seq,  "IPSEC  ");
+		if (pkt_dev->spi)
+			seq_printf(seq, "spi:%u", pkt_dev->spi);
+	}
 #endif
 
 	if (pkt_dev->flags & F_MACSRC_RND)
-		seq_printf(seq, "MACSRC_RND  ");
+		seq_puts(seq, "MACSRC_RND  ");
 
 	if (pkt_dev->flags & F_MACDST_RND)
-		seq_printf(seq, "MACDST_RND  ");
+		seq_puts(seq, "MACDST_RND  ");
 
 	if (pkt_dev->flags & F_VID_RND)
-		seq_printf(seq, "VID_RND  ");
+		seq_puts(seq, "VID_RND  ");
 
 	if (pkt_dev->flags & F_SVID_RND)
-		seq_printf(seq, "SVID_RND  ");
+		seq_puts(seq, "SVID_RND  ");
 
 	if (pkt_dev->flags & F_NODE)
-		seq_printf(seq, "NODE_ALLOC  ");
+		seq_puts(seq, "NODE_ALLOC  ");
 
 	seq_puts(seq, "\n");
 
@@ -714,7 +716,7 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 	if (pkt_dev->result[0])
 		seq_printf(seq, "Result: %s\n", pkt_dev->result);
 	else
-		seq_printf(seq, "Result: Idle\n");
+		seq_puts(seq, "Result: Idle\n");
 
 	return 0;
 }
@@ -1245,7 +1247,13 @@ static ssize_t pktgen_if_write(struct file *file,
 				"Flag -:%s:- unknown\nAvailable flags, (prepend ! to un-set flag):\n%s",
 				f,
 				"IPSRC_RND, IPDST_RND, UDPSRC_RND, UDPDST_RND, "
-				"MACSRC_RND, MACDST_RND, TXSIZE_RND, IPV6, MPLS_RND, VID_RND, SVID_RND, FLOW_SEQ, IPSEC, NODE_ALLOC\n");
+				"MACSRC_RND, MACDST_RND, TXSIZE_RND, IPV6, "
+				"MPLS_RND, VID_RND, SVID_RND, FLOW_SEQ, "
+				"QUEUE_MAP_RND, QUEUE_MAP_CPU, UDPCSUM, "
+#ifdef CONFIG_XFRM
+				"IPSEC, "
+#endif
+				"NODE_ALLOC\n");
 			return count;
 		}
 		sprintf(pg_result, "OK: flags=0x%x", pkt_dev->flags);
@@ -1434,7 +1442,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (!mac_pton(valstr, pkt_dev->dst_mac))
 			return -EINVAL;
 		/* Set up Dest MAC */
-		memcpy(&pkt_dev->hh[0], pkt_dev->dst_mac, ETH_ALEN);
+		ether_addr_copy(&pkt_dev->hh[0], pkt_dev->dst_mac);
 
 		sprintf(pg_result, "OK: dstmac %pM", pkt_dev->dst_mac);
 		return count;
@@ -1451,7 +1459,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (!mac_pton(valstr, pkt_dev->src_mac))
 			return -EINVAL;
 		/* Set up Src MAC */
-		memcpy(&pkt_dev->hh[6], pkt_dev->src_mac, ETH_ALEN);
+		ether_addr_copy(&pkt_dev->hh[6], pkt_dev->src_mac);
 
 		sprintf(pg_result, "OK: srcmac %pM", pkt_dev->src_mac);
 		return count;
@@ -1476,7 +1484,18 @@ static ssize_t pktgen_if_write(struct file *file,
 		sprintf(pg_result, "OK: flows=%u", pkt_dev->cflows);
 		return count;
 	}
+#ifdef CONFIG_XFRM
+	if (!strcmp(name, "spi")) {
+		len = num_arg(&user_buffer[i], 10, &value);
+		if (len < 0)
+			return len;
 
+		i += len;
+		pkt_dev->spi = value;
+		sprintf(pg_result, "OK: spi=%u", pkt_dev->spi);
+		return count;
+	}
+#endif
 	if (!strcmp(name, "flowlen")) {
 		len = num_arg(&user_buffer[i], 10, &value);
 		if (len < 0)
@@ -1716,14 +1735,14 @@ static int pktgen_thread_show(struct seq_file *seq, void *v)
 
 	BUG_ON(!t);
 
-	seq_printf(seq, "Running: ");
+	seq_puts(seq, "Running: ");
 
 	if_lock(t);
 	list_for_each_entry(pkt_dev, &t->if_list, list)
 		if (pkt_dev->running)
 			seq_printf(seq, "%s ", pkt_dev->odevname);
 
-	seq_printf(seq, "\nStopped: ");
+	seq_puts(seq, "\nStopped: ");
 
 	list_for_each_entry(pkt_dev, &t->if_list, list)
 		if (!pkt_dev->running)
@@ -1732,7 +1751,7 @@ static int pktgen_thread_show(struct seq_file *seq, void *v)
 	if (t->result[0])
 		seq_printf(seq, "\nResult: %s\n", t->result);
 	else
-		seq_printf(seq, "\nResult: NA\n");
+		seq_puts(seq, "\nResult: NA\n");
 
 	if_unlock(t);
 
@@ -2043,10 +2062,10 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 	/* Default to the interface's mac if not explicitly set. */
 
 	if (is_zero_ether_addr(pkt_dev->src_mac))
-		memcpy(&(pkt_dev->hh[6]), pkt_dev->odev->dev_addr, ETH_ALEN);
+		ether_addr_copy(&(pkt_dev->hh[6]), pkt_dev->odev->dev_addr);
 
 	/* Set up Dest MAC */
-	memcpy(&(pkt_dev->hh[0]), pkt_dev->dst_mac, ETH_ALEN);
+	ether_addr_copy(&(pkt_dev->hh[0]), pkt_dev->dst_mac);
 
 	if (pkt_dev->flags & F_IPV6) {
 		int i, set = 0, err = 1;
@@ -2233,13 +2252,21 @@ static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 	struct xfrm_state *x = pkt_dev->flows[flow].x;
 	struct pktgen_net *pn = net_generic(dev_net(pkt_dev->odev), pg_net_id);
 	if (!x) {
-		/*slow path: we dont already have xfrm_state*/
-		x = xfrm_stateonly_find(pn->net, DUMMY_MARK,
-					(xfrm_address_t *)&pkt_dev->cur_daddr,
-					(xfrm_address_t *)&pkt_dev->cur_saddr,
-					AF_INET,
-					pkt_dev->ipsmode,
-					pkt_dev->ipsproto, 0);
+
+		if (pkt_dev->spi) {
+			/* We need as quick as possible to find the right SA
+			 * Searching with minimum criteria to archieve this.
+			 */
+			x = xfrm_state_lookup_byspi(pn->net, htonl(pkt_dev->spi), AF_INET);
+		} else {
+			/* slow path: we dont already have xfrm_state */
+			x = xfrm_stateonly_find(pn->net, DUMMY_MARK,
+						(xfrm_address_t *)&pkt_dev->cur_daddr,
+						(xfrm_address_t *)&pkt_dev->cur_saddr,
+						AF_INET,
+						pkt_dev->ipsmode,
+						pkt_dev->ipsproto, 0);
+		}
 		if (x) {
 			pkt_dev->flows[flow].x = x;
 			set_pkt_overhead(pkt_dev);
@@ -2475,31 +2502,47 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 
 #ifdef CONFIG_XFRM
+static u32 pktgen_dst_metrics[RTAX_MAX + 1] = {
+
+	[RTAX_HOPLIMIT] = 0x5, /* Set a static hoplimit */
+};
+
 static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
 {
 	struct xfrm_state *x = pkt_dev->flows[pkt_dev->curfl].x;
 	int err = 0;
+	struct net *net = dev_net(pkt_dev->odev);
 
 	if (!x)
 		return 0;
 	/* XXX: we dont support tunnel mode for now until
 	 * we resolve the dst issue */
-	if (x->props.mode != XFRM_MODE_TRANSPORT)
+	if ((x->props.mode != XFRM_MODE_TRANSPORT) && (pkt_dev->spi == 0))
 		return 0;
 
-	spin_lock(&x->lock);
+	/* But when user specify an valid SPI, transformation
+	 * supports both transport/tunnel mode + ESP/AH type.
+	 */
+	if ((x->props.mode == XFRM_MODE_TUNNEL) && (pkt_dev->spi != 0))
+		skb->_skb_refdst = (unsigned long)&pkt_dev->dst | SKB_DST_NOREF;
 
+	rcu_read_lock_bh();
 	err = x->outer_mode->output(x, skb);
-	if (err)
+	rcu_read_unlock_bh();
+	if (err) {
+		XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEMODEERROR);
 		goto error;
+	}
 	err = x->type->output(x, skb);
-	if (err)
+	if (err) {
+		XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEPROTOERROR);
 		goto error;
-
+	}
+	spin_lock_bh(&x->lock);
 	x->curlft.bytes += skb->len;
 	x->curlft.packets++;
+	spin_unlock_bh(&x->lock);
 error:
-	spin_unlock(&x->lock);
 	return err;
 }
 
@@ -2527,6 +2570,8 @@ static int process_ipsec(struct pktgen_dev *pkt_dev,
 		if (x) {
 			int ret;
 			__u8 *eth;
+			struct iphdr *iph;
+
 			nhead = x->props.header_len - skb_headroom(skb);
 			if (nhead > 0) {
 				ret = pskb_expand_head(skb, nhead, 0, GFP_ATOMIC);
@@ -2548,6 +2593,11 @@ static int process_ipsec(struct pktgen_dev *pkt_dev,
 			eth = (__u8 *) skb_push(skb, ETH_HLEN);
 			memcpy(eth, pkt_dev->hh, 12);
 			*(u16 *) &eth[12] = protocol;
+
+			/* Update IPv4 header len as well as checksum value */
+			iph = ip_hdr(skb);
+			iph->tot_len = htons(skb->len - ETH_HLEN);
+			ip_send_check(iph);
 		}
 	}
 	return 1;
@@ -3288,9 +3338,11 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	queue_map = skb_get_queue_mapping(pkt_dev->skb);
 	txq = netdev_get_tx_queue(odev, queue_map);
 
-	__netif_tx_lock_bh(txq);
+	local_bh_disable();
 
-	if (unlikely(netif_xmit_frozen_or_stopped(txq))) {
+	HARD_TX_LOCK(odev, txq, smp_processor_id());
+
+	if (unlikely(netif_xmit_frozen_or_drv_stopped(txq))) {
 		ret = NETDEV_TX_BUSY;
 		pkt_dev->last_ok = 0;
 		goto unlock;
@@ -3324,7 +3376,9 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		pkt_dev->last_ok = 0;
 	}
 unlock:
-	__netif_tx_unlock_bh(txq);
+	HARD_TX_UNLOCK(odev, txq);
+
+	local_bh_enable();
 
 	/* If pkt_dev->count is zero, then run forever */
 	if ((pkt_dev->count != 0) && (pkt_dev->sofar >= pkt_dev->count)) {
@@ -3535,6 +3589,17 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 #ifdef CONFIG_XFRM
 	pkt_dev->ipsmode = XFRM_MODE_TRANSPORT;
 	pkt_dev->ipsproto = IPPROTO_ESP;
+
+	/* xfrm tunnel mode needs additional dst to extract outter
+	 * ip header protocol/ttl/id field, here creat a phony one.
+	 * instead of looking for a valid rt, which definitely hurting
+	 * performance under such circumstance.
+	 */
+	pkt_dev->dstops.family = AF_INET;
+	pkt_dev->dst.dev = pkt_dev->odev;
+	dst_init_metrics(&pkt_dev->dst, pktgen_dst_metrics, false);
+	pkt_dev->dst.child = &pkt_dev->dst;
+	pkt_dev->dst.ops = &pkt_dev->dstops;
 #endif
 
 	return add_dev_to_thread(t, pkt_dev);

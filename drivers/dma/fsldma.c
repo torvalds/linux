@@ -33,6 +33,8 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #include "dmaengine.h"
@@ -59,6 +61,16 @@ static u32 get_sr(struct fsldma_chan *chan)
 	return DMA_IN(chan, &chan->regs->sr, 32);
 }
 
+static void set_mr(struct fsldma_chan *chan, u32 val)
+{
+	DMA_OUT(chan, &chan->regs->mr, val, 32);
+}
+
+static u32 get_mr(struct fsldma_chan *chan)
+{
+	return DMA_IN(chan, &chan->regs->mr, 32);
+}
+
 static void set_cdar(struct fsldma_chan *chan, dma_addr_t addr)
 {
 	DMA_OUT(chan, &chan->regs->cdar, addr | FSL_DMA_SNEN, 64);
@@ -67,6 +79,11 @@ static void set_cdar(struct fsldma_chan *chan, dma_addr_t addr)
 static dma_addr_t get_cdar(struct fsldma_chan *chan)
 {
 	return DMA_IN(chan, &chan->regs->cdar, 64) & ~FSL_DMA_SNEN;
+}
+
+static void set_bcr(struct fsldma_chan *chan, u32 val)
+{
+	DMA_OUT(chan, &chan->regs->bcr, val, 32);
 }
 
 static u32 get_bcr(struct fsldma_chan *chan)
@@ -84,11 +101,6 @@ static void set_desc_cnt(struct fsldma_chan *chan,
 	hw->count = CPU_TO_DMA(chan, count, 32);
 }
 
-static u32 get_desc_cnt(struct fsldma_chan *chan, struct fsl_desc_sw *desc)
-{
-	return DMA_TO_CPU(chan, desc->hw.count, 32);
-}
-
 static void set_desc_src(struct fsldma_chan *chan,
 			 struct fsl_dma_ld_hw *hw, dma_addr_t src)
 {
@@ -99,16 +111,6 @@ static void set_desc_src(struct fsldma_chan *chan,
 	hw->src_addr = CPU_TO_DMA(chan, snoop_bits | src, 64);
 }
 
-static dma_addr_t get_desc_src(struct fsldma_chan *chan,
-			       struct fsl_desc_sw *desc)
-{
-	u64 snoop_bits;
-
-	snoop_bits = ((chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX)
-		? ((u64)FSL_DMA_SATR_SREADTYPE_SNOOP_READ << 32) : 0;
-	return DMA_TO_CPU(chan, desc->hw.src_addr, 64) & ~snoop_bits;
-}
-
 static void set_desc_dst(struct fsldma_chan *chan,
 			 struct fsl_dma_ld_hw *hw, dma_addr_t dst)
 {
@@ -117,16 +119,6 @@ static void set_desc_dst(struct fsldma_chan *chan,
 	snoop_bits = ((chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX)
 		? ((u64)FSL_DMA_DATR_DWRITETYPE_SNOOP_WRITE << 32) : 0;
 	hw->dst_addr = CPU_TO_DMA(chan, snoop_bits | dst, 64);
-}
-
-static dma_addr_t get_desc_dst(struct fsldma_chan *chan,
-			       struct fsl_desc_sw *desc)
-{
-	u64 snoop_bits;
-
-	snoop_bits = ((chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX)
-		? ((u64)FSL_DMA_DATR_DWRITETYPE_SNOOP_WRITE << 32) : 0;
-	return DMA_TO_CPU(chan, desc->hw.dst_addr, 64) & ~snoop_bits;
 }
 
 static void set_desc_next(struct fsldma_chan *chan,
@@ -158,7 +150,7 @@ static void set_ld_eol(struct fsldma_chan *chan, struct fsl_desc_sw *desc)
 static void dma_init(struct fsldma_chan *chan)
 {
 	/* Reset the channel */
-	DMA_OUT(chan, &chan->regs->mr, 0, 32);
+	set_mr(chan, 0);
 
 	switch (chan->feature & FSL_DMA_IP_MASK) {
 	case FSL_DMA_IP_85XX:
@@ -167,16 +159,15 @@ static void dma_init(struct fsldma_chan *chan)
 		 * EOLNIE - End of links interrupt enable
 		 * BWC - Bandwidth sharing among channels
 		 */
-		DMA_OUT(chan, &chan->regs->mr, FSL_DMA_MR_BWC
-				| FSL_DMA_MR_EIE | FSL_DMA_MR_EOLNIE, 32);
+		set_mr(chan, FSL_DMA_MR_BWC | FSL_DMA_MR_EIE
+			| FSL_DMA_MR_EOLNIE);
 		break;
 	case FSL_DMA_IP_83XX:
 		/* Set the channel to below modes:
 		 * EOTIE - End-of-transfer interrupt enable
 		 * PRC_RM - PCI read multiple
 		 */
-		DMA_OUT(chan, &chan->regs->mr, FSL_DMA_MR_EOTIE
-				| FSL_DMA_MR_PRC_RM, 32);
+		set_mr(chan, FSL_DMA_MR_EOTIE | FSL_DMA_MR_PRC_RM);
 		break;
 	}
 }
@@ -198,10 +189,10 @@ static void dma_start(struct fsldma_chan *chan)
 {
 	u32 mode;
 
-	mode = DMA_IN(chan, &chan->regs->mr, 32);
+	mode = get_mr(chan);
 
 	if (chan->feature & FSL_DMA_CHAN_PAUSE_EXT) {
-		DMA_OUT(chan, &chan->regs->bcr, 0, 32);
+		set_bcr(chan, 0);
 		mode |= FSL_DMA_MR_EMP_EN;
 	} else {
 		mode &= ~FSL_DMA_MR_EMP_EN;
@@ -214,7 +205,7 @@ static void dma_start(struct fsldma_chan *chan)
 		mode |= FSL_DMA_MR_CS;
 	}
 
-	DMA_OUT(chan, &chan->regs->mr, mode, 32);
+	set_mr(chan, mode);
 }
 
 static void dma_halt(struct fsldma_chan *chan)
@@ -223,7 +214,7 @@ static void dma_halt(struct fsldma_chan *chan)
 	int i;
 
 	/* read the mode register */
-	mode = DMA_IN(chan, &chan->regs->mr, 32);
+	mode = get_mr(chan);
 
 	/*
 	 * The 85xx controller supports channel abort, which will stop
@@ -232,14 +223,14 @@ static void dma_halt(struct fsldma_chan *chan)
 	 */
 	if ((chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX) {
 		mode |= FSL_DMA_MR_CA;
-		DMA_OUT(chan, &chan->regs->mr, mode, 32);
+		set_mr(chan, mode);
 
 		mode &= ~FSL_DMA_MR_CA;
 	}
 
 	/* stop the DMA controller */
 	mode &= ~(FSL_DMA_MR_CS | FSL_DMA_MR_EMS_EN);
-	DMA_OUT(chan, &chan->regs->mr, mode, 32);
+	set_mr(chan, mode);
 
 	/* wait for the DMA controller to become idle */
 	for (i = 0; i < 100; i++) {
@@ -268,7 +259,7 @@ static void fsl_chan_set_src_loop_size(struct fsldma_chan *chan, int size)
 {
 	u32 mode;
 
-	mode = DMA_IN(chan, &chan->regs->mr, 32);
+	mode = get_mr(chan);
 
 	switch (size) {
 	case 0:
@@ -282,7 +273,7 @@ static void fsl_chan_set_src_loop_size(struct fsldma_chan *chan, int size)
 		break;
 	}
 
-	DMA_OUT(chan, &chan->regs->mr, mode, 32);
+	set_mr(chan, mode);
 }
 
 /**
@@ -300,7 +291,7 @@ static void fsl_chan_set_dst_loop_size(struct fsldma_chan *chan, int size)
 {
 	u32 mode;
 
-	mode = DMA_IN(chan, &chan->regs->mr, 32);
+	mode = get_mr(chan);
 
 	switch (size) {
 	case 0:
@@ -314,7 +305,7 @@ static void fsl_chan_set_dst_loop_size(struct fsldma_chan *chan, int size)
 		break;
 	}
 
-	DMA_OUT(chan, &chan->regs->mr, mode, 32);
+	set_mr(chan, mode);
 }
 
 /**
@@ -335,10 +326,10 @@ static void fsl_chan_set_request_count(struct fsldma_chan *chan, int size)
 
 	BUG_ON(size > 1024);
 
-	mode = DMA_IN(chan, &chan->regs->mr, 32);
+	mode = get_mr(chan);
 	mode |= (__ilog2(size) << 24) & 0x0f000000;
 
-	DMA_OUT(chan, &chan->regs->mr, mode, 32);
+	set_mr(chan, mode);
 }
 
 /**
@@ -406,7 +397,7 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct fsl_desc_sw *desc = tx_to_fsl_desc(tx);
 	struct fsl_desc_sw *child;
 	unsigned long flags;
-	dma_cookie_t cookie;
+	dma_cookie_t cookie = -EINVAL;
 
 	spin_lock_irqsave(&chan->desc_lock, flags);
 
@@ -424,6 +415,19 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_unlock_irqrestore(&chan->desc_lock, flags);
 
 	return cookie;
+}
+
+/**
+ * fsl_dma_free_descriptor - Free descriptor from channel's DMA pool.
+ * @chan : Freescale DMA channel
+ * @desc: descriptor to be freed
+ */
+static void fsl_dma_free_descriptor(struct fsldma_chan *chan,
+		struct fsl_desc_sw *desc)
+{
+	list_del(&desc->node);
+	chan_dbg(chan, "LD %p free\n", desc);
+	dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
 }
 
 /**
@@ -449,11 +453,104 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(struct fsldma_chan *chan)
 	desc->async_tx.tx_submit = fsl_dma_tx_submit;
 	desc->async_tx.phys = pdesc;
 
-#ifdef FSL_DMA_LD_DEBUG
 	chan_dbg(chan, "LD %p allocated\n", desc);
-#endif
 
 	return desc;
+}
+
+/**
+ * fsl_chan_xfer_ld_queue - transfer any pending transactions
+ * @chan : Freescale DMA channel
+ *
+ * HARDWARE STATE: idle
+ * LOCKING: must hold chan->desc_lock
+ */
+static void fsl_chan_xfer_ld_queue(struct fsldma_chan *chan)
+{
+	struct fsl_desc_sw *desc;
+
+	/*
+	 * If the list of pending descriptors is empty, then we
+	 * don't need to do any work at all
+	 */
+	if (list_empty(&chan->ld_pending)) {
+		chan_dbg(chan, "no pending LDs\n");
+		return;
+	}
+
+	/*
+	 * The DMA controller is not idle, which means that the interrupt
+	 * handler will start any queued transactions when it runs after
+	 * this transaction finishes
+	 */
+	if (!chan->idle) {
+		chan_dbg(chan, "DMA controller still busy\n");
+		return;
+	}
+
+	/*
+	 * If there are some link descriptors which have not been
+	 * transferred, we need to start the controller
+	 */
+
+	/*
+	 * Move all elements from the queue of pending transactions
+	 * onto the list of running transactions
+	 */
+	chan_dbg(chan, "idle, starting controller\n");
+	desc = list_first_entry(&chan->ld_pending, struct fsl_desc_sw, node);
+	list_splice_tail_init(&chan->ld_pending, &chan->ld_running);
+
+	/*
+	 * The 85xx DMA controller doesn't clear the channel start bit
+	 * automatically at the end of a transfer. Therefore we must clear
+	 * it in software before starting the transfer.
+	 */
+	if ((chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX) {
+		u32 mode;
+
+		mode = get_mr(chan);
+		mode &= ~FSL_DMA_MR_CS;
+		set_mr(chan, mode);
+	}
+
+	/*
+	 * Program the descriptor's address into the DMA controller,
+	 * then start the DMA transaction
+	 */
+	set_cdar(chan, desc->async_tx.phys);
+	get_cdar(chan);
+
+	dma_start(chan);
+	chan->idle = false;
+}
+
+/**
+ * fsldma_cleanup_descriptor - cleanup and free a single link descriptor
+ * @chan: Freescale DMA channel
+ * @desc: descriptor to cleanup and free
+ *
+ * This function is used on a descriptor which has been executed by the DMA
+ * controller. It will run any callbacks, submit any dependencies, and then
+ * free the descriptor.
+ */
+static void fsldma_cleanup_descriptor(struct fsldma_chan *chan,
+				      struct fsl_desc_sw *desc)
+{
+	struct dma_async_tx_descriptor *txd = &desc->async_tx;
+
+	/* Run the link descriptor callback function */
+	if (txd->callback) {
+		chan_dbg(chan, "LD %p callback\n", desc);
+		txd->callback(txd->callback_param);
+	}
+
+	/* Run any dependencies */
+	dma_run_dependencies(txd);
+
+	dma_descriptor_unmap(txd);
+	chan_dbg(chan, "LD %p free\n", desc);
+	dma_pool_free(chan->desc_pool, desc, txd->phys);
 }
 
 /**
@@ -500,13 +597,8 @@ static void fsldma_free_desc_list(struct fsldma_chan *chan,
 {
 	struct fsl_desc_sw *desc, *_desc;
 
-	list_for_each_entry_safe(desc, _desc, list, node) {
-		list_del(&desc->node);
-#ifdef FSL_DMA_LD_DEBUG
-		chan_dbg(chan, "LD %p free\n", desc);
-#endif
-		dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
-	}
+	list_for_each_entry_safe(desc, _desc, list, node)
+		fsl_dma_free_descriptor(chan, desc);
 }
 
 static void fsldma_free_desc_list_reverse(struct fsldma_chan *chan,
@@ -514,13 +606,8 @@ static void fsldma_free_desc_list_reverse(struct fsldma_chan *chan,
 {
 	struct fsl_desc_sw *desc, *_desc;
 
-	list_for_each_entry_safe_reverse(desc, _desc, list, node) {
-		list_del(&desc->node);
-#ifdef FSL_DMA_LD_DEBUG
-		chan_dbg(chan, "LD %p free\n", desc);
-#endif
-		dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
-	}
+	list_for_each_entry_safe_reverse(desc, _desc, list, node)
+		fsl_dma_free_descriptor(chan, desc);
 }
 
 /**
@@ -540,35 +627,6 @@ static void fsl_dma_free_chan_resources(struct dma_chan *dchan)
 
 	dma_pool_destroy(chan->desc_pool);
 	chan->desc_pool = NULL;
-}
-
-static struct dma_async_tx_descriptor *
-fsl_dma_prep_interrupt(struct dma_chan *dchan, unsigned long flags)
-{
-	struct fsldma_chan *chan;
-	struct fsl_desc_sw *new;
-
-	if (!dchan)
-		return NULL;
-
-	chan = to_fsl_chan(dchan);
-
-	new = fsl_dma_alloc_descriptor(chan);
-	if (!new) {
-		chan_err(chan, "%s\n", msg_ld_oom);
-		return NULL;
-	}
-
-	new->async_tx.cookie = -EBUSY;
-	new->async_tx.flags = flags;
-
-	/* Insert the link descriptor to the LD ring */
-	list_add_tail(&new->node, &new->tx_list);
-
-	/* Set End-of-link to the last link descriptor of new list */
-	set_ld_eol(chan, new);
-
-	return &new->async_tx;
 }
 
 static struct dma_async_tx_descriptor *
@@ -837,124 +895,6 @@ static int fsl_dma_device_control(struct dma_chan *dchan,
 	}
 
 	return 0;
-}
-
-/**
- * fsldma_cleanup_descriptor - cleanup and free a single link descriptor
- * @chan: Freescale DMA channel
- * @desc: descriptor to cleanup and free
- *
- * This function is used on a descriptor which has been executed by the DMA
- * controller. It will run any callbacks, submit any dependencies, and then
- * free the descriptor.
- */
-static void fsldma_cleanup_descriptor(struct fsldma_chan *chan,
-				      struct fsl_desc_sw *desc)
-{
-	struct dma_async_tx_descriptor *txd = &desc->async_tx;
-	struct device *dev = chan->common.device->dev;
-	dma_addr_t src = get_desc_src(chan, desc);
-	dma_addr_t dst = get_desc_dst(chan, desc);
-	u32 len = get_desc_cnt(chan, desc);
-
-	/* Run the link descriptor callback function */
-	if (txd->callback) {
-#ifdef FSL_DMA_LD_DEBUG
-		chan_dbg(chan, "LD %p callback\n", desc);
-#endif
-		txd->callback(txd->callback_param);
-	}
-
-	/* Run any dependencies */
-	dma_run_dependencies(txd);
-
-	/* Unmap the dst buffer, if requested */
-	if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-		if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-			dma_unmap_single(dev, dst, len, DMA_FROM_DEVICE);
-		else
-			dma_unmap_page(dev, dst, len, DMA_FROM_DEVICE);
-	}
-
-	/* Unmap the src buffer, if requested */
-	if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-		if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-			dma_unmap_single(dev, src, len, DMA_TO_DEVICE);
-		else
-			dma_unmap_page(dev, src, len, DMA_TO_DEVICE);
-	}
-
-#ifdef FSL_DMA_LD_DEBUG
-	chan_dbg(chan, "LD %p free\n", desc);
-#endif
-	dma_pool_free(chan->desc_pool, desc, txd->phys);
-}
-
-/**
- * fsl_chan_xfer_ld_queue - transfer any pending transactions
- * @chan : Freescale DMA channel
- *
- * HARDWARE STATE: idle
- * LOCKING: must hold chan->desc_lock
- */
-static void fsl_chan_xfer_ld_queue(struct fsldma_chan *chan)
-{
-	struct fsl_desc_sw *desc;
-
-	/*
-	 * If the list of pending descriptors is empty, then we
-	 * don't need to do any work at all
-	 */
-	if (list_empty(&chan->ld_pending)) {
-		chan_dbg(chan, "no pending LDs\n");
-		return;
-	}
-
-	/*
-	 * The DMA controller is not idle, which means that the interrupt
-	 * handler will start any queued transactions when it runs after
-	 * this transaction finishes
-	 */
-	if (!chan->idle) {
-		chan_dbg(chan, "DMA controller still busy\n");
-		return;
-	}
-
-	/*
-	 * If there are some link descriptors which have not been
-	 * transferred, we need to start the controller
-	 */
-
-	/*
-	 * Move all elements from the queue of pending transactions
-	 * onto the list of running transactions
-	 */
-	chan_dbg(chan, "idle, starting controller\n");
-	desc = list_first_entry(&chan->ld_pending, struct fsl_desc_sw, node);
-	list_splice_tail_init(&chan->ld_pending, &chan->ld_running);
-
-	/*
-	 * The 85xx DMA controller doesn't clear the channel start bit
-	 * automatically at the end of a transfer. Therefore we must clear
-	 * it in software before starting the transfer.
-	 */
-	if ((chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX) {
-		u32 mode;
-
-		mode = DMA_IN(chan, &chan->regs->mr, 32);
-		mode &= ~FSL_DMA_MR_CS;
-		DMA_OUT(chan, &chan->regs->mr, mode, 32);
-	}
-
-	/*
-	 * Program the descriptor's address into the DMA controller,
-	 * then start the DMA transaction
-	 */
-	set_cdar(chan, desc->async_tx.phys);
-	get_cdar(chan);
-
-	dma_start(chan);
-	chan->idle = false;
 }
 
 /**
@@ -1253,7 +1193,9 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 	WARN_ON(fdev->feature != chan->feature);
 
 	chan->dev = fdev->dev;
-	chan->id = ((res.start - 0x100) & 0xfff) >> 7;
+	chan->id = (res.start & 0xfff) < 0x300 ?
+		   ((res.start - 0x100) & 0xfff) >> 7 :
+		   ((res.start - 0x200) & 0xfff) >> 7;
 	if (chan->id >= FSL_DMA_MAX_CHANS_PER_DEVICE) {
 		dev_err(fdev->dev, "too many channels for device\n");
 		err = -EINVAL;
@@ -1344,12 +1286,10 @@ static int fsldma_of_probe(struct platform_device *op)
 	fdev->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
 	dma_cap_set(DMA_MEMCPY, fdev->common.cap_mask);
-	dma_cap_set(DMA_INTERRUPT, fdev->common.cap_mask);
 	dma_cap_set(DMA_SG, fdev->common.cap_mask);
 	dma_cap_set(DMA_SLAVE, fdev->common.cap_mask);
 	fdev->common.device_alloc_chan_resources = fsl_dma_alloc_chan_resources;
 	fdev->common.device_free_chan_resources = fsl_dma_free_chan_resources;
-	fdev->common.device_prep_dma_interrupt = fsl_dma_prep_interrupt;
 	fdev->common.device_prep_dma_memcpy = fsl_dma_prep_memcpy;
 	fdev->common.device_prep_dma_sg = fsl_dma_prep_sg;
 	fdev->common.device_tx_status = fsl_tx_status;
@@ -1426,6 +1366,7 @@ static int fsldma_of_remove(struct platform_device *op)
 }
 
 static const struct of_device_id fsldma_of_ids[] = {
+	{ .compatible = "fsl,elo3-dma", },
 	{ .compatible = "fsl,eloplus-dma", },
 	{ .compatible = "fsl,elo-dma", },
 	{}
@@ -1447,7 +1388,7 @@ static struct platform_driver fsldma_of_driver = {
 
 static __init int fsldma_init(void)
 {
-	pr_info("Freescale Elo / Elo Plus DMA driver\n");
+	pr_info("Freescale Elo series DMA driver\n");
 	return platform_driver_register(&fsldma_of_driver);
 }
 
@@ -1459,5 +1400,5 @@ static void __exit fsldma_exit(void)
 subsys_initcall(fsldma_init);
 module_exit(fsldma_exit);
 
-MODULE_DESCRIPTION("Freescale Elo / Elo Plus DMA driver");
+MODULE_DESCRIPTION("Freescale Elo series DMA driver");
 MODULE_LICENSE("GPL");

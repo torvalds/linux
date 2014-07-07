@@ -40,6 +40,7 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
+#include <sound/omap-pcm.h>
 
 #include "omap-dmic.h"
 
@@ -61,12 +62,12 @@ struct omap_dmic {
 
 static inline void omap_dmic_write(struct omap_dmic *dmic, u16 reg, u32 val)
 {
-	__raw_writel(val, dmic->io_base + reg);
+	writel_relaxed(val, dmic->io_base + reg);
 }
 
 static inline int omap_dmic_read(struct omap_dmic *dmic, u16 reg)
 {
-	return __raw_readl(dmic->io_base + reg);
+	return readl_relaxed(dmic->io_base + reg);
 }
 
 static inline void omap_dmic_start(struct omap_dmic *dmic)
@@ -113,7 +114,6 @@ static int omap_dmic_dai_startup(struct snd_pcm_substream *substream,
 
 	mutex_unlock(&dmic->mutex);
 
-	snd_soc_dai_set_dma_data(dai, substream, &dmic->dma_data);
 	return ret;
 }
 
@@ -417,6 +417,9 @@ static int omap_dmic_probe(struct snd_soc_dai *dai)
 
 	/* Configure DMIC threshold value */
 	dmic->threshold = OMAP_DMIC_THRES_MAX - 3;
+
+	snd_soc_dai_init_dma_data(dai, NULL, &dmic->dma_data);
+
 	return 0;
 }
 
@@ -489,6 +492,10 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 
 	ret = snd_soc_register_component(&pdev->dev, &omap_dmic_component,
 					 &omap_dmic_dai, 1);
+	if (ret)
+		goto err_put_clk;
+
+	ret = omap_pcm_platform_register(&pdev->dev);
 	if (ret)
 		goto err_put_clk;
 

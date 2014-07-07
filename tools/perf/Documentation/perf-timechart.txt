@@ -8,7 +8,7 @@ perf-timechart - Tool to visualize total system behavior during a workload
 SYNOPSIS
 --------
 [verse]
-'perf timechart' {record}
+'perf timechart' [<timechart options>] {record} [<record options>]
 
 DESCRIPTION
 -----------
@@ -20,8 +20,8 @@ There are two variants of perf timechart:
   'perf timechart' to turn a trace into a Scalable Vector Graphics file,
   that can be viewed with popular SVG viewers such as 'Inkscape'.
 
-OPTIONS
--------
+TIMECHART OPTIONS
+-----------------
 -o::
 --output=::
         Select the output file (default: output.svg)
@@ -34,12 +34,58 @@ OPTIONS
 -P::
 --power-only::
         Only output the CPU power section of the diagram
+-T::
+--tasks-only::
+        Don't output processor state transitions
 -p::
 --process::
         Select the processes to display, by name or PID
 
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
+-n::
+--proc-num::
+        Print task info for at least given number of tasks.
+-t::
+--topology::
+        Sort CPUs according to topology.
+--highlight=<duration_nsecs|task_name>::
+	Highlight tasks (using different color) that run more than given
+	duration or tasks with given name. If number is given it's interpreted
+	as number of nanoseconds. If non-numeric string is given it's
+	interpreted as task name.
+
+RECORD OPTIONS
+--------------
+-P::
+--power-only::
+        Record only power-related events
+-T::
+--tasks-only::
+        Record only tasks-related events
+-g::
+--callchain::
+        Do call-graph (stack chain/backtrace) recording
+
+EXAMPLES
+--------
+
+$ perf timechart record git pull
+
+  [ perf record: Woken up 13 times to write data ]
+  [ perf record: Captured and wrote 4.253 MB perf.data (~185801 samples) ]
+
+$ perf timechart
+
+  Written 10.2 seconds of trace to output.svg.
+
+Record system-wide timechart:
+
+  $ perf timechart record
+
+  then generate timechart and highlight 'gcc' tasks:
+
+  $ perf timechart --highlight gcc
 
 SEE ALSO
 --------

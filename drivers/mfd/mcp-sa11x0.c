@@ -12,7 +12,6 @@
  *  MCP read/write timeouts from Jordi Colomer, rehacked by rmk.
  */
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>

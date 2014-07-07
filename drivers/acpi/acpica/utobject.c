@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -180,7 +180,7 @@ union acpi_operand_object *acpi_ut_create_package_object(u32 count)
 	package_elements = ACPI_ALLOCATE_ZEROED(((acpi_size) count +
 						 1) * sizeof(void *));
 	if (!package_elements) {
-		acpi_ut_remove_reference(package_desc);
+		ACPI_FREE(package_desc);
 		return_PTR(NULL);
 	}
 
@@ -356,7 +356,7 @@ u8 acpi_ut_valid_internal_object(void *object)
 	default:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "%p is not not an ACPI operand obj [%s]\n",
+				  "%p is not an ACPI operand obj [%s]\n",
 				  object, acpi_ut_get_descriptor_name(object)));
 		break;
 	}
@@ -396,7 +396,6 @@ void *acpi_ut_allocate_object_desc_dbg(const char *module_name,
 
 	/* Mark the descriptor type */
 
-	memset(object, 0, sizeof(union acpi_operand_object));
 	ACPI_SET_DESCRIPTOR_TYPE(object, ACPI_DESC_TYPE_OPERAND);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "%p Size %X\n",
@@ -461,25 +460,28 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 
 	ACPI_FUNCTION_TRACE_PTR(ut_get_simple_object_size, internal_object);
 
-	/*
-	 * Handle a null object (Could be a uninitialized package
-	 * element -- which is legal)
-	 */
-	if (!internal_object) {
-		*obj_length = sizeof(union acpi_object);
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* Start with the length of the Acpi object */
+	/* Start with the length of the (external) Acpi object */
 
 	length = sizeof(union acpi_object);
 
+	/* A NULL object is allowed, can be a legal uninitialized package element */
+
+	if (!internal_object) {
+	/*
+		 * Object is NULL, just return the length of union acpi_object
+		 * (A NULL union acpi_object is an object of all zeroes.)
+	 */
+		*obj_length = ACPI_ROUND_UP_TO_NATIVE_WORD(length);
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	/* A Namespace Node should never appear here */
+
 	if (ACPI_GET_DESCRIPTOR_TYPE(internal_object) == ACPI_DESC_TYPE_NAMED) {
 
-		/* Object is a named object (reference), just return the length */
+		/* A namespace node should never get here */
 
-		*obj_length = ACPI_ROUND_UP_TO_NATIVE_WORD(length);
-		return_ACPI_STATUS(status);
+		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 
 	/*

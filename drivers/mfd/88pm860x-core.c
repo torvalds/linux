@@ -1179,12 +1179,18 @@ static int pm860x_probe(struct i2c_client *client,
 		chip->companion_addr = pdata->companion_addr;
 		chip->companion = i2c_new_dummy(chip->client->adapter,
 						chip->companion_addr);
+		if (!chip->companion) {
+			dev_err(&client->dev,
+				"Failed to allocate I2C companion device\n");
+			return -ENODEV;
+		}
 		chip->regmap_companion = regmap_init_i2c(chip->companion,
 							&pm860x_regmap_config);
 		if (IS_ERR(chip->regmap_companion)) {
 			ret = PTR_ERR(chip->regmap_companion);
 			dev_err(&chip->companion->dev,
 				"Failed to allocate register map: %d\n", ret);
+			i2c_unregister_device(chip->companion);
 			return ret;
 		}
 		i2c_set_clientdata(chip->companion, chip);
@@ -1247,7 +1253,7 @@ static struct i2c_driver pm860x_driver = {
 		.name	= "88PM860x",
 		.owner	= THIS_MODULE,
 		.pm     = &pm860x_pm_ops,
-		.of_match_table	= of_match_ptr(pm860x_dt_ids),
+		.of_match_table	= pm860x_dt_ids,
 	},
 	.probe		= pm860x_probe,
 	.remove		= pm860x_remove,

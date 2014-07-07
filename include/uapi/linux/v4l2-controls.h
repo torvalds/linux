@@ -60,6 +60,7 @@
 #define V4L2_CTRL_CLASS_IMAGE_PROC	0x009f0000	/* Image processing controls */
 #define V4L2_CTRL_CLASS_DV		0x00a00000	/* Digital Video controls */
 #define V4L2_CTRL_CLASS_FM_RX		0x00a10000	/* FM Receiver controls */
+#define V4L2_CTRL_CLASS_RF_TUNER	0x00a20000	/* RF tuner controls */
 
 /* User-class control IDs */
 
@@ -159,6 +160,14 @@ enum v4l2_colorfx {
 /* The base for the si476x driver controls. See include/media/si476x.h for the list
  * of controls. Total of 16 controls is reserved for this driver */
 #define V4L2_CID_USER_SI476X_BASE		(V4L2_CID_USER_BASE + 0x1040)
+
+/* The base for the TI VPE driver controls. Total of 16 controls is reserved for
+ * this driver */
+#define V4L2_CID_USER_TI_VPE_BASE		(V4L2_CID_USER_BASE + 0x1050)
+
+/* The base for the saa7134 driver controls.
+ * We reserve 16 controls for this driver. */
+#define V4L2_CID_USER_SAA7134_BASE		(V4L2_CID_USER_BASE + 0x1060)
 
 /* MPEG-class control IDs */
 /* The MPEG controls are applicable to all codec controls
@@ -368,6 +377,8 @@ enum v4l2_mpeg_video_multi_slice_mode {
 #define V4L2_CID_MPEG_VIDEO_DEC_FRAME			(V4L2_CID_MPEG_BASE+224)
 #define V4L2_CID_MPEG_VIDEO_VBV_DELAY			(V4L2_CID_MPEG_BASE+225)
 #define V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER		(V4L2_CID_MPEG_BASE+226)
+#define V4L2_CID_MPEG_VIDEO_MV_H_SEARCH_RANGE		(V4L2_CID_MPEG_BASE+227)
+#define V4L2_CID_MPEG_VIDEO_MV_V_SEARCH_RANGE		(V4L2_CID_MPEG_BASE+228)
 
 #define V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP		(V4L2_CID_MPEG_BASE+300)
 #define V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP		(V4L2_CID_MPEG_BASE+301)
@@ -550,6 +561,11 @@ enum v4l2_vp8_golden_frame_sel {
 	V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_PREV		= 0,
 	V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_REF_PERIOD	= 1,
 };
+#define V4L2_CID_MPEG_VIDEO_VPX_MIN_QP			(V4L2_CID_MPEG_BASE+507)
+#define V4L2_CID_MPEG_VIDEO_VPX_MAX_QP			(V4L2_CID_MPEG_BASE+508)
+#define V4L2_CID_MPEG_VIDEO_VPX_I_FRAME_QP		(V4L2_CID_MPEG_BASE+509)
+#define V4L2_CID_MPEG_VIDEO_VPX_P_FRAME_QP		(V4L2_CID_MPEG_BASE+510)
+#define V4L2_CID_MPEG_VIDEO_VPX_PROFILE			(V4L2_CID_MPEG_BASE+511)
 
 /*  MPEG-class control IDs specific to the CX2341x driver as defined by V4L2 */
 #define V4L2_CID_MPEG_CX2341X_BASE 				(V4L2_CTRL_CLASS_MPEG | 0x1000)
@@ -799,6 +815,9 @@ enum v4l2_flash_strobe_source {
 #define V4L2_FLASH_FAULT_SHORT_CIRCUIT		(1 << 3)
 #define V4L2_FLASH_FAULT_OVER_CURRENT		(1 << 4)
 #define V4L2_FLASH_FAULT_INDICATOR		(1 << 5)
+#define V4L2_FLASH_FAULT_UNDER_VOLTAGE		(1 << 6)
+#define V4L2_FLASH_FAULT_INPUT_VOLTAGE		(1 << 7)
+#define V4L2_FLASH_FAULT_LED_OVER_TEMPERATURE	(1 << 8)
 
 #define V4L2_CID_FLASH_CHARGE			(V4L2_CID_FLASH_CLASS_BASE + 11)
 #define V4L2_CID_FLASH_READY			(V4L2_CID_FLASH_CLASS_BASE + 12)
@@ -881,5 +900,18 @@ enum v4l2_deemphasis {
 };
 
 #define V4L2_CID_RDS_RECEPTION			(V4L2_CID_FM_RX_CLASS_BASE + 2)
+
+#define V4L2_CID_RF_TUNER_CLASS_BASE		(V4L2_CTRL_CLASS_RF_TUNER | 0x900)
+#define V4L2_CID_RF_TUNER_CLASS			(V4L2_CTRL_CLASS_RF_TUNER | 1)
+
+#define V4L2_CID_RF_TUNER_BANDWIDTH_AUTO	(V4L2_CID_RF_TUNER_CLASS_BASE + 11)
+#define V4L2_CID_RF_TUNER_BANDWIDTH		(V4L2_CID_RF_TUNER_CLASS_BASE + 12)
+#define V4L2_CID_RF_TUNER_LNA_GAIN_AUTO		(V4L2_CID_RF_TUNER_CLASS_BASE + 41)
+#define V4L2_CID_RF_TUNER_LNA_GAIN		(V4L2_CID_RF_TUNER_CLASS_BASE + 42)
+#define V4L2_CID_RF_TUNER_MIXER_GAIN_AUTO	(V4L2_CID_RF_TUNER_CLASS_BASE + 51)
+#define V4L2_CID_RF_TUNER_MIXER_GAIN		(V4L2_CID_RF_TUNER_CLASS_BASE + 52)
+#define V4L2_CID_RF_TUNER_IF_GAIN_AUTO		(V4L2_CID_RF_TUNER_CLASS_BASE + 61)
+#define V4L2_CID_RF_TUNER_IF_GAIN		(V4L2_CID_RF_TUNER_CLASS_BASE + 62)
+#define V4L2_CID_RF_TUNER_PLL_LOCK			(V4L2_CID_RF_TUNER_CLASS_BASE + 91)
 
 #endif

@@ -18,9 +18,11 @@
 #ifndef __ASM_ESR_H
 #define __ASM_ESR_H
 
-#define ESR_EL1_EC_SHIFT	(26)
-#define ESR_EL1_IL		(1U << 25)
+#define ESR_EL1_WRITE		(1 << 6)
+#define ESR_EL1_CM		(1 << 8)
+#define ESR_EL1_IL		(1 << 25)
 
+#define ESR_EL1_EC_SHIFT	(26)
 #define ESR_EL1_EC_UNKNOWN	(0x00)
 #define ESR_EL1_EC_WFI		(0x01)
 #define ESR_EL1_EC_CP15_32	(0x03)
@@ -42,7 +44,7 @@
 #define ESR_EL1_EC_SP_ALIGN	(0x26)
 #define ESR_EL1_EC_FP_EXC32	(0x28)
 #define ESR_EL1_EC_FP_EXC64	(0x2C)
-#define ESR_EL1_EC_SERRROR	(0x2F)
+#define ESR_EL1_EC_SERROR	(0x2F)
 #define ESR_EL1_EC_BREAKPT_EL0	(0x30)
 #define ESR_EL1_EC_BREAKPT_EL1	(0x31)
 #define ESR_EL1_EC_SOFTSTP_EL0	(0x32)

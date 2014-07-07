@@ -6,67 +6,133 @@ This binding uses the common clock binding[1].
 
 Required properties:
 - compatible : shall be one of the following:
-	"allwinner,sun4i-osc-clk" - for a gatable oscillator
-	"allwinner,sun4i-pll1-clk" - for the main PLL clock
+	"allwinner,sun4i-a10-osc-clk" - for a gatable oscillator
+	"allwinner,sun4i-a10-pll1-clk" - for the main PLL clock and PLL4
 	"allwinner,sun6i-a31-pll1-clk" - for the main PLL clock on A31
-	"allwinner,sun4i-cpu-clk" - for the CPU multiplexer clock
-	"allwinner,sun4i-axi-clk" - for the AXI clock
-	"allwinner,sun4i-axi-gates-clk" - for the AXI gates
-	"allwinner,sun4i-ahb-clk" - for the AHB clock
-	"allwinner,sun4i-ahb-gates-clk" - for the AHB gates on A10
+	"allwinner,sun4i-a10-pll5-clk" - for the PLL5 clock
+	"allwinner,sun4i-a10-pll6-clk" - for the PLL6 clock
+	"allwinner,sun6i-a31-pll6-clk" - for the PLL6 clock on A31
+	"allwinner,sun4i-a10-cpu-clk" - for the CPU multiplexer clock
+	"allwinner,sun4i-a10-axi-clk" - for the AXI clock
+	"allwinner,sun4i-a10-axi-gates-clk" - for the AXI gates
+	"allwinner,sun4i-a10-ahb-clk" - for the AHB clock
+	"allwinner,sun4i-a10-ahb-gates-clk" - for the AHB gates on A10
 	"allwinner,sun5i-a13-ahb-gates-clk" - for the AHB gates on A13
 	"allwinner,sun5i-a10s-ahb-gates-clk" - for the AHB gates on A10s
 	"allwinner,sun7i-a20-ahb-gates-clk" - for the AHB gates on A20
+	"allwinner,sun6i-a31-ar100-clk" - for the AR100 on A31
 	"allwinner,sun6i-a31-ahb1-mux-clk" - for the AHB1 multiplexer on A31
 	"allwinner,sun6i-a31-ahb1-gates-clk" - for the AHB1 gates on A31
-	"allwinner,sun4i-apb0-clk" - for the APB0 clock
-	"allwinner,sun4i-apb0-gates-clk" - for the APB0 gates on A10
+	"allwinner,sun4i-a10-apb0-clk" - for the APB0 clock
+	"allwinner,sun6i-a31-apb0-clk" - for the APB0 clock on A31
+	"allwinner,sun4i-a10-apb0-gates-clk" - for the APB0 gates on A10
 	"allwinner,sun5i-a13-apb0-gates-clk" - for the APB0 gates on A13
 	"allwinner,sun5i-a10s-apb0-gates-clk" - for the APB0 gates on A10s
+	"allwinner,sun6i-a31-apb0-gates-clk" - for the APB0 gates on A31
 	"allwinner,sun7i-a20-apb0-gates-clk" - for the APB0 gates on A20
-	"allwinner,sun4i-apb1-clk" - for the APB1 clock
-	"allwinner,sun4i-apb1-mux-clk" - for the APB1 clock muxing
-	"allwinner,sun4i-apb1-gates-clk" - for the APB1 gates on A10
+	"allwinner,sun4i-a10-apb1-clk" - for the APB1 clock
+	"allwinner,sun4i-a10-apb1-mux-clk" - for the APB1 clock muxing
+	"allwinner,sun4i-a10-apb1-gates-clk" - for the APB1 gates on A10
 	"allwinner,sun5i-a13-apb1-gates-clk" - for the APB1 gates on A13
 	"allwinner,sun5i-a10s-apb1-gates-clk" - for the APB1 gates on A10s
 	"allwinner,sun6i-a31-apb1-gates-clk" - for the APB1 gates on A31
 	"allwinner,sun7i-a20-apb1-gates-clk" - for the APB1 gates on A20
 	"allwinner,sun6i-a31-apb2-div-clk" - for the APB2 gates on A31
 	"allwinner,sun6i-a31-apb2-gates-clk" - for the APB2 gates on A31
+	"allwinner,sun4i-a10-mod0-clk" - for the module 0 family of clocks
+	"allwinner,sun7i-a20-out-clk" - for the external output clocks
+	"allwinner,sun7i-a20-gmac-clk" - for the GMAC clock module on A20/A31
+	"allwinner,sun4i-a10-usb-clk" - for usb gates + resets on A10 / A20
+	"allwinner,sun5i-a13-usb-clk" - for usb gates + resets on A13
+	"allwinner,sun6i-a31-usb-clk" - for usb gates + resets on A31
 
 Required properties for all clocks:
 - reg : shall be the control register address for the clock.
-- clocks : shall be the input parent clock(s) phandle for the clock
+- clocks : shall be the input parent clock(s) phandle for the clock. For
+	multiplexed clocks, the list order must match the hardware
+	programming order.
 - #clock-cells : from common clock binding; shall be set to 0 except for
-	"allwinner,*-gates-clk" where it shall be set to 1
+	"allwinner,*-gates-clk", "allwinner,sun4i-pll5-clk" and
+	"allwinner,sun4i-pll6-clk" where it shall be set to 1
+- clock-output-names : shall be the corresponding names of the outputs.
+	If the clock module only has one output, the name shall be the
+	module name.
 
-Additionally, "allwinner,*-gates-clk" clocks require:
-- clock-output-names : the corresponding gate names that the clock controls
+And "allwinner,*-usb-clk" clocks also require:
+- reset-cells : shall be set to 1
+
+For "allwinner,sun7i-a20-gmac-clk", the parent clocks shall be fixed rate
+dummy clocks at 25 MHz and 125 MHz, respectively. See example.
 
 Clock consumers should specify the desired clocks they use with a
 "clocks" phandle cell. Consumers that are using a gated clock should
-provide an additional ID in their clock property. The values of this
-ID are documented in sunxi/<soc>-gates.txt.
+provide an additional ID in their clock property. This ID is the
+offset of the bit controlling this particular gate in the register.
 
 For example:
 
-osc24M: osc24M@01c20050 {
+osc24M: clk@01c20050 {
 	#clock-cells = <0>;
-	compatible = "allwinner,sun4i-osc-clk";
+	compatible = "allwinner,sun4i-a10-osc-clk";
 	reg = <0x01c20050 0x4>;
 	clocks = <&osc24M_fixed>;
+	clock-output-names = "osc24M";
 };
 
-pll1: pll1@01c20000 {
+pll1: clk@01c20000 {
 	#clock-cells = <0>;
-	compatible = "allwinner,sun4i-pll1-clk";
+	compatible = "allwinner,sun4i-a10-pll1-clk";
 	reg = <0x01c20000 0x4>;
 	clocks = <&osc24M>;
+	clock-output-names = "pll1";
+};
+
+pll5: clk@01c20020 {
+	#clock-cells = <1>;
+	compatible = "allwinner,sun4i-pll5-clk";
+	reg = <0x01c20020 0x4>;
+	clocks = <&osc24M>;
+	clock-output-names = "pll5_ddr", "pll5_other";
 };
 
 cpu: cpu@01c20054 {
 	#clock-cells = <0>;
-	compatible = "allwinner,sun4i-cpu-clk";
+	compatible = "allwinner,sun4i-a10-cpu-clk";
 	reg = <0x01c20054 0x4>;
 	clocks = <&osc32k>, <&osc24M>, <&pll1>;
+	clock-output-names = "cpu";
+};
+
+mmc0_clk: clk@01c20088 {
+	#clock-cells = <0>;
+	compatible = "allwinner,sun4i-mod0-clk";
+	reg = <0x01c20088 0x4>;
+	clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
+	clock-output-names = "mmc0";
+};
+
+mii_phy_tx_clk: clk@2 {
+	#clock-cells = <0>;
+	compatible = "fixed-clock";
+	clock-frequency = <25000000>;
+	clock-output-names = "mii_phy_tx";
+};
+
+gmac_int_tx_clk: clk@3 {
+	#clock-cells = <0>;
+	compatible = "fixed-clock";
+	clock-frequency = <125000000>;
+	clock-output-names = "gmac_int_tx";
+};
+
+gmac_clk: clk@01c20164 {
+	#clock-cells = <0>;
+	compatible = "allwinner,sun7i-a20-gmac-clk";
+	reg = <0x01c20164 0x4>;
+	/*
+	 * The first clock must be fixed at 25MHz;
+	 * the second clock must be fixed at 125MHz
+	 */
+	clocks = <&mii_phy_tx_clk>, <&gmac_int_tx_clk>;
+	clock-output-names = "gmac";
 };

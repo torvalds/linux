@@ -20,6 +20,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
@@ -41,7 +42,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
 
@@ -49,6 +49,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 #include <plat/samsung-time.h>
 
 #include "common.h"
@@ -207,7 +208,7 @@ static struct platform_device *anw6410_devices[] __initdata = {
 static void __init anw6410_map_io(void)
 {
 	s3c64xx_init_io(anw6410_iodesc, ARRAY_SIZE(anw6410_iodesc));
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(anw6410_uartcfgs, ARRAY_SIZE(anw6410_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 

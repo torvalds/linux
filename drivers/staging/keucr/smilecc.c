@@ -13,7 +13,7 @@
 /* #include "EMCRIOS.h" */
 
 /* CP0-CP5 code table */
-static BYTE ecctable[256] = {
+static u8 ecctable[256] = {
 0x00, 0x55, 0x56, 0x03, 0x59, 0x0C, 0x0F, 0x5A, 0x5A, 0x0F, 0x0C, 0x59, 0x03,
 0x56, 0x55, 0x00, 0x65, 0x30, 0x33, 0x66, 0x3C, 0x69, 0x6A, 0x3F, 0x3F, 0x6A,
 0x69, 0x3C, 0x66, 0x33, 0x30, 0x65, 0x66, 0x33, 0x30, 0x65, 0x3F, 0x6A, 0x69,
@@ -36,7 +36,7 @@ static BYTE ecctable[256] = {
 0x5A, 0x5A, 0x0F, 0x0C, 0x59, 0x03, 0x56, 0x55, 0x00
 };
 
-static void   trans_result(BYTE,   BYTE,   BYTE *, BYTE *);
+static void   trans_result(u8,   u8,   u8 *, u8 *);
 
 #define BIT7        0x80
 #define BIT6        0x40
@@ -57,11 +57,11 @@ static void   trans_result(BYTE,   BYTE,   BYTE *, BYTE *);
  * *ecc1; * LP15,LP14,LP13,...
  * *ecc2; * LP07,LP06,LP05,...
  */
-static void trans_result(BYTE reg2, BYTE reg3, BYTE *ecc1, BYTE *ecc2)
+static void trans_result(u8 reg2, u8 reg3, u8 *ecc1, u8 *ecc2)
 {
-	BYTE a; /* Working for reg2,reg3 */
-	BYTE b; /* Working for ecc1,ecc2 */
-	BYTE i; /* For counting */
+	u8 a; /* Working for reg2,reg3 */
+	u8 b; /* Working for ecc1,ecc2 */
+	u8 i; /* For counting */
 
 	a = BIT7; b = BIT7; /* 80h=10000000b */
 	*ecc1 = *ecc2 = 0; /* Clear ecc1,ecc2 */
@@ -95,21 +95,21 @@ static void trans_result(BYTE reg2, BYTE reg3, BYTE *ecc1, BYTE *ecc2)
  * *ecc2; * LP07,LP06,LP05,...
  * *ecc3; * CP5,CP4,CP3,...,"1","1"
  */
-void calculate_ecc(BYTE *table, BYTE *data, BYTE *ecc1, BYTE *ecc2, BYTE *ecc3)
+void calculate_ecc(u8 *table, u8 *data, u8 *ecc1, u8 *ecc2, u8 *ecc3)
 {
-	DWORD  i;    /* For counting */
-	BYTE a;    /* Working for table */
-	BYTE reg1; /* D-all,CP5,CP4,CP3,... */
-	BYTE reg2; /* LP14,LP12,L10,... */
-	BYTE reg3; /* LP15,LP13,L11,... */
+	u32  i;    /* For counting */
+	u8 a;    /* Working for table */
+	u8 reg1; /* D-all,CP5,CP4,CP3,... */
+	u8 reg2; /* LP14,LP12,L10,... */
+	u8 reg3; /* LP15,LP13,L11,... */
 
 	reg1 = reg2 = reg3 = 0;   /* Clear parameter */
 	for (i = 0; i < 256; ++i) {
 		a = table[data[i]]; /* Get CP0-CP5 code from table */
 		reg1 ^= (a&MASK_CPS); /* XOR with a */
 		if ((a&BIT6) != 0) { /* If D_all(all bit XOR) = 1 */
-			reg3 ^= (BYTE)i; /* XOR with counter */
-			reg2 ^= ~((BYTE)i); /* XOR with inv. of counter */
+			reg3 ^= (u8)i; /* XOR with counter */
+			reg2 ^= ~((u8)i); /* XOR with inv. of counter */
 		}
 	}
 
@@ -127,22 +127,22 @@ void calculate_ecc(BYTE *table, BYTE *data, BYTE *ecc1, BYTE *ecc2, BYTE *ecc3)
  * ecc2; * LP07,LP06,LP05,...
  * ecc3; * CP5,CP4,CP3,...,"1","1"
  */
-BYTE correct_data(BYTE *data, BYTE *eccdata, BYTE ecc1, BYTE ecc2, BYTE ecc3)
+u8 correct_data(u8 *data, u8 *eccdata, u8 ecc1, u8 ecc2, u8 ecc3)
 {
-	DWORD l; /* Working to check d */
-	DWORD d; /* Result of comparison */
-	DWORD i; /* For counting */
-	BYTE d1, d2, d3; /* Result of comparison */
-	BYTE a; /* Working for add */
-	BYTE add; /* Byte address of cor. DATA */
-	BYTE b; /* Working for bit */
-	BYTE bit; /* Bit address of cor. DATA */
+	u32 l; /* Working to check d */
+	u32 d; /* Result of comparison */
+	u32 i; /* For counting */
+	u8 d1, d2, d3; /* Result of comparison */
+	u8 a; /* Working for add */
+	u8 add; /* Byte address of cor. DATA */
+	u8 b; /* Working for bit */
+	u8 bit; /* Bit address of cor. DATA */
 
 	d1 = ecc1^eccdata[1]; d2 = ecc2^eccdata[0]; /* Compare LP's */
-	d3 = ecc3^eccdata[2]; /* Comapre CP's */
-	d = ((DWORD)d1<<16) /* Result of comparison */
-	+((DWORD)d2<<8)
-	+(DWORD)d3;
+	d3 = ecc3^eccdata[2]; /* Compare CP's */
+	d = ((u32)d1<<16) /* Result of comparison */
+	+((u32)d2<<8)
+	+(u32)d3;
 
 	if (d == 0)
 		return 0; /* If No error, return */
@@ -188,9 +188,9 @@ BYTE correct_data(BYTE *data, BYTE *eccdata, BYTE ecc1, BYTE ecc2, BYTE ecc3)
 	return 3; /* Uncorrectable error */
 }
 
-int _Correct_D_SwECC(BYTE *buf, BYTE *redundant_ecc, BYTE *calculate_ecc)
+int _Correct_D_SwECC(u8 *buf, u8 *redundant_ecc, u8 *calculate_ecc)
 {
-	DWORD err;
+	u32 err;
 
 	err = correct_data(buf, redundant_ecc, *(calculate_ecc + 1),
 			   *(calculate_ecc), *(calculate_ecc + 2));
@@ -203,7 +203,7 @@ int _Correct_D_SwECC(BYTE *buf, BYTE *redundant_ecc, BYTE *calculate_ecc)
 	return -1;
 }
 
-void _Calculate_D_SwECC(BYTE *buf, BYTE *ecc)
+void _Calculate_D_SwECC(u8 *buf, u8 *ecc)
 {
 	calculate_ecc(ecctable, buf, ecc+1, ecc+0, ecc+2);
 }

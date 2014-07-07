@@ -43,12 +43,12 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
+#include <asm/unaligned.h>
 
 #include "comedi_fc.h"
 #include "../comedidev.h"
@@ -78,7 +78,7 @@
 #define USBDUXSIGMA_NUM_AO_CHAN		4
 
 /* Size of one A/D value */
-#define SIZEADIN          ((sizeof(int32_t)))
+#define SIZEADIN          ((sizeof(uint32_t)))
 
 /*
  * Size of the async input-buffer IN BYTES, the DIO state is transmitted
@@ -93,7 +93,7 @@
 #define NUMOUTCHANNELS    8
 
 /* size of one value for the D/A converter: channel and value */
-#define SIZEDAOUT          ((sizeof(uint8_t)+sizeof(int16_t)))
+#define SIZEDAOUT          ((sizeof(uint8_t)+sizeof(uint16_t)))
 
 /*
  * Size of the output-buffer in bytes
@@ -157,18 +157,15 @@ struct usbduxsigma_private {
 	/* size of the PWM buffer which holds the bit pattern */
 	int pwm_buf_sz;
 	/* input buffer for the ISO-transfer */
-	int32_t *in_buf;
+	uint32_t *in_buf;
 	/* input buffer for single insn */
-	int8_t *insn_buf;
+	uint8_t *insn_buf;
 
-	int8_t ao_chanlist[USBDUXSIGMA_NUM_AO_CHAN];
 	unsigned int ao_readback[USBDUXSIGMA_NUM_AO_CHAN];
 
 	unsigned high_speed:1;
 	unsigned ai_cmd_running:1;
-	unsigned ai_continuous:1;
 	unsigned ao_cmd_running:1;
-	unsigned ao_continuous:1;
 	unsigned pwm_cmd_running:1;
 
 	/* number of samples to acquire */
@@ -223,8 +220,9 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	struct comedi_device *dev = urb->context;
 	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int dio_state;
-	int32_t val;
+	uint32_t val;
 	int ret;
 	int i;
 
@@ -301,7 +299,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	/* timer zero, transfer measurements to comedi */
 	devpriv->ai_counter = devpriv->ai_timer;
 
-	if (!devpriv->ai_continuous) {
+	if (cmd->stop_src == TRIG_COUNT) {
 		/* not continuous, fixed number of samples */
 		devpriv->ai_sample_count--;
 		if (devpriv->ai_sample_count < 0) {
@@ -314,7 +312,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	}
 
 	/* get the data from the USB bus and hand it over to comedi */
-	for (i = 0; i < s->async->cmd.chanlist_len; i++) {
+	for (i = 0; i < cmd->chanlist_len; i++) {
 		/* transfer data, note first byte is the DIO state */
 		val = be32_to_cpu(devpriv->in_buf[i+1]);
 		val &= 0x00ffffff;	/* strip status byte */
@@ -360,8 +358,8 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 	struct comedi_device *dev = urb->context;
 	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->write_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	uint8_t *datap;
-	int len;
 	int ret;
 	int i;
 
@@ -403,7 +401,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 		/* timer zero, transfer from comedi */
 		devpriv->ao_counter = devpriv->ao_timer;
 
-		if (!devpriv->ao_continuous) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			/* not continuous, fixed number of samples */
 			devpriv->ao_sample_count--;
 			if (devpriv->ao_sample_count < 0) {
@@ -417,13 +415,12 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 
 		/* transmit data to the USB bus */
 		datap = urb->transfer_buffer;
-		len = s->async->cmd.chanlist_len;
-		*datap++ = len;
-		for (i = 0; i < len; i++) {
-			unsigned int chan = devpriv->ao_chanlist[i];
-			short val;
+		*datap++ = cmd->chanlist_len;
+		for (i = 0; i < cmd->chanlist_len; i++) {
+			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+			unsigned short val;
 
-			ret = comedi_buf_get(s->async, &val);
+			ret = comedi_buf_get(s, &val);
 			if (ret < 0) {
 				dev_err(dev->class_dev, "buffer underflow\n");
 				s->async->events |= (COMEDI_CB_EOA |
@@ -596,10 +593,8 @@ static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* data arrives as one packet */
 		devpriv->ai_sample_count = cmd->stop_arg;
-		devpriv->ai_continuous = 0;
 	} else {
 		/* continuous acquisition */
-		devpriv->ai_continuous = 1;
 		devpriv->ai_sample_count = 0;
 	}
 
@@ -663,12 +658,13 @@ static int usbduxsigma_receive_cmd(struct comedi_device *dev, int command)
 
 static int usbduxsigma_ai_inttrig(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  unsigned int trignum)
+				  unsigned int trig_num)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	down(&devpriv->sem);
@@ -738,7 +734,6 @@ static int usbduxsigma_ai_cmd(struct comedi_device *dev,
 		}
 		s->async->inttrig = NULL;
 	} else {	/* TRIG_INT */
-		/* wait for an internal signal and submit the urbs later */
 		s->async->inttrig = usbduxsigma_ai_inttrig;
 	}
 
@@ -784,7 +779,7 @@ static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
 	}
 
 	for (i = 0; i < insn->n; i++) {
-		int32_t val;
+		uint32_t val;
 
 		ret = usbduxsigma_receive_cmd(dev, USBDUXSIGMA_SINGLE_AD_CMD);
 		if (ret < 0) {
@@ -793,7 +788,8 @@ static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
 		}
 
 		/* 32 bits big endian from the A/D converter */
-		val = be32_to_cpu(*((int32_t *)((devpriv->insn_buf) + 1)));
+		val = be32_to_cpu(get_unaligned((uint32_t
+						 *)(devpriv->insn_buf + 1)));
 		val &= 0x00ffffff;	/* strip status byte */
 		val ^= 0x00800000;	/* convert to unsigned */
 
@@ -855,12 +851,13 @@ static int usbduxsigma_ao_insn_write(struct comedi_device *dev,
 
 static int usbduxsigma_ao_inttrig(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  unsigned int trignum)
+				  unsigned int trig_num)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	down(&devpriv->sem);
@@ -984,10 +981,8 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 			 */
 			devpriv->ao_sample_count = cmd->stop_arg;
 		}
-		devpriv->ao_continuous = 0;
 	} else {
 		/* continuous acquisition */
-		devpriv->ao_continuous = 1;
 		devpriv->ao_sample_count = 0;
 	}
 
@@ -1003,14 +998,11 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
-	int i;
 
 	down(&devpriv->sem);
 
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
-	for (i = 0; i < cmd->chanlist_len; ++i)
-		devpriv->ao_chanlist[i] = CR_CHAN(cmd->chanlist[i]);
 
 	devpriv->ao_counter = devpriv->ao_timer;
 
@@ -1026,7 +1018,6 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 		}
 		s->async->inttrig = NULL;
 	} else {	/* TRIG_INT */
-		/* wait for an internal signal and submit the urbs later */
 		s->async->inttrig = usbduxsigma_ao_inttrig;
 	}
 
@@ -1059,15 +1050,13 @@ static int usbduxsigma_dio_insn_bits(struct comedi_device *dev,
 				     unsigned int *data)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 	int ret;
 
 	down(&devpriv->sem);
 
-	s->state &= ~mask;
-	s->state |= (bits & mask);
+	comedi_dio_update_state(s, data);
 
+	/* Always update the hardware. See the (*insn_config). */
 	devpriv->dux_commands[1] = s->io_bits & 0xff;
 	devpriv->dux_commands[4] = s->state & 0xff;
 	devpriv->dux_commands[2] = (s->io_bits >> 8) & 0xff;
@@ -1360,7 +1349,7 @@ static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
 		return ret;
 
 	/* 32 bits big endian from the A/D converter */
-	val = be32_to_cpu(*((int32_t *)((devpriv->insn_buf)+1)));
+	val = be32_to_cpu(get_unaligned((uint32_t *)(devpriv->insn_buf + 1)));
 	val &= 0x00ffffff;	/* strip status byte */
 	val ^= 0x00800000;	/* convert to unsigned */
 
@@ -1658,11 +1647,13 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	}
 
 	offset = usbduxsigma_getstatusinfo(dev, 0);
-	if (offset < 0)
+	if (offset < 0) {
 		dev_err(dev->class_dev,
-			"Communication to USBDUXSIGMA failed! Check firmware and cabling\n");
+			"Communication to USBDUXSIGMA failed! Check firmware and cabling.\n");
+		return offset;
+	}
 
-	dev_info(dev->class_dev, "attached, ADC_zero = %x\n", offset);
+	dev_info(dev->class_dev, "ADC_zero = %x\n", offset);
 
 	return 0;
 }

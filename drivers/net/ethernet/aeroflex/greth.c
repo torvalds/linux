@@ -25,7 +25,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -1214,11 +1213,6 @@ static int greth_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	return 0;
 }
 
-static int greth_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void greth_link_change(struct net_device *dev)
 {
 	struct greth_private *greth = netdev_priv(dev);
@@ -1333,7 +1327,6 @@ static int greth_mdio_init(struct greth_private *greth)
 	snprintf(greth->mdio->id, MII_BUS_ID_SIZE, "%s-%d", greth->mdio->name, greth->irq);
 	greth->mdio->read = greth_mdio_read;
 	greth->mdio->write = greth_mdio_write;
-	greth->mdio->reset = greth_mdio_reset;
 	greth->mdio->priv = greth;
 
 	greth->mdio->irq = greth->mdio_irqs;
@@ -1361,7 +1354,7 @@ static int greth_mdio_init(struct greth_private *greth)
 		timeout = jiffies + 6*HZ;
 		while (!phy_aneg_done(greth->phy) && time_before(jiffies, timeout)) {
 		}
-		genphy_read_status(greth->phy);
+		phy_read_status(greth->phy);
 		greth_link_change(greth->netdev);
 	}
 

@@ -12,7 +12,6 @@
 #include <linux/i2c-mux.h>
 #include <linux/i2c-mux-gpio.h>
 #include <linux/platform_device.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
@@ -30,15 +29,15 @@ static void i2c_mux_gpio_set(const struct gpiomux *mux, unsigned val)
 	int i;
 
 	for (i = 0; i < mux->data.n_gpios; i++)
-		gpio_set_value(mux->gpio_base + mux->data.gpios[i],
-			       val & (1 << i));
+		gpio_set_value_cansleep(mux->gpio_base + mux->data.gpios[i],
+					val & (1 << i));
 }
 
 static int i2c_mux_gpio_select(struct i2c_adapter *adap, void *data, u32 chan)
 {
 	struct gpiomux *mux = data;
 
-	i2c_mux_gpio_set(mux, mux->data.values[chan]);
+	i2c_mux_gpio_set(mux, chan);
 
 	return 0;
 }
@@ -66,7 +65,7 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 	struct device_node *adapter_np, *child;
 	struct i2c_adapter *adapter;
 	unsigned *values, *gpios;
-	int i = 0;
+	int i = 0, ret;
 
 	if (!np)
 		return -ENODEV;
@@ -79,7 +78,7 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 	adapter = of_find_i2c_adapter_by_node(adapter_np);
 	if (!adapter) {
 		dev_err(&pdev->dev, "Cannot find parent bus\n");
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 	mux->data.parent = i2c_adapter_id(adapter);
 	put_device(&adapter->dev);
@@ -116,8 +115,12 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < mux->data.n_gpios; i++)
-		gpios[i] = of_get_named_gpio(np, "mux-gpios", i);
+	for (i = 0; i < mux->data.n_gpios; i++) {
+		ret = of_get_named_gpio(np, "mux-gpios", i);
+		if (ret < 0)
+			return ret;
+		gpios[i] = ret;
+	}
 
 	mux->data.gpios = gpios;
 
@@ -177,7 +180,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 	if (!parent) {
 		dev_err(&pdev->dev, "Parent adapter (%d) not found\n",
 			mux->data.parent);
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 
 	mux->parent = parent;
@@ -224,7 +227,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 		unsigned int class = mux->data.classes ? mux->data.classes[i] : 0;
 
 		mux->adap[i] = i2c_add_mux_adapter(parent, &pdev->dev, mux, nr,
-						   i, class,
+						   mux->data.values[i], class,
 						   i2c_mux_gpio_select, deselect);
 		if (!mux->adap[i]) {
 			ret = -ENODEV;
@@ -279,7 +282,7 @@ static struct platform_driver i2c_mux_gpio_driver = {
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "i2c-mux-gpio",
-		.of_match_table = of_match_ptr(i2c_mux_gpio_of_match),
+		.of_match_table = i2c_mux_gpio_of_match,
 	},
 };
 

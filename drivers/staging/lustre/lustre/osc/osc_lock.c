@@ -862,7 +862,7 @@ static int osc_ldlm_glimpse_ast(struct ldlm_lock *dlmlock, void *data)
 			cap = &req->rq_pill;
 			req_capsule_extend(cap, &RQF_LDLM_GL_CALLBACK);
 			req_capsule_set_size(cap, &RMF_DLM_LVB, RCL_SERVER,
-					     sizeof *lvb);
+					     sizeof(*lvb));
 			result = req_capsule_server_pack(cap);
 			if (result == 0) {
 				lvb = req_capsule_server_get(cap, &RMF_DLM_LVB);
@@ -929,7 +929,7 @@ static void osc_lock_build_einfo(const struct lu_env *env,
  * Determine if the lock should be converted into a lockless lock.
  *
  * Steps to check:
- * - if the lock has an explicite requirment for a non-lockless lock;
+ * - if the lock has an explicit requirement for a non-lockless lock;
  * - if the io lock request type ci_lockreq;
  * - send the enqueue rpc to ost to make the further decision;
  * - special treat to truncate lockless lock
@@ -1192,6 +1192,7 @@ static int osc_lock_wait(const struct lu_env *env,
 
 		LASSERT(olck->ols_agl);
 		olck->ols_agl = 0;
+		olck->ols_flags &= ~LDLM_FL_BLOCK_NOWAIT;
 		rc = osc_lock_enqueue(env, slice, NULL, CEF_ASYNC | CEF_MUST);
 		if (rc != 0)
 			return rc;
@@ -1558,7 +1559,7 @@ int osc_lock_init(const struct lu_env *env,
 	struct osc_lock *clk;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(clk, osc_lock_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(clk, osc_lock_kmem, GFP_NOFS);
 	if (clk != NULL) {
 		__u32 enqflags = lock->cll_descr.cld_enq_flags;
 

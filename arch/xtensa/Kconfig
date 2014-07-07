@@ -9,16 +9,19 @@ config XTENSA
 	select GENERIC_CLOCKEVENTS
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_SHOW
-	select GENERIC_CPU_DEVICES
 	select GENERIC_SCHED_CLOCK
 	select MODULES_USE_ELF_RELA
 	select GENERIC_PCI_IOMAP
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select IRQ_DOMAIN
 	select HAVE_OPROFILE
 	select HAVE_FUNCTION_TRACER
+	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_PERF_EVENTS
+	select COMMON_CLK
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -39,7 +42,7 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool n
 
 config HZ
@@ -64,6 +67,12 @@ config MMU
 config VARIANT_IRQ_SWITCH
 	def_bool n
 
+config HAVE_XTENSA_GPIO32
+	def_bool n
+
+config MAY_HAVE_SMP
+	def_bool n
+
 menu "Processor type and features"
 
 choice
@@ -77,12 +86,14 @@ config XTENSA_VARIANT_FSF
 config XTENSA_VARIANT_DC232B
 	bool "dc232b - Diamond 232L Standard Core Rev.B (LE)"
 	select MMU
+	select HAVE_XTENSA_GPIO32
 	help
 	  This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
 
 config XTENSA_VARIANT_DC233C
 	bool "dc233c - Diamond 233L Standard Core Rev.C (LE)"
 	select MMU
+	select HAVE_XTENSA_GPIO32
 	help
 	  This variant refers to Tensilica's Diamond 233L Standard core Rev.C (LE).
 
@@ -103,6 +114,47 @@ config XTENSA_UNALIGNED_USER
 	  Say Y here to enable unaligned memory access in user space.
 
 source "kernel/Kconfig.preempt"
+
+config HAVE_SMP
+	bool "System Supports SMP (MX)"
+	depends on MAY_HAVE_SMP
+	select XTENSA_MX
+	help
+	  This option is use to indicate that the system-on-a-chip (SOC)
+	  supports Multiprocessing. Multiprocessor support implemented above
+	  the CPU core definition and currently needs to be selected manually.
+
+	  Multiprocessor support in implemented with external cache and
+	  interrupt controlers.
+
+	  The MX interrupt distributer adds Interprocessor Interrupts
+	  and causes the IRQ numbers to be increased by 4 for devices
+	  like the open cores ethernet driver and the serial interface.
+
+	  You still have to select "Enable SMP" to enable SMP on this SOC.
+
+config SMP
+	bool "Enable Symmetric multi-processing support"
+	depends on HAVE_SMP
+	select GENERIC_SMP_IDLE_THREAD
+	help
+	  Enabled SMP Software; allows more than one CPU/CORE
+	  to be activated during startup.
+
+config NR_CPUS
+	depends on SMP
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	default "4"
+
+config HOTPLUG_CPU
+	bool "Enable CPU hotplug support"
+	depends on SMP
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+
+	  Say N if you want to disable CPU hotplug.
 
 config MATH_EMULATION
 	bool "Math emulation"
@@ -138,6 +190,24 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 
 	  If in doubt, say Y.
 
+config HIGHMEM
+	bool "High Memory Support"
+	help
+	  Linux can use the full amount of RAM in the system by
+	  default. However, the default MMUv2 setup only maps the
+	  lowermost 128 MB of memory linearly to the areas starting
+	  at 0xd0000000 (cached) and 0xd8000000 (uncached).
+	  When there are more than 128 MB memory in the system not
+	  all of it can be "permanently mapped" by the kernel.
+	  The physical memory that's not permanently mapped is called
+	  "high memory".
+
+	  If you are compiling a kernel which will never run on a
+	  machine with more than 128 MB total physical RAM, answer
+	  N here.
+
+	  If unsure, say Y.
+
 endmenu
 
 config XTENSA_CALIBRATE_CCOUNT
@@ -148,9 +218,6 @@ config XTENSA_CALIBRATE_CCOUNT
 	  against a well known, fixed frequency, such as an UART oscillator.
 
 config SERIAL_CONSOLE
-	def_bool n
-
-config XTENSA_ISS_NETWORK
 	def_bool n
 
 menu "Bus options"
@@ -176,10 +243,8 @@ choice
 
 config XTENSA_PLATFORM_ISS
 	bool "ISS"
-	depends on TTY
 	select XTENSA_CALIBRATE_CCOUNT
 	select SERIAL_CONSOLE
-	select XTENSA_ISS_NETWORK
 	help
 	  ISS is an acronym for Tensilica's Instruction Set Simulator.
 
@@ -192,7 +257,7 @@ config XTENSA_PLATFORM_XT2000
 config XTENSA_PLATFORM_S6105
 	bool "S6105"
 	select SERIAL_CONSOLE
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"

@@ -1896,7 +1896,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 }
 
 static int
-mptsas_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+mptsas_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 {
 	MPT_SCSI_HOST	*hd;
 	MPT_ADAPTER	*ioc;
@@ -1904,11 +1904,11 @@ mptsas_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	if (!vdevice || !vdevice->vtarget || vdevice->vtarget->deleted) {
 		SCpnt->result = DID_NO_CONNECT << 16;
-		done(SCpnt);
+		SCpnt->scsi_done(SCpnt);
 		return 0;
 	}
 
-	hd = shost_priv(SCpnt->device->host);
+	hd = shost_priv(shost);
 	ioc = hd->ioc;
 
 	if (ioc->sas_discovery_quiesce_io)
@@ -1917,10 +1917,8 @@ mptsas_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	if (ioc->debug_level & MPT_DEBUG_SCSI)
 		scsi_print_command(SCpnt);
 
-	return mptscsih_qcmd(SCpnt,done);
+	return mptscsih_qcmd(SCpnt);
 }
-
-static DEF_SCSI_QCMD(mptsas_qcmd)
 
 /**
  *	mptsas_mptsas_eh_timed_out - resets the scsi_cmnd timeout
@@ -2235,10 +2233,10 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	}
 
 	/* do we need to support multiple segments? */
-	if (bio_segments(req->bio) > 1 || bio_segments(rsp->bio) > 1) {
-		printk(MYIOC_s_ERR_FMT "%s: multiple segments req %u %u, rsp %u %u\n",
-		    ioc->name, __func__, bio_segments(req->bio), blk_rq_bytes(req),
-		    bio_segments(rsp->bio), blk_rq_bytes(rsp));
+	if (bio_multiple_segments(req->bio) ||
+	    bio_multiple_segments(rsp->bio)) {
+		printk(MYIOC_s_ERR_FMT "%s: multiple segments req %u, rsp %u\n",
+		    ioc->name, __func__, blk_rq_bytes(req), blk_rq_bytes(rsp));
 		return -EINVAL;
 	}
 

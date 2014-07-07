@@ -24,7 +24,6 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <asm/system_misc.h>
-#include <asm/timex.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -135,7 +134,7 @@ void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
 /*****************************************************************************
  * SPI
  ****************************************************************************/
-void __init orion5x_spi_init()
+void __init orion5x_spi_init(void)
 {
 	orion_spi_init(SPI_PHYS_BASE);
 }
@@ -185,7 +184,7 @@ static void __init orion5x_crypto_init(void)
 /*****************************************************************************
  * Watchdog
  ****************************************************************************/
-void __init orion5x_wdt_init(void)
+static void __init orion5x_wdt_init(void)
 {
 	orion_wdt_init();
 }
@@ -246,7 +245,7 @@ void orion5x_setup_wins(void)
 
 int orion5x_tclk;
 
-int __init orion5x_find_tclk(void)
+static int __init orion5x_find_tclk(void)
 {
 	u32 dev, rev;
 
@@ -366,8 +365,7 @@ void orion5x_restart(enum reboot_mode mode, const char *cmd)
  * Many orion-based systems have buggy bootloader implementations.
  * This is a common fixup for bogus memory tags.
  */
-void __init tag_fixup_mem32(struct tag *t, char **from,
-			    struct meminfo *meminfo)
+void __init tag_fixup_mem32(struct tag *t, char **from)
 {
 	for (; t->hdr.size; t = tag_next(t))
 		if (t->hdr.tag == ATAG_MEM &&

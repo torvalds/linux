@@ -1,0 +1,110 @@
+/*
+ * Copyright (c) 2013 MundoReader S.L.
+ * Author: Heiko Stuebner <heiko@sntech.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+#include "rk3066a.dtsi"
+
+/ {
+	model = "bq Curie 2";
+	compatible = "mundoreader,bq-curie2", "rockchip,rk3066a";
+
+	memory {
+		reg = <0x60000000 0x40000000>;
+	};
+
+	soc {
+		uart0: serial@10124000 {
+			status = "okay";
+		};
+
+		uart1: serial@10126000 {
+			status = "okay";
+		};
+
+		uart2: serial@20064000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart2_xfer>;
+			status = "okay";
+		};
+
+		uart3: serial@20068000 {
+			status = "okay";
+		};
+
+		vcc_sd0: fixed-regulator {
+			compatible = "regulator-fixed";
+			regulator-name = "sdmmc-supply";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			gpio = <&gpio3 7 GPIO_ACTIVE_LOW>;
+			startup-delay-us = <100000>;
+		};
+
+		dwmmc@10214000 { /* sdmmc */
+			num-slots = <1>;
+			status = "okay";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_bus4>;
+			vmmc-supply = <&vcc_sd0>;
+
+			slot@0 {
+				reg = <0>;
+				bus-width = <4>;
+				disable-wp;
+			};
+		};
+
+		dwmmc@10218000 { /* wifi */
+			num-slots = <1>;
+			status = "okay";
+			non-removable;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
+
+			slot@0 {
+				reg = <0>;
+				bus-width = <4>;
+				disable-wp;
+			};
+		};
+
+		gpio-keys {
+			compatible = "gpio-keys";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			autorepeat;
+
+			button@0 {
+				gpios = <&gpio6 2 GPIO_ACTIVE_LOW>; /* GPIO6_A2 */
+				linux,code = <116>;
+				label = "GPIO Key Power";
+				linux,input-type = <1>;
+				gpio-key,wakeup = <1>;
+				debounce-interval = <100>;
+			};
+			button@1 {
+				gpios = <&gpio4 21 GPIO_ACTIVE_LOW>; /* GPIO4_C5 */
+				linux,code = <104>;
+				label = "GPIO Key Vol-";
+				linux,input-type = <1>;
+				gpio-key,wakeup = <0>;
+				debounce-interval = <100>;
+			};
+			/* VOL+ comes somehow thru the ADC */
+		};
+	};
+};

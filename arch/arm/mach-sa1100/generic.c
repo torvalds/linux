@@ -42,74 +42,31 @@ EXPORT_SYMBOL(reset_status);
 /*
  * This table is setup for a 3.6864MHz Crystal.
  */
-static const unsigned short cclk_frequency_100khz[NR_FREQS] = {
-	 590,	/*  59.0 MHz */
-	 737,	/*  73.7 MHz */
-	 885,	/*  88.5 MHz */
-	1032,	/* 103.2 MHz */
-	1180,	/* 118.0 MHz */
-	1327,	/* 132.7 MHz */
-	1475,	/* 147.5 MHz */
-	1622,	/* 162.2 MHz */
-	1769,	/* 176.9 MHz */
-	1917,	/* 191.7 MHz */
-	2064,	/* 206.4 MHz */
-	2212,	/* 221.2 MHz */
-	2359,	/* 235.9 MHz */
-	2507,	/* 250.7 MHz */
-	2654,	/* 265.4 MHz */
-	2802	/* 280.2 MHz */
+struct cpufreq_frequency_table sa11x0_freq_table[NR_FREQS+1] = {
+	{ .frequency = 59000,	/*  59.0 MHz */},
+	{ .frequency = 73700,	/*  73.7 MHz */},
+	{ .frequency = 88500,	/*  88.5 MHz */},
+	{ .frequency = 103200,	/* 103.2 MHz */},
+	{ .frequency = 118000,	/* 118.0 MHz */},
+	{ .frequency = 132700,	/* 132.7 MHz */},
+	{ .frequency = 147500,	/* 147.5 MHz */},
+	{ .frequency = 162200,	/* 162.2 MHz */},
+	{ .frequency = 176900,	/* 176.9 MHz */},
+	{ .frequency = 191700,	/* 191.7 MHz */},
+	{ .frequency = 206400,	/* 206.4 MHz */},
+	{ .frequency = 221200,	/* 221.2 MHz */},
+	{ .frequency = 235900,	/* 235.9 MHz */},
+	{ .frequency = 250700,	/* 250.7 MHz */},
+	{ .frequency = 265400,	/* 265.4 MHz */},
+	{ .frequency = 280200,	/* 280.2 MHz */},
+	{ .frequency = CPUFREQ_TABLE_END, },
 };
-
-/* rounds up(!)  */
-unsigned int sa11x0_freq_to_ppcr(unsigned int khz)
-{
-	int i;
-
-	khz /= 100;
-
-	for (i = 0; i < NR_FREQS; i++)
-		if (cclk_frequency_100khz[i] >= khz)
-			break;
-
-	return i;
-}
-
-unsigned int sa11x0_ppcr_to_freq(unsigned int idx)
-{
-	unsigned int freq = 0;
-	if (idx < NR_FREQS)
-		freq = cclk_frequency_100khz[idx] * 100;
-	return freq;
-}
-
-
-/* make sure that only the "userspace" governor is run -- anything else wouldn't make sense on
- * this platform, anyway.
- */
-int sa11x0_verify_speed(struct cpufreq_policy *policy)
-{
-	unsigned int tmp;
-	if (policy->cpu)
-		return -EINVAL;
-
-	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq, policy->cpuinfo.max_freq);
-
-	/* make sure that at least one frequency is within the policy */
-	tmp = cclk_frequency_100khz[sa11x0_freq_to_ppcr(policy->min)] * 100;
-	if (tmp > policy->max)
-		policy->max = tmp;
-
-	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq, policy->cpuinfo.max_freq);
-
-	return 0;
-}
 
 unsigned int sa11x0_getspeed(unsigned int cpu)
 {
 	if (cpu)
 		return 0;
-	return cclk_frequency_100khz[PPCR & 0xf] * 100;
+	return sa11x0_freq_table[PPCR & 0xf].frequency;
 }
 
 /*

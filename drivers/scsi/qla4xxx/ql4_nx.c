@@ -14,6 +14,7 @@
 
 #include <asm-generic/io-64-nonatomic-lo-hi.h>
 
+#define TIMEOUT_100_MS	100
 #define MASK(n)		DMA_BIT_MASK(n)
 #define MN_WIN(addr)	(((addr & 0x1fc0000) >> 1) | ((addr >> 25) & 0x3ff))
 #define OCM_WIN(addr)	(((addr & 0x1ff0000) >> 1) | ((addr >> 25) & 0x3ff))
@@ -1176,6 +1177,112 @@ qla4_82xx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 	return 0;
 }
 
+/**
+ * qla4_8xxx_ms_mem_write_128b - Writes data to MS/off-chip memory
+ * @ha: Pointer to adapter structure
+ * @addr: Flash address to write to
+ * @data: Data to be written
+ * @count: word_count to be written
+ *
+ * Return: On success return QLA_SUCCESS
+ *         On error return QLA_ERROR
+ **/
+int qla4_8xxx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
+				uint32_t *data, uint32_t count)
+{
+	int i, j;
+	uint32_t agt_ctrl;
+	unsigned long flags;
+	int ret_val = QLA_SUCCESS;
+
+	/* Only 128-bit aligned access */
+	if (addr & 0xF) {
+		ret_val = QLA_ERROR;
+		goto exit_ms_mem_write;
+	}
+
+	write_lock_irqsave(&ha->hw_lock, flags);
+
+	/* Write address */
+	ret_val = ha->isp_ops->wr_reg_indirect(ha, MD_MIU_TEST_AGT_ADDR_HI, 0);
+	if (ret_val == QLA_ERROR) {
+		ql4_printk(KERN_ERR, ha, "%s: write to AGT_ADDR_HI failed\n",
+			   __func__);
+		goto exit_ms_mem_write_unlock;
+	}
+
+	for (i = 0; i < count; i++, addr += 16) {
+		if (!((QLA8XXX_ADDR_IN_RANGE(addr, QLA8XXX_ADDR_QDR_NET,
+					     QLA8XXX_ADDR_QDR_NET_MAX)) ||
+		      (QLA8XXX_ADDR_IN_RANGE(addr, QLA8XXX_ADDR_DDR_NET,
+					     QLA8XXX_ADDR_DDR_NET_MAX)))) {
+			ret_val = QLA_ERROR;
+			goto exit_ms_mem_write_unlock;
+		}
+
+		ret_val = ha->isp_ops->wr_reg_indirect(ha,
+						       MD_MIU_TEST_AGT_ADDR_LO,
+						       addr);
+		/* Write data */
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
+						MD_MIU_TEST_AGT_WRDATA_LO,
+						*data++);
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
+						MD_MIU_TEST_AGT_WRDATA_HI,
+						*data++);
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
+						MD_MIU_TEST_AGT_WRDATA_ULO,
+						*data++);
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
+						MD_MIU_TEST_AGT_WRDATA_UHI,
+						*data++);
+		if (ret_val == QLA_ERROR) {
+			ql4_printk(KERN_ERR, ha, "%s: write to AGT_WRDATA failed\n",
+				   __func__);
+			goto exit_ms_mem_write_unlock;
+		}
+
+		/* Check write status */
+		ret_val = ha->isp_ops->wr_reg_indirect(ha, MD_MIU_TEST_AGT_CTRL,
+						       MIU_TA_CTL_WRITE_ENABLE);
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
+							MD_MIU_TEST_AGT_CTRL,
+							MIU_TA_CTL_WRITE_START);
+		if (ret_val == QLA_ERROR) {
+			ql4_printk(KERN_ERR, ha, "%s: write to AGT_CTRL failed\n",
+				   __func__);
+			goto exit_ms_mem_write_unlock;
+		}
+
+		for (j = 0; j < MAX_CTL_CHECK; j++) {
+			ret_val = ha->isp_ops->rd_reg_indirect(ha,
+							MD_MIU_TEST_AGT_CTRL,
+							&agt_ctrl);
+			if (ret_val == QLA_ERROR) {
+				ql4_printk(KERN_ERR, ha, "%s: failed to read MD_MIU_TEST_AGT_CTRL\n",
+					   __func__);
+				goto exit_ms_mem_write_unlock;
+			}
+			if ((agt_ctrl & MIU_TA_CTL_BUSY) == 0)
+				break;
+		}
+
+		/* Status check failed */
+		if (j >= MAX_CTL_CHECK) {
+			printk_ratelimited(KERN_ERR "%s: MS memory write failed!\n",
+					   __func__);
+			ret_val = QLA_ERROR;
+			goto exit_ms_mem_write_unlock;
+		}
+	}
+
+exit_ms_mem_write_unlock:
+	write_unlock_irqrestore(&ha->hw_lock, flags);
+
+exit_ms_mem_write:
+	return ret_val;
+}
+
 static int
 qla4_82xx_load_from_flash(struct scsi_qla_host *ha, uint32_t image_start)
 {
@@ -1714,6 +1821,101 @@ void qla4_82xx_rom_lock_recovery(struct scsi_qla_host *ha)
 	qla4_82xx_rom_unlock(ha);
 }
 
+static uint32_t ql4_84xx_poll_wait_for_ready(struct scsi_qla_host *ha,
+					     uint32_t addr1, uint32_t mask)
+{
+	unsigned long timeout;
+	uint32_t rval = QLA_SUCCESS;
+	uint32_t temp;
+
+	timeout = jiffies + msecs_to_jiffies(TIMEOUT_100_MS);
+	do {
+		ha->isp_ops->rd_reg_indirect(ha, addr1, &temp);
+		if ((temp & mask) != 0)
+			break;
+
+		if (time_after_eq(jiffies, timeout)) {
+			ql4_printk(KERN_INFO, ha, "Error in processing rdmdio entry\n");
+			return QLA_ERROR;
+		}
+	} while (1);
+
+	return rval;
+}
+
+uint32_t ql4_84xx_ipmdio_rd_reg(struct scsi_qla_host *ha, uint32_t addr1,
+				uint32_t addr3, uint32_t mask, uint32_t addr,
+				uint32_t *data_ptr)
+{
+	int rval = QLA_SUCCESS;
+	uint32_t temp;
+	uint32_t data;
+
+	rval = ql4_84xx_poll_wait_for_ready(ha, addr1, mask);
+	if (rval)
+		goto exit_ipmdio_rd_reg;
+
+	temp = (0x40000000 | addr);
+	ha->isp_ops->wr_reg_indirect(ha, addr1, temp);
+
+	rval = ql4_84xx_poll_wait_for_ready(ha, addr1, mask);
+	if (rval)
+		goto exit_ipmdio_rd_reg;
+
+	ha->isp_ops->rd_reg_indirect(ha, addr3, &data);
+	*data_ptr = data;
+
+exit_ipmdio_rd_reg:
+	return rval;
+}
+
+
+static uint32_t ql4_84xx_poll_wait_ipmdio_bus_idle(struct scsi_qla_host *ha,
+						    uint32_t addr1,
+						    uint32_t addr2,
+						    uint32_t addr3,
+						    uint32_t mask)
+{
+	unsigned long timeout;
+	uint32_t temp;
+	uint32_t rval = QLA_SUCCESS;
+
+	timeout = jiffies + msecs_to_jiffies(TIMEOUT_100_MS);
+	do {
+		ql4_84xx_ipmdio_rd_reg(ha, addr1, addr3, mask, addr2, &temp);
+		if ((temp & 0x1) != 1)
+			break;
+		if (time_after_eq(jiffies, timeout)) {
+			ql4_printk(KERN_INFO, ha, "Error in processing mdiobus idle\n");
+			return QLA_ERROR;
+		}
+	} while (1);
+
+	return rval;
+}
+
+static int ql4_84xx_ipmdio_wr_reg(struct scsi_qla_host *ha,
+				  uint32_t addr1, uint32_t addr3,
+				  uint32_t mask, uint32_t addr,
+				  uint32_t value)
+{
+	int rval = QLA_SUCCESS;
+
+	rval = ql4_84xx_poll_wait_for_ready(ha, addr1, mask);
+	if (rval)
+		goto exit_ipmdio_wr_reg;
+
+	ha->isp_ops->wr_reg_indirect(ha, addr3, value);
+	ha->isp_ops->wr_reg_indirect(ha, addr1, addr);
+
+	rval = ql4_84xx_poll_wait_for_ready(ha, addr1, mask);
+	if (rval)
+		goto exit_ipmdio_wr_reg;
+
+exit_ipmdio_wr_reg:
+	return rval;
+}
+
 static void qla4_8xxx_minidump_process_rdcrb(struct scsi_qla_host *ha,
 				struct qla8xxx_minidump_entry_hdr *entry_hdr,
 				uint32_t **d_ptr)
@@ -1822,7 +2024,7 @@ error_exit:
 	return rval;
 }
 
-static int qla4_83xx_minidump_pex_dma_read(struct scsi_qla_host *ha,
+static int qla4_8xxx_minidump_pex_dma_read(struct scsi_qla_host *ha,
 				struct qla8xxx_minidump_entry_hdr *entry_hdr,
 				uint32_t **d_ptr)
 {
@@ -1899,11 +2101,11 @@ static int qla4_83xx_minidump_pex_dma_read(struct scsi_qla_host *ha,
 		dma_desc.cmd.read_data_size = size;
 
 		/* Prepare: Write pex-dma descriptor to MS memory. */
-		rval = qla4_83xx_ms_mem_write_128b(ha,
+		rval = qla4_8xxx_ms_mem_write_128b(ha,
 			      (uint64_t)m_hdr->desc_card_addr,
 			      (uint32_t *)&dma_desc,
 			      (sizeof(struct qla4_83xx_pex_dma_descriptor)/16));
-		if (rval == -1) {
+		if (rval != QLA_SUCCESS) {
 			ql4_printk(KERN_INFO, ha,
 				   "%s: Error writing rdmem-dma-init to MS !!!\n",
 				   __func__);
@@ -2359,17 +2561,10 @@ static int qla4_8xxx_minidump_process_rdmem(struct scsi_qla_host *ha,
 	uint32_t *data_ptr = *d_ptr;
 	int rval = QLA_SUCCESS;
 
-	if (is_qla8032(ha) || is_qla8042(ha)) {
-		rval = qla4_83xx_minidump_pex_dma_read(ha, entry_hdr,
-						       &data_ptr);
-		if (rval != QLA_SUCCESS) {
-			rval = __qla4_8xxx_minidump_process_rdmem(ha, entry_hdr,
-								  &data_ptr);
-		}
-	} else {
+	rval = qla4_8xxx_minidump_pex_dma_read(ha, entry_hdr, &data_ptr);
+	if (rval != QLA_SUCCESS)
 		rval = __qla4_8xxx_minidump_process_rdmem(ha, entry_hdr,
 							  &data_ptr);
-	}
 	*d_ptr = data_ptr;
 	return rval;
 }
@@ -2383,6 +2578,11 @@ static void qla4_8xxx_mark_entry_skipped(struct scsi_qla_host *ha,
 			  "scsi(%ld): Skipping entry[%d]: ETYPE[0x%x]-ELEVEL[0x%x]\n",
 			  ha->host_no, index, entry_hdr->entry_type,
 			  entry_hdr->d_ctrl.entry_capture_mask));
+	/* If driver encounters a new entry type that it cannot process,
+	 * it should just skip the entry and adjust the total buffer size by
+	 * from subtracting the skipped bytes from it
+	 */
+	ha->fw_dump_skip_size += entry_hdr->entry_capture_size;
 }
 
 /* ISP83xx functions to process new minidump entries... */
@@ -2432,6 +2632,227 @@ static uint32_t qla83xx_minidump_process_pollrd(struct scsi_qla_host *ha,
 	*d_ptr = data_ptr;
 
 exit_process_pollrd:
+	return rval;
+}
+
+static uint32_t qla4_84xx_minidump_process_rddfe(struct scsi_qla_host *ha,
+				struct qla8xxx_minidump_entry_hdr *entry_hdr,
+				uint32_t **d_ptr)
+{
+	int loop_cnt;
+	uint32_t addr1, addr2, value, data, temp, wrval;
+	uint8_t stride, stride2;
+	uint16_t count;
+	uint32_t poll, mask, data_size, modify_mask;
+	uint32_t wait_count = 0;
+	uint32_t *data_ptr = *d_ptr;
+	struct qla8044_minidump_entry_rddfe *rddfe;
+	uint32_t rval = QLA_SUCCESS;
+
+	rddfe = (struct qla8044_minidump_entry_rddfe *)entry_hdr;
+	addr1 = le32_to_cpu(rddfe->addr_1);
+	value = le32_to_cpu(rddfe->value);
+	stride = le32_to_cpu(rddfe->stride);
+	stride2 = le32_to_cpu(rddfe->stride2);
+	count = le32_to_cpu(rddfe->count);
+
+	poll = le32_to_cpu(rddfe->poll);
+	mask = le32_to_cpu(rddfe->mask);
+	modify_mask = le32_to_cpu(rddfe->modify_mask);
+	data_size = le32_to_cpu(rddfe->data_size);
+
+	addr2 = addr1 + stride;
+
+	for (loop_cnt = 0x0; loop_cnt < count; loop_cnt++) {
+		ha->isp_ops->wr_reg_indirect(ha, addr1, (0x40000000 | value));
+
+		wait_count = 0;
+		while (wait_count < poll) {
+			ha->isp_ops->rd_reg_indirect(ha, addr1, &temp);
+			if ((temp & mask) != 0)
+				break;
+			wait_count++;
+		}
+
+		if (wait_count == poll) {
+			ql4_printk(KERN_ERR, ha, "%s: TIMEOUT\n", __func__);
+			rval = QLA_ERROR;
+			goto exit_process_rddfe;
+		} else {
+			ha->isp_ops->rd_reg_indirect(ha, addr2, &temp);
+			temp = temp & modify_mask;
+			temp = (temp | ((loop_cnt << 16) | loop_cnt));
+			wrval = ((temp << 16) | temp);
+
+			ha->isp_ops->wr_reg_indirect(ha, addr2, wrval);
+			ha->isp_ops->wr_reg_indirect(ha, addr1, value);
+
+			wait_count = 0;
+			while (wait_count < poll) {
+				ha->isp_ops->rd_reg_indirect(ha, addr1, &temp);
+				if ((temp & mask) != 0)
+					break;
+				wait_count++;
+			}
+			if (wait_count == poll) {
+				ql4_printk(KERN_ERR, ha, "%s: TIMEOUT\n",
+					   __func__);
+				rval = QLA_ERROR;
+				goto exit_process_rddfe;
+			}
+
+			ha->isp_ops->wr_reg_indirect(ha, addr1,
+						     ((0x40000000 | value) +
+						     stride2));
+			wait_count = 0;
+			while (wait_count < poll) {
+				ha->isp_ops->rd_reg_indirect(ha, addr1, &temp);
+				if ((temp & mask) != 0)
+					break;
+				wait_count++;
+			}
+
+			if (wait_count == poll) {
+				ql4_printk(KERN_ERR, ha, "%s: TIMEOUT\n",
+					   __func__);
+				rval = QLA_ERROR;
+				goto exit_process_rddfe;
+			}
+
+			ha->isp_ops->rd_reg_indirect(ha, addr2, &data);
+
+			*data_ptr++ = cpu_to_le32(wrval);
+			*data_ptr++ = cpu_to_le32(data);
+		}
+	}
+
+	*d_ptr = data_ptr;
+exit_process_rddfe:
+	return rval;
+}
+
+static uint32_t qla4_84xx_minidump_process_rdmdio(struct scsi_qla_host *ha,
+				struct qla8xxx_minidump_entry_hdr *entry_hdr,
+				uint32_t **d_ptr)
+{
+	int rval = QLA_SUCCESS;
+	uint32_t addr1, addr2, value1, value2, data, selval;
+	uint8_t stride1, stride2;
+	uint32_t addr3, addr4, addr5, addr6, addr7;
+	uint16_t count, loop_cnt;
+	uint32_t poll, mask;
+	uint32_t *data_ptr = *d_ptr;
+	struct qla8044_minidump_entry_rdmdio *rdmdio;
+
+	rdmdio = (struct qla8044_minidump_entry_rdmdio *)entry_hdr;
+	addr1 = le32_to_cpu(rdmdio->addr_1);
+	addr2 = le32_to_cpu(rdmdio->addr_2);
+	value1 = le32_to_cpu(rdmdio->value_1);
+	stride1 = le32_to_cpu(rdmdio->stride_1);
+	stride2 = le32_to_cpu(rdmdio->stride_2);
+	count = le32_to_cpu(rdmdio->count);
+
+	poll = le32_to_cpu(rdmdio->poll);
+	mask = le32_to_cpu(rdmdio->mask);
+	value2 = le32_to_cpu(rdmdio->value_2);
+
+	addr3 = addr1 + stride1;
+
+	for (loop_cnt = 0; loop_cnt < count; loop_cnt++) {
+		rval = ql4_84xx_poll_wait_ipmdio_bus_idle(ha, addr1, addr2,
+							 addr3, mask);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		addr4 = addr2 - stride1;
+		rval = ql4_84xx_ipmdio_wr_reg(ha, addr1, addr3, mask, addr4,
+					     value2);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		addr5 = addr2 - (2 * stride1);
+		rval = ql4_84xx_ipmdio_wr_reg(ha, addr1, addr3, mask, addr5,
+					     value1);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		addr6 = addr2 - (3 * stride1);
+		rval = ql4_84xx_ipmdio_wr_reg(ha, addr1, addr3, mask,
+					     addr6, 0x2);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		rval = ql4_84xx_poll_wait_ipmdio_bus_idle(ha, addr1, addr2,
+							 addr3, mask);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		addr7 = addr2 - (4 * stride1);
+		rval = ql4_84xx_ipmdio_rd_reg(ha, addr1, addr3,
+						      mask, addr7, &data);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		selval = (value2 << 18) | (value1 << 2) | 2;
+
+		stride2 = le32_to_cpu(rdmdio->stride_2);
+		*data_ptr++ = cpu_to_le32(selval);
+		*data_ptr++ = cpu_to_le32(data);
+
+		value1 = value1 + stride2;
+		*d_ptr = data_ptr;
+	}
+
+exit_process_rdmdio:
+	return rval;
+}
+
+static uint32_t qla4_84xx_minidump_process_pollwr(struct scsi_qla_host *ha,
+				struct qla8xxx_minidump_entry_hdr *entry_hdr,
+				uint32_t **d_ptr)
+{
+	uint32_t addr1, addr2, value1, value2, poll, mask, r_value;
+	struct qla8044_minidump_entry_pollwr *pollwr_hdr;
+	uint32_t wait_count = 0;
+	uint32_t rval = QLA_SUCCESS;
+
+	pollwr_hdr = (struct qla8044_minidump_entry_pollwr *)entry_hdr;
+	addr1 = le32_to_cpu(pollwr_hdr->addr_1);
+	addr2 = le32_to_cpu(pollwr_hdr->addr_2);
+	value1 = le32_to_cpu(pollwr_hdr->value_1);
+	value2 = le32_to_cpu(pollwr_hdr->value_2);
+
+	poll = le32_to_cpu(pollwr_hdr->poll);
+	mask = le32_to_cpu(pollwr_hdr->mask);
+
+	while (wait_count < poll) {
+		ha->isp_ops->rd_reg_indirect(ha, addr1, &r_value);
+
+		if ((r_value & poll) != 0)
+			break;
+
+		wait_count++;
+	}
+
+	if (wait_count == poll) {
+		ql4_printk(KERN_ERR, ha, "%s: TIMEOUT\n", __func__);
+		rval = QLA_ERROR;
+		goto exit_process_pollwr;
+	}
+
+	ha->isp_ops->wr_reg_indirect(ha, addr2, value2);
+	ha->isp_ops->wr_reg_indirect(ha, addr1, value1);
+
+	wait_count = 0;
+	while (wait_count < poll) {
+		ha->isp_ops->rd_reg_indirect(ha, addr1, &r_value);
+
+		if ((r_value & poll) != 0)
+			break;
+		wait_count++;
+	}
+
+exit_process_pollwr:
 	return rval;
 }
 
@@ -2590,6 +3011,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 	uint64_t now;
 	uint32_t timestamp;
 
+	ha->fw_dump_skip_size = 0;
 	if (!ha->fw_dump) {
 		ql4_printk(KERN_INFO, ha, "%s(%ld) No buffer to dump\n",
 			   __func__, ha->host_no);
@@ -2747,6 +3169,24 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 			if (rval != QLA_SUCCESS)
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 			break;
+		case QLA8044_RDDFE:
+			rval = qla4_84xx_minidump_process_rddfe(ha, entry_hdr,
+								&data_ptr);
+			if (rval != QLA_SUCCESS)
+				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
+			break;
+		case QLA8044_RDMDIO:
+			rval = qla4_84xx_minidump_process_rdmdio(ha, entry_hdr,
+								 &data_ptr);
+			if (rval != QLA_SUCCESS)
+				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
+			break;
+		case QLA8044_POLLWR:
+			rval = qla4_84xx_minidump_process_pollwr(ha, entry_hdr,
+								 &data_ptr);
+			if (rval != QLA_SUCCESS)
+				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
+			break;
 		case QLA8XXX_RDNOP:
 		default:
 			qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
@@ -2761,7 +3201,7 @@ skip_nxt_entry:
 				 entry_hdr->entry_size);
 	}
 
-	if (data_collected != ha->fw_dump_size) {
+	if ((data_collected + ha->fw_dump_skip_size) != ha->fw_dump_size) {
 		ql4_printk(KERN_INFO, ha,
 			   "Dump data mismatch: Data collected: [0x%x], total_data_size:[0x%x]\n",
 			   data_collected, ha->fw_dump_size);
@@ -2820,62 +3260,34 @@ void qla4_8xxx_get_minidump(struct scsi_qla_host *ha)
 int qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 {
 	int rval = QLA_ERROR;
-	int i, timeout;
-	uint32_t old_count, count, idc_ctrl;
-	int need_reset = 0, peg_stuck = 1;
+	int i;
+	uint32_t old_count, count;
+	int need_reset = 0;
 
 	need_reset = ha->isp_ops->need_reset(ha);
-	old_count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
-
-	for (i = 0; i < 10; i++) {
-		timeout = msleep_interruptible(200);
-		if (timeout) {
-			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
-					    QLA8XXX_DEV_FAILED);
-			return rval;
-		}
-
-		count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
-		if (count != old_count)
-			peg_stuck = 0;
-	}
 
 	if (need_reset) {
 		/* We are trying to perform a recovery here. */
-		if (peg_stuck)
+		if (test_bit(AF_FW_RECOVERY, &ha->flags))
 			ha->isp_ops->rom_lock_recovery(ha);
-		goto dev_initialize;
 	} else  {
-		/* Start of day for this ha context. */
-		if (peg_stuck) {
-			/* Either we are the first or recovery in progress. */
-			ha->isp_ops->rom_lock_recovery(ha);
-			goto dev_initialize;
-		} else {
-			/* Firmware already running. */
-			rval = QLA_SUCCESS;
-			goto dev_ready;
+		old_count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
+		for (i = 0; i < 10; i++) {
+			msleep(200);
+			count = qla4_8xxx_rd_direct(ha,
+						    QLA8XXX_PEG_ALIVE_COUNTER);
+			if (count != old_count) {
+				rval = QLA_SUCCESS;
+				goto dev_ready;
+			}
 		}
+		ha->isp_ops->rom_lock_recovery(ha);
 	}
 
-dev_initialize:
 	/* set to DEV_INITIALIZING */
 	ql4_printk(KERN_INFO, ha, "HW State: INITIALIZING\n");
 	qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 			    QLA8XXX_DEV_INITIALIZING);
-
-	/*
-	 * For ISP8324 and ISP8042, if IDC_CTRL GRACEFUL_RESET_BIT1 is set,
-	 * reset it after device goes to INIT state.
-	 */
-	if (is_qla8032(ha) || is_qla8042(ha)) {
-		idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
-		if (idc_ctrl & GRACEFUL_RESET_BIT1) {
-			qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
-					 (idc_ctrl & ~GRACEFUL_RESET_BIT1));
-			set_bit(AF_83XX_NO_FW_DUMP, &ha->flags);
-		}
-	}
 
 	ha->isp_ops->idc_unlock(ha);
 
@@ -3208,6 +3620,10 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 	}
 
 	retval = qla4_8xxx_device_state_handler(ha);
+
+	/* Initialize request and response queues. */
+	if (retval == QLA_SUCCESS)
+		qla4xxx_init_rings(ha);
 
 	if (retval == QLA_SUCCESS && !test_bit(AF_IRQ_ATTACHED, &ha->flags))
 		retval = qla4xxx_request_irqs(ha);
@@ -3835,4 +4251,25 @@ qla4_8xxx_enable_msix(struct scsi_qla_host *ha)
 	}
 msix_out:
 	return ret;
+}
+
+int qla4_8xxx_check_init_adapter_retry(struct scsi_qla_host *ha)
+{
+	int status = QLA_SUCCESS;
+
+	/* Dont retry adapter initialization if IRQ allocation failed */
+	if (!test_bit(AF_IRQ_ATTACHED, &ha->flags)) {
+		ql4_printk(KERN_WARNING, ha, "%s: Skipping retry of adapter initialization as IRQs are not attached\n",
+			   __func__);
+		status = QLA_ERROR;
+		goto exit_init_adapter_failure;
+	}
+
+	/* Since interrupts are registered in start_firmware for
+	 * 8xxx, release them here if initialize_adapter fails
+	 * and retry adapter initialization */
+	qla4xxx_free_irqs(ha);
+
+exit_init_adapter_failure:
+	return status;
 }

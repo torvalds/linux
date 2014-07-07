@@ -74,6 +74,11 @@ module_param(fnic_trace_max_pages, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_trace_max_pages, "Total allocated memory pages "
 					"for fnic trace buffer");
 
+unsigned int fnic_fc_trace_max_pages = 64;
+module_param(fnic_fc_trace_max_pages, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(fnic_fc_trace_max_pages,
+		 "Total allocated memory pages for fc trace buffer");
+
 static unsigned int fnic_max_qdepth = FNIC_DFLT_QUEUE_DEPTH;
 module_param(fnic_max_qdepth, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_max_qdepth, "Queue depth to report for each LUN");
@@ -111,7 +116,7 @@ static struct scsi_host_template fnic_host_template = {
 	.change_queue_type = fc_change_queue_type,
 	.this_id = -1,
 	.cmd_per_lun = 3,
-	.can_queue = FNIC_MAX_IO_REQ,
+	.can_queue = FNIC_DFLT_IO_REQ,
 	.use_clustering = ENABLE_CLUSTERING,
 	.sg_tablesize = FNIC_MAX_SG_DESC_CNT,
 	.max_sectors = 0xffff,
@@ -556,6 +561,13 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host->transportt = fnic_fc_transport;
 
+	err = fnic_stats_debugfs_init(fnic);
+	if (err) {
+		shost_printk(KERN_ERR, fnic->lport->host,
+				"Failed to initialize debugfs for stats\n");
+		fnic_stats_debugfs_remove(fnic);
+	}
+
 	/* Setup PCI resources */
 	pci_set_drvdata(pdev, fnic);
 
@@ -766,6 +778,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		shost_printk(KERN_INFO, fnic->lport->host,
 			     "firmware uses non-FIP mode\n");
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_NON_FIP);
+		fnic->ctlr.state = FIP_ST_NON_FIP;
 	}
 	fnic->state = FNIC_IN_FC_MODE;
 
@@ -917,6 +930,7 @@ err_out_release_regions:
 err_out_disable_device:
 	pci_disable_device(pdev);
 err_out_free_hba:
+	fnic_stats_debugfs_remove(fnic);
 	scsi_host_put(lp->host);
 err_out:
 	return err;
@@ -969,6 +983,7 @@ static void fnic_remove(struct pci_dev *pdev)
 
 	fcoe_ctlr_destroy(&fnic->ctlr);
 	fc_lport_destroy(lp);
+	fnic_stats_debugfs_remove(fnic);
 
 	/*
 	 * This stops the fnic device, masks all interrupts. Completed
@@ -996,7 +1011,6 @@ static void fnic_remove(struct pci_dev *pdev)
 	fnic_iounmap(fnic);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	scsi_host_put(lp->host);
 }
 
@@ -1014,12 +1028,29 @@ static int __init fnic_init_module(void)
 
 	printk(KERN_INFO PFX "%s, ver %s\n", DRV_DESCRIPTION, DRV_VERSION);
 
+	/* Create debugfs entries for fnic */
+	err = fnic_debugfs_init();
+	if (err < 0) {
+		printk(KERN_ERR PFX "Failed to create fnic directory "
+				"for tracing and stats logging\n");
+		fnic_debugfs_terminate();
+	}
+
 	/* Allocate memory for trace buffer */
 	err = fnic_trace_buf_init();
 	if (err < 0) {
-		printk(KERN_ERR PFX "Trace buffer initialization Failed "
-				  "Fnic Tracing utility is disabled\n");
+		printk(KERN_ERR PFX
+		       "Trace buffer initialization Failed. "
+		       "Fnic Tracing utility is disabled\n");
 		fnic_trace_free();
+	}
+
+    /* Allocate memory for fc trace buffer */
+	err = fnic_fc_trace_init();
+	if (err < 0) {
+		printk(KERN_ERR PFX "FC trace buffer initialization Failed "
+		       "FC frame tracing utility is disabled\n");
+		fnic_fc_trace_free();
 	}
 
 	/* Create a cache for allocation of default size sgls */
@@ -1102,6 +1133,8 @@ err_create_fnic_sgl_slab_max:
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 err_create_fnic_sgl_slab_dflt:
 	fnic_trace_free();
+	fnic_fc_trace_free();
+	fnic_debugfs_terminate();
 	return err;
 }
 
@@ -1118,6 +1151,8 @@ static void __exit fnic_cleanup_module(void)
 	kmem_cache_destroy(fnic_io_req_cache);
 	fc_release_transport(fnic_fc_transport);
 	fnic_trace_free();
+	fnic_fc_trace_free();
+	fnic_debugfs_terminate();
 }
 
 module_init(fnic_init_module);

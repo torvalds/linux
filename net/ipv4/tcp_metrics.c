@@ -22,6 +22,10 @@
 
 int sysctl_tcp_nometrics_save __read_mostly;
 
+static struct tcp_metrics_block *__tcp_get_metrics(const struct inetpeer_addr *saddr,
+						   const struct inetpeer_addr *daddr,
+						   struct net *net, unsigned int hash);
+
 struct tcp_fastopen_metrics {
 	u16	mss;
 	u16	syn_loss:10;		/* Recurring Fast Open SYN losses */
@@ -29,14 +33,20 @@ struct tcp_fastopen_metrics {
 	struct	tcp_fastopen_cookie	cookie;
 };
 
+/* TCP_METRIC_MAX includes 2 extra fields for userspace compatibility
+ * Kernel only stores RTT and RTTVAR in usec resolution
+ */
+#define TCP_METRIC_MAX_KERNEL (TCP_METRIC_MAX - 2)
+
 struct tcp_metrics_block {
 	struct tcp_metrics_block __rcu	*tcpm_next;
-	struct inetpeer_addr		tcpm_addr;
+	struct inetpeer_addr		tcpm_saddr;
+	struct inetpeer_addr		tcpm_daddr;
 	unsigned long			tcpm_stamp;
 	u32				tcpm_ts;
 	u32				tcpm_ts_stamp;
 	u32				tcpm_lock;
-	u32				tcpm_vals[TCP_METRIC_MAX + 1];
+	u32				tcpm_vals[TCP_METRIC_MAX_KERNEL + 1];
 	struct tcp_fastopen_metrics	tcpm_fastopen;
 
 	struct rcu_head			rcu_head;
@@ -54,24 +64,11 @@ static u32 tcp_metric_get(struct tcp_metrics_block *tm,
 	return tm->tcpm_vals[idx];
 }
 
-static u32 tcp_metric_get_jiffies(struct tcp_metrics_block *tm,
-				  enum tcp_metric_index idx)
-{
-	return msecs_to_jiffies(tm->tcpm_vals[idx]);
-}
-
 static void tcp_metric_set(struct tcp_metrics_block *tm,
 			   enum tcp_metric_index idx,
 			   u32 val)
 {
 	tm->tcpm_vals[idx] = val;
-}
-
-static void tcp_metric_set_msecs(struct tcp_metrics_block *tm,
-				 enum tcp_metric_index idx,
-				 u32 val)
-{
-	tm->tcpm_vals[idx] = jiffies_to_msecs(val);
 }
 
 static bool addr_same(const struct inetpeer_addr *a,
@@ -96,9 +93,11 @@ struct tcpm_hash_bucket {
 
 static DEFINE_SPINLOCK(tcp_metrics_lock);
 
-static void tcpm_suck_dst(struct tcp_metrics_block *tm, struct dst_entry *dst,
+static void tcpm_suck_dst(struct tcp_metrics_block *tm,
+			  const struct dst_entry *dst,
 			  bool fastopen_clear)
 {
+	u32 msval;
 	u32 val;
 
 	tm->tcpm_stamp = jiffies;
@@ -116,8 +115,11 @@ static void tcpm_suck_dst(struct tcp_metrics_block *tm, struct dst_entry *dst,
 		val |= 1 << TCP_METRIC_REORDERING;
 	tm->tcpm_lock = val;
 
-	tm->tcpm_vals[TCP_METRIC_RTT] = dst_metric_raw(dst, RTAX_RTT);
-	tm->tcpm_vals[TCP_METRIC_RTTVAR] = dst_metric_raw(dst, RTAX_RTTVAR);
+	msval = dst_metric_raw(dst, RTAX_RTT);
+	tm->tcpm_vals[TCP_METRIC_RTT] = msval * USEC_PER_MSEC;
+
+	msval = dst_metric_raw(dst, RTAX_RTTVAR);
+	tm->tcpm_vals[TCP_METRIC_RTTVAR] = msval * USEC_PER_MSEC;
 	tm->tcpm_vals[TCP_METRIC_SSTHRESH] = dst_metric_raw(dst, RTAX_SSTHRESH);
 	tm->tcpm_vals[TCP_METRIC_CWND] = dst_metric_raw(dst, RTAX_CWND);
 	tm->tcpm_vals[TCP_METRIC_REORDERING] = dst_metric_raw(dst, RTAX_REORDERING);
@@ -130,16 +132,42 @@ static void tcpm_suck_dst(struct tcp_metrics_block *tm, struct dst_entry *dst,
 	}
 }
 
+#define TCP_METRICS_TIMEOUT		(60 * 60 * HZ)
+
+static void tcpm_check_stamp(struct tcp_metrics_block *tm, struct dst_entry *dst)
+{
+	if (tm && unlikely(time_after(jiffies, tm->tcpm_stamp + TCP_METRICS_TIMEOUT)))
+		tcpm_suck_dst(tm, dst, false);
+}
+
+#define TCP_METRICS_RECLAIM_DEPTH	5
+#define TCP_METRICS_RECLAIM_PTR		(struct tcp_metrics_block *) 0x1UL
+
 static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
-					  struct inetpeer_addr *addr,
-					  unsigned int hash,
-					  bool reclaim)
+					  struct inetpeer_addr *saddr,
+					  struct inetpeer_addr *daddr,
+					  unsigned int hash)
 {
 	struct tcp_metrics_block *tm;
 	struct net *net;
+	bool reclaim = false;
 
 	spin_lock_bh(&tcp_metrics_lock);
 	net = dev_net(dst->dev);
+
+	/* While waiting for the spin-lock the cache might have been populated
+	 * with this entry and so we have to check again.
+	 */
+	tm = __tcp_get_metrics(saddr, daddr, net, hash);
+	if (tm == TCP_METRICS_RECLAIM_PTR) {
+		reclaim = true;
+		tm = NULL;
+	}
+	if (tm) {
+		tcpm_check_stamp(tm, dst);
+		goto out_unlock;
+	}
+
 	if (unlikely(reclaim)) {
 		struct tcp_metrics_block *oldest;
 
@@ -155,7 +183,8 @@ static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
 		if (!tm)
 			goto out_unlock;
 	}
-	tm->tcpm_addr = *addr;
+	tm->tcpm_saddr = *saddr;
+	tm->tcpm_daddr = *daddr;
 
 	tcpm_suck_dst(tm, dst, true);
 
@@ -169,17 +198,6 @@ out_unlock:
 	return tm;
 }
 
-#define TCP_METRICS_TIMEOUT		(60 * 60 * HZ)
-
-static void tcpm_check_stamp(struct tcp_metrics_block *tm, struct dst_entry *dst)
-{
-	if (tm && unlikely(time_after(jiffies, tm->tcpm_stamp + TCP_METRICS_TIMEOUT)))
-		tcpm_suck_dst(tm, dst, false);
-}
-
-#define TCP_METRICS_RECLAIM_DEPTH	5
-#define TCP_METRICS_RECLAIM_PTR		(struct tcp_metrics_block *) 0x1UL
-
 static struct tcp_metrics_block *tcp_get_encode(struct tcp_metrics_block *tm, int depth)
 {
 	if (tm)
@@ -189,7 +207,8 @@ static struct tcp_metrics_block *tcp_get_encode(struct tcp_metrics_block *tm, in
 	return NULL;
 }
 
-static struct tcp_metrics_block *__tcp_get_metrics(const struct inetpeer_addr *addr,
+static struct tcp_metrics_block *__tcp_get_metrics(const struct inetpeer_addr *saddr,
+						   const struct inetpeer_addr *daddr,
 						   struct net *net, unsigned int hash)
 {
 	struct tcp_metrics_block *tm;
@@ -197,7 +216,8 @@ static struct tcp_metrics_block *__tcp_get_metrics(const struct inetpeer_addr *a
 
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
-		if (addr_same(&tm->tcpm_addr, addr))
+		if (addr_same(&tm->tcpm_saddr, saddr) &&
+		    addr_same(&tm->tcpm_daddr, daddr))
 			break;
 		depth++;
 	}
@@ -208,20 +228,25 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 						       struct dst_entry *dst)
 {
 	struct tcp_metrics_block *tm;
-	struct inetpeer_addr addr;
+	struct inetpeer_addr saddr, daddr;
 	unsigned int hash;
 	struct net *net;
 
-	addr.family = req->rsk_ops->family;
-	switch (addr.family) {
+	saddr.family = req->rsk_ops->family;
+	daddr.family = req->rsk_ops->family;
+	switch (daddr.family) {
 	case AF_INET:
-		addr.addr.a4 = inet_rsk(req)->rmt_addr;
-		hash = (__force unsigned int) addr.addr.a4;
+		saddr.addr.a4 = inet_rsk(req)->ir_loc_addr;
+		daddr.addr.a4 = inet_rsk(req)->ir_rmt_addr;
+		hash = (__force unsigned int) daddr.addr.a4;
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		*(struct in6_addr *)addr.addr.a6 = inet6_rsk(req)->rmt_addr;
-		hash = ipv6_addr_hash(&inet6_rsk(req)->rmt_addr);
+		*(struct in6_addr *)saddr.addr.a6 = inet_rsk(req)->ir_v6_loc_addr;
+		*(struct in6_addr *)daddr.addr.a6 = inet_rsk(req)->ir_v6_rmt_addr;
+		hash = ipv6_addr_hash(&inet_rsk(req)->ir_v6_rmt_addr);
 		break;
+#endif
 	default:
 		return NULL;
 	}
@@ -231,7 +256,8 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
-		if (addr_same(&tm->tcpm_addr, &addr))
+		if (addr_same(&tm->tcpm_saddr, &saddr) &&
+		    addr_same(&tm->tcpm_daddr, &daddr))
 			break;
 	}
 	tcpm_check_stamp(tm, dst);
@@ -240,33 +266,45 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 
 static struct tcp_metrics_block *__tcp_get_metrics_tw(struct inet_timewait_sock *tw)
 {
-	struct inet6_timewait_sock *tw6;
 	struct tcp_metrics_block *tm;
-	struct inetpeer_addr addr;
+	struct inetpeer_addr saddr, daddr;
 	unsigned int hash;
 	struct net *net;
 
-	addr.family = tw->tw_family;
-	switch (addr.family) {
-	case AF_INET:
-		addr.addr.a4 = tw->tw_daddr;
-		hash = (__force unsigned int) addr.addr.a4;
-		break;
-	case AF_INET6:
-		tw6 = inet6_twsk((struct sock *)tw);
-		*(struct in6_addr *)addr.addr.a6 = tw6->tw_v6_daddr;
-		hash = ipv6_addr_hash(&tw6->tw_v6_daddr);
-		break;
-	default:
-		return NULL;
+	if (tw->tw_family == AF_INET) {
+		saddr.family = AF_INET;
+		saddr.addr.a4 = tw->tw_rcv_saddr;
+		daddr.family = AF_INET;
+		daddr.addr.a4 = tw->tw_daddr;
+		hash = (__force unsigned int) daddr.addr.a4;
 	}
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (tw->tw_family == AF_INET6) {
+		if (ipv6_addr_v4mapped(&tw->tw_v6_daddr)) {
+			saddr.family = AF_INET;
+			saddr.addr.a4 = tw->tw_rcv_saddr;
+			daddr.family = AF_INET;
+			daddr.addr.a4 = tw->tw_daddr;
+			hash = (__force unsigned int) daddr.addr.a4;
+		} else {
+			saddr.family = AF_INET6;
+			*(struct in6_addr *)saddr.addr.a6 = tw->tw_v6_rcv_saddr;
+			daddr.family = AF_INET6;
+			*(struct in6_addr *)daddr.addr.a6 = tw->tw_v6_daddr;
+			hash = ipv6_addr_hash(&tw->tw_v6_daddr);
+		}
+	}
+#endif
+	else
+		return NULL;
 
 	net = twsk_net(tw);
 	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
-		if (addr_same(&tm->tcpm_addr, &addr))
+		if (addr_same(&tm->tcpm_saddr, &saddr) &&
+		    addr_same(&tm->tcpm_daddr, &daddr))
 			break;
 	}
 	return tm;
@@ -277,36 +315,45 @@ static struct tcp_metrics_block *tcp_get_metrics(struct sock *sk,
 						 bool create)
 {
 	struct tcp_metrics_block *tm;
-	struct inetpeer_addr addr;
+	struct inetpeer_addr saddr, daddr;
 	unsigned int hash;
 	struct net *net;
-	bool reclaim;
 
-	addr.family = sk->sk_family;
-	switch (addr.family) {
-	case AF_INET:
-		addr.addr.a4 = inet_sk(sk)->inet_daddr;
-		hash = (__force unsigned int) addr.addr.a4;
-		break;
-	case AF_INET6:
-		*(struct in6_addr *)addr.addr.a6 = inet6_sk(sk)->daddr;
-		hash = ipv6_addr_hash(&inet6_sk(sk)->daddr);
-		break;
-	default:
-		return NULL;
+	if (sk->sk_family == AF_INET) {
+		saddr.family = AF_INET;
+		saddr.addr.a4 = inet_sk(sk)->inet_saddr;
+		daddr.family = AF_INET;
+		daddr.addr.a4 = inet_sk(sk)->inet_daddr;
+		hash = (__force unsigned int) daddr.addr.a4;
 	}
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (sk->sk_family == AF_INET6) {
+		if (ipv6_addr_v4mapped(&sk->sk_v6_daddr)) {
+			saddr.family = AF_INET;
+			saddr.addr.a4 = inet_sk(sk)->inet_saddr;
+			daddr.family = AF_INET;
+			daddr.addr.a4 = inet_sk(sk)->inet_daddr;
+			hash = (__force unsigned int) daddr.addr.a4;
+		} else {
+			saddr.family = AF_INET6;
+			*(struct in6_addr *)saddr.addr.a6 = sk->sk_v6_rcv_saddr;
+			daddr.family = AF_INET6;
+			*(struct in6_addr *)daddr.addr.a6 = sk->sk_v6_daddr;
+			hash = ipv6_addr_hash(&sk->sk_v6_daddr);
+		}
+	}
+#endif
+	else
+		return NULL;
 
 	net = dev_net(dst->dev);
 	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 
-	tm = __tcp_get_metrics(&addr, net, hash);
-	reclaim = false;
-	if (tm == TCP_METRICS_RECLAIM_PTR) {
-		reclaim = true;
+	tm = __tcp_get_metrics(&saddr, &daddr, net, hash);
+	if (tm == TCP_METRICS_RECLAIM_PTR)
 		tm = NULL;
-	}
 	if (!tm && create)
-		tm = tcpm_new(dst, &addr, hash, reclaim);
+		tm = tcpm_new(dst, &saddr, &daddr, hash);
 	else
 		tcpm_check_stamp(tm, dst);
 
@@ -334,7 +381,7 @@ void tcp_update_metrics(struct sock *sk)
 		dst_confirm(dst);
 
 	rcu_read_lock();
-	if (icsk->icsk_backoff || !tp->srtt) {
+	if (icsk->icsk_backoff || !tp->srtt_us) {
 		/* This session failed to estimate rtt. Why?
 		 * Probably, no packets returned in time.  Reset our
 		 * results.
@@ -349,8 +396,8 @@ void tcp_update_metrics(struct sock *sk)
 	if (!tm)
 		goto out_unlock;
 
-	rtt = tcp_metric_get_jiffies(tm, TCP_METRIC_RTT);
-	m = rtt - tp->srtt;
+	rtt = tcp_metric_get(tm, TCP_METRIC_RTT);
+	m = rtt - tp->srtt_us;
 
 	/* If newly calculated rtt larger than stored one, store new
 	 * one. Otherwise, use EWMA. Remember, rtt overestimation is
@@ -358,10 +405,10 @@ void tcp_update_metrics(struct sock *sk)
 	 */
 	if (!tcp_metric_locked(tm, TCP_METRIC_RTT)) {
 		if (m <= 0)
-			rtt = tp->srtt;
+			rtt = tp->srtt_us;
 		else
 			rtt -= (m >> 3);
-		tcp_metric_set_msecs(tm, TCP_METRIC_RTT, rtt);
+		tcp_metric_set(tm, TCP_METRIC_RTT, rtt);
 	}
 
 	if (!tcp_metric_locked(tm, TCP_METRIC_RTTVAR)) {
@@ -372,16 +419,16 @@ void tcp_update_metrics(struct sock *sk)
 
 		/* Scale deviation to rttvar fixed point */
 		m >>= 1;
-		if (m < tp->mdev)
-			m = tp->mdev;
+		if (m < tp->mdev_us)
+			m = tp->mdev_us;
 
-		var = tcp_metric_get_jiffies(tm, TCP_METRIC_RTTVAR);
+		var = tcp_metric_get(tm, TCP_METRIC_RTTVAR);
 		if (m >= var)
 			var = m;
 		else
 			var -= (var - m) >> 2;
 
-		tcp_metric_set_msecs(tm, TCP_METRIC_RTTVAR, var);
+		tcp_metric_set(tm, TCP_METRIC_RTTVAR, var);
 	}
 
 	if (tcp_in_initial_slowstart(tp)) {
@@ -478,7 +525,7 @@ void tcp_init_metrics(struct sock *sk)
 		tp->reordering = val;
 	}
 
-	crtt = tcp_metric_get_jiffies(tm, TCP_METRIC_RTT);
+	crtt = tcp_metric_get(tm, TCP_METRIC_RTT);
 	rcu_read_unlock();
 reset:
 	/* The initial RTT measurement from the SYN/SYN-ACK is not ideal
@@ -501,18 +548,20 @@ reset:
 	 * to low value, and then abruptly stops to do it and starts to delay
 	 * ACKs, wait for troubles.
 	 */
-	if (crtt > tp->srtt) {
+	if (crtt > tp->srtt_us) {
 		/* Set RTO like tcp_rtt_estimator(), but from cached RTT. */
-		crtt >>= 3;
+		crtt /= 8 * USEC_PER_MSEC;
 		inet_csk(sk)->icsk_rto = crtt + max(2 * crtt, tcp_rto_min(sk));
-	} else if (tp->srtt == 0) {
+	} else if (tp->srtt_us == 0) {
 		/* RFC6298: 5.7 We've failed to get a valid RTT sample from
 		 * 3WHS. This is most likely due to retransmission,
 		 * including spurious one. Reset the RTO back to 3secs
 		 * from the more aggressive 1sec to avoid more spurious
 		 * retransmission.
 		 */
-		tp->mdev = tp->mdev_max = tp->rttvar = TCP_TIMEOUT_FALLBACK;
+		tp->rttvar_us = jiffies_to_usecs(TCP_TIMEOUT_FALLBACK);
+		tp->mdev_us = tp->mdev_max_us = tp->rttvar_us;
+
 		inet_csk(sk)->icsk_rto = TCP_TIMEOUT_FALLBACK;
 	}
 	/* Cut cwnd down to 1 per RFC5681 if SYN or SYN-ACK has been
@@ -659,16 +708,20 @@ void tcp_fastopen_cache_get(struct sock *sk, u16 *mss,
 void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
 			    struct tcp_fastopen_cookie *cookie, bool syn_lost)
 {
+	struct dst_entry *dst = __sk_dst_get(sk);
 	struct tcp_metrics_block *tm;
 
+	if (!dst)
+		return;
 	rcu_read_lock();
-	tm = tcp_get_metrics(sk, __sk_dst_get(sk), true);
+	tm = tcp_get_metrics(sk, dst, true);
 	if (tm) {
 		struct tcp_fastopen_metrics *tfom = &tm->tcpm_fastopen;
 
 		write_seqlock_bh(&fastopen_seqlock);
-		tfom->mss = mss;
-		if (cookie->len > 0)
+		if (mss)
+			tfom->mss = mss;
+		if (cookie && cookie->len > 0)
 			tfom->cookie = *cookie;
 		if (syn_lost) {
 			++tfom->syn_loss;
@@ -716,15 +769,21 @@ static int tcp_metrics_fill_info(struct sk_buff *msg,
 	struct nlattr *nest;
 	int i;
 
-	switch (tm->tcpm_addr.family) {
+	switch (tm->tcpm_daddr.family) {
 	case AF_INET:
 		if (nla_put_be32(msg, TCP_METRICS_ATTR_ADDR_IPV4,
-				tm->tcpm_addr.addr.a4) < 0)
+				tm->tcpm_daddr.addr.a4) < 0)
+			goto nla_put_failure;
+		if (nla_put_be32(msg, TCP_METRICS_ATTR_SADDR_IPV4,
+				tm->tcpm_saddr.addr.a4) < 0)
 			goto nla_put_failure;
 		break;
 	case AF_INET6:
 		if (nla_put(msg, TCP_METRICS_ATTR_ADDR_IPV6, 16,
-			    tm->tcpm_addr.addr.a6) < 0)
+			    tm->tcpm_daddr.addr.a6) < 0)
+			goto nla_put_failure;
+		if (nla_put(msg, TCP_METRICS_ATTR_SADDR_IPV6, 16,
+			    tm->tcpm_saddr.addr.a6) < 0)
 			goto nla_put_failure;
 		break;
 	default:
@@ -749,10 +808,26 @@ static int tcp_metrics_fill_info(struct sk_buff *msg,
 		nest = nla_nest_start(msg, TCP_METRICS_ATTR_VALS);
 		if (!nest)
 			goto nla_put_failure;
-		for (i = 0; i < TCP_METRIC_MAX + 1; i++) {
-			if (!tm->tcpm_vals[i])
+		for (i = 0; i < TCP_METRIC_MAX_KERNEL + 1; i++) {
+			u32 val = tm->tcpm_vals[i];
+
+			if (!val)
 				continue;
-			if (nla_put_u32(msg, i + 1, tm->tcpm_vals[i]) < 0)
+			if (i == TCP_METRIC_RTT) {
+				if (nla_put_u32(msg, TCP_METRIC_RTT_US + 1,
+						val) < 0)
+					goto nla_put_failure;
+				n++;
+				val = max(val / 1000, 1U);
+			}
+			if (i == TCP_METRIC_RTTVAR) {
+				if (nla_put_u32(msg, TCP_METRIC_RTTVAR_US + 1,
+						val) < 0)
+					goto nla_put_failure;
+				n++;
+				val = max(val / 1000, 1U);
+			}
+			if (nla_put_u32(msg, i + 1, val) < 0)
 				goto nla_put_failure;
 			n++;
 		}
@@ -847,43 +922,65 @@ done:
 	return skb->len;
 }
 
-static int parse_nl_addr(struct genl_info *info, struct inetpeer_addr *addr,
-			 unsigned int *hash, int optional)
+static int __parse_nl_addr(struct genl_info *info, struct inetpeer_addr *addr,
+			   unsigned int *hash, int optional, int v4, int v6)
 {
 	struct nlattr *a;
 
-	a = info->attrs[TCP_METRICS_ATTR_ADDR_IPV4];
+	a = info->attrs[v4];
 	if (a) {
 		addr->family = AF_INET;
 		addr->addr.a4 = nla_get_be32(a);
-		*hash = (__force unsigned int) addr->addr.a4;
+		if (hash)
+			*hash = (__force unsigned int) addr->addr.a4;
 		return 0;
 	}
-	a = info->attrs[TCP_METRICS_ATTR_ADDR_IPV6];
+	a = info->attrs[v6];
 	if (a) {
 		if (nla_len(a) != sizeof(struct in6_addr))
 			return -EINVAL;
 		addr->family = AF_INET6;
 		memcpy(addr->addr.a6, nla_data(a), sizeof(addr->addr.a6));
-		*hash = ipv6_addr_hash((struct in6_addr *) addr->addr.a6);
+		if (hash)
+			*hash = ipv6_addr_hash((struct in6_addr *) addr->addr.a6);
 		return 0;
 	}
 	return optional ? 1 : -EAFNOSUPPORT;
 }
 
+static int parse_nl_addr(struct genl_info *info, struct inetpeer_addr *addr,
+			 unsigned int *hash, int optional)
+{
+	return __parse_nl_addr(info, addr, hash, optional,
+			       TCP_METRICS_ATTR_ADDR_IPV4,
+			       TCP_METRICS_ATTR_ADDR_IPV6);
+}
+
+static int parse_nl_saddr(struct genl_info *info, struct inetpeer_addr *addr)
+{
+	return __parse_nl_addr(info, addr, NULL, 0,
+			       TCP_METRICS_ATTR_SADDR_IPV4,
+			       TCP_METRICS_ATTR_SADDR_IPV6);
+}
+
 static int tcp_metrics_nl_cmd_get(struct sk_buff *skb, struct genl_info *info)
 {
 	struct tcp_metrics_block *tm;
-	struct inetpeer_addr addr;
+	struct inetpeer_addr saddr, daddr;
 	unsigned int hash;
 	struct sk_buff *msg;
 	struct net *net = genl_info_net(info);
 	void *reply;
 	int ret;
+	bool src = true;
 
-	ret = parse_nl_addr(info, &addr, &hash, 0);
+	ret = parse_nl_addr(info, &daddr, &hash, 0);
 	if (ret < 0)
 		return ret;
+
+	ret = parse_nl_saddr(info, &saddr);
+	if (ret < 0)
+		src = false;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -899,7 +996,8 @@ static int tcp_metrics_nl_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	rcu_read_lock();
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
-		if (addr_same(&tm->tcpm_addr, &addr)) {
+		if (addr_same(&tm->tcpm_daddr, &daddr) &&
+		    (!src || addr_same(&tm->tcpm_saddr, &saddr))) {
 			ret = tcp_metrics_fill_info(msg, tm);
 			break;
 		}
@@ -954,36 +1052,42 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	struct tcpm_hash_bucket *hb;
 	struct tcp_metrics_block *tm;
 	struct tcp_metrics_block __rcu **pp;
-	struct inetpeer_addr addr;
+	struct inetpeer_addr saddr, daddr;
 	unsigned int hash;
 	struct net *net = genl_info_net(info);
 	int ret;
+	bool src = true, found = false;
 
-	ret = parse_nl_addr(info, &addr, &hash, 1);
+	ret = parse_nl_addr(info, &daddr, &hash, 1);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
 		return tcp_metrics_flush_all(net);
+	ret = parse_nl_saddr(info, &saddr);
+	if (ret < 0)
+		src = false;
 
 	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 	hb = net->ipv4.tcp_metrics_hash + hash;
 	pp = &hb->chain;
 	spin_lock_bh(&tcp_metrics_lock);
-	for (tm = deref_locked_genl(*pp); tm;
-	     pp = &tm->tcpm_next, tm = deref_locked_genl(*pp)) {
-		if (addr_same(&tm->tcpm_addr, &addr)) {
+	for (tm = deref_locked_genl(*pp); tm; tm = deref_locked_genl(*pp)) {
+		if (addr_same(&tm->tcpm_daddr, &daddr) &&
+		    (!src || addr_same(&tm->tcpm_saddr, &saddr))) {
 			*pp = tm->tcpm_next;
-			break;
+			kfree_rcu(tm, rcu_head);
+			found = true;
+		} else {
+			pp = &tm->tcpm_next;
 		}
 	}
 	spin_unlock_bh(&tcp_metrics_lock);
-	if (!tm)
+	if (!found)
 		return -ESRCH;
-	kfree_rcu(tm, rcu_head);
 	return 0;
 }
 
-static struct genl_ops tcp_metrics_nl_ops[] = {
+static const struct genl_ops tcp_metrics_nl_ops[] = {
 	{
 		.cmd = TCP_METRICS_CMD_GET,
 		.doit = tcp_metrics_nl_cmd_get,
@@ -1055,10 +1159,7 @@ static void __net_exit tcp_net_metrics_exit(struct net *net)
 			tm = next;
 		}
 	}
-	if (is_vmalloc_addr(net->ipv4.tcp_metrics_hash))
-		vfree(net->ipv4.tcp_metrics_hash);
-	else
-		kfree(net->ipv4.tcp_metrics_hash);
+	kvfree(net->ipv4.tcp_metrics_hash);
 }
 
 static __net_initdata struct pernet_operations tcp_net_metrics_ops = {
@@ -1074,8 +1175,7 @@ void __init tcp_metrics_init(void)
 	if (ret < 0)
 		goto cleanup;
 	ret = genl_register_family_with_ops(&tcp_metrics_nl_family,
-					    tcp_metrics_nl_ops,
-					    ARRAY_SIZE(tcp_metrics_nl_ops));
+					    tcp_metrics_nl_ops);
 	if (ret < 0)
 		goto cleanup_subsys;
 	return;

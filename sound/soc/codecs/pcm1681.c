@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <sound/pcm.h>
@@ -114,7 +115,7 @@ static int pcm1681_set_deemph(struct snd_soc_codec *codec)
 static int pcm1681_get_deemph(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct pcm1681_private *priv = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = priv->deemph;
@@ -125,7 +126,7 @@ static int pcm1681_get_deemph(struct snd_kcontrol *kcontrol,
 static int pcm1681_put_deemph(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct pcm1681_private *priv = snd_soc_codec_get_drvdata(codec);
 
 	priv->deemph = ucontrol->value.enumerated.item[0];
@@ -171,16 +172,21 @@ static int pcm1681_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct pcm1681_private *priv = snd_soc_codec_get_drvdata(codec);
 	int val = 0, ret;
-	int pcm_format = params_format(params);
 
 	priv->rate = params_rate(params);
 
 	switch (priv->format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_RIGHT_J:
-		if (pcm_format == SNDRV_PCM_FORMAT_S24_LE)
-			val = 0x00;
-		else if (pcm_format == SNDRV_PCM_FORMAT_S16_LE)
-			val = 0x03;
+		switch (params_width(params)) {
+		case 24:
+			val = 0;
+			break;
+		case 16:
+			val = 3;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	case SND_SOC_DAIFMT_I2S:
 		val = 0x04;
@@ -270,7 +276,7 @@ MODULE_DEVICE_TABLE(of, pcm1681_dt_ids);
 static const struct regmap_config pcm1681_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
-	.max_register		= ARRAY_SIZE(pcm1681_reg_defaults) + 1,
+	.max_register		= 0x13,
 	.reg_defaults		= pcm1681_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(pcm1681_reg_defaults),
 	.writeable_reg		= pcm1681_writeable_reg,

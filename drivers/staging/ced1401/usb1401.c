@@ -89,7 +89,6 @@ synchronous non-Urb based transfers.
 #include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -167,7 +166,7 @@ static int ced_open(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
-	dev_dbg(&interface->dev, "%s got pdx", __func__);
+	dev_dbg(&interface->dev, "%s: got pdx\n", __func__);
 
 	/* increment our usage count for the device */
 	kref_get(&pdx->kref);
@@ -185,7 +184,7 @@ static int ced_open(struct inode *inode, struct file *file)
 			goto exit;
 		}
 	} else {		/* uncomment this block if you want exclusive open */
-		dev_err(&interface->dev, "%s fail: already open", __func__);
+		dev_err(&interface->dev, "%s: fail: already open\n", __func__);
 		retval = -EBUSY;
 		pdx->open_count--;
 		mutex_unlock(&pdx->io_mutex);
@@ -208,7 +207,7 @@ static int ced_release(struct inode *inode, struct file *file)
 	if (pdx == NULL)
 		return -ENODEV;
 
-	dev_dbg(&pdx->interface->dev, "%s called", __func__);
+	dev_dbg(&pdx->interface->dev, "%s: called\n", __func__);
 	mutex_lock(&pdx->io_mutex);
 	if (!--pdx->open_count && pdx->interface)	/*  Allow autosuspend */
 		usb_autopm_put_interface(pdx->interface);
@@ -225,12 +224,12 @@ static int ced_flush(struct file *file, fl_owner_t id)
 	if (pdx == NULL)
 		return -ENODEV;
 
-	dev_dbg(&pdx->interface->dev, "%s char in pend=%d", __func__,
-		pdx->bReadCharsPending);
+	dev_dbg(&pdx->interface->dev, "%s: char in pend=%d\n",
+		__func__, pdx->bReadCharsPending);
 
 	/* wait for io to stop */
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s got io_mutex", __func__);
+	dev_dbg(&pdx->interface->dev, "%s: got io_mutex\n", __func__);
 	ced_draw_down(pdx);
 
 	/* read out errors, leave subsequent opens a clean slate */
@@ -240,7 +239,7 @@ static int ced_flush(struct file *file, fl_owner_t id)
 	spin_unlock_irq(&pdx->err_lock);
 
 	mutex_unlock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s exit reached", __func__);
+	dev_dbg(&pdx->interface->dev, "%s: exit reached\n", __func__);
 
 	return res;
 }
@@ -271,7 +270,7 @@ static void ced_writechar_callback(struct urb *pUrb)
 		    (pUrb->status == -ENOENT || pUrb->status == -ECONNRESET
 		     || pUrb->status == -ESHUTDOWN)) {
 			dev_err(&pdx->interface->dev,
-				"%s - nonzero write bulk status received: %d",
+				"%s: nonzero write bulk status received: %d\n",
 				__func__, pUrb->status);
 		}
 
@@ -288,10 +287,10 @@ static void ced_writechar_callback(struct urb *pUrb)
 		pdx->bSendCharsPending = false;	/*  Allow other threads again */
 		spin_unlock(&pdx->charOutLock);	/*  already at irq level */
 		dev_dbg(&pdx->interface->dev,
-			"%s - char out done, 0 chars sent", __func__);
+			"%s: char out done, 0 chars sent\n", __func__);
 	} else {
 		dev_dbg(&pdx->interface->dev,
-			"%s - char out done, %d chars sent", __func__, nGot);
+			"%s: char out done, %d chars sent\n", __func__, nGot);
 		spin_lock(&pdx->charOutLock);	/*  already at irq level */
 		pdx->dwNumOutput -= nGot;	/*  Now adjust the char send buffer */
 		pdx->dwOutBuffGet += nGot;	/*  to match what we did */
@@ -316,15 +315,15 @@ static void ced_writechar_callback(struct urb *pUrb)
 			    URB_NO_TRANSFER_DMA_MAP;
 			usb_anchor_urb(pdx->pUrbCharOut, &pdx->submitted);	/*  in case we need to kill it */
 			iReturn = usb_submit_urb(pdx->pUrbCharOut, GFP_ATOMIC);
-			dev_dbg(&pdx->interface->dev, "%s n=%d>%s<", __func__,
-				dwCount, pDat);
+			dev_dbg(&pdx->interface->dev, "%s: n=%d>%s<\n",
+				__func__, dwCount, pDat);
 			spin_lock(&pdx->charOutLock);	/*  grab lock for errors */
 			if (iReturn) {
 				pdx->bPipeError[nPipe] = 1;	/*  Flag an error to be handled later */
 				pdx->bSendCharsPending = false;	/*  Allow other threads again */
 				usb_unanchor_urb(pdx->pUrbCharOut);
 				dev_err(&pdx->interface->dev,
-					"%s usb_submit_urb() returned %d",
+					"%s: usb_submit_urb() returned %d\n",
 					__func__, iReturn);
 			}
 		} else
@@ -351,8 +350,8 @@ int SendChars(DEVICE_EXTENSION *pdx)
 		pdx->bSendCharsPending = true;	/*  Set flag to lock out other threads */
 
 		dev_dbg(&pdx->interface->dev,
-			"Send %d chars to 1401, EP0 flag %d\n", dwCount,
-			pdx->nPipes == 3);
+			"Send %d chars to 1401, EP0 flag %d\n",
+			dwCount, pdx->nPipes == 3);
 		/*  If we have only 3 end points we must send the characters to the 1401 using EP0. */
 		if (pdx->nPipes == 3) {
 			/*  For EP0 character transmissions to the 1401, we have to hang about until they */
@@ -376,11 +375,11 @@ int SendChars(DEVICE_EXTENSION *pdx)
 				if (nSent <= 0) {
 					iReturn = nSent ? nSent : -ETIMEDOUT;	/*  if 0 chars says we timed out */
 					dev_err(&pdx->interface->dev,
-						"Send %d chars by EP0 failed: %d",
+						"Send %d chars by EP0 failed: %d\n",
 						n, iReturn);
 				} else {
 					dev_dbg(&pdx->interface->dev,
-						"Sent %d chars by EP0", n);
+						"Sent %d chars by EP0\n", n);
 					count -= nSent;
 					index += nSent;
 				}
@@ -417,9 +416,9 @@ int SendChars(DEVICE_EXTENSION *pdx)
 		}
 	} else if (pdx->bSendCharsPending && (pdx->dwNumOutput > 0))
 		dev_dbg(&pdx->interface->dev,
-			"SendChars bSendCharsPending:true");
+			"%s: bSendCharsPending:true\n", __func__);
 
-	dev_dbg(&pdx->interface->dev, "SendChars exit code: %d", iReturn);
+	dev_dbg(&pdx->interface->dev, "%s: exit code: %d\n", __func__, iReturn);
 	spin_unlock_irq(&pdx->charOutLock);	/*  Now let go of the spinlock */
 	return iReturn;
 }
@@ -447,7 +446,7 @@ static void CopyUserSpace(DEVICE_EXTENSION *pdx, int n)
 		    pdx->StagedDone + pdx->StagedOffset + pArea->dwBaseOffset;
 		char *pCoherBuf = pdx->pCoherStagedIO;	/*  coherent buffer */
 		if (!pArea->bUsed) {
-			dev_err(&pdx->interface->dev, "%s area %d unused",
+			dev_err(&pdx->interface->dev, "%s: area %d unused\n",
 				__func__, nArea);
 			return;
 		}
@@ -475,21 +474,21 @@ static void CopyUserSpace(DEVICE_EXTENSION *pdx, int n)
 					n -= uiXfer;
 				} else {
 					dev_err(&pdx->interface->dev,
-						"%s did not map page %d",
+						"%s: did not map page %d\n",
 						__func__, nPage);
 					return;
 				}
 
 			} else {
 				dev_err(&pdx->interface->dev,
-					"%s exceeded pages %d", __func__,
-					nPage);
+					"%s: exceeded pages %d\n",
+					__func__, nPage);
 				return;
 			}
 		}
 	} else
-		dev_err(&pdx->interface->dev, "%s bad area %d", __func__,
-			nArea);
+		dev_err(&pdx->interface->dev, "%s: bad area %d\n",
+			__func__, nArea);
 }
 
 /*  Forward declarations for stuff used circularly */
@@ -514,11 +513,11 @@ static void staged_callback(struct urb *pUrb)
 		    (pUrb->status == -ENOENT || pUrb->status == -ECONNRESET
 		     || pUrb->status == -ESHUTDOWN)) {
 			dev_err(&pdx->interface->dev,
-				"%s - nonzero write bulk status received: %d",
+				"%s: nonzero write bulk status received: %d\n",
 				__func__, pUrb->status);
 		} else
 			dev_info(&pdx->interface->dev,
-				 "%s - staged xfer cancelled", __func__);
+				 "%s: staged xfer cancelled\n", __func__);
 
 		spin_lock(&pdx->err_lock);
 		pdx->errors = pUrb->status;
@@ -526,26 +525,26 @@ static void staged_callback(struct urb *pUrb)
 		nGot = 0;	/*   and tidy up again if so */
 		bCancel = true;
 	} else {
-		dev_dbg(&pdx->interface->dev, "%s %d chars xferred", __func__,
-			nGot);
+		dev_dbg(&pdx->interface->dev, "%s: %d chars xferred\n",
+			__func__, nGot);
 		if (pdx->StagedRead)	/*  if reading, save to user space */
 			CopyUserSpace(pdx, nGot);	/*  copy from buffer to user */
 		if (nGot == 0)
-			dev_dbg(&pdx->interface->dev, "%s ZLP", __func__);
+			dev_dbg(&pdx->interface->dev, "%s: ZLP\n", __func__);
 	}
 
 	/*  Update the transfer length based on the TransferBufferLength value in the URB */
 	pdx->StagedDone += nGot;
 
-	dev_dbg(&pdx->interface->dev, "%s, done %d bytes of %d", __func__,
-		pdx->StagedDone, pdx->StagedLength);
+	dev_dbg(&pdx->interface->dev, "%s: done %d bytes of %d\n",
+		__func__, pdx->StagedDone, pdx->StagedLength);
 
 	if ((pdx->StagedDone == pdx->StagedLength) ||	/*  If no more to do */
 	    (bCancel)) {		/*  or this IRP was cancelled */
 		TRANSAREA *pArea = &pdx->rTransDef[pdx->StagedId];	/*  Transfer area info */
 		dev_dbg(&pdx->interface->dev,
-			"%s transfer done, bytes %d, cancel %d", __func__,
-			pdx->StagedDone, bCancel);
+			"%s: transfer done, bytes %d, cancel %d\n",
+			__func__, pdx->StagedDone, bCancel);
 
 		/*  Here is where we sort out what to do with this transfer if using a circular buffer. We have */
 		/*   a completed transfer that can be assumed to fit into the transfer area. We should be able to */
@@ -560,7 +559,7 @@ static void staged_callback(struct urb *pUrb)
 					pArea->aBlocks[1].dwSize +=
 					    pdx->StagedLength;
 					dev_dbg(&pdx->interface->dev,
-						"RWM_Complete, circ block 1 now %d bytes at %d",
+						"RWM_Complete, circ block 1 now %d bytes at %d\n",
 						pArea->aBlocks[1].dwSize,
 						pArea->aBlocks[1].dwOffset);
 				} else {
@@ -570,7 +569,7 @@ static void staged_callback(struct urb *pUrb)
 					pArea->aBlocks[1].dwSize =
 					    pdx->StagedLength;
 					dev_err(&pdx->interface->dev,
-						"%s ERROR, circ block 1 re-started %d bytes at %d",
+						"%s: ERROR, circ block 1 re-started %d bytes at %d\n",
 						__func__,
 						pArea->aBlocks[1].dwSize,
 						pArea->aBlocks[1].dwOffset);
@@ -583,7 +582,7 @@ static void staged_callback(struct urb *pUrb)
 					     pArea->aBlocks[0].dwSize)) {
 						pArea->aBlocks[0].dwSize += pdx->StagedLength;	/*  Just add this transfer in */
 						dev_dbg(&pdx->interface->dev,
-							"RWM_Complete, circ block 0 now %d bytes at %d",
+							"RWM_Complete, circ block 0 now %d bytes at %d\n",
 							pArea->aBlocks[0].
 							dwSize,
 							pArea->aBlocks[0].
@@ -594,7 +593,7 @@ static void staged_callback(struct urb *pUrb)
 						pArea->aBlocks[1].dwSize =
 						    pdx->StagedLength;
 						dev_dbg(&pdx->interface->dev,
-							"RWM_Complete, circ block 1 started %d bytes at %d",
+							"RWM_Complete, circ block 1 started %d bytes at %d\n",
 							pArea->aBlocks[1].
 							dwSize,
 							pArea->aBlocks[1].
@@ -606,7 +605,7 @@ static void staged_callback(struct urb *pUrb)
 					pArea->aBlocks[0].dwSize =
 					    pdx->StagedLength;
 					dev_dbg(&pdx->interface->dev,
-						"RWM_Complete, circ block 0 started %d bytes at %d",
+						"RWM_Complete, circ block 0 started %d bytes at %d\n",
 						pArea->aBlocks[0].dwSize,
 						pArea->aBlocks[0].dwOffset);
 				}
@@ -615,7 +614,7 @@ static void staged_callback(struct urb *pUrb)
 
 		if (!bCancel) { /*  Don't generate an event if cancelled */
 			dev_dbg(&pdx->interface->dev,
-				"RWM_Complete,  bCircular %d, bToHost %d, eStart %d, eSize %d",
+				"RWM_Complete,  bCircular %d, bToHost %d, eStart %d, eSize %d\n",
 				pArea->bCircular, pArea->bEventToHost,
 				pArea->dwEventSt, pArea->dwEventSz);
 			if ((pArea->dwEventSz) &&	/*  Set a user-mode event... */
@@ -642,7 +641,7 @@ static void staged_callback(struct urb *pUrb)
 
 				if (iWakeUp) {
 					dev_dbg(&pdx->interface->dev,
-						"About to set event to notify app");
+						"About to set event to notify app\n");
 					wake_up_interruptible(&pArea->wqEvent);	/*  wake up waiting processes */
 					++pArea->iWakeUp;	/*  increment wakeup count */
 				}
@@ -656,7 +655,7 @@ static void staged_callback(struct urb *pUrb)
 			if (pdx->bXFerWaiting) {	/*  Got a block xfer waiting? */
 				int iReturn;
 				dev_info(&pdx->interface->dev,
-					 "*** RWM_Complete *** pending transfer will now be set up!!!");
+					 "*** RWM_Complete *** pending transfer will now be set up!!!\n");
 				iReturn =
 				    ReadWriteMem(pdx, !pdx->rDMAInfo.bOutWard,
 						 pdx->rDMAInfo.wIdent,
@@ -665,7 +664,7 @@ static void staged_callback(struct urb *pUrb)
 
 				if (iReturn)
 					dev_err(&pdx->interface->dev,
-						"RWM_Complete rw setup failed %d",
+						"RWM_Complete rw setup failed %d\n",
 						iReturn);
 			}
 		}
@@ -686,7 +685,7 @@ static void staged_callback(struct urb *pUrb)
 	/*  not be upset by char input during DMA... sigh. Needs sorting out. */
 	if (bRestartCharInput)	/*  may be out of date, but... */
 		Allowi(pdx);	/*  ...Allowi tests a lock too. */
-	dev_dbg(&pdx->interface->dev, "%s done", __func__);
+	dev_dbg(&pdx->interface->dev, "%s: done\n", __func__);
 }
 
 /****************************************************************************
@@ -708,7 +707,7 @@ static int StageChunk(DEVICE_EXTENSION *pdx)
 		return U14ERR_FAIL;
 
 	if (!CanAcceptIoRequests(pdx)) {	/*  got sudden remove? */
-		dev_info(&pdx->interface->dev, "%s sudden remove, giving up",
+		dev_info(&pdx->interface->dev, "%s: sudden remove, giving up\n",
 			 __func__);
 		return U14ERR_FAIL;	/*  could do with a better error */
 	}
@@ -732,11 +731,11 @@ static int StageChunk(DEVICE_EXTENSION *pdx)
 	if (iReturn) {
 		usb_unanchor_urb(pdx->pStagedUrb);	/*  kill it */
 		pdx->bPipeError[nPipe] = 1;	/*  Flag an error to be handled later */
-		dev_err(&pdx->interface->dev, "%s submit urb failed, code %d",
+		dev_err(&pdx->interface->dev, "%s: submit urb failed, code %d\n",
 			__func__, iReturn);
 	} else
 		pdx->bStagedUrbPending = true;	/*  Set the flag for staged URB pending */
-	dev_dbg(&pdx->interface->dev, "%s done so far:%d, this size:%d",
+	dev_dbg(&pdx->interface->dev, "%s: done so far:%d, this size:%d\n",
 		__func__, pdx->StagedDone, ChunkSize);
 
 	return iReturn;
@@ -765,28 +764,28 @@ int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 	TRANSAREA *pArea = &pdx->rTransDef[wIdent];	/*  Transfer area info */
 
 	if (!CanAcceptIoRequests(pdx)) {	/*  Are we in a state to accept new requests? */
-		dev_err(&pdx->interface->dev, "%s can't accept requests",
+		dev_err(&pdx->interface->dev, "%s: can't accept requests\n",
 			__func__);
 		return U14ERR_FAIL;
 	}
 
 	dev_dbg(&pdx->interface->dev,
-		"%s xfer %d bytes to %s, offset %d, area %d", __func__, dwLen,
-		Read ? "host" : "1401", dwOffs, wIdent);
+		"%s: xfer %d bytes to %s, offset %d, area %d\n",
+		__func__, dwLen, Read ? "host" : "1401", dwOffs, wIdent);
 
 	/*  Amazingly, we can get an escape sequence back before the current staged Urb is done, so we */
 	/*   have to check for this situation and, if so, wait until all is OK. */
 	if (pdx->bStagedUrbPending) {
 		pdx->bXFerWaiting = true;	/*  Flag we are waiting */
 		dev_info(&pdx->interface->dev,
-			 "%s xfer is waiting, as previous staged pending",
+			 "%s: xfer is waiting, as previous staged pending\n",
 			 __func__);
 		return U14ERR_NOERROR;
 	}
 
 	if (dwLen == 0) {		/*  allow 0-len read or write; just return success */
 		dev_dbg(&pdx->interface->dev,
-			"%s OK; zero-len read/write request", __func__);
+			"%s: OK; zero-len read/write request\n", __func__);
 		return U14ERR_NOERROR;
 	}
 
@@ -796,7 +795,7 @@ int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 		bool bWait = false;	/*  Flag for transfer having to wait */
 
 		dev_dbg(&pdx->interface->dev,
-			"Circular buffers are %d at %d and %d at %d",
+			"Circular buffers are %d at %d and %d at %d\n",
 			pArea->aBlocks[0].dwSize, pArea->aBlocks[0].dwOffset,
 			pArea->aBlocks[1].dwSize, pArea->aBlocks[1].dwOffset);
 		if (pArea->aBlocks[1].dwSize > 0) {	/*  Using the second block already? */
@@ -820,14 +819,14 @@ int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 		if (bWait) {	/*  This transfer will have to wait? */
 			pdx->bXFerWaiting = true;	/*  Flag we are waiting */
 			dev_dbg(&pdx->interface->dev,
-				"%s xfer waiting for circular buffer space",
+				"%s: xfer waiting for circular buffer space\n",
 				__func__);
 			return U14ERR_NOERROR;
 		}
 
 		dev_dbg(&pdx->interface->dev,
-			"%s circular xfer, %d bytes starting at %d", __func__,
-			dwLen, dwOffs);
+			"%s: circular xfer, %d bytes starting at %d\n",
+			__func__, dwLen, dwOffs);
 	}
 	/*  Save the parameters for the read\write transfer */
 	pdx->StagedRead = Read;	/*  Save the parameters for this read */
@@ -949,7 +948,7 @@ static bool ReadDMAInfo(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 	unsigned char ucData;
 	unsigned int dDone = 0;	/*  We haven't parsed anything so far */
 
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	if (ReadChar(&ucData, pBuf, &dDone, dwCount)) {
 		unsigned char ucTransCode = (ucData & 0x0F);	/*  get code for transfer type */
@@ -961,8 +960,8 @@ static bool ReadDMAInfo(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 		pDmaDesc->dwSize = 0;	/*  initialise other bits */
 		pDmaDesc->dwOffset = 0;
 
-		dev_dbg(&pdx->interface->dev, "%s type: %d ident: %d", __func__,
-			pDmaDesc->wTransType, pDmaDesc->wIdent);
+		dev_dbg(&pdx->interface->dev, "%s: type: %d ident: %d\n",
+			__func__, pDmaDesc->wTransType, pDmaDesc->wIdent);
 
 		pDmaDesc->bOutWard = (ucTransCode != TM_EXTTOHOST);	/*  set transfer direction */
 
@@ -977,7 +976,7 @@ static bool ReadDMAInfo(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 						&dDone, dwCount);
 				if (bResult) {
 					dev_dbg(&pdx->interface->dev,
-						"%s xfer offset & size %d %d",
+						"%s: xfer offset & size %d %d\n",
 						__func__, pDmaDesc->dwOffset,
 						pDmaDesc->dwSize);
 
@@ -990,7 +989,7 @@ static bool ReadDMAInfo(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 					      dwLength))) {
 						bResult = false;	/*  bad parameter(s) */
 						dev_dbg(&pdx->interface->dev,
-							"%s bad param - id %d, bUsed %d, offset %d, size %d, area length %d",
+							"%s: bad param - id %d, bUsed %d, offset %d, size %d, area length %d\n",
 							__func__, wIdent,
 							pdx->rTransDef[wIdent].
 							bUsed,
@@ -1009,7 +1008,7 @@ static bool ReadDMAInfo(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 		bResult = false;
 
 	if (!bResult)		/*  now check parameters for validity */
-		dev_err(&pdx->interface->dev, "%s error reading Esc sequence",
+		dev_err(&pdx->interface->dev, "%s: error reading Esc sequence\n",
 			__func__);
 
 	return bResult;
@@ -1046,15 +1045,15 @@ static int Handle1401Esc(DEVICE_EXTENSION *pdx, char *pCh,
 			unsigned short wTransType = pdx->rDMAInfo.wTransType;	/*  check transfer type */
 
 			dev_dbg(&pdx->interface->dev,
-				"%s xfer to %s, offset %d, length %d", __func__,
+				"%s: xfer to %s, offset %d, length %d\n",
+				__func__,
 				pdx->rDMAInfo.bOutWard ? "1401" : "host",
 				pdx->rDMAInfo.dwOffset, pdx->rDMAInfo.dwSize);
 
 			if (pdx->bXFerWaiting) { /*  Check here for badly out of kilter... */
 				/*  This can never happen, really */
 				dev_err(&pdx->interface->dev,
-					"ERROR: DMA setup while transfer still waiting");
-				spin_unlock(&pdx->stagedLock);
+					"ERROR: DMA setup while transfer still waiting\n");
 			} else {
 				if ((wTransType == TM_EXTTOHOST)
 				    || (wTransType == TM_EXTTO1401)) {
@@ -1067,21 +1066,21 @@ static int Handle1401Esc(DEVICE_EXTENSION *pdx, char *pCh,
 							 pdx->rDMAInfo.dwSize);
 					if (iReturn != U14ERR_NOERROR)
 						dev_err(&pdx->interface->dev,
-							"%s ReadWriteMem() failed %d",
+							"%s: ReadWriteMem() failed %d\n",
 							__func__, iReturn);
 				} else	/*  This covers non-linear transfer setup */
 					dev_err(&pdx->interface->dev,
-						"%s Unknown block xfer type %d",
+						"%s: Unknown block xfer type %d\n",
 						__func__, wTransType);
 			}
 		} else		/*  Failed to read parameters */
-			dev_err(&pdx->interface->dev, "%s ReadDMAInfo() fail",
+			dev_err(&pdx->interface->dev, "%s: ReadDMAInfo() fail\n",
 				__func__);
 
 		spin_unlock(&pdx->stagedLock);	/*  OK here */
 	}
 
-	dev_dbg(&pdx->interface->dev, "%s returns %d", __func__, iReturn);
+	dev_dbg(&pdx->interface->dev, "%s: returns %d\n", __func__, iReturn);
 
 	return iReturn;
 }
@@ -1101,11 +1100,11 @@ static void ced_readchar_callback(struct urb *pUrb)
 		    (pUrb->status == -ENOENT || pUrb->status == -ECONNRESET
 		     || pUrb->status == -ESHUTDOWN)) {
 			dev_err(&pdx->interface->dev,
-				"%s - nonzero write bulk status received: %d",
+				"%s: nonzero write bulk status received: %d\n",
 				__func__, pUrb->status);
 		} else
 			dev_dbg(&pdx->interface->dev,
-				"%s - 0 chars pUrb->status=%d (shutdown?)",
+				"%s: 0 chars pUrb->status=%d (shutdown?)\n",
 				__func__, pUrb->status);
 
 		spin_lock(&pdx->err_lock);
@@ -1126,7 +1125,7 @@ static void ced_readchar_callback(struct urb *pUrb)
 				if (nGot < INBUF_SZ) {
 					pdx->pCoherCharIn[nGot] = 0;	/*  tidy the string */
 					dev_dbg(&pdx->interface->dev,
-						"%s got %d chars >%s<",
+						"%s: got %d chars >%s<\n",
 						__func__, nGot,
 						pdx->pCoherCharIn);
 				}
@@ -1141,7 +1140,7 @@ static void ced_readchar_callback(struct urb *pUrb)
 				if ((pdx->dwNumInput + nGot) <= INBUF_SZ)
 					pdx->dwNumInput += nGot;	/*  Adjust the buffer count accordingly */
 			} else
-				dev_dbg(&pdx->interface->dev, "%s read ZLP",
+				dev_dbg(&pdx->interface->dev, "%s: read ZLP\n",
 					__func__);
 		}
 	}
@@ -1179,7 +1178,7 @@ int Allowi(DEVICE_EXTENSION *pdx)
 		unsigned int nMax = INBUF_SZ - pdx->dwNumInput;	/*  max we could read */
 		int nPipe = pdx->nPipes == 4 ? 1 : 0;	/*  The pipe number to use */
 
-		dev_dbg(&pdx->interface->dev, "%s %d chars in input buffer",
+		dev_dbg(&pdx->interface->dev, "%s: %d chars in input buffer\n",
 			__func__, pdx->dwNumInput);
 
 		usb_fill_int_urb(pdx->pUrbCharIn, pdx->udev,
@@ -1193,7 +1192,8 @@ int Allowi(DEVICE_EXTENSION *pdx)
 			usb_unanchor_urb(pdx->pUrbCharIn);	/*  remove from list of active Urbs */
 			pdx->bPipeError[nPipe] = 1;	/*  Flag an error to be handled later */
 			dev_err(&pdx->interface->dev,
-				"%s submit urb failed: %d", __func__, iReturn);
+				"%s: submit urb failed: %d\n",
+				__func__, iReturn);
 		} else
 			pdx->bReadCharsPending = true;	/*  Flag that we are active here */
 	}
@@ -1251,13 +1251,13 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return GetString(pdx, (char __user *)ulArg, _IOC_SIZE(cmd));
 
 	case _IOC_NR(IOCTL_CED_SETTRANSFER):
-		return SetTransfer(pdx, (TRANSFERDESC __user *) ulArg);
+		return SetTransfer(pdx, (struct transfer_area_desc __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_UNSETTRANSFER):
 		return UnsetTransfer(pdx, (int)ulArg);
 
 	case _IOC_NR(IOCTL_CED_SETEVENT):
-		return SetEvent(pdx, (TRANSFEREVENT __user *) ulArg);
+		return SetEvent(pdx, (struct transfer_event __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_GETOUTBUFSPACE):
 		return GetOutBufSpace(pdx);
@@ -1316,7 +1316,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		break;
 
 	case _IOC_NR(IOCTL_CED_SETCIRCULAR):
-		return SetCircular(pdx, (TRANSFERDESC __user *) ulArg);
+		return SetCircular(pdx, (struct transfer_area_desc __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_GETCIRCBLOCK):
 		return GetCircBlock(pdx, (TCIRCBLOCK __user *) ulArg);
@@ -1398,7 +1398,7 @@ static int ced_probe(struct usb_interface *interface,
 	else if ((i >= 1) && (i <= 23))
 		pdx->s1401Type = i + 2;
 	else {
-		dev_err(&interface->dev, "%s Unknown device. bcdDevice = %d",
+		dev_err(&interface->dev, "%s: Unknown device. bcdDevice = %d\n",
 			__func__, bcdDevice);
 		goto error;
 	}
@@ -1406,7 +1406,7 @@ static int ced_probe(struct usb_interface *interface,
 	/*  we know that we are dealing with a 1401 device. */
 	iface_desc = interface->cur_altsetting;
 	pdx->nPipes = iface_desc->desc.bNumEndpoints;
-	dev_info(&interface->dev, "1401Type=%d with %d End Points",
+	dev_info(&interface->dev, "1401Type=%d with %d End Points\n",
 		 pdx->s1401Type, pdx->nPipes);
 	if ((pdx->nPipes < 3) || (pdx->nPipes > 4))
 		goto error;
@@ -1416,7 +1416,7 @@ static int ced_probe(struct usb_interface *interface,
 	pdx->pUrbCharIn = usb_alloc_urb(0, GFP_KERNEL);	/*  character input URB */
 	pdx->pStagedUrb = usb_alloc_urb(0, GFP_KERNEL);	/*  block transfer URB */
 	if (!pdx->pUrbCharOut || !pdx->pUrbCharIn || !pdx->pStagedUrb) {
-		dev_err(&interface->dev, "%s URB alloc failed", __func__);
+		dev_err(&interface->dev, "%s: URB alloc failed\n", __func__);
 		goto error;
 	}
 
@@ -1430,7 +1430,7 @@ static int ced_probe(struct usb_interface *interface,
 	    usb_alloc_coherent(pdx->udev, INBUF_SZ, GFP_KERNEL,
 			       &pdx->pUrbCharIn->transfer_dma);
 	if (!pdx->pCoherCharOut || !pdx->pCoherCharIn || !pdx->pCoherStagedIO) {
-		dev_err(&interface->dev, "%s Coherent buffer alloc failed",
+		dev_err(&interface->dev, "%s: Coherent buffer alloc failed\n",
 			__func__);
 		goto error;
 	}
@@ -1438,19 +1438,19 @@ static int ced_probe(struct usb_interface *interface,
 	for (i = 0; i < pdx->nPipes; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 		pdx->epAddr[i] = endpoint->bEndpointAddress;
-		dev_info(&interface->dev, "Pipe %d, ep address %02x", i,
-			 pdx->epAddr[i]);
+		dev_info(&interface->dev, "Pipe %d, ep address %02x\n",
+			 i, pdx->epAddr[i]);
 		if (((pdx->nPipes == 3) && (i == 0)) ||	/*  if char input end point */
 		    ((pdx->nPipes == 4) && (i == 1))) {
 			pdx->bInterval = endpoint->bInterval;	/*  save the endpoint interrupt interval */
-			dev_info(&interface->dev, "Pipe %d, bInterval = %d", i,
-				 pdx->bInterval);
+			dev_info(&interface->dev, "Pipe %d, bInterval = %d\n",
+				 i, pdx->bInterval);
 		}
 		/*  Detect USB2 by checking last ep size (64 if USB1) */
 		if (i == pdx->nPipes - 1) {	/*  if this is the last ep (bulk) */
 			pdx->bIsUSB2 =
 			    le16_to_cpu(endpoint->wMaxPacketSize) > 64;
-			dev_info(&pdx->interface->dev, "USB%d",
+			dev_info(&pdx->interface->dev, "USB%d\n",
 				 pdx->bIsUSB2 + 1);
 		}
 	}
@@ -1463,14 +1463,14 @@ static int ced_probe(struct usb_interface *interface,
 	if (retval) {
 		/* something prevented us from registering this driver */
 		dev_err(&interface->dev,
-			"Not able to get a minor for this device.\n");
+			"Not able to get a minor for this device\n");
 		usb_set_intfdata(interface, NULL);
 		goto error;
 	}
 
 	/* let the user know what node this device is now attached to */
 	dev_info(&interface->dev,
-		 "USB CEDUSB device now attached to cedusb #%d",
+		 "USB CEDUSB device now attached to cedusb #%d\n",
 		 interface->minor);
 	return 0;
 
@@ -1494,7 +1494,7 @@ static void ced_disconnect(struct usb_interface *interface)
 	for (i = 0; i < MAX_TRANSAREAS; ++i) {
 		int iErr = ClearArea(pdx, i);	/*  ...release any used memory */
 		if (iErr == U14ERR_UNLOCKFAIL)
-			dev_err(&pdx->interface->dev, "%s Area %d was in used",
+			dev_err(&pdx->interface->dev, "%s: Area %d was in used\n",
 				__func__, i);
 	}
 	pdx->interface = NULL;	/*  ...we kill off link to interface */
@@ -1504,7 +1504,7 @@ static void ced_disconnect(struct usb_interface *interface)
 
 	kref_put(&pdx->kref, ced_delete);	/*  decrement our usage count */
 
-	dev_info(&interface->dev, "USB cedusb #%d now disconnected", minor);
+	dev_info(&interface->dev, "USB cedusb #%d now disconnected\n", minor);
 }
 
 /*  Wait for all the urbs we know of to be done with, then kill off any that */
@@ -1514,13 +1514,13 @@ static void ced_disconnect(struct usb_interface *interface)
 void ced_draw_down(DEVICE_EXTENSION *pdx)
 {
 	int time;
-	dev_dbg(&pdx->interface->dev, "%s called", __func__);
+	dev_dbg(&pdx->interface->dev, "%s: called\n", __func__);
 
 	pdx->bInDrawDown = true;
 	time = usb_wait_anchor_empty_timeout(&pdx->submitted, 3000);
 	if (!time) {		/*  if we timed out we kill the urbs */
 		usb_kill_anchored_urbs(&pdx->submitted);
-		dev_err(&pdx->interface->dev, "%s timed out", __func__);
+		dev_err(&pdx->interface->dev, "%s: timed out\n", __func__);
 	}
 	pdx->bInDrawDown = false;
 }
@@ -1532,7 +1532,7 @@ static int ced_suspend(struct usb_interface *intf, pm_message_t message)
 		return 0;
 	ced_draw_down(pdx);
 
-	dev_dbg(&pdx->interface->dev, "%s called", __func__);
+	dev_dbg(&pdx->interface->dev, "%s: called\n", __func__);
 	return 0;
 }
 
@@ -1541,14 +1541,14 @@ static int ced_resume(struct usb_interface *intf)
 	DEVICE_EXTENSION *pdx = usb_get_intfdata(intf);
 	if (!pdx)
 		return 0;
-	dev_dbg(&pdx->interface->dev, "%s called", __func__);
+	dev_dbg(&pdx->interface->dev, "%s: called\n", __func__);
 	return 0;
 }
 
 static int ced_pre_reset(struct usb_interface *intf)
 {
 	DEVICE_EXTENSION *pdx = usb_get_intfdata(intf);
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 	mutex_lock(&pdx->io_mutex);
 	ced_draw_down(pdx);
 	return 0;
@@ -1557,7 +1557,7 @@ static int ced_pre_reset(struct usb_interface *intf)
 static int ced_post_reset(struct usb_interface *intf)
 {
 	DEVICE_EXTENSION *pdx = usb_get_intfdata(intf);
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	/* we are sure no URBs are active - no locking needed */
 	pdx->errors = -EPIPE;

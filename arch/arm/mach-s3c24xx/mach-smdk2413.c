@@ -19,8 +19,10 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/memblock.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -33,12 +35,12 @@
 #include <asm/mach-types.h>
 
 //#include <asm/debug-ll.h>
-#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
+#include <mach/gpio-samsung.h>
 #include <mach/fb.h>
 
 #include <plat/clock.h>
@@ -89,24 +91,27 @@ static struct platform_device *smdk2413_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_iis,
 	&s3c_device_usbgadget,
+	&s3c2412_device_dma,
 };
 
-static void __init smdk2413_fixup(struct tag *tags, char **cmdline,
-				  struct meminfo *mi)
+static void __init smdk2413_fixup(struct tag *tags, char **cmdline)
 {
 	if (tags != phys_to_virt(S3C2410_SDRAM_PA + 0x100)) {
-		mi->nr_banks=1;
-		mi->bank[0].start = 0x30000000;
-		mi->bank[0].size = SZ_64M;
+		memblock_add(0x30000000, SZ_64M);
 	}
 }
 
 static void __init smdk2413_map_io(void)
 {
 	s3c24xx_init_io(smdk2413_iodesc, ARRAY_SIZE(smdk2413_iodesc));
-	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdk2413_uartcfgs, ARRAY_SIZE(smdk2413_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init smdk2413_init_time(void)
+{
+	s3c2412_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init smdk2413_machine_init(void)
@@ -157,6 +162,6 @@ MACHINE_START(SMDK2413, "SMDK2413")
 	.init_irq	= s3c2412_init_irq,
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
-	.init_time	= samsung_timer_init,
+	.init_time	= smdk2413_init_time,
 	.restart	= s3c2412_restart,
 MACHINE_END

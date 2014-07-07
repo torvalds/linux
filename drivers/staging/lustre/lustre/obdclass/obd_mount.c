@@ -187,7 +187,7 @@ int lustre_start_simple(char *obdname, char *type, char *uuid,
 	int rc;
 	CDEBUG(D_MOUNT, "Starting obd %s (typ=%s)\n", obdname, type);
 
-	rc = do_lcfg(obdname, 0, LCFG_ATTACH, type, uuid, 0, 0);
+	rc = do_lcfg(obdname, 0, LCFG_ATTACH, type, uuid, NULL, NULL);
 	if (rc) {
 		CERROR("%s attach error %d\n", obdname, rc);
 		return rc;
@@ -195,7 +195,7 @@ int lustre_start_simple(char *obdname, char *type, char *uuid,
 	rc = do_lcfg(obdname, 0, LCFG_SETUP, s1, s2, s3, s4);
 	if (rc) {
 		CERROR("%s setup error %d\n", obdname, rc);
-		do_lcfg(obdname, 0, LCFG_DETACH, 0, 0, 0, 0);
+		do_lcfg(obdname, 0, LCFG_DETACH, NULL, NULL, NULL, NULL);
 	}
 	return rc;
 }
@@ -337,7 +337,8 @@ int lustre_start_mgc(struct super_block *sb)
 			lnet_process_id_t id;
 			while ((rc = LNetGetId(i++, &id)) != -ENOENT) {
 				rc = do_lcfg(mgcname, id.nid,
-					     LCFG_ADD_UUID, niduuid, 0,0,0);
+					     LCFG_ADD_UUID, niduuid,
+					     NULL, NULL, NULL);
 			}
 		} else {
 			/* Use mgsnode= nids */
@@ -351,7 +352,8 @@ int lustre_start_mgc(struct super_block *sb)
 			}
 			while (class_parse_nid(ptr, &nid, &ptr) == 0) {
 				rc = do_lcfg(mgcname, nid,
-					     LCFG_ADD_UUID, niduuid, 0,0,0);
+					     LCFG_ADD_UUID, niduuid,
+					     NULL, NULL, NULL);
 				i++;
 			}
 		}
@@ -360,7 +362,7 @@ int lustre_start_mgc(struct super_block *sb)
 		ptr = lsi->lsi_lmd->lmd_dev;
 		while (class_parse_nid(ptr, &nid, &ptr) == 0) {
 			rc = do_lcfg(mgcname, nid,
-				     LCFG_ADD_UUID, niduuid, 0,0,0);
+				     LCFG_ADD_UUID, niduuid, NULL, NULL, NULL);
 			i++;
 			/* Stop at the first failover nid */
 			if (*ptr == ':')
@@ -381,7 +383,7 @@ int lustre_start_mgc(struct super_block *sb)
 	/* Start the MGC */
 	rc = lustre_start_simple(mgcname, LUSTRE_MGC_NAME,
 				 (char *)uuid->uuid, LUSTRE_MGS_OBDNAME,
-				 niduuid, 0, 0);
+				 niduuid, NULL, NULL);
 	OBD_FREE_PTR(uuid);
 	if (rc)
 		GOTO(out_free, rc);
@@ -396,13 +398,13 @@ int lustre_start_mgc(struct super_block *sb)
 		while (class_parse_nid_quiet(ptr, &nid, &ptr) == 0) {
 			j++;
 			rc = do_lcfg(mgcname, nid,
-				     LCFG_ADD_UUID, niduuid, 0,0,0);
+				     LCFG_ADD_UUID, niduuid, NULL, NULL, NULL);
 			if (*ptr == ':')
 				break;
 		}
 		if (j > 0) {
 			rc = do_lcfg(mgcname, 0, LCFG_ADD_CONN,
-				     niduuid, 0, 0, 0);
+				     niduuid, NULL, NULL, NULL);
 			i++;
 		} else {
 			/* at ":/fsname" */
@@ -480,7 +482,7 @@ static int lustre_stop_mgc(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct obd_device *obd;
-	char *niduuid = 0, *ptr = 0;
+	char *niduuid = NULL, *ptr = NULL;
 	int i, rc = 0, len = 0;
 
 	if (!lsi)
@@ -501,7 +503,7 @@ static int lustre_stop_mgc(struct super_block *sb)
 	}
 
 	/* The MGC has no recoverable data in any case.
-	 * force shotdown set in umount_begin */
+	 * force shutdown set in umount_begin */
 	obd->obd_no_recov = 1;
 
 	if (obd->u.cli.cl_mgc_mgsexp) {
@@ -532,7 +534,7 @@ static int lustre_stop_mgc(struct super_block *sb)
 	for (i = 0; i < lsi->lsi_lmd->lmd_mgs_failnodes; i++) {
 		sprintf(ptr, "_%x", i);
 		rc = do_lcfg(LUSTRE_MGC_OBDNAME, 0, LCFG_DEL_UUID,
-			     niduuid, 0, 0, 0);
+			     niduuid, NULL, NULL, NULL);
 		if (rc)
 			CERROR("del MDC UUID %s failed: rc = %d\n",
 			       niduuid, rc);
@@ -631,6 +633,9 @@ int lustre_put_lsi(struct super_block *sb)
 	CDEBUG(D_MOUNT, "put %p %d\n", sb, atomic_read(&lsi->lsi_mounts));
 	if (atomic_dec_and_test(&lsi->lsi_mounts)) {
 		if (IS_SERVER(lsi) && lsi->lsi_osd_exp) {
+			lu_device_put(&lsi->lsi_dt_dev->dd_lu_dev);
+			lsi->lsi_osd_exp->exp_obd->obd_lvfs_ctxt.dt = NULL;
+			lsi->lsi_dt_dev = NULL;
 			obd_disconnect(lsi->lsi_osd_exp);
 			/* wait till OSD is gone */
 			obd_zombie_barrier();
@@ -751,7 +756,7 @@ int server_name2index(const char *svname, __u32 *idx, const char **endptr)
 }
 EXPORT_SYMBOL(server_name2index);
 
-/*************** mount common betweeen server and client ***************/
+/*************** mount common between server and client ***************/
 
 /* Common umount */
 int lustre_common_put_super(struct super_block *sb)

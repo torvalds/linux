@@ -155,6 +155,26 @@
 	    </entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_EVENT_SOURCE_CHANGE</constant></entry>
+	    <entry>5</entry>
+	    <entry>
+	      <para>This event is triggered when a source parameter change is
+	       detected during runtime by the video device. It can be a
+	       runtime resolution change triggered by a video decoder or the
+	       format change happening on an input connector.
+	       This event requires that the <structfield>id</structfield>
+	       matches the input index (when used with a video device node)
+	       or the pad index (when used with a subdevice node) from which
+	       you want to receive events.</para>
+
+              <para>This event has a &v4l2-event-src-change; associated
+	      with it. The <structfield>changes</structfield> bitfield denotes
+	      what has changed for the subscribed pad. If multiple events
+	      occurred before application could dequeue them, then the changes
+	      will have the ORed value of all the events generated.</para>
+	    </entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_EVENT_PRIVATE_START</constant></entry>
 	    <entry>0x08000000</entry>
 	    <entry>Base event number for driver-private events.</entry>

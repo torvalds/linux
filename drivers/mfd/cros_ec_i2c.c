@@ -120,7 +120,7 @@ static int cros_ec_command_xfer(struct cros_ec_device *ec_dev,
 	return ret;
 }
 
-static int cros_ec_probe_i2c(struct i2c_client *client,
+static int cros_ec_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *dev_id)
 {
 	struct device *dev = &client->dev;
@@ -150,7 +150,7 @@ static int cros_ec_probe_i2c(struct i2c_client *client,
 	return 0;
 }
 
-static int cros_ec_remove_i2c(struct i2c_client *client)
+static int cros_ec_i2c_remove(struct i2c_client *client)
 {
 	struct cros_ec_device *ec_dev = i2c_get_clientdata(client);
 
@@ -190,8 +190,8 @@ static struct i2c_driver cros_ec_driver = {
 		.owner	= THIS_MODULE,
 		.pm	= &cros_ec_i2c_pm_ops,
 	},
-	.probe		= cros_ec_probe_i2c,
-	.remove		= cros_ec_remove_i2c,
+	.probe		= cros_ec_i2c_probe,
+	.remove		= cros_ec_i2c_remove,
 	.id_table	= cros_ec_i2c_id,
 };
 

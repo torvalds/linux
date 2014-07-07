@@ -17,6 +17,13 @@ enum cpufreq_level_index {
 	L20,
 };
 
+enum exynos_soc_type {
+	EXYNOS_SOC_4210,
+	EXYNOS_SOC_4212,
+	EXYNOS_SOC_4412,
+	EXYNOS_SOC_5250,
+};
+
 #define APLL_FREQ(f, a0, a1, a2, a3, a4, a5, a6, a7, b0, b1, b2, m, p, s) \
 	{ \
 		.freq = (f) * 1000, \
@@ -34,6 +41,8 @@ struct apll_freq {
 };
 
 struct exynos_dvfs_info {
+	enum exynos_soc_type type;
+	struct device	*dev;
 	unsigned long	mpll_freq_khz;
 	unsigned int	pll_safe_idx;
 	struct clk	*cpu_clk;
@@ -41,6 +50,7 @@ struct exynos_dvfs_info {
 	struct cpufreq_frequency_table	*freq_table;
 	void (*set_freq)(unsigned int, unsigned int);
 	bool (*need_apll_change)(unsigned int, unsigned int);
+	void __iomem	*cmu_regs;
 };
 
 #ifdef CONFIG_ARM_EXYNOS4210_CPUFREQ
@@ -67,3 +77,22 @@ static inline int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
 	return -EOPNOTSUPP;
 }
 #endif
+
+#define EXYNOS4_CLKSRC_CPU			0x14200
+#define EXYNOS4_CLKMUX_STATCPU			0x14400
+
+#define EXYNOS4_CLKDIV_CPU			0x14500
+#define EXYNOS4_CLKDIV_CPU1			0x14504
+#define EXYNOS4_CLKDIV_STATCPU			0x14600
+#define EXYNOS4_CLKDIV_STATCPU1			0x14604
+
+#define EXYNOS4_CLKSRC_CPU_MUXCORE_SHIFT	(16)
+#define EXYNOS4_CLKMUX_STATCPU_MUXCORE_MASK	(0x7 << EXYNOS4_CLKSRC_CPU_MUXCORE_SHIFT)
+
+#define EXYNOS5_APLL_LOCK			0x00000
+#define EXYNOS5_APLL_CON0			0x00100
+#define EXYNOS5_CLKMUX_STATCPU			0x00400
+#define EXYNOS5_CLKDIV_CPU0			0x00500
+#define EXYNOS5_CLKDIV_CPU1			0x00504
+#define EXYNOS5_CLKDIV_STATCPU0			0x00600
+#define EXYNOS5_CLKDIV_STATCPU1			0x00604

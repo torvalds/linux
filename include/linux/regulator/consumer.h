@@ -146,6 +146,34 @@ struct regulator *__must_check devm_regulator_get_optional(struct device *dev,
 void regulator_put(struct regulator *regulator);
 void devm_regulator_put(struct regulator *regulator);
 
+int regulator_register_supply_alias(struct device *dev, const char *id,
+				    struct device *alias_dev,
+				    const char *alias_id);
+void regulator_unregister_supply_alias(struct device *dev, const char *id);
+
+int regulator_bulk_register_supply_alias(struct device *dev,
+					 const char *const *id,
+					 struct device *alias_dev,
+					 const char *const *alias_id,
+					 int num_id);
+void regulator_bulk_unregister_supply_alias(struct device *dev,
+					    const char * const *id, int num_id);
+
+int devm_regulator_register_supply_alias(struct device *dev, const char *id,
+					 struct device *alias_dev,
+					 const char *alias_id);
+void devm_regulator_unregister_supply_alias(struct device *dev,
+					    const char *id);
+
+int devm_regulator_bulk_register_supply_alias(struct device *dev,
+					      const char *const *id,
+					      struct device *alias_dev,
+					      const char *const *alias_id,
+					      int num_id);
+void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
+						 const char *const *id,
+						 int num_id);
+
 /* regulator output control and status */
 int __must_check regulator_enable(struct regulator *regulator);
 int regulator_disable(struct regulator *regulator);
@@ -232,14 +260,14 @@ regulator_get_exclusive(struct device *dev, const char *id)
 static inline struct regulator *__must_check
 regulator_get_optional(struct device *dev, const char *id)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 
 static inline struct regulator *__must_check
 devm_regulator_get_optional(struct device *dev, const char *id)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 static inline void regulator_put(struct regulator *regulator)
@@ -247,6 +275,61 @@ static inline void regulator_put(struct regulator *regulator)
 }
 
 static inline void devm_regulator_put(struct regulator *regulator)
+{
+}
+
+static inline int regulator_register_supply_alias(struct device *dev,
+						  const char *id,
+						  struct device *alias_dev,
+						  const char *alias_id)
+{
+	return 0;
+}
+
+static inline void regulator_unregister_supply_alias(struct device *dev,
+						    const char *id)
+{
+}
+
+static inline int regulator_bulk_register_supply_alias(struct device *dev,
+						const char *const *id,
+						struct device *alias_dev,
+						const char * const *alias_id,
+						int num_id)
+{
+	return 0;
+}
+
+static inline void regulator_bulk_unregister_supply_alias(struct device *dev,
+						const char * const *id,
+						int num_id)
+{
+}
+
+static inline int devm_regulator_register_supply_alias(struct device *dev,
+						       const char *id,
+						       struct device *alias_dev,
+						       const char *alias_id)
+{
+	return 0;
+}
+
+static inline void devm_regulator_unregister_supply_alias(struct device *dev,
+							  const char *id)
+{
+}
+
+static inline int devm_regulator_bulk_register_supply_alias(struct device *dev,
+						const char *const *id,
+						struct device *alias_dev,
+						const char *const *alias_id,
+						int num_id)
+{
+	return 0;
+}
+
+static inline void devm_regulator_bulk_unregister_supply_alias(
+	struct device *dev, const char *const *id, int num_id)
 {
 }
 
@@ -312,8 +395,19 @@ static inline void regulator_bulk_free(int num_consumers,
 {
 }
 
+static inline int regulator_can_change_voltage(struct regulator *regulator)
+{
+	return 0;
+}
+
 static inline int regulator_set_voltage(struct regulator *regulator,
 					int min_uV, int max_uV)
+{
+	return 0;
+}
+
+static inline int regulator_set_voltage_time(struct regulator *regulator,
+					     int old_uV, int new_uV)
 {
 	return 0;
 }

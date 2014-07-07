@@ -389,7 +389,7 @@ void *bc_kern_dma_alloc(struct crystalhd_adp *adp, uint32_t sz,
 	void *temp = NULL;
 
 	if (!adp || !sz || !phy_addr) {
-		BCMLOG_ERR("Invalide Arg..\n");
+		BCMLOG_ERR("Invalid Arg..\n");
 		return temp;
 	}
 
@@ -415,7 +415,7 @@ void bc_kern_dma_free(struct crystalhd_adp *adp, uint32_t sz, void *ka,
 		      dma_addr_t phy_addr)
 {
 	if (!adp || !ka || !sz || !phy_addr) {
-		BCMLOG_ERR("Invalide Arg..\n");
+		BCMLOG_ERR("Invalid Arg..\n");
 		return;
 	}
 
@@ -740,7 +740,7 @@ enum BC_STATUS crystalhd_map_dio(struct crystalhd_adp *adp, void *ubuff,
 	dio->fb_size = ubuff_sz & 0x03;
 	if (dio->fb_size) {
 		res = copy_from_user(dio->fb_va,
-				     (void *)(uaddr + count - dio->fb_size),
+				     (void __user *)(uaddr + count - dio->fb_size),
 				     dio->fb_size);
 		if (res) {
 			BCMLOG_ERR("failed %d to copy %u fill bytes from %p\n",

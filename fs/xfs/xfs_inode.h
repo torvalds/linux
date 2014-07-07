@@ -20,11 +20,11 @@
 
 #include "xfs_inode_buf.h"
 #include "xfs_inode_fork.h"
+#include "xfs_dinode.h"
 
 /*
  * Kernel only inode definitions
  */
-
 struct xfs_dinode;
 struct xfs_inode;
 struct xfs_buf;
@@ -49,6 +49,9 @@ typedef struct xfs_inode {
 	/* Extent information. */
 	xfs_ifork_t		*i_afp;		/* attribute fork pointer */
 	xfs_ifork_t		i_df;		/* data fork */
+
+	/* operations vectors */
+	const struct xfs_dir_ops *d_ops;		/* directory ops vector */
 
 	/* Transaction and locking information. */
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
@@ -190,6 +193,15 @@ xfs_set_projid(struct xfs_inode *ip,
 	ip->i_d.di_projid_lo = (__uint16_t) (projid & 0xffff);
 }
 
+static inline prid_t
+xfs_get_initial_prid(struct xfs_inode *dp)
+{
+	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+		return xfs_get_projid(dp);
+
+	return XFS_PROJID_DEFAULT;
+}
+
 /*
  * In-core inode flags.
  */
@@ -197,7 +209,6 @@ xfs_set_projid(struct xfs_inode *ip,
 #define XFS_ISTALE		(1 << 1) /* inode has been staled */
 #define XFS_IRECLAIMABLE	(1 << 2) /* inode can be reclaimed */
 #define XFS_INEW		(1 << 3) /* inode has just been allocated */
-#define XFS_IFILESTREAM		(1 << 4) /* inode is in a filestream dir. */
 #define XFS_ITRUNCATED		(1 << 5) /* truncated down so flush-on-close */
 #define XFS_IDIRTY_RELEASE	(1 << 6) /* dirty release already seen */
 #define __XFS_IFLOCK_BIT	7	 /* inode is being flushed right now */
@@ -213,8 +224,7 @@ xfs_set_projid(struct xfs_inode *ip,
  */
 #define XFS_IRECLAIM_RESET_FLAGS	\
 	(XFS_IRECLAIMABLE | XFS_IRECLAIM | \
-	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED | \
-	 XFS_IFILESTREAM);
+	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED)
 
 /*
  * Synchronize processes attempting to flush the in-core inode back to disk.
@@ -316,11 +326,13 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
 
 
 int		xfs_release(struct xfs_inode *ip);
-int		xfs_inactive(struct xfs_inode *ip);
+void		xfs_inactive(struct xfs_inode *ip);
 int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
 int		xfs_create(struct xfs_inode *dp, struct xfs_name *name,
 			   umode_t mode, xfs_dev_t rdev, struct xfs_inode **ipp);
+int		xfs_create_tmpfile(struct xfs_inode *dp, struct dentry *dentry,
+			   umode_t mode, struct xfs_inode **ipp);
 int		xfs_remove(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode *ip);
 int		xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
@@ -335,8 +347,8 @@ int		xfs_ilock_nowait(xfs_inode_t *, uint);
 void		xfs_iunlock(xfs_inode_t *, uint);
 void		xfs_ilock_demote(xfs_inode_t *, uint);
 int		xfs_isilocked(xfs_inode_t *, uint);
-uint		xfs_ilock_map_shared(xfs_inode_t *);
-void		xfs_iunlock_map_shared(xfs_inode_t *, uint);
+uint		xfs_ilock_data_map_shared(struct xfs_inode *);
+uint		xfs_ilock_attr_map_shared(struct xfs_inode *);
 int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, umode_t,
 			   xfs_nlink_t, xfs_dev_t, prid_t, int,
 			   struct xfs_buf **, xfs_inode_t **);
@@ -365,7 +377,6 @@ int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_inode *, umode_t,
 			       struct xfs_inode **, int *);
 int		xfs_droplink(struct xfs_trans *, struct xfs_inode *);
 int		xfs_bumplink(struct xfs_trans *, struct xfs_inode *);
-void		xfs_bump_ino_vers2(struct xfs_trans *, struct xfs_inode *);
 
 /* from xfs_file.c */
 int		xfs_zero_eof(struct xfs_inode *, xfs_off_t, xfs_fsize_t);

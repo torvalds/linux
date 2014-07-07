@@ -46,6 +46,7 @@
 #include <linux/quotaops.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
+#include <linux/posix_acl.h>
 
 struct ocfs2_cow_context {
 	struct inode *inode;
@@ -612,6 +613,11 @@ static int ocfs2_create_refcount_tree(struct inode *inode,
 	}
 
 	new_bh = sb_getblk(inode->i_sb, first_blkno);
+	if (!new_bh) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out_commit;
+	}
 	ocfs2_set_new_buffer_uptodate(&new_tree->rf_ci, new_bh);
 
 	ret = ocfs2_journal_access_rb(handle, &new_tree->rf_ci, new_bh,
@@ -1310,7 +1316,7 @@ static int ocfs2_expand_inline_ref_root(handle_t *handle,
 
 	new_bh = sb_getblk(sb, blkno);
 	if (new_bh == NULL) {
-		ret = -EIO;
+		ret = -ENOMEM;
 		mlog_errno(ret);
 		goto out;
 	}
@@ -1402,10 +1408,9 @@ static void swap_refcount_rec(void *a, void *b, int size)
 {
 	struct ocfs2_refcount_rec *l = a, *r = b, tmp;
 
-	tmp = *(struct ocfs2_refcount_rec *)l;
-	*(struct ocfs2_refcount_rec *)l =
-			*(struct ocfs2_refcount_rec *)r;
-	*(struct ocfs2_refcount_rec *)r = tmp;
+	tmp = *l;
+	*l = *r;
+	*r = tmp;
 }
 
 /*
@@ -1561,7 +1566,7 @@ static int ocfs2_new_leaf_refcount_block(handle_t *handle,
 
 	new_bh = sb_getblk(sb, blkno);
 	if (new_bh == NULL) {
-		ret = -EIO;
+		ret = -ENOMEM;
 		mlog_errno(ret);
 		goto out;
 	}
@@ -2502,8 +2507,7 @@ static int ocfs2_calc_refcount_meta_credits(struct super_block *sb,
 		ocfs2_init_refcount_extent_tree(&et, ci, ref_root_bh);
 		*meta_add += ocfs2_extend_meta_needed(et.et_root_el);
 		*credits += ocfs2_calc_extend_credits(sb,
-						      et.et_root_el,
-						      ref_blocks);
+						      et.et_root_el);
 	} else {
 		*credits += OCFS2_EXPAND_REFCOUNT_TREE_CREDITS;
 		*meta_add += 1;
@@ -2874,8 +2878,7 @@ static int ocfs2_lock_refcount_allocators(struct super_block *sb,
 		meta_add =
 			ocfs2_extend_meta_needed(et->et_root_el);
 
-	*credits += ocfs2_calc_extend_credits(sb, et->et_root_el,
-					      num_clusters + 2);
+	*credits += ocfs2_calc_extend_credits(sb, et->et_root_el);
 
 	ret = ocfs2_calc_refcount_meta_credits(sb, ref_ci, ref_root_bh,
 					       p_cluster, num_clusters,
@@ -3031,7 +3034,7 @@ int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
 	for (i = 0; i < blocks; i++, old_block++, new_block++) {
 		new_bh = sb_getblk(osb->sb, new_block);
 		if (new_bh == NULL) {
-			ret = -EIO;
+			ret = -ENOMEM;
 			mlog_errno(ret);
 			break;
 		}
@@ -3625,8 +3628,7 @@ int ocfs2_refcounted_xattr_delete_need(struct inode *inode,
 
 		ocfs2_init_refcount_extent_tree(&et, ref_ci, ref_root_bh);
 		*credits += ocfs2_calc_extend_credits(inode->i_sb,
-						      et.et_root_el,
-						      ref_blocks);
+						      et.et_root_el);
 	}
 
 out:
@@ -4266,12 +4268,27 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	struct inode *inode = old_dentry->d_inode;
 	struct buffer_head *old_bh = NULL;
 	struct inode *new_orphan_inode = NULL;
+	struct posix_acl *default_acl, *acl;
+	umode_t mode;
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb)))
 		return -EOPNOTSUPP;
 
-	error = ocfs2_create_inode_in_orphan(dir, inode->i_mode,
+	mode = inode->i_mode;
+	error = posix_acl_create(dir, &mode, &default_acl, &acl);
+	if (error) {
+		mlog_errno(error);
+		goto out;
+	}
+
+	error = ocfs2_create_inode_in_orphan(dir, mode,
 					     &new_orphan_inode);
+	if (error) {
+		mlog_errno(error);
+		goto out;
+	}
+
+	error = ocfs2_rw_lock(inode, 1);
 	if (error) {
 		mlog_errno(error);
 		goto out;
@@ -4280,6 +4297,7 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	error = ocfs2_inode_lock(inode, &old_bh, 1);
 	if (error) {
 		mlog_errno(error);
+		ocfs2_rw_unlock(inode, 1);
 		goto out;
 	}
 
@@ -4291,6 +4309,7 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	up_write(&OCFS2_I(inode)->ip_xattr_sem);
 
 	ocfs2_inode_unlock(inode, 1);
+	ocfs2_rw_unlock(inode, 1);
 	brelse(old_bh);
 
 	if (error) {
@@ -4301,11 +4320,16 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	/* If the security isn't preserved, we need to re-initialize them. */
 	if (!preserve) {
 		error = ocfs2_init_security_and_acl(dir, new_orphan_inode,
-						    &new_dentry->d_name);
+						    &new_dentry->d_name,
+						    default_acl, acl);
 		if (error)
 			mlog_errno(error);
 	}
 out:
+	if (default_acl)
+		posix_acl_release(default_acl);
+	if (acl)
+		posix_acl_release(acl);
 	if (!error) {
 		error = ocfs2_mv_orphaned_inode_to_new(dir, new_orphan_inode,
 						       new_dentry);

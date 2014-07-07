@@ -78,10 +78,9 @@
 #include "wpa.h"
 #include "rf.h"
 #include "iowpa.h"
-#include "control.h"
-#include "rndis.h"
+#include "usbpipe.h"
 
-static int          msglevel                =MSG_LEVEL_INFO;
+static int msglevel = MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
 static int ChannelExceedZoneType(struct vnt_private *, u8 byCurrChannel);
@@ -212,24 +211,6 @@ void vMgrObjectInit(struct vnt_private *pDevice)
     pMgmt->byCSSGK = KEY_CTL_NONE;
     pMgmt->wIBSSBeaconPeriod = DEFAULT_IBSS_BI;
     BSSvClearBSSList((void *) pDevice, false);
-
-    init_timer(&pMgmt->sTimerSecondCallback);
-    pMgmt->sTimerSecondCallback.data = (unsigned long)pDevice;
-    pMgmt->sTimerSecondCallback.function = (TimerFunction)BSSvSecondCallBack;
-    pMgmt->sTimerSecondCallback.expires = RUN_AT(HZ);
-
-    init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (unsigned long)pDevice;
-    pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
-    pDevice->sTimerCommand.expires = RUN_AT(HZ);
-
-    init_timer(&pDevice->sTimerTxData);
-    pDevice->sTimerTxData.data = (unsigned long)pDevice;
-    pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
-    pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-    pDevice->fTxDataInSleep = false;
-    pDevice->IsTxDataTrigger = false;
-    pDevice->nTxDataTimeCout = 0;
 
     pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
     pDevice->uCmdDequeueIdx = 0;
@@ -559,10 +540,6 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
                   (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates
                 );
     if (pTxPacket != NULL ){
-
-        if (pDevice->bEnableHostapd) {
-            return;
-        }
         /* send the frame */
         Status = csMgmt_xmit(pDevice, pTxPacket);
         if (Status != CMD_STATUS_PENDING) {
@@ -708,9 +685,6 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
 
     if (pTxPacket != NULL ){
         /* send the frame */
-        if (pDevice->bEnableHostapd) {
-            return;
-        }
         Status = csMgmt_xmit(pDevice, pTxPacket);
         if (Status != CMD_STATUS_PENDING) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:ReAssoc response tx failed\n");
@@ -782,7 +756,8 @@ static void s_vMgrRxAssocResponse(struct vnt_private *pDevice,
             pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
             DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Link with AP(SSID): %s\n", pItemSSID->abySSID);
             pDevice->bLinkPass = true;
-            ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
+
+	    vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
 
 	//if(pDevice->bWPASuppWextEnabled == true)
 	   {
@@ -844,8 +819,8 @@ static void s_vMgrRxAssocResponse(struct vnt_private *pDevice,
               pDevice->bwextstep3 = false;
               pDevice->bWPASuppWextEnabled = false;
 
-if(pMgmt->eCurrState == WMAC_STATE_ASSOC)
-      timer_expire(pDevice->sTimerCommand, 0);
+	if (pMgmt->eCurrState == WMAC_STATE_ASSOC)
+		schedule_delayed_work(&pDevice->run_command_work, 0);
 
     return;
 }
@@ -1093,9 +1068,6 @@ static void s_vMgrRxAuthenSequence_1(struct vnt_private *pDevice,
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
     // send the frame
-    if (pDevice->bEnableHostapd) {
-        return;
-    }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx.. \n");
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx failed.\n");
@@ -1127,7 +1099,7 @@ static void s_vMgrRxAuthenSequence_2(struct vnt_private *pDevice,
             if ( cpu_to_le16((*(pFrame->pwStatus))) == WLAN_MGMT_STATUS_SUCCESS ){
                 DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (OPEN) Successful.\n");
                 pMgmt->eCurrState = WMAC_STATE_AUTH;
-	       timer_expire(pDevice->sTimerCommand, 0);
+		schedule_delayed_work(&pDevice->run_command_work, 0);
             }
             else {
                 DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (OPEN) Failed.\n");
@@ -1275,9 +1247,6 @@ reply:
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
     // send the frame
-    if (pDevice->bEnableHostapd) {
-        return;
-    }
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_4 tx failed.\n");
     }
@@ -1302,7 +1271,7 @@ static void s_vMgrRxAuthenSequence_4(struct vnt_private *pDevice,
     if ( cpu_to_le16((*(pFrame->pwStatus))) == WLAN_MGMT_STATUS_SUCCESS ){
         DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (SHAREDKEY) Successful.\n");
         pMgmt->eCurrState = WMAC_STATE_AUTH;
-        timer_expire(pDevice->sTimerCommand, 0);
+	schedule_delayed_work(&pDevice->run_command_work, 0);
     }
     else{
         DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (SHAREDKEY) Failed.\n");
@@ -1422,15 +1391,16 @@ static void s_vMgrRxDeauthentication(struct vnt_private *pDevice,
 	   pDevice->fWPA_Authened = false;
             DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO  "AP deauthed me, reason=%d.\n", cpu_to_le16((*(sFrame.pwReason))));
             // TODO: update BSS list for specific BSSID if pre-authentication case
-	    if (!compare_ether_addr(sFrame.pHdr->sA3.abyAddr3,
-				    pMgmt->abyCurrBSSID)) {
+	    if (ether_addr_equal(sFrame.pHdr->sA3.abyAddr3,
+				 pMgmt->abyCurrBSSID)) {
                 if (pMgmt->eCurrState >= WMAC_STATE_AUTHPENDING) {
                     pMgmt->sNodeDBTable[0].bActive = false;
                     pMgmt->eCurrMode = WMAC_MODE_STANDBY;
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     netif_stop_queue(pDevice->dev);
                     pDevice->bLinkPass = false;
-                    ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
+
+		    vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
                 }
             }
 
@@ -1915,7 +1885,9 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Current IBSS State: [Started]........to: [Jointed] \n");
                 pMgmt->eCurrState = WMAC_STATE_JOINTED;
                 pDevice->bLinkPass = true;
-                ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
+
+		vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
+
                 if (netif_queue_stopped(pDevice->dev)){
                     netif_wake_queue(pDevice->dev);
                 }
@@ -2182,12 +2154,12 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_ESS(1);
         pMgmt->byDTIMPeriod = DEFAULT_DTIM_PERIOD;
         pMgmt->byDTIMCount = pMgmt->byDTIMPeriod - 1;
-        pDevice->eOPMode = OP_MODE_AP;
+	pDevice->op_mode = NL80211_IFTYPE_AP;
     }
 
     if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_IBSS(1);
-        pDevice->eOPMode = OP_MODE_ADHOC;
+	pDevice->op_mode = NL80211_IFTYPE_ADHOC;
     }
 
     if (pDevice->bEncryptionEnable) {
@@ -2377,7 +2349,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 
             pMgmt->eCurrState = WMAC_STATE_JOINTED;
             // Adopt BSS state in Adapter Device Object
-            pDevice->eOPMode = OP_MODE_INFRASTRUCTURE;
+	    pDevice->op_mode = NL80211_IFTYPE_STATION;
             memcpy(pDevice->abyBSSID, pCurr->abyBSSID, WLAN_BSSID_LEN);
 
             // Add current BSS to Candidate list
@@ -2518,9 +2490,11 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
             pMgmt->eCurrMode = WMAC_MODE_IBSS_STA;
             pMgmt->eCurrState = WMAC_STATE_STARTED;
             // Adopt BSS state in Adapter Device Object
-            pDevice->eOPMode = OP_MODE_ADHOC;
+	    pDevice->op_mode = NL80211_IFTYPE_ADHOC;
             pDevice->bLinkPass = true;
-            ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
+
+	    vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
+
             memcpy(pDevice->abyBSSID, pCurr->abyBSSID, WLAN_BSSID_LEN);
 
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Join IBSS ok:%pM\n",
@@ -2590,7 +2564,6 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     }
 
     // Init the BSS informations
-    pDevice->bCCK = true;
     pDevice->bProtectMode = false;
     MACvDisableProtectMD(pDevice);
     pDevice->bBarkerPreambleMd = false;
@@ -2673,8 +2646,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     pMgmt->uCurrChannel = pCurr->uChannel;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "<----s_bSynchBSS Set Channel [%d]\n", pCurr->uChannel);
 
-    if ((pDevice->bUpdateBBVGA) &&
-        (pDevice->byBBVGACurrent != pDevice->abyBBVGA[0])) {
+    if (pDevice->byBBVGACurrent != pDevice->abyBBVGA[0]) {
         pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
         BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
         BBvSetShortSlotTime(pDevice);
@@ -2950,16 +2922,6 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
              ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN
              );
     }
-    // hostapd wpa/wpa2 IE
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == true)) {
-         if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-             if (pMgmt->wWPAIELen != 0) {
-                 sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
-                 memcpy(sFrame.pRSN, pMgmt->abyWPAIE, pMgmt->wWPAIELen);
-                 sFrame.len += pMgmt->wWPAIELen;
-             }
-         }
-    }
 
     /* Adjust the length fields */
     pTxPacket->cbMPDULen = sFrame.len;
@@ -2979,7 +2941,7 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u16 wCurrCapInfo, u16 wCurrBeaconPeriod,
 	u32 uCurrChannel, u16 wCurrATIMWinodw, u8 *pDstAddr,
 	PWLAN_IE_SSID pCurrSSID, u8 *pCurrBSSID,
@@ -3070,17 +3032,6 @@ struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
              );
     }
 
-    // hostapd wpa/wpa2 IE
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == true)) {
-         if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-             if (pMgmt->wWPAIELen != 0) {
-                 sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
-                 memcpy(sFrame.pRSN, pMgmt->abyWPAIE, pMgmt->wWPAIELen);
-                 sFrame.len += pMgmt->wWPAIELen;
-             }
-         }
-    }
-
     // Adjust the length fields
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
@@ -3095,11 +3046,11 @@ struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
  *
  *
  * Return Value:
- *    A ptr to frame or NULL on allocation failue
+ *    A ptr to frame or NULL on allocation failure
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u8 *pDAddr, u16 wCurrCapInfo,
 	u16 wListenInterval,
 	PWLAN_IE_SSID pCurrSSID,
@@ -3347,7 +3298,7 @@ struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u8 *pDAddr, u16 wCurrCapInfo,
 	u16 wListenInterval, PWLAN_IE_SSID pCurrSSID,
 	PWLAN_IE_SUPP_RATES pCurrRates,
@@ -3594,7 +3545,7 @@ struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u16 wCurrCapInfo, u16 wAssocStatus,
 	u16 wAssocAID, u8 *pDstAddr, PWLAN_IE_SUPP_RATES pCurrSuppRates,
 	PWLAN_IE_SUPP_RATES pCurrExtSuppRates)
@@ -3660,7 +3611,7 @@ struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeReAssocResponse(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeReAssocResponse(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u16 wCurrCapInfo, u16 wAssocStatus,
 	u16 wAssocAID, u8 *pDstAddr, PWLAN_IE_SUPP_RATES pCurrSuppRates,
 	PWLAN_IE_SUPP_RATES pCurrExtSuppRates)
@@ -4076,14 +4027,14 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt)
 {
 	struct vnt_tx_mgmt *pTxPacket;
+	unsigned long flags;
 
 //    pDevice->bBeaconBufReady = false;
-    if (pDevice->bEncryptionEnable || pDevice->bEnable8021x){
-        pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
-    }
-    else {
-        pMgmt->wCurrCapInfo &= ~WLAN_SET_CAP_INFO_PRIVACY(1);
-    }
+	if (pDevice->bEncryptionEnable)
+		pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
+	else
+		pMgmt->wCurrCapInfo &= ~WLAN_SET_CAP_INFO_PRIVACY(1);
+
     pTxPacket = s_MgrMakeBeacon
                 (
                   pDevice,
@@ -4102,8 +4053,13 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
         (pMgmt->abyCurrBSSID[0] == 0))
         return false;
 
-    csBeacon_xmit(pDevice, pTxPacket);
-    MACvRegBitsOn(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
+	spin_lock_irqsave(&pDevice->lock, flags);
+
+	csBeacon_xmit(pDevice, pTxPacket);
+
+	spin_unlock_irqrestore(&pDevice->lock, flags);
+
+	MACvRegBitsOn(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
 
     return true;
 }

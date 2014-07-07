@@ -30,7 +30,6 @@
 #define IOC3_NAME	"ioc3-eth"
 #define IOC3_VERSION	"2.6.3-4"
 
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

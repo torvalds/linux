@@ -26,7 +26,7 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
-		.interrupt		= v_APCI3120_Interrupt,
+		.interrupt		= apci3120_interrupt,
 	},
 	[BOARD_APCI3001] = {
 		.pc_DriverName		= "apci3001",
@@ -37,7 +37,7 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
-		.interrupt		= v_APCI3120_Interrupt,
+		.interrupt		= apci3120_interrupt,
 	},
 };
 
@@ -136,11 +136,11 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->len_chanlist = this_board->i_AiChannelList;
 	s->range_table = &range_apci3120_ai;
 
-	s->insn_config = i_APCI3120_InsnConfigAnalogInput;
-	s->insn_read = i_APCI3120_InsnReadAnalogInput;
-	s->do_cmdtest = i_APCI3120_CommandTestAnalogInput;
-	s->do_cmd = i_APCI3120_CommandAnalogInput;
-	s->cancel = i_APCI3120_StopCyclicAcquisition;
+	s->insn_config = apci3120_ai_insn_config;
+	s->insn_read = apci3120_ai_insn_read;
+	s->do_cmdtest = apci3120_ai_cmdtest;
+	s->do_cmd = apci3120_ai_cmd;
+	s->cancel = apci3120_cancel;
 
 	/*  Allocate and Initialise AO Subdevice Structures */
 	s = &dev->subdevices[1];
@@ -151,7 +151,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 		s->maxdata = this_board->i_AoMaxdata;
 		s->len_chanlist = this_board->i_NbrAoChannel;
 		s->range_table = &range_apci3120_ao;
-		s->insn_write = i_APCI3120_InsnWriteAnalogOutput;
+		s->insn_write = apci3120_ao_insn_write;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -164,7 +164,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->len_chanlist = this_board->i_NbrDiChannel;
 	s->range_table = &range_digital;
-	s->io_bits = 0;	/* all bits input */
 	s->insn_bits = apci3120_di_insn_bits;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
@@ -176,7 +175,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->maxdata = this_board->i_DoMaxdata;
 	s->len_chanlist = this_board->i_NbrDoChannel;
 	s->range_table = &range_digital;
-	s->io_bits = 0xf;	/* all bits output */
 	s->insn_bits = apci3120_do_insn_bits;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
@@ -188,11 +186,11 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->len_chanlist = 1;
 	s->range_table = &range_digital;
 
-	s->insn_write = i_APCI3120_InsnWriteTimer;
-	s->insn_read = i_APCI3120_InsnReadTimer;
-	s->insn_config = i_APCI3120_InsnConfigTimer;
+	s->insn_write = apci3120_write_insn_timer;
+	s->insn_read = apci3120_read_insn_timer;
+	s->insn_config = apci3120_config_insn_timer;
 
-	i_APCI3120_Reset(dev);
+	apci3120_reset(dev);
 	return 0;
 }
 
@@ -202,7 +200,7 @@ static void apci3120_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_APCI3120_Reset(dev);
+			apci3120_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->ul_DmaBufferVirtual[0]) {
@@ -232,7 +230,7 @@ static int apci3120_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci3120_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci3120_pci_table) = {
+static const struct pci_device_id apci3120_pci_table[] = {
 	{ PCI_VDEVICE(AMCC, 0x818d), BOARD_APCI3120 },
 	{ PCI_VDEVICE(AMCC, 0x828d), BOARD_APCI3001 },
 	{ 0 }
@@ -248,5 +246,5 @@ static struct pci_driver apci3120_pci_driver = {
 module_comedi_pci_driver(apci3120_driver, apci3120_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("ADDI-DATA APCI-3120, Analog input board");
 MODULE_LICENSE("GPL");

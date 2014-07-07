@@ -40,6 +40,7 @@
 
 #include "../comedidev.h"
 
+#include "comedi_fc.h"
 #include "mite.h"
 #include "ni_tio.h"
 
@@ -55,112 +56,112 @@ for 4 */
 #define MAX_DMA_CHANNEL 4
 
 /* See Register-Level Programmer Manual page 3.1 */
-enum NI_660x_Register {
-	G0InterruptAcknowledge,
-	G0StatusRegister,
-	G1InterruptAcknowledge,
-	G1StatusRegister,
-	G01StatusRegister,
-	G0CommandRegister,
-	STCDIOParallelInput,
-	G1CommandRegister,
-	G0HWSaveRegister,
-	G1HWSaveRegister,
-	STCDIOOutput,
-	STCDIOControl,
-	G0SWSaveRegister,
-	G1SWSaveRegister,
-	G0ModeRegister,
-	G01JointStatus1Register,
-	G1ModeRegister,
-	STCDIOSerialInput,
-	G0LoadARegister,
-	G01JointStatus2Register,
-	G0LoadBRegister,
-	G1LoadARegister,
-	G1LoadBRegister,
-	G0InputSelectRegister,
-	G1InputSelectRegister,
-	G0AutoincrementRegister,
-	G1AutoincrementRegister,
-	G01JointResetRegister,
-	G0InterruptEnable,
-	G1InterruptEnable,
-	G0CountingModeRegister,
-	G1CountingModeRegister,
-	G0SecondGateRegister,
-	G1SecondGateRegister,
-	G0DMAConfigRegister,
-	G0DMAStatusRegister,
-	G1DMAConfigRegister,
-	G1DMAStatusRegister,
-	G2InterruptAcknowledge,
-	G2StatusRegister,
-	G3InterruptAcknowledge,
-	G3StatusRegister,
-	G23StatusRegister,
-	G2CommandRegister,
-	G3CommandRegister,
-	G2HWSaveRegister,
-	G3HWSaveRegister,
-	G2SWSaveRegister,
-	G3SWSaveRegister,
-	G2ModeRegister,
-	G23JointStatus1Register,
-	G3ModeRegister,
-	G2LoadARegister,
-	G23JointStatus2Register,
-	G2LoadBRegister,
-	G3LoadARegister,
-	G3LoadBRegister,
-	G2InputSelectRegister,
-	G3InputSelectRegister,
-	G2AutoincrementRegister,
-	G3AutoincrementRegister,
-	G23JointResetRegister,
-	G2InterruptEnable,
-	G3InterruptEnable,
-	G2CountingModeRegister,
-	G3CountingModeRegister,
-	G3SecondGateRegister,
-	G2SecondGateRegister,
-	G2DMAConfigRegister,
-	G2DMAStatusRegister,
-	G3DMAConfigRegister,
-	G3DMAStatusRegister,
-	DIO32Input,
-	DIO32Output,
-	ClockConfigRegister,
-	GlobalInterruptStatusRegister,
-	DMAConfigRegister,
-	GlobalInterruptConfigRegister,
-	IOConfigReg0_1,
-	IOConfigReg2_3,
-	IOConfigReg4_5,
-	IOConfigReg6_7,
-	IOConfigReg8_9,
-	IOConfigReg10_11,
-	IOConfigReg12_13,
-	IOConfigReg14_15,
-	IOConfigReg16_17,
-	IOConfigReg18_19,
-	IOConfigReg20_21,
-	IOConfigReg22_23,
-	IOConfigReg24_25,
-	IOConfigReg26_27,
-	IOConfigReg28_29,
-	IOConfigReg30_31,
-	IOConfigReg32_33,
-	IOConfigReg34_35,
-	IOConfigReg36_37,
-	IOConfigReg38_39,
-	NumRegisters,
+enum ni_660x_register {
+	NI660X_G0_INT_ACK,
+	NI660X_G0_STATUS,
+	NI660X_G1_INT_ACK,
+	NI660X_G1_STATUS,
+	NI660X_G01_STATUS,
+	NI660X_G0_CMD,
+	NI660X_STC_DIO_PARALLEL_INPUT,
+	NI660X_G1_CMD,
+	NI660X_G0_HW_SAVE,
+	NI660X_G1_HW_SAVE,
+	NI660X_STC_DIO_OUTPUT,
+	NI660X_STC_DIO_CONTROL,
+	NI660X_G0_SW_SAVE,
+	NI660X_G1_SW_SAVE,
+	NI660X_G0_MODE,
+	NI660X_G01_STATUS1,
+	NI660X_G1_MODE,
+	NI660X_STC_DIO_SERIAL_INPUT,
+	NI660X_G0_LOADA,
+	NI660X_G01_STATUS2,
+	NI660X_G0_LOADB,
+	NI660X_G1_LOADA,
+	NI660X_G1_LOADB,
+	NI660X_G0_INPUT_SEL,
+	NI660X_G1_INPUT_SEL,
+	NI660X_G0_AUTO_INC,
+	NI660X_G1_AUTO_INC,
+	NI660X_G01_RESET,
+	NI660X_G0_INT_ENA,
+	NI660X_G1_INT_ENA,
+	NI660X_G0_CNT_MODE,
+	NI660X_G1_CNT_MODE,
+	NI660X_G0_GATE2,
+	NI660X_G1_GATE2,
+	NI660X_G0_DMA_CFG,
+	NI660X_G0_DMA_STATUS,
+	NI660X_G1_DMA_CFG,
+	NI660X_G1_DMA_STATUS,
+	NI660X_G2_INT_ACK,
+	NI660X_G2_STATUS,
+	NI660X_G3_INT_ACK,
+	NI660X_G3_STATUS,
+	NI660X_G23_STATUS,
+	NI660X_G2_CMD,
+	NI660X_G3_CMD,
+	NI660X_G2_HW_SAVE,
+	NI660X_G3_HW_SAVE,
+	NI660X_G2_SW_SAVE,
+	NI660X_G3_SW_SAVE,
+	NI660X_G2_MODE,
+	NI660X_G23_STATUS1,
+	NI660X_G3_MODE,
+	NI660X_G2_LOADA,
+	NI660X_G23_STATUS2,
+	NI660X_G2_LOADB,
+	NI660X_G3_LOADA,
+	NI660X_G3_LOADB,
+	NI660X_G2_INPUT_SEL,
+	NI660X_G3_INPUT_SEL,
+	NI660X_G2_AUTO_INC,
+	NI660X_G3_AUTO_INC,
+	NI660X_G23_RESET,
+	NI660X_G2_INT_ENA,
+	NI660X_G3_INT_ENA,
+	NI660X_G2_CNT_MODE,
+	NI660X_G3_CNT_MODE,
+	NI660X_G3_GATE2,
+	NI660X_G2_GATE2,
+	NI660X_G2_DMA_CFG,
+	NI660X_G2_DMA_STATUS,
+	NI660X_G3_DMA_CFG,
+	NI660X_G3_DMA_STATUS,
+	NI660X_DIO32_INPUT,
+	NI660X_DIO32_OUTPUT,
+	NI660X_CLK_CFG,
+	NI660X_GLOBAL_INT_STATUS,
+	NI660X_DMA_CFG,
+	NI660X_GLOBAL_INT_CFG,
+	NI660X_IO_CFG_0_1,
+	NI660X_IO_CFG_2_3,
+	NI660X_IO_CFG_4_5,
+	NI660X_IO_CFG_6_7,
+	NI660X_IO_CFG_8_9,
+	NI660X_IO_CFG_10_11,
+	NI660X_IO_CFG_12_13,
+	NI660X_IO_CFG_14_15,
+	NI660X_IO_CFG_16_17,
+	NI660X_IO_CFG_18_19,
+	NI660X_IO_CFG_20_21,
+	NI660X_IO_CFG_22_23,
+	NI660X_IO_CFG_24_25,
+	NI660X_IO_CFG_26_27,
+	NI660X_IO_CFG_28_29,
+	NI660X_IO_CFG_30_31,
+	NI660X_IO_CFG_32_33,
+	NI660X_IO_CFG_34_35,
+	NI660X_IO_CFG_36_37,
+	NI660X_IO_CFG_38_39,
+	NI660X_NUM_REGS,
 };
 
 static inline unsigned IOConfigReg(unsigned pfi_channel)
 {
-	unsigned reg = IOConfigReg0_1 + pfi_channel / 2;
-	BUG_ON(reg > IOConfigReg38_39);
+	unsigned reg = NI660X_IO_CFG_0_1 + pfi_channel / 2;
+	BUG_ON(reg > NI660X_IO_CFG_38_39);
 	return reg;
 }
 
@@ -200,7 +201,7 @@ struct NI_660xRegisterData {
 	enum ni_660x_register_width size; /* 1 byte, 2 bytes, or 4 bytes */
 };
 
-static const struct NI_660xRegisterData registerData[NumRegisters] = {
+static const struct NI_660xRegisterData registerData[NI660X_NUM_REGS] = {
 	{"G0 Interrupt Acknowledge", 0x004, NI_660x_WRITE, DATA_2B},
 	{"G0 Status Register", 0x004, NI_660x_READ, DATA_2B},
 	{"G1 Interrupt Acknowledge", 0x006, NI_660x_WRITE, DATA_2B},
@@ -347,11 +348,6 @@ static inline unsigned dma_select_mask(unsigned dma_channel)
 enum dma_selection {
 	dma_selection_none = 0x1f,
 };
-static inline unsigned dma_selection_counter(unsigned counter_index)
-{
-	BUG_ON(counter_index >= counters_per_chip);
-	return counter_index;
-}
 
 static inline unsigned dma_select_bits(unsigned dma_channel, unsigned selection)
 {
@@ -444,229 +440,158 @@ static inline unsigned ni_660x_num_counters(struct comedi_device *dev)
 	return board->n_chips * counters_per_chip;
 }
 
-static enum NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
+static enum ni_660x_register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 {
-	enum NI_660x_Register ni_660x_register;
 	switch (reg) {
-	case NITIO_G0_Autoincrement_Reg:
-		ni_660x_register = G0AutoincrementRegister;
-		break;
-	case NITIO_G1_Autoincrement_Reg:
-		ni_660x_register = G1AutoincrementRegister;
-		break;
-	case NITIO_G2_Autoincrement_Reg:
-		ni_660x_register = G2AutoincrementRegister;
-		break;
-	case NITIO_G3_Autoincrement_Reg:
-		ni_660x_register = G3AutoincrementRegister;
-		break;
-	case NITIO_G0_Command_Reg:
-		ni_660x_register = G0CommandRegister;
-		break;
-	case NITIO_G1_Command_Reg:
-		ni_660x_register = G1CommandRegister;
-		break;
-	case NITIO_G2_Command_Reg:
-		ni_660x_register = G2CommandRegister;
-		break;
-	case NITIO_G3_Command_Reg:
-		ni_660x_register = G3CommandRegister;
-		break;
-	case NITIO_G0_HW_Save_Reg:
-		ni_660x_register = G0HWSaveRegister;
-		break;
-	case NITIO_G1_HW_Save_Reg:
-		ni_660x_register = G1HWSaveRegister;
-		break;
-	case NITIO_G2_HW_Save_Reg:
-		ni_660x_register = G2HWSaveRegister;
-		break;
-	case NITIO_G3_HW_Save_Reg:
-		ni_660x_register = G3HWSaveRegister;
-		break;
-	case NITIO_G0_SW_Save_Reg:
-		ni_660x_register = G0SWSaveRegister;
-		break;
-	case NITIO_G1_SW_Save_Reg:
-		ni_660x_register = G1SWSaveRegister;
-		break;
-	case NITIO_G2_SW_Save_Reg:
-		ni_660x_register = G2SWSaveRegister;
-		break;
-	case NITIO_G3_SW_Save_Reg:
-		ni_660x_register = G3SWSaveRegister;
-		break;
-	case NITIO_G0_Mode_Reg:
-		ni_660x_register = G0ModeRegister;
-		break;
-	case NITIO_G1_Mode_Reg:
-		ni_660x_register = G1ModeRegister;
-		break;
-	case NITIO_G2_Mode_Reg:
-		ni_660x_register = G2ModeRegister;
-		break;
-	case NITIO_G3_Mode_Reg:
-		ni_660x_register = G3ModeRegister;
-		break;
-	case NITIO_G0_LoadA_Reg:
-		ni_660x_register = G0LoadARegister;
-		break;
-	case NITIO_G1_LoadA_Reg:
-		ni_660x_register = G1LoadARegister;
-		break;
-	case NITIO_G2_LoadA_Reg:
-		ni_660x_register = G2LoadARegister;
-		break;
-	case NITIO_G3_LoadA_Reg:
-		ni_660x_register = G3LoadARegister;
-		break;
-	case NITIO_G0_LoadB_Reg:
-		ni_660x_register = G0LoadBRegister;
-		break;
-	case NITIO_G1_LoadB_Reg:
-		ni_660x_register = G1LoadBRegister;
-		break;
-	case NITIO_G2_LoadB_Reg:
-		ni_660x_register = G2LoadBRegister;
-		break;
-	case NITIO_G3_LoadB_Reg:
-		ni_660x_register = G3LoadBRegister;
-		break;
-	case NITIO_G0_Input_Select_Reg:
-		ni_660x_register = G0InputSelectRegister;
-		break;
-	case NITIO_G1_Input_Select_Reg:
-		ni_660x_register = G1InputSelectRegister;
-		break;
-	case NITIO_G2_Input_Select_Reg:
-		ni_660x_register = G2InputSelectRegister;
-		break;
-	case NITIO_G3_Input_Select_Reg:
-		ni_660x_register = G3InputSelectRegister;
-		break;
-	case NITIO_G01_Status_Reg:
-		ni_660x_register = G01StatusRegister;
-		break;
-	case NITIO_G23_Status_Reg:
-		ni_660x_register = G23StatusRegister;
-		break;
-	case NITIO_G01_Joint_Reset_Reg:
-		ni_660x_register = G01JointResetRegister;
-		break;
-	case NITIO_G23_Joint_Reset_Reg:
-		ni_660x_register = G23JointResetRegister;
-		break;
-	case NITIO_G01_Joint_Status1_Reg:
-		ni_660x_register = G01JointStatus1Register;
-		break;
-	case NITIO_G23_Joint_Status1_Reg:
-		ni_660x_register = G23JointStatus1Register;
-		break;
-	case NITIO_G01_Joint_Status2_Reg:
-		ni_660x_register = G01JointStatus2Register;
-		break;
-	case NITIO_G23_Joint_Status2_Reg:
-		ni_660x_register = G23JointStatus2Register;
-		break;
-	case NITIO_G0_Counting_Mode_Reg:
-		ni_660x_register = G0CountingModeRegister;
-		break;
-	case NITIO_G1_Counting_Mode_Reg:
-		ni_660x_register = G1CountingModeRegister;
-		break;
-	case NITIO_G2_Counting_Mode_Reg:
-		ni_660x_register = G2CountingModeRegister;
-		break;
-	case NITIO_G3_Counting_Mode_Reg:
-		ni_660x_register = G3CountingModeRegister;
-		break;
-	case NITIO_G0_Second_Gate_Reg:
-		ni_660x_register = G0SecondGateRegister;
-		break;
-	case NITIO_G1_Second_Gate_Reg:
-		ni_660x_register = G1SecondGateRegister;
-		break;
-	case NITIO_G2_Second_Gate_Reg:
-		ni_660x_register = G2SecondGateRegister;
-		break;
-	case NITIO_G3_Second_Gate_Reg:
-		ni_660x_register = G3SecondGateRegister;
-		break;
-	case NITIO_G0_DMA_Config_Reg:
-		ni_660x_register = G0DMAConfigRegister;
-		break;
-	case NITIO_G0_DMA_Status_Reg:
-		ni_660x_register = G0DMAStatusRegister;
-		break;
-	case NITIO_G1_DMA_Config_Reg:
-		ni_660x_register = G1DMAConfigRegister;
-		break;
-	case NITIO_G1_DMA_Status_Reg:
-		ni_660x_register = G1DMAStatusRegister;
-		break;
-	case NITIO_G2_DMA_Config_Reg:
-		ni_660x_register = G2DMAConfigRegister;
-		break;
-	case NITIO_G2_DMA_Status_Reg:
-		ni_660x_register = G2DMAStatusRegister;
-		break;
-	case NITIO_G3_DMA_Config_Reg:
-		ni_660x_register = G3DMAConfigRegister;
-		break;
-	case NITIO_G3_DMA_Status_Reg:
-		ni_660x_register = G3DMAStatusRegister;
-		break;
-	case NITIO_G0_Interrupt_Acknowledge_Reg:
-		ni_660x_register = G0InterruptAcknowledge;
-		break;
-	case NITIO_G1_Interrupt_Acknowledge_Reg:
-		ni_660x_register = G1InterruptAcknowledge;
-		break;
-	case NITIO_G2_Interrupt_Acknowledge_Reg:
-		ni_660x_register = G2InterruptAcknowledge;
-		break;
-	case NITIO_G3_Interrupt_Acknowledge_Reg:
-		ni_660x_register = G3InterruptAcknowledge;
-		break;
-	case NITIO_G0_Status_Reg:
-		ni_660x_register = G0StatusRegister;
-		break;
-	case NITIO_G1_Status_Reg:
-		ni_660x_register = G1StatusRegister;
-		break;
-	case NITIO_G2_Status_Reg:
-		ni_660x_register = G2StatusRegister;
-		break;
-	case NITIO_G3_Status_Reg:
-		ni_660x_register = G3StatusRegister;
-		break;
-	case NITIO_G0_Interrupt_Enable_Reg:
-		ni_660x_register = G0InterruptEnable;
-		break;
-	case NITIO_G1_Interrupt_Enable_Reg:
-		ni_660x_register = G1InterruptEnable;
-		break;
-	case NITIO_G2_Interrupt_Enable_Reg:
-		ni_660x_register = G2InterruptEnable;
-		break;
-	case NITIO_G3_Interrupt_Enable_Reg:
-		ni_660x_register = G3InterruptEnable;
-		break;
+	case NITIO_G0_AUTO_INC:
+		return NI660X_G0_AUTO_INC;
+	case NITIO_G1_AUTO_INC:
+		return NI660X_G1_AUTO_INC;
+	case NITIO_G2_AUTO_INC:
+		return NI660X_G2_AUTO_INC;
+	case NITIO_G3_AUTO_INC:
+		return NI660X_G3_AUTO_INC;
+	case NITIO_G0_CMD:
+		return NI660X_G0_CMD;
+	case NITIO_G1_CMD:
+		return NI660X_G1_CMD;
+	case NITIO_G2_CMD:
+		return NI660X_G2_CMD;
+	case NITIO_G3_CMD:
+		return NI660X_G3_CMD;
+	case NITIO_G0_HW_SAVE:
+		return NI660X_G0_HW_SAVE;
+	case NITIO_G1_HW_SAVE:
+		return NI660X_G1_HW_SAVE;
+	case NITIO_G2_HW_SAVE:
+		return NI660X_G2_HW_SAVE;
+	case NITIO_G3_HW_SAVE:
+		return NI660X_G3_HW_SAVE;
+	case NITIO_G0_SW_SAVE:
+		return NI660X_G0_SW_SAVE;
+	case NITIO_G1_SW_SAVE:
+		return NI660X_G1_SW_SAVE;
+	case NITIO_G2_SW_SAVE:
+		return NI660X_G2_SW_SAVE;
+	case NITIO_G3_SW_SAVE:
+		return NI660X_G3_SW_SAVE;
+	case NITIO_G0_MODE:
+		return NI660X_G0_MODE;
+	case NITIO_G1_MODE:
+		return NI660X_G1_MODE;
+	case NITIO_G2_MODE:
+		return NI660X_G2_MODE;
+	case NITIO_G3_MODE:
+		return NI660X_G3_MODE;
+	case NITIO_G0_LOADA:
+		return NI660X_G0_LOADA;
+	case NITIO_G1_LOADA:
+		return NI660X_G1_LOADA;
+	case NITIO_G2_LOADA:
+		return NI660X_G2_LOADA;
+	case NITIO_G3_LOADA:
+		return NI660X_G3_LOADA;
+	case NITIO_G0_LOADB:
+		return NI660X_G0_LOADB;
+	case NITIO_G1_LOADB:
+		return NI660X_G1_LOADB;
+	case NITIO_G2_LOADB:
+		return NI660X_G2_LOADB;
+	case NITIO_G3_LOADB:
+		return NI660X_G3_LOADB;
+	case NITIO_G0_INPUT_SEL:
+		return NI660X_G0_INPUT_SEL;
+	case NITIO_G1_INPUT_SEL:
+		return NI660X_G1_INPUT_SEL;
+	case NITIO_G2_INPUT_SEL:
+		return NI660X_G2_INPUT_SEL;
+	case NITIO_G3_INPUT_SEL:
+		return NI660X_G3_INPUT_SEL;
+	case NITIO_G01_STATUS:
+		return NI660X_G01_STATUS;
+	case NITIO_G23_STATUS:
+		return NI660X_G23_STATUS;
+	case NITIO_G01_RESET:
+		return NI660X_G01_RESET;
+	case NITIO_G23_RESET:
+		return NI660X_G23_RESET;
+	case NITIO_G01_STATUS1:
+		return NI660X_G01_STATUS1;
+	case NITIO_G23_STATUS1:
+		return NI660X_G23_STATUS1;
+	case NITIO_G01_STATUS2:
+		return NI660X_G01_STATUS2;
+	case NITIO_G23_STATUS2:
+		return NI660X_G23_STATUS2;
+	case NITIO_G0_CNT_MODE:
+		return NI660X_G0_CNT_MODE;
+	case NITIO_G1_CNT_MODE:
+		return NI660X_G1_CNT_MODE;
+	case NITIO_G2_CNT_MODE:
+		return NI660X_G2_CNT_MODE;
+	case NITIO_G3_CNT_MODE:
+		return NI660X_G3_CNT_MODE;
+	case NITIO_G0_GATE2:
+		return NI660X_G0_GATE2;
+	case NITIO_G1_GATE2:
+		return NI660X_G1_GATE2;
+	case NITIO_G2_GATE2:
+		return NI660X_G2_GATE2;
+	case NITIO_G3_GATE2:
+		return NI660X_G3_GATE2;
+	case NITIO_G0_DMA_CFG:
+		return NI660X_G0_DMA_CFG;
+	case NITIO_G0_DMA_STATUS:
+		return NI660X_G0_DMA_STATUS;
+	case NITIO_G1_DMA_CFG:
+		return NI660X_G1_DMA_CFG;
+	case NITIO_G1_DMA_STATUS:
+		return NI660X_G1_DMA_STATUS;
+	case NITIO_G2_DMA_CFG:
+		return NI660X_G2_DMA_CFG;
+	case NITIO_G2_DMA_STATUS:
+		return NI660X_G2_DMA_STATUS;
+	case NITIO_G3_DMA_CFG:
+		return NI660X_G3_DMA_CFG;
+	case NITIO_G3_DMA_STATUS:
+		return NI660X_G3_DMA_STATUS;
+	case NITIO_G0_INT_ACK:
+		return NI660X_G0_INT_ACK;
+	case NITIO_G1_INT_ACK:
+		return NI660X_G1_INT_ACK;
+	case NITIO_G2_INT_ACK:
+		return NI660X_G2_INT_ACK;
+	case NITIO_G3_INT_ACK:
+		return NI660X_G3_INT_ACK;
+	case NITIO_G0_STATUS:
+		return NI660X_G0_STATUS;
+	case NITIO_G1_STATUS:
+		return NI660X_G1_STATUS;
+	case NITIO_G2_STATUS:
+		return NI660X_G2_STATUS;
+	case NITIO_G3_STATUS:
+		return NI660X_G3_STATUS;
+	case NITIO_G0_INT_ENA:
+		return NI660X_G0_INT_ENA;
+	case NITIO_G1_INT_ENA:
+		return NI660X_G1_INT_ENA;
+	case NITIO_G2_INT_ENA:
+		return NI660X_G2_INT_ENA;
+	case NITIO_G3_INT_ENA:
+		return NI660X_G3_INT_ENA;
 	default:
 		BUG();
 		return 0;
-		break;
 	}
-	return ni_660x_register;
 }
 
 static inline void ni_660x_write_register(struct comedi_device *dev,
-					  unsigned chip_index, unsigned bits,
-					  enum NI_660x_Register reg)
+					  unsigned chip, unsigned bits,
+					  enum ni_660x_register reg)
 {
 	struct ni_660x_private *devpriv = dev->private;
 	void __iomem *write_address =
-	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
+	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip] +
 	    registerData[reg].offset;
 
 	switch (registerData[reg].size) {
@@ -683,12 +608,12 @@ static inline void ni_660x_write_register(struct comedi_device *dev,
 }
 
 static inline unsigned ni_660x_read_register(struct comedi_device *dev,
-					     unsigned chip_index,
-					     enum NI_660x_Register reg)
+					     unsigned chip,
+					     enum ni_660x_register reg)
 {
 	struct ni_660x_private *devpriv = dev->private;
 	void __iomem *read_address =
-	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
+	    devpriv->mite->daq_io_addr + GPCT_OFFSET[chip] +
 	    registerData[reg].offset;
 
 	switch (registerData[reg].size) {
@@ -709,18 +634,20 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 				   enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	enum NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
-	ni_660x_write_register(dev, counter->chip_index, bits,
-			       ni_660x_register);
+	enum ni_660x_register ni_660x_register = ni_gpct_to_660x_register(reg);
+	unsigned chip = counter->chip_index;
+
+	ni_660x_write_register(dev, chip, bits, ni_660x_register);
 }
 
 static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 				      enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	enum NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
-	return ni_660x_read_register(dev, counter->chip_index,
-				     ni_660x_register);
+	enum ni_660x_register ni_660x_register = ni_gpct_to_660x_register(reg);
+	unsigned chip = counter->chip_index;
+
+	return ni_660x_read_register(dev, chip, ni_660x_register);
 }
 
 static inline struct mite_dma_descriptor_ring *mite_ring(struct ni_660x_private
@@ -728,7 +655,9 @@ static inline struct mite_dma_descriptor_ring *mite_ring(struct ni_660x_private
 							 struct ni_gpct
 							 *counter)
 {
-	return priv->mite_rings[counter->chip_index][counter->counter_index];
+	unsigned chip = counter->chip_index;
+
+	return priv->mite_rings[chip][counter->counter_index];
 }
 
 static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
@@ -736,18 +665,17 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 					   struct ni_gpct *counter)
 {
 	struct ni_660x_private *devpriv = dev->private;
+	unsigned chip = counter->chip_index;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->dma_configuration_soft_copies[counter->chip_index] &=
-	    ~dma_select_mask(mite_channel);
-	devpriv->dma_configuration_soft_copies[counter->chip_index] |=
-	    dma_select_bits(mite_channel,
-			    dma_selection_counter(counter->counter_index));
-	ni_660x_write_register(dev, counter->chip_index,
-			       devpriv->dma_configuration_soft_copies
-			       [counter->chip_index] |
-			       dma_reset_bit(mite_channel), DMAConfigRegister);
+	devpriv->dma_configuration_soft_copies[chip] &=
+		~dma_select_mask(mite_channel);
+	devpriv->dma_configuration_soft_copies[chip] |=
+		dma_select_bits(mite_channel, counter->counter_index);
+	ni_660x_write_register(dev, chip,
+			       devpriv->dma_configuration_soft_copies[chip] |
+			       dma_reset_bit(mite_channel), NI660X_DMA_CFG);
 	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
@@ -757,16 +685,17 @@ static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
 					     struct ni_gpct *counter)
 {
 	struct ni_660x_private *devpriv = dev->private;
+	unsigned chip = counter->chip_index;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->dma_configuration_soft_copies[counter->chip_index] &=
+	devpriv->dma_configuration_soft_copies[chip] &=
 	    ~dma_select_mask(mite_channel);
-	devpriv->dma_configuration_soft_copies[counter->chip_index] |=
+	devpriv->dma_configuration_soft_copies[chip] |=
 	    dma_select_bits(mite_channel, dma_selection_none);
-	ni_660x_write_register(dev, counter->chip_index,
-			       devpriv->dma_configuration_soft_copies
-			       [counter->chip_index], DMAConfigRegister);
+	ni_660x_write_register(dev, chip,
+			       devpriv->dma_configuration_soft_copies[chip],
+			       NI660X_DMA_CFG);
 	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
@@ -815,10 +744,8 @@ static void ni_660x_release_mite_channel(struct comedi_device *dev,
 
 static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct ni_gpct *counter = s->private;
 	int retval;
-
-	struct ni_gpct *counter = subdev_to_counter(s);
-/* const struct comedi_cmd *cmd = &s->async->cmd; */
 
 	retval = ni_660x_request_mite_channel(dev, counter, COMEDI_INPUT);
 	if (retval) {
@@ -827,22 +754,13 @@ static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return retval;
 	}
 	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
-	retval = ni_tio_cmd(counter, s->async);
 
-	return retval;
-}
-
-static int ni_660x_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
-{
-	struct ni_gpct *counter = subdev_to_counter(s);
-
-	return ni_tio_cmdtest(counter, cmd);
+	return ni_tio_cmd(dev, s);
 }
 
 static int ni_660x_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct ni_gpct *counter = subdev_to_counter(s);
+	struct ni_gpct *counter = s->private;
 	int retval;
 
 	retval = ni_tio_cancel(counter);
@@ -850,30 +768,29 @@ static int ni_660x_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return retval;
 }
 
-static void set_tio_counterswap(struct comedi_device *dev, int chipset)
+static void set_tio_counterswap(struct comedi_device *dev, int chip)
 {
-	/* See P. 3.5 of the Register-Level Programming manual.  The
-	   CounterSwap bit has to be set on the second chip, otherwise
-	   it will try to use the same pins as the first chip.
+	unsigned bits = 0;
+
+	/*
+	 * See P. 3.5 of the Register-Level Programming manual.
+	 * The CounterSwap bit has to be set on the second chip,
+	 * otherwise it will try to use the same pins as the
+	 * first chip.
 	 */
-	if (chipset)
-		ni_660x_write_register(dev, chipset, CounterSwap,
-				       ClockConfigRegister);
-	else
-		ni_660x_write_register(dev, chipset, 0, ClockConfigRegister);
+	if (chip)
+		bits = CounterSwap;
+
+	ni_660x_write_register(dev, chip, bits, NI660X_CLK_CFG);
 }
 
 static void ni_660x_handle_gpct_interrupt(struct comedi_device *dev,
 					  struct comedi_subdevice *s)
 {
-	ni_tio_handle_interrupt(subdev_to_counter(s), s);
-	if (s->async->events) {
-		if (s->async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
-					COMEDI_CB_OVERFLOW)) {
-			ni_660x_cancel(dev, s);
-		}
-		comedi_event(dev, s);
-	}
+	struct ni_gpct *counter = s->private;
+
+	ni_tio_handle_interrupt(counter, s);
+	cfc_handle_events(dev, s);
 }
 
 static irqreturn_t ni_660x_interrupt(int irq, void *d)
@@ -901,13 +818,14 @@ static int ni_660x_input_poll(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct ni_660x_private *devpriv = dev->private;
+	struct ni_gpct *counter = s->private;
 	unsigned long flags;
 
 	/* lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&devpriv->interrupt_lock, flags);
-	mite_sync_input_dma(subdev_to_counter(s)->mite_chan, s->async);
+	mite_sync_input_dma(counter->mite_chan, s);
 	spin_unlock_irqrestore(&devpriv->interrupt_lock, flags);
-	return comedi_buf_read_n_available(s->async);
+	return comedi_buf_read_n_available(s);
 }
 
 static int ni_660x_buf_change(struct comedi_device *dev,
@@ -915,10 +833,10 @@ static int ni_660x_buf_change(struct comedi_device *dev,
 			      unsigned long new_size)
 {
 	struct ni_660x_private *devpriv = dev->private;
+	struct ni_gpct *counter = s->private;
 	int ret;
 
-	ret = mite_buf_change(mite_ring(devpriv, subdev_to_counter(s)),
-			      s->async);
+	ret = mite_buf_change(mite_ring(devpriv, counter), s);
 	if (ret < 0)
 		return ret;
 
@@ -974,13 +892,6 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 	}
 }
 
-static int
-ni_660x_GPCT_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		   struct comedi_insn *insn, unsigned int *data)
-{
-	return ni_tio_rinsn(subdev_to_counter(s), insn, data);
-}
-
 static void init_tio_chip(struct comedi_device *dev, int chipset)
 {
 	struct ni_660x_private *devpriv = dev->private;
@@ -994,23 +905,9 @@ static void init_tio_chip(struct comedi_device *dev, int chipset)
 	}
 	ni_660x_write_register(dev, chipset,
 			       devpriv->dma_configuration_soft_copies[chipset],
-			       DMAConfigRegister);
+			       NI660X_DMA_CFG);
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i)
 		ni_660x_write_register(dev, chipset, 0, IOConfigReg(i));
-}
-
-static int
-ni_660x_GPCT_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
-{
-	return ni_tio_insn_config(subdev_to_counter(s), insn, data);
-}
-
-static int ni_660x_GPCT_winsn(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
-{
-	return ni_tio_winsn(subdev_to_counter(s), insn, data);
 }
 
 static int ni_660x_dio_insn_bits(struct comedi_device *dev,
@@ -1024,13 +921,13 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 		s->state &= ~(data[0] << base_bitfield_channel);
 		s->state |= (data[0] & data[1]) << base_bitfield_channel;
 		/* Write out the new digital output lines */
-		ni_660x_write_register(dev, 0, s->state, DIO32Output);
+		ni_660x_write_register(dev, 0, s->state, NI660X_DIO32_OUTPUT);
 	}
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
-	data[1] =
-	    (ni_660x_read_register(dev, 0,
-				   DIO32Input) >> base_bitfield_channel);
+	data[1] = (ni_660x_read_register(dev, 0, NI660X_DIO32_INPUT) >>
+			base_bitfield_channel);
+
 	return insn->n;
 }
 
@@ -1213,10 +1110,9 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = ni_660x_dio_insn_bits;
 	s->insn_config = ni_660x_dio_insn_config;
-	s->io_bits = 0;		/* all bits default to input */
 	/*  we use the ioconfig registers to control dio direction, so zero
 	output enables in stc dio control reg */
-	ni_660x_write_register(dev, 0, 0, STCDIOControl);
+	ni_660x_write_register(dev, 0, 0, NI660X_STC_DIO_CONTROL);
 
 	devpriv->counter_dev = ni_gpct_device_construct(dev,
 						     &ni_gpct_write_register,
@@ -1235,12 +1131,12 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 			    SDF_CMD_READ /* | SDF_CMD_WRITE */ ;
 			s->n_chan = 3;
 			s->maxdata = 0xffffffff;
-			s->insn_read = ni_660x_GPCT_rinsn;
-			s->insn_write = ni_660x_GPCT_winsn;
-			s->insn_config = ni_660x_GPCT_insn_config;
+			s->insn_read = ni_tio_insn_read;
+			s->insn_write = ni_tio_insn_write;
+			s->insn_config = ni_tio_insn_config;
 			s->do_cmd = &ni_660x_cmd;
 			s->len_chanlist = 1;
-			s->do_cmdtest = &ni_660x_cmdtest;
+			s->do_cmdtest = ni_tio_cmdtest;
 			s->cancel = &ni_660x_cancel;
 			s->poll = &ni_660x_input_poll;
 			s->async_dma_dir = DMA_BIDIRECTIONAL;
@@ -1285,8 +1181,8 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	if (board->n_chips > 1)
 		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
 	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
-			       GlobalInterruptConfigRegister);
-	dev_info(dev->class_dev, "ni_660x: %s attached\n", dev->board_name);
+			       NI660X_GLOBAL_INT_CFG);
+
 	return 0;
 }
 
@@ -1321,7 +1217,7 @@ static int ni_660x_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_660x_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {
+static const struct pci_device_id ni_660x_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x1310), BOARD_PCI6602 },
 	{ PCI_VDEVICE(NI, 0x1360), BOARD_PXI6602 },
 	{ PCI_VDEVICE(NI, 0x2c60), BOARD_PCI6601 },

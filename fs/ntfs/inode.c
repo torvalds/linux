@@ -55,7 +55,7 @@
  *
  * Return 1 if the attributes match and 0 if not.
  *
- * NOTE: This function runs with the inode->i_lock spin lock held so it is not
+ * NOTE: This function runs with the inode_hash_lock spin lock held so it is not
  * allowed to sleep.
  */
 int ntfs_test_inode(struct inode *vi, ntfs_attr *na)
@@ -1704,8 +1704,6 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 	iput(bvi);
 skip_large_index_stuff:
 	/* Setup the operations for this index inode. */
-	vi->i_op = NULL;
-	vi->i_fop = NULL;
 	vi->i_mapping->a_ops = &ntfs_mst_aops;
 	vi->i_blocks = ni->allocated_size >> 9;
 	/*
@@ -2259,7 +2257,7 @@ void ntfs_evict_big_inode(struct inode *vi)
 {
 	ntfs_inode *ni = NTFS_I(vi);
 
-	truncate_inode_pages(&vi->i_data, 0);
+	truncate_inode_pages_final(&vi->i_data);
 	clear_inode(vi);
 
 #ifdef NTFS_RW

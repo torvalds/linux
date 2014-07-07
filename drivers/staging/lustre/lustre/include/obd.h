@@ -132,6 +132,13 @@ static inline bool lsm_has_objects(struct lov_stripe_md *lsm)
 	return true;
 }
 
+static inline int lov_stripe_md_size(unsigned int stripe_count)
+{
+	struct lov_stripe_md lsm;
+
+	return sizeof(lsm) + stripe_count * sizeof(lsm.lsm_oinfo[0]);
+}
+
 struct obd_info;
 
 typedef int (*obd_enqueue_update_f)(void *cookie, int rc);
@@ -158,7 +165,7 @@ struct obd_info {
 	/* statfs data specific for every OSC, if needed at all. */
 	struct obd_statfs      *oi_osfs;
 	/* An update callback which is called to update some data on upper
-	 * level. E.g. it is used for update lsm->lsm_oinfo at every recieved
+	 * level. E.g. it is used for update lsm->lsm_oinfo at every received
 	 * request in osc level for enqueue requests. It is also possible to
 	 * update some caller data from LOV layer if needed. */
 	obd_enqueue_update_f    oi_cb_up;
@@ -177,7 +184,7 @@ static inline int lov_stripe_md_cmp(struct lov_stripe_md *m1,
 	 * ->lsm_wire contains padding, but it should be zeroed out during
 	 * allocation.
 	 */
-	return memcmp(&m1->lsm_wire, &m2->lsm_wire, sizeof m1->lsm_wire);
+	return memcmp(&m1->lsm_wire, &m2->lsm_wire, sizeof(m1->lsm_wire));
 }
 
 static inline int lov_lum_lsm_cmp(struct lov_user_md *lum,
@@ -309,9 +316,10 @@ struct client_obd {
 	int		      cl_conn_count;
 	/* max_mds_easize is purely a performance thing so we don't have to
 	 * call obd_size_diskmd() all the time. */
-	int		      cl_default_mds_easize;
-	int		      cl_max_mds_easize;
-	int		      cl_max_mds_cookiesize;
+	int			 cl_default_mds_easize;
+	int			 cl_max_mds_easize;
+	int			 cl_default_mds_cookiesize;
+	int			 cl_max_mds_cookiesize;
 
 	enum lustre_sec_part     cl_sp_me;
 	enum lustre_sec_part     cl_sp_to;
@@ -398,9 +406,9 @@ struct client_obd {
 	struct mdc_rpc_lock     *cl_close_lock;
 
 	/* mgc datastruct */
-	struct semaphore	 cl_mgc_sem;
-	struct vfsmount	 *cl_mgc_vfsmnt;
-	struct dentry	   *cl_mgc_configs_dir;
+	struct mutex		 cl_mgc_mutex;
+	struct local_oid_storage *cl_mgc_los;
+	struct dt_object	*cl_mgc_configs_dir;
 	atomic_t	     cl_mgc_refcount;
 	struct obd_export       *cl_mgc_mgsexp;
 
@@ -429,7 +437,7 @@ struct client_obd {
 	/* ptlrpc work for writeback in ptlrpcd context */
 	void		    *cl_writeback_work;
 	/* hash tables for osc_quota_info */
-	cfs_hash_t	      *cl_quota_hash[MAXQUOTAS];
+	struct cfs_hash	      *cl_quota_hash[MAXQUOTAS];
 };
 #define obd2cli_tgt(obd) ((char *)(obd)->u.cli.cl_target_uuid.uuid)
 
@@ -556,7 +564,7 @@ struct lov_obd {
 	__u32		   lov_tgt_size;   /* size of tgts array */
 	int		     lov_connects;
 	int		     lov_pool_count;
-	cfs_hash_t	     *lov_pools_hash_body; /* used for key access */
+	struct cfs_hash	     *lov_pools_hash_body; /* used for key access */
 	struct list_head	      lov_pool_list; /* used for sequential access */
 	struct proc_dir_entry   *lov_pool_proc_entry;
 	enum lustre_sec_part    lov_sp_me;
@@ -598,6 +606,7 @@ struct lmv_obd {
 	int			max_easize;
 	int			max_def_easize;
 	int			max_cookiesize;
+	int			max_def_cookiesize;
 	int			server_timeout;
 
 	int			tgts_size; /* size of tgts array */
@@ -855,11 +864,11 @@ struct obd_device {
 	 * protection of other bits using _bh lock */
 	unsigned long obd_recovery_expired:1;
 	/* uuid-export hash body */
-	cfs_hash_t	     *obd_uuid_hash;
+	struct cfs_hash	     *obd_uuid_hash;
 	/* nid-export hash body */
-	cfs_hash_t	     *obd_nid_hash;
+	struct cfs_hash	     *obd_nid_hash;
 	/* nid stats body */
-	cfs_hash_t	     *obd_nid_stats_hash;
+	struct cfs_hash	     *obd_nid_stats_hash;
 	struct list_head	      obd_nid_stats;
 	atomic_t	    obd_refcount;
 	wait_queue_head_t	     obd_refcount_waitq;
@@ -989,7 +998,10 @@ enum obd_cleanup_stage {
 #define KEY_LOCK_TO_STRIPE      "lock_to_stripe"
 #define KEY_LOVDESC	     "lovdesc"
 #define KEY_LOV_IDX	     "lov_idx"
-#define KEY_MAX_EASIZE	  "max_easize"
+#define KEY_MAX_EASIZE		"max_easize"
+#define KEY_DEFAULT_EASIZE	"default_easize"
+#define KEY_MAX_COOKIESIZE	"max_cookiesize"
+#define KEY_DEFAULT_COOKIESIZE	"default_cookiesize"
 #define KEY_MDS_CONN	    "mds_conn"
 #define KEY_MGSSEC	      "mgssec"
 #define KEY_NEXT_ID	     "next_id"
@@ -1022,6 +1034,7 @@ struct lu_context;
 #define IT_LAYOUT   (1 << 10)
 #define IT_QUOTA_DQACQ (1 << 11)
 #define IT_QUOTA_CONN  (1 << 12)
+#define IT_SETXATTR (1 << 13)
 
 static inline int it_to_lock_mode(struct lookup_intent *it)
 {
@@ -1031,14 +1044,18 @@ static inline int it_to_lock_mode(struct lookup_intent *it)
 	else if (it->it_op & (IT_READDIR | IT_GETATTR | IT_OPEN | IT_LOOKUP |
 			      IT_LAYOUT))
 		return LCK_CR;
+	else if (it->it_op &  IT_GETXATTR)
+		return LCK_PR;
+	else if (it->it_op &  IT_SETXATTR)
+		return LCK_PW;
 
 	LASSERTF(0, "Invalid it_op: %d\n", it->it_op);
 	return -EINVAL;
 }
 
 struct md_op_data {
-	struct lu_fid	   op_fid1; /* operation fid1 (usualy parent) */
-	struct lu_fid	   op_fid2; /* operation fid2 (usualy child) */
+	struct lu_fid	   op_fid1; /* operation fid1 (usually parent) */
+	struct lu_fid	   op_fid2; /* operation fid2 (usually child) */
 	struct lu_fid	   op_fid3; /* 2 extra fids to find conflicting */
 	struct lu_fid	   op_fid4; /* to the operation locks. */
 	mdsno_t		 op_mds;  /* what mds server open will go to */
@@ -1070,7 +1087,7 @@ struct md_op_data {
 	struct obd_capa	*op_capa2;
 
 	/* Various operation flags. */
-	__u32		   op_bias;
+	enum mds_op_bias        op_bias;
 
 	/* Operation type */
 	__u32		   op_opc;
@@ -1084,6 +1101,10 @@ struct md_op_data {
 	/* used to transfer info between the stacks of MD client
 	 * see enum op_cli_flags */
 	__u32			op_cli_flags;
+
+	/* File object data version for HSM release, on client */
+	__u64			op_data_version;
+	struct lustre_handle	op_lease_handle;
 };
 
 enum op_cli_flags {
@@ -1314,7 +1335,8 @@ struct md_open_data {
 	struct obd_client_handle *mod_och;
 	struct ptlrpc_request    *mod_open_req;
 	struct ptlrpc_request    *mod_close_req;
-	atomic_t	      mod_refcount;
+	atomic_t		  mod_refcount;
+	bool			  mod_is_create;
 };
 
 struct lookup_intent;
@@ -1373,7 +1395,7 @@ struct md_ops {
 			  const char *, int, int, int,
 			  struct ptlrpc_request **);
 
-	int (*m_init_ea_size)(struct obd_export *, int, int, int);
+	int (*m_init_ea_size)(struct obd_export *, int, int, int, int);
 
 	int (*m_get_lustre_md)(struct obd_export *, struct ptlrpc_request *,
 			       struct obd_export *, struct obd_export *,
@@ -1383,7 +1405,7 @@ struct md_ops {
 
 	int (*m_set_open_replay_data)(struct obd_export *,
 				      struct obd_client_handle *,
-				      struct ptlrpc_request *);
+				      struct lookup_intent *);
 	int (*m_clear_open_replay_data)(struct obd_export *,
 					struct obd_client_handle *);
 	int (*m_set_lock_data)(struct obd_export *, __u64 *, void *, __u64 *);

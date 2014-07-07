@@ -8,7 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/input-polldev.h>
@@ -48,7 +47,7 @@ static void gpio_mouse_scan(struct input_polled_dev *dev)
 
 static int gpio_mouse_probe(struct platform_device *pdev)
 {
-	struct gpio_mouse_platform_data *pdata = pdev->dev.platform_data;
+	struct gpio_mouse_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct input_polled_dev *input_poll;
 	struct input_dev *input;
 	int pin, i;

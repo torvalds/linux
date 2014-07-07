@@ -78,7 +78,7 @@ struct ina2xx_config {
 };
 
 struct ina2xx_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
 	const struct ina2xx_config *config;
 
 	struct mutex update_lock;
@@ -112,8 +112,8 @@ static const struct ina2xx_config ina2xx_config[] = {
 
 static struct ina2xx_data *ina2xx_update_device(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct ina2xx_data *data = i2c_get_clientdata(client);
+	struct ina2xx_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	struct ina2xx_data *ret = data;
 
 	mutex_lock(&data->update_lock);
@@ -148,7 +148,8 @@ static int ina2xx_get_value(struct ina2xx_data *data, u8 reg)
 
 	switch (reg) {
 	case INA2XX_SHUNT_VOLTAGE:
-		val = DIV_ROUND_CLOSEST(data->regs[reg],
+		/* signed register */
+		val = DIV_ROUND_CLOSEST((s16)data->regs[reg],
 					data->config->shunt_div);
 		break;
 	case INA2XX_BUS_VOLTAGE:
@@ -160,8 +161,8 @@ static int ina2xx_get_value(struct ina2xx_data *data, u8 reg)
 		val = data->regs[reg] * data->config->power_lsb;
 		break;
 	case INA2XX_CURRENT:
-		/* LSB=1mA (selected). Is in mA */
-		val = data->regs[reg];
+		/* signed register, LSB=1mA (selected), in mA */
+		val = (s16)data->regs[reg];
 		break;
 	default:
 		/* programmer goofed */
@@ -203,41 +204,39 @@ static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, ina2xx_show_value, NULL,
 			  INA2XX_POWER);
 
 /* pointers to created device attributes */
-static struct attribute *ina2xx_attributes[] = {
+static struct attribute *ina2xx_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in1_input.dev_attr.attr,
 	&sensor_dev_attr_curr1_input.dev_attr.attr,
 	&sensor_dev_attr_power1_input.dev_attr.attr,
 	NULL,
 };
-
-static const struct attribute_group ina2xx_group = {
-	.attrs = ina2xx_attributes,
-};
+ATTRIBUTE_GROUPS(ina2xx);
 
 static int ina2xx_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	struct ina2xx_data *data;
 	struct ina2xx_platform_data *pdata;
-	int ret;
-	u32 val;
+	struct device *dev = &client->dev;
+	struct ina2xx_data *data;
+	struct device *hwmon_dev;
 	long shunt = 10000; /* default shunt value 10mOhms */
+	u32 val;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	if (dev_get_platdata(&client->dev)) {
-		pdata = dev_get_platdata(&client->dev);
+	if (dev_get_platdata(dev)) {
+		pdata = dev_get_platdata(dev);
 		shunt = pdata->shunt_uohms;
-	} else if (!of_property_read_u32(client->dev.of_node,
-				"shunt-resistor", &val)) {
-			shunt = val;
+	} else if (!of_property_read_u32(dev->of_node,
+					 "shunt-resistor", &val)) {
+		shunt = val;
 	}
 
 	if (shunt <= 0)
@@ -255,35 +254,16 @@ static int ina2xx_probe(struct i2c_client *client,
 	i2c_smbus_write_word_swapped(client, INA2XX_CALIBRATION,
 				     data->config->calibration_factor / shunt);
 
-	i2c_set_clientdata(client, data);
+	data->client = client;
 	mutex_init(&data->update_lock);
 
-	ret = sysfs_create_group(&client->dev.kobj, &ina2xx_group);
-	if (ret)
-		return ret;
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+							   data, ina2xx_groups);
+	if (IS_ERR(hwmon_dev))
+		return PTR_ERR(hwmon_dev);
 
-	data->hwmon_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		ret = PTR_ERR(data->hwmon_dev);
-		goto out_err_hwmon;
-	}
-
-	dev_info(&client->dev, "power monitor %s (Rshunt = %li uOhm)\n",
+	dev_info(dev, "power monitor %s (Rshunt = %li uOhm)\n",
 		 id->name, shunt);
-
-	return 0;
-
-out_err_hwmon:
-	sysfs_remove_group(&client->dev.kobj, &ina2xx_group);
-	return ret;
-}
-
-static int ina2xx_remove(struct i2c_client *client)
-{
-	struct ina2xx_data *data = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &ina2xx_group);
 
 	return 0;
 }
@@ -302,7 +282,6 @@ static struct i2c_driver ina2xx_driver = {
 		.name	= "ina2xx",
 	},
 	.probe		= ina2xx_probe,
-	.remove		= ina2xx_remove,
 	.id_table	= ina2xx_id,
 };
 

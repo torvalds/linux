@@ -17,25 +17,25 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_shared.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_extent_busy.h"
 #include "xfs_error.h"
 #include "xfs_cksum.h"
 #include "xfs_trace.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
+#include "xfs_log.h"
 
 struct workqueue_struct *xfs_alloc_wq;
 
@@ -257,16 +257,14 @@ xfs_alloc_fix_len(
 	k = rlen % args->prod;
 	if (k == args->mod)
 		return;
-	if (k > args->mod) {
-		if ((int)(rlen = rlen - k - args->mod) < (int)args->minlen)
-			return;
-	} else {
-		if ((int)(rlen = rlen - args->prod - (args->mod - k)) <
-		    (int)args->minlen)
-			return;
-	}
-	ASSERT(rlen >= args->minlen);
-	ASSERT(rlen <= args->maxlen);
+	if (k > args->mod)
+		rlen = rlen - (k - args->mod);
+	else
+		rlen = rlen - args->prod + (args->mod - k);
+	if ((int)rlen < (int)args->minlen)
+		return;
+	ASSERT(rlen >= args->minlen && rlen <= args->maxlen);
+	ASSERT(rlen % args->prod == args->mod);
 	args->len = rlen;
 }
 
@@ -474,7 +472,6 @@ xfs_agfl_read_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
-	int		agfl_ok = 1;
 
 	/*
 	 * There is no verification of non-crc AGFLs because mkfs does not
@@ -485,15 +482,13 @@ xfs_agfl_read_verify(
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return;
 
-	agfl_ok = xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
-				   offsetof(struct xfs_agfl, agfl_crc));
-
-	agfl_ok = agfl_ok && xfs_agfl_verify(bp);
-
-	if (!agfl_ok) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+	if (!xfs_buf_verify_cksum(bp, XFS_AGFL_CRC_OFF))
+		xfs_buf_ioerror(bp, EFSBADCRC);
+	else if (!xfs_agfl_verify(bp))
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	}
+
+	if (bp->b_error)
+		xfs_verifier_error(bp);
 }
 
 static void
@@ -508,16 +503,15 @@ xfs_agfl_write_verify(
 		return;
 
 	if (!xfs_agfl_verify(bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_verifier_error(bp);
 		return;
 	}
 
 	if (bip)
 		XFS_BUF_TO_AGFL(bp)->agfl_lsn = cpu_to_be64(bip->bli_item.li_lsn);
 
-	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length),
-			 offsetof(struct xfs_agfl, agfl_crc));
+	xfs_buf_update_cksum(bp, XFS_AGFL_CRC_OFF);
 }
 
 const struct xfs_buf_ops xfs_agfl_buf_ops = {
@@ -545,7 +539,6 @@ xfs_alloc_read_agfl(
 			XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_agfl_buf_ops);
 	if (error)
 		return error;
-	ASSERT(!xfs_buf_geterror(bp));
 	xfs_buf_set_ref(bp, XFS_AGFL_REF);
 	*bpp = bp;
 	return 0;
@@ -2238,19 +2231,17 @@ xfs_agf_read_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
-	int		agf_ok = 1;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		agf_ok = xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
-					  offsetof(struct xfs_agf, agf_crc));
-
-	agf_ok = agf_ok && xfs_agf_verify(mp, bp);
-
-	if (unlikely(XFS_TEST_ERROR(!agf_ok, mp, XFS_ERRTAG_ALLOC_READ_AGF,
-			XFS_RANDOM_ALLOC_READ_AGF))) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	    !xfs_buf_verify_cksum(bp, XFS_AGF_CRC_OFF))
+		xfs_buf_ioerror(bp, EFSBADCRC);
+	else if (XFS_TEST_ERROR(!xfs_agf_verify(mp, bp), mp,
+				XFS_ERRTAG_ALLOC_READ_AGF,
+				XFS_RANDOM_ALLOC_READ_AGF))
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	}
+
+	if (bp->b_error)
+		xfs_verifier_error(bp);
 }
 
 static void
@@ -2261,8 +2252,8 @@ xfs_agf_write_verify(
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
 	if (!xfs_agf_verify(mp, bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_verifier_error(bp);
 		return;
 	}
 
@@ -2272,8 +2263,7 @@ xfs_agf_write_verify(
 	if (bip)
 		XFS_BUF_TO_AGF(bp)->agf_lsn = cpu_to_be64(bip->bli_item.li_lsn);
 
-	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length),
-			 offsetof(struct xfs_agf, agf_crc));
+	xfs_buf_update_cksum(bp, XFS_AGF_CRC_OFF);
 }
 
 const struct xfs_buf_ops xfs_agf_buf_ops = {
@@ -2293,6 +2283,8 @@ xfs_read_agf(
 	struct xfs_buf		**bpp)	/* buffer for the ag freelist header */
 {
 	int		error;
+
+	trace_xfs_read_agf(mp, agno);
 
 	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_trans_read_buf(
@@ -2324,8 +2316,9 @@ xfs_alloc_read_agf(
 	struct xfs_perag	*pag;		/* per allocation group data */
 	int			error;
 
-	ASSERT(agno != NULLAGNUMBER);
+	trace_xfs_alloc_read_agf(mp, agno);
 
+	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_read_agf(mp, tp, agno,
 			(flags & XFS_ALLOC_FLAG_TRYLOCK) ? XBF_TRYLOCK : 0,
 			bpp);

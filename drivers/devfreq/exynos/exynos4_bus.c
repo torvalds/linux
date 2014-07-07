@@ -19,20 +19,16 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/suspend.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/devfreq.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
 
-/* Exynos4 ASV has been in the mailing list, but not upstreamed, yet. */
-#ifdef CONFIG_EXYNOS_ASV
-extern unsigned int exynos_result_of_asv;
-#endif
+#include <mach/map.h>
 
-#include <mach/regs-clock.h>
-
-#include <plat/map-s5p.h>
+#include "exynos_ppmu.h"
+#include "exynos4_bus.h"
 
 #define MAX_SAFEVOLT	1200000 /* 1.2V */
 
@@ -44,22 +40,6 @@ enum exynos4_busf_type {
 /* Assume that the bus is saturated if the utilization is 40% */
 #define BUS_SATURATION_RATIO	40
 
-enum ppmu_counter {
-	PPMU_PMNCNT0 = 0,
-	PPMU_PMCCNT1,
-	PPMU_PMNCNT2,
-	PPMU_PMNCNT3,
-	PPMU_PMNCNT_MAX,
-};
-struct exynos4_ppmu {
-	void __iomem *hw_base;
-	unsigned int ccnt;
-	unsigned int event;
-	unsigned int count[PPMU_PMNCNT_MAX];
-	bool ccnt_overflow;
-	bool count_overflow[PPMU_PMNCNT_MAX];
-};
-
 enum busclk_level_idx {
 	LV_0 = 0,
 	LV_1,
@@ -68,6 +48,13 @@ enum busclk_level_idx {
 	LV_4,
 	_LV_END
 };
+
+enum exynos_ppmu_idx {
+	PPMU_DMC0,
+	PPMU_DMC1,
+	PPMU_END,
+};
+
 #define EX4210_LV_MAX	LV_2
 #define EX4x12_LV_MAX	LV_4
 #define EX4210_LV_NUM	(LV_2 + 1)
@@ -91,7 +78,7 @@ struct busfreq_data {
 	struct regulator *vdd_int;
 	struct regulator *vdd_mif; /* Exynos4412/4212 only */
 	struct busfreq_opp_info curr_oppinfo;
-	struct exynos4_ppmu dmc[2];
+	struct busfreq_ppmu_data ppmu_data;
 
 	struct notifier_block pm_notifier;
 	struct mutex lock;
@@ -99,12 +86,6 @@ struct busfreq_data {
 	/* Dividers calculated at boot/probe-time */
 	unsigned int dmc_divtable[_LV_END]; /* DMC0 */
 	unsigned int top_divtable[_LV_END];
-};
-
-struct bus_opp_table {
-	unsigned int idx;
-	unsigned long clk;
-	unsigned long volt;
 };
 
 /* 4210 controls clock of mif and voltage of int */
@@ -116,7 +97,7 @@ static struct bus_opp_table exynos4210_busclk_table[] = {
 };
 
 /*
- * MIF is the main control knob clock for exynox4x12 MIF/INT
+ * MIF is the main control knob clock for Exynos4x12 MIF/INT
  * clock and voltage of both mif/int are controlled.
  */
 static struct bus_opp_table exynos4x12_mifclk_table[] = {
@@ -524,57 +505,6 @@ static int exynos4x12_set_busclk(struct busfreq_data *data,
 	return 0;
 }
 
-
-static void busfreq_mon_reset(struct busfreq_data *data)
-{
-	unsigned int i;
-
-	for (i = 0; i < 2; i++) {
-		void __iomem *ppmu_base = data->dmc[i].hw_base;
-
-		/* Reset PPMU */
-		__raw_writel(0x8000000f, ppmu_base + 0xf010);
-		__raw_writel(0x8000000f, ppmu_base + 0xf050);
-		__raw_writel(0x6, ppmu_base + 0xf000);
-		__raw_writel(0x0, ppmu_base + 0xf100);
-
-		/* Set PPMU Event */
-		data->dmc[i].event = 0x6;
-		__raw_writel(((data->dmc[i].event << 12) | 0x1),
-			     ppmu_base + 0xfc);
-
-		/* Start PPMU */
-		__raw_writel(0x1, ppmu_base + 0xf000);
-	}
-}
-
-static void exynos4_read_ppmu(struct busfreq_data *data)
-{
-	int i, j;
-
-	for (i = 0; i < 2; i++) {
-		void __iomem *ppmu_base = data->dmc[i].hw_base;
-		u32 overflow;
-
-		/* Stop PPMU */
-		__raw_writel(0x0, ppmu_base + 0xf000);
-
-		/* Update local data from PPMU */
-		overflow = __raw_readl(ppmu_base + 0xf050);
-
-		data->dmc[i].ccnt = __raw_readl(ppmu_base + 0xf100);
-		data->dmc[i].ccnt_overflow = overflow & (1 << 31);
-
-		for (j = 0; j < PPMU_PMNCNT_MAX; j++) {
-			data->dmc[i].count[j] = __raw_readl(
-					ppmu_base + (0xf110 + (0x10 * j)));
-			data->dmc[i].count_overflow[j] = overflow & (1 << j);
-		}
-	}
-
-	busfreq_mon_reset(data);
-}
-
 static int exynos4x12_get_intspec(unsigned long mifclk)
 {
 	int i = 0;
@@ -639,7 +569,7 @@ static int exynos4_bus_target(struct device *dev, unsigned long *_freq,
 	struct platform_device *pdev = container_of(dev, struct platform_device,
 						    dev);
 	struct busfreq_data *data = platform_get_drvdata(pdev);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long freq;
 	unsigned long old_freq = data->curr_oppinfo.rate;
 	struct busfreq_opp_info	new_oppinfo;
@@ -650,8 +580,8 @@ static int exynos4_bus_target(struct device *dev, unsigned long *_freq,
 		rcu_read_unlock();
 		return PTR_ERR(opp);
 	}
-	new_oppinfo.rate = opp_get_freq(opp);
-	new_oppinfo.volt = opp_get_voltage(opp);
+	new_oppinfo.rate = dev_pm_opp_get_freq(opp);
+	new_oppinfo.volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
 	freq = new_oppinfo.rate;
 
@@ -698,76 +628,28 @@ out:
 	return err;
 }
 
-static int exynos4_get_busier_dmc(struct busfreq_data *data)
-{
-	u64 p0 = data->dmc[0].count[0];
-	u64 p1 = data->dmc[1].count[0];
-
-	p0 *= data->dmc[1].ccnt;
-	p1 *= data->dmc[0].ccnt;
-
-	if (data->dmc[1].ccnt == 0)
-		return 0;
-
-	if (p0 > p1)
-		return 0;
-	return 1;
-}
-
 static int exynos4_bus_get_dev_status(struct device *dev,
 				      struct devfreq_dev_status *stat)
 {
 	struct busfreq_data *data = dev_get_drvdata(dev);
-	int busier_dmc;
-	int cycles_x2 = 2; /* 2 x cycles */
-	void __iomem *addr;
-	u32 timing;
-	u32 memctrl;
+	struct busfreq_ppmu_data *ppmu_data = &data->ppmu_data;
+	int busier;
 
-	exynos4_read_ppmu(data);
-	busier_dmc = exynos4_get_busier_dmc(data);
+	exynos_read_ppmu(ppmu_data);
+	busier = exynos_get_busier_ppmu(ppmu_data);
 	stat->current_frequency = data->curr_oppinfo.rate;
 
-	if (busier_dmc)
-		addr = S5P_VA_DMC1;
-	else
-		addr = S5P_VA_DMC0;
-
-	memctrl = __raw_readl(addr + 0x04); /* one of DDR2/3/LPDDR2 */
-	timing = __raw_readl(addr + 0x38); /* CL or WL/RL values */
-
-	switch ((memctrl >> 8) & 0xf) {
-	case 0x4: /* DDR2 */
-		cycles_x2 = ((timing >> 16) & 0xf) * 2;
-		break;
-	case 0x5: /* LPDDR2 */
-	case 0x6: /* DDR3 */
-		cycles_x2 = ((timing >> 8) & 0xf) + ((timing >> 0) & 0xf);
-		break;
-	default:
-		pr_err("%s: Unknown Memory Type(%d).\n", __func__,
-		       (memctrl >> 8) & 0xf);
-		return -EINVAL;
-	}
-
 	/* Number of cycles spent on memory access */
-	stat->busy_time = data->dmc[busier_dmc].count[0] / 2 * (cycles_x2 + 2);
+	stat->busy_time = ppmu_data->ppmu[busier].count[PPMU_PMNCNT3];
 	stat->busy_time *= 100 / BUS_SATURATION_RATIO;
-	stat->total_time = data->dmc[busier_dmc].ccnt;
+	stat->total_time = ppmu_data->ppmu[busier].ccnt;
 
 	/* If the counters have overflown, retry */
-	if (data->dmc[busier_dmc].ccnt_overflow ||
-	    data->dmc[busier_dmc].count_overflow[0])
+	if (ppmu_data->ppmu[busier].ccnt_overflow ||
+	    ppmu_data->ppmu[busier].count_overflow[0])
 		return -EAGAIN;
 
 	return 0;
-}
-
-static void exynos4_bus_exit(struct device *dev)
-{
-	struct busfreq_data *data = dev_get_drvdata(dev);
-
-	devfreq_unregister_opp_notifier(dev, data->devfreq);
 }
 
 static struct devfreq_dev_profile exynos4_devfreq_profile = {
@@ -775,7 +657,6 @@ static struct devfreq_dev_profile exynos4_devfreq_profile = {
 	.polling_ms	= 50,
 	.target		= exynos4_bus_target,
 	.get_dev_status	= exynos4_bus_get_dev_status,
-	.exit		= exynos4_bus_exit,
 };
 
 static int exynos4210_init_tables(struct busfreq_data *data)
@@ -837,11 +718,11 @@ static int exynos4210_init_tables(struct busfreq_data *data)
 		data->top_divtable[i] = tmp;
 	}
 
-#ifdef CONFIG_EXYNOS_ASV
-	tmp = exynos4_result_of_asv;
-#else
+	/*
+	 * TODO: init tmp based on busfreq_data
+	 * (device-tree or platform-data)
+	 */
 	tmp = 0; /* Max voltages for the reliability of the unknown */
-#endif
 
 	pr_debug("ASV Group of Exynos4 is %d\n", tmp);
 	/* Use merged grouping for voltage */
@@ -873,7 +754,7 @@ static int exynos4210_init_tables(struct busfreq_data *data)
 		exynos4210_busclk_table[i].volt = exynos4210_asv_volt[mgrp][i];
 
 	for (i = LV_0; i < EX4210_LV_NUM; i++) {
-		err = opp_add(data->dev, exynos4210_busclk_table[i].clk,
+		err = dev_pm_opp_add(data->dev, exynos4210_busclk_table[i].clk,
 			      exynos4210_busclk_table[i].volt);
 		if (err) {
 			dev_err(data->dev, "Cannot add opp entries.\n");
@@ -922,11 +803,7 @@ static int exynos4x12_init_tables(struct busfreq_data *data)
 		data->dmc_divtable[i] = tmp;
 	}
 
-#ifdef CONFIG_EXYNOS_ASV
-	tmp = exynos4_result_of_asv;
-#else
 	tmp = 0; /* Max voltages for the reliability of the unknown */
-#endif
 
 	if (tmp > 8)
 		tmp = 0;
@@ -940,7 +817,7 @@ static int exynos4x12_init_tables(struct busfreq_data *data)
 	}
 
 	for (i = 0; i < EX4x12_LV_NUM; i++) {
-		ret = opp_add(data->dev, exynos4x12_mifclk_table[i].clk,
+		ret = dev_pm_opp_add(data->dev, exynos4x12_mifclk_table[i].clk,
 			      exynos4x12_mifclk_table[i].volt);
 		if (ret) {
 			dev_err(data->dev, "Fail to add opp entries.\n");
@@ -956,7 +833,7 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 {
 	struct busfreq_data *data = container_of(this, struct busfreq_data,
 						 pm_notifier);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	struct busfreq_opp_info	new_oppinfo;
 	unsigned long maxfreq = ULONG_MAX;
 	int err = 0;
@@ -969,7 +846,7 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 		data->disabled = true;
 
 		rcu_read_lock();
-		opp = opp_find_freq_floor(data->dev, &maxfreq);
+		opp = dev_pm_opp_find_freq_floor(data->dev, &maxfreq);
 		if (IS_ERR(opp)) {
 			rcu_read_unlock();
 			dev_err(data->dev, "%s: unable to find a min freq\n",
@@ -977,8 +854,8 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 			mutex_unlock(&data->lock);
 			return PTR_ERR(opp);
 		}
-		new_oppinfo.rate = opp_get_freq(opp);
-		new_oppinfo.volt = opp_get_voltage(opp);
+		new_oppinfo.rate = dev_pm_opp_get_freq(opp);
+		new_oppinfo.volt = dev_pm_opp_get_voltage(opp);
 		rcu_read_unlock();
 
 		err = exynos4_bus_setvolt(data, &new_oppinfo,
@@ -1020,7 +897,8 @@ unlock:
 static int exynos4_busfreq_probe(struct platform_device *pdev)
 {
 	struct busfreq_data *data;
-	struct opp *opp;
+	struct busfreq_ppmu_data *ppmu_data;
+	struct dev_pm_opp *opp;
 	struct device *dev = &pdev->dev;
 	int err = 0;
 
@@ -1030,9 +908,19 @@ static int exynos4_busfreq_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	ppmu_data = &data->ppmu_data;
+	ppmu_data->ppmu_end = PPMU_END;
+	ppmu_data->ppmu = devm_kzalloc(dev,
+				       sizeof(struct exynos_ppmu) * PPMU_END,
+				       GFP_KERNEL);
+	if (!ppmu_data->ppmu) {
+		dev_err(dev, "Failed to allocate memory for exynos_ppmu\n");
+		return -ENOMEM;
+	}
+
 	data->type = pdev->id_entry->driver_data;
-	data->dmc[0].hw_base = S5P_VA_DMC0;
-	data->dmc[1].hw_base = S5P_VA_DMC1;
+	ppmu_data->ppmu[PPMU_DMC0].hw_base = S5P_VA_DMC0;
+	ppmu_data->ppmu[PPMU_DMC1].hw_base = S5P_VA_DMC1;
 	data->pm_notifier.notifier_call = exynos4_busfreq_pm_notifier_event;
 	data->dev = dev;
 	mutex_init(&data->lock);
@@ -1048,8 +936,11 @@ static int exynos4_busfreq_probe(struct platform_device *pdev)
 		dev_err(dev, "Cannot determine the device id %d\n", data->type);
 		err = -EINVAL;
 	}
-	if (err)
+	if (err) {
+		dev_err(dev, "Cannot initialize busfreq table %d\n",
+			     data->type);
 		return err;
+	}
 
 	data->vdd_int = devm_regulator_get(dev, "vdd_int");
 	if (IS_ERR(data->vdd_int)) {
@@ -1065,32 +956,42 @@ static int exynos4_busfreq_probe(struct platform_device *pdev)
 	}
 
 	rcu_read_lock();
-	opp = opp_find_freq_floor(dev, &exynos4_devfreq_profile.initial_freq);
+	opp = dev_pm_opp_find_freq_floor(dev,
+					 &exynos4_devfreq_profile.initial_freq);
 	if (IS_ERR(opp)) {
 		rcu_read_unlock();
 		dev_err(dev, "Invalid initial frequency %lu kHz.\n",
 			exynos4_devfreq_profile.initial_freq);
 		return PTR_ERR(opp);
 	}
-	data->curr_oppinfo.rate = opp_get_freq(opp);
-	data->curr_oppinfo.volt = opp_get_voltage(opp);
+	data->curr_oppinfo.rate = dev_pm_opp_get_freq(opp);
+	data->curr_oppinfo.volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
 
 	platform_set_drvdata(pdev, data);
 
-	busfreq_mon_reset(data);
-
-	data->devfreq = devfreq_add_device(dev, &exynos4_devfreq_profile,
+	data->devfreq = devm_devfreq_add_device(dev, &exynos4_devfreq_profile,
 					   "simple_ondemand", NULL);
 	if (IS_ERR(data->devfreq))
 		return PTR_ERR(data->devfreq);
 
-	devfreq_register_opp_notifier(dev, data->devfreq);
+	/*
+	 * Start PPMU (Performance Profiling Monitoring Unit) to check
+	 * utilization of each IP in the Exynos4 SoC.
+	 */
+	busfreq_mon_reset(ppmu_data);
 
+	/* Register opp_notifier for Exynos4 busfreq */
+	err = devm_devfreq_register_opp_notifier(dev, data->devfreq);
+	if (err < 0) {
+		dev_err(dev, "Failed to register opp notifier\n");
+		return err;
+	}
+
+	/* Register pm_notifier for Exynos4 busfreq */
 	err = register_pm_notifier(&data->pm_notifier);
 	if (err) {
 		dev_err(dev, "Failed to setup pm notifier\n");
-		devfreq_remove_device(data->devfreq);
 		return err;
 	}
 
@@ -1101,23 +1002,24 @@ static int exynos4_busfreq_remove(struct platform_device *pdev)
 {
 	struct busfreq_data *data = platform_get_drvdata(pdev);
 
+	/* Unregister all of notifier chain */
 	unregister_pm_notifier(&data->pm_notifier);
-	devfreq_remove_device(data->devfreq);
 
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int exynos4_busfreq_resume(struct device *dev)
 {
 	struct busfreq_data *data = dev_get_drvdata(dev);
+	struct busfreq_ppmu_data *ppmu_data = &data->ppmu_data;
 
-	busfreq_mon_reset(data);
+	busfreq_mon_reset(ppmu_data);
 	return 0;
 }
+#endif
 
-static const struct dev_pm_ops exynos4_busfreq_pm = {
-	.resume	= exynos4_busfreq_resume,
-};
+static SIMPLE_DEV_PM_OPS(exynos4_busfreq_pm_ops, NULL, exynos4_busfreq_resume);
 
 static const struct platform_device_id exynos4_busfreq_id[] = {
 	{ "exynos4210-busfreq", TYPE_BUSF_EXYNOS4210 },
@@ -1133,7 +1035,7 @@ static struct platform_driver exynos4_busfreq_driver = {
 	.driver = {
 		.name	= "exynos4-busfreq",
 		.owner	= THIS_MODULE,
-		.pm	= &exynos4_busfreq_pm,
+		.pm	= &exynos4_busfreq_pm_ops,
 	},
 };
 

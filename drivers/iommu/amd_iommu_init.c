@@ -26,7 +26,6 @@
 #include <linux/msi.h>
 #include <linux/amd-iommu.h>
 #include <linux/export.h>
-#include <acpi/acpi.h>
 #include <asm/pci-direct.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -151,7 +150,7 @@ int amd_iommus_present;
 bool amd_iommu_np_cache __read_mostly;
 bool amd_iommu_iotlb_sup __read_mostly = true;
 
-u32 amd_iommu_max_pasids __read_mostly = ~0;
+u32 amd_iommu_max_pasid __read_mostly = ~0;
 
 bool amd_iommu_v2_present __read_mostly;
 bool amd_iommu_pc_present __read_mostly;
@@ -789,7 +788,7 @@ static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
 		 * per device. But we can enable the exclusion range per
 		 * device. This is done here
 		 */
-		set_dev_entry_bit(m->devid, DEV_ENTRY_EX);
+		set_dev_entry_bit(devid, DEV_ENTRY_EX);
 		iommu->exclusion_start = m->range_start;
 		iommu->exclusion_length = m->range_length;
 	}
@@ -1232,14 +1231,16 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 
 	if (iommu_feature(iommu, FEATURE_GT)) {
 		int glxval;
-		u32 pasids;
-		u64 shift;
+		u32 max_pasid;
+		u64 pasmax;
 
-		shift   = iommu->features & FEATURE_PASID_MASK;
-		shift >>= FEATURE_PASID_SHIFT;
-		pasids  = (1 << shift);
+		pasmax = iommu->features & FEATURE_PASID_MASK;
+		pasmax >>= FEATURE_PASID_SHIFT;
+		max_pasid  = (1 << (pasmax + 1)) - 1;
 
-		amd_iommu_max_pasids = min(amd_iommu_max_pasids, pasids);
+		amd_iommu_max_pasid = min(amd_iommu_max_pasid, max_pasid);
+
+		BUG_ON(amd_iommu_max_pasid & ~PASID_MASK);
 
 		glxval   = iommu->features & FEATURE_GLXVAL_MASK;
 		glxval >>= FEATURE_GLXVAL_SHIFT;

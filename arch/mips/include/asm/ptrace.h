@@ -39,9 +39,6 @@ struct pt_regs {
 	unsigned long cp0_badvaddr;
 	unsigned long cp0_cause;
 	unsigned long cp0_epc;
-#ifdef CONFIG_MIPS_MT_SMTC
-	unsigned long cp0_tcstatus;
-#endif /* CONFIG_MIPS_MT_SMTC */
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	unsigned long long mpl[3];	  /* MTM{0,1,2} */
 	unsigned long long mtp[3];	  /* MTP{0,1,2} */
@@ -81,9 +78,8 @@ static inline long regs_return_value(struct pt_regs *regs)
 
 #define instruction_pointer(regs) ((regs)->cp0_epc)
 #define profile_pc(regs) instruction_pointer(regs)
-#define user_stack_pointer(r) ((r)->regs[29])
 
-extern asmlinkage void syscall_trace_enter(struct pt_regs *regs);
+extern asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall);
 extern asmlinkage void syscall_trace_leave(struct pt_regs *regs);
 
 extern void die(const char *, struct pt_regs *) __noreturn;
@@ -99,5 +95,18 @@ static inline void die_if_kernel(const char *str, struct pt_regs *regs)
 	unsigned long sp = (unsigned long)__builtin_frame_address(0);	\
 	(struct pt_regs *)((sp | (THREAD_SIZE - 1)) + 1 - 32) - 1;	\
 })
+
+/* Helpers for working with the user stack pointer */
+
+static inline unsigned long user_stack_pointer(struct pt_regs *regs)
+{
+	return regs->regs[29];
+}
+
+static inline void user_stack_pointer_set(struct pt_regs *regs,
+	unsigned long val)
+{
+	regs->regs[29] = val;
+}
 
 #endif /* _ASM_PTRACE_H */

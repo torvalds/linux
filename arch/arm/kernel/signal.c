@@ -13,6 +13,7 @@
 #include <linux/personality.h>
 #include <linux/uaccess.h>
 #include <linux/tracehook.h>
+#include <linux/uprobes.h>
 
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
@@ -21,29 +22,7 @@
 #include <asm/unistd.h>
 #include <asm/vfp.h>
 
-/*
- * For ARM syscalls, we encode the syscall number into the instruction.
- */
-#define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn)|(__NR_OABI_SYSCALL_BASE))
-#define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE))
-
-/*
- * With EABI, the syscall number has to be loaded into r7.
- */
-#define MOV_R7_NR_SIGRETURN	(0xe3a07000 | (__NR_sigreturn - __NR_SYSCALL_BASE))
-#define MOV_R7_NR_RT_SIGRETURN	(0xe3a07000 | (__NR_rt_sigreturn - __NR_SYSCALL_BASE))
-
-/*
- * For Thumb syscalls, we pass the syscall number via r7.  We therefore
- * need two 16-bit instructions.
- */
-#define SWI_THUMB_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_sigreturn - __NR_SYSCALL_BASE))
-#define SWI_THUMB_RT_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_rt_sigreturn - __NR_SYSCALL_BASE))
-
-static const unsigned long sigreturn_codes[7] = {
-	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
-	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
-};
+extern const unsigned long sigreturn_codes[7];
 
 static unsigned long signal_return_offset;
 
@@ -375,12 +354,18 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		 */
 		thumb = handler & 1;
 
+#if __LINUX_ARM_ARCH__ >= 7
+		/*
+		 * Clear the If-Then Thumb-2 execution state
+		 * ARM spec requires this to be all 000s in ARM mode
+		 * Snapdragon S4/Krait misbehaves on a Thumb=>ARM
+		 * signal transition without this.
+		 */
+		cpsr &= ~PSR_IT_MASK;
+#endif
+
 		if (thumb) {
 			cpsr |= PSR_T_BIT;
-#if __LINUX_ARM_ARCH__ >= 7
-			/* clear the If-Then Thumb-2 execution state */
-			cpsr &= ~PSR_IT_MASK;
-#endif
 		} else
 			cpsr &= ~PSR_T_BIT;
 	}
@@ -606,6 +591,9 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 					return restart;
 				}
 				syscall = 0;
+			} else if (thread_flags & _TIF_UPROBE) {
+				clear_thread_flag(TIF_UPROBE);
+				uprobe_notify_resume(regs);
 			} else {
 				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);

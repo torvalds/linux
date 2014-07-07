@@ -95,15 +95,12 @@ static void __always_unused ____ftrace_check_##name(void)		\
 #undef __array
 #define __array(type, item, len)					\
 	do {								\
+		char *type_str = #type"["__stringify(len)"]";		\
 		BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);			\
-		mutex_lock(&event_storage_mutex);			\
-		snprintf(event_storage, sizeof(event_storage),		\
-			 "%s[%d]", #type, len);				\
-		ret = trace_define_field(event_call, event_storage, #item, \
+		ret = trace_define_field(event_call, type_str, #item,	\
 				 offsetof(typeof(field), item),		\
 				 sizeof(field.item),			\
 				 is_signed_type(type), filter_type);	\
-		mutex_unlock(&event_storage_mutex);			\
 		if (ret)						\
 			return ret;					\
 	} while (0);
@@ -176,11 +173,13 @@ struct ftrace_event_class __refdata event_class_ftrace_##call = {	\
 };									\
 									\
 struct ftrace_event_call __used event_##call = {			\
-	.name			= #call,				\
-	.event.type		= etype,				\
 	.class			= &event_class_ftrace_##call,		\
+	{								\
+		.name			= #call,			\
+	},								\
+	.event.type		= etype,				\
 	.print_fmt		= print,				\
-	.flags			= TRACE_EVENT_FL_IGNORE_ENABLE,		\
+	.flags			= TRACE_EVENT_FL_IGNORE_ENABLE | TRACE_EVENT_FL_USE_CALL_FILTER, \
 };									\
 struct ftrace_event_call __used						\
 __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call;

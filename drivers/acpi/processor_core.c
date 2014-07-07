@@ -10,33 +10,13 @@
 #include <linux/export.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
-
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <acpi/processor.h>
 
 #include "internal.h"
 
-#define PREFIX			"ACPI: "
 #define _COMPONENT		ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_core");
-
-static int __init set_no_mwait(const struct dmi_system_id *id)
-{
-	printk(KERN_NOTICE PREFIX "%s detected - "
-		"disabling mwait for CPU C-states\n", id->ident);
-	boot_option_idle_override = IDLE_NOMWAIT;
-	return 0;
-}
-
-static struct dmi_system_id processor_idle_dmi_table[] __initdata = {
-	{
-	set_no_mwait, "Extensa 5220", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),
-	DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
-	DMI_MATCH(DMI_PRODUCT_VERSION, "0100"),
-	DMI_MATCH(DMI_BOARD_NAME, "Columbia") }, NULL},
-	{},
-};
 
 static int map_lapic_id(struct acpi_subtable_header *entry,
 		 u32 acpi_id, int *apic_id)
@@ -45,13 +25,13 @@ static int map_lapic_id(struct acpi_subtable_header *entry,
 		(struct acpi_madt_local_apic *)entry;
 
 	if (!(lapic->lapic_flags & ACPI_MADT_ENABLED))
-		return 0;
+		return -ENODEV;
 
 	if (lapic->processor_id != acpi_id)
-		return 0;
+		return -EINVAL;
 
 	*apic_id = lapic->id;
-	return 1;
+	return 0;
 }
 
 static int map_x2apic_id(struct acpi_subtable_header *entry,
@@ -61,14 +41,14 @@ static int map_x2apic_id(struct acpi_subtable_header *entry,
 		(struct acpi_madt_local_x2apic *)entry;
 
 	if (!(apic->lapic_flags & ACPI_MADT_ENABLED))
-		return 0;
+		return -ENODEV;
 
 	if (device_declaration && (apic->uid == acpi_id)) {
 		*apic_id = apic->local_apic_id;
-		return 1;
+		return 0;
 	}
 
-	return 0;
+	return -EINVAL;
 }
 
 static int map_lsapic_id(struct acpi_subtable_header *entry,
@@ -78,16 +58,16 @@ static int map_lsapic_id(struct acpi_subtable_header *entry,
 		(struct acpi_madt_local_sapic *)entry;
 
 	if (!(lsapic->lapic_flags & ACPI_MADT_ENABLED))
-		return 0;
+		return -ENODEV;
 
 	if (device_declaration) {
 		if ((entry->length < 16) || (lsapic->uid != acpi_id))
-			return 0;
+			return -EINVAL;
 	} else if (lsapic->processor_id != acpi_id)
-		return 0;
+		return -EINVAL;
 
 	*apic_id = (lsapic->id << 8) | lsapic->eid;
-	return 1;
+	return 0;
 }
 
 static int map_madt_entry(int type, u32 acpi_id)
@@ -117,13 +97,13 @@ static int map_madt_entry(int type, u32 acpi_id)
 		struct acpi_subtable_header *header =
 			(struct acpi_subtable_header *)entry;
 		if (header->type == ACPI_MADT_TYPE_LOCAL_APIC) {
-			if (map_lapic_id(header, acpi_id, &apic_id))
+			if (!map_lapic_id(header, acpi_id, &apic_id))
 				break;
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC) {
-			if (map_x2apic_id(header, type, acpi_id, &apic_id))
+			if (!map_x2apic_id(header, type, acpi_id, &apic_id))
 				break;
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
-			if (map_lsapic_id(header, type, acpi_id, &apic_id))
+			if (!map_lsapic_id(header, type, acpi_id, &apic_id))
 				break;
 		}
 		entry += header->length;
@@ -162,16 +142,23 @@ exit:
 	return apic_id;
 }
 
-int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
+int acpi_get_apicid(acpi_handle handle, int type, u32 acpi_id)
 {
-#ifdef CONFIG_SMP
-	int i;
-#endif
-	int apic_id = -1;
+	int apic_id;
 
 	apic_id = map_mat_entry(handle, type, acpi_id);
 	if (apic_id == -1)
 		apic_id = map_madt_entry(type, acpi_id);
+
+	return apic_id;
+}
+
+int acpi_map_cpuid(int apic_id, u32 acpi_id)
+{
+#ifdef CONFIG_SMP
+	int i;
+#endif
+
 	if (apic_id == -1) {
 		/*
 		 * On UP processor, there is no _MAT or MADT table.
@@ -210,6 +197,15 @@ int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
 		return apic_id;
 #endif
 	return -1;
+}
+
+int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
+{
+	int apic_id;
+
+	apic_id = acpi_get_apicid(handle, type, acpi_id);
+
+	return acpi_map_cpuid(apic_id, acpi_id);
 }
 EXPORT_SYMBOL_GPL(acpi_get_cpuid);
 
@@ -308,7 +304,7 @@ static struct acpi_object_list *acpi_processor_alloc_pdc(void)
  * _PDC is required for a BIOS-OS handshake for most of the newer
  * ACPI processor features.
  */
-static int
+static acpi_status
 acpi_processor_eval_pdc(acpi_handle handle, struct acpi_object_list *pdc_in)
 {
 	acpi_status status = AE_OK;
@@ -364,16 +360,43 @@ early_init_pdc(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-void __init acpi_early_processor_set_pdc(void)
+#if defined(CONFIG_X86) || defined(CONFIG_IA64)
+static int __init set_no_mwait(const struct dmi_system_id *id)
+{
+	pr_notice(PREFIX "%s detected - disabling mwait for CPU C-states\n",
+		  id->ident);
+	boot_option_idle_override = IDLE_NOMWAIT;
+	return 0;
+}
+
+static struct dmi_system_id processor_idle_dmi_table[] __initdata = {
+	{
+	set_no_mwait, "Extensa 5220", {
+	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),
+	DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+	DMI_MATCH(DMI_PRODUCT_VERSION, "0100"),
+	DMI_MATCH(DMI_BOARD_NAME, "Columbia") }, NULL},
+	{},
+};
+
+static void __init processor_dmi_check(void)
 {
 	/*
 	 * Check whether the system is DMI table. If yes, OSPM
 	 * should not use mwait for CPU-states.
 	 */
 	dmi_check_system(processor_idle_dmi_table);
+}
+#else
+static inline void processor_dmi_check(void) {}
+#endif
+
+void __init acpi_early_processor_set_pdc(void)
+{
+	processor_dmi_check();
 
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
 			    early_init_pdc, NULL, NULL, NULL);
-	acpi_get_devices("ACPI0007", early_init_pdc, NULL, NULL);
+	acpi_get_devices(ACPI_PROCESSOR_DEVICE_HID, early_init_pdc, NULL, NULL);
 }

@@ -19,6 +19,7 @@
 #include <linux/spinlock_types.h>
 
 struct bgpio_pdata {
+	const char *label;
 	int base;
 	int ngpio;
 };

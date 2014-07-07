@@ -79,20 +79,22 @@ struct kvmppc_host_state {
 	ulong vmhandler;
 	ulong scratch0;
 	ulong scratch1;
+	ulong scratch2;
 	u8 in_guest;
 	u8 restore_hid5;
 	u8 napping;
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	u8 hwthread_req;
 	u8 hwthread_state;
 	u8 host_ipi;
+	u8 ptid;
 	struct kvm_vcpu *kvm_vcpu;
 	struct kvmppc_vcore *kvm_vcore;
 	unsigned long xics_phys;
 	u32 saved_xirr;
 	u64 dabr;
-	u64 host_mmcr[3];
+	u64 host_mmcr[7];	/* MMCR 0,1,A, SIAR, SDAR, MMCR2, SIER */
 	u32 host_pmc[8];
 	u64 host_purr;
 	u64 host_spurr;
@@ -101,21 +103,24 @@ struct kvmppc_host_state {
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	u64 cfar;
+	u64 ppr;
+	u64 host_fscr;
 #endif
 };
 
 struct kvmppc_book3s_shadow_vcpu {
+	bool in_use;
 	ulong gpr[14];
 	u32 cr;
 	u32 xer;
-
-	u32 fault_dsisr;
-	u32 last_inst;
 	ulong ctr;
 	ulong lr;
 	ulong pc;
+
 	ulong shadow_srr1;
 	ulong fault_dar;
+	u32 fault_dsisr;
+	u32 last_inst;
 
 #ifdef CONFIG_PPC_BOOK3S_32
 	u32     sr[16];			/* Guest SRs */
@@ -129,6 +134,7 @@ struct kvmppc_book3s_shadow_vcpu {
 		u64     esid;
 		u64     vsid;
 	} slb[64];			/* guest SLB */
+	u64 shadow_fscr;
 #endif
 };
 

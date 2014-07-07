@@ -26,7 +26,7 @@
 
 #include "gdm_mux.h"
 
-struct workqueue_struct *mux_rx_wq;
+static struct workqueue_struct *mux_rx_wq;
 
 static u16 packet_type[TTY_MAX_COUNT] = {0xF011, 0xF010};
 
@@ -51,7 +51,7 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-int packet_type_to_index(u16 packetType)
+static int packet_type_to_index(u16 packetType)
 {
 	int i;
 
@@ -96,12 +96,12 @@ static struct mux_rx *alloc_mux_rx(void)
 {
 	struct mux_rx *r = NULL;
 
-	r = kzalloc(sizeof(struct mux_rx), GFP_ATOMIC);
+	r = kzalloc(sizeof(struct mux_rx), GFP_KERNEL);
 	if (!r)
 		return NULL;
 
-	r->urb = usb_alloc_urb(0, GFP_ATOMIC);
-	r->buf = kmalloc(MUX_RX_MAX_SIZE, GFP_ATOMIC);
+	r->urb = usb_alloc_urb(0, GFP_KERNEL);
+	r->buf = kmalloc(MUX_RX_MAX_SIZE, GFP_KERNEL);
 	if (!r->urb || !r->buf) {
 		usb_free_urb(r->urb);
 		kfree(r->buf);
@@ -158,7 +158,6 @@ static int up_to_host(struct mux_rx *r)
 	unsigned int start_flag;
 	unsigned int payload_size;
 	unsigned short packet_type;
-	int remain;
 	int dummy_cnt;
 	u32 packet_size_sum = r->offset;
 	int index;
@@ -166,7 +165,8 @@ static int up_to_host(struct mux_rx *r)
 	int len = r->len;
 
 	while (1) {
-		mux_header = (struct mux_pkt_header *)(r->buf + packet_size_sum);
+		mux_header = (struct mux_pkt_header *)(r->buf +
+						       packet_size_sum);
 		start_flag = __le32_to_cpu(mux_header->start_flag);
 		payload_size = __le32_to_cpu(mux_header->payload_size);
 		packet_type = __le16_to_cpu(mux_header->packet_type);
@@ -176,8 +176,7 @@ static int up_to_host(struct mux_rx *r)
 			break;
 		}
 
-		remain = (MUX_HEADER_SIZE + payload_size) % 4;
-		dummy_cnt = remain ? (4-remain) : 0;
+		dummy_cnt = ALIGN(MUX_HEADER_SIZE + payload_size, 4);
 
 		if (len - packet_size_sum <
 			MUX_HEADER_SIZE + payload_size + dummy_cnt) {
@@ -233,7 +232,8 @@ static void do_rx(struct work_struct *work)
 			spin_unlock_irqrestore(&rx->to_host_lock, flags);
 			break;
 		}
-		r = list_entry(rx->to_host_list.next, struct mux_rx, to_host_list);
+		r = list_entry(rx->to_host_list.next, struct mux_rx,
+			       to_host_list);
 		list_del(&r->to_host_list);
 		spin_unlock_irqrestore(&rx->to_host_lock, flags);
 
@@ -251,7 +251,8 @@ static void remove_rx_submit_list(struct mux_rx *r, struct rx_cxt *rx)
 	struct mux_rx	*r_remove, *r_remove_next;
 
 	spin_lock_irqsave(&rx->submit_list_lock, flags);
-	list_for_each_entry_safe(r_remove, r_remove_next, &rx->rx_submit_list, rx_submit_list) {
+	list_for_each_entry_safe(r_remove, r_remove_next, &rx->rx_submit_list,
+				 rx_submit_list) {
 		if (r == r_remove)
 			list_del(&r->rx_submit_list);
 	}
@@ -281,9 +282,8 @@ static void gdm_mux_rcv_complete(struct urb *urb)
 	}
 }
 
-static int gdm_mux_recv(void *priv_dev,
-			int (*cb)(void *data, int len, int tty_index, struct tty_dev *tty_dev, int complete)
-			)
+static int gdm_mux_recv(void *priv_dev, int (*cb)(void *data, int len,
+			int tty_index, struct tty_dev *tty_dev, int complete))
 {
 	struct mux_dev *mux_dev = priv_dev;
 	struct usb_device *usbdev = mux_dev->usbdev;
@@ -361,7 +361,6 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	struct mux_pkt_header *mux_header;
 	struct mux_tx *t = NULL;
 	static u32 seq_num = 1;
-	int remain;
 	int dummy_cnt;
 	int total_len;
 	int ret;
@@ -375,8 +374,7 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 
 	spin_lock_irqsave(&mux_dev->write_lock, flags);
 
-	remain = (MUX_HEADER_SIZE + len) % 4;
-	dummy_cnt = remain ? (4 - remain) : 0;
+	dummy_cnt = ALIGN(MUX_HEADER_SIZE + len, 4);
 
 	total_len = len + MUX_HEADER_SIZE + dummy_cnt;
 
@@ -420,7 +418,8 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	return ret;
 }
 
-static int gdm_mux_send_control(void *priv_dev, int request, int value, void *buf, int len)
+static int gdm_mux_send_control(void *priv_dev, int request, int value,
+				void *buf, int len)
 {
 	struct mux_dev *mux_dev = priv_dev;
 	struct usb_device *usbdev = mux_dev->usbdev;
@@ -452,7 +451,8 @@ static void release_usb(struct mux_dev *mux_dev)
 	cancel_delayed_work(&mux_dev->work_rx);
 
 	spin_lock_irqsave(&rx->submit_list_lock, flags);
-	list_for_each_entry_safe(r, r_next, &rx->rx_submit_list, rx_submit_list) {
+	list_for_each_entry_safe(r, r_next, &rx->rx_submit_list,
+				 rx_submit_list) {
 		spin_unlock_irqrestore(&rx->submit_list_lock, flags);
 		usb_kill_urb(r->urb);
 		spin_lock_irqsave(&rx->submit_list_lock, flags);
@@ -507,7 +507,8 @@ static int init_usb(struct mux_dev *mux_dev)
 	return ret;
 }
 
-static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int gdm_mux_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
 {
 	struct mux_dev *mux_dev;
 	struct tty_dev *tty_dev;
@@ -541,7 +542,7 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	ret = init_usb(mux_dev);
 	if (ret)
-		goto err_free_tty;
+		goto err_free_usb;
 
 	tty_dev->priv_dev = (void *)mux_dev;
 	tty_dev->send_func = gdm_mux_send;
@@ -565,8 +566,8 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 
 err_unregister_tty:
 	unregister_lte_tty_device(tty_dev);
+err_free_usb:
 	release_usb(mux_dev);
-err_free_tty:
 	kfree(tty_dev);
 err_free_mux:
 	kfree(mux_dev);
@@ -614,7 +615,8 @@ static int gdm_mux_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 
 
 	spin_lock_irqsave(&rx->submit_list_lock, flags);
-	list_for_each_entry_safe(r, r_next, &rx->rx_submit_list, rx_submit_list) {
+	list_for_each_entry_safe(r, r_next, &rx->rx_submit_list,
+				 rx_submit_list) {
 		spin_unlock_irqrestore(&rx->submit_list_lock, flags);
 		usb_kill_urb(r->urb);
 		spin_lock_irqsave(&rx->submit_list_lock, flags);

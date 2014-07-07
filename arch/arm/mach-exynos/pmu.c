@@ -13,13 +13,12 @@
 #include <linux/kernel.h>
 #include <linux/bug.h>
 
-#include <mach/regs-clock.h>
-
 #include "common.h"
+#include "regs-pmu.h"
 
-static struct exynos_pmu_conf *exynos_pmu_config;
+static const struct exynos_pmu_conf *exynos_pmu_config;
 
-static struct exynos_pmu_conf exynos4210_pmu_config[] = {
+static const struct exynos_pmu_conf exynos4210_pmu_config[] = {
 	/* { .reg = address, .val = { AFTR, LPA, SLEEP } */
 	{ S5P_ARM_CORE0_LOWPWR,			{ 0x0, 0x0, 0x2 } },
 	{ S5P_DIS_IRQ_CORE0,			{ 0x0, 0x0, 0x0 } },
@@ -95,7 +94,7 @@ static struct exynos_pmu_conf exynos4210_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static struct exynos_pmu_conf exynos4x12_pmu_config[] = {
+static const struct exynos_pmu_conf exynos4x12_pmu_config[] = {
 	{ S5P_ARM_CORE0_LOWPWR,			{ 0x0, 0x0, 0x2 } },
 	{ S5P_DIS_IRQ_CORE0,			{ 0x0, 0x0, 0x0 } },
 	{ S5P_DIS_IRQ_CENTRAL0,			{ 0x0, 0x0, 0x0 } },
@@ -203,7 +202,7 @@ static struct exynos_pmu_conf exynos4x12_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static struct exynos_pmu_conf exynos4412_pmu_config[] = {
+static const struct exynos_pmu_conf exynos4412_pmu_config[] = {
 	{ S5P_ARM_CORE2_LOWPWR,			{ 0x0, 0x0, 0x2 } },
 	{ S5P_DIS_IRQ_CORE2,			{ 0x0, 0x0, 0x0 } },
 	{ S5P_DIS_IRQ_CENTRAL2,			{ 0x0, 0x0, 0x0 } },
@@ -213,7 +212,7 @@ static struct exynos_pmu_conf exynos4412_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static struct exynos_pmu_conf exynos5250_pmu_config[] = {
+static const struct exynos_pmu_conf exynos5250_pmu_config[] = {
 	/* { .reg = address, .val = { AFTR, LPA, SLEEP } */
 	{ EXYNOS5_ARM_CORE0_SYS_PWR_REG,		{ 0x0, 0x0, 0x2} },
 	{ EXYNOS5_DIS_IRQ_ARM_CORE0_LOCAL_SYS_PWR_REG,	{ 0x0, 0x0, 0x0} },
@@ -317,7 +316,7 @@ static struct exynos_pmu_conf exynos5250_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static void __iomem *exynos5_list_both_cnt_feed[] = {
+static void __iomem * const exynos5_list_both_cnt_feed[] = {
 	EXYNOS5_ARM_CORE0_OPTION,
 	EXYNOS5_ARM_CORE1_OPTION,
 	EXYNOS5_ARM_COMMON_OPTION,
@@ -331,7 +330,7 @@ static void __iomem *exynos5_list_both_cnt_feed[] = {
 	EXYNOS5_TOP_PWR_SYSMEM_OPTION,
 };
 
-static void __iomem *exynos5_list_diable_wfi_wfe[] = {
+static void __iomem * const exynos5_list_diable_wfi_wfe[] = {
 	EXYNOS5_ARM_CORE1_OPTION,
 	EXYNOS5_FSYS_ARM_OPTION,
 	EXYNOS5_ISP_ARM_OPTION,

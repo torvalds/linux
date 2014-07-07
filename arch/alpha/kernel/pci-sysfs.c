@@ -83,7 +83,7 @@ static int pci_mmap_resource(struct kobject *kobj,
 	if (iomem_is_exclusive(res->start))
 		return -EINVAL;
 
-	pcibios_resource_to_bus(pdev, &bar, res);
+	pcibios_resource_to_bus(pdev->bus, &bar, res);
 	vma->vm_pgoff += bar.start >> (PAGE_SHIFT - (sparse ? 5 : 0));
 	mmap_type = res->flags & IORESOURCE_MEM ? pci_mmap_mem : pci_mmap_io;
 
@@ -139,7 +139,7 @@ static int sparse_mem_mmap_fits(struct pci_dev *pdev, int num)
 	long dense_offset;
 	unsigned long sparse_size;
 
-	pcibios_resource_to_bus(pdev, &bar, &pdev->resource[num]);
+	pcibios_resource_to_bus(pdev->bus, &bar, &pdev->resource[num]);
 
 	/* All core logic chips have 4G sparse address space, except
 	   CIA which has 16G (see xxx_SPARSE_MEM and xxx_DENSE_MEM

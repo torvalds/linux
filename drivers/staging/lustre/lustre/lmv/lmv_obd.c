@@ -280,7 +280,7 @@ static void lmv_set_timeouts(struct obd_device *obd)
 }
 
 static int lmv_init_ea_size(struct obd_export *exp, int easize,
-			    int def_easize, int cookiesize)
+			    int def_easize, int cookiesize, int def_cookiesize)
 {
 	struct obd_device   *obd = exp->exp_obd;
 	struct lmv_obd      *lmv = &obd->u.lmv;
@@ -300,6 +300,10 @@ static int lmv_init_ea_size(struct obd_export *exp, int easize,
 		lmv->max_cookiesize = cookiesize;
 		change = 1;
 	}
+	if (lmv->max_def_cookiesize < def_cookiesize) {
+		lmv->max_def_cookiesize = def_cookiesize;
+		change = 1;
+	}
 	if (change == 0)
 		return 0;
 
@@ -315,7 +319,7 @@ static int lmv_init_ea_size(struct obd_export *exp, int easize,
 		}
 
 		rc = md_init_ea_size(lmv->tgts[i]->ltd_exp, easize, def_easize,
-				     cookiesize);
+				     cookiesize, def_cookiesize);
 		if (rc) {
 			CERROR("%s: obd_init_ea_size() failed on MDT target %d:"
 			       " rc = %d.\n", obd->obd_name, i, rc);
@@ -400,8 +404,8 @@ int lmv_connect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 	tgt->ltd_exp = mdc_exp;
 	lmv->desc.ld_active_tgt_count++;
 
-	md_init_ea_size(tgt->ltd_exp, lmv->max_easize,
-			lmv->max_def_easize, lmv->max_cookiesize);
+	md_init_ea_size(tgt->ltd_exp, lmv->max_easize, lmv->max_def_easize,
+			lmv->max_cookiesize, lmv->max_def_cookiesize);
 
 	CDEBUG(D_CONFIG, "Connected to %s(%s) successfully (%d)\n",
 		mdc_obd->obd_name, mdc_obd->obd_uuid.uuid,
@@ -527,9 +531,8 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 			spin_unlock(&lmv->lmv_lock);
 		} else {
 			int easize = sizeof(struct lmv_stripe_md) +
-				     lmv->desc.ld_tgt_count *
-				     sizeof(struct lu_fid);
-			lmv_init_ea_size(obd->obd_self_export, easize, 0, 0);
+				lmv->desc.ld_tgt_count * sizeof(struct lu_fid);
+			lmv_init_ea_size(obd->obd_self_export, easize, 0, 0, 0);
 		}
 	}
 
@@ -578,7 +581,7 @@ int lmv_check_connect(struct obd_device *obd)
 	class_export_put(lmv->exp);
 	lmv->connected = 1;
 	easize = lmv_get_easize(lmv);
-	lmv_init_ea_size(obd->obd_self_export, easize, 0, 0);
+	lmv_init_ea_size(obd->obd_self_export, easize, 0, 0, 0);
 	lmv_init_unlock(lmv);
 	return 0;
 
@@ -628,7 +631,7 @@ static int lmv_disconnect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 
 	rc = obd_fid_fini(tgt->ltd_exp->exp_obd);
 	if (rc)
-		CERROR("Can't finanize fids factory\n");
+		CERROR("Can't finalize fids factory\n");
 
 	CDEBUG(D_INFO, "Disconnected from %s(%s) successfully\n",
 	       tgt->ltd_exp->exp_obd->obd_name,
@@ -712,7 +715,7 @@ repeat_fid2path:
 		GOTO(out_fid2path, rc);
 
 	/* If remote_gf != NULL, it means just building the
-	 * path on the remote MDT, copy this path segement to gf */
+	 * path on the remote MDT, copy this path segment to gf */
 	if (remote_gf != NULL) {
 		struct getinfo_fid2path *ori_gf;
 		char *ptr;
@@ -1212,7 +1215,7 @@ static int lmv_placement_policy(struct obd_device *obd,
 
 	/**
 	 * If stripe_offset is provided during setdirstripe
-	 * (setdirstripe -i xx), xx MDS will be choosen.
+	 * (setdirstripe -i xx), xx MDS will be chosen.
 	 */
 	if (op_data->op_cli_flags & CLI_SET_MEA) {
 		struct lmv_user_md *lum;
@@ -1744,7 +1747,6 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	it->d.lustre.it_data = NULL;
 	fid1 = body->fid1;
 
-	it->d.lustre.it_disposition &= ~DISP_ENQ_COMPLETE;
 	ptlrpc_req_finished(req);
 
 	tgt = lmv_find_target(lmv, &fid1);
@@ -2341,7 +2343,11 @@ static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
 				return 0;
 		}
 		return -EINVAL;
-	} else if (KEY_IS(KEY_MAX_EASIZE) || KEY_IS(KEY_CONN_DATA)) {
+	} else if (KEY_IS(KEY_MAX_EASIZE) ||
+		   KEY_IS(KEY_DEFAULT_EASIZE) ||
+		   KEY_IS(KEY_MAX_COOKIESIZE) ||
+		   KEY_IS(KEY_DEFAULT_COOKIESIZE) ||
+		   KEY_IS(KEY_CONN_DATA)) {
 		rc = lmv_check_connect(obd);
 		if (rc)
 			return rc;
@@ -2593,7 +2599,7 @@ int lmv_free_lustre_md(struct obd_export *exp, struct lustre_md *md)
 
 int lmv_set_open_replay_data(struct obd_export *exp,
 			     struct obd_client_handle *och,
-			     struct ptlrpc_request *open_req)
+			     struct lookup_intent *it)
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
@@ -2603,7 +2609,7 @@ int lmv_set_open_replay_data(struct obd_export *exp,
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	return md_set_open_replay_data(tgt->ltd_exp, och, open_req);
+	return md_set_open_replay_data(tgt->ltd_exp, och, it);
 }
 
 int lmv_clear_open_replay_data(struct obd_export *exp,

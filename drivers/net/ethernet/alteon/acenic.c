@@ -61,7 +61,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
@@ -477,7 +476,7 @@ static int acenic_probe_one(struct pci_dev *pdev,
 	dev->watchdog_timeo = 5*HZ;
 
 	dev->netdev_ops = &ace_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ace_ethtool_ops);
+	dev->ethtool_ops = &ace_ethtool_ops;
 
 	/* we only display this string ONCE */
 	if (!boards_found)

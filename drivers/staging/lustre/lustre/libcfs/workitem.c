@@ -75,7 +75,7 @@ typedef struct cfs_wi_sched {
 	char			ws_name[CFS_WS_NAME_LEN];
 } cfs_wi_sched_t;
 
-struct cfs_workitem_data {
+static struct cfs_workitem_data {
 	/** serialize */
 	spinlock_t		wi_glock;
 	/** list of all schedulers */
@@ -334,7 +334,8 @@ cfs_wi_sched_destroy(struct cfs_wi_sched *sched)
 		       sched->ws_nthreads, sched->ws_name);
 
 		spin_unlock(&cfs_wi_data.wi_glock);
-		cfs_pause(cfs_time_seconds(1) / 20);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1) / 20);
 		spin_lock(&cfs_wi_data.wi_glock);
 	}
 
@@ -389,11 +390,11 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 		spin_unlock(&cfs_wi_data.wi_glock);
 
 		if (sched->ws_cptab != NULL && sched->ws_cpt >= 0) {
-			snprintf(name, sizeof(name), "%s_%02d_%02d",
+			snprintf(name, sizeof(name), "%s_%02d_%02u",
 				 sched->ws_name, sched->ws_cpt,
 				 sched->ws_nthreads);
 		} else {
-			snprintf(name, sizeof(name), "%s_%02d",
+			snprintf(name, sizeof(name), "%s_%02u",
 				 sched->ws_name, sched->ws_nthreads);
 		}
 
@@ -459,7 +460,8 @@ cfs_wi_shutdown (void)
 
 		while (sched->ws_nthreads != 0) {
 			spin_unlock(&cfs_wi_data.wi_glock);
-			cfs_pause(cfs_time_seconds(1) / 20);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(1) / 20);
 			spin_lock(&cfs_wi_data.wi_glock);
 		}
 		spin_unlock(&cfs_wi_data.wi_glock);

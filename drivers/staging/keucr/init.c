@@ -9,6 +9,7 @@
 #include "usb.h"
 #include "scsiglue.h"
 #include "transport.h"
+#include "smil.h"
 #include "init.h"
 
 /*
@@ -17,7 +18,7 @@
 int ENE_InitMedia(struct us_data *us)
 {
 	int	result;
-	BYTE	MiscReg03 = 0;
+	u8	MiscReg03 = 0;
 
 	dev_info(&us->pusb_dev->dev, "--- Init Media ---\n");
 	result = ene_read_byte(us, REG_CARD_STATUS, &MiscReg03);
@@ -41,7 +42,7 @@ int ENE_InitMedia(struct us_data *us)
 /*
  * ene_read_byte() :
  */
-int ene_read_byte(struct us_data *us, WORD index, void *buf)
+int ene_read_byte(struct us_data *us, u16 index, void *buf)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int result;
@@ -51,8 +52,8 @@ int ene_read_byte(struct us_data *us, WORD index, void *buf)
 	bcb->DataTransferLength	= 0x01;
 	bcb->Flags			= 0x80;
 	bcb->CDB[0]			= 0xED;
-	bcb->CDB[2]			= (BYTE)(index>>8);
-	bcb->CDB[3]			= (BYTE)index;
+	bcb->CDB[2]			= (u8)(index>>8);
+	bcb->CDB[3]			= (u8)index;
 
 	result = ENE_SendScsiCmd(us, FDIR_READ, buf, 0);
 	return result;
@@ -65,7 +66,7 @@ int ENE_SMInit(struct us_data *us)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int	result;
-	BYTE	buf[0x200];
+	u8	buf[0x200];
 
 	dev_dbg(&us->pusb_dev->dev, "transport --- ENE_SMInit\n");
 
@@ -122,12 +123,12 @@ int ENE_SMInit(struct us_data *us)
 /*
  * ENE_LoadBinCode()
  */
-int ENE_LoadBinCode(struct us_data *us, BYTE flag)
+int ENE_LoadBinCode(struct us_data *us, u8 flag)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int result;
 	/* void *buf; */
-	PBYTE buf;
+	u8 *buf;
 
 	/* dev_info(&us->pusb_dev->dev, "transport --- ENE_LoadBinCode\n"); */
 	if (us->BIN_FLAG == flag)
@@ -164,7 +165,7 @@ int ENE_LoadBinCode(struct us_data *us, BYTE flag)
 /*
  * ENE_SendScsiCmd():
  */
-int ENE_SendScsiCmd(struct us_data *us, BYTE fDir, void *buf, int use_sg)
+int ENE_SendScsiCmd(struct us_data *us, u8 fDir, void *buf, int use_sg)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	struct bulk_cs_wrap *bcs = (struct bulk_cs_wrap *) us->iobuf;

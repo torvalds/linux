@@ -14,7 +14,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/firmware.h>
@@ -203,8 +202,8 @@ static int cw1200_load_firmware_cw1200(struct cw1200_common *priv)
 		}
 
 		/* calculate the block size */
-		tx_size = block_size = min((size_t)(firmware->size - put),
-			(size_t)DOWNLOAD_BLOCK_SIZE);
+		tx_size = block_size = min_t(size_t, firmware->size - put,
+					DOWNLOAD_BLOCK_SIZE);
 
 		memcpy(buf, &firmware->data[put], block_size);
 		if (block_size < DOWNLOAD_BLOCK_SIZE) {

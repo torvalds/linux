@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 
 #include "fimc-lite-reg.h"
 #include "fimc-lite.h"
@@ -133,7 +133,7 @@ void flite_hw_set_source_format(struct fimc_lite *dev, struct flite_frame *f)
 	int i = ARRAY_SIZE(src_pixfmt_map);
 	u32 cfg;
 
-	while (--i >= 0) {
+	while (--i) {
 		if (src_pixfmt_map[i][0] == pixelcode)
 			break;
 	}
@@ -240,7 +240,7 @@ static void flite_hw_set_out_order(struct fimc_lite *dev, struct flite_frame *f)
 	u32 cfg = readl(dev->regs + FLITE_REG_CIODMAFMT);
 	int i = ARRAY_SIZE(pixcode);
 
-	while (--i >= 0)
+	while (--i)
 		if (pixcode[i][0] == f->fmt->mbus_code)
 			break;
 	cfg &= ~FLITE_REG_CIODMAFMT_YCBCR_ORDER_MASK;

@@ -94,7 +94,7 @@ static inline int is_slot66mhz(struct slot *slot)
  *
  * Returns pointer to the head of the SMBIOS tables (or %NULL).
  */
-static void __iomem * detect_SMBIOS_pointer(void __iomem *begin, void __iomem *end)
+static void __iomem *detect_SMBIOS_pointer(void __iomem *begin, void __iomem *end)
 {
 	void __iomem *fp;
 	void __iomem *endp;
@@ -131,7 +131,7 @@ static void __iomem * detect_SMBIOS_pointer(void __iomem *begin, void __iomem *e
  *
  * For unexpected switch opens
  */
-static int init_SERR(struct controller * ctrl)
+static int init_SERR(struct controller *ctrl)
 {
 	u32 tempdword;
 	u32 number_of_slots;
@@ -291,7 +291,7 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 	kfree(slot);
 }
 
-static int ctrl_slot_cleanup (struct controller * ctrl)
+static int ctrl_slot_cleanup (struct controller *ctrl)
 {
 	struct slot *old_slot, *next_slot;
 
@@ -706,8 +706,7 @@ static int ctrl_slot_setup(struct controller *ctrl,
 		hotplug_slot_info->adapter_status =
 			get_presence_status(ctrl, slot);
 
-		dbg("registering bus %d, dev %d, number %d, "
-				"ctrl->slot_device_offset %d, slot %d\n",
+		dbg("registering bus %d, dev %d, number %d, ctrl->slot_device_offset %d, slot %d\n",
 				slot->bus, slot->device,
 				slot->number, ctrl->slot_device_offset,
 				slot_number);
@@ -837,8 +836,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bus = pdev->subordinate;
 	if (!bus) {
-		dev_notice(&pdev->dev, "the device is not a bridge, "
-				"skipping\n");
+		dev_notice(&pdev->dev, "the device is not a bridge, skipping\n");
 		rc = -ENODEV;
 		goto err_disable_device;
 	}
@@ -862,10 +860,10 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_disable_device;
 	}
 
-	/* Check for the proper subsystem ID's
+	/* Check for the proper subsystem IDs
 	 * Intel uses a different SSID programming model than Compaq.
 	 * For Intel, each SSID bit identifies a PHP capability.
-	 * Also Intel HPC's may have RID=0.
+	 * Also Intel HPCs may have RID=0.
 	 */
 	if ((pdev->revision <= 2) && (vendor_id != PCI_VENDOR_ID_INTEL)) {
 		err(msg_HPC_not_supported);
@@ -920,12 +918,12 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				bus->max_bus_speed = PCI_SPEED_100MHz_PCIX;
 				break;
 			}
-			if (bus_cap & 20) {
+			if (bus_cap & 0x20) {
 				dbg("bus max supports 66MHz PCI-X\n");
 				bus->max_bus_speed = PCI_SPEED_66MHz_PCIX;
 				break;
 			}
-			if (bus_cap & 10) {
+			if (bus_cap & 0x10) {
 				dbg("bus max supports 66MHz PCI\n");
 				bus->max_bus_speed = PCI_SPEED_66MHz;
 				break;

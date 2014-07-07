@@ -30,28 +30,6 @@
 
 #include <asm/uaccess.h>
 
-/*
- * Get/set struct timeval with struct timespec on the native side
- */
-static int compat_get_timeval_convert(struct timespec *o,
-				      struct compat_timeval __user *i)
-{
-	long usec;
-
-	if (get_user(o->tv_sec, &i->tv_sec) ||
-	    get_user(usec, &i->tv_usec))
-		return -EFAULT;
-	o->tv_nsec = usec * 1000;
-	return 0;
-}
-
-static int compat_put_timeval_convert(struct compat_timeval __user *o,
-				      struct timeval *i)
-{
-	return (put_user(i->tv_sec, &o->tv_sec) ||
-		put_user(i->tv_usec, &o->tv_usec)) ? -EFAULT : 0;
-}
-
 static int compat_get_timex(struct timex *txc, struct compat_timex __user *utp)
 {
 	memset(txc, 0, sizeof(struct timex));
@@ -110,13 +88,13 @@ static int compat_put_timex(struct compat_timex __user *utp, struct timex *txc)
 	return 0;
 }
 
-asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv,
-		struct timezone __user *tz)
+COMPAT_SYSCALL_DEFINE2(gettimeofday, struct compat_timeval __user *, tv,
+		       struct timezone __user *, tz)
 {
 	if (tv) {
 		struct timeval ktv;
 		do_gettimeofday(&ktv);
-		if (compat_put_timeval_convert(tv, &ktv))
+		if (compat_put_timeval(&ktv, tv))
 			return -EFAULT;
 	}
 	if (tz) {
@@ -127,91 +105,113 @@ asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv,
 	return 0;
 }
 
-asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
-		struct timezone __user *tz)
+COMPAT_SYSCALL_DEFINE2(settimeofday, struct compat_timeval __user *, tv,
+		       struct timezone __user *, tz)
 {
-	struct timespec kts;
-	struct timezone ktz;
+	struct timeval user_tv;
+	struct timespec	new_ts;
+	struct timezone new_tz;
 
 	if (tv) {
-		if (compat_get_timeval_convert(&kts, tv))
+		if (compat_get_timeval(&user_tv, tv))
 			return -EFAULT;
+		new_ts.tv_sec = user_tv.tv_sec;
+		new_ts.tv_nsec = user_tv.tv_usec * NSEC_PER_USEC;
 	}
 	if (tz) {
-		if (copy_from_user(&ktz, tz, sizeof(ktz)))
+		if (copy_from_user(&new_tz, tz, sizeof(*tz)))
 			return -EFAULT;
 	}
 
-	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
+	return do_sys_settimeofday(tv ? &new_ts : NULL, tz ? &new_tz : NULL);
 }
 
-int get_compat_timeval(struct timeval *tv, const struct compat_timeval __user *ctv)
+static int __compat_get_timeval(struct timeval *tv, const struct compat_timeval __user *ctv)
 {
 	return (!access_ok(VERIFY_READ, ctv, sizeof(*ctv)) ||
 			__get_user(tv->tv_sec, &ctv->tv_sec) ||
 			__get_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
 }
-EXPORT_SYMBOL_GPL(get_compat_timeval);
 
-int put_compat_timeval(const struct timeval *tv, struct compat_timeval __user *ctv)
+static int __compat_put_timeval(const struct timeval *tv, struct compat_timeval __user *ctv)
 {
 	return (!access_ok(VERIFY_WRITE, ctv, sizeof(*ctv)) ||
 			__put_user(tv->tv_sec, &ctv->tv_sec) ||
 			__put_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
 }
-EXPORT_SYMBOL_GPL(put_compat_timeval);
 
-int get_compat_timespec(struct timespec *ts, const struct compat_timespec __user *cts)
+static int __compat_get_timespec(struct timespec *ts, const struct compat_timespec __user *cts)
 {
 	return (!access_ok(VERIFY_READ, cts, sizeof(*cts)) ||
 			__get_user(ts->tv_sec, &cts->tv_sec) ||
 			__get_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
 }
-EXPORT_SYMBOL_GPL(get_compat_timespec);
 
-int put_compat_timespec(const struct timespec *ts, struct compat_timespec __user *cts)
+static int __compat_put_timespec(const struct timespec *ts, struct compat_timespec __user *cts)
 {
 	return (!access_ok(VERIFY_WRITE, cts, sizeof(*cts)) ||
 			__put_user(ts->tv_sec, &cts->tv_sec) ||
 			__put_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
 }
-EXPORT_SYMBOL_GPL(put_compat_timespec);
 
 int compat_get_timeval(struct timeval *tv, const void __user *utv)
 {
 	if (COMPAT_USE_64BIT_TIME)
-		return copy_from_user(tv, utv, sizeof *tv) ? -EFAULT : 0;
+		return copy_from_user(tv, utv, sizeof(*tv)) ? -EFAULT : 0;
 	else
-		return get_compat_timeval(tv, utv);
+		return __compat_get_timeval(tv, utv);
 }
 EXPORT_SYMBOL_GPL(compat_get_timeval);
 
 int compat_put_timeval(const struct timeval *tv, void __user *utv)
 {
 	if (COMPAT_USE_64BIT_TIME)
-		return copy_to_user(utv, tv, sizeof *tv) ? -EFAULT : 0;
+		return copy_to_user(utv, tv, sizeof(*tv)) ? -EFAULT : 0;
 	else
-		return put_compat_timeval(tv, utv);
+		return __compat_put_timeval(tv, utv);
 }
 EXPORT_SYMBOL_GPL(compat_put_timeval);
 
 int compat_get_timespec(struct timespec *ts, const void __user *uts)
 {
 	if (COMPAT_USE_64BIT_TIME)
-		return copy_from_user(ts, uts, sizeof *ts) ? -EFAULT : 0;
+		return copy_from_user(ts, uts, sizeof(*ts)) ? -EFAULT : 0;
 	else
-		return get_compat_timespec(ts, uts);
+		return __compat_get_timespec(ts, uts);
 }
 EXPORT_SYMBOL_GPL(compat_get_timespec);
 
 int compat_put_timespec(const struct timespec *ts, void __user *uts)
 {
 	if (COMPAT_USE_64BIT_TIME)
-		return copy_to_user(uts, ts, sizeof *ts) ? -EFAULT : 0;
+		return copy_to_user(uts, ts, sizeof(*ts)) ? -EFAULT : 0;
 	else
-		return put_compat_timespec(ts, uts);
+		return __compat_put_timespec(ts, uts);
 }
 EXPORT_SYMBOL_GPL(compat_put_timespec);
+
+int compat_convert_timespec(struct timespec __user **kts,
+			    const void __user *cts)
+{
+	struct timespec ts;
+	struct timespec __user *uts;
+
+	if (!cts || COMPAT_USE_64BIT_TIME) {
+		*kts = (struct timespec __user *)cts;
+		return 0;
+	}
+
+	uts = compat_alloc_user_space(sizeof(ts));
+	if (!uts)
+		return -EFAULT;
+	if (compat_get_timespec(&ts, cts))
+		return -EFAULT;
+	if (copy_to_user(uts, &ts, sizeof(ts)))
+		return -EFAULT;
+
+	*kts = uts;
+	return 0;
+}
 
 static long compat_nanosleep_restart(struct restart_block *restart)
 {
@@ -229,21 +229,21 @@ static long compat_nanosleep_restart(struct restart_block *restart)
 	if (ret) {
 		rmtp = restart->nanosleep.compat_rmtp;
 
-		if (rmtp && put_compat_timespec(&rmt, rmtp))
+		if (rmtp && compat_put_timespec(&rmt, rmtp))
 			return -EFAULT;
 	}
 
 	return ret;
 }
 
-asmlinkage long compat_sys_nanosleep(struct compat_timespec __user *rqtp,
-				     struct compat_timespec __user *rmtp)
+COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
+		       struct compat_timespec __user *, rmtp)
 {
 	struct timespec tu, rmt;
 	mm_segment_t oldfs;
 	long ret;
 
-	if (get_compat_timespec(&tu, rqtp))
+	if (compat_get_timespec(&tu, rqtp))
 		return -EFAULT;
 
 	if (!timespec_valid(&tu))
@@ -263,7 +263,7 @@ asmlinkage long compat_sys_nanosleep(struct compat_timespec __user *rqtp,
 		restart->fn = compat_nanosleep_restart;
 		restart->nanosleep.compat_rmtp = rmtp;
 
-		if (rmtp && put_compat_timespec(&rmt, rmtp))
+		if (rmtp && compat_put_timespec(&rmt, rmtp))
 			return -EFAULT;
 	}
 
@@ -328,7 +328,7 @@ static compat_clock_t clock_t_to_compat_clock_t(clock_t x)
 	return compat_jiffies_to_clock_t(clock_t_to_jiffies(x));
 }
 
-asmlinkage long compat_sys_times(struct compat_tms __user *tbuf)
+COMPAT_SYSCALL_DEFINE1(times, struct compat_tms __user *, tbuf)
 {
 	if (tbuf) {
 		struct tms tms;
@@ -354,7 +354,7 @@ asmlinkage long compat_sys_times(struct compat_tms __user *tbuf)
  * types that can be passed to put_user()/get_user().
  */
 
-asmlinkage long compat_sys_sigpending(compat_old_sigset_t __user *set)
+COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set)
 {
 	old_sigset_t s;
 	long ret;
@@ -424,8 +424,8 @@ COMPAT_SYSCALL_DEFINE3(sigprocmask, int, how,
 
 #endif
 
-asmlinkage long compat_sys_setrlimit(unsigned int resource,
-		struct compat_rlimit __user *rlim)
+COMPAT_SYSCALL_DEFINE2(setrlimit, unsigned int, resource,
+		       struct compat_rlimit __user *, rlim)
 {
 	struct rlimit r;
 
@@ -443,15 +443,15 @@ asmlinkage long compat_sys_setrlimit(unsigned int resource,
 
 #ifdef COMPAT_RLIM_OLD_INFINITY
 
-asmlinkage long compat_sys_old_getrlimit(unsigned int resource,
-		struct compat_rlimit __user *rlim)
+COMPAT_SYSCALL_DEFINE2(old_getrlimit, unsigned int, resource,
+		       struct compat_rlimit __user *, rlim)
 {
 	struct rlimit r;
 	int ret;
 	mm_segment_t old_fs = get_fs();
 
 	set_fs(KERNEL_DS);
-	ret = sys_old_getrlimit(resource, &r);
+	ret = sys_old_getrlimit(resource, (struct rlimit __user *)&r);
 	set_fs(old_fs);
 
 	if (!ret) {
@@ -470,8 +470,8 @@ asmlinkage long compat_sys_old_getrlimit(unsigned int resource,
 
 #endif
 
-asmlinkage long compat_sys_getrlimit(unsigned int resource,
-		struct compat_rlimit __user *rlim)
+COMPAT_SYSCALL_DEFINE2(getrlimit, unsigned int, resource,
+		       struct compat_rlimit __user *, rlim)
 {
 	struct rlimit r;
 	int ret;
@@ -596,9 +596,9 @@ static int compat_get_user_cpu_mask(compat_ulong_t __user *user_mask_ptr,
 	return compat_get_bitmap(k, user_mask_ptr, len * 8);
 }
 
-asmlinkage long compat_sys_sched_setaffinity(compat_pid_t pid,
-					     unsigned int len,
-					     compat_ulong_t __user *user_mask_ptr)
+COMPAT_SYSCALL_DEFINE3(sched_setaffinity, compat_pid_t, pid,
+		       unsigned int, len,
+		       compat_ulong_t __user *, user_mask_ptr)
 {
 	cpumask_var_t new_mask;
 	int retval;
@@ -616,8 +616,8 @@ out:
 	return retval;
 }
 
-asmlinkage long compat_sys_sched_getaffinity(compat_pid_t pid, unsigned int len,
-					     compat_ulong_t __user *user_mask_ptr)
+COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid, unsigned int, len,
+		       compat_ulong_t __user *, user_mask_ptr)
 {
 	int ret;
 	cpumask_var_t mask;
@@ -647,8 +647,8 @@ asmlinkage long compat_sys_sched_getaffinity(compat_pid_t pid, unsigned int len,
 int get_compat_itimerspec(struct itimerspec *dst,
 			  const struct compat_itimerspec __user *src)
 {
-	if (get_compat_timespec(&dst->it_interval, &src->it_interval) ||
-	    get_compat_timespec(&dst->it_value, &src->it_value))
+	if (__compat_get_timespec(&dst->it_interval, &src->it_interval) ||
+	    __compat_get_timespec(&dst->it_value, &src->it_value))
 		return -EFAULT;
 	return 0;
 }
@@ -656,15 +656,15 @@ int get_compat_itimerspec(struct itimerspec *dst,
 int put_compat_itimerspec(struct compat_itimerspec __user *dst,
 			  const struct itimerspec *src)
 {
-	if (put_compat_timespec(&src->it_interval, &dst->it_interval) ||
-	    put_compat_timespec(&src->it_value, &dst->it_value))
+	if (__compat_put_timespec(&src->it_interval, &dst->it_interval) ||
+	    __compat_put_timespec(&src->it_value, &dst->it_value))
 		return -EFAULT;
 	return 0;
 }
 
-long compat_sys_timer_create(clockid_t which_clock,
-			struct compat_sigevent __user *timer_event_spec,
-			timer_t __user *created_timer_id)
+COMPAT_SYSCALL_DEFINE3(timer_create, clockid_t, which_clock,
+		       struct compat_sigevent __user *, timer_event_spec,
+		       timer_t __user *, created_timer_id)
 {
 	struct sigevent __user *event = NULL;
 
@@ -680,9 +680,9 @@ long compat_sys_timer_create(clockid_t which_clock,
 	return sys_timer_create(which_clock, event, created_timer_id);
 }
 
-long compat_sys_timer_settime(timer_t timer_id, int flags,
-			  struct compat_itimerspec __user *new,
-			  struct compat_itimerspec __user *old)
+COMPAT_SYSCALL_DEFINE4(timer_settime, timer_t, timer_id, int, flags,
+		       struct compat_itimerspec __user *, new,
+		       struct compat_itimerspec __user *, old)
 {
 	long err;
 	mm_segment_t oldfs;
@@ -703,8 +703,8 @@ long compat_sys_timer_settime(timer_t timer_id, int flags,
 	return err;
 }
 
-long compat_sys_timer_gettime(timer_t timer_id,
-		struct compat_itimerspec __user *setting)
+COMPAT_SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
+		       struct compat_itimerspec __user *, setting)
 {
 	long err;
 	mm_segment_t oldfs;
@@ -720,14 +720,14 @@ long compat_sys_timer_gettime(timer_t timer_id,
 	return err;
 }
 
-long compat_sys_clock_settime(clockid_t which_clock,
-		struct compat_timespec __user *tp)
+COMPAT_SYSCALL_DEFINE2(clock_settime, clockid_t, which_clock,
+		       struct compat_timespec __user *, tp)
 {
 	long err;
 	mm_segment_t oldfs;
 	struct timespec ts;
 
-	if (get_compat_timespec(&ts, tp))
+	if (compat_get_timespec(&ts, tp))
 		return -EFAULT;
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
@@ -737,8 +737,8 @@ long compat_sys_clock_settime(clockid_t which_clock,
 	return err;
 }
 
-long compat_sys_clock_gettime(clockid_t which_clock,
-		struct compat_timespec __user *tp)
+COMPAT_SYSCALL_DEFINE2(clock_gettime, clockid_t, which_clock,
+		       struct compat_timespec __user *, tp)
 {
 	long err;
 	mm_segment_t oldfs;
@@ -749,13 +749,13 @@ long compat_sys_clock_gettime(clockid_t which_clock,
 	err = sys_clock_gettime(which_clock,
 				(struct timespec __user *) &ts);
 	set_fs(oldfs);
-	if (!err && put_compat_timespec(&ts, tp))
+	if (!err && compat_put_timespec(&ts, tp))
 		return -EFAULT;
 	return err;
 }
 
-long compat_sys_clock_adjtime(clockid_t which_clock,
-		struct compat_timex __user *utp)
+COMPAT_SYSCALL_DEFINE2(clock_adjtime, clockid_t, which_clock,
+		       struct compat_timex __user *, utp)
 {
 	struct timex txc;
 	mm_segment_t oldfs;
@@ -777,8 +777,8 @@ long compat_sys_clock_adjtime(clockid_t which_clock,
 	return ret;
 }
 
-long compat_sys_clock_getres(clockid_t which_clock,
-		struct compat_timespec __user *tp)
+COMPAT_SYSCALL_DEFINE2(clock_getres, clockid_t, which_clock,
+		       struct compat_timespec __user *, tp)
 {
 	long err;
 	mm_segment_t oldfs;
@@ -789,7 +789,7 @@ long compat_sys_clock_getres(clockid_t which_clock,
 	err = sys_clock_getres(which_clock,
 			       (struct timespec __user *) &ts);
 	set_fs(oldfs);
-	if (!err && tp && put_compat_timespec(&ts, tp))
+	if (!err && tp && compat_put_timespec(&ts, tp))
 		return -EFAULT;
 	return err;
 }
@@ -799,7 +799,7 @@ static long compat_clock_nanosleep_restart(struct restart_block *restart)
 	long err;
 	mm_segment_t oldfs;
 	struct timespec tu;
-	struct compat_timespec *rmtp = restart->nanosleep.compat_rmtp;
+	struct compat_timespec __user *rmtp = restart->nanosleep.compat_rmtp;
 
 	restart->nanosleep.rmtp = (struct timespec __user *) &tu;
 	oldfs = get_fs();
@@ -808,7 +808,7 @@ static long compat_clock_nanosleep_restart(struct restart_block *restart)
 	set_fs(oldfs);
 
 	if ((err == -ERESTART_RESTARTBLOCK) && rmtp &&
-	    put_compat_timespec(&tu, rmtp))
+	    compat_put_timespec(&tu, rmtp))
 		return -EFAULT;
 
 	if (err == -ERESTART_RESTARTBLOCK) {
@@ -818,16 +818,16 @@ static long compat_clock_nanosleep_restart(struct restart_block *restart)
 	return err;
 }
 
-long compat_sys_clock_nanosleep(clockid_t which_clock, int flags,
-			    struct compat_timespec __user *rqtp,
-			    struct compat_timespec __user *rmtp)
+COMPAT_SYSCALL_DEFINE4(clock_nanosleep, clockid_t, which_clock, int, flags,
+		       struct compat_timespec __user *, rqtp,
+		       struct compat_timespec __user *, rmtp)
 {
 	long err;
 	mm_segment_t oldfs;
 	struct timespec in, out;
 	struct restart_block *restart;
 
-	if (get_compat_timespec(&in, rqtp))
+	if (compat_get_timespec(&in, rqtp))
 		return -EFAULT;
 
 	oldfs = get_fs();
@@ -838,7 +838,7 @@ long compat_sys_clock_nanosleep(clockid_t which_clock, int flags,
 	set_fs(oldfs);
 
 	if ((err == -ERESTART_RESTARTBLOCK) && rmtp &&
-	    put_compat_timespec(&out, rmtp))
+	    compat_put_timespec(&out, rmtp))
 		return -EFAULT;
 
 	if (err == -ERESTART_RESTARTBLOCK) {
@@ -1010,7 +1010,7 @@ COMPAT_SYSCALL_DEFINE4(rt_sigtimedwait, compat_sigset_t __user *, uthese,
 
 /* compat_time_t is a 32 bit "long" and needs to get converted. */
 
-asmlinkage long compat_sys_time(compat_time_t __user * tloc)
+COMPAT_SYSCALL_DEFINE1(time, compat_time_t __user *, tloc)
 {
 	compat_time_t i;
 	struct timeval tv;
@@ -1026,7 +1026,7 @@ asmlinkage long compat_sys_time(compat_time_t __user * tloc)
 	return i;
 }
 
-asmlinkage long compat_sys_stime(compat_time_t __user *tptr)
+COMPAT_SYSCALL_DEFINE1(stime, compat_time_t __user *, tptr)
 {
 	struct timespec tv;
 	int err;
@@ -1046,7 +1046,7 @@ asmlinkage long compat_sys_stime(compat_time_t __user *tptr)
 
 #endif /* __ARCH_WANT_COMPAT_SYS_TIME */
 
-asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp)
+COMPAT_SYSCALL_DEFINE1(adjtimex, struct compat_timex __user *, utp)
 {
 	struct timex txc;
 	int err, ret;
@@ -1065,11 +1065,11 @@ asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp)
 }
 
 #ifdef CONFIG_NUMA
-asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_pages,
-		compat_uptr_t __user *pages32,
-		const int __user *nodes,
-		int __user *status,
-		int flags)
+COMPAT_SYSCALL_DEFINE6(move_pages, pid_t, pid, compat_ulong_t, nr_pages,
+		       compat_uptr_t __user *, pages32,
+		       const int __user *, nodes,
+		       int __user *, status,
+		       int, flags)
 {
 	const void __user * __user *pages;
 	int i;
@@ -1085,10 +1085,10 @@ asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_pages,
 	return sys_move_pages(pid, nr_pages, pages, nodes, status, flags);
 }
 
-asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
-			compat_ulong_t maxnode,
-			const compat_ulong_t __user *old_nodes,
-			const compat_ulong_t __user *new_nodes)
+COMPAT_SYSCALL_DEFINE4(migrate_pages, compat_pid_t, pid,
+		       compat_ulong_t, maxnode,
+		       const compat_ulong_t __user *, old_nodes,
+		       const compat_ulong_t __user *, new_nodes)
 {
 	unsigned long __user *old = NULL;
 	unsigned long __user *new = NULL;
@@ -1130,7 +1130,7 @@ COMPAT_SYSCALL_DEFINE2(sched_rr_get_interval,
 	set_fs(KERNEL_DS);
 	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *)&t);
 	set_fs(old_fs);
-	if (put_compat_timespec(&t, interval))
+	if (compat_put_timespec(&t, interval))
 		return -EFAULT;
 	return ret;
 }

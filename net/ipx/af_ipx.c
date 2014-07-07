@@ -52,17 +52,11 @@
 #include <net/p8022.h>
 #include <net/psnap.h>
 #include <net/sock.h>
+#include <net/datalink.h>
 #include <net/tcp_states.h>
+#include <net/net_namespace.h>
 
 #include <asm/uaccess.h>
-
-#ifdef CONFIG_SYSCTL
-extern void ipx_register_sysctl(void);
-extern void ipx_unregister_sysctl(void);
-#else
-#define ipx_register_sysctl()
-#define ipx_unregister_sysctl()
-#endif
 
 /* Configuration Variables */
 static unsigned char ipxcfg_max_hops = 16;
@@ -83,15 +77,6 @@ DEFINE_SPINLOCK(ipx_interfaces_lock);
 
 struct ipx_interface *ipx_primary_net;
 struct ipx_interface *ipx_internal_net;
-
-extern int ipxrtr_add_route(__be32 network, struct ipx_interface *intrfc,
-			    unsigned char *node);
-extern void ipxrtr_del_routes(struct ipx_interface *intrfc);
-extern int ipxrtr_route_packet(struct sock *sk, struct sockaddr_ipx *usipx,
-			       struct iovec *iov, size_t len, int noblock);
-extern int ipxrtr_route_skb(struct sk_buff *skb);
-extern struct ipx_route *ipxrtr_lookup(__be32 net);
-extern int ipxrtr_ioctl(unsigned int cmd, void __user *arg);
 
 struct ipx_interface *ipx_interfaces_head(void)
 {
@@ -1368,7 +1353,7 @@ static int ipx_create(struct net *net, struct socket *sock, int protocol,
 
 	sk_refcnt_debug_inc(sk);
 	sock_init_data(sock, sk);
-	sk->sk_no_check = 1;		/* Checksum off by default */
+	sk->sk_no_check_tx = 1;		/* Checksum off by default */
 	sock->ops = &ipx_dgram_ops;
 	rc = 0;
 out:
@@ -1383,6 +1368,7 @@ static int ipx_release(struct socket *sock)
 		goto out;
 
 	lock_sock(sk);
+	sk->sk_shutdown = SHUTDOWN_MASK;
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_state_change(sk);
 
@@ -1707,7 +1693,7 @@ static int ipx_sendmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct ipx_sock *ipxs = ipx_sk(sk);
-	struct sockaddr_ipx *usipx = (struct sockaddr_ipx *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_ipx *, usipx, msg->msg_name);
 	struct sockaddr_ipx local_sipx;
 	int rc = -EINVAL;
 	int flags = msg->msg_flags;
@@ -1774,7 +1760,7 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct ipx_sock *ipxs = ipx_sk(sk);
-	struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_ipx *, sipx, msg->msg_name);
 	struct ipxhdr *ipx = NULL;
 	struct sk_buff *skb;
 	int copied, rc;
@@ -1806,8 +1792,11 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
 				flags & MSG_DONTWAIT, &rc);
-	if (!skb)
+	if (!skb) {
+		if (rc == -EAGAIN && (sk->sk_shutdown & RCV_SHUTDOWN))
+			rc = 0;
 		goto out;
+	}
 
 	ipx 	= ipx_hdr(skb);
 	copied 	= ntohs(ipx->ipx_pktsize) - sizeof(struct ipxhdr);
@@ -1823,8 +1812,6 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (skb->tstamp.tv64)
 		sk->sk_stamp = skb->tstamp;
 
-	msg->msg_namelen = sizeof(*sipx);
-
 	if (sipx) {
 		sipx->sipx_family	= AF_IPX;
 		sipx->sipx_port		= ipx->ipx_source.sock;
@@ -1832,6 +1819,7 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 		sipx->sipx_network	= IPX_SKB_CB(skb)->ipx_source_net;
 		sipx->sipx_type 	= ipx->ipx_type;
 		sipx->sipx_zero		= 0;
+		msg->msg_namelen	= sizeof(*sipx);
 	}
 	rc = copied;
 
@@ -1938,6 +1926,26 @@ static int ipx_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long
 }
 #endif
 
+static int ipx_shutdown(struct socket *sock, int mode)
+{
+	struct sock *sk = sock->sk;
+
+	if (mode < SHUT_RD || mode > SHUT_RDWR)
+		return -EINVAL;
+	/* This maps:
+	 * SHUT_RD   (0) -> RCV_SHUTDOWN  (1)
+	 * SHUT_WR   (1) -> SEND_SHUTDOWN (2)
+	 * SHUT_RDWR (2) -> SHUTDOWN_MASK (3)
+	 */
+	++mode;
+
+	lock_sock(sk);
+	sk->sk_shutdown |= mode;
+	release_sock(sk);
+	sk->sk_state_change(sk);
+
+	return 0;
+}
 
 /*
  * Socket family declarations
@@ -1964,7 +1972,7 @@ static const struct proto_ops ipx_dgram_ops = {
 	.compat_ioctl	= ipx_compat_ioctl,
 #endif
 	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown, /* FIXME: support shutdown */
+	.shutdown	= ipx_shutdown,
 	.setsockopt	= ipx_setsockopt,
 	.getsockopt	= ipx_getsockopt,
 	.sendmsg	= ipx_sendmsg,
@@ -1986,9 +1994,6 @@ static struct packet_type ipx_dix_packet_type __read_mostly = {
 static struct notifier_block ipx_dev_notifier = {
 	.notifier_call	= ipxitf_device_event,
 };
-
-extern struct datalink_proto *make_EII_client(void);
-extern void destroy_EII_client(struct datalink_proto *);
 
 static const unsigned char ipx_8022_type = 0xE0;
 static const unsigned char ipx_snap_id[5] = { 0x0, 0x0, 0x0, 0x81, 0x37 };

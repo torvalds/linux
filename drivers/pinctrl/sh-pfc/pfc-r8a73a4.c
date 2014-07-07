@@ -20,7 +20,10 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
+
+#ifndef CONFIG_ARCH_MULTIPLATFORM
 #include <mach/irqs.h>
+#endif
 
 #include "core.h"
 #include "sh_pfc.h"
@@ -1272,7 +1275,7 @@ static const u16 pinmux_data[] = {
 #define R8A73A4_PIN_IO_PU_PD(pin)       SH_PFC_PIN_CFG(pin, __IO | __PUD)
 #define R8A73A4_PIN_O(pin)              SH_PFC_PIN_CFG(pin, __O)
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	R8A73A4_PIN_IO_PU_PD(0), R8A73A4_PIN_IO_PU_PD(1),
 	R8A73A4_PIN_IO_PU_PD(2), R8A73A4_PIN_IO_PU_PD(3),
 	R8A73A4_PIN_IO_PU_PD(4), R8A73A4_PIN_IO_PU_PD(5),
@@ -2061,17 +2064,6 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(sdhi2),
 };
 
-#undef PORTCR
-#define PORTCR(nr, reg)							\
-	{								\
-		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),	\
-				PORT##nr##_FN0, PORT##nr##_FN1,		\
-				PORT##nr##_FN2, PORT##nr##_FN3,		\
-				PORT##nr##_FN4, PORT##nr##_FN5,		\
-				PORT##nr##_FN6, PORT##nr##_FN7 }	\
-	}
-
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0, 0xe6050000),
 	PORTCR(1, 0xe6050001),
@@ -2691,7 +2683,7 @@ static unsigned int r8a73a4_pinmux_get_bias(struct sh_pfc *pfc,
 {
 	void __iomem *addr;
 
-	addr = pfc->window->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
+	addr = pfc->windows->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
 
 	switch (ioread8(addr) & PORTCR_PULMD_MASK) {
 	case PORTCR_PULMD_UP:
@@ -2710,7 +2702,7 @@ static void r8a73a4_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	void __iomem *addr;
 	u32 value;
 
-	addr = pfc->window->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
+	addr = pfc->windows->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
 	value = ioread8(addr) & ~PORTCR_PULMD_MASK;
 
 	switch (bias) {

@@ -39,8 +39,8 @@ static const struct coreclk_ratio a370_coreclk_ratios[] __initconst = {
 };
 
 static const u32 a370_tclk_freqs[] __initconst = {
-	16600000,
-	20000000,
+	166000000,
+	200000000,
 };
 
 static u32 __init a370_get_tclk_freq(void __iomem *sar)
@@ -141,13 +141,6 @@ static const struct coreclk_soc_desc a370_coreclks = {
 	.num_ratios = ARRAY_SIZE(a370_coreclk_ratios),
 };
 
-static void __init a370_coreclk_init(struct device_node *np)
-{
-	mvebu_coreclk_setup(np, &a370_coreclks);
-}
-CLK_OF_DECLARE(a370_core_clk, "marvell,armada-370-core-clock",
-	       a370_coreclk_init);
-
 /*
  * Clock Gating Control
  */
@@ -168,9 +161,15 @@ static const struct clk_gating_soc_desc a370_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init a370_clk_gating_init(struct device_node *np)
+static void __init a370_clk_init(struct device_node *np)
 {
-	mvebu_clk_gating_setup(np, a370_gating_desc);
+	struct device_node *cgnp =
+		of_find_compatible_node(NULL, NULL, "marvell,armada-370-gating-clock");
+
+	mvebu_coreclk_setup(np, &a370_coreclks);
+
+	if (cgnp)
+		mvebu_clk_gating_setup(cgnp, a370_gating_desc);
 }
-CLK_OF_DECLARE(a370_clk_gating, "marvell,armada-370-gating-clock",
-	       a370_clk_gating_init);
+CLK_OF_DECLARE(a370_clk, "marvell,armada-370-core-clock", a370_clk_init);
+

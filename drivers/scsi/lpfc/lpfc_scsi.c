@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -67,6 +67,17 @@ struct scsi_dif_tuple {
 	__be16 app_tag;         /* Opaque storage */
 	__be32 ref_tag;         /* Target LBA or indirect LBA */
 };
+
+static struct lpfc_rport_data *
+lpfc_rport_data_from_scsi_device(struct scsi_device *sdev)
+{
+	struct lpfc_vport *vport = (struct lpfc_vport *)sdev->host->hostdata;
+
+	if (vport->phba->cfg_fof)
+		return ((struct lpfc_device_data *)sdev->hostdata)->rport_data;
+	else
+		return (struct lpfc_rport_data *)sdev->hostdata;
+}
 
 static void
 lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb);
@@ -304,9 +315,27 @@ lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 	unsigned long new_queue_depth, old_queue_depth;
 
 	old_queue_depth = sdev->queue_depth;
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+
+	switch (reason) {
+	case SCSI_QDEPTH_DEFAULT:
+		/* change request from sysfs, fall through */
+	case SCSI_QDEPTH_RAMP_UP:
+		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+		break;
+	case SCSI_QDEPTH_QFULL:
+		if (scsi_track_queue_full(sdev, qdepth) == 0)
+			return sdev->queue_depth;
+
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
+				 "0711 detected queue full - lun queue "
+				 "depth adjusted to %d.\n", sdev->queue_depth);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
 	new_queue_depth = sdev->queue_depth;
-	rdata = sdev->hostdata;
+	rdata = lpfc_rport_data_from_scsi_device(sdev);
 	if (rdata)
 		lpfc_send_sdev_queuedepth_change_event(phba, vport,
 						       rdata->pnode, sdev->lun,
@@ -377,50 +406,6 @@ lpfc_rampdown_queue_depth(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_rampup_queue_depth - Post RAMP_UP_QUEUE event for worker thread
- * @phba: The Hba for which this call is being executed.
- *
- * This routine post WORKER_RAMP_UP_QUEUE event for @phba vport. This routine
- * post at most 1 event every 5 minute after last_ramp_up_time or
- * last_rsrc_error_time.  This routine wakes up worker thread of @phba
- * to process WORKER_RAM_DOWN_EVENT event.
- *
- * This routine should be called with no lock held.
- **/
-static inline void
-lpfc_rampup_queue_depth(struct lpfc_vport  *vport,
-			uint32_t queue_depth)
-{
-	unsigned long flags;
-	struct lpfc_hba *phba = vport->phba;
-	uint32_t evt_posted;
-	atomic_inc(&phba->num_cmd_success);
-
-	if (vport->cfg_lun_queue_depth <= queue_depth)
-		return;
-	spin_lock_irqsave(&phba->hbalock, flags);
-	if (time_before(jiffies,
-			phba->last_ramp_up_time + QUEUE_RAMP_UP_INTERVAL) ||
-	    time_before(jiffies,
-			phba->last_rsrc_error_time + QUEUE_RAMP_UP_INTERVAL)) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return;
-	}
-	phba->last_ramp_up_time = jiffies;
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-
-	spin_lock_irqsave(&phba->pport->work_port_lock, flags);
-	evt_posted = phba->pport->work_port_events & WORKER_RAMP_UP_QUEUE;
-	if (!evt_posted)
-		phba->pport->work_port_events |= WORKER_RAMP_UP_QUEUE;
-	spin_unlock_irqrestore(&phba->pport->work_port_lock, flags);
-
-	if (!evt_posted)
-		lpfc_worker_wake_up(phba);
-	return;
-}
-
-/**
  * lpfc_ramp_down_queue_handler - WORKER_RAMP_DOWN_QUEUE event handler
  * @phba: The Hba for which this call is being executed.
  *
@@ -464,41 +449,6 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 								new_queue_depth;
 				lpfc_change_queue_depth(sdev, new_queue_depth,
 							SCSI_QDEPTH_DEFAULT);
-			}
-		}
-	lpfc_destroy_vport_work_array(phba, vports);
-	atomic_set(&phba->num_rsrc_err, 0);
-	atomic_set(&phba->num_cmd_success, 0);
-}
-
-/**
- * lpfc_ramp_up_queue_handler - WORKER_RAMP_UP_QUEUE event handler
- * @phba: The Hba for which this call is being executed.
- *
- * This routine is called to  process WORKER_RAMP_UP_QUEUE event for worker
- * thread.This routine increases queue depth for all scsi device on each vport
- * associated with @phba by 1. This routine also sets @phba num_rsrc_err and
- * num_cmd_success to zero.
- **/
-void
-lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
-{
-	struct lpfc_vport **vports;
-	struct Scsi_Host  *shost;
-	struct scsi_device *sdev;
-	int i;
-
-	vports = lpfc_create_vport_work_array(phba);
-	if (vports != NULL)
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			shost = lpfc_shost_from_vport(vports[i]);
-			shost_for_each_device(sdev, shost) {
-				if (vports[i]->cfg_lun_queue_depth <=
-				    sdev->queue_depth)
-					continue;
-				lpfc_change_queue_depth(sdev,
-							sdev->queue_depth+1,
-							SCSI_QDEPTH_RAMP_UP);
 			}
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -1012,20 +962,25 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 			break;
 		}
 
-		/* Allocate iotag for psb->cur_iocbq. */
-		iotag = lpfc_sli_next_iotag(phba, &psb->cur_iocbq);
-		if (iotag == 0) {
-			pci_pool_free(phba->lpfc_scsi_dma_buf_pool,
-				psb->data, psb->dma_handle);
-			kfree(psb);
-			break;
-		}
 
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
 			pci_pool_free(phba->lpfc_scsi_dma_buf_pool,
 			      psb->data, psb->dma_handle);
 			kfree(psb);
+			break;
+		}
+
+		/* Allocate iotag for psb->cur_iocbq. */
+		iotag = lpfc_sli_next_iotag(phba, &psb->cur_iocbq);
+		if (iotag == 0) {
+			pci_pool_free(phba->lpfc_scsi_dma_buf_pool,
+				psb->data, psb->dma_handle);
+			kfree(psb);
+			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+					"3368 Failed to allocated IOTAG for"
+					" XRI:0x%x\n", lxri);
+			lpfc_sli4_free_xri(phba, lxri);
 			break;
 		}
 		psb->cur_iocbq.sli4_lxritag = lxri;
@@ -1497,7 +1452,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	}
 
 	/* Next check if we need to match the remote NPortID or WWPN */
-	rdata = sc->device->hostdata;
+	rdata = lpfc_rport_data_from_scsi_device(sc->device);
 	if (rdata && rdata->pnode) {
 		ndlp = rdata->pnode;
 
@@ -3502,6 +3457,14 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	 * we need to set word 4 of IOCB here
 	 */
 	iocb_cmd->un.fcpi.fcpi_parm = scsi_bufflen(scsi_cmnd);
+
+	/*
+	 * If the OAS driver feature is enabled and the lun is enabled for
+	 * OAS, set the oas iocb related flags.
+	 */
+	if ((phba->cfg_fof) && ((struct lpfc_device_data *)
+		scsi_cmnd->device->hostdata)->oas_enabled)
+		lpfc_cmd->cur_iocbq.iocb_flag |= LPFC_IO_OAS;
 	return 0;
 }
 
@@ -4016,7 +3979,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_nodelist *pnode = rdata->pnode;
 	struct scsi_cmnd *cmd;
 	int result;
-	struct scsi_device *tmp_sdev;
 	int depth;
 	unsigned long flags;
 	struct lpfc_fast_path_event *fast_path_evt;
@@ -4261,32 +4223,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		return;
 	}
 
-	if (!result)
-		lpfc_rampup_queue_depth(vport, queue_depth);
-
-	/*
-	 * Check for queue full.  If the lun is reporting queue full, then
-	 * back off the lun queue depth to prevent target overloads.
-	 */
-	if (result == SAM_STAT_TASK_SET_FULL && pnode &&
-	    NLP_CHK_NODE_ACT(pnode)) {
-		shost_for_each_device(tmp_sdev, shost) {
-			if (tmp_sdev->id != scsi_id)
-				continue;
-			depth = scsi_track_queue_full(tmp_sdev,
-						      tmp_sdev->queue_depth-1);
-			if (depth <= 0)
-				continue;
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
-					 "0711 detected queue full - lun queue "
-					 "depth adjusted to %d.\n", depth);
-			lpfc_send_sdev_queuedepth_change_event(phba, vport,
-							       pnode,
-							       tmp_sdev->lun,
-							       depth+1, depth);
-		}
-	}
-
 	spin_lock_irqsave(&phba->hbalock, flags);
 	lpfc_cmd->pCmd = NULL;
 	spin_unlock_irqrestore(&phba->hbalock, flags);
@@ -4378,6 +4314,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		fcp_cmnd->fcpCntl1 = SIMPLE_Q;
 
 	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
+	piocbq->iocb.un.fcpi.fcpi_XRdy = 0;
 
 	/*
 	 * There are three possibilities here - use scatter-gather segment, use
@@ -4485,10 +4422,10 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
 		piocb->ulpContext =
 		  vport->phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
 	}
-	if (ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE) {
-		piocb->ulpFCP2Rcvy = 1;
-	}
+	piocb->ulpFCP2Rcvy = (ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE) ? 1 : 0;
 	piocb->ulpClass = (ndlp->nlp_fcp_info & 0x0f);
+	piocb->ulpPU = 0;
+	piocb->un.fcpi.fcpi_parm = 0;
 
 	/* ulpTimeout is only one byte */
 	if (lpfc_cmd->timeout > 0xff) {
@@ -4688,12 +4625,13 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
+	struct lpfc_rport_data *rdata;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_scsi_buf *lpfc_cmd;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 	int err;
 
+	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	err = fc_remote_port_chkready(rport);
 	if (err) {
 		cmnd->result = err;
@@ -4779,6 +4717,24 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 				  &lpfc_cmd->cur_iocbq, SLI_IOCB_RET_IOCB);
 	if (err) {
 		atomic_dec(&ndlp->cmd_pending);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+				 "3376 FCP could not issue IOCB err %x"
+				 "FCP cmd x%x <%d/%d> "
+				 "sid: x%x did: x%x oxid: x%x "
+				 "Data: x%x x%x x%x x%x\n",
+				 err, cmnd->cmnd[0],
+				 cmnd->device ? cmnd->device->id : 0xffff,
+				 cmnd->device ? cmnd->device->lun : 0xffff,
+				 vport->fc_myDID, ndlp->nlp_DID,
+				 phba->sli_rev == LPFC_SLI_REV4 ?
+				 lpfc_cmd->cur_iocbq.sli4_xritag : 0xffff,
+				 lpfc_cmd->cur_iocbq.iocb.ulpContext,
+				 lpfc_cmd->cur_iocbq.iocb.ulpIoTag,
+				 lpfc_cmd->cur_iocbq.iocb.ulpTimeout,
+				 (uint32_t)
+				 (cmnd->request->timeout / 1000));
+
+
 		goto out_host_busy_free_buf;
 	}
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
@@ -4827,7 +4783,9 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_scsi_buf *lpfc_cmd;
 	IOCB_t *cmd, *icmd;
 	int ret = SUCCESS, status = 0;
-	unsigned long flags;
+	struct lpfc_sli_ring *pring_s4;
+	int ring_number, ret_val;
+	unsigned long flags, iflags;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
 	status = fc_block_scsi_eh(cmnd);
@@ -4878,6 +4836,14 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	BUG_ON(iocb->context1 != lpfc_cmd);
 
+	/* abort issued in recovery is still in progress */
+	if (iocb->iocb_flag & LPFC_DRIVER_ABORTED) {
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
+			 "3389 SCSI Layer I/O Abort Request is pending\n");
+		spin_unlock_irqrestore(&phba->hbalock, flags);
+		goto wait_for_cmpl;
+	}
+
 	abtsiocb = __lpfc_sli_get_iocbq(phba);
 	if (abtsiocb == NULL) {
 		ret = FAILED;
@@ -4916,11 +4882,23 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 	abtsiocb->vport = vport;
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		ring_number = MAX_SLI3_CONFIGURED_RINGS + iocb->fcp_wqidx;
+		pring_s4 = &phba->sli.ring[ring_number];
+		/* Note: both hbalock and ring_lock must be set here */
+		spin_lock_irqsave(&pring_s4->ring_lock, iflags);
+		ret_val = __lpfc_sli_issue_iocb(phba, pring_s4->ringno,
+						abtsiocb, 0);
+		spin_unlock_irqrestore(&pring_s4->ring_lock, iflags);
+	} else {
+		ret_val = __lpfc_sli_issue_iocb(phba, LPFC_FCP_RING,
+						abtsiocb, 0);
+	}
 	/* no longer need the lock after this point */
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
-	if (lpfc_sli_issue_iocb(phba, LPFC_FCP_RING, abtsiocb, 0) ==
-	    IOCB_ERROR) {
+
+	if (ret_val == IOCB_ERROR) {
 		lpfc_sli_release_iocbq(phba, abtsiocb);
 		ret = FAILED;
 		goto out;
@@ -4930,12 +4908,16 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		lpfc_sli_handle_fast_ring_event(phba,
 			&phba->sli.ring[LPFC_FCP_RING], HA_R0RE_REQ);
 
+wait_for_cmpl:
 	lpfc_cmd->waitq = &waitq;
 	/* Wait for abort to complete */
 	wait_event_timeout(waitq,
 			  (lpfc_cmd->pCmd != cmnd),
 			   msecs_to_jiffies(2*vport->cfg_devloss_tmo*1000));
+
+	spin_lock_irqsave(shost->host_lock, flags);
 	lpfc_cmd->waitq = NULL;
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	if (lpfc_cmd->pCmd == cmnd) {
 		ret = FAILED;
@@ -4980,6 +4962,73 @@ lpfc_taskmgmt_name(uint8_t task_mgmt_cmd)
 		return "unknown";
 	}
 }
+
+
+/**
+ * lpfc_check_fcp_rsp - check the returned fcp_rsp to see if task failed
+ * @vport: The virtual port for which this call is being executed.
+ * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
+ *
+ * This routine checks the FCP RSP INFO to see if the tsk mgmt command succeded
+ *
+ * Return code :
+ *   0x2003 - Error
+ *   0x2002 - Success
+ **/
+static int
+lpfc_check_fcp_rsp(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd)
+{
+	struct fcp_rsp *fcprsp = lpfc_cmd->fcp_rsp;
+	uint32_t rsp_info;
+	uint32_t rsp_len;
+	uint8_t  rsp_info_code;
+	int ret = FAILED;
+
+
+	if (fcprsp == NULL)
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+				 "0703 fcp_rsp is missing\n");
+	else {
+		rsp_info = fcprsp->rspStatus2;
+		rsp_len = be32_to_cpu(fcprsp->rspRspLen);
+		rsp_info_code = fcprsp->rspInfo3;
+
+
+		lpfc_printf_vlog(vport, KERN_INFO,
+				 LOG_FCP,
+				 "0706 fcp_rsp valid 0x%x,"
+				 " rsp len=%d code 0x%x\n",
+				 rsp_info,
+				 rsp_len, rsp_info_code);
+
+		if ((fcprsp->rspStatus2&RSP_LEN_VALID) && (rsp_len == 8)) {
+			switch (rsp_info_code) {
+			case RSP_NO_FAILURE:
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+						 "0715 Task Mgmt No Failure\n");
+				ret = SUCCESS;
+				break;
+			case RSP_TM_NOT_SUPPORTED: /* TM rejected */
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+						 "0716 Task Mgmt Target "
+						"reject\n");
+				break;
+			case RSP_TM_NOT_COMPLETED: /* TM failed */
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+						 "0717 Task Mgmt Target "
+						"failed TM\n");
+				break;
+			case RSP_TM_INVALID_LU: /* TM to invalid LU! */
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+						 "0718 Task Mgmt to invalid "
+						"LUN\n");
+				break;
+			}
+		}
+	}
+	return ret;
+}
+
 
 /**
  * lpfc_send_taskmgmt - Generic SCSI Task Mgmt Handler
@@ -5042,12 +5091,8 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 
 	status = lpfc_sli_issue_iocb_wait(phba, LPFC_FCP_RING,
 					  iocbq, iocbqrsp, lpfc_cmd->timeout);
-	if (status != IOCB_SUCCESS) {
-		if (status == IOCB_TIMEDOUT) {
-			ret = TIMEOUT_ERROR;
-		} else
-			ret = FAILED;
-		lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
+	if ((status != IOCB_SUCCESS) ||
+	    (iocbqrsp->iocb.ulpStatus != IOSTAT_SUCCESS)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 			 "0727 TMF %s to TGT %d LUN %d failed (%d, %d) "
 			 "iocb_flag x%x\n",
@@ -5055,9 +5100,21 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 			 tgt_id, lun_id, iocbqrsp->iocb.ulpStatus,
 			 iocbqrsp->iocb.un.ulpWord[4],
 			 iocbq->iocb_flag);
-	} else if (status == IOCB_BUSY)
-		ret = FAILED;
-	else
+		/* if ulpStatus != IOCB_SUCCESS, then status == IOCB_SUCCESS */
+		if (status == IOCB_SUCCESS) {
+			if (iocbqrsp->iocb.ulpStatus == IOSTAT_FCP_RSP_ERROR)
+				/* Something in the FCP_RSP was invalid.
+				 * Check conditions */
+				ret = lpfc_check_fcp_rsp(vport, lpfc_cmd);
+			else
+				ret = FAILED;
+		} else if (status == IOCB_TIMEDOUT) {
+			ret = TIMEOUT_ERROR;
+		} else {
+			ret = FAILED;
+		}
+		lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
+	} else
 		ret = SUCCESS;
 
 	lpfc_sli_release_iocbq(phba, iocbqrsp);
@@ -5083,10 +5140,11 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 static int
 lpfc_chk_tgt_mapped(struct lpfc_vport *vport, struct scsi_cmnd *cmnd)
 {
-	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
+	struct lpfc_rport_data *rdata;
 	struct lpfc_nodelist *pnode;
 	unsigned long later;
 
+	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	if (!rdata) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
 			"0797 Tgt Map rport failure: rdata x%p\n", rdata);
@@ -5104,7 +5162,7 @@ lpfc_chk_tgt_mapped(struct lpfc_vport *vport, struct scsi_cmnd *cmnd)
 		if (pnode->nlp_state == NLP_STE_MAPPED_NODE)
 			return SUCCESS;
 		schedule_timeout_uninterruptible(msecs_to_jiffies(500));
-		rdata = cmnd->device->hostdata;
+		rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 		if (!rdata)
 			return FAILED;
 		pnode = rdata->pnode;
@@ -5141,8 +5199,9 @@ lpfc_reset_flush_io_context(struct lpfc_vport *vport, uint16_t tgt_id,
 
 	cnt = lpfc_sli_sum_iocb(vport, tgt_id, lun_id, context);
 	if (cnt)
-		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
-				    tgt_id, lun_id, context);
+		lpfc_sli_abort_taskmgmt(vport,
+					&phba->sli.ring[phba->sli.fcp_ring],
+					tgt_id, lun_id, context);
 	later = msecs_to_jiffies(2 * vport->cfg_devloss_tmo * 1000) + jiffies;
 	while (time_after(later, jiffies) && cnt) {
 		schedule_timeout_uninterruptible(msecs_to_jiffies(20));
@@ -5176,13 +5235,14 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host  *shost = cmnd->device->host;
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
+	struct lpfc_rport_data *rdata;
 	struct lpfc_nodelist *pnode;
 	unsigned tgt_id = cmnd->device->id;
 	unsigned int lun_id = cmnd->device->lun;
 	struct lpfc_scsi_event_header scsi_event;
-	int status, ret = SUCCESS;
+	int status;
 
+	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	if (!rdata) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 			"0798 Device Reset rport failure: rdata x%p\n", rdata);
@@ -5222,9 +5282,11 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	 * So, continue on.
 	 * We will report success if all the i/o aborts successfully.
 	 */
-	ret = lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
+	if (status == SUCCESS)
+		status = lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
 						LPFC_CTX_LUN);
-	return ret;
+
+	return status;
 }
 
 /**
@@ -5243,13 +5305,14 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host  *shost = cmnd->device->host;
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
+	struct lpfc_rport_data *rdata;
 	struct lpfc_nodelist *pnode;
 	unsigned tgt_id = cmnd->device->id;
 	unsigned int lun_id = cmnd->device->lun;
 	struct lpfc_scsi_event_header scsi_event;
-	int status, ret = SUCCESS;
+	int status;
 
+	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	if (!rdata) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 			"0799 Target Reset rport failure: rdata x%p\n", rdata);
@@ -5289,9 +5352,10 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	 * So, continue on.
 	 * We will report success if all the i/o aborts successfully.
 	 */
-	ret = lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
+	if (status == SUCCESS)
+		status = lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
 					  LPFC_CTX_TGT);
-	return ret;
+	return status;
 }
 
 /**
@@ -5448,11 +5512,45 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 	uint32_t num_to_alloc = 0;
 	int num_allocated = 0;
 	uint32_t sdev_cnt;
+	struct lpfc_device_data *device_data;
+	unsigned long flags;
+	struct lpfc_name target_wwpn;
 
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	sdev->hostdata = rport->dd_data;
+	if (phba->cfg_fof) {
+
+		/*
+		 * Check to see if the device data structure for the lun
+		 * exists.  If not, create one.
+		 */
+
+		u64_to_wwn(rport->port_name, target_wwpn.u.wwn);
+		spin_lock_irqsave(&phba->devicelock, flags);
+		device_data = __lpfc_get_device_data(phba,
+						     &phba->luns,
+						     &vport->fc_portname,
+						     &target_wwpn,
+						     sdev->lun);
+		if (!device_data) {
+			spin_unlock_irqrestore(&phba->devicelock, flags);
+			device_data = lpfc_create_device_data(phba,
+							&vport->fc_portname,
+							&target_wwpn,
+							sdev->lun, true);
+			if (!device_data)
+				return -ENOMEM;
+			spin_lock_irqsave(&phba->devicelock, flags);
+			list_add_tail(&device_data->listentry, &phba->luns);
+		}
+		device_data->rport_data = rport->dd_data;
+		device_data->available = true;
+		spin_unlock_irqrestore(&phba->devicelock, flags);
+		sdev->hostdata = device_data;
+	} else {
+		sdev->hostdata = rport->dd_data;
+	}
 	sdev_cnt = atomic_inc_return(&phba->sdev_cnt);
 
 	/*
@@ -5542,11 +5640,344 @@ lpfc_slave_destroy(struct scsi_device *sdev)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
+	unsigned long flags;
+	struct lpfc_device_data *device_data = sdev->hostdata;
+
 	atomic_dec(&phba->sdev_cnt);
+	if ((phba->cfg_fof) && (device_data)) {
+		spin_lock_irqsave(&phba->devicelock, flags);
+		device_data->available = false;
+		if (!device_data->oas_enabled)
+			lpfc_delete_device_data(phba, device_data);
+		spin_unlock_irqrestore(&phba->devicelock, flags);
+	}
 	sdev->hostdata = NULL;
 	return;
 }
 
+/**
+ * lpfc_create_device_data - creates and initializes device data structure for OAS
+ * @pha: Pointer to host bus adapter structure.
+ * @vport_wwpn: Pointer to vport's wwpn information
+ * @target_wwpn: Pointer to target's wwpn information
+ * @lun: Lun on target
+ * @atomic_create: Flag to indicate if memory should be allocated using the
+ *		  GFP_ATOMIC flag or not.
+ *
+ * This routine creates a device data structure which will contain identifying
+ * information for the device (host wwpn, target wwpn, lun), state of OAS,
+ * whether or not the corresponding lun is available by the system,
+ * and pointer to the rport data.
+ *
+ * Return codes:
+ *   NULL - Error
+ *   Pointer to lpfc_device_data - Success
+ **/
+struct lpfc_device_data*
+lpfc_create_device_data(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
+			struct lpfc_name *target_wwpn, uint64_t lun,
+			bool atomic_create)
+{
+
+	struct lpfc_device_data *lun_info;
+	int memory_flags;
+
+	if (unlikely(!phba) || !vport_wwpn || !target_wwpn  ||
+	    !(phba->cfg_fof))
+		return NULL;
+
+	/* Attempt to create the device data to contain lun info */
+
+	if (atomic_create)
+		memory_flags = GFP_ATOMIC;
+	else
+		memory_flags = GFP_KERNEL;
+	lun_info = mempool_alloc(phba->device_data_mem_pool, memory_flags);
+	if (!lun_info)
+		return NULL;
+	INIT_LIST_HEAD(&lun_info->listentry);
+	lun_info->rport_data  = NULL;
+	memcpy(&lun_info->device_id.vport_wwpn, vport_wwpn,
+	       sizeof(struct lpfc_name));
+	memcpy(&lun_info->device_id.target_wwpn, target_wwpn,
+	       sizeof(struct lpfc_name));
+	lun_info->device_id.lun = lun;
+	lun_info->oas_enabled = false;
+	lun_info->available = false;
+	return lun_info;
+}
+
+/**
+ * lpfc_delete_device_data - frees a device data structure for OAS
+ * @pha: Pointer to host bus adapter structure.
+ * @lun_info: Pointer to device data structure to free.
+ *
+ * This routine frees the previously allocated device data structure passed.
+ *
+ **/
+void
+lpfc_delete_device_data(struct lpfc_hba *phba,
+			struct lpfc_device_data *lun_info)
+{
+
+	if (unlikely(!phba) || !lun_info  ||
+	    !(phba->cfg_fof))
+		return;
+
+	if (!list_empty(&lun_info->listentry))
+		list_del(&lun_info->listentry);
+	mempool_free(lun_info, phba->device_data_mem_pool);
+	return;
+}
+
+/**
+ * __lpfc_get_device_data - returns the device data for the specified lun
+ * @pha: Pointer to host bus adapter structure.
+ * @list: Point to list to search.
+ * @vport_wwpn: Pointer to vport's wwpn information
+ * @target_wwpn: Pointer to target's wwpn information
+ * @lun: Lun on target
+ *
+ * This routine searches the list passed for the specified lun's device data.
+ * This function does not hold locks, it is the responsibility of the caller
+ * to ensure the proper lock is held before calling the function.
+ *
+ * Return codes:
+ *   NULL - Error
+ *   Pointer to lpfc_device_data - Success
+ **/
+struct lpfc_device_data*
+__lpfc_get_device_data(struct lpfc_hba *phba, struct list_head *list,
+		       struct lpfc_name *vport_wwpn,
+		       struct lpfc_name *target_wwpn, uint64_t lun)
+{
+
+	struct lpfc_device_data *lun_info;
+
+	if (unlikely(!phba) || !list || !vport_wwpn || !target_wwpn ||
+	    !phba->cfg_fof)
+		return NULL;
+
+	/* Check to see if the lun is already enabled for OAS. */
+
+	list_for_each_entry(lun_info, list, listentry) {
+		if ((memcmp(&lun_info->device_id.vport_wwpn, vport_wwpn,
+			    sizeof(struct lpfc_name)) == 0) &&
+		    (memcmp(&lun_info->device_id.target_wwpn, target_wwpn,
+			    sizeof(struct lpfc_name)) == 0) &&
+		    (lun_info->device_id.lun == lun))
+			return lun_info;
+	}
+
+	return NULL;
+}
+
+/**
+ * lpfc_find_next_oas_lun - searches for the next oas lun
+ * @pha: Pointer to host bus adapter structure.
+ * @vport_wwpn: Pointer to vport's wwpn information
+ * @target_wwpn: Pointer to target's wwpn information
+ * @starting_lun: Pointer to the lun to start searching for
+ * @found_vport_wwpn: Pointer to the found lun's vport wwpn information
+ * @found_target_wwpn: Pointer to the found lun's target wwpn information
+ * @found_lun: Pointer to the found lun.
+ * @found_lun_status: Pointer to status of the found lun.
+ *
+ * This routine searches the luns list for the specified lun
+ * or the first lun for the vport/target.  If the vport wwpn contains
+ * a zero value then a specific vport is not specified. In this case
+ * any vport which contains the lun will be considered a match.  If the
+ * target wwpn contains a zero value then a specific target is not specified.
+ * In this case any target which contains the lun will be considered a
+ * match.  If the lun is found, the lun, vport wwpn, target wwpn and lun status
+ * are returned.  The function will also return the next lun if available.
+ * If the next lun is not found, starting_lun parameter will be set to
+ * NO_MORE_OAS_LUN.
+ *
+ * Return codes:
+ *   non-0 - Error
+ *   0 - Success
+ **/
+bool
+lpfc_find_next_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
+		       struct lpfc_name *target_wwpn, uint64_t *starting_lun,
+		       struct lpfc_name *found_vport_wwpn,
+		       struct lpfc_name *found_target_wwpn,
+		       uint64_t *found_lun,
+		       uint32_t *found_lun_status)
+{
+
+	unsigned long flags;
+	struct lpfc_device_data *lun_info;
+	struct lpfc_device_id *device_id;
+	uint64_t lun;
+	bool found = false;
+
+	if (unlikely(!phba) || !vport_wwpn || !target_wwpn ||
+	    !starting_lun || !found_vport_wwpn ||
+	    !found_target_wwpn || !found_lun || !found_lun_status ||
+	    (*starting_lun == NO_MORE_OAS_LUN) ||
+	    !phba->cfg_fof)
+		return false;
+
+	lun = *starting_lun;
+	*found_lun = NO_MORE_OAS_LUN;
+	*starting_lun = NO_MORE_OAS_LUN;
+
+	/* Search for lun or the lun closet in value */
+
+	spin_lock_irqsave(&phba->devicelock, flags);
+	list_for_each_entry(lun_info, &phba->luns, listentry) {
+		if (((wwn_to_u64(vport_wwpn->u.wwn) == 0) ||
+		     (memcmp(&lun_info->device_id.vport_wwpn, vport_wwpn,
+			    sizeof(struct lpfc_name)) == 0)) &&
+		    ((wwn_to_u64(target_wwpn->u.wwn) == 0) ||
+		     (memcmp(&lun_info->device_id.target_wwpn, target_wwpn,
+			    sizeof(struct lpfc_name)) == 0)) &&
+		    (lun_info->oas_enabled)) {
+			device_id = &lun_info->device_id;
+			if ((!found) &&
+			    ((lun == FIND_FIRST_OAS_LUN) ||
+			     (device_id->lun == lun))) {
+				*found_lun = device_id->lun;
+				memcpy(found_vport_wwpn,
+				       &device_id->vport_wwpn,
+				       sizeof(struct lpfc_name));
+				memcpy(found_target_wwpn,
+				       &device_id->target_wwpn,
+				       sizeof(struct lpfc_name));
+				if (lun_info->available)
+					*found_lun_status =
+						OAS_LUN_STATUS_EXISTS;
+				else
+					*found_lun_status = 0;
+				if (phba->cfg_oas_flags & OAS_FIND_ANY_VPORT)
+					memset(vport_wwpn, 0x0,
+					       sizeof(struct lpfc_name));
+				if (phba->cfg_oas_flags & OAS_FIND_ANY_TARGET)
+					memset(target_wwpn, 0x0,
+					       sizeof(struct lpfc_name));
+				found = true;
+			} else if (found) {
+				*starting_lun = device_id->lun;
+				memcpy(vport_wwpn, &device_id->vport_wwpn,
+				       sizeof(struct lpfc_name));
+				memcpy(target_wwpn, &device_id->target_wwpn,
+				       sizeof(struct lpfc_name));
+				break;
+			}
+		}
+	}
+	spin_unlock_irqrestore(&phba->devicelock, flags);
+	return found;
+}
+
+/**
+ * lpfc_enable_oas_lun - enables a lun for OAS operations
+ * @pha: Pointer to host bus adapter structure.
+ * @vport_wwpn: Pointer to vport's wwpn information
+ * @target_wwpn: Pointer to target's wwpn information
+ * @lun: Lun
+ *
+ * This routine enables a lun for oas operations.  The routines does so by
+ * doing the following :
+ *
+ *   1) Checks to see if the device data for the lun has been created.
+ *   2) If found, sets the OAS enabled flag if not set and returns.
+ *   3) Otherwise, creates a device data structure.
+ *   4) If successfully created, indicates the device data is for an OAS lun,
+ *   indicates the lun is not available and add to the list of luns.
+ *
+ * Return codes:
+ *   false - Error
+ *   true - Success
+ **/
+bool
+lpfc_enable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
+		    struct lpfc_name *target_wwpn, uint64_t lun)
+{
+
+	struct lpfc_device_data *lun_info;
+	unsigned long flags;
+
+	if (unlikely(!phba) || !vport_wwpn || !target_wwpn ||
+	    !phba->cfg_fof)
+		return false;
+
+	spin_lock_irqsave(&phba->devicelock, flags);
+
+	/* Check to see if the device data for the lun has been created */
+	lun_info = __lpfc_get_device_data(phba, &phba->luns, vport_wwpn,
+					  target_wwpn, lun);
+	if (lun_info) {
+		if (!lun_info->oas_enabled)
+			lun_info->oas_enabled = true;
+		spin_unlock_irqrestore(&phba->devicelock, flags);
+		return true;
+	}
+
+	/* Create an lun info structure and add to list of luns */
+	lun_info = lpfc_create_device_data(phba, vport_wwpn, target_wwpn, lun,
+					   false);
+	if (lun_info) {
+		lun_info->oas_enabled = true;
+		lun_info->available = false;
+		list_add_tail(&lun_info->listentry, &phba->luns);
+		spin_unlock_irqrestore(&phba->devicelock, flags);
+		return true;
+	}
+	spin_unlock_irqrestore(&phba->devicelock, flags);
+	return false;
+}
+
+/**
+ * lpfc_disable_oas_lun - disables a lun for OAS operations
+ * @pha: Pointer to host bus adapter structure.
+ * @vport_wwpn: Pointer to vport's wwpn information
+ * @target_wwpn: Pointer to target's wwpn information
+ * @lun: Lun
+ *
+ * This routine disables a lun for oas operations.  The routines does so by
+ * doing the following :
+ *
+ *   1) Checks to see if the device data for the lun is created.
+ *   2) If present, clears the flag indicating this lun is for OAS.
+ *   3) If the lun is not available by the system, the device data is
+ *   freed.
+ *
+ * Return codes:
+ *   false - Error
+ *   true - Success
+ **/
+bool
+lpfc_disable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
+		     struct lpfc_name *target_wwpn, uint64_t lun)
+{
+
+	struct lpfc_device_data *lun_info;
+	unsigned long flags;
+
+	if (unlikely(!phba) || !vport_wwpn || !target_wwpn ||
+	    !phba->cfg_fof)
+		return false;
+
+	spin_lock_irqsave(&phba->devicelock, flags);
+
+	/* Check to see if the lun is available. */
+	lun_info = __lpfc_get_device_data(phba,
+					  &phba->luns, vport_wwpn,
+					  target_wwpn, lun);
+	if (lun_info) {
+		lun_info->oas_enabled = false;
+		if (!lun_info->available)
+			lpfc_delete_device_data(phba, lun_info);
+		spin_unlock_irqrestore(&phba->devicelock, flags);
+		return true;
+	}
+
+	spin_unlock_irqrestore(&phba->devicelock, flags);
+	return false;
+}
 
 struct scsi_host_template lpfc_template = {
 	.module			= THIS_MODULE,

@@ -408,8 +408,10 @@
 #define __NR_kern_features	340
 #define __NR_kcmp		341
 #define __NR_finit_module	342
+#define __NR_sched_setattr	343
+#define __NR_sched_getattr	344
 
-#define NR_syscalls		343
+#define NR_syscalls		345
 
 /* Bitmask values returned from kern_features system call.  */
 #define KERN_FEATURE_MIXED_MODE_STACK	0x00000001

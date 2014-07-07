@@ -15,7 +15,7 @@
  */
 
 /dts-v1/;
-/include/ "r8a7778.dtsi"
+#include "r8a7778.dtsi"
 
 / {
 	model = "bockw";

@@ -826,13 +826,16 @@
 #define __NR_process_vm_writev	(__NR_Linux + 331)
 #define __NR_kcmp		(__NR_Linux + 332)
 #define __NR_finit_module	(__NR_Linux + 333)
+#define __NR_sched_setattr	(__NR_Linux + 334)
+#define __NR_sched_getattr	(__NR_Linux + 335)
+#define __NR_utimes		(__NR_Linux + 336)
+#define __NR_renameat2		(__NR_Linux + 337)
 
-#define __NR_Linux_syscalls	(__NR_finit_module + 1)
+#define __NR_Linux_syscalls	(__NR_renameat2 + 1)
 
 
 #define __IGNORE_select		/* newselect */
 #define __IGNORE_fadvise64	/* fadvise64_64 */
-#define __IGNORE_utimes		/* utime */
 
 
 #define HPUX_GATEWAY_ADDR       0xC0000004

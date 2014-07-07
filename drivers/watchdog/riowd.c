@@ -10,7 +10,6 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/of.h>

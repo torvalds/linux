@@ -20,10 +20,10 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 
-#include "cdma.h"
-#include "channel.h"
-#include "dev.h"
-#include "debug.h"
+#include "../cdma.h"
+#include "../channel.h"
+#include "../dev.h"
+#include "../debug.h"
 
 /*
  * Put the restart at the end of pushbuffer memor
@@ -54,8 +54,8 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 		u32 *p = (u32 *)((u32)pb->mapped + getptr);
 		*(p++) = HOST1X_OPCODE_NOP;
 		*(p++) = HOST1X_OPCODE_NOP;
-		dev_dbg(host1x->dev, "%s: NOP at 0x%x\n", __func__,
-			pb->phys + getptr);
+		dev_dbg(host1x->dev, "%s: NOP at %#llx\n", __func__,
+			(u64)pb->phys + getptr);
 		getptr = (getptr + 8) & (pb->size_bytes - 1);
 	}
 	wmb();

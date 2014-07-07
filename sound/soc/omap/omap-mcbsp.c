@@ -34,6 +34,7 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
+#include <sound/omap-pcm.h>
 
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include "mcbsp.h"
@@ -148,9 +149,6 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 		snd_pcm_hw_constraint_step(substream->runtime, 0,
 					   SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 2);
 	}
-
-	snd_soc_dai_set_dma_data(cpu_dai, substream,
-				 &mcbsp->dma_data[substream->stream]);
 
 	return err;
 }
@@ -559,6 +557,10 @@ static int omap_mcbsp_probe(struct snd_soc_dai *dai)
 
 	pm_runtime_enable(mcbsp->dev);
 
+	snd_soc_dai_init_dma_data(dai,
+				  &mcbsp->dma_data[SNDRV_PCM_STREAM_PLAYBACK],
+				  &mcbsp->dma_data[SNDRV_PCM_STREAM_CAPTURE]);
+
 	return 0;
 }
 
@@ -691,7 +693,7 @@ OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP" #port " Sidetone Channel 1 Volume", \
 OMAP_MCBSP_ST_CONTROLS(2);
 OMAP_MCBSP_ST_CONTROLS(3);
 
-int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd)
+int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd, int port_id)
 {
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
@@ -701,7 +703,7 @@ int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd)
 		return 0;
 	}
 
-	switch (mcbsp->id) {
+	switch (port_id) {
 	case 2: /* McBSP 2 */
 		return snd_soc_add_dai_controls(cpu_dai,
 					omap_mcbsp2_st_controls,
@@ -711,6 +713,7 @@ int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd)
 					omap_mcbsp3_st_controls,
 					ARRAY_SIZE(omap_mcbsp3_st_controls));
 	default:
+		dev_err(mcbsp->dev, "Port %d not supported\n", port_id);
 		break;
 	}
 
@@ -799,11 +802,15 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mcbsp);
 
 	ret = omap_mcbsp_init(pdev);
-	if (!ret)
-		return snd_soc_register_component(&pdev->dev, &omap_mcbsp_component,
-						  &omap_mcbsp_dai, 1);
+	if (ret)
+		return ret;
 
-	return ret;
+	ret = snd_soc_register_component(&pdev->dev, &omap_mcbsp_component,
+					 &omap_mcbsp_dai, 1);
+	if (ret)
+		return ret;
+
+	return omap_pcm_platform_register(&pdev->dev);
 }
 
 static int asoc_mcbsp_remove(struct platform_device *pdev)

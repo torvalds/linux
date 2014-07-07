@@ -876,7 +876,7 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 
 	tegra_phy->pad_regs = devm_ioremap(&pdev->dev, res->start,
 		resource_size(res));
-	if (!tegra_phy->regs) {
+	if (!tegra_phy->pad_regs) {
 		dev_err(&pdev->dev, "Failed to remap UTMI Pad regs\n");
 		return -ENOMEM;
 	}
@@ -1090,7 +1090,7 @@ static struct platform_driver tegra_usb_phy_driver = {
 	.driver		= {
 		.name	= "tegra-phy",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(tegra_usb_phy_id_table),
+		.of_match_table = tegra_usb_phy_id_table,
 	},
 };
 module_platform_driver(tegra_usb_phy_driver);

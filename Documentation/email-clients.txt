@@ -1,6 +1,17 @@
 Email clients info for Linux
 ======================================================================
 
+Git
+----------------------------------------------------------------------
+These days most developers use `git send-email` instead of regular
+email clients.  The man page for this is quite good.  On the receiving
+end, maintainers use `git am` to apply the patches.
+
+If you are new to git then send your first patch to yourself.  Save it
+as raw text including all the headers.  Run `git am raw_email.txt` and
+then review the changelog with `git log`.  When that works then send
+the patch to the appropriate mailing list(s).
+
 General Preferences
 ----------------------------------------------------------------------
 Patches for the Linux kernel are submitted via email, preferably as
@@ -104,7 +115,7 @@ Then from the "Message" menu item, select insert file and choose your patch.
 As an added bonus you can customise the message creation toolbar menu
 and put the "insert file" icon there.
 
-Make the the composer window wide enough so that no lines wrap. As of
+Make the composer window wide enough so that no lines wrap. As of
 KMail 1.13.5 (KDE 4.5.4), KMail will apply word wrapping when sending
 the email if the lines wrap in the composer window. Having word wrapping
 disabled in the Options menu isn't enough. Thus, if your patch has very
@@ -201,20 +212,15 @@ To beat some sense out of the internal editor, do this:
 
 - Edit your Thunderbird config settings so that it won't use format=flowed.
   Go to "edit->preferences->advanced->config editor" to bring up the
-  thunderbird's registry editor, and set "mailnews.send_plaintext_flowed" to
-  "false".
+  thunderbird's registry editor.
 
-- Disable HTML Format: Set "mail.identity.id1.compose_html" to "false".
+- Set "mailnews.send_plaintext_flowed" to "false"
 
-- Enable "preformat" mode: Set "editor.quotesPreformatted" to "true".
+- Set "mailnews.wraplength" from "72" to "0"
 
-- Enable UTF8: Set "prefs.converted-to-utf8" to "true".
+- "View" > "Message Body As" > "Plain Text"
 
-- Install the "toggle wordwrap" extension.  Download the file from:
-    https://addons.mozilla.org/thunderbird/addon/2351/
-  Then go to "tools->add ons", select "install" at the bottom of the screen,
-  and browse to where you saved the .xul file.  This adds an "Enable
-  Wordwrap" entry under the Options menu of the message composer.
+- "View" > "Character Encoding" > "Unicode (UTF-8)"
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 TkRat (GUI)

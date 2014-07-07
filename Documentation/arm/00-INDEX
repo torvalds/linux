@@ -4,6 +4,8 @@ Booting
 	- requirements for booting
 Interrupts
 	- ARM Interrupt subsystem documentation
+IXP4xx
+	- Intel IXP4xx Network processor.
 msm
 	- MSM specific documentation
 Netwinder
@@ -24,8 +26,16 @@ SPEAr
 	- ST SPEAr platform Linux Overview
 VFP/
 	- Release notes for Linux Kernel Vector Floating Point support code
+cluster-pm-race-avoidance.txt
+	- Algorithm for CPU and Cluster setup/teardown
 empeg/
 	- Ltd's Empeg MP3 Car Audio Player
+firmware.txt
+	- Secure firmware registration and calling.
+kernel_mode_neon.txt
+	- How to use NEON instructions in kernel mode
+kernel_user_helpers.txt
+	- Helper functions in kernel space made available for userspace.
 mem_alignment
 	- alignment abort handler documentation
 memory.txt
@@ -34,3 +44,9 @@ nwfpe/
 	- NWFPE floating point emulator documentation
 swp_emulation
 	- SWP/SWPB emulation handler/logging description
+tcm.txt
+	- ARM Tightly Coupled Memory
+uefi.txt
+	- [U]EFI configuration and runtime services documentation
+vlocks.txt
+	- Voting locks, low-level mechanism relying on memory system atomic writes.

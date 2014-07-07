@@ -108,6 +108,13 @@ enum adv7842_select_input {
 	ADV7842_SELECT_SDP_YC,
 };
 
+enum adv7842_drive_strength {
+	ADV7842_DR_STR_LOW = 0,
+	ADV7842_DR_STR_MEDIUM_LOW = 1,
+	ADV7842_DR_STR_MEDIUM_HIGH = 2,
+	ADV7842_DR_STR_HIGH = 3,
+};
+
 struct adv7842_sdp_csc_coeff {
 	bool manual;
 	uint16_t scaling;
@@ -131,13 +138,18 @@ struct adv7842_sdp_io_sync_adjustment {
 	uint16_t hs_width;
 	uint16_t de_beg;
 	uint16_t de_end;
+	uint8_t vs_beg_o;
+	uint8_t vs_beg_e;
+	uint8_t vs_end_o;
+	uint8_t vs_end_e;
+	uint8_t de_v_beg_o;
+	uint8_t de_v_beg_e;
+	uint8_t de_v_end_o;
+	uint8_t de_v_end_e;
 };
 
 /* Platform dependent definition */
 struct adv7842_platform_data {
-	/* connector - HDMI or DVI? */
-	unsigned connector_hdmi:1;
-
 	/* chip reset during probe */
 	unsigned chip_reset:1;
 
@@ -156,11 +168,11 @@ struct adv7842_platform_data {
 	/* Default mode */
 	enum adv7842_mode mode;
 
+	/* Default input */
+	unsigned input;
+
 	/* Video standard */
 	enum adv7842_vid_std_select vid_std_select;
-
-	/* Input Color Space */
-	enum adv7842_inp_color_space inp_color_space;
 
 	/* Select output format */
 	enum adv7842_op_format_sel op_format_sel;
@@ -181,22 +193,40 @@ struct adv7842_platform_data {
 	unsigned output_bus_lsb_to_msb:1;
 
 	/* IO register 0x14 */
-	struct {
-		unsigned data:2;
-		unsigned clock:2;
-		unsigned sync:2;
-	} drive_strength;
+	enum adv7842_drive_strength dr_str_data;
+	enum adv7842_drive_strength dr_str_clk;
+	enum adv7842_drive_strength dr_str_sync;
+
+	/*
+	 * IO register 0x19: Adjustment to the LLC DLL phase in
+	 * increments of 1/32 of a clock period.
+	 */
+	unsigned llc_dll_phase:5;
 
 	/* External RAM for 3-D comb or frame synchronizer */
 	unsigned sd_ram_size; /* ram size in MB */
 	unsigned sd_ram_ddr:1; /* ddr or sdr sdram */
 
-	/* Free run */
-	unsigned hdmi_free_run_mode;
+	/* HDMI free run, CP-reg 0xBA */
+	unsigned hdmi_free_run_enable:1;
+	/* 0 = Mode 0: run when there is no TMDS clock
+	   1 = Mode 1: run when there is no TMDS clock or the
+	       video resolution does not match programmed one. */
+	unsigned hdmi_free_run_mode:1;
+
+	/* SDP free run, CP-reg 0xDD */
+	unsigned sdp_free_run_auto:1;
+	unsigned sdp_free_run_man_col_en:1;
+	unsigned sdp_free_run_cbar_en:1;
+	unsigned sdp_free_run_force:1;
+
+	/* HPA manual (0) or auto (1), affects HDMI register 0x69 */
+	unsigned hpa_auto:1;
 
 	struct adv7842_sdp_csc_coeff sdp_csc_coeff;
 
-	struct adv7842_sdp_io_sync_adjustment sdp_io_sync;
+	struct adv7842_sdp_io_sync_adjustment sdp_io_sync_625;
+	struct adv7842_sdp_io_sync_adjustment sdp_io_sync_525;
 
 	/* i2c addresses */
 	u8 i2c_sdp_io;
@@ -222,5 +252,9 @@ struct adv7842_platform_data {
 /* custom ioctl, used to test the external RAM that's used by the
  * deinterlacer. */
 #define ADV7842_CMD_RAM_TEST _IO('V', BASE_VIDIOC_PRIVATE)
+
+#define ADV7842_EDID_PORT_A   0
+#define ADV7842_EDID_PORT_B   1
+#define ADV7842_EDID_PORT_VGA 2
 
 #endif

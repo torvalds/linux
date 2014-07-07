@@ -392,7 +392,7 @@
 	ENTRY_COMP(vmsplice)
 	ENTRY_COMP(move_pages)		/* 295 */
 	ENTRY_SAME(getcpu)
-	ENTRY_SAME(epoll_pwait)
+	ENTRY_COMP(epoll_pwait)
 	ENTRY_COMP(statfs64)
 	ENTRY_COMP(fstatfs64)
 	ENTRY_COMP(kexec_load)		/* 300 */
@@ -429,6 +429,10 @@
 	ENTRY_COMP(process_vm_writev)
 	ENTRY_SAME(kcmp)
 	ENTRY_SAME(finit_module)
+	ENTRY_SAME(sched_setattr)
+	ENTRY_SAME(sched_getattr)	/* 335 */
+	ENTRY_COMP(utimes)
+	ENTRY_SAME(renameat2)
 
 	/* Nothing yet */
 

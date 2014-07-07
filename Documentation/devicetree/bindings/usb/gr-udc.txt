@@ -1,0 +1,34 @@
+USB Peripheral Controller driver for Aeroflex Gaisler GRUSBDC.
+
+The GRUSBDC USB Device Controller core is available in the GRLIB VHDL
+IP core library.
+
+Note: In the ordinary environment for the core, a Leon SPARC system,
+these properties are built from information in the AMBA plug&play.
+
+Required properties:
+
+- name : Should be "GAISLER_USBDC" or "01_021"
+
+- reg : Address and length of the register set for the device
+
+- interrupts : Interrupt numbers for this device. Either one interrupt number
+	for all interrupts, or one for status related interrupts, one for IN
+	endpoint related interrupts and one for OUT endpoint related interrupts.
+
+Optional properties:
+
+- epobufsizes : Array of buffer sizes for OUT endpoints when they differ
+	from the default size of 1024. The array is indexed by the OUT endpoint
+	number. If the property is present it typically contains one entry for
+	each OUT endpoint of the core. Fewer entries overrides the default sizes
+	only for as many endpoints as the array contains.
+
+- epibufsizes : Array of buffer sizes for IN endpoints when they differ
+	from the default size of 1024. The array is indexed by the IN endpoint
+	number. If the property is present it typically contains one entry for
+	each IN endpoint of the core. Fewer entries overrides the default sizes
+	only for as many endpoints as the array contains.
+
+For further information look in the documentation for the GLIB IP core library:
+http://www.gaisler.com/products/grlib/grip.pdf

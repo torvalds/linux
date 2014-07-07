@@ -9,7 +9,8 @@
  */
 
 /dts-v1/;
-/include/ "r8a73a4.dtsi"
+#include "r8a73a4.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "APE6EVM";
@@ -22,6 +23,11 @@
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0 0x40000000 0 0x40000000>;
+	};
+
+	memory@200000000 {
+		device_type = "memory";
+		reg = <2 0x00000000 0 0x40000000>;
 	};
 
 	ape6evm_fixed_3v3: fixedregulator@0 {
@@ -40,7 +46,7 @@
 			compatible = "smsc,lan9118", "smsc,lan9115";
 			reg = <0x08000000 0x1000>;
 			interrupt-parent = <&irqc1>;
-			interrupts = <8 0x4>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
 			phy-mode = "mii";
 			reg-io-width = <4>;
 			smsc,irq-active-high;
@@ -52,6 +58,7 @@
 };
 
 &i2c5 {
+	status = "okay";
 	vdd_dvfs: max8973@1b {
 		compatible = "maxim,max8973";
 		reg = <0x1b>;

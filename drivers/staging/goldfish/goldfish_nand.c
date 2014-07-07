@@ -22,16 +22,16 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/vmalloc.h>
-#include <linux/init.h>
 #include <linux/mtd/mtd.h>
 #include <linux/platform_device.h>
-
+#include <linux/mutex.h>
+#include <linux/goldfish.h>
 #include <asm/div64.h>
 
 #include "goldfish_nand_reg.h"
 
 struct goldfish_nand {
-	spinlock_t              lock;
+	struct mutex            lock;
 	unsigned char __iomem  *base;
 	struct cmd_params       *cmd_params;
 	size_t                  mtd_count;
@@ -67,7 +67,7 @@ static u32 goldfish_nand_cmd_with_params(struct mtd_info *mtd,
 	cps->addr_high = (u32)(addr >> 32);
 	cps->addr_low = (u32)addr;
 	cps->transfer_size = len;
-	cps->data = (u32)ptr;
+	cps->data = (unsigned long)ptr;
 	writel(cmdp, base + NAND_COMMAND);
 	*rv = cps->result;
 	return 0;
@@ -78,20 +78,19 @@ static u32 goldfish_nand_cmd(struct mtd_info *mtd, enum nand_cmd cmd,
 {
 	struct goldfish_nand *nand = mtd->priv;
 	u32 rv;
-	unsigned long irq_flags;
 	unsigned char __iomem  *base = nand->base;
 
-	spin_lock_irqsave(&nand->lock, irq_flags);
+	mutex_lock(&nand->lock);
 	if (goldfish_nand_cmd_with_params(mtd, cmd, addr, len, ptr, &rv)) {
 		writel(mtd - nand->mtd, base + NAND_DEV);
 		writel((u32)(addr >> 32), base + NAND_ADDR_HIGH);
 		writel((u32)addr, base + NAND_ADDR_LOW);
 		writel(len, base + NAND_TRANSFER_SIZE);
-		writel((u32)ptr, base + NAND_DATA);
+		gf_write64((u64)ptr, base + NAND_DATA, base + NAND_DATA_HIGH);
 		writel(cmd, base + NAND_COMMAND);
 		rv = readl(base + NAND_RESULT);
 	}
-	spin_unlock_irqrestore(&nand->lock, irq_flags);
+	mutex_unlock(&nand->lock);
 	return rv;
 }
 
@@ -200,8 +199,6 @@ static int goldfish_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	if (from + len > mtd->size)
 		goto invalid_arg;
-	if (len != mtd->writesize)
-		goto invalid_arg;
 
 	rem = do_div(from, mtd->writesize);
 	if (rem)
@@ -223,8 +220,6 @@ static int goldfish_nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	u32 rem;
 
 	if (to + len > mtd->size)
-		goto invalid_arg;
-	if (len != mtd->writesize)
 		goto invalid_arg;
 
 	rem = do_div(to, mtd->writesize);
@@ -308,12 +303,11 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 	u32 name_len;
 	u32 result;
 	u32 flags;
-	unsigned long irq_flags;
 	unsigned char __iomem  *base = nand->base;
 	struct mtd_info *mtd = &nand->mtd[id];
 	char *name;
 
-	spin_lock_irqsave(&nand->lock, irq_flags);
+	mutex_lock(&nand->lock);
 	writel(id, base + NAND_DEV);
 	flags = readl(base + NAND_DEV_FLAGS);
 	name_len = readl(base + NAND_DEV_NAME_LEN);
@@ -330,7 +324,7 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 		"goldfish nand dev%d: size %llx, page %d, extra %d, erase %d\n",
 		       id, mtd->size, mtd->writesize,
 		       mtd->oobsize, mtd->erasesize);
-	spin_unlock_irqrestore(&nand->lock, irq_flags);
+	mutex_unlock(&nand->lock);
 
 	mtd->priv = nand;
 
@@ -406,7 +400,7 @@ static int goldfish_nand_probe(struct platform_device *pdev)
 	if (nand == NULL)
 		return -ENOMEM;
 
-	spin_lock_init(&nand->lock);
+	mutex_init(&nand->lock);
 	nand->base = base;
 	nand->mtd_count = num_dev;
 	platform_set_drvdata(pdev, nand);
@@ -426,6 +420,7 @@ static int goldfish_nand_remove(struct platform_device *pdev)
 {
 	struct goldfish_nand *nand = platform_get_drvdata(pdev);
 	int i;
+
 	for (i = 0; i < nand->mtd_count; i++) {
 		if (nand->mtd[i].name)
 			mtd_device_unregister(&nand->mtd[i]);

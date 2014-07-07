@@ -43,9 +43,6 @@ except maybe the 6514.
 
  */
 
-#define DEBUG 1
-#define DEBUG_FLAGS
-
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -430,7 +427,7 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct ni_65xx_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[2];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int status;
 
 	status = readb(devpriv->mite->daq_io_addr + Change_Status);
@@ -442,7 +439,7 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 	writeb(ClrEdge | ClrOverflow,
 	       devpriv->mite->daq_io_addr + Clear_Register);
 
-	comedi_buf_put(s->async, 0);
+	comedi_buf_put(s, 0);
 	s->async->events |= COMEDI_CB_EOS;
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -476,7 +473,7 @@ static int ni_65xx_intr_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -494,7 +491,6 @@ static int ni_65xx_intr_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	struct ni_65xx_private *devpriv = dev->private;
-	/* struct comedi_cmd *cmd = &s->async->cmd; */
 
 	writeb(ClrEdge | ClrOverflow,
 	       devpriv->mite->daq_io_addr + Clear_Register);
@@ -674,6 +670,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	s->n_chan = 1;
 	s->range_table = &range_unknown;
 	s->maxdata = 1;
+	s->len_chanlist	= 1;
 	s->do_cmdtest = ni_65xx_intr_cmdtest;
 	s->do_cmd = ni_65xx_intr_cmd;
 	s->cancel = ni_65xx_intr_cancel;
@@ -741,7 +738,7 @@ static int ni_65xx_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_65xx_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ni_65xx_pci_table) = {
+static const struct pci_device_id ni_65xx_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x1710), BOARD_PXI6509 },
 	{ PCI_VDEVICE(NI, 0x7085), BOARD_PCI6509 },
 	{ PCI_VDEVICE(NI, 0x7086), BOARD_PXI6528 },

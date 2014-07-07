@@ -180,7 +180,7 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct inode *inode,
 							 u64 file_offset);
 void btrfs_start_ordered_extent(struct inode *inode,
 				struct btrfs_ordered_extent *entry, int wait);
-void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len);
+int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len);
 struct btrfs_ordered_extent *
 btrfs_lookup_first_ordered_extent(struct inode * inode, u64 file_offset);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_range(struct inode *inode,
@@ -195,9 +195,13 @@ int btrfs_run_ordered_operations(struct btrfs_trans_handle *trans,
 void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct inode *inode);
-void btrfs_wait_ordered_extents(struct btrfs_root *root);
-void btrfs_wait_all_ordered_extents(struct btrfs_fs_info *fs_info);
-void btrfs_get_logged_extents(struct btrfs_root *log, struct inode *inode);
+int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr);
+void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr);
+void btrfs_get_logged_extents(struct inode *inode,
+			      struct list_head *logged_list);
+void btrfs_put_logged_extents(struct list_head *logged_list);
+void btrfs_submit_logged_extents(struct list_head *logged_list,
+				 struct btrfs_root *log);
 void btrfs_wait_logged_extents(struct btrfs_root *log, u64 transid);
 void btrfs_free_logged_extents(struct btrfs_root *log, u64 transid);
 int __init ordered_data_init(void);

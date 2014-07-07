@@ -66,7 +66,7 @@ cfs_tage_from_list(struct list_head *list)
 	return list_entry(list, struct cfs_trace_page, linkage);
 }
 
-static struct cfs_trace_page *cfs_tage_alloc(int gfp)
+static struct cfs_trace_page *cfs_tage_alloc(gfp_t gfp)
 {
 	struct page	    *page;
 	struct cfs_trace_page *tage;
@@ -114,7 +114,7 @@ static void cfs_tage_to_tail(struct cfs_trace_page *tage,
 	list_move_tail(&tage->linkage, queue);
 }
 
-int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, int gfp,
+int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 			   struct list_head *stock)
 {
 	int i;
@@ -276,7 +276,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	int			remain;
 	int			mask = msgdata->msg_mask;
 	const char		*file = kbasename(msgdata->msg_file);
-	cfs_debug_limit_state_t   *cdls = msgdata->msg_cdls;
+	struct cfs_debug_limit_state   *cdls = msgdata->msg_cdls;
 
 	tcd = cfs_trace_get_tcd();
 
@@ -416,12 +416,12 @@ console:
 			cdls->cdls_delay /= libcfs_console_backoff * 4;
 		} else {
 			cdls->cdls_delay *= libcfs_console_backoff;
-
-			if (cdls->cdls_delay < libcfs_console_min_delay)
-				cdls->cdls_delay = libcfs_console_min_delay;
-			else if (cdls->cdls_delay > libcfs_console_max_delay)
-				cdls->cdls_delay = libcfs_console_max_delay;
 		}
+
+		if (cdls->cdls_delay < libcfs_console_min_delay)
+			cdls->cdls_delay = libcfs_console_min_delay;
+		else if (cdls->cdls_delay > libcfs_console_max_delay)
+			cdls->cdls_delay = libcfs_console_max_delay;
 
 		/* ensure cdls_next is never zero after it's been seen */
 		cdls->cdls_next = (cfs_time_current() + cdls->cdls_delay) | 1;
@@ -678,6 +678,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	struct file		*filp;
 	struct cfs_trace_page	*tage;
 	struct cfs_trace_page	*tmp;
+	char			*buf;
 	int rc;
 
 	DECL_MMSPACE;
@@ -708,8 +709,11 @@ int cfs_tracefile_dump_all_pages(char *filename)
 
 		__LASSERT_TAGE_INVARIANT(tage);
 
-		rc = filp_write(filp, page_address(tage->page),
-				tage->used, filp_poff(filp));
+		buf = kmap(tage->page);
+		rc = vfs_write(filp, (__force const char __user *)buf,
+			       tage->used, &filp->f_pos);
+		kunmap(tage->page);
+
 		if (rc != (int)tage->used) {
 			printk(KERN_WARNING "wanted to write %u but wrote "
 			       "%d\n", tage->used, rc);
@@ -721,7 +725,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		cfs_tage_free(tage);
 	}
 	MMSPACE_CLOSE;
-	rc = filp_fsync(filp);
+	rc = vfs_fsync(filp, 1);
 	if (rc)
 		printk(KERN_ERR "sync returns %d\n", rc);
 close:
@@ -971,6 +975,7 @@ static int tracefiled(void *arg)
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
 	struct file *filp;
+	char *buf;
 	int last_loop = 0;
 	int rc;
 
@@ -1020,11 +1025,14 @@ static int tracefiled(void *arg)
 
 			if (f_pos >= (off_t)cfs_tracefile_size)
 				f_pos = 0;
-			else if (f_pos > (off_t)filp_size(filp))
-				f_pos = filp_size(filp);
+			else if (f_pos > i_size_read(filp->f_dentry->d_inode))
+				f_pos = i_size_read(filp->f_dentry->d_inode);
 
-			rc = filp_write(filp, page_address(tage->page),
-					tage->used, &f_pos);
+			buf = kmap(tage->page);
+			rc = vfs_write(filp, (__force const char __user *)buf,
+				       tage->used, &f_pos);
+			kunmap(tage->page);
+
 			if (rc != (int)tage->used) {
 				printk(KERN_WARNING "wanted to write %u "
 				       "but wrote %d\n", tage->used, rc);
@@ -1068,11 +1076,10 @@ end_loop:
 				break;
 			}
 		}
-		init_waitqueue_entry_current(&__wait);
+		init_waitqueue_entry(&__wait, current);
 		add_wait_queue(&tctl->tctl_waitq, &__wait);
 		set_current_state(TASK_INTERRUPTIBLE);
-		waitq_timedwait(&__wait, TASK_INTERRUPTIBLE,
-				    cfs_time_seconds(1));
+		schedule_timeout(cfs_time_seconds(1));
 		remove_wait_queue(&tctl->tctl_waitq, &__wait);
 	}
 	complete(&tctl->tctl_stop);

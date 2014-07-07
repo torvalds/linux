@@ -27,7 +27,7 @@
 /*	Define the debug levels */
 /*  */
 /*	1. DBG_TRACE and DBG_LOUD are used for normal cases. */
-/*	They can help SW engineer to develope or trace states changed */
+/*	They can help SW engineer to develop or trace states changed */
 /*	and also help HW enginner to trace every operation to and from HW, */
 /*	e.g IO, Tx, Rx. */
 /*  */
@@ -85,7 +85,7 @@
 /*------------------------Export Marco Definition---------------------------*/
 #define DbgPrint	pr_info
 #define RT_PRINTK(fmt, args...)				\
-	DbgPrint( "%s(): " fmt, __func__, ## args);
+	DbgPrint("%s(): " fmt, __func__, ## args);
 
 #ifndef ASSERT
 	#define ASSERT(expr)
@@ -94,18 +94,7 @@
 #define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)				\
 	if (((comp) & pDM_Odm->DebugComponents) &&			\
 	    (level <= pDM_Odm->DebugLevel)) {				\
-		if (pDM_Odm->SupportICType == ODM_RTL8192C)		\
-			DbgPrint("[ODM-92C] ");				\
-		else if (pDM_Odm->SupportICType == ODM_RTL8192D)	\
-			DbgPrint("[ODM-92D] ");				\
-		else if (pDM_Odm->SupportICType == ODM_RTL8723A)	\
-			DbgPrint("[ODM-8723A] ");			\
-		else if (pDM_Odm->SupportICType == ODM_RTL8188E)	\
-			DbgPrint("[ODM-8188E] ");			\
-		else if (pDM_Odm->SupportICType == ODM_RTL8812)		\
-			DbgPrint("[ODM-8812] ");			\
-		else if (pDM_Odm->SupportICType == ODM_RTL8821)		\
-			DbgPrint("[ODM-8821] ");			\
+		DbgPrint("[ODM-8188E] ");				\
 		RT_PRINTK fmt;						\
 	}
 
@@ -117,8 +106,8 @@
 
 #define ODM_RT_ASSERT(pDM_Odm, expr, fmt)				\
 	if (!(expr)) {							\
-		DbgPrint( "Assertion failed! %s at ......\n", #expr);	\
-		DbgPrint( "      ......%s,%s,line=%d\n", __FILE__,	\
+		DbgPrint("Assertion failed! %s at ......\n", #expr);	\
+		DbgPrint("      ......%s,%s,line=%d\n", __FILE__,	\
 			__func__, __LINE__);				\
 		RT_PRINTK fmt;						\
 		ASSERT(false);						\
@@ -136,7 +125,7 @@
 		DbgPrint(title_str);					\
 		DbgPrint(" ");						\
 		for (__i = 0; __i < 6; __i++)				\
-			DbgPrint("%02X%s", __ptr[__i], (__i==5)?"":"-");\
+			DbgPrint("%02X%s", __ptr[__i], (__i == 5)?"":"-");\
 		DbgPrint("\n");						\
 	}
 

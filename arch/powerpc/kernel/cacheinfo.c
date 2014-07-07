@@ -12,7 +12,6 @@
 
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
@@ -757,7 +756,10 @@ void cacheinfo_cpu_online(unsigned int cpu_id)
 	cacheinfo_sysfs_populate(cpu_id, cache);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU /* functions needed for cpu offline */
+/* functions needed to remove cache entry for cpu offline or suspend/resume */
+
+#if (defined(CONFIG_PPC_PSERIES) && defined(CONFIG_SUSPEND)) || \
+    defined(CONFIG_HOTPLUG_CPU)
 
 static struct cache *cache_lookup_by_cpu(unsigned int cpu_id)
 {
@@ -793,6 +795,9 @@ static void remove_index_dirs(struct cache_dir *cache_dir)
 static void remove_cache_dir(struct cache_dir *cache_dir)
 {
 	remove_index_dirs(cache_dir);
+
+	/* Remove cache dir from sysfs */
+	kobject_del(cache_dir->kobj);
 
 	kobject_put(cache_dir->kobj);
 
@@ -841,4 +846,4 @@ void cacheinfo_cpu_offline(unsigned int cpu_id)
 	if (cache)
 		cache_cpu_clear(cache, cpu_id);
 }
-#endif /* CONFIG_HOTPLUG_CPU */
+#endif /* (CONFIG_PPC_PSERIES && CONFIG_SUSPEND) || CONFIG_HOTPLUG_CPU */

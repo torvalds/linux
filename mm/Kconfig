@@ -20,7 +20,7 @@ config FLATMEM_MANUAL
 
 	  Some users of more advanced features like NUMA and
 	  memory hotplug may have different options here.
-	  DISCONTIGMEM is an more mature, better tested system,
+	  DISCONTIGMEM is a more mature, better tested system,
 	  but is incompatible with memory hotplug and may suffer
 	  decreased performance over SPARSEMEM.  If unsure between
 	  "Sparse Memory" and "Discontiguous Memory", choose
@@ -134,6 +134,9 @@ config HAVE_MEMBLOCK
 config HAVE_MEMBLOCK_NODE_MAP
 	boolean
 
+config HAVE_MEMBLOCK_PHYS_MAP
+	boolean
+
 config ARCH_DISCARD_MEMBLOCK
 	boolean
 
@@ -153,11 +156,18 @@ config MOVABLE_NODE
 	help
 	  Allow a node to have only movable memory.  Pages used by the kernel,
 	  such as direct mapping pages cannot be migrated.  So the corresponding
-	  memory device cannot be hotplugged.  This option allows users to
-	  online all the memory of a node as movable memory so that the whole
-	  node can be hotplugged.  Users who don't use the memory hotplug
-	  feature are fine with this option on since they don't online memory
-	  as movable.
+	  memory device cannot be hotplugged.  This option allows the following
+	  two things:
+	  - When the system is booting, node full of hotpluggable memory can
+	  be arranged to have only movable memory so that the whole node can
+	  be hot-removed. (need movable_node boot option specified).
+	  - After the system is up, the option allows users to online all the
+	  memory of a node as movable memory so that the whole node can be
+	  hot-removed.
+
+	  Users who don't use the memory hotplug feature are fine with this
+	  option on since they don't specify movable_node boot option or they
+	  don't online memory as movable.
 
 	  Say Y here if you want to hotplug a whole node.
 	  Say N here if you want kernel to use memory on all nodes evenly.
@@ -209,10 +219,13 @@ config PAGEFLAGS_EXTENDED
 #
 config SPLIT_PTLOCK_CPUS
 	int
+	default "999999" if !MMU
 	default "999999" if ARM && !CPU_CACHE_VIPT
 	default "999999" if PARISC && !PA20
-	default "999999" if DEBUG_SPINLOCK || DEBUG_LOCK_ALLOC
 	default "4"
+
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	boolean
 
 #
 # support for memory balloon compaction
@@ -253,6 +266,9 @@ config MIGRATION
 	  to the processors accessing. The second is when allocating huge
 	  pages as migration can relocate pages to satisfy a huge page
 	  allocation instead of reclaiming.
+
+config ARCH_ENABLE_HUGEPAGE_MIGRATION
+	boolean
 
 config PHYS_ADDR_T_64BIT
 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
@@ -420,16 +436,6 @@ choice
 	  benefit.
 endchoice
 
-config CROSS_MEMORY_ATTACH
-	bool "Cross Memory Support"
-	depends on MMU
-	default y
-	help
-	  Enabling this option adds the system calls process_vm_readv and
-	  process_vm_writev which allow a process with the correct privileges
-	  to directly read from or write to to another process's address space.
-	  See the man page for more details.
-
 #
 # UP and nommu archs use km based percpu allocator
 #
@@ -534,7 +540,7 @@ config ZSWAP
 
 config MEM_SOFT_DIRTY
 	bool "Track memory changes"
-	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY
+	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY && PROC_FS
 	select PROC_PAGE_MONITOR
 	help
 	  This option enables memory changes tracking by introducing a
@@ -543,3 +549,46 @@ config MEM_SOFT_DIRTY
 	  it can be cleared by hands.
 
 	  See Documentation/vm/soft-dirty.txt for more details.
+
+config ZSMALLOC
+	tristate "Memory allocator for compressed pages"
+	depends on MMU
+	default n
+	help
+	  zsmalloc is a slab-based memory allocator designed to store
+	  compressed RAM pages.  zsmalloc uses virtual memory mapping
+	  in order to reduce fragmentation.  However, this results in a
+	  non-standard allocator interface where a handle, not a pointer, is
+	  returned by an alloc().  This handle must be mapped in order to
+	  access the allocated space.
+
+config PGTABLE_MAPPING
+	bool "Use page table mapping to access object in zsmalloc"
+	depends on ZSMALLOC
+	help
+	  By default, zsmalloc uses a copy-based object mapping method to
+	  access allocations that span two pages. However, if a particular
+	  architecture (ex, ARM) performs VM mapping faster than copying,
+	  then you should select this. This causes zsmalloc to use page table
+	  mapping rather than copying for object mapping.
+
+	  You can check speed with zsmalloc benchmark:
+	  https://github.com/spartacus06/zsmapbench
+
+config GENERIC_EARLY_IOREMAP
+	bool
+
+config MAX_STACK_SIZE_MB
+	int "Maximum user stack size for 32-bit processes (MB)"
+	default 80
+	range 8 256 if METAG
+	range 8 2048
+	depends on STACK_GROWSUP && (!64BIT || COMPAT)
+	help
+	  This is the maximum stack size in Megabytes in the VM layout of 32-bit
+	  user processes when the stack grows upwards (currently only on parisc
+	  and metag arch). The stack will be located at the highest memory
+	  address minus the given value, unless the RLIMIT_STACK hard limit is
+	  changed to a smaller value in which case that is used.
+
+	  A sane initial value is 80 MB.

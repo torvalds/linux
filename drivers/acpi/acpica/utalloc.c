@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,39 @@
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utalloc")
 
+#if !defined (USE_NATIVE_ALLOCATE_ZEROED)
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_os_allocate_zeroed
+ *
+ * PARAMETERS:  size                - Size of the allocation
+ *
+ * RETURN:      Address of the allocated memory on success, NULL on failure.
+ *
+ * DESCRIPTION: Subsystem equivalent of calloc. Allocate and zero memory.
+ *              This is the default implementation. Can be overridden via the
+ *              USE_NATIVE_ALLOCATE_ZEROED flag.
+ *
+ ******************************************************************************/
+void *acpi_os_allocate_zeroed(acpi_size size)
+{
+	void *allocation;
+
+	ACPI_FUNCTION_ENTRY();
+
+	allocation = acpi_os_allocate(size);
+	if (allocation) {
+
+		/* Clear the memory block */
+
+		ACPI_MEMSET(allocation, 0, size);
+	}
+
+	return (allocation);
+}
+
+#endif				/* !USE_NATIVE_ALLOCATE_ZEROED */
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_create_caches
@@ -59,6 +92,7 @@ ACPI_MODULE_NAME("utalloc")
  * DESCRIPTION: Create all local caches
  *
  ******************************************************************************/
+
 acpi_status acpi_ut_create_caches(void)
 {
 	acpi_status status;
@@ -175,10 +209,10 @@ acpi_status acpi_ut_delete_caches(void)
 
 	/* Free memory lists */
 
-	ACPI_FREE(acpi_gbl_global_list);
+	acpi_os_free(acpi_gbl_global_list);
 	acpi_gbl_global_list = NULL;
 
-	ACPI_FREE(acpi_gbl_ns_node_list);
+	acpi_os_free(acpi_gbl_ns_node_list);
 	acpi_gbl_ns_node_list = NULL;
 #endif
 
@@ -268,9 +302,13 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
 		return (AE_BUFFER_OVERFLOW);
 
 	case ACPI_ALLOCATE_BUFFER:
-
-		/* Allocate a new buffer */
-
+		/*
+		 * Allocate a new buffer. We directectly call acpi_os_allocate here to
+		 * purposefully bypass the (optionally enabled) internal allocation
+		 * tracking mechanism since we only want to track internal
+		 * allocations. Note: The caller should use acpi_os_free to free this
+		 * buffer created via ACPI_ALLOCATE_BUFFER.
+		 */
 		buffer->pointer = acpi_os_allocate(required_length);
 		break;
 
@@ -302,82 +340,3 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
 	ACPI_MEMSET(buffer->pointer, 0, required_length);
 	return (AE_OK);
 }
-
-#ifdef NOT_USED_BY_LINUX
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_allocate
- *
- * PARAMETERS:  size                - Size of the allocation
- *              component           - Component type of caller
- *              module              - Source file name of caller
- *              line                - Line number of caller
- *
- * RETURN:      Address of the allocated memory on success, NULL on failure.
- *
- * DESCRIPTION: Subsystem equivalent of malloc.
- *
- ******************************************************************************/
-
-void *acpi_ut_allocate(acpi_size size,
-		       u32 component, const char *module, u32 line)
-{
-	void *allocation;
-
-	ACPI_FUNCTION_TRACE_U32(ut_allocate, size);
-
-	/* Check for an inadvertent size of zero bytes */
-
-	if (!size) {
-		ACPI_WARNING((module, line,
-			      "Attempt to allocate zero bytes, allocating 1 byte"));
-		size = 1;
-	}
-
-	allocation = acpi_os_allocate(size);
-	if (!allocation) {
-
-		/* Report allocation error */
-
-		ACPI_WARNING((module, line,
-			      "Could not allocate size %u", (u32) size));
-
-		return_PTR(NULL);
-	}
-
-	return_PTR(allocation);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_allocate_zeroed
- *
- * PARAMETERS:  size                - Size of the allocation
- *              component           - Component type of caller
- *              module              - Source file name of caller
- *              line                - Line number of caller
- *
- * RETURN:      Address of the allocated memory on success, NULL on failure.
- *
- * DESCRIPTION: Subsystem equivalent of calloc. Allocate and zero memory.
- *
- ******************************************************************************/
-
-void *acpi_ut_allocate_zeroed(acpi_size size,
-			      u32 component, const char *module, u32 line)
-{
-	void *allocation;
-
-	ACPI_FUNCTION_ENTRY();
-
-	allocation = acpi_ut_allocate(size, component, module, line);
-	if (allocation) {
-
-		/* Clear the memory block */
-
-		ACPI_MEMSET(allocation, 0, size);
-	}
-
-	return (allocation);
-}
-#endif

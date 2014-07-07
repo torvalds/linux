@@ -26,11 +26,18 @@ static struct dentry *efs_mount(struct file_system_type *fs_type,
 	return mount_bdev(fs_type, flags, dev_name, data, efs_fill_super);
 }
 
+static void efs_kill_sb(struct super_block *s)
+{
+	struct efs_sb_info *sbi = SUPER_INFO(s);
+	kill_block_super(s);
+	kfree(sbi);
+}
+
 static struct file_system_type efs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "efs",
 	.mount		= efs_mount,
-	.kill_sb	= kill_block_super,
+	.kill_sb	= efs_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("efs");
@@ -84,7 +91,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	efs_inode_cachep = kmem_cache_create("efs_inode_cache",
 				sizeof(struct efs_inode_info),
@@ -105,14 +112,9 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(efs_inode_cachep);
 }
 
-static void efs_put_super(struct super_block *s)
-{
-	kfree(s->s_fs_info);
-	s->s_fs_info = NULL;
-}
-
 static int efs_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	*flags |= MS_RDONLY;
 	return 0;
 }
@@ -120,7 +122,6 @@ static int efs_remount(struct super_block *sb, int *flags, char *data)
 static const struct super_operations efs_superblock_operations = {
 	.alloc_inode	= efs_alloc_inode,
 	.destroy_inode	= efs_destroy_inode,
-	.put_super	= efs_put_super,
 	.statfs		= efs_statfs,
 	.remount_fs	= efs_remount,
 };
@@ -133,7 +134,7 @@ static const struct export_operations efs_export_ops = {
 
 static int __init init_efs_fs(void) {
 	int err;
-	printk("EFS: "EFS_VERSION" - http://aeschi.ch.eu.org/efs/\n");
+	pr_info(EFS_VERSION" - http://aeschi.ch.eu.org/efs/\n");
 	err = init_inodecache();
 	if (err)
 		goto out1;
@@ -178,12 +179,12 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 		csum += be32_to_cpu(cs);
 	}
 	if (csum) {
-		printk(KERN_INFO "EFS: SGI disklabel: checksum bad, label corrupted\n");
+		pr_warn("SGI disklabel: checksum bad, label corrupted\n");
 		return 0;
 	}
 
 #ifdef DEBUG
-	printk(KERN_DEBUG "EFS: bf: \"%16s\"\n", vh->vh_bootfile);
+	pr_debug("bf: \"%16s\"\n", vh->vh_bootfile);
 
 	for(i = 0; i < NVDIR; i++) {
 		int	j;
@@ -195,9 +196,8 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 		name[j] = (char) 0;
 
 		if (name[0]) {
-			printk(KERN_DEBUG "EFS: vh: %8s block: 0x%08x size: 0x%08x\n",
-				name,
-				(int) be32_to_cpu(vh->vh_vd[i].vd_lbn),
+			pr_debug("vh: %8s block: 0x%08x size: 0x%08x\n",
+				name, (int) be32_to_cpu(vh->vh_vd[i].vd_lbn),
 				(int) be32_to_cpu(vh->vh_vd[i].vd_nbytes));
 		}
 	}
@@ -210,12 +210,11 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 		}
 #ifdef DEBUG
 		if (be32_to_cpu(vh->vh_pt[i].pt_nblks)) {
-			printk(KERN_DEBUG "EFS: pt %2d: start: %08d size: %08d type: 0x%02x (%s)\n",
-				i,
-				(int) be32_to_cpu(vh->vh_pt[i].pt_firstlbn),
-				(int) be32_to_cpu(vh->vh_pt[i].pt_nblks),
-				pt_type,
-				(pt_entry->pt_name) ? pt_entry->pt_name : "unknown");
+			pr_debug("pt %2d: start: %08d size: %08d type: 0x%02x (%s)\n",
+				 i, (int)be32_to_cpu(vh->vh_pt[i].pt_firstlbn),
+				 (int)be32_to_cpu(vh->vh_pt[i].pt_nblks),
+				 pt_type, (pt_entry->pt_name) ?
+				 pt_entry->pt_name : "unknown");
 		}
 #endif
 		if (IS_EFS(pt_type)) {
@@ -225,11 +224,10 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 	}
 
 	if (slice == -1) {
-		printk(KERN_NOTICE "EFS: partition table contained no EFS partitions\n");
+		pr_notice("partition table contained no EFS partitions\n");
 #ifdef DEBUG
 	} else {
-		printk(KERN_INFO "EFS: using slice %d (type %s, offset 0x%x)\n",
-			slice,
+		pr_info("using slice %d (type %s, offset 0x%x)\n", slice,
 			(pt_entry->pt_name) ? pt_entry->pt_name : "unknown",
 			sblock);
 #endif
@@ -259,7 +257,6 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	struct efs_sb_info *sb;
 	struct buffer_head *bh;
 	struct inode *root;
-	int ret = -EINVAL;
 
  	sb = kzalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
 	if (!sb)
@@ -268,17 +265,17 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
  
 	s->s_magic		= EFS_SUPER_MAGIC;
 	if (!sb_set_blocksize(s, EFS_BLOCKSIZE)) {
-		printk(KERN_ERR "EFS: device does not support %d byte blocks\n",
+		pr_err("device does not support %d byte blocks\n",
 			EFS_BLOCKSIZE);
-		goto out_no_fs_ul;
+		return -EINVAL;
 	}
   
 	/* read the vh (volume header) block */
 	bh = sb_bread(s, 0);
 
 	if (!bh) {
-		printk(KERN_ERR "EFS: cannot read volume header\n");
-		goto out_no_fs_ul;
+		pr_err("cannot read volume header\n");
+		return -EINVAL;
 	}
 
 	/*
@@ -290,27 +287,28 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	brelse(bh);
 
 	if (sb->fs_start == -1) {
-		goto out_no_fs_ul;
+		return -EINVAL;
 	}
 
 	bh = sb_bread(s, sb->fs_start + EFS_SUPER);
 	if (!bh) {
-		printk(KERN_ERR "EFS: cannot read superblock\n");
-		goto out_no_fs_ul;
+		pr_err("cannot read superblock\n");
+		return -EINVAL;
 	}
 		
 	if (efs_validate_super(sb, (struct efs_super *) bh->b_data)) {
 #ifdef DEBUG
-		printk(KERN_WARNING "EFS: invalid superblock at block %u\n", sb->fs_start + EFS_SUPER);
+		pr_warn("invalid superblock at block %u\n",
+			sb->fs_start + EFS_SUPER);
 #endif
 		brelse(bh);
-		goto out_no_fs_ul;
+		return -EINVAL;
 	}
 	brelse(bh);
 
 	if (!(s->s_flags & MS_RDONLY)) {
 #ifdef DEBUG
-		printk(KERN_INFO "EFS: forcing read-only mode\n");
+		pr_info("forcing read-only mode\n");
 #endif
 		s->s_flags |= MS_RDONLY;
 	}
@@ -318,25 +316,17 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	s->s_export_op = &efs_export_ops;
 	root = efs_iget(s, EFS_ROOTINODE);
 	if (IS_ERR(root)) {
-		printk(KERN_ERR "EFS: get root inode failed\n");
-		ret = PTR_ERR(root);
-		goto out_no_fs;
+		pr_err("get root inode failed\n");
+		return PTR_ERR(root);
 	}
 
 	s->s_root = d_make_root(root);
 	if (!(s->s_root)) {
-		printk(KERN_ERR "EFS: get root dentry failed\n");
-		ret = -ENOMEM;
-		goto out_no_fs;
+		pr_err("get root dentry failed\n");
+		return -ENOMEM;
 	}
 
 	return 0;
-
-out_no_fs_ul:
-out_no_fs:
-	s->s_fs_info = NULL;
-	kfree(sb);
-	return ret;
 }
 
 static int efs_statfs(struct dentry *dentry, struct kstatfs *buf) {

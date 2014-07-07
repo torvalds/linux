@@ -54,4 +54,3 @@ struct target_fabric_configfs {
 	struct target_fabric_configfs_template tf_cit_tmpl;
 };
 
-#define TF_CIT_TMPL(tf) (&(tf)->tf_cit_tmpl)

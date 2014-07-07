@@ -398,7 +398,7 @@ static void crystalhd_hw_free_rx_pkt(struct crystalhd_hw *hw,
  * Call back from TX - IOQ deletion.
  *
  * This routine will release the TX DMA rings allocated
- * druing setup_dma rings interface.
+ * during setup_dma rings interface.
  *
  * Memory is allocated per DMA ring basis. This is just
  * a place holder to be able to create the dio queues.
@@ -433,10 +433,12 @@ static void crystalhd_rx_pkt_rel_call_back(void *context, void *data)
 }
 
 #define crystalhd_hw_delete_ioq(adp, q)		\
+do {						\
 	if (q) {				\
 		crystalhd_delete_dioq(adp, q);	\
 		q = NULL;			\
-	}
+	}					\
+} while (0)
 
 static void crystalhd_hw_delete_ioqs(struct crystalhd_hw *hw)
 {
@@ -1437,7 +1439,7 @@ static bool crystalhd_rx_list0_handler(struct crystalhd_hw *hw,
 		crystalhd_reg_wr(hw->adp, MISC1_UV_RX_ERROR_STATUS, tmp);
 	}
 
-	return (tmp_lsts != hw->rx_list_sts[0]);
+	return tmp_lsts != hw->rx_list_sts[0];
 }
 
 static bool crystalhd_rx_list1_handler(struct crystalhd_hw *hw,
@@ -1507,7 +1509,7 @@ static bool crystalhd_rx_list1_handler(struct crystalhd_hw *hw,
 		crystalhd_reg_wr(hw->adp, MISC1_UV_RX_ERROR_STATUS, tmp);
 	}
 
-	return (tmp_lsts != hw->rx_list_sts[1]);
+	return tmp_lsts != hw->rx_list_sts[1];
 }
 
 
@@ -1517,7 +1519,7 @@ static void crystalhd_rx_isr(struct crystalhd_hw *hw, uint32_t intr_sts)
 	uint32_t i, list_avail = 0;
 	enum BC_STATUS comp_sts = BC_STS_NO_DATA;
 	uint32_t y_err_sts, uv_err_sts, y_dn_sz = 0, uv_dn_sz = 0;
-	bool ret = 0;
+	bool ret = false;
 
 	if (!hw) {
 		BCMLOG_ERR("Invalid Arguments\n");
@@ -1852,7 +1854,7 @@ bool crystalhd_hw_interrupt(struct crystalhd_adp *adp, struct crystalhd_hw *hw)
 {
 	uint32_t intr_sts = 0;
 	uint32_t deco_intr = 0;
-	bool rc = 0;
+	bool rc = false;
 
 	if (!adp || !hw->dev_started)
 		return rc;
@@ -1865,7 +1867,7 @@ bool crystalhd_hw_interrupt(struct crystalhd_adp *adp, struct crystalhd_hw *hw)
 
 	if (intr_sts) {
 		/* let system know we processed interrupt..*/
-		rc = 1;
+		rc = true;
 		hw->stats.dev_interrupts++;
 	}
 
@@ -1886,7 +1888,7 @@ bool crystalhd_hw_interrupt(struct crystalhd_adp *adp, struct crystalhd_hw *hw)
 		/* FIXME: jarod: No udelay? might this be
 		 the real reason mini pci-e cards were stalling out? */
 		bc_dec_reg_wr(adp, Stream2Host_Intr_Sts, 0);
-		rc = 1;
+		rc = true;
 	}
 
 	/* Rx interrupts */

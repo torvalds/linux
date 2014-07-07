@@ -67,15 +67,17 @@ struct dt2815_private {
 	unsigned int ao_readback[8];
 };
 
-static int dt2815_wait_for_status(struct comedi_device *dev, int status)
+static int dt2815_ao_status(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn,
+			    unsigned long context)
 {
-	int i;
+	unsigned int status;
 
-	for (i = 0; i < 100; i++) {
-		if (inb(dev->iobase + DT2815_STATUS) == status)
-			break;
-	}
-	return status;
+	status = inb(dev->iobase + DT2815_STATUS);
+	if (status == context)
+		return 0;
+	return -EBUSY;
 }
 
 static int dt2815_ao_insn_read(struct comedi_device *dev,
@@ -98,28 +100,23 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct dt2815_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
-	unsigned int status;
 	unsigned int lo, hi;
+	int ret;
 
 	for (i = 0; i < insn->n; i++) {
 		lo = ((data[i] & 0x0f) << 4) | (chan << 1) | 0x01;
 		hi = (data[i] & 0xff0) >> 4;
 
-		status = dt2815_wait_for_status(dev, 0x00);
-		if (status != 0) {
-			printk(KERN_WARNING "dt2815: failed to write low byte "
-			       "on %d reason %x\n", chan, status);
-			return -EBUSY;
-		}
+		ret = comedi_timeout(dev, s, insn, dt2815_ao_status, 0x00);
+		if (ret)
+			return ret;
 
 		outb(lo, dev->iobase + DT2815_DATA);
 
-		status = dt2815_wait_for_status(dev, 0x10);
-		if (status != 0x10) {
-			printk(KERN_WARNING "dt2815: failed to write high byte "
-			       "on %d reason %x\n", chan, status);
-			return -EBUSY;
-		}
+		ret = comedi_timeout(dev, s, insn, dt2815_ao_status, 0x10);
+		if (ret)
+			return ret;
+
 		devpriv->ao_readback[chan] = data[i];
 	}
 	return i;
@@ -200,12 +197,13 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			unsigned int program;
 			program = (it->options[4] & 0x3) << 3 | 0x7;
 			outb(program, dev->iobase + DT2815_DATA);
-			printk(KERN_INFO ", program: 0x%x (@t=%d)\n",
-			       program, i);
+			dev_dbg(dev->class_dev, "program: 0x%x (@t=%d)\n",
+				program, i);
 			break;
 		} else if (status != 0x00) {
-			printk(KERN_WARNING "dt2815: unexpected status 0x%x "
-			       "(@t=%d)\n", status, i);
+			dev_dbg(dev->class_dev,
+				"unexpected status 0x%x (@t=%d)\n",
+				status, i);
 			if (status & 0x60)
 				outb(0x00, dev->iobase + DT2815_STATUS);
 		}

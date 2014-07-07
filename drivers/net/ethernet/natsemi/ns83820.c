@@ -22,8 +22,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *
  * ChangeLog
@@ -2031,7 +2030,7 @@ static int ns83820_init_one(struct pci_dev *pci_dev,
 		pci_dev->subsystem_vendor, pci_dev->subsystem_device);
 
 	ndev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &ops);
+	ndev->ethtool_ops = &ops;
 	ndev->watchdog_timeo = 5 * HZ;
 	pci_set_drvdata(pci_dev, ndev);
 
@@ -2236,7 +2235,6 @@ out_disable:
 	pci_disable_device(pci_dev);
 out_free:
 	free_netdev(ndev);
-	pci_set_drvdata(pci_dev, NULL);
 out:
 	return err;
 }
@@ -2260,7 +2258,6 @@ static void ns83820_remove_one(struct pci_dev *pci_dev)
 			dev->rx_info.descs, dev->rx_info.phy_descs);
 	pci_disable_device(dev->pci_dev);
 	free_netdev(ndev);
-	pci_set_drvdata(pci_dev, NULL);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ns83820_pci_tbl) = {

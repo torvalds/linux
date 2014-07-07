@@ -78,7 +78,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
@@ -607,7 +606,7 @@ static int init_i596_mem(struct net_device *dev)
 	i596_add_cmd(dev, &dma->cf_cmd.cmd);
 
 	DEB(DEB_INIT, printk(KERN_DEBUG "%s: queuing CmdSASetup\n", dev->name));
-	memcpy(dma->sa_cmd.eth_addr, dev->dev_addr, 6);
+	memcpy(dma->sa_cmd.eth_addr, dev->dev_addr, ETH_ALEN);
 	dma->sa_cmd.cmd.command = SWAP16(CmdSASetup);
 	DMA_WBACK(dev, &(dma->sa_cmd), sizeof(struct sa_cmd));
 	i596_add_cmd(dev, &dma->sa_cmd.cmd);
@@ -994,7 +993,7 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				       dev->name));
 		dev->stats.tx_dropped++;
 
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 	} else {
 		if (++lp->next_tx_cmd == TX_RING_SIZE)
 			lp->next_tx_cmd = 0;
@@ -1396,13 +1395,13 @@ static void set_multicast_list(struct net_device *dev)
 		netdev_for_each_mc_addr(ha, dev) {
 			if (!cnt--)
 				break;
-			memcpy(cp, ha->addr, 6);
+			memcpy(cp, ha->addr, ETH_ALEN);
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,
 				    printk(KERN_DEBUG
 					   "%s: Adding address %pM\n",
 					   dev->name, cp));
-			cp += 6;
+			cp += ETH_ALEN;
 		}
 		DMA_WBACK_INV(dev, &dma->mc_cmd, sizeof(struct mc_cmd));
 		i596_add_cmd(dev, &cmd->cmd);

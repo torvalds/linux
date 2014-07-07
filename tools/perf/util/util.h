@@ -69,10 +69,11 @@
 #include <sys/ioctl.h>
 #include <inttypes.h>
 #include <linux/magic.h>
-#include "types.h"
+#include <linux/types.h>
 #include <sys/ttydefaults.h>
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 #include <termios.h>
+#include <linux/bitops.h>
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
@@ -128,6 +129,8 @@ void put_tracing_file(char *file);
 #endif
 #endif
 
+#define PERF_GTK_DSO  "libperf-gtk.so"
+
 /* General helper functions */
 extern void usage(const char *err) NORETURN;
 extern void die(const char *err, ...) NORETURN __attribute__((format (printf, 1, 2)));
@@ -182,6 +185,8 @@ static inline void *zalloc(size_t size)
 {
 	return calloc(1, size);
 }
+
+#define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
 
 static inline int has_extension(const char *filename, const char *ext)
 {
@@ -241,6 +246,7 @@ static inline int sane_case(int x, int high)
 
 int mkdir_p(char *path, mode_t mode);
 int copyfile(const char *from, const char *to);
+int copyfile_mode(const char *from, const char *to, mode_t mode);
 
 s64 perf_atoll(const char *str);
 char **argv_split(const char *str, int *argcp);
@@ -250,7 +256,8 @@ bool strlazymatch(const char *str, const char *pat);
 int strtailcmp(const char *s1, const char *s2);
 char *strxfrchar(char *s, char from, char to);
 unsigned long convert_unit(unsigned long value, char *unit);
-int readn(int fd, void *buf, size_t size);
+ssize_t readn(int fd, void *buf, size_t n);
+ssize_t writen(int fd, void *buf, size_t n);
 
 struct perf_event_attr;
 
@@ -270,6 +277,24 @@ bool is_power_of_2(unsigned long n)
 	return (n != 0 && ((n & (n - 1)) == 0));
 }
 
+static inline unsigned next_pow2(unsigned x)
+{
+	if (!x)
+		return 1;
+	return 1ULL << (32 - __builtin_clz(x - 1));
+}
+
+static inline unsigned long next_pow2_l(unsigned long x)
+{
+#if BITS_PER_LONG == 64
+	if (x <= (1UL << 31))
+		return next_pow2(x);
+	return (unsigned long)next_pow2(x >> 32) << 32;
+#else
+	return next_pow2(x);
+#endif
+}
+
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
 
@@ -279,6 +304,30 @@ char *rtrim(char *s);
 void dump_stack(void);
 
 extern unsigned int page_size;
+extern int cacheline_size;
 
 void get_term_dimensions(struct winsize *ws);
+
+struct parse_tag {
+	char tag;
+	int mult;
+};
+
+unsigned long parse_tag_value(const char *str, struct parse_tag *tags);
+
+#define SRCLINE_UNKNOWN  ((char *) "??:0")
+
+struct dso;
+
+char *get_srcline(struct dso *dso, unsigned long addr);
+void free_srcline(char *srcline);
+
+int filename__read_int(const char *filename, int *value);
+int filename__read_str(const char *filename, char **buf, size_t *sizep);
+int perf_event_paranoid(void);
+
+void mem_bswap_64(void *src, int byte_size);
+void mem_bswap_32(void *src, int byte_size);
+
+const char *get_filename_for_perf_kvm(void);
 #endif /* GIT_COMPAT_UTIL_H */

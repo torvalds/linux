@@ -161,7 +161,6 @@ static int s5p64x0_pm_add(struct device *dev, struct subsys_interface *sif)
 {
 	pm_cpu_prep = s5p64x0_pm_prepare;
 	pm_cpu_sleep = s5p64x0_cpu_suspend;
-	pm_uart_udivslot = 1;
 
 	return 0;
 }

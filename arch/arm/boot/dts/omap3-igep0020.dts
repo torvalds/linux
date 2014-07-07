@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for IGEPv2 board
+ * Device Tree Source for IGEPv2 Rev. (TI OMAP AM/DM37x)
  *
  * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
  * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
@@ -10,13 +10,17 @@
  */
 
 #include "omap3-igep.dtsi"
+#include "omap-gpmc-smsc9221.dtsi"
 
 / {
-	model = "IGEPv2";
-	compatible = "isee,omap3-igep0020", "ti,omap3";
+	model = "IGEPv2 (TI OMAP AM/DM37x)";
+	compatible = "isee,omap3-igep0020", "ti,omap36xx", "ti,omap3";
 
 	leds {
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_pins>;
 		compatible = "gpio-leds";
+
 		boot {
 			 label = "omap3:green:boot";
 			 gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
@@ -41,16 +45,141 @@
 		};
 	};
 
-	vddvario: regulator-vddvario {
-		  compatible = "regulator-fixed";
-		  regulator-name = "vddvario";
-		  regulator-always-on;
+       /* HS USB Port 1 Power */
+       hsusb1_power: hsusb1_power_reg {
+               compatible = "regulator-fixed";
+               regulator-name = "hsusb1_vbus";
+               regulator-min-microvolt = <3300000>;
+               regulator-max-microvolt = <3300000>;
+               gpio = <&twl_gpio 18 GPIO_ACTIVE_LOW>;	/* GPIO LEDA */
+               startup-delay-us = <70000>;
+       };
+
+	/* HS USB Host PHY on PORT 1 */
+	hsusb1_phy: hsusb1_phy {
+		compatible = "usb-nop-xceiv";
+		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>; /* gpio_24 */
+		vcc-supply = <&hsusb1_power>;
 	};
 
-	vdd33a: regulator-vdd33a {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd33a";
-		regulator-always-on;
+	tfp410: encoder@0 {
+		compatible = "ti,tfp410";
+		powerdown-gpios = <&gpio6 10 GPIO_ACTIVE_LOW>; /* gpio_170 */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tfp410_in: endpoint@0 {
+					remote-endpoint = <&dpi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tfp410_out: endpoint@0 {
+					remote-endpoint = <&dvi_connector_in>;
+				};
+			};
+		};
+	};
+
+	dvi0: connector@0 {
+		compatible = "dvi-connector";
+		label = "dvi";
+
+		digital;
+
+		ddc-i2c-bus = <&i2c3>;
+
+		port {
+			dvi_connector_in: endpoint {
+				remote-endpoint = <&tfp410_out>;
+			};
+		};
+	};
+};
+
+&omap3_pmx_core {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&tfp410_pins
+		&dss_dpi_pins
+	>;
+
+	tfp410_pins: pinmux_tfp410_pins {
+		pinctrl-single,pins = <
+			0x196 (PIN_OUTPUT | MUX_MODE4)   /* hdq_sio.gpio_170 */
+		>;
+	};
+
+	dss_dpi_pins: pinmux_dss_dpi_pins {
+		pinctrl-single,pins = <
+			0x0a4 (PIN_OUTPUT | MUX_MODE0)   /* dss_pclk.dss_pclk */
+			0x0a6 (PIN_OUTPUT | MUX_MODE0)   /* dss_hsync.dss_hsync */
+			0x0a8 (PIN_OUTPUT | MUX_MODE0)   /* dss_vsync.dss_vsync */
+			0x0aa (PIN_OUTPUT | MUX_MODE0)   /* dss_acbias.dss_acbias */
+			0x0ac (PIN_OUTPUT | MUX_MODE0)   /* dss_data0.dss_data0 */
+			0x0ae (PIN_OUTPUT | MUX_MODE0)   /* dss_data1.dss_data1 */
+			0x0b0 (PIN_OUTPUT | MUX_MODE0)   /* dss_data2.dss_data2 */
+			0x0b2 (PIN_OUTPUT | MUX_MODE0)   /* dss_data3.dss_data3 */
+			0x0b4 (PIN_OUTPUT | MUX_MODE0)   /* dss_data4.dss_data4 */
+			0x0b6 (PIN_OUTPUT | MUX_MODE0)   /* dss_data5.dss_data5 */
+			0x0b8 (PIN_OUTPUT | MUX_MODE0)   /* dss_data6.dss_data6 */
+			0x0ba (PIN_OUTPUT | MUX_MODE0)   /* dss_data7.dss_data7 */
+			0x0bc (PIN_OUTPUT | MUX_MODE0)   /* dss_data8.dss_data8 */
+			0x0be (PIN_OUTPUT | MUX_MODE0)   /* dss_data9.dss_data9 */
+			0x0c0 (PIN_OUTPUT | MUX_MODE0)   /* dss_data10.dss_data10 */
+			0x0c2 (PIN_OUTPUT | MUX_MODE0)   /* dss_data11.dss_data11 */
+			0x0c4 (PIN_OUTPUT | MUX_MODE0)   /* dss_data12.dss_data12 */
+			0x0c6 (PIN_OUTPUT | MUX_MODE0)   /* dss_data13.dss_data13 */
+			0x0c8 (PIN_OUTPUT | MUX_MODE0)   /* dss_data14.dss_data14 */
+			0x0ca (PIN_OUTPUT | MUX_MODE0)   /* dss_data15.dss_data15 */
+			0x0cc (PIN_OUTPUT | MUX_MODE0)   /* dss_data16.dss_data16 */
+			0x0ce (PIN_OUTPUT | MUX_MODE0)   /* dss_data17.dss_data17 */
+			0x0d0 (PIN_OUTPUT | MUX_MODE0)   /* dss_data18.dss_data18 */
+			0x0d2 (PIN_OUTPUT | MUX_MODE0)   /* dss_data19.dss_data19 */
+			0x0d4 (PIN_OUTPUT | MUX_MODE0)   /* dss_data20.dss_data20 */
+			0x0d6 (PIN_OUTPUT | MUX_MODE0)   /* dss_data21.dss_data21 */
+			0x0d8 (PIN_OUTPUT | MUX_MODE0)   /* dss_data22.dss_data22 */
+			0x0da (PIN_OUTPUT | MUX_MODE0)   /* dss_data23.dss_data23 */
+		>;
+	};
+};
+
+&omap3_pmx_core2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&hsusbb1_pins
+	>;
+
+	hsusbb1_pins: pinmux_hsusbb1_pins {
+		pinctrl-single,pins = <
+			OMAP3630_CORE2_IOPAD(0x25da, PIN_OUTPUT | MUX_MODE3)		/* etk_ctl.hsusb1_clk */
+			OMAP3630_CORE2_IOPAD(0x25d8, PIN_OUTPUT | MUX_MODE3)		/* etk_clk.hsusb1_stp */
+			OMAP3630_CORE2_IOPAD(0x25ec, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d8.hsusb1_dir */
+			OMAP3630_CORE2_IOPAD(0x25ee, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d9.hsusb1_nxt */
+			OMAP3630_CORE2_IOPAD(0x25dc, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d0.hsusb1_data0 */
+			OMAP3630_CORE2_IOPAD(0x25de, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d1.hsusb1_data1 */
+			OMAP3630_CORE2_IOPAD(0x25e0, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d2.hsusb1_data2 */
+			OMAP3630_CORE2_IOPAD(0x25e2, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d3.hsusb1_data7 */
+			OMAP3630_CORE2_IOPAD(0x25e4, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d4.hsusb1_data4 */
+			OMAP3630_CORE2_IOPAD(0x25e6, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d5.hsusb1_data5 */
+			OMAP3630_CORE2_IOPAD(0x25e8, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d6.hsusb1_data6 */
+			OMAP3630_CORE2_IOPAD(0x25ea, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d7.hsusb1_data3 */
+		>;
+	};
+
+	leds_pins: pinmux_leds_pins {
+		pinctrl-single,pins = <
+			OMAP3630_CORE2_IOPAD(0x25f4, PIN_OUTPUT | MUX_MODE4) /* etk_d12.gpio_26 */
+			OMAP3630_CORE2_IOPAD(0x25f6, PIN_OUTPUT | MUX_MODE4) /* etk_d13.gpio_27 */
+			OMAP3630_CORE2_IOPAD(0x25f8, PIN_OUTPUT | MUX_MODE4) /* etk_d14.gpio_28 */
+		>;
 	};
 };
 
@@ -99,59 +228,53 @@
 			label = "SPL";
 			reg = <0 0x100000>;
 		};
-		partition@0x80000 {
+		partition@80000 {
 			label = "U-Boot";
 			reg = <0x100000 0x180000>;
 		};
-		partition@0x1c0000 {
+		partition@1c0000 {
 			label = "Environment";
 			reg = <0x280000 0x100000>;
 		};
-		partition@0x280000 {
+		partition@280000 {
 			label = "Kernel";
 			reg = <0x380000 0x300000>;
 		};
-		partition@0x780000 {
+		partition@780000 {
 			label = "Filesystem";
 			reg = <0x680000 0x1f980000>;
 		};
 	};
 
-	ethernet@5,0 {
+	ethernet@gpmc {
 		pinctrl-names = "default";
-		pinctrl-0 = <&smsc911x_pins>;
-		compatible = "smsc,lan9221", "smsc,lan9115";
+		pinctrl-0 = <&smsc9221_pins>;
 		reg = <5 0 0xff>;
-		bank-width = <2>;
-
-		gpmc,mux-add-data;
-		gpmc,cs-on-ns = <0>;
-		gpmc,cs-rd-off-ns = <186>;
-		gpmc,cs-wr-off-ns = <186>;
-		gpmc,adv-on-ns = <12>;
-		gpmc,adv-rd-off-ns = <48>;
-		gpmc,adv-wr-off-ns = <48>;
-		gpmc,oe-on-ns = <54>;
-		gpmc,oe-off-ns = <168>;
-		gpmc,we-on-ns = <54>;
-		gpmc,we-off-ns = <168>;
-		gpmc,rd-cycle-ns = <186>;
-		gpmc,wr-cycle-ns = <186>;
-		gpmc,access-ns = <114>;
-		gpmc,page-burst-access-ns = <6>;
-		gpmc,bus-turnaround-ns = <12>;
-		gpmc,cycle2cycle-delay-ns = <18>;
-		gpmc,wr-data-mux-bus-ns = <90>;
-		gpmc,wr-access-ns = <186>;
-		gpmc,cycle2cycle-samecsen;
-		gpmc,cycle2cycle-diffcsen;
-
 		interrupt-parent = <&gpio6>;
-		interrupts = <16 8>;
-		vmmc-supply = <&vddvario>;
-		vmmc_aux-supply = <&vdd33a>;
-		reg-io-width = <4>;
+		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
 
-		smsc,save-mac-address;
+&usbhshost {
+	port1-mode = "ehci-phy";
+};
+
+&usbhsehci {
+	phys = <&hsusb1_phy>;
+};
+
+&vpll2 {
+        /* Needed for DSS */
+        regulator-name = "vdds_dsi";
+};
+
+&dss {
+	status = "ok";
+
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
 	};
 };

@@ -9,7 +9,6 @@
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/numa.h>
 #include <linux/ftrace.h>
 #include <linux/suspend.h>

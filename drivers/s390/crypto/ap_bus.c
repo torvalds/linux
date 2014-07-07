@@ -77,12 +77,12 @@ MODULE_ALIAS("z90crypt");
  * Module parameter
  */
 int ap_domain_index = -1;	/* Adjunct Processor Domain Index */
-module_param_named(domain, ap_domain_index, int, 0000);
+module_param_named(domain, ap_domain_index, int, S_IRUSR|S_IRGRP);
 MODULE_PARM_DESC(domain, "domain index for ap devices");
 EXPORT_SYMBOL(ap_domain_index);
 
 static int ap_thread_flag = 0;
-module_param_named(poll_thread, ap_thread_flag, int, 0000);
+module_param_named(poll_thread, ap_thread_flag, int, S_IRUSR|S_IRGRP);
 MODULE_PARM_DESC(poll_thread, "Turn on/off poll thread, default is 0 (off).");
 
 static struct device *ap_root_device = NULL;
@@ -591,7 +591,13 @@ static int ap_init_queue(ap_qid_t qid)
 		if (rc != -ENODEV && rc != -EBUSY)
 			break;
 		if (i < AP_MAX_RESET - 1) {
-			udelay(5);
+			/* Time we are waiting until we give up (0.7sec * 90).
+			 * Since the actual request (in progress) will not
+			 * interrupted immediately for the reset command,
+			 * we have to be patient. In worst case we have to
+			 * wait 60sec + reset time (some msec).
+			 */
+			schedule_timeout(AP_RESET_TIMEOUT);
 			status = ap_test_queue(qid, &dummy, &dummy);
 		}
 	}
@@ -992,6 +998,28 @@ static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
 
 static BUS_ATTR(ap_domain, 0444, ap_domain_show, NULL);
 
+static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
+{
+	if (ap_configuration != NULL) { /* QCI not supported */
+		if (test_facility(76)) { /* format 1 - 256 bit domain field */
+			return snprintf(buf, PAGE_SIZE,
+				"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			ap_configuration->adm[0], ap_configuration->adm[1],
+			ap_configuration->adm[2], ap_configuration->adm[3],
+			ap_configuration->adm[4], ap_configuration->adm[5],
+			ap_configuration->adm[6], ap_configuration->adm[7]);
+		} else { /* format 0 - 16 bit domain field */
+			return snprintf(buf, PAGE_SIZE, "%08x%08x\n",
+			ap_configuration->adm[0], ap_configuration->adm[1]);
+		  }
+	} else {
+		return snprintf(buf, PAGE_SIZE, "not supported\n");
+	  }
+}
+
+static BUS_ATTR(ap_control_domain_mask, 0444,
+		ap_control_domain_mask_show, NULL);
+
 static ssize_t ap_config_time_show(struct bus_type *bus, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", ap_config_time);
@@ -1077,6 +1105,7 @@ static BUS_ATTR(poll_timeout, 0644, poll_timeout_show, poll_timeout_store);
 
 static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_domain,
+	&bus_attr_ap_control_domain_mask,
 	&bus_attr_config_time,
 	&bus_attr_poll_thread,
 	&bus_attr_ap_interrupts,
@@ -1774,7 +1803,7 @@ static int ap_poll_thread(void *data)
 	int requests;
 	struct ap_device *ap_dev;
 
-	set_user_nice(current, 19);
+	set_user_nice(current, MAX_NICE);
 	while (1) {
 		if (ap_suspend_flag)
 			return 0;

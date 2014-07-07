@@ -1,0 +1,93 @@
+TI PHY: DT DOCUMENTATION FOR PHYs in TI PLATFORMs
+
+OMAP CONTROL PHY
+
+Required properties:
+ - compatible: Should be one of
+ "ti,control-phy-otghs" - if it has otghs_control mailbox register as on OMAP4.
+ "ti,control-phy-usb2" - if it has Power down bit in control_dev_conf register
+                        e.g. USB2_PHY on OMAP5.
+ "ti,control-phy-pipe3" - if it has DPLL and individual Rx & Tx power control
+                        e.g. USB3 PHY and SATA PHY on OMAP5.
+ "ti,control-phy-usb2-dra7" - if it has power down register like USB2 PHY on
+                        DRA7 platform.
+ "ti,control-phy-usb2-am437" - if it has power down register like USB2 PHY on
+                        AM437 platform.
+ - reg : Address and length of the register set for the device. It contains
+   the address of "otghs_control" for control-phy-otghs or "power" register
+   for other types.
+ - reg-names: should be "otghs_control" control-phy-otghs and "power" for
+   other types.
+
+omap_control_usb: omap-control-usb@4a002300 {
+        compatible = "ti,control-phy-otghs";
+        reg = <0x4a00233c 0x4>;
+        reg-names = "otghs_control";
+};
+
+OMAP USB2 PHY
+
+Required properties:
+ - compatible: Should be "ti,omap-usb2"
+ - reg : Address and length of the register set for the device.
+ - #phy-cells: determine the number of cells that should be given in the
+   phandle while referencing this phy.
+ - clocks: a list of phandles and clock-specifier pairs, one for each entry in
+   clock-names.
+ - clock-names: should include:
+   * "wkupclk" - wakeup clock.
+   * "refclk" - reference clock (optional).
+
+Optional properties:
+ - ctrl-module : phandle of the control module used by PHY driver to power on
+   the PHY.
+
+This is usually a subnode of ocp2scp to which it is connected.
+
+usb2phy@4a0ad080 {
+	compatible = "ti,omap-usb2";
+	reg = <0x4a0ad080 0x58>;
+	ctrl-module = <&omap_control_usb>;
+	#phy-cells = <0>;
+	clocks = <&usb_phy_cm_clk32k>, <&usb_otg_ss_refclk960m>;
+	clock-names = "wkupclk", "refclk";
+};
+
+TI PIPE3 PHY
+
+Required properties:
+ - compatible: Should be "ti,phy-usb3" or "ti,phy-pipe3-sata".
+   "ti,omap-usb3" is deprecated.
+ - reg : Address and length of the register set for the device.
+ - reg-names: The names of the register addresses corresponding to the registers
+   filled in "reg".
+ - #phy-cells: determine the number of cells that should be given in the
+   phandle while referencing this phy.
+ - clocks: a list of phandles and clock-specifier pairs, one for each entry in
+   clock-names.
+ - clock-names: should include:
+   * "wkupclk" - wakeup clock.
+   * "sysclk" - system clock.
+   * "refclk" - reference clock.
+
+Optional properties:
+ - ctrl-module : phandle of the control module used by PHY driver to power on
+   the PHY.
+
+This is usually a subnode of ocp2scp to which it is connected.
+
+usb3phy@4a084400 {
+	compatible = "ti,phy-usb3";
+	reg = <0x4a084400 0x80>,
+	      <0x4a084800 0x64>,
+	      <0x4a084c00 0x40>;
+	reg-names = "phy_rx", "phy_tx", "pll_ctrl";
+	ctrl-module = <&omap_control_usb>;
+	#phy-cells = <0>;
+	clocks = <&usb_phy_cm_clk32k>,
+		 <&sys_clkin>,
+		 <&usb_otg_ss_refclk960m>;
+	clock-names =	"wkupclk",
+			"sysclk",
+			"refclk";
+};

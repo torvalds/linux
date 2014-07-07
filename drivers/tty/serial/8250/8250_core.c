@@ -555,7 +555,7 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 	 */
 	if ((p->port.type == PORT_XR17V35X) ||
 	   (p->port.type == PORT_XR17D15X)) {
-		serial_out(p, UART_EXAR_SLEEP, 0xff);
+		serial_out(p, UART_EXAR_SLEEP, sleep ? 0xff : 0);
 		return;
 	}
 
@@ -1520,7 +1520,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 			status = serial8250_rx_chars(up, status);
 	}
 	serial8250_modem_status(up);
-	if (status & UART_LSR_THRE)
+	if (!up->dma && (status & UART_LSR_THRE))
 		serial8250_tx_chars(up);
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -1694,6 +1694,10 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 
 static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
+	/*
+	 * yes, some broken gcc emit "warning: 'i' may be used uninitialized"
+	 * but no, we are not going to take a patch that assigns NULL below.
+	 */
 	struct irq_info *i;
 	struct hlist_node *n;
 	struct hlist_head *h;
@@ -1922,13 +1926,8 @@ static void serial8250_put_poll_char(struct uart_port *port,
 	wait_for_xmitr(up, BOTH_EMPTY);
 	/*
 	 *	Send the character out.
-	 *	If a LF, also do CR...
 	 */
 	serial_port_out(port, UART_TX, c);
-	if (c == 10) {
-		wait_for_xmitr(up, BOTH_EMPTY);
-		serial_port_out(port, UART_TX, 13);
-	}
 
 	/*
 	 *	Finally, wait for transmitter to become empty
@@ -2322,7 +2321,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
 		fcr = uart_config[port->type].fcr;
-		if (baud < 2400 || fifo_bug) {
+		if ((baud < 2400 && !up->dma) || fifo_bug) {
 			fcr &= ~UART_FCR_TRIGGER_MASK;
 			fcr |= UART_FCR_TRIGGER_1;
 		}
@@ -2334,9 +2333,11 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * the trigger, or the MCR RTS bit is cleared.  In the case where
 	 * the remote UART is not using CTS auto flow control, we must
 	 * have sufficient FIFO entries for the latency of the remote
-	 * UART to respond.  IOW, at least 32 bytes of FIFO.
+	 * UART to respond.  IOW, at least 32 bytes of FIFO. Also enable
+	 * AFE if hw flow control is supported
 	 */
-	if (up->capabilities & UART_CAP_AFE && port->fifosize >= 32) {
+	if ((up->capabilities & UART_CAP_AFE && (port->fifosize >= 32)) ||
+	    (port->flags & UPF_HARD_FLOW)) {
 		up->mcr &= ~UART_MCR_AFE;
 		if (termios->c_cflag & CRTSCTS)
 			up->mcr |= UART_MCR_AFE;
@@ -2356,7 +2357,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	port->read_status_mask = UART_LSR_OE | UART_LSR_THRE | UART_LSR_DR;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= UART_LSR_FE | UART_LSR_PE;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= UART_LSR_BI;
 
 	/*
@@ -2431,6 +2432,24 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_port_out(port, UART_LCR, cval | UART_LCR_DLAB);
 
 	serial_dl_write(up, quot);
+
+	/*
+	 * XR17V35x UARTs have an extra fractional divisor register (DLD)
+	 *
+	 * We need to recalculate all of the registers, because DLM and DLL
+	 * are already rounded to a whole integer.
+	 *
+	 * When recalculating we use a 32x clock instead of a 16x clock to
+	 * allow 1-bit for rounding in the fractional part.
+	 */
+	if (up->port.type == PORT_XR17V35X) {
+		unsigned int baud_x32 = (port->uartclk * 2) / baud;
+		u16 quot = baud_x32 / 32;
+		u8 quot_frac = DIV_ROUND_CLOSEST(baud_x32 % 32, 2);
+
+		serial_dl_write(up, quot);
+		serial_port_out(port, 0x2, quot_frac & 0xf);
+	}
 
 	/*
 	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR
@@ -2670,6 +2689,10 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 	if (port->type == PORT_16550A && port->iotype == UPIO_AU)
 		up->bugs |= UART_BUG_NOMSR;
 
+	/* HW bugs may trigger IRQ while IIR == NO_INT */
+	if (port->type == PORT_TEGRA)
+		up->bugs |= UART_BUG_NOMSR;
+
 	if (port->type != PORT_UNKNOWN && flags & UART_CONFIG_IRQ)
 		autoconfig_irq(up);
 
@@ -2860,14 +2883,10 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 
 	touch_nmi_watchdog();
 
-	local_irq_save(flags);
-	if (port->sysrq) {
-		/* serial8250_handle_irq() already took the lock */
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = spin_trylock(&port->lock);
-	} else
-		spin_lock(&port->lock);
+	if (port->sysrq || oops_in_progress)
+		locked = spin_trylock_irqsave(&port->lock, flags);
+	else
+		spin_lock_irqsave(&port->lock, flags);
 
 	/*
 	 *	First save the IER then disable the interrupts
@@ -2899,8 +2918,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 		serial8250_modem_status(up);
 
 	if (locked)
-		spin_unlock(&port->lock);
-	local_irq_restore(flags);
+		spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static int __init serial8250_console_setup(struct console *co, char *options)

@@ -39,8 +39,8 @@
  * System calls.
  */
 	.section	".toc","aw"
-.SYS_CALL_TABLE:
-	.tc .sys_call_table[TC],.sys_call_table
+SYS_CALL_TABLE:
+	.tc sys_call_table[TC],sys_call_table
 
 /* This value is used to mark exception frames on the stack. */
 exception_marker:
@@ -106,7 +106,7 @@ BEGIN_FW_FTR_SECTION
 	LDX_BE	r10,0,r10		/* get log write index */
 	cmpd	cr1,r11,r10
 	beq+	cr1,33f
-	bl	.accumulate_stolen_time
+	bl	accumulate_stolen_time
 	REST_GPR(0,r1)
 	REST_4GPRS(3,r1)
 	REST_2GPRS(7,r1)
@@ -143,7 +143,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	std	r10,SOFTE(r1)
 
 #ifdef SHOW_SYSCALLS
-	bl	.do_show_syscall
+	bl	do_show_syscall
 	REST_GPR(0,r1)
 	REST_4GPRS(3,r1)
 	REST_2GPRS(7,r1)
@@ -162,7 +162,7 @@ system_call:			/* label this so stack traces look sane */
  * Need to vector to 32 Bit or default sys_call_table here,
  * based on caller's run-mode / personality.
  */
-	ld	r11,.SYS_CALL_TABLE@toc(2)
+	ld	r11,SYS_CALL_TABLE@toc(2)
 	andi.	r10,r10,_TIF_32BIT
 	beq	15f
 	addi	r11,r11,8	/* use 32-bit syscall entries */
@@ -174,14 +174,14 @@ system_call:			/* label this so stack traces look sane */
 	clrldi	r8,r8,32
 15:
 	slwi	r0,r0,4
-	ldx	r10,r11,r0	/* Fetch system call handler [ptr] */
-	mtctr   r10
+	ldx	r12,r11,r0	/* Fetch system call handler [ptr] */
+	mtctr   r12
 	bctrl			/* Call handler */
 
 syscall_exit:
 	std	r3,RESULT(r1)
 #ifdef SHOW_SYSCALLS
-	bl	.do_show_syscall_exit
+	bl	do_show_syscall_exit
 	ld	r3,RESULT(r1)
 #endif
 	CURRENT_THREAD_INFO(r12, r1)
@@ -248,9 +248,9 @@ syscall_error:
 	
 /* Traced system call support */
 syscall_dotrace:
-	bl	.save_nvgprs
+	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_syscall_trace_enter
+	bl	do_syscall_trace_enter
 	/*
 	 * Restore argument registers possibly just changed.
 	 * We use the return value of do_syscall_trace_enter
@@ -308,7 +308,7 @@ syscall_exit_work:
 4:	/* Anything else left to do? */
 	SET_DEFAULT_THREAD_PPR(r3, r10)		/* Set thread.ppr = 3 */
 	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
-	beq	.ret_from_except_lite
+	beq	ret_from_except_lite
 
 	/* Re-enable interrupts */
 #ifdef CONFIG_PPC_BOOK3E
@@ -319,10 +319,10 @@ syscall_exit_work:
 	mtmsrd	r10,1
 #endif /* CONFIG_PPC_BOOK3E */
 
-	bl	.save_nvgprs
+	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_syscall_trace_leave
-	b	.ret_from_except
+	bl	do_syscall_trace_leave
+	b	ret_from_except
 
 /* Save non-volatile GPRs, if not already saved. */
 _GLOBAL(save_nvgprs)
@@ -345,51 +345,47 @@ _GLOBAL(save_nvgprs)
  */
 
 _GLOBAL(ppc_fork)
-	bl	.save_nvgprs
-	bl	.sys_fork
+	bl	save_nvgprs
+	bl	sys_fork
 	b	syscall_exit
 
 _GLOBAL(ppc_vfork)
-	bl	.save_nvgprs
-	bl	.sys_vfork
+	bl	save_nvgprs
+	bl	sys_vfork
 	b	syscall_exit
 
 _GLOBAL(ppc_clone)
-	bl	.save_nvgprs
-	bl	.sys_clone
+	bl	save_nvgprs
+	bl	sys_clone
 	b	syscall_exit
 
 _GLOBAL(ppc32_swapcontext)
-	bl	.save_nvgprs
-	bl	.compat_sys_swapcontext
+	bl	save_nvgprs
+	bl	compat_sys_swapcontext
 	b	syscall_exit
 
 _GLOBAL(ppc64_swapcontext)
-	bl	.save_nvgprs
-	bl	.sys_swapcontext
+	bl	save_nvgprs
+	bl	sys_swapcontext
 	b	syscall_exit
 
 _GLOBAL(ret_from_fork)
-	bl	.schedule_tail
+	bl	schedule_tail
 	REST_NVGPRS(r1)
 	li	r3,0
 	b	syscall_exit
 
 _GLOBAL(ret_from_kernel_thread)
-	bl	.schedule_tail
+	bl	schedule_tail
 	REST_NVGPRS(r1)
-	ld	r14, 0(r14)
 	mtlr	r14
 	mr	r3,r15
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+	mr	r12,r14
+#endif
 	blrl
 	li	r3,0
 	b	syscall_exit
-
-	.section	".toc","aw"
-DSCR_DEFAULT:
-	.tc dscr_default[TC],dscr_default
-
-	.section	".text"
 
 /*
  * This routine switches between two different tasks.  The process
@@ -432,12 +428,6 @@ BEGIN_FTR_SECTION
 	std	r24,THREAD_VRSAVE(r3)
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_PPC64
-BEGIN_FTR_SECTION
-	mfspr	r25,SPRN_DSCR
-	std	r25,THREAD_DSCR(r3)
-END_FTR_SECTION_IFSET(CPU_FTR_DSCR)
-#endif
 	and.	r0,r0,r22
 	beq+	1f
 	andc	r22,r22,r0
@@ -575,11 +565,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #ifdef CONFIG_PPC64
 BEGIN_FTR_SECTION
 	lwz	r6,THREAD_DSCR_INHERIT(r4)
-	ld	r7,DSCR_DEFAULT@toc(2)
 	ld	r0,THREAD_DSCR(r4)
 	cmpwi	r6,0
 	bne	1f
-	ld	r0,0(r7)
+	ld	r0,PACA_DSCR(r13)
 1:
 BEGIN_FTR_SECTION_NESTED(70)
 	mfspr	r8, SPRN_FSCR
@@ -611,7 +600,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_DSCR)
 _GLOBAL(ret_from_except)
 	ld	r11,_TRAP(r1)
 	andi.	r0,r11,1
-	bne	.ret_from_except_lite
+	bne	ret_from_except_lite
 	REST_NVGPRS(r1)
 
 _GLOBAL(ret_from_except_lite)
@@ -661,21 +650,27 @@ _GLOBAL(ret_from_except_lite)
 #endif
 1:	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	2f
-	bl	.restore_interrupts
+	bl	restore_interrupts
 	SCHEDULE_USER
-	b	.ret_from_except_lite
-
-2:	bl	.save_nvgprs
-	bl	.restore_interrupts
+	b	ret_from_except_lite
+2:
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	andi.	r0,r4,_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM
+	bne	3f		/* only restore TM if nothing else to do */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_notify_resume
-	b	.ret_from_except
+	bl	restore_tm_state
+	b	restore
+3:
+#endif
+	bl	save_nvgprs
+	bl	restore_interrupts
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_notify_resume
+	b	ret_from_except
 
 resume_kernel:
 	/* check current_thread_info, _TIF_EMULATE_STACK_STORE */
-	CURRENT_THREAD_INFO(r9, r1)
-	ld	r8,TI_FLAGS(r9)
-	andis.	r8,r8,_TIF_EMULATE_STACK_STORE@h
+	andis.	r8,r4,_TIF_EMULATE_STACK_STORE@h
 	beq+	1f
 
 	addi	r8,r1,INT_FRAME_SIZE	/* Get the kprobed function entry */
@@ -724,7 +719,7 @@ resume_kernel:
 	 * sure we are soft-disabled first and reconcile irq state.
 	 */
 	RECONCILE_IRQ_STATE(r3,r4)
-1:	bl	.preempt_schedule_irq
+1:	bl	preempt_schedule_irq
 
 	/* Re-test flags and eventually loop */
 	CURRENT_THREAD_INFO(r9, r1)
@@ -786,7 +781,7 @@ restore_no_replay:
 	 */
 do_restore:
 #ifdef CONFIG_PPC_BOOK3E
-	b	.exception_return_book3e
+	b	exception_return_book3e
 #else
 	/*
 	 * Clear the reservation. If we know the CPU tracks the address of
@@ -820,6 +815,12 @@ fast_exception_return:
 	andi.	r0,r3,MSR_RI
 	beq-	unrecov_restore
 
+	/* Load PPR from thread struct before we clear MSR:RI */
+BEGIN_FTR_SECTION
+	ld	r2,PACACURRENT(r13)
+	ld	r2,TASKTHREADPPR(r2)
+END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+
 	/*
 	 * Clear RI before restoring r13.  If we are returning to
 	 * userspace and we take an exception after restoring r13,
@@ -840,8 +841,10 @@ fast_exception_return:
 	 */
 	andi.	r0,r3,MSR_PR
 	beq	1f
+BEGIN_FTR_SECTION
+	mtspr	SPRN_PPR,r2	/* Restore PPR */
+END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ACCOUNT_CPU_USER_EXIT(r2, r4)
-	RESTORE_PPR(r2, r4)
 	REST_GPR(13, r1)
 1:
 	mtspr	SPRN_SRR1,r3
@@ -893,7 +896,7 @@ restore_check_irq_replay:
 	 *
 	 * Still, this might be useful for things like hash_page
 	 */
-	bl	.__check_irq_replay
+	bl	__check_irq_replay
 	cmpwi	cr0,r3,0
  	beq	restore_no_replay
  
@@ -914,13 +917,13 @@ restore_check_irq_replay:
 	cmpwi	cr0,r3,0x500
 	bne	1f
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
- 	bl	.do_IRQ
-	b	.ret_from_except
+ 	bl	do_IRQ
+	b	ret_from_except
 1:	cmpwi	cr0,r3,0x900
 	bne	1f
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
-	bl	.timer_interrupt
-	b	.ret_from_except
+	bl	timer_interrupt
+	b	ret_from_except
 #ifdef CONFIG_PPC_DOORBELL
 1:
 #ifdef CONFIG_PPC_BOOK3E
@@ -934,14 +937,14 @@ restore_check_irq_replay:
 #endif /* CONFIG_PPC_BOOK3E */
 	bne	1f
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
-	bl	.doorbell_exception
-	b	.ret_from_except
+	bl	doorbell_exception
+	b	ret_from_except
 #endif /* CONFIG_PPC_DOORBELL */
-1:	b	.ret_from_except /* What else to do here ? */
+1:	b	ret_from_except /* What else to do here ? */
  
 unrecov_restore:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.unrecoverable_exception
+	bl	unrecoverable_exception
 	b	unrecov_restore
 
 #ifdef CONFIG_PPC_RTAS
@@ -1007,7 +1010,7 @@ _GLOBAL(enter_rtas)
         std	r6,PACASAVEDMSR(r13)
 
 	/* Setup our real return addr */	
-	LOAD_REG_ADDR(r4,.rtas_return_loc)
+	LOAD_REG_ADDR(r4,rtas_return_loc)
 	clrldi	r4,r4,2			/* convert to realmode address */
        	mtlr	r4
 
@@ -1017,7 +1020,7 @@ _GLOBAL(enter_rtas)
 	
         li      r9,1
         rldicr  r9,r9,MSR_SF_LG,(63-MSR_SF_LG)
-	ori	r9,r9,MSR_IR|MSR_DR|MSR_FE0|MSR_FE1|MSR_FP|MSR_RI
+	ori	r9,r9,MSR_IR|MSR_DR|MSR_FE0|MSR_FE1|MSR_FP|MSR_RI|MSR_LE
 	andc	r6,r0,r9
 	sync				/* disable interrupts so SRR0/1 */
 	mtmsrd	r0			/* don't get trashed */
@@ -1031,14 +1034,16 @@ _GLOBAL(enter_rtas)
 	rfid
 	b	.	/* prevent speculative execution */
 
-_STATIC(rtas_return_loc)
+rtas_return_loc:
+	FIXUP_ENDIAN
+
 	/* relocation is off at this point */
 	GET_PACA(r4)
 	clrldi	r4,r4,2			/* convert to realmode address */
 
 	bcl	20,31,$+4
 0:	mflr	r3
-	ld	r3,(1f-0b)(r3)		/* get &.rtas_restore_regs */
+	ld	r3,(1f-0b)(r3)		/* get &rtas_restore_regs */
 
 	mfmsr   r6
 	li	r0,MSR_RI
@@ -1055,9 +1060,9 @@ _STATIC(rtas_return_loc)
 	b	.	/* prevent speculative execution */
 
 	.align	3
-1:	.llong	.rtas_restore_regs
+1:	.llong	rtas_restore_regs
 
-_STATIC(rtas_restore_regs)
+rtas_restore_regs:
 	/* relocation is on at this point */
 	REST_GPR(2, r1)			/* Restore the TOC */
 	REST_GPR(13, r1)		/* Restore paca */
@@ -1103,28 +1108,30 @@ _GLOBAL(enter_prom)
 	std	r10,_CCR(r1)
 	std	r11,_MSR(r1)
 
-	/* Get the PROM entrypoint */
-	mtlr	r4
+	/* Put PROM address in SRR0 */
+	mtsrr0	r4
 
-	/* Switch MSR to 32 bits mode
+	/* Setup our trampoline return addr in LR */
+	bcl	20,31,$+4
+0:	mflr	r4
+	addi	r4,r4,(1f - 0b)
+       	mtlr	r4
+
+	/* Prepare a 32-bit mode big endian MSR
 	 */
 #ifdef CONFIG_PPC_BOOK3E
 	rlwinm	r11,r11,0,1,31
-	mtmsr	r11
+	mtsrr1	r11
+	rfi
 #else /* CONFIG_PPC_BOOK3E */
-        mfmsr   r11
-        li      r12,1
-        rldicr  r12,r12,MSR_SF_LG,(63-MSR_SF_LG)
-        andc    r11,r11,r12
-        li      r12,1
-        rldicr  r12,r12,MSR_ISF_LG,(63-MSR_ISF_LG)
-        andc    r11,r11,r12
-        mtmsrd  r11
+	LOAD_REG_IMMEDIATE(r12, MSR_SF | MSR_ISF | MSR_LE)
+	andc	r11,r11,r12
+	mtsrr1	r11
+	rfid
 #endif /* CONFIG_PPC_BOOK3E */
-        isync
 
-	/* Enter PROM here... */
-	blrl
+1:	/* Return from OF */
+	FIXUP_ENDIAN
 
 	/* Just make sure that r1 top 32 bits didn't get
 	 * corrupt by OF
@@ -1155,7 +1162,7 @@ _GLOBAL(mcount)
 _GLOBAL(_mcount)
 	blr
 
-_GLOBAL(ftrace_caller)
+_GLOBAL_TOC(ftrace_caller)
 	/* Taken from output of objdump from lib64/glibc */
 	mflr	r3
 	ld	r11, 0(r1)
@@ -1179,10 +1186,7 @@ _GLOBAL(ftrace_graph_stub)
 _GLOBAL(ftrace_stub)
 	blr
 #else
-_GLOBAL(mcount)
-	blr
-
-_GLOBAL(_mcount)
+_GLOBAL_TOC(_mcount)
 	/* Taken from output of objdump from lib64/glibc */
 	mflr	r3
 	ld	r11, 0(r1)
@@ -1220,7 +1224,7 @@ _GLOBAL(ftrace_graph_caller)
 	ld	r11, 112(r1)
 	addi	r3, r11, 16
 
-	bl	.prepare_ftrace_return
+	bl	prepare_ftrace_return
 	nop
 
 	ld	r0, 128(r1)
@@ -1236,7 +1240,7 @@ _GLOBAL(return_to_handler)
 	mr	r31, r1
 	stdu	r1, -112(r1)
 
-	bl	.ftrace_return_to_handler
+	bl	ftrace_return_to_handler
 	nop
 
 	/* return value has real return address */
@@ -1266,7 +1270,7 @@ _GLOBAL(mod_return_to_handler)
 	 */
 	ld	r2, PACATOC(r13)
 
-	bl	.ftrace_return_to_handler
+	bl	ftrace_return_to_handler
 	nop
 
 	/* return value has real return address */

@@ -124,7 +124,7 @@ static irqreturn_t vt8500_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction irq = {
 	.name    = "vt8500_timer",
-	.flags   = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags   = IRQF_TIMER | IRQF_IRQPOLL,
 	.handler = vt8500_timer_interrupt,
 	.dev_id  = &clockevent,
 };
@@ -137,14 +137,12 @@ static void __init vt8500_timer_init(struct device_node *np)
 	if (!regbase) {
 		pr_err("%s: Missing iobase description in Device Tree\n",
 								__func__);
-		of_node_put(np);
 		return;
 	}
 	timer_irq = irq_of_parse_and_map(np, 0);
 	if (!timer_irq) {
 		pr_err("%s: Missing irq description in Device Tree\n",
 								__func__);
-		of_node_put(np);
 		return;
 	}
 

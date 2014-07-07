@@ -14,10 +14,11 @@
 
 /dts-v1/;
 #include "exynos4412.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Insignal Origen evaluation board based on Exynos4412";
-	compatible = "insignal,origen4412", "samsung,exynos4412";
+	compatible = "insignal,origen4412", "samsung,exynos4412", "samsung,exynos4";
 
 	memory {
 		reg = <0x40000000 0x40000000>;
@@ -32,13 +33,28 @@
 		reg = <0x0203F000 0x1000>;
 	};
 
-	mmc_reg: voltage-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "VMEM_VDD_2.8V";
-		regulator-min-microvolt = <2800000>;
-		regulator-max-microvolt = <2800000>;
-		gpio = <&gpx1 1 0>;
-		enable-active-high;
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		mmc_reg: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "VMEM_VDD_2.8V";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			gpio = <&gpx1 1 0>;
+			enable-active-high;
+		};
+	};
+
+	watchdog@10060000 {
+		status = "okay";
+	};
+
+	rtc@10070000 {
+		status = "okay";
 	};
 
 	pinctrl@11000000 {
@@ -69,37 +85,37 @@
 		key_home {
 			keypad,row = <0>;
 			keypad,column = <0>;
-			linux,code = <102>;
+			linux,code = <KEY_HOME>;
 		};
 
 		key_down {
 			keypad,row = <0>;
 			keypad,column = <1>;
-			linux,code = <108>;
+			linux,code = <KEY_DOWN>;
 		};
 
 		key_up {
 			keypad,row = <1>;
 			keypad,column = <0>;
-			linux,code = <103>;
+			linux,code = <KEY_UP>;
 		};
 
 		key_menu {
 			keypad,row = <1>;
 			keypad,column = <1>;
-			linux,code = <139>;
+			linux,code = <KEY_MENU>;
 		};
 
 		key_back {
 			keypad,row = <2>;
 			keypad,column = <0>;
-			linux,code = <158>;
+			linux,code = <KEY_BACK>;
 		};
 
 		key_enter {
 			keypad,row = <2>;
 			keypad,column = <1>;
-			linux,code = <28>;
+			linux,code = <KEY_ENTER>;
 		};
 	};
 
@@ -115,9 +131,7 @@
 		status = "okay";
 	};
 
-	mshc@12550000 {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	mmc@12550000 {
 		pinctrl-0 = <&sd4_clk &sd4_cmd &sd4_bus4 &sd4_bus8>;
 		pinctrl-names = "default";
 		status = "okay";
@@ -125,7 +139,6 @@
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -152,7 +165,7 @@
 	display-timings {
 		native-mode = <&timing0>;
 		timing0: timing {
-			clock-frequency = <50000>;
+			clock-frequency = <47500000>;
 			hactive = <1024>;
 			vactive = <600>;
 			hfront-porch = <64>;
@@ -455,8 +468,8 @@
 
 				buck2_reg: BUCK2 {
 					regulator-name = "vdd_arm";
-					regulator-min-microvolt = <925000>;
-					regulator-max-microvolt	= <1300000>;
+					regulator-min-microvolt = <900000>;
+					regulator-max-microvolt	= <1350000>;
 					regulator-always-on;
 					regulator-boot-on;
 					op_mode = <1>; /* Normal Mode */

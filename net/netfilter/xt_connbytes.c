@@ -26,16 +26,18 @@ connbytes_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	u_int64_t what = 0;	/* initialize to make gcc happy */
 	u_int64_t bytes = 0;
 	u_int64_t pkts = 0;
+	const struct nf_conn_acct *acct;
 	const struct nf_conn_counter *counters;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)
 		return false;
 
-	counters = nf_conn_acct_find(ct);
-	if (!counters)
+	acct = nf_conn_acct_find(ct);
+	if (!acct)
 		return false;
 
+	counters = acct->counter;
 	switch (sinfo->what) {
 	case XT_CONNBYTES_PKTS:
 		switch (sinfo->direction) {

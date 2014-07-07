@@ -10,24 +10,16 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *
  */
 
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
-#include "../w1_log.h"
 
 /* According to the mx27 Datasheet the reset procedure should take up to about
  * 1350us. We set the timeout to 500*100us = 50ms for sure */
@@ -36,17 +28,16 @@
 /*
  * MXC W1 Register offsets
  */
-#define MXC_W1_CONTROL          0x00
-#define MXC_W1_TIME_DIVIDER     0x02
-#define MXC_W1_RESET            0x04
-#define MXC_W1_COMMAND          0x06
-#define MXC_W1_TXRX             0x08
-#define MXC_W1_INTERRUPT        0x0A
-#define MXC_W1_INTERRUPT_EN     0x0C
+#define MXC_W1_CONTROL		0x00
+# define MXC_W1_CONTROL_RDST	BIT(3)
+# define MXC_W1_CONTROL_WR(x)	BIT(5 - (x))
+# define MXC_W1_CONTROL_PST	BIT(6)
+# define MXC_W1_CONTROL_RPP	BIT(7)
+#define MXC_W1_TIME_DIVIDER	0x02
+#define MXC_W1_RESET		0x04
 
 struct mxc_w1_device {
 	void __iomem *regs;
-	unsigned int clkdiv;
 	struct clk *clk;
 	struct w1_bus_master bus_master;
 };
@@ -62,12 +53,12 @@ static u8 mxc_w1_ds2_reset_bus(void *data)
 	unsigned int timeout_cnt = 0;
 	struct mxc_w1_device *dev = data;
 
-	__raw_writeb(0x80, (dev->regs + MXC_W1_CONTROL));
+	writeb(MXC_W1_CONTROL_RPP, (dev->regs + MXC_W1_CONTROL));
 
 	while (1) {
-		reg_val = __raw_readb(dev->regs + MXC_W1_CONTROL);
+		reg_val = readb(dev->regs + MXC_W1_CONTROL);
 
-		if (((reg_val >> 7) & 0x1) == 0 ||
+		if (!(reg_val & MXC_W1_CONTROL_RPP) ||
 		    timeout_cnt > MXC_W1_RESET_TIMEOUT)
 			break;
 		else
@@ -75,7 +66,7 @@ static u8 mxc_w1_ds2_reset_bus(void *data)
 
 		udelay(100);
 	}
-	return (reg_val >> 7) & 0x1;
+	return !(reg_val & MXC_W1_CONTROL_PST);
 }
 
 /*
@@ -91,23 +82,25 @@ static u8 mxc_w1_ds2_touch_bit(void *data, u8 bit)
 					 * datasheet.
 					 */
 
-	__raw_writeb((1 << (5 - bit)), ctrl_addr);
+	writeb(MXC_W1_CONTROL_WR(bit), ctrl_addr);
 
 	while (timeout_cnt--) {
-		if (!((__raw_readb(ctrl_addr) >> (5 - bit)) & 0x1))
+		if (!(readb(ctrl_addr) & MXC_W1_CONTROL_WR(bit)))
 			break;
 
 		udelay(1);
 	}
 
-	return ((__raw_readb(ctrl_addr)) >> 3) & 0x1;
+	return !!(readb(ctrl_addr) & MXC_W1_CONTROL_RDST);
 }
 
 static int mxc_w1_probe(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev;
+	unsigned long clkrate;
 	struct resource *res;
-	int err = 0;
+	unsigned int clkdiv;
+	int err;
 
 	mdev = devm_kzalloc(&pdev->dev, sizeof(struct mxc_w1_device),
 			    GFP_KERNEL);
@@ -118,27 +111,39 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	if (IS_ERR(mdev->clk))
 		return PTR_ERR(mdev->clk);
 
-	mdev->clkdiv = (clk_get_rate(mdev->clk) / 1000000) - 1;
+	clkrate = clk_get_rate(mdev->clk);
+	if (clkrate < 10000000)
+		dev_warn(&pdev->dev,
+			 "Low clock frequency causes improper function\n");
+
+	clkdiv = DIV_ROUND_CLOSEST(clkrate, 1000000);
+	clkrate /= clkdiv;
+	if ((clkrate < 980000) || (clkrate > 1020000))
+		dev_warn(&pdev->dev,
+			 "Incorrect time base frequency %lu Hz\n", clkrate);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mdev->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(mdev->regs))
 		return PTR_ERR(mdev->regs);
 
-	clk_prepare_enable(mdev->clk);
-	__raw_writeb(mdev->clkdiv, mdev->regs + MXC_W1_TIME_DIVIDER);
+	err = clk_prepare_enable(mdev->clk);
+	if (err)
+		return err;
+
+	writeb(clkdiv - 1, mdev->regs + MXC_W1_TIME_DIVIDER);
 
 	mdev->bus_master.data = mdev;
 	mdev->bus_master.reset_bus = mxc_w1_ds2_reset_bus;
 	mdev->bus_master.touch_bit = mxc_w1_ds2_touch_bit;
 
-	err = w1_add_master_device(&mdev->bus_master);
-
-	if (err)
-		return err;
-
 	platform_set_drvdata(pdev, mdev);
-	return 0;
+
+	err = w1_add_master_device(&mdev->bus_master);
+	if (err)
+		clk_disable_unprepare(mdev->clk);
+
+	return err;
 }
 
 /*
@@ -164,6 +169,7 @@ MODULE_DEVICE_TABLE(of, mxc_w1_dt_ids);
 static struct platform_driver mxc_w1_driver = {
 	.driver = {
 		.name = "mxc_w1",
+		.owner = THIS_MODULE,
 		.of_match_table = mxc_w1_dt_ids,
 	},
 	.probe = mxc_w1_probe,

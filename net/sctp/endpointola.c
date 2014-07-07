@@ -23,9 +23,8 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -69,7 +68,8 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	if (!ep->digest)
 		return NULL;
 
-	if (net->sctp.auth_enable) {
+	ep->auth_enable = net->sctp.auth_enable;
+	if (ep->auth_enable) {
 		/* Allocate space for HMACS and CHUNKS authentication
 		 * variables.  There are arrays that we encode directly
 		 * into parameters to make the rest of the operations easier.
@@ -369,9 +369,9 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 {
 	struct sctp_association *asoc;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	asoc = __sctp_endpoint_lookup_assoc(ep, paddr, transport);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return asoc;
 }
@@ -481,7 +481,7 @@ normal:
 		}
 
 		if (chunk->transport)
-			chunk->transport->last_time_heard = jiffies;
+			chunk->transport->last_time_heard = ktime_get();
 
 		error = sctp_do_sm(net, SCTP_EVENT_T_CHUNK, subtype, state,
 				   ep, asoc, chunk, GFP_ATOMIC);

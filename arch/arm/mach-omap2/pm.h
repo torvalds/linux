@@ -34,7 +34,6 @@ extern void *omap3_secure_ram_storage;
 extern void omap3_pm_off_mode_enable(int);
 extern void omap_sram_idle(void);
 extern int omap_pm_clkdms_setup(struct clockdomain *clkdm, void *unused);
-extern int (*omap_pm_suspend)(void);
 
 #if defined(CONFIG_PM_OPP)
 extern int omap3_opp_init(void);
@@ -103,7 +102,7 @@ static inline void enable_omap3630_toggle_l2_on_restore(void) { }
 
 #define PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD	(1 << 0)
 
-#if defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP4)
 extern u16 pm44xx_errata;
 #define IS_PM44XX_ERRATUM(id)		(pm44xx_errata & (id))
 #else
@@ -147,4 +146,11 @@ static inline void omap_pm_get_oscillator(u32 *tstart, u32 *tshut) { *tstart = *
 static inline void omap_pm_setup_sr_i2c_pcb_length(u32 mm) { }
 #endif
 
+#ifdef CONFIG_SUSPEND
+void omap_common_suspend_init(void *pm_suspend);
+#else
+static inline void omap_common_suspend_init(void *pm_suspend)
+{
+}
+#endif /* CONFIG_SUSPEND */
 #endif

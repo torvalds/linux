@@ -172,6 +172,11 @@ nfs=stale_rw|nostale_ro
 		To maintain backward compatibility, '-o nfs' is also accepted,
 		defaulting to stale_rw
 
+dos1xfloppy  -- If set, use a fallback default BIOS Parameter Block
+		configuration, determined by backing device size. These static
+		parameters match defaults assumed by DOS 1.x for 160 kiB,
+		180 kiB, 320 kiB, and 360 kiB floppies and floppy images.
+
 
 <bool>: 0,1,yes,no,true,false
 
@@ -307,7 +312,7 @@ the following:
 
                 <proceeding files...>
                 <slot #3, id = 0x43, characters = "h is long">
-                <slot #2, id = 0x02, characters = "xtension which">
+                <slot #2, id = 0x02, characters = "xtension whic">
                 <slot #1, id = 0x01, characters = "My Big File.E">
                 <directory entry, name = "MYBIGFIL.EXT">
 

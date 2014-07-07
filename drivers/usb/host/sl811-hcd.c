@@ -39,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -1413,7 +1412,7 @@ static int sl811h_show(struct seq_file *s, void *unused)
 			case SL11H_CTL1MASK_SE0: s = " se0/reset"; break;
 			case SL11H_CTL1MASK_K: s = " k/resume"; break;
 			default: s = "j"; break;
-			}; s; }),
+			} s; }),
 			(t & SL11H_CTL1MASK_LSPD) ? " lowspeed" : "",
 			(t & SL11H_CTL1MASK_SUSPEND) ? " suspend" : "");
 
@@ -1446,7 +1445,7 @@ static int sl811h_show(struct seq_file *s, void *unused)
 			case USB_PID_SETUP: s = "setup"; break;
 			case USB_PID_ACK: s = "status"; break;
 			default: s = "?"; break;
-			}; s;}),
+			} s;}),
 			ep->maxpacket,
 			ep->nak_count, ep->error_count);
 		list_for_each_entry (urb, &ep->hep->urb_list, urb_list) {
@@ -1731,6 +1730,8 @@ sl811h_probe(struct platform_device *dev)
 	retval = usb_add_hcd(hcd, irq, irqflags);
 	if (retval != 0)
 		goto err6;
+
+	device_wakeup_enable(hcd->self.controller);
 
 	create_debug_file(sl811);
 	return retval;

@@ -28,7 +28,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/bitops.h>
 
 #include <asm/uaccess.h>
@@ -289,7 +288,6 @@ out:
 err_unmap:
 	pci_iounmap(pdev, private->ioaddr);
 reg_fail:
-	pci_set_drvdata(pdev, NULL);
 	dma_free_coherent(d, 8192, private->tx_buffer, private->tx_dma_handle);
 tx_buf_fail:
 	dma_free_coherent(d, 8192, private->rx_buffer, private->rx_dma_handle);
@@ -317,7 +315,6 @@ static void xircom_remove(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 	pci_iounmap(pdev, card->ioaddr);
-	pci_set_drvdata(pdev, NULL);
 	dma_free_coherent(d, 8192, card->tx_buffer, card->tx_dma_handle);
 	dma_free_coherent(d, 8192, card->rx_buffer, card->rx_dma_handle);
 	free_netdev(dev);

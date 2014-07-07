@@ -25,7 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/cpu.h>
 
 #include <linux/mtd/mtd.h>
@@ -33,7 +33,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mmc/host.h>
 #include <linux/usb/phy.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
@@ -61,7 +60,8 @@
 
 static struct pwm_lookup pwm_lookup[] = {
 	/* LEDB -> PMU_STAT */
-	PWM_LOOKUP("twl-pwmled", 1, "leds_pwm", "beagleboard::pmu_stat"),
+	PWM_LOOKUP("twl-pwmled", 1, "leds_pwm", "beagleboard::pmu_stat",
+		   7812500, PWM_POLARITY_NORMAL),
 };
 
 static struct led_pwm pwm_leds[] = {
@@ -289,18 +289,12 @@ static struct regulator_consumer_supply beagle_vsim_supply[] = {
 
 static struct gpio_led gpio_leds[];
 
-/* PHY's VCC regulator might be added later, so flag that we need it */
-static struct usb_phy_gen_xceiv_platform_data hsusb2_phy_data = {
-	.needs_vcc = true,
-};
-
 static struct usbhs_phy_data phy_data[] = {
 	{
 		.port = 2,
 		.reset_gpio = 147,
 		.vcc_gpio = -1,		/* updated in beagle_twl_gpio_setup */
 		.vcc_polarity = 1,	/* updated in beagle_twl_gpio_setup */
-		.platform_data = &hsusb2_phy_data,
 	},
 };
 
@@ -516,17 +510,17 @@ static int __init beagle_opp_init(void)
 		mpu_dev = get_cpu_device(0);
 		iva_dev = omap_device_get_by_hwmod_name("iva");
 
-		if (IS_ERR(mpu_dev) || IS_ERR(iva_dev)) {
+		if (!mpu_dev || IS_ERR(iva_dev)) {
 			pr_err("%s: Aiee.. no mpu/dsp devices? %p %p\n",
 				__func__, mpu_dev, iva_dev);
 			return -ENODEV;
 		}
 		/* Enable MPU 1GHz and lower opps */
-		r = opp_enable(mpu_dev, 800000000);
+		r = dev_pm_opp_enable(mpu_dev, 800000000);
 		/* TODO: MPU 1GHz needs SR and ABB */
 
 		/* Enable IVA 800MHz and lower opps */
-		r |= opp_enable(iva_dev, 660000000);
+		r |= dev_pm_opp_enable(iva_dev, 660000000);
 		/* TODO: DSP 800MHz needs SR and ABB */
 		if (r) {
 			pr_err("%s: failed to enable higher opp %d\n",
@@ -535,8 +529,8 @@ static int __init beagle_opp_init(void)
 			 * Cleanup - disable the higher freqs - we dont care
 			 * about the results
 			 */
-			opp_disable(mpu_dev, 800000000);
-			opp_disable(iva_dev, 660000000);
+			dev_pm_opp_disable(mpu_dev, 800000000);
+			dev_pm_opp_disable(iva_dev, 660000000);
 		}
 	}
 	return 0;

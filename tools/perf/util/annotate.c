@@ -8,6 +8,8 @@
  */
 
 #include "util.h"
+#include "ui/ui.h"
+#include "sort.h"
 #include "build-id.h"
 #include "color.h"
 #include "cache.h"
@@ -26,10 +28,10 @@ static int disasm_line__parse(char *line, char **namep, char **rawp);
 
 static void ins__delete(struct ins_operands *ops)
 {
-	free(ops->source.raw);
-	free(ops->source.name);
-	free(ops->target.raw);
-	free(ops->target.name);
+	zfree(&ops->source.raw);
+	zfree(&ops->source.name);
+	zfree(&ops->target.raw);
+	zfree(&ops->target.name);
 }
 
 static int ins__raw_scnprintf(struct ins *ins, char *bf, size_t size,
@@ -185,8 +187,7 @@ static int lock__parse(struct ins_operands *ops)
 	return 0;
 
 out_free_ops:
-	free(ops->locked.ops);
-	ops->locked.ops = NULL;
+	zfree(&ops->locked.ops);
 	return 0;
 }
 
@@ -205,9 +206,9 @@ static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
 
 static void lock__delete(struct ins_operands *ops)
 {
-	free(ops->locked.ops);
-	free(ops->target.raw);
-	free(ops->target.name);
+	zfree(&ops->locked.ops);
+	zfree(&ops->target.raw);
+	zfree(&ops->target.name);
 }
 
 static struct ins_ops lock_ops = {
@@ -256,8 +257,7 @@ static int mov__parse(struct ins_operands *ops)
 	return 0;
 
 out_free_source:
-	free(ops->source.raw);
-	ops->source.raw = NULL;
+	zfree(&ops->source.raw);
 	return -1;
 }
 
@@ -464,16 +464,11 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 	pthread_mutex_unlock(&notes->lock);
 }
 
-int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
-			     int evidx, u64 addr)
+static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
+				      struct annotation *notes, int evidx, u64 addr)
 {
 	unsigned offset;
-	struct annotation *notes;
 	struct sym_hist *h;
-
-	notes = symbol__annotation(sym);
-	if (notes->src == NULL)
-		return -ENOMEM;
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
@@ -489,6 +484,33 @@ int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 		  ", evidx=%d] => %" PRIu64 "\n", sym->start, sym->name,
 		  addr, addr - sym->start, evidx, h->addr[offset]);
 	return 0;
+}
+
+static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
+				    int evidx, u64 addr)
+{
+	struct annotation *notes;
+
+	if (sym == NULL)
+		return 0;
+
+	notes = symbol__annotation(sym);
+	if (notes->src == NULL) {
+		if (symbol__alloc_hist(sym) < 0)
+			return -ENOMEM;
+	}
+
+	return __symbol__inc_addr_samples(sym, map, notes, evidx, addr);
+}
+
+int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, int evidx)
+{
+	return symbol__inc_addr_samples(ams->sym, ams->map, evidx, ams->al_addr);
+}
+
+int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
+{
+	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
 }
 
 static void disasm_line__init_ins(struct disasm_line *dl)
@@ -538,8 +560,7 @@ static int disasm_line__parse(char *line, char **namep, char **rawp)
 	return 0;
 
 out_free_name:
-	free(*namep);
-	*namep = NULL;
+	zfree(namep);
 	return -1;
 }
 
@@ -564,7 +585,7 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privs
 	return dl;
 
 out_free_line:
-	free(dl->line);
+	zfree(&dl->line);
 out_delete:
 	free(dl);
 	return NULL;
@@ -572,8 +593,8 @@ out_delete:
 
 void disasm_line__free(struct disasm_line *dl)
 {
-	free(dl->line);
-	free(dl->name);
+	zfree(&dl->line);
+	zfree(&dl->name);
 	if (dl->ins && dl->ins->ops->free)
 		dl->ins->ops->free(&dl->ops);
 	else
@@ -825,20 +846,16 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 		dl->ops.target.offset = dl->ops.target.addr -
 					map__rip_2objdump(map, sym->start);
 
-	/*
-	 * kcore has no symbols, so add the call target name if it is on the
-	 * same map.
-	 */
+	/* kcore has no symbols, so add the call target name */
 	if (dl->ins && ins__is_call(dl->ins) && !dl->ops.target.name) {
-		struct symbol *s;
-		u64 ip = dl->ops.target.addr;
+		struct addr_map_symbol target = {
+			.map = map,
+			.addr = dl->ops.target.addr,
+		};
 
-		if (ip >= map->start && ip <= map->end) {
-			ip = map->map_ip(map, ip);
-			s = map__find_symbol(map, ip, NULL);
-			if (s && s->start == ip)
-				dl->ops.target.name = strdup(s->name);
-		}
+		if (!map_groups__find_ams(&target, NULL) &&
+		    target.sym->start == target.al_addr)
+			dl->ops.target.name = strdup(target.sym->name);
 	}
 
 	disasm__add(&notes->src->source, dl);
@@ -879,6 +896,8 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 	FILE *file;
 	int err = 0;
 	char symfs_filename[PATH_MAX];
+	struct kcore_extract kce;
+	bool delete_extract = false;
 
 	if (filename) {
 		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
@@ -902,7 +921,7 @@ fallback:
 		 * cache, or is just a kallsyms file, well, lets hope that this
 		 * DSO is the same as when 'perf record' ran.
 		 */
-		filename = dso->long_name;
+		filename = (char *)dso->long_name;
 		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
 			 symbol_conf.symfs, filename);
 		free_filename = false;
@@ -940,6 +959,23 @@ fallback:
 	pr_debug("annotating [%p] %30s : [%p] %30s\n",
 		 dso, dso->long_name, sym, sym->name);
 
+	if (dso__is_kcore(dso)) {
+		kce.kcore_filename = symfs_filename;
+		kce.addr = map__rip_2objdump(map, sym->start);
+		kce.offs = sym->start;
+		kce.len = sym->end + 1 - sym->start;
+		if (!kcore_extract__create(&kce)) {
+			delete_extract = true;
+			strlcpy(symfs_filename, kce.extract_filename,
+				sizeof(symfs_filename));
+			if (free_filename) {
+				free(filename);
+				free_filename = false;
+			}
+			filename = symfs_filename;
+		}
+	}
+
 	snprintf(command, sizeof(command),
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
@@ -972,6 +1008,8 @@ fallback:
 
 	pclose(file);
 out_free_filename:
+	if (delete_extract)
+		kcore_extract__delete(&kce);
 	if (free_filename)
 		free(filename);
 	return err;
@@ -1070,24 +1108,21 @@ static void symbol__free_source_line(struct symbol *sym, int len)
 			  (sizeof(src_line->p) * (src_line->nr_pcnt - 1));
 
 	for (i = 0; i < len; i++) {
-		free(src_line->path);
+		free_srcline(src_line->path);
 		src_line = (void *)src_line + sizeof_src_line;
 	}
 
-	free(notes->src->lines);
-	notes->src->lines = NULL;
+	zfree(&notes->src->lines);
 }
 
 /* Get the filename:line for the colored entries */
 static int symbol__get_source_line(struct symbol *sym, struct map *map,
 				   struct perf_evsel *evsel,
-				   struct rb_root *root, int len,
-				   const char *filename)
+				   struct rb_root *root, int len)
 {
 	u64 start;
 	int i, k;
 	int evidx = evsel->idx;
-	char cmd[PATH_MAX * 2];
 	struct source_line *src_line;
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
@@ -1115,10 +1150,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	start = map__rip_2objdump(map, sym->start);
 
 	for (i = 0; i < len; i++) {
-		char *path = NULL;
-		size_t line_len;
 		u64 offset;
-		FILE *fp;
 		double percent_max = 0.0;
 
 		src_line->nr_pcnt = nr_pcnt;
@@ -1135,23 +1167,9 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 			goto next;
 
 		offset = start + i;
-		sprintf(cmd, "addr2line -e %s %016" PRIx64, filename, offset);
-		fp = popen(cmd, "r");
-		if (!fp)
-			goto next;
-
-		if (getline(&path, &line_len, fp) < 0 || !line_len)
-			goto next_close;
-
-		src_line->path = malloc(sizeof(char) * line_len + 1);
-		if (!src_line->path)
-			goto next_close;
-
-		strcpy(src_line->path, path);
+		src_line->path = get_srcline(map->dso, offset);
 		insert_source_line(&tmp_root, src_line);
 
-	next_close:
-		pclose(fp);
 	next:
 		src_line = (void *)src_line + sizeof_src_line;
 	}
@@ -1192,7 +1210,7 @@ static void print_summary(struct rb_root *root, const char *filename)
 
 		path = src_line->path;
 		color = get_percent_color(percent_max);
-		color_fprintf(stdout, color, " %s", path);
+		color_fprintf(stdout, color, " %s\n", path);
 
 		node = rb_next(node);
 	}
@@ -1218,6 +1236,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	struct dso *dso = map->dso;
 	char *filename;
 	const char *d_filename;
+	const char *evsel_name = perf_evsel__name(evsel);
 	struct annotation *notes = symbol__annotation(sym);
 	struct disasm_line *pos, *queue = NULL;
 	u64 start = map__rip_2objdump(map, sym->start);
@@ -1225,7 +1244,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	int more = 0;
 	u64 len;
 	int width = 8;
-	int namelen;
+	int namelen, evsel_name_len, graph_dotted_len;
 
 	filename = strdup(dso->long_name);
 	if (!filename)
@@ -1238,14 +1257,17 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 
 	len = symbol__size(sym);
 	namelen = strlen(d_filename);
+	evsel_name_len = strlen(evsel_name);
 
 	if (perf_evsel__is_group_event(evsel))
 		width *= evsel->nr_members;
 
-	printf(" %-*.*s|	Source code & Disassembly of %s\n",
-	       width, width, "Percent", d_filename);
-	printf("-%-*.*s-------------------------------------\n",
-	       width+namelen, width+namelen, graph_dotted_line);
+	printf(" %-*.*s|	Source code & Disassembly of %s for %s\n",
+	       width, width, "Percent", d_filename, evsel_name);
+
+	graph_dotted_len = width + namelen + evsel_name_len;
+	printf("-%-*.*s-----------------------------------------\n",
+	       graph_dotted_len, graph_dotted_len, graph_dotted_line);
 
 	if (verbose)
 		symbol__annotate_hits(sym, evsel);
@@ -1356,7 +1378,6 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 			 bool full_paths, int min_pcnt, int max_lines)
 {
 	struct dso *dso = map->dso;
-	const char *filename = dso->long_name;
 	struct rb_root source_line = RB_ROOT;
 	u64 len;
 
@@ -1366,9 +1387,8 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	len = symbol__size(sym);
 
 	if (print_lines) {
-		symbol__get_source_line(sym, map, evsel, &source_line,
-					len, filename);
-		print_summary(&source_line, filename);
+		symbol__get_source_line(sym, map, evsel, &source_line, len);
+		print_summary(&source_line, dso->long_name);
 	}
 
 	symbol__annotate_printf(sym, map, evsel, full_paths,
@@ -1379,4 +1399,14 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	disasm__purge(&symbol__annotation(sym)->src->source);
 
 	return 0;
+}
+
+int hist_entry__annotate(struct hist_entry *he, size_t privsize)
+{
+	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
+}
+
+bool ui__has_annotation(void)
+{
+	return use_browser == 1 && sort__has_sym;
 }

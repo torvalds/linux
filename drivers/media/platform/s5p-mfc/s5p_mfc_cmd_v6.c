@@ -113,7 +113,7 @@ static int s5p_mfc_open_inst_cmd_v6(struct s5p_mfc_ctx *ctx)
 		break;
 	default:
 		codec_type = S5P_FIMV_CODEC_NONE_V6;
-	};
+	}
 	mfc_write(dev, codec_type, S5P_FIMV_CODEC_TYPE_V6);
 	mfc_write(dev, ctx->ctx.dma, S5P_FIMV_CONTEXT_MEM_ADDR_V6);
 	mfc_write(dev, ctx->ctx.size, S5P_FIMV_CONTEXT_MEM_SIZE_V6);

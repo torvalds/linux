@@ -37,19 +37,18 @@
 
 /*---------------------  Static Definitions -------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
 
-const unsigned char abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
-const unsigned char abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
-const unsigned char abyOUIWEP104[4]  = { 0x00, 0x0F, 0xAC, 0x05 };
-const unsigned char abyOUITKIP[4]    = { 0x00, 0x0F, 0xAC, 0x02 };
-const unsigned char abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
+static const unsigned char abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
+static const unsigned char abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
+static const unsigned char abyOUIWEP104[4]  = { 0x00, 0x0F, 0xAC, 0x05 };
+static const unsigned char abyOUITKIP[4]    = { 0x00, 0x0F, 0xAC, 0x02 };
+static const unsigned char abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
 
-const unsigned char abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
-const unsigned char abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
+static const unsigned char abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
+static const unsigned char abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
 
 /*---------------------  Static Functions  --------------------------*/
 
@@ -122,9 +121,9 @@ WPA2vParseRSN(
 	WPA2_ClearRSN(pBSSNode);
 
 	if (pRSN->len == 2) { // ver(2)
-		if ((pRSN->byElementID == WLAN_EID_RSN) && (pRSN->wVersion == 1)) {
+		if ((pRSN->byElementID == WLAN_EID_RSN) && (pRSN->wVersion == 1))
 			pBSSNode->bWPA2Valid = true;
-		}
+
 		return;
 	}
 
@@ -192,7 +191,7 @@ WPA2vParseRSN(
 					break;
 			} //for
 
-			if (bUseGK == true) {
+			if (bUseGK) {
 				if (j != 1) {
 					// invalid CSS, This should be only PK CSS.
 					return;
@@ -268,9 +267,9 @@ WPA2uSetIEs(
 	unsigned int ii = 0;
 	unsigned short *pwPMKID = NULL;
 
-	if (pRSNIEs == NULL) {
+	if (pRSNIEs == NULL)
 		return 0;
-	}
+
 	if (((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) ||
 	     (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) &&
 	    (pMgmt->pCurrBSS != NULL)) {
@@ -283,15 +282,14 @@ WPA2uSetIEs(
 		pRSNIEs->abyRSN[0] = 0x00;
 		pRSNIEs->abyRSN[1] = 0x0F;
 		pRSNIEs->abyRSN[2] = 0xAC;
-		if (pMgmt->byCSSGK == KEY_CTL_WEP) {
+		if (pMgmt->byCSSGK == KEY_CTL_WEP)
 			pRSNIEs->abyRSN[3] = pMgmt->pCurrBSS->byCSSGK;
-		} else if (pMgmt->byCSSGK == KEY_CTL_TKIP) {
+		else if (pMgmt->byCSSGK == KEY_CTL_TKIP)
 			pRSNIEs->abyRSN[3] = WLAN_11i_CSS_TKIP;
-		} else if (pMgmt->byCSSGK == KEY_CTL_CCMP) {
+		else if (pMgmt->byCSSGK == KEY_CTL_CCMP)
 			pRSNIEs->abyRSN[3] = WLAN_11i_CSS_CCMP;
-		} else {
+		else
 			pRSNIEs->abyRSN[3] = WLAN_11i_CSS_UNKNOWN;
-		}
 
 		// Pairwise Key Cipher Suite
 		pRSNIEs->abyRSN[4] = 1;
@@ -299,15 +297,15 @@ WPA2uSetIEs(
 		pRSNIEs->abyRSN[6] = 0x00;
 		pRSNIEs->abyRSN[7] = 0x0F;
 		pRSNIEs->abyRSN[8] = 0xAC;
-		if (pMgmt->byCSSPK == KEY_CTL_TKIP) {
+		if (pMgmt->byCSSPK == KEY_CTL_TKIP)
 			pRSNIEs->abyRSN[9] = WLAN_11i_CSS_TKIP;
-		} else if (pMgmt->byCSSPK == KEY_CTL_CCMP) {
+		else if (pMgmt->byCSSPK == KEY_CTL_CCMP)
 			pRSNIEs->abyRSN[9] = WLAN_11i_CSS_CCMP;
-		} else if (pMgmt->byCSSPK == KEY_CTL_NONE) {
+		else if (pMgmt->byCSSPK == KEY_CTL_NONE)
 			pRSNIEs->abyRSN[9] = WLAN_11i_CSS_USE_GROUP;
-		} else {
+		else
 			pRSNIEs->abyRSN[9] = WLAN_11i_CSS_UNKNOWN;
-		}
+
 		pRSNIEs->len += 6;
 
 		// Auth Key Management Suite
@@ -316,13 +314,13 @@ WPA2uSetIEs(
 		pRSNIEs->abyRSN[12] = 0x00;
 		pRSNIEs->abyRSN[13] = 0x0F;
 		pRSNIEs->abyRSN[14] = 0xAC;
-		if (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK) {
+		if (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)
 			pRSNIEs->abyRSN[15] = WLAN_11i_AKMSS_PSK;
-		} else if (pMgmt->eAuthenMode == WMAC_AUTH_WPA2) {
+		else if (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)
 			pRSNIEs->abyRSN[15] = WLAN_11i_AKMSS_802_1X;
-		} else {
+		else
 			pRSNIEs->abyRSN[15] = WLAN_11i_AKMSS_UNKNOWN;
-		}
+
 		pRSNIEs->len += 6;
 
 		// RSN Capabilities
@@ -335,7 +333,7 @@ WPA2uSetIEs(
 		pRSNIEs->len += 2;
 
 		if ((pMgmt->gsPMKIDCache.BSSIDInfoCount > 0) &&
-		    (pMgmt->bRoaming == true) &&
+		    pMgmt->bRoaming &&
 		    (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
 			// RSN PMKID
 			pwPMKID = (unsigned short *)(&pRSNIEs->abyRSN[18]);  // Point to PMKID count
@@ -348,11 +346,10 @@ WPA2uSetIEs(
 					pbyBuffer += 16;
 				}
 			}
-			if (*pwPMKID != 0) {
+			if (*pwPMKID != 0)
 				pRSNIEs->len += (2 + (*pwPMKID)*16);
-			} else {
+			else
 				pbyBuffer = &pRSNIEs->abyRSN[18];
-			}
 		}
 		return pRSNIEs->len + WLAN_IEHDR_LEN;
 	}

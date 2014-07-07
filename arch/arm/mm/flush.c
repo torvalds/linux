@@ -104,17 +104,20 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 #define flush_icache_alias(pfn,vaddr,len)	do { } while (0)
 #endif
 
+#define FLAG_PA_IS_EXEC 1
+#define FLAG_PA_CORE_IN_MM 2
+
 static void flush_ptrace_access_other(void *args)
 {
 	__flush_icache_all();
 }
 
-static
-void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
-			 unsigned long uaddr, void *kaddr, unsigned long len)
+static inline
+void __flush_ptrace_access(struct page *page, unsigned long uaddr, void *kaddr,
+			   unsigned long len, unsigned int flags)
 {
 	if (cache_is_vivt()) {
-		if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
+		if (flags & FLAG_PA_CORE_IN_MM) {
 			unsigned long addr = (unsigned long)kaddr;
 			__cpuc_coherent_kern_range(addr, addr + len);
 		}
@@ -128,7 +131,7 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 	}
 
 	/* VIPT non-aliasing D-cache */
-	if (vma->vm_flags & VM_EXEC) {
+	if (flags & FLAG_PA_IS_EXEC) {
 		unsigned long addr = (unsigned long)kaddr;
 		if (icache_is_vipt_aliasing())
 			flush_icache_alias(page_to_pfn(page), uaddr, len);
@@ -138,6 +141,26 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 			smp_call_function(flush_ptrace_access_other,
 					  NULL, 1);
 	}
+}
+
+static
+void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
+			 unsigned long uaddr, void *kaddr, unsigned long len)
+{
+	unsigned int flags = 0;
+	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm)))
+		flags |= FLAG_PA_CORE_IN_MM;
+	if (vma->vm_flags & VM_EXEC)
+		flags |= FLAG_PA_IS_EXEC;
+	__flush_ptrace_access(page, uaddr, kaddr, len, flags);
+}
+
+void flush_uprobe_xol_access(struct page *page, unsigned long uaddr,
+			     void *kaddr, unsigned long len)
+{
+	unsigned int flags = FLAG_PA_CORE_IN_MM|FLAG_PA_IS_EXEC;
+
+	__flush_ptrace_access(page, uaddr, kaddr, len, flags);
 }
 
 /*
@@ -175,16 +198,16 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 		unsigned long i;
 		if (cache_is_vipt_nonaliasing()) {
 			for (i = 0; i < (1 << compound_order(page)); i++) {
-				void *addr = kmap_atomic(page);
+				void *addr = kmap_atomic(page + i);
 				__cpuc_flush_dcache_area(addr, PAGE_SIZE);
 				kunmap_atomic(addr);
 			}
 		} else {
 			for (i = 0; i < (1 << compound_order(page)); i++) {
-				void *addr = kmap_high_get(page);
+				void *addr = kmap_high_get(page + i);
 				if (addr) {
 					__cpuc_flush_dcache_area(addr, PAGE_SIZE);
-					kunmap_high(page);
+					kunmap_high(page + i);
 				}
 			}
 		}

@@ -1,6 +1,7 @@
 config DRM_IMX
 	tristate "DRM Support for Freescale i.MX"
 	select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
 	select VIDEOMODE_HELPERS
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
@@ -19,6 +20,7 @@ config DRM_IMX_FB_HELPER
 
 config DRM_IMX_PARALLEL_DISPLAY
 	tristate "Support for parallel displays"
+	select DRM_PANEL
 	depends on DRM_IMX
 	select VIDEOMODE_HELPERS
 
@@ -37,18 +39,15 @@ config DRM_IMX_LDB
 	  Choose this to enable the internal LVDS Display Bridge (LDB)
 	  found on i.MX53 and i.MX6 processors.
 
-config DRM_IMX_IPUV3_CORE
-	tristate "IPUv3 core support"
-	depends on DRM_IMX
-	depends on RESET_CONTROLLER
-	help
-	  Choose this if you have a i.MX5/6 system and want
-	  to use the IPU. This option only enables IPU base
-	  support.
-
 config DRM_IMX_IPUV3
 	tristate "DRM Support for i.MX IPUv3"
 	depends on DRM_IMX
-	depends on DRM_IMX_IPUV3_CORE
+	depends on IMX_IPUV3_CORE
 	help
 	  Choose this if you have a i.MX5 or i.MX6 processor.
+
+config DRM_IMX_HDMI
+	tristate "Freescale i.MX DRM HDMI"
+	depends on DRM_IMX
+	help
+	  Choose this if you want to use HDMI on i.MX6.

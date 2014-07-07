@@ -115,7 +115,7 @@ struct fgt_sei {
 	unsigned char model_id;	/* Model id. */
 
 	/* +unused SE based on Thomson spec */
-	unsigned char color_desc_flag;	/* Separate color descrition flag. */
+	unsigned char color_desc_flag;	/* Separate color description flag. */
 	unsigned char bit_depth_luma;	/* Bit depth luma minus 8. */
 	unsigned char bit_depth_chroma;	/* Bit depth chroma minus 8. */
 	unsigned char full_range_flag;	/* Full range flag. */

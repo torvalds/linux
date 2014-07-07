@@ -503,7 +503,7 @@ static int priv_tgt_img_gen(struct dload_state *dlthis, u32 base,
  *	  TRAMPOLINES ARE TREATED AS 2ND PASS even though this is really
  *	  the first (and only) relocation that will be performed on them.
  */
-static int priv_pkt_relo(struct dload_state *dlthis, tgt_au_t * data,
+static int priv_pkt_relo(struct dload_state *dlthis, tgt_au_t *data,
 			 struct reloc_record_t *rp[], u32 relo_count)
 {
 	int ret_val = 1;

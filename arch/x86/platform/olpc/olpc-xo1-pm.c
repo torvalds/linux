@@ -75,7 +75,7 @@ static int xo1_power_state_enter(suspend_state_t pm_state)
 	return 0;
 }
 
-asmlinkage int xo1_do_sleep(u8 sleep_state)
+asmlinkage __visible int xo1_do_sleep(u8 sleep_state)
 {
 	void *pgd_addr = __va(read_cr3());
 

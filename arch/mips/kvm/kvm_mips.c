@@ -61,11 +61,6 @@ static int kvm_mips_reset_vcpu(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
-{
-	return gfn;
-}
-
 /* XXXKYMA: We are simulatoring a processor that has the WII bit set in Config7, so we
  * are "runnable" if interrupts are pending
  */
@@ -130,8 +125,8 @@ static void kvm_mips_init_vm_percpu(void *arg)
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	if (atomic_inc_return(&kvm_mips_instance) == 1) {
-		kvm_info("%s: 1st KVM instance, setup host TLB parameters\n",
-			 __func__);
+		kvm_debug("%s: 1st KVM instance, setup host TLB parameters\n",
+			  __func__);
 		on_each_cpu(kvm_mips_init_vm_percpu, kvm, 1);
 	}
 
@@ -149,9 +144,7 @@ void kvm_mips_free_vcpus(struct kvm *kvm)
 		if (kvm->arch.guest_pmap[i] != KVM_INVALID_PAGE)
 			kvm_mips_release_pfn_clean(kvm->arch.guest_pmap[i]);
 	}
-
-	if (kvm->arch.guest_pmap)
-		kfree(kvm->arch.guest_pmap);
+	kfree(kvm->arch.guest_pmap);
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		kvm_arch_vcpu_free(vcpu);
@@ -186,8 +179,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 
 	/* If this is the last instance, restore wired count */
 	if (atomic_dec_return(&kvm_mips_instance) == 0) {
-		kvm_info("%s: last KVM instance, restoring TLB parameters\n",
-			 __func__);
+		kvm_debug("%s: last KVM instance, restoring TLB parameters\n",
+			  __func__);
 		on_each_cpu(kvm_mips_uninit_tlbs, NULL, 1);
 	}
 }
@@ -198,12 +191,13 @@ kvm_arch_dev_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 	return -ENOIOCTLCMD;
 }
 
-void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *free,
 			   struct kvm_memory_slot *dont)
 {
 }
 
-int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
+int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
+			    unsigned long npages)
 {
 	return 0;
 }
@@ -248,9 +242,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				goto out;
 			}
 
-			kvm_info
-			    ("Allocated space for Guest PMAP Table (%ld pages) @ %p\n",
-			     npages, kvm->arch.guest_pmap);
+			kvm_debug("Allocated space for Guest PMAP Table (%ld pages) @ %p\n",
+				  npages, kvm->arch.guest_pmap);
 
 			/* Now setup the page table */
 			for (i = 0; i < npages; i++) {
@@ -295,7 +288,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto out_free_cpu;
 
-	kvm_info("kvm @ %p: create cpu %d at %p\n", kvm, id, vcpu);
+	kvm_debug("kvm @ %p: create cpu %d at %p\n", kvm, id, vcpu);
 
 	/* Allocate space for host mode exception handlers that handle
 	 * guest mode exits
@@ -303,7 +296,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (cpu_has_veic || cpu_has_vint) {
 		size = 0x200 + VECTORSPACING * 64;
 	} else {
-		size = 0x200;
+		size = 0x4000;
 	}
 
 	/* Save Linux EBASE */
@@ -315,8 +308,8 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 		err = -ENOMEM;
 		goto out_free_cpu;
 	}
-	kvm_info("Allocated %d bytes for KVM Exception Handlers @ %p\n",
-		 ALIGN(size, PAGE_SIZE), gebase);
+	kvm_debug("Allocated %d bytes for KVM Exception Handlers @ %p\n",
+		  ALIGN(size, PAGE_SIZE), gebase);
 
 	/* Save new ebase */
 	vcpu->arch.guest_ebase = gebase;
@@ -341,15 +334,16 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 
 	/* General handler, relocate to unmapped space for sanity's sake */
 	offset = 0x2000;
-	kvm_info("Installing KVM Exception handlers @ %p, %#x bytes\n",
-		 gebase + offset,
-		 mips32_GuestExceptionEnd - mips32_GuestException);
+	kvm_debug("Installing KVM Exception handlers @ %p, %#x bytes\n",
+		  gebase + offset,
+		  mips32_GuestExceptionEnd - mips32_GuestException);
 
 	memcpy(gebase + offset, mips32_GuestException,
 	       mips32_GuestExceptionEnd - mips32_GuestException);
 
 	/* Invalidate the icache for these ranges */
-	mips32_SyncICache((unsigned long) gebase, ALIGN(size, PAGE_SIZE));
+	local_flush_icache_range((unsigned long)gebase,
+				(unsigned long)gebase + ALIGN(size, PAGE_SIZE));
 
 	/* Allocate comm page for guest kernel, a TLB will be reserved for mapping GVA @ 0xFFFF8000 to this page */
 	vcpu->arch.kseg0_commpage = kzalloc(PAGE_SIZE << 1, GFP_KERNEL);
@@ -359,14 +353,14 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 		goto out_free_gebase;
 	}
 
-	kvm_info("Allocated COMM page @ %p\n", vcpu->arch.kseg0_commpage);
+	kvm_debug("Allocated COMM page @ %p\n", vcpu->arch.kseg0_commpage);
 	kvm_mips_commpage_init(vcpu);
 
 	/* Init */
 	vcpu->arch.last_sched_cpu = -1;
 
 	/* Start off the timer */
-	kvm_mips_emulate_count(vcpu);
+	kvm_mips_init_count(vcpu);
 
 	return vcpu;
 
@@ -388,12 +382,9 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 
 	kvm_mips_dump_stats(vcpu);
 
-	if (vcpu->arch.guest_ebase)
-		kfree(vcpu->arch.guest_ebase);
-
-	if (vcpu->arch.kseg0_commpage)
-		kfree(vcpu->arch.kseg0_commpage);
-
+	kfree(vcpu->arch.guest_ebase);
+	kfree(vcpu->arch.kseg0_commpage);
+	kfree(vcpu);
 }
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
@@ -422,11 +413,11 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		vcpu->mmio_needed = 0;
 	}
 
+	local_irq_disable();
 	/* Check if we have any exceptions/interrupts pending */
 	kvm_mips_deliver_interrupts(vcpu,
 				    kvm_read_c0_guest_cause(vcpu->arch.cop0));
 
-	local_irq_disable();
 	kvm_guest_enter();
 
 	r = __kvm_mips_vcpu_run(run, vcpu);
@@ -489,36 +480,6 @@ kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return -ENOIOCTLCMD;
 }
 
-#define MIPS_CP0_32(_R, _S)					\
-	(KVM_REG_MIPS | KVM_REG_SIZE_U32 | 0x10000 | (8 * (_R) + (_S)))
-
-#define MIPS_CP0_64(_R, _S)					\
-	(KVM_REG_MIPS | KVM_REG_SIZE_U64 | 0x10000 | (8 * (_R) + (_S)))
-
-#define KVM_REG_MIPS_CP0_INDEX		MIPS_CP0_32(0, 0)
-#define KVM_REG_MIPS_CP0_ENTRYLO0	MIPS_CP0_64(2, 0)
-#define KVM_REG_MIPS_CP0_ENTRYLO1	MIPS_CP0_64(3, 0)
-#define KVM_REG_MIPS_CP0_CONTEXT	MIPS_CP0_64(4, 0)
-#define KVM_REG_MIPS_CP0_USERLOCAL	MIPS_CP0_64(4, 2)
-#define KVM_REG_MIPS_CP0_PAGEMASK	MIPS_CP0_32(5, 0)
-#define KVM_REG_MIPS_CP0_PAGEGRAIN	MIPS_CP0_32(5, 1)
-#define KVM_REG_MIPS_CP0_WIRED		MIPS_CP0_32(6, 0)
-#define KVM_REG_MIPS_CP0_HWRENA		MIPS_CP0_32(7, 0)
-#define KVM_REG_MIPS_CP0_BADVADDR	MIPS_CP0_64(8, 0)
-#define KVM_REG_MIPS_CP0_COUNT		MIPS_CP0_32(9, 0)
-#define KVM_REG_MIPS_CP0_ENTRYHI	MIPS_CP0_64(10, 0)
-#define KVM_REG_MIPS_CP0_COMPARE	MIPS_CP0_32(11, 0)
-#define KVM_REG_MIPS_CP0_STATUS		MIPS_CP0_32(12, 0)
-#define KVM_REG_MIPS_CP0_CAUSE		MIPS_CP0_32(13, 0)
-#define KVM_REG_MIPS_CP0_EBASE		MIPS_CP0_64(15, 1)
-#define KVM_REG_MIPS_CP0_CONFIG		MIPS_CP0_32(16, 0)
-#define KVM_REG_MIPS_CP0_CONFIG1	MIPS_CP0_32(16, 1)
-#define KVM_REG_MIPS_CP0_CONFIG2	MIPS_CP0_32(16, 2)
-#define KVM_REG_MIPS_CP0_CONFIG3	MIPS_CP0_32(16, 3)
-#define KVM_REG_MIPS_CP0_CONFIG7	MIPS_CP0_32(16, 7)
-#define KVM_REG_MIPS_CP0_XCONTEXT	MIPS_CP0_64(20, 0)
-#define KVM_REG_MIPS_CP0_ERROREPC	MIPS_CP0_64(30, 0)
-
 static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_R0,
 	KVM_REG_MIPS_R1,
@@ -559,25 +520,34 @@ static u64 kvm_mips_get_one_regs[] = {
 
 	KVM_REG_MIPS_CP0_INDEX,
 	KVM_REG_MIPS_CP0_CONTEXT,
+	KVM_REG_MIPS_CP0_USERLOCAL,
 	KVM_REG_MIPS_CP0_PAGEMASK,
 	KVM_REG_MIPS_CP0_WIRED,
+	KVM_REG_MIPS_CP0_HWRENA,
 	KVM_REG_MIPS_CP0_BADVADDR,
+	KVM_REG_MIPS_CP0_COUNT,
 	KVM_REG_MIPS_CP0_ENTRYHI,
+	KVM_REG_MIPS_CP0_COMPARE,
 	KVM_REG_MIPS_CP0_STATUS,
 	KVM_REG_MIPS_CP0_CAUSE,
-	/* EPC set via kvm_regs, et al. */
+	KVM_REG_MIPS_CP0_EPC,
 	KVM_REG_MIPS_CP0_CONFIG,
 	KVM_REG_MIPS_CP0_CONFIG1,
 	KVM_REG_MIPS_CP0_CONFIG2,
 	KVM_REG_MIPS_CP0_CONFIG3,
 	KVM_REG_MIPS_CP0_CONFIG7,
-	KVM_REG_MIPS_CP0_ERROREPC
+	KVM_REG_MIPS_CP0_ERROREPC,
+
+	KVM_REG_MIPS_COUNT_CTL,
+	KVM_REG_MIPS_COUNT_RESUME,
+	KVM_REG_MIPS_COUNT_HZ,
 };
 
 static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 			    const struct kvm_one_reg *reg)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	int ret;
 	s64 v;
 
 	switch (reg->id) {
@@ -600,11 +570,17 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		v = (long)kvm_read_c0_guest_context(cop0);
 		break;
+	case KVM_REG_MIPS_CP0_USERLOCAL:
+		v = (long)kvm_read_c0_guest_userlocal(cop0);
+		break;
 	case KVM_REG_MIPS_CP0_PAGEMASK:
 		v = (long)kvm_read_c0_guest_pagemask(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_WIRED:
 		v = (long)kvm_read_c0_guest_wired(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_HWRENA:
+		v = (long)kvm_read_c0_guest_hwrena(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_BADVADDR:
 		v = (long)kvm_read_c0_guest_badvaddr(cop0);
@@ -612,11 +588,17 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_ENTRYHI:
 		v = (long)kvm_read_c0_guest_entryhi(cop0);
 		break;
+	case KVM_REG_MIPS_CP0_COMPARE:
+		v = (long)kvm_read_c0_guest_compare(cop0);
+		break;
 	case KVM_REG_MIPS_CP0_STATUS:
 		v = (long)kvm_read_c0_guest_status(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_CAUSE:
 		v = (long)kvm_read_c0_guest_cause(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_EPC:
+		v = (long)kvm_read_c0_guest_epc(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_ERROREPC:
 		v = (long)kvm_read_c0_guest_errorepc(cop0);
@@ -635,6 +617,15 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_CONFIG7:
 		v = (long)kvm_read_c0_guest_config7(cop0);
+		break;
+	/* registers to be handled specially */
+	case KVM_REG_MIPS_CP0_COUNT:
+	case KVM_REG_MIPS_COUNT_CTL:
+	case KVM_REG_MIPS_COUNT_RESUME:
+	case KVM_REG_MIPS_COUNT_HZ:
+		ret = kvm_mips_callbacks->get_one_reg(vcpu, reg, &v);
+		if (ret)
+			return ret;
 		break;
 	default:
 		return -EINVAL;
@@ -696,11 +687,17 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		kvm_write_c0_guest_context(cop0, v);
 		break;
+	case KVM_REG_MIPS_CP0_USERLOCAL:
+		kvm_write_c0_guest_userlocal(cop0, v);
+		break;
 	case KVM_REG_MIPS_CP0_PAGEMASK:
 		kvm_write_c0_guest_pagemask(cop0, v);
 		break;
 	case KVM_REG_MIPS_CP0_WIRED:
 		kvm_write_c0_guest_wired(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_HWRENA:
+		kvm_write_c0_guest_hwrena(cop0, v);
 		break;
 	case KVM_REG_MIPS_CP0_BADVADDR:
 		kvm_write_c0_guest_badvaddr(cop0, v);
@@ -711,12 +708,20 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_STATUS:
 		kvm_write_c0_guest_status(cop0, v);
 		break;
-	case KVM_REG_MIPS_CP0_CAUSE:
-		kvm_write_c0_guest_cause(cop0, v);
+	case KVM_REG_MIPS_CP0_EPC:
+		kvm_write_c0_guest_epc(cop0, v);
 		break;
 	case KVM_REG_MIPS_CP0_ERROREPC:
 		kvm_write_c0_guest_errorepc(cop0, v);
 		break;
+	/* registers to be handled specially */
+	case KVM_REG_MIPS_CP0_COUNT:
+	case KVM_REG_MIPS_CP0_COMPARE:
+	case KVM_REG_MIPS_CP0_CAUSE:
+	case KVM_REG_MIPS_COUNT_CTL:
+	case KVM_REG_MIPS_COUNT_RESUME:
+	case KVM_REG_MIPS_COUNT_HZ:
+		return kvm_mips_callbacks->set_one_reg(vcpu, reg, v);
 	default:
 		return -EINVAL;
 	}
@@ -919,7 +924,7 @@ int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu)
 		return -1;
 
 	printk("VCPU Register Dump:\n");
-	printk("\tpc = 0x%08lx\n", vcpu->arch.pc);;
+	printk("\tpc = 0x%08lx\n", vcpu->arch.pc);
 	printk("\texceptions: %08lx\n", vcpu->arch.pending_exceptions);
 
 	for (i = 0; i < 32; i += 4) {
@@ -968,7 +973,7 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	return 0;
 }
 
-void kvm_mips_comparecount_func(unsigned long data)
+static void kvm_mips_comparecount_func(unsigned long data)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
 
@@ -983,15 +988,13 @@ void kvm_mips_comparecount_func(unsigned long data)
 /*
  * low level hrtimer wake routine.
  */
-enum hrtimer_restart kvm_mips_comparecount_wakeup(struct hrtimer *timer)
+static enum hrtimer_restart kvm_mips_comparecount_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.comparecount_timer);
 	kvm_mips_comparecount_func((unsigned long) vcpu);
-	hrtimer_forward_now(&vcpu->arch.comparecount_timer,
-			    ktime_set(0, MS_TO_NS(10)));
-	return HRTIMER_RESTART;
+	return kvm_mips_count_timeout(vcpu);
 }
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
@@ -1000,7 +1003,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	hrtimer_init(&vcpu->arch.comparecount_timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_REL);
 	vcpu->arch.comparecount_timer.function = kvm_mips_comparecount_wakeup;
-	kvm_mips_init_shadow_tlb(vcpu);
 	return 0;
 }
 

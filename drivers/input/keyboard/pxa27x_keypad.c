@@ -18,7 +18,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/device.h>
@@ -27,6 +26,7 @@
 #include <linux/err.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -110,6 +110,8 @@ struct pxa27x_keypad {
 
 	unsigned short keycodes[MAX_KEYPAD_KEYS];
 	int rotary_rel_code[2];
+
+	unsigned int row_shift;
 
 	/* state row bits of each column scan */
 	uint32_t matrix_key_state[MAX_MATRIX_KEY_COLS];
@@ -467,7 +469,8 @@ scan:
 			if ((bits_changed & (1 << row)) == 0)
 				continue;
 
-			code = MATRIX_SCAN_CODE(row, col, MATRIX_ROW_SHIFT);
+			code = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
+
 			input_event(input_dev, EV_MSC, MSC_SCAN, code);
 			input_report_key(input_dev, keypad->keycodes[code],
 					 new_state[col] & (1 << row));
@@ -786,14 +789,23 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
-	if (pdata)
+	if (pdata) {
 		error = pxa27x_keypad_build_keycode(keypad);
-	else
+	} else {
 		error = pxa27x_keypad_build_keycode_from_dt(keypad);
+		/*
+		 * Data that we get from DT resides in dynamically
+		 * allocated memory so we need to update our pdata
+		 * pointer.
+		 */
+		pdata = keypad->pdata;
+	}
 	if (error) {
 		dev_err(&pdev->dev, "failed to build keycode\n");
 		goto failed_put_clk;
 	}
+
+	keypad->row_shift = get_count_order(pdata->matrix_key_cols);
 
 	if ((pdata->enable_rotary0 && keypad->rotary_rel_code[0] != -1) ||
 	    (pdata->enable_rotary1 && keypad->rotary_rel_code[1] != -1)) {

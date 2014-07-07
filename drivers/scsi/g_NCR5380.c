@@ -78,10 +78,6 @@
  *     
  */
 
-/*
- * $Log: generic_NCR5380.c,v $
- */
-
 /* settings for DTC3181E card with only Mustek scanner attached */
 #define USLEEP
 #define USLEEP_POLL	1
@@ -461,7 +457,7 @@ int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
 
 		if (instance->irq != SCSI_IRQ_NONE)
 			if (request_irq(instance->irq, generic_NCR5380_intr,
-					IRQF_DISABLED, "NCR5380", instance)) {
+					0, "NCR5380", instance)) {
 				printk(KERN_WARNING "scsi%d : IRQ%d not free, interrupts disabled\n", instance->host_no, instance->irq);
 				instance->irq = SCSI_IRQ_NONE;
 			}

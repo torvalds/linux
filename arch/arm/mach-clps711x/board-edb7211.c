@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
+#include <linux/memblock.h>
 
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
@@ -133,7 +134,7 @@ static void __init edb7211_reserve(void)
 }
 
 static void __init
-fixup_edb7211(struct tag *tags, char **cmdline, struct meminfo *mi)
+fixup_edb7211(struct tag *tags, char **cmdline)
 {
 	/*
 	 * Bank start addresses are not present in the information
@@ -143,11 +144,8 @@ fixup_edb7211(struct tag *tags, char **cmdline, struct meminfo *mi)
 	 * Banks sizes _are_ present in the param block, but we're
 	 * not using that information yet.
 	 */
-	mi->bank[0].start = 0xc0000000;
-	mi->bank[0].size = SZ_8M;
-	mi->bank[1].start = 0xc1000000;
-	mi->bank[1].size = SZ_8M;
-	mi->nr_banks = 2;
+	memblock_add(0xc0000000, SZ_8M);
+	memblock_add(0xc1000000, SZ_8M);
 }
 
 static void __init edb7211_init(void)
@@ -177,7 +175,6 @@ static void __init edb7211_init_late(void)
 MACHINE_START(EDB7211, "CL-EDB7211 (EP7211 eval board)")
 	/* Maintainer: Jon McClintock */
 	.atag_offset	= VIDEORAM_SIZE + 0x100,
-	.nr_irqs	= CLPS711X_NR_IRQS,
 	.fixup		= fixup_edb7211,
 	.reserve	= edb7211_reserve,
 	.map_io		= clps711x_map_io,
@@ -186,6 +183,5 @@ MACHINE_START(EDB7211, "CL-EDB7211 (EP7211 eval board)")
 	.init_time	= clps711x_timer_init,
 	.init_machine	= edb7211_init,
 	.init_late	= edb7211_init_late,
-	.handle_irq	= clps711x_handle_irq,
 	.restart	= clps711x_restart,
 MACHINE_END

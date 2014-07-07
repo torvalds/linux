@@ -36,14 +36,12 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/init.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -117,7 +115,6 @@ enum {
 struct mcs7830_data {
 	u8 multi_filter[8];
 	u8 config;
-	u8 link_counter;
 };
 
 static const char driver_name[] = "MOSCHIP usb-ethernet driver";
@@ -529,8 +526,9 @@ static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	u8 status;
 
-	if (skb->len == 0) {
-		dev_err(&dev->udev->dev, "unexpected empty rx frame\n");
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len) {
+		dev_err(&dev->udev->dev, "unexpected tiny rx frame\n");
 		return 0;
 	}
 
@@ -561,26 +559,16 @@ static void mcs7830_status(struct usbnet *dev, struct urb *urb)
 {
 	u8 *buf = urb->transfer_buffer;
 	bool link, link_changed;
-	struct mcs7830_data *data = mcs7830_get_data(dev);
 
 	if (urb->actual_length < 16)
 		return;
 
-	link = !(buf[1] & 0x20);
+	link = !(buf[1] == 0x20);
 	link_changed = netif_carrier_ok(dev->net) != link;
 	if (link_changed) {
-		data->link_counter++;
-		/*
-		   track link state 20 times to guard against erroneous
-		   link state changes reported sometimes by the chip
-		 */
-		if (data->link_counter > 20) {
-			data->link_counter = 0;
-			usbnet_link_change(dev, link, 0);
-			netdev_dbg(dev->net, "Link Status is: %d\n", link);
-		}
-	} else
-		data->link_counter = 0;
+		usbnet_link_change(dev, link, 0);
+		netdev_dbg(dev->net, "Link Status is: %d\n", link);
+	}
 }
 
 static const struct driver_info moschip_info = {

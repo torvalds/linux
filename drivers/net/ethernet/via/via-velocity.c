@@ -2172,16 +2172,13 @@ static int velocity_poll(struct napi_struct *napi, int budget)
 	unsigned int rx_done;
 	unsigned long flags;
 
-	spin_lock_irqsave(&vptr->lock, flags);
 	/*
 	 * Do rx and tx twice for performance (taken from the VIA
 	 * out-of-tree driver).
 	 */
-	rx_done = velocity_rx_srv(vptr, budget / 2);
+	rx_done = velocity_rx_srv(vptr, budget);
+	spin_lock_irqsave(&vptr->lock, flags);
 	velocity_tx_srv(vptr);
-	rx_done += velocity_rx_srv(vptr, budget - rx_done);
-	velocity_tx_srv(vptr);
-
 	/* If budget not fully consumed, exit the polling mode */
 	if (rx_done < budget) {
 		napi_complete(napi);
@@ -2342,6 +2339,8 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		if (ret < 0)
 			goto out_free_tmp_vptr_1;
 
+		napi_disable(&vptr->napi);
+
 		spin_lock_irqsave(&vptr->lock, flags);
 
 		netif_stop_queue(dev);
@@ -2361,6 +2360,8 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		velocity_init_registers(vptr, VELOCITY_INIT_COLD);
 
 		velocity_give_many_rx_descs(vptr);
+
+		napi_enable(&vptr->napi);
 
 		mac_enable_int(vptr->mac_regs);
 		netif_start_queue(dev);
@@ -2564,7 +2565,7 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 	/* The hardware can handle at most 7 memory segments, so merge
 	 * the skb if there are more */
 	if (skb_shinfo(skb)->nr_frags > 6 && __skb_linearize(skb)) {
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 

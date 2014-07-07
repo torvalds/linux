@@ -139,9 +139,14 @@ int arch_remove_memory(u64 start, u64 size)
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	struct zone *zone;
+	int ret;
 
 	zone = page_zone(pfn_to_page(start_pfn));
-	return __remove_pages(zone, start_pfn, nr_pages);
+	ret = __remove_pages(zone, start_pfn, nr_pages);
+	if (!ret && (ppc_md.remove_memory))
+		ret = ppc_md.remove_memory(start, size);
+
+	return ret;
 }
 #endif
 #endif /* CONFIG_MEMORY_HOTPLUG */
@@ -209,7 +214,7 @@ void __init do_init_bootmem(void)
 	/* Place all memblock_regions in the same node and merge contiguous
 	 * memblock_regions
 	 */
-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, 0);
+	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
 
 	/* Add all physical memory to the bootmem map, mark each area
 	 * present.
@@ -307,6 +312,12 @@ static void __init register_page_bootmem_info(void)
 
 void __init mem_init(void)
 {
+	/*
+	 * book3s is limited to 16 page sizes due to encoding this in
+	 * a 4-bit field for slices.
+	 */
+	BUILD_BUG_ON(MMU_PAGE_COUNT > 16);
+
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(0);
 #endif
@@ -507,7 +518,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
  * System memory should not be in /proc/iomem but various tools expect it
  * (eg kdump).
  */
-static int add_system_ram_resources(void)
+static int __init add_system_ram_resources(void)
 {
 	struct memblock_region *reg;
 

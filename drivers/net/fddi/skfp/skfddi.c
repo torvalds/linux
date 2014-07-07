@@ -351,7 +351,6 @@ static void skfp_remove_one(struct pci_dev *pdev)
 	free_netdev(p);
 
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 /*
@@ -436,7 +435,7 @@ static  int skfp_driver_init(struct net_device *dev)
 	}
 	read_address(smc, NULL);
 	pr_debug("HW-Addr: %pMF\n", smc->hw.fddi_canon_addr.a);
-	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, 6);
+	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, ETH_ALEN);
 
 	smt_reset_defaults(smc, 0);
 
@@ -503,7 +502,7 @@ static int skfp_open(struct net_device *dev)
 	 *               address.
 	 */
 	read_address(smc, NULL);
-	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, 6);
+	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, ETH_ALEN);
 
 	init_smt(smc, NULL);
 	smt_online(smc, 1);
@@ -1213,7 +1212,7 @@ static void CheckSourceAddress(unsigned char *frame, unsigned char *hw_addr)
 	if ((unsigned short) frame[1 + 10] != 0)
 		return;
 	SRBit = frame[1 + 6] & 0x01;
-	memcpy(&frame[1 + 6], hw_addr, 6);
+	memcpy(&frame[1 + 6], hw_addr, ETH_ALEN);
 	frame[8] |= SRBit;
 }				// CheckSourceAddress
 

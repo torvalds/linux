@@ -799,47 +799,47 @@ struct esas2r_adapter {
 	struct esas2r_target *targetdb_end;
 	unsigned char *regs;
 	unsigned char *data_window;
-	u32 volatile flags;
-	#define AF_PORT_CHANGE      (u32)(0x00000001)
-	#define AF_CHPRST_NEEDED    (u32)(0x00000004)
-	#define AF_CHPRST_PENDING   (u32)(0x00000008)
-	#define AF_CHPRST_DETECTED  (u32)(0x00000010)
-	#define AF_BUSRST_NEEDED    (u32)(0x00000020)
-	#define AF_BUSRST_PENDING   (u32)(0x00000040)
-	#define AF_BUSRST_DETECTED  (u32)(0x00000080)
-	#define AF_DISABLED         (u32)(0x00000100)
-	#define AF_FLASH_LOCK       (u32)(0x00000200)
-	#define AF_OS_RESET         (u32)(0x00002000)
-	#define AF_FLASHING         (u32)(0x00004000)
-	#define AF_POWER_MGT        (u32)(0x00008000)
-	#define AF_NVR_VALID        (u32)(0x00010000)
-	#define AF_DEGRADED_MODE    (u32)(0x00020000)
-	#define AF_DISC_PENDING     (u32)(0x00040000)
-	#define AF_TASKLET_SCHEDULED    (u32)(0x00080000)
-	#define AF_HEARTBEAT        (u32)(0x00200000)
-	#define AF_HEARTBEAT_ENB    (u32)(0x00400000)
-	#define AF_NOT_PRESENT      (u32)(0x00800000)
-	#define AF_CHPRST_STARTED   (u32)(0x01000000)
-	#define AF_FIRST_INIT       (u32)(0x02000000)
-	#define AF_POWER_DOWN       (u32)(0x04000000)
-	#define AF_DISC_IN_PROG     (u32)(0x08000000)
-	#define AF_COMM_LIST_TOGGLE (u32)(0x10000000)
-	#define AF_LEGACY_SGE_MODE  (u32)(0x20000000)
-	#define AF_DISC_POLLED      (u32)(0x40000000)
-	u32 volatile flags2;
-	#define AF2_SERIAL_FLASH    (u32)(0x00000001)
-	#define AF2_DEV_SCAN        (u32)(0x00000002)
-	#define AF2_DEV_CNT_OK      (u32)(0x00000004)
-	#define AF2_COREDUMP_AVAIL  (u32)(0x00000008)
-	#define AF2_COREDUMP_SAVED  (u32)(0x00000010)
-	#define AF2_VDA_POWER_DOWN  (u32)(0x00000100)
-	#define AF2_THUNDERLINK     (u32)(0x00000200)
-	#define AF2_THUNDERBOLT     (u32)(0x00000400)
-	#define AF2_INIT_DONE       (u32)(0x00000800)
-	#define AF2_INT_PENDING     (u32)(0x00001000)
-	#define AF2_TIMER_TICK      (u32)(0x00002000)
-	#define AF2_IRQ_CLAIMED     (u32)(0x00004000)
-	#define AF2_MSI_ENABLED     (u32)(0x00008000)
+	long flags;
+	#define AF_PORT_CHANGE      0
+	#define AF_CHPRST_NEEDED    1
+	#define AF_CHPRST_PENDING   2
+	#define AF_CHPRST_DETECTED  3
+	#define AF_BUSRST_NEEDED    4
+	#define AF_BUSRST_PENDING   5
+	#define AF_BUSRST_DETECTED  6
+	#define AF_DISABLED         7
+	#define AF_FLASH_LOCK       8
+	#define AF_OS_RESET         9
+	#define AF_FLASHING         10
+	#define AF_POWER_MGT        11
+	#define AF_NVR_VALID        12
+	#define AF_DEGRADED_MODE    13
+	#define AF_DISC_PENDING     14
+	#define AF_TASKLET_SCHEDULED    15
+	#define AF_HEARTBEAT        16
+	#define AF_HEARTBEAT_ENB    17
+	#define AF_NOT_PRESENT      18
+	#define AF_CHPRST_STARTED   19
+	#define AF_FIRST_INIT       20
+	#define AF_POWER_DOWN       21
+	#define AF_DISC_IN_PROG     22
+	#define AF_COMM_LIST_TOGGLE 23
+	#define AF_LEGACY_SGE_MODE  24
+	#define AF_DISC_POLLED      25
+	long flags2;
+	#define AF2_SERIAL_FLASH    0
+	#define AF2_DEV_SCAN        1
+	#define AF2_DEV_CNT_OK      2
+	#define AF2_COREDUMP_AVAIL  3
+	#define AF2_COREDUMP_SAVED  4
+	#define AF2_VDA_POWER_DOWN  5
+	#define AF2_THUNDERLINK     6
+	#define AF2_THUNDERBOLT     7
+	#define AF2_INIT_DONE       8
+	#define AF2_INT_PENDING     9
+	#define AF2_TIMER_TICK      10
+	#define AF2_IRQ_CLAIMED     11
+	#define AF2_MSI_ENABLED     12
 	atomic_t disable_cnt;
 	atomic_t dis_ints_cnt;
 	u32 int_stat;
@@ -1150,16 +1150,6 @@ void esas2r_queue_fw_event(struct esas2r_adapter *a,
 			   int data_sz);
 
 /* Inline functions */
-static inline u32 esas2r_lock_set_flags(volatile u32 *flags, u32 bits)
-{
-	return test_and_set_bit(ilog2(bits), (volatile unsigned long *)flags);
-}
-
-static inline u32 esas2r_lock_clear_flags(volatile u32 *flags, u32 bits)
-{
-	return test_and_clear_bit(ilog2(bits),
-				  (volatile unsigned long *)flags);
-}
 
 /* Allocate a chip scatter/gather list entry */
 static inline struct esas2r_mem_desc *esas2r_alloc_sgl(struct esas2r_adapter *a)
@@ -1217,7 +1207,6 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 					  struct esas2r_adapter *a)
 {
 	union atto_vda_req *vrq = rq->vrq;
-	u32 handle;
 
 	INIT_LIST_HEAD(&rq->sg_table_head);
 	rq->data_buf = (void *)(vrq + 1);
@@ -1253,11 +1242,9 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 
 	/*
 	 * add a reference number to the handle to make it unique (until it
-	 * wraps of course) while preserving the upper word
+	 * wraps of course) while preserving the least significant word
 	 */
-
-	handle = be32_to_cpu(vrq->scsi.handle) & 0xFFFF0000;
-	vrq->scsi.handle = cpu_to_be32(handle + a->cmd_ref_no++);
+	vrq->scsi.handle = (a->cmd_ref_no++ << 16) | (u16)vrq->scsi.handle;
 
 	/*
 	 * the following formats a SCSI request.  the caller can override as
@@ -1303,10 +1290,13 @@ static inline void esas2r_rq_destroy_request(struct esas2r_request *rq,
 
 static inline bool esas2r_is_tasklet_pending(struct esas2r_adapter *a)
 {
-	return (a->flags & (AF_BUSRST_NEEDED | AF_BUSRST_DETECTED
-			    | AF_CHPRST_NEEDED | AF_CHPRST_DETECTED
-			    | AF_PORT_CHANGE))
-	       ? true : false;
+
+	return test_bit(AF_BUSRST_NEEDED, &a->flags) ||
+	       test_bit(AF_BUSRST_DETECTED, &a->flags) ||
+	       test_bit(AF_CHPRST_NEEDED, &a->flags) ||
+	       test_bit(AF_CHPRST_DETECTED, &a->flags) ||
+	       test_bit(AF_PORT_CHANGE, &a->flags);
+
 }
 
 /*
@@ -1345,24 +1335,24 @@ static inline void esas2r_enable_chip_interrupts(struct esas2r_adapter *a)
 static inline void esas2r_schedule_tasklet(struct esas2r_adapter *a)
 {
 	/* make sure we don't schedule twice */
-	if (!(esas2r_lock_set_flags(&a->flags, AF_TASKLET_SCHEDULED) &
-	      ilog2(AF_TASKLET_SCHEDULED)))
+	if (!test_and_set_bit(AF_TASKLET_SCHEDULED, &a->flags))
 		tasklet_hi_schedule(&a->tasklet);
 }
 
 static inline void esas2r_enable_heartbeat(struct esas2r_adapter *a)
 {
-	if (!(a->flags & (AF_DEGRADED_MODE | AF_CHPRST_PENDING))
-	    && (a->nvram->options2 & SASNVR2_HEARTBEAT))
-		esas2r_lock_set_flags(&a->flags, AF_HEARTBEAT_ENB);
+	if (!test_bit(AF_DEGRADED_MODE, &a->flags) &&
+	    !test_bit(AF_CHPRST_PENDING, &a->flags) &&
+	    (a->nvram->options2 & SASNVR2_HEARTBEAT))
+		set_bit(AF_HEARTBEAT_ENB, &a->flags);
 	else
-		esas2r_lock_clear_flags(&a->flags, AF_HEARTBEAT_ENB);
+		clear_bit(AF_HEARTBEAT_ENB, &a->flags);
 }
 
 static inline void esas2r_disable_heartbeat(struct esas2r_adapter *a)
 {
-	esas2r_lock_clear_flags(&a->flags, AF_HEARTBEAT_ENB);
-	esas2r_lock_clear_flags(&a->flags, AF_HEARTBEAT);
+	clear_bit(AF_HEARTBEAT_ENB, &a->flags);
+	clear_bit(AF_HEARTBEAT, &a->flags);
 }
 
 /* Set the initial state for resetting the adapter on the next pass through
@@ -1372,9 +1362,9 @@ static inline void esas2r_local_reset_adapter(struct esas2r_adapter *a)
 {
 	esas2r_disable_heartbeat(a);
 
-	esas2r_lock_set_flags(&a->flags, AF_CHPRST_NEEDED);
-	esas2r_lock_set_flags(&a->flags, AF_CHPRST_PENDING);
-	esas2r_lock_set_flags(&a->flags, AF_DISC_PENDING);
+	set_bit(AF_CHPRST_NEEDED, &a->flags);
+	set_bit(AF_CHPRST_PENDING, &a->flags);
+	set_bit(AF_DISC_PENDING, &a->flags);
 }
 
 /* See if an interrupt is pending on the adapter. */

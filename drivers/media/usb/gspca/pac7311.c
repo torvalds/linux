@@ -326,7 +326,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 	 *  640x480 mode and page 4 reg 2 <= 3 then it must be 9
 	 */
 	reg_w(gspca_dev, 0xff, 0x01);
-	if (gspca_dev->width != 640 && val <= 3)
+	if (gspca_dev->pixfmt.width != 640 && val <= 3)
 		reg_w(gspca_dev, 0x08, 0x09);
 	else
 		reg_w(gspca_dev, 0x08, 0x08);
@@ -337,7 +337,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 	 * camera to use higher compression or we may run out of
 	 * bandwidth.
 	 */
-	if (gspca_dev->width == 640 && val == 2)
+	if (gspca_dev->pixfmt.width == 640 && val == 2)
 		reg_w(gspca_dev, 0x80, 0x01);
 	else
 		reg_w(gspca_dev, 0x80, 0x1c);
@@ -615,7 +615,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* Start the new frame with the jpeg header */
 		pac_start_frame(gspca_dev,
-			gspca_dev->height, gspca_dev->width);
+			gspca_dev->pixfmt.height, gspca_dev->pixfmt.width);
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }

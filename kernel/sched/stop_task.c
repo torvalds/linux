@@ -11,7 +11,7 @@
 
 #ifdef CONFIG_SMP
 static int
-select_task_rq_stop(struct task_struct *p, int sd_flag, int flags)
+select_task_rq_stop(struct task_struct *p, int cpu, int sd_flag, int flags)
 {
 	return task_cpu(p); /* stop tasks as never migrate */
 }
@@ -23,28 +23,31 @@ check_preempt_curr_stop(struct rq *rq, struct task_struct *p, int flags)
 	/* we're never preempted */
 }
 
-static struct task_struct *pick_next_task_stop(struct rq *rq)
+static struct task_struct *
+pick_next_task_stop(struct rq *rq, struct task_struct *prev)
 {
 	struct task_struct *stop = rq->stop;
 
-	if (stop && stop->on_rq) {
-		stop->se.exec_start = rq_clock_task(rq);
-		return stop;
-	}
+	if (!stop || !stop->on_rq)
+		return NULL;
 
-	return NULL;
+	put_prev_task(rq, prev);
+
+	stop->se.exec_start = rq_clock_task(rq);
+
+	return stop;
 }
 
 static void
 enqueue_task_stop(struct rq *rq, struct task_struct *p, int flags)
 {
-	inc_nr_running(rq);
+	add_nr_running(rq, 1);
 }
 
 static void
 dequeue_task_stop(struct rq *rq, struct task_struct *p, int flags)
 {
-	dec_nr_running(rq);
+	sub_nr_running(rq, 1);
 }
 
 static void yield_task_stop(struct rq *rq)
@@ -103,7 +106,7 @@ get_rr_interval_stop(struct rq *rq, struct task_struct *task)
  * Simple, special scheduling class for the per-CPU stop tasks:
  */
 const struct sched_class stop_sched_class = {
-	.next			= &rt_sched_class,
+	.next			= &dl_sched_class,
 
 	.enqueue_task		= enqueue_task_stop,
 	.dequeue_task		= dequeue_task_stop,

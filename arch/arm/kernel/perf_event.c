@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/uaccess.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 
 #include <asm/irq_regs.h>
 #include <asm/pmu.h>
@@ -98,10 +100,6 @@ int armpmu_event_set_period(struct perf_event *event)
 	s64 left = local64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
 	int ret = 0;
-
-	/* The period may have been changed by PERF_EVENT_IOC_PERIOD */
-	if (unlikely(period != hwc->last_period))
-		left = period - (hwc->last_period - left);
 
 	if (unlikely(left <= -period)) {
 		left = period;
@@ -209,6 +207,8 @@ armpmu_del(struct perf_event *event, int flags)
 	armpmu_stop(event, PERF_EF_UPDATE);
 	hw_events->events[idx] = NULL;
 	clear_bit(idx, hw_events->used_mask);
+	if (armpmu->clear_event_idx)
+		armpmu->clear_event_idx(hw_events, event);
 
 	perf_event_update_userpage(event);
 }
@@ -256,12 +256,11 @@ validate_event(struct pmu_hw_events *hw_events,
 	       struct perf_event *event)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
-	struct pmu *leader_pmu = event->group_leader->pmu;
 
 	if (is_software_event(event))
 		return 1;
 
-	if (event->pmu != leader_pmu || event->state < PERF_EVENT_STATE_OFF)
+	if (event->state < PERF_EVENT_STATE_OFF)
 		return 1;
 
 	if (event->state == PERF_EVENT_STATE_OFF && !event->attr.enable_on_exec)
@@ -300,14 +299,27 @@ validate_group(struct perf_event *event)
 
 static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 {
-	struct arm_pmu *armpmu = (struct arm_pmu *) dev;
-	struct platform_device *plat_device = armpmu->plat_device;
-	struct arm_pmu_platdata *plat = dev_get_platdata(&plat_device->dev);
+	struct arm_pmu *armpmu;
+	struct platform_device *plat_device;
+	struct arm_pmu_platdata *plat;
+	int ret;
+	u64 start_clock, finish_clock;
 
+	if (irq_is_percpu(irq))
+		dev = *(void **)dev;
+	armpmu = dev;
+	plat_device = armpmu->plat_device;
+	plat = dev_get_platdata(&plat_device->dev);
+
+	start_clock = sched_clock();
 	if (plat && plat->handle_irq)
-		return plat->handle_irq(irq, dev, armpmu->handle_irq);
+		ret = plat->handle_irq(irq, dev, armpmu->handle_irq);
 	else
-		return armpmu->handle_irq(irq, dev);
+		ret = armpmu->handle_irq(irq, dev);
+	finish_clock = sched_clock();
+
+	perf_sample_event_took(finish_clock - start_clock);
+	return ret;
 }
 
 static void
@@ -398,7 +410,7 @@ __hw_perf_event_init(struct perf_event *event)
 	 */
 	hwc->config_base	    |= (unsigned long)mapping;
 
-	if (!hwc->sample_period) {
+	if (!is_sampling_event(event)) {
 		/*
 		 * For non-sampling runs, limit the sample_period to half
 		 * of the counter width. That way, the new counter value

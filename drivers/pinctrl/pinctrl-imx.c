@@ -245,11 +245,11 @@ static int imx_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 			 * The input_reg[i] here is actually some IOMUXC general
 			 * purpose register, not regular select input register.
 			 */
-			val = readl(ipctl->base + pin->input_val);
+			val = readl(ipctl->base + pin->input_reg);
 			val &= ~mask;
 			val |= select << shift;
-			writel(val, ipctl->base + pin->input_val);
-		} else if (pin->input_val) {
+			writel(val, ipctl->base + pin->input_reg);
+		} else if (pin->input_reg) {
 			/*
 			 * Regular select input register can never be at offset
 			 * 0, and we only print register value for regular case.
@@ -491,7 +491,7 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 			pin->mux_mode |= IOMUXC_CONFIG_SION;
 		pin->config = config & ~IMX_PAD_SION;
 
-		dev_dbg(info->dev, "%s: %d 0x%08lx", info->pins[i].name,
+		dev_dbg(info->dev, "%s: 0x%x 0x%08lx", info->pins[pin_id].name,
 				pin->mux_mode, pin->config);
 	}
 

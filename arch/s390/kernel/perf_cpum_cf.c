@@ -673,17 +673,20 @@ static int __init cpumf_pmu_init(void)
 	ctl_clear_bit(0, 48);
 
 	/* register handler for measurement-alert interruptions */
-	rc = register_external_interrupt(0x1407, cpumf_measurement_alert);
+	rc = register_external_irq(EXT_IRQ_MEASURE_ALERT,
+				   cpumf_measurement_alert);
 	if (rc) {
 		pr_err("Registering for CPU-measurement alerts "
 		       "failed with rc=%i\n", rc);
 		goto out;
 	}
 
+	cpumf_pmu.attr_groups = cpumf_cf_event_group();
 	rc = perf_pmu_register(&cpumf_pmu, "cpum_cf", PERF_TYPE_RAW);
 	if (rc) {
 		pr_err("Registering the cpum_cf PMU failed with rc=%i\n", rc);
-		unregister_external_interrupt(0x1407, cpumf_measurement_alert);
+		unregister_external_irq(EXT_IRQ_MEASURE_ALERT,
+					cpumf_measurement_alert);
 		goto out;
 	}
 	perf_cpu_notifier(cpumf_pmu_notifier);

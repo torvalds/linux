@@ -23,10 +23,6 @@
 
 #define DRIVER_VERSION		"3.2.3"
 
-/*#define ETH_P_IP	0x0800 */
-/*#define ETH_P_ARP	0x0806 */
-/*#define ETH_P_IPV6	0x86DD */
-
 #define H2L(x)		__cpu_to_le16(x)
 #define L2H(x)		__le16_to_cpu(x)
 #define DH2L(x)		__cpu_to_le32(x)
@@ -38,12 +34,11 @@
 #define DB2H(x)		__be32_to_cpu(x)
 
 struct phy_dev {
-	void	*priv_dev;
+	void			*priv_dev;
 	struct net_device	*netdev;
-
-	int	(*send_func)(void *priv_dev, void *data, int len,
-			void (*cb)(void *cb_data), void *cb_data);
-	int	(*rcv_func)(void *priv_dev,
+	int (*send_func)(void *priv_dev, void *data, int len,
+			 void (*cb)(void *cb_data), void *cb_data);
+	int (*rcv_func)(void *priv_dev,
 			void (*cb)(void *cb_data, void *data, int len),
 			void *cb_data);
 };
@@ -51,41 +46,15 @@ struct phy_dev {
 struct nic {
 	struct net_device	*netdev;
 	struct phy_dev		*phy_dev;
-
 	struct net_device_stats	stats;
-
-	struct data_s	sdk_data[SIOC_DATA_MAX];
-
+	struct data_s		sdk_data[SIOC_DATA_MAX];
 #if defined(CONFIG_WIMAX_GDM72XX_QOS)
-	struct qos_cb_s	qos;
+	struct qos_cb_s		qos;
 #endif
-
 };
 
-
-#if 0
-#define dprintk(fmt, args ...)	printk(KERN_DEBUG " [GDM] " fmt, ## args)
-#else
-#define dprintk(...)
-#endif
-
-/*#define DEBUG_SDU */
-#if defined(DEBUG_SDU)
-#define DUMP_SDU_ALL		(1<<0)
-#define DUMP_SDU_ARP		(1<<1)
-#define DUMP_SDU_IP			(1<<2)
-#define DUMP_SDU_IP_TCP		(1<<8)
-#define DUMP_SDU_IP_UDP		(1<<9)
-#define DUMP_SDU_IP_ICMP	(1<<10)
-#define DUMP_PACKET			(DUMP_SDU_ALL)
-#endif
-
-/*#define DEBUG_HCI */
-
-/*#define LOOPBACK_TEST */
-
-extern int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);
-extern int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev);
-extern void unregister_wimax_device(struct phy_dev *phy_dev);
+int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);
+int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev);
+void unregister_wimax_device(struct phy_dev *phy_dev);
 
 #endif

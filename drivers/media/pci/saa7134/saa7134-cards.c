@@ -2590,7 +2590,7 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180] = {
-		/* Michael Krufky <mkrufky@m1k.net>
+		/* Michael Krufky <mkrufky@linuxtv.org>
 		 * Uses Alps Electric TDHU2, containing NXT2004 ATSC Decoder
 		 * AFAIK, there is no analog demod, thus,
 		 * no support for analog television.
@@ -8045,8 +8045,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		break;
 	} /* switch() */
 
-	/* initialize tuner */
-	if (TUNER_ABSENT != dev->tuner_type) {
+	/* initialize tuner (don't do this when resuming) */
+	if (!dev->insuspend && TUNER_ABSENT != dev->tuner_type) {
 		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
 
 		/* Note: radio tuner address is always filled in,

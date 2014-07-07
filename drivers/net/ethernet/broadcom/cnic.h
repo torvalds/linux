@@ -1,6 +1,6 @@
 /* cnic.h: Broadcom CNIC core network driver.
  *
- * Copyright (c) 2006-2013 Broadcom Corporation
+ * Copyright (c) 2006-2014 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -185,6 +185,8 @@ struct kcq_info {
 	u16		(*next_idx)(u16);
 	u16		(*hw_idx)(u16);
 };
+
+#define UIO_USE_TX_DOORBELL 0x017855DB
 
 struct cnic_uio_dev {
 	struct uio_info		cnic_uinfo;

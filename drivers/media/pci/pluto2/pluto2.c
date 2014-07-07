@@ -401,7 +401,7 @@ static int pluto_hw_init(struct pluto *pluto)
 	/* set automatic LED control by FPGA */
 	pluto_rw(pluto, REG_MISC, MISC_ALED, MISC_ALED);
 
-	/* set data endianess */
+	/* set data endianness */
 #ifdef __LITTLE_ENDIAN
 	pluto_rw(pluto, REG_PIDn(0), PID0_END, PID0_END);
 #else
@@ -736,7 +736,6 @@ err_pci_release_regions:
 err_pci_disable_device:
 	pci_disable_device(pdev);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	kfree(pluto);
 	goto out;
 }
@@ -765,7 +764,6 @@ static void pluto2_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, pluto->io_mem);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	kfree(pluto);
 }
 

@@ -79,7 +79,7 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -155,7 +155,8 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 
 	irq = irq_of_parse_and_map(dn, 0);
 	if (!irq) {
-		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
+		dev_err(&op->dev, "%s: irq_of_parse_and_map failed\n",
+			__FILE__);
 		rv = -EBUSY;
 		goto err_irq;
 	}
@@ -191,8 +192,10 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 	ehci->caps = hcd->regs + 0x100;
 
 	rv = usb_add_hcd(hcd, irq, 0);
-	if (rv == 0)
+	if (rv == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return 0;
+	}
 
 err_irq:
 	usb_put_hcd(hcd);

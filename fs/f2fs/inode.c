@@ -12,6 +12,7 @@
 #include <linux/f2fs_fs.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
+#include <linux/bitops.h>
 
 #include "f2fs.h"
 #include "node.h"
@@ -21,20 +22,49 @@
 void f2fs_set_inode_flags(struct inode *inode)
 {
 	unsigned int flags = F2FS_I(inode)->i_flags;
-
-	inode->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE |
-			S_NOATIME | S_DIRSYNC);
+	unsigned int new_fl = 0;
 
 	if (flags & FS_SYNC_FL)
-		inode->i_flags |= S_SYNC;
+		new_fl |= S_SYNC;
 	if (flags & FS_APPEND_FL)
-		inode->i_flags |= S_APPEND;
+		new_fl |= S_APPEND;
 	if (flags & FS_IMMUTABLE_FL)
-		inode->i_flags |= S_IMMUTABLE;
+		new_fl |= S_IMMUTABLE;
 	if (flags & FS_NOATIME_FL)
-		inode->i_flags |= S_NOATIME;
+		new_fl |= S_NOATIME;
 	if (flags & FS_DIRSYNC_FL)
-		inode->i_flags |= S_DIRSYNC;
+		new_fl |= S_DIRSYNC;
+	set_mask_bits(&inode->i_flags,
+			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC, new_fl);
+}
+
+static void __get_inode_rdev(struct inode *inode, struct f2fs_inode *ri)
+{
+	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
+			S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
+		if (ri->i_addr[0])
+			inode->i_rdev =
+				old_decode_dev(le32_to_cpu(ri->i_addr[0]));
+		else
+			inode->i_rdev =
+				new_decode_dev(le32_to_cpu(ri->i_addr[1]));
+	}
+}
+
+static void __set_inode_rdev(struct inode *inode, struct f2fs_inode *ri)
+{
+	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
+		if (old_valid_dev(inode->i_rdev)) {
+			ri->i_addr[0] =
+				cpu_to_le32(old_encode_dev(inode->i_rdev));
+			ri->i_addr[1] = 0;
+		} else {
+			ri->i_addr[0] = 0;
+			ri->i_addr[1] =
+				cpu_to_le32(new_encode_dev(inode->i_rdev));
+			ri->i_addr[2] = 0;
+		}
+	}
 }
 
 static int do_read_inode(struct inode *inode)
@@ -42,7 +72,6 @@ static int do_read_inode(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct page *node_page;
-	struct f2fs_node *rn;
 	struct f2fs_inode *ri;
 
 	/* Check if ino is within scope */
@@ -56,8 +85,7 @@ static int do_read_inode(struct inode *inode)
 	if (IS_ERR(node_page))
 		return PTR_ERR(node_page);
 
-	rn = F2FS_NODE(node_page);
-	ri = &(rn->i);
+	ri = F2FS_INODE(node_page);
 
 	inode->i_mode = le16_to_cpu(ri->i_mode);
 	i_uid_write(inode, le32_to_cpu(ri->i_uid));
@@ -73,10 +101,6 @@ static int do_read_inode(struct inode *inode)
 	inode->i_ctime.tv_nsec = le32_to_cpu(ri->i_ctime_nsec);
 	inode->i_mtime.tv_nsec = le32_to_cpu(ri->i_mtime_nsec);
 	inode->i_generation = le32_to_cpu(ri->i_generation);
-	if (ri->i_addr[0])
-		inode->i_rdev = old_decode_dev(le32_to_cpu(ri->i_addr[0]));
-	else
-		inode->i_rdev = new_decode_dev(le32_to_cpu(ri->i_addr[1]));
 
 	fi->i_current_depth = le32_to_cpu(ri->i_current_depth);
 	fi->i_xattr_nid = le32_to_cpu(ri->i_xattr_nid);
@@ -84,8 +108,14 @@ static int do_read_inode(struct inode *inode)
 	fi->flags = 0;
 	fi->i_advise = ri->i_advise;
 	fi->i_pino = le32_to_cpu(ri->i_pino);
+	fi->i_dir_level = ri->i_dir_level;
+
 	get_extent_info(&fi->ext, ri->i_ext);
 	get_inline_info(fi, ri);
+
+	/* get rdev by using inline_info */
+	__get_inode_rdev(inode, ri);
+
 	f2fs_put_page(node_page, 1);
 	return 0;
 }
@@ -149,13 +179,11 @@ bad_inode:
 
 void update_inode(struct inode *inode, struct page *node_page)
 {
-	struct f2fs_node *rn;
 	struct f2fs_inode *ri;
 
-	f2fs_wait_on_page_writeback(node_page, NODE, false);
+	f2fs_wait_on_page_writeback(node_page, NODE);
 
-	rn = F2FS_NODE(node_page);
-	ri = &(rn->i);
+	ri = F2FS_INODE(node_page);
 
 	ri->i_mode = cpu_to_le16(inode->i_mode);
 	ri->i_advise = F2FS_I(inode)->i_advise;
@@ -178,43 +206,38 @@ void update_inode(struct inode *inode, struct page *node_page)
 	ri->i_flags = cpu_to_le32(F2FS_I(inode)->i_flags);
 	ri->i_pino = cpu_to_le32(F2FS_I(inode)->i_pino);
 	ri->i_generation = cpu_to_le32(inode->i_generation);
+	ri->i_dir_level = F2FS_I(inode)->i_dir_level;
 
-	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
-		if (old_valid_dev(inode->i_rdev)) {
-			ri->i_addr[0] =
-				cpu_to_le32(old_encode_dev(inode->i_rdev));
-			ri->i_addr[1] = 0;
-		} else {
-			ri->i_addr[0] = 0;
-			ri->i_addr[1] =
-				cpu_to_le32(new_encode_dev(inode->i_rdev));
-			ri->i_addr[2] = 0;
-		}
-	}
-
+	__set_inode_rdev(inode, ri);
 	set_cold_node(inode, node_page);
 	set_page_dirty(node_page);
+
 	clear_inode_flag(F2FS_I(inode), FI_DIRTY_INODE);
 }
 
-int update_inode_page(struct inode *inode)
+void update_inode_page(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *node_page;
-
+retry:
 	node_page = get_node_page(sbi, inode->i_ino);
-	if (IS_ERR(node_page))
-		return PTR_ERR(node_page);
-
+	if (IS_ERR(node_page)) {
+		int err = PTR_ERR(node_page);
+		if (err == -ENOMEM) {
+			cond_resched();
+			goto retry;
+		} else if (err != -ENOENT) {
+			f2fs_stop_checkpoint(sbi);
+		}
+		return;
+	}
 	update_inode(inode, node_page);
 	f2fs_put_page(node_page, 1);
-	return 0;
 }
 
 int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	int ret, ilock;
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
 			inode->i_ino == F2FS_META_INO(sbi))
@@ -227,14 +250,14 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	 * We need to lock here to prevent from producing dirty node pages
 	 * during the urgent cleaning time when runing out of free sections.
 	 */
-	ilock = mutex_lock_op(sbi);
-	ret = update_inode_page(inode);
-	mutex_unlock_op(sbi, ilock);
+	f2fs_lock_op(sbi);
+	update_inode_page(inode);
+	f2fs_unlock_op(sbi);
 
 	if (wbc)
 		f2fs_balance_fs(sbi);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -243,16 +266,15 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 void f2fs_evict_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	int ilock;
 
 	trace_f2fs_evict_inode(inode);
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
 			inode->i_ino == F2FS_META_INO(sbi))
 		goto no_delete;
 
-	BUG_ON(atomic_read(&F2FS_I(inode)->dirty_dents));
+	f2fs_bug_on(get_dirty_dents(inode));
 	remove_dirty_dir_inode(inode);
 
 	if (inode->i_nlink || is_bad_inode(inode))
@@ -265,11 +287,13 @@ void f2fs_evict_inode(struct inode *inode)
 	if (F2FS_HAS_BLOCKS(inode))
 		f2fs_truncate(inode);
 
-	ilock = mutex_lock_op(sbi);
+	f2fs_lock_op(sbi);
 	remove_inode_page(inode);
-	mutex_unlock_op(sbi, ilock);
+	stat_dec_inline_inode(inode);
+	f2fs_unlock_op(sbi);
 
 	sb_end_intwrite(inode->i_sb);
 no_delete:
 	clear_inode(inode);
+	invalidate_mapping_pages(NODE_MAPPING(sbi), inode->i_ino, inode->i_ino);
 }

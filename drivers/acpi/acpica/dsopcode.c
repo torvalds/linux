@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -257,7 +257,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	    (buffer_desc->common.reference_count +
 	     obj_desc->common.reference_count);
 
-      cleanup:
+cleanup:
 
 	/* Always delete the operands */
 

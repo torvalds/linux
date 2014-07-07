@@ -16,6 +16,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
@@ -36,7 +37,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
 
@@ -86,7 +86,7 @@ static struct map_desc ncp_iodesc[] __initdata = {};
 static void __init ncp_map_io(void)
 {
 	s3c64xx_init_io(ncp_iodesc, ARRAY_SIZE(ncp_iodesc));
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(ncp_uartcfgs, ARRAY_SIZE(ncp_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }

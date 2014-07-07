@@ -6,6 +6,20 @@ menuconfig POWER_RESET
 
 	  Say Y here to enable board reset and power off
 
+config POWER_RESET_AS3722
+	bool "ams AS3722 power-off driver"
+	depends on MFD_AS3722 && POWER_RESET
+	help
+	  This driver supports turning off board via a ams AS3722 power-off.
+
+config POWER_RESET_AXXIA
+	bool "LSI Axxia reset driver"
+	depends on POWER_RESET && ARCH_AXXIA
+	help
+	  This driver supports restart for Axxia SoC.
+
+	  Say Y if you have an Axxia family SoC.
+
 config POWER_RESET_GPIO
 	bool "GPIO power-off driver"
 	depends on OF_GPIO && POWER_RESET
@@ -16,7 +30,7 @@ config POWER_RESET_GPIO
 
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
-	depends on POWER_RESET && ARCH_MSM
+	depends on POWER_RESET && ARCH_QCOM
 	help
 	  Power off and restart support for Qualcomm boards.
 
@@ -37,6 +51,13 @@ config POWER_RESET_RESTART
 	  Instead they restart, and u-boot holds the SoC until the
 	  user presses a key. u-boot then boots into Linux.
 
+config POWER_RESET_SUN6I
+	bool "Allwinner A31 SoC reset driver"
+	depends on ARCH_SUNXI
+	depends on POWER_RESET
+	help
+	  Reboot support for the Allwinner A31 SoCs.
+
 config POWER_RESET_VEXPRESS
 	bool "ARM Versatile Express power-off and reset driver"
 	depends on ARM || ARM64
@@ -51,3 +72,11 @@ config POWER_RESET_XGENE
 	depends on POWER_RESET
 	help
 	  Reboot support for the APM SoC X-Gene Eval boards.
+
+config POWER_RESET_KEYSTONE
+	bool "Keystone reset driver"
+	depends on ARCH_KEYSTONE
+	select MFD_SYSCON
+	help
+	  Reboot support for the KEYSTONE SoCs.
+

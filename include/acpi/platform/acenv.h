@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,12 +96,14 @@
 #endif
 
 /*
- * acpi_bin/acpi_help/acpi_src configuration. All single threaded, with
- * no debug output.
+ * acpi_bin/acpi_dump/acpi_src/acpi_xtract/Example configuration. All single
+ * threaded, with no debug output.
  */
-#if (defined ACPI_BIN_APP)   || \
-	(defined ACPI_SRC_APP)   || \
-	(defined ACPI_XTRACT_APP)
+#if (defined ACPI_BIN_APP)      || \
+	(defined ACPI_DUMP_APP)     || \
+	(defined ACPI_SRC_APP)      || \
+	(defined ACPI_XTRACT_APP)   || \
+	(defined ACPI_EXAMPLE_APP)
 #define ACPI_APPLICATION
 #define ACPI_SINGLE_THREADED
 #endif
@@ -146,6 +148,9 @@
 
 #if defined(_LINUX) || defined(__linux__)
 #include <acpi/platform/aclinux.h>
+
+#elif defined(_APPLE) || defined(__APPLE__)
+#include "acmacosx.h"
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include "acfreebsd.h"
@@ -389,5 +394,14 @@ typedef char *va_list;
 #define ACPI_TOLOWER(c)         acpi_ut_to_lower ((int) (c))
 
 #endif				/* ACPI_USE_SYSTEM_CLIBRARY */
+
+#ifndef ACPI_FILE
+#ifdef ACPI_APPLICATION
+#include <stdio.h>
+#define ACPI_FILE              FILE *
+#else
+#define ACPI_FILE              void *
+#endif				/* ACPI_APPLICATION */
+#endif				/* ACPI_FILE */
 
 #endif				/* __ACENV_H__ */

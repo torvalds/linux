@@ -30,9 +30,32 @@
 #define SYNCPT_CHECK_PERIOD (2 * HZ)
 #define MAX_STUCK_CHECK_COUNT 15
 
-static struct host1x_syncpt *_host1x_syncpt_alloc(struct host1x *host,
-						  struct device *dev,
-						  bool client_managed)
+static struct host1x_syncpt_base *
+host1x_syncpt_base_request(struct host1x *host)
+{
+	struct host1x_syncpt_base *bases = host->bases;
+	unsigned int i;
+
+	for (i = 0; i < host->info->nb_bases; i++)
+		if (!bases[i].requested)
+			break;
+
+	if (i >= host->info->nb_bases)
+		return NULL;
+
+	bases[i].requested = true;
+	return &bases[i];
+}
+
+static void host1x_syncpt_base_free(struct host1x_syncpt_base *base)
+{
+	if (base)
+		base->requested = false;
+}
+
+static struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
+						 struct device *dev,
+						 unsigned long flags)
 {
 	int i;
 	struct host1x_syncpt *sp = host->syncpt;
@@ -44,6 +67,12 @@ static struct host1x_syncpt *_host1x_syncpt_alloc(struct host1x *host,
 	if (i >= host->info->nb_pts)
 		return NULL;
 
+	if (flags & HOST1X_SYNCPT_HAS_BASE) {
+		sp->base = host1x_syncpt_base_request(host);
+		if (!sp->base)
+			return NULL;
+	}
+
 	name = kasprintf(GFP_KERNEL, "%02d-%s", sp->id,
 			dev ? dev_name(dev) : NULL);
 	if (!name)
@@ -51,7 +80,11 @@ static struct host1x_syncpt *_host1x_syncpt_alloc(struct host1x *host,
 
 	sp->dev = dev;
 	sp->name = name;
-	sp->client_managed = client_managed;
+
+	if (flags & HOST1X_SYNCPT_CLIENT_MANAGED)
+		sp->client_managed = true;
+	else
+		sp->client_managed = false;
 
 	return sp;
 }
@@ -60,6 +93,7 @@ u32 host1x_syncpt_id(struct host1x_syncpt *sp)
 {
 	return sp->id;
 }
+EXPORT_SYMBOL(host1x_syncpt_id);
 
 /*
  * Updates the value sent to hardware.
@@ -68,6 +102,7 @@ u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs)
 {
 	return (u32)atomic_add_return(incrs, &sp->max_val);
 }
+EXPORT_SYMBOL(host1x_syncpt_incr_max);
 
  /*
  * Write cached syncpoint and waitbase values to hardware.
@@ -135,6 +170,7 @@ int host1x_syncpt_incr(struct host1x_syncpt *sp)
 {
 	return host1x_hw_syncpt_cpu_incr(sp->host, sp);
 }
+EXPORT_SYMBOL(host1x_syncpt_incr);
 
 /*
  * Updated sync point form hardware, and returns true if syncpoint is expired,
@@ -303,25 +339,35 @@ int host1x_syncpt_patch_wait(struct host1x_syncpt *sp, void *patch_addr)
 
 int host1x_syncpt_init(struct host1x *host)
 {
+	struct host1x_syncpt_base *bases;
 	struct host1x_syncpt *syncpt;
 	int i;
 
 	syncpt = devm_kzalloc(host->dev, sizeof(*syncpt) * host->info->nb_pts,
-		GFP_KERNEL);
+			      GFP_KERNEL);
 	if (!syncpt)
 		return -ENOMEM;
 
-	for (i = 0; i < host->info->nb_pts; ++i) {
+	bases = devm_kzalloc(host->dev, sizeof(*bases) * host->info->nb_bases,
+			     GFP_KERNEL);
+	if (!bases)
+		return -ENOMEM;
+
+	for (i = 0; i < host->info->nb_pts; i++) {
 		syncpt[i].id = i;
 		syncpt[i].host = host;
 	}
 
+	for (i = 0; i < host->info->nb_bases; i++)
+		bases[i].id = i;
+
 	host->syncpt = syncpt;
+	host->bases = bases;
 
 	host1x_syncpt_restore(host);
 
 	/* Allocate sync point to use for clearing waits for expired fences */
-	host->nop_sp = _host1x_syncpt_alloc(host, NULL, false);
+	host->nop_sp = host1x_syncpt_alloc(host, NULL, 0);
 	if (!host->nop_sp)
 		return -ENOMEM;
 
@@ -329,22 +375,26 @@ int host1x_syncpt_init(struct host1x *host)
 }
 
 struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
-					    bool client_managed)
+					    unsigned long flags)
 {
 	struct host1x *host = dev_get_drvdata(dev->parent);
-	return _host1x_syncpt_alloc(host, dev, client_managed);
+	return host1x_syncpt_alloc(host, dev, flags);
 }
+EXPORT_SYMBOL(host1x_syncpt_request);
 
 void host1x_syncpt_free(struct host1x_syncpt *sp)
 {
 	if (!sp)
 		return;
 
+	host1x_syncpt_base_free(sp->base);
 	kfree(sp->name);
+	sp->base = NULL;
 	sp->dev = NULL;
 	sp->name = NULL;
 	sp->client_managed = false;
 }
+EXPORT_SYMBOL(host1x_syncpt_free);
 
 void host1x_syncpt_deinit(struct host1x *host)
 {
@@ -353,6 +403,27 @@ void host1x_syncpt_deinit(struct host1x *host)
 	for (i = 0; i < host->info->nb_pts; i++, sp++)
 		kfree(sp->name);
 }
+
+/*
+ * Read max. It indicates how many operations there are in queue, either in
+ * channel or in a software thread.
+ * */
+u32 host1x_syncpt_read_max(struct host1x_syncpt *sp)
+{
+	smp_rmb();
+	return (u32)atomic_read(&sp->max_val);
+}
+EXPORT_SYMBOL(host1x_syncpt_read_max);
+
+/*
+ * Read min, which is a shadow of the current sync point value in hardware.
+ */
+u32 host1x_syncpt_read_min(struct host1x_syncpt *sp)
+{
+	smp_rmb();
+	return (u32)atomic_read(&sp->min_val);
+}
+EXPORT_SYMBOL(host1x_syncpt_read_min);
 
 int host1x_syncpt_nb_pts(struct host1x *host)
 {
@@ -375,3 +446,16 @@ struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id)
 		return NULL;
 	return host->syncpt + id;
 }
+EXPORT_SYMBOL(host1x_syncpt_get);
+
+struct host1x_syncpt_base *host1x_syncpt_get_base(struct host1x_syncpt *sp)
+{
+	return sp ? sp->base : NULL;
+}
+EXPORT_SYMBOL(host1x_syncpt_get_base);
+
+u32 host1x_syncpt_base_id(struct host1x_syncpt_base *base)
+{
+	return base->id;
+}
+EXPORT_SYMBOL(host1x_syncpt_base_id);

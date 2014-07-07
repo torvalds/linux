@@ -228,24 +228,26 @@ static void psb_intel_sdvo_write_sdvox(struct psb_intel_sdvo *psb_intel_sdvo, u3
 {
 	struct drm_device *dev = psb_intel_sdvo->base.base.dev;
 	u32 bval = val, cval = val;
-	int i;
+	int i, j;
+	int need_aux = IS_MRST(dev) ? 1 : 0;
 
-	if (psb_intel_sdvo->sdvo_reg == SDVOB) {
-		cval = REG_READ(SDVOC);
-	} else {
-		bval = REG_READ(SDVOB);
-	}
-	/*
-	 * Write the registers twice for luck. Sometimes,
-	 * writing them only once doesn't appear to 'stick'.
-	 * The BIOS does this too. Yay, magic
-	 */
-	for (i = 0; i < 2; i++)
-	{
-		REG_WRITE(SDVOB, bval);
-		REG_READ(SDVOB);
-		REG_WRITE(SDVOC, cval);
-		REG_READ(SDVOC);
+	for (j = 0; j <= need_aux; j++) {
+		if (psb_intel_sdvo->sdvo_reg == SDVOB)
+			cval = REG_READ_WITH_AUX(SDVOC, j);
+		else
+			bval = REG_READ_WITH_AUX(SDVOB, j);
+
+		/*
+		* Write the registers twice for luck. Sometimes,
+		* writing them only once doesn't appear to 'stick'.
+		* The BIOS does this too. Yay, magic
+		*/
+		for (i = 0; i < 2; i++) {
+			REG_WRITE_WITH_AUX(SDVOB, bval, j);
+			REG_READ_WITH_AUX(SDVOB, j);
+			REG_WRITE_WITH_AUX(SDVOC, cval, j);
+			REG_READ_WITH_AUX(SDVOC, j);
+		}
 	}
 }
 
@@ -404,18 +406,18 @@ static void psb_intel_sdvo_debug_write(struct psb_intel_sdvo *psb_intel_sdvo, u8
 	DRM_DEBUG_KMS("%s: W: %02X ",
 				SDVO_NAME(psb_intel_sdvo), cmd);
 	for (i = 0; i < args_len; i++)
-		DRM_LOG_KMS("%02X ", ((u8 *)args)[i]);
+		DRM_DEBUG_KMS("%02X ", ((u8 *)args)[i]);
 	for (; i < 8; i++)
-		DRM_LOG_KMS("   ");
+		DRM_DEBUG_KMS("   ");
 	for (i = 0; i < ARRAY_SIZE(sdvo_cmd_names); i++) {
 		if (cmd == sdvo_cmd_names[i].cmd) {
-			DRM_LOG_KMS("(%s)", sdvo_cmd_names[i].name);
+			DRM_DEBUG_KMS("(%s)", sdvo_cmd_names[i].name);
 			break;
 		}
 	}
 	if (i == ARRAY_SIZE(sdvo_cmd_names))
-		DRM_LOG_KMS("(%02X)", cmd);
-	DRM_LOG_KMS("\n");
+		DRM_DEBUG_KMS("(%02X)", cmd);
+	DRM_DEBUG_KMS("\n");
 }
 
 static const char *cmd_status_names[] = {
@@ -510,9 +512,9 @@ static bool psb_intel_sdvo_read_response(struct psb_intel_sdvo *psb_intel_sdvo,
 	}
 
 	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
-		DRM_LOG_KMS("(%s)", cmd_status_names[status]);
+		DRM_DEBUG_KMS("(%s)", cmd_status_names[status]);
 	else
-		DRM_LOG_KMS("(??? %d)", status);
+		DRM_DEBUG_KMS("(??? %d)", status);
 
 	if (status != SDVO_CMD_STATUS_SUCCESS)
 		goto log_fail;
@@ -523,13 +525,13 @@ static bool psb_intel_sdvo_read_response(struct psb_intel_sdvo *psb_intel_sdvo,
 					  SDVO_I2C_RETURN_0 + i,
 					  &((u8 *)response)[i]))
 			goto log_fail;
-		DRM_LOG_KMS(" %02X", ((u8 *)response)[i]);
+		DRM_DEBUG_KMS(" %02X", ((u8 *)response)[i]);
 	}
-	DRM_LOG_KMS("\n");
+	DRM_DEBUG_KMS("\n");
 	return true;
 
 log_fail:
-	DRM_LOG_KMS("... failed\n");
+	DRM_DEBUG_KMS("... failed\n");
 	return false;
 }
 
@@ -995,6 +997,7 @@ static void psb_intel_sdvo_mode_set(struct drm_encoder *encoder,
 	struct psb_intel_sdvo_dtd input_dtd;
 	int pixel_multiplier = psb_intel_mode_get_pixel_multiplier(adjusted_mode);
 	int rate;
+	int need_aux = IS_MRST(dev) ? 1 : 0;
 
 	if (!mode)
 		return;
@@ -1060,7 +1063,11 @@ static void psb_intel_sdvo_mode_set(struct drm_encoder *encoder,
 		return;
 
 	/* Set the SDVO control regs. */
-	sdvox = REG_READ(psb_intel_sdvo->sdvo_reg);
+	if (need_aux)
+		sdvox = REG_READ_AUX(psb_intel_sdvo->sdvo_reg);
+	else
+		sdvox = REG_READ(psb_intel_sdvo->sdvo_reg);
+
 	switch (psb_intel_sdvo->sdvo_reg) {
 	case SDVOB:
 		sdvox &= SDVOB_PRESERVE_MASK;
@@ -1090,6 +1097,8 @@ static void psb_intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_sdvo *psb_intel_sdvo = to_psb_intel_sdvo(encoder);
 	u32 temp;
+	int i;
+	int need_aux = IS_MRST(dev) ? 1 : 0;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -1108,19 +1117,27 @@ static void psb_intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 			psb_intel_sdvo_set_encoder_power_state(psb_intel_sdvo, mode);
 
 		if (mode == DRM_MODE_DPMS_OFF) {
-			temp = REG_READ(psb_intel_sdvo->sdvo_reg);
+			if (need_aux)
+				temp = REG_READ_AUX(psb_intel_sdvo->sdvo_reg);
+			else
+				temp = REG_READ(psb_intel_sdvo->sdvo_reg);
+
 			if ((temp & SDVO_ENABLE) != 0) {
 				psb_intel_sdvo_write_sdvox(psb_intel_sdvo, temp & ~SDVO_ENABLE);
 			}
 		}
 	} else {
 		bool input1, input2;
-		int i;
 		u8 status;
 
-		temp = REG_READ(psb_intel_sdvo->sdvo_reg);
+		if (need_aux)
+			temp = REG_READ_AUX(psb_intel_sdvo->sdvo_reg);
+		else
+			temp = REG_READ(psb_intel_sdvo->sdvo_reg);
+
 		if ((temp & SDVO_ENABLE) == 0)
 			psb_intel_sdvo_write_sdvox(psb_intel_sdvo, temp | SDVO_ENABLE);
+
 		for (i = 0; i < 2; i++)
 			gma_wait_for_vblank(dev);
 
@@ -1827,7 +1844,7 @@ done:
 	if (psb_intel_sdvo->base.base.crtc) {
 		struct drm_crtc *crtc = psb_intel_sdvo->base.base.crtc;
 		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x,
-					 crtc->y, crtc->fb);
+					 crtc->y, crtc->primary->fb);
 	}
 
 	return 0;

@@ -13,7 +13,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -26,7 +25,6 @@
 #include <linux/of_irq.h>
 #include <linux/crc32.h>
 #include <linux/crc32c.h>
-#include <linux/dma-mapping.h>
 
 #include "moxart_ether.h"
 
@@ -448,7 +446,8 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
 		netdev_err(ndev, "irq_of_parse_and_map failed\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto irq_map_fail;
 	}
 
 	priv = netdev_priv(ndev);
@@ -472,24 +471,32 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	priv->tx_desc_base = dma_alloc_coherent(NULL, TX_REG_DESC_SIZE *
 						TX_DESC_NUM, &priv->tx_base,
 						GFP_DMA | GFP_KERNEL);
-	if (priv->tx_desc_base == NULL)
+	if (priv->tx_desc_base == NULL) {
+		ret = -ENOMEM;
 		goto init_fail;
+	}
 
 	priv->rx_desc_base = dma_alloc_coherent(NULL, RX_REG_DESC_SIZE *
 						RX_DESC_NUM, &priv->rx_base,
 						GFP_DMA | GFP_KERNEL);
-	if (priv->rx_desc_base == NULL)
+	if (priv->rx_desc_base == NULL) {
+		ret = -ENOMEM;
 		goto init_fail;
+	}
 
 	priv->tx_buf_base = kmalloc(priv->tx_buf_size * TX_DESC_NUM,
 				    GFP_ATOMIC);
-	if (!priv->tx_buf_base)
+	if (!priv->tx_buf_base) {
+		ret = -ENOMEM;
 		goto init_fail;
+	}
 
 	priv->rx_buf_base = kmalloc(priv->rx_buf_size * RX_DESC_NUM,
 				    GFP_ATOMIC);
-	if (!priv->rx_buf_base)
+	if (!priv->rx_buf_base) {
+		ret = -ENOMEM;
 		goto init_fail;
+	}
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -522,7 +529,8 @@ static int moxart_mac_probe(struct platform_device *pdev)
 init_fail:
 	netdev_err(ndev, "init failed\n");
 	moxart_mac_free_memory(ndev);
-
+irq_map_fail:
+	free_netdev(ndev);
 	return ret;
 }
 

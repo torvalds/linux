@@ -15,8 +15,6 @@
 #include <linux/gfp.h>
 #include <net/tcp.h>
 
-int sysctl_tcp_max_ssthresh = 0;
-
 static DEFINE_SPINLOCK(tcp_cong_list_lock);
 static LIST_HEAD(tcp_cong_list);
 
@@ -278,56 +276,24 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 	return err;
 }
 
-/* RFC2861 Check whether we are limited by application or congestion window
- * This is the inverse of cwnd check in tcp_tso_should_defer
+/* Slow start is used when congestion window is no greater than the slow start
+ * threshold. We base on RFC2581 and also handle stretch ACKs properly.
+ * We do not implement RFC3465 Appropriate Byte Counting (ABC) per se but
+ * something better;) a packet is only considered (s)acked in its entirety to
+ * defend the ACK attacks described in the RFC. Slow start processes a stretch
+ * ACK of degree N as if N acks of degree 1 are received back to back except
+ * ABC caps N to 2. Slow start exits when cwnd grows over ssthresh and
+ * returns the leftover acks to adjust cwnd in congestion avoidance mode.
  */
-bool tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
+int tcp_slow_start(struct tcp_sock *tp, u32 acked)
 {
-	const struct tcp_sock *tp = tcp_sk(sk);
-	u32 left;
+	u32 cwnd = tp->snd_cwnd + acked;
 
-	if (in_flight >= tp->snd_cwnd)
-		return true;
-
-	left = tp->snd_cwnd - in_flight;
-	if (sk_can_gso(sk) &&
-	    left * sysctl_tcp_tso_win_divisor < tp->snd_cwnd &&
-	    left * tp->mss_cache < sk->sk_gso_max_size &&
-	    left < sk->sk_gso_max_segs)
-		return true;
-	return left <= tcp_max_tso_deferred_mss(tp);
-}
-EXPORT_SYMBOL_GPL(tcp_is_cwnd_limited);
-
-/*
- * Slow start is used when congestion window is less than slow start
- * threshold. This version implements the basic RFC2581 version
- * and optionally supports:
- * 	RFC3742 Limited Slow Start  	  - growth limited to max_ssthresh
- *	RFC3465 Appropriate Byte Counting - growth limited by bytes acknowledged
- */
-void tcp_slow_start(struct tcp_sock *tp)
-{
-	int cnt; /* increase in packets */
-	unsigned int delta = 0;
-	u32 snd_cwnd = tp->snd_cwnd;
-
-	if (unlikely(!snd_cwnd)) {
-		pr_err_once("snd_cwnd is nul, please report this bug.\n");
-		snd_cwnd = 1U;
-	}
-
-	if (sysctl_tcp_max_ssthresh > 0 && tp->snd_cwnd > sysctl_tcp_max_ssthresh)
-		cnt = sysctl_tcp_max_ssthresh >> 1;	/* limited slow start */
-	else
-		cnt = snd_cwnd;				/* exponential increase */
-
-	tp->snd_cwnd_cnt += cnt;
-	while (tp->snd_cwnd_cnt >= snd_cwnd) {
-		tp->snd_cwnd_cnt -= snd_cwnd;
-		delta++;
-	}
-	tp->snd_cwnd = min(snd_cwnd + delta, tp->snd_cwnd_clamp);
+	if (cwnd > tp->snd_ssthresh)
+		cwnd = tp->snd_ssthresh + 1;
+	acked -= cwnd - tp->snd_cwnd;
+	tp->snd_cwnd = min(cwnd, tp->snd_cwnd_clamp);
+	return acked;
 }
 EXPORT_SYMBOL_GPL(tcp_slow_start);
 
@@ -351,16 +317,16 @@ EXPORT_SYMBOL_GPL(tcp_cong_avoid_ai);
 /* This is Jacobson's slow start and congestion avoidance.
  * SIGCOMM '88, p. 328.
  */
-void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
+void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (!tcp_is_cwnd_limited(sk, in_flight))
+	if (!tcp_is_cwnd_limited(sk))
 		return;
 
 	/* In "safe" area, increase. */
 	if (tp->snd_cwnd <= tp->snd_ssthresh)
-		tcp_slow_start(tp);
+		tcp_slow_start(tp, acked);
 	/* In dangerous area, increase slowly. */
 	else
 		tcp_cong_avoid_ai(tp, tp->snd_cwnd);
@@ -375,21 +341,12 @@ u32 tcp_reno_ssthresh(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_reno_ssthresh);
 
-/* Lower bound on congestion window with halving. */
-u32 tcp_reno_min_cwnd(const struct sock *sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	return tp->snd_ssthresh/2;
-}
-EXPORT_SYMBOL_GPL(tcp_reno_min_cwnd);
-
 struct tcp_congestion_ops tcp_reno = {
 	.flags		= TCP_CONG_NON_RESTRICTED,
 	.name		= "reno",
 	.owner		= THIS_MODULE,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
-	.min_cwnd	= tcp_reno_min_cwnd,
 };
 
 /* Initial congestion control used (until SYN)
@@ -401,6 +358,5 @@ struct tcp_congestion_ops tcp_init_congestion_ops  = {
 	.owner		= THIS_MODULE,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
-	.min_cwnd	= tcp_reno_min_cwnd,
 };
 EXPORT_SYMBOL_GPL(tcp_init_congestion_ops);

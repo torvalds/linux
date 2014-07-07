@@ -371,6 +371,9 @@ void omap_fbdev_free(struct drm_device *dev)
 
 	fbdev = to_omap_fbdev(priv->fbdev);
 
+	/* release the ref taken in omap_fbdev_create() */
+	omap_gem_put_paddr(fbdev->bo);
+
 	/* this will free the backing object */
 	if (fbdev->fb) {
 		drm_framebuffer_unregister_private(fbdev->fb);

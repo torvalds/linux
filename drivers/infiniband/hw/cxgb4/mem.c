@@ -37,9 +37,9 @@
 
 #include "iw_cxgb4.h"
 
-int use_dsgl = 1;
+int use_dsgl = 0;
 module_param(use_dsgl, int, 0644);
-MODULE_PARM_DESC(use_dsgl, "Use DSGL for PBL/FastReg (default=1)");
+MODULE_PARM_DESC(use_dsgl, "Use DSGL for PBL/FastReg (default=0)");
 
 #define T4_ULPTX_MIN_IO 32
 #define C4IW_MAX_INLINE_SIZE 96
@@ -76,7 +76,7 @@ static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
 	INIT_ULPTX_WR(req, wr_len, 0, 0);
 	req->wr.wr_hi = cpu_to_be32(FW_WR_OP(FW_ULPTX_WR) |
 			(wait ? FW_WR_COMPL(1) : 0));
-	req->wr.wr_lo = wait ? (__force __be64)&wr_wait : 0;
+	req->wr.wr_lo = wait ? (__force __be64)(unsigned long) &wr_wait : 0L;
 	req->wr.wr_mid = cpu_to_be32(FW_WR_LEN16(DIV_ROUND_UP(wr_len, 16)));
 	req->cmd = cpu_to_be32(ULPTX_CMD(ULP_TX_MEM_WRITE));
 	req->cmd |= cpu_to_be32(V_T5_ULP_MEMIO_ORDER(1));
@@ -173,7 +173,7 @@ static int _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len,
 	return ret;
 }
 
-int _c4iw_write_mem_dma(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
+static int _c4iw_write_mem_dma(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 {
 	u32 remain = len;
 	u32 dmalen;
@@ -259,8 +259,12 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 
 	if ((!reset_tpt_entry) && (*stag == T4_STAG_UNSET)) {
 		stag_idx = c4iw_get_resource(&rdev->resource.tpt_table);
-		if (!stag_idx)
+		if (!stag_idx) {
+			mutex_lock(&rdev->stats.lock);
+			rdev->stats.stag.fail++;
+			mutex_unlock(&rdev->stats.lock);
 			return -ENOMEM;
+		}
 		mutex_lock(&rdev->stats.lock);
 		rdev->stats.stag.cur += 32;
 		if (rdev->stats.stag.cur > rdev->stats.stag.max)
@@ -678,9 +682,9 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 {
 	__be64 *pages;
 	int shift, n, len;
-	int i, j, k;
+	int i, k, entry;
 	int err = 0;
-	struct ib_umem_chunk *chunk;
+	struct scatterlist *sg;
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
 	struct c4iw_mr *mhp;
@@ -710,10 +714,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	shift = ffs(mhp->umem->page_size) - 1;
 
-	n = 0;
-	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
-		n += chunk->nents;
-
+	n = mhp->umem->nmap;
 	err = alloc_pbl(mhp, n);
 	if (err)
 		goto err;
@@ -726,24 +727,22 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	i = n = 0;
 
-	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
-		for (j = 0; j < chunk->nmap; ++j) {
-			len = sg_dma_len(&chunk->page_list[j]) >> shift;
-			for (k = 0; k < len; ++k) {
-				pages[i++] = cpu_to_be64(sg_dma_address(
-					&chunk->page_list[j]) +
-					mhp->umem->page_size * k);
-				if (i == PAGE_SIZE / sizeof *pages) {
-					err = write_pbl(&mhp->rhp->rdev,
-					      pages,
-					      mhp->attr.pbl_addr + (n << 3), i);
-					if (err)
-						goto pbl_done;
-					n += i;
-					i = 0;
-				}
+	for_each_sg(mhp->umem->sg_head.sgl, sg, mhp->umem->nmap, entry) {
+		len = sg_dma_len(sg) >> shift;
+		for (k = 0; k < len; ++k) {
+			pages[i++] = cpu_to_be64(sg_dma_address(sg) +
+				mhp->umem->page_size * k);
+			if (i == PAGE_SIZE / sizeof *pages) {
+				err = write_pbl(&mhp->rhp->rdev,
+				      pages,
+				      mhp->attr.pbl_addr + (n << 3), i);
+				if (err)
+					goto pbl_done;
+				n += i;
+				i = 0;
 			}
 		}
+	}
 
 	if (i)
 		err = write_pbl(&mhp->rhp->rdev, pages,
@@ -903,7 +902,11 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(struct ib_device *device,
 	dma_unmap_addr_set(c4pl, mapping, dma_addr);
 	c4pl->dma_addr = dma_addr;
 	c4pl->dev = dev;
-	c4pl->ibpl.max_page_list_len = pll_len;
+	c4pl->pll_len = pll_len;
+
+	PDBG("%s c4pl %p pll_len %u page_list %p dma_addr %pad\n",
+	     __func__, c4pl, c4pl->pll_len, c4pl->ibpl.page_list,
+	     &c4pl->dma_addr);
 
 	return &c4pl->ibpl;
 }
@@ -912,8 +915,12 @@ void c4iw_free_fastreg_pbl(struct ib_fast_reg_page_list *ibpl)
 {
 	struct c4iw_fr_page_list *c4pl = to_c4iw_fr_page_list(ibpl);
 
+	PDBG("%s c4pl %p pll_len %u page_list %p dma_addr %pad\n",
+	     __func__, c4pl, c4pl->pll_len, c4pl->ibpl.page_list,
+	     &c4pl->dma_addr);
+
 	dma_free_coherent(&c4pl->dev->rdev.lldi.pdev->dev,
-			  c4pl->ibpl.max_page_list_len,
+			  c4pl->pll_len,
 			  c4pl->ibpl.page_list, dma_unmap_addr(c4pl, mapping));
 	kfree(c4pl);
 }

@@ -91,6 +91,7 @@ static struct platform_driver imote2_driver = {
 	.driver		= {
 		.name	= "imote2-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= imote2_probe,
 	.remove		= imote2_remove,

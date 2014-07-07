@@ -75,7 +75,7 @@ enum rf_radio_path {
 
 #define MAX_PG_GROUP 13
 
-#define	RF_PATH_MAX			2
+#define	RF_PATH_MAX			3
 #define		MAX_RF_PATH		RF_PATH_MAX
 #define		MAX_TX_COUNT		4 /* path numbers */
 
@@ -224,7 +224,6 @@ void rtl8192c_PHY_GetHWRegOriginalValue(struct adapter *adapter);
 /*  BB TX Power R/W */
 void PHY_GetTxPowerLevel8188E(struct adapter *adapter, u32 *powerlevel);
 void PHY_SetTxPowerLevel8188E(struct adapter *adapter, u8 channel);
-bool PHY_UpdateTxPowerDbm8188E(struct adapter *adapter, int power);
 
 void PHY_ScanOperationBackup8188E(struct adapter *Adapter, u8 Operation);
 

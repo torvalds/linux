@@ -24,9 +24,9 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
+#include <linux/clk/at91_pmc.h>
 
 #include <mach/hardware.h>
-#include <mach/at91_pmc.h>
 #include <mach/cpu.h>
 
 #include <asm/proc-fns.h>
@@ -330,8 +330,6 @@ EXPORT_SYMBOL(clk_get_rate);
 
 /*------------------------------------------------------------------------*/
 
-#ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
-
 /*
  * For now, only the programmable clocks support reparenting (MCK could
  * do this too, with care) or rate changing (the PLLs could do this too,
@@ -459,8 +457,6 @@ static void __init init_programmable_clock(struct clk *clk)
 	clk->rate_hz = parent->rate_hz / pmc_prescaler_divider(pckr);
 }
 
-#endif	/* CONFIG_AT91_PROGRAMMABLE_CLOCKS */
-
 /*------------------------------------------------------------------------*/
 
 #ifdef CONFIG_DEBUG_FS
@@ -577,12 +573,10 @@ int __init clk_register(struct clk *clk)
 		clk->parent = &mck;
 		clk->mode = pmc_sys_mode;
 	}
-#ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
 	else if (clk_is_programmable(clk)) {
 		clk->mode = pmc_sys_mode;
 		init_programmable_clock(clk);
 	}
-#endif
 
 	at91_clk_add(clk);
 
@@ -884,6 +878,11 @@ static int __init at91_pmc_init(unsigned long main_clock)
 #if defined(CONFIG_OF)
 static struct of_device_id pmc_ids[] = {
 	{ .compatible = "atmel,at91rm9200-pmc" },
+	{ .compatible = "atmel,at91sam9260-pmc" },
+	{ .compatible = "atmel,at91sam9g45-pmc" },
+	{ .compatible = "atmel,at91sam9n12-pmc" },
+	{ .compatible = "atmel,at91sam9x5-pmc" },
+	{ .compatible = "atmel,sama5d3-pmc" },
 	{ /*sentinel*/ }
 };
 

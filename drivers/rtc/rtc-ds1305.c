@@ -606,7 +606,7 @@ static int ds1305_probe(struct spi_device *spi)
 	struct ds1305			*ds1305;
 	int				status;
 	u8				addr, value;
-	struct ds1305_platform_data	*pdata = spi->dev.platform_data;
+	struct ds1305_platform_data	*pdata = dev_get_platdata(&spi->dev);
 	bool				write_ctrl = false;
 
 	/* Sanity check board setup data.  This may be hooked up
@@ -756,19 +756,17 @@ static int ds1305_probe(struct spi_device *spi)
 		status = devm_request_irq(&spi->dev, spi->irq, ds1305_irq,
 				0, dev_name(&ds1305->rtc->dev), ds1305);
 		if (status < 0) {
-			dev_dbg(&spi->dev, "request_irq %d --> %d\n",
+			dev_err(&spi->dev, "request_irq %d --> %d\n",
 					spi->irq, status);
-			return status;
+		} else {
+			device_set_wakeup_capable(&spi->dev, 1);
 		}
-
-		device_set_wakeup_capable(&spi->dev, 1);
 	}
 
 	/* export NVRAM */
 	status = sysfs_create_bin_file(&spi->dev.kobj, &nvram);
 	if (status < 0) {
-		dev_dbg(&spi->dev, "register nvram --> %d\n", status);
-		return status;
+		dev_err(&spi->dev, "register nvram --> %d\n", status);
 	}
 
 	return 0;
@@ -787,7 +785,6 @@ static int ds1305_remove(struct spi_device *spi)
 		cancel_work_sync(&ds1305->work);
 	}
 
-	spi_set_drvdata(spi, NULL);
 	return 0;
 }
 

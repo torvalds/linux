@@ -309,7 +309,7 @@ static void
 jme_load_macaddr(struct net_device *netdev)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
-	unsigned char macaddr[6];
+	unsigned char macaddr[ETH_ALEN];
 	u32 val;
 
 	spin_lock_bh(&jme->macaddr_lock);
@@ -321,7 +321,7 @@ jme_load_macaddr(struct net_device *netdev)
 	val = jread32(jme, JME_RXUMA_HI);
 	macaddr[4] = (val >>  0) & 0xFF;
 	macaddr[5] = (val >>  8) & 0xFF;
-	memcpy(netdev->dev_addr, macaddr, 6);
+	memcpy(netdev->dev_addr, macaddr, ETH_ALEN);
 	spin_unlock_bh(&jme->macaddr_lock);
 }
 
@@ -1988,7 +1988,7 @@ jme_alloc_txdesc(struct jme_adapter *jme,
 	return idx;
 }
 
-static void
+static int
 jme_fill_tx_map(struct pci_dev *pdev,
 		struct txdesc *txdesc,
 		struct jme_buffer_info *txbi,
@@ -2004,6 +2004,9 @@ jme_fill_tx_map(struct pci_dev *pdev,
 				page_offset,
 				len,
 				PCI_DMA_TODEVICE);
+
+	if (unlikely(pci_dma_mapping_error(pdev, dmaaddr)))
+		return -EINVAL;
 
 	pci_dma_sync_single_for_device(pdev,
 				       dmaaddr,
@@ -2021,9 +2024,30 @@ jme_fill_tx_map(struct pci_dev *pdev,
 
 	txbi->mapping = dmaaddr;
 	txbi->len = len;
+	return 0;
 }
 
-static void
+static void jme_drop_tx_map(struct jme_adapter *jme, int startidx, int count)
+{
+	struct jme_ring *txring = &(jme->txring[0]);
+	struct jme_buffer_info *txbi = txring->bufinf, *ctxbi;
+	int mask = jme->tx_ring_mask;
+	int j;
+
+	for (j = 0 ; j < count ; j++) {
+		ctxbi = txbi + ((startidx + j + 2) & (mask));
+		pci_unmap_page(jme->pdev,
+				ctxbi->mapping,
+				ctxbi->len,
+				PCI_DMA_TODEVICE);
+
+				ctxbi->mapping = 0;
+				ctxbi->len = 0;
+	}
+
+}
+
+static int
 jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 {
 	struct jme_ring *txring = &(jme->txring[0]);
@@ -2034,37 +2058,36 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	int mask = jme->tx_ring_mask;
 	const struct skb_frag_struct *frag;
 	u32 len;
+	int ret = 0;
 
 	for (i = 0 ; i < nr_frags ; ++i) {
 		frag = &skb_shinfo(skb)->frags[i];
 		ctxdesc = txdesc + ((idx + i + 2) & (mask));
 		ctxbi = txbi + ((idx + i + 2) & (mask));
 
-		jme_fill_tx_map(jme->pdev, ctxdesc, ctxbi,
+		ret = jme_fill_tx_map(jme->pdev, ctxdesc, ctxbi,
 				skb_frag_page(frag),
 				frag->page_offset, skb_frag_size(frag), hidma);
+		if (ret) {
+			jme_drop_tx_map(jme, idx, i);
+			goto out;
+		}
+
 	}
 
 	len = skb_is_nonlinear(skb) ? skb_headlen(skb) : skb->len;
 	ctxdesc = txdesc + ((idx + 1) & (mask));
 	ctxbi = txbi + ((idx + 1) & (mask));
-	jme_fill_tx_map(jme->pdev, ctxdesc, ctxbi, virt_to_page(skb->data),
+	ret = jme_fill_tx_map(jme->pdev, ctxdesc, ctxbi, virt_to_page(skb->data),
 			offset_in_page(skb->data), len, hidma);
+	if (ret)
+		jme_drop_tx_map(jme, idx, i);
+
+out:
+	return ret;
 
 }
 
-static int
-jme_expand_header(struct jme_adapter *jme, struct sk_buff *skb)
-{
-	if (unlikely(skb_shinfo(skb)->gso_size &&
-			skb_header_cloned(skb) &&
-			pskb_expand_head(skb, 0, 0, GFP_ATOMIC))) {
-		dev_kfree_skb(skb);
-		return -1;
-	}
-
-	return 0;
-}
 
 static int
 jme_tx_tso(struct sk_buff *skb, __le16 *mss, u8 *flags)
@@ -2144,6 +2167,7 @@ jme_fill_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	struct txdesc *txdesc;
 	struct jme_buffer_info *txbi;
 	u8 flags;
+	int ret = 0;
 
 	txdesc = (struct txdesc *)txring->desc + idx;
 	txbi = txring->bufinf + idx;
@@ -2168,7 +2192,10 @@ jme_fill_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	if (jme_tx_tso(skb, &txdesc->desc1.mss, &flags))
 		jme_tx_csum(jme, skb, &flags);
 	jme_tx_vlan(skb, &txdesc->desc1.vlan, &flags);
-	jme_map_tx_skb(jme, skb, idx);
+	ret = jme_map_tx_skb(jme, skb, idx);
+	if (ret)
+		return ret;
+
 	txdesc->desc1.flags = flags;
 	/*
 	 * Set tx buffer info after telling NIC to send
@@ -2225,7 +2252,8 @@ jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct jme_adapter *jme = netdev_priv(netdev);
 	int idx;
 
-	if (unlikely(jme_expand_header(jme, skb))) {
+	if (unlikely(skb_is_gso(skb) && skb_cow_head(skb, 0))) {
+		dev_kfree_skb_any(skb);
 		++(NET_STAT(jme).tx_dropped);
 		return NETDEV_TX_OK;
 	}
@@ -2240,7 +2268,8 @@ jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-	jme_fill_tx_desc(jme, skb, idx);
+	if (jme_fill_tx_desc(jme, skb, idx))
+		return NETDEV_TX_OK;
 
 	jwrite32(jme, JME_TXCS, jme->reg_txcs |
 				TXCS_SELECT_QUEUE0 |
@@ -3192,7 +3221,6 @@ jme_init_one(struct pci_dev *pdev,
 err_out_unmap:
 	iounmap(jme->regs);
 err_out_free_netdev:
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 err_out_release_regions:
 	pci_release_regions(pdev);
@@ -3210,7 +3238,6 @@ jme_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 	iounmap(jme->regs);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

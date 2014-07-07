@@ -44,6 +44,10 @@
 #       define DYN_SPREAD_SPECTRUM_EN                   (1 << 23)
 #       define AC_DC_SW                                 (1 << 24)
 
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0x66c
+#       define CURRENT_PROFILE_INDEX_MASK                 (0xf << 4)
+#       define CURRENT_PROFILE_INDEX_SHIFT                4
+
 #define	CG_BIF_REQ_AND_RSP				0x7f4
 #define		CG_CLIENT_REQ(x)			((x) << 0)
 #define		CG_CLIENT_REQ_MASK			(0xff << 0)

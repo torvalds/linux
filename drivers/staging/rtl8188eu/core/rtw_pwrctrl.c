@@ -122,7 +122,7 @@ static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 
 	bool ret = false;
 
-	if (adapter->pwrctrlpriv.ips_deny_time >= rtw_get_current_time())
+	if (time_after_eq(adapter->pwrctrlpriv.ips_deny_time, jiffies))
 		goto exit;
 
 	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR) ||
@@ -193,7 +193,7 @@ void rtw_ps_processor(struct adapter *padapter)
 	if (pwrpriv->ips_mode_req == IPS_NONE)
 		goto exit;
 
-	if (rtw_pwr_unassociated_idle(padapter) == false)
+	if (!rtw_pwr_unassociated_idle(padapter))
 		goto exit;
 
 	if ((pwrpriv->rf_pwrstate == rf_on) && ((pwrpriv->pwr_state_check_cnts%4) == 0)) {
@@ -226,10 +226,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 	u8	rpwm;
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
-_func_enter_;
-
 	pslv = PS_STATE(pslv);
-
 
 	if (pwrpriv->btcoex_rfon) {
 		if (pslv < PS_STATE_S4)
@@ -274,8 +271,6 @@ _func_enter_;
 
 	pwrpriv->tog += 0x80;
 	pwrpriv->cpwm = pslv;
-
-_func_exit_;
 }
 
 static u8 PS_RDY_CHECK(struct adapter *padapter)
@@ -285,7 +280,7 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 
 
-	curr_time = rtw_get_current_time();
+	curr_time = jiffies;
 	delta_time = curr_time - pwrpriv->DelayLPSLastTimeStamp;
 
 	if (delta_time < LPS_DELAY_TIME)
@@ -312,8 +307,6 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 #ifdef CONFIG_88EU_P2P
 	struct wifidirect_info	*pwdinfo = &(padapter->wdinfo);
 #endif /* CONFIG_88EU_P2P */
-
-_func_enter_;
 
 	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
 		 ("%s: PowerMode=%d Smart_PS=%d\n",
@@ -362,8 +355,6 @@ _func_enter_;
 			rtw_set_rpwm(padapter, PS_STATE_S2);
 		}
 	}
-
-_func_exit_;
 }
 
 /*
@@ -379,7 +370,7 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 	s32 err = 0;
 
 
-	start_time = rtw_get_current_time();
+	start_time = jiffies;
 	while (1) {
 		rtw_hal_get_hwreg(padapter, HW_VAR_FWLPS_RF_ON, &bAwake);
 		if (bAwake)
@@ -396,7 +387,7 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 			DBG_88E("%s: Wait for FW LPS leave more than %u ms!!!\n", __func__, delay_ms);
 			break;
 		}
-		rtw_usleep_os(100);
+		msleep(1);
 	}
 
 	return err;
@@ -409,8 +400,6 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 void LPS_Enter(struct adapter *padapter)
 {
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
-
-_func_enter_;
 
 	if (PS_RDY_CHECK(padapter) == false)
 		return;
@@ -428,8 +417,6 @@ _func_enter_;
 			pwrpriv->LpsIdleCount++;
 		}
 	}
-
-_func_exit_;
 }
 
 #define LPS_LEAVE_TIMEOUT_MS 100
@@ -439,8 +426,6 @@ _func_exit_;
 void LPS_Leave(struct adapter *padapter)
 {
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
-
-_func_enter_;
 
 	if (pwrpriv->bLeisurePs) {
 		if (pwrpriv->pwr_mode != PS_MODE_ACTIVE) {
@@ -452,8 +437,6 @@ _func_enter_;
 	}
 
 	pwrpriv->bpower_saving = false;
-
-_func_exit_;
 }
 
 /*  */
@@ -465,22 +448,16 @@ void LeaveAllPowerSaveMode(struct adapter *Adapter)
 	struct mlme_priv	*pmlmepriv = &(Adapter->mlmepriv);
 	u8	enqueue = 0;
 
-_func_enter_;
-
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) { /* connect */
 		p2p_ps_wk_cmd(Adapter, P2P_PS_DISABLE, enqueue);
 
 		rtw_lps_ctrl_wk_cmd(Adapter, LPS_CTRL_LEAVE, enqueue);
 	}
-
-_func_exit_;
 }
 
 void rtw_init_pwrctrl_priv(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
-
-_func_enter_;
 
 	_init_pwrlock(&pwrctrlpriv->lock);
 	pwrctrlpriv->rf_pwrstate = rf_on;
@@ -518,40 +495,18 @@ _func_enter_;
 	pwrctrlpriv->btcoex_rfon = false;
 
 	_init_timer(&(pwrctrlpriv->pwr_state_check_timer), padapter->pnetdev, pwr_state_check_handler, (u8 *)padapter);
-
-_func_exit_;
 }
-
-void rtw_free_pwrctrl_priv(struct adapter *adapter)
-{
-	struct pwrctrl_priv *pwrctrlpriv = &adapter->pwrctrlpriv;
-
-_func_enter_;
-
-	_free_pwrlock(&pwrctrlpriv->lock);
-
-_func_exit_;
-}
-
-u8 rtw_interface_ps_func(struct adapter *padapter, enum hal_intf_ps_func efunc_id, u8 *val)
-{
-	u8 bResult = true;
-	rtw_hal_intf_ps_func(padapter, efunc_id, val);
-
-	return bResult;
-}
-
 
 inline void rtw_set_ips_deny(struct adapter *padapter, u32 ms)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	pwrpriv->ips_deny_time = rtw_get_current_time() + rtw_ms_to_systime(ms);
+	pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ms);
 }
 
 /*
 * rtw_pwr_wakeup - Wake the NIC up from: 1)IPS. 2)USB autosuspend
 * @adapter: pointer to struct adapter structure
-* @ips_deffer_ms: the ms wiil prevent from falling into IPS after wakeup
+* @ips_deffer_ms: the ms will prevent from falling into IPS after wakeup
 * Return _SUCCESS or _FAIL
 */
 
@@ -559,17 +514,19 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	unsigned long expires;
 	int ret = _SUCCESS;
 
-	if (pwrpriv->ips_deny_time < rtw_get_current_time() + rtw_ms_to_systime(ips_deffer_ms))
-		pwrpriv->ips_deny_time = rtw_get_current_time() + rtw_ms_to_systime(ips_deffer_ms);
+	expires = jiffies + rtw_ms_to_systime(ips_deffer_ms);
+	if (time_before(pwrpriv->ips_deny_time, expires))
+		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
 
 {
-	u32 start = rtw_get_current_time();
+	u32 start = jiffies;
 	if (pwrpriv->ps_processing) {
 		DBG_88E("%s wait ps_processing...\n", __func__);
 		while (pwrpriv->ps_processing && rtw_get_passing_time_ms(start) <= 3000)
-			rtw_msleep_os(10);
+			msleep(10);
 		if (pwrpriv->ps_processing)
 			DBG_88E("%s wait ps_processing timeout\n", __func__);
 		else
@@ -616,8 +573,9 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	}
 
 exit:
-	if (pwrpriv->ips_deny_time < rtw_get_current_time() + rtw_ms_to_systime(ips_deffer_ms))
-		pwrpriv->ips_deny_time = rtw_get_current_time() + rtw_ms_to_systime(ips_deffer_ms);
+	expires = jiffies + rtw_ms_to_systime(ips_deffer_ms);
+	if (time_before(pwrpriv->ips_deny_time, expires))
+		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
 	return ret;
 }
 

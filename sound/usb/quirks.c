@@ -110,7 +110,7 @@ static int create_standard_audio_quirk(struct snd_usb_audio *chip,
 	altsd = get_iface_desc(alts);
 	err = snd_usb_parse_audio_interface(chip, altsd->bInterfaceNumber);
 	if (err < 0) {
-		snd_printk(KERN_ERR "cannot setup if %d: error %d\n",
+		usb_audio_err(chip, "cannot setup if %d: error %d\n",
 			   altsd->bInterfaceNumber, err);
 		return err;
 	}
@@ -135,7 +135,7 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 
 	fp = kmemdup(quirk->data, sizeof(*fp), GFP_KERNEL);
 	if (!fp) {
-		snd_printk(KERN_ERR "cannot memdup\n");
+		usb_audio_err(chip, "cannot memdup\n");
 		return -ENOMEM;
 	}
 	if (fp->nr_rates > MAX_NR_RATES) {
@@ -464,7 +464,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 		fp->rate_max = fp->rate_min = 96000;
 		break;
 	default:
-		snd_printk(KERN_ERR "unknown sample rate\n");
+		usb_audio_err(chip, "unknown sample rate\n");
 		kfree(fp);
 		return -ENXIO;
 	}
@@ -536,7 +536,7 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 	if (quirk->type < QUIRK_TYPE_COUNT) {
 		return quirk_funcs[quirk->type](chip, iface, driver, quirk);
 	} else {
-		snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);
+		usb_audio_err(chip, "invalid quirk type %d\n", quirk->type);
 		return -ENXIO;
 	}
 }
@@ -555,18 +555,21 @@ static int snd_usb_extigy_boot_quirk(struct usb_device *dev, struct usb_interfac
 
 	if (le16_to_cpu(get_cfg_desc(config)->wTotalLength) == EXTIGY_FIRMWARE_SIZE_OLD ||
 	    le16_to_cpu(get_cfg_desc(config)->wTotalLength) == EXTIGY_FIRMWARE_SIZE_NEW) {
-		snd_printdd("sending Extigy boot sequence...\n");
+		dev_dbg(&dev->dev, "sending Extigy boot sequence...\n");
 		/* Send message to force it to reconnect with full interface. */
 		err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev,0),
 				      0x10, 0x43, 0x0001, 0x000a, NULL, 0);
-		if (err < 0) snd_printdd("error sending boot message: %d\n", err);
+		if (err < 0)
+			dev_dbg(&dev->dev, "error sending boot message: %d\n", err);
 		err = usb_get_descriptor(dev, USB_DT_DEVICE, 0,
 				&dev->descriptor, sizeof(dev->descriptor));
 		config = dev->actconfig;
-		if (err < 0) snd_printdd("error usb_get_descriptor: %d\n", err);
+		if (err < 0)
+			dev_dbg(&dev->dev, "error usb_get_descriptor: %d\n", err);
 		err = usb_reset_configuration(dev);
-		if (err < 0) snd_printdd("error usb_reset_configuration: %d\n", err);
-		snd_printdd("extigy_boot: new boot length = %d\n",
+		if (err < 0)
+			dev_dbg(&dev->dev, "error usb_reset_configuration: %d\n", err);
+		dev_dbg(&dev->dev, "extigy_boot: new boot length = %d\n",
 			    le16_to_cpu(get_cfg_desc(config)->wTotalLength));
 		return -ENODEV; /* quit this anyway */
 	}
@@ -594,7 +597,7 @@ static int snd_usb_fasttrackpro_boot_quirk(struct usb_device *dev)
 	int err;
 
 	if (dev->actconfig->desc.bConfigurationValue == 1) {
-		snd_printk(KERN_INFO "usb-audio: "
+		dev_info(&dev->dev,
 			   "Fast Track Pro switching to config #2\n");
 		/* This function has to be available by the usb core module.
 		 * if it is not avialable the boot quirk has to be left out
@@ -603,14 +606,15 @@ static int snd_usb_fasttrackpro_boot_quirk(struct usb_device *dev)
 		 */
 		err = usb_driver_set_configuration(dev, 2);
 		if (err < 0)
-			snd_printdd("error usb_driver_set_configuration: %d\n",
-				    err);
+			dev_dbg(&dev->dev,
+				"error usb_driver_set_configuration: %d\n",
+				err);
 		/* Always return an error, so that we stop creating a device
 		   that will just be destroyed and recreated with a new
 		   configuration */
 		return -ENODEV;
 	} else
-		snd_printk(KERN_INFO "usb-audio: Fast Track Pro config OK\n");
+		dev_info(&dev->dev, "Fast Track Pro config OK\n");
 
 	return 0;
 }
@@ -660,10 +664,23 @@ static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 	return err;
 }
 
+/* quirk for Plantronics GameCom 780 with CM6302 chip */
+static int snd_usb_gamecon780_boot_quirk(struct usb_device *dev)
+{
+	/* set the initial volume and don't change; other values are either
+	 * too loud or silent due to firmware bug (bko#65251)
+	 */
+	u8 buf[2] = { 0x74, 0xdc };
+	return snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
+			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
+			UAC_FU_VOLUME << 8, 9 << 8, buf, 2);
+}
+
 /*
  * Novation Twitch DJ controller
+ * Focusrite Novation Saffire 6 USB audio card
  */
-static int snd_usb_twitch_boot_quirk(struct usb_device *dev)
+static int snd_usb_novation_boot_quirk(struct usb_device *dev)
 {
 	/* preemptively set up the device because otherwise the
 	 * raw MIDI endpoints are not active */
@@ -766,11 +783,11 @@ static int snd_usb_mbox2_boot_quirk(struct usb_device *dev)
 	fwsize = le16_to_cpu(get_cfg_desc(config)->wTotalLength);
 
 	if (fwsize != MBOX2_FIRMWARE_SIZE) {
-		snd_printk(KERN_ERR "usb-audio: Invalid firmware size=%d.\n", fwsize);
+		dev_err(&dev->dev, "Invalid firmware size=%d.\n", fwsize);
 		return -ENODEV;
 	}
 
-	snd_printd("usb-audio: Sending Digidesign Mbox 2 boot sequence...\n");
+	dev_dbg(&dev->dev, "Sending Digidesign Mbox 2 boot sequence...\n");
 
 	count = 0;
 	bootresponse[0] = MBOX2_BOOT_LOADING;
@@ -781,32 +798,32 @@ static int snd_usb_mbox2_boot_quirk(struct usb_device *dev)
 			0x85, 0xc0, 0x0001, 0x0000, &bootresponse, 0x0012);
 		if (bootresponse[0] == MBOX2_BOOT_READY)
 			break;
-		snd_printd("usb-audio: device not ready, resending boot sequence...\n");
+		dev_dbg(&dev->dev, "device not ready, resending boot sequence...\n");
 		count++;
 	}
 
 	if (bootresponse[0] != MBOX2_BOOT_READY) {
-		snd_printk(KERN_ERR "usb-audio: Unknown bootresponse=%d, or timed out, ignoring device.\n", bootresponse[0]);
+		dev_err(&dev->dev, "Unknown bootresponse=%d, or timed out, ignoring device.\n", bootresponse[0]);
 		return -ENODEV;
 	}
 
-	snd_printdd("usb-audio: device initialised!\n");
+	dev_dbg(&dev->dev, "device initialised!\n");
 
 	err = usb_get_descriptor(dev, USB_DT_DEVICE, 0,
 		&dev->descriptor, sizeof(dev->descriptor));
 	config = dev->actconfig;
 	if (err < 0)
-		snd_printd("error usb_get_descriptor: %d\n", err);
+		dev_dbg(&dev->dev, "error usb_get_descriptor: %d\n", err);
 
 	err = usb_reset_configuration(dev);
 	if (err < 0)
-		snd_printd("error usb_reset_configuration: %d\n", err);
-	snd_printdd("mbox2_boot: new boot length = %d\n",
+		dev_dbg(&dev->dev, "error usb_reset_configuration: %d\n", err);
+	dev_dbg(&dev->dev, "mbox2_boot: new boot length = %d\n",
 		le16_to_cpu(get_cfg_desc(config)->wTotalLength));
 
 	mbox2_setup_48_24_magic(dev);
 
-	snd_printk(KERN_INFO "usb-audio: Digidesign Mbox 2: 24bit 48kHz");
+	dev_info(&dev->dev, "Digidesign Mbox 2: 24bit 48kHz");
 
 	return 0; /* Successful boot */
 }
@@ -852,7 +869,7 @@ static int quattro_skip_setting_quirk(struct snd_usb_audio *chip,
 				return 1; /* skip this altsetting */
 		}
 	}
-	snd_printdd(KERN_INFO
+	usb_audio_dbg(chip,
 		    "using altsetting %d for interface %d config %d\n",
 		    altno, iface, chip->setup);
 	return 0; /* keep this altsetting */
@@ -919,7 +936,7 @@ static int fasttrackpro_skip_setting_quirk(struct snd_usb_audio *chip,
 			return 1;
 	}
 
-	snd_printdd(KERN_INFO
+	usb_audio_dbg(chip,
 		    "using altsetting %d for interface %d config %d\n",
 		    altno, iface, chip->setup);
 	return 0; /* keep this altsetting */
@@ -972,9 +989,9 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		/* Digidesign Mbox 2 */
 		return snd_usb_mbox2_boot_quirk(dev);
 
-	case USB_ID(0x1235, 0x0018):
-		/* Focusrite Novation Twitch */
-		return snd_usb_twitch_boot_quirk(dev);
+	case USB_ID(0x1235, 0x0010): /* Focusrite Novation Saffire 6 USB */
+	case USB_ID(0x1235, 0x0018): /* Focusrite Novation Twitch */
+		return snd_usb_novation_boot_quirk(dev);
 
 	case USB_ID(0x133e, 0x0815):
 		/* Access Music VirusTI Desktop */
@@ -986,6 +1003,8 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		return snd_usb_nativeinstruments_boot_quirk(dev);
 	case USB_ID(0x0763, 0x2012):  /* M-Audio Fast Track Pro USB */
 		return snd_usb_fasttrackpro_boot_quirk(dev);
+	case USB_ID(0x047f, 0xc010): /* Plantronics Gamecom 780 */
+		return snd_usb_gamecon780_boot_quirk(dev);
 	}
 
 	return 0;

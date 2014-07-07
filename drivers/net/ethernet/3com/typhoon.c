@@ -2435,7 +2435,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netif_napi_add(dev, &tp->napi, typhoon_poll, 16);
 	dev->watchdog_timeo	= TX_TIMEOUT;
 
-	SET_ETHTOOL_OPS(dev, &typhoon_ethtool_ops);
+	dev->ethtool_ops = &typhoon_ethtool_ops;
 
 	/* We can handle scatter gather, up to 16 entries, and
 	 * we can do IP checksumming (only version 4, doh...)
@@ -2525,7 +2525,6 @@ typhoon_remove_one(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_clear_mwi(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 }
 

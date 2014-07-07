@@ -268,7 +268,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	packet_type0 = packet_type1 = INTER_PACKET;
 	if (gspca_dev->empty_packet) {
 		gspca_dev->empty_packet = 0;
-		sd->packet = gspca_dev->height / 2;
+		sd->packet = gspca_dev->pixfmt.height / 2;
 		packet_type0 = FIRST_PACKET;
 	} else if (sd->packet == 0)
 		return;			/* 2 more lines in 352x288 ! */
@@ -284,9 +284,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 * - 4 bytes
 	 */
 	gspca_frame_add(gspca_dev, packet_type0,
-			data + 2, gspca_dev->width);
+			data + 2, gspca_dev->pixfmt.width);
 	gspca_frame_add(gspca_dev, packet_type1,
-			data + gspca_dev->width + 5, gspca_dev->width);
+			data + gspca_dev->pixfmt.width + 5,
+			gspca_dev->pixfmt.width);
 }
 
 static int sd_s_ctrl(struct v4l2_ctrl *ctrl)

@@ -418,13 +418,13 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP)) {
-		if (timer_pending(&br->ip4_querier.timer))
+		if (timer_pending(&br->ip4_other_query.timer))
 			return -EBUSY;
 
 		ip.u.ip4 = entry->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
-		if (timer_pending(&br->ip6_querier.timer))
+		if (timer_pending(&br->ip6_other_query.timer))
 			return -EBUSY;
 
 		ip.u.ip6 = entry->addr.u.ip6;
@@ -453,7 +453,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 		call_rcu_bh(&p->rcu, br_multicast_free_pg);
 		err = 0;
 
-		if (!mp->ports && !mp->mglist && mp->timer_armed &&
+		if (!mp->ports && !mp->mglist &&
 		    netif_running(br->dev))
 			mod_timer(&mp->timer, jiffies);
 		break;

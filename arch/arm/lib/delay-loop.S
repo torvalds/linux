@@ -40,6 +40,7 @@ ENTRY(__loop_const_udelay)			@ 0 <= r0 <= 0x7fffff06
 /*
  * loops = r0 * HZ * loops_per_jiffy / 1000000
  */
+		.align 3
 
 @ Delay routine
 ENTRY(__loop_delay)

@@ -39,12 +39,23 @@ Required properties:
 - interrupts: Should contain I2C controller interrupts.
 - address-cells: Address cells for I2C device address.
 - size-cells: Size of the I2C device address.
-- clocks: Clock ID as per
-		Documentation/devicetree/bindings/clock/tegra<chip-id>.txt
-	for I2C controller.
-- clock-names: Name of the clock:
-	Tegra20/Tegra30 I2C controller: "div-clk and "fast-clk".
-	Tegra114 I2C controller: "div-clk".
+- clocks: Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names: Must include the following entries:
+  Tegra20/Tegra30:
+  - div-clk
+  - fast-clk
+  Tegra114:
+  - div-clk
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must include the following entries:
+  - i2c
+- dmas: Must contain an entry for each entry in clock-names.
+  See ../dma/dma.txt for details.
+- dma-names: Must include the following entries:
+  - rx
+  - tx
 
 Example:
 
@@ -56,5 +67,9 @@ Example:
 		#size-cells = <0>;
 		clocks = <&tegra_car 12>, <&tegra_car 124>;
 		clock-names = "div-clk", "fast-clk";
+		resets = <&tegra_car 12>;
+		reset-names = "i2c";
+		dmas = <&apbdma 16>, <&apbdma 16>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};

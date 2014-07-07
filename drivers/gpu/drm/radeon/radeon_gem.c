@@ -29,13 +29,6 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 
-int radeon_gem_object_init(struct drm_gem_object *obj)
-{
-	BUG();
-
-	return 0;
-}
-
 void radeon_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct radeon_bo *robj = gem_to_radeon_bo(gobj);
@@ -93,7 +86,7 @@ retry:
 	return 0;
 }
 
-int radeon_gem_set_domain(struct drm_gem_object *gobj,
+static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 			  uint32_t rdomain, uint32_t wdomain)
 {
 	struct radeon_bo *robj;
@@ -351,18 +344,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 	robj = gem_to_radeon_bo(gobj);
 	r = radeon_bo_wait(robj, &cur_placement, true);
-	switch (cur_placement) {
-	case TTM_PL_VRAM:
-		args->domain = RADEON_GEM_DOMAIN_VRAM;
-		break;
-	case TTM_PL_TT:
-		args->domain = RADEON_GEM_DOMAIN_GTT;
-		break;
-	case TTM_PL_SYSTEM:
-		args->domain = RADEON_GEM_DOMAIN_CPU;
-	default:
-		break;
-	}
+	args->domain = radeon_mem_type_to_domain(cur_placement);
 	drm_gem_object_unreference_unlocked(gobj);
 	r = radeon_gem_handle_lockup(rdev, r);
 	return r;
@@ -536,6 +518,42 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 	}
 out:
 	radeon_bo_unreserve(rbo);
+	drm_gem_object_unreference_unlocked(gobj);
+	return r;
+}
+
+int radeon_gem_op_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *filp)
+{
+	struct drm_radeon_gem_op *args = data;
+	struct drm_gem_object *gobj;
+	struct radeon_bo *robj;
+	int r;
+
+	gobj = drm_gem_object_lookup(dev, filp, args->handle);
+	if (gobj == NULL) {
+		return -ENOENT;
+	}
+	robj = gem_to_radeon_bo(gobj);
+	r = radeon_bo_reserve(robj, false);
+	if (unlikely(r))
+		goto out;
+
+	switch (args->op) {
+	case RADEON_GEM_OP_GET_INITIAL_DOMAIN:
+		args->value = robj->initial_domain;
+		break;
+	case RADEON_GEM_OP_SET_INITIAL_DOMAIN:
+		robj->initial_domain = args->value & (RADEON_GEM_DOMAIN_VRAM |
+						      RADEON_GEM_DOMAIN_GTT |
+						      RADEON_GEM_DOMAIN_CPU);
+		break;
+	default:
+		r = -EINVAL;
+	}
+
+	radeon_bo_unreserve(robj);
+out:
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
 }

@@ -140,7 +140,8 @@ static int ipoib_cm_post_receive_nonsrq(struct net_device *dev,
 static struct sk_buff *ipoib_cm_alloc_rx_skb(struct net_device *dev,
 					     struct ipoib_cm_rx_buf *rx_ring,
 					     int id, int frags,
-					     u64 mapping[IPOIB_CM_RX_SG])
+					     u64 mapping[IPOIB_CM_RX_SG],
+					     gfp_t gfp)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct sk_buff *skb;
@@ -164,7 +165,7 @@ static struct sk_buff *ipoib_cm_alloc_rx_skb(struct net_device *dev,
 	}
 
 	for (i = 0; i < frags; i++) {
-		struct page *page = alloc_page(GFP_ATOMIC);
+		struct page *page = alloc_page(gfp);
 
 		if (!page)
 			goto partial_error;
@@ -382,7 +383,8 @@ static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_i
 
 	for (i = 0; i < ipoib_recvq_size; ++i) {
 		if (!ipoib_cm_alloc_rx_skb(dev, rx->rx_ring, i, IPOIB_CM_RX_SG - 1,
-					   rx->rx_ring[i].mapping)) {
+					   rx->rx_ring[i].mapping,
+					   GFP_KERNEL)) {
 			ipoib_warn(priv, "failed to allocate receive buffer %d\n", i);
 				ret = -ENOMEM;
 				goto err_count;
@@ -639,7 +641,8 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	frags = PAGE_ALIGN(wc->byte_len - min(wc->byte_len,
 					      (unsigned)IPOIB_CM_HEAD_SIZE)) / PAGE_SIZE;
 
-	newskb = ipoib_cm_alloc_rx_skb(dev, rx_ring, wr_id, frags, mapping);
+	newskb = ipoib_cm_alloc_rx_skb(dev, rx_ring, wr_id, frags,
+				       mapping, GFP_ATOMIC);
 	if (unlikely(!newskb)) {
 		/*
 		 * If we can't allocate a new RX buffer, dump
@@ -1027,10 +1030,20 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ipoib_
 		.cap.max_send_sge	= 1,
 		.sq_sig_type		= IB_SIGNAL_ALL_WR,
 		.qp_type		= IB_QPT_RC,
-		.qp_context		= tx
+		.qp_context		= tx,
+		.create_flags		= IB_QP_CREATE_USE_GFP_NOIO
 	};
 
-	return ib_create_qp(priv->pd, &attr);
+	struct ib_qp *tx_qp;
+
+	tx_qp = ib_create_qp(priv->pd, &attr);
+	if (PTR_ERR(tx_qp) == -EINVAL) {
+		ipoib_warn(priv, "can't use GFP_NOIO for QPs on device %s, using GFP_KERNEL\n",
+			   priv->ca->name);
+		attr.create_flags &= ~IB_QP_CREATE_USE_GFP_NOIO;
+		tx_qp = ib_create_qp(priv->pd, &attr);
+	}
+	return tx_qp;
 }
 
 static int ipoib_cm_send_req(struct net_device *dev,
@@ -1101,12 +1114,14 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	struct ipoib_dev_priv *priv = netdev_priv(p->dev);
 	int ret;
 
-	p->tx_ring = vzalloc(ipoib_sendq_size * sizeof *p->tx_ring);
+	p->tx_ring = __vmalloc(ipoib_sendq_size * sizeof *p->tx_ring,
+			       GFP_NOIO, PAGE_KERNEL);
 	if (!p->tx_ring) {
 		ipoib_warn(priv, "failed to allocate tx ring\n");
 		ret = -ENOMEM;
 		goto err_tx;
 	}
+	memset(p->tx_ring, 0, ipoib_sendq_size * sizeof *p->tx_ring);
 
 	p->qp = ipoib_cm_create_tx_qp(p->dev, p);
 	if (IS_ERR(p->qp)) {
@@ -1556,7 +1571,8 @@ int ipoib_cm_dev_init(struct net_device *dev)
 		for (i = 0; i < ipoib_recvq_size; ++i) {
 			if (!ipoib_cm_alloc_rx_skb(dev, priv->cm.srq_ring, i,
 						   priv->cm.num_frags - 1,
-						   priv->cm.srq_ring[i].mapping)) {
+						   priv->cm.srq_ring[i].mapping,
+						   GFP_KERNEL)) {
 				ipoib_warn(priv, "failed to allocate "
 					   "receive buffer %d\n", i);
 				ipoib_cm_dev_cleanup(dev);

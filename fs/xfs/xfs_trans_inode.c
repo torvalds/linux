@@ -17,18 +17,15 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_btree.h"
+#include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_inode_item.h"
 #include "xfs_trace.h"
@@ -114,12 +111,14 @@ xfs_trans_log_inode(
 
 	/*
 	 * First time we log the inode in a transaction, bump the inode change
-	 * counter if it is configured for this to occur.
+	 * counter if it is configured for this to occur. We don't use
+	 * inode_inc_version() because there is no need for extra locking around
+	 * i_version as we already hold the inode locked exclusively for
+	 * metadata modification.
 	 */
 	if (!(ip->i_itemp->ili_item.li_desc->lid_flags & XFS_LID_DIRTY) &&
 	    IS_I_VERSION(VFS_I(ip))) {
-		inode_inc_iversion(VFS_I(ip));
-		ip->i_d.di_changecount = VFS_I(ip)->i_version;
+		ip->i_d.di_changecount = ++VFS_I(ip)->i_version;
 		flags |= XFS_ILOG_CORE;
 	}
 

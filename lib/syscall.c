@@ -72,4 +72,3 @@ int task_current_syscall(struct task_struct *target, long *callno,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(task_current_syscall);

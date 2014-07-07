@@ -236,12 +236,17 @@ certainly invest a bit more effort into libata core layer).
 MEM
   devm_kzalloc()
   devm_kfree()
+  devm_kmemdup()
+  devm_get_free_pages()
+  devm_free_pages()
 
 IIO
   devm_iio_device_alloc()
   devm_iio_device_free()
   devm_iio_trigger_alloc()
   devm_iio_trigger_free()
+  devm_iio_device_register()
+  devm_iio_device_unregister()
 
 IO region
   devm_request_region()
@@ -283,6 +288,7 @@ REGULATOR
   devm_regulator_get()
   devm_regulator_put()
   devm_regulator_bulk_get()
+  devm_regulator_register()
 
 CLOCK
   devm_clk_get()
@@ -302,3 +308,18 @@ PHY
 
 SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()
+
+SPI
+  devm_spi_register_master()
+
+GPIO
+  devm_gpiod_get()
+  devm_gpiod_get_index()
+  devm_gpiod_get_optional()
+  devm_gpiod_get_index_optional()
+  devm_gpiod_put()
+
+MDIO
+  devm_mdiobus_alloc()
+  devm_mdiobus_alloc_size()
+  devm_mdiobus_free()

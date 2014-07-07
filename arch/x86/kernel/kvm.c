@@ -251,15 +251,16 @@ u32 kvm_read_and_reset_pf_reason(void)
 	return reason;
 }
 EXPORT_SYMBOL_GPL(kvm_read_and_reset_pf_reason);
+NOKPROBE_SYMBOL(kvm_read_and_reset_pf_reason);
 
-dotraplinkage void __kprobes
+dotraplinkage void
 do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
 {
 	enum ctx_state prev_state;
 
 	switch (kvm_read_and_reset_pf_reason()) {
 	default:
-		do_page_fault(regs, error_code);
+		trace_do_page_fault(regs, error_code);
 		break;
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
 		/* page is swapped out by the host. */
@@ -276,6 +277,7 @@ do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
 		break;
 	}
 }
+NOKPROBE_SYMBOL(do_async_page_fault);
 
 static void __init paravirt_ops_setup(void)
 {
@@ -417,7 +419,6 @@ void kvm_disable_steal_time(void)
 #ifdef CONFIG_SMP
 static void __init kvm_smp_prepare_boot_cpu(void)
 {
-	WARN_ON(kvm_register_clock("primary cpu clock"));
 	kvm_guest_cpu_init();
 	native_smp_prepare_boot_cpu();
 	kvm_spinlock_init();
@@ -464,7 +465,7 @@ static struct notifier_block kvm_cpu_notifier = {
 
 static void __init kvm_apf_trap_init(void)
 {
-	set_intr_gate(14, &async_page_fault);
+	set_intr_gate(14, async_page_fault);
 }
 
 void __init kvm_guest_init(void)
@@ -498,6 +499,38 @@ void __init kvm_guest_init(void)
 #else
 	kvm_guest_cpu_init();
 #endif
+}
+
+static noinline uint32_t __kvm_cpuid_base(void)
+{
+	if (boot_cpu_data.cpuid_level < 0)
+		return 0;	/* So we don't blow up on old processors */
+
+	if (cpu_has_hypervisor)
+		return hypervisor_cpuid_base("KVMKVMKVM\0\0\0", 0);
+
+	return 0;
+}
+
+static inline uint32_t kvm_cpuid_base(void)
+{
+	static int kvm_cpuid_base = -1;
+
+	if (kvm_cpuid_base == -1)
+		kvm_cpuid_base = __kvm_cpuid_base();
+
+	return kvm_cpuid_base;
+}
+
+bool kvm_para_available(void)
+{
+	return kvm_cpuid_base() != 0;
+}
+EXPORT_SYMBOL_GPL(kvm_para_available);
+
+unsigned int kvm_arch_para_features(void)
+{
+	return cpuid_eax(kvm_cpuid_base() | KVM_CPUID_FEATURES);
 }
 
 static uint32_t __init kvm_detect(void)
@@ -609,7 +642,7 @@ static struct dentry *d_kvm_debug;
 
 struct dentry *kvm_init_debugfs(void)
 {
-	d_kvm_debug = debugfs_create_dir("kvm", NULL);
+	d_kvm_debug = debugfs_create_dir("kvm-guest", NULL);
 	if (!d_kvm_debug)
 		printk(KERN_WARNING "Could not create 'kvm' debugfs directory\n");
 
@@ -673,7 +706,7 @@ static cpumask_t waiting_cpus;
 /* Track spinlock on which a cpu is waiting */
 static DEFINE_PER_CPU(struct kvm_lock_waiting, klock_waiting);
 
-static void kvm_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
+__visible void kvm_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
 {
 	struct kvm_lock_waiting *w;
 	int cpu;
@@ -775,11 +808,22 @@ void __init kvm_spinlock_init(void)
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
 		return;
 
-	printk(KERN_INFO "KVM setup paravirtual spinlock\n");
-
-	static_key_slow_inc(&paravirt_ticketlocks_enabled);
-
 	pv_lock_ops.lock_spinning = PV_CALLEE_SAVE(kvm_lock_spinning);
 	pv_lock_ops.unlock_kick = kvm_unlock_kick;
 }
+
+static __init int kvm_spinlock_init_jump(void)
+{
+	if (!kvm_para_available())
+		return 0;
+	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
+		return 0;
+
+	static_key_slow_inc(&paravirt_ticketlocks_enabled);
+	printk(KERN_INFO "KVM setup paravirtual spinlock\n");
+
+	return 0;
+}
+early_initcall(kvm_spinlock_init_jump);
+
 #endif	/* CONFIG_PARAVIRT_SPINLOCKS */

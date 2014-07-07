@@ -370,7 +370,7 @@ err:
 	return -ENOMEM;
 }
 
-void bot_cleanup_old_alt(struct f_uas *fu)
+static void bot_cleanup_old_alt(struct f_uas *fu)
 {
 	if (!(fu->flags & USBG_ENABLED))
 		return;
@@ -472,7 +472,7 @@ static int usbg_bot_setup(struct usb_function *f,
 		bot_enqueue_cmd_cbw(fu);
 		return 0;
 		break;
-	};
+	}
 	return -ENOTSUPP;
 }
 
@@ -617,7 +617,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 
 	default:
 		BUG();
-	};
+	}
 	return;
 
 cleanup:
@@ -1383,10 +1383,8 @@ static struct se_node_acl *usbg_alloc_fabric_acl(struct se_portal_group *se_tpg)
 	struct usbg_nacl *nacl;
 
 	nacl = kzalloc(sizeof(struct usbg_nacl), GFP_KERNEL);
-	if (!nacl) {
-		printk(KERN_ERR "Unable to allocate struct usbg_nacl\n");
+	if (!nacl)
 		return NULL;
-	}
 
 	return &nacl->se_node_acl;
 }
@@ -1469,6 +1467,11 @@ static int usbg_get_cmd_state(struct se_cmd *se_cmd)
 
 static void usbg_queue_tm_rsp(struct se_cmd *se_cmd)
 {
+}
+
+static void usbg_aborted_task(struct se_cmd *se_cmd)
+{
+	return;
 }
 
 static const char *usbg_check_wwn(const char *name)
@@ -1556,10 +1559,8 @@ static struct se_portal_group *usbg_make_tpg(
 	}
 
 	tpg = kzalloc(sizeof(struct usbg_tpg), GFP_KERNEL);
-	if (!tpg) {
-		printk(KERN_ERR "Unable to allocate struct usbg_tpg");
+	if (!tpg)
 		return ERR_PTR(-ENOMEM);
-	}
 	mutex_init(&tpg->tpg_mutex);
 	atomic_set(&tpg->tpg_port_count, 0);
 	tpg->workqueue = alloc_workqueue("tcm_usb_gadget", 0, 1);
@@ -1608,12 +1609,10 @@ static struct se_wwn *usbg_make_tport(
 		return ERR_PTR(-EINVAL);
 
 	tport = kzalloc(sizeof(struct usbg_tport), GFP_KERNEL);
-	if (!(tport)) {
-		printk(KERN_ERR "Unable to allocate struct usbg_tport");
+	if (!(tport))
 		return ERR_PTR(-ENOMEM);
-	}
 	tport->tport_wwpn = wwpn;
-	snprintf(tport->tport_name, sizeof(tport->tport_name), wnn_name);
+	snprintf(tport->tport_name, sizeof(tport->tport_name), "%s", wnn_name);
 	return &tport->tport_wwn;
 }
 
@@ -1722,11 +1721,9 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 
 	ret = -ENOMEM;
 	tv_nexus = kzalloc(sizeof(*tv_nexus), GFP_KERNEL);
-	if (!tv_nexus) {
-		pr_err("Unable to allocate struct tcm_vhost_nexus\n");
+	if (!tv_nexus)
 		goto err_unlock;
-	}
-	tv_nexus->tvn_se_sess = transport_init_session();
+	tv_nexus->tvn_se_sess = transport_init_session(TARGET_PROT_NORMAL);
 	if (IS_ERR(tv_nexus->tvn_se_sess))
 		goto err_free;
 
@@ -1846,7 +1843,7 @@ static int usbg_port_link(struct se_portal_group *se_tpg, struct se_lun *lun)
 	struct usbg_tpg *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 
 	atomic_inc(&tpg->tpg_port_count);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 	return 0;
 }
 
@@ -1856,7 +1853,7 @@ static void usbg_port_unlink(struct se_portal_group *se_tpg,
 	struct usbg_tpg *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 
 	atomic_dec(&tpg->tpg_port_count);
-	smp_mb__after_atomic_dec();
+	smp_mb__after_atomic();
 }
 
 static int usbg_check_stop_free(struct se_cmd *se_cmd)
@@ -1897,6 +1894,7 @@ static struct target_core_fabric_ops usbg_ops = {
 	.queue_data_in			= usbg_send_read_response,
 	.queue_status			= usbg_send_status_response,
 	.queue_tm_rsp			= usbg_queue_tm_rsp,
+	.aborted_task			= usbg_aborted_task,
 	.check_stop_free		= usbg_check_stop_free,
 
 	.fabric_make_wwn		= usbg_make_tport,
@@ -1923,15 +1921,15 @@ static int usbg_register_configfs(void)
 	}
 
 	fabric->tf_ops = usbg_ops;
-	TF_CIT_TMPL(fabric)->tfc_wwn_cit.ct_attrs = usbg_wwn_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_base_cit.ct_attrs = usbg_base_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_attrib_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_param_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_np_base_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_base_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_param_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = usbg_wwn_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = usbg_base_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
 	ret = target_fabric_configfs_register(fabric);
 	if (ret < 0) {
 		printk(KERN_ERR "target_fabric_configfs_register() failed"

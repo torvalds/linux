@@ -102,7 +102,7 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, unsig
 	int type = 0;
 
 	if (length > CODA_MAXNAMLEN) {
-		printk(KERN_ERR "name too long: lookup, %s (%*s)\n",
+		pr_err("name too long: lookup, %s (%*s)\n",
 		       coda_i2s(dir), (int)length, name);
 		return ERR_PTR(-ENAMETOOLONG);
 	}
@@ -387,9 +387,6 @@ static int coda_readdir(struct file *coda_file, struct dir_context *ctx)
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 	host_file = cfi->cfi_container;
 
-	if (!host_file->f_op)
-		return -ENOTDIR;
-
 	if (host_file->f_op->iterate) {
 		struct inode *host_inode = file_inode(host_file);
 		mutex_lock(&host_inode->i_mutex);
@@ -456,23 +453,23 @@ static int coda_venus_readdir(struct file *coda_file, struct dir_context *ctx)
 		ret = kernel_read(host_file, ctx->pos - 2, (char *)vdir,
 				  sizeof(*vdir));
 		if (ret < 0) {
-			printk(KERN_ERR "coda readdir: read dir %s failed %d\n",
-			       coda_f2s(&cii->c_fid), ret);
+			pr_err("%s: read dir %s failed %d\n",
+			       __func__, coda_f2s(&cii->c_fid), ret);
 			break;
 		}
 		if (ret == 0) break; /* end of directory file reached */
 
 		/* catch truncated reads */
 		if (ret < vdir_size || ret < vdir_size + vdir->d_namlen) {
-			printk(KERN_ERR "coda readdir: short read on %s\n",
-			       coda_f2s(&cii->c_fid));
+			pr_err("%s: short read on %s\n",
+			       __func__, coda_f2s(&cii->c_fid));
 			ret = -EBADF;
 			break;
 		}
 		/* validate whether the directory file actually makes sense */
 		if (vdir->d_reclen < vdir_size + vdir->d_namlen) {
-			printk(KERN_ERR "coda readdir: invalid dir %s\n",
-			       coda_f2s(&cii->c_fid));
+			pr_err("%s: invalid dir %s\n",
+			       __func__, coda_f2s(&cii->c_fid));
 			ret = -EBADF;
 			break;
 		}
@@ -566,13 +563,12 @@ static int coda_dentry_delete(const struct dentry * dentry)
  * cache manager Venus issues a downcall to the kernel when this 
  * happens 
  */
-int coda_revalidate_inode(struct dentry *dentry)
+int coda_revalidate_inode(struct inode *inode)
 {
 	struct coda_vattr attr;
 	int error;
 	int old_mode;
 	ino_t old_ino;
-	struct inode *inode = dentry->d_inode;
 	struct coda_inode_info *cii = ITOC(inode);
 
 	if (!cii->c_flags)
@@ -593,8 +589,8 @@ int coda_revalidate_inode(struct dentry *dentry)
 		coda_vattr_to_iattr(inode, &attr);
 
 		if ((old_mode & S_IFMT) != (inode->i_mode & S_IFMT)) {
-			printk("Coda: inode %ld, fid %s changed type!\n",
-			       inode->i_ino, coda_f2s(&(cii->c_fid)));
+			pr_warn("inode %ld, fid %s changed type!\n",
+				inode->i_ino, coda_f2s(&(cii->c_fid)));
 		}
 
 		/* the following can happen when a local fid is replaced 

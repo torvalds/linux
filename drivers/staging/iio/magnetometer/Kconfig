@@ -6,6 +6,8 @@ menu "Magnetometer sensors"
 config SENSORS_HMC5843
 	tristate "Honeywell HMC5843/5883/5883L 3-Axis Magnetometer"
 	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say Y here to add support for the Honeywell HMC5843, HMC5883 and
 	  HMC5883L 3-Axis Magnetometer (digital compass).

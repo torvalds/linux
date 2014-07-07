@@ -732,13 +732,9 @@ static int qp_host_get_user_memory(u64 produce_uva,
 	int retval;
 	int err = VMCI_SUCCESS;
 
-	down_write(&current->mm->mmap_sem);
-	retval = get_user_pages(current,
-				current->mm,
-				(uintptr_t) produce_uva,
-				produce_q->kernel_if->num_pages,
-				1, 0,
-				produce_q->kernel_if->u.h.header_page, NULL);
+	retval = get_user_pages_fast((uintptr_t) produce_uva,
+				     produce_q->kernel_if->num_pages, 1,
+				     produce_q->kernel_if->u.h.header_page);
 	if (retval < produce_q->kernel_if->num_pages) {
 		pr_warn("get_user_pages(produce) failed (retval=%d)", retval);
 		qp_release_pages(produce_q->kernel_if->u.h.header_page,
@@ -747,12 +743,9 @@ static int qp_host_get_user_memory(u64 produce_uva,
 		goto out;
 	}
 
-	retval = get_user_pages(current,
-				current->mm,
-				(uintptr_t) consume_uva,
-				consume_q->kernel_if->num_pages,
-				1, 0,
-				consume_q->kernel_if->u.h.header_page, NULL);
+	retval = get_user_pages_fast((uintptr_t) consume_uva,
+				     consume_q->kernel_if->num_pages, 1,
+				     consume_q->kernel_if->u.h.header_page);
 	if (retval < consume_q->kernel_if->num_pages) {
 		pr_warn("get_user_pages(consume) failed (retval=%d)", retval);
 		qp_release_pages(consume_q->kernel_if->u.h.header_page,
@@ -763,8 +756,6 @@ static int qp_host_get_user_memory(u64 produce_uva,
 	}
 
  out:
-	up_write(&current->mm->mmap_sem);
-
 	return err;
 }
 

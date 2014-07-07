@@ -105,7 +105,7 @@ restore_sigcontext (struct sigcontext __user *sc, struct sigscratch *scr)
 }
 
 int
-copy_siginfo_to_user (siginfo_t __user *to, siginfo_t *from)
+copy_siginfo_to_user (siginfo_t __user *to, const siginfo_t *from)
 {
 	if (!access_ok(VERIFY_WRITE, to, sizeof(siginfo_t)))
 		return -EFAULT;

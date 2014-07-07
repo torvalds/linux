@@ -26,14 +26,13 @@
  *
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 
 #include <mach/da8xx.h>
 #include <linux/platform_data/usb-davinci.h>
@@ -86,6 +85,7 @@
 struct da8xx_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	struct platform_device	*phy;
 	struct clk		*clk;
 };
 
@@ -419,7 +419,6 @@ static int da8xx_musb_init(struct musb *musb)
 	if (!rev)
 		goto fail;
 
-	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		ret = -EPROBE_DEFER;
@@ -454,7 +453,6 @@ static int da8xx_musb_exit(struct musb *musb)
 	phy_off();
 
 	usb_put_phy(musb->xceiv);
-	usb_nop_xceiv_unregister();
 
 	return 0;
 }
@@ -472,7 +470,11 @@ static const struct musb_platform_ops da8xx_ops = {
 	.set_vbus	= da8xx_musb_set_vbus,
 };
 
-static u64 da8xx_dmamask = DMA_BIT_MASK(32);
+static const struct platform_device_info da8xx_dev_info = {
+	.name		= "musb-hdrc",
+	.id		= PLATFORM_DEVID_AUTO,
+	.dma_mask	= DMA_BIT_MASK(32),
+};
 
 static int da8xx_probe(struct platform_device *pdev)
 {
@@ -480,7 +482,7 @@ static int da8xx_probe(struct platform_device *pdev)
 	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct platform_device		*musb;
 	struct da8xx_glue		*glue;
-
+	struct platform_device_info	pinfo;
 	struct clk			*clk;
 
 	int				ret = -ENOMEM;
@@ -489,12 +491,6 @@ static int da8xx_probe(struct platform_device *pdev)
 	if (!glue) {
 		dev_err(&pdev->dev, "failed to allocate glue context\n");
 		goto err0;
-	}
-
-	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err1;
 	}
 
 	clk = clk_get(&pdev->dev, "usb20");
@@ -510,16 +506,16 @@ static int da8xx_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	musb->dev.parent		= &pdev->dev;
-	musb->dev.dma_mask		= &da8xx_dmamask;
-	musb->dev.coherent_dma_mask	= da8xx_dmamask;
-
 	glue->dev			= &pdev->dev;
-	glue->musb			= musb;
 	glue->clk			= clk;
 
 	pdata->platform_ops		= &da8xx_ops;
 
+	glue->phy = usb_phy_generic_register();
+	if (IS_ERR(glue->phy)) {
+		ret = PTR_ERR(glue->phy);
+		goto err5;
+	}
 	platform_set_drvdata(pdev, glue);
 
 	memset(musb_resources, 0x00, sizeof(*musb_resources) *
@@ -535,26 +531,24 @@ static int da8xx_probe(struct platform_device *pdev)
 	musb_resources[1].end = pdev->resource[1].end;
 	musb_resources[1].flags = pdev->resource[1].flags;
 
-	ret = platform_device_add_resources(musb, musb_resources,
-			ARRAY_SIZE(musb_resources));
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err5;
-	}
+	pinfo = da8xx_dev_info;
+	pinfo.parent = &pdev->dev;
+	pinfo.res = musb_resources;
+	pinfo.num_res = ARRAY_SIZE(musb_resources);
+	pinfo.data = pdata;
+	pinfo.size_data = sizeof(*pdata);
 
-	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err5;
-	}
-
-	ret = platform_device_add(musb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err5;
+	glue->musb = musb = platform_device_register_full(&pinfo);
+	if (IS_ERR(musb)) {
+		ret = PTR_ERR(musb);
+		dev_err(&pdev->dev, "failed to register musb device: %d\n", ret);
+		goto err6;
 	}
 
 	return 0;
+
+err6:
+	usb_phy_generic_unregister(glue->phy);
 
 err5:
 	clk_disable(clk);
@@ -563,9 +557,6 @@ err4:
 	clk_put(clk);
 
 err3:
-	platform_device_put(musb);
-
-err1:
 	kfree(glue);
 
 err0:
@@ -577,6 +568,7 @@ static int da8xx_remove(struct platform_device *pdev)
 	struct da8xx_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
+	usb_phy_generic_unregister(glue->phy);
 	clk_disable(glue->clk);
 	clk_put(glue->clk);
 	kfree(glue);

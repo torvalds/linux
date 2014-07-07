@@ -135,9 +135,14 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	struct ipv6_opt_hdr *exthdr;
 	const unsigned char *nh = skb_network_header(skb);
 	u8 nexthdr = nh[IP6CB(skb)->nhoff];
+	int oif = 0;
+
+	if (skb_dst(skb))
+		oif = skb_dst(skb)->dev->ifindex;
 
 	memset(fl6, 0, sizeof(struct flowi6));
 	fl6->flowi6_mark = skb->mark;
+	fl6->flowi6_oif = reverse ? skb->skb_iif : oif;
 
 	fl6->daddr = reverse ? hdr->saddr : hdr->daddr;
 	fl6->saddr = reverse ? hdr->daddr : hdr->saddr;
@@ -284,7 +289,7 @@ static struct dst_ops xfrm6_dst_ops = {
 	.destroy =		xfrm6_dst_destroy,
 	.ifdown =		xfrm6_dst_ifdown,
 	.local_out =		__ip6_local_out,
-	.gc_thresh =		1024,
+	.gc_thresh =		32768,
 };
 
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
@@ -384,11 +389,17 @@ int __init xfrm6_init(void)
 	if (ret)
 		goto out_policy;
 
+	ret = xfrm6_protocol_init();
+	if (ret)
+		goto out_state;
+
 #ifdef CONFIG_SYSCTL
 	register_pernet_subsys(&xfrm6_net_ops);
 #endif
 out:
 	return ret;
+out_state:
+	xfrm6_state_fini();
 out_policy:
 	xfrm6_policy_fini();
 	goto out;
@@ -399,6 +410,7 @@ void xfrm6_fini(void)
 #ifdef CONFIG_SYSCTL
 	unregister_pernet_subsys(&xfrm6_net_ops);
 #endif
+	xfrm6_protocol_fini();
 	xfrm6_policy_fini();
 	xfrm6_state_fini();
 	dst_entries_destroy(&xfrm6_dst_ops);

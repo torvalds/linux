@@ -22,76 +22,27 @@
 #include <linux/amba/serial.h>
 #include <linux/io.h>
 #include <linux/stat.h>
-
-#include <mach/hardware.h>
-#include <mach/platform.h>
-#include <mach/cm.h>
-#include <mach/irqs.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/time.h>
 #include <asm/pgtable.h>
 
+#include "hardware.h"
+#include "cm.h"
 #include "common.h"
 
-#ifdef CONFIG_ATAGS
-
-#define INTEGRATOR_RTC_IRQ	{ IRQ_RTCINT }
-#define INTEGRATOR_UART0_IRQ	{ IRQ_UARTINT0 }
-#define INTEGRATOR_UART1_IRQ	{ IRQ_UARTINT1 }
-#define KMI0_IRQ		{ IRQ_KMIINT0 }
-#define KMI1_IRQ		{ IRQ_KMIINT1 }
-
-static AMBA_APB_DEVICE(rtc, "rtc", 0,
-	INTEGRATOR_RTC_BASE, INTEGRATOR_RTC_IRQ, NULL);
-
-static AMBA_APB_DEVICE(uart0, "uart0", 0,
-	INTEGRATOR_UART0_BASE, INTEGRATOR_UART0_IRQ, NULL);
-
-static AMBA_APB_DEVICE(uart1, "uart1", 0,
-	INTEGRATOR_UART1_BASE, INTEGRATOR_UART1_IRQ, NULL);
-
-static AMBA_APB_DEVICE(kmi0, "kmi0", 0, KMI0_BASE, KMI0_IRQ, NULL);
-static AMBA_APB_DEVICE(kmi1, "kmi1", 0, KMI1_BASE, KMI1_IRQ, NULL);
-
-static struct amba_device *amba_devs[] __initdata = {
-	&rtc_device,
-	&uart0_device,
-	&uart1_device,
-	&kmi0_device,
-	&kmi1_device,
-};
-
-int __init integrator_init(bool is_cp)
-{
-	int i;
-
-	/*
-	 * The Integrator/AP lacks necessary AMBA PrimeCell IDs, so we need to
-	 * hard-code them. The Integator/CP and forward have proper cell IDs.
-	 * Else we leave them undefined to the bus driver can autoprobe them.
-	 */
-	if (!is_cp && IS_ENABLED(CONFIG_ARCH_INTEGRATOR_AP)) {
-		rtc_device.periphid	= 0x00041030;
-		uart0_device.periphid	= 0x00041010;
-		uart1_device.periphid	= 0x00041010;
-		kmi0_device.periphid	= 0x00041050;
-		kmi1_device.periphid	= 0x00041050;
-		uart0_device.dev.platform_data = &ap_uart_data;
-		uart1_device.dev.platform_data = &ap_uart_data;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
-		struct amba_device *d = amba_devs[i];
-		amba_device_register(d, &iomem_resource);
-	}
-
-	return 0;
-}
-
-#endif
-
 static DEFINE_RAW_SPINLOCK(cm_lock);
+static void __iomem *cm_base;
+
+/**
+ * cm_get - get the value from the CM_CTRL register
+ */
+u32 cm_get(void)
+{
+	return readl(cm_base + INTEGRATOR_HDR_CTRL_OFFSET);
+}
 
 /**
  * cm_control - update the CM_CTRL register.
@@ -104,12 +55,80 @@ void cm_control(u32 mask, u32 set)
 	u32 val;
 
 	raw_spin_lock_irqsave(&cm_lock, flags);
-	val = readl(CM_CTRL) & ~mask;
-	writel(val | set, CM_CTRL);
+	val = readl(cm_base + INTEGRATOR_HDR_CTRL_OFFSET) & ~mask;
+	writel(val | set, cm_base + INTEGRATOR_HDR_CTRL_OFFSET);
 	raw_spin_unlock_irqrestore(&cm_lock, flags);
 }
 
-EXPORT_SYMBOL(cm_control);
+static const char *integrator_arch_str(u32 id)
+{
+	switch ((id >> 16) & 0xff) {
+	case 0x00:
+		return "ASB little-endian";
+	case 0x01:
+		return "AHB little-endian";
+	case 0x03:
+		return "AHB-Lite system bus, bi-endian";
+	case 0x04:
+		return "AHB";
+	case 0x08:
+		return "AHB system bus, ASB processor bus";
+	default:
+		return "Unknown";
+	}
+}
+
+static const char *integrator_fpga_str(u32 id)
+{
+	switch ((id >> 12) & 0xf) {
+	case 0x01:
+		return "XC4062";
+	case 0x02:
+		return "XC4085";
+	case 0x03:
+		return "XVC600";
+	case 0x04:
+		return "EPM7256AE (Altera PLD)";
+	default:
+		return "Unknown";
+	}
+}
+
+void cm_clear_irqs(void)
+{
+	/* disable core module IRQs */
+	writel(0xffffffffU, cm_base + INTEGRATOR_HDR_IC_OFFSET +
+		IRQ_ENABLE_CLEAR);
+}
+
+static const struct of_device_id cm_match[] = {
+	{ .compatible = "arm,core-module-integrator"},
+	{ },
+};
+
+void cm_init(void)
+{
+	struct device_node *cm = of_find_matching_node(NULL, cm_match);
+	u32 val;
+
+	if (!cm) {
+		pr_crit("no core module node found in device tree\n");
+		return;
+	}
+	cm_base = of_iomap(cm, 0);
+	if (!cm_base) {
+		pr_crit("could not remap core module\n");
+		return;
+	}
+	cm_clear_irqs();
+	val = readl(cm_base + INTEGRATOR_HDR_ID_OFFSET);
+	pr_info("Detected ARM core module:\n");
+	pr_info("    Manufacturer: %02x\n", (val >> 24));
+	pr_info("    Architecture: %s\n", integrator_arch_str(val));
+	pr_info("    FPGA: %s\n", integrator_fpga_str(val));
+	pr_info("    Build: %02x\n", (val >> 4) & 0xFF);
+	pr_info("    Rev: %c\n", ('A' + (val & 0x03)));
+}
 
 /*
  * We need to stop things allocating the low memory; ideally we need a
@@ -145,27 +164,7 @@ static ssize_t intcp_get_arch(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
-	const char *arch;
-
-	switch ((integrator_id >> 16) & 0xff) {
-	case 0x00:
-		arch = "ASB little-endian";
-		break;
-	case 0x01:
-		arch = "AHB little-endian";
-		break;
-	case 0x03:
-		arch = "AHB-Lite system bus, bi-endian";
-		break;
-	case 0x04:
-		arch = "AHB";
-		break;
-	default:
-		arch = "Unknown";
-		break;
-	}
-
-	return sprintf(buf, "%s\n", arch);
+	return sprintf(buf, "%s\n", integrator_arch_str(integrator_id));
 }
 
 static struct device_attribute intcp_arch_attr =
@@ -175,24 +174,7 @@ static ssize_t intcp_get_fpga(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
-	const char *fpga;
-
-	switch ((integrator_id >> 12) & 0xf) {
-	case 0x01:
-		fpga = "XC4062";
-		break;
-	case 0x02:
-		fpga = "XC4085";
-		break;
-	case 0x04:
-		fpga = "EPM7256AE (Altera PLD)";
-		break;
-	default:
-		fpga = "Unknown";
-		break;
-	}
-
-	return sprintf(buf, "%s\n", fpga);
+	return sprintf(buf, "%s\n", integrator_fpga_str(integrator_id));
 }
 
 static struct device_attribute intcp_fpga_attr =

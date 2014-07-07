@@ -30,7 +30,9 @@
 #include "hal_btc.h"
 #include "../pci.h"
 #include "phy.h"
+#include "../rtl8723com/phy_common.h"
 #include "fw.h"
+#include "../rtl8723com/fw_common.h"
 #include "reg.h"
 #include "def.h"
 
@@ -391,13 +393,13 @@ static void rtl8723ae_dm_bt_set_sw_full_time_dac_swing(struct ieee80211_hw *hw,
 	if (sw_dac_swing_on) {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_TRACE,
 			 "[BTCoex], SwDacSwing = 0x%x\n", sw_dac_swing_lvl);
-		rtl8723ae_phy_set_bb_reg(hw, 0x880, 0xff000000,
-					 sw_dac_swing_lvl);
+		rtl8723_phy_set_bb_reg(hw, 0x880, 0xff000000,
+				       sw_dac_swing_lvl);
 		rtlpcipriv->bt_coexist.sw_coexist_all_off = false;
 	} else {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_TRACE,
 			 "[BTCoex], SwDacSwing Off!\n");
-		rtl8723ae_phy_set_bb_reg(hw, 0x880, 0xff000000, 0xc0);
+		rtl8723_phy_set_bb_reg(hw, 0x880, 0xff000000, 0xc0);
 	}
 }
 

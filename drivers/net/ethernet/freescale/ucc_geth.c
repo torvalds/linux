@@ -31,6 +31,8 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/workqueue.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
@@ -431,11 +433,6 @@ static void hw_add_addr_in_hash(struct ucc_geth_private *ugeth,
 
 	qe_issue_cmd(QE_SET_GROUP_ADDRESS, cecr_subblock,
 		     QE_CR_PROTOCOL_ETHERNET, 0);
-}
-
-static inline int compare_addr(u8 **addr1, u8 **addr2)
-{
-	return memcmp(addr1, addr2, ETH_ALEN);
 }
 
 #ifdef DEBUG
@@ -1731,9 +1728,6 @@ static int init_phy(struct net_device *dev)
 
 	phydev = of_phy_connect(dev, ug_info->phy_node, &adjust_link, 0,
 				priv->phy_interface);
-	if (!phydev)
-		phydev = of_phy_connect_fixed_link(dev, &adjust_link,
-						   priv->phy_interface);
 	if (!phydev) {
 		dev_err(&dev->dev, "Could not attach to PHY\n");
 		return -ENODEV;
@@ -3264,7 +3258,7 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 
 		dev->stats.tx_packets++;
 
-		dev_kfree_skb(skb);
+		dev_consume_skb_any(skb);
 
 		ugeth->tx_skbuff[txQ][ugeth->skb_dirtytx[txQ]] = NULL;
 		ugeth->skb_dirtytx[txQ] =
@@ -3793,6 +3787,17 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
 	ug_info->phy_node = of_parse_phandle(np, "phy-handle", 0);
+	if (!ug_info->phy_node) {
+		/* In the case of a fixed PHY, the DT node associated
+		 * to the PHY is the Ethernet MAC DT node.
+		 */
+		if (of_phy_is_fixed_link(np)) {
+			err = of_phy_register_fixed_link(np);
+			if (err)
+				return err;
+		}
+		ug_info->phy_node = np;
+	}
 
 	/* Find the TBI PHY node.  If it's not there, we don't support SGMII */
 	ug_info->tbi_node = of_parse_phandle(np, "tbi-handle", 0);
@@ -3899,7 +3904,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 
 	mac_addr = of_get_mac_address(np);
 	if (mac_addr)
-		memcpy(dev->dev_addr, mac_addr, 6);
+		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
 
 	ugeth->ug_info = ug_info;
 	ugeth->dev = device;

@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
 
@@ -389,10 +389,6 @@ static int __init quickstart_init_input(void)
 static int __init quickstart_init(void)
 {
 	int ret;
-
-	/* ACPI Check */
-	if (acpi_disabled)
-		return -ENODEV;
 
 	/* ACPI driver register */
 	ret = acpi_bus_register_driver(&quickstart_acpi_driver);

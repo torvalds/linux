@@ -195,4 +195,6 @@ static inline struct llist_node *llist_del_all(struct llist_head *head)
 
 extern struct llist_node *llist_del_first(struct llist_head *head);
 
+struct llist_node *llist_reverse_order(struct llist_node *head);
+
 #endif /* LLIST_H */

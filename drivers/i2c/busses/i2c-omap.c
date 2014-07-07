@@ -266,13 +266,13 @@ static const u8 reg_map_ip_v2[] = {
 static inline void omap_i2c_write_reg(struct omap_i2c_dev *i2c_dev,
 				      int reg, u16 val)
 {
-	__raw_writew(val, i2c_dev->base +
+	writew_relaxed(val, i2c_dev->base +
 			(i2c_dev->regs[reg] << i2c_dev->reg_shift));
 }
 
 static inline u16 omap_i2c_read_reg(struct omap_i2c_dev *i2c_dev, int reg)
 {
-	return __raw_readw(i2c_dev->base +
+	return readw_relaxed(i2c_dev->base +
 				(i2c_dev->regs[reg] << i2c_dev->reg_shift));
 }
 
@@ -543,7 +543,7 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 	w |= OMAP_I2C_BUF_RXFIF_CLR | OMAP_I2C_BUF_TXFIF_CLR;
 	omap_i2c_write_reg(dev, OMAP_I2C_BUF_REG, w);
 
-	INIT_COMPLETION(dev->cmd_complete);
+	reinit_completion(&dev->cmd_complete);
 	dev->cmd_err = 0;
 
 	w = OMAP_I2C_CON_EN | OMAP_I2C_CON_MST | OMAP_I2C_CON_STT;
@@ -636,7 +636,7 @@ omap_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	int r;
 
 	r = pm_runtime_get_sync(dev->dev);
-	if (IS_ERR_VALUE(r))
+	if (r < 0)
 		goto out;
 
 	r = omap_i2c_wait_for_bb(dev);
@@ -939,6 +939,9 @@ omap_i2c_isr_thread(int this_irq, void *dev_id)
 		/*
 		 * ProDB0017052: Clear ARDY bit twice
 		 */
+		if (stat & OMAP_I2C_STAT_ARDY)
+			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_ARDY);
+
 		if (stat & (OMAP_I2C_STAT_ARDY | OMAP_I2C_STAT_NACK |
 					OMAP_I2C_STAT_AL)) {
 			omap_i2c_ack_stat(dev, (OMAP_I2C_STAT_RRDY |
@@ -1034,6 +1037,20 @@ static const struct i2c_algorithm omap_i2c_algo = {
 };
 
 #ifdef CONFIG_OF
+static struct omap_i2c_bus_platform_data omap2420_pdata = {
+	.rev = OMAP_I2C_IP_VERSION_1,
+	.flags = OMAP_I2C_FLAG_NO_FIFO |
+			OMAP_I2C_FLAG_SIMPLE_CLOCK |
+			OMAP_I2C_FLAG_16BIT_DATA_REG |
+			OMAP_I2C_FLAG_BUS_SHIFT_2,
+};
+
+static struct omap_i2c_bus_platform_data omap2430_pdata = {
+	.rev = OMAP_I2C_IP_VERSION_1,
+	.flags = OMAP_I2C_FLAG_BUS_SHIFT_2 |
+			OMAP_I2C_FLAG_FORCE_19200_INT_CLK,
+};
+
 static struct omap_i2c_bus_platform_data omap3_pdata = {
 	.rev = OMAP_I2C_IP_VERSION_1,
 	.flags = OMAP_I2C_FLAG_BUS_SHIFT_2,
@@ -1051,6 +1068,14 @@ static const struct of_device_id omap_i2c_of_match[] = {
 	{
 		.compatible = "ti,omap3-i2c",
 		.data = &omap3_pdata,
+	},
+	{
+		.compatible = "ti,omap2430-i2c",
+		.data = &omap2430_pdata,
+	},
+	{
+		.compatible = "ti,omap2420-i2c",
+		.data = &omap2420_pdata,
 	},
 	{ },
 };
@@ -1089,10 +1114,8 @@ omap_i2c_probe(struct platform_device *pdev)
 	}
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct omap_i2c_dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&pdev->dev, "Menory allocation failed\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->base = devm_ioremap_resource(&pdev->dev, mem);
@@ -1130,16 +1153,16 @@ omap_i2c_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(dev->dev);
 
 	r = pm_runtime_get_sync(dev->dev);
-	if (IS_ERR_VALUE(r))
+	if (r < 0)
 		goto err_free_mem;
 
 	/*
 	 * Read the Rev hi bit-[15:14] ie scheme this is 1 indicates ver2.
 	 * On omap1/3/2 Offset 4 is IE Reg the bit [15:14] is 0 at reset.
 	 * Also since the omap_i2c_read_reg uses reg_map_ip_* a
-	 * raw_readw is done.
+	 * readw_relaxed is done.
 	 */
-	rev = __raw_readw(dev->base + 0x04);
+	rev = readw_relaxed(dev->base + 0x04);
 
 	dev->scheme = OMAP_I2C_SCHEME(rev);
 	switch (dev->scheme) {
@@ -1213,7 +1236,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	adap = &dev->adapter;
 	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
-	adap->class = I2C_CLASS_HWMON;
+	adap->class = I2C_CLASS_HWMON | I2C_CLASS_DEPRECATED;
 	strlcpy(adap->name, "OMAP I2C adapter", sizeof(adap->name));
 	adap->algo = &omap_i2c_algo;
 	adap->dev.parent = &pdev->dev;
@@ -1251,7 +1274,7 @@ static int omap_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&dev->adapter);
 	ret = pm_runtime_get_sync(&pdev->dev);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		return ret;
 
 	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, 0);

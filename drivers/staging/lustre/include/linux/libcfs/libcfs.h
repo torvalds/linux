@@ -42,6 +42,7 @@
 #endif
 
 #include <linux/libcfs/linux/libcfs.h>
+#include <linux/gfp.h>
 
 #include "curproc.h"
 
@@ -180,8 +181,6 @@ static inline void *__container_of(void *ptr, unsigned long shift)
 
 #define container_of0(ptr, type, member) \
 	((type *)__container_of((void *)(ptr), offsetof(type, member)))
-
-#define SET_BUT_UNUSED(a) do { } while(sizeof(a) - sizeof(a))
 
 #define _LIBCFS_H
 

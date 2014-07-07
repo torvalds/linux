@@ -166,7 +166,7 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
+	struct psb_framebuffer *psbfb = to_psb_fb(crtc->primary->fb);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
@@ -178,12 +178,12 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	dev_dbg(dev->dev, "pipe = 0x%x.\n", pipe);
 
 	/* no fb bound */
-	if (!crtc->fb) {
+	if (!crtc->primary->fb) {
 		dev_dbg(dev->dev, "No FB bound\n");
 		return 0;
 	}
 
-	ret = check_fb(crtc->fb);
+	ret = check_fb(crtc->primary->fb);
 	if (ret)
 		return ret;
 
@@ -196,18 +196,18 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return 0;
 
 	start = psbfb->gtt->offset;
-	offset = y * crtc->fb->pitches[0] + x * (crtc->fb->bits_per_pixel / 8);
+	offset = y * crtc->primary->fb->pitches[0] + x * (crtc->primary->fb->bits_per_pixel / 8);
 
-	REG_WRITE(map->stride, crtc->fb->pitches[0]);
+	REG_WRITE(map->stride, crtc->primary->fb->pitches[0]);
 	dspcntr = REG_READ(map->cntr);
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (crtc->primary->fb->bits_per_pixel) {
 	case 8:
 		dspcntr |= DISPPLANE_8BPP;
 		break;
 	case 16:
-		if (crtc->fb->depth == 15)
+		if (crtc->primary->fb->depth == 15)
 			dspcntr |= DISPPLANE_15_16BPP;
 		else
 			dspcntr |= DISPPLANE_16BPP;
@@ -700,7 +700,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 	}
 #endif
 
-	ret = check_fb(crtc->fb);
+	ret = check_fb(crtc->primary->fb);
 	if (ret)
 		return ret;
 

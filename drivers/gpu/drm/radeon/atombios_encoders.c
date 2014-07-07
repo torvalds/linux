@@ -213,7 +213,7 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 	props.type = BACKLIGHT_RAW;
 	snprintf(bl_name, sizeof(bl_name),
 		 "radeon_bl%d", dev->primary->index);
-	bd = backlight_device_register(bl_name, &drm_connector->kdev,
+	bd = backlight_device_register(bl_name, drm_connector->kdev,
 				       pdata, &radeon_atom_backlight_ops, &props);
 	if (IS_ERR(bd)) {
 		DRM_ERROR("Backlight registration failed\n");
@@ -464,11 +464,12 @@ atombios_tv_setup(struct drm_encoder *encoder, int action)
 
 static u8 radeon_atom_get_bpc(struct drm_encoder *encoder)
 {
-	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 	int bpc = 8;
 
-	if (connector)
-		bpc = radeon_get_monitor_bpc(connector);
+	if (encoder->crtc) {
+		struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+		bpc = radeon_crtc->bpc;
+	}
 
 	switch (bpc) {
 	case 0:
@@ -707,24 +708,37 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	switch (connector->connector_type) {
 	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_HDMIB: /* HDMI-B is basically DL-DVI; analog works fine */
-		if ((radeon_connector->audio == RADEON_AUDIO_ENABLE) ||
-		    (drm_detect_hdmi_monitor(radeon_connector->edid) &&
-		     (radeon_connector->audio == RADEON_AUDIO_AUTO)))
-			return ATOM_ENCODER_MODE_HDMI;
-		else if (radeon_connector->use_digital)
+		if (radeon_audio != 0) {
+			if (radeon_connector->use_digital &&
+			    (radeon_connector->audio == RADEON_AUDIO_ENABLE))
+				return ATOM_ENCODER_MODE_HDMI;
+			else if (drm_detect_hdmi_monitor(radeon_connector->edid) &&
+				 (radeon_connector->audio == RADEON_AUDIO_AUTO))
+				return ATOM_ENCODER_MODE_HDMI;
+			else if (radeon_connector->use_digital)
+				return ATOM_ENCODER_MODE_DVI;
+			else
+				return ATOM_ENCODER_MODE_CRT;
+		} else if (radeon_connector->use_digital) {
 			return ATOM_ENCODER_MODE_DVI;
-		else
+		} else {
 			return ATOM_ENCODER_MODE_CRT;
+		}
 		break;
 	case DRM_MODE_CONNECTOR_DVID:
 	case DRM_MODE_CONNECTOR_HDMIA:
 	default:
-		if ((radeon_connector->audio == RADEON_AUDIO_ENABLE) ||
-		    (drm_detect_hdmi_monitor(radeon_connector->edid) &&
-		     (radeon_connector->audio == RADEON_AUDIO_AUTO)))
-			return ATOM_ENCODER_MODE_HDMI;
-		else
+		if (radeon_audio != 0) {
+			if (radeon_connector->audio == RADEON_AUDIO_ENABLE)
+				return ATOM_ENCODER_MODE_HDMI;
+			else if (drm_detect_hdmi_monitor(radeon_connector->edid) &&
+				 (radeon_connector->audio == RADEON_AUDIO_AUTO))
+				return ATOM_ENCODER_MODE_HDMI;
+			else
+				return ATOM_ENCODER_MODE_DVI;
+		} else {
 			return ATOM_ENCODER_MODE_DVI;
+		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
 		return ATOM_ENCODER_MODE_LVDS;
@@ -732,14 +746,19 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		dig_connector = radeon_connector->con_priv;
 		if ((dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
-		    (dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
+		    (dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP)) {
 			return ATOM_ENCODER_MODE_DP;
-		else if ((radeon_connector->audio == RADEON_AUDIO_ENABLE) ||
-			 (drm_detect_hdmi_monitor(radeon_connector->edid) &&
-			  (radeon_connector->audio == RADEON_AUDIO_AUTO)))
-			return ATOM_ENCODER_MODE_HDMI;
-		else
+		} else if (radeon_audio != 0) {
+			if (radeon_connector->audio == RADEON_AUDIO_ENABLE)
+				return ATOM_ENCODER_MODE_HDMI;
+			else if (drm_detect_hdmi_monitor(radeon_connector->edid) &&
+				 (radeon_connector->audio == RADEON_AUDIO_AUTO))
+				return ATOM_ENCODER_MODE_HDMI;
+			else
+				return ATOM_ENCODER_MODE_DVI;
+		} else {
 			return ATOM_ENCODER_MODE_DVI;
+		}
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
 		return ATOM_ENCODER_MODE_DP;
@@ -1295,7 +1314,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 			}
 			if (is_dp)
 				args.v5.ucLaneNum = dp_lane_count;
-			else if (radeon_encoder->pixel_clock > 165000)
+			else if (radeon_dig_monitor_is_duallink(encoder, radeon_encoder->pixel_clock))
 				args.v5.ucLaneNum = 8;
 			else
 				args.v5.ucLaneNum = 4;
@@ -1614,10 +1633,16 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 	struct radeon_connector *radeon_connector = NULL;
 	struct radeon_connector_atom_dig *radeon_dig_connector = NULL;
+	bool travis_quirk = false;
 
 	if (connector) {
 		radeon_connector = to_radeon_connector(connector);
 		radeon_dig_connector = radeon_connector->con_priv;
+		if ((radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
+		     ENCODER_OBJECT_ID_TRAVIS) &&
+		    (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) &&
+		    !ASIC_IS_DCE5(rdev))
+			travis_quirk = true;
 	}
 
 	switch (mode) {
@@ -1638,25 +1663,13 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 					atombios_external_encoder_setup(encoder, ext_encoder,
 									EXTERNAL_ENCODER_ACTION_V3_ENCODER_SETUP);
 			}
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
 		} else if (ASIC_IS_DCE4(rdev)) {
 			/* setup and enable the encoder */
 			atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_SETUP, 0);
-			/* enable the transmitter */
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
 		} else {
 			/* setup and enable the encoder and transmitter */
 			atombios_dig_encoder_setup(encoder, ATOM_ENABLE, 0);
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_SETUP, 0, 0);
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
-			/* some dce3.x boards have a bug in their transmitter control table.
-			 * ACTION_ENABLE_OUTPUT can probably be dropped since ACTION_ENABLE
-			 * does the same thing and more.
-			 */
-			if ((rdev->family != CHIP_RV710) && (rdev->family != CHIP_RV730) &&
-			    (rdev->family != CHIP_RS880))
-				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
 		}
 		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) && connector) {
 			if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
@@ -1664,73 +1677,56 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 							     ATOM_TRANSMITTER_ACTION_POWER_ON);
 				radeon_dig_connector->edp_on = true;
 			}
+		}
+		/* enable the transmitter */
+		atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
+		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) && connector) {
+			/* DP_SET_POWER_D0 is set in radeon_dp_link_train */
 			radeon_dp_link_train(encoder, connector);
 			if (ASIC_IS_DCE4(rdev))
 				atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_ON, 0);
 		}
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_LCD_BLON, 0, 0);
+			atombios_dig_transmitter_setup(encoder,
+						       ATOM_TRANSMITTER_ACTION_LCD_BLON, 0, 0);
+		if (ext_encoder)
+			atombios_external_encoder_setup(encoder, ext_encoder, ATOM_ENABLE);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE5(rdev)) {
+		if (ASIC_IS_DCE4(rdev)) {
+			if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) && connector)
+				atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_OFF, 0);
+		}
+		if (ext_encoder)
+			atombios_external_encoder_setup(encoder, ext_encoder, ATOM_DISABLE);
+		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
+			atombios_dig_transmitter_setup(encoder,
+						       ATOM_TRANSMITTER_ACTION_LCD_BLOFF, 0, 0);
+
+		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) &&
+		    connector && !travis_quirk)
+			radeon_dp_set_rx_power_state(connector, DP_SET_POWER_D3);
+		if (ASIC_IS_DCE4(rdev)) {
 			/* disable the transmitter */
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
-		} else if (ASIC_IS_DCE4(rdev)) {
-			/* disable the transmitter */
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE_OUTPUT, 0, 0);
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
+			atombios_dig_transmitter_setup(encoder,
+						       ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
 		} else {
 			/* disable the encoder and transmitter */
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE_OUTPUT, 0, 0);
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
+			atombios_dig_transmitter_setup(encoder,
+						       ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
 			atombios_dig_encoder_setup(encoder, ATOM_DISABLE, 0);
 		}
 		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) && connector) {
-			if (ASIC_IS_DCE4(rdev))
-				atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_OFF, 0);
+			if (travis_quirk)
+				radeon_dp_set_rx_power_state(connector, DP_SET_POWER_D3);
 			if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 				atombios_set_edp_panel_power(connector,
 							     ATOM_TRANSMITTER_ACTION_POWER_OFF);
 				radeon_dig_connector->edp_on = false;
 			}
 		}
-		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_LCD_BLOFF, 0, 0);
-		break;
-	}
-}
-
-static void
-radeon_atom_encoder_dpms_ext(struct drm_encoder *encoder,
-			     struct drm_encoder *ext_encoder,
-			     int mode)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-	default:
-		if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE61(rdev)) {
-			atombios_external_encoder_setup(encoder, ext_encoder,
-							EXTERNAL_ENCODER_ACTION_V3_ENABLE_OUTPUT);
-			atombios_external_encoder_setup(encoder, ext_encoder,
-							EXTERNAL_ENCODER_ACTION_V3_ENCODER_BLANKING_OFF);
-		} else
-			atombios_external_encoder_setup(encoder, ext_encoder, ATOM_ENABLE);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE61(rdev)) {
-			atombios_external_encoder_setup(encoder, ext_encoder,
-							EXTERNAL_ENCODER_ACTION_V3_ENCODER_BLANKING);
-			atombios_external_encoder_setup(encoder, ext_encoder,
-							EXTERNAL_ENCODER_ACTION_V3_DISABLE_OUTPUT);
-		} else
-			atombios_external_encoder_setup(encoder, ext_encoder, ATOM_DISABLE);
 		break;
 	}
 }
@@ -1741,7 +1737,6 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct drm_encoder *ext_encoder = radeon_get_external_encoder(encoder);
 
 	DRM_DEBUG_KMS("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
 		  radeon_encoder->encoder_id, mode, radeon_encoder->devices,
@@ -1800,9 +1795,6 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	default:
 		return;
 	}
-
-	if (ext_encoder)
-		radeon_atom_encoder_dpms_ext(encoder, ext_encoder, mode);
 
 	radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
@@ -1892,8 +1884,11 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 					args.v2.ucEncodeMode = ATOM_ENCODER_MODE_CRT;
 				else
 					args.v2.ucEncodeMode = atombios_get_encoder_mode(encoder);
-			} else
+			} else if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+				args.v2.ucEncodeMode = ATOM_ENCODER_MODE_LVDS;
+			} else {
 				args.v2.ucEncodeMode = atombios_get_encoder_mode(encoder);
+			}
 			switch (radeon_encoder->encoder_id) {
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
@@ -2392,6 +2387,15 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 
 	/* this is needed for the pll/ss setup to work correctly in some cases */
 	atombios_set_encoder_crtc_source(encoder);
+	/* set up the FMT blocks */
+	if (ASIC_IS_DCE8(rdev))
+		dce8_program_fmt(encoder);
+	else if (ASIC_IS_DCE4(rdev))
+		dce4_program_fmt(encoder);
+	else if (ASIC_IS_DCE3(rdev))
+		dce3_program_fmt(encoder);
+	else if (ASIC_IS_AVIVO(rdev))
+		avivo_program_fmt(encoder);
 }
 
 static void radeon_atom_encoder_commit(struct drm_encoder *encoder)

@@ -49,7 +49,6 @@
 #include <obd.h>
 #include <obd_ost.h>
 #include <obd_class.h>
-#include <obd_lov.h> /* for IOC_LOV_SET_OSC_ACTIVE */
 #include <linux/list.h>
 
 #include "ptlrpc_internal.h"
@@ -105,23 +104,58 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	 * imp_lock is being held by ptlrpc_replay, but it's not. it's
 	 * just a little race...
 	 */
-	list_for_each_safe(tmp, pos, &imp->imp_replay_list) {
+
+	/* Replay all the committed open requests on committed_list first */
+	if (!list_empty(&imp->imp_committed_list)) {
+		tmp = imp->imp_committed_list.prev;
 		req = list_entry(tmp, struct ptlrpc_request,
 				     rq_replay_list);
 
-		/* If need to resend the last sent transno (because a
-		   reconnect has occurred), then stop on the matching
-		   req and send it again. If, however, the last sent
-		   transno has been committed then we continue replay
-		   from the next request. */
+		/* The last request on committed_list hasn't been replayed */
 		if (req->rq_transno > last_transno) {
-			if (imp->imp_resend_replay)
-				lustre_msg_add_flags(req->rq_reqmsg,
-						     MSG_RESENT);
-			break;
+			/* Since the imp_committed_list is immutable before
+			 * all of it's requests being replayed, it's safe to
+			 * use a cursor to accelerate the search */
+			imp->imp_replay_cursor = imp->imp_replay_cursor->next;
+
+			while (imp->imp_replay_cursor !=
+			       &imp->imp_committed_list) {
+				req = list_entry(imp->imp_replay_cursor,
+						 struct ptlrpc_request,
+						 rq_replay_list);
+				if (req->rq_transno > last_transno)
+					break;
+
+				req = NULL;
+				imp->imp_replay_cursor =
+					imp->imp_replay_cursor->next;
+			}
+		} else {
+			/* All requests on committed_list have been replayed */
+			imp->imp_replay_cursor = &imp->imp_committed_list;
+			req = NULL;
 		}
-		req = NULL;
 	}
+
+	/* All the requests in committed list have been replayed, let's replay
+	 * the imp_replay_list */
+	if (req == NULL) {
+		list_for_each_safe(tmp, pos, &imp->imp_replay_list) {
+			req = list_entry(tmp, struct ptlrpc_request,
+					 rq_replay_list);
+
+			if (req->rq_transno > last_transno)
+				break;
+			req = NULL;
+		}
+	}
+
+	/* If need to resend the last sent transno (because a reconnect
+	 * has occurred), then stop on the matching req and send it again.
+	 * If, however, the last sent transno has been committed then we
+	 * continue replay from the next request. */
+	if (req != NULL && imp->imp_resend_replay)
+		lustre_msg_add_flags(req->rq_reqmsg, MSG_RESENT);
 
 	spin_lock(&imp->imp_lock);
 	imp->imp_resend_replay = 0;
@@ -334,11 +368,14 @@ EXPORT_SYMBOL(ptlrpc_recover_import);
 int ptlrpc_import_in_recovery(struct obd_import *imp)
 {
 	int in_recovery = 1;
+
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_state == LUSTRE_IMP_FULL ||
 	    imp->imp_state == LUSTRE_IMP_CLOSED ||
-	    imp->imp_state == LUSTRE_IMP_DISCON)
+	    imp->imp_state == LUSTRE_IMP_DISCON ||
+	    imp->imp_obd->obd_no_recov)
 		in_recovery = 0;
 	spin_unlock(&imp->imp_lock);
+
 	return in_recovery;
 }

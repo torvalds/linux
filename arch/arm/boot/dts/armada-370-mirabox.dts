@@ -9,6 +9,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 #include "armada-370.dtsi"
 
 / {
@@ -46,7 +47,6 @@
 
 		internal-regs {
 			serial@12000 {
-				clock-frequency = <200000000>;
 				status = "okay";
 			};
 			timer@20300 {
@@ -73,19 +73,19 @@
 
 				green_pwr_led {
 					label = "mirabox:green:pwr";
-					gpios = <&gpio1 31 1>;
-					linux,default-trigger = "heartbeat";
+					gpios = <&gpio1 31 GPIO_ACTIVE_LOW>;
+					default-state = "keep";
 				};
 
 				blue_stat_led {
 					label = "mirabox:blue:stat";
-					gpios = <&gpio2 0 1>;
-					linux,default-trigger = "cpu0";
+					gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
+					default-state = "off";
 				};
 
 				green_stat_led {
 					label = "mirabox:green:stat";
-					gpios = <&gpio2 1 1>;
+					gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
 					default-state = "off";
 				};
 			};
@@ -137,6 +137,27 @@
 					gpio-controller;
 					#gpio-cells = <2>;
 					reg = <0x25>;
+				};
+			};
+
+			nand@d0000 {
+				status = "okay";
+				num-cs = <1>;
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
+
+				partition@0 {
+					label = "U-Boot";
+					reg = <0 0x400000>;
+				};
+				partition@400000 {
+					label = "Linux";
+					reg = <0x400000 0x400000>;
+				};
+				partition@800000 {
+					label = "Filesystem";
+					reg = <0x800000 0x3f800000>;
 				};
 			};
 		};

@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -105,13 +103,11 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 		goto exit_release_regions;
 	}
 
-	pci_enable_msi(pci_dev);
-
 	hw = ieee80211_alloc_hw(sizeof(struct rt2x00_dev), ops->hw);
 	if (!hw) {
 		rt2x00_probe_err("Failed to allocate hardware\n");
 		retval = -ENOMEM;
-		goto exit_disable_msi;
+		goto exit_release_regions;
 	}
 
 	pci_set_drvdata(pci_dev, hw);
@@ -121,7 +117,7 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
 	rt2x00dev->irq = pci_dev->irq;
-	rt2x00dev->name = pci_name(pci_dev);
+	rt2x00dev->name = ops->name;
 
 	if (pci_is_pcie(pci_dev))
 		rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCIE);
@@ -152,16 +148,11 @@ exit_free_reg:
 exit_free_device:
 	ieee80211_free_hw(hw);
 
-exit_disable_msi:
-	pci_disable_msi(pci_dev);
-
 exit_release_regions:
 	pci_release_regions(pci_dev);
 
 exit_disable_device:
 	pci_disable_device(pci_dev);
-
-	pci_set_drvdata(pci_dev, NULL);
 
 	return retval;
 }
@@ -179,12 +170,9 @@ void rt2x00pci_remove(struct pci_dev *pci_dev)
 	rt2x00pci_free_reg(rt2x00dev);
 	ieee80211_free_hw(hw);
 
-	pci_disable_msi(pci_dev);
-
 	/*
 	 * Free the PCI device data.
 	 */
-	pci_set_drvdata(pci_dev, NULL);
 	pci_disable_device(pci_dev);
 	pci_release_regions(pci_dev);
 }

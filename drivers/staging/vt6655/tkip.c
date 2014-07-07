@@ -55,7 +55,7 @@
 /* The 2nd table is the same as the 1st but with the upper and lower   */
 /* bytes swapped. To allow an endian tolerant implementation, the byte */
 /* halves have been expressed independently here.                      */
-const unsigned char TKIP_Sbox_Lower[256] = {
+static const unsigned char TKIP_Sbox_Lower[256] = {
 	0xA5, 0x84, 0x99, 0x8D, 0x0D, 0xBD, 0xB1, 0x54,
 	0x50, 0x03, 0xA9, 0x7D, 0x19, 0x62, 0xE6, 0x9A,
 	0x45, 0x9D, 0x40, 0x87, 0x15, 0xEB, 0xC9, 0x0B,
@@ -90,7 +90,7 @@ const unsigned char TKIP_Sbox_Lower[256] = {
 	0xC3, 0xB0, 0x77, 0x11, 0xCB, 0xFC, 0xD6, 0x3A
 };
 
-const unsigned char TKIP_Sbox_Upper[256] = {
+static const unsigned char TKIP_Sbox_Upper[256] = {
 	0xC6, 0xF8, 0xEE, 0xF6, 0xFF, 0xD6, 0xDE, 0x91,
 	0x60, 0x02, 0xCE, 0x56, 0xE7, 0xB5, 0x4D, 0xEC,
 	0x8F, 0x1F, 0x89, 0xFA, 0xEF, 0xB2, 0x8E, 0xFB,
@@ -157,11 +157,11 @@ unsigned int rotr1(unsigned int a)
 {
 	unsigned int b;
 
-	if ((a & 0x01) == 0x01) {
+	if ((a & 0x01) == 0x01)
 		b = (a >> 1) | 0x8000;
-	} else {
+	else
 		b = (a >> 1) & 0x7fff;
-	}
+
 	b = b % 65536;
 	return b;
 }
@@ -189,7 +189,6 @@ void TKIPvMixKey(
 )
 {
 	unsigned int p1k[5];
-//    unsigned int ttak0, ttak1, ttak2, ttak3, ttak4;
 	unsigned int tsc0, tsc1, tsc2;
 	unsigned int ppk0, ppk1, ppk2, ppk3, ppk4, ppk5;
 	unsigned long int pnl, pnh;

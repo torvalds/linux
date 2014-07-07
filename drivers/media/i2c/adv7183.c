@@ -178,7 +178,7 @@ static int adv7183_log_status(struct v4l2_subdev *sd)
 			adv7183_read(sd, ADV7183_VS_FIELD_CTRL_1),
 			adv7183_read(sd, ADV7183_VS_FIELD_CTRL_2),
 			adv7183_read(sd, ADV7183_VS_FIELD_CTRL_3));
-	v4l2_info(sd, "adv7183: Hsync positon control 1 2 and 3 = 0x%02x 0x%02x 0x%02x\n",
+	v4l2_info(sd, "adv7183: Hsync position control 1 2 and 3 = 0x%02x 0x%02x 0x%02x\n",
 			adv7183_read(sd, ADV7183_HS_POS_CTRL_1),
 			adv7183_read(sd, ADV7183_HS_POS_CTRL_2),
 			adv7183_read(sd, ADV7183_HS_POS_CTRL_3));
@@ -501,8 +501,6 @@ static const struct v4l2_ctrl_ops adv7183_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops adv7183_core_ops = {
 	.log_status = adv7183_log_status,
-	.g_std = adv7183_g_std,
-	.s_std = adv7183_s_std,
 	.reset = adv7183_reset,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = adv7183_g_register,
@@ -511,6 +509,8 @@ static const struct v4l2_subdev_core_ops adv7183_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops adv7183_video_ops = {
+	.g_std = adv7183_g_std,
+	.s_std = adv7183_s_std,
 	.s_routing = adv7183_s_routing,
 	.querystd = adv7183_querystd,
 	.g_input_status = adv7183_g_input_status,

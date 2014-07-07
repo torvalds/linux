@@ -28,6 +28,8 @@ int test__syscall_open_tp_fields(void);
 int test__pmu(void);
 int test__attr(void);
 int test__dso_data(void);
+int test__dso_data_cache(void);
+int test__dso_data_reopen(void);
 int test__parse_events(void);
 int test__hists_link(void);
 int test__python_use(void);
@@ -40,5 +42,19 @@ int test__code_reading(void);
 int test__sample_parsing(void);
 int test__keep_tracking(void);
 int test__parse_no_sample_id_all(void);
+int test__dwarf_unwind(void);
+int test__hists_filter(void);
+int test__mmap_thread_lookup(void);
+int test__thread_mg_share(void);
+int test__hists_output(void);
+int test__hists_cumulate(void);
 
+#if defined(__x86_64__) || defined(__i386__) || defined(__arm__)
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+struct thread;
+struct perf_sample;
+int test__arch_unwind_sample(struct perf_sample *sample,
+			     struct thread *thread);
+#endif
+#endif
 #endif /* TESTS_H */

@@ -86,4 +86,4 @@ const char *DbgEvent( int mask );
 
 
 
-#endif  // __WL_CS_H__
+#endif  /* __WL_CS_H__ */

@@ -53,7 +53,7 @@ struct acpi_power_register {
 	u8 bit_offset;
 	u8 access_size;
 	u64 address;
-} __attribute__ ((packed));
+} __packed;
 
 struct acpi_processor_cx {
 	u8 valid;
@@ -83,7 +83,7 @@ struct acpi_psd_package {
 	u64 domain;
 	u64 coord_type;
 	u64 num_processors;
-} __attribute__ ((packed));
+} __packed;
 
 struct acpi_pct_register {
 	u8 descriptor;
@@ -93,7 +93,7 @@ struct acpi_pct_register {
 	u8 bit_offset;
 	u8 reserved;
 	u64 address;
-} __attribute__ ((packed));
+} __packed;
 
 struct acpi_processor_px {
 	u64 core_frequency;	/* megahertz */
@@ -124,7 +124,7 @@ struct acpi_tsd_package {
 	u64 domain;
 	u64 coord_type;
 	u64 num_processors;
-} __attribute__ ((packed));
+} __packed;
 
 struct acpi_ptc_register {
 	u8 descriptor;
@@ -134,7 +134,7 @@ struct acpi_ptc_register {
 	u8 bit_offset;
 	u8 reserved;
 	u64 address;
-} __attribute__ ((packed));
+} __packed;
 
 struct acpi_processor_tx_tss {
 	u64 freqpercentage;	/* */
@@ -199,6 +199,7 @@ struct acpi_processor_flags {
 struct acpi_processor {
 	acpi_handle handle;
 	u32 acpi_id;
+	u32 apic_id;
 	u32 id;
 	u32 pblk;
 	int performance_platform_limit;
@@ -224,7 +225,6 @@ struct acpi_processor_errata {
 	} piix4;
 };
 
-extern void acpi_processor_load_module(struct acpi_processor *pr);
 extern int acpi_processor_preregister_performance(struct
 						  acpi_processor_performance
 						  __percpu *performance);
@@ -314,6 +314,8 @@ static inline int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 
 /* in processor_core.c */
 void acpi_processor_set_pdc(acpi_handle handle);
+int acpi_get_apicid(acpi_handle, int type, u32 acpi_id);
+int acpi_map_cpuid(int apic_id, u32 acpi_id);
 int acpi_get_cpuid(acpi_handle, int type, u32 acpi_id);
 
 /* in processor_throttling.c */

@@ -133,6 +133,10 @@ struct iscsi_task {
 	unsigned long		last_xfer;
 	unsigned long		last_timeout;
 	bool			have_checked_conn;
+
+	/* T10 protection information */
+	bool			protected;
+
 	/* state set/tested under session->lock */
 	int			state;
 	atomic_t		refcount;
@@ -231,6 +235,7 @@ struct iscsi_conn {
 	uint8_t			ipv6_traffic_class;
 	uint8_t			ipv6_flow_label;
 	uint8_t			is_fw_assigned_ipv6;
+	char			*local_ipaddr;
 
 	/* MIB-statistics */
 	uint64_t		txdata_octets;
@@ -326,12 +331,19 @@ struct iscsi_session {
 	struct iscsi_transport	*tt;
 	struct Scsi_Host	*host;
 	struct iscsi_conn	*leadconn;	/* leading connection */
-	spinlock_t		lock;		/* protects session state, *
-						 * sequence numbers,       *
+	/* Between the forward and the backward locks exists a strict locking
+	 * hierarchy. The mutual exclusion zone protected by the forward lock
+	 * can enclose the mutual exclusion zone protected by the backward lock
+	 * but not vice versa.
+	 */
+	spinlock_t		frwd_lock;	/* protects session state, *
+						 * cmdsn, queued_cmdsn     *
 						 * session resources:      *
-						 * - cmdpool,		   *
-						 * - mgmtpool,		   *
-						 * - r2tpool		   */
+						 * - cmdpool kfifo_out ,   *
+						 * - mgmtpool,		   */
+	spinlock_t		back_lock;	/* protects cmdsn_exp      *
+						 * cmdsn_max,              *
+						 * cmdpool kfifo_in        */
 	int			state;		/* session state           */
 	int			age;		/* counts session re-opens */
 

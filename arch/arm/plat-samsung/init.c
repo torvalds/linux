@@ -11,14 +11,19 @@
  * published by the Free Software Foundation.
 */
 
+/*
+ * NOTE: Code in this file is not used on S3C64xx when booting with
+ * Device Tree support.
+ */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
-
-#include <mach/hardware.h>
+#include <linux/of.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -26,8 +31,6 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
-
-#include <plat/regs-serial.h>
 
 static struct cpu_table *cpu;
 
@@ -91,7 +94,9 @@ void __init s3c24xx_init_clocks(int xtal)
 #if IS_ENABLED(CONFIG_SAMSUNG_ATAGS)
 static int nr_uarts __initdata = 0;
 
+#ifdef CONFIG_SERIAL_SAMSUNG_UARTS
 static struct s3c2410_uartcfg uart_cfgs[CONFIG_SERIAL_SAMSUNG_UARTS];
+#endif
 
 /* s3c24xx_init_uartdevs
  *
@@ -106,6 +111,7 @@ void __init s3c24xx_init_uartdevs(char *name,
 				  struct s3c24xx_uart_resources *res,
 				  struct s3c2410_uartcfg *cfg, int no)
 {
+#ifdef CONFIG_SERIAL_SAMSUNG_UARTS
 	struct platform_device *platdev;
 	struct s3c2410_uartcfg *cfgptr = uart_cfgs;
 	struct s3c24xx_uart_resources *resp;
@@ -128,6 +134,7 @@ void __init s3c24xx_init_uartdevs(char *name,
 	}
 
 	nr_uarts = no;
+#endif
 }
 
 void __init s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no)
@@ -148,8 +155,12 @@ static int __init s3c_arch_init(void)
 
 	// do the correct init for cpu
 
-	if (cpu == NULL)
+	if (cpu == NULL) {
+		/* Not needed when booting with device tree. */
+		if (of_have_populated_dt())
+			return 0;
 		panic("s3c_arch_init: NULL cpu\n");
+	}
 
 	ret = (cpu->init)();
 	if (ret != 0)

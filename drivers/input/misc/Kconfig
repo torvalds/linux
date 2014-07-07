@@ -156,7 +156,7 @@ config INPUT_MAX8925_ONKEY
 
 config INPUT_MAX8997_HAPTIC
 	tristate "MAXIM MAX8997 haptic controller support"
-	depends on HAVE_PWM && MFD_MAX8997
+	depends on PWM && MFD_MAX8997
 	select INPUT_FF_MEMLESS
 	help
 	  This option enables device driver support for the haptic controller
@@ -168,7 +168,7 @@ config INPUT_MAX8997_HAPTIC
 
 config INPUT_MC13783_PWRBUTTON
 	tristate "MC13783 ON buttons"
-	depends on MFD_MC13783
+	depends on MFD_MC13XXX
 	help
 	  Support the ON buttons of MC13783 PMIC as an input device
 	  reporting power button status.
@@ -222,6 +222,15 @@ config INPUT_GP2A
 	  To compile this driver as a module, choose M here: the
 	  module will be called gp2ap002a00f.
 
+config INPUT_GPIO_BEEPER
+	tristate "Generic GPIO Beeper support"
+	depends on GPIOLIB
+	help
+	  Say Y here if you have a beeper connected to a GPIO pin.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gpio-beeper.
+
 config INPUT_GPIO_TILT_POLLED
 	tristate "Polled GPIO tilt switch"
 	depends on GPIOLIB
@@ -260,7 +269,7 @@ config INPUT_COBALT_BTNS
 
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
-	depends on X86 && !X86_64
+	depends on X86_32
 	select INPUT_POLLDEV
 	select INPUT_SPARSEKMAP
 	select NEW_LEDS
@@ -461,7 +470,7 @@ config INPUT_PCF8574
 
 config INPUT_PWM_BEEPER
 	tristate "PWM beeper support"
-	depends on HAVE_PWM || PWM
+	depends on PWM
 	help
 	  Say Y here to get support for PWM based beeper devices.
 
@@ -656,5 +665,15 @@ config INPUT_IDEAPAD_SLIDEBAR
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ideapad_slidebar.
+
+config INPUT_SOC_BUTTON_ARRAY
+	tristate "Windows-compatible SoC Button Array"
+	depends on KEYBOARD_GPIO
+	help
+	  Say Y here if you have a SoC-based tablet that originally
+	  runs Windows 8.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called soc_button_array.
 
 endif

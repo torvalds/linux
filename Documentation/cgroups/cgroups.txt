@@ -24,7 +24,6 @@ CONTENTS:
   2.1 Basic Usage
   2.2 Attaching processes
   2.3 Mounting hierarchies by name
-  2.4 Notification API
 3. Kernel API
   3.1 Overview
   3.2 Synchronization
@@ -472,25 +471,6 @@ you give a subsystem a name.
 The name of the subsystem appears as part of the hierarchy description
 in /proc/mounts and /proc/<pid>/cgroups.
 
-2.4 Notification API
---------------------
-
-There is mechanism which allows to get notifications about changing
-status of a cgroup.
-
-To register a new notification handler you need to:
- - create a file descriptor for event notification using eventfd(2);
- - open a control file to be monitored (e.g. memory.usage_in_bytes);
- - write "<event_fd> <control_fd> <args>" to cgroup.event_control.
-   Interpretation of args is defined by control file implementation;
-
-eventfd will be woken up by control file implementation or when the
-cgroup is removed.
-
-To unregister a notification handler just close eventfd.
-
-NOTE: Support of notifications should be implemented for the control
-file. See documentation for the subsystem.
 
 3. Kernel API
 =============

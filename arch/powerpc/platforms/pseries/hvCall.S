@@ -49,7 +49,7 @@ END_FTR_SECTION(0, 1);						\
 	std	r0,16(r1);					\
 	addi	r4,r1,STK_PARAM(FIRST_REG);			\
 	stdu	r1,-STACK_FRAME_OVERHEAD(r1);			\
-	bl	.__trace_hcall_entry;				\
+	bl	__trace_hcall_entry;				\
 	addi	r1,r1,STACK_FRAME_OVERHEAD;			\
 	ld	r0,16(r1);					\
 	ld	r3,STK_PARAM(R3)(r1);				\
@@ -83,7 +83,7 @@ END_FTR_SECTION(0, 1);						\
 	mr	r3,r6;						\
 	std	r0,16(r1);					\
 	stdu	r1,-STACK_FRAME_OVERHEAD(r1);			\
-	bl	.__trace_hcall_exit;				\
+	bl	__trace_hcall_exit;				\
 	addi	r1,r1,STACK_FRAME_OVERHEAD;			\
 	ld	r0,16(r1);					\
 	ld	r3,STK_PARAM(R3)(r1);				\
@@ -106,7 +106,7 @@ END_FTR_SECTION(0, 1);						\
 
 	.text
 
-_GLOBAL(plpar_hcall_norets)
+_GLOBAL_TOC(plpar_hcall_norets)
 	HMT_MEDIUM
 
 	mfcr	r0
@@ -122,7 +122,7 @@ _GLOBAL(plpar_hcall_norets)
 	mtcrf	0xff,r0
 	blr				/* return r3 = status */
 
-_GLOBAL(plpar_hcall)
+_GLOBAL_TOC(plpar_hcall)
 	HMT_MEDIUM
 
 	mfcr	r0
@@ -188,7 +188,7 @@ _GLOBAL(plpar_hcall_raw)
 
 	blr				/* return r3 = status */
 
-_GLOBAL(plpar_hcall9)
+_GLOBAL_TOC(plpar_hcall9)
 	HMT_MEDIUM
 
 	mfcr	r0

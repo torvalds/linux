@@ -35,6 +35,8 @@
 #define BR_GROUPFWD_DEFAULT	0
 /* Don't allow forwarding control protocols like STP and LLDP */
 #define BR_GROUPFWD_RESTRICTED	0x4007u
+/* The Nearest Customer Bridge Group Address, 01-80-C2-00-00-[00,0B,0C,0D,0F] */
+#define BR_GROUPFWD_8021AD	0xB801u
 
 /* Path to usermode spanning tree program */
 #define BR_STP_PROG	"/sbin/bridge-stp"
@@ -46,37 +48,31 @@ typedef __u16 port_id;
 struct bridge_id
 {
 	unsigned char	prio[2];
-	unsigned char	addr[6];
+	unsigned char	addr[ETH_ALEN];
 };
 
 struct mac_addr
 {
-	unsigned char	addr[6];
-};
-
-struct br_ip
-{
-	union {
-		__be32	ip4;
-#if IS_ENABLED(CONFIG_IPV6)
-		struct in6_addr ip6;
-#endif
-	} u;
-	__be16		proto;
-	__u16		vid;
+	unsigned char	addr[ETH_ALEN];
 };
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 /* our own querier */
-struct bridge_mcast_query {
+struct bridge_mcast_own_query {
 	struct timer_list	timer;
 	u32			startup_sent;
 };
 
 /* other querier */
-struct bridge_mcast_querier {
+struct bridge_mcast_other_query {
 	struct timer_list		timer;
 	unsigned long			delay_time;
+};
+
+/* selected querier */
+struct bridge_mcast_querier {
+	struct br_ip addr;
+	struct net_bridge_port __rcu	*port;
 };
 #endif
 
@@ -104,6 +100,7 @@ struct net_bridge_fdb_entry
 	mac_addr			addr;
 	unsigned char			is_local;
 	unsigned char			is_static;
+	unsigned char			added_by_user;
 	__u16				vlan_id;
 };
 
@@ -126,7 +123,6 @@ struct net_bridge_mdb_entry
 	struct timer_list		timer;
 	struct br_ip			addr;
 	bool				mglist;
-	bool				timer_armed;
 };
 
 struct net_bridge_mdb_htable
@@ -174,11 +170,13 @@ struct net_bridge_port
 #define BR_ADMIN_COST		0x00000010
 #define BR_LEARNING		0x00000020
 #define BR_FLOOD		0x00000040
+#define BR_AUTO_MASK (BR_FLOOD | BR_LEARNING)
+#define BR_PROMISC		0x00000080
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	struct bridge_mcast_query	ip4_query;
+	struct bridge_mcast_own_query	ip4_own_query;
 #if IS_ENABLED(CONFIG_IPV6)
-	struct bridge_mcast_query	ip6_query;
+	struct bridge_mcast_own_query	ip6_own_query;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 	unsigned char			multicast_router;
 	struct timer_list		multicast_router_timer;
@@ -198,6 +196,9 @@ struct net_bridge_port
 #endif
 };
 
+#define br_auto_port(p) ((p)->flags & BR_AUTO_MASK)
+#define br_promisc_port(p) ((p)->flags & BR_PROMISC)
+
 #define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
 
 static inline struct net_bridge_port *br_port_get_rcu(const struct net_device *dev)
@@ -211,21 +212,13 @@ static inline struct net_bridge_port *br_port_get_rtnl(const struct net_device *
 		rtnl_dereference(dev->rx_handler_data) : NULL;
 }
 
-struct br_cpu_netstats {
-	u64			rx_packets;
-	u64			rx_bytes;
-	u64			tx_packets;
-	u64			tx_bytes;
-	struct u64_stats_sync	syncp;
-};
-
 struct net_bridge
 {
 	spinlock_t			lock;
 	struct list_head		port_list;
 	struct net_device		*dev;
 
-	struct br_cpu_netstats __percpu *stats;
+	struct pcpu_sw_netstats		__percpu *stats;
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
 #ifdef CONFIG_BRIDGE_NETFILTER
@@ -235,6 +228,7 @@ struct net_bridge
 	bool				nf_call_arptables;
 #endif
 	u16				group_fwd_mask;
+	u16				group_fwd_mask_required;
 
 	/* STP */
 	bridge_id			designated_root;
@@ -249,6 +243,7 @@ struct net_bridge
 	unsigned long			bridge_forward_delay;
 
 	u8				group_addr[ETH_ALEN];
+	bool				group_addr_set;
 	u16				root_port;
 
 	enum {
@@ -285,11 +280,13 @@ struct net_bridge
 	struct hlist_head		router_list;
 
 	struct timer_list		multicast_router_timer;
+	struct bridge_mcast_other_query	ip4_other_query;
+	struct bridge_mcast_own_query	ip4_own_query;
 	struct bridge_mcast_querier	ip4_querier;
-	struct bridge_mcast_query	ip4_query;
 #if IS_ENABLED(CONFIG_IPV6)
+	struct bridge_mcast_other_query	ip6_other_query;
+	struct bridge_mcast_own_query	ip6_own_query;
 	struct bridge_mcast_querier	ip6_querier;
-	struct bridge_mcast_query	ip6_query;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif
 
@@ -298,8 +295,10 @@ struct net_bridge
 	struct timer_list		topology_change_timer;
 	struct timer_list		gc_timer;
 	struct kobject			*ifobj;
+	u32				auto_cnt;
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	u8				vlan_enabled;
+	__be16				vlan_proto;
 	struct net_port_vlans __rcu	*vlan_info;
 #endif
 };
@@ -335,8 +334,6 @@ struct br_input_skb_cb {
 #define br_debug(br, format, args...)			\
 	pr_debug("%s: " format,  (br)->dev->name, ##args)
 
-extern struct notifier_block br_device_notifier;
-
 /* called under bridge lock */
 static inline int br_is_root_bridge(const struct net_bridge *br)
 {
@@ -344,10 +341,9 @@ static inline int br_is_root_bridge(const struct net_bridge *br)
 }
 
 /* br_device.c */
-extern void br_dev_setup(struct net_device *dev);
-extern void br_dev_delete(struct net_device *dev, struct list_head *list);
-extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,
-			       struct net_device *dev);
+void br_dev_setup(struct net_device *dev);
+void br_dev_delete(struct net_device *dev, struct list_head *list);
+netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 				       struct sk_buff *skb)
@@ -358,15 +354,15 @@ static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 		netpoll_send_skb(np, skb);
 }
 
-extern int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp);
-extern void br_netpoll_disable(struct net_bridge_port *p);
+int br_netpoll_enable(struct net_bridge_port *p);
+void br_netpoll_disable(struct net_bridge_port *p);
 #else
 static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 				       struct sk_buff *skb)
 {
 }
 
-static inline int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
+static inline int br_netpoll_enable(struct net_bridge_port *p)
 {
 	return 0;
 }
@@ -377,116 +373,114 @@ static inline void br_netpoll_disable(struct net_bridge_port *p)
 #endif
 
 /* br_fdb.c */
-extern int br_fdb_init(void);
-extern void br_fdb_fini(void);
-extern void br_fdb_flush(struct net_bridge *br);
-extern void br_fdb_changeaddr(struct net_bridge_port *p,
-			      const unsigned char *newaddr);
-extern void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr);
-extern void br_fdb_cleanup(unsigned long arg);
-extern void br_fdb_delete_by_port(struct net_bridge *br,
-				  const struct net_bridge_port *p, int do_all);
-extern struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
-						 const unsigned char *addr,
-						 __u16 vid);
-extern int br_fdb_test_addr(struct net_device *dev, unsigned char *addr);
-extern int br_fdb_fillbuf(struct net_bridge *br, void *buf,
-			  unsigned long count, unsigned long off);
-extern int br_fdb_insert(struct net_bridge *br,
-			 struct net_bridge_port *source,
-			 const unsigned char *addr,
-			 u16 vid);
-extern void br_fdb_update(struct net_bridge *br,
-			  struct net_bridge_port *source,
-			  const unsigned char *addr,
-			  u16 vid);
-extern int fdb_delete_by_addr(struct net_bridge *br, const u8 *addr, u16 vid);
+int br_fdb_init(void);
+void br_fdb_fini(void);
+void br_fdb_flush(struct net_bridge *br);
+void br_fdb_find_delete_local(struct net_bridge *br,
+			      const struct net_bridge_port *p,
+			      const unsigned char *addr, u16 vid);
+void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr);
+void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr);
+void br_fdb_cleanup(unsigned long arg);
+void br_fdb_delete_by_port(struct net_bridge *br,
+			   const struct net_bridge_port *p, int do_all);
+struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
+					  const unsigned char *addr, __u16 vid);
+int br_fdb_test_addr(struct net_device *dev, unsigned char *addr);
+int br_fdb_fillbuf(struct net_bridge *br, void *buf, unsigned long count,
+		   unsigned long off);
+int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
+		  const unsigned char *addr, u16 vid);
+void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
+		   const unsigned char *addr, u16 vid, bool added_by_user);
 
-extern int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
-			 struct net_device *dev,
-			 const unsigned char *addr);
-extern int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[],
-		      struct net_device *dev,
-		      const unsigned char *addr,
-		      u16 nlh_flags);
-extern int br_fdb_dump(struct sk_buff *skb,
-		       struct netlink_callback *cb,
-		       struct net_device *dev,
-		       int idx);
+int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
+		  struct net_device *dev, const unsigned char *addr);
+int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[], struct net_device *dev,
+	       const unsigned char *addr, u16 nlh_flags);
+int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
+		struct net_device *dev, int idx);
+int br_fdb_sync_static(struct net_bridge *br, struct net_bridge_port *p);
+void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p);
 
 /* br_forward.c */
-extern void br_deliver(const struct net_bridge_port *to,
-		struct sk_buff *skb);
-extern int br_dev_queue_push_xmit(struct sk_buff *skb);
-extern void br_forward(const struct net_bridge_port *to,
+void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb);
+int br_dev_queue_push_xmit(struct sk_buff *skb);
+void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb, struct sk_buff *skb0);
-extern int br_forward_finish(struct sk_buff *skb);
-extern void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb,
-			     bool unicast);
-extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
-			     struct sk_buff *skb2, bool unicast);
+int br_forward_finish(struct sk_buff *skb);
+void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb, bool unicast);
+void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
+		      struct sk_buff *skb2, bool unicast);
 
 /* br_if.c */
-extern void br_port_carrier_check(struct net_bridge_port *p);
-extern int br_add_bridge(struct net *net, const char *name);
-extern int br_del_bridge(struct net *net, const char *name);
-extern void br_net_exit(struct net *net);
-extern int br_add_if(struct net_bridge *br,
-	      struct net_device *dev);
-extern int br_del_if(struct net_bridge *br,
-	      struct net_device *dev);
-extern int br_min_mtu(const struct net_bridge *br);
-extern netdev_features_t br_features_recompute(struct net_bridge *br,
-	netdev_features_t features);
+void br_port_carrier_check(struct net_bridge_port *p);
+int br_add_bridge(struct net *net, const char *name);
+int br_del_bridge(struct net *net, const char *name);
+int br_add_if(struct net_bridge *br, struct net_device *dev);
+int br_del_if(struct net_bridge *br, struct net_device *dev);
+int br_min_mtu(const struct net_bridge *br);
+netdev_features_t br_features_recompute(struct net_bridge *br,
+					netdev_features_t features);
+void br_port_flags_change(struct net_bridge_port *port, unsigned long mask);
+void br_manage_promisc(struct net_bridge *br);
 
 /* br_input.c */
-extern int br_handle_frame_finish(struct sk_buff *skb);
-extern rx_handler_result_t br_handle_frame(struct sk_buff **pskb);
+int br_handle_frame_finish(struct sk_buff *skb);
+rx_handler_result_t br_handle_frame(struct sk_buff **pskb);
+
+static inline bool br_rx_handler_check_rcu(const struct net_device *dev)
+{
+	return rcu_dereference(dev->rx_handler) == br_handle_frame;
+}
+
+static inline struct net_bridge_port *br_port_get_check_rcu(const struct net_device *dev)
+{
+	return br_rx_handler_check_rcu(dev) ? br_port_get_rcu(dev) : NULL;
+}
 
 /* br_ioctl.c */
-extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-extern int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __user *arg);
+int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd,
+			     void __user *arg);
 
 /* br_multicast.c */
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 extern unsigned int br_mdb_rehash_seq;
-extern int br_multicast_rcv(struct net_bridge *br,
-			    struct net_bridge_port *port,
-			    struct sk_buff *skb);
-extern struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
-					       struct sk_buff *skb, u16 vid);
-extern void br_multicast_add_port(struct net_bridge_port *port);
-extern void br_multicast_del_port(struct net_bridge_port *port);
-extern void br_multicast_enable_port(struct net_bridge_port *port);
-extern void br_multicast_disable_port(struct net_bridge_port *port);
-extern void br_multicast_init(struct net_bridge *br);
-extern void br_multicast_open(struct net_bridge *br);
-extern void br_multicast_stop(struct net_bridge *br);
-extern void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
-				 struct sk_buff *skb);
-extern void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
-				 struct sk_buff *skb, struct sk_buff *skb2);
-extern int br_multicast_set_router(struct net_bridge *br, unsigned long val);
-extern int br_multicast_set_port_router(struct net_bridge_port *p,
-					unsigned long val);
-extern int br_multicast_toggle(struct net_bridge *br, unsigned long val);
-extern int br_multicast_set_querier(struct net_bridge *br, unsigned long val);
-extern int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val);
-extern struct net_bridge_mdb_entry *br_mdb_ip_get(
-				struct net_bridge_mdb_htable *mdb,
-				struct br_ip *dst);
-extern struct net_bridge_mdb_entry *br_multicast_new_group(struct net_bridge *br,
-				struct net_bridge_port *port, struct br_ip *group);
-extern void br_multicast_free_pg(struct rcu_head *head);
-extern struct net_bridge_port_group *br_multicast_new_port_group(
-				struct net_bridge_port *port,
-				struct br_ip *group,
-				struct net_bridge_port_group __rcu *next,
-				unsigned char state);
-extern void br_mdb_init(void);
-extern void br_mdb_uninit(void);
-extern void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
-			  struct br_ip *group, int type);
+int br_multicast_rcv(struct net_bridge *br, struct net_bridge_port *port,
+		     struct sk_buff *skb, u16 vid);
+struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
+					struct sk_buff *skb, u16 vid);
+void br_multicast_add_port(struct net_bridge_port *port);
+void br_multicast_del_port(struct net_bridge_port *port);
+void br_multicast_enable_port(struct net_bridge_port *port);
+void br_multicast_disable_port(struct net_bridge_port *port);
+void br_multicast_init(struct net_bridge *br);
+void br_multicast_open(struct net_bridge *br);
+void br_multicast_stop(struct net_bridge *br);
+void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
+			  struct sk_buff *skb);
+void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
+			  struct sk_buff *skb, struct sk_buff *skb2);
+int br_multicast_set_router(struct net_bridge *br, unsigned long val);
+int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val);
+int br_multicast_toggle(struct net_bridge *br, unsigned long val);
+int br_multicast_set_querier(struct net_bridge *br, unsigned long val);
+int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val);
+struct net_bridge_mdb_entry *
+br_mdb_ip_get(struct net_bridge_mdb_htable *mdb, struct br_ip *dst);
+struct net_bridge_mdb_entry *
+br_multicast_new_group(struct net_bridge *br, struct net_bridge_port *port,
+		       struct br_ip *group);
+void br_multicast_free_pg(struct rcu_head *head);
+struct net_bridge_port_group *
+br_multicast_new_port_group(struct net_bridge_port *port, struct br_ip *group,
+			    struct net_bridge_port_group __rcu *next,
+			    unsigned char state);
+void br_mdb_init(void);
+void br_mdb_uninit(void);
+void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
+		   struct br_ip *group, int type);
 
 #define mlock_dereference(X, br) \
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
@@ -500,7 +494,7 @@ static inline bool br_multicast_is_router(struct net_bridge *br)
 
 static inline bool
 __br_multicast_querier_exists(struct net_bridge *br,
-			      struct bridge_mcast_querier *querier)
+			      struct bridge_mcast_other_query *querier)
 {
 	return time_is_before_jiffies(querier->delay_time) &&
 	       (br->multicast_querier || timer_pending(&querier->timer));
@@ -511,10 +505,10 @@ static inline bool br_multicast_querier_exists(struct net_bridge *br,
 {
 	switch (eth->h_proto) {
 	case (htons(ETH_P_IP)):
-		return __br_multicast_querier_exists(br, &br->ip4_querier);
+		return __br_multicast_querier_exists(br, &br->ip4_other_query);
 #if IS_ENABLED(CONFIG_IPV6)
 	case (htons(ETH_P_IPV6)):
-		return __br_multicast_querier_exists(br, &br->ip6_querier);
+		return __br_multicast_querier_exists(br, &br->ip6_other_query);
 #endif
 	default:
 		return false;
@@ -523,7 +517,8 @@ static inline bool br_multicast_querier_exists(struct net_bridge *br,
 #else
 static inline int br_multicast_rcv(struct net_bridge *br,
 				   struct net_bridge_port *port,
-				   struct sk_buff *skb)
+				   struct sk_buff *skb,
+				   u16 vid)
 {
 	return 0;
 }
@@ -591,22 +586,26 @@ static inline void br_mdb_uninit(void)
 
 /* br_vlan.c */
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
-extern bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
-			       struct sk_buff *skb, u16 *vid);
-extern bool br_allowed_egress(struct net_bridge *br,
-			      const struct net_port_vlans *v,
-			      const struct sk_buff *skb);
-extern struct sk_buff *br_handle_vlan(struct net_bridge *br,
-				      const struct net_port_vlans *v,
-				      struct sk_buff *skb);
-extern int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags);
-extern int br_vlan_delete(struct net_bridge *br, u16 vid);
-extern void br_vlan_flush(struct net_bridge *br);
-extern int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
-extern int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags);
-extern int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
-extern void nbp_vlan_flush(struct net_bridge_port *port);
-extern bool nbp_vlan_find(struct net_bridge_port *port, u16 vid);
+bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
+			struct sk_buff *skb, u16 *vid);
+bool br_allowed_egress(struct net_bridge *br, const struct net_port_vlans *v,
+		       const struct sk_buff *skb);
+bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid);
+struct sk_buff *br_handle_vlan(struct net_bridge *br,
+			       const struct net_port_vlans *v,
+			       struct sk_buff *skb);
+int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags);
+int br_vlan_delete(struct net_bridge *br, u16 vid);
+void br_vlan_flush(struct net_bridge *br);
+bool br_vlan_find(struct net_bridge *br, u16 vid);
+void br_recalculate_fwd_mask(struct net_bridge *br);
+int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
+int br_vlan_set_proto(struct net_bridge *br, unsigned long val);
+void br_vlan_init(struct net_bridge *br);
+int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags);
+int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
+void nbp_vlan_flush(struct net_bridge_port *port);
+bool nbp_vlan_find(struct net_bridge_port *port, u16 vid);
 
 static inline struct net_port_vlans *br_get_vlan_info(
 						const struct net_bridge *br)
@@ -643,11 +642,13 @@ static inline u16 br_get_pvid(const struct net_port_vlans *v)
 	 * vid wasn't set
 	 */
 	smp_rmb();
-	return (v->pvid & VLAN_TAG_PRESENT) ?
-			(v->pvid & ~VLAN_TAG_PRESENT) :
-			VLAN_N_VID;
+	return v->pvid ?: VLAN_N_VID;
 }
 
+static inline int br_vlan_enabled(struct net_bridge *br)
+{
+	return br->vlan_enabled;
+}
 #else
 static inline bool br_allowed_ingress(struct net_bridge *br,
 				      struct net_port_vlans *v,
@@ -660,6 +661,12 @@ static inline bool br_allowed_ingress(struct net_bridge *br,
 static inline bool br_allowed_egress(struct net_bridge *br,
 				     const struct net_port_vlans *v,
 				     const struct sk_buff *skb)
+{
+	return true;
+}
+
+static inline bool br_should_learn(struct net_bridge_port *p,
+				   struct sk_buff *skb, u16 *vid)
 {
 	return true;
 }
@@ -682,6 +689,19 @@ static inline int br_vlan_delete(struct net_bridge *br, u16 vid)
 }
 
 static inline void br_vlan_flush(struct net_bridge *br)
+{
+}
+
+static inline bool br_vlan_find(struct net_bridge *br, u16 vid)
+{
+	return false;
+}
+
+static inline void br_recalculate_fwd_mask(struct net_bridge *br)
+{
+}
+
+static inline void br_vlan_init(struct net_bridge *br)
 {
 }
 
@@ -723,57 +743,58 @@ static inline u16 br_get_pvid(const struct net_port_vlans *v)
 {
 	return VLAN_N_VID;	/* Returns invalid vid */
 }
+
+static inline int br_vlan_enabled(struct net_bridge *br)
+{
+	return 0;
+}
 #endif
 
 /* br_netfilter.c */
 #ifdef CONFIG_BRIDGE_NETFILTER
-extern int br_netfilter_init(void);
-extern void br_netfilter_fini(void);
-extern void br_netfilter_rtable_init(struct net_bridge *);
+int br_netfilter_init(void);
+void br_netfilter_fini(void);
+void br_netfilter_rtable_init(struct net_bridge *);
 #else
 #define br_netfilter_init()	(0)
-#define br_netfilter_fini()	do { } while(0)
+#define br_netfilter_fini()	do { } while (0)
 #define br_netfilter_rtable_init(x)
 #endif
 
 /* br_stp.c */
-extern void br_log_state(const struct net_bridge_port *p);
-extern struct net_bridge_port *br_get_port(struct net_bridge *br,
-					   u16 port_no);
-extern void br_init_port(struct net_bridge_port *p);
-extern void br_become_designated_port(struct net_bridge_port *p);
+void br_log_state(const struct net_bridge_port *p);
+struct net_bridge_port *br_get_port(struct net_bridge *br, u16 port_no);
+void br_init_port(struct net_bridge_port *p);
+void br_become_designated_port(struct net_bridge_port *p);
 
-extern void __br_set_forward_delay(struct net_bridge *br, unsigned long t);
-extern int br_set_forward_delay(struct net_bridge *br, unsigned long x);
-extern int br_set_hello_time(struct net_bridge *br, unsigned long x);
-extern int br_set_max_age(struct net_bridge *br, unsigned long x);
+void __br_set_forward_delay(struct net_bridge *br, unsigned long t);
+int br_set_forward_delay(struct net_bridge *br, unsigned long x);
+int br_set_hello_time(struct net_bridge *br, unsigned long x);
+int br_set_max_age(struct net_bridge *br, unsigned long x);
 
 
 /* br_stp_if.c */
-extern void br_stp_enable_bridge(struct net_bridge *br);
-extern void br_stp_disable_bridge(struct net_bridge *br);
-extern void br_stp_set_enabled(struct net_bridge *br, unsigned long val);
-extern void br_stp_enable_port(struct net_bridge_port *p);
-extern void br_stp_disable_port(struct net_bridge_port *p);
-extern bool br_stp_recalculate_bridge_id(struct net_bridge *br);
-extern void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *a);
-extern void br_stp_set_bridge_priority(struct net_bridge *br,
-				       u16 newprio);
-extern int br_stp_set_port_priority(struct net_bridge_port *p,
-				    unsigned long newprio);
-extern int br_stp_set_path_cost(struct net_bridge_port *p,
-				unsigned long path_cost);
-extern ssize_t br_show_bridge_id(char *buf, const struct bridge_id *id);
+void br_stp_enable_bridge(struct net_bridge *br);
+void br_stp_disable_bridge(struct net_bridge *br);
+void br_stp_set_enabled(struct net_bridge *br, unsigned long val);
+void br_stp_enable_port(struct net_bridge_port *p);
+void br_stp_disable_port(struct net_bridge_port *p);
+bool br_stp_recalculate_bridge_id(struct net_bridge *br);
+void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *a);
+void br_stp_set_bridge_priority(struct net_bridge *br, u16 newprio);
+int br_stp_set_port_priority(struct net_bridge_port *p, unsigned long newprio);
+int br_stp_set_path_cost(struct net_bridge_port *p, unsigned long path_cost);
+ssize_t br_show_bridge_id(char *buf, const struct bridge_id *id);
 
 /* br_stp_bpdu.c */
 struct stp_proto;
-extern void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
-		       struct net_device *dev);
+void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
+		struct net_device *dev);
 
 /* br_stp_timer.c */
-extern void br_stp_timer_init(struct net_bridge *br);
-extern void br_stp_port_timer_init(struct net_bridge_port *p);
-extern unsigned long br_timer_value(const struct timer_list *timer);
+void br_stp_timer_init(struct net_bridge *br);
+void br_stp_port_timer_init(struct net_bridge_port *p);
+unsigned long br_timer_value(const struct timer_list *timer);
 
 /* br.c */
 #if IS_ENABLED(CONFIG_ATM_LANE)
@@ -782,23 +803,23 @@ extern int (*br_fdb_test_addr_hook)(struct net_device *dev, unsigned char *addr)
 
 /* br_netlink.c */
 extern struct rtnl_link_ops br_link_ops;
-extern int br_netlink_init(void);
-extern void br_netlink_fini(void);
-extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
-extern int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg);
-extern int br_dellink(struct net_device *dev, struct nlmsghdr *nlmsg);
-extern int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-		      struct net_device *dev, u32 filter_mask);
+int br_netlink_init(void);
+void br_netlink_fini(void);
+void br_ifinfo_notify(int event, struct net_bridge_port *port);
+int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg);
+int br_dellink(struct net_device *dev, struct nlmsghdr *nlmsg);
+int br_getlink(struct sk_buff *skb, u32 pid, u32 seq, struct net_device *dev,
+	       u32 filter_mask);
 
 #ifdef CONFIG_SYSFS
 /* br_sysfs_if.c */
 extern const struct sysfs_ops brport_sysfs_ops;
-extern int br_sysfs_addif(struct net_bridge_port *p);
-extern int br_sysfs_renameif(struct net_bridge_port *p);
+int br_sysfs_addif(struct net_bridge_port *p);
+int br_sysfs_renameif(struct net_bridge_port *p);
 
 /* br_sysfs_br.c */
-extern int br_sysfs_addbr(struct net_device *dev);
-extern void br_sysfs_delbr(struct net_device *dev);
+int br_sysfs_addbr(struct net_device *dev);
+void br_sysfs_delbr(struct net_device *dev);
 
 #else
 

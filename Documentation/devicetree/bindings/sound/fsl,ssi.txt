@@ -4,7 +4,12 @@ The SSI is a serial device that communicates with audio codecs.  It can
 be programmed in AC97, I2S, left-justified, or right-justified modes.
 
 Required properties:
-- compatible:       Compatible list, contains "fsl,ssi".
+- compatible:       Compatible list, should contain one of the following
+                    compatibles:
+                      fsl,mpc8610-ssi
+                      fsl,imx51-ssi
+                      fsl,imx35-ssi
+                      fsl,imx21-ssi
 - cell-index:       The SSI, <0> = SSI1, <1> = SSI2, and so on.
 - reg:              Offset and length of the register set for the device.
 - interrupts:       <a b> where a is the interrupt number and b is a
@@ -15,15 +20,6 @@ Required properties:
                     have.
 - interrupt-parent: The phandle for the interrupt controller that
                     services interrupts for this device.
-- fsl,mode:         The operating mode for the SSI interface.
-                    "i2s-slave" - I2S mode, SSI is clock slave
-                    "i2s-master" - I2S mode, SSI is clock master
-                    "lj-slave" - left-justified mode, SSI is clock slave
-                    "lj-master" - l.j. mode, SSI is clock master
-                    "rj-slave" - right-justified mode, SSI is clock slave
-                    "rj-master" - r.j., SSI is clock master
-                    "ac97-slave" - AC97 mode, SSI is clock slave
-                    "ac97-master" - AC97 mode, SSI is clock master
 - fsl,playback-dma: Phandle to a node for the DMA channel to use for
                     playback of audio.  This is typically dictated by SOC
                     design.  See the notes below.
@@ -42,6 +38,9 @@ Required properties:
                     be connected together, and SRFS and STFS be connected
                     together.  This would still allow different sample sizes,
                     but not different sample rates.
+ - clocks:          "ipg" - Required clock for the SSI unit
+                    "baud" - Required clock for SSI master mode. Otherwise this
+		      clock is not used
 
 Required are also ac97 link bindings if ac97 is used. See
 Documentation/devicetree/bindings/sound/soc-ac97link.txt for the necessary
@@ -59,6 +58,15 @@ Optional properties:
 		    Documentation/devicetree/bindings/dma/dma.txt.
 - dma-names:	    Two dmas have to be defined, "tx" and "rx", if fsl,imx-fiq
 		    is not defined.
+- fsl,mode:         The operating mode for the SSI interface.
+                    "i2s-slave" - I2S mode, SSI is clock slave
+                    "i2s-master" - I2S mode, SSI is clock master
+                    "lj-slave" - left-justified mode, SSI is clock slave
+                    "lj-master" - l.j. mode, SSI is clock master
+                    "rj-slave" - right-justified mode, SSI is clock slave
+                    "rj-master" - r.j., SSI is clock master
+                    "ac97-slave" - AC97 mode, SSI is clock slave
+                    "ac97-master" - AC97 mode, SSI is clock master
 
 Child 'codec' node required properties:
 - compatible:       Compatible list, contains the name of the codec

@@ -62,6 +62,10 @@ static struct clk_onecell_data clk_data;
 
 static const char *cpu_sel_clks[] = { "mpll", "mpll_cpu_3_4", };
 static const char *per_sel_clks[] = { "ahb", "upll", };
+static const char *cko_sel_clks[] = { "dummy", "osc", "cpu", "ahb",
+				      "ipg", "dummy", "dummy", "dummy",
+				      "dummy", "dummy", "per0", "per2",
+				      "per13", "per14", "usbotg_ahb", "dummy",};
 
 enum mx25_clks {
 	dummy, osc, mpll, upll, mpll_cpu_3_4, cpu_sel, cpu, ahb, usb_div, ipg,
@@ -82,7 +86,7 @@ enum mx25_clks {
 	pwm2_ipg, pwm3_ipg, pwm4_ipg, rngb_ipg, reserved16, scc_ipg, sdma_ipg,
 	sim1_ipg, sim2_ipg, slcdc_ipg, spba_ipg, ssi1_ipg, ssi2_ipg, tsc_ipg,
 	uart1_ipg, uart2_ipg, uart3_ipg, uart4_ipg, uart5_ipg, reserved17,
-	wdt_ipg, clk_max
+	wdt_ipg, cko_div, cko_sel, cko, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -117,6 +121,9 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 	clk[per13_sel] = imx_clk_mux("per13_sel", ccm(CCM_MCR), 13, 1, per_sel_clks, ARRAY_SIZE(per_sel_clks));
 	clk[per14_sel] = imx_clk_mux("per14_sel", ccm(CCM_MCR), 14, 1, per_sel_clks, ARRAY_SIZE(per_sel_clks));
 	clk[per15_sel] = imx_clk_mux("per15_sel", ccm(CCM_MCR), 15, 1, per_sel_clks, ARRAY_SIZE(per_sel_clks));
+	clk[cko_div] = imx_clk_divider("cko_div", "cko_sel", ccm(CCM_MCR), 24, 6);
+	clk[cko_sel] = imx_clk_mux("cko_sel", ccm(CCM_MCR), 20, 4, cko_sel_clks, ARRAY_SIZE(cko_sel_clks));
+	clk[cko] = imx_clk_gate("cko", "cko_div", ccm(CCM_MCR),  30);
 	clk[per0] = imx_clk_divider("per0", "per0_sel", ccm(CCM_PCDR0), 0, 6);
 	clk[per1] = imx_clk_divider("per1", "per1_sel", ccm(CCM_PCDR0), 8, 6);
 	clk[per2] = imx_clk_divider("per2", "per2_sel", ccm(CCM_PCDR0), 16, 6);
@@ -230,6 +237,12 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 
+	/*
+	 * Let's initially set up CLKO parent as ipg, since this configuration
+	 * is used on some imx25 board designs to clock the audio codec.
+	 */
+	clk_set_parent(clk[cko_sel], clk[ipg]);
+
 	return 0;
 }
 
@@ -265,14 +278,6 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[cspi1_ipg], NULL, "imx35-cspi.0");
 	clk_register_clkdev(clk[cspi2_ipg], NULL, "imx35-cspi.1");
 	clk_register_clkdev(clk[cspi3_ipg], NULL, "imx35-cspi.2");
-	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.0");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.0");
-	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.1");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.1");
-	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.2");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.2");
-	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.3");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.3");
 	clk_register_clkdev(clk[kpp_ipg], NULL, "imx-keypad");
 	clk_register_clkdev(clk[tsc_ipg], NULL, "mx25-adc");
 	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.0");
@@ -312,8 +317,6 @@ int __init mx25_clocks_init(void)
 int __init mx25_clocks_init_dt(void)
 {
 	struct device_node *np;
-	void __iomem *base;
-	int irq;
 	unsigned long osc_rate = 24000000;
 
 	/* retrieve the freqency of fixed clocks from device tree */
@@ -333,12 +336,7 @@ int __init mx25_clocks_init_dt(void)
 
 	__mx25_clocks_init(osc_rate);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-gpt");
-	base = of_iomap(np, 0);
-	WARN_ON(!base);
-	irq = irq_of_parse_and_map(np, 0);
-
-	mxc_timer_init(base, irq);
+	mxc_timer_init_dt(of_find_compatible_node(NULL, NULL, "fsl,imx25-gpt"));
 
 	return 0;
 }

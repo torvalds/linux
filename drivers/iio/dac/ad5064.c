@@ -239,10 +239,9 @@ static int ad5064_read_raw(struct iio_dev *indio_dev,
 		if (scale_uv < 0)
 			return scale_uv;
 
-		scale_uv = (scale_uv * 100) >> chan->scan_type.realbits;
-		*val =  scale_uv / 100000;
-		*val2 = (scale_uv % 100000) * 10;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = scale_uv / 1000;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		break;
 	}
@@ -285,8 +284,9 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 		.name = "powerdown",
 		.read = ad5064_read_dac_powerdown,
 		.write = ad5064_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", false, &ad5064_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &ad5064_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5064_powerdown_mode_enum),
 	{ },
 };
@@ -299,7 +299,12 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
 	BIT(IIO_CHAN_INFO_SCALE),					\
 	.address = addr,					\
-	.scan_type = IIO_ST('u', (bits), 16, 20 - (bits)),	\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (bits),				\
+		.storagebits = 16,				\
+		.shift = 20 - bits,				\
+	},							\
 	.ext_info = ad5064_ext_info,				\
 }
 

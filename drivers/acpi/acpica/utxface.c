@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acdebug.h"
@@ -60,7 +61,7 @@ ACPI_MODULE_NAME("utxface")
  * DESCRIPTION: Shutdown the ACPICA subsystem and release all resources.
  *
  ******************************************************************************/
-acpi_status acpi_terminate(void)
+acpi_status __init acpi_terminate(void)
 {
 	acpi_status status;
 
@@ -104,7 +105,7 @@ acpi_status acpi_terminate(void)
 	return_ACPI_STATUS(status);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_terminate)
+ACPI_EXPORT_SYMBOL_INIT(acpi_terminate)
 
 #ifndef ACPI_ASL_COMPILER
 #ifdef ACPI_FUTURE_USAGE
@@ -206,6 +207,44 @@ acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_system_info)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_get_statistics
+ *
+ * PARAMETERS:  stats           - Where the statistics are returned
+ *
+ * RETURN:      status          - the status of the call
+ *
+ * DESCRIPTION: Get the contents of the various system counters
+ *
+ ******************************************************************************/
+acpi_status acpi_get_statistics(struct acpi_statistics *stats)
+{
+	ACPI_FUNCTION_TRACE(acpi_get_statistics);
+
+	/* Parameter validation */
+
+	if (!stats) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	/* Various interrupt-based event counters */
+
+	stats->sci_count = acpi_sci_count;
+	stats->gpe_count = acpi_gpe_count;
+
+	ACPI_MEMCPY(stats->fixed_event_count, acpi_fixed_event_count,
+		    sizeof(acpi_fixed_event_count));
+
+	/* Other counters */
+
+	stats->method_count = acpi_method_count;
+
+	return_ACPI_STATUS(AE_OK);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_get_statistics)
 
 /*****************************************************************************
  *

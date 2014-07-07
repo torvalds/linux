@@ -19,12 +19,9 @@
  ******************************************************************************/
 #define _XMIT_OSDEP_C_
 
-#include <linux/version.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 
-#include <if_ether.h>
-#include <ip.h>
 #include <wifi.h>
 #include <mlme_osdep.h>
 #include <xmit_osdep.h>
@@ -39,7 +36,6 @@ uint rtw_remainder_len(struct pkt_file *pfile)
 
 void _rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
 {
-_func_enter_;
 
 	pfile->pkt = pktptr;
 	pfile->cur_addr = pktptr->data;
@@ -49,14 +45,12 @@ _func_enter_;
 
 	pfile->cur_buffer = pfile->buf_start;
 
-_func_exit_;
 }
 
 uint _rtw_pktfile_read (struct pkt_file *pfile, u8 *rmem, uint rlen)
 {
 	uint	len = 0;
 
-_func_enter_;
 
 	len =  rtw_remainder_len(pfile);
 	len = (rlen > len) ? len : rlen;
@@ -67,27 +61,19 @@ _func_enter_;
 	pfile->cur_addr += len;
 	pfile->pkt_len -= len;
 
-_func_exit_;
 
 	return len;
 }
 
 int rtw_endofpktfile(struct pkt_file *pfile)
 {
-_func_enter_;
 
 	if (pfile->pkt_len == 0) {
-	_func_exit_;
 		return true;
 	}
 
-_func_exit_;
 
 	return false;
-}
-
-void rtw_set_tx_chksum_offload(struct sk_buff *pkt, struct pkt_attrib *pattrib)
-{
 }
 
 int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitbuf, u32 alloc_sz)
@@ -126,7 +112,6 @@ void rtw_os_xmit_resource_free(struct adapter *padapter,
 
 void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
 	u16	queue;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
@@ -139,10 +124,6 @@ void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
 		if (__netif_subqueue_stopped(padapter->pnetdev, queue))
 			netif_wake_subqueue(padapter->pnetdev, queue);
 	}
-#else
-	if (netif_queue_stopped(padapter->pnetdev))
-		netif_wake_queue(padapter->pnetdev);
-#endif
 
 	dev_kfree_skb_any(pkt);
 }
@@ -156,7 +137,6 @@ void rtw_os_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe)
 
 void rtw_os_xmit_schedule(struct adapter *padapter)
 {
-	unsigned long  irql;
 	struct xmit_priv *pxmitpriv;
 
 	if (!padapter)
@@ -164,12 +144,12 @@ void rtw_os_xmit_schedule(struct adapter *padapter)
 
 	pxmitpriv = &padapter->xmitpriv;
 
-	_enter_critical_bh(&pxmitpriv->lock, &irql);
+	spin_lock_bh(&pxmitpriv->lock);
 
 	if (rtw_txframes_pending(padapter))
 		tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 
-	_exit_critical_bh(&pxmitpriv->lock, &irql);
+	spin_unlock_bh(&pxmitpriv->lock);
 }
 
 static void rtw_check_xmit_resource(struct adapter *padapter, struct sk_buff *pkt)
@@ -194,21 +174,20 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 {
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-	unsigned long	irql;
 	struct list_head *phead, *plist;
 	struct sk_buff *newskb;
 	struct sta_info *psta = NULL;
 	s32	res;
 
-	_enter_critical_bh(&pstapriv->asoc_list_lock, &irql);
+	spin_lock_bh(&pstapriv->asoc_list_lock);
 	phead = &pstapriv->asoc_list;
-	plist = get_next(phead);
+	plist = phead->next;
 
 	/* free sta asoc_queue */
 	while (!rtw_end_of_queue_search(phead, plist)) {
-		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+		psta = container_of(plist, struct sta_info, asoc_list);
 
-		plist = get_next(plist);
+		plist = plist->next;
 
 		/* avoid   come from STA1 and send back STA1 */
 		if (!memcmp(psta->hwaddr, &skb->data[6], 6))
@@ -230,12 +209,12 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 			DBG_88E("%s-%d: skb_copy() failed!\n", __func__, __LINE__);
 			pxmitpriv->tx_drop++;
 
-			_exit_critical_bh(&pstapriv->asoc_list_lock, &irql);
+			spin_unlock_bh(&pstapriv->asoc_list_lock);
 			return false;	/*  Caller shall tx this multicast frame via normal way. */
 		}
 	}
 
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irql);
+	spin_unlock_bh(&pstapriv->asoc_list_lock);
 	dev_kfree_skb_any(skb);
 	return true;
 }
@@ -248,7 +227,6 @@ int rtw_xmit_entry(struct sk_buff *pkt, struct  net_device *pnetdev)
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	s32 res = 0;
 
-_func_enter_;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("+xmit_enry\n"));
 
@@ -284,7 +262,6 @@ drop_packet:
 
 exit:
 
-_func_exit_;
 
 	return 0;
 }

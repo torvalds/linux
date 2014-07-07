@@ -56,6 +56,16 @@ _nouveau_falcon_wr32(struct nouveau_object *object, u64 addr, u32 data)
 	nv_wr32(falcon, falcon->addr + addr, data);
 }
 
+static void *
+vmemdup(const void *src, size_t len)
+{
+	void *p = vmalloc(len);
+
+	if (p)
+		memcpy(p, src, len);
+	return p;
+}
+
 int
 _nouveau_falcon_init(struct nouveau_object *object)
 {
@@ -109,9 +119,9 @@ _nouveau_falcon_init(struct nouveau_object *object)
 		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03x",
 			 device->chipset, falcon->addr >> 12);
 
-		ret = request_firmware(&fw, name, &device->pdev->dev);
+		ret = request_firmware(&fw, name, nv_device_base(device));
 		if (ret == 0) {
-			falcon->code.data = kmemdup(fw->data, fw->size, GFP_KERNEL);
+			falcon->code.data = vmemdup(fw->data, fw->size);
 			falcon->code.size = fw->size;
 			falcon->data.data = NULL;
 			falcon->data.size = 0;
@@ -128,13 +138,13 @@ _nouveau_falcon_init(struct nouveau_object *object)
 		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03xd",
 			 device->chipset, falcon->addr >> 12);
 
-		ret = request_firmware(&fw, name, &device->pdev->dev);
+		ret = request_firmware(&fw, name, nv_device_base(device));
 		if (ret) {
 			nv_error(falcon, "unable to load firmware data\n");
 			return ret;
 		}
 
-		falcon->data.data = kmemdup(fw->data, fw->size, GFP_KERNEL);
+		falcon->data.data = vmemdup(fw->data, fw->size);
 		falcon->data.size = fw->size;
 		release_firmware(fw);
 		if (!falcon->data.data)
@@ -143,13 +153,13 @@ _nouveau_falcon_init(struct nouveau_object *object)
 		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03xc",
 			 device->chipset, falcon->addr >> 12);
 
-		ret = request_firmware(&fw, name, &device->pdev->dev);
+		ret = request_firmware(&fw, name, nv_device_base(device));
 		if (ret) {
 			nv_error(falcon, "unable to load firmware code\n");
 			return ret;
 		}
 
-		falcon->code.data = kmemdup(fw->data, fw->size, GFP_KERNEL);
+		falcon->code.data = vmemdup(fw->data, fw->size);
 		falcon->code.size = fw->size;
 		release_firmware(fw);
 		if (!falcon->code.data)
@@ -235,8 +245,8 @@ _nouveau_falcon_fini(struct nouveau_object *object, bool suspend)
 	if (!suspend) {
 		nouveau_gpuobj_ref(NULL, &falcon->core);
 		if (falcon->external) {
-			kfree(falcon->data.data);
-			kfree(falcon->code.data);
+			vfree(falcon->data.data);
+			vfree(falcon->code.data);
 			falcon->code.data = NULL;
 		}
 	}

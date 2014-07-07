@@ -1,7 +1,8 @@
 #include <linux/export.h>
 #include <linux/lockref.h>
+#include <linux/mutex.h>
 
-#ifdef CONFIG_CMPXCHG_LOCKREF
+#if USE_CMPXCHG_LOCKREF
 
 /*
  * Allow weakly-ordered memory architectures to provide barrier-less
@@ -9,14 +10,6 @@
  */
 #ifndef cmpxchg64_relaxed
 # define cmpxchg64_relaxed cmpxchg64
-#endif
-
-/*
- * Allow architectures to override the default cpu_relax() within CMPXCHG_LOOP.
- * This is useful for architectures with an expensive cpu_relax().
- */
-#ifndef arch_mutex_cpu_relax
-# define arch_mutex_cpu_relax() cpu_relax()
 #endif
 
 /*
@@ -153,6 +146,7 @@ void lockref_mark_dead(struct lockref *lockref)
 	assert_spin_locked(&lockref->lock);
 	lockref->count = -128;
 }
+EXPORT_SYMBOL(lockref_mark_dead);
 
 /**
  * lockref_get_not_dead - Increments count unless the ref is dead

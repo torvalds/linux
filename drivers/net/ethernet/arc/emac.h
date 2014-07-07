@@ -11,6 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
+#include <linux/clk.h>
 
 /* STATUS and ENABLE Register bit masks */
 #define TXINT_MASK	(1<<0)	/* Transmit interrupt */
@@ -122,7 +123,6 @@ struct buffer_state {
  * @link:	PHY's last seen link state.
  * @duplex:	PHY's last set duplex mode.
  * @speed:	PHY's last set speed.
- * @max_speed:	Maximum supported by current system network data-rate.
  */
 struct arc_emac_priv {
 	/* Devices */
@@ -132,6 +132,7 @@ struct arc_emac_priv {
 	struct mii_bus *bus;
 
 	void __iomem *regs;
+	struct clk *clk;
 
 	struct napi_struct napi;
 	struct net_device_stats stats;
@@ -152,7 +153,6 @@ struct arc_emac_priv {
 	unsigned int link;
 	unsigned int duplex;
 	unsigned int speed;
-	unsigned int max_speed;
 };
 
 /**

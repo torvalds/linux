@@ -1,4 +1,4 @@
-/* Copyright (C) 2011-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2014 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_BLA_H_
@@ -30,7 +28,8 @@ int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq,
 					     void *offset);
-int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig);
+bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig,
+				    unsigned short vid);
 int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb);
 void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
@@ -74,10 +73,11 @@ static inline int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq,
 	return 0;
 }
 
-static inline int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv,
-						 uint8_t *orig)
+static inline bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv,
+						  uint8_t *orig,
+						  unsigned short vid)
 {
-	return 0;
+	return false;
 }
 
 static inline int

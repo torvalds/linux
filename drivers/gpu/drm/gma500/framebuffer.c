@@ -319,7 +319,7 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 {
 	struct gtt_range *backing;
 	/* Begin by trying to use stolen memory backing */
-	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1);
+	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1, PAGE_SIZE);
 	if (backing) {
 		drm_gem_private_object_init(dev, &backing->gem, aligned_size);
 		return backing;
@@ -714,7 +714,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_ANALOG);
 			break;
 		case INTEL_OUTPUT_SDVO:
-			crtc_mask = ((1 << 0) | (1 << 1));
+			crtc_mask = dev_priv->ops->sdvo_mask;
 			clone_mask = (1 << INTEL_OUTPUT_SDVO);
 			break;
 		case INTEL_OUTPUT_LVDS:

@@ -111,6 +111,13 @@ static const struct dmi_system_id stk_upside_down_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "F3JC")
 		}
 	},
+	{
+		.ident = "T12Rg-H",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HCL Infosystems Limited"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T12Rg-H")
+		}
+	},
 	{}
 };
 

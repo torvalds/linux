@@ -27,21 +27,11 @@
  * struct rfkill_gpio_platform_data - platform data for rfkill gpio device.
  * for unused gpio's, the expected value is -1.
  * @name:		name for the gpio rf kill instance
- * @reset_gpio:		GPIO which is used for reseting rfkill switch
- * @shutdown_gpio:	GPIO which is used for shutdown of rfkill switch
- * @power_clk_name:	[optional] name of clk to turn off while blocked
- * @gpio_runtime_close:	clean up platform specific gpio configuration
- * @gpio_runtime_setup:	set up platform specific gpio configuration
  */
 
 struct rfkill_gpio_platform_data {
 	char			*name;
-	int			reset_gpio;
-	int			shutdown_gpio;
-	const char		*power_clk_name;
 	enum rfkill_type	type;
-	void	(*gpio_runtime_close)(struct platform_device *);
-	int	(*gpio_runtime_setup)(struct platform_device *);
 };
 
 #endif /* __RFKILL_GPIO_H */

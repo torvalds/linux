@@ -39,8 +39,7 @@
 #include "mac.h"
 #include "tmacro.h"
 #include "key.h"
-#include "rndis.h"
-#include "control.h"
+#include "usbpipe.h"
 
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
@@ -68,15 +67,10 @@ static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
             //MACvDisableKeyEntry(pDevice, i);
         }
     }
-    if ( wLength != 0 ) {
-        CONTROLnsRequestOut(pDevice,
-                            MESSAGE_TYPE_CLRKEYENTRY,
-                            0,
-                            0,
-                            wLength,
-                            pbyData
-                            );
-    }
+
+	if (wLength != 0)
+		vnt_control_out(pDevice, MESSAGE_TYPE_CLRKEYENTRY,
+			0, 0, wLength, pbyData);
 
 }
 
@@ -97,7 +91,6 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
 	int i, jj;
 	u8 pbyData[MAX_KEY_TABLE+1];
 
-    spin_lock_irq(&pDevice->lock);
     for (i=0;i<MAX_KEY_TABLE;i++) {
         pTable->KeyTable[i].bInUse = false;
         pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
@@ -114,15 +107,9 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
         pbyData[i] = (u8) i;
     }
     pbyData[i] = (u8) i;
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_CLRKEYENTRY,
-                        0,
-                        0,
-                        11,
-                        pbyData
-                        );
 
-    spin_unlock_irq(&pDevice->lock);
+	vnt_control_out(pDevice, MESSAGE_TYPE_CLRKEYENTRY,
+			0, 0, 11, pbyData);
 
     return;
 }
@@ -151,7 +138,7 @@ int KeybGetKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyIndex,
     *pKey = NULL;
     for (i=0;i<MAX_KEY_TABLE;i++) {
         if ((pTable->KeyTable[i].bInUse == true) &&
-	    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+	    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
             if (dwKeyIndex == 0xFFFFFFFF) {
                 if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
                     *pKey = &(pTable->KeyTable[i].PairwiseKey);
@@ -213,7 +200,7 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
             j = i;
         }
         if ((pTable->KeyTable[i].bInUse == true) &&
-	    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+	    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
             // found table already exist
             if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
                 // Pairwise key
@@ -251,7 +238,9 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
                 if (uKeyLength == WLAN_WEP104_KEYLEN)
                     pKey->abyKey[15] |= 0x80;
             }
-            MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pbyBSSID, (u32 *)pKey->abyKey);
+
+	    MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx,
+			pbyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */
@@ -319,7 +308,9 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
             if (uKeyLength == WLAN_WEP104_KEYLEN)
                 pKey->abyKey[15] |= 0x80;
         }
-        MACvSetKeyEntry(pDevice, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx, pbyBSSID, (u32 *)pKey->abyKey);
+
+	MACvSetKeyEntry(pDevice, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx,
+					pbyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */
@@ -395,7 +386,7 @@ int KeybRemoveKey(struct vnt_private *pDevice, PSKeyManagement pTable,
     } else {
         for (i=0;i<MAX_KEY_TABLE;i++) {
             if ( (pTable->KeyTable[i].bInUse == true) &&
-		 !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		 ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 
                 if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
                     pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
@@ -445,7 +436,7 @@ int KeybRemoveAllKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 
     for (i=0;i<MAX_KEY_TABLE;i++) {
         if ((pTable->KeyTable[i].bInUse == true) &&
-	    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+	    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
             pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
 	    for (u = 0; u < MAX_GROUP_KEY; u++)
 		pTable->KeyTable[i].GroupKey[u].bKeyValid = false;
@@ -480,7 +471,7 @@ int KeybGetTransmitKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyType,
 
     for (i = 0; i < MAX_KEY_TABLE; i++) {
         if ((pTable->KeyTable[i].bInUse == true) &&
-	    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+	    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 
             if (dwKeyType == PAIRWISE_KEY) {
 
@@ -614,7 +605,9 @@ int KeybSetDefaultKey(struct vnt_private *pDevice, PSKeyManagement pTable,
             pKey->abyKey[15] |= 0x80;
     }
 
-    MACvSetKeyEntry(pDevice, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl, MAX_KEY_TABLE-1, uKeyIdx, pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, (u32 *) pKey->abyKey);
+	MACvSetKeyEntry(pDevice, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl,
+		MAX_KEY_TABLE-1, uKeyIdx,
+		pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */
@@ -708,7 +701,8 @@ int KeybSetAllGroupKey(struct vnt_private *pDevice, PSKeyManagement pTable,
                     pKey->abyKey[15] |= 0x80;
             }
 
-            MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pTable->KeyTable[i].abyBSSID, (u32 *) pKey->abyKey);
+	    MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx,
+			pTable->KeyTable[i].abyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */

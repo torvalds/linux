@@ -34,8 +34,6 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 	struct as102_dev_t *dev;
 	struct as10x_tune_args tune_args = { 0 };
 
-	ENTER();
-
 	dev = (struct as102_dev_t *) fe->tuner_priv;
 	if (dev == NULL)
 		return -ENODEV;
@@ -52,7 +50,6 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 
 	mutex_unlock(&dev->bus_adap.lock);
 
-	LEAVE();
 	return (ret < 0) ? -EINVAL : 0;
 }
 
@@ -62,8 +59,6 @@ static int as102_fe_get_frontend(struct dvb_frontend *fe)
 	int ret = 0;
 	struct as102_dev_t *dev;
 	struct as10x_tps tps = { 0 };
-
-	ENTER();
 
 	dev = (struct as102_dev_t *) fe->tuner_priv;
 	if (dev == NULL)
@@ -80,13 +75,11 @@ static int as102_fe_get_frontend(struct dvb_frontend *fe)
 
 	mutex_unlock(&dev->bus_adap.lock);
 
-	LEAVE();
 	return (ret < 0) ? -EINVAL : 0;
 }
 
 static int as102_fe_get_tune_settings(struct dvb_frontend *fe,
 			struct dvb_frontend_tune_settings *settings) {
-	ENTER();
 
 #if 0
 	dprintk(debug, "step_size    = %d\n", settings->step_size);
@@ -97,7 +90,6 @@ static int as102_fe_get_tune_settings(struct dvb_frontend *fe,
 
 	settings->min_delay_ms = 1000;
 
-	LEAVE();
 	return 0;
 }
 
@@ -107,8 +99,6 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	int ret = 0;
 	struct as102_dev_t *dev;
 	struct as10x_tune_status tstate = { 0 };
-
-	ENTER();
 
 	dev = (struct as102_dev_t *) fe->tuner_priv;
 	if (dev == NULL)
@@ -151,8 +141,8 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		if (as10x_cmd_get_demod_stats(&dev->bus_adap,
 			(struct as10x_demod_stats *) &dev->demod_stats) < 0) {
 			memset(&dev->demod_stats, 0, sizeof(dev->demod_stats));
-			dprintk(debug, "as10x_cmd_get_demod_stats failed "
-				"(probably not tuned)\n");
+			dprintk(debug,
+				"as10x_cmd_get_demod_stats failed (probably not tuned)\n");
 		} else {
 			dprintk(debug,
 				"demod status: fc: 0x%08x, bad fc: 0x%08x, "
@@ -168,7 +158,6 @@ static int as102_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 out:
 	mutex_unlock(&dev->bus_adap.lock);
-	LEAVE();
 	return ret;
 }
 
@@ -183,15 +172,12 @@ static int as102_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct as102_dev_t *dev;
 
-	ENTER();
-
 	dev = (struct as102_dev_t *) fe->tuner_priv;
 	if (dev == NULL)
 		return -ENODEV;
 
 	*snr = dev->demod_stats.mer;
 
-	LEAVE();
 	return 0;
 }
 
@@ -199,15 +185,12 @@ static int as102_fe_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct as102_dev_t *dev;
 
-	ENTER();
-
 	dev = (struct as102_dev_t *) fe->tuner_priv;
 	if (dev == NULL)
 		return -ENODEV;
 
 	*ber = dev->ber;
 
-	LEAVE();
 	return 0;
 }
 
@@ -216,23 +199,18 @@ static int as102_fe_read_signal_strength(struct dvb_frontend *fe,
 {
 	struct as102_dev_t *dev;
 
-	ENTER();
-
 	dev = (struct as102_dev_t *) fe->tuner_priv;
 	if (dev == NULL)
 		return -ENODEV;
 
 	*strength = (((0xffff * 400) * dev->signal_strength + 41000) * 2);
 
-	LEAVE();
 	return 0;
 }
 
 static int as102_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct as102_dev_t *dev;
-
-	ENTER();
 
 	dev = (struct as102_dev_t *) fe->tuner_priv;
 	if (dev == NULL)
@@ -243,7 +221,6 @@ static int as102_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	else
 		*ucblocks = 0;
 
-	LEAVE();
 	return 0;
 }
 
@@ -251,8 +228,6 @@ static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 {
 	struct as102_dev_t *dev;
 	int ret;
-
-	ENTER();
 
 	dev = (struct as102_dev_t *) fe->tuner_priv;
 	if (dev == NULL)
@@ -263,7 +238,8 @@ static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 
 	if (acquire) {
 		if (elna_enable)
-			as10x_cmd_set_context(&dev->bus_adap, CONTEXT_LNA, dev->elna_cfg);
+			as10x_cmd_set_context(&dev->bus_adap,
+					      CONTEXT_LNA, dev->elna_cfg);
 
 		ret = as10x_cmd_turn_on(&dev->bus_adap);
 	} else {
@@ -272,7 +248,6 @@ static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 
 	mutex_unlock(&dev->bus_adap.lock);
 
-	LEAVE();
 	return ret;
 }
 
@@ -581,8 +556,8 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 			   as102_fe_get_code_rate(params->code_rate_LP);
 		}
 
-		dprintk(debug, "\thierarchy: 0x%02x  "
-				"selected: %s  code_rate_%s: 0x%02x\n",
+		dprintk(debug,
+			"\thierarchy: 0x%02x  selected: %s  code_rate_%s: 0x%02x\n",
 			tune_args->hierarchy,
 			tune_args->hier_select == HIER_HIGH_PRIORITY ?
 			"HP" : "LP",

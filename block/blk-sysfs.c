@@ -7,9 +7,11 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/blktrace_api.h>
+#include <linux/blk-mq.h>
 
 #include "blk.h"
 #include "blk-cgroup.h"
+#include "blk-mq.h"
 
 struct queue_sysfs_entry {
 	struct attribute attr;
@@ -46,11 +48,10 @@ static ssize_t queue_requests_show(struct request_queue *q, char *page)
 static ssize_t
 queue_requests_store(struct request_queue *q, const char *page, size_t count)
 {
-	struct request_list *rl;
 	unsigned long nr;
-	int ret;
+	int ret, err;
 
-	if (!q->request_fn)
+	if (!q->request_fn && !q->mq_ops)
 		return -EINVAL;
 
 	ret = queue_var_store(&nr, page, count);
@@ -60,40 +61,14 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 	if (nr < BLKDEV_MIN_RQ)
 		nr = BLKDEV_MIN_RQ;
 
-	spin_lock_irq(q->queue_lock);
-	q->nr_requests = nr;
-	blk_queue_congestion_threshold(q);
+	if (q->request_fn)
+		err = blk_update_nr_requests(q, nr);
+	else
+		err = blk_mq_update_nr_requests(q, nr);
 
-	/* congestion isn't cgroup aware and follows root blkcg for now */
-	rl = &q->root_rl;
+	if (err)
+		return err;
 
-	if (rl->count[BLK_RW_SYNC] >= queue_congestion_on_threshold(q))
-		blk_set_queue_congested(q, BLK_RW_SYNC);
-	else if (rl->count[BLK_RW_SYNC] < queue_congestion_off_threshold(q))
-		blk_clear_queue_congested(q, BLK_RW_SYNC);
-
-	if (rl->count[BLK_RW_ASYNC] >= queue_congestion_on_threshold(q))
-		blk_set_queue_congested(q, BLK_RW_ASYNC);
-	else if (rl->count[BLK_RW_ASYNC] < queue_congestion_off_threshold(q))
-		blk_clear_queue_congested(q, BLK_RW_ASYNC);
-
-	blk_queue_for_each_rl(rl, q) {
-		if (rl->count[BLK_RW_SYNC] >= q->nr_requests) {
-			blk_set_rl_full(rl, BLK_RW_SYNC);
-		} else {
-			blk_clear_rl_full(rl, BLK_RW_SYNC);
-			wake_up(&rl->wait[BLK_RW_SYNC]);
-		}
-
-		if (rl->count[BLK_RW_ASYNC] >= q->nr_requests) {
-			blk_set_rl_full(rl, BLK_RW_ASYNC);
-		} else {
-			blk_clear_rl_full(rl, BLK_RW_ASYNC);
-			wake_up(&rl->wait[BLK_RW_ASYNC]);
-		}
-	}
-
-	spin_unlock_irq(q->queue_lock);
 	return ret;
 }
 
@@ -287,7 +262,7 @@ static ssize_t
 queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 {
 	ssize_t ret = -EINVAL;
-#if defined(CONFIG_USE_GENERIC_SMP_HELPERS)
+#ifdef CONFIG_SMP
 	unsigned long val;
 
 	ret = queue_var_store(&val, page, count);
@@ -542,6 +517,11 @@ static void blk_release_queue(struct kobject *kobj)
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
 
+	if (q->mq_ops)
+		blk_mq_free_queue(q);
+
+	kfree(q->flush_rq);
+
 	blk_trace_shutdown(q);
 
 	bdi_destroy(&q->backing_dev_info);
@@ -575,6 +555,7 @@ int blk_register_queue(struct gendisk *disk)
 	 * bypass from queue allocation.
 	 */
 	blk_queue_bypass_end(q);
+	queue_flag_set_unlocked(QUEUE_FLAG_INIT_DONE, q);
 
 	ret = blk_trace_init_sysfs(dev);
 	if (ret)
@@ -587,6 +568,9 @@ int blk_register_queue(struct gendisk *disk)
 	}
 
 	kobject_uevent(&q->kobj, KOBJ_ADD);
+
+	if (q->mq_ops)
+		blk_mq_register_disk(disk);
 
 	if (!q->request_fn)
 		return 0;
@@ -609,6 +593,9 @@ void blk_unregister_queue(struct gendisk *disk)
 
 	if (WARN_ON(!q))
 		return;
+
+	if (q->mq_ops)
+		blk_mq_unregister_disk(disk);
 
 	if (q->request_fn)
 		elv_unregister_queue(q);

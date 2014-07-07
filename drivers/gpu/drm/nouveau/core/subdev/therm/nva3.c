@@ -36,7 +36,7 @@ nva3_therm_fan_sense(struct nouveau_therm *therm)
 	u32 tach = nv_rd32(therm, 0x00e728) & 0x0000ffff;
 	u32 ctrl = nv_rd32(therm, 0x00e720);
 	if (ctrl & 0x00000001)
-		return tach * 60;
+		return tach * 60 / 2;
 	return -ENODEV;
 }
 
@@ -94,6 +94,6 @@ nva3_therm_oclass = {
 		.ctor = nva3_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
 		.init = nva3_therm_init,
-		.fini = _nouveau_therm_fini,
+		.fini = nv84_therm_fini,
 	},
 };

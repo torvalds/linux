@@ -16,7 +16,6 @@
  *
  */
 
-#include <linux/clocksource.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -34,22 +33,68 @@
 #include <linux/sys_soc.h>
 #include <linux/usb/tegra_usb_phy.h>
 #include <linux/clk/tegra.h>
+#include <linux/irqchip.h>
 
+#include <asm/hardware/cache-l2x0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
+#include <asm/trusted_foundations.h>
 
+#include "apbio.h"
 #include "board.h"
 #include "common.h"
+#include "cpuidle.h"
 #include "fuse.h"
 #include "iomap.h"
+#include "irq.h"
+#include "pmc.h"
+#include "pm.h"
+#include "reset.h"
+#include "sleep.h"
+
+/*
+ * Storage for debug-macro.S's state.
+ *
+ * This must be in .data not .bss so that it gets initialized each time the
+ * kernel is loaded. The data is declared here rather than debug-macro.S so
+ * that multiple inclusions of debug-macro.S point at the same data.
+ */
+u32 tegra_uart_config[3] = {
+	/* Debug UART initialization required */
+	1,
+	/* Debug UART physical address */
+	0,
+	/* Debug UART virtual address */
+	0,
+};
+
+static void __init tegra_init_early(void)
+{
+	of_register_trusted_foundations();
+	tegra_apb_io_init();
+	tegra_init_fuse();
+	tegra_cpu_reset_handler_init();
+	tegra_powergate_init();
+	tegra_hotplug_init();
+}
+
+static void __init tegra_dt_init_irq(void)
+{
+	tegra_pmc_init_irq();
+	tegra_init_irq();
+	irqchip_init();
+	tegra_legacy_irq_syscore_init();
+}
 
 static void __init tegra_dt_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
 	struct device *parent = NULL;
+
+	tegra_pmc_init();
 
 	tegra_clocks_apply_init_table();
 
@@ -97,7 +142,9 @@ static void __init tegra_dt_init_late(void)
 {
 	int i;
 
-	tegra_init_late();
+	tegra_init_suspend();
+	tegra_cpuidle_init();
+	tegra_powergate_debugfs_init();
 
 	for (i = 0; i < ARRAY_SIZE(board_init_funcs); i++) {
 		if (of_machine_is_compatible(board_init_funcs[i].machine)) {
@@ -108,6 +155,7 @@ static void __init tegra_dt_init_late(void)
 }
 
 static const char * const tegra_dt_board_compat[] = {
+	"nvidia,tegra124",
 	"nvidia,tegra114",
 	"nvidia,tegra30",
 	"nvidia,tegra20",
@@ -115,13 +163,14 @@ static const char * const tegra_dt_board_compat[] = {
 };
 
 DT_MACHINE_START(TEGRA_DT, "NVIDIA Tegra SoC (Flattened Device Tree)")
-	.map_io		= tegra_map_common_io,
+	.l2c_aux_val	= 0x3c400001,
+	.l2c_aux_mask	= 0xc20fc3fe,
 	.smp		= smp_ops(tegra_smp_ops),
+	.map_io		= tegra_map_common_io,
 	.init_early	= tegra_init_early,
 	.init_irq	= tegra_dt_init_irq,
-	.init_time	= clocksource_of_init,
 	.init_machine	= tegra_dt_init,
 	.init_late	= tegra_dt_init_late,
-	.restart	= tegra_assert_system_reset,
+	.restart	= tegra_pmc_restart,
 	.dt_compat	= tegra_dt_board_compat,
 MACHINE_END

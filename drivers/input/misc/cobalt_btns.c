@@ -17,7 +17,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-#include <linux/init.h>
 #include <linux/input-polldev.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
@@ -131,7 +130,6 @@ static int cobalt_buttons_probe(struct platform_device *pdev)
  err_free_mem:
 	input_free_polled_device(poll_dev);
 	kfree(bdev);
-	dev_set_drvdata(&pdev->dev, NULL);
 	return error;
 }
 
@@ -144,7 +142,6 @@ static int cobalt_buttons_remove(struct platform_device *pdev)
 	input_free_polled_device(bdev->poll_dev);
 	iounmap(bdev->reg);
 	kfree(bdev);
-	dev_set_drvdata(dev, NULL);
 
 	return 0;
 }

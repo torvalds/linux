@@ -244,6 +244,7 @@ struct svc_rqst {
 	struct page *		rq_pages[RPCSVC_MAXPAGES];
 	struct page *		*rq_respages;	/* points into rq_pages */
 	struct page *		*rq_next_page; /* next reply page to use */
+	struct page *		*rq_page_end;  /* one past the last page */
 
 	struct kvec		rq_vec[RPCSVC_MAXPAGES]; /* generally useful.. */
 
@@ -254,11 +255,15 @@ struct svc_rqst {
 	u32			rq_prot;	/* IP protocol */
 	unsigned short
 				rq_secure  : 1;	/* secure port */
+	unsigned short		rq_local   : 1;	/* local request */
 
 	void *			rq_argp;	/* decoded arguments */
 	void *			rq_resp;	/* xdr'd results */
 	void *			rq_auth_data;	/* flavor-specific data */
-
+	int			rq_auth_slack;	/* extra space xdr code
+						 * should leave in head
+						 * for krb5i, krb5p.
+						 */
 	int			rq_reserved;	/* space on socket outq
 						 * reserved for this request
 						 */
@@ -368,7 +373,7 @@ struct svc_program {
 	struct svc_program *	pg_next;	/* other programs (same xprt) */
 	u32			pg_prog;	/* program number */
 	unsigned int		pg_lovers;	/* lowest version */
-	unsigned int		pg_hivers;	/* lowest version */
+	unsigned int		pg_hivers;	/* highest version */
 	unsigned int		pg_nvers;	/* number of versions */
 	struct svc_version **	pg_vers;	/* version array */
 	char *			pg_name;	/* service name */
@@ -386,8 +391,10 @@ struct svc_version {
 	struct svc_procedure *	vs_proc;	/* per-procedure info */
 	u32			vs_xdrsize;	/* xdrsize needed for this version */
 
-	unsigned int		vs_hidden : 1;	/* Don't register with portmapper.
+	unsigned int		vs_hidden : 1,	/* Don't register with portmapper.
 						 * Only used for nfsacl so far. */
+				vs_rpcb_optnl:1;/* Don't care the result of register.
+						 * Only used for nfsv4. */
 
 	/* Override dispatch function (e.g. when caching replies).
 	 * A return value of 0 means drop the request. 
@@ -452,11 +459,7 @@ char *		   svc_print_addr(struct svc_rqst *, char *, size_t);
  */
 static inline void svc_reserve_auth(struct svc_rqst *rqstp, int space)
 {
-	int added_space = 0;
-
-	if (rqstp->rq_authop->flavour)
-		added_space = RPC_MAX_AUTH_SIZE;
-	svc_reserve(rqstp, space + added_space);
+	svc_reserve(rqstp, space + rqstp->rq_auth_slack);
 }
 
 #endif /* SUNRPC_SVC_H */

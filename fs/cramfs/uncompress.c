@@ -19,7 +19,7 @@
 #include <linux/errno.h>
 #include <linux/vmalloc.h>
 #include <linux/zlib.h>
-#include <linux/cramfs_fs.h>
+#include "internal.h"
 
 static z_stream stream;
 static int initialized;

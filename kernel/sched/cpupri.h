@@ -17,7 +17,7 @@ struct cpupri_vec {
 
 struct cpupri {
 	struct cpupri_vec pri_to_cpu[CPUPRI_NR_PRIORITIES];
-	int               cpu_to_pri[NR_CPUS];
+	int *cpu_to_pri;
 };
 
 #ifdef CONFIG_SMP

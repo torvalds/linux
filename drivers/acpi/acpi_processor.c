@@ -140,14 +140,10 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 	return 0;
 }
 
-static int acpi_processor_errata(struct acpi_processor *pr)
+static int acpi_processor_errata(void)
 {
 	int result = 0;
 	struct pci_dev *dev = NULL;
-
-
-	if (!pr)
-		return -EINVAL;
 
 	/*
 	 * PIIX4
@@ -174,6 +170,9 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	acpi_status status;
 	int ret;
 
+	if (pr->apic_id == -1)
+		return -ENODEV;
+
 	status = acpi_evaluate_integer(pr->handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_PRESENT))
 		return -ENODEV;
@@ -181,7 +180,7 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	cpu_maps_update_begin();
 	cpu_hotplug_begin();
 
-	ret = acpi_map_lsapic(pr->handle, &pr->id);
+	ret = acpi_map_lsapic(pr->handle, pr->apic_id, &pr->id);
 	if (ret)
 		goto out;
 
@@ -216,14 +215,12 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	union acpi_object object = { 0 };
 	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
 	struct acpi_processor *pr = acpi_driver_data(device);
-	int cpu_index, device_declaration = 0;
+	int apic_id, cpu_index, device_declaration = 0;
 	acpi_status status = AE_OK;
 	static int cpu0_initialized;
+	unsigned long long value;
 
-	if (num_online_cpus() > 1)
-		errata.smp = TRUE;
-
-	acpi_processor_errata(pr);
+	acpi_processor_errata();
 
 	/*
 	 * Check to see if we have bus mastering arbitration control.  This
@@ -247,18 +244,12 @@ static int acpi_processor_get_info(struct acpi_device *device)
 			return -ENODEV;
 		}
 
-		/*
-		 * TBD: Synch processor ID (via LAPIC/LSAPIC structures) on SMP.
-		 *      >>> 'acpi_get_processor_id(acpi_id, &id)' in
-		 *      arch/xxx/acpi.c
-		 */
 		pr->acpi_id = object.processor.proc_id;
 	} else {
 		/*
 		 * Declared with "Device" statement; match _UID.
 		 * Note that we don't handle string _UIDs yet.
 		 */
-		unsigned long long value;
 		status = acpi_evaluate_integer(pr->handle, METHOD_NAME__UID,
 						NULL, &value);
 		if (ACPI_FAILURE(status)) {
@@ -270,16 +261,19 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		device_declaration = 1;
 		pr->acpi_id = value;
 	}
-	cpu_index = acpi_get_cpuid(pr->handle, device_declaration, pr->acpi_id);
 
-	/* Handle UP system running SMP kernel, with no LAPIC in MADT */
-	if (!cpu0_initialized && (cpu_index == -1) &&
-	    (num_online_cpus() == 1)) {
-		cpu_index = 0;
+	apic_id = acpi_get_apicid(pr->handle, device_declaration, pr->acpi_id);
+	if (apic_id < 0)
+		acpi_handle_debug(pr->handle, "failed to get CPU APIC ID.\n");
+	pr->apic_id = apic_id;
+
+	cpu_index = acpi_map_cpuid(pr->apic_id, pr->acpi_id);
+	if (!cpu0_initialized && !acpi_lapic) {
+		cpu0_initialized = 1;
+		/* Handle UP system running SMP kernel, with no LAPIC in MADT */
+		if ((cpu_index == -1) && (num_online_cpus() == 1))
+			cpu_index = 0;
 	}
-
-	cpu0_initialized = 1;
-
 	pr->id = cpu_index;
 
 	/*
@@ -292,6 +286,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		if (ret)
 			return ret;
 	}
+
 	/*
 	 * On some boxes several processors use the same processor bus id.
 	 * But they are located in different scope. For example:
@@ -332,9 +327,9 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 * ensure we get the right value in the "physical id" field
 	 * of /proc/cpuinfo
 	 */
-	status = acpi_evaluate_object(pr->handle, "_SUN", NULL, &buffer);
+	status = acpi_evaluate_integer(pr->handle, "_SUN", NULL, &value);
 	if (ACPI_SUCCESS(status))
-		arch_fix_phys_package_id(pr->id, object.integer.value);
+		arch_fix_phys_package_id(pr->id, value);
 
 	return 0;
 }
@@ -405,12 +400,11 @@ static int acpi_processor_add(struct acpi_device *device,
 		goto err;
 	}
 
-	result = acpi_bind_one(dev, pr->handle);
+	result = acpi_bind_one(dev, device);
 	if (result)
 		goto err;
 
 	pr->dev = dev;
-	dev->offline = pr->flags.need_hotplug_init;
 
 	/* Trigger the processor driver's .probe() if present. */
 	if (device_attach(dev) >= 0)

@@ -439,7 +439,7 @@ static int wm8903_set_deemph(struct snd_soc_codec *codec)
 static int wm8903_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = wm8903->deemph;
@@ -450,7 +450,7 @@ static int wm8903_get_deemph(struct snd_kcontrol *kcontrol,
 static int wm8903_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	int deemph = ucontrol->value.enumerated.item[0];
 	int ret = 0;
@@ -489,28 +489,28 @@ static const char *hpf_mode_text[] = {
 	"Hi-fi", "Voice 1", "Voice 2", "Voice 3"
 };
 
-static const struct soc_enum hpf_mode =
-	SOC_ENUM_SINGLE(WM8903_ADC_DIGITAL_0, 5, 4, hpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(hpf_mode,
+			    WM8903_ADC_DIGITAL_0, 5, hpf_mode_text);
 
 static const char *osr_text[] = {
 	"Low power", "High performance"
 };
 
-static const struct soc_enum adc_osr =
-	SOC_ENUM_SINGLE(WM8903_ANALOGUE_ADC_0, 0, 2, osr_text);
+static SOC_ENUM_SINGLE_DECL(adc_osr,
+			    WM8903_ANALOGUE_ADC_0, 0, osr_text);
 
-static const struct soc_enum dac_osr =
-	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 0, 2, osr_text);
+static SOC_ENUM_SINGLE_DECL(dac_osr,
+			    WM8903_DAC_DIGITAL_1, 0, osr_text);
 
 static const char *drc_slope_text[] = {
 	"1", "1/2", "1/4", "1/8", "1/16", "0"
 };
 
-static const struct soc_enum drc_slope_r0 =
-	SOC_ENUM_SINGLE(WM8903_DRC_2, 3, 6, drc_slope_text);
+static SOC_ENUM_SINGLE_DECL(drc_slope_r0,
+			    WM8903_DRC_2, 3, drc_slope_text);
 
-static const struct soc_enum drc_slope_r1 =
-	SOC_ENUM_SINGLE(WM8903_DRC_2, 0, 6, drc_slope_text);
+static SOC_ENUM_SINGLE_DECL(drc_slope_r1,
+			    WM8903_DRC_2, 0, drc_slope_text);
 
 static const char *drc_attack_text[] = {
 	"instantaneous",
@@ -518,125 +518,125 @@ static const char *drc_attack_text[] = {
 	"46.4ms", "92.8ms", "185.6ms"
 };
 
-static const struct soc_enum drc_attack =
-	SOC_ENUM_SINGLE(WM8903_DRC_1, 12, 11, drc_attack_text);
+static SOC_ENUM_SINGLE_DECL(drc_attack,
+			    WM8903_DRC_1, 12, drc_attack_text);
 
 static const char *drc_decay_text[] = {
 	"186ms", "372ms", "743ms", "1.49s", "2.97s", "5.94s", "11.89s",
 	"23.87s", "47.56s"
 };
 
-static const struct soc_enum drc_decay =
-	SOC_ENUM_SINGLE(WM8903_DRC_1, 8, 9, drc_decay_text);
+static SOC_ENUM_SINGLE_DECL(drc_decay,
+			    WM8903_DRC_1, 8, drc_decay_text);
 
 static const char *drc_ff_delay_text[] = {
 	"5 samples", "9 samples"
 };
 
-static const struct soc_enum drc_ff_delay =
-	SOC_ENUM_SINGLE(WM8903_DRC_0, 5, 2, drc_ff_delay_text);
+static SOC_ENUM_SINGLE_DECL(drc_ff_delay,
+			    WM8903_DRC_0, 5, drc_ff_delay_text);
 
 static const char *drc_qr_decay_text[] = {
 	"0.725ms", "1.45ms", "5.8ms"
 };
 
-static const struct soc_enum drc_qr_decay =
-	SOC_ENUM_SINGLE(WM8903_DRC_1, 4, 3, drc_qr_decay_text);
+static SOC_ENUM_SINGLE_DECL(drc_qr_decay,
+			    WM8903_DRC_1, 4, drc_qr_decay_text);
 
 static const char *drc_smoothing_text[] = {
 	"Low", "Medium", "High"
 };
 
-static const struct soc_enum drc_smoothing =
-	SOC_ENUM_SINGLE(WM8903_DRC_0, 11, 3, drc_smoothing_text);
+static SOC_ENUM_SINGLE_DECL(drc_smoothing,
+			    WM8903_DRC_0, 11, drc_smoothing_text);
 
 static const char *soft_mute_text[] = {
 	"Fast (fs/2)", "Slow (fs/32)"
 };
 
-static const struct soc_enum soft_mute =
-	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 10, 2, soft_mute_text);
+static SOC_ENUM_SINGLE_DECL(soft_mute,
+			    WM8903_DAC_DIGITAL_1, 10, soft_mute_text);
 
 static const char *mute_mode_text[] = {
 	"Hard", "Soft"
 };
 
-static const struct soc_enum mute_mode =
-	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 9, 2, mute_mode_text);
+static SOC_ENUM_SINGLE_DECL(mute_mode,
+			    WM8903_DAC_DIGITAL_1, 9, mute_mode_text);
 
 static const char *companding_text[] = {
 	"ulaw", "alaw"
 };
 
-static const struct soc_enum dac_companding =
-	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 0, 2, companding_text);
+static SOC_ENUM_SINGLE_DECL(dac_companding,
+			    WM8903_AUDIO_INTERFACE_0, 0, companding_text);
 
-static const struct soc_enum adc_companding =
-	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 2, 2, companding_text);
+static SOC_ENUM_SINGLE_DECL(adc_companding,
+			    WM8903_AUDIO_INTERFACE_0, 2, companding_text);
 
 static const char *input_mode_text[] = {
 	"Single-Ended", "Differential Line", "Differential Mic"
 };
 
-static const struct soc_enum linput_mode_enum =
-	SOC_ENUM_SINGLE(WM8903_ANALOGUE_LEFT_INPUT_1, 0, 3, input_mode_text);
+static SOC_ENUM_SINGLE_DECL(linput_mode_enum,
+			    WM8903_ANALOGUE_LEFT_INPUT_1, 0, input_mode_text);
 
-static const struct soc_enum rinput_mode_enum =
-	SOC_ENUM_SINGLE(WM8903_ANALOGUE_RIGHT_INPUT_1, 0, 3, input_mode_text);
+static SOC_ENUM_SINGLE_DECL(rinput_mode_enum,
+			    WM8903_ANALOGUE_RIGHT_INPUT_1, 0, input_mode_text);
 
 static const char *linput_mux_text[] = {
 	"IN1L", "IN2L", "IN3L"
 };
 
-static const struct soc_enum linput_enum =
-	SOC_ENUM_SINGLE(WM8903_ANALOGUE_LEFT_INPUT_1, 2, 3, linput_mux_text);
+static SOC_ENUM_SINGLE_DECL(linput_enum,
+			    WM8903_ANALOGUE_LEFT_INPUT_1, 2, linput_mux_text);
 
-static const struct soc_enum linput_inv_enum =
-	SOC_ENUM_SINGLE(WM8903_ANALOGUE_LEFT_INPUT_1, 4, 3, linput_mux_text);
+static SOC_ENUM_SINGLE_DECL(linput_inv_enum,
+			    WM8903_ANALOGUE_LEFT_INPUT_1, 4, linput_mux_text);
 
 static const char *rinput_mux_text[] = {
 	"IN1R", "IN2R", "IN3R"
 };
 
-static const struct soc_enum rinput_enum =
-	SOC_ENUM_SINGLE(WM8903_ANALOGUE_RIGHT_INPUT_1, 2, 3, rinput_mux_text);
+static SOC_ENUM_SINGLE_DECL(rinput_enum,
+			    WM8903_ANALOGUE_RIGHT_INPUT_1, 2, rinput_mux_text);
 
-static const struct soc_enum rinput_inv_enum =
-	SOC_ENUM_SINGLE(WM8903_ANALOGUE_RIGHT_INPUT_1, 4, 3, rinput_mux_text);
+static SOC_ENUM_SINGLE_DECL(rinput_inv_enum,
+			    WM8903_ANALOGUE_RIGHT_INPUT_1, 4, rinput_mux_text);
 
 
 static const char *sidetone_text[] = {
 	"None", "Left", "Right"
 };
 
-static const struct soc_enum lsidetone_enum =
-	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_0, 2, 3, sidetone_text);
+static SOC_ENUM_SINGLE_DECL(lsidetone_enum,
+			    WM8903_DAC_DIGITAL_0, 2, sidetone_text);
 
-static const struct soc_enum rsidetone_enum =
-	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_0, 0, 3, sidetone_text);
+static SOC_ENUM_SINGLE_DECL(rsidetone_enum,
+			    WM8903_DAC_DIGITAL_0, 0, sidetone_text);
 
 static const char *adcinput_text[] = {
 	"ADC", "DMIC"
 };
 
-static const struct soc_enum adcinput_enum =
-	SOC_ENUM_SINGLE(WM8903_CLOCK_RATE_TEST_4, 9, 2, adcinput_text);
+static SOC_ENUM_SINGLE_DECL(adcinput_enum,
+			    WM8903_CLOCK_RATE_TEST_4, 9, adcinput_text);
 
 static const char *aif_text[] = {
 	"Left", "Right"
 };
 
-static const struct soc_enum lcapture_enum =
-	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 7, 2, aif_text);
+static SOC_ENUM_SINGLE_DECL(lcapture_enum,
+			    WM8903_AUDIO_INTERFACE_0, 7, aif_text);
 
-static const struct soc_enum rcapture_enum =
-	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 6, 2, aif_text);
+static SOC_ENUM_SINGLE_DECL(rcapture_enum,
+			    WM8903_AUDIO_INTERFACE_0, 6, aif_text);
 
-static const struct soc_enum lplay_enum =
-	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 5, 2, aif_text);
+static SOC_ENUM_SINGLE_DECL(lplay_enum,
+			    WM8903_AUDIO_INTERFACE_0, 5, aif_text);
 
-static const struct soc_enum rplay_enum =
-	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 4, 2, aif_text);
+static SOC_ENUM_SINGLE_DECL(rplay_enum,
+			    WM8903_AUDIO_INTERFACE_0, 4, aif_text);
 
 static const struct snd_kcontrol_new wm8903_snd_controls[] = {
 
@@ -1897,21 +1897,13 @@ static void wm8903_free_gpio(struct wm8903_priv *wm8903)
 static int wm8903_probe(struct snd_soc_codec *codec)
 {
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
-	int ret;
 
 	wm8903->codec = codec;
-	codec->control_data = wm8903->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/* power on device */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	return ret;
+	return 0;
 }
 
 /* power down chip */

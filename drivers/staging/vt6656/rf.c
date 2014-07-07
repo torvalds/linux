@@ -26,7 +26,7 @@
  * Date: Feb. 19, 2004
  *
  * Functions:
- *      IFRFbWriteEmbedded      - Embedded write RF register via MAC
+ *	vnt_rf_write_embedded	- Embedded write RF register via MAC
  *
  * Revision History:
  *	RF_VT3226: RobertYu:20051111, VT3226C0 and before
@@ -38,12 +38,9 @@
 #include "mac.h"
 #include "rf.h"
 #include "baseband.h"
-#include "control.h"
-#include "rndis.h"
+#include "usbpipe.h"
 #include "datarate.h"
 
-static int          msglevel                =MSG_LEVEL_INFO;
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 #define BY_AL2230_REG_LEN     23 //24bit
 #define CB_AL2230_INIT_SEQ    15
 #define AL2230_PWR_IDX_LEN    64
@@ -355,7 +352,7 @@ static u8 al7230_channel_table2[CB_MAX_CHANNEL][3] = {
     };
 
 ///{{RobertYu:20051111
-static u8 at3226_init_table[CB_VT3226_INIT_SEQ][3] = {
+static u8 vt3226_init_table[CB_VT3226_INIT_SEQ][3] = {
     {0x03, 0xFF, 0x80},
     {0x02, 0x82, 0xA1},
     {0x03, 0xC6, 0xA2},
@@ -369,7 +366,7 @@ static u8 at3226_init_table[CB_VT3226_INIT_SEQ][3] = {
     {0x02, 0x00, 0x2A}
     };
 
-static u8 at3226d0_init_table[CB_VT3226_INIT_SEQ][3] = {
+static u8 vt3226d0_init_table[CB_VT3226_INIT_SEQ][3] = {
     {0x03, 0xFF, 0x80},
     {0x03, 0x02, 0x21}, //RobertYu:20060327
     {0x03, 0xC6, 0xA2},
@@ -419,7 +416,7 @@ static u8 vt3226_channel_table1[CB_MAX_CHANNEL_24G][3] = {
 ///}}RobertYu
 
 //{{RobertYu:20060502, TWIF 1.14, LO Current for 11b mode
-const u32 vt3226d0_lo_current_table[CB_MAX_CHANNEL_24G] = {
+static const u32 vt3226d0_lo_current_table[CB_MAX_CHANNEL_24G] = {
     0x0135C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 1, Tf = 2412MHz
     0x0135C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 2, Tf = 2417MHz
     0x0235C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 3, Tf = 2422MHz
@@ -597,7 +594,7 @@ static u8 vt3342_channel_table1[CB_MAX_CHANNEL][3] = {
  *
 -*/
 
-const u32 al2230_power_table[AL2230_PWR_IDX_LEN] = {
+static const u32 al2230_power_table[AL2230_PWR_IDX_LEN] = {
     0x04040900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
     0x04041900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
     0x04042900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
@@ -707,17 +704,17 @@ const u8 RFaby11aChannelIndex[200] = {
  * Return Value: true if succeeded; false if failed.
  *
  */
-int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
+int vnt_rf_write_embedded(struct vnt_private *priv, u32 data)
 {
-	u8 pbyData[4];
+	u8 reg_data[4];
 
-	pbyData[0] = (u8)dwData;
-	pbyData[1] = (u8)(dwData >> 8);
-	pbyData[2] = (u8)(dwData >> 16);
-	pbyData[3] = (u8)(dwData >> 24);
+	reg_data[0] = (u8)data;
+	reg_data[1] = (u8)(data >> 8);
+	reg_data[2] = (u8)(data >> 16);
+	reg_data[3] = (u8)(data >> 24);
 
-	CONTROLnsRequestOut(pDevice,
-		MESSAGE_TYPE_WRITE_IFRF, 0, 0, 4, pbyData);
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_IFRF,
+				0, 0, ARRAY_SIZE(reg_data), reg_data);
 
 	return true;
 }
@@ -735,13 +732,10 @@ int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
  * Return Value: true if succeeded; false if failed.
  *
  */
-int RFbSetPower(struct vnt_private *priv, u32 rate, u32 channel)
+int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 {
 	int ret = true;
 	u8 power = priv->byCCKPwr;
-
-	if (priv->dwDiagRefCount)
-		return true;
 
 	if (channel == 0)
 		return -EINVAL;
@@ -767,9 +761,35 @@ int RFbSetPower(struct vnt_private *priv, u32 rate, u32 channel)
 		break;
 	}
 
-	ret = RFbRawSetPower(priv, power, rate);
+	ret = vnt_rf_set_txpower(priv, power, rate);
 
 	return ret;
+}
+
+static u8 vnt_rf_addpower(struct vnt_private *priv)
+{
+	s32 rssi = -priv->uCurrRSSI;
+
+	if (!rssi)
+		return 7;
+
+	if (priv->byRFType == RF_VT3226D0) {
+		if (rssi < -70)
+			return 9;
+		else if (rssi < -65)
+			return 7;
+		else if (rssi < -60)
+			return 5;
+	} else {
+		if (rssi < -80)
+			return 9;
+		else if (rssi < -75)
+			return 7;
+		else if (rssi < -70)
+			return 5;
+	}
+
+	return 0;
 }
 
 /*
@@ -786,10 +806,14 @@ int RFbSetPower(struct vnt_private *priv, u32 rate, u32 channel)
  *
  */
 
-int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
+int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 {
 	u32 power_setting = 0;
 	int ret = true;
+
+	power += vnt_rf_addpower(priv);
+	if (power > VNT_RF_MAX_POWER)
+		power = VNT_RF_MAX_POWER;
 
 	if (priv->byCurPwr == power)
 		return true;
@@ -801,42 +825,42 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
 		if (priv->byCurPwr >= AL2230_PWR_IDX_LEN)
 			return false;
 
-		ret &= IFRFbWriteEmbedded(priv,
+		ret &= vnt_rf_write_embedded(priv,
 			al2230_power_table[priv->byCurPwr]);
 
 		if (rate <= RATE_11M)
-			ret &= IFRFbWriteEmbedded(priv, 0x0001b400 +
+			ret &= vnt_rf_write_embedded(priv, 0x0001b400 +
 				(BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW);
 		else
-			ret &= IFRFbWriteEmbedded(priv, 0x0005a400 +
+			ret &= vnt_rf_write_embedded(priv, 0x0005a400 +
 				(BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW);
 		break;
 	case RF_AL2230S:
 		if (priv->byCurPwr >= AL2230_PWR_IDX_LEN)
 			return false;
 
-		ret &= IFRFbWriteEmbedded(priv,
+		ret &= vnt_rf_write_embedded(priv,
 			al2230_power_table[priv->byCurPwr]);
 
 		if (rate <= RATE_11M) {
-			ret &= IFRFbWriteEmbedded(priv, 0x040c1400 +
+			ret &= vnt_rf_write_embedded(priv, 0x040c1400 +
 				(BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW);
-			ret &= IFRFbWriteEmbedded(priv, 0x00299b00 +
+			ret &= vnt_rf_write_embedded(priv, 0x00299b00 +
 				(BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW);
 		} else {
-			ret &= IFRFbWriteEmbedded(priv, 0x0005a400 +
+			ret &= vnt_rf_write_embedded(priv, 0x0005a400 +
 				(BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW);
-			ret &= IFRFbWriteEmbedded(priv, 0x00099b00 +
+			ret &= vnt_rf_write_embedded(priv, 0x00099b00 +
 				(BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW);
 		}
 		break;
 
 	case RF_AIROHA7230:
 		if (rate <= RATE_11M)
-			ret &= IFRFbWriteEmbedded(priv, 0x111bb900 +
+			ret &= vnt_rf_write_embedded(priv, 0x111bb900 +
 				(BY_AL7230_REG_LEN << 3)+IFREGCTL_REGW);
 		else
-			ret &= IFRFbWriteEmbedded(priv, 0x221bb900 +
+			ret &= vnt_rf_write_embedded(priv, 0x221bb900 +
 				(BY_AL7230_REG_LEN << 3)+IFREGCTL_REGW);
 
 		if (priv->byCurPwr > AL7230_PWR_IDX_LEN)
@@ -849,7 +873,7 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
 		power_setting = 0x080c0b00 | ((priv->byCurPwr) << 12) |
 				(BY_AL7230_REG_LEN << 3) | IFREGCTL_REGW;
 
-		ret &= IFRFbWriteEmbedded(priv, power_setting);
+		ret &= vnt_rf_write_embedded(priv, power_setting);
 
 		break;
 
@@ -859,7 +883,7 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
 		power_setting = ((0x3f - priv->byCurPwr) << 20) | (0x17 << 8) |
 				(BY_VT3226_REG_LEN << 3) | IFREGCTL_REGW;
 
-		ret &= IFRFbWriteEmbedded(priv, power_setting);
+		ret &= vnt_rf_write_embedded(priv, power_setting);
 
 		break;
 	case RF_VT3226D0:
@@ -871,42 +895,42 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
 				(0xe07 << 8) | (BY_VT3226_REG_LEN << 3) |
 						IFREGCTL_REGW;
 
-			ret &= IFRFbWriteEmbedded(priv, power_setting);
-			ret &= IFRFbWriteEmbedded(priv, 0x03c6a200 +
+			ret &= vnt_rf_write_embedded(priv, power_setting);
+			ret &= vnt_rf_write_embedded(priv, 0x03c6a200 +
 					(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
 
 			if (priv->vnt_mgmt.eScanState != WMAC_NO_SCANNING) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				"RFbRawSetPower> 11B mode uCurrChannel[%d]\n",
+				dev_dbg(&priv->usb->dev,
+				"vnt_rf_set_txpower> 11B mode uCurrChannel[%d]\n",
 						priv->vnt_mgmt.uScanChannel);
-				ret &= IFRFbWriteEmbedded(priv,
+				ret &= vnt_rf_write_embedded(priv,
 					vt3226d0_lo_current_table[priv->
 						vnt_mgmt.uScanChannel - 1]);
 			} else {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				"RFbRawSetPower> 11B mode uCurrChannel[%d]\n",
+				dev_dbg(&priv->usb->dev,
+				"vnt_rf_set_txpower> 11B mode uCurrChannel[%d]\n",
 						priv->vnt_mgmt.uCurrChannel);
-				ret &= IFRFbWriteEmbedded(priv,
+				ret &= vnt_rf_write_embedded(priv,
 					vt3226d0_lo_current_table[priv->
 						vnt_mgmt.uCurrChannel - 1]);
 			}
 
-			ret &= IFRFbWriteEmbedded(priv, 0x015C0800 +
+			ret &= vnt_rf_write_embedded(priv, 0x015C0800 +
 				(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
 		} else {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-					"@@@@ RFbRawSetPower> 11G mode\n");
+			dev_dbg(&priv->usb->dev,
+					"@@@@ vnt_rf_set_txpower> 11G mode\n");
 
 			power_setting = ((0x3f-priv->byCurPwr) << 20) |
 				(0x7 << 8) | (BY_VT3226_REG_LEN << 3) |
 					IFREGCTL_REGW;
 
-			ret &= IFRFbWriteEmbedded(priv, power_setting);
-			ret &= IFRFbWriteEmbedded(priv, 0x00C6A200 +
+			ret &= vnt_rf_write_embedded(priv, power_setting);
+			ret &= vnt_rf_write_embedded(priv, 0x00C6A200 +
 				(BY_VT3226_REG_LEN << 3) + IFREGCTL_REGW);
-			ret &= IFRFbWriteEmbedded(priv, 0x016BC600 +
+			ret &= vnt_rf_write_embedded(priv, 0x016BC600 +
 					(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
-			ret &= IFRFbWriteEmbedded(priv, 0x00900800 +
+			ret &= vnt_rf_write_embedded(priv, 0x00900800 +
 					(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
 		}
 		break;
@@ -919,7 +943,7 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
 			(0x27 << 8) | (BY_VT3342_REG_LEN << 3) |
 					IFREGCTL_REGW;
 
-		ret &= IFRFbWriteEmbedded(priv, power_setting);
+		ret &= vnt_rf_write_embedded(priv, power_setting);
 
 		break;
 	default:
@@ -943,7 +967,7 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
  * Return Value: none
  *
 -*/
-void RFvRSSITodBm(struct vnt_private *priv, u8 rssi, long *dbm)
+void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm)
 {
 	u8 idx = (((rssi & 0xc0) >> 6) & 0x03);
 	long b = (rssi & 0x3f);
@@ -966,7 +990,7 @@ void RFvRSSITodBm(struct vnt_private *priv, u8 rssi, long *dbm)
 	*dbm = -1 * (a + b * 2);
 }
 
-void RFbRFTableDownload(struct vnt_private *priv)
+void vnt_rf_table_download(struct vnt_private *priv)
 {
 	u16 length1 = 0, length2 = 0, length3 = 0;
 	u8 *addr1 = NULL, *addr2 = NULL, *addr3 = NULL;
@@ -995,7 +1019,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 		length1 = CB_VT3226_INIT_SEQ * 3;
 		length2 = CB_MAX_CHANNEL_24G * 3;
 		length3 = CB_MAX_CHANNEL_24G * 3;
-		addr1 = &at3226_init_table[0][0];
+		addr1 = &vt3226_init_table[0][0];
 		addr2 = &vt3226_channel_table0[0][0];
 		addr3 = &vt3226_channel_table1[0][0];
 		break;
@@ -1003,7 +1027,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 		length1 = CB_VT3226_INIT_SEQ * 3;
 		length2 = CB_MAX_CHANNEL_24G * 3;
 		length3 = CB_MAX_CHANNEL_24G * 3;
-		addr1 = &at3226d0_init_table[0][0];
+		addr1 = &vt3226d0_init_table[0][0];
 		addr2 = &vt3226_channel_table0[0][0];
 		addr3 = &vt3226_channel_table1[0][0];
 		break;
@@ -1020,7 +1044,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 	/* Init Table */
 	memcpy(array, addr1, length1);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, 0,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
 		MESSAGE_REQUEST_RF_INIT, length1, array);
 
 	/* Channel Table 0 */
@@ -1033,7 +1057,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 
 		memcpy(array, addr2, length);
 
-		CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 			value, MESSAGE_REQUEST_RF_CH0, length, array);
 
 		length2 -= length;
@@ -1051,7 +1075,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 
 		memcpy(array, addr3, length);
 
-		CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 			value, MESSAGE_REQUEST_RF_CH1, length, array);
 
 		length3 -= length;
@@ -1068,7 +1092,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 		memcpy(array, addr1, length1);
 
 		/* Init Table 2 */
-		CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 			0, MESSAGE_REQUEST_RF_INIT2, length1, array);
 
 		/* Channel Table 0 */
@@ -1081,7 +1105,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 
 			memcpy(array, addr2, length);
 
-			CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+			vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 				value, MESSAGE_REQUEST_RF_CH2, length, array);
 
 			length2 -= length;

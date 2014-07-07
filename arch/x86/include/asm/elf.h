@@ -75,7 +75,12 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 
 #include <asm/vdso.h>
 
-extern unsigned int vdso_enabled;
+#ifdef CONFIG_X86_64
+extern unsigned int vdso64_enabled;
+#endif
+#if defined(CONFIG_X86_32) || defined(CONFIG_COMPAT)
+extern unsigned int vdso32_enabled;
+#endif
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -269,9 +274,9 @@ extern int force_personality32;
 
 struct task_struct;
 
-#define	ARCH_DLINFO_IA32(vdso_enabled)					\
+#define	ARCH_DLINFO_IA32						\
 do {									\
-	if (vdso_enabled) {						\
+	if (vdso32_enabled) {						\
 		NEW_AUX_ENT(AT_SYSINFO,	VDSO_ENTRY);			\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_CURRENT_BASE);	\
 	}								\
@@ -281,31 +286,28 @@ do {									\
 
 #define STACK_RND_MASK (0x7ff)
 
-#define VDSO_HIGH_BASE		(__fix_to_virt(FIX_VDSO))
-
-#define ARCH_DLINFO		ARCH_DLINFO_IA32(vdso_enabled)
+#define ARCH_DLINFO		ARCH_DLINFO_IA32
 
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 
 #else /* CONFIG_X86_32 */
-
-#define VDSO_HIGH_BASE		0xffffe000U /* CONFIG_COMPAT_VDSO address */
 
 /* 1GB for 64bit, 8MB for 32bit */
 #define STACK_RND_MASK (test_thread_flag(TIF_ADDR32) ? 0x7ff : 0x3fffff)
 
 #define ARCH_DLINFO							\
 do {									\
-	if (vdso_enabled)						\
+	if (vdso64_enabled)						\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
-			    (unsigned long)current->mm->context.vdso);	\
+			    (unsigned long __force)current->mm->context.vdso); \
 } while (0)
 
+/* As a historical oddity, the x32 and x86_64 vDSOs are controlled together. */
 #define ARCH_DLINFO_X32							\
 do {									\
-	if (vdso_enabled)						\
+	if (vdso64_enabled)						\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
-			    (unsigned long)current->mm->context.vdso);	\
+			    (unsigned long __force)current->mm->context.vdso); \
 } while (0)
 
 #define AT_SYSINFO		32
@@ -314,7 +316,7 @@ do {									\
 if (test_thread_flag(TIF_X32))						\
 	ARCH_DLINFO_X32;						\
 else									\
-	ARCH_DLINFO_IA32(sysctl_vsyscall32)
+	ARCH_DLINFO_IA32
 
 #define COMPAT_ELF_ET_DYN_BASE	(TASK_UNMAPPED_BASE + 0x1000000)
 
@@ -323,18 +325,17 @@ else									\
 #define VDSO_CURRENT_BASE	((unsigned long)current->mm->context.vdso)
 
 #define VDSO_ENTRY							\
-	((unsigned long)VDSO32_SYMBOL(VDSO_CURRENT_BASE, vsyscall))
+	((unsigned long)current->mm->context.vdso +			\
+	 selected_vdso32->sym___kernel_vsyscall)
 
 struct linux_binprm;
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int uses_interp);
-extern int x32_setup_additional_pages(struct linux_binprm *bprm,
-				      int uses_interp);
-
-extern int syscall32_setup_pages(struct linux_binprm *, int exstack);
-#define compat_arch_setup_additional_pages	syscall32_setup_pages
+extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
+					      int uses_interp);
+#define compat_arch_setup_additional_pages compat_arch_setup_additional_pages
 
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk

@@ -301,10 +301,10 @@ err:
 	return -ENOMEM;
 }
 
-void hv_synic_free_cpu(int cpu)
+static void hv_synic_free_cpu(int cpu)
 {
 	kfree(hv_context.event_dpc[cpu]);
-	if (hv_context.synic_message_page[cpu])
+	if (hv_context.synic_event_page[cpu])
 		free_page((unsigned long)hv_context.synic_event_page[cpu]);
 	if (hv_context.synic_message_page[cpu])
 		free_page((unsigned long)hv_context.synic_message_page[cpu]);
@@ -383,6 +383,8 @@ void hv_synic_init(void *arg)
 	 */
 	rdmsrl(HV_X64_MSR_VP_INDEX, vp_index);
 	hv_context.vp_index[cpu] = (u32)vp_index;
+
+	INIT_LIST_HEAD(&hv_context.percpu_list[cpu]);
 	return;
 }
 

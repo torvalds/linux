@@ -82,9 +82,22 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	r = devm_request_mem_region(dev->dev, base, dev_priv->gtt.stolen_size,
 				    "Graphics Stolen Memory");
 	if (r == NULL) {
-		DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
-			  base, base + (uint32_t)dev_priv->gtt.stolen_size);
-		base = 0;
+		/*
+		 * One more attempt but this time requesting region from
+		 * base + 1, as we have seen that this resolves the region
+		 * conflict with the PCI Bus.
+		 * This is a BIOS w/a: Some BIOS wrap stolen in the root
+		 * PCI bus, but have an off-by-one error. Hence retry the
+		 * reservation starting from 1 instead of 0.
+		 */
+		r = devm_request_mem_region(dev->dev, base + 1,
+					    dev_priv->gtt.stolen_size - 1,
+					    "Graphics Stolen Memory");
+		if (r == NULL) {
+			DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
+				  base, base + (uint32_t)dev_priv->gtt.stolen_size);
+			base = 0;
+		}
 	}
 
 	return base;
@@ -201,6 +214,13 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int bios_reserved = 0;
 
+#ifdef CONFIG_INTEL_IOMMU
+	if (intel_iommu_gfx_mapped && INTEL_INFO(dev)->gen < 8) {
+		DRM_INFO("DMAR active, disabling use of stolen memory\n");
+		return 0;
+	}
+#endif
+
 	if (dev_priv->gtt.stolen_size == 0)
 		return 0;
 
@@ -250,7 +270,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	}
 
 	sg = st->sgl;
-	sg->offset = offset;
+	sg->offset = 0;
 	sg->length = size;
 
 	sg_dma_address(sg) = (dma_addr_t)dev_priv->mm.stolen_base + offset;
@@ -395,7 +415,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	if (gtt_offset == I915_GTT_OFFSET_NONE)
 		return obj;
 
-	vma = i915_gem_vma_create(obj, ggtt);
+	vma = i915_gem_obj_lookup_or_create_vma(obj, ggtt);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err_out;
@@ -420,6 +440,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&vma->mm_list, &ggtt->inactive_list);
+	i915_gem_object_pin_pages(obj);
 
 	return obj;
 

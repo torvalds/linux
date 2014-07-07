@@ -1112,17 +1112,13 @@ static int fotg210_udc_probe(struct platform_device *pdev)
 
 	/* initialize udc */
 	fotg210 = kzalloc(sizeof(struct fotg210_udc), GFP_KERNEL);
-	if (fotg210 == NULL) {
-		pr_err("kzalloc error\n");
+	if (fotg210 == NULL)
 		goto err_alloc;
-	}
 
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++) {
 		_ep[i] = kzalloc(sizeof(struct fotg210_ep), GFP_KERNEL);
-		if (_ep[i] == NULL) {
-			pr_err("_ep kzalloc error\n");
+		if (_ep[i] == NULL)
 			goto err_alloc;
-		}
 		fotg210->ep[i] = _ep[i];
 	}
 
@@ -1157,8 +1153,9 @@ static int fotg210_udc_probe(struct platform_device *pdev)
 		INIT_LIST_HEAD(&ep->queue);
 		ep->ep.name = fotg210_ep_name[i];
 		ep->ep.ops = &fotg210_ep_ops;
+		usb_ep_set_maxpacket_limit(&ep->ep, (unsigned short) ~0);
 	}
-	fotg210->ep[0]->ep.maxpacket = 0x40;
+	usb_ep_set_maxpacket_limit(&fotg210->ep[0]->ep, 0x40);
 	fotg210->gadget.ep0 = &fotg210->ep[0]->ep;
 	INIT_LIST_HEAD(&fotg210->gadget.ep0->ep_list);
 

@@ -86,9 +86,7 @@ config KPROBES_ON_FTRACE
 	 optimize on top of function tracing.
 
 config UPROBES
-	bool "Transparent user-space probes (EXPERIMENTAL)"
-	depends on UPROBE_EVENT && PERF_EVENTS
-	default n
+	def_bool n
 	select PERCPU_RWSEM
 	help
 	  Uprobes is the user-space counterpart to kprobes: they
@@ -100,8 +98,6 @@ config UPROBES
 	  ( These probes come in the form of single-byte breakpoints,
 	    managed by the kernel and kept transparent to the probed
 	    application. )
-
-	  If in doubt, say "N".
 
 config HAVE_64BIT_ALIGNED_ACCESS
 	def_bool 64BIT && !HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -205,9 +201,6 @@ config HAVE_DMA_ATTRS
 	bool
 
 config HAVE_DMA_CONTIGUOUS
-	bool
-
-config USE_GENERIC_SMP_HELPERS
 	bool
 
 config GENERIC_SMP_IDLE_THREAD
@@ -339,6 +332,73 @@ config SECCOMP_FILTER
 
 	  See Documentation/prctl/seccomp_filter.txt for details.
 
+config HAVE_CC_STACKPROTECTOR
+	bool
+	help
+	  An arch should select this symbol if:
+	  - its compiler supports the -fstack-protector option
+	  - it has implemented a stack canary (e.g. __stack_chk_guard)
+
+config CC_STACKPROTECTOR
+	def_bool n
+	help
+	  Set when a stack-protector mode is enabled, so that the build
+	  can enable kernel-side support for the GCC feature.
+
+choice
+	prompt "Stack Protector buffer overflow detection"
+	depends on HAVE_CC_STACKPROTECTOR
+	default CC_STACKPROTECTOR_NONE
+	help
+	  This option turns on the "stack-protector" GCC feature. This
+	  feature puts, at the beginning of functions, a canary value on
+	  the stack just before the return address, and validates
+	  the value just before actually returning.  Stack based buffer
+	  overflows (that need to overwrite this return address) now also
+	  overwrite the canary, which gets detected and the attack is then
+	  neutralized via a kernel panic.
+
+config CC_STACKPROTECTOR_NONE
+	bool "None"
+	help
+	  Disable "stack-protector" GCC feature.
+
+config CC_STACKPROTECTOR_REGULAR
+	bool "Regular"
+	select CC_STACKPROTECTOR
+	help
+	  Functions will have the stack-protector canary logic added if they
+	  have an 8-byte or larger character array on the stack.
+
+	  This feature requires gcc version 4.2 or above, or a distribution
+	  gcc with the feature backported ("-fstack-protector").
+
+	  On an x86 "defconfig" build, this feature adds canary checks to
+	  about 3% of all kernel functions, which increases kernel code size
+	  by about 0.3%.
+
+config CC_STACKPROTECTOR_STRONG
+	bool "Strong"
+	select CC_STACKPROTECTOR
+	help
+	  Functions will have the stack-protector canary logic added in any
+	  of the following conditions:
+
+	  - local variable's address used as part of the right hand side of an
+	    assignment or function argument
+	  - local variable is an array (or union containing an array),
+	    regardless of array type or length
+	  - uses register local variables
+
+	  This feature requires gcc version 4.9 or above, or a distribution
+	  gcc with the feature backported ("-fstack-protector-strong").
+
+	  On an x86 "defconfig" build, this feature adds canary checks to
+	  about 20% of all kernel functions, which increases the kernel code
+	  size by about 2%.
+
+endchoice
+
 config HAVE_CONTEXT_TRACKING
 	bool
 	help
@@ -352,6 +412,18 @@ config HAVE_CONTEXT_TRACKING
 
 config HAVE_VIRT_CPU_ACCOUNTING
 	bool
+
+config HAVE_VIRT_CPU_ACCOUNTING_GEN
+	bool
+	default y if 64BIT
+	help
+	  With VIRT_CPU_ACCOUNTING_GEN, cputime_t becomes 64-bit.
+	  Before enabling this option, arch code must be audited
+	  to ensure there are no races in concurrent read/write of
+	  cputime_t. For example, reading/writing 64-bit cputime_t on
+	  some 32-bit arches may require multiple accesses, so proper
+	  locking is needed to protect against concurrent accesses.
+
 
 config HAVE_IRQ_TIME_ACCOUNTING
 	bool
@@ -389,6 +461,16 @@ config HAVE_UNDERSCORE_SYMBOL_PREFIX
 	help
 	  Some architectures generate an _ in front of C symbols; things like
 	  module loading and assembly files need to know about this.
+
+config HAVE_IRQ_EXIT_ON_IRQ_STACK
+	bool
+	help
+	  Architecture doesn't only execute the irq handler on the irq stack
+	  but also irq_exit(). This way we can process softirqs on this irq
+	  stack instead of switching to a new one when we call __do_softirq()
+	  in the end of an hardirq.
+	  This spares a stack switch and improves cache usage on softirq
+	  processing.
 
 #
 # ABI hall of shame

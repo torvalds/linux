@@ -17,27 +17,26 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
-#include "xfs_itable.h"
+#include "xfs_bmap_btree.h"
 #include "xfs_bmap.h"
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_trace.h"
 #include "xfs_cksum.h"
+#include "xfs_dinode.h"
 
 /*
  * Determine the extent state.
@@ -85,7 +84,7 @@ xfs_bmdr_to_bmbt(
 	rblock->bb_level = dblock->bb_level;
 	ASSERT(be16_to_cpu(rblock->bb_level) > 0);
 	rblock->bb_numrecs = dblock->bb_numrecs;
-	dmxr = xfs_bmdr_maxrecs(mp, dblocklen, 0);
+	dmxr = xfs_bmdr_maxrecs(dblocklen, 0);
 	fkp = XFS_BMDR_KEY_ADDR(dblock, 1);
 	tkp = XFS_BMBT_KEY_ADDR(mp, rblock, 1);
 	fpp = XFS_BMDR_PTR_ADDR(dblock, 1, dmxr);
@@ -444,7 +443,7 @@ xfs_bmbt_to_bmdr(
 	ASSERT(rblock->bb_level != 0);
 	dblock->bb_level = rblock->bb_level;
 	dblock->bb_numrecs = rblock->bb_numrecs;
-	dmxr = xfs_bmdr_maxrecs(mp, dblocklen, 0);
+	dmxr = xfs_bmdr_maxrecs(dblocklen, 0);
 	fkp = XFS_BMBT_KEY_ADDR(mp, rblock, 1);
 	tkp = XFS_BMDR_KEY_ADDR(dblock, 1);
 	fpp = XFS_BMAP_BROOT_PTR_ADDR(mp, rblock, 1, rblocklen);
@@ -520,7 +519,6 @@ xfs_bmbt_alloc_block(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*start,
 	union xfs_btree_ptr	*new,
-	int			length,
 	int			*stat)
 {
 	xfs_alloc_arg_t		args;		/* block allocation args */
@@ -673,8 +671,7 @@ xfs_bmbt_get_dmaxrecs(
 {
 	if (level != cur->bc_nlevels - 1)
 		return cur->bc_mp->m_bmap_dmxr[level != 0];
-	return xfs_bmdr_maxrecs(cur->bc_mp, cur->bc_private.b.forksize,
-				level == 0);
+	return xfs_bmdr_maxrecs(cur->bc_private.b.forksize, level == 0);
 }
 
 STATIC void
@@ -781,12 +778,14 @@ static void
 xfs_bmbt_read_verify(
 	struct xfs_buf	*bp)
 {
-	if (!(xfs_btree_lblock_verify_crc(bp) &&
-	      xfs_bmbt_verify(bp))) {
-		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
-				     bp->b_target->bt_mount, bp->b_addr);
+	if (!xfs_btree_lblock_verify_crc(bp))
+		xfs_buf_ioerror(bp, EFSBADCRC);
+	else if (!xfs_bmbt_verify(bp))
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
+
+	if (bp->b_error) {
+		trace_xfs_btree_corrupt(bp, _RET_IP_);
+		xfs_verifier_error(bp);
 	}
 }
 
@@ -795,11 +794,9 @@ xfs_bmbt_write_verify(
 	struct xfs_buf	*bp)
 {
 	if (!xfs_bmbt_verify(bp)) {
-		xfs_warn(bp->b_target->bt_mount, "bmbt daddr 0x%llx failed", bp->b_bn);
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
-				     bp->b_target->bt_mount, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_verifier_error(bp);
 		return;
 	}
 	xfs_btree_lblock_calc_crc(bp);
@@ -915,7 +912,6 @@ xfs_bmbt_maxrecs(
  */
 int
 xfs_bmdr_maxrecs(
-	struct xfs_mount	*mp,
 	int			blocklen,
 	int			leaf)
 {

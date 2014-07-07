@@ -365,12 +365,7 @@ static void *fq_codel_zalloc(size_t sz)
 
 static void fq_codel_free(void *addr)
 {
-	if (addr) {
-		if (is_vmalloc_addr(addr))
-			vfree(addr);
-		else
-			kfree(addr);
-	}
+	kvfree(addr);
 }
 
 static void fq_codel_destroy(struct Qdisc *sch)
@@ -390,7 +385,7 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
 	sch->limit = 10*1024;
 	q->flows_cnt = 1024;
 	q->quantum = psched_mtu(qdisc_dev(sch));
-	q->perturbation = net_random();
+	q->perturbation = prandom_u32();
 	INIT_LIST_HEAD(&q->new_flows);
 	INIT_LIST_HEAD(&q->old_flows);
 	codel_params_init(&q->cparams);
@@ -450,8 +445,7 @@ static int fq_codel_dump(struct Qdisc *sch, struct sk_buff *skb)
 			q->flows_cnt))
 		goto nla_put_failure;
 
-	nla_nest_end(skb, opts);
-	return skb->len;
+	return nla_nest_end(skb, opts);
 
 nla_put_failure:
 	return -1;

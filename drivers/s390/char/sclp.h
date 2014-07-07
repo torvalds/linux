@@ -99,6 +99,7 @@ struct init_sccb {
 } __attribute__((packed));
 
 extern u64 sclp_facilities;
+
 #define SCLP_HAS_CHP_INFO	(sclp_facilities & 0x8000000000000000ULL)
 #define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
 #define SCLP_HAS_CPU_INFO	(sclp_facilities & 0x0800000000000000ULL)
@@ -132,6 +133,11 @@ struct sclp_req {
 	/* Callback that is called after reaching final status. */
 	void (*callback)(struct sclp_req *, void *data);
 	void *callback_data;
+	int queue_timeout;		/* request queue timeout (sec), set by
+					   caller of sclp_add_request(), if
+					   needed */
+	/* Internal fields */
+	unsigned long queue_expires;	/* request queue timeout (jiffies) */
 };
 
 #define SCLP_REQ_FILLED	  0x00	/* request is ready to be processed */
@@ -139,6 +145,9 @@ struct sclp_req {
 #define SCLP_REQ_RUNNING  0x02	/* request is currently running */
 #define SCLP_REQ_DONE	  0x03	/* request is completed successfully */
 #define SCLP_REQ_FAILED	  0x05	/* request is finally failed */
+#define SCLP_REQ_QUEUED_TIMEOUT 0x06	/* request on queue timed out */
+
+#define SCLP_QUEUE_INTERVAL 5	/* timeout interval for request queue */
 
 /* function pointers that a high level driver has to use for registration */
 /* of some routines it wants to be called from the low level driver */
@@ -172,6 +181,7 @@ int sclp_deactivate(void);
 int sclp_reactivate(void);
 int sclp_service_call(sclp_cmdw_t command, void *sccb);
 int sclp_sync_request(sclp_cmdw_t command, void *sccb);
+int sclp_sync_request_timeout(sclp_cmdw_t command, void *sccb, int timeout);
 
 int sclp_sdias_init(void);
 void sclp_sdias_exit(void);
@@ -179,6 +189,9 @@ void sclp_sdias_exit(void);
 extern int sclp_console_pages;
 extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
+extern u8 sclp_fac84;
+extern unsigned long long sclp_rzm;
+extern unsigned long long sclp_rnmax;
 
 /* useful inlines */
 

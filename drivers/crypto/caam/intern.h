@@ -37,12 +37,15 @@ struct caam_jrentry_info {
 
 /* Private sub-storage for a single JobR */
 struct caam_drv_private_jr {
-	struct device *parentdev;	/* points back to controller dev */
-	struct platform_device *jr_pdev;/* points to platform device for JR */
+	struct list_head	list_node;	/* Job Ring device list */
+	struct device		*dev;
 	int ridx;
 	struct caam_job_ring __iomem *rregs;	/* JobR's register space */
 	struct tasklet_struct irqtask;
 	int irq;			/* One per queue */
+
+	/* Number of scatterlist crypt transforms active on the JobR */
+	atomic_t tfm_count ____cacheline_aligned;
 
 	/* Job ring info */
 	int ringsize;	/* Size of rings (assume input = output) */
@@ -63,7 +66,7 @@ struct caam_drv_private_jr {
 struct caam_drv_private {
 
 	struct device *dev;
-	struct device **jrdev; /* Alloc'ed array per sub-device */
+	struct platform_device **jrpdev; /* Alloc'ed array per sub-device */
 	struct platform_device *pdev;
 
 	/* Physical-presence section */
@@ -80,12 +83,11 @@ struct caam_drv_private {
 	u8 qi_present;		/* Nonzero if QI present in device */
 	int secvio_irq;		/* Security violation interrupt number */
 
-	/* which jr allocated to scatterlist crypto */
-	atomic_t tfm_count ____cacheline_aligned;
-	/* list of registered crypto algorithms (mk generic context handle?) */
-	struct list_head alg_list;
-	/* list of registered hash algorithms (mk generic context handle?) */
-	struct list_head hash_list;
+#define	RNG4_MAX_HANDLES 2
+	/* RNG4 block */
+	u32 rng4_sh_init;	/* This bitmap shows which of the State
+				   Handles of the RNG4 block are initialized
+				   by this driver */
 
 	/*
 	 * debugfs entries for developer view into driver/device

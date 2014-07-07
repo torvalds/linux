@@ -32,7 +32,7 @@
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/usb/phy.h>
 
 #include <asm/mach-types.h>
@@ -121,11 +121,7 @@ static struct platform_device omap3stalker_tfp410_device = {
 static struct connector_atv_platform_data omap3stalker_tv_pdata = {
 	.name = "tv",
 	.source = "venc.0",
-#if defined(CONFIG_OMAP2_VENC_OUT_TYPE_SVIDEO)
-	.connector_type = OMAP_DSS_VENC_TYPE_SVIDEO,
-#elif defined(CONFIG_OMAP2_VENC_OUT_TYPE_COMPOSITE)
 	.connector_type = OMAP_DSS_VENC_TYPE_COMPOSITE,
-#endif
 	.invert_polarity = false,
 };
 

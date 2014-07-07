@@ -2845,7 +2845,7 @@ mapping_unwind:
 mapping_error:
 	if (net_ratelimit())
 		dev_warn(&hw->pdev->dev, "%s: tx mapping error\n", dev->name);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -3172,7 +3172,7 @@ static void skge_tx_done(struct net_device *dev)
 			pkts_compl++;
 			bytes_compl += e->skb->len;
 
-			dev_kfree_skb(e->skb);
+			dev_consume_skb_any(e->skb);
 		}
 	}
 	netdev_completed_queue(dev, pkts_compl, bytes_compl);
@@ -4046,7 +4046,6 @@ err_out_free_regions:
 	pci_release_regions(pdev);
 err_out_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 err_out:
 	return err;
 }
@@ -4090,7 +4089,6 @@ static void skge_remove(struct pci_dev *pdev)
 
 	iounmap(hw->regs);
 	kfree(hw);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -4199,6 +4197,13 @@ static struct dmi_system_id skge_32bit_dma_boards[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
 			DMI_MATCH(DMI_BOARD_NAME, "P5NSLI")
+		},
+	},
+	{
+		.ident = "FUJITSU SIEMENS A8NE-FM",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTek Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "A8NE-FM")
 		},
 	},
 	{}

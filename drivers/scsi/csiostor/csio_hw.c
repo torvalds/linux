@@ -852,22 +852,6 @@ csio_hw_get_flash_params(struct csio_hw *hw)
 	return 0;
 }
 
-static void
-csio_set_pcie_completion_timeout(struct csio_hw *hw, u8 range)
-{
-	uint16_t val;
-	int pcie_cap;
-
-	if (!csio_pci_capability(hw->pdev, PCI_CAP_ID_EXP, &pcie_cap)) {
-		pci_read_config_word(hw->pdev,
-				     pcie_cap + PCI_EXP_DEVCTL2, &val);
-		val &= 0xfff0;
-		val |= range ;
-		pci_write_config_word(hw->pdev,
-				      pcie_cap + PCI_EXP_DEVCTL2, val);
-	}
-}
-
 /*****************************************************************************/
 /* HW State machine assists                                                  */
 /*****************************************************************************/
@@ -2069,8 +2053,10 @@ csio_hw_configure(struct csio_hw *hw)
 		goto out;
 	}
 
-	/* Set pci completion timeout value to 4 seconds. */
-	csio_set_pcie_completion_timeout(hw, 0xd);
+	/* Set PCIe completion timeout to 4 seconds */
+	if (pci_is_pcie(hw->pdev))
+		pcie_capability_clear_and_set_word(hw->pdev, PCI_EXP_DEVCTL2,
+				PCI_EXP_DEVCTL2_COMP_TIMEOUT, 0xd);
 
 	hw->chip_ops->chip_set_mem_win(hw, MEMWIN_CSIOSTOR);
 

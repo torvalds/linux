@@ -1,46 +1,42 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
 
-extern void igb_shutdown_serdes_link_82575(struct e1000_hw *hw);
-extern void igb_power_up_serdes_link_82575(struct e1000_hw *hw);
-extern void igb_power_down_phy_copper_82575(struct e1000_hw *hw);
-extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
-extern s32 igb_read_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
-				u8 dev_addr, u8 *data);
-extern s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
-				 u8 dev_addr, u8 data);
+void igb_shutdown_serdes_link_82575(struct e1000_hw *hw);
+void igb_power_up_serdes_link_82575(struct e1000_hw *hw);
+void igb_power_down_phy_copper_82575(struct e1000_hw *hw);
+void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
+s32 igb_read_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
+		      u8 *data);
+s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
+		       u8 data);
 
 #define ID_LED_DEFAULT_82575_SERDES ((ID_LED_DEF1_DEF2 << 12) | \
-                                     (ID_LED_DEF1_DEF2 <<  8) | \
-                                     (ID_LED_DEF1_DEF2 <<  4) | \
-                                     (ID_LED_OFF1_ON2))
+				     (ID_LED_DEF1_DEF2 <<  8) | \
+				     (ID_LED_DEF1_DEF2 <<  4) | \
+				     (ID_LED_OFF1_ON2))
 
 #define E1000_RAR_ENTRIES_82575        16
 #define E1000_RAR_ENTRIES_82576        24
@@ -68,16 +64,16 @@ extern s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP_EX    0x01000000
 
 #define E1000_EICR_TX_QUEUE ( \
-    E1000_EICR_TX_QUEUE0 |    \
-    E1000_EICR_TX_QUEUE1 |    \
-    E1000_EICR_TX_QUEUE2 |    \
-    E1000_EICR_TX_QUEUE3)
+	E1000_EICR_TX_QUEUE0 |    \
+	E1000_EICR_TX_QUEUE1 |    \
+	E1000_EICR_TX_QUEUE2 |    \
+	E1000_EICR_TX_QUEUE3)
 
 #define E1000_EICR_RX_QUEUE ( \
-    E1000_EICR_RX_QUEUE0 |    \
-    E1000_EICR_RX_QUEUE1 |    \
-    E1000_EICR_RX_QUEUE2 |    \
-    E1000_EICR_RX_QUEUE3)
+	E1000_EICR_RX_QUEUE0 |    \
+	E1000_EICR_RX_QUEUE1 |    \
+	E1000_EICR_RX_QUEUE2 |    \
+	E1000_EICR_RX_QUEUE3)
 
 /* Immediate Interrupt Rx (A.K.A. Low Latency Interrupt) */
 #define E1000_IMIREXT_SIZE_BP     0x00001000  /* Packet size bypass */
@@ -93,8 +89,7 @@ union e1000_adv_rx_desc {
 		struct {
 			struct {
 				__le16 pkt_info;   /* RSS type, Packet type */
-				__le16 hdr_info;   /* Split Header,
-						    * header buffer length */
+				__le16 hdr_info;   /* Split Head, buf len */
 			} lo_dword;
 			union {
 				__le32 rss;          /* RSS Hash */
@@ -231,6 +226,10 @@ struct e1000_adv_tx_context_desc {
 #define E1000_VMOLR_STRVLAN    0x40000000 /* Vlan stripping enable */
 #define E1000_VMOLR_STRCRC     0x80000000 /* CRC stripping enable */
 
+#define E1000_DVMOLR_HIDEVLAN  0x20000000 /* Hide vlan enable */
+#define E1000_DVMOLR_STRVLAN   0x40000000 /* Vlan stripping enable */
+#define E1000_DVMOLR_STRCRC    0x80000000 /* CRC stripping enable */
+
 #define E1000_VLVF_ARRAY_SIZE     32
 #define E1000_VLVF_VLANID_MASK    0x00000FFF
 #define E1000_VLVF_POOLSEL_SHIFT  12
@@ -266,8 +265,7 @@ u16 igb_rxpbs_adjust_82580(u32 data);
 s32 igb_read_emi_reg(struct e1000_hw *, u16 addr, u16 *data);
 s32 igb_set_eee_i350(struct e1000_hw *);
 s32 igb_set_eee_i354(struct e1000_hw *);
-s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *);
-s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw);
+s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status);
 
 #define E1000_I2C_THERMAL_SENSOR_ADDR	0xF8
 #define E1000_EMC_INTERNAL_DATA		0x00

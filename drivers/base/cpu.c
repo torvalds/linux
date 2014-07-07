@@ -15,6 +15,7 @@
 #include <linux/percpu.h>
 #include <linux/acpi.h>
 #include <linux/of.h>
+#include <linux/cpufeature.h>
 
 #include "base.h"
 
@@ -44,13 +45,11 @@ static int __ref cpu_subsys_online(struct device *dev)
 	struct cpu *cpu = container_of(dev, struct cpu, dev);
 	int cpuid = dev->id;
 	int from_nid, to_nid;
-	int ret = -ENODEV;
-
-	cpu_hotplug_driver_lock();
+	int ret;
 
 	from_nid = cpu_to_node(cpuid);
 	if (from_nid == NUMA_NO_NODE)
-		goto out;
+		return -ENODEV;
 
 	ret = cpu_up(cpuid);
 	/*
@@ -61,19 +60,12 @@ static int __ref cpu_subsys_online(struct device *dev)
 	if (from_nid != to_nid)
 		change_cpu_under_node(cpu, from_nid, to_nid);
 
- out:
-	cpu_hotplug_driver_unlock();
 	return ret;
 }
 
 static int cpu_subsys_offline(struct device *dev)
 {
-	int ret;
-
-	cpu_hotplug_driver_lock();
-	ret = cpu_down(dev->id);
-	cpu_hotplug_driver_unlock();
-	return ret;
+	return cpu_down(dev->id);
 }
 
 void unregister_cpu(struct cpu *cpu)
@@ -93,7 +85,17 @@ static ssize_t cpu_probe_store(struct device *dev,
 			       const char *buf,
 			       size_t count)
 {
-	return arch_cpu_probe(buf, count);
+	ssize_t cnt;
+	int ret;
+
+	ret = lock_device_hotplug_sysfs();
+	if (ret)
+		return ret;
+
+	cnt = arch_cpu_probe(buf, count);
+
+	unlock_device_hotplug();
+	return cnt;
 }
 
 static ssize_t cpu_release_store(struct device *dev,
@@ -101,7 +103,17 @@ static ssize_t cpu_release_store(struct device *dev,
 				 const char *buf,
 				 size_t count)
 {
-	return arch_cpu_release(buf, count);
+	ssize_t cnt;
+	int ret;
+
+	ret = lock_device_hotplug_sysfs();
+	if (ret)
+		return ret;
+
+	cnt = arch_cpu_release(buf, count);
+
+	unlock_device_hotplug();
+	return cnt;
 }
 
 static DEVICE_ATTR(probe, S_IWUSR, NULL, cpu_probe_store);
@@ -275,6 +287,41 @@ static void cpu_device_release(struct device *dev)
 	 */
 }
 
+#ifdef CONFIG_GENERIC_CPU_AUTOPROBE
+static ssize_t print_cpu_modalias(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	ssize_t n;
+	u32 i;
+
+	n = sprintf(buf, "cpu:type:" CPU_FEATURE_TYPEFMT ":feature:",
+		    CPU_FEATURE_TYPEVAL);
+
+	for (i = 0; i < MAX_CPU_FEATURES; i++)
+		if (cpu_have_feature(i)) {
+			if (PAGE_SIZE < n + sizeof(",XXXX\n")) {
+				WARN(1, "CPU features overflow page\n");
+				break;
+			}
+			n += sprintf(&buf[n], ",%04X", i);
+		}
+	buf[n++] = '\n';
+	return n;
+}
+
+static int cpu_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	char *buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (buf) {
+		print_cpu_modalias(NULL, NULL, buf);
+		add_uevent_var(env, "MODALIAS=%s", buf);
+		kfree(buf);
+	}
+	return 0;
+}
+#endif
+
 /*
  * register_cpu - Setup a sysfs device for a CPU.
  * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
@@ -295,8 +342,8 @@ int register_cpu(struct cpu *cpu, int num)
 	cpu->dev.offline_disabled = !cpu->hotpluggable;
 	cpu->dev.offline = !cpu_online(num);
 	cpu->dev.of_node = of_get_cpu_node(num, NULL);
-#ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
-	cpu->dev.bus->uevent = arch_cpu_uevent;
+#ifdef CONFIG_GENERIC_CPU_AUTOPROBE
+	cpu->dev.bus->uevent = cpu_uevent;
 #endif
 	cpu->dev.groups = common_cpu_attr_groups;
 	if (cpu->hotpluggable)
@@ -319,8 +366,8 @@ struct device *get_cpu_device(unsigned cpu)
 }
 EXPORT_SYMBOL_GPL(get_cpu_device);
 
-#ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
-static DEVICE_ATTR(modalias, 0444, arch_print_cpu_modalias, NULL);
+#ifdef CONFIG_GENERIC_CPU_AUTOPROBE
+static DEVICE_ATTR(modalias, 0444, print_cpu_modalias, NULL);
 #endif
 
 static struct attribute *cpu_root_attrs[] = {
@@ -333,7 +380,7 @@ static struct attribute *cpu_root_attrs[] = {
 	&cpu_attrs[2].attr.attr,
 	&dev_attr_kernel_max.attr,
 	&dev_attr_offline.attr,
-#ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
+#ifdef CONFIG_GENERIC_CPU_AUTOPROBE
 	&dev_attr_modalias.attr,
 #endif
 	NULL

@@ -147,6 +147,14 @@ BEGIN_FTR_SECTION_NESTED(943)						\
 END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 /*
+ * Set an SPR from a register if the CPU has the given feature
+ */
+#define OPT_SET_SPR(ra, spr, ftr)					\
+BEGIN_FTR_SECTION_NESTED(943)						\
+	mtspr	spr,ra;							\
+END_FTR_SECTION_NESTED(ftr,ftr,943)
+
+/*
  * Save a register to the PACA if the CPU has the given feature
  */
 #define OPT_SAVE_REG_TO_PACA(offset, ra, ftr)				\
@@ -198,12 +206,27 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	cmpwi	r10,0;							\
 	bne	do_kvm_##n
 
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+/*
+ * If hv is possible, interrupts come into to the hv version
+ * of the kvmppc_interrupt code, which then jumps to the PR handler,
+ * kvmppc_interrupt_pr, if the guest is a PR guest.
+ */
+#define kvmppc_interrupt kvmppc_interrupt_hv
+#else
+#define kvmppc_interrupt kvmppc_interrupt_pr
+#endif
+
 #define __KVM_HANDLER(area, h, n)					\
 do_kvm_##n:								\
 	BEGIN_FTR_SECTION_NESTED(947)					\
 	ld	r10,area+EX_CFAR(r13);					\
 	std	r10,HSTATE_CFAR(r13);					\
 	END_FTR_SECTION_NESTED(CPU_FTR_CFAR,CPU_FTR_CFAR,947);		\
+	BEGIN_FTR_SECTION_NESTED(948)					\
+	ld	r10,area+EX_PPR(r13);					\
+	std	r10,HSTATE_PPR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
 	ld	r10,area+EX_R10(r13);					\
 	stw	r9,HSTATE_SCRATCH1(r13);				\
 	ld	r9,area+EX_R9(r13);					\
@@ -217,6 +240,10 @@ do_kvm_##n:								\
 	ld	r10,area+EX_R10(r13);					\
 	beq	89f;							\
 	stw	r9,HSTATE_SCRATCH1(r13);			\
+	BEGIN_FTR_SECTION_NESTED(948)					\
+	ld	r9,area+EX_PPR(r13);					\
+	std	r9,HSTATE_PPR(r13);					\
+	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
 	ld	r9,area+EX_R9(r13);					\
 	std	r12,HSTATE_SCRATCH0(r13);			\
 	li	r12,n;							\
@@ -236,7 +263,7 @@ do_kvm_##n:								\
 #define KVM_HANDLER_SKIP(area, h, n)
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 #define KVMTEST_PR(n)			__KVMTEST(n)
 #define KVM_HANDLER_PR(area, h, n)	__KVM_HANDLER(area, h, n)
 #define KVM_HANDLER_PR_SKIP(area, h, n)	__KVM_HANDLER_SKIP(area, h, n)
@@ -265,7 +292,7 @@ do_kvm_##n:								\
 	subi	r1,r1,INT_FRAME_SIZE;	/* alloc frame on kernel stack	*/ \
 	beq-	1f;							   \
 	ld	r1,PACAKSAVE(r13);	/* kernel stack to use		*/ \
-1:	cmpdi	cr1,r1,0;		/* check if r1 is in userspace	*/ \
+1:	cmpdi	cr1,r1,-INT_FRAME_SIZE;	/* check if r1 is in userspace	*/ \
 	blt+	cr1,3f;			/* abort if it is		*/ \
 	li	r1,(n);			/* will be reloaded later	*/ \
 	sth	r1,PACA_TRAP_SAVE(r13);					   \
@@ -282,9 +309,12 @@ do_kvm_##n:								\
 	beq	4f;			/* if from kernel mode		*/ \
 	ACCOUNT_CPU_USER_ENTRY(r9, r10);				   \
 	SAVE_PPR(area, r9, r10);					   \
-4:	std	r2,GPR2(r1);		/* save r2 in stackframe	*/ \
-	SAVE_4GPRS(3, r1);		/* save r3 - r6 in stackframe	*/ \
-	SAVE_2GPRS(7, r1);		/* save r7, r8 in stackframe	*/ \
+4:	EXCEPTION_PROLOG_COMMON_2(area)					   \
+	EXCEPTION_PROLOG_COMMON_3(n)					   \
+	ACCOUNT_STOLEN_TIME
+
+/* Save original regs values from save area to stack frame. */
+#define EXCEPTION_PROLOG_COMMON_2(area)					   \
 	ld	r9,area+EX_R9(r13);	/* move r9, r10 to stackframe	*/ \
 	ld	r10,area+EX_R10(r13);					   \
 	std	r9,GPR9(r1);						   \
@@ -299,11 +329,16 @@ do_kvm_##n:								\
 	ld	r10,area+EX_CFAR(r13);					   \
 	std	r10,ORIG_GPR3(r1);					   \
 	END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);		   \
+	GET_CTR(r10, area);						   \
+	std	r10,_CTR(r1);
+
+#define EXCEPTION_PROLOG_COMMON_3(n)					   \
+	std	r2,GPR2(r1);		/* save r2 in stackframe	*/ \
+	SAVE_4GPRS(3, r1);		/* save r3 - r6 in stackframe   */ \
+	SAVE_2GPRS(7, r1);		/* save r7, r8 in stackframe	*/ \
 	mflr	r9;			/* Get LR, later save to stack	*/ \
 	ld	r2,PACATOC(r13);	/* get kernel TOC into r2	*/ \
 	std	r9,_LINK(r1);						   \
-	GET_CTR(r10, area);						   \
-	std	r10,_CTR(r1);						   \
 	lbz	r10,PACASOFTIRQEN(r13);				   \
 	mfspr	r11,SPRN_XER;		/* save XER in stackframe	*/ \
 	std	r10,SOFTE(r1);						   \
@@ -313,8 +348,7 @@ do_kvm_##n:								\
 	li	r10,0;							   \
 	ld	r11,exception_marker@toc(r2);				   \
 	std	r10,RESULT(r1);		/* clear regs->result		*/ \
-	std	r11,STACK_FRAME_OVERHEAD-16(r1); /* mark the frame	*/ \
-	ACCOUNT_STOLEN_TIME
+	std	r11,STACK_FRAME_OVERHEAD-16(r1); /* mark the frame	*/
 
 /*
  * Exception vectors.
@@ -483,7 +517,7 @@ label##_relon_hv:							\
 #define DISABLE_INTS	RECONCILE_IRQ_STATE(r10,r11)
 
 #define ADD_NVGPRS				\
-	bl	.save_nvgprs
+	bl	save_nvgprs
 
 #define RUNLATCH_ON				\
 BEGIN_FTR_SECTION				\

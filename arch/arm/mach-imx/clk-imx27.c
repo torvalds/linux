@@ -82,7 +82,8 @@ enum mx27_clks {
 	csi_ahb_gate, brom_ahb_gate, ata_ahb_gate, wdog_ipg_gate, usb_ipg_gate,
 	uart6_ipg_gate, uart5_ipg_gate, uart4_ipg_gate, uart3_ipg_gate,
 	uart2_ipg_gate, uart1_ipg_gate, ckih_div1p5, fpm, mpll_osc_sel,
-	mpll_sel, spll_gate, clk_max
+	mpll_sel, spll_gate, mshc_div, rtic_ipg_gate, mshc_ipg_gate,
+	rtic_ahb_gate, mshc_baud_gate, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -117,6 +118,7 @@ int __init mx27_clocks_init(unsigned long fref)
 		clk[ipg] = imx_clk_divider("ipg", "ahb", CCM_CSCR, 8, 1);
 	}
 
+	clk[mshc_div] = imx_clk_divider("mshc_div", "ahb", CCM_PCDR0, 0, 6);
 	clk[nfc_div] = imx_clk_divider("nfc_div", "ahb", CCM_PCDR0, 6, 4);
 	clk[per1_div] = imx_clk_divider("per1_div", "mpll_main2", CCM_PCDR1, 0, 6);
 	clk[per2_div] = imx_clk_divider("per2_div", "mpll_main2", CCM_PCDR1, 8, 6);
@@ -145,9 +147,11 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk[sdhc1_ipg_gate] = imx_clk_gate("sdhc1_ipg_gate", "ipg", CCM_PCCR0, 5);
 	clk[scc_ipg_gate] = imx_clk_gate("scc_ipg_gate", "ipg", CCM_PCCR0, 6);
 	clk[sahara_ipg_gate] = imx_clk_gate("sahara_ipg_gate", "ipg", CCM_PCCR0, 7);
+	clk[rtic_ipg_gate] = imx_clk_gate("rtic_ipg_gate", "ipg", CCM_PCCR0, 8);
 	clk[rtc_ipg_gate] = imx_clk_gate("rtc_ipg_gate", "ipg", CCM_PCCR0, 9);
 	clk[pwm_ipg_gate] = imx_clk_gate("pwm_ipg_gate", "ipg", CCM_PCCR0, 11);
 	clk[owire_ipg_gate] = imx_clk_gate("owire_ipg_gate", "ipg", CCM_PCCR0, 12);
+	clk[mshc_ipg_gate] = imx_clk_gate("mshc_ipg_gate", "ipg", CCM_PCCR0, 13);
 	clk[lcdc_ipg_gate] = imx_clk_gate("lcdc_ipg_gate", "ipg", CCM_PCCR0, 14);
 	clk[kpp_ipg_gate] = imx_clk_gate("kpp_ipg_gate", "ipg", CCM_PCCR0, 15);
 	clk[iim_ipg_gate] = imx_clk_gate("iim_ipg_gate", "ipg", CCM_PCCR0, 16);
@@ -166,6 +170,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk[cspi3_ipg_gate] = imx_clk_gate("cspi3_ipg_gate", "ipg", CCM_PCCR0, 29);
 	clk[cspi2_ipg_gate] = imx_clk_gate("cspi2_ipg_gate", "ipg", CCM_PCCR0, 30);
 	clk[cspi1_ipg_gate] = imx_clk_gate("cspi1_ipg_gate", "ipg", CCM_PCCR0, 31);
+	clk[mshc_baud_gate] = imx_clk_gate("mshc_baud_gate", "mshc_div", CCM_PCCR1, 2);
 	clk[nfc_baud_gate] = imx_clk_gate("nfc_baud_gate", "nfc_div", CCM_PCCR1,  3);
 	clk[ssi2_baud_gate] = imx_clk_gate("ssi2_baud_gate", "ssi2_div", CCM_PCCR1,  4);
 	clk[ssi1_baud_gate] = imx_clk_gate("ssi1_baud_gate", "ssi1_div", CCM_PCCR1,  5);
@@ -177,6 +182,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk[usb_ahb_gate] = imx_clk_gate("usb_ahb_gate", "ahb", CCM_PCCR1, 11);
 	clk[slcdc_ahb_gate] = imx_clk_gate("slcdc_ahb_gate", "ahb", CCM_PCCR1, 12);
 	clk[sahara_ahb_gate] = imx_clk_gate("sahara_ahb_gate", "ahb", CCM_PCCR1, 13);
+	clk[rtic_ahb_gate] = imx_clk_gate("rtic_ahb_gate", "ahb", CCM_PCCR1, 14);
 	clk[lcdc_ahb_gate] = imx_clk_gate("lcdc_ahb_gate", "ahb", CCM_PCCR1, 15);
 	clk[vpu_ahb_gate] = imx_clk_gate("vpu_ahb_gate", "ahb", CCM_PCCR1, 16);
 	clk[fec_ahb_gate] = imx_clk_gate("fec_ahb_gate", "ahb", CCM_PCCR1, 17);
@@ -221,17 +227,6 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[per1_gate], "per", "imx21-uart.5");
 	clk_register_clkdev(clk[gpt1_ipg_gate], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.0");
-	clk_register_clkdev(clk[gpt2_ipg_gate], "ipg", "imx-gpt.1");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.1");
-	clk_register_clkdev(clk[gpt3_ipg_gate], "ipg", "imx-gpt.2");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.2");
-	clk_register_clkdev(clk[gpt4_ipg_gate], "ipg", "imx-gpt.3");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.3");
-	clk_register_clkdev(clk[gpt5_ipg_gate], "ipg", "imx-gpt.4");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.4");
-	clk_register_clkdev(clk[gpt6_ipg_gate], "ipg", "imx-gpt.5");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.5");
-	clk_register_clkdev(clk[pwm_ipg_gate], NULL, "mxc_pwm.0");
 	clk_register_clkdev(clk[per2_gate], "per", "imx21-mmc.0");
 	clk_register_clkdev(clk[sdhc1_ipg_gate], "ipg", "imx21-mmc.0");
 	clk_register_clkdev(clk[per2_gate], "per", "imx21-mmc.1");
@@ -279,14 +274,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[emma_ipg_gate], "emma-ipg", "imx27-camera.0");
 	clk_register_clkdev(clk[emma_ahb_gate], "ahb", "m2m-emmaprp.0");
 	clk_register_clkdev(clk[emma_ipg_gate], "ipg", "m2m-emmaprp.0");
-	clk_register_clkdev(clk[iim_ipg_gate], "iim", NULL);
-	clk_register_clkdev(clk[gpio_ipg_gate], "gpio", NULL);
-	clk_register_clkdev(clk[brom_ahb_gate], "brom", NULL);
-	clk_register_clkdev(clk[ata_ahb_gate], "ata", NULL);
-	clk_register_clkdev(clk[rtc_ipg_gate], NULL, "imx21-rtc");
-	clk_register_clkdev(clk[scc_ipg_gate], "scc", NULL);
 	clk_register_clkdev(clk[cpu_div], NULL, "cpu0");
-	clk_register_clkdev(clk[emi_ahb_gate], "emi_ahb" , NULL);
 
 	mxc_timer_init(MX27_IO_ADDRESS(MX27_GPT1_BASE_ADDR), MX27_INT_GPT1);
 
@@ -297,7 +285,6 @@ int __init mx27_clocks_init(unsigned long fref)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 int __init mx27_clocks_init_dt(void)
 {
 	struct device_node *np;
@@ -313,4 +300,3 @@ int __init mx27_clocks_init_dt(void)
 
 	return mx27_clocks_init(fref);
 }
-#endif

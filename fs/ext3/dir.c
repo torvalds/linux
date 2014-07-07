@@ -275,7 +275,7 @@ static inline loff_t ext3_get_htree_eof(struct file *filp)
  * NOTE: offsets obtained *before* ext3_set_inode_flag(dir, EXT3_INODE_INDEX)
  *       will be invalid once the directory was converted into a dx directory
  */
-loff_t ext3_dir_llseek(struct file *file, loff_t offset, int whence)
+static loff_t ext3_dir_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	int dx_dir = is_dx_dir(inode);
@@ -309,43 +309,17 @@ struct fname {
  */
 static void free_rb_tree_fname(struct rb_root *root)
 {
-	struct rb_node	*n = root->rb_node;
-	struct rb_node	*parent;
-	struct fname	*fname;
+	struct fname *fname, *next;
 
-	while (n) {
-		/* Do the node's children first */
-		if (n->rb_left) {
-			n = n->rb_left;
-			continue;
-		}
-		if (n->rb_right) {
-			n = n->rb_right;
-			continue;
-		}
-		/*
-		 * The node has no children; free it, and then zero
-		 * out parent's link to it.  Finally go to the
-		 * beginning of the loop and try to free the parent
-		 * node.
-		 */
-		parent = rb_parent(n);
-		fname = rb_entry(n, struct fname, rb_hash);
-		while (fname) {
-			struct fname * old = fname;
+	rbtree_postorder_for_each_entry_safe(fname, next, root, rb_hash)
+		do {
+			struct fname *old = fname;
 			fname = fname->next;
-			kfree (old);
-		}
-		if (!parent)
-			*root = RB_ROOT;
-		else if (parent->rb_left == n)
-			parent->rb_left = NULL;
-		else if (parent->rb_right == n)
-			parent->rb_right = NULL;
-		n = parent;
-	}
-}
+			kfree(old);
+		} while (fname);
 
+	*root = RB_ROOT;
+}
 
 static struct dir_private_info *ext3_htree_create_dir_info(struct file *filp,
 							   loff_t pos)

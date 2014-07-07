@@ -25,6 +25,8 @@ Supported adapters:
   * Intel Avoton (SOC)
   * Intel Wellsburg (PCH)
   * Intel Coleto Creek (PCH)
+  * Intel Wildcat Point-LP (PCH)
+  * Intel BayTrail (SOC)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller
@@ -32,7 +34,7 @@ and the additional 'Integrated Device Function' controllers are supported.
 
 Authors: 
 	Mark Studebaker <mdsxyz123@yahoo.com>
-	Jean Delvare <khali@linux-fr.org>
+	Jean Delvare <jdelvare@suse.de>
 
 
 Module Parameters

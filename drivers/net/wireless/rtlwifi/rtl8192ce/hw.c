@@ -319,7 +319,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			u8 e_aci = *(val);
 			rtl92c_dm_init_edca_turbo(hw);
 
-			if (rtlpci->acm_method != eAcmWay2_SW)
+			if (rtlpci->acm_method != EACMWAY2_SW)
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 							      HW_VAR_ACM_CTRL,
 							      (&e_aci));
@@ -476,7 +476,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_H2C_FW_P2P_PS_OFFLOAD:
-		rtl92c_set_p2p_ps_offload_cmd(hw, (*(u8 *)val));
+		rtl92c_set_p2p_ps_offload_cmd(hw, *val);
 		break;
 	case HW_VAR_AID:{
 			u16 u2btmp;
@@ -521,30 +521,32 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 						(u8 *)(&fw_current_inps));
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						HW_VAR_H2C_FW_PWRMODE,
-						(u8 *)(&ppsc->fwctrl_psmode));
+						&ppsc->fwctrl_psmode);
 
 				rtlpriv->cfg->ops->set_hw_reg(hw,
-						HW_VAR_SET_RPWM,
-						(u8 *)(&rpwm_val));
+							      HW_VAR_SET_RPWM,
+							      &rpwm_val);
 			} else {
 				rpwm_val = 0x0C;	/* RF on */
 				fw_pwrmode = FW_PS_ACTIVE_MODE;
 				fw_current_inps = false;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
-						HW_VAR_SET_RPWM,
-						(u8 *)(&rpwm_val));
+							      HW_VAR_SET_RPWM,
+							      &rpwm_val);
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						HW_VAR_H2C_FW_PWRMODE,
-						(u8 *)(&fw_pwrmode));
+						&fw_pwrmode);
 
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						HW_VAR_FW_PSMODE_STATUS,
 						(u8 *)(&fw_current_inps));
 			}
 		break; }
+	case HW_VAR_KEEP_ALIVE:
+		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+			 "switch case %d not processed\n", variable);
 		break;
 	}
 }
@@ -937,14 +939,26 @@ int rtl92ce_hw_init(struct ieee80211_hw *hw)
 	bool is92c;
 	int err;
 	u8 tmp_u1b;
+	unsigned long flags;
 
 	rtlpci->being_init_adapter = true;
+
+	/* Since this function can take a very long time (up to 350 ms)
+	 * and can be called with irqs disabled, reenable the irqs
+	 * to let the other devices continue being serviced.
+	 *
+	 * It is safe doing so since our own interrupts will only be enabled
+	 * in a subsequent step.
+	 */
+	local_save_flags(flags);
+	local_irq_enable();
+
 	rtlpriv->intf_ops->disable_aspm(hw);
 	rtstatus = _rtl92ce_init_mac(hw);
 	if (!rtstatus) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
 		err = 1;
-		return err;
+		goto exit;
 	}
 
 	err = rtl92c_download_fw(hw);
@@ -952,7 +966,7 @@ int rtl92ce_hw_init(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Failed to download FW. Init HW without FW now..\n");
 		err = 1;
-		return err;
+		goto exit;
 	}
 
 	rtlhal->last_hmeboxnum = 0;
@@ -1032,6 +1046,8 @@ int rtl92ce_hw_init(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "under 1.5V\n");
 	}
 	rtl92c_dm_init(hw);
+exit:
+	local_irq_restore(flags);
 	rtlpci->being_init_adapter = false;
 	return err;
 }
@@ -1200,10 +1216,12 @@ static int _rtl92ce_set_media_status(struct ieee80211_hw *hw,
 void rtl92ce_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 reg_rcr = rtl_read_dword(rtlpriv, REG_RCR);
+	u32 reg_rcr;
 
 	if (rtlpriv->psc.rfpwr_state != ERFON)
 		return;
+
+	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 
 	if (check_bssid) {
 		reg_rcr |= (RCR_CBSSID_DATA | RCR_CBSSID_BCN);
@@ -1720,7 +1738,7 @@ static void _rtl92ce_read_adapter_info(struct ieee80211_hw *hw)
 			if (rtlefuse->eeprom_did == 0x8176) {
 				if ((rtlefuse->eeprom_svid == 0x103C &&
 				     rtlefuse->eeprom_smid == 0x1629))
-					rtlhal->oem_id = RT_CID_819x_HP;
+					rtlhal->oem_id = RT_CID_819X_HP;
 				else
 					rtlhal->oem_id = RT_CID_DEFAULT;
 			} else {
@@ -1731,7 +1749,7 @@ static void _rtl92ce_read_adapter_info(struct ieee80211_hw *hw)
 			rtlhal->oem_id = RT_CID_TOSHIBA;
 			break;
 		case EEPROM_CID_QMI:
-			rtlhal->oem_id = RT_CID_819x_QMI;
+			rtlhal->oem_id = RT_CID_819X_QMI;
 			break;
 		case EEPROM_CID_WHQL:
 		default:
@@ -1750,14 +1768,14 @@ static void _rtl92ce_hal_customized_behavior(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
 	switch (rtlhal->oem_id) {
-	case RT_CID_819x_HP:
+	case RT_CID_819X_HP:
 		pcipriv->ledctl.led_opendrain = true;
 		break;
-	case RT_CID_819x_Lenovo:
+	case RT_CID_819X_LENOVO:
 	case RT_CID_DEFAULT:
 	case RT_CID_TOSHIBA:
 	case RT_CID_CCX:
-	case RT_CID_819x_Acer:
+	case RT_CID_819X_ACER:
 	case RT_CID_WHQL:
 	default:
 		break;
@@ -2404,25 +2422,4 @@ void rtl92ce_suspend(struct ieee80211_hw *hw)
 
 void rtl92ce_resume(struct ieee80211_hw *hw)
 {
-}
-
-/* Turn on AAP (RCR:bit 0) for promicuous mode. */
-void rtl92ce_allow_all_destaddr(struct ieee80211_hw *hw,
-	bool allow_all_da, bool write_into_reg)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-
-	if (allow_all_da) {/* Set BIT0 */
-		rtlpci->receive_config |= RCR_AAP;
-	} else {/* Clear BIT0 */
-		rtlpci->receive_config &= ~RCR_AAP;
-	}
-
-	if (write_into_reg)
-		rtl_write_dword(rtlpriv, REG_RCR, rtlpci->receive_config);
-
-	RT_TRACE(rtlpriv, COMP_TURBO | COMP_INIT, DBG_LOUD,
-		 "receive_config=0x%08X, write_into_reg=%d\n",
-		 rtlpci->receive_config, write_into_reg);
 }

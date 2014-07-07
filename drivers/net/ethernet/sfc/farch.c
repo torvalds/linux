@@ -311,7 +311,6 @@ static inline void efx_farch_push_tx_desc(struct efx_tx_queue *tx_queue,
  */
 void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 {
-
 	struct efx_tx_buffer *buffer;
 	efx_qword_t *txd;
 	unsigned write_ptr;
@@ -742,6 +741,28 @@ int efx_farch_fini_dmaq(struct efx_nic *efx)
 	return rc;
 }
 
+/* Reset queue and flush accounting after FLR
+ *
+ * One possible cause of FLR recovery is that DMA may be failing (eg. if bus
+ * mastering was disabled), in which case we don't receive (RXQ) flush
+ * completion events.  This means that efx->rxq_flush_outstanding remained at 4
+ * after the FLR; also, efx->active_queues was non-zero (as no flush completion
+ * events were received, and we didn't go through efx_check_tx_flush_complete())
+ * If we don't fix this up, on the next call to efx_realloc_channels() we won't
+ * flush any RX queues because efx->rxq_flush_outstanding is at the limit of 4
+ * for batched flush requests; and the efx->active_queues gets messed up because
+ * we keep incrementing for the newly initialised queues, but it never went to
+ * zero previously.  Then we get a timeout every time we try to restart the
+ * queues, as it doesn't go back to zero when we should be flushing the queues.
+ */
+void efx_farch_finish_flr(struct efx_nic *efx)
+{
+	atomic_set(&efx->rxq_flush_pending, 0);
+	atomic_set(&efx->rxq_flush_outstanding, 0);
+	atomic_set(&efx->active_queues, 0);
+}
+
+
 /**************************************************************************
  *
  * Event queue processing
@@ -1147,7 +1168,7 @@ static void efx_farch_handle_generated_event(struct efx_channel *channel,
 		/* The queue must be empty, so we won't receive any rx
 		 * events, so efx_process_channel() won't refill the
 		 * queue. Refill it here */
-		efx_fast_push_rx_descriptors(rx_queue);
+		efx_fast_push_rx_descriptors(rx_queue, true);
 	} else if (rx_queue && magic == EFX_CHANNEL_MAGIC_RX_DRAIN(rx_queue)) {
 		efx_farch_handle_drain_event(channel);
 	} else if (code == _EFX_CHANNEL_MAGIC_TX_DRAIN) {
@@ -1248,6 +1269,9 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 	int ev_code;
 	int tx_packets = 0;
 	int spent = 0;
+
+	if (budget <= 0)
+		return spent;
 
 	read_ptr = channel->eventq_read_ptr;
 
@@ -1609,7 +1633,6 @@ irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-
 /* Setup RSS indirection table.
  * This maps from the hash value of the packet to RXQ
  */
@@ -1618,8 +1641,7 @@ void efx_farch_rx_push_indir_table(struct efx_nic *efx)
 	size_t i = 0;
 	efx_dword_t dword;
 
-	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0)
-		return;
+	BUG_ON(efx_nic_rev(efx) < EFX_REV_FALCON_B0);
 
 	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
 		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
@@ -1744,8 +1766,6 @@ void efx_farch_init_common(struct efx_nic *efx)
 		EFX_SET_OWORD_FIELD(temp, FRF_CZ_SRAM_PERR_INT_P_KER_EN, 1);
 	EFX_INVERT_OWORD(temp);
 	efx_writeo(efx, &temp, FR_AZ_FATAL_INTR_KER);
-
-	efx_farch_rx_push_indir_table(efx);
 
 	/* Disable the ugly timer-based TX DMA backoff and allow TX DMA to be
 	 * controlled by the RX FIFO fill level. Set arbitration to one pkt/Q.
@@ -2187,14 +2207,14 @@ efx_farch_filter_to_gen_spec(struct efx_filter_spec *gen_spec,
 }
 
 static void
-efx_farch_filter_init_rx_for_stack(struct efx_nic *efx,
-				   struct efx_farch_filter_spec *spec)
+efx_farch_filter_init_rx_auto(struct efx_nic *efx,
+			      struct efx_farch_filter_spec *spec)
 {
 	/* If there's only one channel then disable RSS for non VF
 	 * traffic, thereby allowing VFs to use RSS when the PF can't.
 	 */
-	spec->priority = EFX_FILTER_PRI_REQUIRED;
-	spec->flags = (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_RX_STACK |
+	spec->priority = EFX_FILTER_PRI_AUTO;
+	spec->flags = (EFX_FILTER_FLAG_RX |
 		       (efx->n_rx_channels > 1 ? EFX_FILTER_FLAG_RX_RSS : 0) |
 		       (efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0));
 	spec->dmaq_id = 0;
@@ -2459,20 +2479,13 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 			rc = -EEXIST;
 			goto out;
 		}
-		if (spec.priority < saved_spec->priority &&
-		    !(saved_spec->priority == EFX_FILTER_PRI_REQUIRED &&
-		      saved_spec->flags & EFX_FILTER_FLAG_RX_STACK)) {
+		if (spec.priority < saved_spec->priority) {
 			rc = -EPERM;
 			goto out;
 		}
-		if (spec.flags & EFX_FILTER_FLAG_RX_STACK) {
-			/* Just make sure it won't be removed */
-			saved_spec->flags |= EFX_FILTER_FLAG_RX_STACK;
-			rc = 0;
-			goto out;
-		}
-		/* Retain the RX_STACK flag */
-		spec.flags |= saved_spec->flags & EFX_FILTER_FLAG_RX_STACK;
+		if (saved_spec->priority == EFX_FILTER_PRI_AUTO ||
+		    saved_spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO)
+			spec.flags |= EFX_FILTER_FLAG_RX_OVER_AUTO;
 	}
 
 	/* Insert the filter */
@@ -2553,11 +2566,11 @@ static int efx_farch_filter_remove(struct efx_nic *efx,
 	struct efx_farch_filter_spec *spec = &table->spec[filter_idx];
 
 	if (!test_bit(filter_idx, table->used_bitmap) ||
-	    spec->priority > priority)
+	    spec->priority != priority)
 		return -ENOENT;
 
-	if (spec->flags & EFX_FILTER_FLAG_RX_STACK) {
-		efx_farch_filter_init_rx_for_stack(efx, spec);
+	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO) {
+		efx_farch_filter_init_rx_auto(efx, spec);
 		efx_farch_filter_push_rx_config(efx);
 	} else {
 		efx_farch_filter_table_clear_entry(efx, table, filter_idx);
@@ -2640,12 +2653,15 @@ efx_farch_filter_table_clear(struct efx_nic *efx,
 	unsigned int filter_idx;
 
 	spin_lock_bh(&efx->filter_lock);
-	for (filter_idx = 0; filter_idx < table->size; ++filter_idx)
-		efx_farch_filter_remove(efx, table, filter_idx, priority);
+	for (filter_idx = 0; filter_idx < table->size; ++filter_idx) {
+		if (table->spec[filter_idx].priority != EFX_FILTER_PRI_AUTO)
+			efx_farch_filter_remove(efx, table,
+						filter_idx, priority);
+	}
 	spin_unlock_bh(&efx->filter_lock);
 }
 
-void efx_farch_filter_clear_rx(struct efx_nic *efx,
+int efx_farch_filter_clear_rx(struct efx_nic *efx,
 			       enum efx_filter_priority priority)
 {
 	efx_farch_filter_table_clear(efx, EFX_FARCH_FILTER_TABLE_RX_IP,
@@ -2654,6 +2670,7 @@ void efx_farch_filter_clear_rx(struct efx_nic *efx,
 				     priority);
 	efx_farch_filter_table_clear(efx, EFX_FARCH_FILTER_TABLE_RX_DEF,
 				     priority);
+	return 0;
 }
 
 u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
@@ -2822,7 +2839,7 @@ int efx_farch_filter_table_probe(struct efx_nic *efx)
 		for (i = 0; i < EFX_FARCH_FILTER_SIZE_RX_DEF; i++) {
 			spec = &table->spec[i];
 			spec->type = EFX_FARCH_FILTER_UC_DEF + i;
-			efx_farch_filter_init_rx_for_stack(efx, spec);
+			efx_farch_filter_init_rx_auto(efx, spec);
 			__set_bit(i, table->used_bitmap);
 		}
 	}

@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
+#include <asm/div64.h>
 
 #include "dvb_math.h"
 
@@ -118,6 +119,12 @@ struct dib8000_state {
 	u8 longest_intlv_layer;
 	u16 output_mode;
 
+	/* for DVBv5 stats */
+	s64 init_ucb;
+	unsigned long per_jiffies_stats;
+	unsigned long ber_jiffies_stats;
+	unsigned long ber_jiffies_stats_layer[3];
+
 #ifdef DIB8000_AGC_FREEZE
 	u16 agc1_max;
 	u16 agc1_min;
@@ -157,14 +164,9 @@ static u16 dib8000_i2c_read16(struct i2c_device *i2c, u16 reg)
 	return ret;
 }
 
-static u16 dib8000_read_word(struct dib8000_state *state, u16 reg)
+static u16 __dib8000_read_word(struct dib8000_state *state, u16 reg)
 {
 	u16 ret;
-
-	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock");
-		return 0;
-	}
 
 	state->i2c_write_buffer[0] = reg >> 8;
 	state->i2c_write_buffer[1] = reg & 0xff;
@@ -183,6 +185,21 @@ static u16 dib8000_read_word(struct dib8000_state *state, u16 reg)
 		dprintk("i2c read error on %d", reg);
 
 	ret = (state->i2c_read_buffer[0] << 8) | state->i2c_read_buffer[1];
+
+	return ret;
+}
+
+static u16 dib8000_read_word(struct dib8000_state *state, u16 reg)
+{
+	u16 ret;
+
+	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
+		dprintk("could not acquire lock");
+		return 0;
+	}
+
+	ret = __dib8000_read_word(state, reg);
+
 	mutex_unlock(&state->i2c_buffer_lock);
 
 	return ret;
@@ -192,8 +209,15 @@ static u32 dib8000_read32(struct dib8000_state *state, u16 reg)
 {
 	u16 rw[2];
 
-	rw[0] = dib8000_read_word(state, reg + 0);
-	rw[1] = dib8000_read_word(state, reg + 1);
+	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
+		dprintk("could not acquire lock");
+		return 0;
+	}
+
+	rw[0] = __dib8000_read_word(state, reg + 0);
+	rw[1] = __dib8000_read_word(state, reg + 1);
+
+	mutex_unlock(&state->i2c_buffer_lock);
 
 	return ((rw[0] << 16) | (rw[1]));
 }
@@ -787,7 +811,7 @@ int dib8000_update_pll(struct dvb_frontend *fe,
 			dprintk("PLL: Update ratio (prediv: %d, ratio: %d)", state->cfg.pll->pll_prediv, ratio);
 			dib8000_write_word(state, 901, (state->cfg.pll->pll_prediv << 8) | (ratio << 0)); /* only the PLL ratio is updated. */
 		}
-}
+	}
 
 	return 0;
 }
@@ -966,6 +990,45 @@ static u16 dib8000_identify(struct i2c_device *client)
 	return value;
 }
 
+static int dib8000_read_unc_blocks(struct dvb_frontend *fe, u32 *unc);
+
+static void dib8000_reset_stats(struct dvb_frontend *fe)
+{
+	struct dib8000_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &state->fe[0]->dtv_property_cache;
+	u32 ucb;
+
+	memset(&c->strength, 0, sizeof(c->strength));
+	memset(&c->cnr, 0, sizeof(c->cnr));
+	memset(&c->post_bit_error, 0, sizeof(c->post_bit_error));
+	memset(&c->post_bit_count, 0, sizeof(c->post_bit_count));
+	memset(&c->block_error, 0, sizeof(c->block_error));
+
+	c->strength.len = 1;
+	c->cnr.len = 1;
+	c->block_error.len = 1;
+	c->block_count.len = 1;
+	c->post_bit_error.len = 1;
+	c->post_bit_count.len = 1;
+
+	c->strength.stat[0].scale = FE_SCALE_DECIBEL;
+	c->strength.stat[0].uvalue = 0;
+
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	dib8000_read_unc_blocks(fe, &ucb);
+
+	state->init_ucb = -ucb;
+	state->ber_jiffies_stats = 0;
+	state->per_jiffies_stats = 0;
+	memset(&state->ber_jiffies_stats_layer, 0,
+	       sizeof(state->ber_jiffies_stats_layer));
+}
+
 static int dib8000_reset(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
@@ -1070,6 +1133,8 @@ static int dib8000_reset(struct dvb_frontend *fe)
 	dib8000_write_word(state, 285, (dib8000_read_word(state, 285) & ~0x60) | (3 << 5));
 
 	dib8000_set_power_mode(state, DIB8000_POWER_INTERFACE_ONLY);
+
+	dib8000_reset_stats(fe);
 
 	return 0;
 }
@@ -2445,7 +2510,8 @@ static int dib8000_autosearch_start(struct dvb_frontend *fe)
 	if (state->revision == 0x8090)
 		internal = dib8000_read32(state, 23) / 1000;
 
-	if (state->autosearch_state == AS_SEARCHING_FFT) {
+	if ((state->revision >= 0x8002) &&
+	    (state->autosearch_state == AS_SEARCHING_FFT)) {
 		dib8000_write_word(state,  37, 0x0065); /* P_ctrl_pha_off_max default values */
 		dib8000_write_word(state, 116, 0x0000); /* P_ana_gain to 0 */
 
@@ -2481,7 +2547,8 @@ static int dib8000_autosearch_start(struct dvb_frontend *fe)
 		dib8000_write_word(state, 770, (dib8000_read_word(state, 770) & 0xdfff) | (1 << 13)); /* P_restart_ccg = 1 */
 		dib8000_write_word(state, 770, (dib8000_read_word(state, 770) & 0xdfff) | (0 << 13)); /* P_restart_ccg = 0 */
 		dib8000_write_word(state, 0, (dib8000_read_word(state, 0) & 0x7ff) | (0 << 15) | (1 << 13)); /* P_restart_search = 0; */
-	} else if (state->autosearch_state == AS_SEARCHING_GUARD) {
+	} else if ((state->revision >= 0x8002) &&
+		   (state->autosearch_state == AS_SEARCHING_GUARD)) {
 		c->transmission_mode = TRANSMISSION_MODE_8K;
 		c->guard_interval = GUARD_INTERVAL_1_8;
 		c->inversion = 0;
@@ -2583,7 +2650,8 @@ static int dib8000_autosearch_irq(struct dvb_frontend *fe)
 	struct dib8000_state *state = fe->demodulator_priv;
 	u16 irq_pending = dib8000_read_word(state, 1284);
 
-	if (state->autosearch_state == AS_SEARCHING_FFT) {
+	if ((state->revision >= 0x8002) &&
+	    (state->autosearch_state == AS_SEARCHING_FFT)) {
 		if (irq_pending & 0x1) {
 			dprintk("dib8000_autosearch_irq: max correlation result available");
 			return 3;
@@ -2853,6 +2921,91 @@ static int dib8090p_init_sdram(struct dib8000_state *state)
 	return 0;
 }
 
+/**
+ * is_manual_mode - Check if TMCC should be used for parameters settings
+ * @c:	struct dvb_frontend_properties
+ *
+ * By default, TMCC table should be used for parameter settings on most
+ * usercases. However, sometimes it is desirable to lock the demod to
+ * use the manual parameters.
+ *
+ * On manual mode, the current dib8000_tune state machine is very restrict:
+ * It requires that both per-layer and per-transponder parameters to be
+ * properly specified, otherwise the device won't lock.
+ *
+ * Check if all those conditions are properly satisfied before allowing
+ * the device to use the manual frequency lock mode.
+ */
+static int is_manual_mode(struct dtv_frontend_properties *c)
+{
+	int i, n_segs = 0;
+
+	/* Use auto mode on DVB-T compat mode */
+	if (c->delivery_system != SYS_ISDBT)
+		return 0;
+
+	/*
+	 * Transmission mode is only detected on auto mode, currently
+	 */
+	if (c->transmission_mode == TRANSMISSION_MODE_AUTO) {
+		dprintk("transmission mode auto");
+		return 0;
+	}
+
+	/*
+	 * Guard interval is only detected on auto mode, currently
+	 */
+	if (c->guard_interval == GUARD_INTERVAL_AUTO) {
+		dprintk("guard interval auto");
+		return 0;
+	}
+
+	/*
+	 * If no layer is enabled, assume auto mode, as at least one
+	 * layer should be enabled
+	 */
+	if (!c->isdbt_layer_enabled) {
+		dprintk("no layer modulation specified");
+		return 0;
+	}
+
+	/*
+	 * Check if the per-layer parameters aren't auto and
+	 * disable a layer if segment count is 0 or invalid.
+	 */
+	for (i = 0; i < 3; i++) {
+		if (!(c->isdbt_layer_enabled & 1 << i))
+			continue;
+
+		if ((c->layer[i].segment_count > 13) ||
+		    (c->layer[i].segment_count == 0)) {
+			c->isdbt_layer_enabled &= ~(1 << i);
+			continue;
+		}
+
+		n_segs += c->layer[i].segment_count;
+
+		if ((c->layer[i].modulation == QAM_AUTO) ||
+		    (c->layer[i].fec == FEC_AUTO)) {
+			dprintk("layer %c has either modulation or FEC auto",
+				'A' + i);
+			return 0;
+		}
+	}
+
+	/*
+	 * Userspace specified a wrong number of segments.
+	 *	fallback to auto mode.
+	 */
+	if (n_segs == 0 || n_segs > 13) {
+		dprintk("number of segments is invalid");
+		return 0;
+	}
+
+	/* Everything looks ok for manual mode */
+	return 1;
+}
+
 static int dib8000_tune(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
@@ -2878,40 +3031,19 @@ static int dib8000_tune(struct dvb_frontend *fe)
 
 	switch (*tune_state) {
 	case CT_DEMOD_START: /* 30 */
+			dib8000_reset_stats(fe);
+
 			if (state->revision == 0x8090)
 				dib8090p_init_sdram(state);
 			state->status = FE_STATUS_TUNE_PENDING;
-			if ((c->delivery_system != SYS_ISDBT) ||
-					(c->inversion == INVERSION_AUTO) ||
-					(c->transmission_mode == TRANSMISSION_MODE_AUTO) ||
-					(c->guard_interval == GUARD_INTERVAL_AUTO) ||
-					(((c->isdbt_layer_enabled & (1 << 0)) != 0) &&
-					 (c->layer[0].segment_count != 0xff) &&
-					 (c->layer[0].segment_count != 0) &&
-					 ((c->layer[0].modulation == QAM_AUTO) ||
-					  (c->layer[0].fec == FEC_AUTO))) ||
-					(((c->isdbt_layer_enabled & (1 << 1)) != 0) &&
-					 (c->layer[1].segment_count != 0xff) &&
-					 (c->layer[1].segment_count != 0) &&
-					 ((c->layer[1].modulation == QAM_AUTO) ||
-					  (c->layer[1].fec == FEC_AUTO))) ||
-					(((c->isdbt_layer_enabled & (1 << 2)) != 0) &&
-					 (c->layer[2].segment_count != 0xff) &&
-					 (c->layer[2].segment_count != 0) &&
-					 ((c->layer[2].modulation == QAM_AUTO) ||
-					  (c->layer[2].fec == FEC_AUTO))) ||
-					(((c->layer[0].segment_count == 0) ||
-					  ((c->isdbt_layer_enabled & (1 << 0)) == 0)) &&
-					 ((c->layer[1].segment_count == 0) ||
-					  ((c->isdbt_layer_enabled & (2 << 0)) == 0)) &&
-					 ((c->layer[2].segment_count == 0) || ((c->isdbt_layer_enabled & (3 << 0)) == 0))))
-				state->channel_parameters_set = 0; /* auto search */
-			else
-				state->channel_parameters_set = 1; /* channel parameters are known */
+			state->channel_parameters_set = is_manual_mode(c);
+
+			dprintk("Tuning channel on %s search mode",
+				state->channel_parameters_set ? "manual" : "auto");
 
 			dib8000_viterbi_state(state, 0); /* force chan dec in restart */
 
-			/* Layer monit */
+			/* Layer monitor */
 			dib8000_write_word(state, 285, dib8000_read_word(state, 285) & 0x60);
 
 			dib8000_set_frequency_offset(state);
@@ -3048,7 +3180,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 			dib8000_set_diversity_in(state->fe[0], state->diversity_onoff);
 
 			locks = (dib8000_read_word(state, 180) >> 6) & 0x3f; /* P_coff_winlen ? */
-			/* coff should lock over P_coff_winlen ofdm symbols : give 3 times this lenght to lock */
+			/* coff should lock over P_coff_winlen ofdm symbols : give 3 times this length to lock */
 			*timeout = dib8000_get_timeout(state, 2 * locks, SYMBOL_DEPENDENT_ON);
 			*tune_state = CT_DEMOD_STEP_5;
 			break;
@@ -3115,7 +3247,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 
 	case CT_DEMOD_STEP_9: /* 39 */
 			if ((state->revision == 0x8090) || ((dib8000_read_word(state, 1291) >> 9) & 0x1)) { /* fe capable of deinterleaving : esram */
-				/* defines timeout for mpeg lock depending on interleaver lenght of longest layer */
+				/* defines timeout for mpeg lock depending on interleaver length of longest layer */
 				for (i = 0; i < 3; i++) {
 					if (c->layer[i].interleaving >= deeper_interleaver) {
 						dprintk("layer%i: time interleaver = %d ", i, c->layer[i].interleaving);
@@ -3256,15 +3388,27 @@ static int dib8000_sleep(struct dvb_frontend *fe)
 	return dib8000_set_adc_state(state, DIBX000_SLOW_ADC_OFF) | dib8000_set_adc_state(state, DIBX000_ADC_OFF);
 }
 
+static int dib8000_read_status(struct dvb_frontend *fe, fe_status_t * stat);
+
 static int dib8000_get_frontend(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u16 i, val = 0;
-	fe_status_t stat;
+	fe_status_t stat = 0;
 	u8 index_frontend, sub_index_frontend;
 
 	fe->dtv_property_cache.bandwidth_hz = 6000000;
 
+	/*
+	 * If called to early, get_frontend makes dib8000_tune to either
+	 * not lock or not sync. This causes dvbv5-scan/dvbv5-zap to fail.
+	 * So, let's just return if frontend 0 has not locked.
+	 */
+	dib8000_read_status(fe, &stat);
+	if (!(stat & FE_HAS_SYNC))
+		return 0;
+
+	dprintk("TMCC lock");
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->ops.read_status(state->fe[index_frontend], &stat);
 		if (stat&FE_HAS_SYNC) {
@@ -3335,9 +3479,13 @@ static int dib8000_get_frontend(struct dvb_frontend *fe)
 		fe->dtv_property_cache.layer[i].segment_count = val & 0x0F;
 		dprintk("dib8000_get_frontend : Layer %d segments = %d ", i, fe->dtv_property_cache.layer[i].segment_count);
 
-		val = dib8000_read_word(state, 499 + i);
-		fe->dtv_property_cache.layer[i].interleaving = val & 0x3;
-		dprintk("dib8000_get_frontend : Layer %d time_intlv = %d ", i, fe->dtv_property_cache.layer[i].interleaving);
+		val = dib8000_read_word(state, 499 + i) & 0x3;
+		/* Interleaving can be 0, 1, 2 or 4 */
+		if (val == 3)
+			val = 4;
+		fe->dtv_property_cache.layer[i].interleaving = val;
+		dprintk("dib8000_get_frontend : Layer %d time_intlv = %d ",
+			i, fe->dtv_property_cache.layer[i].interleaving);
 
 		val = dib8000_read_word(state, 481 + i);
 		switch (val & 0x7) {
@@ -3556,6 +3704,8 @@ static int dib8000_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int dib8000_get_stats(struct dvb_frontend *fe, fe_status_t stat);
+
 static int dib8000_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
@@ -3593,6 +3743,7 @@ static int dib8000_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 		if (lock & 0x01)
 			*stat |= FE_HAS_VITERBI;
 	}
+	dib8000_get_stats(fe, *stat);
 
 	return 0;
 }
@@ -3696,6 +3847,357 @@ static int dib8000_read_snr(struct dvb_frontend *fe, u16 * snr)
 	else
 		*snr = 0;
 
+	return 0;
+}
+
+struct per_layer_regs {
+	u16 lock, ber, per;
+};
+
+static const struct per_layer_regs per_layer_regs[] = {
+	{ 554, 560, 562 },
+	{ 555, 576, 578 },
+	{ 556, 581, 583 },
+};
+
+struct linear_segments {
+	unsigned x;
+	signed y;
+};
+
+/*
+ * Table to estimate signal strength in dBm.
+ * This table was empirically determinated by measuring the signal
+ * strength generated by a DTA-2111 RF generator directly connected into
+ * a dib8076 device (a PixelView PV-D231U stick), using a good quality
+ * 3 meters RC6 cable and good RC6 connectors.
+ * The real value can actually be different on other devices, depending
+ * on several factors, like if LNA is enabled or not, if diversity is
+ * enabled, type of connectors, etc.
+ * Yet, it is better to use this measure in dB than a random non-linear
+ * percentage value, especially for antenna adjustments.
+ * On my tests, the precision of the measure using this table is about
+ * 0.5 dB, with sounds reasonable enough.
+ */
+static struct linear_segments strength_to_db_table[] = {
+	{ 55953, 108500 },	/* -22.5 dBm */
+	{ 55394, 108000 },
+	{ 53834, 107000 },
+	{ 52863, 106000 },
+	{ 52239, 105000 },
+	{ 52012, 104000 },
+	{ 51803, 103000 },
+	{ 51566, 102000 },
+	{ 51356, 101000 },
+	{ 51112, 100000 },
+	{ 50869,  99000 },
+	{ 50600,  98000 },
+	{ 50363,  97000 },
+	{ 50117,  96000 },	/* -35 dBm */
+	{ 49889,  95000 },
+	{ 49680,  94000 },
+	{ 49493,  93000 },
+	{ 49302,  92000 },
+	{ 48929,  91000 },
+	{ 48416,  90000 },
+	{ 48035,  89000 },
+	{ 47593,  88000 },
+	{ 47282,  87000 },
+	{ 46953,  86000 },
+	{ 46698,  85000 },
+	{ 45617,  84000 },
+	{ 44773,  83000 },
+	{ 43845,  82000 },
+	{ 43020,  81000 },
+	{ 42010,  80000 },	/* -51 dBm */
+	{     0,      0 },
+};
+
+static u32 interpolate_value(u32 value, struct linear_segments *segments,
+			     unsigned len)
+{
+	u64 tmp64;
+	u32 dx;
+	s32 dy;
+	int i, ret;
+
+	if (value >= segments[0].x)
+		return segments[0].y;
+	if (value < segments[len-1].x)
+		return segments[len-1].y;
+
+	for (i = 1; i < len - 1; i++) {
+		/* If value is identical, no need to interpolate */
+		if (value == segments[i].x)
+			return segments[i].y;
+		if (value > segments[i].x)
+			break;
+	}
+
+	/* Linear interpolation between the two (x,y) points */
+	dy = segments[i - 1].y - segments[i].y;
+	dx = segments[i - 1].x - segments[i].x;
+
+	tmp64 = value - segments[i].x;
+	tmp64 *= dy;
+	do_div(tmp64, dx);
+	ret = segments[i].y + tmp64;
+
+	return ret;
+}
+
+static u32 dib8000_get_time_us(struct dvb_frontend *fe, int layer)
+{
+	struct dib8000_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &state->fe[0]->dtv_property_cache;
+	int ini_layer, end_layer, i;
+	u64 time_us, tmp64;
+	u32 tmp, denom;
+	int guard, rate_num, rate_denum = 1, bits_per_symbol, nsegs;
+	int interleaving = 0, fft_div;
+
+	if (layer >= 0) {
+		ini_layer = layer;
+		end_layer = layer + 1;
+	} else {
+		ini_layer = 0;
+		end_layer = 3;
+	}
+
+	switch (c->guard_interval) {
+	case GUARD_INTERVAL_1_4:
+		guard = 4;
+		break;
+	case GUARD_INTERVAL_1_8:
+		guard = 8;
+		break;
+	case GUARD_INTERVAL_1_16:
+		guard = 16;
+		break;
+	default:
+	case GUARD_INTERVAL_1_32:
+		guard = 32;
+		break;
+	}
+
+	switch (c->transmission_mode) {
+	case TRANSMISSION_MODE_2K:
+		fft_div = 4;
+		break;
+	case TRANSMISSION_MODE_4K:
+		fft_div = 2;
+		break;
+	default:
+	case TRANSMISSION_MODE_8K:
+		fft_div = 1;
+		break;
+	}
+
+	denom = 0;
+	for (i = ini_layer; i < end_layer; i++) {
+		nsegs = c->layer[i].segment_count;
+		if (nsegs == 0 || nsegs > 13)
+			continue;
+
+		switch (c->layer[i].modulation) {
+		case DQPSK:
+		case QPSK:
+			bits_per_symbol = 2;
+			break;
+		case QAM_16:
+			bits_per_symbol = 4;
+			break;
+		default:
+		case QAM_64:
+			bits_per_symbol = 6;
+			break;
+		}
+
+		switch (c->layer[i].fec) {
+		case FEC_1_2:
+			rate_num = 1;
+			rate_denum = 2;
+			break;
+		case FEC_2_3:
+			rate_num = 2;
+			rate_denum = 3;
+			break;
+		case FEC_3_4:
+			rate_num = 3;
+			rate_denum = 4;
+			break;
+		case FEC_5_6:
+			rate_num = 5;
+			rate_denum = 6;
+			break;
+		default:
+		case FEC_7_8:
+			rate_num = 7;
+			rate_denum = 8;
+			break;
+		}
+
+		interleaving = c->layer[i].interleaving;
+
+		denom += bits_per_symbol * rate_num * fft_div * nsegs * 384;
+	}
+
+	/* If all goes wrong, wait for 1s for the next stats */
+	if (!denom)
+		return 0;
+
+	/* Estimate the period for the total bit rate */
+	time_us = rate_denum * (1008 * 1562500L);
+	tmp64 = time_us;
+	do_div(tmp64, guard);
+	time_us = time_us + tmp64;
+	time_us += denom / 2;
+	do_div(time_us, denom);
+
+	tmp = 1008 * 96 * interleaving;
+	time_us += tmp + tmp / guard;
+
+	return time_us;
+}
+
+static int dib8000_get_stats(struct dvb_frontend *fe, fe_status_t stat)
+{
+	struct dib8000_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &state->fe[0]->dtv_property_cache;
+	int i;
+	int show_per_stats = 0;
+	u32 time_us = 0, snr, val;
+	u64 blocks;
+	s32 db;
+	u16 strength;
+
+	/* Get Signal strength */
+	dib8000_read_signal_strength(fe, &strength);
+	val = strength;
+	db = interpolate_value(val,
+			       strength_to_db_table,
+			       ARRAY_SIZE(strength_to_db_table)) - 131000;
+	c->strength.stat[0].svalue = db;
+
+	/* UCB/BER/CNR measures require lock */
+	if (!(stat & FE_HAS_LOCK)) {
+		c->cnr.len = 1;
+		c->block_count.len = 1;
+		c->block_error.len = 1;
+		c->post_bit_error.len = 1;
+		c->post_bit_count.len = 1;
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return 0;
+	}
+
+	/* Check if time for stats was elapsed */
+	if (time_after(jiffies, state->per_jiffies_stats)) {
+		state->per_jiffies_stats = jiffies + msecs_to_jiffies(1000);
+
+		/* Get SNR */
+		snr = dib8000_get_snr(fe);
+		for (i = 1; i < MAX_NUMBER_OF_FRONTENDS; i++) {
+			if (state->fe[i])
+				snr += dib8000_get_snr(state->fe[i]);
+		}
+		snr = snr >> 16;
+
+		if (snr) {
+			snr = 10 * intlog10(snr);
+			snr = (1000L * snr) >> 24;
+		} else {
+			snr = 0;
+		}
+		c->cnr.stat[0].svalue = snr;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+
+		/* Get UCB measures */
+		dib8000_read_unc_blocks(fe, &val);
+		if (val < state->init_ucb)
+			state->init_ucb += 0x100000000LL;
+
+		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->block_error.stat[0].uvalue = val + state->init_ucb;
+
+		/* Estimate the number of packets based on bitrate */
+		if (!time_us)
+			time_us = dib8000_get_time_us(fe, -1);
+
+		if (time_us) {
+			blocks = 1250000ULL * 1000000ULL;
+			do_div(blocks, time_us * 8 * 204);
+			c->block_count.stat[0].scale = FE_SCALE_COUNTER;
+			c->block_count.stat[0].uvalue += blocks;
+		}
+
+		show_per_stats = 1;
+	}
+
+	/* Get post-BER measures */
+	if (time_after(jiffies, state->ber_jiffies_stats)) {
+		time_us = dib8000_get_time_us(fe, -1);
+		state->ber_jiffies_stats = jiffies + msecs_to_jiffies((time_us + 500) / 1000);
+
+		dprintk("Next all layers stats available in %u us.", time_us);
+
+		dib8000_read_ber(fe, &val);
+		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_error.stat[0].uvalue += val;
+
+		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_count.stat[0].uvalue += 100000000;
+	}
+
+	if (state->revision < 0x8002)
+		return 0;
+
+	c->block_error.len = 4;
+	c->post_bit_error.len = 4;
+	c->post_bit_count.len = 4;
+
+	for (i = 0; i < 3; i++) {
+		unsigned nsegs = c->layer[i].segment_count;
+
+		if (nsegs == 0 || nsegs > 13)
+			continue;
+
+		time_us = 0;
+
+		if (time_after(jiffies, state->ber_jiffies_stats_layer[i])) {
+			time_us = dib8000_get_time_us(fe, i);
+
+			state->ber_jiffies_stats_layer[i] = jiffies + msecs_to_jiffies((time_us + 500) / 1000);
+			dprintk("Next layer %c  stats will be available in %u us\n",
+				'A' + i, time_us);
+
+			val = dib8000_read_word(state, per_layer_regs[i].ber);
+			c->post_bit_error.stat[1 + i].scale = FE_SCALE_COUNTER;
+			c->post_bit_error.stat[1 + i].uvalue += val;
+
+			c->post_bit_count.stat[1 + i].scale = FE_SCALE_COUNTER;
+			c->post_bit_count.stat[1 + i].uvalue += 100000000;
+		}
+
+		if (show_per_stats) {
+			val = dib8000_read_word(state, per_layer_regs[i].per);
+
+			c->block_error.stat[1 + i].scale = FE_SCALE_COUNTER;
+			c->block_error.stat[1 + i].uvalue += val;
+
+			if (!time_us)
+				time_us = dib8000_get_time_us(fe, i);
+			if (time_us) {
+				blocks = 1250000ULL * 1000000ULL;
+				do_div(blocks, time_us * 8 * 204);
+				c->block_count.stat[0].scale = FE_SCALE_COUNTER;
+				c->block_count.stat[0].uvalue += blocks;
+			}
+		}
+	}
 	return 0;
 }
 

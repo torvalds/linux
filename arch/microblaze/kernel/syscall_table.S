@@ -192,7 +192,7 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall		/* reserved for streams2 */
 	.long sys_vfork		/* 190 */
 	.long sys_getrlimit
-	.long sys_mmap_pgoff		/* mmap2 */
+	.long sys_mmap2
 	.long sys_truncate64
 	.long sys_ftruncate64
 	.long sys_stat64		/* 195 */
@@ -308,7 +308,7 @@ ENTRY(sys_call_table)
 	.long sys_readlinkat		/* 305 */
 	.long sys_fchmodat
 	.long sys_faccessat
-	.long sys_ni_syscall /* pselect6 */
+	.long sys_pselect6
 	.long sys_ppoll
 	.long sys_unshare		/* 310 */
 	.long sys_set_robust_list
@@ -363,8 +363,8 @@ ENTRY(sys_call_table)
 	.long sys_sendmsg		/* 360 */
 	.long sys_recvmsg
 	.long sys_accept4
-	.long sys_ni_syscall
-	.long sys_ni_syscall
+	.long sys_preadv
+	.long sys_pwritev
 	.long sys_rt_tgsigqueueinfo	/* 365 */
 	.long sys_perf_event_open
 	.long sys_recvmmsg
@@ -381,3 +381,5 @@ ENTRY(sys_call_table)
 	.long sys_process_vm_writev
 	.long sys_kcmp
 	.long sys_finit_module
+	.long sys_sched_setattr
+	.long sys_sched_getattr

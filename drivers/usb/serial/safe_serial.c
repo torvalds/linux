@@ -67,7 +67,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/gfp.h>
-#include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -125,7 +124,7 @@ MODULE_PARM_DESC(padded, "Pad to full wMaxPacketSize On/Off");
 	.bInterfaceClass = (ic), \
 	.bInterfaceSubClass = (isc),
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{MY_USB_DEVICE(0x49f, 0xffff, CDC_DEVICE_CLASS, LINEO_INTERFACE_CLASS, LINEO_INTERFACE_SUBCLASS_SAFESERIAL)},	/* Itsy */
 	{MY_USB_DEVICE(0x3f0, 0x2101, CDC_DEVICE_CLASS, LINEO_INTERFACE_CLASS, LINEO_INTERFACE_SUBCLASS_SAFESERIAL)},	/* Calypso */
 	{MY_USB_DEVICE(0x4dd, 0x8001, CDC_DEVICE_CLASS, LINEO_INTERFACE_CLASS, LINEO_INTERFACE_SUBCLASS_SAFESERIAL)},	/* Iris */

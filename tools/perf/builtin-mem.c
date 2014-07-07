@@ -5,6 +5,7 @@
 #include "util/trace-event.h"
 #include "util/tool.h"
 #include "util/session.h"
+#include "util/data.h"
 
 #define MEM_OPERATION_LOAD	"load"
 #define MEM_OPERATION_STORE	"store"
@@ -18,11 +19,6 @@ struct perf_mem {
 	bool			dump_raw;
 	const char		*cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
-};
-
-static const char * const mem_usage[] = {
-	"perf mem [<options>] {record <command> |report}",
-	NULL
 };
 
 static int __cmd_record(int argc, const char **argv)
@@ -61,7 +57,6 @@ static int
 dump_raw_samples(struct perf_tool *tool,
 		 union perf_event *event,
 		 struct perf_sample *sample,
-		 struct perf_evsel *evsel __maybe_unused,
 		 struct machine *machine)
 {
 	struct perf_mem *mem = container_of(tool, struct perf_mem, tool);
@@ -111,18 +106,22 @@ dump_raw_samples(struct perf_tool *tool,
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct perf_evsel *evsel __maybe_unused,
 				struct machine *machine)
 {
-	return dump_raw_samples(tool, event, sample, evsel, machine);
+	return dump_raw_samples(tool, event, sample, machine);
 }
 
 static int report_raw_events(struct perf_mem *mem)
 {
+	struct perf_data_file file = {
+		.path = input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
 	int err = -EINVAL;
 	int ret;
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, false, &mem->tool);
+	struct perf_session *session = perf_session__new(&file, false,
+							 &mem->tool);
 
 	if (session == NULL)
 		return -ENOMEM;
@@ -216,9 +215,15 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 		   " between columns '.' is reserved."),
 	OPT_END()
 	};
+	const char *const mem_subcommands[] = { "record", "report", NULL };
+	const char *mem_usage[] = {
+		NULL,
+		NULL
+	};
 
-	argc = parse_options(argc, argv, mem_options, mem_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+
+	argc = parse_options_subcommand(argc, argv, mem_options, mem_subcommands,
+					mem_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (!argc || !(strncmp(argv[0], "rec", 3) || mem_operation))
 		usage_with_options(mem_usage, mem_options);

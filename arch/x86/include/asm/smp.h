@@ -2,7 +2,6 @@
 #define _ASM_X86_SMP_H
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
-#include <linux/init.h>
 #include <asm/percpu.h>
 
 /*

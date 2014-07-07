@@ -29,6 +29,8 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/tvp7002.h>
 #include <media/v4l2-async.h>
@@ -831,6 +833,9 @@ static int tvp7002_log_status(struct v4l2_subdev *sd)
 static int tvp7002_enum_dv_timings(struct v4l2_subdev *sd,
 		struct v4l2_enum_dv_timings *timings)
 {
+	if (timings->pad != 0)
+		return -EINVAL;
+
 	/* Check requested format index is within range */
 	if (timings->index >= NUM_TIMINGS)
 		return -EINVAL;
@@ -922,7 +927,6 @@ static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
 static const struct v4l2_subdev_video_ops tvp7002_video_ops = {
 	.g_dv_timings = tvp7002_g_dv_timings,
 	.s_dv_timings = tvp7002_s_dv_timings,
-	.enum_dv_timings = tvp7002_enum_dv_timings,
 	.query_dv_timings = tvp7002_query_dv_timings,
 	.s_stream = tvp7002_s_stream,
 	.g_mbus_fmt = tvp7002_mbus_fmt,
@@ -936,6 +940,7 @@ static const struct v4l2_subdev_pad_ops tvp7002_pad_ops = {
 	.enum_mbus_code = tvp7002_enum_mbus_code,
 	.get_fmt = tvp7002_get_pad_format,
 	.set_fmt = tvp7002_set_pad_format,
+	.enum_dv_timings = tvp7002_enum_dv_timings,
 };
 
 /* V4L2 top level operation handlers */
@@ -956,7 +961,7 @@ tvp7002_get_pdata(struct i2c_client *client)
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
 
-	endpoint = v4l2_of_get_next_endpoint(client->dev.of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(client->dev.of_node, NULL);
 	if (!endpoint)
 		return NULL;
 

@@ -23,20 +23,13 @@
 
 #include <linux/platform_data/dma-ep93xx.h>
 
+#include "ep93xx-pcm.h"
+
 static const struct snd_pcm_hardware ep93xx_pcm_hardware = {
 	.info			= (SNDRV_PCM_INFO_MMAP		|
 				   SNDRV_PCM_INFO_MMAP_VALID	|
 				   SNDRV_PCM_INFO_INTERLEAVED	|
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER),
-				   
-	.rates			= SNDRV_PCM_RATE_8000_192000,
-	.rate_min		= SNDRV_PCM_RATE_8000,
-	.rate_max		= SNDRV_PCM_RATE_192000,
-	
-	.formats		= (SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_S24_LE |
-				   SNDRV_PCM_FMTBIT_S32_LE),
-	
 	.buffer_bytes_max	= 131072,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 32768,
@@ -63,34 +56,16 @@ static const struct snd_dmaengine_pcm_config ep93xx_dmaengine_pcm_config = {
 	.prealloc_buffer_size = 131072,
 };
 
-static int ep93xx_soc_platform_probe(struct platform_device *pdev)
+int devm_ep93xx_pcm_platform_register(struct device *dev)
 {
-	return snd_dmaengine_pcm_register(&pdev->dev,
+	return devm_snd_dmaengine_pcm_register(dev,
 		&ep93xx_dmaengine_pcm_config,
 		SND_DMAENGINE_PCM_FLAG_NO_RESIDUE |
 		SND_DMAENGINE_PCM_FLAG_NO_DT |
 		SND_DMAENGINE_PCM_FLAG_COMPAT);
 }
-
-static int ep93xx_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_dmaengine_pcm_unregister(&pdev->dev);
-	return 0;
-}
-
-static struct platform_driver ep93xx_pcm_driver = {
-	.driver = {
-			.name = "ep93xx-pcm-audio",
-			.owner = THIS_MODULE,
-	},
-
-	.probe = ep93xx_soc_platform_probe,
-	.remove = ep93xx_soc_platform_remove,
-};
-
-module_platform_driver(ep93xx_pcm_driver);
+EXPORT_SYMBOL_GPL(devm_ep93xx_pcm_platform_register);
 
 MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("EP93xx ALSA PCM interface");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:ep93xx-pcm-audio");

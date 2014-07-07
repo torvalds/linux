@@ -237,11 +237,14 @@ unsigned int get_wchan(struct task_struct *tsk)
  */
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
+	/* Assumes @tsk is sleeping so unwinds from __switch_to */
 	arc_unwind_core(tsk, NULL, __collect_all_but_sched, trace);
 }
 
 void save_stack_trace(struct stack_trace *trace)
 {
-	arc_unwind_core(current, NULL, __collect_all, trace);
+	/* Pass NULL for task so it unwinds the current call frame */
+	arc_unwind_core(NULL, NULL, __collect_all, trace);
 }
+EXPORT_SYMBOL_GPL(save_stack_trace);
 #endif

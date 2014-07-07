@@ -5,7 +5,7 @@
 #ifndef __USBIP_COMMON_H
 #define __USBIP_COMMON_H
 
-#include <sysfs/libsysfs.h>
+#include <libudev.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -14,6 +14,8 @@
 
 #include <syslog.h>
 #include <unistd.h>
+#include <linux/usb/ch9.h>
+#include "../../uapi/usbip.h"
 
 #ifndef USBIDS_FILE
 #define USBIDS_FILE "/usr/share/hwdata/usb.ids"
@@ -28,6 +30,15 @@
 #define USBIP_HOST_DRV_NAME	"usbip-host"
 #define USBIP_VHCI_DRV_NAME	"vhci_hcd"
 
+/* sysfs constants */
+#define SYSFS_MNT_PATH         "/sys"
+#define SYSFS_BUS_NAME         "bus"
+#define SYSFS_BUS_TYPE         "usb"
+#define SYSFS_DRIVERS_NAME     "drivers"
+
+#define SYSFS_PATH_MAX		256
+#define SYSFS_BUS_ID_SIZE	32
+
 extern int usbip_use_syslog;
 extern int usbip_use_stderr;
 extern int usbip_use_debug ;
@@ -36,7 +47,7 @@ extern int usbip_use_debug ;
 
 #define pr_fmt(fmt)	"%s: %s: " fmt "\n", PROGNAME
 #define dbg_fmt(fmt)	pr_fmt("%s:%d:[%s] " fmt), "debug",	\
-		        __FILE__, __LINE__, __FUNCTION__
+		        __FILE__, __LINE__, __func__
 
 #define err(fmt, args...)						\
 	do {								\
@@ -76,30 +87,6 @@ extern int usbip_use_debug ;
 		abort();				\
 	} while (0)
 
-enum usb_device_speed {
-	USB_SPEED_UNKNOWN = 0,                  /* enumerating */
-	USB_SPEED_LOW, USB_SPEED_FULL,          /* usb 1.1 */
-	USB_SPEED_HIGH,                         /* usb 2.0 */
-	USB_SPEED_VARIABLE                      /* wireless (usb 2.5) */
-};
-
-/* FIXME: how to sync with drivers/usbip_common.h ? */
-enum usbip_device_status {
-	/* sdev is available. */
-	SDEV_ST_AVAILABLE = 0x01,
-	/* sdev is now used. */
-	SDEV_ST_USED,
-	/* sdev is unusable because of a fatal error. */
-	SDEV_ST_ERROR,
-
-	/* vdev does not connect a remote device. */
-	VDEV_ST_NULL,
-	/* vdev is used, but the USB address is not assigned yet */
-	VDEV_ST_NOTASSIGNED,
-	VDEV_ST_USED,
-	VDEV_ST_ERROR
-};
-
 struct usbip_usb_interface {
 	uint8_t bInterfaceClass;
 	uint8_t bInterfaceSubClass;
@@ -131,8 +118,8 @@ struct usbip_usb_device {
 
 void dump_usb_interface(struct usbip_usb_interface *);
 void dump_usb_device(struct usbip_usb_device *);
-int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev);
-int read_attr_value(struct sysfs_device *dev, const char *name,
+int read_usb_device(struct udev_device *sdev, struct usbip_usb_device *udev);
+int read_attr_value(struct udev_device *dev, const char *name,
 		    const char *format);
 int read_usb_interface(struct usbip_usb_device *udev, int i,
 		       struct usbip_usb_interface *uinf);

@@ -106,7 +106,7 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 	struct serio *ser_dev;
 	char mouse_reset[] = { NVEC_PS2, SEND_COMMAND, PSMOUSE_RST, 3 };
 
-	ser_dev = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	ser_dev = devm_kzalloc(&pdev->dev, sizeof(struct serio), GFP_KERNEL);
 	if (ser_dev == NULL)
 		return -ENOMEM;
 

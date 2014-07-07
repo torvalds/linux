@@ -19,6 +19,7 @@
 
 #include <linux/string.h>
 #include <linux/module.h>
+#include <linux/device.h>
 
 #include "usbip_common.h"
 #include "stub.h"
@@ -187,6 +188,34 @@ static ssize_t store_match_busid(struct device_driver *dev, const char *buf,
 static DRIVER_ATTR(match_busid, S_IRUSR | S_IWUSR, show_match_busid,
 		   store_match_busid);
 
+static ssize_t rebind_store(struct device_driver *dev, const char *buf,
+				 size_t count)
+{
+	int ret;
+	int len;
+	struct bus_id_priv *bid;
+
+	/* buf length should be less that BUSID_SIZE */
+	len = strnlen(buf, BUSID_SIZE);
+
+	if (!(len < BUSID_SIZE))
+		return -EINVAL;
+
+	bid = get_busid_priv(buf);
+	if (!bid)
+		return -ENODEV;
+
+	ret = device_attach(&bid->udev->dev);
+	if (ret < 0) {
+		dev_err(&bid->udev->dev, "rebind failed\n");
+		return ret;
+	}
+
+	return count;
+}
+
+static DRIVER_ATTR_WO(rebind);
+
 static struct stub_priv *stub_priv_pop_from_listhead(struct list_head *listhead)
 {
 	struct stub_priv *priv, *tmp;
@@ -254,15 +283,22 @@ static int __init usbip_host_init(void)
 		return -ENOMEM;
 	}
 
-	ret = usb_register(&stub_driver);
-	if (ret < 0) {
+	ret = usb_register_device_driver(&stub_driver, THIS_MODULE);
+	if (ret) {
 		pr_err("usb_register failed %d\n", ret);
 		goto err_usb_register;
 	}
 
 	ret = driver_create_file(&stub_driver.drvwrap.driver,
 				 &driver_attr_match_busid);
-	if (ret < 0) {
+	if (ret) {
+		pr_err("driver_create_file failed\n");
+		goto err_create_file;
+	}
+
+	ret = driver_create_file(&stub_driver.drvwrap.driver,
+				 &driver_attr_rebind);
+	if (ret) {
 		pr_err("driver_create_file failed\n");
 		goto err_create_file;
 	}
@@ -271,7 +307,7 @@ static int __init usbip_host_init(void)
 	return ret;
 
 err_create_file:
-	usb_deregister(&stub_driver);
+	usb_deregister_device_driver(&stub_driver);
 err_usb_register:
 	kmem_cache_destroy(stub_priv_cache);
 	return ret;
@@ -282,11 +318,14 @@ static void __exit usbip_host_exit(void)
 	driver_remove_file(&stub_driver.drvwrap.driver,
 			   &driver_attr_match_busid);
 
+	driver_remove_file(&stub_driver.drvwrap.driver,
+			   &driver_attr_rebind);
+
 	/*
 	 * deregister() calls stub_disconnect() for all devices. Device
 	 * specific data is cleared in stub_disconnect().
 	 */
-	usb_deregister(&stub_driver);
+	usb_deregister_device_driver(&stub_driver);
 
 	kmem_cache_destroy(stub_priv_cache);
 }

@@ -107,7 +107,7 @@ extern unsigned char WMM_PARA_OUI[];
 /*  Note: */
 /*	We just add new channel plan when the new channel plan is different
  *      from any of the following channel plan. */
-/*	If you just wnat to customize the acitions(scan period or join actions)
+/*	If you just want to customize the actions(scan period or join actions)
  *      about one of the channel plan, */
 /*	customize them in struct rt_channel_info in the RT_CHANNEL_LIST. */
 enum RT_CHANNEL_DOMAIN {
@@ -236,13 +236,13 @@ enum SCAN_STATE {
 struct mlme_handler {
 	unsigned int   num;
 	char *str;
-	unsigned int (*func)(struct adapter *adapt, union recv_frame *frame);
+	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
 struct action_handler {
 	unsigned int   num;
-	char* str;
-	unsigned int (*func)(struct adapter *adapt, union recv_frame *frame);
+	char *str;
+	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
 struct	ss_res {
@@ -401,7 +401,7 @@ struct p2p_oper_class_map {
 struct mlme_ext_priv {
 	struct adapter	*padapter;
 	u8	mlmeext_init;
-	ATOMIC_T	event_seq;
+	atomic_t	event_seq;
 	u16	mgnt_seq;
 
 	unsigned char	cur_channel;
@@ -484,13 +484,13 @@ void write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key);
 void clear_cam_entry(struct adapter *padapter, u8 entry);
 
 void invalidate_cam_all(struct adapter *padapter);
-void CAM_empty_entry(struct adapter * Adapter, u8 ucIndex);
+void CAM_empty_entry(struct adapter *Adapter, u8 ucIndex);
 
 int allocate_fw_sta_entry(struct adapter *padapter);
 void flush_all_cam_entry(struct adapter *padapter);
 
 void site_survey(struct adapter *padapter);
-u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame,
+u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame,
 		    struct wlan_bssid_ex *bssid);
 void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		    struct adapter *adapter, bool update_ie);
@@ -544,15 +544,16 @@ unsigned int is_ap_in_wep(struct adapter *padapter);
 unsigned int should_forbid_n_rate(struct adapter *padapter);
 
 void report_join_res(struct adapter *padapter, int res);
-void report_survey_event(struct adapter *padapter, union recv_frame *precv_frame);
+void report_survey_event(struct adapter *padapter,
+			 struct recv_frame *precv_frame);
 void report_surveydone_event(struct adapter *padapter);
 void report_del_sta_event(struct adapter *padapter,
 			  unsigned char *addr, unsigned short reason);
-void report_add_sta_event(struct adapter *padapter, unsigned char* addr,
+void report_add_sta_event(struct adapter *padapter, unsigned char *addr,
 			  int cam_idx);
 
 void beacon_timing_control(struct adapter *padapter);
-extern u8 set_tx_beacon_cmd(struct adapter*padapter);
+extern u8 set_tx_beacon_cmd(struct adapter *padapter);
 unsigned int setup_beacon_frame(struct adapter *padapter,
 				unsigned char *beacon_frame);
 void update_mgnt_tx_rate(struct adapter *padapter, u8 rate);
@@ -574,7 +575,7 @@ int issue_probereq_p2p_ex(struct adapter *adapter, u8 *da, int try_cnt,
 			  int wait_ms);
 void issue_p2p_invitation_response(struct adapter *padapter, u8 *raddr,
 				   u8 dialogToken, u8 success);
-void issue_p2p_invitation_request(struct adapter *padapter, u8* raddr);
+void issue_p2p_invitation_request(struct adapter *padapter, u8 *raddr);
 #endif /* CONFIG_88EU_P2P */
 void issue_beacon(struct adapter *padapter, int timeout_ms);
 void issue_probersp(struct adapter *padapter, unsigned char *da,
@@ -587,7 +588,7 @@ void issue_auth(struct adapter *padapter, struct sta_info *psta,
 void issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *pssid,
 		    u8 *da);
 s32 issue_probereq_ex(struct adapter *adapter, struct ndis_802_11_ssid *pssid,
-		      u8* da, int try_cnt, int wait_ms);
+		      u8 *da, int try_cnt, int wait_ms);
 int issue_nulldata(struct adapter *padapter, unsigned char *da,
 		   unsigned int power_mode, int try_cnt, int wait_ms);
 int issue_qos_nulldata(struct adapter *padapter, unsigned char *da,
@@ -609,46 +610,46 @@ void start_clnt_join(struct adapter *padapter);
 void start_create_ibss(struct adapter *padapter);
 
 unsigned int OnAssocReq(struct adapter *padapter,
-			union recv_frame *precv_frame);
+			struct recv_frame *precv_frame);
 unsigned int OnAssocRsp(struct adapter *padapter,
-			union recv_frame *precv_frame);
+			struct recv_frame *precv_frame);
 unsigned int OnProbeReq(struct adapter *padapter,
-			union recv_frame *precv_frame);
+			struct recv_frame *precv_frame);
 unsigned int OnProbeRsp(struct adapter *padapter,
-			union recv_frame *precv_frame);
+			struct recv_frame *precv_frame);
 unsigned int DoReserved(struct adapter *padapter,
-			union recv_frame *precv_frame);
+			struct recv_frame *precv_frame);
 unsigned int OnBeacon(struct adapter *padapter,
-		      union recv_frame *precv_frame);
+		      struct recv_frame *precv_frame);
 unsigned int OnAtim(struct adapter *padapter,
-		    union recv_frame *precv_frame);
+		    struct recv_frame *precv_frame);
 unsigned int OnDisassoc(struct adapter *padapter,
-			union recv_frame *precv_frame);
+			struct recv_frame *precv_frame);
 unsigned int OnAuth(struct adapter *padapter,
-		    union recv_frame *precv_frame);
+		    struct recv_frame *precv_frame);
 unsigned int OnAuthClient(struct adapter *padapter,
-			  union recv_frame *precv_frame);
+			  struct recv_frame *precv_frame);
 unsigned int OnDeAuth(struct adapter *padapter,
-		      union recv_frame *precv_frame);
+		      struct recv_frame *precv_frame);
 unsigned int OnAction(struct adapter *padapter,
-		      union recv_frame *precv_frame);
+		      struct recv_frame *precv_frame);
 
 unsigned int on_action_spct(struct adapter *padapter,
-			    union recv_frame *precv_frame);
+			    struct recv_frame *precv_frame);
 unsigned int OnAction_qos(struct adapter *padapter,
-			  union recv_frame *precv_frame);
+			  struct recv_frame *precv_frame);
 unsigned int OnAction_dls(struct adapter *padapter,
-			  union recv_frame *precv_frame);
+			  struct recv_frame *precv_frame);
 unsigned int OnAction_back(struct adapter *padapter,
-			   union recv_frame *precv_frame);
+			   struct recv_frame *precv_frame);
 unsigned int on_action_public(struct adapter *padapter,
-			      union recv_frame *precv_frame);
+			      struct recv_frame *precv_frame);
 unsigned int OnAction_ht(struct adapter *padapter,
-			 union recv_frame *precv_frame);
+			 struct recv_frame *precv_frame);
 unsigned int OnAction_wmm(struct adapter *padapter,
-			  union recv_frame *precv_frame);
+			  struct recv_frame *precv_frame);
 unsigned int OnAction_p2p(struct adapter *padapter,
-			  union recv_frame *precv_frame);
+			  struct recv_frame *precv_frame);
 
 void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res);
 void mlmeext_sta_del_event_callback(struct adapter *padapter);

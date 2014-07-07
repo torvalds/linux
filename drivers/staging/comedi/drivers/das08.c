@@ -120,46 +120,49 @@
 
 /* gainlist same as _pgx_ below */
 
-static const struct comedi_lrange range_das08_pgl = { 9, {
-							  BIP_RANGE(10),
-							  BIP_RANGE(5),
-							  BIP_RANGE(2.5),
-							  BIP_RANGE(1.25),
-							  BIP_RANGE(0.625),
-							  UNI_RANGE(10),
-							  UNI_RANGE(5),
-							  UNI_RANGE(2.5),
-							  UNI_RANGE(1.25)
-							  }
+static const struct comedi_lrange range_das08_pgl = {
+	9, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
-static const struct comedi_lrange range_das08_pgh = { 12, {
-							   BIP_RANGE(10),
-							   BIP_RANGE(5),
-							   BIP_RANGE(1),
-							   BIP_RANGE(0.5),
-							   BIP_RANGE(0.1),
-							   BIP_RANGE(0.05),
-							   BIP_RANGE(0.01),
-							   BIP_RANGE(0.005),
-							   UNI_RANGE(10),
-							   UNI_RANGE(1),
-							   UNI_RANGE(0.1),
-							   UNI_RANGE(0.01),
-							   }
+static const struct comedi_lrange range_das08_pgh = {
+	12, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01),
+		BIP_RANGE(0.005),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01)
+	}
 };
 
-static const struct comedi_lrange range_das08_pgm = { 9, {
-							  BIP_RANGE(10),
-							  BIP_RANGE(5),
-							  BIP_RANGE(0.5),
-							  BIP_RANGE(0.05),
-							  BIP_RANGE(0.01),
-							  UNI_RANGE(10),
-							  UNI_RANGE(1),
-							  UNI_RANGE(0.1),
-							  UNI_RANGE(0.01)
-							  }
+static const struct comedi_lrange range_das08_pgm = {
+	9, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01)
+	}
 };				/*
 				   cio-das08jr.pdf
 
@@ -198,17 +201,29 @@ static const int *const das08_gainlists[] = {
 	das08_pgm_gainlist,
 };
 
-#define TIMEOUT 100000
+static int das08_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DAS08_STATUS);
+	if ((status & DAS08_EOC) == 0)
+		return 0;
+	return -EBUSY;
+}
 
 static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	const struct das08_board_struct *thisboard = comedi_board(dev);
 	struct das08_private_struct *devpriv = dev->private;
-	int i, n;
+	int n;
 	int chan;
 	int range;
 	int lsb, msb;
+	int ret;
 
 	chan = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
@@ -241,14 +256,10 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		/* trigger conversion */
 		outb_p(0, dev->iobase + DAS08_TRIG_12BIT);
 
-		for (i = 0; i < TIMEOUT; i++) {
-			if (!(inb(dev->iobase + DAS08_STATUS) & DAS08_EOC))
-				break;
-		}
-		if (i == TIMEOUT) {
-			dev_err(dev->class_dev, "timeout\n");
-			return -ETIME;
-		}
+		ret = comedi_timeout(dev, s, insn, das08_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		msb = inb(dev->iobase + DAS08_MSB);
 		lsb = inb(dev->iobase + DAS08_LSB);
 		if (thisboard->ai_encoding == das08_encode12) {
@@ -279,27 +290,23 @@ static int das08_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int das08_do_wbits(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned int *data)
 {
 	struct das08_private_struct *devpriv = dev->private;
-	int wbits;
 
-	/*  get current settings of digital output lines */
-	wbits = (devpriv->do_mux_bits >> 4) & 0xf;
-	/*  null bits we are going to set */
-	wbits &= ~data[0];
-	/*  set new bit values */
-	wbits |= data[0] & data[1];
-	/*  remember digital output bits */
-	/*  prevent race with setting of analog input mux */
-	spin_lock(&dev->spinlock);
-	devpriv->do_mux_bits &= ~DAS08_DO_MASK;
-	devpriv->do_mux_bits |= DAS08_OP(wbits);
-	outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL);
-	spin_unlock(&dev->spinlock);
+	if (comedi_dio_update_state(s, data)) {
+		/* prevent race with setting of analog input mux */
+		spin_lock(&dev->spinlock);
+		devpriv->do_mux_bits &= ~DAS08_DO_MASK;
+		devpriv->do_mux_bits |= DAS08_OP(s->state);
+		outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL);
+		spin_unlock(&dev->spinlock);
+	}
 
-	data[1] = wbits;
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -316,17 +323,13 @@ static int das08jr_di_rbits(struct comedi_device *dev,
 
 static int das08jr_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
-	struct das08_private_struct *devpriv = dev->private;
+	if (comedi_dio_update_state(s, data))
+		outb(s->state, dev->iobase + DAS08JR_DIO);
 
-	/*  null bits we are going to set */
-	devpriv->do_bits &= ~data[0];
-	/*  set new bit values */
-	devpriv->do_bits |= data[0] & data[1];
-	outb(devpriv->do_bits, dev->iobase + DAS08JR_DIO);
-
-	data[1] = devpriv->do_bits;
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -534,9 +537,10 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	s = &dev->subdevices[4];
 	/* 8255 */
 	if (thisboard->i8255_offset != 0) {
-		subdev_8255_init(dev, s, NULL, (unsigned long)(dev->iobase +
-							       thisboard->
-							       i8255_offset));
+		ret = subdev_8255_init(dev, s, NULL,
+				       dev->iobase + thisboard->i8255_offset);
+		if (ret)
+			return ret;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}

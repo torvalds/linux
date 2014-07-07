@@ -20,7 +20,7 @@
 static inline void __mutex_fastpath_lock(atomic_t *v,
 					 void (*fail_fn)(atomic_t *))
 {
-	asm volatile goto(LOCK_PREFIX "   decl %0\n"
+	asm_volatile_goto(LOCK_PREFIX "   decl %0\n"
 			  "   jns %l[exit]\n"
 			  : : "m" (v->counter)
 			  : "memory", "cc"
@@ -75,7 +75,7 @@ static inline int __mutex_fastpath_lock_retval(atomic_t *count)
 static inline void __mutex_fastpath_unlock(atomic_t *v,
 					   void (*fail_fn)(atomic_t *))
 {
-	asm volatile goto(LOCK_PREFIX "   incl %0\n"
+	asm_volatile_goto(LOCK_PREFIX "   incl %0\n"
 			  "   jg %l[exit]\n"
 			  : : "m" (v->counter)
 			  : "memory", "cc"

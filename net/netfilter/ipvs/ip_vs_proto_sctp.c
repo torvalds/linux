@@ -20,13 +20,18 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	sctp_sctphdr_t *sh, _sctph;
 
 	sh = skb_header_pointer(skb, iph->len, sizeof(_sctph), &_sctph);
-	if (sh == NULL)
+	if (sh == NULL) {
+		*verdict = NF_DROP;
 		return 0;
+	}
 
 	sch = skb_header_pointer(skb, iph->len + sizeof(sctp_sctphdr_t),
 				 sizeof(_schunkh), &_schunkh);
-	if (sch == NULL)
+	if (sch == NULL) {
+		*verdict = NF_DROP;
 		return 0;
+	}
+
 	net = skb_net(skb);
 	ipvs = net_ipvs(net);
 	rcu_read_lock();
@@ -76,6 +81,7 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	sctp_sctphdr_t *sctph;
 	unsigned int sctphoff = iph->len;
+	bool payload_csum = false;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -87,19 +93,31 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
-		if (!ip_vs_app_pkt_out(cp, skb))
+		ret = ip_vs_app_pkt_out(cp, skb);
+		if (ret == 0)
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 2)
+			payload_csum = true;
 	}
 
 	sctph = (void *) skb_network_header(skb) + sctphoff;
-	sctph->source = cp->vport;
 
-	sctp_nat_csum(skb, sctph, sctphoff);
+	/* Only update csum if we really have to */
+	if (sctph->source != cp->vport || payload_csum ||
+	    skb->ip_summed == CHECKSUM_PARTIAL) {
+		sctph->source = cp->vport;
+		sctp_nat_csum(skb, sctph, sctphoff);
+	} else {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
 
 	return 1;
 }
@@ -110,6 +128,7 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	sctp_sctphdr_t *sctph;
 	unsigned int sctphoff = iph->len;
+	bool payload_csum = false;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -121,19 +140,32 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
+		int ret;
+
 		/* Some checks before mangling */
 		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
-		if (!ip_vs_app_pkt_in(cp, skb))
+		ret = ip_vs_app_pkt_in(cp, skb);
+		if (ret == 0)
 			return 0;
+		/* ret=2: csum update is needed after payload mangling */
+		if (ret == 2)
+			payload_csum = true;
 	}
 
 	sctph = (void *) skb_network_header(skb) + sctphoff;
-	sctph->dest = cp->dport;
 
-	sctp_nat_csum(skb, sctph, sctphoff);
+	/* Only update csum if we really have to */
+	if (sctph->dest != cp->dport || payload_csum ||
+	    (skb->ip_summed == CHECKSUM_PARTIAL &&
+	     !(skb_dst(skb)->dev->features & NETIF_F_SCTP_CSUM))) {
+		sctph->dest = cp->dport;
+		sctp_nat_csum(skb, sctph, sctphoff);
+	} else if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
 
 	return 1;
 }

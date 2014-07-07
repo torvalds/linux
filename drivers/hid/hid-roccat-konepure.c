@@ -15,6 +15,7 @@
  * Roccat KonePure is a smaller version of KoneXTD with less buttons and lights.
  */
 
+#include <linux/types.h>
 #include <linux/device.h>
 #include <linux/input.h>
 #include <linux/hid.h>
@@ -23,128 +24,50 @@
 #include <linux/hid-roccat.h>
 #include "hid-ids.h"
 #include "hid-roccat-common.h"
-#include "hid-roccat-konepure.h"
+
+enum {
+	KONEPURE_MOUSE_REPORT_NUMBER_BUTTON = 3,
+};
+
+struct konepure_mouse_report_button {
+	uint8_t report_number; /* always KONEPURE_MOUSE_REPORT_NUMBER_BUTTON */
+	uint8_t zero;
+	uint8_t type;
+	uint8_t data1;
+	uint8_t data2;
+	uint8_t zero2;
+	uint8_t unknown[2];
+} __packed;
 
 static struct class *konepure_class;
 
-static ssize_t konepure_sysfs_read(struct file *fp, struct kobject *kobj,
-		char *buf, loff_t off, size_t count,
-		size_t real_size, uint command)
-{
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
-	struct konepure_device *konepure = hid_get_drvdata(dev_get_drvdata(dev));
-	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
-	int retval;
+ROCCAT_COMMON2_BIN_ATTRIBUTE_W(control, 0x04, 0x03);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(actual_profile, 0x05, 0x03);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(profile_settings, 0x06, 0x1f);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(profile_buttons, 0x07, 0x3b);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_W(macro, 0x08, 0x0822);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(info, 0x09, 0x06);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(tcu, 0x0c, 0x04);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_R(tcu_image, 0x0c, 0x0404);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(sensor, 0x0f, 0x06);
+ROCCAT_COMMON2_BIN_ATTRIBUTE_W(talk, 0x10, 0x10);
 
-	if (off >= real_size)
-		return 0;
-
-	if (off != 0 || count != real_size)
-		return -EINVAL;
-
-	mutex_lock(&konepure->konepure_lock);
-	retval = roccat_common2_receive(usb_dev, command, buf, real_size);
-	mutex_unlock(&konepure->konepure_lock);
-
-	return retval ? retval : real_size;
-}
-
-static ssize_t konepure_sysfs_write(struct file *fp, struct kobject *kobj,
-		void const *buf, loff_t off, size_t count,
-		size_t real_size, uint command)
-{
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
-	struct konepure_device *konepure = hid_get_drvdata(dev_get_drvdata(dev));
-	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
-	int retval;
-
-	if (off != 0 || count != real_size)
-		return -EINVAL;
-
-	mutex_lock(&konepure->konepure_lock);
-	retval = roccat_common2_send_with_status(usb_dev, command,
-			(void *)buf, real_size);
-	mutex_unlock(&konepure->konepure_lock);
-
-	return retval ? retval : real_size;
-}
-
-#define KONEPURE_SYSFS_W(thingy, THINGY) \
-static ssize_t konepure_sysfs_write_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
-{ \
-	return konepure_sysfs_write(fp, kobj, buf, off, count, \
-			KONEPURE_SIZE_ ## THINGY, KONEPURE_COMMAND_ ## THINGY); \
-}
-
-#define KONEPURE_SYSFS_R(thingy, THINGY) \
-static ssize_t konepure_sysfs_read_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
-{ \
-	return konepure_sysfs_read(fp, kobj, buf, off, count, \
-			KONEPURE_SIZE_ ## THINGY, KONEPURE_COMMAND_ ## THINGY); \
-}
-
-#define KONEPURE_SYSFS_RW(thingy, THINGY) \
-KONEPURE_SYSFS_W(thingy, THINGY) \
-KONEPURE_SYSFS_R(thingy, THINGY)
-
-#define KONEPURE_BIN_ATTRIBUTE_RW(thingy, THINGY) \
-KONEPURE_SYSFS_RW(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
-	.attr = { .name = #thingy, .mode = 0660 }, \
-	.size = KONEPURE_SIZE_ ## THINGY, \
-	.read = konepure_sysfs_read_ ## thingy, \
-	.write = konepure_sysfs_write_ ## thingy \
-}
-
-#define KONEPURE_BIN_ATTRIBUTE_R(thingy, THINGY) \
-KONEPURE_SYSFS_R(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
-	.attr = { .name = #thingy, .mode = 0440 }, \
-	.size = KONEPURE_SIZE_ ## THINGY, \
-	.read = konepure_sysfs_read_ ## thingy, \
-}
-
-#define KONEPURE_BIN_ATTRIBUTE_W(thingy, THINGY) \
-KONEPURE_SYSFS_W(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
-	.attr = { .name = #thingy, .mode = 0220 }, \
-	.size = KONEPURE_SIZE_ ## THINGY, \
-	.write = konepure_sysfs_write_ ## thingy \
-}
-
-KONEPURE_BIN_ATTRIBUTE_RW(actual_profile, ACTUAL_PROFILE);
-KONEPURE_BIN_ATTRIBUTE_RW(info, INFO);
-KONEPURE_BIN_ATTRIBUTE_RW(sensor, SENSOR);
-KONEPURE_BIN_ATTRIBUTE_RW(tcu, TCU);
-KONEPURE_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS);
-KONEPURE_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS);
-KONEPURE_BIN_ATTRIBUTE_W(control, CONTROL);
-KONEPURE_BIN_ATTRIBUTE_W(talk, TALK);
-KONEPURE_BIN_ATTRIBUTE_W(macro, MACRO);
-KONEPURE_BIN_ATTRIBUTE_R(tcu_image, TCU_IMAGE);
-
-static struct bin_attribute *konepure_bin_attributes[] = {
+static struct bin_attribute *konepure_bin_attrs[] = {
 	&bin_attr_actual_profile,
-	&bin_attr_info,
-	&bin_attr_sensor,
-	&bin_attr_tcu,
-	&bin_attr_profile_settings,
-	&bin_attr_profile_buttons,
 	&bin_attr_control,
+	&bin_attr_info,
 	&bin_attr_talk,
 	&bin_attr_macro,
+	&bin_attr_sensor,
+	&bin_attr_tcu,
 	&bin_attr_tcu_image,
+	&bin_attr_profile_settings,
+	&bin_attr_profile_buttons,
 	NULL,
 };
 
 static const struct attribute_group konepure_group = {
-	.bin_attrs = konepure_bin_attributes,
+	.bin_attrs = konepure_bin_attrs,
 };
 
 static const struct attribute_group *konepure_groups[] = {
@@ -152,20 +75,11 @@ static const struct attribute_group *konepure_groups[] = {
 	NULL,
 };
 
-
-static int konepure_init_konepure_device_struct(struct usb_device *usb_dev,
-		struct konepure_device *konepure)
-{
-	mutex_init(&konepure->konepure_lock);
-
-	return 0;
-}
-
 static int konepure_init_specials(struct hid_device *hdev)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
-	struct konepure_device *konepure;
+	struct roccat_common2_device *konepure;
 	int retval;
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
@@ -181,9 +95,9 @@ static int konepure_init_specials(struct hid_device *hdev)
 	}
 	hid_set_drvdata(hdev, konepure);
 
-	retval = konepure_init_konepure_device_struct(usb_dev, konepure);
+	retval = roccat_common2_device_init_struct(usb_dev, konepure);
 	if (retval) {
-		hid_err(hdev, "couldn't init struct konepure_device\n");
+		hid_err(hdev, "couldn't init KonePure device\n");
 		goto exit_free;
 	}
 
@@ -205,7 +119,7 @@ exit_free:
 static void konepure_remove_specials(struct hid_device *hdev)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
-	struct konepure_device *konepure;
+	struct roccat_common2_device *konepure;
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			!= USB_INTERFACE_PROTOCOL_MOUSE)
@@ -258,7 +172,7 @@ static int konepure_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
-	struct konepure_device *konepure = hid_get_drvdata(hdev);
+	struct roccat_common2_device *konepure = hid_get_drvdata(hdev);
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			!= USB_INTERFACE_PROTOCOL_MOUSE)

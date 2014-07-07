@@ -9,7 +9,11 @@
 /* Number of requests a "batching" process may submit */
 #define BLK_BATCH_REQ	32
 
+/* Max future timer expiry for timeouts */
+#define BLK_MAX_TIMEOUT		(5 * HZ)
+
 extern struct kmem_cache *blk_requestq_cachep;
+extern struct kmem_cache *request_cachep;
 extern struct kobj_type blk_queue_ktype;
 extern struct ida blk_queue_ida;
 
@@ -34,14 +38,30 @@ bool __blk_end_bidi_request(struct request *rq, int error,
 			    unsigned int nr_bytes, unsigned int bidi_bytes);
 
 void blk_rq_timed_out_timer(unsigned long data);
+void blk_rq_check_expired(struct request *rq, unsigned long *next_timeout,
+			  unsigned int *next_set);
+unsigned long blk_rq_timeout(unsigned long timeout);
+void blk_add_timer(struct request *req);
 void blk_delete_timer(struct request *);
-void blk_add_timer(struct request *);
+
+
+bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
+			     struct bio *bio);
+bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
+			    struct bio *bio);
+bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
+			    unsigned int *request_count);
+
+void blk_account_io_start(struct request *req, bool new_io);
+void blk_account_io_completion(struct request *req, unsigned int bytes);
+void blk_account_io_done(struct request *req);
 
 /*
  * Internal atomic flags for request handling
  */
 enum rq_atomic_flags {
 	REQ_ATOM_COMPLETE = 0,
+	REQ_ATOM_STARTED,
 };
 
 /*
@@ -61,10 +81,9 @@ static inline void blk_clear_rq_complete(struct request *rq)
 /*
  * Internal elevator interface
  */
-#define ELV_ON_HASH(rq) hash_hashed(&(rq)->hash)
+#define ELV_ON_HASH(rq) ((rq)->cmd_flags & REQ_HASHED)
 
 void blk_insert_flush(struct request *rq);
-void blk_abort_flushes(struct request_queue *q);
 
 static inline struct request *__elv_next_request(struct request_queue *q)
 {
@@ -96,7 +115,7 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 			q->flush_queue_delayed = 1;
 			return NULL;
 		}
-		if (unlikely(blk_queue_dying(q)) ||
+		if (unlikely(blk_queue_bypass(q)) ||
 		    !q->elevator->type->ops.elevator_dispatch_fn(q, 0))
 			return NULL;
 	}
@@ -167,6 +186,8 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 {
 	return q->nr_congestion_off;
 }
+
+extern int blk_update_nr_requests(struct request_queue *, unsigned int);
 
 /*
  * Contribute to IO statistics IFF:

@@ -12,20 +12,22 @@
 
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk/at91_pmc.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 #include <mach/at91sam9g45.h>
-#include <mach/at91_pmc.h>
 #include <mach/cpu.h>
+#include <mach/hardware.h>
 
 #include "at91_aic.h"
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"
 #include "sam9_smc.h"
+#include "pm.h"
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -180,7 +182,7 @@ static struct clk vdec_clk = {
 static struct clk adc_op_clk = {
 	.name		= "adc_op_clk",
 	.type		= CLK_TYPE_PERIPHERAL,
-	.rate_hz	= 13200000,
+	.rate_hz	= 300000,
 };
 
 /* AES/TDES/SHA clock - Only for sam9m11/sam9g56 */
@@ -283,6 +285,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_ID("pioE", &pioDE_clk),
 	/* Fake adc clock */
 	CLKDEV_CON_ID("adc_clk", &tsc_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffb8000.pwm", &pwm_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -370,12 +373,16 @@ static void __init at91sam9g45_ioremap_registers(void)
 	at91sam926x_ioremap_pit(AT91SAM9G45_BASE_PIT);
 	at91sam9_ioremap_smc(0, AT91SAM9G45_BASE_SMC);
 	at91_ioremap_matrix(AT91SAM9G45_BASE_MATRIX);
+	at91_pm_set_standby(at91_ddr_standby);
 }
 
 static void __init at91sam9g45_initialize(void)
 {
 	arm_pm_idle = at91sam9_idle;
 	arm_pm_restart = at91sam9g45_restart;
+
+	at91_sysirq_mask_rtc(AT91SAM9G45_BASE_RTC);
+	at91_sysirq_mask_rtt(AT91SAM9G45_BASE_RTT);
 
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9g45_gpio, 5);

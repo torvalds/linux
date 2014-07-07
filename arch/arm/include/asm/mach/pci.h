@@ -106,8 +106,4 @@ extern int dc21285_setup(int nr, struct pci_sys_data *);
 extern void dc21285_preinit(void);
 extern void dc21285_postinit(void);
 
-extern struct pci_ops via82c505_ops;
-extern int via82c505_setup(int nr, struct pci_sys_data *);
-extern void via82c505_init(void *sysdata);
-
 #endif /* __ASM_MACH_PCI_H */

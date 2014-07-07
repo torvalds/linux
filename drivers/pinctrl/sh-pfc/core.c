@@ -26,29 +26,67 @@
 
 #include "core.h"
 
-static int sh_pfc_ioremap(struct sh_pfc *pfc, struct platform_device *pdev)
+static int sh_pfc_map_resources(struct sh_pfc *pfc,
+				struct platform_device *pdev)
 {
+	unsigned int num_windows = 0;
+	unsigned int num_irqs = 0;
+	struct sh_pfc_window *windows;
+	unsigned int *irqs = NULL;
 	struct resource *res;
-	int k;
+	unsigned int i;
 
-	if (pdev->num_resources == 0)
+	/* Count the MEM and IRQ resources. */
+	for (i = 0; i < pdev->num_resources; ++i) {
+		switch (resource_type(&pdev->resource[i])) {
+		case IORESOURCE_MEM:
+			num_windows++;
+			break;
+
+		case IORESOURCE_IRQ:
+			num_irqs++;
+			break;
+		}
+	}
+
+	if (num_windows == 0)
 		return -EINVAL;
 
-	pfc->window = devm_kzalloc(pfc->dev, pdev->num_resources *
-				   sizeof(*pfc->window), GFP_NOWAIT);
-	if (!pfc->window)
+	/* Allocate memory windows and IRQs arrays. */
+	windows = devm_kzalloc(pfc->dev, num_windows * sizeof(*windows),
+			       GFP_KERNEL);
+	if (windows == NULL)
 		return -ENOMEM;
 
-	pfc->num_windows = pdev->num_resources;
+	pfc->num_windows = num_windows;
+	pfc->windows = windows;
 
-	for (k = 0, res = pdev->resource; k < pdev->num_resources; k++, res++) {
-		WARN_ON(resource_type(res) != IORESOURCE_MEM);
-		pfc->window[k].phys = res->start;
-		pfc->window[k].size = resource_size(res);
-		pfc->window[k].virt = devm_ioremap_nocache(pfc->dev, res->start,
-							   resource_size(res));
-		if (!pfc->window[k].virt)
+	if (num_irqs) {
+		irqs = devm_kzalloc(pfc->dev, num_irqs * sizeof(*irqs),
+				    GFP_KERNEL);
+		if (irqs == NULL)
 			return -ENOMEM;
+
+		pfc->num_irqs = num_irqs;
+		pfc->irqs = irqs;
+	}
+
+	/* Fill them. */
+	for (i = 0, res = pdev->resource; i < pdev->num_resources; i++, res++) {
+		switch (resource_type(res)) {
+		case IORESOURCE_MEM:
+			windows->phys = res->start;
+			windows->size = resource_size(res);
+			windows->virt = devm_ioremap_resource(pfc->dev, res);
+			if (IS_ERR(windows->virt))
+				return -ENOMEM;
+			windows++;
+			break;
+
+		case IORESOURCE_IRQ:
+			*irqs++ = res->start;
+			break;
+		}
 	}
 
 	return 0;
@@ -62,7 +100,7 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 
 	/* scan through physical windows and convert address */
 	for (i = 0; i < pfc->num_windows; i++) {
-		window = pfc->window + i;
+		window = pfc->windows + i;
 
 		if (address < window->phys)
 			continue;
@@ -147,7 +185,7 @@ static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
 				     unsigned long *maskp,
 				     unsigned long *posp)
 {
-	int k;
+	unsigned int k;
 
 	*mapped_regp = sh_pfc_phys_to_virt(pfc, crp->reg);
 
@@ -196,7 +234,7 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, u16 enum_id,
 {
 	const struct pinmux_cfg_reg *config_reg;
 	unsigned long r_width, f_width, curr_width, ncomb;
-	int k, m, n, pos, bit_pos;
+	unsigned int k, m, n, pos, bit_pos;
 
 	k = 0;
 	while (1) {
@@ -238,7 +276,7 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
 			      u16 *enum_idp)
 {
 	const u16 *data = pfc->info->gpio_data;
-	int k;
+	unsigned int k;
 
 	if (pos) {
 		*enum_idp = data[pos + 1];
@@ -431,6 +469,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7790_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7791
+	{
+		.compatible = "renesas,pfc-r8a7791",
+		.data = &r8a7791_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_SH7372
 	{
 		.compatible = "renesas,pfc-sh7372",
@@ -475,7 +519,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	pfc->info = info;
 	pfc->dev = &pdev->dev;
 
-	ret = sh_pfc_ioremap(pfc, pdev);
+	ret = sh_pfc_map_resources(pfc, pdev);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -557,6 +601,9 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7790
 	{ "pfc-r8a7790", (kernel_ulong_t)&r8a7790_pinmux_info },
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7791
+	{ "pfc-r8a7791", (kernel_ulong_t)&r8a7791_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7203
 	{ "pfc-sh7203", (kernel_ulong_t)&sh7203_pinmux_info },

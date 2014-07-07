@@ -2511,8 +2511,8 @@ static int mgslpc_open(struct tty_struct *tty, struct file * filp)
 
 	/* If port is closing, signal caller to try again */
 	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING){
-		if (port->flags & ASYNC_CLOSING)
-			interruptible_sleep_on(&port->close_wait);
+		wait_event_interruptible_tty(tty, port->close_wait,
+					     !(port->flags & ASYNC_CLOSING));
 		retval = ((port->flags & ASYNC_HUP_NOTIFY) ?
 			-EAGAIN : -ERESTARTSYS);
 		goto cleanup;

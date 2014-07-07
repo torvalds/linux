@@ -1277,7 +1277,7 @@ isp1301_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
 	struct isp1301	*isp = container_of(otg->phy, struct isp1301, phy);
 
-	if (!otg || isp != the_transceiver)
+	if (isp != the_transceiver)
 		return -ENODEV;
 
 	if (!host) {
@@ -1295,7 +1295,7 @@ isp1301_set_host(struct usb_otg *otg, struct usb_bus *host)
 		return isp1301_otg_enable(isp);
 	return 0;
 
-#elif	!defined(CONFIG_USB_GADGET_OMAP)
+#elif !IS_ENABLED(CONFIG_USB_OMAP)
 	// FIXME update its refcount
 	otg->host = host;
 
@@ -1333,7 +1333,7 @@ isp1301_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 {
 	struct isp1301	*isp = container_of(otg->phy, struct isp1301, phy);
 
-	if (!otg || isp != the_transceiver)
+	if (isp != the_transceiver)
 		return -ENODEV;
 
 	if (!gadget) {
@@ -1414,8 +1414,7 @@ isp1301_start_srp(struct usb_otg *otg)
 	struct isp1301	*isp = container_of(otg->phy, struct isp1301, phy);
 	u32		otg_ctrl;
 
-	if (!otg || isp != the_transceiver
-			|| isp->phy.state != OTG_STATE_B_IDLE)
+	if (isp != the_transceiver || isp->phy.state != OTG_STATE_B_IDLE)
 		return -ENODEV;
 
 	otg_ctrl = omap_readl(OTG_CTRL);
@@ -1442,7 +1441,7 @@ isp1301_start_hnp(struct usb_otg *otg)
 	struct isp1301	*isp = container_of(otg->phy, struct isp1301, phy);
 	u32 l;
 
-	if (!otg || isp != the_transceiver)
+	if (isp != the_transceiver)
 		return -ENODEV;
 	if (otg->default_a && (otg->host == NULL || !otg->host->b_hnp_enable))
 		return -ENOTCONN;

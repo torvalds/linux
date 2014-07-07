@@ -25,7 +25,7 @@ config SND_ATMEL_SOC_SSC
 
 config SND_AT91_SOC_SAM9G20_WM8731
 	tristate "SoC Audio support for WM8731-based At91sam9g20 evaluation board"
-	depends on ARCH_AT91 && ATMEL_SSC && SND_ATMEL_SOC && AT91_PROGRAMMABLE_CLOCKS
+	depends on ARCH_AT91 && ATMEL_SSC && SND_ATMEL_SOC
 	select SND_ATMEL_SOC_PDC
 	select SND_ATMEL_SOC_SSC
 	select SND_SOC_WM8731
@@ -35,7 +35,7 @@ config SND_AT91_SOC_SAM9G20_WM8731
 
 config SND_ATMEL_SOC_WM8904
 	tristate "Atmel ASoC driver for boards using WM8904 codec"
-	depends on ARCH_AT91 && ATMEL_SSC && SND_ATMEL_SOC
+	depends on ARCH_AT91 && ATMEL_SSC && SND_ATMEL_SOC && I2C
 	select SND_ATMEL_SOC_SSC
 	select SND_ATMEL_SOC_DMA
 	select SND_SOC_WM8904
@@ -58,6 +58,6 @@ config SND_AT91_SOC_AFEB9260
 	depends on ARCH_AT91 && ATMEL_SSC && ARCH_AT91 && MACH_AFEB9260 && SND_ATMEL_SOC
 	select SND_ATMEL_SOC_PDC
 	select SND_ATMEL_SOC_SSC
-	select SND_SOC_TLV320AIC23
+	select SND_SOC_TLV320AIC23_I2C
 	help
 	  Say Y here to support sound on AFEB9260 board.

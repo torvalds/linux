@@ -560,7 +560,6 @@
 #define	EEPROM_DEFAULT_TXPOWERLEVEL		0x22
 #define	EEPROM_DEFAULT_HT40_2SDIFF		0x0
 #define EEPROM_DEFAULT_HT20_DIFF		2
-#define	EEPROM_DEFAULT_LEGACYHTTXPOWERDIFF	0x3
 #define EEPROM_DEFAULT_HT40_PWRMAXOFFSET	0
 #define EEPROM_DEFAULT_HT20_PWRMAXOFFSET	0
 
@@ -639,16 +638,7 @@
 
 #define	EEPROM_TXPWR_GROUP			0x6F
 
-#define EEPROM_TSSI_A				0x76
-#define EEPROM_TSSI_B				0x77
-#define EEPROM_THERMAL_METER			0x78
-
 #define EEPROM_CHANNELPLAN			0x75
-
-#define RF_OPTION1				0x79
-#define RF_OPTION2				0x7A
-#define RF_OPTION3				0x7B
-#define RF_OPTION4				0x7C
 
 #define	STOPBECON				BIT(6)
 #define	STOPHIGHT				BIT(5)
@@ -688,13 +678,6 @@
 
 #define RSV_CTRL				0x001C
 #define RD_CTRL					0x0524
-
-#define REG_USB_INFO				0xFE17
-#define REG_USB_SPECIAL_OPTION			0xFE55
-
-#define REG_USB_DMA_AGG_TO			0xFE5B
-#define REG_USB_AGG_TO				0xFE5C
-#define REG_USB_AGG_TH				0xFE5D
 
 #define REG_USB_VID				0xFE60
 #define REG_USB_PID				0xFE62
@@ -1195,9 +1178,6 @@
 
 #define POLLING_LLT_THRESHOLD			20
 #define POLLING_READY_TIMEOUT_COUNT		1000
-
-#define	MAX_MSS_DENSITY_2T			0x13
-#define	MAX_MSS_DENSITY_1T			0x0A
 
 #define EPROM_CMD_OPERATING_MODE_MASK	((1<<7)|(1<<6))
 #define EPROM_CMD_CONFIG			0x3
@@ -2063,22 +2043,6 @@
 #define	BWORD0					0x3
 #define	BWORD1					0xc
 #define	BWORD					0xf
-
-#define	MASKBYTE0				0xff
-#define	MASKBYTE1				0xff00
-#define	MASKBYTE2				0xff0000
-#define	MASKBYTE3				0xff000000
-#define	MASKHWORD				0xffff0000
-#define	MASKLWORD				0x0000ffff
-#define	MASKDWORD				0xffffffff
-#define	MASK12BITS				0xfff
-#define	MASKH4BITS				0xf0000000
-#define MASKOFDM_D				0xffc00000
-#define	MASKCCK					0x3f3f3f3f
-
-#define	MASK4BITS				0x0f
-#define	MASK20BITS				0xfffff
-#define RFREG_OFFSET_MASK			0xfffff
 
 #define	BENABLE					0x1
 #define	BDISABLE				0x0

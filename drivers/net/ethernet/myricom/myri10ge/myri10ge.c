@@ -934,7 +934,7 @@ static inline void myri10ge_ss_init_lock(struct myri10ge_slice_state *ss)
 
 static inline bool myri10ge_ss_lock_napi(struct myri10ge_slice_state *ss)
 {
-	int rc = true;
+	bool rc = true;
 	spin_lock(&ss->lock);
 	if ((ss->state & SLICE_LOCKED)) {
 		WARN_ON((ss->state & SLICE_STATE_NAPI));
@@ -957,7 +957,7 @@ static inline void myri10ge_ss_unlock_napi(struct myri10ge_slice_state *ss)
 
 static inline bool myri10ge_ss_lock_poll(struct myri10ge_slice_state *ss)
 {
-	int rc = true;
+	bool rc = true;
 	spin_lock_bh(&ss->lock);
 	if ((ss->state & SLICE_LOCKED)) {
 		ss->state |= SLICE_STATE_POLL_YIELD;
@@ -2329,16 +2329,14 @@ static int myri10ge_request_irq(struct myri10ge_priv *mgp)
 	status = 0;
 	if (myri10ge_msi) {
 		if (mgp->num_slices > 1) {
-			status =
-			    pci_enable_msix(pdev, mgp->msix_vectors,
-					    mgp->num_slices);
-			if (status == 0) {
-				mgp->msix_enabled = 1;
-			} else {
+			status = pci_enable_msix_range(pdev, mgp->msix_vectors,
+					mgp->num_slices, mgp->num_slices);
+			if (status < 0) {
 				dev_err(&pdev->dev,
 					"Error %d setting up MSI-X\n", status);
 				return status;
 			}
+			mgp->msix_enabled = 1;
 		}
 		if (mgp->msix_enabled == 0) {
 			status = pci_enable_msi(pdev);
@@ -3164,7 +3162,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 
 	/* Walk the multicast list, and add each address */
 	netdev_for_each_mc_addr(ha, dev) {
-		memcpy(data, &ha->addr, 6);
+		memcpy(data, &ha->addr, ETH_ALEN);
 		cmd.data0 = ntohl(data[0]);
 		cmd.data1 = ntohl(data[1]);
 		err = myri10ge_send_cmd(mgp, MXGEFW_JOIN_MULTICAST_GROUP,
@@ -3207,7 +3205,7 @@ static int myri10ge_set_mac_address(struct net_device *dev, void *addr)
 	}
 
 	/* change the dev structure */
-	memcpy(dev->dev_addr, sa->sa_data, 6);
+	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	return 0;
 }
 
@@ -3895,32 +3893,34 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 	mgp->msix_vectors = kcalloc(mgp->num_slices, sizeof(*mgp->msix_vectors),
 				    GFP_KERNEL);
 	if (mgp->msix_vectors == NULL)
-		goto disable_msix;
+		goto no_msix;
 	for (i = 0; i < mgp->num_slices; i++) {
 		mgp->msix_vectors[i].entry = i;
 	}
 
 	while (mgp->num_slices > 1) {
-		/* make sure it is a power of two */
-		while (!is_power_of_2(mgp->num_slices))
-			mgp->num_slices--;
+		mgp->num_slices = rounddown_pow_of_two(mgp->num_slices);
 		if (mgp->num_slices == 1)
-			goto disable_msix;
-		status = pci_enable_msix(pdev, mgp->msix_vectors,
-					 mgp->num_slices);
-		if (status == 0) {
-			pci_disable_msix(pdev);
+			goto no_msix;
+		status = pci_enable_msix_range(pdev,
+					       mgp->msix_vectors,
+					       mgp->num_slices,
+					       mgp->num_slices);
+		if (status < 0)
+			goto no_msix;
+
+		pci_disable_msix(pdev);
+
+		if (status == mgp->num_slices) {
 			if (old_allocated)
 				kfree(old_fw);
 			return;
-		}
-		if (status > 0)
+		} else {
 			mgp->num_slices = status;
-		else
-			goto disable_msix;
+		}
 	}
 
-disable_msix:
+no_msix:
 	if (mgp->msix_vectors != NULL) {
 		kfree(mgp->msix_vectors);
 		mgp->msix_vectors = NULL;
@@ -4112,7 +4112,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,
 		    (unsigned long)mgp);
 
-	SET_ETHTOOL_OPS(netdev, &myri10ge_ethtool_ops);
+	netdev->ethtool_ops = &myri10ge_ethtool_ops;
 	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog);
 	status = register_netdev(netdev);
 	if (status != 0) {
@@ -4208,7 +4208,6 @@ static void myri10ge_remove(struct pci_dev *pdev)
 	set_fw_name(mgp, NULL, false);
 	free_netdev(netdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #define PCI_DEVICE_ID_MYRICOM_MYRI10GE_Z8E 	0x0008

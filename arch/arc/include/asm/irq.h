@@ -18,9 +18,7 @@
 
 #include <asm-generic/irq.h>
 
-extern void __init arc_init_IRQ(void);
-extern int __init get_hw_config_num_irq(void);
-
-void arc_local_timer_setup(unsigned int cpu);
+extern void arc_init_IRQ(void);
+void arc_local_timer_setup(void);
 
 #endif

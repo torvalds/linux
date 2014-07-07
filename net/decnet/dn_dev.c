@@ -561,6 +561,7 @@ static const struct nla_policy dn_ifa_policy[IFA_MAX+1] = {
 	[IFA_LOCAL]		= { .type = NLA_U16 },
 	[IFA_LABEL]		= { .type = NLA_STRING,
 				    .len = IFNAMSIZ - 1 },
+	[IFA_FLAGS]		= { .type = NLA_U32 },
 };
 
 static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh)
@@ -573,7 +574,7 @@ static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct dn_ifaddr __rcu **ifap;
 	int err = -EINVAL;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (!net_eq(net, &init_net))
@@ -617,7 +618,7 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct dn_ifaddr *ifa;
 	int err;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (!net_eq(net, &init_net))
@@ -648,7 +649,8 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	ifa->ifa_local = nla_get_le16(tb[IFA_LOCAL]);
 	ifa->ifa_address = nla_get_le16(tb[IFA_ADDRESS]);
-	ifa->ifa_flags = ifm->ifa_flags;
+	ifa->ifa_flags = tb[IFA_FLAGS] ? nla_get_u32(tb[IFA_FLAGS]) :
+					 ifm->ifa_flags;
 	ifa->ifa_scope = ifm->ifa_scope;
 	ifa->ifa_dev = dn_db;
 
@@ -669,7 +671,8 @@ static inline size_t dn_ifaddr_nlmsg_size(void)
 	return NLMSG_ALIGN(sizeof(struct ifaddrmsg))
 	       + nla_total_size(IFNAMSIZ) /* IFA_LABEL */
 	       + nla_total_size(2) /* IFA_ADDRESS */
-	       + nla_total_size(2); /* IFA_LOCAL */
+	       + nla_total_size(2) /* IFA_LOCAL */
+	       + nla_total_size(4); /* IFA_FLAGS */
 }
 
 static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
@@ -677,6 +680,7 @@ static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr *nlh;
+	u32 ifa_flags = ifa->ifa_flags | IFA_F_PERMANENT;
 
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*ifm), flags);
 	if (nlh == NULL)
@@ -685,7 +689,7 @@ static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_DECnet;
 	ifm->ifa_prefixlen = 16;
-	ifm->ifa_flags = ifa->ifa_flags | IFA_F_PERMANENT;
+	ifm->ifa_flags = ifa_flags;
 	ifm->ifa_scope = ifa->ifa_scope;
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
 
@@ -694,7 +698,8 @@ static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 	    (ifa->ifa_local &&
 	     nla_put_le16(skb, IFA_LOCAL, ifa->ifa_local)) ||
 	    (ifa->ifa_label[0] &&
-	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)))
+	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)) ||
+	     nla_put_u32(skb, IFA_FLAGS, ifa_flags))
 		goto nla_put_failure;
 	return nlmsg_end(skb, nlh);
 

@@ -39,13 +39,6 @@ typedef enum _CARD_PHY_TYPE {
     PHY_TYPE_11A
 } CARD_PHY_TYPE, *PCARD_PHY_TYPE;
 
-typedef enum _CARD_OP_MODE {
-    OP_MODE_INFRASTRUCTURE = 0,
-    OP_MODE_ADHOC,
-    OP_MODE_AP,
-    OP_MODE_UNKNOWN
-} CARD_OP_MODE, *PCARD_OP_MODE;
-
 #define CB_MAX_CHANNEL_24G  14
 #define CB_MAX_CHANNEL_5G       42 /* add channel9(5045MHz), 41==>42 */
 #define CB_MAX_CHANNEL      (CB_MAX_CHANNEL_24G+CB_MAX_CHANNEL_5G)
@@ -53,10 +46,10 @@ typedef enum _CARD_OP_MODE {
 struct vnt_private;
 
 void CARDbSetMediaChannel(struct vnt_private *pDevice, u32 uConnectionChannel);
-void CARDvSetRSPINF(struct vnt_private *pDevice, u8 byBBType);
-void vUpdateIFS(struct vnt_private *pDevice);
-void CARDvUpdateBasicTopRate(struct vnt_private *pDevice);
-void CARDbAddBasicRate(struct vnt_private *pDevice, u16 wRateIdx);
+void CARDvSetRSPINF(struct vnt_private *, u8);
+void vUpdateIFS(struct vnt_private *);
+void CARDvUpdateBasicTopRate(struct vnt_private *);
+void CARDbAddBasicRate(struct vnt_private *, u16);
 int CARDbIsOFDMinBasicRate(struct vnt_private *pDevice);
 void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
 		u64 qwBSSTimestamp, u64 qwLocalTSF);

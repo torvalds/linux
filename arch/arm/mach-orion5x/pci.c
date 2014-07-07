@@ -240,11 +240,11 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 #define PCI_BAR_SIZE_DDR_CS(n)	(((n) == 0) ? ORION5X_PCI_REG(0xc08) : \
 				 ((n) == 1) ? ORION5X_PCI_REG(0xd08) : \
 				 ((n) == 2) ? ORION5X_PCI_REG(0xc0c) : \
-				 ((n) == 3) ? ORION5X_PCI_REG(0xd0c) : 0)
+				 ((n) == 3) ? ORION5X_PCI_REG(0xd0c) : NULL)
 #define PCI_BAR_REMAP_DDR_CS(n)	(((n) == 0) ? ORION5X_PCI_REG(0xc48) : \
 				 ((n) == 1) ? ORION5X_PCI_REG(0xd48) : \
 				 ((n) == 2) ? ORION5X_PCI_REG(0xc4c) : \
-				 ((n) == 3) ? ORION5X_PCI_REG(0xd4c) : 0)
+				 ((n) == 3) ? ORION5X_PCI_REG(0xd4c) : NULL)
 #define PCI_BAR_ENABLE		ORION5X_PCI_REG(0xc3c)
 #define PCI_ADDR_DECODE_CTRL	ORION5X_PCI_REG(0xd3c)
 

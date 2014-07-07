@@ -37,8 +37,6 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 
 #define PREFIX "ACPI: "
 
@@ -372,6 +370,30 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 	return NULL;
 }
 
+#if IS_ENABLED(CONFIG_ISA) || IS_ENABLED(CONFIG_EISA)
+static int acpi_isa_register_gsi(struct pci_dev *dev)
+{
+	u32 dev_gsi;
+
+	/* Interrupt Line values above 0xF are forbidden */
+	if (dev->irq > 0 && (dev->irq <= 0xF) &&
+	    (acpi_isa_irq_to_gsi(dev->irq, &dev_gsi) == 0)) {
+		dev_warn(&dev->dev, "PCI INT %c: no GSI - using ISA IRQ %d\n",
+			 pin_name(dev->pin), dev->irq);
+		acpi_register_gsi(&dev->dev, dev_gsi,
+				  ACPI_LEVEL_SENSITIVE,
+				  ACPI_ACTIVE_LOW);
+		return 0;
+	}
+	return -EINVAL;
+}
+#else
+static inline int acpi_isa_register_gsi(struct pci_dev *dev)
+{
+	return -ENODEV;
+}
+#endif
+
 int acpi_pci_irq_enable(struct pci_dev *dev)
 {
 	struct acpi_prt_entry *entry;
@@ -418,20 +440,11 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	 * driver reported one, then use it. Exit in any case.
 	 */
 	if (gsi < 0) {
-		u32 dev_gsi;
-		/* Interrupt Line values above 0xF are forbidden */
-		if (dev->irq > 0 && (dev->irq <= 0xF) &&
-		    (acpi_isa_irq_to_gsi(dev->irq, &dev_gsi) == 0)) {
-			dev_warn(&dev->dev, "PCI INT %c: no GSI - using ISA IRQ %d\n",
-				 pin_name(pin), dev->irq);
-			acpi_register_gsi(&dev->dev, dev_gsi,
-					  ACPI_LEVEL_SENSITIVE,
-					  ACPI_ACTIVE_LOW);
-		} else {
+		if (acpi_isa_register_gsi(dev))
 			dev_warn(&dev->dev, "PCI INT %c: no GSI\n",
 				 pin_name(pin));
-		}
 
+		kfree(entry);
 		return 0;
 	}
 

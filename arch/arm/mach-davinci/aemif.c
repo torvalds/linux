@@ -16,6 +16,7 @@
 #include <linux/time.h>
 
 #include <linux/platform_data/mtd-davinci-aemif.h>
+#include <linux/platform_data/mtd-davinci.h>
 
 /* Timing value configuration */
 
@@ -42,6 +43,17 @@
 				WHOLD(WHOLD_MAX) | \
 				WSTROBE(WSTROBE_MAX) | \
 				WSETUP(WSETUP_MAX))
+
+static inline unsigned int davinci_aemif_readl(void __iomem *base, int offset)
+{
+	return readl_relaxed(base + offset);
+}
+
+static inline void davinci_aemif_writel(void __iomem *base,
+					int offset, unsigned long value)
+{
+	writel_relaxed(value, base + offset);
+}
 
 /*
  * aemif_calc_rate - calculate timing data.
@@ -76,6 +88,7 @@ static int aemif_calc_rate(int wanted, unsigned long clk, int max)
  * @t: timing values to be progammed
  * @base: The virtual base address of the AEMIF interface
  * @cs: chip-select to program the timing values for
+ * @clkrate: the AEMIF clkrate
  *
  * This function programs the given timing values (in real clock) into the
  * AEMIF registers taking the AEMIF clock into account.
@@ -86,23 +99,16 @@ static int aemif_calc_rate(int wanted, unsigned long clk, int max)
  *
  * Returns 0 on success, else negative errno.
  */
-int davinci_aemif_setup_timing(struct davinci_aemif_timing *t,
-					void __iomem *base, unsigned cs)
+static int davinci_aemif_setup_timing(struct davinci_aemif_timing *t,
+					void __iomem *base, unsigned cs,
+					unsigned long clkrate)
 {
 	unsigned set, val;
 	int ta, rhold, rstrobe, rsetup, whold, wstrobe, wsetup;
 	unsigned offset = A1CR_OFFSET + cs * 4;
-	struct clk *aemif_clk;
-	unsigned long clkrate;
 
 	if (!t)
 		return 0;	/* Nothing to do */
-
-	aemif_clk = clk_get(NULL, "aemif");
-	if (IS_ERR(aemif_clk))
-		return PTR_ERR(aemif_clk);
-
-	clkrate = clk_get_rate(aemif_clk);
 
 	clkrate /= 1000;	/* turn clock into kHz for ease of use */
 
@@ -130,4 +136,83 @@ int davinci_aemif_setup_timing(struct davinci_aemif_timing *t,
 
 	return 0;
 }
-EXPORT_SYMBOL(davinci_aemif_setup_timing);
+
+/**
+ * davinci_aemif_setup - setup AEMIF interface by davinci_nand_pdata
+ * @pdev - link to platform device to setup settings for
+ *
+ * This function does not use any locking while programming the AEMIF
+ * because it is expected that there is only one user of a given
+ * chip-select.
+ *
+ * Returns 0 on success, else negative errno.
+ */
+int davinci_aemif_setup(struct platform_device *pdev)
+{
+	struct davinci_nand_pdata *pdata = dev_get_platdata(&pdev->dev);
+	uint32_t val;
+	unsigned long clkrate;
+	struct resource	*res;
+	void __iomem *base;
+	struct clk *clk;
+	int ret = 0;
+
+	clk = clk_get(&pdev->dev, "aemif");
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		dev_dbg(&pdev->dev, "unable to get AEMIF clock, err %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret < 0) {
+		dev_dbg(&pdev->dev, "unable to enable AEMIF clock, err %d\n",
+			ret);
+		goto err_put;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res) {
+		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	base = ioremap(res->start, resource_size(res));
+	if (!base) {
+		dev_err(&pdev->dev, "ioremap failed for resource %pR\n", res);
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	/*
+	 * Setup Async configuration register in case we did not boot
+	 * from NAND and so bootloader did not bother to set it up.
+	 */
+	val = davinci_aemif_readl(base, A1CR_OFFSET + pdev->id * 4);
+	/*
+	 * Extended Wait is not valid and Select Strobe mode is not
+	 * used
+	 */
+	val &= ~(ACR_ASIZE_MASK | ACR_EW_MASK | ACR_SS_MASK);
+	if (pdata->options & NAND_BUSWIDTH_16)
+		val |= 0x1;
+
+	davinci_aemif_writel(base, A1CR_OFFSET + pdev->id * 4, val);
+
+	clkrate = clk_get_rate(clk);
+
+	if (pdata->timing)
+		ret = davinci_aemif_setup_timing(pdata->timing, base, pdev->id,
+						 clkrate);
+
+	if (ret < 0)
+		dev_dbg(&pdev->dev, "NAND timing values setup fail\n");
+
+	iounmap(base);
+err:
+	clk_disable_unprepare(clk);
+err_put:
+	clk_put(clk);
+	return ret;
+}

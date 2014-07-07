@@ -136,8 +136,9 @@ enum perf_event_sample_format {
 	PERF_SAMPLE_WEIGHT			= 1U << 14,
 	PERF_SAMPLE_DATA_SRC			= 1U << 15,
 	PERF_SAMPLE_IDENTIFIER			= 1U << 16,
+	PERF_SAMPLE_TRANSACTION			= 1U << 17,
 
-	PERF_SAMPLE_MAX = 1U << 17,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 18,		/* non-ABI */
 };
 
 /*
@@ -162,8 +163,9 @@ enum perf_branch_sample_type {
 	PERF_SAMPLE_BRANCH_ABORT_TX	= 1U << 7, /* transaction aborts */
 	PERF_SAMPLE_BRANCH_IN_TX	= 1U << 8, /* in transaction */
 	PERF_SAMPLE_BRANCH_NO_TX	= 1U << 9, /* not in transaction */
+	PERF_SAMPLE_BRANCH_COND		= 1U << 10, /* conditional branches */
 
-	PERF_SAMPLE_BRANCH_MAX		= 1U << 10, /* non-ABI */
+	PERF_SAMPLE_BRANCH_MAX		= 1U << 11, /* non-ABI */
 };
 
 #define PERF_SAMPLE_BRANCH_PLM_ALL \
@@ -178,6 +180,28 @@ enum perf_sample_regs_abi {
 	PERF_SAMPLE_REGS_ABI_NONE	= 0,
 	PERF_SAMPLE_REGS_ABI_32		= 1,
 	PERF_SAMPLE_REGS_ABI_64		= 2,
+};
+
+/*
+ * Values for the memory transaction event qualifier, mostly for
+ * abort events. Multiple bits can be set.
+ */
+enum {
+	PERF_TXN_ELISION        = (1 << 0), /* From elision */
+	PERF_TXN_TRANSACTION    = (1 << 1), /* From transaction */
+	PERF_TXN_SYNC           = (1 << 2), /* Instruction is related */
+	PERF_TXN_ASYNC          = (1 << 3), /* Instruction not related */
+	PERF_TXN_RETRY          = (1 << 4), /* Retry possible */
+	PERF_TXN_CONFLICT       = (1 << 5), /* Conflict abort */
+	PERF_TXN_CAPACITY_WRITE = (1 << 6), /* Capacity write abort */
+	PERF_TXN_CAPACITY_READ  = (1 << 7), /* Capacity read abort */
+
+	PERF_TXN_MAX	        = (1 << 8), /* non-ABI */
+
+	/* bits 32..63 are reserved for the abort code */
+
+	PERF_TXN_ABORT_MASK  = (0xffffffffULL << 32),
+	PERF_TXN_ABORT_SHIFT = 32,
 };
 
 /*
@@ -278,8 +302,8 @@ struct perf_event_attr {
 				exclude_callchain_kernel : 1, /* exclude kernel callchains */
 				exclude_callchain_user   : 1, /* exclude user callchains */
 				mmap2          :  1, /* include mmap with inode data     */
-
-				__reserved_1   : 40;
+				comm_exec      :  1, /* flag comm events that are due to an exec */
+				__reserved_1   : 39;
 
 	union {
 		__u32		wakeup_events;	  /* wakeup every n events */
@@ -456,13 +480,15 @@ struct perf_event_mmap_page {
 	/*
 	 * Control data for the mmap() data buffer.
 	 *
-	 * User-space reading the @data_head value should issue an rmb(), on
-	 * SMP capable platforms, after reading this value -- see
-	 * perf_event_wakeup().
+	 * User-space reading the @data_head value should issue an smp_rmb(),
+	 * after reading this value.
 	 *
 	 * When the mapping is PROT_WRITE the @data_tail value should be
-	 * written by userspace to reflect the last read data. In this case
-	 * the kernel will not over-write unread data.
+	 * written by userspace to reflect the last read data, after issueing
+	 * an smp_mb() to separate the data read from the ->data_tail store.
+	 * In this case the kernel will not over-write unread data.
+	 *
+	 * See perf_output_put_handle() for the data ordering.
 	 */
 	__u64   data_head;		/* head in the data section */
 	__u64	data_tail;		/* user-space written tail */
@@ -476,7 +502,12 @@ struct perf_event_mmap_page {
 #define PERF_RECORD_MISC_GUEST_KERNEL		(4 << 0)
 #define PERF_RECORD_MISC_GUEST_USER		(5 << 0)
 
+/*
+ * PERF_RECORD_MISC_MMAP_DATA and PERF_RECORD_MISC_COMM_EXEC are used on
+ * different events so can reuse the same bit position.
+ */
 #define PERF_RECORD_MISC_MMAP_DATA		(1 << 13)
+#define PERF_RECORD_MISC_COMM_EXEC		(1 << 13)
 /*
  * Indicates that the content of PERF_SAMPLE_IP points to
  * the actual instruction that triggered the event. See also
@@ -654,6 +685,7 @@ enum perf_event_type {
 	 *
 	 *	{ u64			weight;   } && PERF_SAMPLE_WEIGHT
 	 *	{ u64			data_src; } && PERF_SAMPLE_DATA_SRC
+	 *	{ u64			transaction; } && PERF_SAMPLE_TRANSACTION
 	 * };
 	 */
 	PERF_RECORD_SAMPLE			= 9,
@@ -673,6 +705,7 @@ enum perf_event_type {
 	 *	u32				min;
 	 *	u64				ino;
 	 *	u64				ino_generation;
+	 *	u32				prot, flags;
 	 *	char				filename[];
 	 * 	struct sample_id		sample_id;
 	 * };
@@ -696,9 +729,10 @@ enum perf_callchain_context {
 	PERF_CONTEXT_MAX		= (__u64)-4095,
 };
 
-#define PERF_FLAG_FD_NO_GROUP		(1U << 0)
-#define PERF_FLAG_FD_OUTPUT		(1U << 1)
-#define PERF_FLAG_PID_CGROUP		(1U << 2) /* pid=cgroup id, per-cpu mode only */
+#define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
+#define PERF_FLAG_FD_OUTPUT		(1UL << 1)
+#define PERF_FLAG_PID_CGROUP		(1UL << 2) /* pid=cgroup id, per-cpu mode only */
+#define PERF_FLAG_FD_CLOEXEC		(1UL << 3) /* O_CLOEXEC */
 
 union perf_mem_data_src {
 	__u64 val;
@@ -761,7 +795,7 @@ union perf_mem_data_src {
 #define PERF_MEM_TLB_SHIFT	26
 
 #define PERF_MEM_S(a, s) \
-	(((u64)PERF_MEM_##a##_##s) << PERF_MEM_##a##_SHIFT)
+	(((__u64)PERF_MEM_##a##_##s) << PERF_MEM_##a##_SHIFT)
 
 /*
  * single taken branch record layout:

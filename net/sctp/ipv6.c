@@ -21,9 +21,8 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -173,7 +172,8 @@ static void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	switch (type) {
 	case ICMPV6_PKT_TOOBIG:
-		sctp_icmp_frag_needed(sk, asoc, transport, ntohl(info));
+		if (ip6_sk_accept_pmtu(sk))
+			sctp_icmp_frag_needed(sk, asoc, transport, ntohl(info));
 		goto out_unlock;
 	case ICMPV6_PARAMPROB:
 		if (ICMPV6_UNK_NEXTHDR == code) {
@@ -216,7 +216,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 	IP6_ECN_flow_xmit(sk, fl6->flowlabel);
 
 	if (!(transport->param_flags & SPP_PMTUD_ENABLE))
-		skb->local_df = 1;
+		skb->ignore_df = 1;
 
 	SCTP_INC_STATS(sock_net(sk), SCTP_MIB_OUTSCTPPACKS);
 
@@ -263,7 +263,7 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	}
 
 	final_p = fl6_update_dst(fl6, np->opt, &final);
-	dst = ip6_dst_lookup_flow(sk, fl6, final_p, false);
+	dst = ip6_dst_lookup_flow(sk, fl6, final_p);
 	if (!asoc || saddr)
 		goto out;
 
@@ -279,7 +279,9 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		sctp_v6_to_addr(&dst_saddr, &fl6->saddr, htons(bp->port));
 		rcu_read_lock();
 		list_for_each_entry_rcu(laddr, &bp->address_list, list) {
-			if (!laddr->valid || (laddr->state != SCTP_ADDR_SRC))
+			if (!laddr->valid || laddr->state == SCTP_ADDR_DEL ||
+			    (laddr->state != SCTP_ADDR_SRC &&
+			     !asoc->src_out_of_asoc_ok))
 				continue;
 
 			/* Do not compare against v4 addrs */
@@ -320,7 +322,7 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		fl6->saddr = baddr->v6.sin6_addr;
 		fl6->fl6_sport = baddr->v6.sin6_port;
 		final_p = fl6_update_dst(fl6, np->opt, &final);
-		dst = ip6_dst_lookup_flow(sk, fl6, final_p, false);
+		dst = ip6_dst_lookup_flow(sk, fl6, final_p);
 	}
 
 out:
@@ -400,7 +402,7 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 }
 
 /* Initialize a sockaddr_storage from in incoming skb. */
-static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
+static void sctp_v6_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 			     int is_saddr)
 {
 	__be16 *port;
@@ -426,20 +428,20 @@ static void sctp_v6_from_sk(union sctp_addr *addr, struct sock *sk)
 {
 	addr->v6.sin6_family = AF_INET6;
 	addr->v6.sin6_port = 0;
-	addr->v6.sin6_addr = inet6_sk(sk)->rcv_saddr;
+	addr->v6.sin6_addr = sk->sk_v6_rcv_saddr;
 }
 
 /* Initialize sk->sk_rcv_saddr from sctp_addr. */
 static void sctp_v6_to_sk_saddr(union sctp_addr *addr, struct sock *sk)
 {
 	if (addr->sa.sa_family == AF_INET && sctp_sk(sk)->v4mapped) {
-		inet6_sk(sk)->rcv_saddr.s6_addr32[0] = 0;
-		inet6_sk(sk)->rcv_saddr.s6_addr32[1] = 0;
-		inet6_sk(sk)->rcv_saddr.s6_addr32[2] = htonl(0x0000ffff);
-		inet6_sk(sk)->rcv_saddr.s6_addr32[3] =
+		sk->sk_v6_rcv_saddr.s6_addr32[0] = 0;
+		sk->sk_v6_rcv_saddr.s6_addr32[1] = 0;
+		sk->sk_v6_rcv_saddr.s6_addr32[2] = htonl(0x0000ffff);
+		sk->sk_v6_rcv_saddr.s6_addr32[3] =
 			addr->v4.sin_addr.s_addr;
 	} else {
-		inet6_sk(sk)->rcv_saddr = addr->v6.sin6_addr;
+		sk->sk_v6_rcv_saddr = addr->v6.sin6_addr;
 	}
 }
 
@@ -447,12 +449,12 @@ static void sctp_v6_to_sk_saddr(union sctp_addr *addr, struct sock *sk)
 static void sctp_v6_to_sk_daddr(union sctp_addr *addr, struct sock *sk)
 {
 	if (addr->sa.sa_family == AF_INET && sctp_sk(sk)->v4mapped) {
-		inet6_sk(sk)->daddr.s6_addr32[0] = 0;
-		inet6_sk(sk)->daddr.s6_addr32[1] = 0;
-		inet6_sk(sk)->daddr.s6_addr32[2] = htonl(0x0000ffff);
-		inet6_sk(sk)->daddr.s6_addr32[3] = addr->v4.sin_addr.s_addr;
+		sk->sk_v6_daddr.s6_addr32[0] = 0;
+		sk->sk_v6_daddr.s6_addr32[1] = 0;
+		sk->sk_v6_daddr.s6_addr32[2] = htonl(0x0000ffff);
+		sk->sk_v6_daddr.s6_addr32[3] = addr->v4.sin_addr.s_addr;
 	} else {
-		inet6_sk(sk)->daddr = addr->v6.sin6_addr;
+		sk->sk_v6_daddr = addr->v6.sin6_addr;
 	}
 }
 
@@ -659,6 +661,8 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	 * and getpeername().
 	 */
 	sctp_v6_to_sk_daddr(&asoc->peer.primary_addr, newsk);
+
+	newsk->sk_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 
 	sk_refcnt_debug_inc(newsk);
 
@@ -939,7 +943,6 @@ static struct inet_protosw sctpv6_seqpacket_protosw = {
 	.protocol      = IPPROTO_SCTP,
 	.prot 	       = &sctpv6_prot,
 	.ops           = &inet6_seqpacket_ops,
-	.no_check      = 0,
 	.flags         = SCTP_PROTOSW_FLAG
 };
 static struct inet_protosw sctpv6_stream_protosw = {
@@ -947,7 +950,6 @@ static struct inet_protosw sctpv6_stream_protosw = {
 	.protocol      = IPPROTO_SCTP,
 	.prot 	       = &sctpv6_prot,
 	.ops           = &inet6_seqpacket_ops,
-	.no_check      = 0,
 	.flags         = SCTP_PROTOSW_FLAG,
 };
 

@@ -21,9 +21,8 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -39,14 +38,15 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
+#include <net/busy_poll.h>
 #include <net/sctp/structs.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
 /* Forward declarations for internal helpers.  */
-static struct sctp_ulpevent * sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
+static struct sctp_ulpevent *sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
 					      struct sctp_ulpevent *);
-static struct sctp_ulpevent * sctp_ulpq_order(struct sctp_ulpq *,
+static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *,
 					      struct sctp_ulpevent *);
 static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq);
 
@@ -108,7 +108,7 @@ int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	event = sctp_ulpq_reasm(ulpq, event);
 
 	/* Do ordering if needed.  */
-	if ((event) && (event->msg_flags & MSG_EOR)){
+	if ((event) && (event->msg_flags & MSG_EOR)) {
 		/* Create a temporary list to collect chunks on.  */
 		skb_queue_head_init(&temp);
 		__skb_queue_tail(&temp, sctp_event2skb(event));
@@ -205,6 +205,9 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	if (sock_flag(sk, SOCK_DEAD) || (sk->sk_shutdown & RCV_SHUTDOWN))
 		goto out_free;
 
+	if (!sctp_ulpevent_is_notification(event))
+		sk_mark_napi_id(sk, skb);
+
 	/* Check if the user wishes to receive this event.  */
 	if (!sctp_ulpevent_is_enabled(event, &sctp_sk(sk)->subscribe))
 		goto out_free;
@@ -260,7 +263,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		sctp_ulpq_clear_pd(ulpq);
 
 	if (queue == &sk->sk_receive_queue)
-		sk->sk_data_ready(sk, 0);
+		sk->sk_data_ready(sk);
 	return 1;
 
 out_free:
@@ -337,7 +340,8 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct net *net,
 		pos = f_frag->next;
 
 	/* Get the last skb in the f_frag's frag_list if present. */
-	for (last = list; list; last = list, list = list->next);
+	for (last = list; list; last = list, list = list->next)
+		;
 
 	/* Add the list of remaining fragments to the first fragments
 	 * frag_list.
@@ -727,7 +731,7 @@ static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq)
 
 	while ((event = sctp_ulpq_retrieve_reassembled(ulpq)) != NULL) {
 		/* Do ordering if needed.  */
-		if ((event) && (event->msg_flags & MSG_EOR)){
+		if ((event) && (event->msg_flags & MSG_EOR)) {
 			skb_queue_head_init(&temp);
 			__skb_queue_tail(&temp, sctp_event2skb(event));
 
@@ -1135,5 +1139,5 @@ void sctp_ulpq_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 
 	/* If there is data waiting, send it up the socket now. */
 	if (sctp_ulpq_clear_pd(ulpq) || ev)
-		sk->sk_data_ready(sk, 0);
+		sk->sk_data_ready(sk);
 }

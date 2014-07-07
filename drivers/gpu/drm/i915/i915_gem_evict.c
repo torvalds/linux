@@ -27,31 +27,56 @@
  */
 
 #include <drm/drmP.h>
-#include "i915_drv.h"
 #include <drm/i915_drm.h>
+
+#include "i915_drv.h"
+#include "intel_drv.h"
 #include "i915_trace.h"
 
 static bool
 mark_free(struct i915_vma *vma, struct list_head *unwind)
 {
-	if (vma->obj->pin_count)
+	if (vma->pin_count)
+		return false;
+
+	if (WARN_ON(!list_empty(&vma->exec_list)))
 		return false;
 
 	list_add(&vma->exec_list, unwind);
 	return drm_mm_scan_add_block(&vma->node);
 }
 
+/**
+ * i915_gem_evict_something - Evict vmas to make room for binding a new one
+ * @dev: drm_device
+ * @vm: address space to evict from
+ * @size: size of the desired free space
+ * @alignment: alignment constraint of the desired free space
+ * @cache_level: cache_level for the desired space
+ * @mappable: whether the free space must be mappable
+ * @nonblocking: whether evicting active objects is allowed or not
+ *
+ * This function will try to evict vmas until a free space satisfying the
+ * requirements is found. Callers must check first whether any such hole exists
+ * already before calling this function.
+ *
+ * This function is used by the object/vma binding code.
+ *
+ * To clarify: This is for freeing up virtual address space, not for freeing
+ * memory in e.g. the shrinker.
+ */
 int
 i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 			 int min_size, unsigned alignment, unsigned cache_level,
-			 bool mappable, bool nonblocking)
+			 unsigned long start, unsigned long end,
+			 unsigned flags)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct list_head eviction_list, unwind_list;
 	struct i915_vma *vma;
 	int ret = 0;
+	int pass = 0;
 
-	trace_i915_gem_evict(dev, min_size, alignment, mappable);
+	trace_i915_gem_evict(dev, min_size, alignment, flags);
 
 	/*
 	 * The goal is to evict objects and amalgamate space in LRU order.
@@ -77,21 +102,21 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	 */
 
 	INIT_LIST_HEAD(&unwind_list);
-	if (mappable) {
-		BUG_ON(!i915_is_ggtt(vm));
+	if (start != 0 || end != vm->total) {
 		drm_mm_init_scan_with_range(&vm->mm, min_size,
-					    alignment, cache_level, 0,
-					    dev_priv->gtt.mappable_end);
+					    alignment, cache_level,
+					    start, end);
 	} else
 		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
 
+search_again:
 	/* First see if there is a large enough contiguous idle region... */
 	list_for_each_entry(vma, &vm->inactive_list, mm_list) {
 		if (mark_free(vma, &unwind_list))
 			goto found;
 	}
 
-	if (nonblocking)
+	if (flags & PIN_NONBLOCK)
 		goto none;
 
 	/* Now merge in the soon-to-be-expired objects... */
@@ -112,10 +137,27 @@ none:
 		list_del_init(&vma->exec_list);
 	}
 
-	/* We expect the caller to unpin, evict all and try again, or give up.
-	 * So calling i915_gem_evict_everything() is unnecessary.
+	/* Can we unpin some objects such as idle hw contents,
+	 * or pending flips?
 	 */
-	return -ENOSPC;
+	if (flags & PIN_NONBLOCK)
+		return -ENOSPC;
+
+	/* Only idle the GPU and repeat the search once */
+	if (pass++ == 0) {
+		ret = i915_gpu_idle(dev);
+		if (ret)
+			return ret;
+
+		i915_gem_retire_requests(dev);
+		goto search_again;
+	}
+
+	/* If we still have pending pageflip completions, drop
+	 * back to userspace to give our workqueues time to
+	 * acquire our locks and unpin the old scanouts.
+	 */
+	return intel_has_pending_fb_unpin(dev) ? -EAGAIN : -ENOSPC;
 
 found:
 	/* drm_mm doesn't allow any other other operations while
@@ -152,12 +194,56 @@ found:
 	return ret;
 }
 
+/**
+ * i915_gem_evict_vm - Evict all idle vmas from a vm
+ *
+ * @vm: Address space to cleanse
+ * @do_idle: Boolean directing whether to idle first.
+ *
+ * This function evicts all idles vmas from a vm. If all unpinned vmas should be
+ * evicted the @do_idle needs to be set to true.
+ *
+ * This is used by the execbuf code as a last-ditch effort to defragment the
+ * address space.
+ *
+ * To clarify: This is for freeing up virtual address space, not for freeing
+ * memory in e.g. the shrinker.
+ */
+int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
+{
+	struct i915_vma *vma, *next;
+	int ret;
+
+	trace_i915_gem_evict_vm(vm);
+
+	if (do_idle) {
+		ret = i915_gpu_idle(vm->dev);
+		if (ret)
+			return ret;
+
+		i915_gem_retire_requests(vm->dev);
+	}
+
+	list_for_each_entry_safe(vma, next, &vm->inactive_list, mm_list)
+		if (vma->pin_count == 0)
+			WARN_ON(i915_vma_unbind(vma));
+
+	return 0;
+}
+
+/**
+ * i915_gem_evict_everything - Try to evict all objects
+ * @dev: Device to evict objects for
+ *
+ * This functions tries to evict all gem objects from all address spaces. Used
+ * by the shrinker as a last-ditch effort and for suspend, before releasing the
+ * backing storage of all unbound objects.
+ */
 int
 i915_gem_evict_everything(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_address_space *vm;
-	struct i915_vma *vma, *next;
 	bool lists_empty = true;
 	int ret;
 
@@ -184,11 +270,8 @@ i915_gem_evict_everything(struct drm_device *dev)
 	i915_gem_retire_requests(dev);
 
 	/* Having flushed everything, unbind() should never raise an error */
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
-		list_for_each_entry_safe(vma, next, &vm->inactive_list, mm_list)
-			if (vma->obj->pin_count == 0)
-				WARN_ON(i915_vma_unbind(vma));
-	}
+	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
+		WARN_ON(i915_gem_evict_vm(vm, false));
 
 	return 0;
 }

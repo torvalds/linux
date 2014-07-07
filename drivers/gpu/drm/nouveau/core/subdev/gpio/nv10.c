@@ -26,10 +26,6 @@
 
 #include "priv.h"
 
-struct nv10_gpio_priv {
-	struct nouveau_gpio base;
-};
-
 static int
 nv10_gpio_sense(struct nouveau_gpio *gpio, int line)
 {
@@ -83,95 +79,38 @@ nv10_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 }
 
 static void
-nv10_gpio_intr(struct nouveau_subdev *subdev)
+nv10_gpio_intr_stat(struct nouveau_gpio *gpio, u32 *hi, u32 *lo)
 {
-	struct nv10_gpio_priv *priv = (void *)subdev;
-	u32 intr = nv_rd32(priv, 0x001104);
-	u32 hi = (intr & 0x0000ffff) >> 0;
-	u32 lo = (intr & 0xffff0000) >> 16;
-	int i;
-
-	for (i = 0; (hi | lo) && i < 32; i++) {
-		if ((hi | lo) & (1 << i))
-			nouveau_event_trigger(priv->base.events, i);
-	}
-
-	nv_wr32(priv, 0x001104, intr);
+	u32 intr = nv_rd32(gpio, 0x001104);
+	u32 stat = nv_rd32(gpio, 0x001144) & intr;
+	*lo = (stat & 0xffff0000) >> 16;
+	*hi = (stat & 0x0000ffff);
+	nv_wr32(gpio, 0x001104, intr);
 }
 
 static void
-nv10_gpio_intr_enable(struct nouveau_event *event, int line)
+nv10_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
 {
-	nv_wr32(event->priv, 0x001104, 0x00010001 << line);
-	nv_mask(event->priv, 0x001144, 0x00010001 << line, 0x00010001 << line);
+	u32 inte = nv_rd32(gpio, 0x001144);
+	if (type & NVKM_GPIO_LO)
+		inte = (inte & ~(mask << 16)) | (data << 16);
+	if (type & NVKM_GPIO_HI)
+		inte = (inte & ~mask) | data;
+	nv_wr32(gpio, 0x001144, inte);
 }
 
-static void
-nv10_gpio_intr_disable(struct nouveau_event *event, int line)
-{
-	nv_wr32(event->priv, 0x001104, 0x00010001 << line);
-	nv_mask(event->priv, 0x001144, 0x00010001 << line, 0x00000000);
-}
-
-static int
-nv10_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
-{
-	struct nv10_gpio_priv *priv;
-	int ret;
-
-	ret = nouveau_gpio_create(parent, engine, oclass, 16, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.drive = nv10_gpio_drive;
-	priv->base.sense = nv10_gpio_sense;
-	priv->base.events->priv = priv;
-	priv->base.events->enable = nv10_gpio_intr_enable;
-	priv->base.events->disable = nv10_gpio_intr_disable;
-	nv_subdev(priv)->intr = nv10_gpio_intr;
-	return 0;
-}
-
-static void
-nv10_gpio_dtor(struct nouveau_object *object)
-{
-	struct nv10_gpio_priv *priv = (void *)object;
-	nouveau_gpio_destroy(&priv->base);
-}
-
-static int
-nv10_gpio_init(struct nouveau_object *object)
-{
-	struct nv10_gpio_priv *priv = (void *)object;
-	int ret;
-
-	ret = nouveau_gpio_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0x001144, 0x00000000);
-	nv_wr32(priv, 0x001104, 0xffffffff);
-	return 0;
-}
-
-static int
-nv10_gpio_fini(struct nouveau_object *object, bool suspend)
-{
-	struct nv10_gpio_priv *priv = (void *)object;
-	nv_wr32(priv, 0x001144, 0x00000000);
-	return nouveau_gpio_fini(&priv->base, suspend);
-}
-
-struct nouveau_oclass
-nv10_gpio_oclass = {
-	.handle = NV_SUBDEV(GPIO, 0x10),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv10_gpio_ctor,
-		.dtor = nv10_gpio_dtor,
-		.init = nv10_gpio_init,
-		.fini = nv10_gpio_fini,
+struct nouveau_oclass *
+nv10_gpio_oclass = &(struct nouveau_gpio_impl) {
+	.base.handle = NV_SUBDEV(GPIO, 0x10),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nouveau_gpio_ctor,
+		.dtor = _nouveau_gpio_dtor,
+		.init = _nouveau_gpio_init,
+		.fini = _nouveau_gpio_fini,
 	},
-};
+	.lines = 16,
+	.intr_stat = nv10_gpio_intr_stat,
+	.intr_mask = nv10_gpio_intr_mask,
+	.drive = nv10_gpio_drive,
+	.sense = nv10_gpio_sense,
+}.base;

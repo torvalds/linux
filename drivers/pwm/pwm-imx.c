@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/pwm.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 
 /* i.MX1 and i.MX21 share the same PWM function block: */
@@ -240,10 +241,8 @@ static int imx_pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	imx = devm_kzalloc(&pdev->dev, sizeof(*imx), GFP_KERNEL);
-	if (imx == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (imx == NULL)
 		return -ENOMEM;
-	}
 
 	imx->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(imx->clk_per)) {
@@ -296,7 +295,7 @@ static struct platform_driver imx_pwm_driver = {
 	.driver		= {
 		.name	= "imx-pwm",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(imx_pwm_dt_ids),
+		.of_match_table = imx_pwm_dt_ids,
 	},
 	.probe		= imx_pwm_probe,
 	.remove		= imx_pwm_remove,

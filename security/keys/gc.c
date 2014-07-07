@@ -131,50 +131,6 @@ void key_gc_keytype(struct key_type *ktype)
 }
 
 /*
- * Garbage collect pointers from a keyring.
- *
- * Not called with any locks held.  The keyring's key struct will not be
- * deallocated under us as only our caller may deallocate it.
- */
-static void key_gc_keyring(struct key *keyring, time_t limit)
-{
-	struct keyring_list *klist;
-	int loop;
-
-	kenter("%x", key_serial(keyring));
-
-	if (keyring->flags & ((1 << KEY_FLAG_INVALIDATED) |
-			      (1 << KEY_FLAG_REVOKED)))
-		goto dont_gc;
-
-	/* scan the keyring looking for dead keys */
-	rcu_read_lock();
-	klist = rcu_dereference(keyring->payload.subscriptions);
-	if (!klist)
-		goto unlock_dont_gc;
-
-	loop = klist->nkeys;
-	smp_rmb();
-	for (loop--; loop >= 0; loop--) {
-		struct key *key = rcu_dereference(klist->keys[loop]);
-		if (key_is_dead(key, limit))
-			goto do_gc;
-	}
-
-unlock_dont_gc:
-	rcu_read_unlock();
-dont_gc:
-	kleave(" [no gc]");
-	return;
-
-do_gc:
-	rcu_read_unlock();
-
-	keyring_gc(keyring, limit);
-	kleave(" [gc]");
-}
-
-/*
  * Garbage collect a list of unreferenced, detached keys
  */
 static noinline void key_gc_unused_keys(struct list_head *keys)
@@ -392,8 +348,7 @@ found_unreferenced_key:
 	 */
 found_keyring:
 	spin_unlock(&key_serial_lock);
-	kdebug("scan keyring %d", key->serial);
-	key_gc_keyring(key, limit);
+	keyring_gc(key, limit);
 	goto maybe_resched;
 
 	/* We found a dead key that is still referenced.  Reset its type and

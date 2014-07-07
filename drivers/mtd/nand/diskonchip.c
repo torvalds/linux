@@ -38,7 +38,7 @@
 #define CONFIG_MTD_NAND_DISKONCHIP_PROBE_ADDRESS 0
 #endif
 
-static unsigned long __initdata doc_locations[] = {
+static unsigned long doc_locations[] __initdata = {
 #if defined (__alpha__) || defined(__i386__) || defined(__x86_64__)
 #ifdef CONFIG_MTD_NAND_DISKONCHIP_PROBE_HIGH
 	0xfffc8000, 0xfffca000, 0xfffcc000, 0xfffce000,
@@ -698,7 +698,8 @@ static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int colu
 		/* Serially input address */
 		if (column != -1) {
 			/* Adjust columns for 16 bit buswidth */
-			if (this->options & NAND_BUSWIDTH_16)
+			if (this->options & NAND_BUSWIDTH_16 &&
+					!nand_opcode_8bits(command))
 				column >>= 1;
 			WriteDOC(column, docptr, Mplus_FlashAddress);
 		}
@@ -1058,7 +1059,6 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 
 	buf = kmalloc(mtd->writesize, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "DiskOnChip mediaheader kmalloc failed!\n");
 		return 0;
 	}
 	if (!(numheaders = find_media_headers(mtd, buf, "ANAND", 1)))
@@ -1166,7 +1166,6 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 
 	buf = kmalloc(mtd->writesize, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "DiskOnChip mediaheader kmalloc failed!\n");
 		return 0;
 	}
 
@@ -1440,10 +1439,13 @@ static int __init doc_probe(unsigned long physadr)
 	int reg, len, numchips;
 	int ret = 0;
 
+	if (!request_mem_region(physadr, DOC_IOREMAP_LEN, "DiskOnChip"))
+		return -EBUSY;
 	virtadr = ioremap(physadr, DOC_IOREMAP_LEN);
 	if (!virtadr) {
 		printk(KERN_ERR "Diskonchip ioremap failed: 0x%x bytes at 0x%lx\n", DOC_IOREMAP_LEN, physadr);
-		return -EIO;
+		ret = -EIO;
+		goto error_ioremap;
 	}
 
 	/* It's not possible to cleanly detect the DiskOnChip - the
@@ -1561,7 +1563,6 @@ static int __init doc_probe(unsigned long physadr)
 	    sizeof(struct nand_chip) + sizeof(struct doc_priv) + (2 * sizeof(struct nand_bbt_descr));
 	mtd = kzalloc(len, GFP_KERNEL);
 	if (!mtd) {
-		printk(KERN_ERR "DiskOnChip kmalloc (%d bytes) failed!\n", len);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1629,6 +1630,10 @@ static int __init doc_probe(unsigned long physadr)
 	WriteDOC(save_control, virtadr, DOCControl);
  fail:
 	iounmap(virtadr);
+
+error_ioremap:
+	release_mem_region(physadr, DOC_IOREMAP_LEN);
+
 	return ret;
 }
 
@@ -1645,6 +1650,7 @@ static void release_nanddoc(void)
 		nextmtd = doc->nextdoc;
 		nand_release(mtd);
 		iounmap(doc->virtadr);
+		release_mem_region(doc->physadr, DOC_IOREMAP_LEN);
 		kfree(mtd);
 	}
 }

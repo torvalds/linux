@@ -11,8 +11,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Lucy Liu <lucy.liu@intel.com>
  */
@@ -1670,7 +1669,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct nlmsghdr *reply_nlh = NULL;
 	const struct reply_func *fn;
 
-	if ((nlh->nlmsg_type == RTM_SETDCB) && !capable(CAP_NET_ADMIN))
+	if ((nlh->nlmsg_type == RTM_SETDCB) && !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	ret = nlmsg_parse(nlh, sizeof(*dcb), tb, DCB_ATTR_MAX,
@@ -1689,21 +1688,17 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (!tb[DCB_ATTR_IFNAME])
 		return -EINVAL;
 
-	netdev = dev_get_by_name(net, nla_data(tb[DCB_ATTR_IFNAME]));
+	netdev = __dev_get_by_name(net, nla_data(tb[DCB_ATTR_IFNAME]));
 	if (!netdev)
 		return -ENODEV;
 
-	if (!netdev->dcbnl_ops) {
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	if (!netdev->dcbnl_ops)
+		return -EOPNOTSUPP;
 
 	reply_skb = dcbnl_newmsg(fn->type, dcb->cmd, portid, nlh->nlmsg_seq,
 				 nlh->nlmsg_flags, &reply_nlh);
-	if (!reply_skb) {
-		ret = -ENOBUFS;
-		goto out;
-	}
+	if (!reply_skb)
+		return -ENOBUFS;
 
 	ret = fn->cb(netdev, nlh, nlh->nlmsg_seq, tb, reply_skb);
 	if (ret < 0) {
@@ -1715,7 +1710,6 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	ret = rtnl_unicast(reply_skb, net, portid);
 out:
-	dev_put(netdev);
 	return ret;
 }
 

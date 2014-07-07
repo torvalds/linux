@@ -258,34 +258,34 @@ static struct mc13xxx_regulator mc13783_regulators[] = {
 
 	MC13783_FIXED_DEFINE(REG, VAUDIO, REGULATORMODE0, mc13783_vaudio_val),
 	MC13783_FIXED_DEFINE(REG, VIOHI, REGULATORMODE0, mc13783_viohi_val),
-	MC13783_DEFINE_REGU(VIOLO, REGULATORMODE0, REGULATORSETTING0,	\
+	MC13783_DEFINE_REGU(VIOLO, REGULATORMODE0, REGULATORSETTING0,
 			    mc13783_violo_val),
-	MC13783_DEFINE_REGU(VDIG, REGULATORMODE0, REGULATORSETTING0,	\
+	MC13783_DEFINE_REGU(VDIG, REGULATORMODE0, REGULATORSETTING0,
 			    mc13783_vdig_val),
-	MC13783_DEFINE_REGU(VGEN, REGULATORMODE0, REGULATORSETTING0,	\
+	MC13783_DEFINE_REGU(VGEN, REGULATORMODE0, REGULATORSETTING0,
 			    mc13783_vgen_val),
-	MC13783_DEFINE_REGU(VRFDIG, REGULATORMODE0, REGULATORSETTING0,	\
+	MC13783_DEFINE_REGU(VRFDIG, REGULATORMODE0, REGULATORSETTING0,
 			    mc13783_vrfdig_val),
-	MC13783_DEFINE_REGU(VRFREF, REGULATORMODE0, REGULATORSETTING0,	\
+	MC13783_DEFINE_REGU(VRFREF, REGULATORMODE0, REGULATORSETTING0,
 			    mc13783_vrfref_val),
-	MC13783_DEFINE_REGU(VRFCP, REGULATORMODE0, REGULATORSETTING0,	\
+	MC13783_DEFINE_REGU(VRFCP, REGULATORMODE0, REGULATORSETTING0,
 			    mc13783_vrfcp_val),
-	MC13783_DEFINE_REGU(VSIM, REGULATORMODE1, REGULATORSETTING0,	\
+	MC13783_DEFINE_REGU(VSIM, REGULATORMODE1, REGULATORSETTING0,
 			    mc13783_vsim_val),
-	MC13783_DEFINE_REGU(VESIM, REGULATORMODE1, REGULATORSETTING0,	\
+	MC13783_DEFINE_REGU(VESIM, REGULATORMODE1, REGULATORSETTING0,
 			    mc13783_vesim_val),
-	MC13783_DEFINE_REGU(VCAM, REGULATORMODE1, REGULATORSETTING0,	\
+	MC13783_DEFINE_REGU(VCAM, REGULATORMODE1, REGULATORSETTING0,
 			    mc13783_vcam_val),
 	MC13783_FIXED_DEFINE(REG, VRFBG, REGULATORMODE1, mc13783_vrfbg_val),
-	MC13783_DEFINE_REGU(VVIB, REGULATORMODE1, REGULATORSETTING1,	\
+	MC13783_DEFINE_REGU(VVIB, REGULATORMODE1, REGULATORSETTING1,
 			    mc13783_vvib_val),
-	MC13783_DEFINE_REGU(VRF1, REGULATORMODE1, REGULATORSETTING1,	\
+	MC13783_DEFINE_REGU(VRF1, REGULATORMODE1, REGULATORSETTING1,
 			    mc13783_vrf_val),
-	MC13783_DEFINE_REGU(VRF2, REGULATORMODE1, REGULATORSETTING1,	\
+	MC13783_DEFINE_REGU(VRF2, REGULATORMODE1, REGULATORSETTING1,
 			    mc13783_vrf_val),
-	MC13783_DEFINE_REGU(VMMC1, REGULATORMODE1, REGULATORSETTING1,	\
+	MC13783_DEFINE_REGU(VMMC1, REGULATORMODE1, REGULATORSETTING1,
 			    mc13783_vmmc_val),
-	MC13783_DEFINE_REGU(VMMC2, REGULATORMODE1, REGULATORSETTING1,	\
+	MC13783_DEFINE_REGU(VMMC2, REGULATORMODE1, REGULATORSETTING1,
 			    mc13783_vmmc_val),
 	MC13783_GPO_DEFINE(REG, GPO1, POWERMISC, mc13783_gpo_val),
 	MC13783_GPO_DEFINE(REG, GPO2, POWERMISC, mc13783_gpo_val),
@@ -400,7 +400,7 @@ static int mc13783_regulator_probe(struct platform_device *pdev)
 		dev_get_platdata(&pdev->dev);
 	struct mc13xxx_regulator_init_data *mc13xxx_data;
 	struct regulator_config config = { };
-	int i, ret, num_regulators;
+	int i, num_regulators;
 
 	num_regulators = mc13xxx_get_num_regulators_dt(pdev);
 
@@ -444,30 +444,14 @@ static int mc13783_regulator_probe(struct platform_device *pdev)
 		config.driver_data = priv;
 		config.of_node = node;
 
-		priv->regulators[i] = regulator_register(desc, &config);
+		priv->regulators[i] = devm_regulator_register(&pdev->dev, desc,
+							      &config);
 		if (IS_ERR(priv->regulators[i])) {
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
 				mc13783_regulators[i].desc.name);
-			ret = PTR_ERR(priv->regulators[i]);
-			goto err;
+			return PTR_ERR(priv->regulators[i]);
 		}
 	}
-
-	return 0;
-err:
-	while (--i >= 0)
-		regulator_unregister(priv->regulators[i]);
-
-	return ret;
-}
-
-static int mc13783_regulator_remove(struct platform_device *pdev)
-{
-	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < priv->num_regulators; i++)
-		regulator_unregister(priv->regulators[i]);
 
 	return 0;
 }
@@ -477,7 +461,6 @@ static struct platform_driver mc13783_regulator_driver = {
 		.name	= "mc13783-regulator",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= mc13783_regulator_remove,
 	.probe		= mc13783_regulator_probe,
 };
 

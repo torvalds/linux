@@ -91,7 +91,7 @@
 #define AD7746_CAPDAC_DACP(x)		((x) & 0x7F)
 
 /*
- * struct ad7746_chip_info - chip specifc information
+ * struct ad7746_chip_info - chip specific information
  */
 
 struct ad7746_chip_info {
@@ -105,6 +105,11 @@ struct ad7746_chip_info {
 	u8	vt_setup;
 	u8	capdac[2][2];
 	s8	capdac_set;
+
+	union {
+		__be32 d32;
+		u8 d8[4];
+	} data ____cacheline_aligned;
 };
 
 enum ad7746_chan {
@@ -566,11 +571,6 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 	int ret, delay;
 	u8 regval, reg;
 
-	union {
-		u32 d32;
-		u8 d8[4];
-	} data;
-
 	mutex_lock(&indio_dev->mlock);
 
 	switch (mask) {
@@ -591,12 +591,12 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		/* Now read the actual register */
 
 		ret = i2c_smbus_read_i2c_block_data(chip->client,
-			chan->address >> 8, 3, &data.d8[1]);
+			chan->address >> 8, 3, &chip->data.d8[1]);
 
 		if (ret < 0)
 			goto out;
 
-		*val = (be32_to_cpu(data.d32) & 0xFFFFFF) - 0x800000;
+		*val = (be32_to_cpu(chip->data.d32) & 0xFFFFFF) - 0x800000;
 
 		switch (chan->type) {
 		case IIO_TEMP:
@@ -656,20 +656,21 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_CAPACITANCE:
 			/* 8.192pf / 2^24 */
-			*val2 = 488;
 			*val =  0;
+			*val2 = 488;
+			ret = IIO_VAL_INT_PLUS_NANO;
 			break;
 		case IIO_VOLTAGE:
 			/* 1170mV / 2^23 */
-			*val2 = 139475;
-			*val =  0;
+			*val = 1170;
+			*val2 = 23;
+			ret = IIO_VAL_FRACTIONAL_LOG2;
 			break;
 		default:
-			ret =  -EINVAL;
-			goto out;
+			ret = -EINVAL;
+			break;
 		}
 
-		ret = IIO_VAL_INT_PLUS_NANO;
 		break;
 	default:
 		ret = -EINVAL;

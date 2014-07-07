@@ -533,7 +533,7 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 static int corgi_lcd_probe(struct spi_device *spi)
 {
 	struct backlight_properties props;
-	struct corgi_lcd_platform_data *pdata = spi->dev.platform_data;
+	struct corgi_lcd_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct corgi_lcd *lcd;
 	int ret = 0;
 
@@ -543,15 +543,13 @@ static int corgi_lcd_probe(struct spi_device *spi)
 	}
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(struct corgi_lcd), GFP_KERNEL);
-	if (!lcd) {
-		dev_err(&spi->dev, "failed to allocate memory\n");
+	if (!lcd)
 		return -ENOMEM;
-	}
 
 	lcd->spi_dev = spi;
 
-	lcd->lcd_dev = lcd_device_register("corgi_lcd", &spi->dev,
-					lcd, &corgi_lcd_ops);
+	lcd->lcd_dev = devm_lcd_device_register(&spi->dev, "corgi_lcd",
+						&spi->dev, lcd, &corgi_lcd_ops);
 	if (IS_ERR(lcd->lcd_dev))
 		return PTR_ERR(lcd->lcd_dev);
 
@@ -561,18 +559,18 @@ static int corgi_lcd_probe(struct spi_device *spi)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = pdata->max_intensity;
-	lcd->bl_dev = backlight_device_register("corgi_bl", &spi->dev, lcd,
-						&corgi_bl_ops, &props);
-	if (IS_ERR(lcd->bl_dev)) {
-		ret = PTR_ERR(lcd->bl_dev);
-		goto err_unregister_lcd;
-	}
+	lcd->bl_dev = devm_backlight_device_register(&spi->dev, "corgi_bl",
+						&spi->dev, lcd, &corgi_bl_ops,
+						&props);
+	if (IS_ERR(lcd->bl_dev))
+		return PTR_ERR(lcd->bl_dev);
+
 	lcd->bl_dev->props.brightness = pdata->default_intensity;
 	lcd->bl_dev->props.power = FB_BLANK_UNBLANK;
 
 	ret = setup_gpio_backlight(lcd, pdata);
 	if (ret)
-		goto err_unregister_bl;
+		return ret;
 
 	lcd->kick_battery = pdata->kick_battery;
 
@@ -583,12 +581,6 @@ static int corgi_lcd_probe(struct spi_device *spi)
 	lcd->limit_mask = pdata->limit_mask;
 	the_corgi_lcd = lcd;
 	return 0;
-
-err_unregister_bl:
-	backlight_device_unregister(lcd->bl_dev);
-err_unregister_lcd:
-	lcd_device_unregister(lcd->lcd_dev);
-	return ret;
 }
 
 static int corgi_lcd_remove(struct spi_device *spi)
@@ -598,11 +590,7 @@ static int corgi_lcd_remove(struct spi_device *spi)
 	lcd->bl_dev->props.power = FB_BLANK_UNBLANK;
 	lcd->bl_dev->props.brightness = 0;
 	backlight_update_status(lcd->bl_dev);
-	backlight_device_unregister(lcd->bl_dev);
-
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_POWERDOWN);
-	lcd_device_unregister(lcd->lcd_dev);
-
 	return 0;
 }
 

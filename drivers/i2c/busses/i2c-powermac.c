@@ -24,9 +24,9 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/of_irq.h>
 #include <asm/prom.h>
 #include <asm/pmac_low_i2c.h>
 

@@ -46,8 +46,8 @@
 #include "mlx5_core.h"
 
 #define DRIVER_NAME "mlx5_core"
-#define DRIVER_VERSION "1.0"
-#define DRIVER_RELDATE	"June 2013"
+#define DRIVER_VERSION "2.2-1"
+#define DRIVER_RELDATE	"Feb 2014"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox ConnectX-IB HCA core library");
@@ -66,10 +66,10 @@ static int set_dma_caps(struct pci_dev *pdev)
 
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err) {
-		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit PCI DMA mask.\n");
+		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit PCI DMA mask\n");
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			dev_err(&pdev->dev, "Can't set PCI DMA mask, aborting.\n");
+			dev_err(&pdev->dev, "Can't set PCI DMA mask, aborting\n");
 			return err;
 		}
 	}
@@ -77,11 +77,11 @@ static int set_dma_caps(struct pci_dev *pdev)
 	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_warn(&pdev->dev,
-			 "Warning: couldn't set 64-bit consistent PCI DMA mask.\n");
+			 "Warning: couldn't set 64-bit consistent PCI DMA mask\n");
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev,
-				"Can't set consistent PCI DMA mask, aborting.\n");
+				"Can't set consistent PCI DMA mask, aborting\n");
 			return err;
 		}
 	}
@@ -95,7 +95,7 @@ static int request_bar(struct pci_dev *pdev)
 	int err = 0;
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		dev_err(&pdev->dev, "Missing registers BAR, aborting.\n");
+		dev_err(&pdev->dev, "Missing registers BAR, aborting\n");
 		return -ENODEV;
 	}
 
@@ -116,7 +116,6 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
 	int num_eqs = 1 << dev->caps.log_max_eq;
 	int nvec;
-	int err;
 	int i;
 
 	nvec = dev->caps.num_ports * num_online_cpus() + MLX5_EQ_VEC_COMP_BASE;
@@ -131,17 +130,12 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 	for (i = 0; i < nvec; i++)
 		table->msix_arr[i].entry = i;
 
-retry:
-	table->num_comp_vectors = nvec - MLX5_EQ_VEC_COMP_BASE;
-	err = pci_enable_msix(dev->pdev, table->msix_arr, nvec);
-	if (err <= 0) {
-		return err;
-	} else if (err > 2) {
-		nvec = err;
-		goto retry;
-	}
+	nvec = pci_enable_msix_range(dev->pdev, table->msix_arr,
+				     MLX5_EQ_VEC_COMP_BASE, nvec);
+	if (nvec < 0)
+		return nvec;
 
-	mlx5_core_dbg(dev, "received %d MSI vectors out of %d requested\n", err, nvec);
+	table->num_comp_vectors = nvec - MLX5_EQ_VEC_COMP_BASE;
 
 	return 0;
 }
@@ -159,15 +153,43 @@ struct mlx5_reg_host_endianess {
 	u8      rsvd[15];
 };
 
+
+#define CAP_MASK(pos, size) ((u64)((1 << (size)) - 1) << (pos))
+
+enum {
+	MLX5_CAP_BITS_RW_MASK	= CAP_MASK(MLX5_CAP_OFF_CMDIF_CSUM, 2) |
+				  CAP_MASK(MLX5_CAP_OFF_DCT, 1),
+};
+
+/* selectively copy writable fields clearing any reserved area
+ */
+static void copy_rw_fields(struct mlx5_hca_cap *to, struct mlx5_hca_cap *from)
+{
+	u64 v64;
+
+	to->log_max_qp = from->log_max_qp & 0x1f;
+	to->log_max_ra_req_dc = from->log_max_ra_req_dc & 0x3f;
+	to->log_max_ra_res_dc = from->log_max_ra_res_dc & 0x3f;
+	to->log_max_ra_req_qp = from->log_max_ra_req_qp & 0x3f;
+	to->log_max_ra_res_qp = from->log_max_ra_res_qp & 0x3f;
+	to->log_max_atomic_size_qp = from->log_max_atomic_size_qp;
+	to->log_max_atomic_size_dc = from->log_max_atomic_size_dc;
+	v64 = be64_to_cpu(from->flags) & MLX5_CAP_BITS_RW_MASK;
+	to->flags = cpu_to_be64(v64);
+}
+
+enum {
+	HCA_CAP_OPMOD_GET_MAX	= 0,
+	HCA_CAP_OPMOD_GET_CUR	= 1,
+};
+
 static int handle_hca_cap(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd_query_hca_cap_mbox_out *query_out = NULL;
 	struct mlx5_cmd_set_hca_cap_mbox_in *set_ctx = NULL;
 	struct mlx5_cmd_query_hca_cap_mbox_in query_ctx;
 	struct mlx5_cmd_set_hca_cap_mbox_out set_out;
-	struct mlx5_profile *prof = dev->profile;
 	u64 flags;
-	int csum = 1;
 	int err;
 
 	memset(&query_ctx, 0, sizeof(query_ctx));
@@ -182,7 +204,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	}
 
 	query_ctx.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_QUERY_HCA_CAP);
-	query_ctx.hdr.opmod  = cpu_to_be16(0x1);
+	query_ctx.hdr.opmod  = cpu_to_be16(HCA_CAP_OPMOD_GET_CUR);
 	err = mlx5_cmd_exec(dev, &query_ctx, sizeof(query_ctx),
 				 query_out, sizeof(*query_out));
 	if (err)
@@ -194,23 +216,16 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 		goto query_ex;
 	}
 
-	memcpy(&set_ctx->hca_cap, &query_out->hca_cap,
-	       sizeof(set_ctx->hca_cap));
-
-	if (prof->mask & MLX5_PROF_MASK_CMDIF_CSUM) {
-		csum = !!prof->cmdif_csum;
-		flags = be64_to_cpu(set_ctx->hca_cap.flags);
-		if (csum)
-			flags |= MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
-		else
-			flags &= ~MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
-
-		set_ctx->hca_cap.flags = cpu_to_be64(flags);
-	}
+	copy_rw_fields(&set_ctx->hca_cap, &query_out->hca_cap);
 
 	if (dev->profile->mask & MLX5_PROF_MASK_QP_SIZE)
 		set_ctx->hca_cap.log_max_qp = dev->profile->log_max_qp;
 
+	flags = be64_to_cpu(query_out->hca_cap.flags);
+	/* disable checksum */
+	flags &= ~MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
+
+	set_ctx->hca_cap.flags = cpu_to_be64(flags);
 	memset(&set_out, 0, sizeof(set_out));
 	set_ctx->hca_cap.log_uar_page_sz = cpu_to_be16(PAGE_SHIFT - 12);
 	set_ctx->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_SET_HCA_CAP);
@@ -224,9 +239,6 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	err = mlx5_cmd_status_to_err(&set_out.hdr);
 	if (err)
 		goto query_ex;
-
-	if (!csum)
-		dev->cmd.checksum_disabled = 1;
 
 query_ex:
 	kfree(query_out);
@@ -307,13 +319,13 @@ int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device, aborting.\n");
+		dev_err(&pdev->dev, "Cannot enable PCI device, aborting\n");
 		goto err_dbg;
 	}
 
 	err = request_bar(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "error requesting BARs, aborting.\n");
+		dev_err(&pdev->dev, "error requesting BARs, aborting\n");
 		goto err_disable;
 	}
 
@@ -428,6 +440,7 @@ int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 	mlx5_init_cq_table(dev);
 	mlx5_init_qp_table(dev);
 	mlx5_init_srq_table(dev);
+	mlx5_init_mr_table(dev);
 
 	return 0;
 
@@ -442,7 +455,10 @@ disable_msix:
 
 err_stop_poll:
 	mlx5_stop_health_poll(dev);
-	mlx5_cmd_teardown_hca(dev);
+	if (mlx5_cmd_teardown_hca(dev)) {
+		dev_err(&dev->pdev->dev, "tear_down_hca failed, skip cleanup\n");
+		return err;
+	}
 
 err_pagealloc_stop:
 	mlx5_pagealloc_stop(dev);
@@ -485,7 +501,10 @@ void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 	mlx5_eq_cleanup(dev);
 	mlx5_disable_msix(dev);
 	mlx5_stop_health_poll(dev);
-	mlx5_cmd_teardown_hca(dev);
+	if (mlx5_cmd_teardown_hca(dev)) {
+		dev_err(&dev->pdev->dev, "tear_down_hca failed, skip cleanup\n");
+		return;
+	}
 	mlx5_pagealloc_stop(dev);
 	mlx5_reclaim_startup_pages(dev);
 	mlx5_core_disable_hca(dev);
@@ -513,7 +532,6 @@ static int __init init(void)
 
 	return 0;
 
-	mlx5_health_cleanup();
 err_debug:
 	mlx5_unregister_debugfs();
 	return err;

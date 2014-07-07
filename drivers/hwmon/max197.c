@@ -275,10 +275,8 @@ static int max197_probe(struct platform_device *pdev)
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct max197_data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "devm_kzalloc failed\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->pdata = pdata;
 	mutex_init(&data->lock);

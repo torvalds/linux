@@ -432,6 +432,7 @@ static int romfs_statfs(struct dentry *dentry, struct kstatfs *buf)
  */
 static int romfs_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	*flags |= MS_RDONLY;
 	return 0;
 }
@@ -533,16 +534,14 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	root = romfs_iget(sb, pos);
 	if (IS_ERR(root))
-		goto error;
+		return PTR_ERR(root);
 
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
-		goto error;
+		return -ENOMEM;
 
 	return 0;
 
-error:
-	return -EINVAL;
 error_rsb_inval:
 	ret = -EINVAL;
 error_rsb:

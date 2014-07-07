@@ -31,8 +31,8 @@ struct xfs_da_args;
 struct xfs_da_node_entry;
 struct xfs_dquot;
 struct xfs_log_item;
-struct xlog_ticket;
 struct xlog;
+struct xlog_ticket;
 struct xlog_recover;
 struct xlog_recover_item;
 struct xfs_buf_log_format;
@@ -134,6 +134,31 @@ DEFINE_PERAG_REF_EVENT(xfs_perag_set_reclaim);
 DEFINE_PERAG_REF_EVENT(xfs_perag_clear_reclaim);
 DEFINE_PERAG_REF_EVENT(xfs_perag_set_eofblocks);
 DEFINE_PERAG_REF_EVENT(xfs_perag_clear_eofblocks);
+
+DECLARE_EVENT_CLASS(xfs_ag_class,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno),
+	TP_ARGS(mp, agno),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+	),
+	TP_printk("dev %d:%d agno %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno)
+);
+#define DEFINE_AG_EVENT(name)	\
+DEFINE_EVENT(xfs_ag_class, name,	\
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno),	\
+	TP_ARGS(mp, agno))
+
+DEFINE_AG_EVENT(xfs_read_agf);
+DEFINE_AG_EVENT(xfs_alloc_read_agf);
+DEFINE_AG_EVENT(xfs_read_agi);
+DEFINE_AG_EVENT(xfs_ialloc_read_agi);
 
 TRACE_EVENT(xfs_attr_list_node_descend,
 	TP_PROTO(struct xfs_attr_list_context *ctx,
@@ -513,6 +538,64 @@ DEFINE_BUF_ITEM_EVENT(xfs_trans_bhold_release);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_binval);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_buf_ordered);
 
+DECLARE_EVENT_CLASS(xfs_filestream_class,
+	TP_PROTO(struct xfs_inode *ip, xfs_agnumber_t agno),
+	TP_ARGS(ip, agno),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_agnumber_t, agno)
+		__field(int, streams)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(ip)->i_sb->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->agno = agno;
+		__entry->streams = xfs_filestream_peek_ag(ip->i_mount, agno);
+	),
+	TP_printk("dev %d:%d ino 0x%llx agno %u streams %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->agno,
+		  __entry->streams)
+)
+#define DEFINE_FILESTREAM_EVENT(name) \
+DEFINE_EVENT(xfs_filestream_class, name, \
+	TP_PROTO(struct xfs_inode *ip, xfs_agnumber_t agno), \
+	TP_ARGS(ip, agno))
+DEFINE_FILESTREAM_EVENT(xfs_filestream_free);
+DEFINE_FILESTREAM_EVENT(xfs_filestream_lookup);
+DEFINE_FILESTREAM_EVENT(xfs_filestream_scan);
+
+TRACE_EVENT(xfs_filestream_pick,
+	TP_PROTO(struct xfs_inode *ip, xfs_agnumber_t agno,
+		 xfs_extlen_t free, int nscan),
+	TP_ARGS(ip, agno, free, nscan),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_agnumber_t, agno)
+		__field(int, streams)
+		__field(xfs_extlen_t, free)
+		__field(int, nscan)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(ip)->i_sb->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->agno = agno;
+		__entry->streams = xfs_filestream_peek_ag(ip->i_mount, agno);
+		__entry->free = free;
+		__entry->nscan = nscan;
+	),
+	TP_printk("dev %d:%d ino 0x%llx agno %u streams %d free %d nscan %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->agno,
+		  __entry->streams,
+		  __entry->free,
+		  __entry->nscan)
+);
+
 DECLARE_EVENT_CLASS(xfs_lock_class,
 	TP_PROTO(struct xfs_inode *ip, unsigned lock_flags,
 		 unsigned long caller_ip),
@@ -578,6 +661,8 @@ DEFINE_INODE_EVENT(xfs_readlink);
 DEFINE_INODE_EVENT(xfs_inactive_symlink);
 DEFINE_INODE_EVENT(xfs_alloc_file_space);
 DEFINE_INODE_EVENT(xfs_free_file_space);
+DEFINE_INODE_EVENT(xfs_zero_file_space);
+DEFINE_INODE_EVENT(xfs_collapse_file_space);
 DEFINE_INODE_EVENT(xfs_readdir);
 #ifdef CONFIG_XFS_POSIX_ACL
 DEFINE_INODE_EVENT(xfs_get_acl);
@@ -938,6 +1023,63 @@ DEFINE_LOG_ITEM_EVENT(xfs_ail_pinned);
 DEFINE_LOG_ITEM_EVENT(xfs_ail_locked);
 DEFINE_LOG_ITEM_EVENT(xfs_ail_flushing);
 
+DECLARE_EVENT_CLASS(xfs_ail_class,
+	TP_PROTO(struct xfs_log_item *lip, xfs_lsn_t old_lsn, xfs_lsn_t new_lsn),
+	TP_ARGS(lip, old_lsn, new_lsn),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(void *, lip)
+		__field(uint, type)
+		__field(uint, flags)
+		__field(xfs_lsn_t, old_lsn)
+		__field(xfs_lsn_t, new_lsn)
+	),
+	TP_fast_assign(
+		__entry->dev = lip->li_mountp->m_super->s_dev;
+		__entry->lip = lip;
+		__entry->type = lip->li_type;
+		__entry->flags = lip->li_flags;
+		__entry->old_lsn = old_lsn;
+		__entry->new_lsn = new_lsn;
+	),
+	TP_printk("dev %d:%d lip 0x%p old lsn %d/%d new lsn %d/%d type %s flags %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->lip,
+		  CYCLE_LSN(__entry->old_lsn), BLOCK_LSN(__entry->old_lsn),
+		  CYCLE_LSN(__entry->new_lsn), BLOCK_LSN(__entry->new_lsn),
+		  __print_symbolic(__entry->type, XFS_LI_TYPE_DESC),
+		  __print_flags(__entry->flags, "|", XFS_LI_FLAGS))
+)
+
+#define DEFINE_AIL_EVENT(name) \
+DEFINE_EVENT(xfs_ail_class, name, \
+	TP_PROTO(struct xfs_log_item *lip, xfs_lsn_t old_lsn, xfs_lsn_t new_lsn), \
+	TP_ARGS(lip, old_lsn, new_lsn))
+DEFINE_AIL_EVENT(xfs_ail_insert);
+DEFINE_AIL_EVENT(xfs_ail_move);
+DEFINE_AIL_EVENT(xfs_ail_delete);
+
+TRACE_EVENT(xfs_log_assign_tail_lsn,
+	TP_PROTO(struct xlog *log, xfs_lsn_t new_lsn),
+	TP_ARGS(log, new_lsn),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_lsn_t, new_lsn)
+		__field(xfs_lsn_t, old_lsn)
+		__field(xfs_lsn_t, last_sync_lsn)
+	),
+	TP_fast_assign(
+		__entry->dev = log->l_mp->m_super->s_dev;
+		__entry->new_lsn = new_lsn;
+		__entry->old_lsn = atomic64_read(&log->l_tail_lsn);
+		__entry->last_sync_lsn = atomic64_read(&log->l_last_sync_lsn);
+	),
+	TP_printk("dev %d:%d new tail lsn %d/%d, old lsn %d/%d, last sync %d/%d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  CYCLE_LSN(__entry->new_lsn), BLOCK_LSN(__entry->new_lsn),
+		  CYCLE_LSN(__entry->old_lsn), BLOCK_LSN(__entry->old_lsn),
+		  CYCLE_LSN(__entry->last_sync_lsn), BLOCK_LSN(__entry->last_sync_lsn))
+)
 
 DECLARE_EVENT_CLASS(xfs_file_class,
 	TP_PROTO(struct xfs_inode *ip, size_t count, loff_t offset, int flags),
@@ -976,7 +1118,6 @@ DEFINE_RW_EVENT(xfs_file_read);
 DEFINE_RW_EVENT(xfs_file_buffered_write);
 DEFINE_RW_EVENT(xfs_file_direct_write);
 DEFINE_RW_EVENT(xfs_file_splice_read);
-DEFINE_RW_EVENT(xfs_file_splice_write);
 
 DECLARE_EVENT_CLASS(xfs_page_class,
 	TP_PROTO(struct inode *inode, struct page *page, unsigned long off,

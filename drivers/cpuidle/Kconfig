@@ -35,6 +35,16 @@ depends on ARM
 source "drivers/cpuidle/Kconfig.arm"
 endmenu
 
+menu "MIPS CPU Idle Drivers"
+depends on MIPS
+source "drivers/cpuidle/Kconfig.mips"
+endmenu
+
+menu "POWERPC CPU Idle Drivers"
+depends on PPC
+source "drivers/cpuidle/Kconfig.powerpc"
+endmenu
+
 endif
 
 config ARCH_NEEDS_CPU_IDLE_COUPLED

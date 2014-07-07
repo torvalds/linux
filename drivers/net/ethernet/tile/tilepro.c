@@ -831,6 +831,9 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 
 	unsigned int work = 0;
 
+	if (budget <= 0)
+		goto done;
+
 	while (priv->active) {
 		int index = qup->__packet_receive_read;
 		if (index == qsp->__packet_receive_queue.__packet_write)
@@ -1007,6 +1010,8 @@ static void tile_net_register(void *dev_ptr)
 	init_timer(&info->egress_timer);
 	info->egress_timer.data = (long)info;
 	info->egress_timer.function = tile_net_handle_egress_timer;
+
+	u64_stats_init(&info->stats.syncp);
 
 	priv->cpu[my_cpu] = info;
 
@@ -1819,7 +1824,7 @@ busy:
 
 	/* Handle completions. */
 	for (i = 0; i < nolds; i++)
-		kfree_skb(olds[i]);
+		dev_consume_skb_any(olds[i]);
 
 	/* Update stats. */
 	u64_stats_update_begin(&stats->syncp);
@@ -2003,7 +2008,7 @@ busy:
 
 	/* Handle completions. */
 	for (i = 0; i < nolds; i++)
-		kfree_skb(olds[i]);
+		dev_consume_skb_any(olds[i]);
 
 	/* HACK: Track "expanded" size for short packets (e.g. 42 < 60). */
 	u64_stats_update_begin(&stats->syncp);
@@ -2066,14 +2071,14 @@ static struct rtnl_link_stats64 *tile_net_get_stats64(struct net_device *dev,
 		cpu_stats = &priv->cpu[i]->stats;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&cpu_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
 			trx_packets = cpu_stats->rx_packets;
 			ttx_packets = cpu_stats->tx_packets;
 			trx_bytes   = cpu_stats->rx_bytes;
 			ttx_bytes   = cpu_stats->tx_bytes;
 			trx_errors  = cpu_stats->rx_errors;
 			trx_dropped = cpu_stats->rx_dropped;
-		} while (u64_stats_fetch_retry_bh(&cpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
 		rx_packets += trx_packets;
 		tx_packets += ttx_packets;

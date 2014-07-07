@@ -383,6 +383,8 @@ out:
 					g2d_userptr->npages,
 					g2d_userptr->vma);
 
+	exynos_gem_put_vma(g2d_userptr->vma);
+
 	if (!g2d_userptr->out_of_list)
 		list_del_init(&g2d_userptr->list);
 
@@ -465,14 +467,17 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 		goto err_free;
 	}
 
+	down_read(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, userptr);
 	if (!vma) {
+		up_read(&current->mm->mmap_sem);
 		DRM_ERROR("failed to get vm region.\n");
 		ret = -EFAULT;
 		goto err_free_pages;
 	}
 
 	if (vma->vm_end < userptr + size) {
+		up_read(&current->mm->mmap_sem);
 		DRM_ERROR("vma is too small.\n");
 		ret = -EFAULT;
 		goto err_free_pages;
@@ -480,6 +485,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 
 	g2d_userptr->vma = exynos_gem_get_vma(vma);
 	if (!g2d_userptr->vma) {
+		up_read(&current->mm->mmap_sem);
 		DRM_ERROR("failed to copy vma.\n");
 		ret = -ENOMEM;
 		goto err_free_pages;
@@ -490,10 +496,12 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 	ret = exynos_gem_get_pages_from_userptr(start & PAGE_MASK,
 						npages, pages, vma);
 	if (ret < 0) {
+		up_read(&current->mm->mmap_sem);
 		DRM_ERROR("failed to get user pages from userptr.\n");
 		goto err_put_vma;
 	}
 
+	up_read(&current->mm->mmap_sem);
 	g2d_userptr->pages = pages;
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
@@ -605,7 +613,7 @@ static enum g2d_reg_type g2d_get_reg_type(int reg_offset)
 		reg_type = REG_TYPE_NONE;
 		DRM_ERROR("Unknown register offset![%d]\n", reg_offset);
 		break;
-	};
+	}
 
 	return reg_type;
 }
@@ -1124,7 +1132,7 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	 * G2D interrupt event once current command list execution is
 	 * finished.
 	 * Otherwise only ACF bit should be set to INTEN register so
-	 * that one interrupt is occured after all command lists
+	 * that one interrupt is occurred after all command lists
 	 * have been completed.
 	 */
 	if (node->event) {

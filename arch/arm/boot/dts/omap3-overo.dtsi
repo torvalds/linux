@@ -1,95 +1,38 @@
 /*
- * Copyright (C) 2012 Florian Vaussard, EPFL Mobots group
+ * Copyright (C) 2014 Florian Vaussard, EPFL Mobots group
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-/*
- * The Gumstix Overo must be combined with an expansion board.
- */
-/dts-v1/;
-
 #include "omap34xx.dtsi"
+#include "omap3-overo-base.dtsi"
 
-/ {
-	pwmleds {
-		compatible = "pwm-leds";
+&omap3_pmx_core2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+			&hsusb2_2_pins
+	>;
 
-		overo {
-			label = "overo:blue:COM";
-			pwms = <&twl_pwmled 1 7812500>;
-			max-brightness = <127>;
-			linux,default-trigger = "mmc0";
-		};
-	};
-
-	sound {
-		compatible = "ti,omap-twl4030";
-		ti,model = "overo";
-
-		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
-	};
-};
-
-&i2c1 {
-	clock-frequency = <2600000>;
-
-	twl: twl@48 {
-		reg = <0x48>;
-		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
-		interrupt-parent = <&intc>;
-
-		twl_audio: audio {
-			compatible = "ti,twl4030-audio";
-			codec {
-			};
-		};
-	};
-};
-
-#include "twl4030.dtsi"
-#include "twl4030_omap3.dtsi"
-
-/* i2c2 pins are used for gpio */
-&i2c2 {
-	status = "disabled";
-};
-
-/* on board microSD slot */
-&mmc1 {
-	vmmc-supply = <&vmmc1>;
-	bus-width = <4>;
-};
-
-/* optional on board WiFi */
-&mmc2 {
-	bus-width = <4>;
-};
-
-&twl_gpio {
-	ti,use-leds;
-};
-
-&usb_otg_hs {
-	interface-type = <0>;
-	usb-phy = <&usb2_phy>;
-	mode = <3>;
-	power = <50>;
-};
-
-&omap3_pmx_core {
-	uart3_pins: pinmux_uart3_pins {
+	hsusb2_2_pins: pinmux_hsusb2_2_pins {
 		pinctrl-single,pins = <
-			0x16e (PIN_INPUT | PIN_OFF_WAKEUPENABLE | MUX_MODE0) /* uart3_rx_irrx.uart3_rx_irrx */
-			0x170 (PIN_OUTPUT | MUX_MODE0) /* uart3_tx_irtx.uart3_tx_irtx */
+			OMAP3430_CORE2_IOPAD(0x25f0, PIN_OUTPUT | MUX_MODE3)		/* etk_d10.hsusb2_clk */
+			OMAP3430_CORE2_IOPAD(0x25f2, PIN_OUTPUT | MUX_MODE3)		/* etk_d11.hsusb2_stp */
+			OMAP3430_CORE2_IOPAD(0x25f4, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d12.hsusb2_dir */
+			OMAP3430_CORE2_IOPAD(0x25f6, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d13.hsusb2_nxt */
+			OMAP3430_CORE2_IOPAD(0x25f8, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d14.hsusb2_data0 */
+			OMAP3430_CORE2_IOPAD(0x25fa, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* etk_d15.hsusb2_data1 */
+		>;
+	};
+
+	w3cbw003c_2_pins: pinmux_w3cbw003c_2_pins {
+		pinctrl-single,pins = <
+			OMAP3430_CORE2_IOPAD(0x25e0, PIN_OUTPUT | MUX_MODE4)		/* etk_d2.gpio_16 */
 		>;
 	};
 };
 
-&uart3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins>;
+&mcbsp2 {
+	status = "okay";
 };

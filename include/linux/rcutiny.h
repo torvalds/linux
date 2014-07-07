@@ -12,8 +12,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2008
  *
@@ -26,6 +26,16 @@
 #define __LINUX_TINY_H
 
 #include <linux/cache.h>
+
+static inline unsigned long get_state_synchronize_rcu(void)
+{
+	return 0;
+}
+
+static inline void cond_synchronize_rcu(unsigned long oldstate)
+{
+	might_sleep();
+}
 
 static inline void rcu_barrier_bh(void)
 {
@@ -66,12 +76,6 @@ static inline void kfree_call_rcu(struct rcu_head *head,
 				  void (*func)(struct rcu_head *rcu))
 {
 	call_rcu(head, func);
-}
-
-static inline int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies)
-{
-	*delta_jiffies = ULONG_MAX;
-	return 0;
 }
 
 static inline void rcu_note_context_switch(int cpu)
@@ -115,6 +119,10 @@ static inline void rcu_sched_force_quiescent_state(void)
 {
 }
 
+static inline void show_rcu_gp_kthreads(void)
+{
+}
+
 static inline void rcu_cpu_stall_reset(void)
 {
 }
@@ -125,11 +133,28 @@ static inline void exit_rcu(void)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 extern int rcu_scheduler_active __read_mostly;
-extern void rcu_scheduler_starting(void);
+void rcu_scheduler_starting(void);
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 static inline void rcu_scheduler_starting(void)
 {
 }
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+
+#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
+
+static inline bool rcu_is_watching(void)
+{
+	return __rcu_is_watching();
+}
+
+#else /* defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
+
+static inline bool rcu_is_watching(void)
+{
+	return true;
+}
+
+
+#endif /* #else defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
 
 #endif /* __LINUX_RCUTINY_H */

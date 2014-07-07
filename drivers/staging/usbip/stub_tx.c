@@ -74,12 +74,12 @@ void stub_complete(struct urb *urb)
 		/* OK */
 		break;
 	case -ENOENT:
-		dev_info(&urb->dev->dev, "stopped by a call to usb_kill_urb() "
-			 "because of cleaning up a virtual connection\n");
+		dev_info(&urb->dev->dev,
+			 "stopped by a call to usb_kill_urb() because of cleaning up a virtual connection\n");
 		return;
 	case -ECONNRESET:
-		dev_info(&urb->dev->dev, "unlinked by a call to "
-			 "usb_unlink_urb()\n");
+		dev_info(&urb->dev->dev,
+			 "unlinked by a call to usb_unlink_urb()\n");
 		break;
 	case -EPIPE:
 		dev_info(&urb->dev->dev, "endpoint %d is stalled\n",
@@ -89,8 +89,9 @@ void stub_complete(struct urb *urb)
 		dev_info(&urb->dev->dev, "device removed?\n");
 		break;
 	default:
-		dev_info(&urb->dev->dev, "urb completion with non-zero status "
-			 "%d\n", urb->status);
+		dev_info(&urb->dev->dev,
+			 "urb completion with non-zero status %d\n",
+			 urb->status);
 		break;
 	}
 
@@ -178,7 +179,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		else
 			iovnum = 2;
 
-		iov = kzalloc(iovnum * sizeof(struct kvec), GFP_KERNEL);
+		iov = kcalloc(iovnum, sizeof(struct kvec), GFP_KERNEL);
 
 		if (!iov) {
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);
@@ -217,6 +218,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			 */
 
 			int i;
+
 			for (i = 0; i < urb->number_of_packets; i++) {
 				iov[iovnum].iov_base = urb->transfer_buffer +
 					urb->iso_frame_desc[i].offset;
@@ -228,8 +230,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 			if (txsize != sizeof(pdu_header) + urb->actual_length) {
 				dev_err(&sdev->interface->dev,
-					"actual length of urb %d does not "
-					"match iso packet sizes %zu\n",
+					"actual length of urb %d does not match iso packet sizes %zu\n",
 					urb->actual_length,
 					txsize-sizeof(pdu_header));
 				kfree(iov);

@@ -1,10 +1,9 @@
-config ARCH_SIRF
+menuconfig ARCH_SIRF
 	bool "CSR SiRF" if ARCH_MULTI_V7
+	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
-	select MIGHT_HAVE_CACHE_L2X0
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select PINCTRL
 	select PINCTRL_SIRF
 	help
@@ -12,12 +11,11 @@ config ARCH_SIRF
 
 if ARCH_SIRF
 
-menu "CSR SiRF atlas6/primaII/Marco/Polo Specific Features"
+comment "CSR SiRF atlas6/primaII/Marco/Polo Specific Features"
 
 config ARCH_ATLAS6
 	bool "CSR SiRFSoC ATLAS6 ARM Cortex A9 Platform"
 	default y
-	select CPU_V7
 	select SIRF_IRQ
 	help
           Support for CSR SiRFSoC ARM Cortex A9 Platform
@@ -25,7 +23,6 @@ config ARCH_ATLAS6
 config ARCH_PRIMA2
 	bool "CSR SiRFSoC PRIMA2 ARM Cortex A9 Platform"
 	default y
-	select CPU_V7
 	select SIRF_IRQ
 	select ZONE_DMA
 	help
@@ -35,14 +32,10 @@ config ARCH_MARCO
 	bool "CSR SiRFSoC MARCO ARM Cortex A9 Platform"
 	default y
 	select ARM_GIC
-	select CPU_V7
 	select HAVE_ARM_SCU if SMP
-	select HAVE_SMP
 	select SMP_ON_UP if SMP
 	help
           Support for CSR SiRFSoC ARM Cortex A9 Platform
-
-endmenu
 
 config SIRF_IRQ
 	bool

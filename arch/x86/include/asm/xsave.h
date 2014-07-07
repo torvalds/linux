@@ -6,11 +6,18 @@
 
 #define XSTATE_CPUID		0x0000000d
 
-#define XSTATE_FP	0x1
-#define XSTATE_SSE	0x2
-#define XSTATE_YMM	0x4
+#define XSTATE_FP		0x1
+#define XSTATE_SSE		0x2
+#define XSTATE_YMM		0x4
+#define XSTATE_BNDREGS		0x8
+#define XSTATE_BNDCSR		0x10
+#define XSTATE_OPMASK		0x20
+#define XSTATE_ZMM_Hi256	0x40
+#define XSTATE_Hi16_ZMM		0x80
 
 #define XSTATE_FPSSE	(XSTATE_FP | XSTATE_SSE)
+/* Bit 63 of XCR0 is reserved for future expansion */
+#define XSTATE_EXTEND_MASK	(~(XSTATE_FPSSE | (1ULL << 63)))
 
 #define FXSAVE_SIZE	512
 
@@ -20,10 +27,15 @@
 #define XSAVE_YMM_SIZE	    256
 #define XSAVE_YMM_OFFSET    (XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET)
 
-/*
- * These are the features that the OS can handle currently.
- */
-#define XCNTXT_MASK	(XSTATE_FP | XSTATE_SSE | XSTATE_YMM)
+/* Supported features which support lazy state saving */
+#define XSTATE_LAZY	(XSTATE_FP | XSTATE_SSE | XSTATE_YMM		      \
+			| XSTATE_OPMASK | XSTATE_ZMM_Hi256 | XSTATE_Hi16_ZMM)
+
+/* Supported features which require eager state saving */
+#define XSTATE_EAGER	(XSTATE_BNDREGS | XSTATE_BNDCSR)
+
+/* All currently supported features */
+#define XCNTXT_MASK	(XSTATE_LAZY | XSTATE_EAGER)
 
 #ifdef CONFIG_X86_64
 #define REX_PREFIX	"0x48, "

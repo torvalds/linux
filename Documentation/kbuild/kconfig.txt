@@ -20,16 +20,9 @@ symbols have been introduced.
 To see a list of new config symbols when using "make oldconfig", use
 
 	cp user/some/old.config .config
-	yes "" | make oldconfig >conf.new
+	make listnewconfig
 
-and the config program will list as (NEW) any new symbols that have
-unknown values.  Of course, the .config file is also updated with
-new (default) values, so you can use:
-
-	grep "(NEW)" conf.new
-
-to see the new config symbols or you can use diffconfig to see the
-differences between the previous and new .config files:
+and the config program will list any new symbols, one per line.
 
 	scripts/diffconfig .config.old .config | less
 

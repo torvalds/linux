@@ -30,7 +30,7 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 
 #include "common.h"
 #include "fimc-core.h"
@@ -350,14 +350,14 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 	return 0;
 }
 
-static int stop_streaming(struct vb2_queue *q)
+static void stop_streaming(struct vb2_queue *q)
 {
 	struct fimc_lite *fimc = q->drv_priv;
 
 	if (!fimc_lite_active(fimc))
-		return -EINVAL;
+		return;
 
-	return fimc_lite_stop_capture(fimc, false);
+	fimc_lite_stop_capture(fimc, false);
 }
 
 static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
@@ -546,7 +546,7 @@ static int fimc_lite_release(struct file *file)
 		mutex_unlock(&entity->parent->graph_mutex);
 	}
 
-	vb2_fop_release(file);
+	_vb2_fop_release(file, NULL);
 	pm_runtime_put(&fimc->pdev->dev);
 	clear_bit(ST_FLITE_SUSPENDED, &fimc->state);
 
@@ -1313,7 +1313,7 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct flite_buffer);
 	q->drv_priv = fimc;
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &fimc->lock;
 
 	ret = vb2_queue_init(q);
@@ -1549,42 +1549,46 @@ static int fimc_lite_probe(struct platform_device *pdev)
 			       0, dev_name(dev), fimc);
 	if (ret) {
 		dev_err(dev, "Failed to install irq (%d)\n", ret);
-		goto err_clk;
+		goto err_clk_put;
 	}
 
 	/* The video node will be created within the subdev's registered() op */
 	ret = fimc_lite_create_capture_subdev(fimc);
 	if (ret)
-		goto err_clk;
+		goto err_clk_put;
 
 	platform_set_drvdata(pdev, fimc);
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		goto err_sd;
+
+	if (!pm_runtime_enabled(dev)) {
+		ret = clk_enable(fimc->clock);
+		if (ret < 0)
+			goto err_sd;
+	}
 
 	fimc->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 	if (IS_ERR(fimc->alloc_ctx)) {
 		ret = PTR_ERR(fimc->alloc_ctx);
-		goto err_pm;
+		goto err_clk_dis;
 	}
-
-	pm_runtime_put(dev);
 
 	fimc_lite_set_default_config(fimc);
 
 	dev_dbg(dev, "FIMC-LITE.%d registered successfully\n",
 		fimc->index);
 	return 0;
-err_pm:
-	pm_runtime_put(dev);
+
+err_clk_dis:
+	if (!pm_runtime_enabled(dev))
+		clk_disable(fimc->clock);
 err_sd:
 	fimc_lite_unregister_capture_subdev(fimc);
-err_clk:
+err_clk_put:
 	fimc_lite_clk_put(fimc);
 	return ret;
 }
 
+#ifdef CONFIG_PM_RUNTIME
 static int fimc_lite_runtime_resume(struct device *dev)
 {
 	struct fimc_lite *fimc = dev_get_drvdata(dev);
@@ -1600,6 +1604,7 @@ static int fimc_lite_runtime_suspend(struct device *dev)
 	clk_disable(fimc->clock);
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int fimc_lite_resume(struct device *dev)

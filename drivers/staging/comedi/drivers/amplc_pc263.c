@@ -57,17 +57,16 @@ static const struct pc263_board pc263_boards[] = {
 
 static int pc263_do_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-		/* Write out the new digital output lines */
-		outb(s->state & 0xFF, dev->iobase);
-		outb(s->state >> 8, dev->iobase + 1);
+	if (comedi_dio_update_state(s, data)) {
+		outb(s->state & 0xff, dev->iobase);
+		outb((s->state >> 8) & 0xff, dev->iobase + 1);
 	}
+
+	data[1] = s->state;
+
 	return insn->n;
 }
 
@@ -95,8 +94,6 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* read initial relay state */
 	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
-	dev_info(dev->class_dev, "%s (base %#lx) attached\n", dev->board_name,
-		 dev->iobase);
 	return 0;
 }
 

@@ -645,11 +645,9 @@ void mconsole_sysrq(struct mc_request *req)
 
 static void stack_proc(void *arg)
 {
-	struct task_struct *from = current, *to = arg;
+	struct task_struct *task = arg;
 
-	to->thread.saved_task = from;
-	rcu_user_hooks_switch(from, to);
-	switch_to(from, to, from);
+	show_stack(task, NULL);
 }
 
 /*

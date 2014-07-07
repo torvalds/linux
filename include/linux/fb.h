@@ -47,6 +47,7 @@ struct device_node;
 
 #define FB_MISC_PRIM_COLOR	1
 #define FB_MISC_1ST_DETAIL	2	/* First Detailed Timing is preferred */
+#define FB_MISC_HDMI		4
 struct fb_chroma {
 	__u32 redx;	/* in fraction of 1024 */
 	__u32 greenx;
@@ -613,8 +614,8 @@ extern ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 extern int register_framebuffer(struct fb_info *fb_info);
 extern int unregister_framebuffer(struct fb_info *fb_info);
 extern int unlink_framebuffer(struct fb_info *fb_info);
-extern void remove_conflicting_framebuffers(struct apertures_struct *a,
-				const char *name, bool primary);
+extern int remove_conflicting_framebuffers(struct apertures_struct *a,
+					   const char *name, bool primary);
 extern int fb_prepare_logo(struct fb_info *fb_info, int rotate);
 extern int fb_show_logo(struct fb_info *fb_info, int rotate);
 extern char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size);
@@ -641,7 +642,7 @@ static inline void unlock_fb_info(struct fb_info *info)
 static inline void __fb_pad_aligned_buffer(u8 *dst, u32 d_pitch,
 					   u8 *src, u32 s_pitch, u32 height)
 {
-	int i, j;
+	u32 i, j;
 
 	d_pitch -= s_pitch;
 
@@ -791,5 +792,17 @@ extern int fb_find_mode(struct fb_var_screeninfo *var,
 			unsigned int dbsize,
 			const struct fb_videomode *default_mode,
 			unsigned int default_bpp);
+
+/* Convenience logging macros */
+#define fb_err(fb_info, fmt, ...)					\
+	pr_err("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+#define fb_notice(info, fmt, ...)					\
+	pr_notice("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+#define fb_warn(fb_info, fmt, ...)					\
+	pr_warn("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+#define fb_info(fb_info, fmt, ...)					\
+	pr_info("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+#define fb_dbg(fb_info, fmt, ...)					\
+	pr_debug("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
 
 #endif /* _LINUX_FB_H */

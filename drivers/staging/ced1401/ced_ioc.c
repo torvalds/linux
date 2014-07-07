@@ -19,7 +19,6 @@
 */
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -39,8 +38,8 @@
 ****************************************************************************/
 static void FlushOutBuff(DEVICE_EXTENSION *pdx)
 {
-	dev_dbg(&pdx->interface->dev, "%s currentState=%d", __func__,
-		pdx->sCurrentState);
+	dev_dbg(&pdx->interface->dev, "%s: currentState=%d\n",
+		__func__, pdx->sCurrentState);
 	if (pdx->sCurrentState == U14ERR_TIME)	/* Do nothing if hardware in trouble */
 		return;
 	/* Kill off any pending I/O */
@@ -60,8 +59,8 @@ static void FlushOutBuff(DEVICE_EXTENSION *pdx)
 ****************************************************************************/
 static void FlushInBuff(DEVICE_EXTENSION *pdx)
 {
-	dev_dbg(&pdx->interface->dev, "%s currentState=%d", __func__,
-		pdx->sCurrentState);
+	dev_dbg(&pdx->interface->dev, "%s: currentState=%d\n",
+		__func__, pdx->sCurrentState);
 	if (pdx->sCurrentState == U14ERR_TIME)	/* Do nothing if hardware in trouble */
 		return;
 	/* Kill off any pending I/O */
@@ -119,8 +118,8 @@ int SendString(DEVICE_EXTENSION *pdx, const char __user *pData,
 
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	if (n > 0) {		/*  do nothing if nowt to do! */
-		dev_dbg(&pdx->interface->dev, "%s n=%d>%s<", __func__, n,
-			buffer);
+		dev_dbg(&pdx->interface->dev, "%s: n=%d>%s<\n",
+			__func__, n, buffer);
 		iReturn = PutChars(pdx, buffer, n);
 	}
 
@@ -140,7 +139,7 @@ int SendChar(DEVICE_EXTENSION *pdx, char c)
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	iReturn = PutChars(pdx, &c, 1);
-	dev_dbg(&pdx->interface->dev, "SendChar >%c< (0x%02x)", c, c);
+	dev_dbg(&pdx->interface->dev, "SendChar >%c< (0x%02x)\n", c, c);
 	Allowi(pdx);	/*  Make sure char reads are running */
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
@@ -175,7 +174,7 @@ int SendChar(DEVICE_EXTENSION *pdx, char c)
 int Get1401State(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error)
 {
 	int nGot;
-	dev_dbg(&pdx->interface->dev, "Get1401State() entry");
+	dev_dbg(&pdx->interface->dev, "%s: entry\n", __func__);
 
 	*state = 0xFFFFFFFF;	/*  Start off with invalid state */
 	nGot = usb_control_msg(pdx->udev, usb_rcvctrlpipe(pdx->udev, 0),
@@ -183,15 +182,15 @@ int Get1401State(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error)
 			       pdx->statBuf, sizeof(pdx->statBuf), HZ);
 	if (nGot != sizeof(pdx->statBuf)) {
 		dev_err(&pdx->interface->dev,
-			"Get1401State() FAILED, return code %d", nGot);
+			"%s: FAILED, return code %d\n", __func__, nGot);
 		pdx->sCurrentState = U14ERR_TIME;	/*  Indicate that things are very wrong indeed */
 		*state = 0;	/*  Force status values to a known state */
 		*error = 0;
 	} else {
 		int nDevice;
 		dev_dbg(&pdx->interface->dev,
-			"Get1401State() Success, state: 0x%x, 0x%x",
-			pdx->statBuf[0], pdx->statBuf[1]);
+			"%s: Success, state: 0x%x, 0x%x\n",
+			__func__, pdx->statBuf[0], pdx->statBuf[1]);
 
 		*state = pdx->statBuf[0];	/*  Return the state values to the calling code */
 		*error = pdx->statBuf[1];
@@ -221,8 +220,8 @@ int Get1401State(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error)
 ****************************************************************************/
 int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
 {
-	dev_dbg(&pdx->interface->dev, "ReadWrite_Cancel entry %d",
-		pdx->bStagedUrbPending);
+	dev_dbg(&pdx->interface->dev, "%s: entry %d\n",
+		__func__, pdx->bStagedUrbPending);
 #ifdef NOT_WRITTEN_YET
 	int ntStatus = STATUS_SUCCESS;
 	bool bResult = false;
@@ -232,7 +231,7 @@ int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
 
 	if (pdx->bStagedUrbPending) {	/*  anything to be cancelled? May need more... */
 		dev_info(&pdx->interface - dev,
-			 "ReadWrite_Cancel about to cancel Urb");
+			 "ReadWrite_Cancel about to cancel Urb\n");
 		/* Clear the staging done flag */
 		/* KeClearEvent(&pdx->StagingDoneEvent); */
 		USB_ASSERT(pdx->pStagedIrp != NULL);
@@ -245,14 +244,14 @@ int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
 			LARGE_INTEGER timeout;
 			timeout.QuadPart = -10000000;	/*  Use a timeout of 1 second */
 			dev_info(&pdx->interface - dev,
-				 "ReadWrite_Cancel about to wait till done");
+				 "%s: about to wait till done\n", __func__);
 			ntStatus =
 			    KeWaitForSingleObject(&pdx->StagingDoneEvent,
 						  Executive, KernelMode, FALSE,
 						  &timeout);
 		} else {
 			dev_info(&pdx->interface - dev,
-				 "ReadWrite_Cancel, cancellation failed");
+				 "%s: cancellation failed\n", __func__);
 			ntStatus = U14ERR_FAIL;
 		}
 		USB_KdPrint(DBGLVL_DEFAULT,
@@ -261,7 +260,7 @@ int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
 	} else
 		spin_unlock_irq(&pdx->stagedLock);
 
-	dev_info(&pdx->interface - dev, "ReadWrite_Cancel  done");
+	dev_info(&pdx->interface - dev, "%s: done\n", __func__);
 	return ntStatus;
 #else
 	return U14ERR_NOERROR;
@@ -305,7 +304,7 @@ static int InSelfTest(DEVICE_EXTENSION *pdx, unsigned int *pState)
 bool Is1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	ced_draw_down(pdx);	/*  wait for, then kill outstanding Urbs */
 	FlushInBuff(pdx);	/*  Clear out input buffer & pipe */
@@ -369,7 +368,7 @@ bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 		      (pdx->sCurrentState >= U14ERR_STD));	/*  No 1401 errors stored */
 
 	dev_dbg(&pdx->interface->dev,
-		"%s DMAFlag:%d, state:%d, force:%d, testBuff:%d, short:%d",
+		"%s: DMAFlag:%d, state:%d, force:%d, testBuff:%d, short:%d\n",
 		__func__, pdx->dwDMAFlag, pdx->sCurrentState, pdx->bForceReset,
 		bTestBuff, bShortTest);
 
@@ -377,13 +376,13 @@ bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 	    (pdx->dwNumInput || pdx->dwNumOutput)) {	/*  ...characters were in the buffer? */
 		bShortTest = false;	/*  Then do the full test */
 		dev_dbg(&pdx->interface->dev,
-			"%s will reset as buffers not empty", __func__);
+			"%s: will reset as buffers not empty\n", __func__);
 	}
 
 	if (bShortTest || !bCanReset) {	/*  Still OK to try the short test? */
 				/*  Always test if no reset - we want state update */
 		unsigned int state, error;
-		dev_dbg(&pdx->interface->dev, "%s->Get1401State", __func__);
+		dev_dbg(&pdx->interface->dev, "%s: Get1401State\n", __func__);
 		if (Get1401State(pdx, &state, &error) == U14ERR_NOERROR) {	/*  Check on the 1401 state */
 			if ((state & 0xFF) == 0)	/*  If call worked, check the status value */
 				bRet = true;	/*  If that was zero, all is OK, no reset needed */
@@ -391,7 +390,7 @@ bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 	}
 
 	if (!bRet && bCanReset)	{ /*  If all not OK, then */
-		dev_info(&pdx->interface->dev, "%s->Is1401 %d %d %d %d",
+		dev_info(&pdx->interface->dev, "%s: Is1401 %d %d %d %d\n",
 			 __func__, bShortTest, pdx->sCurrentState, bTestBuff,
 			 pdx->bForceReset);
 		bRet = Is1401(pdx);	/*   do full test */
@@ -408,7 +407,8 @@ bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 int Reset1401(DEVICE_EXTENSION *pdx)
 {
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
-	dev_dbg(&pdx->interface->dev, "ABout to call QuickCheck");
+	dev_dbg(&pdx->interface->dev, "%s: About to call QuickCheck\n",
+		__func__);
 	QuickCheck(pdx, true, true);	/*  Check 1401, reset if not OK */
 	mutex_unlock(&pdx->io_mutex);
 	return U14ERR_NOERROR;
@@ -424,7 +424,7 @@ int GetChar(DEVICE_EXTENSION *pdx)
 	int iReturn = U14ERR_NOIN;	/*  assume we will get  nothing */
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 
-	dev_dbg(&pdx->interface->dev, "GetChar");
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	Allowi(pdx);	/*  Make sure char reads are running */
 	SendChars(pdx);	/*  and send any buffered chars */
@@ -498,8 +498,8 @@ int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
 		pdx->dwNumInput -= nGot;
 		spin_unlock_irq(&pdx->charInLock);
 
-		dev_dbg(&pdx->interface->dev,
-			"GetString read %d characters >%s<", nGot, buffer);
+		dev_dbg(&pdx->interface->dev, "%s: read %d characters >%s<\n",
+			__func__, nGot, buffer);
 		if (copy_to_user(pUser, buffer, nCopyToUser))
 			iReturn = -EFAULT;
 		else
@@ -556,7 +556,7 @@ int LineCount(DEVICE_EXTENSION *pdx)
 	}
 
 	spin_unlock_irq(&pdx->charInLock);
-	dev_dbg(&pdx->interface->dev, "LineCount returned %d", iReturn);
+	dev_dbg(&pdx->interface->dev, "%s: returned %d\n", __func__, iReturn);
 	mutex_unlock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	return iReturn;
 }
@@ -572,7 +572,7 @@ int GetOutBufSpace(DEVICE_EXTENSION *pdx)
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	SendChars(pdx);		/*  send any buffered chars */
 	iReturn = (int)(OUTBUF_SZ - pdx->dwNumOutput);	/*  no lock needed for single read */
-	dev_dbg(&pdx->interface->dev, "OutBufSpace %d", iReturn);
+	dev_dbg(&pdx->interface->dev, "%s: %d\n", __func__, iReturn);
 	mutex_unlock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	return iReturn;
 }
@@ -590,7 +590,7 @@ int ClearArea(DEVICE_EXTENSION *pdx, int nArea)
 
 	if ((nArea < 0) || (nArea >= MAX_TRANSAREAS)) {
 		iReturn = U14ERR_BADAREA;
-		dev_err(&pdx->interface->dev, "%s Attempt to clear area %d",
+		dev_err(&pdx->interface->dev, "%s: Attempt to clear area %d\n",
 			__func__, nArea);
 	} else {
 		TRANSAREA *pTA = &pdx->rTransDef[nArea];	/*  to save typing */
@@ -603,14 +603,14 @@ int ClearArea(DEVICE_EXTENSION *pdx, int nArea)
 			int nPages = 0;	/*  and number of pages */
 			int np;
 
-			dev_dbg(&pdx->interface->dev, "%s area %d", __func__,
-				nArea);
+			dev_dbg(&pdx->interface->dev, "%s: area %d\n",
+				__func__, nArea);
 			spin_lock_irq(&pdx->stagedLock);
 			if ((pdx->StagedId == nArea)
 			    && (pdx->dwDMAFlag > MODE_CHAR)) {
 				iReturn = U14ERR_UNLOCKFAIL;	/*  cannot delete as in use */
 				dev_err(&pdx->interface->dev,
-					"%s call on area %d while active",
+					"%s: call on area %d while active\n",
 					__func__, nArea);
 			} else {
 				pPages = pTA->pPages;	/*  save page address list */
@@ -630,11 +630,11 @@ int ClearArea(DEVICE_EXTENSION *pdx, int nArea)
 			}
 			spin_unlock_irq(&pdx->stagedLock);
 
-			if (pPages) { 	/*  if we decided to release the memory */
+			if (pPages) {	/*  if we decided to release the memory */
 				/*  Now we must undo the pinning down of the pages. We will assume the worst and mark */
 				/*  all the pages as dirty. Don't be tempted to move this up above as you must not be */
 				/*  holding a spin lock to do this stuff as it is not atomic. */
-				dev_dbg(&pdx->interface->dev, "%s nPages=%d",
+				dev_dbg(&pdx->interface->dev, "%s: nPages=%d\n",
 					__func__, nPages);
 
 				for (np = 0; np < nPages; ++np) {
@@ -646,7 +646,7 @@ int ClearArea(DEVICE_EXTENSION *pdx, int nArea)
 
 				kfree(pPages);
 				dev_dbg(&pdx->interface->dev,
-					"%s kfree(pPages) done", __func__);
+					"%s: kfree(pPages) done\n", __func__);
 			}
 		}
 	}
@@ -688,15 +688,12 @@ static int SetArea(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 		iReturn = U14ERR_NOMEMORY;
 		goto error;
 	}
-	dev_dbg(&pdx->interface->dev, "%s %p, length=%06x, circular %d",
+	dev_dbg(&pdx->interface->dev, "%s: %p, length=%06x, circular %d\n",
 		__func__, puBuf, dwLength, bCircular);
 
 	/*  To pin down user pages we must first acquire the mapping semaphore. */
-	down_read(&current->mm->mmap_sem);	/*  get memory map semaphore */
-	nPages = get_user_pages(current, current->mm, ulStart, len, 1, 0,
-				pPages, NULL);
-	up_read(&current->mm->mmap_sem);	/*  release the semaphore */
-	dev_dbg(&pdx->interface->dev, "%s nPages = %d", __func__, nPages);
+	nPages = get_user_pages_fast(ulStart, len, 1, pPages);
+	dev_dbg(&pdx->interface->dev, "%s: nPages = %d\n", __func__, nPages);
 
 	if (nPages > 0) {		/*  if we succeeded */
 		/*  If you are tempted to use page_address (form LDD3), forget it. You MUST use */
@@ -739,17 +736,17 @@ error:
 ** unset it. Unsetting will fail if the area is booked, and a transfer to that
 ** area is in progress. Otherwise, we will release the area and re-assign it.
 ****************************************************************************/
-int SetTransfer(DEVICE_EXTENSION *pdx, TRANSFERDESC __user *pTD)
+int SetTransfer(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD)
 {
 	int iReturn;
-	TRANSFERDESC td;
+	struct transfer_area_desc td;
 
 	if (copy_from_user(&td, pTD, sizeof(td)))
 		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s area:%d, size:%08x", __func__,
-		td.wAreaNum, td.dwLength);
+	dev_dbg(&pdx->interface->dev, "%s: area:%d, size:%08x\n",
+		__func__, td.wAreaNum, td.dwLength);
 	/*  The strange cast is done so that we don't get warnings in 32-bit linux about the size of the */
 	/*  pointer. The pointer is always passed as a 64-bit object so that we don't have problems using */
 	/*  a 32-bit program on a 64-bit system. unsigned long is 64-bits on a 64-bit system. */
@@ -782,10 +779,10 @@ int UnsetTransfer(DEVICE_EXTENSION *pdx, int nArea)
 ** pretend that whatever the user asked for was achieved, so we return 1 if
 ** try to create one, and 0 if they ask to remove (assuming all else was OK).
 ****************************************************************************/
-int SetEvent(DEVICE_EXTENSION *pdx, TRANSFEREVENT __user *pTE)
+int SetEvent(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE)
 {
 	int iReturn = U14ERR_NOERROR;
-	TRANSFEREVENT te;
+	struct transfer_event te;
 
 	/*  get a local copy of the data */
 	if (copy_from_user(&te, pTE, sizeof(te)))
@@ -926,7 +923,7 @@ int GetTransfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pTX)
 ****************************************************************************/
 int KillIO1401(DEVICE_EXTENSION *pdx)
 {
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 	mutex_lock(&pdx->io_mutex);
 	FlushOutBuff(pdx);
 	FlushInBuff(pdx);
@@ -942,7 +939,7 @@ int KillIO1401(DEVICE_EXTENSION *pdx)
 int BlkTransState(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = pdx->dwDMAFlag != MODE_CHAR;
-	dev_dbg(&pdx->interface->dev, "%s = %d", __func__, iReturn);
+	dev_dbg(&pdx->interface->dev, "%s: %d\n", __func__, iReturn);
 	return iReturn;
 }
 
@@ -960,7 +957,7 @@ int StateOf1401(DEVICE_EXTENSION *pdx)
 	iReturn = pdx->sCurrentState;
 
 	mutex_unlock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s = %d", __func__, iReturn);
+	dev_dbg(&pdx->interface->dev, "%s: %d\n", __func__, iReturn);
 
 	return iReturn;
 }
@@ -975,7 +972,7 @@ int StartSelfTest(DEVICE_EXTENSION *pdx)
 {
 	int nGot;
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	ced_draw_down(pdx);	/*  wait for, then kill outstanding Urbs */
 	FlushInBuff(pdx);	/*  Clear out input buffer & pipe */
@@ -991,7 +988,7 @@ int StartSelfTest(DEVICE_EXTENSION *pdx)
 
 	mutex_unlock(&pdx->io_mutex);
 	if (nGot < 0)
-		dev_err(&pdx->interface->dev, "%s err=%d", __func__, nGot);
+		dev_err(&pdx->interface->dev, "%s: err=%d\n", __func__, nGot);
 	return nGot < 0 ? U14ERR_FAIL : U14ERR_NOERROR;
 }
 
@@ -1009,7 +1006,7 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 
 	mutex_lock(&pdx->io_mutex);
 
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 	iReturn = Get1401State(pdx, &state, &error);
 	if (iReturn == U14ERR_NOERROR)	/*  Only accept zero if it happens twice */
 		iReturn = Get1401State(pdx, &state, &error);
@@ -1017,8 +1014,8 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 	if (iReturn != U14ERR_NOERROR) {	/*  Self-test can cause comms errors */
 				/*  so we assume still testing */
 		dev_err(&pdx->interface->dev,
-			"%s Get1401State=%d, assuming still testing", __func__,
-			iReturn);
+			"%s: Get1401State=%d, assuming still testing\n",
+			__func__, iReturn);
 		state = 0x80;	/*  Force still-testing, no error */
 		error = 0;
 		iReturn = U14ERR_NOERROR;
@@ -1026,7 +1023,7 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 
 	if ((state == -1) && (error == -1)) {	/*  If Get1401State had problems */
 		dev_err(&pdx->interface->dev,
-			"%s Get1401State failed, assuming still testing",
+			"%s: Get1401State failed, assuming still testing\n",
 			__func__);
 		state = 0x80;	/*  Force still-testing, no error */
 		error = 0;
@@ -1037,21 +1034,21 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 			gst.code = (state & 0x00FF0000) >> 16;	/*  read the error code */
 			gst.x = error & 0x0000FFFF;	/*  Error data X */
 			gst.y = (error & 0xFFFF0000) >> 16;	/*  and data Y */
-			dev_dbg(&pdx->interface->dev, "Self-test error code %d",
-				gst.code);
+			dev_dbg(&pdx->interface->dev,
+				"Self-test error code %d\n", gst.code);
 		} else {		/*  No error, check for timeout */
 			unsigned long ulNow = jiffies;	/*  get current time */
 			if (time_after(ulNow, pdx->ulSelfTestTime)) {
 				gst.code = -2;	/*  Flag the timeout */
 				dev_dbg(&pdx->interface->dev,
-					"Self-test timed-out");
+					"Self-test timed-out\n");
 			} else
 				dev_dbg(&pdx->interface->dev,
-					"Self-test on-going");
+					"Self-test on-going\n");
 		}
 	} else {
 		gst.code = -1;	/*  Flag the test is done */
-		dev_dbg(&pdx->interface->dev, "Self-test done");
+		dev_dbg(&pdx->interface->dev, "Self-test done\n");
 	}
 
 	if (gst.code < 0) {	/*  If we have a problem or finished */
@@ -1078,7 +1075,7 @@ int TypeOf1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = TYPEUNKNOWN;
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	switch (pdx->s1401Type) {
 	case TYPE1401:
@@ -1096,7 +1093,7 @@ int TypeOf1401(DEVICE_EXTENSION *pdx)
 		else		/*   for up-coming 1401 designs */
 			iReturn = TYPEUNKNOWN;	/*  Don't know or not there */
 	}
-	dev_dbg(&pdx->interface->dev, "%s %d", __func__, iReturn);
+	dev_dbg(&pdx->interface->dev, "%s %d\n", __func__, iReturn);
 	mutex_unlock(&pdx->io_mutex);
 
 	return iReturn;
@@ -1111,7 +1108,7 @@ int TransferFlags(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14TF_MULTIA | U14TF_DIAG |	/*  we always have multiple DMA area */
 	    U14TF_NOTIFY | U14TF_CIRCTH;	/*  diagnostics, notify and circular */
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 	mutex_lock(&pdx->io_mutex);
 	if (pdx->bIsUSB2)	/*  Set flag for USB2 if appropriate */
 		iReturn |= U14TF_USB2;
@@ -1129,15 +1126,15 @@ static int DbgCmd1401(DEVICE_EXTENSION *pdx, unsigned char cmd,
 		      unsigned int data)
 {
 	int iReturn;
-	dev_dbg(&pdx->interface->dev, "%s entry", __func__);
+	dev_dbg(&pdx->interface->dev, "%s: entry\n", __func__);
 	iReturn = usb_control_msg(pdx->udev, usb_sndctrlpipe(pdx->udev, 0), cmd,
 				  (H_TO_D | VENDOR | DEVREQ),
 				  (unsigned short)data,
 				  (unsigned short)(data >> 16), NULL, 0, HZ);
 						/* allow 1 second timeout */
 	if (iReturn < 0)
-		dev_err(&pdx->interface->dev, "%s fail code=%d", __func__,
-			iReturn);
+		dev_err(&pdx->interface->dev, "%s: fail code=%d\n",
+			__func__, iReturn);
 
 	return iReturn;
 }
@@ -1156,7 +1153,7 @@ int DbgPeek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s @ %08x", __func__, db.iAddr);
+	dev_dbg(&pdx->interface->dev, "%s: @ %08x\n", __func__, db.iAddr);
 
 	iReturn = DbgCmd1401(pdx, DB_SETADD, db.iAddr);
 	if (iReturn == U14ERR_NOERROR)
@@ -1185,7 +1182,7 @@ int DbgPoke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s @ %08x", __func__, db.iAddr);
+	dev_dbg(&pdx->interface->dev, "%s: @ %08x\n", __func__, db.iAddr);
 
 	iReturn = DbgCmd1401(pdx, DB_SETADD, db.iAddr);
 	if (iReturn == U14ERR_NOERROR)
@@ -1214,7 +1211,7 @@ int DbgRampData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s @ %08x", __func__, db.iAddr);
+	dev_dbg(&pdx->interface->dev, "%s: @ %08x\n", __func__, db.iAddr);
 
 	iReturn = DbgCmd1401(pdx, DB_SETADD, db.iAddr);
 	if (iReturn == U14ERR_NOERROR)
@@ -1246,7 +1243,7 @@ int DbgRampAddr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	iReturn = DbgCmd1401(pdx, DB_SETDEF, db.iDefault);
 	if (iReturn == U14ERR_NOERROR)
@@ -1274,7 +1271,7 @@ int DbgGetData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 	memset(&db, 0, sizeof(db));	/*  fill returned block with 0s */
 
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	/*  Read back the last peeked value from the 1401. */
 	iReturn = usb_control_msg(pdx->udev, usb_rcvctrlpipe(pdx->udev, 0),
@@ -1286,8 +1283,8 @@ int DbgGetData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 		else
 			iReturn = U14ERR_NOERROR;
 	} else
-		dev_err(&pdx->interface->dev, "%s failed, code %d", __func__,
-			iReturn);
+		dev_err(&pdx->interface->dev, "%s: failed, code %d\n",
+			__func__, iReturn);
 
 	mutex_unlock(&pdx->io_mutex);
 
@@ -1306,7 +1303,7 @@ int DbgStopLoop(DEVICE_EXTENSION *pdx)
 	unsigned int uState, uErr;
 
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 	iReturn = Get1401State(pdx, &uState, &uErr);
 	mutex_unlock(&pdx->io_mutex);
 
@@ -1321,18 +1318,18 @@ int DbgStopLoop(DEVICE_EXTENSION *pdx)
 ** booked and a transfer to that area is in progress. Otherwise, we will
 ** release the area and re-assign it.
 ****************************************************************************/
-int SetCircular(DEVICE_EXTENSION *pdx, TRANSFERDESC __user *pTD)
+int SetCircular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD)
 {
 	int iReturn;
 	bool bToHost;
-	TRANSFERDESC td;
+	struct transfer_area_desc td;
 
 	if (copy_from_user(&td, pTD, sizeof(td)))
 		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
-	dev_dbg(&pdx->interface->dev, "%s area:%d, size:%08x", __func__,
-		td.wAreaNum, td.dwLength);
+	dev_dbg(&pdx->interface->dev, "%s: area:%d, size:%08x\n",
+		__func__, td.wAreaNum, td.dwLength);
 	bToHost = td.eSize != 0;	/*  this is used as the tohost flag */
 
 	/*  The strange cast is done so that we don't get warnings in 32-bit linux about the size of the */
@@ -1357,7 +1354,7 @@ int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 	unsigned int nArea;
 	TCIRCBLOCK cb;
 
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	if (copy_from_user(&cb, pCB, sizeof(cb)))
 		return -EFAULT;
@@ -1378,7 +1375,7 @@ int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 				cb.dwOffset = pArea->aBlocks[0].dwOffset;
 				cb.dwSize = pArea->aBlocks[0].dwSize;
 				dev_dbg(&pdx->interface->dev,
-					"%s return block 0: %d bytes at %d",
+					"%s: return block 0: %d bytes at %d\n",
 					__func__, cb.dwSize, cb.dwOffset);
 			}
 		} else
@@ -1406,7 +1403,7 @@ int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 	unsigned int nArea, uStart, uSize;
 	TCIRCBLOCK cb;
 
-	dev_dbg(&pdx->interface->dev, "%s", __func__);
+	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	if (copy_from_user(&cb, pCB, sizeof(cb)))
 		return -EFAULT;
@@ -1441,7 +1438,7 @@ int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 				}
 
 				dev_dbg(&pdx->interface->dev,
-					"%s free %d bytes at %d, return %d bytes at %d, wait=%d",
+					"%s: free %d bytes at %d, return %d bytes at %d, wait=%d\n",
 					__func__, uSize, uStart,
 					pArea->aBlocks[0].dwSize,
 					pArea->aBlocks[0].dwOffset,
@@ -1457,13 +1454,13 @@ int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 				bWaiting = pdx->bXFerWaiting;
 				if (bWaiting && pdx->bStagedUrbPending) {
 					dev_err(&pdx->interface->dev,
-						"%s ERROR: waiting xfer and staged Urb pending!",
+						"%s: ERROR: waiting xfer and staged Urb pending!\n",
 						__func__);
 					bWaiting = false;
 				}
 			} else {
 				dev_err(&pdx->interface->dev,
-					"%s ERROR: freeing %d bytes at %d, block 0 is %d bytes at %d",
+					"%s: ERROR: freeing %d bytes at %d, block 0 is %d bytes at %d\n",
 					__func__, uSize, uStart,
 					pArea->aBlocks[0].dwSize,
 					pArea->aBlocks[0].dwOffset);
@@ -1479,7 +1476,7 @@ int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 						 pdx->rDMAInfo.dwSize);
 				if (RWMStat != U14ERR_NOERROR)
 					dev_err(&pdx->interface->dev,
-						"%s rw setup failed %d",
+						"%s: rw setup failed %d\n",
 						__func__, RWMStat);
 			}
 		} else

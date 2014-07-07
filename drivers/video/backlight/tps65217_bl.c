@@ -200,7 +200,6 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		dev_err(&pdev->dev, "failed to allocate platform data\n");
 		err = ERR_PTR(-ENOMEM);
 		goto err;
 	}
@@ -287,20 +286,17 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
 	} else {
-		if (!pdev->dev.platform_data) {
+		pdata = dev_get_platdata(&pdev->dev);
+		if (!pdata) {
 			dev_err(&pdev->dev, "no platform data provided\n");
 			return -EINVAL;
 		}
-
-		pdata = pdev->dev.platform_data;
 	}
 
 	tps65217_bl = devm_kzalloc(&pdev->dev, sizeof(*tps65217_bl),
 				GFP_KERNEL);
-	if (tps65217_bl == NULL) {
-		dev_err(&pdev->dev, "allocation of struct tps65217_bl failed\n");
+	if (tps65217_bl == NULL)
 		return -ENOMEM;
-	}
 
 	tps65217_bl->tps = tps;
 	tps65217_bl->dev = &pdev->dev;
@@ -314,7 +310,7 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 	bl_props.type = BACKLIGHT_RAW;
 	bl_props.max_brightness = 100;
 
-	tps65217_bl->bl = backlight_device_register(pdev->name,
+	tps65217_bl->bl = devm_backlight_device_register(&pdev->dev, pdev->name,
 						tps65217_bl->dev, tps65217_bl,
 						&tps65217_bl_ops, &bl_props);
 	if (IS_ERR(tps65217_bl->bl)) {
@@ -330,18 +326,8 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tps65217_bl_remove(struct platform_device *pdev)
-{
-	struct tps65217_bl *tps65217_bl = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(tps65217_bl->bl);
-
-	return 0;
-}
-
 static struct platform_driver tps65217_bl_driver = {
 	.probe		= tps65217_bl_probe,
-	.remove		= tps65217_bl_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "tps65217-bl",

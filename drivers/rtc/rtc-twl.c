@@ -479,7 +479,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
 	u8 rd_reg;
 
 	if (irq <= 0)
-		goto out1;
+		return ret;
 
 	/* Initialize the register map */
 	if (twl_class_is_4030())
@@ -489,7 +489,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
 
 	ret = twl_rtc_read_u8(&rd_reg, REG_RTC_STATUS_REG);
 	if (ret < 0)
-		goto out1;
+		return ret;
 
 	if (rd_reg & BIT_RTC_STATUS_REG_POWER_UP_M)
 		dev_warn(&pdev->dev, "Power up reset detected.\n");
@@ -500,7 +500,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
 	/* Clear RTC Power up reset and pending alarm interrupts */
 	ret = twl_rtc_write_u8(rd_reg, REG_RTC_STATUS_REG);
 	if (ret < 0)
-		goto out1;
+		return ret;
 
 	if (twl_class_is_6030()) {
 		twl6030_interrupt_unmask(TWL6030_RTC_INT_MASK,
@@ -512,7 +512,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Enabling TWL-RTC\n");
 	ret = twl_rtc_write_u8(BIT_RTC_CTRL_REG_STOP_RTC_M, REG_RTC_CTRL_REG);
 	if (ret < 0)
-		goto out1;
+		return ret;
 
 	/* ensure interrupts are disabled, bootloaders can be strange */
 	ret = twl_rtc_write_u8(0, REG_RTC_INTERRUPTS_REG);
@@ -522,34 +522,29 @@ static int twl_rtc_probe(struct platform_device *pdev)
 	/* init cached IRQ enable bits */
 	ret = twl_rtc_read_u8(&rtc_irq_bits, REG_RTC_INTERRUPTS_REG);
 	if (ret < 0)
-		goto out1;
+		return ret;
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	rtc = rtc_device_register(pdev->name,
-				  &pdev->dev, &twl_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+					&twl_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
 		dev_err(&pdev->dev, "can't register RTC device, err %ld\n",
 			PTR_ERR(rtc));
-		goto out1;
+		return PTR_ERR(rtc);
 	}
 
-	ret = request_threaded_irq(irq, NULL, twl_rtc_interrupt,
-				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				   dev_name(&rtc->dev), rtc);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+					twl_rtc_interrupt,
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					dev_name(&rtc->dev), rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "IRQ is not free.\n");
-		goto out2;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, rtc);
 	return 0;
-
-out2:
-	rtc_device_unregister(rtc);
-out1:
-	return ret;
 }
 
 /*
@@ -559,9 +554,6 @@ out1:
 static int twl_rtc_remove(struct platform_device *pdev)
 {
 	/* leave rtc running, but disable irqs */
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	int irq = platform_get_irq(pdev, 0);
-
 	mask_rtc_irq_bit(BIT_RTC_INTERRUPTS_REG_IT_ALARM_M);
 	mask_rtc_irq_bit(BIT_RTC_INTERRUPTS_REG_IT_TIMER_M);
 	if (twl_class_is_6030()) {
@@ -571,10 +563,6 @@ static int twl_rtc_remove(struct platform_device *pdev)
 			REG_INT_MSK_STS_A);
 	}
 
-
-	free_irq(irq, rtc);
-
-	rtc_device_unregister(rtc);
 	return 0;
 }
 

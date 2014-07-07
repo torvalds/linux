@@ -86,6 +86,47 @@ static bool channel_used(struct drm_device *dev, enum omap_channel channel)
 
 	return false;
 }
+static void omap_disconnect_dssdevs(void)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev)
+		dssdev->driver->disconnect(dssdev);
+}
+
+static int omap_connect_dssdevs(void)
+{
+	int r;
+	struct omap_dss_device *dssdev = NULL;
+	bool no_displays = true;
+
+	for_each_dss_dev(dssdev) {
+		r = dssdev->driver->connect(dssdev);
+		if (r == -EPROBE_DEFER) {
+			omap_dss_put_device(dssdev);
+			goto cleanup;
+		} else if (r) {
+			dev_warn(dssdev->dev, "could not connect display: %s\n",
+				dssdev->name);
+		} else {
+			no_displays = false;
+		}
+	}
+
+	if (no_displays)
+		return -EPROBE_DEFER;
+
+	return 0;
+
+cleanup:
+	/*
+	 * if we are deferring probe, we disconnect the devices we previously
+	 * connected
+	 */
+	omap_disconnect_dssdevs();
+
+	return r;
+}
 
 static int omap_modeset_init(struct drm_device *dev)
 {
@@ -95,9 +136,6 @@ static int omap_modeset_init(struct drm_device *dev)
 	int num_mgrs = dss_feat_get_num_mgrs();
 	int num_crtcs;
 	int i, id = 0;
-	int r;
-
-	omap_crtc_pre_init();
 
 	drm_mode_config_init(dev);
 
@@ -119,26 +157,8 @@ static int omap_modeset_init(struct drm_device *dev)
 		enum omap_channel channel;
 		struct omap_overlay_manager *mgr;
 
-		if (!dssdev->driver) {
-			dev_warn(dev->dev, "%s has no driver.. skipping it\n",
-					dssdev->name);
+		if (!omapdss_device_is_connected(dssdev))
 			continue;
-		}
-
-		if (!(dssdev->driver->get_timings ||
-					dssdev->driver->read_edid)) {
-			dev_warn(dev->dev, "%s driver does not support "
-				"get_timings or read_edid.. skipping it!\n",
-				dssdev->name);
-			continue;
-		}
-
-		r = dssdev->driver->connect(dssdev);
-		if (r) {
-			dev_err(dev->dev, "could not connect display: %s\n",
-					dssdev->name);
-			continue;
-		}
 
 		encoder = omap_encoder_init(dev, dssdev);
 
@@ -493,19 +513,25 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 static int dev_unload(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
+	int i;
 
 	DBG("unload: dev=%p", dev);
 
 	drm_kms_helper_poll_fini(dev);
-	drm_vblank_cleanup(dev);
-	omap_drm_irq_uninstall(dev);
 
 	omap_fbdev_free(dev);
+
+	/* flush crtcs so the fbs get released */
+	for (i = 0; i < priv->num_crtcs; i++)
+		omap_crtc_flush(priv->crtcs[i]);
+
 	omap_modeset_free(dev);
 	omap_gem_deinit(dev);
 
-	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
+
+	drm_vblank_cleanup(dev);
+	omap_drm_irq_uninstall(dev);
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
@@ -562,9 +588,7 @@ static void dev_lastclose(struct drm_device *dev)
 		}
 	}
 
-	drm_modeset_lock_all(dev);
-	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
-	drm_modeset_unlock_all(dev);
+	ret = drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
 	if (ret)
 		DBG("failed to restore crtc mode");
 }
@@ -620,7 +644,6 @@ static struct drm_driver omap_drm_driver = {
 		.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 		.gem_prime_export = omap_gem_prime_export,
 		.gem_prime_import = omap_gem_prime_import,
-		.gem_init_object = omap_gem_init_object,
 		.gem_free_object = omap_gem_free_object,
 		.gem_vm_ops = &omap_gem_vm_ops,
 		.dumb_create = omap_gem_dumb_create,
@@ -656,8 +679,18 @@ static void pdev_shutdown(struct platform_device *device)
 
 static int pdev_probe(struct platform_device *device)
 {
+	int r;
+
 	if (omapdss_is_initialized() == false)
 		return -EPROBE_DEFER;
+
+	omap_crtc_pre_init();
+
+	r = omap_connect_dssdevs();
+	if (r) {
+		omap_crtc_pre_uninit();
+		return r;
+	}
 
 	DBG("%s", device->name);
 	return drm_platform_init(&omap_drm_driver, device);
@@ -666,9 +699,12 @@ static int pdev_probe(struct platform_device *device)
 static int pdev_remove(struct platform_device *device)
 {
 	DBG("");
-	drm_platform_exit(&omap_drm_driver, device);
 
-	platform_driver_unregister(&omap_dmm_driver);
+	drm_put_dev(platform_get_drvdata(device));
+
+	omap_disconnect_dssdevs();
+	omap_crtc_pre_uninit();
+
 	return 0;
 }
 
@@ -695,18 +731,33 @@ static struct platform_driver pdev = {
 
 static int __init omap_drm_init(void)
 {
+	int r;
+
 	DBG("init");
-	if (platform_driver_register(&omap_dmm_driver)) {
-		/* we can continue on without DMM.. so not fatal */
-		dev_err(NULL, "DMM registration failed\n");
+
+	r = platform_driver_register(&omap_dmm_driver);
+	if (r) {
+		pr_err("DMM driver registration failed\n");
+		return r;
 	}
-	return platform_driver_register(&pdev);
+
+	r = platform_driver_register(&pdev);
+	if (r) {
+		pr_err("omapdrm driver registration failed\n");
+		platform_driver_unregister(&omap_dmm_driver);
+		return r;
+	}
+
+	return 0;
 }
 
 static void __exit omap_drm_fini(void)
 {
 	DBG("fini");
+
 	platform_driver_unregister(&pdev);
+
+	platform_driver_unregister(&omap_dmm_driver);
 }
 
 /* need late_initcall() so we load after dss_driver's are loaded */

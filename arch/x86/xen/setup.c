@@ -34,7 +34,7 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 #ifdef CONFIG_X86_64
-extern const char nmi[];
+extern asmlinkage void nmi(void);
 #endif
 extern void xen_sysenter_target(void);
 extern void xen_syscall_target(void);
@@ -85,10 +85,10 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 	for (pfn = PFN_DOWN(start); pfn < xen_max_p2m_pfn; pfn++) {
 		unsigned long mfn = pfn_to_mfn(pfn);
 
-		if (WARN(mfn == pfn, "Trying to over-write 1-1 mapping (pfn: %lx)\n", pfn))
+		if (WARN_ONCE(mfn == pfn, "Trying to over-write 1-1 mapping (pfn: %lx)\n", pfn))
 			continue;
-		WARN(mfn != INVALID_P2M_ENTRY, "Trying to remove %lx which has %lx mfn!\n",
-			pfn, mfn);
+		WARN_ONCE(mfn != INVALID_P2M_ENTRY, "Trying to remove %lx which has %lx mfn!\n",
+			  pfn, mfn);
 
 		__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 	}
@@ -451,6 +451,15 @@ char * __init xen_memory_setup(void)
 	}
 
 	/*
+	 * Set the rest as identity mapped, in case PCI BARs are
+	 * located here.
+	 *
+	 * PFNs above MAX_P2M_PFN are considered identity mapped as
+	 * well.
+	 */
+	set_phys_range_identity(map[i-1].addr / PAGE_SIZE, ~0ul);
+
+	/*
 	 * In domU, the ISA region is normal, usable memory, but we
 	 * reserve ISA memory anyway because too many things poke
 	 * about in there.
@@ -491,6 +500,35 @@ char * __init xen_memory_setup(void)
 }
 
 /*
+ * Machine specific memory setup for auto-translated guests.
+ */
+char * __init xen_auto_xlated_memory_setup(void)
+{
+	static struct e820entry map[E820MAX] __initdata;
+
+	struct xen_memory_map memmap;
+	int i;
+	int rc;
+
+	memmap.nr_entries = E820MAX;
+	set_xen_guest_handle(memmap.buffer, map);
+
+	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	if (rc < 0)
+		panic("No memory map (%d)\n", rc);
+
+	sanitize_e820_map(map, ARRAY_SIZE(map), &memmap.nr_entries);
+
+	for (i = 0; i < memmap.nr_entries; i++)
+		e820_add_region(map[i].addr, map[i].size, map[i].type);
+
+	memblock_reserve(__pa(xen_start_info->mfn_list),
+			 xen_start_info->pt_base - xen_start_info->mfn_list);
+
+	return "Xen";
+}
+
+/*
  * Set the bit indicating "nosegneg" library variants should be used.
  * We only need to bother in pure 32-bit mode; compat 32-bit processes
  * can have un-truncated segments, so wrapping around is allowed.
@@ -498,10 +536,17 @@ char * __init xen_memory_setup(void)
 static void __init fiddle_vdso(void)
 {
 #ifdef CONFIG_X86_32
+	/*
+	 * This could be called before selected_vdso32 is initialized, so
+	 * just fiddle with both possible images.  vdso_image_32_syscall
+	 * can't be selected, since it only exists on 64-bit systems.
+	 */
 	u32 *mask;
-	mask = VDSO32_SYMBOL(&vdso32_int80_start, NOTE_MASK);
+	mask = vdso_image_32_int80.data +
+		vdso_image_32_int80.sym_VDSO32_NOTE_MASK;
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
-	mask = VDSO32_SYMBOL(&vdso32_sysenter_start, NOTE_MASK);
+	mask = vdso_image_32_sysenter.data +
+		vdso_image_32_sysenter.sym_VDSO32_NOTE_MASK;
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 #endif
 }
@@ -556,23 +601,14 @@ void xen_enable_syscall(void)
 	}
 #endif /* CONFIG_X86_64 */
 }
-void __cpuinit xen_enable_nmi(void)
-{
-#ifdef CONFIG_X86_64
-	if (register_callback(CALLBACKTYPE_nmi, nmi))
-		BUG();
-#endif
-}
-void __init xen_arch_setup(void)
-{
-	xen_panic_handler_init();
 
+void __init xen_pvmmu_arch_setup(void)
+{
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_writable_pagetables);
 
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		HYPERVISOR_vm_assist(VMASST_CMD_enable,
-				     VMASST_TYPE_pae_extended_cr3);
+	HYPERVISOR_vm_assist(VMASST_CMD_enable,
+			     VMASST_TYPE_pae_extended_cr3);
 
 	if (register_callback(CALLBACKTYPE_event, xen_hypervisor_callback) ||
 	    register_callback(CALLBACKTYPE_failsafe, xen_failsafe_callback))
@@ -580,7 +616,15 @@ void __init xen_arch_setup(void)
 
 	xen_enable_sysenter();
 	xen_enable_syscall();
-	xen_enable_nmi();
+}
+
+/* This function is not called for HVM domains */
+void __init xen_arch_setup(void)
+{
+	xen_panic_handler_init();
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
+		xen_pvmmu_arch_setup();
+
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {
 		printk(KERN_INFO "ACPI in unprivileged domain disabled\n");

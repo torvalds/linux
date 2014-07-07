@@ -40,7 +40,6 @@ struct max8998_data {
 	struct device		*dev;
 	struct max8998_dev	*iodev;
 	int			num_regulators;
-	struct regulator_dev	**rdev;
 	u8                      buck1_vol[4]; /* voltages for selection */
 	u8                      buck2_vol[2];
 	unsigned int		buck1_idx; /* index to last changed voltage */
@@ -674,8 +673,10 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 
 	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
 				pdata->num_regulators, GFP_KERNEL);
-	if (!rdata)
+	if (!rdata) {
+		of_node_put(regulators_np);
 		return -ENOMEM;
+	}
 
 	pdata->regulators = rdata;
 	for (i = 0; i < ARRAY_SIZE(regulators); ++i) {
@@ -691,6 +692,9 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 		++rdata;
 	}
 	pdata->num_regulators = rdata - pdata->regulators;
+
+	of_node_put(reg_np);
+	of_node_put(regulators_np);
 
 	ret = max8998_pmic_dt_parse_dvs_gpio(iodev, pdata, pmic_np);
 	if (ret)
@@ -741,10 +745,10 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 	struct max8998_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max8998_platform_data *pdata = iodev->pdata;
 	struct regulator_config config = { };
-	struct regulator_dev **rdev;
+	struct regulator_dev *rdev;
 	struct max8998_data *max8998;
 	struct i2c_client *i2c;
-	int i, ret, size;
+	int i, ret;
 	unsigned int v;
 
 	if (!pdata) {
@@ -763,12 +767,6 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 	if (!max8998)
 		return -ENOMEM;
 
-	size = sizeof(struct regulator_dev *) * pdata->num_regulators;
-	max8998->rdev = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
-	if (!max8998->rdev)
-		return -ENOMEM;
-
-	rdev = max8998->rdev;
 	max8998->dev = &pdev->dev;
 	max8998->iodev = iodev;
 	max8998->num_regulators = pdata->num_regulators;
@@ -790,16 +788,14 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"MAX8998 SET1 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck1_set1);
-			ret = -EIO;
-			goto err_out;
+			return -EIO;
 		}
 		/* Check if SET2 is not equal to 0 */
 		if (!pdata->buck1_set2) {
 			dev_err(&pdev->dev,
 				"MAX8998 SET2 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck1_set2);
-			ret = -EIO;
-			goto err_out;
+			return -EIO;
 		}
 
 		gpio_request(pdata->buck1_set1, "MAX8998 BUCK1_SET1");
@@ -823,7 +819,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 			ret = max8998_write_reg(i2c,
 					MAX8998_REG_BUCK1_VOLTAGE1 + v, i);
 			if (ret)
-				goto err_out;
+				return ret;
 		}
 	}
 
@@ -833,8 +829,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"MAX8998 SET3 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck2_set3);
-			ret = -EIO;
-			goto err_out;
+			return -EIO;
 		}
 		gpio_request(pdata->buck2_set3, "MAX8998 BUCK2_SET3");
 		gpio_direction_output(pdata->buck2_set3,
@@ -852,7 +847,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 			ret = max8998_write_reg(i2c,
 					MAX8998_REG_BUCK2_VOLTAGE1 + v, i);
 			if (ret)
-				goto err_out;
+				return ret;
 		}
 	}
 
@@ -875,33 +870,17 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = max8998;
 
-		rdev[i] = regulator_register(&regulators[index], &config);
-		if (IS_ERR(rdev[i])) {
-			ret = PTR_ERR(rdev[i]);
+		rdev = devm_regulator_register(&pdev->dev, &regulators[index],
+					       &config);
+		if (IS_ERR(rdev)) {
+			ret = PTR_ERR(rdev);
 			dev_err(max8998->dev, "regulator %s init failed (%d)\n",
 						regulators[index].name, ret);
-			rdev[i] = NULL;
-			goto err;
+			return ret;
 		}
 	}
 
 
-	return 0;
-err:
-	while (--i >= 0)
-		regulator_unregister(rdev[i]);
-err_out:
-	return ret;
-}
-
-static int max8998_pmic_remove(struct platform_device *pdev)
-{
-	struct max8998_data *max8998 = platform_get_drvdata(pdev);
-	struct regulator_dev **rdev = max8998->rdev;
-	int i;
-
-	for (i = 0; i < max8998->num_regulators; i++)
-		regulator_unregister(rdev[i]);
 	return 0;
 }
 
@@ -918,7 +897,6 @@ static struct platform_driver max8998_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8998_pmic_probe,
-	.remove = max8998_pmic_remove,
 	.id_table = max8998_pmic_id,
 };
 

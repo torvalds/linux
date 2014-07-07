@@ -26,9 +26,6 @@
 #define MAX_NUM_SDB 511
 #define MIN_NUM_SDB 1
 
-#define ALERT_REQ_MASK   0x4000000000000000ul
-#define BUFFER_FULL_MASK 0x8000000000000000ul
-
 DECLARE_PER_CPU(struct hws_cpu_buffer, sampler_cpu_buffer);
 
 struct hws_execute_parms {
@@ -44,6 +41,7 @@ static DEFINE_MUTEX(hws_sem_oom);
 
 static unsigned char hws_flush_all;
 static unsigned int hws_oom;
+static unsigned int hws_alert;
 static struct workqueue_struct *hws_wq;
 
 static unsigned int hws_state;
@@ -65,43 +63,6 @@ static unsigned long interval;
 static unsigned long min_sampler_rate;
 static unsigned long max_sampler_rate;
 
-static int ssctl(void *buffer)
-{
-	int cc;
-
-	/* set in order to detect a program check */
-	cc = 1;
-
-	asm volatile(
-		"0: .insn s,0xB2870000,0(%1)\n"
-		"1: ipm %0\n"
-		"   srl %0,28\n"
-		"2:\n"
-		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
-		: "+d" (cc), "+a" (buffer)
-		: "m" (*((struct hws_ssctl_request_block *)buffer))
-		: "cc", "memory");
-
-	return cc ? -EINVAL : 0 ;
-}
-
-static int qsi(void *buffer)
-{
-	int cc;
-	cc = 1;
-
-	asm volatile(
-		"0: .insn s,0xB2860000,0(%1)\n"
-		"1: lhi %0,0\n"
-		"2:\n"
-		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
-		: "=d" (cc), "+a" (buffer)
-		: "m" (*((struct hws_qsi_info_block *)buffer))
-		: "cc", "memory");
-
-	return cc ? -EINVAL : 0;
-}
-
 static void execute_qsi(void *parms)
 {
 	struct hws_execute_parms *ep = parms;
@@ -113,7 +74,7 @@ static void execute_ssctl(void *parms)
 {
 	struct hws_execute_parms *ep = parms;
 
-	ep->rc = ssctl(ep->buffer);
+	ep->rc = lsctl(ep->buffer);
 }
 
 static int smp_ctl_ssctl_stop(int cpu)
@@ -214,23 +175,15 @@ static int smp_ctl_qsi(int cpu)
 	return ep.rc;
 }
 
-static inline unsigned long *trailer_entry_ptr(unsigned long v)
-{
-	void *ret;
-
-	ret = (void *)v;
-	ret += PAGE_SIZE;
-	ret -= sizeof(struct hws_trailer_entry);
-
-	return (unsigned long *) ret;
-}
-
 static void hws_ext_handler(struct ext_code ext_code,
 			    unsigned int param32, unsigned long param64)
 {
 	struct hws_cpu_buffer *cb = &__get_cpu_var(sampler_cpu_buffer);
 
 	if (!(param32 & CPU_MF_INT_SF_MASK))
+		return;
+
+	if (!hws_alert)
 		return;
 
 	inc_irq_stat(IRQEXT_CMS);
@@ -256,23 +209,11 @@ static void init_all_cpu_buffers(void)
 	}
 }
 
-static int is_link_entry(unsigned long *s)
+static void prepare_cpu_buffers(void)
 {
-	return *s & 0x1ul ? 1 : 0;
-}
-
-static unsigned long *get_next_sdbt(unsigned long *s)
-{
-	return (unsigned long *) (*s & ~0x1ul);
-}
-
-static int prepare_cpu_buffers(void)
-{
-	int cpu;
-	int rc;
 	struct hws_cpu_buffer *cb;
+	int cpu;
 
-	rc = 0;
 	for_each_online_cpu(cpu) {
 		cb = &per_cpu(sampler_cpu_buffer, cpu);
 		atomic_set(&cb->ext_params, 0);
@@ -287,8 +228,6 @@ static int prepare_cpu_buffers(void)
 		cb->oom = 0;
 		cb->stop_mode = 0;
 	}
-
-	return rc;
 }
 
 /*
@@ -353,7 +292,7 @@ static int allocate_sdbt(int cpu)
 			}
 			*sdbt = sdb;
 			trailer = trailer_entry_ptr(*sdbt);
-			*trailer = ALERT_REQ_MASK;
+			*trailer = SDB_TE_ALERT_REQ_MASK;
 			sdbt++;
 			mutex_unlock(&hws_sem_oom);
 		}
@@ -829,7 +768,7 @@ static void worker_on_interrupt(unsigned int cpu)
 
 		trailer = trailer_entry_ptr(*sdbt);
 		/* leave loop if no more work to do */
-		if (!(*trailer & BUFFER_FULL_MASK)) {
+		if (!(*trailer & SDB_TE_BUFFER_FULL_MASK)) {
 			done = 1;
 			if (!hws_flush_all)
 				continue;
@@ -856,7 +795,7 @@ static void worker_on_interrupt(unsigned int cpu)
 static void add_samples_to_oprofile(unsigned int cpu, unsigned long *sdbt,
 		unsigned long *dear)
 {
-	struct hws_data_entry *sample_data_ptr;
+	struct hws_basic_entry *sample_data_ptr;
 	unsigned long *trailer;
 
 	trailer = trailer_entry_ptr(*sdbt);
@@ -866,7 +805,7 @@ static void add_samples_to_oprofile(unsigned int cpu, unsigned long *sdbt,
 		trailer = dear;
 	}
 
-	sample_data_ptr = (struct hws_data_entry *)(*sdbt);
+	sample_data_ptr = (struct hws_basic_entry *)(*sdbt);
 
 	while ((unsigned long *)sample_data_ptr < trailer) {
 		struct pt_regs *regs = NULL;
@@ -1002,6 +941,7 @@ int hwsampler_deallocate(void)
 		goto deallocate_exit;
 
 	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
+	hws_alert = 0;
 	deallocate_sdbt();
 
 	hws_state = HWS_DEALLOCATED;
@@ -1089,7 +1029,7 @@ int hwsampler_setup(void)
 				max_sampler_rate = cb->qsi.max_sampl_rate;
 		}
 	}
-	register_external_interrupt(0x1407, hws_ext_handler);
+	register_external_irq(EXT_IRQ_MEASURE_ALERT, hws_ext_handler);
 
 	hws_state = HWS_DEALLOCATED;
 	rc = 0;
@@ -1116,6 +1056,7 @@ int hwsampler_shutdown(void)
 
 		if (hws_state == HWS_STOPPED) {
 			irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
+			hws_alert = 0;
 			deallocate_sdbt();
 		}
 		if (hws_wq) {
@@ -1123,7 +1064,7 @@ int hwsampler_shutdown(void)
 			hws_wq = NULL;
 		}
 
-		unregister_external_interrupt(0x1407, hws_ext_handler);
+		unregister_external_irq(EXT_IRQ_MEASURE_ALERT, hws_ext_handler);
 		hws_state = HWS_INIT;
 		rc = 0;
 	}
@@ -1162,9 +1103,7 @@ int hwsampler_start_all(unsigned long rate)
 	if (rc)
 		goto start_all_exit;
 
-	rc = prepare_cpu_buffers();
-	if (rc)
-		goto start_all_exit;
+	prepare_cpu_buffers();
 
 	for_each_online_cpu(cpu) {
 		rc = start_sampling(cpu);
@@ -1190,6 +1129,7 @@ start_all_exit:
 	hws_oom = 1;
 	hws_flush_all = 0;
 	/* now let them in, 1407 CPUMF external interrupts */
+	hws_alert = 1;
 	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 
 	return 0;
@@ -1210,7 +1150,7 @@ int hwsampler_stop_all(void)
 	rc = 0;
 	if (hws_state == HWS_INIT) {
 		mutex_unlock(&hws_sem);
-		return rc;
+		return 0;
 	}
 	hws_state = HWS_STOPPING;
 	mutex_unlock(&hws_sem);

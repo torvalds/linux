@@ -1,7 +1,7 @@
 /*
  * vsp1_entity.c  --  R-Car VSP1 Base Entity
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -15,6 +15,7 @@
 #include <linux/gfp.h>
 
 #include <media/media-entity.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
@@ -99,8 +100,10 @@ static int vsp1_entity_link_setup(struct media_entity *entity,
 		if (source->sink)
 			return -EBUSY;
 		source->sink = remote->entity;
+		source->sink_pad = remote->index;
 	} else {
 		source->sink = NULL;
+		source->sink_pad = 0;
 	}
 
 	return 0;
@@ -115,38 +118,43 @@ const struct media_entity_operations vsp1_media_ops = {
  * Initialization
  */
 
+static const struct vsp1_route vsp1_routes[] = {
+	{ VSP1_ENTITY_BRU, 0, VI6_DPR_BRU_ROUTE,
+	  { VI6_DPR_NODE_BRU_IN(0), VI6_DPR_NODE_BRU_IN(1),
+	    VI6_DPR_NODE_BRU_IN(2), VI6_DPR_NODE_BRU_IN(3), } },
+	{ VSP1_ENTITY_HSI, 0, VI6_DPR_HSI_ROUTE, { VI6_DPR_NODE_HSI, } },
+	{ VSP1_ENTITY_HST, 0, VI6_DPR_HST_ROUTE, { VI6_DPR_NODE_HST, } },
+	{ VSP1_ENTITY_LIF, 0, 0, { VI6_DPR_NODE_LIF, } },
+	{ VSP1_ENTITY_LUT, 0, VI6_DPR_LUT_ROUTE, { VI6_DPR_NODE_LUT, } },
+	{ VSP1_ENTITY_RPF, 0, VI6_DPR_RPF_ROUTE(0), { VI6_DPR_NODE_RPF(0), } },
+	{ VSP1_ENTITY_RPF, 1, VI6_DPR_RPF_ROUTE(1), { VI6_DPR_NODE_RPF(1), } },
+	{ VSP1_ENTITY_RPF, 2, VI6_DPR_RPF_ROUTE(2), { VI6_DPR_NODE_RPF(2), } },
+	{ VSP1_ENTITY_RPF, 3, VI6_DPR_RPF_ROUTE(3), { VI6_DPR_NODE_RPF(3), } },
+	{ VSP1_ENTITY_RPF, 4, VI6_DPR_RPF_ROUTE(4), { VI6_DPR_NODE_RPF(4), } },
+	{ VSP1_ENTITY_SRU, 0, VI6_DPR_SRU_ROUTE, { VI6_DPR_NODE_SRU, } },
+	{ VSP1_ENTITY_UDS, 0, VI6_DPR_UDS_ROUTE(0), { VI6_DPR_NODE_UDS(0), } },
+	{ VSP1_ENTITY_UDS, 1, VI6_DPR_UDS_ROUTE(1), { VI6_DPR_NODE_UDS(1), } },
+	{ VSP1_ENTITY_UDS, 2, VI6_DPR_UDS_ROUTE(2), { VI6_DPR_NODE_UDS(2), } },
+	{ VSP1_ENTITY_WPF, 0, 0, { VI6_DPR_NODE_WPF(0), } },
+	{ VSP1_ENTITY_WPF, 1, 0, { VI6_DPR_NODE_WPF(1), } },
+	{ VSP1_ENTITY_WPF, 2, 0, { VI6_DPR_NODE_WPF(2), } },
+	{ VSP1_ENTITY_WPF, 3, 0, { VI6_DPR_NODE_WPF(3), } },
+};
+
 int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 		     unsigned int num_pads)
 {
-	static const struct {
-		unsigned int id;
-		unsigned int reg;
-	} routes[] = {
-		{ VI6_DPR_NODE_LIF, 0 },
-		{ VI6_DPR_NODE_RPF(0), VI6_DPR_RPF_ROUTE(0) },
-		{ VI6_DPR_NODE_RPF(1), VI6_DPR_RPF_ROUTE(1) },
-		{ VI6_DPR_NODE_RPF(2), VI6_DPR_RPF_ROUTE(2) },
-		{ VI6_DPR_NODE_RPF(3), VI6_DPR_RPF_ROUTE(3) },
-		{ VI6_DPR_NODE_RPF(4), VI6_DPR_RPF_ROUTE(4) },
-		{ VI6_DPR_NODE_UDS(0), VI6_DPR_UDS_ROUTE(0) },
-		{ VI6_DPR_NODE_UDS(1), VI6_DPR_UDS_ROUTE(1) },
-		{ VI6_DPR_NODE_UDS(2), VI6_DPR_UDS_ROUTE(2) },
-		{ VI6_DPR_NODE_WPF(0), 0 },
-		{ VI6_DPR_NODE_WPF(1), 0 },
-		{ VI6_DPR_NODE_WPF(2), 0 },
-		{ VI6_DPR_NODE_WPF(3), 0 },
-	};
-
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(routes); ++i) {
-		if (routes[i].id == entity->id) {
-			entity->route = routes[i].reg;
+	for (i = 0; i < ARRAY_SIZE(vsp1_routes); ++i) {
+		if (vsp1_routes[i].type == entity->type &&
+		    vsp1_routes[i].index == entity->index) {
+			entity->route = &vsp1_routes[i];
 			break;
 		}
 	}
 
-	if (i == ARRAY_SIZE(routes))
+	if (i == ARRAY_SIZE(vsp1_routes))
 		return -EINVAL;
 
 	entity->vsp1 = vsp1;
@@ -177,5 +185,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 void vsp1_entity_destroy(struct vsp1_entity *entity)
 {
+	if (entity->subdev.ctrl_handler)
+		v4l2_ctrl_handler_free(entity->subdev.ctrl_handler);
 	media_entity_cleanup(&entity->subdev.entity);
 }

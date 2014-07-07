@@ -134,13 +134,19 @@
 #define MPC85XX_PCI_ERR_DR		0x0000
 #define MPC85XX_PCI_ERR_CAP_DR		0x0004
 #define MPC85XX_PCI_ERR_EN		0x0008
+#define   PEX_ERR_ICCAIE_EN_BIT		0x00020000
 #define MPC85XX_PCI_ERR_ATTRIB		0x000c
 #define MPC85XX_PCI_ERR_ADDR		0x0010
+#define   PEX_ERR_ICCAD_DISR_BIT	0x00020000
 #define MPC85XX_PCI_ERR_EXT_ADDR	0x0014
 #define MPC85XX_PCI_ERR_DL		0x0018
 #define MPC85XX_PCI_ERR_DH		0x001c
 #define MPC85XX_PCI_GAS_TIMR		0x0020
 #define MPC85XX_PCI_PCIX_TIMR		0x0024
+#define MPC85XX_PCIE_ERR_CAP_R0		0x0028
+#define MPC85XX_PCIE_ERR_CAP_R1		0x002c
+#define MPC85XX_PCIE_ERR_CAP_R2		0x0030
+#define MPC85XX_PCIE_ERR_CAP_R3		0x0034
 
 struct mpc85xx_mc_pdata {
 	char *name;
@@ -158,6 +164,7 @@ struct mpc85xx_l2_pdata {
 
 struct mpc85xx_pci_pdata {
 	char *name;
+	bool is_pcie;
 	int edac_idx;
 	void __iomem *pci_vbase;
 	int irq;

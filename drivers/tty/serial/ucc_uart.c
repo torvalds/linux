@@ -25,6 +25,8 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 
@@ -269,7 +271,7 @@ static unsigned int qe_uart_tx_empty(struct uart_port *port)
 			return 1;
 
 		bdp++;
-	};
+	}
 }
 
 /*
@@ -934,7 +936,7 @@ static void qe_uart_set_termios(struct uart_port *port,
 	port->read_status_mask = BD_SC_EMPTY | BD_SC_OV;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= BD_SC_FR | BD_SC_PR;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= BD_SC_BR;
 
 	/*

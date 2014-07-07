@@ -257,6 +257,8 @@ struct eg20t_port {
 	dma_addr_t			rx_buf_dma;
 
 	struct dentry	*debugfs;
+#define IRQ_NAME_SIZE 17
+	char				irq_name[IRQ_NAME_SIZE];
 
 	/* protect the eg20t_port private structure and io access to membase */
 	spinlock_t lock;
@@ -1343,7 +1345,7 @@ static int pch_uart_startup(struct uart_port *port)
 		return ret;
 
 	ret = request_irq(priv->port.irq, pch_uart_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, priv);
+			priv->irq_name, priv);
 	if (ret < 0)
 		return ret;
 
@@ -1508,10 +1510,14 @@ static int pch_uart_verify_port(struct uart_port *port,
 			__func__);
 		return -EOPNOTSUPP;
 #endif
-		dev_info(priv->port.dev, "PCH UART : Use DMA Mode\n");
-		if (!priv->use_dma)
+		if (!priv->use_dma) {
 			pch_request_dma(port);
-		priv->use_dma = 1;
+			if (priv->chan_rx)
+				priv->use_dma = 1;
+		}
+		dev_info(priv->port.dev, "PCH UART: %s\n",
+				priv->use_dma ?
+				"Use DMA Mode" : "No DMA");
 	}
 
 	return 0;
@@ -1584,13 +1590,8 @@ static void pch_uart_put_poll_char(struct uart_port *port,
 	wait_for_xmitr(priv, UART_LSR_THRE);
 	/*
 	 * Send the character out.
-	 * If a LF, also do CR...
 	 */
 	iowrite8(c, priv->membase + PCH_UART_THR);
-	if (c == 10) {
-		wait_for_xmitr(priv, UART_LSR_THRE);
-		iowrite8(13, priv->membase + PCH_UART_THR);
-	}
 
 	/*
 	 * Finally, wait for transmitter to become empty
@@ -1614,7 +1615,6 @@ static struct uart_ops pch_uart_ops = {
 	.shutdown = pch_uart_shutdown,
 	.set_termios = pch_uart_set_termios,
 /*	.pm		= pch_uart_pm,		Not supported yet */
-/*	.set_wake	= pch_uart_set_wake,	Not supported yet */
 	.type = pch_uart_type,
 	.release_port = pch_uart_release_port,
 	.request_port = pch_uart_request_port,
@@ -1759,7 +1759,9 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	int fifosize;
 	int port_type;
 	struct pch_uart_driver_data *board;
+#ifdef CONFIG_DEBUG_FS
 	char name[32];	/* for debugfs file name */
+#endif
 
 	board = &drv_dat[id->driver_data];
 	port_type = board->port_type;
@@ -1813,6 +1815,10 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->port.line = board->line_no;
 	priv->trigger = PCH_UART_HAL_TRIGGER_M;
 
+	snprintf(priv->irq_name, IRQ_NAME_SIZE,
+		 KBUILD_MODNAME ":" PCH_UART_DRIVER_DEVICE "%d",
+		 priv->port.line);
+
 	spin_lock_init(&priv->port.lock);
 
 	pci_set_drvdata(pdev, priv);
@@ -1854,7 +1860,6 @@ static void pch_uart_exit_port(struct eg20t_port *priv)
 		debugfs_remove(priv->debugfs);
 #endif
 	uart_remove_one_port(&pch_uart_driver, &priv->port);
-	pci_set_drvdata(priv->pdev, NULL);
 	free_page((unsigned long)priv->rxbuf.buf);
 }
 
@@ -1908,7 +1913,7 @@ static int pch_uart_pci_resume(struct pci_dev *pdev)
 #define pch_uart_pci_resume NULL
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(pch_uart_pci_id) = {
+static const struct pci_device_id pch_uart_pci_id[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8811),
 	 .driver_data = pch_et20t_uart0},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8812),
@@ -1996,6 +2001,8 @@ module_exit(pch_uart_module_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel EG20T PCH UART PCI Driver");
+MODULE_DEVICE_TABLE(pci, pch_uart_pci_id);
+
 module_param(default_baud, uint, S_IRUGO);
 MODULE_PARM_DESC(default_baud,
                  "Default BAUD for initial driver state and console (default 9600)");

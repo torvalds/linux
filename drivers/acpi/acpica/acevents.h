@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,8 +71,8 @@ acpi_status acpi_ev_init_global_lock_handler(void);
 
 ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
 			    acpi_ev_acquire_global_lock(u16 timeout))
- ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_ev_release_global_lock(void))
- acpi_status acpi_ev_remove_global_lock_handler(void);
+ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_ev_release_global_lock(void))
+acpi_status acpi_ev_remove_global_lock_handler(void);
 
 /*
  * evgpe - Low-level GPE support
@@ -104,9 +104,10 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info);
  */
 acpi_status
 acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
-			 struct acpi_generic_address *gpe_block_address,
+			 u64 address,
+			 u8 space_id,
 			 u32 register_count,
-			 u8 gpe_block_base_number,
+			 u16 gpe_block_base_number,
 			 u32 interrupt_number,
 			 struct acpi_gpe_block_info **return_gpe_block);
 
@@ -132,7 +133,7 @@ acpi_status acpi_ev_gpe_initialize(void);
 ACPI_HW_DEPENDENT_RETURN_VOID(void
 			      acpi_ev_update_gpes(acpi_owner_id table_owner_id))
 
- acpi_status
+acpi_status
 acpi_ev_match_gpe_method(acpi_handle obj_handle,
 			 u32 level, void *context, void **return_value);
 
@@ -148,7 +149,9 @@ acpi_status
 acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 		       struct acpi_gpe_block_info *gpe_block, void *context);
 
-struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32 interrupt_number);
+acpi_status
+acpi_ev_get_gpe_xrupt_block(u32 interrupt_number,
+			    struct acpi_gpe_xrupt_info **gpe_xrupt_block);
 
 acpi_status acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt);
 
@@ -242,11 +245,11 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
  */
 u32 ACPI_SYSTEM_XFACE acpi_ev_gpe_xrupt_handler(void *context);
 
+u32 acpi_ev_sci_dispatch(void);
+
 u32 acpi_ev_install_sci_handler(void);
 
-acpi_status acpi_ev_remove_sci_handler(void);
-
-u32 acpi_ev_initialize_SCI(u32 program_SCI);
+acpi_status acpi_ev_remove_all_sci_handlers(void);
 
 ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_ev_terminate(void))
 #endif				/* __ACEVENTS_H__  */

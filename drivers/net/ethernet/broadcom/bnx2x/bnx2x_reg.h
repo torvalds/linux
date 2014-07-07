@@ -2864,6 +2864,17 @@
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ		 0x9430
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_WRITE		 0x9434
 #define PGLUE_B_REG_INTERNAL_VFID_ENABLE			 0x9438
+/* [W 7] Writing 1 to each bit in this register clears a corresponding error
+ * details register and enables logging new error details. Bit 0 - clears
+ * INCORRECT_RCV_DETAILS; Bit 1 - clears RX_ERR_DETAILS; Bit 2 - clears
+ * TX_ERR_WR_ADD_31_0 TX_ERR_WR_ADD_63_32 TX_ERR_WR_DETAILS
+ * TX_ERR_WR_DETAILS2 TX_ERR_RD_ADD_31_0 TX_ERR_RD_ADD_63_32
+ * TX_ERR_RD_DETAILS TX_ERR_RD_DETAILS2 TX_ERR_WR_DETAILS_ICPL; Bit 3 -
+ * clears VF_LENGTH_VIOLATION_DETAILS. Bit 4 - clears
+ * VF_GRC_SPACE_VIOLATION_DETAILS. Bit 5 - clears RX_TCPL_ERR_DETAILS. Bit 6
+ * - clears TCPL_IN_TWO_RCBS_DETAILS. */
+#define PGLUE_B_REG_LATCHED_ERRORS_CLR				 0x943c
+
 /* [R 9] Interrupt register #0 read */
 #define PGLUE_B_REG_PGLUE_B_INT_STS				 0x9298
 /* [RC 9] Interrupt register #0 read clear */
@@ -5921,6 +5932,7 @@
 #define MISC_REGISTERS_RESET_REG_1_RST_NIG			 (0x1<<7)
 #define MISC_REGISTERS_RESET_REG_1_RST_PXP			 (0x1<<26)
 #define MISC_REGISTERS_RESET_REG_1_RST_PXPV			 (0x1<<27)
+#define MISC_REGISTERS_RESET_REG_1_RST_XSEM			 (0x1<<22)
 #define MISC_REGISTERS_RESET_REG_1_SET				 0x584
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
 #define MISC_REGISTERS_RESET_REG_2_MSTAT0			 (0x1<<24)
@@ -7168,6 +7180,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_RX1_PCI_CTRL			0x80ca
 #define MDIO_WC_REG_RX2_PCI_CTRL			0x80da
 #define MDIO_WC_REG_RX3_PCI_CTRL			0x80ea
+#define MDIO_WC_REG_RXB_ANA_RX_CONTROL_PCI		0x80fa
 #define MDIO_WC_REG_XGXSBLK2_UNICORE_MODE_10G		0x8104
 #define MDIO_WC_REG_XGXS_STATUS3			0x8129
 #define MDIO_WC_REG_PAR_DET_10G_STATUS			0x8130

@@ -978,7 +978,7 @@ static void b43legacy_write_beacon_template(struct b43legacy_wldev *dev,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(dev->wl->current_beacon);
 
 	bcn = (const struct ieee80211_mgmt *)(dev->wl->current_beacon->data);
-	len = min((size_t)dev->wl->current_beacon->len,
+	len = min_t(size_t, dev->wl->current_beacon->len,
 		  0x200 - sizeof(struct b43legacy_plcp_hdr6));
 	rate = ieee80211_get_tx_rate(dev->wl->hw, info)->hw_value;
 
@@ -1155,7 +1155,7 @@ static void b43legacy_write_probe_resp_template(struct b43legacy_wldev *dev,
 	b43legacy_write_probe_resp_plcp(dev, 0x350, size,
 					&b43legacy_b_ratetable[3]);
 
-	size = min((size_t)size,
+	size = min_t(size_t, size,
 		   0x200 - sizeof(struct b43legacy_plcp_hdr6));
 	b43legacy_write_template_common(dev, probe_resp_data,
 					size, ram_offset,
@@ -3919,6 +3919,7 @@ static void b43legacy_remove(struct ssb_device *dev)
 	 * as the ieee80211 unreg will destroy the workqueue. */
 	cancel_work_sync(&wldev->restart_work);
 	cancel_work_sync(&wl->firmware_load);
+	complete(&wldev->fw_load_complete);
 
 	B43legacy_WARN_ON(!wl);
 	if (!wldev->fw.ucode)

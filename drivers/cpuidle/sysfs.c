@@ -52,11 +52,12 @@ static ssize_t show_current_driver(struct device *dev,
 				   char *buf)
 {
 	ssize_t ret;
-	struct cpuidle_driver *cpuidle_driver = cpuidle_get_driver();
+	struct cpuidle_driver *drv;
 
 	spin_lock(&cpuidle_driver_lock);
-	if (cpuidle_driver)
-		ret = sprintf(buf, "%s\n", cpuidle_driver->name);
+	drv = cpuidle_get_driver();
+	if (drv)
+		ret = sprintf(buf, "%s\n", drv->name);
 	else
 		ret = sprintf(buf, "none\n");
 	spin_unlock(&cpuidle_driver_lock);
@@ -292,6 +293,7 @@ static ssize_t show_state_##_name(struct cpuidle_state *state, \
 }
 
 define_show_state_function(exit_latency)
+define_show_state_function(target_residency)
 define_show_state_function(power_usage)
 define_show_state_ull_function(usage)
 define_show_state_ull_function(time)
@@ -303,6 +305,7 @@ define_store_state_ull_function(disable)
 define_one_state_ro(name, show_state_name);
 define_one_state_ro(desc, show_state_desc);
 define_one_state_ro(latency, show_state_exit_latency);
+define_one_state_ro(residency, show_state_target_residency);
 define_one_state_ro(power, show_state_power_usage);
 define_one_state_ro(usage, show_state_usage);
 define_one_state_ro(time, show_state_time);
@@ -312,6 +315,7 @@ static struct attribute *cpuidle_state_default_attrs[] = {
 	&attr_name.attr,
 	&attr_desc.attr,
 	&attr_latency.attr,
+	&attr_residency.attr,
 	&attr_power.attr,
 	&attr_usage.attr,
 	&attr_time.attr,

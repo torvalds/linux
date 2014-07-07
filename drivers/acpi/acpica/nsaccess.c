@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -240,7 +240,7 @@ acpi_status acpi_ns_root_initialize(void)
 		}
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	/* Save a handle to "_GPE", it is always present */
@@ -424,8 +424,9 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					/* Current scope has no parent scope */
 
 					ACPI_ERROR((AE_INFO,
-						    "ACPI path has too many parent prefixes (^) "
-						    "- reached beyond root node"));
+						    "%s: Path has too many parent prefixes (^) "
+						    "- reached beyond root node",
+						    pathname));
 					return_ACPI_STATUS(AE_NOT_FOUND);
 				}
 			}

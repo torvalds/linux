@@ -354,8 +354,8 @@ DEBUG_FOPS(mem);
 			return -ENOMEM;					\
 	}
 
-#define DEBUG_ADD_FILE(name) __DEBUG_ADD_FILE(name, 600)
-#define DEBUG_ADD_FILE_RO(name) __DEBUG_ADD_FILE(name, 400)
+#define DEBUG_ADD_FILE(name) __DEBUG_ADD_FILE(name, 0600)
+#define DEBUG_ADD_FILE_RO(name) __DEBUG_ADD_FILE(name, 0400)
 
 static int iommu_debug_register(struct device *dev, void *data)
 {

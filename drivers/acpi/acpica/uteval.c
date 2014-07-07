@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -181,7 +181,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 
 	*return_desc = info->return_object;
 
-      cleanup:
+cleanup:
 	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }

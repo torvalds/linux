@@ -165,7 +165,7 @@ void ctx_start_timer_kr(struct ptlrpc_cli_ctx *ctx, long timeout)
 
 	init_timer(timer);
 	timer->expires = timeout;
-	timer->data = (unsigned long ) ctx;
+	timer->data = (unsigned long) ctx;
 	timer->function = ctx_upcall_timeout_kr;
 
 	add_timer(timer);
@@ -1176,7 +1176,7 @@ int gss_kt_instantiate(struct key *key, const void *data, size_t datalen)
 
 /*
  * called with key semaphore write locked. it means we can operate
- * on the context without fear of loosing refcount.
+ * on the context without fear of losing refcount.
  */
 static
 int gss_kt_update(struct key *key, const void *data, size_t datalen)

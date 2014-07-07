@@ -17,7 +17,6 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>
@@ -64,7 +63,7 @@ static struct _intel_private {
 	struct pci_dev *pcidev;	/* device one */
 	struct pci_dev *bridge_dev;
 	u8 __iomem *registers;
-	phys_addr_t gtt_bus_addr;
+	phys_addr_t gtt_phys_addr;
 	u32 PGETBL_save;
 	u32 __iomem *gtt;		/* I915G */
 	bool clear_fake_agp; /* on first access via agp, fill with scratch */
@@ -94,6 +93,7 @@ static struct _intel_private {
 #define IS_IRONLAKE	intel_private.driver->is_ironlake
 #define HAS_PGTBL_EN	intel_private.driver->has_pgtbl_enable
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int intel_gtt_map_memory(struct page **pages,
 				unsigned int num_entries,
 				struct sg_table *st)
@@ -168,11 +168,12 @@ static void i8xx_destroy_pages(struct page *page)
 	__free_pages(page, 2);
 	atomic_dec(&agp_bridge->current_memory_agp);
 }
+#endif
 
 #define I810_GTT_ORDER 4
 static int i810_setup(void)
 {
-	u32 reg_addr;
+	phys_addr_t reg_addr;
 	char *gtt_table;
 
 	/* i81x does not preallocate the gtt. It's always 64kb in size. */
@@ -181,8 +182,7 @@ static int i810_setup(void)
 		return -ENOMEM;
 	intel_private.i81x_gtt_table = gtt_table;
 
-	pci_read_config_dword(intel_private.pcidev, I810_MMADDR, &reg_addr);
-	reg_addr &= 0xfff80000;
+	reg_addr = pci_resource_start(intel_private.pcidev, I810_MMADR_BAR);
 
 	intel_private.registers = ioremap(reg_addr, KB(64));
 	if (!intel_private.registers)
@@ -191,7 +191,7 @@ static int i810_setup(void)
 	writel(virt_to_phys(gtt_table) | I810_PGETBL_ENABLED,
 	       intel_private.registers+I810_PGETBL_CTL);
 
-	intel_private.gtt_bus_addr = reg_addr + I810_PTE_BASE;
+	intel_private.gtt_phys_addr = reg_addr + I810_PTE_BASE;
 
 	if ((readl(intel_private.registers+I810_DRAM_CTL)
 		& I810_DRAM_ROW_0) == I810_DRAM_ROW_0_SDRAM) {
@@ -209,6 +209,7 @@ static void i810_cleanup(void)
 	free_gatt_pages(intel_private.i81x_gtt_table, I810_GTT_ORDER);
 }
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int i810_insert_dcache_entries(struct agp_memory *mem, off_t pg_start,
 				      int type)
 {
@@ -289,6 +290,7 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 	}
 	kfree(curr);
 }
+#endif
 
 static int intel_gtt_setup_scratch_page(void)
 {
@@ -608,9 +610,8 @@ static bool intel_gtt_can_wc(void)
 
 static int intel_gtt_init(void)
 {
-	u32 gma_addr;
 	u32 gtt_map_size;
-	int ret;
+	int ret, bar;
 
 	ret = intel_private.driver->setup();
 	if (ret != 0)
@@ -636,10 +637,10 @@ static int intel_gtt_init(void)
 
 	intel_private.gtt = NULL;
 	if (intel_gtt_can_wc())
-		intel_private.gtt = ioremap_wc(intel_private.gtt_bus_addr,
+		intel_private.gtt = ioremap_wc(intel_private.gtt_phys_addr,
 					       gtt_map_size);
 	if (intel_private.gtt == NULL)
-		intel_private.gtt = ioremap(intel_private.gtt_bus_addr,
+		intel_private.gtt = ioremap(intel_private.gtt_phys_addr,
 					    gtt_map_size);
 	if (intel_private.gtt == NULL) {
 		intel_private.driver->cleanup();
@@ -647,7 +648,9 @@ static int intel_gtt_init(void)
 		return -ENOMEM;
 	}
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 	global_cache_flush();   /* FIXME: ? */
+#endif
 
 	intel_private.stolen_size = intel_gtt_stolen_size();
 
@@ -660,17 +663,15 @@ static int intel_gtt_init(void)
 	}
 
 	if (INTEL_GTT_GEN <= 2)
-		pci_read_config_dword(intel_private.pcidev, I810_GMADDR,
-				      &gma_addr);
+		bar = I810_GMADR_BAR;
 	else
-		pci_read_config_dword(intel_private.pcidev, I915_GMADDR,
-				      &gma_addr);
+		bar = I915_GMADR_BAR;
 
-	intel_private.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
-
+	intel_private.gma_bus_addr = pci_bus_address(intel_private.pcidev, bar);
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int intel_fake_agp_fetch_size(void)
 {
 	int num_sizes = ARRAY_SIZE(intel_fake_agp_sizes);
@@ -689,6 +690,7 @@ static int intel_fake_agp_fetch_size(void)
 
 	return 0;
 }
+#endif
 
 static void i830_cleanup(void)
 {
@@ -787,20 +789,20 @@ EXPORT_SYMBOL(intel_enable_gtt);
 
 static int i830_setup(void)
 {
-	u32 reg_addr;
+	phys_addr_t reg_addr;
 
-	pci_read_config_dword(intel_private.pcidev, I810_MMADDR, &reg_addr);
-	reg_addr &= 0xfff80000;
+	reg_addr = pci_resource_start(intel_private.pcidev, I810_MMADR_BAR);
 
 	intel_private.registers = ioremap(reg_addr, KB(64));
 	if (!intel_private.registers)
 		return -ENOMEM;
 
-	intel_private.gtt_bus_addr = reg_addr + I810_PTE_BASE;
+	intel_private.gtt_phys_addr = reg_addr + I810_PTE_BASE;
 
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int intel_fake_agp_create_gatt_table(struct agp_bridge_data *bridge)
 {
 	agp_bridge->gatt_table_real = NULL;
@@ -825,6 +827,7 @@ static int intel_fake_agp_configure(void)
 
 	return 0;
 }
+#endif
 
 static bool i830_check_flags(unsigned int flags)
 {
@@ -863,6 +866,7 @@ void intel_gtt_insert_sg_entries(struct sg_table *st,
 }
 EXPORT_SYMBOL(intel_gtt_insert_sg_entries);
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static void intel_gtt_insert_pages(unsigned int first_entry,
 				   unsigned int num_entries,
 				   struct page **pages,
@@ -928,6 +932,7 @@ out_err:
 	mem->is_flushed = true;
 	return ret;
 }
+#endif
 
 void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries)
 {
@@ -941,6 +946,7 @@ void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries)
 }
 EXPORT_SYMBOL(intel_gtt_clear_range);
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 					 off_t pg_start, int type)
 {
@@ -982,6 +988,7 @@ static struct agp_memory *intel_fake_agp_alloc_by_type(size_t pg_count,
 	/* always return NULL for other allocation types for now */
 	return NULL;
 }
+#endif
 
 static int intel_alloc_chipset_flush_resource(void)
 {
@@ -1108,12 +1115,10 @@ static void i965_write_entry(dma_addr_t addr,
 
 static int i9xx_setup(void)
 {
-	u32 reg_addr, gtt_addr;
+	phys_addr_t reg_addr;
 	int size = KB(512);
 
-	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &reg_addr);
-
-	reg_addr &= 0xfff80000;
+	reg_addr = pci_resource_start(intel_private.pcidev, I915_MMADR_BAR);
 
 	intel_private.registers = ioremap(reg_addr, size);
 	if (!intel_private.registers)
@@ -1121,15 +1126,14 @@ static int i9xx_setup(void)
 
 	switch (INTEL_GTT_GEN) {
 	case 3:
-		pci_read_config_dword(intel_private.pcidev,
-				      I915_PTEADDR, &gtt_addr);
-		intel_private.gtt_bus_addr = gtt_addr;
+		intel_private.gtt_phys_addr =
+			pci_resource_start(intel_private.pcidev, I915_PTE_BAR);
 		break;
 	case 5:
-		intel_private.gtt_bus_addr = reg_addr + MB(2);
+		intel_private.gtt_phys_addr = reg_addr + MB(2);
 		break;
 	default:
-		intel_private.gtt_bus_addr = reg_addr + KB(512);
+		intel_private.gtt_phys_addr = reg_addr + KB(512);
 		break;
 	}
 
@@ -1138,6 +1142,7 @@ static int i9xx_setup(void)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static const struct agp_bridge_driver intel_fake_agp_driver = {
 	.owner			= THIS_MODULE,
 	.size_type		= FIXED_APER_SIZE,
@@ -1159,6 +1164,7 @@ static const struct agp_bridge_driver intel_fake_agp_driver = {
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 };
+#endif
 
 static const struct intel_gtt_driver i81x_gtt_driver = {
 	.gen = 1,
@@ -1376,11 +1382,13 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 
 	intel_private.refcount++;
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 	if (bridge) {
 		bridge->driver = &intel_fake_agp_driver;
 		bridge->dev_private_data = &intel_private;
 		bridge->dev = bridge_pdev;
 	}
+#endif
 
 	intel_private.bridge_dev = pci_dev_get(bridge_pdev);
 

@@ -147,7 +147,7 @@ static cpumask_t cpuidle_coupled_poked;
  * has returned from this function, the barrier is immediately available for
  * reuse.
  *
- * The atomic variable a must be initialized to 0 before any cpu calls
+ * The atomic variable must be initialized to 0 before any cpu calls
  * this function, will be reset to 0 before any cpu returns from this function.
  *
  * Must only be called from within a coupled idle state handler
@@ -159,7 +159,7 @@ void cpuidle_coupled_parallel_barrier(struct cpuidle_device *dev, atomic_t *a)
 {
 	int n = dev->coupled->online_count;
 
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_inc(a);
 
 	while (atomic_read(a) < n)
@@ -323,7 +323,7 @@ static void cpuidle_coupled_poke(int cpu)
 	struct call_single_data *csd = &per_cpu(cpuidle_coupled_poke_cb, cpu);
 
 	if (!cpumask_test_and_set_cpu(cpu, &cpuidle_coupled_poke_pending))
-		__smp_call_function_single(cpu, csd, 0);
+		smp_call_function_single_async(cpu, csd);
 }
 
 /**

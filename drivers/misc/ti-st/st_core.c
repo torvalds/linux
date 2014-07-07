@@ -22,7 +22,6 @@
 #define pr_fmt(fmt)	"(stc): " fmt
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/tty.h>
 
 #include <linux/seq_file.h>
@@ -812,7 +811,7 @@ static void st_tty_flush_buffer(struct tty_struct *tty)
 	kfree_skb(st_gdata->tx_skb);
 	st_gdata->tx_skb = NULL;
 
-	tty->ops->flush_buffer(tty);
+	tty_driver_flush_buffer(tty);
 	return;
 }
 

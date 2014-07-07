@@ -24,6 +24,7 @@ enum {
 	NDA_PORT,
 	NDA_VNI,
 	NDA_IFINDEX,
+	NDA_MASTER,
 	__NDA_MAX
 };
 
@@ -58,7 +59,7 @@ enum {
 
 /* NUD_NOARP & NUD_PERMANENT are pseudostates, they never change
    and make no address resolution or NUD.
-   NUD_PERMANENT is also cannot be deleted by garbage collectors.
+   NUD_PERMANENT also cannot be deleted by garbage collectors.
  */
 
 struct nda_cacheinfo {

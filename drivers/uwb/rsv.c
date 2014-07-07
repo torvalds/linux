@@ -163,8 +163,10 @@ static int uwb_rsv_get_stream(struct uwb_rsv *rsv)
 	}
 
 	stream = find_first_zero_bit(streams_bm, UWB_NUM_STREAMS);
-	if (stream >= UWB_NUM_STREAMS)
+	if (stream >= UWB_NUM_STREAMS) {
+		dev_err(dev, "%s: no available stream found\n", __func__);
 		return -EBUSY;
+	}
 
 	rsv->stream = stream;
 	set_bit(stream, streams_bm);
@@ -237,7 +239,7 @@ void uwb_rsv_backoff_win_increment(struct uwb_rc *rc)
 	/* reset the timer associated variables */
 	timeout_us = bow->n * UWB_SUPERFRAME_LENGTH_US;
 	bow->total_expired = 0;
-	mod_timer(&bow->timer, jiffies + usecs_to_jiffies(timeout_us));		
+	mod_timer(&bow->timer, jiffies + usecs_to_jiffies(timeout_us));
 }
 
 static void uwb_rsv_stroke_timer(struct uwb_rsv *rsv)
@@ -249,7 +251,9 @@ static void uwb_rsv_stroke_timer(struct uwb_rsv *rsv)
 	 * super frame and should not be terminated if no response is
 	 * received.
 	 */
-	if (rsv->is_multicast) {
+	if (rsv->state == UWB_RSV_STATE_NONE) {
+		sframes = 0;
+	} else if (rsv->is_multicast) {
 		if (rsv->state == UWB_RSV_STATE_O_INITIATED
 		    || rsv->state == UWB_RSV_STATE_O_MOVE_EXPANDING
 		    || rsv->state == UWB_RSV_STATE_O_MOVE_COMBINING
@@ -257,7 +261,7 @@ static void uwb_rsv_stroke_timer(struct uwb_rsv *rsv)
 			sframes = 1;
 		if (rsv->state == UWB_RSV_STATE_O_ESTABLISHED)
 			sframes = 0;
-		
+
 	}
 
 	if (sframes > 0) {
@@ -322,6 +326,7 @@ void uwb_rsv_set_state(struct uwb_rsv *rsv, enum uwb_rsv_state new_state)
 	switch (new_state) {
 	case UWB_RSV_STATE_NONE:
 		uwb_rsv_state_update(rsv, UWB_RSV_STATE_NONE);
+		uwb_rsv_remove(rsv);
 		uwb_rsv_callback(rsv);
 		break;
 	case UWB_RSV_STATE_O_INITIATED:
@@ -442,6 +447,8 @@ static void uwb_rsv_handle_timeout_work(struct work_struct *work)
 		uwb_rsv_set_state(rsv, UWB_RSV_STATE_T_ACCEPTED);
 		uwb_drp_avail_release(rsv->rc, &rsv->mv.companion_mas);
 		goto unlock;
+	case UWB_RSV_STATE_NONE:
+		goto unlock;
 	default:
 		break;
 	}
@@ -550,12 +557,16 @@ int uwb_rsv_establish(struct uwb_rsv *rsv)
 {
 	struct uwb_rc *rc = rsv->rc;
 	struct uwb_mas_bm available;
+	struct device *dev = &rc->uwb_dev.dev;
 	int ret;
 
 	mutex_lock(&rc->rsvs_mutex);
 	ret = uwb_rsv_get_stream(rsv);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "%s: uwb_rsv_get_stream failed: %d\n",
+			__func__, ret);
 		goto out;
+	}
 
 	rsv->tiebreaker = prandom_u32() & 1;
 	/* get available mas bitmap */
@@ -565,12 +576,16 @@ int uwb_rsv_establish(struct uwb_rsv *rsv)
 	if (ret == UWB_RSV_ALLOC_NOT_FOUND) {
 		ret = -EBUSY;
 		uwb_rsv_put_stream(rsv);
+		dev_err(dev, "%s: uwb_rsv_find_best_allocation failed: %d\n",
+			__func__, ret);
 		goto out;
 	}
 
 	ret = uwb_drp_avail_reserve_pending(rc, &rsv->mas);
 	if (ret != 0) {
 		uwb_rsv_put_stream(rsv);
+		dev_err(dev, "%s: uwb_drp_avail_reserve_pending failed: %d\n",
+			__func__, ret);
 		goto out;
 	}
 
@@ -611,7 +626,7 @@ int uwb_rsv_try_move(struct uwb_rsv *rsv, struct uwb_mas_bm *available)
 	struct device *dev = &rc->uwb_dev.dev;
 	struct uwb_rsv_move *mv;
 	int ret = 0;
- 
+
 	if (bow->can_reserve_extra_mases == false)
 		return -EBUSY;
 
@@ -628,7 +643,7 @@ int uwb_rsv_try_move(struct uwb_rsv *rsv, struct uwb_mas_bm *available)
 	} else {
 		dev_dbg(dev, "new allocation not found\n");
 	}
-	
+
 	return ret;
 }
 
@@ -640,7 +655,7 @@ void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc)
 	struct uwb_drp_backoff_win *bow = &rc->bow;
 	struct uwb_rsv *rsv;
 	struct uwb_mas_bm mas;
-	
+
 	if (bow->can_reserve_extra_mases == false)
 		return;
 
@@ -652,7 +667,7 @@ void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc)
 			uwb_rsv_try_move(rsv, &mas);
 		}
 	}
-	
+
 }
 
 /**
@@ -916,10 +931,10 @@ static void uwb_rsv_alien_bp_work(struct work_struct *work)
 	struct uwb_rsv *rsv;
 
 	mutex_lock(&rc->rsvs_mutex);
-	
+
 	list_for_each_entry(rsv, &rc->reservations, rc_node) {
 		if (rsv->type != UWB_DRP_TYPE_ALIEN_BP) {
-			rsv->callback(rsv);
+			uwb_rsv_callback(rsv);
 		}
 	}
 

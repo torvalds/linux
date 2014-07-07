@@ -37,6 +37,7 @@
 
 #include <linux/ip.h>
 #include <linux/module.h>
+#include <linux/udp.h>
 
 /*
  *NOTICE!!!: This file will be very big, we should
@@ -352,7 +353,6 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 
 	/* TODO: Correct this value for our hw */
 	/* TODO: define these hard code value */
-	hw->channel_change_time = 100;
 	hw->max_listen_interval = 10;
 	hw->max_rate_tries = 4;
 	/* hw->max_rates = 1; */
@@ -1074,64 +1074,52 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	if (!ieee80211_is_data(fc))
 		return false;
 
+	ip = (const struct iphdr *)(skb->data + mac_hdr_len +
+				    SNAP_SIZE + PROTOC_TYPE_SIZE);
+	ether_type = be16_to_cpup((__be16 *)
+				  (skb->data + mac_hdr_len + SNAP_SIZE));
 
-	ip = (struct iphdr *)((u8 *) skb->data + mac_hdr_len +
-			      SNAP_SIZE + PROTOC_TYPE_SIZE);
-	ether_type = *(u16 *) ((u8 *) skb->data + mac_hdr_len + SNAP_SIZE);
-	/*	ether_type = ntohs(ether_type); */
+	switch (ether_type) {
+	case ETH_P_IP: {
+		struct udphdr *udp;
+		u16 src;
+		u16 dst;
 
-	if (ETH_P_IP == ether_type) {
-		if (IPPROTO_UDP == ip->protocol) {
-			struct udphdr *udp = (struct udphdr *)((u8 *) ip +
-							       (ip->ihl << 2));
-			if (((((u8 *) udp)[1] == 68) &&
-			     (((u8 *) udp)[3] == 67)) ||
-			    ((((u8 *) udp)[1] == 67) &&
-			     (((u8 *) udp)[3] == 68))) {
-				/*
-				 * 68 : UDP BOOTP client
-				 * 67 : UDP BOOTP server
-				 */
-				RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV),
-					 DBG_DMESG, "dhcp %s !!\n",
-					 is_tx ? "Tx" : "Rx");
+		if (ip->protocol != IPPROTO_UDP)
+			return false;
+		udp = (struct udphdr *)((u8 *)ip + (ip->ihl << 2));
+		src = be16_to_cpu(udp->source);
+		dst = be16_to_cpu(udp->dest);
 
-				if (is_tx) {
-					rtlpriv->enter_ps = false;
-					schedule_work(&rtlpriv->
-						      works.lps_change_work);
-					ppsc->last_delaylps_stamp_jiffies =
-					    jiffies;
-				}
+		/* If this case involves port 68 (UDP BOOTP client) connecting
+		 * with port 67 (UDP BOOTP server), then return true so that
+		 * the lowest speed is used.
+		 */
+		if (!((src == 68 && dst == 67) || (src == 67 && dst == 68)))
+			return false;
 
-				return true;
-			}
-		}
-	} else if (ETH_P_ARP == ether_type) {
-		if (is_tx) {
-			rtlpriv->enter_ps = false;
-			schedule_work(&rtlpriv->works.lps_change_work);
-			ppsc->last_delaylps_stamp_jiffies = jiffies;
-		}
-
-		return true;
-	} else if (ETH_P_PAE == ether_type) {
+		RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
+			 "dhcp %s !!\n", is_tx ? "Tx" : "Rx");
+		break;
+	}
+	case ETH_P_ARP:
+		break;
+	case ETH_P_PAE:
 		RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
 			 "802.1X %s EAPOL pkt!!\n", is_tx ? "Tx" : "Rx");
-
-		if (is_tx) {
-			rtlpriv->enter_ps = false;
-			schedule_work(&rtlpriv->works.lps_change_work);
-			ppsc->last_delaylps_stamp_jiffies = jiffies;
-		}
-
-		return true;
-	} else if (ETH_P_IPV6 == ether_type) {
-		/* IPv6 */
-		return true;
+		break;
+	case ETH_P_IPV6:
+		/* TODO: Is this right? */
+		return false;
+	default:
+		return false;
 	}
-
-	return false;
+	if (is_tx) {
+		rtlpriv->enter_ps = false;
+		schedule_work(&rtlpriv->works.lps_change_work);
+		ppsc->last_delaylps_stamp_jiffies = jiffies;
+	}
+	return true;
 }
 EXPORT_SYMBOL_GPL(rtl_is_special_data);
 
@@ -1304,7 +1292,7 @@ void rtl_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (!ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
+	if (!ether_addr_equal_64bits(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
 	rtlpriv->link_info.bcn_rx_inperiod++;
@@ -1448,7 +1436,8 @@ void rtl_watchdog_wq_callback(void *data)
 			/* if we can't recv beacon for 6s, we should
 			 * reconnect this AP
 			 */
-			if (rtlpriv->link_info.roam_times >= 3) {
+			if ((rtlpriv->link_info.roam_times >= 3) &&
+			    !is_zero_ether_addr(rtlpriv->mac80211.bssid)) {
 				RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 					 "AP off, try to reconnect now\n");
 				rtlpriv->link_info.roam_times = 0;
@@ -1613,6 +1602,35 @@ err_free:
 }
 EXPORT_SYMBOL(rtl_send_smps_action);
 
+void rtl_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	enum io_type iotype;
+
+	if (!is_hal_stop(rtlhal)) {
+		switch (operation) {
+		case SCAN_OPT_BACKUP:
+			iotype = IO_CMD_PAUSE_DM_BY_SCAN;
+			rtlpriv->cfg->ops->set_hw_reg(hw,
+						      HW_VAR_IO_CMD,
+						      (u8 *)&iotype);
+			break;
+		case SCAN_OPT_RESTORE:
+			iotype = IO_CMD_RESUME_DM_BY_SCAN;
+			rtlpriv->cfg->ops->set_hw_reg(hw,
+						      HW_VAR_IO_CMD,
+						      (u8 *)&iotype);
+			break;
+		default:
+			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+				 "Unknown Scan Backup operation.\n");
+			break;
+		}
+	}
+}
+EXPORT_SYMBOL(rtl_phy_scan_operation_backup);
+
 /* There seem to be issues in mac80211 regarding when del ba frames can be
  * received. As a work around, we make a fake del_ba if we receive a ba_req;
  * however, rx_agg was opened to let mac80211 release some ba related
@@ -1762,7 +1780,7 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (!ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
+	if (!ether_addr_equal_64bits(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
 	if (rtl_find_221_ie(hw, data, len))

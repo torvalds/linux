@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <linux/rbtree.h>
 #include "map.h"
+#include "event.h"
 
 struct addr_location;
 struct branch_stack;
@@ -16,6 +17,8 @@ union perf_event;
 /* Native host kernel uses -1 as pid index in machine */
 #define	HOST_KERNEL_ID			(-1)
 #define	DEFAULT_GUEST_KERNEL_ID		(0)
+
+extern const char *ref_reloc_sym_names[];
 
 struct machine {
 	struct rb_node	  rb_node;
@@ -38,15 +41,23 @@ struct map *machine__kernel_map(struct machine *machine, enum map_type type)
 	return machine->vmlinux_maps[type];
 }
 
-struct thread *machine__find_thread(struct machine *machine, pid_t tid);
+struct thread *machine__find_thread(struct machine *machine, pid_t pid,
+				    pid_t tid);
 
-int machine__process_comm_event(struct machine *machine, union perf_event *event);
-int machine__process_exit_event(struct machine *machine, union perf_event *event);
-int machine__process_fork_event(struct machine *machine, union perf_event *event);
-int machine__process_lost_event(struct machine *machine, union perf_event *event);
-int machine__process_mmap_event(struct machine *machine, union perf_event *event);
-int machine__process_mmap2_event(struct machine *machine, union perf_event *event);
-int machine__process_event(struct machine *machine, union perf_event *event);
+int machine__process_comm_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample);
+int machine__process_exit_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample);
+int machine__process_fork_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample);
+int machine__process_lost_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample);
+int machine__process_mmap_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample);
+int machine__process_mmap2_event(struct machine *machine, union perf_event *event,
+				 struct perf_sample *sample);
+int machine__process_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample);
 
 typedef void (*machine__process_t)(struct machine *machine, void *data);
 
@@ -74,24 +85,24 @@ char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
 void machines__set_symbol_filter(struct machines *machines,
 				 symbol_filter_t symbol_filter);
 
+struct machine *machine__new_host(void);
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);
 void machine__delete_dead_threads(struct machine *machine);
 void machine__delete_threads(struct machine *machine);
 void machine__delete(struct machine *machine);
 
-struct branch_info *machine__resolve_bstack(struct machine *machine,
-					    struct thread *thread,
-					    struct branch_stack *bs);
-struct mem_info *machine__resolve_mem(struct machine *machine,
-				      struct thread *thread,
-				      struct perf_sample *sample, u8 cpumode);
+struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
+					   struct addr_location *al);
+struct mem_info *sample__resolve_mem(struct perf_sample *sample,
+				     struct addr_location *al);
 int machine__resolve_callchain(struct machine *machine,
 			       struct perf_evsel *evsel,
 			       struct thread *thread,
 			       struct perf_sample *sample,
 			       struct symbol **parent,
-			       struct addr_location *root_al);
+			       struct addr_location *root_al,
+			       int max_stack);
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms
@@ -164,5 +175,20 @@ int machines__create_guest_kernel_maps(struct machines *machines);
 void machines__destroy_kernel_maps(struct machines *machines);
 
 size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);
+
+int machine__for_each_thread(struct machine *machine,
+			     int (*fn)(struct thread *thread, void *p),
+			     void *priv);
+
+int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
+				  struct target *target, struct thread_map *threads,
+				  perf_event__handler_t process, bool data_mmap);
+static inline
+int machine__synthesize_threads(struct machine *machine, struct target *target,
+				struct thread_map *threads, bool data_mmap)
+{
+	return __machine__synthesize_threads(machine, NULL, target, threads,
+					     perf_event__process, data_mmap);
+}
 
 #endif /* __PERF_MACHINE_H */

@@ -185,7 +185,7 @@ static int shmob_drm_load(struct drm_device *dev, unsigned long flags)
 		goto done;
 	}
 
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to install IRQ handler\n");
 		goto done;
@@ -336,7 +336,9 @@ static int shmob_drm_probe(struct platform_device *pdev)
 
 static int shmob_drm_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&shmob_drm_driver, pdev);
+	struct shmob_drm_device *sdev = platform_get_drvdata(pdev);
+
+	drm_put_dev(sdev->ddev);
 
 	return 0;
 }

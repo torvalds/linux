@@ -190,15 +190,16 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 
 int jffs2_setattr(struct dentry *dentry, struct iattr *iattr)
 {
+	struct inode *inode = dentry->d_inode;
 	int rc;
 
-	rc = inode_change_ok(dentry->d_inode, iattr);
+	rc = inode_change_ok(inode, iattr);
 	if (rc)
 		return rc;
 
-	rc = jffs2_do_setattr(dentry->d_inode, iattr);
+	rc = jffs2_do_setattr(inode, iattr);
 	if (!rc && (iattr->ia_valid & ATTR_MODE))
-		rc = jffs2_acl_chmod(dentry->d_inode);
+		rc = posix_acl_chmod(inode, inode->i_mode);
 
 	return rc;
 }
@@ -241,7 +242,7 @@ void jffs2_evict_inode (struct inode *inode)
 
 	jffs2_dbg(1, "%s(): ino #%lu mode %o\n",
 		  __func__, inode->i_ino, inode->i_mode);
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	jffs2_do_clear_inode(c, f);
 }
@@ -456,12 +457,14 @@ struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_r
 	   The umask is only applied if there's no default ACL */
 	ret = jffs2_init_acl_pre(dir_i, inode, &mode);
 	if (ret) {
-	    make_bad_inode(inode);
-	    iput(inode);
-	    return ERR_PTR(ret);
+		mutex_unlock(&f->sem);
+		make_bad_inode(inode);
+		iput(inode);
+		return ERR_PTR(ret);
 	}
 	ret = jffs2_do_new_inode (c, f, mode, ri);
 	if (ret) {
+		mutex_unlock(&f->sem);
 		make_bad_inode(inode);
 		iput(inode);
 		return ERR_PTR(ret);
@@ -478,6 +481,7 @@ struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_r
 	inode->i_size = 0;
 
 	if (insert_inode_locked(inode) < 0) {
+		mutex_unlock(&f->sem);
 		make_bad_inode(inode);
 		iput(inode);
 		return ERR_PTR(-EINVAL);
@@ -514,6 +518,10 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	size_t blocks;
 
 	c = JFFS2_SB_INFO(sb);
+
+	/* Do not support the MLC nand */
+	if (c->mtd->type == MTD_MLCNANDFLASH)
+		return -EINVAL;
 
 #ifndef CONFIG_JFFS2_FS_WRITEBUFFER
 	if (c->mtd->type == MTD_NANDFLASH) {
@@ -682,7 +690,7 @@ unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
 	struct inode *inode = OFNI_EDONI_2SFFJ(f);
 	struct page *pg;
 
-	pg = read_cache_page_async(inode->i_mapping, offset >> PAGE_CACHE_SHIFT,
+	pg = read_cache_page(inode->i_mapping, offset >> PAGE_CACHE_SHIFT,
 			     (void *)jffs2_do_readpage_unlock, inode);
 	if (IS_ERR(pg))
 		return (void *)pg;

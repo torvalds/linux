@@ -42,7 +42,6 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 #include "lov_cl_internal.h"
-#include <lustre_debug.h>
 
 /** \addtogroup lov
  *  @{
@@ -122,8 +121,8 @@ static struct cl_object *lov_sub_find(const struct lu_env *env,
 }
 
 static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
-			struct cl_object *stripe,
-			struct lov_layout_raid0 *r0, int idx)
+			struct cl_object *stripe, struct lov_layout_raid0 *r0,
+			int idx)
 {
 	struct cl_object_header *hdr;
 	struct cl_object_header *subhdr;
@@ -144,7 +143,6 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 
 	hdr    = cl_object_header(lov2cl(lov));
 	subhdr = cl_object_header(stripe);
-	parent = subhdr->coh_parent;
 
 	oinfo = lov->lo_lsm->lsm_oinfo[idx];
 	CDEBUG(D_INODE, DFID"@%p[%d] -> "DFID"@%p: ostid: "DOSTID
@@ -153,8 +151,12 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 	       PFID(&hdr->coh_lu.loh_fid), hdr, POSTID(&oinfo->loi_oi),
 	       oinfo->loi_ost_idx, oinfo->loi_ost_gen);
 
+	/* reuse ->coh_attr_guard to protect coh_parent change */
+	spin_lock(&subhdr->coh_attr_guard);
+	parent = subhdr->coh_parent;
 	if (parent == NULL) {
 		subhdr->coh_parent = hdr;
+		spin_unlock(&subhdr->coh_attr_guard);
 		subhdr->coh_nesting = hdr->coh_nesting + 1;
 		lu_object_ref_add(&stripe->co_lu, "lov-parent", lov);
 		r0->lo_sub[idx] = cl2lovsub(stripe);
@@ -166,6 +168,7 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 		struct lov_object *old_lov;
 		unsigned int mask = D_INODE;
 
+		spin_unlock(&subhdr->coh_attr_guard);
 		old_obj = lu_object_locate(&parent->coh_lu, &lov_device_type);
 		LASSERT(old_obj != NULL);
 		old_lov = cl2lov(lu2cl(old_obj));
@@ -214,7 +217,7 @@ static int lov_init_raid0(const struct lu_env *env,
 	r0->lo_nr  = lsm->lsm_stripe_count;
 	LASSERT(r0->lo_nr <= lov_targets_nr(dev));
 
-	OBD_ALLOC_LARGE(r0->lo_sub, r0->lo_nr * sizeof r0->lo_sub[0]);
+	OBD_ALLOC_LARGE(r0->lo_sub, r0->lo_nr * sizeof(r0->lo_sub[0]));
 	if (r0->lo_sub != NULL) {
 		result = 0;
 		subconf->coc_inode = conf->coc_inode;
@@ -306,7 +309,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 	 * ->lo_sub[] slot in lovsub_object_fini() */
 	if (r0->lo_sub[idx] == los) {
 		waiter = &lov_env_info(env)->lti_waiter;
-		init_waitqueue_entry_current(waiter);
+		init_waitqueue_entry(waiter, current);
 		add_wait_queue(&bkt->lsb_marche_funebre, waiter);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		while (1) {
@@ -316,7 +319,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 			spin_lock(&r0->lo_sub_lock);
 			if (r0->lo_sub[idx] == los) {
 				spin_unlock(&r0->lo_sub_lock);
-				waitq_wait(waiter, TASK_UNINTERRUPTIBLE);
+				schedule();
 			} else {
 				spin_unlock(&r0->lo_sub_lock);
 				set_current_state(TASK_RUNNING);
@@ -368,7 +371,7 @@ static void lov_fini_raid0(const struct lu_env *env, struct lov_object *lov,
 	struct lov_layout_raid0 *r0 = &state->raid0;
 
 	if (r0->lo_sub != NULL) {
-		OBD_FREE_LARGE(r0->lo_sub, r0->lo_nr * sizeof r0->lo_sub[0]);
+		OBD_FREE_LARGE(r0->lo_sub, r0->lo_nr * sizeof(r0->lo_sub[0]));
 		r0->lo_sub = NULL;
 	}
 
@@ -393,13 +396,13 @@ static int lov_print_empty(const struct lu_env *env, void *cookie,
 static int lov_print_raid0(const struct lu_env *env, void *cookie,
 			   lu_printer_t p, const struct lu_object *o)
 {
-	struct lov_object       *lov = lu2lov(o);
-	struct lov_layout_raid0 *r0  = lov_r0(lov);
-	struct lov_stripe_md    *lsm = lov->lo_lsm;
-	int i;
+	struct lov_object	*lov = lu2lov(o);
+	struct lov_layout_raid0	*r0  = lov_r0(lov);
+	struct lov_stripe_md	*lsm = lov->lo_lsm;
+	int			 i;
 
-	(*p)(env, cookie, "stripes: %d, %svalid, lsm{%p 0x%08X %d %u %u}: \n",
-		r0->lo_nr, lov->lo_layout_invalid ? "in" : "", lsm,
+	(*p)(env, cookie, "stripes: %d, %s, lsm{%p 0x%08X %d %u %u}:\n",
+		r0->lo_nr, lov->lo_layout_invalid ? "invalid" : "valid", lsm,
 		lsm->lsm_magic, atomic_read(&lsm->lsm_refc),
 		lsm->lsm_stripe_count, lsm->lsm_layout_gen);
 	for (i = 0; i < r0->lo_nr; ++i) {
@@ -408,8 +411,9 @@ static int lov_print_raid0(const struct lu_env *env, void *cookie,
 		if (r0->lo_sub[i] != NULL) {
 			sub = lovsub2lu(r0->lo_sub[i]);
 			lu_object_print(env, cookie, p, sub);
-		} else
+		} else {
 			(*p)(env, cookie, "sub %d absent\n", i);
+		}
 	}
 	return 0;
 }
@@ -417,7 +421,14 @@ static int lov_print_raid0(const struct lu_env *env, void *cookie,
 static int lov_print_released(const struct lu_env *env, void *cookie,
 				lu_printer_t p, const struct lu_object *o)
 {
-	(*p)(env, cookie, "released\n");
+	struct lov_object	*lov = lu2lov(o);
+	struct lov_stripe_md	*lsm = lov->lo_lsm;
+
+	(*p)(env, cookie,
+		"released: %s, lsm{%p 0x%08X %d %u %u}:\n",
+		lov->lo_layout_invalid ? "invalid" : "valid", lsm,
+		lsm->lsm_magic, atomic_read(&lsm->lsm_refc),
+		lsm->lsm_stripe_count, lsm->lsm_layout_gen);
 	return 0;
 }
 
@@ -500,7 +511,7 @@ static int lov_attr_get_raid0(const struct lu_env *env, struct cl_object *obj,
 	return result;
 }
 
-const static struct lov_layout_operations lov_dispatch[] = {
+static const struct lov_layout_operations lov_dispatch[] = {
 	[LLT_EMPTY] = {
 		.llo_init      = lov_init_empty,
 		.llo_delete    = lov_delete_empty,
@@ -662,6 +673,10 @@ static int lov_layout_change(const struct lu_env *unused,
 		return PTR_ERR(env);
 	}
 
+	CDEBUG(D_INODE, DFID" from %s to %s\n",
+	       PFID(lu_object_fid(lov2lu(lov))),
+	       llt2str(lov->lo_type), llt2str(llt));
+
 	old_ops = &lov_dispatch[lov->lo_type];
 	new_ops = &lov_dispatch[llt];
 
@@ -750,8 +765,9 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 	if (conf->u.coc_md != NULL)
 		lsm = conf->u.coc_md->lsm;
 	if ((lsm == NULL && lov->lo_lsm == NULL) ||
-	    (lsm != NULL && lov->lo_lsm != NULL &&
-	     lov->lo_lsm->lsm_layout_gen == lsm->lsm_layout_gen)) {
+	    ((lsm != NULL && lov->lo_lsm != NULL) &&
+	     (lov->lo_lsm->lsm_layout_gen == lsm->lsm_layout_gen) &&
+	     (lov->lo_lsm->lsm_pattern == lsm->lsm_pattern))) {
 		/* same version of layout */
 		lov->lo_layout_invalid = false;
 		GOTO(out, result = 0);
@@ -767,6 +783,8 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 
 out:
 	lov_conf_unlock(lov);
+	CDEBUG(D_INODE, DFID" lo_layout_invalid=%d\n",
+	       PFID(lu_object_fid(lov2lu(lov))), lov->lo_layout_invalid);
 	return result;
 }
 
@@ -866,7 +884,7 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 	struct lov_object *lov;
 	struct lu_object  *obj;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lov, lov_object_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lov, lov_object_kmem, GFP_NOFS);
 	if (lov != NULL) {
 		obj = lov2lu(lov);
 		lu_object_init(obj, NULL, dev);

@@ -37,7 +37,7 @@
 #define X86_FEATURE_PAT		(0*32+16) /* Page Attribute Table */
 #define X86_FEATURE_PSE36	(0*32+17) /* 36-bit PSEs */
 #define X86_FEATURE_PN		(0*32+18) /* Processor serial number */
-#define X86_FEATURE_CLFLSH	(0*32+19) /* "clflush" CLFLUSH instruction */
+#define X86_FEATURE_CLFLUSH	(0*32+19) /* CLFLUSH instruction */
 #define X86_FEATURE_DS		(0*32+21) /* "dts" Debug Store */
 #define X86_FEATURE_ACPI	(0*32+22) /* ACPI via MSR */
 #define X86_FEATURE_MMX		(0*32+23) /* Multimedia Extensions */
@@ -216,9 +216,15 @@
 #define X86_FEATURE_ERMS	(9*32+ 9) /* Enhanced REP MOVSB/STOSB */
 #define X86_FEATURE_INVPCID	(9*32+10) /* Invalidate Processor Context ID */
 #define X86_FEATURE_RTM		(9*32+11) /* Restricted Transactional Memory */
+#define X86_FEATURE_MPX		(9*32+14) /* Memory Protection Extension */
+#define X86_FEATURE_AVX512F	(9*32+16) /* AVX-512 Foundation */
 #define X86_FEATURE_RDSEED	(9*32+18) /* The RDSEED instruction */
 #define X86_FEATURE_ADX		(9*32+19) /* The ADCX and ADOX instructions */
 #define X86_FEATURE_SMAP	(9*32+20) /* Supervisor Mode Access Prevention */
+#define X86_FEATURE_CLFLUSHOPT	(9*32+23) /* CLFLUSHOPT instruction */
+#define X86_FEATURE_AVX512PF	(9*32+26) /* AVX-512 Prefetch */
+#define X86_FEATURE_AVX512ER	(9*32+27) /* AVX-512 Exponential and Reciprocal */
+#define X86_FEATURE_AVX512CD	(9*32+28) /* AVX-512 Conflict Detection */
 
 /*
  * BUG word(s)
@@ -312,7 +318,7 @@ extern const char * const x86_power_flags[32];
 #define cpu_has_pmm_enabled	boot_cpu_has(X86_FEATURE_PMM_EN)
 #define cpu_has_ds		boot_cpu_has(X86_FEATURE_DS)
 #define cpu_has_pebs		boot_cpu_has(X86_FEATURE_PEBS)
-#define cpu_has_clflush		boot_cpu_has(X86_FEATURE_CLFLSH)
+#define cpu_has_clflush		boot_cpu_has(X86_FEATURE_CLFLUSH)
 #define cpu_has_bts		boot_cpu_has(X86_FEATURE_BTS)
 #define cpu_has_gbpages		boot_cpu_has(X86_FEATURE_GBPAGES)
 #define cpu_has_arch_perfmon	boot_cpu_has(X86_FEATURE_ARCH_PERFMON)
@@ -374,7 +380,7 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 		 * Catch too early usage of this before alternatives
 		 * have run.
 		 */
-		asm goto("1: jmp %l[t_warn]\n"
+		asm_volatile_goto("1: jmp %l[t_warn]\n"
 			 "2:\n"
 			 ".section .altinstructions,\"a\"\n"
 			 " .long 1b - .\n"
@@ -388,7 +394,7 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 
 #endif
 
-		asm goto("1: jmp %l[t_no]\n"
+		asm_volatile_goto("1: jmp %l[t_no]\n"
 			 "2:\n"
 			 ".section .altinstructions,\"a\"\n"
 			 " .long 1b - .\n"
@@ -453,7 +459,7 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
  * have. Thus, we force the jump to the widest, 4-byte, signed relative
  * offset even though the last would often fit in less bytes.
  */
-		asm goto("1: .byte 0xe9\n .long %l[t_dynamic] - 2f\n"
+		asm_volatile_goto("1: .byte 0xe9\n .long %l[t_dynamic] - 2f\n"
 			 "2:\n"
 			 ".section .altinstructions,\"a\"\n"
 			 " .long 1b - .\n"		/* src offset */
@@ -539,6 +545,13 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 
 #define static_cpu_has_bug(bit)	static_cpu_has((bit))
 #define boot_cpu_has_bug(bit)	cpu_has_bug(&boot_cpu_data, (bit))
+
+#define MAX_CPU_FEATURES	(NCAPINTS * 32)
+#define cpu_have_feature	boot_cpu_has
+
+#define CPU_FEATURE_TYPEFMT	"x86,ven%04Xfam%04Xmod%04X"
+#define CPU_FEATURE_TYPEVAL	boot_cpu_data.x86_vendor, boot_cpu_data.x86, \
+				boot_cpu_data.x86_model
 
 #endif /* defined(__KERNEL__) && !defined(__ASSEMBLY__) */
 

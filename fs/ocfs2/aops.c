@@ -80,6 +80,7 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 
 	if ((u64)iblock >= ocfs2_clusters_to_blocks(inode->i_sb,
 						    le32_to_cpu(fe->i_clusters))) {
+		err = -ENOMEM;
 		mlog(ML_ERROR, "block offset is outside the allocated size: "
 		     "%llu\n", (unsigned long long)iblock);
 		goto bail;
@@ -92,6 +93,7 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 			    iblock;
 		buffer_cache_bh = sb_getblk(osb->sb, blkno);
 		if (!buffer_cache_bh) {
+			err = -ENOMEM;
 			mlog(ML_ERROR, "couldn't getblock for symlink!\n");
 			goto bail;
 		}
@@ -569,7 +571,6 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
 	int level;
-	wait_queue_head_t *wq = ocfs2_ioend_wq(inode);
 
 	/* this io's submitter should not have unlocked this before we could */
 	BUG_ON(!ocfs2_iocb_is_rw_locked(iocb));
@@ -580,10 +581,7 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 	if (ocfs2_iocb_is_unaligned_aio(iocb)) {
 		ocfs2_iocb_clear_unaligned_aio(iocb);
 
-		if (atomic_dec_and_test(&OCFS2_I(inode)->ip_unaligned_aio) &&
-		    waitqueue_active(wq)) {
-			wake_up_all(wq);
-		}
+		mutex_unlock(&OCFS2_I(inode)->ip_unaligned_aio);
 	}
 
 	ocfs2_iocb_clear_rw_locked(iocb);
@@ -592,33 +590,17 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 	ocfs2_rw_unlock(inode, level);
 }
 
-/*
- * ocfs2_invalidatepage() and ocfs2_releasepage() are shamelessly stolen
- * from ext3.  PageChecked() bits have been removed as OCFS2 does not
- * do journalled data.
- */
-static void ocfs2_invalidatepage(struct page *page, unsigned int offset,
-				 unsigned int length)
-{
-	journal_t *journal = OCFS2_SB(page->mapping->host->i_sb)->journal->j_journal;
-
-	jbd2_journal_invalidatepage(journal, page, offset, length);
-}
-
 static int ocfs2_releasepage(struct page *page, gfp_t wait)
 {
-	journal_t *journal = OCFS2_SB(page->mapping->host->i_sb)->journal->j_journal;
-
 	if (!page_has_buffers(page))
 		return 0;
-	return jbd2_journal_try_to_free_buffers(journal, page, wait);
+	return try_to_free_buffers(page);
 }
 
 static ssize_t ocfs2_direct_IO(int rw,
 			       struct kiocb *iocb,
-			       const struct iovec *iov,
-			       loff_t offset,
-			       unsigned long nr_segs)
+			       struct iov_iter *iter,
+			       loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file)->i_mapping->host;
@@ -635,7 +617,7 @@ static ssize_t ocfs2_direct_IO(int rw,
 		return 0;
 
 	return __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
-				    iov, offset, nr_segs,
+				    iter, offset,
 				    ocfs2_direct_IO_get_blocks,
 				    ocfs2_dio_end_io, NULL, 0);
 }
@@ -1802,8 +1784,7 @@ try_again:
 			data_ac->ac_resv = &OCFS2_I(inode)->ip_la_data_resv;
 
 		credits = ocfs2_calc_extend_credits(inode->i_sb,
-						    &di->id2.i_list,
-						    clusters_to_alloc);
+						    &di->id2.i_list);
 
 	}
 
@@ -1897,10 +1878,14 @@ out_commit:
 out:
 	ocfs2_free_write_ctxt(wc);
 
-	if (data_ac)
+	if (data_ac) {
 		ocfs2_free_alloc_context(data_ac);
-	if (meta_ac)
+		data_ac = NULL;
+	}
+	if (meta_ac) {
 		ocfs2_free_alloc_context(meta_ac);
+		meta_ac = NULL;
+	}
 
 	if (ret == -ENOSPC && try_free) {
 		/*
@@ -2053,6 +2038,7 @@ out_write_size:
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
 	di->i_mtime_nsec = di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+	ocfs2_update_inode_fsync_trans(handle, inode, 1);
 	ocfs2_journal_dirty(handle, wc->w_di_bh);
 
 	ocfs2_commit_trans(osb, handle);
@@ -2087,7 +2073,7 @@ const struct address_space_operations ocfs2_aops = {
 	.write_end		= ocfs2_write_end,
 	.bmap			= ocfs2_bmap,
 	.direct_IO		= ocfs2_direct_IO,
-	.invalidatepage		= ocfs2_invalidatepage,
+	.invalidatepage		= block_invalidatepage,
 	.releasepage		= ocfs2_releasepage,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate	= block_is_partially_uptodate,

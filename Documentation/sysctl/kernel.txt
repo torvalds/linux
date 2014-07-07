@@ -33,6 +33,11 @@ show up in /proc/sys/kernel:
 - domainname
 - hostname
 - hotplug
+- hung_task_panic
+- hung_task_check_count
+- hung_task_timeout_secs
+- hung_task_warnings
+- kexec_load_disabled
 - kptr_restrict
 - kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
@@ -70,8 +75,10 @@ show up in /proc/sys/kernel:
 - shmall
 - shmmax                      [ sysv ipc ]
 - shmmni
+- softlockup_all_cpu_backtrace
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
+- sysctl_writes_strict
 - tainted
 - threads-max
 - unknown_nmi_panic
@@ -287,16 +294,79 @@ Default value is "/sbin/hotplug".
 
 ==============================================================
 
+hung_task_panic:
+
+Controls the kernel's behavior when a hung task is detected.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0: continue operation. This is the default behavior.
+
+1: panic immediately.
+
+==============================================================
+
+hung_task_check_count:
+
+The upper bound on the number of tasks that are checked.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+==============================================================
+
+hung_task_timeout_secs:
+
+Check interval. When a task in D state did not get scheduled
+for more than this value report a warning.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0: means infinite timeout - no checking done.
+Possible values to set are in range {0..LONG_MAX/HZ}.
+
+==============================================================
+
+hung_task_warnings:
+
+The maximum number of warnings to report. During a check interval
+if a hung task is detected, this value is decreased by 1.
+When this value reaches 0, no more warnings will be reported.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+-1: report an infinite number of warnings.
+
+==============================================================
+
+kexec_load_disabled:
+
+A toggle indicating if the kexec_load syscall has been disabled. This
+value defaults to 0 (false: kexec_load enabled), but can be set to 1
+(true: kexec_load disabled). Once true, kexec can no longer be used, and
+the toggle cannot be set back to false. This allows a kexec image to be
+loaded before disabling the syscall, allowing a system to set up (and
+later use) an image without it being altered. Generally used together
+with the "modules_disabled" sysctl.
+
+==============================================================
+
 kptr_restrict:
 
 This toggle indicates whether restrictions are placed on
-exposing kernel addresses via /proc and other interfaces.  When
-kptr_restrict is set to (0), there are no restrictions.  When
-kptr_restrict is set to (1), the default, kernel pointers
-printed using the %pK format specifier will be replaced with 0's
-unless the user has CAP_SYSLOG.  When kptr_restrict is set to
-(2), kernel pointers printed using %pK will be replaced with 0's
-regardless of privileges.
+exposing kernel addresses via /proc and other interfaces.
+
+When kptr_restrict is set to (0), the default, there are no restrictions.
+
+When kptr_restrict is set to (1), kernel pointers printed using the %pK
+format specifier will be replaced with 0's unless the user has CAP_SYSLOG
+and effective user and group ids are equal to the real ids. This is
+because %pK checks are done at read() time rather than open() time, so
+if permissions are elevated between the open() and the read() (e.g via
+a setuid binary) then %pK will not leak kernel pointers to unprivileged
+users. Note, this is a temporary solution only. The correct long-term
+solution is to do the permission checks at open() time. Consider removing
+world read permissions from files that use %pK, and using dmesg_restrict
+to protect against uses of %pK in dmesg(8) if leaking kernel pointer
+values to unprivileged users is a concern.
+
+When kptr_restrict is set to (2), kernel pointers printed using
+%pK will be replaced with 0's regardless of privileges.
 
 ==============================================================
 
@@ -320,7 +390,7 @@ A toggle value indicating if modules are allowed to be loaded
 in an otherwise modular kernel.  This toggle defaults to off
 (0), but can be set true (1).  Once true, modules can be
 neither loaded nor unloaded, and the toggle cannot be set back
-to false.
+to false.  Generally used with the "kexec_load_disabled" toggle.
 
 ==============================================================
 
@@ -352,6 +422,69 @@ If LAPIC NMI watchdog method is in use (nmi_watchdog=2 kernel
 parameter), the NMI watchdog shares registers with oprofile. By
 disabling the NMI watchdog, oprofile may have more registers to
 utilize.
+
+==============================================================
+
+numa_balancing
+
+Enables/disables automatic page fault based NUMA memory
+balancing. Memory is moved automatically to nodes
+that access it often.
+
+Enables/disables automatic NUMA memory balancing. On NUMA machines, there
+is a performance penalty if remote memory is accessed by a CPU. When this
+feature is enabled the kernel samples what task thread is accessing memory
+by periodically unmapping pages and later trapping a page fault. At the
+time of the page fault, it is determined if the data being accessed should
+be migrated to a local memory node.
+
+The unmapping of pages and trapping faults incur additional overhead that
+ideally is offset by improved memory locality but there is no universal
+guarantee. If the target workload is already bound to NUMA nodes then this
+feature should be disabled. Otherwise, if the system overhead from the
+feature is too high then the rate the kernel samples for NUMA hinting
+faults may be controlled by the numa_balancing_scan_period_min_ms,
+numa_balancing_scan_delay_ms, numa_balancing_scan_period_max_ms,
+numa_balancing_scan_size_mb, and numa_balancing_settle_count sysctls.
+
+==============================================================
+
+numa_balancing_scan_period_min_ms, numa_balancing_scan_delay_ms,
+numa_balancing_scan_period_max_ms, numa_balancing_scan_size_mb
+
+Automatic NUMA balancing scans tasks address space and unmaps pages to
+detect if pages are properly placed or if the data should be migrated to a
+memory node local to where the task is running.  Every "scan delay" the task
+scans the next "scan size" number of pages in its address space. When the
+end of the address space is reached the scanner restarts from the beginning.
+
+In combination, the "scan delay" and "scan size" determine the scan rate.
+When "scan delay" decreases, the scan rate increases.  The scan delay and
+hence the scan rate of every task is adaptive and depends on historical
+behaviour. If pages are properly placed then the scan delay increases,
+otherwise the scan delay decreases.  The "scan size" is not adaptive but
+the higher the "scan size", the higher the scan rate.
+
+Higher scan rates incur higher system overhead as page faults must be
+trapped and potentially data must be migrated. However, the higher the scan
+rate, the more quickly a tasks memory is migrated to a local node if the
+workload pattern changes and minimises performance impact due to remote
+memory accesses. These sysctls control the thresholds for scan delays and
+the number of pages scanned.
+
+numa_balancing_scan_period_min_ms is the minimum time in milliseconds to
+scan a tasks virtual memory. It effectively controls the maximum scanning
+rate for each task.
+
+numa_balancing_scan_delay_ms is the starting "scan delay" used for a task
+when it initially forks.
+
+numa_balancing_scan_period_max_ms is the maximum time in milliseconds to
+scan a tasks virtual memory. It effectively controls the minimum scanning
+rate for each task.
+
+numa_balancing_scan_size_mb is how many megabytes worth of pages are
+scanned for a given scan.
 
 ==============================================================
 
@@ -631,6 +764,42 @@ without users and with a dead originative process will be destroyed.
 
 ==============================================================
 
+sysctl_writes_strict:
+
+Control how file position affects the behavior of updating sysctl values
+via the /proc/sys interface:
+
+  -1 - Legacy per-write sysctl value handling, with no printk warnings.
+       Each write syscall must fully contain the sysctl value to be
+       written, and multiple writes on the same sysctl file descriptor
+       will rewrite the sysctl value, regardless of file position.
+   0 - (default) Same behavior as above, but warn about processes that
+       perform writes to a sysctl file descriptor when the file position
+       is not 0.
+   1 - Respect file position when writing sysctl strings. Multiple writes
+       will append to the sysctl value buffer. Anything past the max length
+       of the sysctl value buffer will be ignored. Writes to numeric sysctl
+       entries must always be at file position 0 and the value must be
+       fully contained in the buffer sent in the write syscall.
+
+==============================================================
+
+softlockup_all_cpu_backtrace:
+
+This value controls the soft lockup detector thread's behavior
+when a soft lockup condition is detected as to whether or not
+to gather further debug information. If enabled, each cpu will
+be issued an NMI and instructed to capture stack trace.
+
+This feature is only applicable for architectures which support
+NMI.
+
+0: do nothing. This is the default behavior.
+
+1: on detection capture more debug information.
+
+==============================================================
+
 tainted:
 
 Non-zero if the kernel has been tainted.  Numeric values, which
@@ -655,6 +824,8 @@ can be ORed together:
 1024 - A module from drivers/staging was loaded.
 2048 - The system is working around a severe firmware bug.
 4096 - An out-of-tree module has been loaded.
+8192 - An unsigned module has been loaded in a kernel supporting module
+       signature.
 
 ==============================================================
 

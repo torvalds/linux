@@ -113,7 +113,7 @@ INT vendorextnReadSection(PVOID  pContext, PUCHAR pBuffer, enum bcm_flash2x_sect
  *		STATUS_SUCCESS/STATUS_FAILURE
  */
 INT vendorextnWriteSection(PVOID  pContext, PUCHAR pBuffer, enum bcm_flash2x_section_val SectionVal,
-			UINT offset, UINT numOfBytes, BOOLEAN bVerify)
+			UINT offset, UINT numOfBytes, bool bVerify)
 {
 	return STATUS_FAILURE;
 }

@@ -39,9 +39,9 @@
 #include <linux/kthread.h>
 #include "cpqphp.h"
 
-static u32 configure_new_device(struct controller* ctrl, struct pci_func *func,
+static u32 configure_new_device(struct controller *ctrl, struct pci_func *func,
 			u8 behind_bridge, struct resource_lists *resources);
-static int configure_new_function(struct controller* ctrl, struct pci_func *func,
+static int configure_new_function(struct controller *ctrl, struct pci_func *func,
 			u8 behind_bridge, struct resource_lists *resources);
 static void interrupt_event_handler(struct controller *ctrl);
 
@@ -64,7 +64,7 @@ static void long_delay(int delay)
 
 /* FIXME: The following line needs to be somewhere else... */
 #define WRONG_BUS_FREQUENCY 0x07
-static u8 handle_switch_change(u8 change, struct controller * ctrl)
+static u8 handle_switch_change(u8 change, struct controller *ctrl)
 {
 	int hp_slot;
 	u8 rc = 0;
@@ -138,7 +138,7 @@ static struct slot *cpqhp_find_slot(struct controller *ctrl, u8 device)
 }
 
 
-static u8 handle_presence_change(u16 change, struct controller * ctrl)
+static u8 handle_presence_change(u16 change, struct controller *ctrl)
 {
 	int hp_slot;
 	u8 rc = 0;
@@ -232,7 +232,7 @@ static u8 handle_presence_change(u16 change, struct controller * ctrl)
 }
 
 
-static u8 handle_power_fault(u8 change, struct controller * ctrl)
+static u8 handle_power_fault(u8 change, struct controller *ctrl)
 {
 	int hp_slot;
 	u8 rc = 0;
@@ -709,7 +709,8 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 				temp = temp->next;
 			}
 
-			temp->next = max->next;
+			if (temp)
+				temp->next = max->next;
 		}
 
 		max->next = NULL;
@@ -996,7 +997,7 @@ struct pci_func *cpqhp_slot_create(u8 busnumber)
  *
  * Returns %0 if successful, !0 otherwise.
  */
-static int slot_remove(struct pci_func * old_slot)
+static int slot_remove(struct pci_func *old_slot)
 {
 	struct pci_func *next;
 
@@ -1108,7 +1109,7 @@ struct pci_func *cpqhp_slot_find(u8 bus, u8 device, u8 index)
 
 /* DJZ: I don't think is_bridge will work as is.
  * FIXME */
-static int is_bridge(struct pci_func * func)
+static int is_bridge(struct pci_func *func)
 {
 	/* Check the header type */
 	if (((func->config_space[0x03] >> 16) & 0xFF) == 0x01)
@@ -1231,7 +1232,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 
 	/* Only if mode change...*/
 	if (((bus->cur_bus_speed == PCI_SPEED_66MHz) && (adapter_speed == PCI_SPEED_66MHz_PCIX)) ||
-		((bus->cur_bus_speed == PCI_SPEED_66MHz_PCIX) && (adapter_speed == PCI_SPEED_66MHz))) 
+		((bus->cur_bus_speed == PCI_SPEED_66MHz_PCIX) && (adapter_speed == PCI_SPEED_66MHz)))
 			set_SOGO(ctrl);
 
 	wait_for_ctrl_irq(ctrl);
@@ -1624,7 +1625,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
  * @replace_flag: whether replacing or adding a new device
  * @ctrl: target controller
  */
-static u32 remove_board(struct pci_func * func, u32 replace_flag, struct controller * ctrl)
+static u32 remove_board(struct pci_func *func, u32 replace_flag, struct controller *ctrl)
 {
 	int index;
 	u8 skip = 0;
@@ -1741,7 +1742,7 @@ static void pushbutton_helper_thread(unsigned long data)
 
 
 /* this is the main worker thread */
-static int event_thread(void* data)
+static int event_thread(void *data)
 {
 	struct controller *ctrl;
 
@@ -1828,7 +1829,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 
 				if (ctrl->event_queue[loop].event_type == INT_BUTTON_PRESS) {
 					dbg("button pressed\n");
-				} else if (ctrl->event_queue[loop].event_type == 
+				} else if (ctrl->event_queue[loop].event_type ==
 					   INT_BUTTON_CANCEL) {
 					dbg("button cancel\n");
 					del_timer(&p_slot->task_event);
@@ -1991,7 +1992,7 @@ int cpqhp_process_SI(struct controller *ctrl, struct pci_func *func)
 	u16 temp_word;
 	u32 tempdword;
 	int rc;
-	struct slot* p_slot;
+	struct slot *p_slot;
 	int physical_slot = 0;
 
 	tempdword = 0;
@@ -2087,7 +2088,7 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 	u8 replace_flag;
 	u32 rc = 0;
 	unsigned int devfn;
-	struct slot* p_slot;
+	struct slot *p_slot;
 	struct pci_bus *pci_bus = ctrl->pci_bus;
 	int physical_slot=0;
 
@@ -2269,8 +2270,8 @@ int cpqhp_hardware_test(struct controller *ctrl, int test_num)
  *
  * Returns 0 if success.
  */
-static u32 configure_new_device(struct controller * ctrl, struct pci_func * func,
-				 u8 behind_bridge, struct resource_lists * resources)
+static u32 configure_new_device(struct controller  *ctrl, struct pci_func  *func,
+				 u8 behind_bridge, struct resource_lists  *resources)
 {
 	u8 temp_byte, function, max_functions, stop_it;
 	int rc;
@@ -2411,11 +2412,11 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 		if (rc)
 			return rc;
 
-		/* find range of busses to use */
+		/* find range of buses to use */
 		dbg("find ranges of buses to use\n");
 		bus_node = get_max_resource(&(resources->bus_head), 1);
 
-		/* If we don't have any busses to allocate, we can't continue */
+		/* If we don't have any buses to allocate, we can't continue */
 		if (!bus_node)
 			return -ENOMEM;
 
@@ -2900,7 +2901,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 
 			/* If this function needs an interrupt and we are behind
 			 * a bridge and the pin is tied to something that's
-			 * alread mapped, set this one the same */
+			 * already mapped, set this one the same */
 			if (temp_byte && resources->irqs &&
 			    (resources->irqs->valid_INT &
 			     (0x01 << ((temp_byte + resources->irqs->barber_pole - 1) & 0x03)))) {

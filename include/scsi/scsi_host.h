@@ -15,6 +15,7 @@ struct completion;
 struct module;
 struct scsi_cmnd;
 struct scsi_device;
+struct scsi_host_cmd_pool;
 struct scsi_target;
 struct Scsi_Host;
 struct scsi_host_cmd_pool;
@@ -475,6 +476,14 @@ struct scsi_host_template {
 	 */
 	unsigned ordered_tag:1;
 
+	/* True if the controller does not support WRITE SAME */
+	unsigned no_write_same:1;
+
+	/*
+	 * True if asynchronous aborts are not supported
+	 */
+	unsigned no_async_abort:1;
+
 	/*
 	 * Countdown for host blocking with no commands outstanding.
 	 */
@@ -516,6 +525,12 @@ struct scsi_host_template {
 	 *   scsi_netlink.h
 	 */
 	u64 vendor_id;
+
+	/*
+	 * Additional per-command data allocated for the driver.
+	 */
+	unsigned int cmd_size;
+	struct scsi_host_cmd_pool *cmd_pool;
 };
 
 /*
@@ -598,8 +613,11 @@ struct Scsi_Host {
 	unsigned int host_eh_scheduled;    /* EH scheduled without command */
     
 	unsigned int host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
-	int resetting; /* if set, it means that last_reset is a valid value */
+
+	/* next two fields are used to bound the time spent in error handling */
+	int eh_deadline;
 	unsigned long last_reset;
+
 
 	/*
 	 * These three parameters can be used to allow for wide scsi,
@@ -674,11 +692,19 @@ struct Scsi_Host {
 	/* Don't resume host in EH */
 	unsigned eh_noresume:1;
 
+	/* The controller does not support WRITE SAME */
+	unsigned no_write_same:1;
+
 	/*
 	 * Optional work queue to be utilized by the transport
 	 */
 	char work_q_name[20];
 	struct workqueue_struct *work_q;
+
+	/*
+	 * Task management function work queue
+	 */
+	struct workqueue_struct *tmf_work_q;
 
 	/*
 	 * Host has rejected a command because it was busy.

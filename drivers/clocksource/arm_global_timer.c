@@ -169,7 +169,8 @@ static int gt_clockevents_init(struct clock_event_device *clk)
 	int cpu = smp_processor_id();
 
 	clk->name = "arm_global_timer";
-	clk->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
+	clk->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT |
+		CLOCK_EVT_FEAT_PERCPU;
 	clk->set_mode = gt_clockevent_set_mode;
 	clk->set_next_event = gt_clockevent_set_next_event;
 	clk->cpumask = cpumask_of(cpu);
@@ -201,7 +202,7 @@ static struct clocksource gt_clocksource = {
 };
 
 #ifdef CONFIG_CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
-static u32 notrace gt_sched_clock_read(void)
+static u64 notrace gt_sched_clock_read(void)
 {
 	return gt_counter_read();
 }
@@ -216,7 +217,7 @@ static void __init gt_clocksource_init(void)
 	writel(GT_CONTROL_TIMER_ENABLE, gt_base + GT_CONTROL);
 
 #ifdef CONFIG_CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
-	setup_sched_clock(gt_sched_clock_read, 32, gt_clk_rate);
+	sched_clock_register(gt_sched_clock_read, 64, gt_clk_rate);
 #endif
 	clocksource_register_hz(&gt_clocksource, gt_clk_rate);
 }
@@ -245,11 +246,12 @@ static void __init global_timer_of_register(struct device_node *np)
 	int err = 0;
 
 	/*
-	 * In r2p0 the comparators for each processor with the global timer
+	 * In A9 r2p0 the comparators for each processor with the global timer
 	 * fire when the timer value is greater than or equal to. In previous
 	 * revisions the comparators fired when the timer value was equal to.
 	 */
-	if ((read_cpuid_id() & 0xf0000f) < 0x200000) {
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9
+	    && (read_cpuid_id() & 0xf0000f) < 0x200000) {
 		pr_warn("global-timer: non support for this cpu version.\n");
 		return;
 	}

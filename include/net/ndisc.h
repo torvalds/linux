@@ -110,8 +110,8 @@ struct ndisc_options {
 
 #define NDISC_OPT_SPACE(len) (((len)+2+7)&~7)
 
-extern struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
-						 struct ndisc_options *ndopts);
+struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
+					  struct ndisc_options *ndopts);
 
 /*
  * Return the padding between the option length and the start of the
@@ -189,60 +189,51 @@ static inline struct neighbour *__ipv6_neigh_lookup(struct net_device *dev, cons
 	return n;
 }
 
-extern int			ndisc_init(void);
-extern int			ndisc_late_init(void);
+int ndisc_init(void);
+int ndisc_late_init(void);
 
-extern void			ndisc_late_cleanup(void);
-extern void			ndisc_cleanup(void);
+void ndisc_late_cleanup(void);
+void ndisc_cleanup(void);
 
-extern int			ndisc_rcv(struct sk_buff *skb);
+int ndisc_rcv(struct sk_buff *skb);
 
-extern void			ndisc_send_ns(struct net_device *dev,
-					      struct neighbour *neigh,
-					      const struct in6_addr *solicit,
-					      const struct in6_addr *daddr,
-					      const struct in6_addr *saddr);
+void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
+		   const struct in6_addr *solicit,
+		   const struct in6_addr *daddr, const struct in6_addr *saddr);
 
-extern void			ndisc_send_rs(struct net_device *dev,
-					      const struct in6_addr *saddr,
-					      const struct in6_addr *daddr);
-extern void			ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
-					      const struct in6_addr *daddr,
-					      const struct in6_addr *solicited_addr,
-					      bool router, bool solicited, bool override,
-					      bool inc_opt);
+void ndisc_send_rs(struct net_device *dev,
+		   const struct in6_addr *saddr, const struct in6_addr *daddr);
+void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
+		   const struct in6_addr *daddr,
+		   const struct in6_addr *solicited_addr,
+		   bool router, bool solicited, bool override, bool inc_opt);
 
-extern void			ndisc_send_redirect(struct sk_buff *skb,
-						    const struct in6_addr *target);
+void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target);
 
-extern int			ndisc_mc_map(const struct in6_addr *addr, char *buf,
-					     struct net_device *dev, int dir);
+int ndisc_mc_map(const struct in6_addr *addr, char *buf, struct net_device *dev,
+		 int dir);
 
 
 /*
  *	IGMP
  */
-extern int			igmp6_init(void);
+int igmp6_init(void);
 
-extern void			igmp6_cleanup(void);
+void igmp6_cleanup(void);
 
-extern int			igmp6_event_query(struct sk_buff *skb);
+int igmp6_event_query(struct sk_buff *skb);
 
-extern int			igmp6_event_report(struct sk_buff *skb);
+int igmp6_event_report(struct sk_buff *skb);
 
 
 #ifdef CONFIG_SYSCTL
-extern int 			ndisc_ifinfo_sysctl_change(struct ctl_table *ctl,
-							   int write,
-							   void __user *buffer,
-							   size_t *lenp,
-							   loff_t *ppos);
+int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write,
+			       void __user *buffer, size_t *lenp, loff_t *ppos);
 int ndisc_ifinfo_sysctl_strategy(struct ctl_table *ctl,
 				 void __user *oldval, size_t __user *oldlenp,
 				 void __user *newval, size_t newlen);
 #endif
 
-extern void 			inet6_ifinfo_notify(int event,
-						    struct inet6_dev *idev);
+void inet6_ifinfo_notify(int event, struct inet6_dev *idev);
 
 #endif

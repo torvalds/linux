@@ -76,7 +76,7 @@ struct caam_rng_ctx {
 	struct buf_data bufs[2];
 };
 
-static struct caam_rng_ctx rng_ctx;
+static struct caam_rng_ctx *rng_ctx;
 
 static inline void rng_unmap_buf(struct device *jrdev, struct buf_data *bd)
 {
@@ -103,11 +103,8 @@ static void rng_done(struct device *jrdev, u32 *desc, u32 err, void *context)
 	bd = (struct buf_data *)((char *)desc -
 	      offsetof(struct buf_data, hw_desc));
 
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	atomic_set(&bd->empty, BUF_NOT_EMPTY);
 	complete(&bd->filled);
@@ -137,7 +134,7 @@ static inline int submit_job(struct caam_rng_ctx *ctx, int to_current)
 
 static int caam_read(struct hwrng *rng, void *data, size_t max, bool wait)
 {
-	struct caam_rng_ctx *ctx = &rng_ctx;
+	struct caam_rng_ctx *ctx = rng_ctx;
 	struct buf_data *bd = &ctx->bufs[ctx->current_buf];
 	int next_buf_idx, copied_idx;
 	int err;
@@ -237,12 +234,12 @@ static void caam_cleanup(struct hwrng *rng)
 	struct buf_data *bd;
 
 	for (i = 0; i < 2; i++) {
-		bd = &rng_ctx.bufs[i];
+		bd = &rng_ctx->bufs[i];
 		if (atomic_read(&bd->empty) == BUF_PENDING)
 			wait_for_completion(&bd->filled);
 	}
 
-	rng_unmap_ctx(&rng_ctx);
+	rng_unmap_ctx(rng_ctx);
 }
 
 static void caam_init_buf(struct caam_rng_ctx *ctx, int buf_id)
@@ -273,34 +270,26 @@ static struct hwrng caam_rng = {
 
 static void __exit caam_rng_exit(void)
 {
+	caam_jr_free(rng_ctx->jrdev);
 	hwrng_unregister(&caam_rng);
+	kfree(rng_ctx);
 }
 
 static int __init caam_rng_init(void)
 {
-	struct device_node *dev_node;
-	struct platform_device *pdev;
-	struct device *ctrldev;
-	struct caam_drv_private *priv;
+	struct device *dev;
 
-	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node) {
-		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
-		if (!dev_node)
-			return -ENODEV;
+	dev = caam_jr_alloc();
+	if (IS_ERR(dev)) {
+		pr_err("Job Ring Device allocation for transform failed\n");
+		return PTR_ERR(dev);
 	}
+	rng_ctx = kmalloc(sizeof(struct caam_rng_ctx), GFP_DMA);
+	if (!rng_ctx)
+		return -ENOMEM;
+	caam_init_rng(rng_ctx, dev);
 
-	pdev = of_find_device_by_node(dev_node);
-	if (!pdev)
-		return -ENODEV;
-
-	ctrldev = &pdev->dev;
-	priv = dev_get_drvdata(ctrldev);
-	of_node_put(dev_node);
-
-	caam_init_rng(&rng_ctx, priv->jrdev[0]);
-
-	dev_info(priv->jrdev[0], "registering rng-caam\n");
+	dev_info(dev, "registering rng-caam\n");
 	return hwrng_register(&caam_rng);
 }
 

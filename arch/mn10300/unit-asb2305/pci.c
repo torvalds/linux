@@ -24,7 +24,6 @@
 
 unsigned int pci_probe = 1;
 
-int pcibios_last_bus = -1;
 struct pci_ops *pci_root_ops;
 
 /*
@@ -391,10 +390,6 @@ char *__init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;
-		return NULL;
-
-	} else if (!strncmp(str, "lastbus=", 8)) {
-		pcibios_last_bus = simple_strtol(str+8, NULL, 0);
 		return NULL;
 	}
 

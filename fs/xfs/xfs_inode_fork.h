@@ -19,6 +19,7 @@
 #define	__XFS_INODE_FORK_H__
 
 struct xfs_inode_log_item;
+struct xfs_dinode;
 
 /*
  * The following xfs_ext_irec_t struct introduces a second (top) level
@@ -126,8 +127,7 @@ typedef struct xfs_ifork {
 
 int		xfs_iformat_fork(struct xfs_inode *, struct xfs_dinode *);
 void		xfs_iflush_fork(struct xfs_inode *, struct xfs_dinode *,
-				struct xfs_inode_log_item *, int,
-				struct xfs_buf *);
+				struct xfs_inode_log_item *, int);
 void		xfs_idestroy_fork(struct xfs_inode *, int);
 void		xfs_idata_realloc(struct xfs_inode *, int, int);
 void		xfs_iroot_realloc(struct xfs_inode *, int, int);

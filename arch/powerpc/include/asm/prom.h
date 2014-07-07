@@ -1,4 +1,3 @@
-#include <linux/of.h>	/* linux/of.h gets to determine #include ordering */
 #ifndef _POWERPC_PROM_H
 #define _POWERPC_PROM_H
 #ifdef __KERNEL__
@@ -20,20 +19,55 @@
 #include <asm/irq.h>
 #include <linux/atomic.h>
 
-#define HAVE_ARCH_DEVTREE_FIXUPS
+/* These includes should be removed once implicit includes are cleaned up. */
+#include <linux/of.h>
+#include <linux/of_fdt.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/platform_device.h>
+
+#define OF_DT_BEGIN_NODE	0x1		/* Start of node, full name */
+#define OF_DT_END_NODE		0x2		/* End node */
+#define OF_DT_PROP		0x3		/* Property: name off, size,
+						 * content */
+#define OF_DT_NOP		0x4		/* nop */
+#define OF_DT_END		0x9
+
+#define OF_DT_VERSION		0x10
+
+/*
+ * This is what gets passed to the kernel by prom_init or kexec
+ *
+ * The dt struct contains the device tree structure, full pathes and
+ * property contents. The dt strings contain a separate block with just
+ * the strings for the property names, and is fully page aligned and
+ * self contained in a page, so that it can be kept around by the kernel,
+ * each property name appears only once in this page (cheap compression)
+ *
+ * the mem_rsvmap contains a map of reserved ranges of physical memory,
+ * passing it here instead of in the device-tree itself greatly simplifies
+ * the job of everybody. It's just a list of u64 pairs (base/size) that
+ * ends when size is 0
+ */
+struct boot_param_header {
+	__be32	magic;			/* magic word OF_DT_HEADER */
+	__be32	totalsize;		/* total size of DT block */
+	__be32	off_dt_struct;		/* offset to structure */
+	__be32	off_dt_strings;		/* offset to strings */
+	__be32	off_mem_rsvmap;		/* offset to memory reserve map */
+	__be32	version;		/* format version */
+	__be32	last_comp_version;	/* last compatible version */
+	/* version 2 fields below */
+	__be32	boot_cpuid_phys;	/* Physical CPU id we're booting on */
+	/* version 3 fields below */
+	__be32	dt_strings_size;	/* size of the DT strings block */
+	/* version 17 fields below */
+	__be32	dt_struct_size;		/* size of the DT structure block */
+};
 
 /*
  * OF address retreival & translation
  */
-
-/* Translate a DMA address from device space to CPU space */
-extern u64 of_translate_dma_address(struct device_node *dev,
-				    const __be32 *in_addr);
-
-#ifdef CONFIG_PCI
-extern unsigned long pci_address_to_pio(phys_addr_t address);
-#define pci_address_to_pio pci_address_to_pio
-#endif	/* CONFIG_PCI */
 
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
  * size parameters.
@@ -43,16 +77,6 @@ void of_parse_dma_window(struct device_node *dn, const __be32 *dma_window,
 			 unsigned long *size);
 
 extern void kdump_move_device_tree(void);
-
-/* cache lookup */
-struct device_node *of_find_next_cache_node(struct device_node *np);
-
-#ifdef CONFIG_NUMA
-extern int of_node_to_nid(struct device_node *device);
-#else
-static inline int of_node_to_nid(struct device_node *device) { return 0; }
-#endif
-#define of_node_to_nid of_node_to_nid
 
 extern void of_instantiate_rtc(void);
 
@@ -142,15 +166,6 @@ struct of_drconf_cell {
  * followed by # option vectors - 1, followed by the option vectors.
  */
 extern unsigned char ibm_architecture_vec[];
-
-/* These includes are put at the bottom because they may contain things
- * that are overridden by this file.  Ideally they shouldn't be included
- * by this file, but there are a bunch of .c files that currently depend
- * on it.  Eventually they will be cleaned up. */
-#include <linux/of_fdt.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/platform_device.h>
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */

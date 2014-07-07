@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -371,7 +371,10 @@ struct init_cb_24xx {
 	 * BIT 14 = Data Rate bit 1
 	 * BIT 15 = Data Rate bit 2
 	 * BIT 16 = Enable 75 ohm Termination Select
-	 * BIT 17-31 = Reserved
+	 * BIT 17-28 = Reserved
+	 * BIT 29 = Enable response queue 0 in index shadowing
+	 * BIT 30 = Enable request queue 0 out index shadowing
+	 * BIT 31 = Reserved
 	 */
 	uint32_t firmware_options_3;
 	uint16_t qos;
@@ -1134,13 +1137,6 @@ struct device_reg_24xx {
 #define MIN_MULTI_ID_FABRIC	64	/* Must be power-of-2. */
 #define MAX_MULTI_ID_FABRIC	256	/* ... */
 
-#define for_each_mapped_vp_idx(_ha, _idx)		\
-	for (_idx = find_next_bit((_ha)->vp_idx_map,	\
-		(_ha)->max_npiv_vports + 1, 1);		\
-	    _idx <= (_ha)->max_npiv_vports;		\
-	    _idx = find_next_bit((_ha)->vp_idx_map,	\
-		(_ha)->max_npiv_vports + 1, _idx + 1))	\
-
 struct mid_conf_entry_24xx {
 	uint16_t reserved_1;
 
@@ -1378,6 +1374,10 @@ struct qla_flt_header {
 #define FLT_REG_NVRAM_0		0x15
 #define FLT_REG_VPD_1		0x16
 #define FLT_REG_NVRAM_1		0x17
+#define FLT_REG_VPD_2		0xD4
+#define FLT_REG_NVRAM_2		0xD5
+#define FLT_REG_VPD_3		0xD6
+#define FLT_REG_NVRAM_3		0xD7
 #define FLT_REG_FDT		0x1a
 #define FLT_REG_FLT		0x1c
 #define FLT_REG_HW_EVENT_0	0x1d

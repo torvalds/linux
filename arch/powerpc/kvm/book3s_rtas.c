@@ -205,6 +205,32 @@ int kvm_vm_ioctl_rtas_define_token(struct kvm *kvm, void __user *argp)
 	return rc;
 }
 
+static void kvmppc_rtas_swap_endian_in(struct rtas_args *args)
+{
+#ifdef __LITTLE_ENDIAN__
+	int i;
+
+	args->token = be32_to_cpu(args->token);
+	args->nargs = be32_to_cpu(args->nargs);
+	args->nret = be32_to_cpu(args->nret);
+	for (i = 0; i < args->nargs; i++)
+		args->args[i] = be32_to_cpu(args->args[i]);
+#endif
+}
+
+static void kvmppc_rtas_swap_endian_out(struct rtas_args *args)
+{
+#ifdef __LITTLE_ENDIAN__
+	int i;
+
+	for (i = 0; i < args->nret; i++)
+		args->args[i] = cpu_to_be32(args->args[i]);
+	args->token = cpu_to_be32(args->token);
+	args->nargs = cpu_to_be32(args->nargs);
+	args->nret = cpu_to_be32(args->nret);
+#endif
+}
+
 int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu)
 {
 	struct rtas_token_definition *d;
@@ -213,12 +239,17 @@ int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu)
 	gpa_t args_phys;
 	int rc;
 
-	/* r4 contains the guest physical address of the RTAS args */
-	args_phys = kvmppc_get_gpr(vcpu, 4);
+	/*
+	 * r4 contains the guest physical address of the RTAS args
+	 * Mask off the top 4 bits since this is a guest real address
+	 */
+	args_phys = kvmppc_get_gpr(vcpu, 4) & KVM_PAM;
 
 	rc = kvm_read_guest(vcpu->kvm, args_phys, &args, sizeof(args));
 	if (rc)
 		goto fail;
+
+	kvmppc_rtas_swap_endian_in(&args);
 
 	/*
 	 * args->rets is a pointer into args->args. Now that we've
@@ -244,6 +275,7 @@ int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu)
 
 	if (rc == 0) {
 		args.rets = orig_rets;
+		kvmppc_rtas_swap_endian_out(&args);
 		rc = kvm_write_guest(vcpu->kvm, args_phys, &args, sizeof(args));
 		if (rc)
 			goto fail;
@@ -260,6 +292,7 @@ fail:
 	 */
 	return rc;
 }
+EXPORT_SYMBOL_GPL(kvmppc_rtas_hcall);
 
 void kvmppc_rtas_tokens_free(struct kvm *kvm)
 {

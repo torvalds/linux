@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -297,7 +297,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 			}
 	}
 
-      cleanup:
+cleanup:
 
 	/* Now we can actually delete the subtree rooted at Op */
 

@@ -17,6 +17,7 @@
 #include <linux/irqreturn.h>
 #include <linux/usb.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/otg-fsm.h>
 
 /******************************************************************************
  * DEFINE
@@ -24,6 +25,35 @@
 #define TD_PAGE_COUNT      5
 #define CI_HDRC_PAGE_SIZE  4096ul /* page size for TD's */
 #define ENDPT_MAX          32
+
+/******************************************************************************
+ * REGISTERS
+ *****************************************************************************/
+/* register indices */
+enum ci_hw_regs {
+	CAP_CAPLENGTH,
+	CAP_HCCPARAMS,
+	CAP_DCCPARAMS,
+	CAP_TESTMODE,
+	CAP_LAST = CAP_TESTMODE,
+	OP_USBCMD,
+	OP_USBSTS,
+	OP_USBINTR,
+	OP_DEVICEADDR,
+	OP_ENDPTLISTADDR,
+	OP_PORTSC,
+	OP_DEVLC,
+	OP_OTGSC,
+	OP_USBMODE,
+	OP_ENDPTSETUPSTAT,
+	OP_ENDPTPRIME,
+	OP_ENDPTFLUSH,
+	OP_ENDPTSTAT,
+	OP_ENDPTCOMPLETE,
+	OP_ENDPTCTRL,
+	/* endptctrl1..15 follow */
+	OP_LAST = OP_ENDPTCTRL + ENDPT_MAX / 2,
+};
 
 /******************************************************************************
  * STRUCTURES
@@ -98,7 +128,7 @@ struct hw_bank {
 	void __iomem	*cap;
 	void __iomem	*op;
 	size_t		size;
-	void __iomem	**regmap;
+	void __iomem	*regmap[OP_LAST + 1];
 };
 
 /**
@@ -110,6 +140,8 @@ struct hw_bank {
  * @roles: array of supported roles for this controller
  * @role: current role
  * @is_otg: if the device is otg-capable
+ * @fsm: otg finite state machine
+ * @fsm_timer: pointer to timer list of otg fsm
  * @work: work for role changing
  * @wq: workqueue thread
  * @qh_pool: allocation pool for queue heads
@@ -135,6 +167,7 @@ struct hw_bank {
  * @id_event: indicates there is an id event, and handled at ci_otg_work
  * @b_sess_valid_event: indicates there is a vbus event, and handled
  * at ci_otg_work
+ * @imx28_write_fix: Freescale imx28 needs swp instruction for writing
  */
 struct ci_hdrc {
 	struct device			*dev;
@@ -144,6 +177,8 @@ struct ci_hdrc {
 	struct ci_role_driver		*roles[CI_ROLE_END];
 	enum ci_role			role;
 	bool				is_otg;
+	struct otg_fsm			fsm;
+	struct ci_otg_fsm_timer_list	*fsm_timer;
 	struct work_struct		work;
 	struct workqueue_struct		*wq;
 
@@ -166,13 +201,12 @@ struct ci_hdrc {
 
 	struct ci_hdrc_platform_data	*platdata;
 	int				vbus_active;
-	/* FIXME: some day, we'll not use global phy */
-	bool				global_phy;
 	struct usb_phy			*transceiver;
 	struct usb_hcd			*hcd;
 	struct dentry			*debugfs;
 	bool				id_event;
 	bool				b_sess_valid_event;
+	bool				imx28_write_fix;
 };
 
 static inline struct ci_role_driver *ci_role(struct ci_hdrc *ci)
@@ -209,38 +243,6 @@ static inline void ci_role_stop(struct ci_hdrc *ci)
 	ci->roles[role]->stop(ci);
 }
 
-/******************************************************************************
- * REGISTERS
- *****************************************************************************/
-/* register size */
-#define REG_BITS   (32)
-
-/* register indices */
-enum ci_hw_regs {
-	CAP_CAPLENGTH,
-	CAP_HCCPARAMS,
-	CAP_DCCPARAMS,
-	CAP_TESTMODE,
-	CAP_LAST = CAP_TESTMODE,
-	OP_USBCMD,
-	OP_USBSTS,
-	OP_USBINTR,
-	OP_DEVICEADDR,
-	OP_ENDPTLISTADDR,
-	OP_PORTSC,
-	OP_DEVLC,
-	OP_OTGSC,
-	OP_USBMODE,
-	OP_ENDPTSETUPSTAT,
-	OP_ENDPTPRIME,
-	OP_ENDPTFLUSH,
-	OP_ENDPTSTAT,
-	OP_ENDPTCOMPLETE,
-	OP_ENDPTCTRL,
-	/* endptctrl1..15 follow */
-	OP_LAST = OP_ENDPTCTRL + ENDPT_MAX / 2,
-};
-
 /**
  * hw_read: reads from a hw register
  * @reg:  register index
@@ -251,6 +253,26 @@ enum ci_hw_regs {
 static inline u32 hw_read(struct ci_hdrc *ci, enum ci_hw_regs reg, u32 mask)
 {
 	return ioread32(ci->hw_bank.regmap[reg]) & mask;
+}
+
+#ifdef CONFIG_SOC_IMX28
+static inline void imx28_ci_writel(u32 val, volatile void __iomem *addr)
+{
+	__asm__ ("swp %0, %0, [%1]" : : "r"(val), "r"(addr));
+}
+#else
+static inline void imx28_ci_writel(u32 val, volatile void __iomem *addr)
+{
+}
+#endif
+
+static inline void __hw_write(struct ci_hdrc *ci, u32 val,
+		void __iomem *addr)
+{
+	if (ci->imx28_write_fix)
+		imx28_ci_writel(val, addr);
+	else
+		iowrite32(val, addr);
 }
 
 /**
@@ -266,7 +288,7 @@ static inline void hw_write(struct ci_hdrc *ci, enum ci_hw_regs reg,
 		data = (ioread32(ci->hw_bank.regmap[reg]) & ~mask)
 			| (data & mask);
 
-	iowrite32(data, ci->hw_bank.regmap[reg]);
+	__hw_write(ci, data, ci->hw_bank.regmap[reg]);
 }
 
 /**
@@ -281,7 +303,7 @@ static inline u32 hw_test_and_clear(struct ci_hdrc *ci, enum ci_hw_regs reg,
 {
 	u32 val = ioread32(ci->hw_bank.regmap[reg]) & mask;
 
-	iowrite32(val, ci->hw_bank.regmap[reg]);
+	__hw_write(ci, val, ci->hw_bank.regmap[reg]);
 	return val;
 }
 
@@ -301,6 +323,24 @@ static inline u32 hw_test_and_write(struct ci_hdrc *ci, enum ci_hw_regs reg,
 	hw_write(ci, reg, mask, data);
 	return (val & mask) >> __ffs(mask);
 }
+
+/**
+ * ci_otg_is_fsm_mode: runtime check if otg controller
+ * is in otg fsm mode.
+ */
+static inline bool ci_otg_is_fsm_mode(struct ci_hdrc *ci)
+{
+#ifdef CONFIG_USB_OTG_FSM
+	return ci->is_otg && ci->roles[CI_ROLE_HOST] &&
+					ci->roles[CI_ROLE_GADGET];
+#else
+	return false;
+#endif
+}
+
+u32 hw_read_intr_enable(struct ci_hdrc *ci);
+
+u32 hw_read_intr_status(struct ci_hdrc *ci);
 
 int hw_device_reset(struct ci_hdrc *ci, u32 mode);
 

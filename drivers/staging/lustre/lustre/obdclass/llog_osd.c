@@ -514,7 +514,7 @@ static void llog_skip_over(__u64 *off, int curr, int goal)
 
 /* sets:
  *  - cur_offset to the furthest point read in the log file
- *  - cur_idx to the log index preceeding cur_offset
+ *  - cur_idx to the log index preceding cur_offset
  * returns -EIO/-EINVAL on error
  */
 static int llog_osd_next_block(const struct lu_env *env,
@@ -1073,7 +1073,7 @@ static int llog_osd_setup(const struct lu_env *env, struct obd_device *obd,
 	LASSERT(ctxt);
 
 	/* initialize data allowing to generate new fids,
-	 * literally we need a sequece */
+	 * literally we need a sequence */
 	lgi->lgi_fid.f_seq = FID_SEQ_LLOG;
 	lgi->lgi_fid.f_oid = 1;
 	lgi->lgi_fid.f_ver = 0;
@@ -1280,7 +1280,7 @@ int llog_osd_put_cat_list(const struct lu_env *env, struct dt_device *d,
 	lgi->lgi_buf.lb_len = size;
 	rc = dt_record_write(env, o, &lgi->lgi_buf, &lgi->lgi_off, th);
 	if (rc)
-		CDEBUG(D_INODE, "error writeing CATALOGS: rc = %d\n", rc);
+		CDEBUG(D_INODE, "error writing CATALOGS: rc = %d\n", rc);
 out_trans:
 	dt_trans_stop(env, d, th);
 out:

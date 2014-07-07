@@ -369,7 +369,7 @@ static int scs_init_hss_address(struct scs *scs)
 	data = cpu_to_be64(((u64)HSS1394_TAG_CHANGE_ADDRESS << 56) |
 			   scs->hss_handler.offset);
 	err = snd_fw_transaction(scs->unit, TCODE_WRITE_BLOCK_REQUEST,
-				 HSS1394_ADDRESS, &data, 8);
+				 HSS1394_ADDRESS, &data, 8, 0);
 	if (err < 0)
 		dev_err(&scs->unit->device, "HSS1394 communication failed\n");
 
@@ -391,10 +391,10 @@ static int scs_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	struct scs *scs;
 	int err;
 
-	err = snd_card_create(-16, NULL, THIS_MODULE, sizeof(*scs), &card);
+	err = snd_card_new(&unit->device, -16, NULL, THIS_MODULE,
+			   sizeof(*scs), &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, &unit->device);
 
 	scs = card->private_data;
 	scs->card = card;
@@ -455,12 +455,16 @@ err_card:
 static void scs_update(struct fw_unit *unit)
 {
 	struct scs *scs = dev_get_drvdata(&unit->device);
+	int generation;
 	__be64 data;
 
 	data = cpu_to_be64(((u64)HSS1394_TAG_CHANGE_ADDRESS << 56) |
 			   scs->hss_handler.offset);
+	generation = fw_parent_device(unit)->generation;
+	smp_rmb(); /* node_id vs. generation */
 	snd_fw_transaction(scs->unit, TCODE_WRITE_BLOCK_REQUEST,
-			   HSS1394_ADDRESS, &data, 8);
+			   HSS1394_ADDRESS, &data, 8,
+			   FW_FIXED_GENERATION | generation);
 }
 
 static void scs_remove(struct fw_unit *unit)

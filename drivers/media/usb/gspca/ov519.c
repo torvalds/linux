@@ -3468,7 +3468,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 	switch (sd->bridge) {
 	case BRIDGE_OVFX2:
-		if (gspca_dev->width != 800)
+		if (gspca_dev->pixfmt.width != 800)
 			gspca_dev->cam.bulk_size = OVFX2_BULK_SIZE;
 		else
 			gspca_dev->cam.bulk_size = 7 * 4096;
@@ -3507,8 +3507,8 @@ static void ov511_mode_init_regs(struct sd *sd)
 	/* Here I'm assuming that snapshot size == image size.
 	 * I hope that's always true. --claudio
 	 */
-	hsegs = (sd->gspca_dev.width >> 3) - 1;
-	vsegs = (sd->gspca_dev.height >> 3) - 1;
+	hsegs = (sd->gspca_dev.pixfmt.width >> 3) - 1;
+	vsegs = (sd->gspca_dev.pixfmt.height >> 3) - 1;
 
 	reg_w(sd, R511_CAM_PXCNT, hsegs);
 	reg_w(sd, R511_CAM_LNCNT, vsegs);
@@ -3541,7 +3541,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 	case SEN_OV7640:
 	case SEN_OV7648:
 	case SEN_OV76BE:
-		if (sd->gspca_dev.width == 320)
+		if (sd->gspca_dev.pixfmt.width == 320)
 			interlaced = 1;
 		/* Fall through */
 	case SEN_OV6630:
@@ -3551,7 +3551,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 		case 30:
 		case 25:
 			/* Not enough bandwidth to do 640x480 @ 30 fps */
-			if (sd->gspca_dev.width != 640) {
+			if (sd->gspca_dev.pixfmt.width != 640) {
 				sd->clockdiv = 0;
 				break;
 			}
@@ -3584,7 +3584,8 @@ static void ov511_mode_init_regs(struct sd *sd)
 
 	/* Check if we have enough bandwidth to disable compression */
 	fps = (interlaced ? 60 : 30) / (sd->clockdiv + 1) + 1;
-	needed = fps * sd->gspca_dev.width * sd->gspca_dev.height * 3 / 2;
+	needed = fps * sd->gspca_dev.pixfmt.width *
+			sd->gspca_dev.pixfmt.height * 3 / 2;
 	/* 1000 isoc packets/sec */
 	if (needed > 1000 * packet_size) {
 		/* Enable Y and UV quantization and compression */
@@ -3646,8 +3647,8 @@ static void ov518_mode_init_regs(struct sd *sd)
 		reg_w(sd, 0x38, 0x80);
 	}
 
-	hsegs = sd->gspca_dev.width / 16;
-	vsegs = sd->gspca_dev.height / 4;
+	hsegs = sd->gspca_dev.pixfmt.width / 16;
+	vsegs = sd->gspca_dev.pixfmt.height / 4;
 
 	reg_w(sd, 0x29, hsegs);
 	reg_w(sd, 0x2a, vsegs);
@@ -3686,7 +3687,8 @@ static void ov518_mode_init_regs(struct sd *sd)
 			 * happened to be with revision < 2 cams using an
 			 * OV7620 and revision 2 cams using an OV7620AE.
 			 */
-			if (sd->revision > 0 && sd->gspca_dev.width == 640) {
+			if (sd->revision > 0 &&
+					sd->gspca_dev.pixfmt.width == 640) {
 				reg_w(sd, 0x20, 0x60);
 				reg_w(sd, 0x21, 0x1f);
 			} else {
@@ -3812,8 +3814,8 @@ static void ov519_mode_init_regs(struct sd *sd)
 		break;
 	}
 
-	reg_w(sd, OV519_R10_H_SIZE,	sd->gspca_dev.width >> 4);
-	reg_w(sd, OV519_R11_V_SIZE,	sd->gspca_dev.height >> 3);
+	reg_w(sd, OV519_R10_H_SIZE,	sd->gspca_dev.pixfmt.width >> 4);
+	reg_w(sd, OV519_R11_V_SIZE,	sd->gspca_dev.pixfmt.height >> 3);
 	if (sd->sensor == SEN_OV7670 &&
 	    sd->gspca_dev.cam.cam_mode[sd->gspca_dev.curr_mode].priv)
 		reg_w(sd, OV519_R12_X_OFFSETL, 0x04);
@@ -3947,14 +3949,16 @@ static void mode_init_ov_sensor_regs(struct sd *sd)
 	    }
 	case SEN_OV3610:
 		if (qvga) {
-			xstart = (1040 - gspca_dev->width) / 2 + (0x1f << 4);
-			ystart = (776 - gspca_dev->height) / 2;
+			xstart = (1040 - gspca_dev->pixfmt.width) / 2 +
+				(0x1f << 4);
+			ystart = (776 - gspca_dev->pixfmt.height) / 2;
 		} else {
-			xstart = (2076 - gspca_dev->width) / 2 + (0x10 << 4);
-			ystart = (1544 - gspca_dev->height) / 2;
+			xstart = (2076 - gspca_dev->pixfmt.width) / 2 +
+				(0x10 << 4);
+			ystart = (1544 - gspca_dev->pixfmt.height) / 2;
 		}
-		xend = xstart + gspca_dev->width;
-		yend = ystart + gspca_dev->height;
+		xend = xstart + gspca_dev->pixfmt.width;
+		yend = ystart + gspca_dev->pixfmt.height;
 		/* Writing to the COMH register resets the other windowing regs
 		   to their default values, so we must do this first. */
 		i2c_w_mask(sd, 0x12, qvga ? 0x40 : 0x00, 0xf0);
@@ -4229,8 +4233,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* Default for most bridges, allow bridge_mode_init_regs to override */
-	sd->sensor_width = sd->gspca_dev.width;
-	sd->sensor_height = sd->gspca_dev.height;
+	sd->sensor_width = sd->gspca_dev.pixfmt.width;
+	sd->sensor_height = sd->gspca_dev.pixfmt.height;
 
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
@@ -4345,12 +4349,13 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 		ov51x_handle_button(gspca_dev, (in[8] >> 2) & 1);
 		if (in[8] & 0x80) {
 			/* Frame end */
-			if ((in[9] + 1) * 8 != gspca_dev->width ||
-			    (in[10] + 1) * 8 != gspca_dev->height) {
+			if ((in[9] + 1) * 8 != gspca_dev->pixfmt.width ||
+			    (in[10] + 1) * 8 != gspca_dev->pixfmt.height) {
 				PERR("Invalid frame size, got: %dx%d,"
 					" requested: %dx%d\n",
 					(in[9] + 1) * 8, (in[10] + 1) * 8,
-					gspca_dev->width, gspca_dev->height);
+					gspca_dev->pixfmt.width,
+					gspca_dev->pixfmt.height);
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 				return;
 			}
@@ -4470,7 +4475,8 @@ static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
 		if (sd->first_frame) {
 			sd->first_frame--;
 			if (gspca_dev->image_len <
-				  sd->gspca_dev.width * sd->gspca_dev.height)
+				  sd->gspca_dev.pixfmt.width *
+					sd->gspca_dev.pixfmt.height)
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 		}
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);

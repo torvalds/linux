@@ -36,7 +36,7 @@
 
 /*
  *  ======== dsp_init ========
- *  	Allocates bridge resources. Loads a base image onto DSP, if specified.
+ *  Allocates bridge resources. Loads a base image onto DSP, if specified.
  */
 u32 dsp_init(u32 *init_status)
 {
@@ -106,7 +106,7 @@ func_cont:
 
 /*
  *  ======== dsp_deinit ========
- *  	Frees the resources allocated for bridge.
+ *  Frees the resources allocated for bridge.
  */
 bool dsp_deinit(u32 device_context)
 {

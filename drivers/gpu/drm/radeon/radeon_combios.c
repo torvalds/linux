@@ -37,22 +37,6 @@
 #include <asm/pci-bridge.h>
 #endif /* CONFIG_PPC_PMAC */
 
-/* from radeon_encoder.c */
-extern uint32_t
-radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
-			uint8_t dac);
-extern void radeon_link_encoder_connector(struct drm_device *dev);
-
-/* from radeon_connector.c */
-extern void
-radeon_add_legacy_connector(struct drm_device *dev,
-			    uint32_t connector_id,
-			    uint32_t supported_device,
-			    int connector_type,
-			    struct radeon_i2c_bus_rec *i2c_bus,
-			    uint16_t connector_object_id,
-			    struct radeon_hpd *hpd);
-
 /* from radeon_legacy_encoder.c */
 extern void
 radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum,

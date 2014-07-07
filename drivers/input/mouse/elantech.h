@@ -130,6 +130,7 @@ struct elantech_data {
 	bool jumpy_cursor;
 	bool reports_pressure;
 	bool crc_enabled;
+	bool set_hw_resolution;
 	unsigned char hw_version;
 	unsigned int fw_version;
 	unsigned int single_finger_reports;

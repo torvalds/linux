@@ -196,7 +196,7 @@ agdev_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	struct snd_uac2_chip *uac2 = prm->uac2;
 
 	/* i/f shutting down */
-	if (!prm->ep_enabled)
+	if (!prm->ep_enabled || req->status == -ESHUTDOWN)
 		return;
 
 	/*
@@ -394,7 +394,7 @@ static int snd_uac2_probe(struct platform_device *pdev)
 	int err;
 
 	/* Choose any slot, with no id */
-	err = snd_card_create(-1, NULL, THIS_MODULE, 0, &card);
+	err = snd_card_new(&pdev->dev, -1, NULL, THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
@@ -420,8 +420,6 @@ static int snd_uac2_probe(struct platform_device *pdev)
 	strcpy(card->driver, "UAC2_Gadget");
 	strcpy(card->shortname, "UAC2_Gadget");
 	sprintf(card->longname, "UAC2_Gadget %i", pdev->id);
-
-	snd_card_set_dev(card, &pdev->dev);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
 		snd_dma_continuous_data(GFP_KERNEL), 0, BUFF_SIZE_MAX);
@@ -976,8 +974,6 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	prm->rbuf = kzalloc(prm->max_psize * USB_XFERS, GFP_KERNEL);
 	if (!prm->rbuf) {
 		prm->max_psize = 0;
-		dev_err(&uac2->pdev.dev,
-			"%s:%d Error!\n", __func__, __LINE__);
 		goto err;
 	}
 
@@ -986,8 +982,6 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	prm->rbuf = kzalloc(prm->max_psize * USB_XFERS, GFP_KERNEL);
 	if (!prm->rbuf) {
 		prm->max_psize = 0;
-		dev_err(&uac2->pdev.dev,
-			"%s:%d Error!\n", __func__, __LINE__);
 		goto err;
 	}
 
@@ -1300,10 +1294,8 @@ static int audio_bind_config(struct usb_configuration *cfg)
 	int res;
 
 	agdev_g = kzalloc(sizeof *agdev_g, GFP_KERNEL);
-	if (agdev_g == NULL) {
-		printk(KERN_ERR "Unable to allocate audio gadget\n");
+	if (agdev_g == NULL)
 		return -ENOMEM;
-	}
 
 	res = usb_string_ids_tab(cfg->cdev, strings_fn);
 	if (res)

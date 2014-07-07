@@ -83,8 +83,6 @@
 
 #define RTI800_IOSIZE		0x10
 
-#define RTI800_AI_TIMEOUT	100
-
 static const struct comedi_lrange range_rti800_ai_10_bipolar = {
 	4, {
 		BIP_RANGE(10),
@@ -145,23 +143,21 @@ struct rti800_private {
 	unsigned char muxgain_bits;
 };
 
-static int rti800_ai_wait_for_conversion(struct comedi_device *dev,
-					 int timeout)
+static int rti800_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
 	unsigned char status;
-	int i;
 
-	for (i = 0; i < timeout; i++) {
-		status = inb(dev->iobase + RTI800_CSR);
-		if (status & RTI800_CSR_OVERRUN) {
-			outb(0, dev->iobase + RTI800_CLRFLAGS);
-			return -EIO;
-		}
-		if (status & RTI800_CSR_DONE)
-			return 0;
-		udelay(1);
+	status = inb(dev->iobase + RTI800_CSR);
+	if (status & RTI800_CSR_OVERRUN) {
+		outb(0, dev->iobase + RTI800_CLRFLAGS);
+		return -EOVERFLOW;
 	}
-	return -ETIME;
+	if (status & RTI800_CSR_DONE)
+		return 0;
+	return -EBUSY;
 }
 
 static int rti800_ai_insn_read(struct comedi_device *dev,
@@ -198,7 +194,8 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		outb(0, dev->iobase + RTI800_CONVERT);
-		ret = rti800_ai_wait_for_conversion(dev, RTI800_AI_TIMEOUT);
+
+		ret = comedi_timeout(dev, s, insn, rti800_ai_eoc, 0);
 		if (ret)
 			return ret;
 
@@ -267,13 +264,7 @@ static int rti800_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data)) {
 		/* Outputs are inverted... */
 		outb(s->state ^ 0xff, dev->iobase + RTI800_DO);
 	}

@@ -24,7 +24,6 @@
 #include <rtw_android.h>
 #include <osdep_service.h>
 #include <rtw_debug.h>
-#include <ioctl_cfg80211.h>
 #include <rtw_ioctl_set.h>
 
 static const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
@@ -159,7 +158,6 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	int bytes_written = 0;
 	struct android_wifi_priv_cmd priv_cmd;
 
-	rtw_lock_suspend();
 	if (!ifr->ifr_data) {
 		ret = -EINVAL;
 		goto exit;
@@ -287,7 +285,6 @@ response:
 		ret = bytes_written;
 	}
 exit:
-	rtw_unlock_suspend();
 	kfree(command);
 	return ret;
 }

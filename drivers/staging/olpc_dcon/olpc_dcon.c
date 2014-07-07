@@ -210,6 +210,7 @@ static void dcon_sleep(struct dcon_priv *dcon, bool sleep)
 
 	if (sleep) {
 		u8 pm = 0;
+
 		x = olpc_ec_cmd(EC_DCON_POWER_MODE, &pm, 1, NULL, 0);
 		if (x)
 			pr_warn("unable to force dcon to power down: %d!\n", x);
@@ -240,6 +241,7 @@ static void dcon_sleep(struct dcon_priv *dcon, bool sleep)
 static void dcon_load_holdoff(struct dcon_priv *dcon)
 {
 	struct timespec delta_t, now;
+
 	while (1) {
 		getnstimeofday(&now);
 		delta_t = timespec_sub(now, dcon->load_time);
@@ -255,17 +257,19 @@ static bool dcon_blank_fb(struct dcon_priv *dcon, bool blank)
 {
 	int err;
 
+	console_lock();
 	if (!lock_fb_info(dcon->fbinfo)) {
+		console_unlock();
 		dev_err(&dcon->client->dev, "unable to lock framebuffer\n");
 		return false;
 	}
-	console_lock();
+
 	dcon->ignore_fb_events = true;
 	err = fb_blank(dcon->fbinfo,
 			blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK);
 	dcon->ignore_fb_events = false;
-	console_unlock();
 	unlock_fb_info(dcon->fbinfo);
+	console_unlock();
 
 	if (err) {
 		dev_err(&dcon->client->dev, "couldn't %sblank framebuffer\n",
@@ -383,7 +387,7 @@ static void dcon_set_source(struct dcon_priv *dcon, int arg)
 
 	dcon->pending_src = arg;
 
-	if ((dcon->curr_src != arg) && !work_pending(&dcon->switch_source))
+	if (dcon->curr_src != arg)
 		schedule_work(&dcon->switch_source);
 }
 
@@ -397,14 +401,15 @@ static ssize_t dcon_mode_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
+
 	return sprintf(buf, "%4.4X\n", dcon->disp_mode);
 }
 
 static ssize_t dcon_sleep_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
+
 	return sprintf(buf, "%d\n", dcon->asleep);
 }
 
@@ -412,6 +417,7 @@ static ssize_t dcon_freeze_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
+
 	return sprintf(buf, "%d\n", dcon->curr_src == DCON_SOURCE_DCON ? 1 : 0);
 }
 
@@ -419,6 +425,7 @@ static ssize_t dcon_mono_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
+
 	return sprintf(buf, "%d\n", dcon->mono);
 }
 
@@ -532,6 +539,7 @@ static int dcon_bl_update(struct backlight_device *dev)
 static int dcon_bl_get(struct backlight_device *dev)
 {
 	struct dcon_priv *dcon = bl_get_data(dev);
+
 	return dcon->bl_val;
 }
 

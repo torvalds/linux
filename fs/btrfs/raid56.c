@@ -33,7 +33,6 @@
 #include <linux/raid/xor.h>
 #include <linux/vmalloc.h>
 #include <asm/div64.h>
-#include "compat.h"
 #include "ctree.h"
 #include "extent_map.h"
 #include "disk-io.h"
@@ -1033,8 +1032,8 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 
 	/* see if we can add this page onto our existing bio */
 	if (last) {
-		last_end = (u64)last->bi_sector << 9;
-		last_end += last->bi_size;
+		last_end = (u64)last->bi_iter.bi_sector << 9;
+		last_end += last->bi_iter.bi_size;
 
 		/*
 		 * we can't merge these if they are from different
@@ -1054,9 +1053,9 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	if (!bio)
 		return -ENOMEM;
 
-	bio->bi_size = 0;
+	bio->bi_iter.bi_size = 0;
 	bio->bi_bdev = stripe->dev->bdev;
-	bio->bi_sector = disk_start >> 9;
+	bio->bi_iter.bi_sector = disk_start >> 9;
 	set_bit(BIO_UPTODATE, &bio->bi_flags);
 
 	bio_add_page(bio, page, PAGE_CACHE_SIZE, 0);
@@ -1112,7 +1111,7 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 
 	spin_lock_irq(&rbio->bio_list_lock);
 	bio_list_for_each(bio, &rbio->bio_list) {
-		start = (u64)bio->bi_sector << 9;
+		start = (u64)bio->bi_iter.bi_sector << 9;
 		stripe_offset = start - rbio->raid_map[0];
 		page_index = stripe_offset >> PAGE_CACHE_SHIFT;
 
@@ -1273,7 +1272,7 @@ cleanup:
 static int find_bio_stripe(struct btrfs_raid_bio *rbio,
 			   struct bio *bio)
 {
-	u64 physical = bio->bi_sector;
+	u64 physical = bio->bi_iter.bi_sector;
 	u64 stripe_start;
 	int i;
 	struct btrfs_bio_stripe *stripe;
@@ -1299,7 +1298,7 @@ static int find_bio_stripe(struct btrfs_raid_bio *rbio,
 static int find_logical_bio_stripe(struct btrfs_raid_bio *rbio,
 				   struct bio *bio)
 {
-	u64 logical = bio->bi_sector;
+	u64 logical = bio->bi_iter.bi_sector;
 	u64 stripe_start;
 	int i;
 
@@ -1417,20 +1416,18 @@ cleanup:
 
 static void async_rmw_stripe(struct btrfs_raid_bio *rbio)
 {
-	rbio->work.flags = 0;
-	rbio->work.func = rmw_work;
+	btrfs_init_work(&rbio->work, rmw_work, NULL, NULL);
 
-	btrfs_queue_worker(&rbio->fs_info->rmw_workers,
-			   &rbio->work);
+	btrfs_queue_work(rbio->fs_info->rmw_workers,
+			 &rbio->work);
 }
 
 static void async_read_rebuild(struct btrfs_raid_bio *rbio)
 {
-	rbio->work.flags = 0;
-	rbio->work.func = read_rebuild_work;
+	btrfs_init_work(&rbio->work, read_rebuild_work, NULL, NULL);
 
-	btrfs_queue_worker(&rbio->fs_info->rmw_workers,
-			   &rbio->work);
+	btrfs_queue_work(rbio->fs_info->rmw_workers,
+			 &rbio->work);
 }
 
 /*
@@ -1603,8 +1600,8 @@ static int plug_cmp(void *priv, struct list_head *a, struct list_head *b)
 						 plug_list);
 	struct btrfs_raid_bio *rb = container_of(b, struct btrfs_raid_bio,
 						 plug_list);
-	u64 a_sector = ra->bio_list.head->bi_sector;
-	u64 b_sector = rb->bio_list.head->bi_sector;
+	u64 a_sector = ra->bio_list.head->bi_iter.bi_sector;
+	u64 b_sector = rb->bio_list.head->bi_iter.bi_sector;
 
 	if (a_sector < b_sector)
 		return -1;
@@ -1668,10 +1665,9 @@ static void btrfs_raid_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	plug = container_of(cb, struct btrfs_plug_cb, cb);
 
 	if (from_schedule) {
-		plug->work.flags = 0;
-		plug->work.func = unplug_work;
-		btrfs_queue_worker(&plug->info->rmw_workers,
-				   &plug->work);
+		btrfs_init_work(&plug->work, unplug_work, NULL, NULL);
+		btrfs_queue_work(plug->info->rmw_workers,
+				 &plug->work);
 		return;
 	}
 	run_plug(plug);
@@ -1692,7 +1688,7 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 	if (IS_ERR(rbio))
 		return PTR_ERR(rbio);
 	bio_list_add(&rbio->bio_list, bio);
-	rbio->bio_list_bytes = bio->bi_size;
+	rbio->bio_list_bytes = bio->bi_iter.bi_size;
 
 	/*
 	 * don't plug on full rbios, just get them out the door
@@ -1960,9 +1956,10 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 	 * pages are going to be uptodate.
 	 */
 	for (stripe = 0; stripe < bbio->num_stripes; stripe++) {
-		if (rbio->faila == stripe ||
-		    rbio->failb == stripe)
+		if (rbio->faila == stripe || rbio->failb == stripe) {
+			atomic_inc(&rbio->bbio->error);
 			continue;
+		}
 
 		for (pagenr = 0; pagenr < nr_pages; pagenr++) {
 			struct page *p;
@@ -2045,7 +2042,7 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 
 	rbio->read_rebuild = 1;
 	bio_list_add(&rbio->bio_list, bio);
-	rbio->bio_list_bytes = bio->bi_size;
+	rbio->bio_list_bytes = bio->bi_iter.bi_size;
 
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {

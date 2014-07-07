@@ -10,15 +10,18 @@
  */
 
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/memblock.h>
 #include <linux/vmalloc.h>
 #include <linux/memory.h>
+#include <linux/memory_hotplug.h>
 
 #include <asm/firmware.h>
 #include <asm/machdep.h>
+#include <asm/prom.h>
 #include <asm/sparsemem.h>
 
-static unsigned long get_memblock_size(void)
+unsigned long pseries_memory_block_size(void)
 {
 	struct device_node *np;
 	unsigned int memblock_size = MIN_MEMORY_BLOCK_SIZE;
@@ -61,62 +64,14 @@ static unsigned long get_memblock_size(void)
 	return memblock_size;
 }
 
-/* WARNING: This is going to override the generic definition whenever
- * pseries is built-in regardless of what platform is active at boot
- * time. This is fine for now as this is the only "option" and it
- * should work everywhere. If not, we'll have to turn this into a
- * ppc_md. callback
- */
-unsigned long memory_block_size_bytes(void)
-{
-	return get_memblock_size();
-}
-
 #ifdef CONFIG_MEMORY_HOTREMOVE
-static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
+static int pseries_remove_memory(u64 start, u64 size)
 {
-	unsigned long start, start_pfn;
-	struct zone *zone;
 	int ret;
-	unsigned long section;
-	unsigned long sections_to_remove;
 
-	start_pfn = base >> PAGE_SHIFT;
-
-	if (!pfn_valid(start_pfn)) {
-		memblock_remove(base, memblock_size);
-		return 0;
-	}
-
-	zone = page_zone(pfn_to_page(start_pfn));
-
-	/*
-	 * Remove section mappings and sysfs entries for the
-	 * section of the memory we are removing.
-	 *
-	 * NOTE: Ideally, this should be done in generic code like
-	 * remove_memory(). But remove_memory() gets called by writing
-	 * to sysfs "state" file and we can't remove sysfs entries
-	 * while writing to it. So we have to defer it to here.
-	 */
-	sections_to_remove = (memblock_size >> PAGE_SHIFT) / PAGES_PER_SECTION;
-	for (section = 0; section < sections_to_remove; section++) {
-		unsigned long pfn = start_pfn + section * PAGES_PER_SECTION;
-		ret = __remove_pages(zone, pfn, PAGES_PER_SECTION);
-		if (ret)
-			return ret;
-	}
-
-	/*
-	 * Update memory regions for memory remove
-	 */
-	memblock_remove(base, memblock_size);
-
-	/*
-	 * Remove htab bolted mappings for this section of memory
-	 */
-	start = (unsigned long)__va(base);
-	ret = remove_section_mapping(start, start + memblock_size);
+	/* Remove htab bolted mappings for this section of memory */
+	start = (unsigned long)__va(start);
+	ret = remove_section_mapping(start, start + size);
 
 	/* Ensure all vmalloc mappings are flushed in case they also
 	 * hit that section of memory
@@ -126,7 +81,36 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
 	return ret;
 }
 
-static int pseries_remove_memory(struct device_node *np)
+static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
+{
+	unsigned long block_sz, start_pfn;
+	int sections_per_block;
+	int i, nid;
+
+	start_pfn = base >> PAGE_SHIFT;
+
+	lock_device_hotplug();
+
+	if (!pfn_valid(start_pfn))
+		goto out;
+
+	block_sz = pseries_memory_block_size();
+	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
+	nid = memory_add_physaddr_to_nid(base);
+
+	for (i = 0; i < sections_per_block; i++) {
+		remove_memory(nid, base, MIN_MEMORY_BLOCK_SIZE);
+		base += MIN_MEMORY_BLOCK_SIZE;
+	}
+
+out:
+	/* Update memory regions for memory remove */
+	memblock_remove(base, memblock_size);
+	unlock_device_hotplug();
+	return 0;
+}
+
+static int pseries_remove_mem_node(struct device_node *np)
 {
 	const char *type;
 	const unsigned int *regs;
@@ -151,8 +135,8 @@ static int pseries_remove_memory(struct device_node *np)
 	base = *(unsigned long *)regs;
 	lmb_size = regs[3];
 
-	ret = pseries_remove_memblock(base, lmb_size);
-	return ret;
+	pseries_remove_memblock(base, lmb_size);
+	return 0;
 }
 #else
 static inline int pseries_remove_memblock(unsigned long base,
@@ -160,13 +144,13 @@ static inline int pseries_remove_memblock(unsigned long base,
 {
 	return -EOPNOTSUPP;
 }
-static inline int pseries_remove_memory(struct device_node *np)
+static inline int pseries_remove_mem_node(struct device_node *np)
 {
 	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
-static int pseries_add_memory(struct device_node *np)
+static int pseries_add_mem_node(struct device_node *np)
 {
 	const char *type;
 	const unsigned int *regs;
@@ -206,7 +190,7 @@ static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
 	u32 *p;
 	int i, rc = -EINVAL;
 
-	memblock_size = get_memblock_size();
+	memblock_size = pseries_memory_block_size();
 	if (!memblock_size)
 		return -EINVAL;
 
@@ -252,10 +236,10 @@ static int pseries_memory_notifier(struct notifier_block *nb,
 
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
-		err = pseries_add_memory(node);
+		err = pseries_add_mem_node(node);
 		break;
 	case OF_RECONFIG_DETACH_NODE:
-		err = pseries_remove_memory(node);
+		err = pseries_remove_mem_node(node);
 		break;
 	case OF_RECONFIG_UPDATE_PROPERTY:
 		pr = (struct of_prop_reconfig *)node;
@@ -274,6 +258,10 @@ static int __init pseries_memory_hotplug_init(void)
 {
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		of_reconfig_notifier_register(&pseries_mem_nb);
+
+#ifdef CONFIG_MEMORY_HOTREMOVE
+	ppc_md.remove_memory = pseries_remove_memory;
+#endif
 
 	return 0;
 }

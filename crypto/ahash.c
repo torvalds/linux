@@ -15,6 +15,7 @@
 
 #include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
+#include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -46,7 +47,10 @@ static int hash_walk_next(struct crypto_hash_walk *walk)
 	unsigned int nbytes = min(walk->entrylen,
 				  ((unsigned int)(PAGE_SIZE)) - offset);
 
-	walk->data = kmap_atomic(walk->pg);
+	if (walk->flags & CRYPTO_ALG_ASYNC)
+		walk->data = kmap(walk->pg);
+	else
+		walk->data = kmap_atomic(walk->pg);
 	walk->data += offset;
 
 	if (offset & alignmask) {
@@ -93,8 +97,16 @@ int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
 		return nbytes;
 	}
 
-	kunmap_atomic(walk->data);
-	crypto_yield(walk->flags);
+	if (walk->flags & CRYPTO_ALG_ASYNC)
+		kunmap(walk->pg);
+	else {
+		kunmap_atomic(walk->data);
+		/*
+		 * The may sleep test only makes sense for sync users.
+		 * Async users don't need to sleep here anyway.
+		 */
+		crypto_yield(walk->flags);
+	}
 
 	if (err)
 		return err;
@@ -124,11 +136,30 @@ int crypto_hash_walk_first(struct ahash_request *req,
 
 	walk->alignmask = crypto_ahash_alignmask(crypto_ahash_reqtfm(req));
 	walk->sg = req->src;
-	walk->flags = req->base.flags;
+	walk->flags = req->base.flags & CRYPTO_TFM_REQ_MASK;
 
 	return hash_walk_new_entry(walk);
 }
 EXPORT_SYMBOL_GPL(crypto_hash_walk_first);
+
+int crypto_ahash_walk_first(struct ahash_request *req,
+			    struct crypto_hash_walk *walk)
+{
+	walk->total = req->nbytes;
+
+	if (!walk->total)
+		return 0;
+
+	walk->alignmask = crypto_ahash_alignmask(crypto_ahash_reqtfm(req));
+	walk->sg = req->src;
+	walk->flags = req->base.flags & CRYPTO_TFM_REQ_MASK;
+	walk->flags |= CRYPTO_ALG_ASYNC;
+
+	BUILD_BUG_ON(CRYPTO_TFM_REQ_MASK & CRYPTO_ALG_ASYNC);
+
+	return hash_walk_new_entry(walk);
+}
+EXPORT_SYMBOL_GPL(crypto_ahash_walk_first);
 
 int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
 				  struct crypto_hash_walk *walk,
@@ -141,7 +172,7 @@ int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
 
 	walk->alignmask = crypto_hash_alignmask(hdesc->tfm);
 	walk->sg = sg;
-	walk->flags = hdesc->flags;
+	walk->flags = hdesc->flags & CRYPTO_TFM_REQ_MASK;
 
 	return hash_walk_new_entry(walk);
 }
@@ -190,6 +221,75 @@ static inline unsigned int ahash_align_buffer_size(unsigned len,
 	return len + (mask & ~(crypto_tfm_ctx_alignment() - 1));
 }
 
+static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	unsigned long alignmask = crypto_ahash_alignmask(tfm);
+	unsigned int ds = crypto_ahash_digestsize(tfm);
+	struct ahash_request_priv *priv;
+
+	priv = kmalloc(sizeof(*priv) + ahash_align_buffer_size(ds, alignmask),
+		       (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
+		       GFP_KERNEL : GFP_ATOMIC);
+	if (!priv)
+		return -ENOMEM;
+
+	/*
+	 * WARNING: Voodoo programming below!
+	 *
+	 * The code below is obscure and hard to understand, thus explanation
+	 * is necessary. See include/crypto/hash.h and include/linux/crypto.h
+	 * to understand the layout of structures used here!
+	 *
+	 * The code here will replace portions of the ORIGINAL request with
+	 * pointers to new code and buffers so the hashing operation can store
+	 * the result in aligned buffer. We will call the modified request
+	 * an ADJUSTED request.
+	 *
+	 * The newly mangled request will look as such:
+	 *
+	 * req {
+	 *   .result        = ADJUSTED[new aligned buffer]
+	 *   .base.complete = ADJUSTED[pointer to completion function]
+	 *   .base.data     = ADJUSTED[*req (pointer to self)]
+	 *   .priv          = ADJUSTED[new priv] {
+	 *           .result   = ORIGINAL(result)
+	 *           .complete = ORIGINAL(base.complete)
+	 *           .data     = ORIGINAL(base.data)
+	 *   }
+	 */
+
+	priv->result = req->result;
+	priv->complete = req->base.complete;
+	priv->data = req->base.data;
+	/*
+	 * WARNING: We do not backup req->priv here! The req->priv
+	 *          is for internal use of the Crypto API and the
+	 *          user must _NOT_ _EVER_ depend on it's content!
+	 */
+
+	req->result = PTR_ALIGN((u8 *)priv->ubuf, alignmask + 1);
+	req->base.complete = cplt;
+	req->base.data = req;
+	req->priv = priv;
+
+	return 0;
+}
+
+static void ahash_restore_req(struct ahash_request *req)
+{
+	struct ahash_request_priv *priv = req->priv;
+
+	/* Restore the original crypto request. */
+	req->result = priv->result;
+	req->base.complete = priv->complete;
+	req->base.data = priv->data;
+	req->priv = NULL;
+
+	/* Free the req->priv.priv from the ADJUSTED request. */
+	kzfree(priv);
+}
+
 static void ahash_op_unaligned_finish(struct ahash_request *req, int err)
 {
 	struct ahash_request_priv *priv = req->priv;
@@ -201,44 +301,37 @@ static void ahash_op_unaligned_finish(struct ahash_request *req, int err)
 		memcpy(priv->result, req->result,
 		       crypto_ahash_digestsize(crypto_ahash_reqtfm(req)));
 
-	kzfree(priv);
+	ahash_restore_req(req);
 }
 
 static void ahash_op_unaligned_done(struct crypto_async_request *req, int err)
 {
 	struct ahash_request *areq = req->data;
-	struct ahash_request_priv *priv = areq->priv;
-	crypto_completion_t complete = priv->complete;
-	void *data = priv->data;
 
+	/*
+	 * Restore the original request, see ahash_op_unaligned() for what
+	 * goes where.
+	 *
+	 * The "struct ahash_request *req" here is in fact the "req.base"
+	 * from the ADJUSTED request from ahash_op_unaligned(), thus as it
+	 * is a pointer to self, it is also the ADJUSTED "req" .
+	 */
+
+	/* First copy req->result into req->priv.result */
 	ahash_op_unaligned_finish(areq, err);
 
-	complete(data, err);
+	/* Complete the ORIGINAL request. */
+	areq->base.complete(&areq->base, err);
 }
 
 static int ahash_op_unaligned(struct ahash_request *req,
 			      int (*op)(struct ahash_request *))
 {
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	unsigned long alignmask = crypto_ahash_alignmask(tfm);
-	unsigned int ds = crypto_ahash_digestsize(tfm);
-	struct ahash_request_priv *priv;
 	int err;
 
-	priv = kmalloc(sizeof(*priv) + ahash_align_buffer_size(ds, alignmask),
-		       (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
-		       GFP_KERNEL : GFP_ATOMIC);
-	if (!priv)
-		return -ENOMEM;
-
-	priv->result = req->result;
-	priv->complete = req->base.complete;
-	priv->data = req->base.data;
-
-	req->result = PTR_ALIGN((u8 *)priv->ubuf, alignmask + 1);
-	req->base.complete = ahash_op_unaligned_done;
-	req->base.data = req;
-	req->priv = priv;
+	err = ahash_save_req(req, ahash_op_unaligned_done);
+	if (err)
+		return err;
 
 	err = op(req);
 	ahash_op_unaligned_finish(req, err);
@@ -287,19 +380,16 @@ static void ahash_def_finup_finish2(struct ahash_request *req, int err)
 		memcpy(priv->result, req->result,
 		       crypto_ahash_digestsize(crypto_ahash_reqtfm(req)));
 
-	kzfree(priv);
+	ahash_restore_req(req);
 }
 
 static void ahash_def_finup_done2(struct crypto_async_request *req, int err)
 {
 	struct ahash_request *areq = req->data;
-	struct ahash_request_priv *priv = areq->priv;
-	crypto_completion_t complete = priv->complete;
-	void *data = priv->data;
 
 	ahash_def_finup_finish2(areq, err);
 
-	complete(data, err);
+	areq->base.complete(&areq->base, err);
 }
 
 static int ahash_def_finup_finish1(struct ahash_request *req, int err)
@@ -319,38 +409,23 @@ out:
 static void ahash_def_finup_done1(struct crypto_async_request *req, int err)
 {
 	struct ahash_request *areq = req->data;
-	struct ahash_request_priv *priv = areq->priv;
-	crypto_completion_t complete = priv->complete;
-	void *data = priv->data;
 
 	err = ahash_def_finup_finish1(areq, err);
 
-	complete(data, err);
+	areq->base.complete(&areq->base, err);
 }
 
 static int ahash_def_finup(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	unsigned long alignmask = crypto_ahash_alignmask(tfm);
-	unsigned int ds = crypto_ahash_digestsize(tfm);
-	struct ahash_request_priv *priv;
+	int err;
 
-	priv = kmalloc(sizeof(*priv) + ahash_align_buffer_size(ds, alignmask),
-		       (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
-		       GFP_KERNEL : GFP_ATOMIC);
-	if (!priv)
-		return -ENOMEM;
+	err = ahash_save_req(req, ahash_def_finup_done1);
+	if (err)
+		return err;
 
-	priv->result = req->result;
-	priv->complete = req->base.complete;
-	priv->data = req->base.data;
-
-	req->result = PTR_ALIGN((u8 *)priv->ubuf, alignmask + 1);
-	req->base.complete = ahash_def_finup_done1;
-	req->base.data = req;
-	req->priv = priv;
-
-	return ahash_def_finup_finish1(req, tfm->update(req));
+	err = tfm->update(req);
+	return ahash_def_finup_finish1(req, err);
 }
 
 static int ahash_no_export(struct ahash_request *req, void *out)

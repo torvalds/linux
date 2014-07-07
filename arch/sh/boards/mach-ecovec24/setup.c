@@ -15,6 +15,7 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
+#include <linux/mfd/tmio.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -501,7 +502,7 @@ static struct platform_device keysc_device = {
 /* TouchScreen */
 #define IRQ0 evt2irq(0x600)
 
-static int ts_get_pendown_state(void)
+static int ts_get_pendown_state(struct device *dev)
 {
 	int val = 0;
 	gpio_free(GPIO_FN_INTC_IRQ0);
@@ -860,14 +861,12 @@ static struct asoc_simple_card_info fsi_da7210_info = {
 	.card		= "FSIB-DA7210",
 	.codec		= "da7210.0-001a",
 	.platform	= "sh_fsi.0",
-	.daifmt		= SND_SOC_DAIFMT_I2S,
+	.daifmt		= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM,
 	.cpu_dai = {
 		.name	= "fsib-dai",
-		.fmt	= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_IB_NF,
 	},
 	.codec_dai = {
 		.name	= "da7210-hifi",
-		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
 	},
 };
 

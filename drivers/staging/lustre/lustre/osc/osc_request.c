@@ -44,11 +44,6 @@
 #include <lustre/lustre_user.h>
 #include <obd_cksum.h>
 #include <obd_ost.h>
-#include <obd_lov.h>
-
-#ifdef  __CYGWIN__
-# include <ctype.h>
-#endif
 
 #include <lustre_ha.h>
 #include <lprocfs_status.h>
@@ -777,7 +772,7 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 	osc_pack_capa(req, body, (struct obd_capa *)capa);
 	ptlrpc_request_set_replen(req);
 
-	/* If osc_destory is for destroying the unlink orphan,
+	/* If osc_destroy is for destroying the unlink orphan,
 	 * sent from MDT to OST, which should not be blocked here,
 	 * because the process might be triggered by ptlrpcd, and
 	 * it is not good to block ptlrpcd thread (b=16006)*/
@@ -1197,8 +1192,12 @@ static obd_count osc_checksum_bulk(int nob, obd_count pg_count,
 		cfs_crypto_hash_update_page(hdesc, pga[i]->pg,
 				  pga[i]->off & ~CFS_PAGE_MASK,
 				  count);
-		LL_CDEBUG_PAGE(D_PAGE, pga[i]->pg, "off %d\n",
-			       (int)(pga[i]->off & ~CFS_PAGE_MASK));
+		CDEBUG(D_PAGE,
+		       "page %p map %p index %lu flags %lx count %u priv %0lx: off %d\n",
+		       pga[i]->pg, pga[i]->pg->mapping, pga[i]->pg->index,
+		       (long)pga[i]->pg->flags, page_count(pga[i]->pg),
+		       page_private(pga[i]->pg),
+		       (int)(pga[i]->off & ~CFS_PAGE_MASK));
 
 		nob -= pga[i]->count;
 		pg_count--;
@@ -2554,7 +2553,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		}
 
 		req_capsule_set_size(&req->rq_pill, &RMF_DLM_LVB, RCL_SERVER,
-				     sizeof *lvb);
+				     sizeof(*lvb));
 		ptlrpc_request_set_replen(req);
 	}
 

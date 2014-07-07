@@ -70,6 +70,7 @@ static struct samsung_bl_drvdata samsung_dfl_bl_data __initdata = {
 		.max_brightness = 255,
 		.dft_brightness = 255,
 		.pwm_period_ns  = 78770,
+		.enable_gpio    = -1,
 		.init           = samsung_bl_init,
 		.exit           = samsung_bl_exit,
 	},
@@ -121,6 +122,8 @@ void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 		samsung_bl_data->lth_brightness = bl_data->lth_brightness;
 	if (bl_data->pwm_period_ns)
 		samsung_bl_data->pwm_period_ns = bl_data->pwm_period_ns;
+	if (bl_data->enable_gpio >= 0)
+		samsung_bl_data->enable_gpio = bl_data->enable_gpio;
 	if (bl_data->init)
 		samsung_bl_data->init = bl_data->init;
 	if (bl_data->notify)

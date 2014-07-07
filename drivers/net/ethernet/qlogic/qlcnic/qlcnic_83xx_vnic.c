@@ -8,7 +8,7 @@
 #include "qlcnic.h"
 #include "qlcnic_hw.h"
 
-int qlcnic_83xx_enable_vnic_mode(struct qlcnic_adapter *adapter, int lock)
+static int qlcnic_83xx_enable_vnic_mode(struct qlcnic_adapter *adapter, int lock)
 {
 	if (lock) {
 		if (qlcnic_83xx_lock_driver(adapter))
@@ -94,12 +94,28 @@ qlcnic_83xx_config_vnic_buff_descriptors(struct qlcnic_adapter *adapter)
  **/
 static int qlcnic_83xx_init_mgmt_vnic(struct qlcnic_adapter *adapter)
 {
-	int err = -EIO;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct device *dev = &adapter->pdev->dev;
+	struct qlcnic_npar_info *npar;
+	int i, err = -EIO;
 
 	qlcnic_83xx_get_minidump_template(adapter);
+
 	if (!(adapter->flags & QLCNIC_ADAPTER_INITIALIZED)) {
 		if (qlcnic_init_pci_info(adapter))
 			return err;
+
+		npar = adapter->npars;
+
+		for (i = 0; i < ahw->total_nic_func; i++, npar++) {
+			dev_info(dev, "id:%d active:%d type:%d port:%d min_bw:%d max_bw:%d mac_addr:%pM\n",
+				 npar->pci_func, npar->active, npar->type,
+				 npar->phy_port, npar->min_bw, npar->max_bw,
+				 npar->mac);
+		}
+
+		dev_info(dev, "Max functions = %d, active functions = %d\n",
+			 ahw->max_pci_func, ahw->total_nic_func);
 
 		if (qlcnic_83xx_set_vnic_opmode(adapter))
 			return err;
@@ -115,12 +131,12 @@ static int qlcnic_83xx_init_mgmt_vnic(struct qlcnic_adapter *adapter)
 		return err;
 
 	qlcnic_83xx_config_vnic_buff_descriptors(adapter);
-	adapter->ahw->msix_supported = !!qlcnic_use_msi_x;
+	ahw->msix_supported = qlcnic_use_msi_x ? 1 : 0;
 	adapter->flags |= QLCNIC_ADAPTER_INITIALIZED;
 	qlcnic_83xx_enable_vnic_mode(adapter, 1);
 
-	dev_info(&adapter->pdev->dev, "HAL Version: %d, Management function\n",
-		 adapter->ahw->fw_hal_version);
+	dev_info(dev, "HAL Version: %d, Management function\n",
+		 ahw->fw_hal_version);
 
 	return 0;
 }
@@ -208,10 +224,14 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 		return -EIO;
 	}
 
-	if (ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY)
+	if (ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY) {
 		adapter->flags |= QLCNIC_ESWITCH_ENABLED;
-	else
+		if (adapter->drv_mac_learn)
+			adapter->rx_mac_learn = true;
+	} else {
 		adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
+		adapter->rx_mac_learn = false;
+	}
 
 	ahw->idc.vnic_state = QLCNIC_DEV_NPAR_NON_OPER;
 	ahw->idc.vnic_wait_limit = QLCNIC_DEV_NPAR_OPER_TIMEO;
@@ -240,8 +260,8 @@ int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_83xx_get_eswitch_port_info(struct qlcnic_adapter *adapter,
-					     int func, int *port_id)
+int qlcnic_83xx_set_port_eswitch_status(struct qlcnic_adapter *adapter,
+					int func, int *port_id)
 {
 	struct qlcnic_info nic_info;
 	int err = 0;
@@ -257,23 +277,8 @@ static int qlcnic_83xx_get_eswitch_port_info(struct qlcnic_adapter *adapter,
 	else
 		err = -EIO;
 
-	return err;
-}
-
-int qlcnic_83xx_enable_port_eswitch(struct qlcnic_adapter *adapter, int func)
-{
-	int id, err = 0;
-
-	err = qlcnic_83xx_get_eswitch_port_info(adapter, func, &id);
-	if (err)
-		return err;
-
-	if (!(adapter->eswitch[id].flags & QLCNIC_SWITCH_ENABLE)) {
-		if (!qlcnic_enable_eswitch(adapter, id, 1))
-			adapter->eswitch[id].flags |= QLCNIC_SWITCH_ENABLE;
-		else
-			err = -EIO;
-	}
+	if (!err)
+		adapter->eswitch[*port_id].flags |= QLCNIC_SWITCH_ENABLE;
 
 	return err;
 }

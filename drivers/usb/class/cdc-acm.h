@@ -106,6 +106,9 @@ struct acm {
 	struct work_struct work;			/* work queue entry for line discipline waking up */
 	unsigned int ctrlin;				/* input control lines (DCD, DSR, RI, break, overruns) */
 	unsigned int ctrlout;				/* output control lines (DTR, RTS) */
+	struct async_icount iocount;			/* counters for control line changes */
+	struct async_icount oldcount;			/* for comparison of counter */
+	wait_queue_head_t wioctl;			/* for ioctl */
 	unsigned int writesize;				/* max packet size for the output bulk endpoint */
 	unsigned int readsize,ctrlsize;			/* buffer sizes for freeing */
 	unsigned int minor;				/* acm minor number */
@@ -117,15 +120,15 @@ struct acm {
 	unsigned int throttled:1;			/* actually throttled */
 	unsigned int throttle_req:1;			/* throttle requested */
 	u8 bInterval;
-	struct acm_wb *delayed_wb;			/* write queued for a device about to be woken */
+	struct usb_anchor delayed;			/* writes queued for a device about to be woken */
 };
 
 #define CDC_DATA_INTERFACE_TYPE	0x0a
 
 /* constants describing various quirks and errors */
-#define NO_UNION_NORMAL			1
-#define SINGLE_RX_URB			2
-#define NO_CAP_LINE			4
-#define NOT_A_MODEM			8
-#define NO_DATA_INTERFACE		16
-#define IGNORE_DEVICE			32
+#define NO_UNION_NORMAL			BIT(0)
+#define SINGLE_RX_URB			BIT(1)
+#define NO_CAP_LINE			BIT(2)
+#define NOT_A_MODEM			BIT(3)
+#define NO_DATA_INTERFACE		BIT(4)
+#define IGNORE_DEVICE			BIT(5)

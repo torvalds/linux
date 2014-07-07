@@ -3,12 +3,13 @@
 
 config TILE
 	def_bool y
+	select HAVE_PERF_EVENTS
+	select USE_PMC if PERF_EVENTS
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
 	select SYSCTL_EXCEPTION_TRACE
-	select USE_GENERIC_SMP_HELPERS
 	select CC_OPTIMIZE_FOR_SIZE
 	select HAVE_DEBUG_KMEMLEAK
 	select GENERIC_IRQ_PROBE
@@ -67,6 +68,10 @@ config HUGETLB_SUPER_PAGES
 config GENERIC_TIME_VSYSCALL
 	def_bool y
 
+# Enable PMC if PERF_EVENTS, OPROFILE, or WATCHPOINTS are enabled.
+config USE_PMC
+	bool
+
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
@@ -120,6 +125,8 @@ config HVC_TILE
 
 config TILEGX
 	bool "Building for TILE-Gx (64-bit) processor"
+	select SPARSE_IRQ
+	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -406,7 +413,7 @@ config PCI_DOMAINS
 config NO_IOMEM
 	def_bool !PCI
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool !PCI
 
 config TILE_PCI_IO

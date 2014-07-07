@@ -18,20 +18,20 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_dir2_format.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
@@ -129,56 +129,6 @@ xfs_da_state_free(xfs_da_state_t *state)
 	kmem_zone_free(xfs_da_state_zone, state);
 }
 
-void
-xfs_da3_node_hdr_from_disk(
-	struct xfs_da3_icnode_hdr	*to,
-	struct xfs_da_intnode		*from)
-{
-	ASSERT(from->hdr.info.magic == cpu_to_be16(XFS_DA_NODE_MAGIC) ||
-	       from->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC));
-
-	if (from->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC)) {
-		struct xfs_da3_node_hdr *hdr3 = (struct xfs_da3_node_hdr *)from;
-
-		to->forw = be32_to_cpu(hdr3->info.hdr.forw);
-		to->back = be32_to_cpu(hdr3->info.hdr.back);
-		to->magic = be16_to_cpu(hdr3->info.hdr.magic);
-		to->count = be16_to_cpu(hdr3->__count);
-		to->level = be16_to_cpu(hdr3->__level);
-		return;
-	}
-	to->forw = be32_to_cpu(from->hdr.info.forw);
-	to->back = be32_to_cpu(from->hdr.info.back);
-	to->magic = be16_to_cpu(from->hdr.info.magic);
-	to->count = be16_to_cpu(from->hdr.__count);
-	to->level = be16_to_cpu(from->hdr.__level);
-}
-
-void
-xfs_da3_node_hdr_to_disk(
-	struct xfs_da_intnode		*to,
-	struct xfs_da3_icnode_hdr	*from)
-{
-	ASSERT(from->magic == XFS_DA_NODE_MAGIC ||
-	       from->magic == XFS_DA3_NODE_MAGIC);
-
-	if (from->magic == XFS_DA3_NODE_MAGIC) {
-		struct xfs_da3_node_hdr *hdr3 = (struct xfs_da3_node_hdr *)to;
-
-		hdr3->info.hdr.forw = cpu_to_be32(from->forw);
-		hdr3->info.hdr.back = cpu_to_be32(from->back);
-		hdr3->info.hdr.magic = cpu_to_be16(from->magic);
-		hdr3->__count = cpu_to_be16(from->count);
-		hdr3->__level = cpu_to_be16(from->level);
-		return;
-	}
-	to->hdr.info.forw = cpu_to_be32(from->forw);
-	to->hdr.info.back = cpu_to_be32(from->back);
-	to->hdr.info.magic = cpu_to_be16(from->magic);
-	to->hdr.__count = cpu_to_be16(from->count);
-	to->hdr.__level = cpu_to_be16(from->level);
-}
-
 static bool
 xfs_da3_node_verify(
 	struct xfs_buf		*bp)
@@ -186,8 +136,11 @@ xfs_da3_node_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_da_intnode	*hdr = bp->b_addr;
 	struct xfs_da3_icnode_hdr ichdr;
+	const struct xfs_dir_ops *ops;
 
-	xfs_da3_node_hdr_from_disk(&ichdr, hdr);
+	ops = xfs_dir_get_ops(mp, NULL);
+
+	ops->node_hdr_from_disk(&ichdr, hdr);
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
@@ -214,8 +167,8 @@ xfs_da3_node_verify(
 	 * we don't know if the node is for and attribute or directory tree,
 	 * so only fail if the count is outside both bounds
 	 */
-	if (ichdr.count > mp->m_dir_node_ents &&
-	    ichdr.count > mp->m_attr_node_ents)
+	if (ichdr.count > mp->m_dir_geo->node_ents &&
+	    ichdr.count > mp->m_attr_geo->node_ents)
 		return false;
 
 	/* XXX: hash order check? */
@@ -232,8 +185,8 @@ xfs_da3_node_write_verify(
 	struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
 	if (!xfs_da3_node_verify(bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_verifier_error(bp);
 		return;
 	}
 
@@ -243,7 +196,7 @@ xfs_da3_node_write_verify(
 	if (bip)
 		hdr3->info.lsn = cpu_to_be64(bip->bli_item.li_lsn);
 
-	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length), XFS_DA3_NODE_CRC_OFF);
+	xfs_buf_update_cksum(bp, XFS_DA3_NODE_CRC_OFF);
 }
 
 /*
@@ -256,18 +209,20 @@ static void
 xfs_da3_node_read_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_da_blkinfo	*info = bp->b_addr;
 
 	switch (be16_to_cpu(info->magic)) {
 		case XFS_DA3_NODE_MAGIC:
-			if (!xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
-					      XFS_DA3_NODE_CRC_OFF))
+			if (!xfs_buf_verify_cksum(bp, XFS_DA3_NODE_CRC_OFF)) {
+				xfs_buf_ioerror(bp, EFSBADCRC);
 				break;
+			}
 			/* fall through */
 		case XFS_DA_NODE_MAGIC:
-			if (!xfs_da3_node_verify(bp))
+			if (!xfs_da3_node_verify(bp)) {
+				xfs_buf_ioerror(bp, EFSCORRUPTED);
 				break;
+			}
 			return;
 		case XFS_ATTR_LEAF_MAGIC:
 		case XFS_ATTR3_LEAF_MAGIC:
@@ -284,8 +239,7 @@ xfs_da3_node_read_verify(
 	}
 
 	/* corrupt block */
-	XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-	xfs_buf_ioerror(bp, EFSCORRUPTED);
+	xfs_verifier_error(bp);
 }
 
 const struct xfs_buf_ops xfs_da3_node_buf_ops = {
@@ -354,11 +308,12 @@ xfs_da3_node_create(
 	struct xfs_da3_icnode_hdr ichdr = {0};
 	struct xfs_buf		*bp;
 	int			error;
+	struct xfs_inode	*dp = args->dp;
 
 	trace_xfs_da_node_create(args);
 	ASSERT(level <= XFS_DA_NODE_MAXDEPTH);
 
-	error = xfs_da_get_buf(tp, args->dp, blkno, -1, &bp, whichfork);
+	error = xfs_da_get_buf(tp, dp, blkno, -1, &bp, whichfork);
 	if (error)
 		return(error);
 	bp->b_ops = &xfs_da3_node_buf_ops;
@@ -377,9 +332,9 @@ xfs_da3_node_create(
 	}
 	ichdr.level = level;
 
-	xfs_da3_node_hdr_to_disk(node, &ichdr);
+	dp->d_ops->node_hdr_to_disk(node, &ichdr);
 	xfs_trans_log_buf(tp, bp,
-		XFS_DA_LOGRANGE(node, &node->hdr, xfs_da3_node_hdr_size(node)));
+		XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
 	*bpp = bp;
 	return(0);
@@ -589,8 +544,8 @@ xfs_da3_root_split(
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC)) {
 		struct xfs_da3_icnode_hdr nodehdr;
 
-		xfs_da3_node_hdr_from_disk(&nodehdr, oldroot);
-		btree = xfs_da3_node_tree_p(oldroot);
+		dp->d_ops->node_hdr_from_disk(&nodehdr, oldroot);
+		btree = dp->d_ops->node_tree_p(oldroot);
 		size = (int)((char *)&btree[nodehdr.count] - (char *)oldroot);
 		level = nodehdr.level;
 
@@ -604,8 +559,8 @@ xfs_da3_root_split(
 		struct xfs_dir2_leaf_entry *ents;
 
 		leaf = (xfs_dir2_leaf_t *)oldroot;
-		xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
-		ents = xfs_dir3_leaf_ents_p(leaf);
+		dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
+		ents = dp->d_ops->leaf_ents_p(leaf);
 
 		ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
 		       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC);
@@ -643,28 +598,28 @@ xfs_da3_root_split(
 	 * Set up the new root node.
 	 */
 	error = xfs_da3_node_create(args,
-		(args->whichfork == XFS_DATA_FORK) ? mp->m_dirleafblk : 0,
+		(args->whichfork == XFS_DATA_FORK) ? args->geo->leafblk : 0,
 		level + 1, &bp, args->whichfork);
 	if (error)
 		return error;
 
 	node = bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
-	btree = xfs_da3_node_tree_p(node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
+	btree = dp->d_ops->node_tree_p(node);
 	btree[0].hashval = cpu_to_be32(blk1->hashval);
 	btree[0].before = cpu_to_be32(blk1->blkno);
 	btree[1].hashval = cpu_to_be32(blk2->hashval);
 	btree[1].before = cpu_to_be32(blk2->blkno);
 	nodehdr.count = 2;
-	xfs_da3_node_hdr_to_disk(node, &nodehdr);
+	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
 
 #ifdef DEBUG
 	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
-		ASSERT(blk1->blkno >= mp->m_dirleafblk &&
-		       blk1->blkno < mp->m_dirfreeblk);
-		ASSERT(blk2->blkno >= mp->m_dirleafblk &&
-		       blk2->blkno < mp->m_dirfreeblk);
+		ASSERT(blk1->blkno >= args->geo->leafblk &&
+		       blk1->blkno < args->geo->freeblk);
+		ASSERT(blk2->blkno >= args->geo->leafblk &&
+		       blk2->blkno < args->geo->freeblk);
 	}
 #endif
 
@@ -693,11 +648,12 @@ xfs_da3_node_split(
 	int			newcount;
 	int			error;
 	int			useextra;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_node_split(state->args);
 
 	node = oldblk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 
 	/*
 	 * With V2 dirs the extra block is data or freespace.
@@ -707,7 +663,7 @@ xfs_da3_node_split(
 	/*
 	 * Do we have to split the node?
 	 */
-	if (nodehdr.count + newcount > state->node_ents) {
+	if (nodehdr.count + newcount > state->args->geo->node_ents) {
 		/*
 		 * Allocate a new node, add to the doubly linked chain of
 		 * nodes, then move some of our excess entries into it.
@@ -744,7 +700,7 @@ xfs_da3_node_split(
 	 * If we had double-split op below us, then add the extra block too.
 	 */
 	node = oldblk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	if (oldblk->index <= nodehdr.count) {
 		oldblk->index++;
 		xfs_da3_node_add(state, oldblk, addblk);
@@ -793,15 +749,16 @@ xfs_da3_node_rebalance(
 	int			count;
 	int			tmp;
 	int			swap = 0;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_node_rebalance(state->args);
 
 	node1 = blk1->bp->b_addr;
 	node2 = blk2->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr1, node1);
-	xfs_da3_node_hdr_from_disk(&nodehdr2, node2);
-	btree1 = xfs_da3_node_tree_p(node1);
-	btree2 = xfs_da3_node_tree_p(node2);
+	dp->d_ops->node_hdr_from_disk(&nodehdr1, node1);
+	dp->d_ops->node_hdr_from_disk(&nodehdr2, node2);
+	btree1 = dp->d_ops->node_tree_p(node1);
+	btree2 = dp->d_ops->node_tree_p(node2);
 
 	/*
 	 * Figure out how many entries need to move, and in which direction.
@@ -814,10 +771,10 @@ xfs_da3_node_rebalance(
 		tmpnode = node1;
 		node1 = node2;
 		node2 = tmpnode;
-		xfs_da3_node_hdr_from_disk(&nodehdr1, node1);
-		xfs_da3_node_hdr_from_disk(&nodehdr2, node2);
-		btree1 = xfs_da3_node_tree_p(node1);
-		btree2 = xfs_da3_node_tree_p(node2);
+		dp->d_ops->node_hdr_from_disk(&nodehdr1, node1);
+		dp->d_ops->node_hdr_from_disk(&nodehdr2, node2);
+		btree1 = dp->d_ops->node_tree_p(node1);
+		btree2 = dp->d_ops->node_tree_p(node2);
 		swap = 1;
 	}
 
@@ -879,15 +836,14 @@ xfs_da3_node_rebalance(
 	/*
 	 * Log header of node 1 and all current bits of node 2.
 	 */
-	xfs_da3_node_hdr_to_disk(node1, &nodehdr1);
+	dp->d_ops->node_hdr_to_disk(node1, &nodehdr1);
 	xfs_trans_log_buf(tp, blk1->bp,
-		XFS_DA_LOGRANGE(node1, &node1->hdr,
-				xfs_da3_node_hdr_size(node1)));
+		XFS_DA_LOGRANGE(node1, &node1->hdr, dp->d_ops->node_hdr_size));
 
-	xfs_da3_node_hdr_to_disk(node2, &nodehdr2);
+	dp->d_ops->node_hdr_to_disk(node2, &nodehdr2);
 	xfs_trans_log_buf(tp, blk2->bp,
 		XFS_DA_LOGRANGE(node2, &node2->hdr,
-				xfs_da3_node_hdr_size(node2) +
+				dp->d_ops->node_hdr_size +
 				(sizeof(btree2[0]) * nodehdr2.count)));
 
 	/*
@@ -897,10 +853,10 @@ xfs_da3_node_rebalance(
 	if (swap) {
 		node1 = blk1->bp->b_addr;
 		node2 = blk2->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&nodehdr1, node1);
-		xfs_da3_node_hdr_from_disk(&nodehdr2, node2);
-		btree1 = xfs_da3_node_tree_p(node1);
-		btree2 = xfs_da3_node_tree_p(node2);
+		dp->d_ops->node_hdr_from_disk(&nodehdr1, node1);
+		dp->d_ops->node_hdr_from_disk(&nodehdr2, node2);
+		btree1 = dp->d_ops->node_tree_p(node1);
+		btree2 = dp->d_ops->node_tree_p(node2);
 	}
 	blk1->hashval = be32_to_cpu(btree1[nodehdr1.count - 1].hashval);
 	blk2->hashval = be32_to_cpu(btree2[nodehdr2.count - 1].hashval);
@@ -927,18 +883,19 @@ xfs_da3_node_add(
 	struct xfs_da3_icnode_hdr nodehdr;
 	struct xfs_da_node_entry *btree;
 	int			tmp;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_node_add(state->args);
 
 	node = oldblk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
-	btree = xfs_da3_node_tree_p(node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
+	btree = dp->d_ops->node_tree_p(node);
 
 	ASSERT(oldblk->index >= 0 && oldblk->index <= nodehdr.count);
 	ASSERT(newblk->blkno != 0);
 	if (state->args->whichfork == XFS_DATA_FORK)
-		ASSERT(newblk->blkno >= state->mp->m_dirleafblk &&
-		       newblk->blkno < state->mp->m_dirfreeblk);
+		ASSERT(newblk->blkno >= state->args->geo->leafblk &&
+		       newblk->blkno < state->args->geo->freeblk);
 
 	/*
 	 * We may need to make some room before we insert the new node.
@@ -955,9 +912,9 @@ xfs_da3_node_add(
 				tmp + sizeof(*btree)));
 
 	nodehdr.count += 1;
-	xfs_da3_node_hdr_to_disk(node, &nodehdr);
+	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
 	xfs_trans_log_buf(state->args->trans, oldblk->bp,
-		XFS_DA_LOGRANGE(node, &node->hdr, xfs_da3_node_hdr_size(node)));
+		XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
 	/*
 	 * Copy the last hash value from the oldblk to propagate upwards.
@@ -1094,6 +1051,7 @@ xfs_da3_root_join(
 	struct xfs_da3_icnode_hdr oldroothdr;
 	struct xfs_da_node_entry *btree;
 	int			error;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_root_join(state->args);
 
@@ -1101,7 +1059,7 @@ xfs_da3_root_join(
 
 	args = state->args;
 	oldroot = root_blk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&oldroothdr, oldroot);
+	dp->d_ops->node_hdr_from_disk(&oldroothdr, oldroot);
 	ASSERT(oldroothdr.forw == 0);
 	ASSERT(oldroothdr.back == 0);
 
@@ -1115,10 +1073,10 @@ xfs_da3_root_join(
 	 * Read in the (only) child block, then copy those bytes into
 	 * the root block's buffer and free the original child block.
 	 */
-	btree = xfs_da3_node_tree_p(oldroot);
+	btree = dp->d_ops->node_tree_p(oldroot);
 	child = be32_to_cpu(btree[0].before);
 	ASSERT(child != 0);
-	error = xfs_da3_node_read(args->trans, args->dp, child, -1, &bp,
+	error = xfs_da3_node_read(args->trans, dp, child, -1, &bp,
 					     args->whichfork);
 	if (error)
 		return error;
@@ -1131,14 +1089,15 @@ xfs_da3_root_join(
 	 * that could occur. For dir3 blocks we also need to update the block
 	 * number in the buffer header.
 	 */
-	memcpy(root_blk->bp->b_addr, bp->b_addr, state->blocksize);
+	memcpy(root_blk->bp->b_addr, bp->b_addr, args->geo->blksize);
 	root_blk->bp->b_ops = bp->b_ops;
 	xfs_trans_buf_copy_type(root_blk->bp, bp);
 	if (oldroothdr.magic == XFS_DA3_NODE_MAGIC) {
 		struct xfs_da3_blkinfo *da3 = root_blk->bp->b_addr;
 		da3->blkno = cpu_to_be64(root_blk->bp->b_bn);
 	}
-	xfs_trans_log_buf(args->trans, root_blk->bp, 0, state->blocksize - 1);
+	xfs_trans_log_buf(args->trans, root_blk->bp, 0,
+			  args->geo->blksize - 1);
 	error = xfs_da_shrink_inode(args, child, bp);
 	return(error);
 }
@@ -1168,6 +1127,7 @@ xfs_da3_node_toosmall(
 	int			error;
 	int			retval;
 	int			i;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_node_toosmall(state->args);
 
@@ -1179,8 +1139,8 @@ xfs_da3_node_toosmall(
 	blk = &state->path.blk[ state->path.active-1 ];
 	info = blk->bp->b_addr;
 	node = (xfs_da_intnode_t *)info;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
-	if (nodehdr.count > (state->node_ents >> 1)) {
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
+	if (nodehdr.count > (state->args->geo->node_ents >> 1)) {
 		*action = 0;	/* blk over 50%, don't try to join */
 		return(0);	/* blk over 50%, don't try to join */
 	}
@@ -1217,8 +1177,8 @@ xfs_da3_node_toosmall(
 	 * We prefer coalescing with the lower numbered sibling so as
 	 * to shrink a directory over time.
 	 */
-	count  = state->node_ents;
-	count -= state->node_ents >> 2;
+	count  = state->args->geo->node_ents;
+	count -= state->args->geo->node_ents >> 2;
 	count -= nodehdr.count;
 
 	/* start with smaller blk num */
@@ -1231,13 +1191,13 @@ xfs_da3_node_toosmall(
 			blkno = nodehdr.back;
 		if (blkno == 0)
 			continue;
-		error = xfs_da3_node_read(state->args->trans, state->args->dp,
+		error = xfs_da3_node_read(state->args->trans, dp,
 					blkno, -1, &bp, state->args->whichfork);
 		if (error)
 			return(error);
 
 		node = bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&thdr, node);
+		dp->d_ops->node_hdr_from_disk(&thdr, node);
 		xfs_trans_brelse(state->args->trans, bp);
 
 		if (count - thdr.count >= 0)
@@ -1275,6 +1235,7 @@ xfs_da3_node_toosmall(
  */
 STATIC uint
 xfs_da3_node_lasthash(
+	struct xfs_inode	*dp,
 	struct xfs_buf		*bp,
 	int			*count)
 {
@@ -1283,12 +1244,12 @@ xfs_da3_node_lasthash(
 	struct xfs_da3_icnode_hdr nodehdr;
 
 	node = bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	if (count)
 		*count = nodehdr.count;
 	if (!nodehdr.count)
 		return 0;
-	btree = xfs_da3_node_tree_p(node);
+	btree = dp->d_ops->node_tree_p(node);
 	return be32_to_cpu(btree[nodehdr.count - 1].hashval);
 }
 
@@ -1307,6 +1268,7 @@ xfs_da3_fixhashpath(
 	xfs_dahash_t		lasthash=0;
 	int			level;
 	int			count;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_fixhashpath(state->args);
 
@@ -1319,12 +1281,12 @@ xfs_da3_fixhashpath(
 			return;
 		break;
 	case XFS_DIR2_LEAFN_MAGIC:
-		lasthash = xfs_dir2_leafn_lasthash(blk->bp, &count);
+		lasthash = xfs_dir2_leafn_lasthash(dp, blk->bp, &count);
 		if (count == 0)
 			return;
 		break;
 	case XFS_DA_NODE_MAGIC:
-		lasthash = xfs_da3_node_lasthash(blk->bp, &count);
+		lasthash = xfs_da3_node_lasthash(dp, blk->bp, &count);
 		if (count == 0)
 			return;
 		break;
@@ -1333,9 +1295,9 @@ xfs_da3_fixhashpath(
 		struct xfs_da3_icnode_hdr nodehdr;
 
 		node = blk->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&nodehdr, node);
-		btree = xfs_da3_node_tree_p(node);
-		if (be32_to_cpu(btree->hashval) == lasthash)
+		dp->d_ops->node_hdr_from_disk(&nodehdr, node);
+		btree = dp->d_ops->node_tree_p(node);
+		if (be32_to_cpu(btree[blk->index].hashval) == lasthash)
 			break;
 		blk->hashval = lasthash;
 		btree[blk->index].hashval = cpu_to_be32(lasthash);
@@ -1360,11 +1322,12 @@ xfs_da3_node_remove(
 	struct xfs_da_node_entry *btree;
 	int			index;
 	int			tmp;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_node_remove(state->args);
 
 	node = drop_blk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	ASSERT(drop_blk->index < nodehdr.count);
 	ASSERT(drop_blk->index >= 0);
 
@@ -1372,7 +1335,7 @@ xfs_da3_node_remove(
 	 * Copy over the offending entry, or just zero it out.
 	 */
 	index = drop_blk->index;
-	btree = xfs_da3_node_tree_p(node);
+	btree = dp->d_ops->node_tree_p(node);
 	if (index < nodehdr.count - 1) {
 		tmp  = nodehdr.count - index - 1;
 		tmp *= (uint)sizeof(xfs_da_node_entry_t);
@@ -1385,9 +1348,9 @@ xfs_da3_node_remove(
 	xfs_trans_log_buf(state->args->trans, drop_blk->bp,
 	    XFS_DA_LOGRANGE(node, &btree[index], sizeof(btree[index])));
 	nodehdr.count -= 1;
-	xfs_da3_node_hdr_to_disk(node, &nodehdr);
+	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
 	xfs_trans_log_buf(state->args->trans, drop_blk->bp,
-	    XFS_DA_LOGRANGE(node, &node->hdr, xfs_da3_node_hdr_size(node)));
+	    XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
 	/*
 	 * Copy the last hash value from the block to propagate upwards.
@@ -1414,15 +1377,16 @@ xfs_da3_node_unbalance(
 	struct xfs_trans	*tp;
 	int			sindex;
 	int			tmp;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_node_unbalance(state->args);
 
 	drop_node = drop_blk->bp->b_addr;
 	save_node = save_blk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&drop_hdr, drop_node);
-	xfs_da3_node_hdr_from_disk(&save_hdr, save_node);
-	drop_btree = xfs_da3_node_tree_p(drop_node);
-	save_btree = xfs_da3_node_tree_p(save_node);
+	dp->d_ops->node_hdr_from_disk(&drop_hdr, drop_node);
+	dp->d_ops->node_hdr_from_disk(&save_hdr, save_node);
+	drop_btree = dp->d_ops->node_tree_p(drop_node);
+	save_btree = dp->d_ops->node_tree_p(save_node);
 	tp = state->args->trans;
 
 	/*
@@ -1456,10 +1420,10 @@ xfs_da3_node_unbalance(
 	memcpy(&save_btree[sindex], &drop_btree[0], tmp);
 	save_hdr.count += drop_hdr.count;
 
-	xfs_da3_node_hdr_to_disk(save_node, &save_hdr);
+	dp->d_ops->node_hdr_to_disk(save_node, &save_hdr);
 	xfs_trans_log_buf(tp, save_blk->bp,
 		XFS_DA_LOGRANGE(save_node, &save_node->hdr,
-				xfs_da3_node_hdr_size(save_node)));
+				dp->d_ops->node_hdr_size));
 
 	/*
 	 * Save the last hashval in the remaining block for upward propagation.
@@ -1501,6 +1465,7 @@ xfs_da3_node_lookup_int(
 	int			max;
 	int			error;
 	int			retval;
+	struct xfs_inode	*dp = state->args->dp;
 
 	args = state->args;
 
@@ -1508,7 +1473,7 @@ xfs_da3_node_lookup_int(
 	 * Descend thru the B-tree searching each level for the right
 	 * node to use, until the right hashval is found.
 	 */
-	blkno = (args->whichfork == XFS_DATA_FORK)? state->mp->m_dirleafblk : 0;
+	blkno = (args->whichfork == XFS_DATA_FORK)? args->geo->leafblk : 0;
 	for (blk = &state->path.blk[0], state->path.active = 1;
 			 state->path.active <= XFS_DA_NODE_MAXDEPTH;
 			 blk++, state->path.active++) {
@@ -1536,7 +1501,8 @@ xfs_da3_node_lookup_int(
 		if (blk->magic == XFS_DIR2_LEAFN_MAGIC ||
 		    blk->magic == XFS_DIR3_LEAFN_MAGIC) {
 			blk->magic = XFS_DIR2_LEAFN_MAGIC;
-			blk->hashval = xfs_dir2_leafn_lasthash(blk->bp, NULL);
+			blk->hashval = xfs_dir2_leafn_lasthash(args->dp,
+							       blk->bp, NULL);
 			break;
 		}
 
@@ -1547,8 +1513,8 @@ xfs_da3_node_lookup_int(
 		 * Search an intermediate node for a match.
 		 */
 		node = blk->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&nodehdr, node);
-		btree = xfs_da3_node_tree_p(node);
+		dp->d_ops->node_hdr_from_disk(&nodehdr, node);
+		btree = dp->d_ops->node_tree_p(node);
 
 		max = nodehdr.count;
 		blk->hashval = be32_to_cpu(btree[max - 1].hashval);
@@ -1643,6 +1609,7 @@ xfs_da3_node_lookup_int(
  */
 STATIC int
 xfs_da3_node_order(
+	struct xfs_inode *dp,
 	struct xfs_buf	*node1_bp,
 	struct xfs_buf	*node2_bp)
 {
@@ -1655,10 +1622,10 @@ xfs_da3_node_order(
 
 	node1 = node1_bp->b_addr;
 	node2 = node2_bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&node1hdr, node1);
-	xfs_da3_node_hdr_from_disk(&node2hdr, node2);
-	btree1 = xfs_da3_node_tree_p(node1);
-	btree2 = xfs_da3_node_tree_p(node2);
+	dp->d_ops->node_hdr_from_disk(&node1hdr, node1);
+	dp->d_ops->node_hdr_from_disk(&node2hdr, node2);
+	btree1 = dp->d_ops->node_tree_p(node1);
+	btree2 = dp->d_ops->node_tree_p(node2);
 
 	if (node1hdr.count > 0 && node2hdr.count > 0 &&
 	    ((be32_to_cpu(btree2[0].hashval) < be32_to_cpu(btree1[0].hashval)) ||
@@ -1685,6 +1652,7 @@ xfs_da3_blk_link(
 	struct xfs_buf		*bp;
 	int			before = 0;
 	int			error;
+	struct xfs_inode	*dp = state->args->dp;
 
 	/*
 	 * Set up environment.
@@ -1702,10 +1670,10 @@ xfs_da3_blk_link(
 		before = xfs_attr_leaf_order(old_blk->bp, new_blk->bp);
 		break;
 	case XFS_DIR2_LEAFN_MAGIC:
-		before = xfs_dir2_leafn_order(old_blk->bp, new_blk->bp);
+		before = xfs_dir2_leafn_order(dp, old_blk->bp, new_blk->bp);
 		break;
 	case XFS_DA_NODE_MAGIC:
-		before = xfs_da3_node_order(old_blk->bp, new_blk->bp);
+		before = xfs_da3_node_order(dp, old_blk->bp, new_blk->bp);
 		break;
 	}
 
@@ -1720,7 +1688,7 @@ xfs_da3_blk_link(
 		new_info->forw = cpu_to_be32(old_blk->blkno);
 		new_info->back = old_info->back;
 		if (old_info->back) {
-			error = xfs_da3_node_read(args->trans, args->dp,
+			error = xfs_da3_node_read(args->trans, dp,
 						be32_to_cpu(old_info->back),
 						-1, &bp, args->whichfork);
 			if (error)
@@ -1741,7 +1709,7 @@ xfs_da3_blk_link(
 		new_info->forw = old_info->forw;
 		new_info->back = cpu_to_be32(old_blk->blkno);
 		if (old_info->forw) {
-			error = xfs_da3_node_read(args->trans, args->dp,
+			error = xfs_da3_node_read(args->trans, dp,
 						be32_to_cpu(old_info->forw),
 						-1, &bp, args->whichfork);
 			if (error)
@@ -1861,6 +1829,7 @@ xfs_da3_path_shift(
 	xfs_dablk_t		blkno = 0;
 	int			level;
 	int			error;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_path_shift(state->args);
 
@@ -1876,8 +1845,8 @@ xfs_da3_path_shift(
 	level = (path->active-1) - 1;	/* skip bottom layer in path */
 	for (blk = &path->blk[level]; level >= 0; blk--, level--) {
 		node = blk->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&nodehdr, node);
-		btree = xfs_da3_node_tree_p(node);
+		dp->d_ops->node_hdr_from_disk(&nodehdr, node);
+		btree = dp->d_ops->node_tree_p(node);
 
 		if (forward && (blk->index < nodehdr.count - 1)) {
 			blk->index++;
@@ -1911,7 +1880,7 @@ xfs_da3_path_shift(
 		 * Read the next child block.
 		 */
 		blk->blkno = blkno;
-		error = xfs_da3_node_read(args->trans, args->dp, blkno, -1,
+		error = xfs_da3_node_read(args->trans, dp, blkno, -1,
 					&blk->bp, args->whichfork);
 		if (error)
 			return(error);
@@ -1933,8 +1902,8 @@ xfs_da3_path_shift(
 		case XFS_DA3_NODE_MAGIC:
 			blk->magic = XFS_DA_NODE_MAGIC;
 			node = (xfs_da_intnode_t *)info;
-			xfs_da3_node_hdr_from_disk(&nodehdr, node);
-			btree = xfs_da3_node_tree_p(node);
+			dp->d_ops->node_hdr_from_disk(&nodehdr, node);
+			btree = dp->d_ops->node_tree_p(node);
 			blk->hashval = be32_to_cpu(btree[nodehdr.count - 1].hashval);
 			if (forward)
 				blk->index = 0;
@@ -1947,16 +1916,15 @@ xfs_da3_path_shift(
 			blk->magic = XFS_ATTR_LEAF_MAGIC;
 			ASSERT(level == path->active-1);
 			blk->index = 0;
-			blk->hashval = xfs_attr_leaf_lasthash(blk->bp,
-							      NULL);
+			blk->hashval = xfs_attr_leaf_lasthash(blk->bp, NULL);
 			break;
 		case XFS_DIR2_LEAFN_MAGIC:
 		case XFS_DIR3_LEAFN_MAGIC:
 			blk->magic = XFS_DIR2_LEAFN_MAGIC;
 			ASSERT(level == path->active-1);
 			blk->index = 0;
-			blk->hashval = xfs_dir2_leafn_lasthash(blk->bp,
-							       NULL);
+			blk->hashval = xfs_dir2_leafn_lasthash(args->dp,
+							       blk->bp, NULL);
 			break;
 		default:
 			ASSERT(0);
@@ -2123,20 +2091,12 @@ xfs_da_grow_inode(
 	xfs_dablk_t		*new_blkno)
 {
 	xfs_fileoff_t		bno;
-	int			count;
 	int			error;
 
 	trace_xfs_da_grow_inode(args);
 
-	if (args->whichfork == XFS_DATA_FORK) {
-		bno = args->dp->i_mount->m_dirleafblk;
-		count = args->dp->i_mount->m_dirblkfsbs;
-	} else {
-		bno = 0;
-		count = 1;
-	}
-
-	error = xfs_da_grow_inode_int(args, &bno, count);
+	bno = args->geo->leafblk;
+	error = xfs_da_grow_inode_int(args, &bno, args->geo->fsbcount);
 	if (!error)
 		*new_blkno = (xfs_dablk_t)bno;
 	return error;
@@ -2163,7 +2123,7 @@ xfs_da3_swap_lastblock(
 	struct xfs_dir2_leaf	*dead_leaf2;
 	struct xfs_da_node_entry *btree;
 	struct xfs_da3_icnode_hdr par_hdr;
-	struct xfs_inode	*ip;
+	struct xfs_inode	*dp;
 	struct xfs_trans	*tp;
 	struct xfs_mount	*mp;
 	struct xfs_buf		*dead_buf;
@@ -2187,12 +2147,12 @@ xfs_da3_swap_lastblock(
 	dead_buf = *dead_bufp;
 	dead_blkno = *dead_blknop;
 	tp = args->trans;
-	ip = args->dp;
+	dp = args->dp;
 	w = args->whichfork;
 	ASSERT(w == XFS_DATA_FORK);
-	mp = ip->i_mount;
-	lastoff = mp->m_dirfreeblk;
-	error = xfs_bmap_last_before(tp, ip, &lastoff, w);
+	mp = dp->i_mount;
+	lastoff = args->geo->freeblk;
+	error = xfs_bmap_last_before(tp, dp, &lastoff, w);
 	if (error)
 		return error;
 	if (unlikely(lastoff == 0)) {
@@ -2203,15 +2163,15 @@ xfs_da3_swap_lastblock(
 	/*
 	 * Read the last block in the btree space.
 	 */
-	last_blkno = (xfs_dablk_t)lastoff - mp->m_dirblkfsbs;
-	error = xfs_da3_node_read(tp, ip, last_blkno, -1, &last_buf, w);
+	last_blkno = (xfs_dablk_t)lastoff - args->geo->fsbcount;
+	error = xfs_da3_node_read(tp, dp, last_blkno, -1, &last_buf, w);
 	if (error)
 		return error;
 	/*
 	 * Copy the last block into the dead buffer and log it.
 	 */
-	memcpy(dead_buf->b_addr, last_buf->b_addr, mp->m_dirblksize);
-	xfs_trans_log_buf(tp, dead_buf, 0, mp->m_dirblksize - 1);
+	memcpy(dead_buf->b_addr, last_buf->b_addr, args->geo->blksize);
+	xfs_trans_log_buf(tp, dead_buf, 0, args->geo->blksize - 1);
 	dead_info = dead_buf->b_addr;
 	/*
 	 * Get values from the moved block.
@@ -2222,16 +2182,16 @@ xfs_da3_swap_lastblock(
 		struct xfs_dir2_leaf_entry *ents;
 
 		dead_leaf2 = (xfs_dir2_leaf_t *)dead_info;
-		xfs_dir3_leaf_hdr_from_disk(&leafhdr, dead_leaf2);
-		ents = xfs_dir3_leaf_ents_p(dead_leaf2);
+		dp->d_ops->leaf_hdr_from_disk(&leafhdr, dead_leaf2);
+		ents = dp->d_ops->leaf_ents_p(dead_leaf2);
 		dead_level = 0;
 		dead_hash = be32_to_cpu(ents[leafhdr.count - 1].hashval);
 	} else {
 		struct xfs_da3_icnode_hdr deadhdr;
 
 		dead_node = (xfs_da_intnode_t *)dead_info;
-		xfs_da3_node_hdr_from_disk(&deadhdr, dead_node);
-		btree = xfs_da3_node_tree_p(dead_node);
+		dp->d_ops->node_hdr_from_disk(&deadhdr, dead_node);
+		btree = dp->d_ops->node_tree_p(dead_node);
 		dead_level = deadhdr.level;
 		dead_hash = be32_to_cpu(btree[deadhdr.count - 1].hashval);
 	}
@@ -2240,7 +2200,7 @@ xfs_da3_swap_lastblock(
 	 * If the moved block has a left sibling, fix up the pointers.
 	 */
 	if ((sib_blkno = be32_to_cpu(dead_info->back))) {
-		error = xfs_da3_node_read(tp, ip, sib_blkno, -1, &sib_buf, w);
+		error = xfs_da3_node_read(tp, dp, sib_blkno, -1, &sib_buf, w);
 		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
@@ -2262,7 +2222,7 @@ xfs_da3_swap_lastblock(
 	 * If the moved block has a right sibling, fix up the pointers.
 	 */
 	if ((sib_blkno = be32_to_cpu(dead_info->forw))) {
-		error = xfs_da3_node_read(tp, ip, sib_blkno, -1, &sib_buf, w);
+		error = xfs_da3_node_read(tp, dp, sib_blkno, -1, &sib_buf, w);
 		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
@@ -2280,17 +2240,17 @@ xfs_da3_swap_lastblock(
 					sizeof(sib_info->back)));
 		sib_buf = NULL;
 	}
-	par_blkno = mp->m_dirleafblk;
+	par_blkno = args->geo->leafblk;
 	level = -1;
 	/*
 	 * Walk down the tree looking for the parent of the moved block.
 	 */
 	for (;;) {
-		error = xfs_da3_node_read(tp, ip, par_blkno, -1, &par_buf, w);
+		error = xfs_da3_node_read(tp, dp, par_blkno, -1, &par_buf, w);
 		if (error)
 			goto done;
 		par_node = par_buf->b_addr;
-		xfs_da3_node_hdr_from_disk(&par_hdr, par_node);
+		dp->d_ops->node_hdr_from_disk(&par_hdr, par_node);
 		if (level >= 0 && level != par_hdr.level + 1) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(4)",
 					 XFS_ERRLEVEL_LOW, mp);
@@ -2298,7 +2258,7 @@ xfs_da3_swap_lastblock(
 			goto done;
 		}
 		level = par_hdr.level;
-		btree = xfs_da3_node_tree_p(par_node);
+		btree = dp->d_ops->node_tree_p(par_node);
 		for (entno = 0;
 		     entno < par_hdr.count &&
 		     be32_to_cpu(btree[entno].hashval) < dead_hash;
@@ -2337,18 +2297,18 @@ xfs_da3_swap_lastblock(
 			error = XFS_ERROR(EFSCORRUPTED);
 			goto done;
 		}
-		error = xfs_da3_node_read(tp, ip, par_blkno, -1, &par_buf, w);
+		error = xfs_da3_node_read(tp, dp, par_blkno, -1, &par_buf, w);
 		if (error)
 			goto done;
 		par_node = par_buf->b_addr;
-		xfs_da3_node_hdr_from_disk(&par_hdr, par_node);
+		dp->d_ops->node_hdr_from_disk(&par_hdr, par_node);
 		if (par_hdr.level != level) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(7)",
 					 XFS_ERRLEVEL_LOW, mp);
 			error = XFS_ERROR(EFSCORRUPTED);
 			goto done;
 		}
-		btree = xfs_da3_node_tree_p(par_node);
+		btree = dp->d_ops->node_tree_p(par_node);
 		entno = 0;
 	}
 	/*
@@ -2390,10 +2350,7 @@ xfs_da_shrink_inode(
 	w = args->whichfork;
 	tp = args->trans;
 	mp = dp->i_mount;
-	if (w == XFS_DATA_FORK)
-		count = mp->m_dirblkfsbs;
-	else
-		count = 1;
+	count = args->geo->fsbcount;
 	for (;;) {
 		/*
 		 * Remove extents.  If we get ENOSPC for a dir we have to move
@@ -2495,7 +2452,6 @@ xfs_buf_map_from_irec(
  */
 static int
 xfs_dabuf_map(
-	struct xfs_trans	*trans,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
 	xfs_daddr_t		mappedbno,
@@ -2513,7 +2469,10 @@ xfs_dabuf_map(
 	ASSERT(map && *map);
 	ASSERT(*nmaps == 1);
 
-	nfsb = (whichfork == XFS_DATA_FORK) ? mp->m_dirblkfsbs : 1;
+	if (whichfork == XFS_DATA_FORK)
+		nfsb = mp->m_dir_geo->fsbcount;
+	else
+		nfsb = mp->m_attr_geo->fsbcount;
 
 	/*
 	 * Caller doesn't have a mapping.  -2 means don't complain
@@ -2591,7 +2550,7 @@ xfs_da_get_buf(
 	*bpp = NULL;
 	mapp = &map;
 	nmap = 1;
-	error = xfs_dabuf_map(trans, dp, bno, mappedbno, whichfork,
+	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork,
 				&mapp, &nmap);
 	if (error) {
 		/* mapping a hole is not an error, but we don't continue */
@@ -2639,7 +2598,7 @@ xfs_da_read_buf(
 	*bpp = NULL;
 	mapp = &map;
 	nmap = 1;
-	error = xfs_dabuf_map(trans, dp, bno, mappedbno, whichfork,
+	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork,
 				&mapp, &nmap);
 	if (error) {
 		/* mapping a hole is not an error, but we don't continue */
@@ -2658,47 +2617,6 @@ xfs_da_read_buf(
 		xfs_buf_set_ref(bp, XFS_ATTR_BTREE_REF);
 	else
 		xfs_buf_set_ref(bp, XFS_DIR_BTREE_REF);
-
-	/*
-	 * This verification code will be moved to a CRC verification callback
-	 * function so just leave it here unchanged until then.
-	 */
-	{
-		xfs_dir2_data_hdr_t	*hdr = bp->b_addr;
-		xfs_dir2_free_t		*free = bp->b_addr;
-		xfs_da_blkinfo_t	*info = bp->b_addr;
-		uint			magic, magic1;
-		struct xfs_mount	*mp = dp->i_mount;
-
-		magic = be16_to_cpu(info->magic);
-		magic1 = be32_to_cpu(hdr->magic);
-		if (unlikely(
-		    XFS_TEST_ERROR((magic != XFS_DA_NODE_MAGIC) &&
-				   (magic != XFS_DA3_NODE_MAGIC) &&
-				   (magic != XFS_ATTR_LEAF_MAGIC) &&
-				   (magic != XFS_ATTR3_LEAF_MAGIC) &&
-				   (magic != XFS_DIR2_LEAF1_MAGIC) &&
-				   (magic != XFS_DIR3_LEAF1_MAGIC) &&
-				   (magic != XFS_DIR2_LEAFN_MAGIC) &&
-				   (magic != XFS_DIR3_LEAFN_MAGIC) &&
-				   (magic1 != XFS_DIR2_BLOCK_MAGIC) &&
-				   (magic1 != XFS_DIR3_BLOCK_MAGIC) &&
-				   (magic1 != XFS_DIR2_DATA_MAGIC) &&
-				   (magic1 != XFS_DIR3_DATA_MAGIC) &&
-				   (free->hdr.magic !=
-					cpu_to_be32(XFS_DIR2_FREE_MAGIC)) &&
-				   (free->hdr.magic !=
-					cpu_to_be32(XFS_DIR3_FREE_MAGIC)),
-				mp, XFS_ERRTAG_DA_READ_BUF,
-				XFS_RANDOM_DA_READ_BUF))) {
-			trace_xfs_da_btree_corrupt(bp, _RET_IP_);
-			XFS_CORRUPTION_ERROR("xfs_da_do_buf(2)",
-					     XFS_ERRLEVEL_LOW, mp, info);
-			error = XFS_ERROR(EFSCORRUPTED);
-			xfs_trans_brelse(trans, bp);
-			goto out_free;
-		}
-	}
 	*bpp = bp;
 out_free:
 	if (mapp != &map)
@@ -2712,7 +2630,6 @@ out_free:
  */
 xfs_daddr_t
 xfs_da_reada_buf(
-	struct xfs_trans	*trans,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
 	xfs_daddr_t		mappedbno,
@@ -2726,7 +2643,7 @@ xfs_da_reada_buf(
 
 	mapp = &map;
 	nmap = 1;
-	error = xfs_dabuf_map(trans, dp, bno, mappedbno, whichfork,
+	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork,
 				&mapp, &nmap);
 	if (error) {
 		/* mapping a hole is not an error, but we don't continue */

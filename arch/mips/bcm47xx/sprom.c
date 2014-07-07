@@ -135,7 +135,7 @@ static void nvram_read_leddc(const char *prefix, const char *name,
 }
 
 static void nvram_read_macaddr(const char *prefix, const char *name,
-			       u8 (*val)[6], bool fallback)
+			       u8 val[6], bool fallback)
 {
 	char buf[100];
 	int err;
@@ -144,11 +144,11 @@ static void nvram_read_macaddr(const char *prefix, const char *name,
 	if (err < 0)
 		return;
 
-	bcm47xx_nvram_parse_macaddr(buf, *val);
+	bcm47xx_nvram_parse_macaddr(buf, val);
 }
 
 static void nvram_read_alpha2(const char *prefix, const char *name,
-			     char (*val)[2], bool fallback)
+			     char val[2], bool fallback)
 {
 	char buf[10];
 	int err;
@@ -162,12 +162,13 @@ static void nvram_read_alpha2(const char *prefix, const char *name,
 		pr_warn("alpha2 is too long %s\n", buf);
 		return;
 	}
-	memcpy(val, buf, sizeof(val));
+	memcpy(val, buf, 2);
 }
 
 static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
 					const char *prefix, bool fallback)
 {
+	nvram_read_u16(prefix, NULL, "devid", &sprom->dev_id, 0, fallback);
 	nvram_read_u8(prefix, NULL, "ledbh0", &sprom->gpio0, 0xff, fallback);
 	nvram_read_u8(prefix, NULL, "ledbh1", &sprom->gpio1, 0xff, fallback);
 	nvram_read_u8(prefix, NULL, "ledbh2", &sprom->gpio2, 0xff, fallback);
@@ -180,7 +181,7 @@ static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
 		      fallback);
 	nvram_read_s8(prefix, NULL, "ag1", &sprom->antenna_gain.a1, 0,
 		      fallback);
-	nvram_read_alpha2(prefix, "ccode", &sprom->alpha2, fallback);
+	nvram_read_alpha2(prefix, "ccode", sprom->alpha2, fallback);
 }
 
 static void bcm47xx_fill_sprom_r12389(struct ssb_sprom *sprom,
@@ -633,20 +634,20 @@ static void bcm47xx_fill_sprom_path_r45(struct ssb_sprom *sprom,
 static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 					const char *prefix, bool fallback)
 {
-	nvram_read_macaddr(prefix, "et0macaddr", &sprom->et0mac, fallback);
+	nvram_read_macaddr(prefix, "et0macaddr", sprom->et0mac, fallback);
 	nvram_read_u8(prefix, NULL, "et0mdcport", &sprom->et0mdcport, 0,
 		      fallback);
 	nvram_read_u8(prefix, NULL, "et0phyaddr", &sprom->et0phyaddr, 0,
 		      fallback);
 
-	nvram_read_macaddr(prefix, "et1macaddr", &sprom->et1mac, fallback);
+	nvram_read_macaddr(prefix, "et1macaddr", sprom->et1mac, fallback);
 	nvram_read_u8(prefix, NULL, "et1mdcport", &sprom->et1mdcport, 0,
 		      fallback);
 	nvram_read_u8(prefix, NULL, "et1phyaddr", &sprom->et1phyaddr, 0,
 		      fallback);
 
-	nvram_read_macaddr(prefix, "macaddr", &sprom->il0mac, fallback);
-	nvram_read_macaddr(prefix, "il0macaddr", &sprom->il0mac, fallback);
+	nvram_read_macaddr(prefix, "macaddr", sprom->il0mac, fallback);
+	nvram_read_macaddr(prefix, "il0macaddr", sprom->il0mac, fallback);
 }
 
 static void bcm47xx_fill_board_data(struct ssb_sprom *sprom, const char *prefix,

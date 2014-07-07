@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -560,7 +560,7 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 		break;
 	}
 
-      exit:
+exit:
 	return_ACPI_STATUS(status);
 }
 

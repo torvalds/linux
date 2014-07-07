@@ -10,6 +10,8 @@ Required properties:
           inside HDMIPHY block found on several samsung SoCs
       (d) "samsung, exynos5440-i2c", for s3c2440-like i2c used
 	   on EXYNOS5440 which does not need GPIO configuration.
+      (e) "samsung, exynos5-sata-phy-i2c", for s3c2440-like i2c used as
+	   a host to SATA PHY controller on an internal bus.
   - reg: physical base address of the controller and length of memory mapped
     region.
   - interrupts: interrupt number to the cpu.

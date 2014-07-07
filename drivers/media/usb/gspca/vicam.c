@@ -121,13 +121,13 @@ static int vicam_read_frame(struct gspca_dev *gspca_dev, u8 *data, int size)
 
 	memset(req_data, 0, 16);
 	req_data[0] = gain;
-	if (gspca_dev->width == 256)
+	if (gspca_dev->pixfmt.width == 256)
 		req_data[1] |= 0x01; /* low nibble x-scale */
-	if (gspca_dev->height <= 122) {
+	if (gspca_dev->pixfmt.height <= 122) {
 		req_data[1] |= 0x10; /* high nibble y-scale */
-		unscaled_height = gspca_dev->height * 2;
+		unscaled_height = gspca_dev->pixfmt.height * 2;
 	} else
-		unscaled_height = gspca_dev->height;
+		unscaled_height = gspca_dev->pixfmt.height;
 	req_data[2] = 0x90; /* unknown, does not seem to do anything */
 	if (unscaled_height <= 200)
 		req_data[3] = 0x06; /* vend? */

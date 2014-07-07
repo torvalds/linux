@@ -180,7 +180,7 @@ int shpchp_configure_device(struct slot *p_slot);
 int shpchp_unconfigure_device(struct slot *p_slot);
 void cleanup_slots(struct controller *ctrl);
 void shpchp_queue_pushbutton_work(struct work_struct *work);
-int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
+int shpc_init(struct controller *ctrl, struct pci_dev *pdev);
 
 static inline const char *slot_name(struct slot *slot)
 {
@@ -191,7 +191,7 @@ static inline const char *slot_name(struct slot *slot)
 #include <linux/pci-acpi.h>
 static inline int get_hp_hw_control_from_firmware(struct pci_dev *dev)
 {
-	u32 flags = OSC_SHPC_NATIVE_HP_CONTROL;
+	u32 flags = OSC_PCI_SHPC_NATIVE_HP_CONTROL;
 	return acpi_get_hp_hw_control_from_firmware(dev, flags);
 }
 #else
@@ -216,13 +216,13 @@ struct ctrl_reg {
 
 /* offsets to the controller registers based on the above structure layout */
 enum ctrl_offsets {
-	BASE_OFFSET 	 = offsetof(struct ctrl_reg, base_offset),
-	SLOT_AVAIL1 	 = offsetof(struct ctrl_reg, slot_avail1),
+	BASE_OFFSET	 = offsetof(struct ctrl_reg, base_offset),
+	SLOT_AVAIL1	 = offsetof(struct ctrl_reg, slot_avail1),
 	SLOT_AVAIL2	 = offsetof(struct ctrl_reg, slot_avail2),
-	SLOT_CONFIG 	 = offsetof(struct ctrl_reg, slot_config),
+	SLOT_CONFIG	 = offsetof(struct ctrl_reg, slot_config),
 	SEC_BUS_CONFIG	 = offsetof(struct ctrl_reg, sec_bus_config),
 	MSI_CTRL	 = offsetof(struct ctrl_reg, msi_ctrl),
-	PROG_INTERFACE 	 = offsetof(struct ctrl_reg, prog_interface),
+	PROG_INTERFACE	 = offsetof(struct ctrl_reg, prog_interface),
 	CMD		 = offsetof(struct ctrl_reg, cmd),
 	CMD_STATUS	 = offsetof(struct ctrl_reg, cmd_status),
 	INTR_LOC	 = offsetof(struct ctrl_reg, intr_loc),
@@ -295,7 +295,7 @@ static inline void amd_pogo_errata_restore_misc_reg(struct slot *p_slot)
 		pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MEM_BASE_LIMIT_OFFSET, rse_set);
 	}
 	/* restore MiscII register */
-	pci_read_config_dword( p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, &pcix_misc2_temp );
+	pci_read_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, &pcix_misc2_temp );
 
 	if (p_slot->ctrl->pcix_misc2_reg & SERRFATALENABLE_MASK)
 		pcix_misc2_temp |= SERRFATALENABLE_MASK;

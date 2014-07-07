@@ -343,7 +343,7 @@ static int read_event_files(struct pevent *pevent)
 	return 0;
 }
 
-ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
+ssize_t trace_report(int fd, struct trace_event *tevent, bool __repipe)
 {
 	char buf[BUFSIZ];
 	char test[] = { 23, 8, 68 };
@@ -356,10 +356,8 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	int host_bigendian;
 	int file_long_size;
 	int file_page_size;
-	struct pevent *pevent;
+	struct pevent *pevent = NULL;
 	int err;
-
-	*ppevent = NULL;
 
 	repipe = __repipe;
 	input_fd = fd;
@@ -390,11 +388,16 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	file_bigendian = buf[0];
 	host_bigendian = bigendian();
 
-	pevent = read_trace_init(file_bigendian, host_bigendian);
-	if (pevent == NULL) {
-		pr_debug("read_trace_init failed");
+	if (trace_event__init(tevent)) {
+		pr_debug("trace_event__init failed");
 		goto out;
 	}
+
+	pevent = tevent->pevent;
+
+	pevent_set_flag(pevent, PEVENT_NSEC_OUTPUT);
+	pevent_set_file_bigendian(pevent, file_bigendian);
+	pevent_set_host_bigendian(pevent, host_bigendian);
 
 	if (do_read(buf, 1) < 0)
 		goto out;
@@ -432,11 +435,10 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 		pevent_print_printk(pevent);
 	}
 
-	*ppevent = pevent;
 	pevent = NULL;
 
 out:
 	if (pevent)
-		pevent_free(pevent);
+		trace_event__cleanup(tevent);
 	return size;
 }

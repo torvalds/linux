@@ -80,8 +80,8 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 			break;
 		}
 
-		if ((jiffies - cur > 5 * HZ) &&
-		    (jiffies - lock->time > 5 * HZ)) {
+		if (time_before(cur + 5 * HZ, jiffies) &&
+		    time_before(lock->time + 5 * HZ, jiffies)) {
 			struct task_struct *task = lock->task;
 
 			if (task == NULL)
@@ -96,14 +96,15 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 			LCONSOLE_WARN("====== for current process =====\n");
 			dump_stack();
 			LCONSOLE_WARN("====== end =======\n");
-			cfs_pause(1000 * HZ);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(1000 * HZ);
 		}
 		cpu_relax();
 	}
 }
 
 #define client_obd_list_lock(lock) \
-	__client_obd_list_lock(lock, __FUNCTION__, __LINE__)
+	__client_obd_list_lock(lock, __func__, __LINE__)
 
 static inline void client_obd_list_unlock(client_obd_lock_t *lock)
 {

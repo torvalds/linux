@@ -62,8 +62,14 @@ static inline int omap3_pm_init(void)
 
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP4)
 int omap4_pm_init(void);
+int omap4_pm_init_early(void);
 #else
 static inline int omap4_pm_init(void)
+{
+	return 0;
+}
+
+static inline int omap4_pm_init_early(void)
 {
 	return 0;
 }
@@ -85,6 +91,14 @@ extern void omap3_sync32k_timer_init(void);
 extern void omap3_secure_sync32k_timer_init(void);
 extern void omap3_gptimer_timer_init(void);
 extern void omap4_local_timer_init(void);
+#ifdef CONFIG_CACHE_L2X0
+int omap_l2_cache_init(void);
+#else
+static inline int omap_l2_cache_init(void)
+{
+	return 0;
+}
+#endif
 extern void omap5_realtime_timer_init(void);
 
 void omap2420_init_early(void);
@@ -98,6 +112,7 @@ void am35xx_init_early(void);
 void ti81xx_init_early(void);
 void am33xx_init_early(void);
 void am43xx_init_early(void);
+void am43xx_init_late(void);
 void omap4430_init_early(void);
 void omap5_init_early(void);
 void omap3_init_late(void);	/* Do not use this one */
@@ -109,8 +124,11 @@ void omap35xx_init_late(void);
 void omap3630_init_late(void);
 void am35xx_init_late(void);
 void ti81xx_init_late(void);
+void am33xx_init_late(void);
+void omap5_init_late(void);
 int omap2_common_pm_late_init(void);
 void dra7xx_init_early(void);
+void dra7xx_init_late(void);
 
 #ifdef CONFIG_SOC_BUS
 void omap_soc_device_init(void);
@@ -230,8 +248,8 @@ static inline void __iomem *omap4_get_scu_base(void)
 }
 #endif
 
-extern void __init gic_init_irq(void);
 extern void gic_dist_disable(void);
+extern void gic_dist_enable(void);
 extern bool gic_dist_disabled(void);
 extern void gic_timer_retrigger(void);
 extern void omap_smc1(u32 fn, u32 arg);
@@ -288,18 +306,24 @@ static inline void omap4_cpu_resume(void)
 
 #endif
 
+void pdata_quirks_init(struct of_device_id *);
+void omap_auxdata_legacy_init(struct device *dev);
+void omap_pcs_legacy_init(int irq, void (*rearm)(void));
+
 struct omap_sdrc_params;
 extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1);
 struct omap2_hsmmc_info;
-extern int omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers);
 extern void omap_reserve(void);
 
 struct omap_hwmod;
 extern int omap_dss_reset(struct omap_hwmod *);
 
 /* SoC specific clock initializer */
-extern int (*omap_clk_init)(void);
+int omap_clk_init(void);
+
+int __init omapdss_init_of(void);
+void __init omapdss_early_init_of(void);
 
 #endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */

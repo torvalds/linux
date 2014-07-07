@@ -262,6 +262,17 @@ config CRYPTO_DEV_OMAP_AES
 	  OMAP processors have AES module accelerator. Select this if you
 	  want to use the OMAP module for AES algorithms.
 
+config CRYPTO_DEV_OMAP_DES
+	tristate "Support for OMAP DES3DES hw engine"
+	depends on ARCH_OMAP2PLUS
+	select CRYPTO_DES
+	select CRYPTO_BLKCIPHER2
+	help
+	  OMAP processors have DES/3DES module accelerator. Select this if you
+	  want to use the OMAP module for DES and 3DES algorithms. Currently
+	  the ECB and CBC modes of operation supported by the driver. Also
+	  accesses made on unaligned boundaries are also supported.
+
 config CRYPTO_DEV_PICOXCELL
 	tristate "Support for picoXcell IPSEC and Layer2 crypto engines"
 	depends on ARCH_PICOXCELL && HAVE_CLK
@@ -289,41 +300,20 @@ config CRYPTO_DEV_SAHARA
 	  This option enables support for the SAHARA HW crypto accelerator
 	  found in some Freescale i.MX chips.
 
-config CRYPTO_DEV_DCP
-	tristate "Support for the DCP engine"
-	depends on ARCH_MXS && OF
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_AES
-	select CRYPTO_CBC
-	help
-	  This options enables support for the hardware crypto-acceleration
-	  capabilities of the DCP co-processor
-
 config CRYPTO_DEV_S5P
-	tristate "Support for Samsung S5PV210 crypto accelerator"
-	depends on ARCH_S5PV210
+	tristate "Support for Samsung S5PV210/Exynos crypto accelerator"
+	depends on ARCH_S5PV210 || ARCH_EXYNOS
 	select CRYPTO_AES
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	help
 	  This option allows you to have support for S5P crypto acceleration.
-	  Select this to offload Samsung S5PV210 or S5PC110 from AES
+	  Select this to offload Samsung S5PV210 or S5PC110, Exynos from AES
 	  algorithms execution.
-
-config CRYPTO_DEV_TEGRA_AES
-	tristate "Support for TEGRA AES hw engine"
-	depends on ARCH_TEGRA
-	select CRYPTO_AES
-	help
-	  TEGRA processors have AES module accelerator. Select this if you
-	  want to use the TEGRA module for AES algorithms.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called tegra-aes.
 
 config CRYPTO_DEV_NX
 	bool "Support for IBM Power7+ in-Nest cryptographic acceleration"
-	depends on PPC64 && IBMVIO
+	depends on PPC64 && IBMVIO && !CPU_LITTLE_ENDIAN
 	default n
 	help
 	  Support for Power7+ in-Nest cryptographic acceleration.
@@ -398,5 +388,34 @@ config CRYPTO_DEV_ATMEL_SHA
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-sha.
+
+config CRYPTO_DEV_CCP
+	bool "Support for AMD Cryptographic Coprocessor"
+	depends on X86 && PCI
+	default n
+	help
+	  The AMD Cryptographic Coprocessor provides hardware support
+	  for encryption, hashing and related operations.
+
+if CRYPTO_DEV_CCP
+	source "drivers/crypto/ccp/Kconfig"
+endif
+
+config CRYPTO_DEV_MXS_DCP
+	tristate "Support for Freescale MXS DCP"
+	depends on ARCH_MXS
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_CBC
+	select CRYPTO_ECB
+	select CRYPTO_AES
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_ALGAPI
+	help
+	  The Freescale i.MX23/i.MX28 has SHA1/SHA256 and AES128 CBC/ECB
+	  co-processor on the die.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mxs-dcp.
 
 endif # CRYPTO_HW

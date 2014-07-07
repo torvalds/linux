@@ -206,6 +206,12 @@ static inline struct dentry *debugfs_create_size_t(const char *name, umode_t mod
 	return ERR_PTR(-ENODEV);
 }
 
+static inline struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
+				     struct dentry *parent, atomic_t *value)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 static inline struct dentry *debugfs_create_bool(const char *name, umode_t mode,
 						 struct dentry *parent,
 						 u32 *value)
@@ -225,6 +231,12 @@ static inline struct dentry *debugfs_create_regset32(const char *name,
 				   struct debugfs_regset32 *regset)
 {
 	return ERR_PTR(-ENODEV);
+}
+
+static inline int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
+			 int nregs, void __iomem *base, char *prefix)
+{
+	return 0;
 }
 
 static inline bool debugfs_initialized(void)

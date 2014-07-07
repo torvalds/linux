@@ -26,6 +26,9 @@ struct f_rndis_opts {
 	bool				bound;
 	bool				borrowed_net;
 
+	struct usb_os_desc		rndis_os_desc;
+	char				rndis_ext_compat_id[16];
+
 	/*
 	 * Read/write access to configfs attributes is handled by configfs.
 	 *
@@ -36,6 +39,8 @@ struct f_rndis_opts {
 	int				refcnt;
 };
 
+int rndis_init(void);
+void rndis_exit(void);
 void rndis_borrow_net(struct usb_function_instance *f, struct net_device *net);
 
 #endif /* U_RNDIS_H */

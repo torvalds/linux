@@ -20,6 +20,9 @@
 
 #include "tda18212.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 struct tda18212_priv {
 	struct tda18212_config *cfg;
 	struct i2c_adapter *i2c;
@@ -32,15 +35,22 @@ static int tda18212_wr_regs(struct tda18212_priv *priv, u8 reg, u8 *val,
 	int len)
 {
 	int ret;
-	u8 buf[len+1];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg->i2c_address,
 			.flags = 0,
-			.len = sizeof(buf),
+			.len = 1 + len,
 			.buf = buf,
 		}
 	};
+
+	if (1 + len > sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,
+			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
@@ -61,7 +71,7 @@ static int tda18212_rd_regs(struct tda18212_priv *priv, u8 reg, u8 *val,
 	int len)
 {
 	int ret;
-	u8 buf[len];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[2] = {
 		{
 			.addr = priv->cfg->i2c_address,
@@ -71,10 +81,17 @@ static int tda18212_rd_regs(struct tda18212_priv *priv, u8 reg, u8 *val,
 		}, {
 			.addr = priv->cfg->i2c_address,
 			.flags = I2C_M_RD,
-			.len = sizeof(buf),
+			.len = len,
 			.buf = buf,
 		}
 	};
+
+	if (len > sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,
+			 "%s: i2c rd reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	ret = i2c_transfer(priv->i2c, msg, 2);
 	if (ret == 2) {
@@ -133,6 +150,8 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 	#define DVBT2_8  5
 	#define DVBC_6   6
 	#define DVBC_8   7
+	#define ATSC_VSB 8
+	#define ATSC_QAM 9
 	static const u8 bw_params[][3] = {
 		     /* reg:   0f    13    23 */
 		[DVBT_6]  = { 0xb3, 0x20, 0x03 },
@@ -143,6 +162,8 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 		[DVBT2_8] = { 0xbc, 0x22, 0x01 },
 		[DVBC_6]  = { 0x92, 0x50, 0x03 },
 		[DVBC_8]  = { 0x92, 0x53, 0x03 },
+		[ATSC_VSB] = { 0x7d, 0x20, 0x63 },
+		[ATSC_QAM] = { 0x7d, 0x20, 0x63 },
 	};
 
 	dev_dbg(&priv->i2c->dev,
@@ -154,6 +175,14 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open I2C-gate */
 
 	switch (c->delivery_system) {
+	case SYS_ATSC:
+		if_khz = priv->cfg->if_atsc_vsb;
+		i = ATSC_VSB;
+		break;
+	case SYS_DVBC_ANNEX_B:
+		if_khz = priv->cfg->if_atsc_qam;
+		i = ATSC_QAM;
+		break;
 	case SYS_DVBT:
 		switch (c->bandwidth_hz) {
 		case 6000000:

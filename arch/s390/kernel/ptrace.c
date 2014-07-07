@@ -56,25 +56,26 @@ void update_cr_regs(struct task_struct *task)
 #ifdef CONFIG_64BIT
 	/* Take care of the enable/disable of transactional execution. */
 	if (MACHINE_HAS_TE) {
-		unsigned long cr[3], cr_new[3];
+		unsigned long cr, cr_new;
 
-		__ctl_store(cr, 0, 2);
-		cr_new[1] = cr[1];
+		__ctl_store(cr, 0, 0);
 		/* Set or clear transaction execution TXC bit 8. */
+		cr_new = cr | (1UL << 55);
 		if (task->thread.per_flags & PER_FLAG_NO_TE)
-			cr_new[0] = cr[0] & ~(1UL << 55);
-		else
-			cr_new[0] = cr[0] | (1UL << 55);
+			cr_new &= ~(1UL << 55);
+		if (cr_new != cr)
+			__ctl_load(cr_new, 0, 0);
 		/* Set or clear transaction execution TDC bits 62 and 63. */
-		cr_new[2] = cr[2] & ~3UL;
+		__ctl_store(cr, 2, 2);
+		cr_new = cr & ~3UL;
 		if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND) {
 			if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND_TEND)
-				cr_new[2] |= 1UL;
+				cr_new |= 1UL;
 			else
-				cr_new[2] |= 2UL;
+				cr_new |= 2UL;
 		}
-		if (memcmp(&cr_new, &cr, sizeof(cr)))
-			__ctl_load(cr_new, 0, 2);
+		if (cr_new != cr)
+			__ctl_load(cr_new, 2, 2);
 	}
 #endif
 	/* Copy user specified PER registers */
@@ -84,7 +85,10 @@ void update_cr_regs(struct task_struct *task)
 
 	/* merge TIF_SINGLE_STEP into user specified PER registers. */
 	if (test_tsk_thread_flag(task, TIF_SINGLE_STEP)) {
-		new.control |= PER_EVENT_IFETCH;
+		if (test_tsk_thread_flag(task, TIF_BLOCK_STEP))
+			new.control |= PER_EVENT_BRANCH;
+		else
+			new.control |= PER_EVENT_IFETCH;
 #ifdef CONFIG_64BIT
 		new.control |= PER_CONTROL_SUSPENSION;
 		new.control |= PER_EVENT_TRANSACTION_END;
@@ -106,16 +110,20 @@ void update_cr_regs(struct task_struct *task)
 
 void user_enable_single_step(struct task_struct *task)
 {
+	clear_tsk_thread_flag(task, TIF_BLOCK_STEP);
 	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
-	if (task == current)
-		update_cr_regs(task);
 }
 
 void user_disable_single_step(struct task_struct *task)
 {
+	clear_tsk_thread_flag(task, TIF_BLOCK_STEP);
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
-	if (task == current)
-		update_cr_regs(task);
+}
+
+void user_enable_block_step(struct task_struct *task)
+{
+	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
+	set_tsk_thread_flag(task, TIF_BLOCK_STEP);
 }
 
 /*
@@ -128,7 +136,7 @@ void ptrace_disable(struct task_struct *task)
 	memset(&task->thread.per_user, 0, sizeof(task->thread.per_user));
 	memset(&task->thread.per_event, 0, sizeof(task->thread.per_event));
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
-	clear_tsk_thread_flag(task, TIF_PER_TRAP);
+	clear_pt_regs_flag(task_pt_regs(task), PIF_PER_TRAP);
 	task->thread.per_flags = 0;
 }
 
@@ -198,9 +206,11 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		 * psw and gprs are stored on the stack
 		 */
 		tmp = *(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr);
-		if (addr == (addr_t) &dummy->regs.psw.mask)
+		if (addr == (addr_t) &dummy->regs.psw.mask) {
 			/* Return a clean psw mask. */
-			tmp = psw_user_bits | (tmp & PSW_MASK_USER);
+			tmp &= PSW_MASK_USER | PSW_MASK_RI;
+			tmp |= PSW_USER_BITS;
+		}
 
 	} else if (addr < (addr_t) &dummy->regs.orig_gpr2) {
 		/*
@@ -239,8 +249,7 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		offset = addr - (addr_t) &dummy->regs.fp_regs;
 		tmp = *(addr_t *)((addr_t) &child->thread.fp_regs + offset);
 		if (addr == (addr_t) &dummy->regs.fp_regs.fpc)
-			tmp &= (unsigned long) FPC_VALID_MASK
-				<< (BITS_PER_LONG - 32);
+			tmp <<= BITS_PER_LONG - 32;
 
 	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
@@ -321,11 +330,15 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * psw and gprs are stored on the stack
 		 */
-		if (addr == (addr_t) &dummy->regs.psw.mask &&
-		    ((data & ~PSW_MASK_USER) != psw_user_bits ||
-		     ((data & PSW_MASK_EA) && !(data & PSW_MASK_BA))))
-			/* Invalid psw mask. */
-			return -EINVAL;
+		if (addr == (addr_t) &dummy->regs.psw.mask) {
+			unsigned long mask = PSW_MASK_USER;
+
+			mask |= is_ri_task(child) ? PSW_MASK_RI : 0;
+			if ((data & ~mask) != PSW_USER_BITS)
+				return -EINVAL;
+			if ((data & PSW_MASK_EA) && !(data & PSW_MASK_BA))
+				return -EINVAL;
+		}
 		*(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr) = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.orig_gpr2)) {
@@ -363,10 +376,10 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * floating point regs. are stored in the thread structure
 		 */
-		if (addr == (addr_t) &dummy->regs.fp_regs.fpc &&
-		    (data & ~((unsigned long) FPC_VALID_MASK
-			      << (BITS_PER_LONG - 32))) != 0)
-			return -EINVAL;
+		if (addr == (addr_t) &dummy->regs.fp_regs.fpc)
+			if ((unsigned int) data != 0 ||
+			    test_fp_ctl(data >> (BITS_PER_LONG - 32)))
+				return -EINVAL;
 		offset = addr - (addr_t) &dummy->regs.fp_regs;
 		*(addr_t *)((addr_t) &child->thread.fp_regs + offset) = data;
 
@@ -557,7 +570,8 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
 			/* Fake a 31 bit psw mask. */
 			tmp = (__u32)(regs->psw.mask >> 32);
-			tmp = psw32_user_bits | (tmp & PSW32_MASK_USER);
+			tmp &= PSW32_MASK_USER | PSW32_MASK_RI;
+			tmp |= PSW32_USER_BITS;
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Fake a 31 bit psw address. */
 			tmp = (__u32) regs->psw.addr |
@@ -654,13 +668,16 @@ static int __poke_user_compat(struct task_struct *child,
 		 * psw, gprs, acrs and orig_gpr2 are stored on the stack
 		 */
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
+			__u32 mask = PSW32_MASK_USER;
+
+			mask |= is_ri_task(child) ? PSW32_MASK_RI : 0;
 			/* Build a 64 bit psw mask from 31 bit mask. */
-			if ((tmp & ~PSW32_MASK_USER) != psw32_user_bits)
+			if ((tmp & ~mask) != PSW32_USER_BITS)
 				/* Invalid psw mask. */
 				return -EINVAL;
 			regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
 				(regs->psw.mask & PSW_MASK_BA) |
-				(__u64)(tmp & PSW32_MASK_USER) << 32;
+				(__u64)(tmp & mask) << 32;
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Build a 64 bit psw address from 31 bit address. */
 			regs->psw.addr = (__u64) tmp & PSW32_ADDR_INSN;
@@ -696,8 +713,7 @@ static int __poke_user_compat(struct task_struct *child,
 		 * floating point regs. are stored in the thread structure 
 		 */
 		if (addr == (addr_t) &dummy32->regs.fp_regs.fpc &&
-		    (tmp & ~FPC_VALID_MASK) != 0)
-			/* Invalid floating point control. */
+		    test_fp_ctl(tmp))
 			return -EINVAL;
 	        offset = addr - (addr_t) &dummy32->regs.fp_regs;
 		*(__u32 *)((addr_t) &child->thread.fp_regs + offset) = tmp;
@@ -797,7 +813,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		 * debugger stored an invalid system call number. Skip
 		 * the system call and the system call restart handling.
 		 */
-		clear_thread_flag(TIF_SYSCALL);
+		clear_pt_regs_flag(regs, PIF_SYSCALL);
 		ret = -1;
 	}
 
@@ -895,8 +911,10 @@ static int s390_fpregs_get(struct task_struct *target,
 			   const struct user_regset *regset, unsigned int pos,
 			   unsigned int count, void *kbuf, void __user *ubuf)
 {
-	if (target == current)
-		save_fp_regs(&target->thread.fp_regs);
+	if (target == current) {
+		save_fp_ctl(&target->thread.fp_regs.fpc);
+		save_fp_regs(target->thread.fp_regs.fprs);
+	}
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   &target->thread.fp_regs, 0, -1);
@@ -909,19 +927,21 @@ static int s390_fpregs_set(struct task_struct *target,
 {
 	int rc = 0;
 
-	if (target == current)
-		save_fp_regs(&target->thread.fp_regs);
+	if (target == current) {
+		save_fp_ctl(&target->thread.fp_regs.fpc);
+		save_fp_regs(target->thread.fp_regs.fprs);
+	}
 
 	/* If setting FPC, must validate it first. */
 	if (count > 0 && pos < offsetof(s390_fp_regs, fprs)) {
-		u32 fpc[2] = { target->thread.fp_regs.fpc, 0 };
-		rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &fpc,
+		u32 ufpc[2] = { target->thread.fp_regs.fpc, 0 };
+		rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ufpc,
 					0, offsetof(s390_fp_regs, fprs));
 		if (rc)
 			return rc;
-		if ((fpc[0] & ~FPC_VALID_MASK) != 0 || fpc[1] != 0)
+		if (ufpc[1] != 0 || test_fp_ctl(ufpc[0]))
 			return -EINVAL;
-		target->thread.fp_regs.fpc = fpc[0];
+		target->thread.fp_regs.fpc = ufpc[0];
 	}
 
 	if (rc == 0 && count > 0)
@@ -929,8 +949,10 @@ static int s390_fpregs_set(struct task_struct *target,
 					target->thread.fp_regs.fprs,
 					offsetof(s390_fp_regs, fprs), -1);
 
-	if (rc == 0 && target == current)
-		restore_fp_regs(&target->thread.fp_regs);
+	if (rc == 0 && target == current) {
+		restore_fp_ctl(&target->thread.fp_regs.fpc);
+		restore_fp_regs(target->thread.fp_regs.fprs);
+	}
 
 	return rc;
 }

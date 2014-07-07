@@ -56,7 +56,7 @@ static int __init amiga_a4000t_scsi_probe(struct platform_device *pdev)
 	scsi_addr = res->start + A4000T_SCSI_OFFSET;
 
 	/* Fill in the required pieces of hostdata */
-	hostdata->base = (void __iomem *)ZTWO_VADDR(scsi_addr);
+	hostdata->base = ZTWO_VADDR(scsi_addr);
 	hostdata->clock = 50;
 	hostdata->chip710 = 1;
 	hostdata->dmode_extra = DMODE_FC2;

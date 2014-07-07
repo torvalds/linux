@@ -294,7 +294,7 @@ int mgmt_get_nic_conf(struct beiscsi_hba *phba,
 		      struct be_cmd_get_nic_conf_resp *mac);
 
 int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
-		     struct be_cmd_get_if_info_resp *if_info);
+		     struct be_cmd_get_if_info_resp **if_info);
 
 int mgmt_get_gateway(struct beiscsi_hba *phba, int ip_type,
 		     struct be_cmd_get_def_gateway_resp *gateway);
@@ -315,11 +315,18 @@ ssize_t beiscsi_drvr_ver_disp(struct device *dev,
 ssize_t beiscsi_fw_ver_disp(struct device *dev,
 			     struct device_attribute *attr, char *buf);
 
-ssize_t beiscsi_active_cid_disp(struct device *dev,
-				 struct device_attribute *attr, char *buf);
+ssize_t beiscsi_active_session_disp(struct device *dev,
+				     struct device_attribute *attr, char *buf);
 
 ssize_t beiscsi_adap_family_disp(struct device *dev,
 				  struct device_attribute *attr, char *buf);
+
+
+ssize_t beiscsi_free_session_disp(struct device *dev,
+				   struct device_attribute *attr, char *buf);
+
+ssize_t beiscsi_phys_port_disp(struct device *dev,
+				struct device_attribute *attr, char *buf);
 
 void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle,
@@ -328,5 +335,7 @@ void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle);
 void beiscsi_ue_detect(struct beiscsi_hba *phba);
+int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
+			 struct be_set_eqd *, int num);
 
 #endif

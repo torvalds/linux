@@ -47,7 +47,8 @@
  * >1 : specify number of partitions
  */
 static int	cpu_npartitions;
-CFS_MODULE_PARM(cpu_npartitions, "i", int, 0444, "# of CPU partitions");
+module_param(cpu_npartitions, int, 0444);
+MODULE_PARM_DESC(cpu_npartitions, "# of CPU partitions");
 
 /**
  * modparam for setting CPU partitions patterns:
@@ -61,7 +62,8 @@ CFS_MODULE_PARM(cpu_npartitions, "i", int, 0444, "# of CPU partitions");
  * NB: If user specified cpu_pattern, cpu_npartitions will be ignored
  */
 static char	*cpu_pattern = "";
-CFS_MODULE_PARM(cpu_pattern, "s", charp, 0444, "CPU partitions pattern");
+module_param(cpu_pattern, charp, 0444);
+MODULE_PARM_DESC(cpu_pattern, "CPU partitions pattern");
 
 struct cfs_cpt_data {
 	/* serialize hotplug etc */
@@ -69,7 +71,7 @@ struct cfs_cpt_data {
 	/* reserved for hotplug */
 	unsigned long		cpt_version;
 	/* mutex to protect cpt_cpumask */
-	struct semaphore	cpt_mutex;
+	struct mutex		cpt_mutex;
 	/* scratch buffer for set/unset_node */
 	cpumask_t		*cpt_cpumask;
 };
@@ -418,14 +420,14 @@ cfs_cpt_set_node(struct cfs_cpt_table *cptab, int cpt, int node)
 		return 0;
 	}
 
-	down(&cpt_data.cpt_mutex);
+	mutex_lock(&cpt_data.cpt_mutex);
 
 	mask = cpt_data.cpt_cpumask;
 	cfs_node_to_cpumask(node, mask);
 
 	rc = cfs_cpt_set_cpumask(cptab, cpt, mask);
 
-	up(&cpt_data.cpt_mutex);
+	mutex_unlock(&cpt_data.cpt_mutex);
 
 	return rc;
 }
@@ -442,14 +444,14 @@ cfs_cpt_unset_node(struct cfs_cpt_table *cptab, int cpt, int node)
 		return;
 	}
 
-	down(&cpt_data.cpt_mutex);
+	mutex_lock(&cpt_data.cpt_mutex);
 
 	mask = cpt_data.cpt_cpumask;
 	cfs_node_to_cpumask(node, mask);
 
 	cfs_cpt_unset_cpumask(cptab, cpt, mask);
 
-	up(&cpt_data.cpt_mutex);
+	mutex_unlock(&cpt_data.cpt_mutex);
 }
 EXPORT_SYMBOL(cfs_cpt_unset_node);
 
@@ -879,7 +881,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 			break;
 		}
 
-		if (sscanf(str, "%u%n", &cpt, &n) < 1) {
+		if (sscanf(str, "%d%n", &cpt, &n) < 1) {
 			CERROR("Invalid cpu pattern %s\n", str);
 			goto failed;
 		}
@@ -950,6 +952,7 @@ static int
 cfs_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	unsigned int  cpu = (unsigned long)hcpu;
+	bool	     warn;
 
 	switch (action) {
 	case CPU_DEAD:
@@ -960,9 +963,21 @@ cfs_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 		cpt_data.cpt_version++;
 		spin_unlock(&cpt_data.cpt_lock);
 	default:
-		CWARN("Lustre: can't support CPU hotplug well now, "
-		      "performance and stability could be impacted"
-		      "[CPU %u notify: %lx]\n", cpu, action);
+		if (action != CPU_DEAD && action != CPU_DEAD_FROZEN) {
+			CDEBUG(D_INFO, "CPU changed [cpu %u action %lx]\n",
+			       cpu, action);
+			break;
+		}
+
+		mutex_lock(&cpt_data.cpt_mutex);
+		/* if all HTs in a core are offline, it may break affinity */
+		cfs_cpu_ht_siblings(cpu, cpt_data.cpt_cpumask);
+		warn = any_online_cpu(*cpt_data.cpt_cpumask) >= nr_cpu_ids;
+		mutex_unlock(&cpt_data.cpt_mutex);
+		CDEBUG(warn ? D_WARNING : D_INFO,
+		       "Lustre: can't support CPU plug-out well now, "
+		       "performance and stability could be impacted "
+		       "[CPU %u action: %lx]\n", cpu, action);
 	}
 
 	return NOTIFY_OK;
@@ -1002,7 +1017,7 @@ cfs_cpu_init(void)
 	}
 
 	spin_lock_init(&cpt_data.cpt_lock);
-	sema_init(&cpt_data.cpt_mutex, 1);
+	mutex_init(&cpt_data.cpt_mutex);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	register_hotcpu_notifier(&cfs_cpu_notifier);

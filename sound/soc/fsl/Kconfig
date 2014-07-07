@@ -1,18 +1,77 @@
+menu "SoC Audio for Freescale CPUs"
+
+comment "Common SoC Audio options for Freescale CPUs:"
+
+config SND_SOC_FSL_SAI
+	tristate "Synchronous Audio Interface (SAI) module support"
+	select REGMAP_MMIO
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y if you want to add Synchronous Audio Interface (SAI)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
 config SND_SOC_FSL_SSI
-	tristate
+	tristate "Synchronous Serial Interface module support"
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
+	select SND_SOC_IMX_PCM_FIQ if SND_IMX_SOC != n && ARCH_MXC
+	select REGMAP_MMIO
+	help
+	  Say Y if you want to add Synchronous Serial Interface (SSI)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
 
 config SND_SOC_FSL_SPDIF
-	tristate
+	tristate "Sony/Philips Digital Interface module support"
+	select REGMAP_MMIO
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
+	select SND_SOC_IMX_PCM_FIQ if SND_IMX_SOC != n && ARCH_MXC
+	help
+	  Say Y if you want to add Sony/Philips Digital Interface (SPDIF)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
+config SND_SOC_FSL_ESAI
+	tristate "Enhanced Serial Audio Interface (ESAI) module support"
+	select REGMAP_MMIO
+	select SND_SOC_FSL_UTILS
+	help
+	  Say Y if you want to add Enhanced Synchronous Audio Interface
+	  (ESAI) support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
 
 config SND_SOC_FSL_UTILS
 	tristate
 
-menuconfig SND_POWERPC_SOC
+config SND_SOC_IMX_PCM_DMA
+	tristate
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
+config SND_SOC_IMX_AUDMUX
+	tristate "Digital Audio Mux module support"
+	help
+	  Say Y if you want to add Digital Audio Mux (AUDMUX) support
+	  for the ARM i.MX CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
+config SND_POWERPC_SOC
 	tristate "SoC Audio for Freescale PowerPC CPUs"
 	depends on FSL_SOC || PPC_MPC52xx
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the PowerPC CPUs.
+
+config SND_IMX_SOC
+	tristate "SoC Audio for Freescale i.MX CPUs"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the i.MX CPUs.
 
 if SND_POWERPC_SOC
 
@@ -21,6 +80,8 @@ config SND_MPC52xx_DMA
 
 config SND_SOC_POWERPC_DMA
 	tristate
+
+comment "SoC Audio support for Freescale PPC boards:"
 
 config SND_SOC_MPC8610_HPCD
 	tristate "ALSA SoC support for the Freescale MPC8610 HPCD board"
@@ -99,28 +160,17 @@ config SND_MPC52xx_SOC_EFIKA
 
 endif # SND_POWERPC_SOC
 
-menuconfig SND_IMX_SOC
-	tristate "SoC Audio for Freescale i.MX CPUs"
-	depends on ARCH_MXC || COMPILE_TEST
-	help
-	  Say Y or M if you want to add support for codecs attached to
-	  the i.MX CPUs.
-
 if SND_IMX_SOC
 
 config SND_SOC_IMX_SSI
 	tristate
+	select SND_SOC_FSL_UTILS
 
 config SND_SOC_IMX_PCM_FIQ
 	tristate
 	select FIQ
 
-config SND_SOC_IMX_PCM_DMA
-	tristate
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-
-config SND_SOC_IMX_AUDMUX
-	tristate
+comment "SoC Audio support for Freescale i.MX boards:"
 
 config SND_MXC_SOC_WM1133_EV1
 	tristate "Audio on the i.MX31ADS with WM1133-EV1 fitted"
@@ -158,22 +208,19 @@ config SND_SOC_PHYCORE_AC97
 
 config SND_SOC_EUKREA_TLV320
 	tristate "Eukrea TLV320"
-	depends on MACH_EUKREA_MBIMX27_BASEBOARD \
-		|| MACH_EUKREA_MBIMXSD25_BASEBOARD \
-		|| MACH_EUKREA_MBIMXSD35_BASEBOARD \
-		|| MACH_EUKREA_MBIMXSD51_BASEBOARD
-	depends on I2C
-	select SND_SOC_TLV320AIC23
-	select SND_SOC_IMX_PCM_FIQ
+	depends on ARCH_MXC && I2C
+	select SND_SOC_TLV320AIC23_I2C
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_IMX_SSI
+	select SND_SOC_FSL_SSI
+	select SND_SOC_IMX_PCM_DMA
 	help
 	  Enable I2S based access to the TLV320AIC23B codec attached
 	  to the SSI interface
 
 config SND_SOC_IMX_WM8962
 	tristate "SoC Audio support for i.MX boards with wm8962"
-	depends on OF && I2C
+	depends on OF && I2C && INPUT
 	select SND_SOC_WM8962
 	select SND_SOC_IMX_PCM_DMA
 	select SND_SOC_IMX_AUDMUX
@@ -197,8 +244,6 @@ config SND_SOC_IMX_SPDIF
 	tristate "SoC Audio support for i.MX boards with S/PDIF"
 	select SND_SOC_IMX_PCM_DMA
 	select SND_SOC_FSL_SPDIF
-	select SND_SOC_SPDIF
-	select REGMAP_MMIO
 	help
 	  SoC Audio support for i.MX boards with S/PDIF
 	  Say Y if you want to add support for SoC audio on an i.MX board with
@@ -206,10 +251,12 @@ config SND_SOC_IMX_SPDIF
 
 config SND_SOC_IMX_MC13783
 	tristate "SoC Audio support for I.MX boards with mc13783"
-	depends on MFD_MC13783 && ARM
+	depends on MFD_MC13XXX && ARM
 	select SND_SOC_IMX_SSI
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_MC13783
 	select SND_SOC_IMX_PCM_DMA
 
 endif # SND_IMX_SOC
+
+endmenu

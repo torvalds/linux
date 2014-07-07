@@ -26,10 +26,6 @@ static const int firstep_table[] =
 /* level:  0   1   2   3   4   5   6   7   8  */
 	{ -4, -2,  0,  2,  4,  6,  8, 10, 12 }; /* lvl 0-8, default 2 */
 
-static const int cycpwrThr1_table[] =
-/* level:  0   1   2   3   4   5   6   7   8  */
-	{ -6, -4, -2,  0,  2,  4,  6,  8 };     /* lvl 0-7, default 3 */
-
 /*
  * register values to turn OFDM weak signal detection OFF
  */
@@ -626,11 +622,10 @@ static void ar5008_hw_override_ini(struct ath_hw *ah,
 		if (AR_SREV_9287_11_OR_LATER(ah))
 			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
 
+		val |= AR_PCU_MISC_MODE2_CFP_IGNORE;
+
 		REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
 	}
-
-	REG_SET_BIT(ah, AR_PHY_CCK_DETECT,
-		    AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		return;
@@ -667,14 +662,13 @@ static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
 	if (IS_CHAN_HT40(chan)) {
 		phymode |= AR_PHY_FC_DYN2040_EN;
 
-		if ((chan->chanmode == CHANNEL_A_HT40PLUS) ||
-		    (chan->chanmode == CHANNEL_G_HT40PLUS))
+		if (IS_CHAN_HT40PLUS(chan))
 			phymode |= AR_PHY_FC_DYN2040_PRI_CH;
 
 	}
 	REG_WRITE(ah, AR_PHY_TURBO, phymode);
 
-	ath9k_hw_set11nmac2040(ah);
+	ath9k_hw_set11nmac2040(ah, chan);
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -692,31 +686,12 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	int i, regWrites = 0;
 	u32 modesIndex, freqIndex;
 
-	switch (chan->chanmode) {
-	case CHANNEL_A:
-	case CHANNEL_A_HT20:
-		modesIndex = 1;
+	if (IS_CHAN_5GHZ(chan)) {
 		freqIndex = 1;
-		break;
-	case CHANNEL_A_HT40PLUS:
-	case CHANNEL_A_HT40MINUS:
-		modesIndex = 2;
-		freqIndex = 1;
-		break;
-	case CHANNEL_G:
-	case CHANNEL_G_HT20:
-	case CHANNEL_B:
-		modesIndex = 4;
+		modesIndex = IS_CHAN_HT40(chan) ? 2 : 1;
+	} else {
 		freqIndex = 2;
-		break;
-	case CHANNEL_G_HT40PLUS:
-	case CHANNEL_G_HT40MINUS:
-		modesIndex = 3;
-		freqIndex = 2;
-		break;
-
-	default:
-		return -EINVAL;
+		modesIndex = IS_CHAN_HT40(chan) ? 3 : 4;
 	}
 
 	/*
@@ -815,8 +790,10 @@ static void ar5008_hw_set_rfmode(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (chan == NULL)
 		return;
 
-	rfMode |= (IS_CHAN_B(chan) || IS_CHAN_G(chan))
-		? AR_PHY_MODE_DYNAMIC : AR_PHY_MODE_OFDM;
+	if (IS_CHAN_2GHZ(chan))
+		rfMode |= AR_PHY_MODE_DYNAMIC;
+	else
+		rfMode |= AR_PHY_MODE_OFDM;
 
 	if (!AR_SREV_9280_20_OR_LATER(ah))
 		rfMode |= (IS_CHAN_5GHZ(chan)) ?
@@ -940,7 +917,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
 	struct ar5416AniState *aniState = &ah->ani;
-	s32 value, value2;
+	s32 value;
 
 	switch (cmd & ah->ani_function) {
 	case ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION:{
@@ -1027,42 +1004,9 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 	case ATH9K_ANI_FIRSTEP_LEVEL:{
 		u32 level = param;
 
-		if (level >= ARRAY_SIZE(firstep_table)) {
-			ath_dbg(common, ANI,
-				"ATH9K_ANI_FIRSTEP_LEVEL: level out of range (%u > %zu)\n",
-				level, ARRAY_SIZE(firstep_table));
-			return false;
-		}
-
-		/*
-		 * make register setting relative to default
-		 * from INI file & cap value
-		 */
-		value = firstep_table[level] -
-			firstep_table[ATH9K_ANI_FIRSTEP_LVL] +
-			aniState->iniDef.firstep;
-		if (value < ATH9K_SIG_FIRSTEP_SETTING_MIN)
-			value = ATH9K_SIG_FIRSTEP_SETTING_MIN;
-		if (value > ATH9K_SIG_FIRSTEP_SETTING_MAX)
-			value = ATH9K_SIG_FIRSTEP_SETTING_MAX;
+		value = level;
 		REG_RMW_FIELD(ah, AR_PHY_FIND_SIG,
-			      AR_PHY_FIND_SIG_FIRSTEP,
-			      value);
-		/*
-		 * we need to set first step low register too
-		 * make register setting relative to default
-		 * from INI file & cap value
-		 */
-		value2 = firstep_table[level] -
-			 firstep_table[ATH9K_ANI_FIRSTEP_LVL] +
-			 aniState->iniDef.firstepLow;
-		if (value2 < ATH9K_SIG_FIRSTEP_SETTING_MIN)
-			value2 = ATH9K_SIG_FIRSTEP_SETTING_MIN;
-		if (value2 > ATH9K_SIG_FIRSTEP_SETTING_MAX)
-			value2 = ATH9K_SIG_FIRSTEP_SETTING_MAX;
-
-		REG_RMW_FIELD(ah, AR_PHY_FIND_SIG_LOW,
-			      AR_PHY_FIND_SIG_FIRSTEP_LOW, value2);
+			      AR_PHY_FIND_SIG_FIRSTEP, value);
 
 		if (level != aniState->firstepLevel) {
 			ath_dbg(common, ANI,
@@ -1079,7 +1023,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 				aniState->firstepLevel,
 				level,
 				ATH9K_ANI_FIRSTEP_LVL,
-				value2,
+				value,
 				aniState->iniDef.firstepLow);
 			if (level > aniState->firstepLevel)
 				ah->stats.ast_ani_stepup++;
@@ -1092,41 +1036,13 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 	case ATH9K_ANI_SPUR_IMMUNITY_LEVEL:{
 		u32 level = param;
 
-		if (level >= ARRAY_SIZE(cycpwrThr1_table)) {
-			ath_dbg(common, ANI,
-				"ATH9K_ANI_SPUR_IMMUNITY_LEVEL: level out of range (%u > %zu)\n",
-				level, ARRAY_SIZE(cycpwrThr1_table));
-			return false;
-		}
-		/*
-		 * make register setting relative to default
-		 * from INI file & cap value
-		 */
-		value = cycpwrThr1_table[level] -
-			cycpwrThr1_table[ATH9K_ANI_SPUR_IMMUNE_LVL] +
-			aniState->iniDef.cycpwrThr1;
-		if (value < ATH9K_SIG_SPUR_IMM_SETTING_MIN)
-			value = ATH9K_SIG_SPUR_IMM_SETTING_MIN;
-		if (value > ATH9K_SIG_SPUR_IMM_SETTING_MAX)
-			value = ATH9K_SIG_SPUR_IMM_SETTING_MAX;
+		value = (level + 1) * 2;
 		REG_RMW_FIELD(ah, AR_PHY_TIMING5,
-			      AR_PHY_TIMING5_CYCPWR_THR1,
-			      value);
+			      AR_PHY_TIMING5_CYCPWR_THR1, value);
 
-		/*
-		 * set AR_PHY_EXT_CCA for extension channel
-		 * make register setting relative to default
-		 * from INI file & cap value
-		 */
-		value2 = cycpwrThr1_table[level] -
-			 cycpwrThr1_table[ATH9K_ANI_SPUR_IMMUNE_LVL] +
-			 aniState->iniDef.cycpwrThr1Ext;
-		if (value2 < ATH9K_SIG_SPUR_IMM_SETTING_MIN)
-			value2 = ATH9K_SIG_SPUR_IMM_SETTING_MIN;
-		if (value2 > ATH9K_SIG_SPUR_IMM_SETTING_MAX)
-			value2 = ATH9K_SIG_SPUR_IMM_SETTING_MAX;
-		REG_RMW_FIELD(ah, AR_PHY_EXT_CCA,
-			      AR_PHY_EXT_TIMING5_CYCPWR_THR1, value2);
+		if (IS_CHAN_HT40(ah->curchan))
+			REG_RMW_FIELD(ah, AR_PHY_EXT_CCA,
+				      AR_PHY_EXT_TIMING5_CYCPWR_THR1, value);
 
 		if (level != aniState->spurImmunityLevel) {
 			ath_dbg(common, ANI,
@@ -1143,7 +1059,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 				aniState->spurImmunityLevel,
 				level,
 				ATH9K_ANI_SPUR_IMMUNE_LVL,
-				value2,
+				value,
 				aniState->iniDef.cycpwrThr1Ext);
 			if (level > aniState->spurImmunityLevel)
 				ah->stats.ast_ani_spurup++;
@@ -1219,12 +1135,11 @@ static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 
 	iniDef = &aniState->iniDef;
 
-	ath_dbg(common, ANI, "ver %d.%d opmode %u chan %d Mhz/0x%x\n",
+	ath_dbg(common, ANI, "ver %d.%d opmode %u chan %d Mhz\n",
 		ah->hw_version.macVersion,
 		ah->hw_version.macRev,
 		ah->opmode,
-		chan->channel,
-		chan->channelFlags);
+		chan->channel);
 
 	val = REG_READ(ah, AR_PHY_SFCORR);
 	iniDef->m1Thresh = MS(val, AR_PHY_SFCORR_M1_THRESH);

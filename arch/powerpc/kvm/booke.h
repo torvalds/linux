@@ -99,6 +99,30 @@ enum int_class {
 
 void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type);
 
+extern void kvmppc_mmu_destroy_44x(struct kvm_vcpu *vcpu);
+extern int kvmppc_core_emulate_op_44x(struct kvm_run *run, struct kvm_vcpu *vcpu,
+				      unsigned int inst, int *advance);
+extern int kvmppc_core_emulate_mtspr_44x(struct kvm_vcpu *vcpu, int sprn,
+					 ulong spr_val);
+extern int kvmppc_core_emulate_mfspr_44x(struct kvm_vcpu *vcpu, int sprn,
+					 ulong *spr_val);
+extern void kvmppc_mmu_destroy_e500(struct kvm_vcpu *vcpu);
+extern int kvmppc_core_emulate_op_e500(struct kvm_run *run,
+				       struct kvm_vcpu *vcpu,
+				       unsigned int inst, int *advance);
+extern int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn,
+					  ulong spr_val);
+extern int kvmppc_core_emulate_mfspr_e500(struct kvm_vcpu *vcpu, int sprn,
+					  ulong *spr_val);
+extern void kvmppc_mmu_destroy_e500(struct kvm_vcpu *vcpu);
+extern int kvmppc_core_emulate_op_e500(struct kvm_run *run,
+				       struct kvm_vcpu *vcpu,
+				       unsigned int inst, int *advance);
+extern int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn,
+					  ulong spr_val);
+extern int kvmppc_core_emulate_mfspr_e500(struct kvm_vcpu *vcpu, int sprn,
+					  ulong *spr_val);
+
 /*
  * Load up guest vcpu FP state if it's needed.
  * It also set the MSR_FP in thread so that host know
@@ -112,7 +136,9 @@ static inline void kvmppc_load_guest_fp(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_PPC_FPU
 	if (vcpu->fpu_active && !(current->thread.regs->msr & MSR_FP)) {
-		load_up_fpu();
+		enable_kernel_fp();
+		load_fp_state(&vcpu->arch.fp);
+		current->thread.fp_save_area = &vcpu->arch.fp;
 		current->thread.regs->msr |= MSR_FP;
 	}
 #endif
@@ -127,6 +153,12 @@ static inline void kvmppc_save_guest_fp(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_PPC_FPU
 	if (vcpu->fpu_active && (current->thread.regs->msr & MSR_FP))
 		giveup_fpu(current);
+	current->thread.fp_save_area = NULL;
 #endif
+}
+
+static inline void kvmppc_clear_dbsr(void)
+{
+	mtspr(SPRN_DBSR, mfspr(SPRN_DBSR));
 }
 #endif /* __KVM_BOOKE_H__ */

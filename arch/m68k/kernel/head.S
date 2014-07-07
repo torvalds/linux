@@ -23,7 +23,7 @@
 ** 98/04/25 Phil Blundell: added HP300 support
 ** 1998/08/30 David Kilzer: Added support for font_desc structures
 **            for linux-2.1.115
-** 9/02/11  Richard Zidlicky: added Q40 support (initial vesion 99/01/01)
+** 1999/02/11  Richard Zidlicky: added Q40 support (initial version 99/01/01)
 ** 2004/05/13 Kars de Jong: Finalised HP300 support
 **
 ** This file is subject to the terms and conditions of the GNU General Public
@@ -153,7 +153,7 @@
  * ------------
  *	The console is also able to be turned off.  The console in head.S
  * is specifically for debugging and can be very useful.  It is surrounded by
- * #ifdef CONSOLE/#endif clauses so it doesn't have to ship in known-good
+ * #ifdef / #endif clauses so it doesn't have to ship in known-good
  * kernels.  It's basic algorithm is to determine the size of the screen
  * (in height/width and bit depth) and then use that information for
  * displaying an 8x8 font or an 8x16 (widthxheight).  I prefer the 8x8 for
@@ -198,9 +198,8 @@
  * CONFIG_xxx:	These are the obvious machine configuration defines created
  * during configuration.  These are defined in autoconf.h.
  *
- * CONSOLE:	There is support for head.S console in this file.  This
- * console can talk to a Mac frame buffer, but could easily be extrapolated
- * to extend it to support other platforms.
+ * CONSOLE_DEBUG:  Only supports a Mac frame buffer but could easily be
+ * extended to support other platforms.
  *
  * TEST_MMU:	This is a test harness for running on any given machine but
  * getting an MMU dump for another class of machine.  The classes of machines
@@ -222,7 +221,7 @@
  * MMU_PRINT:	There is a routine built into head.S that can display the
  * MMU data structures.  It outputs its result through the serial_putc
  * interface.  So where ever that winds up driving data, that's where the
- * mmu struct will appear.  On the Macintosh that's typically the console.
+ * mmu struct will appear.
  *
  * SERIAL_DEBUG:	There are a series of putc() macro statements
  * scattered through out the code to give progress of status to the
@@ -250,39 +249,34 @@
  * USE_MFP:	Use the ST-MFP port (Modem1) for serial debug.
  *
  * Macintosh constants:
- * MAC_USE_SCC_A: Use SCC port A (modem) for serial debug and early console.
- * MAC_USE_SCC_B: Use SCC port B (printer) for serial debug and early console.
+ * MAC_USE_SCC_A: Use SCC port A (modem) for serial debug.
+ * MAC_USE_SCC_B: Use SCC port B (printer) for serial debug.
  */
 
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-amiga.h>
+#include <asm/bootinfo-atari.h>
+#include <asm/bootinfo-hp300.h>
+#include <asm/bootinfo-mac.h>
+#include <asm/bootinfo-q40.h>
+#include <asm/bootinfo-vme.h>
 #include <asm/setup.h>
 #include <asm/entry.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
-
 #ifdef CONFIG_MAC
-
-#include <asm/machw.h>
-
-#ifdef CONFIG_FRAMEBUFFER_CONSOLE
-#define CONSOLE
-#define CONSOLE_PENGUIN
+#  include <asm/machw.h>
 #endif
 
 #ifdef CONFIG_EARLY_PRINTK
-#define SERIAL_DEBUG
-#else
-#undef SERIAL_DEBUG
+#  define SERIAL_DEBUG
+#  if defined(CONFIG_MAC) && defined(CONFIG_FONT_SUPPORT)
+#    define CONSOLE_DEBUG
+#  endif
 #endif
-
-#else /* !CONFIG_MAC */
-
-#define SERIAL_DEBUG
-
-#endif /* !CONFIG_MAC */
 
 #undef MMU_PRINT
 #undef MMU_NOCACHE_KERNEL
@@ -298,6 +292,7 @@
 
 .globl kernel_pg_dir
 .globl availmem
+.globl m68k_init_mapped_size
 .globl m68k_pgtable_cachemode
 .globl m68k_supervisor_cachemode
 #ifdef CONFIG_MVME16x
@@ -475,22 +470,21 @@ func_define	serial_putc,1
 func_define	console_putc,1
 
 func_define	console_init
-func_define	console_put_stats
 func_define	console_put_penguin
 func_define	console_plot_pixel,3
 func_define	console_scroll
 
 .macro	putc	ch
-#if defined(CONSOLE) || defined(SERIAL_DEBUG)
+#if defined(CONSOLE_DEBUG) || defined(SERIAL_DEBUG)
 	pea	\ch
 #endif
-#ifdef CONSOLE
+#ifdef CONSOLE_DEBUG
 	func_call	console_putc
 #endif
 #ifdef SERIAL_DEBUG
 	func_call	serial_putc
 #endif
-#if defined(CONSOLE) || defined(SERIAL_DEBUG)
+#if defined(CONSOLE_DEBUG) || defined(SERIAL_DEBUG)
 	addql	#4,%sp
 #endif
 .endm
@@ -510,7 +504,7 @@ func_define	putn,1
 .endm
 
 .macro	puts		string
-#if defined(CONSOLE) || defined(SERIAL_DEBUG)
+#if defined(CONSOLE_DEBUG) || defined(SERIAL_DEBUG)
 	__INITDATA
 .Lstr\@:
 	.string	"\string"
@@ -646,32 +640,9 @@ ENTRY(__start)
 	lea	%pc@(L(mac_rowbytes)),%a1
 	movel	%a0@,%a1@
 
-#ifdef SERIAL_DEBUG
 	get_bi_record	BI_MAC_SCCBASE
 	lea	%pc@(L(mac_sccbase)),%a1
 	movel	%a0@,%a1@
-#endif
-
-#if 0
-	/*
-	 * Clear the screen
-	 */
-	lea	%pc@(L(mac_videobase)),%a0
-	movel	%a0@,%a1
-	lea	%pc@(L(mac_dimensions)),%a0
-	movel	%a0@,%d1
-	swap	%d1		/* #rows is high bytes */
-	andl	#0xFFFF,%d1	/* rows */
-	subl	#10,%d1
-	lea	%pc@(L(mac_rowbytes)),%a0
-loopy2:
-	movel	%a0@,%d0
-	subql	#1,%d0
-loopx2:
-	moveb	#0x55, %a1@+
-	dbra	%d0,loopx2
-	dbra	%d1,loopy2
-#endif
 
 L(test_notmac):
 #endif /* CONFIG_MAC */
@@ -901,15 +872,14 @@ L(nothp):
  */
 #ifdef CONFIG_MAC
 	is_not_mac(L(nocon))
-#ifdef CONSOLE
+#  ifdef CONSOLE_DEBUG
 	console_init
-#ifdef CONSOLE_PENGUIN
+#    ifdef CONFIG_LOGO
 	console_put_penguin
-#endif	/* CONSOLE_PENGUIN */
-	console_put_stats
-#endif	/* CONSOLE */
+#    endif /* CONFIG_LOGO */
+#  endif /* CONSOLE_DEBUG */
 L(nocon):
-#endif	/* CONFIG_MAC */
+#endif /* CONFIG_MAC */
 
 
 	putc	'\n'
@@ -938,10 +908,21 @@ L(nocon):
  *
  *	This block of code does what's necessary to map in the various kinds
  *	of machines for execution of Linux.
- *	First map the first 4 MB of kernel code & data
+ *	First map the first 4, 8, or 16 MB of kernel code & data
  */
 
-	mmu_map	#PAGE_OFFSET,%pc@(L(phys_kernel_start)),#4*1024*1024,\
+	get_bi_record BI_MEMCHUNK
+	movel	%a0@(4),%d0
+	movel	#16*1024*1024,%d1
+	cmpl	%d0,%d1
+	jls	1f
+	lsrl	#1,%d1
+	cmpl	%d0,%d1
+	jls	1f
+	lsrl	#1,%d1
+1:
+	movel	%d1,m68k_init_mapped_size
+	mmu_map	#PAGE_OFFSET,%pc@(L(phys_kernel_start)),%d1,\
 		%pc@(m68k_supervisor_cachemode)
 
 	putc	'C'
@@ -1412,15 +1393,13 @@ L(mmu_fixup_done):
 	andl	L(mac_videobase),%d0
 	addl	#VIDEOMEMBASE,%d0
 	movel	%d0,L(mac_videobase)
-#if defined(CONSOLE)
+#ifdef CONSOLE_DEBUG
 	movel	%pc@(L(phys_kernel_start)),%d0
 	subl	#PAGE_OFFSET,%d0
 	subl	%d0,L(console_font)
 	subl	%d0,L(console_font_data)
 #endif
-#ifdef SERIAL_DEBUG
 	orl	#0x50000000,L(mac_sccbase)
-#endif
 1:
 #endif
 
@@ -1532,7 +1511,7 @@ L(cache_done):
 
 /*
  * Find a tag record in the bootinfo structure
- * The bootinfo structure is located right after the kernel bss
+ * The bootinfo structure is located right after the kernel
  * Returns: d0: size (-1 if not found)
  *          a0: data pointer (end-of-records if not found)
  */
@@ -2750,7 +2729,12 @@ func_return	get_new_page
  */
 
 #ifdef CONFIG_MAC
+/* You may define either or both of these. */
+#define MAC_USE_SCC_A /* Modem port */
+#define MAC_USE_SCC_B /* Printer port */
 
+#if defined(MAC_USE_SCC_A) || defined(MAC_USE_SCC_B)
+/* Initialisation table for SCC with 3.6864 MHz PCLK */
 L(scc_initable_mac):
 	.byte	4,0x44		/* x16, 1 stopbit, no parity */
 	.byte	3,0xc0		/* receiver: 8 bpc */
@@ -2764,6 +2748,7 @@ L(scc_initable_mac):
 	.byte	-1
 	.even
 #endif
+#endif /* CONFIG_MAC */
 
 #ifdef CONFIG_ATARI
 /* #define USE_PRINTER */
@@ -2772,14 +2757,12 @@ L(scc_initable_mac):
 #define USE_MFP
 
 #if defined(USE_SCC_A) || defined(USE_SCC_B)
-#define USE_SCC
-/* Initialisation table for SCC */
-L(scc_initable):
-	.byte	9,12		/* Reset */
+/* Initialisation table for SCC with 7.9872 MHz PCLK */
+/* PCLK == 8.0539 gives baud == 9680.1 */
+L(scc_initable_atari):
 	.byte	4,0x44		/* x16, 1 stopbit, no parity */
 	.byte	3,0xc0		/* receiver: 8 bpc */
 	.byte	5,0xe2		/* transmitter: 8 bpc, assert dtr/rts */
-	.byte	9,0		/* no interrupts */
 	.byte	10,0		/* NRZ */
 	.byte	11,0x50		/* use baud rate generator */
 	.byte	12,24,13,0	/* 9600 baud */
@@ -2828,7 +2811,7 @@ LMFP_UDR     = 0xfffa2f
  */
 
 /*
- * Initialize serial port hardware for 9600/8/1
+ * Initialize serial port hardware
  */
 func_start	serial_init,%d0/%d1/%a0/%a1
 	/*
@@ -2838,7 +2821,7 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 	 *		d0 = boot info offset
 	 *	CONFIG_ATARI
 	 *		a0 = address of SCC
-	 *		a1 = Liobase address/address of scc_initable
+	 *		a1 = Liobase address/address of scc_initable_atari
 	 *		d0 = init data for serial port
 	 *	CONFIG_MAC
 	 *		a0 = address of SCC
@@ -2859,6 +2842,7 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 |	movew	#61,CUSTOMBASE+C_SERPER-ZTWOBASE
 1:
 #endif
+
 #ifdef CONFIG_ATARI
 	is_not_atari(4f)
 	movel	%pc@(L(iobase)),%a1
@@ -2873,9 +2857,21 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 	moveb	%a1@(LPSG_READ),%d0
 	bset	#5,%d0
 	moveb	%d0,%a1@(LPSG_WRITE)
-#elif defined(USE_SCC)
+#elif defined(USE_SCC_A) || defined(USE_SCC_B)
 	lea	%a1@(LSCC_CTRL),%a0
-	lea	%pc@(L(scc_initable)),%a1
+	/* Reset SCC register pointer */
+	moveb	%a0@,%d0
+	/* Reset SCC device: write register pointer then register value */
+	moveb	#9,%a0@
+	moveb	#0xc0,%a0@
+	/* Wait for 5 PCLK cycles, which is about 63 CPU cycles */
+	/* 5 / 7.9872 MHz = approx. 0.63 us = 63 / 100 MHz */
+	movel	#32,%d0
+2:
+	subq	#1,%d0
+	jne	2b
+	/* Initialize channel */
+	lea	%pc@(L(scc_initable_atari)),%a1
 2:	moveb	%a1@+,%d0
 	jmi	3f
 	moveb	%d0,%a0@
@@ -2893,23 +2889,18 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 	jra	L(serial_init_done)
 4:
 #endif
+
 #ifdef CONFIG_MAC
 	is_not_mac(L(serial_init_not_mac))
-
-#ifdef SERIAL_DEBUG
-
-/* You may define either or both of these. */
-#define MAC_USE_SCC_A /* Modem port */
-#define MAC_USE_SCC_B /* Printer port */
-
+#if defined(MAC_USE_SCC_A) || defined(MAC_USE_SCC_B)
 #define mac_scc_cha_b_ctrl_offset	0x0
 #define mac_scc_cha_a_ctrl_offset	0x2
 #define mac_scc_cha_b_data_offset	0x4
 #define mac_scc_cha_a_data_offset	0x6
-
-#if defined(MAC_USE_SCC_A) || defined(MAC_USE_SCC_B)
 	movel	%pc@(L(mac_sccbase)),%a0
-	/* Reset SCC device */
+	/* Reset SCC register pointer */
+	moveb	%a0@(mac_scc_cha_a_ctrl_offset),%d0
+	/* Reset SCC device: write register pointer then register value */
 	moveb	#9,%a0@(mac_scc_cha_a_ctrl_offset)
 	moveb	#0xc0,%a0@(mac_scc_cha_a_ctrl_offset)
 	/* Wait for 5 PCLK cycles, which is about 68 CPU cycles */
@@ -2919,7 +2910,6 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 	subq	#1,%d0
 	jne	5b
 #endif
-
 #ifdef MAC_USE_SCC_A
 	/* Initialize channel A */
 	lea	%pc@(L(scc_initable_mac)),%a1
@@ -2930,7 +2920,6 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 	jra	5b
 6:
 #endif	/* MAC_USE_SCC_A */
-
 #ifdef MAC_USE_SCC_B
 	/* Initialize channel B */
 	lea	%pc@(L(scc_initable_mac)),%a1
@@ -2941,9 +2930,6 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 	jra	7b
 8:
 #endif	/* MAC_USE_SCC_B */
-
-#endif	/* SERIAL_DEBUG */
-
 	jra	L(serial_init_done)
 L(serial_init_not_mac):
 #endif	/* CONFIG_MAC */
@@ -2971,6 +2957,15 @@ L(serial_init_not_mac):
 	tas	%a1@
 /*nodbg: q40_do_debug is 0 by default*/
 2:
+#endif
+
+#ifdef CONFIG_MVME16x
+	is_not_mvme16x(L(serial_init_not_mvme16x))
+	moveb	#0x10,M167_PCSCCMICR
+	moveb	#0x10,M167_PCSCCTICR
+	moveb	#0x10,M167_PCSCCRICR
+	jra	L(serial_init_done)
+L(serial_init_not_mvme16x):
 #endif
 
 #ifdef CONFIG_APOLLO
@@ -3012,27 +3007,19 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 
 #ifdef CONFIG_MAC
 	is_not_mac(5f)
-
-#ifdef SERIAL_DEBUG
-
 #if defined(MAC_USE_SCC_A) || defined(MAC_USE_SCC_B)
 	movel	%pc@(L(mac_sccbase)),%a1
 #endif
-
 #ifdef MAC_USE_SCC_A
 3:	btst	#2,%a1@(mac_scc_cha_a_ctrl_offset)
 	jeq	3b
 	moveb	%d0,%a1@(mac_scc_cha_a_data_offset)
 #endif	/* MAC_USE_SCC_A */
-
 #ifdef MAC_USE_SCC_B
 4:	btst	#2,%a1@(mac_scc_cha_b_ctrl_offset)
 	jeq	4b
 	moveb	%d0,%a1@(mac_scc_cha_b_data_offset)
 #endif	/* MAC_USE_SCC_B */
-
-#endif	/* SERIAL_DEBUG */
-
 	jra	L(serial_putc_done)
 5:
 #endif	/* CONFIG_MAC */
@@ -3053,7 +3040,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 	nop
 	bset	#5,%d0
 	moveb	%d0,%a1@(LPSG_WRITE)
-#elif defined(USE_SCC)
+#elif defined(USE_SCC_A) || defined(USE_SCC_B)
 3:	btst	#2,%a1@(LSCC_CTRL)
 	jeq	3b
 	moveb	%d0,%a1@(LSCC_DATA)
@@ -3209,7 +3196,7 @@ func_start	puts,%d0/%a0
 	movel	ARG1,%a0
 	jra	2f
 1:
-#ifdef CONSOLE
+#ifdef CONSOLE_DEBUG
 	console_putc	%d0
 #endif
 #ifdef SERIAL_DEBUG
@@ -3238,7 +3225,7 @@ func_start	putn,%d0-%d2
 	jls	2f
 	addb	#'A'-('9'+1),%d2
 2:
-#ifdef CONSOLE
+#ifdef CONSOLE_DEBUG
 	console_putc	%d2
 #endif
 #ifdef SERIAL_DEBUG
@@ -3248,21 +3235,19 @@ func_start	putn,%d0-%d2
 
 func_return	putn
 
-#ifdef CONFIG_MAC
+#ifdef CONFIG_EARLY_PRINTK
 /*
- *	mac_early_print
- *
  *	This routine takes its parameters on the stack.  It then
  *	turns around and calls the internal routines.  This routine
  *	is used by the boot console.
  *
  *	The calling parameters are:
- *		void mac_early_print(const char *str, unsigned length);
+ *		void debug_cons_nputs(const char *str, unsigned length)
  *
  *	This routine does NOT understand variable arguments only
  *	simple strings!
  */
-ENTRY(mac_early_print)
+ENTRY(debug_cons_nputs)
 	moveml	%d0/%d1/%a0,%sp@-
 	movew	%sr,%sp@-
 	ori	#0x0700,%sr
@@ -3270,7 +3255,7 @@ ENTRY(mac_early_print)
 	movel	%sp@(22),%d1		/* fetch parameter */
 	jra	2f
 1:
-#ifdef CONSOLE
+#ifdef CONSOLE_DEBUG
 	console_putc	%d0
 #endif
 #ifdef SERIAL_DEBUG
@@ -3284,7 +3269,7 @@ ENTRY(mac_early_print)
 	movew	%sp@+,%sr
 	moveml	%sp@+,%d0/%d1/%a0
 	rts
-#endif /* CONFIG_MAC */
+#endif /* CONFIG_EARLY_PRINTK */
 
 #if defined(CONFIG_HP300) || defined(CONFIG_APOLLO)
 func_start	set_leds,%d0/%a0
@@ -3306,7 +3291,7 @@ func_start	set_leds,%d0/%a0
 func_return	set_leds
 #endif
 
-#ifdef CONSOLE
+#ifdef CONSOLE_DEBUG
 /*
  *	For continuity, see the data alignment
  *	to which this structure is tied.
@@ -3316,14 +3301,13 @@ func_return	set_leds
 #define Lconsole_struct_num_columns	8
 #define Lconsole_struct_num_rows	12
 #define Lconsole_struct_left_edge	16
-#define Lconsole_struct_penguin_putc	20
 
 func_start	console_init,%a0-%a4/%d0-%d7
 	/*
 	 *	Some of the register usage that follows
 	 *		a0 = pointer to boot_info
 	 *		a1 = pointer to screen
-	 *		a2 = pointer to Lconsole_globals
+	 *		a2 = pointer to console_globals
 	 *		d3 = pixel width of screen
 	 *		d4 = pixel height of screen
 	 *		(d3,d4) ~= (x,y) of a point just below
@@ -3411,44 +3395,7 @@ L(console_clear_loop):
 1:
 func_return	console_init
 
-func_start	console_put_stats,%a0/%d7
-	/*
-	 *	Some of the register usage that follows
-	 *		a0 = pointer to boot_info
-	 *		d7 = value of boot_info fields
-	 */
-	puts	"\nMacLinux\n"
-
-#ifdef SERIAL_DEBUG
-	puts	"\n vidaddr:"
-	putn	%pc@(L(mac_videobase))		/* video addr. */
-
-	puts	"\n  _stext:"
-	lea	%pc@(_stext),%a0
-	putn	%a0
-
-	puts	"\nbootinfo:"
-	lea	%pc@(_end),%a0
-	putn	%a0
-
-	puts	"\n   cpuid:"
-	putn	%pc@(L(cputype))
-
-#  ifdef CONFIG_MAC
-	puts	"\n sccbase:"
-	putn	%pc@(L(mac_sccbase))
-#  endif
-#  ifdef MMU_PRINT
-	putc	'\n'
-	jbsr	mmu_print_machine_cpu_types
-#  endif
-#endif /* SERIAL_DEBUG */
-
-	putc	'\n'
-
-func_return	console_put_stats
-
-#ifdef CONSOLE_PENGUIN
+#ifdef CONFIG_LOGO
 func_start	console_put_penguin,%a0-%a1/%d0-%d7
 	/*
 	 *	Get 'that_penguin' onto the screen in the upper right corner
@@ -3789,43 +3736,14 @@ L(white_16):
 
 L(console_plot_pixel_exit):
 func_return	console_plot_pixel
-#endif /* CONSOLE */
+#endif /* CONSOLE_DEBUG */
 
-#if 0
-/*
- * This is some old code lying around.  I don't believe
- * it's used or important anymore.  My guess is it contributed
- * to getting to this point, but it's done for now.
- * It was still in the 2.1.77 head.S, so it's still here.
- * (And still not used!)
- */
-L(showtest):
-	moveml	%a0/%d7,%sp@-
-	puts	"A="
-	putn	%a1
-
-	.long	0xf0119f15		| ptestr	#5,%a1@,#7,%a0
-
-	puts	"DA="
-	putn	%a0
-
-	puts	"D="
-	putn	%a0@
-
-	puts	"S="
-	lea	%pc@(L(mmu)),%a0
-	.long	0xf0106200		| pmove		%psr,%a0@
-	clrl	%d7
-	movew	%a0@,%d7
-	putn	%d7
-
-	putc	'\n'
-	moveml	%sp@+,%a0/%d7
-	rts
-#endif	/* 0 */
 
 __INITDATA
 	.align	4
+
+m68k_init_mapped_size:
+	.long	0
 
 #if defined(CONFIG_ATARI) || defined(CONFIG_AMIGA) || \
     defined(CONFIG_HP300) || defined(CONFIG_APOLLO)
@@ -3834,19 +3752,18 @@ L(iobase):
 	.long 0
 #endif
 
-#if defined(CONSOLE)
+#ifdef CONSOLE_DEBUG
 L(console_globals):
 	.long	0		/* cursor column */
 	.long	0		/* cursor row */
 	.long	0		/* max num columns */
 	.long	0		/* max num rows */
 	.long	0		/* left edge */
-	.long	0		/* mac putc */
 L(console_font):
 	.long	0		/* pointer to console font (struct font_desc) */
 L(console_font_data):
 	.long	0		/* pointer to console font data */
-#endif /* CONSOLE */
+#endif /* CONSOLE_DEBUG */
 
 #if defined(MMU_PRINT)
 L(mmu_print_data):
@@ -3886,7 +3803,9 @@ M167_CYIER = 0xfff45011
 M167_CYLICR = 0xfff45026
 M167_CYTEOIR = 0xfff45085
 M167_CYTDR = 0xfff450f8
+M167_PCSCCMICR = 0xfff4201d
 M167_PCSCCTICR = 0xfff4201e
+M167_PCSCCRICR = 0xfff4201f
 M167_PCTPIACKR = 0xfff42025
 #endif
 
@@ -3896,8 +3815,6 @@ BVME_SCC_DATA_A	= 0xffb0000f
 #endif
 
 #if defined(CONFIG_MAC)
-L(mac_booter_data):
-	.long	0
 L(mac_videobase):
 	.long	0
 L(mac_videodepth):
@@ -3906,10 +3823,8 @@ L(mac_dimensions):
 	.long	0
 L(mac_rowbytes):
 	.long	0
-#ifdef SERIAL_DEBUG
 L(mac_sccbase):
 	.long	0
-#endif
 #endif /* CONFIG_MAC */
 
 #if defined (CONFIG_APOLLO)

@@ -1,5 +1,4 @@
 #include <linux/export.h>
-#include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/elf.h>
 #include <linux/mm.h>
@@ -219,7 +218,7 @@ static void amd_k7_smp_check(struct cpuinfo_x86 *c)
 	 */
 	WARN_ONCE(1, "WARNING: This combination of AMD"
 		" processors is not suitable for SMP.\n");
-	add_taint(TAINT_UNSAFE_SMP, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_NOW_UNRELIABLE);
 }
 
 static void init_amd_k7(struct cpuinfo_x86 *c)
@@ -234,9 +233,7 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 	if (c->x86_model >= 6 && c->x86_model <= 10) {
 		if (!cpu_has(c, X86_FEATURE_XMM)) {
 			printk(KERN_INFO "Enabling disabled K7/SSE Support.\n");
-			rdmsr(MSR_K7_HWCR, l, h);
-			l &= ~0x00008000;
-			wrmsr(MSR_K7_HWCR, l, h);
+			msr_clear_bit(MSR_K7_HWCR, 15);
 			set_cpu_cap(c, X86_FEATURE_XMM);
 		}
 	}
@@ -339,7 +336,7 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 #endif
 
 /*
- * On a AMD dual core setup the lower bits of the APIC id distingush the cores.
+ * On a AMD dual core setup the lower bits of the APIC id distinguish the cores.
  * Assumes number of cores is a power of two.
  */
 static void amd_detect_cmp(struct cpuinfo_x86 *c)
@@ -487,7 +484,7 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
 		if (!check_tsc_unstable())
-			sched_clock_stable = 1;
+			set_sched_clock_stable();
 	}
 
 #ifdef CONFIG_X86_64
@@ -508,6 +505,10 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_EXTD_APICID);
 	}
 #endif
+
+	/* F16h erratum 793, CVE-2013-6885 */
+	if (c->x86 == 0x16 && c->x86_model <= 0xf)
+		msr_set_bit(MSR_AMD64_LS_CFG, 15);
 }
 
 static const int amd_erratum_383[];
@@ -527,11 +528,8 @@ static void init_amd(struct cpuinfo_x86 *c)
 	 * Errata 63 for SH-B3 steppings
 	 * Errata 122 for all steppings (F+ have it disabled by default)
 	 */
-	if (c->x86 == 0xf) {
-		rdmsrl(MSR_K7_HWCR, value);
-		value |= 1 << 6;
-		wrmsrl(MSR_K7_HWCR, value);
-	}
+	if (c->x86 == 0xf)
+		msr_set_bit(MSR_K7_HWCR, 6);
 #endif
 
 	early_init_amd(c);
@@ -614,14 +612,11 @@ static void init_amd(struct cpuinfo_x86 *c)
 	    (c->x86_model >= 0x10) && (c->x86_model <= 0x1f) &&
 	    !cpu_has(c, X86_FEATURE_TOPOEXT)) {
 
-		if (!rdmsrl_safe(0xc0011005, &value)) {
-			value |= 1ULL << 54;
-			wrmsrl_safe(0xc0011005, value);
+		if (msr_set_bit(0xc0011005, 54) > 0) {
 			rdmsrl(0xc0011005, value);
-			if (value & (1ULL << 54)) {
+			if (value & BIT_64(54)) {
 				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
-				printk(KERN_INFO FW_INFO "CPU: Re-enabling "
-				  "disabled Topology Extensions Support\n");
+				pr_info(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
 			}
 		}
 	}
@@ -700,19 +695,12 @@ static void init_amd(struct cpuinfo_x86 *c)
 		 * Disable GART TLB Walk Errors on Fam10h. We do this here
 		 * because this is always needed when GART is enabled, even in a
 		 * kernel which has no MCE support built in.
-		 * BIOS should disable GartTlbWlk Errors themself. If
-		 * it doesn't do it here as suggested by the BKDG.
+		 * BIOS should disable GartTlbWlk Errors already. If
+		 * it doesn't, do it here as suggested by the BKDG.
 		 *
 		 * Fixes: https://bugzilla.kernel.org/show_bug.cgi?id=33012
 		 */
-		u64 mask;
-		int err;
-
-		err = rdmsrl_safe(MSR_AMD64_MCx_MASK(4), &mask);
-		if (err == 0) {
-			mask |= (1 << 10);
-			wrmsrl_safe(MSR_AMD64_MCx_MASK(4), mask);
-		}
+		msr_set_bit(MSR_AMD64_MCx_MASK(4), 10);
 
 		/*
 		 * On family 10h BIOS may not have properly enabled WC+ support,
@@ -724,10 +712,7 @@ static void init_amd(struct cpuinfo_x86 *c)
 		 * NOTE: we want to use the _safe accessors so as not to #GP kvm
 		 * guests on older kvm hosts.
 		 */
-
-		rdmsrl_safe(MSR_AMD64_BU_CFG2, &value);
-		value &= ~(1ULL << 24);
-		wrmsrl_safe(MSR_AMD64_BU_CFG2, value);
+		msr_clear_bit(MSR_AMD64_BU_CFG2, 24);
 
 		if (cpu_has_amd_erratum(c, amd_erratum_383))
 			set_cpu_bug(c, X86_BUG_AMD_TLB_MMATCH);
@@ -758,10 +743,7 @@ static unsigned int amd_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 
 static void cpu_set_tlb_flushall_shift(struct cpuinfo_x86 *c)
 {
-	tlb_flushall_shift = 5;
-
-	if (c->x86 <= 0x11)
-		tlb_flushall_shift = 4;
+	tlb_flushall_shift = 6;
 }
 
 static void cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
@@ -790,14 +772,10 @@ static void cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 	}
 
 	/* Handle DTLB 2M and 4M sizes, fall back to L1 if L2 is disabled */
-	if (!((eax >> 16) & mask)) {
-		u32 a, b, c, d;
-
-		cpuid(0x80000005, &a, &b, &c, &d);
-		tlb_lld_2m[ENTRIES] = (a >> 16) & 0xff;
-	} else {
+	if (!((eax >> 16) & mask))
+		tlb_lld_2m[ENTRIES] = (cpuid_eax(0x80000005) >> 16) & 0xff;
+	else
 		tlb_lld_2m[ENTRIES] = (eax >> 16) & mask;
-	}
 
 	/* a 4M entry uses two 2M entries */
 	tlb_lld_4m[ENTRIES] = tlb_lld_2m[ENTRIES] >> 1;
@@ -823,8 +801,8 @@ static const struct cpu_dev amd_cpu_dev = {
 	.c_vendor	= "AMD",
 	.c_ident	= { "AuthenticAMD" },
 #ifdef CONFIG_X86_32
-	.c_models = {
-		{ .vendor = X86_VENDOR_AMD, .family = 4, .model_names =
+	.legacy_models = {
+		{ .family = 4, .model_names =
 		  {
 			  [3] = "486 DX/2",
 			  [7] = "486 DX/2-WB",
@@ -835,7 +813,7 @@ static const struct cpu_dev amd_cpu_dev = {
 		  }
 		},
 	},
-	.c_size_cache	= amd_size_cache,
+	.legacy_cache_size = amd_size_cache,
 #endif
 	.c_early_init   = early_init_amd,
 	.c_detect_tlb	= cpu_detect_tlb_amd,

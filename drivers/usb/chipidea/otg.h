@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
  *
  * Author: Peter Chen
  *
@@ -11,25 +11,16 @@
 #ifndef __DRIVERS_USB_CHIPIDEA_OTG_H
 #define __DRIVERS_USB_CHIPIDEA_OTG_H
 
-static inline void ci_clear_otg_interrupt(struct ci_hdrc *ci, u32 bits)
-{
-	/* Only clear request bits */
-	hw_write(ci, OP_OTGSC, OTGSC_INT_STATUS_BITS, bits);
-}
-
-static inline void ci_enable_otg_interrupt(struct ci_hdrc *ci, u32 bits)
-{
-	hw_write(ci, OP_OTGSC, bits, bits);
-}
-
-static inline void ci_disable_otg_interrupt(struct ci_hdrc *ci, u32 bits)
-{
-	hw_write(ci, OP_OTGSC, bits, 0);
-}
-
+u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask);
+void hw_write_otgsc(struct ci_hdrc *ci, u32 mask, u32 data);
 int ci_hdrc_otg_init(struct ci_hdrc *ci);
 void ci_hdrc_otg_destroy(struct ci_hdrc *ci);
 enum ci_role ci_otg_role(struct ci_hdrc *ci);
 void ci_handle_vbus_change(struct ci_hdrc *ci);
+static inline void ci_otg_queue_work(struct ci_hdrc *ci)
+{
+	disable_irq_nosync(ci->irq);
+	queue_work(ci->wq, &ci->work);
+}
 
 #endif /* __DRIVERS_USB_CHIPIDEA_OTG_H */

@@ -17,16 +17,19 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_ag.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
 #include "xfs_trans_space.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_da_btree.h"
 #include "xfs_attr_leaf.h"
+#include "xfs_bmap_btree.h"
 
 /*
  * Calculate the maximum length in bytes that would be required for a local
@@ -39,7 +42,7 @@ xfs_log_calc_max_attrsetm_res(
 	int			size;
 	int			nblks;
 
-	size = xfs_attr_leaf_entsize_local_max(mp->m_sb.sb_blocksize) -
+	size = xfs_attr_leaf_entsize_local_max(mp->m_attr_geo->blksize) -
 	       MAXNAMELEN - 1;
 	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
 	nblks += XFS_B_TO_FSB(mp, size);

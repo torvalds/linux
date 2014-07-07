@@ -13,8 +13,23 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tc3589x.h>
+#include <linux/err.h>
+
+/**
+ * enum tc3589x_version - indicates the TC3589x version
+ */
+enum tc3589x_version {
+	TC3589X_TC35890,
+	TC3589X_TC35892,
+	TC3589X_TC35893,
+	TC3589X_TC35894,
+	TC3589X_TC35895,
+	TC3589X_TC35896,
+	TC3589X_UNKNOWN,
+};
 
 #define TC3589x_CLKMODE_MODCTL_SLEEP		0x0
 #define TC3589x_CLKMODE_MODCTL_OPERATION	(1 << 0)
@@ -142,21 +157,21 @@ static struct resource keypad_resources[] = {
 	},
 };
 
-static struct mfd_cell tc3589x_dev_gpio[] = {
+static const struct mfd_cell tc3589x_dev_gpio[] = {
 	{
 		.name		= "tc3589x-gpio",
 		.num_resources	= ARRAY_SIZE(gpio_resources),
 		.resources	= &gpio_resources[0],
-		.of_compatible	= "tc3589x-gpio",
+		.of_compatible	= "toshiba,tc3589x-gpio",
 	},
 };
 
-static struct mfd_cell tc3589x_dev_keypad[] = {
+static const struct mfd_cell tc3589x_dev_keypad[] = {
 	{
 		.name           = "tc3589x-keypad",
 		.num_resources  = ARRAY_SIZE(keypad_resources),
 		.resources      = &keypad_resources[0],
-		.of_compatible	= "tc3589x-keypad",
+		.of_compatible	= "toshiba,tc3589x-keypad",
 	},
 };
 
@@ -305,45 +320,74 @@ static int tc3589x_device_init(struct tc3589x *tc3589x)
 	return ret;
 }
 
-static int tc3589x_of_probe(struct device_node *np,
-			struct tc3589x_platform_data *pdata)
+#ifdef CONFIG_OF
+static const struct of_device_id tc3589x_match[] = {
+	/* Legacy compatible string */
+	{ .compatible = "tc3589x", .data = (void *) TC3589X_UNKNOWN },
+	{ .compatible = "toshiba,tc35890", .data = (void *) TC3589X_TC35890 },
+	{ .compatible = "toshiba,tc35892", .data = (void *) TC3589X_TC35892 },
+	{ .compatible = "toshiba,tc35893", .data = (void *) TC3589X_TC35893 },
+	{ .compatible = "toshiba,tc35894", .data = (void *) TC3589X_TC35894 },
+	{ .compatible = "toshiba,tc35895", .data = (void *) TC3589X_TC35895 },
+	{ .compatible = "toshiba,tc35896", .data = (void *) TC3589X_TC35896 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, tc3589x_match);
+
+static struct tc3589x_platform_data *
+tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 {
+	struct device_node *np = dev->of_node;
+	struct tc3589x_platform_data *pdata;
 	struct device_node *child;
+	const struct of_device_id *of_id;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	of_id = of_match_device(tc3589x_match, dev);
+	if (!of_id)
+		return ERR_PTR(-ENODEV);
+	*version = (enum tc3589x_version) of_id->data;
 
 	for_each_child_of_node(np, child) {
-		if (!strcmp(child->name, "tc3589x_gpio")) {
+		if (of_device_is_compatible(child, "toshiba,tc3589x-gpio"))
 			pdata->block |= TC3589x_BLOCK_GPIO;
-		}
-		if (!strcmp(child->name, "tc3589x_keypad")) {
+		if (of_device_is_compatible(child, "toshiba,tc3589x-keypad"))
 			pdata->block |= TC3589x_BLOCK_KEYPAD;
-		}
 	}
 
-	return 0;
+	return pdata;
 }
+#else
+static inline struct tc3589x_platform_data *
+tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
+{
+	dev_err(dev, "no device tree support\n");
+	return ERR_PTR(-ENODEV);
+}
+#endif
 
 static int tc3589x_probe(struct i2c_client *i2c,
 				   const struct i2c_device_id *id)
 {
-	struct tc3589x_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct device_node *np = i2c->dev.of_node;
+	struct tc3589x_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct tc3589x *tc3589x;
+	enum tc3589x_version version;
 	int ret;
 
 	if (!pdata) {
-		if (np) {
-			pdata = devm_kzalloc(&i2c->dev, sizeof(*pdata), GFP_KERNEL);
-			if (!pdata)
-				return -ENOMEM;
-
-			ret = tc3589x_of_probe(np, pdata);
-			if (ret)
-				return ret;
-		}
-		else {
+		pdata = tc3589x_of_probe(&i2c->dev, &version);
+		if (IS_ERR(pdata)) {
 			dev_err(&i2c->dev, "No platform data or DT found\n");
-			return -EINVAL;
+			return PTR_ERR(pdata);
 		}
+	} else {
+		/* When not probing from device tree we have this ID */
+		version = id->driver_data;
 	}
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA
@@ -361,7 +405,21 @@ static int tc3589x_probe(struct i2c_client *i2c,
 	tc3589x->i2c = i2c;
 	tc3589x->pdata = pdata;
 	tc3589x->irq_base = pdata->irq_base;
-	tc3589x->num_gpio = id->driver_data;
+
+	switch (version) {
+	case TC3589X_TC35893:
+	case TC3589X_TC35895:
+	case TC3589X_TC35896:
+		tc3589x->num_gpio = 20;
+		break;
+	case TC3589X_TC35890:
+	case TC3589X_TC35892:
+	case TC3589X_TC35894:
+	case TC3589X_UNKNOWN:
+	default:
+		tc3589x->num_gpio = 24;
+		break;
+	}
 
 	i2c_set_clientdata(i2c, tc3589x);
 
@@ -432,15 +490,24 @@ static int tc3589x_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(tc3589x_dev_pm_ops, tc3589x_suspend, tc3589x_resume);
 
 static const struct i2c_device_id tc3589x_id[] = {
-	{ "tc3589x", 24 },
+	{ "tc35890", TC3589X_TC35890 },
+	{ "tc35892", TC3589X_TC35892 },
+	{ "tc35893", TC3589X_TC35893 },
+	{ "tc35894", TC3589X_TC35894 },
+	{ "tc35895", TC3589X_TC35895 },
+	{ "tc35896", TC3589X_TC35896 },
+	{ "tc3589x", TC3589X_UNKNOWN },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tc3589x_id);
 
 static struct i2c_driver tc3589x_driver = {
-	.driver.name	= "tc3589x",
-	.driver.owner	= THIS_MODULE,
-	.driver.pm	= &tc3589x_dev_pm_ops,
+	.driver = {
+		.name	= "tc3589x",
+		.owner	= THIS_MODULE,
+		.pm	= &tc3589x_dev_pm_ops,
+		.of_match_table = of_match_ptr(tc3589x_match),
+	},
 	.probe		= tc3589x_probe,
 	.remove		= tc3589x_remove,
 	.id_table	= tc3589x_id,

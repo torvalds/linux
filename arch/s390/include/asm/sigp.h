@@ -5,6 +5,7 @@
 #define SIGP_SENSE		      1
 #define SIGP_EXTERNAL_CALL	      2
 #define SIGP_EMERGENCY_SIGNAL	      3
+#define SIGP_START		      4
 #define SIGP_STOP		      5
 #define SIGP_RESTART		      6
 #define SIGP_STOP_AND_STORE_STATUS    9
@@ -12,6 +13,7 @@
 #define SIGP_SET_PREFIX		     13
 #define SIGP_STORE_STATUS_AT_ADDRESS 14
 #define SIGP_SET_ARCHITECTURE	     18
+#define SIGP_COND_EMERGENCY_SIGNAL   19
 #define SIGP_SENSE_RUNNING	     21
 
 /* SIGP condition codes */
@@ -28,5 +30,24 @@
 #define SIGP_STATUS_INVALID_PARAMETER	0x00000100UL
 #define SIGP_STATUS_INCORRECT_STATE	0x00000200UL
 #define SIGP_STATUS_NOT_RUNNING		0x00000400UL
+
+#ifndef __ASSEMBLY__
+
+static inline int __pcpu_sigp(u16 addr, u8 order, u32 parm, u32 *status)
+{
+	register unsigned int reg1 asm ("1") = parm;
+	int cc;
+
+	asm volatile(
+		"	sigp	%1,%2,0(%3)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		: "=d" (cc), "+d" (reg1) : "d" (addr), "a" (order) : "cc");
+	if (status && cc == 1)
+		*status = reg1;
+	return cc;
+}
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* __S390_ASM_SIGP_H */

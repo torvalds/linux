@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -674,8 +674,6 @@ lpfc_work_done(struct lpfc_hba *phba)
 				lpfc_fdmi_timeout_handler(vport);
 			if (work_port_events & WORKER_RAMP_DOWN_QUEUE)
 				lpfc_ramp_down_queue_handler(phba);
-			if (work_port_events & WORKER_RAMP_UP_QUEUE)
-				lpfc_ramp_up_queue_handler(phba);
 			if (work_port_events & WORKER_DELAYED_DISC_TMO)
 				lpfc_delayed_disc_timeout_handler(vport);
 		}
@@ -733,7 +731,7 @@ lpfc_do_work(void *p)
 	struct lpfc_hba *phba = p;
 	int rc;
 
-	set_user_nice(current, -20);
+	set_user_nice(current, MIN_NICE);
 	current->flags |= PF_NOFREEZE;
 	phba->data_flags = 0;
 
@@ -2545,8 +2543,11 @@ lpfc_mbx_cmpl_fcf_rr_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	if (!new_fcf_record) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
 				"2766 Mailbox command READ_FCF_RECORD "
-				"failed to retrieve a FCF record.\n");
-		goto error_out;
+				"failed to retrieve a FCF record. "
+				"hba_flg x%x fcf_flg x%x\n", phba->hba_flag,
+				phba->fcf.fcf_flag);
+		lpfc_unregister_fcf_rescan(phba);
+		goto out;
 	}
 
 	/* Get the needed parameters from FCF record */
@@ -3973,7 +3974,10 @@ lpfc_nlp_counters(struct lpfc_vport *vport, int state, int count)
 		vport->fc_map_cnt += count;
 		break;
 	case NLP_STE_NPR_NODE:
-		vport->fc_npr_cnt += count;
+		if (vport->fc_npr_cnt == 0 && count == -1)
+			vport->fc_npr_cnt = 0;
+		else
+			vport->fc_npr_cnt += count;
 		break;
 	}
 	spin_unlock_irq(shost->host_lock);
@@ -4171,8 +4175,6 @@ lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	NLP_INT_NODE_ACT(ndlp);
 	atomic_set(&ndlp->cmd_pending, 0);
 	ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
-	if (vport->phba->sli_rev == LPFC_SLI_REV4)
-		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
 }
 
 struct lpfc_nodelist *
@@ -4182,6 +4184,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct lpfc_hba *phba = vport->phba;
 	uint32_t did;
 	unsigned long flags;
+	unsigned long *active_rrqs_xri_bitmap = NULL;
 
 	if (!ndlp)
 		return NULL;
@@ -4210,13 +4213,21 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/* Keep the original DID */
 	did = ndlp->nlp_DID;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		active_rrqs_xri_bitmap = ndlp->active_rrqs_xri_bitmap;
 
 	/* re-initialize ndlp except of ndlp linked list pointer */
 	memset((((char *)ndlp) + sizeof (struct list_head)), 0,
 		sizeof (struct lpfc_nodelist) - sizeof (struct list_head));
 	lpfc_initialize_node(vport, ndlp, did);
 
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		ndlp->active_rrqs_xri_bitmap = active_rrqs_xri_bitmap;
+
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+
 
 	if (state != NLP_STE_UNUSED_NODE)
 		lpfc_nlp_set_state(vport, ndlp, state);
@@ -4798,9 +4809,10 @@ __lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 				 ((uint32_t) ndlp->nlp_rpi & 0xff));
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 					 "0929 FIND node DID "
-					 "Data: x%p x%x x%x x%x\n",
+					 "Data: x%p x%x x%x x%x %p\n",
 					 ndlp, ndlp->nlp_DID,
-					 ndlp->nlp_flag, data1);
+					 ndlp->nlp_flag, data1,
+					 ndlp->active_rrqs_xri_bitmap);
 			return ndlp;
 		}
 	}
@@ -5617,6 +5629,17 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	lpfc_initialize_node(vport, ndlp, did);
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
+	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
+		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		ndlp->active_rrqs_xri_bitmap =
+				mempool_alloc(vport->phba->active_rrq_pool,
+					      GFP_KERNEL);
+		if (ndlp->active_rrqs_xri_bitmap)
+			memset(ndlp->active_rrqs_xri_bitmap, 0,
+			       ndlp->phba->cfg_rrq_xri_bitmap_sz);
+	}
+
+
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
 		"node init:       did:x%x",
@@ -5660,6 +5683,9 @@ lpfc_nlp_release(struct kref *kref)
 	/* free ndlp memory for final ndlp release */
 	if (NLP_CHK_FREE_REQ(ndlp)) {
 		kfree(ndlp->lat_data);
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			mempool_free(ndlp->active_rrqs_xri_bitmap,
+				     ndlp->phba->active_rrq_pool);
 		mempool_free(ndlp, ndlp->phba->nlp_mem_pool);
 	}
 }
@@ -6166,10 +6192,6 @@ lpfc_read_fcf_conn_tbl(struct lpfc_hba *phba,
 
 		memcpy(&conn_entry->conn_rec, &conn_rec[i],
 			sizeof(struct lpfc_fcf_conn_rec));
-		conn_entry->conn_rec.vlan_tag =
-			conn_entry->conn_rec.vlan_tag;
-		conn_entry->conn_rec.flags =
-			conn_entry->conn_rec.flags;
 		list_add_tail(&conn_entry->list,
 			&phba->fcf_conn_rec_list);
 	}

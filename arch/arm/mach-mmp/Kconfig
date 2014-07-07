@@ -136,4 +136,7 @@ config USB_EHCI_MV_U2O
 	help
 	  Enables support for OTG controller which can be switched to host mode.
 
+config MMP_SRAM
+	bool
+
 endif

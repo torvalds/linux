@@ -2368,7 +2368,6 @@ mpt2sas_scsih_clear_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle)
  * @type: MPI2_SCSITASKMGMT_TASKTYPE__XXX (defined in mpi2_init.h)
  * @smid_task: smid assigned to the task
  * @timeout: timeout in seconds
- * @serial_number: the serial_number from scmd
  * @m_type: TM_MUTEX_ON or TM_MUTEX_OFF
  * Context: user
  *
@@ -2381,7 +2380,7 @@ mpt2sas_scsih_clear_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 int
 mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint channel,
     uint id, uint lun, u8 type, u16 smid_task, ulong timeout,
-	unsigned long serial_number, enum mutex_type m_type)
+	enum mutex_type m_type)
 {
 	Mpi2SCSITaskManagementRequest_t *mpi_request;
 	Mpi2SCSITaskManagementReply_t *mpi_reply;
@@ -2634,8 +2633,7 @@ _scsih_abort(struct scsi_cmnd *scmd)
 	handle = sas_device_priv_data->sas_target->handle;
 	r = mpt2sas_scsih_issue_tm(ioc, handle, scmd->device->channel,
 	    scmd->device->id, scmd->device->lun,
-	    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30,
-	    scmd->serial_number, TM_MUTEX_ON);
+	    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30, TM_MUTEX_ON);
 
  out:
 	sdev_printk(KERN_INFO, scmd->device, "task abort: %s scmd(%p)\n",
@@ -2696,8 +2694,7 @@ _scsih_dev_reset(struct scsi_cmnd *scmd)
 
 	r = mpt2sas_scsih_issue_tm(ioc, handle, scmd->device->channel,
 	    scmd->device->id, scmd->device->lun,
-	    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, 0, 30, 0,
-	    TM_MUTEX_ON);
+	    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, 0, 30, TM_MUTEX_ON);
 
  out:
 	sdev_printk(KERN_INFO, scmd->device, "device reset: %s scmd(%p)\n",
@@ -2757,7 +2754,7 @@ _scsih_target_reset(struct scsi_cmnd *scmd)
 
 	r = mpt2sas_scsih_issue_tm(ioc, handle, scmd->device->channel,
 	    scmd->device->id, 0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
-	    30, 0, TM_MUTEX_ON);
+	    30, TM_MUTEX_ON);
 
  out:
 	starget_printk(KERN_INFO, starget, "target reset: %s scmd(%p)\n",
@@ -3953,9 +3950,9 @@ _scsih_setup_direct_io(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
  * SCSI_MLQUEUE_HOST_BUSY if the entire host queue is full
  */
 static int
-_scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
+_scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 {
-	struct MPT2SAS_ADAPTER *ioc = shost_priv(scmd->device->host);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
 	struct MPT2SAS_DEVICE *sas_device_priv_data;
 	struct MPT2SAS_TARGET *sas_target_priv_data;
 	struct _raid_device *raid_device;
@@ -3963,7 +3960,6 @@ _scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	u32 mpi_control;
 	u16 smid;
 
-	scmd->scsi_done = done;
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
 		scmd->result = DID_NO_CONNECT << 16;
@@ -4039,7 +4035,7 @@ _scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	    MPT_TARGET_FLAGS_RAID_COMPONENT)
 		mpi_request->Function = MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
 	else
-		mpi_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
+	mpi_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
 	mpi_request->DevHandle =
 	    cpu_to_le16(sas_device_priv_data->sas_target->handle);
 	mpi_request->DataLength = cpu_to_le32(scsi_bufflen(scmd));
@@ -4082,8 +4078,6 @@ _scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
  out:
 	return SCSI_MLQUEUE_HOST_BUSY;
 }
-
-static DEF_SCSI_QCMD(_scsih_qcmd)
 
 /**
  * _scsih_normalize_sense - normalize descriptor and fixed format sense data
@@ -5880,7 +5874,7 @@ broadcast_aen_retry:
 
 		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 		r = mpt2sas_scsih_issue_tm(ioc, handle, 0, 0, lun,
-		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30, 0,
+		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30,
 		    TM_MUTEX_OFF);
 		if (r == FAILED) {
 			sdev_printk(KERN_WARNING, sdev,
@@ -5922,7 +5916,7 @@ broadcast_aen_retry:
 
 		r = mpt2sas_scsih_issue_tm(ioc, handle, sdev->channel, sdev->id,
 		    sdev->lun, MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30,
-		    scmd->serial_number, TM_MUTEX_OFF);
+		    TM_MUTEX_OFF);
 		if (r == FAILED) {
 			sdev_printk(KERN_WARNING, sdev,
 			    "mpt2sas_scsih_issue_tm: ABORT_TASK: FAILED : "
@@ -8293,7 +8287,6 @@ _scsih_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	mpt2sas_base_free_resources(ioc);
 	pci_save_state(pdev);
-	pci_disable_device(pdev);
 	pci_set_power_state(pdev, device_state);
 	return 0;
 }

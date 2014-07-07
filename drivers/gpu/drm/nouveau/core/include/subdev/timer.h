@@ -59,5 +59,6 @@ int nouveau_timer_create_(struct nouveau_object *, struct nouveau_engine *,
 			  struct nouveau_oclass *, int size, void **);
 
 extern struct nouveau_oclass nv04_timer_oclass;
+extern struct nouveau_oclass gk20a_timer_oclass;
 
 #endif

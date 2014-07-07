@@ -484,7 +484,7 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	if (!req)
 		return DRIVER_ERROR << 24;
 
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
+	blk_rq_set_block_pc(req);
 	req->cmd_flags |= REQ_QUIET;
 
 	mdata->null_mapped = 1;
@@ -2198,12 +2198,19 @@ static int st_set_options(struct scsi_tape *STp, long options)
 	struct st_modedef *STm;
 	char *name = tape_name(STp);
 	struct cdev *cd0, *cd1;
+	struct device *d0, *d1;
 
 	STm = &(STp->modes[STp->current_mode]);
 	if (!STm->defined) {
-		cd0 = STm->cdevs[0]; cd1 = STm->cdevs[1];
+		cd0 = STm->cdevs[0];
+		cd1 = STm->cdevs[1];
+		d0  = STm->devs[0];
+		d1  = STm->devs[1];
 		memcpy(STm, &(STp->modes[0]), sizeof(struct st_modedef));
-		STm->cdevs[0] = cd0; STm->cdevs[1] = cd1;
+		STm->cdevs[0] = cd0;
+		STm->cdevs[1] = cd1;
+		STm->devs[0]  = d0;
+		STm->devs[1]  = d1;
 		modes_defined = 1;
                 DEBC(printk(ST_DEB_MSG
                             "%s: Initialized mode %d definition from mode 0\n",
@@ -3719,7 +3726,7 @@ static struct st_buffer *new_tape_buffer(int need_dma, int max_sg)
 
 static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dma)
 {
-	int segs, nbr, max_segs, b_size, order, got;
+	int segs, max_segs, b_size, order, got;
 	gfp_t priority;
 
 	if (new_size <= STbuffer->buffer_size)
@@ -3729,9 +3736,6 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dm
 		normalize_buffer(STbuffer);  /* Avoid extra segment */
 
 	max_segs = STbuffer->use_sg;
-	nbr = max_segs - STbuffer->frp_segs;
-	if (nbr <= 0)
-		return 0;
 
 	priority = GFP_KERNEL | __GFP_NOWARN;
 	if (need_dma)

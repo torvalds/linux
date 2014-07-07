@@ -140,7 +140,7 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 
 		rtStatus = rtl8192_phy_checkBBAndRF(dev, HW90_BLOCK_RF,
 						(enum rf90_radio_path)eRFPath);
-		if (rtStatus != true) {
+		if (!rtStatus) {
 			RT_TRACE(COMP_ERR, "PHY_RF8256_Config():Check "
 				 "Radio[%d] Fail!!\n", eRFPath);
 			goto phy_RF8256_Config_ParaFile_Fail;
@@ -245,7 +245,7 @@ void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8	powerlevel)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	TxAGC = powerlevel;
-	if (priv->bDynamicTxLowPower == true) {
+	if (priv->bDynamicTxLowPower) {
 		if (priv->CustomerID == RT_CID_819x_Netcore)
 			TxAGC = 0x22;
 		else
@@ -294,7 +294,7 @@ void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel)
 			priv->Pwr_Track = writeVal_tmp;
 		}
 
-		if (priv->bDynamicTxHighPower == true)
+		if (priv->bDynamicTxHighPower)
 			writeVal = 0x03030303;
 		else
 			writeVal = (byte3 << 24) | (byte2 << 16) |

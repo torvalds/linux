@@ -18,31 +18,29 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_btree.h"
-#include "xfs_attr_sf.h"
-#include "xfs_attr_remote.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_attr.h"
+#include "xfs_attr_sf.h"
+#include "xfs_attr_remote.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
+#include "xfs_dinode.h"
+#include "xfs_dir2.h"
 
 STATIC int
 xfs_attr_shortform_compare(const void *a, const void *b)
@@ -229,6 +227,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	struct xfs_da_node_entry *btree;
 	int error, i;
 	struct xfs_buf *bp;
+	struct xfs_inode	*dp = context->dp;
 
 	trace_xfs_attr_node_list(context);
 
@@ -242,7 +241,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	 */
 	bp = NULL;
 	if (cursor->blkno > 0) {
-		error = xfs_da3_node_read(NULL, context->dp, cursor->blkno, -1,
+		error = xfs_da3_node_read(NULL, dp, cursor->blkno, -1,
 					      &bp, XFS_ATTR_FORK);
 		if ((error != 0) && (error != EFSCORRUPTED))
 			return(error);
@@ -292,7 +291,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 		for (;;) {
 			__uint16_t magic;
 
-			error = xfs_da3_node_read(NULL, context->dp,
+			error = xfs_da3_node_read(NULL, dp,
 						      cursor->blkno, -1, &bp,
 						      XFS_ATTR_FORK);
 			if (error)
@@ -312,8 +311,8 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				return XFS_ERROR(EFSCORRUPTED);
 			}
 
-			xfs_da3_node_hdr_from_disk(&nodehdr, node);
-			btree = xfs_da3_node_tree_p(node);
+			dp->d_ops->node_hdr_from_disk(&nodehdr, node);
+			btree = dp->d_ops->node_tree_p(node);
 			for (i = 0; i < nodehdr.count; btree++, i++) {
 				if (cursor->hashval
 						<= be32_to_cpu(btree->hashval)) {
@@ -349,8 +348,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 			break;
 		cursor->blkno = leafhdr.forw;
 		xfs_trans_brelse(NULL, bp);
-		error = xfs_attr3_leaf_read(NULL, context->dp, cursor->blkno, -1,
-					   &bp);
+		error = xfs_attr3_leaf_read(NULL, dp, cursor->blkno, -1, &bp);
 		if (error)
 			return error;
 	}
@@ -446,9 +444,11 @@ xfs_attr3_leaf_list_int(
 				xfs_da_args_t args;
 
 				memset((char *)&args, 0, sizeof(args));
+				args.geo = context->dp->i_mount->m_attr_geo;
 				args.dp = context->dp;
 				args.whichfork = XFS_ATTR_FORK;
 				args.valuelen = valuelen;
+				args.rmtvaluelen = valuelen;
 				args.value = kmem_alloc(valuelen, KM_SLEEP | KM_NOFS);
 				args.rmtblkno = be32_to_cpu(name_rmt->valueblk);
 				args.rmtblkcnt = xfs_attr3_rmt_blocks(
@@ -509,17 +509,17 @@ xfs_attr_list_int(
 {
 	int error;
 	xfs_inode_t *dp = context->dp;
+	uint		lock_mode;
 
 	XFS_STATS_INC(xs_attr_list);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return EIO;
 
-	xfs_ilock(dp, XFS_ILOCK_SHARED);
-
 	/*
 	 * Decide on what work routines to call based on the inode size.
 	 */
+	lock_mode = xfs_ilock_attr_map_shared(dp);
 	if (!xfs_inode_hasattr(dp)) {
 		error = 0;
 	} else if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
@@ -529,9 +529,7 @@ xfs_attr_list_int(
 	} else {
 		error = xfs_attr_node_list(context);
 	}
-
-	xfs_iunlock(dp, XFS_ILOCK_SHARED);
-
+	xfs_iunlock(dp, lock_mode);
 	return error;
 }
 

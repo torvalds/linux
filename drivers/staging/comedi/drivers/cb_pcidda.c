@@ -388,8 +388,6 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < thisboard->ao_chans; i++)
 		cb_pcidda_calibrate(dev, i, devpriv->ao_range[i]);
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
 	return 0;
 }
 
@@ -407,7 +405,7 @@ static int cb_pcidda_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cb_pcidda_pci_table) = {
+static const struct pci_device_id cb_pcidda_pci_table[] = {
 	{ PCI_VDEVICE(CB, 0x0020), BOARD_DDA02_12 },
 	{ PCI_VDEVICE(CB, 0x0021), BOARD_DDA04_12 },
 	{ PCI_VDEVICE(CB, 0x0022), BOARD_DDA08_12 },

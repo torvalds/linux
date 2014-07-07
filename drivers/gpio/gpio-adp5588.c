@@ -67,9 +67,20 @@ static int adp5588_gpio_get_value(struct gpio_chip *chip, unsigned off)
 {
 	struct adp5588_gpio *dev =
 	    container_of(chip, struct adp5588_gpio, gpio_chip);
+	unsigned bank = ADP5588_BANK(off);
+	unsigned bit = ADP5588_BIT(off);
+	int val;
 
-	return !!(adp5588_gpio_read(dev->client,
-		  GPIO_DAT_STAT1 + ADP5588_BANK(off)) & ADP5588_BIT(off));
+	mutex_lock(&dev->lock);
+
+	if (dev->dir[bank] & bit)
+		val = dev->dat_out[bank];
+	else
+		val = adp5588_gpio_read(dev->client, GPIO_DAT_STAT1 + bank);
+
+	mutex_unlock(&dev->lock);
+
+	return !!(val & bit);
 }
 
 static void adp5588_gpio_set_value(struct gpio_chip *chip,
@@ -368,10 +379,8 @@ static int adp5588_gpio_probe(struct i2c_client *client,
 	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&client->dev, "failed to alloc memory\n");
+	if (dev == NULL)
 		return -ENOMEM;
-	}
 
 	dev->client = client;
 
@@ -380,12 +389,13 @@ static int adp5588_gpio_probe(struct i2c_client *client,
 	gc->direction_output = adp5588_gpio_direction_output;
 	gc->get = adp5588_gpio_get_value;
 	gc->set = adp5588_gpio_set_value;
-	gc->can_sleep = 1;
+	gc->can_sleep = true;
 
 	gc->base = pdata->gpio_start;
 	gc->ngpio = ADP5588_MAXGPIO;
 	gc->label = client->name;
 	gc->owner = THIS_MODULE;
+	gc->names = pdata->names;
 
 	mutex_init(&dev->lock);
 

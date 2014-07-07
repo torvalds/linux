@@ -58,7 +58,7 @@
      </sect1>
      <sect1><title>Wait queues and Wake events</title>
 !Iinclude/linux/wait.h
-!Ekernel/wait.c
+!Ekernel/sched/wait.c
      </sect1>
      <sect1><title>High-resolution timers</title>
 !Iinclude/linux/ktime.h
@@ -87,7 +87,10 @@ X!Iinclude/linux/kobject.h
 !Ekernel/printk/printk.c
 !Ekernel/panic.c
 !Ekernel/sys.c
-!Ekernel/rcupdate.c
+!Ekernel/rcu/srcu.c
+!Ekernel/rcu/tree.c
+!Ekernel/rcu/tree_plugin.h
+!Ekernel/rcu/update.c
      </sect1>
 
      <sect1><title>Device Resource Management</title>
@@ -273,7 +276,7 @@ X!Isound/sound_firmware.c
      </para>
 
      <sect1><title>Frame Buffer Memory</title>
-!Edrivers/video/fbmem.c
+!Edrivers/video/fbdev/core/fbmem.c
      </sect1>
 <!--
      <sect1><title>Frame Buffer Console</title>
@@ -281,7 +284,7 @@ X!Edrivers/video/console/fbcon.c
      </sect1>
 -->
      <sect1><title>Frame Buffer Colormap</title>
-!Edrivers/video/fbcmap.c
+!Edrivers/video/fbdev/core/fbcmap.c
      </sect1>
 <!-- FIXME:
   drivers/video/fbgen.c has no docs, which stuffs up the sgml.  Comment
@@ -291,11 +294,11 @@ X!Idrivers/video/fbgen.c
      </sect1>
 KAO -->
      <sect1><title>Frame Buffer Video Mode Database</title>
-!Idrivers/video/modedb.c
-!Edrivers/video/modedb.c
+!Idrivers/video/fbdev/core/modedb.c
+!Edrivers/video/fbdev/core/modedb.c
      </sect1>
      <sect1><title>Frame Buffer Macintosh Video Mode Database</title>
-!Edrivers/video/macmodes.c
+!Edrivers/video/fbdev/macmodes.c
      </sect1>
      <sect1><title>Frame Buffer Fonts</title>
         <para>

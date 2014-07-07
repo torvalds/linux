@@ -135,7 +135,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 	u32 usecs;
 	int i;
 
-	for (i=0; i < MAX_THR_RATES; i++)
+	for (i = 0; i < MAX_THR_RATES; i++)
 	    tmp_tp_rate[i] = 0;
 
 	for (i = 0; i < mi->n_rates; i++) {
@@ -190,7 +190,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		 * choose the maximum throughput rate as max_prob_rate
 		 * (2) if all success probabilities < 95%, the rate with
 		 * highest success probability is choosen as max_prob_rate */
-		if (mr->probability >= MINSTREL_FRAC(95,100)) {
+		if (mr->probability >= MINSTREL_FRAC(95, 100)) {
 			if (mr->cur_tp >= mi->r[tmp_prob_rate].cur_tp)
 				tmp_prob_rate = i;
 		} else {
@@ -203,6 +203,15 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 	memcpy(mi->max_tp_rate, tmp_tp_rate, sizeof(mi->max_tp_rate));
 	mi->max_prob_rate = tmp_prob_rate;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* use fixed index if set */
+	if (mp->fixed_rate_idx != -1) {
+		mi->max_tp_rate[0] = mp->fixed_rate_idx;
+		mi->max_tp_rate[1] = mp->fixed_rate_idx;
+		mi->max_prob_rate = mp->fixed_rate_idx;
+	}
+#endif
+
 	/* Reset update timer */
 	mi->stats_update = jiffies;
 
@@ -211,7 +220,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 
 static void
 minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
-                   struct ieee80211_sta *sta, void *priv_sta,
+		   struct ieee80211_sta *sta, void *priv_sta,
 		   struct sk_buff *skb)
 {
 	struct minstrel_priv *mp = priv;
@@ -251,7 +260,7 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 static inline unsigned int
 minstrel_get_retry_count(struct minstrel_rate *mr,
-                         struct ieee80211_tx_info *info)
+			 struct ieee80211_tx_info *info)
 {
 	unsigned int retry = mr->adjusted_retry_count;
 
@@ -309,6 +318,11 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 
 	/* increase sum packet counter */
 	mi->packet_count++;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (mp->fixed_rate_idx != -1)
+		return;
+#endif
 
 	delta = (mi->packet_count * sampling_ratio / 100) -
 			(mi->sample_count + mi->sample_deferred / 2);
@@ -408,10 +422,9 @@ init_sample_table(struct minstrel_sta_info *mi)
 	memset(mi->sample_table, 0xff, SAMPLE_COLUMNS * mi->n_rates);
 
 	for (col = 0; col < SAMPLE_COLUMNS; col++) {
+		prandom_bytes(rnd, sizeof(rnd));
 		for (i = 0; i < mi->n_rates; i++) {
-			get_random_bytes(rnd, sizeof(rnd));
 			new_idx = (i + rnd[i & 7]) % mi->n_rates;
-
 			while (SAMPLE_TBL(mi, new_idx, col) != 0xff)
 				new_idx = (new_idx + 1) % mi->n_rates;
 
@@ -644,7 +657,18 @@ minstrel_free(void *priv)
 	kfree(priv);
 }
 
-struct rate_control_ops mac80211_minstrel = {
+static u32 minstrel_get_expected_throughput(void *priv_sta)
+{
+	struct minstrel_sta_info *mi = priv_sta;
+	int idx = mi->max_tp_rate[0];
+
+	/* convert pkt per sec in kbps (1200 is the average pkt size used for
+	 * computing cur_tp
+	 */
+	return MINSTREL_TRUNC(mi->r[idx].cur_tp) * 1200 * 8 / 1024;
+}
+
+const struct rate_control_ops mac80211_minstrel = {
 	.name = "minstrel",
 	.tx_status = minstrel_tx_status,
 	.get_rate = minstrel_get_rate,
@@ -657,6 +681,7 @@ struct rate_control_ops mac80211_minstrel = {
 	.add_sta_debugfs = minstrel_add_sta_debugfs,
 	.remove_sta_debugfs = minstrel_remove_sta_debugfs,
 #endif
+	.get_expected_throughput = minstrel_get_expected_throughput,
 };
 
 int __init

@@ -42,7 +42,7 @@
 
 enum mf624_interrupt_source {ADC, CTR4, ALL};
 
-void mf624_disable_interrupt(enum mf624_interrupt_source source,
+static void mf624_disable_interrupt(enum mf624_interrupt_source source,
 			     struct uio_info *info)
 {
 	void __iomem *INTCSR_reg = info->mem[0].internal_addr + INTCSR;
@@ -70,7 +70,7 @@ void mf624_disable_interrupt(enum mf624_interrupt_source source,
 	}
 }
 
-void mf624_enable_interrupt(enum mf624_interrupt_source source,
+static void mf624_enable_interrupt(enum mf624_interrupt_source source,
 			    struct uio_info *info)
 {
 	void __iomem *INTCSR_reg = info->mem[0].internal_addr + INTCSR;
@@ -220,7 +220,6 @@ static void mf624_pci_remove(struct pci_dev *dev)
 	uio_unregister_device(info);
 	pci_release_regions(dev);
 	pci_disable_device(dev);
-	pci_set_drvdata(dev, NULL);
 
 	iounmap(info->mem[0].internal_addr);
 	iounmap(info->mem[1].internal_addr);
@@ -229,7 +228,7 @@ static void mf624_pci_remove(struct pci_dev *dev)
 	kfree(info);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(mf624_pci_id) = {
+static const struct pci_device_id mf624_pci_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUMUSOFT, PCI_DEVICE_ID_MF624) },
 	{ 0, }
 };

@@ -123,8 +123,10 @@ initialization with a pointer to a structure describing the driver
 
 
 The ID table is an array of struct pci_device_id entries ending with an
-all-zero entry; use of the macro DEFINE_PCI_DEVICE_TABLE is the preferred
-method of declaring the table.  Each entry consists of:
+all-zero entry.  Definitions with static const are generally preferred.
+Use of the deprecated macro DEFINE_PCI_DEVICE_TABLE should be avoided.
+
+Each entry consists of:
 
 	vendor,device	Vendor and device ID to match (or PCI_ANY_ID)
 
@@ -525,8 +527,9 @@ corresponding register block for you.
 6. Other interesting functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pci_find_slot()			Find pci_dev corresponding to given bus and
-				slot numbers.
+pci_get_domain_bus_and_slot()	Find pci_dev corresponding to given domain,
+				bus and slot and number. If the device is
+				found, its reference count is increased.
 pci_set_power_state()		Set PCI Power Management state (0=D0 ... 3=D3)
 pci_find_capability()		Find specified capability in device's capability
 				list.
@@ -582,7 +585,8 @@ having sane locking.
 
 pci_find_device()	Superseded by pci_get_device()
 pci_find_subsys()	Superseded by pci_get_subsys()
-pci_find_slot()		Superseded by pci_get_slot()
+pci_find_slot()		Superseded by pci_get_domain_bus_and_slot()
+pci_get_slot()		Superseded by pci_get_domain_bus_and_slot()
 
 
 The alternative is the traditional PCI device driver that walks PCI

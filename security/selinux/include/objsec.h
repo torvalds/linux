@@ -38,7 +38,10 @@ struct task_security_struct {
 
 struct inode_security_struct {
 	struct inode *inode;	/* back pointer to inode object */
-	struct list_head list;	/* list of inode_security_struct */
+	union {
+		struct list_head list;	/* list of inode_security_struct */
+		struct rcu_head rcu;	/* for freeing the inode_security_struct */
+	};
 	u32 task_sid;		/* SID of creating task */
 	u32 sid;		/* SID of this object */
 	u16 sclass;		/* security class of this object */
@@ -58,8 +61,8 @@ struct superblock_security_struct {
 	u32 sid;			/* SID of file system superblock */
 	u32 def_sid;			/* default SID for labeling */
 	u32 mntpoint_sid;		/* SECURITY_FS_USE_MNTPOINT context for files */
-	unsigned int behavior;		/* labeling behavior */
-	unsigned char flags;		/* which mount options were specified */
+	unsigned short behavior;	/* labeling behavior */
+	unsigned short flags;		/* which mount options were specified */
 	struct mutex lock;
 	struct list_head isec_head;
 	spinlock_t isec_lock;

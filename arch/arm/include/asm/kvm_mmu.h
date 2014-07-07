@@ -62,6 +62,12 @@ phys_addr_t kvm_get_idmap_vector(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
+static inline void kvm_set_pmd(pmd_t *pmd, pmd_t new_pmd)
+{
+	*pmd = new_pmd;
+	flush_pmd_entry(pmd);
+}
+
 static inline void kvm_set_pte(pte_t *pte, pte_t new_pte)
 {
 	*pte = new_pte;
@@ -103,10 +109,39 @@ static inline void kvm_set_s2pte_writable(pte_t *pte)
 	pte_val(*pte) |= L_PTE_S2_RDWR;
 }
 
+static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
+{
+	pmd_val(*pmd) |= L_PMD_S2_RDWR;
+}
+
+/* Open coded p*d_addr_end that can deal with 64bit addresses */
+#define kvm_pgd_addr_end(addr, end)					\
+({	u64 __boundary = ((addr) + PGDIR_SIZE) & PGDIR_MASK;		\
+	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
+})
+
+#define kvm_pud_addr_end(addr,end)		(end)
+
+#define kvm_pmd_addr_end(addr, end)					\
+({	u64 __boundary = ((addr) + PMD_SIZE) & PMD_MASK;		\
+	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
+})
+
 struct kvm;
 
-static inline void coherent_icache_guest_page(struct kvm *kvm, gfn_t gfn)
+#define kvm_flush_dcache_to_poc(a,l)	__cpuc_flush_dcache_area((a), (l))
+
+static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 {
+	return (vcpu->arch.cp15[c1_SCTLR] & 0b101) == 0b101;
+}
+
+static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
+					     unsigned long size)
+{
+	if (!vcpu_has_cache_enabled(vcpu))
+		kvm_flush_dcache_to_poc((void *)hva, size);
+	
 	/*
 	 * If we are going to insert an instruction page and the icache is
 	 * either VIPT or PIPT, there is a potential problem where the host
@@ -120,15 +155,16 @@ static inline void coherent_icache_guest_page(struct kvm *kvm, gfn_t gfn)
 	 * need any kind of flushing (DDI 0406C.b - Page B3-1392).
 	 */
 	if (icache_is_pipt()) {
-		unsigned long hva = gfn_to_hva(kvm, gfn);
-		__cpuc_coherent_user_range(hva, hva + PAGE_SIZE);
+		__cpuc_coherent_user_range(hva, hva + size);
 	} else if (!icache_is_vivt_asid_tagged()) {
 		/* any kind of VIPT cache */
 		__flush_icache_all();
 	}
 }
 
-#define kvm_flush_dcache_to_poc(a,l)	__cpuc_flush_dcache_area((a), (l))
+#define kvm_virt_to_phys(x)		virt_to_idmap((unsigned long)(x))
+
+void stage2_flush_vm(struct kvm *kvm);
 
 #endif	/* !__ASSEMBLY__ */
 

@@ -2,7 +2,6 @@
 #define LINUX_PREEMPT_MASK_H
 
 #include <linux/preempt.h>
-#include <asm/hardirq.h>
 
 /*
  * We put the hardirq and softirq counter into the preemption
@@ -11,35 +10,22 @@
  * - bits 0-7 are the preemption count (max preemption depth: 256)
  * - bits 8-15 are the softirq count (max # of softirqs: 256)
  *
- * The hardirq count can in theory reach the same as NR_IRQS.
- * In reality, the number of nested IRQS is limited to the stack
- * size as well. For archs with over 1000 IRQS it is not practical
- * to expect that they will all nest. We give a max of 10 bits for
- * hardirq nesting. An arch may choose to give less than 10 bits.
- * m68k expects it to be 8.
+ * The hardirq count could in theory be the same as the number of
+ * interrupts in the system, but we run all interrupt handlers with
+ * interrupts disabled, so we cannot have nesting interrupts. Though
+ * there are a few palaeontologic drivers which reenable interrupts in
+ * the handler, so we need more than one bit here.
  *
- * - bits 16-25 are the hardirq count (max # of nested hardirqs: 1024)
- * - bit 26 is the NMI_MASK
- * - bit 27 is the PREEMPT_ACTIVE flag
- *
- * PREEMPT_MASK: 0x000000ff
- * SOFTIRQ_MASK: 0x0000ff00
- * HARDIRQ_MASK: 0x03ff0000
- *     NMI_MASK: 0x04000000
+ * PREEMPT_MASK:	0x000000ff
+ * SOFTIRQ_MASK:	0x0000ff00
+ * HARDIRQ_MASK:	0x000f0000
+ *     NMI_MASK:	0x00100000
+ * PREEMPT_ACTIVE:	0x00200000
  */
 #define PREEMPT_BITS	8
 #define SOFTIRQ_BITS	8
+#define HARDIRQ_BITS	4
 #define NMI_BITS	1
-
-#define MAX_HARDIRQ_BITS 10
-
-#ifndef HARDIRQ_BITS
-# define HARDIRQ_BITS	MAX_HARDIRQ_BITS
-#endif
-
-#if HARDIRQ_BITS > MAX_HARDIRQ_BITS
-#error HARDIRQ_BITS too high!
-#endif
 
 #define PREEMPT_SHIFT	0
 #define SOFTIRQ_SHIFT	(PREEMPT_SHIFT + PREEMPT_BITS)
@@ -60,15 +46,9 @@
 
 #define SOFTIRQ_DISABLE_OFFSET	(2 * SOFTIRQ_OFFSET)
 
-#ifndef PREEMPT_ACTIVE
 #define PREEMPT_ACTIVE_BITS	1
 #define PREEMPT_ACTIVE_SHIFT	(NMI_SHIFT + NMI_BITS)
 #define PREEMPT_ACTIVE	(__IRQ_MASK(PREEMPT_ACTIVE_BITS) << PREEMPT_ACTIVE_SHIFT)
-#endif
-
-#if PREEMPT_ACTIVE < (1 << (NMI_SHIFT + NMI_BITS))
-#error PREEMPT_ACTIVE is too low!
-#endif
 
 #define hardirq_count()	(preempt_count() & HARDIRQ_MASK)
 #define softirq_count()	(preempt_count() & SOFTIRQ_MASK)
@@ -96,6 +76,21 @@
 #else
 # define PREEMPT_CHECK_OFFSET 0
 #endif
+
+/*
+ * The preempt_count offset needed for things like:
+ *
+ *  spin_lock_bh()
+ *
+ * Which need to disable both preemption (CONFIG_PREEMPT_COUNT) and
+ * softirqs, such that unlock sequences of:
+ *
+ *  spin_unlock();
+ *  local_bh_enable();
+ *
+ * Work as expected.
+ */
+#define SOFTIRQ_LOCK_OFFSET (SOFTIRQ_DISABLE_OFFSET + PREEMPT_CHECK_OFFSET)
 
 /*
  * Are we running in atomic context?  WARNING: this macro cannot

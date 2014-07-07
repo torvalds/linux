@@ -48,7 +48,7 @@ The MDIO bus
    time, so it is safe for them to block, waiting for an interrupt to signal
    the operation is complete
  
- 2) A reset function is necessary.  This is used to return the bus to an
+ 2) A reset function is optional.  This is used to return the bus to an
    initialized state.
 
  3) A probe function is needed.  This function should set up anything the bus
@@ -253,15 +253,25 @@ Writing a PHY driver
 
  Each driver consists of a number of function pointers:
 
+   soft_reset: perform a PHY software reset
    config_init: configures PHY into a sane state after a reset.
      For instance, a Davicom PHY requires descrambling disabled.
-   probe: Does any setup needed by the driver
+   probe: Allocate phy->priv, optionally refuse to bind.
+   PHY may not have been reset or had fixups run yet.
    suspend/resume: power management
    config_aneg: Changes the speed/duplex/negotiation settings
+   aneg_done: Determines the auto-negotiation result
    read_status: Reads the current speed/duplex/negotiation settings
    ack_interrupt: Clear a pending interrupt
+   did_interrupt: Checks if the PHY generated an interrupt
    config_intr: Enable or disable interrupts
    remove: Does any driver take-down
+   ts_info: Queries about the HW timestamping status
+   hwtstamp: Set the PHY HW timestamping configuration
+   rxtstamp: Requests a receive timestamp at the PHY level for a 'skb'
+   txtsamp: Requests a transmit timestamp at the PHY level for a 'skb'
+   set_wol: Enable Wake-on-LAN at the PHY level
+   get_wol: Get the Wake-on-LAN status at the PHY level
 
  Of these, only config_aneg and read_status are required to be
  assigned by the driver code.  The rest are optional.  Also, it is

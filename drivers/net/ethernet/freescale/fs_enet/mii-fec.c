@@ -21,7 +21,6 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -31,6 +30,7 @@
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include <asm/pgtable.h>
@@ -95,12 +95,6 @@ static int fs_enet_fec_mii_write(struct mii_bus *bus, int phy_id, int location, 
 
 }
 
-static int fs_enet_fec_mii_reset(struct mii_bus *bus)
-{
-	/* nothing here - for now */
-	return 0;
-}
-
 static struct of_device_id fs_enet_mdio_fec_match[];
 static int fs_enet_mdio_probe(struct platform_device *ofdev)
 {
@@ -128,7 +122,6 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	new_bus->name = "FEC MII Bus";
 	new_bus->read = &fs_enet_fec_mii_read;
 	new_bus->write = &fs_enet_fec_mii_write;
-	new_bus->reset = &fs_enet_fec_mii_reset;
 
 	ret = of_address_to_resource(ofdev->dev.of_node, 0, &res);
 	if (ret)

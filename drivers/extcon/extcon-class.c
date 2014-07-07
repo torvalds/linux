@@ -31,6 +31,7 @@
 #include <linux/extcon.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/of.h>
 
 /*
  * extcon_cable_name suggests the standard cable names for commonly used
@@ -74,7 +75,7 @@ static DEFINE_MUTEX(extcon_dev_list_lock);
 
 /**
  * check_mutually_exclusive - Check if new_state violates mutually_exclusive
- *			    condition.
+ *			      condition.
  * @edev:	the extcon device
  * @new_state:	new cable attach status for @edev
  *
@@ -105,7 +106,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	int i, count = 0;
-	struct extcon_dev *edev = (struct extcon_dev *) dev_get_drvdata(dev);
+	struct extcon_dev *edev = dev_get_drvdata(dev);
 
 	if (edev->print_state) {
 		int ret = edev->print_state(edev, buf);
@@ -129,13 +130,12 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-int extcon_set_state(struct extcon_dev *edev, u32 state);
 static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	u32 state;
 	ssize_t ret = 0;
-	struct extcon_dev *edev = (struct extcon_dev *) dev_get_drvdata(dev);
+	struct extcon_dev *edev = dev_get_drvdata(dev);
 
 	ret = sscanf(buf, "0x%x", &state);
 	if (ret == 0)
@@ -153,7 +153,7 @@ static DEVICE_ATTR_RW(state);
 static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-	struct extcon_dev *edev = (struct extcon_dev *) dev_get_drvdata(dev);
+	struct extcon_dev *edev = dev_get_drvdata(dev);
 
 	/* Optional callback given by the user */
 	if (edev->print_name) {
@@ -162,7 +162,7 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 			return ret;
 	}
 
-	return sprintf(buf, "%s\n", dev_name(edev->dev));
+	return sprintf(buf, "%s\n", dev_name(&edev->dev));
 }
 static DEVICE_ATTR_RO(name);
 
@@ -189,7 +189,7 @@ static ssize_t cable_state_show(struct device *dev,
 
 /**
  * extcon_update_state() - Update the cable attach states of the extcon device
- *			only for the masked bits.
+ *			   only for the masked bits.
  * @edev:	the extcon device
  * @mask:	the bit mask to designate updated bits.
  * @state:	new cable attach status for @edev
@@ -227,11 +227,10 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 		edev->state |= state & mask;
 
 		raw_notifier_call_chain(&edev->nh, old_state, edev);
-
 		/* This could be in interrupt handler */
 		prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
 		if (prop_buf) {
-			length = name_show(edev->dev, NULL, prop_buf);
+			length = name_show(&edev->dev, NULL, prop_buf);
 			if (length > 0) {
 				if (prop_buf[length - 1] == '\n')
 					prop_buf[length - 1] = 0;
@@ -239,7 +238,7 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 					"NAME=%s", prop_buf);
 				envp[env_offset++] = name_buf;
 			}
-			length = state_show(edev->dev, NULL, prop_buf);
+			length = state_show(&edev->dev, NULL, prop_buf);
 			if (length > 0) {
 				if (prop_buf[length - 1] == '\n')
 					prop_buf[length - 1] = 0;
@@ -251,14 +250,14 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 			/* Unlock early before uevent */
 			spin_unlock_irqrestore(&edev->lock, flags);
 
-			kobject_uevent_env(&edev->dev->kobj, KOBJ_CHANGE, envp);
+			kobject_uevent_env(&edev->dev.kobj, KOBJ_CHANGE, envp);
 			free_page((unsigned long)prop_buf);
 		} else {
 			/* Unlock early before uevent */
 			spin_unlock_irqrestore(&edev->lock, flags);
 
-			dev_err(edev->dev, "out of memory in extcon_set_state\n");
-			kobject_uevent(&edev->dev->kobj, KOBJ_CHANGE);
+			dev_err(&edev->dev, "out of memory in extcon_set_state\n");
+			kobject_uevent(&edev->dev.kobj, KOBJ_CHANGE);
 		}
 	} else {
 		/* No changes */
@@ -339,8 +338,9 @@ EXPORT_SYMBOL_GPL(extcon_get_cable_state);
 
 /**
  * extcon_set_cable_state_() - Set the status of a specific cable.
- * @edev:	the extcon device that has the cable.
- * @index:	cable index that can be retrieved by extcon_find_cable_index().
+ * @edev:		the extcon device that has the cable.
+ * @index:		cable index that can be retrieved by
+ *			extcon_find_cable_index().
  * @cable_state:	the new cable status. The default semantics is
  *			true: attached / false: detached.
  */
@@ -359,8 +359,8 @@ EXPORT_SYMBOL_GPL(extcon_set_cable_state_);
 
 /**
  * extcon_set_cable_state() - Set the status of a specific cable.
- * @edev:	the extcon device that has the cable.
- * @cable_name:	cable name.
+ * @edev:		the extcon device that has the cable.
+ * @cable_name:		cable name.
  * @cable_state:	the new cable status. The default semantics is
  *			true: attached / false: detached.
  *
@@ -419,14 +419,14 @@ static int _call_per_cable(struct notifier_block *nb, unsigned long val,
 
 /**
  * extcon_register_interest() - Register a notifier for a state change of a
- *			      specific cable, not an entier set of cables of a
- *			      extcon device.
- * @obj:	an empty extcon_specific_cable_nb object to be returned.
+ *				specific cable, not an entier set of cables of a
+ *				extcon device.
+ * @obj:		an empty extcon_specific_cable_nb object to be returned.
  * @extcon_name:	the name of extcon device.
  *			if NULL, extcon_register_interest will register
  *			every cable with the target cable_name given.
  * @cable_name:		the target cable name.
- * @nb:		the notifier block to get notified.
+ * @nb:			the notifier block to get notified.
  *
  * Provide an empty extcon_specific_cable_nb. extcon_register_interest() sets
  * the struct for you.
@@ -452,7 +452,8 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 		if (!obj->edev)
 			return -ENODEV;
 
-		obj->cable_index = extcon_find_cable_index(obj->edev, cable_name);
+		obj->cable_index = extcon_find_cable_index(obj->edev,
+							  cable_name);
 		if (obj->cable_index < 0)
 			return obj->cable_index;
 
@@ -460,7 +461,8 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 
 		obj->internal_nb.notifier_call = _call_per_cable;
 
-		return raw_notifier_chain_register(&obj->edev->nh, &obj->internal_nb);
+		return raw_notifier_chain_register(&obj->edev->nh,
+						  &obj->internal_nb);
 	} else {
 		struct class_dev_iter iter;
 		struct extcon_dev *extd;
@@ -470,7 +472,7 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 			return -ENODEV;
 		class_dev_iter_init(&iter, extcon_class, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter))) {
-			extd = (struct extcon_dev *)dev_get_drvdata(dev);
+			extd = dev_get_drvdata(dev);
 
 			if (extcon_find_cable_index(extd, cable_name) < 0)
 				continue;
@@ -487,7 +489,7 @@ EXPORT_SYMBOL_GPL(extcon_register_interest);
 
 /**
  * extcon_unregister_interest() - Unregister the notifier registered by
- *				extcon_register_interest().
+ *				  extcon_register_interest().
  * @obj:	the extcon_specific_cable_nb object returned by
  *		extcon_register_interest().
  */
@@ -502,7 +504,7 @@ EXPORT_SYMBOL_GPL(extcon_unregister_interest);
 
 /**
  * extcon_register_notifier() - Register a notifiee to get notified by
- *			      any attach status changes from the extcon.
+ *				any attach status changes from the extcon.
  * @edev:	the extcon device.
  * @nb:		a notifier block to be registered.
  *
@@ -556,7 +558,6 @@ static int create_extcon_class(void)
 
 static void extcon_dev_release(struct device *dev)
 {
-	kfree(dev);
 }
 
 static const char *muex_name = "mutually_exclusive";
@@ -564,17 +565,110 @@ static void dummy_sysfs_dev_release(struct device *dev)
 {
 }
 
+/*
+ * extcon_dev_allocate() - Allocate the memory of extcon device.
+ * @supported_cable:	Array of supported cable names ending with NULL.
+ *			If supported_cable is NULL, cable name related APIs
+ *			are disabled.
+ *
+ * This function allocates the memory for extcon device without allocating
+ * memory in each extcon provider driver and initialize default setting for
+ * extcon device.
+ *
+ * Return the pointer of extcon device if success or ERR_PTR(err) if fail
+ */
+struct extcon_dev *extcon_dev_allocate(const char **supported_cable)
+{
+	struct extcon_dev *edev;
+
+	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
+	if (!edev)
+		return ERR_PTR(-ENOMEM);
+
+	edev->max_supported = 0;
+	edev->supported_cable = supported_cable;
+
+	return edev;
+}
+
+/*
+ * extcon_dev_free() - Free the memory of extcon device.
+ * @edev:	the extcon device to free
+ */
+void extcon_dev_free(struct extcon_dev *edev)
+{
+	kfree(edev);
+}
+EXPORT_SYMBOL_GPL(extcon_dev_free);
+
+static int devm_extcon_dev_match(struct device *dev, void *res, void *data)
+{
+	struct extcon_dev **r = res;
+
+	if (WARN_ON(!r || !*r))
+		return 0;
+
+	return *r == data;
+}
+
+static void devm_extcon_dev_release(struct device *dev, void *res)
+{
+	extcon_dev_free(*(struct extcon_dev **)res);
+}
+
+/**
+ * devm_extcon_dev_allocate - Allocate managed extcon device
+ * @dev:		device owning the extcon device being created
+ * @supported_cable:	Array of supported cable names ending with NULL.
+ *			If supported_cable is NULL, cable name related APIs
+ *			are disabled.
+ *
+ * This function manages automatically the memory of extcon device using device
+ * resource management and simplify the control of freeing the memory of extcon
+ * device.
+ *
+ * Returns the pointer memory of allocated extcon_dev if success
+ * or ERR_PTR(err) if fail
+ */
+struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
+					    const char **supported_cable)
+{
+	struct extcon_dev **ptr, *edev;
+
+	ptr = devres_alloc(devm_extcon_dev_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	edev = extcon_dev_allocate(supported_cable);
+	if (IS_ERR(edev)) {
+		devres_free(ptr);
+		return edev;
+	}
+
+	*ptr = edev;
+	devres_add(dev, ptr);
+
+	return edev;
+}
+EXPORT_SYMBOL_GPL(devm_extcon_dev_allocate);
+
+void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev)
+{
+	WARN_ON(devres_release(dev, devm_extcon_dev_release,
+			       devm_extcon_dev_match, edev));
+}
+EXPORT_SYMBOL_GPL(devm_extcon_dev_free);
+
 /**
  * extcon_dev_register() - Register a new extcon device
  * @edev	: the new extcon device (should be allocated before calling)
- * @dev		: the parent device for this extcon device.
  *
  * Among the members of edev struct, please set the "user initializing data"
  * in any case and set the "optional callbacks" if required. However, please
  * do not set the values of "internal data", which are initialized by
  * this function.
  */
-int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
+int extcon_dev_register(struct extcon_dev *edev)
 {
 	int ret, index = 0;
 
@@ -594,19 +688,20 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 	}
 
 	if (index > SUPPORTED_CABLE_MAX) {
-		dev_err(edev->dev, "extcon: maximum number of supported cables exceeded.\n");
+		dev_err(&edev->dev, "extcon: maximum number of supported cables exceeded.\n");
 		return -EINVAL;
 	}
 
-	edev->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
-	if (!edev->dev)
-		return -ENOMEM;
-	edev->dev->parent = dev;
-	edev->dev->class = extcon_class;
-	edev->dev->release = extcon_dev_release;
+	edev->dev.class = extcon_class;
+	edev->dev.release = extcon_dev_release;
 
-	edev->name = edev->name ? edev->name : dev_name(dev);
-	dev_set_name(edev->dev, "%s", edev->name);
+	edev->name = edev->name ? edev->name : dev_name(edev->dev.parent);
+	if (IS_ERR_OR_NULL(edev->name)) {
+		dev_err(&edev->dev,
+			"extcon device name is null\n");
+		return -EINVAL;
+	}
+	dev_set_name(&edev->dev, "%s", edev->name);
 
 	if (edev->max_supported) {
 		char buf[10];
@@ -714,7 +809,7 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 			goto err_alloc_groups;
 		}
 
-		edev->extcon_dev_type.name = dev_name(edev->dev);
+		edev->extcon_dev_type.name = dev_name(&edev->dev);
 		edev->extcon_dev_type.release = dummy_sysfs_dev_release;
 
 		for (index = 0; index < edev->max_supported; index++)
@@ -724,25 +819,24 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 			edev->extcon_dev_type.groups[index] =
 				&edev->attr_g_muex;
 
-		edev->dev->type = &edev->extcon_dev_type;
+		edev->dev.type = &edev->extcon_dev_type;
 	}
 
-	ret = device_register(edev->dev);
+	ret = device_register(&edev->dev);
 	if (ret) {
-		put_device(edev->dev);
+		put_device(&edev->dev);
 		goto err_dev;
 	}
 #if defined(CONFIG_ANDROID)
 	if (switch_class)
-		ret = class_compat_create_link(switch_class, edev->dev,
-					       NULL);
+		ret = class_compat_create_link(switch_class, &edev->dev, NULL);
 #endif /* CONFIG_ANDROID */
 
 	spin_lock_init(&edev->lock);
 
 	RAW_INIT_NOTIFIER_HEAD(&edev->nh);
 
-	dev_set_drvdata(edev->dev, edev);
+	dev_set_drvdata(&edev->dev, edev);
 	edev->state = 0;
 
 	mutex_lock(&extcon_dev_list_lock);
@@ -768,7 +862,6 @@ err_alloc_cables:
 	if (edev->max_supported)
 		kfree(edev->cables);
 err_sysfs_alloc:
-	kfree(edev->dev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(extcon_dev_register);
@@ -788,11 +881,13 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 	list_del(&edev->entry);
 	mutex_unlock(&extcon_dev_list_lock);
 
-	if (IS_ERR_OR_NULL(get_device(edev->dev))) {
-		dev_err(edev->dev, "Failed to unregister extcon_dev (%s)\n",
-				dev_name(edev->dev));
+	if (IS_ERR_OR_NULL(get_device(&edev->dev))) {
+		dev_err(&edev->dev, "Failed to unregister extcon_dev (%s)\n",
+				dev_name(&edev->dev));
 		return;
 	}
+
+	device_unregister(&edev->dev);
 
 	if (edev->mutually_exclusive && edev->max_supported) {
 		for (index = 0; edev->mutually_exclusive[index];
@@ -812,12 +907,109 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 
 #if defined(CONFIG_ANDROID)
 	if (switch_class)
-		class_compat_remove_link(switch_class, edev->dev, NULL);
+		class_compat_remove_link(switch_class, &edev->dev, NULL);
 #endif
-	device_unregister(edev->dev);
-	put_device(edev->dev);
+	put_device(&edev->dev);
 }
 EXPORT_SYMBOL_GPL(extcon_dev_unregister);
+
+static void devm_extcon_dev_unreg(struct device *dev, void *res)
+{
+	extcon_dev_unregister(*(struct extcon_dev **)res);
+}
+
+/**
+ * devm_extcon_dev_register() - Resource-managed extcon_dev_register()
+ * @dev:	device to allocate extcon device
+ * @edev:	the new extcon device to register
+ *
+ * Managed extcon_dev_register() function. If extcon device is attached with
+ * this function, that extcon device is automatically unregistered on driver
+ * detach. Internally this function calls extcon_dev_register() function.
+ * To get more information, refer that function.
+ *
+ * If extcon device is registered with this function and the device needs to be
+ * unregistered separately, devm_extcon_dev_unregister() should be used.
+ *
+ * Returns 0 if success or negaive error number if failure.
+ */
+int devm_extcon_dev_register(struct device *dev, struct extcon_dev *edev)
+{
+	struct extcon_dev **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_extcon_dev_unreg, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = extcon_dev_register(edev);
+	if (ret) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	*ptr = edev;
+	devres_add(dev, ptr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_extcon_dev_register);
+
+/**
+ * devm_extcon_dev_unregister() - Resource-managed extcon_dev_unregister()
+ * @dev:	device the extcon belongs to
+ * @edev:	the extcon device to unregister
+ *
+ * Unregister extcon device that is registered with devm_extcon_dev_register()
+ * function.
+ */
+void devm_extcon_dev_unregister(struct device *dev, struct extcon_dev *edev)
+{
+	WARN_ON(devres_release(dev, devm_extcon_dev_unreg,
+			       devm_extcon_dev_match, edev));
+}
+EXPORT_SYMBOL_GPL(devm_extcon_dev_unregister);
+
+#ifdef CONFIG_OF
+/*
+ * extcon_get_edev_by_phandle - Get the extcon device from devicetree
+ * @dev - instance to the given device
+ * @index - index into list of extcon_dev
+ *
+ * return the instance of extcon device
+ */
+struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
+{
+	struct device_node *node;
+	struct extcon_dev *edev;
+
+	if (!dev->of_node) {
+		dev_err(dev, "device does not have a device node entry\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	node = of_parse_phandle(dev->of_node, "extcon", index);
+	if (!node) {
+		dev_err(dev, "failed to get phandle in %s node\n",
+			dev->of_node->full_name);
+		return ERR_PTR(-ENODEV);
+	}
+
+	edev = extcon_get_extcon_dev(node->name);
+	if (!edev) {
+		dev_err(dev, "unable to get extcon device : %s\n", node->name);
+		return ERR_PTR(-ENODEV);
+	}
+
+	return edev;
+}
+#else
+struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
+{
+	return ERR_PTR(-ENOSYS);
+}
+#endif /* CONFIG_OF */
+EXPORT_SYMBOL_GPL(extcon_get_edev_by_phandle);
 
 static int __init extcon_class_init(void)
 {

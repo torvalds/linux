@@ -69,6 +69,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 
 		break;
 	case HostCmd_CMD_802_11_SCAN:
+	case HostCmd_CMD_802_11_SCAN_EXT:
 		/* Cancel all pending scan command */
 		spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
 		list_for_each_entry_safe(cmd_node, tmp_node,
@@ -157,8 +158,8 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 
 	priv->subsc_evt_rssi_state = EVENT_HANDLED;
 
-	mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
-			       0, 0, subsc_evt);
+	mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+			 0, 0, subsc_evt, false);
 
 	return 0;
 }
@@ -274,17 +275,20 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
 	struct mwifiex_ie_types_header *head;
-	u16 tlv, tlv_buf_len;
+	u16 tlv, tlv_buf_len, tlv_buf_left;
 	u8 *tlv_buf;
 	u32 i;
 
-	tlv_buf = ((u8 *)rate_cfg) +
-			sizeof(struct host_cmd_ds_tx_rate_cfg);
-	tlv_buf_len = le16_to_cpu(*(__le16 *) (tlv_buf + sizeof(u16)));
+	tlv_buf = ((u8 *)rate_cfg) + sizeof(struct host_cmd_ds_tx_rate_cfg);
+	tlv_buf_left = le16_to_cpu(resp->size) - S_DS_GEN - sizeof(*rate_cfg);
 
-	while (tlv_buf && tlv_buf_len > 0) {
-		tlv = (*tlv_buf);
-		tlv = tlv | (*(tlv_buf + 1) << 8);
+	while (tlv_buf_left >= sizeof(*head)) {
+		head = (struct mwifiex_ie_types_header *)tlv_buf;
+		tlv = le16_to_cpu(head->type);
+		tlv_buf_len = le16_to_cpu(head->len);
+
+		if (tlv_buf_left < (sizeof(*head) + tlv_buf_len))
+			break;
 
 		switch (tlv) {
 		case TLV_TYPE_RATE_SCOPE:
@@ -300,13 +304,21 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 				priv->bitmap_rates[2 + i] =
 					le16_to_cpu(rate_scope->
 						    ht_mcs_rate_bitmap[i]);
+
+			if (priv->adapter->fw_api_ver == MWIFIEX_FW_V15) {
+				for (i = 0; i < ARRAY_SIZE(rate_scope->
+							   vht_mcs_rate_bitmap);
+				     i++)
+					priv->bitmap_rates[10 + i] =
+					    le16_to_cpu(rate_scope->
+							vht_mcs_rate_bitmap[i]);
+			}
 			break;
 			/* Add RATE_DROP tlv here */
 		}
 
-		head = (struct mwifiex_ie_types_header *) tlv_buf;
-		tlv_buf += le16_to_cpu(head->len) + sizeof(*head);
-		tlv_buf_len -= le16_to_cpu(head->len);
+		tlv_buf += (sizeof(*head) + tlv_buf_len);
+		tlv_buf_left -= (sizeof(*head) + tlv_buf_len);
 	}
 
 	priv->is_data_rate_auto = mwifiex_is_rate_auto(priv);
@@ -314,9 +326,8 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	if (priv->is_data_rate_auto)
 		priv->data_rate = 0;
 	else
-		return mwifiex_send_cmd_async(priv,
-					      HostCmd_CMD_802_11_TX_RATE_QUERY,
-					      HostCmd_ACT_GEN_GET, 0, NULL);
+		return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_TX_RATE_QUERY,
+					HostCmd_ACT_GEN_GET, 0, NULL, false);
 
 	return 0;
 }
@@ -336,17 +347,20 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 	if (!data_buf)
 		return -1;
 
-	pg_tlv_hdr = (struct mwifiex_types_power_group *)
-		((u8 *) data_buf + sizeof(struct host_cmd_ds_txpwr_cfg));
+	pg_tlv_hdr = (struct mwifiex_types_power_group *)((u8 *)data_buf);
 	pg = (struct mwifiex_power_group *)
 		((u8 *) pg_tlv_hdr + sizeof(struct mwifiex_types_power_group));
-	length = pg_tlv_hdr->length;
-	if (length > 0) {
-		max_power = pg->power_max;
-		min_power = pg->power_min;
-		length -= sizeof(struct mwifiex_power_group);
-	}
-	while (length) {
+	length = le16_to_cpu(pg_tlv_hdr->length);
+
+	/* At least one structure required to update power */
+	if (length < sizeof(struct mwifiex_power_group))
+		return 0;
+
+	max_power = pg->power_max;
+	min_power = pg->power_min;
+	length -= sizeof(struct mwifiex_power_group);
+
+	while (length >= sizeof(struct mwifiex_power_group)) {
 		pg++;
 		if (max_power < pg->power_max)
 			max_power = pg->power_max;
@@ -356,10 +370,8 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 
 		length -= sizeof(struct mwifiex_power_group);
 	}
-	if (pg_tlv_hdr->length > 0) {
-		priv->min_tx_power_level = (u8) min_power;
-		priv->max_tx_power_level = (u8) max_power;
-	}
+	priv->min_tx_power_level = (u8) min_power;
+	priv->max_tx_power_level = (u8) max_power;
 
 	return 0;
 }
@@ -379,19 +391,25 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 	struct mwifiex_types_power_group *pg_tlv_hdr;
 	struct mwifiex_power_group *pg;
 	u16 action = le16_to_cpu(txp_cfg->action);
+	u16 tlv_buf_left;
+
+	pg_tlv_hdr = (struct mwifiex_types_power_group *)
+		((u8 *)txp_cfg +
+		 sizeof(struct host_cmd_ds_txpwr_cfg));
+
+	pg = (struct mwifiex_power_group *)
+		((u8 *)pg_tlv_hdr +
+		 sizeof(struct mwifiex_types_power_group));
+
+	tlv_buf_left = le16_to_cpu(resp->size) - S_DS_GEN - sizeof(*txp_cfg);
+	if (tlv_buf_left <
+			le16_to_cpu(pg_tlv_hdr->length) + sizeof(*pg_tlv_hdr))
+		return 0;
 
 	switch (action) {
 	case HostCmd_ACT_GEN_GET:
-		pg_tlv_hdr = (struct mwifiex_types_power_group *)
-			((u8 *) txp_cfg +
-			 sizeof(struct host_cmd_ds_txpwr_cfg));
-
-		pg = (struct mwifiex_power_group *)
-			((u8 *) pg_tlv_hdr +
-			 sizeof(struct mwifiex_types_power_group));
-
 		if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
-			mwifiex_get_power_level(priv, txp_cfg);
+			mwifiex_get_power_level(priv, pg_tlv_hdr);
 
 		priv->tx_power_level = (u16) pg->power_min;
 		break;
@@ -399,14 +417,6 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 	case HostCmd_ACT_GEN_SET:
 		if (!le32_to_cpu(txp_cfg->mode))
 			break;
-
-		pg_tlv_hdr = (struct mwifiex_types_power_group *)
-			((u8 *) txp_cfg +
-			 sizeof(struct host_cmd_ds_txpwr_cfg));
-
-		pg = (struct mwifiex_power_group *)
-			((u8 *) pg_tlv_hdr +
-			 sizeof(struct mwifiex_types_power_group));
 
 		if (pg->power_max == pg->power_min)
 			priv->tx_power_level = (u16) pg->power_min;
@@ -560,13 +570,13 @@ static int mwifiex_ret_802_11_ad_hoc_stop(struct mwifiex_private *priv,
 }
 
 /*
- * This function handles the command response of set/get key material.
+ * This function handles the command response of set/get v1 key material.
  *
  * Handling includes updating the driver parameters to reflect the
  * changes.
  */
-static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
-					   struct host_cmd_ds_command *resp)
+static int mwifiex_ret_802_11_key_material_v1(struct mwifiex_private *priv,
+					      struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_key_material *key =
 						&resp->params.key_material;
@@ -586,6 +596,51 @@ static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
 	       le16_to_cpu(priv->aes_key.key_param_set.key_len));
 
 	return 0;
+}
+
+/*
+ * This function handles the command response of set/get v2 key material.
+ *
+ * Handling includes updating the driver parameters to reflect the
+ * changes.
+ */
+static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
+					      struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_802_11_key_material_v2 *key_v2;
+	__le16 len;
+
+	key_v2 = &resp->params.key_material_v2;
+	if (le16_to_cpu(key_v2->action) == HostCmd_ACT_GEN_SET) {
+		if ((le16_to_cpu(key_v2->key_param_set.key_info) & KEY_MCAST)) {
+			dev_dbg(priv->adapter->dev, "info: key: GTK is set\n");
+			priv->wpa_is_gtk_set = true;
+			priv->scan_block = false;
+		}
+	}
+
+	if (key_v2->key_param_set.key_type != KEY_TYPE_ID_AES)
+		return 0;
+
+	memset(priv->aes_key_v2.key_param_set.key_params.aes.key, 0,
+	       WLAN_KEY_LEN_CCMP);
+	priv->aes_key_v2.key_param_set.key_params.aes.key_len =
+				key_v2->key_param_set.key_params.aes.key_len;
+	len = priv->aes_key_v2.key_param_set.key_params.aes.key_len;
+	memcpy(priv->aes_key_v2.key_param_set.key_params.aes.key,
+	       key_v2->key_param_set.key_params.aes.key, le16_to_cpu(len));
+
+	return 0;
+}
+
+/* Wrapper function for processing response of key material command */
+static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
+					   struct host_cmd_ds_command *resp)
+{
+	if (priv->adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+		return mwifiex_ret_802_11_key_material_v2(priv, resp);
+	else
+		return mwifiex_ret_802_11_key_material_v1(priv, resp);
 }
 
 /*
@@ -781,8 +836,7 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 	}
 
 	/* If BSSID is diff, modify current BSS parameters */
-	if (memcmp(priv->curr_bss_params.bss_descriptor.mac_address,
-		   ibss_coal_resp->bssid, ETH_ALEN)) {
+	if (!ether_addr_equal(priv->curr_bss_params.bss_descriptor.mac_address, ibss_coal_resp->bssid)) {
 		/* BSSID */
 		memcpy(priv->curr_bss_params.bss_descriptor.mac_address,
 		       ibss_coal_resp->bssid, ETH_ALEN);
@@ -800,7 +854,66 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 
 	return 0;
 }
+static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
+				 struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_tdls_oper *cmd_tdls_oper = &resp->params.tdls_oper;
+	u16 reason = le16_to_cpu(cmd_tdls_oper->reason);
+	u16 action = le16_to_cpu(cmd_tdls_oper->tdls_action);
+	struct mwifiex_sta_node *node =
+			   mwifiex_get_sta_entry(priv, cmd_tdls_oper->peer_mac);
 
+	switch (action) {
+	case ACT_TDLS_DELETE:
+		if (reason) {
+			if (!node || reason == TDLS_ERR_LINK_NONEXISTENT)
+				dev_dbg(priv->adapter->dev,
+					"TDLS link delete for %pM failed: reason %d\n",
+					cmd_tdls_oper->peer_mac, reason);
+			else
+				dev_err(priv->adapter->dev,
+					"TDLS link delete for %pM failed: reason %d\n",
+					cmd_tdls_oper->peer_mac, reason);
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link delete for %pM successful\n",
+				cmd_tdls_oper->peer_mac);
+		}
+		break;
+	case ACT_TDLS_CREATE:
+		if (reason) {
+			dev_err(priv->adapter->dev,
+				"TDLS link creation for %pM failed: reason %d",
+				cmd_tdls_oper->peer_mac, reason);
+			if (node && reason != TDLS_ERR_LINK_EXISTS)
+				node->tdls_status = TDLS_SETUP_FAILURE;
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link creation for %pM successful",
+				cmd_tdls_oper->peer_mac);
+		}
+		break;
+	case ACT_TDLS_CONFIG:
+		if (reason) {
+			dev_err(priv->adapter->dev,
+				"TDLS link config for %pM failed, reason %d\n",
+				cmd_tdls_oper->peer_mac, reason);
+			if (node)
+				node->tdls_status = TDLS_SETUP_FAILURE;
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link config for %pM successful\n",
+				cmd_tdls_oper->peer_mac);
+		}
+		break;
+	default:
+		dev_err(priv->adapter->dev,
+			"Unknown TDLS command action respnse %d", action);
+		return -1;
+	}
+
+	return 0;
+}
 /*
  * This function handles the command response for subscribe event command.
  */
@@ -869,6 +982,10 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 		ret = mwifiex_ret_802_11_scan(priv, resp);
+		adapter->curr_cmd->wait_q_enabled = false;
+		break;
+	case HostCmd_CMD_802_11_SCAN_EXT:
+		ret = mwifiex_ret_802_11_scan_ext(priv);
 		adapter->curr_cmd->wait_q_enabled = false;
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
@@ -998,6 +1115,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_MEF_CFG:
 		break;
 	case HostCmd_CMD_COALESCE_CFG:
+		break;
+	case HostCmd_CMD_TDLS_OPER:
+		ret = mwifiex_ret_tdls_oper(priv, resp);
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

@@ -124,9 +124,6 @@ typedef struct
 	unsigned int     *ksnd_zc_min_payload;  /* minimum zero copy payload size */
 	int	      *ksnd_zc_recv;	 /* enable ZC receive (for Chelsio TOE) */
 	int	      *ksnd_zc_recv_min_nfrags; /* minimum # of fragments to enable ZC receive */
-#if defined(CONFIG_SYSCTL) && !CFS_SYSFS_MODULE_PARM
-	ctl_table_header_t *ksnd_sysctl;   /* sysctl interface */
-#endif
 } ksock_tunables_t;
 
 typedef struct
@@ -421,7 +418,7 @@ ksocknal_nid2peerlist (lnet_nid_t nid)
 {
 	unsigned int hash = ((unsigned int)nid) % ksocknal_data.ksnd_peer_hash_size;
 
-	return (&ksocknal_data.ksnd_peers [hash]);
+	return &ksocknal_data.ksnd_peers[hash];
 }
 
 static inline void
@@ -455,7 +452,7 @@ ksocknal_connsock_addref (ksock_conn_t *conn)
 	}
 	read_unlock(&ksocknal_data.ksnd_global_lock);
 
-	return (rc);
+	return rc;
 }
 
 static inline void
@@ -592,9 +589,6 @@ extern int ksocknal_lib_get_conn_tunables (ksock_conn_t *conn, int *txmem,
 					   int *rxmem, int *nagle);
 
 extern int ksocknal_tunables_init(void);
-extern void ksocknal_tunables_fini(void);
-extern int ksocknal_lib_tunables_init(void);
-extern void ksocknal_lib_tunables_fini(void);
 
 extern void ksocknal_lib_csum_tx(ksock_tx_t *tx);
 

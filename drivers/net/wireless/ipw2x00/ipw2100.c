@@ -1930,10 +1930,10 @@ static int ipw2100_wdev_init(struct net_device *dev)
 			bg_band->channels[i].max_power = geo->bg[i].max_power;
 			if (geo->bg[i].flags & LIBIPW_CH_PASSIVE_ONLY)
 				bg_band->channels[i].flags |=
-					IEEE80211_CHAN_PASSIVE_SCAN;
+					IEEE80211_CHAN_NO_IR;
 			if (geo->bg[i].flags & LIBIPW_CH_NO_IBSS)
 				bg_band->channels[i].flags |=
-					IEEE80211_CHAN_NO_IBSS;
+					IEEE80211_CHAN_NO_IR;
 			if (geo->bg[i].flags & LIBIPW_CH_RADAR_DETECT)
 				bg_band->channels[i].flags |=
 					IEEE80211_CHAN_RADAR;
@@ -6362,7 +6362,6 @@ out:
 				   &ipw2100_attribute_group);
 
 		free_libipw(dev, 0);
-		pci_set_drvdata(pci_dev, NULL);
 	}
 
 	pci_iounmap(pci_dev, ioaddr);
@@ -7066,7 +7065,7 @@ static int ipw2100_wx_set_nick(struct net_device *dev,
 	if (wrqu->data.length > IW_ESSID_MAX_SIZE)
 		return -E2BIG;
 
-	wrqu->data.length = min((size_t) wrqu->data.length, sizeof(priv->nick));
+	wrqu->data.length = min_t(size_t, wrqu->data.length, sizeof(priv->nick));
 	memset(priv->nick, 0, sizeof(priv->nick));
 	memcpy(priv->nick, extra, wrqu->data.length);
 

@@ -150,10 +150,8 @@ static void snd_cs8427_free(struct snd_i2c_device *device)
 	kfree(device->private_data);
 }
 
-int snd_cs8427_create(struct snd_i2c_bus *bus,
-		      unsigned char addr,
-		      unsigned int reset_timeout,
-		      struct snd_i2c_device **r_cs8427)
+int snd_cs8427_init(struct snd_i2c_bus *bus,
+		    struct snd_i2c_device *device)
 {
 	static unsigned char initvals1[] = {
 	  CS8427_REG_CONTROL1 | CS8427_REG_AUTOINC,
@@ -200,22 +198,10 @@ int snd_cs8427_create(struct snd_i2c_bus *bus,
 	     Inhibit E->F transfers. */
 	  CS8427_UD | CS8427_EFTUI | CS8427_DETUI,
 	};
+	struct cs8427 *chip = device->private_data;
 	int err;
-	struct cs8427 *chip;
-	struct snd_i2c_device *device;
 	unsigned char buf[24];
 
-	if ((err = snd_i2c_device_create(bus, "CS8427",
-					 CS8427_ADDR | (addr & 7),
-					 &device)) < 0)
-		return err;
-	chip = device->private_data = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL) {
-	      	snd_i2c_device_free(device);
-		return -ENOMEM;
-	}
-	device->private_free = snd_cs8427_free;
-	
 	snd_i2c_lock(bus);
 	err = snd_cs8427_reg_read(device, CS8427_REG_ID_AND_VER);
 	if (err != CS8427_VER8427A) {
@@ -264,10 +250,44 @@ int snd_cs8427_create(struct snd_i2c_bus *bus,
 	snd_i2c_unlock(bus);
 
 	/* turn on run bit and rock'n'roll */
+	snd_cs8427_reset(device);
+
+	return 0;
+
+__fail:
+	snd_i2c_unlock(bus);
+
+	return err;
+}
+EXPORT_SYMBOL(snd_cs8427_init);
+
+int snd_cs8427_create(struct snd_i2c_bus *bus,
+		      unsigned char addr,
+		      unsigned int reset_timeout,
+		      struct snd_i2c_device **r_cs8427)
+{
+	int err;
+	struct cs8427 *chip;
+	struct snd_i2c_device *device;
+
+	err = snd_i2c_device_create(bus, "CS8427", CS8427_ADDR | (addr & 7),
+				    &device);
+	if (err < 0)
+		return err;
+	chip = device->private_data = kzalloc(sizeof(*chip), GFP_KERNEL);
+	if (chip == NULL) {
+		snd_i2c_device_free(device);
+		return -ENOMEM;
+	}
+	device->private_free = snd_cs8427_free;
+
 	if (reset_timeout < 1)
 		reset_timeout = 1;
 	chip->reset_timeout = reset_timeout;
-	snd_cs8427_reset(device);
+
+	err = snd_cs8427_init(bus, device);
+	if (err)
+		goto __fail;
 
 #if 0	// it's nice for read tests
 	{
@@ -286,7 +306,6 @@ int snd_cs8427_create(struct snd_i2c_bus *bus,
 	return 0;
 
       __fail:
-      	snd_i2c_unlock(bus);
       	snd_i2c_device_free(device);
       	return err < 0 ? err : -EIO;
 }

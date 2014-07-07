@@ -47,6 +47,7 @@ static void ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
 
 static struct ci_hdrc_platform_data ci_hdrc_msm_platdata = {
 	.name			= "ci_hdrc_msm",
+	.capoffset		= DEF_CAPOFFSET,
 	.flags			= CI_HDRC_REGS_SHARED |
 				  CI_HDRC_REQUIRE_TRANSCEIVER |
 				  CI_HDRC_DISABLE_STREAMING,
@@ -57,8 +58,20 @@ static struct ci_hdrc_platform_data ci_hdrc_msm_platdata = {
 static int ci_hdrc_msm_probe(struct platform_device *pdev)
 {
 	struct platform_device *plat_ci;
+	struct usb_phy *phy;
 
 	dev_dbg(&pdev->dev, "ci_hdrc_msm_probe\n");
+
+	/*
+	 * OTG(PHY) driver takes care of PHY initialization, clock management,
+	 * powering up VBUS, mapping of registers address space and power
+	 * management.
+	 */
+	phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
+
+	ci_hdrc_msm_platdata.phy = phy;
 
 	plat_ci = ci_hdrc_add_device(&pdev->dev,
 				pdev->resource, pdev->num_resources,
@@ -86,10 +99,19 @@ static int ci_hdrc_msm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id msm_ci_dt_match[] = {
+	{ .compatible = "qcom,ci-hdrc", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, msm_ci_dt_match);
+
 static struct platform_driver ci_hdrc_msm_driver = {
 	.probe = ci_hdrc_msm_probe,
 	.remove = ci_hdrc_msm_remove,
-	.driver = { .name = "msm_hsusb", },
+	.driver = {
+		.name = "msm_hsusb",
+		.of_match_table = msm_ci_dt_match,
+	},
 };
 
 module_platform_driver(ci_hdrc_msm_driver);

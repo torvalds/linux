@@ -55,7 +55,7 @@
  * @usr_data: user-specified field
  * @rx_action: what to do when connection socket is active
  * @outqueue: pointer to first outbound message in queue
- * @outqueue_lock: controll access to the outqueue
+ * @outqueue_lock: control access to the outqueue
  * @outqueue: list of connection objects for its server
  * @swork: send work item
  */
@@ -87,7 +87,6 @@ static void tipc_clean_outqueues(struct tipc_conn *con);
 static void tipc_conn_kref_release(struct kref *kref)
 {
 	struct tipc_conn *con = container_of(kref, struct tipc_conn, kref);
-	struct tipc_server *s = con->server;
 
 	if (con->sock) {
 		tipc_sock_release_local(con->sock);
@@ -95,10 +94,6 @@ static void tipc_conn_kref_release(struct kref *kref)
 	}
 
 	tipc_clean_outqueues(con);
-
-	if (con->conid)
-		s->tipc_conn_shutdown(con->conid, con->usr_data);
-
 	kfree(con);
 }
 
@@ -124,7 +119,7 @@ static struct tipc_conn *tipc_conn_lookup(struct tipc_server *s, int conid)
 	return con;
 }
 
-static void sock_data_ready(struct sock *sk, int unused)
+static void sock_data_ready(struct sock *sk)
 {
 	struct tipc_conn *con;
 
@@ -181,6 +176,9 @@ static void tipc_close_conn(struct tipc_conn *con)
 	struct tipc_server *s = con->server;
 
 	if (test_and_clear_bit(CF_CONNECTED, &con->flags)) {
+		if (con->conid)
+			s->tipc_conn_shutdown(con->conid, con->usr_data);
+
 		spin_lock_bh(&s->idr_lock);
 		idr_remove(&s->conn_idr, con->conid);
 		s->idr_in_use--;
@@ -299,7 +297,7 @@ static int tipc_accept_from_sock(struct tipc_conn *con)
 	newcon->usr_data = s->tipc_conn_new(newcon->conid);
 
 	/* Wake up receive process in case of 'SYN+' message */
-	newsock->sk->sk_data_ready(newsock->sk, 0);
+	newsock->sk->sk_data_ready(newsock->sk);
 	return ret;
 }
 
@@ -429,10 +427,12 @@ int tipc_conn_sendmsg(struct tipc_server *s, int conid,
 	list_add_tail(&e->list, &con->outqueue);
 	spin_unlock_bh(&con->outqueue_lock);
 
-	if (test_bit(CF_CONNECTED, &con->flags))
+	if (test_bit(CF_CONNECTED, &con->flags)) {
 		if (!queue_work(s->send_wq, &con->swork))
 			conn_put(con);
-
+	} else {
+		conn_put(con);
+	}
 	return 0;
 }
 
@@ -573,7 +573,6 @@ int tipc_server_start(struct tipc_server *s)
 		kmem_cache_destroy(s->rcvbuf_cache);
 		return ret;
 	}
-	s->enabled = 1;
 	return ret;
 }
 
@@ -583,10 +582,6 @@ void tipc_server_stop(struct tipc_server *s)
 	int total = 0;
 	int id;
 
-	if (!s->enabled)
-		return;
-
-	s->enabled = 0;
 	spin_lock_bh(&s->idr_lock);
 	for (id = 0; total < s->idr_in_use; id++) {
 		con = idr_find(&s->conn_idr, id);

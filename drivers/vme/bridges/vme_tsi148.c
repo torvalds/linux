@@ -45,7 +45,7 @@ static int geoid;
 
 static const char driver_name[] = "vme_tsi148";
 
-static DEFINE_PCI_DEVICE_TABLE(tsi148_ids) = {
+static const struct pci_device_id tsi148_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TUNDRA, PCI_DEVICE_ID_TUNDRA_TSI148) },
 	{ },
 };
@@ -320,7 +320,7 @@ static int tsi148_irq_init(struct vme_bridge *tsi148_bridge)
 	struct pci_dev *pdev;
 	struct tsi148_driver *bridge;
 
-	pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(tsi148_bridge->parent);
 
 	bridge = tsi148_bridge->driver_priv;
 
@@ -433,9 +433,7 @@ static void tsi148_irq_set(struct vme_bridge *tsi148_bridge, int level,
 		iowrite32be(tmp, bridge->base + TSI148_LCSR_INTEO);
 
 		if (sync != 0) {
-			pdev = container_of(tsi148_bridge->parent,
-				struct pci_dev, dev);
-
+			pdev = to_pci_dev(tsi148_bridge->parent);
 			synchronize_irq(pdev->irq);
 		}
 	} else {
@@ -741,7 +739,7 @@ static int tsi148_slave_get(struct vme_slave_resource *image, int *enabled,
 	reg_join(vme_bound_high, vme_bound_low, &vme_bound);
 	reg_join(pci_offset_high, pci_offset_low, &pci_offset);
 
-	*pci_base = (dma_addr_t)vme_base + pci_offset;
+	*pci_base = (dma_addr_t)(*vme_base + pci_offset);
 
 	*enabled = 0;
 	*aspace = 0;
@@ -814,7 +812,7 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 
 	tsi148_bridge = image->parent;
 
-	pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(tsi148_bridge->parent);
 
 	existing_size = (unsigned long long)(image->bus_resource.end -
 		image->bus_resource.start);
@@ -910,10 +908,14 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 	unsigned long long pci_bound, vme_offset, pci_base;
 	struct vme_bridge *tsi148_bridge;
 	struct tsi148_driver *bridge;
+	struct pci_bus_region region;
+	struct pci_dev *pdev;
 
 	tsi148_bridge = image->parent;
 
 	bridge = tsi148_bridge->driver_priv;
+
+	pdev = to_pci_dev(tsi148_bridge->parent);
 
 	/* Verify input data */
 	if (vme_base & 0xFFFF) {
@@ -949,7 +951,9 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 		pci_bound = 0;
 		vme_offset = 0;
 	} else {
-		pci_base = (unsigned long long)image->bus_resource.start;
+		pcibios_resource_to_bus(pdev->bus, &region,
+					&image->bus_resource);
+		pci_base = region.start;
 
 		/*
 		 * Bound address is a valid address for the window, adjust
@@ -1276,8 +1280,8 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 	spin_lock(&image->lock);
 
 	/* The following code handles VME address alignment. We cannot use
-	 * memcpy_xxx directly here because it may cut small data transfers in
-	 * to 8-bit cycles, thus making D16 cycle impossible.
+	 * memcpy_xxx here because it may cut data transfers in to 8-bit
+	 * cycles when D16 or D32 cycles are required on the VME bus.
 	 * On the other hand, the bridge itself assures that the maximum data
 	 * cycle configured for the transfer is used and splits it
 	 * automatically for non-aligned addresses, so we don't want the
@@ -1289,7 +1293,7 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 		if (done == count)
 			goto out;
 	}
-	if ((uintptr_t)addr & 0x2) {
+	if ((uintptr_t)(addr + done) & 0x2) {
 		if ((count - done) < 2) {
 			*(u8 *)(buf + done) = ioread8(addr + done);
 			done += 1;
@@ -1301,9 +1305,9 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 	}
 
 	count32 = (count - done) & ~0x3;
-	if (count32 > 0) {
-		memcpy_fromio(buf + done, addr + done, count32);
-		done += count32;
+	while (done < count32) {
+		*(u32 *)(buf + done) = ioread32(addr + done);
+		done += 4;
 	}
 
 	if ((count - done) & 0x2) {
@@ -1363,7 +1367,7 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 	spin_lock(&image->lock);
 
 	/* Here we apply for the same strategy we do in master_read
-	 * function in order to assure D16 cycle when required.
+	 * function in order to assure the correct cycles.
 	 */
 	if ((uintptr_t)addr & 0x1) {
 		iowrite8(*(u8 *)buf, addr);
@@ -1371,7 +1375,7 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 		if (done == count)
 			goto out;
 	}
-	if ((uintptr_t)addr & 0x2) {
+	if ((uintptr_t)(addr + done) & 0x2) {
 		if ((count - done) < 2) {
 			iowrite8(*(u8 *)(buf + done), addr + done);
 			done += 1;
@@ -1383,9 +1387,9 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 	}
 
 	count32 = (count - done) & ~0x3;
-	if (count32 > 0) {
-		memcpy_toio(addr + done, buf + done, count32);
-		done += count32;
+	while (done < count32) {
+		iowrite32(*(u32 *)(buf + done), addr + done);
+		done += 4;
 	}
 
 	if ((count - done) & 0x2) {
@@ -2232,7 +2236,7 @@ static void *tsi148_alloc_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	return pci_alloc_consistent(pdev, size, dma);
 }
@@ -2243,7 +2247,7 @@ static void tsi148_free_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	pci_free_consistent(pdev, size, vaddr, dma);
 }

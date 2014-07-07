@@ -29,6 +29,7 @@
 #include <linux/types.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
+#include "uapi/usbip.h"
 
 #define USBIP_VERSION "1.0.0"
 
@@ -235,22 +236,6 @@ enum usbip_side {
 	USBIP_STUB,
 };
 
-enum usbip_status {
-	/* sdev is available. */
-	SDEV_ST_AVAILABLE = 0x01,
-	/* sdev is now used. */
-	SDEV_ST_USED,
-	/* sdev is unusable because of a fatal error. */
-	SDEV_ST_ERROR,
-
-	/* vdev does not connect a remote device. */
-	VDEV_ST_NULL,
-	/* vdev is used, but the USB address is not assigned yet */
-	VDEV_ST_NOTASSIGNED,
-	VDEV_ST_USED,
-	VDEV_ST_ERROR
-};
-
 /* event handler */
 #define USBIP_EH_SHUTDOWN	(1 << 0)
 #define USBIP_EH_BYE		(1 << 1)
@@ -271,7 +256,7 @@ enum usbip_status {
 /* a common structure for stub_device and vhci_device */
 struct usbip_device {
 	enum usbip_side side;
-	enum usbip_status status;
+	enum usbip_device_status status;
 
 	/* lock for status */
 	spinlock_t lock;
@@ -314,7 +299,6 @@ void usbip_dump_urb(struct urb *purb);
 void usbip_dump_header(struct usbip_header *pdu);
 
 int usbip_recv(struct socket *sock, void *buf, int size);
-struct socket *sockfd_to_socket(unsigned int sockfd);
 
 void usbip_pack_pdu(struct usbip_header *pdu, struct urb *urb, int cmd,
 		    int pack);
@@ -337,12 +321,14 @@ int usbip_event_happened(struct usbip_device *ud);
 static inline int interface_to_busnum(struct usb_interface *interface)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
+
 	return udev->bus->busnum;
 }
 
 static inline int interface_to_devnum(struct usb_interface *interface)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
+
 	return udev->devnum;
 }
 

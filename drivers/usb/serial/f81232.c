@@ -12,7 +12,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -55,6 +54,13 @@ static void f81232_update_line_status(struct usb_serial_port *port,
 				      unsigned char *data,
 				      unsigned int actual_length)
 {
+	/*
+	 * FIXME: Update port->icount, and call
+	 *
+	 *		wake_up_interruptible(&port->port.delta_msr_wait);
+	 *
+	 *	  on MSR changes.
+	 */
 }
 
 static void f81232_read_int_callback(struct urb *urb)
@@ -110,7 +116,6 @@ static void f81232_process_read_urb(struct urb *urb)
 	line_status = priv->line_status;
 	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	wake_up_interruptible(&port->port.delta_msr_wait);
 
 	if (!urb->actual_length)
 		return;
@@ -241,53 +246,11 @@ static int f81232_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int f81232_tiocmiwait(struct tty_struct *tty, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct f81232_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	unsigned int prevstatus;
-	unsigned int status;
-	unsigned int changed;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	prevstatus = priv->line_status;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	while (1) {
-		interruptible_sleep_on(&port->port.delta_msr_wait);
-		/* see if a signal did it */
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		if (port->serial->disconnected)
-			return -EIO;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		status = priv->line_status;
-		spin_unlock_irqrestore(&priv->lock, flags);
-
-		changed = prevstatus ^ status;
-
-		if (((arg & TIOCM_RNG) && (changed & UART_RING)) ||
-		    ((arg & TIOCM_DSR) && (changed & UART_DSR)) ||
-		    ((arg & TIOCM_CD)  && (changed & UART_DCD)) ||
-		    ((arg & TIOCM_CTS) && (changed & UART_CTS))) {
-			return 0;
-		}
-		prevstatus = status;
-	}
-	/* NOTREACHED */
-	return 0;
-}
-
 static int f81232_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
-
-	dev_dbg(&port->dev, "%s cmd = 0x%04x\n", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCGSERIAL:
@@ -302,8 +265,6 @@ static int f81232_ioctl(struct tty_struct *tty,
 
 		return 0;
 	default:
-		dev_dbg(&port->dev, "%s not supported = 0x%04x\n",
-			__func__, cmd);
 		break;
 	}
 	return -ENOIOCTLCMD;
@@ -354,7 +315,7 @@ static struct usb_serial_driver f81232_device = {
 	.set_termios =		f81232_set_termios,
 	.tiocmget =		f81232_tiocmget,
 	.tiocmset =		f81232_tiocmset,
-	.tiocmiwait =		f81232_tiocmiwait,
+	.tiocmiwait =		usb_serial_generic_tiocmiwait,
 	.process_read_urb =	f81232_process_read_urb,
 	.read_int_callback =	f81232_read_int_callback,
 	.port_probe =		f81232_port_probe,

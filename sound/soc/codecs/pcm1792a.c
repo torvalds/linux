@@ -28,6 +28,7 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 
 #include "pcm1792a.h"
@@ -106,24 +107,35 @@ static int pcm1792a_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct pcm1792a_private *priv = snd_soc_codec_get_drvdata(codec);
 	int val = 0, ret;
-	int pcm_format = params_format(params);
 
 	priv->rate = params_rate(params);
 
 	switch (priv->format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_RIGHT_J:
-		if (pcm_format == SNDRV_PCM_FORMAT_S24_LE ||
-		    pcm_format == SNDRV_PCM_FORMAT_S32_LE)
-			val = 0x02;
-		else if (pcm_format == SNDRV_PCM_FORMAT_S16_LE)
-			val = 0x00;
+		switch (params_width(params)) {
+		case 24:
+		case 32:
+			val = 2;
+			break;
+		case 16:
+			val = 0;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		if (pcm_format == SNDRV_PCM_FORMAT_S24_LE ||
-		    pcm_format == SNDRV_PCM_FORMAT_S32_LE)
-			val = 0x05;
-		else if (pcm_format == SNDRV_PCM_FORMAT_S16_LE)
-			val = 0x04;
+		switch (params_width(params)) {
+		case 24:
+		case 32:
+			val = 5;
+			break;
+		case 16:
+			val = 4;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		dev_err(codec->dev, "Invalid DAI format\n");
@@ -188,7 +200,7 @@ MODULE_DEVICE_TABLE(of, pcm1792a_of_match);
 static const struct regmap_config pcm1792a_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
-	.max_register		= 24,
+	.max_register		= 23,
 	.reg_defaults		= pcm1792a_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(pcm1792a_reg_defaults),
 	.writeable_reg		= pcm1792a_writeable_reg,

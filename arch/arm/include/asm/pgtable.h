@@ -61,7 +61,7 @@ extern void __pgd_error(const char *file, int line, pgd_t);
  * mapping to be mapped at.  This is particularly important for
  * non-high vector CPUs.
  */
-#define FIRST_USER_ADDRESS	PAGE_SIZE
+#define FIRST_USER_ADDRESS	(PAGE_SIZE * 2)
 
 /*
  * Use TASK_SIZE as the ceiling argument for free_pgtables() and
@@ -216,13 +216,16 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 
 #define pte_none(pte)		(!pte_val(pte))
 #define pte_present(pte)	(pte_val(pte) & L_PTE_PRESENT)
+#define pte_valid(pte)		(pte_val(pte) & L_PTE_VALID)
+#define pte_accessible(mm, pte)	(mm_tlb_flush_pending(mm) ? pte_present(pte) : pte_valid(pte))
 #define pte_write(pte)		(!(pte_val(pte) & L_PTE_RDONLY))
 #define pte_dirty(pte)		(pte_val(pte) & L_PTE_DIRTY)
 #define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
 #define pte_exec(pte)		(!(pte_val(pte) & L_PTE_XN))
 #define pte_special(pte)	(0)
 
-#define pte_present_user(pte)  (pte_present(pte) && (pte_val(pte) & L_PTE_USER))
+#define pte_valid_user(pte)	\
+	(pte_valid(pte) && (pte_val(pte) & L_PTE_USER) && pte_young(pte))
 
 #if __LINUX_ARM_ARCH__ < 6
 static inline void __sync_icache_dcache(pte_t pteval)
@@ -237,7 +240,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 {
 	unsigned long ext = 0;
 
-	if (addr < TASK_SIZE && pte_present_user(pteval)) {
+	if (addr < TASK_SIZE && pte_valid_user(pteval)) {
 		__sync_icache_dcache(pteval);
 		ext |= PTE_EXT_NG;
 	}
@@ -254,6 +257,8 @@ PTE_BIT_FUNC(mkclean,   &= ~L_PTE_DIRTY);
 PTE_BIT_FUNC(mkdirty,   |= L_PTE_DIRTY);
 PTE_BIT_FUNC(mkold,     &= ~L_PTE_YOUNG);
 PTE_BIT_FUNC(mkyoung,   |= L_PTE_YOUNG);
+PTE_BIT_FUNC(mkexec,   &= ~L_PTE_XN);
+PTE_BIT_FUNC(mknexec,   |= L_PTE_XN);
 
 static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 

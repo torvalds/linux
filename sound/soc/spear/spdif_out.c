@@ -18,10 +18,12 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <sound/dmaengine_pcm.h>
 #include <sound/soc.h>
 #include <sound/spear_dma.h>
 #include <sound/spear_spdif.h>
 #include "spdif_out_regs.h"
+#include "spear_pcm.h"
 
 struct spdif_out_params {
 	u32 rate;
@@ -35,6 +37,8 @@ struct spdif_out_dev {
 	struct spdif_out_params saved_params;
 	u32 running;
 	void __iomem *io_base;
+	struct snd_dmaengine_dai_dma_data dma_params_tx;
+	struct snd_dmaengine_pcm_config config;
 };
 
 static void spdif_out_configure(struct spdif_out_dev *host)
@@ -209,10 +213,7 @@ static int spdif_digital_mute(struct snd_soc_dai *dai, int mute)
 static int spdif_mute_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_card *card = codec->card;
-	struct snd_soc_pcm_runtime *rtd = card->rtd;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
 	struct spdif_out_dev *host = snd_soc_dai_get_drvdata(cpu_dai);
 
 	ucontrol->value.integer.value[0] = host->saved_params.mute;
@@ -222,10 +223,7 @@ static int spdif_mute_get(struct snd_kcontrol *kcontrol,
 static int spdif_mute_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_card *card = codec->card;
-	struct snd_soc_pcm_runtime *rtd = card->rtd;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
 	struct spdif_out_dev *host = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (host->saved_params.mute == ucontrol->value.integer.value[0])
@@ -244,7 +242,8 @@ static int spdif_soc_dai_probe(struct snd_soc_dai *dai)
 {
 	struct spdif_out_dev *host = snd_soc_dai_get_drvdata(dai);
 
-	dai->playback_dma_data = &host->dma_params;
+	host->dma_params_tx.filter_data = &host->dma_params;
+	dai->playback_dma_data = &host->dma_params_tx;
 
 	return snd_soc_add_dai_controls(dai, spdif_out_controls,
 				ARRAY_SIZE(spdif_out_controls));
@@ -303,20 +302,16 @@ static int spdif_out_probe(struct platform_device *pdev)
 	host->dma_params.addr = res->start + SPDIF_OUT_FIFO_DATA;
 	host->dma_params.max_burst = 16;
 	host->dma_params.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	host->dma_params.filter = pdata->filter;
 
 	dev_set_drvdata(&pdev->dev, host);
 
-	ret = snd_soc_register_component(&pdev->dev, &spdif_out_component,
-					 &spdif_out_dai, 1);
-	return ret;
-}
+	ret = devm_snd_soc_register_component(&pdev->dev, &spdif_out_component,
+					      &spdif_out_dai, 1);
+	if (ret)
+		return ret;
 
-static int spdif_out_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_component(&pdev->dev);
-
-	return 0;
+	return devm_spear_pcm_platform_register(&pdev->dev, &host->config,
+						pdata->filter);
 }
 
 #ifdef CONFIG_PM
@@ -357,7 +352,6 @@ static SIMPLE_DEV_PM_OPS(spdif_out_dev_pm_ops, spdif_out_suspend, \
 
 static struct platform_driver spdif_out_driver = {
 	.probe		= spdif_out_probe,
-	.remove		= spdif_out_remove,
 	.driver		= {
 		.name	= "spdif-out",
 		.owner	= THIS_MODULE,

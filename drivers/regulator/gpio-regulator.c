@@ -136,9 +136,9 @@ static struct gpio_regulator_config *
 of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 {
 	struct gpio_regulator_config *config;
-	struct property *prop;
 	const char *regtype;
 	int proplen, gpio, i;
+	int ret;
 
 	config = devm_kzalloc(dev,
 			sizeof(struct gpio_regulator_config),
@@ -171,21 +171,34 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 	if (!config->gpios)
 		return ERR_PTR(-ENOMEM);
 
+	proplen = of_property_count_u32_elems(np, "gpios-states");
+	/* optional property */
+	if (proplen < 0)
+		proplen = 0;
+
+	if (proplen > 0 && proplen != config->nr_gpios) {
+		dev_warn(dev, "gpios <-> gpios-states mismatch\n");
+		proplen = 0;
+	}
+
 	for (i = 0; i < config->nr_gpios; i++) {
 		gpio = of_get_named_gpio(np, "gpios", i);
 		if (gpio < 0)
 			break;
 		config->gpios[i].gpio = gpio;
+		if (proplen > 0) {
+			of_property_read_u32_index(np, "gpios-states", i, &ret);
+			if (ret)
+				config->gpios[i].flags = GPIOF_OUT_INIT_HIGH;
+		}
 	}
 
 	/* Fetch states. */
-	prop = of_find_property(np, "states", NULL);
-	if (!prop) {
+	proplen = of_property_count_u32_elems(np, "states");
+	if (proplen < 0) {
 		dev_err(dev, "No 'states' property found\n");
 		return ERR_PTR(-EINVAL);
 	}
-
-	proplen = prop->length / sizeof(int);
 
 	config->states = devm_kzalloc(dev,
 				sizeof(struct gpio_regulator_state)
@@ -195,19 +208,24 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < proplen / 2; i++) {
-		config->states[i].value =
-			be32_to_cpup((int *)prop->value + (i * 2));
-		config->states[i].gpios =
-			be32_to_cpup((int *)prop->value + (i * 2 + 1));
+		of_property_read_u32_index(np, "states", i * 2,
+					   &config->states[i].value);
+		of_property_read_u32_index(np, "states", i * 2 + 1,
+					   &config->states[i].gpios);
 	}
 	config->nr_states = i;
 
-	of_property_read_string(np, "regulator-type", &regtype);
-
-	if (!strncmp("voltage", regtype, 7))
-		config->type = REGULATOR_VOLTAGE;
-	else if (!strncmp("current", regtype, 7))
-		config->type = REGULATOR_CURRENT;
+	config->type = REGULATOR_VOLTAGE;
+	ret = of_property_read_string(np, "regulator-type", &regtype);
+	if (ret >= 0) {
+		if (!strncmp("voltage", regtype, 7))
+			config->type = REGULATOR_VOLTAGE;
+		else if (!strncmp("current", regtype, 7))
+			config->type = REGULATOR_CURRENT;
+		else
+			dev_warn(dev, "Unknown regulator-type '%s'\n",
+				 regtype);
+	}
 
 	return config;
 }
@@ -233,10 +251,8 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct gpio_regulator_data),
 			       GFP_KERNEL);
-	if (drvdata == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate device data\n");
+	if (drvdata == NULL)
 		return -ENOMEM;
-	}
 
 	drvdata->desc.name = kstrdup(config->supply_name, GFP_KERNEL);
 	if (drvdata->desc.name == NULL) {
@@ -283,7 +299,6 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No regulator type set\n");
 		ret = -EINVAL;
 		goto err_memgpio;
-		break;
 	}
 
 	drvdata->nr_gpios = config->nr_gpios;

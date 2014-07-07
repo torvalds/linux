@@ -192,7 +192,6 @@ static void i915_restore_vga(struct drm_device *dev)
 static void i915_save_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long flags;
 
 	/* Display arbitration control */
 	if (INTEL_INFO(dev)->gen <= 4)
@@ -203,29 +202,26 @@ static void i915_save_display(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_save_display_reg(dev);
 
-	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
-
 	/* LVDS state */
 	if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->regfile.savePP_CONTROL = I915_READ(PCH_PP_CONTROL);
-		dev_priv->regfile.saveBLC_PWM_CTL = I915_READ(BLC_PWM_PCH_CTL1);
-		dev_priv->regfile.saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_PCH_CTL2);
-		dev_priv->regfile.saveBLC_CPU_PWM_CTL = I915_READ(BLC_PWM_CPU_CTL);
-		dev_priv->regfile.saveBLC_CPU_PWM_CTL2 = I915_READ(BLC_PWM_CPU_CTL2);
 		if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 			dev_priv->regfile.saveLVDS = I915_READ(PCH_LVDS);
+	} else if (IS_VALLEYVIEW(dev)) {
+		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
+		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
+
+		dev_priv->regfile.saveBLC_HIST_CTL =
+			I915_READ(VLV_BLC_HIST_CTL(PIPE_A));
+		dev_priv->regfile.saveBLC_HIST_CTL_B =
+			I915_READ(VLV_BLC_HIST_CTL(PIPE_B));
 	} else {
 		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
 		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
-		dev_priv->regfile.saveBLC_PWM_CTL = I915_READ(BLC_PWM_CTL);
 		dev_priv->regfile.saveBLC_HIST_CTL = I915_READ(BLC_HIST_CTL);
-		if (INTEL_INFO(dev)->gen >= 4)
-			dev_priv->regfile.saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_CTL2);
 		if (IS_MOBILE(dev) && !IS_I830(dev))
 			dev_priv->regfile.saveLVDS = I915_READ(LVDS);
 	}
-
-	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
 
 	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev))
 		dev_priv->regfile.savePFIT_CONTROL = I915_READ(PFIT_CONTROL);
@@ -240,19 +236,9 @@ static void i915_save_display(struct drm_device *dev)
 		dev_priv->regfile.savePP_DIVISOR = I915_READ(PP_DIVISOR);
 	}
 
-	/* Only regfile.save FBC state on the platform that supports FBC */
-	if (I915_HAS_FBC(dev)) {
-		if (HAS_PCH_SPLIT(dev)) {
-			dev_priv->regfile.saveDPFC_CB_BASE = I915_READ(ILK_DPFC_CB_BASE);
-		} else if (IS_GM45(dev)) {
-			dev_priv->regfile.saveDPFC_CB_BASE = I915_READ(DPFC_CB_BASE);
-		} else {
-			dev_priv->regfile.saveFBC_CFB_BASE = I915_READ(FBC_CFB_BASE);
-			dev_priv->regfile.saveFBC_LL_BASE = I915_READ(FBC_LL_BASE);
-			dev_priv->regfile.saveFBC_CONTROL2 = I915_READ(FBC_CONTROL2);
-			dev_priv->regfile.saveFBC_CONTROL = I915_READ(FBC_CONTROL);
-		}
-	}
+	/* save FBC interval */
+	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev))
+		dev_priv->regfile.saveFBC_CONTROL = I915_READ(FBC_CONTROL);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_save_vga(dev);
@@ -262,7 +248,6 @@ static void i915_restore_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 mask = 0xffffffff;
-	unsigned long flags;
 
 	/* Display arbitration */
 	if (INTEL_INFO(dev)->gen <= 4)
@@ -270,12 +255,6 @@ static void i915_restore_display(struct drm_device *dev)
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_restore_display_reg(dev);
-
-	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
-
-	/* LVDS state */
-	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
-		I915_WRITE(BLC_PWM_CTL2, dev_priv->regfile.saveBLC_PWM_CTL2);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		mask = ~LVDS_PORT_EN;
@@ -289,22 +268,19 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PFIT_CONTROL, dev_priv->regfile.savePFIT_CONTROL);
 
 	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(BLC_PWM_PCH_CTL1, dev_priv->regfile.saveBLC_PWM_CTL);
-		I915_WRITE(BLC_PWM_PCH_CTL2, dev_priv->regfile.saveBLC_PWM_CTL2);
-		/* NOTE: BLC_PWM_CPU_CTL must be written after BLC_PWM_CPU_CTL2;
-		 * otherwise we get blank eDP screen after S3 on some machines
-		 */
-		I915_WRITE(BLC_PWM_CPU_CTL2, dev_priv->regfile.saveBLC_CPU_PWM_CTL2);
-		I915_WRITE(BLC_PWM_CPU_CTL, dev_priv->regfile.saveBLC_CPU_PWM_CTL);
 		I915_WRITE(PCH_PP_ON_DELAYS, dev_priv->regfile.savePP_ON_DELAYS);
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
 		I915_WRITE(PCH_PP_DIVISOR, dev_priv->regfile.savePP_DIVISOR);
 		I915_WRITE(PCH_PP_CONTROL, dev_priv->regfile.savePP_CONTROL);
 		I915_WRITE(RSTDBYCTL,
 			   dev_priv->regfile.saveMCHBAR_RENDER_STANDBY);
+	} else if (IS_VALLEYVIEW(dev)) {
+		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_A),
+			   dev_priv->regfile.saveBLC_HIST_CTL);
+		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_B),
+			   dev_priv->regfile.saveBLC_HIST_CTL);
 	} else {
 		I915_WRITE(PFIT_PGM_RATIOS, dev_priv->regfile.savePFIT_PGM_RATIOS);
-		I915_WRITE(BLC_PWM_CTL, dev_priv->regfile.saveBLC_PWM_CTL);
 		I915_WRITE(BLC_HIST_CTL, dev_priv->regfile.saveBLC_HIST_CTL);
 		I915_WRITE(PP_ON_DELAYS, dev_priv->regfile.savePP_ON_DELAYS);
 		I915_WRITE(PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
@@ -312,22 +288,12 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PP_CONTROL, dev_priv->regfile.savePP_CONTROL);
 	}
 
-	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
-
 	/* only restore FBC info on the platform that supports FBC*/
 	intel_disable_fbc(dev);
-	if (I915_HAS_FBC(dev)) {
-		if (HAS_PCH_SPLIT(dev)) {
-			I915_WRITE(ILK_DPFC_CB_BASE, dev_priv->regfile.saveDPFC_CB_BASE);
-		} else if (IS_GM45(dev)) {
-			I915_WRITE(DPFC_CB_BASE, dev_priv->regfile.saveDPFC_CB_BASE);
-		} else {
-			I915_WRITE(FBC_CFB_BASE, dev_priv->regfile.saveFBC_CFB_BASE);
-			I915_WRITE(FBC_LL_BASE, dev_priv->regfile.saveFBC_LL_BASE);
-			I915_WRITE(FBC_CONTROL2, dev_priv->regfile.saveFBC_CONTROL2);
-			I915_WRITE(FBC_CONTROL, dev_priv->regfile.saveFBC_CONTROL);
-		}
-	}
+
+	/* restore FBC interval */
+	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev))
+		I915_WRITE(FBC_CONTROL, dev_priv->regfile.saveFBC_CONTROL);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_restore_vga(dev);
@@ -339,8 +305,6 @@ int i915_save_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
-
-	pci_read_config_byte(dev->pdev, LBB, &dev_priv->regfile.saveLBB);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -364,10 +328,9 @@ int i915_save_state(struct drm_device *dev)
 		}
 	}
 
-	intel_disable_gt_powersave(dev);
-
 	/* Cache mode state */
-	dev_priv->regfile.saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
+	if (INTEL_INFO(dev)->gen < 7)
+		dev_priv->regfile.saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
 
 	/* Memory Arbitration state */
 	dev_priv->regfile.saveMI_ARB_STATE = I915_READ(MI_ARB_STATE);
@@ -389,8 +352,6 @@ int i915_restore_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
-
-	pci_write_config_byte(dev->pdev, LBB, dev_priv->regfile.saveLBB);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -414,7 +375,9 @@ int i915_restore_state(struct drm_device *dev)
 	}
 
 	/* Cache mode state */
-	I915_WRITE(CACHE_MODE_0, dev_priv->regfile.saveCACHE_MODE_0 | 0xffff0000);
+	if (INTEL_INFO(dev)->gen < 7)
+		I915_WRITE(CACHE_MODE_0, dev_priv->regfile.saveCACHE_MODE_0 |
+			   0xffff0000);
 
 	/* Memory arbitration state */
 	I915_WRITE(MI_ARB_STATE, dev_priv->regfile.saveMI_ARB_STATE | 0xffff0000);

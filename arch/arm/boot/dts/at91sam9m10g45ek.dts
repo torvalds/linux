@@ -8,6 +8,7 @@
  */
 /dts-v1/;
 #include "at91sam9g45.dtsi"
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "Atmel AT91SAM9M10G45-EK";
@@ -105,6 +106,14 @@
 							 AT91_PIOD 29 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PD29 gpio WP pin pull up */
 					};
 				};
+
+				pwm0 {
+					pinctrl_pwm_leds: pwm-led {
+						atmel,pins =
+							<AT91_PIOD 0  AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* PD0 periph B */
+							 AT91_PIOD 31 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>;	/* PD31 periph B */
+					};
+				};
 			};
 
 			spi0: spi@fffa4000{
@@ -120,6 +129,57 @@
 			usb2: gadget@fff78000 {
 				atmel,vbus-gpio = <&pioB 19 GPIO_ACTIVE_HIGH>;
 				status = "okay";
+			};
+
+			adc0: adc@fffb0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <
+					&pinctrl_adc0_ad0
+					&pinctrl_adc0_ad1
+					&pinctrl_adc0_ad2
+					&pinctrl_adc0_ad3
+					&pinctrl_adc0_ad4
+					&pinctrl_adc0_ad5
+					&pinctrl_adc0_ad6
+					&pinctrl_adc0_ad7>;
+				atmel,adc-ts-wires = <4>;
+				status = "okay";
+			};
+
+			pwm0: pwm@fffb8000 {
+				status = "okay";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_pwm_leds>;
+			};
+		};
+
+		fb0: fb@0x00500000 {
+			display = <&display0>;
+			status = "okay";
+
+			display0: display {
+				bits-per-pixel = <32>;
+				atmel,lcdcon-backlight;
+				atmel,dmacon = <0x1>;
+				atmel,lcdcon2 = <0x80008002>;
+				atmel,guard-time = <9>;
+				atmel,lcd-wiring-mode = "RGB";
+
+				display-timings {
+					native-mode = <&timing0>;
+					timing0: timing0 {
+						clock-frequency = <9000000>;
+						hactive = <480>;
+						vactive = <272>;
+						hback-porch = <1>;
+						hfront-porch = <1>;
+						vback-porch = <40>;
+						vfront-porch = <1>;
+						hsync-len = <45>;
+						vsync-len = <1>;
+					};
+				};
 			};
 		};
 
@@ -165,16 +225,22 @@
 			gpios = <&pioD 30 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
 
 		d6 {
 			label = "d6";
-			gpios = <&pioD 0 GPIO_ACTIVE_LOW>;
+			pwms = <&pwm0 3 5000 PWM_POLARITY_INVERTED>;
+			max-brightness = <255>;
 			linux,default-trigger = "nand-disk";
 		};
 
 		d7 {
 			label = "d7";
-			gpios = <&pioD 31 GPIO_ACTIVE_LOW>;
+			pwms = <&pwm0 1 5000 PWM_POLARITY_INVERTED>;
+			max-brightness = <255>;
 			linux,default-trigger = "mmc0";
 		};
 	};

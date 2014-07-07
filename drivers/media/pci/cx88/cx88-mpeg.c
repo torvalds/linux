@@ -499,7 +499,7 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 
 	/* get irq */
 	err = request_irq(dev->pci->irq, cx8802_irq,
-			  IRQF_SHARED | IRQF_DISABLED, dev->core->name, dev);
+			  IRQF_SHARED, dev->core->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       dev->core->name, dev->pci->irq);
@@ -520,7 +520,6 @@ static void cx8802_fini_common(struct cx8802_dev *dev)
 
 	/* unregister stuff */
 	free_irq(dev->pci->irq, dev);
-	pci_set_drvdata(dev->pci, NULL);
 
 	/* free memory */
 	btcx_riscmem_free(dev->pci,&dev->mpegq.stopper);
@@ -903,20 +902,8 @@ static struct pci_driver cx8802_pci_driver = {
 	.remove   = cx8802_remove,
 };
 
-static int __init cx8802_init(void)
-{
-	printk(KERN_INFO "cx88/2: cx2388x MPEG-TS Driver Manager version %s loaded\n",
-	       CX88_VERSION);
-	return pci_register_driver(&cx8802_pci_driver);
-}
+module_pci_driver(cx8802_pci_driver);
 
-static void __exit cx8802_fini(void)
-{
-	pci_unregister_driver(&cx8802_pci_driver);
-}
-
-module_init(cx8802_init);
-module_exit(cx8802_fini);
 EXPORT_SYMBOL(cx8802_buf_prepare);
 EXPORT_SYMBOL(cx8802_buf_queue);
 EXPORT_SYMBOL(cx8802_cancel_buffers);

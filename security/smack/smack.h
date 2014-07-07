@@ -80,8 +80,8 @@ struct superblock_smack {
 
 struct socket_smack {
 	struct smack_known	*smk_out;	/* outbound label */
-	char			*smk_in;	/* inbound label */
-	char			*smk_packet;	/* TCP peer label */
+	struct smack_known	*smk_in;	/* inbound label */
+	struct smack_known	*smk_packet;	/* TCP peer label */
 };
 
 /*
@@ -133,7 +133,7 @@ struct smk_port_label {
 	struct list_head	list;
 	struct sock		*smk_sock;	/* socket initialized on */
 	unsigned short		smk_port;	/* the port number */
-	char			*smk_in;	/* incoming label */
+	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_out;	/* outgoing label */
 };
 
@@ -177,9 +177,21 @@ struct smk_port_label {
 #define SMACK_CIPSO_MAXCATNUM           184     /* 23 * 8 */
 
 /*
- * Flag for transmute access
+ * Ptrace rules
  */
-#define MAY_TRANSMUTE	64
+#define SMACK_PTRACE_DEFAULT	0
+#define SMACK_PTRACE_EXACT	1
+#define SMACK_PTRACE_DRACONIAN	2
+#define SMACK_PTRACE_MAX	SMACK_PTRACE_DRACONIAN
+
+/*
+ * Flags for untraditional access modes.
+ * It shouldn't be necessary to avoid conflicts with definitions
+ * in fs.h, but do so anyway.
+ */
+#define MAY_TRANSMUTE	0x00001000	/* Controls directory labeling */
+#define MAY_LOCK	0x00002000	/* Locks should be writes, but ... */
+
 /*
  * Just to make the common cases easier to deal with
  */
@@ -188,9 +200,9 @@ struct smk_port_label {
 #define MAY_NOT		0
 
 /*
- * Number of access types used by Smack (rwxat)
+ * Number of access types used by Smack (rwxatl)
  */
-#define SMK_NUM_ACCESS_TYPE 5
+#define SMK_NUM_ACCESS_TYPE 6
 
 /* SMACK data */
 struct smack_audit_data {
@@ -221,6 +233,7 @@ struct inode_smack *new_inode_smack(char *);
  */
 int smk_access_entry(char *, char *, struct list_head *);
 int smk_access(struct smack_known *, char *, int, struct smk_audit_info *);
+int smk_tskacc(struct task_smack *, char *, u32, struct smk_audit_info *);
 int smk_curacc(char *, u32, struct smk_audit_info *);
 struct smack_known *smack_from_secid(const u32);
 char *smk_parse_smack(const char *string, int len);
@@ -237,8 +250,10 @@ u32 smack_to_secid(const char *);
 extern int smack_cipso_direct;
 extern int smack_cipso_mapped;
 extern struct smack_known *smack_net_ambient;
-extern char *smack_onlycap;
+extern struct smack_known *smack_onlycap;
+extern struct smack_known *smack_syslog_label;
 extern const char *smack_cipso_option;
+extern int smack_ptrace_rule;
 
 extern struct smack_known smack_known_floor;
 extern struct smack_known smack_known_hat;
@@ -308,7 +323,7 @@ static inline int smack_privileged(int cap)
 
 	if (!capable(cap))
 		return 0;
-	if (smack_onlycap == NULL || smack_onlycap == skp->smk_known)
+	if (smack_onlycap == NULL || smack_onlycap == skp)
 		return 1;
 	return 0;
 }

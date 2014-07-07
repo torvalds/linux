@@ -574,27 +574,10 @@ static int done_already(struct rb_root *done_tree, int lnum)
  */
 static void destroy_done_tree(struct rb_root *done_tree)
 {
-	struct rb_node *this = done_tree->rb_node;
-	struct done_ref *dr;
+	struct done_ref *dr, *n;
 
-	while (this) {
-		if (this->rb_left) {
-			this = this->rb_left;
-			continue;
-		} else if (this->rb_right) {
-			this = this->rb_right;
-			continue;
-		}
-		dr = rb_entry(this, struct done_ref, rb);
-		this = rb_parent(this);
-		if (this) {
-			if (this->rb_left == &dr->rb)
-				this->rb_left = NULL;
-			else
-				this->rb_right = NULL;
-		}
+	rbtree_postorder_for_each_entry_safe(dr, n, done_tree, rb)
 		kfree(dr);
-	}
 }
 
 /**

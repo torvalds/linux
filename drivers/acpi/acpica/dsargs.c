@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -158,7 +158,7 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 	walk_state->deferred_node = node;
 	status = acpi_ps_parse_aml(walk_state);
 
-      cleanup:
+cleanup:
 	acpi_ps_delete_parse_tree(op);
 	return_ACPI_STATUS(status);
 }

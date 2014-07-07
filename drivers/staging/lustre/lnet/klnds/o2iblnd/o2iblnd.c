@@ -41,7 +41,7 @@
 #include "o2iblnd.h"
 #include <asm/div64.h>
 
-lnd_t the_o2iblnd = {
+static lnd_t the_o2iblnd = {
 	.lnd_type       = O2IBLND,
 	.lnd_startup    = kiblnd_startup,
 	.lnd_shutdown   = kiblnd_shutdown,
@@ -53,8 +53,8 @@ lnd_t the_o2iblnd = {
 
 kib_data_t	      kiblnd_data;
 
-__u32
-kiblnd_cksum (void *ptr, int nob)
+static __u32
+kiblnd_cksum(void *ptr, int nob)
 {
 	char  *c  = ptr;
 	__u32  sum = 0;
@@ -429,8 +429,8 @@ kiblnd_unlink_peer_locked (kib_peer_t *peer)
 	kiblnd_peer_decref(peer);
 }
 
-int
-kiblnd_get_peer_info (lnet_ni_t *ni, int index,
+static int
+kiblnd_get_peer_info(lnet_ni_t *ni, int index,
 		      lnet_nid_t *nidp, int *count)
 {
 	kib_peer_t	    *peer;
@@ -468,8 +468,8 @@ kiblnd_get_peer_info (lnet_ni_t *ni, int index,
 	return -ENOENT;
 }
 
-void
-kiblnd_del_peer_locked (kib_peer_t *peer)
+static void
+kiblnd_del_peer_locked(kib_peer_t *peer)
 {
 	struct list_head	   *ctmp;
 	struct list_head	   *cnxt;
@@ -489,8 +489,8 @@ kiblnd_del_peer_locked (kib_peer_t *peer)
 	 * last ref on it. */
 }
 
-int
-kiblnd_del_peer (lnet_ni_t *ni, lnet_nid_t nid)
+static int
+kiblnd_del_peer(lnet_ni_t *ni, lnet_nid_t nid)
 {
 	LIST_HEAD	 (zombies);
 	struct list_head	    *ptmp;
@@ -543,8 +543,8 @@ kiblnd_del_peer (lnet_ni_t *ni, lnet_nid_t nid)
 	return rc;
 }
 
-kib_conn_t *
-kiblnd_get_conn_by_idx (lnet_ni_t *ni, int index)
+static kib_conn_t *
+kiblnd_get_conn_by_idx(lnet_ni_t *ni, int index)
 {
 	kib_peer_t	    *peer;
 	struct list_head	    *ptmp;
@@ -582,74 +582,6 @@ kiblnd_get_conn_by_idx (lnet_ni_t *ni, int index)
 
 	read_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 	return NULL;
-}
-
-void
-kiblnd_debug_rx (kib_rx_t *rx)
-{
-	CDEBUG(D_CONSOLE, "      %p status %d msg_type %x cred %d\n",
-	       rx, rx->rx_status, rx->rx_msg->ibm_type,
-	       rx->rx_msg->ibm_credits);
-}
-
-void
-kiblnd_debug_tx (kib_tx_t *tx)
-{
-	CDEBUG(D_CONSOLE, "      %p snd %d q %d w %d rc %d dl %lx "
-	       "cookie "LPX64" msg %s%s type %x cred %d\n",
-	       tx, tx->tx_sending, tx->tx_queued, tx->tx_waiting,
-	       tx->tx_status, tx->tx_deadline, tx->tx_cookie,
-	       tx->tx_lntmsg[0] == NULL ? "-" : "!",
-	       tx->tx_lntmsg[1] == NULL ? "-" : "!",
-	       tx->tx_msg->ibm_type, tx->tx_msg->ibm_credits);
-}
-
-void
-kiblnd_debug_conn (kib_conn_t *conn)
-{
-	struct list_head	*tmp;
-	int		i;
-
-	spin_lock(&conn->ibc_lock);
-
-	CDEBUG(D_CONSOLE, "conn[%d] %p [version %x] -> %s: \n",
-	       atomic_read(&conn->ibc_refcount), conn,
-	       conn->ibc_version, libcfs_nid2str(conn->ibc_peer->ibp_nid));
-	CDEBUG(D_CONSOLE, "   state %d nposted %d/%d cred %d o_cred %d r_cred %d\n",
-	       conn->ibc_state, conn->ibc_noops_posted,
-	       conn->ibc_nsends_posted, conn->ibc_credits,
-	       conn->ibc_outstanding_credits, conn->ibc_reserved_credits);
-	CDEBUG(D_CONSOLE, "   comms_err %d\n", conn->ibc_comms_error);
-
-	CDEBUG(D_CONSOLE, "   early_rxs:\n");
-	list_for_each(tmp, &conn->ibc_early_rxs)
-		kiblnd_debug_rx(list_entry(tmp, kib_rx_t, rx_list));
-
-	CDEBUG(D_CONSOLE, "   tx_noops:\n");
-	list_for_each(tmp, &conn->ibc_tx_noops)
-		kiblnd_debug_tx(list_entry(tmp, kib_tx_t, tx_list));
-
-	CDEBUG(D_CONSOLE, "   tx_queue_nocred:\n");
-	list_for_each(tmp, &conn->ibc_tx_queue_nocred)
-		kiblnd_debug_tx(list_entry(tmp, kib_tx_t, tx_list));
-
-	CDEBUG(D_CONSOLE, "   tx_queue_rsrvd:\n");
-	list_for_each(tmp, &conn->ibc_tx_queue_rsrvd)
-		kiblnd_debug_tx(list_entry(tmp, kib_tx_t, tx_list));
-
-	CDEBUG(D_CONSOLE, "   tx_queue:\n");
-	list_for_each(tmp, &conn->ibc_tx_queue)
-		kiblnd_debug_tx(list_entry(tmp, kib_tx_t, tx_list));
-
-	CDEBUG(D_CONSOLE, "   active_txs:\n");
-	list_for_each(tmp, &conn->ibc_active_txs)
-		kiblnd_debug_tx(list_entry(tmp, kib_tx_t, tx_list));
-
-	CDEBUG(D_CONSOLE, "   rxs:\n");
-	for (i = 0; i < IBLND_RX_MSGS(conn->ibc_version); i++)
-		kiblnd_debug_rx(&conn->ibc_rxs[i]);
-
-	spin_unlock(&conn->ibc_lock);
 }
 
 int
@@ -1039,8 +971,8 @@ kiblnd_close_stale_conns_locked (kib_peer_t *peer,
 	return count;
 }
 
-int
-kiblnd_close_matching_conns (lnet_ni_t *ni, lnet_nid_t nid)
+static int
+kiblnd_close_matching_conns(lnet_ni_t *ni, lnet_nid_t nid)
 {
 	kib_peer_t	     *peer;
 	struct list_head	     *ptmp;
@@ -1209,7 +1141,7 @@ kiblnd_alloc_pages(kib_pages_t **pp, int cpt, int npages)
 	for (i = 0; i < npages; i++) {
 		p->ibp_pages[i] = alloc_pages_node(
 				    cfs_cpt_spread_node(lnet_cpt_table(), cpt),
-				    __GFP_IO, 0);
+				    GFP_NOFS, 0);
 		if (p->ibp_pages[i] == NULL) {
 			CERROR("Can't allocate page %d of %d\n", i, npages);
 			kiblnd_free_pages(p);
@@ -1440,7 +1372,7 @@ kiblnd_find_rd_dma_mr(kib_hca_dev_t *hdev, kib_rdma_desc_t *rd)
 	return mr;
 }
 
-void
+static void
 kiblnd_destroy_fmr_pool(kib_fmr_pool_t *pool)
 {
 	LASSERT (pool->fpo_map_count == 0);
@@ -1454,7 +1386,7 @@ kiblnd_destroy_fmr_pool(kib_fmr_pool_t *pool)
 	LIBCFS_FREE(pool, sizeof(kib_fmr_pool_t));
 }
 
-void
+static void
 kiblnd_destroy_fmr_pool_list(struct list_head *head)
 {
 	kib_fmr_pool_t *pool;
@@ -1480,7 +1412,7 @@ static int kiblnd_fmr_flush_trigger(int ncpts)
 	return max(IBLND_FMR_POOL_FLUSH, size);
 }
 
-int
+static int
 kiblnd_create_fmr_pool(kib_fmr_poolset_t *fps, kib_fmr_pool_t **pp_fpo)
 {
 	/* FMR pool for RDMA */
@@ -1719,7 +1651,7 @@ kiblnd_init_pool(kib_poolset_t *ps, kib_pool_t *pool, int size)
 	pool->po_size     = size;
 }
 
-void
+static void
 kiblnd_destroy_pool_list(struct list_head *head)
 {
 	kib_pool_t *pool;
@@ -2192,7 +2124,7 @@ kiblnd_tx_init(kib_pool_t *pool, struct list_head *node)
 	tx->tx_cookie = tps->tps_next_tx_cookie ++;
 }
 
-void
+static void
 kiblnd_net_fini_pools(kib_net_t *net)
 {
 	int	i;
@@ -2234,7 +2166,7 @@ kiblnd_net_fini_pools(kib_net_t *net)
 	}
 }
 
-int
+static int
 kiblnd_net_init_pools(kib_net_t *net, __u32 *cpts, int ncpts)
 {
 	unsigned long	flags;
@@ -2408,7 +2340,7 @@ kiblnd_hdev_get_attr(kib_hca_dev_t *hdev)
 	return -EINVAL;
 }
 
-void
+static void
 kiblnd_hdev_cleanup_mrs(kib_hca_dev_t *hdev)
 {
 	int     i;
@@ -2442,7 +2374,7 @@ kiblnd_hdev_destroy(kib_hca_dev_t *hdev)
 	LIBCFS_FREE(hdev, sizeof(*hdev));
 }
 
-int
+static int
 kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 {
 	struct ib_mr *mr;
@@ -2746,7 +2678,7 @@ kiblnd_destroy_dev (kib_dev_t *dev)
 	LIBCFS_FREE(dev, sizeof(*dev));
 }
 
-kib_dev_t *
+static kib_dev_t *
 kiblnd_create_dev(char *ifname)
 {
 	struct net_device *netdev;
@@ -2800,7 +2732,7 @@ kiblnd_create_dev(char *ifname)
 	return dev;
 }
 
-void
+static void
 kiblnd_base_shutdown(void)
 {
 	struct kib_sched_info	*sched;
@@ -2842,7 +2774,8 @@ kiblnd_base_shutdown(void)
 			CDEBUG(((i & (-i)) == i) ? D_WARNING : D_NET, /* power of 2? */
 			       "Waiting for %d threads to terminate\n",
 			       atomic_read(&kiblnd_data.kib_nthreads));
-			cfs_pause(cfs_time_seconds(1));
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(1));
 		}
 
 		/* fall through */
@@ -2903,7 +2836,8 @@ kiblnd_shutdown (lnet_ni_t *ni)
 			       "%s: waiting for %d peers to disconnect\n",
 			       libcfs_nid2str(ni->ni_nid),
 			       atomic_read(&net->ibn_npeers));
-			cfs_pause(cfs_time_seconds(1));
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(1));
 		}
 
 		kiblnd_net_fini_pools(net);
@@ -2940,7 +2874,7 @@ out:
 	return;
 }
 
-int
+static int
 kiblnd_base_startup(void)
 {
 	struct kib_sched_info	*sched;
@@ -3030,7 +2964,7 @@ kiblnd_base_startup(void)
 	return -ENETDOWN;
 }
 
-int
+static int
 kiblnd_start_schedulers(struct kib_sched_info *sched)
 {
 	int	rc = 0;
@@ -3071,7 +3005,7 @@ kiblnd_start_schedulers(struct kib_sched_info *sched)
 	return rc;
 }
 
-int
+static int
 kiblnd_dev_start_threads(kib_dev_t *dev, int newdev, __u32 *cpts, int ncpts)
 {
 	int	cpt;
@@ -3097,7 +3031,7 @@ kiblnd_dev_start_threads(kib_dev_t *dev, int newdev, __u32 *cpts, int ncpts)
 	return 0;
 }
 
-kib_dev_t *
+static kib_dev_t *
 kiblnd_dev_search(char *ifname)
 {
 	kib_dev_t	*alias = NULL;
@@ -3226,14 +3160,13 @@ failed:
 	return -ENETDOWN;
 }
 
-void __exit
+static void __exit
 kiblnd_module_fini (void)
 {
 	lnet_unregister_lnd(&the_o2iblnd);
-	kiblnd_tunables_fini();
 }
 
-int __init
+static int __init
 kiblnd_module_init (void)
 {
 	int    rc;

@@ -16,8 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -45,7 +44,8 @@ MODULE_SUPPORTED_DEVICE("Adlink PCI-7841/cPCI-7841, "
 			"esd CAN-PCI/PMC/266, "
 			"esd CAN-PCIe/2000, "
 			"Connect Tech Inc. CANpro/104-Plus Opto (CRG001), "
-			"IXXAT PC-I 04/PCI")
+			"IXXAT PC-I 04/PCI, "
+			"ELCUS CAN-200-PCI")
 MODULE_LICENSE("GPL v2");
 
 #define PLX_PCI_MAX_CHAN 2
@@ -122,6 +122,11 @@ struct plx_pci_card {
 #define ESD_PCI_SUB_SYS_ID_CPCI200	0x010b
 #define ESD_PCI_SUB_SYS_ID_PCIE2000	0x0200
 #define ESD_PCI_SUB_SYS_ID_PCI104200	0x0501
+
+#define CAN200PCI_DEVICE_ID		0x9030
+#define CAN200PCI_VENDOR_ID		0x10b5
+#define CAN200PCI_SUB_DEVICE_ID		0x0301
+#define CAN200PCI_SUB_VENDOR_ID		0xe1c5
 
 #define IXXAT_PCI_VENDOR_ID		0x10b5
 #define IXXAT_PCI_DEVICE_ID		0x9050
@@ -234,6 +239,14 @@ static struct plx_pci_card_info plx_pci_card_info_cti = {
 	/* based on PLX9030 */
 };
 
+static struct plx_pci_card_info plx_pci_card_info_elcus = {
+	"Eclus CAN-200-PCI", 2,
+	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
+	{1, 0x00, 0x00}, { {2, 0x00, 0x80}, {3, 0x00, 0x80} },
+	&plx_pci_reset_common
+	/* based on PLX9030 */
+};
+
 static DEFINE_PCI_DEVICE_TABLE(plx_pci_tbl) = {
 	{
 		/* Adlink PCI-7841/cPCI-7841 */
@@ -318,6 +331,13 @@ static DEFINE_PCI_DEVICE_TABLE(plx_pci_tbl) = {
 		CTI_PCI_VENDOR_ID, CTI_PCI_DEVICE_ID_CRG001,
 		0, 0,
 		(kernel_ulong_t)&plx_pci_card_info_cti
+	},
+	{
+		/* Elcus CAN-200-PCI */
+		CAN200PCI_VENDOR_ID, CAN200PCI_DEVICE_ID,
+		CAN200PCI_SUB_VENDOR_ID, CAN200PCI_SUB_DEVICE_ID,
+		0, 0,
+		(kernel_ulong_t)&plx_pci_card_info_elcus
 	},
 	{ 0,}
 };
@@ -477,7 +497,6 @@ static void plx_pci_del_card(struct pci_dev *pdev)
 	kfree(card);
 
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 /*
@@ -568,6 +587,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 			priv->cdr = ci->cdr;
 
 			SET_NETDEV_DEV(dev, &pdev->dev);
+			dev->dev_id = i;
 
 			/* Register SJA1000 device */
 			err = register_sja1000dev(dev);

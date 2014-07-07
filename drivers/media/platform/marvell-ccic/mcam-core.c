@@ -1156,7 +1156,7 @@ static int mcam_vb_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return mcam_read_setup(cam);
 }
 
-static int mcam_vb_stop_streaming(struct vb2_queue *vq)
+static void mcam_vb_stop_streaming(struct vb2_queue *vq)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
 	unsigned long flags;
@@ -1164,10 +1164,10 @@ static int mcam_vb_stop_streaming(struct vb2_queue *vq)
 	if (cam->state == S_BUFWAIT) {
 		/* They never gave us buffers */
 		cam->state = S_IDLE;
-		return 0;
+		return;
 	}
 	if (cam->state != S_STREAMING)
-		return -EINVAL;
+		return;
 	mcam_ctlr_stop_dma(cam);
 	/*
 	 * Reset the CCIC PHY after stopping streaming,
@@ -1182,7 +1182,6 @@ static int mcam_vb_stop_streaming(struct vb2_queue *vq)
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	INIT_LIST_HEAD(&cam->buffers);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	return 0;
 }
 
 
@@ -1221,16 +1220,16 @@ static int mcam_vb_sg_buf_prepare(struct vb2_buffer *vb)
 {
 	struct mcam_vb_buffer *mvb = vb_to_mvb(vb);
 	struct mcam_camera *cam = vb2_get_drv_priv(vb->vb2_queue);
-	struct vb2_dma_sg_desc *sgd = vb2_dma_sg_plane_desc(vb, 0);
+	struct sg_table *sg_table = vb2_dma_sg_plane_desc(vb, 0);
 	struct mcam_dma_desc *desc = mvb->dma_desc;
 	struct scatterlist *sg;
 	int i;
 
-	mvb->dma_desc_nent = dma_map_sg(cam->dev, sgd->sglist, sgd->num_pages,
-			DMA_FROM_DEVICE);
+	mvb->dma_desc_nent = dma_map_sg(cam->dev, sg_table->sgl,
+			sg_table->nents, DMA_FROM_DEVICE);
 	if (mvb->dma_desc_nent <= 0)
 		return -EIO;  /* Not sure what's right here */
-	for_each_sg(sgd->sglist, sg, mvb->dma_desc_nent, i) {
+	for_each_sg(sg_table->sgl, sg, mvb->dma_desc_nent, i) {
 		desc->dma_addr = sg_dma_address(sg);
 		desc->segment_len = sg_dma_len(sg);
 		desc++;
@@ -1238,13 +1237,14 @@ static int mcam_vb_sg_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int mcam_vb_sg_buf_finish(struct vb2_buffer *vb)
+static void mcam_vb_sg_buf_finish(struct vb2_buffer *vb)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vb->vb2_queue);
-	struct vb2_dma_sg_desc *sgd = vb2_dma_sg_plane_desc(vb, 0);
+	struct sg_table *sg_table = vb2_dma_sg_plane_desc(vb, 0);
 
-	dma_unmap_sg(cam->dev, sgd->sglist, sgd->num_pages, DMA_FROM_DEVICE);
-	return 0;
+	if (sg_table)
+		dma_unmap_sg(cam->dev, sg_table->sgl,
+				sg_table->nents, DMA_FROM_DEVICE);
 }
 
 static void mcam_vb_sg_buf_cleanup(struct vb2_buffer *vb)

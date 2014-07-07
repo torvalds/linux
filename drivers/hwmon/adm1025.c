@@ -2,7 +2,7 @@
  * adm1025.c
  *
  * Copyright (C) 2000       Chen-Yuan Wu <gwu@esoft.com>
- * Copyright (C) 2003-2009  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2009  Jean Delvare <jdelvare@suse.de>
  *
  * The ADM1025 is a sensor chip made by Analog Devices. It reports up to 6
  * voltages (including its own power source) and up to two temperatures
@@ -615,6 +615,6 @@ static struct adm1025_data *adm1025_update_device(struct device *dev)
 
 module_i2c_driver(adm1025_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("ADM1025 driver");
 MODULE_LICENSE("GPL");

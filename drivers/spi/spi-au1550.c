@@ -55,8 +55,6 @@ struct au1550_spi {
 
 	volatile psc_spi_t __iomem *regs;
 	int irq;
-	unsigned freq_max;
-	unsigned freq_min;
 
 	unsigned len;
 	unsigned tx_count;
@@ -248,11 +246,8 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 			hz = t->speed_hz;
 	}
 
-	if (hz > spi->max_speed_hz || hz > hw->freq_max || hz < hw->freq_min) {
-		dev_err(&spi->dev, "setupxfer: clock rate=%d out of range\n",
-			hz);
+	if (!hz)
 		return -EINVAL;
-	}
 
 	au1550_spi_bits_handlers_set(hw, spi->bits_per_word);
 
@@ -284,23 +279,6 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 
 	au1550_spi_reset_fifos(hw);
 	au1550_spi_mask_ack_all(hw);
-	return 0;
-}
-
-static int au1550_spi_setup(struct spi_device *spi)
-{
-	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
-
-	if (spi->max_speed_hz == 0)
-		spi->max_speed_hz = hw->freq_max;
-	if (spi->max_speed_hz > hw->freq_max
-			|| spi->max_speed_hz < hw->freq_min)
-		return -EINVAL;
-	/*
-	 * NOTE: cannot change speed and other hw settings immediately,
-	 *       otherwise sharing of spi bus is not possible,
-	 *       so do not call setupxfer(spi, NULL) here
-	 */
 	return 0;
 }
 
@@ -775,7 +753,7 @@ static int au1550_spi_probe(struct platform_device *pdev)
 
 	hw = spi_master_get_devdata(master);
 
-	hw->master = spi_master_get(master);
+	hw->master = master;
 	hw->pdata = dev_get_platdata(&pdev->dev);
 	hw->dev = &pdev->dev;
 
@@ -838,7 +816,6 @@ static int au1550_spi_probe(struct platform_device *pdev)
 	hw->bitbang.master = hw->master;
 	hw->bitbang.setup_transfer = au1550_spi_setupxfer;
 	hw->bitbang.chipselect = au1550_spi_chipsel;
-	hw->bitbang.master->setup = au1550_spi_setup;
 	hw->bitbang.txrx_bufs = au1550_spi_txrx_bufs;
 
 	if (hw->usedma) {
@@ -909,8 +886,9 @@ static int au1550_spi_probe(struct platform_device *pdev)
 	{
 		int min_div = (2 << 0) * (2 * (4 + 1));
 		int max_div = (2 << 3) * (2 * (63 + 1));
-		hw->freq_max = hw->pdata->mainclk_hz / min_div;
-		hw->freq_min = hw->pdata->mainclk_hz / (max_div + 1) + 1;
+		master->max_speed_hz = hw->pdata->mainclk_hz / min_div;
+		master->min_speed_hz =
+				hw->pdata->mainclk_hz / (max_div + 1) + 1;
 	}
 
 	au1550_spi_setup_psc_as_spi(hw);
@@ -985,6 +963,7 @@ static int au1550_spi_remove(struct platform_device *pdev)
 MODULE_ALIAS("platform:au1550-spi");
 
 static struct platform_driver au1550_spi_drv = {
+	.probe = au1550_spi_probe,
 	.remove = au1550_spi_remove,
 	.driver = {
 		.name = "au1550-spi",
@@ -998,13 +977,22 @@ static int __init au1550_spi_init(void)
 	 * create memory device with 8 bits dev_devwidth
 	 * needed for proper byte ordering to spi fifo
 	 */
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1550:
+	case ALCHEMY_CPU_AU1200:
+	case ALCHEMY_CPU_AU1300:
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	if (usedma) {
 		ddma_memid = au1xxx_ddma_add_device(&au1550_spi_mem_dbdev);
 		if (!ddma_memid)
 			printk(KERN_ERR "au1550-spi: cannot add memory"
 					"dbdma device\n");
 	}
-	return platform_driver_probe(&au1550_spi_drv, au1550_spi_probe);
+	return platform_driver_register(&au1550_spi_drv);
 }
 module_init(au1550_spi_init);
 

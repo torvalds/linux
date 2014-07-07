@@ -109,19 +109,7 @@ void avivo_wait_for_vblank(struct radeon_device *rdev, int crtc)
 	}
 }
 
-void rs600_pre_page_flip(struct radeon_device *rdev, int crtc)
-{
-	/* enable the pflip int */
-	radeon_irq_kms_pflip_irq_get(rdev, crtc);
-}
-
-void rs600_post_page_flip(struct radeon_device *rdev, int crtc)
-{
-	/* disable the pflip int */
-	radeon_irq_kms_pflip_irq_put(rdev, crtc);
-}
-
-u32 rs600_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
+void rs600_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 	u32 tmp = RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset);
@@ -148,9 +136,79 @@ u32 rs600_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 	/* Unlock the lock, so double-buffering can take place inside vblank */
 	tmp &= ~AVIVO_D1GRPH_UPDATE_LOCK;
 	WREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset, tmp);
+}
+
+bool rs600_page_flip_pending(struct radeon_device *rdev, int crtc_id)
+{
+	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 
 	/* Return current update_pending status: */
-	return RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset) & AVIVO_D1GRPH_SURFACE_UPDATE_PENDING;
+	return !!(RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset) &
+		AVIVO_D1GRPH_SURFACE_UPDATE_PENDING);
+}
+
+void avivo_program_fmt(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	int bpc = 0;
+	u32 tmp = 0;
+	enum radeon_connector_dither dither = RADEON_FMT_DITHER_DISABLE;
+
+	if (connector) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		bpc = radeon_get_monitor_bpc(connector);
+		dither = radeon_connector->dither;
+	}
+
+	/* LVDS FMT is set up by atom */
+	if (radeon_encoder->devices & ATOM_DEVICE_LCD_SUPPORT)
+		return;
+
+	if (bpc == 0)
+		return;
+
+	switch (bpc) {
+	case 6:
+		if (dither == RADEON_FMT_DITHER_ENABLE)
+			/* XXX sort out optimal dither settings */
+			tmp |= AVIVO_TMDS_BIT_DEPTH_CONTROL_SPATIAL_DITHER_EN;
+		else
+			tmp |= AVIVO_TMDS_BIT_DEPTH_CONTROL_TRUNCATE_EN;
+		break;
+	case 8:
+		if (dither == RADEON_FMT_DITHER_ENABLE)
+			/* XXX sort out optimal dither settings */
+			tmp |= (AVIVO_TMDS_BIT_DEPTH_CONTROL_SPATIAL_DITHER_EN |
+				AVIVO_TMDS_BIT_DEPTH_CONTROL_SPATIAL_DITHER_DEPTH);
+		else
+			tmp |= (AVIVO_TMDS_BIT_DEPTH_CONTROL_TRUNCATE_EN |
+				AVIVO_TMDS_BIT_DEPTH_CONTROL_TRUNCATE_DEPTH);
+		break;
+	case 10:
+	default:
+		/* not needed */
+		break;
+	}
+
+	switch (radeon_encoder->encoder_id) {
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+		WREG32(AVIVO_TMDSA_BIT_DEPTH_CONTROL, tmp);
+		break;
+	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+		WREG32(AVIVO_LVTMA_BIT_DEPTH_CONTROL, tmp);
+		break;
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+		WREG32(AVIVO_DVOA_BIT_DEPTH_CONTROL, tmp);
+		break;
+	case ENCODER_OBJECT_ID_INTERNAL_DDI:
+		WREG32(AVIVO_DDIA_BIT_DEPTH_CONTROL, tmp);
+		break;
+	default:
+		break;
+	}
 }
 
 void rs600_pm_misc(struct radeon_device *rdev)
@@ -568,24 +626,16 @@ static void rs600_gart_fini(struct radeon_device *rdev)
 	radeon_gart_table_vram_free(rdev);
 }
 
-#define R600_PTE_VALID     (1 << 0)
-#define R600_PTE_SYSTEM    (1 << 1)
-#define R600_PTE_SNOOPED   (1 << 2)
-#define R600_PTE_READABLE  (1 << 5)
-#define R600_PTE_WRITEABLE (1 << 6)
-
-int rs600_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
+void rs600_gart_set_page(struct radeon_device *rdev, unsigned i, uint64_t addr)
 {
 	void __iomem *ptr = (void *)rdev->gart.ptr;
 
-	if (i < 0 || i > rdev->gart.num_gpu_pages) {
-		return -EINVAL;
-	}
 	addr = addr & 0xFFFFFFFFFFFFF000ULL;
-	addr |= R600_PTE_VALID | R600_PTE_SYSTEM | R600_PTE_SNOOPED;
-	addr |= R600_PTE_READABLE | R600_PTE_WRITEABLE;
+	if (addr == rdev->dummy_page.addr)
+		addr |= R600_PTE_SYSTEM | R600_PTE_SNOOPED;
+	else
+		addr |= R600_PTE_GART;
 	writeq(addr, ptr + (i * 8));
-	return 0;
 }
 
 int rs600_irq_set(struct radeon_device *rdev)
@@ -723,7 +773,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 				wake_up(&rdev->irq.vblank_queue);
 			}
 			if (atomic_read(&rdev->irq.pflip[0]))
-				radeon_crtc_handle_flip(rdev, 0);
+				radeon_crtc_handle_vblank(rdev, 0);
 		}
 		if (G_007EDC_LB_D2_VBLANK_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
 			if (rdev->irq.crtc_vblank_int[1]) {
@@ -732,7 +782,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 				wake_up(&rdev->irq.vblank_queue);
 			}
 			if (atomic_read(&rdev->irq.pflip[1]))
-				radeon_crtc_handle_flip(rdev, 1);
+				radeon_crtc_handle_vblank(rdev, 1);
 		}
 		if (G_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
 			queue_hotplug = true;
@@ -994,6 +1044,7 @@ int rs600_resume(struct radeon_device *rdev)
 
 int rs600_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r600_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
@@ -1004,6 +1055,7 @@ int rs600_suspend(struct radeon_device *rdev)
 
 void rs600_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r600_audio_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
@@ -1071,6 +1123,9 @@ int rs600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rs600_set_safe_registers(rdev);
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
 	rdev->accel_working = true;
 	r = rs600_startup(rdev);

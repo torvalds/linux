@@ -67,7 +67,7 @@ pthread_cond_wait_pi(cond, mutex)
 	   lock(cond->__data.__lock);
 	} while(...)
 	unlock(cond->__data.__lock);
-        /* the kernel acquired the the mutex for us */
+        /* the kernel acquired the mutex for us */
 }
 
 pthread_cond_broadcast_pi(cond)

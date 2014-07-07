@@ -4,44 +4,30 @@
 
 #include "usbip_common.h"
 #include "vhci_driver.h"
+#include <limits.h>
+#include <netdb.h>
+#include <libudev.h>
+#include "sysfs_utils.h"
 
 #undef  PROGNAME
 #define PROGNAME "libusbip"
 
 struct usbip_vhci_driver *vhci_driver;
+struct udev *udev_context;
 
 static struct usbip_imported_device *
 imported_device_init(struct usbip_imported_device *idev, char *busid)
 {
-	struct sysfs_device *sudev;
+	struct udev_device *sudev;
 
-	sudev = sysfs_open_device("usb", busid);
+	sudev = udev_device_new_from_subsystem_sysname(udev_context,
+						       "usb", busid);
 	if (!sudev) {
-		dbg("sysfs_open_device failed: %s", busid);
+		dbg("udev_device_new_from_subsystem_sysname failed: %s", busid);
 		goto err;
 	}
 	read_usb_device(sudev, &idev->udev);
-	sysfs_close_device(sudev);
-
-	/* add class devices of this imported device */
-	struct usbip_class_device *cdev;
-	dlist_for_each_data(vhci_driver->cdev_list, cdev,
-			    struct usbip_class_device) {
-		if (!strncmp(cdev->dev_path, idev->udev.path,
-			     strlen(idev->udev.path))) {
-			struct usbip_class_device *new_cdev;
-			/*
-			 * alloc and copy because dlist is linked
-			 * from only one list
-			 */
-			new_cdev = calloc(1, sizeof(*new_cdev));
-			if (!new_cdev)
-				goto err;
-
-			memcpy(new_cdev, cdev, sizeof(*new_cdev));
-			dlist_unshift(idev->cdev_list, (void *) new_cdev);
-		}
-	}
+	udev_device_unref(sudev);
 
 	return idev;
 
@@ -51,7 +37,7 @@ err:
 
 
 
-static int parse_status(char *value)
+static int parse_status(const char *value)
 {
 	int ret = 0;
 	char *c;
@@ -72,7 +58,7 @@ static int parse_status(char *value)
 		unsigned long socket;
 		char lbusid[SYSFS_BUS_ID_SIZE];
 
-		ret = sscanf(c, "%d %d %d %x %lx %s\n",
+		ret = sscanf(c, "%d %d %d %x %lx %31s\n",
 				&port, &status, &speed,
 				&devid, &socket, lbusid);
 
@@ -98,12 +84,6 @@ static int parse_status(char *value)
 			idev->busnum	= (devid >> 16);
 			idev->devnum	= (devid & 0x0000ffff);
 
-			idev->cdev_list = dlist_new(sizeof(struct usbip_class_device));
-			if (!idev->cdev_list) {
-				dbg("dlist_new failed");
-				return -1;
-			}
-
 			if (idev->status != VDEV_ST_NULL
 			    && idev->status != VDEV_ST_NOTASSIGNED) {
 				idev = imported_device_init(idev, lbusid);
@@ -127,156 +107,35 @@ static int parse_status(char *value)
 	return 0;
 }
 
-
-static int check_usbip_device(struct sysfs_class_device *cdev)
-{
-	/* /sys/class/video4linux/video0/device */
-	char class_path[SYSFS_PATH_MAX];
-	/* /sys/devices/platform/vhci_hcd/usb6/6-1:1.1 */
-	char dev_path[SYSFS_PATH_MAX];
-	int ret;
-	struct usbip_class_device *usbip_cdev;
-
-	snprintf(class_path, sizeof(class_path), "%s/device", cdev->path);
-
-	ret = sysfs_get_link(class_path, dev_path, sizeof(dev_path));
-	if (ret == 0) {
-		if (!strncmp(dev_path, vhci_driver->hc_device->path,
-			     strlen(vhci_driver->hc_device->path))) {
-			/* found usbip device */
-			usbip_cdev = calloc(1, sizeof(*usbip_cdev));
-			if (!usbip_cdev) {
-				dbg("calloc failed");
-				return -1;
-			}
-			dlist_unshift(vhci_driver->cdev_list, usbip_cdev);
-			strncpy(usbip_cdev->class_path, class_path,
-				sizeof(usbip_cdev->class_path));
-			strncpy(usbip_cdev->dev_path, dev_path,
-				sizeof(usbip_cdev->dev_path));
-			dbg("found: %s %s", class_path, dev_path);
-		}
-	}
-
-	return 0;
-}
-
-
-static int search_class_for_usbip_device(char *cname)
-{
-	struct sysfs_class *class;
-	struct dlist *cdev_list;
-	struct sysfs_class_device *cdev;
-	int ret = 0;
-
-	class = sysfs_open_class(cname);
-	if (!class) {
-		dbg("sysfs_open_class failed");
-		return -1;
-	}
-
-	dbg("class: %s", class->name);
-
-	cdev_list = sysfs_get_class_devices(class);
-	if (!cdev_list)
-		/* nothing */
-		goto out;
-
-	dlist_for_each_data(cdev_list, cdev, struct sysfs_class_device) {
-		dbg("cdev: %s", cdev->name);
-		ret = check_usbip_device(cdev);
-		if (ret < 0)
-			goto out;
-	}
-
-out:
-	sysfs_close_class(class);
-
-	return ret;
-}
-
-
-static int refresh_class_device_list(void)
-{
-	int ret;
-	struct dlist *cname_list;
-	char *cname;
-	char sysfs_mntpath[SYSFS_PATH_MAX];
-	char class_path[SYSFS_PATH_MAX];
-
-	ret = sysfs_get_mnt_path(sysfs_mntpath, SYSFS_PATH_MAX);
-	if (ret < 0) {
-		dbg("sysfs_get_mnt_path failed");
-		return -1;
-	}
-
-	snprintf(class_path, sizeof(class_path), "%s/%s", sysfs_mntpath,
-		 SYSFS_CLASS_NAME);
-
-	/* search under /sys/class */
-	cname_list = sysfs_open_directory_list(class_path);
-	if (!cname_list) {
-		dbg("sysfs_open_directory failed");
-		return -1;
-	}
-
-	dlist_for_each_data(cname_list, cname, char) {
-		ret = search_class_for_usbip_device(cname);
-		if (ret < 0) {
-			sysfs_close_list(cname_list);
-			return -1;
-		}
-	}
-
-	sysfs_close_list(cname_list);
-
-	/* search under /sys/block */
-	ret = search_class_for_usbip_device(SYSFS_BLOCK_NAME);
-	if (ret < 0)
-		return -1;
-
-	return 0;
-}
-
-
 static int refresh_imported_device_list(void)
 {
-	struct sysfs_attribute *attr_status;
+	const char *attr_status;
 
-
-	attr_status = sysfs_get_device_attr(vhci_driver->hc_device, "status");
+	attr_status = udev_device_get_sysattr_value(vhci_driver->hc_device,
+					       "status");
 	if (!attr_status) {
-		dbg("sysfs_get_device_attr(\"status\") failed: %s",
-		    vhci_driver->hc_device->name);
+		err("udev_device_get_sysattr_value failed");
 		return -1;
 	}
 
-	dbg("name: %s  path: %s  len: %d  method: %d  value: %s",
-	    attr_status->name, attr_status->path, attr_status->len,
-	    attr_status->method, attr_status->value);
-
-	return parse_status(attr_status->value);
+	return parse_status(attr_status);
 }
 
 static int get_nports(void)
 {
 	char *c;
 	int nports = 0;
-	struct sysfs_attribute *attr_status;
+	const char *attr_status;
 
-	attr_status = sysfs_get_device_attr(vhci_driver->hc_device, "status");
+	attr_status = udev_device_get_sysattr_value(vhci_driver->hc_device,
+					       "status");
 	if (!attr_status) {
-		dbg("sysfs_get_device_attr(\"status\") failed: %s",
-		    vhci_driver->hc_device->name);
+		err("udev_device_get_sysattr_value failed");
 		return -1;
 	}
 
-	dbg("name: %s  path: %s  len: %d  method: %d  value: %s",
-	    attr_status->name, attr_status->path, attr_status->len,
-	    attr_status->method, attr_status->value);
-
 	/* skip a header line */
-	c = strchr(attr_status->value, '\n');
+	c = strchr(attr_status, '\n');
 	if (!c)
 		return 0;
 	c++;
@@ -293,79 +152,88 @@ static int get_nports(void)
 	return nports;
 }
 
-static int get_hc_busid(char *sysfs_mntpath, char *hc_busid)
+/*
+ * Read the given port's record.
+ *
+ * To avoid buffer overflow we will read the entire line and
+ * validate each part's size. The initial buffer is padded by 4 to
+ * accommodate the 2 spaces, 1 newline and an additional character
+ * which is needed to properly validate the 3rd part without it being
+ * truncated to an acceptable length.
+ */
+static int read_record(int rhport, char *host, unsigned long host_len,
+		char *port, unsigned long port_len, char *busid)
 {
-	struct sysfs_driver *sdriver;
-	char sdriver_path[SYSFS_PATH_MAX];
+	int part;
+	FILE *file;
+	char path[PATH_MAX+1];
+	char *buffer, *start, *end;
+	char delim[] = {' ', ' ', '\n'};
+	int max_len[] = {(int)host_len, (int)port_len, SYSFS_BUS_ID_SIZE};
+	size_t buffer_len = host_len + port_len + SYSFS_BUS_ID_SIZE + 4;
 
-	struct sysfs_device *hc_dev;
-	struct dlist *hc_devs;
+	buffer = malloc(buffer_len);
+	if (!buffer)
+		return -1;
 
-	int found = 0;
+	snprintf(path, PATH_MAX, VHCI_STATE_PATH"/port%d", rhport);
 
-	snprintf(sdriver_path, SYSFS_PATH_MAX, "%s/%s/%s/%s/%s", sysfs_mntpath,
-	SYSFS_BUS_NAME, USBIP_VHCI_BUS_TYPE, SYSFS_DRIVERS_NAME,
-	USBIP_VHCI_DRV_NAME);
-
-	sdriver = sysfs_open_driver_path(sdriver_path);
-	if (!sdriver) {
-		dbg("sysfs_open_driver_path failed: %s", sdriver_path);
-		dbg("make sure " USBIP_CORE_MOD_NAME ".ko and "
-		    USBIP_VHCI_DRV_NAME ".ko are loaded!");
+	file = fopen(path, "r");
+	if (!file) {
+		err("fopen");
+		free(buffer);
 		return -1;
 	}
 
-	hc_devs = sysfs_get_driver_devices(sdriver);
-	if (!hc_devs) {
-		dbg("sysfs_get_driver failed");
-		goto err;
+	if (fgets(buffer, buffer_len, file) == NULL) {
+		err("fgets");
+		free(buffer);
+		fclose(file);
+		return -1;
+	}
+	fclose(file);
+
+	/* validate the length of each of the 3 parts */
+	start = buffer;
+	for (part = 0; part < 3; part++) {
+		end = strchr(start, delim[part]);
+		if (end == NULL || (end - start) > max_len[part]) {
+			free(buffer);
+			return -1;
+		}
+		start = end + 1;
 	}
 
-	/* assume only one vhci_hcd */
-	dlist_for_each_data(hc_devs, hc_dev, struct sysfs_device) {
-		strncpy(hc_busid, hc_dev->bus_id, SYSFS_BUS_ID_SIZE);
-		found = 1;
+	if (sscanf(buffer, "%s %s %s\n", host, port, busid) != 3) {
+		err("sscanf");
+		free(buffer);
+		return -1;
 	}
 
-err:
-	sysfs_close_driver(sdriver);
+	free(buffer);
 
-	if (found)
-		return 0;
-
-	dbg("%s not found", hc_busid);
-	return -1;
+	return 0;
 }
-
 
 /* ---------------------------------------------------------------------- */
 
 int usbip_vhci_driver_open(void)
 {
-	int ret;
-	char hc_busid[SYSFS_BUS_ID_SIZE];
-
-	vhci_driver = (struct usbip_vhci_driver *) calloc(1, sizeof(*vhci_driver));
-	if (!vhci_driver) {
-		dbg("calloc failed");
+	udev_context = udev_new();
+	if (!udev_context) {
+		err("udev_new failed");
 		return -1;
 	}
 
-	ret = sysfs_get_mnt_path(vhci_driver->sysfs_mntpath, SYSFS_PATH_MAX);
-	if (ret < 0) {
-		dbg("sysfs_get_mnt_path failed");
-		goto err;
-	}
-
-	ret = get_hc_busid(vhci_driver->sysfs_mntpath, hc_busid);
-	if (ret < 0)
-		goto err;
+	vhci_driver = calloc(1, sizeof(struct usbip_vhci_driver));
 
 	/* will be freed in usbip_driver_close() */
-	vhci_driver->hc_device = sysfs_open_device(USBIP_VHCI_BUS_TYPE,
-						   hc_busid);
+	vhci_driver->hc_device =
+		udev_device_new_from_subsystem_sysname(udev_context,
+						       USBIP_VHCI_BUS_TYPE,
+						       USBIP_VHCI_DRV_NAME);
 	if (!vhci_driver->hc_device) {
-		dbg("sysfs_open_device failed");
+		err("udev_device_new_from_subsystem_sysname failed");
 		goto err;
 	}
 
@@ -373,85 +241,48 @@ int usbip_vhci_driver_open(void)
 
 	dbg("available ports: %d", vhci_driver->nports);
 
-	vhci_driver->cdev_list = dlist_new(sizeof(struct usbip_class_device));
-	if (!vhci_driver->cdev_list)
-		goto err;
-
-	if (refresh_class_device_list())
-		goto err;
-
 	if (refresh_imported_device_list())
 		goto err;
 
-
 	return 0;
 
-
 err:
-	if (vhci_driver->cdev_list)
-		dlist_destroy(vhci_driver->cdev_list);
-	if (vhci_driver->hc_device)
-		sysfs_close_device(vhci_driver->hc_device);
+	udev_device_unref(vhci_driver->hc_device);
+
 	if (vhci_driver)
 		free(vhci_driver);
 
 	vhci_driver = NULL;
+
+	udev_unref(udev_context);
+
 	return -1;
 }
 
 
-void usbip_vhci_driver_close()
+void usbip_vhci_driver_close(void)
 {
 	if (!vhci_driver)
 		return;
 
-	if (vhci_driver->cdev_list)
-		dlist_destroy(vhci_driver->cdev_list);
+	udev_device_unref(vhci_driver->hc_device);
 
-	for (int i = 0; i < vhci_driver->nports; i++) {
-		if (vhci_driver->idev[i].cdev_list)
-			dlist_destroy(vhci_driver->idev[i].cdev_list);
-	}
-
-	if (vhci_driver->hc_device)
-		sysfs_close_device(vhci_driver->hc_device);
 	free(vhci_driver);
 
 	vhci_driver = NULL;
+
+	udev_unref(udev_context);
 }
 
 
 int usbip_vhci_refresh_device_list(void)
 {
-	if (vhci_driver->cdev_list)
-		dlist_destroy(vhci_driver->cdev_list);
-
-
-	for (int i = 0; i < vhci_driver->nports; i++) {
-		if (vhci_driver->idev[i].cdev_list)
-			dlist_destroy(vhci_driver->idev[i].cdev_list);
-	}
-
-	vhci_driver->cdev_list = dlist_new(sizeof(struct usbip_class_device));
-	if (!vhci_driver->cdev_list)
-		goto err;
-
-	if (refresh_class_device_list())
-		goto err;
 
 	if (refresh_imported_device_list())
 		goto err;
 
 	return 0;
 err:
-	if (vhci_driver->cdev_list)
-		dlist_destroy(vhci_driver->cdev_list);
-
-	for (int i = 0; i < vhci_driver->nports; i++) {
-		if (vhci_driver->idev[i].cdev_list)
-			dlist_destroy(vhci_driver->idev[i].cdev_list);
-	}
-
 	dbg("failed to refresh device list");
 	return -1;
 }
@@ -469,24 +300,24 @@ int usbip_vhci_get_free_port(void)
 
 int usbip_vhci_attach_device2(uint8_t port, int sockfd, uint32_t devid,
 		uint32_t speed) {
-	struct sysfs_attribute *attr_attach;
 	char buff[200]; /* what size should be ? */
+	char attach_attr_path[SYSFS_PATH_MAX];
+	char attr_attach[] = "attach";
+	const char *path;
 	int ret;
 
-	attr_attach = sysfs_get_device_attr(vhci_driver->hc_device, "attach");
-	if (!attr_attach) {
-		dbg("sysfs_get_device_attr(\"attach\") failed: %s",
-		    vhci_driver->hc_device->name);
-		return -1;
-	}
-
-	snprintf(buff, sizeof(buff), "%u %u %u %u",
+	snprintf(buff, sizeof(buff), "%u %d %u %u",
 			port, sockfd, devid, speed);
 	dbg("writing: %s", buff);
 
-	ret = sysfs_write_attribute(attr_attach, buff, strlen(buff));
+	path = udev_device_get_syspath(vhci_driver->hc_device);
+	snprintf(attach_attr_path, sizeof(attach_attr_path), "%s/%s",
+		 path, attr_attach);
+	dbg("attach attribute path: %s", attach_attr_path);
+
+	ret = write_sysfs_attribute(attach_attr_path, buff, strlen(buff));
 	if (ret < 0) {
-		dbg("sysfs_write_attribute failed");
+		dbg("write_sysfs_attribute failed");
 		return -1;
 	}
 
@@ -511,27 +342,70 @@ int usbip_vhci_attach_device(uint8_t port, int sockfd, uint8_t busnum,
 
 int usbip_vhci_detach_device(uint8_t port)
 {
-	struct sysfs_attribute  *attr_detach;
+	char detach_attr_path[SYSFS_PATH_MAX];
+	char attr_detach[] = "detach";
 	char buff[200]; /* what size should be ? */
+	const char *path;
 	int ret;
-
-	attr_detach = sysfs_get_device_attr(vhci_driver->hc_device, "detach");
-	if (!attr_detach) {
-		dbg("sysfs_get_device_attr(\"detach\") failed: %s",
-		    vhci_driver->hc_device->name);
-		return -1;
-	}
 
 	snprintf(buff, sizeof(buff), "%u", port);
 	dbg("writing: %s", buff);
 
-	ret = sysfs_write_attribute(attr_detach, buff, strlen(buff));
+	path = udev_device_get_syspath(vhci_driver->hc_device);
+	snprintf(detach_attr_path, sizeof(detach_attr_path), "%s/%s",
+		 path, attr_detach);
+	dbg("detach attribute path: %s", detach_attr_path);
+
+	ret = write_sysfs_attribute(detach_attr_path, buff, strlen(buff));
 	if (ret < 0) {
-		dbg("sysfs_write_attribute failed");
+		dbg("write_sysfs_attribute failed");
 		return -1;
 	}
 
 	dbg("detached port: %d", port);
+
+	return 0;
+}
+
+int usbip_vhci_imported_device_dump(struct usbip_imported_device *idev)
+{
+	char product_name[100];
+	char host[NI_MAXHOST] = "unknown host";
+	char serv[NI_MAXSERV] = "unknown port";
+	char remote_busid[SYSFS_BUS_ID_SIZE];
+	int ret;
+	int read_record_error = 0;
+
+	if (idev->status == VDEV_ST_NULL || idev->status == VDEV_ST_NOTASSIGNED)
+		return 0;
+
+	ret = read_record(idev->port, host, sizeof(host), serv, sizeof(serv),
+			  remote_busid);
+	if (ret) {
+		err("read_record");
+		read_record_error = 1;
+	}
+
+	printf("Port %02d: <%s> at %s\n", idev->port,
+	       usbip_status_string(idev->status),
+	       usbip_speed_string(idev->udev.speed));
+
+	usbip_names_get_product(product_name, sizeof(product_name),
+				idev->udev.idVendor, idev->udev.idProduct);
+
+	printf("       %s\n",  product_name);
+
+	if (!read_record_error) {
+		printf("%10s -> usbip://%s:%s/%s\n", idev->udev.busid,
+		       host, serv, remote_busid);
+		printf("%10s -> remote bus/dev %03d/%03d\n", " ",
+		       idev->busnum, idev->devnum);
+	} else {
+		printf("%10s -> unknown host, remote port and remote busid\n",
+		       idev->udev.busid);
+		printf("%10s -> remote bus/dev %03d/%03d\n", " ",
+		       idev->busnum, idev->devnum);
+	}
 
 	return 0;
 }

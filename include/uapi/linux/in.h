@@ -115,6 +115,15 @@ struct in_addr {
 #define IP_PMTUDISC_WANT		1	/* Use per route hints	*/
 #define IP_PMTUDISC_DO			2	/* Always DF		*/
 #define IP_PMTUDISC_PROBE		3       /* Ignore dst pmtu      */
+/* Always use interface mtu (ignores dst pmtu) but don't set DF flag.
+ * Also incoming ICMP frag_needed notifications will be ignored on
+ * this socket to prevent accepting spoofed ones.
+ */
+#define IP_PMTUDISC_INTERFACE		4
+/* weaker version of IP_PMTUDISC_INTERFACE, which allos packets to get
+ * fragmented if they exeed the interface mtu
+ */
+#define IP_PMTUDISC_OMIT		5
 
 #define IP_MULTICAST_IF			32
 #define IP_MULTICAST_TTL 		33

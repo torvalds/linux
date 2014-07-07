@@ -406,11 +406,6 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->mmio_base = pci_resource_start(dev->pdev, 1);
 	dev_priv->mmio_size = pci_resource_len(dev->pdev, 1);
 
-	dev->counters += 3;
-	dev->types[6] = _DRM_STAT_IRQ;
-	dev->types[7] = _DRM_STAT_PRIMARY;
-	dev->types[8] = _DRM_STAT_SECONDARY;
-
 	ret = drm_vblank_init(dev, 1);
 
 	if (ret) {
@@ -1080,10 +1075,10 @@ static int mga_dma_get_buffers(struct drm_device *dev,
 
 		buf->file_priv = file_priv;
 
-		if (DRM_COPY_TO_USER(&d->request_indices[i],
+		if (copy_to_user(&d->request_indices[i],
 				     &buf->idx, sizeof(buf->idx)))
 			return -EFAULT;
-		if (DRM_COPY_TO_USER(&d->request_sizes[i],
+		if (copy_to_user(&d->request_sizes[i],
 				     &buf->total, sizeof(buf->total)))
 			return -EFAULT;
 

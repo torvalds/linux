@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/export.h>
 
@@ -46,23 +47,8 @@ static int global_phb_number;		/* Global phb counter */
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
 
-static struct dma_map_ops *pci_dma_ops = &dma_direct_ops;
-
 unsigned long isa_io_base;
-unsigned long pci_dram_offset;
 static int pci_bus_count;
-
-
-void set_pci_dma_ops(struct dma_map_ops *dma_ops)
-{
-	pci_dma_ops = dma_ops;
-}
-
-struct dma_map_ops *get_pci_dma_ops(void)
-{
-	return pci_dma_ops;
-}
-EXPORT_SYMBOL(get_pci_dma_ops);
 
 struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
@@ -167,100 +153,10 @@ struct pci_controller *pci_find_hose_for_OF_device(struct device_node *node)
 	return NULL;
 }
 
-static ssize_t pci_show_devspec(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct pci_dev *pdev;
-	struct device_node *np;
-
-	pdev = to_pci_dev(dev);
-	np = pci_device_to_OF_node(pdev);
-	if (np == NULL || np->full_name == NULL)
-		return 0;
-	return sprintf(buf, "%s", np->full_name);
-}
-static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
-
-/* Add sysfs properties */
-int pcibios_add_platform_entries(struct pci_dev *pdev)
-{
-	return device_create_file(&pdev->dev, &dev_attr_devspec);
-}
-
 void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling */
 }
-
-/*
- * Reads the interrupt pin to determine if interrupt is use by card.
- * If the interrupt is used, then gets the interrupt line from the
- * openfirmware and sets it in the pci_dev and pci_config line.
- */
-int pci_read_irq_line(struct pci_dev *pci_dev)
-{
-	struct of_irq oirq;
-	unsigned int virq;
-
-	/* The current device-tree that iSeries generates from the HV
-	 * PCI informations doesn't contain proper interrupt routing,
-	 * and all the fallback would do is print out crap, so we
-	 * don't attempt to resolve the interrupts here at all, some
-	 * iSeries specific fixup does it.
-	 *
-	 * In the long run, we will hopefully fix the generated device-tree
-	 * instead.
-	 */
-	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
-
-#ifdef DEBUG
-	memset(&oirq, 0xff, sizeof(oirq));
-#endif
-	/* Try to get a mapping from the device-tree */
-	if (of_irq_map_pci(pci_dev, &oirq)) {
-		u8 line, pin;
-
-		/* If that fails, lets fallback to what is in the config
-		 * space and map that through the default controller. We
-		 * also set the type to level low since that's what PCI
-		 * interrupts are. If your platform does differently, then
-		 * either provide a proper interrupt tree or don't use this
-		 * function.
-		 */
-		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_PIN, &pin))
-			return -1;
-		if (pin == 0)
-			return -1;
-		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_LINE, &line) ||
-		    line == 0xff || line == 0) {
-			return -1;
-		}
-		pr_debug(" No map ! Using line %d (pin %d) from PCI config\n",
-			 line, pin);
-
-		virq = irq_create_mapping(NULL, line);
-		if (virq)
-			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
-	} else {
-		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
-			 oirq.size, oirq.specifier[0], oirq.specifier[1],
-			 of_node_full_name(oirq.controller));
-
-		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
-					     oirq.size);
-	}
-	if (!virq) {
-		pr_debug(" Failed to map !\n");
-		return -1;
-	}
-
-	pr_debug(" Mapped to linux irq %d\n", virq);
-
-	pci_dev->irq = virq;
-
-	return 0;
-}
-EXPORT_SYMBOL(pci_read_irq_line);
 
 /*
  * Platform support for /proc/bus/pci/X/Y mmap()s,
@@ -955,12 +851,8 @@ void pcibios_setup_bus_devices(struct pci_bus *bus)
 		 */
 		set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
 
-		/* Hook up default DMA ops */
-		set_dma_ops(&dev->dev, pci_dma_ops);
-		dev->dev.archdata.dma_data = (void *)PCI_DRAM_OFFSET;
-
 		/* Read default IRQs and fixup if necessary */
-		pci_read_irq_line(dev);
+		dev->irq = of_irq_parse_and_map_pci(dev, 0, 0);
 	}
 }
 
@@ -1362,11 +1254,6 @@ void pcibios_finish_adding_to_bus(struct pci_bus *bus)
 	/* eeh_add_device_tree_late(bus); */
 }
 EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
-
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	return pci_enable_resources(dev, mask);
-}
 
 static void pcibios_setup_phb_resources(struct pci_controller *hose,
 					struct list_head *resources)

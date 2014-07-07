@@ -49,7 +49,7 @@ static const struct reg_default lm4857_default_regs[] = {
 static int lm4857_get_mode(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct lm4857 *lm4857 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = lm4857->mode;
@@ -60,7 +60,7 @@ static int lm4857_get_mode(struct snd_kcontrol *kcontrol,
 static int lm4857_set_mode(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct lm4857 *lm4857 = snd_soc_codec_get_drvdata(codec);
 	uint8_t value = ucontrol->value.integer.value[0];
 
@@ -101,8 +101,7 @@ static const char *lm4857_mode[] = {
 	"Headphone",
 };
 
-static const struct soc_enum lm4857_mode_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(lm4857_mode), lm4857_mode);
+static SOC_ENUM_SINGLE_EXT_DECL(lm4857_mode_enum, lm4857_mode);
 
 static const struct snd_soc_dapm_widget lm4857_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN"),

@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.24
-                        December 11th,  2009
+                            Version 0.25
+                        October 16th,  2013
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -740,6 +740,9 @@ Unrestricted access to all LEDs requires that thinkpad-acpi be
 compiled with the CONFIG_THINKPAD_ACPI_UNSAFE_LEDS option enabled.
 Distributions must never enable this option.  Individual users that
 are aware of the consequences are welcome to enabling it.
+
+Audio mute and microphone mute LEDs are supported, but currently not
+visible to userspace. They are used by the snd-hda-intel audio driver.
 
 procfs notes:
 

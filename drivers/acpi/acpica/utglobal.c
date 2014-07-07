@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#define EXPORT_ACPI_INTERFACES
 #define DEFINE_ACPI_GLOBALS
 
-#include <linux/export.h>
 #include <acpi/acpi.h>
 #include "accommon.h"
 
@@ -55,32 +55,7 @@ ACPI_MODULE_NAME("utglobal")
  * Static global variable initialization.
  *
  ******************************************************************************/
-/*
- * We want the debug switches statically initialized so they
- * are already set when the debugger is entered.
- */
-/* Debug switch - level and trace mask */
-u32 acpi_dbg_level = ACPI_DEBUG_DEFAULT;
-
-/* Debug switch - layer (component) mask */
-
-u32 acpi_dbg_layer = 0;
-u32 acpi_gbl_nesting_level = 0;
-
-/* Debugger globals */
-
-u8 acpi_gbl_db_terminate_threads = FALSE;
-u8 acpi_gbl_abort_method = FALSE;
-u8 acpi_gbl_method_executing = FALSE;
-
-/* System flags */
-
-u32 acpi_gbl_startup_flags = 0;
-
-/* System starts uninitialized */
-
-u8 acpi_gbl_shutdown = TRUE;
-
+/* Various state name strings */
 const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT] = {
 	"\\_S0_",
 	"\\_S1_",
@@ -289,9 +264,19 @@ acpi_status acpi_ut_init_globals(void)
 
 	acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS - 1] = 0x80000000;
 
+	/* Event counters */
+
+	acpi_method_count = 0;
+	acpi_sci_count = 0;
+	acpi_gpe_count = 0;
+
+	for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++) {
+		acpi_fixed_event_count[i] = 0;
+	}
+
 #if (!ACPI_REDUCED_HARDWARE)
 
-	/* GPE support */
+	/* GPE/SCI support */
 
 	acpi_gbl_all_gpes_initialized = FALSE;
 	acpi_gbl_gpe_xrupt_list_head = NULL;
@@ -300,6 +285,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_current_gpe_count = 0;
 
 	acpi_gbl_global_event_handler = NULL;
+	acpi_gbl_sci_handler_list = NULL;
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
@@ -324,14 +310,12 @@ acpi_status acpi_ut_init_globals(void)
 
 	acpi_gbl_DSDT = NULL;
 	acpi_gbl_cm_single_step = FALSE;
-	acpi_gbl_db_terminate_threads = FALSE;
 	acpi_gbl_shutdown = FALSE;
 	acpi_gbl_ns_lookup_count = 0;
 	acpi_gbl_ps_find_count = 0;
 	acpi_gbl_acpi_hardware_present = TRUE;
 	acpi_gbl_last_owner_id_index = 0;
 	acpi_gbl_next_owner_id_offset = 0;
-	acpi_gbl_trace_method_name = 0;
 	acpi_gbl_trace_dbg_level = 0;
 	acpi_gbl_trace_dbg_layer = 0;
 	acpi_gbl_debugger_configuration = DEBUGGER_THREADING;
@@ -371,6 +355,8 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_disable_mem_tracking = FALSE;
 #endif
 
+	ACPI_DEBUGGER_EXEC(acpi_gbl_db_terminate_threads = FALSE);
+
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -379,4 +365,5 @@ acpi_status acpi_ut_init_globals(void)
 ACPI_EXPORT_SYMBOL(acpi_gbl_FADT)
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)
 ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
+ACPI_EXPORT_SYMBOL(acpi_gpe_count)
 ACPI_EXPORT_SYMBOL(acpi_current_gpe_count)

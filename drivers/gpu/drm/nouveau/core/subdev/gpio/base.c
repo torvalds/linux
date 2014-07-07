@@ -22,21 +22,24 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/gpio.h>
 #include <subdev/bios.h>
 #include <subdev/bios/gpio.h>
+
+#include "priv.h"
 
 static int
 nouveau_gpio_drive(struct nouveau_gpio *gpio,
 		   int idx, int line, int dir, int out)
 {
-	return gpio->drive ? gpio->drive(gpio, line, dir, out) : -ENODEV;
+	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	return impl->drive ? impl->drive(gpio, line, dir, out) : -ENODEV;
 }
 
 static int
 nouveau_gpio_sense(struct nouveau_gpio *gpio, int idx, int line)
 {
-	return gpio->sense ? gpio->sense(gpio, line) : -ENODEV;
+	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	return impl->sense ? impl->sense(gpio, line) : -ENODEV;
 }
 
 static int
@@ -67,7 +70,7 @@ nouveau_gpio_find(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line,
 		}
 	}
 
-	return -EINVAL;
+	return -ENOENT;
 }
 
 static int
@@ -102,37 +105,51 @@ nouveau_gpio_get(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line)
 	return ret;
 }
 
-void
-_nouveau_gpio_dtor(struct nouveau_object *object)
+static void
+nouveau_gpio_intr_disable(struct nouveau_event *event, int type, int index)
 {
-	struct nouveau_gpio *gpio = (void *)object;
-	nouveau_event_destroy(&gpio->events);
-	nouveau_subdev_destroy(&gpio->base);
+	struct nouveau_gpio *gpio = nouveau_gpio(event->priv);
+	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	impl->intr_mask(gpio, type, 1 << index, 0);
+}
+
+static void
+nouveau_gpio_intr_enable(struct nouveau_event *event, int type, int index)
+{
+	struct nouveau_gpio *gpio = nouveau_gpio(event->priv);
+	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	impl->intr_mask(gpio, type, 1 << index, 1 << index);
+}
+
+static void
+nouveau_gpio_intr(struct nouveau_subdev *subdev)
+{
+	struct nouveau_gpio *gpio = nouveau_gpio(subdev);
+	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	u32 hi, lo, e, i;
+
+	impl->intr_stat(gpio, &hi, &lo);
+
+	for (i = 0; e = 0, (hi | lo) && i < impl->lines; i++) {
+		if (hi & (1 << i))
+			e |= NVKM_GPIO_HI;
+		if (lo & (1 << i))
+			e |= NVKM_GPIO_LO;
+		nouveau_event_trigger(gpio->events, e, i);
+	}
 }
 
 int
-nouveau_gpio_create_(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, int lines,
-		     int length, void **pobject)
+_nouveau_gpio_fini(struct nouveau_object *object, bool suspend)
 {
-	struct nouveau_gpio *gpio;
-	int ret;
+	const struct nouveau_gpio_impl *impl = (void *)object->oclass;
+	struct nouveau_gpio *gpio = nouveau_gpio(object);
+	u32 mask = (1 << impl->lines) - 1;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "GPIO", "gpio",
-				     length, pobject);
-	gpio = *pobject;
-	if (ret)
-		return ret;
+	impl->intr_mask(gpio, NVKM_GPIO_TOGGLED, mask, 0);
+	impl->intr_stat(gpio, &mask, &mask);
 
-	ret = nouveau_event_create(lines, &gpio->events);
-	if (ret)
-		return ret;
-
-	gpio->find = nouveau_gpio_find;
-	gpio->set  = nouveau_gpio_set;
-	gpio->get  = nouveau_gpio_get;
-	return 0;
+	return nouveau_subdev_fini(&gpio->base, suspend);
 }
 
 static struct dmi_system_id gpio_reset_ids[] = {
@@ -147,12 +164,73 @@ static struct dmi_system_id gpio_reset_ids[] = {
 };
 
 int
-nouveau_gpio_init(struct nouveau_gpio *gpio)
+_nouveau_gpio_init(struct nouveau_object *object)
 {
-	int ret = nouveau_subdev_init(&gpio->base);
-	if (ret == 0 && gpio->reset) {
-		if (dmi_check_system(gpio_reset_ids))
-			gpio->reset(gpio, DCB_GPIO_UNUSED);
-	}
+	struct nouveau_gpio *gpio = nouveau_gpio(object);
+	int ret;
+
+	ret = nouveau_subdev_init(&gpio->base);
+	if (ret)
+		return ret;
+
+	if (gpio->reset && dmi_check_system(gpio_reset_ids))
+		gpio->reset(gpio, DCB_GPIO_UNUSED);
+
 	return ret;
+}
+
+void
+_nouveau_gpio_dtor(struct nouveau_object *object)
+{
+	struct nouveau_gpio *gpio = (void *)object;
+	nouveau_event_destroy(&gpio->events);
+	nouveau_subdev_destroy(&gpio->base);
+}
+
+int
+nouveau_gpio_create_(struct nouveau_object *parent,
+		     struct nouveau_object *engine,
+		     struct nouveau_oclass *oclass,
+		     int length, void **pobject)
+{
+	const struct nouveau_gpio_impl *impl = (void *)oclass;
+	struct nouveau_gpio *gpio;
+	int ret;
+
+	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "GPIO", "gpio",
+				     length, pobject);
+	gpio = *pobject;
+	if (ret)
+		return ret;
+
+	gpio->find = nouveau_gpio_find;
+	gpio->set  = nouveau_gpio_set;
+	gpio->get  = nouveau_gpio_get;
+	gpio->reset = impl->reset;
+
+	ret = nouveau_event_create(2, impl->lines, &gpio->events);
+	if (ret)
+		return ret;
+
+	gpio->events->priv = gpio;
+	gpio->events->enable = nouveau_gpio_intr_enable;
+	gpio->events->disable = nouveau_gpio_intr_disable;
+	nv_subdev(gpio)->intr = nouveau_gpio_intr;
+	return 0;
+}
+
+int
+_nouveau_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		   struct nouveau_oclass *oclass, void *data, u32 size,
+		   struct nouveau_object **pobject)
+{
+	struct nouveau_gpio *gpio;
+	int ret;
+
+	ret = nouveau_gpio_create(parent, engine, oclass, &gpio);
+	*pobject = nv_object(gpio);
+	if (ret)
+		return ret;
+
+	return 0;
 }

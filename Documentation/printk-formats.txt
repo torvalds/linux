@@ -55,13 +55,20 @@ Struct Resources:
 	For printing struct resources. The 'R' and 'r' specifiers result in a
 	printed resource with ('R') or without ('r') a decoded flags member.
 
-Physical addresses:
+Physical addresses types phys_addr_t:
 
-	%pa	0x01234567 or 0x0123456789abcdef
+	%pa[p]	0x01234567 or 0x0123456789abcdef
 
 	For printing a phys_addr_t type (and its derivatives, such as
 	resource_size_t) which can vary based on build options, regardless of
 	the width of the CPU data path. Passed by reference.
+
+DMA addresses types dma_addr_t:
+
+	%pad	0x01234567 or 0x0123456789abcdef
+
+	For printing a dma_addr_t type which can vary based on build options,
+	regardless of the width of the CPU data path. Passed by reference.
 
 Raw buffer as a hex string:
 	%*ph	00 01 02  ...  3f
@@ -192,11 +199,11 @@ struct va_format:
 	Do not use this feature without some mechanism to verify the
 	correctness of the format string and va_list arguments.
 
-u64 SHOULD be printed with %llu/%llx, (unsigned long long):
+u64 SHOULD be printed with %llu/%llx:
 
 	printk("%llu", u64_var);
 
-s64 SHOULD be printed with %lld/%llx, (long long):
+s64 SHOULD be printed with %lld/%llx:
 
 	printk("%lld", s64_var);
 

@@ -1,11 +1,19 @@
 config ATH6KL
 	tristate "Atheros mobile chipsets support"
+	depends on CFG80211
+        ---help---
+	  This module adds core support for wireless adapters based on
+	  Atheros AR6003 and AR6004 chipsets. You still need separate
+	  bus drivers for USB and SDIO to be able to use real devices.
+
+	  If you choose to build it as a module, it will be called
+	  ath6kl_core. Please note that AR6002 and AR6001 are not
+	  supported by this driver.
 
 config ATH6KL_SDIO
 	tristate "Atheros ath6kl SDIO support"
 	depends on ATH6KL
 	depends on MMC
-	depends on CFG80211
 	---help---
 	  This module adds support for wireless adapters based on
 	  Atheros AR6003 and AR6004 chipsets running over SDIO. If you
@@ -17,25 +25,31 @@ config ATH6KL_USB
 	tristate "Atheros ath6kl USB support"
 	depends on ATH6KL
 	depends on USB
-	depends on CFG80211
 	---help---
 	  This module adds support for wireless adapters based on
-	  Atheros AR6004 chipset running over USB. This is still under
-	  implementation and it isn't functional. If you choose to
-	  build it as a module, it will be called ath6kl_usb.
+	  Atheros AR6004 chipset and chipsets based on it running over
+	  USB. If you choose to build it as a module, it will be
+	  called ath6kl_usb.
 
 config ATH6KL_DEBUG
 	bool "Atheros ath6kl debugging"
 	depends on ATH6KL
 	---help---
-	  Enables debug support
+	  Enables ath6kl debug support, including debug messages
+	  enabled with debug_mask module parameter and debugfs
+	  interface.
+
+	  If unsure, say Y to make it easier to debug problems.
 
 config ATH6KL_TRACING
 	bool "Atheros ath6kl tracing support"
 	depends on ATH6KL
 	depends on EVENT_TRACING
 	---help---
-	  Select this to ath6kl use tracing infrastructure.
+	  Select this to ath6kl use tracing infrastructure which, for
+	  example, can be enabled with help of trace-cmd. All debug
+	  messages and commands are delivered to using individually
+	  enablable trace points.
 
 	  If unsure, say Y to make it easier to debug problems.
 
@@ -47,3 +61,5 @@ config ATH6KL_REGDOMAIN
 	  Enabling this makes it possible to change the regdomain in
 	  the firmware. This can be only enabled if regulatory requirements
 	  are taken into account.
+
+	  If unsure, say N.

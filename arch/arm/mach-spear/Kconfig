@@ -7,27 +7,18 @@ menuconfig PLAT_SPEAR
 	default PLAT_SPEAR_SINGLE
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
 
 if PLAT_SPEAR
 
 config ARCH_SPEAR13XX
 	bool "ST SPEAr13xx"
 	depends on ARCH_MULTI_V7 || PLAT_SPEAR_SINGLE
-	select ARCH_HAS_CPUFREQ
 	select ARM_GIC
-	select CPU_V7
 	select GPIO_SPEAR_SPICS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
 	select PINCTRL
-	select USE_OF
 	help
 	  Supports for ARM's SPEAR13XX family
 
@@ -52,9 +43,7 @@ config ARCH_SPEAR3XX
 	depends on ARCH_MULTI_V5 || PLAT_SPEAR_SINGLE
 	depends on !ARCH_SPEAR13XX
 	select ARM_VIC
-	select CPU_ARM926T
 	select PINCTRL
-	select USE_OF
 	help
 	  Supports for ARM's SPEAR3XX family
 
@@ -85,16 +74,14 @@ config ARCH_SPEAR6XX
 	depends on ARCH_MULTI_V5 || PLAT_SPEAR_SINGLE
 	depends on !ARCH_SPEAR13XX
 	select ARM_VIC
-	select CPU_ARM926T
 	help
 	  Supports for ARM's SPEAR6XX family
 
 config MACH_SPEAR600
 	def_bool y
 	depends on ARCH_SPEAR6XX
-	select USE_OF
 	help
-	  Supports ST SPEAr600 boards configured via the device-treesource "arch/arm/mach-spear6xx/Kconfig"
+	  Supports ST SPEAr600 boards configured via the device-tree
 
 config ARCH_SPEAR_AUTO
 	def_bool PLAT_SPEAR_SINGLE

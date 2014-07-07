@@ -95,8 +95,9 @@ The treatment of these regions depends on the type of Zorro space:
 -------------
 
 linux/include/linux/zorro.h
-linux/include/asm-{m68k,ppc}/zorro.h
-linux/include/linux/zorro_ids.h
+linux/include/uapi/linux/zorro.h
+linux/include/uapi/linux/zorro_ids.h
+linux/arch/m68k/include/asm/zorro.h
 linux/drivers/zorro
 /proc/bus/zorro
 

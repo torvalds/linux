@@ -62,3 +62,7 @@
 		gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 	};
 };
+
+&gpio1 {
+	 ti,no-reset-on-init;
+};

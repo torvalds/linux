@@ -23,8 +23,9 @@
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/dm9000.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/platform_device.h>
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
@@ -37,11 +38,11 @@
 #include <mach/fb.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <mach/regs-lcd.h>
 #include <mach/irqs.h>
+#include <mach/gpio-samsung.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/mmc-s3cmci.h>
@@ -53,7 +54,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <plat/gpio-cfg.h>
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/samsung-time.h>
@@ -524,9 +524,14 @@ static struct platform_device *mini2440_devices[] __initdata = {
 static void __init mini2440_map_io(void)
 {
 	s3c24xx_init_io(mini2440_iodesc, ARRAY_SIZE(mini2440_iodesc));
-	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(mini2440_uartcfgs, ARRAY_SIZE(mini2440_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init mini2440_init_time(void)
+{
+	s3c2440_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 /*
@@ -689,6 +694,6 @@ MACHINE_START(MINI2440, "MINI2440")
 	.map_io		= mini2440_map_io,
 	.init_machine	= mini2440_init,
 	.init_irq	= s3c2440_init_irq,
-	.init_time	= samsung_timer_init,
+	.init_time	= mini2440_init_time,
 	.restart	= s3c244x_restart,
 MACHINE_END

@@ -64,31 +64,23 @@ static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 			if (spx_int_reg.s.spf)
 				pr_err("SPI1: SRX Spi4 interface down\n");
 			if (spx_int_reg.s.calerr)
-				pr_err("SPI1: SRX Spi4 Calendar table "
-				       "parity error\n");
+				pr_err("SPI1: SRX Spi4 Calendar table parity error\n");
 			if (spx_int_reg.s.syncerr)
-				pr_err("SPI1: SRX Consecutive Spi4 DIP4 "
-				       "errors have exceeded "
-				       "SPX_ERR_CTL[ERRCNT]\n");
+				pr_err("SPI1: SRX Consecutive Spi4 DIP4 errors have exceeded SPX_ERR_CTL[ERRCNT]\n");
 			if (spx_int_reg.s.diperr)
 				pr_err("SPI1: SRX Spi4 DIP4 error\n");
 			if (spx_int_reg.s.tpaovr)
-				pr_err("SPI1: SRX Selected port has hit "
-				       "TPA overflow\n");
+				pr_err("SPI1: SRX Selected port has hit TPA overflow\n");
 			if (spx_int_reg.s.rsverr)
-				pr_err("SPI1: SRX Spi4 reserved control "
-				       "word detected\n");
+				pr_err("SPI1: SRX Spi4 reserved control word detected\n");
 			if (spx_int_reg.s.drwnng)
-				pr_err("SPI1: SRX Spi4 receive FIFO "
-				       "drowning/overflow\n");
+				pr_err("SPI1: SRX Spi4 receive FIFO drowning/overflow\n");
 			if (spx_int_reg.s.clserr)
-				pr_err("SPI1: SRX Spi4 packet closed on "
-				       "non-16B alignment without EOP\n");
+				pr_err("SPI1: SRX Spi4 packet closed on non-16B alignment without EOP\n");
 			if (spx_int_reg.s.spiovr)
 				pr_err("SPI1: SRX Spi4 async FIFO overflow\n");
 			if (spx_int_reg.s.abnorm)
-				pr_err("SPI1: SRX Abnormal packet "
-				       "termination (ERR bit)\n");
+				pr_err("SPI1: SRX Abnormal packet termination (ERR bit)\n");
 			if (spx_int_reg.s.prtnxa)
 				pr_err("SPI1: SRX Port out of range\n");
 		}
@@ -99,31 +91,23 @@ static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 
 			stx_int_reg.u64 &= cvmx_read_csr(CVMX_STXX_INT_MSK(1));
 			if (stx_int_reg.s.syncerr)
-				pr_err("SPI1: STX Interface encountered a "
-				       "fatal error\n");
+				pr_err("SPI1: STX Interface encountered a fatal error\n");
 			if (stx_int_reg.s.frmerr)
-				pr_err("SPI1: STX FRMCNT has exceeded "
-				       "STX_DIP_CNT[MAXFRM]\n");
+				pr_err("SPI1: STX FRMCNT has exceeded STX_DIP_CNT[MAXFRM]\n");
 			if (stx_int_reg.s.unxfrm)
-				pr_err("SPI1: STX Unexpected framing "
-				       "sequence\n");
+				pr_err("SPI1: STX Unexpected framing sequence\n");
 			if (stx_int_reg.s.nosync)
-				pr_err("SPI1: STX ERRCNT has exceeded "
-				       "STX_DIP_CNT[MAXDIP]\n");
+				pr_err("SPI1: STX ERRCNT has exceeded STX_DIP_CNT[MAXDIP]\n");
 			if (stx_int_reg.s.diperr)
-				pr_err("SPI1: STX DIP2 error on the Spi4 "
-				       "Status channel\n");
+				pr_err("SPI1: STX DIP2 error on the Spi4 Status channel\n");
 			if (stx_int_reg.s.datovr)
 				pr_err("SPI1: STX Spi4 FIFO overflow error\n");
 			if (stx_int_reg.s.ovrbst)
-				pr_err("SPI1: STX Transmit packet burst "
-				       "too big\n");
+				pr_err("SPI1: STX Transmit packet burst too big\n");
 			if (stx_int_reg.s.calpar1)
-				pr_err("SPI1: STX Calendar Table Parity "
-				       "Error Bank1\n");
+				pr_err("SPI1: STX Calendar Table Parity Error Bank1\n");
 			if (stx_int_reg.s.calpar0)
-				pr_err("SPI1: STX Calendar Table Parity "
-				       "Error Bank0\n");
+				pr_err("SPI1: STX Calendar Table Parity Error Bank0\n");
 		}
 
 		cvmx_write_csr(CVMX_SPXX_INT_MSK(1), 0);
@@ -144,31 +128,23 @@ static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 			if (spx_int_reg.s.spf)
 				pr_err("SPI0: SRX Spi4 interface down\n");
 			if (spx_int_reg.s.calerr)
-				pr_err("SPI0: SRX Spi4 Calendar table "
-				       "parity error\n");
+				pr_err("SPI0: SRX Spi4 Calendar table parity error\n");
 			if (spx_int_reg.s.syncerr)
-				pr_err("SPI0: SRX Consecutive Spi4 DIP4 "
-				       "errors have exceeded "
-				       "SPX_ERR_CTL[ERRCNT]\n");
+				pr_err("SPI0: SRX Consecutive Spi4 DIP4 errors have exceeded SPX_ERR_CTL[ERRCNT]\n");
 			if (spx_int_reg.s.diperr)
 				pr_err("SPI0: SRX Spi4 DIP4 error\n");
 			if (spx_int_reg.s.tpaovr)
-				pr_err("SPI0: SRX Selected port has hit "
-				       "TPA overflow\n");
+				pr_err("SPI0: SRX Selected port has hit TPA overflow\n");
 			if (spx_int_reg.s.rsverr)
-				pr_err("SPI0: SRX Spi4 reserved control "
-				       "word detected\n");
+				pr_err("SPI0: SRX Spi4 reserved control word detected\n");
 			if (spx_int_reg.s.drwnng)
-				pr_err("SPI0: SRX Spi4 receive FIFO "
-				       "drowning/overflow\n");
+				pr_err("SPI0: SRX Spi4 receive FIFO drowning/overflow\n");
 			if (spx_int_reg.s.clserr)
-				pr_err("SPI0: SRX Spi4 packet closed on "
-				       "non-16B alignment without EOP\n");
+				pr_err("SPI0: SRX Spi4 packet closed on non-16B alignment without EOP\n");
 			if (spx_int_reg.s.spiovr)
 				pr_err("SPI0: SRX Spi4 async FIFO overflow\n");
 			if (spx_int_reg.s.abnorm)
-				pr_err("SPI0: SRX Abnormal packet "
-				       "termination (ERR bit)\n");
+				pr_err("SPI0: SRX Abnormal packet termination (ERR bit)\n");
 			if (spx_int_reg.s.prtnxa)
 				pr_err("SPI0: SRX Port out of range\n");
 		}
@@ -179,31 +155,23 @@ static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 
 			stx_int_reg.u64 &= cvmx_read_csr(CVMX_STXX_INT_MSK(0));
 			if (stx_int_reg.s.syncerr)
-				pr_err("SPI0: STX Interface encountered a "
-				       "fatal error\n");
+				pr_err("SPI0: STX Interface encountered a fatal error\n");
 			if (stx_int_reg.s.frmerr)
-				pr_err("SPI0: STX FRMCNT has exceeded "
-				       "STX_DIP_CNT[MAXFRM]\n");
+				pr_err("SPI0: STX FRMCNT has exceeded STX_DIP_CNT[MAXFRM]\n");
 			if (stx_int_reg.s.unxfrm)
-				pr_err("SPI0: STX Unexpected framing "
-				       "sequence\n");
+				pr_err("SPI0: STX Unexpected framing sequence\n");
 			if (stx_int_reg.s.nosync)
-				pr_err("SPI0: STX ERRCNT has exceeded "
-				       "STX_DIP_CNT[MAXDIP]\n");
+				pr_err("SPI0: STX ERRCNT has exceeded STX_DIP_CNT[MAXDIP]\n");
 			if (stx_int_reg.s.diperr)
-				pr_err("SPI0: STX DIP2 error on the Spi4 "
-				       "Status channel\n");
+				pr_err("SPI0: STX DIP2 error on the Spi4 Status channel\n");
 			if (stx_int_reg.s.datovr)
 				pr_err("SPI0: STX Spi4 FIFO overflow error\n");
 			if (stx_int_reg.s.ovrbst)
-				pr_err("SPI0: STX Transmit packet burst "
-				       "too big\n");
+				pr_err("SPI0: STX Transmit packet burst too big\n");
 			if (stx_int_reg.s.calpar1)
-				pr_err("SPI0: STX Calendar Table Parity "
-				       "Error Bank1\n");
+				pr_err("SPI0: STX Calendar Table Parity Error Bank1\n");
 			if (stx_int_reg.s.calpar0)
-				pr_err("SPI0: STX Calendar Table Parity "
-				       "Error Bank0\n");
+				pr_err("SPI0: STX Calendar Table Parity Error Bank0\n");
 		}
 
 		cvmx_write_csr(CVMX_SPXX_INT_MSK(0), 0);

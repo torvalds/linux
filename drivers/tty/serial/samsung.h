@@ -1,3 +1,6 @@
+#ifndef __SAMSUNG_H
+#define __SAMSUNG_H
+
 /*
  * Driver for Samsung SoC onboard UARTs.
  *
@@ -63,7 +66,7 @@ struct s3c24xx_uart_port {
 
 /* conversion functions */
 
-#define s3c24xx_dev_to_port(__dev) (struct uart_port *)dev_get_drvdata(__dev)
+#define s3c24xx_dev_to_port(__dev) dev_get_drvdata(__dev)
 
 /* register access controls */
 
@@ -77,24 +80,4 @@ struct s3c24xx_uart_port {
 #define wr_regb(port, reg, val) __raw_writeb(val, portaddr(port, reg))
 #define wr_regl(port, reg, val) __raw_writel(val, portaddr(port, reg))
 
-#if defined(CONFIG_SERIAL_SAMSUNG_DEBUG) && \
-    defined(CONFIG_DEBUG_LL) && \
-    !defined(MODULE)
-
-extern void printascii(const char *);
-
-static void dbg(const char *fmt, ...)
-{
-	va_list va;
-	char buff[256];
-
-	va_start(va, fmt);
-	vsprintf(buff, fmt, va);
-	va_end(va);
-
-	printascii(buff);
-}
-
-#else
-#define dbg(x...) do { } while (0)
 #endif

@@ -26,7 +26,12 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 
-#define KVM_MAX_VCPUS 4
+#if defined(CONFIG_KVM_ARM_MAX_VCPUS)
+#define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
+#else
+#define KVM_MAX_VCPUS 0
+#endif
+
 #define KVM_USER_MEM_SLOTS 32
 #define KVM_PRIVATE_MEM_SLOTS 4
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
@@ -34,12 +39,7 @@
 #include <kvm/arm_vgic.h>
 #include <kvm/arm_arch_timer.h>
 
-#define KVM_VCPU_MAX_FEATURES 2
-
-/* We don't currently support large pages. */
-#define KVM_HPAGE_GFN_SHIFT(x)	0
-#define KVM_NR_PAGE_SIZES	1
-#define KVM_PAGES_PER_HPAGE(x)	(1UL<<31)
+#define KVM_VCPU_MAX_FEATURES 3
 
 struct kvm_vcpu;
 int kvm_target_cpu(void);
@@ -151,6 +151,7 @@ struct kvm_vcpu_stat {
 struct kvm_vcpu_init;
 int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 			const struct kvm_vcpu_init *init);
+int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init);
 unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);
 int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices);
 struct kvm_one_reg;

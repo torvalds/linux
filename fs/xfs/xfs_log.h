@@ -18,19 +18,70 @@
 #ifndef	__XFS_LOG_H__
 #define __XFS_LOG_H__
 
-#include "xfs_log_format.h"
-
 struct xfs_log_vec {
 	struct xfs_log_vec	*lv_next;	/* next lv in build list */
 	int			lv_niovecs;	/* number of iovecs in lv */
 	struct xfs_log_iovec	*lv_iovecp;	/* iovec array */
 	struct xfs_log_item	*lv_item;	/* owner */
 	char			*lv_buf;	/* formatted buffer */
-	int			lv_buf_len;	/* size of formatted buffer */
+	int			lv_bytes;	/* accounted space in buffer */
+	int			lv_buf_len;	/* aligned size of buffer */
 	int			lv_size;	/* size of allocated lv */
 };
 
 #define XFS_LOG_VEC_ORDERED	(-1)
+
+static inline void *
+xlog_prepare_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
+		uint type)
+{
+	struct xfs_log_iovec *vec = *vecp;
+
+	if (vec) {
+		ASSERT(vec - lv->lv_iovecp < lv->lv_niovecs);
+		vec++;
+	} else {
+		vec = &lv->lv_iovecp[0];
+	}
+
+	vec->i_type = type;
+	vec->i_addr = lv->lv_buf + lv->lv_buf_len;
+
+	ASSERT(IS_ALIGNED((unsigned long)vec->i_addr, sizeof(uint64_t)));
+
+	*vecp = vec;
+	return vec->i_addr;
+}
+
+/*
+ * We need to make sure the next buffer is naturally aligned for the biggest
+ * basic data type we put into it.  We already accounted for this padding when
+ * sizing the buffer.
+ *
+ * However, this padding does not get written into the log, and hence we have to
+ * track the space used by the log vectors separately to prevent log space hangs
+ * due to inaccurate accounting (i.e. a leak) of the used log space through the
+ * CIL context ticket.
+ */
+static inline void
+xlog_finish_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec *vec, int len)
+{
+	lv->lv_buf_len += round_up(len, sizeof(uint64_t));
+	lv->lv_bytes += len;
+	vec->i_len = len;
+}
+
+static inline void *
+xlog_copy_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
+		uint type, void *data, int len)
+{
+	void *buf;
+
+	buf = xlog_prepare_iovec(lv, vecp, type);
+	memcpy(buf, data, len);
+	xlog_finish_iovec(lv, *vecp, len);
+	return buf;
+}
 
 /*
  * Structure used to pass callback function and the function's argument
@@ -82,11 +133,7 @@ struct xlog_ticket;
 struct xfs_log_item;
 struct xfs_item_ops;
 struct xfs_trans;
-
-void	xfs_log_item_init(struct xfs_mount	*mp,
-			struct xfs_log_item	*item,
-			int			type,
-			const struct xfs_item_ops *ops);
+struct xfs_log_callback;
 
 xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
 		       struct xlog_ticket *ticket,
@@ -114,7 +161,7 @@ xfs_lsn_t xlog_assign_tail_lsn_locked(struct xfs_mount *mp);
 void	  xfs_log_space_wake(struct xfs_mount *mp);
 int	  xfs_log_notify(struct xfs_mount	*mp,
 			 struct xlog_in_core	*iclog,
-			 xfs_log_callback_t	*callback_entry);
+			 struct xfs_log_callback *callback_entry);
 int	  xfs_log_release_iclog(struct xfs_mount *mp,
 			 struct xlog_in_core	 *iclog);
 int	  xfs_log_reserve(struct xfs_mount *mp,
@@ -135,7 +182,7 @@ void	  xlog_iodone(struct xfs_buf *);
 struct xlog_ticket *xfs_log_ticket_get(struct xlog_ticket *ticket);
 void	  xfs_log_ticket_put(struct xlog_ticket *ticket);
 
-int	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
+void	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 				xfs_lsn_t *commit_lsn, int flags);
 bool	xfs_log_item_in_current_chkpt(struct xfs_log_item *lip);
 

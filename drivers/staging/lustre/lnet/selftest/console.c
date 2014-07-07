@@ -61,7 +61,7 @@ do {						    \
 
 lstcon_session_t	console_session;
 
-void
+static void
 lstcon_node_get(lstcon_node_t *nd)
 {
 	LASSERT (nd->nd_ref >= 1);
@@ -114,7 +114,7 @@ lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
 	return 0;
 }
 
-void
+static void
 lstcon_node_put(lstcon_node_t *nd)
 {
 	lstcon_ndlink_t  *ndl;
@@ -265,7 +265,7 @@ lstcon_group_decref(lstcon_group_t *grp)
 }
 
 static int
-lstcon_group_find(char *name, lstcon_group_t **grpp)
+lstcon_group_find(const char *name, lstcon_group_t **grpp)
 {
 	lstcon_group_t   *grp;
 
@@ -344,7 +344,7 @@ lstcon_group_move(lstcon_group_t *old, lstcon_group_t *new)
 	}
 }
 
-int
+static int
 lstcon_sesrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 {
 	lstcon_group_t *grp = (lstcon_group_t *)arg;
@@ -373,7 +373,7 @@ lstcon_sesrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 	return 1;
 }
 
-int
+static int
 lstcon_sesrpc_readent(int transop, srpc_msg_t *msg,
 		      lstcon_rpc_ent_t *ent_up)
 {
@@ -614,7 +614,7 @@ lstcon_group_del(char *name)
 
 	lstcon_group_put(grp);
 	/* -ref for session, it's destroyed,
-	 * status can't be rolled back, destroy group anway */
+	 * status can't be rolled back, destroy group anyway */
 	lstcon_group_put(grp);
 
 	return rc;
@@ -797,7 +797,7 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t *gents_p,
 		return rc;
 	}
 
-	if (dents_up != 0) {
+	if (dents_up) {
 		/* verbose query */
 		rc = lstcon_nodes_getent(&grp->grp_ndl_list,
 					 index_p, count_p, dents_up);
@@ -830,8 +830,8 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t *gents_p,
 	return 0;
 }
 
-int
-lstcon_batch_find(char *name, lstcon_batch_t **batpp)
+static int
+lstcon_batch_find(const char *name, lstcon_batch_t **batpp)
 {
 	lstcon_batch_t   *bat;
 
@@ -998,7 +998,7 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t *ent_up, int server,
 	return rc;
 }
 
-int
+static int
 lstcon_batrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 {
 	switch (transop) {
@@ -1141,7 +1141,7 @@ lstcon_batch_destroy(lstcon_batch_t *bat)
 	LIBCFS_FREE(bat, sizeof(lstcon_batch_t));
 }
 
-int
+static int
 lstcon_testrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 {
 	lstcon_test_t    *test;
@@ -1237,40 +1237,76 @@ again:
 	goto again;
 }
 
-int
-lstcon_test_add(char *name, int type, int loop, int concur,
-		int dist, int span, char *src_name, char * dst_name,
-		void *param, int paramlen, int *retp,
-		struct list_head *result_up)
+static int
+lstcon_verify_batch(const char *name, lstcon_batch_t **batch)
 {
-	lstcon_group_t  *src_grp = NULL;
-	lstcon_group_t  *dst_grp = NULL;
-	lstcon_test_t   *test    = NULL;
-	lstcon_batch_t  *batch;
-	int	      rc;
+	int rc;
 
-	rc = lstcon_batch_find(name, &batch);
+	rc = lstcon_batch_find(name, batch);
 	if (rc != 0) {
 		CDEBUG(D_NET, "Can't find batch %s\n", name);
 		return rc;
 	}
 
-	if (batch->bat_state != LST_BATCH_IDLE) {
+	if ((*batch)->bat_state != LST_BATCH_IDLE) {
 		CDEBUG(D_NET, "Can't change running batch %s\n", name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+lstcon_verify_group(const char *name, lstcon_group_t **grp)
+{
+	int			rc;
+	lstcon_ndlink_t		*ndl;
+
+	rc = lstcon_group_find(name, grp);
+	if (rc != 0) {
+		CDEBUG(D_NET, "can't find group %s\n", name);
 		return rc;
 	}
 
-	rc = lstcon_group_find(src_name, &src_grp);
-	if (rc != 0) {
-		CDEBUG(D_NET, "Can't find group %s\n", src_name);
-		goto out;
+	list_for_each_entry(ndl, &(*grp)->grp_ndl_list, ndl_link) {
+		if (ndl->ndl_node->nd_state == LST_NODE_ACTIVE)
+			return 0;
 	}
 
-	rc = lstcon_group_find(dst_name, &dst_grp);
-	if (rc != 0) {
-		CDEBUG(D_NET, "Can't find group %s\n", dst_name);
+	CDEBUG(D_NET, "Group %s has no ACTIVE nodes\n", name);
+
+	return -EINVAL;
+}
+
+int
+lstcon_test_add(char *batch_name, int type, int loop,
+		int concur, int dist, int span,
+		char *src_name, char *dst_name,
+		void *param, int paramlen, int *retp,
+		struct list_head *result_up)
+{
+	lstcon_test_t	 *test	 = NULL;
+	int		 rc;
+	lstcon_group_t	 *src_grp = NULL;
+	lstcon_group_t	 *dst_grp = NULL;
+	lstcon_batch_t	 *batch = NULL;
+
+	/*
+	 * verify that a batch of the given name exists, and the groups
+	 * that will be part of the batch exist and have at least one
+	 * active node
+	 */
+	rc = lstcon_verify_batch(batch_name, &batch);
+	if (rc != 0)
 		goto out;
-	}
+
+	rc = lstcon_verify_group(src_name, &src_grp);
+	if (rc != 0)
+		goto out;
+
+	rc = lstcon_verify_group(dst_name, &dst_grp);
+	if (rc != 0)
+		goto out;
 
 	if (dst_grp->grp_userland)
 		*retp = 1;
@@ -1284,18 +1320,18 @@ lstcon_test_add(char *name, int type, int loop, int concur,
 	}
 
 	memset(test, 0, offsetof(lstcon_test_t, tes_param[paramlen]));
-	test->tes_hdr.tsb_id    = batch->bat_hdr.tsb_id;
-	test->tes_batch	 = batch;
-	test->tes_type	  = type;
-	test->tes_oneside       = 0; /* TODO */
-	test->tes_loop	  = loop;
+	test->tes_hdr.tsb_id	= batch->bat_hdr.tsb_id;
+	test->tes_batch		= batch;
+	test->tes_type		= type;
+	test->tes_oneside	= 0; /* TODO */
+	test->tes_loop		= loop;
 	test->tes_concur	= concur;
-	test->tes_stop_onerr    = 1; /* TODO */
-	test->tes_span	  = span;
-	test->tes_dist	  = dist;
+	test->tes_stop_onerr	= 1; /* TODO */
+	test->tes_span		= span;
+	test->tes_dist		= dist;
 	test->tes_cliidx	= 0; /* just used for creating RPC */
-	test->tes_src_grp       = src_grp;
-	test->tes_dst_grp       = dst_grp;
+	test->tes_src_grp	= src_grp;
+	test->tes_dst_grp	= dst_grp;
 	INIT_LIST_HEAD(&test->tes_trans_list);
 
 	if (param != NULL) {
@@ -1310,7 +1346,8 @@ lstcon_test_add(char *name, int type, int loop, int concur,
 
 	if (lstcon_trans_stat()->trs_rpc_errno != 0 ||
 	    lstcon_trans_stat()->trs_fwk_errno != 0)
-		CDEBUG(D_NET, "Failed to add test %d to batch %s\n", type, name);
+		CDEBUG(D_NET, "Failed to add test %d to batch %s\n", type,
+		       batch_name);
 
 	/* add to test list anyway, so user can check what's going on */
 	list_add_tail(&test->tes_link, &batch->bat_test_list);
@@ -1333,7 +1370,7 @@ out:
 	return rc;
 }
 
-int
+static int
 lstcon_test_find(lstcon_batch_t *batch, int idx, lstcon_test_t **testpp)
 {
 	lstcon_test_t *test;
@@ -1348,7 +1385,7 @@ lstcon_test_find(lstcon_batch_t *batch, int idx, lstcon_test_t **testpp)
 	return -ENOENT;
 }
 
-int
+static int
 lstcon_tsbrpc_readent(int transop, srpc_msg_t *msg,
 		      lstcon_rpc_ent_t *ent_up)
 {
@@ -1427,7 +1464,7 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 	return rc;
 }
 
-int
+static int
 lstcon_statrpc_readent(int transop, srpc_msg_t *msg,
 		       lstcon_rpc_ent_t *ent_up)
 {
@@ -1451,7 +1488,7 @@ lstcon_statrpc_readent(int transop, srpc_msg_t *msg,
 	return 0;
 }
 
-int
+static int
 lstcon_ndlist_stat(struct list_head *ndlist,
 		   int timeout, struct list_head *result_up)
 {
@@ -1540,7 +1577,7 @@ lstcon_nodes_stat(int count, lnet_process_id_t *ids_up,
 	return rc;
 }
 
-int
+static int
 lstcon_debug_ndlist(struct list_head *ndlist,
 		    struct list_head *translist,
 		    int timeout, struct list_head *result_up)

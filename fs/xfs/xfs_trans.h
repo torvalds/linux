@@ -18,10 +18,6 @@
 #ifndef	__XFS_TRANS_H__
 #define	__XFS_TRANS_H__
 
-struct xfs_log_item;
-
-#include "xfs_trans_resv.h"
-
 /* kernel only transaction subsystem defines */
 
 struct xfs_buf;
@@ -68,7 +64,7 @@ typedef struct xfs_log_item {
 
 struct xfs_item_ops {
 	void (*iop_size)(xfs_log_item_t *, int *, int *);
-	void (*iop_format)(xfs_log_item_t *, struct xfs_log_iovec *);
+	void (*iop_format)(xfs_log_item_t *, struct xfs_log_vec *);
 	void (*iop_pin)(xfs_log_item_t *);
 	void (*iop_unpin)(xfs_log_item_t *, int remove);
 	uint (*iop_push)(struct xfs_log_item *, struct list_head *);
@@ -76,6 +72,9 @@ struct xfs_item_ops {
 	xfs_lsn_t (*iop_committed)(xfs_log_item_t *, xfs_lsn_t);
 	void (*iop_committing)(xfs_log_item_t *, xfs_lsn_t);
 };
+
+void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
+			  int type, const struct xfs_item_ops *ops);
 
 /*
  * Return values for the iop_push() routines.
@@ -85,18 +84,12 @@ struct xfs_item_ops {
 #define XFS_ITEM_LOCKED		2
 #define XFS_ITEM_FLUSHING	3
 
-/*
- * This is the type of function which can be given to xfs_trans_callback()
- * to be called upon the transaction's commit to disk.
- */
-typedef void (*xfs_trans_callback_t)(struct xfs_trans *, void *);
 
 /*
  * This is the structure maintained for every active transaction.
  */
 typedef struct xfs_trans {
 	unsigned int		t_magic;	/* magic number */
-	xfs_log_callback_t	t_logcb;	/* log callback struct */
 	unsigned int		t_type;		/* transaction type */
 	unsigned int		t_log_res;	/* amt of log space resvd */
 	unsigned int		t_log_count;	/* count for perm log res */
@@ -132,7 +125,6 @@ typedef struct xfs_trans {
 	int64_t			t_rextents_delta;/* superblocks rextents chg */
 	int64_t			t_rextslog_delta;/* superblocks rextslog chg */
 	struct list_head	t_items;	/* log item descriptors */
-	xfs_trans_header_t	t_header;	/* header for in-log trans */
 	struct list_head	t_busy;		/* list of busy extents */
 	unsigned long		t_pflags;	/* saved process flags state */
 } xfs_trans_t;
@@ -237,9 +229,15 @@ void		xfs_trans_log_efd_extent(xfs_trans_t *,
 					 xfs_fsblock_t,
 					 xfs_extlen_t);
 int		xfs_trans_commit(xfs_trans_t *, uint flags);
+int		xfs_trans_roll(struct xfs_trans **, struct xfs_inode *);
 void		xfs_trans_cancel(xfs_trans_t *, int);
 int		xfs_trans_ail_init(struct xfs_mount *);
 void		xfs_trans_ail_destroy(struct xfs_mount *);
+
+void		xfs_trans_buf_set_type(struct xfs_trans *, struct xfs_buf *,
+				       enum xfs_blft);
+void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
+					struct xfs_buf *src_bp);
 
 extern kmem_zone_t	*xfs_trans_zone;
 extern kmem_zone_t	*xfs_log_item_desc_zone;

@@ -14,7 +14,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
-#include <linux/reciprocal_div.h>
 #include <linux/vmalloc.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
@@ -76,12 +75,6 @@ struct choke_sched_data {
 
 	struct sk_buff **tab;
 };
-
-/* deliver a random number between 0 and N - 1 */
-static u32 random_N(unsigned int N)
-{
-	return reciprocal_divide(prandom_u32(), N);
-}
 
 /* number of elements in queue including holes */
 static unsigned int choke_len(const struct choke_sched_data *q)
@@ -233,7 +226,7 @@ static struct sk_buff *choke_peek_random(const struct choke_sched_data *q,
 	int retrys = 3;
 
 	do {
-		*pidx = (q->head + random_N(choke_len(q))) & q->tab_mask;
+		*pidx = (q->head + prandom_u32_max(choke_len(q))) & q->tab_mask;
 		skb = q->tab[*pidx];
 		if (skb)
 			return skb;
@@ -398,12 +391,7 @@ static const struct nla_policy choke_policy[TCA_CHOKE_MAX + 1] = {
 
 static void choke_free(void *addr)
 {
-	if (addr) {
-		if (is_vmalloc_addr(addr))
-			vfree(addr);
-		else
-			kfree(addr);
-	}
+	kvfree(addr);
 }
 
 static int choke_change(struct Qdisc *sch, struct nlattr *opt)

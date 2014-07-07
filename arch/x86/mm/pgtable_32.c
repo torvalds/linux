@@ -127,7 +127,7 @@ static int __init parse_reservetop(char *arg)
 
 	address = memparse(arg, &arg);
 	reserve_top_address(address);
-	fixup_early_ioremap();
+	early_ioremap_init();
 	return 0;
 }
 early_param("reservetop", parse_reservetop);

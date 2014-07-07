@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/devfreq.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
@@ -91,26 +91,35 @@ static int devfreq_get_freq_level(struct devfreq *devfreq, unsigned long freq)
  */
 static int devfreq_update_status(struct devfreq *devfreq, unsigned long freq)
 {
-	int lev, prev_lev;
+	int lev, prev_lev, ret = 0;
 	unsigned long cur_time;
 
-	lev = devfreq_get_freq_level(devfreq, freq);
-	if (lev < 0)
-		return lev;
-
 	cur_time = jiffies;
-	devfreq->time_in_state[lev] +=
+
+	prev_lev = devfreq_get_freq_level(devfreq, devfreq->previous_freq);
+	if (prev_lev < 0) {
+		ret = prev_lev;
+		goto out;
+	}
+
+	devfreq->time_in_state[prev_lev] +=
 			 cur_time - devfreq->last_stat_updated;
-	if (freq != devfreq->previous_freq) {
-		prev_lev = devfreq_get_freq_level(devfreq,
-						devfreq->previous_freq);
+
+	lev = devfreq_get_freq_level(devfreq, freq);
+	if (lev < 0) {
+		ret = lev;
+		goto out;
+	}
+
+	if (lev != prev_lev) {
 		devfreq->trans_table[(prev_lev *
 				devfreq->profile->max_state) + lev]++;
 		devfreq->total_trans++;
 	}
-	devfreq->last_stat_updated = cur_time;
 
-	return 0;
+out:
+	devfreq->last_stat_updated = cur_time;
+	return ret;
 }
 
 /**
@@ -385,7 +394,7 @@ static int devfreq_notifier_call(struct notifier_block *nb, unsigned long type,
  * @devfreq:	the devfreq struct
  * @skip:	skip calling device_unregister().
  */
-static void _remove_devfreq(struct devfreq *devfreq, bool skip)
+static void _remove_devfreq(struct devfreq *devfreq)
 {
 	mutex_lock(&devfreq_list_lock);
 	if (IS_ERR(find_device_devfreq(devfreq->dev.parent))) {
@@ -403,11 +412,6 @@ static void _remove_devfreq(struct devfreq *devfreq, bool skip)
 	if (devfreq->profile->exit)
 		devfreq->profile->exit(devfreq->dev.parent);
 
-	if (!skip && get_device(&devfreq->dev)) {
-		device_unregister(&devfreq->dev);
-		put_device(&devfreq->dev);
-	}
-
 	mutex_destroy(&devfreq->lock);
 	kfree(devfreq);
 }
@@ -417,14 +421,12 @@ static void _remove_devfreq(struct devfreq *devfreq, bool skip)
  * @dev:	the devfreq device
  *
  * This calls _remove_devfreq() if _remove_devfreq() is not called.
- * Note that devfreq_dev_release() could be called by _remove_devfreq() as
- * well as by others unregistering the device.
  */
 static void devfreq_dev_release(struct device *dev)
 {
 	struct devfreq *devfreq = to_devfreq(dev);
 
-	_remove_devfreq(devfreq, true);
+	_remove_devfreq(devfreq);
 }
 
 /**
@@ -535,11 +537,75 @@ int devfreq_remove_device(struct devfreq *devfreq)
 	if (!devfreq)
 		return -EINVAL;
 
-	_remove_devfreq(devfreq, false);
+	device_unregister(&devfreq->dev);
+	put_device(&devfreq->dev);
 
 	return 0;
 }
 EXPORT_SYMBOL(devfreq_remove_device);
+
+static int devm_devfreq_dev_match(struct device *dev, void *res, void *data)
+{
+	struct devfreq **r = res;
+
+	if (WARN_ON(!r || !*r))
+		return 0;
+
+	return *r == data;
+}
+
+static void devm_devfreq_dev_release(struct device *dev, void *res)
+{
+	devfreq_remove_device(*(struct devfreq **)res);
+}
+
+/**
+ * devm_devfreq_add_device() - Resource-managed devfreq_add_device()
+ * @dev:	the device to add devfreq feature.
+ * @profile:	device-specific profile to run devfreq.
+ * @governor_name:	name of the policy to choose frequency.
+ * @data:	private data for the governor. The devfreq framework does not
+ *		touch this value.
+ *
+ * This function manages automatically the memory of devfreq device using device
+ * resource management and simplify the free operation for memory of devfreq
+ * device.
+ */
+struct devfreq *devm_devfreq_add_device(struct device *dev,
+					struct devfreq_dev_profile *profile,
+					const char *governor_name,
+					void *data)
+{
+	struct devfreq **ptr, *devfreq;
+
+	ptr = devres_alloc(devm_devfreq_dev_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	devfreq = devfreq_add_device(dev, profile, governor_name, data);
+	if (IS_ERR(devfreq)) {
+		devres_free(ptr);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	*ptr = devfreq;
+	devres_add(dev, ptr);
+
+	return devfreq;
+}
+EXPORT_SYMBOL(devm_devfreq_add_device);
+
+/**
+ * devm_devfreq_remove_device() - Resource-managed devfreq_remove_device()
+ * @dev:	the device to add devfreq feature.
+ * @devfreq:	the devfreq instance to be removed
+ */
+void devm_devfreq_remove_device(struct device *dev, struct devfreq *devfreq)
+{
+	WARN_ON(devres_release(dev, devm_devfreq_dev_release,
+			       devm_devfreq_dev_match, devfreq));
+}
+EXPORT_SYMBOL(devm_devfreq_remove_device);
 
 /**
  * devfreq_suspend_device() - Suspend devfreq of a device.
@@ -902,13 +968,13 @@ static ssize_t available_frequencies_show(struct device *d,
 {
 	struct devfreq *df = to_devfreq(d);
 	struct device *dev = df->dev.parent;
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	ssize_t count = 0;
 	unsigned long freq = 0;
 
 	rcu_read_lock();
 	do {
-		opp = opp_find_freq_ceil(dev, &freq);
+		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
 		if (IS_ERR(opp))
 			break;
 
@@ -993,10 +1059,10 @@ static int __init devfreq_init(void)
 	}
 
 	devfreq_wq = create_freezable_workqueue("devfreq_wq");
-	if (IS_ERR(devfreq_wq)) {
+	if (!devfreq_wq) {
 		class_destroy(devfreq_class);
 		pr_err("%s: couldn't create workqueue\n", __FILE__);
-		return PTR_ERR(devfreq_wq);
+		return -ENOMEM;
 	}
 	devfreq_class->dev_groups = devfreq_groups;
 
@@ -1029,25 +1095,26 @@ module_exit(devfreq_exit);
  * under the locked area. The pointer returned must be used prior to unlocking
  * with rcu_read_unlock() to maintain the integrity of the pointer.
  */
-struct opp *devfreq_recommended_opp(struct device *dev, unsigned long *freq,
-				    u32 flags)
+struct dev_pm_opp *devfreq_recommended_opp(struct device *dev,
+					   unsigned long *freq,
+					   u32 flags)
 {
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 
 	if (flags & DEVFREQ_FLAG_LEAST_UPPER_BOUND) {
 		/* The freq is an upper bound. opp should be lower */
-		opp = opp_find_freq_floor(dev, freq);
+		opp = dev_pm_opp_find_freq_floor(dev, freq);
 
 		/* If not available, use the closest opp */
 		if (opp == ERR_PTR(-ERANGE))
-			opp = opp_find_freq_ceil(dev, freq);
+			opp = dev_pm_opp_find_freq_ceil(dev, freq);
 	} else {
 		/* The freq is an lower bound. opp should be higher */
-		opp = opp_find_freq_ceil(dev, freq);
+		opp = dev_pm_opp_find_freq_ceil(dev, freq);
 
 		/* If not available, use the closest opp */
 		if (opp == ERR_PTR(-ERANGE))
-			opp = opp_find_freq_floor(dev, freq);
+			opp = dev_pm_opp_find_freq_floor(dev, freq);
 	}
 
 	return opp;
@@ -1066,7 +1133,7 @@ int devfreq_register_opp_notifier(struct device *dev, struct devfreq *devfreq)
 	int ret = 0;
 
 	rcu_read_lock();
-	nh = opp_get_notifier(dev);
+	nh = dev_pm_opp_get_notifier(dev);
 	if (IS_ERR(nh))
 		ret = PTR_ERR(nh);
 	rcu_read_unlock();
@@ -1092,7 +1159,7 @@ int devfreq_unregister_opp_notifier(struct device *dev, struct devfreq *devfreq)
 	int ret = 0;
 
 	rcu_read_lock();
-	nh = opp_get_notifier(dev);
+	nh = dev_pm_opp_get_notifier(dev);
 	if (IS_ERR(nh))
 		ret = PTR_ERR(nh);
 	rcu_read_unlock();
@@ -1101,6 +1168,54 @@ int devfreq_unregister_opp_notifier(struct device *dev, struct devfreq *devfreq)
 
 	return ret;
 }
+
+static void devm_devfreq_opp_release(struct device *dev, void *res)
+{
+	devfreq_unregister_opp_notifier(dev, *(struct devfreq **)res);
+}
+
+/**
+ * devm_ devfreq_register_opp_notifier()
+ *		- Resource-managed devfreq_register_opp_notifier()
+ * @dev:	The devfreq user device. (parent of devfreq)
+ * @devfreq:	The devfreq object.
+ */
+int devm_devfreq_register_opp_notifier(struct device *dev,
+				       struct devfreq *devfreq)
+{
+	struct devfreq **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_devfreq_opp_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = devfreq_register_opp_notifier(dev, devfreq);
+	if (ret) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	*ptr = devfreq;
+	devres_add(dev, ptr);
+
+	return 0;
+}
+EXPORT_SYMBOL(devm_devfreq_register_opp_notifier);
+
+/**
+ * devm_devfreq_unregister_opp_notifier()
+ *		- Resource-managed devfreq_unregister_opp_notifier()
+ * @dev:	The devfreq user device. (parent of devfreq)
+ * @devfreq:	The devfreq object.
+ */
+void devm_devfreq_unregister_opp_notifier(struct device *dev,
+					 struct devfreq *devfreq)
+{
+	WARN_ON(devres_release(dev, devm_devfreq_opp_release,
+			       devm_devfreq_dev_match, devfreq));
+}
+EXPORT_SYMBOL(devm_devfreq_unregister_opp_notifier);
 
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
 MODULE_DESCRIPTION("devfreq class support");

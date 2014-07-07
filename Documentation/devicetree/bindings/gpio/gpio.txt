@@ -13,11 +13,11 @@ properties, each containing a 'gpio-list':
 	gpio-specifier : Array of #gpio-cells specifying specific gpio
 			 (controller specific)
 
-GPIO properties should be named "[<name>-]gpios".  Exact
+GPIO properties should be named "[<name>-]gpios". The exact
 meaning of each gpios property must be documented in the device tree
 binding for each device.
 
-For example, the following could be used to describe gpios pins to use
+For example, the following could be used to describe GPIO pins used
 as chip select lines; with chip selects 0, 1 and 3 populated, and chip
 select 2 left empty:
 
@@ -44,35 +44,79 @@ whether pin is open-drain and whether pin is logically inverted.
 Exact meaning of each specifier cell is controller specific, and must
 be documented in the device tree binding for the device.
 
-Example of the node using GPIOs:
+Example of a node using GPIOs:
 
 	node {
 		gpios = <&qe_pio_e 18 0>;
 	};
 
 In this example gpio-specifier is "18 0" and encodes GPIO pin number,
-and empty GPIO flags as accepted by the "qe_pio_e" gpio-controller.
+and GPIO flags as accepted by the "qe_pio_e" gpio-controller.
+
+1.1) GPIO specifier best practices
+----------------------------------
+
+A gpio-specifier should contain a flag indicating the GPIO polarity; active-
+high or active-low. If it does, the follow best practices should be followed:
+
+The gpio-specifier's polarity flag should represent the physical level at the
+GPIO controller that achieves (or represents, for inputs) a logically asserted
+value at the device. The exact definition of logically asserted should be
+defined by the binding for the device. If the board inverts the signal between
+the GPIO controller and the device, then the gpio-specifier will represent the
+opposite physical level than the signal at the device's pin.
+
+When the device's signal polarity is configurable, the binding for the
+device must either:
+
+a) Define a single static polarity for the signal, with the expectation that
+any software using that binding would statically program the device to use
+that signal polarity.
+
+The static choice of polarity may be either:
+
+a1) (Preferred) Dictated by a binding-specific DT property.
+
+or:
+
+a2) Defined statically by the DT binding itself.
+
+In particular, the polarity cannot be derived from the gpio-specifier, since
+that would prevent the DT from separately representing the two orthogonal
+concepts of configurable signal polarity in the device, and possible board-
+level signal inversion.
+
+or:
+
+b) Pick a single option for device signal polarity, and document this choice
+in the binding. The gpio-specifier should represent the polarity of the signal
+(at the GPIO controller) assuming that the device is configured for this
+particular signal polarity choice. If software chooses to program the device
+to generate or receive a signal of the opposite polarity, software will be
+responsible for correctly interpreting (inverting) the GPIO signal at the GPIO
+controller.
 
 2) gpio-controller nodes
 ------------------------
 
-Every GPIO controller node must both an empty "gpio-controller"
-property, and have #gpio-cells contain the size of the gpio-specifier.
+Every GPIO controller node must contain both an empty "gpio-controller"
+property, and a #gpio-cells integer property, which indicates the number of
+cells in a gpio-specifier.
 
 Example of two SOC GPIO banks defined as gpio-controller nodes:
 
 	qe_pio_a: gpio-controller@1400 {
-		#gpio-cells = <2>;
 		compatible = "fsl,qe-pario-bank-a", "fsl,qe-pario-bank";
 		reg = <0x1400 0x18>;
 		gpio-controller;
+		#gpio-cells = <2>;
 	};
 
 	qe_pio_e: gpio-controller@1460 {
-		#gpio-cells = <2>;
 		compatible = "fsl,qe-pario-bank-e", "fsl,qe-pario-bank";
 		reg = <0x1460 0x18>;
 		gpio-controller;
+		#gpio-cells = <2>;
 	};
 
 2.1) gpio- and pin-controller interaction
@@ -87,8 +131,10 @@ controllers. The gpio-ranges property described below represents this, and
 contains information structures as follows:
 
 	gpio-range-list ::= <single-gpio-range> [gpio-range-list]
-	single-gpio-range ::=
+	single-gpio-range ::= <numeric-gpio-range> | <named-gpio-range>
+	numeric-gpio-range ::=
 			<pinctrl-phandle> <gpio-base> <pinctrl-base> <count>
+	named-gpio-range ::= <pinctrl-phandle> <gpio-base> '<0 0>'
 	gpio-phandle : phandle to pin controller node.
 	gpio-base : Base GPIO ID in the GPIO controller
 	pinctrl-base : Base pinctrl pin ID in the pin controller
@@ -97,6 +143,19 @@ contains information structures as follows:
 The "pin controller node" mentioned above must conform to the bindings
 described in ../pinctrl/pinctrl-bindings.txt.
 
+In case named gpio ranges are used (ranges with both <pinctrl-base> and
+<count> set to 0), the property gpio-ranges-group-names contains one string
+for every single-gpio-range in gpio-ranges:
+	gpiorange-names-list ::= <gpiorange-name> [gpiorange-names-list]
+	gpiorange-name : Name of the pingroup associated to the GPIO range in
+			the respective pin controller.
+
+Elements of gpiorange-names-list corresponding to numeric ranges contain
+the empty string. Elements of gpiorange-names-list corresponding to named
+ranges contain the name of a pin group defined in the respective pin
+controller. The number of pins/GPIOs in the range is the number of pins in
+that pin group.
+
 Previous versions of this binding required all pin controller nodes that
 were referenced by any gpio-ranges property to contain a property named
 #gpio-range-cells with value <3>. This requirement is now deprecated.
@@ -104,7 +163,7 @@ However, that property may still exist in older device trees for
 compatibility reasons, and would still be required even in new device
 trees that need to be compatible with older software.
 
-Example:
+Example 1:
 
 	qe_pio_e: gpio-controller@1460 {
 		#gpio-cells = <2>;
@@ -117,3 +176,24 @@ Example:
 Here, a single GPIO controller has GPIOs 0..9 routed to pin controller
 pinctrl1's pins 20..29, and GPIOs 10..19 routed to pin controller pinctrl2's
 pins 50..59.
+
+Example 2:
+
+	gpio_pio_i: gpio-controller@14B0 {
+		#gpio-cells = <2>;
+		compatible = "fsl,qe-pario-bank-e", "fsl,qe-pario-bank";
+		reg = <0x1480 0x18>;
+		gpio-controller;
+		gpio-ranges =			<&pinctrl1 0 20 10>,
+						<&pinctrl2 10 0 0>,
+						<&pinctrl1 15 0 10>,
+						<&pinctrl2 25 0 0>;
+		gpio-ranges-group-names =	"",
+						"foo",
+						"",
+						"bar";
+	};
+
+Here, three GPIO ranges are defined wrt. two pin controllers. pinctrl1 GPIO
+ranges are defined using pin numbers whereas the GPIO ranges wrt. pinctrl2
+are named "foo" and "bar".

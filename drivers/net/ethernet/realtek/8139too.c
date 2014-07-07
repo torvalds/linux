@@ -727,7 +727,6 @@ static void __rtl8139_cleanup_dev (struct net_device *dev)
 	pci_release_regions (pdev);
 
 	free_netdev(dev);
-	pci_set_drvdata (pdev, NULL);
 }
 
 
@@ -790,6 +789,9 @@ static struct net_device *rtl8139_init_board(struct pci_dev *pdev)
 	disable_dev_on_err = 1;
 
 	pci_set_master (pdev);
+
+	u64_stats_init(&tp->rx_stats.syncp);
+	u64_stats_init(&tp->tx_stats.syncp);
 
 retry:
 	/* PIO bar register comes first. */
@@ -1715,9 +1717,9 @@ static netdev_tx_t rtl8139_start_xmit (struct sk_buff *skb,
 		if (len < ETH_ZLEN)
 			memset(tp->tx_buf[entry], 0, ETH_ZLEN);
 		skb_copy_and_csum_dev(skb, tp->tx_buf[entry]);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 	} else {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
@@ -2520,16 +2522,16 @@ rtl8139_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	netdev_stats_to_stats64(stats, &dev->stats);
 
 	do {
-		start = u64_stats_fetch_begin_bh(&tp->rx_stats.syncp);
+		start = u64_stats_fetch_begin_irq(&tp->rx_stats.syncp);
 		stats->rx_packets = tp->rx_stats.packets;
 		stats->rx_bytes = tp->rx_stats.bytes;
-	} while (u64_stats_fetch_retry_bh(&tp->rx_stats.syncp, start));
+	} while (u64_stats_fetch_retry_irq(&tp->rx_stats.syncp, start));
 
 	do {
-		start = u64_stats_fetch_begin_bh(&tp->tx_stats.syncp);
+		start = u64_stats_fetch_begin_irq(&tp->tx_stats.syncp);
 		stats->tx_packets = tp->tx_stats.packets;
 		stats->tx_bytes = tp->tx_stats.bytes;
-	} while (u64_stats_fetch_retry_bh(&tp->tx_stats.syncp, start));
+	} while (u64_stats_fetch_retry_irq(&tp->tx_stats.syncp, start));
 
 	return stats;
 }

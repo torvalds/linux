@@ -74,8 +74,7 @@ static const char *wm9713_rec_src[] =
 	"Mono Out", "Zh"};
 static const char *wm9713_rec_gain[] = {"+1.5dB Steps", "+0.75dB Steps"};
 static const char *wm9713_alc_select[] = {"None", "Left", "Right", "Stereo"};
-static const char *wm9713_mono_pga[] = {"Vmid", "Zh", "Mono", "Inv",
-	"Mono Vmid", "Inv Vmid"};
+static const char *wm9713_mono_pga[] = {"Vmid", "Zh", "Mono", "Inv"};
 static const char *wm9713_spk_pga[] =
 	{"Vmid", "Zh", "Headphone", "Speaker", "Inv", "Headphone Vmid",
 	"Speaker Vmid", "Inv Vmid"};
@@ -221,7 +220,8 @@ static int wm9713_voice_shutdown(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	u16 status, rate;
 
-	BUG_ON(event != SND_SOC_DAPM_PRE_PMD);
+	if (WARN_ON(event != SND_SOC_DAPM_PRE_PMD))
+		return -EINVAL;
 
 	/* Gracefully shut down the voice interface. */
 	status = ac97_read(codec, AC97_EXTENDED_MID) | 0x1000;

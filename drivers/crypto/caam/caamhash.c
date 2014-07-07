@@ -94,6 +94,9 @@
 #define debug(format, arg...)
 #endif
 
+
+static struct list_head hash_list;
+
 /* ahash per-session context */
 struct caam_hash_ctx {
 	struct device *jrdev;
@@ -542,7 +545,8 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 				      DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->key_dma)) {
 		dev_err(jrdev, "unable to map key i/o memory\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto map_err;
 	}
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
@@ -556,6 +560,7 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 				 DMA_TO_DEVICE);
 	}
 
+map_err:
 	kfree(hashed_key);
 	return ret;
 badkey:
@@ -628,11 +633,8 @@ static void ahash_done(struct device *jrdev, u32 *desc, u32 err,
 
 	edesc = (struct ahash_edesc *)((char *)desc -
 		 offsetof(struct ahash_edesc, hw_desc));
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	ahash_unmap(jrdev, edesc, req, digestsize);
 	kfree(edesc);
@@ -666,11 +668,8 @@ static void ahash_done_bi(struct device *jrdev, u32 *desc, u32 err,
 
 	edesc = (struct ahash_edesc *)((char *)desc -
 		 offsetof(struct ahash_edesc, hw_desc));
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	ahash_unmap_ctx(jrdev, edesc, req, ctx->ctx_len, DMA_BIDIRECTIONAL);
 	kfree(edesc);
@@ -704,11 +703,8 @@ static void ahash_done_ctx_src(struct device *jrdev, u32 *desc, u32 err,
 
 	edesc = (struct ahash_edesc *)((char *)desc -
 		 offsetof(struct ahash_edesc, hw_desc));
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_FROM_DEVICE);
 	kfree(edesc);
@@ -742,11 +738,8 @@ static void ahash_done_ctx_dst(struct device *jrdev, u32 *desc, u32 err,
 
 	edesc = (struct ahash_edesc *)((char *)desc -
 		 offsetof(struct ahash_edesc, hw_desc));
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	ahash_unmap_ctx(jrdev, edesc, req, ctx->ctx_len, DMA_TO_DEVICE);
 	kfree(edesc);
@@ -1653,7 +1646,6 @@ static struct caam_hash_template driver_hash[] = {
 
 struct caam_hash_alg {
 	struct list_head entry;
-	struct device *ctrldev;
 	int alg_type;
 	int alg_op;
 	struct ahash_alg ahash_alg;
@@ -1670,7 +1662,6 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 	struct caam_hash_alg *caam_hash =
 		 container_of(alg, struct caam_hash_alg, ahash_alg);
 	struct caam_hash_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct caam_drv_private *priv = dev_get_drvdata(caam_hash->ctrldev);
 	/* Sizes for MDHA running digests: MD5, SHA1, 224, 256, 384, 512 */
 	static const u8 runninglen[] = { HASH_MSG_LEN + MD5_DIGEST_SIZE,
 					 HASH_MSG_LEN + SHA1_DIGEST_SIZE,
@@ -1678,15 +1669,17 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 					 HASH_MSG_LEN + SHA256_DIGEST_SIZE,
 					 HASH_MSG_LEN + 64,
 					 HASH_MSG_LEN + SHA512_DIGEST_SIZE };
-	int tgt_jr = atomic_inc_return(&priv->tfm_count);
 	int ret = 0;
 
 	/*
-	 * distribute tfms across job rings to ensure in-order
+	 * Get a Job ring from Job Ring driver to ensure in-order
 	 * crypto request processing per tfm
 	 */
-	ctx->jrdev = priv->jrdev[tgt_jr % priv->total_jobrs];
-
+	ctx->jrdev = caam_jr_alloc();
+	if (IS_ERR(ctx->jrdev)) {
+		pr_err("Job Ring Device allocation for transform failed\n");
+		return PTR_ERR(ctx->jrdev);
+	}
 	/* copy descriptor header template value */
 	ctx->alg_type = OP_TYPE_CLASS2_ALG | caam_hash->alg_type;
 	ctx->alg_op = OP_TYPE_CLASS2_ALG | caam_hash->alg_op;
@@ -1729,35 +1722,18 @@ static void caam_hash_cra_exit(struct crypto_tfm *tfm)
 	    !dma_mapping_error(ctx->jrdev, ctx->sh_desc_finup_dma))
 		dma_unmap_single(ctx->jrdev, ctx->sh_desc_finup_dma,
 				 desc_bytes(ctx->sh_desc_finup), DMA_TO_DEVICE);
+
+	caam_jr_free(ctx->jrdev);
 }
 
 static void __exit caam_algapi_hash_exit(void)
 {
-	struct device_node *dev_node;
-	struct platform_device *pdev;
-	struct device *ctrldev;
-	struct caam_drv_private *priv;
 	struct caam_hash_alg *t_alg, *n;
 
-	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node) {
-		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
-		if (!dev_node)
-			return;
-	}
-
-	pdev = of_find_device_by_node(dev_node);
-	if (!pdev)
+	if (!hash_list.next)
 		return;
 
-	ctrldev = &pdev->dev;
-	of_node_put(dev_node);
-	priv = dev_get_drvdata(ctrldev);
-
-	if (!priv->hash_list.next)
-		return;
-
-	list_for_each_entry_safe(t_alg, n, &priv->hash_list, entry) {
+	list_for_each_entry_safe(t_alg, n, &hash_list, entry) {
 		crypto_unregister_ahash(&t_alg->ahash_alg);
 		list_del(&t_alg->entry);
 		kfree(t_alg);
@@ -1765,7 +1741,7 @@ static void __exit caam_algapi_hash_exit(void)
 }
 
 static struct caam_hash_alg *
-caam_hash_alloc(struct device *ctrldev, struct caam_hash_template *template,
+caam_hash_alloc(struct caam_hash_template *template,
 		bool keyed)
 {
 	struct caam_hash_alg *t_alg;
@@ -1774,7 +1750,7 @@ caam_hash_alloc(struct device *ctrldev, struct caam_hash_template *template,
 
 	t_alg = kzalloc(sizeof(struct caam_hash_alg), GFP_KERNEL);
 	if (!t_alg) {
-		dev_err(ctrldev, "failed to allocate t_alg\n");
+		pr_err("failed to allocate t_alg\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1805,37 +1781,15 @@ caam_hash_alloc(struct device *ctrldev, struct caam_hash_template *template,
 
 	t_alg->alg_type = template->alg_type;
 	t_alg->alg_op = template->alg_op;
-	t_alg->ctrldev = ctrldev;
 
 	return t_alg;
 }
 
 static int __init caam_algapi_hash_init(void)
 {
-	struct device_node *dev_node;
-	struct platform_device *pdev;
-	struct device *ctrldev;
-	struct caam_drv_private *priv;
 	int i = 0, err = 0;
 
-	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node) {
-		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
-		if (!dev_node)
-			return -ENODEV;
-	}
-
-	pdev = of_find_device_by_node(dev_node);
-	if (!pdev)
-		return -ENODEV;
-
-	ctrldev = &pdev->dev;
-	priv = dev_get_drvdata(ctrldev);
-	of_node_put(dev_node);
-
-	INIT_LIST_HEAD(&priv->hash_list);
-
-	atomic_set(&priv->tfm_count, -1);
+	INIT_LIST_HEAD(&hash_list);
 
 	/* register crypto algorithms the device supports */
 	for (i = 0; i < ARRAY_SIZE(driver_hash); i++) {
@@ -1843,38 +1797,38 @@ static int __init caam_algapi_hash_init(void)
 		struct caam_hash_alg *t_alg;
 
 		/* register hmac version */
-		t_alg = caam_hash_alloc(ctrldev, &driver_hash[i], true);
+		t_alg = caam_hash_alloc(&driver_hash[i], true);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
-			dev_warn(ctrldev, "%s alg allocation failed\n",
-				 driver_hash[i].driver_name);
+			pr_warn("%s alg allocation failed\n",
+				driver_hash[i].driver_name);
 			continue;
 		}
 
 		err = crypto_register_ahash(&t_alg->ahash_alg);
 		if (err) {
-			dev_warn(ctrldev, "%s alg registration failed\n",
+			pr_warn("%s alg registration failed\n",
 				t_alg->ahash_alg.halg.base.cra_driver_name);
 			kfree(t_alg);
 		} else
-			list_add_tail(&t_alg->entry, &priv->hash_list);
+			list_add_tail(&t_alg->entry, &hash_list);
 
 		/* register unkeyed version */
-		t_alg = caam_hash_alloc(ctrldev, &driver_hash[i], false);
+		t_alg = caam_hash_alloc(&driver_hash[i], false);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
-			dev_warn(ctrldev, "%s alg allocation failed\n",
-				 driver_hash[i].driver_name);
+			pr_warn("%s alg allocation failed\n",
+				driver_hash[i].driver_name);
 			continue;
 		}
 
 		err = crypto_register_ahash(&t_alg->ahash_alg);
 		if (err) {
-			dev_warn(ctrldev, "%s alg registration failed\n",
+			pr_warn("%s alg registration failed\n",
 				t_alg->ahash_alg.halg.base.cra_driver_name);
 			kfree(t_alg);
 		} else
-			list_add_tail(&t_alg->entry, &priv->hash_list);
+			list_add_tail(&t_alg->entry, &hash_list);
 	}
 
 	return err;

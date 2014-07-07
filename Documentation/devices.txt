@@ -353,6 +353,7 @@ Your cooperation is appreciated.
 		133 = /dev/exttrp	External device trap
 		134 = /dev/apm_bios	Advanced Power Management BIOS
 		135 = /dev/rtc		Real Time Clock
+		137 = /dev/vhci		Bluetooth virtual HCI driver
 		139 = /dev/openprom	SPARC OpenBoot PROM
 		140 = /dev/relay8	Berkshire Products Octal relay card
 		141 = /dev/relay16	Berkshire Products ISO-16 relay card
@@ -409,11 +410,14 @@ Your cooperation is appreciated.
 		193 = /dev/d7s		SPARC 7-segment display
 		194 = /dev/zkshim	Zero-Knowledge network shim control
 		195 = /dev/elographics/e2201	Elographics touchscreen E271-2201
+		196 = /dev/vfio/vfio	VFIO userspace driver interface
+		197 = /dev/pxa3xx-gcu	PXA3xx graphics controller unit driver
 		198 = /dev/sexec	Signed executable interface
 		199 = /dev/scanners/cuecat :CueCat barcode scanner
 		200 = /dev/net/tun	TAP/TUN network device
 		201 = /dev/button/gulpb	Transmeta GULP-B buttons
 		202 = /dev/emd/ctl	Enhanced Metadisk RAID (EMD) control
+		203 = /dev/cuse		Cuse (character device in user-space)
 		204 = /dev/video/em8300		EM8300 DVD decoder control
 		205 = /dev/video/em8300_mv	EM8300 DVD decoder video
 		206 = /dev/video/em8300_ma	EM8300 DVD decoder audio
@@ -449,6 +453,7 @@ Your cooperation is appreciated.
 		236 = /dev/mapper/control	Device-Mapper control device
 		237 = /dev/loop-control Loopback control device
 		238 = /dev/vhost-net	Host kernel accelerator for virtio net
+		239 = /dev/uhid		User-space I/O driver support for HID subsystem
 
 		240-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
@@ -1489,9 +1494,16 @@ Your cooperation is appreciated.
 		 64 = /dev/radio0	Radio device
 		    ...
 		127 = /dev/radio63	Radio device
+		128 = /dev/swradio0	Software Defined Radio device
+		    ...
+		191 = /dev/swradio63	Software Defined Radio device
 		224 = /dev/vbi0		Vertical blank interrupt
 		    ...
 		255 = /dev/vbi31	Vertical blank interrupt
+
+		Minor numbers are allocated dynamically unless
+		CONFIG_VIDEO_FIXED_MINOR_RANGES (default n)
+		configuration option is set.
 
  81 block	I2O hard disk
 		  0 = /dev/i2o/hdq	17th I2O hard disk, whole disk

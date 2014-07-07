@@ -1,34 +1,54 @@
 #ifndef _ASM_X86_VDSO_H
 #define _ASM_X86_VDSO_H
 
-#if defined CONFIG_X86_32 || defined CONFIG_COMPAT
-extern const char VDSO32_PRELINK[];
+#include <asm/page_types.h>
+#include <linux/linkage.h>
+#include <linux/init.h>
 
-/*
- * Given a pointer to the vDSO image, find the pointer to VDSO32_name
- * as that symbol is defined in the vDSO sources or linker script.
- */
-#define VDSO32_SYMBOL(base, name)					\
-({									\
-	extern const char VDSO32_##name[];				\
-	(void __user *)(VDSO32_##name - VDSO32_PRELINK +		\
-			(unsigned long)(base));				\
-})
+#ifndef __ASSEMBLER__
+
+#include <linux/mm_types.h>
+
+struct vdso_image {
+	void *data;
+	unsigned long size;   /* Always a multiple of PAGE_SIZE */
+
+	/* text_mapping.pages is big enough for data/size page pointers */
+	struct vm_special_mapping text_mapping;
+
+	unsigned long alt, alt_len;
+
+	unsigned long sym_end_mapping;  /* Total size of the mapping */
+
+	unsigned long sym_vvar_page;
+	unsigned long sym_hpet_page;
+	unsigned long sym_VDSO32_NOTE_MASK;
+	unsigned long sym___kernel_sigreturn;
+	unsigned long sym___kernel_rt_sigreturn;
+	unsigned long sym___kernel_vsyscall;
+	unsigned long sym_VDSO32_SYSENTER_RETURN;
+};
+
+#ifdef CONFIG_X86_64
+extern const struct vdso_image vdso_image_64;
 #endif
 
-/*
- * These symbols are defined with the addresses in the vsyscall page.
- * See vsyscall-sigreturn.S.
- */
-extern void __user __kernel_sigreturn;
-extern void __user __kernel_rt_sigreturn;
+#ifdef CONFIG_X86_X32
+extern const struct vdso_image vdso_image_x32;
+#endif
 
-/*
- * These symbols are defined by vdso32.S to mark the bounds
- * of the ELF DSO images included therein.
- */
-extern const char vdso32_int80_start, vdso32_int80_end;
-extern const char vdso32_syscall_start, vdso32_syscall_end;
-extern const char vdso32_sysenter_start, vdso32_sysenter_end;
+#if defined CONFIG_X86_32 || defined CONFIG_COMPAT
+extern const struct vdso_image vdso_image_32_int80;
+#ifdef CONFIG_COMPAT
+extern const struct vdso_image vdso_image_32_syscall;
+#endif
+extern const struct vdso_image vdso_image_32_sysenter;
+
+extern const struct vdso_image *selected_vdso32;
+#endif
+
+extern void __init init_vdso_image(const struct vdso_image *image);
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_VDSO_H */

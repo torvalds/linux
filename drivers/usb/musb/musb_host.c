@@ -39,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 
@@ -253,7 +252,7 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 			case USB_ENDPOINT_XFER_BULK:	s = "-bulk"; break;
 			case USB_ENDPOINT_XFER_ISOC:	s = "-iso"; break;
 			default:			s = "-intr"; break;
-			}; s; }),
+			} s; }),
 			epnum, buf + offset, len);
 
 	/* Configure endpoint */
@@ -1184,6 +1183,9 @@ irqreturn_t musb_h_ep0_irq(struct musb *musb)
 				csr = MUSB_CSR0_H_STATUSPKT
 					| MUSB_CSR0_TXPKTRDY;
 
+			/* disable ping token in status phase */
+			csr |= MUSB_CSR0_H_DIS_PING;
+
 			/* flag status stage */
 			musb->ep0_stage = MUSB_EP0_STATUS;
 
@@ -1692,7 +1694,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			| MUSB_RXCSR_RXPKTRDY);
 		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA) || \
+	defined(CONFIG_USB_TI_CPPI41_DMA)
 		if (usb_pipeisoc(pipe)) {
 			struct usb_iso_packet_descriptor *d;
 
@@ -1705,10 +1708,30 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			if (d->status != -EILSEQ && d->status != -EOVERFLOW)
 				d->status = 0;
 
-			if (++qh->iso_idx >= urb->number_of_packets)
+			if (++qh->iso_idx >= urb->number_of_packets) {
 				done = true;
-			else
+			} else {
+#if defined(CONFIG_USB_TI_CPPI41_DMA)
+				struct dma_controller   *c;
+				dma_addr_t *buf;
+				u32 length, ret;
+
+				c = musb->dma_controller;
+				buf = (void *)
+					urb->iso_frame_desc[qh->iso_idx].offset
+					+ (u32)urb->transfer_dma;
+
+				length =
+					urb->iso_frame_desc[qh->iso_idx].length;
+
+				val |= MUSB_RXCSR_DMAENAB;
+				musb_writew(hw_ep->regs, MUSB_RXCSR, val);
+
+				ret = c->channel_program(dma, qh->maxpacket,
+						0, (u32) buf, length);
+#endif
 				done = false;
+			}
 
 		} else  {
 		/* done if urb buffer is full or short packet is recd */
@@ -1748,7 +1771,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		}
 
 		/* we are expecting IN packets */
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA) || \
+	defined(CONFIG_USB_TI_CPPI41_DMA)
 		if (dma) {
 			struct dma_controller	*c;
 			u16			rx_count;
@@ -2013,7 +2037,7 @@ static int musb_schedule(
 			head = &musb->out_bulk;
 
 		/* Enable bulk RX/TX NAK timeout scheme when bulk requests are
-		 * multiplexed.  This scheme doen't work in high speed to full
+		 * multiplexed. This scheme does not work in high speed to full
 		 * speed scenario as NAK interrupts are not coming from a
 		 * full speed device connected to a high speed device.
 		 * NAK timeout interval is 8 (128 uframe or 16ms) for HS and
@@ -2433,6 +2457,8 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 	struct musb	*musb = hcd_to_musb(hcd);
 	u8		devctl;
 
+	musb_port_suspend(musb, true);
+
 	if (!is_host_active(musb))
 		return 0;
 
@@ -2462,7 +2488,12 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 
 static int musb_bus_resume(struct usb_hcd *hcd)
 {
-	/* resuming child port does the work */
+	struct musb *musb = hcd_to_musb(hcd);
+
+	if (musb->config &&
+	    musb->config->host_port_deassert_reset_at_resume)
+		musb_port_reset(musb, false);
+
 	return 0;
 }
 
@@ -2657,6 +2688,7 @@ int musb_host_setup(struct musb *musb, int power_budget)
 	if (ret < 0)
 		return ret;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 }
 

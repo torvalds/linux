@@ -40,7 +40,7 @@
 
 #include "o2iblnd.h"
 
-void
+static void
 kiblnd_tx_done (lnet_ni_t *ni, kib_tx_t *tx)
 {
 	lnet_msg_t *lntmsg[2];
@@ -99,7 +99,7 @@ kiblnd_txlist_done (lnet_ni_t *ni, struct list_head *txlist, int status)
 	}
 }
 
-kib_tx_t *
+static kib_tx_t *
 kiblnd_get_idle_tx(lnet_ni_t *ni, lnet_nid_t target)
 {
 	kib_net_t		*net = (kib_net_t *)ni->ni_data;
@@ -127,7 +127,7 @@ kiblnd_get_idle_tx(lnet_ni_t *ni, lnet_nid_t target)
 	return tx;
 }
 
-void
+static void
 kiblnd_drop_rx(kib_rx_t *rx)
 {
 	kib_conn_t		*conn	= rx->rx_conn;
@@ -209,7 +209,7 @@ kiblnd_post_rx (kib_rx_t *rx, int credit)
 	return 0;
 }
 
-kib_tx_t *
+static kib_tx_t *
 kiblnd_find_waiting_tx_locked(kib_conn_t *conn, int txtype, __u64 cookie)
 {
 	struct list_head   *tmp;
@@ -234,7 +234,7 @@ kiblnd_find_waiting_tx_locked(kib_conn_t *conn, int txtype, __u64 cookie)
 	return NULL;
 }
 
-void
+static void
 kiblnd_handle_completion(kib_conn_t *conn, int txtype, int status, __u64 cookie)
 {
 	kib_tx_t    *tx;
@@ -273,7 +273,7 @@ kiblnd_handle_completion(kib_conn_t *conn, int txtype, int status, __u64 cookie)
 		kiblnd_tx_done(ni, tx);
 }
 
-void
+static void
 kiblnd_send_completion(kib_conn_t *conn, int type, int status, __u64 cookie)
 {
 	lnet_ni_t   *ni = conn->ibc_peer->ibp_ni;
@@ -292,7 +292,7 @@ kiblnd_send_completion(kib_conn_t *conn, int type, int status, __u64 cookie)
 	kiblnd_queue_tx(tx, conn);
 }
 
-void
+static void
 kiblnd_handle_rx (kib_rx_t *rx)
 {
 	kib_msg_t    *msg = rx->rx_msg;
@@ -453,7 +453,7 @@ kiblnd_handle_rx (kib_rx_t *rx)
 		kiblnd_post_rx(rx, post_credit);
 }
 
-void
+static void
 kiblnd_rx_complete (kib_rx_t *rx, int status, int nob)
 {
 	kib_msg_t    *msg = rx->rx_msg;
@@ -524,13 +524,12 @@ kiblnd_rx_complete (kib_rx_t *rx, int status, int nob)
 	kiblnd_drop_rx(rx);		     /* Don't re-post rx. */
 }
 
-struct page *
+static struct page *
 kiblnd_kvaddr_to_page (unsigned long vaddr)
 {
 	struct page *page;
 
-	if (vaddr >= VMALLOC_START &&
-	    vaddr < VMALLOC_END) {
+	if (is_vmalloc_addr((void *)vaddr)) {
 		page = vmalloc_to_page ((void *)vaddr);
 		LASSERT (page != NULL);
 		return page;
@@ -696,7 +695,7 @@ kiblnd_map_tx(lnet_ni_t *ni, kib_tx_t *tx,
 }
 
 
-int
+static int
 kiblnd_setup_rd_iov(lnet_ni_t *ni, kib_tx_t *tx, kib_rdma_desc_t *rd,
 		    unsigned int niov, struct iovec *iov, int offset, int nob)
 {
@@ -749,7 +748,7 @@ kiblnd_setup_rd_iov(lnet_ni_t *ni, kib_tx_t *tx, kib_rdma_desc_t *rd,
 	return kiblnd_map_tx(ni, tx, rd, sg - tx->tx_frags);
 }
 
-int
+static int
 kiblnd_setup_rd_kiov (lnet_ni_t *ni, kib_tx_t *tx, kib_rdma_desc_t *rd,
 		      int nkiov, lnet_kiov_t *kiov, int offset, int nob)
 {
@@ -789,8 +788,10 @@ kiblnd_setup_rd_kiov (lnet_ni_t *ni, kib_tx_t *tx, kib_rdma_desc_t *rd,
 	return kiblnd_map_tx(ni, tx, rd, sg - tx->tx_frags);
 }
 
-int
+static int
 kiblnd_post_tx_locked (kib_conn_t *conn, kib_tx_t *tx, int credit)
+	__releases(conn->ibc_lock)
+	__acquires(conn->ibc_lock)
 {
 	kib_msg_t	 *msg = tx->tx_msg;
 	kib_peer_t	*peer = conn->ibc_peer;
@@ -993,7 +994,7 @@ kiblnd_check_sends (kib_conn_t *conn)
 	kiblnd_conn_decref(conn); /* ...until here */
 }
 
-void
+static void
 kiblnd_tx_complete (kib_tx_t *tx, int status)
 {
 	int	   failed = (status != IB_WC_SUCCESS);
@@ -1267,7 +1268,7 @@ static int kiblnd_resolve_addr(struct rdma_cm_id *cmid,
 	return rc;
 }
 
-void
+static void
 kiblnd_connect_peer (kib_peer_t *peer)
 {
 	struct rdma_cm_id *cmid;
@@ -1624,7 +1625,7 @@ kiblnd_send (lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 	return 0;
 }
 
-void
+static void
 kiblnd_reply (lnet_ni_t *ni, kib_rx_t *rx, lnet_msg_t *lntmsg)
 {
 	lnet_process_id_t target = lntmsg->msg_target;
@@ -1811,7 +1812,7 @@ kiblnd_thread_start(int (*fn)(void *arg), void *arg, char *name)
 	return 0;
 }
 
-void
+static void
 kiblnd_thread_fini (void)
 {
 	atomic_dec (&kiblnd_data.kib_nthreads);
@@ -1825,7 +1826,7 @@ kiblnd_peer_alive (kib_peer_t *peer)
 	mb();
 }
 
-void
+static void
 kiblnd_peer_notify (kib_peer_t *peer)
 {
 	int	   error = 0;
@@ -1931,7 +1932,7 @@ kiblnd_close_conn(kib_conn_t *conn, int error)
 	write_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 }
 
-void
+static void
 kiblnd_handle_early_rxs(kib_conn_t *conn)
 {
 	unsigned long    flags;
@@ -1954,7 +1955,7 @@ kiblnd_handle_early_rxs(kib_conn_t *conn)
 	write_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 }
 
-void
+static void
 kiblnd_abort_txs(kib_conn_t *conn, struct list_head *txs)
 {
 	LIST_HEAD       (zombies);
@@ -1990,7 +1991,7 @@ kiblnd_abort_txs(kib_conn_t *conn, struct list_head *txs)
 	kiblnd_txlist_done(conn->ibc_peer->ibp_ni, &zombies, -ECONNABORTED);
 }
 
-void
+static void
 kiblnd_finalise_conn (kib_conn_t *conn)
 {
 	LASSERT (!in_interrupt());
@@ -2164,7 +2165,7 @@ kiblnd_connreq_done(kib_conn_t *conn, int status)
 	kiblnd_handle_early_rxs(conn);
 }
 
-void
+static void
 kiblnd_reject(struct rdma_cm_id *cmid, kib_rej_t *rej)
 {
 	int	  rc;
@@ -2175,7 +2176,7 @@ kiblnd_reject(struct rdma_cm_id *cmid, kib_rej_t *rej)
 		CWARN("Error %d sending reject\n", rc);
 }
 
-int
+static int
 kiblnd_passive_connect (struct rdma_cm_id *cmid, void *priv, int priv_nob)
 {
 	rwlock_t		*g_lock = &kiblnd_data.kib_global_lock;
@@ -2449,7 +2450,7 @@ kiblnd_passive_connect (struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	return -ECONNREFUSED;
 }
 
-void
+static void
 kiblnd_reconnect (kib_conn_t *conn, int version,
 		  __u64 incarnation, int why, kib_connparams_t *cp)
 {
@@ -2513,7 +2514,7 @@ kiblnd_reconnect (kib_conn_t *conn, int version,
 	kiblnd_connect_peer(peer);
 }
 
-void
+static void
 kiblnd_rejected (kib_conn_t *conn, int reason, void *priv, int priv_nob)
 {
 	kib_peer_t    *peer = conn->ibc_peer;
@@ -2610,13 +2611,17 @@ kiblnd_rejected (kib_conn_t *conn, int reason, void *priv, int priv_nob)
 
 			case IBLND_REJECT_MSG_QUEUE_SIZE:
 				CERROR("%s rejected: incompatible message queue depth %d, %d\n",
-				       libcfs_nid2str(peer->ibp_nid), cp->ibcp_queue_depth,
+				       libcfs_nid2str(peer->ibp_nid),
+				       cp != NULL ? cp->ibcp_queue_depth :
+				       IBLND_MSG_QUEUE_SIZE(rej->ibr_version),
 				       IBLND_MSG_QUEUE_SIZE(conn->ibc_version));
 				break;
 
 			case IBLND_REJECT_RDMA_FRAGS:
 				CERROR("%s rejected: incompatible # of RDMA fragments %d, %d\n",
-				       libcfs_nid2str(peer->ibp_nid), cp->ibcp_max_frags,
+				       libcfs_nid2str(peer->ibp_nid),
+				       cp != NULL ? cp->ibcp_max_frags :
+				       IBLND_RDMA_FRAGS(rej->ibr_version),
 				       IBLND_RDMA_FRAGS(conn->ibc_version));
 				break;
 
@@ -2648,7 +2653,7 @@ kiblnd_rejected (kib_conn_t *conn, int reason, void *priv, int priv_nob)
 	kiblnd_connreq_done(conn, -ECONNREFUSED);
 }
 
-void
+static void
 kiblnd_check_connreply (kib_conn_t *conn, void *priv, int priv_nob)
 {
 	kib_peer_t    *peer = conn->ibc_peer;
@@ -2747,7 +2752,7 @@ kiblnd_check_connreply (kib_conn_t *conn, void *priv, int priv_nob)
 	kiblnd_connreq_done(conn, 0);
 }
 
-int
+static int
 kiblnd_active_connect (struct rdma_cm_id *cmid)
 {
 	kib_peer_t	      *peer = (kib_peer_t *)cmid->context;
@@ -3018,7 +3023,7 @@ kiblnd_conn_timed_out_locked(kib_conn_t *conn)
 		kiblnd_check_txs_locked(conn, &conn->ibc_active_txs);
 }
 
-void
+static void
 kiblnd_check_conns (int idx)
 {
 	LIST_HEAD (closes);
@@ -3101,7 +3106,7 @@ kiblnd_check_conns (int idx)
 	}
 }
 
-void
+static void
 kiblnd_disconnect_conn (kib_conn_t *conn)
 {
 	LASSERT (!in_interrupt());
@@ -3128,7 +3133,7 @@ kiblnd_connd (void *arg)
 
 	cfs_block_allsigs ();
 
-	init_waitqueue_entry_current (&wait);
+	init_waitqueue_entry(&wait, current);
 	kiblnd_data.kib_connd = current;
 
 	spin_lock_irqsave(&kiblnd_data.kib_connd_lock, flags);
@@ -3209,7 +3214,7 @@ kiblnd_connd (void *arg)
 		add_wait_queue(&kiblnd_data.kib_connd_waitq, &wait);
 		spin_unlock_irqrestore(&kiblnd_data.kib_connd_lock, flags);
 
-		waitq_timedwait(&wait, TASK_INTERRUPTIBLE, timeout);
+		schedule_timeout(timeout);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&kiblnd_data.kib_connd_waitq, &wait);
@@ -3240,7 +3245,7 @@ kiblnd_qp_event(struct ib_event *event, void *arg)
 	}
 }
 
-void
+static void
 kiblnd_complete (struct ib_wc *wc)
 {
 	switch (kiblnd_wreqid2type(wc->wr_id)) {
@@ -3325,7 +3330,7 @@ kiblnd_scheduler(void *arg)
 
 	cfs_block_allsigs();
 
-	init_waitqueue_entry_current(&wait);
+	init_waitqueue_entry(&wait, current);
 
 	sched = kiblnd_data.kib_scheds[KIB_THREAD_CPT(id)];
 
@@ -3424,7 +3429,7 @@ kiblnd_scheduler(void *arg)
 		add_wait_queue_exclusive(&sched->ibs_waitq, &wait);
 		spin_unlock_irqrestore(&sched->ibs_lock, flags);
 
-		waitq_wait(&wait, TASK_INTERRUPTIBLE);
+		schedule();
 		busy_loops = 0;
 
 		remove_wait_queue(&sched->ibs_waitq, &wait);
@@ -3451,7 +3456,7 @@ kiblnd_failover_thread(void *arg)
 
 	cfs_block_allsigs ();
 
-	init_waitqueue_entry_current(&wait);
+	init_waitqueue_entry(&wait, current);
 	write_lock_irqsave(glock, flags);
 
 	while (!kiblnd_data.kib_shutdown) {

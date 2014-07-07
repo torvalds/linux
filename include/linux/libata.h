@@ -418,6 +418,9 @@ enum {
 	ATA_HORKAGE_DUMP_ID	= (1 << 16),	/* dump IDENTIFY data */
 	ATA_HORKAGE_MAX_SEC_LBA48 = (1 << 17),	/* Set max sects to 65535 */
 	ATA_HORKAGE_ATAPI_DMADIR = (1 << 18),	/* device requires dmadir */
+	ATA_HORKAGE_NO_NCQ_TRIM	= (1 << 19),	/* don't use queued TRIM */
+	ATA_HORKAGE_NOLPM	= (1 << 20),	/* don't use LPM */
+	ATA_HORKAGE_WD_BROKEN_LPM = (1 << 21),	/* some WDs have broken LPM */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
@@ -819,6 +822,7 @@ struct ata_port {
 	unsigned long		qc_allocated;
 	unsigned int		qc_active;
 	int			nr_active_links; /* #links with active qcs */
+	unsigned int		last_tag;	/* track next tag hw expects */
 
 	struct ata_link		link;		/* host default link */
 	struct ata_link		*slave_link;	/* see ata_slave_link_init() */
@@ -845,7 +849,6 @@ struct ata_port {
 	struct completion	park_req_pending;
 
 	pm_message_t		pm_mesg;
-	int			*pm_result;
 	enum ata_lpm_policy	target_lpm_policy;
 
 	struct timer_list	fastdrain_timer;
@@ -1137,16 +1140,14 @@ extern bool ata_link_offline(struct ata_link *link);
 #ifdef CONFIG_PM
 extern int ata_host_suspend(struct ata_host *host, pm_message_t mesg);
 extern void ata_host_resume(struct ata_host *host);
-extern int ata_sas_port_async_suspend(struct ata_port *ap, int *async);
-extern int ata_sas_port_async_resume(struct ata_port *ap, int *async);
+extern void ata_sas_port_suspend(struct ata_port *ap);
+extern void ata_sas_port_resume(struct ata_port *ap);
 #else
-static inline int ata_sas_port_async_suspend(struct ata_port *ap, int *async)
+static inline void ata_sas_port_suspend(struct ata_port *ap)
 {
-	return 0;
 }
-static inline int ata_sas_port_async_resume(struct ata_port *ap, int *async)
+static inline void ata_sas_port_resume(struct ata_port *ap)
 {
-	return 0;
 }
 #endif
 extern int ata_ratelimit(void);

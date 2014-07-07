@@ -27,6 +27,7 @@
 #include <linux/highmem.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/compiler.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -155,7 +156,7 @@ static inline void free_image_page(void *addr, int clear_nosave_free)
 struct linked_page {
 	struct linked_page *next;
 	char data[LINKED_PAGE_DATA_SIZE];
-} __attribute__((packed));
+} __packed;
 
 static inline void
 free_list_of_pages(struct linked_page *list, int clear_page_nosave)
@@ -637,7 +638,7 @@ __register_nosave_region(unsigned long start_pfn, unsigned long end_pfn,
 		BUG_ON(!region);
 	} else
 		/* This allocation cannot fail */
-		region = alloc_bootmem(sizeof(struct nosave_region));
+		region = memblock_virt_alloc(sizeof(struct nosave_region), 0);
 	region->start_pfn = start_pfn;
 	region->end_pfn = end_pfn;
 	list_add_tail(&region->list, &nosave_regions);
@@ -792,7 +793,8 @@ void free_basic_memory_bitmaps(void)
 {
 	struct memory_bitmap *bm1, *bm2;
 
-	BUG_ON(!(forbidden_pages_map && free_pages_map));
+	if (WARN_ON(!(forbidden_pages_map && free_pages_map)))
+		return;
 
 	bm1 = forbidden_pages_map;
 	bm2 = free_pages_map;
@@ -1267,7 +1269,7 @@ static void free_unnecessary_pages(void)
  * [number of saveable pages] - [number of pages that can be freed in theory]
  *
  * where the second term is the sum of (1) reclaimable slab pages, (2) active
- * and (3) inactive anonymouns pages, (4) active and (5) inactive file pages,
+ * and (3) inactive anonymous pages, (4) active and (5) inactive file pages,
  * minus mapped file pages.
  */
 static unsigned long minimum_image_size(unsigned long saveable)
@@ -1402,7 +1404,11 @@ int hibernate_preallocate_memory(void)
 	 * highmem and non-highmem zones separately.
 	 */
 	pages_highmem = preallocate_image_highmem(highmem / 2);
-	alloc = (count - max_size) - pages_highmem;
+	alloc = count - max_size;
+	if (alloc > pages_highmem)
+		alloc -= pages_highmem;
+	else
+		alloc = 0;
 	pages = preallocate_image_memory(alloc, avail_normal);
 	if (pages < alloc) {
 		/* We have exhausted non-highmem pages, try highmem. */
@@ -1580,7 +1586,7 @@ swsusp_alloc(struct memory_bitmap *orig_bm, struct memory_bitmap *copy_bm,
 	return -ENOMEM;
 }
 
-asmlinkage int swsusp_save(void)
+asmlinkage __visible int swsusp_save(void)
 {
 	unsigned int nr_pages, nr_highmem;
 

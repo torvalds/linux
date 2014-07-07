@@ -397,7 +397,7 @@ linkend="control" />.</para>
 
       <para>The <structfield>depth</structfield> (average number of
 bits per pixel) of a video image is implied by the selected image
-format. V4L2 does not explicitely provide such information assuming
+format. V4L2 does not explicitly provide such information assuming
 applications recognizing the format are aware of the image depth and
 others need not know. The <structfield>palette</structfield> field
 moved into the &v4l2-pix-format;:<informaltable>
@@ -2523,6 +2523,28 @@ that used it. It was originally scheduled for removal in 2.6.35.
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.14</title>
+      <orderedlist>
+        <listitem>
+		<para> In struct <structname>v4l2_rect</structname>, the type
+of <structfield>width</structfield> and <structfield>height</structfield>
+fields changed from _s32 to _u32.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.15</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added Software Defined Radio (SDR) Interface.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 
@@ -2638,6 +2660,9 @@ ioctls.</para>
         </listitem>
         <listitem>
 	  <para>Exporting DMABUF files using &VIDIOC-EXPBUF; ioctl.</para>
+        </listitem>
+        <listitem>
+	  <para>Software Defined Radio (SDR) Interface, <xref linkend="sdr" />.</para>
         </listitem>
       </itemizedlist>
     </section>

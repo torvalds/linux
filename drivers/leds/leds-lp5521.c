@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -152,9 +151,23 @@ static void lp5521_load_engine(struct lp55xx_chip *chip)
 	lp5521_wait_opmode_done();
 }
 
-static void lp5521_stop_engine(struct lp55xx_chip *chip)
+static void lp5521_stop_all_engines(struct lp55xx_chip *chip)
 {
 	lp55xx_write(chip, LP5521_REG_OP_MODE, 0);
+	lp5521_wait_opmode_done();
+}
+
+static void lp5521_stop_engine(struct lp55xx_chip *chip)
+{
+	enum lp55xx_engine_index idx = chip->engine_idx;
+	u8 mask[] = {
+		[LP55XX_ENGINE_1] = LP5521_MODE_R_M,
+		[LP55XX_ENGINE_2] = LP5521_MODE_G_M,
+		[LP55XX_ENGINE_3] = LP5521_MODE_B_M,
+	};
+
+	lp55xx_update_bits(chip, LP5521_REG_OP_MODE, mask[idx], 0);
+
 	lp5521_wait_opmode_done();
 }
 
@@ -244,17 +257,11 @@ static int lp5521_update_program_memory(struct lp55xx_chip *chip,
 	if (i % 2)
 		goto err;
 
-	mutex_lock(&chip->lock);
-
 	for (i = 0; i < LP5521_PROGRAM_LENGTH; i++) {
 		ret = lp55xx_write(chip, addr[idx] + i, pattern[i]);
-		if (ret) {
-			mutex_unlock(&chip->lock);
+		if (ret)
 			return -EINVAL;
-		}
 	}
-
-	mutex_unlock(&chip->lock);
 
 	return size;
 
@@ -427,15 +434,17 @@ static ssize_t store_engine_load(struct device *dev,
 {
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 	struct lp55xx_chip *chip = led->chip;
+	int ret;
 
 	mutex_lock(&chip->lock);
 
 	chip->engine_idx = nr;
 	lp5521_load_engine(chip);
+	ret = lp5521_update_program_memory(chip, buf, len);
 
 	mutex_unlock(&chip->lock);
 
-	return lp5521_update_program_memory(chip, buf, len);
+	return ret;
 }
 store_load(1)
 store_load(2)
@@ -568,7 +577,7 @@ static int lp5521_remove(struct i2c_client *client)
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
 
-	lp5521_stop_engine(chip);
+	lp5521_stop_all_engines(chip);
 	lp55xx_unregister_sysfs(chip);
 	lp55xx_unregister_leds(led, chip);
 	lp55xx_deinit_device(chip);

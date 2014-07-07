@@ -1955,7 +1955,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 			return 0;
 		}
 
-		switch (gspca_dev->width) {
+		switch (gspca_dev->pixfmt.width) {
 		case 160: /* 160x120 */
 			gspca_dev->alt = 2;
 			break;
@@ -1985,8 +1985,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
-	int width = gspca_dev->width;
-	int height = gspca_dev->height;
+	int width = gspca_dev->pixfmt.width;
+	int height = gspca_dev->pixfmt.height;
 	u8 fmt, scale = 0;
 
 	jpeg_define(sd->jpeg_hdr, height, width,
@@ -2359,6 +2359,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x045e, 0x00f4), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x145f, 0x013d), SN9C20X(OV7660, 0x21, 0)},
 	{USB_DEVICE(0x0458, 0x7029), SN9C20X(HV7131R, 0x11, 0)},
+	{USB_DEVICE(0x0458, 0x7045), SN9C20X(MT9M112, 0x5d, LED_REVERSE)},
 	{USB_DEVICE(0x0458, 0x704a), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0x0458, 0x704c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0xa168, 0x0610), SN9C20X(HV7131R, 0x11, 0)},

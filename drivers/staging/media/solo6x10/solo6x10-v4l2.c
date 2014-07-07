@@ -336,13 +336,12 @@ static int solo_start_streaming(struct vb2_queue *q, unsigned int count)
 	return solo_start_thread(solo_dev);
 }
 
-static int solo_stop_streaming(struct vb2_queue *q)
+static void solo_stop_streaming(struct vb2_queue *q)
 {
 	struct solo_dev *solo_dev = vb2_get_drv_priv(q);
 
 	solo_stop_thread(solo_dev);
 	INIT_LIST_HEAD(&solo_dev->vidq_active);
-	return 0;
 }
 
 static void solo_buf_queue(struct vb2_buffer *vb)
@@ -527,7 +526,7 @@ static int solo_g_std(struct file *file, void *priv, v4l2_std_id *i)
 	return 0;
 }
 
-int solo_set_video_type(struct solo_dev *solo_dev, bool type)
+int solo_set_video_type(struct solo_dev *solo_dev, bool is_50hz)
 {
 	int i;
 
@@ -537,7 +536,8 @@ int solo_set_video_type(struct solo_dev *solo_dev, bool type)
 	for (i = 0; i < solo_dev->nr_chans; i++)
 		if (vb2_is_busy(&solo_dev->v4l2_enc[i]->vidq))
 			return -EBUSY;
-	solo_dev->video_type = type;
+	solo_dev->video_type = is_50hz ? SOLO_VO_FMT_TYPE_PAL :
+					 SOLO_VO_FMT_TYPE_NTSC;
 	/* Reconfigure for the new standard */
 	solo_disp_init(solo_dev);
 	solo_enc_init(solo_dev);
@@ -551,7 +551,7 @@ static int solo_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct solo_dev *solo_dev = video_drvdata(file);
 
-	return solo_set_video_type(solo_dev, std & V4L2_STD_PAL);
+	return solo_set_video_type(solo_dev, std & V4L2_STD_625_50);
 }
 
 static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -675,7 +675,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	solo_dev->vidq.ops = &solo_video_qops;
 	solo_dev->vidq.mem_ops = &vb2_dma_contig_memops;
 	solo_dev->vidq.drv_priv = solo_dev;
-	solo_dev->vidq.timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	solo_dev->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	solo_dev->vidq.gfp_flags = __GFP_DMA32;
 	solo_dev->vidq.buf_struct_size = sizeof(struct solo_vb2_buf);
 	solo_dev->vidq.lock = &solo_dev->lock;

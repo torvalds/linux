@@ -41,7 +41,10 @@ enum calibration_mode {
 
 enum soc_type {
 	SOC_ARCH_EXYNOS4210 = 1,
-	SOC_ARCH_EXYNOS,
+	SOC_ARCH_EXYNOS4412,
+	SOC_ARCH_EXYNOS5250,
+	SOC_ARCH_EXYNOS5260,
+	SOC_ARCH_EXYNOS5420_TRIMINFO,
 	SOC_ARCH_EXYNOS5440,
 };
 
@@ -59,7 +62,7 @@ enum soc_type {
  *			state(active/idle) can be checked.
  * TMU_SUPPORT_EMUL_TIME - This features allows to set next temp emulation
  *			sample time.
- * TMU_SUPPORT_SHARED_MEMORY - This feature tells that the different TMU
+ * TMU_SUPPORT_ADDRESS_MULTIPLE - This feature tells that the different TMU
  *			sensors shares some common registers.
  * TMU_SUPPORT - macro to compare the above features with the supplied.
  */
@@ -69,7 +72,7 @@ enum soc_type {
 #define TMU_SUPPORT_FALLING_TRIP		BIT(3)
 #define TMU_SUPPORT_READY_STATUS		BIT(4)
 #define TMU_SUPPORT_EMUL_TIME			BIT(5)
-#define TMU_SUPPORT_SHARED_MEMORY		BIT(6)
+#define TMU_SUPPORT_ADDRESS_MULTIPLE		BIT(6)
 
 #define TMU_SUPPORTS(a, b)	(a->features & TMU_SUPPORT_ ## b)
 
@@ -84,6 +87,7 @@ enum soc_type {
  * @triminfo_reload_shift: shift of triminfo reload enable bit in triminfo_ctrl
 	reg.
  * @tmu_ctrl: TMU main controller register.
+ * @test_mux_addr_shift: shift bits of test mux address.
  * @buf_vref_sel_shift: shift bits of reference voltage in tmu_ctrl register.
  * @buf_vref_sel_mask: mask bits of reference voltage in tmu_ctrl register.
  * @therm_trip_mode_shift: shift bits of tripping mode in tmu_ctrl register.
@@ -120,10 +124,6 @@ enum soc_type {
  * @threshold_th3_l0_shift: shift bits of level0 threshold temperature.
  * @tmu_inten: register containing the different threshold interrupt
 	enable bits.
- * @inten_rise_shift: shift bits of all rising interrupt bits.
- * @inten_rise_mask: mask bits of all rising interrupt bits.
- * @inten_fall_shift: shift bits of all rising interrupt bits.
- * @inten_fall_mask: mask bits of all rising interrupt bits.
  * @inten_rise0_shift: shift bits of rising 0 interrupt bits.
  * @inten_rise1_shift: shift bits of rising 1 interrupt bits.
  * @inten_rise2_shift: shift bits of rising 2 interrupt bits.
@@ -134,6 +134,10 @@ enum soc_type {
  * @inten_fall3_shift: shift bits of falling 3 interrupt bits.
  * @tmu_intstat: Register containing the interrupt status values.
  * @tmu_intclear: Register for clearing the raised interrupt status.
+ * @intclr_fall_shift: shift bits for interrupt clear fall 0
+ * @intclr_rise_shift: shift bits of all rising interrupt bits.
+ * @intclr_rise_mask: mask bits of all rising interrupt bits.
+ * @intclr_fall_mask: mask bits of all rising interrupt bits.
  * @emul_con: TMU emulation controller register.
  * @emul_temp_shift: shift bits of emulation temperature.
  * @emul_time_shift: shift bits of emulation time.
@@ -147,9 +151,11 @@ struct exynos_tmu_registers {
 	u32	triminfo_85_shift;
 
 	u32	triminfo_ctrl;
+	u32	triminfo_ctrl1;
 	u32	triminfo_reload_shift;
 
 	u32	tmu_ctrl;
+	u32     test_mux_addr_shift;
 	u32	buf_vref_sel_shift;
 	u32	buf_vref_sel_mask;
 	u32	therm_trip_mode_shift;
@@ -188,10 +194,6 @@ struct exynos_tmu_registers {
 	u32	threshold_th3_l0_shift;
 
 	u32	tmu_inten;
-	u32	inten_rise_shift;
-	u32	inten_rise_mask;
-	u32	inten_fall_shift;
-	u32	inten_fall_mask;
 	u32	inten_rise0_shift;
 	u32	inten_rise1_shift;
 	u32	inten_rise2_shift;
@@ -204,6 +206,10 @@ struct exynos_tmu_registers {
 	u32	tmu_intstat;
 
 	u32	tmu_intclear;
+	u32	intclr_fall_shift;
+	u32	intclr_rise_shift;
+	u32	intclr_fall_mask;
+	u32	intclr_rise_mask;
 
 	u32	emul_con;
 	u32	emul_temp_shift;
@@ -257,6 +263,7 @@ struct exynos_tmu_registers {
  * @first_point_trim: temp value of the first point trimming
  * @second_point_trim: temp value of the second point trimming
  * @default_temp_offset: default temperature offset in case of no trimming
+ * @test_mux; information if SoC supports test MUX
  * @cal_type: calibration type for temperature
  * @cal_mode: calibration mode for temperature
  * @freq_clip_table: Table representing frequency reduction percentage.
@@ -286,6 +293,7 @@ struct exynos_tmu_platform_data {
 	u8 first_point_trim;
 	u8 second_point_trim;
 	u8 default_temp_offset;
+	u8 test_mux;
 
 	enum calibration_type cal_type;
 	enum calibration_mode cal_mode;

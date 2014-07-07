@@ -1,0 +1,47 @@
+config COMMON_CLK_QCOM
+	tristate "Support for Qualcomm's clock controllers"
+	depends on OF
+	select REGMAP_MMIO
+	select RESET_CONTROLLER
+
+config MSM_GCC_8660
+	tristate "MSM8660 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8660 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc.
+
+config MSM_GCC_8960
+	tristate "APQ8064/MSM8960 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on apq8064/msm8960 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, SATA, PCIe, etc.
+
+config MSM_MMCC_8960
+	tristate "MSM8960 Multimedia Clock Controller"
+	select MSM_GCC_8960
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the multimedia clock controller on msm8960 devices.
+	  Say Y if you want to support multimedia devices such as display,
+	  graphics, video encode/decode, camera, etc.
+
+config MSM_GCC_8974
+	tristate "MSM8974 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8974 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, SATA, PCIe, etc.
+
+config MSM_MMCC_8974
+	tristate "MSM8974 Multimedia Clock Controller"
+	select MSM_GCC_8974
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the multimedia clock controller on msm8974 devices.
+	  Say Y if you want to support multimedia devices such as display,
+	  graphics, video encode/decode, camera, etc.

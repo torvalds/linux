@@ -41,7 +41,6 @@
 #include <linux/stddef.h>
 #include <linux/ioport.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/io.h>
 
@@ -308,7 +307,7 @@ static const char* chipname[] = {
 	"nVidia nForce", "AMD8111",
 };
 
-static DEFINE_PCI_DEVICE_TABLE(amd756_ids) = {
+static const struct pci_device_id amd756_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_740B),
 	  .driver_data = AMD756 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7413),

@@ -18,6 +18,8 @@
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/input/mt.h>
@@ -369,7 +371,11 @@ static int evdev_release(struct inode *inode, struct file *file)
 	mutex_unlock(&evdev->mutex);
 
 	evdev_detach_client(evdev, client);
-	kfree(client);
+
+	if (is_vmalloc_addr(client))
+		vfree(client);
+	else
+		kfree(client);
 
 	evdev_close_device(evdev);
 
@@ -389,12 +395,14 @@ static int evdev_open(struct inode *inode, struct file *file)
 {
 	struct evdev *evdev = container_of(inode->i_cdev, struct evdev, cdev);
 	unsigned int bufsize = evdev_compute_buffer_size(evdev->handle.dev);
+	unsigned int size = sizeof(struct evdev_client) +
+					bufsize * sizeof(struct input_event);
 	struct evdev_client *client;
 	int error;
 
-	client = kzalloc(sizeof(struct evdev_client) +
-				bufsize * sizeof(struct input_event),
-			 GFP_KERNEL);
+	client = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+	if (!client)
+		client = vzalloc(size);
 	if (!client)
 		return -ENOMEM;
 
@@ -621,12 +629,10 @@ static int str_to_user(const char *str, unsigned int maxlen, void __user *p)
 	return copy_to_user(p, str, len) ? -EFAULT : len;
 }
 
-#define OLD_KEY_MAX	0x1ff
 static int handle_eviocgbit(struct input_dev *dev,
 			    unsigned int type, unsigned int size,
 			    void __user *p, int compat_mode)
 {
-	static unsigned long keymax_warn_time;
 	unsigned long *bits;
 	int len;
 
@@ -644,24 +650,8 @@ static int handle_eviocgbit(struct input_dev *dev,
 	default: return -EINVAL;
 	}
 
-	/*
-	 * Work around bugs in userspace programs that like to do
-	 * EVIOCGBIT(EV_KEY, KEY_MAX) and not realize that 'len'
-	 * should be in bytes, not in bits.
-	 */
-	if (type == EV_KEY && size == OLD_KEY_MAX) {
-		len = OLD_KEY_MAX;
-		if (printk_timed_ratelimit(&keymax_warn_time, 10 * 1000))
-			pr_warning("(EVIOCGBIT): Suspicious buffer size %u, "
-				   "limiting output to %zu bytes. See "
-				   "http://userweb.kernel.org/~dtor/eviocgbit-bug.html\n",
-				   OLD_KEY_MAX,
-				   BITS_TO_LONGS(OLD_KEY_MAX) * sizeof(long));
-	}
-
 	return bits_to_user(bits, len, size, p, compat_mode);
 }
-#undef OLD_KEY_MAX
 
 static int evdev_handle_get_keycode(struct input_dev *dev, void __user *p)
 {
@@ -946,11 +936,13 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		error = input_ff_upload(dev, &effect, file);
+		if (error)
+			return error;
 
 		if (put_user(effect.id, &(((struct ff_effect __user *)p)->id)))
 			return -EFAULT;
 
-		return error;
+		return 0;
 	}
 
 	/* Multi-number variable-length handlers */

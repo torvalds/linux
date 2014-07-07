@@ -11,6 +11,7 @@ have PPIs or SGIs.
 Main node required properties:
 
 - compatible : should be one of:
+	"arm,gic-400"
 	"arm,cortex-a15-gic"
 	"arm,cortex-a9-gic"
 	"arm,cortex-a7-gic"
@@ -49,6 +50,11 @@ Optional
   regions, used when the GIC doesn't have banked registers. The offset is
   cpu-offset * cpu-nr.
 
+- arm,routable-irqs : Total number of gic irq inputs which are not directly
+		  connected from the peripherals, but are routed dynamically
+		  by a crossbar/multiplexer preceding the GIC. The GIC irq
+		  input line is assigned dynamically when the corresponding
+		  peripheral's crossbar line is mapped.
 Example:
 
 	intc: interrupt-controller@fff11000 {
@@ -56,6 +62,7 @@ Example:
 		#interrupt-cells = <3>;
 		#address-cells = <1>;
 		interrupt-controller;
+		arm,routable-irqs = <160>;
 		reg = <0xfff11000 0x1000>,
 		      <0xfff10100 0x100>;
 	};

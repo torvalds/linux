@@ -200,11 +200,11 @@ static int copy_to_brd_setup(struct brd_device *brd, sector_t sector, size_t n)
 
 	copy = min_t(size_t, n, PAGE_SIZE - offset);
 	if (!brd_insert_page(brd, sector))
-		return -ENOMEM;
+		return -ENOSPC;
 	if (copy < n) {
 		sector += copy >> SECTOR_SHIFT;
 		if (!brd_insert_page(brd, sector))
-			return -ENOMEM;
+			return -ENOSPC;
 	}
 	return 0;
 }
@@ -328,18 +328,18 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
 	struct block_device *bdev = bio->bi_bdev;
 	struct brd_device *brd = bdev->bd_disk->private_data;
 	int rw;
-	struct bio_vec *bvec;
+	struct bio_vec bvec;
 	sector_t sector;
-	int i;
+	struct bvec_iter iter;
 	int err = -EIO;
 
-	sector = bio->bi_sector;
+	sector = bio->bi_iter.bi_sector;
 	if (bio_end_sector(bio) > get_capacity(bdev->bd_disk))
 		goto out;
 
 	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
 		err = 0;
-		discard_from_brd(brd, sector, bio->bi_size);
+		discard_from_brd(brd, sector, bio->bi_iter.bi_size);
 		goto out;
 	}
 
@@ -347,10 +347,10 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
 	if (rw == READA)
 		rw = READ;
 
-	bio_for_each_segment(bvec, bio, i) {
-		unsigned int len = bvec->bv_len;
-		err = brd_do_bvec(brd, bvec->bv_page, len,
-					bvec->bv_offset, rw, sector);
+	bio_for_each_segment(bvec, bio, iter) {
+		unsigned int len = bvec.bv_len;
+		err = brd_do_bvec(brd, bvec.bv_page, len,
+					bvec.bv_offset, rw, sector);
 		if (err)
 			break;
 		sector += len >> SECTOR_SHIFT;
@@ -358,6 +358,15 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
 
 out:
 	bio_endio(bio, err);
+}
+
+static int brd_rw_page(struct block_device *bdev, sector_t sector,
+		       struct page *page, int rw)
+{
+	struct brd_device *brd = bdev->bd_disk->private_data;
+	int err = brd_do_bvec(brd, page, PAGE_CACHE_SIZE, 0, rw, sector);
+	page_endio(page, rw & WRITE, err);
+	return err;
 }
 
 #ifdef CONFIG_BLK_DEV_XIP
@@ -375,7 +384,7 @@ static int brd_direct_access(struct block_device *bdev, sector_t sector,
 		return -ERANGE;
 	page = brd_insert_page(brd, sector);
 	if (!page)
-		return -ENOMEM;
+		return -ENOSPC;
 	*kaddr = page_address(page);
 	*pfn = page_to_pfn(page);
 
@@ -419,6 +428,7 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
 
 static const struct block_device_operations brd_fops = {
 	.owner =		THIS_MODULE,
+	.rw_page =		brd_rw_page,
 	.ioctl =		brd_ioctl,
 #ifdef CONFIG_BLK_DEV_XIP
 	.direct_access =	brd_direct_access,
@@ -545,7 +555,7 @@ static struct kobject *brd_probe(dev_t dev, int *part, void *data)
 
 	mutex_lock(&brd_devices_mutex);
 	brd = brd_init_one(MINOR(dev) >> part_shift);
-	kobj = brd ? get_disk(brd->brd_disk) : ERR_PTR(-ENOMEM);
+	kobj = brd ? get_disk(brd->brd_disk) : NULL;
 	mutex_unlock(&brd_devices_mutex);
 
 	*part = 0;

@@ -79,6 +79,7 @@ void clear_page_mlock(struct page *page)
  */
 void mlock_vma_page(struct page *page)
 {
+	/* Serialize with page migration */
 	BUG_ON(!PageLocked(page));
 
 	if (!TestSetPageMlocked(page)) {
@@ -88,6 +89,26 @@ void mlock_vma_page(struct page *page)
 		if (!isolate_lru_page(page))
 			putback_lru_page(page);
 	}
+}
+
+/*
+ * Isolate a page from LRU with optional get_page() pin.
+ * Assumes lru_lock already held and page already pinned.
+ */
+static bool __munlock_isolate_lru_page(struct page *page, bool getpage)
+{
+	if (PageLRU(page)) {
+		struct lruvec *lruvec;
+
+		lruvec = mem_cgroup_page_lruvec(page, page_zone(page));
+		if (getpage)
+			get_page(page);
+		ClearPageLRU(page);
+		del_page_from_lru_list(page, lruvec, page_lru(page));
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -126,14 +147,17 @@ static void __munlock_isolated_page(struct page *page)
 static void __munlock_isolation_failed(struct page *page)
 {
 	if (PageUnevictable(page))
-		count_vm_event(UNEVICTABLE_PGSTRANDED);
+		__count_vm_event(UNEVICTABLE_PGSTRANDED);
 	else
-		count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+		__count_vm_event(UNEVICTABLE_PGMUNLOCKED);
 }
 
 /**
  * munlock_vma_page - munlock a vma page
- * @page - page to be unlocked
+ * @page - page to be unlocked, either a normal page or THP page head
+ *
+ * returns the size of the page as a page mask (0 for normal page,
+ *         HPAGE_PMD_NR - 1 for THP head page)
  *
  * called from munlock()/munmap() path with page supposedly on the LRU.
  * When we munlock a page, because the vma where we found the page is being
@@ -148,21 +172,37 @@ static void __munlock_isolation_failed(struct page *page)
  */
 unsigned int munlock_vma_page(struct page *page)
 {
-	unsigned int page_mask = 0;
+	unsigned int nr_pages;
+	struct zone *zone = page_zone(page);
 
+	/* For try_to_munlock() and to serialize with page migration */
 	BUG_ON(!PageLocked(page));
 
-	if (TestClearPageMlocked(page)) {
-		unsigned int nr_pages = hpage_nr_pages(page);
-		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
-		page_mask = nr_pages - 1;
-		if (!isolate_lru_page(page))
-			__munlock_isolated_page(page);
-		else
-			__munlock_isolation_failed(page);
-	}
+	/*
+	 * Serialize with any parallel __split_huge_page_refcount() which
+	 * might otherwise copy PageMlocked to part of the tail pages before
+	 * we clear it in the head page. It also stabilizes hpage_nr_pages().
+	 */
+	spin_lock_irq(&zone->lru_lock);
 
-	return page_mask;
+	nr_pages = hpage_nr_pages(page);
+	if (!TestClearPageMlocked(page))
+		goto unlock_out;
+
+	__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
+
+	if (__munlock_isolate_lru_page(page, true)) {
+		spin_unlock_irq(&zone->lru_lock);
+		__munlock_isolated_page(page);
+		goto out;
+	}
+	__munlock_isolation_failed(page);
+
+unlock_out:
+	spin_unlock_irq(&zone->lru_lock);
+
+out:
+	return nr_pages - 1;
 }
 
 /**
@@ -241,8 +281,8 @@ static int __mlock_posix_error_return(long retval)
 static bool __putback_lru_fast_prepare(struct page *page, struct pagevec *pvec,
 		int *pgrescued)
 {
-	VM_BUG_ON(PageLRU(page));
-	VM_BUG_ON(!PageLocked(page));
+	VM_BUG_ON_PAGE(PageLRU(page), page);
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
 
 	if (page_mapcount(page) <= 1 && page_evictable(page)) {
 		pagevec_add(pvec, page);
@@ -286,9 +326,11 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 {
 	int i;
 	int nr = pagevec_count(pvec);
-	int delta_munlocked = -nr;
+	int delta_munlocked;
 	struct pagevec pvec_putback;
 	int pgrescued = 0;
+
+	pagevec_init(&pvec_putback, 0);
 
 	/* Phase 1: page isolation */
 	spin_lock_irq(&zone->lru_lock);
@@ -296,40 +338,33 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 		struct page *page = pvec->pages[i];
 
 		if (TestClearPageMlocked(page)) {
-			struct lruvec *lruvec;
-			int lru;
-
-			if (PageLRU(page)) {
-				lruvec = mem_cgroup_page_lruvec(page, zone);
-				lru = page_lru(page);
-				/*
-				 * We already have pin from follow_page_mask()
-				 * so we can spare the get_page() here.
-				 */
-				ClearPageLRU(page);
-				del_page_from_lru_list(page, lruvec, lru);
-			} else {
-				__munlock_isolation_failed(page);
-				goto skip_munlock;
-			}
-
-		} else {
-skip_munlock:
 			/*
-			 * We won't be munlocking this page in the next phase
-			 * but we still need to release the follow_page_mask()
-			 * pin.
+			 * We already have pin from follow_page_mask()
+			 * so we can spare the get_page() here.
 			 */
-			pvec->pages[i] = NULL;
-			put_page(page);
-			delta_munlocked++;
+			if (__munlock_isolate_lru_page(page, false))
+				continue;
+			else
+				__munlock_isolation_failed(page);
 		}
+
+		/*
+		 * We won't be munlocking this page in the next phase
+		 * but we still need to release the follow_page_mask()
+		 * pin. We cannot do it under lru_lock however. If it's
+		 * the last pin, __page_cache_release() would deadlock.
+		 */
+		pagevec_add(&pvec_putback, pvec->pages[i]);
+		pvec->pages[i] = NULL;
 	}
+	delta_munlocked = -nr + pagevec_count(&pvec_putback);
 	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
 	spin_unlock_irq(&zone->lru_lock);
 
+	/* Now we can release pins of pages that we are not munlocking */
+	pagevec_release(&pvec_putback);
+
 	/* Phase 2: page munlock */
-	pagevec_init(&pvec_putback, 0);
 	for (i = 0; i < nr; i++) {
 		struct page *page = pvec->pages[i];
 
@@ -440,7 +475,8 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 
 	while (start < end) {
 		struct page *page = NULL;
-		unsigned int page_mask, page_increm;
+		unsigned int page_mask;
+		unsigned long page_increm;
 		struct pagevec pvec;
 		struct zone *zone;
 		int zoneid;
@@ -490,7 +526,9 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 				goto next;
 			}
 		}
-		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
+		/* It's a bug to munlock in the middle of a THP page */
+		VM_BUG_ON((start >> PAGE_SHIFT) & page_mask);
+		page_increm = 1 + page_mask;
 		start += page_increm * PAGE_SIZE;
 next:
 		cond_resched();
@@ -689,19 +727,21 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
 
 	lru_add_drain_all();	/* flush pagevec */
 
-	down_write(&current->mm->mmap_sem);
 	len = PAGE_ALIGN(len + (start & ~PAGE_MASK));
 	start &= PAGE_MASK;
 
-	locked = len >> PAGE_SHIFT;
-	locked += current->mm->locked_vm;
-
 	lock_limit = rlimit(RLIMIT_MEMLOCK);
 	lock_limit >>= PAGE_SHIFT;
+	locked = len >> PAGE_SHIFT;
+
+	down_write(&current->mm->mmap_sem);
+
+	locked += current->mm->locked_vm;
 
 	/* check against resource limits */
 	if ((locked <= lock_limit) || capable(CAP_IPC_LOCK))
 		error = do_mlock(start, len, 1);
+
 	up_write(&current->mm->mmap_sem);
 	if (!error)
 		error = __mm_populate(start, len, 0);
@@ -712,11 +752,13 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
 {
 	int ret;
 
-	down_write(&current->mm->mmap_sem);
 	len = PAGE_ALIGN(len + (start & ~PAGE_MASK));
 	start &= PAGE_MASK;
+
+	down_write(&current->mm->mmap_sem);
 	ret = do_mlock(start, len, 0);
 	up_write(&current->mm->mmap_sem);
+
 	return ret;
 }
 
@@ -761,12 +803,12 @@ SYSCALL_DEFINE1(mlockall, int, flags)
 	if (flags & MCL_CURRENT)
 		lru_add_drain_all();	/* flush pagevec */
 
-	down_write(&current->mm->mmap_sem);
-
 	lock_limit = rlimit(RLIMIT_MEMLOCK);
 	lock_limit >>= PAGE_SHIFT;
 
 	ret = -ENOMEM;
+	down_write(&current->mm->mmap_sem);
+
 	if (!(flags & MCL_CURRENT) || (current->mm->total_vm <= lock_limit) ||
 	    capable(CAP_IPC_LOCK))
 		ret = do_mlockall(flags);

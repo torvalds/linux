@@ -77,7 +77,6 @@ struct dio_submit {
 	unsigned blocks_available;	/* At block_in_file.  changes */
 	int reap_counter;		/* rate limit reaping */
 	sector_t final_block_in_request;/* doesn't change */
-	unsigned first_block_in_page;	/* doesn't change, Used only once */
 	int boundary;			/* prev block is at a boundary */
 	get_block_t *get_block;		/* block mapping function */
 	dio_submit_t *submit_io;	/* IO submition function */
@@ -98,19 +97,14 @@ struct dio_submit {
 	sector_t cur_page_block;	/* Where it starts */
 	loff_t cur_page_fs_offset;	/* Offset in file */
 
-	/*
-	 * Page fetching state. These variables belong to dio_refill_pages().
-	 */
-	int curr_page;			/* changes */
-	int total_pages;		/* doesn't change */
-	unsigned long curr_user_address;/* changes */
-
+	struct iov_iter *iter;
 	/*
 	 * Page queue.  These variables belong to dio_refill_pages() and
 	 * dio_get_page().
 	 */
 	unsigned head;			/* next page to process */
 	unsigned tail;			/* last valid page + 1 */
+	size_t from, to;
 };
 
 /* dio_state communicated between submission path and end_io */
@@ -163,15 +157,10 @@ static inline unsigned dio_pages_present(struct dio_submit *sdio)
  */
 static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
 {
-	int ret;
-	int nr_pages;
+	ssize_t ret;
 
-	nr_pages = min(sdio->total_pages - sdio->curr_page, DIO_PAGES);
-	ret = get_user_pages_fast(
-		sdio->curr_user_address,		/* Where from? */
-		nr_pages,			/* How many pages? */
-		dio->rw == READ,		/* Write to memory? */
-		&dio->pages[0]);		/* Put results here */
+	ret = iov_iter_get_pages(sdio->iter, dio->pages, DIO_PAGES * PAGE_SIZE,
+				&sdio->from);
 
 	if (ret < 0 && sdio->blocks_available && (dio->rw & WRITE)) {
 		struct page *page = ZERO_PAGE(0);
@@ -186,18 +175,19 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
 		dio->pages[0] = page;
 		sdio->head = 0;
 		sdio->tail = 1;
-		ret = 0;
-		goto out;
+		sdio->from = 0;
+		sdio->to = PAGE_SIZE;
+		return 0;
 	}
 
 	if (ret >= 0) {
-		sdio->curr_user_address += ret * PAGE_SIZE;
-		sdio->curr_page += ret;
+		iov_iter_advance(sdio->iter, ret);
+		ret += sdio->from;
 		sdio->head = 0;
-		sdio->tail = ret;
-		ret = 0;
+		sdio->tail = (ret + PAGE_SIZE - 1) / PAGE_SIZE;
+		sdio->to = ((ret - 1) & (PAGE_SIZE - 1)) + 1;
+		return 0;
 	}
-out:
 	return ret;	
 }
 
@@ -208,8 +198,9 @@ out:
  * L1 cache.
  */
 static inline struct page *dio_get_page(struct dio *dio,
-		struct dio_submit *sdio)
+		struct dio_submit *sdio, size_t *from, size_t *to)
 {
+	int n;
 	if (dio_pages_present(sdio) == 0) {
 		int ret;
 
@@ -218,7 +209,10 @@ static inline struct page *dio_get_page(struct dio *dio,
 			return ERR_PTR(ret);
 		BUG_ON(dio_pages_present(sdio) == 0);
 	}
-	return dio->pages[sdio->head++];
+	n = sdio->head++;
+	*from = n ? 0 : sdio->from;
+	*to = (n == sdio->tail - 1) ? sdio->to : PAGE_SIZE;
+	return dio->pages[n];
 }
 
 /**
@@ -375,7 +369,7 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
 	bio = bio_alloc(GFP_KERNEL, nr_vecs);
 
 	bio->bi_bdev = bdev;
-	bio->bi_sector = first_sector;
+	bio->bi_iter.bi_sector = first_sector;
 	if (dio->is_async)
 		bio->bi_end_io = dio_bio_end_aio;
 	else
@@ -422,8 +416,8 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
  */
 static inline void dio_cleanup(struct dio *dio, struct dio_submit *sdio)
 {
-	while (dio_pages_present(sdio))
-		page_cache_release(dio_get_page(dio, sdio));
+	while (sdio->head < sdio->tail)
+		page_cache_release(dio->pages[sdio->head++]);
 }
 
 /*
@@ -664,7 +658,6 @@ static inline int dio_new_bio(struct dio *dio, struct dio_submit *sdio,
 		goto out;
 	sector = start_sector << (sdio->blkbits - 9);
 	nr_pages = min(sdio->pages_in_io, bio_get_nr_vecs(map_bh->b_bdev));
-	nr_pages = min(nr_pages, BIO_MAX_PAGES);
 	BUG_ON(nr_pages <= 0);
 	dio_bio_alloc(dio, sdio, map_bh->b_bdev, sector, nr_pages);
 	sdio->boundary = 0;
@@ -719,7 +712,7 @@ static inline int dio_send_cur_page(struct dio *dio, struct dio_submit *sdio,
 	if (sdio->bio) {
 		loff_t cur_offset = sdio->cur_page_fs_offset;
 		loff_t bio_next_offset = sdio->logical_offset_in_bio +
-			sdio->bio->bi_size;
+			sdio->bio->bi_iter.bi_size;
 
 		/*
 		 * See whether this new request is contiguous with the old.
@@ -913,23 +906,18 @@ static int do_direct_IO(struct dio *dio, struct dio_submit *sdio,
 			struct buffer_head *map_bh)
 {
 	const unsigned blkbits = sdio->blkbits;
-	const unsigned blocks_per_page = PAGE_SIZE >> blkbits;
-	struct page *page;
-	unsigned block_in_page;
 	int ret = 0;
 
-	/* The I/O can start at any block offset within the first page */
-	block_in_page = sdio->first_block_in_page;
-
 	while (sdio->block_in_file < sdio->final_block_in_request) {
-		page = dio_get_page(dio, sdio);
+		struct page *page;
+		size_t from, to;
+		page = dio_get_page(dio, sdio, &from, &to);
 		if (IS_ERR(page)) {
 			ret = PTR_ERR(page);
 			goto out;
 		}
 
-		while (block_in_page < blocks_per_page) {
-			unsigned offset_in_page = block_in_page << blkbits;
+		while (from < to) {
 			unsigned this_chunk_bytes;	/* # of bytes mapped */
 			unsigned this_chunk_blocks;	/* # of blocks */
 			unsigned u;
@@ -1000,10 +988,10 @@ do_holes:
 					page_cache_release(page);
 					goto out;
 				}
-				zero_user(page, block_in_page << blkbits,
-						1 << blkbits);
+				zero_user(page, from, 1 << blkbits);
 				sdio->block_in_file++;
-				block_in_page++;
+				from += 1 << blkbits;
+				dio->result += 1 << blkbits;
 				goto next_block;
 			}
 
@@ -1020,7 +1008,7 @@ do_holes:
 			 * can add to this page
 			 */
 			this_chunk_blocks = sdio->blocks_available;
-			u = (PAGE_SIZE - offset_in_page) >> blkbits;
+			u = (to - from) >> blkbits;
 			if (this_chunk_blocks > u)
 				this_chunk_blocks = u;
 			u = sdio->final_block_in_request - sdio->block_in_file;
@@ -1032,7 +1020,7 @@ do_holes:
 			if (this_chunk_blocks == sdio->blocks_available)
 				sdio->boundary = buffer_boundary(map_bh);
 			ret = submit_page_section(dio, sdio, page,
-						  offset_in_page,
+						  from,
 						  this_chunk_bytes,
 						  sdio->next_block_for_io,
 						  map_bh);
@@ -1043,7 +1031,8 @@ do_holes:
 			sdio->next_block_for_io += this_chunk_blocks;
 
 			sdio->block_in_file += this_chunk_blocks;
-			block_in_page += this_chunk_blocks;
+			from += this_chunk_bytes;
+			dio->result += this_chunk_bytes;
 			sdio->blocks_available -= this_chunk_blocks;
 next_block:
 			BUG_ON(sdio->block_in_file > sdio->final_block_in_request);
@@ -1053,7 +1042,6 @@ next_block:
 
 		/* Drop the ref which was taken in get_user_pages() */
 		page_cache_release(page);
-		block_in_page = 0;
 	}
 out:
 	return ret;
@@ -1108,24 +1096,20 @@ static inline int drop_refcount(struct dio *dio)
  */
 static inline ssize_t
 do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, const struct iovec *iov, loff_t offset, 
-	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
+	struct block_device *bdev, struct iov_iter *iter, loff_t offset, 
+	get_block_t get_block, dio_iodone_t end_io,
 	dio_submit_t submit_io,	int flags)
 {
-	int seg;
-	size_t size;
-	unsigned long addr;
 	unsigned i_blkbits = ACCESS_ONCE(inode->i_blkbits);
 	unsigned blkbits = i_blkbits;
 	unsigned blocksize_mask = (1 << blkbits) - 1;
 	ssize_t retval = -EINVAL;
-	loff_t end = offset;
+	loff_t end = offset + iov_iter_count(iter);
 	struct dio *dio;
 	struct dio_submit sdio = { 0, };
-	unsigned long user_addr;
-	size_t bytes;
 	struct buffer_head map_bh = { 0, };
 	struct blk_plug plug;
+	unsigned long align = offset | iov_iter_alignment(iter);
 
 	if (rw & WRITE)
 		rw = WRITE_ODIRECT;
@@ -1135,32 +1119,16 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	 * the early prefetch in the caller enough time.
 	 */
 
-	if (offset & blocksize_mask) {
+	if (align & blocksize_mask) {
 		if (bdev)
 			blkbits = blksize_bits(bdev_logical_block_size(bdev));
 		blocksize_mask = (1 << blkbits) - 1;
-		if (offset & blocksize_mask)
+		if (align & blocksize_mask)
 			goto out;
 	}
 
-	/* Check the memory alignment.  Blocks cannot straddle pages */
-	for (seg = 0; seg < nr_segs; seg++) {
-		addr = (unsigned long)iov[seg].iov_base;
-		size = iov[seg].iov_len;
-		end += size;
-		if (unlikely((addr & blocksize_mask) ||
-			     (size & blocksize_mask))) {
-			if (bdev)
-				blkbits = blksize_bits(
-					 bdev_logical_block_size(bdev));
-			blocksize_mask = (1 << blkbits) - 1;
-			if ((addr & blocksize_mask) || (size & blocksize_mask))
-				goto out;
-		}
-	}
-
 	/* watch out for a 0 len io from a tricksy fs */
-	if (rw == READ && end == offset)
+	if (rw == READ && !iov_iter_count(iter))
 		return 0;
 
 	dio = kmem_cache_alloc(dio_cache, GFP_KERNEL);
@@ -1194,13 +1162,19 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	}
 
 	/*
-	 * For file extending writes updating i_size before data
-	 * writeouts complete can expose uninitialized blocks. So
-	 * even for AIO, we need to wait for i/o to complete before
-	 * returning in this case.
+	 * For file extending writes updating i_size before data writeouts
+	 * complete can expose uninitialized blocks in dumb filesystems.
+	 * In that case we need to wait for I/O completion even if asked
+	 * for an asynchronous write.
 	 */
-	dio->is_async = !is_sync_kiocb(iocb) && !((rw & WRITE) &&
-		(end > i_size_read(inode)));
+	if (is_sync_kiocb(iocb))
+		dio->is_async = false;
+	else if (!(dio->flags & DIO_ASYNC_EXTEND) &&
+            (rw & WRITE) && end > i_size_read(inode))
+		dio->is_async = false;
+	else
+		dio->is_async = true;
+
 	dio->inode = inode;
 	dio->rw = rw;
 
@@ -1244,6 +1218,10 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	spin_lock_init(&dio->bio_lock);
 	dio->refcount = 1;
 
+	sdio.iter = iter;
+	sdio.final_block_in_request =
+		(offset + iov_iter_count(iter)) >> blkbits;
+
 	/*
 	 * In case of non-aligned buffers, we may need 2 more
 	 * pages since we need to zero out first and last block.
@@ -1251,47 +1229,13 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	if (unlikely(sdio.blkfactor))
 		sdio.pages_in_io = 2;
 
-	for (seg = 0; seg < nr_segs; seg++) {
-		user_addr = (unsigned long)iov[seg].iov_base;
-		sdio.pages_in_io +=
-			((user_addr + iov[seg].iov_len + PAGE_SIZE-1) /
-				PAGE_SIZE - user_addr / PAGE_SIZE);
-	}
+	sdio.pages_in_io += iov_iter_npages(iter, INT_MAX);
 
 	blk_start_plug(&plug);
 
-	for (seg = 0; seg < nr_segs; seg++) {
-		user_addr = (unsigned long)iov[seg].iov_base;
-		sdio.size += bytes = iov[seg].iov_len;
-
-		/* Index into the first page of the first block */
-		sdio.first_block_in_page = (user_addr & ~PAGE_MASK) >> blkbits;
-		sdio.final_block_in_request = sdio.block_in_file +
-						(bytes >> blkbits);
-		/* Page fetching state */
-		sdio.head = 0;
-		sdio.tail = 0;
-		sdio.curr_page = 0;
-
-		sdio.total_pages = 0;
-		if (user_addr & (PAGE_SIZE-1)) {
-			sdio.total_pages++;
-			bytes -= PAGE_SIZE - (user_addr & (PAGE_SIZE - 1));
-		}
-		sdio.total_pages += (bytes + PAGE_SIZE - 1) / PAGE_SIZE;
-		sdio.curr_user_address = user_addr;
-
-		retval = do_direct_IO(dio, &sdio, &map_bh);
-
-		dio->result += iov[seg].iov_len -
-			((sdio.final_block_in_request - sdio.block_in_file) <<
-					blkbits);
-
-		if (retval) {
-			dio_cleanup(dio, &sdio);
-			break;
-		}
-	} /* end iovec loop */
+	retval = do_direct_IO(dio, &sdio, &map_bh);
+	if (retval)
+		dio_cleanup(dio, &sdio);
 
 	if (retval == -ENOTBLK) {
 		/*
@@ -1360,8 +1304,8 @@ out:
 
 ssize_t
 __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, const struct iovec *iov, loff_t offset,
-	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
+	struct block_device *bdev, struct iov_iter *iter, loff_t offset,
+	get_block_t get_block, dio_iodone_t end_io,
 	dio_submit_t submit_io,	int flags)
 {
 	/*
@@ -1376,9 +1320,8 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	prefetch(bdev->bd_queue);
 	prefetch((char *)bdev->bd_queue + SMP_CACHE_BYTES);
 
-	return do_blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
-				     nr_segs, get_block, end_io,
-				     submit_io, flags);
+	return do_blockdev_direct_IO(rw, iocb, inode, bdev, iter, offset,
+				     get_block, end_io, submit_io, flags);
 }
 
 EXPORT_SYMBOL(__blockdev_direct_IO);

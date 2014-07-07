@@ -354,10 +354,11 @@ static int set_sample_rates(struct atmel_abdac *dac)
 	/* we start at 192 kHz and work our way down to 5112 Hz */
 	while (new_rate >= RATE_MIN && index < (MAX_NUM_RATES + 1)) {
 		new_rate = clk_round_rate(dac->sample_clk, 256 * new_rate);
-		if (new_rate < 0)
+		if (new_rate <= 0)
 			break;
 		/* make sure we are below the ABDAC clock */
-		if (new_rate <= clk_get_rate(dac->pclk)) {
+		if (index < MAX_NUM_RATES &&
+		    new_rate <= clk_get_rate(dac->pclk)) {
 			dac->rates[index] = new_rate / 256;
 			index++;
 		}
@@ -428,8 +429,9 @@ static int atmel_abdac_probe(struct platform_device *pdev)
 	}
 	clk_enable(pclk);
 
-	retval = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			THIS_MODULE, sizeof(struct atmel_abdac), &card);
+	retval = snd_card_new(&pdev->dev, SNDRV_DEFAULT_IDX1,
+			      SNDRV_DEFAULT_STR1, THIS_MODULE,
+			      sizeof(struct atmel_abdac), &card);
 	if (retval) {
 		dev_dbg(&pdev->dev, "could not create sound card device\n");
 		goto out_put_sample_clk;
@@ -466,8 +468,6 @@ static int atmel_abdac_probe(struct platform_device *pdev)
 		goto out_unmap_regs;
 	}
 
-	snd_card_set_dev(card, &pdev->dev);
-
 	if (pdata->dws.dma_dev) {
 		dma_cap_mask_t mask;
 
@@ -491,7 +491,7 @@ static int atmel_abdac_probe(struct platform_device *pdev)
 	if (!pdata->dws.dma_dev || !dac->dma.chan) {
 		dev_dbg(&pdev->dev, "DMA not available\n");
 		retval = -ENODEV;
-		goto out_unset_card_dev;
+		goto out_unmap_regs;
 	}
 
 	strcpy(card->driver, "Atmel ABDAC");
@@ -520,9 +520,6 @@ static int atmel_abdac_probe(struct platform_device *pdev)
 out_release_dma:
 	dma_release_channel(dac->dma.chan);
 	dac->dma.chan = NULL;
-out_unset_card_dev:
-	snd_card_set_dev(card, NULL);
-	free_irq(irq, dac);
 out_unmap_regs:
 	iounmap(dac->regs);
 out_free_card:
@@ -578,7 +575,6 @@ static int atmel_abdac_remove(struct platform_device *pdev)
 
 	dma_release_channel(dac->dma.chan);
 	dac->dma.chan = NULL;
-	snd_card_set_dev(card, NULL);
 	iounmap(dac->regs);
 	free_irq(dac->irq, dac);
 	snd_card_free(card);

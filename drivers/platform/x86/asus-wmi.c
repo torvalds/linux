@@ -45,8 +45,7 @@
 #include <linux/seq_file.h>
 #include <linux/platform_device.h>
 #include <linux/thermal.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <acpi/video.h>
 
 #include "asus-wmi.h"
@@ -184,7 +183,6 @@ struct asus_wmi {
 
 	struct input_dev *inputdev;
 	struct backlight_device *backlight_device;
-	struct device *hwmon_device;
 	struct platform_device *platform_device;
 
 	struct led_classdev wlan_led;
@@ -268,7 +266,7 @@ static int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	acpi_status status;
 	union acpi_object *obj;
-	u32 tmp;
+	u32 tmp = 0;
 
 	status = wmi_evaluate_method(ASUS_WMI_MGMT_GUID, 1, method_id,
 				     &input, &output);
@@ -279,8 +277,6 @@ static int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
 	obj = (union acpi_object *)output.pointer;
 	if (obj && obj->type == ACPI_TYPE_INTEGER)
 		tmp = (u32) obj->integer.value;
-	else
-		tmp = 0;
 
 	if (retval)
 		*retval = tmp;
@@ -606,6 +602,7 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 	mutex_unlock(&asus->wmi_lock);
 
 	mutex_lock(&asus->hotplug_lock);
+	pci_lock_rescan_remove();
 
 	if (asus->wlan.rfkill)
 		rfkill_set_sw_state(asus->wlan.rfkill, blocked);
@@ -643,8 +640,7 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 			dev = pci_scan_single_device(bus, 0);
 			if (dev) {
 				pci_bus_assign_resources(bus);
-				if (pci_bus_add_device(dev))
-					pr_err("Unable to hotplug wifi\n");
+				pci_bus_add_device(dev);
 			}
 		} else {
 			dev = pci_get_slot(bus, 0);
@@ -656,6 +652,7 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 	}
 
 out_unlock:
+	pci_unlock_rescan_remove();
 	mutex_unlock(&asus->hotplug_lock);
 }
 
@@ -1071,20 +1068,12 @@ static ssize_t asus_hwmon_temp1(struct device *dev,
 	return sprintf(buf, "%d\n", value);
 }
 
-static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO, asus_hwmon_pwm1, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, asus_hwmon_temp1, NULL, 0);
-
-static ssize_t
-show_name(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "asus\n");
-}
-static SENSOR_DEVICE_ATTR(name, S_IRUGO, show_name, NULL, 0);
+static DEVICE_ATTR(pwm1, S_IRUGO, asus_hwmon_pwm1, NULL);
+static DEVICE_ATTR(temp1_input, S_IRUGO, asus_hwmon_temp1, NULL);
 
 static struct attribute *hwmon_attributes[] = {
-	&sensor_dev_attr_pwm1.dev_attr.attr,
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_name.dev_attr.attr,
+	&dev_attr_pwm1.attr,
+	&dev_attr_temp1_input.attr,
 	NULL
 };
 
@@ -1098,9 +1087,9 @@ static umode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
 	int dev_id = -1;
 	u32 value = ASUS_WMI_UNSUPPORTED_METHOD;
 
-	if (attr == &sensor_dev_attr_pwm1.dev_attr.attr)
+	if (attr == &dev_attr_pwm1.attr)
 		dev_id = ASUS_WMI_DEVID_FAN_CTRL;
-	else if (attr == &sensor_dev_attr_temp1_input.dev_attr.attr)
+	else if (attr == &dev_attr_temp1_input.attr)
 		dev_id = ASUS_WMI_DEVID_THERMAL_CTRL;
 
 	if (dev_id != -1) {
@@ -1135,35 +1124,20 @@ static struct attribute_group hwmon_attribute_group = {
 	.is_visible = asus_hwmon_sysfs_is_visible,
 	.attrs = hwmon_attributes
 };
-
-static void asus_wmi_hwmon_exit(struct asus_wmi *asus)
-{
-	struct device *hwmon;
-
-	hwmon = asus->hwmon_device;
-	if (!hwmon)
-		return;
-	sysfs_remove_group(&hwmon->kobj, &hwmon_attribute_group);
-	hwmon_device_unregister(hwmon);
-	asus->hwmon_device = NULL;
-}
+__ATTRIBUTE_GROUPS(hwmon_attribute);
 
 static int asus_wmi_hwmon_init(struct asus_wmi *asus)
 {
 	struct device *hwmon;
-	int result;
 
-	hwmon = hwmon_device_register(&asus->platform_device->dev);
+	hwmon = hwmon_device_register_with_groups(&asus->platform_device->dev,
+						  "asus", asus,
+						  hwmon_attribute_groups);
 	if (IS_ERR(hwmon)) {
 		pr_err("Could not register asus hwmon device\n");
 		return PTR_ERR(hwmon);
 	}
-	dev_set_drvdata(hwmon, asus);
-	asus->hwmon_device = hwmon;
-	result = sysfs_create_group(&hwmon->kobj, &hwmon_attribute_group);
-	if (result)
-		asus_wmi_hwmon_exit(asus);
-	return result;
+	return 0;
 }
 
 /*
@@ -1834,7 +1808,6 @@ fail_backlight:
 fail_rfkill:
 	asus_wmi_led_exit(asus);
 fail_leds:
-	asus_wmi_hwmon_exit(asus);
 fail_hwmon:
 	asus_wmi_input_exit(asus);
 fail_input:
@@ -1852,7 +1825,6 @@ static int asus_wmi_remove(struct platform_device *device)
 	wmi_remove_notify_handler(asus->driver->event_guid);
 	asus_wmi_backlight_exit(asus);
 	asus_wmi_input_exit(asus);
-	asus_wmi_hwmon_exit(asus);
 	asus_wmi_led_exit(asus);
 	asus_wmi_rfkill_exit(asus);
 	asus_wmi_debugfs_exit(asus);

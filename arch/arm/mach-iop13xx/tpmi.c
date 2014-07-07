@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
+#include <mach/irqs.h>
 
 /* assumes CONTROLLER_ONLY# is never asserted in the ESSR register */
 #define IOP13XX_TPMI_MMR(dev) 	IOP13XX_REG_ADDR32_PHYS(0x48000 + (dev << 12))

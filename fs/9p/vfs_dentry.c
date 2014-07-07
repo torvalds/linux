@@ -43,23 +43,6 @@
 #include "fid.h"
 
 /**
- * v9fs_dentry_delete - called when dentry refcount equals 0
- * @dentry:  dentry in question
- *
- * By returning 1 here we should remove cacheing of unused
- * dentry components.
- *
- */
-
-static int v9fs_dentry_delete(const struct dentry *dentry)
-{
-	p9_debug(P9_DEBUG_VFS, " dentry: %s (%p)\n",
-		 dentry->d_name.name, dentry);
-
-	return 1;
-}
-
-/**
  * v9fs_cached_dentry_delete - called when dentry refcount equals 0
  * @dentry:  dentry in question
  *
@@ -134,6 +117,6 @@ const struct dentry_operations v9fs_cached_dentry_operations = {
 };
 
 const struct dentry_operations v9fs_dentry_operations = {
-	.d_delete = v9fs_dentry_delete,
+	.d_delete = always_delete_dentry,
 	.d_release = v9fs_dentry_release,
 };

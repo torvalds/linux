@@ -65,8 +65,8 @@ no_payload:
  * taking a 32-bit syscall are zero.  If you can, you should call sys_keyctl()
  * directly.
  */
-asmlinkage long compat_sys_keyctl(u32 option,
-				  u32 arg2, u32 arg3, u32 arg4, u32 arg5)
+COMPAT_SYSCALL_DEFINE5(keyctl, u32, option,
+		       u32, arg2, u32, arg3, u32, arg4, u32, arg5)
 {
 	switch (option) {
 	case KEYCTL_GET_KEYRING_ID:
@@ -137,6 +137,9 @@ asmlinkage long compat_sys_keyctl(u32 option,
 
 	case KEYCTL_INVALIDATE:
 		return keyctl_invalidate_key(arg2);
+
+	case KEYCTL_GET_PERSISTENT:
+		return keyctl_get_persistent(arg2, arg3);
 
 	default:
 		return -EOPNOTSUPP;

@@ -43,7 +43,7 @@ void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
 		rtl8188e_silentreset_for_specific_platform(padapter);
 	}
 	/* total xmit irp = 4 */
-	current_time = rtw_get_current_time();
+	current_time = jiffies;
 	if (0 == pxmitpriv->free_xmitbuf_cnt) {
 		diff_time = jiffies_to_msecs(current_time - psrtpriv->last_tx_time);
 

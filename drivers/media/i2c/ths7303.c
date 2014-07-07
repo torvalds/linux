@@ -83,7 +83,8 @@ static int ths7303_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 }
 
 /* following function is used to set ths7303 */
-int ths7303_setval(struct v4l2_subdev *sd, enum ths7303_filter_mode mode)
+static int ths7303_setval(struct v4l2_subdev *sd,
+			  enum ths7303_filter_mode mode)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ths7303_state *state = to_state(sd);

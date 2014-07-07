@@ -118,16 +118,28 @@ static inline struct sk_buff *hci_uart_dequeue(struct hci_uart *hu)
 
 int hci_uart_tx_wakeup(struct hci_uart *hu)
 {
-	struct tty_struct *tty = hu->tty;
-	struct hci_dev *hdev = hu->hdev;
-	struct sk_buff *skb;
-
 	if (test_and_set_bit(HCI_UART_SENDING, &hu->tx_state)) {
 		set_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
 		return 0;
 	}
 
 	BT_DBG("");
+
+	schedule_work(&hu->write_work);
+
+	return 0;
+}
+
+static void hci_uart_write_work(struct work_struct *work)
+{
+	struct hci_uart *hu = container_of(work, struct hci_uart, write_work);
+	struct tty_struct *tty = hu->tty;
+	struct hci_dev *hdev = hu->hdev;
+	struct sk_buff *skb;
+
+	/* REVISIT: should we cope with bad skbs or ->write() returning
+	 * and error value ?
+	 */
 
 restart:
 	clear_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
@@ -153,7 +165,6 @@ restart:
 		goto restart;
 
 	clear_bit(HCI_UART_SENDING, &hu->tx_state);
-	return 0;
 }
 
 static void hci_uart_init_work(struct work_struct *work)
@@ -234,20 +245,12 @@ static int hci_uart_close(struct hci_dev *hdev)
 }
 
 /* Send frames from HCI layer */
-static int hci_uart_send_frame(struct sk_buff *skb)
+static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev* hdev = (struct hci_dev *) skb->dev;
-	struct hci_uart *hu;
-
-	if (!hdev) {
-		BT_ERR("Frame for unknown device (hdev=NULL)");
-		return -ENODEV;
-	}
+	struct hci_uart *hu = hci_get_drvdata(hdev);
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
-
-	hu = hci_get_drvdata(hdev);
 
 	BT_DBG("%s: type %d len %d", hdev->name, bt_cb(skb)->pkt_type, skb->len);
 
@@ -279,7 +282,8 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	if (tty->ops->write == NULL)
 		return -EOPNOTSUPP;
 
-	if (!(hu = kzalloc(sizeof(struct hci_uart), GFP_KERNEL))) {
+	hu = kzalloc(sizeof(struct hci_uart), GFP_KERNEL);
+	if (!hu) {
 		BT_ERR("Can't allocate control structure");
 		return -ENFILE;
 	}
@@ -289,6 +293,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	tty->receive_room = 65536;
 
 	INIT_WORK(&hu->init_ready, hci_uart_init_work);
+	INIT_WORK(&hu->write_work, hci_uart_write_work);
 
 	spin_lock_init(&hu->rx_lock);
 
@@ -325,6 +330,8 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 	hdev = hu->hdev;
 	if (hdev)
 		hci_uart_close(hdev);
+
+	cancel_work_sync(&hu->write_work);
 
 	if (test_and_clear_bit(HCI_UART_PROTO_SET, &hu->flags)) {
 		if (hdev) {
@@ -577,7 +584,8 @@ static int __init hci_uart_init(void)
 	hci_uart_ldisc.write_wakeup	= hci_uart_tty_wakeup;
 	hci_uart_ldisc.owner		= THIS_MODULE;
 
-	if ((err = tty_register_ldisc(N_HCI, &hci_uart_ldisc))) {
+	err = tty_register_ldisc(N_HCI, &hci_uart_ldisc);
+	if (err) {
 		BT_ERR("HCI line discipline registration failed. (%d)", err);
 		return err;
 	}
@@ -622,7 +630,8 @@ static void __exit hci_uart_exit(void)
 #endif
 
 	/* Release tty registration of line discipline */
-	if ((err = tty_unregister_ldisc(N_HCI)))
+	err = tty_unregister_ldisc(N_HCI);
+	if (err)
 		BT_ERR("Can't unregister HCI line discipline (%d)", err);
 }
 

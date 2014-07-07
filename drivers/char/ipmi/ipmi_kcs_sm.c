@@ -118,8 +118,8 @@ enum kcs_states {
 #define MAX_KCS_WRITE_SIZE IPMI_MAX_MSG_LENGTH
 
 /* Timeouts in microseconds. */
-#define IBF_RETRY_TIMEOUT 5000000
-#define OBF_RETRY_TIMEOUT 5000000
+#define IBF_RETRY_TIMEOUT (5*USEC_PER_SEC)
+#define OBF_RETRY_TIMEOUT (5*USEC_PER_SEC)
 #define MAX_ERROR_RETRIES 10
 #define ERROR0_OBF_WAIT_JIFFIES (2*HZ)
 
@@ -251,8 +251,9 @@ static inline int check_obf(struct si_sm_data *kcs, unsigned char status,
 	if (!GET_STATUS_OBF(status)) {
 		kcs->obf_timeout -= time;
 		if (kcs->obf_timeout < 0) {
-		    start_error_recovery(kcs, "OBF not ready in time");
-		    return 1;
+			kcs->obf_timeout = OBF_RETRY_TIMEOUT;
+			start_error_recovery(kcs, "OBF not ready in time");
+			return 1;
 		}
 		return 0;
 	}

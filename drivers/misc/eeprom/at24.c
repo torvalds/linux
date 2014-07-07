@@ -22,7 +22,7 @@
 #include <linux/jiffies.h>
 #include <linux/of.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 
 /*
  * I2C EEPROMs from most vendors are inexpensive and mostly interchangeable.
@@ -427,6 +427,9 @@ static ssize_t at24_bin_write(struct file *filp, struct kobject *kobj,
 		char *buf, loff_t off, size_t count)
 {
 	struct at24_data *at24;
+
+	if (unlikely(off >= attr->size))
+		return -EFBIG;
 
 	at24 = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	return at24_write(at24, buf, off, count);

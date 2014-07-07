@@ -25,12 +25,10 @@
 
 static bool filter(struct dma_chan *chan, void *param)
 {
-	struct snd_dmaengine_dai_dma_data *dma_data = param;
-
 	if (!imx_dma_is_general_purpose(chan))
 		return false;
 
-	chan->private = dma_data->filter_data;
+	chan->private = param;
 
 	return true;
 }
@@ -42,10 +40,6 @@ static const struct snd_pcm_hardware imx_pcm_hardware = {
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_PAUSE |
 		SNDRV_PCM_INFO_RESUME,
-	.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	.rate_min = 8000,
-	.channels_min = 2,
-	.channels_max = 2,
 	.buffer_bytes_max = IMX_SSI_DMABUF_SIZE,
 	.period_bytes_min = 128,
 	.period_bytes_max = 65535, /* Limited by SDMA engine */
@@ -63,16 +57,11 @@ static const struct snd_dmaengine_pcm_config imx_dmaengine_pcm_config = {
 
 int imx_pcm_dma_init(struct platform_device *pdev)
 {
-	return snd_dmaengine_pcm_register(&pdev->dev, &imx_dmaengine_pcm_config,
+	return devm_snd_dmaengine_pcm_register(&pdev->dev,
+		&imx_dmaengine_pcm_config,
 		SND_DMAENGINE_PCM_FLAG_NO_RESIDUE |
 		SND_DMAENGINE_PCM_FLAG_COMPAT);
 }
 EXPORT_SYMBOL_GPL(imx_pcm_dma_init);
-
-void imx_pcm_dma_exit(struct platform_device *pdev)
-{
-	snd_dmaengine_pcm_unregister(&pdev->dev);
-}
-EXPORT_SYMBOL_GPL(imx_pcm_dma_exit);
 
 MODULE_LICENSE("GPL");

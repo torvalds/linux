@@ -39,13 +39,6 @@ unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 	return pipe;
 }
 
-struct zero_bulkout_context {
-	void *pbuf;
-	void *purb;
-	void *pirp;
-	void *padapter;
-};
-
 void usb_read_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 {
 }
@@ -80,7 +73,6 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	struct hal_data_8188e	*haldata;
 
-_func_enter_;
 
 	switch (pxmitbuf->flags) {
 	case VO_QUEUE_INX:
@@ -146,7 +138,7 @@ _func_enter_;
 	}
 
 	haldata = GET_HAL_DATA(padapter);
-	haldata->srestpriv.last_tx_complete_time = rtw_get_current_time();
+	haldata->srestpriv.last_tx_complete_time = jiffies;
 
 check_completion:
 	rtw_sctx_done_err(&pxmitbuf->sctx,
@@ -156,8 +148,6 @@ check_completion:
 	rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
-
-_func_exit_;
 }
 
 u32 usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
@@ -174,7 +164,6 @@ u32 usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)pxmitbuf->priv_data;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
-_func_enter_;
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("+usb_write_port\n"));
 
@@ -186,7 +175,7 @@ _func_enter_;
 		goto exit;
 	}
 
-	_enter_critical(&pxmitpriv->lock, &irqL);
+	spin_lock_irqsave(&pxmitpriv->lock, irqL);
 
 	switch (addr) {
 	case VO_QUEUE_INX:
@@ -213,7 +202,7 @@ _func_enter_;
 		break;
 	}
 
-	_exit_critical(&pxmitpriv->lock, &irqL);
+	spin_unlock_irqrestore(&pxmitpriv->lock, irqL);
 
 	purb	= pxmitbuf->pxmit_urb[0];
 
@@ -230,7 +219,7 @@ _func_enter_;
 	if (!status) {
 		struct hal_data_8188e	*haldata = GET_HAL_DATA(padapter);
 
-		haldata->srestpriv.last_tx_time = rtw_get_current_time();
+		haldata->srestpriv.last_tx_time = jiffies;
 	} else {
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_WRITE_PORT_ERR);
 		DBG_88E("usb_write_port, status =%d\n", status);
@@ -255,7 +244,6 @@ _func_enter_;
 exit:
 	if (ret != _SUCCESS)
 		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
-_func_exit_;
 	return ret;
 }
 

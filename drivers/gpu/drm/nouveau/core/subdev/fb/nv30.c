@@ -24,11 +24,7 @@
  *
  */
 
-#include "priv.h"
-
-struct nv30_fb_priv {
-	struct nouveau_fb base;
-};
+#include "nv04.h"
 
 void
 nv30_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
@@ -67,7 +63,7 @@ nv30_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 }
 
 static int
-calc_bias(struct nv30_fb_priv *priv, int k, int i, int j)
+calc_bias(struct nv04_fb_priv *priv, int k, int i, int j)
 {
 	struct nouveau_device *device = nv_device(priv);
 	int b = (device->chipset > 0x30 ?
@@ -78,7 +74,7 @@ calc_bias(struct nv30_fb_priv *priv, int k, int i, int j)
 }
 
 static int
-calc_ref(struct nv30_fb_priv *priv, int l, int k, int i)
+calc_ref(struct nv04_fb_priv *priv, int l, int k, int i)
 {
 	int j, x = 0;
 
@@ -95,7 +91,7 @@ int
 nv30_fb_init(struct nouveau_object *object)
 {
 	struct nouveau_device *device = nv_device(object);
-	struct nv30_fb_priv *priv = (void *)object;
+	struct nv04_fb_priv *priv = (void *)object;
 	int ret, i, j;
 
 	ret = nouveau_fb_init(&priv->base);
@@ -124,35 +120,20 @@ nv30_fb_init(struct nouveau_object *object)
 	return 0;
 }
 
-static int
-nv30_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nv30_fb_priv *priv;
-	int ret;
-
-	ret = nouveau_fb_create(parent, engine, oclass, &nv20_ram_oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.tile.regions = 8;
-	priv->base.tile.init = nv30_fb_tile_init;
-	priv->base.tile.comp = nv30_fb_tile_comp;
-	priv->base.tile.fini = nv20_fb_tile_fini;
-	priv->base.tile.prog = nv20_fb_tile_prog;
-	return 0;
-}
-
-struct nouveau_oclass
-nv30_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x30),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv30_fb_ctor,
+struct nouveau_oclass *
+nv30_fb_oclass = &(struct nv04_fb_impl) {
+	.base.base.handle = NV_SUBDEV(FB, 0x30),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_fb_ctor,
 		.dtor = _nouveau_fb_dtor,
 		.init = nv30_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
-};
+	.base.memtype = nv04_fb_memtype_valid,
+	.base.ram = &nv20_ram_oclass,
+	.tile.regions = 8,
+	.tile.init = nv30_fb_tile_init,
+	.tile.comp = nv30_fb_tile_comp,
+	.tile.fini = nv20_fb_tile_fini,
+	.tile.prog = nv20_fb_tile_prog,
+}.base.base;

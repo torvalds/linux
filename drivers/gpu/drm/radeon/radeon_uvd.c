@@ -91,12 +91,15 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_VERDE:
 	case CHIP_PITCAIRN:
 	case CHIP_ARUBA:
+	case CHIP_OLAND:
 		fw_name = FIRMWARE_TAHITI;
 		break;
 
 	case CHIP_BONAIRE:
 	case CHIP_KABINI:
 	case CHIP_KAVERI:
+	case CHIP_HAWAII:
+	case CHIP_MULLINS:
 		fw_name = FIRMWARE_BONAIRE;
 		break;
 
@@ -169,6 +172,8 @@ void radeon_uvd_fini(struct radeon_device *rdev)
 
 	radeon_bo_unref(&rdev->uvd.vcpu_bo);
 
+	radeon_ring_fini(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX]);
+
 	release_firmware(rdev->uvd_fw);
 }
 
@@ -239,6 +244,8 @@ void radeon_uvd_free_handles(struct radeon_device *rdev, struct drm_file *filp)
 		uint32_t handle = atomic_read(&rdev->uvd.handles[i]);
 		if (handle != 0 && rdev->uvd.filp[i] == filp) {
 			struct radeon_fence *fence;
+
+			radeon_uvd_note_usage(rdev);
 
 			r = radeon_uvd_get_destroy_msg(rdev,
 				R600_RING_TYPE_UVD_INDEX, handle, &fence);
@@ -449,7 +456,7 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 	}
 
 	reloc = p->relocs_ptr[(idx / 4)];
-	start = reloc->lobj.gpu_offset;
+	start = reloc->gpu_offset;
 	end = start + radeon_bo_size(reloc->robj);
 	start += offset;
 
@@ -459,6 +466,10 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 	cmd = radeon_get_ib_value(p, p->idx) >> 1;
 
 	if (cmd < 0x4) {
+		if (end <= start) {
+			DRM_ERROR("invalid reloc offset %X!\n", offset);
+			return -EINVAL;
+		}
 		if ((end - start) < buf_sizes[cmd]) {
 			DRM_ERROR("buffer (%d) to small (%d / %d)!\n", cmd,
 				  (unsigned)(end - start), buf_sizes[cmd]);
@@ -470,13 +481,14 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 		return -EINVAL;
 	}
 
-	if ((start >> 28) != (end >> 28)) {
+	if ((start >> 28) != ((end - 1) >> 28)) {
 		DRM_ERROR("reloc %LX-%LX crossing 256MB boundary!\n",
 			  start, end);
 		return -EINVAL;
 	}
 
-	if (p->rdev->family < CHIP_PALM && (cmd == 0 || cmd == 0x3) &&
+	/* TODO: is this still necessary on NI+ ? */
+	if ((cmd == 0 || cmd == 0x3) &&
 	    (start >> 28) != (p->rdev->uvd.gpu_addr >> 28)) {
 		DRM_ERROR("msg/fb buffer %LX-%LX out of 256MB segment!\n",
 			  start, end);
@@ -619,7 +631,7 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 	if (r) 
 		goto err;
 
-	r = radeon_ib_get(rdev, ring, &ib, NULL, 16);
+	r = radeon_ib_get(rdev, ring, &ib, NULL, 64);
 	if (r)
 		goto err;
 
@@ -774,6 +786,8 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work)
 
 	if (radeon_fence_count_emitted(rdev, R600_RING_TYPE_UVD_INDEX) == 0) {
 		if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+			radeon_uvd_count_handles(rdev, &rdev->pm.dpm.sd,
+						 &rdev->pm.dpm.hd);
 			radeon_dpm_enable_uvd(rdev, false);
 		} else {
 			radeon_set_uvd_clocks(rdev, 0, 0);
@@ -798,7 +812,8 @@ void radeon_uvd_note_usage(struct radeon_device *rdev)
 		    (rdev->pm.dpm.hd != hd)) {
 			rdev->pm.dpm.sd = sd;
 			rdev->pm.dpm.hd = hd;
-			streams_changed = true;
+			/* disable this for now */
+			/*streams_changed = true;*/
 		}
 	}
 

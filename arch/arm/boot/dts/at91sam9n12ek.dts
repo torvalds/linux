@@ -21,6 +21,14 @@
 		reg = <0x20000000 0x8000000>;
 	};
 
+	slow_xtal {
+		clock-frequency = <32768>;
+	};
+
+	main_xtal {
+		clock-frequency = <16000000>;
+	};
+
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -38,8 +46,17 @@
 				status = "okay";
 			};
 
+			ssc0: ssc@f0010000 {
+				status = "okay";
+			};
+
 			i2c0: i2c@f8010000 {
 				status = "okay";
+
+				wm8904: codec@1a {
+					compatible = "wm8904";
+					reg = <0x1a>;
+				};
 
 				qt1070: keyboard@1b {
 					compatible = "qt1070";
@@ -82,6 +99,13 @@
 							<AT91_PIOA 2 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
 				};
+
+				sound {
+					pinctrl_pck0_as_audio_mck: pck0_as_audio_mck {
+						atmel,pins =
+							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+				};
 			};
 
 			spi0: spi@f0000000 {
@@ -106,6 +130,10 @@
 			atmel,pmecc-cap = <2>;
 			atmel,pmecc-sector-size = <512>;
 			nand-on-flash-bbt;
+			status = "okay";
+		};
+
+		usb0: ohci@00500000 {
 			status = "okay";
 		};
 	};
@@ -141,5 +169,23 @@
 			linux,code = <28>;
 			gpio-key,wakeup;
 		};
+	};
+
+	sound {
+		compatible = "atmel,asoc-wm8904";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pck0_as_audio_mck>;
+
+		atmel,model = "wm8904 @ AT91SAM9N12";
+		atmel,audio-routing =
+			"Headphone Jack", "HPOUTL",
+			"Headphone Jack", "HPOUTR",
+			"IN2L", "Line In Jack",
+			"IN2R", "Line In Jack",
+			"Mic", "MICBIAS",
+			"IN1L", "Mic";
+
+		atmel,ssc-controller = <&ssc0>;
+		atmel,audio-codec = <&wm8904>;
 	};
 };

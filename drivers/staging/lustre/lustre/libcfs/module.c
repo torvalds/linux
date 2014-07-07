@@ -87,7 +87,8 @@ kportal_memhog_free (struct libcfs_device_userstate *ldu)
 }
 
 int
-kportal_memhog_alloc (struct libcfs_device_userstate *ldu, int npages, int flags)
+kportal_memhog_alloc(struct libcfs_device_userstate *ldu, int npages,
+		     gfp_t flags)
 {
 	struct page **level0p;
 	struct page **level1p;
@@ -235,41 +236,6 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 			return -EINVAL;
 		libcfs_debug_mark_buffer(data->ioc_inlbuf1);
 		return 0;
-#if LWT_SUPPORT
-	case IOC_LIBCFS_LWT_CONTROL:
-		err = lwt_control ((data->ioc_flags & 1) != 0,
-				   (data->ioc_flags & 2) != 0);
-		break;
-
-	case IOC_LIBCFS_LWT_SNAPSHOT: {
-		cfs_cycles_t   now;
-		int	    ncpu;
-		int	    total_size;
-
-		err = lwt_snapshot (&now, &ncpu, &total_size,
-				    data->ioc_pbuf1, data->ioc_plen1);
-		data->ioc_u64[0] = now;
-		data->ioc_u32[0] = ncpu;
-		data->ioc_u32[1] = total_size;
-
-		/* Hedge against broken user/kernel typedefs (e.g. cycles_t) */
-		data->ioc_u32[2] = sizeof(lwt_event_t);
-		data->ioc_u32[3] = offsetof(lwt_event_t, lwte_where);
-
-		if (err == 0 &&
-		    libcfs_ioctl_popdata(arg, data, sizeof (*data)))
-			err = -EFAULT;
-		break;
-	}
-
-	case IOC_LIBCFS_LWT_LOOKUP_STRING:
-		err = lwt_lookup_string (&data->ioc_count, data->ioc_pbuf1,
-					 data->ioc_pbuf2, data->ioc_plen2);
-		if (err == 0 &&
-		    libcfs_ioctl_popdata(arg, data, sizeof (*data)))
-			err = -EFAULT;
-		break;
-#endif
 	case IOC_LIBCFS_MEMHOG:
 		if (pfile->private_data == NULL) {
 			err = -EINVAL;
@@ -392,17 +358,10 @@ static int init_libcfs_module(void)
 	if (rc != 0)
 		goto cleanup_debug;
 
-#if LWT_SUPPORT
-	rc = lwt_init();
-	if (rc != 0) {
-		CERROR("lwt_init: error %d\n", rc);
-		goto cleanup_debug;
-	}
-#endif
 	rc = misc_register(&libcfs_dev);
 	if (rc) {
 		CERROR("misc_register: error %d\n", rc);
-		goto cleanup_lwt;
+		goto cleanup_cpu;
 	}
 
 	rc = cfs_wi_startup();
@@ -422,7 +381,7 @@ static int init_libcfs_module(void)
 
 	rc = cfs_crypto_register();
 	if (rc) {
-		CERROR("cfs_crypto_regster: error %d\n", rc);
+		CERROR("cfs_crypto_register: error %d\n", rc);
 		goto cleanup_wi;
 	}
 
@@ -441,10 +400,8 @@ static int init_libcfs_module(void)
 	cfs_wi_shutdown();
  cleanup_deregister:
 	misc_deregister(&libcfs_dev);
- cleanup_lwt:
-#if LWT_SUPPORT
-	lwt_fini();
-#endif
+cleanup_cpu:
+	cfs_cpu_fini();
  cleanup_debug:
 	libcfs_debug_cleanup();
 	return rc;
@@ -471,9 +428,6 @@ static void exit_libcfs_module(void)
 	if (rc)
 		CERROR("misc_deregister error %d\n", rc);
 
-#if LWT_SUPPORT
-	lwt_fini();
-#endif
 	cfs_cpu_fini();
 
 	if (atomic_read(&libcfs_kmemory) != 0)

@@ -13,7 +13,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
@@ -58,7 +57,7 @@ static int generic_onenand_probe(struct platform_device *pdev)
 		goto out_release_mem_region;
 	}
 
-	info->onenand.mmcontrol = pdata ? pdata->mmcontrol : 0;
+	info->onenand.mmcontrol = pdata ? pdata->mmcontrol : NULL;
 	info->onenand.irq = platform_get_irq(pdev, 0);
 
 	info->mtd.name = dev_name(&pdev->dev);

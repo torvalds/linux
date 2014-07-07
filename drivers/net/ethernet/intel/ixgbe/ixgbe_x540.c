@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -32,12 +33,12 @@
 #include "ixgbe.h"
 #include "ixgbe_phy.h"
 
-#define IXGBE_X540_MAX_TX_QUEUES 128
-#define IXGBE_X540_MAX_RX_QUEUES 128
-#define IXGBE_X540_RAR_ENTRIES   128
-#define IXGBE_X540_MC_TBL_SIZE   128
-#define IXGBE_X540_VFT_TBL_SIZE  128
-#define IXGBE_X540_RX_PB_SIZE	 384
+#define IXGBE_X540_MAX_TX_QUEUES	128
+#define IXGBE_X540_MAX_RX_QUEUES	128
+#define IXGBE_X540_RAR_ENTRIES		128
+#define IXGBE_X540_MC_TBL_SIZE		128
+#define IXGBE_X540_VFT_TBL_SIZE		128
+#define IXGBE_X540_RX_PB_SIZE		384
 
 static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw);
 static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw);
@@ -61,6 +62,7 @@ static s32 ixgbe_get_invariants_X540(struct ixgbe_hw *hw)
 	mac->mcft_size = IXGBE_X540_MC_TBL_SIZE;
 	mac->vft_size = IXGBE_X540_VFT_TBL_SIZE;
 	mac->num_rar_entries = IXGBE_X540_RAR_ENTRIES;
+	mac->rx_pb_size = IXGBE_X540_RX_PB_SIZE;
 	mac->max_rx_queues = IXGBE_X540_MAX_RX_QUEUES;
 	mac->max_tx_queues = IXGBE_X540_MAX_TX_QUEUES;
 	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_generic(hw);
@@ -79,7 +81,7 @@ static s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
 				     bool autoneg_wait_to_complete)
 {
 	return hw->phy.ops.setup_link_speed(hw, speed,
-	                                    autoneg_wait_to_complete);
+					    autoneg_wait_to_complete);
 }
 
 /**
@@ -153,7 +155,7 @@ mac_reset_top:
 	/* Add the SAN MAC address to the RAR only if it's a valid address */
 	if (is_valid_ether_addr(hw->mac.san_addr)) {
 		hw->mac.ops.set_rar(hw, hw->mac.num_rar_entries - 1,
-		                    hw->mac.san_addr, 0, IXGBE_RAH_AV);
+				    hw->mac.san_addr, 0, IXGBE_RAH_AV);
 
 		/* Save the SAN MAC RAR index */
 		hw->mac.san_mac_rar_index = hw->mac.num_rar_entries - 1;
@@ -164,7 +166,7 @@ mac_reset_top:
 
 	/* Store the alternative WWNN/WWPN prefix */
 	hw->mac.ops.get_wwn_prefix(hw, &hw->mac.wwnn_prefix,
-	                           &hw->mac.wwpn_prefix);
+				   &hw->mac.wwpn_prefix);
 
 reset_hw_out:
 	return status;
@@ -187,7 +189,6 @@ static s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
 		goto out;
 
 	ret_val = ixgbe_start_hw_gen2(hw);
-	hw->mac.rx_pb_size = IXGBE_X540_RX_PB_SIZE;
 out:
 	return ret_val;
 }
@@ -236,9 +237,9 @@ static s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 
 		eec = IXGBE_READ_REG(hw, IXGBE_EEC);
 		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
-		                    IXGBE_EEC_SIZE_SHIFT);
+				    IXGBE_EEC_SIZE_SHIFT);
 		eeprom->word_size = 1 << (eeprom_size +
-		                          IXGBE_EEPROM_WORD_SIZE_SHIFT);
+					  IXGBE_EEPROM_WORD_SIZE_SHIFT);
 
 		hw_dbg(hw, "Eeprom params: type = %d, size = %d\n",
 		       eeprom->type, eeprom->word_size);
@@ -711,8 +712,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 			udelay(50);
 		}
 	} else {
-		hw_dbg(hw, "Software semaphore SMBI between device drivers "
-		           "not granted.\n");
+		hw_dbg(hw, "Software semaphore SMBI between device drivers not granted.\n");
 	}
 
 	return status;
@@ -812,7 +812,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.clear_hw_cntrs         = &ixgbe_clear_hw_cntrs_generic,
 	.get_media_type         = &ixgbe_get_media_type_X540,
 	.get_supported_physical_layer =
-                                  &ixgbe_get_supported_physical_layer_X540,
+				  &ixgbe_get_supported_physical_layer_X540,
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_generic,
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
 	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_generic,
@@ -854,7 +854,8 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.enable_rx_buff		= &ixgbe_enable_rx_buff_generic,
 	.get_thermal_sensor_data = NULL,
 	.init_thermal_sensor_thresh = NULL,
-	.mng_fw_enabled		= NULL,
+	.prot_autoc_read	= &prot_autoc_read_generic,
+	.prot_autoc_write	= &prot_autoc_write_generic,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_X540 = {

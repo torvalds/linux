@@ -11,11 +11,14 @@
 #include <linux/uaccess.h>
 #include <linux/init.h>
 #include <linux/ftrace.h>
+#include <linux/syscalls.h>
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/cacheflush.h>
+#include <asm/syscall.h>
 #include <asm/uasm.h>
+#include <asm/unistd.h>
 
 #include <asm-generic/sections.h>
 
@@ -87,6 +90,7 @@ static inline void ftrace_dyn_arch_init_insns(void)
 static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 {
 	int faulted;
+	mm_segment_t old_fs;
 
 	/* *(unsigned int *)ip = new_code; */
 	safe_store_code(new_code, ip, faulted);
@@ -94,7 +98,10 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 	if (unlikely(faulted))
 		return -EFAULT;
 
+	old_fs = get_fs();
+	set_fs(get_ds());
 	flush_icache_range(ip, ip + 8);
+	set_fs(old_fs);
 
 	return 0;
 }
@@ -108,11 +115,10 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
 	safe_store_code(new_code1, ip, faulted);
 	if (unlikely(faulted))
 		return -EFAULT;
-	ip += 4;
-	safe_store_code(new_code2, ip, faulted);
+	safe_store_code(new_code2, ip + 4, faulted);
 	if (unlikely(faulted))
 		return -EFAULT;
-	flush_icache_range(ip, ip + 8); /* original ip + 12 */
+	flush_icache_range(ip, ip + 8);
 	return 0;
 }
 #endif
@@ -195,16 +201,13 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ftrace_modify_code(FTRACE_CALL_IP, new);
 }
 
-int __init ftrace_dyn_arch_init(void *data)
+int __init ftrace_dyn_arch_init(void)
 {
 	/* Encode the instructions when booting */
 	ftrace_dyn_arch_init_insns();
 
 	/* Remove "b ftrace_stub" to ensure ftrace_caller() is executed */
 	ftrace_modify_code(MCOUNT_ADDR, INSN_NOP);
-
-	/* The return code is retured via data */
-	*(unsigned long *)data = 0;
 
 	return 0;
 }
@@ -364,3 +367,33 @@ out:
 	WARN_ON(1);
 }
 #endif	/* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#ifdef CONFIG_FTRACE_SYSCALLS
+
+#ifdef CONFIG_32BIT
+unsigned long __init arch_syscall_addr(int nr)
+{
+	return (unsigned long)sys_call_table[nr - __NR_O32_Linux];
+}
+#endif
+
+#ifdef CONFIG_64BIT
+
+unsigned long __init arch_syscall_addr(int nr)
+{
+#ifdef CONFIG_MIPS32_N32
+	if (nr >= __NR_N32_Linux && nr <= __NR_N32_Linux + __NR_N32_Linux_syscalls)
+		return (unsigned long)sysn32_call_table[nr - __NR_N32_Linux];
+#endif
+	if (nr >= __NR_64_Linux  && nr <= __NR_64_Linux + __NR_64_Linux_syscalls)
+		return (unsigned long)sys_call_table[nr - __NR_64_Linux];
+#ifdef CONFIG_MIPS32_O32
+	if (nr >= __NR_O32_Linux && nr <= __NR_O32_Linux + __NR_O32_Linux_syscalls)
+		return (unsigned long)sys32_call_table[nr - __NR_O32_Linux];
+#endif
+
+	return (unsigned long) &sys_ni_syscall;
+}
+#endif
+
+#endif /* CONFIG_FTRACE_SYSCALLS */

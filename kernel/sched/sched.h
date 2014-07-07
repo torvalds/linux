@@ -2,12 +2,15 @@
 #include <linux/sched.h>
 #include <linux/sched/sysctl.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/deadline.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/stop_machine.h>
 #include <linux/tick.h>
+#include <linux/slab.h>
 
 #include "cpupri.h"
+#include "cpudeadline.h"
 #include "cpuacct.h"
 
 struct rq;
@@ -19,24 +22,6 @@ extern atomic_long_t calc_load_tasks;
 
 extern long calc_load_fold_active(struct rq *this_rq);
 extern void update_cpu_load_active(struct rq *this_rq);
-
-/*
- * Convert user-nice values [ -20 ... 0 ... 19 ]
- * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
- * and back.
- */
-#define NICE_TO_PRIO(nice)	(MAX_RT_PRIO + (nice) + 20)
-#define PRIO_TO_NICE(prio)	((prio) - MAX_RT_PRIO - 20)
-#define TASK_NICE(p)		PRIO_TO_NICE((p)->static_prio)
-
-/*
- * 'User priority' is the nice value converted to something we
- * can work with better when scaling various scheduler parameters,
- * it's a [ 0 ... 39 ] range.
- */
-#define USER_PRIO(p)		((p)-MAX_RT_PRIO)
-#define TASK_USER_PRIO(p)	USER_PRIO((p)->static_prio)
-#define MAX_USER_PRIO		(USER_PRIO(MAX_PRIO))
 
 /*
  * Helpers for converting nanosecond timing to jiffy resolution
@@ -72,6 +57,13 @@ extern void update_cpu_load_active(struct rq *this_rq);
 #define NICE_0_SHIFT		SCHED_LOAD_SHIFT
 
 /*
+ * Single value that decides SCHED_DEADLINE internal math precision.
+ * 10 -> just above 1us
+ * 9  -> just above 0.5us
+ */
+#define DL_SCALE (10)
+
+/*
  * These are the 'tuning knobs' of the scheduler:
  */
 
@@ -80,16 +72,43 @@ extern void update_cpu_load_active(struct rq *this_rq);
  */
 #define RUNTIME_INF	((u64)~0ULL)
 
+static inline int fair_policy(int policy)
+{
+	return policy == SCHED_NORMAL || policy == SCHED_BATCH;
+}
+
 static inline int rt_policy(int policy)
 {
-	if (policy == SCHED_FIFO || policy == SCHED_RR)
-		return 1;
-	return 0;
+	return policy == SCHED_FIFO || policy == SCHED_RR;
+}
+
+static inline int dl_policy(int policy)
+{
+	return policy == SCHED_DEADLINE;
 }
 
 static inline int task_has_rt_policy(struct task_struct *p)
 {
 	return rt_policy(p->policy);
+}
+
+static inline int task_has_dl_policy(struct task_struct *p)
+{
+	return dl_policy(p->policy);
+}
+
+static inline bool dl_time_before(u64 a, u64 b)
+{
+	return (s64)(a - b) < 0;
+}
+
+/*
+ * Tells if entity @a should preempt entity @b.
+ */
+static inline bool
+dl_entity_preempt(struct sched_dl_entity *a, struct sched_dl_entity *b)
+{
+	return dl_time_before(a->deadline, b->deadline);
 }
 
 /*
@@ -106,6 +125,47 @@ struct rt_bandwidth {
 	ktime_t			rt_period;
 	u64			rt_runtime;
 	struct hrtimer		rt_period_timer;
+};
+/*
+ * To keep the bandwidth of -deadline tasks and groups under control
+ * we need some place where:
+ *  - store the maximum -deadline bandwidth of the system (the group);
+ *  - cache the fraction of that bandwidth that is currently allocated.
+ *
+ * This is all done in the data structure below. It is similar to the
+ * one used for RT-throttling (rt_bandwidth), with the main difference
+ * that, since here we are only interested in admission control, we
+ * do not decrease any runtime while the group "executes", neither we
+ * need a timer to replenish it.
+ *
+ * With respect to SMP, the bandwidth is given on a per-CPU basis,
+ * meaning that:
+ *  - dl_bw (< 100%) is the bandwidth of the system (group) on each CPU;
+ *  - dl_total_bw array contains, in the i-eth element, the currently
+ *    allocated bandwidth on the i-eth CPU.
+ * Moreover, groups consume bandwidth on each CPU, while tasks only
+ * consume bandwidth on the CPU they're running on.
+ * Finally, dl_total_bw_cpu is used to cache the index of dl_total_bw
+ * that will be shown the next time the proc or cgroup controls will
+ * be red. It on its turn can be changed by writing on its own
+ * control.
+ */
+struct dl_bandwidth {
+	raw_spinlock_t dl_runtime_lock;
+	u64 dl_runtime;
+	u64 dl_period;
+};
+
+static inline int dl_bandwidth_enabled(void)
+{
+	return sysctl_sched_rt_runtime >= 0;
+}
+
+extern struct dl_bw *dl_bw_of(int i);
+
+struct dl_bw {
+	raw_spinlock_t lock;
+	u64 bw, total_bw;
 };
 
 extern struct mutex sched_domains_mutex;
@@ -218,7 +278,7 @@ extern void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b);
 extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
 
 extern void __refill_cfs_bandwidth_runtime(struct cfs_bandwidth *cfs_b);
-extern void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b);
+extern void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b, bool force);
 extern void unthrottle_cfs_rq(struct cfs_rq *cfs_rq);
 
 extern void free_rt_sched_group(struct task_group *tg);
@@ -349,6 +409,8 @@ struct rt_rq {
 	int overloaded;
 	struct plist_head pushable_tasks;
 #endif
+	int rt_queued;
+
 	int rt_throttled;
 	u64 rt_time;
 	u64 rt_runtime;
@@ -360,6 +422,41 @@ struct rt_rq {
 
 	struct rq *rq;
 	struct task_group *tg;
+#endif
+};
+
+/* Deadline class' related fields in a runqueue */
+struct dl_rq {
+	/* runqueue is an rbtree, ordered by deadline */
+	struct rb_root rb_root;
+	struct rb_node *rb_leftmost;
+
+	unsigned long dl_nr_running;
+
+#ifdef CONFIG_SMP
+	/*
+	 * Deadline values of the currently executing and the
+	 * earliest ready task on this rq. Caching these facilitates
+	 * the decision wether or not a ready but not running task
+	 * should migrate somewhere else.
+	 */
+	struct {
+		u64 curr;
+		u64 next;
+	} earliest_dl;
+
+	unsigned long dl_nr_migratory;
+	int overloaded;
+
+	/*
+	 * Tasks on this rq that can be pushed away. They are kept in
+	 * an rb-tree, ordered by tasks' deadlines, with caching
+	 * of the leftmost (earliest deadline) element.
+	 */
+	struct rb_root pushable_dl_tasks_root;
+	struct rb_node *pushable_dl_tasks_leftmost;
+#else
+	struct dl_bw dl_bw;
 #endif
 };
 
@@ -379,6 +476,15 @@ struct root_domain {
 	struct rcu_head rcu;
 	cpumask_var_t span;
 	cpumask_var_t online;
+
+	/*
+	 * The bit corresponding to a CPU gets set here if such CPU has more
+	 * than one runnable -deadline task (as it is below for RT tasks).
+	 */
+	cpumask_var_t dlo_mask;
+	atomic_t dlo_count;
+	struct dl_bw dl_bw;
+	struct cpudl cpudl;
 
 	/*
 	 * The "RT overload" flag: it gets set if a CPU has more than
@@ -408,6 +514,10 @@ struct rq {
 	 * remote CPUs use both these fields when doing load calculation.
 	 */
 	unsigned int nr_running;
+#ifdef CONFIG_NUMA_BALANCING
+	unsigned int nr_numa_running;
+	unsigned int nr_preferred_running;
+#endif
 	#define CPU_LOAD_IDX_MAX 5
 	unsigned long cpu_load[CPU_LOAD_IDX_MAX];
 	unsigned long last_load_update_tick;
@@ -427,15 +537,14 @@ struct rq {
 
 	struct cfs_rq cfs;
 	struct rt_rq rt;
+	struct dl_rq dl;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
 	struct list_head leaf_cfs_rq_list;
-#endif /* CONFIG_FAIR_GROUP_SCHED */
 
-#ifdef CONFIG_RT_GROUP_SCHED
-	struct list_head leaf_rt_rq_list;
-#endif
+	struct sched_avg avg;
+#endif /* CONFIG_FAIR_GROUP_SCHED */
 
 	/*
 	 * This is part of a global counter where only the total sum
@@ -458,7 +567,7 @@ struct rq {
 	struct root_domain *rd;
 	struct sched_domain *sd;
 
-	unsigned long cpu_power;
+	unsigned long cpu_capacity;
 
 	unsigned char idle_balance;
 	/* For active balancing */
@@ -476,6 +585,9 @@ struct rq {
 	u64 age_stamp;
 	u64 idle_stamp;
 	u64 avg_idle;
+
+	/* This is used to determine avg_idle's max value */
+	u64 max_idle_balance_cost;
 #endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
@@ -521,8 +633,6 @@ struct rq {
 #ifdef CONFIG_SMP
 	struct llist_head wake_list;
 #endif
-
-	struct sched_avg avg;
 };
 
 static inline int cpu_of(struct rq *rq)
@@ -552,7 +662,15 @@ static inline u64 rq_clock_task(struct rq *rq)
 	return rq->clock_task;
 }
 
+#ifdef CONFIG_NUMA_BALANCING
+extern void sched_setnuma(struct task_struct *p, int node);
+extern int migrate_task_to(struct task_struct *p, int cpu);
+extern int migrate_swap(struct task_struct *, struct task_struct *);
+#endif /* CONFIG_NUMA_BALANCING */
+
 #ifdef CONFIG_SMP
+
+extern void sched_ttwu_pending(void);
 
 #define rcu_dereference_check_sched_domain(p) \
 	rcu_dereference_check((p), \
@@ -593,18 +711,34 @@ static inline struct sched_domain *highest_flag_domain(int cpu, int flag)
 	return hsd;
 }
 
+static inline struct sched_domain *lowest_flag_domain(int cpu, int flag)
+{
+	struct sched_domain *sd;
+
+	for_each_domain(cpu, sd) {
+		if (sd->flags & flag)
+			break;
+	}
+
+	return sd;
+}
+
 DECLARE_PER_CPU(struct sched_domain *, sd_llc);
 DECLARE_PER_CPU(int, sd_llc_size);
 DECLARE_PER_CPU(int, sd_llc_id);
+DECLARE_PER_CPU(struct sched_domain *, sd_numa);
+DECLARE_PER_CPU(struct sched_domain *, sd_busy);
+DECLARE_PER_CPU(struct sched_domain *, sd_asym);
 
-struct sched_group_power {
+struct sched_group_capacity {
 	atomic_t ref;
 	/*
-	 * CPU power of this group, SCHED_LOAD_SCALE being max power for a
-	 * single CPU.
+	 * CPU capacity of this group, SCHED_LOAD_SCALE being max capacity
+	 * for a single CPU.
 	 */
-	unsigned int power, power_orig;
+	unsigned int capacity, capacity_orig;
 	unsigned long next_update;
+	int imbalance; /* XXX unrelated to capacity but shared group state */
 	/*
 	 * Number of busy cpus in this group.
 	 */
@@ -618,7 +752,7 @@ struct sched_group {
 	atomic_t ref;
 
 	unsigned int group_weight;
-	struct sched_group_power *sgp;
+	struct sched_group_capacity *sgc;
 
 	/*
 	 * The CPUs this group covers.
@@ -641,7 +775,7 @@ static inline struct cpumask *sched_group_cpus(struct sched_group *sg)
  */
 static inline struct cpumask *sched_group_mask(struct sched_group *sg)
 {
-	return to_cpumask(sg->sgp->cpumask);
+	return to_cpumask(sg->sgc->cpumask);
 }
 
 /**
@@ -654,6 +788,10 @@ static inline unsigned int group_first_cpu(struct sched_group *group)
 }
 
 extern int group_balance_cpu(struct sched_group *sg);
+
+#else
+
+static inline void sched_ttwu_pending(void) { }
 
 #endif /* CONFIG_SMP */
 
@@ -719,6 +857,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 	 */
 	smp_wmb();
 	task_thread_info(p)->cpu = cpu;
+	p->wake_cpu = cpu;
 #endif
 }
 
@@ -795,8 +934,6 @@ static inline u64 global_rt_runtime(void)
 
 	return (u64)sysctl_sched_rt_runtime * NSEC_PER_USEC;
 }
-
-
 
 static inline int task_current(struct rq *rq, struct task_struct *p)
 {
@@ -957,8 +1094,11 @@ static const u32 prio_to_wmult[40] = {
 #else
 #define ENQUEUE_WAKING		0
 #endif
+#define ENQUEUE_REPLENISH	8
 
 #define DEQUEUE_SLEEP		1
+
+#define RETRY_TASK		((void *)-1UL)
 
 struct sched_class {
 	const struct sched_class *next;
@@ -970,14 +1110,22 @@ struct sched_class {
 
 	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p, int flags);
 
-	struct task_struct * (*pick_next_task) (struct rq *rq);
+	/*
+	 * It is the responsibility of the pick_next_task() method that will
+	 * return the next task to call put_prev_task() on the @prev task or
+	 * something equivalent.
+	 *
+	 * May return RETRY_TASK when it finds a higher prio class has runnable
+	 * tasks.
+	 */
+	struct task_struct * (*pick_next_task) (struct rq *rq,
+						struct task_struct *prev);
 	void (*put_prev_task) (struct rq *rq, struct task_struct *p);
 
 #ifdef CONFIG_SMP
-	int  (*select_task_rq)(struct task_struct *p, int sd_flag, int flags);
+	int  (*select_task_rq)(struct task_struct *p, int task_cpu, int sd_flag, int flags);
 	void (*migrate_task_rq)(struct task_struct *p, int next_cpu);
 
-	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
 	void (*post_schedule) (struct rq *this_rq);
 	void (*task_waking) (struct task_struct *task);
 	void (*task_woken) (struct rq *this_rq, struct task_struct *task);
@@ -992,6 +1140,7 @@ struct sched_class {
 	void (*set_curr_task) (struct rq *rq);
 	void (*task_tick) (struct rq *rq, struct task_struct *p, int queued);
 	void (*task_fork) (struct task_struct *p);
+	void (*task_dead) (struct task_struct *p);
 
 	void (*switched_from) (struct rq *this_rq, struct task_struct *task);
 	void (*switched_to) (struct rq *this_rq, struct task_struct *task);
@@ -1006,11 +1155,17 @@ struct sched_class {
 #endif
 };
 
+static inline void put_prev_task(struct rq *rq, struct task_struct *prev)
+{
+	prev->sched_class->put_prev_task(rq, prev);
+}
+
 #define sched_class_highest (&stop_sched_class)
 #define for_each_class(class) \
    for (class = sched_class_highest; class; class = class->next)
 
 extern const struct sched_class stop_sched_class;
+extern const struct sched_class dl_sched_class;
 extern const struct sched_class rt_sched_class;
 extern const struct sched_class fair_sched_class;
 extern const struct sched_class idle_sched_class;
@@ -1018,27 +1173,28 @@ extern const struct sched_class idle_sched_class;
 
 #ifdef CONFIG_SMP
 
-extern void update_group_power(struct sched_domain *sd, int cpu);
+extern void update_group_capacity(struct sched_domain *sd, int cpu);
 
-extern void trigger_load_balance(struct rq *rq, int cpu);
-extern void idle_balance(int this_cpu, struct rq *this_rq);
+extern void trigger_load_balance(struct rq *rq);
 
 extern void idle_enter_fair(struct rq *this_rq);
 extern void idle_exit_fair(struct rq *this_rq);
 
-#else	/* CONFIG_SMP */
+#else
 
-static inline void idle_balance(int cpu, struct rq *rq)
-{
-}
+static inline void idle_enter_fair(struct rq *rq) { }
+static inline void idle_exit_fair(struct rq *rq) { }
 
 #endif
 
 extern void sysrq_sched_debug_show(void);
 extern void sched_init_granularity(void);
 extern void update_max_interval(void);
+
+extern void init_sched_dl_class(void);
 extern void init_sched_rt_class(void);
 extern void init_sched_fair_class(void);
+extern void init_sched_dl_class(void);
 
 extern void resched_task(struct task_struct *p);
 extern void resched_cpu(int cpu);
@@ -1046,26 +1202,24 @@ extern void resched_cpu(int cpu);
 extern struct rt_bandwidth def_rt_bandwidth;
 extern void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime);
 
+extern struct dl_bandwidth def_dl_bandwidth;
+extern void init_dl_bandwidth(struct dl_bandwidth *dl_b, u64 period, u64 runtime);
+extern void init_dl_task_timer(struct sched_dl_entity *dl_se);
+
+unsigned long to_ratio(u64 period, u64 runtime);
+
 extern void update_idle_cpu_load(struct rq *this_rq);
 
 extern void init_task_runnable_average(struct task_struct *p);
 
-#ifdef CONFIG_PARAVIRT
-static inline u64 steal_ticks(u64 steal)
+static inline void add_nr_running(struct rq *rq, unsigned count)
 {
-	if (unlikely(steal > NSEC_PER_SEC))
-		return div_u64(steal, TICK_NSEC);
+	unsigned prev_nr = rq->nr_running;
 
-	return __iter_div_u64_rem(steal, TICK_NSEC, &steal);
-}
-#endif
-
-static inline void inc_nr_running(struct rq *rq)
-{
-	rq->nr_running++;
+	rq->nr_running = prev_nr + count;
 
 #ifdef CONFIG_NO_HZ_FULL
-	if (rq->nr_running == 2) {
+	if (prev_nr < 2 && rq->nr_running >= 2) {
 		if (tick_nohz_full_cpu(rq->cpu)) {
 			/* Order rq->nr_running write against the IPI */
 			smp_wmb();
@@ -1075,9 +1229,9 @@ static inline void inc_nr_running(struct rq *rq)
 #endif
 }
 
-static inline void dec_nr_running(struct rq *rq)
+static inline void sub_nr_running(struct rq *rq, unsigned count)
 {
-	rq->nr_running--;
+	rq->nr_running -= count;
 }
 
 static inline void rq_last_tick_reset(struct rq *rq)
@@ -1220,6 +1374,33 @@ static inline void double_unlock_balance(struct rq *this_rq, struct rq *busiest)
 	lock_set_subclass(&this_rq->lock.dep_map, 0, _RET_IP_);
 }
 
+static inline void double_lock(spinlock_t *l1, spinlock_t *l2)
+{
+	if (l1 > l2)
+		swap(l1, l2);
+
+	spin_lock(l1);
+	spin_lock_nested(l2, SINGLE_DEPTH_NESTING);
+}
+
+static inline void double_lock_irq(spinlock_t *l1, spinlock_t *l2)
+{
+	if (l1 > l2)
+		swap(l1, l2);
+
+	spin_lock_irq(l1);
+	spin_lock_nested(l2, SINGLE_DEPTH_NESTING);
+}
+
+static inline void double_raw_lock(raw_spinlock_t *l1, raw_spinlock_t *l2)
+{
+	if (l1 > l2)
+		swap(l1, l2);
+
+	raw_spin_lock(l1);
+	raw_spin_lock_nested(l2, SINGLE_DEPTH_NESTING);
+}
+
 /*
  * double_rq_lock - safely lock two runqueues
  *
@@ -1304,8 +1485,10 @@ extern void print_rt_stats(struct seq_file *m, int cpu);
 
 extern void init_cfs_rq(struct cfs_rq *cfs_rq);
 extern void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq);
+extern void init_dl_rq(struct dl_rq *dl_rq, struct rq *rq);
 
-extern void account_cfs_bandwidth_used(int enabled, int was_enabled);
+extern void cfs_bandwidth_usage_inc(void);
+extern void cfs_bandwidth_usage_dec(void);
 
 #ifdef CONFIG_NO_HZ_COMMON
 enum rq_nohz_flag_bits {

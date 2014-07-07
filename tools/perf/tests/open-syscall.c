@@ -15,7 +15,7 @@ int test__open_syscall_event(void)
 		return -1;
 	}
 
-	evsel = perf_evsel__newtp("syscalls", "sys_enter_open", 0);
+	evsel = perf_evsel__newtp("syscalls", "sys_enter_open");
 	if (evsel == NULL) {
 		pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
 		goto out_thread_map_delete;

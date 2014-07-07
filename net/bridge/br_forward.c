@@ -26,25 +26,20 @@ static int deliver_clone(const struct net_bridge_port *prev,
 			 void (*__packet_hook)(const struct net_bridge_port *p,
 					       struct sk_buff *skb));
 
-/* Don't forward packets to originating port or forwarding diasabled */
+/* Don't forward packets to originating port or forwarding disabled */
 static inline int should_deliver(const struct net_bridge_port *p,
 				 const struct sk_buff *skb)
 {
-	return (((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
+	return ((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
 		br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&
-		p->state == BR_STATE_FORWARDING);
-}
-
-static inline unsigned int packet_length(const struct sk_buff *skb)
-{
-	return skb->len - (skb->protocol == htons(ETH_P_8021Q) ? VLAN_HLEN : 0);
+		p->state == BR_STATE_FORWARDING;
 }
 
 int br_dev_queue_push_xmit(struct sk_buff *skb)
 {
 	/* ip_fragment doesn't copy the MAC header */
 	if (nf_bridge_maybe_copy_header(skb) ||
-	    (packet_length(skb) > skb->dev->mtu && !skb_is_gso(skb))) {
+	    !is_skb_forwardable(skb->dev, skb)) {
 		kfree_skb(skb);
 	} else {
 		skb_push(skb, ETH_HLEN);
@@ -71,7 +66,7 @@ static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 	skb->dev = to->dev;
 
 	if (unlikely(netpoll_tx_running(to->br->dev))) {
-		if (packet_length(skb) > skb->dev->mtu && !skb_is_gso(skb))
+		if (!is_skb_forwardable(skb->dev, skb))
 			kfree_skb(skb);
 		else {
 			skb_push(skb, ETH_HLEN);

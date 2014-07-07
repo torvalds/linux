@@ -232,8 +232,6 @@ int ldlm_lock_remove_from_lru_nolock(struct ldlm_lock *lock)
 
 		LASSERT(lock->l_resource->lr_type != LDLM_FLOCK);
 		list_del_init(&lock->l_lru);
-		if (lock->l_flags & LDLM_FL_SKIPPED)
-			lock->l_flags &= ~LDLM_FL_SKIPPED;
 		LASSERT(ns->ns_nr_unused > 0);
 		ns->ns_nr_unused--;
 		rc = 1;
@@ -271,6 +269,8 @@ void ldlm_lock_add_to_lru_nolock(struct ldlm_lock *lock)
 	LASSERT(list_empty(&lock->l_lru));
 	LASSERT(lock->l_resource->lr_type != LDLM_FLOCK);
 	list_add_tail(&lock->l_lru, &ns->ns_unused_list);
+	if (lock->l_flags & LDLM_FL_SKIPPED)
+		lock->l_flags &= ~LDLM_FL_SKIPPED;
 	LASSERT(ns->ns_nr_unused >= 0);
 	ns->ns_nr_unused++;
 }
@@ -437,7 +437,7 @@ static struct ldlm_lock *ldlm_lock_new(struct ldlm_resource *resource)
 	if (resource == NULL)
 		LBUG();
 
-	OBD_SLAB_ALLOC_PTR_GFP(lock, ldlm_lock_slab, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lock, ldlm_lock_slab, GFP_NOFS);
 	if (lock == NULL)
 		return NULL;
 
@@ -529,7 +529,7 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 		lock_res_nested(oldres, LRT_NEW);
 	}
 	LASSERT(memcmp(new_resid, &oldres->lr_name,
-		       sizeof oldres->lr_name) != 0);
+		       sizeof(oldres->lr_name)) != 0);
 	lock->l_resource = newres;
 	unlock_res(oldres);
 	unlock_res_and_lock(lock);
@@ -799,7 +799,7 @@ void ldlm_lock_addref_internal(struct ldlm_lock *lock, __u32 mode)
  * Removes reader/writer reference for LDLM lock \a lock.
  * Assumes LDLM lock is already locked.
  * only called in ldlm_flock_destroy and for local locks.
- * Does NOT add lock to LRU if no r/w references left to accomodate flock locks
+ * Does NOT add lock to LRU if no r/w references left to accommodate flock locks
  * that cannot be placed in LRU.
  */
 void ldlm_lock_decref_internal_nolock(struct ldlm_lock *lock, __u32 mode)
@@ -1129,6 +1129,11 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 		if (lock == old_lock)
 			break;
 
+		/* Check if this lock can be matched.
+		 * Used by LU-2919(exclusive open) for open lease lock */
+		if (ldlm_is_excl(lock))
+			continue;
+
 		/* llite sometimes wants to match locks that will be
 		 * canceled when their users drop, but we allow it to match
 		 * if it passes in CBPENDING and the lock still has users.
@@ -1247,7 +1252,7 @@ EXPORT_SYMBOL(ldlm_lock_allow_match);
  *     list will be considered
  * If 'flags' contains LDLM_FL_CBPENDING, then locks that have been marked
  *     to be canceled can still be matched as long as they still have reader
- *     or writer refernces
+ *     or writer referneces
  * If 'flags' contains LDLM_FL_TEST_LOCK, then don't actually reference a lock,
  *     just tell us if we would have matched.
  *
@@ -1619,7 +1624,7 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 	 * have to allocate the interval node early otherwise we can't regrant
 	 * this lock in the future. - jay */
 	if (!local && (*flags & LDLM_FL_REPLAY) && res->lr_type == LDLM_EXTENT)
-		OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
+		OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, GFP_NOFS);
 
 	lock_res_and_lock(lock);
 	if (local && lock->l_req_mode == lock->l_granted_mode) {
@@ -1891,7 +1896,7 @@ static int reprocess_one_queue(struct ldlm_resource *res, void *closure)
 	return LDLM_ITER_CONTINUE;
 }
 
-static int ldlm_reprocess_res(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+static int ldlm_reprocess_res(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			      struct hlist_node *hnode, void *arg)
 {
 	struct ldlm_resource *res = cfs_hash_object(hs, hnode);
@@ -2040,7 +2045,7 @@ struct export_cl_data {
  * Iterator function for ldlm_cancel_locks_for_export.
  * Cancels passed locks.
  */
-int ldlm_cancel_locks_for_export_cb(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+int ldlm_cancel_locks_for_export_cb(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 				    struct hlist_node *hnode, void *data)
 
 {
@@ -2090,8 +2095,8 @@ void ldlm_cancel_locks_for_export(struct obd_export *exp)
 /**
  * Downgrade an exclusive lock.
  *
- * A fast variant of ldlm_lock_convert for convertion of exclusive
- * locks. The convertion is always successful.
+ * A fast variant of ldlm_lock_convert for conversion of exclusive
+ * locks. The conversion is always successful.
  * Used by Commit on Sharing (COS) code.
  *
  * \param lock A lock to convert
@@ -2141,7 +2146,7 @@ struct ldlm_resource *ldlm_lock_convert(struct ldlm_lock *lock, int new_mode,
 
 	/* I can't check the type of lock here because the bitlock of lock
 	 * is not held here, so do the allocation blindly. -jay */
-	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, GFP_NOFS);
 	if (node == NULL)
 		/* Actually, this causes EDEADLOCK to be returned */
 		return NULL;

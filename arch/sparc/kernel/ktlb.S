@@ -153,12 +153,19 @@ kvmap_dtlb_tsb4m_miss:
 	/* Clear the PAGE_OFFSET top virtual bits, shift
 	 * down to get PFN, and make sure PFN is in range.
 	 */
-	sllx		%g4, 21, %g5
+661:	sllx		%g4, 0, %g5
+	.section	.page_offset_shift_patch, "ax"
+	.word		661b
+	.previous
 
 	/* Check to see if we know about valid memory at the 4MB
 	 * chunk this physical address will reside within.
 	 */
-	srlx		%g5, 21 + 41, %g2
+661:	srlx		%g5, MAX_PHYS_ADDRESS_BITS, %g2
+	.section	.page_offset_shift_patch, "ax"
+	.word		661b
+	.previous
+
 	brnz,pn		%g2, kvmap_dtlb_longpath
 	 nop
 
@@ -176,7 +183,11 @@ valid_addr_bitmap_patch:
 	or		%g7, %lo(sparc64_valid_addr_bitmap), %g7
 	.previous
 
-	srlx		%g5, 21 + 22, %g2
+661:	srlx		%g5, ILOG2_4MB, %g2
+	.section	.page_offset_shift_patch, "ax"
+	.word		661b
+	.previous
+
 	srlx		%g2, 6, %g5
 	and		%g2, 63, %g2
 	sllx		%g5, 3, %g5
@@ -189,9 +200,18 @@ valid_addr_bitmap_patch:
 2:	 sethi		%hi(kpte_linear_bitmap), %g2
 
 	/* Get the 256MB physical address index. */
-	sllx		%g4, 21, %g5
+661:	sllx		%g4, 0, %g5
+	.section	.page_offset_shift_patch, "ax"
+	.word		661b
+	.previous
+
 	or		%g2, %lo(kpte_linear_bitmap), %g2
-	srlx		%g5, 21 + 28, %g5
+
+661:	srlx		%g5, ILOG2_256MB, %g5
+	.section	.page_offset_shift_patch, "ax"
+	.word		661b
+	.previous
+
 	and		%g5, (32 - 1), %g7
 
 	/* Divide by 32 to get the offset into the bitmask.  */
@@ -257,7 +277,7 @@ kvmap_dtlb_load:
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 kvmap_vmemmap:
 	sub		%g4, %g5, %g5
-	srlx		%g5, 22, %g5
+	srlx		%g5, ILOG2_4MB, %g5
 	sethi		%hi(vmemmap_table), %g1
 	sllx		%g5, 3, %g5
 	or		%g1, %lo(vmemmap_table), %g1

@@ -7,18 +7,48 @@ Required properties:
   - Tegra30 requires 2 entries, for the APBIF and AHUB/AUDIO register blocks.
   - Tegra114 requires an additional entry, for the APBIF2 register block.
 - interrupts : Should contain AHUB interrupt
-- nvidia,dma-request-selector : A list of the DMA channel specifiers. Each
-  entry contains the Tegra DMA controller's phandle and request selector.
-  If a single entry is present, the request selectors for the channels are
-  assumed to be contiguous, and increment from this value.
-  If multiple values are given, one value must be given per channel.
-- clocks : Must contain an entry for each required entry in clock-names.
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
 - clock-names : Must include the following entries:
-  - Tegra30: Requires d_audio, apbif, i2s0, i2s1, i2s2, i2s3, i2s4, dam0,
-    dam1, dam2, spdif_in.
-  - Tegra114: Additionally requires amx, adx.
+  - d_audio
+  - apbif
+- resets : Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names : Must include the following entries:
+  Tegra30 and later:
+  - d_audio
+  - apbif
+  - i2s0
+  - i2s1
+  - i2s2
+  - i2s3
+  - i2s4
+  - dam0
+  - dam1
+  - dam2
+  - spdif
+  Tegra114 and later additionally require:
+  - amx
+  - adx
+  Tegra124 and later additionally require:
+  - amx1
+  - adx1
+  - afc0
+  - afc1
+  - afc2
+  - afc3
+  - afc4
+  - afc5
 - ranges : The bus address mapping for the configlink register bus.
   Can be empty since the mapping is 1:1.
+- dmas : Must contain an entry for each entry in clock-names.
+  See ../dma/dma.txt for details.
+- dma-names : Must include the following entries:
+  - rx0 .. rx<n>
+  - tx0 .. tx<n>
+  ... where n is:
+  Tegra30: 3
+  Tegra114, Tegra124: 9
 - #address-cells : For the configlink bus. Should be <1>;
 - #size-cells : For the configlink bus. Should be <1>.
 
@@ -35,13 +65,20 @@ ahub@70080000 {
 	reg = <0x70080000 0x200 0x70080200 0x100>;
 	interrupts = < 0 103 0x04 >;
 	nvidia,dma-request-selector = <&apbdma 1>;
-	clocks = <&tegra_car 106>, <&tegra_car 107>, <&tegra_car 30>,
+	clocks = <&tegra_car 106>, <&tegra_car 107>;
+	clock-names = "d_audio", "apbif";
+	resets = <&tegra_car 106>, <&tegra_car 107>, <&tegra_car 30>,
 		<&tegra_car 11>, <&tegra_car 18>, <&tegra_car 101>,
 		<&tegra_car 102>, <&tegra_car 108>, <&tegra_car 109>,
-		<&tegra_car 110>, <&tegra_car 162>;
-	clock-names = "d_audio", "apbif", "i2s0", "i2s1", "i2s2",
+		<&tegra_car 110>, <&tegra_car 10>;
+	reset-names = "d_audio", "apbif", "i2s0", "i2s1", "i2s2",
 		"i2s3", "i2s4", "dam0", "dam1", "dam2",
-		"spdif_in";
+		"spdif";
+	dmas = <&apbdma 1>, <&apbdma 1>;
+	       <&apbdma 2>, <&apbdma 2>;
+	       <&apbdma 3>, <&apbdma 3>;
+	       <&apbdma 4>, <&apbdma 4>;
+	dma-names = "rx0", "tx0", "rx1", "tx1", "rx2", "tx2", "rx3", "tx3";
 	ranges;
 	#address-cells = <1>;
 	#size-cells = <1>;

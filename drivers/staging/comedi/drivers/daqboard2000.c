@@ -333,14 +333,28 @@ static void setup_sampling(struct comedi_device *dev, int chan, int gain)
 	writeAcqScanListEntry(dev, word3);
 }
 
+static int daqboard2000_ai_status(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned long context)
+{
+	struct daqboard2000_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readw(devpriv->daq + acqControl);
+	if (status & context)
+		return 0;
+	return -EBUSY;
+}
+
 static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
 	struct daqboard2000_private *devpriv = dev->private;
-	unsigned int val;
-	int gain, chan, timeout;
+	int gain, chan;
+	int ret;
 	int i;
 
 	writew(DAQBOARD2000_AcqResetScanListFifo |
@@ -367,25 +381,24 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 		/* Enable reading from the scanlist FIFO */
 		writew(DAQBOARD2000_SeqStartScanList,
 		       devpriv->daq + acqControl);
-		for (timeout = 0; timeout < 20; timeout++) {
-			val = readw(devpriv->daq + acqControl);
-			if (val & DAQBOARD2000_AcqConfigPipeFull)
-				break;
-			/* udelay(2); */
-		}
+
+		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
+				     DAQBOARD2000_AcqConfigPipeFull);
+		if (ret)
+			return ret;
+
 		writew(DAQBOARD2000_AdcPacerEnable, devpriv->daq + acqControl);
-		for (timeout = 0; timeout < 20; timeout++) {
-			val = readw(devpriv->daq + acqControl);
-			if (val & DAQBOARD2000_AcqLogicScanning)
-				break;
-			/* udelay(2); */
-		}
-		for (timeout = 0; timeout < 20; timeout++) {
-			val = readw(devpriv->daq + acqControl);
-			if (val & DAQBOARD2000_AcqResultsFIFOHasValidData)
-				break;
-			/* udelay(2); */
-		}
+
+		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
+				     DAQBOARD2000_AcqLogicScanning);
+		if (ret)
+			return ret;
+
+		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
+				     DAQBOARD2000_AcqResultsFIFOHasValidData);
+		if (ret)
+			return ret;
+
 		data[i] = readw(devpriv->daq + acqResultsFIFO);
 		writew(DAQBOARD2000_AdcPacerDisable, devpriv->daq + acqControl);
 		writew(DAQBOARD2000_SeqStopScanList, devpriv->daq + acqControl);
@@ -409,6 +422,21 @@ static int daqboard2000_ao_insn_read(struct comedi_device *dev,
 	return i;
 }
 
+static int daqboard2000_ao_eoc(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned long context)
+{
+	struct daqboard2000_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int status;
+
+	status = readw(devpriv->daq + dacControl);
+	if ((status & ((chan + 1) * 0x0010)) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_insn *insn,
@@ -416,8 +444,7 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 {
 	struct daqboard2000_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
-	unsigned int val;
-	int timeout;
+	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
@@ -431,12 +458,11 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 		udelay(1000);
 #endif
 		writew(data[i], devpriv->daq + dacSetting(chan));
-		for (timeout = 0; timeout < 20; timeout++) {
-			val = readw(devpriv->daq + dacControl);
-			if ((val & ((chan + 1) * 0x0010)) == 0)
-				break;
-			/* udelay(2); */
-		}
+
+		ret = comedi_timeout(dev, s, insn, daqboard2000_ao_eoc, 0);
+		if (ret)
+			return ret;
+
 		devpriv->ao_readback[chan] = data[i];
 #if 0
 		/*
@@ -737,9 +763,6 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	if (result)
 		return result;
 
-	dev_info(dev->class_dev, "%s: %s attached\n",
-		dev->driver->driver_name, dev->board_name);
-
 	return 0;
 }
 
@@ -772,7 +795,7 @@ static int daqboard2000_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
+static const struct pci_device_id daqboard2000_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IOTECH, 0x0409) },
 	{ 0 }
 };

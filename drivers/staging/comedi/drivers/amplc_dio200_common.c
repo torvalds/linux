@@ -130,7 +130,6 @@ struct dio200_subdev_intr {
 	unsigned int enabled_isns;
 	unsigned int stopcount;
 	bool active:1;
-	bool continuous:1;
 };
 
 static inline const struct dio200_layout *
@@ -259,7 +258,7 @@ static int dio200_start_intr(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval = 0;
 
-	if (!subpriv->continuous && subpriv->stopcount == 0) {
+	if (cmd->stop_src == TRIG_COUNT && subpriv->stopcount == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
 		subpriv->active = false;
@@ -281,21 +280,17 @@ static int dio200_start_intr(struct comedi_device *dev,
 	return retval;
 }
 
-/*
- * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
- */
-static int
-dio200_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
-			  unsigned int trignum)
+static int dio200_inttrig_start_intr(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     unsigned int trig_num)
 {
-	struct dio200_subdev_intr *subpriv;
+	struct dio200_subdev_intr *subpriv = s->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 	int event = 0;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
-
-	subpriv = s->private;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 	s->async->inttrig = NULL;
@@ -315,18 +310,18 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 				  unsigned int triggered)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short val;
-	unsigned int n, ch, len;
+	unsigned int n, ch;
 
 	val = 0;
-	len = s->async->cmd.chanlist_len;
-	for (n = 0; n < len; n++) {
-		ch = CR_CHAN(s->async->cmd.chanlist[n]);
+	for (n = 0; n < cmd->chanlist_len; n++) {
+		ch = CR_CHAN(cmd->chanlist[n]);
 		if (triggered & (1U << ch))
 			val |= (1U << n);
 	}
 	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s->async, val)) {
+	if (comedi_buf_put(s, val)) {
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 	} else {
 		/* Error!  Stop acquisition.  */
@@ -336,8 +331,7 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 	}
 
 	/* Check for end of acquisition. */
-	if (!subpriv->continuous) {
-		/* stop_src == TRIG_COUNT */
+	if (cmd->stop_src == TRIG_COUNT) {
 		if (subpriv->stopcount > 0) {
 			subpriv->stopcount--;
 			if (subpriv->stopcount == 0) {
@@ -513,31 +507,19 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	int event = 0;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	subpriv->active = 1;
+	subpriv->active = true;
 
 	/* Set up end of acquisition. */
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		subpriv->continuous = false;
+	if (cmd->stop_src == TRIG_COUNT)
 		subpriv->stopcount = cmd->stop_arg;
-		break;
-	default:
-		/* TRIG_NONE */
-		subpriv->continuous = true;
+	else	/* TRIG_NONE */
 		subpriv->stopcount = 0;
-		break;
-	}
 
-	/* Set up start of acquisition. */
-	switch (cmd->start_src) {
-	case TRIG_INT:
+	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = dio200_inttrig_start_intr;
-		break;
-	default:
-		/* TRIG_NOW */
+	else	/* TRIG_NOW */
 		event = dio200_start_intr(dev, s);
-		break;
-	}
+
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (event)
@@ -829,7 +811,7 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		if (data[1] > (I8254_MODE5 | I8254_BINARY))
+		if (data[1] > (I8254_MODE5 | I8254_BCD))
 			ret = -EINVAL;
 		else
 			dio200_subdev_8254_set_mode(dev, s, chan, data[1]);
@@ -941,31 +923,34 @@ static void dio200_subdev_8255_set_dir(struct comedi_device *dev,
 	dio200_write8(dev, subpriv->ofs + 3, config);
 }
 
-/*
- * Handle 'insn_bits' for an '8255' DIO subdevice.
- */
 static int dio200_subdev_8255_bits(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct dio200_subdev_8255 *subpriv = s->private;
+	unsigned int mask;
+	unsigned int val;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-		if (data[0] & 0xff)
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0xff)
 			dio200_write8(dev, subpriv->ofs, s->state & 0xff);
-		if (data[0] & 0xff00)
+		if (mask & 0xff00)
 			dio200_write8(dev, subpriv->ofs + 1,
 				      (s->state >> 8) & 0xff);
-		if (data[0] & 0xff0000)
+		if (mask & 0xff0000)
 			dio200_write8(dev, subpriv->ofs + 2,
 				      (s->state >> 16) & 0xff);
 	}
-	data[1] = dio200_read8(dev, subpriv->ofs);
-	data[1] |= dio200_read8(dev, subpriv->ofs + 1) << 8;
-	data[1] |= dio200_read8(dev, subpriv->ofs + 2) << 16;
-	return 2;
+
+	val = dio200_read8(dev, subpriv->ofs);
+	val |= dio200_read8(dev, subpriv->ofs + 1) << 8;
+	val |= dio200_read8(dev, subpriv->ofs + 2) << 16;
+
+	data[1] = val;
+
+	return insn->n;
 }
 
 /*
@@ -1022,8 +1007,6 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->insn_bits = dio200_subdev_8255_bits;
 	s->insn_config = dio200_subdev_8255_config;
-	s->state = 0;
-	s->io_bits = 0;
 	dio200_subdev_8255_set_dir(dev, s);
 	return 0;
 }
@@ -1207,7 +1190,7 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 				 "warning! irq %u unavailable!\n", irq);
 		}
 	}
-	dev_info(dev->class_dev, "attached\n");
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(amplc_dio200_common_attach);

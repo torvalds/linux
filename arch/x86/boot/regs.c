@@ -17,6 +17,7 @@
  */
 
 #include "boot.h"
+#include "string.h"
 
 void initregs(struct biosregs *reg)
 {

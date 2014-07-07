@@ -52,7 +52,6 @@
 #define RATE_48M       10
 #define RATE_54M       11
 #define RATE_AUTO      12
-#define MAX_RATE       12
 
 void RATEvParseMaxRate(struct vnt_private *, PWLAN_IE_SUPP_RATES pItemRates,
 	PWLAN_IE_SUPP_RATES pItemExtRates, int bUpdateBasicRate,

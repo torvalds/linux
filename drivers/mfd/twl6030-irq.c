@@ -31,7 +31,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <linux/init.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -176,8 +175,9 @@ static irqreturn_t twl6030_irq_thread(int irq, void *data)
 	int i, ret;
 	union {
 		u8 bytes[4];
-		u32 int_sts;
+		__le32 int_sts;
 	} sts;
+	u32 int_sts; /* sts.int_sts converted to CPU endianness */
 	struct twl6030_irq *pdata = data;
 
 	/* read INT_STS_A, B and C in one shot using a burst read */
@@ -196,8 +196,9 @@ static irqreturn_t twl6030_irq_thread(int irq, void *data)
 	if (sts.bytes[2] & 0x10)
 		sts.bytes[2] |= 0x08;
 
-	for (i = 0; sts.int_sts; sts.int_sts >>= 1, i++)
-		if (sts.int_sts & 0x1) {
+	int_sts = le32_to_cpu(sts.int_sts);
+	for (i = 0; int_sts; int_sts >>= 1, i++)
+		if (int_sts & 0x1) {
 			int module_irq =
 				irq_find_mapping(pdata->irq_domain,
 						 pdata->irq_mapping_tbl[i]);

@@ -43,9 +43,8 @@ struct btrfs_device {
 	/* WRITE_SYNC bios */
 	struct btrfs_pending_bios pending_sync_bios;
 
-	int running_pending;
 	u64 generation;
-
+	int running_pending;
 	int writeable;
 	int in_fs_metadata;
 	int missing;
@@ -53,11 +52,11 @@ struct btrfs_device {
 	int is_tgtdev_for_dev_replace;
 
 	spinlock_t io_lock;
+	/* the mode sent to blkdev_get */
+	fmode_t mode;
 
 	struct block_device *bdev;
 
-	/* the mode sent to blkdev_get */
-	fmode_t mode;
 
 	struct rcu_string *name;
 
@@ -78,15 +77,20 @@ struct btrfs_device {
 
 	/* optimal io width for this device */
 	u32 io_width;
+	/* type and info about this device */
+	u64 type;
 
 	/* minimal io size for this device */
 	u32 sector_size;
 
-	/* type and info about this device */
-	u64 type;
 
 	/* physical drive uuid (or lvm uuid) */
 	u8 uuid[BTRFS_UUID_SIZE];
+
+	/* for sending down flush barriers */
+	int nobarriers;
+	struct bio *flush_bio;
+	struct completion flush_wait;
 
 	/* per-device scrub information */
 	struct scrub_ctx *scrub_device;
@@ -103,10 +107,6 @@ struct btrfs_device {
 	struct radix_tree_root reada_zones;
 	struct radix_tree_root reada_extents;
 
-	/* for sending down flush barriers */
-	struct bio *flush_bio;
-	struct completion flush_wait;
-	int nobarriers;
 
 	/* disk I/O failure stats. For detailed description refer to
 	 * enum btrfs_dev_stat_values in ioctl.h */
@@ -132,7 +132,9 @@ struct btrfs_fs_devices {
 
 	/* all of the devices in the FS, protected by a mutex
 	 * so we can safely walk it to write out the supers without
-	 * worrying about add/remove by the multi-device code
+	 * worrying about add/remove by the multi-device code.
+	 * Scrubbing super can kick off supers writing by holding
+	 * this mutex lock.
 	 */
 	struct mutex device_list_mutex;
 	struct list_head devices;
@@ -188,10 +190,14 @@ struct btrfs_bio_stripe {
 struct btrfs_bio;
 typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
 
+#define BTRFS_BIO_ORIG_BIO_SUBMITTED	0x1
+
 struct btrfs_bio {
 	atomic_t stripes_pending;
+	struct btrfs_fs_info *fs_info;
 	bio_end_io_t *end_io;
 	struct bio *orig_bio;
+	unsigned long flags;
 	void *private;
 	atomic_t error;
 	int max_errors;
@@ -252,6 +258,7 @@ struct map_lookup {
 #define BTRFS_BALANCE_ARGS_DEVID	(1ULL << 2)
 #define BTRFS_BALANCE_ARGS_DRANGE	(1ULL << 3)
 #define BTRFS_BALANCE_ARGS_VRANGE	(1ULL << 4)
+#define BTRFS_BALANCE_ARGS_LIMIT	(1ULL << 5)
 
 /*
  * Profile changing flags.  When SOFT is set we won't relocate chunk if

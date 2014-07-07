@@ -17,7 +17,7 @@ config MOUSE_PS2
 	default y
 	select SERIO
 	select SERIO_LIBPS2
-	select SERIO_I8042 if X86
+	select SERIO_I8042 if ARCH_MIGHT_HAVE_PC_SERIO
 	select SERIO_GSCPS2 if GSC
 	help
 	  Say Y here if you have a PS/2 mouse connected to your system. This
@@ -53,7 +53,7 @@ config MOUSE_PS2_LOGIPS2PP
 	default y
 	depends on MOUSE_PS2
 	help
-	  Say Y here if you have a Logictech PS/2++ mouse connected to
+	  Say Y here if you have a Logitech PS/2++ mouse connected to
 	  your system.
 
 	  If unsure, say Y.

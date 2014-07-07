@@ -160,14 +160,6 @@
 #define OFF false
 
 /*
- * Create a contiguous bitmask starting at bit position @lo and ending at
- * position @hi. For example
- *
- * GENMASK(21, 39) gives us the 64bit vector 0x000000ffffe00000.
- */
-#define GENMASK(lo, hi)			(((1ULL << ((hi) - (lo) + 1)) - 1) << (lo))
-
-/*
  * PCI-defined configuration space registers
  */
 #define PCI_DEVICE_ID_AMD_15H_M30H_NB_F1 0x141b
@@ -176,6 +168,8 @@
 #define PCI_DEVICE_ID_AMD_15H_NB_F2	0x1602
 #define PCI_DEVICE_ID_AMD_16H_NB_F1	0x1531
 #define PCI_DEVICE_ID_AMD_16H_NB_F2	0x1532
+#define PCI_DEVICE_ID_AMD_16H_M30H_NB_F1 0x1581
+#define PCI_DEVICE_ID_AMD_16H_M30H_NB_F2 0x1582
 
 /*
  * Function 1 - Address Map
@@ -308,6 +302,7 @@ enum amd_families {
 	F15_CPUS,
 	F15_M30H_CPUS,
 	F16_CPUS,
+	F16_M30H_CPUS,
 	NUM_FAMILIES,
 };
 

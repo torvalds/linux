@@ -433,6 +433,89 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 	}
 }
 
+/* EMU0204 */
+static int snd_emu0204_ch_switch_info(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_info *uinfo)
+{
+	static const char *texts[2] = {"1/2",
+				       "3/4"
+	};
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item > 1)
+		uinfo->value.enumerated.item = 1;
+	strcpy(uinfo->value.enumerated.name,
+		texts[uinfo->value.enumerated.item]);
+
+	return 0;
+}
+
+static int snd_emu0204_ch_switch_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = kcontrol->private_value;
+	return 0;
+}
+
+static int snd_emu0204_ch_switch_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+	int err, changed;
+	unsigned char buf[2];
+
+	if (value > 1)
+		return -EINVAL;
+
+	buf[0] = 0x01;
+	buf[1] = value ? 0x02 : 0x01;
+
+	changed = value != kcontrol->private_value;
+	down_read(&mixer->chip->shutdown_rwsem);
+	if (mixer->chip->shutdown) {
+		err = -ENODEV;
+		goto out;
+	}
+	err = snd_usb_ctl_msg(mixer->chip->dev,
+		      usb_sndctrlpipe(mixer->chip->dev, 0), UAC_SET_CUR,
+		      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
+		      0x0400, 0x0e00, buf, 2);
+ out:
+	up_read(&mixer->chip->shutdown_rwsem);
+	if (err < 0)
+		return err;
+	kcontrol->private_value = value;
+	return changed;
+}
+
+
+static struct snd_kcontrol_new snd_emu0204_controls[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Front Jack Channels",
+		.info = snd_emu0204_ch_switch_info,
+		.get = snd_emu0204_ch_switch_get,
+		.put = snd_emu0204_ch_switch_put,
+		.private_value = 0,
+	},
+};
+
+static int snd_emu0204_controls_create(struct usb_mixer_interface *mixer)
+{
+	int i, err;
+
+	for (i = 0; i < ARRAY_SIZE(snd_emu0204_controls); ++i) {
+		err = snd_ctl_add(mixer->chip->card,
+			snd_ctl_new1(&snd_emu0204_controls[i], mixer));
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
 /* ASUS Xonar U1 / U3 controls */
 
 static int snd_xonar_u1_switch_get(struct snd_kcontrol *kcontrol,
@@ -517,8 +600,8 @@ static int snd_nativeinstruments_control_get(struct snd_kcontrol *kcontrol,
 	up_read(&mixer->chip->shutdown_rwsem);
 
 	if (ret < 0) {
-		snd_printk(KERN_ERR
-			   "unable to issue vendor read request (ret = %d)", ret);
+		dev_err(&dev->dev,
+			"unable to issue vendor read request (ret = %d)", ret);
 		return ret;
 	}
 
@@ -548,8 +631,8 @@ static int snd_nativeinstruments_control_put(struct snd_kcontrol *kcontrol,
 	up_read(&mixer->chip->shutdown_rwsem);
 
 	if (ret < 0) {
-		snd_printk(KERN_ERR
-			   "unable to issue vendor write request (ret = %d)", ret);
+		dev_err(&dev->dev,
+			"unable to issue vendor write request (ret = %d)", ret);
 		return ret;
 	}
 
@@ -1520,7 +1603,7 @@ static int snd_microii_controls_create(struct usb_mixer_interface *mixer)
 			return err;
 	}
 
-	return err;
+	return 0;
 }
 
 int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
@@ -1543,6 +1626,13 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		if (!snd_card_proc_new(mixer->chip->card, "audigy2nx", &entry))
 			snd_info_set_text_ops(entry, mixer,
 					      snd_audigy2nx_proc_read);
+		break;
+
+	/* EMU0204 */
+	case USB_ID(0x041e, 0x3f19):
+		err = snd_emu0204_controls_create(mixer);
+		if (err < 0)
+			break;
 		break;
 
 	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
@@ -1609,7 +1699,7 @@ void snd_usb_mixer_rc_memory_change(struct usb_mixer_interface *mixer,
 			snd_usb_mixer_notify_id(mixer, mixer->rc_cfg->mute_mixer_id);
 		break;
 	default:
-		snd_printd(KERN_DEBUG "memory change in unknown unit %d\n", unitid);
+		usb_audio_dbg(mixer->chip, "memory change in unknown unit %d\n", unitid);
 		break;
 	}
 }

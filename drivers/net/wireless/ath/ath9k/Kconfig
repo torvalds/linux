@@ -65,6 +65,14 @@ config ATH9K_DEBUGFS
 
 	  Also required for changing debug message flags at run time.
 
+config ATH9K_STATION_STATISTICS
+	bool "Detailed station statistics"
+	depends on ATH9K && ATH9K_DEBUGFS && DEBUG_FS
+	select MAC80211_DEBUGFS
+	default n
+	---help---
+	  This option enables detailed statistics for association stations.
+
 config ATH9K_DFS_CERTIFIED
 	bool "Atheros DFS support for certified platforms"
 	depends on ATH9K && CFG80211_CERTIFICATION_ONUS
@@ -84,17 +92,33 @@ config ATH9K_DFS_CERTIFIED
 	  developed. At this point enabling this option won't do anything
 	  except increase code size.
 
-config ATH9K_LEGACY_RATE_CONTROL
-	bool "Atheros ath9k rate control"
-	depends on ATH9K
+config ATH9K_TX99
+	bool "Atheros ath9k TX99 testing support"
+	depends on ATH9K_DEBUGFS && CFG80211_CERTIFICATION_ONUS
 	default n
 	---help---
-	  Say Y, if you want to use the ath9k specific rate control
-	  module instead of minstrel_ht. Be warned that there are various
-	  issues with the ath9k RC and minstrel is a more robust algorithm.
-	  Note that even if this option is selected, "ath9k_rate_control"
-	  has to be passed to mac80211 using the module parameter,
-	  ieee80211_default_rc_algo.
+	  Say N. This should only be enabled on systems undergoing
+	  certification testing and evaluation in a controlled environment.
+	  Enabling this will only enable TX99 support, all other modes of
+	  operation will be disabled.
+
+	  TX99 support enables Specific Absorption Rate (SAR) testing.
+	  SAR is the unit of measurement for the amount of radio frequency(RF)
+	  absorbed by the body when using a wireless device. The RF exposure
+	  limits used are expressed in the terms of SAR, which is a measure
+	  of the electric and magnetic field strength and power density for
+	  transmitters operating at frequencies from 300 kHz to 100 GHz.
+	  Regulatory bodies around the world require that wireless device
+	  be evaluated to meet the RF exposure limits set forth in the
+	  governmental SAR regulations.
+
+config ATH9K_WOW
+	bool "Wake on Wireless LAN support (EXPERIMENTAL)"
+	depends on ATH9K && PM
+	default n
+	---help---
+	  This option enables Wake on Wireless LAN support for certain cards.
+	  Currently, AR9462 is supported.
 
 config ATH9K_RFKILL
 	bool "Atheros ath9k rfkill support" if EXPERT

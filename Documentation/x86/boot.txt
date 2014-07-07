@@ -182,7 +182,7 @@ Offset	Proto	Name		Meaning
 0226/1	2.02+(3 ext_loader_ver	Extended boot loader version
 0227/1	2.02+(3	ext_loader_type	Extended boot loader ID
 0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line
-022C/4	2.03+	ramdisk_max	Highest legal initrd address
+022C/4	2.03+	initrd_addr_max	Highest legal initrd address
 0230/4	2.05+	kernel_alignment Physical addr alignment required for kernel
 0234/1	2.05+	relocatable_kernel Whether kernel is relocatable or not
 0235/1	2.10+	min_alignment	Minimum alignment, as a power of two
@@ -534,7 +534,7 @@ Protocol:	2.02+
   zero, the kernel will assume that your boot loader does not support
   the 2.02+ protocol.
 
-Field name:	ramdisk_max
+Field name:	initrd_addr_max
 Type:		read
 Offset/size:	0x22c/4
 Protocol:	2.03+
@@ -607,6 +607,9 @@ Protocol:       2.12+
   Bit 3 (read): XLF_EFI_HANDOVER_64
 	- If 1, the kernel supports the 64-bit EFI handoff entry point
           given at handover_offset + 0x200.
+
+  Bit 4 (read): XLF_EFI_KEXEC
+	- If 1, the kernel supports kexec EFI boot with EFI runtime support.
 
 Field name:	cmdline_size
 Type:		read

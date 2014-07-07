@@ -100,7 +100,7 @@ mxm_match_dcb(struct nouveau_mxm *mxm, u8 *data, void *info)
 static int
 mxm_dcb_sanitise_entry(struct nouveau_bios *bios, void *data, int idx, u16 pdcb)
 {
-	struct nouveau_mxm *mxm = nouveau_mxm(bios);
+	struct nouveau_mxm *mxm = data;
 	struct context ctx = { .outp = (u32 *)(bios->data + pdcb) };
 	u8 type, i2cidx, link, ver, len;
 	u8 *conn;
@@ -150,7 +150,7 @@ mxm_dcb_sanitise_entry(struct nouveau_bios *bios, void *data, int idx, u16 pdcb)
 	 * common example is DP->eDP.
 	 */
 	conn  = bios->data;
-	conn += dcb_conn(bios, (ctx.outp[0] & 0x0000f000) >> 12, &ver, &len);
+	conn += nvbios_connEe(bios, (ctx.outp[0] & 0x0000f000) >> 12, &ver, &len);
 	type  = conn[0];
 	switch (ctx.desc.conn_type) {
 	case 0x01: /* LVDS */
@@ -199,7 +199,7 @@ mxm_dcb_sanitise(struct nouveau_mxm *mxm)
 		return;
 	}
 
-	dcb_outp_foreach(bios, NULL, mxm_dcb_sanitise_entry);
+	dcb_outp_foreach(bios, mxm, mxm_dcb_sanitise_entry);
 	mxms_foreach(mxm, 0x01, mxm_show_unmatched, NULL);
 }
 

@@ -183,7 +183,7 @@ static int dom0_write_console(uint32_t vtermno, const char *str, int len)
 {
 	int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (char *)str);
 	if (rc < 0)
-		return 0;
+		return rc;
 
 	return len;
 }
@@ -561,18 +561,7 @@ static int __init xen_hvc_init(void)
 #endif
 	return r;
 }
-
-static void __exit xen_hvc_fini(void)
-{
-	struct xencons_info *entry, *next;
-
-	if (list_empty(&xenconsoles))
-			return;
-
-	list_for_each_entry_safe(entry, next, &xenconsoles, list) {
-		xen_console_remove(entry);
-	}
-}
+device_initcall(xen_hvc_init);
 
 static int xen_cons_init(void)
 {
@@ -598,10 +587,6 @@ static int xen_cons_init(void)
 	hvc_instantiate(HVC_COOKIE, 0, ops);
 	return 0;
 }
-
-
-module_init(xen_hvc_init);
-module_exit(xen_hvc_fini);
 console_initcall(xen_cons_init);
 
 #ifdef CONFIG_EARLY_PRINTK
@@ -642,7 +627,22 @@ struct console xenboot_console = {
 
 void xen_raw_console_write(const char *str)
 {
-	dom0_write_console(0, str, strlen(str));
+	ssize_t len = strlen(str);
+	int rc = 0;
+
+	if (xen_domain()) {
+		rc = dom0_write_console(0, str, len);
+#ifdef CONFIG_X86
+		if (rc == -ENOSYS && xen_hvm_domain())
+			goto outb_print;
+
+	} else if (xen_cpuid_base()) {
+		int i;
+outb_print:
+		for (i = 0; i < len; i++)
+			outb(str[i], 0xe9);
+#endif
+	}
 }
 
 void xen_raw_printk(const char *fmt, ...)

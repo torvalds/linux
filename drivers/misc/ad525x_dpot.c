@@ -72,7 +72,6 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 
@@ -641,7 +640,7 @@ static const struct attribute_group ad525x_group_commands = {
 	.attrs = ad525x_attributes_commands,
 };
 
-int ad_dpot_add_files(struct device *dev,
+static int ad_dpot_add_files(struct device *dev,
 		unsigned features, unsigned rdac)
 {
 	int err = sysfs_create_file(&dev->kobj,
@@ -666,7 +665,7 @@ int ad_dpot_add_files(struct device *dev,
 	return err;
 }
 
-inline void ad_dpot_remove_files(struct device *dev,
+static inline void ad_dpot_remove_files(struct device *dev,
 		unsigned features, unsigned rdac)
 {
 	sysfs_remove_file(&dev->kobj,

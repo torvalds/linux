@@ -211,13 +211,6 @@ extern int proc_fill_super(struct super_block *);
 extern void proc_entry_rundown(struct proc_dir_entry *);
 
 /*
- * proc_devtree.c
- */
-#ifdef CONFIG_PROC_DEVICETREE
-extern void proc_device_tree_init(void);
-#endif
-
-/*
  * proc_namespaces.c
  */
 extern const struct inode_operations proc_ns_dir_inode_operations;

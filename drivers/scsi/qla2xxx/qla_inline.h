@@ -1,10 +1,11 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
 
+#include "qla_target.h"
 /**
  * qla24xx_calc_iocbs() - Determine number of Command Type 3 and
  * Continuation Type 1 IOCBs to allocate.
@@ -128,12 +129,20 @@ qla2x00_clear_loop_id(fc_port_t *fcport) {
 }
 
 static inline void
-qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp)
+qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp,
+	struct qla_tgt_cmd *tc)
 {
 	struct dsd_dma *dsd_ptr, *tdsd_ptr;
 	struct crc_context *ctx;
 
-	ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
+	if (sp)
+		ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
+	else if (tc)
+		ctx = (struct crc_context *)tc->ctx;
+	else {
+		BUG();
+		return;
+	}
 
 	/* clean up allocated prev pool */
 	list_for_each_entry_safe(dsd_ptr, tdsd_ptr,
@@ -258,25 +267,6 @@ qla2x00_gid_list_size(struct qla_hw_data *ha)
 		return sizeof(uint32_t) * 32;
 	else
 		return sizeof(struct gid_list_info) * ha->max_fibre_devices;
-}
-
-static inline void
-qla2x00_do_host_ramp_up(scsi_qla_host_t *vha)
-{
-	if (vha->hw->cfg_lun_q_depth >= ql2xmaxqdepth)
-		return;
-
-	/* Wait at least HOST_QUEUE_RAMPDOWN_INTERVAL before ramping up */
-	if (time_before(jiffies, (vha->hw->host_last_rampdown_time +
-	    HOST_QUEUE_RAMPDOWN_INTERVAL)))
-		return;
-
-	/* Wait at least HOST_QUEUE_RAMPUP_INTERVAL between each ramp up */
-	if (time_before(jiffies, (vha->hw->host_last_rampup_time +
-	    HOST_QUEUE_RAMPUP_INTERVAL)))
-		return;
-
-	set_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags);
 }
 
 static inline void

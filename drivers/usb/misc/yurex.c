@@ -11,7 +11,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -297,6 +296,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
+	dev->bbu = -1;
 
 	/* we can register the device now, as it is ready */
 	retval = usb_register_dev(interface, &yurex_class);
@@ -306,8 +306,6 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 		usb_set_intfdata(interface, NULL);
 		goto error;
 	}
-
-	dev->bbu = -1;
 
 	dev_info(&interface->dev,
 		 "USB YUREX device now attached to Yurex #%d\n",
@@ -464,7 +462,7 @@ static ssize_t yurex_write(struct file *file, const char *user_buffer, size_t co
 		goto error;
 
 	mutex_lock(&dev->io_mutex);
-	if (!dev->interface) {		/* alreaday disconnected */
+	if (!dev->interface) {		/* already disconnected */
 		mutex_unlock(&dev->io_mutex);
 		retval = -ENODEV;
 		goto error;

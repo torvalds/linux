@@ -489,7 +489,6 @@ static u32
 gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 {
 	s32		now;
-	u64		seqnum;
 	u8		*ptr;
 	u8		flags = 0x00;
 	u16		ec, rrc;
@@ -525,7 +524,10 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	ec = be16_to_cpup((__be16 *)(ptr + 4));
 	rrc = be16_to_cpup((__be16 *)(ptr + 6));
 
-	seqnum = be64_to_cpup((__be64 *)(ptr + 8));
+	/*
+	 * NOTE: the sequence number at ptr + 8 is skipped, rpcsec_gss
+	 * doesn't want it checked; see page 6 of rfc 2203.
+	 */
 
 	if (rrc != 0)
 		rotate_left(offset + 16, buf, rrc);
@@ -574,8 +576,8 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	buf->head[0].iov_len -= GSS_KRB5_TOK_HDR_LEN + headskip;
 	buf->len -= GSS_KRB5_TOK_HDR_LEN + headskip;
 
-	/* Trim off the checksum blob */
-	xdr_buf_trim(buf, GSS_KRB5_TOK_HDR_LEN + tailskip);
+	/* Trim off the trailing "extra count" and checksum blob */
+	xdr_buf_trim(buf, ec + GSS_KRB5_TOK_HDR_LEN + tailskip);
 	return GSS_S_COMPLETE;
 }
 

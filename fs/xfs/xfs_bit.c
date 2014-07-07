@@ -16,10 +16,8 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
+#include "xfs_log_format.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
-#include "xfs_buf_item.h"
 
 /*
  * XFS bit manipulation routines, used in non-realtime code.

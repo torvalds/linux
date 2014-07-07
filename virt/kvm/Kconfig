@@ -22,8 +22,15 @@ config KVM_MMIO
 config KVM_ASYNC_PF
        bool
 
+# Toggle to switch between direct notification and batch job
+config KVM_ASYNC_PF_SYNC
+       bool
+
 config HAVE_KVM_MSI
        bool
 
 config HAVE_KVM_CPU_RELAX_INTERCEPT
+       bool
+
+config KVM_VFIO
        bool

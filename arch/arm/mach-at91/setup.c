@@ -11,6 +11,7 @@
 #include <linux/pm.h>
 #include <linux/of_address.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/clk/at91_pmc.h>
 
 #include <asm/system_misc.h>
 #include <asm/mach/map.h>
@@ -18,11 +19,11 @@
 #include <mach/hardware.h>
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
-#include <mach/at91_pmc.h>
 
 #include "at91_shdwc.h"
 #include "soc.h"
 #include "generic.h"
+#include "pm.h"
 
 struct at91_init_soc __initdata at91_boot_soc;
 
@@ -80,7 +81,7 @@ void __init at91_init_sram(int bank, unsigned long base, unsigned int length)
 
 	desc->pfn = __phys_to_pfn(base);
 	desc->length = length;
-	desc->type = MT_MEMORY_NONCACHED;
+	desc->type = MT_MEMORY_RWX_NONCACHED;
 
 	pr_info("AT91: sram at 0x%lx of 0x%x mapped at 0x%lx\n",
 		base, length, desc->virtual);
@@ -232,6 +233,9 @@ static void __init soc_detect(u32 dbgu_base)
 		case ARCH_EXID_SAMA5D35:
 			at91_soc_initdata.subtype = AT91_SOC_SAMA5D35;
 			break;
+		case ARCH_EXID_SAMA5D36:
+			at91_soc_initdata.subtype = AT91_SOC_SAMA5D36;
+			break;
 		}
 	}
 }
@@ -274,6 +278,7 @@ static const char *soc_subtype_name[] = {
 	[AT91_SOC_SAMA5D33]	= "sama5d33",
 	[AT91_SOC_SAMA5D34]	= "sama5d34",
 	[AT91_SOC_SAMA5D35]	= "sama5d35",
+	[AT91_SOC_SAMA5D36]	= "sama5d36",
 	[AT91_SOC_SUBTYPE_NONE]	= "None",
 	[AT91_SOC_SUBTYPE_UNKNOWN] = "Unknown",
 };
@@ -346,7 +351,7 @@ void __init at91_ioremap_matrix(u32 base_addr)
 		panic("Impossible to ioremap at91_matrix_base\n");
 }
 
-#if defined(CONFIG_OF)
+#if defined(CONFIG_OF) && !defined(CONFIG_ARCH_AT91X40)
 static struct of_device_id rstc_ids[] = {
 	{ .compatible = "atmel,at91sam9260-rstc", .data = at91sam9_alt_restart },
 	{ .compatible = "atmel,at91sam9g45-rstc", .data = at91sam9g45_restart },
@@ -376,15 +381,16 @@ static void at91_dt_rstc(void)
 }
 
 static struct of_device_id ramc_ids[] = {
-	{ .compatible = "atmel,at91rm9200-sdramc" },
-	{ .compatible = "atmel,at91sam9260-sdramc" },
-	{ .compatible = "atmel,at91sam9g45-ddramc" },
+	{ .compatible = "atmel,at91rm9200-sdramc", .data = at91rm9200_standby },
+	{ .compatible = "atmel,at91sam9260-sdramc", .data = at91sam9_sdram_standby },
+	{ .compatible = "atmel,at91sam9g45-ddramc", .data = at91_ddr_standby },
 	{ /*sentinel*/ }
 };
 
 static void at91_dt_ramc(void)
 {
 	struct device_node *np;
+	const struct of_device_id *of_id;
 
 	np = of_find_matching_node(NULL, ramc_ids);
 	if (!np)
@@ -395,6 +401,12 @@ static void at91_dt_ramc(void)
 		panic("unable to map ramc[0] cpu registers\n");
 	/* the controller may have 2 banks */
 	at91_ramc_base[1] = of_iomap(np, 1);
+
+	of_id = of_match_node(ramc_ids, np);
+	if (!of_id)
+		pr_warn("AT91: ramc no standby function available\n");
+	else
+		at91_pm_set_standby(of_id->data);
 
 	of_node_put(np);
 }
@@ -483,7 +495,8 @@ void __init at91rm9200_dt_initialize(void)
 	at91_dt_clock_init();
 
 	/* Register the processor-specific clocks */
-	at91_boot_soc.register_clocks();
+	if (at91_boot_soc.register_clocks)
+		at91_boot_soc.register_clocks();
 
 	at91_boot_soc.init();
 }
@@ -498,7 +511,8 @@ void __init at91_dt_initialize(void)
 	at91_dt_clock_init();
 
 	/* Register the processor-specific clocks */
-	at91_boot_soc.register_clocks();
+	if (at91_boot_soc.register_clocks)
+		at91_boot_soc.register_clocks();
 
 	if (at91_boot_soc.init)
 		at91_boot_soc.init();

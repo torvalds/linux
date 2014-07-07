@@ -91,7 +91,8 @@ static __always_inline struct devres * alloc_dr(dr_release_t release,
 	if (unlikely(!dr))
 		return NULL;
 
-	memset(dr, 0, tot_size);
+	memset(dr, 0, offsetof(struct devres, data));
+
 	INIT_LIST_HEAD(&dr->node.entry);
 	dr->node.release = release;
 	return dr;
@@ -110,7 +111,7 @@ void * __devres_alloc(dr_release_t release, size_t size, gfp_t gfp,
 {
 	struct devres *dr;
 
-	dr = alloc_dr(release, size, gfp);
+	dr = alloc_dr(release, size, gfp | __GFP_ZERO);
 	if (unlikely(!dr))
 		return NULL;
 	set_node_dbginfo(&dr->node, name, size);
@@ -135,7 +136,7 @@ void * devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
 {
 	struct devres *dr;
 
-	dr = alloc_dr(release, size, gfp);
+	dr = alloc_dr(release, size, gfp | __GFP_ZERO);
 	if (unlikely(!dr))
 		return NULL;
 	return dr->data;
@@ -745,58 +746,185 @@ void devm_remove_action(struct device *dev, void (*action)(void *), void *data)
 EXPORT_SYMBOL_GPL(devm_remove_action);
 
 /*
- * Managed kzalloc/kfree
+ * Managed kmalloc/kfree
  */
-static void devm_kzalloc_release(struct device *dev, void *res)
+static void devm_kmalloc_release(struct device *dev, void *res)
 {
 	/* noop */
 }
 
-static int devm_kzalloc_match(struct device *dev, void *res, void *data)
+static int devm_kmalloc_match(struct device *dev, void *res, void *data)
 {
 	return res == data;
 }
 
 /**
- * devm_kzalloc - Resource-managed kzalloc
+ * devm_kmalloc - Resource-managed kmalloc
  * @dev: Device to allocate memory for
  * @size: Allocation size
  * @gfp: Allocation gfp flags
  *
- * Managed kzalloc.  Memory allocated with this function is
+ * Managed kmalloc.  Memory allocated with this function is
  * automatically freed on driver detach.  Like all other devres
  * resources, guaranteed alignment is unsigned long long.
  *
  * RETURNS:
  * Pointer to allocated memory on success, NULL on failure.
  */
-void * devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
+void * devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 {
 	struct devres *dr;
 
 	/* use raw alloc_dr for kmalloc caller tracing */
-	dr = alloc_dr(devm_kzalloc_release, size, gfp);
+	dr = alloc_dr(devm_kmalloc_release, size, gfp);
 	if (unlikely(!dr))
 		return NULL;
 
+	/*
+	 * This is named devm_kzalloc_release for historical reasons
+	 * The initial implementation did not support kmalloc, only kzalloc
+	 */
 	set_node_dbginfo(&dr->node, "devm_kzalloc_release", size);
 	devres_add(dev, dr->data);
 	return dr->data;
 }
-EXPORT_SYMBOL_GPL(devm_kzalloc);
+EXPORT_SYMBOL_GPL(devm_kmalloc);
+
+/**
+ * devm_kstrdup - Allocate resource managed space and
+ *                copy an existing string into that.
+ * @dev: Device to allocate memory for
+ * @s: the string to duplicate
+ * @gfp: the GFP mask used in the devm_kmalloc() call when
+ *       allocating memory
+ * RETURNS:
+ * Pointer to allocated string on success, NULL on failure.
+ */
+char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp)
+{
+	size_t size;
+	char *buf;
+
+	if (!s)
+		return NULL;
+
+	size = strlen(s) + 1;
+	buf = devm_kmalloc(dev, size, gfp);
+	if (buf)
+		memcpy(buf, s, size);
+	return buf;
+}
+EXPORT_SYMBOL_GPL(devm_kstrdup);
 
 /**
  * devm_kfree - Resource-managed kfree
  * @dev: Device this memory belongs to
  * @p: Memory to free
  *
- * Free memory allocated with devm_kzalloc().
+ * Free memory allocated with devm_kmalloc().
  */
 void devm_kfree(struct device *dev, void *p)
 {
 	int rc;
 
-	rc = devres_destroy(dev, devm_kzalloc_release, devm_kzalloc_match, p);
+	rc = devres_destroy(dev, devm_kmalloc_release, devm_kmalloc_match, p);
 	WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_kfree);
+
+/**
+ * devm_kmemdup - Resource-managed kmemdup
+ * @dev: Device this memory belongs to
+ * @src: Memory region to duplicate
+ * @len: Memory region length
+ * @gfp: GFP mask to use
+ *
+ * Duplicate region of a memory using resource managed kmalloc
+ */
+void *devm_kmemdup(struct device *dev, const void *src, size_t len, gfp_t gfp)
+{
+	void *p;
+
+	p = devm_kmalloc(dev, len, gfp);
+	if (p)
+		memcpy(p, src, len);
+
+	return p;
+}
+EXPORT_SYMBOL_GPL(devm_kmemdup);
+
+struct pages_devres {
+	unsigned long addr;
+	unsigned int order;
+};
+
+static int devm_pages_match(struct device *dev, void *res, void *p)
+{
+	struct pages_devres *devres = res;
+	struct pages_devres *target = p;
+
+	return devres->addr == target->addr;
+}
+
+static void devm_pages_release(struct device *dev, void *res)
+{
+	struct pages_devres *devres = res;
+
+	free_pages(devres->addr, devres->order);
+}
+
+/**
+ * devm_get_free_pages - Resource-managed __get_free_pages
+ * @dev: Device to allocate memory for
+ * @gfp_mask: Allocation gfp flags
+ * @order: Allocation size is (1 << order) pages
+ *
+ * Managed get_free_pages.  Memory allocated with this function is
+ * automatically freed on driver detach.
+ *
+ * RETURNS:
+ * Address of allocated memory on success, 0 on failure.
+ */
+
+unsigned long devm_get_free_pages(struct device *dev,
+				  gfp_t gfp_mask, unsigned int order)
+{
+	struct pages_devres *devres;
+	unsigned long addr;
+
+	addr = __get_free_pages(gfp_mask, order);
+
+	if (unlikely(!addr))
+		return 0;
+
+	devres = devres_alloc(devm_pages_release,
+			      sizeof(struct pages_devres), GFP_KERNEL);
+	if (unlikely(!devres)) {
+		free_pages(addr, order);
+		return 0;
+	}
+
+	devres->addr = addr;
+	devres->order = order;
+
+	devres_add(dev, devres);
+	return addr;
+}
+EXPORT_SYMBOL_GPL(devm_get_free_pages);
+
+/**
+ * devm_free_pages - Resource-managed free_pages
+ * @dev: Device this memory belongs to
+ * @addr: Memory to free
+ *
+ * Free memory allocated with devm_get_free_pages(). Unlike free_pages,
+ * there is no need to supply the @order.
+ */
+void devm_free_pages(struct device *dev, unsigned long addr)
+{
+	struct pages_devres devres = { .addr = addr };
+
+	WARN_ON(devres_release(dev, devm_pages_release, devm_pages_match,
+			       &devres));
+}
+EXPORT_SYMBOL_GPL(devm_free_pages);

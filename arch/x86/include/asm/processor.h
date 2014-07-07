@@ -27,7 +27,6 @@ struct mm_struct;
 #include <linux/cache.h>
 #include <linux/threads.h>
 #include <linux/math64.h>
-#include <linux/init.h>
 #include <linux/err.h>
 #include <linux/irqflags.h>
 
@@ -72,6 +71,7 @@ extern u16 __read_mostly tlb_lli_4m[NR_INFO];
 extern u16 __read_mostly tlb_lld_4k[NR_INFO];
 extern u16 __read_mostly tlb_lld_2m[NR_INFO];
 extern u16 __read_mostly tlb_lld_4m[NR_INFO];
+extern u16 __read_mostly tlb_lld_1g[NR_INFO];
 extern s8  __read_mostly tlb_flushall_shift;
 
 /*
@@ -370,6 +370,20 @@ struct ymmh_struct {
 	u32 ymmh_space[64];
 };
 
+/* We don't support LWP yet: */
+struct lwp_struct {
+	u8 reserved[128];
+};
+
+struct bndregs_struct {
+	u64 bndregs[8];
+} __packed;
+
+struct bndcsr_struct {
+	u64 cfg_reg_u;
+	u64 status_reg;
+} __packed;
+
 struct xsave_hdr_struct {
 	u64 xstate_bv;
 	u64 reserved1[2];
@@ -380,6 +394,9 @@ struct xsave_struct {
 	struct i387_fxsave_struct i387;
 	struct xsave_hdr_struct xsave_hdr;
 	struct ymmh_struct ymmh;
+	struct lwp_struct lwp;
+	struct bndregs_struct bndregs;
+	struct bndcsr_struct bndcsr;
 	/* new processor state extensions will go here */
 } __attribute__ ((packed, aligned (64)));
 
@@ -432,6 +449,15 @@ struct stack_canary {
 };
 DECLARE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
 #endif
+/*
+ * per-CPU IRQ handling stacks
+ */
+struct irq_stack {
+	u32                     stack[THREAD_SIZE/sizeof(u32)];
+} __aligned(THREAD_SIZE);
+
+DECLARE_PER_CPU(struct irq_stack *, hardirq_stack);
+DECLARE_PER_CPU(struct irq_stack *, softirq_stack);
 #endif	/* X86_64 */
 
 extern unsigned int xstate_size;
@@ -488,6 +514,15 @@ struct thread_struct {
 	unsigned long		iopl;
 	/* Max allowed port in the bitmap, in bytes: */
 	unsigned		io_bitmap_max;
+	/*
+	 * fpu_counter contains the number of consecutive context switches
+	 * that the FPU is used. If this is over a threshold, the lazy fpu
+	 * saving becomes unlazy to save the trap. This is an unsigned char
+	 * so that after 256 times the counter wraps and the behavior turns
+	 * lazy again; this to deal with bursty apps that only use FPU for
+	 * a short time
+	 */
+	unsigned char fpu_counter;
 };
 
 /*
@@ -689,29 +724,6 @@ static inline void sync_core(void)
 		     : "0" (1)
 		     : "ebx", "ecx", "edx", "memory");
 #endif
-}
-
-static inline void __monitor(const void *eax, unsigned long ecx,
-			     unsigned long edx)
-{
-	/* "monitor %eax, %ecx, %edx;" */
-	asm volatile(".byte 0x0f, 0x01, 0xc8;"
-		     :: "a" (eax), "c" (ecx), "d"(edx));
-}
-
-static inline void __mwait(unsigned long eax, unsigned long ecx)
-{
-	/* "mwait %eax, %ecx;" */
-	asm volatile(".byte 0x0f, 0x01, 0xc9;"
-		     :: "a" (eax), "c" (ecx));
-}
-
-static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
-{
-	trace_hardirqs_on();
-	/* "mwait %eax, %ecx;" */
-	asm volatile("sti; .byte 0x0f, 0x01, 0xc9;"
-		     :: "a" (eax), "c" (ecx));
 }
 
 extern void select_idle_routine(const struct cpuinfo_x86 *c);

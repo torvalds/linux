@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -400,6 +400,7 @@ acpi_ex_pci_config_space_handler(u32 function,
 	switch (function) {
 	case ACPI_READ:
 
+		*value = 0;
 		status = acpi_os_read_pci_configuration(pci_id, pci_register,
 							value, bit_width);
 		break;

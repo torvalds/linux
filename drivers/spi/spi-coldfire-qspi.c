@@ -77,8 +77,6 @@ struct mcfqspi {
 	struct mcfqspi_cs_control *cs_control;
 
 	wait_queue_head_t waitq;
-
-	struct device *dev;
 };
 
 static void mcfqspi_wr_qmr(struct mcfqspi *mcfqspi, u16 val)
@@ -135,13 +133,13 @@ static void mcfqspi_cs_deselect(struct mcfqspi *mcfqspi, u8 chip_select,
 
 static int mcfqspi_cs_setup(struct mcfqspi *mcfqspi)
 {
-	return (mcfqspi->cs_control && mcfqspi->cs_control->setup) ?
+	return (mcfqspi->cs_control->setup) ?
 		mcfqspi->cs_control->setup(mcfqspi->cs_control) : 0;
 }
 
 static void mcfqspi_cs_teardown(struct mcfqspi *mcfqspi)
 {
-	if (mcfqspi->cs_control && mcfqspi->cs_control->teardown)
+	if (mcfqspi->cs_control->teardown)
 		mcfqspi->cs_control->teardown(mcfqspi->cs_control);
 }
 
@@ -300,68 +298,45 @@ static void mcfqspi_transfer_msg16(struct mcfqspi *mcfqspi, unsigned count,
 	}
 }
 
-static int mcfqspi_transfer_one_message(struct spi_master *master,
-					 struct spi_message *msg)
+static void mcfqspi_set_cs(struct spi_device *spi, bool enable)
+{
+	struct mcfqspi *mcfqspi = spi_master_get_devdata(spi->master);
+	bool cs_high = spi->mode & SPI_CS_HIGH;
+
+	if (enable)
+		mcfqspi_cs_select(mcfqspi, spi->chip_select, cs_high);
+	else
+		mcfqspi_cs_deselect(mcfqspi, spi->chip_select, cs_high);
+}
+
+static int mcfqspi_transfer_one(struct spi_master *master,
+				struct spi_device *spi,
+				struct spi_transfer *t)
 {
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
-	struct spi_device *spi = msg->spi;
-	struct spi_transfer *t;
-	int status = 0;
+	u16 qmr = MCFQSPI_QMR_MSTR;
 
-	list_for_each_entry(t, &msg->transfers, transfer_list) {
-		bool cs_high = spi->mode & SPI_CS_HIGH;
-		u16 qmr = MCFQSPI_QMR_MSTR;
+	qmr |= t->bits_per_word << 10;
+	if (spi->mode & SPI_CPHA)
+		qmr |= MCFQSPI_QMR_CPHA;
+	if (spi->mode & SPI_CPOL)
+		qmr |= MCFQSPI_QMR_CPOL;
+	qmr |= mcfqspi_qmr_baud(t->speed_hz);
+	mcfqspi_wr_qmr(mcfqspi, qmr);
 
-		qmr |= t->bits_per_word << 10;
-		if (spi->mode & SPI_CPHA)
-			qmr |= MCFQSPI_QMR_CPHA;
-		if (spi->mode & SPI_CPOL)
-			qmr |= MCFQSPI_QMR_CPOL;
-		if (t->speed_hz)
-			qmr |= mcfqspi_qmr_baud(t->speed_hz);
-		else
-			qmr |= mcfqspi_qmr_baud(spi->max_speed_hz);
-		mcfqspi_wr_qmr(mcfqspi, qmr);
+	mcfqspi_wr_qir(mcfqspi, MCFQSPI_QIR_SPIFE);
+	if (t->bits_per_word == 8)
+		mcfqspi_transfer_msg8(mcfqspi, t->len, t->tx_buf, t->rx_buf);
+	else
+		mcfqspi_transfer_msg16(mcfqspi, t->len / 2, t->tx_buf,
+				       t->rx_buf);
+	mcfqspi_wr_qir(mcfqspi, 0);
 
-		mcfqspi_cs_select(mcfqspi, spi->chip_select, cs_high);
-
-		mcfqspi_wr_qir(mcfqspi, MCFQSPI_QIR_SPIFE);
-		if (t->bits_per_word == 8)
-			mcfqspi_transfer_msg8(mcfqspi, t->len, t->tx_buf,
-					t->rx_buf);
-		else
-			mcfqspi_transfer_msg16(mcfqspi, t->len / 2, t->tx_buf,
-					t->rx_buf);
-		mcfqspi_wr_qir(mcfqspi, 0);
-
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
-		if (t->cs_change) {
-			if (!list_is_last(&t->transfer_list, &msg->transfers))
-				mcfqspi_cs_deselect(mcfqspi, spi->chip_select,
-						cs_high);
-		} else {
-			if (list_is_last(&t->transfer_list, &msg->transfers))
-				mcfqspi_cs_deselect(mcfqspi, spi->chip_select,
-						cs_high);
-		}
-		msg->actual_length += t->len;
-	}
-	msg->status = status;
-	spi_finalize_current_message(master);
-
-	return status;
-
+	return 0;
 }
 
 static int mcfqspi_setup(struct spi_device *spi)
 {
-	if (spi->chip_select >= spi->master->num_chipselect) {
-		dev_dbg(&spi->dev, "%d chip select is out of range\n",
-			spi->chip_select);
-		return -EINVAL;
-	}
-
 	mcfqspi_cs_deselect(spi_master_get_devdata(spi->master),
 			    spi->chip_select, spi->mode & SPI_CS_HIGH);
 
@@ -388,6 +363,11 @@ static int mcfqspi_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
+	if (!pdata->cs_control) {
+		dev_dbg(&pdev->dev, "pdata->cs_control is NULL\n");
+		return -EINVAL;
+	}
+
 	master = spi_alloc_master(&pdev->dev, sizeof(*mcfqspi));
 	if (master == NULL) {
 		dev_dbg(&pdev->dev, "spi_alloc_master failed\n");
@@ -397,44 +377,31 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	mcfqspi = spi_master_get_devdata(master);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_dbg(&pdev->dev, "platform_get_resource failed\n");
-		status = -ENXIO;
+	mcfqspi->iobase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mcfqspi->iobase)) {
+		status = PTR_ERR(mcfqspi->iobase);
 		goto fail0;
-	}
-
-	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
-		dev_dbg(&pdev->dev, "request_mem_region failed\n");
-		status = -EBUSY;
-		goto fail0;
-	}
-
-	mcfqspi->iobase = ioremap(res->start, resource_size(res));
-	if (!mcfqspi->iobase) {
-		dev_dbg(&pdev->dev, "ioremap failed\n");
-		status = -ENOMEM;
-		goto fail1;
 	}
 
 	mcfqspi->irq = platform_get_irq(pdev, 0);
 	if (mcfqspi->irq < 0) {
 		dev_dbg(&pdev->dev, "platform_get_irq failed\n");
 		status = -ENXIO;
-		goto fail2;
+		goto fail0;
 	}
 
-	status = request_irq(mcfqspi->irq, mcfqspi_irq_handler, 0,
-			     pdev->name, mcfqspi);
+	status = devm_request_irq(&pdev->dev, mcfqspi->irq, mcfqspi_irq_handler,
+				0, pdev->name, mcfqspi);
 	if (status) {
 		dev_dbg(&pdev->dev, "request_irq failed\n");
-		goto fail2;
+		goto fail0;
 	}
 
-	mcfqspi->clk = clk_get(&pdev->dev, "qspi_clk");
+	mcfqspi->clk = devm_clk_get(&pdev->dev, "qspi_clk");
 	if (IS_ERR(mcfqspi->clk)) {
 		dev_dbg(&pdev->dev, "clk_get failed\n");
 		status = PTR_ERR(mcfqspi->clk);
-		goto fail3;
+		goto fail0;
 	}
 	clk_enable(mcfqspi->clk);
 
@@ -445,42 +412,35 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	status = mcfqspi_cs_setup(mcfqspi);
 	if (status) {
 		dev_dbg(&pdev->dev, "error initializing cs_control\n");
-		goto fail4;
+		goto fail1;
 	}
 
 	init_waitqueue_head(&mcfqspi->waitq);
-	mcfqspi->dev = &pdev->dev;
 
 	master->mode_bits = SPI_CS_HIGH | SPI_CPOL | SPI_CPHA;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
 	master->setup = mcfqspi_setup;
-	master->transfer_one_message = mcfqspi_transfer_one_message;
+	master->set_cs = mcfqspi_set_cs;
+	master->transfer_one = mcfqspi_transfer_one;
 	master->auto_runtime_pm = true;
 
 	platform_set_drvdata(pdev, master);
 
-	status = spi_register_master(master);
+	status = devm_spi_register_master(&pdev->dev, master);
 	if (status) {
 		dev_dbg(&pdev->dev, "spi_register_master failed\n");
-		goto fail5;
+		goto fail2;
 	}
-	pm_runtime_enable(mcfqspi->dev);
+	pm_runtime_enable(&pdev->dev);
 
 	dev_info(&pdev->dev, "Coldfire QSPI bus driver\n");
 
 	return 0;
 
-fail5:
-	mcfqspi_cs_teardown(mcfqspi);
-fail4:
-	clk_disable(mcfqspi->clk);
-	clk_put(mcfqspi->clk);
-fail3:
-	free_irq(mcfqspi->irq, mcfqspi);
 fail2:
-	iounmap(mcfqspi->iobase);
+	mcfqspi_cs_teardown(mcfqspi);
 fail1:
-	release_mem_region(res->start, resource_size(res));
+	clk_disable(mcfqspi->clk);
 fail0:
 	spi_master_put(master);
 
@@ -493,19 +453,13 @@ static int mcfqspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	pm_runtime_disable(mcfqspi->dev);
+	pm_runtime_disable(&pdev->dev);
 	/* disable the hardware (set the baud rate to 0) */
 	mcfqspi_wr_qmr(mcfqspi, MCFQSPI_QMR_MSTR);
 
 	mcfqspi_cs_teardown(mcfqspi);
 	clk_disable(mcfqspi->clk);
-	clk_put(mcfqspi->clk);
-	free_irq(mcfqspi->irq, mcfqspi);
-	iounmap(mcfqspi->iobase);
-	release_mem_region(res->start, resource_size(res));
-	spi_unregister_master(master);
 
 	return 0;
 }
@@ -515,8 +469,11 @@ static int mcfqspi_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
+	int ret;
 
-	spi_master_suspend(master);
+	ret = spi_master_suspend(master);
+	if (ret)
+		return ret;
 
 	clk_disable(mcfqspi->clk);
 
@@ -528,18 +485,17 @@ static int mcfqspi_resume(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
 
-	spi_master_resume(master);
-
 	clk_enable(mcfqspi->clk);
 
-	return 0;
+	return spi_master_resume(master);
 }
 #endif
 
 #ifdef CONFIG_PM_RUNTIME
 static int mcfqspi_runtime_suspend(struct device *dev)
 {
-	struct mcfqspi *mcfqspi = dev_get_drvdata(dev);
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
 
 	clk_disable(mcfqspi->clk);
 
@@ -548,7 +504,8 @@ static int mcfqspi_runtime_suspend(struct device *dev)
 
 static int mcfqspi_runtime_resume(struct device *dev)
 {
-	struct mcfqspi *mcfqspi = dev_get_drvdata(dev);
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
 
 	clk_enable(mcfqspi->clk);
 

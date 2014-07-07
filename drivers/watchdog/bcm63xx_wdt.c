@@ -15,7 +15,6 @@
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
@@ -45,7 +44,6 @@
 static struct {
 	void __iomem *regs;
 	struct timer_list timer;
-	int default_ticks;
 	unsigned long inuse;
 	atomic_t ticks;
 } bcm63xx_wdt_device;
@@ -317,5 +315,4 @@ MODULE_AUTHOR("Miguel Gaio <miguel.gaio@efixo.com>");
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
 MODULE_DESCRIPTION("Driver for the Broadcom BCM63xx SoC watchdog");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:bcm63xx-wdt");

@@ -74,6 +74,7 @@ struct secondary_data {
 };
 extern struct secondary_data secondary_data;
 extern volatile int pen_release;
+extern void secondary_startup(void);
 
 extern int __cpu_disable(void);
 
@@ -83,6 +84,8 @@ extern void cpu_die(void);
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 extern void arch_send_wakeup_ipi_mask(const struct cpumask *mask);
+
+extern int register_ipi_completion(struct completion *completion, int cpu);
 
 struct smp_operations {
 #ifdef CONFIG_SMP
@@ -112,6 +115,15 @@ struct smp_operations {
 #endif
 };
 
+struct of_cpu_method {
+	const char *method;
+	struct smp_operations *ops;
+};
+
+#define CPU_METHOD_OF_DECLARE(name, _method, _ops)			\
+	static const struct of_cpu_method __cpu_method_of_table_##name	\
+		__used __section(__cpu_method_of_table)			\
+		= { .method = _method, .ops = _ops }
 /*
  * set platform specific SMP operations
  */

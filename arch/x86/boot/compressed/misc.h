@@ -23,7 +23,15 @@
 #define BOOT_BOOT_H
 #include "../ctype.h"
 
+#ifdef CONFIG_X86_64
+#define memptr long
+#else
+#define memptr unsigned
+#endif
+
 /* misc.c */
+extern memptr free_mem_ptr;
+extern memptr free_mem_end_ptr;
 extern struct boot_params *real_mode;		/* Pointer to real-mode data */
 void __putstr(const char *s);
 #define error_putstr(__x)  __putstr(__x)
@@ -39,23 +47,40 @@ static inline void debug_putstr(const char *s)
 
 #endif
 
-#ifdef CONFIG_EARLY_PRINTK
-
+#if CONFIG_EARLY_PRINTK || CONFIG_RANDOMIZE_BASE
 /* cmdline.c */
 int cmdline_find_option(const char *option, char *buffer, int bufsize);
 int cmdline_find_option_bool(const char *option);
+#endif
 
+
+#if CONFIG_RANDOMIZE_BASE
+/* aslr.c */
+unsigned char *choose_kernel_location(unsigned char *input,
+				      unsigned long input_size,
+				      unsigned char *output,
+				      unsigned long output_size);
+/* cpuflags.c */
+bool has_cpuflag(int flag);
+#else
+static inline
+unsigned char *choose_kernel_location(unsigned char *input,
+				      unsigned long input_size,
+				      unsigned char *output,
+				      unsigned long output_size)
+{
+	return output;
+}
+#endif
+
+#ifdef CONFIG_EARLY_PRINTK
 /* early_serial_console.c */
 extern int early_serial_base;
 void console_init(void);
-
 #else
-
-/* early_serial_console.c */
 static const int early_serial_base;
 static inline void console_init(void)
 { }
-
 #endif
 
 #endif

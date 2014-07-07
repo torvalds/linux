@@ -122,6 +122,8 @@ acpi-y +=		\
 	rsaddr.o	\
 	rscalc.o	\
 	rscreate.o	\
+	rsdump.o	\
+	rsdumpinfo.o	\
 	rsinfo.o	\
 	rsio.o		\
 	rsirq.o		\
@@ -132,9 +134,8 @@ acpi-y +=		\
 	rsutils.o	\
 	rsxface.o
 
-acpi-$(ACPI_FUTURE_USAGE) += rsdump.o rsdumpinfo.o
-
 acpi-y +=		\
+	tbdata.o	\
 	tbfadt.o	\
 	tbfind.o	\
 	tbinstal.o	\

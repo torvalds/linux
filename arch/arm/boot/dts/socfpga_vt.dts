@@ -16,7 +16,7 @@
  */
 
 /dts-v1/;
-/include/ "socfpga.dtsi"
+#include "socfpga.dtsi"
 
 / {
 	model = "Altera SOCFPGA VT";
@@ -38,6 +38,17 @@
 				osc1 {
 					clock-frequency = <10000000>;
 				};
+			};
+		};
+
+		dwmmc0@ff704000 {
+			num-slots = <1>;
+			supports-highspeed;
+			broken-cd;
+
+			slot@0 {
+				reg = <0>;
+				bus-width = <4>;
 			};
 		};
 
@@ -74,4 +85,9 @@
 			cpu1-start-addr = <0xffd08010>;
 		};
 	};
+};
+
+&gmac0 {
+	status = "okay";
+	phy-mode = "gmii";
 };

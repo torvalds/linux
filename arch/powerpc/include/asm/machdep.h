@@ -78,6 +78,18 @@ struct machdep_calls {
 				    long index);
 	void		(*tce_flush)(struct iommu_table *tbl);
 
+	/* _rm versions are for real mode use only */
+	int		(*tce_build_rm)(struct iommu_table *tbl,
+				     long index,
+				     long npages,
+				     unsigned long uaddr,
+				     enum dma_data_direction direction,
+				     struct dma_attrs *attrs);
+	void		(*tce_free_rm)(struct iommu_table *tbl,
+				    long index,
+				    long npages);
+	void		(*tce_flush_rm)(struct iommu_table *tbl);
+
 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
 				   unsigned long flags, void *caller);
 	void		(*iounmap)(volatile void __iomem *token);
@@ -85,6 +97,9 @@ struct machdep_calls {
 #ifdef CONFIG_PM
 	void		(*iommu_save)(void);
 	void		(*iommu_restore)(void);
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	unsigned long	(*memory_block_size)(void);
 #endif
 #endif /* CONFIG_PPC64 */
 
@@ -101,6 +116,8 @@ struct machdep_calls {
 	/* Optional, may be NULL. */
 	void		(*show_cpuinfo)(struct seq_file *m);
 	void		(*show_percpuinfo)(struct seq_file *m, int i);
+	/* Returns the current operating frequency of "cpu" in Hz */
+	unsigned long  	(*get_proc_freq)(unsigned int cpu);
 
 	void		(*init_IRQ)(void);
 
@@ -157,6 +174,9 @@ struct machdep_calls {
 	/* Exception handlers */
 	int		(*system_reset_exception)(struct pt_regs *regs);
 	int 		(*machine_check_exception)(struct pt_regs *regs);
+
+	/* Called during machine check exception to retrive fixup address. */
+	bool		(*mce_check_early_recovery)(struct pt_regs *regs);
 
 	/* Motherboard/chipset features. This is a kind of general purpose
 	 * hook used to control some machine specific features (like reset
@@ -226,6 +246,9 @@ struct machdep_calls {
 	/* Called during PCI resource reassignment */
 	resource_size_t (*pcibios_window_alignment)(struct pci_bus *, unsigned long type);
 
+	/* Reset the secondary bus of bridge */
+	void  (*pcibios_reset_secondary_bus)(struct pci_dev *dev);
+
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
 	 */
@@ -262,6 +285,14 @@ struct machdep_calls {
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 	ssize_t (*cpu_probe)(const char *, size_t);
 	ssize_t (*cpu_release)(const char *, size_t);
+#endif
+
+#ifdef CONFIG_ARCH_RANDOM
+	int (*get_random_long)(unsigned long *v);
+#endif
+
+#ifdef CONFIG_MEMORY_HOTREMOVE
+	int (*remove_memory)(u64, u64);
 #endif
 };
 

@@ -1,17 +1,31 @@
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "tegra20.dtsi"
 
 / {
 	model = "NVIDIA Seaboard";
 	compatible = "nvidia,seaboard", "nvidia,tegra20";
 
+	aliases {
+		rtc0 = "/i2c@7000d000/tps6586x@34";
+		rtc1 = "/rtc@7000e000";
+	};
+
 	memory {
 		reg = <0x00000000 0x40000000>;
 	};
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		dc@54200000 {
+			rgb {
+				status = "okay";
+
+				nvidia,panel = <&panel>;
+			};
+		};
+
+		hdmi@54280000 {
 			status = "okay";
 
 			vdd-supply = <&hdmi_vdd_reg>;
@@ -23,7 +37,7 @@
 		};
 	};
 
-	pinmux {
+	pinmux@70000014 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -189,53 +203,53 @@
 					"irtx", "pta", "rm", "sdc", "sdd",
 					"slxd", "slxk", "spdi", "spdo", "uac",
 					"uad", "uca", "ucb", "uda";
-				nvidia,pull = <0>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_ate {
 				nvidia,pins = "ate", "csus", "dap3",
 					"gpv", "owc", "slxc", "spib", "spid",
 					"spie";
-				nvidia,pull = <0>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_ck32 {
 				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
 					"pmcc", "pmcd", "pmce", "xm2c", "xm2d";
-				nvidia,pull = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 			};
 			conf_crtp {
 				nvidia,pins = "crtp", "gmb", "slxa", "spia",
 					"spig", "spih";
-				nvidia,pull = <2>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_dta {
 				nvidia,pins = "dta", "dtb", "dtc", "dtd";
-				nvidia,pull = <1>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_dte {
 				nvidia,pins = "dte", "spif";
-				nvidia,pull = <1>;
-				nvidia,tristate = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_hdint {
 				nvidia,pins = "hdint", "lcsn", "ldc", "lm1",
 					"lpw1", "lsc1", "lsck", "lsda", "lsdi",
 					"lvp0";
-				nvidia,tristate = <1>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_kbca {
 				nvidia,pins = "kbca", "kbcb", "kbcc", "kbcd",
 					"kbce", "kbcf", "sdio1", "spic", "uaa",
 					"uab";
-				nvidia,pull = <2>;
-				nvidia,tristate = <0>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_lc {
 				nvidia,pins = "lc", "ls";
-				nvidia,pull = <2>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 			};
 			conf_ld0 {
 				nvidia,pins = "ld0", "ld1", "ld2", "ld3", "ld4",
@@ -245,22 +259,22 @@
 					"lhp1", "lhp2", "lhs", "lm0", "lpp",
 					"lpw0", "lpw2", "lsc0", "lspi", "lvp1",
 					"lvs", "pmc", "sdb";
-				nvidia,tristate = <0>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_ld17_0 {
 				nvidia,pins = "ld17_0", "ld19_18", "ld21_20",
 					"ld23_22";
-				nvidia,pull = <1>;
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
 			};
 			drive_sdio1 {
 				nvidia,pins = "drive_sdio1";
-				nvidia,high-speed-mode = <0>;
-				nvidia,schmitt = <0>;
-				nvidia,low-power-mode = <3>;
+				nvidia,high-speed-mode = <TEGRA_PIN_DISABLE>;
+				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
+				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
 				nvidia,pull-down-strength = <31>;
 				nvidia,pull-up-strength = <31>;
-				nvidia,slew-rate-rising = <3>;
-				nvidia,slew-rate-falling = <3>;
+				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
+				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
 			};
 		};
 
@@ -303,6 +317,10 @@
 	};
 
 	serial@70006300 {
+		status = "okay";
+	};
+
+	pwm: pwm@7000a000 {
 		status = "okay";
 	};
 
@@ -363,7 +381,7 @@
 			#size-cells = <0>;
 		};
 
-		i2c@1 {
+		lvds_ddc: i2c@1 {
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -385,6 +403,13 @@
 	i2c@7000d000 {
 		status = "okay";
 		clock-frequency = <400000>;
+
+		magnetometer@c {
+			compatible = "ak,ak8975";
+			reg = <0xc>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(N, 5) IRQ_TYPE_LEVEL_HIGH>;
+		};
 
 		pmic: tps6586x@34 {
 			compatible = "ti,tps6586x";
@@ -507,16 +532,149 @@
 			compatible = "onnn,nct1008";
 			reg = <0x4c>;
 		};
-
-		magnetometer@c {
-			compatible = "ak,ak8975";
-			reg = <0xc>;
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(N, 5) IRQ_TYPE_LEVEL_HIGH>;
-		};
 	};
 
-	pmc {
+	kbc@7000e200 {
+		status = "okay";
+		nvidia,debounce-delay-ms = <32>;
+		nvidia,repeat-delay-ms = <160>;
+		nvidia,ghost-filter;
+		nvidia,kbc-row-pins = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15>;
+		nvidia,kbc-col-pins = <16 17 18 19 20 21 22 23>;
+		linux,keymap = <MATRIX_KEY(0x00, 0x02, KEY_W)
+				MATRIX_KEY(0x00, 0x03, KEY_S)
+				MATRIX_KEY(0x00, 0x04, KEY_A)
+				MATRIX_KEY(0x00, 0x05, KEY_Z)
+				MATRIX_KEY(0x00, 0x07, KEY_FN)
+
+				MATRIX_KEY(0x01, 0x07, KEY_LEFTMETA)
+				MATRIX_KEY(0x02, 0x06, KEY_RIGHTALT)
+				MATRIX_KEY(0x02, 0x07, KEY_LEFTALT)
+
+				MATRIX_KEY(0x03, 0x00, KEY_5)
+				MATRIX_KEY(0x03, 0x01, KEY_4)
+				MATRIX_KEY(0x03, 0x02, KEY_R)
+				MATRIX_KEY(0x03, 0x03, KEY_E)
+				MATRIX_KEY(0x03, 0x04, KEY_F)
+				MATRIX_KEY(0x03, 0x05, KEY_D)
+				MATRIX_KEY(0x03, 0x06, KEY_X)
+
+				MATRIX_KEY(0x04, 0x00, KEY_7)
+				MATRIX_KEY(0x04, 0x01, KEY_6)
+				MATRIX_KEY(0x04, 0x02, KEY_T)
+				MATRIX_KEY(0x04, 0x03, KEY_H)
+				MATRIX_KEY(0x04, 0x04, KEY_G)
+				MATRIX_KEY(0x04, 0x05, KEY_V)
+				MATRIX_KEY(0x04, 0x06, KEY_C)
+				MATRIX_KEY(0x04, 0x07, KEY_SPACE)
+
+				MATRIX_KEY(0x05, 0x00, KEY_9)
+				MATRIX_KEY(0x05, 0x01, KEY_8)
+				MATRIX_KEY(0x05, 0x02, KEY_U)
+				MATRIX_KEY(0x05, 0x03, KEY_Y)
+				MATRIX_KEY(0x05, 0x04, KEY_J)
+				MATRIX_KEY(0x05, 0x05, KEY_N)
+				MATRIX_KEY(0x05, 0x06, KEY_B)
+				MATRIX_KEY(0x05, 0x07, KEY_BACKSLASH)
+
+				MATRIX_KEY(0x06, 0x00, KEY_MINUS)
+				MATRIX_KEY(0x06, 0x01, KEY_0)
+				MATRIX_KEY(0x06, 0x02, KEY_O)
+				MATRIX_KEY(0x06, 0x03, KEY_I)
+				MATRIX_KEY(0x06, 0x04, KEY_L)
+				MATRIX_KEY(0x06, 0x05, KEY_K)
+				MATRIX_KEY(0x06, 0x06, KEY_COMMA)
+				MATRIX_KEY(0x06, 0x07, KEY_M)
+
+				MATRIX_KEY(0x07, 0x01, KEY_EQUAL)
+				MATRIX_KEY(0x07, 0x02, KEY_RIGHTBRACE)
+				MATRIX_KEY(0x07, 0x03, KEY_ENTER)
+				MATRIX_KEY(0x07, 0x07, KEY_MENU)
+
+				MATRIX_KEY(0x08, 0x04, KEY_RIGHTSHIFT)
+				MATRIX_KEY(0x08, 0x05, KEY_LEFTSHIFT)
+
+				MATRIX_KEY(0x09, 0x05, KEY_RIGHTCTRL)
+				MATRIX_KEY(0x09, 0x07, KEY_LEFTCTRL)
+
+				MATRIX_KEY(0x0B, 0x00, KEY_LEFTBRACE)
+				MATRIX_KEY(0x0B, 0x01, KEY_P)
+				MATRIX_KEY(0x0B, 0x02, KEY_APOSTROPHE)
+				MATRIX_KEY(0x0B, 0x03, KEY_SEMICOLON)
+				MATRIX_KEY(0x0B, 0x04, KEY_SLASH)
+				MATRIX_KEY(0x0B, 0x05, KEY_DOT)
+
+				MATRIX_KEY(0x0C, 0x00, KEY_F10)
+				MATRIX_KEY(0x0C, 0x01, KEY_F9)
+				MATRIX_KEY(0x0C, 0x02, KEY_BACKSPACE)
+				MATRIX_KEY(0x0C, 0x03, KEY_3)
+				MATRIX_KEY(0x0C, 0x04, KEY_2)
+				MATRIX_KEY(0x0C, 0x05, KEY_UP)
+				MATRIX_KEY(0x0C, 0x06, KEY_PRINT)
+				MATRIX_KEY(0x0C, 0x07, KEY_PAUSE)
+
+				MATRIX_KEY(0x0D, 0x00, KEY_INSERT)
+				MATRIX_KEY(0x0D, 0x01, KEY_DELETE)
+				MATRIX_KEY(0x0D, 0x03, KEY_PAGEUP )
+				MATRIX_KEY(0x0D, 0x04, KEY_PAGEDOWN)
+				MATRIX_KEY(0x0D, 0x05, KEY_RIGHT)
+				MATRIX_KEY(0x0D, 0x06, KEY_DOWN)
+				MATRIX_KEY(0x0D, 0x07, KEY_LEFT)
+
+				MATRIX_KEY(0x0E, 0x00, KEY_F11)
+				MATRIX_KEY(0x0E, 0x01, KEY_F12)
+				MATRIX_KEY(0x0E, 0x02, KEY_F8)
+				MATRIX_KEY(0x0E, 0x03, KEY_Q)
+				MATRIX_KEY(0x0E, 0x04, KEY_F4)
+				MATRIX_KEY(0x0E, 0x05, KEY_F3)
+				MATRIX_KEY(0x0E, 0x06, KEY_1)
+				MATRIX_KEY(0x0E, 0x07, KEY_F7)
+
+				MATRIX_KEY(0x0F, 0x00, KEY_ESC)
+				MATRIX_KEY(0x0F, 0x01, KEY_GRAVE)
+				MATRIX_KEY(0x0F, 0x02, KEY_F5)
+				MATRIX_KEY(0x0F, 0x03, KEY_TAB)
+				MATRIX_KEY(0x0F, 0x04, KEY_F1)
+				MATRIX_KEY(0x0F, 0x05, KEY_F2)
+				MATRIX_KEY(0x0F, 0x06, KEY_CAPSLOCK)
+				MATRIX_KEY(0x0F, 0x07, KEY_F6)
+
+				/* Software Handled Function Keys */
+				MATRIX_KEY(0x14, 0x00, KEY_KP7)
+
+				MATRIX_KEY(0x15, 0x00, KEY_KP9)
+				MATRIX_KEY(0x15, 0x01, KEY_KP8)
+				MATRIX_KEY(0x15, 0x02, KEY_KP4)
+				MATRIX_KEY(0x15, 0x04, KEY_KP1)
+
+				MATRIX_KEY(0x16, 0x01, KEY_KPSLASH)
+				MATRIX_KEY(0x16, 0x02, KEY_KP6)
+				MATRIX_KEY(0x16, 0x03, KEY_KP5)
+				MATRIX_KEY(0x16, 0x04, KEY_KP3)
+				MATRIX_KEY(0x16, 0x05, KEY_KP2)
+				MATRIX_KEY(0x16, 0x07, KEY_KP0)
+
+				MATRIX_KEY(0x1B, 0x01, KEY_KPASTERISK)
+				MATRIX_KEY(0x1B, 0x03, KEY_KPMINUS)
+				MATRIX_KEY(0x1B, 0x04, KEY_KPPLUS)
+				MATRIX_KEY(0x1B, 0x05, KEY_KPDOT)
+
+				MATRIX_KEY(0x1C, 0x05, KEY_VOLUMEUP)
+
+				MATRIX_KEY(0x1D, 0x03, KEY_HOME)
+				MATRIX_KEY(0x1D, 0x04, KEY_END)
+				MATRIX_KEY(0x1D, 0x05, KEY_BRIGHTNESSDOWN)
+				MATRIX_KEY(0x1D, 0x06, KEY_VOLUMEDOWN)
+				MATRIX_KEY(0x1D, 0x07, KEY_BRIGHTNESSUP)
+
+				MATRIX_KEY(0x1E, 0x00, KEY_NUMLOCK)
+				MATRIX_KEY(0x1E, 0x01, KEY_SCROLLLOCK)
+				MATRIX_KEY(0x1E, 0x02, KEY_MUTE)
+
+				MATRIX_KEY(0x1F, 0x04, KEY_HELP)>;
+	};
+
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <5000>;
@@ -616,12 +774,23 @@
 		non-removable;
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+
+		enable-gpios = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
+		power-supply = <&vdd_bl_reg>;
+		pwms = <&pwm 2 5000000>;
+
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		clk32k_in: clock {
+		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
 			reg=<0>;
 			#clock-cells = <0>;
@@ -635,7 +804,7 @@
 		power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-			linux,code = <116>; /* KEY_POWER */
+			linux,code = <KEY_POWER>;
 			gpio-key,wakeup;
 		};
 
@@ -649,145 +818,16 @@
 		};
 	};
 
-	kbc {
-		status = "okay";
-		nvidia,debounce-delay-ms = <32>;
-		nvidia,repeat-delay-ms = <160>;
-		nvidia,ghost-filter;
-		nvidia,kbc-row-pins = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15>;
-		nvidia,kbc-col-pins = <16 17 18 19 20 21 22 23>;
-		linux,keymap = <0x00020011	/* KEY_W */
-				0x0003001F	/* KEY_S */
-				0x0004001E	/* KEY_A */
-				0x0005002C	/* KEY_Z */
-				0x000701d0	/* KEY_FN */
+	panel: panel {
+		compatible = "chunghwa,claa101wa01a", "simple-panel";
 
-				0x0107007D	/* KEY_LEFTMETA */
-				0x02060064 	/* KEY_RIGHTALT */
-				0x02070038	/* KEY_LEFTALT */
+		power-supply = <&vdd_pnl_reg>;
+		enable-gpios = <&gpio TEGRA_GPIO(B, 2) GPIO_ACTIVE_HIGH>;
 
-				0x03000006	/* KEY_5 */
-				0x03010005	/* KEY_4 */
-				0x03020013	/* KEY_R */
-				0x03030012	/* KEY_E */
-				0x03040021	/* KEY_F */
-				0x03050020	/* KEY_D */
-				0x0306002D	/* KEY_X */
-
-				0x04000008	/* KEY_7 */
-				0x04010007	/* KEY_6 */
-				0x04020014	/* KEY_T */
-				0x04030023	/* KEY_H */
-				0x04040022	/* KEY_G */
-				0x0405002F	/* KEY_V */
-				0x0406002E	/* KEY_C */
-				0x04070039	/* KEY_SPACE */
-
-				0x0500000A	/* KEY_9 */
-				0x05010009	/* KEY_8 */
-				0x05020016	/* KEY_U */
-				0x05030015	/* KEY_Y */
-				0x05040024	/* KEY_J */
-				0x05050031	/* KEY_N */
-				0x05060030	/* KEY_B */
-				0x0507002B	/* KEY_BACKSLASH */
-
-				0x0600000C	/* KEY_MINUS */
-				0x0601000B	/* KEY_0 */
-				0x06020018	/* KEY_O */
-				0x06030017	/* KEY_I */
-				0x06040026	/* KEY_L */
-				0x06050025	/* KEY_K */
-				0x06060033	/* KEY_COMMA */
-				0x06070032	/* KEY_M */
-
-				0x0701000D	/* KEY_EQUAL */
-				0x0702001B	/* KEY_RIGHTBRACE */
-				0x0703001C	/* KEY_ENTER */
-				0x0707008B	/* KEY_MENU */
-
-				0x08040036	/* KEY_RIGHTSHIFT */
-				0x0805002A	/* KEY_LEFTSHIFT */
-
-				0x09050061	/* KEY_RIGHTCTRL */
-				0x0907001D	/* KEY_LEFTCTRL */
-
-				0x0B00001A	/* KEY_LEFTBRACE */
-				0x0B010019	/* KEY_P */
-				0x0B020028	/* KEY_APOSTROPHE */
-				0x0B030027	/* KEY_SEMICOLON */
-				0x0B040035	/* KEY_SLASH */
-				0x0B050034	/* KEY_DOT */
-
-				0x0C000044	/* KEY_F10 */
-				0x0C010043	/* KEY_F9 */
-				0x0C02000E	/* KEY_BACKSPACE */
-				0x0C030004	/* KEY_3 */
-				0x0C040003	/* KEY_2 */
-				0x0C050067	/* KEY_UP */
-				0x0C0600D2	/* KEY_PRINT */
-				0x0C070077	/* KEY_PAUSE */
-
-				0x0D00006E	/* KEY_INSERT */
-				0x0D01006F	/* KEY_DELETE */
-				0x0D030068	/* KEY_PAGEUP  */
-				0x0D04006D	/* KEY_PAGEDOWN */
-				0x0D05006A	/* KEY_RIGHT */
-				0x0D06006C	/* KEY_DOWN */
-				0x0D070069	/* KEY_LEFT */
-
-				0x0E000057	/* KEY_F11 */
-				0x0E010058	/* KEY_F12 */
-				0x0E020042	/* KEY_F8 */
-				0x0E030010	/* KEY_Q */
-				0x0E04003E	/* KEY_F4 */
-				0x0E05003D	/* KEY_F3 */
-				0x0E060002	/* KEY_1 */
-				0x0E070041	/* KEY_F7 */
-
-				0x0F000001	/* KEY_ESC */
-				0x0F010029	/* KEY_GRAVE */
-				0x0F02003F	/* KEY_F5 */
-				0x0F03000F	/* KEY_TAB */
-				0x0F04003B	/* KEY_F1 */
-				0x0F05003C	/* KEY_F2 */
-				0x0F06003A	/* KEY_CAPSLOCK */
-				0x0F070040	/* KEY_F6 */
-
-				/* Software Handled Function Keys */
-				0x14000047	/* KEY_KP7 */
-
-				0x15000049	/* KEY_KP9 */
-				0x15010048	/* KEY_KP8 */
-				0x1502004B	/* KEY_KP4 */
-				0x1504004F	/* KEY_KP1 */
-
-				0x1601004E	/* KEY_KPSLASH */
-				0x1602004D	/* KEY_KP6 */
-				0x1603004C	/* KEY_KP5 */
-				0x16040051	/* KEY_KP3 */
-				0x16050050	/* KEY_KP2 */
-				0x16070052	/* KEY_KP0 */
-
-				0x1B010037	/* KEY_KPASTERISK */
-				0x1B03004A	/* KEY_KPMINUS */
-				0x1B04004E	/* KEY_KPPLUS */
-				0x1B050053	/* KEY_KPDOT */
-
-				0x1C050073	/* KEY_VOLUMEUP */
-
-				0x1D030066	/* KEY_HOME */
-				0x1D04006B	/* KEY_END */
-				0x1D0500E0	/* KEY_BRIGHTNESSDOWN */
-				0x1D060072	/* KEY_VOLUMEDOWN */
-				0x1D0700E1	/* KEY_BRIGHTNESSUP */
-
-				0x1E000045	/* KEY_NUMLOCK */
-				0x1E010046	/* KEY_SCROLLLOCK */
-				0x1E020071	/* KEY_MUTE */
-
-				0x1F04008A>;	/* KEY_HELP */
+		backlight = <&backlight>;
+		ddc-i2c-bus = <&lvds_ddc>;
 	};
+
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -831,6 +871,26 @@
 			gpio = <&gpio TEGRA_GPIO(D, 0) 0>;
 			regulator-always-on;
 			regulator-boot-on;
+		};
+
+		vdd_pnl_reg: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "vdd_pnl";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			gpio = <&gpio TEGRA_GPIO(C, 6) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		vdd_bl_reg: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			regulator-name = "vdd_bl";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			gpio = <&gpio TEGRA_GPIO(W, 0) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 		};
 	};
 

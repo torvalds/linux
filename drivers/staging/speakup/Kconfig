@@ -51,6 +51,7 @@ config SPEAKUP_SYNTH_ACNTSA
 
 config SPEAKUP_SYNTH_ACNTPC
 	tristate "Accent PC synthesizer support"
+	depends on ISA || COMPILE_TEST
 	---help---
 		This is the Speakup driver for the accent pc
 		synthesizer.  You can say y to build it into the kernel,
@@ -102,6 +103,7 @@ config SPEAKUP_SYNTH_DECEXT
 
 config SPEAKUP_SYNTH_DECPC
 	depends on m
+	depends on ISA || COMPILE_TEST
 	tristate "DECtalk PC (big ISA card) synthesizer support"
 	---help---
 
@@ -124,6 +126,7 @@ config SPEAKUP_SYNTH_DECPC
 
 config SPEAKUP_SYNTH_DTLK
 	tristate "DoubleTalk PC synthesizer support"
+	depends on ISA || COMPILE_TEST
 	---help---
 
 		This is the Speakup driver for the internal DoubleTalk
@@ -134,6 +137,7 @@ config SPEAKUP_SYNTH_DTLK
 
 config SPEAKUP_SYNTH_KEYPC
 	tristate "Keynote Gold PC synthesizer support"
+	depends on ISA || COMPILE_TEST
 	---help---
 
 		This is the Speakup driver for the Keynote Gold

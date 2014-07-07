@@ -13,21 +13,55 @@
 
 /dts-v1/;
 /include/ "sun5i-a13.dtsi"
+/include/ "sunxi-common-regulators.dtsi"
 
 / {
 	model = "Olimex A13-Olinuxino";
 	compatible = "olimex,a13-olinuxino", "allwinner,sun5i-a13";
 
-	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
-	};
-
 	soc@01c00000 {
+		mmc0: mmc@01c0f000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxino>;
+			vmmc-supply = <&reg_vcc3v3>;
+			bus-width = <4>;
+			cd-gpios = <&pio 6 0 0>; /* PG0 */
+			cd-inverted;
+			status = "okay";
+		};
+
+		usbphy: phy@01c13400 {
+			usb1_vbus-supply = <&reg_usb1_vbus>;
+			status = "okay";
+		};
+
+		ehci0: usb@01c14000 {
+			status = "okay";
+		};
+
+		ohci0: usb@01c14400 {
+			status = "okay";
+		};
+
 		pinctrl@01c20800 {
+			mmc0_cd_pin_olinuxino: mmc0_cd_pin@0 {
+				allwinner,pins = "PG0";
+				allwinner,function = "gpio_in";
+				allwinner,drive = <0>;
+				allwinner,pull = <1>;
+			};
+
 			led_pins_olinuxino: led_pins@0 {
 				allwinner,pins = "PG9";
 				allwinner,function = "gpio_out";
 				allwinner,drive = <1>;
+				allwinner,pull = <0>;
+			};
+
+			usb1_vbus_pin_olinuxino: usb1_vbus_pin@0 {
+				allwinner,pins = "PG11";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};
 		};
@@ -66,5 +100,11 @@
 			gpios = <&pio 6 9 0>;
 			default-state = "on";
 		};
+	};
+
+	reg_usb1_vbus: usb1-vbus {
+		pinctrl-0 = <&usb1_vbus_pin_olinuxino>;
+		gpio = <&pio 6 11 0>;
+		status = "okay";
 	};
 };

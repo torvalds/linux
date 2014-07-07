@@ -175,6 +175,36 @@ static int pseries_eeh_find_cap(struct device_node *dn, int cap)
 	return 0;
 }
 
+static int pseries_eeh_find_ecap(struct device_node *dn, int cap)
+{
+	struct pci_dn *pdn = PCI_DN(dn);
+	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	u32 header;
+	int pos = 256;
+	int ttl = (4096 - 256) / 8;
+
+	if (!edev || !edev->pcie_cap)
+		return 0;
+	if (rtas_read_config(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
+		return 0;
+	else if (!header)
+		return 0;
+
+	while (ttl-- > 0) {
+		if (PCI_EXT_CAP_ID(header) == cap && pos)
+			return pos;
+
+		pos = PCI_EXT_CAP_NEXT(header);
+		if (pos < 256)
+			break;
+
+		if (rtas_read_config(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
+			break;
+	}
+
+	return 0;
+}
+
 /**
  * pseries_eeh_of_probe - EEH probe on the given device
  * @dn: OF node
@@ -189,8 +219,9 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 	struct eeh_dev *edev;
 	struct eeh_pe pe;
 	struct pci_dn *pdn = PCI_DN(dn);
-	const u32 *class_code, *vendor_id, *device_id;
-	const u32 *regs;
+	const __be32 *classp, *vendorp, *devicep;
+	u32 class_code;
+	const __be32 *regs;
 	u32 pcie_flags;
 	int enable = 0;
 	int ret;
@@ -201,23 +232,27 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 		return NULL;
 
 	/* Retrieve class/vendor/device IDs */
-	class_code = of_get_property(dn, "class-code", NULL);
-	vendor_id  = of_get_property(dn, "vendor-id", NULL);
-	device_id  = of_get_property(dn, "device-id", NULL);
+	classp = of_get_property(dn, "class-code", NULL);
+	vendorp = of_get_property(dn, "vendor-id", NULL);
+	devicep = of_get_property(dn, "device-id", NULL);
 
 	/* Skip for bad OF node or PCI-ISA bridge */
-	if (!class_code || !vendor_id || !device_id)
+	if (!classp || !vendorp || !devicep)
 		return NULL;
 	if (dn->type && !strcmp(dn->type, "isa"))
 		return NULL;
+
+	class_code = of_read_number(classp, 1);
 
 	/*
 	 * Update class code and mode of eeh device. We need
 	 * correctly reflects that current device is root port
 	 * or PCIe switch downstream port.
 	 */
-	edev->class_code = *class_code;
+	edev->class_code = class_code;
+	edev->pcix_cap = pseries_eeh_find_cap(dn, PCI_CAP_ID_PCIX);
 	edev->pcie_cap = pseries_eeh_find_cap(dn, PCI_CAP_ID_EXP);
+	edev->aer_cap = pseries_eeh_find_ecap(dn, PCI_EXT_CAP_ID_ERR);
 	edev->mode &= 0xFFFFFF00;
 	if ((edev->class_code >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		edev->mode |= EEH_DEV_BRIDGE;
@@ -243,12 +278,12 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 	/* Initialize the fake PE */
 	memset(&pe, 0, sizeof(struct eeh_pe));
 	pe.phb = edev->phb;
-	pe.config_addr = regs[0];
+	pe.config_addr = of_read_number(regs, 1);
 
 	/* Enable EEH on the device */
 	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
 	if (!ret) {
-		edev->config_addr = regs[0];
+		edev->config_addr = of_read_number(regs, 1);
 		/* Retrieve PE address */
 		edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
 		pe.addr = edev->pe_config_addr;
@@ -262,7 +297,7 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 			enable = 1;
 
 		if (enable) {
-			eeh_subsystem_enabled = 1;
+			eeh_set_enable(true);
 			eeh_add_to_parent_pe(edev);
 
 			pr_debug("%s: EEH enabled on %s PHB#%d-PE#%x, config addr#%x\n",
@@ -461,6 +496,7 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *state)
 			} else {
 				result = EEH_STATE_NOT_SUPPORT;
 			}
+			break;
 		default:
 			result = EEH_STATE_NOT_SUPPORT;
 		}
@@ -496,10 +532,18 @@ static int pseries_eeh_reset(struct eeh_pe *pe, int option)
 	/* If fundamental-reset not supported, try hot-reset */
 	if (option == EEH_RESET_FUNDAMENTAL &&
 	    ret == -8) {
+		option = EEH_RESET_HOT;
 		ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
 				config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid), EEH_RESET_HOT);
+				BUID_LO(pe->phb->buid), option);
 	}
+
+	/* We need reset hold or settlement delay */
+	if (option == EEH_RESET_FUNDAMENTAL ||
+	    option == EEH_RESET_HOT)
+		msleep(EEH_PE_RST_HOLD_TIME);
+	else
+		msleep(EEH_PE_RST_SETTLE_TIME);
 
 	return ret;
 }
@@ -686,7 +730,9 @@ static struct eeh_ops pseries_eeh_ops = {
 	.get_log		= pseries_eeh_get_log,
 	.configure_bridge       = pseries_eeh_configure_bridge,
 	.read_config		= pseries_eeh_read_config,
-	.write_config		= pseries_eeh_write_config
+	.write_config		= pseries_eeh_write_config,
+	.next_error		= NULL,
+	.restore_config		= NULL
 };
 
 /**

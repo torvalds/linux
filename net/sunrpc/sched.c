@@ -637,7 +637,8 @@ static void __rpc_queue_timer_fn(unsigned long ptr)
 
 static void __rpc_atrun(struct rpc_task *task)
 {
-	task->tk_status = 0;
+	if (task->tk_status == -ETIMEDOUT)
+		task->tk_status = 0;
 }
 
 /*
@@ -831,7 +832,8 @@ static void rpc_async_schedule(struct work_struct *work)
  * @size: requested byte size
  *
  * To prevent rpciod from hanging, this allocator never sleeps,
- * returning NULL if the request cannot be serviced immediately.
+ * returning NULL and suppressing warning if the request cannot be serviced
+ * immediately.
  * The caller can arrange to sleep in a way that is safe for rpciod.
  *
  * Most requests are 'small' (under 2KiB) and can be serviced from a
@@ -844,7 +846,7 @@ static void rpc_async_schedule(struct work_struct *work)
 void *rpc_malloc(struct rpc_task *task, size_t size)
 {
 	struct rpc_buffer *buf;
-	gfp_t gfp = GFP_NOWAIT;
+	gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
 
 	if (RPC_IS_SWAPPER(task))
 		gfp |= __GFP_MEMALLOC;

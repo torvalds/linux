@@ -46,8 +46,6 @@
 /* SPSR */
 #define RXFL	(1 << 2)
 
-#define hspi2info(h)	(h->dev->platform_data)
-
 struct hspi_priv {
 	void __iomem *addr;
 	struct spi_master *master;
@@ -113,13 +111,8 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 {
 	struct spi_device *spi = msg->spi;
 	struct device *dev = hspi->dev;
-	u32 target_rate;
 	u32 spcr, idiv_clk;
 	u32 rate, best_rate, min, tmp;
-
-	target_rate = t ? t->speed_hz : 0;
-	if (!target_rate)
-		target_rate = spi->max_speed_hz;
 
 	/*
 	 * find best IDIV/CLKCx settings
@@ -137,10 +130,10 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 			rate /= 16;
 
 		/* CLKCx calculation */
-		rate /= (((idiv_clk & 0x1F) + 1) * 2) ;
+		rate /= (((idiv_clk & 0x1F) + 1) * 2);
 
 		/* save best settings */
-		tmp = abs(target_rate - rate);
+		tmp = abs(t->speed_hz - rate);
 		if (tmp < min) {
 			min = tmp;
 			spcr = idiv_clk;
@@ -153,7 +146,7 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 	if (spi->mode & SPI_CPOL)
 		spcr |= 1 << 6;
 
-	dev_dbg(dev, "speed %d/%d\n", target_rate, best_rate);
+	dev_dbg(dev, "speed %d/%d\n", t->speed_hz, best_rate);
 
 	hspi_write(hspi, SPCR, spcr);
 	hspi_write(hspi, SPSR, 0x0);
@@ -197,7 +190,7 @@ static int hspi_transfer_one_message(struct spi_master *master,
 
 			hspi_write(hspi, SPTBR, tx);
 
-			/* wait recive */
+			/* wait receive */
 			ret = hspi_status_check_timeout(hspi, 0x4, 0x4);
 			if (ret < 0)
 				break;
@@ -230,29 +223,6 @@ static int hspi_transfer_one_message(struct spi_master *master,
 	return ret;
 }
 
-static int hspi_setup(struct spi_device *spi)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(spi->master);
-	struct device *dev = hspi->dev;
-
-	if (8 != spi->bits_per_word) {
-		dev_err(dev, "bits_per_word should be 8\n");
-		return -EIO;
-	}
-
-	dev_dbg(dev, "%s setup\n", spi->modalias);
-
-	return 0;
-}
-
-static void hspi_cleanup(struct spi_device *spi)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(spi->master);
-	struct device *dev = hspi->dev;
-
-	dev_dbg(dev, "%s cleanup\n", spi->modalias);
-}
-
 static int hspi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -274,9 +244,9 @@ static int hspi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	clk = clk_get(NULL, "shyway_clk");
+	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "shyway_clk is required\n");
+		dev_err(&pdev->dev, "couldn't get clock\n");
 		ret = -EINVAL;
 		goto error0;
 	}
@@ -296,23 +266,25 @@ static int hspi_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
-	master->num_chipselect	= 1;
+	pm_runtime_enable(&pdev->dev);
+
 	master->bus_num		= pdev->id;
-	master->setup		= hspi_setup;
-	master->cleanup		= hspi_cleanup;
 	master->mode_bits	= SPI_CPOL | SPI_CPHA;
+	master->dev.of_node	= pdev->dev.of_node;
 	master->auto_runtime_pm = true;
 	master->transfer_one_message		= hspi_transfer_one_message;
-	ret = spi_register_master(master);
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
+
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
-		goto error1;
+		goto error2;
 	}
-
-	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 
+ error2:
+	pm_runtime_disable(&pdev->dev);
  error1:
 	clk_put(clk);
  error0:
@@ -328,10 +300,15 @@ static int hspi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	clk_put(hspi->clk);
-	spi_unregister_master(hspi->master);
 
 	return 0;
 }
+
+static struct of_device_id hspi_of_match[] = {
+	{ .compatible = "renesas,hspi", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, hspi_of_match);
 
 static struct platform_driver hspi_driver = {
 	.probe = hspi_probe,
@@ -339,6 +316,7 @@ static struct platform_driver hspi_driver = {
 	.driver = {
 		.name = "sh-hspi",
 		.owner = THIS_MODULE,
+		.of_match_table = hspi_of_match,
 	},
 };
 module_platform_driver(hspi_driver);
@@ -346,4 +324,4 @@ module_platform_driver(hspi_driver);
 MODULE_DESCRIPTION("SuperH HSPI bus driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
-MODULE_ALIAS("platform:sh_spi");
+MODULE_ALIAS("platform:sh-hspi");

@@ -27,6 +27,7 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/hardware/iop_adma.h>
+#include <mach/irqs.h>
 
 #define IOP13XX_UART_XTAL 33334000
 #define IOP13XX_SETUP_DEBUG 0

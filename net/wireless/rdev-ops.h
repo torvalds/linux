@@ -199,7 +199,7 @@ static inline int rdev_change_station(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_get_station(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev, u8 *mac,
+				   struct net_device *dev, const u8 *mac,
 				   struct station_info *sinfo)
 {
 	int ret;
@@ -624,16 +624,12 @@ rdev_cancel_remain_on_channel(struct cfg80211_registered_device *rdev,
 
 static inline int rdev_mgmt_tx(struct cfg80211_registered_device *rdev,
 			       struct wireless_dev *wdev,
-			       struct ieee80211_channel *chan, bool offchan,
-			       unsigned int wait, const u8 *buf, size_t len,
-			       bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+			       struct cfg80211_mgmt_tx_params *params,
+			       u64 *cookie)
 {
 	int ret;
-	trace_rdev_mgmt_tx(&rdev->wiphy, wdev, chan, offchan,
-			   wait, no_cck, dont_wait_for_ack);
-	ret = rdev->ops->mgmt_tx(&rdev->wiphy, wdev, chan, offchan,
-				  wait, buf, len, no_cck,
-				  dont_wait_for_ack, cookie);
+	trace_rdev_mgmt_tx(&rdev->wiphy, wdev, params);
+	ret = rdev->ops->mgmt_tx(&rdev->wiphy, wdev, params, cookie);
 	trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
 	return ret;
 }
@@ -773,13 +769,16 @@ static inline int rdev_set_rekey_data(struct cfg80211_registered_device *rdev,
 static inline int rdev_tdls_mgmt(struct cfg80211_registered_device *rdev,
 				 struct net_device *dev, u8 *peer,
 				 u8 action_code, u8 dialog_token,
-				 u16 status_code, const u8 *buf, size_t len)
+				 u16 status_code, u32 peer_capability,
+				 const u8 *buf, size_t len)
 {
 	int ret;
 	trace_rdev_tdls_mgmt(&rdev->wiphy, dev, peer, action_code,
-			     dialog_token, status_code, buf, len);
+			     dialog_token, status_code, peer_capability,
+			     buf, len);
 	ret = rdev->ops->tdls_mgmt(&rdev->wiphy, dev, peer, action_code,
-				   dialog_token, status_code, buf, len);
+				   dialog_token, status_code, peer_capability,
+				   buf, len);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -933,6 +932,34 @@ static inline int rdev_channel_switch(struct cfg80211_registered_device *rdev,
 	trace_rdev_channel_switch(&rdev->wiphy, dev, params);
 	ret = rdev->ops->channel_switch(&rdev->wiphy, dev, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int rdev_set_qos_map(struct cfg80211_registered_device *rdev,
+				   struct net_device *dev,
+				   struct cfg80211_qos_map *qos_map)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (rdev->ops->set_qos_map) {
+		trace_rdev_set_qos_map(&rdev->wiphy, dev, qos_map);
+		ret = rdev->ops->set_qos_map(&rdev->wiphy, dev, qos_map);
+		trace_rdev_return_int(&rdev->wiphy, ret);
+	}
+
+	return ret;
+}
+
+static inline int
+rdev_set_ap_chanwidth(struct cfg80211_registered_device *rdev,
+		      struct net_device *dev, struct cfg80211_chan_def *chandef)
+{
+	int ret;
+
+	trace_rdev_set_ap_chanwidth(&rdev->wiphy, dev, chandef);
+	ret = rdev->ops->set_ap_chanwidth(&rdev->wiphy, dev, chandef);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
 	return ret;
 }
 

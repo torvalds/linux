@@ -3856,7 +3856,7 @@ static void setsharpness(struct gspca_dev *gspca_dev, s32 val)
 
 	if (sd->bridge == BRIDGE_TP6800) {
 		val |= 0x08;		/* grid compensation enable */
-		if (gspca_dev->width == 640)
+		if (gspca_dev->pixfmt.width == 640)
 			reg_w(gspca_dev, TP6800_R78_FORMAT, 0x00); /* vga */
 		else
 			val |= 0x04;		/* scaling down enable */
@@ -3880,7 +3880,7 @@ static void set_resolution(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_w(gspca_dev, TP6800_R21_ENDP_1_CTL, 0x00);
-	if (gspca_dev->width == 320) {
+	if (gspca_dev->pixfmt.width == 320) {
 		reg_w(gspca_dev, TP6800_R3F_FRAME_RATE, 0x06);
 		msleep(100);
 		i2c_w(gspca_dev, CX0342_AUTO_ADC_CALIB, 0x01);
@@ -3924,7 +3924,7 @@ static int get_fr_idx(struct gspca_dev *gspca_dev)
 
 		/* 640x480 * 30 fps does not work */
 		if (i == 6			/* if 30 fps */
-		 && gspca_dev->width == 640)
+		 && gspca_dev->pixfmt.width == 640)
 			i = 0x05;		/* 15 fps */
 	} else {
 		for (i = 0; i < ARRAY_SIZE(rates_6810) - 1; i++) {
@@ -3935,7 +3935,7 @@ static int get_fr_idx(struct gspca_dev *gspca_dev)
 
 		/* 640x480 * 30 fps does not work */
 		if (i == 7			/* if 30 fps */
-		 && gspca_dev->width == 640)
+		 && gspca_dev->pixfmt.width == 640)
 			i = 6;			/* 15 fps */
 		i |= 0x80;			/* clock * 1 */
 	}
@@ -4554,7 +4554,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width);
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width);
 	set_dqt(gspca_dev, sd->quality);
 	if (sd->bridge == BRIDGE_TP6800) {
 		if (sd->sensor == SENSOR_CX0342)
@@ -4630,8 +4631,16 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 		data++;
 		len--;
+		if (len < 2) {
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
 		if (*data == 0xff && data[1] == 0xd8) {
 /*fixme: there may be information in the 4 high bits*/
+			if (len < 7) {
+				gspca_dev->last_packet_type = DISCARD_PACKET;
+				return;
+			}
 			if ((data[6] & 0x0f) != sd->quality)
 				set_dqt(gspca_dev, data[6] & 0x0f);
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
@@ -4671,7 +4680,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		gspca_dev->last_packet_type = DISCARD_PACKET;
 		break;
 	case 0xcc:
-		if (data[1] != 0xff || data[2] != 0xd8)
+		if (len >= 3 && (data[1] != 0xff || data[2] != 0xd8))
 			gspca_frame_add(gspca_dev, INTER_PACKET,
 					data + 1, len - 1);
 		else
@@ -4737,7 +4746,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 			(gspca_dev->usb_buf[26] << 8) + gspca_dev->usb_buf[25] +
 			(gspca_dev->usb_buf[29] << 8) + gspca_dev->usb_buf[28])
 				/ 8;
-		if (gspca_dev->width == 640)
+		if (gspca_dev->pixfmt.width == 640)
 			luma /= 4;
 		reg_w(gspca_dev, 0x7d, 0x00);
 

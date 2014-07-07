@@ -26,8 +26,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -271,6 +270,7 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 		 priv->reg_base, board->conf_addr, dev->irq);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
+	dev->dev_id = channel;
 
 	/* Register SJA1000 device */
 	err = register_sja1000dev(dev);
@@ -387,7 +387,6 @@ static void kvaser_pci_remove_one(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver kvaser_pci_driver = {

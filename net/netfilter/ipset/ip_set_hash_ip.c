@@ -23,40 +23,26 @@
 #include <linux/netfilter/ipset/ip_set.h>
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
-#define REVISION_MIN	0
-#define REVISION_MAX	1	/* Counters support */
+#define IPSET_TYPE_REV_MIN	0
+/*				1	   Counters support */
+/*				2	   Comments support */
+#define IPSET_TYPE_REV_MAX	3	/* Forceadd support */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-IP_SET_MODULE_DESC("hash:ip", REVISION_MIN, REVISION_MAX);
+IP_SET_MODULE_DESC("hash:ip", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_hash:ip");
 
 /* Type specific function prefix */
 #define HTYPE		hash_ip
 #define IP_SET_HASH_WITH_NETMASK
 
-/* IPv4 variants */
+/* IPv4 variant */
 
 /* Member elements */
 struct hash_ip4_elem {
 	/* Zero valued IP addresses cannot be stored */
 	__be32 ip;
-};
-
-struct hash_ip4t_elem {
-	__be32 ip;
-	unsigned long timeout;
-};
-
-struct hash_ip4c_elem {
-	__be32 ip;
-	struct ip_set_counter counter;
-};
-
-struct hash_ip4ct_elem {
-	__be32 ip;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */
@@ -99,7 +85,7 @@ hash_ip4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	const struct hash_ip *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ip4_elem e = {};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 	__be32 ip;
 
 	ip4addrptr(skb, opt->flags & IPSET_DIM_ONE_SRC, &ip);
@@ -118,8 +104,8 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct hash_ip *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ip4_elem e = {};
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
-	u32 ip, ip_to, hosts;
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
+	u32 ip = 0, ip_to = 0, hosts;
 	int ret = 0;
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
@@ -178,27 +164,11 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	return ret;
 }
 
-/* IPv6 variants */
+/* IPv6 variant */
 
 /* Member elements */
 struct hash_ip6_elem {
 	union nf_inet_addr ip;
-};
-
-struct hash_ip6t_elem {
-	union nf_inet_addr ip;
-	unsigned long timeout;
-};
-
-struct hash_ip6c_elem {
-	union nf_inet_addr ip;
-	struct ip_set_counter counter;
-};
-
-struct hash_ip6ct_elem {
-	union nf_inet_addr ip;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */
@@ -253,7 +223,7 @@ hash_ip6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	const struct hash_ip *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ip6_elem e = {};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
 	ip6addrptr(skb, opt->flags & IPSET_DIM_ONE_SRC, &e.ip.in6);
 	hash_ip6_netmask(&e.ip, h->netmask);
@@ -270,7 +240,7 @@ hash_ip6_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct hash_ip *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ip6_elem e = {};
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	int ret;
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
@@ -304,8 +274,8 @@ static struct ip_set_type hash_ip_type __read_mostly = {
 	.features	= IPSET_TYPE_IP,
 	.dimension	= IPSET_DIM_ONE,
 	.family		= NFPROTO_UNSPEC,
-	.revision_min	= REVISION_MIN,
-	.revision_max	= REVISION_MAX,
+	.revision_min	= IPSET_TYPE_REV_MIN,
+	.revision_max	= IPSET_TYPE_REV_MAX,
 	.create		= hash_ip_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
@@ -324,6 +294,7 @@ static struct ip_set_type hash_ip_type __read_mostly = {
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
+		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING },
 	},
 	.me		= THIS_MODULE,
 };

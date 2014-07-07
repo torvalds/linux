@@ -1301,13 +1301,13 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 
 	status = gsc_read(GSC_IRQ);
 	if (status & GSC_IRQ_STATUS_OR_IRQ) {
-		dev_err(ippdrv->dev, "occured overflow at %d, status 0x%x.\n",
+		dev_err(ippdrv->dev, "occurred overflow at %d, status 0x%x.\n",
 			ctx->id, status);
 		return IRQ_NONE;
 	}
 
 	if (status & GSC_IRQ_STATUS_OR_FRM_DONE) {
-		dev_dbg(ippdrv->dev, "occured frame done at %d, status 0x%x.\n",
+		dev_dbg(ippdrv->dev, "occurred frame done at %d, status 0x%x.\n",
 			ctx->id, status);
 
 		buf_id[EXYNOS_DRM_OPS_SRC] = gsc_get_src_buf_index(ctx);
@@ -1335,11 +1335,7 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 
 static int gsc_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 {
-	struct drm_exynos_ipp_prop_list *prop_list;
-
-	prop_list = devm_kzalloc(ippdrv->dev, sizeof(*prop_list), GFP_KERNEL);
-	if (!prop_list)
-		return -ENOMEM;
+	struct drm_exynos_ipp_prop_list *prop_list = &ippdrv->prop_list;
 
 	prop_list->version = 1;
 	prop_list->writeback = 1;
@@ -1363,8 +1359,6 @@ static int gsc_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 	prop_list->scale_min.hsize = GSC_SCALE_MIN;
 	prop_list->scale_min.vsize = GSC_SCALE_MIN;
 
-	ippdrv->prop_list = prop_list;
-
 	return 0;
 }
 
@@ -1387,7 +1381,7 @@ static int gsc_ippdrv_check_property(struct device *dev,
 {
 	struct gsc_context *ctx = get_gsc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_prop_list *pp = ippdrv->prop_list;
+	struct drm_exynos_ipp_prop_list *pp = &ippdrv->prop_list;
 	struct drm_exynos_ipp_config *config;
 	struct drm_exynos_pos *pos;
 	struct drm_exynos_sz *sz;

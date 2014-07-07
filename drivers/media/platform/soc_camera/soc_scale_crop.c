@@ -141,8 +141,8 @@ int soc_camera_client_s_crop(struct v4l2_subdev *sd,
 	 * Popular special case - some cameras can only handle fixed sizes like
 	 * QVGA, VGA,... Take care to avoid infinite loop.
 	 */
-	width = max(cam_rect->width, 2);
-	height = max(cam_rect->height, 2);
+	width = max_t(unsigned int, cam_rect->width, 2);
+	height = max_t(unsigned int, cam_rect->height, 2);
 
 	/*
 	 * Loop as long as sensor is not covering the requested rectangle and

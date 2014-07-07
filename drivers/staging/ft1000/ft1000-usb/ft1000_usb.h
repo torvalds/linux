@@ -11,28 +11,27 @@
 
 #define PSEUDOSZ                16
 
-#define  SUCCESS             0x00
-
 struct app_info_block {
 	u32 nTxMsg;                    /* DPRAM msg sent to DSP with app_id */
 	u32 nRxMsg;                    /* DPRAM msg rcv from dsp with app_id */
-	u32 nTxMsgReject;              /* DPRAM msg rejected due to DSP doorbell set */
+	u32 nTxMsgReject;              /* DPRAM msg rejected due to DSP doorbell
+					* set
+					*/
 	u32 nRxMsgMiss;                /* DPRAM msg dropped due to overflow */
 	struct fown_struct *fileobject;/* Application's file object */
 	u16 app_id;                    /* Application id */
 	int DspBCMsgFlag;
 	int NumOfMsg;                   /* number of messages queued up */
 	wait_queue_head_t wait_dpram_msg;
-	struct list_head app_sqlist;   /* link list of msgs for applicaton on slow queue */
+	struct list_head app_sqlist;   /* link list of msgs for applicaton on
+					* slow queue
+					*/
 } __packed;
 
-#define DEBUG(args...) printk(KERN_INFO args)
+#define DEBUG(args...) pr_info(args)
 
 #define FALSE           0
 #define TRUE            1
-
-#define STATUS_SUCCESS  0
-#define STATUS_FAILURE   0x1001
 
 #define FT1000_STATUS_CLOSING  0x01
 
@@ -46,7 +45,9 @@ struct app_info_block {
 /* MEMORY MAP FOR MAGNEMITE */
 /* the indexes are swapped comparing to PCMCIA - is it OK or a bug? */
 #undef FT1000_MAG_DSP_LED_INDX
-#define FT1000_MAG_DSP_LED_INDX		0x1	/* dsp led status for PAD device */
+#define FT1000_MAG_DSP_LED_INDX		0x1	/* dsp led status for PAD
+						 * device
+						 */
 #undef FT1000_MAG_DSP_CON_STATE_INDX
 #define FT1000_MAG_DSP_CON_STATE_INDX	0x0	/* DSP Connection Status Info */
 
@@ -104,38 +105,39 @@ struct dpram_blk {
 } __packed;
 
 int ft1000_read_register(struct ft1000_usb *ft1000dev,
-			u16 *Data, u16 nRegIndx);
+			 u16 *Data, u16 nRegIndx);
 int ft1000_write_register(struct ft1000_usb *ft1000dev,
-			u16 value, u16 nRegIndx);
+			  u16 value, u16 nRegIndx);
 int ft1000_read_dpram32(struct ft1000_usb *ft1000dev,
 			u16 indx, u8 *buffer, u16 cnt);
 int ft1000_write_dpram32(struct ft1000_usb *ft1000dev,
-			u16 indx, u8 *buffer, u16 cnt);
+			 u16 indx, u8 *buffer, u16 cnt);
 int ft1000_read_dpram16(struct ft1000_usb *ft1000dev,
 			u16 indx, u8 *buffer, u8 highlow);
 int ft1000_write_dpram16(struct ft1000_usb *ft1000dev,
-			u16 indx, u16 value, u8 highlow);
+			 u16 indx, u16 value, u8 highlow);
 int fix_ft1000_read_dpram32(struct ft1000_usb *ft1000dev,
-			u16 indx, u8 *buffer);
+			    u16 indx, u8 *buffer);
 int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev,
-			u16 indx, u8 *buffer);
+			     u16 indx, u8 *buffer);
 
 extern void *pFileStart;
 extern size_t FileLength;
 extern int numofmsgbuf;
 
 int ft1000_close(struct net_device *dev);
-u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
+int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 		u32  FileLength);
 
 extern struct list_head freercvpool;
 
-extern spinlock_t free_buff_lock;   /* lock to arbitrate free buffer list for receive command data */
+/* lock to arbitrate free buffer list for receive command data */
+extern spinlock_t free_buff_lock;
 
 int ft1000_create_dev(struct ft1000_usb *dev);
 void ft1000_destroy_dev(struct net_device *dev);
 extern void card_send_command(struct ft1000_usb *ft1000dev,
-				void *ptempbuffer, int size);
+			      void *ptempbuffer, int size);
 
 struct dpram_blk *ft1000_get_buffer(struct list_head *bufflist);
 void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist);
@@ -144,12 +146,10 @@ int dsp_reload(struct ft1000_usb *ft1000dev);
 int init_ft1000_netdev(struct ft1000_usb *ft1000dev);
 struct usb_interface;
 int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
-			struct usb_interface *intf);
+		      struct usb_interface *intf);
 int ft1000_poll(void *dev_id);
 
 int ft1000_init_proc(struct net_device *dev);
 void ft1000_cleanup_proc(struct ft1000_info *info);
 
-
-
-#endif
+#endif  /* _FT1000_USB_H_ */

@@ -59,6 +59,35 @@ config LEMOTE_MACH2F
 
 	  These family machines include fuloong2f mini PC, yeeloong2f notebook,
 	  LingLoong allinone PC and so forth.
+
+config LEMOTE_MACH3A
+	bool "Lemote Loongson 3A family machines"
+	select ARCH_SPARSEMEM_ENABLE
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
+	select BOOT_ELF32
+	select BOARD_SCACHE
+	select CSRC_R4K
+	select CEVT_R4K
+	select CPU_HAS_WB
+	select HW_HAS_PCI
+	select ISA
+	select HT_PCI
+	select I8259
+	select IRQ_CPU
+	select NR_CPUS_DEFAULT_4
+	select SYS_HAS_CPU_LOONGSON3
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select LOONGSON_MC146818
+	select ZONE_DMA32
+	select LEFI_FIRMWARE_INTERFACE
+	help
+		Lemote Loongson 3A family machines utilize the 3A revision of
+		Loongson processor and RS780/SBX00 chipset.
 endchoice
 
 config CS5536
@@ -66,10 +95,11 @@ config CS5536
 
 config CS5536_MFGPT
 	bool "CS5536 MFGPT Timer"
-	depends on CS5536
+	depends on CS5536 && !HIGH_RES_TIMERS
 	select MIPS_EXTERNAL_TIMER
 	help
-	  This option enables the mfgpt0 timer of AMD CS5536.
+	  This option enables the mfgpt0 timer of AMD CS5536. With this timer
+	  switched on you can not use high resolution timers.
 
 	  If you want to enable the Loongson2 CPUFreq Driver, Please enable
 	  this option at first, otherwise, You will get wrong system time.
@@ -86,8 +116,25 @@ config LOONGSON_UART_BASE
 	default y
 	depends on EARLY_PRINTK || SERIAL_8250
 
+config IOMMU_HELPER
+	bool
+
+config NEED_SG_DMA_LENGTH
+	bool
+
+config SWIOTLB
+	bool "Soft IOMMU Support for All-Memory DMA"
+	default y
+	depends on CPU_LOONGSON3
+	select IOMMU_HELPER
+	select NEED_SG_DMA_LENGTH
+	select NEED_DMA_MAP_STATE
+
 config LOONGSON_MC146818
 	bool
 	default n
+
+config LEFI_FIRMWARE_INTERFACE
+	bool
 
 endif # MACH_LOONGSON

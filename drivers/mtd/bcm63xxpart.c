@@ -221,7 +221,8 @@ static struct mtd_part_parser bcm63xx_cfe_parser = {
 
 static int __init bcm63xx_cfe_parser_init(void)
 {
-	return register_mtd_parser(&bcm63xx_cfe_parser);
+	register_mtd_parser(&bcm63xx_cfe_parser);
+	return 0;
 }
 
 static void __exit bcm63xx_cfe_parser_exit(void)

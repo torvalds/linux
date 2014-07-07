@@ -34,6 +34,7 @@ static void change_volume(struct urb *urb_out, int volume[],
 
 	if (bytes_per_frame == 4) {
 		short *p, *buf_end;
+
 		p = (short *)urb_out->transfer_buffer;
 		buf_end = p + urb_out->transfer_buffer_length / sizeof(*p);
 
@@ -43,11 +44,13 @@ static void change_volume(struct urb *urb_out, int volume[],
 		}
 	} else if (bytes_per_frame == 6) {
 		unsigned char *p, *buf_end;
+
 		p = (unsigned char *)urb_out->transfer_buffer;
 		buf_end = p + urb_out->transfer_buffer_length;
 
 		for (; p < buf_end; p += 3) {
 			int val;
+
 			val = p[0] + (p[1] << 8) + ((signed char)p[2] << 16);
 			val = (val * volume[chn & 1]) >> 8;
 			p[0] = val;
@@ -116,6 +119,7 @@ static void add_monitor_signal(struct urb *urb_out, unsigned char *signal,
 
 	if (bytes_per_frame == 4) {
 		short *pi, *po, *buf_end;
+
 		pi = (short *)signal;
 		po = (short *)urb_out->transfer_buffer;
 		buf_end = po + urb_out->transfer_buffer_length / sizeof(*po);
@@ -171,6 +175,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 
 		if (fsize == 0) {
 			int n;
+
 			line6pcm->count_out += frame_increment;
 			n = line6pcm->count_out / frame_factor;
 			line6pcm->count_out -= n * frame_factor;
@@ -207,6 +212,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 			   copy the data to the temp buffer.
 			 */
 			int len;
+
 			len = runtime->buffer_size - line6pcm->pos_out;
 
 			if (len > 0) {
@@ -242,13 +248,14 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 		if (line6pcm->flags & LINE6_BITS_PCM_IMPULSE) {
 			create_impulse_test_signal(line6pcm, urb_out,
 						   bytes_per_frame);
-			if (line6pcm->flags & LINE6_BIT_PCM_ALSA_CAPTURE_STREAM) {
+			if (line6pcm->flags &
+			    LINE6_BIT_PCM_ALSA_CAPTURE_STREAM) {
 				line6_capture_copy(line6pcm,
 						   urb_out->transfer_buffer,
 						   urb_out->
 						   transfer_buffer_length);
 				line6_capture_check_period(line6pcm,
-							   urb_out->transfer_buffer_length);
+					urb_out->transfer_buffer_length);
 			}
 		} else {
 #endif
@@ -304,6 +311,7 @@ void line6_unlink_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 		if (test_bit(i, &line6pcm->active_urb_out)) {
 			if (!test_and_set_bit(i, &line6pcm->unlink_urb_out)) {
 				struct urb *u = line6pcm->urb_audio_out[i];
+
 				usb_unlink_urb(u);
 			}
 		}
@@ -357,7 +365,6 @@ static void audio_out_callback(struct urb *urb)
 {
 	int i, index, length = 0, shutdown = 0;
 	unsigned long flags;
-
 	struct snd_line6_pcm *line6pcm = (struct snd_line6_pcm *)urb->context;
 	struct snd_pcm_substream *substream =
 	    get_substream(line6pcm, SNDRV_PCM_STREAM_PLAYBACK);
@@ -383,6 +390,7 @@ static void audio_out_callback(struct urb *urb)
 
 	if (test_bit(LINE6_INDEX_PCM_ALSA_PLAYBACK_STREAM, &line6pcm->flags)) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
+
 		line6pcm->pos_out_done +=
 		    length / line6pcm->properties->bytes_per_frame;
 
@@ -479,6 +487,7 @@ static int snd_line6_playback_hw_params(struct snd_pcm_substream *substream,
 static int snd_line6_playback_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+
 	line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_PLAYBACK_BUFFER);
 	return snd_pcm_lib_free_pages(substream);
 }
@@ -533,6 +542,7 @@ static snd_pcm_uframes_t
 snd_line6_playback_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+
 	return line6pcm->pos_out_done;
 }
 

@@ -13,10 +13,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -546,7 +546,7 @@ exit:
 	kfree_skb(skb);
 
 	if (r)
-		pr_err("Failed to handle discovered target err=%d", r);
+		pr_err("Failed to handle discovered target err=%d\n", r);
 }
 
 static int microread_event_received(struct nfc_hci_dev *hdev, u8 gate,
@@ -656,7 +656,6 @@ int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 
 	info = kzalloc(sizeof(struct microread_info), GFP_KERNEL);
 	if (!info) {
-		pr_err("Cannot allocate memory for microread_info.\n");
 		r = -ENOMEM;
 		goto err_info_alloc;
 	}
@@ -686,7 +685,7 @@ int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 					     MICROREAD_CMD_TAILROOM,
 					     phy_payload);
 	if (!info->hdev) {
-		pr_err("Cannot allocate nfc hdev.\n");
+		pr_err("Cannot allocate nfc hdev\n");
 		r = -ENOMEM;
 		goto err_alloc_hdev;
 	}

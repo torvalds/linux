@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2009-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -2629,7 +2629,7 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 				rspiocbq,
 				(phba->fc_ratov * 2)
 				+ LPFC_DRVR_TIMEOUT);
-	if (iocb_stat) {
+	if ((iocb_stat != IOCB_SUCCESS) || (rsp->ulpStatus != IOSTAT_SUCCESS)) {
 		ret_val = -EIO;
 		goto err_get_xri_exit;
 	}
@@ -3204,8 +3204,9 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 					     rspiocbq, (phba->fc_ratov * 2) +
 					     LPFC_DRVR_TIMEOUT);
 
-	if ((iocb_stat != IOCB_SUCCESS) || ((phba->sli_rev < LPFC_SLI_REV4) &&
-					   (rsp->ulpStatus != IOCB_SUCCESS))) {
+	if ((iocb_stat != IOCB_SUCCESS) ||
+	    ((phba->sli_rev < LPFC_SLI_REV4) &&
+	     (rsp->ulpStatus != IOSTAT_SUCCESS))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
 				"3126 Failed loopback test issue iocb: "
 				"iocb_stat:x%x\n", iocb_stat);
@@ -4152,6 +4153,7 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		if (subsys == SLI_CONFIG_SUBSYS_FCOE) {
 			switch (opcode) {
 			case FCOE_OPCODE_READ_FCF:
+			case FCOE_OPCODE_GET_DPORT_RESULTS:
 				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 						"2957 Handled SLI_CONFIG "
 						"subsys_fcoe, opcode:x%x\n",
@@ -4160,6 +4162,8 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 							nemb_mse, dmabuf);
 				break;
 			case FCOE_OPCODE_ADD_FCF:
+			case FCOE_OPCODE_SET_DPORT_MODE:
+			case LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_STATE:
 				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 						"2958 Handled SLI_CONFIG "
 						"subsys_fcoe, opcode:x%x\n",

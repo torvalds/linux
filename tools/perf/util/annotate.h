@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "types.h"
+#include <linux/types.h>
 #include "symbol.h"
 #include "hist.h"
 #include "sort.h"
@@ -132,12 +132,17 @@ static inline struct annotation *symbol__annotation(struct symbol *sym)
 	return &a->annotation;
 }
 
-int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
-			     int evidx, u64 addr);
+int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, int evidx);
+
+int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
+
 int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
+
+int hist_entry__annotate(struct hist_entry *he, size_t privsize);
+
 int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym);
 int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    struct perf_evsel *evsel, bool full_paths,
@@ -146,11 +151,13 @@ void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
 void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
 void disasm__purge(struct list_head *head);
 
+bool ui__has_annotation(void);
+
 int symbol__tty_annotate(struct symbol *sym, struct map *map,
 			 struct perf_evsel *evsel, bool print_lines,
 			 bool full_paths, int min_pcnt, int max_lines);
 
-#ifdef SLANG_SUPPORT
+#ifdef HAVE_SLANG_SUPPORT
 int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			 struct perf_evsel *evsel,
 			 struct hist_browser_timer *hbt);
@@ -163,30 +170,6 @@ static inline int symbol__tui_annotate(struct symbol *sym __maybe_unused,
 {
 	return 0;
 }
-#endif
-
-#ifdef GTK2_SUPPORT
-int symbol__gtk_annotate(struct symbol *sym, struct map *map,
-			 struct perf_evsel *evsel,
-			 struct hist_browser_timer *hbt);
-
-static inline int hist_entry__gtk_annotate(struct hist_entry *he,
-					   struct perf_evsel *evsel,
-					   struct hist_browser_timer *hbt)
-{
-	return symbol__gtk_annotate(he->ms.sym, he->ms.map, evsel, hbt);
-}
-
-void perf_gtk__show_annotations(void);
-#else
-static inline int hist_entry__gtk_annotate(struct hist_entry *he __maybe_unused,
-				struct perf_evsel *evsel __maybe_unused,
-				struct hist_browser_timer *hbt __maybe_unused)
-{
-	return 0;
-}
-
-static inline void perf_gtk__show_annotations(void) {}
 #endif
 
 extern const char	*disassembler_style;

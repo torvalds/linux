@@ -573,10 +573,10 @@ static int saa7191_g_input_status(struct v4l2_subdev *sd, u32 *status)
 static const struct v4l2_subdev_core_ops saa7191_core_ops = {
 	.g_ctrl = saa7191_g_ctrl,
 	.s_ctrl = saa7191_s_ctrl,
-	.s_std = saa7191_s_std,
 };
 
 static const struct v4l2_subdev_video_ops saa7191_video_ops = {
+	.s_std = saa7191_s_std,
 	.s_routing = saa7191_s_routing,
 	.querystd = saa7191_querystd,
 	.g_input_status = saa7191_g_input_status,

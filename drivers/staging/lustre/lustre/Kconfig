@@ -16,7 +16,7 @@ config LUSTRE_FS
 	  this file system support as a module, choose M here: the module will
 	  be called lustre.
 
-	  To mount Lustre file systems , you also need to install the user space
+	  To mount Lustre file systems, you also need to install the user space
 	  mount.lustre and other user space commands which can be found in the
 	  lustre-client package, available from
 	  http://downloads.whamcloud.com/public/lustre/
@@ -55,6 +55,6 @@ config LUSTRE_TRANSLATE_ERRNOS
 	default y
 
 config LUSTRE_LLITE_LLOOP
-	bool "Lustre virtual block device"
+	tristate "Lustre virtual block device"
 	depends on LUSTRE_FS && BLOCK
 	default m

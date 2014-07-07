@@ -1,12 +1,9 @@
 if ARCH_MSM
 
-comment "Qualcomm MSM SoC Type"
-	depends on (ARCH_MSM8X60 || ARCH_MSM8960)
-
 choice
 	prompt "Qualcomm MSM SoC Type"
 	default ARCH_MSM7X00A
-	depends on !(ARCH_MSM8X60 || ARCH_MSM8960)
+	depends on ARCH_MSM
 
 config ARCH_MSM7X00A
 	bool "MSM7x00A / MSM7x01A"
@@ -16,6 +13,7 @@ config ARCH_MSM7X00A
 	select MACH_TROUT if !MACH_HALIBUT
 	select MSM_PROC_COMM
 	select MSM_SMD
+	select CLKSRC_QCOM
 	select MSM_SMD_PKG3
 
 config ARCH_MSM7X30
@@ -27,6 +25,7 @@ config ARCH_MSM7X30
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select MSM_SMD
+	select CLKSRC_QCOM
 	select MSM_VIC
 
 config ARCH_QSD8X50
@@ -38,36 +37,17 @@ config ARCH_QSD8X50
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select MSM_SMD
+	select CLKSRC_QCOM
 	select MSM_VIC
 
 endchoice
-
-config ARCH_MSM8X60
-	bool "MSM8X60"
-	select ARM_GIC
-	select CPU_V7
-	select GPIO_MSM_V2
-	select HAVE_SMP
-	select MSM_SCM if SMP
-	select USE_OF
-
-config ARCH_MSM8960
-	bool "MSM8960"
-	select ARM_GIC
-	select CPU_V7
-	select HAVE_SMP
-	select GPIO_MSM_V2
-	select MSM_SCM if SMP
-	select USE_OF
-
-config MSM_HAS_DEBUG_UART_HS
-	bool
 
 config MSM_SOC_REV_A
 	bool
 
 config  ARCH_MSM_ARM11
 	bool
+
 config  ARCH_MSM_SCORPION
 	bool
 
@@ -75,6 +55,7 @@ config  MSM_VIC
 	bool
 
 menu "Qualcomm MSM Board Type"
+	depends on ARCH_MSM
 
 config MACH_HALIBUT
 	depends on ARCH_MSM
@@ -127,4 +108,5 @@ config MSM_GPIOMUX
 
 config MSM_SCM
 	bool
+
 endif

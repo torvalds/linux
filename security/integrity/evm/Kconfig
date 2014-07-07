@@ -1,10 +1,10 @@
 config EVM
 	boolean "EVM support"
-	depends on SECURITY && KEYS && (TRUSTED_KEYS=y || TRUSTED_KEYS=n)
-	select CRYPTO_HMAC
-	select CRYPTO_MD5
-	select CRYPTO_SHA1
+	depends on SECURITY
+	select KEYS
 	select ENCRYPTED_KEYS
+	select CRYPTO_HMAC
+	select CRYPTO_SHA1
 	default n
 	help
 	  EVM protects a file's security extended attributes against
@@ -12,15 +12,41 @@ config EVM
 
 	  If you are unsure how to answer this question, answer N.
 
-config EVM_HMAC_VERSION
-	int "EVM HMAC version"
-	depends on EVM
-	default 2
-	help
-	  This options adds EVM HMAC version support.
-	  1 - original version
-	  2 - add per filesystem unique identifier (UUID) (default)
+if EVM
 
-	  WARNING: changing the HMAC calculation method or adding 
+menu "EVM options"
+
+config EVM_ATTR_FSUUID
+	bool "FSUUID (version 2)"
+	default y
+	depends on EVM
+	help
+	  Include filesystem UUID for HMAC calculation.
+
+	  Default value is 'selected', which is former version 2.
+	  if 'not selected', it is former version 1
+
+	  WARNING: changing the HMAC calculation method or adding
 	  additional info to the calculation, requires existing EVM
-	  labeled file systems to be relabeled.  
+	  labeled file systems to be relabeled.
+
+config EVM_EXTRA_SMACK_XATTRS
+	bool "Additional SMACK xattrs"
+	depends on EVM && SECURITY_SMACK
+	default n
+	help
+	  Include additional SMACK xattrs for HMAC calculation.
+
+	  In addition to the original security xattrs (eg. security.selinux,
+	  security.SMACK64, security.capability, and security.ima) included
+	  in the HMAC calculation, enabling this option includes newly defined
+	  Smack xattrs: security.SMACK64EXEC, security.SMACK64TRANSMUTE and
+	  security.SMACK64MMAP.
+
+	  WARNING: changing the HMAC calculation method or adding
+	  additional info to the calculation, requires existing EVM
+	  labeled file systems to be relabeled.
+
+endmenu
+
+endif

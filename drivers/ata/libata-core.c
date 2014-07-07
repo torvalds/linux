@@ -1524,7 +1524,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	@dev: Device to which the command is sent
  *	@tf: Taskfile registers for the command and the result
  *	@cdb: CDB for packet command
- *	@dma_dir: Data tranfer direction of the command
+ *	@dma_dir: Data transfer direction of the command
  *	@sgl: sg list for the data buffer of the command
  *	@n_elem: Number of sg entries
  *	@timeout: Timeout in msecs (0 for default)
@@ -1712,7 +1712,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
  *	@dev: Device to which the command is sent
  *	@tf: Taskfile registers for the command and the result
  *	@cdb: CDB for packet command
- *	@dma_dir: Data tranfer direction of the command
+ *	@dma_dir: Data transfer direction of the command
  *	@buf: Data buffer of the command
  *	@buflen: Length of data buffer
  *	@timeout: Timeout in msecs (0 for default)
@@ -2149,9 +2149,16 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 				    "failed to get NCQ Send/Recv Log Emask 0x%x\n",
 				    err_mask);
 		} else {
+			u8 *cmds = dev->ncq_send_recv_cmds;
+
 			dev->flags |= ATA_DFLAG_NCQ_SEND_RECV;
-			memcpy(dev->ncq_send_recv_cmds, ap->sector_buf,
-				ATA_LOG_NCQ_SEND_RECV_SIZE);
+			memcpy(cmds, ap->sector_buf, ATA_LOG_NCQ_SEND_RECV_SIZE);
+
+			if (dev->horkage & ATA_HORKAGE_NO_NCQ_TRIM) {
+				ata_dev_dbg(dev, "disabling queued TRIM support\n");
+				cmds[ATA_LOG_NCQ_SEND_RECV_DSM_OFFSET] &=
+					~ATA_LOG_NCQ_SEND_RECV_DSM_TRIM;
+			}
 		}
 	}
 
@@ -2214,6 +2221,16 @@ int ata_dev_configure(struct ata_device *dev)
 	rc = ata_do_link_spd_horkage(dev);
 	if (rc)
 		return rc;
+
+	/* some WD SATA-1 drives have issues with LPM, turn on NOLPM for them */
+	if ((dev->horkage & ATA_HORKAGE_WD_BROKEN_LPM) &&
+	    (id[ATA_ID_SATA_CAPABILITY] & 0xe) == 0x2)
+		dev->horkage |= ATA_HORKAGE_NOLPM;
+
+	if (dev->horkage & ATA_HORKAGE_NOLPM) {
+		ata_dev_warn(dev, "LPM support broken, forcing max_power\n");
+		dev->link->ap->target_lpm_policy = ATA_LPM_MAX_POWER;
+	}
 
 	/* let ACPI work its magic */
 	rc = ata_acpi_on_devcfg(dev);
@@ -4126,6 +4143,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_HORKAGE_MAX_SEC_128 },
 	{ "QUANTUM DAT    DAT72-000", NULL,	ATA_HORKAGE_ATAPI_MOD16_DMA },
 	{ "Slimtype DVD A  DS8A8SH", NULL,	ATA_HORKAGE_MAX_SEC_LBA48 },
+	{ "Slimtype DVD A  DS8A9SH", NULL,	ATA_HORKAGE_MAX_SEC_LBA48 },
 
 	/* Devices we expect to fail diagnostics */
 
@@ -4154,6 +4172,10 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 
 	{ "ST3320[68]13AS",	"SD1[5-9]",	ATA_HORKAGE_NONCQ |
 						ATA_HORKAGE_FIRMWARE_WARN },
+
+	/* Seagate Momentus SpinPoint M8 seem to have FPMDA_AA issues */
+	{ "ST1000LM024 HN-M101MBB", "2AR10001",	ATA_HORKAGE_BROKEN_FPDMA_AA },
+	{ "ST1000LM024 HN-M101MBB", "2BA30001",	ATA_HORKAGE_BROKEN_FPDMA_AA },
 
 	/* Blacklist entries taken from Silicon Image 3124/3132
 	   Windows driver .inf file - also several Linux problem reports */
@@ -4200,6 +4222,29 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "PIONEER DVD-RW  DVR-215",	NULL,	ATA_HORKAGE_NOSETXFER },
 	{ "PIONEER DVD-RW  DVR-212D",	NULL,	ATA_HORKAGE_NOSETXFER },
 	{ "PIONEER DVD-RW  DVR-216D",	NULL,	ATA_HORKAGE_NOSETXFER },
+
+	/* devices that don't properly handle queued TRIM commands */
+	{ "Micron_M500*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
+	{ "Crucial_CT???M500SSD*",	NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
+	{ "Micron_M550*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
+	{ "Crucial_CT???M550SSD*",	NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
+
+	/*
+	 * Some WD SATA-I drives spin up and down erratically when the link
+	 * is put into the slumber mode.  We don't have full list of the
+	 * affected devices.  Disable LPM if the device matches one of the
+	 * known prefixes and is SATA-1.  As a side effect LPM partial is
+	 * lost too.
+	 *
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=57211
+	 */
+	{ "WDC WD800JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
+	{ "WDC WD1200JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
+	{ "WDC WD1600JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
+	{ "WDC WD2000JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
+	{ "WDC WD2500JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
+	{ "WDC WD3000JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
+	{ "WDC WD3200JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
 
 	/* End Marker */
 	{ }
@@ -4749,21 +4794,26 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc = NULL;
-	unsigned int i;
+	unsigned int i, tag;
 
 	/* no command while frozen */
 	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
 		return NULL;
 
-	/* the last tag is reserved for internal command. */
-	for (i = 0; i < ATA_MAX_QUEUE - 1; i++)
-		if (!test_and_set_bit(i, &ap->qc_allocated)) {
-			qc = __ata_qc_from_tag(ap, i);
+	for (i = 0; i < ATA_MAX_QUEUE; i++) {
+		tag = (i + ap->last_tag + 1) % ATA_MAX_QUEUE;
+
+		/* the last tag is reserved for internal command. */
+		if (tag == ATA_TAG_INTERNAL)
+			continue;
+
+		if (!test_and_set_bit(tag, &ap->qc_allocated)) {
+			qc = __ata_qc_from_tag(ap, tag);
+			qc->tag = tag;
+			ap->last_tag = tag;
 			break;
 		}
-
-	if (qc)
-		qc->tag = i;
+	}
 
 	return qc;
 }
@@ -5309,22 +5359,17 @@ bool ata_link_offline(struct ata_link *link)
 }
 
 #ifdef CONFIG_PM
-static int ata_port_request_pm(struct ata_port *ap, pm_message_t mesg,
-			       unsigned int action, unsigned int ehi_flags,
-			       int *async)
+static void ata_port_request_pm(struct ata_port *ap, pm_message_t mesg,
+				unsigned int action, unsigned int ehi_flags,
+				bool async)
 {
 	struct ata_link *link;
 	unsigned long flags;
-	int rc = 0;
 
 	/* Previous resume operation might still be in
 	 * progress.  Wait for PM_PENDING to clear.
 	 */
 	if (ap->pflags & ATA_PFLAG_PM_PENDING) {
-		if (async) {
-			*async = -EAGAIN;
-			return 0;
-		}
 		ata_port_wait_eh(ap);
 		WARN_ON(ap->pflags & ATA_PFLAG_PM_PENDING);
 	}
@@ -5333,11 +5378,6 @@ static int ata_port_request_pm(struct ata_port *ap, pm_message_t mesg,
 	spin_lock_irqsave(ap->lock, flags);
 
 	ap->pm_mesg = mesg;
-	if (async)
-		ap->pm_result = async;
-	else
-		ap->pm_result = &rc;
-
 	ap->pflags |= ATA_PFLAG_PM_PENDING;
 	ata_for_each_link(link, ap, HOST_FIRST) {
 		link->eh_info.action |= action;
@@ -5348,87 +5388,81 @@ static int ata_port_request_pm(struct ata_port *ap, pm_message_t mesg,
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	/* wait and check result */
 	if (!async) {
 		ata_port_wait_eh(ap);
 		WARN_ON(ap->pflags & ATA_PFLAG_PM_PENDING);
 	}
-
-	return rc;
 }
 
-static int __ata_port_suspend_common(struct ata_port *ap, pm_message_t mesg, int *async)
+/*
+ * On some hardware, device fails to respond after spun down for suspend.  As
+ * the device won't be used before being resumed, we don't need to touch the
+ * device.  Ask EH to skip the usual stuff and proceed directly to suspend.
+ *
+ * http://thread.gmane.org/gmane.linux.ide/46764
+ */
+static const unsigned int ata_port_suspend_ehi = ATA_EHI_QUIET
+						 | ATA_EHI_NO_AUTOPSY
+						 | ATA_EHI_NO_RECOVERY;
+
+static void ata_port_suspend(struct ata_port *ap, pm_message_t mesg)
 {
-	/*
-	 * On some hardware, device fails to respond after spun down
-	 * for suspend.  As the device won't be used before being
-	 * resumed, we don't need to touch the device.  Ask EH to skip
-	 * the usual stuff and proceed directly to suspend.
-	 *
-	 * http://thread.gmane.org/gmane.linux.ide/46764
-	 */
-	unsigned int ehi_flags = ATA_EHI_QUIET | ATA_EHI_NO_AUTOPSY |
-				 ATA_EHI_NO_RECOVERY;
-	return ata_port_request_pm(ap, mesg, 0, ehi_flags, async);
+	ata_port_request_pm(ap, mesg, 0, ata_port_suspend_ehi, false);
 }
 
-static int ata_port_suspend_common(struct device *dev, pm_message_t mesg)
+static void ata_port_suspend_async(struct ata_port *ap, pm_message_t mesg)
 {
-	struct ata_port *ap = to_ata_port(dev);
-
-	return __ata_port_suspend_common(ap, mesg, NULL);
+	ata_port_request_pm(ap, mesg, 0, ata_port_suspend_ehi, true);
 }
 
-static int ata_port_suspend(struct device *dev)
-{
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	return ata_port_suspend_common(dev, PMSG_SUSPEND);
-}
-
-static int ata_port_do_freeze(struct device *dev)
-{
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	return ata_port_suspend_common(dev, PMSG_FREEZE);
-}
-
-static int ata_port_poweroff(struct device *dev)
-{
-	return ata_port_suspend_common(dev, PMSG_HIBERNATE);
-}
-
-static int __ata_port_resume_common(struct ata_port *ap, pm_message_t mesg,
-				    int *async)
-{
-	int rc;
-
-	rc = ata_port_request_pm(ap, mesg, ATA_EH_RESET,
-		ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, async);
-	return rc;
-}
-
-static int ata_port_resume_common(struct device *dev, pm_message_t mesg)
+static int ata_port_pm_suspend(struct device *dev)
 {
 	struct ata_port *ap = to_ata_port(dev);
 
-	return __ata_port_resume_common(ap, mesg, NULL);
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	ata_port_suspend(ap, PMSG_SUSPEND);
+	return 0;
 }
 
-static int ata_port_resume(struct device *dev)
+static int ata_port_pm_freeze(struct device *dev)
 {
-	int rc;
+	struct ata_port *ap = to_ata_port(dev);
 
-	rc = ata_port_resume_common(dev, PMSG_RESUME);
-	if (!rc) {
-		pm_runtime_disable(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-	}
+	if (pm_runtime_suspended(dev))
+		return 0;
 
-	return rc;
+	ata_port_suspend(ap, PMSG_FREEZE);
+	return 0;
+}
+
+static int ata_port_pm_poweroff(struct device *dev)
+{
+	ata_port_suspend(to_ata_port(dev), PMSG_HIBERNATE);
+	return 0;
+}
+
+static const unsigned int ata_port_resume_ehi = ATA_EHI_NO_AUTOPSY
+						| ATA_EHI_QUIET;
+
+static void ata_port_resume(struct ata_port *ap, pm_message_t mesg)
+{
+	ata_port_request_pm(ap, mesg, ATA_EH_RESET, ata_port_resume_ehi, false);
+}
+
+static void ata_port_resume_async(struct ata_port *ap, pm_message_t mesg)
+{
+	ata_port_request_pm(ap, mesg, ATA_EH_RESET, ata_port_resume_ehi, true);
+}
+
+static int ata_port_pm_resume(struct device *dev)
+{
+	ata_port_resume_async(to_ata_port(dev), PMSG_RESUME);
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	return 0;
 }
 
 /*
@@ -5457,21 +5491,23 @@ static int ata_port_runtime_idle(struct device *dev)
 
 static int ata_port_runtime_suspend(struct device *dev)
 {
-	return ata_port_suspend_common(dev, PMSG_AUTO_SUSPEND);
+	ata_port_suspend(to_ata_port(dev), PMSG_AUTO_SUSPEND);
+	return 0;
 }
 
 static int ata_port_runtime_resume(struct device *dev)
 {
-	return ata_port_resume_common(dev, PMSG_AUTO_RESUME);
+	ata_port_resume(to_ata_port(dev), PMSG_AUTO_RESUME);
+	return 0;
 }
 
 static const struct dev_pm_ops ata_port_pm_ops = {
-	.suspend = ata_port_suspend,
-	.resume = ata_port_resume,
-	.freeze = ata_port_do_freeze,
-	.thaw = ata_port_resume,
-	.poweroff = ata_port_poweroff,
-	.restore = ata_port_resume,
+	.suspend = ata_port_pm_suspend,
+	.resume = ata_port_pm_resume,
+	.freeze = ata_port_pm_freeze,
+	.thaw = ata_port_pm_resume,
+	.poweroff = ata_port_pm_poweroff,
+	.restore = ata_port_pm_resume,
 
 	.runtime_suspend = ata_port_runtime_suspend,
 	.runtime_resume = ata_port_runtime_resume,
@@ -5483,18 +5519,17 @@ static const struct dev_pm_ops ata_port_pm_ops = {
  * level. sas suspend/resume is async to allow parallel port recovery
  * since sas has multiple ata_port instances per Scsi_Host.
  */
-int ata_sas_port_async_suspend(struct ata_port *ap, int *async)
+void ata_sas_port_suspend(struct ata_port *ap)
 {
-	return __ata_port_suspend_common(ap, PMSG_SUSPEND, async);
+	ata_port_suspend_async(ap, PMSG_SUSPEND);
 }
-EXPORT_SYMBOL_GPL(ata_sas_port_async_suspend);
+EXPORT_SYMBOL_GPL(ata_sas_port_suspend);
 
-int ata_sas_port_async_resume(struct ata_port *ap, int *async)
+void ata_sas_port_resume(struct ata_port *ap)
 {
-	return __ata_port_resume_common(ap, PMSG_RESUME, async);
+	ata_port_resume_async(ap, PMSG_RESUME);
 }
-EXPORT_SYMBOL_GPL(ata_sas_port_async_resume);
-
+EXPORT_SYMBOL_GPL(ata_sas_port_resume);
 
 /**
  *	ata_host_suspend - suspend host
@@ -6279,6 +6314,8 @@ int ata_host_activate(struct ata_host *host, int irq,
 static void ata_port_detach(struct ata_port *ap)
 {
 	unsigned long flags;
+	struct ata_link *link;
+	struct ata_device *dev;
 
 	if (!ap->ops->error_handler)
 		goto skip_eh;
@@ -6298,15 +6335,21 @@ static void ata_port_detach(struct ata_port *ap)
 	cancel_delayed_work_sync(&ap->hotplug_task);
 
  skip_eh:
+	/* clean up zpodd on port removal */
+	ata_for_each_link(link, ap, HOST_FIRST) {
+		ata_for_each_dev(dev, link, ALL) {
+			if (zpodd_dev_enabled(dev))
+				zpodd_exit(dev);
+		}
+	}
 	if (ap->pmp_link) {
 		int i;
 		for (i = 0; i < SATA_PMP_MAX_PORTS; i++)
 			ata_tlink_delete(&ap->pmp_link[i]);
 	}
-	ata_tport_delete(ap);
-
 	/* remove the associated SCSI host */
 	scsi_remove_host(ap->scsi_host);
+	ata_tport_delete(ap);
 }
 
 /**
@@ -6519,6 +6562,7 @@ static int __init ata_parse_force_one(char **cur,
 		{ "norst",	.lflags		= ATA_LFLAG_NO_HRST | ATA_LFLAG_NO_SRST },
 		{ "rstonce",	.lflags		= ATA_LFLAG_RST_ONCE },
 		{ "atapi_dmadir", .horkage_on	= ATA_HORKAGE_ATAPI_DMADIR },
+		{ "disable",	.horkage_on	= ATA_HORKAGE_DISABLE },
 	};
 	char *start = *cur, *p = *cur;
 	char *id, *val, *endp;

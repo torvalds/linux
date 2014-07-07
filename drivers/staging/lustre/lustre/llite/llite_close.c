@@ -159,7 +159,7 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		}
 		if (flags & LLIF_DONE_WRITING) {
 			/* Some pages are still dirty, it is early to send
-			 * DONE_WRITE. Wait untill all pages will be flushed
+			 * DONE_WRITE. Wait until all pages will be flushed
 			 * and try DONE_WRITE again later. */
 			LASSERT(!(lli->lli_flags & LLIF_DONE_WRITING));
 			lli->lli_flags |= LLIF_DONE_WRITING;
@@ -348,7 +348,7 @@ static int ll_close_thread(void *arg)
 			break;
 
 		inode = ll_info2i(lli);
-		CDEBUG(D_INFO, "done_writting for inode %lu/%u\n",
+		CDEBUG(D_INFO, "done_writing for inode %lu/%u\n",
 		       inode->i_ino, inode->i_generation);
 		ll_done_writing(inode);
 		iput(inode);

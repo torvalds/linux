@@ -455,8 +455,8 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	priv->dai_fmt = (unsigned int) -1;
 	platform_set_drvdata(pdev, priv);
 
-	return snd_soc_register_component(&pdev->dev, &mmp_sspa_component,
-					  &mmp_sspa_dai, 1);
+	return devm_snd_soc_register_component(&pdev->dev, &mmp_sspa_component,
+					       &mmp_sspa_dai, 1);
 }
 
 static int asoc_mmp_sspa_remove(struct platform_device *pdev)
@@ -466,7 +466,6 @@ static int asoc_mmp_sspa_remove(struct platform_device *pdev)
 	clk_disable(priv->audio_clk);
 	clk_put(priv->audio_clk);
 	clk_put(priv->sysclk);
-	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 

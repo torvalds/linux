@@ -24,11 +24,12 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/swab.h>
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
 #include <linux/wl12xx.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 
 #include "wlcore.h"
 #include "wl12xx_80211.h"
@@ -110,18 +111,16 @@ static void wl12xx_spi_reset(struct device *child)
 static void wl12xx_spi_init(struct device *child)
 {
 	struct wl12xx_spi_glue *glue = dev_get_drvdata(child->parent);
-	u8 crc[WSPI_INIT_CMD_CRC_LEN], *cmd;
 	struct spi_transfer t;
 	struct spi_message m;
+	u8 *cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
 
-	cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
 	if (!cmd) {
 		dev_err(child->parent,
 			"could not allocate cmd for spi init\n");
 		return;
 	}
 
-	memset(crc, 0, sizeof(crc));
 	memset(&t, 0, sizeof(t));
 	spi_message_init(&m);
 
@@ -129,30 +128,29 @@ static void wl12xx_spi_init(struct device *child)
 	 * Set WSPI_INIT_COMMAND
 	 * the data is being send from the MSB to LSB
 	 */
-	cmd[2] = 0xff;
-	cmd[3] = 0xff;
-	cmd[1] = WSPI_INIT_CMD_START | WSPI_INIT_CMD_TX;
-	cmd[0] = 0;
-	cmd[7] = 0;
-	cmd[6] |= HW_ACCESS_WSPI_INIT_CMD_MASK << 3;
-	cmd[6] |= HW_ACCESS_WSPI_FIXED_BUSY_LEN & WSPI_INIT_CMD_FIXEDBUSY_LEN;
+	cmd[0] = 0xff;
+	cmd[1] = 0xff;
+	cmd[2] = WSPI_INIT_CMD_START | WSPI_INIT_CMD_TX;
+	cmd[3] = 0;
+	cmd[4] = 0;
+	cmd[5] = HW_ACCESS_WSPI_INIT_CMD_MASK << 3;
+	cmd[5] |= HW_ACCESS_WSPI_FIXED_BUSY_LEN & WSPI_INIT_CMD_FIXEDBUSY_LEN;
 
-	if (HW_ACCESS_WSPI_FIXED_BUSY_LEN == 0)
-		cmd[5] |=  WSPI_INIT_CMD_DIS_FIXEDBUSY;
-	else
-		cmd[5] |= WSPI_INIT_CMD_EN_FIXEDBUSY;
-
-	cmd[5] |= WSPI_INIT_CMD_IOD | WSPI_INIT_CMD_IP | WSPI_INIT_CMD_CS
+	cmd[6] = WSPI_INIT_CMD_IOD | WSPI_INIT_CMD_IP | WSPI_INIT_CMD_CS
 		| WSPI_INIT_CMD_WSPI | WSPI_INIT_CMD_WS;
 
-	crc[0] = cmd[1];
-	crc[1] = cmd[0];
-	crc[2] = cmd[7];
-	crc[3] = cmd[6];
-	crc[4] = cmd[5];
+	if (HW_ACCESS_WSPI_FIXED_BUSY_LEN == 0)
+		cmd[6] |= WSPI_INIT_CMD_DIS_FIXEDBUSY;
+	else
+		cmd[6] |= WSPI_INIT_CMD_EN_FIXEDBUSY;
 
-	cmd[4] |= crc7(0, crc, WSPI_INIT_CMD_CRC_LEN) << 1;
-	cmd[4] |= WSPI_INIT_CMD_END;
+	cmd[7] = crc7_be(0, cmd+2, WSPI_INIT_CMD_CRC_LEN) | WSPI_INIT_CMD_END;
+	/*
+	 * The above is the logical order; it must actually be stored
+	 * in the buffer byte-swapped.
+	 */
+	__swab32s((u32 *)cmd);
+	__swab32s((u32 *)cmd+1);
 
 	t.tx_buf = cmd;
 	t.len = WSPI_INIT_CMD_LEN;
@@ -211,7 +209,7 @@ static int __must_check wl12xx_spi_raw_read(struct device *child, int addr,
 	u32 chunk_len;
 
 	while (len > 0) {
-		chunk_len = min((size_t)WSPI_MAX_CHUNK_SIZE, len);
+		chunk_len = min_t(size_t, WSPI_MAX_CHUNK_SIZE, len);
 
 		cmd = &wl->buffer_cmd;
 		busy_buf = wl->buffer_busyword;
@@ -285,7 +283,7 @@ static int __must_check wl12xx_spi_raw_write(struct device *child, int addr,
 	cmd = &commands[0];
 	i = 0;
 	while (len > 0) {
-		chunk_len = min((size_t)WSPI_MAX_CHUNK_SIZE, len);
+		chunk_len = min_t(size_t, WSPI_MAX_CHUNK_SIZE, len);
 
 		*cmd = 0;
 		*cmd |= WSPI_CMD_WRITE;
@@ -327,27 +325,25 @@ static struct wl1271_if_operations spi_ops = {
 static int wl1271_probe(struct spi_device *spi)
 {
 	struct wl12xx_spi_glue *glue;
-	struct wlcore_platdev_data *pdev_data;
+	struct wlcore_platdev_data pdev_data;
 	struct resource res[1];
 	int ret = -ENOMEM;
 
-	pdev_data = kzalloc(sizeof(*pdev_data), GFP_KERNEL);
-	if (!pdev_data)
-		goto out;
+	memset(&pdev_data, 0x00, sizeof(pdev_data));
 
-	pdev_data->pdata = spi->dev.platform_data;
-	if (!pdev_data->pdata) {
+	pdev_data.pdata = dev_get_platdata(&spi->dev);
+	if (!pdev_data.pdata) {
 		dev_err(&spi->dev, "no platform data\n");
 		ret = -ENODEV;
-		goto out_free_pdev_data;
+		goto out;
 	}
 
-	pdev_data->if_ops = &spi_ops;
+	pdev_data.if_ops = &spi_ops;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&spi->dev, "can't allocate glue\n");
-		goto out_free_pdev_data;
+		goto out;
 	}
 
 	glue->dev = &spi->dev;
@@ -385,8 +381,8 @@ static int wl1271_probe(struct spi_device *spi)
 		goto out_dev_put;
 	}
 
-	ret = platform_device_add_data(glue->core, pdev_data,
-				       sizeof(*pdev_data));
+	ret = platform_device_add_data(glue->core, &pdev_data,
+				       sizeof(pdev_data));
 	if (ret) {
 		dev_err(glue->dev, "can't add platform data\n");
 		goto out_dev_put;
@@ -405,9 +401,6 @@ out_dev_put:
 
 out_free_glue:
 	kfree(glue);
-
-out_free_pdev_data:
-	kfree(pdev_data);
 
 out:
 	return ret;

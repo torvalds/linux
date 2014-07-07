@@ -78,9 +78,40 @@ struct clk_notifier_data {
 	unsigned long		new_rate;
 };
 
+/**
+ * clk_notifier_register: register a clock rate-change notifier callback
+ * @clk: clock whose rate we are interested in
+ * @nb: notifier block with callback function pointer
+ *
+ * ProTip: debugging across notifier chains can be frustrating. Make sure that
+ * your notifier callback function prints a nice big warning in case of
+ * failure.
+ */
 int clk_notifier_register(struct clk *clk, struct notifier_block *nb);
 
+/**
+ * clk_notifier_unregister: unregister a clock rate-change notifier callback
+ * @clk: clock whose rate we are no longer interested in
+ * @nb: notifier block which will be unregistered
+ */
 int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
+
+/**
+ * clk_get_accuracy - obtain the clock accuracy in ppb (parts per billion)
+ *		      for a clock source.
+ * @clk: clock source
+ *
+ * This gets the clock source accuracy expressed in ppb.
+ * A perfect clock returns 0.
+ */
+long clk_get_accuracy(struct clk *clk);
+
+#else
+
+static inline long clk_get_accuracy(struct clk *clk)
+{
+	return -ENOTSUPP;
+}
 
 #endif
 

@@ -14,6 +14,32 @@
 	compatible = "ti,omap2420", "ti,omap2";
 
 	ocp {
+		prcm: prcm@48008000 {
+			compatible = "ti,omap2-prcm";
+			reg = <0x48008000 0x1000>;
+
+			prcm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prcm_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@48000000 {
+			compatible = "ti,omap2-scrm";
+			reg = <0x48000000 0x1000>;
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
+
 		counter32k: counter@48004000 {
 			compatible = "ti,omap-counter32k";
 			reg = <0x48004000 0x20>;
@@ -99,6 +125,7 @@
 			dmas = <&sdma 31>,
 			       <&sdma 32>;
 			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		mcbsp2: mcbsp@48076000 {
@@ -112,6 +139,24 @@
 			dmas = <&sdma 33>,
 			       <&sdma 34>;
 			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		msdi1: mmc@4809c000 {
+			compatible = "ti,omap2420-mmc";
+			ti,hwmods = "msdi1";
+			reg = <0x4809c000 0x80>;
+			interrupts = <83>;
+			dmas = <&sdma 61 &sdma 62>;
+			dma-names = "tx", "rx";
+		};
+
+		mailbox: mailbox@48094000 {
+			compatible = "ti,omap2-mailbox";
+			reg = <0x48094000 0x200>;
+			interrupts = <26>, <34>;
+			interrupt-names = "dsp", "iva";
+			ti,hwmods = "mailbox";
 		};
 
 		timer1: timer@48028000 {
@@ -121,5 +166,19 @@
 			ti,hwmods = "timer1";
 			ti,timer-alwon;
 		};
+
+		wd_timer2: wdt@48022000 {
+			compatible = "ti,omap2-wdt";
+			ti,hwmods = "wd_timer2";
+			reg = <0x48022000 0x80>;
+		};
 	};
+};
+
+&i2c1 {
+	compatible = "ti,omap2420-i2c";
+};
+
+&i2c2 {
+	compatible = "ti,omap2420-i2c";
 };

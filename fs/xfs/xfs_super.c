@@ -17,34 +17,26 @@
  */
 
 #include "xfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
-#include "xfs_log.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_inum.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_alloc.h"
-#include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
+#include "xfs_da_format.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_bmap.h"
-#include "xfs_rtalloc.h"
+#include "xfs_alloc.h"
 #include "xfs_error.h"
-#include "xfs_itable.h"
 #include "xfs_fsops.h"
-#include "xfs_attr.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
+#include "xfs_log.h"
 #include "xfs_log_priv.h"
-#include "xfs_trans_priv.h"
-#include "xfs_filestream.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2_format.h"
 #include "xfs_dir2.h"
 #include "xfs_extfree_item.h"
 #include "xfs_mru_cache.h"
@@ -52,6 +44,9 @@
 #include "xfs_icache.h"
 #include "xfs_trace.h"
 #include "xfs_icreate_item.h"
+#include "xfs_dinode.h"
+#include "xfs_filestream.h"
+#include "xfs_quota.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -770,20 +765,18 @@ xfs_open_devices(
 	 * Setup xfs_mount buffer target pointers
 	 */
 	error = ENOMEM;
-	mp->m_ddev_targp = xfs_alloc_buftarg(mp, ddev, 0, mp->m_fsname);
+	mp->m_ddev_targp = xfs_alloc_buftarg(mp, ddev);
 	if (!mp->m_ddev_targp)
 		goto out_close_rtdev;
 
 	if (rtdev) {
-		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev, 1,
-							mp->m_fsname);
+		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev);
 		if (!mp->m_rtdev_targp)
 			goto out_free_ddev_targ;
 	}
 
 	if (logdev && logdev != ddev) {
-		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev, 1,
-							mp->m_fsname);
+		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev);
 		if (!mp->m_logdev_targp)
 			goto out_free_rtdev_targ;
 	} else {
@@ -816,8 +809,7 @@ xfs_setup_devices(
 {
 	int			error;
 
-	error = xfs_setsize_buftarg(mp->m_ddev_targp, mp->m_sb.sb_blocksize,
-				    mp->m_sb.sb_sectsize);
+	error = xfs_setsize_buftarg(mp->m_ddev_targp, mp->m_sb.sb_sectsize);
 	if (error)
 		return error;
 
@@ -827,14 +819,12 @@ xfs_setup_devices(
 		if (xfs_sb_version_hassector(&mp->m_sb))
 			log_sector_size = mp->m_sb.sb_logsectsize;
 		error = xfs_setsize_buftarg(mp->m_logdev_targp,
-					    mp->m_sb.sb_blocksize,
 					    log_sector_size);
 		if (error)
 			return error;
 	}
 	if (mp->m_rtdev_targp) {
 		error = xfs_setsize_buftarg(mp->m_rtdev_targp,
-					    mp->m_sb.sb_blocksize,
 					    mp->m_sb.sb_sectsize);
 		if (error)
 			return error;
@@ -946,10 +936,6 @@ xfs_fs_destroy_inode(
 
 	XFS_STATS_INC(vn_reclaim);
 
-	/* bad inode, get out here ASAP */
-	if (is_bad_inode(inode))
-		goto out_reclaim;
-
 	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
 
 	/*
@@ -965,7 +951,6 @@ xfs_fs_destroy_inode(
 	 * this more efficiently than we can here, so simply let background
 	 * reclaim tear down all inodes.
 	 */
-out_reclaim:
 	xfs_inode_set_reclaim_tag(ip);
 }
 
@@ -1006,7 +991,7 @@ xfs_fs_evict_inode(
 
 	trace_xfs_evict_inode(ip);
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	XFS_STATS_INC(vn_rele);
 	XFS_STATS_INC(vn_remove);
@@ -1165,7 +1150,7 @@ xfs_restore_resvblks(struct xfs_mount *mp)
  * Note: xfs_log_quiesce() stops background log work - the callers must ensure
  * it is started again when appropriate.
  */
-void
+static void
 xfs_quiesce_attr(
 	struct xfs_mount	*mp)
 {
@@ -1207,6 +1192,7 @@ xfs_fs_remount(
 	char			*p;
 	int			error;
 
+	sync_filesystem(sb);
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
 
@@ -1246,7 +1232,7 @@ xfs_fs_remount(
 			 */
 #if 0
 			xfs_info(mp,
-		"mount option \"%s\" not supported for remount\n", p);
+		"mount option \"%s\" not supported for remount", p);
 			return -EINVAL;
 #else
 			break;
@@ -1442,11 +1428,11 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_fsname;
 
-	error = xfs_init_mount_workqueues(mp);
+	error = -xfs_init_mount_workqueues(mp);
 	if (error)
 		goto out_close_devices;
 
-	error = xfs_icsb_init_counters(mp);
+	error = -xfs_icsb_init_counters(mp);
 	if (error)
 		goto out_destroy_workqueues;
 
@@ -1489,10 +1475,6 @@ xfs_fs_fill_super(
 	root = igrab(VFS_I(mp->m_rootip));
 	if (!root) {
 		error = ENOENT;
-		goto out_unmount;
-	}
-	if (is_bad_inode(root)) {
-		error = EINVAL;
 		goto out_unmount;
 	}
 	sb->s_root = d_make_root(root);
@@ -1767,13 +1749,9 @@ init_xfs_fs(void)
 	if (error)
 		goto out_destroy_wq;
 
-	error = xfs_filestream_init();
-	if (error)
-		goto out_mru_cache_uninit;
-
 	error = xfs_buf_init();
 	if (error)
-		goto out_filestream_uninit;
+		goto out_mru_cache_uninit;
 
 	error = xfs_init_procfs();
 	if (error)
@@ -1800,8 +1778,6 @@ init_xfs_fs(void)
 	xfs_cleanup_procfs();
  out_buf_terminate:
 	xfs_buf_terminate();
- out_filestream_uninit:
-	xfs_filestream_uninit();
  out_mru_cache_uninit:
 	xfs_mru_cache_uninit();
  out_destroy_wq:
@@ -1820,7 +1796,6 @@ exit_xfs_fs(void)
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
 	xfs_buf_terminate();
-	xfs_filestream_uninit();
 	xfs_mru_cache_uninit();
 	xfs_destroy_workqueues();
 	xfs_destroy_zones();

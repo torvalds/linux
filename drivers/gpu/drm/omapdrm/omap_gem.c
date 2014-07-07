@@ -153,24 +153,24 @@ static struct {
 static void evict_entry(struct drm_gem_object *obj,
 		enum tiler_fmt fmt, struct usergart_entry *entry)
 {
-	if (obj->dev->dev_mapping) {
-		struct omap_gem_object *omap_obj = to_omap_bo(obj);
-		int n = usergart[fmt].height;
-		size_t size = PAGE_SIZE * n;
-		loff_t off = mmap_offset(obj) +
-				(entry->obj_pgoff << PAGE_SHIFT);
-		const int m = 1 + ((omap_obj->width << fmt) / PAGE_SIZE);
-		if (m > 1) {
-			int i;
-			/* if stride > than PAGE_SIZE then sparse mapping: */
-			for (i = n; i > 0; i--) {
-				unmap_mapping_range(obj->dev->dev_mapping,
-						off, PAGE_SIZE, 1);
-				off += PAGE_SIZE * m;
-			}
-		} else {
-			unmap_mapping_range(obj->dev->dev_mapping, off, size, 1);
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	int n = usergart[fmt].height;
+	size_t size = PAGE_SIZE * n;
+	loff_t off = mmap_offset(obj) +
+			(entry->obj_pgoff << PAGE_SHIFT);
+	const int m = 1 + ((omap_obj->width << fmt) / PAGE_SIZE);
+
+	if (m > 1) {
+		int i;
+		/* if stride > than PAGE_SIZE then sparse mapping: */
+		for (i = n; i > 0; i--) {
+			unmap_mapping_range(obj->dev->anon_inode->i_mapping,
+					    off, PAGE_SIZE, 1);
+			off += PAGE_SIZE * m;
 		}
+	} else {
+		unmap_mapping_range(obj->dev->anon_inode->i_mapping,
+				    off, size, 1);
 	}
 
 	entry->obj = NULL;
@@ -980,11 +980,8 @@ int omap_gem_resume(struct device *dev)
 #ifdef CONFIG_DEBUG_FS
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
-	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	uint64_t off;
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	off = drm_vma_node_start(&obj->vma_node);
 
@@ -1050,10 +1047,10 @@ static inline bool is_waiting(struct omap_gem_sync_waiter *waiter)
 {
 	struct omap_gem_object *omap_obj = waiter->omap_obj;
 	if ((waiter->op & OMAP_GEM_READ) &&
-			(omap_obj->sync->read_complete < waiter->read_target))
+			(omap_obj->sync->write_complete < waiter->write_target))
 		return true;
 	if ((waiter->op & OMAP_GEM_WRITE) &&
-			(omap_obj->sync->write_complete < waiter->write_target))
+			(omap_obj->sync->read_complete < waiter->read_target))
 		return true;
 	return false;
 }
@@ -1229,6 +1226,8 @@ int omap_gem_op_async(struct drm_gem_object *obj, enum omap_gem_op op,
 		}
 
 		spin_unlock(&sync_lock);
+
+		kfree(waiter);
 	}
 
 	/* no waiting.. */
@@ -1272,11 +1271,6 @@ int omap_gem_set_sync_object(struct drm_gem_object *obj, void *syncobj)
 unlock:
 	spin_unlock(&sync_lock);
 	return ret;
-}
-
-int omap_gem_init_object(struct drm_gem_object *obj)
-{
-	return -EINVAL;          /* unused */
 }
 
 /* don't call directly.. called from GEM core when it is time to actually

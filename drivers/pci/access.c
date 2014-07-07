@@ -148,7 +148,7 @@ static noinline void pci_wait_cfg(struct pci_dev *dev)
 int pci_user_read_config_##size						\
 	(struct pci_dev *dev, int pos, type *val)			\
 {									\
-	int ret = 0;							\
+	int ret = PCIBIOS_SUCCESSFUL;					\
 	u32 data = -1;							\
 	if (PCI_##size##_BAD)						\
 		return -EINVAL;						\
@@ -159,9 +159,7 @@ int pci_user_read_config_##size						\
 					pos, sizeof(type), &data);	\
 	raw_spin_unlock_irq(&pci_lock);				\
 	*val = (type)data;						\
-	if (ret > 0)							\
-		ret = -EINVAL;						\
-	return ret;							\
+	return pcibios_err_to_errno(ret);				\
 }									\
 EXPORT_SYMBOL_GPL(pci_user_read_config_##size);
 
@@ -170,7 +168,7 @@ EXPORT_SYMBOL_GPL(pci_user_read_config_##size);
 int pci_user_write_config_##size					\
 	(struct pci_dev *dev, int pos, type val)			\
 {									\
-	int ret = -EIO;							\
+	int ret = PCIBIOS_SUCCESSFUL;					\
 	if (PCI_##size##_BAD)						\
 		return -EINVAL;						\
 	raw_spin_lock_irq(&pci_lock);				\
@@ -179,9 +177,7 @@ int pci_user_write_config_##size					\
 	ret = dev->bus->ops->write(dev->bus, dev->devfn,		\
 					pos, sizeof(type), val);	\
 	raw_spin_unlock_irq(&pci_lock);				\
-	if (ret > 0)							\
-		ret = -EINVAL;						\
-	return ret;							\
+	return pcibios_err_to_errno(ret);				\
 }									\
 EXPORT_SYMBOL_GPL(pci_user_write_config_##size);
 
@@ -235,10 +231,7 @@ static int pci_vpd_pci22_wait(struct pci_dev *dev)
 		}
 
 		if (time_after(jiffies, timeout)) {
-			dev_printk(KERN_DEBUG, &dev->dev,
-				   "vpd r/w failed.  This is likely a firmware "
-				   "bug on this device.  Contact the card "
-				   "vendor for a firmware update.");
+			dev_printk(KERN_DEBUG, &dev->dev, "vpd r/w failed.  This is likely a firmware bug on this device.  Contact the card vendor for a firmware update\n");
 			return -ETIMEDOUT;
 		}
 		if (fatal_signal_pending(current))
@@ -379,30 +372,6 @@ int pci_vpd_pci22_init(struct pci_dev *dev)
 	dev->vpd = &vpd->base;
 	return 0;
 }
-
-/**
- * pci_vpd_truncate - Set available Vital Product Data size
- * @dev:	pci device struct
- * @size:	available memory in bytes
- *
- * Adjust size of available VPD area.
- */
-int pci_vpd_truncate(struct pci_dev *dev, size_t size)
-{
-	if (!dev->vpd)
-		return -EINVAL;
-
-	/* limited by the access method */
-	if (size > dev->vpd->len)
-		return -EINVAL;
-
-	dev->vpd->len = size;
-	if (dev->vpd->attr)
-		dev->vpd->attr->size = size;
-
-	return 0;
-}
-EXPORT_SYMBOL(pci_vpd_truncate);
 
 /**
  * pci_cfg_access_lock - Lock PCI config reads/writes

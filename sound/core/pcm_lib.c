@@ -174,7 +174,7 @@ static void xrun(struct snd_pcm_substream *substream)
 	if (xrun_debug(substream, XRUN_DEBUG_BASIC)) {
 		char name[16];
 		snd_pcm_debug_name(substream, name, sizeof(name));
-		snd_printd(KERN_DEBUG "XRUN: %s\n", name);
+		pcm_warn(substream->pcm, "XRUN: %s\n", name);
 		dump_stack_on_xrun(substream);
 	}
 }
@@ -184,9 +184,7 @@ static void xrun(struct snd_pcm_substream *substream)
 	do {								\
 		if (xrun_debug(substream, XRUN_DEBUG_BASIC)) {		\
 			xrun_log_show(substream);			\
-			if (snd_printd_ratelimit()) {			\
-				snd_printd("PCM: " fmt, ##args);	\
-			}						\
+			pr_err_ratelimited("ALSA: PCM: " fmt, ##args);	\
 			dump_stack_on_xrun(substream);			\
 		}							\
 	} while (0)
@@ -253,7 +251,7 @@ static void xrun_log_show(struct snd_pcm_substream *substream)
 		entry = &log->entries[idx];
 		if (entry->period_size == 0)
 			break;
-		snd_printd("hwptr log: %s: %sj=%lu, pos=%ld/%ld/%ld, "
+		pr_info("hwptr log: %s: %sj=%lu, pos=%ld/%ld/%ld, "
 			   "hwptr=%ld/%ld\n",
 			   name, entry->in_interrupt ? "[Q] " : "",
 			   entry->jiffies,
@@ -342,14 +340,14 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		return -EPIPE;
 	}
 	if (pos >= runtime->buffer_size) {
-		if (snd_printd_ratelimit()) {
+		if (printk_ratelimit()) {
 			char name[16];
 			snd_pcm_debug_name(substream, name, sizeof(name));
 			xrun_log_show(substream);
-			snd_printd(KERN_ERR  "BUG: %s, pos = %ld, "
-				   "buffer size = %ld, period size = %ld\n",
-				   name, pos, runtime->buffer_size,
-				   runtime->period_size);
+			pcm_err(substream->pcm,
+				"XRUN: %s, pos = %ld, buffer size = %ld, period size = %ld\n",
+				name, pos, runtime->buffer_size,
+				runtime->period_size);
 		}
 		pos = 0;
 	}
@@ -394,8 +392,8 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			XRUN_DEBUG_PERIODUPDATE : XRUN_DEBUG_HWPTRUPDATE)) {
 		char name[16];
 		snd_pcm_debug_name(substream, name, sizeof(name));
-		snd_printd("%s_update: %s: pos=%u/%u/%u, "
-			   "hwptr=%ld/%ld/%ld/%ld\n",
+		pcm_dbg(substream->pcm,
+			"%s_update: %s: pos=%u/%u/%u, hwptr=%ld/%ld/%ld/%ld\n",
 			   in_interrupt ? "period" : "hwptr",
 			   name,
 			   (unsigned int)pos,
@@ -1242,6 +1240,7 @@ int snd_pcm_hw_constraint_mask64(struct snd_pcm_runtime *runtime, snd_pcm_hw_par
 		return -EINVAL;
 	return 0;
 }
+EXPORT_SYMBOL(snd_pcm_hw_constraint_mask64);
 
 /**
  * snd_pcm_hw_constraint_integer - apply an integer constraint to an interval
@@ -1937,10 +1936,13 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 		case SNDRV_PCM_STATE_DISCONNECTED:
 			err = -EBADFD;
 			goto _endloop;
+		case SNDRV_PCM_STATE_PAUSED:
+			continue;
 		}
 		if (!tout) {
-			snd_printd("%s write error (DMA or IRQ trouble?)\n",
-				   is_playback ? "playback" : "capture");
+			pcm_dbg(substream->pcm,
+				"%s write error (DMA or IRQ trouble?)\n",
+				is_playback ? "playback" : "capture");
 			err = -EIO;
 			break;
 		}

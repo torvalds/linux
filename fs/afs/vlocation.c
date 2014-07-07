@@ -308,7 +308,8 @@ static int afs_vlocation_fill_in_record(struct afs_vlocation *vl,
 	/* see if we have an in-cache copy (will set vl->valid if there is) */
 #ifdef CONFIG_AFS_FSCACHE
 	vl->cache = fscache_acquire_cookie(vl->cell->cache,
-					   &afs_vlocation_cache_index_def, vl);
+					   &afs_vlocation_cache_index_def, vl,
+					   true);
 #endif
 
 	if (vl->valid) {

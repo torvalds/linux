@@ -21,8 +21,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -68,6 +67,7 @@ struct nci_ops {
 	int (*open)(struct nci_dev *ndev);
 	int (*close)(struct nci_dev *ndev);
 	int (*send)(struct nci_dev *ndev, struct sk_buff *skb);
+	int (*setup)(struct nci_dev *ndev);
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
@@ -154,6 +154,7 @@ void nci_free_device(struct nci_dev *ndev);
 int nci_register_device(struct nci_dev *ndev);
 void nci_unregister_device(struct nci_dev *ndev);
 int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb);
+int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val);
 
 static inline struct sk_buff *nci_skb_alloc(struct nci_dev *ndev,
 					    unsigned int len,
@@ -207,19 +208,9 @@ int nci_to_errno(__u8 code);
 #define NCI_SPI_CRC_ENABLED	0x01
 
 /* ----- NCI SPI structures ----- */
-struct nci_spi_dev;
-
-struct nci_spi_ops {
-	int (*open)(struct nci_spi_dev *ndev);
-	int (*close)(struct nci_spi_dev *ndev);
-	void (*assert_int)(struct nci_spi_dev *ndev);
-	void (*deassert_int)(struct nci_spi_dev *ndev);
-};
-
-struct nci_spi_dev {
-	struct nci_dev		*nci_dev;
+struct nci_spi {
+	struct nci_dev		*ndev;
 	struct spi_device	*spi;
-	struct nci_spi_ops	*ops;
 
 	unsigned int		xfer_udelay;	/* microseconds delay between
 						  transactions */
@@ -227,31 +218,15 @@ struct nci_spi_dev {
 
 	struct completion	req_completion;
 	u8			req_result;
-
-	void			*driver_data;
 };
 
-/* ----- NCI SPI Devices ----- */
-struct nci_spi_dev *nci_spi_allocate_device(struct spi_device *spi,
-						struct nci_spi_ops *ops,
-						u32 supported_protocols,
-						u32 supported_se,
-						u8 acknowledge_mode,
-						unsigned int delay);
-void nci_spi_free_device(struct nci_spi_dev *ndev);
-int nci_spi_register_device(struct nci_spi_dev *ndev);
-void nci_spi_unregister_device(struct nci_spi_dev *ndev);
-int nci_spi_recv_frame(struct nci_spi_dev *ndev);
-
-static inline void nci_spi_set_drvdata(struct nci_spi_dev *ndev,
-					    void *data)
-{
-	ndev->driver_data = data;
-}
-
-static inline void *nci_spi_get_drvdata(struct nci_spi_dev *ndev)
-{
-	return ndev->driver_data;
-}
+/* ----- NCI SPI ----- */
+struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
+				     u8 acknowledge_mode, unsigned int delay,
+				     struct nci_dev *ndev);
+int nci_spi_send(struct nci_spi *nspi,
+		 struct completion *write_handshake_completion,
+		 struct sk_buff *skb);
+struct sk_buff *nci_spi_read(struct nci_spi *nspi);
 
 #endif /* __NCI_CORE_H */

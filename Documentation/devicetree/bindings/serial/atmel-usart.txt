@@ -6,10 +6,16 @@ Required properties:
   additional mode or an USART new feature.
 - reg: Should contain registers location and length
 - interrupts: Should contain interrupt
+- clock-names: tuple listing input clock names.
+	Required elements: "usart"
+- clocks: phandles to input clocks.
 
 Optional properties:
 - atmel,use-dma-rx: use of PDC or DMA for receiving data
 - atmel,use-dma-tx: use of PDC or DMA for transmitting data
+- {rts,cts,dtr,dsr,rng,dcd}-gpios: specify a GPIO for RTS/CTS/DTR/DSR/RI/DCD line respectively.
+  It will use specified PIO instead of the peripheral function pin for the USART feature.
+  If unsure, don't specify this property.
 - add dma bindings for dma transfer:
 	- dmas: DMA specifier, consisting of a phandle to DMA controller node,
 		memory peripheral interface and USART DMA channel ID, FIFO configuration.
@@ -26,8 +32,16 @@ Example:
 		compatible = "atmel,at91sam9260-usart";
 		reg = <0xfff8c000 0x4000>;
 		interrupts = <7>;
+		clocks = <&usart0_clk>;
+		clock-names = "usart";
 		atmel,use-dma-rx;
 		atmel,use-dma-tx;
+		rts-gpios = <&pioD 15 GPIO_ACTIVE_LOW>;
+		cts-gpios = <&pioD 16 GPIO_ACTIVE_LOW>;
+		dtr-gpios = <&pioD 17 GPIO_ACTIVE_LOW>;
+		dsr-gpios = <&pioD 18 GPIO_ACTIVE_LOW>;
+		dcd-gpios = <&pioD 20 GPIO_ACTIVE_LOW>;
+		rng-gpios = <&pioD 19 GPIO_ACTIVE_LOW>;
 	};
 
 - use DMA:
@@ -35,6 +49,8 @@ Example:
 		compatible = "atmel,at91sam9260-usart";
 		reg = <0xf001c000 0x100>;
 		interrupts = <12 4 5>;
+		clocks = <&usart0_clk>;
+		clock-names = "usart";
 		atmel,use-dma-rx;
 		atmel,use-dma-tx;
 		dmas = <&dma0 2 0x3>,

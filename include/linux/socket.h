@@ -45,13 +45,13 @@ struct linger {
  */
  
 struct msghdr {
-	void	*	msg_name;	/* Socket name			*/
-	int		msg_namelen;	/* Length of name		*/
-	struct iovec *	msg_iov;	/* Data blocks			*/
-	__kernel_size_t	msg_iovlen;	/* Number of blocks		*/
-	void 	*	msg_control;	/* Per protocol magic (eg BSD file descriptor passing) */
-	__kernel_size_t	msg_controllen;	/* Length of cmsg list */
-	unsigned int	msg_flags;
+	void		*msg_name;	/* ptr to socket address structure */
+	int		msg_namelen;	/* size of socket address structure */
+	struct iovec	*msg_iov;	/* scatter/gather array */
+	__kernel_size_t	msg_iovlen;	/* # elements in msg_iov */
+	void		*msg_control;	/* ancillary data */
+	__kernel_size_t	msg_controllen;	/* ancillary data buffer length */
+	unsigned int	msg_flags;	/* flags on received message */
 };
 
 /* For recvmmsg/sendmmsg */
@@ -305,10 +305,6 @@ struct ucred {
 /* IPX options */
 #define IPX_TYPE	1
 
-extern void cred_to_ucred(struct pid *pid, const struct cred *cred, struct ucred *ucred);
-
-extern int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
-			       int offset, int len);
 extern int csum_partial_copy_fromiovecend(unsigned char *kdata, 
 					  struct iovec *iov, 
 					  int offset, 
@@ -317,8 +313,6 @@ extern unsigned long iov_pages(const struct iovec *iov, int offset,
 			       unsigned long nr_segs);
 
 extern int verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr_storage *address, int mode);
-extern int memcpy_toiovecend(const struct iovec *v, unsigned char *kdata,
-			     int offset, int len);
 extern int move_addr_to_kernel(void __user *uaddr, int ulen, struct sockaddr_storage *kaddr);
 extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
 

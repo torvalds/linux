@@ -47,8 +47,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	 * up /proc/net/{tcp,tcp6}. Also, a userland program may remember a
 	 * port number and its peer IP address.
 	 */
-	out += sprintf(out, "prt sta spd bus dev socket           "
-		       "local_busid\n");
+	out += sprintf(out,
+		       "prt sta spd bus dev socket           local_busid\n");
 
 	for (i = 0; i < VHCI_NPORTS; i++) {
 		struct vhci_device *vdev = port_to_vdev(i);
@@ -114,7 +114,8 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 	int err;
 	__u32 rhport = 0;
 
-	sscanf(buf, "%u", &rhport);
+	if (sscanf(buf, "%u", &rhport) != 1)
+		return -EINVAL;
 
 	/* check rhport */
 	if (rhport >= VHCI_NPORTS) {
@@ -149,7 +150,8 @@ static int valid_args(__u32 rhport, enum usb_device_speed speed)
 	case USB_SPEED_WIRELESS:
 		break;
 	default:
-		pr_err("speed %d\n", speed);
+		pr_err("Failed attach request for unsupported USB speed: %s\n",
+			usb_speed_string(speed));
 		return -EINVAL;
 	}
 
@@ -174,6 +176,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	struct socket *socket;
 	int sockfd = 0;
 	__u32 rhport = 0, devid = 0, speed = 0;
+	int err;
 
 	/*
 	 * @rhport: port number of vhci_hcd
@@ -181,7 +184,8 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	 * @devid: unique device identifier in a remote host
 	 * @speed: usb device speed in a remote host
 	 */
-	sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed);
+	if (sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed) != 4)
+		return -EINVAL;
 
 	usbip_dbg_vhci_sysfs("rhport(%u) sockfd(%u) devid(%u) speed(%u)\n",
 			     rhport, sockfd, devid, speed);
@@ -191,8 +195,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	/* Extract socket from fd. */
-	/* The correct way to clean this up is to fput(socket->file). */
-	socket = sockfd_to_socket(sockfd);
+	socket = sockfd_lookup(sockfd, &err);
 	if (!socket)
 		return -EINVAL;
 
@@ -208,14 +211,15 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		spin_unlock(&vdev->ud.lock);
 		spin_unlock(&the_controller->lock);
 
-		fput(socket->file);
+		sockfd_put(socket);
 
 		dev_err(dev, "port %d already used\n", rhport);
 		return -EINVAL;
 	}
 
-	dev_info(dev, "rhport(%u) sockfd(%d) devid(%u) speed(%u)\n",
-		 rhport, sockfd, devid, speed);
+	dev_info(dev,
+		 "rhport(%u) sockfd(%d) devid(%u) speed(%u) speed_str(%s)\n",
+		 rhport, sockfd, devid, speed, usb_speed_string(speed));
 
 	vdev->devid         = devid;
 	vdev->speed         = speed;

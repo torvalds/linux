@@ -239,7 +239,6 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-		break;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = 250000 / 1453; /* 25 C = 0x00 */
 		return IIO_VAL_INT;

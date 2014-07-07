@@ -63,12 +63,12 @@ struct mmc_ext_csd {
 	unsigned int            power_off_longtime;     /* Units: ms */
 	u8			power_off_notification;	/* state */
 	unsigned int		hs_max_dtr;
+	unsigned int		hs200_max_dtr;
 #define MMC_HIGH_26_MAX_DTR	26000000
 #define MMC_HIGH_52_MAX_DTR	52000000
 #define MMC_HIGH_DDR_MAX_DTR	52000000
 #define MMC_HS200_MAX_DTR	200000000
 	unsigned int		sectors;
-	unsigned int		card_type;
 	unsigned int		hc_erase_size;		/* In sectors */
 	unsigned int		hc_erase_timeout;	/* In milliseconds */
 	unsigned int		sec_trim_mult;	/* Secure trim multiplier  */
@@ -110,6 +110,7 @@ struct mmc_ext_csd {
 	u8			raw_pwr_cl_200_360;	/* 237 */
 	u8			raw_pwr_cl_ddr_52_195;	/* 238 */
 	u8			raw_pwr_cl_ddr_52_360;	/* 239 */
+	u8			raw_pwr_cl_ddr_200_360;	/* 253 */
 	u8			raw_bkops_status;	/* 246 */
 	u8			raw_sectors[4];		/* 212 - 4 bytes */
 
@@ -194,6 +195,7 @@ struct sdio_cis {
 };
 
 struct mmc_host;
+struct mmc_ios;
 struct sdio_func;
 struct sdio_func_tuple;
 
@@ -240,6 +242,7 @@ struct mmc_part {
 struct mmc_card {
 	struct mmc_host		*host;		/* the host this device belongs to */
 	struct device		dev;		/* the device */
+	u32			ocr;		/* the current OCR setting */
 	unsigned int		rca;		/* relative card address of device */
 	unsigned int		type;		/* card type */
 #define MMC_TYPE_MMC		0		/* MMC card */
@@ -249,14 +252,11 @@ struct mmc_card {
 	unsigned int		state;		/* (our) card state */
 #define MMC_STATE_PRESENT	(1<<0)		/* present in sysfs */
 #define MMC_STATE_READONLY	(1<<1)		/* card is read-only */
-#define MMC_STATE_HIGHSPEED	(1<<2)		/* card is in high speed mode */
-#define MMC_STATE_BLOCKADDR	(1<<3)		/* card uses block-addressing */
-#define MMC_STATE_HIGHSPEED_DDR (1<<4)		/* card is in high speed mode */
-#define MMC_STATE_ULTRAHIGHSPEED (1<<5)		/* card is in ultra high speed mode */
-#define MMC_CARD_SDXC		(1<<6)		/* card is SDXC */
-#define MMC_CARD_REMOVED	(1<<7)		/* card has been removed */
-#define MMC_STATE_HIGHSPEED_200	(1<<8)		/* card is in HS200 mode */
-#define MMC_STATE_DOING_BKOPS	(1<<10)		/* card is doing BKOPS */
+#define MMC_STATE_BLOCKADDR	(1<<2)		/* card uses block-addressing */
+#define MMC_CARD_SDXC		(1<<3)		/* card is SDXC */
+#define MMC_CARD_REMOVED	(1<<4)		/* card has been removed */
+#define MMC_STATE_DOING_BKOPS	(1<<5)		/* card is doing BKOPS */
+#define MMC_STATE_SUSPENDED	(1<<6)		/* card is suspended */
 	unsigned int		quirks; 	/* card quirks */
 #define MMC_QUIRK_LENIENT_FN0	(1<<0)		/* allow SDIO FN0 writes outside of the VS CCCR range */
 #define MMC_QUIRK_BLKSZ_FOR_BYTE_MODE (1<<1)	/* use func->cur_blksize */
@@ -269,9 +269,10 @@ struct mmc_card {
 #define MMC_QUIRK_INAND_CMD38	(1<<6)		/* iNAND devices have broken CMD38 */
 #define MMC_QUIRK_BLK_NO_CMD23	(1<<7)		/* Avoid CMD23 for regular multiblock */
 #define MMC_QUIRK_BROKEN_BYTE_MODE_512 (1<<8)	/* Avoid sending 512 bytes in */
+						/* byte mode */
 #define MMC_QUIRK_LONG_READ_TIME (1<<9)		/* Data read time > CSD says */
 #define MMC_QUIRK_SEC_ERASE_TRIM_BROKEN (1<<10)	/* Skip secure for erase/trim */
-						/* byte mode */
+#define MMC_QUIRK_BROKEN_IRQ_POLLING	(1<<11)	/* Polling SDIO_CCCR_INTx could create a fake interrupt */
 
 	unsigned int		erase_size;	/* erase size in sectors */
  	unsigned int		erase_shift;	/* if erase unit is power 2 */
@@ -298,6 +299,7 @@ struct mmc_card {
 	struct sdio_func_tuple	*tuples;	/* unknown common tuples */
 
 	unsigned int		sd_bus_speed;	/* Bus Speed Mode set for the card */
+	unsigned int		mmc_avail_type;	/* supported device type by both host and card */
 
 	struct dentry		*debugfs_root;
 	struct mmc_part	part[MMC_NUM_PHY_PARTITION]; /* physical partitions */
@@ -350,7 +352,7 @@ struct mmc_fixup {
 #define CID_OEMID_ANY ((unsigned short) -1)
 #define CID_NAME_ANY (NULL)
 
-#define END_FIXUP { 0 }
+#define END_FIXUP { NULL }
 
 #define _FIXUP_EXT(_name, _manfid, _oemid, _rev_start, _rev_end,	\
 		   _cis_vendor, _cis_device,				\
@@ -415,28 +417,21 @@ static inline void __maybe_unused remove_quirk(struct mmc_card *card, int data)
 
 #define mmc_card_present(c)	((c)->state & MMC_STATE_PRESENT)
 #define mmc_card_readonly(c)	((c)->state & MMC_STATE_READONLY)
-#define mmc_card_highspeed(c)	((c)->state & MMC_STATE_HIGHSPEED)
-#define mmc_card_hs200(c)	((c)->state & MMC_STATE_HIGHSPEED_200)
 #define mmc_card_blockaddr(c)	((c)->state & MMC_STATE_BLOCKADDR)
-#define mmc_card_ddr_mode(c)	((c)->state & MMC_STATE_HIGHSPEED_DDR)
-#define mmc_card_uhs(c)		((c)->state & MMC_STATE_ULTRAHIGHSPEED)
-#define mmc_sd_card_uhs(c)	((c)->state & MMC_STATE_ULTRAHIGHSPEED)
 #define mmc_card_ext_capacity(c) ((c)->state & MMC_CARD_SDXC)
 #define mmc_card_removed(c)	((c) && ((c)->state & MMC_CARD_REMOVED))
 #define mmc_card_doing_bkops(c)	((c)->state & MMC_STATE_DOING_BKOPS)
+#define mmc_card_suspended(c)	((c)->state & MMC_STATE_SUSPENDED)
 
 #define mmc_card_set_present(c)	((c)->state |= MMC_STATE_PRESENT)
 #define mmc_card_set_readonly(c) ((c)->state |= MMC_STATE_READONLY)
-#define mmc_card_set_highspeed(c) ((c)->state |= MMC_STATE_HIGHSPEED)
-#define mmc_card_set_hs200(c)	((c)->state |= MMC_STATE_HIGHSPEED_200)
 #define mmc_card_set_blockaddr(c) ((c)->state |= MMC_STATE_BLOCKADDR)
-#define mmc_card_set_ddr_mode(c) ((c)->state |= MMC_STATE_HIGHSPEED_DDR)
-#define mmc_card_set_uhs(c) ((c)->state |= MMC_STATE_ULTRAHIGHSPEED)
-#define mmc_sd_card_set_uhs(c) ((c)->state |= MMC_STATE_ULTRAHIGHSPEED)
 #define mmc_card_set_ext_capacity(c) ((c)->state |= MMC_CARD_SDXC)
 #define mmc_card_set_removed(c) ((c)->state |= MMC_CARD_REMOVED)
 #define mmc_card_set_doing_bkops(c)	((c)->state |= MMC_STATE_DOING_BKOPS)
 #define mmc_card_clr_doing_bkops(c)	((c)->state &= ~MMC_STATE_DOING_BKOPS)
+#define mmc_card_set_suspended(c) ((c)->state |= MMC_STATE_SUSPENDED)
+#define mmc_card_clr_suspended(c) ((c)->state &= ~MMC_STATE_SUSPENDED)
 
 /*
  * Quirk add/remove for MMC products.
@@ -500,6 +495,11 @@ static inline int mmc_card_broken_byte_mode_512(const struct mmc_card *c)
 static inline int mmc_card_long_read_time(const struct mmc_card *c)
 {
 	return c->quirks & MMC_QUIRK_LONG_READ_TIME;
+}
+
+static inline int mmc_card_broken_irq_polling(const struct mmc_card *c)
+{
+	return c->quirks & MMC_QUIRK_BROKEN_IRQ_POLLING;
 }
 
 #define mmc_card_name(c)	((c)->cid.prod_name)

@@ -275,17 +275,11 @@ DEFINE_GUEST_HANDLE_STRUCT(mmu_update);
  * NB. The fields are natural register size for this architecture.
  */
 struct multicall_entry {
-    unsigned long op;
-    long result;
-    unsigned long args[6];
+    xen_ulong_t op;
+    xen_long_t result;
+    xen_ulong_t args[6];
 };
 DEFINE_GUEST_HANDLE_STRUCT(multicall_entry);
-
-/*
- * Event channel endpoints per domain:
- *  1024 if a long is 32 bits; 4096 if a long is 64 bits.
- */
-#define NR_EVENT_CHANNELS (sizeof(xen_ulong_t) * sizeof(xen_ulong_t) * 64)
 
 struct vcpu_time_info {
 	/*

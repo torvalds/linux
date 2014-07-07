@@ -35,7 +35,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -257,7 +256,7 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     dev->netdev_ops = &fjn_netdev_ops;
     dev->watchdog_timeo = TX_TIMEOUT;
 
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+    dev->ethtool_ops = &netdev_ethtool_ops;
 
     return fmvj18x_config(link);
 } /* fmvj18x_attach */

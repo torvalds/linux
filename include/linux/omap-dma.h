@@ -1,23 +1,6 @@
-/*
- * OMAP DMA Engine support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
 #ifndef __LINUX_OMAP_DMA_H
 #define __LINUX_OMAP_DMA_H
-
-struct dma_chan;
-
-#if defined(CONFIG_DMA_OMAP) || defined(CONFIG_DMA_OMAP_MODULE)
-bool omap_dma_filter_fn(struct dma_chan *, void *);
-#else
-static inline bool omap_dma_filter_fn(struct dma_chan *c, void *d)
-{
-	return false;
-}
-#endif
+#include <linux/omap-dmaengine.h>
 
 /*
  *  Legacy OMAP DMA handling defines and functions
@@ -268,14 +251,27 @@ struct omap_dma_dev_attr {
 	u32 dev_caps;
 	u16 lch_count;
 	u16 chan_count;
-	struct omap_dma_lch *chan;
+};
+
+enum {
+	OMAP_DMA_REG_NONE,
+	OMAP_DMA_REG_16BIT,
+	OMAP_DMA_REG_2X16BIT,
+	OMAP_DMA_REG_32BIT,
+};
+
+struct omap_dma_reg {
+	u16	offset;
+	u8	stride;
+	u8	type;
 };
 
 /* System DMA platform data structure */
 struct omap_system_dma_plat_info {
+	const struct omap_dma_reg *reg_map;
+	unsigned channel_stride;
 	struct omap_dma_dev_attr *dma_attr;
 	u32 errata;
-	void (*disable_irq_lch)(int lch);
 	void (*show_dma_caps)(void);
 	void (*clear_lch_regs)(int lch);
 	void (*clear_dma)(int lch);
@@ -289,8 +285,12 @@ struct omap_system_dma_plat_info {
 #define dma_omap2plus()	0
 #endif
 #define dma_omap1()	(!dma_omap2plus())
-#define dma_omap15xx()	((dma_omap1() && (d->dev_caps & ENABLE_1510_MODE)))
-#define dma_omap16xx()	((dma_omap1() && (d->dev_caps & ENABLE_16XX_MODE)))
+#define __dma_omap15xx(d) (dma_omap1() && (d)->dev_caps & ENABLE_1510_MODE)
+#define __dma_omap16xx(d) (dma_omap1() && (d)->dev_caps & ENABLE_16XX_MODE)
+#define dma_omap15xx()	__dma_omap15xx(d)
+#define dma_omap16xx()	__dma_omap16xx(d)
+
+extern struct omap_system_dma_plat_info *omap_get_plat_info(void);
 
 extern void omap_set_dma_priority(int lch, int dst_port, int priority);
 extern int omap_request_dma(int dev_id, const char *dev_name,
@@ -376,7 +376,7 @@ extern int omap_modify_dma_chain_params(int chain_id,
 extern int omap_dma_chain_status(int chain_id);
 #endif
 
-#if defined(CONFIG_ARCH_OMAP1) && defined(CONFIG_FB_OMAP)
+#if defined(CONFIG_ARCH_OMAP1) && IS_ENABLED(CONFIG_FB_OMAP)
 #include <mach/lcd_dma.h>
 #else
 static inline int omap_lcd_dma_running(void)

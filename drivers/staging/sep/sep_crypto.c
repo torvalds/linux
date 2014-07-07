@@ -32,7 +32,6 @@
  */
 
 /* #define DEBUG */
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
@@ -94,6 +93,7 @@ static void sep_do_callback(struct work_struct *work)
 {
 	struct sep_work_struct *sep_work = container_of(work,
 		struct sep_work_struct, work);
+
 	if (sep_work != NULL) {
 		(sep_work->callback)(sep_work->data);
 		kfree(sep_work);
@@ -113,7 +113,7 @@ static void sep_do_callback(struct work_struct *work)
  *	on what operation is to be done
  */
 static int sep_submit_work(struct workqueue_struct *work_queue,
-	void(*funct)(void *),
+	void (*funct)(void *),
 	void *data)
 {
 	struct sep_work_struct *sep_work;
@@ -650,6 +650,7 @@ weak:
 static u32 sep_sg_nents(struct scatterlist *sg)
 {
 	u32 ct1 = 0;
+
 	while (sg) {
 		ct1 += 1;
 		sg = sg_next(sg);
@@ -667,6 +668,7 @@ static u32 sep_sg_nents(struct scatterlist *sg)
 static u32 sep_start_msg(struct this_task_ctx *ta_ctx)
 {
 	u32 *word_ptr;
+
 	ta_ctx->msg_len_words = 2;
 	ta_ctx->msgptr = ta_ctx->msg;
 	memset(ta_ctx->msg, 0, SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES);
@@ -741,6 +743,7 @@ static void sep_write_msg(struct this_task_ctx *ta_ctx, void *in_addr,
 {
 	u32 *word_ptr;
 	void *void_ptr;
+
 	void_ptr = ta_ctx->msgptr + *msg_offset;
 	word_ptr = (u32 *)void_ptr;
 	memcpy(void_ptr, in_addr, size);
@@ -749,6 +752,7 @@ static void sep_write_msg(struct this_task_ctx *ta_ctx, void *in_addr,
 	/* Do we need to manipulate endian? */
 	if (byte_array) {
 		u32 i;
+
 		for (i = 0; i < ((size + 3) / 4); i += 1)
 			*(word_ptr + i) = CHG_ENDIAN(*(word_ptr + i));
 	}
@@ -789,12 +793,14 @@ static void sep_read_msg(struct this_task_ctx *ta_ctx, void *in_addr,
 {
 	u32 *word_ptr;
 	void *void_ptr;
+
 	void_ptr = ta_ctx->msgptr + *msg_offset;
 	word_ptr = (u32 *)void_ptr;
 
 	/* Do we need to manipulate endian? */
 	if (byte_array) {
 		u32 i;
+
 		for (i = 0; i < ((size + 3) / 4); i += 1)
 			*(word_ptr + i) = CHG_ENDIAN(*(word_ptr + i));
 	}
@@ -866,6 +872,7 @@ static void sep_read_context(struct this_task_ctx *ta_ctx, u32 *msg_offset,
 	void *dst, u32 len)
 {
 	u32 max_length = ((len + 3) / sizeof(u32)) * sizeof(u32);
+
 	sep_read_msg(ta_ctx, dst, len, max_length, msg_offset, 0);
 }
 
@@ -885,6 +892,7 @@ static void sep_write_context(struct this_task_ctx *ta_ctx, u32 *msg_offset,
 	void *src, u32 len)
 {
 	u32 max_length = ((len + 3) / sizeof(u32)) * sizeof(u32);
+
 	sep_write_msg(ta_ctx, src, len, max_length, msg_offset, 0);
 }
 
@@ -1134,7 +1142,7 @@ static int sep_crypto_block_data(struct ablkcipher_request *req)
 
 	if (int_error < 0) {
 		dev_warn(&ta_ctx->sep_used->pdev->dev, "oddball page error\n");
-		return -ENOMEM;
+		return int_error;
 	} else if (int_error == 1) {
 		ta_ctx->src_sg = new_sg;
 		ta_ctx->src_sg_hold = new_sg;
@@ -1149,7 +1157,7 @@ static int sep_crypto_block_data(struct ablkcipher_request *req)
 	if (int_error < 0) {
 		dev_warn(&ta_ctx->sep_used->pdev->dev, "walk phys error %x\n",
 			int_error);
-		return -ENOMEM;
+		return int_error;
 	} else if (int_error == 1) {
 		ta_ctx->dst_sg = new_sg;
 		ta_ctx->dst_sg_hold = new_sg;
@@ -3894,6 +3902,7 @@ static struct crypto_alg crypto_algs[] = {
 int sep_crypto_setup(void)
 {
 	int err, i, j, k;
+
 	tasklet_init(&sep_dev->finish_tasklet, sep_finish,
 		(unsigned long)sep_dev);
 
@@ -3927,6 +3936,7 @@ int sep_crypto_setup(void)
 err_algs:
 	for (k = 0; k < i; k++)
 		crypto_unregister_ahash(&hash_algs[k]);
+	destroy_workqueue(sep_dev->workqueue);
 	return err;
 
 err_crypto_algs:
@@ -3945,6 +3955,7 @@ void sep_crypto_takedown(void)
 	for (i = 0; i < ARRAY_SIZE(crypto_algs); i++)
 		crypto_unregister_alg(&crypto_algs[i]);
 
+	destroy_workqueue(sep_dev->workqueue);
 	tasklet_kill(&sep_dev->finish_tasklet);
 }
 

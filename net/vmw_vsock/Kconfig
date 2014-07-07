@@ -6,7 +6,7 @@ config VSOCKETS
 	tristate "Virtual Socket protocol"
 	help
 	  Virtual Socket Protocol is a socket protocol similar to TCP/IP
-	  allowing comunication between Virtual Machines and hypervisor
+	  allowing communication between Virtual Machines and hypervisor
 	  or host.
 
 	  You should also select one or more hypervisor-specific transports

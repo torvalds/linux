@@ -72,18 +72,22 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 
 static int daq700_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	unsigned int mask;
+	unsigned int val;
 
-		if (data[0] & 0xff)
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0xff)
 			outb(s->state & 0xff, dev->iobase + DIO_W);
 	}
 
-	data[1] = s->state & 0xff;
-	data[1] |= inb(dev->iobase + DIO_R) << 8;
+	val = s->state & 0xff;
+	val |= inb(dev->iobase + DIO_R) << 8;
+
+	data[1] = val;
 
 	return insn->n;
 }
@@ -105,19 +109,38 @@ static int daq700_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int daq700_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + STA_R2);
+	if ((status & 0x03))
+		return -EOVERFLOW;
+	status = inb(dev->iobase + STA_R1);
+	if ((status & 0x02))
+		return -ENODATA;
+	if ((status & 0x11) == 0x01)
+		return 0;
+	return -EBUSY;
+}
+
 static int daq700_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn, unsigned int *data)
 {
-	int n, i, chan;
+	int n, chan;
 	int d;
-	unsigned int status;
-	enum { TIMEOUT = 100 };
+	int ret;
 
 	chan = CR_CHAN(insn->chanspec);
 	/* write channel to multiplexer */
 	/* set mask scan bit high to disable scanning */
 	outb(chan | 0x80, dev->iobase + CMD_R1);
+	/* mux needs 2us to really settle [Fred Brooks]. */
+	udelay(2);
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
@@ -126,30 +149,12 @@ static int daq700_ai_rinsn(struct comedi_device *dev,
 		outb(0x30, dev->iobase + CMO_R); /* mode 0 out0 L, from H */
 		/* mode 1 out0 H, L to H, start conversion */
 		outb(0x32, dev->iobase + CMO_R);
+
 		/* wait for conversion to end */
-		for (i = 0; i < TIMEOUT; i++) {
-			status = inb(dev->iobase + STA_R2);
-			if ((status & 0x03) != 0) {
-				dev_info(dev->class_dev,
-					 "Overflow/run Error\n");
-				return -EOVERFLOW;
-			}
-			status = inb(dev->iobase + STA_R1);
-			if ((status & 0x02) != 0) {
-				dev_info(dev->class_dev, "Data Error\n");
-				return -ENODATA;
-			}
-			if ((status & 0x11) == 0x01) {
-				/* ADC conversion complete */
-				break;
-			}
-			udelay(1);
-		}
-		if (i == TIMEOUT) {
-			dev_info(dev->class_dev,
-				 "timeout during ADC conversion\n");
-			return -ETIMEDOUT;
-		}
+		ret = comedi_timeout(dev, s, insn, daq700_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		/* read data */
 		d = inw(dev->iobase + ADFIFO_R);
 		/* mangle the data as necessary */
@@ -212,7 +217,6 @@ static int daq700_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->insn_bits	= daq700_dio_insn_bits;
 	s->insn_config	= daq700_dio_insn_config;
-	s->state	= 0;
 	s->io_bits	= 0x00ff;
 
 	/* DAQCard-700 ai */
@@ -225,11 +229,6 @@ static int daq700_auto_attach(struct comedi_device *dev,
 	s->range_table = &range_bipolar10;
 	s->insn_read = daq700_ai_rinsn;
 	daq700_ai_config(dev, s);
-
-	dev_info(dev->class_dev, "%s: %s, io 0x%lx\n",
-		dev->driver->driver_name,
-		dev->board_name,
-		dev->iobase);
 
 	return 0;
 }

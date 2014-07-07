@@ -29,7 +29,6 @@
  */
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/miscdevice.h>
 #include <linux/pm.h>
@@ -1396,8 +1395,8 @@ int agp3_generic_configure(void)
 
 	current_size = A_SIZE_16(agp_bridge->current_size);
 
-	pci_read_config_dword(agp_bridge->dev, AGP_APBASE, &temp);
-	agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+	agp_bridge->gart_bus_addr = pci_bus_address(agp_bridge->dev,
+						    AGP_APERTURE_BAR);
 
 	/* set aperture size */
 	pci_write_config_word(agp_bridge->dev, agp_bridge->capndx+AGPAPSIZE, current_size->size_value);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -535,10 +535,10 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		/* TBD: should validate incoming handle */
+		/* An incoming reference is defined to be a namespace node */
 
-		internal_object->reference.class = ACPI_REFCLASS_NAME;
-		internal_object->reference.node =
+		internal_object->reference.class = ACPI_REFCLASS_REFOF;
+		internal_object->reference.object =
 		    external_object->reference.handle;
 		break;
 
@@ -552,7 +552,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 	*ret_internal_object = internal_object;
 	return_ACPI_STATUS(AE_OK);
 
-      error_exit:
+error_exit:
 	acpi_ut_remove_reference(internal_object);
 	return_ACPI_STATUS(AE_NO_MEMORY);
 }
@@ -899,7 +899,7 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 
 	return (status);
 
-      error_exit:
+error_exit:
 	acpi_ut_remove_reference(target_object);
 	return (status);
 }

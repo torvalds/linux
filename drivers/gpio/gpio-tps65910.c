@@ -123,10 +123,8 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 
 	tps65910_gpio = devm_kzalloc(&pdev->dev,
 				sizeof(*tps65910_gpio), GFP_KERNEL);
-	if (!tps65910_gpio) {
-		dev_err(&pdev->dev, "Could not allocate tps65910_gpio\n");
+	if (!tps65910_gpio)
 		return -ENOMEM;
-	}
 
 	tps65910_gpio->tps65910 = tps65910;
 
@@ -143,7 +141,7 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	default:
 		return -EINVAL;
 	}
-	tps65910_gpio->gpio_chip.can_sleep = 1;
+	tps65910_gpio->gpio_chip.can_sleep = true;
 	tps65910_gpio->gpio_chip.direction_input = tps65910_gpio_input;
 	tps65910_gpio->gpio_chip.direction_output = tps65910_gpio_output;
 	tps65910_gpio->gpio_chip.set	= tps65910_gpio_set;

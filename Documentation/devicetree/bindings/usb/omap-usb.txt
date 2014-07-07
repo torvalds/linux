@@ -3,9 +3,6 @@ OMAP GLUE AND OTHER OMAP SPECIFIC COMPONENTS
 OMAP MUSB GLUE
  - compatible : Should be "ti,omap4-musb" or "ti,omap3-musb"
  - ti,hwmods : must be "usb_otg_hs"
- - ti,has-mailbox : to specify that omap uses an external mailbox
-   (in control module) to communicate with the musb core during device connect
-   and disconnect.
  - multipoint : Should be "1" indicating the musb controller supports
    multipoint. This is a MUSB configuration-specific setting.
  - num-eps : Specifies the number of endpoints. This is also a
@@ -19,6 +16,9 @@ OMAP MUSB GLUE
  - power : Should be "50". This signifies the controller can supply up to
    100mA when operating in host mode.
  - usb-phy : the phandle for the PHY device
+ - phys : the phandle for the PHY device (used by generic PHY framework)
+ - phy-names : the names of the PHY corresponding to the PHYs present in the
+   *phy* phandle.
 
 Optional properties:
  - ctrl-module : phandle of the control module this glue uses to write to
@@ -28,11 +28,12 @@ SOC specific device node entry
 usb_otg_hs: usb_otg_hs@4a0ab000 {
 	compatible = "ti,omap4-musb";
 	ti,hwmods = "usb_otg_hs";
-	ti,has-mailbox;
 	multipoint = <1>;
 	num-eps = <16>;
 	ram-bits = <12>;
 	ctrl-module = <&omap_control_usb>;
+	phys = <&usb2_phy>;
+	phy-names = "usb2-phy";
 };
 
 Board specific device node entry
@@ -43,7 +44,9 @@ Board specific device node entry
 };
 
 OMAP DWC3 GLUE
- - compatible : Should be "ti,dwc3"
+ - compatible : Should be
+	* "ti,dwc3" for OMAP5 and DRA7
+	* "ti,am437x-dwc3" for AM437x
  - ti,hwmods : Should be "usb_otg_ss"
  - reg : Address and length of the register set for the device.
  - interrupts : The irq number of this device that is used to interrupt the
@@ -75,25 +78,3 @@ omap_dwc3 {
 	ranges;
 };
 
-OMAP CONTROL USB
-
-Required properties:
- - compatible: Should be "ti,omap-control-usb"
- - reg : Address and length of the register set for the device. It contains
-   the address of "control_dev_conf" and "otghs_control" or "phy_power_usb"
-   depending upon omap4 or omap5.
- - reg-names: The names of the register addresses corresponding to the registers
-   filled in "reg".
- - ti,type: This is used to differentiate whether the control module has
-   usb mailbox or usb3 phy power. omap4 has usb mailbox in control module to
-   notify events to the musb core and omap5 has usb3 phy power register to
-   power on usb3 phy. Should be "1" if it has mailbox and "2" if it has usb3
-   phy power.
-
-omap_control_usb: omap-control-usb@4a002300 {
-	compatible = "ti,omap-control-usb";
-	reg = <0x4a002300 0x4>,
-	      <0x4a00233c 0x4>;
-	reg-names = "control_dev_conf", "otghs_control";
-	ti,type = <1>;
-};

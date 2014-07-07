@@ -346,7 +346,7 @@ static int mpt_remove_dead_ioc_func(void *arg)
 	if ((pdev == NULL))
 		return -1;
 
-	pci_stop_and_remove_bus_device(pdev);
+	pci_stop_and_remove_bus_device_locked(pdev);
 	return 0;
 }
 
@@ -1037,7 +1037,7 @@ mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 		goto out;
 	/* signature to know if this mf is freed */
 	mf->u.frame.linkage.arg1 = cpu_to_le32(0xdeadbeaf);
-	list_add_tail(&mf->u.frame.linkage.list, &ioc->FreeQ);
+	list_add(&mf->u.frame.linkage.list, &ioc->FreeQ);
 #ifdef MFCNT
 	ioc->mfcnt--;
 #endif

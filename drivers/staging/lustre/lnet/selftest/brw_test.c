@@ -41,23 +41,25 @@
 #include "selftest.h"
 
 static int brw_srv_workitems = SFW_TEST_WI_MAX;
-CFS_MODULE_PARM(brw_srv_workitems, "i", int, 0644, "# BRW server workitems");
+module_param(brw_srv_workitems, int, 0644);
+MODULE_PARM_DESC(brw_srv_workitems, "# BRW server workitems");
 
 static int brw_inject_errors;
-CFS_MODULE_PARM(brw_inject_errors, "i", int, 0644,
-		"# data errors to inject randomly, zero by default");
+module_param(brw_inject_errors, int, 0644);
+MODULE_PARM_DESC(brw_inject_errors, "# data errors to inject randomly, zero by default");
 
 static void
-brw_client_fini (sfw_test_instance_t *tsi)
+brw_client_fini(sfw_test_instance_t *tsi)
 {
 	srpc_bulk_t     *bulk;
 	sfw_test_unit_t *tsu;
 
-	LASSERT (tsi->tsi_is_client);
+	LASSERT(tsi->tsi_is_client);
 
-	list_for_each_entry (tsu, &tsi->tsi_units, tsu_list) {
+	list_for_each_entry(tsu, &tsi->tsi_units, tsu_list) {
 		bulk = tsu->tsu_private;
-		if (bulk == NULL) continue;
+		if (bulk == NULL)
+			continue;
 
 		srpc_free_bulk(bulk);
 		tsu->tsu_private = NULL;
@@ -65,7 +67,7 @@ brw_client_fini (sfw_test_instance_t *tsi)
 }
 
 int
-brw_client_init (sfw_test_instance_t *tsi)
+brw_client_init(sfw_test_instance_t *tsi)
 {
 	sfw_session_t	 *sn = tsi->tsi_batch->bat_session;
 	int		  flags;
@@ -130,28 +132,31 @@ brw_client_init (sfw_test_instance_t *tsi)
 #define BRW_MSIZE       sizeof(__u64)
 
 int
-brw_inject_one_error (void)
+brw_inject_one_error(void)
 {
 	struct timeval tv;
 
-	if (brw_inject_errors <= 0) return 0;
+	if (brw_inject_errors <= 0)
+		return 0;
 
 	do_gettimeofday(&tv);
 
-	if ((tv.tv_usec & 1) == 0) return 0;
+	if ((tv.tv_usec & 1) == 0)
+		return 0;
 
 	return brw_inject_errors--;
 }
 
 void
-brw_fill_page (struct page *pg, int pattern, __u64 magic)
+brw_fill_page(struct page *pg, int pattern, __u64 magic)
 {
 	char *addr = page_address(pg);
 	int   i;
 
-	LASSERT (addr != NULL);
+	LASSERT(addr != NULL);
 
-	if (pattern == LST_BRW_CHECK_NONE) return;
+	if (pattern == LST_BRW_CHECK_NONE)
+		return;
 
 	if (magic == BRW_MAGIC)
 		magic += brw_inject_one_error();
@@ -169,29 +174,31 @@ brw_fill_page (struct page *pg, int pattern, __u64 magic)
 		return;
 	}
 
-	LBUG ();
+	LBUG();
 	return;
 }
 
 int
-brw_check_page (struct page *pg, int pattern, __u64 magic)
+brw_check_page(struct page *pg, int pattern, __u64 magic)
 {
 	char  *addr = page_address(pg);
 	__u64  data = 0; /* make compiler happy */
 	int    i;
 
-	LASSERT (addr != NULL);
+	LASSERT(addr != NULL);
 
 	if (pattern == LST_BRW_CHECK_NONE)
 		return 0;
 
 	if (pattern == LST_BRW_CHECK_SIMPLE) {
 		data = *((__u64 *) addr);
-		if (data != magic) goto bad_data;
+		if (data != magic)
+			goto bad_data;
 
 		addr += PAGE_CACHE_SIZE - BRW_MSIZE;
 		data = *((__u64 *) addr);
-		if (data != magic) goto bad_data;
+		if (data != magic)
+			goto bad_data;
 
 		return 0;
 	}
@@ -199,22 +206,23 @@ brw_check_page (struct page *pg, int pattern, __u64 magic)
 	if (pattern == LST_BRW_CHECK_FULL) {
 		for (i = 0; i < PAGE_CACHE_SIZE / BRW_MSIZE; i++) {
 			data = *(((__u64 *) addr) + i);
-			if (data != magic) goto bad_data;
+			if (data != magic)
+				goto bad_data;
 		}
 
 		return 0;
 	}
 
-	LBUG ();
+	LBUG();
 
 bad_data:
-	CERROR ("Bad data in page %p: "LPX64", "LPX64" expected\n",
+	CERROR("Bad data in page %p: "LPX64", "LPX64" expected\n",
 		pg, data, magic);
 	return 1;
 }
 
 void
-brw_fill_bulk (srpc_bulk_t *bk, int pattern, __u64 magic)
+brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 {
 	int	 i;
 	struct page *pg;
@@ -226,7 +234,7 @@ brw_fill_bulk (srpc_bulk_t *bk, int pattern, __u64 magic)
 }
 
 int
-brw_check_bulk (srpc_bulk_t *bk, int pattern, __u64 magic)
+brw_check_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 {
 	int	 i;
 	struct page *pg;
@@ -234,7 +242,7 @@ brw_check_bulk (srpc_bulk_t *bk, int pattern, __u64 magic)
 	for (i = 0; i < bk->bk_niov; i++) {
 		pg = bk->bk_iovs[i].kiov_page;
 		if (brw_check_page(pg, pattern, magic) != 0) {
-			CERROR ("Bulk page %p (%d/%d) is corrupted!\n",
+			CERROR("Bulk page %p (%d/%d) is corrupted!\n",
 				pg, i, bk->bk_niov);
 			return 1;
 		}
@@ -244,7 +252,7 @@ brw_check_bulk (srpc_bulk_t *bk, int pattern, __u64 magic)
 }
 
 static int
-brw_client_prep_rpc (sfw_test_unit_t *tsu,
+brw_client_prep_rpc(sfw_test_unit_t *tsu,
 		     lnet_process_id_t dest, srpc_client_rpc_t **rpcpp)
 {
 	srpc_bulk_t	 *bulk = tsu->tsu_private;
@@ -302,7 +310,7 @@ brw_client_prep_rpc (sfw_test_unit_t *tsu,
 }
 
 static void
-brw_client_done_rpc (sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
+brw_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 {
 	__u64		magic = BRW_MAGIC;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
@@ -311,10 +319,10 @@ brw_client_done_rpc (sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 	srpc_brw_reply_t    *reply = &msg->msg_body.brw_reply;
 	srpc_brw_reqst_t    *reqst = &rpc->crpc_reqstmsg.msg_body.brw_reqst;
 
-	LASSERT (sn != NULL);
+	LASSERT(sn != NULL);
 
 	if (rpc->crpc_status != 0) {
-		CERROR ("BRW RPC to %s failed with %d\n",
+		CERROR("BRW RPC to %s failed with %d\n",
 			libcfs_id2str(rpc->crpc_dest), rpc->crpc_status);
 		if (!tsi->tsi_stopping) /* rpc could have been aborted */
 			atomic_inc(&sn->sn_brw_errors);
@@ -326,7 +334,7 @@ brw_client_done_rpc (sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 		__swab32s(&reply->brw_status);
 	}
 
-	CDEBUG (reply->brw_status ? D_WARNING : D_NET,
+	CDEBUG(reply->brw_status ? D_WARNING : D_NET,
 		"BRW RPC to %s finished with brw_status: %d\n",
 		libcfs_id2str(rpc->crpc_dest), reply->brw_status);
 
@@ -336,10 +344,11 @@ brw_client_done_rpc (sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 		goto out;
 	}
 
-	if (reqst->brw_rw == LST_BRW_WRITE) goto out;
+	if (reqst->brw_rw == LST_BRW_WRITE)
+		goto out;
 
 	if (brw_check_bulk(&rpc->crpc_bulk, reqst->brw_flags, magic) != 0) {
-		CERROR ("Bulk data from %s is corrupted!\n",
+		CERROR("Bulk data from %s is corrupted!\n",
 			libcfs_id2str(rpc->crpc_dest));
 		atomic_inc(&sn->sn_brw_errors);
 		rpc->crpc_status = -EBADMSG;
@@ -350,18 +359,19 @@ out:
 }
 
 void
-brw_server_rpc_done (srpc_server_rpc_t *rpc)
+brw_server_rpc_done(srpc_server_rpc_t *rpc)
 {
 	srpc_bulk_t *blk = rpc->srpc_bulk;
 
-	if (blk == NULL) return;
+	if (blk == NULL)
+		return;
 
 	if (rpc->srpc_status != 0)
-		CERROR ("Bulk transfer %s %s has failed: %d\n",
+		CERROR("Bulk transfer %s %s has failed: %d\n",
 			blk->bk_sink ? "from" : "to",
 			libcfs_id2str(rpc->srpc_peer), rpc->srpc_status);
 	else
-		CDEBUG (D_NET, "Transferred %d pages bulk data %s %s\n",
+		CDEBUG(D_NET, "Transferred %d pages bulk data %s %s\n",
 			blk->bk_niov, blk->bk_sink ? "from" : "to",
 			libcfs_id2str(rpc->srpc_peer));
 
@@ -369,21 +379,21 @@ brw_server_rpc_done (srpc_server_rpc_t *rpc)
 }
 
 int
-brw_bulk_ready (srpc_server_rpc_t *rpc, int status)
+brw_bulk_ready(srpc_server_rpc_t *rpc, int status)
 {
 	__u64	     magic = BRW_MAGIC;
 	srpc_brw_reply_t *reply = &rpc->srpc_replymsg.msg_body.brw_reply;
 	srpc_brw_reqst_t *reqst;
 	srpc_msg_t       *reqstmsg;
 
-	LASSERT (rpc->srpc_bulk != NULL);
-	LASSERT (rpc->srpc_reqstbuf != NULL);
+	LASSERT(rpc->srpc_bulk != NULL);
+	LASSERT(rpc->srpc_reqstbuf != NULL);
 
 	reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
 	reqst = &reqstmsg->msg_body.brw_reqst;
 
 	if (status != 0) {
-		CERROR ("BRW bulk %s failed for RPC from %s: %d\n",
+		CERROR("BRW bulk %s failed for RPC from %s: %d\n",
 			reqst->brw_rw == LST_BRW_READ ? "READ" : "WRITE",
 			libcfs_id2str(rpc->srpc_peer), status);
 		return -EIO;
@@ -396,7 +406,7 @@ brw_bulk_ready (srpc_server_rpc_t *rpc, int status)
 		__swab64s(&magic);
 
 	if (brw_check_bulk(rpc->srpc_bulk, reqst->brw_flags, magic) != 0) {
-		CERROR ("Bulk data from %s is corrupted!\n",
+		CERROR("Bulk data from %s is corrupted!\n",
 			libcfs_id2str(rpc->srpc_peer));
 		reply->brw_status = EBADMSG;
 	}
@@ -415,10 +425,10 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 	int		  npg;
 	int	       rc;
 
-	LASSERT (sv->sv_id == SRPC_SERVICE_BRW);
+	LASSERT(sv->sv_id == SRPC_SERVICE_BRW);
 
 	if (reqstmsg->msg_magic != SRPC_MSG_MAGIC) {
-		LASSERT (reqstmsg->msg_magic == __swab32(SRPC_MSG_MAGIC));
+		LASSERT(reqstmsg->msg_magic == __swab32(SRPC_MSG_MAGIC));
 
 		__swab32s(&reqst->brw_rw);
 		__swab32s(&reqst->brw_len);
@@ -426,7 +436,7 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 		__swab64s(&reqst->brw_rpyid);
 		__swab64s(&reqst->brw_bulkid);
 	}
-	LASSERT (reqstmsg->msg_type == (__u32)srpc_service2request(sv->sv_id));
+	LASSERT(reqstmsg->msg_type == (__u32)srpc_service2request(sv->sv_id));
 
 	reply->brw_status = 0;
 	rpc->srpc_done = brw_server_rpc_done;

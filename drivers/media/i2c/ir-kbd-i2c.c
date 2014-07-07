@@ -394,7 +394,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	if (!rc) {
 		/*
-		 * If platform_data doesn't specify rc_dev, initilize it
+		 * If platform_data doesn't specify rc_dev, initialize it
 		 * internally
 		 */
 		rc = rc_allocate_device();
@@ -431,8 +431,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * Initialize the other fields of rc_dev
 	 */
 	rc->map_name       = ir->ir_codes;
-	rc->allowed_protos = rc_type;
-	rc->enabled_protocols = rc_type;
+	rc_set_allowed_protocols(rc, rc_type);
+	rc_set_enabled_protocols(rc, rc_type);
 	if (!rc->driver_name)
 		rc->driver_name = MODULE_NAME;
 

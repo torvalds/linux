@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/io.h>
@@ -30,13 +31,13 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-samsung.h>
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 
 #include <plat/cpu-freq.h>
 
 #include <mach/regs-clock.h>
-#include <plat/regs-serial.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
@@ -84,62 +85,6 @@ void __init s3c2410_map_io(void)
 
 void __init_or_cpufreq s3c2410_setup_clocks(void)
 {
-	struct clk *xtal_clk;
-	unsigned long tmp;
-	unsigned long xtal;
-	unsigned long fclk;
-	unsigned long hclk;
-	unsigned long pclk;
-
-	xtal_clk = clk_get(NULL, "xtal");
-	xtal = clk_get_rate(xtal_clk);
-	clk_put(xtal_clk);
-
-	/* now we've got our machine bits initialised, work out what
-	 * clocks we've got */
-
-	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal);
-
-	tmp = __raw_readl(S3C2410_CLKDIVN);
-
-	/* work out clock scalings */
-
-	hclk = fclk / ((tmp & S3C2410_CLKDIVN_HDIVN) ? 2 : 1);
-	pclk = hclk / ((tmp & S3C2410_CLKDIVN_PDIVN) ? 2 : 1);
-
-	/* print brieft summary of clocks, etc */
-
-	printk("S3C2410: core %ld.%03ld MHz, memory %ld.%03ld MHz, peripheral %ld.%03ld MHz\n",
-	       print_mhz(fclk), print_mhz(hclk), print_mhz(pclk));
-
-	/* initialise the clocks here, to allow other things like the
-	 * console to use them
-	 */
-
-	s3c24xx_setup_clocks(fclk, hclk, pclk);
-}
-
-/* fake ARMCLK for use with cpufreq, etc. */
-
-static struct clk s3c2410_armclk = {
-	.name	= "armclk",
-	.parent	= &clk_f,
-	.id	= -1,
-};
-
-static struct clk_lookup s3c2410_clk_lookup[] = {
-	CLKDEV_INIT(NULL, "clk_uart_baud0", &clk_p),
-	CLKDEV_INIT(NULL, "clk_uart_baud1", &s3c24xx_uclk),
-};
-
-void __init s3c2410_init_clocks(int xtal)
-{
-	s3c24xx_register_baseclocks(xtal);
-	s3c2410_setup_clocks();
-	s3c2410_baseclk_add();
-	s3c24xx_register_clock(&s3c2410_armclk);
-	clkdev_add_table(s3c2410_clk_lookup, ARRAY_SIZE(s3c2410_clk_lookup));
-	samsung_wdt_reset_init(S3C24XX_VA_WATCHDOG);
 }
 
 struct bus_type s3c2410_subsys = {

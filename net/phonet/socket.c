@@ -595,26 +595,25 @@ static void pn_sock_seq_stop(struct seq_file *seq, void *v)
 
 static int pn_sock_seq_show(struct seq_file *seq, void *v)
 {
-	int len;
-
+	seq_setwidth(seq, 127);
 	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "%s%n", "pt  loc  rem rs st tx_queue rx_queue "
-			"  uid inode ref pointer drops", &len);
+		seq_puts(seq, "pt  loc  rem rs st tx_queue rx_queue "
+			"  uid inode ref pointer drops");
 	else {
 		struct sock *sk = v;
 		struct pn_sock *pn = pn_sk(sk);
 
 		seq_printf(seq, "%2d %04X:%04X:%02X %02X %08X:%08X %5d %lu "
-			"%d %pK %d%n",
+			"%d %pK %d",
 			sk->sk_protocol, pn->sobject, pn->dobject,
 			pn->resource, sk->sk_state,
 			sk_wmem_alloc_get(sk), sk_rmem_alloc_get(sk),
 			from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
 			sock_i_ino(sk),
 			atomic_read(&sk->sk_refcnt), sk,
-			atomic_read(&sk->sk_drops), &len);
+			atomic_read(&sk->sk_drops));
 	}
-	seq_printf(seq, "%*s\n", 127 - len, "");
+	seq_pad(seq, '\n');
 	return 0;
 }
 
@@ -785,20 +784,19 @@ static void pn_res_seq_stop(struct seq_file *seq, void *v)
 
 static int pn_res_seq_show(struct seq_file *seq, void *v)
 {
-	int len;
-
+	seq_setwidth(seq, 63);
 	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "%s%n", "rs   uid inode", &len);
+		seq_puts(seq, "rs   uid inode");
 	else {
 		struct sock **psk = v;
 		struct sock *sk = *psk;
 
-		seq_printf(seq, "%02X %5u %lu%n",
+		seq_printf(seq, "%02X %5u %lu",
 			   (int) (psk - pnres.sk),
 			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
-			   sock_i_ino(sk), &len);
+			   sock_i_ino(sk));
 	}
-	seq_printf(seq, "%*s\n", 63 - len, "");
+	seq_pad(seq, '\n');
 	return 0;
 }
 

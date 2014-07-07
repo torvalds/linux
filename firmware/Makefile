@@ -4,10 +4,10 @@
 
 # Create $(fwabs) from $(CONFIG_EXTRA_FIRMWARE_DIR) -- if it doesn't have a
 # leading /, it's relative to $(srctree).
-fwdir := $(subst ",,$(CONFIG_EXTRA_FIRMWARE_DIR))
+fwdir := $(subst $(quote),,$(CONFIG_EXTRA_FIRMWARE_DIR))
 fwabs := $(addprefix $(srctree)/,$(filter-out /%,$(fwdir)))$(filter /%,$(fwdir))
 
-fw-external-y := $(subst ",,$(CONFIG_EXTRA_FIRMWARE))
+fw-external-y := $(subst $(quote),,$(CONFIG_EXTRA_FIRMWARE))
 
 # There are three cases to care about:
 # 1. Building kernel with CONFIG_FIRMWARE_IN_KERNEL=y -- $(fw-shipped-y) should
@@ -138,12 +138,6 @@ fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 
-# Directories which we _might_ need to create, so we have a rule for them.
-firmware-dirs := $(sort $(addprefix $(objtree)/$(obj)/,$(dir $(fw-external-y) $(fw-shipped-all))))
-
-quiet_cmd_mkdir = MKDIR   $(patsubst $(objtree)/%,%,$@)
-      cmd_mkdir = mkdir -p $@
-
 quiet_cmd_ihex  = IHEX    $@
       cmd_ihex  = $(OBJCOPY) -Iihex -Obinary $< $@
 
@@ -184,21 +178,10 @@ wordsize_deps := $(wildcard include/config/64bit.h include/config/32bit.h \
 		include/config/superh32.h include/config/superh64.h \
 		include/config/x86_32.h include/config/x86_64.h)
 
-# Workaround for make < 3.81, where .SECONDEXPANSION doesn't work.
-# It'll end up depending on these targets, so make them a PHONY rule which
-# depends on _all_ the directories in $(firmware-dirs), and it'll work out OK.
-PHONY += $(objtree)/$$(%) $(objtree)/$(obj)/$$(%)
-$(objtree)/$$(%) $(objtree)/$(obj)/$$(%): $(firmware-dirs)
-	@true
-
-# For the $$(dir %) trick, where we need % to be expanded first.
-.SECONDEXPANSION:
-
-$(patsubst %,$(obj)/%.gen.S, $(fw-shipped-y)): %: $(wordsize_deps) \
-		| $(objtree)/$$(dir %)
+$(patsubst %,$(obj)/%.gen.S, $(fw-shipped-y)): %: $(wordsize_deps)
 	$(call cmd,fwbin,$(patsubst %.gen.S,%,$@))
 $(patsubst %,$(obj)/%.gen.S, $(fw-external-y)): %: $(wordsize_deps) \
-		include/config/extra/firmware/dir.h | $(objtree)/$$(dir %)
+		include/config/extra/firmware/dir.h
 	$(call cmd,fwbin,$(fwabs)/$(patsubst $(obj)/%.gen.S,%,$@))
 
 # The .o files depend on the binaries directly; the .S files don't.
@@ -207,7 +190,7 @@ $(patsubst %,$(obj)/%.gen.o, $(fw-external-y)): $(obj)/%.gen.o: $(fwdir)/%
 
 # .ihex is used just as a simple way to hold binary files in a source tree
 # where binaries are frowned upon. They are directly converted with objcopy.
-$(obj)/%: $(obj)/%.ihex | $(objtree)/$(obj)/$$(dir %)
+$(obj)/%: $(obj)/%.ihex
 	$(call cmd,ihex)
 
 # Don't depend on ihex2fw if we're installing and it already exists.
@@ -226,15 +209,12 @@ endif
 # is actually meaningful, because the firmware has to be loaded in a certain
 # order rather than as a single binary blob. Thus, we convert them into our
 # more compact binary representation of ihex records (<linux/ihex.h>)
-$(obj)/%.fw: $(obj)/%.HEX $(ihex2fw_dep) | $(objtree)/$(obj)/$$(dir %)
+$(obj)/%.fw: $(obj)/%.HEX $(ihex2fw_dep)
 	$(call cmd,ihex2fw)
 
 # .H16 is our own modified form of Intel HEX, with 16-bit length for records.
-$(obj)/%.fw: $(obj)/%.H16 $(ihex2fw_dep) | $(objtree)/$(obj)/$$(dir %)
+$(obj)/%.fw: $(obj)/%.H16 $(ihex2fw_dep)
 	$(call cmd,h16tofw)
-
-$(firmware-dirs):
-	$(call cmd,mkdir)
 
 obj-y				 += $(patsubst %,%.gen.o, $(fw-external-y))
 obj-$(CONFIG_FIRMWARE_IN_KERNEL) += $(patsubst %,%.gen.o, $(fw-shipped-y))

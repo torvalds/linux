@@ -5,7 +5,6 @@
  * This file implements the protocol specific parts of the USB service for a PD.
  * -----------------------------------------------------------------------------
  */
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
@@ -55,7 +54,7 @@ static int oz_usb_submit_elt(struct oz_elt_buf *eb, struct oz_elt_info *ei,
  * Context: softirq
  */
 int oz_usb_get_desc_req(void *hpd, u8 req_id, u8 req_type, u8 desc_type,
-	u8 index, u16 windex, int offset, int len)
+	u8 index, __le16 windex, int offset, int len)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
 	struct oz_pd *pd = usb_ctx->pd;

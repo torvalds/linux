@@ -37,9 +37,6 @@
 #include <linux/kthread.h>
 #include <linux/jiffies.h>	/* time_after() */
 #include <linux/slab.h>
-#ifdef CONFIG_ACPI
-#include <acpi/acpi_bus.h>
-#endif
 #include <linux/bootmem.h>
 #include <linux/dmar.h>
 #include <linux/hpet.h>
@@ -209,9 +206,6 @@ int __init arch_early_irq_init(void)
 	count = ARRAY_SIZE(irq_cfgx);
 	node = cpu_to_node(0);
 
-	/* Make sure the legacy interrupts are marked in the bitmap */
-	irq_reserve_irqs(0, legacy_pic->nr_legacy_irqs);
-
 	for (i = 0; i < count; i++) {
 		irq_set_chip_data(i, &cfg[i]);
 		zalloc_cpumask_var_node(&cfg[i].domain, GFP_KERNEL, node);
@@ -283,18 +277,6 @@ static struct irq_cfg *alloc_irq_and_cfg_at(unsigned int at, int node)
 		irq_free_desc(at);
 	return cfg;
 }
-
-static int alloc_irqs_from(unsigned int from, unsigned int count, int node)
-{
-	return irq_alloc_descs_from(from, count, node);
-}
-
-static void free_irq_at(unsigned int at, struct irq_cfg *cfg)
-{
-	free_irq_cfg(at, cfg);
-	irq_free_desc(at);
-}
-
 
 struct io_apic {
 	unsigned int index;
@@ -1142,9 +1124,10 @@ next:
 		if (test_bit(vector, used_vectors))
 			goto next;
 
-		for_each_cpu_and(new_cpu, tmp_mask, cpu_online_mask)
-			if (per_cpu(vector_irq, new_cpu)[vector] != -1)
+		for_each_cpu_and(new_cpu, tmp_mask, cpu_online_mask) {
+			if (per_cpu(vector_irq, new_cpu)[vector] > VECTOR_UNDEFINED)
 				goto next;
+		}
 		/* Found one! */
 		current_vector = vector;
 		current_offset = offset;
@@ -1183,7 +1166,7 @@ static void __clear_irq_vector(int irq, struct irq_cfg *cfg)
 
 	vector = cfg->vector;
 	for_each_cpu_and(cpu, cfg->domain, cpu_online_mask)
-		per_cpu(vector_irq, cpu)[vector] = -1;
+		per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
 
 	cfg->vector = 0;
 	cpumask_clear(cfg->domain);
@@ -1191,11 +1174,10 @@ static void __clear_irq_vector(int irq, struct irq_cfg *cfg)
 	if (likely(!cfg->move_in_progress))
 		return;
 	for_each_cpu_and(cpu, cfg->old_domain, cpu_online_mask) {
-		for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS;
-								vector++) {
+		for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 			if (per_cpu(vector_irq, cpu)[vector] != irq)
 				continue;
-			per_cpu(vector_irq, cpu)[vector] = -1;
+			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
 			break;
 		}
 	}
@@ -1228,12 +1210,12 @@ void __setup_vector_irq(int cpu)
 	/* Mark the free vectors */
 	for (vector = 0; vector < NR_VECTORS; ++vector) {
 		irq = per_cpu(vector_irq, cpu)[vector];
-		if (irq < 0)
+		if (irq <= VECTOR_UNDEFINED)
 			continue;
 
 		cfg = irq_cfg(irq);
 		if (!cpumask_test_cpu(cpu, cfg->domain))
-			per_cpu(vector_irq, cpu)[vector] = -1;
+			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
 	}
 	raw_spin_unlock(&vector_lock);
 }
@@ -2192,7 +2174,7 @@ void send_cleanup_vector(struct irq_cfg *cfg)
 	cfg->move_in_progress = 0;
 }
 
-asmlinkage void smp_irq_move_cleanup_interrupt(void)
+asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 {
 	unsigned vector, me;
 
@@ -2202,13 +2184,13 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 
 	me = smp_processor_id();
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
-		unsigned int irq;
+		int irq;
 		unsigned int irr;
 		struct irq_desc *desc;
 		struct irq_cfg *cfg;
 		irq = __this_cpu_read(vector_irq[vector]);
 
-		if (irq == -1)
+		if (irq <= VECTOR_UNDEFINED)
 			continue;
 
 		desc = irq_to_desc(irq);
@@ -2315,7 +2297,7 @@ int __ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	int err;
 
 	if (!config_enabled(CONFIG_SMP))
-		return -1;
+		return -EPERM;
 
 	if (!cpumask_intersects(mask, cpu_online_mask))
 		return -EINVAL;
@@ -2346,7 +2328,7 @@ int native_ioapic_set_affinity(struct irq_data *data,
 	int ret;
 
 	if (!config_enabled(CONFIG_SMP))
-		return -1;
+		return -EPERM;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	ret = __ioapic_set_affinity(data, mask, &dest);
@@ -2919,98 +2901,39 @@ static int __init ioapic_init_ops(void)
 device_initcall(ioapic_init_ops);
 
 /*
- * Dynamic irq allocate and deallocation
+ * Dynamic irq allocate and deallocation. Should be replaced by irq domains!
  */
-unsigned int __create_irqs(unsigned int from, unsigned int count, int node)
+int arch_setup_hwirq(unsigned int irq, int node)
 {
-	struct irq_cfg **cfg;
+	struct irq_cfg *cfg;
 	unsigned long flags;
-	int irq, i;
+	int ret;
 
-	if (from < nr_irqs_gsi)
-		from = nr_irqs_gsi;
-
-	cfg = kzalloc_node(count * sizeof(cfg[0]), GFP_KERNEL, node);
+	cfg = alloc_irq_cfg(irq, node);
 	if (!cfg)
-		return 0;
-
-	irq = alloc_irqs_from(from, count, node);
-	if (irq < 0)
-		goto out_cfgs;
-
-	for (i = 0; i < count; i++) {
-		cfg[i] = alloc_irq_cfg(irq + i, node);
-		if (!cfg[i])
-			goto out_irqs;
-	}
+		return -ENOMEM;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
-	for (i = 0; i < count; i++)
-		if (__assign_irq_vector(irq + i, cfg[i], apic->target_cpus()))
-			goto out_vecs;
+	ret = __assign_irq_vector(irq, cfg, apic->target_cpus());
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
 
-	for (i = 0; i < count; i++) {
-		irq_set_chip_data(irq + i, cfg[i]);
-		irq_clear_status_flags(irq + i, IRQ_NOREQUEST);
-	}
-
-	kfree(cfg);
-	return irq;
-
-out_vecs:
-	for (i--; i >= 0; i--)
-		__clear_irq_vector(irq + i, cfg[i]);
-	raw_spin_unlock_irqrestore(&vector_lock, flags);
-out_irqs:
-	for (i = 0; i < count; i++)
-		free_irq_at(irq + i, cfg[i]);
-out_cfgs:
-	kfree(cfg);
-	return 0;
+	if (!ret)
+		irq_set_chip_data(irq, cfg);
+	else
+		free_irq_cfg(irq, cfg);
+	return ret;
 }
 
-unsigned int create_irq_nr(unsigned int from, int node)
-{
-	return __create_irqs(from, 1, node);
-}
-
-int create_irq(void)
-{
-	int node = cpu_to_node(0);
-	unsigned int irq_want;
-	int irq;
-
-	irq_want = nr_irqs_gsi;
-	irq = create_irq_nr(irq_want, node);
-
-	if (irq == 0)
-		irq = -1;
-
-	return irq;
-}
-
-void destroy_irq(unsigned int irq)
+void arch_teardown_hwirq(unsigned int irq)
 {
 	struct irq_cfg *cfg = irq_get_chip_data(irq);
 	unsigned long flags;
 
-	irq_set_status_flags(irq, IRQ_NOREQUEST|IRQ_NOPROBE);
-
 	free_remapped_irq(irq);
-
 	raw_spin_lock_irqsave(&vector_lock, flags);
 	__clear_irq_vector(irq, cfg);
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
-	free_irq_at(irq, cfg);
-}
-
-void destroy_irqs(unsigned int irq, unsigned int count)
-{
-	unsigned int i;
-
-	for (i = 0; i < count; i++)
-		destroy_irq(irq + i);
+	free_irq_cfg(irq, cfg);
 }
 
 /*
@@ -3078,9 +3001,11 @@ msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 	struct irq_cfg *cfg = data->chip_data;
 	struct msi_msg msg;
 	unsigned int dest;
+	int ret;
 
-	if (__ioapic_set_affinity(data, mask, &dest))
-		return -1;
+	ret = __ioapic_set_affinity(data, mask, &dest);
+	if (ret)
+		return ret;
 
 	__get_cached_msi_msg(data->msi_desc, &msg);
 
@@ -3139,8 +3064,8 @@ int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 
 int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	unsigned int irq, irq_want;
 	struct msi_desc *msidesc;
+	unsigned int irq;
 	int node, ret;
 
 	/* Multiple MSI vectors only supported with interrupt remapping */
@@ -3148,28 +3073,25 @@ int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 
 	node = dev_to_node(&dev->dev);
-	irq_want = nr_irqs_gsi;
+
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		irq = create_irq_nr(irq_want, node);
-		if (irq == 0)
+		irq = irq_alloc_hwirq(node);
+		if (!irq)
 			return -ENOSPC;
 
-		irq_want = irq + 1;
-
 		ret = setup_msi_irq(dev, msidesc, irq, 0);
-		if (ret < 0)
-			goto error;
+		if (ret < 0) {
+			irq_free_hwirq(irq);
+			return ret;
+		}
+
 	}
 	return 0;
-
-error:
-	destroy_irq(irq);
-	return ret;
 }
 
 void native_teardown_msi_irq(unsigned int irq)
 {
-	destroy_irq(irq);
+	irq_free_hwirq(irq);
 }
 
 #ifdef CONFIG_DMAR_TABLE
@@ -3180,9 +3102,11 @@ dmar_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	struct irq_cfg *cfg = data->chip_data;
 	unsigned int dest, irq = data->irq;
 	struct msi_msg msg;
+	int ret;
 
-	if (__ioapic_set_affinity(data, mask, &dest))
-		return -1;
+	ret = __ioapic_set_affinity(data, mask, &dest);
+	if (ret)
+		return ret;
 
 	dmar_msi_read(irq, &msg);
 
@@ -3229,9 +3153,11 @@ static int hpet_msi_set_affinity(struct irq_data *data,
 	struct irq_cfg *cfg = data->chip_data;
 	struct msi_msg msg;
 	unsigned int dest;
+	int ret;
 
-	if (__ioapic_set_affinity(data, mask, &dest))
-		return -1;
+	ret = __ioapic_set_affinity(data, mask, &dest);
+	if (ret)
+		return ret;
 
 	hpet_msi_read(data->handler_data, &msg);
 
@@ -3298,9 +3224,11 @@ ht_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 {
 	struct irq_cfg *cfg = data->chip_data;
 	unsigned int dest;
+	int ret;
 
-	if (__ioapic_set_affinity(data, mask, &dest))
-		return -1;
+	ret = __ioapic_set_affinity(data, mask, &dest);
+	if (ret)
+		return ret;
 
 	target_ht_irq(data->irq, dest, cfg->vector);
 	return IRQ_SET_MASK_OK_NOCOPY;
@@ -3423,9 +3351,9 @@ static void __init probe_nr_irqs_gsi(void)
 	printk(KERN_DEBUG "nr_irqs_gsi: %d\n", nr_irqs_gsi);
 }
 
-int get_nr_irqs_gsi(void)
+unsigned int arch_dynirq_lower_bound(unsigned int from)
 {
-	return nr_irqs_gsi;
+	return from < nr_irqs_gsi ? nr_irqs_gsi : from;
 }
 
 int __init arch_probe_nr_irqs(void)

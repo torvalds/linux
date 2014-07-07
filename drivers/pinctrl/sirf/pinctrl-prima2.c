@@ -1,7 +1,8 @@
 /*
  * pinctrl pads, groups, functions for CSR SiRFprimaII
  *
- * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
+ * Copyright (c) 2011 - 2014 Cambridge Silicon Radio Limited, a CSR plc group
+ * company.
  *
  * Licensed under GPLv2 or later.
  */
@@ -126,6 +127,9 @@ static const struct pinctrl_pin_desc sirfsoc_pads[] = {
 	PINCTRL_PIN(112, "x_ldd[13]"),
 	PINCTRL_PIN(113, "x_ldd[14]"),
 	PINCTRL_PIN(114, "x_ldd[15]"),
+
+	PINCTRL_PIN(115, "x_usb1_dp"),
+	PINCTRL_PIN(116, "x_usb1_dn"),
 };
 
 static const struct sirfsoc_muxmask lcd_16bits_sirfsoc_muxmask[] = {
@@ -143,6 +147,7 @@ static const struct sirfsoc_muxmask lcd_16bits_sirfsoc_muxmask[] = {
 static const struct sirfsoc_padmux lcd_16bits_padmux = {
 	.muxmask_counts = ARRAY_SIZE(lcd_16bits_sirfsoc_muxmask),
 	.muxmask = lcd_16bits_sirfsoc_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(4),
 	.funcval = 0,
 };
@@ -168,6 +173,7 @@ static const struct sirfsoc_muxmask lcd_18bits_muxmask[] = {
 static const struct sirfsoc_padmux lcd_18bits_padmux = {
 	.muxmask_counts = ARRAY_SIZE(lcd_18bits_muxmask),
 	.muxmask = lcd_18bits_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(4),
 	.funcval = 0,
 };
@@ -193,6 +199,7 @@ static const struct sirfsoc_muxmask lcd_24bits_muxmask[] = {
 static const struct sirfsoc_padmux lcd_24bits_padmux = {
 	.muxmask_counts = ARRAY_SIZE(lcd_24bits_muxmask),
 	.muxmask = lcd_24bits_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(4),
 	.funcval = 0,
 };
@@ -218,6 +225,7 @@ static const struct sirfsoc_muxmask lcdrom_muxmask[] = {
 static const struct sirfsoc_padmux lcdrom_padmux = {
 	.muxmask_counts = ARRAY_SIZE(lcdrom_muxmask),
 	.muxmask = lcdrom_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(4),
 	.funcval = BIT(4),
 };
@@ -238,6 +246,7 @@ static const struct sirfsoc_muxmask uart0_muxmask[] = {
 static const struct sirfsoc_padmux uart0_padmux = {
 	.muxmask_counts = ARRAY_SIZE(uart0_muxmask),
 	.muxmask = uart0_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(9),
 	.funcval = BIT(9),
 };
@@ -282,6 +291,7 @@ static const struct sirfsoc_muxmask uart2_muxmask[] = {
 static const struct sirfsoc_padmux uart2_padmux = {
 	.muxmask_counts = ARRAY_SIZE(uart2_muxmask),
 	.muxmask = uart2_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(10),
 	.funcval = BIT(10),
 };
@@ -315,6 +325,7 @@ static const struct sirfsoc_muxmask sdmmc3_muxmask[] = {
 static const struct sirfsoc_padmux sdmmc3_padmux = {
 	.muxmask_counts = ARRAY_SIZE(sdmmc3_muxmask),
 	.muxmask = sdmmc3_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(7),
 	.funcval = 0,
 };
@@ -331,6 +342,7 @@ static const struct sirfsoc_muxmask spi0_muxmask[] = {
 static const struct sirfsoc_padmux spi0_padmux = {
 	.muxmask_counts = ARRAY_SIZE(spi0_muxmask),
 	.muxmask = spi0_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(7),
 	.funcval = BIT(7),
 };
@@ -361,6 +373,7 @@ static const struct sirfsoc_muxmask cko1_muxmask[] = {
 static const struct sirfsoc_padmux cko1_padmux = {
 	.muxmask_counts = ARRAY_SIZE(cko1_muxmask),
 	.muxmask = cko1_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(3),
 	.funcval = 0,
 };
@@ -379,6 +392,7 @@ static const struct sirfsoc_muxmask i2s_muxmask[] = {
 static const struct sirfsoc_padmux i2s_padmux = {
 	.muxmask_counts = ARRAY_SIZE(i2s_muxmask),
 	.muxmask = i2s_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(3) | BIT(9),
 	.funcval = BIT(3),
 };
@@ -395,11 +409,12 @@ static const struct sirfsoc_muxmask ac97_muxmask[] = {
 static const struct sirfsoc_padmux ac97_padmux = {
 	.muxmask_counts = ARRAY_SIZE(ac97_muxmask),
 	.muxmask = ac97_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(8),
 	.funcval = 0,
 };
 
-static const unsigned ac97_pins[] = { 33, 34, 35, 36 };
+static const unsigned ac97_pins[] = { 43, 44, 45, 46 };
 
 static const struct sirfsoc_muxmask spi1_muxmask[] = {
 	{
@@ -411,6 +426,7 @@ static const struct sirfsoc_muxmask spi1_muxmask[] = {
 static const struct sirfsoc_padmux spi1_padmux = {
 	.muxmask_counts = ARRAY_SIZE(spi1_muxmask),
 	.muxmask = spi1_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(8),
 	.funcval = BIT(8),
 };
@@ -441,6 +457,7 @@ static const struct sirfsoc_muxmask gps_muxmask[] = {
 static const struct sirfsoc_padmux gps_padmux = {
 	.muxmask_counts = ARRAY_SIZE(gps_muxmask),
 	.muxmask = gps_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(12) | BIT(13) | BIT(14),
 	.funcval = BIT(12),
 };
@@ -451,23 +468,18 @@ static const struct sirfsoc_muxmask sdmmc5_muxmask[] = {
 	{
 		.group = 0,
 		.mask = BIT(24) | BIT(25) | BIT(26),
-	}, {
-		.group = 1,
-		.mask = BIT(29),
-	}, {
-		.group = 2,
-		.mask = BIT(0) | BIT(1),
 	},
 };
 
 static const struct sirfsoc_padmux sdmmc5_padmux = {
 	.muxmask_counts = ARRAY_SIZE(sdmmc5_muxmask),
 	.muxmask = sdmmc5_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(13) | BIT(14),
 	.funcval = BIT(13) | BIT(14),
 };
 
-static const unsigned sdmmc5_pins[] = { 24, 25, 26, 61, 64, 65 };
+static const unsigned sdmmc5_pins[] = { 24, 25, 26 };
 
 static const struct sirfsoc_muxmask usp0_muxmask[] = {
 	{
@@ -479,11 +491,60 @@ static const struct sirfsoc_muxmask usp0_muxmask[] = {
 static const struct sirfsoc_padmux usp0_padmux = {
 	.muxmask_counts = ARRAY_SIZE(usp0_muxmask),
 	.muxmask = usp0_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(1) | BIT(2) | BIT(6) | BIT(9),
 	.funcval = 0,
 };
 
 static const unsigned usp0_pins[] = { 51, 52, 53, 54, 55 };
+
+static const struct sirfsoc_muxmask usp0_only_utfs_muxmask[] = {
+	{
+		.group = 1,
+		.mask = BIT(19) | BIT(20) | BIT(21) | BIT(22),
+	},
+};
+
+static const struct sirfsoc_padmux usp0_only_utfs_padmux = {
+	.muxmask_counts = ARRAY_SIZE(usp0_only_utfs_muxmask),
+	.muxmask = usp0_only_utfs_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
+	.funcmask = BIT(1) | BIT(2) | BIT(6),
+	.funcval = 0,
+};
+
+static const unsigned usp0_only_utfs_pins[] = { 51, 52, 53, 54 };
+
+static const struct sirfsoc_muxmask usp0_only_urfs_muxmask[] = {
+	{
+		.group = 1,
+		.mask = BIT(19) | BIT(20) | BIT(21) | BIT(23),
+	},
+};
+
+static const struct sirfsoc_padmux usp0_only_urfs_padmux = {
+	.muxmask_counts = ARRAY_SIZE(usp0_only_urfs_muxmask),
+	.muxmask = usp0_only_urfs_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
+	.funcmask = BIT(1) | BIT(2) | BIT(9),
+	.funcval = 0,
+};
+
+static const unsigned usp0_only_urfs_pins[] = { 51, 52, 53, 55 };
+
+static const struct sirfsoc_muxmask usp0_uart_nostreamctrl_muxmask[] = {
+	{
+		.group = 1,
+		.mask = BIT(20) | BIT(21),
+	},
+};
+
+static const struct sirfsoc_padmux usp0_uart_nostreamctrl_padmux = {
+	.muxmask_counts = ARRAY_SIZE(usp0_uart_nostreamctrl_muxmask),
+	.muxmask = usp0_uart_nostreamctrl_muxmask,
+};
+
+static const unsigned usp0_uart_nostreamctrl_pins[] = { 52, 53 };
 
 static const struct sirfsoc_muxmask usp1_muxmask[] = {
 	{
@@ -495,11 +556,26 @@ static const struct sirfsoc_muxmask usp1_muxmask[] = {
 static const struct sirfsoc_padmux usp1_padmux = {
 	.muxmask_counts = ARRAY_SIZE(usp1_muxmask),
 	.muxmask = usp1_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(1) | BIT(9) | BIT(10) | BIT(11),
 	.funcval = 0,
 };
 
 static const unsigned usp1_pins[] = { 56, 57, 58, 59, 60 };
+
+static const struct sirfsoc_muxmask usp1_uart_nostreamctrl_muxmask[] = {
+	{
+		.group = 1,
+		.mask = BIT(25) | BIT(26),
+	},
+};
+
+static const struct sirfsoc_padmux usp1_uart_nostreamctrl_padmux = {
+	.muxmask_counts = ARRAY_SIZE(usp1_uart_nostreamctrl_muxmask),
+	.muxmask = usp1_uart_nostreamctrl_muxmask,
+};
+
+static const unsigned usp1_uart_nostreamctrl_pins[] = { 57, 58 };
 
 static const struct sirfsoc_muxmask usp2_muxmask[] = {
 	{
@@ -514,11 +590,26 @@ static const struct sirfsoc_muxmask usp2_muxmask[] = {
 static const struct sirfsoc_padmux usp2_padmux = {
 	.muxmask_counts = ARRAY_SIZE(usp2_muxmask),
 	.muxmask = usp2_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(13) | BIT(14),
 	.funcval = 0,
 };
 
 static const unsigned usp2_pins[] = { 61, 62, 63, 64, 65 };
+
+static const struct sirfsoc_muxmask usp2_uart_nostreamctrl_muxmask[] = {
+	{
+		.group = 1,
+		.mask = BIT(30) | BIT(31),
+	},
+};
+
+static const struct sirfsoc_padmux usp2_uart_nostreamctrl_padmux = {
+	.muxmask_counts = ARRAY_SIZE(usp2_uart_nostreamctrl_muxmask),
+	.muxmask = usp2_uart_nostreamctrl_muxmask,
+};
+
+static const unsigned usp2_uart_nostreamctrl_pins[] = { 62, 63 };
 
 static const struct sirfsoc_muxmask nand_muxmask[] = {
 	{
@@ -530,6 +621,7 @@ static const struct sirfsoc_muxmask nand_muxmask[] = {
 static const struct sirfsoc_padmux nand_padmux = {
 	.muxmask_counts = ARRAY_SIZE(nand_muxmask),
 	.muxmask = nand_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(5),
 	.funcval = 0,
 };
@@ -538,6 +630,7 @@ static const unsigned nand_pins[] = { 64, 65, 92, 93, 94 };
 
 static const struct sirfsoc_padmux sdmmc0_padmux = {
 	.muxmask_counts = 0,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(5),
 	.funcval = 0,
 };
@@ -554,6 +647,7 @@ static const struct sirfsoc_muxmask sdmmc2_muxmask[] = {
 static const struct sirfsoc_padmux sdmmc2_padmux = {
 	.muxmask_counts = ARRAY_SIZE(sdmmc2_muxmask),
 	.muxmask = sdmmc2_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(5),
 	.funcval = BIT(5),
 };
@@ -586,6 +680,7 @@ static const struct sirfsoc_muxmask vip_muxmask[] = {
 static const struct sirfsoc_padmux vip_padmux = {
 	.muxmask_counts = ARRAY_SIZE(vip_muxmask),
 	.muxmask = vip_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(0),
 	.funcval = 0,
 };
@@ -635,6 +730,7 @@ static const struct sirfsoc_muxmask viprom_muxmask[] = {
 static const struct sirfsoc_padmux viprom_padmux = {
 	.muxmask_counts = ARRAY_SIZE(viprom_muxmask),
 	.muxmask = viprom_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(0),
 	.funcval = BIT(0),
 };
@@ -651,6 +747,7 @@ static const struct sirfsoc_muxmask pwm0_muxmask[] = {
 static const struct sirfsoc_padmux pwm0_padmux = {
 	.muxmask_counts = ARRAY_SIZE(pwm0_muxmask),
 	.muxmask = pwm0_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(12),
 	.funcval = 0,
 };
@@ -722,6 +819,7 @@ static const struct sirfsoc_muxmask usb0_utmi_drvbus_muxmask[] = {
 static const struct sirfsoc_padmux usb0_utmi_drvbus_padmux = {
 	.muxmask_counts = ARRAY_SIZE(usb0_utmi_drvbus_muxmask),
 	.muxmask = usb0_utmi_drvbus_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(6),
 	.funcval = BIT(6), /* refer to PAD_UTMI_DRVVBUS0_ENABLE */
 };
@@ -738,11 +836,30 @@ static const struct sirfsoc_muxmask usb1_utmi_drvbus_muxmask[] = {
 static const struct sirfsoc_padmux usb1_utmi_drvbus_padmux = {
 	.muxmask_counts = ARRAY_SIZE(usb1_utmi_drvbus_muxmask),
 	.muxmask = usb1_utmi_drvbus_muxmask,
+	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 	.funcmask = BIT(11),
 	.funcval = BIT(11), /* refer to PAD_UTMI_DRVVBUS1_ENABLE */
 };
 
 static const unsigned usb1_utmi_drvbus_pins[] = { 59 };
+
+static const struct sirfsoc_padmux usb1_dp_dn_padmux = {
+	.muxmask_counts = 0,
+	.ctrlreg = SIRFSOC_RSC_USB_UART_SHARE,
+	.funcmask = BIT(2),
+	.funcval = BIT(2),
+};
+
+static const unsigned usb1_dp_dn_pins[] = { 115, 116 };
+
+static const struct sirfsoc_padmux uart1_route_io_usb1_padmux = {
+	.muxmask_counts = 0,
+	.ctrlreg = SIRFSOC_RSC_USB_UART_SHARE,
+	.funcmask = BIT(2),
+	.funcval = 0,
+};
+
+static const unsigned uart1_route_io_usb1_pins[] = { 115, 116 };
 
 static const struct sirfsoc_muxmask pulse_count_muxmask[] = {
 	{
@@ -764,12 +881,21 @@ static const struct sirfsoc_pin_group sirfsoc_pin_groups[] = {
 	SIRFSOC_PIN_GROUP("lcd_24bitsgrp", lcd_24bits_pins),
 	SIRFSOC_PIN_GROUP("lcdrom_grp", lcdrom_pins),
 	SIRFSOC_PIN_GROUP("uart0grp", uart0_pins),
+	SIRFSOC_PIN_GROUP("uart0_nostreamctrlgrp", uart0_nostreamctrl_pins),
 	SIRFSOC_PIN_GROUP("uart1grp", uart1_pins),
 	SIRFSOC_PIN_GROUP("uart2grp", uart2_pins),
 	SIRFSOC_PIN_GROUP("uart2_nostreamctrlgrp", uart2_nostreamctrl_pins),
 	SIRFSOC_PIN_GROUP("usp0grp", usp0_pins),
+	SIRFSOC_PIN_GROUP("usp0_uart_nostreamctrl_grp",
+					usp0_uart_nostreamctrl_pins),
+	SIRFSOC_PIN_GROUP("usp0_only_utfs_grp", usp0_only_utfs_pins),
+	SIRFSOC_PIN_GROUP("usp0_only_urfs_grp", usp0_only_urfs_pins),
 	SIRFSOC_PIN_GROUP("usp1grp", usp1_pins),
+	SIRFSOC_PIN_GROUP("usp1_uart_nostreamctrl_grp",
+					usp1_uart_nostreamctrl_pins),
 	SIRFSOC_PIN_GROUP("usp2grp", usp2_pins),
+	SIRFSOC_PIN_GROUP("usp2_uart_nostreamctrl_grp",
+					usp2_uart_nostreamctrl_pins),
 	SIRFSOC_PIN_GROUP("i2c0grp", i2c0_pins),
 	SIRFSOC_PIN_GROUP("i2c1grp", i2c1_pins),
 	SIRFSOC_PIN_GROUP("pwm0grp", pwm0_pins),
@@ -789,6 +915,8 @@ static const struct sirfsoc_pin_group sirfsoc_pin_groups[] = {
 	SIRFSOC_PIN_GROUP("sdmmc5grp", sdmmc5_pins),
 	SIRFSOC_PIN_GROUP("usb0_utmi_drvbusgrp", usb0_utmi_drvbus_pins),
 	SIRFSOC_PIN_GROUP("usb1_utmi_drvbusgrp", usb1_utmi_drvbus_pins),
+	SIRFSOC_PIN_GROUP("usb1_dp_dngrp", usb1_dp_dn_pins),
+	SIRFSOC_PIN_GROUP("uart1_route_io_usb1grp", uart1_route_io_usb1_pins),
 	SIRFSOC_PIN_GROUP("pulse_countgrp", pulse_count_pins),
 	SIRFSOC_PIN_GROUP("i2sgrp", i2s_pins),
 	SIRFSOC_PIN_GROUP("ac97grp", ac97_pins),
@@ -803,12 +931,21 @@ static const char * const lcd_18bitsgrp[] = { "lcd_18bitsgrp" };
 static const char * const lcd_24bitsgrp[] = { "lcd_24bitsgrp" };
 static const char * const lcdromgrp[] = { "lcdromgrp" };
 static const char * const uart0grp[] = { "uart0grp" };
+static const char * const uart0_nostreamctrlgrp[] = { "uart0_nostreamctrlgrp" };
 static const char * const uart1grp[] = { "uart1grp" };
 static const char * const uart2grp[] = { "uart2grp" };
 static const char * const uart2_nostreamctrlgrp[] = { "uart2_nostreamctrlgrp" };
 static const char * const usp0grp[] = { "usp0grp" };
+static const char * const usp0_uart_nostreamctrl_grp[] =
+					{ "usp0_uart_nostreamctrl_grp" };
+static const char * const usp0_only_utfs_grp[] = { "usp0_only_utfs_grp" };
+static const char * const usp0_only_urfs_grp[] = { "usp0_only_urfs_grp" };
 static const char * const usp1grp[] = { "usp1grp" };
+static const char * const usp1_uart_nostreamctrl_grp[] =
+					{ "usp1_uart_nostreamctrl_grp" };
 static const char * const usp2grp[] = { "usp2grp" };
+static const char * const usp2_uart_nostreamctrl_grp[] =
+					{ "usp2_uart_nostreamctrl_grp" };
 static const char * const i2c0grp[] = { "i2c0grp" };
 static const char * const i2c1grp[] = { "i2c1grp" };
 static const char * const pwm0grp[] = { "pwm0grp" };
@@ -828,6 +965,8 @@ static const char * const sdmmc4grp[] = { "sdmmc4grp" };
 static const char * const sdmmc5grp[] = { "sdmmc5grp" };
 static const char * const usb0_utmi_drvbusgrp[] = { "usb0_utmi_drvbusgrp" };
 static const char * const usb1_utmi_drvbusgrp[] = { "usb1_utmi_drvbusgrp" };
+static const char * const usb1_dp_dngrp[] = { "usb1_dp_dngrp" };
+static const char * const uart1_route_io_usb1grp[] = { "uart1_route_io_usb1grp" };
 static const char * const pulse_countgrp[] = { "pulse_countgrp" };
 static const char * const i2sgrp[] = { "i2sgrp" };
 static const char * const ac97grp[] = { "ac97grp" };
@@ -842,12 +981,21 @@ static const struct sirfsoc_pmx_func sirfsoc_pmx_functions[] = {
 	SIRFSOC_PMX_FUNCTION("lcd_24bits", lcd_24bitsgrp, lcd_24bits_padmux),
 	SIRFSOC_PMX_FUNCTION("lcdrom", lcdromgrp, lcdrom_padmux),
 	SIRFSOC_PMX_FUNCTION("uart0", uart0grp, uart0_padmux),
+	SIRFSOC_PMX_FUNCTION("uart0_nostreamctrl", uart0_nostreamctrlgrp, uart0_nostreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("uart1", uart1grp, uart1_padmux),
 	SIRFSOC_PMX_FUNCTION("uart2", uart2grp, uart2_padmux),
 	SIRFSOC_PMX_FUNCTION("uart2_nostreamctrl", uart2_nostreamctrlgrp, uart2_nostreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("usp0", usp0grp, usp0_padmux),
+	SIRFSOC_PMX_FUNCTION("usp0_uart_nostreamctrl",
+		usp0_uart_nostreamctrl_grp, usp0_uart_nostreamctrl_padmux),
+	SIRFSOC_PMX_FUNCTION("usp0_only_utfs", usp0_only_utfs_grp, usp0_only_utfs_padmux),
+	SIRFSOC_PMX_FUNCTION("usp0_only_urfs", usp0_only_urfs_grp, usp0_only_urfs_padmux),
 	SIRFSOC_PMX_FUNCTION("usp1", usp1grp, usp1_padmux),
+	SIRFSOC_PMX_FUNCTION("usp1_uart_nostreamctrl",
+		usp1_uart_nostreamctrl_grp, usp1_uart_nostreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("usp2", usp2grp, usp2_padmux),
+	SIRFSOC_PMX_FUNCTION("usp2_uart_nostreamctrl",
+		usp2_uart_nostreamctrl_grp, usp2_uart_nostreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("i2c0", i2c0grp, i2c0_padmux),
 	SIRFSOC_PMX_FUNCTION("i2c1", i2c1grp, i2c1_padmux),
 	SIRFSOC_PMX_FUNCTION("pwm0", pwm0grp, pwm0_padmux),
@@ -867,6 +1015,8 @@ static const struct sirfsoc_pmx_func sirfsoc_pmx_functions[] = {
 	SIRFSOC_PMX_FUNCTION("sdmmc5", sdmmc5grp, sdmmc5_padmux),
 	SIRFSOC_PMX_FUNCTION("usb0_utmi_drvbus", usb0_utmi_drvbusgrp, usb0_utmi_drvbus_padmux),
 	SIRFSOC_PMX_FUNCTION("usb1_utmi_drvbus", usb1_utmi_drvbusgrp, usb1_utmi_drvbus_padmux),
+	SIRFSOC_PMX_FUNCTION("usb1_dp_dn", usb1_dp_dngrp, usb1_dp_dn_padmux),
+	SIRFSOC_PMX_FUNCTION("uart1_route_io_usb1", uart1_route_io_usb1grp, uart1_route_io_usb1_padmux),
 	SIRFSOC_PMX_FUNCTION("pulse_count", pulse_countgrp, pulse_count_padmux),
 	SIRFSOC_PMX_FUNCTION("i2s", i2sgrp, i2s_padmux),
 	SIRFSOC_PMX_FUNCTION("ac97", ac97grp, ac97_padmux),

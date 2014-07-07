@@ -35,20 +35,53 @@ struct ceph_pg_pool_info {
 	u8 object_hash;
 	u32 pg_num, pgp_num;
 	int pg_num_mask, pgp_num_mask;
+	s64 read_tier;
+	s64 write_tier; /* wins for read+write ops */
 	u64 flags;
 	char *name;
 };
 
+static inline bool ceph_can_shift_osds(struct ceph_pg_pool_info *pool)
+{
+	switch (pool->type) {
+	case CEPH_POOL_TYPE_REP:
+		return true;
+	case CEPH_POOL_TYPE_EC:
+		return false;
+	default:
+		BUG_ON(1);
+	}
+}
+
 struct ceph_object_locator {
-	uint64_t pool;
-	char *key;
+	s64 pool;
+};
+
+/*
+ * Maximum supported by kernel client object name length
+ *
+ * (probably outdated: must be >= RBD_MAX_MD_NAME_LEN -- currently 100)
+ */
+#define CEPH_MAX_OID_NAME_LEN 100
+
+struct ceph_object_id {
+	char name[CEPH_MAX_OID_NAME_LEN];
+	int name_len;
 };
 
 struct ceph_pg_mapping {
 	struct rb_node node;
 	struct ceph_pg pgid;
-	int len;
-	int osds[];
+
+	union {
+		struct {
+			int len;
+			int osds[];
+		} pg_temp;
+		struct {
+			int osd;
+		} primary_temp;
+	};
 };
 
 struct ceph_osdmap {
@@ -65,44 +98,60 @@ struct ceph_osdmap {
 	struct ceph_entity_addr *osd_addr;
 
 	struct rb_root pg_temp;
+	struct rb_root primary_temp;
+
+	u32 *osd_primary_affinity;
+
 	struct rb_root pg_pools;
 	u32 pool_max;
 
 	/* the CRUSH map specifies the mapping of placement groups to
 	 * the list of osds that store+replicate them. */
 	struct crush_map *crush;
+
+	struct mutex crush_scratch_mutex;
+	int crush_scratch_ary[CEPH_PG_MAX_SIZE * 3];
 };
 
-/*
- * file layout helpers
- */
-#define ceph_file_layout_su(l) ((__s32)le32_to_cpu((l).fl_stripe_unit))
-#define ceph_file_layout_stripe_count(l) \
-	((__s32)le32_to_cpu((l).fl_stripe_count))
-#define ceph_file_layout_object_size(l) ((__s32)le32_to_cpu((l).fl_object_size))
-#define ceph_file_layout_cas_hash(l) ((__s32)le32_to_cpu((l).fl_cas_hash))
-#define ceph_file_layout_object_su(l) \
-	((__s32)le32_to_cpu((l).fl_object_stripe_unit))
-#define ceph_file_layout_pg_pool(l) \
-	((__s32)le32_to_cpu((l).fl_pg_pool))
-
-static inline unsigned ceph_file_layout_stripe_width(struct ceph_file_layout *l)
+static inline void ceph_oid_set_name(struct ceph_object_id *oid,
+				     const char *name)
 {
-	return le32_to_cpu(l->fl_stripe_unit) *
-		le32_to_cpu(l->fl_stripe_count);
+	int len;
+
+	len = strlen(name);
+	if (len > sizeof(oid->name)) {
+		WARN(1, "ceph_oid_set_name '%s' len %d vs %zu, truncating\n",
+		     name, len, sizeof(oid->name));
+		len = sizeof(oid->name);
+	}
+
+	memcpy(oid->name, name, len);
+	oid->name_len = len;
 }
 
-/* "period" == bytes before i start on a new set of objects */
-static inline unsigned ceph_file_layout_period(struct ceph_file_layout *l)
+static inline void ceph_oid_copy(struct ceph_object_id *dest,
+				 struct ceph_object_id *src)
 {
-	return le32_to_cpu(l->fl_object_size) *
-		le32_to_cpu(l->fl_stripe_count);
+	BUG_ON(src->name_len > sizeof(dest->name));
+	memcpy(dest->name, src->name, src->name_len);
+	dest->name_len = src->name_len;
 }
 
+static inline int ceph_osd_exists(struct ceph_osdmap *map, int osd)
+{
+	return osd >= 0 && osd < map->max_osd &&
+	       (map->osd_state[osd] & CEPH_OSD_EXISTS);
+}
 
 static inline int ceph_osd_is_up(struct ceph_osdmap *map, int osd)
 {
-	return (osd < map->max_osd) && (map->osd_state[osd] & CEPH_OSD_UP);
+	return ceph_osd_exists(map, osd) &&
+	       (map->osd_state[osd] & CEPH_OSD_UP);
+}
+
+static inline int ceph_osd_is_down(struct ceph_osdmap *map, int osd)
+{
+	return !ceph_osd_is_up(map, osd);
 }
 
 static inline bool ceph_osdmap_flag(struct ceph_osdmap *map, int flag)
@@ -111,6 +160,7 @@ static inline bool ceph_osdmap_flag(struct ceph_osdmap *map, int flag)
 }
 
 extern char *ceph_osdmap_state_str(char *str, int len, int state);
+extern u32 ceph_get_primary_affinity(struct ceph_osdmap *map, int osd);
 
 static inline struct ceph_entity_addr *ceph_osd_addr(struct ceph_osdmap *map,
 						     int osd)
@@ -143,7 +193,7 @@ static inline int ceph_decode_pgid(void **p, void *end, struct ceph_pg *pgid)
 	return 0;
 }
 
-extern struct ceph_osdmap *osdmap_decode(void **p, void *end);
+extern struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end);
 extern struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 					    struct ceph_osdmap *map,
 					    struct ceph_messenger *msgr);
@@ -155,13 +205,19 @@ extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 					 u64 *bno, u64 *oxoff, u64 *oxlen);
 
 /* calculate mapping of object to a placement group */
-extern int ceph_calc_ceph_pg(struct ceph_pg *pg, const char *oid,
-			  struct ceph_osdmap *osdmap, uint64_t pool);
+extern int ceph_oloc_oid_to_pg(struct ceph_osdmap *osdmap,
+			       struct ceph_object_locator *oloc,
+			       struct ceph_object_id *oid,
+			       struct ceph_pg *pg_out);
+
 extern int ceph_calc_pg_acting(struct ceph_osdmap *osdmap,
 			       struct ceph_pg pgid,
-			       int *acting);
+			       int *osds, int *primary);
 extern int ceph_calc_pg_primary(struct ceph_osdmap *osdmap,
 				struct ceph_pg pgid);
+
+extern struct ceph_pg_pool_info *ceph_pg_pool_by_id(struct ceph_osdmap *map,
+						    u64 id);
 
 extern const char *ceph_pg_pool_name_by_id(struct ceph_osdmap *map, u64 id);
 extern int ceph_pg_poolid_by_name(struct ceph_osdmap *map, const char *name);

@@ -433,11 +433,20 @@ int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 }
 
 int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
-			 struct path *new_dir, struct dentry *new_dentry)
+			 struct path *new_dir, struct dentry *new_dentry,
+			 unsigned int flags)
 {
 	if (unlikely(IS_PRIVATE(old_dentry->d_inode) ||
 		     (new_dentry->d_inode && IS_PRIVATE(new_dentry->d_inode))))
 		return 0;
+
+	if (flags & RENAME_EXCHANGE) {
+		int err = security_ops->path_rename(new_dir, new_dentry,
+						    old_dir, old_dentry);
+		if (err)
+			return err;
+	}
+
 	return security_ops->path_rename(old_dir, old_dentry, new_dir,
 					 new_dentry);
 }
@@ -524,11 +533,20 @@ int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 }
 
 int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
-			   struct inode *new_dir, struct dentry *new_dentry)
+			   struct inode *new_dir, struct dentry *new_dentry,
+			   unsigned int flags)
 {
         if (unlikely(IS_PRIVATE(old_dentry->d_inode) ||
             (new_dentry->d_inode && IS_PRIVATE(new_dentry->d_inode))))
 		return 0;
+
+	if (flags & RENAME_EXCHANGE) {
+		int err = security_ops->inode_rename(new_dir, new_dentry,
+						     old_dir, old_dentry);
+		if (err)
+			return err;
+	}
+
 	return security_ops->inode_rename(old_dir, old_dentry,
 					   new_dir, new_dentry);
 }
@@ -1317,9 +1335,11 @@ void security_skb_owned_by(struct sk_buff *skb, struct sock *sk)
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 
-int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx)
+int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
+			       struct xfrm_user_sec_ctx *sec_ctx,
+			       gfp_t gfp)
 {
-	return security_ops->xfrm_policy_alloc_security(ctxp, sec_ctx);
+	return security_ops->xfrm_policy_alloc_security(ctxp, sec_ctx, gfp);
 }
 EXPORT_SYMBOL(security_xfrm_policy_alloc);
 
@@ -1340,22 +1360,17 @@ int security_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 	return security_ops->xfrm_policy_delete_security(ctx);
 }
 
-int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
+int security_xfrm_state_alloc(struct xfrm_state *x,
+			      struct xfrm_user_sec_ctx *sec_ctx)
 {
-	return security_ops->xfrm_state_alloc_security(x, sec_ctx, 0);
+	return security_ops->xfrm_state_alloc(x, sec_ctx);
 }
 EXPORT_SYMBOL(security_xfrm_state_alloc);
 
 int security_xfrm_state_alloc_acquire(struct xfrm_state *x,
 				      struct xfrm_sec_ctx *polsec, u32 secid)
 {
-	if (!polsec)
-		return 0;
-	/*
-	 * We want the context to be taken from secid which is usually
-	 * from the sock.
-	 */
-	return security_ops->xfrm_state_alloc_security(x, NULL, secid);
+	return security_ops->xfrm_state_alloc_acquire(x, polsec, secid);
 }
 
 int security_xfrm_state_delete(struct xfrm_state *x)
@@ -1410,7 +1425,7 @@ void security_key_free(struct key *key)
 }
 
 int security_key_permission(key_ref_t key_ref,
-			    const struct cred *cred, key_perm_t perm)
+			    const struct cred *cred, unsigned perm)
 {
 	return security_ops->key_permission(key_ref, cred, perm);
 }

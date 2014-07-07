@@ -15,7 +15,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/notifier.h>
@@ -298,10 +297,8 @@ static struct mv_u3d_trb *mv_u3d_build_trb_one(struct mv_u3d_req *req,
 	u3d = req->ep->u3d;
 
 	trb = kzalloc(sizeof(*trb), GFP_ATOMIC);
-	if (!trb) {
-		dev_err(u3d->dev, "%s, trb alloc fail\n", __func__);
+	if (!trb)
 		return NULL;
-	}
 
 	/*
 	 * Be careful that no _GFP_HIGHMEM is set,
@@ -310,6 +307,7 @@ static struct mv_u3d_trb *mv_u3d_build_trb_one(struct mv_u3d_req *req,
 	 */
 	trb_hw = dma_pool_alloc(u3d->trb_pool, GFP_ATOMIC, dma);
 	if (!trb_hw) {
+		kfree(trb);
 		dev_err(u3d->dev,
 			"%s, dma_pool_alloc fail\n", __func__);
 		return NULL;
@@ -446,16 +444,12 @@ static int mv_u3d_req_to_trb(struct mv_u3d_req *req)
 			trb_num++;
 
 		trb = kcalloc(trb_num, sizeof(*trb), GFP_ATOMIC);
-		if (!trb) {
-			dev_err(u3d->dev,
-					"%s, trb alloc fail\n", __func__);
+		if (!trb)
 			return -ENOMEM;
-		}
 
 		trb_hw = kcalloc(trb_num, sizeof(*trb_hw), GFP_ATOMIC);
 		if (!trb_hw) {
-			dev_err(u3d->dev,
-					"%s, trb_hw alloc fail\n", __func__);
+			kfree(trb);
 			return -ENOMEM;
 		}
 
@@ -1334,7 +1328,7 @@ static int mv_u3d_eps_init(struct mv_u3d *u3d)
 	ep->ep.name = ep->name;
 	ep->ep.ops = &mv_u3d_ep_ops;
 	ep->wedge = 0;
-	ep->ep.maxpacket = MV_U3D_EP0_MAX_PKT_SIZE;
+	usb_ep_set_maxpacket_limit(&ep->ep, MV_U3D_EP0_MAX_PKT_SIZE);
 	ep->ep_num = 0;
 	ep->ep.desc = &mv_u3d_ep0_desc;
 	INIT_LIST_HEAD(&ep->queue);
@@ -1359,7 +1353,7 @@ static int mv_u3d_eps_init(struct mv_u3d *u3d)
 		ep->ep.name = ep->name;
 
 		ep->ep.ops = &mv_u3d_ep_ops;
-		ep->ep.maxpacket = (unsigned short) ~0;
+		usb_ep_set_maxpacket_limit(&ep->ep, (unsigned short) ~0);
 		ep->ep_num = i / 2;
 
 		INIT_LIST_HEAD(&ep->queue);
@@ -1810,7 +1804,6 @@ static int mv_u3d_probe(struct platform_device *dev)
 
 	u3d = kzalloc(sizeof(*u3d), GFP_KERNEL);
 	if (!u3d) {
-		dev_err(&dev->dev, "failed to allocate memory for u3d\n");
 		retval = -ENOMEM;
 		goto err_alloc_private;
 	}
@@ -1904,7 +1897,6 @@ static int mv_u3d_probe(struct platform_device *dev)
 	size = u3d->max_eps * sizeof(struct mv_u3d_ep) * 2;
 	u3d->eps = kzalloc(size, GFP_KERNEL);
 	if (!u3d->eps) {
-		dev_err(&dev->dev, "allocate ep memory failed\n");
 		retval = -ENOMEM;
 		goto err_alloc_eps;
 	}
@@ -1912,7 +1904,6 @@ static int mv_u3d_probe(struct platform_device *dev)
 	/* initialize ep0 status request structure */
 	u3d->status_req = kzalloc(sizeof(struct mv_u3d_req) + 8, GFP_KERNEL);
 	if (!u3d->status_req) {
-		dev_err(&dev->dev, "allocate status_req memory failed\n");
 		retval = -ENOMEM;
 		goto err_alloc_status_req;
 	}
@@ -1936,7 +1927,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	}
 	u3d->irq = r->start;
 	if (request_irq(u3d->irq, mv_u3d_irq,
-		IRQF_DISABLED | IRQF_SHARED, driver_name, u3d)) {
+		IRQF_SHARED, driver_name, u3d)) {
 		u3d->irq = 0;
 		dev_err(&dev->dev, "Request irq %d for u3d failed\n",
 			u3d->irq);

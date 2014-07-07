@@ -17,7 +17,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk/tegra.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -29,6 +28,7 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
@@ -37,10 +37,6 @@
 #include <linux/usb/otg.h>
 
 #include "ehci.h"
-
-#define TEGRA_USB_BASE			0xC5000000
-#define TEGRA_USB2_BASE			0xC5004000
-#define TEGRA_USB3_BASE			0xC5008000
 
 #define PORT_WAKE_BITS (PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E)
 
@@ -55,13 +51,10 @@ struct tegra_ehci_soc_config {
 	bool has_hostpc;
 };
 
-static int (*orig_hub_control)(struct usb_hcd *hcd,
-				u16 typeReq, u16 wValue, u16 wIndex,
-				char *buf, u16 wLength);
-
 struct tegra_ehci_hcd {
 	struct tegra_usb_phy *phy;
 	struct clk *clk;
+	struct reset_control *rst;
 	int port_resuming;
 	bool needs_double_reset;
 	enum tegra_usb_phy_port_speed port_speed;
@@ -239,7 +232,7 @@ static int tegra_ehci_hub_control(
 	spin_unlock_irqrestore(&ehci->lock, flags);
 
 	/* Handle the hub control events here */
-	return orig_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+	return ehci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
 
 done:
 	spin_unlock_irqrestore(&ehci->lock, flags);
@@ -362,10 +355,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	 * Since shared usb code relies on it, set it here for now.
 	 * Once we have dma capability bindings this can go away.
 	 */
-	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	if (!pdev->dev.coherent_dma_mask)
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	err = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (err)
+		return err;
 
 	hcd = usb_create_hcd(&tegra_ehci_hc_driver, &pdev->dev,
 					dev_name(&pdev->dev));
@@ -386,13 +378,20 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto cleanup_hcd_create;
 	}
 
+	tegra->rst = devm_reset_control_get(&pdev->dev, "usb");
+	if (IS_ERR(tegra->rst)) {
+		dev_err(&pdev->dev, "Can't get ehci reset\n");
+		err = PTR_ERR(tegra->rst);
+		goto cleanup_hcd_create;
+	}
+
 	err = clk_prepare_enable(tegra->clk);
 	if (err)
-		goto cleanup_clk_get;
+		goto cleanup_hcd_create;
 
-	tegra_periph_reset_assert(tegra->clk);
+	reset_control_assert(tegra->rst);
 	udelay(1);
-	tegra_periph_reset_deassert(tegra->clk);
+	reset_control_deassert(tegra->rst);
 
 	u_phy = devm_usb_get_phy_by_phandle(&pdev->dev, "nvidia,phy", 0);
 	if (IS_ERR(u_phy)) {
@@ -412,10 +411,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	}
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!hcd->regs) {
-		dev_err(&pdev->dev, "Failed to remap I/O memory\n");
-		err = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		err = PTR_ERR(hcd->regs);
 		goto cleanup_clk_en;
 	}
 	ehci->caps = hcd->regs + 0x100;
@@ -456,6 +454,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
 		goto cleanup_otg_set_host;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return err;
 
@@ -465,8 +464,6 @@ cleanup_phy:
 	usb_phy_shutdown(hcd->phy);
 cleanup_clk_en:
 	clk_disable_unprepare(tegra->clk);
-cleanup_clk_get:
-	clk_put(tegra->clk);
 cleanup_hcd_create:
 	usb_put_hcd(hcd);
 	return err;
@@ -507,8 +504,31 @@ static struct platform_driver tegra_ehci_driver = {
 	}
 };
 
+static int tegra_ehci_reset(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	int retval;
+	int txfifothresh;
+
+	retval = ehci_setup(hcd);
+	if (retval)
+		return retval;
+
+	/*
+	 * We should really pull this value out of tegra_ehci_soc_config, but
+	 * to avoid needing access to it, make use of the fact that Tegra20 is
+	 * the only one so far that needs a value of 10, and Tegra20 is the
+	 * only one which doesn't set has_hostpc.
+	 */
+	txfifothresh = ehci->has_hostpc ? 0x10 : 10;
+	ehci_writel(ehci, txfifothresh << 16, &ehci->regs->txfill_tuning);
+
+	return 0;
+}
+
 static const struct ehci_driver_overrides tegra_overrides __initconst = {
 	.extra_priv_size	= sizeof(struct tegra_ehci_hcd),
+	.reset			= tegra_ehci_reset,
 };
 
 static int __init ehci_tegra_init(void)
@@ -528,8 +548,6 @@ static int __init ehci_tegra_init(void)
 	 * want to encourage others to override these functions by making it
 	 * too easy.
 	 */
-
-	orig_hub_control = tegra_ehci_hc_driver.hub_control;
 
 	tegra_ehci_hc_driver.map_urb_for_dma = tegra_ehci_map_urb_for_dma;
 	tegra_ehci_hc_driver.unmap_urb_for_dma = tegra_ehci_unmap_urb_for_dma;

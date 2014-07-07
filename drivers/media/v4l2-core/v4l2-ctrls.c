@@ -420,7 +420,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Advanced Simple",
 		"Core",
 		"Simple Scalable",
-		"Advanced Coding Efficency",
+		"Advanced Coding Efficiency",
 		NULL,
 	};
 
@@ -565,13 +565,13 @@ EXPORT_SYMBOL(v4l2_ctrl_get_menu);
  * Returns NULL or an s64 type array containing the menu for given
  * control ID. The total number of the menu items is returned in @len.
  */
-const s64 const *v4l2_ctrl_get_int_menu(u32 id, u32 *len)
+const s64 *v4l2_ctrl_get_int_menu(u32 id, u32 *len)
 {
-	static const s64 const qmenu_int_vpx_num_partitions[] = {
+	static const s64 qmenu_int_vpx_num_partitions[] = {
 		1, 2, 4, 8,
 	};
 
-	static const s64 const qmenu_int_vpx_num_ref_frames[] = {
+	static const s64 qmenu_int_vpx_num_ref_frames[] = {
 		1, 2, 3,
 	};
 
@@ -583,7 +583,7 @@ const s64 const *v4l2_ctrl_get_int_menu(u32 id, u32 *len)
 	default:
 		*len = 0;
 		return NULL;
-	};
+	}
 }
 EXPORT_SYMBOL(v4l2_ctrl_get_int_menu);
 
@@ -735,6 +735,8 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_DEC_PTS:			return "Video Decoder PTS";
 	case V4L2_CID_MPEG_VIDEO_DEC_FRAME:			return "Video Decoder Frame Count";
 	case V4L2_CID_MPEG_VIDEO_VBV_DELAY:			return "Initial Delay for VBV Control";
+	case V4L2_CID_MPEG_VIDEO_MV_H_SEARCH_RANGE:		return "Horizontal MV Search Range";
+	case V4L2_CID_MPEG_VIDEO_MV_V_SEARCH_RANGE:		return "Vertical MV Search Range";
 	case V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER:		return "Repeat Sequence Header";
 
 	/* VPX controls */
@@ -745,6 +747,11 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_VPX_FILTER_SHARPNESS:		return "VPX Deblocking Effect Control";
 	case V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD:	return "VPX Golden Frame Refresh Period";
 	case V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL:		return "VPX Golden Frame Indicator";
+	case V4L2_CID_MPEG_VIDEO_VPX_MIN_QP:			return "VPX Minimum QP Value";
+	case V4L2_CID_MPEG_VIDEO_VPX_MAX_QP:			return "VPX Maximum QP Value";
+	case V4L2_CID_MPEG_VIDEO_VPX_I_FRAME_QP:		return "VPX I-Frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_VPX_P_FRAME_QP:		return "VPX P-Frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_VPX_PROFILE:			return "VPX Profile";
 
 	/* CAMERA controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
@@ -852,6 +859,17 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_FM_RX_CLASS:		return "FM Radio Receiver Controls";
 	case V4L2_CID_TUNE_DEEMPHASIS:		return "De-Emphasis";
 	case V4L2_CID_RDS_RECEPTION:		return "RDS Reception";
+
+	case V4L2_CID_RF_TUNER_CLASS:		return "RF Tuner Controls";
+	case V4L2_CID_RF_TUNER_LNA_GAIN_AUTO:	return "LNA Gain, Auto";
+	case V4L2_CID_RF_TUNER_LNA_GAIN:	return "LNA Gain";
+	case V4L2_CID_RF_TUNER_MIXER_GAIN_AUTO:	return "Mixer Gain, Auto";
+	case V4L2_CID_RF_TUNER_MIXER_GAIN:	return "Mixer Gain";
+	case V4L2_CID_RF_TUNER_IF_GAIN_AUTO:	return "IF Gain, Auto";
+	case V4L2_CID_RF_TUNER_IF_GAIN:		return "IF Gain";
+	case V4L2_CID_RF_TUNER_BANDWIDTH_AUTO:	return "Bandwidth, Auto";
+	case V4L2_CID_RF_TUNER_BANDWIDTH:	return "Bandwidth";
+	case V4L2_CID_RF_TUNER_PLL_LOCK:	return "PLL Lock";
 	default:
 		return NULL;
 	}
@@ -901,9 +919,18 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_WIDE_DYNAMIC_RANGE:
 	case V4L2_CID_IMAGE_STABILIZATION:
 	case V4L2_CID_RDS_RECEPTION:
+	case V4L2_CID_RF_TUNER_LNA_GAIN_AUTO:
+	case V4L2_CID_RF_TUNER_MIXER_GAIN_AUTO:
+	case V4L2_CID_RF_TUNER_IF_GAIN_AUTO:
+	case V4L2_CID_RF_TUNER_BANDWIDTH_AUTO:
+	case V4L2_CID_RF_TUNER_PLL_LOCK:
 		*type = V4L2_CTRL_TYPE_BOOLEAN;
 		*min = 0;
 		*max = *step = 1;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MV_H_SEARCH_RANGE:
+	case V4L2_CID_MPEG_VIDEO_MV_V_SEARCH_RANGE:
+		*type = V4L2_CTRL_TYPE_INTEGER;
 		break;
 	case V4L2_CID_PAN_RESET:
 	case V4L2_CID_TILT_RESET:
@@ -986,6 +1013,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_IMAGE_PROC_CLASS:
 	case V4L2_CID_DV_CLASS:
 	case V4L2_CID_FM_RX_CLASS:
+	case V4L2_CID_RF_TUNER_CLASS:
 		*type = V4L2_CTRL_TYPE_CTRL_CLASS;
 		/* You can neither read not write these */
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY;
@@ -1058,6 +1086,10 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_PILOT_TONE_FREQUENCY:
 	case V4L2_CID_TUNE_POWER_LEVEL:
 	case V4L2_CID_TUNE_ANTENNA_CAPACITOR:
+	case V4L2_CID_RF_TUNER_LNA_GAIN:
+	case V4L2_CID_RF_TUNER_MIXER_GAIN:
+	case V4L2_CID_RF_TUNER_IF_GAIN:
+	case V4L2_CID_RF_TUNER_BANDWIDTH:
 		*flags |= V4L2_CTRL_FLAG_SLIDER;
 		break;
 	case V4L2_CID_PAN_RELATIVE:
@@ -1075,6 +1107,9 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_DV_TX_EDID_PRESENT:
 	case V4L2_CID_DV_RX_POWER_PRESENT:
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
+		break;
+	case V4L2_CID_RF_TUNER_PLL_LOCK:
+		*flags |= V4L2_CTRL_FLAG_VOLATILE;
 		break;
 	}
 }
@@ -1916,7 +1951,8 @@ void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls)
 	int i;
 
 	/* The first control is the master control and it must not be NULL */
-	BUG_ON(ncontrols == 0 || controls[0] == NULL);
+	if (WARN_ON(ncontrols == 0 || controls[0] == NULL))
+		return;
 
 	for (i = 0; i < ncontrols; i++) {
 		if (controls[i]) {

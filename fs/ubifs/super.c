@@ -351,7 +351,7 @@ static void ubifs_evict_inode(struct inode *inode)
 	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
 	ubifs_assert(!atomic_read(&inode->i_count));
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 
 	if (inode->i_nlink)
 		goto done;
@@ -873,26 +873,10 @@ static void free_orphans(struct ubifs_info *c)
  */
 static void free_buds(struct ubifs_info *c)
 {
-	struct rb_node *this = c->buds.rb_node;
-	struct ubifs_bud *bud;
+	struct ubifs_bud *bud, *n;
 
-	while (this) {
-		if (this->rb_left)
-			this = this->rb_left;
-		else if (this->rb_right)
-			this = this->rb_right;
-		else {
-			bud = rb_entry(this, struct ubifs_bud, rb);
-			this = rb_parent(this);
-			if (this) {
-				if (this->rb_left == &bud->rb)
-					this->rb_left = NULL;
-				else
-					this->rb_right = NULL;
-			}
-			kfree(bud);
-		}
-	}
+	rbtree_postorder_for_each_entry_safe(bud, n, &c->buds, rb)
+		kfree(bud);
 }
 
 /**
@@ -1165,6 +1149,9 @@ static int mount_ubifs(struct ubifs_info *c)
 	size_t sz;
 
 	c->ro_mount = !!(c->vfs_sb->s_flags & MS_RDONLY);
+	/* Suppress error messages while probing if MS_SILENT is set */
+	c->probing = !!(c->vfs_sb->s_flags & MS_SILENT);
+
 	err = init_constants_early(c);
 	if (err)
 		return err;
@@ -1229,6 +1216,8 @@ static int mount_ubifs(struct ubifs_info *c)
 	err = ubifs_read_superblock(c);
 	if (err)
 		goto out_free;
+
+	c->probing = 0;
 
 	/*
 	 * Make sure the compressor which is set as default in the superblock
@@ -1572,7 +1561,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	if (c->space_fixup) {
 		err = ubifs_fixup_free_space(c);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	err = check_free_space(c);
@@ -1630,8 +1619,10 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	}
 
 	c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ, GFP_KERNEL);
-	if (!c->write_reserve_buf)
+	if (!c->write_reserve_buf) {
+		err = -ENOMEM;
 		goto out;
+	}
 
 	err = ubifs_lpt_init(c, 0, 1);
 	if (err)
@@ -1841,6 +1832,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 	int err;
 	struct ubifs_info *c = sb->s_fs_info;
 
+	sync_filesystem(sb);
 	dbg_gen("old flags %#lx, new flags %#x", sb->s_flags, *flags);
 
 	err = ubifs_parse_options(c, data, 1);
@@ -2064,8 +2056,10 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	sb->s_root = d_make_root(root);
-	if (!sb->s_root)
+	if (!sb->s_root) {
+		err = -ENOMEM;
 		goto out_umount;
+	}
 
 	mutex_unlock(&c->umount_mutex);
 	return 0;

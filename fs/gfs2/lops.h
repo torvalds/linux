@@ -46,12 +46,13 @@ static inline unsigned int databuf_limit(struct gfs2_sbd *sdp)
 	return limit;
 }
 
-static inline void lops_before_commit(struct gfs2_sbd *sdp)
+static inline void lops_before_commit(struct gfs2_sbd *sdp,
+				      struct gfs2_trans *tr)
 {
 	int x;
 	for (x = 0; gfs2_log_ops[x]; x++)
 		if (gfs2_log_ops[x]->lo_before_commit)
-			gfs2_log_ops[x]->lo_before_commit(sdp);
+			gfs2_log_ops[x]->lo_before_commit(sdp, tr);
 }
 
 static inline void lops_after_commit(struct gfs2_sbd *sdp,

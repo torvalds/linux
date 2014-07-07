@@ -23,6 +23,8 @@ __inline, INLINE_KEYW
 __inline__, INLINE_KEYW
 __signed, SIGNED_KEYW
 __signed__, SIGNED_KEYW
+__typeof, TYPEOF_KEYW
+__typeof__, TYPEOF_KEYW
 __volatile, VOLATILE_KEYW
 __volatile__, VOLATILE_KEYW
 # According to rth, c99 defines _Bool, __restrict, __restrict__, restrict.  KAO
@@ -51,9 +53,8 @@ signed, SIGNED_KEYW
 static, STATIC_KEYW
 struct, STRUCT_KEYW
 typedef, TYPEDEF_KEYW
+typeof, TYPEOF_KEYW
 union, UNION_KEYW
 unsigned, UNSIGNED_KEYW
 void, VOID_KEYW
 volatile, VOLATILE_KEYW
-typeof, TYPEOF_KEYW
-__typeof__, TYPEOF_KEYW

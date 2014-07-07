@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 
@@ -52,6 +53,7 @@ ACPI_MODULE_NAME("utxferror")
  * This module is used for the in-kernel ACPICA as well as the ACPICA
  * tools/applications.
  */
+#ifndef ACPI_NO_ERROR_MESSAGES	/* Entire module */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_error
@@ -248,3 +250,4 @@ acpi_bios_warning(const char *module_name,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_bios_warning)
+#endif				/* ACPI_NO_ERROR_MESSAGES */

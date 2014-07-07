@@ -428,7 +428,7 @@ struct smb_hdr {
 	__u16 Tid;
 	__le16 Pid;
 	__u16 Uid;
-	__u16 Mid;
+	__le16 Mid;
 	__u8 WordCount;
 } __attribute__((packed));
 
@@ -697,7 +697,13 @@ struct ntlmssp2_name {
 } __attribute__((packed));
 
 struct ntlmv2_resp {
-	char ntlmv2_hash[CIFS_ENCPWD_SIZE];
+	union {
+	    char ntlmv2_hash[CIFS_ENCPWD_SIZE];
+	    struct {
+		__u8 reserved[8];
+		__u8 key[CIFS_SERVER_CHALLENGE_SIZE];
+	    } __attribute__((packed)) challenge;
+	} __attribute__((packed));
 	__le32 blob_signature;
 	__u32  reserved;
 	__le64  time;
@@ -1352,6 +1358,35 @@ typedef struct smb_com_transaction_ioctl_req {
 	__u8 Data[1];
 } __attribute__((packed)) TRANSACT_IOCTL_REQ;
 
+typedef struct smb_com_transaction_compr_ioctl_req {
+	struct smb_hdr hdr;	/* wct = 23 */
+	__u8 MaxSetupCount;
+	__u16 Reserved;
+	__le32 TotalParameterCount;
+	__le32 TotalDataCount;
+	__le32 MaxParameterCount;
+	__le32 MaxDataCount;
+	__le32 ParameterCount;
+	__le32 ParameterOffset;
+	__le32 DataCount;
+	__le32 DataOffset;
+	__u8 SetupCount; /* four setup words follow subcommand */
+	/* SNIA spec incorrectly included spurious pad here */
+	__le16 SubCommand; /* 2 = IOCTL/FSCTL */
+	__le32 FunctionCode;
+	__u16 Fid;
+	__u8 IsFsctl;  /* 1 = File System Control 0 = device control (IOCTL) */
+	__u8 IsRootFlag; /* 1 = apply command to root of share (must be DFS) */
+	__le16 ByteCount;
+	__u8 Pad[3];
+	__le16 compression_state;  /* See below for valid flags */
+} __attribute__((packed)) TRANSACT_COMPR_IOCTL_REQ;
+
+/* compression state flags */
+#define COMPRESSION_FORMAT_NONE		0x0000
+#define COMPRESSION_FORMAT_DEFAULT	0x0001
+#define COMPRESSION_FORMAT_LZNT1	0x0002
+
 typedef struct smb_com_transaction_ioctl_rsp {
 	struct smb_hdr hdr;	/* wct = 19 */
 	__u8 Reserved[3];
@@ -1491,15 +1526,30 @@ struct file_notify_information {
 	__u8  FileName[0];
 } __attribute__((packed));
 
-struct reparse_data {
-	__u32	ReparseTag;
-	__u16	ReparseDataLength;
+/* For IO_REPARSE_TAG_SYMLINK */
+struct reparse_symlink_data {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
 	__u16	Reserved;
-	__u16	SubstituteNameOffset;
-	__u16	SubstituteNameLength;
-	__u16	PrintNameOffset;
-	__u16	PrintNameLength;
-	__u32	Flags;
+	__le16	SubstituteNameOffset;
+	__le16	SubstituteNameLength;
+	__le16	PrintNameOffset;
+	__le16	PrintNameLength;
+	__le32	Flags;
+	char	PathBuffer[0];
+} __attribute__((packed));
+
+/* For IO_REPARSE_TAG_NFS */
+#define NFS_SPECFILE_LNK	0x00000000014B4E4C
+#define NFS_SPECFILE_CHR	0x0000000000524843
+#define NFS_SPECFILE_BLK	0x00000000004B4C42
+#define NFS_SPECFILE_FIFO	0x000000004F464946
+#define NFS_SPECFILE_SOCK	0x000000004B434F53
+struct reparse_posix_data {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__le64	InodeType; /* LNK, FIFO, CHR etc. */
 	char	PathBuffer[0];
 } __attribute__((packed));
 
@@ -2199,6 +2249,9 @@ typedef struct {
 	__le32 DeviceType;
 	__le32 DeviceCharacteristics;
 } __attribute__((packed)) FILE_SYSTEM_DEVICE_INFO; /* device info level 0x104 */
+
+/* minimum includes first three fields, and empty FS Name */
+#define MIN_FS_ATTR_INFO_SIZE 12
 
 typedef struct {
 	__le32 Attributes;

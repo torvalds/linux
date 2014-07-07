@@ -67,15 +67,15 @@ static int tegra20_spdif_hw_params(struct snd_pcm_substream *substream,
 {
 	struct device *dev = dai->dev;
 	struct tegra20_spdif *spdif = snd_soc_dai_get_drvdata(dai);
-	unsigned int mask, val;
+	unsigned int mask = 0, val = 0;
 	int ret, spdifclock;
 
-	mask = TEGRA20_SPDIF_CTRL_PACK |
-	       TEGRA20_SPDIF_CTRL_BIT_MODE_MASK;
+	mask |= TEGRA20_SPDIF_CTRL_PACK |
+		TEGRA20_SPDIF_CTRL_BIT_MODE_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		val = TEGRA20_SPDIF_CTRL_PACK |
-		      TEGRA20_SPDIF_CTRL_BIT_MODE_16BIT;
+		val |= TEGRA20_SPDIF_CTRL_PACK |
+		       TEGRA20_SPDIF_CTRL_BIT_MODE_16BIT;
 		break;
 	default:
 		return -EINVAL;
@@ -213,7 +213,7 @@ static bool tegra20_spdif_wr_rd_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tegra20_spdif_volatile_reg(struct device *dev, unsigned int reg)
@@ -234,7 +234,7 @@ static bool tegra20_spdif_volatile_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tegra20_spdif_precious_reg(struct device *dev, unsigned int reg)
@@ -247,7 +247,7 @@ static bool tegra20_spdif_precious_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_config tegra20_spdif_regmap_config = {
@@ -259,7 +259,7 @@ static const struct regmap_config tegra20_spdif_regmap_config = {
 	.readable_reg = tegra20_spdif_wr_rd_reg,
 	.volatile_reg = tegra20_spdif_volatile_reg,
 	.precious_reg = tegra20_spdif_precious_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int tegra20_spdif_platform_probe(struct platform_device *pdev)

@@ -1833,7 +1833,7 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 	r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
 
 	if (r8a66597->pdata->on_chip) {
-		clk_disable(r8a66597->clk);
+		clk_disable_unprepare(r8a66597->clk);
 		clk_put(r8a66597->clk);
 	}
 
@@ -1904,7 +1904,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597 = kzalloc(sizeof(struct r8a66597), GFP_KERNEL);
 	if (r8a66597 == NULL) {
 		ret = -ENOMEM;
-		dev_err(&pdev->dev, "kzalloc error\n");
 		goto clean_up;
 	}
 
@@ -1931,7 +1930,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 			ret = PTR_ERR(r8a66597->clk);
 			goto clean_up;
 		}
-		clk_enable(r8a66597->clk);
+		clk_prepare_enable(r8a66597->clk);
 	}
 
 	if (r8a66597->pdata->sudmac) {
@@ -1964,9 +1963,9 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 		INIT_LIST_HEAD(&ep->queue);
 		ep->ep.name = r8a66597_ep_name[i];
 		ep->ep.ops = &r8a66597_ep_ops;
-		ep->ep.maxpacket = 512;
+		usb_ep_set_maxpacket_limit(&ep->ep, 512);
 	}
-	r8a66597->ep[0].ep.maxpacket = 64;
+	usb_ep_set_maxpacket_limit(&r8a66597->ep[0].ep, 64);
 	r8a66597->ep[0].pipenum = 0;
 	r8a66597->ep[0].fifoaddr = CFIFO;
 	r8a66597->ep[0].fifosel = CFIFOSEL;
@@ -1996,7 +1995,7 @@ clean_up3:
 	free_irq(irq, r8a66597);
 clean_up2:
 	if (r8a66597->pdata->on_chip) {
-		clk_disable(r8a66597->clk);
+		clk_disable_unprepare(r8a66597->clk);
 		clk_put(r8a66597->clk);
 	}
 clean_up:

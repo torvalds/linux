@@ -17,7 +17,8 @@
 #include "r819xU_firmware_img.h"
 #include "r819xU_firmware.h"
 #include <linux/firmware.h>
-void firmware_init_param(struct net_device *dev)
+
+static void firmware_init_param(struct net_device *dev)
 {
 	struct r8192_priv	*priv = ieee80211_priv(dev);
 	rt_firmware		*pfirmware = priv->pFirmware;
@@ -29,7 +30,8 @@ void firmware_init_param(struct net_device *dev)
  * segment the img and use the ptr and length to remember info on each segment
  *
  */
-bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buffer_len)
+static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
+			     u32 buffer_len)
 {
 	struct r8192_priv   *priv = ieee80211_priv(dev);
 	bool		    rt_status = true;
@@ -61,20 +63,16 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 		/* Allocate skb buffer to contain firmware info and tx descriptor info
 		 * add 4 to avoid packet appending overflow.
 		 * */
-		#ifdef RTL8192U
 		skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + frag_length + 4);
-		#else
-		skb  = dev_alloc_skb(frag_length + 4);
-		#endif
+		if (!skb)
+			return false;
 		memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
 		tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
 
-		#ifdef RTL8192U
 		skb_reserve(skb, USB_HWDESC_HEADER_LEN);
-		#endif
 		seg_ptr = skb->data;
 		/*
 		 * Transform from little endian to big endian
@@ -107,46 +105,6 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 
 }
 
-bool
-fwSendNullPacket(
-	struct net_device *dev,
-	u32			Length
-)
-{
-	bool	rtStatus = true;
-	struct r8192_priv   *priv = ieee80211_priv(dev);
-	struct sk_buff	    *skb;
-	cb_desc		    *tcb_desc;
-	unsigned char	    *ptr_buf;
-	bool	bLastInitPacket = false;
-
-	//PlatformAcquireSpinLock(Adapter, RT_TX_SPINLOCK);
-
-	//Get TCB and local buffer from common pool. (It is shared by CmdQ, MgntQ, and USB coalesce DataQ)
-	skb  = dev_alloc_skb(Length+ 4);
-	memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	tcb_desc->queue_index = TXCMD_QUEUE;
-	tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
-	tcb_desc->bLastIniPkt = bLastInitPacket;
-	ptr_buf = skb_put(skb, Length);
-	memset(ptr_buf,0,Length);
-	tcb_desc->txbuf_size= (u16)Length;
-
-	if (!priv->ieee80211->check_nic_enough_desc(dev,tcb_desc->queue_index)||
-			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index]))||\
-			(priv->ieee80211->queue_stop) ) {
-			RT_TRACE(COMP_FIRMWARE,"===================NULL packet==================================> tx full!\n");
-			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
-		} else {
-			priv->ieee80211->softmac_hard_start_xmit(skb,dev);
-		}
-
-	//PlatformReleaseSpinLock(Adapter, RT_TX_SPINLOCK);
-	return rtStatus;
-}
-
-
 //-----------------------------------------------------------------------------
 // Procedure:    Check whether main code is download OK. If OK, turn on CPU
 //
@@ -160,7 +118,7 @@ fwSendNullPacket(
 //        NDIS_STATUS_FAILURE - the following initialization process should be terminated
 //        NDIS_STATUS_SUCCESS - if firmware initialization process success
 //-----------------------------------------------------------------------------
-bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
+static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 {
 	bool		rt_status = true;
 	int		check_putcodeOK_time = 200000, check_bootOk_time = 200000;
@@ -204,12 +162,12 @@ bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 	return rt_status;
 
 CPUCheckMainCodeOKAndTurnOnCPU_Fail:
-	RT_TRACE(COMP_ERR, "ERR in %s()\n", __FUNCTION__);
+	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = FALSE;
 	return rt_status;
 }
 
-bool CPUcheck_firmware_ready(struct net_device *dev)
+static bool CPUcheck_firmware_ready(struct net_device *dev)
 {
 
 	bool		rt_status = true;
@@ -233,7 +191,7 @@ bool CPUcheck_firmware_ready(struct net_device *dev)
 	return rt_status;
 
 CPUCheckFirmwareReady_Fail:
-	RT_TRACE(COMP_ERR, "ERR in %s()\n", __FUNCTION__);
+	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = false;
 	return rt_status;
 
@@ -299,16 +257,10 @@ bool init_firmware(struct net_device *dev)
 				mapped_file = pfirmware->firmware_buf;
 				file_length = fw_entry->size;
 			} else {
-#ifdef RTL8190P
-				memcpy(pfirmware->firmware_buf,fw_entry->data,fw_entry->size);
-				mapped_file = pfirmware->firmware_buf;
-				file_length = fw_entry->size;
-#else
 				memset(pfirmware->firmware_buf,0,128);
 				memcpy(&pfirmware->firmware_buf[128],fw_entry->data,fw_entry->size);
 				mapped_file = pfirmware->firmware_buf;
 				file_length = fw_entry->size + 128;
-#endif
 			}
 			pfirmware->firmware_buf_size = file_length;
 		}else if (rst_opt == OPT_FIRMWARE_RESET ) {
@@ -325,13 +277,11 @@ bool init_firmware(struct net_device *dev)
 		 *   and Tx descriptor info
 		 * */
 		rt_status = fw_download_code(dev,mapped_file,file_length);
-		if (rst_opt == OPT_SYSTEM_RESET) {
+		if (rst_opt == OPT_SYSTEM_RESET)
 			release_firmware(fw_entry);
-		}
 
-		if (rt_status != TRUE) {
+		if (rt_status != TRUE)
 			goto download_firmware_fail;
-		}
 
 		switch (init_step) {
 		case FW_INIT_STEP0_BOOT:
@@ -340,15 +290,6 @@ bool init_firmware(struct net_device *dev)
 			 * will set polling bit when firmware code is also configured
 			 */
 			pfirmware->firmware_status = FW_STATUS_1_MOVE_BOOT_CODE;
-#ifdef RTL8190P
-			// To initialize IMEM, CPU move code  from 0x80000080, hence, we send 0x80 byte packet
-			rt_status = fwSendNullPacket(dev, RTL8190_CPU_START_OFFSET);
-			if (rt_status != true)
-			{
-				RT_TRACE(COMP_INIT, "fwSendNullPacket() fail ! \n");
-				goto  download_firmware_fail;
-			}
-#endif
 			//mdelay(1000);
 			/*
 			 * To initialize IMEM, CPU move code  from 0x80000080,
@@ -393,7 +334,7 @@ bool init_firmware(struct net_device *dev)
 	return rt_status;
 
 download_firmware_fail:
-	RT_TRACE(COMP_ERR, "ERR in %s()\n", __FUNCTION__);
+	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = FALSE;
 	return rt_status;
 

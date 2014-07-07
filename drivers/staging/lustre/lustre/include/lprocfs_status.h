@@ -369,7 +369,12 @@ static inline void s2dhms(struct dhms *ts, time_t secs)
 #define JOBSTATS_JOBID_VAR_MAX_LEN	20
 #define JOBSTATS_DISABLE		"disable"
 #define JOBSTATS_PROCNAME_UID		"procname_uid"
+#define JOBSTATS_NODELOCAL		"nodelocal"
 
+extern int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
+				     int *val, int mult);
+extern int lprocfs_read_frac_helper(char *buffer, unsigned long count,
+				    long val, int mult);
 #ifdef LPROCFS
 
 extern int lprocfs_stats_alloc_one(struct lprocfs_stats *stats,
@@ -641,11 +646,7 @@ extern int lprocfs_rd_filesfree(struct seq_file *m, void *data);
 
 extern int lprocfs_write_helper(const char *buffer, unsigned long count,
 				int *val);
-extern int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
-				     int *val, int mult);
 extern int lprocfs_seq_read_frac_helper(struct seq_file *m, long val, int mult);
-extern int lprocfs_read_frac_helper(char *buffer, unsigned long count,
-				    long val, int mult);
 extern int lprocfs_write_u64_helper(const char *buffer, unsigned long count,
 				    __u64 *val);
 extern int lprocfs_write_frac_u64_helper(const char *buffer,
@@ -687,7 +688,7 @@ static int name##_single_open(cfs_inode_t *inode, struct file *file)	\
 {									\
 	return single_open(file, name##_seq_show, PDE_DATA(inode));	\
 }									\
-struct file_operations name##_fops = {				     \
+static struct file_operations name##_fops = {				\
 	.owner   = THIS_MODULE,					    \
 	.open    = name##_single_open,				     \
 	.read    = seq_read,					       \
@@ -730,7 +731,7 @@ struct file_operations name##_fops = {				     \
 	{								\
 		return single_open(file, NULL, PDE_DATA(inode));	\
 	}								\
-	struct file_operations name##_##type##_fops = {			\
+	static struct file_operations name##_##type##_fops = {	\
 		.open	= name##_##type##_open,				\
 		.write	= name##_##type##_write,			\
 		.release = lprocfs_single_release,			\

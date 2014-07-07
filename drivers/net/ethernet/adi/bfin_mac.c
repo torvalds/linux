@@ -307,11 +307,6 @@ static int bfin_mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
 	return bfin_mdio_poll();
 }
 
-static int bfin_mdiobus_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void bfin_mac_adjust_link(struct net_device *dev)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
@@ -667,8 +662,8 @@ static u32 bfin_select_phc_clock(u32 input_clk, unsigned int *shift_result)
 	return 1000000000UL / ppn;
 }
 
-static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
-		struct ifreq *ifr, int cmd)
+static int bfin_mac_hwtstamp_set(struct net_device *netdev,
+				 struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
 	struct bfin_mac_local *lp = netdev_priv(netdev);
@@ -821,6 +816,16 @@ static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
 
 	lp->stamp_cfg = config;
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+		-EFAULT : 0;
+}
+
+static int bfin_mac_hwtstamp_get(struct net_device *netdev,
+				 struct ifreq *ifr)
+{
+	struct bfin_mac_local *lp = netdev_priv(netdev);
+
+	return copy_to_user(ifr->ifr_data, &lp->stamp_cfg,
+			    sizeof(lp->stamp_cfg)) ?
 		-EFAULT : 0;
 }
 
@@ -1030,6 +1035,7 @@ static struct ptp_clock_info bfin_ptp_caps = {
 	.n_alarm	= 0,
 	.n_ext_ts	= 0,
 	.n_per_out	= 0,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= bfin_ptp_adjfreq,
 	.adjtime	= bfin_ptp_adjtime,
@@ -1062,7 +1068,8 @@ static void bfin_phc_release(struct bfin_mac_local *lp)
 #else
 # define bfin_mac_hwtstamp_is_none(cfg) 0
 # define bfin_mac_hwtstamp_init(dev)
-# define bfin_mac_hwtstamp_ioctl(dev, ifr, cmd) (-EOPNOTSUPP)
+# define bfin_mac_hwtstamp_set(dev, ifr) (-EOPNOTSUPP)
+# define bfin_mac_hwtstamp_get(dev, ifr) (-EOPNOTSUPP)
 # define bfin_rx_hwtstamp(dev, skb)
 # define bfin_tx_hwtstamp(dev, skb)
 # define bfin_phc_init(netdev, dev) 0
@@ -1075,7 +1082,7 @@ static inline void _tx_reclaim_skb(void)
 		tx_list_head->desc_a.config &= ~DMAEN;
 		tx_list_head->status.status_word = 0;
 		if (tx_list_head->skb) {
-			dev_kfree_skb(tx_list_head->skb);
+			dev_consume_skb_any(tx_list_head->skb);
 			tx_list_head->skb = NULL;
 		}
 		tx_list_head = tx_list_head->next;
@@ -1496,7 +1503,9 @@ static int bfin_mac_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return bfin_mac_hwtstamp_ioctl(netdev, ifr, cmd);
+		return bfin_mac_hwtstamp_set(netdev, ifr);
+	case SIOCGHWTSTAMP:
+		return bfin_mac_hwtstamp_get(netdev, ifr);
 	default:
 		if (lp->phydev)
 			return phy_mii_ioctl(lp->phydev, ifr, cmd);
@@ -1544,7 +1553,6 @@ static int bfin_mac_open(struct net_device *dev)
 		return ret;
 
 	phy_start(lp->phydev);
-	phy_write(lp->phydev, MII_BMCR, BMCR_RESET);
 	setup_system_regs(dev);
 	setup_mac_addr(dev->dev_addr);
 
@@ -1811,7 +1819,6 @@ static int bfin_mii_bus_probe(struct platform_device *pdev)
 		goto out_err_alloc;
 	miibus->read = bfin_mdiobus_read;
 	miibus->write = bfin_mdiobus_write;
-	miibus->reset = bfin_mdiobus_reset;
 
 	miibus->parent = &pdev->dev;
 	miibus->name = "bfin_mii_bus";

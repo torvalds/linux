@@ -61,6 +61,9 @@
 #include <media/lirc_dev.h>
 #include <media/lirc.h>
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 struct IR;
 
 struct IR_rx {
@@ -764,8 +767,8 @@ static int fw_load(struct IR_tx *tx)
 	/* Request codeset data file */
 	ret = request_firmware(&fw_entry, "haup-ir-blaster.bin", tx->ir->l.dev);
 	if (ret != 0) {
-		zilog_error("firmware haup-ir-blaster.bin not available "
-			    "(%d)\n", ret);
+		zilog_error("firmware haup-ir-blaster.bin not available (%d)\n",
+			    ret);
 		ret = ret < 0 ? ret : -EFAULT;
 		goto out;
 	}
@@ -889,7 +892,8 @@ out:
 }
 
 /* copied from lirc_dev */
-static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
+static ssize_t read(struct file *filep, char __user *outbuf, size_t n,
+		    loff_t *ppos)
 {
 	struct IR *ir = filep->private_data;
 	struct IR_rx *rx;
@@ -941,10 +945,17 @@ static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 			schedule();
 			set_current_state(TASK_INTERRUPTIBLE);
 		} else {
-			unsigned char buf[rbuf->chunk_size];
+			unsigned char buf[MAX_XFER_SIZE];
+
+			if (rbuf->chunk_size > sizeof(buf)) {
+				zilog_error("chunk_size is too big (%d)!\n",
+					    rbuf->chunk_size);
+				ret = -EINVAL;
+				break;
+			}
 			m = lirc_buffer_read(rbuf, buf);
 			if (m == rbuf->chunk_size) {
-				ret = copy_to_user((void *)outbuf+written, buf,
+				ret = copy_to_user(outbuf + written, buf,
 						   rbuf->chunk_size);
 				written += rbuf->chunk_size;
 			} else {
@@ -1084,8 +1095,8 @@ static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
  * sent to the device.  We have a spin lock as per i2c documentation to prevent
  * multiple concurrent sends which would probably cause the device to explode.
  */
-static ssize_t write(struct file *filep, const char *buf, size_t n,
-			  loff_t *ppos)
+static ssize_t write(struct file *filep, const char __user *buf, size_t n,
+		     loff_t *ppos)
 {
 	struct IR *ir = filep->private_data;
 	struct IR_tx *tx;
@@ -1227,6 +1238,7 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	struct IR *ir = filep->private_data;
+	unsigned long __user *uptr = (unsigned long __user *)arg;
 	int result;
 	unsigned long mode, features;
 
@@ -1234,11 +1246,10 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case LIRC_GET_LENGTH:
-		result = put_user((unsigned long)13,
-				  (unsigned long *)arg);
+		result = put_user(13UL, uptr);
 		break;
 	case LIRC_GET_FEATURES:
-		result = put_user(features, (unsigned long *) arg);
+		result = put_user(features, uptr);
 		break;
 	case LIRC_GET_REC_MODE:
 		if (!(features&LIRC_CAN_REC_MASK))
@@ -1246,13 +1257,13 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 		result = put_user(LIRC_REC2MODE
 				  (features&LIRC_CAN_REC_MASK),
-				  (unsigned long *)arg);
+				  uptr);
 		break;
 	case LIRC_SET_REC_MODE:
 		if (!(features&LIRC_CAN_REC_MASK))
 			return -ENOSYS;
 
-		result = get_user(mode, (unsigned long *)arg);
+		result = get_user(mode, uptr);
 		if (!result && !(LIRC_MODE2REC(mode) & features))
 			result = -EINVAL;
 		break;
@@ -1260,13 +1271,13 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		if (!(features&LIRC_CAN_SEND_MASK))
 			return -ENOSYS;
 
-		result = put_user(LIRC_MODE_PULSE, (unsigned long *) arg);
+		result = put_user(LIRC_MODE_PULSE, uptr);
 		break;
 	case LIRC_SET_SEND_MODE:
 		if (!(features&LIRC_CAN_SEND_MASK))
 			return -ENOSYS;
 
-		result = get_user(mode, (unsigned long *) arg);
+		result = get_user(mode, uptr);
 		if (!result && mode != LIRC_MODE_PULSE)
 			return -EINVAL;
 		break;

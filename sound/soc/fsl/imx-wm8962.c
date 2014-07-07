@@ -71,7 +71,7 @@ static int imx_wm8962_set_bias_level(struct snd_soc_card *card,
 {
 	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
 	struct imx_priv *priv = &card_priv;
-	struct imx_wm8962_data *data = platform_get_drvdata(priv->pdev);
+	struct imx_wm8962_data *data = snd_soc_card_get_drvdata(card);
 	struct device *dev = &priv->pdev->dev;
 	unsigned int pll_out;
 	int ret;
@@ -130,8 +130,6 @@ static int imx_wm8962_set_bias_level(struct snd_soc_card *card,
 		break;
 	}
 
-	dapm->bias_level = level;
-
 	return 0;
 }
 
@@ -139,7 +137,7 @@ static int imx_wm8962_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
 	struct imx_priv *priv = &card_priv;
-	struct imx_wm8962_data *data = platform_get_drvdata(priv->pdev);
+	struct imx_wm8962_data *data = snd_soc_card_get_drvdata(card);
 	struct device *dev = &priv->pdev->dev;
 	int ret;
 
@@ -215,7 +213,7 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 		goto fail;
 	}
 	codec_dev = of_find_i2c_device_by_node(codec_np);
-	if (!codec_dev || !codec_dev->driver) {
+	if (!codec_dev || !codec_dev->dev.driver) {
 		dev_err(&pdev->dev, "failed to find codec platform device\n");
 		ret = -EINVAL;
 		goto fail;
@@ -266,21 +264,22 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	data->card.late_probe = imx_wm8962_late_probe;
 	data->card.set_bias_level = imx_wm8962_set_bias_level;
 
-	ret = snd_soc_register_card(&data->card);
+	platform_set_drvdata(pdev, &data->card);
+	snd_soc_card_set_drvdata(&data->card, data);
+
+	ret = devm_snd_soc_register_card(&pdev->dev, &data->card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 		goto clk_fail;
 	}
 
-	platform_set_drvdata(pdev, data);
 	of_node_put(ssi_np);
 	of_node_put(codec_np);
 
 	return 0;
 
 clk_fail:
-	if (!IS_ERR(data->codec_clk))
-		clk_disable_unprepare(data->codec_clk);
+	clk_disable_unprepare(data->codec_clk);
 fail:
 	if (ssi_np)
 		of_node_put(ssi_np);
@@ -292,11 +291,11 @@ fail:
 
 static int imx_wm8962_remove(struct platform_device *pdev)
 {
-	struct imx_wm8962_data *data = platform_get_drvdata(pdev);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct imx_wm8962_data *data = snd_soc_card_get_drvdata(card);
 
 	if (!IS_ERR(data->codec_clk))
 		clk_disable_unprepare(data->codec_clk);
-	snd_soc_unregister_card(&data->card);
 
 	return 0;
 }
@@ -311,6 +310,7 @@ static struct platform_driver imx_wm8962_driver = {
 	.driver = {
 		.name = "imx-wm8962",
 		.owner = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_wm8962_dt_ids,
 	},
 	.probe = imx_wm8962_probe,

@@ -25,6 +25,7 @@
 #include "prminst44xx.h"
 #include "prm-regbits-44xx.h"
 #include "prcm44xx.h"
+#include "prcm43xx.h"
 #include "prcm_mpu44xx.h"
 #include "soc.h"
 
@@ -48,7 +49,7 @@ u32 omap4_prminst_read_inst_reg(u8 part, s16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part]);
-	return __raw_readl(_prm_bases[part] + inst + idx);
+	return readl_relaxed(_prm_bases[part] + inst + idx);
 }
 
 /* Write into a register in a PRM instance */
@@ -57,7 +58,7 @@ void omap4_prminst_write_inst_reg(u32 val, u8 part, s16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part]);
-	__raw_writel(val, _prm_bases[part] + inst + idx);
+	writel_relaxed(val, _prm_bases[part] + inst + idx);
 }
 
 /* Read-modify-write a register in PRM. Caller must lock */
@@ -176,6 +177,8 @@ void omap4_prminst_global_warm_sw_reset(void)
 		dev_inst = OMAP54XX_PRM_DEVICE_INST;
 	else if (soc_is_dra7xx())
 		dev_inst = DRA7XX_PRM_DEVICE_INST;
+	else if (soc_is_am43xx())
+		dev_inst = AM43XX_PRM_DEVICE_INST;
 	else
 		return;
 
@@ -183,11 +186,11 @@ void omap4_prminst_global_warm_sw_reset(void)
 					OMAP4_PRM_RSTCTRL_OFFSET);
 	v |= OMAP4430_RST_GLOBAL_WARM_SW_MASK;
 	omap4_prminst_write_inst_reg(v, OMAP4430_PRM_PARTITION,
-				 OMAP4430_PRM_DEVICE_INST,
+				 dev_inst,
 				 OMAP4_PRM_RSTCTRL_OFFSET);
 
 	/* OCP barrier */
 	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
-				    OMAP4430_PRM_DEVICE_INST,
+				    dev_inst,
 				    OMAP4_PRM_RSTCTRL_OFFSET);
 }

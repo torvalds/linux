@@ -7,6 +7,12 @@ config PPC4xx_PCI_EXPRESS
 	depends on PCI && 4xx
 	default n
 
+config PPC4xx_HSTA_MSI
+	bool
+	depends on PCI_MSI
+	depends on PCI && 4xx
+	default n
+
 config PPC4xx_MSI
 	bool
 	depends on PCI_MSI
@@ -19,7 +25,7 @@ config PPC_MSI_BITMAP
 	default y if MPIC
 	default y if FSL_PCI
 	default y if PPC4xx_MSI
-	default y if POWERNV_MSI
+	default y if PPC_POWERNV
 
 source "arch/powerpc/sysdev/xics/Kconfig"
 
@@ -28,7 +34,7 @@ config PPC_SCOM
 
 config SCOM_DEBUGFS
 	bool "Expose SCOM controllers via debugfs"
-	depends on PPC_SCOM
+	depends on PPC_SCOM && DEBUG_FS
 	default n
 
 config GE_FPGA

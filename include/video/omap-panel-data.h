@@ -238,4 +238,17 @@ struct panel_nec_nl8048hl11_platform_data {
 	int qvga_gpio;
 };
 
+/**
+ * panel-tpo-td028ttec1 platform data
+ * @name: name for display entity
+ * @source: name of the display entity used as a video source
+ * @data_lines: number of DPI datalines
+ */
+struct panel_tpo_td028ttec1_platform_data {
+	const char *name;
+	const char *source;
+
+	int data_lines;
+};
+
 #endif /* __OMAP_PANEL_DATA_H */

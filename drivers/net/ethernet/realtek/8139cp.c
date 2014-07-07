@@ -476,7 +476,7 @@ rx_status_loop:
 	rx = 0;
 	cpw16(IntrStatus, cp_rx_intr_mask);
 
-	while (1) {
+	while (rx < budget) {
 		u32 status, len;
 		dma_addr_t mapping, new_mapping;
 		struct sk_buff *skb, *new_skb;
@@ -554,9 +554,6 @@ rx_next:
 		else
 			desc->opts1 = cpu_to_le32(DescOwn | cp->rx_buf_sz);
 		rx_tail = NEXT_RX(rx_tail);
-
-		if (rx >= budget)
-			break;
 	}
 
 	cp->rx_tail = rx_tail;
@@ -678,9 +675,6 @@ static void cp_tx (struct cp_private *cp)
 				 le32_to_cpu(txd->opts1) & 0xffff,
 				 PCI_DMA_TODEVICE);
 
-		bytes_compl += skb->len;
-		pkts_compl++;
-
 		if (status & LastFrag) {
 			if (status & (TxError | TxFIFOUnder)) {
 				netif_dbg(cp, tx_err, cp->dev,
@@ -702,6 +696,8 @@ static void cp_tx (struct cp_private *cp)
 				netif_dbg(cp, tx_done, cp->dev,
 					  "tx done, slot %d\n", tx_tail);
 			}
+			bytes_compl += skb->len;
+			pkts_compl++;
 			dev_kfree_skb_irq(skb);
 		}
 
@@ -900,7 +896,7 @@ out_unlock:
 
 	return NETDEV_TX_OK;
 out_dma_error:
-	kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	cp->dev->stats.tx_dropped++;
 	goto out_unlock;
 }
@@ -2052,7 +2048,6 @@ static void cp_remove_one (struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_clear_mwi(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 }
 

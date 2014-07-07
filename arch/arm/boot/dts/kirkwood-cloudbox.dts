@@ -14,10 +14,11 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pmx_cloudbox_sata0: pmx-cloudbox-sata0 {
 				marvell,pins = "mpp15";
 				marvell,function = "sata0";
@@ -25,9 +26,6 @@
 		};
 
 		serial@12000 {
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
-			clock-frequency = <166666667>;
 			status = "okay";
 		};
 
@@ -39,14 +37,12 @@
 		};
 
 		spi@10600 {
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 			status = "okay";
 
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mx25l4005a";
+				compatible = "mxicy,mx25l4005a";
 				reg = <0>;
 				spi-max-frequency = <20000000>;
 				mode = <0>;
@@ -66,8 +62,8 @@
 
 		button@1 {
 			label = "Power push button";
-			linux,code = <116>;
-			gpios = <&gpio0 16 1>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -76,17 +72,17 @@
 
 		red-fail {
 			label = "cloudbox:red:fail";
-			gpios = <&gpio0 14 0>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		};
 		blue-sata {
 			label = "cloudbox:blue:sata";
-			gpios = <&gpio0 15 0>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
-		gpios = <&gpio0 17 0>;
+		gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -94,7 +90,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		reg = <0>;
 	};
 };

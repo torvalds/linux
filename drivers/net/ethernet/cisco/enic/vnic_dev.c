@@ -657,7 +657,7 @@ int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 	return err;
 }
 
-int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
+int vnic_dev_add_addr(struct vnic_dev *vdev, const u8 *addr)
 {
 	u64 a0 = 0, a1 = 0;
 	int wait = 1000;
@@ -674,7 +674,7 @@ int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
 	return err;
 }
 
-int vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
+int vnic_dev_del_addr(struct vnic_dev *vdev, const u8 *addr)
 {
 	u64 a0 = 0, a1 = 0;
 	int wait = 1000;

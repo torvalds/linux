@@ -8,7 +8,7 @@
 #include "bcache.h"
 #include "btree.h"
 #include "debug.h"
-#include "request.h"
+#include "extents.h"
 
 #include <linux/console.h>
 #include <linux/debugfs.h>
@@ -18,301 +18,126 @@
 
 static struct dentry *debug;
 
-const char *bch_ptr_status(struct cache_set *c, const struct bkey *k)
-{
-	unsigned i;
-
-	for (i = 0; i < KEY_PTRS(k); i++)
-		if (ptr_available(c, k, i)) {
-			struct cache *ca = PTR_CACHE(c, k, i);
-			size_t bucket = PTR_BUCKET_NR(c, k, i);
-			size_t r = bucket_remainder(c, PTR_OFFSET(k, i));
-
-			if (KEY_SIZE(k) + r > c->sb.bucket_size)
-				return "bad, length too big";
-			if (bucket <  ca->sb.first_bucket)
-				return "bad, short offset";
-			if (bucket >= ca->sb.nbuckets)
-				return "bad, offset past end of device";
-			if (ptr_stale(c, k, i))
-				return "stale";
-		}
-
-	if (!bkey_cmp(k, &ZERO_KEY))
-		return "bad, null key";
-	if (!KEY_PTRS(k))
-		return "bad, no pointers";
-	if (!KEY_SIZE(k))
-		return "zeroed key";
-	return "";
-}
-
-int bch_bkey_to_text(char *buf, size_t size, const struct bkey *k)
-{
-	unsigned i = 0;
-	char *out = buf, *end = buf + size;
-
-#define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
-
-	p("%llu:%llu len %llu -> [", KEY_INODE(k), KEY_OFFSET(k), KEY_SIZE(k));
-
-	if (KEY_PTRS(k))
-		while (1) {
-			p("%llu:%llu gen %llu",
-			  PTR_DEV(k, i), PTR_OFFSET(k, i), PTR_GEN(k, i));
-
-			if (++i == KEY_PTRS(k))
-				break;
-
-			p(", ");
-		}
-
-	p("]");
-
-	if (KEY_DIRTY(k))
-		p(" dirty");
-	if (KEY_CSUM(k))
-		p(" cs%llu %llx", KEY_CSUM(k), k->ptr[1]);
-#undef p
-	return out - buf;
-}
-
-int bch_btree_to_text(char *buf, size_t size, const struct btree *b)
-{
-	return scnprintf(buf, size, "%zu level %i/%i",
-			 PTR_BUCKET_NR(b->c, &b->key, 0),
-			 b->level, b->c->root ? b->c->root->level : -1);
-}
-
-#if defined(CONFIG_BCACHE_DEBUG) || defined(CONFIG_BCACHE_EDEBUG)
-
-static bool skipped_backwards(struct btree *b, struct bkey *k)
-{
-	return bkey_cmp(k, (!b->level)
-			? &START_KEY(bkey_next(k))
-			: bkey_next(k)) > 0;
-}
-
-static void dump_bset(struct btree *b, struct bset *i)
-{
-	struct bkey *k;
-	unsigned j;
-	char buf[80];
-
-	for (k = i->start; k < end(i); k = bkey_next(k)) {
-		bch_bkey_to_text(buf, sizeof(buf), k);
-		printk(KERN_ERR "block %zu key %zi/%u: %s", index(i, b),
-		       (uint64_t *) k - i->d, i->keys, buf);
-
-		for (j = 0; j < KEY_PTRS(k); j++) {
-			size_t n = PTR_BUCKET_NR(b->c, k, j);
-			printk(" bucket %zu", n);
-
-			if (n >= b->c->sb.first_bucket && n < b->c->sb.nbuckets)
-				printk(" prio %i",
-				       PTR_BUCKET(b->c, k, j)->prio);
-		}
-
-		printk(" %s\n", bch_ptr_status(b->c, k));
-
-		if (bkey_next(k) < end(i) &&
-		    skipped_backwards(b, k))
-			printk(KERN_ERR "Key skipped backwards\n");
-	}
-}
-
-#endif
-
 #ifdef CONFIG_BCACHE_DEBUG
 
-void bch_btree_verify(struct btree *b, struct bset *new)
+#define for_each_written_bset(b, start, i)				\
+	for (i = (start);						\
+	     (void *) i < (void *) (start) + (KEY_SIZE(&b->key) << 9) &&\
+	     i->seq == (start)->seq;					\
+	     i = (void *) i + set_blocks(i, block_bytes(b->c)) *	\
+		 block_bytes(b->c))
+
+void bch_btree_verify(struct btree *b)
 {
 	struct btree *v = b->c->verify_data;
-	struct closure cl;
-	closure_init_stack(&cl);
+	struct bset *ondisk, *sorted, *inmemory;
+	struct bio *bio;
 
-	if (!b->c->verify)
+	if (!b->c->verify || !b->c->verify_ondisk)
 		return;
 
-	closure_wait_event(&b->io.wait, &cl,
-			   atomic_read(&b->io.cl.remaining) == -1);
-
+	down(&b->io_mutex);
 	mutex_lock(&b->c->verify_lock);
+
+	ondisk = b->c->verify_ondisk;
+	sorted = b->c->verify_data->keys.set->data;
+	inmemory = b->keys.set->data;
 
 	bkey_copy(&v->key, &b->key);
 	v->written = 0;
 	v->level = b->level;
+	v->keys.ops = b->keys.ops;
 
-	bch_btree_node_read(v);
-	closure_wait_event(&v->io.wait, &cl,
-			   atomic_read(&b->io.cl.remaining) == -1);
+	bio = bch_bbio_alloc(b->c);
+	bio->bi_bdev		= PTR_CACHE(b->c, &b->key, 0)->bdev;
+	bio->bi_iter.bi_sector	= PTR_OFFSET(&b->key, 0);
+	bio->bi_iter.bi_size	= KEY_SIZE(&v->key) << 9;
+	bch_bio_map(bio, sorted);
 
-	if (new->keys != v->sets[0].data->keys ||
-	    memcmp(new->start,
-		   v->sets[0].data->start,
-		   (void *) end(new) - (void *) new->start)) {
-		unsigned i, j;
+	submit_bio_wait(REQ_META|READ_SYNC, bio);
+	bch_bbio_free(bio, b->c);
+
+	memcpy(ondisk, sorted, KEY_SIZE(&v->key) << 9);
+
+	bch_btree_node_read_done(v);
+	sorted = v->keys.set->data;
+
+	if (inmemory->keys != sorted->keys ||
+	    memcmp(inmemory->start,
+		   sorted->start,
+		   (void *) bset_bkey_last(inmemory) - (void *) inmemory->start)) {
+		struct bset *i;
+		unsigned j;
 
 		console_lock();
 
-		printk(KERN_ERR "*** original memory node:\n");
-		for (i = 0; i <= b->nsets; i++)
-			dump_bset(b, b->sets[i].data);
+		printk(KERN_ERR "*** in memory:\n");
+		bch_dump_bset(&b->keys, inmemory, 0);
 
-		printk(KERN_ERR "*** sorted memory node:\n");
-		dump_bset(b, new);
+		printk(KERN_ERR "*** read back in:\n");
+		bch_dump_bset(&v->keys, sorted, 0);
 
-		printk(KERN_ERR "*** on disk node:\n");
-		dump_bset(v, v->sets[0].data);
+		for_each_written_bset(b, ondisk, i) {
+			unsigned block = ((void *) i - (void *) ondisk) /
+				block_bytes(b->c);
 
-		for (j = 0; j < new->keys; j++)
-			if (new->d[j] != v->sets[0].data->d[j])
+			printk(KERN_ERR "*** on disk block %u:\n", block);
+			bch_dump_bset(&b->keys, i, block);
+		}
+
+		printk(KERN_ERR "*** block %zu not written\n",
+		       ((void *) i - (void *) ondisk) / block_bytes(b->c));
+
+		for (j = 0; j < inmemory->keys; j++)
+			if (inmemory->d[j] != sorted->d[j])
 				break;
+
+		printk(KERN_ERR "b->written %u\n", b->written);
 
 		console_unlock();
 		panic("verify failed at %u\n", j);
 	}
 
 	mutex_unlock(&b->c->verify_lock);
+	up(&b->io_mutex);
 }
 
-static void data_verify_endio(struct bio *bio, int error)
-{
-	struct closure *cl = bio->bi_private;
-	closure_put(cl);
-}
-
-void bch_data_verify(struct search *s)
+void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 {
 	char name[BDEVNAME_SIZE];
-	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
-	struct closure *cl = &s->cl;
 	struct bio *check;
-	struct bio_vec *bv;
+	struct bio_vec bv, *bv2;
+	struct bvec_iter iter;
 	int i;
 
-	if (!s->unaligned_bvec)
-		bio_for_each_segment(bv, s->orig_bio, i)
-			bv->bv_offset = 0, bv->bv_len = PAGE_SIZE;
-
-	check = bio_clone(s->orig_bio, GFP_NOIO);
+	check = bio_clone(bio, GFP_NOIO);
 	if (!check)
 		return;
 
 	if (bio_alloc_pages(check, GFP_NOIO))
 		goto out_put;
 
-	check->bi_rw		= READ_SYNC;
-	check->bi_private	= cl;
-	check->bi_end_io	= data_verify_endio;
+	submit_bio_wait(READ_SYNC, check);
 
-	closure_bio_submit(check, cl, &dc->disk);
-	closure_sync(cl);
+	bio_for_each_segment(bv, bio, iter) {
+		void *p1 = kmap_atomic(bv.bv_page);
+		void *p2 = page_address(check->bi_io_vec[iter.bi_idx].bv_page);
 
-	bio_for_each_segment(bv, s->orig_bio, i) {
-		void *p1 = kmap(bv->bv_page);
-		void *p2 = kmap(check->bi_io_vec[i].bv_page);
+		cache_set_err_on(memcmp(p1 + bv.bv_offset,
+					p2 + bv.bv_offset,
+					bv.bv_len),
+				 dc->disk.c,
+				 "verify failed at dev %s sector %llu",
+				 bdevname(dc->bdev, name),
+				 (uint64_t) bio->bi_iter.bi_sector);
 
-		if (memcmp(p1 + bv->bv_offset,
-			   p2 + bv->bv_offset,
-			   bv->bv_len))
-			printk(KERN_ERR
-			       "bcache (%s): verify failed at sector %llu\n",
-			       bdevname(dc->bdev, name),
-			       (uint64_t) s->orig_bio->bi_sector);
-
-		kunmap(bv->bv_page);
-		kunmap(check->bi_io_vec[i].bv_page);
+		kunmap_atomic(p1);
 	}
 
-	__bio_for_each_segment(bv, check, i, 0)
-		__free_page(bv->bv_page);
+	bio_for_each_segment_all(bv2, check, i)
+		__free_page(bv2->bv_page);
 out_put:
 	bio_put(check);
-}
-
-#endif
-
-#ifdef CONFIG_BCACHE_EDEBUG
-
-unsigned bch_count_data(struct btree *b)
-{
-	unsigned ret = 0;
-	struct btree_iter iter;
-	struct bkey *k;
-
-	if (!b->level)
-		for_each_key(b, k, &iter)
-			ret += KEY_SIZE(k);
-	return ret;
-}
-
-static void vdump_bucket_and_panic(struct btree *b, const char *fmt,
-				   va_list args)
-{
-	unsigned i;
-	char buf[80];
-
-	console_lock();
-
-	for (i = 0; i <= b->nsets; i++)
-		dump_bset(b, b->sets[i].data);
-
-	vprintk(fmt, args);
-
-	console_unlock();
-
-	bch_btree_to_text(buf, sizeof(buf), b);
-	panic("at %s\n", buf);
-}
-
-void bch_check_key_order_msg(struct btree *b, struct bset *i,
-			     const char *fmt, ...)
-{
-	struct bkey *k;
-
-	if (!i->keys)
-		return;
-
-	for (k = i->start; bkey_next(k) < end(i); k = bkey_next(k))
-		if (skipped_backwards(b, k)) {
-			va_list args;
-			va_start(args, fmt);
-
-			vdump_bucket_and_panic(b, fmt, args);
-			va_end(args);
-		}
-}
-
-void bch_check_keys(struct btree *b, const char *fmt, ...)
-{
-	va_list args;
-	struct bkey *k, *p = NULL;
-	struct btree_iter iter;
-
-	if (b->level)
-		return;
-
-	for_each_key(b, k, &iter) {
-		if (p && bkey_cmp(&START_KEY(p), &START_KEY(k)) > 0) {
-			printk(KERN_ERR "Keys out of order:\n");
-			goto bug;
-		}
-
-		if (bch_ptr_invalid(b, k))
-			continue;
-
-		if (p && bkey_cmp(p, &START_KEY(k)) > 0) {
-			printk(KERN_ERR "Overlapping keys:\n");
-			goto bug;
-		}
-		p = k;
-	}
-	return;
-bug:
-	va_start(args, fmt);
-	vdump_bucket_and_panic(b, fmt, args);
-	va_end(args);
 }
 
 #endif
@@ -361,7 +186,7 @@ static ssize_t bch_dump_read(struct file *file, char __user *buf,
 		if (!w)
 			break;
 
-		bch_bkey_to_text(kbuf, sizeof(kbuf), &w->key);
+		bch_extent_to_text(kbuf, sizeof(kbuf), &w->key);
 		i->bytes = snprintf(i->buf, PAGE_SIZE, "%s\n", kbuf);
 		bch_keybuf_del(&i->keys, w);
 	}

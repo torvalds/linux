@@ -97,10 +97,10 @@ static int kvmppc_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 
 	switch (sprn) {
 	case SPRN_SRR0:
-		vcpu->arch.shared->srr0 = spr_val;
+		kvmppc_set_srr0(vcpu, spr_val);
 		break;
 	case SPRN_SRR1:
-		vcpu->arch.shared->srr1 = spr_val;
+		kvmppc_set_srr1(vcpu, spr_val);
 		break;
 
 	/* XXX We need to context-switch the timebase for
@@ -114,24 +114,24 @@ static int kvmppc_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		break;
 
 	case SPRN_SPRG0:
-		vcpu->arch.shared->sprg0 = spr_val;
+		kvmppc_set_sprg0(vcpu, spr_val);
 		break;
 	case SPRN_SPRG1:
-		vcpu->arch.shared->sprg1 = spr_val;
+		kvmppc_set_sprg1(vcpu, spr_val);
 		break;
 	case SPRN_SPRG2:
-		vcpu->arch.shared->sprg2 = spr_val;
+		kvmppc_set_sprg2(vcpu, spr_val);
 		break;
 	case SPRN_SPRG3:
-		vcpu->arch.shared->sprg3 = spr_val;
+		kvmppc_set_sprg3(vcpu, spr_val);
 		break;
 
 	/* PIR can legally be written, but we ignore it */
 	case SPRN_PIR: break;
 
 	default:
-		emulated = kvmppc_core_emulate_mtspr(vcpu, sprn,
-						     spr_val);
+		emulated = vcpu->kvm->arch.kvm_ops->emulate_mtspr(vcpu, sprn,
+								  spr_val);
 		if (emulated == EMULATE_FAIL)
 			printk(KERN_INFO "mtspr: unknown spr "
 				"0x%x\n", sprn);
@@ -150,10 +150,10 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 
 	switch (sprn) {
 	case SPRN_SRR0:
-		spr_val = vcpu->arch.shared->srr0;
+		spr_val = kvmppc_get_srr0(vcpu);
 		break;
 	case SPRN_SRR1:
-		spr_val = vcpu->arch.shared->srr1;
+		spr_val = kvmppc_get_srr1(vcpu);
 		break;
 	case SPRN_PVR:
 		spr_val = vcpu->arch.pvr;
@@ -173,16 +173,16 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		break;
 
 	case SPRN_SPRG0:
-		spr_val = vcpu->arch.shared->sprg0;
+		spr_val = kvmppc_get_sprg0(vcpu);
 		break;
 	case SPRN_SPRG1:
-		spr_val = vcpu->arch.shared->sprg1;
+		spr_val = kvmppc_get_sprg1(vcpu);
 		break;
 	case SPRN_SPRG2:
-		spr_val = vcpu->arch.shared->sprg2;
+		spr_val = kvmppc_get_sprg2(vcpu);
 		break;
 	case SPRN_SPRG3:
-		spr_val = vcpu->arch.shared->sprg3;
+		spr_val = kvmppc_get_sprg3(vcpu);
 		break;
 	/* Note: SPRG4-7 are user-readable, so we don't get
 	 * a trap. */
@@ -191,8 +191,8 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		spr_val = kvmppc_get_dec(vcpu, get_tb());
 		break;
 	default:
-		emulated = kvmppc_core_emulate_mfspr(vcpu, sprn,
-						     &spr_val);
+		emulated = vcpu->kvm->arch.kvm_ops->emulate_mfspr(vcpu, sprn,
+								  &spr_val);
 		if (unlikely(emulated == EMULATE_FAIL)) {
 			printk(KERN_INFO "mfspr: unknown spr "
 				"0x%x\n", sprn);
@@ -219,7 +219,6 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
  * lmw
  * stmw
  *
- * XXX is_bigendian should depend on MMU mapping or MSR[LE]
  */
 /* XXX Should probably auto-generate instruction decoding for a particular core
  * from opcode tables in the future. */
@@ -464,7 +463,8 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 
 	if (emulated == EMULATE_FAIL) {
-		emulated = kvmppc_core_emulate_op(run, vcpu, inst, &advance);
+		emulated = vcpu->kvm->arch.kvm_ops->emulate_op(run, vcpu, inst,
+							       &advance);
 		if (emulated == EMULATE_AGAIN) {
 			advance = 0;
 		} else if (emulated == EMULATE_FAIL) {
@@ -483,3 +483,4 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	return emulated;
 }
+EXPORT_SYMBOL_GPL(kvmppc_emulate_instruction);

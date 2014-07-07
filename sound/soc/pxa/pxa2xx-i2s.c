@@ -165,7 +165,8 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_dmaengine_dai_dma_data *dma_data;
 
-	BUG_ON(IS_ERR(clk_i2s));
+	if (WARN_ON(IS_ERR(clk_i2s)))
+		return -EINVAL;
 	clk_prepare_enable(clk_i2s);
 	clk_ena = 1;
 	pxa_i2s_wait();

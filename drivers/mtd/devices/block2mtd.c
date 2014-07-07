@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
+#include <linux/major.h>
 
 /* Info for the block device */
 struct block2mtd_dev {
@@ -208,7 +209,6 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 }
 
 
-/* FIXME: ensure that mtd->size % erase_size == 0 */
 static struct block2mtd_dev *add_device(char *devname, int erase_size)
 {
 	const fmode_t mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
@@ -239,13 +239,18 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 
 	if (IS_ERR(bdev)) {
 		pr_err("error: cannot open device %s\n", devname);
-		goto devinit_err;
+		goto err_free_block2mtd;
 	}
 	dev->blkdev = bdev;
 
 	if (MAJOR(bdev->bd_dev) == MTD_BLOCK_MAJOR) {
 		pr_err("attempting to use an MTD device as a block device\n");
-		goto devinit_err;
+		goto err_free_block2mtd;
+	}
+
+	if ((long)dev->blkdev->bd_inode->i_size % erase_size) {
+		pr_err("erasesize must be a divisor of device size\n");
+		goto err_free_block2mtd;
 	}
 
 	mutex_init(&dev->write_mutex);
@@ -254,7 +259,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 	/* make the name contain the block device in */
 	name = kasprintf(GFP_KERNEL, "block2mtd: %s", devname);
 	if (!name)
-		goto devinit_err;
+		goto err_destroy_mutex;
 
 	dev->mtd.name = name;
 
@@ -273,7 +278,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 
 	if (mtd_device_register(&dev->mtd, NULL, 0)) {
 		/* Device didn't get added, so free the entry */
-		goto devinit_err;
+		goto err_destroy_mutex;
 	}
 	list_add(&dev->list, &blkmtd_device_list);
 	pr_info("mtd%d: [%s] erase_size = %dKiB [%d]\n",
@@ -282,7 +287,9 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 		dev->mtd.erasesize >> 10, dev->mtd.erasesize);
 	return dev;
 
-devinit_err:
+err_destroy_mutex:
+	mutex_destroy(&dev->write_mutex);
+err_free_block2mtd:
 	block2mtd_free_device(dev);
 	return NULL;
 }
@@ -447,6 +454,7 @@ static void block2mtd_exit(void)
 		struct block2mtd_dev *dev = list_entry(pos, typeof(*dev), list);
 		block2mtd_sync(&dev->mtd);
 		mtd_device_unregister(&dev->mtd);
+		mutex_destroy(&dev->write_mutex);
 		pr_info("mtd%d: [%s] removed\n",
 			dev->mtd.index,
 			dev->mtd.name + strlen("block2mtd: "));

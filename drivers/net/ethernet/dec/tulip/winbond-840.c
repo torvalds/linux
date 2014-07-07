@@ -468,7 +468,6 @@ static int w840_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 err_out_cleardev:
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
 err_out_free_res:
 	pci_release_regions(pdev);
@@ -1542,8 +1541,6 @@ static void w840_remove1(struct pci_dev *pdev)
 		pci_iounmap(pdev, np->base_addr);
 		free_netdev(dev);
 	}
-
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM

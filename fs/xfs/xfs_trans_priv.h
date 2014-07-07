@@ -27,7 +27,6 @@ struct xfs_log_vec;
 
 
 void	xfs_trans_init(struct xfs_mount *);
-int	xfs_trans_roll(struct xfs_trans **, struct xfs_inode *);
 void	xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
 void	xfs_trans_del_item(struct xfs_log_item *);
 void	xfs_trans_free_items(struct xfs_trans *tp, xfs_lsn_t commit_lsn,
@@ -134,8 +133,7 @@ struct xfs_log_item *	xfs_trans_ail_cursor_last(struct xfs_ail *ailp,
 					xfs_lsn_t lsn);
 struct xfs_log_item *	xfs_trans_ail_cursor_next(struct xfs_ail *ailp,
 					struct xfs_ail_cursor *cur);
-void			xfs_trans_ail_cursor_done(struct xfs_ail *ailp,
-					struct xfs_ail_cursor *cur);
+void			xfs_trans_ail_cursor_done(struct xfs_ail_cursor *cur);
 
 #if BITS_PER_LONG != 64
 static inline void

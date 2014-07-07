@@ -336,8 +336,21 @@
  */
 
 #define VI6_SRU_CTRL0			0x2200
+#define VI6_SRU_CTRL0_PARAM0_SHIFT	16
+#define VI6_SRU_CTRL0_PARAM1_SHIFT	8
+#define VI6_SRU_CTRL0_MODE_UPSCALE	(4 << 4)
+#define VI6_SRU_CTRL0_PARAM2		(1 << 3)
+#define VI6_SRU_CTRL0_PARAM3		(1 << 2)
+#define VI6_SRU_CTRL0_PARAM4		(1 << 1)
+#define VI6_SRU_CTRL0_EN		(1 << 0)
+
 #define VI6_SRU_CTRL1			0x2204
+#define VI6_SRU_CTRL1_PARAM5		0x7ff
+
 #define VI6_SRU_CTRL2			0x2208
+#define VI6_SRU_CTRL2_PARAM6_SHIFT	16
+#define VI6_SRU_CTRL2_PARAM7_SHIFT	8
+#define VI6_SRU_CTRL2_PARAM8_SHIFT	0
 
 /* -----------------------------------------------------------------------------
  * UDS Control Registers
@@ -412,6 +425,7 @@
  */
 
 #define VI6_LUT_CTRL			0x2800
+#define VI6_LUT_CTRL_EN			(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * CLU Control Registers
@@ -424,24 +438,124 @@
  */
 
 #define VI6_HST_CTRL			0x2a00
+#define VI6_HST_CTRL_EN			(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * HSI Control Registers
  */
 
 #define VI6_HSI_CTRL			0x2b00
+#define VI6_HSI_CTRL_EN			(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * BRU Control Registers
  */
 
+#define VI6_ROP_NOP			0
+#define VI6_ROP_AND			1
+#define VI6_ROP_AND_REV			2
+#define VI6_ROP_COPY			3
+#define VI6_ROP_AND_INV			4
+#define VI6_ROP_CLEAR			5
+#define VI6_ROP_XOR			6
+#define VI6_ROP_OR			7
+#define VI6_ROP_NOR			8
+#define VI6_ROP_EQUIV			9
+#define VI6_ROP_INVERT			10
+#define VI6_ROP_OR_REV			11
+#define VI6_ROP_COPY_INV		12
+#define VI6_ROP_OR_INV			13
+#define VI6_ROP_NAND			14
+#define VI6_ROP_SET			15
+
 #define VI6_BRU_INCTRL			0x2c00
+#define VI6_BRU_INCTRL_NRM		(1 << 28)
+#define VI6_BRU_INCTRL_DnON		(1 << (16 + (n)))
+#define VI6_BRU_INCTRL_DITHn_OFF	(0 << ((n) * 4))
+#define VI6_BRU_INCTRL_DITHn_18BPP	(1 << ((n) * 4))
+#define VI6_BRU_INCTRL_DITHn_16BPP	(2 << ((n) * 4))
+#define VI6_BRU_INCTRL_DITHn_15BPP	(3 << ((n) * 4))
+#define VI6_BRU_INCTRL_DITHn_12BPP	(4 << ((n) * 4))
+#define VI6_BRU_INCTRL_DITHn_8BPP	(5 << ((n) * 4))
+#define VI6_BRU_INCTRL_DITHn_MASK	(7 << ((n) * 4))
+#define VI6_BRU_INCTRL_DITHn_SHIFT	((n) * 4)
+
 #define VI6_BRU_VIRRPF_SIZE		0x2c04
+#define VI6_BRU_VIRRPF_SIZE_HSIZE_MASK	(0x1fff << 16)
+#define VI6_BRU_VIRRPF_SIZE_HSIZE_SHIFT	16
+#define VI6_BRU_VIRRPF_SIZE_VSIZE_MASK	(0x1fff << 0)
+#define VI6_BRU_VIRRPF_SIZE_VSIZE_SHIFT	0
+
 #define VI6_BRU_VIRRPF_LOC		0x2c08
+#define VI6_BRU_VIRRPF_LOC_HCOORD_MASK	(0x1fff << 16)
+#define VI6_BRU_VIRRPF_LOC_HCOORD_SHIFT	16
+#define VI6_BRU_VIRRPF_LOC_VCOORD_MASK	(0x1fff << 0)
+#define VI6_BRU_VIRRPF_LOC_VCOORD_SHIFT	0
+
 #define VI6_BRU_VIRRPF_COL		0x2c0c
+#define VI6_BRU_VIRRPF_COL_A_MASK	(0xff << 24)
+#define VI6_BRU_VIRRPF_COL_A_SHIFT	24
+#define VI6_BRU_VIRRPF_COL_RCR_MASK	(0xff << 16)
+#define VI6_BRU_VIRRPF_COL_RCR_SHIFT	16
+#define VI6_BRU_VIRRPF_COL_GY_MASK	(0xff << 8)
+#define VI6_BRU_VIRRPF_COL_GY_SHIFT	8
+#define VI6_BRU_VIRRPF_COL_BCB_MASK	(0xff << 0)
+#define VI6_BRU_VIRRPF_COL_BCB_SHIFT	0
+
 #define VI6_BRU_CTRL(n)			(0x2c10 + (n) * 8)
+#define VI6_BRU_CTRL_RBC		(1 << 31)
+#define VI6_BRU_CTRL_DSTSEL_BRUIN(n)	((n) << 20)
+#define VI6_BRU_CTRL_DSTSEL_VRPF	(4 << 20)
+#define VI6_BRU_CTRL_DSTSEL_MASK	(7 << 20)
+#define VI6_BRU_CTRL_SRCSEL_BRUIN(n)	((n) << 16)
+#define VI6_BRU_CTRL_SRCSEL_VRPF	(4 << 16)
+#define VI6_BRU_CTRL_SRCSEL_MASK	(7 << 16)
+#define VI6_BRU_CTRL_CROP(rop)		((rop) << 4)
+#define VI6_BRU_CTRL_CROP_MASK		(0xf << 4)
+#define VI6_BRU_CTRL_AROP(rop)		((rop) << 0)
+#define VI6_BRU_CTRL_AROP_MASK		(0xf << 0)
+
 #define VI6_BRU_BLD(n)			(0x2c14 + (n) * 8)
+#define VI6_BRU_BLD_CBES		(1 << 31)
+#define VI6_BRU_BLD_CCMDX_DST_A		(0 << 28)
+#define VI6_BRU_BLD_CCMDX_255_DST_A	(1 << 28)
+#define VI6_BRU_BLD_CCMDX_SRC_A		(2 << 28)
+#define VI6_BRU_BLD_CCMDX_255_SRC_A	(3 << 28)
+#define VI6_BRU_BLD_CCMDX_COEFX		(4 << 28)
+#define VI6_BRU_BLD_CCMDX_MASK		(7 << 28)
+#define VI6_BRU_BLD_CCMDY_DST_A		(0 << 24)
+#define VI6_BRU_BLD_CCMDY_255_DST_A	(1 << 24)
+#define VI6_BRU_BLD_CCMDY_SRC_A		(2 << 24)
+#define VI6_BRU_BLD_CCMDY_255_SRC_A	(3 << 24)
+#define VI6_BRU_BLD_CCMDY_COEFY		(4 << 24)
+#define VI6_BRU_BLD_CCMDY_MASK		(7 << 24)
+#define VI6_BRU_BLD_CCMDY_SHIFT		24
+#define VI6_BRU_BLD_ABES		(1 << 23)
+#define VI6_BRU_BLD_ACMDX_DST_A		(0 << 20)
+#define VI6_BRU_BLD_ACMDX_255_DST_A	(1 << 20)
+#define VI6_BRU_BLD_ACMDX_SRC_A		(2 << 20)
+#define VI6_BRU_BLD_ACMDX_255_SRC_A	(3 << 20)
+#define VI6_BRU_BLD_ACMDX_COEFX		(4 << 20)
+#define VI6_BRU_BLD_ACMDX_MASK		(7 << 20)
+#define VI6_BRU_BLD_ACMDY_DST_A		(0 << 16)
+#define VI6_BRU_BLD_ACMDY_255_DST_A	(1 << 16)
+#define VI6_BRU_BLD_ACMDY_SRC_A		(2 << 16)
+#define VI6_BRU_BLD_ACMDY_255_SRC_A	(3 << 16)
+#define VI6_BRU_BLD_ACMDY_COEFY		(4 << 16)
+#define VI6_BRU_BLD_ACMDY_MASK		(7 << 16)
+#define VI6_BRU_BLD_COEFX_MASK		(0xff << 8)
+#define VI6_BRU_BLD_COEFX_SHIFT		8
+#define VI6_BRU_BLD_COEFY_MASK		(0xff << 0)
+#define VI6_BRU_BLD_COEFY_SHIFT		0
+
 #define VI6_BRU_ROP			0x2c30
+#define VI6_BRU_ROP_DSTSEL_BRUIN(n)	((n) << 20)
+#define VI6_BRU_ROP_DSTSEL_VRPF		(4 << 20)
+#define VI6_BRU_ROP_DSTSEL_MASK		(7 << 20)
+#define VI6_BRU_ROP_CROP(rop)		((rop) << 4)
+#define VI6_BRU_ROP_CROP_MASK		(0xf << 4)
+#define VI6_BRU_ROP_AROP(rop)		((rop) << 0)
+#define VI6_BRU_ROP_AROP_MASK		(0xf << 0)
 
 /* -----------------------------------------------------------------------------
  * HGO Control Registers

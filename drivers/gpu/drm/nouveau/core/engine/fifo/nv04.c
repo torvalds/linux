@@ -539,7 +539,7 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 			}
 
 			if (status & 0x40000000) {
-				nouveau_event_trigger(priv->base.uevent, 0);
+				nouveau_event_trigger(priv->base.uevent, 1, 0);
 				nv_wr32(priv, 0x002100, 0x40000000);
 				status &= ~0x40000000;
 			}
@@ -632,8 +632,8 @@ nv04_fifo_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
-nv04_fifo_oclass = {
+struct nouveau_oclass *
+nv04_fifo_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(FIFO, 0x04),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_fifo_ctor,

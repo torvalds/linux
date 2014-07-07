@@ -70,6 +70,9 @@ typedef	void (*irq_preflow_handler_t)(struct irq_data *data);
  * IRQ_MOVE_PCNTXT		- Interrupt can be migrated from process context
  * IRQ_NESTED_TRHEAD		- Interrupt nests into another thread
  * IRQ_PER_CPU_DEVID		- Dev_id is a per-cpu variable
+ * IRQ_IS_POLLED		- Always polled by another interrupt. Exclude
+ *				  it from the spurious interrupt detection
+ *				  mechanism and from core side polling.
  */
 enum {
 	IRQ_TYPE_NONE		= 0x00000000,
@@ -94,12 +97,14 @@ enum {
 	IRQ_NESTED_THREAD	= (1 << 15),
 	IRQ_NOTHREAD		= (1 << 16),
 	IRQ_PER_CPU_DEVID	= (1 << 17),
+	IRQ_IS_POLLED		= (1 << 18),
 };
 
 #define IRQF_MODIFY_MASK	\
 	(IRQ_TYPE_SENSE_MASK | IRQ_NOPROBE | IRQ_NOREQUEST | \
 	 IRQ_NOAUTOEN | IRQ_MOVE_PCNTXT | IRQ_LEVEL | IRQ_NO_BALANCING | \
-	 IRQ_PER_CPU | IRQ_NESTED_THREAD | IRQ_NOTHREAD | IRQ_PER_CPU_DEVID)
+	 IRQ_PER_CPU | IRQ_NESTED_THREAD | IRQ_NOTHREAD | IRQ_PER_CPU_DEVID | \
+	 IRQ_IS_POLLED)
 
 #define IRQ_NO_BALANCING_MASK	(IRQ_PER_CPU | IRQ_NO_BALANCING)
 
@@ -298,6 +303,10 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
  * @irq_pm_shutdown:	function called from core code on shutdown once per chip
  * @irq_calc_mask:	Optional function to set irq_data.mask for special cases
  * @irq_print_chip:	optional to print special chip info in show_interrupts
+ * @irq_request_resources:	optional to request resources before calling
+ *				any other callback related to this irq
+ * @irq_release_resources:	optional to release resources acquired with
+ *				irq_request_resources
  * @flags:		chip specific flags
  */
 struct irq_chip {
@@ -331,6 +340,8 @@ struct irq_chip {
 	void		(*irq_calc_mask)(struct irq_data *data);
 
 	void		(*irq_print_chip)(struct irq_data *data, struct seq_file *p);
+	int		(*irq_request_resources)(struct irq_data *data);
+	void		(*irq_release_resources)(struct irq_data *data);
 
 	unsigned long	flags;
 };
@@ -344,6 +355,8 @@ struct irq_chip {
  * IRQCHIP_ONOFFLINE_ENABLED:	Only call irq_on/off_line callbacks
  *				when irq enabled
  * IRQCHIP_SKIP_SET_WAKE:	Skip chip.irq_set_wake(), for this irq chip
+ * IRQCHIP_ONESHOT_SAFE:	One shot does not require mask/unmask
+ * IRQCHIP_EOI_THREADED:	Chip requires eoi() on unmask in threaded mode
  */
 enum {
 	IRQCHIP_SET_TYPE_MASKED		= (1 <<  0),
@@ -352,6 +365,7 @@ enum {
 	IRQCHIP_ONOFFLINE_ENABLED	= (1 <<  3),
 	IRQCHIP_SKIP_SET_WAKE		= (1 <<  4),
 	IRQCHIP_ONESHOT_SAFE		= (1 <<  5),
+	IRQCHIP_EOI_THREADED		= (1 <<  6),
 };
 
 /* This include will go away once we isolated irq_desc usage to core code */
@@ -380,7 +394,8 @@ extern void remove_percpu_irq(unsigned int irq, struct irqaction *act);
 
 extern void irq_cpu_online(void);
 extern void irq_cpu_offline(void);
-extern int __irq_set_affinity_locked(struct irq_data *data,  const struct cpumask *cpumask);
+extern int irq_set_affinity_locked(struct irq_data *data,
+				   const struct cpumask *cpumask, bool force);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_PENDING_IRQ)
 void irq_move_irq(struct irq_data *data);
@@ -510,24 +525,6 @@ static inline void irq_set_percpu_devid_flags(unsigned int irq)
 			     IRQ_NOPROBE | IRQ_PER_CPU_DEVID);
 }
 
-/* Handle dynamic irq creation and destruction */
-extern unsigned int create_irq_nr(unsigned int irq_want, int node);
-extern unsigned int __create_irqs(unsigned int from, unsigned int count,
-				  int node);
-extern int create_irq(void);
-extern void destroy_irq(unsigned int irq);
-extern void destroy_irqs(unsigned int irq, unsigned int count);
-
-/*
- * Dynamic irq helper functions. Obsolete. Use irq_alloc_desc* and
- * irq_free_desc instead.
- */
-extern void dynamic_irq_cleanup(unsigned int irq);
-static inline void dynamic_irq_init(unsigned int irq)
-{
-	dynamic_irq_cleanup(irq);
-}
-
 /* Set/get chip/data for an IRQ: */
 extern int irq_set_chip(unsigned int irq, struct irq_chip *chip);
 extern int irq_set_handler_data(unsigned int irq, void *data);
@@ -588,6 +585,8 @@ static inline u32 irq_get_trigger_type(unsigned int irq)
 	return d ? irqd_get_trigger_type(d) : 0;
 }
 
+unsigned int arch_dynirq_lower_bound(unsigned int from);
+
 int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 		struct module *owner);
 
@@ -608,17 +607,29 @@ int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 	irq_alloc_descs(-1, from, cnt, node)
 
 void irq_free_descs(unsigned int irq, unsigned int cnt);
-int irq_reserve_irqs(unsigned int from, unsigned int cnt);
-
 static inline void irq_free_desc(unsigned int irq)
 {
 	irq_free_descs(irq, 1);
 }
 
-static inline int irq_reserve_irq(unsigned int irq)
+#ifdef CONFIG_GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
+unsigned int irq_alloc_hwirqs(int cnt, int node);
+static inline unsigned int irq_alloc_hwirq(int node)
 {
-	return irq_reserve_irqs(irq, 1);
+	return irq_alloc_hwirqs(1, node);
 }
+void irq_free_hwirqs(unsigned int from, int cnt);
+static inline void irq_free_hwirq(unsigned int irq)
+{
+	return irq_free_hwirqs(irq, 1);
+}
+int arch_setup_hwirq(unsigned int irq, int node);
+void arch_teardown_hwirq(unsigned int irq);
+#endif
+
+#ifdef CONFIG_GENERIC_IRQ_LEGACY
+void irq_init_desc(unsigned int irq);
+#endif
 
 #ifndef irq_reg_writel
 # define irq_reg_writel(val, addr)	writel(val, addr)

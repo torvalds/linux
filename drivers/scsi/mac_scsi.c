@@ -25,10 +25,6 @@
  * 1+ (800) 334-5454
  */
 
-/*
- * $Log: mac_NCR5380.c,v $
- */
-
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/ctype.h>
@@ -57,12 +53,6 @@
 #define PSEUDO_DMA
 
 #include "NCR5380.h"
-
-#if 0
-#define NDEBUG (NDEBUG_INTR | NDEBUG_PSEUDO_DMA | NDEBUG_ARBITRATION | NDEBUG_SELECTION | NDEBUG_RESELECTION)
-#else
-#define NDEBUG (NDEBUG_ABORT)
-#endif
 
 #define RESET_BOOT
 #define DRIVER_SETUP
@@ -260,6 +250,8 @@ int __init macscsi_detect(struct scsi_host_template * tpnt)
     /* Once we support multiple 5380s (e.g. DuoDock) we'll do
        something different here */
     instance = scsi_register (tpnt, sizeof(struct NCR5380_hostdata));
+    if (instance == NULL)
+	return 0;
 
     if (macintosh_config->ident == MAC_MODEL_IIFX) {
 	mac_scsi_regp  = via1+0x8000;

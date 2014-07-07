@@ -1,0 +1,84 @@
+/*
+ * Copyright 2013 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs
+ */
+
+#ifdef INCLUDE_PROC
+process(PROC_IDLE, #idle, #idle_recv)
+#endif
+
+/******************************************************************************
+ * IDLE data segment
+ *****************************************************************************/
+#ifdef INCLUDE_DATA
+#endif
+
+/******************************************************************************
+ * IDLE code segment
+ *****************************************************************************/
+#ifdef INCLUDE_CODE
+// description
+//
+// $r15 - current (idle)
+// $r14 - message
+// $r0  - zero
+idle_recv:
+	ret
+
+// description
+//
+// $r15 - current (idle)
+// $r0  - zero
+idle:
+	// set our "no interrupt has occurred during our execution" flag
+	bset $flags $p0
+
+	// count IDLE invocations for debugging purposes
+	nv_iord($r1, NV_PPWR_DSCRATCH(1))
+	add b32 $r1 1
+	nv_iowr(NV_PPWR_DSCRATCH(1), $r1)
+
+	// keep looping while there's pending messages for any process
+	idle_loop:
+	mov $r1 #proc_list_head
+	bclr $flags $p2
+	idle_proc:
+		// process the process' messages until there's none left
+		idle_proc_exec:
+			push $r1
+			mov b32 $r14 $r1
+			call(recv)
+			pop $r1
+			bra not $p1 #idle_proc_next
+			bset $flags $p2
+			bra #idle_proc_exec
+		// next process!
+		idle_proc_next:
+		add b32 $r1 #proc_size
+		cmp b32 $r1 $r15
+		bra ne #idle_proc
+	bra $p2 #idle_loop
+
+	// sleep if no interrupts have occurred
+	sleep $p0
+	bra #idle
+#endif

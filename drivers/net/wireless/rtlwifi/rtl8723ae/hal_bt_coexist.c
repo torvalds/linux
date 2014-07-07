@@ -31,6 +31,7 @@
 #include "../pci.h"
 #include "dm.h"
 #include "fw.h"
+#include "../rtl8723com/fw_common.h"
 #include "phy.h"
 #include "reg.h"
 #include "hal_btc.h"

@@ -190,20 +190,18 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ii20k_ai_wait_eoc(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     int timeout)
+static int ii20k_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
 {
 	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	unsigned char status;
 
-	do {
-		status = readb(iobase + II20K_AI_STATUS_REG);
-		if ((status & II20K_AI_STATUS_INT) == 0)
-			return 0;
-	} while (timeout--);
-
-	return -ETIME;
+	status = readb(iobase + II20K_AI_STATUS_REG);
+	if ((status & II20K_AI_STATUS_INT) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static void ii20k_ai_setup(struct comedi_device *dev,
@@ -263,7 +261,7 @@ static int ii20k_ai_insn_read(struct comedi_device *dev,
 		/* generate a software start convert signal */
 		readb(iobase + II20K_AI_PACER_RESET_REG);
 
-		ret = ii20k_ai_wait_eoc(dev, s, 100);
+		ret = comedi_timeout(dev, s, insn, ii20k_ai_eoc, 0);
 		if (ret)
 			return ret;
 
@@ -378,13 +376,10 @@ static int ii20k_dio_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct ii20k_private *devpriv = dev->private;
-	unsigned int mask = data[0] & s->io_bits;	/* outputs only */
-	unsigned int bits = data[1];
+	unsigned int mask;
 
+	mask = comedi_dio_update_state(s, data);
 	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
 		if (mask & 0x000000ff)
 			writeb((s->state >> 0) & 0xff,
 			       devpriv->ioaddr + II20K_DIO0_REG);
@@ -466,6 +461,7 @@ static int ii20k_attach(struct comedi_device *dev,
 	id = readb(devpriv->ioaddr + II20K_ID_REG);
 	switch (id & II20K_ID_MASK) {
 	case II20K_ID_PCI20001C_1A:
+		has_dio = false;
 		break;
 	case II20K_ID_PCI20001C_2A:
 		has_dio = true;

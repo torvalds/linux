@@ -31,10 +31,11 @@
 #include <linux/mfd/max77686.h>
 #include <linux/mfd/max77686-private.h>
 #include <linux/err.h>
+#include <linux/of.h>
 
 #define I2C_ADDR_RTC	(0x0C >> 1)
 
-static struct mfd_cell max77686_devs[] = {
+static const struct mfd_cell max77686_devs[] = {
 	{ .name = "max77686-pmic", },
 	{ .name = "max77686-rtc", },
 	{ .name = "max77686-clk", },
@@ -46,7 +47,7 @@ static struct regmap_config max77686_regmap_config = {
 };
 
 #ifdef CONFIG_OF
-static struct of_device_id max77686_pmic_dt_match[] = {
+static const struct of_device_id max77686_pmic_dt_match[] = {
 	{.compatible = "maxim,max77686", .data = NULL},
 	{},
 };
@@ -103,7 +104,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 	max77686->irq_gpio = pdata->irq_gpio;
 	max77686->irq = i2c->irq;
 
-	max77686->regmap = regmap_init_i2c(i2c, &max77686_regmap_config);
+	max77686->regmap = devm_regmap_init_i2c(i2c, &max77686_regmap_config);
 	if (IS_ERR(max77686->regmap)) {
 		ret = PTR_ERR(max77686->regmap);
 		dev_err(max77686->dev, "Failed to allocate register map: %d\n",
@@ -120,6 +121,10 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 		dev_info(max77686->dev, "device found\n");
 
 	max77686->rtc = i2c_new_dummy(i2c->adapter, I2C_ADDR_RTC);
+	if (!max77686->rtc) {
+		dev_err(max77686->dev, "Failed to allocate I2C device for RTC\n");
+		return -ENODEV;
+	}
 	i2c_set_clientdata(max77686->rtc, max77686);
 
 	max77686_irq_init(max77686);

@@ -61,51 +61,63 @@ static DECLARE_INTC_DESC(intc_desc, "sh7619", vectors, NULL,
 			 NULL, prio_registers, NULL);
 
 static struct plat_sci_port scif0_platform_data = {
-	.mapbase	= 0xf8400000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(88),
+};
+
+static struct resource scif0_resources[] = {
+	DEFINE_RES_MEM(0xf8400000, 0x100),
+	DEFINE_RES_IRQ(88),
 };
 
 static struct platform_device scif0_device = {
 	.name		= "sh-sci",
 	.id		= 0,
+	.resource	= scif0_resources,
+	.num_resources	= ARRAY_SIZE(scif0_resources),
 	.dev		= {
 		.platform_data	= &scif0_platform_data,
 	},
 };
 
 static struct plat_sci_port scif1_platform_data = {
-	.mapbase	= 0xf8410000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(92),
+};
+
+static struct resource scif1_resources[] = {
+	DEFINE_RES_MEM(0xf8410000, 0x100),
+	DEFINE_RES_IRQ(92),
 };
 
 static struct platform_device scif1_device = {
 	.name		= "sh-sci",
 	.id		= 1,
+	.resource	= scif1_resources,
+	.num_resources	= ARRAY_SIZE(scif1_resources),
 	.dev		= {
 		.platform_data	= &scif1_platform_data,
 	},
 };
 
 static struct plat_sci_port scif2_platform_data = {
-	.mapbase	= 0xf8420000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(96),
+};
+
+static struct resource scif2_resources[] = {
+	DEFINE_RES_MEM(0xf8420000, 0x100),
+	DEFINE_RES_IRQ(96),
 };
 
 static struct platform_device scif2_device = {
 	.name		= "sh-sci",
 	.id		= 2,
+	.resource	= scif2_resources,
+	.num_resources	= ARRAY_SIZE(scif2_resources),
 	.dev		= {
 		.platform_data	= &scif2_platform_data,
 	},
@@ -140,62 +152,24 @@ static struct platform_device eth_device = {
 	.resource = eth_resources,
 };
 
-static struct sh_timer_config cmt0_platform_data = {
-	.channel_offset = 0x02,
-	.timer_bit = 0,
-	.clockevent_rating = 125,
-	.clocksource_rating = 0, /* disabled due to code generation issues */
+static struct sh_timer_config cmt_platform_data = {
+	.channels_mask = 3,
 };
 
-static struct resource cmt0_resources[] = {
-	[0] = {
-		.start	= 0xf84a0072,
-		.end	= 0xf84a0077,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 86,
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource cmt_resources[] = {
+	DEFINE_RES_MEM(0xf84a0070, 0x10),
+	DEFINE_RES_IRQ(86),
+	DEFINE_RES_IRQ(87),
 };
 
-static struct platform_device cmt0_device = {
-	.name		= "sh_cmt",
+static struct platform_device cmt_device = {
+	.name		= "sh-cmt-16",
 	.id		= 0,
 	.dev = {
-		.platform_data	= &cmt0_platform_data,
+		.platform_data	= &cmt_platform_data,
 	},
-	.resource	= cmt0_resources,
-	.num_resources	= ARRAY_SIZE(cmt0_resources),
-};
-
-static struct sh_timer_config cmt1_platform_data = {
-	.channel_offset = 0x08,
-	.timer_bit = 1,
-	.clockevent_rating = 125,
-	.clocksource_rating = 0, /* disabled due to code generation issues */
-};
-
-static struct resource cmt1_resources[] = {
-	[0] = {
-		.start	= 0xf84a0078,
-		.end	= 0xf84a007d,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 87,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device cmt1_device = {
-	.name		= "sh_cmt",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &cmt1_platform_data,
-	},
-	.resource	= cmt1_resources,
-	.num_resources	= ARRAY_SIZE(cmt1_resources),
+	.resource	= cmt_resources,
+	.num_resources	= ARRAY_SIZE(cmt_resources),
 };
 
 static struct platform_device *sh7619_devices[] __initdata = {
@@ -203,8 +177,7 @@ static struct platform_device *sh7619_devices[] __initdata = {
 	&scif1_device,
 	&scif2_device,
 	&eth_device,
-	&cmt0_device,
-	&cmt1_device,
+	&cmt_device,
 };
 
 static int __init sh7619_devices_setup(void)
@@ -223,8 +196,7 @@ static struct platform_device *sh7619_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
-	&cmt0_device,
-	&cmt1_device,
+	&cmt_device,
 };
 
 #define STBCR3 0xf80a0000

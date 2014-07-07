@@ -25,7 +25,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>

@@ -53,8 +53,6 @@ struct thread_info {
 
 #endif
 
-#define PREEMPT_ACTIVE		0x10000000
-
 #define THREAD_SIZE		(PAGE_SIZE << 1)
 #define THREAD_SIZE_ORDER	1
 /*

@@ -181,7 +181,7 @@ static void r852_do_dma(struct r852_device *dev, uint8_t *buf, int do_read)
 	/* Set dma direction */
 	dev->dma_dir = do_read;
 	dev->dma_stage = 1;
-	INIT_COMPLETION(dev->dma_done);
+	reinit_completion(&dev->dma_done);
 
 	dbg_verbose("doing dma %s ", do_read ? "read" : "write");
 
@@ -245,7 +245,7 @@ static void r852_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 	}
 
 	/* write DWORD chinks - faster */
-	while (len) {
+	while (len >= 4) {
 		reg = buf[0] | buf[1] << 8 | buf[2] << 16 | buf[3] << 24;
 		r852_write_reg_dword(dev, R852_DATALINE, reg);
 		buf += 4;
@@ -254,8 +254,10 @@ static void r852_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 	}
 
 	/* write rest */
-	while (len)
+	while (len > 0) {
 		r852_write_reg(dev, R852_DATALINE, *buf++);
+		len--;
+	}
 }
 
 /*

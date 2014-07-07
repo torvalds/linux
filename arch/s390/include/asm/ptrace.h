@@ -8,10 +8,63 @@
 
 #include <uapi/asm/ptrace.h>
 
+#define PIF_SYSCALL		0	/* inside a system call */
+#define PIF_PER_TRAP		1	/* deliver sigtrap on return to user */
+
+#define _PIF_SYSCALL		(1<<PIF_SYSCALL)
+#define _PIF_PER_TRAP		(1<<PIF_PER_TRAP)
+
 #ifndef __ASSEMBLY__
 
-extern long psw_kernel_bits;
-extern long psw_user_bits;
+#define PSW_KERNEL_BITS	(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_HOME | \
+			 PSW_MASK_EA | PSW_MASK_BA)
+#define PSW_USER_BITS	(PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | \
+			 PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_MCHECK | \
+			 PSW_MASK_PSTATE | PSW_ASC_PRIMARY)
+
+struct psw_bits {
+	unsigned long long	: 1;
+	unsigned long long r	: 1; /* PER-Mask */
+	unsigned long long	: 3;
+	unsigned long long t	: 1; /* DAT Mode */
+	unsigned long long i	: 1; /* Input/Output Mask */
+	unsigned long long e	: 1; /* External Mask */
+	unsigned long long key	: 4; /* PSW Key */
+	unsigned long long	: 1;
+	unsigned long long m	: 1; /* Machine-Check Mask */
+	unsigned long long w	: 1; /* Wait State */
+	unsigned long long p	: 1; /* Problem State */
+	unsigned long long as	: 2; /* Address Space Control */
+	unsigned long long cc	: 2; /* Condition Code */
+	unsigned long long pm	: 4; /* Program Mask */
+	unsigned long long ri	: 1; /* Runtime Instrumentation */
+	unsigned long long	: 6;
+	unsigned long long eaba : 2; /* Addressing Mode */
+#ifdef CONFIG_64BIT
+	unsigned long long	: 31;
+	unsigned long long ia	: 64;/* Instruction Address */
+#else
+	unsigned long long ia	: 31;/* Instruction Address */
+#endif
+};
+
+enum {
+	PSW_AMODE_24BIT = 0,
+	PSW_AMODE_31BIT = 1,
+	PSW_AMODE_64BIT = 3
+};
+
+enum {
+	PSW_AS_PRIMARY	 = 0,
+	PSW_AS_ACCREG	 = 1,
+	PSW_AS_SECONDARY = 2,
+	PSW_AS_HOME	 = 3
+};
+
+#define psw_bits(__psw) (*({			\
+	typecheck(psw_t, __psw);		\
+	&(*(struct psw_bits *)(&(__psw)));	\
+}))
 
 /*
  * The pt_regs struct defines the way the registers are stored on
@@ -26,6 +79,7 @@ struct pt_regs
 	unsigned int int_code;
 	unsigned int int_parm;
 	unsigned long int_parm_long;
+	unsigned long flags;
 };
 
 /*
@@ -76,10 +130,26 @@ struct per_struct_kernel {
 #define PER_CONTROL_SUSPENSION		0x00400000UL
 #define PER_CONTROL_ALTERATION		0x00200000UL
 
+static inline void set_pt_regs_flag(struct pt_regs *regs, int flag)
+{
+	regs->flags |= (1U << flag);
+}
+
+static inline void clear_pt_regs_flag(struct pt_regs *regs, int flag)
+{
+	regs->flags &= ~(1U << flag);
+}
+
+static inline int test_pt_regs_flag(struct pt_regs *regs, int flag)
+{
+	return !!(regs->flags & (1U << flag));
+}
+
 /*
  * These are defined as per linux/ptrace.h, which see.
  */
 #define arch_has_single_step()	(1)
+#define arch_has_block_step()	(1)
 
 #define user_mode(regs) (((regs)->psw.mask & PSW_MASK_PSTATE) != 0)
 #define instruction_pointer(regs) ((regs)->psw.addr & PSW_ADDR_INSN)

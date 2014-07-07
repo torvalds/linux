@@ -78,8 +78,10 @@ void __init msm_map_common_io(void)
 	asm("mcr p15, 0, %0, c15, c2, 4" : : "r" (0));
 #if defined(CONFIG_DEBUG_MSM_UART1) || defined(CONFIG_DEBUG_MSM_UART2) || \
 		defined(CONFIG_DEBUG_MSM_UART3)
+#ifdef CONFIG_MMU
 	debug_ll_addr(&msm_io_desc[size - 1].pfn,
 		      &msm_io_desc[size - 1].virtual);
+#endif
 	msm_io_desc[size - 1].pfn = __phys_to_pfn(msm_io_desc[size - 1].pfn);
 #endif
 	iotable_init(msm_io_desc, size);

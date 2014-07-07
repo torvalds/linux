@@ -45,12 +45,12 @@
 /*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
 
-const unsigned char abyOUI00[4] = { 0x00, 0x50, 0xf2, 0x00 };
-const unsigned char abyOUI01[4] = { 0x00, 0x50, 0xf2, 0x01 };
-const unsigned char abyOUI02[4] = { 0x00, 0x50, 0xf2, 0x02 };
-const unsigned char abyOUI03[4] = { 0x00, 0x50, 0xf2, 0x03 };
-const unsigned char abyOUI04[4] = { 0x00, 0x50, 0xf2, 0x04 };
-const unsigned char abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
+static const unsigned char abyOUI00[4] = { 0x00, 0x50, 0xf2, 0x00 };
+static const unsigned char abyOUI01[4] = { 0x00, 0x50, 0xf2, 0x01 };
+static const unsigned char abyOUI02[4] = { 0x00, 0x50, 0xf2, 0x02 };
+static const unsigned char abyOUI03[4] = { 0x00, 0x50, 0xf2, 0x03 };
+static const unsigned char abyOUI04[4] = { 0x00, 0x50, 0xf2, 0x04 };
+static const unsigned char abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
 
 /*+
  *
@@ -160,8 +160,7 @@ WPA_ParseRSN(
 						;
 				} else
 					break;
-				//DBG_PRN_GRP14(("abyPKType[%d]: %X\n", j-1, pBSSList->abyPKType[j-1]));
-			} //for
+			}
 			pBSSList->wPKCount = (unsigned short)j;
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wPKCount: %d\n", pBSSList->wPKCount);
 		}
@@ -187,7 +186,7 @@ WPA_ParseRSN(
 						;
 				} else
 					break;
-				//DBG_PRN_GRP14(("abyAuthType[%d]: %X\n", j-1, pBSSList->abyAuthType[j-1]));
+
 			}
 			if (j > 0)
 				pBSSList->wAuthCount = (unsigned short)j;
@@ -206,9 +205,6 @@ WPA_ParseRSN(
 				pBSSList->byReplayIdx = 2 << ((*pbyCaps >> WPA_REPLAYBITSSHIFT) & WPA_REPLAYBITS);
 				pBSSList->sRSNCapObj.bRSNCapExist = true;
 				pBSSList->sRSNCapObj.wRSNCap = *(unsigned short *)pbyCaps;
-				//DBG_PRN_GRP14(("pbyCaps: %X\n", *pbyCaps));
-				//DBG_PRN_GRP14(("byDefaultK_as_PK: %X\n", pBSSList->byDefaultK_as_PK));
-				//DBG_PRN_GRP14(("byReplayIdx: %X\n", pBSSList->byReplayIdx));
 			}
 		}
 		pBSSList->bWPAValid = true;
@@ -241,7 +237,7 @@ WPA_SearchRSN(
 	int ii;
 	unsigned char byPKType = WPA_NONE;
 
-	if (pBSSList->bWPAValid == false)
+	if (!pBSSList->bWPAValid)
 		return false;
 
 	switch (byCmd) {

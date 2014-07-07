@@ -57,6 +57,7 @@ struct ep_device;
  * @extra: descriptors following this endpoint in the configuration
  * @extralen: how many bytes of "extra" are valid
  * @enabled: URBs may be submitted to this endpoint
+ * @streams: number of USB-3 streams allocated on the endpoint
  *
  * USB requests are always queued to a given endpoint, identified by a
  * descriptor within an active interface in a given USB configuration.
@@ -71,6 +72,7 @@ struct usb_host_endpoint {
 	unsigned char *extra;   /* Extra descriptors */
 	int extralen;
 	int enabled;
+	int streams;
 };
 
 /* host-side wrapper for one interface setting's parsed descriptors */
@@ -202,6 +204,8 @@ static inline void usb_set_intfdata(struct usb_interface *intf, void *data)
 struct usb_interface *usb_get_intf(struct usb_interface *intf);
 void usb_put_intf(struct usb_interface *intf);
 
+/* Hard limit */
+#define USB_MAXENDPOINTS	30
 /* this maximum is arbitrary */
 #define USB_MAXINTERFACES	32
 #define USB_MAXIADS		(USB_MAXINTERFACES/2)
@@ -348,6 +352,8 @@ struct usb_bus {
 	struct usb_bus *hs_companion;	/* Companion EHCI bus, if any */
 	struct list_head bus_list;	/* list of busses */
 
+	struct mutex usb_address0_mutex; /* unaddressed device mutex */
+
 	int bandwidth_allocated;	/* on this bus: how much of the time
 					 * reserved for periodic (intr/iso)
 					 * requests is used, on average?
@@ -365,6 +371,8 @@ struct usb_bus {
 	int monitored;			/* non-zero when monitored */
 #endif
 };
+
+struct usb_dev_state;
 
 /* ----------------------------------------------------------------------- */
 
@@ -475,7 +483,8 @@ struct usb3_lpm_parameters {
  * @lpm_capable: device supports LPM
  * @usb2_hw_lpm_capable: device can perform USB2 hardware LPM
  * @usb2_hw_lpm_besl_capable: device can perform USB2 hardware BESL LPM
- * @usb2_hw_lpm_enabled: USB2 hardware LPM enabled
+ * @usb2_hw_lpm_enabled: USB2 hardware LPM is enabled
+ * @usb2_hw_lpm_allowed: Userspace allows USB 2.0 LPM to be enabled
  * @usb3_lpm_enabled: USB3 hardware LPM enabled
  * @string_langid: language ID for strings
  * @product: iProduct string, if present (static)
@@ -548,6 +557,7 @@ struct usb_device {
 	unsigned usb2_hw_lpm_capable:1;
 	unsigned usb2_hw_lpm_besl_capable:1;
 	unsigned usb2_hw_lpm_enabled:1;
+	unsigned usb2_hw_lpm_allowed:1;
 	unsigned usb3_lpm_enabled:1;
 	int string_langid;
 
@@ -702,7 +712,7 @@ extern int usb_alloc_streams(struct usb_interface *interface,
 		unsigned int num_streams, gfp_t mem_flags);
 
 /* Reverts a group of bulk endpoints back to not using stream IDs. */
-extern void usb_free_streams(struct usb_interface *interface,
+extern int usb_free_streams(struct usb_interface *interface,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		gfp_t mem_flags);
 
@@ -747,6 +757,11 @@ extern struct usb_host_interface *usb_find_alt_setting(
 		unsigned int iface_num,
 		unsigned int alt_num);
 
+/* port claiming functions */
+int usb_hub_claim_port(struct usb_device *hdev, unsigned port1,
+		struct usb_dev_state *owner);
+int usb_hub_release_port(struct usb_device *hdev, unsigned port1,
+		struct usb_dev_state *owner);
 
 /**
  * usb_make_path - returns stable device path in the usb tree
@@ -963,6 +978,7 @@ struct usb_dynid {
 };
 
 extern ssize_t usb_store_new_id(struct usb_dynids *dynids,
+				const struct usb_device_id *id_table,
 				struct device_driver *driver,
 				const char *buf, size_t count);
 
@@ -1209,11 +1225,13 @@ struct usb_anchor {
 	struct list_head urb_list;
 	wait_queue_head_t wait;
 	spinlock_t lock;
+	atomic_t suspend_wakeups;
 	unsigned int poisoned:1;
 };
 
 static inline void init_usb_anchor(struct usb_anchor *anchor)
 {
+	memset(anchor, 0, sizeof(*anchor));
 	INIT_LIST_HEAD(&anchor->urb_list);
 	init_waitqueue_head(&anchor->wait);
 	spin_lock_init(&anchor->lock);
@@ -1574,6 +1592,8 @@ extern void usb_kill_anchored_urbs(struct usb_anchor *anchor);
 extern void usb_poison_anchored_urbs(struct usb_anchor *anchor);
 extern void usb_unpoison_anchored_urbs(struct usb_anchor *anchor);
 extern void usb_unlink_anchored_urbs(struct usb_anchor *anchor);
+extern void usb_anchor_suspend_wakeups(struct usb_anchor *anchor);
+extern void usb_anchor_resume_wakeups(struct usb_anchor *anchor);
 extern void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor);
 extern void usb_unanchor_urb(struct urb *urb);
 extern int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
@@ -1658,6 +1678,10 @@ extern void usb_reset_endpoint(struct usb_device *dev, unsigned int epaddr);
 
 /* this request isn't really synchronous, but it belongs with the others */
 extern int usb_driver_set_configuration(struct usb_device *udev, int config);
+
+/* choose and set configuration for device */
+extern int usb_choose_configuration(struct usb_device *udev);
+extern int usb_set_configuration(struct usb_device *dev, int configuration);
 
 /*
  * timeouts, in milliseconds, used for sending/receiving control messages

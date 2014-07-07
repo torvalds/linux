@@ -21,7 +21,7 @@ The swapper_pgd_dir address is written to TTBR1 and never written to
 TTBR0.
 
 
-AArch64 Linux memory layout:
+AArch64 Linux memory layout with 4KB pages:
 
 Start			End			Size		Use
 -----------------------------------------------------------------------
@@ -35,15 +35,44 @@ ffffffbc00000000	ffffffbdffffffff	   8GB		vmemmap
 
 ffffffbe00000000	ffffffbffbbfffff	  ~8GB		[guard, future vmmemap]
 
-ffffffbffbc00000	ffffffbffbdfffff	   2MB		earlyprintk device
+ffffffbffa000000	ffffffbffaffffff	  16MB		PCI I/O space
 
-ffffffbffbe00000	ffffffbffbe0ffff	  64KB		PCI I/O space
+ffffffbffb000000	ffffffbffbbfffff	  12MB		[guard]
 
-ffffffbbffff0000	ffffffbcffffffff	  ~2MB		[guard]
+ffffffbffbc00000	ffffffbffbdfffff	   2MB		fixed mappings
+
+ffffffbffbe00000	ffffffbffbffffff	   2MB		[guard]
 
 ffffffbffc000000	ffffffbfffffffff	  64MB		modules
 
 ffffffc000000000	ffffffffffffffff	 256GB		kernel logical memory map
+
+
+AArch64 Linux memory layout with 64KB pages:
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000000000000000	000003ffffffffff	   4TB		user
+
+fffffc0000000000	fffffdfbfffeffff	  ~2TB		vmalloc
+
+fffffdfbffff0000	fffffdfbffffffff	  64KB		[guard page]
+
+fffffdfc00000000	fffffdfdffffffff	   8GB		vmemmap
+
+fffffdfe00000000	fffffdfffbbfffff	  ~8GB		[guard, future vmmemap]
+
+fffffdfffa000000	fffffdfffaffffff	  16MB		PCI I/O space
+
+fffffdfffb000000	fffffdfffbbfffff	  12MB		[guard]
+
+fffffdfffbc00000	fffffdfffbdfffff	   2MB		fixed mappings
+
+fffffdfffbe00000	fffffdfffbffffff	   2MB		[guard]
+
+fffffdfffc000000	fffffdffffffffff	  64MB		modules
+
+fffffe0000000000	ffffffffffffffff	   2TB		kernel logical memory map
 
 
 Translation table lookup with 4KB pages:

@@ -10,7 +10,6 @@
 #endif
 
 #include <sys/types.h>
-#include <sysfs/libsysfs.h>
 
 #include <stdint.h>
 
@@ -180,6 +179,7 @@ int usbip_net_recv_op_common(int sockfd, uint16_t *code);
 int usbip_net_set_reuseaddr(int sockfd);
 int usbip_net_set_nodelay(int sockfd);
 int usbip_net_set_keepalive(int sockfd);
+int usbip_net_set_v6only(int sockfd);
 int usbip_net_tcp_connect(char *hostname, char *port);
 
 #endif /* __USBIP_NETWORK_H */

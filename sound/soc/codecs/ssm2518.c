@@ -169,19 +169,19 @@ static const char * const ssm2518_drc_hold_time_text[] = {
 	"682.24 ms", "1364 ms",
 };
 
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_peak_detector_attack_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_peak_detector_attack_time_enum,
 	SSM2518_REG_DRC_2, 4, ssm2518_drc_peak_detector_attack_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_peak_detector_release_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_peak_detector_release_time_enum,
 	SSM2518_REG_DRC_2, 0, ssm2518_drc_peak_detector_release_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_attack_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_attack_time_enum,
 	SSM2518_REG_DRC_6, 4, ssm2518_drc_peak_detector_attack_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_decay_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_decay_time_enum,
 	SSM2518_REG_DRC_6, 0, ssm2518_drc_peak_detector_release_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_hold_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_hold_time_enum,
 	SSM2518_REG_DRC_7, 4, ssm2518_drc_hold_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_noise_gate_hold_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_noise_gate_hold_time_enum,
 	SSM2518_REG_DRC_7, 0, ssm2518_drc_hold_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_rms_averaging_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_rms_averaging_time_enum,
 	SSM2518_REG_DRC_9, 0, ssm2518_drc_peak_detector_release_time_text);
 
 static const struct snd_kcontrol_new ssm2518_snd_controls[] = {
@@ -549,13 +549,13 @@ static int ssm2518_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		right_slot = 0;
 	} else {
 		/* We assume the left channel < right channel */
-		left_slot = ffs(tx_mask);
-		tx_mask &= ~(1 << tx_mask);
+		left_slot = __ffs(tx_mask);
+		tx_mask &= ~(1 << left_slot);
 		if (tx_mask == 0) {
 			right_slot = left_slot;
 		} else {
-			right_slot = ffs(tx_mask);
-			tx_mask &= ~(1 << tx_mask);
+			right_slot = __ffs(tx_mask);
+			tx_mask &= ~(1 << right_slot);
 		}
 	}
 
@@ -648,16 +648,6 @@ static struct snd_soc_dai_driver ssm2518_dai = {
 
 static int ssm2518_probe(struct snd_soc_codec *codec)
 {
-	struct ssm2518 *ssm2518 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	codec->control_data = ssm2518->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	return ssm2518_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }
 

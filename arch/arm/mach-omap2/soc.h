@@ -438,7 +438,8 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define AM335X_REV_ES2_1	(AM335X_CLASS | (0x2 << 8))
 
 #define AM437X_CLASS		0x43700000
-#define AM437X_REV_ES1_0	AM437X_CLASS
+#define AM437X_REV_ES1_0	(AM437X_CLASS | (0x10 << 8))
+#define AM437X_REV_ES1_1	(AM437X_CLASS | (0x11 << 8))
 
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	(OMAP443X_CLASS | (0x10 << 8))
@@ -455,15 +456,19 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define OMAP4470_REV_ES1_0	(OMAP447X_CLASS | (0x10 << 8))
 
 #define OMAP54XX_CLASS		0x54000054
-#define OMAP5430_REV_ES1_0	(OMAP54XX_CLASS | (0x30 << 16) | (0x10 << 8))
 #define OMAP5430_REV_ES2_0	(OMAP54XX_CLASS | (0x30 << 16) | (0x20 << 8))
-#define OMAP5432_REV_ES1_0	(OMAP54XX_CLASS | (0x32 << 16) | (0x10 << 8))
 #define OMAP5432_REV_ES2_0	(OMAP54XX_CLASS | (0x32 << 16) | (0x20 << 8))
+
+#define DRA7XX_CLASS		0x07000000
+#define DRA752_REV_ES1_0	(DRA7XX_CLASS | (0x52 << 16) | (0x10 << 8))
+#define DRA752_REV_ES1_1	(DRA7XX_CLASS | (0x52 << 16) | (0x11 << 8))
+#define DRA722_REV_ES1_0	(DRA7XX_CLASS | (0x22 << 16) | (0x10 << 8))
 
 void omap2xxx_check_revision(void);
 void omap3xxx_check_revision(void);
 void omap4xxx_check_revision(void);
 void omap5xxx_check_revision(void);
+void dra7xxx_check_revision(void);
 void omap3xxx_check_features(void);
 void ti81xx_check_features(void);
 void am33xx_check_features(void);

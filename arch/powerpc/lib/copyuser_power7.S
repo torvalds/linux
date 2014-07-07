@@ -19,6 +19,14 @@
  */
 #include <asm/ppc_asm.h>
 
+#ifdef __BIG_ENDIAN__
+#define LVS(VRT,RA,RB)		lvsl	VRT,RA,RB
+#define VPERM(VRT,VRA,VRB,VRC)	vperm	VRT,VRA,VRB,VRC
+#else
+#define LVS(VRT,RA,RB)		lvsr	VRT,RA,RB
+#define VPERM(VRT,VRA,VRB,VRC)	vperm	VRT,VRB,VRA,VRC
+#endif
+
 	.macro err1
 100:
 	.section __ex_table,"a"
@@ -58,7 +66,7 @@
 	ld	r15,STK_REG(R15)(r1)
 	ld	r14,STK_REG(R14)(r1)
 .Ldo_err3:
-	bl	.exit_vmx_usercopy
+	bl	exit_vmx_usercopy
 	ld	r0,STACKFRAMESIZE+16(r1)
 	mtlr	r0
 	b	.Lexit
@@ -77,9 +85,9 @@
 .Lexit:
 	addi	r1,r1,STACKFRAMESIZE
 .Ldo_err1:
-	ld	r3,48(r1)
-	ld	r4,56(r1)
-	ld	r5,64(r1)
+	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
+	ld	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
+	ld	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
 	b	__copy_tofrom_user_base
 
 
@@ -88,18 +96,18 @@ _GLOBAL(__copy_tofrom_user_power7)
 	cmpldi	r5,16
 	cmpldi	cr1,r5,4096
 
-	std	r3,48(r1)
-	std	r4,56(r1)
-	std	r5,64(r1)
+	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
+	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
+	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
 
 	blt	.Lshort_copy
 	bgt	cr1,.Lvmx_copy
 #else
 	cmpldi	r5,16
 
-	std	r3,48(r1)
-	std	r4,56(r1)
-	std	r5,64(r1)
+	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
+	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
+	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
 
 	blt	.Lshort_copy
 #endif
@@ -287,12 +295,12 @@ err1;	stb	r0,0(r3)
 	mflr	r0
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	.enter_vmx_usercopy
+	bl	enter_vmx_usercopy
 	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
-	ld	r3,STACKFRAMESIZE+48(r1)
-	ld	r4,STACKFRAMESIZE+56(r1)
-	ld	r5,STACKFRAMESIZE+64(r1)
+	ld	r3,STK_REG(R31)(r1)
+	ld	r4,STK_REG(R30)(r1)
+	ld	r5,STK_REG(R29)(r1)
 	mtlr	r0
 
 	/*
@@ -506,7 +514,7 @@ err3;	lbz	r0,0(r4)
 err3;	stb	r0,0(r3)
 
 15:	addi	r1,r1,STACKFRAMESIZE
-	b	.exit_vmx_usercopy	/* tail call optimise */
+	b	exit_vmx_usercopy	/* tail call optimise */
 
 .Lvmx_unaligned_copy:
 	/* Get the destination 16B aligned */
@@ -552,13 +560,13 @@ err3;	stw	r7,4(r3)
 	li	r10,32
 	li	r11,48
 
-	lvsl	vr16,0,r4	/* Setup permute control vector */
+	LVS(vr16,0,r4)		/* Setup permute control vector */
 err3;	lvx	vr0,0,r4
 	addi	r4,r4,16
 
 	bf	cr7*4+3,5f
 err3;	lvx	vr1,r0,r4
-	vperm	vr8,vr0,vr1,vr16
+	VPERM(vr8,vr0,vr1,vr16)
 	addi	r4,r4,16
 err3;	stvx	vr8,r0,r3
 	addi	r3,r3,16
@@ -566,9 +574,9 @@ err3;	stvx	vr8,r0,r3
 
 5:	bf	cr7*4+2,6f
 err3;	lvx	vr1,r0,r4
-	vperm	vr8,vr0,vr1,vr16
+	VPERM(vr8,vr0,vr1,vr16)
 err3;	lvx	vr0,r4,r9
-	vperm	vr9,vr1,vr0,vr16
+	VPERM(vr9,vr1,vr0,vr16)
 	addi	r4,r4,32
 err3;	stvx	vr8,r0,r3
 err3;	stvx	vr9,r3,r9
@@ -576,13 +584,13 @@ err3;	stvx	vr9,r3,r9
 
 6:	bf	cr7*4+1,7f
 err3;	lvx	vr3,r0,r4
-	vperm	vr8,vr0,vr3,vr16
+	VPERM(vr8,vr0,vr3,vr16)
 err3;	lvx	vr2,r4,r9
-	vperm	vr9,vr3,vr2,vr16
+	VPERM(vr9,vr3,vr2,vr16)
 err3;	lvx	vr1,r4,r10
-	vperm	vr10,vr2,vr1,vr16
+	VPERM(vr10,vr2,vr1,vr16)
 err3;	lvx	vr0,r4,r11
-	vperm	vr11,vr1,vr0,vr16
+	VPERM(vr11,vr1,vr0,vr16)
 	addi	r4,r4,64
 err3;	stvx	vr8,r0,r3
 err3;	stvx	vr9,r3,r9
@@ -611,21 +619,21 @@ err3;	stvx	vr11,r3,r11
 	.align	5
 8:
 err4;	lvx	vr7,r0,r4
-	vperm	vr8,vr0,vr7,vr16
+	VPERM(vr8,vr0,vr7,vr16)
 err4;	lvx	vr6,r4,r9
-	vperm	vr9,vr7,vr6,vr16
+	VPERM(vr9,vr7,vr6,vr16)
 err4;	lvx	vr5,r4,r10
-	vperm	vr10,vr6,vr5,vr16
+	VPERM(vr10,vr6,vr5,vr16)
 err4;	lvx	vr4,r4,r11
-	vperm	vr11,vr5,vr4,vr16
+	VPERM(vr11,vr5,vr4,vr16)
 err4;	lvx	vr3,r4,r12
-	vperm	vr12,vr4,vr3,vr16
+	VPERM(vr12,vr4,vr3,vr16)
 err4;	lvx	vr2,r4,r14
-	vperm	vr13,vr3,vr2,vr16
+	VPERM(vr13,vr3,vr2,vr16)
 err4;	lvx	vr1,r4,r15
-	vperm	vr14,vr2,vr1,vr16
+	VPERM(vr14,vr2,vr1,vr16)
 err4;	lvx	vr0,r4,r16
-	vperm	vr15,vr1,vr0,vr16
+	VPERM(vr15,vr1,vr0,vr16)
 	addi	r4,r4,128
 err4;	stvx	vr8,r0,r3
 err4;	stvx	vr9,r3,r9
@@ -649,13 +657,13 @@ err4;	stvx	vr15,r3,r16
 
 	bf	cr7*4+1,9f
 err3;	lvx	vr3,r0,r4
-	vperm	vr8,vr0,vr3,vr16
+	VPERM(vr8,vr0,vr3,vr16)
 err3;	lvx	vr2,r4,r9
-	vperm	vr9,vr3,vr2,vr16
+	VPERM(vr9,vr3,vr2,vr16)
 err3;	lvx	vr1,r4,r10
-	vperm	vr10,vr2,vr1,vr16
+	VPERM(vr10,vr2,vr1,vr16)
 err3;	lvx	vr0,r4,r11
-	vperm	vr11,vr1,vr0,vr16
+	VPERM(vr11,vr1,vr0,vr16)
 	addi	r4,r4,64
 err3;	stvx	vr8,r0,r3
 err3;	stvx	vr9,r3,r9
@@ -665,9 +673,9 @@ err3;	stvx	vr11,r3,r11
 
 9:	bf	cr7*4+2,10f
 err3;	lvx	vr1,r0,r4
-	vperm	vr8,vr0,vr1,vr16
+	VPERM(vr8,vr0,vr1,vr16)
 err3;	lvx	vr0,r4,r9
-	vperm	vr9,vr1,vr0,vr16
+	VPERM(vr9,vr1,vr0,vr16)
 	addi	r4,r4,32
 err3;	stvx	vr8,r0,r3
 err3;	stvx	vr9,r3,r9
@@ -675,7 +683,7 @@ err3;	stvx	vr9,r3,r9
 
 10:	bf	cr7*4+3,11f
 err3;	lvx	vr1,r0,r4
-	vperm	vr8,vr0,vr1,vr16
+	VPERM(vr8,vr0,vr1,vr16)
 	addi	r4,r4,16
 err3;	stvx	vr8,r0,r3
 	addi	r3,r3,16
@@ -709,5 +717,5 @@ err3;	lbz	r0,0(r4)
 err3;	stb	r0,0(r3)
 
 15:	addi	r1,r1,STACKFRAMESIZE
-	b	.exit_vmx_usercopy	/* tail call optimise */
+	b	exit_vmx_usercopy	/* tail call optimise */
 #endif /* CONFiG_ALTIVEC */

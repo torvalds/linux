@@ -9,11 +9,15 @@ config PPC_POWERNV
 	select EPAPR_BOOT
 	select PPC_INDIRECT_PIO
 	select PPC_UDBG_16550
-	default y
-
-config POWERNV_MSI
-	bool "Support PCI MSI on PowerNV platform"
-	depends on PCI_MSI
+	select PPC_SCOM
+	select ARCH_RANDOM
+	select CPU_FREQ
+	select CPU_FREQ_GOV_PERFORMANCE
+	select CPU_FREQ_GOV_POWERSAVE
+	select CPU_FREQ_GOV_USERSPACE
+	select CPU_FREQ_GOV_ONDEMAND
+	select CPU_FREQ_GOV_CONSERVATIVE
+	select PPC_DOORBELL
 	default y
 
 config PPC_POWERNV_RTAS

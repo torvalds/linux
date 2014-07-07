@@ -76,23 +76,6 @@
 
 #define RTL92C_MAX_PATH_NUM			2
 
-enum swchnlcmd_id {
-	CMDID_END,
-	CMDID_SET_TXPOWEROWER_LEVEL,
-	CMDID_BBREGWRITE10,
-	CMDID_WRITEPORT_ULONG,
-	CMDID_WRITEPORT_USHORT,
-	CMDID_WRITEPORT_UCHAR,
-	CMDID_RF_WRITEREG,
-};
-
-struct swchnlcmd {
-	enum swchnlcmd_id cmdid;
-	u32 para1;
-	u32 para2;
-	u32 msdelay;
-};
-
 enum hw90_block_e {
 	HW90_BLOCK_MAC = 0,
 	HW90_BLOCK_PHY0 = 1,
@@ -183,42 +166,36 @@ struct tx_power_struct {
 	u32 mcs_original_offset[4][16];
 };
 
-extern u32 rtl8723ae_phy_query_bb_reg(struct ieee80211_hw *hw,
-				      u32 regaddr, u32 bitmask);
-extern void rtl8723ae_phy_set_bb_reg(struct ieee80211_hw *hw,
-				     u32 regaddr, u32 bitmask, u32 data);
-extern u32 rtl8723ae_phy_query_rf_reg(struct ieee80211_hw *hw,
-				      enum radio_path rfpath, u32 regaddr,
-				      u32 bitmask);
-extern void rtl8723ae_phy_set_rf_reg(struct ieee80211_hw *hw,
-				     enum radio_path rfpath, u32 regaddr,
-				     u32 bitmask, u32 data);
-extern bool rtl8723ae_phy_mac_config(struct ieee80211_hw *hw);
-extern bool rtl8723ae_phy_bb_config(struct ieee80211_hw *hw);
-extern bool rtl8723ae_phy_rf_config(struct ieee80211_hw *hw);
-extern bool rtl92c_phy_config_rf_with_feaderfile(struct ieee80211_hw *hw,
-						 enum radio_path rfpath);
-extern void rtl8723ae_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
-extern void rtl8723ae_phy_get_txpower_level(struct ieee80211_hw *hw,
-					    long *powerlevel);
-extern void rtl8723ae_phy_set_txpower_level(struct ieee80211_hw *hw,
-					    u8 channel);
-extern bool rtl8723ae_phy_update_txpower_dbm(struct ieee80211_hw *hw,
-					     long power_indbm);
-extern void rtl8723ae_phy_scan_operation_backup(struct ieee80211_hw *hw,
-						u8 operation);
-extern void rtl8723ae_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
-extern void rtl8723ae_phy_set_bw_mode(struct ieee80211_hw *hw,
-				      enum nl80211_channel_type ch_type);
-extern void rtl8723ae_phy_sw_chnl_callback(struct ieee80211_hw *hw);
-extern u8 rtl8723ae_phy_sw_chnl(struct ieee80211_hw *hw);
-extern void rtl8723ae_phy_iq_calibrate(struct ieee80211_hw *hw, bool recovery);
+u32 rtl8723ae_phy_query_rf_reg(struct ieee80211_hw *hw,
+			       enum radio_path rfpath, u32 regaddr,
+			       u32 bitmask);
+void rtl8723ae_phy_set_rf_reg(struct ieee80211_hw *hw,
+			      enum radio_path rfpath, u32 regaddr,
+			      u32 bitmask, u32 data);
+bool rtl8723ae_phy_mac_config(struct ieee80211_hw *hw);
+bool rtl8723ae_phy_bb_config(struct ieee80211_hw *hw);
+bool rtl8723ae_phy_rf_config(struct ieee80211_hw *hw);
+bool rtl92c_phy_config_rf_with_feaderfile(struct ieee80211_hw *hw,
+					  enum radio_path rfpath);
+void rtl8723ae_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
+void rtl8723ae_phy_get_txpower_level(struct ieee80211_hw *hw,
+				     long *powerlevel);
+void rtl8723ae_phy_set_txpower_level(struct ieee80211_hw *hw,
+				     u8 channel);
+bool rtl8723ae_phy_update_txpower_dbm(struct ieee80211_hw *hw,
+				      long power_indbm);
+void rtl8723ae_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
+void rtl8723ae_phy_set_bw_mode(struct ieee80211_hw *hw,
+			       enum nl80211_channel_type ch_type);
+void rtl8723ae_phy_sw_chnl_callback(struct ieee80211_hw *hw);
+u8 rtl8723ae_phy_sw_chnl(struct ieee80211_hw *hw);
+void rtl8723ae_phy_iq_calibrate(struct ieee80211_hw *hw, bool recovery);
 void rtl8723ae_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl8723ae_phy_set_rfpath_switch(struct ieee80211_hw *hw, bool bmain);
 bool rtl8723ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 					     enum radio_path rfpath);
 bool rtl8723ae_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype);
-extern bool rtl8723ae_phy_set_rf_power_state(struct ieee80211_hw *hw,
-					     enum rf_pwrstate rfpwr_state);
+bool rtl8723ae_phy_set_rf_power_state(struct ieee80211_hw *hw,
+				      enum rf_pwrstate rfpwr_state);
 
 #endif

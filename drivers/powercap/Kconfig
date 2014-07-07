@@ -1,0 +1,32 @@
+#
+# Generic power capping sysfs interface configuration
+#
+
+menuconfig POWERCAP
+	bool "Generic powercap sysfs driver"
+	help
+	  The power capping sysfs interface allows kernel subsystems to expose power
+	  capping settings to user space in a consistent way.  Usually, it consists
+	  of multiple control types that determine which settings may be exposed and
+	  power zones representing parts of the system that can be subject to power
+	  capping.
+
+	  If you want this code to be compiled in, say Y here.
+
+if POWERCAP
+# Client driver configurations go here.
+config INTEL_RAPL
+	tristate "Intel RAPL Support"
+	depends on X86
+	default n
+	---help---
+	  This enables support for the Intel Running Average Power Limit (RAPL)
+	  technology which allows power limits to be enforced and monitored on
+	  modern Intel processors (Sandy Bridge and later).
+
+	  In RAPL, the platform level settings are divided into domains for
+	  fine grained control. These domains include processor package, DRAM
+	  controller, CPU core (Power Plance 0), graphics uncore (Power Plane
+	  1), etc.
+
+endif

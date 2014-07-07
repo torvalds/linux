@@ -44,6 +44,8 @@
 #include <obd_class.h>
 
 #include "lov_cl_internal.h"
+#include "lov_internal.h"
+
 
 struct kmem_cache *lov_lock_kmem;
 struct kmem_cache *lov_object_kmem;
@@ -64,47 +66,47 @@ struct lu_kmem_descr lov_caches[] = {
 	{
 		.ckd_cache = &lov_lock_kmem,
 		.ckd_name  = "lov_lock_kmem",
-		.ckd_size  = sizeof (struct lov_lock)
+		.ckd_size  = sizeof(struct lov_lock)
 	},
 	{
 		.ckd_cache = &lov_object_kmem,
 		.ckd_name  = "lov_object_kmem",
-		.ckd_size  = sizeof (struct lov_object)
+		.ckd_size  = sizeof(struct lov_object)
 	},
 	{
 		.ckd_cache = &lov_thread_kmem,
 		.ckd_name  = "lov_thread_kmem",
-		.ckd_size  = sizeof (struct lov_thread_info)
+		.ckd_size  = sizeof(struct lov_thread_info)
 	},
 	{
 		.ckd_cache = &lov_session_kmem,
 		.ckd_name  = "lov_session_kmem",
-		.ckd_size  = sizeof (struct lov_session)
+		.ckd_size  = sizeof(struct lov_session)
 	},
 	{
 		.ckd_cache = &lov_req_kmem,
 		.ckd_name  = "lov_req_kmem",
-		.ckd_size  = sizeof (struct lov_req)
+		.ckd_size  = sizeof(struct lov_req)
 	},
 	{
 		.ckd_cache = &lovsub_lock_kmem,
 		.ckd_name  = "lovsub_lock_kmem",
-		.ckd_size  = sizeof (struct lovsub_lock)
+		.ckd_size  = sizeof(struct lovsub_lock)
 	},
 	{
 		.ckd_cache = &lovsub_object_kmem,
 		.ckd_name  = "lovsub_object_kmem",
-		.ckd_size  = sizeof (struct lovsub_object)
+		.ckd_size  = sizeof(struct lovsub_object)
 	},
 	{
 		.ckd_cache = &lovsub_req_kmem,
 		.ckd_name  = "lovsub_req_kmem",
-		.ckd_size  = sizeof (struct lovsub_req)
+		.ckd_size  = sizeof(struct lovsub_req)
 	},
 	{
 		.ckd_cache = &lov_lock_link_kmem,
 		.ckd_name  = "lov_lock_link_kmem",
-		.ckd_size  = sizeof (struct lov_lock_link)
+		.ckd_size  = sizeof(struct lov_lock_link)
 	},
 	{
 		.ckd_cache = NULL
@@ -141,7 +143,7 @@ static void *lov_key_init(const struct lu_context *ctx,
 {
 	struct lov_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, lov_thread_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, lov_thread_kmem, GFP_NOFS);
 	if (info != NULL)
 		INIT_LIST_HEAD(&info->lti_closure.clc_list);
 	else
@@ -168,7 +170,7 @@ static void *lov_session_key_init(const struct lu_context *ctx,
 {
 	struct lov_session *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, lov_session_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, lov_session_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -258,7 +260,7 @@ static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct lov_req *lr;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lr, lov_req_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lr, lov_req_kmem, GFP_NOFS);
 	if (lr != NULL) {
 		cl_req_slice_add(req, &lr->lr_cl, dev, &lov_req_ops);
 		result = 0;
@@ -286,7 +288,7 @@ static void lov_emerg_free(struct lov_device_emerg **emrg, int nr)
 			OBD_FREE_PTR(em);
 		}
 	}
-	OBD_FREE(emrg, nr * sizeof emrg[0]);
+	OBD_FREE(emrg, nr * sizeof(emrg[0]));
 }
 
 static struct lu_device *lov_device_free(const struct lu_env *env,
@@ -297,7 +299,7 @@ static struct lu_device *lov_device_free(const struct lu_env *env,
 
 	cl_device_fini(lu2cl_dev(d));
 	if (ld->ld_target != NULL)
-		OBD_FREE(ld->ld_target, nr * sizeof ld->ld_target[0]);
+		OBD_FREE(ld->ld_target, nr * sizeof(ld->ld_target[0]));
 	if (ld->ld_emrg != NULL)
 		lov_emerg_free(ld->ld_emrg, nr);
 	OBD_FREE_PTR(ld);
@@ -321,7 +323,7 @@ static struct lov_device_emerg **lov_emerg_alloc(int nr)
 	int i;
 	int result;
 
-	OBD_ALLOC(emerg, nr * sizeof emerg[0]);
+	OBD_ALLOC(emerg, nr * sizeof(emerg[0]));
 	if (emerg == NULL)
 		return ERR_PTR(-ENOMEM);
 	for (result = i = 0; i < nr && result == 0; i++) {
@@ -361,7 +363,7 @@ static int lov_expand_targets(const struct lu_env *env, struct lov_device *dev)
 	if (sub_size < tgt_size) {
 		struct lovsub_device    **newd;
 		struct lov_device_emerg **emerg;
-		const size_t	      sz   = sizeof newd[0];
+		const size_t	      sz   = sizeof(newd[0]);
 
 		emerg = lov_emerg_alloc(tgt_size);
 		if (IS_ERR(emerg))
@@ -446,7 +448,7 @@ static int lov_process_config(const struct lu_env *env,
 	cmd = cfg->lcfg_command;
 	rc = lov_process_config_base(d->ld_obd, cfg, &index, &gen);
 	if (rc == 0) {
-		switch(cmd) {
+		switch (cmd) {
 		case LCFG_LOV_ADD_OBD:
 		case LCFG_LOV_ADD_INA:
 			rc = lov_cl_add_target(env, d, index);

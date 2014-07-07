@@ -22,7 +22,6 @@
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -421,7 +420,11 @@ static void at91_chip_start(struct net_device *dev)
 	at91_transceiver_switch(priv, 1);
 
 	/* enable chip */
-	at91_write(priv, AT91_MR, AT91_MR_CANEN);
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+		reg_mr = AT91_MR_CANEN | AT91_MR_ABM;
+	else
+		reg_mr = AT91_MR_CANEN;
+	at91_write(priv, AT91_MR, reg_mr);
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
@@ -1191,6 +1194,7 @@ static const struct net_device_ops at91_netdev_ops = {
 	.ndo_open	= at91_open,
 	.ndo_stop	= at91_close,
 	.ndo_start_xmit	= at91_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static ssize_t at91_sysfs_show_mb0_id(struct device *dev,
@@ -1342,12 +1346,13 @@ static int at91_can_probe(struct platform_device *pdev)
 	priv->can.bittiming_const = &at91_bittiming_const;
 	priv->can.do_set_mode = at91_set_mode;
 	priv->can.do_get_berr_counter = at91_get_berr_counter;
-	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
+		CAN_CTRLMODE_LISTENONLY;
 	priv->dev = dev;
 	priv->reg_base = addr;
 	priv->devtype_data = *devtype_data;
 	priv->clk = clk;
-	priv->pdata = pdev->dev.platform_data;
+	priv->pdata = dev_get_platdata(&pdev->dev);
 	priv->mb0_id = 0x7ff;
 
 	netif_napi_add(dev, &priv->napi, at91_poll, get_mb_rx_num(priv));
@@ -1405,10 +1410,10 @@ static int at91_can_remove(struct platform_device *pdev)
 
 static const struct platform_device_id at91_can_id_table[] = {
 	{
-		.name = "at91_can",
+		.name = "at91sam9x5_can",
 		.driver_data = (kernel_ulong_t)&at91_at91sam9x5_data,
 	}, {
-		.name = "at91sam9x5_can",
+		.name = "at91_can",
 		.driver_data = (kernel_ulong_t)&at91_at91sam9263_data,
 	}, {
 		/* sentinel */

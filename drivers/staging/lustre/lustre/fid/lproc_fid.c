@@ -54,33 +54,49 @@
 #include <lustre_fid.h>
 #include "fid_internal.h"
 
-#ifdef LPROCFS
+/* Format: [0x64BIT_INT - 0x64BIT_INT] + 32 bytes just in case */
+#define MAX_FID_RANGE_STRLEN (32 + 2 * 2 * sizeof(__u64))
 /*
  * Note: this function is only used for testing, it is no safe for production
  * use.
  */
-static int
-lprocfs_fid_write_common(const char *buffer, unsigned long count,
-			 struct lu_seq_range *range)
+static int lprocfs_fid_write_common(const char __user *buffer, size_t count,
+				    struct lu_seq_range *range)
 {
 	struct lu_seq_range tmp;
 	int rc;
+	char kernbuf[MAX_FID_RANGE_STRLEN];
 
 	LASSERT(range != NULL);
 
-	rc = sscanf(buffer, "[%llx - %llx]\n",
+	if (count >= sizeof(kernbuf))
+		return -EINVAL;
+
+	if (copy_from_user(kernbuf, buffer, count))
+		return -EFAULT;
+
+	kernbuf[count] = 0;
+
+	if (count == 5 && strcmp(kernbuf, "clear") == 0) {
+		memset(range, 0, sizeof(*range));
+		return count;
+	}
+
+	/* of the form "[0x0000000240000400 - 0x000000028000400]" */
+	rc = sscanf(kernbuf, "[%llx - %llx]\n",
 		    (long long unsigned *)&tmp.lsr_start,
 		    (long long unsigned *)&tmp.lsr_end);
-	if (rc != 2 || !range_is_sane(&tmp) || range_is_zero(&tmp))
+	if (!range_is_sane(&tmp) || range_is_zero(&tmp) ||
+	    tmp.lsr_start < range->lsr_start || tmp.lsr_end > range->lsr_end)
 		return -EINVAL;
 	*range = tmp;
-	return 0;
+	return count;
 }
 
 /* Client side procfs stuff */
-static ssize_t
-lprocfs_fid_space_seq_write(struct file *file, const char *buffer,
-			    size_t count, loff_t *off)
+static ssize_t lprocfs_fid_space_seq_write(struct file *file,
+					   const char __user *buffer,
+					   size_t count, loff_t *off)
 {
 	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
 	int rc;
@@ -115,9 +131,9 @@ lprocfs_fid_space_seq_show(struct seq_file *m, void *unused)
 	return rc;
 }
 
-static ssize_t
-lprocfs_fid_width_seq_write(struct file *file, const char *buffer,
-			    size_t count, loff_t *off)
+static ssize_t lprocfs_fid_width_seq_write(struct file *file,
+					   const char __user *buffer,
+					   size_t count, loff_t *off)
 {
 	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
 	__u64  max;
@@ -209,4 +225,3 @@ struct lprocfs_vars seq_client_proc_list[] = {
 	{ "fid", &lprocfs_fid_fid_fops },
 	{ NULL }
 };
-#endif

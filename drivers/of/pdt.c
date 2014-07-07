@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_pdt.h>
-#include <asm/prom.h>
 
 static struct of_pdt_ops *of_pdt_prom_ops __initdata;
 
@@ -177,10 +176,9 @@ static struct device_node * __init of_pdt_create_node(phandle node,
 		return NULL;
 
 	dp = prom_early_alloc(sizeof(*dp));
+	of_node_init(dp);
 	of_pdt_incr_unique_id(dp);
 	dp->parent = parent;
-
-	kref_init(&dp->kref);
 
 	dp->name = of_pdt_get_one_property(node, "name");
 	dp->type = of_pdt_get_one_property(node, "device_type");

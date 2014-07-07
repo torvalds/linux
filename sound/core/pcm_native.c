@@ -190,12 +190,12 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		if (!(params->rmask & (1 << k)))
 			continue;
 #ifdef RULES_DEBUG
-		printk(KERN_DEBUG "%s = ", snd_pcm_hw_param_names[k]);
-		printk("%04x%04x%04x%04x -> ", m->bits[3], m->bits[2], m->bits[1], m->bits[0]);
+		pr_debug("%s = ", snd_pcm_hw_param_names[k]);
+		pr_cont("%04x%04x%04x%04x -> ", m->bits[3], m->bits[2], m->bits[1], m->bits[0]);
 #endif
 		changed = snd_mask_refine(m, constrs_mask(constrs, k));
 #ifdef RULES_DEBUG
-		printk("%04x%04x%04x%04x\n", m->bits[3], m->bits[2], m->bits[1], m->bits[0]);
+		pr_cont("%04x%04x%04x%04x\n", m->bits[3], m->bits[2], m->bits[1], m->bits[0]);
 #endif
 		if (changed)
 			params->cmask |= 1 << k;
@@ -210,21 +210,21 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		if (!(params->rmask & (1 << k)))
 			continue;
 #ifdef RULES_DEBUG
-		printk(KERN_DEBUG "%s = ", snd_pcm_hw_param_names[k]);
+		pr_debug("%s = ", snd_pcm_hw_param_names[k]);
 		if (i->empty)
-			printk("empty");
+			pr_cont("empty");
 		else
-			printk("%c%u %u%c", 
+			pr_cont("%c%u %u%c",
 			       i->openmin ? '(' : '[', i->min,
 			       i->max, i->openmax ? ')' : ']');
-		printk(" -> ");
+		pr_cont(" -> ");
 #endif
 		changed = snd_interval_refine(i, constrs_interval(constrs, k));
 #ifdef RULES_DEBUG
 		if (i->empty)
-			printk("empty\n");
+			pr_cont("empty\n");
 		else 
-			printk("%c%u %u%c\n", 
+			pr_cont("%c%u %u%c\n",
 			       i->openmin ? '(' : '[', i->min,
 			       i->max, i->openmax ? ')' : ']');
 #endif
@@ -255,18 +255,18 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 			if (!doit)
 				continue;
 #ifdef RULES_DEBUG
-			printk(KERN_DEBUG "Rule %d [%p]: ", k, r->func);
+			pr_debug("Rule %d [%p]: ", k, r->func);
 			if (r->var >= 0) {
-				printk("%s = ", snd_pcm_hw_param_names[r->var]);
+				pr_cont("%s = ", snd_pcm_hw_param_names[r->var]);
 				if (hw_is_mask(r->var)) {
 					m = hw_param_mask(params, r->var);
-					printk("%x", *m->bits);
+					pr_cont("%x", *m->bits);
 				} else {
 					i = hw_param_interval(params, r->var);
 					if (i->empty)
-						printk("empty");
+						pr_cont("empty");
 					else
-						printk("%c%u %u%c", 
+						pr_cont("%c%u %u%c",
 						       i->openmin ? '(' : '[', i->min,
 						       i->max, i->openmax ? ')' : ']');
 				}
@@ -275,19 +275,19 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 			changed = r->func(params, r);
 #ifdef RULES_DEBUG
 			if (r->var >= 0) {
-				printk(" -> ");
+				pr_cont(" -> ");
 				if (hw_is_mask(r->var))
-					printk("%x", *m->bits);
+					pr_cont("%x", *m->bits);
 				else {
 					if (i->empty)
-						printk("empty");
+						pr_cont("empty");
 					else
-						printk("%c%u %u%c", 
+						pr_cont("%c%u %u%c",
 						       i->openmin ? '(' : '[', i->min,
 						       i->max, i->openmax ? ')' : ']');
 				}
 			}
-			printk("\n");
+			pr_cont("\n");
 #endif
 			rstamps[k] = stamp;
 			if (changed && r->var >= 0) {
@@ -399,7 +399,7 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EBADFD;
 	}
 	snd_pcm_stream_unlock_irq(substream);
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	if (!substream->oss.oss)
 #endif
 		if (atomic_read(&substream->mmap_count))
@@ -954,7 +954,7 @@ static struct action_ops snd_pcm_action_stop = {
  *
  * The state of each stream is then changed to the given state unconditionally.
  *
- * Return: Zero if succesful, or a negative error code.
+ * Return: Zero if successful, or a negative error code.
  */
 int snd_pcm_stop(struct snd_pcm_substream *substream, snd_pcm_state_t state)
 {
@@ -1541,7 +1541,8 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 			if (substream->runtime->status->state == SNDRV_PCM_STATE_SUSPENDED)
 				result = -ESTRPIPE;
 			else {
-				snd_printd("playback drain error (DMA or IRQ trouble?)\n");
+				dev_dbg(substream->pcm->card->dev,
+					"playback drain error (DMA or IRQ trouble?)\n");
 				snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
 				result = -EIO;
 			}
@@ -2066,7 +2067,7 @@ int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 
 	err = snd_pcm_hw_constraints_init(substream);
 	if (err < 0) {
-		snd_printd("snd_pcm_hw_constraints_init failed\n");
+		pcm_dbg(pcm, "snd_pcm_hw_constraints_init failed\n");
 		goto error;
 	}
 
@@ -2077,7 +2078,7 @@ int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 
 	err = snd_pcm_hw_constraints_complete(substream);
 	if (err < 0) {
-		snd_printd("snd_pcm_hw_constraints_complete failed\n");
+		pcm_dbg(pcm, "snd_pcm_hw_constraints_complete failed\n");
 		goto error;
 	}
 
@@ -2428,6 +2429,7 @@ static int snd_pcm_hwsync(struct snd_pcm_substream *substream)
 	case SNDRV_PCM_STATE_DRAINING:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 			goto __badfd;
+		/* Fall through */
 	case SNDRV_PCM_STATE_RUNNING:
 		if ((err = snd_pcm_update_hw_ptr(substream)) < 0)
 			break;
@@ -2460,6 +2462,7 @@ static int snd_pcm_delay(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_STATE_DRAINING:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 			goto __badfd;
+		/* Fall through */
 	case SNDRV_PCM_STATE_RUNNING:
 		if ((err = snd_pcm_update_hw_ptr(substream)) < 0)
 			break;
@@ -2607,7 +2610,7 @@ static int snd_pcm_common_ioctl1(struct file *file,
 		return res;
 	}
 	}
-	snd_printd("unknown ioctl = 0x%x\n", cmd);
+	pcm_dbg(substream->pcm, "unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
 }
 
@@ -3199,6 +3202,14 @@ int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,
 			     struct vm_area_struct *area)
 {
 	area->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+#ifdef CONFIG_GENERIC_ALLOCATOR
+	if (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV_IRAM) {
+		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
+		return remap_pfn_range(area, area->vm_start,
+				substream->dma_buffer.addr >> PAGE_SHIFT,
+				area->vm_end - area->vm_start, area->vm_page_prot);
+	}
+#endif /* CONFIG_GENERIC_ALLOCATOR */
 #ifdef ARCH_HAS_DMA_MMAP_COHERENT
 	if (!substream->ops->page &&
 	    substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV)

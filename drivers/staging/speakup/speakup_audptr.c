@@ -39,7 +39,7 @@ static struct var_t vars[] = {
 	{ RATE, .u.n = {"\x05[r%d]", 10, 0, 20, 100, -10, NULL } },
 	{ PITCH, .u.n = {"\x05[f%d]", 80, 39, 4500, 0, 0, NULL } },
 	{ VOL, .u.n = {"\x05[g%d]", 21, 0, 40, 0, 0, NULL } },
-	{ TONE, .u.n = {"\x05[s%d]", 9, 0, 63, 0, 0, 0 } },
+	{ TONE, .u.n = {"\x05[s%d]", 9, 0, 63, 0, 0, NULL } },
 	{ PUNCT, .u.n = {"\x05[A%c]", 0, 0, 3, 0, 0, "nmsa" } },
 	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
@@ -49,30 +49,30 @@ static struct var_t vars[] = {
  * These attributes will appear in /sys/accessibility/speakup/audptr.
  */
 static struct kobj_attribute caps_start_attribute =
-	__ATTR(caps_start, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_start, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute caps_stop_attribute =
-	__ATTR(caps_stop, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_stop, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
-	__ATTR(pitch, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(pitch, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute punct_attribute =
-	__ATTR(punct, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(punct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
-	__ATTR(rate, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(rate, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute tone_attribute =
-	__ATTR(tone, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(tone, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute vol_attribute =
-	__ATTR(vol, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(vol, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 
 static struct kobj_attribute delay_time_attribute =
-	__ATTR(delay_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(delay_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute direct_attribute =
-	__ATTR(direct, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(direct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute full_time_attribute =
-	__ATTR(full_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(full_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute jiffy_delta_attribute =
-	__ATTR(jiffy_delta, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(jiffy_delta, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute trigger_time_attribute =
-	__ATTR(trigger_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(trigger_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 
 /*
  * Create a group of attributes so that we can create and destroy them all

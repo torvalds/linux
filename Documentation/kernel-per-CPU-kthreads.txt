@@ -162,7 +162,18 @@ Purpose: Execute workqueue requests
 To reduce its OS jitter, do any of the following:
 1.	Run your workload at a real-time priority, which will allow
 	preempting the kworker daemons.
-2.	Do any of the following needed to avoid jitter that your
+2.	A given workqueue can be made visible in the sysfs filesystem
+	by passing the WQ_SYSFS to that workqueue's alloc_workqueue().
+	Such a workqueue can be confined to a given subset of the
+	CPUs using the /sys/devices/virtual/workqueue/*/cpumask sysfs
+	files.	The set of WQ_SYSFS workqueues can be displayed using
+	"ls sys/devices/virtual/workqueue".  That said, the workqueues
+	maintainer would like to caution people against indiscriminately
+	sprinkling WQ_SYSFS across all the workqueues.	The reason for
+	caution is that it is easy to add WQ_SYSFS, but because sysfs is
+	part of the formal user/kernel API, it can be nearly impossible
+	to remove it, even if its addition was a mistake.
+3.	Do any of the following needed to avoid jitter that your
 	application cannot tolerate:
 	a.	Build your kernel with CONFIG_SLUB=y rather than
 		CONFIG_SLAB=y, thus avoiding the slab allocator's periodic
@@ -181,12 +192,17 @@ To reduce its OS jitter, do any of the following:
 		make sure that this is safe on your particular system.
 	d.	It is not possible to entirely get rid of OS jitter
 		from vmstat_update() on CONFIG_SMP=y systems, but you
-		can decrease its frequency by writing a large value to
-		/proc/sys/vm/stat_interval.  The default value is HZ,
-		for an interval of one second.  Of course, larger values
-		will make your virtual-memory statistics update more
-		slowly.  Of course, you can also run your workload at
-		a real-time priority, thus preempting vmstat_update().
+		can decrease its frequency by writing a large value
+		to /proc/sys/vm/stat_interval.	The default value is
+		HZ, for an interval of one second.  Of course, larger
+		values will make your virtual-memory statistics update
+		more slowly.  Of course, you can also run your workload
+		at a real-time priority, thus preempting vmstat_update(),
+		but if your workload is CPU-bound, this is a bad idea.
+		However, there is an RFC patch from Christoph Lameter
+		(based on an earlier one from Gilad Ben-Yossef) that
+		reduces or even eliminates vmstat overhead for some
+		workloads at https://lkml.org/lkml/2013/9/4/379.
 	e.	If running on high-end powerpc servers, build with
 		CONFIG_PPC_RTAS_DAEMON=n.  This prevents the RTAS
 		daemon from running on each CPU every second or so.

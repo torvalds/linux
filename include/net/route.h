@@ -36,9 +36,13 @@
 #include <linux/cache.h>
 #include <linux/security.h>
 
+/* IPv4 datagram length is stored into 16bit field (tot_len) */
+#define IP_MAX_MTU	0xFFFFU
+
 #define RTO_ONLINK	0x01
 
 #define RT_CONN_FLAGS(sk)   (RT_TOS(inet_sk(sk)->tos) | sock_flag(sk, SOCK_LOCALROUTE))
+#define RT_CONN_FLAGS_TOS(sk,tos)   (RT_TOS(tos) | sock_flag(sk, SOCK_LOCALROUTE))
 
 struct fib_nh;
 struct fib_info;
@@ -87,34 +91,28 @@ struct ip_rt_acct {
 };
 
 struct rt_cache_stat {
-        unsigned int in_hit;
         unsigned int in_slow_tot;
         unsigned int in_slow_mc;
         unsigned int in_no_route;
         unsigned int in_brd;
         unsigned int in_martian_dst;
         unsigned int in_martian_src;
-        unsigned int out_hit;
         unsigned int out_slow_tot;
         unsigned int out_slow_mc;
-        unsigned int gc_total;
-        unsigned int gc_ignored;
-        unsigned int gc_goal_miss;
-        unsigned int gc_dst_overflow;
-        unsigned int in_hlist_search;
-        unsigned int out_hlist_search;
 };
 
 extern struct ip_rt_acct __percpu *ip_rt_acct;
 
 struct in_device;
-extern int		ip_rt_init(void);
-extern void		rt_cache_flush(struct net *net);
-extern void		rt_flush_dev(struct net_device *dev);
-extern struct rtable *__ip_route_output_key(struct net *, struct flowi4 *flp);
-extern struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
-					   struct sock *sk);
-extern struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_orig);
+
+int ip_rt_init(void);
+void rt_cache_flush(struct net *net);
+void rt_flush_dev(struct net_device *dev);
+struct rtable *__ip_route_output_key(struct net *, struct flowi4 *flp);
+struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
+				    struct sock *sk);
+struct dst_entry *ipv4_blackhole_route(struct net *net,
+				       struct dst_entry *dst_orig);
 
 static inline struct rtable *ip_route_output_key(struct net *net, struct flowi4 *flp)
 {
@@ -162,8 +160,8 @@ static inline struct rtable *ip_route_output_gre(struct net *net, struct flowi4 
 	return ip_route_output_key(net, fl4);
 }
 
-extern int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 src,
-				u8 tos, struct net_device *devin);
+int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 src,
+			 u8 tos, struct net_device *devin);
 
 static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 				 u8 tos, struct net_device *devin)
@@ -179,24 +177,24 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 	return err;
 }
 
-extern void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
-			     int oif, u32 mark, u8 protocol, int flow_flags);
-extern void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu);
-extern void ipv4_redirect(struct sk_buff *skb, struct net *net,
-			  int oif, u32 mark, u8 protocol, int flow_flags);
-extern void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk);
-extern void ip_rt_send_redirect(struct sk_buff *skb);
+void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu, int oif,
+		      u32 mark, u8 protocol, int flow_flags);
+void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu);
+void ipv4_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
+		   u8 protocol, int flow_flags);
+void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk);
+void ip_rt_send_redirect(struct sk_buff *skb);
 
-extern unsigned int		inet_addr_type(struct net *net, __be32 addr);
-extern unsigned int		inet_dev_addr_type(struct net *net, const struct net_device *dev, __be32 addr);
-extern void		ip_rt_multicast_event(struct in_device *);
-extern int		ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
-extern void		ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
-extern int		ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb);
+unsigned int inet_addr_type(struct net *net, __be32 addr);
+unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
+				__be32 addr);
+void ip_rt_multicast_event(struct in_device *);
+int ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
+void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
 
 struct in_ifaddr;
-extern void fib_add_ifaddr(struct in_ifaddr *);
-extern void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
+void fib_add_ifaddr(struct in_ifaddr *);
+void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
 
 static inline void ip_rt_put(struct rtable *rt)
 {
@@ -243,14 +241,12 @@ static inline char rt_tos2priority(u8 tos)
 static inline void ip_route_connect_init(struct flowi4 *fl4, __be32 dst, __be32 src,
 					 u32 tos, int oif, u8 protocol,
 					 __be16 sport, __be16 dport,
-					 struct sock *sk, bool can_sleep)
+					 struct sock *sk)
 {
 	__u8 flow_flags = 0;
 
 	if (inet_sk(sk)->transparent)
 		flow_flags |= FLOWI_FLAG_ANYSRC;
-	if (can_sleep)
-		flow_flags |= FLOWI_FLAG_CAN_SLEEP;
 
 	flowi4_init_output(fl4, oif, sk->sk_mark, tos, RT_SCOPE_UNIVERSE,
 			   protocol, flow_flags, dst, src, dport, sport);
@@ -260,13 +256,13 @@ static inline struct rtable *ip_route_connect(struct flowi4 *fl4,
 					      __be32 dst, __be32 src, u32 tos,
 					      int oif, u8 protocol,
 					      __be16 sport, __be16 dport,
-					      struct sock *sk, bool can_sleep)
+					      struct sock *sk)
 {
 	struct net *net = sock_net(sk);
 	struct rtable *rt;
 
 	ip_route_connect_init(fl4, dst, src, tos, oif, protocol,
-			      sport, dport, sk, can_sleep);
+			      sport, dport, sk);
 
 	if (!dst || !src) {
 		rt = __ip_route_output_key(net, fl4);
@@ -315,14 +311,6 @@ static inline int ip4_dst_hoplimit(const struct dst_entry *dst)
 	if (hoplimit == 0)
 		hoplimit = sysctl_ip_default_ttl;
 	return hoplimit;
-}
-
-static inline int ip_skb_dst_mtu(struct sk_buff *skb)
-{
-	struct inet_sock *inet = skb->sk ? inet_sk(skb->sk) : NULL;
-
-	return (inet && inet->pmtudisc == IP_PMTUDISC_PROBE) ?
-	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
 }
 
 #endif	/* _ROUTE_H */

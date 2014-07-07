@@ -77,6 +77,7 @@ struct hvc_iucv_private {
 	struct list_head	tty_outqueue;	/* outgoing IUCV messages */
 	struct list_head	tty_inqueue;	/* incoming IUCV messages */
 	struct device		*dev;		/* device structure */
+	u8			info_path[16];	/* IUCV path info (dev attr) */
 };
 
 struct iucv_tty_buffer {
@@ -126,7 +127,7 @@ static struct iucv_handler hvc_iucv_handler = {
  * This function returns the struct hvc_iucv_private instance that corresponds
  * to the HVC virtual terminal number specified as parameter @num.
  */
-struct hvc_iucv_private *hvc_iucv_get_private(uint32_t num)
+static struct hvc_iucv_private *hvc_iucv_get_private(uint32_t num)
 {
 	if ((num < HVC_IUCV_MAGIC) || (num - HVC_IUCV_MAGIC > hvc_iucv_devices))
 		return NULL;
@@ -772,18 +773,37 @@ static int hvc_iucv_filter_connreq(u8 ipvmid[8])
 static	int hvc_iucv_path_pending(struct iucv_path *path,
 				  u8 ipvmid[8], u8 ipuser[16])
 {
-	struct hvc_iucv_private *priv;
+	struct hvc_iucv_private *priv, *tmp;
+	u8 wildcard[9] = "lnxhvc  ";
+	int i, rc, find_unused;
 	u8 nuser_data[16];
 	u8 vm_user_id[9];
-	int i, rc;
 
+	ASCEBC(wildcard, sizeof(wildcard));
+	find_unused = !memcmp(wildcard, ipuser, 8);
+
+	/* First, check if the pending path request is managed by this
+	 * IUCV handler:
+	 * - find a disconnected device if ipuser contains the wildcard
+	 * - find the device that matches the terminal ID in ipuser
+	 */
 	priv = NULL;
-	for (i = 0; i < hvc_iucv_devices; i++)
-		if (hvc_iucv_table[i] &&
-		    (0 == memcmp(hvc_iucv_table[i]->srv_name, ipuser, 8))) {
-			priv = hvc_iucv_table[i];
+	for (i = 0; i < hvc_iucv_devices; i++) {
+		tmp = hvc_iucv_table[i];
+		if (!tmp)
+			continue;
+
+		if (find_unused) {
+			spin_lock(&tmp->lock);
+			if (tmp->iucv_state == IUCV_DISCONN)
+				priv = tmp;
+			spin_unlock(&tmp->lock);
+
+		} else if (!memcmp(tmp->srv_name, ipuser, 8))
+				priv = tmp;
+		if (priv)
 			break;
-		}
+	}
 	if (!priv)
 		return -ENODEV;
 
@@ -825,6 +845,10 @@ static	int hvc_iucv_path_pending(struct iucv_path *path,
 	}
 	priv->path = path;
 	priv->iucv_state = IUCV_CONNECTED;
+
+	/* store path information */
+	memcpy(priv->info_path, ipvmid, 8);
+	memcpy(priv->info_path + 8, ipuser + 8, 8);
 
 	/* flush buffered output data... */
 	schedule_delayed_work(&priv->sndbuf_work, 5);
@@ -960,6 +984,49 @@ static int hvc_iucv_pm_restore_thaw(struct device *dev)
 	return 0;
 }
 
+static ssize_t hvc_iucv_dev_termid_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct hvc_iucv_private *priv = dev_get_drvdata(dev);
+	size_t len;
+
+	len = sizeof(priv->srv_name);
+	memcpy(buf, priv->srv_name, len);
+	EBCASC(buf, len);
+	buf[len++] = '\n';
+	return len;
+}
+
+static ssize_t hvc_iucv_dev_state_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct hvc_iucv_private *priv = dev_get_drvdata(dev);
+	return sprintf(buf, "%u:%u\n", priv->iucv_state, priv->tty_state);
+}
+
+static ssize_t hvc_iucv_dev_peer_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct hvc_iucv_private *priv = dev_get_drvdata(dev);
+	char vmid[9], ipuser[9];
+
+	memset(vmid, 0, sizeof(vmid));
+	memset(ipuser, 0, sizeof(ipuser));
+
+	spin_lock_bh(&priv->lock);
+	if (priv->iucv_state == IUCV_CONNECTED) {
+		memcpy(vmid, priv->info_path, 8);
+		memcpy(ipuser, priv->info_path + 8, 8);
+	}
+	spin_unlock_bh(&priv->lock);
+	EBCASC(ipuser, 8);
+
+	return sprintf(buf, "%s:%s\n", vmid, ipuser);
+}
+
 
 /* HVC operations */
 static const struct hv_ops hvc_iucv_ops = {
@@ -984,6 +1051,25 @@ static struct device_driver hvc_iucv_driver = {
 	.bus  = &iucv_bus,
 	.pm   = &hvc_iucv_pm_ops,
 };
+
+/* IUCV HVC device attributes */
+static DEVICE_ATTR(termid, 0640, hvc_iucv_dev_termid_show, NULL);
+static DEVICE_ATTR(state, 0640, hvc_iucv_dev_state_show, NULL);
+static DEVICE_ATTR(peer, 0640, hvc_iucv_dev_peer_show, NULL);
+static struct attribute *hvc_iucv_dev_attrs[] = {
+	&dev_attr_termid.attr,
+	&dev_attr_state.attr,
+	&dev_attr_peer.attr,
+	NULL,
+};
+static struct attribute_group hvc_iucv_dev_attr_group = {
+	.attrs = hvc_iucv_dev_attrs,
+};
+static const struct attribute_group *hvc_iucv_dev_attr_groups[] = {
+	&hvc_iucv_dev_attr_group,
+	NULL,
+};
+
 
 /**
  * hvc_iucv_alloc() - Allocates a new struct hvc_iucv_private instance
@@ -1046,6 +1132,7 @@ static int __init hvc_iucv_alloc(int id, unsigned int is_console)
 	priv->dev->bus = &iucv_bus;
 	priv->dev->parent = iucv_root;
 	priv->dev->driver = &hvc_iucv_driver;
+	priv->dev->groups = hvc_iucv_dev_attr_groups;
 	priv->dev->release = (void (*)(struct device *)) kfree;
 	rc = device_register(priv->dev);
 	if (rc) {
@@ -1354,8 +1441,7 @@ out_error_memory:
 	mempool_destroy(hvc_iucv_mempool);
 	kmem_cache_destroy(hvc_iucv_buffer_cache);
 out_error:
-	if (hvc_iucv_filter)
-		kfree(hvc_iucv_filter);
+	kfree(hvc_iucv_filter);
 	hvc_iucv_devices = 0; /* ensure that we do not provide any device */
 	return rc;
 }

@@ -73,35 +73,13 @@
 #include <asm/setup.h>
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
-
 #include <asm/smpboot_hooks.h>
 #include <asm/i8259.h>
-
 #include <asm/realmode.h>
+#include <asm/misc.h>
 
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
-
-#ifdef CONFIG_HOTPLUG_CPU
-/*
- * We need this for trampoline_base protection from concurrent accesses when
- * off- and onlining cores wildly.
- */
-static DEFINE_MUTEX(x86_cpu_hotplug_driver_mutex);
-
-void cpu_hotplug_driver_lock(void)
-{
-	mutex_lock(&x86_cpu_hotplug_driver_mutex);
-}
-
-void cpu_hotplug_driver_unlock(void)
-{
-	mutex_unlock(&x86_cpu_hotplug_driver_mutex);
-}
-
-ssize_t arch_cpu_probe(const char *buf, size_t count) { return -1; }
-ssize_t arch_cpu_release(const char *buf, size_t count) { return -1; }
-#endif
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -144,8 +122,9 @@ static void smp_callin(void)
 	 * Since CPU0 is not wakened up by INIT, it doesn't wait for the IPI.
 	 */
 	cpuid = smp_processor_id();
-	if (apic->wait_for_init_deassert && cpuid != 0)
-		apic->wait_for_init_deassert(&init_deasserted);
+	if (apic->wait_for_init_deassert && cpuid)
+		while (!atomic_read(&init_deasserted))
+			cpu_relax();
 
 	/*
 	 * (This works even if the APIC is not enabled.)
@@ -263,6 +242,13 @@ static void notrace start_secondary(void *unused)
 	 * Check TSC synchronization with the BP:
 	 */
 	check_tsc_sync_target();
+
+	/*
+	 * Enable the espfix hack for this CPU
+	 */
+#ifdef CONFIG_X86_ESPFIX64
+	init_espfix_ap();
+#endif
 
 	/*
 	 * We need to hold vector_lock so there the set of online cpus
@@ -648,22 +634,46 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	return (send_status | accept_status);
 }
 
+void smp_announce(void)
+{
+	int num_nodes = num_online_nodes();
+
+	printk(KERN_INFO "x86: Booted up %d node%s, %d CPUs\n",
+	       num_nodes, (num_nodes > 1 ? "s" : ""), num_online_cpus());
+}
+
 /* reduce the number of lines printed when booting a large cpu count system */
 static void announce_cpu(int cpu, int apicid)
 {
 	static int current_node = -1;
 	int node = early_cpu_to_node(cpu);
-	int max_cpu_present = find_last_bit(cpumask_bits(cpu_present_mask), NR_CPUS);
+	static int width, node_width;
+
+	if (!width)
+		width = num_digits(num_possible_cpus()) + 1; /* + '#' sign */
+
+	if (!node_width)
+		node_width = num_digits(num_possible_nodes()) + 1; /* + '#' */
+
+	if (cpu == 1)
+		printk(KERN_INFO "x86: Booting SMP configuration:\n");
 
 	if (system_state == SYSTEM_BOOTING) {
 		if (node != current_node) {
 			if (current_node > (-1))
-				pr_cont(" OK\n");
+				pr_cont("\n");
 			current_node = node;
-			pr_info("Booting Node %3d, Processors ", node);
+
+			printk(KERN_INFO ".... node %*s#%d, CPUs:  ",
+			       node_width - num_digits(node), " ", node);
 		}
-		pr_cont(" #%4d%s", cpu, cpu == max_cpu_present ? " OK\n" : "");
-		return;
+
+		/* Add padding for the BSP */
+		if (cpu == 1)
+			pr_cont("%*s", width + 1, " ");
+
+		pr_cont("%*s#%d", width - num_digits(cpu), " ", cpu);
+
 	} else
 		pr_info("Booting Node %d Processor %d APIC 0x%x\n",
 			node, cpu, apicid);
@@ -699,11 +709,15 @@ wakeup_cpu_via_init_nmi(int cpu, unsigned long start_ip, int apicid,
 	int id;
 	int boot_error;
 
+	preempt_disable();
+
 	/*
 	 * Wake up AP by INIT, INIT, STARTUP sequence.
 	 */
-	if (cpu)
-		return wakeup_secondary_cpu_via_init(apicid, start_ip);
+	if (cpu) {
+		boot_error = wakeup_secondary_cpu_via_init(apicid, start_ip);
+		goto out;
+	}
 
 	/*
 	 * Wake up BSP by nmi.
@@ -722,6 +736,9 @@ wakeup_cpu_via_init_nmi(int cpu, unsigned long start_ip, int apicid,
 			id = apicid;
 		boot_error = wakeup_secondary_cpu_via_nmi(id, start_ip);
 	}
+
+out:
+	preempt_enable();
 
 	return boot_error;
 }
@@ -756,10 +773,10 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 #else
 	clear_tsk_thread_flag(idle, TIF_FORK);
 	initial_gs = per_cpu_offset(cpu);
+#endif
 	per_cpu(kernel_stack, cpu) =
 		(unsigned long)task_stack_page(idle) -
 		KERNEL_STACK_OFFSET + THREAD_SIZE;
-#endif
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
 	stack_start  = idle->thread.sp;
@@ -849,9 +866,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 
 		/* was set by cpu_init() */
 		cpumask_clear_cpu(cpu, cpu_initialized_mask);
-
-		set_cpu_present(cpu, false);
-		per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
 	}
 
 	/* mark "stuck" area as not stuck */
@@ -911,7 +925,7 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	err = do_boot_cpu(apicid, cpu, tidle);
 	if (err) {
-		pr_debug("do_boot_cpu failed %d\n", err);
+		pr_err("do_boot_cpu failed(%d) to wakeup CPU#%u\n", err, cpu);
 		return -EIO;
 	}
 
@@ -1310,6 +1324,12 @@ void cpu_disable_common(void)
 
 int native_cpu_disable(void)
 {
+	int ret;
+
+	ret = check_irq_vectors_for_cpu_disable();
+	if (ret)
+		return ret;
+
 	clear_local_APIC();
 
 	cpu_disable_common();
@@ -1371,7 +1391,7 @@ static inline void mwait_play_dead(void)
 
 	if (!this_cpu_has(X86_FEATURE_MWAIT))
 		return;
-	if (!this_cpu_has(X86_FEATURE_CLFLSH))
+	if (!this_cpu_has(X86_FEATURE_CLFLUSH))
 		return;
 	if (__this_cpu_read(cpu_info.cpuid_level) < CPUID_MWAIT_LEAF)
 		return;
@@ -1415,7 +1435,9 @@ static inline void mwait_play_dead(void)
 		 * The WBINVD is insufficient due to the spurious-wakeup
 		 * case where we return around the loop.
 		 */
+		mb();
 		clflush(mwait_ptr);
+		mb();
 		__monitor(mwait_ptr, 0, 0);
 		mb();
 		__mwait(eax, 0);

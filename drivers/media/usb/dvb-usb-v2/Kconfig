@@ -100,13 +100,6 @@ config DVB_USB_GL861
 	  Say Y here to support the MSI Megasky 580 (55801) DVB-T USB2.0
 	  receiver with USB ID 0db0:5581.
 
-config DVB_USB_IT913X
-	tristate "ITE IT913X DVB-T USB2.0 support"
-	depends on DVB_USB_V2
-	select DVB_IT913X_FE
-	help
-	  Say Y here to support the ITE IT913X DVB-T USB2.0
-
 config DVB_USB_LME2510
 	tristate "LME DM04/QQBOX DVB-S USB2.0 support"
 	depends on DVB_USB_V2
@@ -133,7 +126,7 @@ config DVB_USB_MXL111SF
 
 config DVB_USB_RTL28XXU
 	tristate "Realtek RTL28xxU DVB USB support"
-	depends on DVB_USB_V2
+	depends on DVB_USB_V2 && I2C_MUX
 	select DVB_RTL2830
 	select DVB_RTL2832
 	select MEDIA_TUNER_QT1010 if MEDIA_SUBDRV_AUTOSELECT

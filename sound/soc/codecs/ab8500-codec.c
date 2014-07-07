@@ -1139,7 +1139,7 @@ static void anc_configure(struct snd_soc_codec *codec,
 static int sid_status_control_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 
 	mutex_lock(&codec->mutex);
@@ -1153,7 +1153,7 @@ static int sid_status_control_get(struct snd_kcontrol *kcontrol,
 static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 	unsigned int param, sidconf, val;
 	int status = 1;
@@ -1208,7 +1208,7 @@ out:
 static int anc_status_control_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 
 	mutex_lock(&codec->mutex);
@@ -1221,7 +1221,7 @@ static int anc_status_control_get(struct snd_kcontrol *kcontrol,
 static int anc_status_control_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 	struct device *dev = codec->dev;
 	bool apply_fir, apply_iir;
@@ -1306,7 +1306,7 @@ static int filter_control_info(struct snd_kcontrol *kcontrol,
 static int filter_control_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct filter_control *fc =
 			(struct filter_control *)kcontrol->private_value;
 	unsigned int i;
@@ -1322,7 +1322,7 @@ static int filter_control_get(struct snd_kcontrol *kcontrol,
 static int filter_control_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct filter_control *fc =
 			(struct filter_control *)kcontrol->private_value;
 	unsigned int i;
@@ -2312,17 +2312,17 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	case 0:
 		break;
 	case 1:
-		slot = find_first_bit((unsigned long *)&tx_mask, 32);
+		slot = ffs(tx_mask);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, slot);
 		break;
 	case 2:
-		slot = find_first_bit((unsigned long *)&tx_mask, 32);
+		slot = ffs(tx_mask);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, slot);
-		slot = find_next_bit((unsigned long *)&tx_mask, 32, slot + 1);
+		slot = fls(tx_mask);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, slot);
 		break;
@@ -2353,18 +2353,18 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	case 0:
 		break;
 	case 1:
-		slot = find_first_bit((unsigned long *)&rx_mask, 32);
+		slot = ffs(rx_mask);
 		snd_soc_update_bits(codec, AB8500_ADSLOTSEL(slot),
 				AB8500_MASK_SLOT(slot),
 				AB8500_ADSLOTSELX_AD_OUT_TO_SLOT(AB8500_AD_OUT3, slot));
 		break;
 	case 2:
-		slot = find_first_bit((unsigned long *)&rx_mask, 32);
+		slot = ffs(rx_mask);
 		snd_soc_update_bits(codec,
 				AB8500_ADSLOTSEL(slot),
 				AB8500_MASK_SLOT(slot),
 				AB8500_ADSLOTSELX_AD_OUT_TO_SLOT(AB8500_AD_OUT3, slot));
-		slot = find_next_bit((unsigned long *)&rx_mask, 32, slot + 1);
+		slot = fls(rx_mask);
 		snd_soc_update_bits(codec,
 				AB8500_ADSLOTSEL(slot),
 				AB8500_MASK_SLOT(slot),
@@ -2532,12 +2532,10 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Override HW-defaults */
-	ab8500_codec_write_reg(codec,
-				AB8500_ANACONF5,
-				BIT(AB8500_ANACONF5_HSAUTOEN));
-	ab8500_codec_write_reg(codec,
-				AB8500_SHORTCIRCONF,
-				BIT(AB8500_SHORTCIRCONF_HSZCDDIS));
+	snd_soc_write(codec, AB8500_ANACONF5,
+		      BIT(AB8500_ANACONF5_HSAUTOEN));
+	snd_soc_write(codec, AB8500_SHORTCIRCONF,
+		      BIT(AB8500_SHORTCIRCONF_HSZCDDIS));
 
 	/* Add filter controls */
 	status = snd_soc_add_codec_controls(codec, ab8500_filter_controls,
@@ -2588,6 +2586,8 @@ static int ab8500_codec_driver_probe(struct platform_device *pdev)
 	/* Create driver private-data struct */
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct ab8500_codec_drvdata),
 			GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
 	drvdata->sid_status = SID_UNCONFIGURED;
 	drvdata->anc_status = ANC_UNCONFIGURED;
 	dev_set_drvdata(&pdev->dev, drvdata);
@@ -2606,7 +2606,7 @@ static int ab8500_codec_driver_probe(struct platform_device *pdev)
 
 static int ab8500_codec_driver_remove(struct platform_device *pdev)
 {
-	dev_info(&pdev->dev, "%s Enter.\n", __func__);
+	dev_dbg(&pdev->dev, "%s Enter.\n", __func__);
 
 	snd_soc_unregister_codec(&pdev->dev);
 

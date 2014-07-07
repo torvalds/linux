@@ -17,28 +17,31 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
-#include "xfs_btree.h"
 #include "xfs_error.h"
+#include "xfs_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_ialloc.h"
 #include "xfs_fsops.h"
 #include "xfs_itable.h"
 #include "xfs_trans_space.h"
 #include "xfs_rtalloc.h"
-#include "xfs_filestream.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
+#include "xfs_dinode.h"
+#include "xfs_filestream.h"
 
 /*
  * File system operations
@@ -73,23 +76,18 @@ xfs_fs_geometry(
 	}
 	if (new_version >= 3) {
 		geo->version = XFS_FSOP_GEOM_VERSION;
-		geo->flags =
+		geo->flags = XFS_FSOP_GEOM_FLAGS_NLINK |
+			     XFS_FSOP_GEOM_FLAGS_DIRV2 |
 			(xfs_sb_version_hasattr(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_ATTR : 0) |
-			(xfs_sb_version_hasnlink(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_NLINK : 0) |
 			(xfs_sb_version_hasquota(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_QUOTA : 0) |
 			(xfs_sb_version_hasalign(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_IALIGN : 0) |
 			(xfs_sb_version_hasdalign(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_DALIGN : 0) |
-			(xfs_sb_version_hasshared(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_SHARED : 0) |
 			(xfs_sb_version_hasextflgbit(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_EXTFLG : 0) |
-			(xfs_sb_version_hasdirv2(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_DIRV2 : 0) |
 			(xfs_sb_version_hassector(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_SECTOR : 0) |
 			(xfs_sb_version_hasasciici(&mp->m_sb) ?
@@ -101,11 +99,15 @@ xfs_fs_geometry(
 			(xfs_sb_version_hasprojid32bit(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_PROJID32 : 0) |
 			(xfs_sb_version_hascrc(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_V5SB : 0);
+				XFS_FSOP_GEOM_FLAGS_V5SB : 0) |
+			(xfs_sb_version_hasftype(&mp->m_sb) ?
+				XFS_FSOP_GEOM_FLAGS_FTYPE : 0) |
+			(xfs_sb_version_hasfinobt(&mp->m_sb) ?
+				XFS_FSOP_GEOM_FLAGS_FINOBT : 0);
 		geo->logsectsize = xfs_sb_version_hassector(&mp->m_sb) ?
 				mp->m_sb.sb_logsectsize : BBSIZE;
 		geo->rtsectsize = mp->m_sb.sb_blocksize;
-		geo->dirblocksize = mp->m_dirblksize;
+		geo->dirblocksize = mp->m_dir_geo->blksize;
 	}
 	if (new_version >= 4) {
 		geo->flags |=
@@ -153,7 +155,7 @@ xfs_growfs_data_private(
 	xfs_buf_t		*bp;
 	int			bucket;
 	int			dpct;
-	int			error;
+	int			error, saved_error = 0;
 	xfs_agnumber_t		nagcount;
 	xfs_agnumber_t		nagimax = 0;
 	xfs_rfsblock_t		nb, nb_mod;
@@ -217,6 +219,8 @@ xfs_growfs_data_private(
 	 */
 	nfree = 0;
 	for (agno = nagcount - 1; agno >= oagcount; agno--, new -= agsize) {
+		__be32	*agfl_bno;
+
 		/*
 		 * AG freespace header block
 		 */
@@ -276,8 +280,10 @@ xfs_growfs_data_private(
 			agfl->agfl_seqno = cpu_to_be32(agno);
 			uuid_copy(&agfl->agfl_uuid, &mp->m_sb.sb_uuid);
 		}
+
+		agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, bp);
 		for (bucket = 0; bucket < XFS_AGFL_SIZE(mp); bucket++)
-			agfl->agfl_bno[bucket] = cpu_to_be32(NULLAGBLOCK);
+			agfl_bno[bucket] = cpu_to_be32(NULLAGBLOCK);
 
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
@@ -309,6 +315,10 @@ xfs_growfs_data_private(
 		agi->agi_dirino = cpu_to_be32(NULLAGINO);
 		if (xfs_sb_version_hascrc(&mp->m_sb))
 			uuid_copy(&agi->agi_uuid, &mp->m_sb.sb_uuid);
+		if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
+			agi->agi_free_root = cpu_to_be32(XFS_FIBT_BLOCK(mp));
+			agi->agi_free_level = cpu_to_be32(1);
+		}
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++)
 			agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 
@@ -400,6 +410,34 @@ xfs_growfs_data_private(
 		xfs_buf_relse(bp);
 		if (error)
 			goto error0;
+
+		/*
+		 * FINO btree root block
+		 */
+		if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
+			bp = xfs_growfs_get_hdr_buf(mp,
+				XFS_AGB_TO_DADDR(mp, agno, XFS_FIBT_BLOCK(mp)),
+				BTOBB(mp->m_sb.sb_blocksize), 0,
+				&xfs_inobt_buf_ops);
+			if (!bp) {
+				error = ENOMEM;
+				goto error0;
+			}
+
+			if (xfs_sb_version_hascrc(&mp->m_sb))
+				xfs_btree_init_block(mp, bp, XFS_FIBT_CRC_MAGIC,
+						     0, 0, agno,
+						     XFS_BTREE_CRC_BLOCKS);
+			else
+				xfs_btree_init_block(mp, bp, XFS_FIBT_MAGIC, 0,
+						     0, agno, 0);
+
+			error = xfs_bwrite(bp);
+			xfs_buf_relse(bp);
+			if (error)
+				goto error0;
+		}
+
 	}
 	xfs_trans_agblocks_delta(tp, nfree);
 	/*
@@ -496,29 +534,33 @@ xfs_growfs_data_private(
 				error = ENOMEM;
 		}
 
+		/*
+		 * If we get an error reading or writing alternate superblocks,
+		 * continue.  xfs_repair chooses the "best" superblock based
+		 * on most matches; if we break early, we'll leave more
+		 * superblocks un-updated than updated, and xfs_repair may
+		 * pick them over the properly-updated primary.
+		 */
 		if (error) {
 			xfs_warn(mp,
 		"error %d reading secondary superblock for ag %d",
 				error, agno);
-			break;
+			saved_error = error;
+			continue;
 		}
 		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb, XFS_SB_ALL_BITS);
 
-		/*
-		 * If we get an error writing out the alternate superblocks,
-		 * just issue a warning and continue.  The real work is
-		 * already done and committed.
-		 */
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
 		if (error) {
 			xfs_warn(mp,
 		"write error %d updating secondary superblock for ag %d",
 				error, agno);
-			break; /* no point in continuing */
+			saved_error = error;
+			continue;
 		}
 	}
-	return error;
+	return saved_error ? saved_error : error;
 
  error0:
 	xfs_trans_cancel(tp, XFS_TRANS_ABORT);

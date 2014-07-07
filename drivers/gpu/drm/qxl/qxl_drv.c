@@ -214,7 +214,6 @@ static struct pci_driver qxl_pci_driver = {
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET |
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.dev_priv_size = 0,
 	.load = qxl_driver_load,
 	.unload = qxl_driver_unload,
 
@@ -225,7 +224,6 @@ static struct drm_driver qxl_driver = {
 	.debugfs_init = qxl_debugfs_init,
 	.debugfs_cleanup = qxl_debugfs_takedown,
 #endif
-	.gem_init_object = qxl_gem_object_init,
 	.gem_free_object = qxl_gem_object_free,
 	.gem_open_object = qxl_gem_object_open,
 	.gem_close_object = qxl_gem_object_close,

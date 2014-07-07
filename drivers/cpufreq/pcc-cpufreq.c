@@ -111,8 +111,7 @@ static struct pcc_cpu __percpu *pcc_cpu_info;
 
 static int pcc_cpufreq_verify(struct cpufreq_policy *policy)
 {
-	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
-				     policy->cpuinfo.max_freq);
+	cpufreq_verify_within_cpu_limits(policy);
 	return 0;
 }
 
@@ -214,8 +213,9 @@ static int pcc_cpufreq_target(struct cpufreq_policy *policy,
 		cpu, target_freq,
 		(pcch_virt_addr + pcc_cpu_data->input_offset));
 
+	freqs.old = policy->cur;
 	freqs.new = target_freq;
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
 
 	input_buffer = 0x1 | (((target_freq * 100)
 			       / (ioread32(&pcch_hdr->nominal) * 1000)) << 8);
@@ -229,25 +229,20 @@ static int pcc_cpufreq_target(struct cpufreq_policy *policy,
 	memset_io((pcch_virt_addr + pcc_cpu_data->input_offset), 0, BUF_SZ);
 
 	status = ioread16(&pcch_hdr->status);
+	iowrite16(0, &pcch_hdr->status);
+
+	cpufreq_freq_transition_end(policy, &freqs, status != CMD_COMPLETE);
+	spin_unlock(&pcc_lock);
+
 	if (status != CMD_COMPLETE) {
 		pr_debug("target: FAILED for cpu %d, with status: 0x%x\n",
 			cpu, status);
-		goto cmd_incomplete;
+		return -EINVAL;
 	}
-	iowrite16(0, &pcch_hdr->status);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	pr_debug("target: was SUCCESSFUL for cpu %d\n", cpu);
-	spin_unlock(&pcc_lock);
 
 	return 0;
-
-cmd_incomplete:
-	freqs.new = freqs.old;
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	iowrite16(0, &pcch_hdr->status);
-	spin_unlock(&pcc_lock);
-	return -EINVAL;
 }
 
 static int pcc_get_offset(int cpu)
@@ -396,15 +391,14 @@ static int __init pcc_cpufreq_probe(void)
 	struct pcc_memory_resource *mem_resource;
 	struct pcc_register_resource *reg_resource;
 	union acpi_object *out_obj, *member;
-	acpi_handle handle, osc_handle, pcch_handle;
+	acpi_handle handle, osc_handle;
 	int ret = 0;
 
 	status = acpi_get_handle(NULL, "\\_SB", &handle);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	status = acpi_get_handle(handle, "PCCH", &pcch_handle);
-	if (ACPI_FAILURE(status))
+	if (!acpi_has_method(handle, "PCCH"))
 		return -ENODEV;
 
 	status = acpi_get_handle(handle, "_OSC", &osc_handle);
@@ -560,13 +554,6 @@ static int pcc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		ioread32(&pcch_hdr->nominal) * 1000;
 	policy->min = policy->cpuinfo.min_freq =
 		ioread32(&pcch_hdr->minimum_frequency) * 1000;
-	policy->cur = pcc_get_freq(cpu);
-
-	if (!policy->cur) {
-		pr_debug("init: Unable to get current CPU frequency\n");
-		result = -EINVAL;
-		goto out;
-	}
 
 	pr_debug("init: policy->max is %d, policy->min is %d\n",
 		policy->max, policy->min);

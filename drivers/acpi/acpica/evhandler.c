@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,7 @@ acpi_status acpi_ev_install_region_handlers(void)
 		}
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }
@@ -531,6 +531,6 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 					acpi_ev_install_handler, NULL,
 					handler_obj, NULL);
 
-      unlock_and_exit:
+unlock_and_exit:
 	return_ACPI_STATUS(status);
 }

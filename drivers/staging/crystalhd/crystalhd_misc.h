@@ -206,7 +206,7 @@ extern void crystalhd_show_buffer(uint32_t off, uint8_t *buff,
 enum _chd_log_levels {
 	BCMLOG_ERROR		= 0x80000000,	/* Don't disable this option */
 	BCMLOG_DATA		= 0x40000000,	/* Data, enable by default */
-	BCMLOG_SPINLOCK		= 0x20000000,	/* Spcial case for Spin locks*/
+	BCMLOG_SPINLOCK		= 0x20000000,	/* Special case for Spin locks*/
 
 	/* Following are allowed only in debug mode */
 	BCMLOG_INFO		= 0x00000001,	/* Generic informational */
@@ -225,7 +225,7 @@ do {					\
 #define BCMLOG_ERR(fmt, args...)				\
 do {								\
 	if (g_linklog_level & BCMLOG_ERROR)			\
-		printk(KERN_ERR "*ERR*:%s:%d: "fmt,		\
+		pr_err("*ERR*:%s:%d: "fmt,			\
 				__FILE__, __LINE__, ##args);	\
 } while (0)
 

@@ -34,6 +34,7 @@
 #include <linux/stringify.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
+#include <linux/ratelimit.h>
 
 /*
 #define VERBOSE_DEBUG
@@ -59,13 +60,12 @@
 	atm_printk(KERN_INFO, instance , format , ## arg)
 #define atm_warn(instance, format, arg...)	\
 	atm_printk(KERN_WARNING, instance , format , ## arg)
-#define atm_dbg(instance, format, arg...)		\
-	dynamic_pr_debug("ATM dev %d: " format ,	\
-	(instance)->atm_dev->number , ## arg)
-#define atm_rldbg(instance, format, arg...)		\
-	if (printk_ratelimit())				\
-		atm_dbg(instance , format , ## arg)
-
+#define atm_dbg(instance, format, ...)					\
+	pr_debug("ATM dev %d: " format,					\
+		 (instance)->atm_dev->number, ##__VA_ARGS__)
+#define atm_rldbg(instance, format, ...)				\
+	pr_debug_ratelimited("ATM dev %d: " format,			\
+			     (instance)->atm_dev->number, ##__VA_ARGS__)
 
 /* flags, set by mini-driver in bind() */
 

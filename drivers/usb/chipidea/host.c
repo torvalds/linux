@@ -65,8 +65,13 @@ static int host_start(struct ci_hdrc *ci)
 	ehci->caps = ci->hw_bank.cap;
 	ehci->has_hostpc = ci->hw_bank.lpm;
 	ehci->has_tdi_phy_lpm = ci->hw_bank.lpm;
+	ehci->imx28_write_fix = ci->imx28_write_fix;
 
-	if (ci->platdata->reg_vbus) {
+	/*
+	 * vbus is always on if host is not in OTG FSM mode,
+	 * otherwise should be controlled by OTG FSM
+	 */
+	if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci)) {
 		ret = regulator_enable(ci->platdata->reg_vbus);
 		if (ret) {
 			dev_err(ci->dev,
@@ -77,10 +82,17 @@ static int host_start(struct ci_hdrc *ci)
 	}
 
 	ret = usb_add_hcd(hcd, 0, 0);
-	if (ret)
+	if (ret) {
 		goto disable_reg;
-	else
+	} else {
+		struct usb_otg *otg = ci->transceiver->otg;
+
 		ci->hcd = hcd;
+		if (otg) {
+			otg->host = &hcd->self;
+			hcd->self.otg_port = 1;
+		}
+	}
 
 	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
 		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
@@ -88,7 +100,8 @@ static int host_start(struct ci_hdrc *ci)
 	return ret;
 
 disable_reg:
-	regulator_disable(ci->platdata->reg_vbus);
+	if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci))
+		regulator_disable(ci->platdata->reg_vbus);
 
 put_hcd:
 	usb_put_hcd(hcd);
@@ -100,16 +113,18 @@ static void host_stop(struct ci_hdrc *ci)
 {
 	struct usb_hcd *hcd = ci->hcd;
 
-	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
-	if (ci->platdata->reg_vbus)
-		regulator_disable(ci->platdata->reg_vbus);
+	if (hcd) {
+		usb_remove_hcd(hcd);
+		usb_put_hcd(hcd);
+		if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci))
+			regulator_disable(ci->platdata->reg_vbus);
+	}
 }
 
 
 void ci_hdrc_host_destroy(struct ci_hdrc *ci)
 {
-	if (ci->role == CI_ROLE_HOST)
+	if (ci->role == CI_ROLE_HOST && ci->hcd)
 		host_stop(ci);
 }
 

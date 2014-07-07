@@ -471,7 +471,7 @@ static int sh_mobile_ceu_videobuf_init(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
+static void sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
 {
 	struct soc_camera_device *icd = container_of(q, struct soc_camera_device, vb2_vidq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -487,7 +487,7 @@ static int sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
 
 	spin_unlock_irq(&pcdev->lock);
 
-	return sh_mobile_ceu_soft_reset(pcdev);
+	sh_mobile_ceu_soft_reset(pcdev);
 }
 
 static struct vb2_ops sh_mobile_ceu_videobuf_ops = {
@@ -1665,7 +1665,7 @@ static int sh_mobile_ceu_init_videobuf(struct vb2_queue *q,
 	q->ops = &sh_mobile_ceu_videobuf_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct sh_mobile_ceu_buffer);
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	return vb2_queue_init(q);
 }
@@ -1800,7 +1800,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 
 	/* request irq */
 	err = devm_request_irq(&pdev->dev, pcdev->irq, sh_mobile_ceu_irq,
-			       IRQF_DISABLED, dev_name(&pdev->dev), pcdev);
+			       0, dev_name(&pdev->dev), pcdev);
 	if (err) {
 		dev_err(&pdev->dev, "Unable to register CEU interrupt.\n");
 		goto exit_release_mem;

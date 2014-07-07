@@ -9,48 +9,6 @@ source "arch/blackfin/mach-bf609/boards/Kconfig"
 
 menu "BF609 Specific Configuration"
 
-comment "Pin Interrupt to Port Assignment"
-menu "Assignment"
-
-config PINTx_REASSIGN
-	bool "Reprogram PINT Assignment"
-	default y
-	help
-	  The interrupt assignment registers controls the pin-to-interrupt
-	  assignment in a byte-wide manner. Each option allows you to select
-	  a set of pins (High/Low Byte) of an specific Port being mapped
-	  to one of the four PIN Interrupts IRQ_PINTx.
-
-	  You shouldn't change any of these unless you know exactly what you're doing.
-	  Please consult the Blackfin BF60x Processor Hardware Reference Manual.
-
-config PINT0_ASSIGN
-	hex "PINT0_ASSIGN"
-	depends on PINTx_REASSIGN
-	default 0x00000101
-config PINT1_ASSIGN
-	hex "PINT1_ASSIGN"
-	depends on PINTx_REASSIGN
-	default 0x00000101
-config PINT2_ASSIGN
-	hex "PINT2_ASSIGN"
-	depends on PINTx_REASSIGN
-	default 0x00000101
-config PINT3_ASSIGN
-	hex "PINT3_ASSIGN"
-	depends on PINTx_REASSIGN
-	default 0x00000101
-config PINT4_ASSIGN
-	hex "PINT3_ASSIGN"
-	depends on PINTx_REASSIGN
-	default 0x00000101
-config PINT5_ASSIGN
-	hex "PINT3_ASSIGN"
-	depends on PINTx_REASSIGN
-	default 0x00000101
-
-endmenu
-
 config SEC_IRQ_PRIORITY_LEVELS
 	int "SEC interrupt priority levels"
 	default 7
@@ -59,6 +17,12 @@ config SEC_IRQ_PRIORITY_LEVELS
 	  Divide the total number of interrupt priority levels into sub-levels.
 	  There is 2 ^ (SEC_IRQ_PRIORITY_LEVELS + 1) different levels.
 
+config L1_PARITY_CHECK
+	bool "Enable L1 parity check"
+	default n
+	help
+	  Enable the L1 parity check in L1 sram. A fault event is raised
+	  when L1 parity error is found.
 
 comment "System Cross Bar Priority Assignment"
 

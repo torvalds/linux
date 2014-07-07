@@ -130,11 +130,11 @@ static void do_setup(struct net_device *netdev)
 	netdev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	netdev->destructor = internal_dev_destructor;
-	SET_ETHTOOL_OPS(netdev, &internal_dev_ethtool_ops);
+	netdev->ethtool_ops = &internal_dev_ethtool_ops;
 	netdev->tx_queue_len = 0;
 
 	netdev->features = NETIF_F_LLTX | NETIF_F_SG | NETIF_F_FRAGLIST |
-			   NETIF_F_HIGHDMA | NETIF_F_HW_CSUM | NETIF_F_TSO;
+			   NETIF_F_HIGHDMA | NETIF_F_HW_CSUM | NETIF_F_GSO_SOFTWARE;
 
 	netdev->vlan_features = netdev->features;
 	netdev->features |= NETIF_F_HW_VLAN_CTAG_TX;

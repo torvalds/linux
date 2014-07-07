@@ -401,6 +401,7 @@ static struct platform_pwm_backlight_data viper_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
 	.pwm_period_ns	= 1000000,
+	.enable_gpio	= -1,
 	.init		= viper_backlight_init,
 	.notify		= viper_backlight_notify,
 	.exit		= viper_backlight_exit,
@@ -883,9 +884,6 @@ static int viper_cpufreq_notifier(struct notifier_block *nb,
 			 * after we change freq */
 			viper_set_core_cpu_voltage(freq->new, 0);
 		}
-		break;
-	case CPUFREQ_RESUMECHANGE:
-		viper_set_core_cpu_voltage(freq->new, 0);
 		break;
 	default:
 		/* ignore */

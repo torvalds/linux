@@ -4,14 +4,26 @@
 Required properties :
 
  - reg             : Offset and length of the register set for the device
- - compatible      : Should be "marvell,mv64xxx-i2c" or "allwinner,sun4i-i2c"
-                     or "marvell,mv78230-i2c"
+ - compatible      : Should be either:
+                     - "allwinner,sun4i-a10-i2c"
+                     - "allwinner,sun6i-a31-i2c"
+                     - "marvell,mv64xxx-i2c"
+                     - "marvell,mv78230-i2c"
+                     - "marvell,mv78230-a0-i2c"
+                       * Note: Only use "marvell,mv78230-a0-i2c" for a
+                         very rare, initial version of the SoC which
+                         had broken offload support.  Linux
+                         auto-detects this and sets it appropriately.
  - interrupts      : The interrupt number
 
 Optional properties :
 
  - clock-frequency : Desired I2C bus clock frequency in Hz. If not set the
 default frequency is 100kHz
+
+ - resets          : phandle to the parent reset controller. Mandatory
+                     whenever you're using the "allwinner,sun6i-a31-i2c"
+                     compatible.
 
 Examples:
 

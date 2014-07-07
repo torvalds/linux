@@ -33,6 +33,9 @@
 #include "vport.h"
 #include "vport-internal_dev.h"
 
+static void ovs_vport_record_error(struct vport *,
+				   enum vport_err_type err_type);
+
 /* List of statically compiled vport implementations.  Don't forget to also
  * add yours to the list at the bottom of vport.h. */
 static const struct vport_ops *vport_ops_list[] = {
@@ -135,7 +138,7 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 	vport->ops = ops;
 	INIT_HLIST_NODE(&vport->dp_hash_node);
 
-	vport->percpu_stats = alloc_percpu(struct pcpu_tstats);
+	vport->percpu_stats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!vport->percpu_stats) {
 		kfree(vport);
 		return ERR_PTR(-ENOMEM);
@@ -267,16 +270,16 @@ void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
 	spin_unlock_bh(&vport->stats_lock);
 
 	for_each_possible_cpu(i) {
-		const struct pcpu_tstats *percpu_stats;
-		struct pcpu_tstats local_stats;
+		const struct pcpu_sw_netstats *percpu_stats;
+		struct pcpu_sw_netstats local_stats;
 		unsigned int start;
 
 		percpu_stats = per_cpu_ptr(vport->percpu_stats, i);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&percpu_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&percpu_stats->syncp);
 			local_stats = *percpu_stats;
-		} while (u64_stats_fetch_retry_bh(&percpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&percpu_stats->syncp, start));
 
 		stats->rx_bytes		+= local_stats.rx_bytes;
 		stats->rx_packets	+= local_stats.rx_packets;
@@ -336,7 +339,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
 void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 		       struct ovs_key_ipv4_tunnel *tun_key)
 {
-	struct pcpu_tstats *stats;
+	struct pcpu_sw_netstats *stats;
 
 	stats = this_cpu_ptr(vport->percpu_stats);
 	u64_stats_update_begin(&stats->syncp);
@@ -362,7 +365,7 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 	int sent = vport->ops->send(vport, skb);
 
 	if (likely(sent > 0)) {
-		struct pcpu_tstats *stats;
+		struct pcpu_sw_netstats *stats;
 
 		stats = this_cpu_ptr(vport->percpu_stats);
 
@@ -388,7 +391,8 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
  * If using the vport generic stats layer indicate that an error of the given
  * type has occurred.
  */
-void ovs_vport_record_error(struct vport *vport, enum vport_err_type err_type)
+static void ovs_vport_record_error(struct vport *vport,
+				   enum vport_err_type err_type)
 {
 	spin_lock(&vport->stats_lock);
 

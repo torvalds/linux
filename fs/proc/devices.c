@@ -67,4 +67,4 @@ static int __init proc_devices_init(void)
 	proc_create("devices", 0, NULL, &proc_devinfo_operations);
 	return 0;
 }
-module_init(proc_devices_init);
+fs_initcall(proc_devices_init);

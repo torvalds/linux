@@ -7,7 +7,7 @@ extra-y := vmlinux.lds
 obj-y := \
 	entry.o process.o bfin_ksyms.o ptrace.o setup.o signal.o \
 	sys_bfin.o traps.o irqchip.o dma-mapping.o flat.o \
-	fixed_code.o reboot.o bfin_gpio.o bfin_dma.o \
+	fixed_code.o reboot.o bfin_dma.o \
 	exception.o dumpstack.o
 
 ifeq ($(CONFIG_GENERIC_CLOCKEVENTS),y)
@@ -16,6 +16,7 @@ else
     obj-y += time.o
 endif
 
+obj-$(CONFIG_GPIO_ADI)               += bfin_gpio.o
 obj-$(CONFIG_DYNAMIC_FTRACE)         += ftrace.o
 obj-$(CONFIG_FUNCTION_TRACER)        += ftrace-entry.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)  += ftrace.o

@@ -27,6 +27,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/pda_power.h>
 
@@ -41,6 +43,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
+#include <asm/mach/irda.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>
@@ -92,6 +95,37 @@ static struct mcp_plat_data collie_mcp_data = {
 	.mccr0		= MCCR0_ADM | MCCR0_ExtClk,
 	.sclk_rate	= 9216000,
 	.codec_pdata	= &collie_ucb1x00_data,
+};
+
+static int collie_ir_startup(struct device *dev)
+{
+	int rc = gpio_request(COLLIE_GPIO_IR_ON, "IrDA");
+	if (rc)
+		return rc;
+	rc = gpio_direction_output(COLLIE_GPIO_IR_ON, 1);
+
+	if (!rc)
+		return 0;
+
+	gpio_free(COLLIE_GPIO_IR_ON);
+	return rc;
+}
+
+static void collie_ir_shutdown(struct device *dev)
+{
+	gpio_free(COLLIE_GPIO_IR_ON);
+}
+
+static int collie_ir_set_power(struct device *dev, unsigned int state)
+{
+	gpio_set_value(COLLIE_GPIO_IR_ON, !state);
+	return 0;
+}
+
+static struct irda_platform_data collie_ir_data = {
+	.startup = collie_ir_startup,
+	.shutdown = collie_ir_shutdown,
+	.set_power = collie_ir_set_power,
 };
 
 /*
@@ -242,10 +276,43 @@ struct platform_device collie_locomo_device = {
 	.resource	= locomo_resources,
 };
 
+static struct gpio_keys_button collie_gpio_keys[] = {
+	{
+		.type	= EV_PWR,
+		.code	= KEY_RESERVED,
+		.gpio	= COLLIE_GPIO_ON_KEY,
+		.desc	= "On key",
+		.wakeup	= 1,
+		.active_low = 1,
+	},
+	{
+		.type	= EV_PWR,
+		.code	= KEY_WAKEUP,
+		.gpio	= COLLIE_GPIO_WAKEUP,
+		.desc	= "Sync",
+		.wakeup = 1,
+		.active_low = 1,
+	},
+};
+
+static struct gpio_keys_platform_data collie_gpio_keys_data = {
+	.buttons	= collie_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(collie_gpio_keys),
+};
+
+static struct platform_device collie_gpio_keys_device = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &collie_gpio_keys_data,
+	},
+};
+
 static struct platform_device *devices[] __initdata = {
 	&collie_locomo_device,
 	&colliescoop_device,
 	&collie_power_device,
+	&collie_gpio_keys_device,
 };
 
 static struct mtd_partition collie_partitions[] = {
@@ -262,6 +329,11 @@ static struct mtd_partition collie_partitions[] = {
 		.name		= "rootfs",
 		.offset 	= MTDPART_OFS_APPEND,
 		.size		= 0x00e20000,
+	}, {
+		.name		= "bootblock",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 0x00020000,
+		.mask_flags	= MTD_WRITEABLE
 	}
 };
 
@@ -289,7 +361,7 @@ static void collie_flash_exit(void)
 }
 
 static struct flash_platform_data collie_flash_data = {
-	.map_name	= "jedec_probe",
+	.map_name	= "cfi_probe",
 	.init		= collie_flash_init,
 	.set_vpp	= collie_set_vpp,
 	.exit		= collie_flash_exit,
@@ -365,6 +437,7 @@ static void __init collie_init(void)
 	sa11x0_register_mtd(&collie_flash_data, collie_flash_resources,
 			    ARRAY_SIZE(collie_flash_resources));
 	sa11x0_register_mcp(&collie_mcp_data);
+	sa11x0_register_irda(&collie_ir_data);
 
 	sharpsl_save_param();
 }

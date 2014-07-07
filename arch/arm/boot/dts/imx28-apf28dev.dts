@@ -10,7 +10,7 @@
  */
 
 /* APF28Dev is a docking board for the APF28 SOM */
-/include/ "imx28-apf28.dts"
+#include "imx28-apf28.dts"
 
 / {
 	model = "Armadeus Systems APF28Dev docking/development board";
@@ -41,30 +41,41 @@
 				hog_pins_apf28dev: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1103 /* MX28_PAD_LCD_D16__GPIO_1_16 */
-						0x1113 /* MX28_PAD_LCD_D17__GPIO_1_17 */
-						0x1123 /* MX28_PAD_LCD_D18__GPIO_1_18 */
-						0x1133 /* MX28_PAD_LCD_D19__GPIO_1_19 */
-						0x1143 /* MX28_PAD_LCD_D20__GPIO_1_20 */
-						0x1153 /* MX28_PAD_LCD_D21__GPIO_1_21 */
-						0x1163 /* MX28_PAD_LCD_D22__GPIO_1_22 */
+						MX28_PAD_LCD_D16__GPIO_1_16
+						MX28_PAD_LCD_D17__GPIO_1_17
+						MX28_PAD_LCD_D18__GPIO_1_18
+						MX28_PAD_LCD_D19__GPIO_1_19
+						MX28_PAD_LCD_D20__GPIO_1_20
+						MX28_PAD_LCD_D21__GPIO_1_21
+						MX28_PAD_LCD_D22__GPIO_1_22
+						MX28_PAD_GPMI_CE1N__GPIO_0_17
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_apf28dev: lcdif-apf28dev@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
-						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
-						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
-						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
+						MX28_PAD_LCD_RD_E__LCD_VSYNC
+						MX28_PAD_LCD_WR_RWN__LCD_HSYNC
+						MX28_PAD_LCD_RS__LCD_DOTCLK
+						MX28_PAD_LCD_CS__LCD_ENABLE
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				usb0_otg_apf28dev: otg-apf28dev@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_LCD_D23__GPIO_1_23
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 
@@ -131,6 +142,8 @@
 
 	ahb@80080000 {
 		usb0: usb@80080000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb0_otg_apf28dev>;
 			vbus-supply = <&reg_usb0_vbus>;
 			status = "okay";
 		};
@@ -150,13 +163,17 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_usb0_vbus: usb0_vbus {
+		reg_usb0_vbus: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "usb0_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio1 23 1>;
+			enable-active-high;
 		};
 	};
 
@@ -176,5 +193,15 @@
 		pwms = <&pwm 3 191000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		user-button {
+			label = "User button";
+			gpios = <&gpio0 17 0>;
+			linux,code = <0x100>;
+		};
 	};
 };

@@ -331,6 +331,7 @@ static void odm_RateDecision_8188E(struct odm_dm_struct *dm_odm,
 
 static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_info *pRaInfo)
 {  /*  Wilson 2011/10/26 */
+	struct adapter *adapt = dm_odm->Adapter;
 	u32 MaskFromReg;
 	s8 i;
 
@@ -357,19 +358,19 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&0x0000000d;
 		break;
 	case 12:
-		MaskFromReg = ODM_Read4Byte(dm_odm, REG_ARFR0);
+		MaskFromReg = rtw_read32(adapt, REG_ARFR0);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
 		break;
 	case 13:
-		MaskFromReg = ODM_Read4Byte(dm_odm, REG_ARFR1);
+		MaskFromReg = rtw_read32(adapt, REG_ARFR1);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
 		break;
 	case 14:
-		MaskFromReg = ODM_Read4Byte(dm_odm, REG_ARFR2);
+		MaskFromReg = rtw_read32(adapt, REG_ARFR2);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
 		break;
 	case 15:
-		MaskFromReg = ODM_Read4Byte(dm_odm, REG_ARFR3);
+		MaskFromReg = rtw_read32(adapt, REG_ARFR3);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
 		break;
 	default:
@@ -529,9 +530,7 @@ ODM_RASupport_Init(
 {
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD, ("=====>ODM_RASupport_Init()\n"));
 
-	/*  2012/02/14 MH Be noticed, the init must be after IC type is recognized!!!!! */
-	if (dm_odm->SupportICType == ODM_RTL8188E)
-		dm_odm->RaSupport88E = true;
+	dm_odm->RaSupport88E = true;
 }
 
 int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 macid)
@@ -669,7 +668,9 @@ void ODM_RA_SetRSSI_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rssi)
 
 void ODM_RA_Set_TxRPT_Time(struct odm_dm_struct *dm_odm, u16 minRptTime)
 {
-	ODM_Write2Byte(dm_odm, REG_TX_RPT_TIME, minRptTime);
+	struct adapter *adapt = dm_odm->Adapter;
+
+	rtw_write16(adapt, REG_TX_RPT_TIME, minRptTime);
 }
 
 void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 TxRPT_Len, u32 macid_entry0, u32 macid_entry1)

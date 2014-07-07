@@ -1,0 +1,393 @@
+/*
+ * Copyright 2013 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs
+ */
+
+#define T_TIMEOUT  2200000
+#define T_RISEFALL 1000
+#define T_HOLD     5000
+
+#ifdef INCLUDE_PROC
+process(PROC_I2C_, #i2c_init, #i2c_recv)
+#endif
+
+/******************************************************************************
+ * I2C_ data segment
+ *****************************************************************************/
+#ifdef INCLUDE_DATA
+i2c_scl_map:
+.b32 NV_PPWR_OUTPUT_I2C_0_SCL
+.b32 NV_PPWR_OUTPUT_I2C_1_SCL
+.b32 NV_PPWR_OUTPUT_I2C_2_SCL
+.b32 NV_PPWR_OUTPUT_I2C_3_SCL
+.b32 NV_PPWR_OUTPUT_I2C_4_SCL
+.b32 NV_PPWR_OUTPUT_I2C_5_SCL
+.b32 NV_PPWR_OUTPUT_I2C_6_SCL
+.b32 NV_PPWR_OUTPUT_I2C_7_SCL
+.b32 NV_PPWR_OUTPUT_I2C_8_SCL
+.b32 NV_PPWR_OUTPUT_I2C_9_SCL
+i2c_sda_map:
+.b32 NV_PPWR_OUTPUT_I2C_0_SDA
+.b32 NV_PPWR_OUTPUT_I2C_1_SDA
+.b32 NV_PPWR_OUTPUT_I2C_2_SDA
+.b32 NV_PPWR_OUTPUT_I2C_3_SDA
+.b32 NV_PPWR_OUTPUT_I2C_4_SDA
+.b32 NV_PPWR_OUTPUT_I2C_5_SDA
+.b32 NV_PPWR_OUTPUT_I2C_6_SDA
+.b32 NV_PPWR_OUTPUT_I2C_7_SDA
+.b32 NV_PPWR_OUTPUT_I2C_8_SDA
+.b32 NV_PPWR_OUTPUT_I2C_9_SDA
+#if NVKM_PPWR_CHIPSET < GF119
+i2c_ctrl:
+.b32 0x00e138
+.b32 0x00e150
+.b32 0x00e168
+.b32 0x00e180
+.b32 0x00e254
+.b32 0x00e274
+.b32 0x00e764
+.b32 0x00e780
+.b32 0x00e79c
+.b32 0x00e7b8
+#endif
+#endif
+
+/******************************************************************************
+ * I2C_ code segment
+ *****************************************************************************/
+#ifdef INCLUDE_CODE
+
+// $r3  - value
+// $r2  - sda line
+// $r1  - scl line
+// $r0  - zero
+i2c_drive_scl:
+	cmp b32 $r3 0
+	bra e #i2c_drive_scl_lo
+	nv_iowr(NV_PPWR_OUTPUT_SET, $r1)
+	ret
+	i2c_drive_scl_lo:
+	nv_iowr(NV_PPWR_OUTPUT_CLR, $r1)
+	ret
+
+i2c_drive_sda:
+	cmp b32 $r3 0
+	bra e #i2c_drive_sda_lo
+	nv_iowr(NV_PPWR_OUTPUT_SET, $r2)
+	ret
+	i2c_drive_sda_lo:
+	nv_iowr(NV_PPWR_OUTPUT_CLR, $r2)
+	ret
+
+i2c_sense_scl:
+	bclr $flags $p1
+	nv_iord($r3, NV_PPWR_INPUT)
+	and $r3 $r1
+	bra z #i2c_sense_scl_done
+		bset $flags $p1
+	i2c_sense_scl_done:
+	ret
+
+i2c_sense_sda:
+	bclr $flags $p1
+	nv_iord($r3, NV_PPWR_INPUT)
+	and $r3 $r2
+	bra z #i2c_sense_sda_done
+		bset $flags $p1
+	i2c_sense_sda_done:
+	ret
+
+#define i2c_drive_scl(v) /*
+*/	mov $r3 (v) /*
+*/	call(i2c_drive_scl)
+#define i2c_drive_sda(v) /*
+*/	mov $r3 (v) /*
+*/	call(i2c_drive_sda)
+#define i2c_sense_scl() /*
+*/	call(i2c_sense_scl)
+#define i2c_sense_sda() /*
+*/	call(i2c_sense_sda)
+#define i2c_delay(v) /*
+*/	mov $r14 (v) /*
+*/	call(nsec)
+
+#define i2c_trace_init() /*
+*/	imm32($r6, 0x10000000) /*
+*/	sub b32 $r7 $r6 1 /*
+*/
+#define i2c_trace_down() /*
+*/	shr b32 $r6 4 /*
+*/	push $r5 /*
+*/	shl b32 $r5 $r6 4 /*
+*/	sub b32 $r5 $r6 /*
+*/	not b32 $r5 /*
+*/	and $r7 $r5 /*
+*/	pop $r5 /*
+*/
+#define i2c_trace_exit() /*
+*/	shl b32 $r6 4 /*
+*/
+#define i2c_trace_next() /*
+*/	add b32 $r7 $r6 /*
+*/
+#define i2c_trace_call(func) /*
+*/	i2c_trace_next() /*
+*/	i2c_trace_down() /*
+*/	call(func) /*
+*/	i2c_trace_exit() /*
+*/
+
+i2c_raise_scl:
+	push $r4
+	mov $r4 (T_TIMEOUT / T_RISEFALL)
+	i2c_drive_scl(1)
+	i2c_raise_scl_wait:
+		i2c_delay(T_RISEFALL)
+		i2c_sense_scl()
+		bra $p1 #i2c_raise_scl_done
+		sub b32 $r4 1
+		bra nz #i2c_raise_scl_wait
+	i2c_raise_scl_done:
+	pop $r4
+	ret
+
+i2c_start:
+	i2c_sense_scl()
+	bra not $p1 #i2c_start_rep
+	i2c_sense_sda()
+	bra not $p1 #i2c_start_rep
+	bra #i2c_start_send
+	i2c_start_rep:
+		i2c_drive_scl(0)
+		i2c_drive_sda(1)
+		i2c_trace_call(i2c_raise_scl)
+		bra not $p1 #i2c_start_out
+	i2c_start_send:
+	i2c_drive_sda(0)
+	i2c_delay(T_HOLD)
+	i2c_drive_scl(0)
+	i2c_delay(T_HOLD)
+	i2c_start_out:
+	ret
+
+i2c_stop:
+	i2c_drive_scl(0)
+	i2c_drive_sda(0)
+	i2c_delay(T_RISEFALL)
+	i2c_drive_scl(1)
+	i2c_delay(T_HOLD)
+	i2c_drive_sda(1)
+	i2c_delay(T_HOLD)
+	ret
+
+// $r3  - value
+// $r2  - sda line
+// $r1  - scl line
+// $r0  - zero
+i2c_bitw:
+	call(i2c_drive_sda)
+	i2c_delay(T_RISEFALL)
+	i2c_trace_call(i2c_raise_scl)
+	bra not $p1 #i2c_bitw_out
+	i2c_delay(T_HOLD)
+	i2c_drive_scl(0)
+	i2c_delay(T_HOLD)
+	i2c_bitw_out:
+	ret
+
+// $r3  - value (out)
+// $r2  - sda line
+// $r1  - scl line
+// $r0  - zero
+i2c_bitr:
+	i2c_drive_sda(1)
+	i2c_delay(T_RISEFALL)
+	i2c_trace_call(i2c_raise_scl)
+	bra not $p1 #i2c_bitr_done
+	i2c_sense_sda()
+	i2c_drive_scl(0)
+	i2c_delay(T_HOLD)
+	xbit $r3 $flags $p1
+	bset $flags $p1
+	i2c_bitr_done:
+	ret
+
+i2c_get_byte:
+	mov $r5 0
+	mov $r4 8
+	i2c_get_byte_next:
+		shl b32 $r5 1
+		i2c_trace_call(i2c_bitr)
+		bra not $p1 #i2c_get_byte_done
+		or $r5 $r3
+		sub b32 $r4 1
+		bra nz #i2c_get_byte_next
+	mov $r3 1
+	i2c_trace_call(i2c_bitw)
+	i2c_get_byte_done:
+	ret
+
+i2c_put_byte:
+	mov $r4 8
+	i2c_put_byte_next:
+		sub b32 $r4 1
+		xbit $r3 $r5 $r4
+		i2c_trace_call(i2c_bitw)
+		bra not $p1 #i2c_put_byte_done
+		cmp b32 $r4 0
+		bra ne #i2c_put_byte_next
+	i2c_trace_call(i2c_bitr)
+	bra not $p1 #i2c_put_byte_done
+	i2c_trace_next()
+	cmp b32 $r3 1
+	bra ne #i2c_put_byte_done
+	bclr $flags $p1	// nack
+	i2c_put_byte_done:
+	ret
+
+i2c_addr:
+	i2c_trace_call(i2c_start)
+	bra not $p1 #i2c_addr_done
+	extr $r3 $r12 I2C__MSG_DATA0_ADDR
+	shl b32 $r3 1
+	or $r5 $r3
+	i2c_trace_call(i2c_put_byte)
+	i2c_addr_done:
+	ret
+
+i2c_acquire_addr:
+	extr $r14 $r12 I2C__MSG_DATA0_PORT
+#if NVKM_PPWR_CHIPSET < GF119
+	shl b32 $r14 2
+	add b32 $r14 #i2c_ctrl
+	ld b32 $r14 D[$r14]
+#else
+	shl b32 $r14 5
+	add b32 $r14 0x00d014
+#endif
+	ret
+
+i2c_acquire:
+	call(i2c_acquire_addr)
+	call(rd32)
+	bset $r13 3
+	call(wr32)
+	ret
+
+i2c_release:
+	call(i2c_acquire_addr)
+	call(rd32)
+	bclr $r13 3
+	call(wr32)
+	ret
+
+// description
+//
+// $r15 - current (i2c)
+// $r14 - sender process name
+// $r13 - message
+// $r12 - data0
+// $r11 - data1
+// $r0  - zero
+i2c_recv:
+	bclr $flags $p1
+	extr $r1 $r12 I2C__MSG_DATA0_PORT
+	shl b32 $r1 2
+	cmp b32 $r1 (#i2c_sda_map - #i2c_scl_map)
+	bra ge #i2c_recv_done
+	add b32 $r3 $r1 #i2c_sda_map
+	ld b32 $r2 D[$r3]
+	add b32 $r3 $r1 #i2c_scl_map
+	ld b32 $r1 D[$r3]
+
+	bset $flags $p2
+	push $r13
+	push $r14
+
+	push $r13
+	i2c_trace_init()
+	i2c_trace_call(i2c_acquire)
+	pop $r13
+
+	cmp b32 $r13 I2C__MSG_RD08
+	bra ne #i2c_recv_not_rd08
+		mov $r5 0
+		i2c_trace_call(i2c_addr)
+		bra not $p1 #i2c_recv_done
+		extr $r5 $r12 I2C__MSG_DATA0_RD08_REG
+		i2c_trace_call(i2c_put_byte)
+		bra not $p1 #i2c_recv_done
+		mov $r5 1
+		i2c_trace_call(i2c_addr)
+		bra not $p1 #i2c_recv_done
+		i2c_trace_call(i2c_get_byte)
+		bra not $p1 #i2c_recv_done
+		ins $r11 $r5 I2C__MSG_DATA1_RD08_VAL
+		i2c_trace_call(i2c_stop)
+		mov b32 $r11 $r5
+		clear b32 $r7
+		bra #i2c_recv_done
+
+	i2c_recv_not_rd08:
+	cmp b32 $r13 I2C__MSG_WR08
+	bra ne #i2c_recv_not_wr08
+		mov $r5 0
+		call(i2c_addr)
+		bra not $p1 #i2c_recv_done
+		extr $r5 $r12 I2C__MSG_DATA0_WR08_REG
+		call(i2c_put_byte)
+		bra not $p1 #i2c_recv_done
+		mov $r5 0
+		call(i2c_addr)
+		bra not $p1 #i2c_recv_done
+		extr $r5 $r11 I2C__MSG_DATA1_WR08_VAL
+		call(i2c_put_byte)
+		bra not $p1 #i2c_recv_done
+		call(i2c_stop)
+		clear b32 $r7
+		extr $r5 $r12 I2C__MSG_DATA0_WR08_SYNC
+		bra nz #i2c_recv_done
+		bclr $flags $p2
+		bra #i2c_recv_done
+
+	i2c_recv_not_wr08:
+
+	i2c_recv_done:
+	extr $r14 $r12 I2C__MSG_DATA0_PORT
+	call(i2c_release)
+
+	pop $r14
+	pop $r13
+	bra not $p2 #i2c_recv_exit
+	mov b32 $r12 $r7
+	call(send)
+
+	i2c_recv_exit:
+	ret
+
+// description
+//
+// $r15 - current (i2c)
+// $r0  - zero
+i2c_init:
+	ret
+#endif

@@ -1,11 +1,13 @@
 #ifndef _SPARC64_MM_INIT_H
 #define _SPARC64_MM_INIT_H
 
+#include <asm/page.h>
+
 /* Most of the symbols in this file are defined in init.c and
  * marked non-static so that assembler code can get at them.
  */
 
-#define MAX_PHYS_ADDRESS	(1UL << 41UL)
+#define MAX_PHYS_ADDRESS	(1UL << MAX_PHYS_ADDRESS_BITS)
 #define KPTE_BITMAP_CHUNK_SZ		(256UL * 1024UL * 1024UL)
 #define KPTE_BITMAP_BYTES	\
 	((MAX_PHYS_ADDRESS / KPTE_BITMAP_CHUNK_SZ) / 4)
@@ -19,7 +21,7 @@ extern unsigned int sparc64_highest_unlocked_tlb_ent;
 extern unsigned long sparc64_kern_pri_context;
 extern unsigned long sparc64_kern_pri_nuc_bits;
 extern unsigned long sparc64_kern_sec_context;
-extern void mmu_info(struct seq_file *m);
+void mmu_info(struct seq_file *m);
 
 struct linux_prom_translation {
 	unsigned long virt;
@@ -34,7 +36,7 @@ extern unsigned int prom_trans_ents;
 /* Exported for SMP bootup purposes. */
 extern unsigned long kern_locked_tte_data;
 
-extern void prom_world(int enter);
+void prom_world(int enter);
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 #define VMEMMAP_CHUNK_SHIFT	22

@@ -61,7 +61,12 @@ static inline int policy_writeback_work(struct dm_cache_policy *p,
 
 static inline void policy_remove_mapping(struct dm_cache_policy *p, dm_oblock_t oblock)
 {
-	return p->remove_mapping(p, oblock);
+	p->remove_mapping(p, oblock);
+}
+
+static inline int policy_remove_cblock(struct dm_cache_policy *p, dm_cblock_t cblock)
+{
+	return p->remove_cblock(p, cblock);
 }
 
 static inline void policy_force_mapping(struct dm_cache_policy *p,

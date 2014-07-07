@@ -103,6 +103,9 @@ static struct autofs_dev_ioctl *copy_dev_ioctl(struct autofs_dev_ioctl __user *i
 	if (tmp.size < sizeof(tmp))
 		return ERR_PTR(-EINVAL);
 
+	if (tmp.size > (PATH_MAX + sizeof(tmp)))
+		return ERR_PTR(-ENAMETOOLONG);
+
 	return memdup_user(in, tmp.size);
 }
 
@@ -346,6 +349,7 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 {
 	int pipefd;
 	int err = 0;
+	struct pid *new_pid = NULL;
 
 	if (param->setpipefd.pipefd == -1)
 		return -EINVAL;
@@ -357,7 +361,17 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		mutex_unlock(&sbi->wq_mutex);
 		return -EBUSY;
 	} else {
-		struct file *pipe = fget(pipefd);
+		struct file *pipe;
+
+		new_pid = get_task_pid(current, PIDTYPE_PGID);
+
+		if (ns_of_pid(new_pid) != ns_of_pid(sbi->oz_pgrp)) {
+			AUTOFS_WARN("Not allowed to change PID namespace");
+			err = -EINVAL;
+			goto out;
+		}
+
+		pipe = fget(pipefd);
 		if (!pipe) {
 			err = -EBADF;
 			goto out;
@@ -367,12 +381,13 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 			fput(pipe);
 			goto out;
 		}
-		sbi->oz_pgrp = task_pgrp_nr(current);
+		swap(sbi->oz_pgrp, new_pid);
 		sbi->pipefd = pipefd;
 		sbi->pipe = pipe;
 		sbi->catatonic = 0;
 	}
 out:
+	put_pid(new_pid);
 	mutex_unlock(&sbi->wq_mutex);
 	return err;
 }
@@ -658,12 +673,6 @@ static int _autofs_dev_ioctl(unsigned int command, struct autofs_dev_ioctl __use
 			goto out;
 		}
 
-		if (!fp->f_op) {
-			err = -ENOTTY;
-			fput(fp);
-			goto out;
-		}
-
 		sbi = autofs_dev_ioctl_sbi(fp);
 		if (!sbi || sbi->magic != AUTOFS_SBI_MAGIC) {
 			err = -EINVAL;
@@ -728,7 +737,7 @@ MODULE_ALIAS_MISCDEV(AUTOFS_MINOR);
 MODULE_ALIAS("devname:autofs");
 
 /* Register/deregister misc character device */
-int autofs_dev_ioctl_init(void)
+int __init autofs_dev_ioctl_init(void)
 {
 	int r;
 

@@ -83,8 +83,8 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
  */
 static void usb_stor_print_cmd(struct us_data *us, struct scsi_cmnd *srb)
 {
-	PBYTE   Cdb = srb->cmnd;
-	DWORD   cmd = Cdb[0];
+	u8 *Cdb = srb->cmnd;
+	u32   cmd = Cdb[0];
 
 	switch (cmd) {
 	case TEST_UNIT_READY:
@@ -545,8 +545,8 @@ Handle_Errors:
  */
 void BuildSenseBuffer(struct scsi_cmnd *srb, int SrbStatus)
 {
-	BYTE    *buf = srb->sense_buffer;
-	BYTE    asc;
+	u8    *buf = srb->sense_buffer;
+	u8    asc;
 
 	pr_info("transport --- BuildSenseBuffer\n");
 	switch (SrbStatus) {
@@ -669,6 +669,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/*  R/W data */
 	if (transfer_length) {
 		unsigned int pipe;
+
 		if (srb->sc_data_direction == DMA_FROM_DEVICE)
 			pipe = us->recv_bulk_pipe;
 		else

@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 
 #include <asm/mach-rc32434/rc32434.h>
 #include <asm/mach-rc32434/irq.h>

@@ -114,10 +114,15 @@ cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(shell $(CC) -dumpmachine |grep -q 'mips.*e
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' || echo -EL $(undef-all) $(predef-le))
 
 cflags-$(CONFIG_CPU_HAS_SMARTMIPS)	+= $(call cc-option,-msmartmips)
-cflags-$(CONFIG_CPU_MICROMIPS) += $(call cc-option,-mmicromips -mno-jals)
+cflags-$(CONFIG_CPU_MICROMIPS) += $(call cc-option,-mmicromips)
 
 cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
 				   -fno-omit-frame-pointer
+
+ifeq ($(CONFIG_CPU_HAS_MSA),y)
+toolchain-msa	:= $(call cc-option-yn,-mhard-float -mfp64 -Wa$(comma)-mmsa)
+cflags-$(toolchain-msa)		+= -DTOOLCHAIN_SUPPORTS_MSA
+endif
 
 #
 # CPU-dependent compiler/assembler options for optimization.
@@ -146,7 +151,7 @@ cflags-$(CONFIG_CPU_NEVADA)	+= $(call cc-option,-march=rm5200,-march=r5000) \
 			-Wa,--trap
 cflags-$(CONFIG_CPU_RM7000)	+= $(call cc-option,-march=rm7000,-march=r5000) \
 			-Wa,--trap
-cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-march=sb1,-march=r5000) \
+cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-march=sb1 -mno-mdmx -mno-mips3d,-march=r5000) \
 			-Wa,--trap
 cflags-$(CONFIG_CPU_R8000)	+= -march=r8000 -Wa,--trap
 cflags-$(CONFIG_CPU_R10000)	+= $(call cc-option,-march=r10000,-march=r8000) \
@@ -232,10 +237,6 @@ bootvars-y	= VMLINUX_LOAD_ADDRESS=$(load-y) \
 
 LDFLAGS			+= -m $(ld-emul)
 
-ifdef CONFIG_CC_STACKPROTECTOR
-  KBUILD_CFLAGS += -fstack-protector
-endif
-
 ifdef CONFIG_MIPS
 CHECKFLAGS += $(shell $(CC) $(KBUILD_CFLAGS) -dM -E -x c /dev/null | \
 	egrep -vw '__GNUC_(|MINOR_|PATCHLEVEL_)_' | \
@@ -250,6 +251,7 @@ OBJCOPYFLAGS		+= --remove-section=.reginfo
 head-y := arch/mips/kernel/head.o
 
 libs-y			+= arch/mips/lib/
+libs-y			+= arch/mips/math-emu/
 
 # See arch/mips/Kbuild for content of core part of the kernel
 core-y += arch/mips/
@@ -285,15 +287,19 @@ endif
 # Other need ECOFF, so we build a 32-bit ELF binary for them which we then
 # convert to ECOFF using elf2ecoff.
 #
+quiet_cmd_32 = OBJCOPY $@
+	cmd_32 = $(OBJCOPY) -O $(32bit-bfd) $(OBJCOPYFLAGS) $< $@
 vmlinux.32: vmlinux
-	$(OBJCOPY) -O $(32bit-bfd) $(OBJCOPYFLAGS) $< $@
+	$(call cmd,32)
 
 #
 # The 64-bit ELF tools are pretty broken so at this time we generate 64-bit
 # ELF files from 32-bit files by conversion.
 #
+quiet_cmd_64 = OBJCOPY $@
+	cmd_64 = $(OBJCOPY) -O $(64bit-bfd) $(OBJCOPYFLAGS) $< $@
 vmlinux.64: vmlinux
-	$(OBJCOPY) -O $(64bit-bfd) $(OBJCOPYFLAGS) $< $@
+	$(call cmd,64)
 
 all:	$(all-y)
 
@@ -302,10 +308,16 @@ $(boot-y): $(vmlinux-32) FORCE
 	$(Q)$(MAKE) $(build)=arch/mips/boot VMLINUX=$(vmlinux-32) \
 		$(bootvars-y) arch/mips/boot/$@
 
+ifdef CONFIG_SYS_SUPPORTS_ZBOOT
 # boot/compressed
 $(bootz-y): $(vmlinux-32) FORCE
 	$(Q)$(MAKE) $(build)=arch/mips/boot/compressed \
 		$(bootvars-y) 32bit-bfd=$(32bit-bfd) $@
+else
+vmlinuz: FORCE
+	@echo '   CONFIG_SYS_SUPPORTS_ZBOOT is not enabled'
+	/bin/false
+endif
 
 
 CLEAN_FILES += vmlinux.32 vmlinux.64

@@ -1,0 +1,49 @@
+MAX98090 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "maxim,max98090".
+
+- reg : The I2C address of the device.
+
+- interrupts : The CODEC's interrupt output.
+
+Optional properties:
+
+- clocks: The phandle of the master clock to the CODEC
+
+- clock-names: Should be "mclk"
+
+Pins on the device (for linking into audio routes):
+
+  * MIC1
+  * MIC2
+  * DMICL
+  * DMICR
+  * IN1
+  * IN2
+  * IN3
+  * IN4
+  * IN5
+  * IN6
+  * IN12
+  * IN34
+  * IN56
+  * HPL
+  * HPR
+  * SPKL
+  * SPKR
+  * RCVL
+  * RCVR
+  * MICBIAS
+
+Example:
+
+audio-codec@10 {
+	compatible = "maxim,max98090";
+	reg = <0x10>;
+	interrupt-parent = <&gpio>;
+	interrupts = <TEGRA_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
+};

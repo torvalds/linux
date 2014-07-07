@@ -52,7 +52,7 @@
 
 asmlinkage extern void ret_from_fork(void);
 
-asmlinkage DEFINE_PER_CPU(unsigned long, old_rsp);
+__visible DEFINE_PER_CPU(unsigned long, old_rsp);
 
 /* Prints also some state that isn't saved in the pt_regs */
 void __show_regs(struct pt_regs *regs, int all)
@@ -63,7 +63,7 @@ void __show_regs(struct pt_regs *regs, int all)
 	unsigned int ds, cs, es;
 
 	printk(KERN_DEFAULT "RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->ip);
-	printk_address(regs->ip, 1);
+	printk_address(regs->ip);
 	printk(KERN_DEFAULT "RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss,
 			regs->sp, regs->flags);
 	printk(KERN_DEFAULT "RAX: %016lx RBX: %016lx RCX: %016lx\n",
@@ -163,7 +163,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	p->thread.sp = (unsigned long) childregs;
 	p->thread.usersp = me->thread.usersp;
 	set_tsk_thread_flag(p, TIF_FORK);
-	p->fpu_counter = 0;
+	p->thread.fpu_counter = 0;
 	p->thread.io_bitmap_ptr = NULL;
 
 	savesegment(gs, p->thread.gsindex);
@@ -363,6 +363,14 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	this_cpu_write(old_rsp, next->usersp);
 	this_cpu_write(current_task, next_p);
 
+	/*
+	 * If it were not for PREEMPT_ACTIVE we could guarantee that the
+	 * preempt_count of all tasks was equal here and this would not be
+	 * needed.
+	 */
+	task_thread_info(prev_p)->saved_preempt_count = this_cpu_read(__preempt_count);
+	this_cpu_write(__preempt_count, task_thread_info(next_p)->saved_preempt_count);
+
 	this_cpu_write(kernel_stack,
 		  (unsigned long)task_stack_page(next_p) +
 		  THREAD_SIZE - KERNEL_STACK_OFFSET);
@@ -405,12 +413,11 @@ void set_personality_ia32(bool x32)
 	set_thread_flag(TIF_ADDR32);
 
 	/* Mark the associated mm as containing 32-bit tasks. */
-	if (current->mm)
-		current->mm->context.ia32_compat = 1;
-
 	if (x32) {
 		clear_thread_flag(TIF_IA32);
 		set_thread_flag(TIF_X32);
+		if (current->mm)
+			current->mm->context.ia32_compat = TIF_X32;
 		current->personality &= ~READ_IMPLIES_EXEC;
 		/* is_compat_task() uses the presence of the x32
 		   syscall bit flag to determine compat status */
@@ -418,6 +425,8 @@ void set_personality_ia32(bool x32)
 	} else {
 		set_thread_flag(TIF_IA32);
 		clear_thread_flag(TIF_X32);
+		if (current->mm)
+			current->mm->context.ia32_compat = TIF_IA32;
 		current->personality |= force_personality32;
 		/* Prepare the first "return" to user space */
 		current_thread_info()->status |= TS_COMPAT;

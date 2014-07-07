@@ -24,7 +24,7 @@
 
 static LIST_HEAD(pernet_list);
 static struct list_head *first_device = &pernet_list;
-static DEFINE_MUTEX(net_mutex);
+DEFINE_MUTEX(net_mutex);
 
 LIST_HEAD(net_namespace_list);
 EXPORT_SYMBOL_GPL(net_namespace_list);
@@ -273,7 +273,7 @@ static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
 	struct net *net, *tmp;
-	LIST_HEAD(net_kill_list);
+	struct list_head net_kill_list;
 	LIST_HEAD(net_exit_list);
 
 	/* Atomically snapshot the list of namespaces to cleanup */

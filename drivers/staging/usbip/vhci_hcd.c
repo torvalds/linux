@@ -205,8 +205,6 @@ static int vhci_hub_status(struct usb_hcd *hcd, char *buf)
 		}
 	}
 
-	pr_info("changed %d\n", changed);
-
 	if ((hcd->state == HC_STATE_SUSPENDED) && (changed == 1))
 		usb_hcd_resume_root_hub(hcd);
 
@@ -220,8 +218,7 @@ static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 	memset(desc, 0, sizeof(*desc));
 	desc->bDescriptorType = 0x29;
 	desc->bDescLength = 9;
-	desc->wHubCharacteristics = (__force __u16)
-		(__constant_cpu_to_le16(0x0001));
+	desc->wHubCharacteristics = (__constant_cpu_to_le16(0x0001));
 	desc->bNbrPorts = VHCI_NPORTS;
 	desc->u.hs.DeviceRemovable[0] = 0xff;
 	desc->u.hs.DeviceRemovable[1] = 0xff;
@@ -274,14 +271,14 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 			break;
 		case USB_PORT_FEAT_POWER:
-			usbip_dbg_vhci_rh(" ClearPortFeature: "
-					  "USB_PORT_FEAT_POWER\n");
+			usbip_dbg_vhci_rh(
+				" ClearPortFeature: USB_PORT_FEAT_POWER\n");
 			dum->port_status[rhport] = 0;
 			dum->resuming = 0;
 			break;
 		case USB_PORT_FEAT_C_RESET:
-			usbip_dbg_vhci_rh(" ClearPortFeature: "
-					  "USB_PORT_FEAT_C_RESET\n");
+			usbip_dbg_vhci_rh(
+				" ClearPortFeature: USB_PORT_FEAT_C_RESET\n");
 			switch (dum->vdev[rhport].speed) {
 			case USB_SPEED_HIGH:
 				dum->port_status[rhport] |=
@@ -340,16 +337,17 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 			if (dum->vdev[rhport].ud.status ==
 			    VDEV_ST_NOTASSIGNED) {
-				usbip_dbg_vhci_rh(" enable rhport %d "
-						  "(status %u)\n",
-						  rhport,
-						  dum->vdev[rhport].ud.status);
+				usbip_dbg_vhci_rh(
+					" enable rhport %d (status %u)\n",
+					rhport,
+					dum->vdev[rhport].ud.status);
 				dum->port_status[rhport] |=
 					USB_PORT_STAT_ENABLE;
 			}
 		}
-		((u16 *) buf)[0] = cpu_to_le16(dum->port_status[rhport]);
-		((u16 *) buf)[1] = cpu_to_le16(dum->port_status[rhport] >> 16);
+		((__le16 *) buf)[0] = cpu_to_le16(dum->port_status[rhport]);
+		((__le16 *) buf)[1] =
+			cpu_to_le16(dum->port_status[rhport] >> 16);
 
 		usbip_dbg_vhci_rh(" GetPortStatus bye %x %x\n", ((u16 *)buf)[0],
 				  ((u16 *)buf)[1]);
@@ -361,12 +359,12 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	case SetPortFeature:
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			usbip_dbg_vhci_rh(" SetPortFeature: "
-					  "USB_PORT_FEAT_SUSPEND\n");
+			usbip_dbg_vhci_rh(
+				" SetPortFeature: USB_PORT_FEAT_SUSPEND\n");
 			break;
 		case USB_PORT_FEAT_RESET:
-			usbip_dbg_vhci_rh(" SetPortFeature: "
-					  "USB_PORT_FEAT_RESET\n");
+			usbip_dbg_vhci_rh(
+				" SetPortFeature: USB_PORT_FEAT_RESET\n");
 			/* if it's already running, disconnect first */
 			if (dum->port_status[rhport] & USB_PORT_STAT_ENABLE) {
 				dum->port_status[rhport] &=
@@ -537,10 +535,9 @@ static int vhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 			goto no_need_xmit;
 
 		case USB_REQ_GET_DESCRIPTOR:
-			if (ctrlreq->wValue == (USB_DT_DEVICE << 8))
-				usbip_dbg_vhci_hc("Not yet?: "
-						  "Get_Descriptor to device 0 "
-						  "(get max pipe size)\n");
+			if (ctrlreq->wValue == cpu_to_le16(USB_DT_DEVICE << 8))
+				usbip_dbg_vhci_hc(
+					"Not yet?:Get_Descriptor to device 0 (get max pipe size)\n");
 
 			if (vdev->udev)
 				usb_put_dev(vdev->udev);
@@ -549,8 +546,9 @@ static int vhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 		default:
 			/* NOT REACHED */
-			dev_err(dev, "invalid request to devnum 0 bRequest %u, "
-				"wValue %u\n", ctrlreq->bRequest,
+			dev_err(dev,
+				"invalid request to devnum 0 bRequest %u, wValue %u\n",
+				ctrlreq->bRequest,
 				ctrlreq->wValue);
 			ret =  -EINVAL;
 			goto no_need_xmit;
@@ -637,6 +635,7 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	{
 		int ret = 0;
+
 		ret = usb_hcd_check_unlink_urb(hcd, urb, status);
 		if (ret) {
 			spin_unlock(&the_controller->lock);
@@ -790,7 +789,7 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 
 	/* active connection is closed */
 	if (vdev->ud.tcp_socket) {
-		fput(vdev->ud.tcp_socket->file);
+		sockfd_put(vdev->ud.tcp_socket);
 		vdev->ud.tcp_socket = NULL;
 	}
 	pr_info("release socket\n");
@@ -837,7 +836,7 @@ static void vhci_device_reset(struct usbip_device *ud)
 	vdev->udev = NULL;
 
 	if (ud->tcp_socket) {
-		fput(ud->tcp_socket->file);
+		sockfd_put(ud->tcp_socket);
 		ud->tcp_socket = NULL;
 	}
 	ud->status = VDEV_ST_NULL;
@@ -887,6 +886,7 @@ static int vhci_start(struct usb_hcd *hcd)
 
 	for (rhport = 0; rhport < VHCI_NPORTS; rhport++) {
 		struct vhci_device *vdev = &vhci->vdev[rhport];
+
 		vhci_device_init(vdev);
 		vdev->rhport = rhport;
 	}
@@ -918,7 +918,7 @@ static void vhci_stop(struct usb_hcd *hcd)
 	sysfs_remove_group(&vhci_dev(vhci)->kobj, &dev_attr_group);
 
 	/* 2. shutdown all the ports of vhci_hcd */
-	for (rhport = 0 ; rhport < VHCI_NPORTS; rhport++) {
+	for (rhport = 0; rhport < VHCI_NPORTS; rhport++) {
 		struct vhci_device *vdev = &vhci->vdev[rhport];
 
 		usbip_event_add(&vdev->ud, VDEV_EVENT_REMOVED);
@@ -999,12 +999,6 @@ static int vhci_hcd_probe(struct platform_device *pdev)
 
 	usbip_dbg_vhci_hc("name %s id %d\n", pdev->name, pdev->id);
 
-	/* will be removed */
-	if (pdev->dev.dma_mask) {
-		dev_info(&pdev->dev, "vhci_hcd DMA not supported\n");
-		return -EINVAL;
-	}
-
 	/*
 	 * Allocate and initialize hcd.
 	 * Our private data is also allocated automatically.
@@ -1077,8 +1071,9 @@ static int vhci_hcd_suspend(struct platform_device *pdev, pm_message_t state)
 	spin_unlock(&the_controller->lock);
 
 	if (connected > 0) {
-		dev_info(&pdev->dev, "We have %d active connection%s. Do not "
-			 "suspend.\n", connected, (connected == 1 ? "" : "s"));
+		dev_info(&pdev->dev,
+			 "We have %d active connection%s. Do not suspend.\n",
+			 connected, (connected == 1 ? "" : "s"));
 		ret =  -EBUSY;
 	} else {
 		dev_info(&pdev->dev, "suspend vhci_hcd");
@@ -1114,7 +1109,7 @@ static struct platform_driver vhci_driver = {
 	.suspend = vhci_hcd_suspend,
 	.resume	= vhci_hcd_resume,
 	.driver	= {
-		.name = (char *) driver_name,
+		.name = driver_name,
 		.owner = THIS_MODULE,
 	},
 };
@@ -1131,7 +1126,7 @@ static void the_pdev_release(struct device *dev)
 
 static struct platform_device the_pdev = {
 	/* should be the same name as driver_name */
-	.name = (char *) driver_name,
+	.name = driver_name,
 	.id = -1,
 	.dev = {
 		.release = the_pdev_release,
@@ -1146,11 +1141,11 @@ static int __init vhci_hcd_init(void)
 		return -ENODEV;
 
 	ret = platform_driver_register(&vhci_driver);
-	if (ret < 0)
+	if (ret)
 		goto err_driver_register;
 
 	ret = platform_device_register(&the_pdev);
-	if (ret < 0)
+	if (ret)
 		goto err_platform_device_register;
 
 	pr_info(DRIVER_DESC " v" USBIP_VERSION "\n");

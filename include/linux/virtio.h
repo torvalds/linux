@@ -51,11 +51,11 @@ int virtqueue_add_sgs(struct virtqueue *vq,
 		      void *data,
 		      gfp_t gfp);
 
-void virtqueue_kick(struct virtqueue *vq);
+bool virtqueue_kick(struct virtqueue *vq);
 
 bool virtqueue_kick_prepare(struct virtqueue *vq);
 
-void virtqueue_notify(struct virtqueue *vq);
+bool virtqueue_notify(struct virtqueue *vq);
 
 void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
 
@@ -72,6 +72,8 @@ bool virtqueue_enable_cb_delayed(struct virtqueue *vq);
 void *virtqueue_detach_unused_buf(struct virtqueue *vq);
 
 unsigned int virtqueue_get_vring_size(struct virtqueue *vq);
+
+bool virtqueue_is_broken(struct virtqueue *vq);
 
 /**
  * virtio_device - representation of a device using virtio
@@ -103,6 +105,8 @@ static inline struct virtio_device *dev_to_virtio(struct device *_dev)
 
 int register_virtio_device(struct virtio_device *dev);
 void unregister_virtio_device(struct virtio_device *dev);
+
+void virtio_break_device(struct virtio_device *dev);
 
 /**
  * virtio_driver - operations for a virtio I/O driver

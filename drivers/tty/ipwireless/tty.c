@@ -15,7 +15,6 @@
  *   Copyright (C) 2007 David Sterba
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -177,9 +176,6 @@ void ipwireless_tty_received(struct ipw_tty *tty, unsigned char *data,
 				": %d chars not inserted to flip buffer!\n",
 				length - work);
 
-	/*
-	 * This may sleep if ->low_latency is set
-	 */
 	if (work)
 		tty_flip_buffer_push(&tty->port);
 }

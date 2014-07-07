@@ -14,9 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * This driver uses the sungem driver (c) David Miller
  * (davem@redhat.com) as its basis.
@@ -248,7 +246,7 @@ static inline void cas_lock_tx(struct cas *cp)
 	int i;
 
 	for (i = 0; i < N_TX_RINGS; i++)
-		spin_lock(&cp->tx_lock[i]);
+		spin_lock_nested(&cp->tx_lock[i], i);
 }
 
 static inline void cas_lock_all(struct cas *cp)
@@ -3354,7 +3352,7 @@ use_random_mac_addr:
 #if defined(CONFIG_SPARC)
 	addr = of_get_property(cp->of_node, "local-mac-address", NULL);
 	if (addr != NULL) {
-		memcpy(dev_addr, addr, 6);
+		memcpy(dev_addr, addr, ETH_ALEN);
 		goto done;
 	}
 #endif
@@ -5168,7 +5166,6 @@ err_out_free_netdev:
 
 err_out_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return -ENODEV;
 }
 
@@ -5206,7 +5203,6 @@ static void cas_remove_one(struct pci_dev *pdev)
 	free_netdev(dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM

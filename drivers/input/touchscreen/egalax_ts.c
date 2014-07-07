@@ -18,7 +18,6 @@
 */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
@@ -263,7 +262,7 @@ static int egalax_ts_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(egalax_ts_pm_ops, egalax_ts_suspend, egalax_ts_resume);
 
-static struct of_device_id egalax_ts_dt_ids[] = {
+static const struct of_device_id egalax_ts_dt_ids[] = {
 	{ .compatible = "eeti,egalax_ts" },
 	{ /* sentinel */ }
 };
@@ -273,7 +272,7 @@ static struct i2c_driver egalax_ts_driver = {
 		.name	= "egalax_ts",
 		.owner	= THIS_MODULE,
 		.pm	= &egalax_ts_pm_ops,
-		.of_match_table	= of_match_ptr(egalax_ts_dt_ids),
+		.of_match_table	= egalax_ts_dt_ids,
 	},
 	.id_table	= egalax_ts_id,
 	.probe		= egalax_ts_probe,

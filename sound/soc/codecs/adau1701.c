@@ -71,7 +71,7 @@
 
 #define ADAU1701_SEROCTL_WORD_LEN_24	0x0000
 #define ADAU1701_SEROCTL_WORD_LEN_20	0x0001
-#define ADAU1701_SEROCTL_WORD_LEN_16	0x0010
+#define ADAU1701_SEROCTL_WORD_LEN_16	0x0002
 #define ADAU1701_SEROCTL_WORD_LEN_MASK	0x0003
 
 #define ADAU1701_AUXNPOW_VBPD		0x40
@@ -299,20 +299,20 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 }
 
 static int adau1701_set_capture_pcm_format(struct snd_soc_codec *codec,
-		snd_pcm_format_t format)
+					   struct snd_pcm_hw_params *params)
 {
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 	unsigned int mask = ADAU1701_SEROCTL_WORD_LEN_MASK;
 	unsigned int val;
 
-	switch (format) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		val = ADAU1701_SEROCTL_WORD_LEN_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		val = ADAU1701_SEROCTL_WORD_LEN_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		val = ADAU1701_SEROCTL_WORD_LEN_24;
 		break;
 	default:
@@ -320,14 +320,14 @@ static int adau1701_set_capture_pcm_format(struct snd_soc_codec *codec,
 	}
 
 	if (adau1701->dai_fmt == SND_SOC_DAIFMT_RIGHT_J) {
-		switch (format) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			val |= ADAU1701_SEROCTL_MSB_DEALY16;
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			val |= ADAU1701_SEROCTL_MSB_DEALY12;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
+		case 24:
 			val |= ADAU1701_SEROCTL_MSB_DEALY8;
 			break;
 		}
@@ -340,7 +340,7 @@ static int adau1701_set_capture_pcm_format(struct snd_soc_codec *codec,
 }
 
 static int adau1701_set_playback_pcm_format(struct snd_soc_codec *codec,
-			snd_pcm_format_t format)
+					    struct snd_pcm_hw_params *params)
 {
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
@@ -348,14 +348,14 @@ static int adau1701_set_playback_pcm_format(struct snd_soc_codec *codec,
 	if (adau1701->dai_fmt != SND_SOC_DAIFMT_RIGHT_J)
 		return 0;
 
-	switch (format) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		val = ADAU1701_SERICTL_RIGHTJ_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		val = ADAU1701_SERICTL_RIGHTJ_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		val = ADAU1701_SERICTL_RIGHTJ_24;
 		break;
 	default:
@@ -374,7 +374,6 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 	unsigned int clkdiv = adau1701->sysclk / params_rate(params);
-	snd_pcm_format_t format;
 	unsigned int val;
 	int ret;
 
@@ -406,11 +405,10 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(adau1701->regmap, ADAU1701_DSPCTRL,
 		ADAU1701_DSPCTRL_SR_MASK, val);
 
-	format = params_format(params);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return adau1701_set_playback_pcm_format(codec, format);
+		return adau1701_set_playback_pcm_format(codec, params);
 	else
-		return adau1701_set_capture_pcm_format(codec, format);
+		return adau1701_set_capture_pcm_format(codec, params);
 }
 
 static int adau1701_set_dai_fmt(struct snd_soc_dai *codec_dai,

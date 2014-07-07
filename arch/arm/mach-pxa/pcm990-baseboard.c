@@ -153,6 +153,7 @@ static struct platform_pwm_backlight_data pcm990_backlight_data = {
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
 	.pwm_period_ns	= 78770,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device pcm990_backlight_device = {
@@ -326,7 +327,7 @@ static int pcm990_mci_init(struct device *dev, irq_handler_t mci_detect_int,
 {
 	int err;
 
-	err = request_irq(PCM027_MMCDET_IRQ, mci_detect_int, IRQF_DISABLED,
+	err = request_irq(PCM027_MMCDET_IRQ, mci_detect_int, 0,
 			     "MMC card detect", data);
 	if (err)
 		printk(KERN_ERR "pcm990_mci_init: MMC/SD: can't request MMC "

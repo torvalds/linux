@@ -4,8 +4,8 @@
  * Licensed under the GPL-2.
  */
 
-#ifndef _BFIN_STAT_H
-#define _BFIN_STAT_H
+#ifndef _UAPI_BFIN_STAT_H
+#define _UAPI_BFIN_STAT_H
 
 struct stat {
 	unsigned short st_dev;
@@ -66,4 +66,4 @@ struct stat64 {
 	unsigned long long st_ino;
 };
 
-#endif				/* _BFIN_STAT_H */
+#endif /* _UAPI_BFIN_STAT_H */

@@ -127,8 +127,9 @@ struct plat_stmmacenet_data {
 	int riwt_off;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
-	int (*init)(struct platform_device *pdev);
-	void (*exit)(struct platform_device *pdev);
+	void *(*setup)(struct platform_device *pdev);
+	int (*init)(struct platform_device *pdev, void *priv);
+	void (*exit)(struct platform_device *pdev, void *priv);
 	void *custom_cfg;
 	void *custom_data;
 	void *bsp_priv;
@@ -160,7 +161,7 @@ Where:
  o pmt: core has the embedded power module (optional).
  o force_sf_dma_mode: force DMA to use the Store and Forward mode
 		     instead of the Threshold.
- o force_thresh_dma_mode: force DMA to use the Shreshold mode other than
+ o force_thresh_dma_mode: force DMA to use the Threshold mode other than
 		     the Store and Forward mode.
  o riwt_off: force to disable the RX watchdog feature and switch to NAPI mode.
  o fix_mac_speed: this callback is used for modifying some syscfg registers
@@ -169,13 +170,16 @@ Where:
  o bus_setup: perform HW setup of the bus. For example, on some ST platforms
 	     this field is used to configure the AMBA  bridge to generate more
 	     efficient STBus traffic.
- o init/exit: callbacks used for calling a custom initialization;
+ o setup/init/exit: callbacks used for calling a custom initialization;
 	     this is sometime necessary on some platforms (e.g. ST boxes)
 	     where the HW needs to have set some PIO lines or system cfg
-	     registers.
+	     registers. setup should return a pointer to private data,
+	     which will be stored in bsp_priv, and then passed to init and
+	     exit callbacks. init/exit callbacks should not use or modify
+	     platform data.
  o custom_cfg/custom_data: this is a custom configuration that can be passed
 			   while initializing the resources.
- o bsp_priv: another private poiter.
+ o bsp_priv: another private pointer.
 
 For MDIO bus The we have:
 
@@ -271,7 +275,7 @@ reset procedure etc).
  o dwmac1000_dma.c:  dma functions for the GMAC chip;
  o dwmac1000.h: specific header file for the GMAC;
  o dwmac100_core: MAC 100 core and dma code;
- o dwmac100_dma.c: dma funtions for the MAC chip;
+ o dwmac100_dma.c: dma functions for the MAC chip;
  o dwmac1000.h: specific header file for the MAC;
  o dwmac_lib.c: generic DMA functions shared among chips;
  o enh_desc.c: functions for handling enhanced descriptors;
@@ -364,4 +368,4 @@ Auto-negotiated Link Parter Ability.
 10) TODO:
  o XGMAC is not supported.
  o Complete the TBI & RTBI support.
- o extened VLAN support for 3.70a SYNP GMAC.
+ o extend VLAN support for 3.70a SYNP GMAC.

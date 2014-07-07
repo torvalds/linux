@@ -49,7 +49,7 @@
  * can't distinguish between a clean block that has been generated
  * from parity calculations, and a clean block that has been
  * successfully written to the spare ( or to parity when resyncing).
- * To distingush these states we have a stripe bit STRIPE_INSYNC that
+ * To distinguish these states we have a stripe bit STRIPE_INSYNC that
  * is set whenever a write is scheduled to the spare, or to the parity
  * disc if there is no spare.  A sync request clears this bit, and
  * when we find it set with no buffers locked, we know the sync is
@@ -205,6 +205,7 @@ struct stripe_head {
 	short			pd_idx;		/* parity disk index */
 	short			qd_idx;		/* 'Q' disk index for raid6 */
 	short			ddf_layout;/* use DDF ordering to calculate Q */
+	short			hash_lock_index;
 	unsigned long		state;		/* state flags */
 	atomic_t		count;	      /* nr of active thread/requests */
 	int			bm_seq;	/* sequence number for bitmap flushes */
@@ -231,7 +232,7 @@ struct stripe_head {
 		 */
 		struct bio	req, rreq;
 		struct bio_vec	vec, rvec;
-		struct page	*page;
+		struct page	*page, *orig_page;
 		struct bio	*toread, *read, *towrite, *written;
 		sector_t	sector;			/* sector of this page */
 		unsigned long	flags;
@@ -298,6 +299,7 @@ enum r5dev_flags {
 			 * data in, and now is a good time to write it out.
 			 */
 	R5_Discard,	/* Discard the stripe */
+	R5_SkipCopy,	/* Don't copy data from bio to stripe cache */
 };
 
 /*
@@ -367,9 +369,18 @@ struct disk_info {
 	struct md_rdev	*rdev, *replacement;
 };
 
+/* NOTE NR_STRIPE_HASH_LOCKS must remain below 64.
+ * This is because we sometimes take all the spinlocks
+ * and creating that much locking depth can cause
+ * problems.
+ */
+#define NR_STRIPE_HASH_LOCKS 8
+#define STRIPE_HASH_LOCKS_MASK (NR_STRIPE_HASH_LOCKS - 1)
+
 struct r5worker {
 	struct work_struct work;
 	struct r5worker_group *group;
+	struct list_head temp_inactive_list[NR_STRIPE_HASH_LOCKS];
 	bool working;
 };
 
@@ -382,6 +393,8 @@ struct r5worker_group {
 
 struct r5conf {
 	struct hlist_head	*stripe_hashtbl;
+	/* only protect corresponding hash list and inactive_list */
+	spinlock_t		hash_locks[NR_STRIPE_HASH_LOCKS];
 	struct mddev		*mddev;
 	int			chunk_sectors;
 	int			level, algorithm;
@@ -424,6 +437,7 @@ struct r5conf {
 	atomic_t		pending_full_writes; /* full write backlog */
 	int			bypass_count; /* bypassed prereads */
 	int			bypass_threshold; /* preread nice */
+	int			skip_copy; /* Don't copy data from bio to stripe cache */
 	struct list_head	*last_hold; /* detect hold_list promotions */
 
 	atomic_t		reshape_stripes; /* stripes with pending writes for reshape */
@@ -462,7 +476,8 @@ struct r5conf {
 	 * Free stripes pool
 	 */
 	atomic_t		active_stripes;
-	struct list_head	inactive_list;
+	struct list_head	inactive_list[NR_STRIPE_HASH_LOCKS];
+	atomic_t		empty_inactive_list_nr;
 	struct llist_head	released_stripes;
 	wait_queue_head_t	wait_for_stripe;
 	wait_queue_head_t	wait_for_overlap;
@@ -477,6 +492,7 @@ struct r5conf {
 	 * the new thread here until we fully activate the array.
 	 */
 	struct md_thread	*thread;
+	struct list_head	temp_inactive_list[NR_STRIPE_HASH_LOCKS];
 	struct r5worker_group	*worker_groups;
 	int			group_cnt;
 	int			worker_cnt_per_group;

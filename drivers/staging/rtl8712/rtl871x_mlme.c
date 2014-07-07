@@ -62,7 +62,8 @@ static sint _init_mlme_priv(struct _adapter *padapter)
 	_init_queue(&(pmlmepriv->scanned_queue));
 	set_scanned_network_val(pmlmepriv, 0);
 	memset(&pmlmepriv->assoc_ssid, 0, sizeof(struct ndis_802_11_ssid));
-	pbuf = _malloc(MAX_BSS_CNT * (sizeof(struct wlan_network)));
+	pbuf = kmalloc(MAX_BSS_CNT * (sizeof(struct wlan_network)),
+		       GFP_ATOMIC);
 	if (pbuf == NULL)
 		return _FAIL;
 	pmlmepriv->free_bss_buf = pbuf;
@@ -725,8 +726,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 	struct wlan_network *pnetwork;
 
 	if (sizeof(struct list_head) == 4 * sizeof(u32)) {
-		pnetwork = (struct wlan_network *)
-			_malloc(sizeof(struct wlan_network));
+		pnetwork = kmalloc(sizeof(struct wlan_network), GFP_ATOMIC);
 		memcpy((u8 *)pnetwork+16, (u8 *)pbuf + 8,
 			sizeof(struct wlan_network) - 16);
 	} else
@@ -1043,9 +1043,6 @@ void r8712_got_addbareq_event_callback(struct _adapter *adapter, u8 *pbuf)
 	struct	sta_priv *pstapriv = &adapter->stapriv;
 	struct	recv_reorder_ctrl *precvreorder_ctrl = NULL;
 
-	netdev_info(adapter->pnetdev, "%s: mac = %pM, seq = %d, tid = %d\n",
-		    __func__, pAddbareq_pram->MacAddress,
-	    pAddbareq_pram->StartSeqNum, pAddbareq_pram->tid);
 	psta = r8712_get_stainfo(pstapriv, pAddbareq_pram->MacAddress);
 	if (psta) {
 		precvreorder_ctrl =
@@ -1214,19 +1211,16 @@ sint r8712_set_auth(struct _adapter *adapter,
 	struct cmd_priv	*pcmdpriv = &adapter->cmdpriv;
 	struct cmd_obj *pcmd;
 	struct setauth_parm *psetauthparm;
-	sint ret = _SUCCESS;
 
-	pcmd = (struct cmd_obj *)_malloc(sizeof(struct cmd_obj));
+	pcmd = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return _FAIL;
 
-	psetauthparm = (struct setauth_parm *)_malloc(
-			sizeof(struct setauth_parm));
+	psetauthparm = kzalloc(sizeof(struct setauth_parm), GFP_ATOMIC);
 	if (psetauthparm == NULL) {
 		kfree((unsigned char *)pcmd);
 		return _FAIL;
 	}
-	memset(psetauthparm, 0, sizeof(struct setauth_parm));
 	psetauthparm->mode = (u8)psecuritypriv->AuthAlgrthm;
 	pcmd->cmdcode = _SetAuth_CMD_;
 	pcmd->parmbuf = (unsigned char *)psetauthparm;
@@ -1235,7 +1229,7 @@ sint r8712_set_auth(struct _adapter *adapter,
 	pcmd->rspsz = 0;
 	_init_listhead(&pcmd->list);
 	r8712_enqueue_cmd(pcmdpriv, pcmd);
-	return ret;
+	return _SUCCESS;
 }
 
 sint r8712_set_key(struct _adapter *adapter,
@@ -1246,16 +1240,16 @@ sint r8712_set_key(struct _adapter *adapter,
 	struct cmd_obj *pcmd;
 	struct setkey_parm *psetkeyparm;
 	u8 keylen;
+	sint ret = _SUCCESS;
 
-	pcmd = (struct cmd_obj *)_malloc(sizeof(struct cmd_obj));
+	pcmd = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return _FAIL;
-	psetkeyparm = (struct setkey_parm *)_malloc(sizeof(struct setkey_parm));
+	psetkeyparm = kzalloc(sizeof(struct setkey_parm), GFP_ATOMIC);
 	if (psetkeyparm == NULL) {
-		kfree((unsigned char *)pcmd);
-		return _FAIL;
+		ret = _FAIL;
+		goto err_free_cmd;
 	}
-	memset(psetkeyparm, 0, sizeof(struct setkey_parm));
 	if (psecuritypriv->AuthAlgrthm == 2) { /* 802.1X */
 		psetkeyparm->algorithm =
 			 (u8)psecuritypriv->XGrpPrivacy;
@@ -1277,23 +1271,28 @@ sint r8712_set_key(struct _adapter *adapter,
 			psecuritypriv->DefKey[keyid].skey, keylen);
 		break;
 	case _TKIP_:
-		if (keyid < 1 || keyid > 2)
-			return _FAIL;
+		if (keyid < 1 || keyid > 2) {
+			ret = _FAIL;
+			goto err_free_parm;
+		}
 		keylen = 16;
 		memcpy(psetkeyparm->key,
 			&psecuritypriv->XGrpKey[keyid - 1], keylen);
 		psetkeyparm->grpkey = 1;
 		break;
 	case _AES_:
-		if (keyid < 1 || keyid > 2)
-			return _FAIL;
+		if (keyid < 1 || keyid > 2) {
+			ret = _FAIL;
+			goto err_free_parm;
+		}
 		keylen = 16;
 		memcpy(psetkeyparm->key,
 			&psecuritypriv->XGrpKey[keyid - 1], keylen);
 		psetkeyparm->grpkey = 1;
 		break;
 	default:
-		return _FAIL;
+		ret = _FAIL;
+		goto err_free_parm;
 	}
 	pcmd->cmdcode = _SetKey_CMD_;
 	pcmd->parmbuf = (u8 *)psetkeyparm;
@@ -1302,7 +1301,13 @@ sint r8712_set_key(struct _adapter *adapter,
 	pcmd->rspsz = 0;
 	_init_listhead(&pcmd->list);
 	r8712_enqueue_cmd(pcmdpriv, pcmd);
-	return _SUCCESS;
+	return ret;
+
+err_free_parm:
+	kfree(psetkeyparm);
+err_free_cmd:
+	kfree(pcmd);
+	return ret;
 }
 
 /* adjust IEs for r8712_joinbss_cmd in WMM */
@@ -1641,7 +1646,7 @@ void r8712_update_registrypriv_dev_network(struct _adapter *adapter)
 	struct wlan_network	*cur_network = &adapter->mlmepriv.cur_network;
 
 	pdev_network->Privacy = cpu_to_le32(psecuritypriv->PrivacyAlgrthm
-					    > 0 ? 1 : 0) ; /* adhoc no 802.1x */
+					    > 0 ? 1 : 0); /* adhoc no 802.1x */
 	pdev_network->Rssi = 0;
 	switch (pregistrypriv->wireless_mode) {
 	case WIRELESS_11B:
@@ -1786,7 +1791,7 @@ static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 	psta = r8712_get_stainfo(&padapter->stapriv,
 				 pcur_network->network.MacAddress);
 	if (psta) {
-		for (i = 0; i < 16 ; i++) {
+		for (i = 0; i < 16; i++) {
 			preorder_ctrl = &psta->recvreorder_ctrl[i];
 			preorder_ctrl->indicate_seq = 0xffff;
 			preorder_ctrl->wend_b = 0xffff;

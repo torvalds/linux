@@ -66,13 +66,8 @@ int rv770_copy_dma(struct radeon_device *rdev,
 		return r;
 	}
 
-	if (radeon_fence_need_sync(*fence, ring->idx)) {
-		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
-					    ring->idx);
-		radeon_fence_note_sync(*fence, ring->idx);
-	} else {
-		radeon_semaphore_free(rdev, &sem, NULL);
-	}
+	radeon_semaphore_sync_to(sem, *fence);
+	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	for (i = 0; i < num_loops; i++) {
 		cur_size_in_dw = size_in_dw;
@@ -91,6 +86,7 @@ int rv770_copy_dma(struct radeon_device *rdev,
 	r = radeon_fence_emit(rdev, fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
+		radeon_semaphore_free(rdev, &sem, NULL);
 		return r;
 	}
 

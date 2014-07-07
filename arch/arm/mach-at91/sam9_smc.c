@@ -36,6 +36,7 @@ void sam9_smc_write_mode(int id, int cs,
 {
 	sam9_smc_cs_write_mode(AT91_SMC_CS(id, cs), config);
 }
+EXPORT_SYMBOL_GPL(sam9_smc_write_mode);
 
 static void sam9_smc_cs_configure(void __iomem *base,
 					struct sam9_smc_config *config)
@@ -69,6 +70,7 @@ void sam9_smc_configure(int id, int cs,
 {
 	sam9_smc_cs_configure(AT91_SMC_CS(id, cs), config);
 }
+EXPORT_SYMBOL_GPL(sam9_smc_configure);
 
 static void sam9_smc_cs_read_mode(void __iomem *base,
 					struct sam9_smc_config *config)
@@ -84,6 +86,7 @@ void sam9_smc_read_mode(int id, int cs,
 {
 	sam9_smc_cs_read_mode(AT91_SMC_CS(id, cs), config);
 }
+EXPORT_SYMBOL_GPL(sam9_smc_read_mode);
 
 static void sam9_smc_cs_read(void __iomem *base,
 					struct sam9_smc_config *config)
@@ -101,7 +104,7 @@ static void sam9_smc_cs_read(void __iomem *base,
 	/* Pulse register */
 	val = __raw_readl(base + AT91_SMC_PULSE);
 
-	config->nwe_setup = val & AT91_SMC_NWEPULSE;
+	config->nwe_pulse = val & AT91_SMC_NWEPULSE;
 	config->ncs_write_pulse = (val & AT91_SMC_NCS_WRPULSE) >> 8;
 	config->nrd_pulse = (val & AT91_SMC_NRDPULSE) >> 16;
 	config->ncs_read_pulse = (val & AT91_SMC_NCS_RDPULSE) >> 24;

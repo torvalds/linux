@@ -70,7 +70,7 @@ MPEG stream embedded, sliced VBI data format in this specification.
 Remote Controller chapter.</contrib>
 	<affiliation>
 	  <address>
-	    <email>mchehab@redhat.com</email>
+	    <email>m.chehab@samsung.com</email>
 	  </address>
 	</affiliation>
       </author>
@@ -107,6 +107,16 @@ Remote Controller chapter.</contrib>
 	  </address>
 	</affiliation>
       </author>
+      <author>
+	<firstname>Antti</firstname>
+	<surname>Palosaari</surname>
+	<contrib>SDR API.</contrib>
+	<affiliation>
+	  <address>
+	    <email>crope@iki.fi</email>
+	  </address>
+	</affiliation>
+      </author>
     </authorgroup>
 
     <copyright>
@@ -125,6 +135,7 @@ Remote Controller chapter.</contrib>
       <year>2011</year>
       <year>2012</year>
       <year>2013</year>
+      <year>2014</year>
       <holder>Bill Dirks, Michael H. Schimek, Hans Verkuil, Martin
 Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab,
 	Pawel Osciak</holder>
@@ -139,6 +150,24 @@ Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab,
 structs, ioctls) must be noted in more detail in the history chapter
 (compat.xml), along with the possible impact on existing drivers and
 applications. -->
+
+      <revision>
+	<revnumber>3.15</revnumber>
+	<date>2014-02-03</date>
+	<authorinitials>hv, ap</authorinitials>
+	<revremark>Update several sections of "Common API Elements": "Opening and Closing Devices"
+"Querying Capabilities", "Application Priority", "Video Inputs and Outputs", "Audio Inputs and Outputs"
+"Tuners and Modulators", "Video Standards" and "Digital Video (DV) Timings". Added SDR API.
+	</revremark>
+      </revision>
+
+      <revision>
+	<revnumber>3.14</revnumber>
+	<date>2013-11-25</date>
+	<authorinitials>rr</authorinitials>
+	<revremark>Set width and height as unsigned on v4l2_rect.
+	</revremark>
+      </revision>
 
       <revision>
 	<revnumber>3.11</revnumber>
@@ -501,7 +530,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.11</subtitle>
+ <subtitle>Revision 3.14</subtitle>
 
   <chapter id="common">
     &sub-common;
@@ -529,6 +558,7 @@ and discussions on the V4L mailing list.</revremark>
     <section id="ttx"> &sub-dev-teletext; </section>
     <section id="radio"> &sub-dev-radio; </section>
     <section id="rds"> &sub-dev-rds; </section>
+    <section id="sdr"> &sub-dev-sdr; </section>
     <section id="event"> &sub-dev-event; </section>
     <section id="subdev"> &sub-dev-subdev; </section>
   </chapter>
@@ -577,6 +607,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-g-crop;
     &sub-g-ctrl;
     &sub-g-dv-timings;
+    &sub-g-edid;
     &sub-g-enc-index;
     &sub-g-ext-ctrls;
     &sub-g-fbuf;
@@ -608,7 +639,6 @@ and discussions on the V4L mailing list.</revremark>
     &sub-subdev-enum-frame-size;
     &sub-subdev-enum-mbus-code;
     &sub-subdev-g-crop;
-    &sub-subdev-g-edid;
     &sub-subdev-g-fmt;
     &sub-subdev-g-frame-interval;
     &sub-subdev-g-selection;

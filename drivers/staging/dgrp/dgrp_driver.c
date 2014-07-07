@@ -23,7 +23,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/init.h>
 
 /*
  *  PortServer includes

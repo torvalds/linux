@@ -199,7 +199,6 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	/* Allocate memory for MTD device structure and private data */
 	new_mtd = kzalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
 	if (!new_mtd) {
-		printk(KERN_WARNING "Unable to allocate CS553X NAND MTD device structure.\n");
 		err = -ENOMEM;
 		goto out;
 	}

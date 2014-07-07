@@ -45,7 +45,9 @@
 /* Size of the original descriptors of the Driving Force (and Pro) wheels */
 #define DF_RDESC_ORIG_SIZE	130
 #define DFP_RDESC_ORIG_SIZE	97
+#define FV_RDESC_ORIG_SIZE	130
 #define MOMO_RDESC_ORIG_SIZE	87
+#define MOMO2_RDESC_ORIG_SIZE	87
 
 /* Fixed report descriptors for Logitech Driving Force (and Pro)
  * wheel controllers
@@ -170,6 +172,73 @@ static __u8 dfp_rdesc_fixed[] = {
 0xC0                /*  End Collection                          */
 };
 
+static __u8 fv_rdesc_fixed[] = {
+0x05, 0x01,         /*  Usage Page (Desktop),                   */
+0x09, 0x04,         /*  Usage (Joystik),                        */
+0xA1, 0x01,         /*  Collection (Application),               */
+0xA1, 0x02,         /*      Collection (Logical),               */
+0x95, 0x01,         /*          Report Count (1),               */
+0x75, 0x0A,         /*          Report Size (10),               */
+0x15, 0x00,         /*          Logical Minimum (0),            */
+0x26, 0xFF, 0x03,   /*          Logical Maximum (1023),         */
+0x35, 0x00,         /*          Physical Minimum (0),           */
+0x46, 0xFF, 0x03,   /*          Physical Maximum (1023),        */
+0x09, 0x30,         /*          Usage (X),                      */
+0x81, 0x02,         /*          Input (Variable),               */
+0x95, 0x0C,         /*          Report Count (12),              */
+0x75, 0x01,         /*          Report Size (1),                */
+0x25, 0x01,         /*          Logical Maximum (1),            */
+0x45, 0x01,         /*          Physical Maximum (1),           */
+0x05, 0x09,         /*          Usage Page (Button),            */
+0x19, 0x01,         /*          Usage Minimum (01h),            */
+0x29, 0x0C,         /*          Usage Maximum (0Ch),            */
+0x81, 0x02,         /*          Input (Variable),               */
+0x95, 0x02,         /*          Report Count (2),               */
+0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),             */
+0x09, 0x01,         /*          Usage (01h),                    */
+0x81, 0x02,         /*          Input (Variable),               */
+0x09, 0x02,         /*          Usage (02h),                    */
+0x26, 0xFF, 0x00,   /*          Logical Maximum (255),          */
+0x46, 0xFF, 0x00,   /*          Physical Maximum (255),         */
+0x95, 0x01,         /*          Report Count (1),               */
+0x75, 0x08,         /*          Report Size (8),                */
+0x81, 0x02,         /*          Input (Variable),               */
+0x05, 0x01,         /*          Usage Page (Desktop),           */
+0x25, 0x07,         /*          Logical Maximum (7),            */
+0x46, 0x3B, 0x01,   /*          Physical Maximum (315),         */
+0x75, 0x04,         /*          Report Size (4),                */
+0x65, 0x14,         /*          Unit (Degrees),                 */
+0x09, 0x39,         /*          Usage (Hat Switch),             */
+0x81, 0x42,         /*          Input (Variable, Null State),   */
+0x75, 0x01,         /*          Report Size (1),                */
+0x95, 0x04,         /*          Report Count (4),               */
+0x65, 0x00,         /*          Unit,                           */
+0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),             */
+0x09, 0x01,         /*          Usage (01h),                    */
+0x25, 0x01,         /*          Logical Maximum (1),            */
+0x45, 0x01,         /*          Physical Maximum (1),           */
+0x81, 0x02,         /*          Input (Variable),               */
+0x05, 0x01,         /*          Usage Page (Desktop),           */
+0x95, 0x01,         /*          Report Count (1),               */
+0x75, 0x08,         /*          Report Size (8),                */
+0x26, 0xFF, 0x00,   /*          Logical Maximum (255),          */
+0x46, 0xFF, 0x00,   /*          Physical Maximum (255),         */
+0x09, 0x31,         /*          Usage (Y),                      */
+0x81, 0x02,         /*          Input (Variable),               */
+0x09, 0x32,         /*          Usage (Z),                      */
+0x81, 0x02,         /*          Input (Variable),               */
+0xC0,               /*      End Collection,                     */
+0xA1, 0x02,         /*      Collection (Logical),               */
+0x26, 0xFF, 0x00,   /*          Logical Maximum (255),          */
+0x46, 0xFF, 0x00,   /*          Physical Maximum (255),         */
+0x95, 0x07,         /*          Report Count (7),               */
+0x75, 0x08,         /*          Report Size (8),                */
+0x09, 0x03,         /*          Usage (03h),                    */
+0x91, 0x02,         /*          Output (Variable),              */
+0xC0,               /*      End Collection,                     */
+0xC0                /*  End Collection                          */
+};
+
 static __u8 momo_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
 0x09, 0x04,         /*  Usage (Joystik),                    */
@@ -206,6 +275,54 @@ static __u8 momo_rdesc_fixed[] = {
 0x81, 0x02,         /*          Input (Variable),           */
 0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),         */
 0x09, 0x01,         /*          Usage (01h),                */
+0x81, 0x02,         /*          Input (Variable),           */
+0xC0,               /*      End Collection,                 */
+0xA1, 0x02,         /*      Collection (Logical),           */
+0x09, 0x02,         /*          Usage (02h),                */
+0x95, 0x07,         /*          Report Count (7),           */
+0x91, 0x02,         /*          Output (Variable),          */
+0xC0,               /*      End Collection,                 */
+0xC0                /*  End Collection                      */
+};
+
+static __u8 momo2_rdesc_fixed[] = {
+0x05, 0x01,         /*  Usage Page (Desktop),               */
+0x09, 0x04,         /*  Usage (Joystik),                    */
+0xA1, 0x01,         /*  Collection (Application),           */
+0xA1, 0x02,         /*      Collection (Logical),           */
+0x95, 0x01,         /*          Report Count (1),           */
+0x75, 0x0A,         /*          Report Size (10),           */
+0x15, 0x00,         /*          Logical Minimum (0),        */
+0x26, 0xFF, 0x03,   /*          Logical Maximum (1023),     */
+0x35, 0x00,         /*          Physical Minimum (0),       */
+0x46, 0xFF, 0x03,   /*          Physical Maximum (1023),    */
+0x09, 0x30,         /*          Usage (X),                  */
+0x81, 0x02,         /*          Input (Variable),           */
+0x95, 0x0A,         /*          Report Count (10),          */
+0x75, 0x01,         /*          Report Size (1),            */
+0x25, 0x01,         /*          Logical Maximum (1),        */
+0x45, 0x01,         /*          Physical Maximum (1),       */
+0x05, 0x09,         /*          Usage Page (Button),        */
+0x19, 0x01,         /*          Usage Minimum (01h),        */
+0x29, 0x0A,         /*          Usage Maximum (0Ah),        */
+0x81, 0x02,         /*          Input (Variable),           */
+0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),         */
+0x09, 0x00,         /*          Usage (00h),                */
+0x95, 0x04,         /*          Report Count (4),           */
+0x81, 0x02,         /*          Input (Variable),           */
+0x95, 0x01,         /*          Report Count (1),           */
+0x75, 0x08,         /*          Report Size (8),            */
+0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+0x46, 0xFF, 0x00,   /*          Physical Maximum (255),     */
+0x09, 0x01,         /*          Usage (01h),                */
+0x81, 0x02,         /*          Input (Variable),           */
+0x05, 0x01,         /*          Usage Page (Desktop),       */
+0x09, 0x31,         /*          Usage (Y),                  */
+0x81, 0x02,         /*          Input (Variable),           */
+0x09, 0x32,         /*          Usage (Z),                  */
+0x81, 0x02,         /*          Input (Variable),           */
+0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),         */
+0x09, 0x00,         /*          Usage (00h),                */
 0x81, 0x02,         /*          Input (Variable),           */
 0xC0,               /*      End Collection,                 */
 0xA1, 0x02,         /*      Collection (Logical),           */
@@ -272,6 +389,24 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 				"fixing up Logitech Momo Force (Red) report descriptor\n");
 			rdesc = momo_rdesc_fixed;
 			*rsize = sizeof(momo_rdesc_fixed);
+		}
+		break;
+
+	case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2:
+		if (*rsize == MOMO2_RDESC_ORIG_SIZE) {
+			hid_info(hdev,
+				"fixing up Logitech Momo Racing Force (Black) report descriptor\n");
+			rdesc = momo2_rdesc_fixed;
+			*rsize = sizeof(momo2_rdesc_fixed);
+		}
+		break;
+
+	case USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL:
+		if (*rsize == FV_RDESC_ORIG_SIZE) {
+			hid_info(hdev,
+				"fixing up Logitech Formula Vibration report descriptor\n");
+			rdesc = fv_rdesc_fixed;
+			*rsize = sizeof(fv_rdesc_fixed);
 		}
 		break;
 
@@ -492,6 +627,7 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		case USB_DEVICE_ID_LOGITECH_G27_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_WII_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2:
+		case USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL:
 			field->application = HID_GD_MULTIAXIS;
 			break;
 		default:
@@ -556,7 +692,8 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (hdev->product == USB_DEVICE_ID_LOGITECH_WII_WHEEL) {
 		unsigned char buf[] = { 0x00, 0xAF,  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-		ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+		ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 
 		if (ret >= 0) {
 			/* insert a little delay of 10 jiffies ~ 40ms */
@@ -568,7 +705,8 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			buf[1] = 0xB2;
 			get_random_bytes(&buf[2], 2);
 
-			ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+			ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 		}
 	}
 
@@ -622,6 +760,8 @@ static const struct hid_device_id lg_devices[] = {
 
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_EXTREME_3D),
 		.driver_data = LG_NOGET },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_DUAL_ACTION),
+		.driver_data = LG_NOGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL),
 		.driver_data = LG_NOGET | LG_FF4 },
 
@@ -639,6 +779,8 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_NOGET | LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2),
 		.driver_data = LG_FF4 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL),
+		.driver_data = LG_FF2 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G25_WHEEL),
 		.driver_data = LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_DFGT_WHEEL),

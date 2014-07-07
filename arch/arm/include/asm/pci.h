@@ -31,11 +31,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 }
 #endif /* CONFIG_PCI_DOMAINS */
 
-static inline void pcibios_penalize_isa_irq(int irq, int active)
-{
-	/* We don't do dynamic PCI IRQ allocation */
-}
-
 /*
  * The PCI address space does equal the physical memory address space.
  * The networking and block device layers use this boolean for bounce
@@ -57,12 +52,9 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
                                enum pci_mmap_state mmap_state, int write_combine);
 
-/*
- * Dummy implementation; always return 0.
- */
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
-	return 0;
+	return channel ? 15 : 14;
 }
 
 #endif /* __KERNEL__ */

@@ -156,12 +156,19 @@ static bool retransmits_timed_out(struct sock *sk,
 static int tcp_write_timeout(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	int retry_until;
 	bool do_reset, syn_set = false;
 
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
-		if (icsk->icsk_retransmits)
+		if (icsk->icsk_retransmits) {
 			dst_negative_advice(sk);
+			if (tp->syn_fastopen || tp->syn_data)
+				tcp_fastopen_cache_set(sk, 0, NULL, true);
+			if (tp->syn_data)
+				NET_INC_STATS_BH(sock_net(sk),
+						 LINUX_MIB_TCPFASTOPENACTIVEFAIL);
+		}
 		retry_until = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
 		syn_set = true;
 	} else {
@@ -374,9 +381,8 @@ void tcp_retransmit_timer(struct sock *sk)
 		}
 #if IS_ENABLED(CONFIG_IPV6)
 		else if (sk->sk_family == AF_INET6) {
-			struct ipv6_pinfo *np = inet6_sk(sk);
 			LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("Peer %pI6:%u/%u unexpectedly shrunk window %u:%u (repaired)\n"),
-				       &np->daddr,
+				       &sk->sk_v6_daddr,
 				       ntohs(inet->inet_dport), inet->inet_num,
 				       tp->snd_una, tp->snd_nxt);
 		}

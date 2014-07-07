@@ -21,6 +21,7 @@
 #include <arch/bitops.h>
 #include <linux/atomic.h>
 #include <linux/compiler.h>
+#include <asm/barrier.h>
 
 /*
  * set_bit - Atomically set a bit in memory
@@ -42,7 +43,7 @@
  *
  * clear_bit() is atomic and may not be reordered.  However, it does
  * not contain a memory barrier, so if it is used for locking purposes,
- * you should call smp_mb__before_clear_bit() and/or smp_mb__after_clear_bit()
+ * you should call smp_mb__before_atomic() and/or smp_mb__after_atomic()
  * in order to ensure changes are visible on other processors.
  */
 
@@ -83,12 +84,6 @@ static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
 	cris_atomic_restore(addr, flags);
 	return retval;
 }
-
-/*
- * clear_bit() doesn't provide any barrier for the compiler.
- */
-#define smp_mb__before_clear_bit()      barrier()
-#define smp_mb__after_clear_bit()       barrier()
 
 /**
  * test_and_clear_bit - Clear a bit and return its old value
@@ -144,7 +139,7 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
  * definition, which doesn't have the same semantics.  We don't want to
  * use -fno-builtin, so just hide the name ffs.
  */
-#define ffs kernel_ffs
+#define ffs(x) kernel_ffs(x)
 
 #include <asm-generic/bitops/fls.h>
 #include <asm-generic/bitops/__fls.h>

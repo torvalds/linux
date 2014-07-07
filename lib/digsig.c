@@ -175,10 +175,11 @@ err1:
  * digsig_verify() - digital signature verification with public key
  * @keyring:	keyring to search key in
  * @sig:	digital signature
- * @sigen:	length of the signature
+ * @siglen:	length of the signature
  * @data:	data
  * @datalen:	length of the data
- * @return:	0 on success, -EINVAL otherwise
+ *
+ * Returns 0 on success, -EINVAL otherwise
  *
  * Verifies data integrity against digital signature.
  * Currently only RSA is supported.
@@ -209,7 +210,7 @@ int digsig_verify(struct key *keyring, const char *sig, int siglen,
 		kref = keyring_search(make_key_ref(keyring, 1UL),
 						&key_type_user, name);
 		if (IS_ERR(kref))
-			key = ERR_PTR(PTR_ERR(kref));
+			key = ERR_CAST(kref);
 		else
 			key = key_ref_to_ptr(kref);
 	} else {

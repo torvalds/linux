@@ -285,7 +285,7 @@ static char channel_map_9636_ds[26] = {
 	/* ADAT channels are remapped */
 	1, 3, 5, 7, 9, 11, 13, 15,
 	/* channels 8 and 9 are S/PDIF */
-	24, 25
+	24, 25,
 	/* others don't exist */
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
@@ -294,10 +294,6 @@ static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer 
 {
 	dmab->dev.type = SNDRV_DMA_TYPE_DEV;
 	dmab->dev.dev = snd_dma_pci_data(pci);
-	if (snd_dma_get_reserved_buf(dmab, snd_dma_pci_buf_id(pci))) {
-		if (dmab->bytes >= size)
-			return 0;
-	}
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				size, dmab) < 0)
 		return -ENOMEM;
@@ -306,10 +302,8 @@ static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer 
 
 static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_dev *pci)
 {
-	if (dmab->area) {
-		dmab->dev.dev = NULL; /* make it anonymous */
-		snd_dma_reserve_buf(dmab, snd_dma_pci_buf_id(pci));
-	}
+	if (dmab->area)
+		snd_dma_free_pages(dmab);
 }
 
 
@@ -400,7 +394,9 @@ static snd_pcm_uframes_t rme9652_hw_pointer(struct snd_rme9652 *rme9652)
 	if (offset < period_size) {
 		if (offset > rme9652->max_jitter) {
 			if (frag)
-				printk(KERN_ERR "Unexpected hw_pointer position (bufid == 0): status: %x offset: %d\n", status, offset);
+				dev_err(rme9652->card->dev,
+					"Unexpected hw_pointer position (bufid == 0): status: %x offset: %d\n",
+					status, offset);
 		} else if (!frag)
 			return 0;
 		offset -= rme9652->max_jitter;
@@ -409,7 +405,9 @@ static snd_pcm_uframes_t rme9652_hw_pointer(struct snd_rme9652 *rme9652)
 	} else {
 		if (offset > period_size + rme9652->max_jitter) {
 			if (!frag)
-				printk(KERN_ERR "Unexpected hw_pointer position (bufid == 1): status: %x offset: %d\n", status, offset);
+				dev_err(rme9652->card->dev,
+					"Unexpected hw_pointer position (bufid == 1): status: %x offset: %d\n",
+					status, offset);
 		} else if (frag)
 			return period_size;
 		offset -= rme9652->max_jitter;
@@ -775,7 +773,8 @@ static inline int rme9652_spdif_sample_rate(struct snd_rme9652 *s)
 		break;
 
 	default:
-		snd_printk(KERN_ERR "%s: unknown S/PDIF input rate (bits = 0x%x)\n",
+		dev_err(s->card->dev,
+			"%s: unknown S/PDIF input rate (bits = 0x%x)\n",
 			   s->card_name, rate_bits);
 		return 0;
 		break;
@@ -1796,7 +1795,8 @@ static int snd_rme9652_initialize_memory(struct snd_rme9652 *rme9652)
 	    snd_hammerfall_get_buffer(rme9652->pci, &rme9652->playback_dma_buf, RME9652_DMA_AREA_BYTES) < 0) {
 		if (rme9652->capture_dma_buf.area)
 			snd_dma_free_pages(&rme9652->capture_dma_buf);
-		printk(KERN_ERR "%s: no buffers available\n", rme9652->card_name);
+		dev_err(rme9652->card->dev,
+			"%s: no buffers available\n", rme9652->card_name);
 		return -ENOMEM;
 	}
 
@@ -2474,13 +2474,14 @@ static int snd_rme9652_create(struct snd_card *card,
 	rme9652->port = pci_resource_start(pci, 0);
 	rme9652->iobase = ioremap_nocache(rme9652->port, RME9652_IO_EXTENT);
 	if (rme9652->iobase == NULL) {
-		snd_printk(KERN_ERR "unable to remap region 0x%lx-0x%lx\n", rme9652->port, rme9652->port + RME9652_IO_EXTENT - 1);
+		dev_err(card->dev, "unable to remap region 0x%lx-0x%lx\n",
+			rme9652->port, rme9652->port + RME9652_IO_EXTENT - 1);
 		return -EBUSY;
 	}
 	
 	if (request_irq(pci->irq, snd_rme9652_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, rme9652)) {
-		snd_printk(KERN_ERR "unable to request IRQ %d\n", pci->irq);
+		dev_err(card->dev, "unable to request IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
 	rme9652->irq = pci->irq;
@@ -2593,8 +2594,8 @@ static int snd_rme9652_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_rme9652), &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_rme9652), &card);
 
 	if (err < 0)
 		return err;
@@ -2603,7 +2604,6 @@ static int snd_rme9652_probe(struct pci_dev *pci,
 	card->private_free = snd_rme9652_card_free;
 	rme9652->dev = dev;
 	rme9652->pci = pci;
-	snd_card_set_dev(card, &pci->dev);
 
 	if ((err = snd_rme9652_create(card, rme9652, precise_ptr[dev])) < 0) {
 		snd_card_free(card);

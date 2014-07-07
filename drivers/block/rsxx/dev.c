@@ -174,7 +174,7 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 	if (!card)
 		goto req_err;
 
-	if (bio->bi_sector + (bio->bi_size >> 9) > get_capacity(card->gendisk))
+	if (bio_end_sector(bio) > get_capacity(card->gendisk))
 		goto req_err;
 
 	if (unlikely(card->halt)) {
@@ -187,7 +187,7 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 		goto req_err;
 	}
 
-	if (bio->bi_size == 0) {
+	if (bio->bi_iter.bi_size == 0) {
 		dev_err(CARD_TO_DEV(card), "size zero BIO!\n");
 		goto req_err;
 	}
@@ -208,7 +208,7 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 
 	dev_dbg(CARD_TO_DEV(card), "BIO[%c]: meta: %p addr8: x%llx size: %d\n",
 		 bio_data_dir(bio) ? 'W' : 'R', bio_meta,
-		 (u64)bio->bi_sector << 9, bio->bi_size);
+		 (u64)bio->bi_iter.bi_sector << 9, bio->bi_iter.bi_size);
 
 	st = rsxx_dma_queue_bio(card, bio, &bio_meta->pending_dmas,
 				    bio_dma_done_cb, bio_meta);
@@ -295,13 +295,15 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 		return -ENOMEM;
 	}
 
-	blk_size = card->config.data.block_size;
+	if (card->config_valid) {
+		blk_size = card->config.data.block_size;
+		blk_queue_dma_alignment(card->queue, blk_size - 1);
+		blk_queue_logical_block_size(card->queue, blk_size);
+	}
 
 	blk_queue_make_request(card->queue, rsxx_make_request);
 	blk_queue_bounce_limit(card->queue, BLK_BOUNCE_ANY);
-	blk_queue_dma_alignment(card->queue, blk_size - 1);
 	blk_queue_max_hw_sectors(card->queue, blkdev_max_hw_sectors);
-	blk_queue_logical_block_size(card->queue, blk_size);
 	blk_queue_physical_block_size(card->queue, RSXX_HW_BLK_SIZE);
 
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, card->queue);

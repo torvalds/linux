@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,7 +105,7 @@ acpi_ds_create_external_region(acpi_status lookup_status,
 	 * operation_region not found. Generate an External for it, and
 	 * insert the name into the namespace.
 	 */
-	acpi_dm_add_to_external_list(op, path, ACPI_TYPE_REGION, 0);
+	acpi_dm_add_op_to_external_list(op, path, ACPI_TYPE_REGION, 0, 0);
 	status = acpi_ns_lookup(walk_state->scope_info, path, ACPI_TYPE_REGION,
 				ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT,
 				walk_state, node);
@@ -259,7 +259,7 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 		goto cleanup;
 	}
 
-      cleanup:
+cleanup:
 
 	/* Remove local reference to the object */
 

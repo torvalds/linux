@@ -55,6 +55,7 @@
  * specific registers and some other data for resume.
  *  r0 = suspend function arg0
  *  r1 = suspend function
+ *  r2 = MPIDR value the resuming CPU will use
  */
 ENTRY(__cpu_suspend)
 	stmfd	sp!, {r4 - r11, lr}
@@ -67,23 +68,18 @@ ENTRY(__cpu_suspend)
 	mov	r5, sp			@ current virtual SP
 	add	r4, r4, #12		@ Space for pgd, virt sp, phys resume fn
 	sub	sp, sp, r4		@ allocate CPU state on stack
-	stmfd	sp!, {r0, r1}		@ save suspend func arg and pointer
-	add	r0, sp, #8		@ save pointer to save block
-	mov	r1, r4			@ size of save block
-	mov	r2, r5			@ virtual SP
 	ldr	r3, =sleep_save_sp
+	stmfd	sp!, {r0, r1}		@ save suspend func arg and pointer
 	ldr	r3, [r3, #SLEEP_SAVE_SP_VIRT]
-	ALT_SMP(mrc p15, 0, r9, c0, c0, 5)
-        ALT_UP_B(1f)
-	ldr	r8, =mpidr_hash
-	/*
-	 * This ldmia relies on the memory layout of the mpidr_hash
-	 * struct mpidr_hash.
-	 */
-	ldmia	r8, {r4-r7}	@ r4 = mpidr mask (r5,r6,r7) = l[0,1,2] shifts
-	compute_mpidr_hash	lr, r5, r6, r7, r9, r4
-	add	r3, r3, lr, lsl #2
-1:
+	ALT_SMP(ldr r0, =mpidr_hash)
+	ALT_UP_B(1f)
+	/* This ldmia relies on the memory layout of the mpidr_hash struct */
+	ldmia	r0, {r1, r6-r8}	@ r1 = mpidr mask (r6,r7,r8) = l[0,1,2] shifts
+	compute_mpidr_hash	r0, r6, r7, r8, r2, r1
+	add	r3, r3, r0, lsl #2
+1:	mov	r2, r5			@ virtual SP
+	mov	r1, r4			@ size of save block
+	add	r0, sp, #8		@ pointer to save block
 	bl	__cpu_suspend_save
 	adr	lr, BSYM(cpu_suspend_abort)
 	ldmfd	sp!, {r0, pc}		@ call suspend fn
@@ -130,6 +126,11 @@ ENDPROC(cpu_resume_after_mmu)
 	.data
 	.align
 ENTRY(cpu_resume)
+ARM_BE8(setend be)			@ ensure we are in BE mode
+#ifdef CONFIG_ARM_VIRT_EXT
+	bl	__hyp_stub_install_secondary
+#endif
+	safe_svcmode_maskall r1
 	mov	r1, #0
 	ALT_SMP(mrc p15, 0, r0, c0, c0, 5)
 	ALT_UP_B(1f)
@@ -147,7 +148,6 @@ ENTRY(cpu_resume)
 	ldr	r0, [r0, #SLEEP_SAVE_SP_PHYS]
 	ldr	r0, [r0, r1, lsl #2]
 
-	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set SVC, irqs off
 	@ load phys pgd, stack, resume fn
   ARM(	ldmia	r0!, {r1, sp, pc}	)
 THUMB(	ldmia	r0!, {r1, r2, r3}	)

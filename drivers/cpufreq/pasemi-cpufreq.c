@@ -28,6 +28,7 @@
 #include <linux/cpufreq.h>
 #include <linux/timer.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
 
 #include <asm/hw_irq.h>
 #include <asm/io.h>
@@ -51,8 +52,6 @@
 static void __iomem *sdcpwr_mapbase;
 static void __iomem *sdcasr_mapbase;
 
-static DEFINE_MUTEX(pas_switch_mutex);
-
 /* Current astate, is used when waking up from power savings on
  * one core, in case the other core has switched states during
  * the idle time.
@@ -61,17 +60,12 @@ static int current_astate;
 
 /* We support 5(A0-A4) power states excluding turbo(A5-A6) modes */
 static struct cpufreq_frequency_table pas_freqs[] = {
-	{0,	0},
-	{1,	0},
-	{2,	0},
-	{3,	0},
-	{4,	0},
-	{0,	CPUFREQ_TABLE_END},
-};
-
-static struct freq_attr *pas_cpu_freqs_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
+	{0, 0,	0},
+	{0, 1,	0},
+	{0, 2,	0},
+	{0, 3,	0},
+	{0, 4,	0},
+	{0, 0,	CPUFREQ_TABLE_END},
 };
 
 /*
@@ -142,9 +136,10 @@ void restore_astate(int cpu)
 
 static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
+	struct cpufreq_frequency_table *pos;
 	const u32 *max_freqp;
 	u32 max_freq;
-	int i, cur_astate;
+	int cur_astate;
 	struct resource res;
 	struct device_node *cpu, *dn;
 	int err = -ENODEV;
@@ -203,28 +198,18 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	pr_debug("initializing frequency table\n");
 
 	/* initialize frequency table */
-	for (i=0; pas_freqs[i].frequency!=CPUFREQ_TABLE_END; i++) {
-		pas_freqs[i].frequency =
-			get_astate_freq(pas_freqs[i].driver_data) * 100000;
-		pr_debug("%d: %d\n", i, pas_freqs[i].frequency);
+	cpufreq_for_each_entry(pos, pas_freqs) {
+		pos->frequency = get_astate_freq(pos->driver_data) * 100000;
+		pr_debug("%d: %d\n", (int)(pos - pas_freqs), pos->frequency);
 	}
-
-	policy->cpuinfo.transition_latency = get_gizmo_latency();
 
 	cur_astate = get_cur_astate(policy->cpu);
 	pr_debug("current astate is at %d\n",cur_astate);
 
 	policy->cur = pas_freqs[cur_astate].frequency;
-	cpumask_copy(policy->cpus, cpu_online_mask);
-
 	ppc_proc_freq = policy->cur * 1000ul;
 
-	cpufreq_frequency_table_get_attr(pas_freqs, policy->cpu);
-
-	/* this ensures that policy->cpuinfo_min and policy->cpuinfo_max
-	 * are set correctly
-	 */
-	return cpufreq_frequency_table_cpuinfo(policy, pas_freqs);
+	return cpufreq_generic_init(policy, pas_freqs, get_gizmo_latency());
 
 out_unmap_sdcpwr:
 	iounmap(sdcpwr_mapbase);
@@ -249,34 +234,13 @@ static int pas_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	if (sdcpwr_mapbase)
 		iounmap(sdcpwr_mapbase);
 
-	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
 }
 
-static int pas_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, pas_freqs);
-}
-
 static int pas_cpufreq_target(struct cpufreq_policy *policy,
-			      unsigned int target_freq,
-			      unsigned int relation)
+			      unsigned int pas_astate_new)
 {
-	struct cpufreq_freqs freqs;
-	int pas_astate_new;
 	int i;
-
-	cpufreq_frequency_table_target(policy,
-				       pas_freqs,
-				       target_freq,
-				       relation,
-				       &pas_astate_new);
-
-	freqs.old = policy->cur;
-	freqs.new = pas_freqs[pas_astate_new].frequency;
-
-	mutex_lock(&pas_switch_mutex);
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	pr_debug("setting frequency for cpu %d to %d kHz, 1/%d of max frequency\n",
 		 policy->cpu,
@@ -288,10 +252,7 @@ static int pas_cpufreq_target(struct cpufreq_policy *policy,
 	for_each_online_cpu(i)
 		set_astate(i, pas_astate_new);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	mutex_unlock(&pas_switch_mutex);
-
-	ppc_proc_freq = freqs.new * 1000ul;
+	ppc_proc_freq = pas_freqs[pas_astate_new].frequency * 1000ul;
 	return 0;
 }
 
@@ -300,9 +261,9 @@ static struct cpufreq_driver pas_cpufreq_driver = {
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= pas_cpufreq_cpu_init,
 	.exit		= pas_cpufreq_cpu_exit,
-	.verify		= pas_cpufreq_verify,
-	.target		= pas_cpufreq_target,
-	.attr		= pas_cpu_freqs_attr,
+	.verify		= cpufreq_generic_frequency_table_verify,
+	.target_index	= pas_cpufreq_target,
+	.attr		= cpufreq_generic_attr,
 };
 
 /*

@@ -422,7 +422,6 @@ static inline void falcon_irq_ack_a1(struct efx_nic *efx)
 	efx_readd(efx, &reg, FR_AA_WORK_AROUND_BROKEN_PCI_READS);
 }
 
-
 static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
@@ -467,6 +466,25 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 		efx_schedule_channel_irq(efx_get_channel(efx, 1));
 	return IRQ_HANDLED;
 }
+
+/**************************************************************************
+ *
+ * RSS
+ *
+ **************************************************************************
+ */
+
+static void falcon_b0_rx_push_rss_config(struct efx_nic *efx)
+{
+	efx_oword_t temp;
+
+	/* Set hash key for IPv4 */
+	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
+	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
+
+	efx_farch_rx_push_indir_table(efx);
+}
+
 /**************************************************************************
  *
  * EEPROM/flash
@@ -1340,6 +1358,7 @@ static void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	case 100:   link_speed = 1; break;
 	default:    link_speed = 0; break;
 	}
+
 	/* MAC_LINK_STATUS controls MAC backpressure but doesn't work
 	 * as advertised.  Disable to ensure packets are not
 	 * indefinitely held and TX queue can be flushed at any point
@@ -2164,7 +2183,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 	}
 
 	/* Read the MAC addresses */
-	memcpy(efx->net_dev->perm_addr, nvconfig->mac_address[0], ETH_ALEN);
+	ether_addr_copy(efx->net_dev->perm_addr, nvconfig->mac_address[0]);
 
 	netif_dbg(efx, probe, efx->net_dev, "PHY is %d phy_id %d\n",
 		  efx->phy_type, efx->mdio.prtad);
@@ -2246,6 +2265,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 	struct falcon_nic_data *nic_data;
 	struct falcon_board *board;
 	int rc;
+
+	efx->primary = efx; /* only one usable function per controller */
 
 	/* Allocate storage for hardware specific data */
 	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
@@ -2482,9 +2503,7 @@ static int falcon_init_nic(struct efx_nic *efx)
 	falcon_init_rx_cfg(efx);
 
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
-		/* Set hash key for IPv4 */
-		memcpy(&temp, efx->rx_hash_key, sizeof(temp));
-		efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
+		falcon_b0_rx_push_rss_config(efx);
 
 		/* Set destination of both TX and RX Flush events */
 		EFX_POPULATE_OWORD_1(temp, FRF_BZ_FLS_EVQ_ID, 0);
@@ -2593,6 +2612,14 @@ void falcon_start_nic_stats(struct efx_nic *efx)
 	spin_unlock_bh(&efx->stats_lock);
 }
 
+/* We don't acutally pull stats on falcon. Wait 10ms so that
+ * they arrive when we call this just after start_stats
+ */
+static void falcon_pull_nic_stats(struct efx_nic *efx)
+{
+	msleep(10);
+}
+
 void falcon_stop_nic_stats(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
@@ -2669,9 +2696,12 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
+	.prepare_flr = efx_port_dummy_op_void,
+	.finish_flr = efx_farch_finish_flr,
 	.describe_stats = falcon_describe_nic_stats,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
+	.pull_stats = falcon_pull_nic_stats,
 	.stop_stats = falcon_stop_nic_stats,
 	.set_id_led = falcon_set_id_led,
 	.push_irq_moderation = falcon_push_irq_moderation,
@@ -2692,7 +2722,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.tx_init = efx_farch_tx_init,
 	.tx_remove = efx_farch_tx_remove,
 	.tx_write = efx_farch_tx_write,
-	.rx_push_indir_table = efx_farch_rx_push_indir_table,
+	.rx_push_rss_config = efx_port_dummy_op_void,
 	.rx_probe = efx_farch_rx_probe,
 	.rx_init = efx_farch_rx_init,
 	.rx_remove = efx_farch_rx_remove,
@@ -2762,9 +2792,12 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
+	.prepare_flr = efx_port_dummy_op_void,
+	.finish_flr = efx_farch_finish_flr,
 	.describe_stats = falcon_describe_nic_stats,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
+	.pull_stats = falcon_pull_nic_stats,
 	.stop_stats = falcon_stop_nic_stats,
 	.set_id_led = falcon_set_id_led,
 	.push_irq_moderation = falcon_push_irq_moderation,
@@ -2786,7 +2819,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.tx_init = efx_farch_tx_init,
 	.tx_remove = efx_farch_tx_remove,
 	.tx_write = efx_farch_tx_write,
-	.rx_push_indir_table = efx_farch_rx_push_indir_table,
+	.rx_push_rss_config = falcon_b0_rx_push_rss_config,
 	.rx_probe = efx_farch_rx_probe,
 	.rx_init = efx_farch_rx_init,
 	.rx_remove = efx_farch_rx_remove,
@@ -2840,4 +2873,3 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.mcdi_max_ver = -1,
 	.max_rx_ip_filters = FR_BZ_RX_FILTER_TBL0_ROWS,
 };
-

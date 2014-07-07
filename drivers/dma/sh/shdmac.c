@@ -18,21 +18,22 @@
  *
  */
 
+#include <linux/delay.h>
+#include <linux/dmaengine.h>
+#include <linux/err.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kdebug.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
-#include <linux/dmaengine.h>
-#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/sh_dma.h>
-#include <linux/notifier.h>
-#include <linux/kdebug.h>
-#include <linux/spinlock.h>
 #include <linux/rculist.h>
+#include <linux/sh_dma.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
 
 #include "../dmaengine.h"
 #include "shdma.h"
@@ -443,6 +444,7 @@ static bool sh_dmae_reset(struct sh_dmae_device *shdev)
 	return ret;
 }
 
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARM)
 static irqreturn_t sh_dmae_err(int irq, void *data)
 {
 	struct sh_dmae_device *shdev = data;
@@ -453,6 +455,7 @@ static irqreturn_t sh_dmae_err(int irq, void *data)
 	sh_dmae_reset(shdev);
 	return IRQ_HANDLED;
 }
+#endif
 
 static bool sh_dmae_desc_completed(struct shdma_chan *schan,
 				   struct shdma_desc *sdesc)
@@ -637,7 +640,7 @@ static int sh_dmae_resume(struct device *dev)
 #define sh_dmae_resume NULL
 #endif
 
-const struct dev_pm_ops sh_dmae_pm = {
+static const struct dev_pm_ops sh_dmae_pm = {
 	.suspend		= sh_dmae_suspend,
 	.resume			= sh_dmae_resume,
 	.runtime_suspend	= sh_dmae_runtime_suspend,
@@ -685,9 +688,12 @@ MODULE_DEVICE_TABLE(of, sh_dmae_of_match);
 static int sh_dmae_probe(struct platform_device *pdev)
 {
 	const struct sh_dmae_pdata *pdata;
-	unsigned long irqflags = IRQF_DISABLED,
-		chan_flag[SH_DMAE_MAX_CHANNELS] = {};
-	int errirq, chan_irq[SH_DMAE_MAX_CHANNELS];
+	unsigned long chan_flag[SH_DMAE_MAX_CHANNELS] = {};
+	int chan_irq[SH_DMAE_MAX_CHANNELS];
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARM)
+	unsigned long irqflags = 0;
+	int errirq;
+#endif
 	int err, i, irq_cnt = 0, irqres = 0, irq_cap = 0;
 	struct sh_dmae_device *shdev;
 	struct dma_device *dma_dev;
@@ -838,7 +844,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 				    IORESOURCE_IRQ_SHAREABLE)
 					chan_flag[irq_cnt] = IRQF_SHARED;
 				else
-					chan_flag[irq_cnt] = IRQF_DISABLED;
+					chan_flag[irq_cnt] = 0;
 				dev_dbg(&pdev->dev,
 					"Found IRQ %d for channel %d\n",
 					i, irq_cnt);

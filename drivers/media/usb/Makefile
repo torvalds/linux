@@ -10,7 +10,6 @@ obj-$(CONFIG_USB_VIDEO_CLASS)	+= uvc/
 obj-$(CONFIG_USB_GSPCA)         += gspca/
 obj-$(CONFIG_USB_PWC)           += pwc/
 obj-$(CONFIG_VIDEO_CPIA2) += cpia2/
-obj-$(CONFIG_USB_SN9C102)       += sn9c102/
 obj-$(CONFIG_VIDEO_AU0828) += au0828/
 obj-$(CONFIG_VIDEO_HDPVR)	+= hdpvr/
 obj-$(CONFIG_VIDEO_PVRUSB2) += pvrusb2/

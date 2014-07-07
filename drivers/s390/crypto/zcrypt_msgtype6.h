@@ -32,6 +32,7 @@
 #define MSGTYPE06_NAME			"zcrypt_msgtype6"
 #define MSGTYPE06_VARIANT_DEFAULT	0
 #define MSGTYPE06_VARIANT_NORNG		1
+#define MSGTYPE06_VARIANT_EP11		2
 
 #define MSGTYPE06_MAX_MSG_SIZE		(12*1024)
 
@@ -99,6 +100,7 @@ struct type86_hdr {
 } __packed;
 
 #define TYPE86_RSP_CODE 0x86
+#define TYPE87_RSP_CODE 0x87
 #define TYPE86_FMT2	0x02
 
 struct type86_fmt2_ext {

@@ -1126,9 +1126,9 @@ bttv_crop_calc_limits(struct bttv_crop *c)
 		c->min_scaled_height = 32;
 	} else {
 		c->min_scaled_width =
-			(max(48, c->rect.width >> 4) + 3) & ~3;
+			(max_t(unsigned int, 48, c->rect.width >> 4) + 3) & ~3;
 		c->min_scaled_height =
-			max(32, c->rect.height >> 4);
+			max_t(unsigned int, 32, c->rect.height >> 4);
 	}
 
 	c->max_scaled_width  = c->rect.width & ~3;
@@ -1182,7 +1182,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 		break;
 	}
 	id = tvnorm->v4l2_id;
-	bttv_call_all(btv, core, s_std, id);
+	bttv_call_all(btv, video, s_std, id);
 
 	return 0;
 }
@@ -2024,7 +2024,7 @@ limit_scaled_size_lock       (struct bttv_fh *               fh,
 		/* We cannot scale up. When the scaled image is larger
 		   than crop.rect we adjust the crop.rect as required
 		   by the V4L2 spec, hence cropcap.bounds are our limit. */
-		max_width = min(b->width, (__s32) MAX_HACTIVE);
+		max_width = min_t(unsigned int, b->width, MAX_HACTIVE);
 		max_height = b->height;
 
 		/* We cannot capture the same line as video and VBI data.
@@ -3266,7 +3266,9 @@ static ssize_t radio_read(struct file *file, char __user *data,
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
 	struct saa6588_command cmd;
-	cmd.block_count = count/3;
+
+	cmd.block_count = count / 3;
+	cmd.nonblocking = file->f_flags & O_NONBLOCK;
 	cmd.buffer = data;
 	cmd.instance = file;
 	cmd.result = -ENODEV;
@@ -4086,7 +4088,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	/* disable irqs, register irq handler */
 	btwrite(0, BT848_INT_MASK);
 	result = request_irq(btv->c.pci->irq, bttv_irq,
-	    IRQF_SHARED | IRQF_DISABLED, btv->c.v4l2_dev.name, (void *)btv);
+	    IRQF_SHARED, btv->c.v4l2_dev.name, (void *)btv);
 	if (result < 0) {
 		pr_err("%d: can't get IRQ %d\n",
 		       bttv_num, btv->c.pci->irq);
@@ -4182,7 +4184,8 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	}
 	btv->std = V4L2_STD_PAL;
 	init_irqreg(btv);
-	v4l2_ctrl_handler_setup(hdl);
+	if (!bttv_tvcards[btv->c.type].no_video)
+		v4l2_ctrl_handler_setup(hdl);
 	if (hdl->error) {
 		result = hdl->error;
 		goto fail2;

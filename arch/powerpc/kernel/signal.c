@@ -134,7 +134,7 @@ static int do_signal(struct pt_regs *regs)
 	 */
 	if (current->thread.hw_brk.address &&
 		current->thread.hw_brk.type)
-		set_breakpoint(&current->thread.hw_brk);
+		__set_breakpoint(&current->thread.hw_brk);
 #endif
 	/* Re-enable the breakpoints for the signal stack */
 	thread_change_pc(current, regs);
@@ -203,8 +203,7 @@ unsigned long get_tm_stackpointer(struct pt_regs *regs)
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(regs->msr)) {
-		tm_enable();
-		tm_reclaim(&current->thread, regs->msr, TM_CAUSE_SIGNAL);
+		tm_reclaim_current(TM_CAUSE_SIGNAL);
 		if (MSR_TM_TRANSACTIONAL(regs->msr))
 			return current->thread.ckpt_regs.gpr[1];
 	}

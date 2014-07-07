@@ -73,6 +73,7 @@ Code  Seq#(hex)	Include File		Comments
 0x09	all	linux/raid/md_u.h
 0x10	00-0F	drivers/char/s390/vmcp.h
 0x10	10-1F	arch/s390/include/uapi/sclp_ctl.h
+0x10	20-2F	arch/s390/include/uapi/asm/hypfs.h
 0x12	all	linux/fs.h
 		linux/blkpg.h
 0x1b	all	InfiniBand Subsystem	<http://infiniband.sourceforge.net/>
@@ -138,6 +139,7 @@ Code  Seq#(hex)	Include File		Comments
 'H'	C0-DF	net/bluetooth/cmtp/cmtp.h	conflict!
 'H'	C0-DF	net/bluetooth/bnep/bnep.h	conflict!
 'H'	F1	linux/hid-roccat.h	<mailto:erazor_de@users.sourceforge.net>
+'H'	F8-FA	sound/firewire.h
 'I'	all	linux/isdn.h		conflict!
 'I'	00-0F	drivers/isdn/divert/isdn_divert.h	conflict!
 'I'	40-4F	linux/mISDNif.h		conflict!

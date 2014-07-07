@@ -356,6 +356,7 @@ static struct snd_soc_dapm_widget bells_widgets[] = {
 
 static struct snd_soc_dapm_route bells_routes[] = {
 	{ "Sub CLK_SYS", NULL, "OPCLK" },
+	{ "CLKIN", NULL, "OPCLK" },
 
 	{ "DMIC", NULL, "MICBIAS2" },
 	{ "IN2L", NULL, "DMIC" },
@@ -432,22 +433,13 @@ static int bells_probe(struct platform_device *pdev)
 
 	bells_cards[pdev->id].dev = &pdev->dev;
 
-	ret = snd_soc_register_card(&bells_cards[pdev->id]);
-	if (ret) {
+	ret = devm_snd_soc_register_card(&pdev->dev, &bells_cards[pdev->id]);
+	if (ret)
 		dev_err(&pdev->dev,
 			"snd_soc_register_card(%s) failed: %d\n",
 			bells_cards[pdev->id].name, ret);
-		return ret;
-	}
 
-	return 0;
-}
-
-static int bells_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&bells_cards[pdev->id]);
-
-	return 0;
+	return ret;
 }
 
 static struct platform_driver bells_driver = {
@@ -457,7 +449,6 @@ static struct platform_driver bells_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = bells_probe,
-	.remove = bells_remove,
 };
 
 module_platform_driver(bells_driver);

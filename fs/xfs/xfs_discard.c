@@ -17,22 +17,21 @@
  */
 #include "xfs.h"
 #include "xfs_format.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_quota.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
 #include "xfs_extent_busy.h"
 #include "xfs_discard.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 
 STATIC int
 xfs_trim_extents(
@@ -158,7 +157,7 @@ xfs_ioc_trim(
 	struct xfs_mount		*mp,
 	struct fstrim_range __user	*urange)
 {
-	struct request_queue	*q = mp->m_ddev_targp->bt_bdev->bd_disk->queue;
+	struct request_queue	*q = bdev_get_queue(mp->m_ddev_targp->bt_bdev);
 	unsigned int		granularity = q->limits.discard_granularity;
 	struct fstrim_range	range;
 	xfs_daddr_t		start, end, minlen;
@@ -181,7 +180,8 @@ xfs_ioc_trim(
 	 * matter as trimming blocks is an advisory interface.
 	 */
 	if (range.start >= XFS_FSB_TO_B(mp, mp->m_sb.sb_dblocks) ||
-	    range.minlen > XFS_FSB_TO_B(mp, XFS_ALLOC_AG_MAX_USABLE(mp)))
+	    range.minlen > XFS_FSB_TO_B(mp, XFS_ALLOC_AG_MAX_USABLE(mp)) ||
+	    range.len < mp->m_sb.sb_blocksize)
 		return -XFS_ERROR(EINVAL);
 
 	start = BTOBB(range.start);

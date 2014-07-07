@@ -44,8 +44,8 @@
 #include <linux/platform_device.h>
 
 #include <asm/mipsregs.h>
-
-/* fmn.h - For FMN credit configuration and registering fmn_handler.
+/*
+ * fmn.h - For FMN credit configuration and registering fmn_handler.
  * FMN is communication mechanism that allows processing agents within
  * XLR/XLS to communicate each other.
  */
@@ -90,7 +90,8 @@ static inline struct sk_buff *mac_get_skb_back_ptr(void *addr)
 {
 	struct sk_buff **back_ptr;
 
-	/* this function should be used only for newly allocated packets.
+	/*
+	 * this function should be used only for newly allocated packets.
 	 * It assumes the first cacheline is for the back pointer related
 	 * book keeping info.
 	 */
@@ -102,7 +103,8 @@ static inline void mac_put_skb_back_ptr(struct sk_buff *skb)
 {
 	struct sk_buff **back_ptr = (struct sk_buff **)skb->data;
 
-	/* this function should be used only for newly allocated packets.
+	/*
+	 * this function should be used only for newly allocated packets.
 	 * It assumes the first cacheline is for the back pointer related
 	 * book keeping info.
 	 */
@@ -266,6 +268,7 @@ static void xlr_make_tx_desc(struct nlm_fmn_msg *msg, unsigned long addr,
 	unsigned long physkb = virt_to_phys(skb);
 	int cpu_core = nlm_core_id();
 	int fr_stn_id = cpu_core * 8 + XLR_FB_STN;	/* FB to 6th bucket */
+
 	msg->msg0 = (((u64)1 << 63)	|	/* End of packet descriptor */
 		((u64)127 << 54)	|	/* No Free back */
 		(u64)skb->len << 40	|	/* Length of data */
@@ -304,7 +307,9 @@ static netdev_tx_t xlr_net_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static u16 xlr_net_select_queue(struct net_device *ndev, struct sk_buff *skb)
+static u16 xlr_net_select_queue(struct net_device *ndev, struct sk_buff *skb,
+				void *accel_priv,
+				select_queue_fallback_t fallback)
 {
 	return (u16)smp_processor_id();
 }
@@ -500,8 +505,10 @@ static void xlr_config_fifo_spill_area(struct xlr_net_priv *priv)
 			sizeof(u64));
 }
 
-/* Configure PDE to Round-Robin distribution of packets to the
- * available cpu */
+/*
+ * Configure PDE to Round-Robin distribution of packets to the
+ * available cpu
+ */
 static void xlr_config_pde(struct xlr_net_priv *priv)
 {
 	int i = 0;
@@ -528,8 +535,10 @@ static void xlr_config_pde(struct xlr_net_priv *priv)
 			((bkt_map >> 32) & 0xffffffff));
 }
 
-/* Setup the Message ring credits, bucket size and other
- * common configuration */
+/*
+ * Setup the Message ring credits, bucket size and other
+ * common configuration
+ */
 static void xlr_config_common(struct xlr_net_priv *priv)
 {
 	struct xlr_fmn_info *gmac = priv->nd->gmac_fmn_info;
@@ -545,8 +554,10 @@ static void xlr_config_common(struct xlr_net_priv *priv)
 				bucket_size[i]);
 	}
 
-	/* Setting non-core Credit counter register
-	 * Distributing Gmac's credit to CPU's*/
+	/*
+	 * Setting non-core Credit counter register
+	 * Distributing Gmac's credit to CPU's
+	 */
 	for (i = 0; i < 8; i++) {
 		for (j = 0; j < 8; j++)
 			xlr_nae_wreg(priv->base_addr,
@@ -593,7 +604,8 @@ static void xlr_config_translate_table(struct xlr_net_priv *priv)
 	c1 = 3;
 	c2 = 0;
 	for (i = 0; i < 64; i++) {
-		/* On use_bkt set the b0, b1 are used, else
+		/*
+		 * On use_bkt set the b0, b1 are used, else
 		 * the 4 classes are used, here implemented
 		 * a logic to distribute the packets to the
 		 * buckets equally or based on the class
@@ -604,8 +616,6 @@ static void xlr_config_translate_table(struct xlr_net_priv *priv)
 		k = (k + 1) % j;
 		b2 = bkts[k];
 		k = (k + 1) % j;
-		val = ((c1 << 23) | (b1 << 17) | (use_bkt << 16) |
-				(c2 << 7) | (b2 << 1) | (use_bkt << 0));
 
 		val = ((c1 << 23) | (b1 << 17) | (use_bkt << 16) |
 				(c2 << 7) | (b2 << 1) | (use_bkt << 0));
@@ -736,7 +746,8 @@ static int xlr_mii_read(struct mii_bus *bus, int phy_addr, int regnum)
 	return ret;
 }
 
-/* XLR ports are RGMII. XLS ports are SGMII mostly except the port0,
+/*
+ * XLR ports are RGMII. XLS ports are SGMII mostly except the port0,
  * which can be configured either SGMII or RGMII, considered SGMII
  * by default, if board setup to RGMII the port_type need to set
  * accordingly.Serdes and PCS layer need to configured for SGMII
@@ -881,6 +892,11 @@ static int xlr_setup_mdio(struct xlr_net_priv *priv,
 	priv->mii_bus->write = xlr_mii_write;
 	priv->mii_bus->parent = &pdev->dev;
 	priv->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	if (priv->mii_bus->irq == NULL) {
+		pr_err("irq alloc failed\n");
+		mdiobus_free(priv->mii_bus);
+		return -ENOMEM;
+	}
 	priv->mii_bus->irq[priv->phy_addr] = priv->ndev->irq;
 
 	/* Scan only the enabled address */
@@ -1051,7 +1067,7 @@ static int xlr_net_probe(struct platform_device *pdev)
 	xlr_set_rx_mode(ndev);
 
 	priv->num_rx_desc += MAX_NUM_DESC_SPILL;
-	SET_ETHTOOL_OPS(ndev, &xlr_ethtool_ops);
+	ndev->ethtool_ops = &xlr_ethtool_ops;
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	/* Common registers, do one time initialization */

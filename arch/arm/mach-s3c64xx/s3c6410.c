@@ -10,6 +10,10 @@
  * published by the Free Software Foundation.
 */
 
+/*
+ * NOTE: Code in this file is not used when booting with Device Tree support.
+ */
+
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -20,7 +24,9 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -30,7 +36,6 @@
 #include <asm/irq.h>
 
 #include <plat/cpu-freq.h>
-#include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
@@ -62,13 +67,6 @@ void __init s3c6410_map_io(void)
 	s3c_cfcon_setname("s3c64xx-pata");
 }
 
-void __init s3c6410_init_clocks(int xtal)
-{
-	printk(KERN_DEBUG "%s: initialising clocks\n", __func__);
-	s3c64xx_register_clocks(xtal, S3C6410_CLKDIV0_ARM_MASK);
-	s3c64xx_setup_clocks();
-}
-
 void __init s3c6410_init_irq(void)
 {
 	/* VIC0 is missing IRQ7, VIC1 is fully populated. */
@@ -86,6 +84,10 @@ static struct device s3c6410_dev = {
 
 static int __init s3c6410_core_init(void)
 {
+	/* Not applicable when using DT. */
+	if (of_have_populated_dt())
+		return 0;
+
 	return subsys_system_register(&s3c6410_subsys, NULL);
 }
 

@@ -20,6 +20,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -80,10 +81,10 @@ ixdp425_flash_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 
 	if (ctrl & NAND_CTRL_CHANGE) {
 		if (ctrl & NAND_NCE) {
-			gpio_line_set(IXDP425_NAND_NCE_PIN, IXP4XX_GPIO_LOW);
+			gpio_set_value(IXDP425_NAND_NCE_PIN, 0);
 			udelay(5);
 		} else
-			gpio_line_set(IXDP425_NAND_NCE_PIN, IXP4XX_GPIO_HIGH);
+			gpio_set_value(IXDP425_NAND_NCE_PIN, 1);
 
 		offset = (ctrl & NAND_CLE) ? IXDP425_NAND_CMD_BYTE : 0;
 		offset |= (ctrl & NAND_ALE) ? IXDP425_NAND_ADDR_BYTE : 0;
@@ -227,7 +228,8 @@ static void __init ixdp425_init(void)
 	ixdp425_flash_nand_resource.start = IXP4XX_EXP_BUS_BASE(3),
 	ixdp425_flash_nand_resource.end   = IXP4XX_EXP_BUS_BASE(3) + 0x10 - 1;
 
-	gpio_line_config(IXDP425_NAND_NCE_PIN, IXP4XX_GPIO_OUT);
+	gpio_request(IXDP425_NAND_NCE_PIN, "NAND NCE pin");
+	gpio_direction_output(IXDP425_NAND_NCE_PIN, 0);
 
 	/* Configure expansion bus for NAND Flash */
 	*IXP4XX_EXP_CS3 = IXP4XX_EXP_BUS_CS_EN |

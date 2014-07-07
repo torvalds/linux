@@ -87,7 +87,9 @@ static long acpi_processor_ffh_cstate_probe_cpu(void *_cx)
 	num_cstate_subtype = edx_part & MWAIT_SUBSTATE_MASK;
 
 	retval = 0;
-	if (num_cstate_subtype < (cx->address & MWAIT_SUBSTATE_MASK)) {
+	/* If the HW does not support any sub-states in this C-state */
+	if (num_cstate_subtype == 0) {
+		pr_warn(FW_BUG "ACPI MWAIT C-state 0x%x not supported by HW (0x%x)\n", cx->address, edx_part);
 		retval = -1;
 		goto out;
 	}
@@ -149,29 +151,6 @@ int acpi_processor_ffh_cstate_probe(unsigned int cpu,
 	return retval;
 }
 EXPORT_SYMBOL_GPL(acpi_processor_ffh_cstate_probe);
-
-/*
- * This uses new MONITOR/MWAIT instructions on P4 processors with PNI,
- * which can obviate IPI to trigger checking of need_resched.
- * We execute MONITOR against need_resched and enter optimized wait state
- * through MWAIT. Whenever someone changes need_resched, we would be woken
- * up from MWAIT (without an IPI).
- *
- * New with Core Duo processors, MWAIT can take some hints based on CPU
- * capability.
- */
-void mwait_idle_with_hints(unsigned long ax, unsigned long cx)
-{
-	if (!need_resched()) {
-		if (this_cpu_has(X86_FEATURE_CLFLUSH_MONITOR))
-			clflush((void *)&current_thread_info()->flags);
-
-		__monitor((void *)&current_thread_info()->flags, 0, 0);
-		smp_mb();
-		if (!need_resched())
-			__mwait(ax, cx);
-	}
-}
 
 void acpi_processor_ffh_cstate_enter(struct acpi_processor_cx *cx)
 {

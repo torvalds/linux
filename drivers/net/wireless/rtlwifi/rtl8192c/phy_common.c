@@ -592,36 +592,6 @@ long _rtl92c_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(_rtl92c_phy_txpwr_idx_to_dbm);
 
-void rtl92c_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	enum io_type iotype;
-
-	if (!is_hal_stop(rtlhal)) {
-		switch (operation) {
-		case SCAN_OPT_BACKUP:
-			iotype = IO_CMD_PAUSE_DM_BY_SCAN;
-			rtlpriv->cfg->ops->set_hw_reg(hw,
-						      HW_VAR_IO_CMD,
-						      (u8 *)&iotype);
-
-			break;
-		case SCAN_OPT_RESTORE:
-			iotype = IO_CMD_RESUME_DM_BY_SCAN;
-			rtlpriv->cfg->ops->set_hw_reg(hw,
-						      HW_VAR_IO_CMD,
-						      (u8 *)&iotype);
-			break;
-		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Unknown Scan Backup operation\n");
-			break;
-		}
-	}
-}
-EXPORT_SYMBOL(rtl92c_phy_scan_operation_backup);
-
 void rtl92c_phy_set_bw_mode(struct ieee80211_hw *hw,
 			    enum nl80211_channel_type ch_type)
 {
@@ -1177,6 +1147,12 @@ static void _rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw,
 		0x522, 0x550, 0x551, 0x040
 	};
 
+	u32 iqk_bb_reg_92C[9] = {
+		0xc04, 0xc08, 0x874, 0xb68,
+		0xb6c, 0x870, 0x860, 0x864,
+		0x800
+	};
+
 	const u32 retrycount = 2;
 
 	if (t == 0) {
@@ -1187,6 +1163,8 @@ static void _rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw,
 						rtlphy->adda_backup, 16);
 		_rtl92c_phy_save_mac_registers(hw, iqk_mac_reg,
 					       rtlphy->iqk_mac_backup);
+		_rtl92c_phy_save_adda_registers(hw, iqk_bb_reg_92C,
+						rtlphy->iqk_bb_backup, 9);
 	}
 	_rtl92c_phy_path_adda_on(hw, adda_reg, true, is2t);
 	if (t == 0) {
@@ -1197,14 +1175,18 @@ static void _rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw,
 
 	if (!rtlphy->rfpi_enable)
 		_rtl92c_phy_pi_mode_switch(hw, true);
-	if (t == 0) {
-		rtlphy->reg_c04 = rtl_get_bbreg(hw, 0xc04, MASKDWORD);
-		rtlphy->reg_c08 = rtl_get_bbreg(hw, 0xc08, MASKDWORD);
-		rtlphy->reg_874 = rtl_get_bbreg(hw, 0x874, MASKDWORD);
-	}
+
+	rtl_set_bbreg(hw, 0x800, BIT(24), 0x0);
+
 	rtl_set_bbreg(hw, 0xc04, MASKDWORD, 0x03a05600);
 	rtl_set_bbreg(hw, 0xc08, MASKDWORD, 0x000800e4);
 	rtl_set_bbreg(hw, 0x874, MASKDWORD, 0x22204000);
+
+	rtl_set_bbreg(hw, 0x870, BIT(10), 0x1);
+	rtl_set_bbreg(hw, 0x870, BIT(26), 0x1);
+	rtl_set_bbreg(hw, 0x860, BIT(10), 0x0);
+	rtl_set_bbreg(hw, 0x864, BIT(10), 0x0);
+
 	if (is2t) {
 		rtl_set_bbreg(hw, 0x840, MASKDWORD, 0x00010000);
 		rtl_set_bbreg(hw, 0x844, MASKDWORD, 0x00010000);
@@ -1269,13 +1251,9 @@ static void _rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw,
 					0x3FF0000) >> 16;
 		}
 	}
-	rtl_set_bbreg(hw, 0xc04, MASKDWORD, rtlphy->reg_c04);
-	rtl_set_bbreg(hw, 0x874, MASKDWORD, rtlphy->reg_874);
-	rtl_set_bbreg(hw, 0xc08, MASKDWORD, rtlphy->reg_c08);
+
 	rtl_set_bbreg(hw, 0xe28, MASKDWORD, 0);
-	rtl_set_bbreg(hw, 0x840, MASKDWORD, 0x00032ed3);
-	if (is2t)
-		rtl_set_bbreg(hw, 0x844, MASKDWORD, 0x00032ed3);
+
 	if (t != 0) {
 		if (!rtlphy->rfpi_enable)
 			_rtl92c_phy_pi_mode_switch(hw, false);
@@ -1283,6 +1261,15 @@ static void _rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw,
 						  rtlphy->adda_backup, 16);
 		_rtl92c_phy_reload_mac_registers(hw, iqk_mac_reg,
 						 rtlphy->iqk_mac_backup);
+		_rtl92c_phy_reload_adda_registers(hw, iqk_bb_reg_92C,
+						  rtlphy->iqk_bb_backup, 9);
+
+		rtl_set_bbreg(hw, 0x840, MASKDWORD, 0x00032ed3);
+		if (is2t)
+			rtl_set_bbreg(hw, 0x844, MASKDWORD, 0x00032ed3);
+
+		rtl_set_bbreg(hw, 0xe30, MASKDWORD, 0x01008c00);
+		rtl_set_bbreg(hw, 0xe34, MASKDWORD, 0x01008c00);
 	}
 }
 

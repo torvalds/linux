@@ -43,7 +43,7 @@
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
-// static int          msglevel                =MSG_LEVEL_INFO;
+
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -75,8 +75,8 @@ bool WCTLbIsDuplicate(PSCache pCache, PS802_11Header pMACHeader)
 		for (ii = 0; ii < DUPLICATE_RX_CACHE_LENGTH; ii++) {
 			pCacheEntry = &(pCache->asCacheEntry[uIndex]);
 			if ((pCacheEntry->wFmSequence == pMACHeader->wSeqCtl) &&
-			    (!compare_ether_addr(&(pCacheEntry->abyAddr2[0]), &(pMACHeader->abyAddr2[0])))
-) {
+			    ether_addr_equal(pCacheEntry->abyAddr2,
+					     pMACHeader->abyAddr2)) {
 				/* Duplicate match */
 				return true;
 			}
@@ -110,10 +110,9 @@ unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 	unsigned int ii;
 
 	for (ii = 0; ii < pDevice->cbDFCB; ii++) {
-		if ((pDevice->sRxDFCB[ii].bInUse == true) &&
-		    (!compare_ether_addr(&(pDevice->sRxDFCB[ii].abyAddr2[0]), &(pMACHeader->abyAddr2[0])))
-) {
-			//
+		if (pDevice->sRxDFCB[ii].bInUse &&
+		    ether_addr_equal(pDevice->sRxDFCB[ii].abyAddr2,
+				     pMACHeader->abyAddr2)) {
 			return ii;
 		}
 	}
@@ -141,7 +140,7 @@ unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 	if (pDevice->cbFreeDFCB == 0)
 		return pDevice->cbDFCB;
 	for (ii = 0; ii < pDevice->cbDFCB; ii++) {
-		if (pDevice->sRxDFCB[ii].bInUse == false) {
+		if (!pDevice->sRxDFCB[ii].bInUse) {
 			pDevice->cbFreeDFCB--;
 			pDevice->sRxDFCB[ii].uLifetime = pDevice->dwMaxReceiveLifetime;
 			pDevice->sRxDFCB[ii].bInUse = true;
@@ -174,7 +173,7 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 {
 	unsigned int uHeaderSize;
 
-	if (bWEP == true) {
+	if (bWEP) {
 		uHeaderSize = 28;
 		if (bExtIV)
 			// ExtIV
@@ -192,9 +191,8 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 			pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum = (pMACHeader->wSeqCtl & 0x000F);
 		} else {
 			pDevice->uCurrentDFCBIdx = WCTLuInsertDFCB(pDevice, pMACHeader);
-			if (pDevice->uCurrentDFCBIdx == pDevice->cbDFCB) {
+			if (pDevice->uCurrentDFCBIdx == pDevice->cbDFCB)
 				return false;
-			}
 		}
 		// reserve 4 byte to match MAC RX Buffer
 		pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer = (unsigned char *)(pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].skb->data + 4);
@@ -202,7 +200,6 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 		pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength = cbFrameLength;
 		pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer += cbFrameLength;
 		pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum++;
-		//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "First pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
 		return false;
 	} else {
 		pDevice->uCurrentDFCBIdx = WCTLuSearchDFCB(pDevice, pMACHeader);
@@ -214,7 +211,6 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 				pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength += (cbFrameLength - uHeaderSize);
 				pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer += (cbFrameLength - uHeaderSize);
 				pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum++;
-				//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Second pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
 			} else {
 				// seq error or frag # error flush DFCB
 				pDevice->cbFreeDFCB++;
@@ -228,7 +224,6 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 			//enq defragcontrolblock
 			pDevice->cbFreeDFCB++;
 			pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].bInUse = false;
-			//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Last pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
 			return true;
 		}
 		return false;

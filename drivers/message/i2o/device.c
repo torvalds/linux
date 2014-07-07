@@ -138,45 +138,55 @@ static void i2o_device_release(struct device *dev)
 }
 
 /**
- *	i2o_device_show_class_id - Displays class id of I2O device
+ *	class_id_show - Displays class id of I2O device
  *	@dev: device of which the class id should be displayed
  *	@attr: pointer to device attribute
  *	@buf: buffer into which the class id should be printed
  *
  *	Returns the number of bytes which are printed into the buffer.
  */
-static ssize_t i2o_device_show_class_id(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t class_id_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
 
 	sprintf(buf, "0x%03x\n", i2o_dev->lct_data.class_id);
 	return strlen(buf) + 1;
 }
+static DEVICE_ATTR_RO(class_id);
 
 /**
- *	i2o_device_show_tid - Displays TID of I2O device
+ *	tid_show - Displays TID of I2O device
  *	@dev: device of which the TID should be displayed
  *	@attr: pointer to device attribute
  *	@buf: buffer into which the TID should be printed
  *
  *	Returns the number of bytes which are printed into the buffer.
  */
-static ssize_t i2o_device_show_tid(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t tid_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
 
 	sprintf(buf, "0x%03x\n", i2o_dev->lct_data.tid);
 	return strlen(buf) + 1;
 }
+static DEVICE_ATTR_RO(tid);
 
 /* I2O device attributes */
-struct device_attribute i2o_device_attrs[] = {
-	__ATTR(class_id, S_IRUGO, i2o_device_show_class_id, NULL),
-	__ATTR(tid, S_IRUGO, i2o_device_show_tid, NULL),
-	__ATTR_NULL
+static struct attribute *i2o_device_attrs[] = {
+	&dev_attr_class_id.attr,
+	&dev_attr_tid.attr,
+	NULL,
+};
+
+static const struct attribute_group i2o_device_group = {
+	.attrs = i2o_device_attrs,
+};
+
+const struct attribute_group *i2o_device_groups[] = {
+	&i2o_device_group,
+	NULL,
 };
 
 /**

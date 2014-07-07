@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project.
  *
@@ -33,8 +33,8 @@
 #include "iwl-io.h"
 #include "iwl-csr.h"
 #include "iwl-debug.h"
+#include "iwl-prph.h"
 #include "iwl-fh.h"
-#include "iwl-csr.h"
 
 #define IWL_POLL_INTERVAL 10	/* microseconds */
 
@@ -94,14 +94,14 @@ int iwl_poll_direct_bit(struct iwl_trans *trans, u32 addr, u32 mask,
 }
 IWL_EXPORT_SYMBOL(iwl_poll_direct_bit);
 
-static inline u32 __iwl_read_prph(struct iwl_trans *trans, u32 ofs)
+u32 __iwl_read_prph(struct iwl_trans *trans, u32 ofs)
 {
 	u32 val = iwl_trans_read_prph(trans, ofs);
 	trace_iwlwifi_dev_ioread_prph32(trans->dev, ofs, val);
 	return val;
 }
 
-static inline void __iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
+void __iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
 {
 	trace_iwlwifi_dev_iowrite_prph32(trans->dev, ofs, val);
 	iwl_trans_write_prph(trans, ofs, val);
@@ -130,6 +130,21 @@ void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_write_prph);
+
+int iwl_poll_prph_bit(struct iwl_trans *trans, u32 addr,
+		      u32 bits, u32 mask, int timeout)
+{
+	int t = 0;
+
+	do {
+		if ((iwl_read_prph(trans, addr) & mask) == (bits & mask))
+			return t;
+		udelay(IWL_POLL_INTERVAL);
+		t += IWL_POLL_INTERVAL;
+	} while (t < timeout);
+
+	return -ETIMEDOUT;
+}
 
 void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 {
@@ -168,6 +183,23 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_clear_bits_prph);
+
+void iwl_force_nmi(struct iwl_trans *trans)
+{
+	/*
+	 * In HW previous to the 8000 HW family, and in the 8000 HW family
+	 * itself when the revision step==0, the DEVICE_SET_NMI_REG is used
+	 * to force an NMI. Otherwise, a different register -
+	 * DEVICE_SET_NMI_8000B_REG - is used.
+	 */
+	if ((trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) ||
+	    ((trans->hw_rev & 0xc) == 0x0))
+		iwl_write_prph(trans, DEVICE_SET_NMI_REG, DEVICE_SET_NMI_VAL);
+	else
+		iwl_write_prph(trans, DEVICE_SET_NMI_8000B_REG,
+			       DEVICE_SET_NMI_8000B_VAL);
+}
+IWL_EXPORT_SYMBOL(iwl_force_nmi);
 
 static const char *get_fh_string(int cmd)
 {

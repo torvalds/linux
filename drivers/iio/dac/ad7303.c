@@ -92,7 +92,7 @@ static ssize_t ad7303_write_dac_powerdown(struct iio_dev *indio_dev,
 	ad7303_write(st, chan->channel, st->dac_cache[chan->channel]);
 
 	mutex_unlock(&indio_dev->mlock);
-	return ret ? ret : len;
+	return len;
 }
 
 static int ad7303_get_vref(struct ad7303_state *st,
@@ -169,6 +169,7 @@ static const struct iio_chan_spec_ext_info ad7303_ext_info[] = {
 		.name = "powerdown",
 		.read = ad7303_read_dac_powerdown,
 		.write = ad7303_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
 	{ },
 };

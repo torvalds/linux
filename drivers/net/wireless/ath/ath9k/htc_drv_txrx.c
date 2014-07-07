@@ -471,8 +471,11 @@ static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
 	if (!txok || !vif || !txs)
 		goto send_mac80211;
 
-	if (txs->ts_flags & ATH9K_HTC_TXSTAT_ACK)
+	if (txs->ts_flags & ATH9K_HTC_TXSTAT_ACK) {
 		tx_info->flags |= IEEE80211_TX_STAT_ACK;
+		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU)
+			tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
+	}
 
 	if (txs->ts_flags & ATH9K_HTC_TXSTAT_FILT)
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
@@ -924,46 +927,43 @@ static void ath9k_htc_opmode_init(struct ath9k_htc_priv *priv)
 
 void ath9k_host_rx_init(struct ath9k_htc_priv *priv)
 {
+	struct ath_common *common = ath9k_hw_common(priv->ah);
 	ath9k_hw_rxena(priv->ah);
 	ath9k_htc_opmode_init(priv);
-	ath9k_hw_startpcureceive(priv->ah, test_bit(OP_SCANNING, &priv->op_flags));
-	priv->rx.last_rssi = ATH_RSSI_DUMMY_MARKER;
+	ath9k_hw_startpcureceive(priv->ah, test_bit(ATH_OP_SCANNING, &common->op_flags));
 }
 
-static void ath9k_process_rate(struct ieee80211_hw *hw,
-			       struct ieee80211_rx_status *rxs,
-			       u8 rx_rate, u8 rs_flags)
+static inline void convert_htc_flag(struct ath_rx_status *rx_stats,
+				   struct ath_htc_rx_status *rxstatus)
 {
-	struct ieee80211_supported_band *sband;
-	enum ieee80211_band band;
-	unsigned int i = 0;
+	rx_stats->flag = 0;
+	if (rxstatus->rs_flags & ATH9K_RX_2040)
+		rx_stats->flag |= RX_FLAG_40MHZ;
+	if (rxstatus->rs_flags & ATH9K_RX_GI)
+		rx_stats->flag |= RX_FLAG_SHORT_GI;
+}
 
-	if (rx_rate & 0x80) {
-		/* HT rate */
-		rxs->flag |= RX_FLAG_HT;
-		if (rs_flags & ATH9K_RX_2040)
-			rxs->flag |= RX_FLAG_40MHZ;
-		if (rs_flags & ATH9K_RX_GI)
-			rxs->flag |= RX_FLAG_SHORT_GI;
-		rxs->rate_idx = rx_rate & 0x7f;
-		return;
-	}
+static void rx_status_htc_to_ath(struct ath_rx_status *rx_stats,
+				 struct ath_htc_rx_status *rxstatus)
+{
+	rx_stats->rs_datalen	= rxstatus->rs_datalen;
+	rx_stats->rs_status	= rxstatus->rs_status;
+	rx_stats->rs_phyerr	= rxstatus->rs_phyerr;
+	rx_stats->rs_rssi	= rxstatus->rs_rssi;
+	rx_stats->rs_keyix	= rxstatus->rs_keyix;
+	rx_stats->rs_rate	= rxstatus->rs_rate;
+	rx_stats->rs_antenna	= rxstatus->rs_antenna;
+	rx_stats->rs_more	= rxstatus->rs_more;
 
-	band = hw->conf.chandef.chan->band;
-	sband = hw->wiphy->bands[band];
+	memcpy(rx_stats->rs_rssi_ctl, rxstatus->rs_rssi_ctl,
+		sizeof(rx_stats->rs_rssi_ctl));
+	memcpy(rx_stats->rs_rssi_ext, rxstatus->rs_rssi_ext,
+		sizeof(rx_stats->rs_rssi_ext));
 
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if (sband->bitrates[i].hw_value == rx_rate) {
-			rxs->rate_idx = i;
-			return;
-		}
-		if (sband->bitrates[i].hw_value_short == rx_rate) {
-			rxs->rate_idx = i;
-			rxs->flag |= RX_FLAG_SHORTPRE;
-			return;
-		}
-	}
-
+	rx_stats->rs_isaggr	= rxstatus->rs_isaggr;
+	rx_stats->rs_moreaggr	= rxstatus->rs_moreaggr;
+	rx_stats->rs_num_delims	= rxstatus->rs_num_delims;
+	convert_htc_flag(rx_stats, rxstatus);
 }
 
 static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
@@ -975,10 +975,10 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct ieee80211_hw *hw = priv->hw;
 	struct sk_buff *skb = rxbuf->skb;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath_hw *ah = common->ah;
 	struct ath_htc_rx_status *rxstatus;
-	int hdrlen, padsize;
-	int last_rssi = ATH_RSSI_DUMMY_MARKER;
-	__le16 fc;
+	struct ath_rx_status rx_stats;
+	bool decrypt_error;
 
 	if (skb->len < HTC_RX_FRAME_HEADER_SIZE) {
 		ath_err(common, "Corrupted RX frame, dropping (len: %d)\n",
@@ -996,108 +996,41 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 		goto rx_next;
 	}
 
-	ath9k_htc_err_stat_rx(priv, rxstatus);
-
 	/* Get the RX status information */
-	memcpy(&rxbuf->rxstatus, rxstatus, HTC_RX_FRAME_HEADER_SIZE);
-	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-	fc = hdr->frame_control;
-	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-
-	padsize = hdrlen & 3;
-	if (padsize && skb->len >= hdrlen+padsize+FCS_LEN) {
-		memmove(skb->data + padsize, skb->data, hdrlen);
-		skb_pull(skb, padsize);
-	}
 
 	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
-	if (rxbuf->rxstatus.rs_status != 0) {
-		if (rxbuf->rxstatus.rs_status & ATH9K_RXERR_CRC)
-			rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-		if (rxbuf->rxstatus.rs_status & ATH9K_RXERR_PHY)
-			goto rx_next;
+	/* Copy everything from ath_htc_rx_status (HTC_RX_FRAME_HEADER).
+	 * After this, we can drop this part of skb. */
+	rx_status_htc_to_ath(&rx_stats, rxstatus);
+	ath9k_htc_err_stat_rx(priv, &rx_stats);
+	rx_status->mactime = be64_to_cpu(rxstatus->rs_tstamp);
+	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
 
-		if (rxbuf->rxstatus.rs_status & ATH9K_RXERR_DECRYPT) {
-			/* FIXME */
-		} else if (rxbuf->rxstatus.rs_status & ATH9K_RXERR_MIC) {
-			if (ieee80211_is_ctl(fc))
-				/*
-				 * Sometimes, we get invalid
-				 * MIC failures on valid control frames.
-				 * Remove these mic errors.
-				 */
-				rxbuf->rxstatus.rs_status &= ~ATH9K_RXERR_MIC;
-			else
-				rx_status->flag |= RX_FLAG_MMIC_ERROR;
-		}
+	/*
+	 * everything but the rate is checked here, the rate check is done
+	 * separately to avoid doing two lookups for a rate for each frame.
+	 */
+	hdr = (struct ieee80211_hdr *)skb->data;
+	if (!ath9k_cmn_rx_accept(common, hdr, rx_status, &rx_stats,
+			&decrypt_error, priv->rxfilter))
+		goto rx_next;
 
-		/*
-		 * Reject error frames with the exception of
-		 * decryption and MIC failures. For monitor mode,
-		 * we also ignore the CRC error.
-		 */
-		if (priv->ah->opmode == NL80211_IFTYPE_MONITOR) {
-			if (rxbuf->rxstatus.rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
-			      ATH9K_RXERR_CRC))
-				goto rx_next;
-		} else {
-			if (rxbuf->rxstatus.rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
-				goto rx_next;
-			}
-		}
-	}
+	ath9k_cmn_rx_skb_postprocess(common, skb, &rx_stats,
+				     rx_status, decrypt_error);
 
-	if (!(rxbuf->rxstatus.rs_status & ATH9K_RXERR_DECRYPT)) {
-		u8 keyix;
-		keyix = rxbuf->rxstatus.rs_keyix;
-		if (keyix != ATH9K_RXKEYIX_INVALID) {
-			rx_status->flag |= RX_FLAG_DECRYPTED;
-		} else if (ieee80211_has_protected(fc) &&
-			   skb->len >= hdrlen + 4) {
-			keyix = skb->data[hdrlen + 3] >> 6;
-			if (test_bit(keyix, common->keymap))
-				rx_status->flag |= RX_FLAG_DECRYPTED;
-		}
-	}
+	if (ath9k_cmn_process_rate(common, hw, &rx_stats, rx_status))
+		goto rx_next;
 
-	ath9k_process_rate(hw, rx_status, rxbuf->rxstatus.rs_rate,
-			   rxbuf->rxstatus.rs_flags);
+	rx_stats.is_mybeacon = ath_is_mybeacon(common, hdr);
+	ath9k_cmn_process_rssi(common, hw, &rx_stats, rx_status);
 
-	if (rxbuf->rxstatus.rs_rssi != ATH9K_RSSI_BAD &&
-	    !rxbuf->rxstatus.rs_moreaggr)
-		ATH_RSSI_LPF(priv->rx.last_rssi,
-			     rxbuf->rxstatus.rs_rssi);
-
-	last_rssi = priv->rx.last_rssi;
-
-	if (ieee80211_is_beacon(hdr->frame_control) &&
-	    !is_zero_ether_addr(common->curbssid) &&
-	    ether_addr_equal(hdr->addr3, common->curbssid)) {
-		s8 rssi = rxbuf->rxstatus.rs_rssi;
-
-		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-			rssi = ATH_EP_RND(last_rssi, ATH_RSSI_EP_MULTIPLIER);
-
-		if (rssi < 0)
-			rssi = 0;
-
-		priv->ah->stats.avgbrssi = rssi;
-	}
-
-	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
-	rx_status->band = hw->conf.chandef.chan->band;
-	rx_status->freq = hw->conf.chandef.chan->center_freq;
-	rx_status->signal =  rxbuf->rxstatus.rs_rssi + ATH_DEFAULT_NOISE_FLOOR;
-	rx_status->antenna = rxbuf->rxstatus.rs_antenna;
+	rx_status->band = ah->curchan->chan->band;
+	rx_status->freq = ah->curchan->chan->center_freq;
+	rx_status->antenna = rx_stats.rs_antenna;
 	rx_status->flag |= RX_FLAG_MACTIME_END;
 
 	return true;
-
 rx_next:
 	return false;
 }

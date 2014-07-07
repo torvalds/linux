@@ -42,7 +42,6 @@
 
 /**
  * struct p9_rdir - readdir accounting
- * @mutex: mutex protecting readdir
  * @head: start offset of current dirread buffer
  * @tail: end offset of current dirread buffer
  * @buf: dirread buffer

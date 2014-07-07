@@ -210,8 +210,8 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 	sim_data.nvclk_khz = NVClk;
 	sim_data.bpp = bpp;
 	sim_data.two_heads = nv_two_heads(dev);
-	if ((dev->pci_device & 0xffff) == 0x01a0 /*CHIPSET_NFORCE*/ ||
-	    (dev->pci_device & 0xffff) == 0x01f0 /*CHIPSET_NFORCE2*/) {
+	if ((dev->pdev->device & 0xffff) == 0x01a0 /*CHIPSET_NFORCE*/ ||
+	    (dev->pdev->device & 0xffff) == 0x01f0 /*CHIPSET_NFORCE2*/) {
 		uint32_t type;
 
 		pci_read_config_dword(pci_get_bus_and_slot(0, 1), 0x7c, &type);
@@ -256,8 +256,8 @@ nouveau_calc_arb(struct drm_device *dev, int vclk, int bpp, int *burst, int *lwm
 
 	if (nv_device(drm->device)->card_type < NV_20)
 		nv04_update_arb(dev, vclk, bpp, burst, lwm);
-	else if ((dev->pci_device & 0xfff0) == 0x0240 /*CHIPSET_C51*/ ||
-		 (dev->pci_device & 0xfff0) == 0x03d0 /*CHIPSET_C512*/) {
+	else if ((dev->pdev->device & 0xfff0) == 0x0240 /*CHIPSET_C51*/ ||
+		 (dev->pdev->device & 0xfff0) == 0x03d0 /*CHIPSET_C512*/) {
 		*burst = 128;
 		*lwm = 0x0480;
 	} else

@@ -30,8 +30,7 @@
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/err.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
+#include <linux/acpi.h>
 
 #define ACPI_POWER_METER_NAME		"power_meter"
 ACPI_MODULE_NAME(ACPI_POWER_METER_NAME);
@@ -381,8 +380,10 @@ static ssize_t show_str(struct device *dev,
 		val = resource->oem_info;
 		break;
 	default:
-		BUG();
+		WARN(1, "Implementation error: unexpected attribute index %d\n",
+		     attr->index);
 		val = "";
+		break;
 	}
 
 	return sprintf(buf, "%s\n", val);
@@ -436,7 +437,9 @@ static ssize_t show_val(struct device *dev,
 		val = resource->trip[attr->index - 7] * 1000;
 		break;
 	default:
-		BUG();
+		WARN(1, "Implementation error: unexpected attribute index %d\n",
+		     attr->index);
+		break;
 	}
 
 	return sprintf(buf, "%llu\n", val);
@@ -598,9 +601,8 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 
 		/* Create a symlink to domain objects */
 		resource->domain_devices[i] = NULL;
-		status = acpi_bus_get_device(element->reference.handle,
-					     &resource->domain_devices[i]);
-		if (ACPI_FAILURE(status))
+		if (acpi_bus_get_device(element->reference.handle,
+					&resource->domain_devices[i]))
 			continue;
 
 		obj = resource->domain_devices[i];
@@ -855,7 +857,8 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 		dev_info(&device->dev, "Capping in progress.\n");
 		break;
 	default:
-		BUG();
+		WARN(1, "Unexpected event %d\n", event);
+		break;
 	}
 	mutex_unlock(&resource->lock);
 
@@ -991,7 +994,7 @@ static int __init acpi_power_meter_init(void)
 
 	result = acpi_bus_register_driver(&acpi_power_meter_driver);
 	if (result < 0)
-		return -ENODEV;
+		return result;
 
 	return 0;
 }

@@ -240,3 +240,42 @@ void v4l2_clk_unregister(struct v4l2_clk *clk)
 	kfree(clk);
 }
 EXPORT_SYMBOL(v4l2_clk_unregister);
+
+struct v4l2_clk_fixed {
+	unsigned long rate;
+	struct v4l2_clk_ops ops;
+};
+
+static unsigned long fixed_get_rate(struct v4l2_clk *clk)
+{
+	struct v4l2_clk_fixed *priv = clk->priv;
+	return priv->rate;
+}
+
+struct v4l2_clk *__v4l2_clk_register_fixed(const char *dev_id,
+		const char *id, unsigned long rate, struct module *owner)
+{
+	struct v4l2_clk *clk;
+	struct v4l2_clk_fixed *priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+
+	if (!priv)
+		return ERR_PTR(-ENOMEM);
+
+	priv->rate = rate;
+	priv->ops.get_rate = fixed_get_rate;
+	priv->ops.owner = owner;
+
+	clk = v4l2_clk_register(&priv->ops, dev_id, id, priv);
+	if (IS_ERR(clk))
+		kfree(priv);
+
+	return clk;
+}
+EXPORT_SYMBOL(__v4l2_clk_register_fixed);
+
+void v4l2_clk_unregister_fixed(struct v4l2_clk *clk)
+{
+	kfree(clk->priv);
+	v4l2_clk_unregister(clk);
+}
+EXPORT_SYMBOL(v4l2_clk_unregister_fixed);

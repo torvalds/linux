@@ -43,7 +43,7 @@
 
 #define UNSET (-1U)
 
-#define PREFIX (t->i2c->driver->driver.name)
+#define PREFIX (t->i2c->dev.driver->name)
 
 /*
  * Driver modprobe parameters
@@ -247,7 +247,7 @@ static const struct analog_demod_ops tuner_analog_ops = {
 /**
  * set_type - Sets the tuner type for a given device
  *
- * @c:			i2c_client descriptoy
+ * @c:			i2c_client descriptor
  * @type:		type of the tuner (e. g. tuner number)
  * @new_mode_mask:	Indicates if tuner supports TV and/or Radio
  * @new_config:		an optional parameter used by a few tuners to adjust
@@ -452,7 +452,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	tuner_dbg("%s %s I2C addr 0x%02x with type %d used for 0x%02x\n",
-		  c->adapter->name, c->driver->driver.name, c->addr << 1, type,
+		  c->adapter->name, c->dev.driver->name, c->addr << 1, type,
 		  t->mode_mask);
 	return;
 
@@ -556,7 +556,7 @@ static void tuner_lookup(struct i2c_adapter *adap,
 		int mode_mask;
 
 		if (pos->i2c->adapter != adap ||
-		    strcmp(pos->i2c->driver->driver.name, "tuner"))
+		    strcmp(pos->i2c->dev.driver->name, "tuner"))
 			continue;
 
 		mode_mask = pos->mode_mask;
@@ -1301,7 +1301,6 @@ static int tuner_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 static const struct v4l2_subdev_core_ops tuner_core_ops = {
 	.log_status = tuner_log_status,
-	.s_std = tuner_s_std,
 	.s_power = tuner_s_power,
 };
 
@@ -1315,9 +1314,14 @@ static const struct v4l2_subdev_tuner_ops tuner_tuner_ops = {
 	.s_config = tuner_s_config,
 };
 
+static const struct v4l2_subdev_video_ops tuner_video_ops = {
+	.s_std = tuner_s_std,
+};
+
 static const struct v4l2_subdev_ops tuner_ops = {
 	.core = &tuner_core_ops,
 	.tuner = &tuner_tuner_ops,
+	.video = &tuner_video_ops,
 };
 
 /*

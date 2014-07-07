@@ -1,3 +1,16 @@
+Release Date    : Mon. Mar 10, 2014 17:00:00 PST 2014 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+			Kashyap Desai
+			Sumit Saxena
+Current Version : 06.803.01.00-rc1
+Old Version     : 06.700.06.00-rc1
+    1. Load correct raid context timeout value for multipathing & clustering.
+    2. Fix megasas_ioc_init_fusion to use local stack variable.
+    3. Return leaked MPT frames to MPT command pool.
+    4. Add Dell PowerEdge VRTX SR-IOV VF device support.
+    5. Version and Changelog update.
+-------------------------------------------------------------------------------
 Release Date    : Sat. Aug 31, 2013 17:00:00 PST 2013 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

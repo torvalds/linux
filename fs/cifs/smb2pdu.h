@@ -122,6 +122,23 @@ struct smb2_pdu {
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
 } __packed;
 
+struct smb2_transform_hdr {
+	__be32 smb2_buf_length;	/* big endian on wire */
+				/* length is only two or three bytes - with
+				 one or two byte type preceding it that MBZ */
+	__u8   ProtocolId[4];	/* 0xFD 'S' 'M' 'B' */
+	__u8   Signature[16];
+	__u8   Nonce[11];
+	__u8   Reserved[5];
+	__le32 OriginalMessageSize;
+	__u16  Reserved1;
+	__le16 EncryptionAlgorithm;
+	__u64  SessionId;
+} __packed;
+
+/* Encryption Algorithms */
+#define SMB2_ENCRYPTION_AES128_CCM	__constant_cpu_to_le16(0x0001)
+
 /*
  *	SMB2 flag definitions
  */
@@ -165,8 +182,6 @@ struct smb2_symlink_err_rsp {
 } __packed;
 
 #define SMB2_CLIENT_GUID_SIZE 16
-
-extern __u8 cifs_client_guid[SMB2_CLIENT_GUID_SIZE];
 
 struct smb2_negotiate_req {
 	struct smb2_hdr hdr;
@@ -237,6 +252,7 @@ struct smb2_sess_setup_req {
 /* Currently defined SessionFlags */
 #define SMB2_SESSION_FLAG_IS_GUEST	0x0001
 #define SMB2_SESSION_FLAG_IS_NULL	0x0002
+#define SMB2_SESSION_FLAG_ENCRYPT_DATA	0x0004
 struct smb2_sess_setup_rsp {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 9 */
@@ -419,11 +435,15 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_CREATE_SD_BUFFER			"SecD" /* security descriptor */
 #define SMB2_CREATE_DURABLE_HANDLE_REQUEST	"DHnQ"
 #define SMB2_CREATE_DURABLE_HANDLE_RECONNECT	"DHnC"
-#define SMB2_CREATE_ALLOCATION_SIZE		"AlSi"
+#define SMB2_CREATE_ALLOCATION_SIZE		"AISi"
 #define SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST "MxAc"
 #define SMB2_CREATE_TIMEWARP_REQUEST		"TWrp"
 #define SMB2_CREATE_QUERY_ON_DISK_ID		"QFid"
 #define SMB2_CREATE_REQUEST_LEASE		"RqLs"
+#define SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2	"DH2Q"
+#define SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2	"DH2C"
+#define SMB2_CREATE_APP_INSTANCE_ID	0x45BCA66AEFA7F74A9008FA462E144D74
+#define SVHDX_OPEN_DEVICE_CONTEXT	0x83CE6F1AD851E0986E34401CC9BCFCE9
 
 struct smb2_create_req {
 	struct smb2_hdr hdr;
@@ -534,9 +554,16 @@ struct create_durable {
 	} Data;
 } __packed;
 
+#define COPY_CHUNK_RES_KEY_SIZE	24
+struct resume_key_req {
+	char ResumeKey[COPY_CHUNK_RES_KEY_SIZE];
+	__le32	ContextLength;	/* MBZ */
+	char	Context[0];	/* ignored, Windows sets to 4 bytes of zero */
+} __packed;
+
 /* this goes in the ioctl buffer when doing a copychunk request */
 struct copychunk_ioctl {
-	char SourceKey[24];
+	char SourceKey[COPY_CHUNK_RES_KEY_SIZE];
 	__le32 ChunkCount; /* we are only sending 1 */
 	__le32 Reserved;
 	/* array will only be one chunk long for us */
@@ -546,13 +573,25 @@ struct copychunk_ioctl {
 	__u32 Reserved2;
 } __packed;
 
-/* Response and Request are the same format */
-struct validate_negotiate_info {
+struct copychunk_ioctl_rsp {
+	__le32 ChunksWritten;
+	__le32 ChunkBytesWritten;
+	__le32 TotalBytesWritten;
+} __packed;
+
+struct validate_negotiate_info_req {
 	__le32 Capabilities;
 	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
 	__le16 SecurityMode;
 	__le16 DialectCount;
-	__le16 Dialect[1];
+	__le16 Dialects[1]; /* dialect (someday maybe list) client asked for */
+} __packed;
+
+struct validate_negotiate_info_rsp {
+	__le32 Capabilities;
+	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
+	__le16 SecurityMode;
+	__le16 Dialect; /* Dialect in use for the connection */
 } __packed;
 
 #define RSS_CAPABLE	0x00000001
@@ -569,6 +608,10 @@ struct network_interface_info_ioctl_rsp {
 
 #define NO_FILE_ID 0xFFFFFFFFFFFFFFFFULL /* general ioctls to srv not to file */
 
+struct compress_ioctl {
+	__le16 CompressionState; /* See cifspdu.h for possible flag values */
+} __packed;
+
 struct smb2_ioctl_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 57 */
@@ -584,7 +627,7 @@ struct smb2_ioctl_req {
 	__le32 MaxOutputResponse;
 	__le32 Flags;
 	__u32  Reserved2;
-	char   Buffer[0];
+	__u8   Buffer[0];
 } __packed;
 
 struct smb2_ioctl_rsp {
@@ -870,14 +913,16 @@ struct smb2_lease_ack {
 
 /* File System Information Classes */
 #define FS_VOLUME_INFORMATION		1 /* Query */
-#define FS_LABEL_INFORMATION		2 /* Set */
+#define FS_LABEL_INFORMATION		2 /* Local only */
 #define FS_SIZE_INFORMATION		3 /* Query */
 #define FS_DEVICE_INFORMATION		4 /* Query */
 #define FS_ATTRIBUTE_INFORMATION	5 /* Query */
 #define FS_CONTROL_INFORMATION		6 /* Query, Set */
 #define FS_FULL_SIZE_INFORMATION	7 /* Query */
 #define FS_OBJECT_ID_INFORMATION	8 /* Query, Set */
-#define FS_DRIVER_PATH_INFORMATION	9 /* Query */
+#define FS_DRIVER_PATH_INFORMATION	9 /* Local only */
+#define FS_VOLUME_FLAGS_INFORMATION	10 /* Local only */
+#define FS_SECTOR_SIZE_INFORMATION	11 /* SMB3 or later. Query */
 
 struct smb2_fs_full_size_info {
 	__le64 TotalAllocationUnits;
@@ -885,6 +930,22 @@ struct smb2_fs_full_size_info {
 	__le64 ActualAvailableAllocationUnits;
 	__le32 SectorsPerAllocationUnit;
 	__le32 BytesPerSector;
+} __packed;
+
+#define SSINFO_FLAGS_ALIGNED_DEVICE		0x00000001
+#define SSINFO_FLAGS_PARTITION_ALIGNED_ON_DEVICE 0x00000002
+#define SSINFO_FLAGS_NO_SEEK_PENALTY		0x00000004
+#define SSINFO_FLAGS_TRIM_ENABLED		0x00000008
+
+/* sector size info struct */
+struct smb3_fs_ss_info {
+	__le32 LogicalBytesPerSector;
+	__le32 PhysicalBytesPerSectorForAtomicity;
+	__le32 PhysicalBytesPerSectorForPerf;
+	__le32 FileSystemEffectivePhysicalBytesPerSectorForAtomicity;
+	__le32 Flags;
+	__le32 ByteOffsetForSectorAlignment;
+	__le32 ByteOffsetForPartitionAlignment;
 } __packed;
 
 /* partial list of QUERY INFO levels */

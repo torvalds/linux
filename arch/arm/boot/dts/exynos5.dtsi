@@ -23,7 +23,7 @@
 		reg = <0x10000000 0x100>;
 	};
 
-	combiner:interrupt-controller@10440000 {
+	combiner: interrupt-controller@10440000 {
 		compatible = "samsung,exynos4210-combiner";
 		#interrupt-cells = <2>;
 		interrupt-controller;
@@ -39,7 +39,7 @@
 				<0 28 0>, <0 29 0>, <0 30 0>, <0 31 0>;
 	};
 
-	gic:interrupt-controller@10481000 {
+	gic: interrupt-controller@10481000 {
 		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
@@ -48,27 +48,6 @@
 			<0x10484000 0x2000>,
 			<0x10486000 0x2000>;
 		interrupts = <1 9 0xf04>;
-	};
-
-	dwmmc_0: dwmmc0@12200000 {
-		compatible = "samsung,exynos5250-dw-mshc";
-		interrupts = <0 75 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
-	dwmmc_1: dwmmc1@12210000 {
-		compatible = "samsung,exynos5250-dw-mshc";
-		interrupts = <0 76 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
-	dwmmc_2: dwmmc2@12220000 {
-		compatible = "samsung,exynos5250-dw-mshc";
-		interrupts = <0 77 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 	};
 
 	serial@12C00000 {
@@ -99,13 +78,6 @@
 		compatible = "samsung,s3c6410-rtc";
 		reg = <0x101E0000 0x100>;
 		interrupts = <0 43 0>, <0 44 0>;
-		status = "disabled";
-	};
-
-	watchdog {
-		compatible = "samsung,s3c2410-wdt";
-		reg = <0x101D0000 0x100>;
-		interrupts = <0 42 0>;
 		status = "disabled";
 	};
 

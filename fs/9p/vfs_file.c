@@ -45,6 +45,7 @@
 #include "cache.h"
 
 static const struct vm_operations_struct v9fs_file_vm_ops;
+static const struct vm_operations_struct v9fs_mmap_file_vm_ops;
 
 /**
  * v9fs_file_open - open a file (or directory)
@@ -87,7 +88,8 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 	file->private_data = fid;
 	mutex_lock(&v9inode->v_mutex);
-	if (v9ses->cache && !v9inode->writeback_fid &&
+	if ((v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) &&
+	    !v9inode->writeback_fid &&
 	    ((file->f_flags & O_ACCMODE) != O_RDONLY)) {
 		/*
 		 * clone a fid and add it to writeback_fid
@@ -105,10 +107,8 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		v9inode->writeback_fid = (void *) fid;
 	}
 	mutex_unlock(&v9inode->v_mutex);
-#ifdef CONFIG_9P_FSCACHE
-	if (v9ses->cache)
+	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		v9fs_cache_inode_set_cookie(inode, file);
-#endif
 	return 0;
 out_error:
 	p9_client_clunk(file->private_data);
@@ -352,9 +352,6 @@ static int v9fs_file_flock_dotl(struct file *filp, int cmd,
 		invalidate_mapping_pages(&inode->i_data, 0, -1);
 	}
 	/* Convert flock to posix lock */
-	fl->fl_owner = (fl_owner_t)filp;
-	fl->fl_start = 0;
-	fl->fl_end = OFFSET_MAX;
 	fl->fl_flags |= FL_POSIX;
 	fl->fl_flags ^= FL_FLOCK;
 
@@ -463,14 +460,12 @@ v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
 	int n;
 	loff_t i_size;
 	size_t total = 0;
-	struct p9_client *clnt;
 	loff_t origin = *offset;
 	unsigned long pg_start, pg_end;
 
 	p9_debug(P9_DEBUG_VFS, "data %p count %d offset %x\n",
 		 data, (int)count, (int)*offset);
 
-	clnt = fid->clnt;
 	do {
 		n = p9_client_write(fid, NULL, data+total, origin+total, count);
 		if (n <= 0)
@@ -583,13 +578,51 @@ int v9fs_file_fsync_dotl(struct file *filp, loff_t start, loff_t end,
 }
 
 static int
-v9fs_file_mmap(struct file *file, struct vm_area_struct *vma)
+v9fs_file_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	int retval;
 
-	retval = generic_file_mmap(file, vma);
+
+	retval = generic_file_mmap(filp, vma);
 	if (!retval)
 		vma->vm_ops = &v9fs_file_vm_ops;
+
+	return retval;
+}
+
+static int
+v9fs_mmap_file_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	int retval;
+	struct inode *inode;
+	struct v9fs_inode *v9inode;
+	struct p9_fid *fid;
+
+	inode = file_inode(filp);
+	v9inode = V9FS_I(inode);
+	mutex_lock(&v9inode->v_mutex);
+	if (!v9inode->writeback_fid &&
+	    (vma->vm_flags & VM_WRITE)) {
+		/*
+		 * clone a fid and add it to writeback_fid
+		 * we do it during mmap instead of
+		 * page dirty time via write_begin/page_mkwrite
+		 * because we want write after unlink usecase
+		 * to work.
+		 */
+		fid = v9fs_writeback_fid(filp->f_path.dentry);
+		if (IS_ERR(fid)) {
+			retval = PTR_ERR(fid);
+			mutex_unlock(&v9inode->v_mutex);
+			return retval;
+		}
+		v9inode->writeback_fid = (void *) fid;
+	}
+	mutex_unlock(&v9inode->v_mutex);
+
+	retval = generic_file_mmap(filp, vma);
+	if (!retval)
+		vma->vm_ops = &v9fs_mmap_file_vm_ops;
 
 	return retval;
 }
@@ -648,7 +681,7 @@ v9fs_direct_read(struct file *filp, char __user *udata, size_t count,
 /**
  * v9fs_cached_file_read - read from a file
  * @filp: file pointer to read
- * @udata: user data buffer to read data into
+ * @data: user data buffer to read data into
  * @count: size of buffer
  * @offset: offset at which to read data
  *
@@ -659,7 +692,23 @@ v9fs_cached_file_read(struct file *filp, char __user *data, size_t count,
 {
 	if (filp->f_flags & O_DIRECT)
 		return v9fs_direct_read(filp, data, count, offset);
-	return do_sync_read(filp, data, count, offset);
+	return new_sync_read(filp, data, count, offset);
+}
+
+/**
+ * v9fs_mmap_file_read - read from a file
+ * @filp: file pointer to read
+ * @data: user data buffer to read data into
+ * @count: size of buffer
+ * @offset: offset at which to read data
+ *
+ */
+static ssize_t
+v9fs_mmap_file_read(struct file *filp, char __user *data, size_t count,
+		      loff_t *offset)
+{
+	/* TODO: Check if there are dirty pages */
+	return v9fs_file_read(filp, data, count, offset);
 }
 
 static ssize_t
@@ -711,7 +760,7 @@ err_out:
 
 buff_write:
 	mutex_unlock(&inode->i_mutex);
-	return do_sync_write(filp, data, count, offsetp);
+	return new_sync_write(filp, data, count, offsetp);
 }
 
 /**
@@ -729,11 +778,66 @@ v9fs_cached_file_write(struct file *filp, const char __user * data,
 
 	if (filp->f_flags & O_DIRECT)
 		return v9fs_direct_write(filp, data, count, offset);
-	return do_sync_write(filp, data, count, offset);
+	return new_sync_write(filp, data, count, offset);
 }
+
+
+/**
+ * v9fs_mmap_file_write - write to a file
+ * @filp: file pointer to write
+ * @data: data buffer to write data from
+ * @count: size of buffer
+ * @offset: offset at which to write data
+ *
+ */
+static ssize_t
+v9fs_mmap_file_write(struct file *filp, const char __user *data,
+		       size_t count, loff_t *offset)
+{
+	/*
+	 * TODO: invalidate mmaps on filp's inode between
+	 * offset and offset+count
+	 */
+	return v9fs_file_write(filp, data, count, offset);
+}
+
+static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
+{
+	struct inode *inode;
+
+	struct writeback_control wbc = {
+		.nr_to_write = LONG_MAX,
+		.sync_mode = WB_SYNC_ALL,
+		.range_start = vma->vm_pgoff * PAGE_SIZE,
+		 /* absolute end, byte at end included */
+		.range_end = vma->vm_pgoff * PAGE_SIZE +
+			(vma->vm_end - vma->vm_start - 1),
+	};
+
+
+	p9_debug(P9_DEBUG_VFS, "9p VMA close, %p, flushing", vma);
+
+	inode = file_inode(vma->vm_file);
+
+	if (!mapping_cap_writeback_dirty(inode->i_mapping))
+		wbc.nr_to_write = 0;
+
+	might_sleep();
+	sync_inode(inode, &wbc);
+}
+
 
 static const struct vm_operations_struct v9fs_file_vm_ops = {
 	.fault = filemap_fault,
+	.map_pages = filemap_map_pages,
+	.page_mkwrite = v9fs_vm_page_mkwrite,
+	.remap_pages = generic_file_remap_pages,
+};
+
+static const struct vm_operations_struct v9fs_mmap_file_vm_ops = {
+	.close = v9fs_mmap_vm_close,
+	.fault = filemap_fault,
+	.map_pages = filemap_map_pages,
 	.page_mkwrite = v9fs_vm_page_mkwrite,
 	.remap_pages = generic_file_remap_pages,
 };
@@ -743,8 +847,8 @@ const struct file_operations v9fs_cached_file_operations = {
 	.llseek = generic_file_llseek,
 	.read = v9fs_cached_file_read,
 	.write = v9fs_cached_file_write,
-	.aio_read = generic_file_aio_read,
-	.aio_write = generic_file_aio_write,
+	.read_iter = generic_file_read_iter,
+	.write_iter = generic_file_write_iter,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
@@ -756,8 +860,8 @@ const struct file_operations v9fs_cached_file_operations_dotl = {
 	.llseek = generic_file_llseek,
 	.read = v9fs_cached_file_read,
 	.write = v9fs_cached_file_write,
-	.aio_read = generic_file_aio_read,
-	.aio_write = generic_file_aio_write,
+	.read_iter = generic_file_read_iter,
+	.write_iter = generic_file_write_iter,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock_dotl,
@@ -786,5 +890,28 @@ const struct file_operations v9fs_file_operations_dotl = {
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
 	.mmap = generic_file_readonly_mmap,
+	.fsync = v9fs_file_fsync_dotl,
+};
+
+const struct file_operations v9fs_mmap_file_operations = {
+	.llseek = generic_file_llseek,
+	.read = v9fs_mmap_file_read,
+	.write = v9fs_mmap_file_write,
+	.open = v9fs_file_open,
+	.release = v9fs_dir_release,
+	.lock = v9fs_file_lock,
+	.mmap = v9fs_mmap_file_mmap,
+	.fsync = v9fs_file_fsync,
+};
+
+const struct file_operations v9fs_mmap_file_operations_dotl = {
+	.llseek = generic_file_llseek,
+	.read = v9fs_mmap_file_read,
+	.write = v9fs_mmap_file_write,
+	.open = v9fs_file_open,
+	.release = v9fs_dir_release,
+	.lock = v9fs_file_lock_dotl,
+	.flock = v9fs_file_flock_dotl,
+	.mmap = v9fs_mmap_file_mmap,
 	.fsync = v9fs_file_fsync_dotl,
 };

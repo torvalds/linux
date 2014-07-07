@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -398,7 +397,7 @@ static i40e_status i40e_create_lan_hmc_object(struct i40e_hw *hw,
 				/* remove the backing pages from pd_idx1 to i */
 				while (i && (i > pd_idx1)) {
 					i40e_remove_pd_bp(hw, info->hmc_info,
-							  (i - 1), true);
+							  (i - 1));
 					i--;
 				}
 			}
@@ -434,11 +433,7 @@ exit_sd_error:
 				      ((j - 1) * I40E_HMC_MAX_BP_COUNT));
 			pd_lmt1 = min(pd_lmt, (j * I40E_HMC_MAX_BP_COUNT));
 			for (i = pd_idx1; i < pd_lmt1; i++) {
-				i40e_remove_pd_bp(
-					hw,
-					info->hmc_info,
-					i,
-					true);
+				i40e_remove_pd_bp(hw, info->hmc_info, i);
 			}
 			i40e_remove_pd_page(hw, info->hmc_info, (j - 1));
 			break;
@@ -486,8 +481,7 @@ i40e_status i40e_configure_lan_hmc(struct i40e_hw *hw,
 		/* Make one big object, a single SD */
 		info.count = 1;
 		ret_code = i40e_create_lan_hmc_object(hw, &info);
-		if ((ret_code) &&
-		    (model == I40E_HMC_MODEL_DIRECT_PREFERRED))
+		if (ret_code && (model == I40E_HMC_MODEL_DIRECT_PREFERRED))
 			goto try_type_paged;
 		else if (ret_code)
 			goto configure_lan_hmc_out;
@@ -618,8 +612,7 @@ static i40e_status i40e_delete_lan_hmc_object(struct i40e_hw *hw,
 		pd_table =
 			&info->hmc_info->sd_table.sd_entry[sd_idx].u.pd_table;
 		if (pd_table->pd_entry[rel_pd_idx].valid) {
-			ret_code = i40e_remove_pd_bp(hw, info->hmc_info,
-						     j, true);
+			ret_code = i40e_remove_pd_bp(hw, info->hmc_info, j);
 			if (ret_code)
 				goto exit;
 		}
@@ -749,6 +742,7 @@ static struct i40e_context_ele i40e_hmc_rxq_ce_info[] = {
 	{ I40E_HMC_STORE(i40e_hmc_obj_rxq, tphdata_ena),  1,	195 },
 	{ I40E_HMC_STORE(i40e_hmc_obj_rxq, tphhead_ena),  1,	196 },
 	{ I40E_HMC_STORE(i40e_hmc_obj_rxq, lrxqthresh),   3,	198 },
+	{ I40E_HMC_STORE(i40e_hmc_obj_rxq, prefena),      1,	201 },
 	{ 0 }
 };
 

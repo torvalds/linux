@@ -3,11 +3,8 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/io.h>
-
-struct phy_control {
-	void (*phy_power)(struct phy_control *phy_ctrl, u32 id, bool on);
-	void (*phy_wkup)(struct phy_control *phy_ctrl, u32 id, bool on);
-};
+#include <linux/delay.h>
+#include "am35x-phy-control.h"
 
 struct am335x_control_usb {
 	struct device *dev;
@@ -25,6 +22,41 @@ struct am335x_control_usb {
 #define USBPHY_OTG_PWRDN	(1 << 1)
 #define USBPHY_OTGVDET_EN	(1 << 19)
 #define USBPHY_OTGSESSEND_EN	(1 << 20)
+
+#define AM335X_PHY0_WK_EN	(1 << 0)
+#define AM335X_PHY1_WK_EN	(1 << 8)
+
+static void am335x_phy_wkup(struct  phy_control *phy_ctrl, u32 id, bool on)
+{
+	struct am335x_control_usb *usb_ctrl;
+	u32 val;
+	u32 reg;
+
+	usb_ctrl = container_of(phy_ctrl, struct am335x_control_usb, phy_ctrl);
+
+	switch (id) {
+	case 0:
+		reg = AM335X_PHY0_WK_EN;
+		break;
+	case 1:
+		reg = AM335X_PHY1_WK_EN;
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	spin_lock(&usb_ctrl->lock);
+	val = readl(usb_ctrl->wkup);
+
+	if (on)
+		val |= reg;
+	else
+		val &= ~reg;
+
+	writel(val, usb_ctrl->wkup);
+	spin_unlock(&usb_ctrl->lock);
+}
 
 static void am335x_phy_power(struct phy_control *phy_ctrl, u32 id, bool on)
 {
@@ -55,10 +87,19 @@ static void am335x_phy_power(struct phy_control *phy_ctrl, u32 id, bool on)
 	}
 
 	writel(val, usb_ctrl->phy_reg + reg);
+
+	/*
+	 * Give the PHY ~1ms to complete the power up operation.
+	 * Tests have shown unstable behaviour if other USB PHY related
+	 * registers are written too shortly after such a transition.
+	 */
+	if (on)
+		mdelay(1);
 }
 
 static const struct phy_control ctrl_am335x = {
 	.phy_power = am335x_phy_power,
+	.phy_wkup = am335x_phy_wkup,
 };
 
 static const struct of_device_id omap_control_usb_id_table[] = {
@@ -117,6 +158,12 @@ static int am335x_control_usb_probe(struct platform_device *pdev)
 	ctrl_usb->phy_reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ctrl_usb->phy_reg))
 		return PTR_ERR(ctrl_usb->phy_reg);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "wakeup");
+	ctrl_usb->wkup = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ctrl_usb->wkup))
+		return PTR_ERR(ctrl_usb->wkup);
+
 	spin_lock_init(&ctrl_usb->lock);
 	ctrl_usb->phy_ctrl = *phy_ctrl;
 
@@ -129,7 +176,7 @@ static struct platform_driver am335x_control_driver = {
 	.driver		= {
 		.name	= "am335x-control-usb",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(omap_control_usb_id_table),
+		.of_match_table = omap_control_usb_id_table,
 	},
 };
 

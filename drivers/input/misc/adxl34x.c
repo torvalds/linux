@@ -8,7 +8,6 @@
  */
 
 #include <linux/device.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -158,7 +157,7 @@
 
 /* ORIENT ADXL346 only */
 #define ADXL346_2D_VALID		(1 << 6)
-#define ADXL346_2D_ORIENT(x)		(((x) & 0x3) >> 4)
+#define ADXL346_2D_ORIENT(x)		(((x) & 0x30) >> 4)
 #define ADXL346_3D_VALID		(1 << 3)
 #define ADXL346_3D_ORIENT(x)		((x) & 0x7)
 #define ADXL346_2D_PORTRAIT_POS		0	/* +X */
@@ -714,7 +713,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 
 	ac->fifo_delay = fifo_delay_default;
 
-	pdata = dev->platform_data;
+	pdata = dev_get_platdata(dev);
 	if (!pdata) {
 		dev_dbg(dev,
 			"No platform data: Using default initialization\n");

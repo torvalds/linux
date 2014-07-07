@@ -305,7 +305,7 @@ static int evtchn_bind_to_user(struct per_user_data *u, int port)
 	if (rc < 0)
 		goto err;
 
-	rc = bind_evtchn_to_irqhandler(port, evtchn_interrupt, IRQF_DISABLED,
+	rc = bind_evtchn_to_irqhandler(port, evtchn_interrupt, 0,
 				       u->name, evtchn);
 	if (rc < 0)
 		goto err;
@@ -417,7 +417,7 @@ static long evtchn_ioctl(struct file *file,
 			break;
 
 		rc = -EINVAL;
-		if (unbind.port >= NR_EVENT_CHANNELS)
+		if (unbind.port >= xen_evtchn_nr_channels())
 			break;
 
 		rc = -ENOTCONN;

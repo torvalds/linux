@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/kdebug.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/log2.h>
@@ -48,7 +49,7 @@
 #include <asm/mxcc.h>
 #include <asm/ross.h>
 
-#include "srmmu.h"
+#include "mm_32.h"
 
 enum mbus_module srmmu_modtype;
 static unsigned int hwbug_bitmask;
@@ -62,6 +63,7 @@ extern unsigned long last_valid_pfn;
 static pgd_t *srmmu_swapper_pg_dir;
 
 const struct sparc32_cachetlb_ops *sparc32_cachetlb_ops;
+EXPORT_SYMBOL(sparc32_cachetlb_ops);
 
 #ifdef CONFIG_SMP
 const struct sparc32_cachetlb_ops *local_ops;
@@ -98,7 +100,6 @@ static unsigned long srmmu_nocache_end;
 #define SRMMU_NOCACHE_ALIGN_MAX (sizeof(ctxd_t)*SRMMU_MAX_CONTEXTS)
 
 void *srmmu_nocache_pool;
-void *srmmu_nocache_bitmap;
 static struct bit_map srmmu_nocache_map;
 
 static inline int srmmu_pmd_none(pmd_t pmd)
@@ -171,7 +172,7 @@ static void *__srmmu_get_nocache(int size, int align)
 		printk(KERN_ERR "srmmu: out of nocache %d: %d/%d\n",
 		       size, (int) srmmu_nocache_size,
 		       srmmu_nocache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
-		return 0;
+		return NULL;
 	}
 
 	addr = SRMMU_NOCACHE_VADDR + (offset << SRMMU_NOCACHE_BITMAP_SHIFT);
@@ -267,6 +268,7 @@ static void __init srmmu_nocache_calcsize(void)
 
 static void __init srmmu_nocache_init(void)
 {
+	void *srmmu_nocache_bitmap;
 	unsigned int bitmap_bits;
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -345,7 +347,10 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	if ((pte = (unsigned long)pte_alloc_one_kernel(mm, address)) == 0)
 		return NULL;
 	page = pfn_to_page(__nocache_pa(pte) >> PAGE_SHIFT);
-	pgtable_page_ctor(page);
+	if (!pgtable_page_ctor(page)) {
+		__free_page(page);
+		return NULL;
+	}
 	return page;
 }
 
@@ -723,7 +728,7 @@ static inline unsigned long srmmu_probe(unsigned long vaddr)
 				     "=r" (retval) :
 				     "r" (vaddr | 0x400), "i" (ASI_M_FLUSH_PROBE));
 	} else {
-		retval = leon_swprobe(vaddr, 0);
+		retval = leon_swprobe(vaddr, NULL);
 	}
 	return retval;
 }
@@ -859,8 +864,6 @@ static void __init map_kernel(void)
 }
 
 void (*poke_srmmu)(void) = NULL;
-
-extern unsigned long bootmem_init(unsigned long *pages_avail);
 
 void __init srmmu_paging_init(void)
 {
@@ -1766,9 +1769,6 @@ static struct sparc32_cachetlb_ops smp_cachetlb_ops = {
 /* Load up routines and constants for sun4m and sun4d mmu */
 void __init load_mmu(void)
 {
-	extern void ld_mmu_iommu(void);
-	extern void ld_mmu_iounit(void);
-
 	/* Functions */
 	get_srmmu_type();
 

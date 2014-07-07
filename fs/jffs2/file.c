@@ -51,10 +51,10 @@ const struct file_operations jffs2_file_operations =
 {
 	.llseek =	generic_file_llseek,
 	.open =		generic_file_open,
- 	.read =		do_sync_read,
- 	.aio_read =	generic_file_aio_read,
- 	.write =	do_sync_write,
- 	.aio_write =	generic_file_aio_write,
+ 	.read =		new_sync_read,
+ 	.read_iter =	generic_file_read_iter,
+ 	.write =	new_sync_write,
+ 	.write_iter =	generic_file_write_iter,
 	.unlocked_ioctl=jffs2_ioctl,
 	.mmap =		generic_file_readonly_mmap,
 	.fsync =	jffs2_fsync,
@@ -66,6 +66,7 @@ const struct file_operations jffs2_file_operations =
 const struct inode_operations jffs2_file_inode_operations =
 {
 	.get_acl =	jffs2_get_acl,
+	.set_acl =	jffs2_set_acl,
 	.setattr =	jffs2_setattr,
 	.setxattr =	jffs2_setxattr,
 	.getxattr =	jffs2_getxattr,

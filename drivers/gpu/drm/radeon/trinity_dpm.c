@@ -342,14 +342,14 @@ static void trinity_apply_state_adjust_rules(struct radeon_device *rdev,
 					     struct radeon_ps *new_rps,
 					     struct radeon_ps *old_rps);
 
-struct trinity_ps *trinity_get_ps(struct radeon_ps *rps)
+static struct trinity_ps *trinity_get_ps(struct radeon_ps *rps)
 {
 	struct trinity_ps *ps = rps->ps_priv;
 
 	return ps;
 }
 
-struct trinity_power_info *trinity_get_pi(struct radeon_device *rdev)
+static struct trinity_power_info *trinity_get_pi(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = rdev->pm.dpm.priv;
 
@@ -1082,7 +1082,6 @@ void trinity_dpm_enable_bapm(struct radeon_device *rdev, bool enable)
 int trinity_dpm_enable(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);
-	int ret;
 
 	trinity_acquire_mutex(rdev);
 
@@ -1091,7 +1090,6 @@ int trinity_dpm_enable(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 
-	trinity_enable_clock_power_gating(rdev);
 	trinity_program_bootup_state(rdev);
 	sumo_program_vc(rdev, 0x00C00033);
 	trinity_start_am(rdev);
@@ -1105,6 +1103,18 @@ int trinity_dpm_enable(struct radeon_device *rdev)
 	trinity_dpm_bapm_enable(rdev, false);
 	trinity_release_mutex(rdev);
 
+	trinity_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+
+	return 0;
+}
+
+int trinity_dpm_late_enable(struct radeon_device *rdev)
+{
+	int ret;
+
+	trinity_acquire_mutex(rdev);
+	trinity_enable_clock_power_gating(rdev);
+
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 		ret = trinity_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
@@ -1115,8 +1125,7 @@ int trinity_dpm_enable(struct radeon_device *rdev)
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 	}
-
-	trinity_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+	trinity_release_mutex(rdev);
 
 	return 0;
 }
@@ -1685,9 +1694,6 @@ static int trinity_parse_power_table(struct radeon_device *rdev)
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
@@ -1868,14 +1874,22 @@ int trinity_dpm_init(struct radeon_device *rdev)
 	for (i = 0; i < SUMO_MAX_HARDWARE_POWERLEVELS; i++)
 		pi->at[i] = TRINITY_AT_DFLT;
 
-	pi->enable_bapm = true;
+	/* There are stability issues reported on latops with
+	 * bapm installed when switching between AC and battery
+	 * power.  At the same time, some desktop boards hang
+	 * if it's not enabled and dpm is enabled.
+	 */
+	if (rdev->flags & RADEON_IS_MOBILITY)
+		pi->enable_bapm = false;
+	else
+		pi->enable_bapm = true;
 	pi->enable_nbps_policy = true;
 	pi->enable_sclk_ds = true;
 	pi->enable_gfx_power_gating = true;
 	pi->enable_gfx_clock_gating = true;
-	pi->enable_mg_clock_gating = true;
-	pi->enable_gfx_dynamic_mgpg = true; /* ??? */
-	pi->override_dynamic_mgpg = true;
+	pi->enable_mg_clock_gating = false;
+	pi->enable_gfx_dynamic_mgpg = false;
+	pi->override_dynamic_mgpg = false;
 	pi->enable_auto_thermal_throttling = true;
 	pi->voltage_drop_in_dce = false; /* need to restructure dpm/modeset interaction */
 	pi->uvd_dpm = true; /* ??? */
@@ -1885,6 +1899,10 @@ int trinity_dpm_init(struct radeon_device *rdev)
 		return ret;
 
 	trinity_construct_boot_state(rdev);
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = trinity_parse_power_table(rdev);
 	if (ret)
@@ -1917,7 +1935,8 @@ void trinity_dpm_print_power_state(struct radeon_device *rdev,
 void trinity_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 							 struct seq_file *m)
 {
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+	struct radeon_ps *rps = &pi->current_rps;
 	struct trinity_ps *ps = trinity_get_ps(rps);
 	struct trinity_pl *pl;
 	u32 current_index =

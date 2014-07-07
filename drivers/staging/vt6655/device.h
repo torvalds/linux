@@ -31,7 +31,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
@@ -149,8 +148,17 @@
 
 /*---------------------  Export Types  ------------------------------*/
 
-#define DBG_PRT(l, p, args...) { if (l <= msglevel) printk(p, ##args); }
-#define PRINT_K(p, args...) { if (PRIVATE_Message) printk(p, ##args); }
+#define DBG_PRT(l, p, args...)		\
+do {					\
+	if (l <= msglevel)		\
+		printk(p, ##args);	\
+} while (0)
+
+#define PRINT_K(p, args...)		\
+do {					\
+	if (PRIVATE_Message)		\
+		printk(p, ##args);	\
+} while (0)
 
 //0:11A 1:11B 2:11G
 typedef enum _VIA_BB_TYPE
@@ -742,12 +750,6 @@ typedef struct __device_info {
 	bool bWPADEVUp;
 	struct sk_buff          *skb;
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-/*
-  bool bwextstep0;
-  bool bwextstep1;
-  bool bwextstep2;
-  bool bwextstep3;
-*/
 	unsigned int	bwextcount;
 	bool bWPASuppWextEnabled;
 #endif

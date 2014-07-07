@@ -28,6 +28,7 @@
 #include <asm/apb.h>
 
 #include "pci_impl.h"
+#include "kernel.h"
 
 /* List of all PCI controllers found in the system. */
 struct pci_pbm_info *pci_pbm_root = NULL;
@@ -392,15 +393,15 @@ static void apb_fake_ranges(struct pci_dev *dev,
 	res->flags = IORESOURCE_IO;
 	region.start = (first << 21);
 	region.end = (last << 21) + ((1 << 21) - 1);
-	pcibios_bus_to_resource(dev, res, &region);
+	pcibios_bus_to_resource(dev->bus, res, &region);
 
 	pci_read_config_byte(dev, APB_MEM_ADDRESS_MAP, &map);
 	apb_calc_first_last(map, &first, &last);
 	res = bus->resource[1];
 	res->flags = IORESOURCE_MEM;
-	region.start = (first << 21);
-	region.end = (last << 21) + ((1 << 21) - 1);
-	pcibios_bus_to_resource(dev, res, &region);
+	region.start = (first << 29);
+	region.end = (last << 29) + ((1 << 29) - 1);
+	pcibios_bus_to_resource(dev->bus, res, &region);
 }
 
 static void pci_of_scan_bus(struct pci_pbm_info *pbm,
@@ -491,7 +492,7 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		res->flags = flags;
 		region.start = GET_64BIT(ranges, 1);
 		region.end = region.start + size - 1;
-		pcibios_bus_to_resource(dev, res, &region);
+		pcibios_bus_to_resource(dev->bus, res, &region);
 	}
 after_ranges:
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
@@ -543,8 +544,7 @@ static void pci_of_scan_bus(struct pci_pbm_info *pbm,
 			printk("PCI: dev header type: %x\n",
 			       dev->hdr_type);
 
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
-		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
+		if (pci_is_bridge(dev))
 			of_scan_pci_bridge(pbm, child, dev);
 	}
 }
@@ -1005,6 +1005,5 @@ static int __init of_pci_slot_init(void)
 
 	return 0;
 }
-
-module_init(of_pci_slot_init);
+device_initcall(of_pci_slot_init);
 #endif

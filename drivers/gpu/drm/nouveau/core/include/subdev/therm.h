@@ -31,7 +31,7 @@ struct nouveau_therm {
 	int (*pwm_ctrl)(struct nouveau_therm *, int line, bool);
 	int (*pwm_get)(struct nouveau_therm *, int line, u32 *, u32 *);
 	int (*pwm_set)(struct nouveau_therm *, int line, u32, u32);
-	int (*pwm_clock)(struct nouveau_therm *);
+	int (*pwm_clock)(struct nouveau_therm *, int line);
 
 	int (*fan_get)(struct nouveau_therm *);
 	int (*fan_set)(struct nouveau_therm *, int);
@@ -70,6 +70,8 @@ int  nouveau_therm_create_(struct nouveau_object *, struct nouveau_object *,
 void _nouveau_therm_dtor(struct nouveau_object *);
 int  _nouveau_therm_init(struct nouveau_object *);
 int  _nouveau_therm_fini(struct nouveau_object *, bool);
+
+int  nouveau_therm_cstate(struct nouveau_therm *, int, int);
 
 extern struct nouveau_oclass nv40_therm_oclass;
 extern struct nouveau_oclass nv50_therm_oclass;

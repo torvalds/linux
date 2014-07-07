@@ -455,10 +455,10 @@ static void load_code(struct icom_port *icom_port)
 	for (index = 0; index < fw->size; index++)
 		new_page[index] = fw->data[index];
 
-	release_firmware(fw);
-
 	writeb((char) ((fw->size + 16)/16), &icom_port->dram->mac_length);
 	writel(temp_pci, &icom_port->dram->mac_load_addr);
+
+	release_firmware(fw);
 
 	/*Setting the syncReg to 0x80 causes adapter to start downloading
 	   the personality code into adapter instruction RAM.

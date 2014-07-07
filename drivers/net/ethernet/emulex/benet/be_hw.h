@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -63,6 +63,9 @@
 
 #define SLIPORT_ERROR_NO_RESOURCE1	0x2
 #define SLIPORT_ERROR_NO_RESOURCE2	0x9
+
+#define SLIPORT_ERROR_FW_RESET1		0x2
+#define SLIPORT_ERROR_FW_RESET2		0x0
 
 /********* Memory BAR register ************/
 #define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET 	0xfc
@@ -185,10 +188,14 @@
 #define OPTYPE_FCOE_FW_ACTIVE		10
 #define OPTYPE_FCOE_FW_BACKUP		11
 #define OPTYPE_NCSI_FW			13
+#define OPTYPE_REDBOOT_DIR		18
+#define OPTYPE_REDBOOT_CONFIG		19
+#define OPTYPE_SH_PHY_FW		21
+#define OPTYPE_FLASHISM_JUMPVECTOR	22
+#define OPTYPE_UFI_DIR			23
 #define OPTYPE_PHY_FW			99
 #define TN_8022				13
 
-#define ILLEGAL_IOCTL_REQ		2
 #define FLASHROM_OPER_PHY_FLASH		9
 #define FLASHROM_OPER_PHY_SAVE		10
 #define FLASHROM_OPER_FLASH		1
@@ -247,6 +254,9 @@
 #define IMAGE_FIRMWARE_BACKUP_FCoE	178
 #define IMAGE_FIRMWARE_BACKUP_COMP_FCoE 179
 #define IMAGE_FIRMWARE_PHY		192
+#define IMAGE_REDBOOT_DIR		208
+#define IMAGE_REDBOOT_CONFIG		209
+#define IMAGE_UFI_DIR			210
 #define IMAGE_BOOT_CODE			224
 
 /************* Rx Packet Type Encoding **************/
@@ -365,7 +375,7 @@ struct amap_eth_rx_compl_v0 {
 	u8 numfrags[3];		/* dword 1 */
 	u8 rss_flush;		/* dword 2 */
 	u8 cast_enc[2];		/* dword 2 */
-	u8 vtm;			/* dword 2 */
+	u8 qnq;			/* dword 2 */
 	u8 rss_bank;		/* dword 2 */
 	u8 rsvd1[23];		/* dword 2 */
 	u8 lro_pkt;		/* dword 2 */
@@ -398,13 +408,14 @@ struct amap_eth_rx_compl_v1 {
 	u8 numfrags[3];		/* dword 1 */
 	u8 rss_flush;		/* dword 2 */
 	u8 cast_enc[2];		/* dword 2 */
-	u8 vtm;			/* dword 2 */
+	u8 qnq;			/* dword 2 */
 	u8 rss_bank;		/* dword 2 */
 	u8 port[2];		/* dword 2 */
 	u8 vntagp;		/* dword 2 */
 	u8 header_len[8];	/* dword 2 */
 	u8 header_split[2];	/* dword 2 */
-	u8 rsvd1[13];		/* dword 2 */
+	u8 rsvd1[12];		/* dword 2 */
+	u8 tunneled;
 	u8 valid;		/* dword 2 */
 	u8 rsshash[32];		/* dword 3 */
 } __packed;
@@ -530,7 +541,8 @@ struct flash_section_entry {
 	u32 image_size;
 	u32 cksum;
 	u32 entry_point;
-	u32 rsvd0;
+	u16 optype;
+	u16 rsvd0;
 	u32 rsvd1;
 	u8 ver_data[32];
 } __packed;

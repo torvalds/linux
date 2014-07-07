@@ -44,11 +44,17 @@
 #define PT_DIRECTORY_LEVEL 2
 #define PT_PAGE_TABLE_LEVEL 1
 
-#define PFERR_PRESENT_MASK (1U << 0)
-#define PFERR_WRITE_MASK (1U << 1)
-#define PFERR_USER_MASK (1U << 2)
-#define PFERR_RSVD_MASK (1U << 3)
-#define PFERR_FETCH_MASK (1U << 4)
+#define PFERR_PRESENT_BIT 0
+#define PFERR_WRITE_BIT 1
+#define PFERR_USER_BIT 2
+#define PFERR_RSVD_BIT 3
+#define PFERR_FETCH_BIT 4
+
+#define PFERR_PRESENT_MASK (1U << PFERR_PRESENT_BIT)
+#define PFERR_WRITE_MASK (1U << PFERR_WRITE_BIT)
+#define PFERR_USER_MASK (1U << PFERR_USER_BIT)
+#define PFERR_RSVD_MASK (1U << PFERR_RSVD_BIT)
+#define PFERR_FETCH_MASK (1U << PFERR_FETCH_BIT)
 
 int kvm_mmu_get_spte_hierarchy(struct kvm_vcpu *vcpu, u64 addr, u64 sptes[4]);
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask);
@@ -70,9 +76,11 @@ enum {
 };
 
 int handle_mmio_page_fault_common(struct kvm_vcpu *vcpu, u64 addr, bool direct);
-int kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context);
-int kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
+void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context);
+void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
 		bool execonly);
+void update_permission_bitmask(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+		bool ept);
 
 static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 {
@@ -96,6 +104,39 @@ static inline int is_present_gpte(unsigned long pte)
 	return pte & PT_PRESENT_MASK;
 }
 
+/*
+ * Currently, we have two sorts of write-protection, a) the first one
+ * write-protects guest page to sync the guest modification, b) another one is
+ * used to sync dirty bitmap when we do KVM_GET_DIRTY_LOG. The differences
+ * between these two sorts are:
+ * 1) the first case clears SPTE_MMU_WRITEABLE bit.
+ * 2) the first case requires flushing tlb immediately avoiding corrupting
+ *    shadow page table between all vcpus so it should be in the protection of
+ *    mmu-lock. And the another case does not need to flush tlb until returning
+ *    the dirty bitmap to userspace since it only write-protects the page
+ *    logged in the bitmap, that means the page in the dirty bitmap is not
+ *    missed, so it can flush tlb out of mmu-lock.
+ *
+ * So, there is the problem: the first case can meet the corrupted tlb caused
+ * by another case which write-protects pages but without flush tlb
+ * immediately. In order to making the first case be aware this problem we let
+ * it flush tlb if we try to write-protect a spte whose SPTE_MMU_WRITEABLE bit
+ * is set, it works since another case never touches SPTE_MMU_WRITEABLE bit.
+ *
+ * Anyway, whenever a spte is updated (only permission and status bits are
+ * changed) we need to check whether the spte with SPTE_MMU_WRITEABLE becomes
+ * readonly, if that happens, we need to flush tlb. Fortunately,
+ * mmu_spte_update() has already handled it perfectly.
+ *
+ * The rules to use SPTE_MMU_WRITEABLE and PT_WRITABLE_MASK:
+ * - if we want to see if it has writable tlb entry or if the spte can be
+ *   writable on the mmu mapping, check SPTE_MMU_WRITEABLE, this is the most
+ *   case, otherwise
+ * - if we fix page fault on the spte or do write-protection by dirty logging,
+ *   check PT_WRITABLE_MASK.
+ *
+ * TODO: introduce APIs to split these two cases.
+ */
 static inline int is_writable_pte(unsigned long pte)
 {
 	return pte & PT_WRITABLE_MASK;
@@ -110,10 +151,30 @@ static inline bool is_write_protection(struct kvm_vcpu *vcpu)
  * Will a fault with a given page-fault error code (pfec) cause a permission
  * fault with the given access (in ACC_* format)?
  */
-static inline bool permission_fault(struct kvm_mmu *mmu, unsigned pte_access,
-				    unsigned pfec)
+static inline bool permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+				    unsigned pte_access, unsigned pfec)
 {
-	return (mmu->permissions[pfec >> 1] >> pte_access) & 1;
+	int cpl = kvm_x86_ops->get_cpl(vcpu);
+	unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
+
+	/*
+	 * If CPL < 3, SMAP prevention are disabled if EFLAGS.AC = 1.
+	 *
+	 * If CPL = 3, SMAP applies to all supervisor-mode data accesses
+	 * (these are implicit supervisor accesses) regardless of the value
+	 * of EFLAGS.AC.
+	 *
+	 * This computes (cpl < 3) && (rflags & X86_EFLAGS_AC), leaving
+	 * the result in X86_EFLAGS_AC. We then insert it in place of
+	 * the PFERR_RSVD_MASK bit; this bit will always be zero in pfec,
+	 * but it will be one in index if SMAP checks are being overridden.
+	 * It is important to keep this branchless.
+	 */
+	unsigned long smap = (cpl - 3) & (rflags & X86_EFLAGS_AC);
+	int index = (pfec >> 1) +
+		    (smap >> (X86_EFLAGS_AC_BIT - PFERR_RSVD_BIT + 1));
+
+	return (mmu->permissions[index] >> pte_access) & 1;
 }
 
 void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm);

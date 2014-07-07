@@ -191,11 +191,9 @@ static int dw_probe(struct platform_device *pdev)
 	if (IS_ERR(chip->regs))
 		return PTR_ERR(chip->regs);
 
-	/* Apply default dma_mask if needed */
-	if (!dev->dma_mask) {
-		dev->dma_mask = &dev->coherent_dma_mask;
-		dev->coherent_dma_mask = DMA_BIT_MASK(32);
-	}
+	err = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (err)
+		return err;
 
 	pdata = dev_get_platdata(dev);
 	if (!pdata)
@@ -258,7 +256,7 @@ MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
 
 #ifdef CONFIG_PM_SLEEP
 
-static int dw_suspend_noirq(struct device *dev)
+static int dw_suspend_late(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
@@ -266,7 +264,7 @@ static int dw_suspend_noirq(struct device *dev)
 	return dw_dma_suspend(chip);
 }
 
-static int dw_resume_noirq(struct device *dev)
+static int dw_resume_early(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
@@ -274,20 +272,10 @@ static int dw_resume_noirq(struct device *dev)
 	return dw_dma_resume(chip);
 }
 
-#else /* !CONFIG_PM_SLEEP */
-
-#define dw_suspend_noirq	NULL
-#define dw_resume_noirq		NULL
-
-#endif /* !CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops dw_dev_pm_ops = {
-	.suspend_noirq = dw_suspend_noirq,
-	.resume_noirq = dw_resume_noirq,
-	.freeze_noirq = dw_suspend_noirq,
-	.thaw_noirq = dw_resume_noirq,
-	.restore_noirq = dw_resume_noirq,
-	.poweroff_noirq = dw_suspend_noirq,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(dw_suspend_late, dw_resume_early)
 };
 
 static struct platform_driver dw_driver = {

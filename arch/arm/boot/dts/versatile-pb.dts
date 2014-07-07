@@ -1,4 +1,4 @@
-/include/ "versatile-ab.dts"
+#include <versatile-ab.dts>
 
 / {
 	model = "ARM Versatile PB";
@@ -41,10 +41,10 @@
 			mmc@b000 {
 				compatible = "arm,primecell";
 				reg = <0xb000 0x1000>;
-				interrupts = <23 34>;
+				interrupts-extended = <&vic 23 &sic 2>;
 			};
 		};
 	};
 };
 
-/include/ "testcases/tests.dtsi"
+#include <testcases.dtsi>

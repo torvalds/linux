@@ -30,6 +30,15 @@
 
 };
 
+&gem0 {
+	status = "okay";
+	phy-mode = "rgmii";
+};
+
+&sdhci0 {
+	status = "okay";
+};
+
 &uart1 {
 	status = "okay";
 };

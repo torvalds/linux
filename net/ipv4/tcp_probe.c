@@ -38,7 +38,7 @@ MODULE_DESCRIPTION("TCP cwnd snooper");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.1");
 
-static int port __read_mostly = 0;
+static int port __read_mostly;
 MODULE_PARM_DESC(port, "Port to match (0=all)");
 module_param(port, int, 0);
 
@@ -46,7 +46,7 @@ static unsigned int bufsize __read_mostly = 4096;
 MODULE_PARM_DESC(bufsize, "Log buffer size in packets (4096)");
 module_param(bufsize, uint, 0);
 
-static unsigned int fwmark __read_mostly = 0;
+static unsigned int fwmark __read_mostly;
 MODULE_PARM_DESC(fwmark, "skb mark to match (0=no mark)");
 module_param(fwmark, uint, 0);
 
@@ -101,22 +101,6 @@ static inline int tcp_probe_avail(void)
 		si4.sin_addr.s_addr = inet->inet_##mem##addr;	\
 	} while (0)						\
 
-#if IS_ENABLED(CONFIG_IPV6)
-#define tcp_probe_copy_fl_to_si6(inet, si6, mem)		\
-	do {							\
-		struct ipv6_pinfo *pi6 = inet->pinet6;		\
-		si6.sin6_family = AF_INET6;			\
-		si6.sin6_port = inet->inet_##mem##port;		\
-		si6.sin6_addr = pi6->mem##addr;			\
-		si6.sin6_flowinfo = 0; /* No need here. */	\
-		si6.sin6_scope_id = 0;	/* No need here. */	\
-	} while (0)
-#else
-#define tcp_probe_copy_fl_to_si6(fl, si6, mem)			\
-	do {							\
-		memset(&si6, 0, sizeof(si6));			\
-	} while (0)
-#endif
 
 /*
  * Hook inserted to be called before each receive packet.
@@ -147,8 +131,17 @@ static void jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				tcp_probe_copy_fl_to_si4(inet, p->dst.v4, d);
 				break;
 			case AF_INET6:
-				tcp_probe_copy_fl_to_si6(inet, p->src.v6, s);
-				tcp_probe_copy_fl_to_si6(inet, p->dst.v6, d);
+				memset(&p->src.v6, 0, sizeof(p->src.v6));
+				memset(&p->dst.v6, 0, sizeof(p->dst.v6));
+#if IS_ENABLED(CONFIG_IPV6)
+				p->src.v6.sin6_family = AF_INET6;
+				p->src.v6.sin6_port = inet->inet_sport;
+				p->src.v6.sin6_addr = inet6_sk(sk)->saddr;
+
+				p->dst.v6.sin6_family = AF_INET6;
+				p->dst.v6.sin6_port = inet->inet_dport;
+				p->dst.v6.sin6_addr = sk->sk_v6_daddr;
+#endif
 				break;
 			default:
 				BUG();
@@ -161,7 +154,7 @@ static void jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			p->snd_wnd = tp->snd_wnd;
 			p->rcv_wnd = tp->rcv_wnd;
 			p->ssthresh = tcp_current_ssthresh(sk);
-			p->srtt = tp->srtt >> 3;
+			p->srtt = tp->srtt_us >> 3;
 
 			tcp_probe.head = (tcp_probe.head + 1) & (bufsize - 1);
 		}

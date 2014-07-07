@@ -22,7 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/i2c/pcf857x.h>
 
 #include <media/tvp514x.h>
@@ -33,17 +33,19 @@
 #include <linux/mtd/partitions.h>
 #include <linux/clk.h>
 #include <linux/export.h>
+#include <linux/platform_data/gpio-davinci.h>
+#include <linux/platform_data/i2c-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <mach/common.h>
+#include <mach/irqs.h>
 #include <mach/serial.h>
-#include <linux/platform_data/i2c-davinci.h>
-#include <linux/platform_data/mtd-davinci.h>
 #include <mach/clock.h>
 #include <mach/cdce949.h>
-#include <linux/platform_data/mtd-davinci-aemif.h>
 
 #include "davinci.h"
 #include "clock.h"
@@ -786,7 +788,12 @@ static struct edma_rsv_info dm646x_edma_rsv[] = {
 
 static __init void evm_init(void)
 {
+	int ret;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
+	ret = dm646x_gpio_register();
+	if (ret)
+		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
 
 	evm_init_i2c();
 	davinci_serial_init(dm646x_serial_device);
@@ -797,6 +804,9 @@ static __init void evm_init(void)
 		davinci_nand_data.timing = &dm6467tevm_nandflash_timing;
 
 	platform_device_register(&davinci_nand_device);
+
+	if (davinci_aemif_setup(&davinci_nand_device))
+		pr_warn("%s: Cannot configure AEMIF.\n", __func__);
 
 	dm646x_init_edma(dm646x_edma_rsv);
 

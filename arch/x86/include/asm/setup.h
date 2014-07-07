@@ -3,7 +3,6 @@
 
 #include <uapi/asm/setup.h>
 
-
 #define COMMAND_LINE_SIZE 2048
 
 #include <linux/linkage.h>
@@ -29,6 +28,8 @@
 #include <asm/bootparam.h>
 #include <asm/x86_init.h>
 
+extern u64 relocated_ramdisk;
+
 /* Interrupt control for vSMPowered x86_64 systems */
 #ifdef CONFIG_X86_64
 void vsmp_init(void);
@@ -38,12 +39,6 @@ static inline void vsmp_init(void) { }
 
 void setup_bios_corruption_check(void);
 
-#ifdef CONFIG_X86_VISWS
-extern void visws_early_detect(void);
-#else
-static inline void visws_early_detect(void) { }
-#endif
-
 extern unsigned long saved_video_mode;
 
 extern void reserve_standard_io_resources(void);
@@ -51,9 +46,9 @@ extern void i386_reserve_resources(void);
 extern void setup_default_timer_irq(void);
 
 #ifdef CONFIG_X86_INTEL_MID
-extern void x86_mrst_early_setup(void);
+extern void x86_intel_mid_early_setup(void);
 #else
-static inline void x86_mrst_early_setup(void) { }
+static inline void x86_intel_mid_early_setup(void) { }
 #endif
 
 #ifdef CONFIG_X86_INTEL_CE
@@ -63,6 +58,8 @@ static inline void x86_ce4100_early_setup(void) { }
 #endif
 
 #ifndef _SETUP
+
+#include <asm/espfix.h>
 
 /*
  * This is set up by the setup-routine at boot-time

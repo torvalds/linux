@@ -177,13 +177,13 @@ static char *next_arg(char *args, char **param, char **val)
 }
 
 /* Args looks like "foo=bar,bar2 baz=fuz wiz". */
-int parse_args(const char *doing,
-	       char *args,
-	       const struct kernel_param *params,
-	       unsigned num,
-	       s16 min_level,
-	       s16 max_level,
-	       int (*unknown)(char *param, char *val, const char *doing))
+char *parse_args(const char *doing,
+		 char *args,
+		 const struct kernel_param *params,
+		 unsigned num,
+		 s16 min_level,
+		 s16 max_level,
+		 int (*unknown)(char *param, char *val, const char *doing))
 {
 	char *param, *val;
 
@@ -198,6 +198,9 @@ int parse_args(const char *doing,
 		int irq_was_disabled;
 
 		args = next_arg(args, &param, &val);
+		/* Stop at -- */
+		if (!val && strcmp(param, "--") == 0)
+			return args;
 		irq_was_disabled = irqs_disabled();
 		ret = parse_one(param, val, doing, params, num,
 				min_level, max_level, unknown);
@@ -208,36 +211,29 @@ int parse_args(const char *doing,
 		switch (ret) {
 		case -ENOENT:
 			pr_err("%s: Unknown parameter `%s'\n", doing, param);
-			return ret;
+			return ERR_PTR(ret);
 		case -ENOSPC:
 			pr_err("%s: `%s' too large for parameter `%s'\n",
 			       doing, val ?: "", param);
-			return ret;
+			return ERR_PTR(ret);
 		case 0:
 			break;
 		default:
 			pr_err("%s: `%s' invalid for parameter `%s'\n",
 			       doing, val ?: "", param);
-			return ret;
+			return ERR_PTR(ret);
 		}
 	}
 
 	/* All parsed OK. */
-	return 0;
+	return NULL;
 }
 
 /* Lazy bastard, eh? */
-#define STANDARD_PARAM_DEF(name, type, format, tmptype, strtolfn)      	\
+#define STANDARD_PARAM_DEF(name, type, format, strtolfn)      		\
 	int param_set_##name(const char *val, const struct kernel_param *kp) \
 	{								\
-		tmptype l;						\
-		int ret;						\
-									\
-		ret = strtolfn(val, 0, &l);				\
-		if (ret < 0 || ((type)l != l))				\
-			return ret < 0 ? ret : -EINVAL;			\
-		*((type *)kp->arg) = l;					\
-		return 0;						\
+		return strtolfn(val, 0, (type *)kp->arg);		\
 	}								\
 	int param_get_##name(char *buffer, const struct kernel_param *kp) \
 	{								\
@@ -253,13 +249,13 @@ int parse_args(const char *doing,
 	EXPORT_SYMBOL(param_ops_##name)
 
 
-STANDARD_PARAM_DEF(byte, unsigned char, "%hhu", unsigned long, kstrtoul);
-STANDARD_PARAM_DEF(short, short, "%hi", long, kstrtol);
-STANDARD_PARAM_DEF(ushort, unsigned short, "%hu", unsigned long, kstrtoul);
-STANDARD_PARAM_DEF(int, int, "%i", long, kstrtol);
-STANDARD_PARAM_DEF(uint, unsigned int, "%u", unsigned long, kstrtoul);
-STANDARD_PARAM_DEF(long, long, "%li", long, kstrtol);
-STANDARD_PARAM_DEF(ulong, unsigned long, "%lu", unsigned long, kstrtoul);
+STANDARD_PARAM_DEF(byte, unsigned char, "%hhu", kstrtou8);
+STANDARD_PARAM_DEF(short, short, "%hi", kstrtos16);
+STANDARD_PARAM_DEF(ushort, unsigned short, "%hu", kstrtou16);
+STANDARD_PARAM_DEF(int, int, "%i", kstrtoint);
+STANDARD_PARAM_DEF(uint, unsigned int, "%u", kstrtouint);
+STANDARD_PARAM_DEF(long, long, "%li", kstrtol);
+STANDARD_PARAM_DEF(ulong, unsigned long, "%lu", kstrtoul);
 
 int param_set_charp(const char *val, const struct kernel_param *kp)
 {

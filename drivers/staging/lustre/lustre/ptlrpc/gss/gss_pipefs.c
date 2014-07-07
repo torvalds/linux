@@ -85,7 +85,7 @@ static void gss_sec_pipe_upcall_fini(struct gss_sec *gsec)
 }
 
 /****************************************
- * internel context helpers	     *
+ * internal context helpers	     *
  ****************************************/
 
 static
@@ -137,7 +137,7 @@ void ctx_enhash_pf(struct ptlrpc_cli_ctx *ctx, struct hlist_head *hash)
 static
 void ctx_unhash_pf(struct ptlrpc_cli_ctx *ctx, struct hlist_head *freelist)
 {
-	LASSERT(spin_is_locked(&ctx->cc_sec->ps_lock));
+	assert_spin_locked(&ctx->cc_sec->ps_lock);
 	LASSERT(atomic_read(&ctx->cc_refcount) > 0);
 	LASSERT(test_bit(PTLRPC_CTX_CACHED_BIT, &ctx->cc_flags));
 	LASSERT(!hlist_unhashed(&ctx->cc_cache));
@@ -652,7 +652,7 @@ __u32 mech_name2idx(const char *name)
 
 /* pipefs dentries for each mechanisms */
 static struct dentry *de_pipes[MECH_MAX] = { NULL, };
-/* all upcall messgaes linked here */
+/* all upcall messages linked here */
 static struct list_head upcall_lists[MECH_MAX];
 /* and protected by this */
 static spinlock_t upcall_locks[MECH_MAX];
@@ -719,7 +719,7 @@ void gss_unhash_msg_nolock(struct gss_upcall_msg *gmsg)
 	__u32 idx = gmsg->gum_mechidx;
 
 	LASSERT(idx < MECH_MAX);
-	LASSERT(spin_is_locked(&upcall_locks[idx]));
+	assert_spin_locked(&upcall_locks[idx]);
 
 	if (list_empty(&gmsg->gum_list))
 		return;

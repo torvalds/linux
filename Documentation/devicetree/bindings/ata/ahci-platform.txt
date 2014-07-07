@@ -4,17 +4,39 @@ SATA nodes are defined to describe on-chip Serial ATA controllers.
 Each SATA controller should have its own node.
 
 Required properties:
-- compatible        : compatible list, contains "snps,spear-ahci"
+- compatible        : compatible string, one of:
+  - "allwinner,sun4i-a10-ahci"
+  - "fsl,imx53-ahci"
+  - "fsl,imx6q-ahci"
+  - "hisilicon,hisi-ahci"
+  - "ibm,476gtr-ahci"
+  - "marvell,armada-380-ahci"
+  - "snps,dwc-ahci"
+  - "snps,exynos5440-ahci"
+  - "snps,spear-ahci"
 - interrupts        : <interrupt mapping for SATA IRQ>
 - reg               : <registers mapping>
 
 Optional properties:
 - dma-coherent      : Present if dma operations are coherent
+- clocks            : a list of phandle + clock specifier pairs
+- target-supply     : regulator for SATA target power
 
-Example:
+"fsl,imx53-ahci", "fsl,imx6q-ahci" required properties:
+- clocks            : must contain the sata, sata_ref and ahb clocks
+- clock-names       : must contain "ahb" for the ahb clock
+
+Examples:
         sata@ffe08000 {
 		compatible = "snps,spear-ahci";
 		reg = <0xffe08000 0x1000>;
 		interrupts = <115>;
-
         };
+
+	ahci: sata@01c18000 {
+		compatible = "allwinner,sun4i-a10-ahci";
+		reg = <0x01c18000 0x1000>;
+		interrupts = <56>;
+		clocks = <&pll6 0>, <&ahb_gates 25>;
+		target-supply = <&reg_ahci_5v>;
+	};

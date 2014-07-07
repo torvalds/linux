@@ -62,6 +62,13 @@ struct mlx5_ib_alloc_ucontext_req {
 	__u32	num_low_latency_uuars;
 };
 
+struct mlx5_ib_alloc_ucontext_req_v2 {
+	__u32	total_num_uuars;
+	__u32	num_low_latency_uuars;
+	__u32	flags;
+	__u32	reserved;
+};
+
 struct mlx5_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 	__u32	bf_reg_size;
@@ -84,6 +91,7 @@ struct mlx5_ib_create_cq {
 	__u64	buf_addr;
 	__u64	db_addr;
 	__u32	cqe_size;
+	__u32	reserved; /* explicit padding (optional on i386) */
 };
 
 struct mlx5_ib_create_cq_resp {
@@ -93,12 +101,16 @@ struct mlx5_ib_create_cq_resp {
 
 struct mlx5_ib_resize_cq {
 	__u64	buf_addr;
+	__u16	cqe_size;
+	__u16	reserved0;
+	__u32	reserved1;
 };
 
 struct mlx5_ib_create_srq {
 	__u64	buf_addr;
 	__u64	db_addr;
 	__u32	flags;
+	__u32	reserved; /* explicit padding (optional on i386) */
 };
 
 struct mlx5_ib_create_srq_resp {

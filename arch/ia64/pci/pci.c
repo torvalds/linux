@@ -126,7 +126,6 @@ static struct pci_controller *alloc_pci_controller(int seg)
 		return NULL;
 
 	controller->segment = seg;
-	controller->node = -1;
 	return controller;
 }
 
@@ -430,19 +429,14 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	struct pci_root_info *info = NULL;
 	int busnum = root->secondary.start;
 	struct pci_bus *pbus;
-	int pxm, ret;
+	int ret;
 
 	controller = alloc_pci_controller(domain);
 	if (!controller)
 		return NULL;
 
-	controller->acpi_handle = device->handle;
-
-	pxm = acpi_get_pxm(controller->acpi_handle);
-#ifdef CONFIG_NUMA
-	if (pxm >= 0)
-		controller->node = pxm_to_node(pxm);
-#endif
+	controller->companion = device;
+	controller->node = acpi_get_node(device->handle);
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
@@ -489,7 +483,7 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
 	struct pci_controller *controller = bridge->bus->sysdata;
 
-	ACPI_HANDLE_SET(&bridge->dev, controller->acpi_handle);
+	ACPI_COMPANION_SET(&bridge->dev, controller->companion);
 	return 0;
 }
 

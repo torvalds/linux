@@ -66,29 +66,35 @@ struct dt2814_private {
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
+static int dt2814_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DT2814_CSR);
+	if (status & DT2814_FINISH)
+		return 0;
+	return -EBUSY;
+}
+
 static int dt2814_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	int n, i, hi, lo;
+	int n, hi, lo;
 	int chan;
-	int status = 0;
+	int ret;
 
 	for (n = 0; n < insn->n; n++) {
 		chan = CR_CHAN(insn->chanspec);
 
 		outb(chan, dev->iobase + DT2814_CSR);
-		for (i = 0; i < DT2814_TIMEOUT; i++) {
-			status = inb(dev->iobase + DT2814_CSR);
-			printk(KERN_INFO "dt2814: status: %02x\n", status);
-			udelay(10);
-			if (status & DT2814_FINISH)
-				break;
-		}
-		if (i >= DT2814_TIMEOUT) {
-			printk(KERN_INFO "dt2814: status: %02x\n", status);
-			return -ETIMEDOUT;
-		}
+
+		ret = comedi_timeout(dev, s, insn, dt2814_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		hi = inb(dev->iobase + DT2814_DATA);
 		lo = inb(dev->iobase + DT2814_DATA);
@@ -122,7 +128,7 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -164,10 +170,9 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	tmp = cmd->scan_begin_arg;
-	dt2814_ns_to_timer(&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
-	if (tmp != cmd->scan_begin_arg)
-		err++;
+	arg = cmd->scan_begin_arg;
+	dt2814_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 
 	if (err)
 		return 4;
@@ -200,15 +205,13 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 	int lo, hi;
 	struct comedi_device *dev = d;
 	struct dt2814_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
+	struct comedi_subdevice *s = dev->read_subdev;
 	int data;
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
 		return IRQ_HANDLED;
 	}
-
-	s = &dev->subdevices[0];
 
 	hi = inb(dev->iobase + DT2814_DATA);
 	lo = inb(dev->iobase + DT2814_DATA);
@@ -238,9 +241,9 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct dt2814_private *devpriv;
-	int i, irq;
-	int ret;
 	struct comedi_subdevice *s;
+	int ret;
+	int i;
 
 	ret = comedi_request_region(dev, it->options[0], DT2814_SIZE);
 	if (ret)
@@ -249,49 +252,17 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(0, dev->iobase + DT2814_CSR);
 	udelay(100);
 	if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR) {
-		printk(KERN_ERR "reset error (fatal)\n");
+		dev_err(dev->class_dev, "reset error (fatal)\n");
 		return -EIO;
 	}
 	i = inb(dev->iobase + DT2814_DATA);
 	i = inb(dev->iobase + DT2814_DATA);
 
-	irq = it->options[1];
-#if 0
-	if (irq < 0) {
-		save_flags(flags);
-		sti();
-		irqs = probe_irq_on();
-
-		outb(0, dev->iobase + DT2814_CSR);
-
-		udelay(100);
-
-		irq = probe_irq_off(irqs);
-		restore_flags(flags);
-		if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR)
-			printk(KERN_DEBUG "error probing irq (bad)\n");
-
-
-		i = inb(dev->iobase + DT2814_DATA);
-		i = inb(dev->iobase + DT2814_DATA);
-	}
-#endif
-	dev->irq = 0;
-	if (irq > 0) {
-		if (request_irq(irq, dt2814_interrupt, 0, "dt2814", dev)) {
-			printk(KERN_WARNING "(irq %d unavailable)\n", irq);
-		} else {
-			printk(KERN_INFO "( irq = %d )\n", irq);
-			dev->irq = irq;
-		}
-	} else if (irq == 0) {
-		printk(KERN_WARNING "(no irq)\n");
-	} else {
-#if 0
-		printk(KERN_DEBUG "(probe returned multiple irqs--bad)\n");
-#else
-		printk(KERN_WARNING "(irq probe not implemented)\n");
-#endif
+	if (it->options[1]) {
+		ret = request_irq(it->options[1], dt2814_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
 	ret = comedi_alloc_subdevices(dev, 1);
@@ -303,16 +274,19 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 16;		/* XXX */
-	s->len_chanlist = 1;
 	s->insn_read = dt2814_ai_insn_read;
-	s->do_cmd = dt2814_ai_cmd;
-	s->do_cmdtest = dt2814_ai_cmdtest;
 	s->maxdata = 0xfff;
 	s->range_table = &range_unknown;	/* XXX */
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = 1;
+		s->do_cmd = dt2814_ai_cmd;
+		s->do_cmdtest = dt2814_ai_cmdtest;
+	}
 
 	return 0;
 }

@@ -17,6 +17,7 @@
 #include <linux/mfd/as3711.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -113,7 +114,7 @@ static const struct regmap_config as3711_regmap_config = {
 };
 
 #ifdef CONFIG_OF
-static struct of_device_id as3711_of_match[] = {
+static const struct of_device_id as3711_of_match[] = {
 	{.compatible = "ams,as3711",},
 	{}
 };

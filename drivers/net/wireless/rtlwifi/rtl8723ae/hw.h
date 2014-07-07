@@ -67,7 +67,5 @@ void rtl8723ae_bt_reg_init(struct ieee80211_hw *hw);
 void rtl8723ae_bt_hw_init(struct ieee80211_hw *hw);
 void rtl8723ae_suspend(struct ieee80211_hw *hw);
 void rtl8723ae_resume(struct ieee80211_hw *hw);
-void rtl8723ae_allow_all_destaddr(struct ieee80211_hw *hw,
-				  bool allow_all_da, bool write_into_reg);
 
 #endif

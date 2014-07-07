@@ -49,7 +49,8 @@ void esas2r_start_request(struct esas2r_adapter *a, struct esas2r_request *rq)
 	struct esas2r_request *startrq = rq;
 	unsigned long flags;
 
-	if (unlikely(a->flags & (AF_DEGRADED_MODE | AF_POWER_DOWN))) {
+	if (unlikely(test_bit(AF_DEGRADED_MODE, &a->flags) ||
+		     test_bit(AF_POWER_DOWN, &a->flags))) {
 		if (rq->vrq->scsi.function == VDA_FUNC_SCSI)
 			rq->req_stat = RS_SEL2;
 		else
@@ -69,8 +70,8 @@ void esas2r_start_request(struct esas2r_adapter *a, struct esas2r_request *rq)
 			 * Note that if AF_DISC_PENDING is set than this will
 			 * go on the defer queue.
 			 */
-			if (unlikely(t->target_state != TS_PRESENT
-				     && !(a->flags & AF_DISC_PENDING)))
+			if (unlikely(t->target_state != TS_PRESENT &&
+				     !test_bit(AF_DISC_PENDING, &a->flags)))
 				rq->req_stat = RS_SEL;
 		}
 	}
@@ -91,8 +92,9 @@ void esas2r_start_request(struct esas2r_adapter *a, struct esas2r_request *rq)
 	spin_lock_irqsave(&a->queue_lock, flags);
 
 	if (likely(list_empty(&a->defer_list) &&
-		   !(a->flags &
-		     (AF_CHPRST_PENDING | AF_FLASHING | AF_DISC_PENDING))))
+		   !test_bit(AF_CHPRST_PENDING, &a->flags) &&
+		   !test_bit(AF_FLASHING, &a->flags) &&
+		   !test_bit(AF_DISC_PENDING, &a->flags)))
 		esas2r_local_start_request(a, startrq);
 	else
 		list_add_tail(&startrq->req_list, &a->defer_list);
@@ -124,7 +126,7 @@ void esas2r_local_start_request(struct esas2r_adapter *a,
 
 	if (unlikely(rq->vrq->scsi.function == VDA_FUNC_FLASH
 		     && rq->vrq->flash.sub_func == VDA_FLASH_COMMIT))
-		esas2r_lock_set_flags(&a->flags, AF_FLASHING);
+		set_bit(AF_FLASHING, &a->flags);
 
 	list_add_tail(&rq->req_list, &a->active_list);
 	esas2r_start_vda_request(a, rq);
@@ -147,11 +149,10 @@ void esas2r_start_vda_request(struct esas2r_adapter *a,
 	if (a->last_write >= a->list_size) {
 		a->last_write = 0;
 		/* update the toggle bit */
-		if (a->flags & AF_COMM_LIST_TOGGLE)
-			esas2r_lock_clear_flags(&a->flags,
-						AF_COMM_LIST_TOGGLE);
+		if (test_bit(AF_COMM_LIST_TOGGLE, &a->flags))
+			clear_bit(AF_COMM_LIST_TOGGLE, &a->flags);
 		else
-			esas2r_lock_set_flags(&a->flags, AF_COMM_LIST_TOGGLE);
+			set_bit(AF_COMM_LIST_TOGGLE, &a->flags);
 	}
 
 	element =
@@ -169,7 +170,7 @@ void esas2r_start_vda_request(struct esas2r_adapter *a,
 	/* Update the write pointer */
 	dw = a->last_write;
 
-	if (a->flags & AF_COMM_LIST_TOGGLE)
+	if (test_bit(AF_COMM_LIST_TOGGLE, &a->flags))
 		dw |= MU_ILW_TOGGLE;
 
 	esas2r_trace("rq->vrq->scsi.handle:%x", rq->vrq->scsi.handle);
@@ -687,18 +688,14 @@ static void esas2r_handle_pending_reset(struct esas2r_adapter *a, u32 currtime)
 			esas2r_write_register_dword(a, MU_DOORBELL_OUT,
 						    doorbell);
 			if (ver == DRBL_FW_VER_0) {
-				esas2r_lock_set_flags(&a->flags,
-						      AF_CHPRST_DETECTED);
-				esas2r_lock_set_flags(&a->flags,
-						      AF_LEGACY_SGE_MODE);
+				set_bit(AF_CHPRST_DETECTED, &a->flags);
+				set_bit(AF_LEGACY_SGE_MODE, &a->flags);
 
 				a->max_vdareq_size = 128;
 				a->build_sgl = esas2r_build_sg_list_sge;
 			} else if (ver == DRBL_FW_VER_1) {
-				esas2r_lock_set_flags(&a->flags,
-						      AF_CHPRST_DETECTED);
-				esas2r_lock_clear_flags(&a->flags,
-							AF_LEGACY_SGE_MODE);
+				set_bit(AF_CHPRST_DETECTED, &a->flags);
+				clear_bit(AF_LEGACY_SGE_MODE, &a->flags);
 
 				a->max_vdareq_size = 1024;
 				a->build_sgl = esas2r_build_sg_list_prd;
@@ -719,28 +716,27 @@ void esas2r_timer_tick(struct esas2r_adapter *a)
 	a->last_tick_time = currtime;
 
 	/* count down the uptime */
-	if (a->chip_uptime
-	    && !(a->flags & (AF_CHPRST_PENDING | AF_DISC_PENDING))) {
+	if (a->chip_uptime &&
+	    !test_bit(AF_CHPRST_PENDING, &a->flags) &&
+	    !test_bit(AF_DISC_PENDING, &a->flags)) {
 		if (deltatime >= a->chip_uptime)
 			a->chip_uptime = 0;
 		else
 			a->chip_uptime -= deltatime;
 	}
 
-	if (a->flags & AF_CHPRST_PENDING) {
-		if (!(a->flags & AF_CHPRST_NEEDED)
-		    && !(a->flags & AF_CHPRST_DETECTED))
+	if (test_bit(AF_CHPRST_PENDING, &a->flags)) {
+		if (!test_bit(AF_CHPRST_NEEDED, &a->flags) &&
+		    !test_bit(AF_CHPRST_DETECTED, &a->flags))
 			esas2r_handle_pending_reset(a, currtime);
 	} else {
-		if (a->flags & AF_DISC_PENDING)
+		if (test_bit(AF_DISC_PENDING, &a->flags))
 			esas2r_disc_check_complete(a);
-
-		if (a->flags & AF_HEARTBEAT_ENB) {
-			if (a->flags & AF_HEARTBEAT) {
+		if (test_bit(AF_HEARTBEAT_ENB, &a->flags)) {
+			if (test_bit(AF_HEARTBEAT, &a->flags)) {
 				if ((currtime - a->heartbeat_time) >=
 				    ESAS2R_HEARTBEAT_TIME) {
-					esas2r_lock_clear_flags(&a->flags,
-								AF_HEARTBEAT);
+					clear_bit(AF_HEARTBEAT, &a->flags);
 					esas2r_hdebug("heartbeat failed");
 					esas2r_log(ESAS2R_LOG_CRIT,
 						   "heartbeat failed");
@@ -748,7 +744,7 @@ void esas2r_timer_tick(struct esas2r_adapter *a)
 					esas2r_local_reset_adapter(a);
 				}
 			} else {
-				esas2r_lock_set_flags(&a->flags, AF_HEARTBEAT);
+				set_bit(AF_HEARTBEAT, &a->flags);
 				a->heartbeat_time = currtime;
 				esas2r_force_interrupt(a);
 			}
@@ -812,7 +808,7 @@ bool esas2r_send_task_mgmt(struct esas2r_adapter *a,
 	rqaux->vrq->scsi.flags |=
 		cpu_to_le16(task_mgt_func * LOBIT(FCP_CMND_TM_MASK));
 
-	if (a->flags & AF_FLASHING) {
+	if (test_bit(AF_FLASHING, &a->flags)) {
 		/* Assume success.  if there are active requests, return busy */
 		rqaux->req_stat = RS_SUCCESS;
 
@@ -831,7 +827,7 @@ bool esas2r_send_task_mgmt(struct esas2r_adapter *a,
 
 	spin_unlock_irqrestore(&a->queue_lock, flags);
 
-	if (!(a->flags & AF_FLASHING))
+	if (!test_bit(AF_FLASHING, &a->flags))
 		esas2r_start_request(a, rqaux);
 
 	esas2r_comp_list_drain(a, &comp_list);
@@ -848,11 +844,12 @@ void esas2r_reset_bus(struct esas2r_adapter *a)
 {
 	esas2r_log(ESAS2R_LOG_INFO, "performing a bus reset");
 
-	if (!(a->flags & AF_DEGRADED_MODE)
-	    && !(a->flags & (AF_CHPRST_PENDING | AF_DISC_PENDING))) {
-		esas2r_lock_set_flags(&a->flags, AF_BUSRST_NEEDED);
-		esas2r_lock_set_flags(&a->flags, AF_BUSRST_PENDING);
-		esas2r_lock_set_flags(&a->flags, AF_OS_RESET);
+	if (!test_bit(AF_DEGRADED_MODE, &a->flags) &&
+	    !test_bit(AF_CHPRST_PENDING, &a->flags) &&
+	    !test_bit(AF_DISC_PENDING, &a->flags)) {
+		set_bit(AF_BUSRST_NEEDED, &a->flags);
+		set_bit(AF_BUSRST_PENDING, &a->flags);
+		set_bit(AF_OS_RESET, &a->flags);
 
 		esas2r_schedule_tasklet(a);
 	}

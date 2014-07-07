@@ -154,6 +154,7 @@ static const struct chip_desc chips[last_ds_type] = {
 		.alarm		= 1,
 	},
 	[mcp7941x] = {
+		.alarm		= 1,
 		/* this is battery backed SRAM */
 		.nvram_offset	= 0x20,
 		.nvram_size	= 0x40,
@@ -606,6 +607,178 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
+/*
+ * Alarm support for mcp7941x devices.
+ */
+
+#define MCP7941X_REG_CONTROL		0x07
+#	define MCP7941X_BIT_ALM0_EN	0x10
+#	define MCP7941X_BIT_ALM1_EN	0x20
+#define MCP7941X_REG_ALARM0_BASE	0x0a
+#define MCP7941X_REG_ALARM0_CTRL	0x0d
+#define MCP7941X_REG_ALARM1_BASE	0x11
+#define MCP7941X_REG_ALARM1_CTRL	0x14
+#	define MCP7941X_BIT_ALMX_IF	(1 << 3)
+#	define MCP7941X_BIT_ALMX_C0	(1 << 4)
+#	define MCP7941X_BIT_ALMX_C1	(1 << 5)
+#	define MCP7941X_BIT_ALMX_C2	(1 << 6)
+#	define MCP7941X_BIT_ALMX_POL	(1 << 7)
+#	define MCP7941X_MSK_ALMX_MATCH	(MCP7941X_BIT_ALMX_C0 | \
+					 MCP7941X_BIT_ALMX_C1 | \
+					 MCP7941X_BIT_ALMX_C2)
+
+static void mcp7941x_work(struct work_struct *work)
+{
+	struct ds1307 *ds1307 = container_of(work, struct ds1307, work);
+	struct i2c_client *client = ds1307->client;
+	int reg, ret;
+
+	mutex_lock(&ds1307->rtc->ops_lock);
+
+	/* Check and clear alarm 0 interrupt flag. */
+	reg = i2c_smbus_read_byte_data(client, MCP7941X_REG_ALARM0_CTRL);
+	if (reg < 0)
+		goto out;
+	if (!(reg & MCP7941X_BIT_ALMX_IF))
+		goto out;
+	reg &= ~MCP7941X_BIT_ALMX_IF;
+	ret = i2c_smbus_write_byte_data(client, MCP7941X_REG_ALARM0_CTRL, reg);
+	if (ret < 0)
+		goto out;
+
+	/* Disable alarm 0. */
+	reg = i2c_smbus_read_byte_data(client, MCP7941X_REG_CONTROL);
+	if (reg < 0)
+		goto out;
+	reg &= ~MCP7941X_BIT_ALM0_EN;
+	ret = i2c_smbus_write_byte_data(client, MCP7941X_REG_CONTROL, reg);
+	if (ret < 0)
+		goto out;
+
+	rtc_update_irq(ds1307->rtc, 1, RTC_AF | RTC_IRQF);
+
+out:
+	if (test_bit(HAS_ALARM, &ds1307->flags))
+		enable_irq(client->irq);
+	mutex_unlock(&ds1307->rtc->ops_lock);
+}
+
+static int mcp7941x_read_alarm(struct device *dev, struct rtc_wkalrm *t)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ds1307 *ds1307 = i2c_get_clientdata(client);
+	u8 *regs = ds1307->regs;
+	int ret;
+
+	if (!test_bit(HAS_ALARM, &ds1307->flags))
+		return -EINVAL;
+
+	/* Read control and alarm 0 registers. */
+	ret = ds1307->read_block_data(client, MCP7941X_REG_CONTROL, 10, regs);
+	if (ret < 0)
+		return ret;
+
+	t->enabled = !!(regs[0] & MCP7941X_BIT_ALM0_EN);
+
+	/* Report alarm 0 time assuming 24-hour and day-of-month modes. */
+	t->time.tm_sec = bcd2bin(ds1307->regs[3] & 0x7f);
+	t->time.tm_min = bcd2bin(ds1307->regs[4] & 0x7f);
+	t->time.tm_hour = bcd2bin(ds1307->regs[5] & 0x3f);
+	t->time.tm_wday = bcd2bin(ds1307->regs[6] & 0x7) - 1;
+	t->time.tm_mday = bcd2bin(ds1307->regs[7] & 0x3f);
+	t->time.tm_mon = bcd2bin(ds1307->regs[8] & 0x1f) - 1;
+	t->time.tm_year = -1;
+	t->time.tm_yday = -1;
+	t->time.tm_isdst = -1;
+
+	dev_dbg(dev, "%s, sec=%d min=%d hour=%d wday=%d mday=%d mon=%d "
+		"enabled=%d polarity=%d irq=%d match=%d\n", __func__,
+		t->time.tm_sec, t->time.tm_min, t->time.tm_hour,
+		t->time.tm_wday, t->time.tm_mday, t->time.tm_mon, t->enabled,
+		!!(ds1307->regs[6] & MCP7941X_BIT_ALMX_POL),
+		!!(ds1307->regs[6] & MCP7941X_BIT_ALMX_IF),
+		(ds1307->regs[6] & MCP7941X_MSK_ALMX_MATCH) >> 4);
+
+	return 0;
+}
+
+static int mcp7941x_set_alarm(struct device *dev, struct rtc_wkalrm *t)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ds1307 *ds1307 = i2c_get_clientdata(client);
+	unsigned char *regs = ds1307->regs;
+	int ret;
+
+	if (!test_bit(HAS_ALARM, &ds1307->flags))
+		return -EINVAL;
+
+	dev_dbg(dev, "%s, sec=%d min=%d hour=%d wday=%d mday=%d mon=%d "
+		"enabled=%d pending=%d\n", __func__,
+		t->time.tm_sec, t->time.tm_min, t->time.tm_hour,
+		t->time.tm_wday, t->time.tm_mday, t->time.tm_mon,
+		t->enabled, t->pending);
+
+	/* Read control and alarm 0 registers. */
+	ret = ds1307->read_block_data(client, MCP7941X_REG_CONTROL, 10, regs);
+	if (ret < 0)
+		return ret;
+
+	/* Set alarm 0, using 24-hour and day-of-month modes. */
+	regs[3] = bin2bcd(t->time.tm_sec);
+	regs[4] = bin2bcd(t->time.tm_min);
+	regs[5] = bin2bcd(t->time.tm_hour);
+	regs[6] = bin2bcd(t->time.tm_wday) + 1;
+	regs[7] = bin2bcd(t->time.tm_mday);
+	regs[8] = bin2bcd(t->time.tm_mon) + 1;
+
+	/* Clear the alarm 0 interrupt flag. */
+	regs[6] &= ~MCP7941X_BIT_ALMX_IF;
+	/* Set alarm match: second, minute, hour, day, date, month. */
+	regs[6] |= MCP7941X_MSK_ALMX_MATCH;
+
+	if (t->enabled)
+		regs[0] |= MCP7941X_BIT_ALM0_EN;
+	else
+		regs[0] &= ~MCP7941X_BIT_ALM0_EN;
+
+	ret = ds1307->write_block_data(client, MCP7941X_REG_CONTROL, 10, regs);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int mcp7941x_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ds1307 *ds1307 = i2c_get_clientdata(client);
+	int reg;
+
+	if (!test_bit(HAS_ALARM, &ds1307->flags))
+		return -EINVAL;
+
+	reg = i2c_smbus_read_byte_data(client, MCP7941X_REG_CONTROL);
+	if (reg < 0)
+		return reg;
+
+	if (enabled)
+		reg |= MCP7941X_BIT_ALM0_EN;
+	else
+		reg &= ~MCP7941X_BIT_ALM0_EN;
+
+	return i2c_smbus_write_byte_data(client, MCP7941X_REG_CONTROL, reg);
+}
+
+static const struct rtc_class_ops mcp7941x_rtc_ops = {
+	.read_time	= ds1307_get_time,
+	.set_time	= ds1307_set_time,
+	.read_alarm	= mcp7941x_read_alarm,
+	.set_alarm	= mcp7941x_set_alarm,
+	.alarm_irq_enable = mcp7941x_alarm_irq_enable,
+};
+
+/*----------------------------------------------------------------------*/
+
 static ssize_t
 ds1307_nvram_read(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr,
@@ -670,14 +843,15 @@ static int ds1307_probe(struct i2c_client *client,
 	int			tmp;
 	const struct chip_desc	*chip = &chips[id->driver_data];
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
-	int			want_irq = false;
+	bool			want_irq = false;
 	unsigned char		*buf;
-	struct ds1307_platform_data *pdata = client->dev.platform_data;
+	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
 	static const int	bbsqi_bitpos[] = {
 		[ds_1337] = 0,
 		[ds_1339] = DS1339_BIT_BBSQI,
 		[ds_3231] = DS3231_BIT_BBSQW,
 	};
+	const struct rtc_class_ops *rtc_ops = &ds13xx_rtc_ops;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)
 	    && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
@@ -816,6 +990,13 @@ static int ds1307_probe(struct i2c_client *client,
 	case ds_1388:
 		ds1307->offset = 1; /* Seconds starts at 1 */
 		break;
+	case mcp7941x:
+		rtc_ops = &mcp7941x_rtc_ops;
+		if (ds1307->client->irq > 0 && chip->alarm) {
+			INIT_WORK(&ds1307->work, mcp7941x_work);
+			want_irq = true;
+		}
+		break;
 	default:
 		break;
 	}
@@ -927,49 +1108,57 @@ read_rtc:
 				bin2bcd(tmp));
 	}
 
+	device_set_wakeup_capable(&client->dev, want_irq);
 	ds1307->rtc = devm_rtc_device_register(&client->dev, client->name,
-				&ds13xx_rtc_ops, THIS_MODULE);
+				rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds1307->rtc)) {
-		err = PTR_ERR(ds1307->rtc);
-		dev_err(&client->dev,
-			"unable to register the class device\n");
-		goto exit;
+		return PTR_ERR(ds1307->rtc);
 	}
 
 	if (want_irq) {
 		err = request_irq(client->irq, ds1307_irq, IRQF_SHARED,
 			  ds1307->rtc->name, client);
 		if (err) {
-			dev_err(&client->dev,
-				"unable to request IRQ!\n");
-			goto exit;
-		}
+			client->irq = 0;
+			dev_err(&client->dev, "unable to request IRQ!\n");
+		} else {
 
-		device_set_wakeup_capable(&client->dev, 1);
-		set_bit(HAS_ALARM, &ds1307->flags);
-		dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
+			set_bit(HAS_ALARM, &ds1307->flags);
+			dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
+		}
 	}
 
 	if (chip->nvram_size) {
+
 		ds1307->nvram = devm_kzalloc(&client->dev,
 					sizeof(struct bin_attribute),
 					GFP_KERNEL);
 		if (!ds1307->nvram) {
-			err = -ENOMEM;
-			goto exit;
+			dev_err(&client->dev, "cannot allocate memory for nvram sysfs\n");
+		} else {
+
+			ds1307->nvram->attr.name = "nvram";
+			ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
+
+			sysfs_bin_attr_init(ds1307->nvram);
+
+			ds1307->nvram->read = ds1307_nvram_read;
+			ds1307->nvram->write = ds1307_nvram_write;
+			ds1307->nvram->size = chip->nvram_size;
+			ds1307->nvram_offset = chip->nvram_offset;
+
+			err = sysfs_create_bin_file(&client->dev.kobj,
+						    ds1307->nvram);
+			if (err) {
+				dev_err(&client->dev,
+					"unable to create sysfs file: %s\n",
+					ds1307->nvram->attr.name);
+			} else {
+				set_bit(HAS_NVRAM, &ds1307->flags);
+				dev_info(&client->dev, "%zu bytes nvram\n",
+					 ds1307->nvram->size);
+			}
 		}
-		ds1307->nvram->attr.name = "nvram";
-		ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
-		sysfs_bin_attr_init(ds1307->nvram);
-		ds1307->nvram->read = ds1307_nvram_read;
-		ds1307->nvram->write = ds1307_nvram_write;
-		ds1307->nvram->size = chip->nvram_size;
-		ds1307->nvram_offset = chip->nvram_offset;
-		err = sysfs_create_bin_file(&client->dev.kobj, ds1307->nvram);
-		if (err)
-			goto exit;
-		set_bit(HAS_NVRAM, &ds1307->flags);
-		dev_info(&client->dev, "%zu bytes nvram\n", ds1307->nvram->size);
 	}
 
 	return 0;

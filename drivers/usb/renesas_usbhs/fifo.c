@@ -681,6 +681,14 @@ usbhs_fifo_read_end:
 		usbhs_pipe_number(pipe),
 		pkt->length, pkt->actual, *is_done, pkt->zero);
 
+	/*
+	 * Transmission end
+	 */
+	if (*is_done) {
+		if (usbhs_pipe_is_dcp(pipe))
+			usbhs_dcp_control_transfer_done(pipe);
+	}
+
 usbhs_fifo_read_busy:
 	usbhsf_fifo_unselect(pipe, fifo);
 
@@ -1124,19 +1132,8 @@ void usbhs_fifo_init(struct usbhs_priv *priv)
 	mod->irq_brdysts	= 0;
 
 	cfifo->pipe	= NULL;
-	cfifo->tx_chan	= NULL;
-	cfifo->rx_chan	= NULL;
-
 	d0fifo->pipe	= NULL;
-	d0fifo->tx_chan	= NULL;
-	d0fifo->rx_chan	= NULL;
-
 	d1fifo->pipe	= NULL;
-	d1fifo->tx_chan	= NULL;
-	d1fifo->rx_chan	= NULL;
-
-	usbhsf_dma_init(priv, usbhsf_get_d0fifo(priv));
-	usbhsf_dma_init(priv, usbhsf_get_d1fifo(priv));
 }
 
 void usbhs_fifo_quit(struct usbhs_priv *priv)
@@ -1147,9 +1144,6 @@ void usbhs_fifo_quit(struct usbhs_priv *priv)
 	mod->irq_ready		= NULL;
 	mod->irq_bempsts	= 0;
 	mod->irq_brdysts	= 0;
-
-	usbhsf_dma_quit(priv, usbhsf_get_d0fifo(priv));
-	usbhsf_dma_quit(priv, usbhsf_get_d1fifo(priv));
 }
 
 int usbhs_fifo_probe(struct usbhs_priv *priv)
@@ -1171,6 +1165,7 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 	fifo->ctr	= D0FIFOCTR;
 	fifo->tx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d0_tx_id);
 	fifo->rx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d0_rx_id);
+	usbhsf_dma_init(priv, fifo);
 
 	/* D1FIFO */
 	fifo = usbhsf_get_d1fifo(priv);
@@ -1180,10 +1175,13 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 	fifo->ctr	= D1FIFOCTR;
 	fifo->tx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d1_tx_id);
 	fifo->rx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d1_rx_id);
+	usbhsf_dma_init(priv, fifo);
 
 	return 0;
 }
 
 void usbhs_fifo_remove(struct usbhs_priv *priv)
 {
+	usbhsf_dma_quit(priv, usbhsf_get_d0fifo(priv));
+	usbhsf_dma_quit(priv, usbhsf_get_d1fifo(priv));
 }

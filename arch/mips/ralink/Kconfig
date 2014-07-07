@@ -15,23 +15,18 @@ choice
 
 	config SOC_RT288X
 		bool "RT288x"
+		select MIPS_L1_CACHE_SHIFT_4
 
 	config SOC_RT305X
 		bool "RT305x"
 		select USB_ARCH_HAS_HCD
-		select USB_ARCH_HAS_OHCI
-		select USB_ARCH_HAS_EHCI
 
 	config SOC_RT3883
 		bool "RT3883"
-		select USB_ARCH_HAS_OHCI
-		select USB_ARCH_HAS_EHCI
 		select HW_HAS_PCI
 
 	config SOC_MT7620
 		bool "MT7620"
-		select USB_ARCH_HAS_OHCI
-		select USB_ARCH_HAS_EHCI
 
 endchoice
 

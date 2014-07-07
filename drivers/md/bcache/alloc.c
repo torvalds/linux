@@ -63,12 +63,11 @@
 #include "bcache.h"
 #include "btree.h"
 
+#include <linux/blkdev.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/random.h>
 #include <trace/events/bcache.h>
-
-#define MAX_IN_FLIGHT_DISCARDS		8U
 
 /* Bucket heap / gen */
 
@@ -78,12 +77,6 @@ uint8_t bch_inc_gen(struct cache *ca, struct bucket *b)
 
 	ca->set->need_gc = max(ca->set->need_gc, bucket_gc_gen(b));
 	WARN_ON_ONCE(ca->set->need_gc > BUCKET_GC_GEN_MAX);
-
-	if (CACHE_SYNC(&ca->set->sb)) {
-		ca->need_save_prio = max(ca->need_save_prio,
-					 bucket_disk_gen(b));
-		WARN_ON_ONCE(ca->need_save_prio > BUCKET_DISK_GEN_MAX);
-	}
 
 	return ret;
 }
@@ -121,119 +114,63 @@ void bch_rescale_priorities(struct cache_set *c, int sectors)
 	mutex_unlock(&c->bucket_lock);
 }
 
-/* Discard/TRIM */
-
-struct discard {
-	struct list_head	list;
-	struct work_struct	work;
-	struct cache		*ca;
-	long			bucket;
-
-	struct bio		bio;
-	struct bio_vec		bv;
-};
-
-static void discard_finish(struct work_struct *w)
-{
-	struct discard *d = container_of(w, struct discard, work);
-	struct cache *ca = d->ca;
-	char buf[BDEVNAME_SIZE];
-
-	if (!test_bit(BIO_UPTODATE, &d->bio.bi_flags)) {
-		pr_notice("discard error on %s, disabling",
-			 bdevname(ca->bdev, buf));
-		d->ca->discard = 0;
-	}
-
-	mutex_lock(&ca->set->bucket_lock);
-
-	fifo_push(&ca->free, d->bucket);
-	list_add(&d->list, &ca->discards);
-	atomic_dec(&ca->discards_in_flight);
-
-	mutex_unlock(&ca->set->bucket_lock);
-
-	closure_wake_up(&ca->set->bucket_wait);
-	wake_up_process(ca->alloc_thread);
-
-	closure_put(&ca->set->cl);
-}
-
-static void discard_endio(struct bio *bio, int error)
-{
-	struct discard *d = container_of(bio, struct discard, bio);
-	schedule_work(&d->work);
-}
-
-static void do_discard(struct cache *ca, long bucket)
-{
-	struct discard *d = list_first_entry(&ca->discards,
-					     struct discard, list);
-
-	list_del(&d->list);
-	d->bucket = bucket;
-
-	atomic_inc(&ca->discards_in_flight);
-	closure_get(&ca->set->cl);
-
-	bio_init(&d->bio);
-
-	d->bio.bi_sector	= bucket_to_sector(ca->set, d->bucket);
-	d->bio.bi_bdev		= ca->bdev;
-	d->bio.bi_rw		= REQ_WRITE|REQ_DISCARD;
-	d->bio.bi_max_vecs	= 1;
-	d->bio.bi_io_vec	= d->bio.bi_inline_vecs;
-	d->bio.bi_size		= bucket_bytes(ca);
-	d->bio.bi_end_io	= discard_endio;
-	bio_set_prio(&d->bio, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
-
-	submit_bio(0, &d->bio);
-}
-
-/* Allocation */
+/*
+ * Background allocation thread: scans for buckets to be invalidated,
+ * invalidates them, rewrites prios/gens (marking them as invalidated on disk),
+ * then optionally issues discard commands to the newly free buckets, then puts
+ * them on the various freelists.
+ */
 
 static inline bool can_inc_bucket_gen(struct bucket *b)
 {
-	return bucket_gc_gen(b) < BUCKET_GC_GEN_MAX &&
-		bucket_disk_gen(b) < BUCKET_DISK_GEN_MAX;
+	return bucket_gc_gen(b) < BUCKET_GC_GEN_MAX;
 }
 
-bool bch_bucket_add_unused(struct cache *ca, struct bucket *b)
+bool bch_can_invalidate_bucket(struct cache *ca, struct bucket *b)
 {
-	BUG_ON(GC_MARK(b) || GC_SECTORS_USED(b));
+	BUG_ON(!ca->set->gc_mark_valid);
 
-	if (fifo_used(&ca->free) > ca->watermark[WATERMARK_MOVINGGC] &&
-	    CACHE_REPLACEMENT(&ca->sb) == CACHE_REPLACEMENT_FIFO)
-		return false;
-
-	b->prio = 0;
-
-	if (can_inc_bucket_gen(b) &&
-	    fifo_push(&ca->unused, b - ca->buckets)) {
-		atomic_inc(&b->pin);
-		return true;
-	}
-
-	return false;
-}
-
-static bool can_invalidate_bucket(struct cache *ca, struct bucket *b)
-{
-	return GC_MARK(b) == GC_MARK_RECLAIMABLE &&
+	return (!GC_MARK(b) ||
+		GC_MARK(b) == GC_MARK_RECLAIMABLE) &&
 		!atomic_read(&b->pin) &&
 		can_inc_bucket_gen(b);
 }
 
-static void invalidate_one_bucket(struct cache *ca, struct bucket *b)
+void __bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
 {
+	lockdep_assert_held(&ca->set->bucket_lock);
+	BUG_ON(GC_MARK(b) && GC_MARK(b) != GC_MARK_RECLAIMABLE);
+
+	if (GC_SECTORS_USED(b))
+		trace_bcache_invalidate(ca, b - ca->buckets);
+
 	bch_inc_gen(ca, b);
 	b->prio = INITIAL_PRIO;
 	atomic_inc(&b->pin);
+}
+
+static void bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
+{
+	__bch_invalidate_one_bucket(ca, b);
+
 	fifo_push(&ca->free_inc, b - ca->buckets);
 }
 
-#define bucket_prio(b)				\
-	(((unsigned) (b->prio - ca->set->min_prio)) * GC_SECTORS_USED(b))
+/*
+ * Determines what order we're going to reuse buckets, smallest bucket_prio()
+ * first: we also take into account the number of sectors of live data in that
+ * bucket, and in order for that multiply to make sense we have to scale bucket
+ *
+ * Thus, we scale the bucket priorities so that the bucket with the smallest
+ * prio is worth 1/8th of what INITIAL_PRIO is worth.
+ */
+
+#define bucket_prio(b)							\
+({									\
+	unsigned min_prio = (INITIAL_PRIO - ca->set->min_prio) / 8;	\
+									\
+	(b->prio - ca->set->min_prio + min_prio) * GC_SECTORS_USED(b);	\
+})
 
 #define bucket_max_cmp(l, r)	(bucket_prio(l) < bucket_prio(r))
 #define bucket_min_cmp(l, r)	(bucket_prio(l) > bucket_prio(r))
@@ -246,20 +183,7 @@ static void invalidate_buckets_lru(struct cache *ca)
 	ca->heap.used = 0;
 
 	for_each_bucket(b, ca) {
-		/*
-		 * If we fill up the unused list, if we then return before
-		 * adding anything to the free_inc list we'll skip writing
-		 * prios/gens and just go back to allocating from the unused
-		 * list:
-		 */
-		if (fifo_full(&ca->unused))
-			return;
-
-		if (!can_invalidate_bucket(ca, b))
-			continue;
-
-		if (!GC_SECTORS_USED(b) &&
-		    bch_bucket_add_unused(ca, b))
+		if (!bch_can_invalidate_bucket(ca, b))
 			continue;
 
 		if (!heap_full(&ca->heap))
@@ -280,11 +204,11 @@ static void invalidate_buckets_lru(struct cache *ca)
 			 * multiple times when it can't do anything
 			 */
 			ca->invalidate_needs_gc = 1;
-			bch_queue_gc(ca->set);
+			wake_up_gc(ca->set);
 			return;
 		}
 
-		invalidate_one_bucket(ca, b);
+		bch_invalidate_one_bucket(ca, b);
 	}
 }
 
@@ -300,12 +224,12 @@ static void invalidate_buckets_fifo(struct cache *ca)
 
 		b = ca->buckets + ca->fifo_last_bucket++;
 
-		if (can_invalidate_bucket(ca, b))
-			invalidate_one_bucket(ca, b);
+		if (bch_can_invalidate_bucket(ca, b))
+			bch_invalidate_one_bucket(ca, b);
 
 		if (++checked >= ca->sb.nbuckets) {
 			ca->invalidate_needs_gc = 1;
-			bch_queue_gc(ca->set);
+			wake_up_gc(ca->set);
 			return;
 		}
 	}
@@ -325,12 +249,12 @@ static void invalidate_buckets_random(struct cache *ca)
 
 		b = ca->buckets + n;
 
-		if (can_invalidate_bucket(ca, b))
-			invalidate_one_bucket(ca, b);
+		if (bch_can_invalidate_bucket(ca, b))
+			bch_invalidate_one_bucket(ca, b);
 
 		if (++checked >= ca->sb.nbuckets / 2) {
 			ca->invalidate_needs_gc = 1;
-			bch_queue_gc(ca->set);
+			wake_up_gc(ca->set);
 			return;
 		}
 	}
@@ -338,8 +262,7 @@ static void invalidate_buckets_random(struct cache *ca)
 
 static void invalidate_buckets(struct cache *ca)
 {
-	if (ca->invalidate_needs_gc)
-		return;
+	BUG_ON(ca->invalidate_needs_gc);
 
 	switch (CACHE_REPLACEMENT(&ca->sb)) {
 	case CACHE_REPLACEMENT_LRU:
@@ -352,8 +275,6 @@ static void invalidate_buckets(struct cache *ca)
 		invalidate_buckets_random(ca);
 		break;
 	}
-
-	trace_bcache_alloc_invalidate(ca);
 }
 
 #define allocator_wait(ca, cond)					\
@@ -374,6 +295,21 @@ do {									\
 	__set_current_state(TASK_RUNNING);				\
 } while (0)
 
+static int bch_allocator_push(struct cache *ca, long bucket)
+{
+	unsigned i;
+
+	/* Prios/gens are actually the most important reserve */
+	if (fifo_push(&ca->free[RESERVE_PRIO], bucket))
+		return true;
+
+	for (i = 0; i < RESERVE_NR; i++)
+		if (fifo_push(&ca->free[i], bucket))
+			return true;
+
+	return false;
+}
+
 static int bch_allocator_thread(void *arg)
 {
 	struct cache *ca = arg;
@@ -386,28 +322,22 @@ static int bch_allocator_thread(void *arg)
 		 * possibly issue discards to them, then we add the bucket to
 		 * the free list:
 		 */
-		while (1) {
+		while (!fifo_empty(&ca->free_inc)) {
 			long bucket;
 
-			if ((!atomic_read(&ca->set->prio_blocked) ||
-			     !CACHE_SYNC(&ca->set->sb)) &&
-			    !fifo_empty(&ca->unused))
-				fifo_pop(&ca->unused, bucket);
-			else if (!fifo_empty(&ca->free_inc))
-				fifo_pop(&ca->free_inc, bucket);
-			else
-				break;
-
-			allocator_wait(ca, (int) fifo_free(&ca->free) >
-				       atomic_read(&ca->discards_in_flight));
+			fifo_pop(&ca->free_inc, bucket);
 
 			if (ca->discard) {
-				allocator_wait(ca, !list_empty(&ca->discards));
-				do_discard(ca, bucket);
-			} else {
-				fifo_push(&ca->free, bucket);
-				closure_wake_up(&ca->set->bucket_wait);
+				mutex_unlock(&ca->set->bucket_lock);
+				blkdev_issue_discard(ca->bdev,
+					bucket_to_sector(ca->set, bucket),
+					ca->sb.block_size, GFP_KERNEL, 0);
+				mutex_lock(&ca->set->bucket_lock);
 			}
+
+			allocator_wait(ca, bch_allocator_push(ca, bucket));
+			wake_up(&ca->set->btree_cache_wait);
+			wake_up(&ca->set->bucket_wait);
 		}
 
 		/*
@@ -416,9 +346,9 @@ static int bch_allocator_thread(void *arg)
 		 * them to the free_inc list:
 		 */
 
+retry_invalidate:
 		allocator_wait(ca, ca->set->gc_mark_valid &&
-			       (ca->need_save_prio > 64 ||
-				!ca->invalidate_needs_gc));
+			       !ca->invalidate_needs_gc);
 		invalidate_buckets(ca);
 
 		/*
@@ -426,82 +356,111 @@ static int bch_allocator_thread(void *arg)
 		 * new stuff to them:
 		 */
 		allocator_wait(ca, !atomic_read(&ca->set->prio_blocked));
-		if (CACHE_SYNC(&ca->set->sb) &&
-		    (!fifo_empty(&ca->free_inc) ||
-		     ca->need_save_prio > 64))
+		if (CACHE_SYNC(&ca->set->sb)) {
+			/*
+			 * This could deadlock if an allocation with a btree
+			 * node locked ever blocked - having the btree node
+			 * locked would block garbage collection, but here we're
+			 * waiting on garbage collection before we invalidate
+			 * and free anything.
+			 *
+			 * But this should be safe since the btree code always
+			 * uses btree_check_reserve() before allocating now, and
+			 * if it fails it blocks without btree nodes locked.
+			 */
+			if (!fifo_full(&ca->free_inc))
+				goto retry_invalidate;
+
 			bch_prio_write(ca);
+		}
 	}
 }
 
-long bch_bucket_alloc(struct cache *ca, unsigned watermark, struct closure *cl)
+/* Allocation */
+
+long bch_bucket_alloc(struct cache *ca, unsigned reserve, bool wait)
 {
-	long r = -1;
-again:
+	DEFINE_WAIT(w);
+	struct bucket *b;
+	long r;
+
+	/* fastpath */
+	if (fifo_pop(&ca->free[RESERVE_NONE], r) ||
+	    fifo_pop(&ca->free[reserve], r))
+		goto out;
+
+	if (!wait) {
+		trace_bcache_alloc_fail(ca, reserve);
+		return -1;
+	}
+
+	do {
+		prepare_to_wait(&ca->set->bucket_wait, &w,
+				TASK_UNINTERRUPTIBLE);
+
+		mutex_unlock(&ca->set->bucket_lock);
+		schedule();
+		mutex_lock(&ca->set->bucket_lock);
+	} while (!fifo_pop(&ca->free[RESERVE_NONE], r) &&
+		 !fifo_pop(&ca->free[reserve], r));
+
+	finish_wait(&ca->set->bucket_wait, &w);
+out:
 	wake_up_process(ca->alloc_thread);
 
-	if (fifo_used(&ca->free) > ca->watermark[watermark] &&
-	    fifo_pop(&ca->free, r)) {
-		struct bucket *b = ca->buckets + r;
-#ifdef CONFIG_BCACHE_EDEBUG
+	trace_bcache_alloc(ca, reserve);
+
+	if (expensive_debug_checks(ca->set)) {
 		size_t iter;
 		long i;
+		unsigned j;
 
 		for (iter = 0; iter < prio_buckets(ca) * 2; iter++)
 			BUG_ON(ca->prio_buckets[iter] == (uint64_t) r);
 
-		fifo_for_each(i, &ca->free, iter)
-			BUG_ON(i == r);
+		for (j = 0; j < RESERVE_NR; j++)
+			fifo_for_each(i, &ca->free[j], iter)
+				BUG_ON(i == r);
 		fifo_for_each(i, &ca->free_inc, iter)
 			BUG_ON(i == r);
-		fifo_for_each(i, &ca->unused, iter)
-			BUG_ON(i == r);
-#endif
-		BUG_ON(atomic_read(&b->pin) != 1);
-
-		SET_GC_SECTORS_USED(b, ca->sb.bucket_size);
-
-		if (watermark <= WATERMARK_METADATA) {
-			SET_GC_MARK(b, GC_MARK_METADATA);
-			b->prio = BTREE_PRIO;
-		} else {
-			SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
-			b->prio = INITIAL_PRIO;
-		}
-
-		return r;
 	}
 
-	trace_bcache_alloc_fail(ca);
+	b = ca->buckets + r;
 
-	if (cl) {
-		closure_wait(&ca->set->bucket_wait, cl);
+	BUG_ON(atomic_read(&b->pin) != 1);
 
-		if (closure_blocking(cl)) {
-			mutex_unlock(&ca->set->bucket_lock);
-			closure_sync(cl);
-			mutex_lock(&ca->set->bucket_lock);
-			goto again;
-		}
+	SET_GC_SECTORS_USED(b, ca->sb.bucket_size);
+
+	if (reserve <= RESERVE_PRIO) {
+		SET_GC_MARK(b, GC_MARK_METADATA);
+		SET_GC_MOVE(b, 0);
+		b->prio = BTREE_PRIO;
+	} else {
+		SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
+		SET_GC_MOVE(b, 0);
+		b->prio = INITIAL_PRIO;
 	}
 
-	return -1;
+	return r;
+}
+
+void __bch_bucket_free(struct cache *ca, struct bucket *b)
+{
+	SET_GC_MARK(b, 0);
+	SET_GC_SECTORS_USED(b, 0);
 }
 
 void bch_bucket_free(struct cache_set *c, struct bkey *k)
 {
 	unsigned i;
 
-	for (i = 0; i < KEY_PTRS(k); i++) {
-		struct bucket *b = PTR_BUCKET(c, k, i);
-
-		SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
-		SET_GC_SECTORS_USED(b, 0);
-		bch_bucket_add_unused(PTR_CACHE(c, k, i), b);
-	}
+	for (i = 0; i < KEY_PTRS(k); i++)
+		__bch_bucket_free(PTR_CACHE(c, k, i),
+				  PTR_BUCKET(c, k, i));
 }
 
-int __bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
-			   struct bkey *k, int n, struct closure *cl)
+int __bch_bucket_alloc_set(struct cache_set *c, unsigned reserve,
+			   struct bkey *k, int n, bool wait)
 {
 	int i;
 
@@ -514,7 +473,7 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
 
 	for (i = 0; i < n; i++) {
 		struct cache *ca = c->cache_by_alloc[i];
-		long b = bch_bucket_alloc(ca, watermark, cl);
+		long b = bch_bucket_alloc(ca, reserve, wait);
 
 		if (b == -1)
 			goto err;
@@ -529,21 +488,201 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
 	return 0;
 err:
 	bch_bucket_free(c, k);
-	__bkey_put(c, k);
+	bkey_put(c, k);
 	return -1;
 }
 
-int bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
-			 struct bkey *k, int n, struct closure *cl)
+int bch_bucket_alloc_set(struct cache_set *c, unsigned reserve,
+			 struct bkey *k, int n, bool wait)
 {
 	int ret;
 	mutex_lock(&c->bucket_lock);
-	ret = __bch_bucket_alloc_set(c, watermark, k, n, cl);
+	ret = __bch_bucket_alloc_set(c, reserve, k, n, wait);
 	mutex_unlock(&c->bucket_lock);
 	return ret;
 }
 
+/* Sector allocator */
+
+struct open_bucket {
+	struct list_head	list;
+	unsigned		last_write_point;
+	unsigned		sectors_free;
+	BKEY_PADDED(key);
+};
+
+/*
+ * We keep multiple buckets open for writes, and try to segregate different
+ * write streams for better cache utilization: first we look for a bucket where
+ * the last write to it was sequential with the current write, and failing that
+ * we look for a bucket that was last used by the same task.
+ *
+ * The ideas is if you've got multiple tasks pulling data into the cache at the
+ * same time, you'll get better cache utilization if you try to segregate their
+ * data and preserve locality.
+ *
+ * For example, say you've starting Firefox at the same time you're copying a
+ * bunch of files. Firefox will likely end up being fairly hot and stay in the
+ * cache awhile, but the data you copied might not be; if you wrote all that
+ * data to the same buckets it'd get invalidated at the same time.
+ *
+ * Both of those tasks will be doing fairly random IO so we can't rely on
+ * detecting sequential IO to segregate their data, but going off of the task
+ * should be a sane heuristic.
+ */
+static struct open_bucket *pick_data_bucket(struct cache_set *c,
+					    const struct bkey *search,
+					    unsigned write_point,
+					    struct bkey *alloc)
+{
+	struct open_bucket *ret, *ret_task = NULL;
+
+	list_for_each_entry_reverse(ret, &c->data_buckets, list)
+		if (!bkey_cmp(&ret->key, search))
+			goto found;
+		else if (ret->last_write_point == write_point)
+			ret_task = ret;
+
+	ret = ret_task ?: list_first_entry(&c->data_buckets,
+					   struct open_bucket, list);
+found:
+	if (!ret->sectors_free && KEY_PTRS(alloc)) {
+		ret->sectors_free = c->sb.bucket_size;
+		bkey_copy(&ret->key, alloc);
+		bkey_init(alloc);
+	}
+
+	if (!ret->sectors_free)
+		ret = NULL;
+
+	return ret;
+}
+
+/*
+ * Allocates some space in the cache to write to, and k to point to the newly
+ * allocated space, and updates KEY_SIZE(k) and KEY_OFFSET(k) (to point to the
+ * end of the newly allocated space).
+ *
+ * May allocate fewer sectors than @sectors, KEY_SIZE(k) indicates how many
+ * sectors were actually allocated.
+ *
+ * If s->writeback is true, will not fail.
+ */
+bool bch_alloc_sectors(struct cache_set *c, struct bkey *k, unsigned sectors,
+		       unsigned write_point, unsigned write_prio, bool wait)
+{
+	struct open_bucket *b;
+	BKEY_PADDED(key) alloc;
+	unsigned i;
+
+	/*
+	 * We might have to allocate a new bucket, which we can't do with a
+	 * spinlock held. So if we have to allocate, we drop the lock, allocate
+	 * and then retry. KEY_PTRS() indicates whether alloc points to
+	 * allocated bucket(s).
+	 */
+
+	bkey_init(&alloc.key);
+	spin_lock(&c->data_bucket_lock);
+
+	while (!(b = pick_data_bucket(c, k, write_point, &alloc.key))) {
+		unsigned watermark = write_prio
+			? RESERVE_MOVINGGC
+			: RESERVE_NONE;
+
+		spin_unlock(&c->data_bucket_lock);
+
+		if (bch_bucket_alloc_set(c, watermark, &alloc.key, 1, wait))
+			return false;
+
+		spin_lock(&c->data_bucket_lock);
+	}
+
+	/*
+	 * If we had to allocate, we might race and not need to allocate the
+	 * second time we call find_data_bucket(). If we allocated a bucket but
+	 * didn't use it, drop the refcount bch_bucket_alloc_set() took:
+	 */
+	if (KEY_PTRS(&alloc.key))
+		bkey_put(c, &alloc.key);
+
+	for (i = 0; i < KEY_PTRS(&b->key); i++)
+		EBUG_ON(ptr_stale(c, &b->key, i));
+
+	/* Set up the pointer to the space we're allocating: */
+
+	for (i = 0; i < KEY_PTRS(&b->key); i++)
+		k->ptr[i] = b->key.ptr[i];
+
+	sectors = min(sectors, b->sectors_free);
+
+	SET_KEY_OFFSET(k, KEY_OFFSET(k) + sectors);
+	SET_KEY_SIZE(k, sectors);
+	SET_KEY_PTRS(k, KEY_PTRS(&b->key));
+
+	/*
+	 * Move b to the end of the lru, and keep track of what this bucket was
+	 * last used for:
+	 */
+	list_move_tail(&b->list, &c->data_buckets);
+	bkey_copy_key(&b->key, k);
+	b->last_write_point = write_point;
+
+	b->sectors_free	-= sectors;
+
+	for (i = 0; i < KEY_PTRS(&b->key); i++) {
+		SET_PTR_OFFSET(&b->key, i, PTR_OFFSET(&b->key, i) + sectors);
+
+		atomic_long_add(sectors,
+				&PTR_CACHE(c, &b->key, i)->sectors_written);
+	}
+
+	if (b->sectors_free < c->sb.block_size)
+		b->sectors_free = 0;
+
+	/*
+	 * k takes refcounts on the buckets it points to until it's inserted
+	 * into the btree, but if we're done with this bucket we just transfer
+	 * get_data_bucket()'s refcount.
+	 */
+	if (b->sectors_free)
+		for (i = 0; i < KEY_PTRS(&b->key); i++)
+			atomic_inc(&PTR_BUCKET(c, &b->key, i)->pin);
+
+	spin_unlock(&c->data_bucket_lock);
+	return true;
+}
+
 /* Init */
+
+void bch_open_buckets_free(struct cache_set *c)
+{
+	struct open_bucket *b;
+
+	while (!list_empty(&c->data_buckets)) {
+		b = list_first_entry(&c->data_buckets,
+				     struct open_bucket, list);
+		list_del(&b->list);
+		kfree(b);
+	}
+}
+
+int bch_open_buckets_alloc(struct cache_set *c)
+{
+	int i;
+
+	spin_lock_init(&c->data_bucket_lock);
+
+	for (i = 0; i < 6; i++) {
+		struct open_bucket *b = kzalloc(sizeof(*b), GFP_KERNEL);
+		if (!b)
+			return -ENOMEM;
+
+		list_add(&b->list, &c->data_buckets);
+	}
+
+	return 0;
+}
 
 int bch_cache_allocator_start(struct cache *ca)
 {
@@ -553,51 +692,5 @@ int bch_cache_allocator_start(struct cache *ca)
 		return PTR_ERR(k);
 
 	ca->alloc_thread = k;
-	return 0;
-}
-
-void bch_cache_allocator_exit(struct cache *ca)
-{
-	struct discard *d;
-
-	while (!list_empty(&ca->discards)) {
-		d = list_first_entry(&ca->discards, struct discard, list);
-		cancel_work_sync(&d->work);
-		list_del(&d->list);
-		kfree(d);
-	}
-}
-
-int bch_cache_allocator_init(struct cache *ca)
-{
-	unsigned i;
-
-	/*
-	 * Reserve:
-	 * Prio/gen writes first
-	 * Then 8 for btree allocations
-	 * Then half for the moving garbage collector
-	 */
-
-	ca->watermark[WATERMARK_PRIO] = 0;
-
-	ca->watermark[WATERMARK_METADATA] = prio_buckets(ca);
-
-	ca->watermark[WATERMARK_MOVINGGC] = 8 +
-		ca->watermark[WATERMARK_METADATA];
-
-	ca->watermark[WATERMARK_NONE] = ca->free.size / 2 +
-		ca->watermark[WATERMARK_MOVINGGC];
-
-	for (i = 0; i < MAX_IN_FLIGHT_DISCARDS; i++) {
-		struct discard *d = kzalloc(sizeof(*d), GFP_KERNEL);
-		if (!d)
-			return -ENOMEM;
-
-		d->ca = ca;
-		INIT_WORK(&d->work, discard_finish);
-		list_add(&d->list, &ca->discards);
-	}
-
 	return 0;
 }

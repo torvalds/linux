@@ -73,9 +73,11 @@
 #ifdef MSND_CLASSIC
 #  include "msnd_classic.h"
 #  define LOGNAME			"msnd_classic"
+#  define DEV_NAME			"msnd-classic"
 #else
 #  include "msnd_pinnacle.h"
 #  define LOGNAME			"snd_msnd_pinnacle"
+#  define DEV_NAME			"msnd-pinnacle"
 #endif
 
 static void set_default_audio_parameters(struct snd_msnd *chip)
@@ -903,12 +905,11 @@ static int snd_msnd_isa_probe(struct device *pdev, unsigned int idx)
 		return -ENODEV;
 	}
 
-	err = snd_card_create(index[idx], id[idx], THIS_MODULE,
-			      sizeof(struct snd_msnd), &card);
+	err = snd_card_new(pdev, index[idx], id[idx], THIS_MODULE,
+			   sizeof(struct snd_msnd), &card);
 	if (err < 0)
 		return err;
 
-	snd_card_set_dev(card, pdev);
 	chip = card->private_data;
 	chip->card = card;
 
@@ -1067,8 +1068,6 @@ static int snd_msnd_isa_remove(struct device *pdev, unsigned int dev)
 	return 0;
 }
 
-#define DEV_NAME "msnd-pinnacle"
-
 static struct isa_driver snd_msnd_driver = {
 	.match		= snd_msnd_isa_match,
 	.probe		= snd_msnd_isa_probe,
@@ -1122,14 +1121,14 @@ static int snd_msnd_pnp_detect(struct pnp_card_link *pcard,
 	 * Create a new ALSA sound card entry, in anticipation
 	 * of detecting our hardware ...
 	 */
-	ret = snd_card_create(index[idx], id[idx], THIS_MODULE,
-			      sizeof(struct snd_msnd), &card);
+	ret = snd_card_new(&pcard->card->dev,
+			   index[idx], id[idx], THIS_MODULE,
+			   sizeof(struct snd_msnd), &card);
 	if (ret < 0)
 		return ret;
 
 	chip = card->private_data;
 	chip->card = card;
-	snd_card_set_dev(card, &pcard->card->dev);
 
 	/*
 	 * Read the correct parameters off the ISA PnP bus ...

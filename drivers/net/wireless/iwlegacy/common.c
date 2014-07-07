@@ -33,7 +33,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/lockdep.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -1079,29 +1078,82 @@ EXPORT_SYMBOL(il_get_channel_info);
  * Setting power level allows the card to go to sleep when not busy.
  *
  * We calculate a sleep command based on the required latency, which
- * we get from mac80211. In order to handle thermal throttling, we can
- * also use pre-defined power levels.
+ * we get from mac80211.
  */
 
-/*
- * This defines the old power levels. They are still used by default
- * (level 1) and for thermal throttle (levels 3 through 5)
- */
-
-struct il_power_vec_entry {
-	struct il_powertable_cmd cmd;
-	u8 no_dtim;		/* number of skip dtim */
-};
+#define SLP_VEC(X0, X1, X2, X3, X4) { \
+		cpu_to_le32(X0), \
+		cpu_to_le32(X1), \
+		cpu_to_le32(X2), \
+		cpu_to_le32(X3), \
+		cpu_to_le32(X4)  \
+}
 
 static void
-il_power_sleep_cam_cmd(struct il_priv *il, struct il_powertable_cmd *cmd)
+il_build_powertable_cmd(struct il_priv *il, struct il_powertable_cmd *cmd)
 {
+	const __le32 interval[3][IL_POWER_VEC_SIZE] = {
+		SLP_VEC(2, 2, 4, 6, 0xFF),
+		SLP_VEC(2, 4, 7, 10, 10),
+		SLP_VEC(4, 7, 10, 10, 0xFF)
+	};
+	int i, dtim_period, no_dtim;
+	u32 max_sleep;
+	bool skip;
+
 	memset(cmd, 0, sizeof(*cmd));
 
 	if (il->power_data.pci_pm)
 		cmd->flags |= IL_POWER_PCI_PM_MSK;
 
-	D_POWER("Sleep command for CAM\n");
+	/* if no Power Save, we are done */
+	if (il->power_data.ps_disabled)
+		return;
+
+	cmd->flags = IL_POWER_DRIVER_ALLOW_SLEEP_MSK;
+	cmd->keep_alive_seconds = 0;
+	cmd->debug_flags = 0;
+	cmd->rx_data_timeout = cpu_to_le32(25 * 1024);
+	cmd->tx_data_timeout = cpu_to_le32(25 * 1024);
+	cmd->keep_alive_beacons = 0;
+
+	dtim_period = il->vif ? il->vif->bss_conf.dtim_period : 0;
+
+	if (dtim_period <= 2) {
+		memcpy(cmd->sleep_interval, interval[0], sizeof(interval[0]));
+		no_dtim = 2;
+	} else if (dtim_period <= 10) {
+		memcpy(cmd->sleep_interval, interval[1], sizeof(interval[1]));
+		no_dtim = 2;
+	} else {
+		memcpy(cmd->sleep_interval, interval[2], sizeof(interval[2]));
+		no_dtim = 0;
+	}
+
+	if (dtim_period == 0) {
+		dtim_period = 1;
+		skip = false;
+	} else {
+		skip = !!no_dtim;
+	}
+
+	if (skip) {
+		__le32 tmp = cmd->sleep_interval[IL_POWER_VEC_SIZE - 1];
+
+		max_sleep = le32_to_cpu(tmp);
+		if (max_sleep == 0xFF)
+			max_sleep = dtim_period * (skip + 1);
+		else if (max_sleep >  dtim_period)
+			max_sleep = (max_sleep / dtim_period) * dtim_period;
+		cmd->flags |= IL_POWER_SLEEP_OVER_DTIM_MSK;
+	} else {
+		max_sleep = dtim_period;
+		cmd->flags &= ~IL_POWER_SLEEP_OVER_DTIM_MSK;
+	}
+
+	for (i = 0; i < IL_POWER_VEC_SIZE; i++)
+		if (le32_to_cpu(cmd->sleep_interval[i]) > max_sleep)
+			cmd->sleep_interval[i] = cpu_to_le32(max_sleep);
 }
 
 static int
@@ -1174,7 +1226,8 @@ il_power_update_mode(struct il_priv *il, bool force)
 {
 	struct il_powertable_cmd cmd;
 
-	il_power_sleep_cam_cmd(il, &cmd);
+	il_build_powertable_cmd(il, &cmd);
+
 	return il_power_set_mode(il, &cmd, force);
 }
 EXPORT_SYMBOL(il_power_update_mode);
@@ -3445,10 +3498,10 @@ il_init_geos(struct il_priv *il)
 
 		if (il_is_channel_valid(ch)) {
 			if (!(ch->flags & EEPROM_CHANNEL_IBSS))
-				geo_ch->flags |= IEEE80211_CHAN_NO_IBSS;
+				geo_ch->flags |= IEEE80211_CHAN_NO_IR;
 
 			if (!(ch->flags & EEPROM_CHANNEL_ACTIVE))
-				geo_ch->flags |= IEEE80211_CHAN_PASSIVE_SCAN;
+				geo_ch->flags |= IEEE80211_CHAN_NO_IR;
 
 			if (ch->flags & EEPROM_CHANNEL_RADAR)
 				geo_ch->flags |= IEEE80211_CHAN_RADAR;
@@ -3746,10 +3799,10 @@ il_full_rxon_required(struct il_priv *il)
 
 	/* These items are only settable from the full RXON command */
 	CHK(!il_is_associated(il));
-	CHK(!ether_addr_equal(staging->bssid_addr, active->bssid_addr));
-	CHK(!ether_addr_equal(staging->node_addr, active->node_addr));
-	CHK(!ether_addr_equal(staging->wlap_bssid_addr,
-			      active->wlap_bssid_addr));
+	CHK(!ether_addr_equal_64bits(staging->bssid_addr, active->bssid_addr));
+	CHK(!ether_addr_equal_64bits(staging->node_addr, active->node_addr));
+	CHK(!ether_addr_equal_64bits(staging->wlap_bssid_addr,
+				     active->wlap_bssid_addr));
 	CHK_NEQ(staging->dev_type, active->dev_type);
 	CHK_NEQ(staging->channel, active->channel);
 	CHK_NEQ(staging->air_propagation, active->air_propagation);
@@ -4702,7 +4755,8 @@ out:
 }
 EXPORT_SYMBOL(il_mac_change_interface);
 
-void il_mac_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+void il_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  u32 queues, bool drop)
 {
 	struct il_priv *il = hw->priv;
 	unsigned long timeout = jiffies + msecs_to_jiffies(500);
@@ -5082,6 +5136,7 @@ set_ch_out:
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_PS | IEEE80211_CONF_CHANGE_IDLE)) {
+		il->power_data.ps_disabled = !(conf->flags & IEEE80211_CONF_PS);
 		ret = il_power_update_mode(il, false);
 		if (ret)
 			D_MAC80211("Error setting sleep level\n");

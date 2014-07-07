@@ -482,10 +482,8 @@ static int ili922x_probe(struct spi_device *spi)
 	u16 reg = 0;
 
 	ili = devm_kzalloc(&spi->dev, sizeof(*ili), GFP_KERNEL);
-	if (!ili) {
-		dev_err(&spi->dev, "cannot alloc priv data\n");
+	if (!ili)
 		return -ENOMEM;
-	}
 
 	ili->spi = spi;
 	spi_set_drvdata(spi, ili);
@@ -513,8 +511,8 @@ static int ili922x_probe(struct spi_device *spi)
 
 	ili->power = FB_BLANK_POWERDOWN;
 
-	lcd = lcd_device_register("ili922xlcd", &spi->dev, ili,
-				  &ili922x_ops);
+	lcd = devm_lcd_device_register(&spi->dev, "ili922xlcd", &spi->dev, ili,
+					&ili922x_ops);
 	if (IS_ERR(lcd)) {
 		dev_err(&spi->dev, "cannot register LCD\n");
 		return PTR_ERR(lcd);
@@ -530,10 +528,7 @@ static int ili922x_probe(struct spi_device *spi)
 
 static int ili922x_remove(struct spi_device *spi)
 {
-	struct ili922x *ili = spi_get_drvdata(spi);
-
 	ili922x_poweroff(spi);
-	lcd_device_unregister(ili->ld);
 	return 0;
 }
 

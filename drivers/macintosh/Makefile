@@ -40,6 +40,7 @@ obj-$(CONFIG_WINDFARM_RM31)     += windfarm_fcu_controls.o \
 				   windfarm_ad7417_sensor.o \
 				   windfarm_lm75_sensor.o \
 				   windfarm_lm87_sensor.o \
+				   windfarm_max6690_sensor.o \
 				   windfarm_pid.o \
 				   windfarm_cpufreq_clamp.o \
 				   windfarm_rm31.o

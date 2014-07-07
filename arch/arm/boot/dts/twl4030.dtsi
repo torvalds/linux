@@ -19,8 +19,30 @@
 		interrupts = <11>;
 	};
 
+	charger: bci {
+		compatible = "ti,twl4030-bci";
+		interrupts = <9>, <2>;
+		bci3v1-supply = <&vusb3v1>;
+	};
+
 	watchdog {
 		compatible = "ti,twl4030-wdt";
+	};
+
+	vaux1: regulator-vaux1 {
+		compatible = "ti,twl4030-vaux1";
+	};
+
+	vaux2: regulator-vaux2 {
+		compatible = "ti,twl4030-vaux2";
+	};
+
+	vaux3: regulator-vaux3 {
+		compatible = "ti,twl4030-vaux3";
+	};
+
+	vaux4: regulator-vaux4 {
+		compatible = "ti,twl4030-vaux4";
 	};
 
 	vcc: regulator-vdd1 {
@@ -35,10 +57,20 @@
 		regulator-max-microvolt = <1800000>;
 	};
 
-	vpll2: regulator-vpll2 {
-		compatible = "ti,twl4030-vpll2";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
+	vio: regulator-vio {
+		compatible = "ti,twl4030-vio";
+	};
+
+	vintana1: regulator-vintana1 {
+		compatible = "ti,twl4030-vintana1";
+	};
+
+	vintana2: regulator-vintana2 {
+		compatible = "ti,twl4030-vintana2";
+	};
+
+	vintdig: regulator-vintdig {
+		compatible = "ti,twl4030-vintdig";
 	};
 
 	vmmc1: regulator-vmmc1 {
@@ -65,6 +97,16 @@
 		compatible = "ti,twl4030-vusb3v1";
 	};
 
+	vpll1: regulator-vpll1 {
+		compatible = "ti,twl4030-vpll1";
+	};
+
+	vpll2: regulator-vpll2 {
+		compatible = "ti,twl4030-vpll2";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	vsim: regulator-vsim {
 		compatible = "ti,twl4030-vsim";
 		regulator-min-microvolt = <1800000>;
@@ -86,6 +128,7 @@
 		usb1v8-supply = <&vusb1v8>;
 		usb3v1-supply = <&vusb3v1>;
 		usb_mode = <1>;
+		#phy-cells = <0>;
 	};
 
 	twl_pwm: pwm {
@@ -96,5 +139,23 @@
 	twl_pwmled: pwmled {
 		compatible = "ti,twl4030-pwmled";
 		#pwm-cells = <2>;
+	};
+
+	twl_pwrbutton: pwrbutton {
+		compatible = "ti,twl4030-pwrbutton";
+		interrupts = <8>;
+	};
+
+	twl_keypad: keypad {
+		compatible = "ti,twl4030-keypad";
+		interrupts = <1>;
+		keypad,num-rows = <8>;
+		keypad,num-columns = <8>;
+	};
+
+	twl_madc: madc {
+		compatible = "ti,twl4030-madc";
+		interrupts = <3>;
+		#io-channel-cells = <1>;
 	};
 };

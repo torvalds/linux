@@ -155,7 +155,8 @@ void scsi_host_put_command(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 	__blk_put_request(q, rq);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
-	__scsi_put_command(shost, cmd, &shost->shost_gendev);
+	__scsi_put_command(shost, cmd);
+	put_device(&shost->shost_gendev);
 }
 EXPORT_SYMBOL_GPL(scsi_host_put_command);
 

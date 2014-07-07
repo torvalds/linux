@@ -1764,7 +1764,7 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 	WRITE_REG(priv, f->m.reg_RPTR, f->m.rptr & TXF_WPTR_WR_PTR);
 
 	/* We reclaimed resources, so in case the Q is stopped by xmit callback,
-	 * we resume the transmition and use tx_lock to synchronize with xmit.*/
+	 * we resume the transmission and use tx_lock to synchronize with xmit.*/
 	spin_lock(&priv->tx_lock);
 	priv->tx_level += tx_level;
 	BDX_ASSERT(priv->tx_level <= 0 || priv->tx_level > BDX_MAX_TX_LEVEL);
@@ -2019,7 +2019,6 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO
 		    | NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 		    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM
-		    /*| NETIF_F_FRAGLIST */
 		    ;
 		ndev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 			NETIF_F_TSO | NETIF_F_HW_VLAN_CTAG_TX;
@@ -2414,7 +2413,7 @@ static void bdx_set_ethtool_ops(struct net_device *netdev)
 		.get_ethtool_stats = bdx_get_ethtool_stats,
 	};
 
-	SET_ETHTOOL_OPS(netdev, &bdx_ethtool_ops);
+	netdev->ethtool_ops = &bdx_ethtool_ops;
 }
 
 /**
@@ -2447,7 +2446,6 @@ static void bdx_remove(struct pci_dev *pdev)
 	iounmap(nic->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	vfree(nic);
 
 	RET();

@@ -55,25 +55,16 @@ static struct attribute *iio_trig_dev_attrs[] = {
 	&dev_attr_name.attr,
 	NULL,
 };
-
-static struct attribute_group iio_trig_attr_group = {
-	.attrs	= iio_trig_dev_attrs,
-};
-
-static const struct attribute_group *iio_trig_attr_groups[] = {
-	&iio_trig_attr_group,
-	NULL
-};
+ATTRIBUTE_GROUPS(iio_trig_dev);
 
 int iio_trigger_register(struct iio_trigger *trig_info)
 {
 	int ret;
 
 	trig_info->id = ida_simple_get(&iio_trigger_ida, 0, 0, GFP_KERNEL);
-	if (trig_info->id < 0) {
-		ret = trig_info->id;
-		goto error_ret;
-	}
+	if (trig_info->id < 0)
+		return trig_info->id;
+
 	/* Set the name used for the sysfs directory etc */
 	dev_set_name(&trig_info->dev, "trigger%ld",
 		     (unsigned long) trig_info->id);
@@ -91,7 +82,6 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 
 error_unregister_id:
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
-error_ret:
 	return ret;
 }
 EXPORT_SYMBOL(iio_trigger_register);
@@ -242,13 +232,12 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 	if (trig->ops && trig->ops->set_trigger_state && no_other_users) {
 		ret = trig->ops->set_trigger_state(trig, false);
 		if (ret)
-			goto error_ret;
+			return ret;
 	}
 	iio_trigger_put_irq(trig, pf->irq);
 	free_irq(pf->irq, pf);
 	module_put(pf->indio_dev->info->driver_module);
 
-error_ret:
 	return ret;
 }
 
@@ -318,7 +307,7 @@ static ssize_t iio_trigger_read_current(struct device *dev,
  * iio_trigger_write_current() - trigger consumer sysfs set current trigger
  *
  * For trigger consumers the current_trigger interface allows the trigger
- * used for this device to be specified at run time based on the triggers
+ * used for this device to be specified at run time based on the trigger's
  * name.
  **/
 static ssize_t iio_trigger_write_current(struct device *dev,
@@ -356,7 +345,7 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 
 	indio_dev->trig = trig;
 
-	if (oldtrig && indio_dev->trig != oldtrig)
+	if (oldtrig)
 		iio_trigger_put(oldtrig);
 	if (indio_dev->trig)
 		iio_trigger_get(indio_dev->trig);
@@ -403,7 +392,7 @@ static void iio_trig_release(struct device *device)
 
 static struct device_type iio_trig_type = {
 	.release = iio_trig_release,
-	.groups = iio_trig_attr_groups,
+	.groups = iio_trig_dev_groups,
 };
 
 static void iio_trig_subirqmask(struct irq_data *d)
@@ -506,6 +495,23 @@ static int devm_iio_trigger_match(struct device *dev, void *res, void *data)
 	return *r == data;
 }
 
+/**
+ * devm_iio_trigger_alloc - Resource-managed iio_trigger_alloc()
+ * @dev:		Device to allocate iio_trigger for
+ * @fmt:		trigger name format. If it includes format
+ *			specifiers, the additional arguments following
+ *			format are formatted and inserted in the resulting
+ *			string replacing their respective specifiers.
+ *
+ * Managed iio_trigger_alloc.  iio_trigger allocated with this function is
+ * automatically freed on driver detach.
+ *
+ * If an iio_trigger allocated with this function needs to be freed separately,
+ * devm_iio_trigger_free() must be used.
+ *
+ * RETURNS:
+ * Pointer to allocated iio_trigger on success, NULL on failure.
+ */
 struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
 						const char *fmt, ...)
 {
@@ -532,6 +538,13 @@ struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_iio_trigger_alloc);
 
+/**
+ * devm_iio_trigger_free - Resource-managed iio_trigger_free()
+ * @dev:		Device this iio_dev belongs to
+ * @iio_trig:		the iio_trigger associated with the device
+ *
+ * Free iio_trigger allocated with devm_iio_trigger_alloc().
+ */
 void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig)
 {
 	int rc;

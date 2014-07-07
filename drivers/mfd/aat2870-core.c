@@ -293,7 +293,7 @@ static ssize_t aat2870_reg_write_file(struct file *file,
 	unsigned long addr, val;
 	int ret;
 
-	buf_size = min(count, (sizeof(buf)-1));
+	buf_size = min(count, (size_t)(sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size)) {
 		dev_err(aat2870->dev, "Failed to copy from user\n");
 		return -EFAULT;

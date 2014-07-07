@@ -23,28 +23,44 @@
 
 #include "internal.h"
 
+static int mm_counter(struct page *page)
+{
+	return PageAnon(page) ? MM_ANONPAGES : MM_FILEPAGES;
+}
+
 static void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
+	struct page *page;
+	swp_entry_t entry;
 
 	if (pte_present(pte)) {
-		struct page *page;
-
 		flush_cache_page(vma, addr, pte_pfn(pte));
 		pte = ptep_clear_flush(vma, addr, ptep);
 		page = vm_normal_page(vma, addr, pte);
 		if (page) {
 			if (pte_dirty(pte))
 				set_page_dirty(page);
+			update_hiwater_rss(mm);
+			dec_mm_counter(mm, mm_counter(page));
 			page_remove_rmap(page);
 			page_cache_release(page);
-			update_hiwater_rss(mm);
-			dec_mm_counter(mm, MM_FILEPAGES);
 		}
-	} else {
-		if (!pte_file(pte))
-			free_swap_and_cache(pte_to_swp_entry(pte));
+	} else {	/* zap_pte() is not called when pte_none() */
+		if (!pte_file(pte)) {
+			update_hiwater_rss(mm);
+			entry = pte_to_swp_entry(pte);
+			if (non_swap_entry(entry)) {
+				if (is_migration_entry(entry)) {
+					page = migration_entry_to_page(entry);
+					dec_mm_counter(mm, mm_counter(page));
+				}
+			} else {
+				free_swap_and_cache(entry);
+				dec_mm_counter(mm, MM_SWAPENTS);
+			}
+		}
 		pte_clear_not_present_full(mm, addr, ptep, 0);
 	}
 }
@@ -66,13 +82,10 @@ static int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	ptfile = pgoff_to_pte(pgoff);
 
-	if (!pte_none(*pte)) {
-		if (pte_present(*pte) && pte_soft_dirty(*pte))
-			pte_file_mksoft_dirty(ptfile);
+	if (!pte_none(*pte))
 		zap_pte(mm, vma, addr, pte);
-	}
 
-	set_pte_at(mm, addr, pte, ptfile);
+	set_pte_at(mm, addr, pte, pte_file_mksoft_dirty(ptfile));
 	/*
 	 * We don't need to run update_mmu_cache() here because the "file pte"
 	 * being installed by install_file_pte() is not a real pte - it's a
@@ -135,6 +148,10 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	int err = -EINVAL;
 	int has_write_lock = 0;
 	vm_flags_t vm_flags = 0;
+
+	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. "
+			"See Documentation/vm/remap_file_pages.txt.\n",
+			current->comm, current->pid);
 
 	if (prot)
 		return err;
@@ -208,9 +225,10 @@ get_write_lock:
 		if (mapping_cap_account_dirty(mapping)) {
 			unsigned long addr;
 			struct file *file = get_file(vma->vm_file);
+			/* mmap_region may free vma; grab the info now */
+			vm_flags = vma->vm_flags;
 
-			addr = mmap_region(file, start, size,
-					vma->vm_flags, pgoff);
+			addr = mmap_region(file, start, size, vm_flags, pgoff);
 			fput(file);
 			if (IS_ERR_VALUE(addr)) {
 				err = addr;
@@ -218,7 +236,7 @@ get_write_lock:
 				BUG_ON(addr != start);
 				err = 0;
 			}
-			goto out;
+			goto out_freed;
 		}
 		mutex_lock(&mapping->i_mmap_mutex);
 		flush_dcache_mmap_lock(mapping);
@@ -253,6 +271,7 @@ get_write_lock:
 out:
 	if (vma)
 		vm_flags = vma->vm_flags;
+out_freed:
 	if (likely(!has_write_lock))
 		up_read(&mm->mmap_sem);
 	else

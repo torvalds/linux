@@ -45,6 +45,7 @@ struct key_preparsed_payload {
 	const void	*data;		/* Raw data */
 	size_t		datalen;	/* Raw datalen */
 	size_t		quotalen;	/* Quota length for proposed payload */
+	bool		trusted;	/* True if key is trusted */
 };
 
 typedef int (*request_key_actor_t)(struct key_construction *key,
@@ -62,6 +63,11 @@ struct key_type {
 	 *   function only needs to be called if the real datalen is different
 	 */
 	size_t def_datalen;
+
+	/* Default key search algorithm. */
+	unsigned def_lookup_type;
+#define KEYRING_SEARCH_LOOKUP_DIRECT	0x0000	/* Direct lookup by description. */
+#define KEYRING_SEARCH_LOOKUP_ITERATE	0x0001	/* Iterative search. */
 
 	/* vet a description */
 	int (*vet_description)(const char *description);

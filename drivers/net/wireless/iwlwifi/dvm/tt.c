@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -30,7 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <net/mac80211.h>
 #include "iwl-io.h"
 #include "iwl-modparams.h"
@@ -237,7 +236,7 @@ static void iwl_prepare_ct_kill_task(struct iwl_priv *priv)
 {
 	IWL_DEBUG_TEMP(priv, "Prepare to enter IWL_TI_CT_KILL\n");
 	/* make request to retrieve statistics information */
-	iwl_send_statistics_request(priv, CMD_SYNC, false);
+	iwl_send_statistics_request(priv, 0, false);
 	/* Reschedule the ct_kill wait timer */
 	mod_timer(&priv->thermal_throttle.ct_kill_waiting_tm,
 		 jiffies + msecs_to_jiffies(CT_KILL_WAITING_DURATION));

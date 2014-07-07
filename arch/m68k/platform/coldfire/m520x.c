@@ -118,10 +118,9 @@ static void __init m520x_clk_init(void)
 
 /***************************************************************************/
 
-#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
-
 static void __init m520x_qspi_init(void)
 {
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	u16 par;
 	/* setup Port QS for QSPI with gpio CS control */
 	writeb(0x3f, MCF_GPIO_PAR_QSPI);
@@ -129,9 +128,8 @@ static void __init m520x_qspi_init(void)
 	par = readw(MCF_GPIO_PAR_UART);
 	par &= 0x00ff;
 	writew(par, MCF_GPIO_PAR_UART);
-}
-
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
+}
 
 /***************************************************************************/
 
@@ -176,9 +174,7 @@ void __init config_BSP(char *commandp, int size)
 	m520x_clk_init();
 	m520x_uarts_init();
 	m520x_fec_init();
-#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	m520x_qspi_init();
-#endif
 }
 
 /***************************************************************************/

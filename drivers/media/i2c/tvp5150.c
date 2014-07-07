@@ -16,9 +16,9 @@
 
 #include "tvp5150_reg.h"
 
-#define TVP5150_H_MAX		720
-#define TVP5150_V_MAX_525_60	480
-#define TVP5150_V_MAX_OTHERS	576
+#define TVP5150_H_MAX		720U
+#define TVP5150_V_MAX_525_60	480U
+#define TVP5150_V_MAX_OTHERS	576U
 #define TVP5150_MAX_CROP_LEFT	511
 #define TVP5150_MAX_CROP_TOP	127
 #define TVP5150_CROP_SHIFT	2
@@ -29,7 +29,7 @@ MODULE_LICENSE("GPL");
 
 
 static int debug;
-module_param(debug, int, 0);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 struct tvp5150 {
@@ -58,21 +58,17 @@ static int tvp5150_read(struct v4l2_subdev *sd, unsigned char addr)
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
 	unsigned char buffer[1];
 	int rc;
+	struct i2c_msg msg[] = {
+		{ .addr = c->addr, .flags = 0,
+		  .buf = &addr, .len = 1 },
+		{ .addr = c->addr, .flags = I2C_M_RD,
+		  .buf = buffer, .len = 1 }
+	};
 
-	buffer[0] = addr;
-
-	rc = i2c_master_send(c, buffer, 1);
-	if (rc < 0) {
-		v4l2_err(sd, "i2c i/o error: rc == %d (should be 1)\n", rc);
-		return rc;
-	}
-
-	msleep(10);
-
-	rc = i2c_master_recv(c, buffer, 1);
-	if (rc < 0) {
-		v4l2_err(sd, "i2c i/o error: rc == %d (should be 1)\n", rc);
-		return rc;
+	rc = i2c_transfer(c->adapter, msg, 2);
+	if (rc < 0 || rc != 2) {
+		v4l2_err(sd, "i2c i/o error: rc == %d (should be 2)\n", rc);
+		return rc < 0 ? rc : -EIO;
 	}
 
 	v4l2_dbg(2, debug, sd, "tvp5150: read 0x%02x = 0x%02x\n", addr, buffer[0]);
@@ -867,7 +863,7 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	struct v4l2_rect rect = a->c;
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std;
-	int hmax;
+	unsigned int hmax;
 
 	v4l2_dbg(1, debug, sd, "%s left=%d, top=%d, width=%d, height=%d\n",
 		__func__, rect.left, rect.top, rect.width, rect.height);
@@ -877,9 +873,9 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 
 	/* tvp5150 has some special limits */
 	rect.left = clamp(rect.left, 0, TVP5150_MAX_CROP_LEFT);
-	rect.width = clamp(rect.width,
-			   TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect.left,
-			   TVP5150_H_MAX - rect.left);
+	rect.width = clamp_t(unsigned int, rect.width,
+			     TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect.left,
+			     TVP5150_H_MAX - rect.left);
 	rect.top = clamp(rect.top, 0, TVP5150_MAX_CROP_TOP);
 
 	/* Calculate height based on current standard */
@@ -893,9 +889,9 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	else
 		hmax = TVP5150_V_MAX_OTHERS;
 
-	rect.height = clamp(rect.height,
-			    hmax - TVP5150_MAX_CROP_TOP - rect.top,
-			    hmax - rect.top);
+	rect.height = clamp_t(unsigned int, rect.height,
+			      hmax - TVP5150_MAX_CROP_TOP - rect.top,
+			      hmax - rect.top);
 
 	tvp5150_write(sd, TVP5150_VERT_BLANKING_START, rect.top);
 	tvp5150_write(sd, TVP5150_VERT_BLANKING_STOP,
@@ -917,7 +913,7 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 
 static int tvp5150_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct tvp5150 *decoder = container_of(sd, struct tvp5150, sd);
+	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	a->c	= decoder->rect;
 	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -927,7 +923,7 @@ static int tvp5150_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int tvp5150_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 {
-	struct tvp5150 *decoder = container_of(sd, struct tvp5150, sd);
+	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std;
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1067,7 +1063,6 @@ static const struct v4l2_ctrl_ops tvp5150_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.log_status = tvp5150_log_status,
-	.s_std = tvp5150_s_std,
 	.reset = tvp5150_reset,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = tvp5150_g_register,
@@ -1080,6 +1075,7 @@ static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
 };
 
 static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
+	.s_std = tvp5150_s_std,
 	.s_routing = tvp5150_s_routing,
 	.enum_mbus_fmt = tvp5150_enum_mbus_fmt,
 	.s_mbus_fmt = tvp5150_mbus_fmt,

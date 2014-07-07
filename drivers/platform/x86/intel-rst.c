@@ -20,7 +20,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 MODULE_LICENSE("GPL");
 
@@ -29,24 +29,16 @@ static ssize_t irst_show_wakeup_events(struct device *dev,
 				       char *buf)
 {
 	struct acpi_device *acpi;
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *result;
+	unsigned long long value;
 	acpi_status status;
 
 	acpi = to_acpi_device(dev);
 
-	status = acpi_evaluate_object(acpi->handle, "GFFS", NULL, &output);
+	status = acpi_evaluate_integer(acpi->handle, "GFFS", NULL, &value);
 	if (!ACPI_SUCCESS(status))
 		return -EINVAL;
 
-	result = output.pointer;
-
-	if (result->type != ACPI_TYPE_INTEGER) {
-		kfree(result);
-		return -EINVAL;
-	}
-
-	return sprintf(buf, "%lld\n", result->integer.value);
+	return sprintf(buf, "%lld\n", value);
 }
 
 static ssize_t irst_store_wakeup_events(struct device *dev,
@@ -54,8 +46,6 @@ static ssize_t irst_store_wakeup_events(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct acpi_device *acpi;
-	struct acpi_object_list input;
-	union acpi_object param;
 	acpi_status status;
 	unsigned long value;
 	int error;
@@ -67,13 +57,7 @@ static ssize_t irst_store_wakeup_events(struct device *dev,
 	if (error)
 		return error;
 
-	param.type = ACPI_TYPE_INTEGER;
-	param.integer.value = value;
-
-	input.count = 1;
-	input.pointer = &param;
-
-	status = acpi_evaluate_object(acpi->handle, "SFFS", &input, NULL);
+	status = acpi_execute_simple_method(acpi->handle, "SFFS", value);
 
 	if (!ACPI_SUCCESS(status))
 		return -EINVAL;
@@ -91,24 +75,16 @@ static ssize_t irst_show_wakeup_time(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct acpi_device *acpi;
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *result;
+	unsigned long long value;
 	acpi_status status;
 
 	acpi = to_acpi_device(dev);
 
-	status = acpi_evaluate_object(acpi->handle, "GFTV", NULL, &output);
+	status = acpi_evaluate_integer(acpi->handle, "GFTV", NULL, &value);
 	if (!ACPI_SUCCESS(status))
 		return -EINVAL;
 
-	result = output.pointer;
-
-	if (result->type != ACPI_TYPE_INTEGER) {
-		kfree(result);
-		return -EINVAL;
-	}
-
-	return sprintf(buf, "%lld\n", result->integer.value);
+	return sprintf(buf, "%lld\n", value);
 }
 
 static ssize_t irst_store_wakeup_time(struct device *dev,
@@ -116,8 +92,6 @@ static ssize_t irst_store_wakeup_time(struct device *dev,
 				      const char *buf, size_t count)
 {
 	struct acpi_device *acpi;
-	struct acpi_object_list input;
-	union acpi_object param;
 	acpi_status status;
 	unsigned long value;
 	int error;
@@ -129,13 +103,7 @@ static ssize_t irst_store_wakeup_time(struct device *dev,
 	if (error)
 		return error;
 
-	param.type = ACPI_TYPE_INTEGER;
-	param.integer.value = value;
-
-	input.count = 1;
-	input.pointer = &param;
-
-	status = acpi_evaluate_object(acpi->handle, "SFTV", &input, NULL);
+	status = acpi_execute_simple_method(acpi->handle, "SFTV", value);
 
 	if (!ACPI_SUCCESS(status))
 		return -EINVAL;

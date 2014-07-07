@@ -25,8 +25,6 @@ struct lp3971 {
 	struct device *dev;
 	struct mutex io_lock;
 	struct i2c_client *i2c;
-	int num_regulators;
-	struct regulator_dev **rdev;
 };
 
 static u8 lp3971_reg_read(struct lp3971 *lp3971, u8 reg);
@@ -329,7 +327,7 @@ static int lp3971_i2c_read(struct i2c_client *i2c, char reg, int count,
 		return -EIO;
 	ret = i2c_smbus_read_byte_data(i2c, reg);
 	if (ret < 0)
-		return -EIO;
+		return ret;
 
 	*dest = ret;
 	return 0;
@@ -383,42 +381,27 @@ static int setup_regulators(struct lp3971 *lp3971,
 {
 	int i, err;
 
-	lp3971->num_regulators = pdata->num_regulators;
-	lp3971->rdev = kcalloc(pdata->num_regulators,
-				sizeof(struct regulator_dev *), GFP_KERNEL);
-	if (!lp3971->rdev) {
-		err = -ENOMEM;
-		goto err_nomem;
-	}
-
 	/* Instantiate the regulators */
 	for (i = 0; i < pdata->num_regulators; i++) {
 		struct regulator_config config = { };
 		struct lp3971_regulator_subdev *reg = &pdata->regulators[i];
+		struct regulator_dev *rdev;
 
 		config.dev = lp3971->dev;
 		config.init_data = reg->initdata;
 		config.driver_data = lp3971;
 
-		lp3971->rdev[i] = regulator_register(&regulators[reg->id],
-						     &config);
-		if (IS_ERR(lp3971->rdev[i])) {
-			err = PTR_ERR(lp3971->rdev[i]);
+		rdev = devm_regulator_register(lp3971->dev,
+					       &regulators[reg->id], &config);
+		if (IS_ERR(rdev)) {
+			err = PTR_ERR(rdev);
 			dev_err(lp3971->dev, "regulator init failed: %d\n",
 				err);
-			goto error;
+			return err;
 		}
 	}
 
 	return 0;
-
-error:
-	while (--i >= 0)
-		regulator_unregister(lp3971->rdev[i]);
-	kfree(lp3971->rdev);
-	lp3971->rdev = NULL;
-err_nomem:
-	return err;
 }
 
 static int lp3971_i2c_probe(struct i2c_client *i2c,
@@ -460,22 +443,9 @@ static int lp3971_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int lp3971_i2c_remove(struct i2c_client *i2c)
-{
-	struct lp3971 *lp3971 = i2c_get_clientdata(i2c);
-	int i;
-
-	for (i = 0; i < lp3971->num_regulators; i++)
-		regulator_unregister(lp3971->rdev[i]);
-
-	kfree(lp3971->rdev);
-
-	return 0;
-}
-
 static const struct i2c_device_id lp3971_i2c_id[] = {
-       { "lp3971", 0 },
-       { }
+	{ "lp3971", 0 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp3971_i2c_id);
 
@@ -485,7 +455,6 @@ static struct i2c_driver lp3971_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe    = lp3971_i2c_probe,
-	.remove   = lp3971_i2c_remove,
 	.id_table = lp3971_i2c_id,
 };
 

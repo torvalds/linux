@@ -84,7 +84,8 @@ void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 			ptr--;
 		}
 		if (tpi->flags&TUNNEL_CSUM &&
-		    !(skb_shinfo(skb)->gso_type & SKB_GSO_GRE)) {
+		    !(skb_shinfo(skb)->gso_type &
+		      (SKB_GSO_GRE|SKB_GSO_GRE_CSUM))) {
 			*ptr = 0;
 			*(__sum16 *)ptr = csum_fold(skb_checksum(skb, 0,
 								 skb->len, 0));
@@ -92,57 +93,6 @@ void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 	}
 }
 EXPORT_SYMBOL_GPL(gre_build_header);
-
-struct sk_buff *gre_handle_offloads(struct sk_buff *skb, bool gre_csum)
-{
-	int err;
-
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
-
-	if (skb_is_gso(skb)) {
-		err = skb_unclone(skb, GFP_ATOMIC);
-		if (unlikely(err))
-			goto error;
-		skb_shinfo(skb)->gso_type |= SKB_GSO_GRE;
-		return skb;
-	} else if (skb->ip_summed == CHECKSUM_PARTIAL && gre_csum) {
-		err = skb_checksum_help(skb);
-		if (unlikely(err))
-			goto error;
-	} else if (skb->ip_summed != CHECKSUM_PARTIAL)
-		skb->ip_summed = CHECKSUM_NONE;
-
-	return skb;
-error:
-	kfree_skb(skb);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL_GPL(gre_handle_offloads);
-
-static __sum16 check_checksum(struct sk_buff *skb)
-{
-	__sum16 csum = 0;
-
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		csum = csum_fold(skb->csum);
-
-		if (!csum)
-			break;
-		/* Fall through. */
-
-	case CHECKSUM_NONE:
-		skb->csum = 0;
-		csum = __skb_checksum_complete(skb);
-		skb->ip_summed = CHECKSUM_COMPLETE;
-		break;
-	}
-
-	return csum;
-}
 
 static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			    bool *csum_err)
@@ -170,7 +120,7 @@ static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 
 	options = (__be32 *)(greh + 1);
 	if (greh->flags & GRE_CSUM) {
-		if (check_checksum(skb)) {
+		if (skb_checksum_simple_validate(skb)) {
 			*csum_err = true;
 			return -EINVAL;
 		}
@@ -210,6 +160,14 @@ static int gre_cisco_rcv(struct sk_buff *skb)
 	struct tnl_ptk_info tpi;
 	int i;
 	bool csum_err = false;
+
+#ifdef CONFIG_NET_IPGRE_BROADCAST
+	if (ipv4_is_multicast(ip_hdr(skb)->daddr)) {
+		/* Looped back packet, drop it! */
+		if (rt_is_output_route(skb_rtable(skb)))
+			goto drop;
+	}
+#endif
 
 	if (parse_gre_header(skb, &tpi, &csum_err) < 0)
 		goto drop;
@@ -384,14 +342,7 @@ static int __init gre_init(void)
 		goto err_gre;
 	}
 
-	if (gre_offload_init()) {
-		pr_err("can't add protocol offload\n");
-		goto err_gso;
-	}
-
 	return 0;
-err_gso:
-	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 err_gre:
 	inet_del_protocol(&net_gre_protocol, IPPROTO_GRE);
 err:
@@ -400,8 +351,6 @@ err:
 
 static void __exit gre_exit(void)
 {
-	gre_offload_exit();
-
 	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 	inet_del_protocol(&net_gre_protocol, IPPROTO_GRE);
 }

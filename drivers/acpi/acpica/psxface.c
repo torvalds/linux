@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -142,7 +142,7 @@ static void acpi_ps_start_trace(struct acpi_evaluate_info *info)
 		acpi_dbg_layer = acpi_gbl_trace_dbg_layer;
 	}
 
-      exit:
+exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 }
 
@@ -185,7 +185,7 @@ static void acpi_ps_stop_trace(struct acpi_evaluate_info *info)
 	acpi_dbg_level = acpi_gbl_original_dbg_level;
 	acpi_dbg_layer = acpi_gbl_original_dbg_layer;
 
-      exit:
+exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 }
 
@@ -323,7 +323,7 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 
 	/* walk_state was deleted by parse_aml */
 
-      cleanup:
+cleanup:
 	acpi_ps_delete_parse_tree(op);
 
 	/* End optional tracing */

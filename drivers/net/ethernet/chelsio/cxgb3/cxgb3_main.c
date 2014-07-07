@@ -1809,8 +1809,8 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		ethtool_cmd_speed_set(cmd, p->link_config.speed);
 		cmd->duplex = p->link_config.duplex;
 	} else {
-		ethtool_cmd_speed_set(cmd, -1);
-		cmd->duplex = -1;
+		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->duplex = DUPLEX_UNKNOWN;
 	}
 
 	cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
@@ -3088,30 +3088,22 @@ static int cxgb_enable_msix(struct adapter *adap)
 {
 	struct msix_entry entries[SGE_QSETS + 1];
 	int vectors;
-	int i, err;
+	int i;
 
 	vectors = ARRAY_SIZE(entries);
 	for (i = 0; i < vectors; ++i)
 		entries[i].entry = i;
 
-	while ((err = pci_enable_msix(adap->pdev, entries, vectors)) > 0)
-		vectors = err;
+	vectors = pci_enable_msix_range(adap->pdev, entries,
+					adap->params.nports + 1, vectors);
+	if (vectors < 0)
+		return vectors;
 
-	if (err < 0)
-		pci_disable_msix(adap->pdev);
+	for (i = 0; i < vectors; ++i)
+		adap->msix_info[i].vec = entries[i].vector;
+	adap->msix_nvectors = vectors;
 
-	if (!err && vectors < (adap->params.nports + 1)) {
-		pci_disable_msix(adap->pdev);
-		err = -1;
-	}
-
-	if (!err) {
-		for (i = 0; i < vectors; ++i)
-			adap->msix_info[i].vec = entries[i].vector;
-		adap->msix_nvectors = vectors;
-	}
-
-	return err;
+	return 0;
 }
 
 static void print_port_info(struct adapter *adap, const struct adapter_info *ai)
@@ -3299,7 +3291,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			netdev->features |= NETIF_F_HIGHDMA;
 
 		netdev->netdev_ops = &cxgb_netdev_ops;
-		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
+		netdev->ethtool_ops = &cxgb_ethtool_ops;
 	}
 
 	pci_set_drvdata(pdev, adapter);
@@ -3374,7 +3366,6 @@ out_release_regions:
 	pci_release_regions(pdev);
 out_disable_device:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 out:
 	return err;
 }
@@ -3415,7 +3406,6 @@ static void remove_one(struct pci_dev *pdev)
 		kfree(adapter);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 

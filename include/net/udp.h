@@ -79,7 +79,7 @@ struct udp_table {
 	unsigned int		log;
 };
 extern struct udp_table udp_table;
-extern void udp_table_init(struct udp_table *, const char *);
+void udp_table_init(struct udp_table *, const char *);
 static inline struct udp_hslot *udp_hashslot(struct udp_table *table,
 					     struct net *net, unsigned int num)
 {
@@ -94,15 +94,6 @@ static inline struct udp_hslot *udp_hashslot2(struct udp_table *table,
 {
 	return &table->hash2[hash & table->mask];
 }
-
-/* Note: this must match 'valbool' in sock_setsockopt */
-#define UDP_CSUM_NOXMIT		1
-
-/* Used by SunRPC/xprt layer. */
-#define UDP_CSUM_NORCV		2
-
-/* Default, as per the RFC, is to always do csums. */
-#define UDP_CSUM_DEFAULT	0
 
 extern struct proto udp_prot;
 
@@ -120,7 +111,9 @@ struct sk_buff;
  */
 static inline __sum16 __udp_lib_checksum_complete(struct sk_buff *skb)
 {
-	return __skb_checksum_complete_head(skb, UDP_SKB_CB(skb)->cscov);
+	return (UDP_SKB_CB(skb)->cscov == skb->len ?
+		__skb_checksum_complete(skb) :
+		__skb_checksum_complete_head(skb, UDP_SKB_CB(skb)->cscov));
 }
 
 static inline int udp_lib_checksum_complete(struct sk_buff *skb)
@@ -156,58 +149,68 @@ static inline __wsum udp_csum(struct sk_buff *skb)
 	return csum;
 }
 
+static inline __sum16 udp_v4_check(int len, __be32 saddr,
+				   __be32 daddr, __wsum base)
+{
+	return csum_tcpudp_magic(saddr, daddr, len, IPPROTO_UDP, base);
+}
+
+void udp_set_csum(bool nocheck, struct sk_buff *skb,
+		  __be32 saddr, __be32 daddr, int len);
+
 /* hash routines shared between UDPv4/6 and UDP-Litev4/6 */
 static inline void udp_lib_hash(struct sock *sk)
 {
 	BUG();
 }
 
-extern void udp_lib_unhash(struct sock *sk);
-extern void udp_lib_rehash(struct sock *sk, u16 new_hash);
+void udp_lib_unhash(struct sock *sk);
+void udp_lib_rehash(struct sock *sk, u16 new_hash);
 
 static inline void udp_lib_close(struct sock *sk, long timeout)
 {
 	sk_common_release(sk);
 }
 
-extern int udp_lib_get_port(struct sock *sk, unsigned short snum,
-			    int (*)(const struct sock *,const struct sock *),
-			    unsigned int hash2_nulladdr);
+int udp_lib_get_port(struct sock *sk, unsigned short snum,
+		     int (*)(const struct sock *, const struct sock *),
+		     unsigned int hash2_nulladdr);
 
 /* net/ipv4/udp.c */
-extern int udp_get_port(struct sock *sk, unsigned short snum,
-			int (*saddr_cmp)(const struct sock *,
-					 const struct sock *));
-extern void udp_err(struct sk_buff *, u32);
-extern int udp_sendmsg(struct kiocb *iocb, struct sock *sk,
-			    struct msghdr *msg, size_t len);
-extern int udp_push_pending_frames(struct sock *sk);
-extern void udp_flush_pending_frames(struct sock *sk);
-extern void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst);
-extern int udp_rcv(struct sk_buff *skb);
-extern int udp_ioctl(struct sock *sk, int cmd, unsigned long arg);
-extern int udp_disconnect(struct sock *sk, int flags);
-extern unsigned int udp_poll(struct file *file, struct socket *sock,
-			     poll_table *wait);
-extern struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
-					      netdev_features_t features);
-extern int udp_lib_getsockopt(struct sock *sk, int level, int optname,
-			      char __user *optval, int __user *optlen);
-extern int udp_lib_setsockopt(struct sock *sk, int level, int optname,
-			      char __user *optval, unsigned int optlen,
-			      int (*push_pending_frames)(struct sock *));
-extern struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
-				    __be32 daddr, __be16 dport,
-				    int dif);
-extern struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
-				    __be32 daddr, __be16 dport,
-				    int dif, struct udp_table *tbl);
-extern struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be16 sport,
-				    const struct in6_addr *daddr, __be16 dport,
-				    int dif);
-extern struct sock *__udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be16 sport,
-				    const struct in6_addr *daddr, __be16 dport,
-				    int dif, struct udp_table *tbl);
+void udp_v4_early_demux(struct sk_buff *skb);
+int udp_get_port(struct sock *sk, unsigned short snum,
+		 int (*saddr_cmp)(const struct sock *,
+				  const struct sock *));
+void udp_err(struct sk_buff *, u32);
+int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
+		size_t len);
+int udp_push_pending_frames(struct sock *sk);
+void udp_flush_pending_frames(struct sock *sk);
+void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst);
+int udp_rcv(struct sk_buff *skb);
+int udp_ioctl(struct sock *sk, int cmd, unsigned long arg);
+int udp_disconnect(struct sock *sk, int flags);
+unsigned int udp_poll(struct file *file, struct socket *sock, poll_table *wait);
+struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
+				       netdev_features_t features);
+int udp_lib_getsockopt(struct sock *sk, int level, int optname,
+		       char __user *optval, int __user *optlen);
+int udp_lib_setsockopt(struct sock *sk, int level, int optname,
+		       char __user *optval, unsigned int optlen,
+		       int (*push_pending_frames)(struct sock *));
+struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
+			     __be32 daddr, __be16 dport, int dif);
+struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
+			       __be32 daddr, __be16 dport, int dif,
+			       struct udp_table *tbl);
+struct sock *udp6_lib_lookup(struct net *net,
+			     const struct in6_addr *saddr, __be16 sport,
+			     const struct in6_addr *daddr, __be16 dport,
+			     int dif);
+struct sock *__udp6_lib_lookup(struct net *net,
+			       const struct in6_addr *saddr, __be16 sport,
+			       const struct in6_addr *daddr, __be16 dport,
+			       int dif, struct udp_table *tbl);
 
 /*
  * 	SNMP statistics for UDP and UDP-Lite
@@ -229,13 +232,13 @@ extern struct sock *__udp6_lib_lookup(struct net *net, const struct in6_addr *sa
 } while(0)
 
 #if IS_ENABLED(CONFIG_IPV6)
-#define UDPX_INC_STATS_BH(sk, field) \
-	do { \
-		if ((sk)->sk_family == AF_INET) \
-			UDP_INC_STATS_BH(sock_net(sk), field, 0); \
-		else \
-			UDP6_INC_STATS_BH(sock_net(sk), field, 0); \
-	} while (0);
+#define UDPX_INC_STATS_BH(sk, field)					\
+do {									\
+	if ((sk)->sk_family == AF_INET)					\
+		UDP_INC_STATS_BH(sock_net(sk), field, 0);		\
+	else								\
+		UDP6_INC_STATS_BH(sock_net(sk), field, 0);		\
+} while (0)
 #else
 #define UDPX_INC_STATS_BH(sk, field) UDP_INC_STATS_BH(sock_net(sk), field, 0)
 #endif
@@ -259,19 +262,19 @@ struct udp_iter_state {
 };
 
 #ifdef CONFIG_PROC_FS
-extern int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo);
-extern void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo);
+int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo);
+void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo);
 
-extern int udp4_proc_init(void);
-extern void udp4_proc_exit(void);
+int udp4_proc_init(void);
+void udp4_proc_exit(void);
 #endif
 
-extern int udpv4_offload_init(void);
+int udpv4_offload_init(void);
 
-extern void udp_init(void);
+void udp_init(void);
 
-extern void udp_encap_enable(void);
+void udp_encap_enable(void);
 #if IS_ENABLED(CONFIG_IPV6)
-extern void udpv6_encap_enable(void);
+void udpv6_encap_enable(void);
 #endif
 #endif	/* _UDP_H */

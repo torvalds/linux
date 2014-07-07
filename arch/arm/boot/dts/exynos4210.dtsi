@@ -23,7 +23,7 @@
 #include "exynos4210-pinctrl.dtsi"
 
 / {
-	compatible = "samsung,exynos4210";
+	compatible = "samsung,exynos4210", "samsung,exynos4";
 
 	aliases {
 		pinctrl0 = &pinctrl_0;
@@ -31,16 +31,34 @@
 		pinctrl2 = &pinctrl_2;
 	};
 
+	sysram@02020000 {
+		compatible = "mmio-sram";
+		reg = <0x02020000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x02020000 0x20000>;
+
+		smp-sysram@0 {
+			compatible = "samsung,exynos4210-sysram";
+			reg = <0x0 0x1000>;
+		};
+
+		smp-sysram@1f000 {
+			compatible = "samsung,exynos4210-sysram-ns";
+			reg = <0x1f000 0x1000>;
+		};
+	};
+
 	pd_lcd1: lcd1-power-domain@10023CA0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CA0 0x20>;
 	};
 
-	gic:interrupt-controller@10490000 {
+	gic: interrupt-controller@10490000 {
 		cpu-offset = <0x8000>;
 	};
 
-	combiner:interrupt-controller@10440000 {
+	combiner: interrupt-controller@10440000 {
 		samsung,combiner-nr = <16>;
 		interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
 			     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
@@ -51,24 +69,21 @@
 	mct@10050000 {
 		compatible = "samsung,exynos4210-mct";
 		reg = <0x10050000 0x800>;
-		interrupt-controller;
-		#interrups-cells = <2>;
 		interrupt-parent = <&mct_map>;
-		interrupts = <0 0>, <1 0>, <2 0>, <3 0>,
-			     <4 0>, <5 0>;
-		clocks = <&clock 3>, <&clock 344>;
+		interrupts = <0>, <1>, <2>, <3>, <4>, <5>;
+		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
 		clock-names = "fin_pll", "mct";
 
 		mct_map: mct-map {
-			#interrupt-cells = <2>;
+			#interrupt-cells = <1>;
 			#address-cells = <0>;
 			#size-cells = <0>;
-			interrupt-map = <0x0 0 &gic 0 57 0>,
-					<0x1 0 &gic 0 69 0>,
-					<0x2 0 &combiner 12 6>,
-					<0x3 0 &combiner 12 7>,
-					<0x4 0 &gic 0 42 0>,
-					<0x5 0 &gic 0 48 0>;
+			interrupt-map = <0 &gic 0 57 0>,
+					<1 &gic 0 69 0>,
+					<2 &combiner 12 6>,
+					<3 &combiner 12 7>,
+					<4 &gic 0 42 0>,
+					<5 &gic 0 48 0>;
 		};
 	};
 
@@ -112,7 +127,7 @@
 		interrupt-parent = <&combiner>;
 		reg = <0x100C0000 0x100>;
 		interrupts = <2 4>;
-		clocks = <&clock 383>;
+		clocks = <&clock CLK_TMU_APBIF>;
 		clock-names = "tmu_apbif";
 		status = "disabled";
 	};
@@ -121,13 +136,14 @@
 		compatible = "samsung,s5pv210-g2d";
 		reg = <0x12800000 0x1000>;
 		interrupts = <0 89 0>;
-		clocks = <&clock 177>, <&clock 277>;
+		clocks = <&clock CLK_SCLK_FIMG2D>, <&clock CLK_G2D>;
 		clock-names = "sclk_fimg2d", "fimg2d";
 		status = "disabled";
 	};
 
 	camera {
-		clocks = <&clock 132>, <&clock 133>, <&clock 351>, <&clock 352>;
+		clocks = <&clock CLK_SCLK_CAM0>, <&clock CLK_SCLK_CAM1>,
+			 <&clock CLK_PIXELASYNCM0>, <&clock CLK_PIXELASYNCM1>;
 		clock-names = "sclk_cam0", "sclk_cam1", "pxl_async0", "pxl_async1";
 
 		fimc_0: fimc@11800000 {

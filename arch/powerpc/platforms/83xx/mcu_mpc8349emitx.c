@@ -11,7 +11,6 @@
  * (at your option) any later version.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -204,7 +203,6 @@ static int mcu_remove(struct i2c_client *client)
 	ret = mcu_gpiochip_remove(mcu);
 	if (ret)
 		return ret;
-	i2c_set_clientdata(client, NULL);
 	kfree(mcu);
 	return 0;
 }

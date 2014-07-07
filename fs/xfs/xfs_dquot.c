@@ -18,28 +18,28 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_shared.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_alloc.h"
-#include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
-#include "xfs_rtalloc.h"
+#include "xfs_alloc.h"
+#include "xfs_quota.h"
 #include "xfs_error.h"
-#include "xfs_itable.h"
-#include "xfs_attr.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_space.h"
 #include "xfs_trans_priv.h"
 #include "xfs_qm.h"
 #include "xfs_cksum.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
+#include "xfs_bmap_btree.h"
 
 /*
  * Lock order:
@@ -292,118 +292,6 @@ xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
 	dqp->q_low_space[XFS_QLOWSP_5_PCNT] = space * 5;
 }
 
-STATIC bool
-xfs_dquot_buf_verify_crc(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
-{
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
-	int			ndquots;
-	int			i;
-
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
-		return true;
-
-	/*
-	 * if we are in log recovery, the quota subsystem has not been
-	 * initialised so we have no quotainfo structure. In that case, we need
-	 * to manually calculate the number of dquots in the buffer.
-	 */
-	if (mp->m_quotainfo)
-		ndquots = mp->m_quotainfo->qi_dqperchunk;
-	else
-		ndquots = xfs_qm_calc_dquots_per_chunk(mp,
-					XFS_BB_TO_FSB(mp, bp->b_length));
-
-	for (i = 0; i < ndquots; i++, d++) {
-		if (!xfs_verify_cksum((char *)d, sizeof(struct xfs_dqblk),
-				 XFS_DQUOT_CRC_OFF))
-			return false;
-		if (!uuid_equal(&d->dd_uuid, &mp->m_sb.sb_uuid))
-			return false;
-	}
-	return true;
-}
-
-STATIC bool
-xfs_dquot_buf_verify(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
-{
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
-	xfs_dqid_t		id = 0;
-	int			ndquots;
-	int			i;
-
-	/*
-	 * if we are in log recovery, the quota subsystem has not been
-	 * initialised so we have no quotainfo structure. In that case, we need
-	 * to manually calculate the number of dquots in the buffer.
-	 */
-	if (mp->m_quotainfo)
-		ndquots = mp->m_quotainfo->qi_dqperchunk;
-	else
-		ndquots = xfs_qm_calc_dquots_per_chunk(mp, bp->b_length);
-
-	/*
-	 * On the first read of the buffer, verify that each dquot is valid.
-	 * We don't know what the id of the dquot is supposed to be, just that
-	 * they should be increasing monotonically within the buffer. If the
-	 * first id is corrupt, then it will fail on the second dquot in the
-	 * buffer so corruptions could point to the wrong dquot in this case.
-	 */
-	for (i = 0; i < ndquots; i++) {
-		struct xfs_disk_dquot	*ddq;
-		int			error;
-
-		ddq = &d[i].dd_diskdq;
-
-		if (i == 0)
-			id = be32_to_cpu(ddq->d_id);
-
-		error = xfs_qm_dqcheck(mp, ddq, id + i, 0, XFS_QMOPT_DOWARN,
-				       "xfs_dquot_buf_verify");
-		if (error)
-			return false;
-	}
-	return true;
-}
-
-static void
-xfs_dquot_buf_read_verify(
-	struct xfs_buf	*bp)
-{
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
-
-	if (!xfs_dquot_buf_verify_crc(mp, bp) || !xfs_dquot_buf_verify(mp, bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	}
-}
-
-/*
- * we don't calculate the CRC here as that is done when the dquot is flushed to
- * the buffer after the update is done. This ensures that the dquot in the
- * buffer always has an up-to-date CRC value.
- */
-void
-xfs_dquot_buf_write_verify(
-	struct xfs_buf	*bp)
-{
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
-
-	if (!xfs_dquot_buf_verify(mp, bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
-		return;
-	}
-}
-
-const struct xfs_buf_ops xfs_dquot_buf_ops = {
-	.verify_read = xfs_dquot_buf_read_verify,
-	.verify_write = xfs_dquot_buf_write_verify,
-};
-
 /*
  * Allocate a block and fill it with dquots.
  * This is called when the bmapi finds a hole.
@@ -465,10 +353,10 @@ xfs_qm_dqalloc(
 			       dqp->q_blkno,
 			       mp->m_quotainfo->qi_dqchunklen,
 			       0);
-
-	error = xfs_buf_geterror(bp);
-	if (error)
+	if (!bp) {
+		error = ENOMEM;
 		goto error1;
+	}
 	bp->b_ops = &xfs_dquot_buf_ops;
 
 	/*
@@ -514,6 +402,7 @@ xfs_qm_dqalloc(
 
 	return (error);
 }
+
 STATIC int
 xfs_qm_dqrepair(
 	struct xfs_mount	*mp,
@@ -547,7 +436,7 @@ xfs_qm_dqrepair(
 	/* Do the actual repair of dquots in this buffer */
 	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++) {
 		ddq = &d[i].dd_diskdq;
-		error = xfs_qm_dqcheck(mp, ddq, firstid + i,
+		error = xfs_dqcheck(mp, ddq, firstid + i,
 				       dqp->dq_flags & XFS_DQ_ALLTYPES,
 				       XFS_QMOPT_DQREPAIR, "xfs_qm_dqrepair");
 		if (error) {
@@ -580,16 +469,17 @@ xfs_qm_dqtobp(
 	struct xfs_mount	*mp = dqp->q_mount;
 	xfs_dqid_t		id = be32_to_cpu(dqp->q_core.d_id);
 	struct xfs_trans	*tp = (tpp ? *tpp : NULL);
+	uint			lock_mode;
 
 	dqp->q_fileoffset = (xfs_fileoff_t)id / mp->m_quotainfo->qi_dqperchunk;
 
-	xfs_ilock(quotip, XFS_ILOCK_SHARED);
+	lock_mode = xfs_ilock_data_map_shared(quotip);
 	if (!xfs_this_quota_on(dqp->q_mount, dqp->dq_flags)) {
 		/*
 		 * Return if this type of quotas is turned off while we
 		 * didn't have the quota inode lock.
 		 */
-		xfs_iunlock(quotip, XFS_ILOCK_SHARED);
+		xfs_iunlock(quotip, lock_mode);
 		return ESRCH;
 	}
 
@@ -599,7 +489,7 @@ xfs_qm_dqtobp(
 	error = xfs_bmapi_read(quotip, dqp->q_fileoffset,
 			       XFS_DQUOT_CLUSTER_SIZE_FSB, &map, &nmaps, 0);
 
-	xfs_iunlock(quotip, XFS_ILOCK_SHARED);
+	xfs_iunlock(quotip, lock_mode);
 	if (error)
 		return error;
 
@@ -725,7 +615,7 @@ xfs_qm_dqread(
 
 	if (flags & XFS_QMOPT_DQALLOC) {
 		tp = xfs_trans_alloc(mp, XFS_TRANS_QM_DQALLOC);
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_attrsetm,
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_dqalloc,
 					  XFS_QM_DQALLOC_SPACE_RES(mp), 0);
 		if (error)
 			goto error1;
@@ -942,47 +832,6 @@ restart:
 	return (0);
 }
 
-
-STATIC void
-xfs_qm_dqput_final(
-	struct xfs_dquot	*dqp)
-{
-	struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
-	struct xfs_dquot	*gdqp;
-	struct xfs_dquot	*pdqp;
-
-	trace_xfs_dqput_free(dqp);
-
-	if (list_lru_add(&qi->qi_lru, &dqp->q_lru))
-		XFS_STATS_INC(xs_qm_dquot_unused);
-
-	/*
-	 * If we just added a udquot to the freelist, then we want to release
-	 * the gdquot/pdquot reference that it (probably) has. Otherwise it'll
-	 * keep the gdquot/pdquot from getting reclaimed.
-	 */
-	gdqp = dqp->q_gdquot;
-	if (gdqp) {
-		xfs_dqlock(gdqp);
-		dqp->q_gdquot = NULL;
-	}
-
-	pdqp = dqp->q_pdquot;
-	if (pdqp) {
-		xfs_dqlock(pdqp);
-		dqp->q_pdquot = NULL;
-	}
-	xfs_dqunlock(dqp);
-
-	/*
-	 * If we had a group/project quota hint, release it now.
-	 */
-	if (gdqp)
-		xfs_qm_dqput(gdqp);
-	if (pdqp)
-		xfs_qm_dqput(pdqp);
-}
-
 /*
  * Release a reference to the dquot (decrement ref-count) and unlock it.
  *
@@ -998,10 +847,14 @@ xfs_qm_dqput(
 
 	trace_xfs_dqput(dqp);
 
-	if (--dqp->q_nrefs > 0)
-		xfs_dqunlock(dqp);
-	else
-		xfs_qm_dqput_final(dqp);
+	if (--dqp->q_nrefs == 0) {
+		struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
+		trace_xfs_dqput_free(dqp);
+
+		if (list_lru_add(&qi->qi_lru, &dqp->q_lru))
+			XFS_STATS_INC(xs_qm_dquot_unused);
+	}
+	xfs_dqunlock(dqp);
 }
 
 /*
@@ -1133,7 +986,7 @@ xfs_qm_dqflush(
 	/*
 	 * A simple sanity check in case we got a corrupted dquot..
 	 */
-	error = xfs_qm_dqcheck(mp, &dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
+	error = xfs_dqcheck(mp, &dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
 			   XFS_QMOPT_DOWARN, "dqflush (incore copy)");
 	if (error) {
 		xfs_buf_relse(bp);

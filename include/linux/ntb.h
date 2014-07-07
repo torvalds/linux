@@ -50,8 +50,13 @@ struct ntb_transport_qp;
 
 struct ntb_client {
 	struct device_driver driver;
-	int (*probe) (struct pci_dev *pdev);
-	void (*remove) (struct pci_dev *pdev);
+	int (*probe)(struct pci_dev *pdev);
+	void (*remove)(struct pci_dev *pdev);
+};
+
+enum {
+	NTB_LINK_DOWN = 0,
+	NTB_LINK_UP,
 };
 
 int ntb_register_client(struct ntb_client *drvr);
@@ -60,11 +65,11 @@ int ntb_register_client_dev(char *device_name);
 void ntb_unregister_client_dev(char *device_name);
 
 struct ntb_queue_handlers {
-	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
-			    void *data, int len);
-	void (*tx_handler) (struct ntb_transport_qp *qp, void *qp_data,
-			    void *data, int len);
-	void (*event_handler) (void *data, int status);
+	void (*rx_handler)(struct ntb_transport_qp *qp, void *qp_data,
+			   void *data, int len);
+	void (*tx_handler)(struct ntb_transport_qp *qp, void *qp_data,
+			   void *data, int len);
+	void (*event_handler)(void *data, int status);
 };
 
 unsigned char ntb_transport_qp_num(struct ntb_transport_qp *qp);

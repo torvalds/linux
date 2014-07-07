@@ -40,11 +40,6 @@ static const struct snd_pcm_hardware txx9aclc_pcm_hardware = {
 	.info		  = SNDRV_PCM_INFO_INTERLEAVED |
 			    SNDRV_PCM_INFO_BATCH |
 			    SNDRV_PCM_INFO_PAUSE,
-#ifdef __BIG_ENDIAN
-	.formats	  = SNDRV_PCM_FMTBIT_S16_BE,
-#else
-	.formats	  = SNDRV_PCM_FMTBIT_S16_LE,
-#endif
 	.period_bytes_min = 1024,
 	.period_bytes_max = 8 * 1024,
 	.periods_min	  = 2,
@@ -115,8 +110,8 @@ static void txx9aclc_dma_complete(void *arg)
 	spin_lock_irqsave(&dmadata->dma_lock, flags);
 	if (dmadata->frag_count >= 0) {
 		dmadata->dmacount--;
-		BUG_ON(dmadata->dmacount < 0);
-		tasklet_schedule(&dmadata->tasklet);
+		if (!WARN_ON(dmadata->dmacount < 0))
+			tasklet_schedule(&dmadata->tasklet);
 	}
 	spin_unlock_irqrestore(&dmadata->dma_lock, flags);
 }
@@ -181,7 +176,10 @@ static void txx9aclc_dma_tasklet(unsigned long data)
 		spin_unlock_irqrestore(&dmadata->dma_lock, flags);
 		return;
 	}
-	BUG_ON(dmadata->dmacount >= NR_DMA_CHAIN);
+	if (WARN_ON(dmadata->dmacount >= NR_DMA_CHAIN)) {
+		spin_unlock_irqrestore(&dmadata->dma_lock, flags);
+		return;
+	}
 	while (dmadata->dmacount < NR_DMA_CHAIN) {
 		dmadata->dmacount++;
 		spin_unlock_irqrestore(&dmadata->dma_lock, flags);

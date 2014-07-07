@@ -4,3 +4,11 @@ config BE2NET
 	---help---
 	  This driver implements the NIC functionality for ServerEngines'
 	  10Gbps network adapter - BladeEngine.
+
+config BE2NET_VXLAN
+        bool "VXLAN offload support on be2net driver"
+        default y
+        depends on BE2NET && VXLAN && !(BE2NET=y && VXLAN=m)
+        ---help---
+	  Say Y here if you want to enable VXLAN offload support on
+	  be2net driver.

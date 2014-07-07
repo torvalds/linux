@@ -28,6 +28,13 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 	int i;
 	bool needreset = false;
 
+
+	if (sc->tx99_state) {
+		ath_dbg(ath9k_hw_common(sc->sc_ah), RESET,
+			"skip tx hung detection on tx99\n");
+		return;
+	}
+
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		txq = sc->tx.txq_map[i];
 
@@ -58,50 +65,26 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 /*
  * Checks if the BB/MAC is hung.
  */
-void ath_hw_check(struct work_struct *work)
+bool ath_hw_check(struct ath_softc *sc)
 {
-	struct ath_softc *sc = container_of(work, struct ath_softc, hw_check_work);
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	unsigned long flags;
-	int busy;
-	u8 is_alive, nbeacon = 1;
 	enum ath_reset_type type;
+	bool is_alive;
 
 	ath9k_ps_wakeup(sc);
+
 	is_alive = ath9k_hw_check_alive(sc->sc_ah);
 
-	if (is_alive && !AR_SREV_9300(sc->sc_ah))
-		goto out;
-	else if (!is_alive && AR_SREV_9300(sc->sc_ah)) {
+	if (!is_alive) {
 		ath_dbg(common, RESET,
-			"DCU stuck is detected. Schedule chip reset\n");
+			"HW hang detected, schedule chip reset\n");
 		type = RESET_TYPE_MAC_HANG;
-		goto sched_reset;
+		ath9k_queue_reset(sc, type);
 	}
 
-	spin_lock_irqsave(&common->cc_lock, flags);
-	busy = ath_update_survey_stats(sc);
-	spin_unlock_irqrestore(&common->cc_lock, flags);
-
-	ath_dbg(common, RESET, "Possible baseband hang, busy=%d (try %d)\n",
-		busy, sc->hw_busy_count + 1);
-	if (busy >= 99) {
-		if (++sc->hw_busy_count >= 3) {
-			type = RESET_TYPE_BB_HANG;
-			goto sched_reset;
-		}
-	} else if (busy >= 0) {
-		sc->hw_busy_count = 0;
-		nbeacon = 3;
-	}
-
-	ath_start_rx_poll(sc, nbeacon);
-	goto out;
-
-sched_reset:
-	ath9k_queue_reset(sc, type);
-out:
 	ath9k_ps_restore(sc);
+
+	return is_alive;
 }
 
 /*
@@ -132,13 +115,17 @@ void ath_hw_pll_work(struct work_struct *work)
 	u32 pll_sqsum;
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 					    hw_pll_work.work);
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	/*
 	 * ensure that the PLL WAR is executed only
 	 * after the STA is associated (or) if the
 	 * beaconing had started in interfaces that
 	 * uses beacons.
 	 */
-	if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
+	if (!test_bit(ATH_OP_BEACONS, &common->op_flags))
+		return;
+
+	if (sc->tx99_state)
 		return;
 
 	ath9k_ps_wakeup(sc);
@@ -152,29 +139,6 @@ void ath_hw_pll_work(struct work_struct *work)
 }
 
 /*
- * RX Polling - monitors baseband hangs.
- */
-void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon)
-{
-	if (!AR_SREV_9300(sc->sc_ah))
-		return;
-
-	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
-		return;
-
-	mod_timer(&sc->rx_poll_timer, jiffies + msecs_to_jiffies
-		  (nbeacon * sc->cur_beacon_conf.beacon_interval));
-}
-
-void ath_rx_poll(unsigned long data)
-{
-	struct ath_softc *sc = (struct ath_softc *)data;
-
-	if (!test_bit(SC_OP_INVALID, &sc->sc_flags))
-		ieee80211_queue_work(sc->hw, &sc->hw_check_work);
-}
-
-/*
  * PA Pre-distortion.
  */
 static void ath_paprd_activate(struct ath_softc *sc)
@@ -184,7 +148,7 @@ static void ath_paprd_activate(struct ath_softc *sc)
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int chain;
 
-	if (!caldata || !caldata->paprd_done) {
+	if (!caldata || !test_bit(PAPRD_DONE, &caldata->cal_flags)) {
 		ath_dbg(common, CALIBRATE, "Failed to activate PAPRD\n");
 		return;
 	}
@@ -256,7 +220,9 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int len = 1800;
 	int ret;
 
-	if (!caldata || !caldata->paprd_packet_sent || caldata->paprd_done) {
+	if (!caldata ||
+	    !test_bit(PAPRD_PACKET_SENT, &caldata->cal_flags) ||
+	    test_bit(PAPRD_DONE, &caldata->cal_flags)) {
 		ath_dbg(common, CALIBRATE, "Skipping PAPRD calibration\n");
 		return;
 	}
@@ -316,7 +282,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	kfree_skb(skb);
 
 	if (chain_ok) {
-		caldata->paprd_done = true;
+		set_bit(PAPRD_DONE, &caldata->cal_flags);
 		ath_paprd_activate(sc);
 	}
 
@@ -343,7 +309,7 @@ void ath_ani_calibrate(unsigned long data)
 	u32 cal_interval, short_cal_interval, long_cal_interval;
 	unsigned long flags;
 
-	if (ah->caldata && ah->caldata->nfcal_interference)
+	if (ah->caldata && test_bit(NFCAL_INTF, &ah->caldata->cal_flags))
 		long_cal_interval = ATH_LONG_CALINTERVAL_INT;
 	else
 		long_cal_interval = ATH_LONG_CALINTERVAL;
@@ -397,10 +363,10 @@ void ath_ani_calibrate(unsigned long data)
 
 	/* Call ANI routine if necessary */
 	if (aniflag) {
-		spin_lock_irqsave(&common->cc_lock, flags);
+		spin_lock(&common->cc_lock);
 		ath9k_hw_ani_monitor(ah, ah->curchan);
 		ath_update_survey_stats(sc);
-		spin_unlock_irqrestore(&common->cc_lock, flags);
+		spin_unlock(&common->cc_lock);
 	}
 
 	/* Perform calibration if necessary */
@@ -432,7 +398,7 @@ set_timer:
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
 
 	if (ar9003_is_paprd_enabled(ah) && ah->caldata) {
-		if (!ah->caldata->paprd_done) {
+		if (!test_bit(PAPRD_DONE, &ah->caldata->cal_flags)) {
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
 		} else if (!ah->paprd_table_write_done) {
 			ath9k_ps_wakeup(sc);
@@ -449,7 +415,7 @@ void ath_start_ani(struct ath_softc *sc)
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
 
 	if (common->disable_ani ||
-	    !test_bit(SC_OP_ANI_RUN, &sc->sc_flags) ||
+	    !test_bit(ATH_OP_ANI_RUN, &common->op_flags) ||
 	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
 		return;
 
@@ -473,6 +439,7 @@ void ath_stop_ani(struct ath_softc *sc)
 void ath_check_ani(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
 
 	/*
@@ -488,23 +455,23 @@ void ath_check_ani(struct ath_softc *sc)
 			 * Disable ANI only when there are no
 			 * associated stations.
 			 */
-			if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+			if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
 				goto stop_ani;
 		}
 	} else if (ah->opmode == NL80211_IFTYPE_STATION) {
-		if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+		if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
 			goto stop_ani;
 	}
 
-	if (!test_bit(SC_OP_ANI_RUN, &sc->sc_flags)) {
-		set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+	if (!test_bit(ATH_OP_ANI_RUN, &common->op_flags)) {
+		set_bit(ATH_OP_ANI_RUN, &common->op_flags);
 		ath_start_ani(sc);
 	}
 
 	return;
 
 stop_ani:
-	clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+	clear_bit(ATH_OP_ANI_RUN, &common->op_flags);
 	ath_stop_ani(sc);
 }
 
@@ -516,7 +483,8 @@ void ath_update_survey_nf(struct ath_softc *sc, int channel)
 
 	if (chan->noisefloor) {
 		survey->filled |= SURVEY_INFO_NOISE_DBM;
-		survey->noise = ath9k_hw_getchan_noise(ah, chan);
+		survey->noise = ath9k_hw_getchan_noise(ah, chan,
+						       chan->noisefloor);
 	}
 }
 

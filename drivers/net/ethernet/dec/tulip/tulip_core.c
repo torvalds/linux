@@ -1703,7 +1703,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_TULIP_NAPI
 	netif_napi_add(dev, &tp->napi, tulip_poll, 16);
 #endif
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 
 	if (register_netdev(dev))
 		goto err_out_free_ring;
@@ -1939,7 +1939,7 @@ static void tulip_remove_one(struct pci_dev *pdev)
 	pci_iounmap(pdev, tp->base_addr);
 	free_netdev (dev);
 	pci_release_regions (pdev);
-	pci_set_drvdata (pdev, NULL);
+	pci_disable_device(pdev);
 
 	/* pci_power_off (pdev, -1); */
 }

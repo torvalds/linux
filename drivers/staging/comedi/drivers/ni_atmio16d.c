@@ -96,7 +96,6 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #define CLOCK_100_HZ	0x8F25
 /* Other miscellaneous defines */
 #define ATMIO16D_SIZE	32	/* bus address range */
-#define ATMIO16D_TIMEOUT 10
 
 struct atmio16_board_t {
 
@@ -105,40 +104,31 @@ struct atmio16_board_t {
 };
 
 /* range structs */
-static const struct comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
-								       BIP_RANGE
-								       (10),
-								       BIP_RANGE
-								       (1),
-								       BIP_RANGE
-								       (0.1),
-								       BIP_RANGE
-								       (0.02)
-								       }
+static const struct comedi_lrange range_atmio16d_ai_10_bipolar = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.02)
+	}
 };
 
-static const struct comedi_lrange range_atmio16d_ai_5_bipolar = { 4, {
-								      BIP_RANGE
-								      (5),
-								      BIP_RANGE
-								      (0.5),
-								      BIP_RANGE
-								      (0.05),
-								      BIP_RANGE
-								      (0.01)
-								      }
+static const struct comedi_lrange range_atmio16d_ai_5_bipolar = {
+	4, {
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01)
+	}
 };
 
-static const struct comedi_lrange range_atmio16d_ai_unipolar = { 4, {
-								     UNI_RANGE
-								     (10),
-								     UNI_RANGE
-								     (1),
-								     UNI_RANGE
-								     (0.1),
-								     UNI_RANGE
-								     (0.02)
-								     }
+static const struct comedi_lrange range_atmio16d_ai_unipolar = {
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.02)
+	}
 };
 
 /* private data struct */
@@ -229,9 +219,9 @@ static void reset_atmio16d(struct comedi_device *dev)
 static irqreturn_t atmio16d_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 
-	comedi_buf_put(s->async, inw(dev->iobase + AD_FIFO_REG));
+	comedi_buf_put(s, inw(dev->iobase + AD_FIFO_REG));
 
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -457,16 +447,32 @@ static int atmio16d_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/* Mode 0 is used to get a single conversion on demand */
+static int atmio16d_ai_eoc(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + STAT_REG);
+	if (status & STAT_AD_CONVAVAIL)
+		return 0;
+	if (status & STAT_AD_OVERFLOW) {
+		outw(0, dev->iobase + AD_CLEAR_REG);
+		return -EOVERFLOW;
+	}
+	return -EBUSY;
+}
+
 static int atmio16d_ai_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 	struct atmio16d_private *devpriv = dev->private;
-	int i, t;
+	int i;
 	int chan;
 	int gain;
-	int status;
+	int ret;
 
 	chan = CR_CHAN(insn->chanspec);
 	gain = CR_RANGE(insn->chanspec);
@@ -482,31 +488,17 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		/* start the conversion */
 		outw(0, dev->iobase + START_CONVERT_REG);
+
 		/* wait for it to finish */
-		for (t = 0; t < ATMIO16D_TIMEOUT; t++) {
-			/* check conversion status */
-			status = inw(dev->iobase + STAT_REG);
-			if (status & STAT_AD_CONVAVAIL) {
-				/* read the data now */
-				data[i] = inw(dev->iobase + AD_FIFO_REG);
-				/* change to two's complement if need be */
-				if (devpriv->adc_coding == adc_2comp)
-					data[i] ^= 0x800;
-				break;
-			}
-			if (status & STAT_AD_OVERFLOW) {
-				printk(KERN_INFO "atmio16d: a/d FIFO overflow\n");
-				outw(0, dev->iobase + AD_CLEAR_REG);
+		ret = comedi_timeout(dev, s, insn, atmio16d_ai_eoc, 0);
+		if (ret)
+			return ret;
 
-				return -ETIME;
-			}
-		}
-		/* end waiting, now check if it timed out */
-		if (t == ATMIO16D_TIMEOUT) {
-			printk(KERN_INFO "atmio16d: timeout\n");
-
-			return -ETIME;
-		}
+		/* read the data now */
+		data[i] = inw(dev->iobase + AD_FIFO_REG);
+		/* change to two's complement if need be */
+		if (devpriv->adc_coding == adc_2comp)
+			data[i] ^= 0x800;
 	}
 
 	return i;
@@ -558,13 +550,12 @@ static int atmio16d_ao_insn_write(struct comedi_device *dev,
 
 static int atmio16d_dio_insn_bits(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] | data[1]);
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + MIO_16_DIG_OUT_REG);
-	}
+
 	data[1] = inw(dev->iobase + MIO_16_DIG_IN_REG);
 
 	return insn->n;
@@ -637,7 +628,6 @@ static int atmio16d_attach(struct comedi_device *dev,
 	const struct atmio16_board_t *board = comedi_board(dev);
 	struct atmio16d_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned int irq;
 	int ret;
 
 	ret = comedi_request_region(dev, it->options[0], ATMIO16D_SIZE);
@@ -655,19 +645,11 @@ static int atmio16d_attach(struct comedi_device *dev,
 	/* reset the atmio16d hardware */
 	reset_atmio16d(dev);
 
-	/* check if our interrupt is available and get it */
-	irq = it->options[1];
-	if (irq) {
-
-		ret = request_irq(irq, atmio16d_interrupt, 0, "atmio16d", dev);
-		if (ret < 0) {
-			printk(KERN_INFO "failed to allocate irq %u\n", irq);
-			return ret;
-		}
-		dev->irq = irq;
-		printk(KERN_INFO "( irq = %u )\n", irq);
-	} else {
-		printk(KERN_INFO "( no irq )");
+	if (it->options[1]) {
+		ret = request_irq(it->options[1], atmio16d_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
 	/* set device options */
@@ -683,16 +665,11 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 	/* setup sub-devices */
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = (devpriv->adc_mux ? 16 : 8);
-	s->len_chanlist = 16;
 	s->insn_read = atmio16d_ai_insn_read;
-	s->do_cmdtest = atmio16d_ai_cmdtest;
-	s->do_cmd = atmio16d_ai_cmd;
-	s->cancel = atmio16d_ai_cancel;
 	s->maxdata = 0xfff;	/* 4095 decimal */
 	switch (devpriv->adc_range) {
 	case adc_bipolar10:
@@ -704,6 +681,14 @@ static int atmio16d_attach(struct comedi_device *dev,
 	case adc_unipolar10:
 		s->range_table = &range_atmio16d_ai_unipolar;
 		break;
+	}
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = 16;
+		s->do_cmdtest = atmio16d_ai_cmdtest;
+		s->do_cmd = atmio16d_ai_cmd;
+		s->cancel = atmio16d_ai_cancel;
 	}
 
 	/* ao subdevice */
@@ -744,10 +729,13 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 	/* 8255 subdevice */
 	s = &dev->subdevices[3];
-	if (board->has_8255)
-		subdev_8255_init(dev, s, NULL, dev->iobase);
-	else
+	if (board->has_8255) {
+		ret = subdev_8255_init(dev, s, NULL, dev->iobase);
+		if (ret)
+			return ret;
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 /* don't yet know how to deal with counter/timers */
 #if 0
@@ -757,7 +745,6 @@ static int atmio16d_attach(struct comedi_device *dev,
 	s->n_chan = 0;
 	s->maxdata = 0
 #endif
-	    printk("\n");
 
 	return 0;
 }

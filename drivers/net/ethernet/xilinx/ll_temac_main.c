@@ -29,13 +29,13 @@
 
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
-#include <linux/init.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
@@ -75,7 +75,7 @@ int temac_indirect_busywait(struct temac_local *lp)
 	long end = jiffies + 2;
 
 	while (!(temac_ior(lp, XTE_RDY0_OFFSET) & XTE_RDY0_HARD_ACS_RDY_MASK)) {
-		if (end - jiffies <= 0) {
+		if (time_before_eq(end, jiffies)) {
 			WARN_ON(1);
 			return -ETIMEDOUT;
 		}
@@ -771,8 +771,8 @@ static void ll_temac_recv(struct net_device *ndev)
 
 		/* if we're doing rx csum offload, set it up */
 		if (((lp->temac_features & TEMAC_FEATURE_RX_CSUM) != 0) &&
-			(skb->protocol == __constant_htons(ETH_P_IP)) &&
-			(skb->len > 64)) {
+		    (skb->protocol == htons(ETH_P_IP)) &&
+		    (skb->len > 64)) {
 
 			skb->csum = cur_p->app3 & 0xFFFF;
 			skb->ip_summed = CHECKSUM_COMPLETE;
@@ -1016,7 +1016,7 @@ static int temac_of_probe(struct platform_device *op)
 	platform_set_drvdata(op, ndev);
 	SET_NETDEV_DEV(ndev, &op->dev);
 	ndev->flags &= ~IFF_MULTICAST;  /* clear multicast */
-	ndev->features = NETIF_F_SG | NETIF_F_FRAGLIST;
+	ndev->features = NETIF_F_SG;
 	ndev->netdev_ops = &temac_netdev_ops;
 	ndev->ethtool_ops = &temac_ethtool_ops;
 #if 0

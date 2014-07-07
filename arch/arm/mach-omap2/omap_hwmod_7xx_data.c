@@ -1365,11 +1365,10 @@ static struct omap_hwmod_class_sysconfig dra7xx_spinlock_sysc = {
 	.rev_offs	= 0x0000,
 	.sysc_offs	= 0x0010,
 	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
+	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_ENAWAKEUP |
+			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
+			   SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1637,7 +1636,7 @@ static struct omap_hwmod dra7xx_uart1_hwmod = {
 	.class		= &dra7xx_uart_hwmod_class,
 	.clkdm_name	= "l4per_clkdm",
 	.main_clk	= "uart1_gfclk_mux",
-	.flags		= HWMOD_SWSUP_SIDLE_ACT,
+	.flags		= HWMOD_SWSUP_SIDLE_ACT | DEBUG_OMAP2UART1_FLAGS,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4PER_UART1_CLKCTRL_OFFSET,
@@ -2319,21 +2318,11 @@ static struct omap_hwmod_ocp_if dra7xx_l4_cfg__mpu = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space dra7xx_ocp2scp1_addrs[] = {
-	{
-		.pa_start	= 0x4a080000,
-		.pa_end		= 0x4a08001f,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_cfg -> ocp2scp1 */
 static struct omap_hwmod_ocp_if dra7xx_l4_cfg__ocp2scp1 = {
 	.master		= &dra7xx_l4_cfg_hwmod,
 	.slave		= &dra7xx_ocp2scp1_hwmod,
 	.clk		= "l4_root_clk_div",
-	.addr		= dra7xx_ocp2scp1_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

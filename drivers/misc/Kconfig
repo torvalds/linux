@@ -54,6 +54,7 @@ config AD525X_DPOT_SPI
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
 	depends on HAVE_CLK
+	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
 	help
 	  This option enables device driver support for the PWM channels
 	  on certain Atmel processors.  Pulse Width Modulation is used for
@@ -200,7 +201,7 @@ config ICS932S401
 
 config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && (AVR32 || ARCH_AT91 || COMPILE_TEST)
 	---help---
 	  This option enables device driver support for Atmel Synchronized
 	  Serial Communication peripheral (SSC).
@@ -235,7 +236,7 @@ config SGI_XP
 
 config CS5535_MFGPT
 	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
-	depends on PCI && X86 && MFD_CS5535
+	depends on MFD_CS5535
 	default n
 	help
 	  This driver provides access to MFGPT functionality for other
@@ -300,8 +301,8 @@ config SGI_GRU_DEBUG
 	depends on SGI_GRU
 	default n
 	---help---
-	This option enables addition debugging code for the SGI GRU driver. If
-	you are unsure, say N.
+	This option enables additional debugging code for the SGI GRU driver.
+	If you are unsure, say N.
 
 config APDS9802ALS
 	tristate "Medfield Avago APDS9802 ALS Sensor module"
@@ -380,19 +381,6 @@ config HMC6352
 	help
 	  This driver provides support for the Honeywell HMC6352 compass,
 	  providing configuration and heading data via sysfs.
-
-config EP93XX_PWM
-	tristate "EP93xx PWM support"
-	depends on ARCH_EP93XX
-	help
-	  This option enables device driver support for the PWM channels
-	  on the Cirrus EP93xx processors.  The EP9307 chip only has one
-	  PWM channel all the others have two, the second channel is an
-	  alternate function of the EGPIO14 pin.  A sysfs interface is
-	  provided to control the PWM channels.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called ep93xx_pwm.
 
 config DS1682
 	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
@@ -481,7 +469,7 @@ config BMP085_SPI
 config PCH_PHUB
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
 	select GENERIC_NET_UTILS
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	help
 	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
 	  Intel Topcliff which is an IOH(Input/Output Hub) for x86 embedded
@@ -528,6 +516,15 @@ config SRAM
 	  the genalloc API. It is supposed to be used for small on-chip SRAM
 	  areas found on many SoCs.
 
+config VEXPRESS_SYSCFG
+	bool "Versatile Express System Configuration driver"
+	depends on VEXPRESS_CONFIG
+	default y
+	help
+	  ARM Ltd. Versatile Express uses specialised platform configuration
+	  bus. System Configuration interface is one of the possible means
+	  of generating transactions on this bus.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -537,4 +534,7 @@ source "drivers/misc/carma/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
 source "drivers/misc/mei/Kconfig"
 source "drivers/misc/vmw_vmci/Kconfig"
+source "drivers/misc/mic/Kconfig"
+source "drivers/misc/genwqe/Kconfig"
+source "drivers/misc/echo/Kconfig"
 endmenu

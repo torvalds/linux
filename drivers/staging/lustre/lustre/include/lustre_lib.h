@@ -81,30 +81,18 @@ struct client_obd *client_conn2cli(struct lustre_handle *conn);
 
 struct md_open_data;
 struct obd_client_handle {
-	struct lustre_handle  och_fh;
-	struct lu_fid	 och_fid;
-	struct md_open_data  *och_mod;
-	__u32 och_magic;
-	int och_flags;
+	struct lustre_handle	 och_fh;
+	struct lu_fid		 och_fid;
+	struct md_open_data	*och_mod;
+	struct lustre_handle	 och_lease_handle; /* open lock for lease */
+	__u32			 och_magic;
+	fmode_t			 och_flags;
 };
 #define OBD_CLIENT_HANDLE_MAGIC 0xd15ea5ed
 
 /* statfs_pack.c */
 void statfs_pack(struct obd_statfs *osfs, struct kstatfs *sfs);
 void statfs_unpack(struct kstatfs *sfs, struct obd_statfs *osfs);
-
-/* l_lock.c */
-struct lustre_lock {
-	int			l_depth;
-	struct task_struct	*l_owner;
-	struct semaphore	l_sem;
-	spinlock_t		l_spin;
-};
-
-void l_lock_init(struct lustre_lock *);
-void l_lock(struct lustre_lock *);
-void l_unlock(struct lustre_lock *);
-int l_has_lock(struct lustre_lock *);
 
 /*
  * For md echo client
@@ -191,24 +179,25 @@ static inline int obd_ioctl_packlen(struct obd_ioctl_data *data)
 
 static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 {
-	if (data->ioc_len > (1<<30)) {
-		CERROR("OBD ioctl: ioc_len larger than 1<<30\n");
+	if (data->ioc_len > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_len larger than %d\n",
+		       OBD_MAX_IOCTL_BUFFER);
 		return 1;
 	}
-	if (data->ioc_inllen1 > (1<<30)) {
-		CERROR("OBD ioctl: ioc_inllen1 larger than 1<<30\n");
+	if (data->ioc_inllen1 > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_inllen1 larger than ioc_len\n");
 		return 1;
 	}
-	if (data->ioc_inllen2 > (1<<30)) {
-		CERROR("OBD ioctl: ioc_inllen2 larger than 1<<30\n");
+	if (data->ioc_inllen2 > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_inllen2 larger than ioc_len\n");
 		return 1;
 	}
-	if (data->ioc_inllen3 > (1<<30)) {
-		CERROR("OBD ioctl: ioc_inllen3 larger than 1<<30\n");
+	if (data->ioc_inllen3 > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_inllen3 larger than ioc_len\n");
 		return 1;
 	}
-	if (data->ioc_inllen4 > (1<<30)) {
-		CERROR("OBD ioctl: ioc_inllen4 larger than 1<<30\n");
+	if (data->ioc_inllen4 > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_inllen4 larger than ioc_len\n");
 		return 1;
 	}
 	if (data->ioc_inlbuf1 && !data->ioc_inllen1) {
@@ -535,7 +524,7 @@ do {									   \
 	if (condition)							 \
 		break;							 \
 									       \
-	init_waitqueue_entry_current(&__wait);					    \
+	init_waitqueue_entry(&__wait, current);					    \
 	l_add_wait(&wq, &__wait);					      \
 									       \
 	/* Block all signals (just the non-fatal ones if no timeout). */       \
@@ -557,15 +546,13 @@ do {									   \
 			break;						 \
 									       \
 		if (__timeout == 0) {					  \
-			waitq_wait(&__wait, __wstate);		     \
+			schedule();						\
 		} else {						       \
 			cfs_duration_t interval = info->lwi_interval?	  \
 					     min_t(cfs_duration_t,	     \
 						 info->lwi_interval,__timeout):\
 					     __timeout;			\
-			cfs_duration_t remaining = waitq_timedwait(&__wait,\
-						   __wstate,		   \
-						   interval);		  \
+			cfs_duration_t remaining = schedule_timeout(interval);\
 			__timeout = cfs_time_sub(__timeout,		    \
 					    cfs_time_sub(interval, remaining));\
 			if (__timeout == 0) {				  \

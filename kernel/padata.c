@@ -46,6 +46,7 @@ static int padata_index_to_cpu(struct parallel_data *pd, int cpu_index)
 
 static int padata_cpu_hash(struct parallel_data *pd)
 {
+	unsigned int seq_nr;
 	int cpu_index;
 
 	/*
@@ -53,10 +54,8 @@ static int padata_cpu_hash(struct parallel_data *pd)
 	 * seq_nr mod. number of cpus in use.
 	 */
 
-	spin_lock(&pd->seq_lock);
-	cpu_index =  pd->seq_nr % cpumask_weight(pd->cpumask.pcpu);
-	pd->seq_nr++;
-	spin_unlock(&pd->seq_lock);
+	seq_nr = atomic_inc_return(&pd->seq_nr);
+	cpu_index = seq_nr % cpumask_weight(pd->cpumask.pcpu);
 
 	return padata_index_to_cpu(pd, cpu_index);
 }
@@ -113,7 +112,7 @@ int padata_do_parallel(struct padata_instance *pinst,
 
 	rcu_read_lock_bh();
 
-	pd = rcu_dereference(pinst->pd);
+	pd = rcu_dereference_bh(pinst->pd);
 
 	err = -EINVAL;
 	if (!(pinst->flags & PADATA_INIT) || pinst->flags & PADATA_INVALID)
@@ -429,7 +428,7 @@ static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 	padata_init_pqueues(pd);
 	padata_init_squeues(pd);
 	setup_timer(&pd->timer, padata_reorder_timer, (unsigned long)pd);
-	pd->seq_nr = 0;
+	atomic_set(&pd->seq_nr, -1);
 	atomic_set(&pd->reorder_objects, 0);
 	atomic_set(&pd->refcnt, 0);
 	pd->pinst = pinst;

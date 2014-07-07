@@ -144,11 +144,11 @@ static int get_property(unsigned int cpu, unsigned long input,
 			unsigned int *output,
 			enum cpufreq_cooling_property property)
 {
-	int i, j;
+	int i;
 	unsigned long max_level = 0, level = 0;
 	unsigned int freq = CPUFREQ_ENTRY_INVALID;
 	int descend = -1;
-	struct cpufreq_frequency_table *table =
+	struct cpufreq_frequency_table *pos, *table =
 					cpufreq_frequency_get_table(cpu);
 
 	if (!output)
@@ -157,22 +157,25 @@ static int get_property(unsigned int cpu, unsigned long input,
 	if (!table)
 		return -EINVAL;
 
-	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		/* ignore invalid entries */
-		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
-			continue;
-
+	cpufreq_for_each_valid_entry(pos, table) {
 		/* ignore duplicate entry */
-		if (freq == table[i].frequency)
+		if (freq == pos->frequency)
 			continue;
 
 		/* get the frequency order */
 		if (freq != CPUFREQ_ENTRY_INVALID && descend == -1)
-			descend = !!(freq > table[i].frequency);
+			descend = freq > pos->frequency;
 
-		freq = table[i].frequency;
+		freq = pos->frequency;
 		max_level++;
 	}
+
+	/* No valid cpu frequency entry */
+	if (max_level == 0)
+		return -EINVAL;
+
+	/* max_level is an index, not a counter */
+	max_level--;
 
 	/* get max level */
 	if (property == GET_MAXL) {
@@ -181,31 +184,28 @@ static int get_property(unsigned int cpu, unsigned long input,
 	}
 
 	if (property == GET_FREQ)
-		level = descend ? input : (max_level - input - 1);
+		level = descend ? input : (max_level - input);
 
-	for (i = 0, j = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		/* ignore invalid entry */
-		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
-			continue;
-
+	i = 0;
+	cpufreq_for_each_valid_entry(pos, table) {
 		/* ignore duplicate entry */
-		if (freq == table[i].frequency)
+		if (freq == pos->frequency)
 			continue;
 
 		/* now we have a valid frequency entry */
-		freq = table[i].frequency;
+		freq = pos->frequency;
 
 		if (property == GET_LEVEL && (unsigned int)input == freq) {
 			/* get level by frequency */
-			*output = descend ? j : (max_level - j - 1);
+			*output = descend ? i : (max_level - i);
 			return 0;
 		}
-		if (property == GET_FREQ && level == j) {
+		if (property == GET_FREQ && level == i) {
 			/* get frequency by level */
 			*output = freq;
 			return 0;
 		}
-		j++;
+		i++;
 	}
 
 	return -EINVAL;
@@ -417,18 +417,21 @@ static struct notifier_block thermal_cpufreq_notifier_block = {
 };
 
 /**
- * cpufreq_cooling_register - function to create cpufreq cooling device.
+ * __cpufreq_cooling_register - helper function to create cpufreq cooling device
+ * @np: a valid struct device_node to the cooling device device tree node
  * @clip_cpus: cpumask of cpus where the frequency constraints will happen.
  *
  * This interface function registers the cpufreq cooling device with the name
  * "thermal-cpufreq-%x". This api can support multiple instances of cpufreq
- * cooling devices.
+ * cooling devices. It also gives the opportunity to link the cooling device
+ * with a device tree node, in order to bind it via the thermal DT code.
  *
  * Return: a valid struct thermal_cooling_device pointer on success,
  * on failure, it returns a corresponding ERR_PTR().
  */
-struct thermal_cooling_device *
-cpufreq_cooling_register(const struct cpumask *clip_cpus)
+static struct thermal_cooling_device *
+__cpufreq_cooling_register(struct device_node *np,
+			   const struct cpumask *clip_cpus)
 {
 	struct thermal_cooling_device *cool_dev;
 	struct cpufreq_cooling_device *cpufreq_dev = NULL;
@@ -467,12 +470,12 @@ cpufreq_cooling_register(const struct cpumask *clip_cpus)
 	snprintf(dev_name, sizeof(dev_name), "thermal-cpufreq-%d",
 		 cpufreq_dev->id);
 
-	cool_dev = thermal_cooling_device_register(dev_name, cpufreq_dev,
-						   &cpufreq_cooling_ops);
-	if (!cool_dev) {
+	cool_dev = thermal_of_cooling_device_register(np, dev_name, cpufreq_dev,
+						      &cpufreq_cooling_ops);
+	if (IS_ERR(cool_dev)) {
 		release_idr(&cpufreq_idr, cpufreq_dev->id);
 		kfree(cpufreq_dev);
-		return ERR_PTR(-EINVAL);
+		return cool_dev;
 	}
 	cpufreq_dev->cool_dev = cool_dev;
 	cpufreq_dev->cpufreq_state = 0;
@@ -488,7 +491,48 @@ cpufreq_cooling_register(const struct cpumask *clip_cpus)
 
 	return cool_dev;
 }
+
+/**
+ * cpufreq_cooling_register - function to create cpufreq cooling device.
+ * @clip_cpus: cpumask of cpus where the frequency constraints will happen.
+ *
+ * This interface function registers the cpufreq cooling device with the name
+ * "thermal-cpufreq-%x". This api can support multiple instances of cpufreq
+ * cooling devices.
+ *
+ * Return: a valid struct thermal_cooling_device pointer on success,
+ * on failure, it returns a corresponding ERR_PTR().
+ */
+struct thermal_cooling_device *
+cpufreq_cooling_register(const struct cpumask *clip_cpus)
+{
+	return __cpufreq_cooling_register(NULL, clip_cpus);
+}
 EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
+
+/**
+ * of_cpufreq_cooling_register - function to create cpufreq cooling device.
+ * @np: a valid struct device_node to the cooling device device tree node
+ * @clip_cpus: cpumask of cpus where the frequency constraints will happen.
+ *
+ * This interface function registers the cpufreq cooling device with the name
+ * "thermal-cpufreq-%x". This api can support multiple instances of cpufreq
+ * cooling devices. Using this API, the cpufreq cooling device will be
+ * linked to the device tree node provided.
+ *
+ * Return: a valid struct thermal_cooling_device pointer on success,
+ * on failure, it returns a corresponding ERR_PTR().
+ */
+struct thermal_cooling_device *
+of_cpufreq_cooling_register(struct device_node *np,
+			    const struct cpumask *clip_cpus)
+{
+	if (!np)
+		return ERR_PTR(-EINVAL);
+
+	return __cpufreq_cooling_register(np, clip_cpus);
+}
+EXPORT_SYMBOL_GPL(of_cpufreq_cooling_register);
 
 /**
  * cpufreq_cooling_unregister - function to remove cpufreq cooling device.

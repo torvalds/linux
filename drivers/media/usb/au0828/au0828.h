@@ -102,6 +102,10 @@ struct au0828_dvb {
 	struct dmx_frontend fe_mem;
 	struct dvb_net net;
 	int feeding;
+	int start_count;
+	int stop_count;
+
+	int (*set_frontend)(struct dvb_frontend *fe);
 };
 
 enum au0828_stream_state {
@@ -260,6 +264,10 @@ struct au0828_dev {
 	/* USB / URB Related */
 	int		urb_streaming;
 	struct urb	*urbs[URB_COUNT];
+
+	/* Preallocated transfer digital transfer buffers */
+
+	char *dig_transfer_buffer[URB_COUNT];
 };
 
 /* ----------------------------------------------------------- */

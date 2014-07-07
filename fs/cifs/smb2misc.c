@@ -575,9 +575,21 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 				else
 					cfile->oplock_break_cancelled = false;
 
-				server->ops->set_oplock_level(cinode,
-				  rsp->OplockLevel ? SMB2_OPLOCK_LEVEL_II : 0,
-				  0, NULL);
+				set_bit(CIFS_INODE_PENDING_OPLOCK_BREAK,
+					&cinode->flags);
+
+				/*
+				 * Set flag if the server downgrades the oplock
+				 * to L2 else clear.
+				 */
+				if (rsp->OplockLevel)
+					set_bit(
+					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
+					   &cinode->flags);
+				else
+					clear_bit(
+					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
+					   &cinode->flags);
 
 				queue_work(cifsiod_wq, &cfile->oplock_break);
 

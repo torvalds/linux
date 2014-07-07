@@ -365,13 +365,7 @@ ENTRY(vector_swi)
 	str	r0, [sp, #S_OLD_R0]		@ Save OLD_R0
 #endif
 	zero_fp
-
-#ifdef CONFIG_ALIGNMENT_TRAP
-	ldr	ip, __cr_alignment
-	ldr	ip, [ip]
-	mcr	p15, 0, ip, c1, c0		@ update control register
-#endif
-
+	alignment_trap ip, __cr_alignment
 	enable_irq
 	ct_user_exit
 	get_thread_info tsk
@@ -393,9 +387,7 @@ ENTRY(vector_swi)
 #else
  USER(	ldr	r10, [lr, #-4]		)	@ get SWI instruction
 #endif
-#ifdef CONFIG_CPU_ENDIAN_BE8
-	rev	r10, r10			@ little endian instruction
-#endif
+ ARM_BE8(rev	r10, r10)			@ little endian instruction
 
 #elif defined(CONFIG_AEABI)
 

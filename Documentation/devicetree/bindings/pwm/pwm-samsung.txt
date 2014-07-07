@@ -15,7 +15,7 @@ Required properties:
     samsung,s5pc100-pwm - for 32-bit timers present on S5PC100, S5PV210,
 			  Exynos4210 rev0 SoCs
     samsung,exynos4210-pwm - for 32-bit timers present on Exynos4210,
-                          Exynos4x12 and Exynos5250 SoCs
+                          Exynos4x12, Exynos5250 and Exynos5420 SoCs
 - reg: base address and size of register area
 - interrupts: list of timer interrupts (one interrupt per timer, starting at
   timer 0)

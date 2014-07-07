@@ -406,7 +406,6 @@ txx9dmac_descriptor_complete(struct txx9dmac_chan *dc,
 	dma_async_tx_callback callback;
 	void *param;
 	struct dma_async_tx_descriptor *txd = &desc->txd;
-	struct txx9dmac_slave *ds = dc->chan.private;
 
 	dev_vdbg(chan2dev(&dc->chan), "descriptor %u %p complete\n",
 		 txd->cookie, desc);
@@ -419,30 +418,7 @@ txx9dmac_descriptor_complete(struct txx9dmac_chan *dc,
 	list_splice_init(&desc->tx_list, &dc->free_list);
 	list_move(&desc->desc_node, &dc->free_list);
 
-	if (!ds) {
-		dma_addr_t dmaaddr;
-		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-			dmaaddr = is_dmac64(dc) ?
-				desc->hwdesc.DAR : desc->hwdesc32.DAR;
-			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-				dma_unmap_single(chan2parent(&dc->chan),
-					dmaaddr, desc->len, DMA_FROM_DEVICE);
-			else
-				dma_unmap_page(chan2parent(&dc->chan),
-					dmaaddr, desc->len, DMA_FROM_DEVICE);
-		}
-		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			dmaaddr = is_dmac64(dc) ?
-				desc->hwdesc.SAR : desc->hwdesc32.SAR;
-			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-				dma_unmap_single(chan2parent(&dc->chan),
-					dmaaddr, desc->len, DMA_TO_DEVICE);
-			else
-				dma_unmap_page(chan2parent(&dc->chan),
-					dmaaddr, desc->len, DMA_TO_DEVICE);
-		}
-	}
-
+	dma_descriptor_unmap(txd);
 	/*
 	 * The API requires that no submissions are done from a
 	 * callback, so we don't need to drop the lock here
@@ -962,8 +938,8 @@ txx9dmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS)
-		return DMA_SUCCESS;
+	if (ret == DMA_COMPLETE)
+		return DMA_COMPLETE;
 
 	spin_lock_bh(&dc->lock);
 	txx9dmac_scan_descriptors(dc);

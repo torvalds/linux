@@ -564,7 +564,7 @@ static int max732x_setup_gpio(struct max732x_chip *chip,
 		gc->set = max732x_gpio_set_value;
 	}
 	gc->get = max732x_gpio_get_value;
-	gc->can_sleep = 1;
+	gc->can_sleep = true;
 
 	gc->base = gpio_start;
 	gc->ngpio = port;
@@ -622,6 +622,13 @@ static int max732x_probe(struct i2c_client *client,
 		goto out_failed;
 	}
 
+	if (nr_port > 8 && !chip->client_dummy) {
+		dev_err(&client->dev,
+			"Failed to allocate second group I2C device\n");
+		ret = -ENODEV;
+		goto out_failed;
+	}
+
 	mutex_init(&chip->lock);
 
 	max732x_readb(chip, is_group_a(chip, 0), &chip->reg_out[0]);
@@ -647,6 +654,8 @@ static int max732x_probe(struct i2c_client *client,
 	return 0;
 
 out_failed:
+	if (chip->client_dummy)
+		i2c_unregister_device(chip->client_dummy);
 	max732x_irq_teardown(chip);
 	return ret;
 }

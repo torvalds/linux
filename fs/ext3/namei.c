@@ -1783,7 +1783,7 @@ retry:
 		d_tmpfile(dentry, inode);
 		err = ext3_orphan_add(handle, inode);
 		if (err)
-			goto err_drop_inode;
+			goto err_unlock_inode;
 		mark_inode_dirty(inode);
 		unlock_new_inode(inode);
 	}
@@ -1791,10 +1791,9 @@ retry:
 	if (err == -ENOSPC && ext3_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;
 	return err;
-err_drop_inode:
+err_unlock_inode:
 	ext3_journal_stop(handle);
 	unlock_new_inode(inode);
-	iput(inode);
 	return err;
 }
 
@@ -2570,6 +2569,7 @@ const struct inode_operations ext3_dir_inode_operations = {
 	.removexattr	= generic_removexattr,
 #endif
 	.get_acl	= ext3_get_acl,
+	.set_acl	= ext3_set_acl,
 };
 
 const struct inode_operations ext3_special_inode_operations = {
@@ -2581,4 +2581,5 @@ const struct inode_operations ext3_special_inode_operations = {
 	.removexattr	= generic_removexattr,
 #endif
 	.get_acl	= ext3_get_acl,
+	.set_acl	= ext3_set_acl,
 };

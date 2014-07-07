@@ -374,8 +374,6 @@ typedef struct Smc_SIslands_DTE_Configuration Smc_SIslands_DTE_Configuration;
 
 #pragma pack(pop)
 
-int si_set_smc_sram_address(struct radeon_device *rdev,
-			    u32 smc_address, u32 limit);
 int si_copy_bytes_to_smc(struct radeon_device *rdev,
 			 u32 smc_start_address,
 			 const u8 *src, u32 byte_count, u32 limit);

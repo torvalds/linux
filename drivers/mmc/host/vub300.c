@@ -2392,26 +2392,12 @@ static void vub300_disconnect(struct usb_interface *interface)
 #ifdef CONFIG_PM
 static int vub300_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	struct vub300_mmc_host *vub300 = usb_get_intfdata(intf);
-	if (!vub300 || !vub300->mmc) {
-		return 0;
-	} else {
-		struct mmc_host *mmc = vub300->mmc;
-		mmc_suspend_host(mmc);
-		return 0;
-	}
+	return 0;
 }
 
 static int vub300_resume(struct usb_interface *intf)
 {
-	struct vub300_mmc_host *vub300 = usb_get_intfdata(intf);
-	if (!vub300 || !vub300->mmc) {
-		return 0;
-	} else {
-		struct mmc_host *mmc = vub300->mmc;
-		mmc_resume_host(mmc);
-		return 0;
-	}
+	return 0;
 }
 #else
 #define vub300_suspend NULL

@@ -1,0 +1,29 @@
+HDMI Connector
+==============
+
+Required properties:
+- compatible: "hdmi-connector"
+- type: the HDMI connector type: "a", "b", "c", "d" or "e"
+
+Optional properties:
+- label: a symbolic name for the connector
+- hpd-gpios: HPD GPIO number
+
+Required nodes:
+- Video port for HDMI input
+
+Example
+-------
+
+hdmi0: connector@1 {
+	compatible = "hdmi-connector";
+	label = "hdmi";
+
+	type = "a";
+
+	port {
+		hdmi_connector_in: endpoint {
+			remote-endpoint = <&tpd12s015_out>;
+		};
+	};
+};

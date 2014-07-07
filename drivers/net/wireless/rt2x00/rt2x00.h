@@ -15,9 +15,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -39,6 +37,7 @@
 #include <linux/input-polldev.h>
 #include <linux/kfifo.h>
 #include <linux/hrtimer.h>
+#include <linux/average.h>
 
 #include <net/mac80211.h>
 
@@ -137,17 +136,6 @@
 				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10) )
 #define SHORT_EIFS		( SIFS + SHORT_DIFS + \
 				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10) )
-
-/*
- * Structure for average calculation
- * The avg field contains the actual average value,
- * but avg_weight is internally used during calculations
- * to prevent rounding errors.
- */
-struct avg_val {
-	int avg;
-	int avg_weight;
-};
 
 enum rt2x00_chip_intf {
 	RT2X00_CHIP_INTF_PCI,
@@ -297,7 +285,7 @@ struct link_ant {
 	 * Similar to the avg_rssi in the link_qual structure
 	 * this value is updated by using the walking average.
 	 */
-	struct avg_val rssi_ant;
+	struct ewma rssi_ant;
 };
 
 /*
@@ -326,7 +314,7 @@ struct link {
 	/*
 	 * Currently active average RSSI value
 	 */
-	struct avg_val avg_rssi;
+	struct ewma avg_rssi;
 
 	/*
 	 * Work structure for scheduling periodic link tuning.
@@ -705,6 +693,7 @@ enum rt2x00_capability_flags {
 	REQUIRE_SW_SEQNO,
 	REQUIRE_HT_TX_DESC,
 	REQUIRE_PS_AUTOWAKE,
+	REQUIRE_DELAYED_RFKILL,
 
 	/*
 	 * Capabilities
@@ -1179,6 +1168,93 @@ static inline bool rt2x00_is_soc(struct rt2x00_dev *rt2x00dev)
 	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_SOC);
 }
 
+/* Helpers for capability flags */
+
+static inline bool
+rt2x00_has_cap_flag(struct rt2x00_dev *rt2x00dev,
+		    enum rt2x00_capability_flags cap_flag)
+{
+	return test_bit(cap_flag, &rt2x00dev->cap_flags);
+}
+
+static inline bool
+rt2x00_has_cap_hw_crypto(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_HW_CRYPTO);
+}
+
+static inline bool
+rt2x00_has_cap_power_limit(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_POWER_LIMIT);
+}
+
+static inline bool
+rt2x00_has_cap_control_filters(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_CONTROL_FILTERS);
+}
+
+static inline bool
+rt2x00_has_cap_control_filter_pspoll(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_CONTROL_FILTER_PSPOLL);
+}
+
+static inline bool
+rt2x00_has_cap_pre_tbtt_interrupt(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_PRE_TBTT_INTERRUPT);
+}
+
+static inline bool
+rt2x00_has_cap_link_tuning(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_LINK_TUNING);
+}
+
+static inline bool
+rt2x00_has_cap_frame_type(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_FRAME_TYPE);
+}
+
+static inline bool
+rt2x00_has_cap_rf_sequence(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_RF_SEQUENCE);
+}
+
+static inline bool
+rt2x00_has_cap_external_lna_a(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_LNA_A);
+}
+
+static inline bool
+rt2x00_has_cap_external_lna_bg(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_LNA_BG);
+}
+
+static inline bool
+rt2x00_has_cap_double_antenna(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_DOUBLE_ANTENNA);
+}
+
+static inline bool
+rt2x00_has_cap_bt_coexist(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_BT_COEXIST);
+}
+
+static inline bool
+rt2x00_has_cap_vco_recalibration(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_VCO_RECALIBRATION);
+}
+
 /**
  * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
  * @entry: Pointer to &struct queue_entry
@@ -1373,7 +1449,8 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_vif *vif, u16 queue,
 		      const struct ieee80211_tx_queue_params *params);
 void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw);
-void rt2x00mac_flush(struct ieee80211_hw *hw, u32 queues, bool drop);
+void rt2x00mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		     u32 queues, bool drop);
 int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
 int rt2x00mac_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
 void rt2x00mac_get_ringparam(struct ieee80211_hw *hw,

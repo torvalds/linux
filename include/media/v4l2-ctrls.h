@@ -571,7 +571,7 @@ static inline void v4l2_ctrl_lock(struct v4l2_ctrl *ctrl)
 	mutex_lock(ctrl->handler->lock);
 }
 
-/** v4l2_ctrl_lock() - Helper function to unlock the handler
+/** v4l2_ctrl_unlock() - Helper function to unlock the handler
   * associated with the control.
   * @ctrl:	The control to unlock.
   */

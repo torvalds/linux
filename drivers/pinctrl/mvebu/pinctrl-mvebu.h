@@ -28,20 +28,19 @@
  * between two or more different settings, e.g. assign mpp pin 13 to
  * uart1 or sata.
  *
- * If optional mpp_get/_set functions are set these are used to get/set
- * a specific mode. Otherwise it is assumed that the mpp control is based
- * on 4-bit groups in subsequent registers. The optional mpp_gpio_req/_dir
- * functions can be used to allow pin settings with varying gpio pins.
+ * The mpp_get/_set functions are mandatory and are used to get/set a
+ * specific mode. The optional mpp_gpio_req/_dir functions can be used
+ * to allow pin settings with varying gpio pins.
  */
 struct mvebu_mpp_ctrl {
 	const char *name;
 	u8 pid;
 	u8 npins;
 	unsigned *pins;
-	int (*mpp_get)(struct mvebu_mpp_ctrl *ctrl, unsigned long *config);
-	int (*mpp_set)(struct mvebu_mpp_ctrl *ctrl, unsigned long config);
-	int (*mpp_gpio_req)(struct mvebu_mpp_ctrl *ctrl, u8 pid);
-	int (*mpp_gpio_dir)(struct mvebu_mpp_ctrl *ctrl, u8 pid, bool input);
+	int (*mpp_get)(unsigned pid, unsigned long *config);
+	int (*mpp_set)(unsigned pid, unsigned long config);
+	int (*mpp_gpio_req)(unsigned pid);
+	int (*mpp_gpio_dir)(unsigned pid, bool input);
 };
 
 /**
@@ -114,18 +113,6 @@ struct mvebu_pinctrl_soc_info {
 	int ngpioranges;
 };
 
-#define MPP_REG_CTRL(_idl, _idh)				\
-	{							\
-		.name = NULL,					\
-		.pid = _idl,					\
-		.npins = _idh - _idl + 1,			\
-		.pins = (unsigned[_idh - _idl + 1]) { },	\
-		.mpp_get = NULL,				\
-		.mpp_set = NULL,				\
-		.mpp_gpio_req = NULL,				\
-		.mpp_gpio_dir = NULL,				\
-	}
-
 #define MPP_FUNC_CTRL(_idl, _idh, _name, _func)			\
 	{							\
 		.name = _name,					\
@@ -185,6 +172,34 @@ struct mvebu_pinctrl_soc_info {
 		.base = _gpiobase,				\
 		.npins = _npins,				\
 	}
+
+#define MVEBU_MPPS_PER_REG	8
+#define MVEBU_MPP_BITS		4
+#define MVEBU_MPP_MASK		0xf
+
+static inline int default_mpp_ctrl_get(void __iomem *base, unsigned int pid,
+				       unsigned long *config)
+{
+	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
+	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
+
+	*config = (readl(base + off) >> shift) & MVEBU_MPP_MASK;
+
+	return 0;
+}
+
+static inline int default_mpp_ctrl_set(void __iomem *base, unsigned int pid,
+				       unsigned long config)
+{
+	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
+	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
+	unsigned long reg;
+
+	reg = readl(base + off) & ~(MVEBU_MPP_MASK << shift);
+	writel(reg | (config << shift), base + off);
+
+	return 0;
+}
 
 int mvebu_pinctrl_probe(struct platform_device *pdev);
 int mvebu_pinctrl_remove(struct platform_device *pdev);

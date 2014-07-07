@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -29,7 +28,6 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/libata.h>
-#include <linux/ahci_platform.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -143,7 +141,7 @@ static ssize_t ecx_transmit_led_message(struct ata_port *ap, u32 state,
 					ssize_t size)
 {
 	struct ahci_host_priv *hpriv =  ap->host->private_data;
-	struct ecx_plat_data *pdata = (struct ecx_plat_data *) hpriv->plat_data;
+	struct ecx_plat_data *pdata = hpriv->plat_data;
 	struct ahci_port_priv *pp = ap->private_data;
 	unsigned long flags;
 	int pmp, i;
@@ -343,13 +341,11 @@ static int highbank_initialize_phys(struct device *dev, void __iomem *addr)
 {
 	struct device_node *sata_node = dev->of_node;
 	int phy_count = 0, phy, port = 0, i;
-	void __iomem *cphy_base[CPHY_PHY_COUNT];
-	struct device_node *phy_nodes[CPHY_PHY_COUNT];
-	u32 tx_atten[CPHY_PORT_COUNT];
+	void __iomem *cphy_base[CPHY_PHY_COUNT] = {};
+	struct device_node *phy_nodes[CPHY_PHY_COUNT] = {};
+	u32 tx_atten[CPHY_PORT_COUNT] = {};
 
 	memset(port_data, 0, sizeof(struct phy_lane_info) * CPHY_PORT_COUNT);
-	memset(phy_nodes, 0, sizeof(struct device_node*) * CPHY_PHY_COUNT);
-	memset(tx_atten, 0xff, CPHY_PORT_COUNT);
 
 	do {
 		u32 tmp;
@@ -406,6 +402,7 @@ static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
 	static const unsigned long timing[] = { 5, 100, 500};
 	struct ata_port *ap = link->ap;
 	struct ahci_port_priv *pp = ap->private_data;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	struct ata_taskfile tf;
 	bool online;
@@ -434,7 +431,7 @@ static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
 			break;
 	} while (!online && retry--);
 
-	ahci_start_engine(ap);
+	hpriv->start_engine(ap);
 
 	if (online)
 		*class = ahci_dev_classify(ap);

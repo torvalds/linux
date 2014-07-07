@@ -46,7 +46,6 @@
 
 /*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -64,13 +63,12 @@ s_vCheckKeyTableValid(PSKeyManagement pTable, unsigned long dwIoBase)
 	int i;
 
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
-		    (pTable->KeyTable[i].PairwiseKey.bKeyValid == false) &&
-		    (pTable->KeyTable[i].GroupKey[0].bKeyValid == false) &&
-		    (pTable->KeyTable[i].GroupKey[1].bKeyValid == false) &&
-		    (pTable->KeyTable[i].GroupKey[2].bKeyValid == false) &&
-		    (pTable->KeyTable[i].GroupKey[3].bKeyValid == false)
-) {
+		if (pTable->KeyTable[i].bInUse &&
+		    !pTable->KeyTable[i].PairwiseKey.bKeyValid &&
+		    !pTable->KeyTable[i].GroupKey[0].bKeyValid &&
+		    !pTable->KeyTable[i].GroupKey[1].bKeyValid &&
+		    !pTable->KeyTable[i].GroupKey[2].bKeyValid &&
+		    !pTable->KeyTable[i].GroupKey[3].bKeyValid) {
 			pTable->KeyTable[i].bInUse = false;
 			pTable->KeyTable[i].wKeyCtl = 0;
 			pTable->KeyTable[i].bSoftWEP = false;
@@ -140,17 +138,17 @@ bool KeybGetKey(
 
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		if (pTable->KeyTable[i].bInUse &&
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			if (dwKeyIndex == 0xFFFFFFFF) {
-				if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
+				if (pTable->KeyTable[i].PairwiseKey.bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);
 					return true;
 				} else {
 					return false;
 				}
 			} else if (dwKeyIndex < MAX_GROUP_KEY) {
-				if (pTable->KeyTable[i].GroupKey[dwKeyIndex].bKeyValid == true) {
+				if (pTable->KeyTable[i].GroupKey[dwKeyIndex].bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].GroupKey[dwKeyIndex]);
 					return true;
 				} else {
@@ -202,13 +200,12 @@ bool KeybSetKey(
 
 	j = (MAX_KEY_TABLE-1);
 	for (i = 0; i < (MAX_KEY_TABLE - 1); i++) {
-		if ((pTable->KeyTable[i].bInUse == false) &&
-		    (j == (MAX_KEY_TABLE-1))) {
+		if (!pTable->KeyTable[i].bInUse && (j == (MAX_KEY_TABLE-1))) {
 			// found empty table
 			j = i;
 		}
-		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		if (pTable->KeyTable[i].bInUse &&
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			// found table already exist
 			if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
 				// Pairwise key
@@ -244,7 +241,7 @@ bool KeybSetKey(
 				if (uKeyLength == WLAN_WEP104_KEYLEN)
 					pKey->abyKey[15] |= 0x80;
 			}
-			MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pbyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
+			MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pbyBSSID, (u32 *)pKey->abyKey, byLocalID);
 
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC
@@ -257,11 +254,10 @@ bool KeybSetKey(
 
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R): \n");
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
-			//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n ", pKey->uKeyLength);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
-			for (ii = 0; ii < pKey->uKeyLength; ii++) {
+			for (ii = 0; ii < pKey->uKeyLength; ii++)
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
-			}
+
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
@@ -308,7 +304,7 @@ bool KeybSetKey(
 			if (uKeyLength == WLAN_WEP104_KEYLEN)
 				pKey->abyKey[15] |= 0x80;
 		}
-		MACvSetKeyEntry(dwIoBase, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx, pbyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
+		MACvSetKeyEntry(dwIoBase, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx, pbyBSSID, (u32 *)pKey->abyKey, byLocalID);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0) {
 			// RSC set by NIC
@@ -323,9 +319,9 @@ bool KeybSetKey(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
-		for (ii = 0; ii < pKey->uKeyLength; ii++) {
+		for (ii = 0; ii < pKey->uKeyLength; ii++)
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
-		}
+
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
@@ -363,9 +359,9 @@ bool KeybRemoveKey(
 	if (is_broadcast_ether_addr(pbyBSSID)) {
 		// delete all keys
 		if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
-			for (i = 0; i < MAX_KEY_TABLE; i++) {
+			for (i = 0; i < MAX_KEY_TABLE; i++)
 				pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
-			}
+
 			s_vCheckKeyTableValid(pTable, dwIoBase);
 			return true;
 		} else if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
@@ -384,8 +380,8 @@ bool KeybRemoveKey(
 	}
 
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		if (pTable->KeyTable[i].bInUse &&
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
 				pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
 				s_vCheckKeyTableValid(pTable, dwIoBase);
@@ -428,12 +424,12 @@ bool KeybRemoveAllKey(
 	int i, u;
 
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		if (pTable->KeyTable[i].bInUse &&
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
-			for (u = 0; u < MAX_GROUP_KEY; u++) {
+			for (u = 0; u < MAX_GROUP_KEY; u++)
 				pTable->KeyTable[i].GroupKey[u].bKeyValid = false;
-			}
+
 			pTable->KeyTable[i].dwGTKeyIndex = 0;
 			s_vCheckKeyTableValid(pTable, dwIoBase);
 			return true;
@@ -461,7 +457,7 @@ void KeyvRemoveWEPKey(
 )
 {
 	if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
-		if (pTable->KeyTable[MAX_KEY_TABLE-1].bInUse == true) {
+		if (pTable->KeyTable[MAX_KEY_TABLE-1].bInUse) {
 			if (pTable->KeyTable[MAX_KEY_TABLE-1].GroupKey[dwKeyIndex & 0x000000FF].byCipherSuite == KEY_CTL_WEP) {
 				pTable->KeyTable[MAX_KEY_TABLE-1].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = false;
 				if ((dwKeyIndex & 0x7FFFFFFF) == (pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex & 0x7FFFFFFF)) {
@@ -482,9 +478,8 @@ void KeyvRemoveAllWEPKey(
 {
 	int i;
 
-	for (i = 0; i < MAX_GROUP_KEY; i++) {
+	for (i = 0; i < MAX_GROUP_KEY; i++)
 		KeyvRemoveWEPKey(pTable, i, dwIoBase);
-	}
 }
 
 /*
@@ -511,17 +506,17 @@ bool KeybGetTransmitKey(
 
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		if (pTable->KeyTable[i].bInUse &&
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			if (dwKeyType == PAIRWISE_KEY) {
-				if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
+				if (pTable->KeyTable[i].PairwiseKey.bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);
 
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybGetTransmitKey:");
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PAIRWISE_KEY: KeyTable.abyBSSID: ");
-					for (ii = 0; ii < 6; ii++) {
+					for (ii = 0; ii < 6; ii++)
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%x ", pTable->KeyTable[i].abyBSSID[ii]);
-					}
+
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 
 					return true;
@@ -535,14 +530,14 @@ bool KeybGetTransmitKey(
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ERROR: dwGTKeyIndex == 0 !!!\n");
 					return false;
 				}
-				if (pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)].bKeyValid == true) {
+				if (pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)].bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)]);
 
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybGetTransmitKey:");
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GROUP_KEY: KeyTable.abyBSSID\n");
-					for (ii = 0; ii < 6; ii++) {
+					for (ii = 0; ii < 6; ii++)
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%x ", pTable->KeyTable[i].abyBSSID[ii]);
-					}
+
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dwGTKeyIndex: %lX\n", pTable->KeyTable[i].dwGTKeyIndex);
 
@@ -555,9 +550,9 @@ bool KeybGetTransmitKey(
 		} // BSSID match
 	}
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ERROR: NO Match BSSID !!! ");
-	for (ii = 0; ii < 6; ii++) {
+	for (ii = 0; ii < 6; ii++)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", *(pbyBSSID+ii));
-	}
+
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 	return false;
 }
@@ -583,8 +578,8 @@ bool KeybCheckPairewiseKey(
 
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
-		    (pTable->KeyTable[i].PairwiseKey.bKeyValid == true)) {
+		if (pTable->KeyTable[i].bInUse &&
+		    pTable->KeyTable[i].PairwiseKey.bKeyValid) {
 			*pKey = &(pTable->KeyTable[i].PairwiseKey);
 			return true;
 		}
@@ -625,11 +620,10 @@ bool KeybSetDefaultKey(
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetDefaultKey: %1x, %d \n", (int)dwKeyIndex, (int)uKeyLength);
 
-	if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
+	if ((dwKeyIndex & PAIRWISE_KEY) != 0) // Pairwise key
 		return false;
-	} else if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY) {
+	else if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY)
 		return false;
-	}
 
 	if (uKeyLength > MAX_KEY_LEN)
 		return false;
@@ -657,7 +651,7 @@ bool KeybSetDefaultKey(
 		pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl |= 0x4000;              // disable on-fly disable address match
 		pTable->KeyTable[MAX_KEY_TABLE-1].bSoftWEP = true;
 	} else {
-		if (pTable->KeyTable[MAX_KEY_TABLE-1].bSoftWEP == false)
+		if (!pTable->KeyTable[MAX_KEY_TABLE-1].bSoftWEP)
 			pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl |= 0xC000;          // enable on-fly disable address match
 	}
 
@@ -672,7 +666,7 @@ bool KeybSetDefaultKey(
 		if (uKeyLength == WLAN_WEP104_KEYLEN)
 			pKey->abyKey[15] |= 0x80;
 	}
-	MACvSetKeyEntry(dwIoBase, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl, MAX_KEY_TABLE-1, uKeyIdx, pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
+	MACvSetKeyEntry(dwIoBase, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl, MAX_KEY_TABLE-1, uKeyIdx, pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, (u32 *)pKey->abyKey, byLocalID);
 
 	if ((dwKeyIndex & USE_KEYRSC) == 0) {
 		// RSC set by NIC
@@ -687,9 +681,9 @@ bool KeybSetDefaultKey(
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n", pKey->bKeyValid);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n", (int)pKey->uKeyLength);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: \n");
-	for (ii = 0; ii < pKey->uKeyLength; ii++) {
+	for (ii = 0; ii < pKey->uKeyLength; ii++)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%x", pKey->abyKey[ii]);
-	}
+
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwTSC47_16: %lx\n", pKey->dwTSC47_16);
@@ -733,14 +727,13 @@ bool KeybSetAllGroupKey(
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetAllGroupKey: %lX\n", dwKeyIndex);
 
-	if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
+	if ((dwKeyIndex & PAIRWISE_KEY) != 0) // Pairwise key
 		return false;
-	} else if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY) {
+	else if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY)
 		return false;
-	}
 
 	for (i = 0; i < MAX_KEY_TABLE - 1; i++) {
-		if (pTable->KeyTable[i].bInUse == true) {
+		if (pTable->KeyTable[i].bInUse) {
 			// found table already exist
 			// Group key
 			pKey = &(pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF]);
@@ -768,7 +761,7 @@ bool KeybSetAllGroupKey(
 				if (uKeyLength == WLAN_WEP104_KEYLEN)
 					pKey->abyKey[15] |= 0x80;
 			}
-			MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pTable->KeyTable[i].abyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
+			MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pTable->KeyTable[i].abyBSSID, (u32 *)pKey->abyKey, byLocalID);
 
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC
@@ -783,14 +776,10 @@ bool KeybSetAllGroupKey(
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
-			for (ii = 0; ii < pKey->uKeyLength; ii++) {
+			for (ii = 0; ii < pKey->uKeyLength; ii++)
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
-			}
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 
-			//DBG_PRN_GRP12(("pKey->dwTSC47_16: %lX\n ", pKey->dwTSC47_16));
-			//DBG_PRN_GRP12(("pKey->wTSC15_0: %X\n ", pKey->wTSC15_0));
-			//DBG_PRN_GRP12(("pKey->dwKeyIndex: %lX\n ", pKey->dwKeyIndex));
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 
 		} // (pTable->KeyTable[i].bInUse == true)
 	}

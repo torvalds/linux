@@ -28,6 +28,7 @@
 #include <linux/fs_uart_pd.h>
 #include <linux/fsl_devices.h>
 #include <linux/mii.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
 #include <asm/delay.h>
@@ -48,7 +49,7 @@ struct cpm_pin {
 	int port, pin, flags;
 };
 
-static struct __initdata cpm_pin tqm8xx_pins[] = {
+static struct cpm_pin tqm8xx_pins[] __initdata = {
 	/* SMC1 */
 	{CPM_PORTB, 24, CPM_PIN_INPUT}, /* RX */
 	{CPM_PORTB, 25, CPM_PIN_INPUT | CPM_PIN_SECONDARY}, /* TX */
@@ -63,7 +64,7 @@ static struct __initdata cpm_pin tqm8xx_pins[] = {
 	{CPM_PORTC, 11, CPM_PIN_INPUT | CPM_PIN_SECONDARY | CPM_PIN_GPIO},
 };
 
-static struct __initdata cpm_pin tqm8xx_fec_pins[] = {
+static struct cpm_pin tqm8xx_fec_pins[] __initdata = {
 	/* MII */
 	{CPM_PORTD, 3, CPM_PIN_OUTPUT},
 	{CPM_PORTD, 4, CPM_PIN_OUTPUT},

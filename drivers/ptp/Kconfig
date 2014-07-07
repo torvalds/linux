@@ -6,7 +6,9 @@ menu "PTP clock support"
 
 config PTP_1588_CLOCK
 	tristate "PTP clock support"
+	depends on NET
 	select PPS
+	select NET_PTP_CLASSIFY
 	help
 	  The IEEE 1588 standard defines a method to precisely
 	  synchronize distributed clocks over Ethernet networks. The
@@ -72,7 +74,8 @@ config DP83640_PHY
 
 config PTP_1588_CLOCK_PCH
 	tristate "Intel PCH EG20T as PTP clock"
-	depends on X86 || COMPILE_TEST
+	depends on X86_32 || COMPILE_TEST
+	depends on HAS_IOMEM && NET
 	select PTP_1588_CLOCK
 	help
 	  This driver adds support for using the PCH EG20T as a PTP

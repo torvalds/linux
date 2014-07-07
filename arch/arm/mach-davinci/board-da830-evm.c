@@ -17,22 +17,24 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
+#include <linux/platform_data/gpio-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
+#include <linux/platform_data/spi-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include <mach/common.h>
 #include <mach/cp_intc.h>
 #include <mach/mux.h>
-#include <linux/platform_data/mtd-davinci.h>
 #include <mach/da8xx.h>
-#include <linux/platform_data/usb-davinci.h>
-#include <linux/platform_data/mtd-davinci-aemif.h>
-#include <linux/platform_data/spi-davinci.h>
 
 #define DA830_EVM_PHY_ID		""
 /*
@@ -74,7 +76,7 @@ static int da830_evm_usb_ocic_notify(da8xx_ocic_handler_t handler)
 	if (handler != NULL) {
 		da830_evm_usb_ocic_handler = handler;
 
-		error = request_irq(irq, da830_evm_usb_ocic_irq, IRQF_DISABLED |
+		error = request_irq(irq, da830_evm_usb_ocic_irq,
 				    IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				    "OHCI over-current indicator", NULL);
 		if (error)
@@ -417,6 +419,9 @@ static inline void da830_evm_init_nand(int mux_mode)
 	if (ret)
 		pr_warning("da830_evm_init: NAND device not registered.\n");
 
+	if (davinci_aemif_setup(&da830_evm_nand_device))
+		pr_warn("%s: Cannot configure AEMIF.\n", __func__);
+
 	gpio_direction_output(mux_mode, 1);
 }
 #else
@@ -590,6 +595,10 @@ static __init void da830_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int ret;
+
+	ret = da830_register_gpio();
+	if (ret)
+		pr_warn("da830_evm_init: GPIO init failed: %d\n", ret);
 
 	ret = da830_register_edma(da830_edma_rsv);
 	if (ret)

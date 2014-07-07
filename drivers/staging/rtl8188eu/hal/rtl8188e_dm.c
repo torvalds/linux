@@ -31,10 +31,6 @@
 
 #include <rtl8188e_hal.h>
 
-static void dm_CheckStatistics(struct adapter *Adapter)
-{
-}
-
 /*  Initialize GPIO setting registers */
 static void dm_InitGPIOSetting(struct adapter *Adapter)
 {
@@ -62,11 +58,6 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 	dm_odm->Adapter = Adapter;
 
 	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_PLATFORM, ODM_CE);
-
-	if (Adapter->interface_type == RTW_GSPI)
-		ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_INTERFACE, ODM_ITRF_SDIO);
-	else
-		ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_INTERFACE, Adapter->interface_type);/* RTL871X_HCI_TYPE */
 
 	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_IC_TYPE, ODM_RTL8188E);
 
@@ -165,7 +156,6 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 	u8 hw_init_completed = false;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
 
-	_func_enter_;
 	hw_init_completed = Adapter->hw_init_completed;
 
 	if (!hw_init_completed)
@@ -178,13 +168,6 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 	/*  modifed by thomas. 2011.06.11. */
 	if (Adapter->wdinfo.p2p_ps_mode)
 		fw_ps_awake = false;
-
-	if (hw_init_completed && ((!fw_cur_in_ps) && fw_ps_awake)) {
-		/*  Calculate Tx/Rx statistics. */
-		dm_CheckStatistics(Adapter);
-
-	_func_exit_;
-	}
 
 	/* ODM */
 	if (hw_init_completed) {
@@ -218,10 +201,6 @@ void rtl8188e_init_dm_priv(struct adapter *Adapter)
 	_rtw_memset(pdmpriv, 0, sizeof(struct dm_priv));
 	Init_ODM_ComInfo_88E(Adapter);
 	ODM_InitDebugSetting(podmpriv);
-}
-
-void rtl8188e_deinit_dm_priv(struct adapter *Adapter)
-{
 }
 
 /*  Add new function to reset the state of antenna diversity before link. */

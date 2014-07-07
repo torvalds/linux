@@ -7,8 +7,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "mux2420.h"
-#include "mux2430.h"
 #include "mux34xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
@@ -28,7 +26,7 @@
 #define OMAP_PULL_UP			(1 << 4)
 #define OMAP_ALTELECTRICALSEL		(1 << 5)
 
-/* 34xx specific mux bit defines */
+/* omap3/4/5 specific mux bit defines */
 #define OMAP_INPUT_EN			(1 << 8)
 #define OMAP_OFF_EN			(1 << 9)
 #define OMAP_OFFOUT_EN			(1 << 10)
@@ -36,8 +34,6 @@
 #define OMAP_OFF_PULL_EN		(1 << 12)
 #define OMAP_OFF_PULL_UP		(1 << 13)
 #define OMAP_WAKEUP_EN			(1 << 14)
-
-/* 44xx specific mux bit defines */
 #define OMAP_WAKEUP_EVENT		(1 << 15)
 
 /* Active pin states */
@@ -67,9 +63,6 @@
 #define OMAP_PACKAGE_CUS		5		/* 423-pin 0.65 */
 #define OMAP_PACKAGE_CBB		4		/* 515-pin 0.40 0.50 */
 #define OMAP_PACKAGE_CBC		3		/* 515-pin 0.50 0.65 */
-#define OMAP_PACKAGE_ZAC		2		/* 24xx 447-pin POP */
-#define OMAP_PACKAGE_ZAF		1		/* 2420 447-pin SIP */
-
 
 #define OMAP_MUX_NR_MODES		8		/* Available modes */
 #define OMAP_MUX_NR_SIDES		2		/* Bottom & top */

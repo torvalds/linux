@@ -123,7 +123,9 @@ unsigned int bcm63xx_get_memory_size(void)
 
 static unsigned int detect_cpu_clock(void)
 {
-	switch (bcm63xx_get_cpu_id()) {
+	u16 cpu_id = bcm63xx_get_cpu_id();
+
+	switch (cpu_id) {
 	case BCM3368_CPU_ID:
 		return 300000000;
 
@@ -249,7 +251,7 @@ static unsigned int detect_cpu_clock(void)
 	}
 
 	default:
-		BUG();
+		panic("Failed to detect clock for CPU with id=%04X\n", cpu_id);
 	}
 }
 
@@ -297,14 +299,13 @@ static unsigned int detect_memory_size(void)
 void __init bcm63xx_cpu_init(void)
 {
 	unsigned int tmp;
-	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int cpu = smp_processor_id();
 	u32 chipid_reg;
 
 	/* soc registers location depends on cpu type */
 	chipid_reg = 0;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_BMIPS3300:
 		if ((read_c0_prid() & PRID_IMP_MASK) != PRID_IMP_BMIPS3300_ALT)
 			__cpu_name[cpu] = "Broadcom BCM6338";

@@ -155,7 +155,6 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 {
 	sector_t *n_highs;
 	struct dm_target *n_targets;
-	int n = t->num_targets;
 
 	/*
 	 * Allocate both the target array and offset array at once.
@@ -169,12 +168,7 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 
 	n_targets = (struct dm_target *) (n_highs + num);
 
-	if (n) {
-		memcpy(n_highs, t->highs, sizeof(*n_highs) * n);
-		memcpy(n_targets, t->targets, sizeof(*n_targets) * n);
-	}
-
-	memset(n_highs + n, -1, sizeof(*n_highs) * (num - n));
+	memset(n_highs, -1, sizeof(*n_highs) * num);
 	vfree(t->highs);
 
 	t->num_allocated = num;
@@ -199,6 +193,11 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 		num_targets = KEYS_PER_NODE;
 
 	num_targets = dm_round_up(num_targets, KEYS_PER_NODE);
+
+	if (!num_targets) {
+		kfree(t);
+		return -ENOMEM;
+	}
 
 	if (alloc_targets(t, num_targets)) {
 		kfree(t);
@@ -253,17 +252,6 @@ void dm_table_destroy(struct dm_table *t)
 	dm_free_md_mempools(t->mempools);
 
 	kfree(t);
-}
-
-/*
- * Checks to see if we need to extend highs or targets.
- */
-static inline int check_space(struct dm_table *t)
-{
-	if (t->num_targets >= t->num_allocated)
-		return alloc_targets(t, t->num_allocated * 2);
-
-	return 0;
 }
 
 /*
@@ -477,8 +465,8 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 }
 EXPORT_SYMBOL(dm_get_device);
 
-int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
-			 sector_t start, sector_t len, void *data)
+static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
+				sector_t start, sector_t len, void *data)
 {
 	struct queue_limits *limits = data;
 	struct block_device *bdev = dev->bdev;
@@ -511,7 +499,6 @@ int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 					  (unsigned int) (PAGE_SIZE >> 9));
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dm_set_device_limits);
 
 /*
  * Decrement a device's use count and remove it if necessary.
@@ -545,14 +532,28 @@ static int adjoin(struct dm_table *table, struct dm_target *ti)
 
 /*
  * Used to dynamically allocate the arg array.
+ *
+ * We do first allocation with GFP_NOIO because dm-mpath and dm-thin must
+ * process messages even if some device is suspended. These messages have a
+ * small fixed number of arguments.
+ *
+ * On the other hand, dm-switch needs to process bulk data using messages and
+ * excessive use of GFP_NOIO could cause trouble.
  */
 static char **realloc_argv(unsigned *array_size, char **old_argv)
 {
 	char **argv;
 	unsigned new_size;
+	gfp_t gfp;
 
-	new_size = *array_size ? *array_size * 2 : 64;
-	argv = kmalloc(new_size * sizeof(*argv), GFP_KERNEL);
+	if (*array_size) {
+		new_size = *array_size * 2;
+		gfp = GFP_KERNEL;
+	} else {
+		new_size = 8;
+		gfp = GFP_NOIO;
+	}
+	argv = kmalloc(new_size * sizeof(*argv), gfp);
 	if (argv) {
 		memcpy(argv, old_argv, *array_size * sizeof(*argv));
 		*array_size = new_size;
@@ -712,8 +713,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		return -EINVAL;
 	}
 
-	if ((r = check_space(t)))
-		return r;
+	BUG_ON(t->num_targets >= t->num_allocated);
 
 	tgt = t->targets + t->num_targets;
 	memset(tgt, 0, sizeof(*tgt));
@@ -944,7 +944,7 @@ bool dm_table_request_based(struct dm_table *t)
 	return dm_table_get_type(t) == DM_TYPE_REQUEST_BASED;
 }
 
-int dm_table_alloc_md_mempools(struct dm_table *t)
+static int dm_table_alloc_md_mempools(struct dm_table *t)
 {
 	unsigned type = dm_table_get_type(t);
 	unsigned per_bio_data_size = 0;
@@ -1548,8 +1548,11 @@ int dm_table_resume_targets(struct dm_table *t)
 			continue;
 
 		r = ti->type->preresume(ti);
-		if (r)
+		if (r) {
+			DMERR("%s: %s: preresume failed, error = %d",
+			      dm_device_name(t->md), ti->type->name, r);
 			return r;
+		}
 	}
 
 	for (i = 0; i < t->num_targets; i++) {
@@ -1613,6 +1616,25 @@ struct mapped_device *dm_table_get_md(struct dm_table *t)
 	return t->md;
 }
 EXPORT_SYMBOL(dm_table_get_md);
+
+void dm_table_run_md_queue_async(struct dm_table *t)
+{
+	struct mapped_device *md;
+	struct request_queue *queue;
+	unsigned long flags;
+
+	if (!dm_table_request_based(t))
+		return;
+
+	md = dm_table_get_md(t);
+	queue = dm_get_md_queue(md);
+	if (queue) {
+		spin_lock_irqsave(queue->queue_lock, flags);
+		blk_run_queue_async(queue);
+		spin_unlock_irqrestore(queue->queue_lock, flags);
+	}
+}
+EXPORT_SYMBOL(dm_table_run_md_queue_async);
 
 static int device_discard_capable(struct dm_target *ti, struct dm_dev *dev,
 				  sector_t start, sector_t len, void *data)

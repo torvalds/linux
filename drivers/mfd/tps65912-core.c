@@ -15,13 +15,12 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65912.h>
 
-static struct mfd_cell tps65912s[] = {
+static const struct mfd_cell tps65912s[] = {
 	{
 		.name = "tps65912-pmic",
 	},

@@ -24,21 +24,14 @@
 #include <linux/slab.h>
 #include "../comedidev.h"
 
-/*  #define DEBUG_MITE */
 #define PCIMIO_COMPAT
-
-#ifdef DEBUG_MITE
-#define MDPRINTK(format, args...)	pr_debug(format , ## args)
-#else
-#define MDPRINTK(format, args...)	do { } while (0)
-#endif
 
 #define MAX_MITE_DMA_CHANNELS 8
 
 struct mite_dma_descriptor {
-	u32 count;
-	u32 addr;
-	u32 next;
+	__le32 count;
+	__le32 addr;
+	__le32 next;
 	u32 dar;
 };
 
@@ -113,9 +106,9 @@ unsigned mite_dma_tcr(struct mite_channel *mite_chan);
 void mite_dma_arm(struct mite_channel *mite_chan);
 void mite_dma_disarm(struct mite_channel *mite_chan);
 int mite_sync_input_dma(struct mite_channel *mite_chan,
-			struct comedi_async *async);
+			struct comedi_subdevice *s);
 int mite_sync_output_dma(struct mite_channel *mite_chan,
-			 struct comedi_async *async);
+			 struct comedi_subdevice *s);
 u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan);
 u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan);
@@ -127,12 +120,7 @@ int mite_done(struct mite_channel *mite_chan);
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits);
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
-		    struct comedi_async *async);
-
-#ifdef DEBUG_MITE
-void mite_print_chsr(unsigned int chsr);
-void mite_dump_regs(struct mite_channel *mite_chan);
-#endif
+		    struct comedi_subdevice *s);
 
 static inline int CHAN_OFFSET(int channel)
 {

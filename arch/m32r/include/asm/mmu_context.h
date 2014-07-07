@@ -45,7 +45,7 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 		   Flush all TLB and start new cycle. */
 		local_flush_tlb_all();
 		/* Fix version if needed.
-		   Note that we avoid version #0 to distingush NO_CONTEXT. */
+		   Note that we avoid version #0 to distinguish NO_CONTEXT. */
 		if (!mc)
 			mmu_context_cache = mc = MMU_CONTEXT_FIRST_VERSION;
 	}

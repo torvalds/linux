@@ -14,6 +14,7 @@
 #include <sound/jack.h>
 #include <sound/soc.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
@@ -65,6 +66,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	struct snd_soc_codec *codec;
 	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_jack_pin *pin;
+	unsigned int sync = 0;
 	int enable;
 
 	trace_snd_soc_jack_report(jack, mask, status);
@@ -92,12 +94,16 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 			snd_soc_dapm_enable_pin(dapm, pin->pin);
 		else
 			snd_soc_dapm_disable_pin(dapm, pin->pin);
+
+		/* we need to sync for this case only */
+		sync = 1;
 	}
 
 	/* Report before the DAPM sync to help users updating micbias status */
 	blocking_notifier_call_chain(&jack->notifier, jack->status, jack);
 
-	snd_soc_dapm_sync(dapm);
+	if (sync)
+		snd_soc_dapm_sync(dapm);
 
 	snd_jack_report(jack->jack, jack->status);
 
@@ -235,7 +241,7 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 	int enable;
 	int report;
 
-	enable = gpio_get_value_cansleep(gpio->gpio);
+	enable = gpiod_get_value_cansleep(gpio->desc);
 	if (gpio->invert)
 		enable = !enable;
 
@@ -245,7 +251,7 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 		report = 0;
 
 	if (gpio->jack_status_check)
-		report = gpio->jack_status_check();
+		report = gpio->jack_status_check(gpio->data);
 
 	snd_soc_jack_report(jack, report, gpio->report);
 }
@@ -292,31 +298,50 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 	int i, ret;
 
 	for (i = 0; i < count; i++) {
-		if (!gpio_is_valid(gpios[i].gpio)) {
-			dev_err(jack->codec->dev, "ASoC: Invalid gpio %d\n",
-				gpios[i].gpio);
-			ret = -EINVAL;
-			goto undo;
-		}
 		if (!gpios[i].name) {
-			dev_err(jack->codec->dev, "ASoC: No name for gpio %d\n",
-				gpios[i].gpio);
+			dev_err(jack->codec->dev,
+				"ASoC: No name for gpio at index %d\n", i);
 			ret = -EINVAL;
 			goto undo;
 		}
 
-		ret = gpio_request(gpios[i].gpio, gpios[i].name);
-		if (ret)
-			goto undo;
+		if (gpios[i].gpiod_dev) {
+			/* GPIO descriptor */
+			gpios[i].desc = gpiod_get_index(gpios[i].gpiod_dev,
+							gpios[i].name,
+							gpios[i].idx);
+			if (IS_ERR(gpios[i].desc)) {
+				ret = PTR_ERR(gpios[i].desc);
+				dev_err(gpios[i].gpiod_dev,
+					"ASoC: Cannot get gpio at index %d: %d",
+					i, ret);
+				goto undo;
+			}
+		} else {
+			/* legacy GPIO number */
+			if (!gpio_is_valid(gpios[i].gpio)) {
+				dev_err(jack->codec->dev,
+					"ASoC: Invalid gpio %d\n",
+					gpios[i].gpio);
+				ret = -EINVAL;
+				goto undo;
+			}
 
-		ret = gpio_direction_input(gpios[i].gpio);
+			ret = gpio_request(gpios[i].gpio, gpios[i].name);
+			if (ret)
+				goto undo;
+
+			gpios[i].desc = gpio_to_desc(gpios[i].gpio);
+		}
+
+		ret = gpiod_direction_input(gpios[i].desc);
 		if (ret)
 			goto err;
 
 		INIT_DELAYED_WORK(&gpios[i].work, gpio_work);
 		gpios[i].jack = jack;
 
-		ret = request_any_context_irq(gpio_to_irq(gpios[i].gpio),
+		ret = request_any_context_irq(gpiod_to_irq(gpios[i].desc),
 					      gpio_handler,
 					      IRQF_TRIGGER_RISING |
 					      IRQF_TRIGGER_FALLING,
@@ -326,18 +351,19 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			goto err;
 
 		if (gpios[i].wake) {
-			ret = irq_set_irq_wake(gpio_to_irq(gpios[i].gpio), 1);
+			ret = irq_set_irq_wake(gpiod_to_irq(gpios[i].desc), 1);
 			if (ret != 0)
-				dev_err(jack->codec->dev, "ASoC: "
-				  "Failed to mark GPIO %d as wake source: %d\n",
-					gpios[i].gpio, ret);
+				dev_err(jack->codec->dev,
+					"ASoC: Failed to mark GPIO at index %d as wake source: %d\n",
+					i, ret);
 		}
 
 		/* Expose GPIO value over sysfs for diagnostic purposes */
-		gpio_export(gpios[i].gpio, false);
+		gpiod_export(gpios[i].desc, false);
 
 		/* Update initial jack status */
-		snd_soc_jack_gpio_detect(&gpios[i]);
+		schedule_delayed_work(&gpios[i].work,
+				      msecs_to_jiffies(gpios[i].debounce_time));
 	}
 
 	return 0;
@@ -350,6 +376,30 @@ undo:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_add_gpios);
+
+/**
+ * snd_soc_jack_add_gpiods - Associate GPIO descriptor pins with an ASoC jack
+ *
+ * @gpiod_dev: GPIO consumer device
+ * @jack:      ASoC jack
+ * @count:     number of pins
+ * @gpios:     array of gpio pins
+ *
+ * This function will request gpio, set data direction and request irq
+ * for each gpio in the array.
+ */
+int snd_soc_jack_add_gpiods(struct device *gpiod_dev,
+			    struct snd_soc_jack *jack,
+			    int count, struct snd_soc_jack_gpio *gpios)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		gpios[i].gpiod_dev = gpiod_dev;
+
+	return snd_soc_jack_add_gpios(jack, count, gpios);
+}
+EXPORT_SYMBOL_GPL(snd_soc_jack_add_gpiods);
 
 /**
  * snd_soc_jack_free_gpios - Release GPIO pins' resources of an ASoC jack
@@ -366,10 +416,10 @@ void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 	int i;
 
 	for (i = 0; i < count; i++) {
-		gpio_unexport(gpios[i].gpio);
-		free_irq(gpio_to_irq(gpios[i].gpio), &gpios[i]);
+		gpiod_unexport(gpios[i].desc);
+		free_irq(gpiod_to_irq(gpios[i].desc), &gpios[i]);
 		cancel_delayed_work_sync(&gpios[i].work);
-		gpio_free(gpios[i].gpio);
+		gpiod_put(gpios[i].desc);
 		gpios[i].jack = NULL;
 	}
 }

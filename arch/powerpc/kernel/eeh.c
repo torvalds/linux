@@ -22,18 +22,21 @@
  */
 
 #include <linux/delay.h>
+#include <linux/debugfs.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/rbtree.h>
+#include <linux/reboot.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
 #include <linux/of.h>
 
 #include <linux/atomic.h>
+#include <asm/debug.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
 #include <asm/io.h>
@@ -84,24 +87,23 @@
 #define EEH_MAX_FAILS	2100000
 
 /* Time to wait for a PCI slot to report status, in milliseconds */
-#define PCI_BUS_RESET_WAIT_MSEC (60*1000)
+#define PCI_BUS_RESET_WAIT_MSEC (5*60*1000)
+
+/*
+ * EEH probe mode support, which is part of the flags,
+ * is to support multiple platforms for EEH. Some platforms
+ * like pSeries do PCI emunation based on device tree.
+ * However, other platforms like powernv probe PCI devices
+ * from hardware. The flag is used to distinguish that.
+ * In addition, struct eeh_ops::probe would be invoked for
+ * particular OF node or PCI device so that the corresponding
+ * PE would be created there.
+ */
+int eeh_subsystem_flags;
+EXPORT_SYMBOL(eeh_subsystem_flags);
 
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
-
-int eeh_subsystem_enabled;
-EXPORT_SYMBOL(eeh_subsystem_enabled);
-
-/*
- * EEH probe mode support. The intention is to support multiple
- * platforms for EEH. Some platforms like pSeries do PCI emunation
- * based on device tree. However, other platforms like powernv probe
- * PCI devices from hardware. The flag is used to distinguish that.
- * In addition, struct eeh_ops::probe would be invoked for particular
- * OF node or PCI device so that the corresponding PE would be created
- * there.
- */
-int eeh_probe_mode;
 
 /* Lock to avoid races due to multiple reports of an error */
 DEFINE_RAW_SPINLOCK(confirm_error_lock);
@@ -132,6 +134,15 @@ static struct eeh_stats eeh_stats;
 
 #define IS_BRIDGE(class_code) (((class_code)<<16) == PCI_BASE_CLASS_BRIDGE)
 
+static int __init eeh_setup(char *str)
+{
+	if (!strcmp(str, "off"))
+		eeh_subsystem_flags |= EEH_FORCE_DISABLED;
+
+	return 1;
+}
+__setup("eeh=", eeh_setup);
+
 /**
  * eeh_gather_pci_data - Copy assorted PCI config space registers to buff
  * @edev: device to report data for
@@ -144,74 +155,67 @@ static struct eeh_stats eeh_stats;
 static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 {
 	struct device_node *dn = eeh_dev_to_of_node(edev);
-	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	u32 cfg;
 	int cap, i;
 	int n = 0;
 
 	n += scnprintf(buf+n, len-n, "%s\n", dn->full_name);
-	printk(KERN_WARNING "EEH: of node=%s\n", dn->full_name);
+	pr_warn("EEH: of node=%s\n", dn->full_name);
 
 	eeh_ops->read_config(dn, PCI_VENDOR_ID, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "dev/vend:%08x\n", cfg);
-	printk(KERN_WARNING "EEH: PCI device/vendor: %08x\n", cfg);
+	pr_warn("EEH: PCI device/vendor: %08x\n", cfg);
 
 	eeh_ops->read_config(dn, PCI_COMMAND, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
-	printk(KERN_WARNING "EEH: PCI cmd/status register: %08x\n", cfg);
-
-	if (!dev) {
-		printk(KERN_WARNING "EEH: no PCI device for this of node\n");
-		return n;
-	}
+	pr_warn("EEH: PCI cmd/status register: %08x\n", cfg);
 
 	/* Gather bridge-specific registers */
-	if (dev->class >> 16 == PCI_BASE_CLASS_BRIDGE) {
+	if (edev->mode & EEH_DEV_BRIDGE) {
 		eeh_ops->read_config(dn, PCI_SEC_STATUS, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "sec stat:%x\n", cfg);
-		printk(KERN_WARNING "EEH: Bridge secondary status: %04x\n", cfg);
+		pr_warn("EEH: Bridge secondary status: %04x\n", cfg);
 
 		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "brdg ctl:%x\n", cfg);
-		printk(KERN_WARNING "EEH: Bridge control: %04x\n", cfg);
+		pr_warn("EEH: Bridge control: %04x\n", cfg);
 	}
 
 	/* Dump out the PCI-X command and status regs */
-	cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
+	cap = edev->pcix_cap;
 	if (cap) {
 		eeh_ops->read_config(dn, cap, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-cmd:%x\n", cfg);
-		printk(KERN_WARNING "EEH: PCI-X cmd: %08x\n", cfg);
+		pr_warn("EEH: PCI-X cmd: %08x\n", cfg);
 
 		eeh_ops->read_config(dn, cap+4, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-stat:%x\n", cfg);
-		printk(KERN_WARNING "EEH: PCI-X status: %08x\n", cfg);
+		pr_warn("EEH: PCI-X status: %08x\n", cfg);
 	}
 
-	/* If PCI-E capable, dump PCI-E cap 10, and the AER */
-	cap = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	/* If PCI-E capable, dump PCI-E cap 10 */
+	cap = edev->pcie_cap;
 	if (cap) {
 		n += scnprintf(buf+n, len-n, "pci-e cap10:\n");
-		printk(KERN_WARNING
-		       "EEH: PCI-E capabilities and status follow:\n");
+		pr_warn("EEH: PCI-E capabilities and status follow:\n");
 
 		for (i=0; i<=8; i++) {
 			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
-			printk(KERN_WARNING "EEH: PCI-E %02x: %08x\n", i, cfg);
+			pr_warn("EEH: PCI-E %02x: %08x\n", i, cfg);
 		}
+	}
 
-		cap = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
-		if (cap) {
-			n += scnprintf(buf+n, len-n, "pci-e AER:\n");
-			printk(KERN_WARNING
-			       "EEH: PCI-E AER capability register set follows:\n");
+	/* If AER capable, dump it */
+	cap = edev->aer_cap;
+	if (cap) {
+		n += scnprintf(buf+n, len-n, "pci-e AER:\n");
+		pr_warn("EEH: PCI-E AER capability register set follows:\n");
 
-			for (i=0; i<14; i++) {
-				eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
-				n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
-				printk(KERN_WARNING "EEH: PCI-E AER %02x: %08x\n", i, cfg);
-			}
+		for (i=0; i<14; i++) {
+			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
+			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
+			pr_warn("EEH: PCI-E AER %02x: %08x\n", i, cfg);
 		}
 	}
 
@@ -232,21 +236,19 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 {
 	size_t loglen = 0;
 	struct eeh_dev *edev, *tmp;
-	bool valid_cfg_log = true;
 
 	/*
 	 * When the PHB is fenced or dead, it's pointless to collect
 	 * the data from PCI config space because it should return
 	 * 0xFF's. For ER, we still retrieve the data from the PCI
 	 * config space.
+	 *
+	 * For pHyp, we have to enable IO for log retrieval. Otherwise,
+	 * 0xFF's is always returned from PCI config space.
 	 */
-	if (eeh_probe_mode_dev() &&
-	    (pe->type & EEH_PE_PHB) &&
-	    (pe->state & (EEH_PE_ISOLATED | EEH_PE_PHB_DEAD)))
-		valid_cfg_log = false;
-
-	if (valid_cfg_log) {
-		eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
+	if (!(pe->type & EEH_PE_PHB)) {
+		if (eeh_probe_mode_devtree())
+			eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
 		eeh_ops->configure_bridge(pe);
 		eeh_pe_restore_bars(pe);
 
@@ -309,7 +311,7 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 
 	/* If the PHB has been in problematic state */
 	eeh_serialize_lock(&flags);
-	if (phb_pe->state & (EEH_PE_ISOLATED | EEH_PE_PHB_DEAD)) {
+	if (phb_pe->state & EEH_PE_ISOLATED) {
 		ret = 0;
 		goto out;
 	}
@@ -327,11 +329,11 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	/* Isolate the PHB and send event */
 	eeh_pe_state_mark(phb_pe, EEH_PE_ISOLATED);
 	eeh_serialize_unlock(flags);
-	eeh_send_failure_event(phb_pe);
 
-	pr_err("EEH: PHB#%x failure detected\n",
-		phb_pe->phb->global_number);
+	pr_err("EEH: PHB#%x failure detected, location: %s\n",
+		phb_pe->phb->global_number, eeh_pe_loc_get(phb_pe));
 	dump_stack();
+	eeh_send_failure_event(phb_pe);
 
 	return 1;
 out:
@@ -356,16 +358,17 @@ out:
 int eeh_dev_check_failure(struct eeh_dev *edev)
 {
 	int ret;
+	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	unsigned long flags;
 	struct device_node *dn;
 	struct pci_dev *dev;
-	struct eeh_pe *pe;
+	struct eeh_pe *pe, *parent_pe, *phb_pe;
 	int rc = 0;
 	const char *location;
 
 	eeh_stats.total_mmio_ffs++;
 
-	if (!eeh_subsystem_enabled)
+	if (!eeh_enabled())
 		return 0;
 
 	if (!edev) {
@@ -437,12 +440,32 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 */
 	if ((ret < 0) ||
 	    (ret == EEH_STATE_NOT_SUPPORT) ||
-	    (ret & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) ==
-	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) {
+	    ((ret & active_flags) == active_flags)) {
 		eeh_stats.false_positives++;
 		pe->false_positives++;
 		rc = 0;
 		goto dn_unlock;
+	}
+
+	/*
+	 * It should be corner case that the parent PE has been
+	 * put into frozen state as well. We should take care
+	 * that at first.
+	 */
+	parent_pe = pe->parent;
+	while (parent_pe) {
+		/* Hit the ceiling ? */
+		if (parent_pe->type & EEH_PE_PHB)
+			break;
+
+		/* Frozen parent PE ? */
+		ret = eeh_ops->get_state(parent_pe, NULL);
+		if (ret > 0 &&
+		    (ret & active_flags) != active_flags)
+			pe = parent_pe;
+
+		/* Next parent level */
+		parent_pe = parent_pe->parent;
 	}
 
 	eeh_stats.slot_resets++;
@@ -454,15 +477,18 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
 	eeh_serialize_unlock(flags);
 
-	eeh_send_failure_event(pe);
-
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
 	 */
-	pr_err("EEH: Frozen PE#%x detected on PHB#%x\n",
-		pe->addr, pe->phb->global_number);
+	phb_pe = eeh_phb_pe_get(pe->phb);
+	pr_err("EEH: Frozen PHB#%x-PE#%x detected\n",
+	       pe->phb->global_number, pe->addr);
+	pr_err("EEH: PE location: %s, PHB location: %s\n",
+	       eeh_pe_loc_get(pe), eeh_pe_loc_get(phb_pe));
 	dump_stack();
+
+	eeh_send_failure_event(pe);
 
 	return 1;
 
@@ -515,16 +541,42 @@ EXPORT_SYMBOL(eeh_check_failure);
  */
 int eeh_pci_enable(struct eeh_pe *pe, int function)
 {
-	int rc;
+	int rc, flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
+
+	/*
+	 * pHyp doesn't allow to enable IO or DMA on unfrozen PE.
+	 * Also, it's pointless to enable them on unfrozen PE. So
+	 * we have the check here.
+	 */
+	if (function == EEH_OPT_THAW_MMIO ||
+	    function == EEH_OPT_THAW_DMA) {
+		rc = eeh_ops->get_state(pe, NULL);
+		if (rc < 0)
+			return rc;
+
+		/* Needn't to enable or already enabled */
+		if ((rc == EEH_STATE_NOT_SUPPORT) ||
+		    ((rc & flags) == flags))
+			return 0;
+	}
 
 	rc = eeh_ops->set_option(pe, function);
 	if (rc)
-		pr_warning("%s: Unexpected state change %d on PHB#%d-PE#%x, err=%d\n",
-			__func__, function, pe->phb->global_number, pe->addr, rc);
+		pr_warn("%s: Unexpected state change %d on "
+			"PHB#%d-PE#%x, err=%d\n",
+			__func__, function, pe->phb->global_number,
+			pe->addr, rc);
 
 	rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-	if (rc > 0 && (rc & EEH_STATE_MMIO_ENABLED) &&
-	   (function == EEH_OPT_THAW_MMIO))
+	if (rc <= 0)
+		return rc;
+
+	if ((function == EEH_OPT_THAW_MMIO) &&
+	    (rc & EEH_STATE_MMIO_ENABLED))
+		return 0;
+
+	if ((function == EEH_OPT_THAW_DMA) &&
+	    (rc & EEH_STATE_DMA_ENABLED))
 		return 0;
 
 	return rc;
@@ -612,26 +664,7 @@ static void eeh_reset_pe_once(struct eeh_pe *pe)
 	else
 		eeh_ops->reset(pe, EEH_RESET_HOT);
 
-	/* The PCI bus requires that the reset be held high for at least
-	 * a 100 milliseconds. We wait a bit longer 'just in case'.
-	 */
-#define PCI_BUS_RST_HOLD_TIME_MSEC 250
-	msleep(PCI_BUS_RST_HOLD_TIME_MSEC);
-
-	/* We might get hit with another EEH freeze as soon as the
-	 * pci slot reset line is dropped. Make sure we don't miss
-	 * these, and clear the flag now.
-	 */
-	eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
-
 	eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
-
-	/* After a PCI slot has been reset, the PCI Express spec requires
-	 * a 1.5 second idle time for the bus to stabilize, before starting
-	 * up traffic.
-	 */
-#define PCI_BUS_SETTLE_TIME_MSEC 1800
-	msleep(PCI_BUS_SETTLE_TIME_MSEC);
 }
 
 /**
@@ -651,6 +684,10 @@ int eeh_reset_pe(struct eeh_pe *pe)
 	for (i=0; i<3; i++) {
 		eeh_reset_pe_once(pe);
 
+		/*
+		 * EEH_PE_ISOLATED is expected to be removed after
+		 * BAR restore.
+		 */
 		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
 		if ((rc & flags) == flags)
 			return 0;
@@ -687,6 +724,15 @@ void eeh_save_bars(struct eeh_dev *edev)
 
 	for (i = 0; i < 16; i++)
 		eeh_ops->read_config(dn, i * 4, 4, &edev->config_space[i]);
+
+	/*
+	 * For PCI bridges including root port, we need enable bus
+	 * master explicitly. Otherwise, it can't fetch IODA table
+	 * entries correctly. So we cache the bit in advance so that
+	 * we can restore it after reset, either PHB range or PE range.
+	 */
+	if (edev->mode & EEH_DEV_BRIDGE)
+		edev->config_space[1] |= PCI_COMMAND_MASTER;
 }
 
 /**
@@ -739,6 +785,17 @@ int __exit eeh_ops_unregister(const char *name)
 	return -EEXIST;
 }
 
+static int eeh_reboot_notifier(struct notifier_block *nb,
+			       unsigned long action, void *unused)
+{
+	eeh_set_enable(false);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block eeh_reboot_nb = {
+	.notifier_call = eeh_reboot_notifier,
+};
+
 /**
  * eeh_init - EEH initialization
  *
@@ -770,6 +827,14 @@ int eeh_init(void)
 	if (machine_is(powernv) && cnt++ <= 0)
 		return ret;
 
+	/* Register reboot notifier */
+	ret = register_reboot_notifier(&eeh_reboot_nb);
+	if (ret) {
+		pr_warn("%s: Failed to register notifier (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+
 	/* call platform initialization function */
 	if (!eeh_ops) {
 		pr_warning("%s: Platform EEH operation not found\n",
@@ -798,8 +863,8 @@ int eeh_init(void)
 			&hose_list, list_node)
 			pci_walk_bus(hose->bus, eeh_ops->dev_probe, NULL);
 	} else {
-		pr_warning("%s: Invalid probe mode %d\n",
-			   __func__, eeh_probe_mode);
+		pr_warn("%s: Invalid probe mode %x",
+			__func__, eeh_subsystem_flags);
 		return -EINVAL;
 	}
 
@@ -814,7 +879,7 @@ int eeh_init(void)
 			return ret;
 	}
 
-	if (eeh_subsystem_enabled)
+	if (eeh_enabled())
 		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
 	else
 		pr_warning("EEH: No capable adapters found\n");
@@ -889,7 +954,7 @@ void eeh_add_device_late(struct pci_dev *dev)
 	struct device_node *dn;
 	struct eeh_dev *edev;
 
-	if (!dev || !eeh_subsystem_enabled)
+	if (!dev || !eeh_enabled())
 		return;
 
 	pr_debug("EEH: Adding device %s\n", pci_name(dev));
@@ -912,6 +977,13 @@ void eeh_add_device_late(struct pci_dev *dev)
 		eeh_addr_cache_rmv_dev(edev->pdev);
 		eeh_sysfs_remove_device(edev->pdev);
 		edev->mode &= ~EEH_DEV_SYSFS;
+
+		/*
+		 * We definitely should have the PCI device removed
+		 * though it wasn't correctly. So we needn't call
+		 * into error handler afterwards.
+		 */
+		edev->mode |= EEH_DEV_NO_HANDLER;
 
 		edev->pdev = NULL;
 		dev->dev.archdata.edev = NULL;
@@ -990,7 +1062,7 @@ void eeh_remove_device(struct pci_dev *dev)
 {
 	struct eeh_dev *edev;
 
-	if (!dev || !eeh_subsystem_enabled)
+	if (!dev || !eeh_enabled())
 		return;
 	edev = pci_dev_to_eeh_dev(dev);
 
@@ -1015,6 +1087,14 @@ void eeh_remove_device(struct pci_dev *dev)
 	else
 		edev->mode |= EEH_DEV_DISCONNECTED;
 
+	/*
+	 * We're removing from the PCI subsystem, that means
+	 * the PCI device driver can't support EEH or not
+	 * well. So we rely on hotplug completely to do recovery
+	 * for the specific PCI device.
+	 */
+	edev->mode |= EEH_DEV_NO_HANDLER;
+
 	eeh_addr_cache_rmv_dev(dev);
 	eeh_sysfs_remove_device(dev);
 	edev->mode &= ~EEH_DEV_SYSFS;
@@ -1022,7 +1102,7 @@ void eeh_remove_device(struct pci_dev *dev)
 
 static int proc_eeh_show(struct seq_file *m, void *v)
 {
-	if (0 == eeh_subsystem_enabled) {
+	if (!eeh_enabled()) {
 		seq_printf(m, "EEH Subsystem is globally disabled\n");
 		seq_printf(m, "eeh_total_mmio_ffs=%llu\n", eeh_stats.total_mmio_ffs);
 	} else {
@@ -1059,10 +1139,45 @@ static const struct file_operations proc_eeh_operations = {
 	.release   = single_release,
 };
 
+#ifdef CONFIG_DEBUG_FS
+static int eeh_enable_dbgfs_set(void *data, u64 val)
+{
+	if (val)
+		eeh_subsystem_flags &= ~EEH_FORCE_DISABLED;
+	else
+		eeh_subsystem_flags |= EEH_FORCE_DISABLED;
+
+	/* Notify the backend */
+	if (eeh_ops->post_init)
+		eeh_ops->post_init();
+
+	return 0;
+}
+
+static int eeh_enable_dbgfs_get(void *data, u64 *val)
+{
+	if (eeh_enabled())
+		*val = 0x1ul;
+	else
+		*val = 0x0ul;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(eeh_enable_dbgfs_ops, eeh_enable_dbgfs_get,
+			eeh_enable_dbgfs_set, "0x%llx\n");
+#endif
+
 static int __init eeh_init_proc(void)
 {
-	if (machine_is(pseries) || machine_is(powernv))
+	if (machine_is(pseries) || machine_is(powernv)) {
 		proc_create("powerpc/eeh", 0, NULL, &proc_eeh_operations);
+#ifdef CONFIG_DEBUG_FS
+		debugfs_create_file("eeh_enable", 0600,
+                                    powerpc_debugfs_root, NULL,
+                                    &eeh_enable_dbgfs_ops);
+#endif
+	}
+
 	return 0;
 }
 __initcall(eeh_init_proc);

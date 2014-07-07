@@ -68,10 +68,6 @@ source "fs/quota/Kconfig"
 source "fs/autofs4/Kconfig"
 source "fs/fuse/Kconfig"
 
-config GENERIC_ACL
-	bool
-	select FS_POSIX_ACL
-
 menu "Caches"
 
 source "fs/fscache/Kconfig"
@@ -100,6 +96,7 @@ endif # BLOCK
 menu "Pseudo filesystems"
 
 source "fs/proc/Kconfig"
+source "fs/kernfs/Kconfig"
 source "fs/sysfs/Kconfig"
 
 config TMPFS
@@ -119,7 +116,7 @@ config TMPFS_POSIX_ACL
 	bool "Tmpfs POSIX Access Control Lists"
 	depends on TMPFS
 	select TMPFS_XATTR
-	select GENERIC_ACL
+	select FS_POSIX_ACL
 	help
 	  POSIX Access Control Lists (ACLs) support additional access rights
 	  for users and groups beyond the standard owner/group/world scheme,

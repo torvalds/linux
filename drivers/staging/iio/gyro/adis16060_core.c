@@ -167,18 +167,11 @@ static int adis16060_r_probe(struct spi_device *spi)
 	indio_dev->channels = adis16060_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16060_channels);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)
 		return ret;
 
 	adis16060_iio_dev = indio_dev;
-	return 0;
-}
-
-/* fixme, confirm ordering in this function */
-static int adis16060_r_remove(struct spi_device *spi)
-{
-	iio_device_unregister(spi_get_drvdata(spi));
 	return 0;
 }
 
@@ -211,7 +204,6 @@ static struct spi_driver adis16060_r_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adis16060_r_probe,
-	.remove = adis16060_r_remove,
 };
 
 static struct spi_driver adis16060_w_driver = {

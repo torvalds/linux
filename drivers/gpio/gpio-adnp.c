@@ -260,7 +260,7 @@ static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios)
 	chip->direction_output = adnp_gpio_direction_output;
 	chip->get = adnp_gpio_get;
 	chip->set = adnp_gpio_set;
-	chip->can_sleep = 1;
+	chip->can_sleep = true;
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
 		chip->dbg_show = adnp_gpio_dbg_show;
@@ -325,9 +325,9 @@ static irqreturn_t adnp_irq(int irq, void *data)
 		pending &= isr & ier;
 
 		for_each_set_bit(bit, &pending, 8) {
-			unsigned int virq;
-			virq = irq_find_mapping(adnp->domain, base + bit);
-			handle_nested_irq(virq);
+			unsigned int child_irq;
+			child_irq = irq_find_mapping(adnp->domain, base + bit);
+			handle_nested_irq(child_irq);
 		}
 	}
 
@@ -408,6 +408,26 @@ static void adnp_irq_bus_unlock(struct irq_data *data)
 	mutex_unlock(&adnp->irq_lock);
 }
 
+static int adnp_irq_reqres(struct irq_data *data)
+{
+	struct adnp *adnp = irq_data_get_irq_chip_data(data);
+
+	if (gpio_lock_as_irq(&adnp->gpio, data->hwirq)) {
+		dev_err(adnp->gpio.dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			data->hwirq);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void adnp_irq_relres(struct irq_data *data)
+{
+	struct adnp *adnp = irq_data_get_irq_chip_data(data);
+
+	gpio_unlock_as_irq(&adnp->gpio, data->hwirq);
+}
+
 static struct irq_chip adnp_irq_chip = {
 	.name = "gpio-adnp",
 	.irq_mask = adnp_irq_mask,
@@ -415,6 +435,8 @@ static struct irq_chip adnp_irq_chip = {
 	.irq_set_type = adnp_irq_set_type,
 	.irq_bus_lock = adnp_irq_bus_lock,
 	.irq_bus_sync_unlock = adnp_irq_bus_unlock,
+	.irq_request_resources = adnp_irq_reqres,
+	.irq_release_resources = adnp_irq_relres,
 };
 
 static int adnp_irq_map(struct irq_domain *domain, unsigned int irq,
@@ -594,7 +616,7 @@ static struct i2c_driver adnp_i2c_driver = {
 	.driver = {
 		.name = "gpio-adnp",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(adnp_of_match),
+		.of_match_table = adnp_of_match,
 	},
 	.probe = adnp_i2c_probe,
 	.remove = adnp_i2c_remove,

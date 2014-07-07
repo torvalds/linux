@@ -53,7 +53,7 @@ int ocrdma_query_gid(struct ib_device *ibdev, u8 port,
 
 	dev = get_ocrdma_dev(ibdev);
 	memset(sgid, 0, sizeof(*sgid));
-	if (index >= OCRDMA_MAX_SGID)
+	if (index > OCRDMA_MAX_SGID)
 		return -EINVAL;
 
 	memcpy(sgid, &dev->sgid_tbl[index], sizeof(*sgid));
@@ -89,7 +89,7 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 	attr->max_cq = dev->attr.max_cq;
 	attr->max_cqe = dev->attr.max_cqe;
 	attr->max_mr = dev->attr.max_mr;
-	attr->max_mw = 0;
+	attr->max_mw = dev->attr.max_mw;
 	attr->max_pd = dev->attr.max_pd;
 	attr->atomic_cap = 0;
 	attr->max_fmr = 0;
@@ -141,9 +141,8 @@ static inline void get_link_speed_and_width(struct ocrdma_dev *dev,
 		/* Unsupported */
 		*ib_speed = IB_SPEED_SDR;
 		*ib_width = IB_WIDTH_1X;
-	};
+	}
 }
-
 
 int ocrdma_query_port(struct ib_device *ibdev,
 		      u8 port, struct ib_port_attr *props)
@@ -176,7 +175,7 @@ int ocrdma_query_port(struct ib_device *ibdev,
 	props->port_cap_flags =
 	    IB_PORT_CM_SUP |
 	    IB_PORT_REINIT_SUP |
-	    IB_PORT_DEVICE_MGMT_SUP | IB_PORT_VENDOR_CLASS_SUP;
+	    IB_PORT_DEVICE_MGMT_SUP | IB_PORT_VENDOR_CLASS_SUP | IB_PORT_IP_BASED_GIDS;
 	props->gid_tbl_len = OCRDMA_MAX_SGID;
 	props->pkey_tbl_len = 1;
 	props->bad_pkey_cntr = 0;
@@ -267,7 +266,7 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 
 	if (udata && uctx) {
 		pd->dpp_enabled =
-			dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY;
+			ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R;
 		pd->num_dpp_qp =
 			pd->dpp_enabled ? OCRDMA_PD_MAX_DPP_ENABLED_QP : 0;
 	}
@@ -726,10 +725,10 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 			    u32 num_pbes)
 {
 	struct ocrdma_pbe *pbe;
-	struct ib_umem_chunk *chunk;
+	struct scatterlist *sg;
 	struct ocrdma_pbl *pbl_tbl = mr->hwmr.pbl_table;
 	struct ib_umem *umem = mr->umem;
-	int i, shift, pg_cnt, pages, pbe_cnt, total_num_pbes = 0;
+	int shift, pg_cnt, pages, pbe_cnt, entry, total_num_pbes = 0;
 
 	if (!mr->hwmr.num_pbes)
 		return;
@@ -739,39 +738,37 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 
 	shift = ilog2(umem->page_size);
 
-	list_for_each_entry(chunk, &umem->chunk_list, list) {
-		/* get all the dma regions from the chunk. */
-		for (i = 0; i < chunk->nmap; i++) {
-			pages = sg_dma_len(&chunk->page_list[i]) >> shift;
-			for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
-				/* store the page address in pbe */
-				pbe->pa_lo =
-				    cpu_to_le32(sg_dma_address
-						(&chunk->page_list[i]) +
-						(umem->page_size * pg_cnt));
-				pbe->pa_hi =
-				    cpu_to_le32(upper_32_bits
-						((sg_dma_address
-						  (&chunk->page_list[i]) +
-						  umem->page_size * pg_cnt)));
-				pbe_cnt += 1;
-				total_num_pbes += 1;
-				pbe++;
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
+		pages = sg_dma_len(sg) >> shift;
+		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
+			/* store the page address in pbe */
+			pbe->pa_lo =
+			    cpu_to_le32(sg_dma_address
+					(sg) +
+					(umem->page_size * pg_cnt));
+			pbe->pa_hi =
+			    cpu_to_le32(upper_32_bits
+					((sg_dma_address
+					  (sg) +
+					  umem->page_size * pg_cnt)));
+			pbe_cnt += 1;
+			total_num_pbes += 1;
+			pbe++;
 
-				/* if done building pbes, issue the mbx cmd. */
-				if (total_num_pbes == num_pbes)
-					return;
+			/* if done building pbes, issue the mbx cmd. */
+			if (total_num_pbes == num_pbes)
+				return;
 
-				/* if the given pbl is full storing the pbes,
-				 * move to next pbl.
-				 */
-				if (pbe_cnt ==
-					(mr->hwmr.pbl_size / sizeof(u64))) {
-					pbl_tbl++;
-					pbe = (struct ocrdma_pbe *)pbl_tbl->va;
-					pbe_cnt = 0;
-				}
+			/* if the given pbl is full storing the pbes,
+			 * move to next pbl.
+			 */
+			if (pbe_cnt ==
+				(mr->hwmr.pbl_size / sizeof(u64))) {
+				pbl_tbl++;
+				pbe = (struct ocrdma_pbe *)pbl_tbl->va;
+				pbe_cnt = 0;
 			}
+
 		}
 	}
 }
@@ -840,8 +837,7 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 
 	status = ocrdma_mbx_dealloc_lkey(dev, mr->hwmr.fr_mr, mr->hwmr.lkey);
 
-	if (mr->hwmr.fr_mr == 0)
-		ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
+	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
 
 	/* it could be user registered memory. */
 	if (mr->umem)
@@ -910,6 +906,7 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev, int entries, int vector,
 	spin_lock_init(&cq->comp_handler_lock);
 	INIT_LIST_HEAD(&cq->sq_head);
 	INIT_LIST_HEAD(&cq->rq_head);
+	cq->first_arm = true;
 
 	if (ib_ctx) {
 		uctx = get_ocrdma_ucontext(ib_ctx);
@@ -927,9 +924,7 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev, int entries, int vector,
 			goto ctx_err;
 	}
 	cq->phase = OCRDMA_CQE_VALID;
-	cq->arm_needed = true;
 	dev->cq_tbl[cq->id] = cq;
-
 	return &cq->ibcq;
 
 ctx_err:
@@ -952,15 +947,52 @@ int ocrdma_resize_cq(struct ib_cq *ibcq, int new_cnt,
 	return status;
 }
 
+static void ocrdma_flush_cq(struct ocrdma_cq *cq)
+{
+	int cqe_cnt;
+	int valid_count = 0;
+	unsigned long flags;
+
+	struct ocrdma_dev *dev = get_ocrdma_dev(cq->ibcq.device);
+	struct ocrdma_cqe *cqe = NULL;
+
+	cqe = cq->va;
+	cqe_cnt = cq->cqe_cnt;
+
+	/* Last irq might have scheduled a polling thread
+	 * sync-up with it before hard flushing.
+	 */
+	spin_lock_irqsave(&cq->cq_lock, flags);
+	while (cqe_cnt) {
+		if (is_cqe_valid(cq, cqe))
+			valid_count++;
+		cqe++;
+		cqe_cnt--;
+	}
+	ocrdma_ring_cq_db(dev, cq->id, false, false, valid_count);
+	spin_unlock_irqrestore(&cq->cq_lock, flags);
+}
+
 int ocrdma_destroy_cq(struct ib_cq *ibcq)
 {
 	int status;
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
+	struct ocrdma_eq *eq = NULL;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibcq->device);
 	int pdid = 0;
+	u32 irq, indx;
+
+	dev->cq_tbl[cq->id] = NULL;
+	indx = ocrdma_get_eq_table_index(dev, cq->eqn);
+	if (indx == -EINVAL)
+		BUG();
+
+	eq = &dev->eq_tbl[indx];
+	irq = ocrdma_get_irq(dev, eq);
+	synchronize_irq(irq);
+	ocrdma_flush_cq(cq);
 
 	status = ocrdma_mbx_destroy_cq(dev, cq);
-
 	if (cq->ucontext) {
 		pdid = cq->ucontext->cntxt_pd->id;
 		ocrdma_del_mmap(cq->ucontext, (u64) cq->pa,
@@ -969,7 +1001,6 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq)
 				ocrdma_get_db_addr(dev, pdid),
 				dev->nic_info.db_page_size);
 	}
-	dev->cq_tbl[cq->id] = NULL;
 
 	kfree(cq);
 	return status;
@@ -1092,15 +1123,9 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 	}
 	uresp.db_page_addr = usr_db;
 	uresp.db_page_size = dev->nic_info.db_page_size;
-	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
-		uresp.db_sq_offset = OCRDMA_DB_GEN2_SQ_OFFSET;
-		uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ_OFFSET;
-		uresp.db_shift = 24;
-	} else {
-		uresp.db_sq_offset = OCRDMA_DB_SQ_OFFSET;
-		uresp.db_rq_offset = OCRDMA_DB_RQ_OFFSET;
-		uresp.db_shift = 16;
-	}
+	uresp.db_sq_offset = OCRDMA_DB_GEN2_SQ_OFFSET;
+	uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ_OFFSET;
+	uresp.db_shift = OCRDMA_DB_RQ_SHIFT;
 
 	if (qp->dpp_enabled) {
 		uresp.dpp_credit = dpp_credit_lmt;
@@ -1132,7 +1157,7 @@ err:
 static void ocrdma_set_qp_db(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
 			     struct ocrdma_pd *pd)
 {
-	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
+	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
 		qp->sq_db = dev->nic_info.db +
 			(pd->id * dev->nic_info.db_page_size) +
 			OCRDMA_DB_GEN2_SQ_OFFSET;
@@ -1181,7 +1206,6 @@ static void ocrdma_set_qp_init_params(struct ocrdma_qp *qp,
 	qp->state = OCRDMA_QPS_RST;
 	qp->signaled = (attrs->sq_sig_type == IB_SIGNAL_ALL_WR) ? true : false;
 }
-
 
 static void ocrdma_store_gsi_qp_cq(struct ocrdma_dev *dev,
 				   struct ib_qp_init_attr *attrs)
@@ -1268,17 +1292,6 @@ gen_err:
 	return ERR_PTR(status);
 }
 
-
-static void ocrdma_flush_rq_db(struct ocrdma_qp *qp)
-{
-	if (qp->db_cache) {
-		u32 val = qp->rq.dbid | (qp->db_cache <<
-				ocrdma_get_num_posted_shift(qp));
-		iowrite32(val, qp->rq_db);
-		qp->db_cache = 0;
-	}
-}
-
 int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		      int attr_mask)
 {
@@ -1296,9 +1309,7 @@ int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	 */
 	if (status < 0)
 		return status;
-	status = ocrdma_mbx_modify_qp(dev, qp, attr, attr_mask, old_qps);
-	if (!status && attr_mask & IB_QP_STATE && attr->qp_state == IB_QPS_RTR)
-		ocrdma_flush_rq_db(qp);
+	status = ocrdma_mbx_modify_qp(dev, qp, attr, attr_mask);
 
 	return status;
 }
@@ -1326,7 +1337,8 @@ int ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		new_qps = old_qps;
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
-	if (!ib_modify_qp_is_ok(old_qps, new_qps, ibqp->qp_type, attr_mask)) {
+	if (!ib_modify_qp_is_ok(old_qps, new_qps, ibqp->qp_type, attr_mask,
+				IB_LINK_LAYER_ETHERNET)) {
 		pr_err("%s(%d) invalid attribute mask=0x%x specified for\n"
 		       "qpn=0x%x of type=0x%x old_qps=0x%x, new_qps=0x%x\n",
 		       __func__, dev->id, attr_mask, qp->id, ibqp->qp_type,
@@ -1415,7 +1427,7 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 					  OCRDMA_QP_PARAMS_HOP_LMT_MASK) >>
 						OCRDMA_QP_PARAMS_HOP_LMT_SHIFT;
 	qp_attr->ah_attr.grh.traffic_class = (params.tclass_sq_psn &
-					      OCRDMA_QP_PARAMS_SQ_PSN_MASK) >>
+					      OCRDMA_QP_PARAMS_TCLASS_MASK) >>
 						OCRDMA_QP_PARAMS_TCLASS_SHIFT;
 
 	qp_attr->ah_attr.ah_flags = IB_AH_GRH;
@@ -1509,7 +1521,7 @@ static void ocrdma_discard_cqes(struct ocrdma_qp *qp, struct ocrdma_cq *cq)
 	int discard_cnt = 0;
 	u32 cur_getp, stop_getp;
 	struct ocrdma_cqe *cqe;
-	u32 qpn = 0;
+	u32 qpn = 0, wqe_idx = 0;
 
 	spin_lock_irqsave(&cq->cq_lock, cq_flags);
 
@@ -1538,24 +1550,29 @@ static void ocrdma_discard_cqes(struct ocrdma_qp *qp, struct ocrdma_cq *cq)
 		if (qpn == 0 || qpn != qp->id)
 			goto skip_cqe;
 
-		/* mark cqe discarded so that it is not picked up later
-		 * in the poll_cq().
-		 */
-		discard_cnt += 1;
-		cqe->cmn.qpn = 0;
 		if (is_cqe_for_sq(cqe)) {
 			ocrdma_hwq_inc_tail(&qp->sq);
 		} else {
 			if (qp->srq) {
+				wqe_idx = (le32_to_cpu(cqe->rq.buftag_qpn) >>
+					OCRDMA_CQE_BUFTAG_SHIFT) &
+					qp->srq->rq.max_wqe_idx;
+				if (wqe_idx < 1)
+					BUG();
 				spin_lock_irqsave(&qp->srq->q_lock, flags);
 				ocrdma_hwq_inc_tail(&qp->srq->rq);
-				ocrdma_srq_toggle_bit(qp->srq, cur_getp);
+				ocrdma_srq_toggle_bit(qp->srq, wqe_idx - 1);
 				spin_unlock_irqrestore(&qp->srq->q_lock, flags);
 
 			} else {
 				ocrdma_hwq_inc_tail(&qp->rq);
 			}
 		}
+		/* mark cqe discarded so that it is not picked up later
+		 * in the poll_cq().
+		 */
+		discard_cnt += 1;
+		cqe->cmn.qpn = 0;
 skip_cqe:
 		cur_getp = (cur_getp + 1) % cq->max_hw_cqe;
 	} while (cur_getp != stop_getp);
@@ -1658,7 +1675,7 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 	    (srq->pd->id * dev->nic_info.db_page_size);
 	uresp.db_page_size = dev->nic_info.db_page_size;
 	uresp.num_rqe_allocated = srq->rq.max_cnt;
-	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
+	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
 		uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ_OFFSET;
 		uresp.db_shift = 24;
 	} else {
@@ -1981,9 +1998,7 @@ static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 
 	wqe_size = roundup(wqe_size, OCRDMA_WQE_ALIGN_BYTES);
 
-	if ((wr->wr.fast_reg.page_list_len >
-		qp->dev->attr.max_pages_per_frmr) ||
-		(wr->wr.fast_reg.length > 0xffffffffULL))
+	if (wr->wr.fast_reg.page_list_len > qp->dev->attr.max_pages_per_frmr)
 		return -EINVAL;
 
 	hdr->cw |= (OCRDMA_FR_MR << OCRDMA_WQE_OPCODE_SHIFT);
@@ -2010,15 +2025,15 @@ static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 	fast_reg->num_sges = wr->wr.fast_reg.page_list_len;
 	fast_reg->size_sge =
 		get_encoded_page_size(1 << wr->wr.fast_reg.page_shift);
-	mr = (struct ocrdma_mr *) (unsigned long) qp->dev->stag_arr[(hdr->lkey >> 8) &
-		(OCRDMA_MAX_STAG - 1)];
+	mr = (struct ocrdma_mr *) (unsigned long)
+		qp->dev->stag_arr[(hdr->lkey >> 8) & (OCRDMA_MAX_STAG - 1)];
 	build_frmr_pbes(wr, mr->hwmr.pbl_table, &mr->hwmr);
 	return 0;
 }
 
 static void ocrdma_ring_sq_db(struct ocrdma_qp *qp)
 {
-	u32 val = qp->sq.dbid | (1 << 16);
+	u32 val = qp->sq.dbid | (1 << OCRDMA_DB_SQ_SHIFT);
 
 	iowrite32(val, qp->sq_db);
 }
@@ -2123,12 +2138,9 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 static void ocrdma_ring_rq_db(struct ocrdma_qp *qp)
 {
-	u32 val = qp->rq.dbid | (1 << ocrdma_get_num_posted_shift(qp));
+	u32 val = qp->rq.dbid | (1 << OCRDMA_DB_RQ_SHIFT);
 
-	if (qp->state != OCRDMA_QPS_INIT)
-		iowrite32(val, qp->rq_db);
-	else
-		qp->db_cache++;
+	iowrite32(val, qp->rq_db);
 }
 
 static void ocrdma_build_rqe(struct ocrdma_hdr_wqe *rqe, struct ib_recv_wr *wr,
@@ -2214,7 +2226,7 @@ static int ocrdma_srq_get_idx(struct ocrdma_srq *srq)
 
 	if (row == srq->bit_fields_len)
 		BUG();
-	return indx;
+	return indx + 1; /* Use from index 1 */
 }
 
 static void ocrdma_ring_srq_db(struct ocrdma_srq *srq)
@@ -2331,7 +2343,7 @@ static enum ib_wc_status ocrdma_to_ibwc_err(u16 status)
 	default:
 		ibwc_status = IB_WC_GENERAL_ERR;
 		break;
-	};
+	}
 	return ibwc_status;
 }
 
@@ -2370,7 +2382,7 @@ static void ocrdma_update_wc(struct ocrdma_qp *qp, struct ib_wc *ibwc,
 		pr_err("%s() invalid opcode received = 0x%x\n",
 		       __func__, hdr->cw & OCRDMA_WQE_OPCODE_MASK);
 		break;
-	};
+	}
 }
 
 static void ocrdma_set_cqe_status_flushed(struct ocrdma_qp *qp,
@@ -2551,10 +2563,13 @@ static void ocrdma_update_free_srq_cqe(struct ib_wc *ibwc,
 
 	srq = get_ocrdma_srq(qp->ibqp.srq);
 	wqe_idx = (le32_to_cpu(cqe->rq.buftag_qpn) >>
-			OCRDMA_CQE_BUFTAG_SHIFT) & srq->rq.max_wqe_idx;
+		OCRDMA_CQE_BUFTAG_SHIFT) & srq->rq.max_wqe_idx;
+	if (wqe_idx < 1)
+		BUG();
+
 	ibwc->wr_id = srq->rqe_wr_id_tbl[wqe_idx];
 	spin_lock_irqsave(&srq->q_lock, flags);
-	ocrdma_srq_toggle_bit(srq, wqe_idx);
+	ocrdma_srq_toggle_bit(srq, wqe_idx - 1);
 	spin_unlock_irqrestore(&srq->q_lock, flags);
 	ocrdma_hwq_inc_tail(&srq->rq);
 }
@@ -2706,10 +2721,18 @@ expand_cqe:
 	}
 stop_cqe:
 	cq->getp = cur_getp;
-	if (polled_hw_cqes || expand || stop) {
-		ocrdma_ring_cq_db(dev, cq->id, cq->armed, cq->solicited,
+	if (cq->deferred_arm) {
+		ocrdma_ring_cq_db(dev, cq->id, true, cq->deferred_sol,
 				  polled_hw_cqes);
+		cq->deferred_arm = false;
+		cq->deferred_sol = false;
+	} else {
+		/* We need to pop the CQE. No need to arm */
+		ocrdma_ring_cq_db(dev, cq->id, false, cq->deferred_sol,
+				  polled_hw_cqes);
+		cq->deferred_sol = false;
 	}
+
 	return i;
 }
 
@@ -2781,30 +2804,28 @@ int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibcq->device);
 	u16 cq_id;
-	u16 cur_getp;
-	struct ocrdma_cqe *cqe;
 	unsigned long flags;
+	bool arm_needed = false, sol_needed = false;
 
 	cq_id = cq->id;
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
 	if (cq_flags & IB_CQ_NEXT_COMP || cq_flags & IB_CQ_SOLICITED)
-		cq->armed = true;
+		arm_needed = true;
 	if (cq_flags & IB_CQ_SOLICITED)
-		cq->solicited = true;
+		sol_needed = true;
 
-	cur_getp = cq->getp;
-	cqe = cq->va + cur_getp;
-
-	/* check whether any valid cqe exist or not, if not then safe to
-	 * arm. If cqe is not yet consumed, then let it get consumed and then
-	 * we arm it to avoid false interrupts.
-	 */
-	if (!is_cqe_valid(cq, cqe) || cq->arm_needed) {
-		cq->arm_needed = false;
-		ocrdma_ring_cq_db(dev, cq_id, cq->armed, cq->solicited, 0);
+	if (cq->first_arm) {
+		ocrdma_ring_cq_db(dev, cq_id, arm_needed, sol_needed, 0);
+		cq->first_arm = false;
+		goto skip_defer;
 	}
+	cq->deferred_arm = true;
+
+skip_defer:
+	cq->deferred_sol = sol_needed;
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
+
 	return 0;
 }
 
@@ -2839,7 +2860,8 @@ struct ib_mr *ocrdma_alloc_frmr(struct ib_pd *ibpd, int max_page_list_len)
 		goto mbx_err;
 	mr->ibmr.rkey = mr->hwmr.lkey;
 	mr->ibmr.lkey = mr->hwmr.lkey;
-	dev->stag_arr[(mr->hwmr.lkey >> 8) & (OCRDMA_MAX_STAG - 1)] = (unsigned long) mr;
+	dev->stag_arr[(mr->hwmr.lkey >> 8) & (OCRDMA_MAX_STAG - 1)] =
+		(unsigned long) mr;
 	return &mr->ibmr;
 mbx_err:
 	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);

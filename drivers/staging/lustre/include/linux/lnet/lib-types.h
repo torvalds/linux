@@ -204,7 +204,7 @@ typedef struct lnet_msg {
 	unsigned int	  msg_receiving:1;    /* being received */
 	unsigned int	  msg_txcredit:1;     /* taken an NI send credit */
 	unsigned int	  msg_peertxcredit:1; /* taken a peer send credit */
-	unsigned int	  msg_rtrcredit:1;    /* taken a globel router credit */
+	unsigned int	  msg_rtrcredit:1;    /* taken a global router credit */
 	unsigned int	  msg_peerrtrcredit:1; /* taken a peer router credit */
 	unsigned int	  msg_onactivelist:1; /* on the activelist */
 
@@ -282,16 +282,14 @@ typedef struct lnet_libmd {
 #define LNET_MD_FLAG_AUTO_UNLINK      (1 << 1)
 
 #ifdef LNET_USE_LIB_FREELIST
-typedef struct
-{
+typedef struct {
 	void		  *fl_objs;	  /* single contiguous array of objects */
 	int		    fl_nobjs;	 /* the number of them */
 	int		    fl_objsize;       /* the size (including overhead) of each of them */
 	struct list_head	     fl_list;	  /* where they are enqueued */
 } lnet_freelist_t;
 
-typedef struct
-{
+typedef struct {
 	struct list_head	     fo_list;	     /* enqueue on fl_list */
 	void		  *fo_contents;	 /* aligned contents */
 } lnet_freeobj_t;
@@ -312,8 +310,7 @@ typedef struct {
 
 struct lnet_ni;				  /* forward ref */
 
-typedef struct lnet_lnd
-{
+typedef struct lnet_lnd {
 	/* fields managed by portals */
 	struct list_head	    lnd_list;	     /* stash in the LND table */
 	int		   lnd_refcount;	 /* # active instances */
@@ -321,8 +318,8 @@ typedef struct lnet_lnd
 	/* fields initialised by the LND */
 	unsigned int	  lnd_type;
 
-	int  (*lnd_startup) (struct lnet_ni *ni);
-	void (*lnd_shutdown) (struct lnet_ni *ni);
+	int  (*lnd_startup)(struct lnet_ni *ni);
+	void (*lnd_shutdown)(struct lnet_ni *ni);
 	int  (*lnd_ctl)(struct lnet_ni *ni, unsigned int cmd, void *arg);
 
 	/* In data movement APIs below, payload buffers are described as a set
@@ -345,7 +342,7 @@ typedef struct lnet_lnd
 
 	/* Start receiving 'mlen' bytes of payload data, skipping the following
 	 * 'rlen' - 'mlen' bytes. 'private' is the 'private' passed to
-	 * lnet_parse().  Return non-zero for immedaite failure, otherwise
+	 * lnet_parse().  Return non-zero for immediate failure, otherwise
 	 * complete later with lnet_finalize().  This also gives back a receive
 	 * credit if the LND does flow control. */
 	int (*lnd_recv)(struct lnet_ni *ni, void *private, lnet_msg_t *msg,
@@ -478,7 +475,6 @@ typedef struct lnet_peer {
 	lnet_rc_data_t		*lp_rcd;	/* router checker state */
 } lnet_peer_t;
 
-
 /* peer hash size */
 #define LNET_PEER_HASH_BITS     9
 #define LNET_PEER_HASH_SIZE     (1 << LNET_PEER_HASH_BITS)
@@ -504,6 +500,7 @@ typedef struct {
 	int			lr_seq;		/* sequence for round-robin */
 	unsigned int		lr_downis;	/* number of down NIs */
 	unsigned int		lr_hops;	/* how far I am */
+	unsigned int            lr_priority;    /* route priority */
 } lnet_route_t;
 
 #define LNET_REMOTE_NETS_HASH_DEFAULT	(1U << 7)
@@ -597,7 +594,7 @@ struct lnet_match_table {
 	unsigned int		mt_cpt;
 	unsigned int		mt_portal;      /* portal index */
 	/* match table is set as "enabled" if there's non-exhausted MD
-	 * attached on mt_mhash, it's only valide for wildcard portal */
+	 * attached on mt_mhash, it's only valid for wildcard portal */
 	unsigned int		mt_enabled;
 	/* bitmap to flag whether MEs on mt_hash are exhausted or not */
 	__u64			mt_exhausted[LNET_MT_EXHAUSTED_BMAP];
@@ -668,8 +665,7 @@ struct lnet_msg_container {
 #define LNET_RC_STATE_RUNNING		1	/* started up OK */
 #define LNET_RC_STATE_STOPPING		2	/* telling thread to stop */
 
-typedef struct
-{
+typedef struct {
 	/* CPU partition table of LNet */
 	struct cfs_cpt_table		*ln_cpt_table;
 	/* number of CPTs in ln_cpt_table */

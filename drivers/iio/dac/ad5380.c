@@ -204,7 +204,6 @@ static int ad5380_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long info)
 {
 	struct ad5380_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 	int ret;
 
 	switch (info) {
@@ -225,10 +224,9 @@ static int ad5380_read_raw(struct iio_dev *indio_dev,
 		val -= (1 << chan->scan_type.realbits) / 2;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = ((2 * st->vref) >> chan->scan_type.realbits) * 100;
-		*val =  scale_uv / 100000;
-		*val2 = (scale_uv % 100000) * 10;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = 2 * st->vref;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		break;
 	}
@@ -247,8 +245,10 @@ static struct iio_chan_spec_ext_info ad5380_ext_info[] = {
 		.name = "powerdown",
 		.read = ad5380_read_dac_powerdown,
 		.write = ad5380_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", true, &ad5380_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE,
+		 &ad5380_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5380_powerdown_mode_enum),
 	{ },
 };
@@ -261,7 +261,12 @@ static struct iio_chan_spec_ext_info ad5380_ext_info[] = {
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |			\
 		BIT(IIO_CHAN_INFO_CALIBBIAS),			\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
-	.scan_type = IIO_ST('u', (_bits), 16, 14 - (_bits)),	\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (_bits),				\
+		.storagebits =  16,				\
+		.shift = 14 - (_bits),				\
+	},							\
 	.ext_info = ad5380_ext_info,				\
 }
 
@@ -269,72 +274,72 @@ static const struct ad5380_chip_info ad5380_chip_info_tbl[] = {
 	[ID_AD5380_3] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 40,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5380_5] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 40,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5381_3] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 16,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5381_5] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 16,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5382_3] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 32,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5382_5] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 32,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5383_3] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 32,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5383_5] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 32,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5390_3] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 16,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5390_5] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 16,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5391_3] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 16,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5391_5] = {
 		.channel_template = AD5380_CHANNEL(12),
 		.num_channels = 16,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 	[ID_AD5392_3] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 8,
-		.int_vref = 1250000,
+		.int_vref = 1250,
 	},
 	[ID_AD5392_5] = {
 		.channel_template = AD5380_CHANNEL(14),
 		.num_channels = 8,
-		.int_vref = 2500000,
+		.int_vref = 2500,
 	},
 };
 
@@ -393,7 +398,7 @@ static int ad5380_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
-	if (st->chip_info->int_vref == 2500000)
+	if (st->chip_info->int_vref == 2500)
 		ctrl |= AD5380_CTRL_INT_VREF_2V5;
 
 	st->vref_reg = devm_regulator_get(dev, "vref");
@@ -409,7 +414,7 @@ static int ad5380_probe(struct device *dev, struct regmap *regmap,
 		if (ret < 0)
 			goto error_disable_reg;
 
-		st->vref = ret;
+		st->vref = ret / 1000;
 	} else {
 		st->vref = st->chip_info->int_vref;
 		ctrl |= AD5380_CTRL_INT_VREF_EN;

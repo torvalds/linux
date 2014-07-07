@@ -251,9 +251,8 @@ EXPORT_SYMBOL_GPL(dma_buf_put);
  * @dmabuf:	[in]	buffer to attach device to.
  * @dev:	[in]	device to be attached.
  *
- * Returns struct dma_buf_attachment * for this attachment; may return negative
- * error codes.
- *
+ * Returns struct dma_buf_attachment * for this attachment; returns ERR_PTR on
+ * error.
  */
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 					  struct device *dev)
@@ -319,9 +318,8 @@ EXPORT_SYMBOL_GPL(dma_buf_detach);
  * @attach:	[in]	attachment whose scatterlist is to be returned
  * @direction:	[in]	direction of DMA transfer
  *
- * Returns sg_table containing the scatterlist to be returned; may return NULL
- * or ERR_PTR.
- *
+ * Returns sg_table containing the scatterlist to be returned; returns ERR_PTR
+ * on error.
  */
 struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 					enum dma_data_direction direction)
@@ -334,6 +332,8 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 		return ERR_PTR(-EINVAL);
 
 	sg_table = attach->dmabuf->ops->map_dma_buf(attach, direction);
+	if (!sg_table)
+		sg_table = ERR_PTR(-ENOMEM);
 
 	return sg_table;
 }
@@ -491,7 +491,7 @@ EXPORT_SYMBOL_GPL(dma_buf_kunmap);
  * 			dma-buf buffer.
  *
  * This function adjusts the passed in vma so that it points at the file of the
- * dma_buf operation. It alsog adjusts the starting pgoff and does bounds
+ * dma_buf operation. It also adjusts the starting pgoff and does bounds
  * checking on the size of the vma. Then it calls the exporters mmap function to
  * set up the mapping.
  *
@@ -544,6 +544,8 @@ EXPORT_SYMBOL_GPL(dma_buf_mmap);
  * These calls are optional in drivers. The intended use for them
  * is for mapping objects linear in kernel space for high use objects.
  * Please attempt to use kmap/kunmap before thinking about these interfaces.
+ *
+ * Returns NULL on error.
  */
 void *dma_buf_vmap(struct dma_buf *dmabuf)
 {
@@ -566,7 +568,9 @@ void *dma_buf_vmap(struct dma_buf *dmabuf)
 	BUG_ON(dmabuf->vmap_ptr);
 
 	ptr = dmabuf->ops->vmap(dmabuf);
-	if (IS_ERR_OR_NULL(ptr))
+	if (WARN_ON_ONCE(IS_ERR(ptr)))
+		ptr = NULL;
+	if (!ptr)
 		goto out_unlock;
 
 	dmabuf->vmap_ptr = ptr;
@@ -616,36 +620,35 @@ static int dma_buf_describe(struct seq_file *s)
 	if (ret)
 		return ret;
 
-	seq_printf(s, "\nDma-buf Objects:\n");
-	seq_printf(s, "\texp_name\tsize\tflags\tmode\tcount\n");
+	seq_puts(s, "\nDma-buf Objects:\n");
+	seq_puts(s, "size\tflags\tmode\tcount\texp_name\n");
 
 	list_for_each_entry(buf_obj, &db_list.head, list_node) {
 		ret = mutex_lock_interruptible(&buf_obj->lock);
 
 		if (ret) {
-			seq_printf(s,
-				  "\tERROR locking buffer object: skipping\n");
+			seq_puts(s,
+				 "\tERROR locking buffer object: skipping\n");
 			continue;
 		}
 
-		seq_printf(s, "\t");
-
-		seq_printf(s, "\t%s\t%08zu\t%08x\t%08x\t%08ld\n",
-				buf_obj->exp_name, buf_obj->size,
+		seq_printf(s, "%08zu\t%08x\t%08x\t%08ld\t%s\n",
+				buf_obj->size,
 				buf_obj->file->f_flags, buf_obj->file->f_mode,
-				(long)(buf_obj->file->f_count.counter));
+				(long)(buf_obj->file->f_count.counter),
+				buf_obj->exp_name);
 
-		seq_printf(s, "\t\tAttached Devices:\n");
+		seq_puts(s, "\tAttached Devices:\n");
 		attach_count = 0;
 
 		list_for_each_entry(attach_obj, &buf_obj->attachments, node) {
-			seq_printf(s, "\t\t");
+			seq_puts(s, "\t");
 
-			seq_printf(s, "%s\n", attach_obj->dev->init_name);
+			seq_printf(s, "%s\n", dev_name(attach_obj->dev));
 			attach_count++;
 		}
 
-		seq_printf(s, "\n\t\tTotal %d devices attached\n",
+		seq_printf(s, "Total %d devices attached\n\n",
 				attach_count);
 
 		count++;

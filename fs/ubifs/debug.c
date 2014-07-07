@@ -745,8 +745,10 @@ void ubifs_dump_lprops(struct ubifs_info *c)
 
 	for (lnum = c->main_first; lnum < c->leb_cnt; lnum++) {
 		err = ubifs_read_one_lp(c, lnum, &lp);
-		if (err)
+		if (err) {
 			ubifs_err("cannot read lprops for LEB %d", lnum);
+			continue;
+		}
 
 		ubifs_dump_lprop(c, &lp);
 	}
@@ -2118,26 +2120,10 @@ out_free:
  */
 static void free_inodes(struct fsck_data *fsckd)
 {
-	struct rb_node *this = fsckd->inodes.rb_node;
-	struct fsck_inode *fscki;
+	struct fsck_inode *fscki, *n;
 
-	while (this) {
-		if (this->rb_left)
-			this = this->rb_left;
-		else if (this->rb_right)
-			this = this->rb_right;
-		else {
-			fscki = rb_entry(this, struct fsck_inode, rb);
-			this = rb_parent(this);
-			if (this) {
-				if (this->rb_left == &fscki->rb)
-					this->rb_left = NULL;
-				else
-					this->rb_right = NULL;
-			}
-			kfree(fscki);
-		}
-	}
+	rbtree_postorder_for_each_entry_safe(fscki, n, &fsckd->inodes, rb)
+		kfree(fscki);
 }
 
 /**
@@ -2563,9 +2549,9 @@ static int corrupt_data(const struct ubifs_info *c, const void *buf,
 	unsigned int from, to, ffs = chance(1, 2);
 	unsigned char *p = (void *)buf;
 
-	from = prandom_u32() % (len + 1);
-	/* Corruption may only span one max. write unit */
-	to = min(len, ALIGN(from, c->max_write_size));
+	from = prandom_u32() % len;
+	/* Corruption span max to end of write unit */
+	to = min(len, ALIGN(from + 1, c->max_write_size));
 
 	ubifs_warn("filled bytes %u-%u with %s", from, to - 1,
 		   ffs ? "0xFFs" : "random data");

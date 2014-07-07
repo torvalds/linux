@@ -36,7 +36,7 @@
 #include <linux/bitops.h>
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/unaligned.h>
 
 #include <linux/netdevice.h>
@@ -45,11 +45,11 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <linux/ieee80211.h>
+#include <net/cfg80211.h>
 #include <net/iw_handler.h>
 
 #include "airo.h"
@@ -5570,7 +5570,6 @@ static void airo_pci_remove(struct pci_dev *pdev)
 	airo_print_info(dev->name, "Unregistering...");
 	stop_airo_card(dev, 1);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -5798,7 +5797,7 @@ static int airo_set_freq(struct net_device *dev,
 
 		/* Hack to fall through... */
 		fwrq->e = 0;
-		fwrq->m = ieee80211_freq_to_dsss_chan(f);
+		fwrq->m = ieee80211_frequency_to_channel(f);
 	}
 	/* Setting by channel number */
 	if((fwrq->m > 1000) || (fwrq->e > 0))
@@ -5842,7 +5841,8 @@ static int airo_get_freq(struct net_device *dev,
 
 	ch = le16_to_cpu(status_rid.channel);
 	if((ch > 0) && (ch < 15)) {
-		fwrq->m = ieee80211_dsss_chan_to_freq(ch) * 100000;
+		fwrq->m = 100000 *
+			ieee80211_channel_to_frequency(ch, IEEE80211_BAND_2GHZ);
 		fwrq->e = 1;
 	} else {
 		fwrq->m = ch;
@@ -6899,7 +6899,8 @@ static int airo_get_range(struct net_device *dev,
 	k = 0;
 	for(i = 0; i < 14; i++) {
 		range->freq[k].i = i + 1; /* List index */
-		range->freq[k].m = ieee80211_dsss_chan_to_freq(i + 1) * 100000;
+		range->freq[k].m = 100000 *
+		     ieee80211_channel_to_frequency(i + 1, IEEE80211_BAND_2GHZ);
 		range->freq[k++].e = 1;	/* Values in MHz -> * 10^5 * 10 */
 	}
 	range->num_frequency = k;
@@ -7298,7 +7299,8 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	/* Add frequency */
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = le16_to_cpu(bss->dsChannel);
-	iwe.u.freq.m = ieee80211_dsss_chan_to_freq(iwe.u.freq.m) * 100000;
+	iwe.u.freq.m = 100000 *
+	      ieee80211_channel_to_frequency(iwe.u.freq.m, IEEE80211_BAND_2GHZ);
 	iwe.u.freq.e = 1;
 	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
 					  &iwe, IW_EV_FREQ_LEN);

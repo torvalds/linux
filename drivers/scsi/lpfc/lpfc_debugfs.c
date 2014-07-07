@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2007-2012 Emulex.  All rights reserved.           *
+ * Copyright (C) 2007-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -2280,6 +2280,104 @@ proc_cq:
 		}
 	}
 
+	if (phba->cfg_fof) {
+		/* FOF EQ */
+		qp = phba->sli4_hba.fof_eq;
+		if (!qp)
+			goto out;
+
+		len += snprintf(pbuffer+len,
+			LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\nFOF EQ info: "
+			"EQ-STAT[max:x%x noE:x%x "
+			"bs:x%x proc:x%llx]\n",
+			qp->q_cnt_1, qp->q_cnt_2,
+			qp->q_cnt_3, (unsigned long long)qp->q_cnt_4);
+
+		len += snprintf(pbuffer+len,
+			LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"EQID[%02d], "
+			"QE-CNT[%04d], QE-SIZE[%04d], "
+			"HOST-IDX[%04d], PORT-IDX[%04d]",
+			qp->queue_id,
+			qp->entry_count,
+			qp->entry_size,
+			qp->host_index,
+			qp->hba_index);
+
+		/* Reset max counter */
+		qp->EQ_max_eqe = 0;
+
+		len +=  snprintf(pbuffer+len,
+			LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+		if (len >= max_cnt)
+			goto too_big;
+	}
+
+	if (phba->cfg_fof) {
+
+		/* OAS CQ */
+		qp = phba->sli4_hba.oas_cq;
+		if (qp) {
+			len += snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\tOAS CQ info: ");
+			len += snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"AssocEQID[%02d]: "
+				"CQ STAT[max:x%x relw:x%x "
+				"xabt:x%x wq:x%llx]\n",
+				qp->assoc_qid,
+				qp->q_cnt_1, qp->q_cnt_2,
+				qp->q_cnt_3, (unsigned long long)qp->q_cnt_4);
+			len += snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\tCQID[%02d], "
+				"QE-CNT[%04d], QE-SIZE[%04d], "
+				"HOST-IDX[%04d], PORT-IDX[%04d]",
+				qp->queue_id, qp->entry_count,
+				qp->entry_size, qp->host_index,
+				qp->hba_index);
+
+			/* Reset max counter */
+			qp->CQ_max_cqe = 0;
+
+			len +=  snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+			if (len >= max_cnt)
+				goto too_big;
+		}
+
+		/* OAS WQ */
+		qp = phba->sli4_hba.oas_wq;
+		if (qp) {
+			len += snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\t\tOAS WQ info: ");
+			len += snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"AssocCQID[%02d]: "
+				"WQ-STAT[oflow:x%x posted:x%llx]\n",
+				qp->assoc_qid,
+				qp->q_cnt_1, (unsigned long long)qp->q_cnt_4);
+			len += snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\t\tWQID[%02d], "
+				"QE-CNT[%04d], QE-SIZE[%04d], "
+				"HOST-IDX[%04d], PORT-IDX[%04d]",
+				qp->queue_id,
+				qp->entry_count,
+				qp->entry_size,
+				qp->host_index,
+				qp->hba_index);
+
+			len +=  snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+			if (len >= max_cnt)
+				goto too_big;
+		}
+	}
+out:
 	spin_unlock_irq(&phba->hbalock);
 	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
 
@@ -3927,6 +4025,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 	struct lpfc_hba   *phba = vport->phba;
 	char name[64];
 	uint32_t num, i;
+	bool pport_setup = false;
 
 	if (!lpfc_debugfs_enable)
 		return;
@@ -3947,6 +4046,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 	/* Setup funcX directory for specific HBA PCI function */
 	snprintf(name, sizeof(name), "fn%d", phba->brd_no);
 	if (!phba->hba_debugfs_root) {
+		pport_setup = true;
 		phba->hba_debugfs_root =
 			debugfs_create_dir(name, lpfc_debugfs_root);
 		if (!phba->hba_debugfs_root) {
@@ -4001,7 +4101,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				goto debug_failed;
 			}
 		} else
-			phba->debug_dumpHBASlim = NULL;
+			phba->debug_dumpHostSlim = NULL;
 
 		/* Setup dumpData */
 		snprintf(name, sizeof(name), "dumpData");
@@ -4237,6 +4337,14 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				 "2985 Can't create debugfs nodelist\n");
 		goto debug_failed;
 	}
+
+	/*
+	 * The following section is for additional directories/files for the
+	 * physical port.
+	 */
+
+	if (!pport_setup)
+		goto debug_failed;
 
 	/*
 	 * iDiag debugfs root entry points for SLI4 device only

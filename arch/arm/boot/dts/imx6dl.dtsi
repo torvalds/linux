@@ -8,6 +8,7 @@
  *
  */
 
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "imx6dl-pinfunc.h"
 #include "imx6qdl.dtsi"
 
@@ -21,6 +22,26 @@
 			device_type = "cpu";
 			reg = <0>;
 			next-level-cache = <&L2>;
+			operating-points = <
+				/* kHz    uV */
+				996000  1275000
+				792000  1175000
+				396000  1075000
+			>;
+			fsl,soc-operating-points = <
+				/* ARM kHz  SOC-PU uV */
+				996000	1175000
+				792000	1175000
+				396000	1175000
+			>;
+			clock-latency = <61036>; /* two CLK32 periods */
+			clocks = <&clks 104>, <&clks 6>, <&clks 16>,
+				 <&clks 17>, <&clks 170>;
+			clock-names = "arm", "pll2_pfd2_396m", "step",
+				      "pll1_sw", "pll1_sys";
+			arm-supply = <&reg_arm>;
+			pu-supply = <&reg_pu>;
+			soc-supply = <&reg_soc>;
 		};
 
 		cpu@1 {
@@ -45,17 +66,17 @@
 
 			pxp: pxp@020f0000 {
 				reg = <0x020f0000 0x4000>;
-				interrupts = <0 98 0x04>;
+				interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			epdc: epdc@020f4000 {
 				reg = <0x020f4000 0x4000>;
-				interrupts = <0 97 0x04>;
+				interrupts = <0 97 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			lcdif: lcdif@020f8000 {
 				reg = <0x020f8000 0x4000>;
-				interrupts = <0 39 0x04>;
+				interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
@@ -63,13 +84,23 @@
 			i2c4: i2c@021f8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx1-i2c";
+				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
 				reg = <0x021f8000 0x4000>;
-				interrupts = <0 35 0x04>;
+				interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks 116>;
 				status = "disabled";
 			};
 		};
 	};
+
+	display-subsystem {
+		compatible = "fsl,imx-display-subsystem";
+		ports = <&ipu1_di0>, <&ipu1_di1>;
+	};
+};
+
+&hdmi {
+	compatible = "fsl,imx6dl-hdmi";
 };
 
 &ldb {
@@ -79,12 +110,4 @@
 	clock-names = "di0_pll", "di1_pll",
 		      "di0_sel", "di1_sel",
 		      "di0", "di1";
-
-	lvds-channel@0 {
-		crtcs = <&ipu1 0>, <&ipu1 1>;
-	};
-
-	lvds-channel@1 {
-		crtcs = <&ipu1 0>, <&ipu1 1>;
-	};
 };

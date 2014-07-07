@@ -17,7 +17,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
 
@@ -313,19 +312,6 @@ static int cpmac_mdio_reset(struct mii_bus *bus)
 static int mii_irqs[PHY_MAX_ADDR] = { PHY_POLL, };
 
 static struct mii_bus *cpmac_mii;
-
-static int cpmac_config(struct net_device *dev, struct ifmap *map)
-{
-	if (dev->flags & IFF_UP)
-		return -EBUSY;
-
-	/* Don't allow changing the I/O address */
-	if (map->base_addr != dev->base_addr)
-		return -EOPNOTSUPP;
-
-	/* ignore other fields */
-	return 0;
-}
 
 static void cpmac_set_multicast_list(struct net_device *dev)
 {
@@ -1101,7 +1087,6 @@ static const struct net_device_ops cpmac_netdev_ops = {
 	.ndo_tx_timeout		= cpmac_tx_timeout,
 	.ndo_set_rx_mode	= cpmac_set_multicast_list,
 	.ndo_do_ioctl		= cpmac_ioctl,
-	.ndo_set_config		= cpmac_config,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,

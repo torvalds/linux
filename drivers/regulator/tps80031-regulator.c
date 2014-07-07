@@ -115,7 +115,7 @@ static int tps80031_reg_is_enabled(struct regulator_dev *rdev)
 			ri->rinfo->state_reg, ret);
 		return ret;
 	}
-	return ((reg_val & TPS80031_STATE_MASK) == TPS80031_STATE_ON);
+	return (reg_val & TPS80031_STATE_MASK) == TPS80031_STATE_ON;
 }
 
 static int tps80031_reg_enable(struct regulator_dev *rdev)
@@ -693,10 +693,8 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(&pdev->dev,
 			TPS80031_REGULATOR_MAX * sizeof(*pmic), GFP_KERNEL);
-	if (!pmic) {
-		dev_err(&pdev->dev, "mem alloc for pmic failed\n");
+	if (!pmic)
 		return -ENOMEM;
-	}
 
 	for (num = 0; num < TPS80031_REGULATOR_MAX; ++num) {
 		tps_pdata = pdata->regulator_pdata[num];
@@ -719,7 +717,7 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 			if (ret < 0) {
 				dev_err(&pdev->dev,
 					"regulator config failed, e %d\n", ret);
-				goto fail;
+				return ret;
 			}
 
 			ret = tps80031_power_req_config(pdev->dev.parent,
@@ -727,40 +725,21 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 			if (ret < 0) {
 				dev_err(&pdev->dev,
 					"pwr_req config failed, err %d\n", ret);
-				goto fail;
+				return ret;
 			}
 		}
-		rdev = regulator_register(&ri->rinfo->desc, &config);
+		rdev = devm_regulator_register(&pdev->dev, &ri->rinfo->desc,
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev,
 				"register regulator failed %s\n",
 					ri->rinfo->desc.name);
-			ret = PTR_ERR(rdev);
-			goto fail;
+			return PTR_ERR(rdev);
 		}
 		ri->rdev = rdev;
 	}
 
 	platform_set_drvdata(pdev, pmic);
-	return 0;
-fail:
-	while (--num >= 0) {
-		ri = &pmic[num];
-		regulator_unregister(ri->rdev);
-	}
-	return ret;
-}
-
-static int tps80031_regulator_remove(struct platform_device *pdev)
-{
-	struct tps80031_regulator *pmic = platform_get_drvdata(pdev);
-	struct tps80031_regulator *ri = NULL;
-	int num;
-
-	for (num = 0; num < TPS80031_REGULATOR_MAX; ++num) {
-		ri = &pmic[num];
-		regulator_unregister(ri->rdev);
-	}
 	return 0;
 }
 
@@ -770,7 +749,6 @@ static struct platform_driver tps80031_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tps80031_regulator_probe,
-	.remove		= tps80031_regulator_remove,
 };
 
 static int __init tps80031_regulator_init(void)

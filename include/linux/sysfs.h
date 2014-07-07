@@ -12,6 +12,7 @@
 #ifndef _SYSFS_H_
 #define _SYSFS_H_
 
+#include <linux/kernfs.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/list.h>
@@ -70,7 +71,8 @@ struct attribute_group {
  */
 
 #define __ATTR(_name, _mode, _show, _store) {				\
-	.attr = {.name = __stringify(_name), .mode = _mode },		\
+	.attr = {.name = __stringify(_name),				\
+		 .mode = VERIFY_OCTAL_PERMISSIONS(_mode) },		\
 	.show	= _show,						\
 	.store	= _store,						\
 }
@@ -173,29 +175,28 @@ struct bin_attribute bin_attr_##_name = __BIN_ATTR_RW(_name, _size)
 struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *, char *);
 	ssize_t	(*store)(struct kobject *, struct attribute *, const char *, size_t);
-	const void *(*namespace)(struct kobject *, const struct attribute *);
 };
-
-struct sysfs_dirent;
 
 #ifdef CONFIG_SYSFS
 
-int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
-			    void *data, struct module *owner);
-
-int __must_check sysfs_create_dir(struct kobject *kobj);
+int __must_check sysfs_create_dir_ns(struct kobject *kobj, const void *ns);
 void sysfs_remove_dir(struct kobject *kobj);
-int __must_check sysfs_rename_dir(struct kobject *kobj, const char *new_name);
-int __must_check sysfs_move_dir(struct kobject *kobj,
-				struct kobject *new_parent_kobj);
+int __must_check sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
+				     const void *new_ns);
+int __must_check sysfs_move_dir_ns(struct kobject *kobj,
+				   struct kobject *new_parent_kobj,
+				   const void *new_ns);
 
-int __must_check sysfs_create_file(struct kobject *kobj,
-				   const struct attribute *attr);
+int __must_check sysfs_create_file_ns(struct kobject *kobj,
+				      const struct attribute *attr,
+				      const void *ns);
 int __must_check sysfs_create_files(struct kobject *kobj,
 				   const struct attribute **attr);
 int __must_check sysfs_chmod_file(struct kobject *kobj,
 				  const struct attribute *attr, umode_t mode);
-void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
+void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
+			  const void *ns);
+bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr);
 void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
 
 int __must_check sysfs_create_bin_file(struct kobject *kobj,
@@ -210,8 +211,9 @@ int __must_check sysfs_create_link_nowarn(struct kobject *kobj,
 					  const char *name);
 void sysfs_remove_link(struct kobject *kobj, const char *name);
 
-int sysfs_rename_link(struct kobject *kobj, struct kobject *target,
-			const char *old_name, const char *new_name);
+int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *target,
+			 const char *old_name, const char *new_name,
+			 const void *new_ns);
 
 void sysfs_delete_link(struct kobject *dir, struct kobject *targ,
 			const char *name);
@@ -240,24 +242,17 @@ void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 				  const char *link_name);
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
-void sysfs_notify_dirent(struct sysfs_dirent *sd);
-struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
-				      const void *ns,
-				      const unsigned char *name);
-struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd);
-void sysfs_put(struct sysfs_dirent *sd);
 
 int __must_check sysfs_init(void);
 
-#else /* CONFIG_SYSFS */
-
-static inline int sysfs_schedule_callback(struct kobject *kobj,
-		void (*func)(void *), void *data, struct module *owner)
+static inline void sysfs_enable_ns(struct kernfs_node *kn)
 {
-	return -ENOSYS;
+	return kernfs_enable_ns(kn);
 }
 
-static inline int sysfs_create_dir(struct kobject *kobj)
+#else /* CONFIG_SYSFS */
+
+static inline int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 {
 	return 0;
 }
@@ -266,19 +261,22 @@ static inline void sysfs_remove_dir(struct kobject *kobj)
 {
 }
 
-static inline int sysfs_rename_dir(struct kobject *kobj, const char *new_name)
+static inline int sysfs_rename_dir_ns(struct kobject *kobj,
+				      const char *new_name, const void *new_ns)
 {
 	return 0;
 }
 
-static inline int sysfs_move_dir(struct kobject *kobj,
-				 struct kobject *new_parent_kobj)
+static inline int sysfs_move_dir_ns(struct kobject *kobj,
+				    struct kobject *new_parent_kobj,
+				    const void *new_ns)
 {
 	return 0;
 }
 
-static inline int sysfs_create_file(struct kobject *kobj,
-				    const struct attribute *attr)
+static inline int sysfs_create_file_ns(struct kobject *kobj,
+				       const struct attribute *attr,
+				       const void *ns)
 {
 	return 0;
 }
@@ -295,9 +293,16 @@ static inline int sysfs_chmod_file(struct kobject *kobj,
 	return 0;
 }
 
-static inline void sysfs_remove_file(struct kobject *kobj,
-				     const struct attribute *attr)
+static inline void sysfs_remove_file_ns(struct kobject *kobj,
+					const struct attribute *attr,
+					const void *ns)
 {
+}
+
+static inline bool sysfs_remove_file_self(struct kobject *kobj,
+					  const struct attribute *attr)
+{
+	return false;
 }
 
 static inline void sysfs_remove_files(struct kobject *kobj,
@@ -333,8 +338,9 @@ static inline void sysfs_remove_link(struct kobject *kobj, const char *name)
 {
 }
 
-static inline int sysfs_rename_link(struct kobject *k, struct kobject *t,
-				    const char *old_name, const char *new_name)
+static inline int sysfs_rename_link_ns(struct kobject *k, struct kobject *t,
+				       const char *old_name,
+				       const char *new_name, const void *ns)
 {
 	return 0;
 }
@@ -410,29 +416,56 @@ static inline void sysfs_notify(struct kobject *kobj, const char *dir,
 				const char *attr)
 {
 }
-static inline void sysfs_notify_dirent(struct sysfs_dirent *sd)
-{
-}
-static inline
-struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
-				      const void *ns,
-				      const unsigned char *name)
-{
-	return NULL;
-}
-static inline struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd)
-{
-	return NULL;
-}
-static inline void sysfs_put(struct sysfs_dirent *sd)
-{
-}
 
 static inline int __must_check sysfs_init(void)
 {
 	return 0;
 }
 
+static inline void sysfs_enable_ns(struct kernfs_node *kn)
+{
+}
+
 #endif /* CONFIG_SYSFS */
+
+static inline int __must_check sysfs_create_file(struct kobject *kobj,
+						 const struct attribute *attr)
+{
+	return sysfs_create_file_ns(kobj, attr, NULL);
+}
+
+static inline void sysfs_remove_file(struct kobject *kobj,
+				     const struct attribute *attr)
+{
+	sysfs_remove_file_ns(kobj, attr, NULL);
+}
+
+static inline int sysfs_rename_link(struct kobject *kobj, struct kobject *target,
+				    const char *old_name, const char *new_name)
+{
+	return sysfs_rename_link_ns(kobj, target, old_name, new_name, NULL);
+}
+
+static inline void sysfs_notify_dirent(struct kernfs_node *kn)
+{
+	kernfs_notify(kn);
+}
+
+static inline struct kernfs_node *sysfs_get_dirent(struct kernfs_node *parent,
+						   const unsigned char *name)
+{
+	return kernfs_find_and_get(parent, name);
+}
+
+static inline struct kernfs_node *sysfs_get(struct kernfs_node *kn)
+{
+	kernfs_get(kn);
+	return kn;
+}
+
+static inline void sysfs_put(struct kernfs_node *kn)
+{
+	kernfs_put(kn);
+}
 
 #endif /* _SYSFS_H_ */

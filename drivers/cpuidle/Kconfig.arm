@@ -1,17 +1,39 @@
 #
 # ARM CPU Idle drivers
 #
+config ARM_ARMADA_370_XP_CPUIDLE
+	bool "CPU Idle Driver for Armada 370/XP family processors"
+	depends on ARCH_MVEBU
+	help
+	  Select this to enable cpuidle on Armada 370/XP processors.
+
+config ARM_BIG_LITTLE_CPUIDLE
+	bool "Support for ARM big.LITTLE processors"
+	depends on ARCH_VEXPRESS_TC2_PM
+	select ARM_CPU_SUSPEND
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	help
+	  Select this option to enable CPU idle driver for big.LITTLE based
+	  ARM systems. Driver manages CPUs coordination through MCPM and
+	  define different C-states for little and big cores through the
+	  multiple CPU idle drivers infrastructure.
+
+config ARM_CLPS711X_CPUIDLE
+	bool "CPU Idle Driver for CLPS711X processors"
+	depends on ARCH_CLPS711X || COMPILE_TEST
+	help
+	  Select this to enable cpuidle on Cirrus Logic CLPS711X SOCs.
 
 config ARM_HIGHBANK_CPUIDLE
 	bool "CPU Idle Driver for Calxeda processors"
-	depends on ARCH_HIGHBANK
+	depends on ARM_PSCI
 	select ARM_CPU_SUSPEND
 	help
 	  Select this to enable cpuidle on Calxeda processors.
 
 config ARM_KIRKWOOD_CPUIDLE
 	bool "CPU Idle Driver for Marvell Kirkwood SoCs"
-	depends on ARCH_KIRKWOOD
+	depends on ARCH_KIRKWOOD || MACH_KIRKWOOD
 	help
 	  This adds the CPU Idle driver for Marvell Kirkwood SoCs.
 
@@ -27,13 +49,15 @@ config ARM_U8500_CPUIDLE
 	help
 	  Select this to enable cpuidle for ST-E u8500 processors
 
-config CPU_IDLE_BIG_LITTLE
-	bool "Support for ARM big.LITTLE processors"
-	depends on ARCH_VEXPRESS_TC2_PM
-	select ARM_CPU_SUSPEND
-	select CPU_IDLE_MULTIPLE_DRIVERS
+config ARM_AT91_CPUIDLE
+	bool "Cpu Idle Driver for the AT91 processors"
+	default y
+	depends on ARCH_AT91
 	help
-	  Select this option to enable CPU idle driver for big.LITTLE based
-	  ARM systems. Driver manages CPUs coordination through MCPM and
-	  define different C-states for little and big cores through the
-	  multiple CPU idle drivers infrastructure.
+	  Select this to enable cpuidle for AT91 processors
+
+config ARM_EXYNOS_CPUIDLE
+	bool "Cpu Idle Driver for the Exynos processors"
+	depends on ARCH_EXYNOS
+	help
+	  Select this to enable cpuidle for Exynos processors

@@ -83,7 +83,10 @@ int uvd_v1_0_init(struct radeon_device *rdev)
 	int r;
 
 	/* raise clocks while booting up the VCPU */
-	radeon_set_uvd_clocks(rdev, 53300, 40000);
+	if (rdev->family < CHIP_RV740)
+		radeon_set_uvd_clocks(rdev, 10000, 10000);
+	else
+		radeon_set_uvd_clocks(rdev, 53300, 40000);
 
 	r = uvd_v1_0_start(rdev);
 	if (r)
@@ -212,8 +215,8 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 	/* enable VCPU clock */
 	WREG32(UVD_VCPU_CNTL,  1 << 9);
 
-	/* enable UMC and NC0 */
-	WREG32_P(UVD_LMI_CTRL2, 1 << 13, ~((1 << 8) | (1 << 13)));
+	/* enable UMC */
+	WREG32_P(UVD_LMI_CTRL2, 0, ~(1 << 8));
 
 	/* boot up the VCPU */
 	WREG32(UVD_SOFT_RESET, 0);
@@ -262,7 +265,7 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(UVD_RBC_RB_RPTR, 0x0);
 
-	ring->wptr = ring->rptr = RREG32(UVD_RBC_RB_RPTR);
+	ring->wptr = RREG32(UVD_RBC_RB_RPTR);
 	WREG32(UVD_RBC_RB_WPTR, ring->wptr);
 
 	/* set the ring address */
@@ -357,7 +360,7 @@ int uvd_v1_0_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
  *
  * Emit a semaphore command (either wait or signal) to the UVD ring.
  */
-void uvd_v1_0_semaphore_emit(struct radeon_device *rdev,
+bool uvd_v1_0_semaphore_emit(struct radeon_device *rdev,
 			     struct radeon_ring *ring,
 			     struct radeon_semaphore *semaphore,
 			     bool emit_wait)
@@ -372,6 +375,8 @@ void uvd_v1_0_semaphore_emit(struct radeon_device *rdev,
 
 	radeon_ring_write(ring, PACKET0(UVD_SEMA_CMD, 0));
 	radeon_ring_write(ring, emit_wait ? 1 : 0);
+
+	return true;
 }
 
 /**
@@ -405,7 +410,10 @@ int uvd_v1_0_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	struct radeon_fence *fence = NULL;
 	int r;
 
-	r = radeon_set_uvd_clocks(rdev, 53300, 40000);
+	if (rdev->family < CHIP_RV740)
+		r = radeon_set_uvd_clocks(rdev, 10000, 10000);
+	else
+		r = radeon_set_uvd_clocks(rdev, 53300, 40000);
 	if (r) {
 		DRM_ERROR("radeon: failed to raise UVD clocks (%d).\n", r);
 		return r;

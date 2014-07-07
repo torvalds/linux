@@ -1,3 +1,22 @@
+Freescale i.MX DRM master device
+================================
+
+The freescale i.MX DRM master device is a virtual device needed to list all
+IPU or other display interface nodes that comprise the graphics subsystem.
+
+Required properties:
+- compatible: Should be "fsl,imx-display-subsystem"
+- ports: Should contain a list of phandles pointing to display interface ports
+  of IPU devices
+
+example:
+
+display-subsystem {
+	compatible = "fsl,display-subsystem";
+	ports = <&ipu_di0>;
+};
+
+
 Freescale i.MX IPUv3
 ====================
 
@@ -7,18 +26,31 @@ Required properties:
   datasheet
 - interrupts: Should contain sync interrupt and error interrupt,
   in this order.
-- #crtc-cells: 1, See below
 - resets: phandle pointing to the system reset controller and
           reset line index, see reset/fsl,imx-src.txt for details
+Optional properties:
+- port@[0-3]: Port nodes with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt.
+  Ports 0 and 1 should correspond to CSI0 and CSI1,
+  ports 2 and 3 should correspond to DI0 and DI1, respectively.
 
 example:
 
 ipu: ipu@18000000 {
-	#crtc-cells = <1>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	compatible = "fsl,imx53-ipu";
 	reg = <0x18000000 0x080000000>;
 	interrupts = <11 10>;
 	resets = <&src 2>;
+
+	ipu_di0: port@2 {
+		reg = <2>;
+
+		ipu_di0_disp0: endpoint {
+			remote-endpoint = <&display_in>;
+		};
+	};
 };
 
 Parallel display support
@@ -26,19 +58,26 @@ Parallel display support
 
 Required properties:
 - compatible: Should be "fsl,imx-parallel-display"
-- crtc: the crtc this display is connected to, see below
 Optional properties:
 - interface_pix_fmt: How this display is connected to the
-  crtc. Currently supported types: "rgb24", "rgb565", "bgr666"
+  display interface. Currently supported types: "rgb24", "rgb565", "bgr666"
+  and "lvds666".
 - edid: verbatim EDID data block describing attached display.
 - ddc: phandle describing the i2c bus handling the display data
   channel
+- port: A port node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 example:
 
 display@di0 {
 	compatible = "fsl,imx-parallel-display";
 	edid = [edid-data];
-	crtc = <&ipu 0>;
 	interface-pix-fmt = "rgb24";
+
+	port {
+		display_in: endpoint {
+			remote-endpoint = <&ipu_di0_disp0>;
+		};
+	};
 };

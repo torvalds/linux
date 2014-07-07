@@ -31,8 +31,10 @@
 #define IF_PREFIX_AUTOCONF	0x02
 
 enum {
+	INET6_IFADDR_STATE_PREDAD,
 	INET6_IFADDR_STATE_DAD,
 	INET6_IFADDR_STATE_POSTDAD,
+	INET6_IFADDR_STATE_ERRDAD,
 	INET6_IFADDR_STATE_UP,
 	INET6_IFADDR_STATE_DEAD,
 };
@@ -50,15 +52,15 @@ struct inet6_ifaddr {
 
 	int			state;
 
+	__u32			flags;
 	__u8			dad_probes;
-	__u8			flags;
 
 	__u16			scope;
 
 	unsigned long		cstamp;	/* created timestamp */
 	unsigned long		tstamp; /* updated timestamp */
 
-	struct timer_list	dad_timer;
+	struct delayed_work	dad_work;
 
 	struct inet6_dev	*idev;
 	struct rt6_info		*rt;
@@ -66,11 +68,10 @@ struct inet6_ifaddr {
 	struct hlist_node	addr_lst;
 	struct list_head	if_list;
 
-#ifdef CONFIG_IPV6_PRIVACY
 	struct list_head	tmp_list;
 	struct inet6_ifaddr	*ifpub;
 	int			regen_count;
-#endif
+
 	bool			tokenized;
 
 	struct rcu_head		rcu;
@@ -166,7 +167,6 @@ struct inet6_dev {
 	struct net_device	*dev;
 
 	struct list_head	addr_list;
-	int			valid_ll_addr_cnt;
 
 	struct ifmcaddr6	*mc_list;
 	struct ifmcaddr6	*mc_tomb;
@@ -192,11 +192,9 @@ struct inet6_dev {
 	__u32			if_flags;
 	int			dead;
 
-#ifdef CONFIG_IPV6_PRIVACY
 	u8			rndid[8];
 	struct timer_list	regen_timer;
 	struct list_head	tempaddr_list;
-#endif
 
 	struct in6_addr		token;
 

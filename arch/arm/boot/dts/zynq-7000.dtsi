@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2011 Xilinx
+ *  Copyright (C) 2011 - 2014 Xilinx
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -15,11 +15,47 @@
 / {
 	compatible = "xlnx,zynq-7000";
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0>;
+			clocks = <&clkc 3>;
+			clock-latency = <1000>;
+			cpu0-supply = <&regulator_vccpint>;
+			operating-points = <
+				/* kHz    uV */
+				666667  1000000
+				333334  1000000
+				222223  1000000
+			>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <1>;
+			clocks = <&clkc 3>;
+		};
+	};
+
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupts = <0 5 4>, <0 6 4>;
 		interrupt-parent = <&intc>;
 		reg = < 0xf8891000 0x1000 0xf8893000 0x1000 >;
+	};
+
+	regulator_vccpint: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCCPINT";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	amba {
@@ -29,10 +65,31 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
+		i2c0: i2c@e0004000 {
+			compatible = "cdns,i2c-r1p10";
+			status = "disabled";
+			clocks = <&clkc 38>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 25 4>;
+			reg = <0xe0004000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c1: i2c@e0005000 {
+			compatible = "cdns,i2c-r1p10";
+			status = "disabled";
+			clocks = <&clkc 39>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 48 4>;
+			reg = <0xe0005000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		intc: interrupt-controller@f8f01000 {
 			compatible = "arm,cortex-a9-gic";
 			#interrupt-cells = <3>;
-			#address-cells = <1>;
 			interrupt-controller;
 			reg = <0xF8F01000 0x1000>,
 			      <0xF8F00100 0x100>;
@@ -47,7 +104,7 @@
 			cache-level = <2>;
 		};
 
-		uart0: uart@e0000000 {
+		uart0: serial@e0000000 {
 			compatible = "xlnx,xuartps";
 			status = "disabled";
 			clocks = <&clkc 23>, <&clkc 40>;
@@ -56,7 +113,7 @@
 			interrupts = <0 27 4>;
 		};
 
-		uart1: uart@e0001000 {
+		uart1: serial@e0001000 {
 			compatible = "xlnx,xuartps";
 			status = "disabled";
 			clocks = <&clkc 24>, <&clkc 41>;
@@ -65,55 +122,104 @@
 			interrupts = <0 50 4>;
 		};
 
+		gem0: ethernet@e000b000 {
+			compatible = "cdns,gem";
+			reg = <0xe000b000 0x4000>;
+			status = "disabled";
+			interrupts = <0 22 4>;
+			clocks = <&clkc 30>, <&clkc 30>, <&clkc 13>;
+			clock-names = "pclk", "hclk", "tx_clk";
+		};
+
+		gem1: ethernet@e000c000 {
+			compatible = "cdns,gem";
+			reg = <0xe000c000 0x4000>;
+			status = "disabled";
+			interrupts = <0 45 4>;
+			clocks = <&clkc 31>, <&clkc 31>, <&clkc 14>;
+			clock-names = "pclk", "hclk", "tx_clk";
+		};
+
+		sdhci0: sdhci@e0100000 {
+			compatible = "arasan,sdhci-8.9a";
+			status = "disabled";
+			clock-names = "clk_xin", "clk_ahb";
+			clocks = <&clkc 21>, <&clkc 32>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 24 4>;
+			reg = <0xe0100000 0x1000>;
+		} ;
+
+		sdhci1: sdhci@e0101000 {
+			compatible = "arasan,sdhci-8.9a";
+			status = "disabled";
+			clock-names = "clk_xin", "clk_ahb";
+			clocks = <&clkc 22>, <&clkc 33>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 47 4>;
+			reg = <0xe0101000 0x1000>;
+		} ;
+
 		slcr: slcr@f8000000 {
-			compatible = "xlnx,zynq-slcr";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "xlnx,zynq-slcr", "syscon";
 			reg = <0xF8000000 0x1000>;
-
-			clocks {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				clkc: clkc {
-					#clock-cells = <1>;
-					compatible = "xlnx,ps7-clkc";
-					ps-clk-frequency = <33333333>;
-					clock-output-names = "armpll", "ddrpll", "iopll", "cpu_6or4x",
-							"cpu_3or2x", "cpu_2x", "cpu_1x", "ddr2x", "ddr3x",
-							"dci", "lqspi", "smc", "pcap", "gem0", "gem1",
-							"fclk0", "fclk1", "fclk2", "fclk3", "can0", "can1",
-							"sdio0", "sdio1", "uart0", "uart1", "spi0", "spi1",
-							"dma", "usb0_aper", "usb1_aper", "gem0_aper",
-							"gem1_aper", "sdio0_aper", "sdio1_aper",
-							"spi0_aper", "spi1_aper", "can0_aper", "can1_aper",
-							"i2c0_aper", "i2c1_aper", "uart0_aper", "uart1_aper",
-							"gpio_aper", "lqspi_aper", "smc_aper", "swdt",
-							"dbg_trc", "dbg_apb";
-				};
+			ranges;
+			clkc: clkc@100 {
+				#clock-cells = <1>;
+				compatible = "xlnx,ps7-clkc";
+				ps-clk-frequency = <33333333>;
+				fclk-enable = <0>;
+				clock-output-names = "armpll", "ddrpll", "iopll", "cpu_6or4x",
+						"cpu_3or2x", "cpu_2x", "cpu_1x", "ddr2x", "ddr3x",
+						"dci", "lqspi", "smc", "pcap", "gem0", "gem1",
+						"fclk0", "fclk1", "fclk2", "fclk3", "can0", "can1",
+						"sdio0", "sdio1", "uart0", "uart1", "spi0", "spi1",
+						"dma", "usb0_aper", "usb1_aper", "gem0_aper",
+						"gem1_aper", "sdio0_aper", "sdio1_aper",
+						"spi0_aper", "spi1_aper", "can0_aper", "can1_aper",
+						"i2c0_aper", "i2c1_aper", "uart0_aper", "uart1_aper",
+						"gpio_aper", "lqspi_aper", "smc_aper", "swdt",
+						"dbg_trc", "dbg_apb";
+				reg = <0x100 0x100>;
 			};
 		};
 
-		ttc0: ttc0@f8001000 {
+		devcfg: devcfg@f8007000 {
+			compatible = "xlnx,zynq-devcfg-1.0";
+			reg = <0xf8007000 0x100>;
+		} ;
+
+		global_timer: timer@f8f00200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0xf8f00200 0x20>;
+			interrupts = <1 11 0x301>;
 			interrupt-parent = <&intc>;
-			interrupts = < 0 10 4 0 11 4 0 12 4 >;
+			clocks = <&clkc 4>;
+		};
+
+		ttc0: timer@f8001000 {
+			interrupt-parent = <&intc>;
+			interrupts = <0 10 4>, <0 11 4>, <0 12 4>;
 			compatible = "cdns,ttc";
 			clocks = <&clkc 6>;
 			reg = <0xF8001000 0x1000>;
-			clock-ranges;
 		};
 
-		ttc1: ttc1@f8002000 {
+		ttc1: timer@f8002000 {
 			interrupt-parent = <&intc>;
-			interrupts = < 0 37 4 0 38 4 0 39 4 >;
+			interrupts = <0 37 4>, <0 38 4>, <0 39 4>;
 			compatible = "cdns,ttc";
 			clocks = <&clkc 6>;
 			reg = <0xF8002000 0x1000>;
-			clock-ranges;
 		};
-		scutimer: scutimer@f8f00600 {
+
+		scutimer: timer@f8f00600 {
 			interrupt-parent = <&intc>;
-			interrupts = < 1 13 0x301 >;
+			interrupts = <1 13 0x301>;
 			compatible = "arm,cortex-a9-twd-timer";
-			reg = < 0xf8f00600 0x20 >;
+			reg = <0xf8f00600 0x20>;
 			clocks = <&clkc 4>;
 		} ;
 	};

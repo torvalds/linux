@@ -35,7 +35,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
@@ -209,7 +208,9 @@ static void usb_alphatrack_delete(struct usb_alphatrack *dev)
 	kfree(dev->ring_buffer);
 	kfree(dev->interrupt_in_buffer);
 	kfree(dev->interrupt_out_buffer);
-	kfree(dev);		/* fixme oldi_buffer */
+	kfree(dev->oldi_buffer);
+	kfree(dev->write_buffer);
+	kfree(dev);
 }
 
 /** usb_alphatrack_interrupt_in_callback */
@@ -234,8 +235,8 @@ static void usb_alphatrack_interrupt_in_callback(struct urb *urb)
 
 	if (urb->actual_length != INPUT_CMD_SIZE) {
 		dev_warn(&dev->intf->dev,
-			 "Urb length was %d bytes!!"
-			 "Do something intelligent\n", urb->actual_length);
+			 "Urb length was %d bytes!! Do something intelligent\n",
+			 urb->actual_length);
 	} else {
 		alphatrack_ocmd_info(&dev->intf->dev,
 				     &(*dev->ring_buffer)[dev->ring_tail].cmd,
@@ -689,8 +690,7 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	}
 	if (dev->interrupt_out_endpoint == NULL)
 		dev_warn(&intf->dev,
-			 "Interrupt out endpoint not found"
-			 "(using control endpoint instead)\n");
+			 "Interrupt out endpoint not found (using control endpoint instead)\n");
 
 	dev->interrupt_in_endpoint_size =
 	    le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize);

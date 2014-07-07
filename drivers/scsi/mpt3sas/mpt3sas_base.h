@@ -993,7 +993,7 @@ void mpt3sas_scsih_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase);
 
 int mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	uint channel, uint id, uint lun, u8 type, u16 smid_task,
-	ulong timeout, unsigned long serial_number,  enum mutex_type m_type);
+	ulong timeout, enum mutex_type m_type);
 void mpt3sas_scsih_set_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address);

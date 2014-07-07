@@ -65,7 +65,6 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/io.h>
 
@@ -477,7 +476,7 @@ static struct i2c_adapter ali15x3_adapter = {
 	.algo		= &smbus_algorithm,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(ali15x3_ids) = {
+static const struct pci_device_id ali15x3_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101) },
 	{ 0, }
 };

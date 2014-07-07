@@ -65,7 +65,7 @@ static int keywest_attach_adapter(struct i2c_adapter *adapter)
 	 * already bound. If not it means binding failed, and then there
 	 * is no point in keeping the device instantiated.
 	 */
-	if (!keywest_ctx->client->driver) {
+	if (!keywest_ctx->client->dev.driver) {
 		i2c_unregister_device(keywest_ctx->client);
 		keywest_ctx->client = NULL;
 		return -ENODEV;
@@ -76,7 +76,7 @@ static int keywest_attach_adapter(struct i2c_adapter *adapter)
 	 * This is safe because i2c-core holds the core_lock mutex for us.
 	 */
 	list_add_tail(&keywest_ctx->client->detected,
-		      &keywest_ctx->client->driver->clients);
+		      &to_i2c_driver(keywest_ctx->client->dev.driver)->clients);
 	return 0;
 }
 

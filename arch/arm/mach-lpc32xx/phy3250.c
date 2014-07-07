@@ -36,6 +36,7 @@
 #include <linux/clk.h>
 #include <linux/mtd/lpc32xx_slc.h>
 #include <linux/mtd/lpc32xx_mlc.h>
+#include <linux/platform_data/gpio-lpc32xx.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -44,7 +45,6 @@
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include <mach/board.h>
-#include <mach/gpio-lpc32xx.h>
 #include "common.h"
 
 /*
@@ -202,9 +202,6 @@ static struct mmci_platform_data lpc32xx_mmci_data = {
 	.ocr_mask	= MMC_VDD_30_31 | MMC_VDD_31_32 |
 			  MMC_VDD_32_33 | MMC_VDD_33_34,
 	.ios_handler	= mmc_handle_ios,
-	.dma_filter	= NULL,
-	/* No DMA for now since AMBA PL080 dmaengine driver only does scatter
-	 * gather, and the MMCI driver doesn't do it this way */
 };
 
 static struct lpc32xx_slc_platform_data lpc32xx_slc_data = {

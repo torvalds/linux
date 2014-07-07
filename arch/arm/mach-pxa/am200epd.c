@@ -293,8 +293,7 @@ static int am200_setup_irq(struct fb_info *info)
 	int ret;
 
 	ret = request_irq(PXA_GPIO_TO_IRQ(RDY_GPIO_PIN), am200_handle_irq,
-				IRQF_DISABLED|IRQF_TRIGGER_FALLING,
-				"AM200", info->par);
+				IRQF_TRIGGER_FALLING, "AM200", info->par);
 	if (ret)
 		dev_err(&am200_device->dev, "request_irq failed: %d\n", ret);
 

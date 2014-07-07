@@ -55,6 +55,9 @@ static __u32 vmbus_get_next_version(__u32 current_version)
 	case (VERSION_WIN8):
 		return VERSION_WIN7;
 
+	case (VERSION_WIN8_1):
+		return VERSION_WIN8;
+
 	case (VERSION_WS2008):
 	default:
 		return VERSION_INVAL;
@@ -67,7 +70,6 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	int ret = 0;
 	struct vmbus_channel_initiate_contact *msg;
 	unsigned long flags;
-	int t;
 
 	init_completion(&msginfo->waitevent);
 
@@ -76,10 +78,10 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	msg->header.msgtype = CHANNELMSG_INITIATE_CONTACT;
 	msg->vmbus_version_requested = version;
 	msg->interrupt_page = virt_to_phys(vmbus_connection.int_page);
-	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages);
-	msg->monitor_page2 = virt_to_phys(
-			(void *)((unsigned long)vmbus_connection.monitor_pages +
-				 PAGE_SIZE));
+	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages[0]);
+	msg->monitor_page2 = virt_to_phys(vmbus_connection.monitor_pages[1]);
+	if (version == VERSION_WIN8_1)
+		msg->target_vcpu = hv_context.vp_index[smp_processor_id()];
 
 	/*
 	 * Add to list before we send the request since we may
@@ -102,15 +104,7 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	}
 
 	/* Wait for the connection response */
-	t =  wait_for_completion_timeout(&msginfo->waitevent, 5*HZ);
-	if (t == 0) {
-		spin_lock_irqsave(&vmbus_connection.channelmsg_lock,
-				flags);
-		list_del(&msginfo->msglistentry);
-		spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock,
-					flags);
-		return -ETIMEDOUT;
-	}
+	wait_for_completion(&msginfo->waitevent);
 
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&msginfo->msglistentry);
@@ -169,9 +163,10 @@ int vmbus_connect(void)
 	 * Setup the monitor notification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
-	vmbus_connection.monitor_pages =
-	(void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 1);
-	if (vmbus_connection.monitor_pages == NULL) {
+	vmbus_connection.monitor_pages[0] = (void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 0);
+	vmbus_connection.monitor_pages[1] = (void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 0);
+	if ((vmbus_connection.monitor_pages[0] == NULL) ||
+	    (vmbus_connection.monitor_pages[1] == NULL)) {
 		ret = -ENOMEM;
 		goto cleanup;
 	}
@@ -229,16 +224,38 @@ cleanup:
 		vmbus_connection.int_page = NULL;
 	}
 
-	if (vmbus_connection.monitor_pages) {
-		free_pages((unsigned long)vmbus_connection.monitor_pages, 1);
-		vmbus_connection.monitor_pages = NULL;
-	}
+	free_pages((unsigned long)vmbus_connection.monitor_pages[0], 0);
+	free_pages((unsigned long)vmbus_connection.monitor_pages[1], 0);
+	vmbus_connection.monitor_pages[0] = NULL;
+	vmbus_connection.monitor_pages[1] = NULL;
 
 	kfree(msginfo);
 
 	return ret;
 }
 
+/*
+ * Map the given relid to the corresponding channel based on the
+ * per-cpu list of channels that have been affinitized to this CPU.
+ * This will be used in the channel callback path as we can do this
+ * mapping in a lock-free fashion.
+ */
+static struct vmbus_channel *pcpu_relid2channel(u32 relid)
+{
+	struct vmbus_channel *channel;
+	struct vmbus_channel *found_channel  = NULL;
+	int cpu = smp_processor_id();
+	struct list_head *pcpu_head = &hv_context.percpu_list[cpu];
+
+	list_for_each_entry(channel, pcpu_head, percpu_list) {
+		if (channel->offermsg.child_relid == relid) {
+			found_channel = channel;
+			break;
+		}
+	}
+
+	return found_channel;
+}
 
 /*
  * relid2channel - Get the channel object given its
@@ -282,7 +299,6 @@ struct vmbus_channel *relid2channel(u32 relid)
 static void process_chn_event(u32 relid)
 {
 	struct vmbus_channel *channel;
-	unsigned long flags;
 	void *arg;
 	bool read_state;
 	u32 bytes_to_read;
@@ -291,7 +307,7 @@ static void process_chn_event(u32 relid)
 	 * Find the channel based on this relid and invokes the
 	 * channel callback to process the event
 	 */
-	channel = relid2channel(relid);
+	channel = pcpu_relid2channel(relid);
 
 	if (!channel) {
 		pr_err("channel not found for relid - %u\n", relid);
@@ -301,13 +317,12 @@ static void process_chn_event(u32 relid)
 	/*
 	 * A channel once created is persistent even when there
 	 * is no driver handling the device. An unloading driver
-	 * sets the onchannel_callback to NULL under the
-	 * protection of the channel inbound_lock. Thus, checking
-	 * and invoking the driver specific callback takes care of
-	 * orderly unloading of the driver.
+	 * sets the onchannel_callback to NULL on the same CPU
+	 * as where this interrupt is handled (in an interrupt context).
+	 * Thus, checking and invoking the driver specific callback takes
+	 * care of orderly unloading of the driver.
 	 */
 
-	spin_lock_irqsave(&channel->inbound_lock, flags);
 	if (channel->onchannel_callback != NULL) {
 		arg = channel->channel_callback_context;
 		read_state = channel->batched_reading;
@@ -332,7 +347,6 @@ static void process_chn_event(u32 relid)
 		pr_err("no channel callback for relid - %u\n", relid);
 	}
 
-	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 }
 
 /*

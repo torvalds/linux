@@ -66,7 +66,7 @@ static long __init sp804_get_clock_rate(struct clk *clk)
 
 static void __iomem *sched_clock_base;
 
-static u32 sp804_read(void)
+static u64 notrace sp804_read(void)
 {
 	return ~readl_relaxed(sched_clock_base + TIMER_VALUE);
 }
@@ -104,7 +104,7 @@ void __init __sp804_clocksource_and_sched_clock_init(void __iomem *base,
 
 	if (use_sched_clock) {
 		sched_clock_base = base;
-		setup_sched_clock(sp804_read, 32, rate);
+		sched_clock_register(sp804_read, 32, rate);
 	}
 }
 
@@ -175,7 +175,7 @@ static struct clock_event_device sp804_clockevent = {
 
 static struct irqaction sp804_timer_irq = {
 	.name		= "timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= sp804_timer_interrupt,
 	.dev_id		= &sp804_clockevent,
 };
@@ -271,9 +271,13 @@ static void __init integrator_cp_of_init(struct device_node *np)
 	void __iomem *base;
 	int irq;
 	const char *name = of_get_property(np, "compatible", NULL);
+	struct clk *clk;
 
 	base = of_iomap(np, 0);
 	if (WARN_ON(!base))
+		return;
+	clk = of_clk_get(np, 0);
+	if (WARN_ON(IS_ERR(clk)))
 		return;
 
 	/* Ensure timer is disabled */
@@ -283,13 +287,13 @@ static void __init integrator_cp_of_init(struct device_node *np)
 		goto err;
 
 	if (!init_count)
-		sp804_clocksource_init(base, name);
+		__sp804_clocksource_and_sched_clock_init(base, name, clk, 0);
 	else {
 		irq = irq_of_parse_and_map(np, 0);
 		if (irq <= 0)
 			goto err;
 
-		sp804_clockevents_init(base, irq, name);
+		__sp804_clockevents_init(base, irq, clk, name);
 	}
 
 	init_count++;

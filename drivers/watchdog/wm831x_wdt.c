@@ -184,7 +184,7 @@ static const struct watchdog_ops wm831x_wdt_ops = {
 static int wm831x_wdt_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
-	struct wm831x_pdata *chip_pdata;
+	struct wm831x_pdata *chip_pdata = dev_get_platdata(pdev->dev.parent);
 	struct wm831x_watchdog_pdata *pdata;
 	struct wm831x_wdt_drvdata *driver_data;
 	struct watchdog_device *wm831x_wdt;
@@ -204,7 +204,6 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 	driver_data = devm_kzalloc(&pdev->dev, sizeof(*driver_data),
 				   GFP_KERNEL);
 	if (!driver_data) {
-		dev_err(wm831x->dev, "Unable to alloacate watchdog device\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -231,12 +230,10 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 		wm831x_wdt->timeout = wm831x_wdt_cfgs[i].time;
 
 	/* Apply any configuration */
-	if (pdev->dev.parent->platform_data) {
-		chip_pdata = pdev->dev.parent->platform_data;
+	if (chip_pdata)
 		pdata = chip_pdata->watchdog;
-	} else {
+	else
 		pdata = NULL;
-	}
 
 	if (pdata) {
 		reg &= ~(WM831X_WDOG_SECACT_MASK | WM831X_WDOG_PRIMACT_MASK |

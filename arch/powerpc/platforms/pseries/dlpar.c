@@ -11,7 +11,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/kref.h>
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
@@ -87,7 +86,6 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa,
 	}
 
 	of_node_set_flag(dn, OF_DYNAMIC);
-	kref_init(&dn->kref);
 
 	return dn;
 }
@@ -404,46 +402,38 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	unsigned long drc_index;
 	int rc;
 
-	cpu_hotplug_driver_lock();
 	rc = strict_strtoul(buf, 0, &drc_index);
-	if (rc) {
-		rc = -EINVAL;
-		goto out;
-	}
+	if (rc)
+		return -EINVAL;
 
 	parent = of_find_node_by_path("/cpus");
-	if (!parent) {
-		rc = -ENODEV;
-		goto out;
-	}
+	if (!parent)
+		return -ENODEV;
 
 	dn = dlpar_configure_connector(drc_index, parent);
-	if (!dn) {
-		rc = -EINVAL;
-		goto out;
-	}
+	if (!dn)
+		return -EINVAL;
 
 	of_node_put(parent);
 
 	rc = dlpar_acquire_drc(drc_index);
 	if (rc) {
 		dlpar_free_cc_nodes(dn);
-		rc = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	rc = dlpar_attach_node(dn);
 	if (rc) {
 		dlpar_release_drc(drc_index);
 		dlpar_free_cc_nodes(dn);
-		goto out;
+		return rc;
 	}
 
 	rc = dlpar_online_cpu(dn);
-out:
-	cpu_hotplug_driver_unlock();
+	if (rc)
+		return rc;
 
-	return rc ? rc : count;
+	return count;
 }
 
 static int dlpar_offline_cpu(struct device_node *dn)
@@ -516,30 +506,27 @@ static ssize_t dlpar_cpu_release(const char *buf, size_t count)
 		return -EINVAL;
 	}
 
-	cpu_hotplug_driver_lock();
 	rc = dlpar_offline_cpu(dn);
 	if (rc) {
 		of_node_put(dn);
-		rc = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	rc = dlpar_release_drc(*drc_index);
 	if (rc) {
 		of_node_put(dn);
-		goto out;
+		return rc;
 	}
 
 	rc = dlpar_detach_node(dn);
 	if (rc) {
 		dlpar_acquire_drc(*drc_index);
-		goto out;
+		return rc;
 	}
 
 	of_node_put(dn);
-out:
-	cpu_hotplug_driver_unlock();
-	return rc ? rc : count;
+
+	return count;
 }
 
 static int __init pseries_dlpar_init(void)

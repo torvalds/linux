@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -100,16 +101,16 @@ static enum imx23_clk clks_init_on[] __initdata = {
 	cpu, hbus, xbus, emi, uart,
 };
 
-int __init mx23_clocks_init(void)
+static void __init mx23_clocks_init(struct device_node *np)
 {
-	struct device_node *np;
+	struct device_node *dcnp;
 	u32 i;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-digctl");
-	digctrl = of_iomap(np, 0);
+	dcnp = of_find_compatible_node(NULL, NULL, "fsl,imx23-digctl");
+	digctrl = of_iomap(dcnp, 0);
 	WARN_ON(!digctrl);
+	of_node_put(dcnp);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-clkctrl");
 	clkctrl = of_iomap(np, 0);
 	WARN_ON(!clkctrl);
 
@@ -162,7 +163,7 @@ int __init mx23_clocks_init(void)
 		if (IS_ERR(clks[i])) {
 			pr_err("i.MX23 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clks[i]));
-			return PTR_ERR(clks[i]);
+			return;
 		}
 
 	clk_data.clks = clks;
@@ -172,5 +173,5 @@ int __init mx23_clocks_init(void)
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
 
-	return 0;
 }
+CLK_OF_DECLARE(imx23_clkctrl, "fsl,imx23-clkctrl", mx23_clocks_init);

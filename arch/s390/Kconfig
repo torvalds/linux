@@ -52,7 +52,7 @@ config KEXEC
 config AUDIT_ARCH
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config PCI_QUIRKS
@@ -60,7 +60,6 @@ config PCI_QUIRKS
 
 config S390
 	def_bool y
-	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -99,9 +98,11 @@ config S390
 	select CLONE_BACKWARDS2
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_DEVICES if !SMP
+	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_TIME_VSYSCALL_OLD
+	select GENERIC_TIME_VSYSCALL
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
+	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_JUMP_LABEL if !MARCH_G5
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
@@ -116,6 +117,7 @@ config S390
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -127,6 +129,7 @@ config S390
 	select HAVE_KVM if 64BIT
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
+	select HAVE_MEMBLOCK_PHYS_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
@@ -134,13 +137,13 @@ config S390
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UID16 if 32BIT
 	select HAVE_VIRT_CPU_ACCOUNTING
-	select INIT_ALL_POSSIBLE
 	select KTIME_SCALAR if 32BIT
 	select MODULES_USE_ELF_RELA
+	select NO_BOOTMEM
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
 	select SYSCTL_EXCEPTION_TRACE
-	select USE_GENERIC_SMP_HELPERS if SMP
+	select TTY
 	select VIRT_CPU_ACCOUNTING
 	select VIRT_TO_BUS
 
@@ -237,6 +240,67 @@ config MARCH_ZEC12
 
 endchoice
 
+config MARCH_G5_TUNE
+	def_bool TUNE_G5 || MARCH_G5 && TUNE_DEFAULT
+
+config MARCH_Z900_TUNE
+	def_bool TUNE_Z900 || MARCH_Z900 && TUNE_DEFAULT
+
+config MARCH_Z990_TUNE
+	def_bool TUNE_Z990 || MARCH_Z990 && TUNE_DEFAULT
+
+config MARCH_Z9_109_TUNE
+	def_bool TUNE_Z9_109 || MARCH_Z9_109 && TUNE_DEFAULT
+
+config MARCH_Z10_TUNE
+	def_bool TUNE_Z10 || MARCH_Z10 && TUNE_DEFAULT
+
+config MARCH_Z196_TUNE
+	def_bool TUNE_Z196 || MARCH_Z196 && TUNE_DEFAULT
+
+config MARCH_ZEC12_TUNE
+	def_bool TUNE_ZEC12 || MARCH_ZEC12 && TUNE_DEFAULT
+
+choice
+	prompt "Tune code generation"
+	default TUNE_DEFAULT
+	help
+	  Cause the compiler to tune (-mtune) the generated code for a machine.
+	  This will make the code run faster on the selected machine but
+	  somewhat slower on other machines.
+	  This option only changes how the compiler emits instructions, not the
+	  selection of instructions itself, so the resulting kernel will run on
+	  all other machines.
+
+config TUNE_DEFAULT
+	bool "Default"
+	help
+	  Tune the generated code for the target processor for which the kernel
+	  will be compiled.
+
+config TUNE_G5
+	bool "System/390 model G5 and G6"
+
+config TUNE_Z900
+	bool "IBM zSeries model z800 and z900"
+
+config TUNE_Z990
+	bool "IBM zSeries model z890 and z990"
+
+config TUNE_Z9_109
+	bool "IBM System z9"
+
+config TUNE_Z10
+	bool "IBM System z10"
+
+config TUNE_Z196
+	bool "IBM zEnterprise 114 and 196"
+
+config TUNE_ZEC12
+	bool "IBM zBC12 and zEC12"
+
+endchoice
+
 config 64BIT
 	def_bool y
 	prompt "64 bit kernel"
@@ -274,10 +338,10 @@ config SMP
 	  a system with only one CPU, like most personal computers, say N. If
 	  you have a system with more than one CPU, say Y.
 
-	  If you say N here, the kernel will run on single and multiprocessor
+	  If you say N here, the kernel will run on uni- and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
 	  you say Y here, the kernel will run on many, but not all,
-	  singleprocessor machines. On a singleprocessor machine, the kernel
+	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
 	  See also the SMP-HOWTO available at
@@ -286,14 +350,14 @@ config SMP
 	  Even if you don't know what to do here, say Y.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-64)"
-	range 2 64
+	int "Maximum number of CPUs (2-256)"
+	range 2 256
 	depends on SMP
 	default "32" if !64BIT
 	default "64" if 64BIT
 	help
 	  This allows you to specify the maximum number of CPUs which this
-	  kernel will support.  The maximum supported value is 64 and the
+	  kernel will support. The maximum supported value is 256 and the
 	  minimum value which makes sense is 2.
 
 	  This is purely to save memory - each supported CPU adds
@@ -354,6 +418,10 @@ config ARCH_ENABLE_MEMORY_HOTPLUG
 
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
+
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	def_bool y
+	depends on 64BIT
 
 config FORCE_MAX_ZONEORDER
 	int
@@ -525,21 +593,14 @@ config CRASH_DUMP
 	bool "kernel crash dumps"
 	depends on 64BIT && SMP
 	select KEXEC
-	select ZFCPDUMP
 	help
 	  Generate crash dump after being started by kexec.
 	  Crash dump kernels are loaded in the main kernel with kexec-tools
 	  into a specially reserved region and then later executed after
 	  a crash by kdump/kexec.
-	  For more details see Documentation/kdump/kdump.txt
-
-config ZFCPDUMP
-	def_bool n
-	prompt "zfcpdump support"
-	depends on SMP
-	help
-	  Select this option if you want to build an zfcpdump enabled kernel.
 	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
+	  This option also enables s390 zfcpdump.
+	  See also <file:Documentation/s390/zfcpdump.txt>
 
 endmenu
 

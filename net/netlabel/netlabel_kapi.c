@@ -23,8 +23,7 @@
  * the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program;  if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program;  if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -817,7 +816,7 @@ int netlbl_req_setattr(struct request_sock *req,
 	switch (req->rsk_ops->family) {
 	case AF_INET:
 		entry = netlbl_domhsh_getentry_af4(secattr->domain,
-						   inet_rsk(req)->rmt_addr);
+						   inet_rsk(req)->ir_rmt_addr);
 		if (entry == NULL) {
 			ret_val = -ENOENT;
 			goto req_setattr_return;

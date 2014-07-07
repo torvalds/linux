@@ -47,7 +47,44 @@ struct sk_buff *ieee802154_nl_new_reply(struct genl_info *info,
 int ieee802154_nl_reply(struct sk_buff *msg, struct genl_info *info);
 
 extern struct genl_family nl802154_family;
-int nl802154_mac_register(void);
-int nl802154_phy_register(void);
+
+/* genetlink ops/groups */
+int ieee802154_list_phy(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_dump_phy(struct sk_buff *skb, struct netlink_callback *cb);
+int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info);
+
+enum ieee802154_mcgrp_ids {
+	IEEE802154_COORD_MCGRP,
+	IEEE802154_BEACON_MCGRP,
+};
+
+int ieee802154_associate_req(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_associate_resp(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_disassociate_req(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_list_iface(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_dump_iface(struct sk_buff *skb, struct netlink_callback *cb);
+int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info);
+
+int ieee802154_llsec_getparams(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_setparams(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_add_key(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_del_key(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_dump_keys(struct sk_buff *skb,
+			       struct netlink_callback *cb);
+int ieee802154_llsec_add_dev(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_del_dev(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_dump_devs(struct sk_buff *skb,
+			       struct netlink_callback *cb);
+int ieee802154_llsec_add_devkey(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_del_devkey(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_dump_devkeys(struct sk_buff *skb,
+				  struct netlink_callback *cb);
+int ieee802154_llsec_add_seclevel(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_del_seclevel(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_llsec_dump_seclevels(struct sk_buff *skb,
+				    struct netlink_callback *cb);
 
 #endif

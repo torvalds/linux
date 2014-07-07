@@ -140,6 +140,19 @@
  */
 #define XEN_ELFNOTE_SUSPEND_CANCEL 14
 
+/*
+ * The features supported by this kernel (numeric).
+ *
+ * Other than XEN_ELFNOTE_FEATURES on pre-4.2 Xen, this note allows a
+ * kernel to specify support for features that older hypervisors don't
+ * know about. The set of features 4.2 and newer hypervisors will
+ * consider supported by the kernel is the combination of the sets
+ * specified through this and the string note.
+ *
+ * LEGACY: FEATURES
+ */
+#define XEN_ELFNOTE_SUPPORTED_FEATURES 17
+
 #endif /* __XEN_PUBLIC_ELFNOTE_H__ */
 
 /*

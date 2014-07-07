@@ -176,8 +176,12 @@ config MD_FAULTY
 
 source "drivers/md/bcache/Kconfig"
 
+config BLK_DEV_DM_BUILTIN
+	boolean
+
 config BLK_DEV_DM
 	tristate "Device mapper support"
+	select BLK_DEV_DM_BUILTIN
 	---help---
 	  Device-mapper is a low level volume manager.  It works by allowing
 	  people to specify mappings for ranges of logical sectors.  Various
@@ -238,6 +242,7 @@ config DM_CRYPT
 config DM_SNAPSHOT
        tristate "Snapshot target"
        depends on BLK_DEV_DM
+       select DM_BUFIO
        ---help---
          Allow volume managers to take writable snapshots of a device.
 
@@ -248,16 +253,6 @@ config DM_THIN_PROVISIONING
        select DM_BIO_PRISON
        ---help---
          Provides thin provisioning and snapshots that share a data store.
-
-config DM_DEBUG_BLOCK_STACK_TRACING
-	boolean "Keep stack trace of thin provisioning block lock holders"
-	depends on STACKTRACE_SUPPORT && DM_THIN_PROVISIONING
-	select STACKTRACE
-	---help---
-	  Enable this for messages that may help debug problems with the
-	  block manager locking used by thin provisioning.
-
-	  If unsure, say N.
 
 config DM_CACHE
        tristate "Cache target (EXPERIMENTAL)"
@@ -290,12 +285,34 @@ config DM_CACHE_CLEANER
          A simple cache policy that writes back all data to the
          origin.  Used when decommissioning a dm-cache.
 
+config DM_ERA
+       tristate "Era target (EXPERIMENTAL)"
+       depends on BLK_DEV_DM
+       default n
+       select DM_PERSISTENT_DATA
+       select DM_BIO_PRISON
+       ---help---
+         dm-era tracks which parts of a block device are written to
+         over time.  Useful for maintaining cache coherency when using
+         vendor snapshots.
+
 config DM_MIRROR
        tristate "Mirror target"
        depends on BLK_DEV_DM
        ---help---
          Allow volume managers to mirror logical volumes, also
          needed for live data migration tools such as 'pvmove'.
+
+config DM_LOG_USERSPACE
+	tristate "Mirror userspace logging"
+	depends on DM_MIRROR && NET
+	select CONNECTOR
+	---help---
+	  The userspace logging module provides a mechanism for
+	  relaying the dm-dirty-log API to userspace.  Log designs
+	  which are more suited to userspace implementation (e.g.
+	  shared storage logs) or experimental logs can be implemented
+	  by leveraging this framework.
 
 config DM_RAID
        tristate "RAID 1/4/5/6/10 target"
@@ -322,17 +339,6 @@ config DM_RAID
 	 drives contains two independent redundancy syndromes.  Like
 	 RAID-5, RAID-6 distributes the syndromes across the drives
 	 in one of the available parity distribution methods.
-
-config DM_LOG_USERSPACE
-	tristate "Mirror userspace logging"
-	depends on DM_MIRROR && NET
-	select CONNECTOR
-	---help---
-	  The userspace logging module provides a mechanism for
-	  relaying the dm-dirty-log API to userspace.  Log designs
-	  which are more suited to userspace implementation (e.g.
-	  shared storage logs) or experimental logs can be implemented
-	  by leveraging this framework.
 
 config DM_ZERO
 	tristate "Zero target"

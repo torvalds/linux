@@ -7,6 +7,7 @@
  *     Copyright IBM Corp. 2003, 2009
  */
 
+#include <linux/module.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -29,6 +30,9 @@
 #define CON3270_STRING_PAGES 4
 
 static struct raw3270_fn con3270_fn;
+
+static bool auto_update = 1;
+module_param(auto_update, bool, 0);
 
 /*
  * Main 3270 console view data structure.
@@ -204,6 +208,8 @@ con3270_update(struct con3270 *cp)
 	struct string *s, *n;
 	int rc;
 
+	if (!auto_update && !raw3270_view_active(&cp->view))
+		return;
 	if (cp->view.dev)
 		raw3270_activate_view(&cp->view);
 
@@ -529,6 +535,7 @@ con3270_flush(void)
 	if (!cp->view.dev)
 		return;
 	raw3270_pm_unfreeze(&cp->view);
+	raw3270_activate_view(&cp->view);
 	spin_lock_irqsave(&cp->view.lock, flags);
 	con3270_wait_write(cp);
 	cp->nr_up = 0;
@@ -576,7 +583,6 @@ static struct console con3270 = {
 static int __init
 con3270_init(void)
 {
-	struct ccw_device *cdev;
 	struct raw3270 *rp;
 	void *cbuf;
 	int i;
@@ -591,10 +597,7 @@ con3270_init(void)
 		cpcmd("TERM AUTOCR OFF", NULL, 0, NULL);
 	}
 
-	cdev = ccw_device_probe_console();
-	if (IS_ERR(cdev))
-		return -ENODEV;
-	rp = raw3270_setup_console(cdev);
+	rp = raw3270_setup_console();
 	if (IS_ERR(rp))
 		return PTR_ERR(rp);
 

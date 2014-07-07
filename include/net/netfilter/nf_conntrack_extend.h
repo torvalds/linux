@@ -36,7 +36,7 @@ enum nf_ct_ext_id {
 #define NF_CT_EXT_HELPER_TYPE struct nf_conn_help
 #define NF_CT_EXT_NAT_TYPE struct nf_conn_nat
 #define NF_CT_EXT_SEQADJ_TYPE struct nf_conn_seqadj
-#define NF_CT_EXT_ACCT_TYPE struct nf_conn_counter
+#define NF_CT_EXT_ACCT_TYPE struct nf_conn_acct
 #define NF_CT_EXT_ECACHE_TYPE struct nf_conntrack_ecache
 #define NF_CT_EXT_ZONE_TYPE struct nf_conntrack_zone
 #define NF_CT_EXT_TSTAMP_TYPE struct nf_conn_tstamp
@@ -47,8 +47,8 @@ enum nf_ct_ext_id {
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {
 	struct rcu_head rcu;
-	u8 offset[NF_CT_EXT_NUM];
-	u8 len;
+	u16 offset[NF_CT_EXT_NUM];
+	u16 len;
 	char data[0];
 };
 
@@ -73,7 +73,7 @@ static inline void *__nf_ct_ext_find(const struct nf_conn *ct, u8 id)
 	((id##_TYPE *)__nf_ct_ext_find((ext), (id)))
 
 /* Destroy all relationships */
-extern void __nf_ct_ext_destroy(struct nf_conn *ct);
+void __nf_ct_ext_destroy(struct nf_conn *ct);
 static inline void nf_ct_ext_destroy(struct nf_conn *ct)
 {
 	if (ct->ext)

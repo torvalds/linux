@@ -7,26 +7,36 @@
 
 struct iio_cb_buffer {
 	struct iio_buffer buffer;
-	int (*cb)(u8 *data, void *private);
+	int (*cb)(const void *data, void *private);
 	void *private;
 	struct iio_channel *channels;
 };
 
-static int iio_buffer_cb_store_to(struct iio_buffer *buffer, u8 *data)
+static struct iio_cb_buffer *buffer_to_cb_buffer(struct iio_buffer *buffer)
 {
-	struct iio_cb_buffer *cb_buff = container_of(buffer,
-						     struct iio_cb_buffer,
-						     buffer);
+	return container_of(buffer, struct iio_cb_buffer, buffer);
+}
 
+static int iio_buffer_cb_store_to(struct iio_buffer *buffer, const void *data)
+{
+	struct iio_cb_buffer *cb_buff = buffer_to_cb_buffer(buffer);
 	return cb_buff->cb(data, cb_buff->private);
 }
 
-static struct iio_buffer_access_funcs iio_cb_access = {
+static void iio_buffer_cb_release(struct iio_buffer *buffer)
+{
+	struct iio_cb_buffer *cb_buff = buffer_to_cb_buffer(buffer);
+	kfree(cb_buff->buffer.scan_mask);
+	kfree(cb_buff);
+}
+
+static const struct iio_buffer_access_funcs iio_cb_access = {
 	.store_to = &iio_buffer_cb_store_to,
+	.release = &iio_buffer_cb_release,
 };
 
 struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
-					     int (*cb)(u8 *data,
+					     int (*cb)(const void *data,
 						       void *private),
 					     void *private)
 {
@@ -36,10 +46,8 @@ struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
 	struct iio_channel *chan;
 
 	cb_buff = kzalloc(sizeof(*cb_buff), GFP_KERNEL);
-	if (cb_buff == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (cb_buff == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	iio_buffer_init(&cb_buff->buffer);
 
@@ -81,7 +89,6 @@ error_release_channels:
 	iio_channel_release_all(cb_buff->channels);
 error_free_cb_buff:
 	kfree(cb_buff);
-error_ret:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(iio_channel_get_all_cb);
@@ -104,9 +111,8 @@ EXPORT_SYMBOL_GPL(iio_channel_stop_all_cb);
 
 void iio_channel_release_all_cb(struct iio_cb_buffer *cb_buff)
 {
-	kfree(cb_buff->buffer.scan_mask);
 	iio_channel_release_all(cb_buff->channels);
-	kfree(cb_buff);
+	iio_buffer_put(&cb_buff->buffer);
 }
 EXPORT_SYMBOL_GPL(iio_channel_release_all_cb);
 

@@ -8,7 +8,6 @@
  * for more details.
  */
 #include <linux/sh_clk.h>
-#include <mach/clock.h>
 #include "rsnd.h"
 
 #define CLKA	0
@@ -20,51 +19,281 @@
 struct rsnd_adg {
 	struct clk *clk[CLKMAX];
 
-	int rate_of_441khz_div_6;
-	int rate_of_48khz_div_6;
+	int rbga_rate_for_441khz_div_6;	/* RBGA */
+	int rbgb_rate_for_48khz_div_6;	/* RBGB */
+	u32 ckr;
 };
 
 #define for_each_rsnd_clk(pos, adg, i)		\
-	for (i = 0, (pos) = adg->clk[i];	\
-	     i < CLKMAX;			\
-	     i++, (pos) = adg->clk[i])
+	for (i = 0;				\
+	     (i < CLKMAX) &&			\
+	     ((pos) = adg->clk[i]);		\
+	     i++)
 #define rsnd_priv_to_adg(priv) ((struct rsnd_adg *)(priv)->adg)
 
-static enum rsnd_reg rsnd_adg_ssi_reg_get(int id)
+
+static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 {
-	enum rsnd_reg reg;
+	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	int id = rsnd_mod_id(mod);
+	int ws = id;
+
+	if (rsnd_ssi_is_pin_sharing(rsnd_ssi_mod_get(priv, id))) {
+		switch (id) {
+		case 1:
+		case 2:
+			ws = 0;
+			break;
+		case 4:
+			ws = 3;
+			break;
+		case 8:
+			ws = 7;
+			break;
+		}
+	}
+
+	return (0x6 + ws) << 8;
+}
+
+int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_dai *rdai,
+				 struct rsnd_mod *mod,
+				 struct rsnd_dai_stream *io)
+{
+	int id = rsnd_mod_id(mod);
+	int shift = (id % 2) ? 16 : 0;
+	u32 mask, val;
+
+	val = rsnd_adg_ssi_ws_timing_gen2(io);
+
+	val  = val	<< shift;
+	mask = 0xffff	<< shift;
+
+	rsnd_mod_bset(mod, CMDOUT_TIMSEL, mask, val);
+
+	return 0;
+}
+
+static int rsnd_adg_set_src_timsel_gen2(struct rsnd_dai *rdai,
+					struct rsnd_mod *mod,
+					struct rsnd_dai_stream *io,
+					u32 timsel)
+{
+	int is_play = rsnd_dai_is_play(rdai, io);
+	int id = rsnd_mod_id(mod);
+	int shift = (id % 2) ? 16 : 0;
+	u32 mask, ws;
+	u32 in, out;
+
+	ws = rsnd_adg_ssi_ws_timing_gen2(io);
+
+	in  = (is_play) ? timsel : ws;
+	out = (is_play) ? ws     : timsel;
+
+	in   = in	<< shift;
+	out  = out	<< shift;
+	mask = 0xffff	<< shift;
+
+	switch (id / 2) {
+	case 0:
+		rsnd_mod_bset(mod, SRCIN_TIMSEL0,  mask, in);
+		rsnd_mod_bset(mod, SRCOUT_TIMSEL0, mask, out);
+		break;
+	case 1:
+		rsnd_mod_bset(mod, SRCIN_TIMSEL1,  mask, in);
+		rsnd_mod_bset(mod, SRCOUT_TIMSEL1, mask, out);
+		break;
+	case 2:
+		rsnd_mod_bset(mod, SRCIN_TIMSEL2,  mask, in);
+		rsnd_mod_bset(mod, SRCOUT_TIMSEL2, mask, out);
+		break;
+	case 3:
+		rsnd_mod_bset(mod, SRCIN_TIMSEL3,  mask, in);
+		rsnd_mod_bset(mod, SRCOUT_TIMSEL3, mask, out);
+		break;
+	case 4:
+		rsnd_mod_bset(mod, SRCIN_TIMSEL4,  mask, in);
+		rsnd_mod_bset(mod, SRCOUT_TIMSEL4, mask, out);
+		break;
+	}
+
+	return 0;
+}
+
+int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
+				  struct rsnd_dai *rdai,
+				  struct rsnd_dai_stream *io,
+				  unsigned int src_rate,
+				  unsigned int dst_rate)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	int idx, sel, div, step, ret;
+	u32 val, en;
+	unsigned int min, diff;
+	unsigned int sel_rate [] = {
+		clk_get_rate(adg->clk[CLKA]),	/* 0000: CLKA */
+		clk_get_rate(adg->clk[CLKB]),	/* 0001: CLKB */
+		clk_get_rate(adg->clk[CLKC]),	/* 0010: CLKC */
+		adg->rbga_rate_for_441khz_div_6,/* 0011: RBGA */
+		adg->rbgb_rate_for_48khz_div_6,	/* 0100: RBGB */
+	};
+
+	min = ~0;
+	val = 0;
+	en = 0;
+	for (sel = 0; sel < ARRAY_SIZE(sel_rate); sel++) {
+		idx = 0;
+		step = 2;
+
+		if (!sel_rate[sel])
+			continue;
+
+		for (div = 2; div <= 98304; div += step) {
+			diff = abs(src_rate - sel_rate[sel] / div);
+			if (min > diff) {
+				val = (sel << 8) | idx;
+				min = diff;
+				en = 1 << (sel + 1); /* fixme */
+			}
+
+			/*
+			 * step of 0_0000 / 0_0001 / 0_1101
+			 * are out of order
+			 */
+			if ((idx > 2) && (idx % 2))
+				step *= 2;
+			if (idx == 0x1c) {
+				div += step;
+				step *= 2;
+			}
+			idx++;
+		}
+	}
+
+	if (min == ~0) {
+		dev_err(dev, "no Input clock\n");
+		return -EIO;
+	}
+
+	ret = rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
+	if (ret < 0) {
+		dev_err(dev, "timsel error\n");
+		return ret;
+	}
+
+	rsnd_mod_bset(mod, DIV_EN, en, en);
+
+	return 0;
+}
+
+int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,
+				     struct rsnd_dai *rdai,
+				     struct rsnd_dai_stream *io)
+{
+	u32 val = rsnd_adg_ssi_ws_timing_gen2(io);
+
+	return rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
+}
+
+int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
+				  struct rsnd_mod *mod,
+				  unsigned int src_rate,
+				  unsigned int dst_rate)
+{
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	int idx, sel, div, shift;
+	u32 mask, val;
+	int id = rsnd_mod_id(mod);
+	unsigned int sel_rate [] = {
+		clk_get_rate(adg->clk[CLKA]),	/* 000: CLKA */
+		clk_get_rate(adg->clk[CLKB]),	/* 001: CLKB */
+		clk_get_rate(adg->clk[CLKC]),	/* 010: CLKC */
+		0,				/* 011: MLBCLK (not used) */
+		adg->rbga_rate_for_441khz_div_6,/* 100: RBGA */
+		adg->rbgb_rate_for_48khz_div_6,	/* 101: RBGB */
+	};
+
+	/* find div (= 1/128, 1/256, 1/512, 1/1024, 1/2048 */
+	for (sel = 0; sel < ARRAY_SIZE(sel_rate); sel++) {
+		for (div  = 128,	idx = 0;
+		     div <= 2048;
+		     div *= 2,		idx++) {
+			if (src_rate == sel_rate[sel] / div) {
+				val = (idx << 4) | sel;
+				goto find_rate;
+			}
+		}
+	}
+	dev_err(dev, "can't find convert src clk\n");
+	return -EINVAL;
+
+find_rate:
+	shift	= (id % 4) * 8;
+	mask	= 0xFF << shift;
+	val	= val << shift;
+
+	dev_dbg(dev, "adg convert src clk = %02x\n", val);
+
+	switch (id / 4) {
+	case 0:
+		rsnd_mod_bset(mod, AUDIO_CLK_SEL3, mask, val);
+		break;
+	case 1:
+		rsnd_mod_bset(mod, AUDIO_CLK_SEL4, mask, val);
+		break;
+	case 2:
+		rsnd_mod_bset(mod, AUDIO_CLK_SEL5, mask, val);
+		break;
+	}
+
+	/*
+	 * Gen1 doesn't need dst_rate settings,
+	 * since it uses SSI WS pin.
+	 * see also rsnd_src_set_route_if_gen1()
+	 */
+
+	return 0;
+}
+
+static void rsnd_adg_set_ssi_clk(struct rsnd_mod *mod, u32 val)
+{
+	int id = rsnd_mod_id(mod);
+	int shift = (id % 4) * 8;
+	u32 mask = 0xFF << shift;
+
+	val = val << shift;
 
 	/*
 	 * SSI 8 is not connected to ADG.
 	 * it works with SSI 7
 	 */
 	if (id == 8)
-		return RSND_REG_MAX;
+		return;
 
-	if (0 <= id && id <= 3)
-		reg = RSND_REG_AUDIO_CLK_SEL0;
-	else if (4 <= id && id <= 7)
-		reg = RSND_REG_AUDIO_CLK_SEL1;
-	else
-		reg = RSND_REG_AUDIO_CLK_SEL2;
-
-	return reg;
+	switch (id / 4) {
+	case 0:
+		rsnd_mod_bset(mod, AUDIO_CLK_SEL0, mask, val);
+		break;
+	case 1:
+		rsnd_mod_bset(mod, AUDIO_CLK_SEL1, mask, val);
+		break;
+	case 2:
+		rsnd_mod_bset(mod, AUDIO_CLK_SEL2, mask, val);
+		break;
+	}
 }
 
 int rsnd_adg_ssi_clk_stop(struct rsnd_mod *mod)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	enum rsnd_reg reg;
-	int id;
-
 	/*
 	 * "mod" = "ssi" here.
 	 * we can get "ssi id" from mod
 	 */
-	id  = rsnd_mod_id(mod);
-	reg = rsnd_adg_ssi_reg_get(id);
-
-	rsnd_write(priv, mod, reg, 0);
+	rsnd_adg_set_ssi_clk(mod, 0);
 
 	return 0;
 }
@@ -75,8 +304,7 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
-	enum rsnd_reg reg;
-	int id, shift, i;
+	int i;
 	u32 data;
 	int sel_table[] = {
 		[CLKA] = 0x1,
@@ -102,12 +330,12 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 	/*
 	 * find 1/6 clock from BRGA/BRGB
 	 */
-	if (rate == adg->rate_of_441khz_div_6) {
+	if (rate == adg->rbga_rate_for_441khz_div_6) {
 		data = 0x10;
 		goto found_clock;
 	}
 
-	if (rate == adg->rate_of_48khz_div_6) {
+	if (rate == adg->rbgb_rate_for_48khz_div_6) {
 		data = 0x20;
 		goto found_clock;
 	}
@@ -116,23 +344,19 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 
 found_clock:
 
+	/* see rsnd_adg_ssi_clk_init() */
+	rsnd_mod_bset(mod, SSICKR, 0x00FF0000, adg->ckr);
+	rsnd_mod_write(mod, BRRA,  0x00000002); /* 1/6 */
+	rsnd_mod_write(mod, BRRB,  0x00000002); /* 1/6 */
+
 	/*
 	 * This "mod" = "ssi" here.
 	 * we can get "ssi id" from mod
 	 */
-	id  = rsnd_mod_id(mod);
-	reg = rsnd_adg_ssi_reg_get(id);
+	rsnd_adg_set_ssi_clk(mod, data);
 
-	dev_dbg(dev, "ADG: ssi%d selects clk%d = %d", id, i, rate);
-
-	/*
-	 * Enable SSIx clock
-	 */
-	shift = (id % 4) * 8;
-
-	rsnd_bset(priv, mod, reg,
-		   0xFF << shift,
-		   data << shift);
+	dev_dbg(dev, "ADG: ssi%d selects clk%d = %d",
+		rsnd_mod_id(mod), i, rate);
 
 	return 0;
 }
@@ -161,8 +385,8 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 	 *	rsnd_adg_ssi_clk_try_start()
 	 */
 	ckr = 0;
-	adg->rate_of_441khz_div_6 = 0;
-	adg->rate_of_48khz_div_6  = 0;
+	adg->rbga_rate_for_441khz_div_6 = 0;
+	adg->rbgb_rate_for_48khz_div_6  = 0;
 	for_each_rsnd_clk(clk, adg, i) {
 		rate = clk_get_rate(clk);
 
@@ -170,25 +394,23 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 			continue;
 
 		/* RBGA */
-		if (!adg->rate_of_441khz_div_6 && (0 == rate % 44100)) {
-			adg->rate_of_441khz_div_6 = rate / 6;
+		if (!adg->rbga_rate_for_441khz_div_6 && (0 == rate % 44100)) {
+			adg->rbga_rate_for_441khz_div_6 = rate / 6;
 			ckr |= brg_table[i] << 20;
 		}
 
 		/* RBGB */
-		if (!adg->rate_of_48khz_div_6 && (0 == rate % 48000)) {
-			adg->rate_of_48khz_div_6 = rate / 6;
+		if (!adg->rbgb_rate_for_48khz_div_6 && (0 == rate % 48000)) {
+			adg->rbgb_rate_for_48khz_div_6 = rate / 6;
 			ckr |= brg_table[i] << 16;
 		}
 	}
 
-	rsnd_priv_bset(priv, SSICKR, 0x00FF0000, ckr);
-	rsnd_priv_write(priv, BRRA,  0x00000002); /* 1/6 */
-	rsnd_priv_write(priv, BRRB,  0x00000002); /* 1/6 */
+	adg->ckr = ckr;
 }
 
 int rsnd_adg_probe(struct platform_device *pdev,
-		   struct rcar_snd_info *info,
+		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
 	struct rsnd_adg *adg;
@@ -202,16 +424,13 @@ int rsnd_adg_probe(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	adg->clk[CLKA] = clk_get(NULL, "audio_clk_a");
-	adg->clk[CLKB] = clk_get(NULL, "audio_clk_b");
-	adg->clk[CLKC] = clk_get(NULL, "audio_clk_c");
-	adg->clk[CLKI] = clk_get(NULL, "audio_clk_internal");
-	for_each_rsnd_clk(clk, adg, i) {
-		if (IS_ERR(clk)) {
-			dev_err(dev, "Audio clock failed\n");
-			return -EIO;
-		}
-	}
+	adg->clk[CLKA]	= devm_clk_get(dev, "clk_a");
+	adg->clk[CLKB]	= devm_clk_get(dev, "clk_b");
+	adg->clk[CLKC]	= devm_clk_get(dev, "clk_c");
+	adg->clk[CLKI]	= devm_clk_get(dev, "clk_i");
+
+	for_each_rsnd_clk(clk, adg, i)
+		dev_dbg(dev, "clk %d : %p\n", i, clk);
 
 	rsnd_adg_ssi_clk_init(priv, adg);
 
@@ -220,15 +439,4 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	dev_dbg(dev, "adg probed\n");
 
 	return 0;
-}
-
-void rsnd_adg_remove(struct platform_device *pdev,
-		     struct rsnd_priv *priv)
-{
-	struct rsnd_adg *adg = priv->adg;
-	struct clk *clk;
-	int i;
-
-	for_each_rsnd_clk(clk, adg, i)
-		clk_put(clk);
 }

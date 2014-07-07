@@ -46,51 +46,6 @@
 
 #include <rtl8188e_hal.h>
 
-/*---------------------------Define Local Constant---------------------------*/
-/*  Define local structure for debug!!!!! */
-struct rf_shadow {
-	/*  Shadow register value */
-	u32 Value;
-	/*  Compare or not flag */
-	u8 Compare;
-	/*  Record If it had ever modified unpredicted */
-	u8 ErrorOrNot;
-	/*  Recorver Flag */
-	u8 Recorver;
-	/*  */
-	u8 Driver_Write;
-};
-
-/*---------------------------Define Local Constant---------------------------*/
-
-
-/*------------------------Define global variable-----------------------------*/
-
-/*------------------------Define local variable------------------------------*/
-
-/*-----------------------------------------------------------------------------
- * Function:	RF_ChangeTxPath
- *
- * Overview:	For RL6052, we must change some RF settign for 1T or 2T.
- *
- * Input:		u16 DataRate		0x80-8f, 0x90-9f
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 09/25/2008	MHC		Create Version 0.
- *						Firmwaer support the utility later.
- *
- *---------------------------------------------------------------------------*/
-void rtl8188e_RF_ChangeTxPath(struct adapter *Adapter, u16 DataRate)
-{
-/*  We do not support gain table change inACUT now !!!! Delete later !!! */
-}	/* RF_ChangeTxPath */
-
-
 /*-----------------------------------------------------------------------------
  * Function:    PHY_RF6052SetBandwidth()
  *
@@ -181,7 +136,7 @@ i		 *  Currently, we cannot fully disable driver dynamic
 		 * tx power mechanism because it is referenced by BT
 		 * coexist mechanism.
 		 * In the future, two mechanism shall be separated from
-		 * each other and maintained independantly. */
+		 * each other and maintained independently. */
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
 			TxAGC[RF_PATH_A] = 0x10101010;
 			TxAGC[RF_PATH_B] = 0x10101010;
@@ -216,11 +171,11 @@ i		 *  Currently, we cannot fully disable driver dynamic
 	ODM_TxPwrTrackAdjust88E(&pHalData->odmpriv, 1, &direction, &pwrtrac_value);
 
 	if (direction == 1) {
-		/*  Increase TX pwoer */
+		/*  Increase TX power */
 		TxAGC[0] += pwrtrac_value;
 		TxAGC[1] += pwrtrac_value;
 	} else if (direction == 2) {
-		/*  Decrease TX pwoer */
+		/*  Decrease TX power */
 		TxAGC[0] -=  pwrtrac_value;
 		TxAGC[1] -=  pwrtrac_value;
 	}
@@ -292,7 +247,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 			if (pHalData->pwrGroupCnt == 1)
 				chnlGroup = 0;
 			if (pHalData->pwrGroupCnt >= pHalData->PGMaxGroup) {
-				if (Channel < 3)			/*  Chanel 1-2 */
+				if (Channel < 3)			/*  Channel 1-2 */
 					chnlGroup = 0;
 				else if (Channel < 6)		/*  Channel 3-5 */
 					chnlGroup = 1;
@@ -349,7 +304,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 		}
 /*  20100427 Joseph: Driver dynamic Tx power shall not affect Tx power. It shall be determined by power training mechanism. */
 /*  Currently, we cannot fully disable driver dynamic tx power mechanism because it is referenced by BT coexist mechanism. */
-/*  In the future, two mechanism shall be separated from each other and maintained independantly. Thanks for Lanhsin's reminder. */
+/*  In the future, two mechanism shall be separated from each other and maintained independently. Thanks for Lanhsin's reminder. */
 		/* 92d do not need this */
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1)
 			writeVal = 0x14141414;
@@ -502,27 +457,27 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 		}
 		/*----Set RF_ENV enable----*/
 		PHY_SetBBReg(Adapter, pPhyReg->rfintfe, bRFSI_RFENV<<16, 0x1);
-		rtw_udelay_os(1);/* PlatformStallExecution(1); */
+		udelay(1);/* PlatformStallExecution(1); */
 
 		/*----Set RF_ENV output high----*/
 		PHY_SetBBReg(Adapter, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
-		rtw_udelay_os(1);/* PlatformStallExecution(1); */
+		udelay(1);/* PlatformStallExecution(1); */
 
 		/* Set bit number of Address and Data for RF register */
 		PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0);	/*  Set 1 to 4 bits for 8255 */
-		rtw_udelay_os(1);/* PlatformStallExecution(1); */
+		udelay(1);/* PlatformStallExecution(1); */
 
 		PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	/*  Set 0 to 12  bits for 8255 */
-		rtw_udelay_os(1);/* PlatformStallExecution(1); */
+		udelay(1);/* PlatformStallExecution(1); */
 
 		/*----Initialize RF fom connfiguration file----*/
 		switch (eRFPath) {
 		case RF_PATH_A:
-			if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum ODM_RF_RADIO_PATH)eRFPath, (enum ODM_RF_RADIO_PATH)eRFPath))
+			if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum rf_radio_path)eRFPath, (enum rf_radio_path)eRFPath))
 				rtStatus = _FAIL;
 			break;
 		case RF_PATH_B:
-		if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum ODM_RF_RADIO_PATH)eRFPath, (enum ODM_RF_RADIO_PATH)eRFPath))
+		if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum rf_radio_path)eRFPath, (enum rf_radio_path)eRFPath))
 				rtStatus = _FAIL;
 			break;
 		case RF_PATH_C:

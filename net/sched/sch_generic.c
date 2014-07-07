@@ -310,6 +310,7 @@ void netif_carrier_on(struct net_device *dev)
 	if (test_and_clear_bit(__LINK_STATE_NOCARRIER, &dev->state)) {
 		if (dev->reg_state == NETREG_UNINITIALIZED)
 			return;
+		atomic_inc(&dev->carrier_changes);
 		linkwatch_fire_event(dev);
 		if (netif_running(dev))
 			__netdev_watchdog_up(dev);
@@ -328,6 +329,7 @@ void netif_carrier_off(struct net_device *dev)
 	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state)) {
 		if (dev->reg_state == NETREG_UNINITIALIZED)
 			return;
+		atomic_inc(&dev->carrier_changes);
 		linkwatch_fire_event(dev);
 	}
 }
@@ -338,13 +340,13 @@ EXPORT_SYMBOL(netif_carrier_off);
    cheaper.
  */
 
-static int noop_enqueue(struct sk_buff *skb, struct Qdisc * qdisc)
+static int noop_enqueue(struct sk_buff *skb, struct Qdisc *qdisc)
 {
 	kfree_skb(skb);
 	return NET_XMIT_CN;
 }
 
-static struct sk_buff *noop_dequeue(struct Qdisc * qdisc)
+static struct sk_buff *noop_dequeue(struct Qdisc *qdisc)
 {
 	return NULL;
 }
@@ -718,8 +720,8 @@ static void attach_default_qdiscs(struct net_device *dev)
 	} else {
 		qdisc = qdisc_create_dflt(txq, &mq_qdisc_ops, TC_H_ROOT);
 		if (qdisc) {
-			qdisc->ops->attach(qdisc);
 			dev->qdisc = qdisc;
+			qdisc->ops->attach(qdisc);
 		}
 	}
 }
@@ -829,7 +831,7 @@ void dev_deactivate_many(struct list_head *head)
 	struct net_device *dev;
 	bool sync_needed = false;
 
-	list_for_each_entry(dev, head, unreg_list) {
+	list_for_each_entry(dev, head, close_list) {
 		netdev_for_each_tx_queue(dev, dev_deactivate_queue,
 					 &noop_qdisc);
 		if (dev_ingress_queue(dev))
@@ -848,7 +850,7 @@ void dev_deactivate_many(struct list_head *head)
 		synchronize_net();
 
 	/* Wait for outstanding qdisc_run calls. */
-	list_for_each_entry(dev, head, unreg_list)
+	list_for_each_entry(dev, head, close_list)
 		while (some_qdisc_is_busy(dev))
 			yield();
 }
@@ -857,7 +859,7 @@ void dev_deactivate(struct net_device *dev)
 {
 	LIST_HEAD(single);
 
-	list_add(&dev->unreg_list, &single);
+	list_add(&dev->close_list, &single);
 	dev_deactivate_many(&single);
 	list_del(&single);
 }
@@ -910,11 +912,12 @@ void dev_shutdown(struct net_device *dev)
 }
 
 void psched_ratecfg_precompute(struct psched_ratecfg *r,
-			       const struct tc_ratespec *conf)
+			       const struct tc_ratespec *conf,
+			       u64 rate64)
 {
 	memset(r, 0, sizeof(*r));
 	r->overhead = conf->overhead;
-	r->rate_bytes_ps = conf->rate;
+	r->rate_bytes_ps = max_t(u64, conf->rate, rate64);
 	r->linklayer = (conf->linklayer & TC_LINKLAYER_MASK);
 	r->mult = 1;
 	/*

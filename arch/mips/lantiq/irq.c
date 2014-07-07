@@ -61,7 +61,7 @@
 /* we have a cascade of 8 irqs */
 #define MIPS_CPU_IRQ_CASCADE		8
 
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
+#ifdef CONFIG_MIPS_MT_SMP
 int gic_present;
 #endif
 
@@ -390,7 +390,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		ret = of_irq_to_resource_table(eiu_node,
 						ltq_eiu_irq, exin_avail);
 		if (ret != exin_avail)
-			panic("failed to load external irq resources\n");
+			panic("failed to load external irq resources");
 
 		if (request_mem_region(res.start, resource_size(&res),
 							res.name) < 0)
@@ -440,7 +440,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	arch_init_ipiirq(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ, &irq_call);
 #endif
 
-#if !defined(CONFIG_MIPS_MT_SMP) && !defined(CONFIG_MIPS_MT_SMTC)
+#ifndef CONFIG_MIPS_MT_SMP
 	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 |
 		IE_IRQ3 | IE_IRQ4 | IE_IRQ5);
 #else

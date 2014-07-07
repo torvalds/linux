@@ -355,10 +355,32 @@ static int mdc_xattr_common(struct obd_export *exp,const struct req_format *fmt,
 				     input_size);
 	}
 
-	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, opcode);
-	if (rc) {
-		ptlrpc_request_free(req);
-		return rc;
+	/* Flush local XATTR locks to get rid of a possible cancel RPC */
+	if (opcode == MDS_REINT && fid_is_sane(fid) &&
+	    exp->exp_connect_data.ocd_ibits_known & MDS_INODELOCK_XATTR) {
+		LIST_HEAD(cancels);
+		int count;
+
+		/* Without that packing would fail */
+		if (input_size == 0)
+			req_capsule_set_size(&req->rq_pill, &RMF_EADATA,
+					     RCL_CLIENT, 0);
+
+		count = mdc_resource_get_unused(exp, fid,
+						&cancels, LCK_EX,
+						MDS_INODELOCK_XATTR);
+
+		rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
+		if (rc) {
+			ptlrpc_request_free(req);
+			return rc;
+		}
+	} else {
+		rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, opcode);
+		if (rc) {
+			ptlrpc_request_free(req);
+			return rc;
+		}
 	}
 
 	if (opcode == MDS_REINT) {
@@ -700,11 +722,12 @@ void mdc_commit_open(struct ptlrpc_request *req)
 
 int mdc_set_open_replay_data(struct obd_export *exp,
 			     struct obd_client_handle *och,
-			     struct ptlrpc_request *open_req)
+			     struct lookup_intent *it)
 {
 	struct md_open_data   *mod;
 	struct mdt_rec_create *rec;
 	struct mdt_body       *body;
+	struct ptlrpc_request *open_req = it->d.lustre.it_data;
 	struct obd_import     *imp = open_req->rq_import;
 
 	if (!open_req->rq_replay)
@@ -738,6 +761,8 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 		spin_lock(&open_req->rq_lock);
 		och->och_mod = mod;
 		mod->mod_och = och;
+		mod->mod_is_create = it_disposition(it, DISP_OPEN_CREATE) ||
+				     it_disposition(it, DISP_OPEN_STRIPE);
 		mod->mod_open_req = open_req;
 		open_req->rq_cb_data = mod;
 		open_req->rq_commit_cb = mdc_commit_open;
@@ -758,6 +783,23 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 	return 0;
 }
 
+static void mdc_free_open(struct md_open_data *mod)
+{
+	int committed = 0;
+
+	if (mod->mod_is_create == 0 &&
+	    imp_connect_disp_stripe(mod->mod_open_req->rq_import))
+		committed = 1;
+
+	LASSERT(mod->mod_open_req->rq_replay == 0);
+
+	DEBUG_REQ(D_RPCTRACE, mod->mod_open_req, "free open request\n");
+
+	ptlrpc_request_committed(mod->mod_open_req, committed);
+	if (mod->mod_close_req)
+		ptlrpc_request_committed(mod->mod_close_req, committed);
+}
+
 int mdc_clear_open_replay_data(struct obd_export *exp,
 			       struct obd_client_handle *och)
 {
@@ -771,6 +813,8 @@ int mdc_clear_open_replay_data(struct obd_export *exp,
 		return 0;
 
 	LASSERT(mod != LP_POISON);
+	LASSERT(mod->mod_open_req != NULL);
+	mdc_free_open(mod);
 
 	mod->mod_och = NULL;
 	och->och_mod = NULL;
@@ -800,10 +844,27 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 {
 	struct obd_device     *obd = class_exp2obd(exp);
 	struct ptlrpc_request *req;
-	int		    rc;
+	struct req_format     *req_fmt;
+	int                    rc;
+	int		       saved_rc = 0;
+
+
+	req_fmt = &RQF_MDS_CLOSE;
+	if (op_data->op_bias & MDS_HSM_RELEASE) {
+		req_fmt = &RQF_MDS_RELEASE_CLOSE;
+
+		/* allocate a FID for volatile file */
+		rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
+		if (rc < 0) {
+			CERROR("%s: "DFID" failed to allocate FID: %d\n",
+			       obd->obd_name, PFID(&op_data->op_fid1), rc);
+			/* save the errcode and proceed to close */
+			saved_rc = rc;
+		}
+	}
 
 	*request = NULL;
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_MDS_CLOSE);
+	req = ptlrpc_request_alloc(class_exp2cliimp(exp), req_fmt);
 	if (req == NULL)
 		return -ENOMEM;
 
@@ -842,9 +903,9 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	mdc_close_pack(req, op_data);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_easize);
+			     obd->u.cli.cl_default_mds_easize);
 	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_cookiesize);
+			     obd->u.cli.cl_default_mds_cookiesize);
 
 	ptlrpc_request_set_replen(req);
 
@@ -893,7 +954,7 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	}
 	*request = req;
 	mdc_close_handle_reply(req, op_data, rc);
-	return rc;
+	return rc < 0 ? rc : saved_rc;
 }
 
 int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
@@ -952,6 +1013,9 @@ int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
 	if (mod) {
 		if (rc != 0)
 			mod->mod_close_req = NULL;
+		LASSERT(mod->mod_open_req != NULL);
+		mdc_free_open(mod);
+
 		/* Since now, mod is accessed through setattr req only,
 		 * thus DW req does not keep a reference on mod anymore. */
 		obd_mod_put(mod);
@@ -1413,7 +1477,7 @@ static struct kuc_hdr *changelog_kuc_hdr(char *buf, int len, int flags)
 {
 	struct kuc_hdr *lh = (struct kuc_hdr *)buf;
 
-	LASSERT(len <= CR_MAXSIZE);
+	LASSERT(len <= KUC_CHANGELOG_MSG_MAXSIZE);
 
 	lh->kuc_magic = KUC_MAGIC;
 	lh->kuc_transport = KUC_TRANSPORT_CHANGELOG;
@@ -1486,7 +1550,7 @@ static int mdc_changelog_send_thread(void *csdata)
 	CDEBUG(D_CHANGELOG, "changelog to fp=%p start "LPU64"\n",
 	       cs->cs_fp, cs->cs_startrec);
 
-	OBD_ALLOC(cs->cs_buf, CR_MAXSIZE);
+	OBD_ALLOC(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);
 	if (cs->cs_buf == NULL)
 		GOTO(out, rc = -ENOMEM);
 
@@ -1510,8 +1574,8 @@ static int mdc_changelog_send_thread(void *csdata)
 	rc = llog_cat_process(NULL, llh, changelog_kkuc_cb, cs, 0, 0);
 
 	/* Send EOF no matter what our result */
-	if ((kuch = changelog_kuc_hdr(cs->cs_buf, sizeof(*kuch),
-				      cs->cs_flags))) {
+	kuch = changelog_kuc_hdr(cs->cs_buf, sizeof(*kuch), cs->cs_flags);
+	if (kuch) {
 		kuch->kuc_msgtype = CL_EOF;
 		libcfs_kkuc_msg_put(cs->cs_fp, kuch);
 	}
@@ -1523,7 +1587,7 @@ out:
 	if (ctxt)
 		llog_ctxt_put(ctxt);
 	if (cs->cs_buf)
-		OBD_FREE(cs->cs_buf, CR_MAXSIZE);
+		OBD_FREE(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);
 	OBD_FREE_PTR(cs);
 	return rc;
 }
@@ -1633,11 +1697,16 @@ static int mdc_quotactl(struct obd_device *unused, struct obd_export *exp,
 	if (rc)
 		CERROR("ptlrpc_queue_wait failed, rc: %d\n", rc);
 
-	if (req->rq_repmsg &&
-	    (oqc = req_capsule_server_get(&req->rq_pill, &RMF_OBD_QUOTACTL))) {
-		*oqctl = *oqc;
+	if (req->rq_repmsg) {
+		oqc = req_capsule_server_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
+		if (oqc) {
+			*oqctl = *oqc;
+		} else if (!rc) {
+			CERROR ("Can't unpack obd_quotactl\n");
+			rc = -EPROTO;
+		}
 	} else if (!rc) {
-		CERROR ("Can't unpack obd_quotactl\n");
+		CERROR("Can't unpack obd_quotactl\n");
 		rc = -EPROTO;
 	}
 	ptlrpc_req_finished(req);
@@ -1743,6 +1812,7 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		GOTO(out, rc);
 	case LL_IOC_HSM_STATE_SET:
 		rc = mdc_ioc_hsm_state_set(exp, karg);
+		GOTO(out, rc);
 	case LL_IOC_HSM_ACTION:
 		rc = mdc_ioc_hsm_current_action(exp, karg);
 		GOTO(out, rc);
@@ -1814,8 +1884,8 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		struct obd_quotactl *oqctl;
 
 		OBD_ALLOC_PTR(oqctl);
-		if (!oqctl)
-			return -ENOMEM;
+		if (oqctl == NULL)
+			GOTO(out, rc = -ENOMEM);
 
 		QCTL_COPY(oqctl, qctl);
 		rc = obd_quotactl(exp, oqctl);
@@ -1824,23 +1894,21 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			qctl->qc_valid = QC_MDTIDX;
 			qctl->obd_uuid = obd->u.cli.cl_target_uuid;
 		}
+
 		OBD_FREE_PTR(oqctl);
-		break;
+		GOTO(out, rc);
 	}
-	case LL_IOC_GET_CONNECT_FLAGS: {
-		if (copy_to_user(uarg,
-				     exp_connect_flags_ptr(exp),
-				     sizeof(__u64)))
+	case LL_IOC_GET_CONNECT_FLAGS:
+		if (copy_to_user(uarg, exp_connect_flags_ptr(exp),
+				 sizeof(*exp_connect_flags_ptr(exp))))
 			GOTO(out, rc = -EFAULT);
-		else
-			GOTO(out, rc = 0);
-	}
-	case LL_IOC_LOV_SWAP_LAYOUTS: {
+
+		GOTO(out, rc = 0);
+	case LL_IOC_LOV_SWAP_LAYOUTS:
 		rc = mdc_ioc_swap_layouts(exp, karg);
-		break;
-	}
+		GOTO(out, rc);
 	default:
-		CERROR("mdc_ioctl(): unrecognised ioctl %#x\n", cmd);
+		CERROR("unrecognised ioctl: cmd = %#x\n", cmd);
 		GOTO(out, rc = -ENOTTY);
 	}
 out:
@@ -1920,10 +1988,8 @@ static void lustre_swab_hal(struct hsm_action_list *h)
 	__swab32s(&h->hal_archive_id);
 	__swab64s(&h->hal_flags);
 	hai = hai_zero(h);
-	for (i = 0; i < h->hal_count; i++) {
+	for (i = 0; i < h->hal_count; i++, hai = hai_next(hai))
 		lustre_swab_hai(hai);
-		hai = hai_next(hai);
-	}
 }
 
 static void lustre_swab_kuch(struct kuc_hdr *l)
@@ -2062,15 +2128,6 @@ int mdc_set_info_async(const struct lu_env *env,
 		sptlrpc_import_flush_my_ctx(imp);
 		return 0;
 	}
-	if (KEY_IS(KEY_MDS_CONN)) {
-		/* mds-mds import */
-		spin_lock(&imp->imp_lock);
-		imp->imp_server_timeout = 1;
-		spin_unlock(&imp->imp_lock);
-		imp->imp_client->cli_request_portal = MDS_MDS_PORTAL;
-		CDEBUG(D_OTHER, "%s: timeout / 2\n", exp->exp_obd->obd_name);
-		return 0;
-	}
 	if (KEY_IS(KEY_CHANGELOG_CLEAR)) {
 		rc = do_set_info_async(imp, MDS_SET_INFO, LUSTRE_MDS_VERSION,
 				       keylen, key, vallen, val, set);
@@ -2096,11 +2153,39 @@ int mdc_get_info(const struct lu_env *env, struct obd_export *exp,
 
 		if (*vallen != sizeof(int))
 			return -EINVAL;
-		mdsize = *(int*)val;
+		mdsize = *(int *)val;
 		if (mdsize > exp->exp_obd->u.cli.cl_max_mds_easize)
 			exp->exp_obd->u.cli.cl_max_mds_easize = mdsize;
 		max_easize = val;
 		*max_easize = exp->exp_obd->u.cli.cl_max_mds_easize;
+		return 0;
+	} else if (KEY_IS(KEY_DEFAULT_EASIZE)) {
+		int *default_easize;
+
+		if (*vallen != sizeof(int))
+			return -EINVAL;
+		default_easize = val;
+		*default_easize = exp->exp_obd->u.cli.cl_default_mds_easize;
+		return 0;
+	} else if (KEY_IS(KEY_MAX_COOKIESIZE)) {
+		int mdsize, *max_cookiesize;
+
+		if (*vallen != sizeof(int))
+			return -EINVAL;
+		mdsize = *(int *)val;
+		if (mdsize > exp->exp_obd->u.cli.cl_max_mds_cookiesize)
+			exp->exp_obd->u.cli.cl_max_mds_cookiesize = mdsize;
+		max_cookiesize = val;
+		*max_cookiesize = exp->exp_obd->u.cli.cl_max_mds_cookiesize;
+		return 0;
+	} else if (KEY_IS(KEY_DEFAULT_COOKIESIZE)) {
+		int *default_cookiesize;
+
+		if (*vallen != sizeof(int))
+			return -EINVAL;
+		default_cookiesize = val;
+		*default_cookiesize =
+			exp->exp_obd->u.cli.cl_default_mds_cookiesize;
 		return 0;
 	} else if (KEY_IS(KEY_CONN_DATA)) {
 		struct obd_import *imp = class_exp2cliimp(exp);
@@ -2382,11 +2467,15 @@ err_rpc_lock:
 }
 
 /* Initialize the default and maximum LOV EA and cookie sizes.  This allows
- * us to make MDS RPCs with large enough reply buffers to hold the
- * maximum-sized (= maximum striped) EA and cookie without having to
- * calculate this (via a call into the LOV + OSCs) each time we make an RPC. */
+ * us to make MDS RPCs with large enough reply buffers to hold a default
+ * sized EA and cookie without having to calculate this (via a call into the
+ * LOV + OSCs) each time we make an RPC.  The maximum size is also tracked
+ * but not used to avoid wastefully vmalloc()'ing large reply buffers when
+ * a large number of stripes is possible.  If a larger reply buffer is
+ * required it will be reallocated in the ptlrpc layer due to overflow.
+ */
 static int mdc_init_ea_size(struct obd_export *exp, int easize,
-		     int def_easize, int cookiesize)
+			    int def_easize, int cookiesize, int def_cookiesize)
 {
 	struct obd_device *obd = exp->exp_obd;
 	struct client_obd *cli = &obd->u.cli;
@@ -2399,6 +2488,9 @@ static int mdc_init_ea_size(struct obd_export *exp, int easize,
 
 	if (cli->cl_max_mds_cookiesize < cookiesize)
 		cli->cl_max_mds_cookiesize = cookiesize;
+
+	if (cli->cl_default_mds_cookiesize < def_cookiesize)
+		cli->cl_default_mds_cookiesize = def_cookiesize;
 
 	return 0;
 }
@@ -2580,27 +2672,6 @@ static int mdc_renew_capa(struct obd_export *exp, struct obd_capa *oc,
 	return 0;
 }
 
-static int mdc_connect(const struct lu_env *env,
-		       struct obd_export **exp,
-		       struct obd_device *obd, struct obd_uuid *cluuid,
-		       struct obd_connect_data *data,
-		       void *localdata)
-{
-	struct obd_import *imp = obd->u.cli.cl_import;
-
-	/* mds-mds import features */
-	if (data && (data->ocd_connect_flags & OBD_CONNECT_MDS_MDS)) {
-		spin_lock(&imp->imp_lock);
-		imp->imp_server_timeout = 1;
-		spin_unlock(&imp->imp_lock);
-		imp->imp_client->cli_request_portal = MDS_MDS_PORTAL;
-		CDEBUG(D_OTHER, "%s: Set 'mds' portal and timeout\n",
-		       obd->obd_name);
-	}
-
-	return client_connect_import(env, exp, obd, cluuid, data, NULL);
-}
-
 struct obd_ops mdc_obd_ops = {
 	.o_owner	    = THIS_MODULE,
 	.o_setup	    = mdc_setup,
@@ -2608,7 +2679,7 @@ struct obd_ops mdc_obd_ops = {
 	.o_cleanup	  = mdc_cleanup,
 	.o_add_conn	 = client_import_add_conn,
 	.o_del_conn	 = client_import_del_conn,
-	.o_connect	  = mdc_connect,
+	.o_connect          = client_connect_import,
 	.o_disconnect       = client_disconnect_export,
 	.o_iocontrol	= mdc_iocontrol,
 	.o_set_info_async   = mdc_set_info_async,

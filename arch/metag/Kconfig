@@ -9,6 +9,7 @@ config METAG
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_TRACER
@@ -29,7 +30,6 @@ config METAG
 	select OF
 	select OF_EARLY_FLATTREE
 	select SPARSE_IRQ
-	select HAVE_DEBUG_STACKOVERFLOW
 
 config STACKTRACE_SUPPORT
 	def_bool y
@@ -52,7 +52,7 @@ config GENERIC_HWEIGHT
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 source "init/Kconfig"
@@ -111,7 +111,6 @@ config METAG_META21
 config SMP
 	bool "Symmetric multi-processing support"
 	depends on METAG_META21 && METAG_META21_MMU
-	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one thread running
 	  Linux. If you have a system with only one thread running Linux,

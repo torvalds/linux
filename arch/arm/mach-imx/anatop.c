@@ -16,6 +16,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include "common.h"
+#include "hardware.h"
 
 #define REG_SET		0x4
 #define REG_CLR		0x8
@@ -26,6 +27,7 @@
 #define ANADIG_USB1_CHRG_DETECT	0x1b0
 #define ANADIG_USB2_CHRG_DETECT	0x210
 #define ANADIG_DIGPROG		0x260
+#define ANADIG_DIGPROG_IMX6SL	0x280
 
 #define BM_ANADIG_REG_2P5_ENABLE_WEAK_LINREG	0x40000
 #define BM_ANADIG_REG_CORE_FET_ODRIVE		0x20000000
@@ -76,21 +78,38 @@ static void imx_anatop_usb_chrg_detect_disable(void)
 		BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B);
 }
 
-u32 imx_anatop_get_digprog(void)
+void __init imx_init_revision_from_anatop(void)
 {
 	struct device_node *np;
 	void __iomem *anatop_base;
-	static u32 digprog;
-
-	if (digprog)
-		return digprog;
+	unsigned int revision;
+	u32 digprog;
+	u16 offset = ANADIG_DIGPROG;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
 	anatop_base = of_iomap(np, 0);
 	WARN_ON(!anatop_base);
-	digprog = readl_relaxed(anatop_base + ANADIG_DIGPROG);
+	if (of_device_is_compatible(np, "fsl,imx6sl-anatop"))
+		offset = ANADIG_DIGPROG_IMX6SL;
+	digprog = readl_relaxed(anatop_base + offset);
+	iounmap(anatop_base);
 
-	return digprog;
+	switch (digprog & 0xff) {
+	case 0:
+		revision = IMX_CHIP_REVISION_1_0;
+		break;
+	case 1:
+		revision = IMX_CHIP_REVISION_1_1;
+		break;
+	case 2:
+		revision = IMX_CHIP_REVISION_1_2;
+		break;
+	default:
+		revision = IMX_CHIP_REVISION_UNKNOWN;
+	}
+
+	mxc_set_cpu_type(digprog >> 16 & 0xff);
+	imx_set_soc_revision(revision);
 }
 
 void __init imx_anatop_init(void)

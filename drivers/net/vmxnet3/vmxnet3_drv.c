@@ -1078,7 +1078,7 @@ unlock_drop_pkt:
 	spin_unlock_irqrestore(&tq->tx_lock, flags);
 drop_pkt:
 	tq->stats.drop_total++;
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -1235,7 +1235,9 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 #ifdef VMXNET3_RSS
 			if (rcd->rssType != VMXNET3_RCD_RSS_TYPE_NONE &&
 			    (adapter->netdev->features & NETIF_F_RXHASH))
-				ctx->skb->rxhash = le32_to_cpu(rcd->rssHash);
+				skb_set_hash(ctx->skb,
+					     le32_to_cpu(rcd->rssHash),
+					     PKT_HASH_TYPE_L3);
 #endif
 			skb_put(ctx->skb, rcd->len);
 
@@ -1760,11 +1762,20 @@ vmxnet3_netpoll(struct net_device *netdev)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->intr.mask_mode == VMXNET3_IMM_ACTIVE)
-		vmxnet3_disable_all_intrs(adapter);
-
-	vmxnet3_do_poll(adapter, adapter->rx_queue[0].rx_ring[0].size);
-	vmxnet3_enable_all_intrs(adapter);
+	switch (adapter->intr.type) {
+#ifdef CONFIG_PCI_MSI
+	case VMXNET3_IT_MSIX: {
+		int i;
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			vmxnet3_msix_rx(0, &adapter->rx_queue[i]);
+		break;
+	}
+#endif
+	case VMXNET3_IT_MSI:
+	default:
+		vmxnet3_intr(0, adapter->netdev);
+		break;
+	}
 
 }
 #endif	/* CONFIG_NET_POLL_CONTROLLER */
@@ -2578,8 +2589,8 @@ vmxnet3_open(struct net_device *netdev)
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		spin_lock_init(&adapter->tx_queue[i].tx_lock);
 
-	err = vmxnet3_create_queues(adapter, VMXNET3_DEF_TX_RING_SIZE,
-				    VMXNET3_DEF_RX_RING_SIZE,
+	err = vmxnet3_create_queues(adapter, adapter->tx_ring_size,
+				    adapter->rx_ring_size,
 				    VMXNET3_DEF_RX_RING_SIZE);
 	if (err)
 		goto queue_err;
@@ -2727,47 +2738,35 @@ vmxnet3_read_mac_addr(struct vmxnet3_adapter *adapter, u8 *mac)
 /*
  * Enable MSIx vectors.
  * Returns :
- *	0 on successful enabling of required vectors,
  *	VMXNET3_LINUX_MIN_MSIX_VECT when only minimum number of vectors required
- *	 could be enabled.
- *	number of vectors which can be enabled otherwise (this number is smaller
+ *	 were enabled.
+ *	number of vectors which were enabled otherwise (this number is greater
  *	 than VMXNET3_LINUX_MIN_MSIX_VECT)
  */
 
 static int
-vmxnet3_acquire_msix_vectors(struct vmxnet3_adapter *adapter,
-			     int vectors)
+vmxnet3_acquire_msix_vectors(struct vmxnet3_adapter *adapter, int nvec)
 {
-	int err = 0, vector_threshold;
-	vector_threshold = VMXNET3_LINUX_MIN_MSIX_VECT;
+	int ret = pci_enable_msix_range(adapter->pdev,
+					adapter->intr.msix_entries, nvec, nvec);
 
-	while (vectors >= vector_threshold) {
-		err = pci_enable_msix(adapter->pdev, adapter->intr.msix_entries,
-				      vectors);
-		if (!err) {
-			adapter->intr.num_intrs = vectors;
-			return 0;
-		} else if (err < 0) {
-			dev_err(&adapter->netdev->dev,
-				   "Failed to enable MSI-X, error: %d\n", err);
-			vectors = 0;
-		} else if (err < vector_threshold) {
-			break;
-		} else {
-			/* If fails to enable required number of MSI-x vectors
-			 * try enabling minimum number of vectors required.
-			 */
-			dev_err(&adapter->netdev->dev,
-				"Failed to enable %d MSI-X, trying %d instead\n",
-				    vectors, vector_threshold);
-			vectors = vector_threshold;
-		}
+	if (ret == -ENOSPC && nvec > VMXNET3_LINUX_MIN_MSIX_VECT) {
+		dev_err(&adapter->netdev->dev,
+			"Failed to enable %d MSI-X, trying %d\n",
+			nvec, VMXNET3_LINUX_MIN_MSIX_VECT);
+
+		ret = pci_enable_msix_range(adapter->pdev,
+					    adapter->intr.msix_entries,
+					    VMXNET3_LINUX_MIN_MSIX_VECT,
+					    VMXNET3_LINUX_MIN_MSIX_VECT);
 	}
 
-	dev_info(&adapter->pdev->dev,
-		 "Number of MSI-X interrupts which can be allocated "
-		 "is lower than min threshold required.\n");
-	return err;
+	if (ret < 0) {
+		dev_err(&adapter->netdev->dev,
+			"Failed to enable MSI-X, error: %d\n", ret);
+	}
+
+	return ret;
 }
 
 
@@ -2794,56 +2793,50 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 
 #ifdef CONFIG_PCI_MSI
 	if (adapter->intr.type == VMXNET3_IT_MSIX) {
-		int vector, err = 0;
+		int i, nvec;
 
-		adapter->intr.num_intrs = (adapter->share_intr ==
-					   VMXNET3_INTR_TXSHARE) ? 1 :
-					   adapter->num_tx_queues;
-		adapter->intr.num_intrs += (adapter->share_intr ==
-					   VMXNET3_INTR_BUDDYSHARE) ? 0 :
-					   adapter->num_rx_queues;
-		adapter->intr.num_intrs += 1;		/* for link event */
+		nvec  = adapter->share_intr == VMXNET3_INTR_TXSHARE ?
+			1 : adapter->num_tx_queues;
+		nvec += adapter->share_intr == VMXNET3_INTR_BUDDYSHARE ?
+			0 : adapter->num_rx_queues;
+		nvec += 1;	/* for link event */
+		nvec = nvec > VMXNET3_LINUX_MIN_MSIX_VECT ?
+		       nvec : VMXNET3_LINUX_MIN_MSIX_VECT;
 
-		adapter->intr.num_intrs = (adapter->intr.num_intrs >
-					   VMXNET3_LINUX_MIN_MSIX_VECT
-					   ? adapter->intr.num_intrs :
-					   VMXNET3_LINUX_MIN_MSIX_VECT);
+		for (i = 0; i < nvec; i++)
+			adapter->intr.msix_entries[i].entry = i;
 
-		for (vector = 0; vector < adapter->intr.num_intrs; vector++)
-			adapter->intr.msix_entries[vector].entry = vector;
+		nvec = vmxnet3_acquire_msix_vectors(adapter, nvec);
+		if (nvec < 0)
+			goto msix_err;
 
-		err = vmxnet3_acquire_msix_vectors(adapter,
-						   adapter->intr.num_intrs);
 		/* If we cannot allocate one MSIx vector per queue
 		 * then limit the number of rx queues to 1
 		 */
-		if (err == VMXNET3_LINUX_MIN_MSIX_VECT) {
+		if (nvec == VMXNET3_LINUX_MIN_MSIX_VECT) {
 			if (adapter->share_intr != VMXNET3_INTR_BUDDYSHARE
 			    || adapter->num_rx_queues != 1) {
 				adapter->share_intr = VMXNET3_INTR_TXSHARE;
 				netdev_err(adapter->netdev,
 					   "Number of rx queues : 1\n");
 				adapter->num_rx_queues = 1;
-				adapter->intr.num_intrs =
-						VMXNET3_LINUX_MIN_MSIX_VECT;
 			}
-			return;
 		}
-		if (!err)
-			return;
 
+		adapter->intr.num_intrs = nvec;
+		return;
+
+msix_err:
 		/* If we cannot allocate MSIx vectors use only one rx queue */
 		dev_info(&adapter->pdev->dev,
 			 "Failed to enable MSI-X, error %d. "
-			 "Limiting #rx queues to 1, try MSI.\n", err);
+			 "Limiting #rx queues to 1, try MSI.\n", nvec);
 
 		adapter->intr.type = VMXNET3_IT_MSI;
 	}
 
 	if (adapter->intr.type == VMXNET3_IT_MSI) {
-		int err;
-		err = pci_enable_msi(adapter->pdev);
-		if (!err) {
+		if (!pci_enable_msi(adapter->pdev)) {
 			adapter->num_rx_queues = 1;
 			adapter->intr.num_intrs = 1;
 			return;
@@ -2974,6 +2967,9 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
+
+	adapter->tx_ring_size = VMXNET3_DEF_TX_RING_SIZE;
+	adapter->rx_ring_size = VMXNET3_DEF_RX_RING_SIZE;
 
 	spin_lock_init(&adapter->cmd_lock);
 	adapter->adapter_pa = dma_map_single(&adapter->pdev->dev, adapter,
@@ -3132,7 +3128,6 @@ err_alloc_queue_desc:
 err_alloc_shared:
 	dma_unmap_single(&adapter->pdev->dev, adapter->adapter_pa,
 			 sizeof(struct vmxnet3_adapter), PCI_DMA_TODEVICE);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 	return err;
 }

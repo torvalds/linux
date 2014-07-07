@@ -10,12 +10,13 @@ ldlm_objs += $(LDLM)ldlm_pool.o
 ldlm_objs += $(LDLM)interval_tree.o
 ptlrpc_objs := client.o recover.o connection.o niobuf.o pack_generic.o
 ptlrpc_objs += events.o ptlrpc_module.o service.o pinger.o
-ptlrpc_objs += llog_net.o llog_client.o llog_server.o import.o ptlrpcd.o
+ptlrpc_objs += llog_net.o llog_client.o import.o ptlrpcd.o
 ptlrpc_objs += pers.o lproc_ptlrpc.o wiretest.o layout.o
-ptlrpc_objs += sec.o sec_bulk.o sec_gc.o sec_config.o sec_lproc.o
+ptlrpc_objs += sec.o sec_bulk.o sec_gc.o sec_config.o
 ptlrpc_objs += sec_null.o sec_plain.o nrs.o nrs_fifo.o
 
 ptlrpc-y := $(ldlm_objs) $(ptlrpc_objs)
+ptlrpc-$(CONFIG_PROC_FS) += sec_lproc.o
 ptlrpc-$(CONFIG_LUSTRE_TRANSLATE_ERRNOS) += errno.o
 
 obj-$(CONFIG_PTLRPC_GSS) += gss/

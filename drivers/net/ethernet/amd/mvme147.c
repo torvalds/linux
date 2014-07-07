@@ -26,9 +26,9 @@
 #include <asm/pgtable.h>
 #include <asm/mvme147hw.h>
 
-/* We have 16834 bytes of RAM for the init block and buffers. This places
+/* We have 32K of RAM for the init block and buffers. This places
  * an upper limit on the number of buffers we can use. NetBSD uses 8 Rx
- * buffers and 2 Tx buffers.
+ * buffers and 2 Tx buffers, it takes (8 + 2) * 1544 bytes.
  */
 #define LANCE_LOG_TX_BUFFERS 1
 #define LANCE_LOG_RX_BUFFERS 3
@@ -94,33 +94,31 @@ struct net_device * __init mvme147lance_probe(int unit)
 	dev->netdev_ops = &lance_netdev_ops;
 	dev->dma = 0;
 
-	addr=(u_long *)ETHERNET_ADDRESS;
+	addr = (u_long *)ETHERNET_ADDRESS;
 	address = *addr;
-	dev->dev_addr[0]=0x08;
-	dev->dev_addr[1]=0x00;
-	dev->dev_addr[2]=0x3e;
-	address=address>>8;
-	dev->dev_addr[5]=address&0xff;
-	address=address>>8;
-	dev->dev_addr[4]=address&0xff;
-	address=address>>8;
-	dev->dev_addr[3]=address&0xff;
+	dev->dev_addr[0] = 0x08;
+	dev->dev_addr[1] = 0x00;
+	dev->dev_addr[2] = 0x3e;
+	address = address >> 8;
+	dev->dev_addr[5] = address&0xff;
+	address = address >> 8;
+	dev->dev_addr[4] = address&0xff;
+	address = address >> 8;
+	dev->dev_addr[3] = address&0xff;
 
-	printk("%s: MVME147 at 0x%08lx, irq %d, "
-	       "Hardware Address %pM\n",
+	printk("%s: MVME147 at 0x%08lx, irq %d, Hardware Address %pM\n",
 	       dev->name, dev->base_addr, MVME147_LANCE_IRQ,
 	       dev->dev_addr);
 
 	lp = netdev_priv(dev);
-	lp->ram = __get_dma_pages(GFP_ATOMIC, 3);	/* 16K */
-	if (!lp->ram)
-	{
+	lp->ram = __get_dma_pages(GFP_ATOMIC, 3);	/* 32K */
+	if (!lp->ram) {
 		printk("%s: No memory for LANCE buffers\n", dev->name);
 		free_netdev(dev);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	lp->lance.name = (char*)name;                   /* discards const, shut up gcc */
+	lp->lance.name = name;
 	lp->lance.base = dev->base_addr;
 	lp->lance.init_block = (struct lance_init_block *)(lp->ram); /* CPU addr */
 	lp->lance.lance_init_block = (struct lance_init_block *)(lp->ram);                 /* LANCE addr of same RAM */
@@ -167,8 +165,8 @@ static int m147lance_open(struct net_device *dev)
 	if (status)
 		return status;
 	/* enable interrupts at board level. */
-	m147_pcc->lan_cntrl=0;       /* clear the interrupts (if any) */
-	m147_pcc->lan_cntrl=0x08 | 0x04;     /* Enable irq 4 */
+	m147_pcc->lan_cntrl = 0;       /* clear the interrupts (if any) */
+	m147_pcc->lan_cntrl = 0x08 | 0x04;     /* Enable irq 4 */
 
 	return 0;
 }
@@ -176,7 +174,7 @@ static int m147lance_open(struct net_device *dev)
 static int m147lance_close(struct net_device *dev)
 {
 	/* disable interrupts at boardlevel */
-	m147_pcc->lan_cntrl=0x0; /* disable interrupts */
+	m147_pcc->lan_cntrl = 0x0; /* disable interrupts */
 	lance_close(dev);
 	return 0;
 }

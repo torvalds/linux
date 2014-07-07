@@ -34,25 +34,25 @@
 #define LNET_NRB_LARGE		(LNET_NRB_LARGE_MIN * 4)
 
 static char *forwarding = "";
-CFS_MODULE_PARM(forwarding, "s", charp, 0444,
-		"Explicitly enable/disable forwarding between networks");
+module_param(forwarding, charp, 0444);
+MODULE_PARM_DESC(forwarding, "Explicitly enable/disable forwarding between networks");
 
 static int tiny_router_buffers;
-CFS_MODULE_PARM(tiny_router_buffers, "i", int, 0444,
-		"# of 0 payload messages to buffer in the router");
+module_param(tiny_router_buffers, int, 0444);
+MODULE_PARM_DESC(tiny_router_buffers, "# of 0 payload messages to buffer in the router");
 static int small_router_buffers;
-CFS_MODULE_PARM(small_router_buffers, "i", int, 0444,
-		"# of small (1 page) messages to buffer in the router");
+module_param(small_router_buffers, int, 0444);
+MODULE_PARM_DESC(small_router_buffers, "# of small (1 page) messages to buffer in the router");
 static int large_router_buffers;
-CFS_MODULE_PARM(large_router_buffers, "i", int, 0444,
-		"# of large messages to buffer in the router");
+module_param(large_router_buffers, int, 0444);
+MODULE_PARM_DESC(large_router_buffers, "# of large messages to buffer in the router");
 static int peer_buffer_credits = 0;
-CFS_MODULE_PARM(peer_buffer_credits, "i", int, 0444,
-		"# router buffer credits per peer");
+module_param(peer_buffer_credits, int, 0444);
+MODULE_PARM_DESC(peer_buffer_credits, "# router buffer credits per peer");
 
 static int auto_down = 1;
-CFS_MODULE_PARM(auto_down, "i", int, 0444,
-		"Automatically mark peers down on comms error");
+module_param(auto_down, int, 0444);
+MODULE_PARM_DESC(auto_down, "Automatically mark peers down on comms error");
 
 int
 lnet_peer_buffer_credits(lnet_ni_t *ni)
@@ -81,24 +81,24 @@ lnet_peer_buffer_credits(lnet_ni_t *ni)
 #endif
 
 static int check_routers_before_use = 0;
-CFS_MODULE_PARM(check_routers_before_use, "i", int, 0444,
-		"Assume routers are down and ping them before use");
+module_param(check_routers_before_use, int, 0444);
+MODULE_PARM_DESC(check_routers_before_use, "Assume routers are down and ping them before use");
 
 static int avoid_asym_router_failure = 1;
-CFS_MODULE_PARM(avoid_asym_router_failure, "i", int, 0644,
-		"Avoid asymmetrical router failures (0 to disable)");
+module_param(avoid_asym_router_failure, int, 0644);
+MODULE_PARM_DESC(avoid_asym_router_failure, "Avoid asymmetrical router failures (0 to disable)");
 
 static int dead_router_check_interval = 60;
-CFS_MODULE_PARM(dead_router_check_interval, "i", int, 0644,
-		"Seconds between dead router health checks (<= 0 to disable)");
+module_param(dead_router_check_interval, int, 0644);
+MODULE_PARM_DESC(dead_router_check_interval, "Seconds between dead router health checks (<= 0 to disable)");
 
 static int live_router_check_interval = 60;
-CFS_MODULE_PARM(live_router_check_interval, "i", int, 0644,
-		"Seconds between live router health checks (<= 0 to disable)");
+module_param(live_router_check_interval, int, 0644);
+MODULE_PARM_DESC(live_router_check_interval, "Seconds between live router health checks (<= 0 to disable)");
 
 static int router_ping_timeout = 50;
-CFS_MODULE_PARM(router_ping_timeout, "i", int, 0644,
-		"Seconds to wait for the reply to a router health query");
+module_param(router_ping_timeout, int, 0644);
+MODULE_PARM_DESC(router_ping_timeout, "Seconds to wait for the reply to a router health query");
 
 int
 lnet_peers_start_down(void)
@@ -145,7 +145,7 @@ lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 	 * NB individual events can be missed; the only guarantee is that you
 	 * always get the most recent news */
 
-	if (lp->lp_notifying)
+	if (lp->lp_notifying || ni == NULL)
 		return;
 
 	lp->lp_notifying = 1;
@@ -301,7 +301,8 @@ lnet_add_route_to_rnet (lnet_remotenet_t *rnet, lnet_route_t *route)
 }
 
 int
-lnet_add_route (__u32 net, unsigned int hops, lnet_nid_t gateway)
+lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
+	       unsigned int priority)
 {
 	struct list_head	  *e;
 	lnet_remotenet_t    *rnet;
@@ -311,8 +312,8 @@ lnet_add_route (__u32 net, unsigned int hops, lnet_nid_t gateway)
 	int		  add_route;
 	int		  rc;
 
-	CDEBUG(D_NET, "Add route: net %s hops %u gw %s\n",
-	       libcfs_net2str(net), hops, libcfs_nid2str(gateway));
+	CDEBUG(D_NET, "Add route: net %s hops %u priority %u gw %s\n",
+	       libcfs_net2str(net), hops, priority, libcfs_nid2str(gateway));
 
 	if (gateway == LNET_NID_ANY ||
 	    LNET_NETTYP(LNET_NIDNET(gateway)) == LOLND ||
@@ -342,6 +343,7 @@ lnet_add_route (__u32 net, unsigned int hops, lnet_nid_t gateway)
 	rnet->lrn_net = net;
 	route->lr_hops = hops;
 	route->lr_net = net;
+	route->lr_priority = priority;
 
 	lnet_net_lock(LNET_LOCK_EX);
 
@@ -552,7 +554,7 @@ lnet_destroy_routes (void)
 
 int
 lnet_get_route(int idx, __u32 *net, __u32 *hops,
-	       lnet_nid_t *gateway, __u32 *alive)
+	       lnet_nid_t *gateway, __u32 *alive, __u32 *priority)
 {
 	struct list_head		*e1;
 	struct list_head		*e2;
@@ -574,10 +576,11 @@ lnet_get_route(int idx, __u32 *net, __u32 *hops,
 						       lr_list);
 
 				if (idx-- == 0) {
-					*net     = rnet->lrn_net;
-					*hops    = route->lr_hops;
-					*gateway = route->lr_gateway->lp_nid;
-					*alive   = route->lr_gateway->lp_alive;
+					*net	  = rnet->lrn_net;
+					*hops	  = route->lr_hops;
+					*priority = route->lr_priority;
+					*gateway  = route->lr_gateway->lp_nid;
+					*alive	  = route->lr_gateway->lp_alive;
 					lnet_net_unlock(cpt);
 					return 0;
 				}
@@ -776,7 +779,8 @@ lnet_wait_known_routerstate(void)
 		if (all_known)
 			return;
 
-		cfs_pause(cfs_time_seconds(1));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1));
 	}
 }
 
@@ -1144,7 +1148,8 @@ lnet_prune_rc_data(int wait_unlink)
 		i++;
 		CDEBUG(((i & (-i)) == i) ? D_WARNING : D_NET,
 		       "Waiting for rc buffers to unlink\n");
-		cfs_pause(cfs_time_seconds(1) / 4);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1) / 4);
 
 		lnet_net_lock(LNET_LOCK_EX);
 	}
@@ -1203,11 +1208,11 @@ rescan:
 
 		lnet_prune_rc_data(0); /* don't wait for UNLINK */
 
-		/* Call cfs_pause() here always adds 1 to load average
+		/* Call schedule_timeout() here always adds 1 to load average
 		 * because kernel counts # active tasks as nr_running
 		 * + nr_uninterruptible. */
-		schedule_timeout_and_set_state(TASK_INTERRUPTIBLE,
-						   cfs_time_seconds(1));
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1));
 	}
 
 	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_STOPPING);

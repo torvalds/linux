@@ -16,7 +16,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/init.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
@@ -114,7 +115,7 @@ static void mpc_i2c_fixup(struct mpc_i2c *i2c)
 	for (k = 9; k; k--) {
 		writeccr(i2c, 0);
 		writeccr(i2c, CCR_MSTA | CCR_MTX | CCR_MEN);
-		udelay(delay_val);
+		readb(i2c->base + MPC_I2C_DR);
 		writeccr(i2c, CCR_MEN);
 		udelay(delay_val << 1);
 	}

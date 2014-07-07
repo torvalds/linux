@@ -23,18 +23,20 @@ struct xfs_dinode;
 struct xfs_imap;
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_btree_cur;
 
-/*
- * Allocation parameters for inode allocation.
- */
-#define	XFS_IALLOC_INODES(mp)	(mp)->m_ialloc_inos
-#define	XFS_IALLOC_BLOCKS(mp)	(mp)->m_ialloc_blks
-
-/*
- * Move inodes in clusters of this size.
- */
+/* Move inodes in clusters of this size */
 #define	XFS_INODE_BIG_CLUSTER_SIZE	8192
-#define	XFS_INODE_CLUSTER_SIZE(mp)	(mp)->m_inode_cluster_size
+
+/* Calculate and return the number of filesystem blocks per inode cluster */
+static inline int
+xfs_icluster_size_fsb(
+	struct xfs_mount	*mp)
+{
+	if (mp->m_sb.sb_blocksize >= mp->m_inode_cluster_size)
+		return 1;
+	return mp->m_inode_cluster_size >> mp->m_sb.sb_blocklog;
+}
 
 /*
  * Make an inode pointer out of the buffer/offset.
@@ -42,7 +44,7 @@ struct xfs_trans;
 static inline struct xfs_dinode *
 xfs_make_iptr(struct xfs_mount *mp, struct xfs_buf *b, int o)
 {
-	return (xfs_dinode_t *)
+	return (struct xfs_dinode *)
 		(xfs_buf_offset(b, o << (mp)->m_sb.sb_inodelog));
 }
 
@@ -88,7 +90,7 @@ xfs_difree(
 	struct xfs_trans *tp,		/* transaction pointer */
 	xfs_ino_t	inode,		/* inode to be freed */
 	struct xfs_bmap_free *flist,	/* extents to free */
-	int		*delete,	/* set if inode cluster was deleted */
+	int		*deleted,	/* set if inode cluster was deleted */
 	xfs_ino_t	*first_ino);	/* first inode in deleted cluster */
 
 /*
@@ -157,7 +159,5 @@ int xfs_ialloc_inode_init(struct xfs_mount *mp, struct xfs_trans *tp,
 			  struct list_head *buffer_list,
 			  xfs_agnumber_t agno, xfs_agblock_t agbno,
 			  xfs_agblock_t length, unsigned int gen);
-
-extern const struct xfs_buf_ops xfs_agi_buf_ops;
 
 #endif	/* __XFS_IALLOC_H__ */

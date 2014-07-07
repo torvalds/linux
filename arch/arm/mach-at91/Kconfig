@@ -1,14 +1,32 @@
 if ARCH_AT91
 
+config HAVE_AT91_UTMI
+	bool
+
+config HAVE_AT91_USB_CLK
+	bool
+
 config HAVE_AT91_DBGU0
 	bool
 
 config HAVE_AT91_DBGU1
 	bool
 
+config AT91_USE_OLD_CLK
+	bool
+
 config AT91_PMC_UNIT
 	bool
 	default !ARCH_AT91X40
+
+config COMMON_CLK_AT91
+	bool
+	default AT91_PMC_UNIT && USE_OF && !AT91_USE_OLD_CLK
+	select COMMON_CLK
+
+config OLD_CLK_AT91
+	bool
+	default AT91_PMC_UNIT && AT91_USE_OLD_CLK
 
 config AT91_SAM9_ALT_RESET
 	bool
@@ -19,6 +37,9 @@ config AT91_SAM9G45_RESET
 	default !ARCH_AT91X40
 
 config AT91_SAM9_TIME
+	bool
+
+config HAVE_AT91_SMD
 	bool
 
 config SOC_AT91SAM9
@@ -36,6 +57,7 @@ config SOC_SAMA5
 	select GENERIC_CLOCKEVENTS
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
+	select USE_OF
 
 menu "Atmel AT91 System-on-Chip"
 
@@ -43,11 +65,22 @@ choice
 
 	prompt "Core type"
 
-config SOC_SAM_V4_V5
-	bool "ARM7/ARM9"
+config ARCH_AT91X40
+	bool "ARM7 AT91X40"
+	depends on !MMU
+	select CPU_ARM7TDMI
+	select ARCH_USES_GETTIMEOFFSET
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
 	help
-	  Select this if you are using one of Atmel's AT91SAM9, AT91RM9200
-	  or AT91X40 SoC.
+	  Select this if you are using one of Atmel's AT91X40 SoC.
+
+config SOC_SAM_V4_V5
+	bool "ARM9 AT91SAM9/AT91RM9200"
+	help
+	  Select this if you are using one of Atmel's AT91SAM9 or
+	  AT91RM9200 SoC.
 
 config SOC_SAM_V7
 	bool "Cortex A5"
@@ -61,13 +94,15 @@ comment "Atmel AT91 Processor"
 if SOC_SAM_V7
 config SOC_SAMA5D3
 	bool "SAMA5D3 family"
-	depends on SOC_SAM_V7
 	select SOC_SAMA5
 	select HAVE_FB_ATMEL
 	select HAVE_AT91_DBGU1
+	select HAVE_AT91_UTMI
+	select HAVE_AT91_SMD
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's SAMA5D3 family SoC.
-	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35.
+	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35, SAMA5D36.
 endif
 
 if SOC_SAM_V4_V5
@@ -78,11 +113,15 @@ config SOC_AT91RM9200
 	select HAVE_AT91_DBGU0
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
+	select AT91_USE_OLD_CLK
+	select HAVE_AT91_USB_CLK
 
 config SOC_AT91SAM9260
 	bool "AT91SAM9260, AT91SAM9XE or AT91SAM9G20"
 	select HAVE_AT91_DBGU0
 	select SOC_AT91SAM9
+	select AT91_USE_OLD_CLK
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's AT91SAM9260, AT91SAM9XE
 	  or AT91SAM9G20 SoC.
@@ -92,6 +131,7 @@ config SOC_AT91SAM9261
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
 	select SOC_AT91SAM9
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's AT91SAM9261 or AT91SAM9G10 SoC.
 
@@ -100,18 +140,24 @@ config SOC_AT91SAM9263
 	select HAVE_AT91_DBGU1
 	select HAVE_FB_ATMEL
 	select SOC_AT91SAM9
+	select AT91_USE_OLD_CLK
+	select HAVE_AT91_USB_CLK
 
 config SOC_AT91SAM9RL
 	bool "AT91SAM9RL"
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
 	select SOC_AT91SAM9
+	select HAVE_AT91_UTMI
 
 config SOC_AT91SAM9G45
 	bool "AT91SAM9G45 or AT91SAM9M10 families"
 	select HAVE_AT91_DBGU1
 	select HAVE_FB_ATMEL
 	select SOC_AT91SAM9
+	select AT91_USE_OLD_CLK
+	select HAVE_AT91_UTMI
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's AT91SAM9G45 family SoC.
 	  This support covers AT91SAM9G45, AT91SAM9G46, AT91SAM9M10 and AT91SAM9M11.
@@ -121,6 +167,9 @@ config SOC_AT91SAM9X5
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
 	select SOC_AT91SAM9
+	select HAVE_AT91_UTMI
+	select HAVE_AT91_SMD
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's AT91SAM9x5 family SoC.
 	  This means that your SAM9 name finishes with a '5' (except if it is
@@ -133,13 +182,17 @@ config SOC_AT91SAM9N12
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
 	select SOC_AT91SAM9
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using Atmel's AT91SAM9N12 SoC.
 
 # ----------------------------------------------------------
-
-source arch/arm/mach-at91/Kconfig.non_dt
 endif # SOC_SAM_V4_V5
+
+
+if SOC_SAM_V4_V5 || ARCH_AT91X40
+source arch/arm/mach-at91/Kconfig.non_dt
+endif
 
 comment "Generic Board Type"
 
@@ -171,12 +224,6 @@ config MACH_SAMA5_DT
 # ----------------------------------------------------------
 
 comment "AT91 Feature Selections"
-
-config AT91_PROGRAMMABLE_CLOCKS
-	bool "Programmable Clocks"
-	help
-	  Select this if you need to program one or more of the PCK0..PCK3
-	  programmable clock outputs.
 
 config AT91_SLOW_CLOCK
 	bool "Suspend-to-RAM disables main oscillator"

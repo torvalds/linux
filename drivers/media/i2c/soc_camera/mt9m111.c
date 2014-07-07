@@ -208,8 +208,8 @@ struct mt9m111 {
 	struct mt9m111_context *ctx;
 	struct v4l2_rect rect;	/* cropping rectangle */
 	struct v4l2_clk *clk;
-	int width;		/* output */
-	int height;		/* sizes */
+	unsigned int width;	/* output */
+	unsigned int height;	/* sizes */
 	struct mutex power_lock; /* lock to protect power_count */
 	int power_count;
 	const struct mt9m111_datafmt *fmt;

@@ -99,12 +99,7 @@ struct reportpwrstate_parm {
 
 static inline void _init_pwrlock(struct semaphore  *plock)
 {
-	_rtw_init_sema(plock, 1);
-}
-
-static inline void _free_pwrlock(struct semaphore  *plock)
-{
-	_rtw_free_sema(plock);
+	sema_init(plock, 1);
 }
 
 static inline void _enter_pwrlock(struct semaphore  *plock)
@@ -114,7 +109,7 @@ static inline void _enter_pwrlock(struct semaphore  *plock)
 
 static inline void _exit_pwrlock(struct semaphore  *plock)
 {
-	_rtw_up_sema(plock);
+	up(plock);
 }
 
 #define LPS_DELAY_TIME	1*HZ /*  1 sec */
@@ -197,7 +192,7 @@ struct pwrctrl_priv {
 	u8	ips_mode_req;	/*  used to accept the mode setting request,
 				 *  will update to ipsmode later */
 	uint bips_processing;
-	u32 ips_deny_time; /* will deny IPS when system time less than this */
+	unsigned long ips_deny_time; /* will deny IPS when system time less than this */
 	u8 ps_processing; /* temp used to mark whether in rtw_ps_processor */
 
 	u8	bLeisurePs;
@@ -211,10 +206,6 @@ struct pwrctrl_priv {
 
 	u8		bInternalAutoSuspend;
 	u8		bInSuspend;
-#ifdef	CONFIG_BT_COEXIST
-	u8		bAutoResume;
-	u8		autopm_cnt;
-#endif
 	u8		bSupportRemoteWakeup;
 	struct timer_list pwr_state_check_timer;
 	int		pwr_state_check_interval;
@@ -251,7 +242,6 @@ struct pwrctrl_priv {
 				       (pwrctrl)->pwr_state_check_interval)
 
 void rtw_init_pwrctrl_priv(struct adapter *adapter);
-void rtw_free_pwrctrl_priv(struct adapter *adapter);
 
 void rtw_set_ps_mode(struct adapter *adapter, u8 ps_mode, u8 smart_ps,
 		     u8 bcn_ant_mode);
@@ -268,8 +258,6 @@ s32 LPS_RF_ON_check(struct adapter *adapter, u32 delay_ms);
 void LPS_Enter(struct adapter *adapter);
 void LPS_Leave(struct adapter *adapter);
 
-u8 rtw_interface_ps_func(struct adapter *adapter,
-			 enum hal_intf_ps_func efunc_id, u8 *val);
 void rtw_set_ips_deny(struct adapter *adapter, u32 ms);
 int _rtw_pwr_wakeup(struct adapter *adapter, u32 ips_defer_ms,
 		    const char *caller);

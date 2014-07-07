@@ -1,5 +1,5 @@
-#ifndef __CAN_PLATFORM_MCP251X_H__
-#define __CAN_PLATFORM_MCP251X_H__
+#ifndef _CAN_PLATFORM_MCP251X_H
+#define _CAN_PLATFORM_MCP251X_H
 
 /*
  *
@@ -18,4 +18,4 @@ struct mcp251x_platform_data {
 	unsigned long oscillator_frequency;
 };
 
-#endif /* __CAN_PLATFORM_MCP251X_H__ */
+#endif /* !_CAN_PLATFORM_MCP251X_H */

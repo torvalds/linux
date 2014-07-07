@@ -65,7 +65,7 @@ static int trace_test_buffer(struct trace_buffer *buf, unsigned long *count)
 
 	/* Don't allow flipping of max traces now */
 	local_irq_save(flags);
-	arch_spin_lock(&ftrace_max_lock);
+	arch_spin_lock(&buf->tr->max_lock);
 
 	cnt = ring_buffer_entries(buf->buffer);
 
@@ -83,7 +83,7 @@ static int trace_test_buffer(struct trace_buffer *buf, unsigned long *count)
 			break;
 	}
 	tracing_on();
-	arch_spin_unlock(&ftrace_max_lock);
+	arch_spin_unlock(&buf->tr->max_lock);
 	local_irq_restore(flags);
 
 	if (count)
@@ -161,11 +161,6 @@ static struct ftrace_ops test_probe3 = {
 	.flags			= FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
-static struct ftrace_ops test_global = {
-	.func		= trace_selftest_test_global_func,
-	.flags		= FTRACE_OPS_FL_GLOBAL | FTRACE_OPS_FL_RECURSION_SAFE,
-};
-
 static void print_counts(void)
 {
 	printk("(%d %d %d %d %d) ",
@@ -185,7 +180,7 @@ static void reset_counts(void)
 	trace_selftest_test_dyn_cnt = 0;
 }
 
-static int trace_selftest_ops(int cnt)
+static int trace_selftest_ops(struct trace_array *tr, int cnt)
 {
 	int save_ftrace_enabled = ftrace_enabled;
 	struct ftrace_ops *dyn_ops;
@@ -220,7 +215,11 @@ static int trace_selftest_ops(int cnt)
 	register_ftrace_function(&test_probe1);
 	register_ftrace_function(&test_probe2);
 	register_ftrace_function(&test_probe3);
-	register_ftrace_function(&test_global);
+	/* First time we are running with main function */
+	if (cnt > 1) {
+		ftrace_init_array_ops(tr, trace_selftest_test_global_func);
+		register_ftrace_function(tr->ops);
+	}
 
 	DYN_FTRACE_TEST_NAME();
 
@@ -232,8 +231,10 @@ static int trace_selftest_ops(int cnt)
 		goto out;
 	if (trace_selftest_test_probe3_cnt != 1)
 		goto out;
-	if (trace_selftest_test_global_cnt == 0)
-		goto out;
+	if (cnt > 1) {
+		if (trace_selftest_test_global_cnt == 0)
+			goto out;
+	}
 
 	DYN_FTRACE_TEST_NAME2();
 
@@ -269,8 +270,10 @@ static int trace_selftest_ops(int cnt)
 		goto out_free;
 	if (trace_selftest_test_probe3_cnt != 3)
 		goto out_free;
-	if (trace_selftest_test_global_cnt == 0)
-		goto out;
+	if (cnt > 1) {
+		if (trace_selftest_test_global_cnt == 0)
+			goto out;
+	}
 	if (trace_selftest_test_dyn_cnt == 0)
 		goto out_free;
 
@@ -295,7 +298,9 @@ static int trace_selftest_ops(int cnt)
 	unregister_ftrace_function(&test_probe1);
 	unregister_ftrace_function(&test_probe2);
 	unregister_ftrace_function(&test_probe3);
-	unregister_ftrace_function(&test_global);
+	if (cnt > 1)
+		unregister_ftrace_function(tr->ops);
+	ftrace_reset_array_ops(tr);
 
 	/* Make sure everything is off */
 	reset_counts();
@@ -315,9 +320,9 @@ static int trace_selftest_ops(int cnt)
 }
 
 /* Test dynamic code modification and ftrace filters */
-int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
-					   struct trace_array *tr,
-					   int (*func)(void))
+static int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
+						  struct trace_array *tr,
+						  int (*func)(void))
 {
 	int save_ftrace_enabled = ftrace_enabled;
 	unsigned long count;
@@ -388,7 +393,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	}
 
 	/* Test the ops with global tracing running */
-	ret = trace_selftest_ops(1);
+	ret = trace_selftest_ops(tr, 1);
 	trace->reset(tr);
 
  out:
@@ -399,7 +404,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 
 	/* Test the ops with global tracing off */
 	if (!ret)
-		ret = trace_selftest_ops(2);
+		ret = trace_selftest_ops(tr, 2);
 
 	return ret;
 }
@@ -802,7 +807,7 @@ out:
 int
 trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 {
-	unsigned long save_max = tracing_max_latency;
+	unsigned long save_max = tr->max_latency;
 	unsigned long count;
 	int ret;
 
@@ -814,7 +819,7 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 	}
 
 	/* reset the max latency */
-	tracing_max_latency = 0;
+	tr->max_latency = 0;
 	/* disable interrupts for a bit */
 	local_irq_disable();
 	udelay(100);
@@ -841,7 +846,7 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 		ret = -1;
 	}
 
-	tracing_max_latency = save_max;
+	tr->max_latency = save_max;
 
 	return ret;
 }
@@ -851,7 +856,7 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 int
 trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 {
-	unsigned long save_max = tracing_max_latency;
+	unsigned long save_max = tr->max_latency;
 	unsigned long count;
 	int ret;
 
@@ -876,7 +881,7 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	}
 
 	/* reset the max latency */
-	tracing_max_latency = 0;
+	tr->max_latency = 0;
 	/* disable preemption for a bit */
 	preempt_disable();
 	udelay(100);
@@ -903,7 +908,7 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 		ret = -1;
 	}
 
-	tracing_max_latency = save_max;
+	tr->max_latency = save_max;
 
 	return ret;
 }
@@ -913,7 +918,7 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 int
 trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *tr)
 {
-	unsigned long save_max = tracing_max_latency;
+	unsigned long save_max = tr->max_latency;
 	unsigned long count;
 	int ret;
 
@@ -938,7 +943,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	}
 
 	/* reset the max latency */
-	tracing_max_latency = 0;
+	tr->max_latency = 0;
 
 	/* disable preemption and interrupts for a bit */
 	preempt_disable();
@@ -973,7 +978,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	}
 
 	/* do the test by disabling interrupts first this time */
-	tracing_max_latency = 0;
+	tr->max_latency = 0;
 	tracing_start();
 	trace->start(tr);
 
@@ -1004,7 +1009,7 @@ out:
 	tracing_start();
 out_no_start:
 	trace->reset(tr);
-	tracing_max_latency = save_max;
+	tr->max_latency = save_max;
 
 	return ret;
 }
@@ -1022,11 +1027,16 @@ trace_selftest_startup_nop(struct tracer *trace, struct trace_array *tr)
 #ifdef CONFIG_SCHED_TRACER
 static int trace_wakeup_test_thread(void *data)
 {
-	/* Make this a RT thread, doesn't need to be too high */
-	static const struct sched_param param = { .sched_priority = 5 };
+	/* Make this a -deadline thread */
+	static const struct sched_attr attr = {
+		.sched_policy = SCHED_DEADLINE,
+		.sched_runtime = 100000ULL,
+		.sched_deadline = 10000000ULL,
+		.sched_period = 10000000ULL
+	};
 	struct completion *x = data;
 
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setattr(current, &attr);
 
 	/* Make it know we have a new prio */
 	complete(x);
@@ -1040,8 +1050,8 @@ static int trace_wakeup_test_thread(void *data)
 	/* we are awake, now wait to disappear */
 	while (!kthread_should_stop()) {
 		/*
-		 * This is an RT task, do short sleeps to let
-		 * others run.
+		 * This will likely be the system top priority
+		 * task, do short sleeps to let others run.
 		 */
 		msleep(100);
 	}
@@ -1052,23 +1062,23 @@ static int trace_wakeup_test_thread(void *data)
 int
 trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 {
-	unsigned long save_max = tracing_max_latency;
+	unsigned long save_max = tr->max_latency;
 	struct task_struct *p;
-	struct completion isrt;
+	struct completion is_ready;
 	unsigned long count;
 	int ret;
 
-	init_completion(&isrt);
+	init_completion(&is_ready);
 
-	/* create a high prio thread */
-	p = kthread_run(trace_wakeup_test_thread, &isrt, "ftrace-test");
+	/* create a -deadline thread */
+	p = kthread_run(trace_wakeup_test_thread, &is_ready, "ftrace-test");
 	if (IS_ERR(p)) {
 		printk(KERN_CONT "Failed to create ftrace wakeup test thread ");
 		return -1;
 	}
 
-	/* make sure the thread is running at an RT prio */
-	wait_for_completion(&isrt);
+	/* make sure the thread is running at -deadline policy */
+	wait_for_completion(&is_ready);
 
 	/* start the tracing */
 	ret = tracer_init(trace, tr);
@@ -1078,23 +1088,23 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	}
 
 	/* reset the max latency */
-	tracing_max_latency = 0;
+	tr->max_latency = 0;
 
 	while (p->on_rq) {
 		/*
-		 * Sleep to make sure the RT thread is asleep too.
+		 * Sleep to make sure the -deadline thread is asleep too.
 		 * On virtual machines we can't rely on timings,
 		 * but we want to make sure this test still works.
 		 */
 		msleep(100);
 	}
 
-	init_completion(&isrt);
+	init_completion(&is_ready);
 
 	wake_up_process(p);
 
 	/* Wait for the task to wake up */
-	wait_for_completion(&isrt);
+	wait_for_completion(&is_ready);
 
 	/* stop the tracing. */
 	tracing_stop();
@@ -1108,7 +1118,7 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	trace->reset(tr);
 	tracing_start();
 
-	tracing_max_latency = save_max;
+	tr->max_latency = save_max;
 
 	/* kill the thread */
 	kthread_stop(p);

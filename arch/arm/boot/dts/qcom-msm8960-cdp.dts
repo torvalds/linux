@@ -1,0 +1,16 @@
+#include "qcom-msm8960.dtsi"
+
+/ {
+	model = "Qualcomm MSM8960 CDP";
+	compatible = "qcom,msm8960-cdp", "qcom,msm8960";
+
+	soc {
+		gsbi@16400000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+			serial@16440000 {
+				status = "ok";
+			};
+		};
+	};
+};

@@ -16,7 +16,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -221,9 +220,9 @@ static int spcp8x5_get_msr(struct usb_serial_port *port, u8 *status)
 			      GET_UART_STATUS, GET_UART_STATUS_TYPE,
 			      0, GET_UART_STATUS_MSR, buf, 1, 100);
 	if (ret < 0)
-		dev_err(&port->dev, "failed to get modem status: %d", ret);
+		dev_err(&port->dev, "failed to get modem status: %d\n", ret);
 
-	dev_dbg(&port->dev, "0xc0:0x22:0:6  %d - 0x02%x", ret, *buf);
+	dev_dbg(&port->dev, "0xc0:0x22:0:6  %d - 0x02%x\n", ret, *buf);
 	*status = *buf;
 	kfree(buf);
 
@@ -343,27 +342,24 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	case 1000000:
 			buf[0] = 0x0b;	break;
 	default:
-		dev_err(&port->dev, "spcp825 driver does not support the "
-			"baudrate requested, using default of 9600.\n");
+		dev_err(&port->dev, "unsupported baudrate, using 9600\n");
 	}
 
 	/* Set Data Length : 00:5bit, 01:6bit, 10:7bit, 11:8bit */
-	if (cflag & CSIZE) {
-		switch (cflag & CSIZE) {
-		case CS5:
-			buf[1] |= SET_UART_FORMAT_SIZE_5;
-			break;
-		case CS6:
-			buf[1] |= SET_UART_FORMAT_SIZE_6;
-			break;
-		case CS7:
-			buf[1] |= SET_UART_FORMAT_SIZE_7;
-			break;
-		default:
-		case CS8:
-			buf[1] |= SET_UART_FORMAT_SIZE_8;
-			break;
-		}
+	switch (cflag & CSIZE) {
+	case CS5:
+		buf[1] |= SET_UART_FORMAT_SIZE_5;
+		break;
+	case CS6:
+		buf[1] |= SET_UART_FORMAT_SIZE_6;
+		break;
+	case CS7:
+		buf[1] |= SET_UART_FORMAT_SIZE_7;
+		break;
+	default:
+	case CS8:
+		buf[1] |= SET_UART_FORMAT_SIZE_8;
+		break;
 	}
 
 	/* Set Stop bit2 : 0:1bit 1:2bit */

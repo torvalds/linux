@@ -111,7 +111,7 @@ static int s5p_mfc_open_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 		break;
 	default:
 		h2r_args.arg[0] = S5P_FIMV_CODEC_NONE;
-	};
+	}
 	h2r_args.arg[1] = 0; /* no crc & no pixelcache */
 	h2r_args.arg[2] = ctx->ctx.ofs;
 	h2r_args.arg[3] = ctx->ctx.size;

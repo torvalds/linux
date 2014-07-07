@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/i2c/mcs.h>
 #include <linux/interrupt.h>
@@ -108,7 +107,7 @@ static int mcs_touchkey_probe(struct i2c_client *client,
 	int error;
 	int i;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
 		dev_err(&client->dev, "no platform data defined\n");
 		return -EINVAL;
@@ -148,7 +147,7 @@ static int mcs_touchkey_probe(struct i2c_client *client,
 	}
 	dev_info(&client->dev, "Firmware version: %d\n", fw_ver);
 
-	input_dev->name = "MELPAS MCS Touchkey";
+	input_dev->name = "MELFAS MCS Touchkey";
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 	input_dev->evbit[0] = BIT_MASK(EV_KEY);

@@ -50,7 +50,6 @@ static const struct snd_pcm_hardware atmel_pcm_dma_hardware = {
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_RESUME |
 				  SNDRV_PCM_INFO_PAUSE,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
 	.period_bytes_min	= 256,		/* lighting DMA overhead */
 	.period_bytes_max	= 2 * 0xffff,	/* if 2 bytes format */
 	.periods_min		= 8,

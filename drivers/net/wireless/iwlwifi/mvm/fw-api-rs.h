@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@
 /*
  * These serve as indexes into
  * struct iwl_rate_info fw_rate_idx_to_plcp[IWL_RATE_COUNT];
+ * TODO: avoid overlap between legacy and HT rates
  */
 enum {
 	IWL_RATE_1M_INDEX = 0,
@@ -78,18 +79,31 @@ enum {
 	IWL_LAST_CCK_RATE = IWL_RATE_11M_INDEX,
 	IWL_RATE_6M_INDEX,
 	IWL_FIRST_OFDM_RATE = IWL_RATE_6M_INDEX,
+	IWL_RATE_MCS_0_INDEX = IWL_RATE_6M_INDEX,
+	IWL_FIRST_HT_RATE = IWL_RATE_MCS_0_INDEX,
+	IWL_FIRST_VHT_RATE = IWL_RATE_MCS_0_INDEX,
 	IWL_RATE_9M_INDEX,
 	IWL_RATE_12M_INDEX,
+	IWL_RATE_MCS_1_INDEX = IWL_RATE_12M_INDEX,
 	IWL_RATE_18M_INDEX,
+	IWL_RATE_MCS_2_INDEX = IWL_RATE_18M_INDEX,
 	IWL_RATE_24M_INDEX,
+	IWL_RATE_MCS_3_INDEX = IWL_RATE_24M_INDEX,
 	IWL_RATE_36M_INDEX,
+	IWL_RATE_MCS_4_INDEX = IWL_RATE_36M_INDEX,
 	IWL_RATE_48M_INDEX,
+	IWL_RATE_MCS_5_INDEX = IWL_RATE_48M_INDEX,
 	IWL_RATE_54M_INDEX,
+	IWL_RATE_MCS_6_INDEX = IWL_RATE_54M_INDEX,
 	IWL_LAST_NON_HT_RATE = IWL_RATE_54M_INDEX,
 	IWL_RATE_60M_INDEX,
-	IWL_LAST_OFDM_RATE = IWL_RATE_60M_INDEX,
+	IWL_RATE_MCS_7_INDEX = IWL_RATE_60M_INDEX,
+	IWL_LAST_HT_RATE = IWL_RATE_MCS_7_INDEX,
+	IWL_RATE_MCS_8_INDEX,
+	IWL_RATE_MCS_9_INDEX,
+	IWL_LAST_VHT_RATE = IWL_RATE_MCS_9_INDEX,
 	IWL_RATE_COUNT_LEGACY = IWL_LAST_NON_HT_RATE + 1,
-	IWL_RATE_COUNT,
+	IWL_RATE_COUNT = IWL_LAST_VHT_RATE + 1,
 };
 
 #define IWL_RATE_BIT_MSK(r) BIT(IWL_RATE_##r##M_INDEX)
@@ -108,6 +122,7 @@ enum {
 	IWL_RATE_2M_PLCP  = 20,
 	IWL_RATE_5M_PLCP  = 55,
 	IWL_RATE_11M_PLCP = 110,
+	IWL_RATE_INVM_PLCP = -1,
 };
 
 /*
@@ -164,6 +179,8 @@ enum {
  * which is the duplicate 20 MHz MCS (bit 5 set, all others zero.)
  */
 #define RATE_HT_MCS_RATE_CODE_MSK	0x7
+#define RATE_HT_MCS_NSS_POS             3
+#define RATE_HT_MCS_NSS_MSK             (3 << RATE_HT_MCS_NSS_POS)
 
 /* Bit 10: (1) Use Green Field preamble */
 #define RATE_HT_MCS_GF_POS		10
@@ -240,7 +257,8 @@ enum {
 
 /* Bit 17-18: (0) SS, (1) SS*2 */
 #define RATE_MCS_STBC_POS		17
-#define RATE_MCS_STBC_MSK		(1 << RATE_MCS_STBC_POS)
+#define RATE_MCS_HT_STBC_MSK		(3 << RATE_MCS_STBC_POS)
+#define RATE_MCS_VHT_STBC_MSK		(1 << RATE_MCS_STBC_POS)
 
 /* Bit 19: (0) Beamforming is off, (1) Beamforming is on */
 #define RATE_MCS_BF_POS			19
@@ -264,8 +282,31 @@ enum {
 /* # entries in rate scale table to support Tx retries */
 #define  LQ_MAX_RETRY_NUM 16
 
-/* Link quality command flags, only this one is available */
-#define  LQ_FLAG_SET_STA_TLC_RTS_MSK	BIT(0)
+/* Link quality command flags bit fields */
+
+/* Bit 0: (0) Don't use RTS (1) Use RTS */
+#define LQ_FLAG_USE_RTS_POS             0
+#define LQ_FLAG_USE_RTS_MSK	        (1 << LQ_FLAG_USE_RTS_POS)
+
+/* Bit 1-3: LQ command color. Used to match responses to LQ commands */
+#define LQ_FLAG_COLOR_POS               1
+#define LQ_FLAG_COLOR_MSK               (7 << LQ_FLAG_COLOR_POS)
+
+/* Bit 4-5: Tx RTS BW Signalling
+ * (0) No RTS BW signalling
+ * (1) Static BW signalling
+ * (2) Dynamic BW signalling
+ */
+#define LQ_FLAG_RTS_BW_SIG_POS          4
+#define LQ_FLAG_RTS_BW_SIG_NONE         (0 << LQ_FLAG_RTS_BW_SIG_POS)
+#define LQ_FLAG_RTS_BW_SIG_STATIC       (1 << LQ_FLAG_RTS_BW_SIG_POS)
+#define LQ_FLAG_RTS_BW_SIG_DYNAMIC      (2 << LQ_FLAG_RTS_BW_SIG_POS)
+
+/* Bit 6: (0) No dynamic BW selection (1) Allow dynamic BW selection
+ * Dyanmic BW selection allows Tx with narrower BW then requested in rates
+ */
+#define LQ_FLAG_DYNAMIC_BW_POS          6
+#define LQ_FLAG_DYNAMIC_BW_MSK          (1 << LQ_FLAG_DYNAMIC_BW_POS)
 
 /**
  * struct iwl_lq_cmd - link quality command
@@ -293,7 +334,7 @@ enum {
  */
 struct iwl_lq_cmd {
 	u8 sta_id;
-	u8 reserved1;
+	u8 reduced_tpc;
 	u16 control;
 	/* LINK_QUAL_GENERAL_PARAMS_API_S_VER_1 */
 	u8 flags;

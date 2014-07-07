@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,6 +106,7 @@ struct acpi_namespace_node *acpi_ns_create_node(u32 name)
 void acpi_ns_delete_node(struct acpi_namespace_node *node)
 {
 	union acpi_operand_object *obj_desc;
+	union acpi_operand_object *next_desc;
 
 	ACPI_FUNCTION_NAME(ns_delete_node);
 
@@ -114,12 +115,13 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 	acpi_ns_detach_object(node);
 
 	/*
-	 * Delete an attached data object if present (an object that was created
-	 * and attached via acpi_attach_data). Note: After any normal object is
-	 * detached above, the only possible remaining object is a data object.
+	 * Delete an attached data object list if present (objects that were
+	 * attached via acpi_attach_data). Note: After any normal object is
+	 * detached above, the only possible remaining object(s) are data
+	 * objects, in a linked list.
 	 */
 	obj_desc = node->object;
-	if (obj_desc && (obj_desc->common.type == ACPI_TYPE_LOCAL_DATA)) {
+	while (obj_desc && (obj_desc->common.type == ACPI_TYPE_LOCAL_DATA)) {
 
 		/* Invoke the attached data deletion handler if present */
 
@@ -127,7 +129,15 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 			obj_desc->data.handler(node, obj_desc->data.pointer);
 		}
 
+		next_desc = obj_desc->common.next_object;
 		acpi_ut_remove_reference(obj_desc);
+		obj_desc = next_desc;
+	}
+
+	/* Special case for the statically allocated root node */
+
+	if (node == acpi_gbl_root_node) {
+		return;
 	}
 
 	/* Now we can delete the node */

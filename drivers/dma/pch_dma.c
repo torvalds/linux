@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pch_dma.h>
@@ -964,16 +965,16 @@ static void pch_dma_remove(struct pci_dev *pdev)
 	if (pd) {
 		dma_async_device_unregister(&pd->dma);
 
+		free_irq(pdev->irq, pd);
+
 		list_for_each_entry_safe(chan, _c, &pd->dma.channels,
 					 device_node) {
 			pd_chan = to_pd_chan(chan);
 
-			tasklet_disable(&pd_chan->tasklet);
 			tasklet_kill(&pd_chan->tasklet);
 		}
 
 		pci_pool_destroy(pd->pool);
-		free_irq(pdev->irq, pd);
 		pci_iounmap(pdev, pd->membase);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
@@ -996,7 +997,7 @@ static void pch_dma_remove(struct pci_dev *pdev)
 #define PCI_DEVICE_ID_ML7831_DMA1_8CH	0x8810
 #define PCI_DEVICE_ID_ML7831_DMA2_4CH	0x8815
 
-DEFINE_PCI_DEVICE_TABLE(pch_dma_id_table) = {
+const struct pci_device_id pch_dma_id_table[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_8CH), 8 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_4CH), 4 },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA1_8CH), 8}, /* UART Video */

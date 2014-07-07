@@ -1232,7 +1232,7 @@ static ssize_t sm501_dbg_regs(struct device *dev,
 }
 
 
-static DEVICE_ATTR(dbg_regs, 0666, sm501_dbg_regs, NULL);
+static DEVICE_ATTR(dbg_regs, 0444, sm501_dbg_regs, NULL);
 
 /* sm501_init_reg
  *
@@ -1660,7 +1660,6 @@ static int sm501_pci_probe(struct pci_dev *dev,
  err3:
 	pci_disable_device(dev);
  err2:
-	pci_set_drvdata(dev, NULL);
 	kfree(sm);
  err1:
 	return err;
@@ -1695,7 +1694,6 @@ static void sm501_pci_remove(struct pci_dev *dev)
 	release_resource(sm->regs_claim);
 	kfree(sm->regs_claim);
 
-	pci_set_drvdata(dev, NULL);
 	pci_disable_device(dev);
 }
 
@@ -1712,7 +1710,7 @@ static int sm501_plat_remove(struct platform_device *dev)
 	return 0;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(sm501_pci_tbl) = {
+static const struct pci_device_id sm501_pci_tbl[] = {
 	{ 0x126f, 0x0501, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0, },
 };
@@ -1728,7 +1726,7 @@ static struct pci_driver sm501_pci_driver = {
 
 MODULE_ALIAS("platform:sm501");
 
-static struct of_device_id of_sm501_match_tbl[] = {
+static const struct of_device_id of_sm501_match_tbl[] = {
 	{ .compatible = "smi,sm501", },
 	{ /* end */ }
 };

@@ -42,7 +42,6 @@
  */
 
 #define DEBUG_SUBSYSTEM S_SEC
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -145,7 +144,8 @@ int der_read_length(unsigned char **buf, int *bufsize)
 	sf = *(*buf)++;
 	(*bufsize)--;
 	if (sf & 0x80) {
-		if ((sf &= 0x7f) > ((*bufsize) - 1))
+		sf &= 0x7f;
+		if (((*bufsize) - 1) < sf)
 			return -1;
 		if (sf > SIZEOF_INT)
 			return -1;
@@ -200,27 +200,32 @@ __u32 g_verify_token_header(rawobj_t *mech, int *body_size,
 	rawobj_t toid;
 	int ret = 0;
 
-	if ((toksize -= 1) < 0)
+	toksize -= 1;
+	if (0 > toksize)
 		return (G_BAD_TOK_HEADER);
 	if (*buf++ != 0x60)
 		return (G_BAD_TOK_HEADER);
 
-	if ((seqsize = der_read_length(&buf, &toksize)) < 0)
+	seqsize = der_read_length(&buf, &toksize);
+	if (seqsize < 0)
 		return(G_BAD_TOK_HEADER);
 
 	if (seqsize != toksize)
 		return (G_BAD_TOK_HEADER);
 
-	if ((toksize -= 1) < 0)
+	toksize -= 1;
+	if (0 > toksize)
 		return (G_BAD_TOK_HEADER);
 	if (*buf++ != 0x06)
 		return (G_BAD_TOK_HEADER);
 
-	if ((toksize -= 1) < 0)
+	toksize -= 1;
+	if (0 > toksize)
 		return (G_BAD_TOK_HEADER);
 	toid.len = *buf++;
 
-	if ((toksize -= toid.len) < 0)
+	toksize -= toid.len;
+	if (0 > toksize)
 		return (G_BAD_TOK_HEADER);
 	toid.data = buf;
 	buf += toid.len;
@@ -232,7 +237,8 @@ __u32 g_verify_token_header(rawobj_t *mech, int *body_size,
 	 * important to return G_BAD_TOK_HEADER if the token header is
 	 * in fact bad
 	 */
-	if ((toksize -= 2) < 0)
+	toksize -= 2;
+	if (0 > toksize)
 		return (G_BAD_TOK_HEADER);
 
 	if (ret)
@@ -257,24 +263,29 @@ __u32 g_get_mech_oid(rawobj_t *mech, rawobj_t *in_buf)
 	int ret = 0;
 	int seqsize;
 
-	if ((len -= 1) < 0)
+	len -= 1;
+	if (0 > len)
 		return (G_BAD_TOK_HEADER);
 	if (*buf++ != 0x60)
 		return (G_BAD_TOK_HEADER);
 
-	if ((seqsize = der_read_length(&buf, &len)) < 0)
+	seqsize = der_read_length(&buf, &len);
+	if (seqsize < 0)
 		return (G_BAD_TOK_HEADER);
 
-	if ((len -= 1) < 0)
+	len -= 1;
+	if (0 > len)
 		return (G_BAD_TOK_HEADER);
 	if (*buf++ != 0x06)
 		return (G_BAD_TOK_HEADER);
 
-	if ((len -= 1) < 0)
+	len -= 1;
+	if (0 > len)
 		return (G_BAD_TOK_HEADER);
 	mech->len = *buf++;
 
-	if ((len -= mech->len) < 0)
+	len -= mech->len;
+	if (0 > len)
 		return (G_BAD_TOK_HEADER);
 	OBD_ALLOC_LARGE(mech->data, mech->len);
 	if (!mech->data)

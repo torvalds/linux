@@ -75,6 +75,17 @@ ENDPROC(xen_sysexit)
  * stack state in whatever form its in, we keep things simple by only
  * using a single register which is pushed/popped on the stack.
  */
+
+.macro POP_FS
+1:
+	popw %fs
+.pushsection .fixup, "ax"
+2:	movw $0, (%esp)
+	jmp 1b
+.popsection
+	_ASM_EXTABLE(1b,2b)
+.endm
+
 ENTRY(xen_iret)
 	/* test eflags for special cases */
 	testl $(X86_EFLAGS_VM | XEN_EFLAGS_NMI), 8(%esp)
@@ -83,15 +94,13 @@ ENTRY(xen_iret)
 	push %eax
 	ESP_OFFSET=4	# bytes pushed onto stack
 
-	/*
-	 * Store vcpu_info pointer for easy access.  Do it this way to
-	 * avoid having to reload %fs
-	 */
+	/* Store vcpu_info pointer for easy access */
 #ifdef CONFIG_SMP
-	GET_THREAD_INFO(%eax)
-	movl %ss:TI_cpu(%eax), %eax
-	movl %ss:__per_cpu_offset(,%eax,4), %eax
-	mov %ss:xen_vcpu(%eax), %eax
+	pushw %fs
+	movl $(__KERNEL_PERCPU), %eax
+	movl %eax, %fs
+	movl %fs:xen_vcpu, %eax
+	POP_FS
 #else
 	movl %ss:xen_vcpu, %eax
 #endif

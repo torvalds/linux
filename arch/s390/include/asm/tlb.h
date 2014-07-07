@@ -57,14 +57,23 @@ static inline void tlb_gather_mmu(struct mmu_gather *tlb,
 	tlb->end = end;
 	tlb->fullmm = !(start | (end+1));
 	tlb->batch = NULL;
-	if (tlb->fullmm)
-		__tlb_flush_mm(mm);
 }
+
+static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
+{
+	__tlb_flush_mm_lazy(tlb->mm);
+}
+
+static inline void tlb_flush_mmu_free(struct mmu_gather *tlb)
+{
+	tlb_table_flush(tlb);
+}
+
 
 static inline void tlb_flush_mmu(struct mmu_gather *tlb)
 {
-	__tlb_flush_mm_lazy(tlb->mm);
-	tlb_table_flush(tlb);
+	tlb_flush_mmu_tlbonly(tlb);
+	tlb_flush_mmu_free(tlb);
 }
 
 static inline void tlb_finish_mmu(struct mmu_gather *tlb,
@@ -96,9 +105,7 @@ static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 				unsigned long address)
 {
-	if (!tlb->fullmm)
-		return page_table_free_rcu(tlb, (unsigned long *) pte);
-	page_table_free(tlb->mm, (unsigned long *) pte);
+	page_table_free_rcu(tlb, (unsigned long *) pte);
 }
 
 /*
@@ -114,9 +121,7 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 #ifdef CONFIG_64BIT
 	if (tlb->mm->context.asce_limit <= (1UL << 31))
 		return;
-	if (!tlb->fullmm)
-		return tlb_remove_table(tlb, pmd);
-	crst_table_free(tlb->mm, (unsigned long *) pmd);
+	tlb_remove_table(tlb, pmd);
 #endif
 }
 
@@ -133,9 +138,7 @@ static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 #ifdef CONFIG_64BIT
 	if (tlb->mm->context.asce_limit <= (1UL << 42))
 		return;
-	if (!tlb->fullmm)
-		return tlb_remove_table(tlb, pud);
-	crst_table_free(tlb->mm, (unsigned long *) pud);
+	tlb_remove_table(tlb, pud);
 #endif
 }
 

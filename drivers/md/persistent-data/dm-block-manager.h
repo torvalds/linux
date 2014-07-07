@@ -105,12 +105,11 @@ int dm_bm_unlock(struct dm_block *b);
  *
  * This method always blocks.
  */
-int dm_bm_flush_and_unlock(struct dm_block_manager *bm,
-			   struct dm_block *superblock);
+int dm_bm_flush(struct dm_block_manager *bm);
 
- /*
-  * Request data be prefetched into the cache.
-  */
+/*
+ * Request data is prefetched into the cache.
+ */
 void dm_bm_prefetch(struct dm_block_manager *bm, dm_block_t b);
 
 /*
@@ -125,6 +124,7 @@ void dm_bm_prefetch(struct dm_block_manager *bm, dm_block_t b);
  * be returned if you do.
  */
 void dm_bm_set_read_only(struct dm_block_manager *bm);
+void dm_bm_set_read_write(struct dm_block_manager *bm);
 
 u32 dm_bm_checksum(const void *data, size_t len, u32 init_xor);
 

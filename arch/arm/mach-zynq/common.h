@@ -17,10 +17,14 @@
 #ifndef __MACH_ZYNQ_COMMON_H__
 #define __MACH_ZYNQ_COMMON_H__
 
+void zynq_secondary_startup(void);
+
 extern int zynq_slcr_init(void);
+extern int zynq_early_slcr_init(void);
 extern void zynq_slcr_system_reset(void);
 extern void zynq_slcr_cpu_stop(int cpu);
 extern void zynq_slcr_cpu_start(int cpu);
+extern u32 zynq_slcr_get_device_id(void);
 
 #ifdef CONFIG_SMP
 extern void secondary_startup(void);
@@ -31,7 +35,6 @@ extern int zynq_cpun_start(u32 address, int cpu);
 extern struct smp_operations zynq_smp_ops __initdata;
 #endif
 
-extern void __iomem *zynq_slcr_base;
 extern void __iomem *zynq_scu_base;
 
 /* Hotplug */

@@ -20,7 +20,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -409,14 +408,10 @@ typedef struct rx_drvinfo_819x_usb {
 #define	USB_HWDESC_HEADER_LEN		sizeof(tx_desc_819x_usb)
 #define TX_PACKET_SHIFT_BYTES		(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
-#ifdef RTL8192U
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 #define MAX_TRANSMIT_BUFFER_SIZE			32000
 #else
 #define MAX_TRANSMIT_BUFFER_SIZE			8000
-#endif
-#else
-#define MAX_TRANSMIT_BUFFER_SIZE	(1600+(MAX_802_11_HEADER_LENGTH+ENCRYPTION_MAX_OVERHEAD)*MAX_FRAGMENT_COUNT)
 #endif
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 #define TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES (sizeof(tx_desc_819x_usb_aggr_subframe) + sizeof(tx_fwinfo_819x_usb))
@@ -1157,14 +1152,6 @@ typedef enum {
 	NIC_8190P = 2,
 	NIC_8192E = 3,
 } nic_t;
-
-
-#ifdef JOHN_HWSEC
-struct ssid_thread {
-	struct net_device *dev;
-	u8 name[IW_ESSID_MAX_SIZE + 1];
-};
-#endif
 
 bool init_firmware(struct net_device *dev);
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb);

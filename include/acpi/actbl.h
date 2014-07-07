@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -146,7 +146,24 @@ struct acpi_table_rsdp {
 	u8 reserved[3];		/* Reserved, must be zero */
 };
 
-#define ACPI_RSDP_REV0_SIZE     20	/* Size of original ACPI 1.0 RSDP */
+/* Standalone struct for the ACPI 1.0 RSDP */
+
+struct acpi_rsdp_common {
+	char signature[8];
+	u8 checksum;
+	char oem_id[ACPI_OEM_ID_SIZE];
+	u8 revision;
+	u32 rsdt_physical_address;
+};
+
+/* Standalone struct for the extended part of the RSDP (ACPI 2.0+) */
+
+struct acpi_rsdp_extension {
+	u32 length;
+	u64 xsdt_physical_address;
+	u8 extended_checksum;
+	u8 reserved[3];
+};
 
 /*******************************************************************************
  *
@@ -164,6 +181,9 @@ struct acpi_table_xsdt {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u64 table_offset_entry[1];	/* Array of pointers to ACPI tables */
 };
+
+#define ACPI_RSDT_ENTRY_SIZE        (sizeof (u32))
+#define ACPI_XSDT_ENTRY_SIZE        (sizeof (u64))
 
 /*******************************************************************************
  *
@@ -347,12 +367,11 @@ struct acpi_table_desc {
 
 /* Masks for Flags field above */
 
-#define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
-#define ACPI_TABLE_ORIGIN_MAPPED        (1)
-#define ACPI_TABLE_ORIGIN_ALLOCATED     (2)
-#define ACPI_TABLE_ORIGIN_OVERRIDE      (4)
-#define ACPI_TABLE_ORIGIN_MASK          (7)
-#define ACPI_TABLE_IS_LOADED            (8)
+#define ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL  (0)	/* Virtual address, external maintained */
+#define ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL (1)	/* Physical address, internally mapped */
+#define ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL  (2)	/* Virtual address, internallly allocated */
+#define ACPI_TABLE_ORIGIN_MASK              (3)
+#define ACPI_TABLE_IS_LOADED                (8)
 
 /*
  * Get the remaining ACPI tables

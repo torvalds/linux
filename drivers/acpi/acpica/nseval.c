@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -314,7 +314,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 			  "*** Completed evaluation of object %s ***\n",
 			  info->relative_pathname));
 
- cleanup:
+cleanup:
 	/*
 	 * Namespace was unlocked by the handling acpi_ns* function, so we
 	 * just free the pathname and return
@@ -486,7 +486,7 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 		parent_node->type = (u8)type;
 	}
 
-      exit:
+exit:
 	if (parent_obj) {
 		acpi_ut_remove_reference(parent_obj);
 	}

@@ -50,6 +50,7 @@
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
+#include "gpio.h"
 
 
 static void __init ek_init_early(void)
@@ -284,7 +285,7 @@ static struct fb_monspecs at91fb_default_monspecs = {
 					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
 
 /* Driver datas */
-static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data = {
 	.lcdcon_is_backlight		= true,
 	.default_bpp			= 32,
 	.default_dmacon			= ATMEL_LCDC_DMAEN,
@@ -295,26 +296,18 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 };
 
 #else
-static struct atmel_lcdfb_info __initdata ek_lcdc_data;
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data;
 #endif
 
 
 /*
- * Touchscreen
- */
-static struct at91_tsadcc_data ek_tsadcc_data = {
-	.adc_clock		= 300000,
-	.pendet_debounce	= 0x0d,
-	.ts_sample_hold_time	= 0x0a,
-};
-
-/*
- * ADCs
+ * ADCs and touchscreen
  */
 static struct at91_adc_data ek_adc_data = {
 	.channels_used = BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7),
 	.use_external_triggers = true,
 	.vref = 3300,
+	.touchscreen_type = ATMEL_ADC_TOUCHSCREEN_4WIRE,
 };
 
 /*
@@ -485,9 +478,7 @@ static void __init ek_board_init(void)
 	at91_add_device_isi(&isi_data, true);
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
-	/* Touch Screen */
-	at91_add_device_tsadcc(&ek_tsadcc_data);
-	/* ADC */
+	/* ADC and touchscreen */
 	at91_add_device_adc(&ek_adc_data);
 	/* Push Buttons */
 	ek_add_device_buttons();

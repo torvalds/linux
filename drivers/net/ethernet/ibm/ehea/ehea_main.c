@@ -28,6 +28,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/device.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -490,7 +491,7 @@ static int ehea_refill_rq_def(struct ehea_port_res *pr,
 		skb_arr[index] = skb;
 		tmp_addr = ehea_map_vaddr(skb->data);
 		if (tmp_addr == -1) {
-			dev_kfree_skb(skb);
+			dev_consume_skb_any(skb);
 			q_skba->os_skbs = fill_wqes - i;
 			ret = 0;
 			break;
@@ -856,7 +857,7 @@ static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 
 			index = EHEA_BMASK_GET(EHEA_WR_ID_INDEX, cqe->wr_id);
 			skb = pr->sq_skba.arr[index];
-			dev_kfree_skb(skb);
+			dev_consume_skb_any(skb);
 			pr->sq_skba.arr[index] = NULL;
 		}
 
@@ -2044,7 +2045,7 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 		skb_copy_bits(skb, 0, imm_data, skb->len);
 
 	swqe->immediate_data_length = skb->len;
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 }
 
 static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -3033,7 +3034,7 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_TSO |
 		      NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_CTAG_TX;
-	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO |
+	dev->features = NETIF_F_SG | NETIF_F_TSO |
 		      NETIF_F_HIGHDMA | NETIF_F_IP_CSUM |
 		      NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 		      NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM;
@@ -3273,7 +3274,7 @@ static int ehea_probe_adapter(struct platform_device *dev)
 		return -EINVAL;
 	}
 
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	adapter = devm_kzalloc(&dev->dev, sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		ret = -ENOMEM;
 		dev_err(&dev->dev, "no mem for ehea_adapter\n");
@@ -3359,7 +3360,6 @@ out_kill_eq:
 
 out_free_ad:
 	list_del(&adapter->list);
-	kfree(adapter);
 
 out:
 	ehea_update_firmware_handles();
@@ -3386,7 +3386,6 @@ static int ehea_remove(struct platform_device *dev)
 	ehea_destroy_eq(adapter->neq);
 	ehea_remove_adapter_mr(adapter);
 	list_del(&adapter->list);
-	kfree(adapter);
 
 	ehea_update_firmware_handles();
 

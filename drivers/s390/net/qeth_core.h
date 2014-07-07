@@ -156,6 +156,27 @@ struct qeth_ipa_info {
 	__u32 enabled_funcs;
 };
 
+/* SETBRIDGEPORT stuff */
+enum qeth_sbp_roles {
+	QETH_SBP_ROLE_NONE	= 0,
+	QETH_SBP_ROLE_PRIMARY	= 1,
+	QETH_SBP_ROLE_SECONDARY	= 2,
+};
+
+enum qeth_sbp_states {
+	QETH_SBP_STATE_INACTIVE	= 0,
+	QETH_SBP_STATE_STANDBY	= 1,
+	QETH_SBP_STATE_ACTIVE	= 2,
+};
+
+#define QETH_SBP_HOST_NOTIFICATION 1
+
+struct qeth_sbp_info {
+	__u32 supported_funcs;
+	enum qeth_sbp_roles role;
+	__u32 hostnotification:1;
+};
+
 static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,
 		enum qeth_ipa_funcs func)
 {
@@ -247,10 +268,8 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 #define QETH_NO_PRIO_QUEUEING 0
 #define QETH_PRIO_Q_ING_PREC  1
 #define QETH_PRIO_Q_ING_TOS   2
-#define IP_TOS_LOWDELAY 0x10
-#define IP_TOS_HIGHTHROUGHPUT 0x08
-#define IP_TOS_HIGHRELIABILITY 0x04
-#define IP_TOS_NOTIMPORTANT 0x02
+#define QETH_PRIO_Q_ING_SKB   3
+#define QETH_PRIO_Q_ING_VLAN  4
 
 /* Packing */
 #define QETH_LOW_WATERMARK_PACK  2
@@ -672,6 +691,7 @@ struct qeth_card_options {
 	struct qeth_ipa_info adp; /*Adapter parameters*/
 	struct qeth_routing_info route6;
 	struct qeth_ipa_info ipa6;
+	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
 	int fake_broadcast;
 	int add_hhlen;
 	int layer2;
@@ -716,6 +736,8 @@ struct qeth_discipline {
 	int (*freeze)(struct ccwgroup_device *);
 	int (*thaw) (struct ccwgroup_device *);
 	int (*restore)(struct ccwgroup_device *);
+	int (*control_event_handler)(struct qeth_card *card,
+					struct qeth_ipa_cmd *cmd);
 };
 
 struct qeth_vlan_vid {
@@ -736,6 +758,12 @@ struct qeth_rx {
 	struct qdio_buffer_element *b_element;
 	int e_offset;
 	int qdio_err;
+};
+
+struct carrier_info {
+	__u8  card_type;
+	__u16 port_mode;
+	__u32 port_speed;
 };
 
 #define QETH_NAPI_WEIGHT NAPI_POLL_WEIGHT
@@ -824,8 +852,11 @@ static inline int qeth_get_micros(void)
 
 static inline int qeth_get_ip_version(struct sk_buff *skb)
 {
-	struct ethhdr *ehdr = (struct ethhdr *)skb->data;
-	switch (ehdr->h_proto) {
+	__be16 *p = &((struct ethhdr *)skb->data)->h_proto;
+
+	if (*p == ETH_P_8021Q)
+		p += 2;
+	switch (*p) {
 	case ETH_P_IPV6:
 		return 6;
 	case ETH_P_IP:
@@ -851,6 +882,7 @@ extern struct qeth_discipline qeth_l2_discipline;
 extern struct qeth_discipline qeth_l3_discipline;
 extern const struct attribute_group *qeth_generic_attr_groups[];
 extern const struct attribute_group *qeth_osn_attr_groups[];
+extern struct workqueue_struct *qeth_wq;
 
 const char *qeth_get_cardname_short(struct qeth_card *);
 int qeth_realloc_buffer_pool(struct qeth_card *, int);
@@ -914,9 +946,15 @@ struct qeth_cmd_buffer *qeth_wait_for_buffer(struct qeth_channel *);
 int qeth_mdio_read(struct net_device *, int, int);
 int qeth_snmp_command(struct qeth_card *, char __user *);
 int qeth_query_oat_command(struct qeth_card *, char __user *);
+int qeth_query_card_info(struct qeth_card *card,
+	struct carrier_info *carrier_info);
 int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	int (*reply_cb)(struct qeth_card *, struct qeth_reply*, unsigned long),
 	void *reply_param);
+int qeth_bridgeport_query_ports(struct qeth_card *card,
+	enum qeth_sbp_roles *role, enum qeth_sbp_states *state);
+int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role);
+int qeth_bridgeport_an_set(struct qeth_card *card, int enable);
 int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *, struct sk_buff *, int);
 int qeth_get_elements_for_frags(struct sk_buff *);

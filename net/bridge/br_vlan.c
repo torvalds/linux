@@ -34,7 +34,6 @@ static void __vlan_add_flags(struct net_port_vlans *v, u16 vid, u16 flags)
 
 static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 {
-	const struct net_device_ops *ops;
 	struct net_bridge_port *p = NULL;
 	struct net_bridge *br;
 	struct net_device *dev;
@@ -45,37 +44,32 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 		return 0;
 	}
 
-	if (vid) {
-		if (v->port_idx) {
-			p = v->parent.port;
-			br = p->br;
-			dev = p->dev;
-		} else {
-			br = v->parent.br;
-			dev = br->dev;
-		}
-		ops = dev->netdev_ops;
+	if (v->port_idx) {
+		p = v->parent.port;
+		br = p->br;
+		dev = p->dev;
+	} else {
+		br = v->parent.br;
+		dev = br->dev;
+	}
 
-		if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
-			/* Add VLAN to the device filter if it is supported.
-			 * Stricly speaking, this is not necessary now, since
-			 * devices are made promiscuous by the bridge, but if
-			 * that ever changes this code will allow tagged
-			 * traffic to enter the bridge.
-			 */
-			err = ops->ndo_vlan_rx_add_vid(dev, htons(ETH_P_8021Q),
-						       vid);
-			if (err)
-				return err;
-		}
+	if (p) {
+		/* Add VLAN to the device filter if it is supported.
+		 * Stricly speaking, this is not necessary now, since
+		 * devices are made promiscuous by the bridge, but if
+		 * that ever changes this code will allow tagged
+		 * traffic to enter the bridge.
+		 */
+		err = vlan_vid_add(dev, br->vlan_proto, vid);
+		if (err)
+			return err;
+	}
 
-		err = br_fdb_insert(br, p, dev->dev_addr, vid);
-		if (err) {
-			br_err(br, "failed insert local address into bridge "
-			       "forwarding table\n");
-			goto out_filt;
-		}
-
+	err = br_fdb_insert(br, p, dev->dev_addr, vid);
+	if (err) {
+		br_err(br, "failed insert local address into bridge "
+		       "forwarding table\n");
+		goto out_filt;
 	}
 
 	set_bit(vid, v->vlan_bitmap);
@@ -85,8 +79,8 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 	return 0;
 
 out_filt:
-	if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
-		ops->ndo_vlan_rx_kill_vid(dev, htons(ETH_P_8021Q), vid);
+	if (p)
+		vlan_vid_del(dev, br->vlan_proto, vid);
 	return err;
 }
 
@@ -98,21 +92,18 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 	__vlan_delete_pvid(v, vid);
 	clear_bit(vid, v->untagged_bitmap);
 
-	if (v->port_idx && vid) {
-		struct net_device *dev = v->parent.port->dev;
-		const struct net_device_ops *ops = dev->netdev_ops;
-
-		if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
-			ops->ndo_vlan_rx_kill_vid(dev, htons(ETH_P_8021Q), vid);
+	if (v->port_idx) {
+		struct net_bridge_port *p = v->parent.port;
+		vlan_vid_del(p->dev, p->br->vlan_proto, vid);
 	}
 
 	clear_bit(vid, v->vlan_bitmap);
 	v->num_vlans--;
 	if (bitmap_empty(v->vlan_bitmap, VLAN_N_VID)) {
 		if (v->port_idx)
-			rcu_assign_pointer(v->parent.port->vlan_info, NULL);
+			RCU_INIT_POINTER(v->parent.port->vlan_info, NULL);
 		else
-			rcu_assign_pointer(v->parent.br->vlan_info, NULL);
+			RCU_INIT_POINTER(v->parent.br->vlan_info, NULL);
 		kfree_rcu(v, rcu);
 	}
 	return 0;
@@ -124,26 +115,10 @@ static void __vlan_flush(struct net_port_vlans *v)
 	v->pvid = 0;
 	bitmap_zero(v->vlan_bitmap, VLAN_N_VID);
 	if (v->port_idx)
-		rcu_assign_pointer(v->parent.port->vlan_info, NULL);
+		RCU_INIT_POINTER(v->parent.port->vlan_info, NULL);
 	else
-		rcu_assign_pointer(v->parent.br->vlan_info, NULL);
+		RCU_INIT_POINTER(v->parent.br->vlan_info, NULL);
 	kfree_rcu(v, rcu);
-}
-
-/* Strip the tag from the packet.  Will return skb with tci set 0.  */
-static struct sk_buff *br_vlan_untag(struct sk_buff *skb)
-{
-	if (skb->protocol != htons(ETH_P_8021Q)) {
-		skb->vlan_tci = 0;
-		return skb;
-	}
-
-	skb->vlan_tci = 0;
-	skb = vlan_untag(skb);
-	if (skb)
-		skb->vlan_tci = 0;
-
-	return skb;
 }
 
 struct sk_buff *br_handle_vlan(struct net_bridge *br,
@@ -155,34 +130,27 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 	if (!br->vlan_enabled)
 		goto out;
 
+	/* Vlan filter table must be configured at this point.  The
+	 * only exception is the bridge is set in promisc mode and the
+	 * packet is destined for the bridge device.  In this case
+	 * pass the packet as is.
+	 */
+	if (!pv) {
+		if ((br->dev->flags & IFF_PROMISC) && skb->dev == br->dev) {
+			goto out;
+		} else {
+			kfree_skb(skb);
+			return NULL;
+		}
+	}
+
 	/* At this point, we know that the frame was filtered and contains
 	 * a valid vlan id.  If the vlan id is set in the untagged bitmap,
-	 * send untagged; otherwise, send taged.
+	 * send untagged; otherwise, send tagged.
 	 */
 	br_vlan_get_tag(skb, &vid);
 	if (test_bit(vid, pv->untagged_bitmap))
-		skb = br_vlan_untag(skb);
-	else {
-		/* Egress policy says "send tagged".  If output device
-		 * is the  bridge, we need to add the VLAN header
-		 * ourselves since we'll be going through the RX path.
-		 * Sending to ports puts the frame on the TX path and
-		 * we let dev_hard_start_xmit() add the header.
-		 */
-		if (skb->protocol != htons(ETH_P_8021Q) &&
-		    pv->port_idx == 0) {
-			/* vlan_put_tag expects skb->data to point to
-			 * mac header.
-			 */
-			skb_push(skb, ETH_HLEN);
-			skb = __vlan_put_tag(skb, skb->vlan_proto, skb->vlan_tci);
-			if (!skb)
-				goto out;
-			/* put skb->data back to where it was */
-			skb_pull(skb, ETH_HLEN);
-			skb->vlan_tci = 0;
-		}
-	}
+		skb->vlan_tci = 0;
 
 out:
 	return skb;
@@ -192,6 +160,9 @@ out:
 bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 			struct sk_buff *skb, u16 *vid)
 {
+	bool tagged;
+	__be16 proto;
+
 	/* If VLAN filtering is disabled on the bridge, all packets are
 	 * permitted.
 	 */
@@ -202,29 +173,76 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	 * rejected.
 	 */
 	if (!v)
-		return false;
+		goto drop;
 
-	if (br_vlan_get_tag(skb, vid)) {
+	proto = br->vlan_proto;
+
+	/* If vlan tx offload is disabled on bridge device and frame was
+	 * sent from vlan device on the bridge device, it does not have
+	 * HW accelerated vlan tag.
+	 */
+	if (unlikely(!vlan_tx_tag_present(skb) &&
+		     skb->protocol == proto)) {
+		skb = vlan_untag(skb);
+		if (unlikely(!skb))
+			return false;
+	}
+
+	if (!br_vlan_get_tag(skb, vid)) {
+		/* Tagged frame */
+		if (skb->vlan_proto != proto) {
+			/* Protocol-mismatch, empty out vlan_tci for new tag */
+			skb_push(skb, ETH_HLEN);
+			skb = __vlan_put_tag(skb, skb->vlan_proto,
+					     vlan_tx_tag_get(skb));
+			if (unlikely(!skb))
+				return false;
+
+			skb_pull(skb, ETH_HLEN);
+			skb_reset_mac_len(skb);
+			*vid = 0;
+			tagged = false;
+		} else {
+			tagged = true;
+		}
+	} else {
+		/* Untagged frame */
+		tagged = false;
+	}
+
+	if (!*vid) {
 		u16 pvid = br_get_pvid(v);
 
-		/* Frame did not have a tag.  See if pvid is set
-		 * on this port.  That tells us which vlan untagged
-		 * traffic belongs to.
+		/* Frame had a tag with VID 0 or did not have a tag.
+		 * See if pvid is set on this port.  That tells us which
+		 * vlan untagged or priority-tagged traffic belongs to.
 		 */
 		if (pvid == VLAN_N_VID)
-			return false;
+			goto drop;
 
-		/* PVID is set on this port.  Any untagged ingress
-		 * frame is considered to belong to this vlan.
+		/* PVID is set on this port.  Any untagged or priority-tagged
+		 * ingress frame is considered to belong to this vlan.
 		 */
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), pvid);
+		*vid = pvid;
+		if (likely(!tagged))
+			/* Untagged Frame. */
+			__vlan_hwaccel_put_tag(skb, proto, pvid);
+		else
+			/* Priority-tagged Frame.
+			 * At this point, We know that skb->vlan_tci had
+			 * VLAN_TAG_PRESENT bit and its VID field was 0x000.
+			 * We update only VID field and preserve PCP field.
+			 */
+			skb->vlan_tci |= pvid;
+
 		return true;
 	}
 
 	/* Frame had a valid vlan tag.  See if vlan is allowed */
 	if (test_bit(*vid, v->vlan_bitmap))
 		return true;
-
+drop:
+	kfree_skb(skb);
 	return false;
 }
 
@@ -248,7 +266,39 @@ bool br_allowed_egress(struct net_bridge *br,
 	return false;
 }
 
-/* Must be protected by RTNL */
+/* Called under RCU */
+bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid)
+{
+	struct net_bridge *br = p->br;
+	struct net_port_vlans *v;
+
+	if (!br->vlan_enabled)
+		return true;
+
+	v = rcu_dereference(p->vlan_info);
+	if (!v)
+		return false;
+
+	if (!br_vlan_get_tag(skb, vid) && skb->vlan_proto != br->vlan_proto)
+		*vid = 0;
+
+	if (!*vid) {
+		*vid = br_get_pvid(v);
+		if (*vid == VLAN_N_VID)
+			return false;
+
+		return true;
+	}
+
+	if (test_bit(*vid, v->vlan_bitmap))
+		return true;
+
+	return false;
+}
+
+/* Must be protected by RTNL.
+ * Must be called with vid in range from 1 to 4094 inclusive.
+ */
 int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags)
 {
 	struct net_port_vlans *pv = NULL;
@@ -278,7 +328,9 @@ out:
 	return err;
 }
 
-/* Must be protected by RTNL */
+/* Must be protected by RTNL.
+ * Must be called with vid in range from 1 to 4094 inclusive.
+ */
 int br_vlan_delete(struct net_bridge *br, u16 vid)
 {
 	struct net_port_vlans *pv;
@@ -289,14 +341,7 @@ int br_vlan_delete(struct net_bridge *br, u16 vid)
 	if (!pv)
 		return -EINVAL;
 
-	if (vid) {
-		/* If the VID !=0 remove fdb for this vid. VID 0 is special
-		 * in that it's the default and is always there in the fdb.
-		 */
-		spin_lock_bh(&br->hash_lock);
-		fdb_delete_by_addr(br, br->dev->dev_addr, vid);
-		spin_unlock_bh(&br->hash_lock);
-	}
+	br_fdb_find_delete_local(br, NULL, br->dev->dev_addr, vid);
 
 	__vlan_del(pv, vid);
 	return 0;
@@ -314,6 +359,52 @@ void br_vlan_flush(struct net_bridge *br)
 	__vlan_flush(pv);
 }
 
+bool br_vlan_find(struct net_bridge *br, u16 vid)
+{
+	struct net_port_vlans *pv;
+	bool found = false;
+
+	rcu_read_lock();
+	pv = rcu_dereference(br->vlan_info);
+
+	if (!pv)
+		goto out;
+
+	if (test_bit(vid, pv->vlan_bitmap))
+		found = true;
+
+out:
+	rcu_read_unlock();
+	return found;
+}
+
+/* Must be protected by RTNL. */
+static void recalculate_group_addr(struct net_bridge *br)
+{
+	if (br->group_addr_set)
+		return;
+
+	spin_lock_bh(&br->lock);
+	if (!br->vlan_enabled || br->vlan_proto == htons(ETH_P_8021Q)) {
+		/* Bridge Group Address */
+		br->group_addr[5] = 0x00;
+	} else { /* vlan_enabled && ETH_P_8021AD */
+		/* Provider Bridge Group Address */
+		br->group_addr[5] = 0x08;
+	}
+	spin_unlock_bh(&br->lock);
+}
+
+/* Must be protected by RTNL. */
+void br_recalculate_fwd_mask(struct net_bridge *br)
+{
+	if (!br->vlan_enabled || br->vlan_proto == htons(ETH_P_8021Q))
+		br->group_fwd_mask_required = BR_GROUPFWD_DEFAULT;
+	else /* vlan_enabled && ETH_P_8021AD */
+		br->group_fwd_mask_required = BR_GROUPFWD_8021AD &
+					      ~(1u << br->group_addr[5]);
+}
+
 int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
 	if (!rtnl_trylock())
@@ -323,13 +414,91 @@ int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 		goto unlock;
 
 	br->vlan_enabled = val;
+	br_manage_promisc(br);
+	recalculate_group_addr(br);
+	br_recalculate_fwd_mask(br);
 
 unlock:
 	rtnl_unlock();
 	return 0;
 }
 
-/* Must be protected by RTNL */
+int br_vlan_set_proto(struct net_bridge *br, unsigned long val)
+{
+	int err = 0;
+	struct net_bridge_port *p;
+	struct net_port_vlans *pv;
+	__be16 proto, oldproto;
+	u16 vid, errvid;
+
+	if (val != ETH_P_8021Q && val != ETH_P_8021AD)
+		return -EPROTONOSUPPORT;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	proto = htons(val);
+	if (br->vlan_proto == proto)
+		goto unlock;
+
+	/* Add VLANs for the new proto to the device filter. */
+	list_for_each_entry(p, &br->port_list, list) {
+		pv = rtnl_dereference(p->vlan_info);
+		if (!pv)
+			continue;
+
+		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+			err = vlan_vid_add(p->dev, proto, vid);
+			if (err)
+				goto err_filt;
+		}
+	}
+
+	oldproto = br->vlan_proto;
+	br->vlan_proto = proto;
+
+	recalculate_group_addr(br);
+	br_recalculate_fwd_mask(br);
+
+	/* Delete VLANs for the old proto from the device filter. */
+	list_for_each_entry(p, &br->port_list, list) {
+		pv = rtnl_dereference(p->vlan_info);
+		if (!pv)
+			continue;
+
+		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
+			vlan_vid_del(p->dev, oldproto, vid);
+	}
+
+unlock:
+	rtnl_unlock();
+	return err;
+
+err_filt:
+	errvid = vid;
+	for_each_set_bit(vid, pv->vlan_bitmap, errvid)
+		vlan_vid_del(p->dev, proto, vid);
+
+	list_for_each_entry_continue_reverse(p, &br->port_list, list) {
+		pv = rtnl_dereference(p->vlan_info);
+		if (!pv)
+			continue;
+
+		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
+			vlan_vid_del(p->dev, proto, vid);
+	}
+
+	goto unlock;
+}
+
+void br_vlan_init(struct net_bridge *br)
+{
+	br->vlan_proto = htons(ETH_P_8021Q);
+}
+
+/* Must be protected by RTNL.
+ * Must be called with vid in range from 1 to 4094 inclusive.
+ */
 int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)
 {
 	struct net_port_vlans *pv = NULL;
@@ -363,7 +532,9 @@ clean_up:
 	return err;
 }
 
-/* Must be protected by RTNL */
+/* Must be protected by RTNL.
+ * Must be called with vid in range from 1 to 4094 inclusive.
+ */
 int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 {
 	struct net_port_vlans *pv;
@@ -374,14 +545,7 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 	if (!pv)
 		return -EINVAL;
 
-	if (vid) {
-		/* If the VID !=0 remove fdb for this vid. VID 0 is special
-		 * in that it's the default and is always there in the fdb.
-		 */
-		spin_lock_bh(&port->br->hash_lock);
-		fdb_delete_by_addr(port->br, port->dev->dev_addr, vid);
-		spin_unlock_bh(&port->br->hash_lock);
-	}
+	br_fdb_find_delete_local(port->br, port, port->dev->dev_addr, vid);
 
 	return __vlan_del(pv, vid);
 }
@@ -389,12 +553,16 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 void nbp_vlan_flush(struct net_bridge_port *port)
 {
 	struct net_port_vlans *pv;
+	u16 vid;
 
 	ASSERT_RTNL();
 
 	pv = rtnl_dereference(port->vlan_info);
 	if (!pv)
 		return;
+
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
+		vlan_vid_del(port->dev, port->br->vlan_proto, vid);
 
 	__vlan_flush(pv);
 }

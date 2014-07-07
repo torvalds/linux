@@ -27,6 +27,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
+#include <linux/list.h>
 
 #include <asm/irq.h>
 
@@ -57,6 +58,9 @@
 	(((dma_is_apbh(d) && apbh_is_old(d)) ? 0x050 : 0x110) + (n) * 0x70)
 #define HW_APBHX_CHn_SEMA(d, n) \
 	(((dma_is_apbh(d) && apbh_is_old(d)) ? 0x080 : 0x140) + (n) * 0x70)
+#define HW_APBHX_CHn_BAR(d, n) \
+	(((dma_is_apbh(d) && apbh_is_old(d)) ? 0x070 : 0x130) + (n) * 0x70)
+#define HW_APBX_CHn_DEBUG1(d, n) (0x150 + (n) * 0x70)
 
 /*
  * ccw bits definitions
@@ -115,7 +119,9 @@ struct mxs_dma_chan {
 	int				desc_count;
 	enum dma_status			status;
 	unsigned int			flags;
+	bool				reset;
 #define MXS_DMA_SG_LOOP			(1 << 0)
+#define MXS_DMA_USE_SEMAPHORE		(1 << 1)
 };
 
 #define MXS_DMA_CHANNELS		16
@@ -201,12 +207,47 @@ static void mxs_dma_reset_chan(struct mxs_dma_chan *mxs_chan)
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
 	int chan_id = mxs_chan->chan.chan_id;
 
-	if (dma_is_apbh(mxs_dma) && apbh_is_old(mxs_dma))
+	/*
+	 * mxs dma channel resets can cause a channel stall. To recover from a
+	 * channel stall, we have to reset the whole DMA engine. To avoid this,
+	 * we use cyclic DMA with semaphores, that are enhanced in
+	 * mxs_dma_int_handler. To reset the channel, we can simply stop writing
+	 * into the semaphore counter.
+	 */
+	if (mxs_chan->flags & MXS_DMA_USE_SEMAPHORE &&
+			mxs_chan->flags & MXS_DMA_SG_LOOP) {
+		mxs_chan->reset = true;
+	} else if (dma_is_apbh(mxs_dma) && apbh_is_old(mxs_dma)) {
 		writel(1 << (chan_id + BP_APBH_CTRL0_RESET_CHANNEL),
 			mxs_dma->base + HW_APBHX_CTRL0 + STMP_OFFSET_REG_SET);
-	else
+	} else {
+		unsigned long elapsed = 0;
+		const unsigned long max_wait = 50000; /* 50ms */
+		void __iomem *reg_dbg1 = mxs_dma->base +
+				HW_APBX_CHn_DEBUG1(mxs_dma, chan_id);
+
+		/*
+		 * On i.MX28 APBX, the DMA channel can stop working if we reset
+		 * the channel while it is in READ_FLUSH (0x08) state.
+		 * We wait here until we leave the state. Then we trigger the
+		 * reset. Waiting a maximum of 50ms, the kernel shouldn't crash
+		 * because of this.
+		 */
+		while ((readl(reg_dbg1) & 0xf) == 0x8 && elapsed < max_wait) {
+			udelay(100);
+			elapsed += 100;
+		}
+
+		if (elapsed >= max_wait)
+			dev_err(&mxs_chan->mxs_dma->pdev->dev,
+					"Failed waiting for the DMA channel %d to leave state READ_FLUSH, trying to reset channel in READ_FLUSH state now\n",
+					chan_id);
+
 		writel(1 << (chan_id + BP_APBHX_CHANNEL_CTRL_RESET_CHANNEL),
 			mxs_dma->base + HW_APBHX_CHANNEL_CTRL + STMP_OFFSET_REG_SET);
+	}
+
+	mxs_chan->status = DMA_COMPLETE;
 }
 
 static void mxs_dma_enable_chan(struct mxs_dma_chan *mxs_chan)
@@ -219,12 +260,21 @@ static void mxs_dma_enable_chan(struct mxs_dma_chan *mxs_chan)
 		mxs_dma->base + HW_APBHX_CHn_NXTCMDAR(mxs_dma, chan_id));
 
 	/* write 1 to SEMA to kick off the channel */
-	writel(1, mxs_dma->base + HW_APBHX_CHn_SEMA(mxs_dma, chan_id));
+	if (mxs_chan->flags & MXS_DMA_USE_SEMAPHORE &&
+			mxs_chan->flags & MXS_DMA_SG_LOOP) {
+		/* A cyclic DMA consists of at least 2 segments, so initialize
+		 * the semaphore with 2 so we have enough time to add 1 to the
+		 * semaphore if we need to */
+		writel(2, mxs_dma->base + HW_APBHX_CHn_SEMA(mxs_dma, chan_id));
+	} else {
+		writel(1, mxs_dma->base + HW_APBHX_CHn_SEMA(mxs_dma, chan_id));
+	}
+	mxs_chan->reset = false;
 }
 
 static void mxs_dma_disable_chan(struct mxs_dma_chan *mxs_chan)
 {
-	mxs_chan->status = DMA_SUCCESS;
+	mxs_chan->status = DMA_COMPLETE;
 }
 
 static void mxs_dma_pause_chan(struct mxs_dma_chan *mxs_chan)
@@ -272,57 +322,87 @@ static void mxs_dma_tasklet(unsigned long data)
 		mxs_chan->desc.callback(mxs_chan->desc.callback_param);
 }
 
+static int mxs_dma_irq_to_chan(struct mxs_dma_engine *mxs_dma, int irq)
+{
+	int i;
+
+	for (i = 0; i != mxs_dma->nr_channels; ++i)
+		if (mxs_dma->mxs_chans[i].chan_irq == irq)
+			return i;
+
+	return -EINVAL;
+}
+
 static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 {
 	struct mxs_dma_engine *mxs_dma = dev_id;
-	u32 stat1, stat2;
+	struct mxs_dma_chan *mxs_chan;
+	u32 completed;
+	u32 err;
+	int chan = mxs_dma_irq_to_chan(mxs_dma, irq);
+
+	if (chan < 0)
+		return IRQ_NONE;
 
 	/* completion status */
-	stat1 = readl(mxs_dma->base + HW_APBHX_CTRL1);
-	stat1 &= MXS_DMA_CHANNELS_MASK;
-	writel(stat1, mxs_dma->base + HW_APBHX_CTRL1 + STMP_OFFSET_REG_CLR);
+	completed = readl(mxs_dma->base + HW_APBHX_CTRL1);
+	completed = (completed >> chan) & 0x1;
+
+	/* Clear interrupt */
+	writel((1 << chan),
+			mxs_dma->base + HW_APBHX_CTRL1 + STMP_OFFSET_REG_CLR);
 
 	/* error status */
-	stat2 = readl(mxs_dma->base + HW_APBHX_CTRL2);
-	writel(stat2, mxs_dma->base + HW_APBHX_CTRL2 + STMP_OFFSET_REG_CLR);
+	err = readl(mxs_dma->base + HW_APBHX_CTRL2);
+	err &= (1 << (MXS_DMA_CHANNELS + chan)) | (1 << chan);
+
+	/*
+	 * error status bit is in the upper 16 bits, error irq bit in the lower
+	 * 16 bits. We transform it into a simpler error code:
+	 * err: 0x00 = no error, 0x01 = TERMINATION, 0x02 = BUS_ERROR
+	 */
+	err = (err >> (MXS_DMA_CHANNELS + chan)) + (err >> chan);
+
+	/* Clear error irq */
+	writel((1 << chan),
+			mxs_dma->base + HW_APBHX_CTRL2 + STMP_OFFSET_REG_CLR);
 
 	/*
 	 * When both completion and error of termination bits set at the
 	 * same time, we do not take it as an error.  IOW, it only becomes
-	 * an error we need to handle here in case of either it's (1) a bus
-	 * error or (2) a termination error with no completion.
+	 * an error we need to handle here in case of either it's a bus
+	 * error or a termination error with no completion. 0x01 is termination
+	 * error, so we can subtract err & completed to get the real error case.
 	 */
-	stat2 = ((stat2 >> MXS_DMA_CHANNELS) & stat2) | /* (1) */
-		(~(stat2 >> MXS_DMA_CHANNELS) & stat2 & ~stat1); /* (2) */
+	err -= err & completed;
 
-	/* combine error and completion status for checking */
-	stat1 = (stat2 << MXS_DMA_CHANNELS) | stat1;
-	while (stat1) {
-		int channel = fls(stat1) - 1;
-		struct mxs_dma_chan *mxs_chan =
-			&mxs_dma->mxs_chans[channel % MXS_DMA_CHANNELS];
+	mxs_chan = &mxs_dma->mxs_chans[chan];
 
-		if (channel >= MXS_DMA_CHANNELS) {
-			dev_dbg(mxs_dma->dma_device.dev,
-				"%s: error in channel %d\n", __func__,
-				channel - MXS_DMA_CHANNELS);
-			mxs_chan->status = DMA_ERROR;
-			mxs_dma_reset_chan(mxs_chan);
+	if (err) {
+		dev_dbg(mxs_dma->dma_device.dev,
+			"%s: error in channel %d\n", __func__,
+			chan);
+		mxs_chan->status = DMA_ERROR;
+		mxs_dma_reset_chan(mxs_chan);
+	} else if (mxs_chan->status != DMA_COMPLETE) {
+		if (mxs_chan->flags & MXS_DMA_SG_LOOP) {
+			mxs_chan->status = DMA_IN_PROGRESS;
+			if (mxs_chan->flags & MXS_DMA_USE_SEMAPHORE)
+				writel(1, mxs_dma->base +
+					HW_APBHX_CHn_SEMA(mxs_dma, chan));
 		} else {
-			if (mxs_chan->flags & MXS_DMA_SG_LOOP)
-				mxs_chan->status = DMA_IN_PROGRESS;
-			else
-				mxs_chan->status = DMA_SUCCESS;
+			mxs_chan->status = DMA_COMPLETE;
 		}
-
-		stat1 &= ~(1 << channel);
-
-		if (mxs_chan->status == DMA_SUCCESS)
-			dma_cookie_complete(&mxs_chan->desc);
-
-		/* schedule tasklet on this channel */
-		tasklet_schedule(&mxs_chan->tasklet);
 	}
+
+	if (mxs_chan->status == DMA_COMPLETE) {
+		if (mxs_chan->reset)
+			return IRQ_HANDLED;
+		dma_cookie_complete(&mxs_chan->desc);
+	}
+
+	/* schedule tasklet on this channel */
+	tasklet_schedule(&mxs_chan->tasklet);
 
 	return IRQ_HANDLED;
 }
@@ -523,6 +603,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_dma_cyclic(
 
 	mxs_chan->status = DMA_IN_PROGRESS;
 	mxs_chan->flags |= MXS_DMA_SG_LOOP;
+	mxs_chan->flags |= MXS_DMA_USE_SEMAPHORE;
 
 	if (num_periods > NUM_CCW) {
 		dev_err(mxs_dma->dma_device.dev,
@@ -554,6 +635,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_dma_cyclic(
 		ccw->bits |= CCW_IRQ;
 		ccw->bits |= CCW_HALT_ON_TERM;
 		ccw->bits |= CCW_TERM_FLUSH;
+		ccw->bits |= CCW_DEC_SEM;
 		ccw->bits |= BF_CCW(direction == DMA_DEV_TO_MEM ?
 				MXS_DMA_CMD_WRITE : MXS_DMA_CMD_READ, COMMAND);
 
@@ -599,8 +681,24 @@ static enum dma_status mxs_dma_tx_status(struct dma_chan *chan,
 			dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
+	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
+	u32 residue = 0;
 
-	dma_set_tx_state(txstate, chan->completed_cookie, chan->cookie, 0);
+	if (mxs_chan->status == DMA_IN_PROGRESS &&
+			mxs_chan->flags & MXS_DMA_SG_LOOP) {
+		struct mxs_dma_ccw *last_ccw;
+		u32 bar;
+
+		last_ccw = &mxs_chan->ccw[mxs_chan->desc_count - 1];
+		residue = last_ccw->xfer_bytes + last_ccw->bufaddr;
+
+		bar = readl(mxs_dma->base +
+				HW_APBHX_CHn_BAR(mxs_dma, chan->chan_id));
+		residue -= bar;
+	}
+
+	dma_set_tx_state(txstate, chan->completed_cookie, chan->cookie,
+			residue);
 
 	return mxs_chan->status;
 }

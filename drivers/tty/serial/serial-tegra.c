@@ -34,6 +34,7 @@
 #include <linux/of_device.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
@@ -43,8 +44,6 @@
 #include <linux/termios.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-
-#include <linux/clk/tegra.h>
 
 #define TEGRA_UART_TYPE				"TEGRA_UART"
 #define TX_EMPTY_STATUS				(UART_LSR_TEMT | UART_LSR_THRE)
@@ -103,6 +102,7 @@ struct tegra_uart_port {
 	const struct tegra_uart_chip_data	*cdata;
 
 	struct clk				*uart_clk;
+	struct reset_control			*rst;
 	unsigned int				current_baud;
 
 	/* Register shadow */
@@ -120,7 +120,6 @@ struct tegra_uart_port {
 	bool					rx_timeout;
 	int					rx_in_progress;
 	int					symb_bit;
-	int					dma_req_sel;
 
 	struct dma_chan				*rx_dma_chan;
 	struct dma_chan				*tx_dma_chan;
@@ -832,9 +831,9 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 	clk_prepare_enable(tup->uart_clk);
 
 	/* Reset the UART controller to clear all previous status.*/
-	tegra_periph_reset_assert(tup->uart_clk);
+	reset_control_assert(tup->rst);
 	udelay(10);
-	tegra_periph_reset_deassert(tup->uart_clk);
+	reset_control_deassert(tup->rst);
 
 	tup->rx_in_progress = 0;
 	tup->tx_in_progress = 0;
@@ -910,15 +909,14 @@ static int tegra_uart_dma_channel_allocate(struct tegra_uart_port *tup,
 	dma_addr_t dma_phys;
 	int ret;
 	struct dma_slave_config dma_sconfig;
-	dma_cap_mask_t mask;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	dma_chan = dma_request_channel(mask, NULL, NULL);
-	if (!dma_chan) {
+	dma_chan = dma_request_slave_channel_reason(tup->uport.dev,
+						dma_to_memory ? "rx" : "tx");
+	if (IS_ERR(dma_chan)) {
+		ret = PTR_ERR(dma_chan);
 		dev_err(tup->uport.dev,
-			"Dma channel is not available, will try later\n");
-		return -EPROBE_DEFER;
+			"DMA channel alloc failed: %d\n", ret);
+		return ret;
 	}
 
 	if (dma_to_memory) {
@@ -938,7 +936,6 @@ static int tegra_uart_dma_channel_allocate(struct tegra_uart_port *tup,
 		dma_buf = tup->uport.state->xmit.buf;
 	}
 
-	dma_sconfig.slave_id = tup->dma_req_sel;
 	if (dma_to_memory) {
 		dma_sconfig.src_addr = tup->uport.mapbase;
 		dma_sconfig.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
@@ -1018,7 +1015,7 @@ static int tegra_uart_startup(struct uart_port *u)
 		goto fail_hw_init;
 	}
 
-	ret = request_irq(u->irq, tegra_uart_isr, IRQF_DISABLED,
+	ret = request_irq(u->irq, tegra_uart_isr, 0,
 				dev_name(u->dev), tup);
 	if (ret < 0) {
 		dev_err(u->dev, "Failed to register ISR for IRQ %d\n", u->irq);
@@ -1222,16 +1219,7 @@ static int tegra_uart_parse_dt(struct platform_device *pdev,
 	struct tegra_uart_port *tup)
 {
 	struct device_node *np = pdev->dev.of_node;
-	u32 of_dma[2];
 	int port;
-
-	if (of_property_read_u32_array(np, "nvidia,dma-request-selector",
-				of_dma, 2) >= 0) {
-		tup->dma_req_sel = of_dma[1];
-	} else {
-		dev_err(&pdev->dev, "missing dma requestor in device tree\n");
-		return -EINVAL;
-	}
 
 	port = of_alias_get_id(np, "serial");
 	if (port < 0) {
@@ -1318,6 +1306,12 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	if (IS_ERR(tup->uart_clk)) {
 		dev_err(&pdev->dev, "Couldn't get the clock\n");
 		return PTR_ERR(tup->uart_clk);
+	}
+
+	tup->rst = devm_reset_control_get(&pdev->dev, "serial");
+	if (IS_ERR(tup->rst)) {
+		dev_err(&pdev->dev, "Couldn't get the reset\n");
+		return PTR_ERR(tup->rst);
 	}
 
 	u->iotype = UPIO_MEM32;

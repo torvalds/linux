@@ -1495,7 +1495,7 @@ static int omap1_cam_set_bus_param(struct soc_camera_device *icd)
 	if (ctrlclock & LCLK_EN)
 		CAM_WRITE(pcdev, CTRLCLOCK, ctrlclock);
 
-	/* select bus endianess */
+	/* select bus endianness */
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	fmt = xlate->host_fmt;
 

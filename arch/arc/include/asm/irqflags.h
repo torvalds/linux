@@ -151,16 +151,38 @@ static inline void arch_unmask_irq(unsigned int irq)
 
 #else
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+
+.macro TRACE_ASM_IRQ_DISABLE
+	bl	trace_hardirqs_off
+.endm
+
+.macro TRACE_ASM_IRQ_ENABLE
+	bl	trace_hardirqs_on
+.endm
+
+#else
+
+.macro TRACE_ASM_IRQ_DISABLE
+.endm
+
+.macro TRACE_ASM_IRQ_ENABLE
+.endm
+
+#endif
+
 .macro IRQ_DISABLE  scratch
 	lr	\scratch, [status32]
 	bic	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
 	flag	\scratch
+	TRACE_ASM_IRQ_DISABLE
 .endm
 
 .macro IRQ_ENABLE  scratch
 	lr	\scratch, [status32]
 	or	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
 	flag	\scratch
+	TRACE_ASM_IRQ_ENABLE
 .endm
 
 #endif	/* __ASSEMBLY__ */

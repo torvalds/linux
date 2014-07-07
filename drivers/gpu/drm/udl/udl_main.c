@@ -283,7 +283,7 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 int udl_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct udl_device *udl;
-	int ret;
+	int ret = -ENOMEM;
 
 	DRM_DEBUG("\n");
 	udl = kzalloc(sizeof(struct udl_device), GFP_KERNEL);
@@ -294,12 +294,12 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = udl;
 
 	if (!udl_parse_vendor_descriptor(dev, dev->usbdev)) {
+		ret = -ENODEV;
 		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
 		goto err;
 	}
 
 	if (!udl_alloc_urb_list(dev, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
-		ret = -ENOMEM;
 		DRM_ERROR("udl_alloc_urb_list failed\n");
 		goto err;
 	}

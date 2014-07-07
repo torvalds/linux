@@ -466,7 +466,7 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 static inline void
 smb2_seq_num_into_buf(struct TCP_Server_Info *server, struct smb2_hdr *hdr)
 {
-	hdr->MessageId = get_next_mid(server);
+	hdr->MessageId = get_next_mid64(server);
 }
 
 static struct mid_q_entry *
@@ -516,13 +516,19 @@ smb2_get_mid_entry(struct cifs_ses *ses, struct smb2_hdr *buf,
 		return -EAGAIN;
 	}
 
-	if (ses->status != CifsGood) {
-		/* check if SMB2 session is bad because we are setting it up */
+	if (ses->status == CifsNew) {
 		if ((buf->Command != SMB2_SESSION_SETUP) &&
 		    (buf->Command != SMB2_NEGOTIATE))
 			return -EAGAIN;
 		/* else ok - we are setting up session */
 	}
+
+	if (ses->status == CifsExiting) {
+		if (buf->Command != SMB2_LOGOFF)
+			return -EAGAIN;
+		/* else ok - we are shutting down the session */
+	}
+
 	*mid = smb2_mid_entry_alloc(buf, ses->server);
 	if (*mid == NULL)
 		return -ENOMEM;

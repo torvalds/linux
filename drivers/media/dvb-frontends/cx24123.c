@@ -739,7 +739,7 @@ static int cx24123_set_voltage(struct dvb_frontend *fe,
 		return 0;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }

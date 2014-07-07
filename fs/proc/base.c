@@ -200,41 +200,9 @@ static int proc_root_link(struct dentry *dentry, struct path *path)
 	return result;
 }
 
-static int proc_pid_cmdline(struct task_struct *task, char * buffer)
+static int proc_pid_cmdline(struct task_struct *task, char *buffer)
 {
-	int res = 0;
-	unsigned int len;
-	struct mm_struct *mm = get_task_mm(task);
-	if (!mm)
-		goto out;
-	if (!mm->arg_end)
-		goto out_mm;	/* Shh! No looking before we're done */
-
- 	len = mm->arg_end - mm->arg_start;
- 
-	if (len > PAGE_SIZE)
-		len = PAGE_SIZE;
- 
-	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
-
-	// If the nul at the end of args has been overwritten, then
-	// assume application is using setproctitle(3).
-	if (res > 0 && buffer[res-1] != '\0' && len < PAGE_SIZE) {
-		len = strnlen(buffer, res);
-		if (len < res) {
-		    res = len;
-		} else {
-			len = mm->env_end - mm->env_start;
-			if (len > PAGE_SIZE - res)
-				len = PAGE_SIZE - res;
-			res += access_process_vm(task, mm->env_start, buffer+res, len, 0);
-			res = strnlen(buffer, res);
-		}
-	}
-out_mm:
-	mmput(mm);
-out:
-	return res;
+	return get_cmdline(task, buffer, PAGE_SIZE);
 }
 
 static int proc_pid_auxv(struct task_struct *task, char *buffer)
@@ -1151,10 +1119,16 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 		goto out_free_page;
 
 	}
-	kloginuid = make_kuid(file->f_cred->user_ns, loginuid);
-	if (!uid_valid(kloginuid)) {
-		length = -EINVAL;
-		goto out_free_page;
+
+	/* is userspace tring to explicitly UNSET the loginuid? */
+	if (loginuid == AUDIT_UID_UNSET) {
+		kloginuid = INVALID_UID;
+	} else {
+		kloginuid = make_kuid(file->f_cred->user_ns, loginuid);
+		if (!uid_valid(kloginuid)) {
+			length = -EINVAL;
+			goto out_free_page;
+		}
 	}
 
 	length = audit_set_loginuid(kloginuid);
@@ -1230,6 +1204,9 @@ static ssize_t proc_fault_inject_write(struct file * file,
 	make_it_fail = simple_strtol(strstrip(buffer), &end, 0);
 	if (*end)
 		return -EINVAL;
+	if (make_it_fail < 0 || make_it_fail > 1)
+		return -EINVAL;
+
 	task = get_proc_task(file_inode(file));
 	if (!task)
 		return -ESRCH;
@@ -1652,13 +1629,18 @@ int pid_revalidate(struct dentry *dentry, unsigned int flags)
 	return 0;
 }
 
+static inline bool proc_inode_is_dead(struct inode *inode)
+{
+	return !proc_pid(inode)->tasks[PIDTYPE_PID].first;
+}
+
 int pid_delete_dentry(const struct dentry *dentry)
 {
 	/* Is the task we represent dead?
 	 * If so, then don't put the dentry on the lru list,
 	 * kill it immediately.
 	 */
-	return !proc_pid(dentry->d_inode)->tasks[PIDTYPE_PID].first;
+	return proc_inode_is_dead(dentry->d_inode);
 }
 
 const struct dentry_operations pid_dentry_operations =
@@ -1813,6 +1795,7 @@ static int proc_map_files_get_link(struct dentry *dentry, struct path *path)
 	if (rc)
 		goto out_mmput;
 
+	rc = -ENOENT;
 	down_read(&mm->mmap_sem);
 	vma = find_exact_vma(mm, vm_start, vm_end);
 	if (vma && vma->vm_file) {
@@ -2576,7 +2559,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("environ",    S_IRUSR, proc_environ_operations),
 	INF("auxv",       S_IRUSR, proc_pid_auxv),
 	ONE("status",     S_IRUGO, proc_pid_status),
-	ONE("personality", S_IRUGO, proc_pid_personality),
+	ONE("personality", S_IRUSR, proc_pid_personality),
 	INF("limits",	  S_IRUGO, proc_pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",      S_IRUGO|S_IWUSR, proc_pid_sched_operations),
@@ -2586,7 +2569,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #endif
 	REG("comm",      S_IRUGO|S_IWUSR, proc_pid_set_comm_operations),
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
-	INF("syscall",    S_IRUGO, proc_pid_syscall),
+	INF("syscall",    S_IRUSR, proc_pid_syscall),
 #endif
 	INF("cmdline",    S_IRUGO, proc_pid_cmdline),
 	ONE("stat",       S_IRUGO, proc_tgid_stat),
@@ -2605,7 +2588,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
-	REG("pagemap",    S_IRUGO, proc_pagemap_operations),
+	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
 #endif
 #ifdef CONFIG_SECURITY
 	DIR("attr",       S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
@@ -2614,7 +2597,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	INF("wchan",      S_IRUGO, proc_pid_wchan),
 #endif
 #ifdef CONFIG_STACKTRACE
-	ONE("stack",      S_IRUGO, proc_pid_stack),
+	ONE("stack",      S_IRUSR, proc_pid_stack),
 #endif
 #ifdef CONFIG_SCHEDSTATS
 	INF("schedstat",  S_IRUGO, proc_pid_schedstat),
@@ -2915,14 +2898,14 @@ static const struct pid_entry tid_base_stuff[] = {
 	REG("environ",   S_IRUSR, proc_environ_operations),
 	INF("auxv",      S_IRUSR, proc_pid_auxv),
 	ONE("status",    S_IRUGO, proc_pid_status),
-	ONE("personality", S_IRUGO, proc_pid_personality),
+	ONE("personality", S_IRUSR, proc_pid_personality),
 	INF("limits",	 S_IRUGO, proc_pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",     S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
 	REG("comm",      S_IRUGO|S_IWUSR, proc_pid_set_comm_operations),
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
-	INF("syscall",   S_IRUGO, proc_pid_syscall),
+	INF("syscall",   S_IRUSR, proc_pid_syscall),
 #endif
 	INF("cmdline",   S_IRUGO, proc_pid_cmdline),
 	ONE("stat",      S_IRUGO, proc_tid_stat),
@@ -2943,7 +2926,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
 	REG("smaps",     S_IRUGO, proc_tid_smaps_operations),
-	REG("pagemap",    S_IRUGO, proc_pagemap_operations),
+	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
 #endif
 #ifdef CONFIG_SECURITY
 	DIR("attr",      S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
@@ -2952,7 +2935,7 @@ static const struct pid_entry tid_base_stuff[] = {
 	INF("wchan",     S_IRUGO, proc_pid_wchan),
 #endif
 #ifdef CONFIG_STACKTRACE
-	ONE("stack",      S_IRUGO, proc_pid_stack),
+	ONE("stack",      S_IRUSR, proc_pid_stack),
 #endif
 #ifdef CONFIG_SCHEDSTATS
 	INF("schedstat", S_IRUGO, proc_pid_schedstat),
@@ -3086,34 +3069,42 @@ out_no_task:
  * In the case of a seek we start with the leader and walk nr
  * threads past it.
  */
-static struct task_struct *first_tid(struct task_struct *leader,
-		int tid, int nr, struct pid_namespace *ns)
+static struct task_struct *first_tid(struct pid *pid, int tid, loff_t f_pos,
+					struct pid_namespace *ns)
 {
-	struct task_struct *pos;
+	struct task_struct *pos, *task;
+	unsigned long nr = f_pos;
+
+	if (nr != f_pos)	/* 32bit overflow? */
+		return NULL;
 
 	rcu_read_lock();
-	/* Attempt to start with the pid of a thread */
-	if (tid && (nr > 0)) {
+	task = pid_task(pid, PIDTYPE_PID);
+	if (!task)
+		goto fail;
+
+	/* Attempt to start with the tid of a thread */
+	if (tid && nr) {
 		pos = find_task_by_pid_ns(tid, ns);
-		if (pos && (pos->group_leader == leader))
+		if (pos && same_thread_group(pos, task))
 			goto found;
 	}
 
 	/* If nr exceeds the number of threads there is nothing todo */
-	pos = NULL;
-	if (nr && nr >= get_nr_threads(leader))
-		goto out;
+	if (nr >= get_nr_threads(task))
+		goto fail;
 
 	/* If we haven't found our starting place yet start
 	 * with the leader and walk nr threads forward.
 	 */
-	for (pos = leader; nr > 0; --nr) {
-		pos = next_thread(pos);
-		if (pos == leader) {
-			pos = NULL;
-			goto out;
-		}
-	}
+	pos = task = task->group_leader;
+	do {
+		if (!nr--)
+			goto found;
+	} while_each_thread(task, pos);
+fail:
+	pos = NULL;
+	goto out;
 found:
 	get_task_struct(pos);
 out:
@@ -3146,25 +3137,16 @@ static struct task_struct *next_tid(struct task_struct *start)
 /* for the /proc/TGID/task/ directories */
 static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct task_struct *leader = NULL;
-	struct task_struct *task = get_proc_task(file_inode(file));
+	struct inode *inode = file_inode(file);
+	struct task_struct *task;
 	struct pid_namespace *ns;
 	int tid;
 
-	if (!task)
-		return -ENOENT;
-	rcu_read_lock();
-	if (pid_alive(task)) {
-		leader = task->group_leader;
-		get_task_struct(leader);
-	}
-	rcu_read_unlock();
-	put_task_struct(task);
-	if (!leader)
+	if (proc_inode_is_dead(inode))
 		return -ENOENT;
 
 	if (!dir_emit_dots(file, ctx))
-		goto out;
+		return 0;
 
 	/* f_version caches the tgid value that the last readdir call couldn't
 	 * return. lseek aka telldir automagically resets f_version to 0.
@@ -3172,7 +3154,7 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 	ns = file->f_dentry->d_sb->s_fs_info;
 	tid = (int)file->f_version;
 	file->f_version = 0;
-	for (task = first_tid(leader, tid, ctx->pos - 2, ns);
+	for (task = first_tid(proc_pid(inode), tid, ctx->pos - 2, ns);
 	     task;
 	     task = next_tid(task), ctx->pos++) {
 		char name[PROC_NUMBUF];
@@ -3188,8 +3170,7 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 			break;
 		}
 	}
-out:
-	put_task_struct(leader);
+
 	return 0;
 }
 

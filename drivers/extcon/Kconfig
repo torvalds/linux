@@ -14,10 +14,6 @@ if EXTCON
 
 comment "Extcon Device Drivers"
 
-config OF_EXTCON
-	def_tristate y
-	depends on OF
-
 config EXTCON_GPIO
 	tristate "GPIO extcon support"
 	depends on GPIOLIB
@@ -30,6 +26,16 @@ config EXTCON_ADC_JACK
 	depends on IIO
 	help
 	  Say Y here to enable extcon device driver based on ADC values.
+
+config EXTCON_MAX14577
+	tristate "MAX14577/77836 EXTCON Support"
+	depends on MFD_MAX14577
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX14577/77836. The MAX14577/77836 MUIC is a USB port accessory
+	  detector and switch.
 
 config EXTCON_MAX77693
 	tristate "MAX77693 EXTCON Support"

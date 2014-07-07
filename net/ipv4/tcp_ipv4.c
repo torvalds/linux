@@ -173,11 +173,11 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	rt = ip_route_connect(fl4, nexthop, inet->inet_saddr,
 			      RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
 			      IPPROTO_TCP,
-			      orig_sport, orig_dport, sk, true);
+			      orig_sport, orig_dport, sk);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		if (err == -ENETUNREACH)
-			IP_INC_STATS_BH(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
+			IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
 		return err;
 	}
 
@@ -288,6 +288,7 @@ static void tcp_v4_mtu_reduced(struct sock *sk)
 	mtu = dst_mtu(dst);
 
 	if (inet->pmtudisc != IP_PMTUDISC_DONT &&
+	    ip_sk_accept_pmtu(sk) &&
 	    inet_csk(sk)->icsk_pmtu_cookie > mtu) {
 		tcp_sync_mss(sk, mtu);
 
@@ -335,8 +336,8 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	const int code = icmp_hdr(icmp_skb)->code;
 	struct sock *sk;
 	struct sk_buff *skb;
-	struct request_sock *req;
-	__u32 seq;
+	struct request_sock *fastopen;
+	__u32 seq, snd_una;
 	__u32 remaining;
 	int err;
 	struct net *net = dev_net(icmp_skb->dev);
@@ -377,12 +378,12 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 
 	icsk = inet_csk(sk);
 	tp = tcp_sk(sk);
-	req = tp->fastopen_rsk;
 	seq = ntohl(th->seq);
+	/* XXX (TFO) - tp->snd_una should be ISN (tcp_create_openreq_child() */
+	fastopen = tp->fastopen_rsk;
+	snd_una = fastopen ? tcp_rsk(fastopen)->snt_isn : tp->snd_una;
 	if (sk->sk_state != TCP_LISTEN &&
-	    !between(seq, tp->snd_una, tp->snd_nxt) &&
-	    (req == NULL || seq != tcp_rsk(req)->snt_isn)) {
-		/* For a Fast Open socket, allow seq to be snt_isn. */
+	    !between(seq, snd_una, tp->snd_nxt)) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
 		goto out;
 	}
@@ -425,16 +426,14 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		if (code != ICMP_NET_UNREACH && code != ICMP_HOST_UNREACH)
 			break;
 		if (seq != tp->snd_una  || !icsk->icsk_retransmits ||
-		    !icsk->icsk_backoff)
+		    !icsk->icsk_backoff || fastopen)
 			break;
-
-		/* XXX (TFO) - revisit the following logic for TFO */
 
 		if (sock_owned_by_user(sk))
 			break;
 
 		icsk->icsk_backoff--;
-		inet_csk(sk)->icsk_rto = (tp->srtt ? __tcp_set_rto(tp) :
+		inet_csk(sk)->icsk_rto = (tp->srtt_us ? __tcp_set_rto(tp) :
 			TCP_TIMEOUT_INIT) << icsk->icsk_backoff;
 		tcp_bound_rto(sk);
 
@@ -460,14 +459,6 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	default:
 		goto out;
 	}
-
-	/* XXX (TFO) - if it's a TFO socket and has been accepted, rather
-	 * than following the TCP_SYN_RECV case and closing the socket,
-	 * we ignore the ICMP error and keep trying like a fully established
-	 * socket. Is this the right thing to do?
-	 */
-	if (req && req->sk == NULL)
-		goto out;
 
 	switch (sk->sk_state) {
 		struct request_sock *req, **prev;
@@ -501,10 +492,13 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		goto out;
 
 	case TCP_SYN_SENT:
-	case TCP_SYN_RECV:  /* Cannot happen.
-			       It can f.e. if SYNs crossed,
-			       or Fast Open.
-			     */
+	case TCP_SYN_RECV:
+		/* Only in fast or simultaneous open. If a fast open socket is
+		 * is already accepted it is treated as a connected one below.
+		 */
+		if (fastopen && fastopen->sk == NULL)
+			break;
+
 		if (!sock_owned_by_user(sk)) {
 			sk->sk_err = err;
 
@@ -821,25 +815,26 @@ static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
  */
 static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 			      struct request_sock *req,
-			      u16 queue_mapping)
+			      u16 queue_mapping,
+			      struct tcp_fastopen_cookie *foc)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct flowi4 fl4;
 	int err = -1;
-	struct sk_buff * skb;
+	struct sk_buff *skb;
 
 	/* First, grab a route. */
 	if (!dst && (dst = inet_csk_route_req(sk, &fl4, req)) == NULL)
 		return -1;
 
-	skb = tcp_make_synack(sk, dst, req, NULL);
+	skb = tcp_make_synack(sk, dst, req, foc);
 
 	if (skb) {
-		__tcp_v4_send_check(skb, ireq->loc_addr, ireq->rmt_addr);
+		__tcp_v4_send_check(skb, ireq->ir_loc_addr, ireq->ir_rmt_addr);
 
 		skb_set_queue_mapping(skb, queue_mapping);
-		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
-					    ireq->rmt_addr,
+		err = ip_build_and_send_pkt(skb, sk, ireq->ir_loc_addr,
+					    ireq->ir_rmt_addr,
 					    ireq->opt);
 		err = net_xmit_eval(err);
 		if (!tcp_rsk(req)->snt_synack && !err)
@@ -851,10 +846,12 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 
 static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req)
 {
-	int res = tcp_v4_send_synack(sk, NULL, req, 0);
+	int res = tcp_v4_send_synack(sk, NULL, req, 0, NULL);
 
-	if (!res)
+	if (!res) {
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
+	}
 	return res;
 }
 
@@ -876,8 +873,6 @@ bool tcp_syn_flood_action(struct sock *sk,
 	const char *msg = "Dropping request";
 	bool want_cookie = false;
 	struct listen_sock *lopt;
-
-
 
 #ifdef CONFIG_SYN_COOKIES
 	if (sysctl_tcp_syncookies) {
@@ -972,7 +967,7 @@ static struct tcp_md5sig_key *tcp_v4_reqsk_md5_lookup(struct sock *sk,
 {
 	union tcp_md5_addr *addr;
 
-	addr = (union tcp_md5_addr *)&inet_rsk(req)->rmt_addr;
+	addr = (union tcp_md5_addr *)&inet_rsk(req)->ir_rmt_addr;
 	return tcp_md5_do_lookup(sk, addr, AF_INET);
 }
 
@@ -1149,8 +1144,8 @@ int tcp_v4_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
 		saddr = inet_sk(sk)->inet_saddr;
 		daddr = inet_sk(sk)->inet_daddr;
 	} else if (req) {
-		saddr = inet_rsk(req)->loc_addr;
-		daddr = inet_rsk(req)->rmt_addr;
+		saddr = inet_rsk(req)->ir_loc_addr;
+		daddr = inet_rsk(req)->ir_rmt_addr;
 	} else {
 		const struct iphdr *iph = ip_hdr(skb);
 		saddr = iph->saddr;
@@ -1259,187 +1254,6 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 };
 #endif
 
-static bool tcp_fastopen_check(struct sock *sk, struct sk_buff *skb,
-			       struct request_sock *req,
-			       struct tcp_fastopen_cookie *foc,
-			       struct tcp_fastopen_cookie *valid_foc)
-{
-	bool skip_cookie = false;
-	struct fastopen_queue *fastopenq;
-
-	if (likely(!fastopen_cookie_present(foc))) {
-		/* See include/net/tcp.h for the meaning of these knobs */
-		if ((sysctl_tcp_fastopen & TFO_SERVER_ALWAYS) ||
-		    ((sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_REQD) &&
-		    (TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1)))
-			skip_cookie = true; /* no cookie to validate */
-		else
-			return false;
-	}
-	fastopenq = inet_csk(sk)->icsk_accept_queue.fastopenq;
-	/* A FO option is present; bump the counter. */
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVE);
-
-	/* Make sure the listener has enabled fastopen, and we don't
-	 * exceed the max # of pending TFO requests allowed before trying
-	 * to validating the cookie in order to avoid burning CPU cycles
-	 * unnecessarily.
-	 *
-	 * XXX (TFO) - The implication of checking the max_qlen before
-	 * processing a cookie request is that clients can't differentiate
-	 * between qlen overflow causing Fast Open to be disabled
-	 * temporarily vs a server not supporting Fast Open at all.
-	 */
-	if ((sysctl_tcp_fastopen & TFO_SERVER_ENABLE) == 0 ||
-	    fastopenq == NULL || fastopenq->max_qlen == 0)
-		return false;
-
-	if (fastopenq->qlen >= fastopenq->max_qlen) {
-		struct request_sock *req1;
-		spin_lock(&fastopenq->lock);
-		req1 = fastopenq->rskq_rst_head;
-		if ((req1 == NULL) || time_after(req1->expires, jiffies)) {
-			spin_unlock(&fastopenq->lock);
-			NET_INC_STATS_BH(sock_net(sk),
-			    LINUX_MIB_TCPFASTOPENLISTENOVERFLOW);
-			/* Avoid bumping LINUX_MIB_TCPFASTOPENPASSIVEFAIL*/
-			foc->len = -1;
-			return false;
-		}
-		fastopenq->rskq_rst_head = req1->dl_next;
-		fastopenq->qlen--;
-		spin_unlock(&fastopenq->lock);
-		reqsk_free(req1);
-	}
-	if (skip_cookie) {
-		tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		return true;
-	}
-
-	if (foc->len == TCP_FASTOPEN_COOKIE_SIZE) {
-		if ((sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_CHKED) == 0) {
-			tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
-						ip_hdr(skb)->daddr, valid_foc);
-			if ((valid_foc->len != TCP_FASTOPEN_COOKIE_SIZE) ||
-			    memcmp(&foc->val[0], &valid_foc->val[0],
-			    TCP_FASTOPEN_COOKIE_SIZE) != 0)
-				return false;
-			valid_foc->len = -1;
-		}
-		/* Acknowledge the data received from the peer. */
-		tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		return true;
-	} else if (foc->len == 0) { /* Client requesting a cookie */
-		tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
-					ip_hdr(skb)->daddr, valid_foc);
-		NET_INC_STATS_BH(sock_net(sk),
-		    LINUX_MIB_TCPFASTOPENCOOKIEREQD);
-	} else {
-		/* Client sent a cookie with wrong size. Treat it
-		 * the same as invalid and return a valid one.
-		 */
-		tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
-					ip_hdr(skb)->daddr, valid_foc);
-	}
-	return false;
-}
-
-static int tcp_v4_conn_req_fastopen(struct sock *sk,
-				    struct sk_buff *skb,
-				    struct sk_buff *skb_synack,
-				    struct request_sock *req)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
-	const struct inet_request_sock *ireq = inet_rsk(req);
-	struct sock *child;
-	int err;
-
-	req->num_retrans = 0;
-	req->num_timeout = 0;
-	req->sk = NULL;
-
-	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
-	if (child == NULL) {
-		NET_INC_STATS_BH(sock_net(sk),
-				 LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
-		kfree_skb(skb_synack);
-		return -1;
-	}
-	err = ip_build_and_send_pkt(skb_synack, sk, ireq->loc_addr,
-				    ireq->rmt_addr, ireq->opt);
-	err = net_xmit_eval(err);
-	if (!err)
-		tcp_rsk(req)->snt_synack = tcp_time_stamp;
-	/* XXX (TFO) - is it ok to ignore error and continue? */
-
-	spin_lock(&queue->fastopenq->lock);
-	queue->fastopenq->qlen++;
-	spin_unlock(&queue->fastopenq->lock);
-
-	/* Initialize the child socket. Have to fix some values to take
-	 * into account the child is a Fast Open socket and is created
-	 * only out of the bits carried in the SYN packet.
-	 */
-	tp = tcp_sk(child);
-
-	tp->fastopen_rsk = req;
-	/* Do a hold on the listner sk so that if the listener is being
-	 * closed, the child that has been accepted can live on and still
-	 * access listen_lock.
-	 */
-	sock_hold(sk);
-	tcp_rsk(req)->listener = sk;
-
-	/* RFC1323: The window in SYN & SYN/ACK segments is never
-	 * scaled. So correct it appropriately.
-	 */
-	tp->snd_wnd = ntohs(tcp_hdr(skb)->window);
-
-	/* Activate the retrans timer so that SYNACK can be retransmitted.
-	 * The request socket is not added to the SYN table of the parent
-	 * because it's been added to the accept queue directly.
-	 */
-	inet_csk_reset_xmit_timer(child, ICSK_TIME_RETRANS,
-	    TCP_TIMEOUT_INIT, TCP_RTO_MAX);
-
-	/* Add the child socket directly into the accept queue */
-	inet_csk_reqsk_queue_add(sk, req, child);
-
-	/* Now finish processing the fastopen child socket. */
-	inet_csk(child)->icsk_af_ops->rebuild_header(child);
-	tcp_init_congestion_control(child);
-	tcp_mtup_init(child);
-	tcp_init_buffer_space(child);
-	tcp_init_metrics(child);
-
-	/* Queue the data carried in the SYN packet. We need to first
-	 * bump skb's refcnt because the caller will attempt to free it.
-	 *
-	 * XXX (TFO) - we honor a zero-payload TFO request for now.
-	 * (Any reason not to?)
-	 */
-	if (TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq + 1) {
-		/* Don't queue the skb if there is no payload in SYN.
-		 * XXX (TFO) - How about SYN+FIN?
-		 */
-		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-	} else {
-		skb = skb_get(skb);
-		skb_dst_drop(skb);
-		__skb_pull(skb, tcp_hdr(skb)->doff * 4);
-		skb_set_owner_r(skb, child);
-		__skb_queue_tail(&child->sk_receive_queue, skb);
-		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		tp->syn_data_acked = 1;
-	}
-	sk->sk_data_ready(sk, 0);
-	bh_unlock_sock(child);
-	sock_put(child);
-	WARN_ON(req->sk == NULL);
-	return 0;
-}
-
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_options_received tmp_opt;
@@ -1450,12 +1264,10 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	__be32 saddr = ip_hdr(skb)->saddr;
 	__be32 daddr = ip_hdr(skb)->daddr;
 	__u32 isn = TCP_SKB_CB(skb)->when;
-	bool want_cookie = false;
+	bool want_cookie = false, fastopen;
 	struct flowi4 fl4;
 	struct tcp_fastopen_cookie foc = { .len = -1 };
-	struct tcp_fastopen_cookie valid_foc = { .len = -1 };
-	struct sk_buff *skb_synack;
-	int do_fastopen;
+	int err;
 
 	/* Never answer to SYNs send to broadcast or multicast */
 	if (skb_rtable(skb)->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
@@ -1502,10 +1314,11 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	tcp_openreq_init(req, &tmp_opt, skb);
 
 	ireq = inet_rsk(req);
-	ireq->loc_addr = daddr;
-	ireq->rmt_addr = saddr;
+	ireq->ir_loc_addr = daddr;
+	ireq->ir_rmt_addr = saddr;
 	ireq->no_srccheck = inet_sk(sk)->transparent;
 	ireq->opt = tcp_v4_save_options(skb);
+	ireq->ir_mark = inet_request_mark(sk, skb);
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
@@ -1554,52 +1367,24 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 
 		isn = tcp_v4_init_sequence(skb);
 	}
-	tcp_rsk(req)->snt_isn = isn;
-
-	if (dst == NULL) {
-		dst = inet_csk_route_req(sk, &fl4, req);
-		if (dst == NULL)
-			goto drop_and_free;
-	}
-	do_fastopen = tcp_fastopen_check(sk, skb, req, &foc, &valid_foc);
-
-	/* We don't call tcp_v4_send_synack() directly because we need
-	 * to make sure a child socket can be created successfully before
-	 * sending back synack!
-	 *
-	 * XXX (TFO) - Ideally one would simply call tcp_v4_send_synack()
-	 * (or better yet, call tcp_send_synack() in the child context
-	 * directly, but will have to fix bunch of other code first)
-	 * after syn_recv_sock() except one will need to first fix the
-	 * latter to remove its dependency on the current implementation
-	 * of tcp_v4_send_synack()->tcp_select_initial_window().
-	 */
-	skb_synack = tcp_make_synack(sk, dst, req,
-	    fastopen_cookie_present(&valid_foc) ? &valid_foc : NULL);
-
-	if (skb_synack) {
-		__tcp_v4_send_check(skb_synack, ireq->loc_addr, ireq->rmt_addr);
-		skb_set_queue_mapping(skb_synack, skb_get_queue_mapping(skb));
-	} else
+	if (!dst && (dst = inet_csk_route_req(sk, &fl4, req)) == NULL)
 		goto drop_and_free;
 
-	if (likely(!do_fastopen)) {
-		int err;
-		err = ip_build_and_send_pkt(skb_synack, sk, ireq->loc_addr,
-		     ireq->rmt_addr, ireq->opt);
-		err = net_xmit_eval(err);
+	tcp_rsk(req)->snt_isn = isn;
+	tcp_rsk(req)->snt_synack = tcp_time_stamp;
+	tcp_openreq_init_rwin(req, sk, dst);
+	fastopen = !want_cookie &&
+		   tcp_try_fastopen(sk, skb, req, &foc, dst);
+	err = tcp_v4_send_synack(sk, dst, req,
+				 skb_get_queue_mapping(skb), &foc);
+	if (!fastopen) {
 		if (err || want_cookie)
 			goto drop_and_free;
 
 		tcp_rsk(req)->snt_synack = tcp_time_stamp;
 		tcp_rsk(req)->listener = NULL;
-		/* Add the request_sock to the SYN table */
 		inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
-		if (fastopen_cookie_present(&foc) && foc.len != 0)
-			NET_INC_STATS_BH(sock_net(sk),
-			    LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
-	} else if (tcp_v4_conn_req_fastopen(sk, skb, skb_synack, req))
-		goto drop_and_free;
+	}
 
 	return 0;
 
@@ -1644,9 +1429,9 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	newtp		      = tcp_sk(newsk);
 	newinet		      = inet_sk(newsk);
 	ireq		      = inet_rsk(req);
-	newinet->inet_daddr   = ireq->rmt_addr;
-	newinet->inet_rcv_saddr = ireq->loc_addr;
-	newinet->inet_saddr	      = ireq->loc_addr;
+	newinet->inet_daddr   = ireq->ir_rmt_addr;
+	newinet->inet_rcv_saddr = ireq->ir_loc_addr;
+	newinet->inet_saddr	      = ireq->ir_loc_addr;
 	inet_opt	      = ireq->opt;
 	rcu_assign_pointer(newinet->inet_opt, inet_opt);
 	ireq->opt	      = NULL;
@@ -1667,7 +1452,6 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 	sk_setup_caps(newsk, dst);
 
-	tcp_mtup_init(newsk);
 	tcp_sync_mss(newsk, dst_mtu(dst));
 	newtp->advmss = dst_metric_advmss(dst);
 	if (tcp_sk(sk)->rx_opt.user_mss &&
@@ -1743,28 +1527,6 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 #endif
 	return sk;
 }
-
-static __sum16 tcp_v4_checksum_init(struct sk_buff *skb)
-{
-	const struct iphdr *iph = ip_hdr(skb);
-
-	if (skb->ip_summed == CHECKSUM_COMPLETE) {
-		if (!tcp_v4_check(skb->len, iph->saddr,
-				  iph->daddr, skb->csum)) {
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			return 0;
-		}
-	}
-
-	skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
-				       skb->len, IPPROTO_TCP, 0);
-
-	if (skb->len <= 76) {
-		return __skb_checksum_complete(skb);
-	}
-	return 0;
-}
-
 
 /* The socket must have it's spinlock held when we get
  * here.
@@ -1960,7 +1722,8 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	 * Packet length and doff are validated by header prediction,
 	 * provided case of th->doff==0 is eliminated.
 	 * So, we defer the checks. */
-	if (!skb_csum_unnecessary(skb) && tcp_v4_checksum_init(skb))
+
+	if (skb_checksum_init(skb, IPPROTO_TCP, inet_compute_pseudo))
 		goto csum_error;
 
 	th = tcp_hdr(skb);
@@ -2194,18 +1957,6 @@ EXPORT_SYMBOL(tcp_v4_destroy_sock);
 #ifdef CONFIG_PROC_FS
 /* Proc filesystem TCP sock list dumping. */
 
-static inline struct inet_timewait_sock *tw_head(struct hlist_nulls_head *head)
-{
-	return hlist_nulls_empty(head) ? NULL :
-		list_entry(head->first, struct inet_timewait_sock, tw_node);
-}
-
-static inline struct inet_timewait_sock *tw_next(struct inet_timewait_sock *tw)
-{
-	return !is_a_nulls(tw->tw_node.next) ?
-		hlist_nulls_entry(tw->tw_node.next, typeof(*tw), tw_node) : NULL;
-}
-
 /*
  * Get next listener socket follow cur.  If cur is NULL, get first socket
  * starting from bucket given in st->bucket; when st->bucket is zero the
@@ -2309,10 +2060,9 @@ static void *listening_get_idx(struct seq_file *seq, loff_t *pos)
 	return rc;
 }
 
-static inline bool empty_bucket(struct tcp_iter_state *st)
+static inline bool empty_bucket(const struct tcp_iter_state *st)
 {
-	return hlist_nulls_empty(&tcp_hashinfo.ehash[st->bucket].chain) &&
-		hlist_nulls_empty(&tcp_hashinfo.ehash[st->bucket].twchain);
+	return hlist_nulls_empty(&tcp_hashinfo.ehash[st->bucket].chain);
 }
 
 /*
@@ -2329,7 +2079,6 @@ static void *established_get_first(struct seq_file *seq)
 	for (; st->bucket <= tcp_hashinfo.ehash_mask; ++st->bucket) {
 		struct sock *sk;
 		struct hlist_nulls_node *node;
-		struct inet_timewait_sock *tw;
 		spinlock_t *lock = inet_ehash_lockp(&tcp_hashinfo, st->bucket);
 
 		/* Lockless fast path for the common case of empty buckets */
@@ -2345,18 +2094,7 @@ static void *established_get_first(struct seq_file *seq)
 			rc = sk;
 			goto out;
 		}
-		st->state = TCP_SEQ_STATE_TIME_WAIT;
-		inet_twsk_for_each(tw, node,
-				   &tcp_hashinfo.ehash[st->bucket].twchain) {
-			if (tw->tw_family != st->family ||
-			    !net_eq(twsk_net(tw), net)) {
-				continue;
-			}
-			rc = tw;
-			goto out;
-		}
 		spin_unlock_bh(lock);
-		st->state = TCP_SEQ_STATE_ESTABLISHED;
 	}
 out:
 	return rc;
@@ -2365,7 +2103,6 @@ out:
 static void *established_get_next(struct seq_file *seq, void *cur)
 {
 	struct sock *sk = cur;
-	struct inet_timewait_sock *tw;
 	struct hlist_nulls_node *node;
 	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
@@ -2373,45 +2110,16 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 	++st->num;
 	++st->offset;
 
-	if (st->state == TCP_SEQ_STATE_TIME_WAIT) {
-		tw = cur;
-		tw = tw_next(tw);
-get_tw:
-		while (tw && (tw->tw_family != st->family || !net_eq(twsk_net(tw), net))) {
-			tw = tw_next(tw);
-		}
-		if (tw) {
-			cur = tw;
-			goto out;
-		}
-		spin_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
-		st->state = TCP_SEQ_STATE_ESTABLISHED;
-
-		/* Look for next non empty bucket */
-		st->offset = 0;
-		while (++st->bucket <= tcp_hashinfo.ehash_mask &&
-				empty_bucket(st))
-			;
-		if (st->bucket > tcp_hashinfo.ehash_mask)
-			return NULL;
-
-		spin_lock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
-		sk = sk_nulls_head(&tcp_hashinfo.ehash[st->bucket].chain);
-	} else
-		sk = sk_nulls_next(sk);
+	sk = sk_nulls_next(sk);
 
 	sk_nulls_for_each_from(sk, node) {
 		if (sk->sk_family == st->family && net_eq(sock_net(sk), net))
-			goto found;
+			return sk;
 	}
 
-	st->state = TCP_SEQ_STATE_TIME_WAIT;
-	tw = tw_head(&tcp_hashinfo.ehash[st->bucket].twchain);
-	goto get_tw;
-found:
-	cur = sk;
-out:
-	return cur;
+	spin_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
+	++st->bucket;
+	return established_get_first(seq);
 }
 
 static void *established_get_idx(struct seq_file *seq, loff_t pos)
@@ -2464,10 +2172,9 @@ static void *tcp_seek_last_pos(struct seq_file *seq)
 		if (rc)
 			break;
 		st->bucket = 0;
+		st->state = TCP_SEQ_STATE_ESTABLISHED;
 		/* Fallthrough */
 	case TCP_SEQ_STATE_ESTABLISHED:
-	case TCP_SEQ_STATE_TIME_WAIT:
-		st->state = TCP_SEQ_STATE_ESTABLISHED;
 		if (st->bucket > tcp_hashinfo.ehash_mask)
 			break;
 		rc = established_get_first(seq);
@@ -2524,7 +2231,6 @@ static void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		}
 		break;
 	case TCP_SEQ_STATE_ESTABLISHED:
-	case TCP_SEQ_STATE_TIME_WAIT:
 		rc = established_get_next(seq, v);
 		break;
 	}
@@ -2548,7 +2254,6 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 		if (v != SEQ_START_TOKEN)
 			spin_unlock_bh(&tcp_hashinfo.listening_hash[st->bucket].lock);
 		break;
-	case TCP_SEQ_STATE_TIME_WAIT:
 	case TCP_SEQ_STATE_ESTABLISHED:
 		if (v)
 			spin_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
@@ -2598,18 +2303,18 @@ void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo)
 EXPORT_SYMBOL(tcp_proc_unregister);
 
 static void get_openreq4(const struct sock *sk, const struct request_sock *req,
-			 struct seq_file *f, int i, kuid_t uid, int *len)
+			 struct seq_file *f, int i, kuid_t uid)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	long delta = req->expires - jiffies;
 
 	seq_printf(f, "%4d: %08X:%04X %08X:%04X"
-		" %02X %08X:%08X %02X:%08lX %08X %5u %8d %u %d %pK%n",
+		" %02X %08X:%08X %02X:%08lX %08X %5u %8d %u %d %pK",
 		i,
-		ireq->loc_addr,
+		ireq->ir_loc_addr,
 		ntohs(inet_sk(sk)->inet_sport),
-		ireq->rmt_addr,
-		ntohs(ireq->rmt_port),
+		ireq->ir_rmt_addr,
+		ntohs(ireq->ir_rmt_port),
 		TCP_SYN_RECV,
 		0, 0, /* could print option size, but that is af dependent. */
 		1,    /* timers active (only the expire timer) */
@@ -2619,11 +2324,10 @@ static void get_openreq4(const struct sock *sk, const struct request_sock *req,
 		0,  /* non standard timer */
 		0, /* open_requests have no inode */
 		atomic_read(&sk->sk_refcnt),
-		req,
-		len);
+		req);
 }
 
-static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
+static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 {
 	int timer_active;
 	unsigned long timer_expires;
@@ -2662,7 +2366,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
 		rx_queue = max_t(int, tp->rcv_nxt - tp->copied_seq, 0);
 
 	seq_printf(f, "%4d: %08X:%04X %08X:%04X %02X %08X:%08X %02X:%08lX "
-			"%08X %5u %8d %lu %d %pK %lu %lu %u %u %d%n",
+			"%08X %5u %8d %lu %d %pK %lu %lu %u %u %d",
 		i, src, srcp, dest, destp, sk->sk_state,
 		tp->write_seq - tp->snd_una,
 		rx_queue,
@@ -2679,16 +2383,15 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
 		tp->snd_cwnd,
 		sk->sk_state == TCP_LISTEN ?
 		    (fastopenq ? fastopenq->max_qlen : 0) :
-		    (tcp_in_initial_slowstart(tp) ? -1 : tp->snd_ssthresh),
-		len);
+		    (tcp_in_initial_slowstart(tp) ? -1 : tp->snd_ssthresh));
 }
 
 static void get_timewait4_sock(const struct inet_timewait_sock *tw,
-			       struct seq_file *f, int i, int *len)
+			       struct seq_file *f, int i)
 {
 	__be32 dest, src;
 	__u16 destp, srcp;
-	long delta = tw->tw_ttd - jiffies;
+	s32 delta = tw->tw_ttd - inet_tw_time_stamp();
 
 	dest  = tw->tw_daddr;
 	src   = tw->tw_rcv_saddr;
@@ -2696,10 +2399,10 @@ static void get_timewait4_sock(const struct inet_timewait_sock *tw,
 	srcp  = ntohs(tw->tw_sport);
 
 	seq_printf(f, "%4d: %08X:%04X %08X:%04X"
-		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %d %d %pK%n",
+		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %d %d %pK",
 		i, src, srcp, dest, destp, tw->tw_substate, 0, 0,
 		3, jiffies_delta_to_clock_t(delta), 0, 0, 0, 0,
-		atomic_read(&tw->tw_refcnt), tw, len);
+		atomic_read(&tw->tw_refcnt), tw);
 }
 
 #define TMPSZ 150
@@ -2707,11 +2410,11 @@ static void get_timewait4_sock(const struct inet_timewait_sock *tw,
 static int tcp4_seq_show(struct seq_file *seq, void *v)
 {
 	struct tcp_iter_state *st;
-	int len;
+	struct sock *sk = v;
 
+	seq_setwidth(seq, TMPSZ - 1);
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "%-*s\n", TMPSZ - 1,
-			   "  sl  local_address rem_address   st tx_queue "
+		seq_puts(seq, "  sl  local_address rem_address   st tx_queue "
 			   "rx_queue tr tm->when retrnsmt   uid  timeout "
 			   "inode");
 		goto out;
@@ -2721,17 +2424,17 @@ static int tcp4_seq_show(struct seq_file *seq, void *v)
 	switch (st->state) {
 	case TCP_SEQ_STATE_LISTENING:
 	case TCP_SEQ_STATE_ESTABLISHED:
-		get_tcp4_sock(v, seq, st->num, &len);
+		if (sk->sk_state == TCP_TIME_WAIT)
+			get_timewait4_sock(v, seq, st->num);
+		else
+			get_tcp4_sock(v, seq, st->num);
 		break;
 	case TCP_SEQ_STATE_OPENREQ:
-		get_openreq4(st->syn_wait_sk, v, seq, st->num, st->uid, &len);
-		break;
-	case TCP_SEQ_STATE_TIME_WAIT:
-		get_timewait4_sock(v, seq, st->num, &len);
+		get_openreq4(st->syn_wait_sk, v, seq, st->num, st->uid);
 		break;
 	}
-	seq_printf(seq, "%*s\n", TMPSZ - 1 - len, "");
 out:
+	seq_pad(seq, '\n');
 	return 0;
 }
 
@@ -2806,6 +2509,7 @@ struct proto tcp_prot = {
 	.orphan_count		= &tcp_orphan_count,
 	.memory_allocated	= &tcp_memory_allocated,
 	.memory_pressure	= &tcp_memory_pressure,
+	.sysctl_mem		= sysctl_tcp_mem,
 	.sysctl_wmem		= sysctl_tcp_wmem,
 	.sysctl_rmem		= sysctl_tcp_rmem,
 	.max_header		= MAX_TCP_HEADER,

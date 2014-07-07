@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -28,14 +27,14 @@
 #include "i40e_prototype.h"
 
 /**
- *  i40e_init_nvm_ops - Initialize NVM function pointers.
- *  @hw: pointer to the HW structure.
+ * i40e_init_nvm_ops - Initialize NVM function pointers
+ * @hw: pointer to the HW structure
  *
- *  Setups the function pointers and the NVM info structure. Should be called
- *  once per NVM initialization, e.g. inside the i40e_init_shared_code().
- *  Please notice that the NVM term is used here (& in all methods covered
- *  in this file) as an equivalent of the FLASH part mapped into the SR.
- *  We are accessing FLASH always thru the Shadow RAM.
+ * Setup the function pointers and the NVM info structure. Should be called
+ * once per NVM initialization, e.g. inside the i40e_init_shared_code().
+ * Please notice that the NVM term is used here (& in all methods covered
+ * in this file) as an equivalent of the FLASH part mapped into the SR.
+ * We are accessing FLASH always thru the Shadow RAM.
  **/
 i40e_status i40e_init_nvm(struct i40e_hw *hw)
 {
@@ -50,16 +49,16 @@ i40e_status i40e_init_nvm(struct i40e_hw *hw)
 	gens = rd32(hw, I40E_GLNVM_GENS);
 	sr_size = ((gens & I40E_GLNVM_GENS_SR_SIZE_MASK) >>
 			   I40E_GLNVM_GENS_SR_SIZE_SHIFT);
-	/* Switching to words (sr_size contains power of 2KB). */
+	/* Switching to words (sr_size contains power of 2KB) */
 	nvm->sr_size = (1 << sr_size) * I40E_SR_WORDS_IN_1KB;
 
-	/* Check if we are in the normal or blank NVM programming mode. */
+	/* Check if we are in the normal or blank NVM programming mode */
 	fla = rd32(hw, I40E_GLNVM_FLA);
-	if (fla & I40E_GLNVM_FLA_LOCKED_MASK) { /* Normal programming mode. */
-		/* Max NVM timeout. */
+	if (fla & I40E_GLNVM_FLA_LOCKED_MASK) { /* Normal programming mode */
+		/* Max NVM timeout */
 		nvm->timeout = I40E_MAX_NVM_TIMEOUT;
 		nvm->blank_nvm_mode = false;
-	} else { /* Blank programming mode. */
+	} else { /* Blank programming mode */
 		nvm->blank_nvm_mode = true;
 		ret_code = I40E_ERR_NVM_BLANK_MODE;
 		hw_dbg(hw, "NVM init error: unsupported blank mode.\n");
@@ -69,12 +68,12 @@ i40e_status i40e_init_nvm(struct i40e_hw *hw)
 }
 
 /**
- *  i40e_acquire_nvm - Generic request for acquiring the NVM ownership.
- *  @hw: pointer to the HW structure.
- *  @access: NVM access type (read or write).
+ * i40e_acquire_nvm - Generic request for acquiring the NVM ownership
+ * @hw: pointer to the HW structure
+ * @access: NVM access type (read or write)
  *
- *  This function will request NVM ownership for reading
- *  via the proper Admin Command.
+ * This function will request NVM ownership for reading
+ * via the proper Admin Command.
  **/
 i40e_status i40e_acquire_nvm(struct i40e_hw *hw,
 				       enum i40e_aq_resource_access_type access)
@@ -88,20 +87,20 @@ i40e_status i40e_acquire_nvm(struct i40e_hw *hw,
 
 	ret_code = i40e_aq_request_resource(hw, I40E_NVM_RESOURCE_ID, access,
 					    0, &time, NULL);
-	/* Reading the Global Device Timer. */
+	/* Reading the Global Device Timer */
 	gtime = rd32(hw, I40E_GLVFGEN_TIMER);
 
-	/* Store the timeout. */
+	/* Store the timeout */
 	hw->nvm.hw_semaphore_timeout = I40E_MS_TO_GTIME(time) + gtime;
 
 	if (ret_code) {
-		/* Set the polling timeout. */
+		/* Set the polling timeout */
 		if (time > I40E_MAX_NVM_TIMEOUT)
 			timeout = I40E_MS_TO_GTIME(I40E_MAX_NVM_TIMEOUT)
 				  + gtime;
 		else
 			timeout = hw->nvm.hw_semaphore_timeout;
-		/* Poll until the current NVM owner timeouts. */
+		/* Poll until the current NVM owner timeouts */
 		while (gtime < timeout) {
 			usleep_range(10000, 20000);
 			ret_code = i40e_aq_request_resource(hw,
@@ -129,10 +128,10 @@ i40e_i40e_acquire_nvm_exit:
 }
 
 /**
- *  i40e_release_nvm - Generic request for releasing the NVM ownership.
- *  @hw: pointer to the HW structure.
+ * i40e_release_nvm - Generic request for releasing the NVM ownership
+ * @hw: pointer to the HW structure
  *
- *  This function will release NVM resource via the proper Admin Command.
+ * This function will release NVM resource via the proper Admin Command.
  **/
 void i40e_release_nvm(struct i40e_hw *hw)
 {
@@ -141,17 +140,17 @@ void i40e_release_nvm(struct i40e_hw *hw)
 }
 
 /**
- *  i40e_poll_sr_srctl_done_bit - Polls the GLNVM_SRCTL done bit.
- *  @hw: pointer to the HW structure.
+ * i40e_poll_sr_srctl_done_bit - Polls the GLNVM_SRCTL done bit
+ * @hw: pointer to the HW structure
  *
- *  Polls the SRCTL Shadow RAM register done bit.
+ * Polls the SRCTL Shadow RAM register done bit.
  **/
 static i40e_status i40e_poll_sr_srctl_done_bit(struct i40e_hw *hw)
 {
 	i40e_status ret_code = I40E_ERR_TIMEOUT;
 	u32 srctl, wait_cnt;
 
-	/* Poll the I40E_GLNVM_SRCTL until the done bit is set. */
+	/* Poll the I40E_GLNVM_SRCTL until the done bit is set */
 	for (wait_cnt = 0; wait_cnt < I40E_SRRD_SRCTL_ATTEMPTS; wait_cnt++) {
 		srctl = rd32(hw, I40E_GLNVM_SRCTL);
 		if (srctl & I40E_GLNVM_SRCTL_DONE_MASK) {
@@ -161,20 +160,20 @@ static i40e_status i40e_poll_sr_srctl_done_bit(struct i40e_hw *hw)
 		udelay(5);
 	}
 	if (ret_code == I40E_ERR_TIMEOUT)
-		hw_dbg(hw, "Done bit in GLNVM_SRCTL not set");
+		hw_dbg(hw, "Done bit in GLNVM_SRCTL not set\n");
 	return ret_code;
 }
 
 /**
- *  i40e_read_nvm_srctl - Reads Shadow RAM.
- *  @hw: pointer to the HW structure.
- *  @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
- *  @data: word read from the Shadow RAM.
+ * i40e_read_nvm_word - Reads Shadow RAM
+ * @hw: pointer to the HW structure
+ * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF)
+ * @data: word read from the Shadow RAM
  *
- *  Reads 16 bit word from the Shadow RAM using the GLNVM_SRCTL register.
+ * Reads one 16 bit word from the Shadow RAM using the GLNVM_SRCTL register.
  **/
-static i40e_status i40e_read_nvm_srctl(struct i40e_hw *hw, u16 offset,
-						 u16 *data)
+i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
+					 u16 *data)
 {
 	i40e_status ret_code = I40E_ERR_TIMEOUT;
 	u32 sr_reg;
@@ -185,15 +184,15 @@ static i40e_status i40e_read_nvm_srctl(struct i40e_hw *hw, u16 offset,
 		goto read_nvm_exit;
 	}
 
-	/* Poll the done bit first. */
+	/* Poll the done bit first */
 	ret_code = i40e_poll_sr_srctl_done_bit(hw);
 	if (!ret_code) {
-		/* Write the address and start reading. */
+		/* Write the address and start reading */
 		sr_reg = (u32)(offset << I40E_GLNVM_SRCTL_ADDR_SHIFT) |
 			 (1 << I40E_GLNVM_SRCTL_START_SHIFT);
 		wr32(hw, I40E_GLNVM_SRCTL, sr_reg);
 
-		/* Poll I40E_GLNVM_SRCTL until the done bit is set. */
+		/* Poll I40E_GLNVM_SRCTL until the done bit is set */
 		ret_code = i40e_poll_sr_srctl_done_bit(hw);
 		if (!ret_code) {
 			sr_reg = rd32(hw, I40E_GLNVM_SRDATA);
@@ -211,80 +210,45 @@ read_nvm_exit:
 }
 
 /**
- *  i40e_read_nvm_word - Reads Shadow RAM word.
- *  @hw: pointer to the HW structure.
- *  @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
- *  @data: word read from the Shadow RAM.
+ * i40e_read_nvm_buffer - Reads Shadow RAM buffer
+ * @hw: pointer to the HW structure
+ * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
+ * @words: (in) number of words to read; (out) number of words actually read
+ * @data: words read from the Shadow RAM
  *
- *  Reads 16 bit word from the Shadow RAM. Each read is preceded
- *  with the NVM ownership taking and followed by the release.
- **/
-i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
-					 u16 *data)
-{
-	i40e_status ret_code = 0;
-
-	ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
-	if (!ret_code) {
-		ret_code = i40e_read_nvm_srctl(hw, offset, data);
-		i40e_release_nvm(hw);
-	}
-
-	return ret_code;
-}
-
-/**
- *  i40e_read_nvm_buffer - Reads Shadow RAM buffer.
- *  @hw: pointer to the HW structure.
- *  @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
- *  @words: number of words to read (in) &
- *          number of words read before the NVM ownership timeout (out).
- *  @data: words read from the Shadow RAM.
- *
- *  Reads 16 bit words (data buffer) from the SR using the i40e_read_nvm_srrd()
- *  method. The buffer read is preceded by the NVM ownership take
- *  and followed by the release.
+ * Reads 16 bit words (data buffer) from the SR using the i40e_read_nvm_srrd()
+ * method. The buffer read is preceded by the NVM ownership take
+ * and followed by the release.
  **/
 i40e_status i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
 					   u16 *words, u16 *data)
 {
 	i40e_status ret_code = 0;
 	u16 index, word;
-	u32 time;
 
-	ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
-	if (!ret_code) {
-		/* Loop thru the selected region. */
-		for (word = 0; word < *words; word++) {
-			index = offset + word;
-			ret_code = i40e_read_nvm_srctl(hw, index, &data[word]);
-			if (ret_code)
-				break;
-			/* Check if we didn't exceeded the semaphore timeout. */
-			time = rd32(hw, I40E_GLVFGEN_TIMER);
-			if (time >= hw->nvm.hw_semaphore_timeout) {
-				ret_code = I40E_ERR_TIMEOUT;
-				hw_dbg(hw, "NVM read error: timeout.\n");
-				break;
-			}
-		}
-		/* Update the number of words read from the Shadow RAM. */
-		*words = word;
-		/* Release the NVM ownership. */
-		i40e_release_nvm(hw);
+	/* Loop thru the selected region */
+	for (word = 0; word < *words; word++) {
+		index = offset + word;
+		ret_code = i40e_read_nvm_word(hw, index, &data[word]);
+		if (ret_code)
+			break;
 	}
+
+	/* Update the number of words read from the Shadow RAM */
+	*words = word;
 
 	return ret_code;
 }
 
 /**
- *  i40e_calc_nvm_checksum - Calculates and returns the checksum
- *  @hw: pointer to hardware structure
+ * i40e_calc_nvm_checksum - Calculates and returns the checksum
+ * @hw: pointer to hardware structure
+ * @checksum: pointer to the checksum
  *
- *  This function calculate SW Checksum that covers the whole 64kB shadow RAM
- *  except the VPD and PCIe ALT Auto-load modules. The structure and size of VPD
- *  is customer specific and unknown. Therefore, this function skips all maximum
- *  possible size of VPD (1kB).
+ * This function calculates SW Checksum that covers the whole 64kB shadow RAM
+ * except the VPD and PCIe ALT Auto-load modules. The structure and size of VPD
+ * is customer specific and unknown. Therefore, this function skips all maximum
+ * possible size of VPD (1kB).
  **/
 static i40e_status i40e_calc_nvm_checksum(struct i40e_hw *hw,
 						    u16 *checksum)
@@ -297,14 +261,14 @@ static i40e_status i40e_calc_nvm_checksum(struct i40e_hw *hw,
 	u32 i = 0;
 
 	/* read pointer to VPD area */
-	ret_code = i40e_read_nvm_srctl(hw, I40E_SR_VPD_PTR, &vpd_module);
+	ret_code = i40e_read_nvm_word(hw, I40E_SR_VPD_PTR, &vpd_module);
 	if (ret_code) {
 		ret_code = I40E_ERR_NVM_CHECKSUM;
 		goto i40e_calc_nvm_checksum_exit;
 	}
 
 	/* read pointer to PCIe Alt Auto-load module */
-	ret_code = i40e_read_nvm_srctl(hw, I40E_SR_PCIE_ALT_AUTO_LOAD_PTR,
+	ret_code = i40e_read_nvm_word(hw, I40E_SR_PCIE_ALT_AUTO_LOAD_PTR,
 				       &pcie_alt_module);
 	if (ret_code) {
 		ret_code = I40E_ERR_NVM_CHECKSUM;
@@ -331,7 +295,7 @@ static i40e_status i40e_calc_nvm_checksum(struct i40e_hw *hw,
 				break;
 		}
 
-		ret_code = i40e_read_nvm_srctl(hw, (u16)i, &word);
+		ret_code = i40e_read_nvm_word(hw, (u16)i, &word);
 		if (ret_code) {
 			ret_code = I40E_ERR_NVM_CHECKSUM;
 			goto i40e_calc_nvm_checksum_exit;
@@ -346,19 +310,19 @@ i40e_calc_nvm_checksum_exit:
 }
 
 /**
- *  i40e_validate_nvm_checksum - Validate EEPROM checksum
- *  @hw: pointer to hardware structure
- *  @checksum: calculated checksum
+ * i40e_validate_nvm_checksum - Validate EEPROM checksum
+ * @hw: pointer to hardware structure
+ * @checksum: calculated checksum
  *
- *  Performs checksum calculation and validates the NVM SW checksum. If the
- *  caller does not need checksum, the value can be NULL.
+ * Performs checksum calculation and validates the NVM SW checksum. If the
+ * caller does not need checksum, the value can be NULL.
  **/
 i40e_status i40e_validate_nvm_checksum(struct i40e_hw *hw,
 						 u16 *checksum)
 {
 	i40e_status ret_code = 0;
 	u16 checksum_sr = 0;
-	u16 checksum_local;
+	u16 checksum_local = 0;
 
 	ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
 	if (ret_code)
@@ -371,7 +335,7 @@ i40e_status i40e_validate_nvm_checksum(struct i40e_hw *hw,
 	/* Do not use i40e_read_nvm_word() because we do not want to take
 	 * the synchronization semaphores twice here.
 	 */
-	i40e_read_nvm_srctl(hw, I40E_SR_SW_CHECKSUM_WORD, &checksum_sr);
+	i40e_read_nvm_word(hw, I40E_SR_SW_CHECKSUM_WORD, &checksum_sr);
 
 	/* Verify read checksum from EEPROM is the same as
 	 * calculated checksum

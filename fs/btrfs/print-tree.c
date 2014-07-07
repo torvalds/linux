@@ -54,7 +54,7 @@ static void print_extent_data_ref(struct extent_buffer *eb,
 	       btrfs_extent_data_ref_count(eb, ref));
 }
 
-static void print_extent_item(struct extent_buffer *eb, int slot)
+static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 {
 	struct btrfs_extent_item *ei;
 	struct btrfs_extent_inline_ref *iref;
@@ -63,7 +63,6 @@ static void print_extent_item(struct extent_buffer *eb, int slot)
 	struct btrfs_disk_key key;
 	unsigned long end;
 	unsigned long ptr;
-	int type;
 	u32 item_size = btrfs_item_size_nr(eb, slot);
 	u64 flags;
 	u64 offset;
@@ -88,7 +87,8 @@ static void print_extent_item(struct extent_buffer *eb, int slot)
 	       btrfs_extent_refs(eb, ei), btrfs_extent_generation(eb, ei),
 	       flags);
 
-	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
+	if ((type == BTRFS_EXTENT_ITEM_KEY) &&
+	    flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
 		struct btrfs_tree_block_info *info;
 		info = (struct btrfs_tree_block_info *)(ei + 1);
 		btrfs_tree_block_key(eb, info, &key);
@@ -154,7 +154,7 @@ static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
 			    u32 item_size)
 {
 	if (!IS_ALIGNED(item_size, sizeof(u64))) {
-		pr_warn("btrfs: uuid item with illegal size %lu!\n",
+		pr_warn("BTRFS: uuid item with illegal size %lu!\n",
 			(unsigned long)item_size);
 		return;
 	}
@@ -193,7 +193,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 	btrfs_info(root->fs_info, "leaf %llu total ptrs %d free space %d",
 		   btrfs_header_bytenr(l), nr, btrfs_leaf_free_space(root, l));
 	for (i = 0 ; i < nr ; i++) {
-		item = btrfs_item_nr(l, i);
+		item = btrfs_item_nr(i);
 		btrfs_item_key_to_cpu(l, &key, i);
 		type = btrfs_key_type(&key);
 		printk(KERN_INFO "\titem %d key (%llu %u %llu) itemoff %d "
@@ -223,7 +223,8 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 				btrfs_disk_root_refs(l, ri));
 			break;
 		case BTRFS_EXTENT_ITEM_KEY:
-			print_extent_item(l, i);
+		case BTRFS_METADATA_ITEM_KEY:
+			print_extent_item(l, i, type);
 			break;
 		case BTRFS_TREE_BLOCK_REF_KEY:
 			printk(KERN_INFO "\t\ttree block backref\n");
@@ -249,7 +250,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 			    BTRFS_FILE_EXTENT_INLINE) {
 				printk(KERN_INFO "\t\tinline extent data "
 				       "size %u\n",
-				       btrfs_file_extent_inline_len(l, fi));
+				       btrfs_file_extent_inline_len(l, i, fi));
 				break;
 			}
 			printk(KERN_INFO "\t\textent data disk bytenr %llu "

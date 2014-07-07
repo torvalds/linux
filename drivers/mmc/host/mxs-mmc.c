@@ -38,6 +38,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sdio.h>
+#include <linux/mmc/slot-gpio.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
@@ -69,37 +70,29 @@ struct mxs_mmc_host {
 	unsigned char			bus_width;
 	spinlock_t			lock;
 	int				sdio_irq_en;
-	int				wp_gpio;
-	bool				wp_inverted;
-	bool				cd_inverted;
 	bool				broken_cd;
-	bool				non_removable;
 };
-
-static int mxs_mmc_get_ro(struct mmc_host *mmc)
-{
-	struct mxs_mmc_host *host = mmc_priv(mmc);
-	int ret;
-
-	if (!gpio_is_valid(host->wp_gpio))
-		return -EINVAL;
-
-	ret = gpio_get_value(host->wp_gpio);
-
-	if (host->wp_inverted)
-		ret = !ret;
-
-	return ret;
-}
 
 static int mxs_mmc_get_cd(struct mmc_host *mmc)
 {
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
+	int present, ret;
 
-	return host->non_removable || host->broken_cd ||
-		!(readl(ssp->base + HW_SSP_STATUS(ssp)) &
-		  BM_SSP_STATUS_CARD_DETECT) ^ host->cd_inverted;
+	if (host->broken_cd)
+		return -ENOSYS;
+
+	ret = mmc_gpio_get_cd(mmc);
+	if (ret >= 0)
+		return ret;
+
+	present = !(readl(ssp->base + HW_SSP_STATUS(ssp)) &
+			BM_SSP_STATUS_CARD_DETECT);
+
+	if (mmc->caps2 & MMC_CAP2_CD_ACTIVE_HIGH)
+		present = !present;
+
+	return present;
 }
 
 static int mxs_mmc_reset(struct mxs_mmc_host *host)
@@ -549,7 +542,7 @@ static void mxs_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 
 static const struct mmc_host_ops mxs_mmc_ops = {
 	.request = mxs_mmc_request,
-	.get_ro = mxs_mmc_get_ro,
+	.get_ro = mmc_gpio_get_ro,
 	.get_cd = mxs_mmc_get_cd,
 	.set_ios = mxs_mmc_set_ios,
 	.enable_sdio_irq = mxs_mmc_enable_sdio_irq,
@@ -585,9 +578,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct resource *iores;
 	int ret = 0, irq_err;
 	struct regulator *reg_vmmc;
-	enum of_gpio_flags flags;
 	struct mxs_ssp *ssp;
-	u32 bus_width = 0;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
@@ -648,23 +639,15 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	mmc->caps = MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED |
 		    MMC_CAP_SDIO_IRQ | MMC_CAP_NEEDS_POLL;
 
-	of_property_read_u32(np, "bus-width", &bus_width);
-	if (bus_width == 4)
-		mmc->caps |= MMC_CAP_4_BIT_DATA;
-	else if (bus_width == 8)
-		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
 	host->broken_cd = of_property_read_bool(np, "broken-cd");
-	host->non_removable = of_property_read_bool(np, "non-removable");
-	if (host->non_removable)
-		mmc->caps |= MMC_CAP_NONREMOVABLE;
-	host->wp_gpio = of_get_named_gpio_flags(np, "wp-gpios", 0, &flags);
-	if (flags & OF_GPIO_ACTIVE_LOW)
-		host->wp_inverted = 1;
-
-	host->cd_inverted = of_property_read_bool(np, "cd-inverted");
 
 	mmc->f_min = 400000;
 	mmc->f_max = 288000000;
+
+	ret = mmc_of_parse(mmc);
+	if (ret)
+		goto out_clk_disable;
+
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
 	mmc->max_segs = 52;
@@ -724,13 +707,9 @@ static int mxs_mmc_suspend(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
-	int ret = 0;
-
-	ret = mmc_suspend_host(mmc);
 
 	clk_disable_unprepare(ssp->clk);
-
-	return ret;
+	return 0;
 }
 
 static int mxs_mmc_resume(struct device *dev)
@@ -738,13 +717,9 @@ static int mxs_mmc_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
-	int ret = 0;
 
 	clk_prepare_enable(ssp->clk);
-
-	ret = mmc_resume_host(mmc);
-
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops mxs_mmc_pm_ops = {

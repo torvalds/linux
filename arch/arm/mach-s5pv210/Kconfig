@@ -11,10 +11,11 @@ if ARCH_S5PV210
 
 config CPU_S5PV210
 	bool
+	select ARM_AMBA
+	select PL330_DMA if DMADEVICES
 	select S5P_EXT_INT
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
-	select SAMSUNG_DMADEV
 	help
 	  Enable S5PV210 CPU support
 
@@ -189,6 +190,7 @@ config MACH_TORBRECK
 	select S5PV210_SETUP_I2C1
 	select S5PV210_SETUP_I2C2
 	select S5PV210_SETUP_SDHCI
+	select SAMSUNG_DEV_IDE
 	help
 	  Machine support for aESOP Torbreck
 

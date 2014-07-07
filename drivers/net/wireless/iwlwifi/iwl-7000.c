@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,22 +67,24 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL7260_UCODE_API_MAX	7
-#define IWL3160_UCODE_API_MAX	7
+#define IWL7260_UCODE_API_MAX	9
+#define IWL3160_UCODE_API_MAX	9
 
 /* Oldest version we won't warn about */
-#define IWL7260_UCODE_API_OK	7
-#define IWL3160_UCODE_API_OK	7
+#define IWL7260_UCODE_API_OK	9
+#define IWL3160_UCODE_API_OK	9
 
 /* Lowest firmware API version supported */
-#define IWL7260_UCODE_API_MIN	7
-#define IWL3160_UCODE_API_MIN	7
+#define IWL7260_UCODE_API_MIN	8
+#define IWL3160_UCODE_API_MIN	8
 
 /* NVM versions */
 #define IWL7260_NVM_VERSION		0x0a1d
 #define IWL7260_TX_POWER_VERSION	0xffff /* meaningless */
 #define IWL3160_NVM_VERSION		0x709
 #define IWL3160_TX_POWER_VERSION	0xffff /* meaningless */
+#define IWL7265_NVM_VERSION		0x0a1d
+#define IWL7265_TX_POWER_VERSION	0xffff /* meaningless */
 
 #define IWL7260_FW_PRE "iwlwifi-7260-"
 #define IWL7260_MODULE_FIRMWARE(api) IWL7260_FW_PRE __stringify(api) ".ucode"
@@ -90,8 +92,13 @@
 #define IWL3160_FW_PRE "iwlwifi-3160-"
 #define IWL3160_MODULE_FIRMWARE(api) IWL3160_FW_PRE __stringify(api) ".ucode"
 
+#define IWL7265_FW_PRE "iwlwifi-7265-"
+#define IWL7265_MODULE_FIRMWARE(api) IWL7265_FW_PRE __stringify(api) ".ucode"
+
+#define NVM_HW_SECTION_NUM_FAMILY_7000		0
+
 static const struct iwl_base_params iwl7000_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_7000,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.pll_cfg_val = 0,
 	.shadow_ram_support = true,
@@ -100,10 +107,11 @@ static const struct iwl_base_params iwl7000_base_params = {
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
+	.apmg_wake_up_wa = true,
 };
 
 static const struct iwl_ht_params iwl7000_ht_params = {
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
+	.stbc = true,
 	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
 };
 
@@ -115,7 +123,8 @@ static const struct iwl_ht_params iwl7000_ht_params = {
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.base_params = &iwl7000_base_params,			\
-	.led_mode = IWL_LED_RF_STATE
+	.led_mode = IWL_LED_RF_STATE,				\
+	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_7000
 
 
 const struct iwl_cfg iwl7260_2ac_cfg = {
@@ -125,6 +134,8 @@ const struct iwl_cfg iwl7260_2ac_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
+	.lp_xtal_workaround = true,
 };
 
 const struct iwl_cfg iwl7260_2ac_cfg_high_temp = {
@@ -135,6 +146,8 @@ const struct iwl_cfg iwl7260_2ac_cfg_high_temp = {
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
 	.high_temp = true,
+	.host_interrupt_operation_mode = true,
+	.lp_xtal_workaround = true,
 };
 
 const struct iwl_cfg iwl7260_2n_cfg = {
@@ -144,6 +157,8 @@ const struct iwl_cfg iwl7260_2n_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
+	.lp_xtal_workaround = true,
 };
 
 const struct iwl_cfg iwl7260_n_cfg = {
@@ -153,6 +168,8 @@ const struct iwl_cfg iwl7260_n_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
+	.lp_xtal_workaround = true,
 };
 
 const struct iwl_cfg iwl3160_2ac_cfg = {
@@ -162,6 +179,7 @@ const struct iwl_cfg iwl3160_2ac_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL3160_NVM_VERSION,
 	.nvm_calib_ver = IWL3160_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
 };
 
 const struct iwl_cfg iwl3160_2n_cfg = {
@@ -171,6 +189,7 @@ const struct iwl_cfg iwl3160_2n_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL3160_NVM_VERSION,
 	.nvm_calib_ver = IWL3160_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
 };
 
 const struct iwl_cfg iwl3160_n_cfg = {
@@ -180,7 +199,50 @@ const struct iwl_cfg iwl3160_n_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL3160_NVM_VERSION,
 	.nvm_calib_ver = IWL3160_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
+};
+
+static const struct iwl_pwr_tx_backoff iwl7265_pwr_tx_backoffs[] = {
+	{.pwr = 1600, .backoff = 0},
+	{.pwr = 1300, .backoff = 467},
+	{.pwr = 900,  .backoff = 1900},
+	{.pwr = 800, .backoff = 2630},
+	{.pwr = 700, .backoff = 3720},
+	{.pwr = 600, .backoff = 5550},
+	{.pwr = 500, .backoff = 9350},
+	{0},
+};
+
+const struct iwl_cfg iwl7265_2ac_cfg = {
+	.name = "Intel(R) Dual Band Wireless AC 7265",
+	.fw_name_pre = IWL7265_FW_PRE,
+	IWL_DEVICE_7000,
+	.ht_params = &iwl7000_ht_params,
+	.nvm_ver = IWL7265_NVM_VERSION,
+	.nvm_calib_ver = IWL7265_TX_POWER_VERSION,
+	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
+};
+
+const struct iwl_cfg iwl7265_2n_cfg = {
+	.name = "Intel(R) Dual Band Wireless N 7265",
+	.fw_name_pre = IWL7265_FW_PRE,
+	IWL_DEVICE_7000,
+	.ht_params = &iwl7000_ht_params,
+	.nvm_ver = IWL7265_NVM_VERSION,
+	.nvm_calib_ver = IWL7265_TX_POWER_VERSION,
+	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
+};
+
+const struct iwl_cfg iwl7265_n_cfg = {
+	.name = "Intel(R) Wireless N 7265",
+	.fw_name_pre = IWL7265_FW_PRE,
+	IWL_DEVICE_7000,
+	.ht_params = &iwl7000_ht_params,
+	.nvm_ver = IWL7265_NVM_VERSION,
+	.nvm_calib_ver = IWL7265_TX_POWER_VERSION,
+	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
 };
 
 MODULE_FIRMWARE(IWL7260_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
 MODULE_FIRMWARE(IWL3160_MODULE_FIRMWARE(IWL3160_UCODE_API_OK));
+MODULE_FIRMWARE(IWL7265_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));

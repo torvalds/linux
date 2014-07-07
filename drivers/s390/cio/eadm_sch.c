@@ -6,6 +6,7 @@
  */
 
 #include <linux/kernel_stat.h>
+#include <linux/completion.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
@@ -42,7 +43,7 @@ static debug_info_t *eadm_debug;
 
 static void EADM_LOG_HEX(int level, void *data, int length)
 {
-	if (level > eadm_debug->level)
+	if (!debug_level_enabled(eadm_debug, level))
 		return;
 	while (length > 0) {
 		debug_event(eadm_debug, level, data, length);
@@ -133,7 +134,7 @@ static void eadm_subchannel_irq(struct subchannel *sch)
 {
 	struct eadm_private *private = get_eadm_private(sch);
 	struct eadm_scsw *scsw = &sch->schib.scsw.eadm;
-	struct irb *irb = (struct irb *)&S390_lowcore.irb;
+	struct irb *irb = &__get_cpu_var(cio_irb);
 	int error = 0;
 
 	EADM_LOG(6, "irq");
@@ -159,6 +160,9 @@ static void eadm_subchannel_irq(struct subchannel *sch)
 	}
 	scm_irq_handler((struct aob *)(unsigned long)scsw->aob, error);
 	private->state = EADM_IDLE;
+
+	if (private->completion)
+		complete(private->completion);
 }
 
 static struct subchannel *eadm_get_idle_sch(void)
@@ -186,7 +190,7 @@ static struct subchannel *eadm_get_idle_sch(void)
 	return NULL;
 }
 
-static int eadm_start_aob(struct aob *aob)
+int eadm_start_aob(struct aob *aob)
 {
 	struct eadm_private *private;
 	struct subchannel *sch;
@@ -214,6 +218,7 @@ out_unlock:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(eadm_start_aob);
 
 static int eadm_subchannel_probe(struct subchannel *sch)
 {
@@ -255,13 +260,32 @@ out:
 
 static void eadm_quiesce(struct subchannel *sch)
 {
+	struct eadm_private *private = get_eadm_private(sch);
+	DECLARE_COMPLETION_ONSTACK(completion);
 	int ret;
 
+	spin_lock_irq(sch->lock);
+	if (private->state != EADM_BUSY)
+		goto disable;
+
+	if (eadm_subchannel_clear(sch))
+		goto disable;
+
+	private->completion = &completion;
+	spin_unlock_irq(sch->lock);
+
+	wait_for_completion_io(&completion);
+
+	spin_lock_irq(sch->lock);
+	private->completion = NULL;
+
+disable:
+	eadm_subchannel_set_timeout(sch, 0);
 	do {
-		spin_lock_irq(sch->lock);
 		ret = cio_disable_subchannel(sch);
-		spin_unlock_irq(sch->lock);
 	} while (ret == -EBUSY);
+
+	spin_unlock_irq(sch->lock);
 }
 
 static int eadm_subchannel_remove(struct subchannel *sch)
@@ -357,11 +381,6 @@ static struct css_driver eadm_subchannel_driver = {
 	.restore = eadm_subchannel_restore,
 };
 
-static struct eadm_ops eadm_ops = {
-	.eadm_start = eadm_start_aob,
-	.owner = THIS_MODULE,
-};
-
 static int __init eadm_sch_init(void)
 {
 	int ret;
@@ -381,7 +400,6 @@ static int __init eadm_sch_init(void)
 	if (ret)
 		goto cleanup;
 
-	register_eadm_ops(&eadm_ops);
 	return ret;
 
 cleanup:
@@ -392,7 +410,6 @@ cleanup:
 
 static void __exit eadm_sch_exit(void)
 {
-	unregister_eadm_ops(&eadm_ops);
 	css_driver_unregister(&eadm_subchannel_driver);
 	isc_unregister(EADM_SCH_ISC);
 	debug_unregister(eadm_debug);

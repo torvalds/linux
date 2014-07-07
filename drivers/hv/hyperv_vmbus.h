@@ -510,10 +510,22 @@ struct hv_context {
 	 * basis.
 	 */
 	struct tasklet_struct *event_dpc[NR_CPUS];
+	/*
+	 * To optimize the mapping of relid to channel, maintain
+	 * per-cpu list of the channels based on their CPU affinity.
+	 */
+	struct list_head percpu_list[NR_CPUS];
 };
 
 extern struct hv_context hv_context;
 
+struct hv_ring_buffer_debug_info {
+	u32 current_interrupt_mask;
+	u32 current_read_index;
+	u32 current_write_index;
+	u32 bytes_avail_toread;
+	u32 bytes_avail_towrite;
+};
 
 /* Hv Interface */
 
@@ -552,8 +564,8 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
 int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
-		    struct scatterlist *sglist,
-		    u32 sgcount, bool *signal);
+		    struct kvec *kv_list,
+		    u32 kv_count, bool *signal);
 
 int hv_ringbuffer_peek(struct hv_ring_buffer_info *ring_info, void *buffer,
 		   u32 buflen);
@@ -612,7 +624,7 @@ struct vmbus_connection {
 	 * 2 pages - 1st page for parent->child notification and 2nd
 	 * is child->parent notification
 	 */
-	void *monitor_pages;
+	struct hv_monitor_page *monitor_pages[2];
 	struct list_head chn_msg_list;
 	spinlock_t channelmsg_lock;
 
@@ -637,9 +649,9 @@ extern struct vmbus_connection vmbus_connection;
 
 /* General vmbus interface */
 
-struct hv_device *vmbus_device_create(uuid_le *type,
-					 uuid_le *instance,
-					 struct vmbus_channel *channel);
+struct hv_device *vmbus_device_create(const uuid_le *type,
+				      const uuid_le *instance,
+				      struct vmbus_channel *channel);
 
 int vmbus_device_register(struct hv_device *child_device_obj);
 void vmbus_device_unregister(struct hv_device *device_obj);
@@ -661,6 +673,10 @@ int vmbus_post_msg(void *buffer, size_t buflen);
 int vmbus_set_event(struct vmbus_channel *channel);
 
 void vmbus_on_event(unsigned long data);
+
+int hv_fcopy_init(struct hv_util_service *);
+void hv_fcopy_deinit(void);
+void hv_fcopy_onchannelcallback(void *);
 
 
 #endif /* _HYPERV_VMBUS_H */

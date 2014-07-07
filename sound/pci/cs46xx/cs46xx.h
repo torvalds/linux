@@ -1716,9 +1716,14 @@ struct snd_cs46xx {
 	struct snd_pcm *pcm_rear;
 	struct snd_pcm *pcm_center_lfe;
 	struct snd_pcm *pcm_iec958;
+
+#define CS46XX_DSP_MODULES	5
+	struct dsp_module_desc *modules[CS46XX_DSP_MODULES];
 #else /* for compatibility */
 	struct snd_cs46xx_pcm *playback_pcm;
 	unsigned int play_ctl;
+
+	struct ba1_struct *ba1;
 #endif
 
 #ifdef CONFIG_PM_SLEEP

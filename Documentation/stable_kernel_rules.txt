@@ -39,7 +39,7 @@ Procedure for submitting patches to the -stable tree:
    the stable tree without anything else needing to be done by the author
    or subsystem maintainer.
  - If the patch requires other patches as prerequisites which can be
-   cherry-picked than this can be specified in the following format in
+   cherry-picked, then this can be specified in the following format in
    the sign-off area:
 
      Cc: <stable@vger.kernel.org> # 3.3.x: a1f84a3: sched: Check for idle

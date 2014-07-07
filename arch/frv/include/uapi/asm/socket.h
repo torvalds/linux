@@ -76,5 +76,9 @@
 
 #define SO_BUSY_POLL		46
 
+#define SO_MAX_PACING_RATE	47
+
+#define SO_BPF_EXTENSIONS	48
+
 #endif /* _ASM_SOCKET_H */
 

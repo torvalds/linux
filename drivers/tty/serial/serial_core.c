@@ -89,8 +89,7 @@ static void __uart_start(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
 
-	if (!uart_circ_empty(&state->xmit) && state->xmit.buf &&
-	    !tty->stopped && !tty->hw_stopped)
+	if (!tty->stopped && !tty->hw_stopped)
 		port->ops->start_tx(port);
 }
 
@@ -138,6 +137,11 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 		return 1;
 
 	/*
+	 * Make sure the device is in D0 state.
+	 */
+	uart_change_pm(state, UART_PM_STATE_ON);
+
+	/*
 	 * Initialise and allocate the transmit and temporary
 	 * buffer.
 	 */
@@ -170,8 +174,12 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 			if (tty->termios.c_cflag & CBAUD)
 				uart_set_mctrl(uport, TIOCM_RTS | TIOCM_DTR);
 		}
-
-		if (tty_port_cts_enabled(port)) {
+		/*
+		 * if hw support flow control without software intervention,
+		 * then skip the below check
+		 */
+		if (tty_port_cts_enabled(port) &&
+		    !(uport->flags & UPF_HARD_FLOW)) {
 			spin_lock_irq(&uport->lock);
 			if (!(uport->ops->get_mctrl(uport) & TIOCM_CTS))
 				tty->hw_stopped = 1;
@@ -826,25 +834,29 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 		 * If we fail to request resources for the
 		 * new port, try to restore the old settings.
 		 */
-		if (retval && old_type != PORT_UNKNOWN) {
+		if (retval) {
 			uport->iobase = old_iobase;
 			uport->type = old_type;
 			uport->hub6 = old_hub6;
 			uport->iotype = old_iotype;
 			uport->regshift = old_shift;
 			uport->mapbase = old_mapbase;
-			retval = uport->ops->request_port(uport);
-			/*
-			 * If we failed to restore the old settings,
-			 * we fail like this.
-			 */
-			if (retval)
-				uport->type = PORT_UNKNOWN;
 
-			/*
-			 * We failed anyway.
-			 */
-			retval = -EBUSY;
+			if (old_type != PORT_UNKNOWN) {
+				retval = uport->ops->request_port(uport);
+				/*
+				 * If we failed to restore the old settings,
+				 * we fail like this.
+				 */
+				if (retval)
+					uport->type = PORT_UNKNOWN;
+
+				/*
+				 * We failed anyway.
+				 */
+				retval = -EBUSY;
+			}
+
 			/* Added to return the correct error -Ram Gupta */
 			goto exit;
 		}
@@ -1319,9 +1331,9 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	uport = state->uart_port;
 	port = &state->port;
 
-	pr_debug("uart_close(%d) called\n", uport->line);
+	pr_debug("uart_close(%d) called\n", uport ? uport->line : -1);
 
-	if (tty_port_close_start(port, tty, filp) == 0)
+	if (!port->count || tty_port_close_start(port, tty, filp) == 0)
 		return;
 
 	/*
@@ -1452,6 +1464,8 @@ static void uart_hangup(struct tty_struct *tty)
 		clear_bit(ASYNCB_NORMAL_ACTIVE, &port->flags);
 		spin_unlock_irqrestore(&port->lock, flags);
 		tty_port_tty_set(port, NULL);
+		if (!uart_console(state->uart_port))
+			uart_change_pm(state, UART_PM_STATE_OFF);
 		wake_up_interruptible(&port->open_wait);
 		wake_up_interruptible(&port->delta_msr_wait);
 	}
@@ -1568,12 +1582,6 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 		retval = -EAGAIN;
 		goto err_dec_count;
 	}
-
-	/*
-	 * Make sure the device is in D0 state.
-	 */
-	if (port->count == 1)
-		uart_change_pm(state, UART_PM_STATE_ON);
 
 	/*
 	 * Start up the serial port.
@@ -1762,7 +1770,7 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
 }
 
 /**
- *	uart_parse_options - Parse serial port baud/parity/bits/flow contro.
+ *	uart_parse_options - Parse serial port baud/parity/bits/flow control.
  *	@options: pointer to option string
  *	@baud: pointer to an 'int' variable for the baud rate.
  *	@parity: pointer to an 'int' variable for the parity.
@@ -1830,9 +1838,13 @@ uart_set_options(struct uart_port *port, struct console *co,
 	/*
 	 * Ensure that the serial console lock is initialised
 	 * early.
+	 * If this port is a console, then the spinlock is already
+	 * initialised.
 	 */
-	spin_lock_init(&port->lock);
-	lockdep_set_class(&port->lock, &port_lock_key);
+	if (!(uart_console(port) && (port->cons->flags & CON_ENABLED))) {
+		spin_lock_init(&port->lock);
+		lockdep_set_class(&port->lock, &port_lock_key);
+	}
 
 	memset(&termios, 0, sizeof(struct ktermios));
 
@@ -2231,6 +2243,9 @@ static void uart_poll_put_char(struct tty_driver *driver, int line, char ch)
 		return;
 
 	port = state->uart_port;
+
+	if (ch == '\n')
+		port->ops->poll_put_char(port, '\r');
 	port->ops->poll_put_char(port, ch);
 }
 #endif
@@ -2605,7 +2620,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 
 	/*
 	 * Register the port whether it's detected or not.  This allows
-	 * setserial to be used to alter this ports parameters.
+	 * setserial to be used to alter this port's parameters.
 	 */
 	tty_dev = tty_port_register_device_attr(port, drv->tty_driver,
 			uport->line, uport->dev, port, tty_dev_attr_groups);
@@ -2641,6 +2656,7 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 {
 	struct uart_state *state = drv->state + uport->line;
 	struct tty_port *port = &state->port;
+	struct tty_struct *tty;
 	int ret = 0;
 
 	BUG_ON(in_interrupt());
@@ -2669,8 +2685,17 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 */
 	tty_unregister_device(drv->tty_driver, uport->line);
 
-	if (port->tty)
+	tty = tty_port_tty_get(port);
+	if (tty) {
 		tty_vhangup(port->tty);
+		tty_kref_put(tty);
+	}
+
+	/*
+	 * If the port is used as a console, unregister it
+	 */
+	if (uart_console(uport))
+		unregister_console(uport->cons);
 
 	/*
 	 * Free the port IO and memory resources, if any.
@@ -2754,7 +2779,9 @@ void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 
 	uport->icount.cts++;
 
-	if (tty_port_cts_enabled(port)) {
+	/* skip below code if the hw flow control is supported */
+	if (tty_port_cts_enabled(port) &&
+	    !(uport->flags & UPF_HARD_FLOW)) {
 		if (tty->hw_stopped) {
 			if (status) {
 				tty->hw_stopped = 0;

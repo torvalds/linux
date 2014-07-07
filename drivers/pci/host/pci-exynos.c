@@ -48,6 +48,7 @@ struct exynos_pcie {
 #define PCIE_IRQ_SPECIAL		0x008
 #define PCIE_IRQ_EN_PULSE		0x00c
 #define PCIE_IRQ_EN_LEVEL		0x010
+#define IRQ_MSI_ENABLE			(0x1 << 2)
 #define PCIE_IRQ_EN_SPECIAL		0x014
 #define PCIE_PWR_RESET			0x018
 #define PCIE_CORE_RESET			0x01c
@@ -77,18 +78,28 @@ struct exynos_pcie {
 #define PCIE_PHY_PLL_BIAS		0x00c
 #define PCIE_PHY_DCC_FEEDBACK		0x014
 #define PCIE_PHY_PLL_DIV_1		0x05c
+#define PCIE_PHY_COMMON_POWER		0x064
+#define PCIE_PHY_COMMON_PD_CMN		(0x1 << 3)
 #define PCIE_PHY_TRSV0_EMP_LVL		0x084
 #define PCIE_PHY_TRSV0_DRV_LVL		0x088
 #define PCIE_PHY_TRSV0_RXCDR		0x0ac
+#define PCIE_PHY_TRSV0_POWER		0x0c4
+#define PCIE_PHY_TRSV0_PD_TSV		(0x1 << 7)
 #define PCIE_PHY_TRSV0_LVCC		0x0dc
 #define PCIE_PHY_TRSV1_EMP_LVL		0x144
 #define PCIE_PHY_TRSV1_RXCDR		0x16c
+#define PCIE_PHY_TRSV1_POWER		0x184
+#define PCIE_PHY_TRSV1_PD_TSV		(0x1 << 7)
 #define PCIE_PHY_TRSV1_LVCC		0x19c
 #define PCIE_PHY_TRSV2_EMP_LVL		0x204
 #define PCIE_PHY_TRSV2_RXCDR		0x22c
+#define PCIE_PHY_TRSV2_POWER		0x244
+#define PCIE_PHY_TRSV2_PD_TSV		(0x1 << 7)
 #define PCIE_PHY_TRSV2_LVCC		0x25c
 #define PCIE_PHY_TRSV3_EMP_LVL		0x2c4
 #define PCIE_PHY_TRSV3_RXCDR		0x2ec
+#define PCIE_PHY_TRSV3_POWER		0x304
+#define PCIE_PHY_TRSV3_PD_TSV		(0x1 << 7)
 #define PCIE_PHY_TRSV3_LVCC		0x31c
 
 static inline void exynos_elb_writel(struct exynos_pcie *pcie, u32 val, u32 reg)
@@ -202,6 +213,58 @@ static void exynos_pcie_deassert_phy_reset(struct pcie_port *pp)
 	exynos_blk_writel(exynos_pcie, 0, PCIE_PHY_TRSV_RESET);
 }
 
+static void exynos_pcie_power_on_phy(struct pcie_port *pp)
+{
+	u32 val;
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_COMMON_POWER);
+	val &= ~PCIE_PHY_COMMON_PD_CMN;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_COMMON_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV0_POWER);
+	val &= ~PCIE_PHY_TRSV0_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV0_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV1_POWER);
+	val &= ~PCIE_PHY_TRSV1_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV1_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV2_POWER);
+	val &= ~PCIE_PHY_TRSV2_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV2_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV3_POWER);
+	val &= ~PCIE_PHY_TRSV3_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV3_POWER);
+}
+
+static void exynos_pcie_power_off_phy(struct pcie_port *pp)
+{
+	u32 val;
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_COMMON_POWER);
+	val |= PCIE_PHY_COMMON_PD_CMN;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_COMMON_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV0_POWER);
+	val |= PCIE_PHY_TRSV0_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV0_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV1_POWER);
+	val |= PCIE_PHY_TRSV1_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV1_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV2_POWER);
+	val |= PCIE_PHY_TRSV2_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV2_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV3_POWER);
+	val |= PCIE_PHY_TRSV3_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV3_POWER);
+}
+
 static void exynos_pcie_init_phy(struct pcie_port *pp)
 {
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
@@ -270,6 +333,9 @@ static int exynos_pcie_establish_link(struct pcie_port *pp)
 	/* de-assert phy reset */
 	exynos_pcie_deassert_phy_reset(pp);
 
+	/* power on phy */
+	exynos_pcie_power_on_phy(pp);
+
 	/* initialize phy */
 	exynos_pcie_init_phy(pp);
 
@@ -302,6 +368,9 @@ static int exynos_pcie_establish_link(struct pcie_port *pp)
 						       PCIE_PHY_PLL_LOCKED);
 				dev_info(pp->dev, "PLL Locked: 0x%x\n", val);
 			}
+			/* power off phy */
+			exynos_pcie_power_off_phy(pp);
+
 			dev_err(pp->dev, "PCIe Link Fail\n");
 			return -EINVAL;
 		}
@@ -342,9 +411,34 @@ static irqreturn_t exynos_pcie_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t exynos_pcie_msi_irq_handler(int irq, void *arg)
+{
+	struct pcie_port *pp = arg;
+
+	return dw_handle_msi_irq(pp);
+}
+
+static void exynos_pcie_msi_init(struct pcie_port *pp)
+{
+	u32 val;
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
+
+	dw_pcie_msi_init(pp);
+
+	/* enable MSI interrupt */
+	val = exynos_elb_readl(exynos_pcie, PCIE_IRQ_EN_LEVEL);
+	val |= IRQ_MSI_ENABLE;
+	exynos_elb_writel(exynos_pcie, val, PCIE_IRQ_EN_LEVEL);
+	return;
+}
+
 static void exynos_pcie_enable_interrupts(struct pcie_port *pp)
 {
 	exynos_pcie_enable_irq_pulse(pp);
+
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		exynos_pcie_msi_init(pp);
+
 	return;
 }
 
@@ -372,7 +466,7 @@ static int exynos_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	int ret;
 
 	exynos_pcie_sideband_dbi_r_mode(pp, true);
-	ret = cfg_read(pp->dbi_base + (where & ~0x3), where, size, val);
+	ret = dw_pcie_cfg_read(pp->dbi_base + (where & ~0x3), where, size, val);
 	exynos_pcie_sideband_dbi_r_mode(pp, false);
 	return ret;
 }
@@ -383,7 +477,8 @@ static int exynos_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 	int ret;
 
 	exynos_pcie_sideband_dbi_w_mode(pp, true);
-	ret = cfg_write(pp->dbi_base + (where & ~0x3), where, size, val);
+	ret = dw_pcie_cfg_write(pp->dbi_base + (where & ~0x3),
+			where, size, val);
 	exynos_pcie_sideband_dbi_w_mode(pp, false);
 	return ret;
 }
@@ -414,7 +509,8 @@ static struct pcie_host_ops exynos_pcie_host_ops = {
 	.host_init = exynos_pcie_host_init,
 };
 
-static int add_pcie_port(struct pcie_port *pp, struct platform_device *pdev)
+static int __init add_pcie_port(struct pcie_port *pp,
+				struct platform_device *pdev)
 {
 	int ret;
 
@@ -430,10 +526,25 @@ static int add_pcie_port(struct pcie_port *pp, struct platform_device *pdev)
 		return ret;
 	}
 
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		pp->msi_irq = platform_get_irq(pdev, 0);
+		if (!pp->msi_irq) {
+			dev_err(&pdev->dev, "failed to get msi irq\n");
+			return -ENODEV;
+		}
+
+		ret = devm_request_irq(&pdev->dev, pp->msi_irq,
+					exynos_pcie_msi_irq_handler,
+					IRQF_SHARED, "exynos-pcie", pp);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request msi irq\n");
+			return ret;
+		}
+	}
+
 	pp->root_bus_nr = -1;
 	pp->ops = &exynos_pcie_host_ops;
 
-	spin_lock_init(&pp->conf_lock);
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to initialize host\n");
@@ -455,10 +566,8 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 
 	exynos_pcie = devm_kzalloc(&pdev->dev, sizeof(*exynos_pcie),
 				GFP_KERNEL);
-	if (!exynos_pcie) {
-		dev_err(&pdev->dev, "no memory for exynos pcie\n");
+	if (!exynos_pcie)
 		return -ENOMEM;
-	}
 
 	pp = &exynos_pcie->pp;
 
@@ -487,18 +596,24 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 
 	elbi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	exynos_pcie->elbi_base = devm_ioremap_resource(&pdev->dev, elbi_base);
-	if (IS_ERR(exynos_pcie->elbi_base))
-		return PTR_ERR(exynos_pcie->elbi_base);
+	if (IS_ERR(exynos_pcie->elbi_base)) {
+		ret = PTR_ERR(exynos_pcie->elbi_base);
+		goto fail_bus_clk;
+	}
 
 	phy_base = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	exynos_pcie->phy_base = devm_ioremap_resource(&pdev->dev, phy_base);
-	if (IS_ERR(exynos_pcie->phy_base))
-		return PTR_ERR(exynos_pcie->phy_base);
+	if (IS_ERR(exynos_pcie->phy_base)) {
+		ret = PTR_ERR(exynos_pcie->phy_base);
+		goto fail_bus_clk;
+	}
 
 	block_base = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	exynos_pcie->block_base = devm_ioremap_resource(&pdev->dev, block_base);
-	if (IS_ERR(exynos_pcie->block_base))
-		return PTR_ERR(exynos_pcie->block_base);
+	if (IS_ERR(exynos_pcie->block_base)) {
+		ret = PTR_ERR(exynos_pcie->block_base);
+		goto fail_bus_clk;
+	}
 
 	ret = add_pcie_port(pp, pdev);
 	if (ret < 0)
@@ -535,7 +650,7 @@ static struct platform_driver exynos_pcie_driver = {
 	.driver = {
 		.name	= "exynos-pcie",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(exynos_pcie_of_match),
+		.of_match_table = exynos_pcie_of_match,
 	},
 };
 

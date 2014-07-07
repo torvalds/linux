@@ -41,6 +41,7 @@
 #include <linux/kthread.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/major.h>
 #include "ubi.h"
 
 /* Maximum length of the 'mtd=' parameter */
@@ -1244,8 +1245,10 @@ static int __init ubi_init(void)
 	ubi_wl_entry_slab = kmem_cache_create("ubi_wl_entry_slab",
 					      sizeof(struct ubi_wl_entry),
 					      0, 0, NULL);
-	if (!ubi_wl_entry_slab)
+	if (!ubi_wl_entry_slab) {
+		err = -ENOMEM;
 		goto out_dev_unreg;
+	}
 
 	err = ubi_debugfs_init();
 	if (err)
@@ -1295,6 +1298,15 @@ static int __init ubi_init(void)
 		}
 	}
 
+	err = ubiblock_init();
+	if (err) {
+		ubi_err("block: cannot initialize, error %d", err);
+
+		/* See comment above re-ubi_is_module(). */
+		if (ubi_is_module())
+			goto out_detach;
+	}
+
 	return 0;
 
 out_detach:
@@ -1322,6 +1334,8 @@ late_initcall(ubi_init);
 static void __exit ubi_exit(void)
 {
 	int i;
+
+	ubiblock_exit();
 
 	for (i = 0; i < UBI_MAX_DEVICES; i++)
 		if (ubi_devices[i]) {

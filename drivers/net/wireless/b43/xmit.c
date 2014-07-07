@@ -278,7 +278,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	else
 		txhdr->phy_rate = b43_plcp_get_ratecode_cck(rate);
 	txhdr->mac_frame_ctl = wlhdr->frame_control;
-	memcpy(txhdr->tx_receiver, wlhdr->addr1, 6);
+	memcpy(txhdr->tx_receiver, wlhdr->addr1, ETH_ALEN);
 
 	/* Calculate duration for fallback rate */
 	if ((rate_fb == rate) ||
@@ -337,7 +337,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			/* iv16 */
 			memcpy(txhdr->iv + 10, ((u8 *) wlhdr) + wlhdr_len, 3);
 		} else {
-			iv_len = min((size_t) info->control.hw_key->iv_len,
+			iv_len = min_t(size_t, info->control.hw_key->iv_len,
 				     ARRAY_SIZE(txhdr->iv));
 			memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
 		}
@@ -408,7 +408,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		mac_ctl |= B43_TXH_MAC_HWSEQ;
 	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 		mac_ctl |= B43_TXH_MAC_STMSDU;
-	if (phy->type == B43_PHYTYPE_A)
+	if (!phy->gmode)
 		mac_ctl |= B43_TXH_MAC_5GHZ;
 
 	/* Overwrite rates[0].count to make the retry calculation
@@ -806,26 +806,30 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		B43_WARN_ON(1);
 		/* FIXME: We don't really know which value the "chanid" contains.
 		 *        So the following assignment might be wrong. */
-		status.freq = b43_channel_to_freq_5ghz(chanid);
+		status.freq =
+			ieee80211_channel_to_frequency(chanid, status.band);
 		break;
 	case B43_PHYTYPE_G:
 		status.band = IEEE80211_BAND_2GHZ;
-		/* chanid is the radio channel cookie value as used
-		 * to tune the radio. */
-		status.freq = chanid + 2400;
+		/* Somewhere between 478.104 and 508.1084 firmware for G-PHY
+		 * has been modified to be compatible with N-PHY and others.
+		 */
+		if (dev->fw.rev >= 508)
+			status.freq = ieee80211_channel_to_frequency(chanid, status.band);
+		else
+			status.freq = chanid + 2400;
 		break;
 	case B43_PHYTYPE_N:
 	case B43_PHYTYPE_LP:
 	case B43_PHYTYPE_HT:
 		/* chanid is the SHM channel cookie. Which is the plain
 		 * channel number in b43. */
-		if (chanstat & B43_RX_CHAN_5GHZ) {
+		if (chanstat & B43_RX_CHAN_5GHZ)
 			status.band = IEEE80211_BAND_5GHZ;
-			status.freq = b43_freq_to_channel_5ghz(chanid);
-		} else {
+		else
 			status.band = IEEE80211_BAND_2GHZ;
-			status.freq = b43_freq_to_channel_2ghz(chanid);
-		}
+		status.freq =
+			ieee80211_channel_to_frequency(chanid, status.band);
 		break;
 	default:
 		B43_WARN_ON(1);

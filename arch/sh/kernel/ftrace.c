@@ -272,11 +272,8 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return ftrace_modify_code(rec->ip, old, new);
 }
 
-int __init ftrace_dyn_arch_init(void *data)
+int __init ftrace_dyn_arch_init(void)
 {
-	/* The return code is retured via data */
-	__raw_writel(0, (unsigned long)data);
-
 	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */

@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/hardirq.h>
 #include <linux/export.h>
+#include <linux/kprobes.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/context_tracking.h>
@@ -53,10 +54,10 @@ void context_tracking_user_enter(void)
 	/*
 	 * Repeat the user_enter() check here because some archs may be calling
 	 * this from asm and if no CPU needs context tracking, they shouldn't
-	 * go further. Repeat the check here until they support the static key
-	 * check.
+	 * go further. Repeat the check here until they support the inline static
+	 * key check.
 	 */
-	if (!static_key_false(&context_tracking_enabled))
+	if (!context_tracking_is_enabled())
 		return;
 
 	/*
@@ -104,6 +105,7 @@ void context_tracking_user_enter(void)
 	}
 	local_irq_restore(flags);
 }
+NOKPROBE_SYMBOL(context_tracking_user_enter);
 
 #ifdef CONFIG_PREEMPT
 /**
@@ -120,7 +122,7 @@ void context_tracking_user_enter(void)
  * instead of preempt_schedule() to exit user context if needed before
  * calling the scheduler.
  */
-void __sched notrace preempt_schedule_context(void)
+asmlinkage __visible void __sched notrace preempt_schedule_context(void)
 {
 	enum ctx_state prev_ctx;
 
@@ -160,7 +162,7 @@ void context_tracking_user_exit(void)
 {
 	unsigned long flags;
 
-	if (!static_key_false(&context_tracking_enabled))
+	if (!context_tracking_is_enabled())
 		return;
 
 	if (in_interrupt())
@@ -181,6 +183,7 @@ void context_tracking_user_exit(void)
 	}
 	local_irq_restore(flags);
 }
+NOKPROBE_SYMBOL(context_tracking_user_exit);
 
 /**
  * __context_tracking_task_switch - context switch the syscall callbacks

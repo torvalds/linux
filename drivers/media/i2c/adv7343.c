@@ -25,12 +25,13 @@
 #include <linux/module.h>
 #include <linux/videodev2.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
 
 #include <media/adv7343.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-of.h>
 
 #include "adv7343_regs.h"
 
@@ -409,7 +410,7 @@ adv7343_get_pdata(struct i2c_client *client)
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
 
-	np = v4l2_of_get_next_endpoint(client->dev.of_node, NULL);
+	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
 	if (!np)
 		return NULL;
 

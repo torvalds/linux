@@ -53,7 +53,6 @@
 #include <linux/errno.h>
 #include <linux/freezer.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
@@ -72,6 +71,10 @@
 
 #include "sierra_ms.h"
 #include "option_ms.h"
+
+#if IS_ENABLED(CONFIG_USB_UAS)
+#include "uas-detect.h"
+#endif
 
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
@@ -460,14 +463,14 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 #define TOLOWER(x) ((x) | 0x20)
 
 /* Adjust device flags based on the "quirks=" module parameter */
-static void adjust_quirks(struct us_data *us)
+void usb_stor_adjust_quirks(struct usb_device *udev, unsigned long *fflags)
 {
 	char *p;
-	u16 vid = le16_to_cpu(us->pusb_dev->descriptor.idVendor);
-	u16 pid = le16_to_cpu(us->pusb_dev->descriptor.idProduct);
+	u16 vid = le16_to_cpu(udev->descriptor.idVendor);
+	u16 pid = le16_to_cpu(udev->descriptor.idProduct);
 	unsigned f = 0;
 	unsigned int mask = (US_FL_SANE_SENSE | US_FL_BAD_SENSE |
-			US_FL_FIX_CAPACITY |
+			US_FL_FIX_CAPACITY | US_FL_IGNORE_UAS |
 			US_FL_CAPACITY_HEURISTICS | US_FL_IGNORE_DEVICE |
 			US_FL_NOT_LOCKABLE | US_FL_MAX_SECTORS_64 |
 			US_FL_CAPACITY_OK | US_FL_IGNORE_RESIDUE |
@@ -538,14 +541,18 @@ static void adjust_quirks(struct us_data *us)
 		case 's':
 			f |= US_FL_SINGLE_LUN;
 			break;
+		case 'u':
+			f |= US_FL_IGNORE_UAS;
+			break;
 		case 'w':
 			f |= US_FL_NO_WP_DETECT;
 			break;
 		/* Ignore unrecognized flag characters */
 		}
 	}
-	us->fflags = (us->fflags & ~mask) | f;
+	*fflags = (*fflags & ~mask) | f;
 }
+EXPORT_SYMBOL_GPL(usb_stor_adjust_quirks);
 
 /* Get the unusual_devs entries and the string descriptors */
 static int get_device_info(struct us_data *us, const struct usb_device_id *id,
@@ -565,7 +572,7 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id,
 			idesc->bInterfaceProtocol :
 			unusual_dev->useTransport;
 	us->fflags = id->driver_info;
-	adjust_quirks(us);
+	usb_stor_adjust_quirks(us->pusb_dev, &us->fflags);
 
 	if (us->fflags & US_FL_IGNORE_DEVICE) {
 		dev_info(pdev, "device ignored\n");
@@ -1035,6 +1042,12 @@ static int storage_probe(struct usb_interface *intf,
 	struct us_data *us;
 	int result;
 	int size;
+
+	/* If uas is enabled and this device can do uas then ignore it. */
+#if IS_ENABLED(CONFIG_USB_UAS)
+	if (uas_use_uas_driver(intf, id))
+		return -ENXIO;
+#endif
 
 	/*
 	 * If the device isn't standard (is handled by a subdriver

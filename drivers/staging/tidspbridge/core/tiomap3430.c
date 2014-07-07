@@ -280,7 +280,8 @@ static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt)
 					OMAP3430_IVA2_MOD, OMAP2_CM_CLKSTCTRL);
 
 		/* Wait until the state has moved to ON */
-		while ((*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) &
+		while ((*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD,
+					      OMAP2_PM_PWSTST) &
 						OMAP_INTRANSITION_MASK)
 			;
 		/* Disable Automatic transition */
@@ -419,7 +420,8 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		/* Assert RST1 i.e only the RST only for DSP megacell */
 		if (!status) {
 			(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST1_IVA2_MASK,
-					OMAP3430_RST1_IVA2_MASK, OMAP3430_IVA2_MOD,
+					OMAP3430_RST1_IVA2_MASK,
+					OMAP3430_IVA2_MOD,
 					OMAP2_RM_RSTCTRL);
 
 			/* Mask address with 1K for compatibility */
@@ -432,7 +434,8 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		/* Reset and Unreset the RST2, so that BOOTADDR is copied to
 		 * IVA2 SYSC register */
 		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK,
-			OMAP3430_RST2_IVA2_MASK, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+			OMAP3430_RST2_IVA2_MASK, OMAP3430_IVA2_MOD,
+			OMAP2_RM_RSTCTRL);
 		udelay(100);
 		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK, 0,
 					OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
@@ -446,7 +449,8 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		/* Only make TLB entry if both addresses are non-zero */
 		for (entry_ndx = 0; entry_ndx < BRDIOCTL_NUMOFMMUTLB;
 		     entry_ndx++) {
-			struct bridge_ioctl_extproc *e = &dev_context->atlb_entry[entry_ndx];
+			struct bridge_ioctl_extproc *e =
+				&dev_context->atlb_entry[entry_ndx];
 			struct hw_mmu_map_attrs_t map_attrs = {
 				.endianism = e->endianism,
 				.element_size = e->elem_size,
@@ -641,8 +645,8 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	/* as per TRM, it is advised to first drive the IVA2 to 'Standby' mode,
 	 * before turning off the clocks.. This is to ensure that there are no
 	 * pending L3 or other transactons from IVA2 */
-	dsp_pwr_state = (*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) &
-					OMAP_POWERSTATEST_MASK;
+	dsp_pwr_state = (*pdata->dsp_prm_read)
+		(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) & OMAP_POWERSTATEST_MASK;
 	if (dsp_pwr_state != PWRDM_POWER_OFF) {
 		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK, 0,
 					OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
@@ -682,8 +686,9 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 		dev_context->mbox = NULL;
 	}
 	/* Reset IVA2 clocks*/
-	(*pdata->dsp_prm_write)(OMAP3430_RST1_IVA2_MASK | OMAP3430_RST2_IVA2_MASK |
-			OMAP3430_RST3_IVA2_MASK, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+	(*pdata->dsp_prm_write)(OMAP3430_RST1_IVA2_MASK |
+			OMAP3430_RST2_IVA2_MASK | OMAP3430_RST3_IVA2_MASK,
+			OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 
 	dsp_clock_disable_all(dev_context->dsp_per_clks);
 	dsp_clk_disable(DSP_CLK_IVA2);

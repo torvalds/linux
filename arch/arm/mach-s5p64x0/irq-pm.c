@@ -14,9 +14,9 @@
 
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/io.h>
 
-#include <plat/regs-serial.h>
 #include <plat/pm.h>
 
 #include <mach/regs-gpio.h>
@@ -34,7 +34,9 @@ static struct irq_grp_save {
 	u32	mask;
 } eint_grp_save[4];
 
+#ifdef CONFIG_SERIAL_SAMSUNG
 static u32 irq_uart_mask[CONFIG_SERIAL_SAMSUNG_UARTS];
+#endif
 
 static int s5p64x0_irq_pm_suspend(void)
 {
@@ -45,8 +47,10 @@ static int s5p64x0_irq_pm_suspend(void)
 
 	s3c_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
 
+#ifdef CONFIG_SERIAL_SAMSUNG
 	for (i = 0; i < CONFIG_SERIAL_SAMSUNG_UARTS; i++)
 		irq_uart_mask[i] = __raw_readl(S3C_VA_UARTx(i) + S3C64XX_UINTM);
+#endif
 
 	for (i = 0; i < ARRAY_SIZE(eint_grp_save); i++, grp++) {
 		grp->con = __raw_readl(S5P64X0_EINT12CON + (i * 4));
@@ -66,8 +70,10 @@ static void s5p64x0_irq_pm_resume(void)
 
 	s3c_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
 
+#ifdef CONFIG_SERIAL_SAMSUNG
 	for (i = 0; i < CONFIG_SERIAL_SAMSUNG_UARTS; i++)
 		__raw_writel(irq_uart_mask[i], S3C_VA_UARTx(i) + S3C64XX_UINTM);
+#endif
 
 	for (i = 0; i < ARRAY_SIZE(eint_grp_save); i++, grp++) {
 		__raw_writel(grp->con, S5P64X0_EINT12CON + (i * 4));

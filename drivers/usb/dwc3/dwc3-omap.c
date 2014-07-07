@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/spinlock.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/dwc3-omap.h>
 #include <linux/pm_runtime.h>
@@ -30,7 +29,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/extcon.h>
-#include <linux/extcon/of_extcon.h>
 #include <linux/regulator/consumer.h>
 
 #include <linux/usb/otg.h>
@@ -120,9 +118,6 @@
 #define USBOTGSS_UTMI_OTG_STATUS_VBUSVALID	(1 << 1)
 
 struct dwc3_omap {
-	/* device lock */
-	spinlock_t		lock;
-
 	struct device		*dev;
 
 	int			irq;
@@ -280,8 +275,6 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	struct dwc3_omap	*omap = _omap;
 	u32			reg;
 
-	spin_lock(&omap->lock);
-
 	reg = dwc3_omap_read_irqmisc_status(omap);
 
 	if (reg & USBOTGSS_IRQMISC_DMADISABLECLR) {
@@ -322,8 +315,6 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 
 	dwc3_omap_write_irq0_status(omap, reg);
 
-	spin_unlock(&omap->lock);
-
 	return IRQ_HANDLED;
 }
 
@@ -331,7 +322,7 @@ static int dwc3_omap_remove_core(struct device *dev, void *c)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
-	platform_device_unregister(pdev);
+	of_device_unregister(pdev);
 
 	return 0;
 }
@@ -402,7 +393,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	struct extcon_dev	*edev;
 	struct regulator	*vbus_reg = NULL;
 
-	int			ret = -ENOMEM;
+	int			ret;
 	int			irq;
 
 	int			utmi_mode = 0;
@@ -432,11 +423,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "missing memory base resource\n");
-		return -EINVAL;
-	}
-
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -448,8 +434,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 			return PTR_ERR(vbus_reg);
 		}
 	}
-
-	spin_lock_init(&omap->lock);
 
 	omap->dev	= dev;
 	omap->irq	= irq;
@@ -532,10 +516,10 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	dwc3_omap_enable_irqs(omap);
 
 	if (of_property_read_bool(node, "extcon")) {
-		edev = of_extcon_get_extcon_dev(dev, 0);
+		edev = extcon_get_edev_by_phandle(dev, 0);
 		if (IS_ERR(edev)) {
 			dev_vdbg(dev, "couldn't get extcon device\n");
-			ret = PTR_ERR(edev);
+			ret = -EPROBE_DEFER;
 			goto err2;
 		}
 
@@ -615,7 +599,7 @@ static int dwc3_omap_prepare(struct device *dev)
 {
 	struct dwc3_omap	*omap = dev_get_drvdata(dev);
 
-	dwc3_omap_disable_irqs(omap);
+	dwc3_omap_write_irqmisc_set(omap, 0x00);
 
 	return 0;
 }
@@ -623,8 +607,19 @@ static int dwc3_omap_prepare(struct device *dev)
 static void dwc3_omap_complete(struct device *dev)
 {
 	struct dwc3_omap	*omap = dev_get_drvdata(dev);
+	u32			reg;
 
-	dwc3_omap_enable_irqs(omap);
+	reg = (USBOTGSS_IRQMISC_OEVT |
+			USBOTGSS_IRQMISC_DRVVBUS_RISE |
+			USBOTGSS_IRQMISC_CHRGVBUS_RISE |
+			USBOTGSS_IRQMISC_DISCHRGVBUS_RISE |
+			USBOTGSS_IRQMISC_IDPULLUP_RISE |
+			USBOTGSS_IRQMISC_DRVVBUS_FALL |
+			USBOTGSS_IRQMISC_CHRGVBUS_FALL |
+			USBOTGSS_IRQMISC_DISCHRGVBUS_FALL |
+			USBOTGSS_IRQMISC_IDPULLUP_FALL);
+
+	dwc3_omap_write_irqmisc_set(omap, reg);
 }
 
 static int dwc3_omap_suspend(struct device *dev)

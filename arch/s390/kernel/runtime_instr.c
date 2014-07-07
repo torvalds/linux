@@ -40,8 +40,6 @@ static void disable_runtime_instr(void)
 static void init_runtime_instr_cb(struct runtime_instr_cb *cb)
 {
 	cb->buf_limit = 0xfff;
-	if (s390_user_mode == HOME_SPACE_MODE)
-		cb->home_space = 1;
 	cb->int_requested = 1;
 	cb->pstate = 1;
 	cb->pstate_set_buf = 1;
@@ -140,7 +138,8 @@ static int __init runtime_instr_init(void)
 		return 0;
 
 	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
-	rc = register_external_interrupt(0x1407, runtime_instr_int_handler);
+	rc = register_external_irq(EXT_IRQ_MEASURE_ALERT,
+				   runtime_instr_int_handler);
 	if (rc)
 		irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 	else

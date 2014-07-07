@@ -6,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
-#include <linux/bootmem.h>	/* for max_pfn/max_low_pfn */
 #include <linux/slab.h>
 
 #include "blk.h"
@@ -69,7 +68,7 @@ static void ioc_destroy_icq(struct io_cq *icq)
 	 * under queue_lock.  If it's not pointing to @icq now, it never
 	 * will.  Hint assignment itself can race safely.
 	 */
-	if (rcu_dereference_raw(ioc->icq_hint) == icq)
+	if (rcu_access_pointer(ioc->icq_hint) == icq)
 		rcu_assign_pointer(ioc->icq_hint, NULL);
 
 	ioc_exit_icq(icq);

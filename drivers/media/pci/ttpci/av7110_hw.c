@@ -22,7 +22,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
- * the project's page is at http://www.linuxtv.org/ 
+ * the project's page is at http://www.linuxtv.org/
  */
 
 /* for debugging ARM communication: */
@@ -39,6 +39,14 @@
 #include "av7110_hw.h"
 
 #define _NOHANDSHAKE
+
+/*
+ * Max transfer size done by av7110_fw_cmd()
+ *
+ * The maximum size passed to this function is 6 bytes. The buffer also
+ * uses two additional ones for type and size. So, 8 bytes is enough.
+ */
+#define MAX_XFER_SIZE  8
 
 /****************************************************************************
  * DEBI functions
@@ -488,10 +496,17 @@ static int av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 int av7110_fw_cmd(struct av7110 *av7110, int type, int com, int num, ...)
 {
 	va_list args;
-	u16 buf[num + 2];
+	u16 buf[MAX_XFER_SIZE];
 	int i, ret;
 
 //	dprintk(4, "%p\n", av7110);
+
+	if (2 + num > ARRAY_SIZE(buf)) {
+		printk(KERN_WARNING
+		       "%s: %s len=%d is too big!\n",
+		       KBUILD_MODNAME, __func__, num);
+		return -EINVAL;
+	}
 
 	buf[0] = ((type << 8) | com);
 	buf[1] = num;

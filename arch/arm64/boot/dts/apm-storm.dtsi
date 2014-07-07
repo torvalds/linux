@@ -103,14 +103,299 @@
 		#size-cells = <2>;
 		ranges;
 
+		clocks {
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			refclk: refclk {
+				compatible = "fixed-clock";
+				#clock-cells = <1>;
+				clock-frequency = <100000000>;
+				clock-output-names = "refclk";
+			};
+
+			pcppll: pcppll@17000100 {
+				compatible = "apm,xgene-pcppll-clock";
+				#clock-cells = <1>;
+				clocks = <&refclk 0>;
+				clock-names = "pcppll";
+				reg = <0x0 0x17000100 0x0 0x1000>;
+				clock-output-names = "pcppll";
+				type = <0>;
+			};
+
+			socpll: socpll@17000120 {
+				compatible = "apm,xgene-socpll-clock";
+				#clock-cells = <1>;
+				clocks = <&refclk 0>;
+				clock-names = "socpll";
+				reg = <0x0 0x17000120 0x0 0x1000>;
+				clock-output-names = "socpll";
+				type = <1>;
+			};
+
+			socplldiv2: socplldiv2  {
+				compatible = "fixed-factor-clock";
+				#clock-cells = <1>;
+				clocks = <&socpll 0>;
+				clock-names = "socplldiv2";
+				clock-mult = <1>;
+				clock-div = <2>;
+				clock-output-names = "socplldiv2";
+			};
+
+			qmlclk: qmlclk {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				clock-names = "qmlclk";
+				reg = <0x0 0x1703C000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "qmlclk";
+			};
+
+			ethclk: ethclk {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				clock-names = "ethclk";
+				reg = <0x0 0x17000000 0x0 0x1000>;
+				reg-names = "div-reg";
+				divider-offset = <0x238>;
+				divider-width = <0x9>;
+				divider-shift = <0x0>;
+				clock-output-names = "ethclk";
+			};
+
+			eth8clk: eth8clk {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&ethclk 0>;
+				clock-names = "eth8clk";
+				reg = <0x0 0x1702C000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "eth8clk";
+			};
+
+			sataphy1clk: sataphy1clk@1f21c000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f21c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "sataphy1clk";
+				status = "disabled";
+				csr-offset = <0x4>;
+				csr-mask = <0x00>;
+				enable-offset = <0x0>;
+				enable-mask = <0x06>;
+			};
+
+			sataphy2clk: sataphy1clk@1f22c000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f22c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "sataphy2clk";
+				status = "ok";
+				csr-offset = <0x4>;
+				csr-mask = <0x3a>;
+				enable-offset = <0x0>;
+				enable-mask = <0x06>;
+			};
+
+			sataphy3clk: sataphy1clk@1f23c000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f23c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "sataphy3clk";
+				status = "ok";
+				csr-offset = <0x4>;
+				csr-mask = <0x3a>;
+				enable-offset = <0x0>;
+				enable-mask = <0x06>;
+			};
+
+			sata01clk: sata01clk@1f21c000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f21c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "sata01clk";
+				csr-offset = <0x4>;
+				csr-mask = <0x05>;
+				enable-offset = <0x0>;
+				enable-mask = <0x39>;
+			};
+
+			sata23clk: sata23clk@1f22c000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f22c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "sata23clk";
+				csr-offset = <0x4>;
+				csr-mask = <0x05>;
+				enable-offset = <0x0>;
+				enable-mask = <0x39>;
+			};
+
+			sata45clk: sata45clk@1f23c000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f23c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "sata45clk";
+				csr-offset = <0x4>;
+				csr-mask = <0x05>;
+				enable-offset = <0x0>;
+				enable-mask = <0x39>;
+			};
+
+			rtcclk: rtcclk@17000000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x17000000 0x0 0x2000>;
+				reg-names = "csr-reg";
+				csr-offset = <0xc>;
+				csr-mask = <0x2>;
+				enable-offset = <0x10>;
+				enable-mask = <0x2>;
+				clock-output-names = "rtcclk";
+			};
+		};
+
 		serial0: serial@1c020000 {
+			status = "disabled";
 			device_type = "serial";
-			compatible = "ns16550";
+			compatible = "ns16550a";
 			reg = <0 0x1c020000 0x0 0x1000>;
 			reg-shift = <2>;
 			clock-frequency = <10000000>; /* Updated by bootloader */
 			interrupt-parent = <&gic>;
 			interrupts = <0x0 0x4c 0x4>;
+		};
+
+		serial1: serial@1c021000 {
+			status = "disabled";
+			device_type = "serial";
+			compatible = "ns16550a";
+			reg = <0 0x1c021000 0x0 0x1000>;
+			reg-shift = <2>;
+			clock-frequency = <10000000>; /* Updated by bootloader */
+			interrupt-parent = <&gic>;
+			interrupts = <0x0 0x4d 0x4>;
+		};
+
+		serial2: serial@1c022000 {
+			status = "disabled";
+			device_type = "serial";
+			compatible = "ns16550a";
+			reg = <0 0x1c022000 0x0 0x1000>;
+			reg-shift = <2>;
+			clock-frequency = <10000000>; /* Updated by bootloader */
+			interrupt-parent = <&gic>;
+			interrupts = <0x0 0x4e 0x4>;
+		};
+
+		serial3: serial@1c023000 {
+			status = "disabled";
+			device_type = "serial";
+			compatible = "ns16550a";
+			reg = <0 0x1c023000 0x0 0x1000>;
+			reg-shift = <2>;
+			clock-frequency = <10000000>; /* Updated by bootloader */
+			interrupt-parent = <&gic>;
+			interrupts = <0x0 0x4f 0x4>;
+		};
+
+		phy1: phy@1f21a000 {
+			compatible = "apm,xgene-phy";
+			reg = <0x0 0x1f21a000 0x0 0x100>;
+			#phy-cells = <1>;
+			clocks = <&sataphy1clk 0>;
+			status = "disabled";
+			apm,tx-boost-gain = <30 30 30 30 30 30>;
+			apm,tx-eye-tuning = <2 10 10 2 10 10>;
+		};
+
+		phy2: phy@1f22a000 {
+			compatible = "apm,xgene-phy";
+			reg = <0x0 0x1f22a000 0x0 0x100>;
+			#phy-cells = <1>;
+			clocks = <&sataphy2clk 0>;
+			status = "ok";
+			apm,tx-boost-gain = <30 30 30 30 30 30>;
+			apm,tx-eye-tuning = <1 10 10 2 10 10>;
+		};
+
+		phy3: phy@1f23a000 {
+			compatible = "apm,xgene-phy";
+			reg = <0x0 0x1f23a000 0x0 0x100>;
+			#phy-cells = <1>;
+			clocks = <&sataphy3clk 0>;
+			status = "ok";
+			apm,tx-boost-gain = <31 31 31 31 31 31>;
+			apm,tx-eye-tuning = <2 10 10 2 10 10>;
+		};
+
+		sata1: sata@1a000000 {
+			compatible = "apm,xgene-ahci";
+			reg = <0x0 0x1a000000 0x0 0x1000>,
+			      <0x0 0x1f210000 0x0 0x1000>,
+			      <0x0 0x1f21d000 0x0 0x1000>,
+			      <0x0 0x1f21e000 0x0 0x1000>,
+			      <0x0 0x1f217000 0x0 0x1000>;
+			interrupts = <0x0 0x86 0x4>;
+			dma-coherent;
+			status = "disabled";
+			clocks = <&sata01clk 0>;
+			phys = <&phy1 0>;
+			phy-names = "sata-phy";
+		};
+
+		sata2: sata@1a400000 {
+			compatible = "apm,xgene-ahci";
+			reg = <0x0 0x1a400000 0x0 0x1000>,
+			      <0x0 0x1f220000 0x0 0x1000>,
+			      <0x0 0x1f22d000 0x0 0x1000>,
+			      <0x0 0x1f22e000 0x0 0x1000>,
+			      <0x0 0x1f227000 0x0 0x1000>;
+			interrupts = <0x0 0x87 0x4>;
+			dma-coherent;
+			status = "ok";
+			clocks = <&sata23clk 0>;
+			phys = <&phy2 0>;
+			phy-names = "sata-phy";
+		};
+
+		sata3: sata@1a800000 {
+			compatible = "apm,xgene-ahci";
+			reg = <0x0 0x1a800000 0x0 0x1000>,
+			      <0x0 0x1f230000 0x0 0x1000>,
+			      <0x0 0x1f23d000 0x0 0x1000>,
+			      <0x0 0x1f23e000 0x0 0x1000>;
+			interrupts = <0x0 0x88 0x4>;
+			dma-coherent;
+			status = "ok";
+			clocks = <&sata45clk 0>;
+			phys = <&phy3 0>;
+			phy-names = "sata-phy";
+		};
+
+		rtc: rtc@10510000 {
+			compatible = "apm,xgene-rtc";
+			reg = <0x0 0x10510000 0x0 0x400>;
+			interrupts = <0x0 0x46 0x4>;
+			#clock-cells = <1>;
+			clocks = <&rtcclk 0>;
 		};
 	};
 };

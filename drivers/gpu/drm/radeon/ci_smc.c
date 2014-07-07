@@ -28,6 +28,7 @@
 #include "cikd.h"
 #include "ppsmc.h"
 #include "radeon_ucode.h"
+#include "ci_dpm.h"
 
 static int ci_set_smc_sram_address(struct radeon_device *rdev,
 				   u32 smc_address, u32 limit)
@@ -216,6 +217,10 @@ int ci_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 	case CHIP_BONAIRE:
 		ucode_start_address = BONAIRE_SMC_UCODE_START;
 		ucode_size = BONAIRE_SMC_UCODE_SIZE;
+		break;
+	case CHIP_HAWAII:
+		ucode_start_address = HAWAII_SMC_UCODE_START;
+		ucode_size = HAWAII_SMC_UCODE_SIZE;
 		break;
 	default:
 		DRM_ERROR("unknown asic in smc ucode loader\n");

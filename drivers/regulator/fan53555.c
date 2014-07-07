@@ -90,11 +90,11 @@ static int fan53555_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 		return 0;
 	ret = regulator_map_voltage_linear(rdev, uV, uV);
 	if (ret < 0)
-		return -EINVAL;
+		return ret;
 	ret = regmap_update_bits(di->regmap, di->sleep_reg,
 					VSEL_NSEL_MASK, ret);
 	if (ret < 0)
-		return -EINVAL;
+		return ret;
 	/* Cache the sleep voltage setting.
 	 * Might not be the real voltage which is rounded */
 	di->sleep_vol_cache = uV;
@@ -218,9 +218,8 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 	rdesc->vsel_mask = VSEL_NSEL_MASK;
 	rdesc->owner = THIS_MODULE;
 
-	di->rdev = regulator_register(&di->desc, config);
+	di->rdev = devm_regulator_register(di->dev, &di->desc, config);
 	return PTR_ERR_OR_ZERO(di->rdev);
-
 }
 
 static struct regmap_config fan53555_regmap_config = {
@@ -245,10 +244,9 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 
 	di = devm_kzalloc(&client->dev, sizeof(struct fan53555_device_info),
 					GFP_KERNEL);
-	if (!di) {
-		dev_err(&client->dev, "Failed to allocate device info data!\n");
+	if (!di)
 		return -ENOMEM;
-	}
+
 	di->regmap = devm_regmap_init_i2c(client, &fan53555_regmap_config);
 	if (IS_ERR(di->regmap)) {
 		dev_err(&client->dev, "Failed to allocate regmap!\n");
@@ -261,14 +259,14 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 	ret = regmap_read(di->regmap, FAN53555_ID1, &val);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to get chip ID!\n");
-		return -ENODEV;
+		return ret;
 	}
 	di->chip_id = val & DIE_ID;
 	/* Get chip revision */
 	ret = regmap_read(di->regmap, FAN53555_ID2, &val);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to get chip Rev!\n");
-		return -ENODEV;
+		return ret;
 	}
 	di->chip_rev = val & DIE_REV;
 	dev_info(&client->dev, "FAN53555 Option[%d] Rev[%d] Detected!\n",
@@ -291,14 +289,6 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 
 }
 
-static int fan53555_regulator_remove(struct i2c_client *client)
-{
-	struct fan53555_device_info *di = i2c_get_clientdata(client);
-
-	regulator_unregister(di->rdev);
-	return 0;
-}
-
 static const struct i2c_device_id fan53555_id[] = {
 	{"fan53555", -1},
 	{ },
@@ -309,7 +299,6 @@ static struct i2c_driver fan53555_regulator_driver = {
 		.name = "fan53555-regulator",
 	},
 	.probe = fan53555_regulator_probe,
-	.remove = fan53555_regulator_remove,
 	.id_table = fan53555_id,
 };
 

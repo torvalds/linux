@@ -1,3 +1,6 @@
+menu "TI OMAP/AM/DM/DRA Family"
+	depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
+
 config ARCH_OMAP
 	bool
 
@@ -6,9 +9,7 @@ config ARCH_OMAP2
 	depends on ARCH_MULTI_V6
 	select ARCH_OMAP2PLUS
 	select CPU_V6
-	select MULTI_IRQ_HANDLER
 	select SOC_HAS_OMAP2_SDRC
-	select COMMON_CLK
 
 config ARCH_OMAP3
 	bool "TI OMAP3"
@@ -16,14 +17,10 @@ config ARCH_OMAP3
 	select ARCH_OMAP2PLUS
 	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
-	select CPU_V7
-	select MULTI_IRQ_HANDLER
 	select OMAP_INTERCONNECT
 	select PM_OPP if PM
 	select PM_RUNTIME if CPU_IDLE
 	select SOC_HAS_OMAP2_SDRC
-	select COMMON_CLK
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
@@ -34,18 +31,13 @@ config ARCH_OMAP4
 	select ARM_CPU_SUSPEND if PM
 	select ARM_ERRATA_720789
 	select ARM_GIC
-	select CACHE_L2X0
-	select CPU_V7
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
 	select OMAP_INTERCONNECT
-	select PL310_ERRATA_588369
-	select PL310_ERRATA_727915
+	select PL310_ERRATA_588369 if CACHE_L2X0
+	select PL310_ERRATA_727915 if CACHE_L2X0
 	select PM_OPP if PM
 	select PM_RUNTIME if CPU_IDLE
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-	select COMMON_CLK
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 
@@ -53,13 +45,11 @@ config SOC_OMAP5
 	bool "TI OMAP5"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
-	select CPU_V7
 	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if LOCAL_TIMERS
-	select HAVE_SMP
-	select COMMON_CLK
+	select HAVE_ARM_TWD if SMP
 	select HAVE_ARM_ARCH_TIMER
 	select ARM_ERRATA_798181 if SMP
 
@@ -67,40 +57,41 @@ config SOC_AM33XX
 	bool "TI AM33XX"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
-	select CPU_V7
-	select MULTI_IRQ_HANDLER
-	select COMMON_CLK
 
 config SOC_AM43XX
 	bool "TI AM43x"
 	depends on ARCH_MULTI_V7
-	select CPU_V7
 	select ARCH_OMAP2PLUS
-	select MULTI_IRQ_HANDLER
+	select ARCH_HAS_OPP
 	select ARM_GIC
-	select COMMON_CLK
 	select MACH_OMAP_GENERIC
+	select MIGHT_HAVE_CACHE_L2X0
+
+config SOC_DRA7XX
+	bool "TI DRA7XX"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARCH_HAS_OPP
+	select ARM_CPU_SUSPEND if PM
+	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
+	select IRQ_CROSSBAR
 
 config ARCH_OMAP2PLUS
 	bool
 	select ARCH_HAS_BANDGAP
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_OMAP
 	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
-	select HAVE_CLK
+	select MACH_OMAP_GENERIC
 	select OMAP_DM_TIMER
 	select PINCTRL
-	select PROC_DEVICETREE if PROC_FS
 	select SOC_BUS
-	select SPARSE_IRQ
 	select TI_PRIV_EDMA
-	select USE_OF
 	help
 	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
 
@@ -134,14 +125,6 @@ config SOC_HAS_REALTIME_COUNTER
 	depends on SOC_OMAP5 || SOC_DRA7XX
 	default y
 
-config SOC_DRA7XX
-	bool "TI DRA7XX"
-	select ARM_ARCH_TIMER
-	select CPU_V7
-	select ARM_GIC
-	select HAVE_SMP
-	select COMMON_CLK
-
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
 
@@ -169,12 +152,6 @@ config SOC_TI81XX
 	depends on ARCH_OMAP3
 	default y
 
-config OMAP_PACKAGE_ZAF
-       bool
-
-config OMAP_PACKAGE_ZAC
-       bool
-
 config OMAP_PACKAGE_CBC
        bool
 
@@ -187,34 +164,16 @@ config OMAP_PACKAGE_CUS
 config OMAP_PACKAGE_CBP
        bool
 
-comment "OMAP Board Type"
+comment "OMAP Legacy Platform Data Board Type"
 	depends on ARCH_OMAP2PLUS
 
 config MACH_OMAP_GENERIC
-	bool "Generic OMAP2+ board"
-	depends on ARCH_OMAP2PLUS
-	default y
-	help
-	  Support for generic TI OMAP2+ boards using Flattened Device Tree.
-	  More information at Documentation/devicetree
+	bool
 
 config MACH_OMAP2_TUSB6010
 	bool
 	depends on ARCH_OMAP2 && SOC_OMAP2420
 	default y if MACH_NOKIA_N8X0
-
-config MACH_OMAP_H4
-	bool "OMAP 2420 H4 board"
-	depends on SOC_OMAP2420
-	default y
-	select OMAP_DEBUG_DEVICES
-	select OMAP_PACKAGE_ZAF
-
-config MACH_OMAP_2430SDP
-	bool "OMAP 2430 SDP board"
-	depends on SOC_OMAP2430
-	default y
-	select OMAP_PACKAGE_ZAC
 
 config MACH_OMAP3_BEAGLE
 	bool "OMAP3 BEAGLE board"
@@ -260,12 +219,6 @@ config MACH_OVERO
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_OMAP3EVM
-	bool "OMAP 3530 EVM board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
 	depends on ARCH_OMAP3
@@ -296,9 +249,6 @@ config MACH_OMAP_3430SDP
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_NOKIA_N800
-       bool
-
 config MACH_NOKIA_N810
        bool
 
@@ -309,37 +259,14 @@ config MACH_NOKIA_N8X0
 	bool "Nokia N800/N810"
 	depends on SOC_OMAP2420
 	default y
-	select MACH_NOKIA_N800
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
-	select OMAP_PACKAGE_ZAC
-
-config MACH_NOKIA_RM680
-	bool "Nokia N950 (RM-680) / N9 (RM-696) phones"
-	depends on ARCH_OMAP3
-	default y
-	select MACH_NOKIA_RM696
-	select OMAP_PACKAGE_CBB
 
 config MACH_NOKIA_RX51
 	bool "Nokia N900 (RX-51) phone"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-
-config MACH_OMAP_ZOOM2
-	bool "OMAP3 Zoom2 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
-config MACH_OMAP_ZOOM3
-	bool "OMAP3630 Zoom3 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBP
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35/CM-T3730 modules"
@@ -357,30 +284,11 @@ config MACH_CM_T3517
 config MACH_CM_T3730
        bool
 
-config MACH_IGEP0020
-	bool "IGEP v2 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
-config MACH_IGEP0030
-	bool "IGEP OMAP3 module"
-	depends on ARCH_OMAP3
-	default y
-	select MACH_IGEP0020
-	select OMAP_PACKAGE_CBB
-
 config MACH_SBC3530
 	bool "OMAP3 SBC STALKER board"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-
-config MACH_OMAP_3630SDP
-	bool "OMAP3630 SDP board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBP
 
 config MACH_TI8168EVM
 	bool "TI8168 Evaluation Module"
@@ -436,3 +344,5 @@ config OMAP4_ERRATA_I688
 endmenu
 
 endif
+
+endmenu

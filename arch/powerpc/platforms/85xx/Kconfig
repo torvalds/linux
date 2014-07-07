@@ -38,6 +38,15 @@ config C293_PCIE
 	  help
 	  This option enables support for the C293PCIE board
 
+config BSC9132_QDS
+	bool "Freescale BSC9132QDS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Freescale BSC9132 QDS board.
+	  BSC9132 is a heterogeneous SoC containing dual e500v2 powerpc cores
+	  and dual StarCore SC3850 DSP cores.
+	  Manufacturer : Freescale Semiconductor, Inc
+
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
 	select DEFAULT_UIMAGE
@@ -117,11 +126,17 @@ config P1022_RDK
 	  This option enables support for the Freescale / iVeia P1022RDK
 	  reference board.
 
-config P1023_RDS
-	bool "Freescale P1023 RDS/RDB"
+config P1023_RDB
+	bool "Freescale P1023 RDB"
 	select DEFAULT_UIMAGE
 	help
-	  This option enables support for the P1023 RDS and RDB boards
+	  This option enables support for the P1023 RDB board.
+
+config TWR_P102x
+	bool "Freescale TWR-P102x"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the TWR-P1025 board.
 
 config SOCRATES
 	bool "Socrates"
@@ -218,82 +233,15 @@ config GE_IMP3A
 	  This board is a 3U CompactPCI Single Board Computer with a Freescale
 	  P2020 processor.
 
-config P2041_RDB
-	bool "Freescale P2041 RDB"
-	select DEFAULT_UIMAGE
-	select PPC_E500MC
-	select PHYS_64BIT
-	select SWIOTLB
-	select ARCH_REQUIRE_GPIOLIB
-	select GPIO_MPC8XXX
-	select HAS_RAPIDIO
-	select PPC_EPAPR_HV_PIC
-	help
-	  This option enables support for the P2041 RDB board
-
-config P3041_DS
-	bool "Freescale P3041 DS"
-	select DEFAULT_UIMAGE
-	select PPC_E500MC
-	select PHYS_64BIT
-	select SWIOTLB
-	select ARCH_REQUIRE_GPIOLIB
-	select GPIO_MPC8XXX
-	select HAS_RAPIDIO
-	select PPC_EPAPR_HV_PIC
-	help
-	  This option enables support for the P3041 DS board
-
-config P4080_DS
-	bool "Freescale P4080 DS"
-	select DEFAULT_UIMAGE
-	select PPC_E500MC
-	select PHYS_64BIT
-	select SWIOTLB
-	select ARCH_REQUIRE_GPIOLIB
-	select GPIO_MPC8XXX
-	select HAS_RAPIDIO
-	select PPC_EPAPR_HV_PIC
-	help
-	  This option enables support for the P4080 DS board
-
 config SGY_CTS1000
 	tristate "Servergy CTS-1000 support"
 	select GPIOLIB
 	select OF_GPIO
-	depends on P4080_DS
+	depends on CORENET_GENERIC
 	help
 	  Enable this to support functionality in Servergy's CTS-1000 systems.
 
 endif # PPC32
-
-config P5020_DS
-	bool "Freescale P5020 DS"
-	select DEFAULT_UIMAGE
-	select E500
-	select PPC_E500MC
-	select PHYS_64BIT
-	select SWIOTLB
-	select ARCH_REQUIRE_GPIOLIB
-	select GPIO_MPC8XXX
-	select HAS_RAPIDIO
-	select PPC_EPAPR_HV_PIC
-	help
-	  This option enables support for the P5020 DS board
-
-config P5040_DS
-	bool "Freescale P5040 DS"
-	select DEFAULT_UIMAGE
-	select E500
-	select PPC_E500MC
-	select PHYS_64BIT
-	select SWIOTLB
-	select ARCH_REQUIRE_GPIOLIB
-	select GPIO_MPC8XXX
-	select HAS_RAPIDIO
-	select PPC_EPAPR_HV_PIC
-	help
-	  This option enables support for the P5040 DS board
 
 config PPC_QEMU_E500
 	bool "QEMU generic e500 platform"
@@ -310,10 +258,8 @@ config PPC_QEMU_E500
 	  unset based on the emulated CPU (or actual host CPU in the case
 	  of KVM).
 
-if PPC64
-
-config T4240_QDS
-	bool "Freescale T4240 QDS"
+config CORENET_GENERIC
+	bool "Freescale CoreNet Generic"
 	select DEFAULT_UIMAGE
 	select E500
 	select PPC_E500MC
@@ -324,26 +270,14 @@ config T4240_QDS
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
 	help
-	  This option enables support for the T4240 QDS board
+	  This option enables support for the FSL CoreNet based boards.
+	  For 32bit kernel, the following boards are supported:
+	    P2041 RDB, P3041 DS, P4080 DS, kmcoge4, and OCA4080
+	  For 64bit kernel, the following boards are supported:
+	    T4240 QDS and B4 QDS
+	  The following boards are supported for both 32bit and 64bit kernel:
+	    P5020 DS, P5040 DS and T104xQDS
 
-config B4_QDS
-	bool "Freescale B4 QDS"
-	select DEFAULT_UIMAGE
-	select E500
-	select PPC_E500MC
-	select PHYS_64BIT
-	select SWIOTLB
-	select GPIOLIB
-	select ARCH_REQUIRE_GPIOLIB
-	select HAS_RAPIDIO
-	select PPC_EPAPR_HV_PIC
-	help
-	  This option enables support for the B4 QDS board
-	  The B4 application development system B4 QDS is a complete
-	  debugging environment intended for engineers developing
-	  applications for the B4.
-
-endif
 endif # FSL_SOC_BOOKE
 
 config TQM85xx

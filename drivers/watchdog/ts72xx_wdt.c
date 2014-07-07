@@ -61,7 +61,7 @@ struct ts72xx_wdt {
 	struct platform_device *pdev;
 };
 
-struct platform_device *ts72xx_wdt_pdev;
+static struct platform_device *ts72xx_wdt_pdev;
 
 /*
  * TS-72xx Watchdog supports following timeouts (value written
@@ -192,7 +192,7 @@ static int ts72xx_wdt_open(struct inode *inode, struct file *file)
 		dev_err(&wdt->pdev->dev,
 			"failed to convert timeout (%d) to register value\n",
 			timeout);
-		return -EINVAL;
+		return regval;
 	}
 
 	if (mutex_lock_interruptible(&wdt->lock))
@@ -305,12 +305,14 @@ static long ts72xx_wdt_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		error = copy_to_user(argp, &winfo, sizeof(winfo));
+		if (copy_to_user(argp, &winfo, sizeof(winfo)))
+			error = -EFAULT;
 		break;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		return put_user(0, p);
+		error = put_user(0, p);
+		break;
 
 	case WDIOC_KEEPALIVE:
 		ts72xx_wdt_kick(wdt);
@@ -319,10 +321,9 @@ static long ts72xx_wdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_SETOPTIONS: {
 		int options;
 
-		if (get_user(options, p)) {
-			error = -EFAULT;
+		error = get_user(options, p);
+		if (error)
 			break;
-		}
 
 		error = -EINVAL;
 
@@ -340,30 +341,26 @@ static long ts72xx_wdt_ioctl(struct file *file, unsigned int cmd,
 
 	case WDIOC_SETTIMEOUT: {
 		int new_timeout;
+		int regval;
 
-		if (get_user(new_timeout, p)) {
-			error = -EFAULT;
-		} else {
-			int regval;
-
-			regval = timeout_to_regval(new_timeout);
-			if (regval < 0) {
-				error = -EINVAL;
-			} else {
-				ts72xx_wdt_stop(wdt);
-				wdt->regval = regval;
-				ts72xx_wdt_start(wdt);
-			}
-		}
+		error = get_user(new_timeout, p);
 		if (error)
 			break;
+
+		regval = timeout_to_regval(new_timeout);
+		if (regval < 0) {
+			error = regval;
+			break;
+		}
+		ts72xx_wdt_stop(wdt);
+		wdt->regval = regval;
+		ts72xx_wdt_start(wdt);
 
 		/*FALLTHROUGH*/
 	}
 
 	case WDIOC_GETTIMEOUT:
-		if (put_user(regval_to_timeout(wdt->regval), p))
-			error = -EFAULT;
+		error = put_user(regval_to_timeout(wdt->regval), p);
 		break;
 
 	default:
@@ -397,10 +394,8 @@ static int ts72xx_wdt_probe(struct platform_device *pdev)
 	int error = 0;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(struct ts72xx_wdt), GFP_KERNEL);
-	if (!wdt) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!wdt)
 		return -ENOMEM;
-	}
 
 	r1 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->control_reg = devm_ioremap_resource(&pdev->dev, r1);

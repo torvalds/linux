@@ -11,13 +11,13 @@ config HAVE_PATA_PLATFORM
 	  to update the PATA_PLATFORM entry.
 
 menuconfig ATA
-	tristate "Serial ATA and Parallel ATA drivers"
+	tristate "Serial ATA and Parallel ATA drivers (libata)"
 	depends on HAS_IOMEM
 	depends on BLOCK
 	depends on !(M32R || M68K || S390) || BROKEN
 	select SCSI
 	---help---
-	  If you want to use a ATA hard disk, ATA tape drive, ATA CD-ROM or
+	  If you want to use an ATA hard disk, ATA tape drive, ATA CD-ROM or
 	  any other ATA device under Linux, say Y and make sure that you know
 	  the name of your ATA host adapter (the card inside your computer
 	  that "speaks" the ATA protocol, also called ATA controller),
@@ -60,7 +60,7 @@ config ATA_ACPI
 
 config SATA_ZPODD
 	bool "SATA Zero Power Optical Disc Drive (ZPODD) support"
-	depends on ATA_ACPI
+	depends on ATA_ACPI && PM_RUNTIME
 	default n
 	help
 	  This option adds support for SATA Zero Power Optical Disc
@@ -97,14 +97,55 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
+config AHCI_DA850
+	tristate "DaVinci DA850 AHCI SATA support"
+	depends on ARCH_DAVINCI_DA850
+	help
+	  This option enables support for the DaVinci DA850 SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
+config AHCI_ST
+	tristate "ST AHCI SATA support"
+	depends on ARCH_STI
+	help
+	  This option enables support for ST AHCI SATA controller.
+
+	  If unsure, say N.
+
 config AHCI_IMX
 	tristate "Freescale i.MX AHCI SATA support"
-	depends on SATA_AHCI_PLATFORM && MFD_SYSCON
+	depends on MFD_SYSCON && (ARCH_MXC || COMPILE_TEST)
 	help
 	  This option enables support for the Freescale i.MX SoC's
 	  onboard AHCI SATA.
 
 	  If unsure, say N.
+
+config AHCI_MVEBU
+	tristate "Marvell EBU AHCI SATA support"
+	depends on ARCH_MVEBU
+	help
+	  This option enables support for the Marvebu EBU SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
+config AHCI_SUNXI
+	tristate "Allwinner sunxi AHCI SATA support"
+	depends on ARCH_SUNXI
+	help
+	  This option enables support for the Allwinner sunxi SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
+config AHCI_XGENE
+	tristate "APM X-Gene 6.0Gbps AHCI SATA host controller support"
+	depends on PHY_XGENE
+	help
+	 This option enables support for APM X-Gene SoC SATA host controller.
 
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
@@ -239,6 +280,7 @@ config SATA_DWC_VDEBUG
 
 config SATA_HIGHBANK
 	tristate "Calxeda Highbank SATA support"
+	depends on ARCH_HIGHBANK || COMPILE_TEST
 	help
 	  This option enables support for the Calxeda Highbank SoC's
 	  onboard SATA.
@@ -247,6 +289,9 @@ config SATA_HIGHBANK
 
 config SATA_MV
 	tristate "Marvell SATA support"
+	depends on PCI || ARCH_DOVE || ARCH_KIRKWOOD || ARCH_MV78XX0 || \
+		   ARCH_MVEBU || ARCH_ORION5X || COMPILE_TEST
+	select GENERIC_PHY
 	help
 	  This option enables support for the Marvell Serial ATA family.
 	  Currently supports 88SX[56]0[48][01] PCI(-X) chips,
@@ -272,6 +317,7 @@ config SATA_PROMISE
 
 config SATA_RCAR
 	tristate "Renesas R-Car SATA support"
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  This option enables support for Renesas R-Car Serial ATA.
 
@@ -351,6 +397,7 @@ config PATA_AMD
 
 config PATA_ARASAN_CF
 	tristate "ARASAN CompactFlash PATA Controller Support"
+	depends on ARCH_SPEAR13XX || COMPILE_TEST
 	depends on DMADEVICES
 	select DMA_ENGINE
 	help
@@ -402,7 +449,7 @@ config PATA_CMD64X
 
 config PATA_CS5520
 	tristate "CS5510/5520 PATA support"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	help
 	  This option enables support for the Cyrix 5510/5520
 	  companion chip used with the MediaGX/Geode processor family.
@@ -411,7 +458,7 @@ config PATA_CS5520
 
 config PATA_CS5530
 	tristate "CS5530 PATA support"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	help
 	  This option enables support for the Cyrix/NatSemi/AMD CS5530
 	  companion chip used with the MediaGX/Geode processor family.
@@ -420,7 +467,7 @@ config PATA_CS5530
 
 config PATA_CS5535
 	tristate "CS5535 PATA support (Experimental)"
-	depends on PCI && X86 && !X86_64
+	depends on PCI && X86_32
 	help
 	  This option enables support for the NatSemi/AMD CS5535
 	  companion chip used with the Geode processor family.
@@ -429,7 +476,7 @@ config PATA_CS5535
 
 config PATA_CS5536
 	tristate "CS5536 PATA support"
-	depends on PCI
+	depends on PCI && (X86_32 || MIPS || COMPILE_TEST)
 	help
 	  This option enables support for the AMD CS5536
 	  companion chip used with the Geode LX processor family.
@@ -665,7 +712,7 @@ config PATA_RDC
 
 config PATA_SC1200
 	tristate "SC1200 PATA support"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	help
 	  This option enables support for the NatSemi/AMD SC1200 SoC
 	  companion chip used with the Geode processor family.
@@ -777,7 +824,7 @@ config PATA_AT32
 
 config PATA_AT91
 	tristate "PATA support for AT91SAM9260"
-	depends on ARM && ARCH_AT91
+	depends on ARM && SOC_AT91SAM9
 	help
 	  This option enables support for IDE devices on the Atmel AT91SAM9260 SoC.
 

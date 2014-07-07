@@ -51,9 +51,9 @@
 #define WDT_STEP_TIME              0x10	/* BIT_4 */
 
 #define WD_MIN_TIME_GET(desc)   (desc & 0xf)
-#define WD_STEP_COUNT_GET(desc) (desc>>5) & 0xf
+#define WD_STEP_COUNT_GET(desc) ((desc>>5) & 0xf)
 
-typedef enum {
+enum {
 	IS_BYPASS = 1,
 	GET_BYPASS_SLAVE,
 	GET_BYPASS_CAPS,
@@ -101,9 +101,9 @@ typedef enum {
 	SET_BP_WAIT_AT_PWUP,
 	GET_BP_HW_RESET,
 	SET_BP_HW_RESET,
-} CMND_TYPE;
+};
 
-typedef enum {
+enum {
 	IF_SCAN_SD,
 	GET_DEV_NUM_SD,
 	IS_BYPASS_SD,
@@ -154,9 +154,9 @@ typedef enum {
 	GET_BP_HW_RESET_SD,
 	SET_BP_HW_RESET_SD,
 
-} CMND_TYPE_SD;
+};
 
-#define SIOCGIFBYPASS SIOCDEVPRIVATE+10
+#define SIOCGIFBYPASS (SIOCDEVPRIVATE+10)
 
 struct bp_info {
 	char prod_name[14];

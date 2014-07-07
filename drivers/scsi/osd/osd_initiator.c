@@ -731,7 +731,7 @@ static int _osd_req_list_objects(struct osd_request *or,
 
 	bio->bi_rw &= ~REQ_WRITE;
 	or->in.bio = bio;
-	or->in.total_bytes = bio->bi_size;
+	or->in.total_bytes = bio->bi_iter.bi_size;
 	return 0;
 }
 
@@ -1570,6 +1570,7 @@ static struct request *_make_request(struct request_queue *q, bool has_write,
 		if (unlikely(!req))
 			return ERR_PTR(-ENOMEM);
 
+		blk_rq_set_block_pc(req);
 		return req;
 	}
 }
@@ -1590,7 +1591,6 @@ static int _init_blk_request(struct osd_request *or,
 	}
 
 	or->request = req;
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
 	req->cmd_flags |= REQ_QUIET;
 
 	req->timeout = or->timeout;
@@ -1608,7 +1608,7 @@ static int _init_blk_request(struct osd_request *or,
 				ret = PTR_ERR(req);
 				goto out;
 			}
-			req->cmd_type = REQ_TYPE_BLOCK_PC;
+			blk_rq_set_block_pc(req);
 			or->in.req = or->request->next_rq = req;
 		}
 	} else if (has_in)

@@ -69,10 +69,18 @@ struct exynos_ppmu {
 	bool count_overflow[PPMU_PMNCNT_MAX];
 };
 
+struct busfreq_ppmu_data {
+	struct exynos_ppmu *ppmu;
+	int ppmu_end;
+};
+
 void exynos_ppmu_reset(void __iomem *ppmu_base);
 void exynos_ppmu_setevent(void __iomem *ppmu_base, unsigned int ch,
 			unsigned int evt);
 void exynos_ppmu_start(void __iomem *ppmu_base);
 void exynos_ppmu_stop(void __iomem *ppmu_base);
 unsigned int exynos_ppmu_read(void __iomem *ppmu_base, unsigned int ch);
+void busfreq_mon_reset(struct busfreq_ppmu_data *ppmu_data);
+void exynos_read_ppmu(struct busfreq_ppmu_data *ppmu_data);
+int exynos_get_busier_ppmu(struct busfreq_ppmu_data *ppmu_data);
 #endif /* __DEVFREQ_EXYNOS_PPMU_H */

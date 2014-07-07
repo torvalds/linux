@@ -165,17 +165,11 @@ struct fusbh200_hcd {			/* one per controller */
 	u8			sbrn;		/* packed release number */
 
 	/* irq statistics */
-#ifdef FUSBH200_STATS
 	struct fusbh200_stats	stats;
 #	define COUNT(x) do { (x)++; } while (0)
-#else
-#	define COUNT(x) do {} while (0)
-#endif
 
 	/* debug files */
-#ifdef DEBUG
 	struct dentry		*debug_dir;
-#endif
 };
 
 /* convert between an HCD pointer and the corresponding FUSBH200_HCD */
@@ -732,12 +726,6 @@ static inline unsigned fusbh200_read_frame_index(struct fusbh200_hcd *fusbh200)
 	(desc)->length - FUSBH200_ITD_LENGTH(t) :			\
 	FUSBH200_ITD_LENGTH(t);					\
 })
-/*-------------------------------------------------------------------------*/
-
-#ifndef DEBUG
-#define STUB_DEBUG_FILES
-#endif	/* DEBUG */
-
 /*-------------------------------------------------------------------------*/
 
 #endif /* __LINUX_FUSBH200_H */

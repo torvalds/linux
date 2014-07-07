@@ -353,7 +353,7 @@ retry_walk:
 		walker->ptes[walker->level - 1] = pte;
 	} while (!is_last_gpte(mmu, walker->level, pte));
 
-	if (unlikely(permission_fault(mmu, pte_access, access))) {
+	if (unlikely(permission_fault(vcpu, mmu, pte_access, access))) {
 		errcode |= PFERR_PRESENT_MASK;
 		goto error;
 	}
@@ -567,6 +567,9 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	 * really care if it changes underneath us after this point).
 	 */
 	if (FNAME(gpte_changed)(vcpu, gw, top_level))
+		goto out_gpte_changed;
+
+	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		goto out_gpte_changed;
 
 	for (shadow_walk_init(&it, vcpu, addr);
@@ -819,6 +822,11 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 	 * help us to skip pte prefetch later.
 	 */
 	mmu_topup_memory_caches(vcpu);
+
+	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa)) {
+		WARN_ON(1);
+		return;
+	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	for_each_shadow_entry(vcpu, gva, iterator) {

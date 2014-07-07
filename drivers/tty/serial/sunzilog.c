@@ -319,7 +319,7 @@ static void sunzilog_kbdms_receive_chars(struct uart_sunzilog_port *up,
 				serio_interrupt(&up->serio, ch, 0);
 #endif
 			break;
-		};
+		}
 	}
 }
 
@@ -897,7 +897,7 @@ sunzilog_convert_to_zs(struct uart_sunzilog_port *up, unsigned int cflag,
 		up->curregs[R5] |= Tx8;
 		up->parity_mask = 0xff;
 		break;
-	};
+	}
 	up->curregs[R4] &= ~0x0c;
 	if (cflag & CSTOPB)
 		up->curregs[R4] |= SB2;
@@ -915,7 +915,7 @@ sunzilog_convert_to_zs(struct uart_sunzilog_port *up, unsigned int cflag,
 	up->port.read_status_mask = Rx_OVR;
 	if (iflag & INPCK)
 		up->port.read_status_mask |= CRC_ERR | PAR_ERR;
-	if (iflag & (BRKINT | PARMRK))
+	if (iflag & (IGNBRK | BRKINT | PARMRK))
 		up->port.read_status_mask |= BRK_ABRT;
 
 	up->port.ignore_status_mask = 0;
@@ -1195,20 +1195,16 @@ sunzilog_console_write(struct console *con, const char *s, unsigned int count)
 	unsigned long flags;
 	int locked = 1;
 
-	local_irq_save(flags);
-	if (up->port.sysrq) {
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = spin_trylock(&up->port.lock);
-	} else
-		spin_lock(&up->port.lock);
+	if (up->port.sysrq || oops_in_progress)
+		locked = spin_trylock_irqsave(&up->port.lock, flags);
+	else
+		spin_lock_irqsave(&up->port.lock, flags);
 
 	uart_console_write(&up->port, s, count, sunzilog_putchar);
 	udelay(2);
 
 	if (locked)
-		spin_unlock(&up->port.lock);
-	local_irq_restore(flags);
+		spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
 static int __init sunzilog_console_setup(struct console *con, char *options)
@@ -1239,7 +1235,7 @@ static int __init sunzilog_console_setup(struct console *con, char *options)
 	default: case B9600: baud = 9600; break;
 	case B19200: baud = 19200; break;
 	case B38400: baud = 38400; break;
-	};
+	}
 
 	brg = BPS_TO_BRG(baud, ZS_CLOCK / ZS_CLOCK_DIVISOR);
 

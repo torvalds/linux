@@ -1253,11 +1253,12 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 			num_outstreams,	num_instreams, &pcm);
 	if (err < 0)
 		return err;
+
 	/* pointer to ops struct is stored, dont change ops afterwards! */
-		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-				&snd_card_asihpi_playback_mmap_ops);
-		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
-				&snd_card_asihpi_capture_mmap_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+			&snd_card_asihpi_playback_mmap_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
+			&snd_card_asihpi_capture_mmap_ops);
 
 	pcm->private_data = asihpi;
 	pcm->info_flags = 0;
@@ -1913,6 +1914,7 @@ static int snd_asihpi_tuner_band_put(struct snd_kcontrol *kcontrol,
 	struct snd_card_asihpi *asihpi = snd_kcontrol_chip(kcontrol);
 	*/
 	u32 h_control = kcontrol->private_value;
+	unsigned int idx;
 	u16 band;
 	u16 tuner_bands[HPI_TUNER_BAND_LAST];
 	u32 num_bands = 0;
@@ -1920,7 +1922,10 @@ static int snd_asihpi_tuner_band_put(struct snd_kcontrol *kcontrol,
 	num_bands = asihpi_tuner_band_query(kcontrol, tuner_bands,
 			HPI_TUNER_BAND_LAST);
 
-	band = tuner_bands[ucontrol->value.enumerated.item[0]];
+	idx = ucontrol->value.enumerated.item[0];
+	if (idx >= ARRAY_SIZE(tuner_bands))
+		idx = ARRAY_SIZE(tuner_bands) - 1;
+	band = tuner_bands[idx];
 	hpi_handle_error(hpi_tuner_set_band(h_control, band));
 
 	return 1;
@@ -2383,7 +2388,8 @@ static int snd_asihpi_clksrc_put(struct snd_kcontrol *kcontrol,
 	struct snd_card_asihpi *asihpi =
 			(struct snd_card_asihpi *)(kcontrol->private_data);
 	struct clk_cache *clkcache = &asihpi->cc;
-	int change, item;
+	unsigned int item;
+	int change;
 	u32 h_control = kcontrol->private_value;
 
 	change = 1;
@@ -2822,25 +2828,19 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	hpi = pci_get_drvdata(pci_dev);
 	adapter_index = hpi->adapter->index;
 	/* first try to give the card the same index as its hardware index */
-	err = snd_card_create(adapter_index,
-			      id[adapter_index], THIS_MODULE,
-			      sizeof(struct snd_card_asihpi),
-			      &card);
+	err = snd_card_new(&pci_dev->dev, adapter_index, id[adapter_index],
+			   THIS_MODULE, sizeof(struct snd_card_asihpi), &card);
 	if (err < 0) {
 		/* if that fails, try the default index==next available */
-		err =
-		    snd_card_create(index[dev], id[dev],
-				    THIS_MODULE,
-				    sizeof(struct snd_card_asihpi),
-				    &card);
+		err = snd_card_new(&pci_dev->dev, index[dev], id[dev],
+				   THIS_MODULE, sizeof(struct snd_card_asihpi),
+				   &card);
 		if (err < 0)
 			return err;
 		snd_printk(KERN_WARNING
 			"**** WARNING **** Adapter index %d->ALSA index %d\n",
 			adapter_index, card->number);
 	}
-
-	snd_card_set_dev(card, &pci_dev->dev);
 
 	asihpi = card->private_data;
 	asihpi->card = card;

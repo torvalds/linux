@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #ifndef _DMA_FIFO_H_
@@ -85,15 +81,15 @@ static inline bool dp_is_completed(struct dma_pending *dp)
 	return (unsigned long)dp->data & 1UL;
 }
 
-extern void dma_fifo_init(struct dma_fifo *fifo);
-extern int dma_fifo_alloc(struct dma_fifo *fifo, int size, unsigned align,
-			  int tx_limit, int open_limit, gfp_t gfp_mask);
-extern void dma_fifo_free(struct dma_fifo *fifo);
-extern void dma_fifo_reset(struct dma_fifo *fifo);
-extern int dma_fifo_in(struct dma_fifo *fifo, const void *src, int n);
-extern int dma_fifo_out_pend(struct dma_fifo *fifo, struct dma_pending *pended);
-extern int dma_fifo_out_complete(struct dma_fifo *fifo,
-				 struct dma_pending *complete);
+void dma_fifo_init(struct dma_fifo *fifo);
+int dma_fifo_alloc(struct dma_fifo *fifo, int size, unsigned align,
+		   int tx_limit, int open_limit, gfp_t gfp_mask);
+void dma_fifo_free(struct dma_fifo *fifo);
+void dma_fifo_reset(struct dma_fifo *fifo);
+int dma_fifo_in(struct dma_fifo *fifo, const void *src, int n);
+int dma_fifo_out_pend(struct dma_fifo *fifo, struct dma_pending *pended);
+int dma_fifo_out_complete(struct dma_fifo *fifo,
+			  struct dma_pending *complete);
 
 /* returns the # of used bytes in the fifo */
 static inline int dma_fifo_level(struct dma_fifo *fifo)

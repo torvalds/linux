@@ -73,6 +73,8 @@ struct wlcore_ops {
 	void (*tx_immediate_compl)(struct wl1271 *wl);
 	int (*hw_init)(struct wl1271 *wl);
 	int (*init_vif)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
+	void (*convert_fw_status)(struct wl1271 *wl, void *raw_fw_status,
+				  struct wl_fw_status *fw_status);
 	u32 (*sta_get_ap_rate_mask)(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif);
 	int (*get_pg_ver)(struct wl1271 *wl, s8 *ver);
@@ -110,6 +112,7 @@ struct wlcore_ops {
 			    struct ieee80211_sta_ht_cap *ht_cap,
 			    bool allow_ht_operation,
 			    u32 rate_set, u8 hlid);
+	u32 (*convert_hwaddr)(struct wl1271 *wl, u32 hwaddr);
 	bool (*lnk_high_prio)(struct wl1271 *wl, u8 hlid,
 			      struct wl1271_link *lnk);
 	bool (*lnk_low_prio)(struct wl1271 *wl, u8 hlid,
@@ -219,7 +222,7 @@ struct wl1271 {
 	int channel;
 	u8 system_hlid;
 
-	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
+	unsigned long links_map[BITS_TO_LONGS(WLCORE_MAX_LINKS)];
 	unsigned long roles_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 	unsigned long roc_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 	unsigned long rate_policies_map[
@@ -227,7 +230,7 @@ struct wl1271 {
 	unsigned long klv_templates_map[
 			BITS_TO_LONGS(WLCORE_MAX_KLV_TEMPLATES)];
 
-	u8 session_ids[WL12XX_MAX_LINKS];
+	u8 session_ids[WLCORE_MAX_LINKS];
 
 	struct list_head wlvif_list;
 
@@ -290,6 +293,12 @@ struct wl1271 {
 	/* Number of valid bytes in the FW log buffer */
 	ssize_t fwlog_size;
 
+	/* FW log end marker */
+	u32 fwlog_end;
+
+	/* FW memory block size */
+	u32 fw_mem_block_size;
+
 	/* Sysfs FW log entry readers wait queue */
 	wait_queue_head_t fwlog_waitq;
 
@@ -307,6 +316,8 @@ struct wl1271 {
 
 	/* The mbox event mask */
 	u32 event_mask;
+	/* events to unmask only when ap interface is up */
+	u32 ap_event_mask;
 
 	/* Mailbox pointers */
 	u32 mbox_size;
@@ -337,8 +348,8 @@ struct wl1271 {
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
-	struct wl_fw_status_1 *fw_status_1;
-	struct wl_fw_status_2 *fw_status_2;
+	void *raw_fw_status;
+	struct wl_fw_status *fw_status;
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
 	/* Current chipset configuration */
@@ -367,7 +378,7 @@ struct wl1271 {
 	 * AP-mode - links indexed by HLID. The global and broadcast links
 	 * are always active.
 	 */
-	struct wl1271_link links[WL12XX_MAX_LINKS];
+	struct wl1271_link links[WLCORE_MAX_LINKS];
 
 	/* number of currently active links */
 	int active_link_count;
@@ -395,6 +406,9 @@ struct wl1271 {
 
 	/* AP-mode - number of currently connected stations */
 	int active_sta_count;
+
+	/* Flag determining whether AP should broadcast OFDM-only rates */
+	bool ofdm_only_ap;
 
 	/* last wlvif we transmitted from */
 	struct wl12xx_vif *last_wlvif;
@@ -425,6 +439,10 @@ struct wl1271 {
 	u32 num_tx_desc;
 	/* number of RX descriptors the HW supports. */
 	u32 num_rx_desc;
+	/* number of links the HW supports */
+	u8 num_links;
+	/* max stations a single AP can support */
+	u8 max_ap_stations;
 
 	/* translate HW Tx rates to standard rate-indices */
 	const u8 **band_rate_to_idx;
@@ -439,10 +457,11 @@ struct wl1271 {
 	struct ieee80211_sta_ht_cap ht_cap[WLCORE_NUM_BANDS];
 
 	/* size of the private FW status data */
+	size_t fw_status_len;
 	size_t fw_status_priv_len;
 
 	/* RX Data filter rule state - enabled/disabled */
-	bool rx_filter_enabled[WL1271_MAX_RX_FILTERS];
+	unsigned long rx_filter_enabled[BITS_TO_LONGS(WL1271_MAX_RX_FILTERS)];
 
 	/* size of the private static data */
 	size_t static_data_priv_len;
@@ -467,8 +486,9 @@ struct wl1271 {
 
 	struct completion nvs_loading_complete;
 
-	/* number of concurrent channels the HW supports */
-	u32 num_channels;
+	/* interface combinations supported by the hw */
+	const struct ieee80211_iface_combination *iface_combinations;
+	u8 n_iface_combinations;
 };
 
 int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
@@ -481,6 +501,8 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		   struct ieee80211_sta *sta,
 		   struct ieee80211_key_conf *key_conf);
 void wlcore_regdomain_config(struct wl1271 *wl);
+void wlcore_update_inconn_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			      struct wl1271_station *wl_sta, bool in_conn);
 
 static inline void
 wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,

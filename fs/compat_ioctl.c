@@ -680,7 +680,8 @@ static int do_i2c_rdwr_ioctl(unsigned int fd, unsigned int cmd,
 	struct i2c_msg			__user *tmsgs;
 	struct i2c_msg32		__user *umsgs;
 	compat_caddr_t			datap;
-	int				nmsgs, i;
+	u32				nmsgs;
+	int				i;
 
 	if (get_user(nmsgs, &udata->nmsgs))
 		return -EFAULT;
@@ -1537,9 +1538,10 @@ static int compat_ioctl_check_table(unsigned int xcmd)
 	return ioctl_pointer[i] == xcmd;
 }
 
-asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
-				unsigned long arg)
+COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg32)
 {
+	unsigned long arg = arg32;
 	struct fd f = fdget(fd);
 	int error = -EBADF;
 	if (!f.file)
@@ -1583,13 +1585,13 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 		/*FALL THROUGH*/
 
 	default:
-		if (f.file->f_op && f.file->f_op->compat_ioctl) {
+		if (f.file->f_op->compat_ioctl) {
 			error = f.file->f_op->compat_ioctl(f.file, cmd, arg);
 			if (error != -ENOIOCTLCMD)
 				goto out_fput;
 		}
 
-		if (!f.file->f_op || !f.file->f_op->unlocked_ioctl)
+		if (!f.file->f_op->unlocked_ioctl)
 			goto do_ioctl;
 		break;
 	}

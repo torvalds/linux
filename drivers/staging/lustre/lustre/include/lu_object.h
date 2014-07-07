@@ -398,17 +398,6 @@ static inline int lu_device_is_md(const struct lu_device *d)
 }
 
 /**
- * Flags for the object layers.
- */
-enum lu_object_flags {
-	/**
-	 * this flags is set if lu_object_operations::loo_object_init() has
-	 * been called for this layer. Used by lu_object_alloc().
-	 */
-	LU_OBJECT_ALLOCATED = (1 << 0)
-};
-
-/**
  * Common object attributes.
  */
 struct lu_attr {
@@ -486,14 +475,6 @@ struct lu_object {
 	 */
 	struct list_head			 lo_linkage;
 	/**
-	 * Depth. Top level layer depth is 0.
-	 */
-	int				lo_depth;
-	/**
-	 * Flags from enum lu_object_flags.
-	 */
-	__u32					lo_flags;
-	/**
 	 * Link to the device, for debugging.
 	 */
 	struct lu_ref_link                 lo_dev_ref;
@@ -535,6 +516,10 @@ enum lu_object_header_attr {
  */
 struct lu_object_header {
 	/**
+	 * Fid, uniquely identifying this object.
+	 */
+	struct lu_fid		loh_fid;
+	/**
 	 * Object flags from enum lu_object_header_flags. Set and checked
 	 * atomically.
 	 */
@@ -543,10 +528,6 @@ struct lu_object_header {
 	 * Object reference count. Protected by lu_site::ls_guard.
 	 */
 	atomic_t	   loh_ref;
-	/**
-	 * Fid, uniquely identifying this object.
-	 */
-	struct lu_fid	  loh_fid;
 	/**
 	 * Common object attributes, cached for efficiency. From enum
 	 * lu_object_header_attr.
@@ -622,7 +603,7 @@ struct lu_site {
 	/**
 	 * objects hash table
 	 */
-	cfs_hash_t	       *ls_obj_hash;
+	struct cfs_hash	       *ls_obj_hash;
 	/**
 	 * index of bucket on hash table while purging
 	 */
@@ -659,7 +640,7 @@ struct lu_site {
 static inline struct lu_site_bkt_data *
 lu_site_bkt_from_fid(struct lu_site *site, struct lu_fid *fid)
 {
-	cfs_hash_bd_t bd;
+	struct cfs_hash_bd bd;
 
 	cfs_hash_bd_get(site->ls_obj_hash, fid, &bd);
 	return cfs_hash_bd_extra_get(site->ls_obj_hash, &bd);

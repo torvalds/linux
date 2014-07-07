@@ -34,7 +34,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -258,8 +257,7 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 
 	if (urb->actual_length != 8) {
 		dev_warn(&dev->intf->dev,
-			"Urb length was %d bytes!!"
-			"Do something intelligent\n",
+			"Urb length was %d bytes!! Do something intelligent\n",
 			 urb->actual_length);
 	} else {
 		dbg_info(&dev->intf->dev,
@@ -273,8 +271,8 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 			 dev->interrupt_in_buffer[6],
 			 dev->interrupt_in_buffer[7]);
 #if SUPPRESS_EXTRA_OFFLINE_EVENTS
-	if (dev->offline == 2 && dev->interrupt_in_buffer[1] == 0xff)
-		goto resubmit;
+		if (dev->offline == 2 && dev->interrupt_in_buffer[1] == 0xff)
+			goto resubmit;
 		if (dev->offline == 1 && dev->interrupt_in_buffer[1] == 0xff) {
 			dev->offline = 2;
 			goto resubmit;
@@ -287,8 +285,8 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 			dev->offline = 1;
 
 #endif	/* SUPPRESS_EXTRA_OFFLINE_EVENTS */
-	   dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n",
-		__func__, dev->ring_head, dev->ring_tail);
+		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n",
+			 __func__, dev->ring_head, dev->ring_tail);
 
 		next_ring_head = (dev->ring_head + 1) % ring_buffer_size;
 
@@ -477,6 +475,7 @@ static unsigned int usb_tranzport_poll(struct file *file, poll_table *wait)
 {
 	struct usb_tranzport *dev;
 	unsigned int mask = 0;
+
 	dev = file->private_data;
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
@@ -543,8 +542,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer,
 	}
 
 	dbg_info(&dev->intf->dev,
-		"%s: copying to userspace: "
-		"%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		"%s: copying to userspace: %02x%02x%02x%02x%02x%02x%02x%02x\n",
 		 __func__,
 		 (*dev->ring_buffer)[dev->ring_tail].cmd[0],
 		 (*dev->ring_buffer)[dev->ring_tail].cmd[1],
@@ -571,8 +569,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer,
 			 * and we are the same sign, we can compress +- 7F
 			 */
 			dbg_info(&dev->intf->dev,
-				"%s: trying to compress: "
-				"%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				"%s: trying to compress: %02x%02x%02x%02x%02x%02x%02x%02x\n",
 				__func__,
 				(*dev->ring_buffer)[dev->ring_tail].cmd[0],
 				(*dev->ring_buffer)[dev->ring_tail].cmd[1],
@@ -831,8 +828,7 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 	}
 	if (dev->interrupt_out_endpoint == NULL)
 		dev_warn(&intf->dev,
-			"Interrupt out endpoint not found"
-			"(using control endpoint instead)\n");
+			"Interrupt out endpoint not found (using control endpoint instead)\n");
 
 	dev->interrupt_in_endpoint_size =
 	    le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize);
@@ -942,6 +938,7 @@ static void usb_tranzport_disconnect(struct usb_interface *intf)
 {
 	struct usb_tranzport *dev;
 	int minor;
+
 	mutex_lock(&disconnect_mutex);
 	dev = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);

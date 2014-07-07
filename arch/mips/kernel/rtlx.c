@@ -1,114 +1,51 @@
 /*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
  * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
  * Copyright (C) 2005, 06 Ralf Baechle (ralf@linux-mips.org)
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
+ * Copyright (C) 2013 Imagination Technologies Ltd.
  */
-
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
-#include <linux/init.h>
-#include <asm/uaccess.h>
-#include <linux/list.h>
-#include <linux/vmalloc.h>
-#include <linux/elf.h>
-#include <linux/seq_file.h>
 #include <linux/syscalls.h>
 #include <linux/moduleloader.h>
-#include <linux/interrupt.h>
-#include <linux/poll.h>
-#include <linux/sched.h>
-#include <linux/wait.h>
+#include <linux/atomic.h>
 #include <asm/mipsmtregs.h>
 #include <asm/mips_mt.h>
-#include <asm/cacheflush.h>
-#include <linux/atomic.h>
-#include <asm/cpu.h>
 #include <asm/processor.h>
-#include <asm/vpe.h>
 #include <asm/rtlx.h>
 #include <asm/setup.h>
+#include <asm/vpe.h>
 
-static struct rtlx_info *rtlx;
-static int major;
-static char module_name[] = "rtlx";
-
-static struct chan_waitqueues {
-	wait_queue_head_t rt_queue;
-	wait_queue_head_t lx_queue;
-	atomic_t in_open;
-	struct mutex mutex;
-} channel_wqs[RTLX_CHANNELS];
-
-static struct vpe_notifications notify;
 static int sp_stopping;
-
-extern void *vpe_get_shared(int index);
-
-static void rtlx_dispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ);
-}
-
-
-/* Interrupt handler may be called before rtlx_init has otherwise had
-   a chance to run.
-*/
-static irqreturn_t rtlx_interrupt(int irq, void *dev_id)
-{
-	unsigned int vpeflags;
-	unsigned long flags;
-	int i;
-
-	/* Ought not to be strictly necessary for SMTC builds */
-	local_irq_save(flags);
-	vpeflags = dvpe();
-	set_c0_status(0x100 << MIPS_CPU_RTLX_IRQ);
-	irq_enable_hazard();
-	evpe(vpeflags);
-	local_irq_restore(flags);
-
-	for (i = 0; i < RTLX_CHANNELS; i++) {
-			wake_up(&channel_wqs[i].lx_queue);
-			wake_up(&channel_wqs[i].rt_queue);
-	}
-
-	return IRQ_HANDLED;
-}
+struct rtlx_info *rtlx;
+struct chan_waitqueues channel_wqs[RTLX_CHANNELS];
+struct vpe_notifications rtlx_notify;
+void (*aprp_hook)(void) = NULL;
+EXPORT_SYMBOL(aprp_hook);
 
 static void __used dump_rtlx(void)
 {
 	int i;
 
-	printk("id 0x%lx state %d\n", rtlx->id, rtlx->state);
+	pr_info("id 0x%lx state %d\n", rtlx->id, rtlx->state);
 
 	for (i = 0; i < RTLX_CHANNELS; i++) {
 		struct rtlx_channel *chan = &rtlx->channel[i];
 
-		printk(" rt_state %d lx_state %d buffer_size %d\n",
-		       chan->rt_state, chan->lx_state, chan->buffer_size);
+		pr_info(" rt_state %d lx_state %d buffer_size %d\n",
+			chan->rt_state, chan->lx_state, chan->buffer_size);
 
-		printk(" rt_read %d rt_write %d\n",
-		       chan->rt_read, chan->rt_write);
+		pr_info(" rt_read %d rt_write %d\n",
+			chan->rt_read, chan->rt_write);
 
-		printk(" lx_read %d lx_write %d\n",
-		       chan->lx_read, chan->lx_write);
+		pr_info(" lx_read %d lx_write %d\n",
+			chan->lx_read, chan->lx_write);
 
-		printk(" rt_buffer <%s>\n", chan->rt_buffer);
-		printk(" lx_buffer <%s>\n", chan->lx_buffer);
+		pr_info(" rt_buffer <%s>\n", chan->rt_buffer);
+		pr_info(" lx_buffer <%s>\n", chan->lx_buffer);
 	}
 }
 
@@ -116,8 +53,7 @@ static void __used dump_rtlx(void)
 static int rtlx_init(struct rtlx_info *rtlxi)
 {
 	if (rtlxi->id != RTLX_ID) {
-		printk(KERN_ERR "no valid RTLX id at 0x%p 0x%lx\n",
-			rtlxi, rtlxi->id);
+		pr_err("no valid RTLX id at 0x%p 0x%lx\n", rtlxi, rtlxi->id);
 		return -ENOEXEC;
 	}
 
@@ -127,20 +63,20 @@ static int rtlx_init(struct rtlx_info *rtlxi)
 }
 
 /* notifications */
-static void starting(int vpe)
+void rtlx_starting(int vpe)
 {
 	int i;
 	sp_stopping = 0;
 
 	/* force a reload of rtlx */
-	rtlx=NULL;
+	rtlx = NULL;
 
 	/* wake up any sleeping rtlx_open's */
 	for (i = 0; i < RTLX_CHANNELS; i++)
 		wake_up_interruptible(&channel_wqs[i].lx_queue);
 }
 
-static void stopping(int vpe)
+void rtlx_stopping(int vpe)
 {
 	int i;
 
@@ -158,30 +94,30 @@ int rtlx_open(int index, int can_sleep)
 	int ret = 0;
 
 	if (index >= RTLX_CHANNELS) {
-		printk(KERN_DEBUG "rtlx_open index out of range\n");
+		pr_debug(KERN_DEBUG "rtlx_open index out of range\n");
 		return -ENOSYS;
 	}
 
 	if (atomic_inc_return(&channel_wqs[index].in_open) > 1) {
-		printk(KERN_DEBUG "rtlx_open channel %d already opened\n",
-		       index);
+		pr_debug(KERN_DEBUG "rtlx_open channel %d already opened\n", index);
 		ret = -EBUSY;
 		goto out_fail;
 	}
 
 	if (rtlx == NULL) {
-		if( (p = vpe_get_shared(tclimit)) == NULL) {
-		    if (can_sleep) {
-			__wait_event_interruptible(channel_wqs[index].lx_queue,
-				(p = vpe_get_shared(tclimit)), ret);
-			if (ret)
+		p = vpe_get_shared(aprp_cpu_index());
+		if (p == NULL) {
+			if (can_sleep) {
+				ret = __wait_event_interruptible(
+					channel_wqs[index].lx_queue,
+					(p = vpe_get_shared(aprp_cpu_index())));
+				if (ret)
+					goto out_fail;
+			} else {
+				pr_debug("No SP program loaded, and device opened with O_NONBLOCK\n");
+				ret = -ENOSYS;
 				goto out_fail;
-		    } else {
-			printk(KERN_DEBUG "No SP program loaded, and device "
-					"opened with O_NONBLOCK\n");
-			ret = -ENOSYS;
-			goto out_fail;
-		    }
+			}
 		}
 
 		smp_rmb();
@@ -203,24 +139,24 @@ int rtlx_open(int index, int can_sleep)
 					ret = -ERESTARTSYS;
 					goto out_fail;
 				}
-				finish_wait(&channel_wqs[index].lx_queue, &wait);
+				finish_wait(&channel_wqs[index].lx_queue,
+					    &wait);
 			} else {
-				pr_err(" *vpe_get_shared is NULL. "
-				       "Has an SP program been loaded?\n");
+				pr_err(" *vpe_get_shared is NULL. Has an SP program been loaded?\n");
 				ret = -ENOSYS;
 				goto out_fail;
 			}
 		}
 
 		if ((unsigned int)*p < KSEG0) {
-			printk(KERN_WARNING "vpe_get_shared returned an "
-			       "invalid pointer maybe an error code %d\n",
-			       (int)*p);
+			pr_warn("vpe_get_shared returned an invalid pointer maybe an error code %d\n",
+				(int)*p);
 			ret = -ENOSYS;
 			goto out_fail;
 		}
 
-		if ((ret = rtlx_init(*p)) < 0)
+		ret = rtlx_init(*p);
+		if (ret < 0)
 			goto out_ret;
 	}
 
@@ -263,11 +199,10 @@ unsigned int rtlx_read_poll(int index, int can_sleep)
 	/* data available to read? */
 	if (chan->lx_read == chan->lx_write) {
 		if (can_sleep) {
-			int ret = 0;
-
-			__wait_event_interruptible(channel_wqs[index].lx_queue,
+			int ret = __wait_event_interruptible(
+				channel_wqs[index].lx_queue,
 				(chan->lx_read != chan->lx_write) ||
-				sp_stopping, ret);
+				sp_stopping);
 			if (ret)
 				return ret;
 
@@ -352,7 +287,7 @@ ssize_t rtlx_write(int index, const void __user *buffer, size_t count)
 	size_t fl;
 
 	if (rtlx == NULL)
-		return(-ENOSYS);
+		return -ENOSYS;
 
 	rt = &rtlx->channel[index];
 
@@ -361,8 +296,8 @@ ssize_t rtlx_write(int index, const void __user *buffer, size_t count)
 	rt_read = rt->rt_read;
 
 	/* total number of bytes to copy */
-	count = min(count, (size_t)write_spacefree(rt_read, rt->rt_write,
-							rt->buffer_size));
+	count = min_t(size_t, count, write_spacefree(rt_read, rt->rt_write,
+						     rt->buffer_size));
 
 	/* first bit from write pointer to the end of the buffer, or count */
 	fl = min(count, (size_t) rt->buffer_size - rt->rt_write);
@@ -372,9 +307,8 @@ ssize_t rtlx_write(int index, const void __user *buffer, size_t count)
 		goto out;
 
 	/* if there's any left copy to the beginning of the buffer */
-	if (count - fl) {
+	if (count - fl)
 		failed = copy_from_user(rt->rt_buffer, buffer + fl, count - fl);
-	}
 
 out:
 	count -= failed;
@@ -383,6 +317,8 @@ out:
 	rt->rt_write = (rt->rt_write + count) % rt->buffer_size;
 	smp_wmb();
 	mutex_unlock(&channel_wqs[index].mutex);
+
+	_interrupt_sp();
 
 	return count;
 }
@@ -398,7 +334,7 @@ static int file_release(struct inode *inode, struct file *filp)
 	return rtlx_release(iminor(inode));
 }
 
-static unsigned int file_poll(struct file *file, poll_table * wait)
+static unsigned int file_poll(struct file *file, poll_table *wait)
 {
 	int minor = iminor(file_inode(file));
 	unsigned int mask = 0;
@@ -420,34 +356,32 @@ static unsigned int file_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
-static ssize_t file_read(struct file *file, char __user * buffer, size_t count,
-			 loff_t * ppos)
+static ssize_t file_read(struct file *file, char __user *buffer, size_t count,
+			 loff_t *ppos)
 {
 	int minor = iminor(file_inode(file));
 
 	/* data available? */
-	if (!rtlx_read_poll(minor, (file->f_flags & O_NONBLOCK) ? 0 : 1)) {
-		return 0;	// -EAGAIN makes cat whinge
-	}
+	if (!rtlx_read_poll(minor, (file->f_flags & O_NONBLOCK) ? 0 : 1))
+		return 0;	/* -EAGAIN makes 'cat' whine */
 
 	return rtlx_read(minor, buffer, count);
 }
 
-static ssize_t file_write(struct file *file, const char __user * buffer,
-			  size_t count, loff_t * ppos)
+static ssize_t file_write(struct file *file, const char __user *buffer,
+			  size_t count, loff_t *ppos)
 {
 	int minor = iminor(file_inode(file));
 
 	/* any space left... */
 	if (!rtlx_write_poll(minor)) {
-		int ret = 0;
+		int ret;
 
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
-		__wait_event_interruptible(channel_wqs[minor].rt_queue,
-					   rtlx_write_poll(minor),
-					   ret);
+		ret = __wait_event_interruptible(channel_wqs[minor].rt_queue,
+					   rtlx_write_poll(minor));
 		if (ret)
 			return ret;
 	}
@@ -455,99 +389,15 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 	return rtlx_write(minor, buffer, count);
 }
 
-static const struct file_operations rtlx_fops = {
+const struct file_operations rtlx_fops = {
 	.owner =   THIS_MODULE,
-	.open =	   file_open,
+	.open =    file_open,
 	.release = file_release,
 	.write =   file_write,
-	.read =	   file_read,
-	.poll =	   file_poll,
+	.read =    file_read,
+	.poll =    file_poll,
 	.llseek =  noop_llseek,
 };
-
-static struct irqaction rtlx_irq = {
-	.handler	= rtlx_interrupt,
-	.name		= "RTLX",
-};
-
-static int rtlx_irq_num = MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ;
-
-static char register_chrdev_failed[] __initdata =
-	KERN_ERR "rtlx_module_init: unable to register device\n";
-
-static int __init rtlx_module_init(void)
-{
-	struct device *dev;
-	int i, err;
-
-	if (!cpu_has_mipsmt) {
-		printk("VPE loader: not a MIPS MT capable processor\n");
-		return -ENODEV;
-	}
-
-	if (tclimit == 0) {
-		printk(KERN_WARNING "No TCs reserved for AP/SP, not "
-		       "initializing RTLX.\nPass maxtcs=<n> argument as kernel "
-		       "argument\n");
-
-		return -ENODEV;
-	}
-
-	major = register_chrdev(0, module_name, &rtlx_fops);
-	if (major < 0) {
-		printk(register_chrdev_failed);
-		return major;
-	}
-
-	/* initialise the wait queues */
-	for (i = 0; i < RTLX_CHANNELS; i++) {
-		init_waitqueue_head(&channel_wqs[i].rt_queue);
-		init_waitqueue_head(&channel_wqs[i].lx_queue);
-		atomic_set(&channel_wqs[i].in_open, 0);
-		mutex_init(&channel_wqs[i].mutex);
-
-		dev = device_create(mt_class, NULL, MKDEV(major, i), NULL,
-				    "%s%d", module_name, i);
-		if (IS_ERR(dev)) {
-			err = PTR_ERR(dev);
-			goto out_chrdev;
-		}
-	}
-
-	/* set up notifiers */
-	notify.start = starting;
-	notify.stop = stopping;
-	vpe_notify(tclimit, &notify);
-
-	if (cpu_has_vint)
-		set_vi_handler(MIPS_CPU_RTLX_IRQ, rtlx_dispatch);
-	else {
-		pr_err("APRP RTLX init on non-vectored-interrupt processor\n");
-		err = -ENODEV;
-		goto out_chrdev;
-	}
-
-	rtlx_irq.dev_id = rtlx;
-	setup_irq(rtlx_irq_num, &rtlx_irq);
-
-	return 0;
-
-out_chrdev:
-	for (i = 0; i < RTLX_CHANNELS; i++)
-		device_destroy(mt_class, MKDEV(major, i));
-
-	return err;
-}
-
-static void __exit rtlx_module_exit(void)
-{
-	int i;
-
-	for (i = 0; i < RTLX_CHANNELS; i++)
-		device_destroy(mt_class, MKDEV(major, i));
-
-	unregister_chrdev(major, module_name);
-}
 
 module_init(rtlx_module_init);
 module_exit(rtlx_module_exit);

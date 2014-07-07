@@ -12,7 +12,7 @@
  *	Copyright (c) 2003       Margit Schubert-While <margitsw@t-online.de>
  *
  * derived in part from w83l785ts.c:
- *	Copyright (c) 2003-2004 Jean Delvare <khali@linux-fr.org>
+ *	Copyright (c) 2003-2004 Jean Delvare <jdelvare@suse.de>
  *
  * Ported to Linux 2.6 by Eric J. Bowersox <ericb@aspsys.com>
  *	Copyright (c) 2005 Aspen Systems, Inc.
@@ -2747,14 +2747,11 @@ static int lm93_probe(struct i2c_client *client,
 	}
 
 	data = devm_kzalloc(&client->dev, sizeof(struct lm93_data), GFP_KERNEL);
-	if (!data) {
-		dev_dbg(&client->dev, "out of memory!\n");
+	if (!data)
 		return -ENOMEM;
-	}
 	i2c_set_clientdata(client, data);
 
 	/* housekeeping */
-	data->valid = 0;
 	data->update = update;
 	mutex_init(&data->update_lock);
 

@@ -381,7 +381,6 @@ struct snd_pcm_substream {
 	struct pm_qos_request latency_pm_qos_req; /* pm_qos request */
 	size_t buffer_bytes_max;	/* limit ring buffer size */
 	struct snd_dma_buffer dma_buffer;
-	unsigned int dma_buf_id;
 	size_t dma_max;
 	/* -- hardware operations -- */
 	const struct snd_pcm_ops *ops;
@@ -901,6 +900,8 @@ extern const struct snd_pcm_hw_constraint_list snd_pcm_known_rates;
 int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime);
 unsigned int snd_pcm_rate_to_rate_bit(unsigned int rate);
 unsigned int snd_pcm_rate_bit_to_rate(unsigned int rate_bit);
+unsigned int snd_pcm_rate_mask_intersect(unsigned int rates_a,
+					 unsigned int rates_b);
 
 static inline void snd_pcm_set_runtime_buffer(struct snd_pcm_substream *substream,
 					      struct snd_dma_buffer *bufp)
@@ -931,7 +932,7 @@ static inline void snd_pcm_gettime(struct snd_pcm_runtime *runtime,
 				   struct timespec *tv)
 {
 	if (runtime->tstamp_type == SNDRV_PCM_TSTAMP_TYPE_MONOTONIC)
-		do_posix_clock_monotonic_gettime(tv);
+		ktime_get_ts(tv);
 	else
 		getnstimeofday(tv);
 }
@@ -1139,5 +1140,13 @@ static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
 {
 	return 1ULL << (__force int) pcm_format;
 }
+
+/* printk helpers */
+#define pcm_err(pcm, fmt, args...) \
+	dev_err((pcm)->card->dev, fmt, ##args)
+#define pcm_warn(pcm, fmt, args...) \
+	dev_warn((pcm)->card->dev, fmt, ##args)
+#define pcm_dbg(pcm, fmt, args...) \
+	dev_dbg((pcm)->card->dev, fmt, ##args)
 
 #endif /* __SOUND_PCM_H */

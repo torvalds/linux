@@ -22,22 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/timer.h>
-
-#define NV04_PTIMER_INTR_0      0x009100
-#define NV04_PTIMER_INTR_EN_0   0x009140
-#define NV04_PTIMER_NUMERATOR   0x009200
-#define NV04_PTIMER_DENOMINATOR 0x009210
-#define NV04_PTIMER_TIME_0      0x009400
-#define NV04_PTIMER_TIME_1      0x009410
-#define NV04_PTIMER_ALARM_0     0x009420
-
-struct nv04_timer_priv {
-	struct nouveau_timer base;
-	struct list_head alarms;
-	spinlock_t lock;
-	u64 suspend_time;
-};
+#include "nv04.h"
 
 static u64
 nv04_timer_read(struct nouveau_timer *ptimer)
@@ -119,16 +104,8 @@ nv04_timer_alarm_cancel(struct nouveau_timer *ptimer,
 {
 	struct nv04_timer_priv *priv = (void *)ptimer;
 	unsigned long flags;
-
-	/* avoid deleting an entry while the alarm intr is running */
 	spin_lock_irqsave(&priv->lock, flags);
-
-	/* delete the alarm from the list */
-	list_del(&alarm->head);
-
-	/* reset the head so as list_empty returns 1 */
-	INIT_LIST_HEAD(&alarm->head);
-
+	list_del_init(&alarm->head);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
@@ -150,35 +127,14 @@ nv04_timer_intr(struct nouveau_subdev *subdev)
 	}
 }
 
-static int
-nv04_timer_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
-{
-	struct nv04_timer_priv *priv;
-	int ret;
-
-	ret = nouveau_timer_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.base.intr = nv04_timer_intr;
-	priv->base.read = nv04_timer_read;
-	priv->base.alarm = nv04_timer_alarm;
-	priv->base.alarm_cancel = nv04_timer_alarm_cancel;
-	priv->suspend_time = 0;
-
-	INIT_LIST_HEAD(&priv->alarms);
-	spin_lock_init(&priv->lock);
-	return 0;
-}
-
-static void
-nv04_timer_dtor(struct nouveau_object *object)
+int
+nv04_timer_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nv04_timer_priv *priv = (void *)object;
-	return nouveau_timer_destroy(&priv->base);
+	if (suspend)
+		priv->suspend_time = nv04_timer_read(&priv->base);
+	nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000000);
+	return nouveau_timer_fini(&priv->base, suspend);
 }
 
 static int
@@ -265,14 +221,35 @@ nv04_timer_init(struct nouveau_object *object)
 	return 0;
 }
 
-static int
-nv04_timer_fini(struct nouveau_object *object, bool suspend)
+void
+nv04_timer_dtor(struct nouveau_object *object)
 {
 	struct nv04_timer_priv *priv = (void *)object;
-	if (suspend)
-		priv->suspend_time = nv04_timer_read(&priv->base);
-	nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000000);
-	return nouveau_timer_fini(&priv->base, suspend);
+	return nouveau_timer_destroy(&priv->base);
+}
+
+int
+nv04_timer_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		struct nouveau_oclass *oclass, void *data, u32 size,
+		struct nouveau_object **pobject)
+{
+	struct nv04_timer_priv *priv;
+	int ret;
+
+	ret = nouveau_timer_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	priv->base.base.intr = nv04_timer_intr;
+	priv->base.read = nv04_timer_read;
+	priv->base.alarm = nv04_timer_alarm;
+	priv->base.alarm_cancel = nv04_timer_alarm_cancel;
+	priv->suspend_time = 0;
+
+	INIT_LIST_HEAD(&priv->alarms);
+	spin_lock_init(&priv->lock);
+	return 0;
 }
 
 struct nouveau_oclass

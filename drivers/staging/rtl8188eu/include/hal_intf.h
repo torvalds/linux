@@ -166,7 +166,6 @@ struct hal_ops {
 	void	(*DeInitSwLeds)(struct adapter *padapter);
 
 	void	(*dm_init)(struct adapter *padapter);
-	void	(*dm_deinit)(struct adapter *padapter);
 	void	(*read_chip_version)(struct adapter *padapter);
 
 	void	(*init_default_value)(struct adapter *padapter);
@@ -218,9 +217,6 @@ struct hal_ops {
 	void	(*AntDivCompareHandler)(struct adapter *adapter,
 					struct wlan_bssid_ex *dst,
 					struct wlan_bssid_ex *src);
-	u8	(*interface_ps_func)(struct adapter *padapter,
-				     enum hal_intf_ps_func efunc_id, u8 *val);
-
 	s32	(*hal_xmit)(struct adapter *padapter,
 			    struct xmit_frame *pxmitframe);
 	s32 (*mgnt_xmit)(struct adapter *padapter,
@@ -286,38 +282,9 @@ enum rt_eeprom_type {
 #define RF_CHANGE_BY_SW		BIT31
 
 enum hardware_type {
-	HARDWARE_TYPE_RTL8180,
-	HARDWARE_TYPE_RTL8185,
-	HARDWARE_TYPE_RTL8187,
-	HARDWARE_TYPE_RTL8188,
-	HARDWARE_TYPE_RTL8190P,
-	HARDWARE_TYPE_RTL8192E,
-	HARDWARE_TYPE_RTL819xU,
-	HARDWARE_TYPE_RTL8192SE,
-	HARDWARE_TYPE_RTL8192SU,
-	HARDWARE_TYPE_RTL8192CE,
-	HARDWARE_TYPE_RTL8192CU,
-	HARDWARE_TYPE_RTL8192DE,
-	HARDWARE_TYPE_RTL8192DU,
-	HARDWARE_TYPE_RTL8723AE,
-	HARDWARE_TYPE_RTL8723AU,
-	HARDWARE_TYPE_RTL8723AS,
-	HARDWARE_TYPE_RTL8188EE,
 	HARDWARE_TYPE_RTL8188EU,
-	HARDWARE_TYPE_RTL8188ES,
 	HARDWARE_TYPE_MAX,
 };
-
-/*  RTL8188E Series */
-#define IS_HARDWARE_TYPE_8188EE(_Adapter)			\
-(((struct adapter *)_Adapter)->HardwareType == HARDWARE_TYPE_RTL8188EE)
-#define IS_HARDWARE_TYPE_8188EU(_Adapter)			\
-(((struct adapter *)_Adapter)->HardwareType == HARDWARE_TYPE_RTL8188EU)
-#define IS_HARDWARE_TYPE_8188ES(_Adapter)			\
-(((struct adapter *)_Adapter)->HardwareType == HARDWARE_TYPE_RTL8188ES)
-#define	IS_HARDWARE_TYPE_8188E(_Adapter)	\
-(IS_HARDWARE_TYPE_8188EE(_Adapter) || IS_HARDWARE_TYPE_8188EU(_Adapter) || \
- IS_HARDWARE_TYPE_8188ES(_Adapter))
 
 #define GET_EEPROM_EFUSE_PRIV(adapter) (&adapter->eeprompriv)
 
@@ -328,7 +295,6 @@ void rtw_hal_def_value_init(struct adapter *padapter);
 void	rtw_hal_free_data(struct adapter *padapter);
 
 void rtw_hal_dm_init(struct adapter *padapter);
-void rtw_hal_dm_deinit(struct adapter *padapter);
 void rtw_hal_sw_led_init(struct adapter *padapter);
 void rtw_hal_sw_led_deinit(struct adapter *padapter);
 
@@ -360,9 +326,6 @@ void rtw_hal_disable_interrupt(struct adapter *padapter);
 
 u32	rtw_hal_inirp_init(struct adapter *padapter);
 u32	rtw_hal_inirp_deinit(struct adapter *padapter);
-
-u8	rtw_hal_intf_ps_func(struct adapter *padapter,
-			     enum hal_intf_ps_func efunc_id, u8 *val);
 
 s32	rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe);
 s32	rtw_hal_mgnt_xmit(struct adapter *padapter,

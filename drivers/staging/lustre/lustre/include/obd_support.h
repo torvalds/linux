@@ -256,6 +256,7 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 #define OBD_FAIL_OSD_SCRUB_FATAL			0x192
 #define OBD_FAIL_OSD_FID_MAPPING			0x193
 #define OBD_FAIL_OSD_LMA_INCOMPAT			0x194
+#define OBD_FAIL_OSD_COMPAT_INVALID_ENTRY		0x195
 
 #define OBD_FAIL_OST		     0x200
 #define OBD_FAIL_OST_CONNECT_NET	 0x201
@@ -416,6 +417,13 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 #define OBD_FAIL_MGC_PAUSE_PROCESS_LOG   0x903
 #define OBD_FAIL_MGS_PAUSE_REQ	   0x904
 #define OBD_FAIL_MGS_PAUSE_TARGET_REG    0x905
+#define OBD_FAIL_MGS_CONNECT_NET	 0x906
+#define OBD_FAIL_MGS_DISCONNECT_NET	 0x907
+#define OBD_FAIL_MGS_SET_INFO_NET	 0x908
+#define OBD_FAIL_MGS_EXCEPTION_NET	 0x909
+#define OBD_FAIL_MGS_TARGET_REG_NET	 0x90a
+#define OBD_FAIL_MGS_TARGET_DEL_NET	 0x90b
+#define OBD_FAIL_MGS_CONFIG_READ_NET	 0x90c
 
 #define OBD_FAIL_QUOTA_DQACQ_NET			0xA01
 #define OBD_FAIL_QUOTA_EDQUOT	    0xA02
@@ -457,6 +465,7 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 #define OBD_FAIL_LOCK_STATE_WAIT_INTR	       0x1402
 #define OBD_FAIL_LOV_INIT			    0x1403
 #define OBD_FAIL_GLIMPSE_DELAY			    0x1404
+#define OBD_FAIL_LLITE_XATTR_ENOMEM		    0x1405
 
 #define OBD_FAIL_FID_INDIR	0x1501
 #define OBD_FAIL_FID_INLMA	0x1502
@@ -498,6 +507,8 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 
 extern atomic_t libcfs_kmemory;
 
+extern void obd_update_maxusage(void);
+
 #ifdef LPROCFS
 #define obd_memory_add(size)						  \
 	lprocfs_counter_add(obd_memory, OBD_MEMORY_STAT, (long)(size))
@@ -516,7 +527,6 @@ extern atomic_t libcfs_kmemory;
 	lprocfs_stats_collector(obd_memory, OBD_MEMORY_PAGES_STAT,	    \
 				LPROCFS_FIELDS_FLAGS_SUM)
 
-extern void obd_update_maxusage(void);
 extern __u64 obd_memory_max(void);
 extern __u64 obd_pages_max(void);
 
@@ -631,19 +641,19 @@ do {									      \
 #define OBD_ALLOC_GFP(ptr, size, gfp_mask)				      \
 	__OBD_MALLOC_VERBOSE(ptr, NULL, 0, size, gfp_mask)
 
-#define OBD_ALLOC(ptr, size) OBD_ALLOC_GFP(ptr, size, __GFP_IO)
-#define OBD_ALLOC_WAIT(ptr, size) OBD_ALLOC_GFP(ptr, size, GFP_IOFS)
-#define OBD_ALLOC_PTR(ptr) OBD_ALLOC(ptr, sizeof *(ptr))
-#define OBD_ALLOC_PTR_WAIT(ptr) OBD_ALLOC_WAIT(ptr, sizeof *(ptr))
+#define OBD_ALLOC(ptr, size) OBD_ALLOC_GFP(ptr, size, GFP_NOFS)
+#define OBD_ALLOC_WAIT(ptr, size) OBD_ALLOC_GFP(ptr, size, GFP_KERNEL)
+#define OBD_ALLOC_PTR(ptr) OBD_ALLOC(ptr, sizeof(*(ptr)))
+#define OBD_ALLOC_PTR_WAIT(ptr) OBD_ALLOC_WAIT(ptr, sizeof(*(ptr)))
 
 #define OBD_CPT_ALLOC_GFP(ptr, cptab, cpt, size, gfp_mask)		      \
 	__OBD_MALLOC_VERBOSE(ptr, cptab, cpt, size, gfp_mask)
 
 #define OBD_CPT_ALLOC(ptr, cptab, cpt, size)				      \
-	OBD_CPT_ALLOC_GFP(ptr, cptab, cpt, size, __GFP_IO)
+	OBD_CPT_ALLOC_GFP(ptr, cptab, cpt, size, GFP_NOFS)
 
 #define OBD_CPT_ALLOC_PTR(ptr, cptab, cpt)				      \
-	OBD_CPT_ALLOC(ptr, cptab, cpt, sizeof *(ptr))
+	OBD_CPT_ALLOC(ptr, cptab, cpt, sizeof(*(ptr)))
 
 # define __OBD_VMALLOC_VEROBSE(ptr, cptab, cpt, size)			      \
 do {									      \
@@ -671,7 +681,7 @@ do {									      \
  *
  * Be very careful when changing this value, especially when decreasing it,
  * since vmalloc in Linux doesn't perform well on multi-cores system, calling
- * vmalloc in critical path would hurt peformance badly. See LU-66.
+ * vmalloc in critical path would hurt performance badly. See LU-66.
  */
 #define OBD_ALLOC_BIG (4 * PAGE_CACHE_SIZE)
 
@@ -773,7 +783,7 @@ do {									      \
 #define OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, size, flags)	      \
 	__OBD_SLAB_ALLOC_VERBOSE(ptr, slab, cptab, cpt, size, flags)
 
-#define OBD_FREE_PTR(ptr) OBD_FREE(ptr, sizeof *(ptr))
+#define OBD_FREE_PTR(ptr) OBD_FREE(ptr, sizeof(*(ptr)))
 
 #define OBD_SLAB_FREE(ptr, slab, size)					\
 do {									  \
@@ -783,25 +793,25 @@ do {									  \
 } while(0)
 
 #define OBD_SLAB_ALLOC(ptr, slab, size)					      \
-	OBD_SLAB_ALLOC_GFP(ptr, slab, size, __GFP_IO)
+	OBD_SLAB_ALLOC_GFP(ptr, slab, size, GFP_NOFS)
 
 #define OBD_SLAB_CPT_ALLOC(ptr, slab, cptab, cpt, size)			      \
-	OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, size, __GFP_IO)
+	OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, size, GFP_NOFS)
 
 #define OBD_SLAB_ALLOC_PTR(ptr, slab)					      \
-	OBD_SLAB_ALLOC(ptr, slab, sizeof *(ptr))
+	OBD_SLAB_ALLOC(ptr, slab, sizeof(*(ptr)))
 
 #define OBD_SLAB_CPT_ALLOC_PTR(ptr, slab, cptab, cpt)			      \
-	OBD_SLAB_CPT_ALLOC(ptr, slab, cptab, cpt, sizeof *(ptr))
+	OBD_SLAB_CPT_ALLOC(ptr, slab, cptab, cpt, sizeof(*(ptr)))
 
 #define OBD_SLAB_ALLOC_PTR_GFP(ptr, slab, flags)			      \
-	OBD_SLAB_ALLOC_GFP(ptr, slab, sizeof *(ptr), flags)
+	OBD_SLAB_ALLOC_GFP(ptr, slab, sizeof(*(ptr)), flags)
 
 #define OBD_SLAB_CPT_ALLOC_PTR_GFP(ptr, slab, cptab, cpt, flags)		      \
-	OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, sizeof *(ptr), flags)
+	OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, sizeof(*(ptr)), flags)
 
 #define OBD_SLAB_FREE_PTR(ptr, slab)					      \
-	OBD_SLAB_FREE((ptr), (slab), sizeof *(ptr))
+	OBD_SLAB_FREE((ptr), (slab), sizeof(*(ptr)))
 
 #define KEY_IS(str) \
 	(keylen >= (sizeof(str)-1) && memcmp(key, str, (sizeof(str)-1)) == 0)

@@ -10,6 +10,7 @@
  */
 
 #include "misc.h"
+#include "../string.h"
 
 /* WARNING!!
  * This code is compiled with -fPIC and it is relocated dynamically
@@ -97,8 +98,14 @@
  */
 #define STATIC		static
 
-#undef memset
 #undef memcpy
+
+/*
+ * Use a normal definition of memset() from string.c. There are already
+ * included header files which expect a definition of memset() and by
+ * the time we define memset macro, it is too late.
+ */
+#undef memset
 #define memzero(s, n)	memset((s), 0, (n))
 
 
@@ -109,17 +116,8 @@ static void error(char *m);
  */
 struct boot_params *real_mode;		/* Pointer to real-mode data */
 
-void *memset(void *s, int c, size_t n);
-void *memcpy(void *dest, const void *src, size_t n);
-
-#ifdef CONFIG_X86_64
-#define memptr long
-#else
-#define memptr unsigned
-#endif
-
-static memptr free_mem_ptr;
-static memptr free_mem_end_ptr;
+memptr free_mem_ptr;
+memptr free_mem_end_ptr;
 
 static char *vidmem;
 static int vidport;
@@ -221,45 +219,6 @@ void __putstr(const char *s)
 	outb(15, vidport);
 	outb(0xff & (pos >> 1), vidport+1);
 }
-
-void *memset(void *s, int c, size_t n)
-{
-	int i;
-	char *ss = s;
-
-	for (i = 0; i < n; i++)
-		ss[i] = c;
-	return s;
-}
-#ifdef CONFIG_X86_32
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	int d0, d1, d2;
-	asm volatile(
-		"rep ; movsl\n\t"
-		"movl %4,%%ecx\n\t"
-		"rep ; movsb\n\t"
-		: "=&c" (d0), "=&D" (d1), "=&S" (d2)
-		: "0" (n >> 2), "g" (n & 3), "1" (dest), "2" (src)
-		: "memory");
-
-	return dest;
-}
-#else
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	long d0, d1, d2;
-	asm volatile(
-		"rep ; movsq\n\t"
-		"movq %4,%%rcx\n\t"
-		"rep ; movsb\n\t"
-		: "=&c" (d0), "=&D" (d1), "=&S" (d2)
-		: "0" (n >> 3), "g" (n & 7), "1" (dest), "2" (src)
-		: "memory");
-
-	return dest;
-}
-#endif
 
 static void error(char *x)
 {
@@ -395,7 +354,7 @@ static void parse_elf(void *output)
 	free(phdrs);
 }
 
-asmlinkage void decompress_kernel(void *rmode, memptr heap,
+asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 				  unsigned char *input_data,
 				  unsigned long input_len,
 				  unsigned char *output,
@@ -422,6 +381,10 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
 
+	output = choose_kernel_location(input_data, input_len,
+					output, output_len);
+
+	/* Validate memory location choices. */
 	if ((unsigned long)output & (MIN_KERNEL_ALIGN - 1))
 		error("Destination address inappropriately aligned");
 #ifdef CONFIG_X86_64
@@ -441,5 +404,5 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 	parse_elf(output);
 	handle_relocations(output, output_len);
 	debug_putstr("done.\nBooting the kernel.\n");
-	return;
+	return output;
 }

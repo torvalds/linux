@@ -31,7 +31,6 @@
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -165,7 +164,7 @@ static void keyspan_set_termios(struct tty_struct *tty,
 	if (d_details->calculate_baud_rate(port, baud_rate, d_details->baudclk,
 				NULL, NULL, NULL, device_port) == KEYSPAN_BAUD_RATE_OK) {
 		/* FIXME - more to do here to ensure rate changes cleanly */
-		/* FIXME - calcuate exact rate from divisor ? */
+		/* FIXME - calculate exact rate from divisor ? */
 		p_priv->baud = baud_rate;
 	} else
 		baud_rate = tty_termios_baud_rate(old_termios);
@@ -398,17 +397,6 @@ static void	usa26_instat_callback(struct urb *urb)
 
 	msg = (struct keyspan_usa26_portStatusMessage *)data;
 
-#if 0
-	dev_dbg(&urb->dev->dev,
-		"%s - port status: port %d cts %d dcd %d dsr %d ri %d toff %d txoff %d rxen %d cr %d",
-		__func__, msg->port, msg->hskia_cts, msg->gpia_dcd, msg->dsr,
-		msg->ri, msg->_txOff, msg->_txXoff, msg->rxEnabled,
-		msg->controlResponse);
-#endif
-
-	/* Now do something useful with the data */
-
-
 	/* Check port number from message and retrieve private data */
 	if (msg->port >= serial->num_ports) {
 		dev_dbg(&urb->dev->dev, "%s - Unexpected port number %d\n", __func__, msg->port);
@@ -524,9 +512,6 @@ static void	usa28_instat_callback(struct urb *urb)
 		goto exit;
 	}
 
-	/*dev_dbg(&urb->dev->dev, "%s %12ph", __func__, data);*/
-
-	/* Now do something useful with the data */
 	msg = (struct keyspan_usa28_portStatusMessage *)data;
 
 	/* Check port number from message and retrieve private data */
@@ -606,9 +591,6 @@ static void	usa49_instat_callback(struct urb *urb)
 		goto exit;
 	}
 
-	/*dev_dbg(&urb->dev->dev, "%s: %11ph", __func__, data);*/
-
-	/* Now do something useful with the data */
 	msg = (struct keyspan_usa49_portStatusMessage *)data;
 
 	/* Check port number from message and retrieve private data */
@@ -1226,10 +1208,8 @@ static struct urb *keyspan_setup_urb(struct usb_serial *serial, int endpoint,
 
 	dev_dbg(&serial->interface->dev, "%s - alloc for endpoint %d.\n", __func__, endpoint);
 	urb = usb_alloc_urb(0, GFP_KERNEL);		/* No ISO */
-	if (urb == NULL) {
-		dev_dbg(&serial->interface->dev, "%s - alloc for endpoint %d failed.\n", __func__, endpoint);
+	if (!urb)
 		return NULL;
-	}
 
 	if (endpoint == 0) {
 		/* control EP filled in when used */
@@ -1555,13 +1535,13 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 
 	this_urb = p_priv->outcont_urb;
 
-	dev_dbg(&port->dev, "%s - endpoint %d\n", __func__, usb_pipeendpoint(this_urb->pipe));
-
 		/* Make sure we have an urb then send the message */
 	if (this_urb == NULL) {
 		dev_dbg(&port->dev, "%s - oops no urb.\n", __func__);
 		return -1;
 	}
+
+	dev_dbg(&port->dev, "%s - endpoint %d\n", __func__, usb_pipeendpoint(this_urb->pipe));
 
 	/* Save reset port val for resend.
 	   Don't overwrite resend for open/close condition. */
@@ -1796,12 +1776,6 @@ static int keyspan_usa28_send_setup(struct usb_serial *serial,
 	err = usb_submit_urb(this_urb, GFP_ATOMIC);
 	if (err != 0)
 		dev_dbg(&port->dev, "%s - usb_submit_urb(setup) failed\n", __func__);
-#if 0
-	else {
-		dev_dbg(&port->dev, "%s - usb_submit_urb(setup) OK %d bytes\n", __func__,
-		    this_urb->transfer_buffer_length);
-	}
-#endif
 
 	return 0;
 }
@@ -1979,13 +1953,6 @@ static int keyspan_usa49_send_setup(struct usb_serial *serial,
 	err = usb_submit_urb(this_urb, GFP_ATOMIC);
 	if (err != 0)
 		dev_dbg(&port->dev, "%s - usb_submit_urb(setup) failed (%d)\n", __func__, err);
-#if 0
-	else {
-		dev_dbg(&port->dev, "%s - usb_submit_urb(%d) OK %d bytes (end %d)\n", __func__,
-			outcont_urb, this_urb->transfer_buffer_length,
-			usb_pipeendpoint(this_urb->pipe));
-	}
-#endif
 
 	return 0;
 }
@@ -2312,10 +2279,8 @@ static int keyspan_startup(struct usb_serial *serial)
 
 	/* Setup private data for serial driver */
 	s_priv = kzalloc(sizeof(struct keyspan_serial_private), GFP_KERNEL);
-	if (!s_priv) {
-		dev_dbg(&serial->dev->dev, "%s - kmalloc for keyspan_serial_private failed.\n", __func__);
+	if (!s_priv)
 		return -ENOMEM;
-	}
 
 	s_priv->instat_buf = kzalloc(INSTAT_BUFLEN, GFP_KERNEL);
 	if (!s_priv->instat_buf)

@@ -7,6 +7,8 @@
  * of the GNU General Public License version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -46,64 +48,41 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	tr->tr_blocks = blocks;
 	tr->tr_revokes = revokes;
 	tr->tr_reserved = 1;
+	tr->tr_alloced = 1;
 	if (blocks)
 		tr->tr_reserved += 6 + blocks;
 	if (revokes)
 		tr->tr_reserved += gfs2_struct2blk(sdp, revokes,
 						   sizeof(u64));
-	sb_start_intwrite(sdp->sd_vfs);
-	gfs2_holder_init(sdp->sd_trans_gl, LM_ST_SHARED, 0, &tr->tr_t_gh);
+	INIT_LIST_HEAD(&tr->tr_databuf);
+	INIT_LIST_HEAD(&tr->tr_buf);
 
-	error = gfs2_glock_nq(&tr->tr_t_gh);
-	if (error)
-		goto fail_holder_uninit;
+	sb_start_intwrite(sdp->sd_vfs);
 
 	error = gfs2_log_reserve(sdp, tr->tr_reserved);
 	if (error)
-		goto fail_gunlock;
+		goto fail;
 
 	current->journal_info = tr;
 
 	return 0;
 
-fail_gunlock:
-	gfs2_glock_dq(&tr->tr_t_gh);
-
-fail_holder_uninit:
+fail:
 	sb_end_intwrite(sdp->sd_vfs);
-	gfs2_holder_uninit(&tr->tr_t_gh);
 	kfree(tr);
 
 	return error;
 }
 
-/**
- * gfs2_log_release - Release a given number of log blocks
- * @sdp: The GFS2 superblock
- * @blks: The number of blocks
- *
- */
-
-static void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
-{
-
-	atomic_add(blks, &sdp->sd_log_blks_free);
-	trace_gfs2_log_blocks(sdp, blks);
-	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <=
-				  sdp->sd_jdesc->jd_blocks);
-	up_read(&sdp->sd_log_flush_lock);
-}
-
 static void gfs2_print_trans(const struct gfs2_trans *tr)
 {
-	printk(KERN_WARNING "GFS2: Transaction created at: %pSR\n",
-	       (void *)tr->tr_ip);
-	printk(KERN_WARNING "GFS2: blocks=%u revokes=%u reserved=%u touched=%d\n",
-	       tr->tr_blocks, tr->tr_revokes, tr->tr_reserved, tr->tr_touched);
-	printk(KERN_WARNING "GFS2: Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
-	       tr->tr_num_buf_new, tr->tr_num_buf_rm,
-	       tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
-	       tr->tr_num_revoke, tr->tr_num_revoke_rm);
+	pr_warn("Transaction created at: %pSR\n", (void *)tr->tr_ip);
+	pr_warn("blocks=%u revokes=%u reserved=%u touched=%u\n",
+		tr->tr_blocks, tr->tr_revokes, tr->tr_reserved, tr->tr_touched);
+	pr_warn("Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
+		tr->tr_num_buf_new, tr->tr_num_buf_rm,
+		tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
+		tr->tr_num_revoke, tr->tr_num_revoke_rm);
 }
 
 void gfs2_trans_end(struct gfs2_sbd *sdp)
@@ -115,11 +94,8 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 
 	if (!tr->tr_touched) {
 		gfs2_log_release(sdp, tr->tr_reserved);
-		if (tr->tr_t_gh.gh_gl) {
-			gfs2_glock_dq(&tr->tr_t_gh);
-			gfs2_holder_uninit(&tr->tr_t_gh);
+		if (tr->tr_alloced)
 			kfree(tr);
-		}
 		sb_end_intwrite(sdp->sd_vfs);
 		return;
 	}
@@ -133,16 +109,12 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		gfs2_print_trans(tr);
 
 	gfs2_log_commit(sdp, tr);
-	if (tr->tr_t_gh.gh_gl) {
-		gfs2_glock_dq(&tr->tr_t_gh);
-		gfs2_holder_uninit(&tr->tr_t_gh);
-		if (!tr->tr_attached)
+	if (tr->tr_alloced && !tr->tr_attached)
 			kfree(tr);
-	}
 	up_read(&sdp->sd_log_flush_lock);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
-		gfs2_log_flush(sdp, NULL);
+		gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
 	sb_end_intwrite(sdp->sd_vfs);
 }
 
@@ -210,8 +182,7 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 		set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
-		sdp->sd_log_num_databuf++;
-		list_add_tail(&bd->bd_list, &sdp->sd_log_le_databuf);
+		list_add_tail(&bd->bd_list, &tr->tr_databuf);
 	}
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
@@ -230,16 +201,14 @@ static void meta_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
 	mh = (struct gfs2_meta_header *)bd->bd_bh->b_data;
 	if (unlikely(mh->mh_magic != cpu_to_be32(GFS2_MAGIC))) {
-		printk(KERN_ERR
-		       "Attempting to add uninitialised block to journal (inplace block=%lld)\n",
+		pr_err("Attempting to add uninitialised block to journal (inplace block=%lld)\n",
 		       (unsigned long long)bd->bd_bh->b_blocknr);
 		BUG();
 	}
 	gfs2_pin(sdp, bd->bd_bh);
 	mh->__pad0 = cpu_to_be64(0);
 	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
-	sdp->sd_log_num_buf++;
-	list_add(&bd->bd_list, &sdp->sd_log_le_buf);
+	list_add(&bd->bd_list, &tr->tr_buf);
 	tr->tr_num_buf_new++;
 }
 

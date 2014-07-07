@@ -554,6 +554,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	bool is_vid = vdev->vfl_type == VFL_TYPE_GRABBER;
 	bool is_vbi = vdev->vfl_type == VFL_TYPE_VBI;
 	bool is_radio = vdev->vfl_type == VFL_TYPE_RADIO;
+	bool is_sdr = vdev->vfl_type == VFL_TYPE_SDR;
 	bool is_rx = vdev->vfl_dir != VFL_DIR_TX;
 	bool is_tx = vdev->vfl_dir != VFL_DIR_RX;
 
@@ -662,9 +663,20 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			       ops->vidioc_try_fmt_sliced_vbi_out)))
 			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_G_SLICED_VBI_CAP, vidioc_g_sliced_vbi_cap);
+	} else if (is_sdr) {
+		/* SDR specific ioctls */
+		if (ops->vidioc_enum_fmt_sdr_cap)
+			set_bit(_IOC_NR(VIDIOC_ENUM_FMT), valid_ioctls);
+		if (ops->vidioc_g_fmt_sdr_cap)
+			set_bit(_IOC_NR(VIDIOC_G_FMT), valid_ioctls);
+		if (ops->vidioc_s_fmt_sdr_cap)
+			set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
+		if (ops->vidioc_try_fmt_sdr_cap)
+			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 	}
-	if (!is_radio) {
-		/* ioctls valid for video or vbi */
+
+	if (is_vid || is_vbi || is_sdr) {
+		/* ioctls valid for video, vbi or sdr */
 		SET_VALID_IOCTL(ops, VIDIOC_REQBUFS, vidioc_reqbufs);
 		SET_VALID_IOCTL(ops, VIDIOC_QUERYBUF, vidioc_querybuf);
 		SET_VALID_IOCTL(ops, VIDIOC_QBUF, vidioc_qbuf);
@@ -672,6 +684,10 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		SET_VALID_IOCTL(ops, VIDIOC_DQBUF, vidioc_dqbuf);
 		SET_VALID_IOCTL(ops, VIDIOC_CREATE_BUFS, vidioc_create_bufs);
 		SET_VALID_IOCTL(ops, VIDIOC_PREPARE_BUF, vidioc_prepare_buf);
+	}
+
+	if (is_vid || is_vbi) {
+		/* ioctls valid for video or vbi */
 		if (ops->vidioc_s_std)
 			set_bit(_IOC_NR(VIDIOC_ENUMSTD), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_S_STD, vidioc_s_std);
@@ -685,6 +701,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			SET_VALID_IOCTL(ops, VIDIOC_G_AUDIO, vidioc_g_audio);
 			SET_VALID_IOCTL(ops, VIDIOC_S_AUDIO, vidioc_s_audio);
 			SET_VALID_IOCTL(ops, VIDIOC_QUERY_DV_TIMINGS, vidioc_query_dv_timings);
+			SET_VALID_IOCTL(ops, VIDIOC_S_EDID, vidioc_s_edid);
 		}
 		if (is_tx) {
 			SET_VALID_IOCTL(ops, VIDIOC_ENUMOUTPUT, vidioc_enum_output);
@@ -710,9 +727,10 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		SET_VALID_IOCTL(ops, VIDIOC_G_DV_TIMINGS, vidioc_g_dv_timings);
 		SET_VALID_IOCTL(ops, VIDIOC_ENUM_DV_TIMINGS, vidioc_enum_dv_timings);
 		SET_VALID_IOCTL(ops, VIDIOC_DV_TIMINGS_CAP, vidioc_dv_timings_cap);
+		SET_VALID_IOCTL(ops, VIDIOC_G_EDID, vidioc_g_edid);
 	}
-	if (is_tx) {
-		/* transmitter only ioctls */
+	if (is_tx && (is_radio || is_sdr)) {
+		/* radio transmitter only ioctls */
 		SET_VALID_IOCTL(ops, VIDIOC_G_MODULATOR, vidioc_g_modulator);
 		SET_VALID_IOCTL(ops, VIDIOC_S_MODULATOR, vidioc_s_modulator);
 	}
@@ -758,6 +776,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
  *	%VFL_TYPE_RADIO - A radio card
  *
  *	%VFL_TYPE_SUBDEV - A subdevice
+ *
+ *	%VFL_TYPE_SDR - Software Defined Radio
  */
 int __video_register_device(struct video_device *vdev, int type, int nr,
 		int warn_if_nr_in_use, struct module *owner)
@@ -796,6 +816,10 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 		break;
 	case VFL_TYPE_SUBDEV:
 		name_base = "v4l-subdev";
+		break;
+	case VFL_TYPE_SDR:
+		/* Use device name 'swradio' because 'sdr' was already taken. */
+		name_base = "swradio";
 		break;
 	default:
 		printk(KERN_ERR "%s called with unknown type: %d\n",
@@ -872,8 +896,8 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 
 	/* Should not happen since we thought this minor was free */
 	WARN_ON(video_device[vdev->minor] != NULL);
-	video_device[vdev->minor] = vdev;
 	vdev->index = get_index(vdev);
+	video_device[vdev->minor] = vdev;
 	mutex_unlock(&videodev_lock);
 
 	if (vdev->ioctl_ops)

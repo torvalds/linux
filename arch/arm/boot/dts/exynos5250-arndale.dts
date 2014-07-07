@@ -12,10 +12,11 @@
 /dts-v1/;
 #include "exynos5250.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
-	compatible = "insignal,arndale", "samsung,exynos5250";
+	compatible = "insignal,arndale", "samsung,exynos5250", "samsung,exynos5";
 
 	memory {
 		reg = <0x40000000 0x80000000>;
@@ -23,6 +24,10 @@
 
 	chosen {
 		bootargs = "console=ttySAC2,115200";
+	};
+
+	rtc@101E0000 {
+		status = "okay";
 	};
 
 	codec@11000000 {
@@ -34,6 +39,7 @@
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <20000>;
 		samsung,i2c-slave-addr = <0x66>;
+		status = "okay";
 
 		s5m8767_pmic@66 {
 			compatible = "samsung,s5m8767-pmic";
@@ -102,6 +108,7 @@
 					regulator-name = "VDD_IOPERI_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
 					op_mode = <1>;
 				};
 
@@ -266,7 +273,7 @@
 
 				buck2_reg: BUCK2 {
 					regulator-name = "vdd_arm";
-					regulator-min-microvolt = <925000>;
+					regulator-min-microvolt = <912500>;
 					regulator-max-microvolt = <1300000>;
 					regulator-always-on;
 					regulator-boot-on;
@@ -286,6 +293,7 @@
 					regulator-name = "vdd_g3d";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
+					regulator-always-on;
 					regulator-boot-on;
 					op_mode = <1>;
 				};
@@ -302,11 +310,13 @@
 				buck7_reg: BUCK7 {
 					regulator-name = "PVDD_BUCK7";
 					regulator-always-on;
+					op_mode = <1>;
 				};
 
 				buck8_reg: BUCK8 {
 					regulator-name = "PVDD_BUCK8";
 					regulator-always-on;
+					op_mode = <1>;
 				};
 
 				buck9_reg: BUCK9 {
@@ -319,16 +329,24 @@
 		};
 	};
 
-	i2c@12C70000 {
-		status = "disabled";
-	};
-
 	i2c@12C80000 {
-		status = "disabled";
+		status = "okay";
+
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <66000>;
+		samsung,i2c-slave-addr = <0x50>;
+
+		hdmiddc@50 {
+			compatible = "samsung,exynos4210-hdmiddc";
+			reg = <0x50>;
+		};
 	};
 
 	i2c@12C90000 {
+		status = "okay";
+
 		wm1811a@1a {
+
 			compatible = "wlf,wm1811";
 			reg = <0x1a>;
 
@@ -346,31 +364,45 @@
 		};
 	};
 
-	i2c@12CA0000 {
-		status = "disabled";
-	};
+	i2c@12CE0000 {
+		status = "okay";
 
-	i2c@12CB0000 {
-		status = "disabled";
-	};
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <66000>;
+		samsung,i2c-slave-addr = <0x38>;
 
-	i2c@12CC0000 {
-		status = "disabled";
-	};
-
-	i2c@12CD0000 {
-		status = "disabled";
+		hdmiphy@38 {
+			compatible = "samsung,exynos4212-hdmiphy";
+			reg = <0x38>;
+		};
 	};
 
 	i2c@121D0000 {
-		status = "disabled";
+		status = "okay";
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <40000>;
+		samsung,i2c-slave-addr = <0x38>;
+
+		sata_phy_i2c:sata-phy@38 {
+			compatible = "samsung,exynos-sataphy-i2c";
+			reg = <0x38>;
+		};
 	};
 
-	dwmmc_0: dwmmc0@12200000 {
+	sata@122F0000 {
+		status = "okay";
+	};
+
+	sata-phy@12170000 {
+		status = "okay";
+		samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
+	};
+
+	mmc_0: mmc@12200000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -385,14 +417,10 @@
 		};
 	};
 
-	dwmmc_1: dwmmc1@12210000 {
-		status = "disabled";
-	};
-
-	dwmmc_2: dwmmc2@12220000 {
+	mmc_2: mmc@12220000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -408,20 +436,8 @@
 		};
 	};
 
-	dwmmc_3: dwmmc3@12230000 {
-		status = "disabled";
-	};
-
-	spi_0: spi@12d20000 {
-		status = "disabled";
-	};
-
-	spi_1: spi@12d30000 {
-		status = "disabled";
-	};
-
-	spi_2: spi@12d40000 {
-		status = "disabled";
+	i2s0: i2s@03830000 {
+		status = "okay";
 	};
 
 	gpio_keys {
@@ -430,42 +446,42 @@
 		menu {
 			label = "SW-TACT2";
 			gpios = <&gpx1 4 1>;
-			linux,code = <139>;
+			linux,code = <KEY_MENU>;
 			gpio-key,wakeup;
 		};
 
 		home {
 			label = "SW-TACT3";
 			gpios = <&gpx1 5 1>;
-			linux,code = <102>;
+			linux,code = <KEY_HOME>;
 			gpio-key,wakeup;
 		};
 
 		up {
 			label = "SW-TACT4";
 			gpios = <&gpx1 6 1>;
-			linux,code = <103>;
+			linux,code = <KEY_UP>;
 			gpio-key,wakeup;
 		};
 
 		down {
 			label = "SW-TACT5";
 			gpios = <&gpx1 7 1>;
-			linux,code = <108>;
+			linux,code = <KEY_DOWN>;
 			gpio-key,wakeup;
 		};
 
 		back {
 			label = "SW-TACT6";
 			gpios = <&gpx2 0 1>;
-			linux,code = <158>;
+			linux,code = <KEY_BACK>;
 			gpio-key,wakeup;
 		};
 
 		wakeup {
 			label = "SW-TACT7";
 			gpios = <&gpx2 1 1>;
-			linux,code = <143>;
+			linux,code = <KEY_WAKEUP>;
 			gpio-key,wakeup;
 		};
 	};
@@ -482,13 +498,15 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		main_dc_reg: fixedregulator@1 {
+		main_dc_reg: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "MAIN_DC";
 		};
 
-		mmc_reg: voltage-regulator {
+		mmc_reg: regulator@1 {
 			compatible = "regulator-fixed";
+			reg = <1>;
 			regulator-name = "VDD_33ON_2.8V";
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
@@ -496,8 +514,9 @@
 			enable-active-high;
 		};
 
-		reg_hdmi_en: fixedregulator@0 {
+		reg_hdmi_en: regulator@2 {
 			compatible = "regulator-fixed";
+			reg = <2>;
 			regulator-name = "hdmi-en";
 		};
 	};

@@ -46,8 +46,8 @@
 
 
 struct ll_rpc_opcode {
-     __u32       opcode;
-     const char *opname;
+	__u32       opcode;
+	const char *opname;
 } ll_rpc_opcode_table[LUSTRE_MAX_OPCODES] = {
 	{ OST_REPLY,	"ost_reply" },
 	{ OST_GETATTR,      "ost_getattr" },
@@ -114,10 +114,10 @@ struct ll_rpc_opcode {
 	{ MGS_SET_INFO,     "mgs_set_info" },
 	{ MGS_CONFIG_READ,  "mgs_config_read" },
 	{ OBD_PING,	 "obd_ping" },
-	{ OBD_LOG_CANCEL,   "llog_origin_handle_cancel" },
+	{ OBD_LOG_CANCEL,	"llog_cancel" },
 	{ OBD_QC_CALLBACK,  "obd_quota_callback" },
 	{ OBD_IDX_READ,	    "dt_index_read" },
-	{ LLOG_ORIGIN_HANDLE_CREATE,     "llog_origin_handle_create" },
+	{ LLOG_ORIGIN_HANDLE_CREATE,	 "llog_origin_handle_open" },
 	{ LLOG_ORIGIN_HANDLE_NEXT_BLOCK, "llog_origin_handle_next_block" },
 	{ LLOG_ORIGIN_HANDLE_READ_HEADER,"llog_origin_handle_read_header" },
 	{ LLOG_ORIGIN_HANDLE_WRITE_REC,  "llog_origin_handle_write_rec" },
@@ -137,8 +137,8 @@ struct ll_rpc_opcode {
 };
 
 struct ll_eopcode {
-     __u32       opcode;
-     const char *opname;
+	__u32       opcode;
+	const char *opname;
 } ll_eopcode_table[EXTRA_LAST_OPC] = {
 	{ LDLM_GLIMPSE_ENQUEUE, "ldlm_glimpse_enqueue" },
 	{ LDLM_PLAIN_ENQUEUE,   "ldlm_plain_enqueue" },
@@ -221,7 +221,7 @@ void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 	for (i = 0; i < EXTRA_LAST_OPC; i++) {
 		char *units;
 
-		switch(i) {
+		switch (i) {
 		case BRW_WRITE_BYTES:
 		case BRW_READ_BYTES:
 			units = "bytes";
@@ -449,7 +449,7 @@ void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
 {
 	LASSERT(policy != NULL);
 	LASSERT(info != NULL);
-	LASSERT(spin_is_locked(&policy->pol_nrs->nrs_lock));
+	assert_spin_locked(&policy->pol_nrs->nrs_lock);
 
 	memcpy(info->pi_name, policy->pol_desc->pd_name, NRS_POL_NAME_MAX);
 
@@ -616,7 +616,7 @@ out:
 }
 
 /**
- * The longest valid command string is the maxium policy name size, plus the
+ * The longest valid command string is the maximum policy name size, plus the
  * length of the " reg" substring
  */
 #define LPROCFS_NRS_WR_MAX_CMD	(NRS_POL_NAME_MAX + sizeof(" reg") - 1)
@@ -1184,13 +1184,13 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	}
 	tmpbuf = cfs_firststr(kbuf, min_t(unsigned long, BUFLEN - 1, count));
 	/* Kludge code(deadlock situation): the lprocfs lock has been held
-	 * since the client is evicted by writting client's
+	 * since the client is evicted by writing client's
 	 * uuid/nid to procfs "evict_client" entry. However,
 	 * obd_export_evict_by_uuid() will call lprocfs_remove() to destroy
 	 * the proc entries under the being destroyed export{}, so I have
 	 * to drop the lock at first here.
 	 * - jay, jxiong@clusterfs.com */
-	class_incref(obd, __FUNCTION__, current);
+	class_incref(obd, __func__, current);
 
 	if (strncmp(tmpbuf, "nid:", 4) == 0)
 		obd_export_evict_by_nid(obd, tmpbuf + 4);
@@ -1199,7 +1199,7 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	else
 		obd_export_evict_by_uuid(obd, tmpbuf);
 
-	class_decref(obd, __FUNCTION__, current);
+	class_decref(obd, __func__, current);
 
 out:
 	OBD_FREE(kbuf, BUFLEN);

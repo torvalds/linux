@@ -38,7 +38,7 @@ static inline void stmpe_dump_bytes(const char *str, const void *buf,
  *		enable and altfunc callbacks
  */
 struct stmpe_variant_block {
-	struct mfd_cell		*cell;
+	const struct mfd_cell	*cell;
 	int			irq;
 	enum stmpe_block	block;
 };
@@ -192,7 +192,7 @@ int stmpe_remove(struct stmpe *stmpe);
 
 #define STMPE1601_SYS_CTRL_ENABLE_GPIO		(1 << 3)
 #define STMPE1601_SYS_CTRL_ENABLE_KPC		(1 << 1)
-#define STMPE1601_SYSCON_ENABLE_SPWM		(1 << 0)
+#define STMPE1601_SYS_CTRL_ENABLE_SPWM		(1 << 0)
 
 /* The 1601/2403 share the same masks */
 #define STMPE1601_AUTOSLEEP_TIMEOUT_MASK	(0x7)

@@ -26,12 +26,11 @@
 
 #include "mei_dev.h"
 #include "hbm.h"
-#include "hw-me.h"
 #include "client.h"
 
 
 /**
- * mei_irq_compl_handler - dispatch complete handelers
+ * mei_irq_compl_handler - dispatch complete handlers
  *	for the completed callbacks
  *
  * @dev - mei device
@@ -113,13 +112,13 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 
 		if (cb->response_buffer.size == 0 ||
 		    cb->response_buffer.data == NULL) {
-			dev_err(&dev->pdev->dev, "response buffer is not allocated.\n");
+			cl_err(dev, cl, "response buffer is not allocated.\n");
 			list_del(&cb->list);
 			return -ENOMEM;
 		}
 
 		if (cb->response_buffer.size < mei_hdr->length + cb->buf_idx) {
-			dev_dbg(&dev->pdev->dev, "message overflow. size %d len %d idx %ld\n",
+			cl_dbg(dev, cl, "message overflow. size %d len %d idx %ld\n",
 				cb->response_buffer.size,
 				mei_hdr->length, cb->buf_idx);
 			buffer = krealloc(cb->response_buffer.data,
@@ -127,7 +126,7 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 					  GFP_KERNEL);
 
 			if (!buffer) {
-				dev_err(&dev->pdev->dev, "allocation failed.\n");
+				cl_err(dev, cl, "allocation failed.\n");
 				list_del(&cb->list);
 				return -ENOMEM;
 			}
@@ -143,9 +142,7 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 		if (mei_hdr->msg_complete) {
 			cl->status = 0;
 			list_del(&cb->list);
-			dev_dbg(&dev->pdev->dev, "completed read H cl = %d, ME cl = %d, length = %lu\n",
-				cl->host_client_id,
-				cl->me_client_id,
+			cl_dbg(dev, cl, "completed read length = %lu\n",
 				cb->buf_idx);
 			list_add_tail(&cb->list, &complete_list->list);
 		}
@@ -163,28 +160,62 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 }
 
 /**
+ * mei_cl_irq_disconnect_rsp - send disconnection response message
+ *
+ * @cl: client
+ * @cb: callback block.
+ * @cmpl_list: complete list.
+ *
+ * returns 0, OK; otherwise, error.
+ */
+static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
+				     struct mei_cl_cb *cmpl_list)
+{
+	struct mei_device *dev = cl->dev;
+	u32 msg_slots;
+	int slots;
+	int ret;
+
+	slots = mei_hbuf_empty_slots(dev);
+	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_response));
+
+	if (slots < msg_slots)
+		return -EMSGSIZE;
+
+	ret = mei_hbm_cl_disconnect_rsp(dev, cl);
+
+	cl->state = MEI_FILE_DISCONNECTED;
+	cl->status = 0;
+	list_del(&cb->list);
+	mei_io_cb_free(cb);
+
+	return ret;
+}
+
+
+
+/**
  * mei_cl_irq_close - processes close related operation from
  *	interrupt thread context - send disconnect request
  *
  * @cl: client
  * @cb: callback block.
- * @slots: free slots.
  * @cmpl_list: complete list.
  *
  * returns 0, OK; otherwise, error.
  */
 static int mei_cl_irq_close(struct mei_cl *cl, struct mei_cl_cb *cb,
-			s32 *slots, struct mei_cl_cb *cmpl_list)
+			    struct mei_cl_cb *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
+	u32 msg_slots;
+	int slots;
 
-	u32 msg_slots =
-		mei_data2slots(sizeof(struct hbm_client_connect_request));
+	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
+	slots = mei_hbuf_empty_slots(dev);
 
-	if (*slots < msg_slots)
+	if (slots < msg_slots)
 		return -EMSGSIZE;
-
-	*slots -= msg_slots;
 
 	if (mei_hbm_cl_disconnect_req(dev, cl)) {
 		cl->status = 0;
@@ -209,32 +240,32 @@ static int mei_cl_irq_close(struct mei_cl *cl, struct mei_cl_cb *cb,
  *
  * @cl: client
  * @cb: callback block.
- * @slots: free slots.
  * @cmpl_list: complete list.
  *
  * returns 0, OK; otherwise, error.
  */
 static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
-			   s32 *slots, struct mei_cl_cb *cmpl_list)
+			   struct mei_cl_cb *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
+	u32 msg_slots;
+	int slots;
+	int ret;
 
-	u32 msg_slots = mei_data2slots(sizeof(struct hbm_flow_control));
+	msg_slots = mei_data2slots(sizeof(struct hbm_flow_control));
+	slots = mei_hbuf_empty_slots(dev);
 
-	if (*slots < msg_slots) {
-		/* return the cancel routine */
-		list_del(&cb->list);
+	if (slots < msg_slots)
 		return -EMSGSIZE;
-	}
 
-	*slots -= msg_slots;
-
-	if (mei_hbm_cl_flow_control_req(dev, cl)) {
-		cl->status = -ENODEV;
+	ret = mei_hbm_cl_flow_control_req(dev, cl);
+	if (ret) {
+		cl->status = ret;
 		cb->buf_idx = 0;
 		list_move_tail(&cb->list, &cmpl_list->list);
-		return -ENODEV;
+		return ret;
 	}
+
 	list_move_tail(&cb->list, &dev->read_list.list);
 
 	return 0;
@@ -242,39 +273,39 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 
 /**
- * mei_cl_irq_ioctl - processes client ioctl related operation from the
- *	interrupt thread context -   send connection request
+ * mei_cl_irq_connect - send connect request in irq_thread context
  *
  * @cl: client
  * @cb: callback block.
- * @slots: free slots.
  * @cmpl_list: complete list.
  *
  * returns 0, OK; otherwise, error.
  */
-static int mei_cl_irq_ioctl(struct mei_cl *cl, struct mei_cl_cb *cb,
-			   s32 *slots, struct mei_cl_cb *cmpl_list)
+static int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
+			      struct mei_cl_cb *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
+	u32 msg_slots;
+	int slots;
+	int ret;
 
-	u32 msg_slots =
-		mei_data2slots(sizeof(struct hbm_client_connect_request));
+	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
+	slots = mei_hbuf_empty_slots(dev);
 
-	if (*slots < msg_slots) {
-		/* return the cancel routine */
-		list_del(&cb->list);
+	if (mei_cl_is_other_connecting(cl))
+		return 0;
+
+	if (slots < msg_slots)
 		return -EMSGSIZE;
-	}
-
-	*slots -=  msg_slots;
 
 	cl->state = MEI_FILE_CONNECTING;
 
-	if (mei_hbm_cl_connect_req(dev, cl)) {
-		cl->status = -ENODEV;
+	ret = mei_hbm_cl_connect_req(dev, cl);
+	if (ret) {
+		cl->status = ret;
 		cb->buf_idx = 0;
 		list_del(&cb->list);
-		return -ENODEV;
+		return ret;
 	}
 
 	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
@@ -297,13 +328,11 @@ int mei_irq_read_handler(struct mei_device *dev,
 		struct mei_cl_cb *cmpl_list, s32 *slots)
 {
 	struct mei_msg_hdr *mei_hdr;
-	struct mei_cl *cl_pos = NULL;
-	struct mei_cl *cl_next = NULL;
-	int ret = 0;
+	struct mei_cl *cl;
+	int ret;
 
 	if (!dev->rd_msg_hdr) {
 		dev->rd_msg_hdr = mei_read_hdr(dev);
-		dev_dbg(&dev->pdev->dev, "slots =%08x.\n", *slots);
 		(*slots)--;
 		dev_dbg(&dev->pdev->dev, "slots =%08x.\n", *slots);
 	}
@@ -311,61 +340,67 @@ int mei_irq_read_handler(struct mei_device *dev,
 	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
 
 	if (mei_hdr->reserved || !dev->rd_msg_hdr) {
-		dev_dbg(&dev->pdev->dev, "corrupted message header.\n");
+		dev_err(&dev->pdev->dev, "corrupted message header 0x%08X\n",
+				dev->rd_msg_hdr);
 		ret = -EBADMSG;
 		goto end;
 	}
 
-	if (mei_hdr->host_addr || mei_hdr->me_addr) {
-		list_for_each_entry_safe(cl_pos, cl_next,
-					&dev->file_list, link) {
-			dev_dbg(&dev->pdev->dev,
-					"list_for_each_entry_safe read host"
-					" client = %d, ME client = %d\n",
-					cl_pos->host_client_id,
-					cl_pos->me_client_id);
-			if (mei_cl_hbm_equal(cl_pos, mei_hdr))
-				break;
-		}
-
-		if (&cl_pos->link == &dev->file_list) {
-			dev_dbg(&dev->pdev->dev, "corrupted message header\n");
-			ret = -EBADMSG;
-			goto end;
-		}
-	}
-	if (((*slots) * sizeof(u32)) < mei_hdr->length) {
-		dev_err(&dev->pdev->dev,
-				"we can't read the message slots =%08x.\n",
+	if (mei_slots2data(*slots) < mei_hdr->length) {
+		dev_err(&dev->pdev->dev, "less data available than length=%08x.\n",
 				*slots);
 		/* we can't read the message */
-		ret = -ERANGE;
+		ret = -ENODATA;
 		goto end;
 	}
 
-	/* decide where to read the message too */
-	if (!mei_hdr->host_addr) {
-		dev_dbg(&dev->pdev->dev, "call mei_irq_thread_read_bus_message.\n");
-		mei_hbm_dispatch(dev, mei_hdr);
-		dev_dbg(&dev->pdev->dev, "end mei_irq_thread_read_bus_message.\n");
-	} else if (mei_hdr->host_addr == dev->iamthif_cl.host_client_id &&
-		   (MEI_FILE_CONNECTED == dev->iamthif_cl.state) &&
-		   (dev->iamthif_state == MEI_IAMTHIF_READING)) {
-
-		dev_dbg(&dev->pdev->dev, "call mei_irq_thread_read_iamthif_message.\n");
-		dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
-
-		ret = mei_amthif_irq_read_msg(dev, mei_hdr, cmpl_list);
-		if (ret)
+	/*  HBM message */
+	if (mei_hdr->host_addr == 0 && mei_hdr->me_addr == 0) {
+		ret = mei_hbm_dispatch(dev, mei_hdr);
+		if (ret) {
+			dev_dbg(&dev->pdev->dev, "mei_hbm_dispatch failed ret = %d\n",
+					ret);
 			goto end;
-	} else {
-		dev_dbg(&dev->pdev->dev, "call mei_cl_irq_read_msg.\n");
-		dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
-		ret = mei_cl_irq_read_msg(dev, mei_hdr, cmpl_list);
-		if (ret)
-			goto end;
+		}
+		goto reset_slots;
 	}
 
+	/* find recipient cl */
+	list_for_each_entry(cl, &dev->file_list, link) {
+		if (mei_cl_hbm_equal(cl, mei_hdr)) {
+			cl_dbg(dev, cl, "got a message\n");
+			break;
+		}
+	}
+
+	/* if no recipient cl was found we assume corrupted header */
+	if (&cl->link == &dev->file_list) {
+		dev_err(&dev->pdev->dev, "no destination client found 0x%08X\n",
+				dev->rd_msg_hdr);
+		ret = -EBADMSG;
+		goto end;
+	}
+
+	if (mei_hdr->host_addr == dev->iamthif_cl.host_client_id &&
+	    MEI_FILE_CONNECTED == dev->iamthif_cl.state &&
+	    dev->iamthif_state == MEI_IAMTHIF_READING) {
+
+		ret = mei_amthif_irq_read_msg(dev, mei_hdr, cmpl_list);
+		if (ret) {
+			dev_err(&dev->pdev->dev, "mei_amthif_irq_read_msg failed = %d\n",
+					ret);
+			goto end;
+		}
+	} else {
+		ret = mei_cl_irq_read_msg(dev, mei_hdr, cmpl_list);
+		if (ret) {
+			dev_err(&dev->pdev->dev, "mei_cl_irq_read_msg failed = %d\n",
+					ret);
+			goto end;
+		}
+	}
+
+reset_slots:
 	/* reset the number of slots and header */
 	*slots = mei_count_full_read_slots(dev);
 	dev->rd_msg_hdr = 0;
@@ -401,10 +436,10 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 	s32 slots;
 	int ret;
 
-	if (!mei_hbuf_is_ready(dev)) {
-		dev_dbg(&dev->pdev->dev, "host buffer is not empty.\n");
+
+	if (!mei_hbuf_acquire(dev))
 		return 0;
-	}
+
 	slots = mei_hbuf_empty_slots(dev);
 	if (slots <= 0)
 		return -EMSGSIZE;
@@ -420,15 +455,14 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 
 		cl->status = 0;
 		list_del(&cb->list);
-		if (MEI_WRITING == cl->writing_state &&
-		    cb->fop_type == MEI_FOP_WRITE &&
+		if (cb->fop_type == MEI_FOP_WRITE &&
 		    cl != &dev->iamthif_cl) {
-			dev_dbg(&dev->pdev->dev, "MEI WRITE COMPLETE\n");
+			cl_dbg(dev, cl, "MEI WRITE COMPLETE\n");
 			cl->writing_state = MEI_WRITE_COMPLETE;
 			list_add_tail(&cb->list, &cmpl_list->list);
 		}
 		if (cl == &dev->iamthif_cl) {
-			dev_dbg(&dev->pdev->dev, "check iamthif flow control.\n");
+			cl_dbg(dev, cl, "check iamthif flow control.\n");
 			if (dev->iamthif_flow_control_pending) {
 				ret = mei_amthif_irq_read(dev, &slots);
 				if (ret)
@@ -439,29 +473,16 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 
 	if (dev->wd_state == MEI_WD_STOPPING) {
 		dev->wd_state = MEI_WD_IDLE;
-		wake_up_interruptible(&dev->wait_stop_wd);
+		wake_up(&dev->wait_stop_wd);
 	}
 
-	if (dev->wr_ext_msg.hdr.length) {
-		mei_write_message(dev, &dev->wr_ext_msg.hdr,
-				dev->wr_ext_msg.data);
-		slots -= mei_data2slots(dev->wr_ext_msg.hdr.length);
-		dev->wr_ext_msg.hdr.length = 0;
-	}
-	if (dev->dev_state == MEI_DEV_ENABLED) {
+	if (mei_cl_is_connected(&dev->wd_cl)) {
 		if (dev->wd_pending &&
 		    mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
-			if (mei_wd_send(dev))
-				dev_dbg(&dev->pdev->dev, "wd send failed.\n");
-			else if (mei_cl_flow_ctrl_reduce(&dev->wd_cl))
-				return -ENODEV;
-
+			ret = mei_wd_send(dev);
+			if (ret)
+				return ret;
 			dev->wd_pending = false;
-
-			if (dev->wd_state == MEI_WD_RUNNING)
-				slots -= mei_data2slots(MEI_WD_START_MSG_SIZE);
-			else
-				slots -= mei_data2slots(MEI_WD_STOP_MSG_SIZE);
 		}
 	}
 
@@ -476,28 +497,31 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		switch (cb->fop_type) {
 		case MEI_FOP_CLOSE:
 			/* send disconnect message */
-			ret = mei_cl_irq_close(cl, cb, &slots, cmpl_list);
+			ret = mei_cl_irq_close(cl, cb, cmpl_list);
 			if (ret)
 				return ret;
 
 			break;
 		case MEI_FOP_READ:
 			/* send flow control message */
-			ret = mei_cl_irq_read(cl, cb, &slots, cmpl_list);
+			ret = mei_cl_irq_read(cl, cb, cmpl_list);
 			if (ret)
 				return ret;
 
 			break;
-		case MEI_FOP_IOCTL:
+		case MEI_FOP_CONNECT:
 			/* connect message */
-			if (mei_cl_is_other_connecting(cl))
-				continue;
-			ret = mei_cl_irq_ioctl(cl, cb, &slots, cmpl_list);
+			ret = mei_cl_irq_connect(cl, cb, cmpl_list);
 			if (ret)
 				return ret;
 
 			break;
-
+		case MEI_FOP_DISCONNECT_RSP:
+			/* send disconnect resp */
+			ret = mei_cl_irq_disconnect_rsp(cl, cb, cmpl_list);
+			if (ret)
+				return ret;
+			break;
 		default:
 			BUG();
 		}
@@ -509,19 +533,10 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		cl = cb->cl;
 		if (cl == NULL)
 			continue;
-		if (mei_cl_flow_ctrl_creds(cl) <= 0) {
-			dev_dbg(&dev->pdev->dev,
-				"No flow control credentials for client %d, not sending.\n",
-				cl->host_client_id);
-			continue;
-		}
-
 		if (cl == &dev->iamthif_cl)
-			ret = mei_amthif_irq_write_complete(cl, cb,
-						&slots, cmpl_list);
+			ret = mei_amthif_irq_write(cl, cb, cmpl_list);
 		else
-			ret = mei_cl_irq_write_complete(cl, cb,
-						&slots, cmpl_list);
+			ret = mei_cl_irq_write(cl, cb, cmpl_list);
 		if (ret)
 			return ret;
 	}
@@ -536,13 +551,11 @@ EXPORT_SYMBOL_GPL(mei_irq_write_handler);
  *
  * @work: pointer to the work_struct structure
  *
- * NOTE: This function is called by timer interrupt work
  */
 void mei_timer(struct work_struct *work)
 {
 	unsigned long timeout;
-	struct mei_cl *cl_pos = NULL;
-	struct mei_cl *cl_next = NULL;
+	struct mei_cl *cl;
 	struct mei_cl_cb  *cb_pos = NULL;
 	struct mei_cl_cb  *cb_next = NULL;
 
@@ -551,33 +564,42 @@ void mei_timer(struct work_struct *work)
 
 
 	mutex_lock(&dev->device_lock);
-	if (dev->dev_state != MEI_DEV_ENABLED) {
-		if (dev->dev_state == MEI_DEV_INIT_CLIENTS) {
-			if (dev->init_clients_timer) {
-				if (--dev->init_clients_timer == 0) {
-					dev_err(&dev->pdev->dev, "reset: init clients timeout hbm_state = %d.\n",
-						dev->hbm_state);
-					mei_reset(dev, 1);
-				}
-			}
-		}
-		goto out;
-	}
-	/*** connect/disconnect timeouts ***/
-	list_for_each_entry_safe(cl_pos, cl_next, &dev->file_list, link) {
-		if (cl_pos->timer_count) {
-			if (--cl_pos->timer_count == 0) {
-				dev_err(&dev->pdev->dev, "reset: connect/disconnect timeout.\n");
-				mei_reset(dev, 1);
+
+	/* Catch interrupt stalls during HBM init handshake */
+	if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
+	    dev->hbm_state != MEI_HBM_IDLE) {
+
+		if (dev->init_clients_timer) {
+			if (--dev->init_clients_timer == 0) {
+				dev_err(&dev->pdev->dev, "timer: init clients timeout hbm_state = %d.\n",
+					dev->hbm_state);
+				mei_reset(dev);
 				goto out;
 			}
 		}
 	}
 
+	if (dev->dev_state != MEI_DEV_ENABLED)
+		goto out;
+
+	/*** connect/disconnect timeouts ***/
+	list_for_each_entry(cl, &dev->file_list, link) {
+		if (cl->timer_count) {
+			if (--cl->timer_count == 0) {
+				dev_err(&dev->pdev->dev, "timer: connect/disconnect timeout.\n");
+				mei_reset(dev);
+				goto out;
+			}
+		}
+	}
+
+	if (!mei_cl_is_connected(&dev->iamthif_cl))
+		goto out;
+
 	if (dev->iamthif_stall_timer) {
 		if (--dev->iamthif_stall_timer == 0) {
-			dev_err(&dev->pdev->dev, "reset: amthif  hanged.\n");
-			mei_reset(dev, 1);
+			dev_err(&dev->pdev->dev, "timer: amthif  hanged.\n");
+			mei_reset(dev);
 			dev->iamthif_msg_buf_size = 0;
 			dev->iamthif_msg_buf_index = 0;
 			dev->iamthif_canceled = false;
@@ -613,10 +635,10 @@ void mei_timer(struct work_struct *work)
 			list_for_each_entry_safe(cb_pos, cb_next,
 				&dev->amthif_rd_complete_list.list, list) {
 
-				cl_pos = cb_pos->file_object->private_data;
+				cl = cb_pos->file_object->private_data;
 
 				/* Finding the AMTHI entry. */
-				if (cl_pos == &dev->iamthif_cl)
+				if (cl == &dev->iamthif_cl)
 					list_del(&cb_pos->list);
 			}
 			mei_io_cb_free(dev->iamthif_current_cb);
@@ -630,7 +652,8 @@ void mei_timer(struct work_struct *work)
 		}
 	}
 out:
-	schedule_delayed_work(&dev->timer_work, 2 * HZ);
+	if (dev->dev_state != MEI_DEV_DISABLED)
+		schedule_delayed_work(&dev->timer_work, 2 * HZ);
 	mutex_unlock(&dev->device_lock);
 }
 

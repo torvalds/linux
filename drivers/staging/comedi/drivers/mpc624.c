@@ -142,8 +142,18 @@ static const struct comedi_lrange range_mpc624_bipolar10 = {
 	 }
 };
 
-/* Timeout 200ms */
-#define TIMEOUT 200
+static int mpc624_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned char status;
+
+	status = inb(dev->iobase + MPC624_ADC);
+	if ((status & MPC624_ADBUSY) == 0)
+		return 0;
+	return -EBUSY;
+}
 
 static int mpc624_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
@@ -152,18 +162,13 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 	struct mpc624_private *devpriv = dev->private;
 	int n, i;
 	unsigned long int data_in, data_out;
-	unsigned char ucPort;
+	int ret;
 
 	/*
 	 *  WARNING:
 	 *  We always write 0 to GNSWA bit, so the channel range is +-/10.1Vdc
 	 */
 	outb(insn->chanspec, dev->iobase + MPC624_GNMUXCH);
-/* printk("Channel %d:\n", insn->chanspec); */
-	if (!insn->n) {
-		printk(KERN_INFO "MPC624: Warning, no data to acquire\n");
-		return 0;
-	}
 
 	for (n = 0; n < insn->n; n++) {
 		/*  Trigger the conversion */
@@ -175,18 +180,10 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 		udelay(1);
 
 		/*  Wait for the conversion to end */
-		for (i = 0; i < TIMEOUT; i++) {
-			ucPort = inb(dev->iobase + MPC624_ADC);
-			if (ucPort & MPC624_ADBUSY)
-				udelay(1000);
-			else
-				break;
-		}
-		if (i == TIMEOUT) {
-			printk(KERN_ERR "MPC624: timeout (%dms)\n", TIMEOUT);
-			data[n] = 0;
-			return -ETIMEDOUT;
-		}
+		ret = comedi_timeout(dev, s, insn, mpc624_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		/*  Start reading data */
 		data_in = 0;
 		data_out = devpriv->ulConvertionRate;
@@ -245,11 +242,11 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 		 */
 
 		if (data_in & MPC624_EOC_BIT)
-			printk(KERN_INFO "MPC624:EOC bit is set (data_in=%lu)!",
-			       data_in);
+			dev_dbg(dev->class_dev,
+				"EOC bit is set (data_in=%lu)!", data_in);
 		if (data_in & MPC624_DMY_BIT)
-			printk(KERN_INFO "MPC624:DMY bit is set (data_in=%lu)!",
-			       data_in);
+			dev_dbg(dev->class_dev,
+				"DMY bit is set (data_in=%lu)!", data_in);
 		if (data_in & MPC624_SGN_BIT) {	/* Volatge is positive */
 			/*
 			 * comedi operates on unsigned numbers, so mask off EOC
@@ -348,7 +345,7 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 1;
 	s->insn_read = mpc624_ai_rinsn;
 
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver mpc624_driver = {

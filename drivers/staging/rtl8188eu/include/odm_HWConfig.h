@@ -69,7 +69,7 @@ struct phy_rx_agc_info {
 };
 
 struct phy_status_rpt {
-	struct phy_rx_agc_info path_agc[2];
+	struct phy_rx_agc_info path_agc[3];
 	u8	ch_corr[2];
 	u8	cck_sig_qual_ofdm_pwdb_all;
 	u8	cck_agc_rpt_ofdm_cfosho_a;
@@ -79,7 +79,7 @@ struct phy_status_rpt {
 	u8	path_cfotail[2];
 	u8	pcts_mask[2];
 	s8	stream_rxevm[2];
-	u8	path_rxsnr[2];
+	u8	path_rxsnr[3];
 	u8	noise_power_db_lsb;
 	u8	rsvd_2[3];
 	u8	stream_csi[2];
@@ -121,8 +121,8 @@ void ODM_MacStatusQuery(struct odm_dm_struct *pDM_Odm,
 			bool	bPacketBeacon);
 
 enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *pDM_Odm,
-					   enum ODM_RF_RADIO_PATH Content,
-					   enum ODM_RF_RADIO_PATH eRFPath);
+					   enum rf_radio_path Content,
+					   enum rf_radio_path eRFPath);
 
 enum HAL_STATUS ODM_ConfigBBWithHeaderFile(struct odm_dm_struct *pDM_Odm,
 					   enum odm_bb_config_type ConfigType);

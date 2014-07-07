@@ -6,7 +6,7 @@
  *
  * See Documentation/trace/tracepoints.txt.
  *
- * (C) Copyright 2008 Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+ * Copyright (C) 2008-2014 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
  *
  * Heavily inspired from the Linux Kernel Markers.
  *
@@ -21,6 +21,7 @@
 
 struct module;
 struct tracepoint;
+struct notifier_block;
 
 struct tracepoint_func {
 	void *func;
@@ -35,44 +36,39 @@ struct tracepoint {
 	struct tracepoint_func __rcu *funcs;
 };
 
-/*
- * Connect a probe to a tracepoint.
- * Internal API, should not be used directly.
- */
-extern int tracepoint_probe_register(const char *name, void *probe, void *data);
-
-/*
- * Disconnect a probe from a tracepoint.
- * Internal API, should not be used directly.
- */
 extern int
-tracepoint_probe_unregister(const char *name, void *probe, void *data);
-
-extern int tracepoint_probe_register_noupdate(const char *name, void *probe,
-					      void *data);
-extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe,
-						void *data);
-extern void tracepoint_probe_update_all(void);
+tracepoint_probe_register(struct tracepoint *tp, void *probe, void *data);
+extern int
+tracepoint_probe_unregister(struct tracepoint *tp, void *probe, void *data);
+extern void
+for_each_kernel_tracepoint(void (*fct)(struct tracepoint *tp, void *priv),
+		void *priv);
 
 #ifdef CONFIG_MODULES
 struct tp_module {
 	struct list_head list;
-	unsigned int num_tracepoints;
-	struct tracepoint * const *tracepoints_ptrs;
-};
-#endif /* CONFIG_MODULES */
-
-struct tracepoint_iter {
-#ifdef CONFIG_MODULES
-	struct tp_module *module;
-#endif /* CONFIG_MODULES */
-	struct tracepoint * const *tracepoint;
+	struct module *mod;
 };
 
-extern void tracepoint_iter_start(struct tracepoint_iter *iter);
-extern void tracepoint_iter_next(struct tracepoint_iter *iter);
-extern void tracepoint_iter_stop(struct tracepoint_iter *iter);
-extern void tracepoint_iter_reset(struct tracepoint_iter *iter);
+bool trace_module_has_bad_taint(struct module *mod);
+extern int register_tracepoint_module_notifier(struct notifier_block *nb);
+extern int unregister_tracepoint_module_notifier(struct notifier_block *nb);
+#else
+static inline bool trace_module_has_bad_taint(struct module *mod)
+{
+	return false;
+}
+static inline
+int register_tracepoint_module_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+static inline
+int unregister_tracepoint_module_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+#endif /* CONFIG_MODULES */
 
 /*
  * tracepoint_synchronize_unregister must be called between the last tracepoint
@@ -83,6 +79,11 @@ static inline void tracepoint_synchronize_unregister(void)
 {
 	synchronize_sched();
 }
+
+#ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
+extern void syscall_regfunc(void);
+extern void syscall_unregfunc(void);
+#endif /* CONFIG_HAVE_SYSCALL_TRACEPOINTS */
 
 #define PARAMS(args...) args
 
@@ -172,18 +173,23 @@ static inline void tracepoint_synchronize_unregister(void)
 	static inline int						\
 	register_trace_##name(void (*probe)(data_proto), void *data)	\
 	{								\
-		return tracepoint_probe_register(#name, (void *)probe,	\
-						 data);			\
+		return tracepoint_probe_register(&__tracepoint_##name,	\
+						(void *)probe, data);	\
 	}								\
 	static inline int						\
 	unregister_trace_##name(void (*probe)(data_proto), void *data)	\
 	{								\
-		return tracepoint_probe_unregister(#name, (void *)probe, \
-						   data);		\
+		return tracepoint_probe_unregister(&__tracepoint_##name,\
+						(void *)probe, data);	\
 	}								\
 	static inline void						\
 	check_trace_callback_type_##name(void (*cb)(data_proto))	\
 	{								\
+	}								\
+	static inline bool						\
+	trace_##name##_enabled(void)					\
+	{								\
+		return static_key_false(&__tracepoint_##name.key);	\
 	}
 
 /*
@@ -229,6 +235,11 @@ static inline void tracepoint_synchronize_unregister(void)
 	}								\
 	static inline void check_trace_callback_type_##name(void (*cb)(data_proto)) \
 	{								\
+	}								\
+	static inline bool						\
+	trace_##name##_enabled(void)					\
+	{								\
+		return false;						\
 	}
 
 #define DEFINE_TRACE_FN(name, reg, unreg)
@@ -267,6 +278,8 @@ static inline void tracepoint_synchronize_unregister(void)
 
 #define TRACE_EVENT_FLAGS(event, flag)
 
+#define TRACE_EVENT_PERF_PERM(event, expr...)
+
 #endif /* DECLARE_TRACE */
 
 #ifndef TRACE_EVENT
@@ -274,7 +287,7 @@ static inline void tracepoint_synchronize_unregister(void)
  * For use with the TRACE_EVENT macro:
  *
  * We define a tracepoint, its arguments, its printk format
- * and its 'fast binay record' layout.
+ * and its 'fast binary record' layout.
  *
  * Firstly, name your tracepoint via TRACE_EVENT(name : the
  * 'subsystem_event' notation is fine.
@@ -398,5 +411,7 @@ static inline void tracepoint_synchronize_unregister(void)
 				PARAMS(args), PARAMS(cond))
 
 #define TRACE_EVENT_FLAGS(event, flag)
+
+#define TRACE_EVENT_PERF_PERM(event, expr...)
 
 #endif /* ifdef TRACE_EVENT (see note above) */

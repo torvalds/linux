@@ -44,7 +44,7 @@ int InterfaceRDM(struct bcm_interface_adapter *psIntfAdapter,
 	else
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, RDM, DBG_LVL_ALL, "RDM sent %d", bytes);
 
-	psIntfAdapter->psAdapter->DeviceAccess = FALSE;
+	psIntfAdapter->psAdapter->DeviceAccess = false;
 	return bytes;
 }
 
@@ -90,10 +90,10 @@ int InterfaceWRM(struct bcm_interface_adapter *psIntfAdapter,
 
 	if (retval < 0)	{
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, WRM, DBG_LVL_ALL, "WRM failed status :%d", retval);
-		psIntfAdapter->psAdapter->DeviceAccess = FALSE;
+		psIntfAdapter->psAdapter->DeviceAccess = false;
 		return retval;
 	} else {
-		psIntfAdapter->psAdapter->DeviceAccess = FALSE;
+		psIntfAdapter->psAdapter->DeviceAccess = false;
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, WRM, DBG_LVL_ALL, "WRM sent %d", retval);
 		return STATUS_SUCCESS;
 	}
@@ -104,7 +104,7 @@ int BcmRDM(void *arg,
 	void *buff,
 	int len)
 {
-	return InterfaceRDM((struct bcm_interface_adapter*)arg, addr, buff, len);
+	return InterfaceRDM((struct bcm_interface_adapter *)arg, addr, buff, len);
 }
 
 int BcmWRM(void *arg,
@@ -211,7 +211,7 @@ void putUsbSuspend(struct work_struct *work)
 	psIntfAdapter = container_of(work, struct bcm_interface_adapter, usbSuspendWork);
 	intf = psIntfAdapter->interface;
 
-	if (psIntfAdapter->bSuspended == FALSE)
+	if (psIntfAdapter->bSuspended == false)
 		usb_autopm_put_interface(intf);
 }
 

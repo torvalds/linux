@@ -114,7 +114,7 @@ static int tegra30_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		/* Wait for the power to come up. */
 		timeout = jiffies + msecs_to_jiffies(100);
-		while (tegra_pmc_cpu_is_powered(cpu)) {
+		while (!tegra_pmc_cpu_is_powered(cpu)) {
 			if (time_after(jiffies, timeout))
 				return -ETIMEDOUT;
 			udelay(10);
@@ -175,6 +175,8 @@ static int tegra_boot_secondary(unsigned int cpu,
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) && tegra_chip_id == TEGRA30)
 		return tegra30_boot_secondary(cpu, idle);
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC) && tegra_chip_id == TEGRA114)
+		return tegra114_boot_secondary(cpu, idle);
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_124_SOC) && tegra_chip_id == TEGRA124)
 		return tegra114_boot_secondary(cpu, idle);
 
 	return -EINVAL;

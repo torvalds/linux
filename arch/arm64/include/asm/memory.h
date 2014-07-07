@@ -33,18 +33,23 @@
 #define UL(x) _AC(x, UL)
 
 /*
- * PAGE_OFFSET - the virtual address of the start of the kernel image.
+ * PAGE_OFFSET - the virtual address of the start of the kernel image (top
+ *		 (VA_BITS - 1))
  * VA_BITS - the maximum number of bits for virtual addresses.
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
  * The module space lives between the addresses given by TASK_SIZE
  * and PAGE_OFFSET - it must be within 128MB of the kernel text.
  */
-#define PAGE_OFFSET		UL(0xffffffc000000000)
+#ifdef CONFIG_ARM64_64K_PAGES
+#define VA_BITS			(42)
+#else
+#define VA_BITS			(39)
+#endif
+#define PAGE_OFFSET		(UL(0xffffffffffffffff) << (VA_BITS - 1))
 #define MODULES_END		(PAGE_OFFSET)
 #define MODULES_VADDR		(MODULES_END - SZ_64M)
-#define EARLYCON_IOBASE		(MODULES_VADDR - SZ_4M)
-#define VA_BITS			(39)
+#define FIXADDR_TOP		(MODULES_VADDR - SZ_2M - PAGE_SIZE)
 #define TASK_SIZE_64		(UL(1) << VA_BITS)
 
 #ifdef CONFIG_COMPAT
@@ -133,6 +138,7 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define __pa(x)			__virt_to_phys((unsigned long)(x))
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
+#define virt_to_pfn(x)      __phys_to_pfn(__virt_to_phys(x))
 
 /*
  *  virt_to_page(k)	convert a _valid_ virtual address to struct page *
@@ -141,8 +147,7 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define ARCH_PFN_OFFSET		PHYS_PFN_OFFSET
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-#define	virt_addr_valid(kaddr)	(((void *)(kaddr) >= (void *)PAGE_OFFSET) && \
-				 ((void *)(kaddr) < (void *)high_memory))
+#define	virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #endif
 

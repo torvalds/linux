@@ -6,7 +6,6 @@
 static struct amd_decoder_ops *fam_ops;
 
 static u8 xec_mask	 = 0xf;
-static u8 nb_err_cpumask = 0xf;
 
 static bool report_gart_errors;
 static void (*nb_bus_decoder)(int node_id, struct mce *m);
@@ -741,6 +740,36 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	if (amd_filter_mce(m))
 		return NOTIFY_STOP;
 
+	pr_emerg(HW_ERR "%s\n", decode_error_status(m));
+
+	pr_emerg(HW_ERR "CPU:%d (%x:%x:%x) MC%d_STATUS[%s|%s|%s|%s|%s",
+		m->extcpu,
+		c->x86, c->x86_model, c->x86_mask,
+		m->bank,
+		((m->status & MCI_STATUS_OVER)	? "Over"  : "-"),
+		((m->status & MCI_STATUS_UC)	? "UE"	  : "CE"),
+		((m->status & MCI_STATUS_MISCV)	? "MiscV" : "-"),
+		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
+		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
+
+	if (c->x86 == 0x15 || c->x86 == 0x16)
+		pr_cont("|%s|%s",
+			((m->status & MCI_STATUS_DEFERRED) ? "Deferred" : "-"),
+			((m->status & MCI_STATUS_POISON)   ? "Poison"   : "-"));
+
+	/* do the two bits[14:13] together */
+	ecc = (m->status >> 45) & 0x3;
+	if (ecc)
+		pr_cont("|%sECC", ((ecc == 2) ? "C" : "U"));
+
+	pr_cont("]: 0x%016llx\n", m->status);
+
+	if (m->status & MCI_STATUS_ADDRV)
+		pr_emerg(HW_ERR "MC%d_ADDR: 0x%016llx\n", m->bank, m->addr);
+
+	if (!fam_ops)
+		goto err_code;
+
 	switch (m->bank) {
 	case 0:
 		decode_mc0_mce(m);
@@ -774,33 +803,7 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		break;
 	}
 
-	pr_emerg(HW_ERR "Error Status: %s\n", decode_error_status(m));
-
-	pr_emerg(HW_ERR "CPU:%d (%x:%x:%x) MC%d_STATUS[%s|%s|%s|%s|%s",
-		m->extcpu,
-		c->x86, c->x86_model, c->x86_mask,
-		m->bank,
-		((m->status & MCI_STATUS_OVER)	? "Over"  : "-"),
-		((m->status & MCI_STATUS_UC)	? "UE"	  : "CE"),
-		((m->status & MCI_STATUS_MISCV)	? "MiscV" : "-"),
-		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
-		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
-
-	if (c->x86 == 0x15 || c->x86 == 0x16)
-		pr_cont("|%s|%s",
-			((m->status & MCI_STATUS_DEFERRED) ? "Deferred" : "-"),
-			((m->status & MCI_STATUS_POISON)   ? "Poison"   : "-"));
-
-	/* do the two bits[14:13] together */
-	ecc = (m->status >> 45) & 0x3;
-	if (ecc)
-		pr_cont("|%sECC", ((ecc == 2) ? "C" : "U"));
-
-	pr_cont("]: 0x%016llx\n", m->status);
-
-	if (m->status & MCI_STATUS_ADDRV)
-		pr_emerg(HW_ERR "MC%d_ADDR: 0x%016llx\n", m->bank, m->addr);
-
+ err_code:
 	amd_decode_err_code(m->status & 0xffff);
 
 	return NOTIFY_STOP;
@@ -816,10 +819,7 @@ static int __init mce_amd_init(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (c->x86_vendor != X86_VENDOR_AMD)
-		return 0;
-
-	if (c->x86 < 0xf || c->x86 > 0x16)
-		return 0;
+		return -ENODEV;
 
 	fam_ops = kzalloc(sizeof(struct amd_decoder_ops), GFP_KERNEL);
 	if (!fam_ops)
@@ -851,7 +851,6 @@ static int __init mce_amd_init(void)
 		break;
 
 	case 0x14:
-		nb_err_cpumask  = 0x3;
 		fam_ops->mc0_mce = cat_mc0_mce;
 		fam_ops->mc1_mce = cat_mc1_mce;
 		fam_ops->mc2_mce = k8_mc2_mce;
@@ -874,7 +873,7 @@ static int __init mce_amd_init(void)
 	default:
 		printk(KERN_WARNING "Huh? What family is it: 0x%x?!\n", c->x86);
 		kfree(fam_ops);
-		return -EINVAL;
+		fam_ops = NULL;
 	}
 
 	pr_info("MCE: In-kernel MCE decoding enabled.\n");

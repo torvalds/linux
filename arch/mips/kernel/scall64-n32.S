@@ -72,7 +72,10 @@ n32_syscall_trace_entry:
 	SAVE_STATIC
 	move	s0, t2
 	move	a0, sp
+	daddiu	a1, v0, __NR_N32_Linux
 	jal	syscall_trace_enter
+
+	bltz	v0, 2f			# seccomp failed? Skip syscall
 
 	move	t0, s0
 	RESTORE_STATIC
@@ -94,7 +97,7 @@ n32_syscall_trace_entry:
 	sd	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sd	v0, PT_R2(sp)		# result
 
-	j	syscall_exit
+2:	j	syscall_exit
 
 not_n32_scall:
 	/* This is not an n32 compatibility syscall, pass it on to
@@ -103,6 +106,7 @@ not_n32_scall:
 
 	END(handle_sysn32)
 
+	.type	sysn32_call_table, @object
 EXPORT(sysn32_call_table)
 	PTR	sys_read			/* 6000 */
 	PTR	sys_write
@@ -417,4 +421,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_process_vm_writev	/* 6310 */
 	PTR	sys_kcmp
 	PTR	sys_finit_module
+	PTR	sys_sched_setattr
+	PTR	sys_sched_getattr
+	PTR	sys_renameat2			/* 6315 */
 	.size	sysn32_call_table,.-sysn32_call_table

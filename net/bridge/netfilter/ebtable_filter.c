@@ -14,8 +14,7 @@
 #define FILTER_VALID_HOOKS ((1 << NF_BR_LOCAL_IN) | (1 << NF_BR_FORWARD) | \
    (1 << NF_BR_LOCAL_OUT))
 
-static struct ebt_entries initial_chains[] =
-{
+static struct ebt_entries initial_chains[] = {
 	{
 		.name	= "INPUT",
 		.policy	= EBT_ACCEPT,
@@ -30,8 +29,7 @@ static struct ebt_entries initial_chains[] =
 	},
 };
 
-static struct ebt_replace_kernel initial_table =
-{
+static struct ebt_replace_kernel initial_table = {
 	.name		= "filter",
 	.valid_hooks	= FILTER_VALID_HOOKS,
 	.entries_size	= 3 * sizeof(struct ebt_entries),
@@ -50,8 +48,7 @@ static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
 	return 0;
 }
 
-static const struct ebt_table frame_filter =
-{
+static const struct ebt_table frame_filter = {
 	.name		= "filter",
 	.table		= &initial_table,
 	.valid_hooks	= FILTER_VALID_HOOKS,
@@ -60,17 +57,21 @@ static const struct ebt_table frame_filter =
 };
 
 static unsigned int
-ebt_in_hook(unsigned int hook, struct sk_buff *skb, const struct net_device *in,
-   const struct net_device *out, int (*okfn)(struct sk_buff *))
+ebt_in_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
+	    const struct net_device *in, const struct net_device *out,
+	    int (*okfn)(struct sk_buff *))
 {
-	return ebt_do_table(hook, skb, in, out, dev_net(in)->xt.frame_filter);
+	return ebt_do_table(ops->hooknum, skb, in, out,
+			    dev_net(in)->xt.frame_filter);
 }
 
 static unsigned int
-ebt_out_hook(unsigned int hook, struct sk_buff *skb, const struct net_device *in,
-   const struct net_device *out, int (*okfn)(struct sk_buff *))
+ebt_out_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
+	     const struct net_device *in, const struct net_device *out,
+	     int (*okfn)(struct sk_buff *))
 {
-	return ebt_do_table(hook, skb, in, out, dev_net(out)->xt.frame_filter);
+	return ebt_do_table(ops->hooknum, skb, in, out,
+			    dev_net(out)->xt.frame_filter);
 }
 
 static struct nf_hook_ops ebt_ops_filter[] __read_mostly = {

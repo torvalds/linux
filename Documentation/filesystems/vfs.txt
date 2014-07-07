@@ -347,6 +347,8 @@ struct inode_operations {
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *);
+	int (*rename2) (struct inode *, struct dentry *,
+			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
         void * (*follow_link) (struct dentry *, struct nameidata *);
         void (*put_link) (struct dentry *, struct nameidata *, void *);
@@ -413,6 +415,20 @@ otherwise noted.
 
   rename: called by the rename(2) system call to rename the object to
 	have the parent and name given by the second inode and dentry.
+
+  rename2: this has an additional flags argument compared to rename.
+	If no flags are supported by the filesystem then this method
+	need not be implemented.  If some flags are supported then the
+	filesystem must return -EINVAL for any unsupported or unknown
+	flags.  Currently the following flags are implemented:
+	(1) RENAME_NOREPLACE: this flag indicates that if the target
+	of the rename exists the rename should fail with -EEXIST
+	instead of replacing the target.  The VFS already checks for
+	existence, so for local filesystems the RENAME_NOREPLACE
+	implementation is equivalent to plain rename.
+	(2) RENAME_EXCHANGE: exchange source and target.  Both must
+	exist; this is checked by the VFS.  Unlike plain rename,
+	source and target may be of different type.
 
   readlink: called by the readlink(2) system call. Only required if
 	you want to support reading symbolic links
@@ -573,14 +589,13 @@ struct address_space_operations {
 	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
-	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
-			loff_t offset, unsigned long nr_segs);
+	ssize_t (*direct_IO)(int, struct kiocb *, struct iov_iter *iter, loff_t offset);
 	struct page* (*get_xip_page)(struct address_space *, sector_t,
 			int);
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
 	int (*launder_page) (struct page *);
-	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
+	int (*is_partially_uptodate) (struct page *, unsigned long,
 					unsigned long);
 	void (*is_dirty_writeback) (struct page *, bool *, bool *);
 	int (*error_remove_page) (struct mapping *mapping, struct page *page);
@@ -782,7 +797,7 @@ struct file_operations
 ----------------------
 
 This describes how the VFS can manipulate an open file. As of kernel
-3.5, the following members are defined:
+3.12, the following members are defined:
 
 struct file_operations {
 	struct module *owner;
@@ -791,6 +806,8 @@ struct file_operations {
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
+	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
@@ -803,9 +820,6 @@ struct file_operations {
 	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
-	ssize_t (*readv) (struct file *, const struct iovec *, unsigned long, loff_t *);
-	ssize_t (*writev) (struct file *, const struct iovec *, unsigned long, loff_t *);
-	ssize_t (*sendfile) (struct file *, loff_t *, size_t, read_actor_t, void *);
 	ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
 	int (*check_flags)(int);
@@ -814,6 +828,7 @@ struct file_operations {
 	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned int);
 	int (*setlease)(struct file *, long arg, struct file_lock **);
 	long (*fallocate)(struct file *, int mode, loff_t offset, loff_t len);
+	int (*show_fdinfo)(struct seq_file *m, struct file *f);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -823,11 +838,15 @@ otherwise noted.
 
   read: called by read(2) and related system calls
 
-  aio_read: called by io_submit(2) and other asynchronous I/O operations
+  aio_read: vectored, possibly asynchronous read
+
+  read_iter: possibly asynchronous read with iov_iter as destination
 
   write: called by write(2) and related system calls
 
-  aio_write: called by io_submit(2) and other asynchronous I/O operations
+  aio_write: vectored, possibly asynchronous write
+
+  write_iter: possibly asynchronous write with iov_iter as source
 
   iterate: called when the VFS needs to read the directory contents
 
@@ -863,12 +882,6 @@ otherwise noted.
 
   lock: called by the fcntl(2) system call for F_GETLK, F_SETLK, and F_SETLKW
   	commands
-
-  readv: called by the readv(2) system call
-
-  writev: called by the writev(2) system call
-
-  sendfile: called by the sendfile(2) system call
 
   get_unmapped_area: called by the mmap(2) system call
 

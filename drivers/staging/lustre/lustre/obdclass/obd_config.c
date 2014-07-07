@@ -61,7 +61,8 @@ int class_find_param(char *buf, char *key, char **valp)
 	if (!buf)
 		return 1;
 
-	if ((ptr = strstr(buf, key)) == NULL)
+	ptr = strstr(buf, key);
+	if (ptr == NULL)
 		return 1;
 
 	if (valp)
@@ -417,7 +418,7 @@ int class_attach(struct lustre_cfg *lcfg)
 
 	/* do the attach */
 	if (OBP(obd, attach)) {
-		rc = OBP(obd,attach)(obd, sizeof *lcfg, lcfg);
+		rc = OBP(obd, attach)(obd, sizeof(*lcfg), lcfg);
 		if (rc)
 			GOTO(out, rc = -EINVAL);
 	}
@@ -592,7 +593,7 @@ int class_detach(struct obd_device *obd, struct lustre_cfg *lcfg)
 }
 EXPORT_SYMBOL(class_detach);
 
-/** Start shutting down the obd.  There may be in-progess ops when
+/** Start shutting down the obd.  There may be in-progress ops when
  * this is called.  We tell them to start shutting down with a call
  * to class_disconnect_exports().
  */
@@ -655,7 +656,7 @@ int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	/* The three references that should be remaining are the
 	 * obd_self_export and the attach and setup references. */
 	if (atomic_read(&obd->obd_refcount) > 3) {
-		/* refcounf - 3 might be the number of real exports
+		/* refcount - 3 might be the number of real exports
 		   (excluding self export). But class_incref is called
 		   by other things as well, so don't count on it. */
 		CDEBUG(D_IOCTL, "%s: forcing exports to disconnect: %d\n",
@@ -900,7 +901,7 @@ void class_del_profile(const char *prof)
 		OBD_FREE(lprof->lp_dt, strlen(lprof->lp_dt) + 1);
 		if (lprof->lp_md)
 			OBD_FREE(lprof->lp_md, strlen(lprof->lp_md) + 1);
-		OBD_FREE(lprof, sizeof *lprof);
+		OBD_FREE(lprof, sizeof(*lprof));
 	}
 }
 EXPORT_SYMBOL(class_del_profile);
@@ -916,7 +917,7 @@ void class_del_profiles(void)
 		OBD_FREE(lprof->lp_dt, strlen(lprof->lp_dt) + 1);
 		if (lprof->lp_md)
 			OBD_FREE(lprof->lp_md, strlen(lprof->lp_md) + 1);
-		OBD_FREE(lprof, sizeof *lprof);
+		OBD_FREE(lprof, sizeof(*lprof));
 	}
 }
 EXPORT_SYMBOL(class_del_profiles);
@@ -1026,6 +1027,46 @@ struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
 	return new_cfg;
 }
 EXPORT_SYMBOL(lustre_cfg_rename);
+
+static int process_param2_config(struct lustre_cfg *lcfg)
+{
+	char *param = lustre_cfg_string(lcfg, 1);
+	char *upcall = lustre_cfg_string(lcfg, 2);
+	char *argv[] = {
+		[0] = "/usr/sbin/lctl",
+		[1] = "set_param",
+		[2] = param,
+		[3] = NULL
+	};
+	struct timeval	start;
+	struct timeval	end;
+	int		rc;
+
+
+	/* Add upcall processing here. Now only lctl is supported */
+	if (strcmp(upcall, LCTL_UPCALL) != 0) {
+		CERROR("Unsupported upcall %s\n", upcall);
+		return -EINVAL;
+	}
+
+	do_gettimeofday(&start);
+	rc = USERMODEHELPER(argv[0], argv, NULL);
+	do_gettimeofday(&end);
+
+	if (rc < 0) {
+		CERROR(
+		       "lctl: error invoking upcall %s %s %s: rc = %d; time %ldus\n",
+		       argv[0], argv[1], argv[2], rc,
+		       cfs_timeval_sub(&end, &start, NULL));
+	} else {
+		CDEBUG(D_HA, "lctl: invoked upcall %s %s %s, time %ldus\n",
+		       argv[0], argv[1], argv[2],
+		       cfs_timeval_sub(&end, &start, NULL));
+		       rc = 0;
+	}
+
+	return rc;
+}
 
 void lustre_register_quota_process_config(int (*qpc)(struct lustre_cfg *lcfg))
 {
@@ -1142,11 +1183,14 @@ int class_process_config(struct lustre_cfg *lcfg)
 			err = (*quota_process_config)(lcfg);
 			GOTO(out, err);
 		}
-		/* Fall through */
+
 		break;
 	}
+	case LCFG_SET_PARAM: {
+		err = process_param2_config(lcfg);
+		GOTO(out, 0);
 	}
-
+	}
 	/* Commands that require a device */
 	obd = class_name2obd(lustre_cfg_string(lcfg, 0));
 	if (obd == NULL) {
@@ -1692,7 +1736,7 @@ EXPORT_SYMBOL(class_manual_cleanup);
  */
 
 static unsigned
-uuid_hash(cfs_hash_t *hs, const void *key, unsigned mask)
+uuid_hash(struct cfs_hash *hs, const void *key, unsigned mask)
 {
 	return cfs_hash_djb2_hash(((struct obd_uuid *)key)->uuid,
 				  sizeof(((struct obd_uuid *)key)->uuid), mask);
@@ -1731,7 +1775,7 @@ uuid_export_object(struct hlist_node *hnode)
 }
 
 static void
-uuid_export_get(cfs_hash_t *hs, struct hlist_node *hnode)
+uuid_export_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct obd_export *exp;
 
@@ -1740,7 +1784,7 @@ uuid_export_get(cfs_hash_t *hs, struct hlist_node *hnode)
 }
 
 static void
-uuid_export_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
+uuid_export_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct obd_export *exp;
 
@@ -1763,7 +1807,7 @@ static cfs_hash_ops_t uuid_hash_ops = {
  */
 
 static unsigned
-nid_hash(cfs_hash_t *hs, const void *key, unsigned mask)
+nid_hash(struct cfs_hash *hs, const void *key, unsigned mask)
 {
 	return cfs_hash_djb2_hash(key, sizeof(lnet_nid_t), mask);
 }
@@ -1801,7 +1845,7 @@ nid_export_object(struct hlist_node *hnode)
 }
 
 static void
-nid_export_get(cfs_hash_t *hs, struct hlist_node *hnode)
+nid_export_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct obd_export *exp;
 
@@ -1810,7 +1854,7 @@ nid_export_get(cfs_hash_t *hs, struct hlist_node *hnode)
 }
 
 static void
-nid_export_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
+nid_export_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct obd_export *exp;
 
@@ -1855,7 +1899,7 @@ nidstats_object(struct hlist_node *hnode)
 }
 
 static void
-nidstats_get(cfs_hash_t *hs, struct hlist_node *hnode)
+nidstats_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct nid_stat *ns;
 
@@ -1864,7 +1908,7 @@ nidstats_get(cfs_hash_t *hs, struct hlist_node *hnode)
 }
 
 static void
-nidstats_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
+nidstats_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct nid_stat *ns;
 

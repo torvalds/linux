@@ -92,8 +92,8 @@ static int ep93xxbl_probe(struct platform_device *dev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = EP93XX_MAX_BRIGHT;
-	bl = backlight_device_register(dev->name, &dev->dev, ep93xxbl,
-				       &ep93xxbl_ops, &props);
+	bl = devm_backlight_device_register(&dev->dev, dev->name, &dev->dev,
+					ep93xxbl, &ep93xxbl_ops, &props);
 	if (IS_ERR(bl))
 		return PTR_ERR(bl);
 
@@ -103,14 +103,6 @@ static int ep93xxbl_probe(struct platform_device *dev)
 
 	ep93xxbl_update_status(bl);
 
-	return 0;
-}
-
-static int ep93xxbl_remove(struct platform_device *dev)
-{
-	struct backlight_device *bl = platform_get_drvdata(dev);
-
-	backlight_device_unregister(bl);
 	return 0;
 }
 
@@ -140,7 +132,6 @@ static struct platform_driver ep93xxbl_driver = {
 		.pm	= &ep93xxbl_pm_ops,
 	},
 	.probe		= ep93xxbl_probe,
-	.remove		= ep93xxbl_remove,
 };
 
 module_platform_driver(ep93xxbl_driver);

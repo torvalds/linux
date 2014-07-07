@@ -1458,7 +1458,7 @@ static void mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
 		pi->port.read_status_mask |= SDMA_DESC_CMDSTAT_PE
 			| SDMA_DESC_CMDSTAT_FR;
 
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		pi->port.read_status_mask |= SDMA_DESC_CMDSTAT_BR;
 
 	/* Characters/events to ignore */
@@ -2030,7 +2030,7 @@ static void mpsc_drv_get_platform_data(struct mpsc_port_info *pi,
 {
 	struct mpsc_pdata	*pdata;
 
-	pdata = (struct mpsc_pdata *)dev_get_platdata(&pd->dev);
+	pdata = dev_get_platdata(&pd->dev);
 
 	pi->port.uartclk = pdata->brg_clk_freq;
 	pi->port.iotype = UPIO_MEM;

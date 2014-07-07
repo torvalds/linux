@@ -175,8 +175,12 @@ enum {
 	CONFIG_T_CONFIG  = 0,
 	CONFIG_T_SPTLRPC = 1,
 	CONFIG_T_RECOVER = 2,
-	CONFIG_T_MAX     = 3
+	CONFIG_T_PARAMS  = 3,
+	CONFIG_T_MAX     = 4
 };
+
+#define PARAMS_FILENAME	"params"
+#define LCTL_UPCALL	"lctl"
 
 /* list of active configuration logs  */
 struct config_llog_data {
@@ -185,7 +189,8 @@ struct config_llog_data {
 	struct list_head		  cld_list_chain;
 	atomic_t		cld_refcount;
 	struct config_llog_data    *cld_sptlrpc;/* depended sptlrpc log */
-	struct config_llog_data    *cld_recover;    /* imperative recover log */
+	struct config_llog_data	   *cld_params;	/* common parameters log */
+	struct config_llog_data    *cld_recover;/* imperative recover log */
 	struct obd_export	  *cld_mgcexp;
 	struct mutex		    cld_lock;
 	int			 cld_type;
@@ -704,15 +709,6 @@ static inline int obd_size_diskmd(struct obd_export *exp,
 				  struct lov_stripe_md *mem_src)
 {
 	return obd_packmd(exp, NULL, mem_src);
-}
-
-/* helper functions */
-static inline int obd_alloc_diskmd(struct obd_export *exp,
-				   struct lov_mds_md **disk_tgt)
-{
-	LASSERT(disk_tgt);
-	LASSERT(*disk_tgt == NULL);
-	return obd_packmd(exp, disk_tgt, NULL);
 }
 
 static inline int obd_free_diskmd(struct obd_export *exp,
@@ -1626,7 +1622,7 @@ static inline int obd_health_check(const struct lu_env *env,
 {
 	/* returns: 0 on healthy
 	 *	 >0 on unhealthy + reason code/flag
-	 *	    however the only suppored reason == 1 right now
+	 *	    however the only supported reason == 1 right now
 	 *	    We'll need to define some better reasons
 	 *	    or flags in the future.
 	 *	 <0 on error
@@ -1996,11 +1992,11 @@ static inline int md_getxattr(struct obd_export *exp,
 
 static inline int md_set_open_replay_data(struct obd_export *exp,
 					  struct obd_client_handle *och,
-					  struct ptlrpc_request *open_req)
+					  struct lookup_intent *it)
 {
 	EXP_CHECK_MD_OP(exp, set_open_replay_data);
 	EXP_MD_COUNTER_INCREMENT(exp, set_open_replay_data);
-	return MDP(exp->exp_obd, set_open_replay_data)(exp, och, open_req);
+	return MDP(exp->exp_obd, set_open_replay_data)(exp, och, it);
 }
 
 static inline int md_clear_open_replay_data(struct obd_export *exp,
@@ -2050,12 +2046,13 @@ static inline ldlm_mode_t md_lock_match(struct obd_export *exp, __u64 flags,
 }
 
 static inline int md_init_ea_size(struct obd_export *exp, int easize,
-				  int def_asize, int cookiesize)
+				  int def_asize, int cookiesize,
+				  int def_cookiesize)
 {
 	EXP_CHECK_MD_OP(exp, init_ea_size);
 	EXP_MD_COUNTER_INCREMENT(exp, init_ea_size);
 	return MDP(exp->exp_obd, init_ea_size)(exp, easize, def_asize,
-					       cookiesize);
+					       cookiesize, def_cookiesize);
 }
 
 static inline int md_get_remote_perm(struct obd_export *exp,
@@ -2128,7 +2125,7 @@ extern struct kmem_cache *obdo_cachep;
 
 #define OBDO_ALLOC(ptr)						       \
 do {									  \
-	OBD_SLAB_ALLOC_PTR_GFP((ptr), obdo_cachep, __GFP_IO);	     \
+	OBD_SLAB_ALLOC_PTR_GFP((ptr), obdo_cachep, GFP_NOFS);             \
 } while(0)
 
 #define OBDO_FREE(ptr)							\
@@ -2184,6 +2181,9 @@ void class_exit_uuidlist(void);
 /* mea.c */
 int mea_name2idx(struct lmv_stripe_md *mea, const char *name, int namelen);
 int raw_name2idx(int hashtype, int count, const char *name, int namelen);
+
+/* class_obd.c */
+extern char obd_jobid_node[];
 
 /* prng.c */
 #define ll_generate_random_uuid(uuid_out) cfs_get_random_bytes(uuid_out, sizeof(class_uuid_t))

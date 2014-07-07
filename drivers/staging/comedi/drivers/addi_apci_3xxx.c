@@ -373,7 +373,7 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 		writel(status, devpriv->mmio + 16);
 
 		val = readl(devpriv->mmio + 28);
-		comedi_buf_put(s->async, val);
+		comedi_buf_put(s, val);
 
 		s->async->events |= COMEDI_CB_EOA;
 		comedi_event(dev, s);
@@ -434,13 +434,26 @@ static int apci3xxx_ai_setup(struct comedi_device *dev, unsigned int chanspec)
 	return 0;
 }
 
+static int apci3xxx_ai_eoc(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned long context)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readl(devpriv->mmio + 20);
+	if (status & 0x1)
+		return 0;
+	return -EBUSY;
+}
+
 static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
 	struct apci3xxx_private *devpriv = dev->private;
-	unsigned int val;
 	int ret;
 	int i;
 
@@ -453,10 +466,9 @@ static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 		writel(0x80000, devpriv->mmio + 8);
 
 		/* Wait the EOS */
-		do {
-			val = readl(devpriv->mmio + 20);
-			val &= 0x1;
-		} while (!val);
+		ret = comedi_timeout(dev, s, insn, apci3xxx_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* Read the analog value */
 		data[i] = readl(devpriv->mmio + 28);
@@ -521,7 +533,7 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 {
 	const struct apci3xxx_boardinfo *board = comedi_board(dev);
 	int err = 0;
-	unsigned int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -561,31 +573,9 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	/*
-	 * FIXME: The hardware supports multiple scan modes but the original
-	 * addi-data driver only supported reading a single channel with
-	 * interrupts. Need a proper datasheet to fix this.
-	 *
-	 * The following scan modes are supported by the hardware:
-	 * 1) Single software scan
-	 * 2) Single hardware triggered scan
-	 * 3) Continuous software scan
-	 * 4) Continuous software scan with timer delay
-	 * 5) Continuous hardware triggered scan
-	 * 6) Continuous hardware triggered scan with timer delay
-	 *
-	 * For now, limit the chanlist to a single channel.
-	 */
-	if (cmd->chanlist_len > 1) {
-		cmd->chanlist_len = 1;
-		err |= -EINVAL;
-	}
-
-	tmp = cmd->convert_arg;
-	err |= apci3xxx_ai_ns_to_timer(dev, &cmd->convert_arg,
-				       cmd->flags & TRIG_ROUND_MASK);
-	if (tmp != cmd->convert_arg)
-		err |= -EINVAL;
+	arg = cmd->convert_arg;
+	err |= apci3xxx_ai_ns_to_timer(dev, &arg, cmd->flags & TRIG_ROUND_MASK);
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 	if (err)
 		return 4;
@@ -622,6 +612,20 @@ static int apci3xxx_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
+static int apci3xxx_ao_eoc(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned long context)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readl(devpriv->mmio + 96);
+	if (status & 0x100)
+		return 0;
+	return -EBUSY;
+}
+
 static int apci3xxx_ao_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn,
@@ -630,7 +634,7 @@ static int apci3xxx_ao_insn_write(struct comedi_device *dev,
 	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int status;
+	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
@@ -641,9 +645,9 @@ static int apci3xxx_ao_insn_write(struct comedi_device *dev,
 		writel((data[i] << 8) | chan, devpriv->mmio + 100);
 
 		/* Wait the end of transfer */
-		do {
-			status = readl(devpriv->mmio + 96);
-		} while ((status & 0x100) != 0x100);
+		ret = comedi_timeout(dev, s, insn, apci3xxx_ao_eoc, 0);
+		if (ret)
+			return ret;
 	}
 
 	return insn->n;
@@ -664,16 +668,10 @@ static int apci3xxx_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
 	s->state = inl(dev->iobase + 48) & 0xf;
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outl(s->state, dev->iobase + 48);
-	}
 
 	data[1] = s->state;
 
@@ -686,7 +684,7 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int mask;
+	unsigned int mask = 0;
 	int ret;
 
 	/*
@@ -694,12 +692,14 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 	 * Port 1 (channels 8-15) are always outputs
 	 * Port 2 (channels 16-23) are programmable i/o
 	 */
-	if (chan < 16) {
-		if (data[0] != INSN_CONFIG_DIO_QUERY)
+	if (data[0] != INSN_CONFIG_DIO_QUERY) {
+		/* ignore all other instructions for ports 0 and 1 */
+		if (chan < 16)
 			return -EINVAL;
-	} else {
-		/* changing any channel in port 2 changes the entire port */
-		mask = 0xff0000;
+		else
+			/* changing any channel in port 2 */
+			/* changes the entire port        */
+			mask = 0xff0000;
 	}
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
@@ -717,16 +717,11 @@ static int apci3xxx_dio_insn_bits(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
+	unsigned int mask;
 	unsigned int val;
 
-	/* only update output channels */
-	mask &= s->io_bits;
+	mask = comedi_dio_update_state(s, data);
 	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
 		if (mask & 0xff)
 			outl(s->state & 0xff, dev->iobase + 80);
 		if (mask & 0xff0000)
@@ -826,12 +821,30 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->subdev_flags	= SDF_READABLE | board->ai_subdev_flags;
 		s->n_chan	= board->ai_n_chan;
 		s->maxdata	= board->ai_maxdata;
-		s->len_chanlist	= s->n_chan;
 		s->range_table	= &apci3xxx_ai_range;
 		s->insn_read	= apci3xxx_ai_insn_read;
 		if (dev->irq) {
+			/*
+			 * FIXME: The hardware supports multiple scan modes
+			 * but the original addi-data driver only supported
+			 * reading a single channel with interrupts. Need a
+			 * proper datasheet to fix this.
+			 *
+			 * The following scan modes are supported by the
+			 * hardware:
+			 *   1) Single software scan
+			 *   2) Single hardware triggered scan
+			 *   3) Continuous software scan
+			 *   4) Continuous software scan with timer delay
+			 *   5) Continuous hardware triggered scan
+			 *   6) Continuous hardware triggered scan with timer
+			 *      delay
+			 *
+			 * For now, limit the chanlist to a single channel.
+			 */
 			dev->read_subdev = s;
 			s->subdev_flags	|= SDF_CMD_READ;
+			s->len_chanlist	= 1;
 			s->do_cmdtest	= apci3xxx_ai_cmdtest;
 			s->do_cmd	= apci3xxx_ai_cmd;
 			s->cancel	= apci3xxx_ai_cancel;
@@ -926,7 +939,7 @@ static int apci3xxx_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci3xxx_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci3xxx_pci_table) = {
+static const struct pci_device_id apci3xxx_pci_table[] = {
 	{ PCI_VDEVICE(ADDIDATA, 0x3010), BOARD_APCI3000_16 },
 	{ PCI_VDEVICE(ADDIDATA, 0x300f), BOARD_APCI3000_8 },
 	{ PCI_VDEVICE(ADDIDATA, 0x300e), BOARD_APCI3000_4 },

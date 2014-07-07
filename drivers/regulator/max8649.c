@@ -49,7 +49,6 @@
 #define MAX8649_RAMP_DOWN	(1 << 1)
 
 struct max8649_regulator_info {
-	struct regulator_dev	*regulator;
 	struct device		*dev;
 	struct regmap		*regmap;
 
@@ -154,6 +153,7 @@ static int max8649_regulator_probe(struct i2c_client *client,
 {
 	struct max8649_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct max8649_regulator_info *info = NULL;
+	struct regulator_dev *regulator;
 	struct regulator_config config = { };
 	unsigned int val;
 	unsigned char data;
@@ -161,10 +161,8 @@ static int max8649_regulator_probe(struct i2c_client *client,
 
 	info = devm_kzalloc(&client->dev, sizeof(struct max8649_regulator_info),
 			    GFP_KERNEL);
-	if (!info) {
-		dev_err(&client->dev, "No enough memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	info->regmap = devm_regmap_init_i2c(client, &max8649_regmap_config);
 	if (IS_ERR(info->regmap)) {
@@ -234,22 +232,13 @@ static int max8649_regulator_probe(struct i2c_client *client,
 	config.driver_data = info;
 	config.regmap = info->regmap;
 
-	info->regulator = regulator_register(&dcdc_desc, &config);
-	if (IS_ERR(info->regulator)) {
+	regulator = devm_regulator_register(&client->dev, &dcdc_desc,
+						  &config);
+	if (IS_ERR(regulator)) {
 		dev_err(info->dev, "failed to register regulator %s\n",
 			dcdc_desc.name);
-		return PTR_ERR(info->regulator);
+		return PTR_ERR(regulator);
 	}
-
-	return 0;
-}
-
-static int max8649_regulator_remove(struct i2c_client *client)
-{
-	struct max8649_regulator_info *info = i2c_get_clientdata(client);
-
-	if (info)
-		regulator_unregister(info->regulator);
 
 	return 0;
 }
@@ -262,7 +251,6 @@ MODULE_DEVICE_TABLE(i2c, max8649_id);
 
 static struct i2c_driver max8649_driver = {
 	.probe		= max8649_regulator_probe,
-	.remove		= max8649_regulator_remove,
 	.driver		= {
 		.name	= "max8649",
 	},

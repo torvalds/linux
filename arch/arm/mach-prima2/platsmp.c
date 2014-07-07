@@ -106,8 +106,7 @@ static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * "cpu" is Linux's internal ID.
 	 */
 	pen_release = cpu_logical_map(cpu);
-	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
-	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+	sync_cache_w(&pen_release);
 
 	/*
 	 * Send the secondary CPU SEV, thereby causing the boot monitor to read
@@ -139,9 +138,9 @@ static void __init sirfsoc_smp_prepare_cpus(unsigned int max_cpus)
 }
 
 struct smp_operations sirfsoc_smp_ops __initdata = {
-        .smp_prepare_cpus       = sirfsoc_smp_prepare_cpus,
-        .smp_secondary_init     = sirfsoc_secondary_init,
-        .smp_boot_secondary     = sirfsoc_boot_secondary,
+	.smp_prepare_cpus       = sirfsoc_smp_prepare_cpus,
+	.smp_secondary_init     = sirfsoc_secondary_init,
+	.smp_boot_secondary     = sirfsoc_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die                = sirfsoc_cpu_die,
 #endif

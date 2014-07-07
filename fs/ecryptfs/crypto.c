@@ -392,7 +392,7 @@ static int crypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
 
 		wait_for_completion(&ecr->completion);
 		rc = ecr->rc;
-		INIT_COMPLETION(ecr->completion);
+		reinit_completion(&ecr->completion);
 	}
 out:
 	ablkcipher_request_free(req);
@@ -408,7 +408,7 @@ static loff_t lower_offset_for_page(struct ecryptfs_crypt_stat *crypt_stat,
 				    struct page *page)
 {
 	return ecryptfs_lower_header_size(crypt_stat) +
-	       (page->index << PAGE_CACHE_SHIFT);
+	       ((loff_t)page->index << PAGE_CACHE_SHIFT);
 }
 
 /**

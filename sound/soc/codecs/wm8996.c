@@ -311,28 +311,28 @@ static const char *sidetone_hpf_text[] = {
 	"2.9kHz", "1.5kHz", "735Hz", "403Hz", "196Hz", "98Hz", "49Hz"
 };
 
-static const struct soc_enum sidetone_hpf =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 7, 7, sidetone_hpf_text);
+static SOC_ENUM_SINGLE_DECL(sidetone_hpf,
+			    WM8996_SIDETONE, 7, sidetone_hpf_text);
 
 static const char *hpf_mode_text[] = {
 	"HiFi", "Custom", "Voice"
 };
 
-static const struct soc_enum dsp1tx_hpf_mode =
-	SOC_ENUM_SINGLE(WM8996_DSP1_TX_FILTERS, 3, 3, hpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(dsp1tx_hpf_mode,
+			    WM8996_DSP1_TX_FILTERS, 3, hpf_mode_text);
 
-static const struct soc_enum dsp2tx_hpf_mode =
-	SOC_ENUM_SINGLE(WM8996_DSP2_TX_FILTERS, 3, 3, hpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(dsp2tx_hpf_mode,
+			    WM8996_DSP2_TX_FILTERS, 3, hpf_mode_text);
 
 static const char *hpf_cutoff_text[] = {
 	"50Hz", "75Hz", "100Hz", "150Hz", "200Hz", "300Hz", "400Hz"
 };
 
-static const struct soc_enum dsp1tx_hpf_cutoff =
-	SOC_ENUM_SINGLE(WM8996_DSP1_TX_FILTERS, 0, 7, hpf_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(dsp1tx_hpf_cutoff,
+			    WM8996_DSP1_TX_FILTERS, 0, hpf_cutoff_text);
 
-static const struct soc_enum dsp2tx_hpf_cutoff =
-	SOC_ENUM_SINGLE(WM8996_DSP2_TX_FILTERS, 0, 7, hpf_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(dsp2tx_hpf_cutoff,
+			    WM8996_DSP2_TX_FILTERS, 0, hpf_cutoff_text);
 
 static void wm8996_set_retune_mobile(struct snd_soc_codec *codec, int block)
 {
@@ -412,7 +412,7 @@ static int wm8996_get_retune_mobile_block(const char *name)
 static int wm8996_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct wm8996_pdata *pdata = &wm8996->pdata;
 	int block = wm8996_get_retune_mobile_block(kcontrol->id.name);
@@ -434,10 +434,12 @@ static int wm8996_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 static int wm8996_get_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	int block = wm8996_get_retune_mobile_block(kcontrol->id.name);
 
+	if (block < 0)
+		return block;
 	ucontrol->value.enumerated.item[0] = wm8996->retune_mobile_cfg[block];
 
 	return 0;
@@ -608,7 +610,7 @@ static int bg_event(struct snd_soc_dapm_widget *w,
 		wm8996_bg_disable(codec);
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		ret = -EINVAL;
 	}
 
@@ -625,7 +627,7 @@ static int cp_event(struct snd_soc_dapm_widget *w,
 		msleep(5);
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		ret = -EINVAL;
 	}
 
@@ -646,7 +648,7 @@ static int rmv_short_event(struct snd_soc_dapm_widget *w,
 		wm8996->hpout_pending |= w->shift;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -767,7 +769,7 @@ static int dcs_start(struct snd_soc_dapm_widget *w,
 		wm8996->dcs_pending |= 1 << w->shift;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -778,14 +780,14 @@ static const char *sidetone_text[] = {
 	"IN1", "IN2",
 };
 
-static const struct soc_enum left_sidetone_enum =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 0, 2, sidetone_text);
+static SOC_ENUM_SINGLE_DECL(left_sidetone_enum,
+			    WM8996_SIDETONE, 0, sidetone_text);
 
 static const struct snd_kcontrol_new left_sidetone =
 	SOC_DAPM_ENUM("Left Sidetone", left_sidetone_enum);
 
-static const struct soc_enum right_sidetone_enum =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 1, 2, sidetone_text);
+static SOC_ENUM_SINGLE_DECL(right_sidetone_enum,
+			    WM8996_SIDETONE, 1, sidetone_text);
 
 static const struct snd_kcontrol_new right_sidetone =
 	SOC_DAPM_ENUM("Right Sidetone", right_sidetone_enum);
@@ -794,14 +796,14 @@ static const char *spk_text[] = {
 	"DAC1L", "DAC1R", "DAC2L", "DAC2R"
 };
 
-static const struct soc_enum spkl_enum =
-	SOC_ENUM_SINGLE(WM8996_LEFT_PDM_SPEAKER, 0, 4, spk_text);
+static SOC_ENUM_SINGLE_DECL(spkl_enum,
+			    WM8996_LEFT_PDM_SPEAKER, 0, spk_text);
 
 static const struct snd_kcontrol_new spkl_mux =
 	SOC_DAPM_ENUM("SPKL", spkl_enum);
 
-static const struct soc_enum spkr_enum =
-	SOC_ENUM_SINGLE(WM8996_RIGHT_PDM_SPEAKER, 0, 4, spk_text);
+static SOC_ENUM_SINGLE_DECL(spkr_enum,
+			    WM8996_RIGHT_PDM_SPEAKER, 0, spk_text);
 
 static const struct snd_kcontrol_new spkr_mux =
 	SOC_DAPM_ENUM("SPKR", spkr_enum);
@@ -810,8 +812,8 @@ static const char *dsp1rx_text[] = {
 	"AIF1", "AIF2"
 };
 
-static const struct soc_enum dsp1rx_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_8, 0, 2, dsp1rx_text);
+static SOC_ENUM_SINGLE_DECL(dsp1rx_enum,
+			    WM8996_POWER_MANAGEMENT_8, 0, dsp1rx_text);
 
 static const struct snd_kcontrol_new dsp1rx =
 	SOC_DAPM_ENUM("DSP1RX", dsp1rx_enum);
@@ -820,8 +822,8 @@ static const char *dsp2rx_text[] = {
 	 "AIF2", "AIF1"
 };
 
-static const struct soc_enum dsp2rx_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_8, 4, 2, dsp2rx_text);
+static SOC_ENUM_SINGLE_DECL(dsp2rx_enum,
+			    WM8996_POWER_MANAGEMENT_8, 4, dsp2rx_text);
 
 static const struct snd_kcontrol_new dsp2rx =
 	SOC_DAPM_ENUM("DSP2RX", dsp2rx_enum);
@@ -830,8 +832,8 @@ static const char *aif2tx_text[] = {
 	"DSP2", "DSP1", "AIF1"
 };
 
-static const struct soc_enum aif2tx_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_8, 6, 3, aif2tx_text);
+static SOC_ENUM_SINGLE_DECL(aif2tx_enum,
+			    WM8996_POWER_MANAGEMENT_8, 6, aif2tx_text);
 
 static const struct snd_kcontrol_new aif2tx =
 	SOC_DAPM_ENUM("AIF2TX", aif2tx_enum);
@@ -840,14 +842,14 @@ static const char *inmux_text[] = {
 	"ADC", "DMIC1", "DMIC2"
 };
 
-static const struct soc_enum in1_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_7, 0, 3, inmux_text);
+static SOC_ENUM_SINGLE_DECL(in1_enum,
+			    WM8996_POWER_MANAGEMENT_7, 0, inmux_text);
 
 static const struct snd_kcontrol_new in1_mux =
 	SOC_DAPM_ENUM("IN1 Mux", in1_enum);
 
-static const struct soc_enum in2_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_7, 4, 3, inmux_text);
+static SOC_ENUM_SINGLE_DECL(in2_enum,
+			    WM8996_POWER_MANAGEMENT_7, 4, inmux_text);
 
 static const struct snd_kcontrol_new in2_mux =
 	SOC_DAPM_ENUM("IN2 Mux", in2_enum);
@@ -1606,8 +1608,8 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 				msleep(5);
 			}
 
-			regcache_cache_only(codec->control_data, false);
-			regcache_sync(codec->control_data);
+			regcache_cache_only(wm8996->regmap, false);
+			regcache_sync(wm8996->regmap);
 		}
 
 		/* Bypass the MICBIASes for lowest power */
@@ -1618,10 +1620,10 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		regcache_cache_only(codec->control_data, true);
+		regcache_cache_only(wm8996->regmap, true);
 		if (wm8996->pdata.ldo_ena >= 0) {
 			gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
-			regcache_cache_only(codec->control_data, true);
+			regcache_cache_only(wm8996->regmap, true);
 		}
 		regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies),
 				       wm8996->supplies);
@@ -1656,7 +1658,7 @@ static int wm8996_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		lrclk_rx_reg = WM8996_AIF2_RX_LRCLK_2;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid dai id %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -1768,7 +1770,7 @@ static int wm8996_hw_params(struct snd_pcm_substream *substream,
 		dsp_shift = WM8996_DSP2_DIV_SHIFT;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid dai id %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -2249,6 +2251,7 @@ int wm8996_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		  wm8996_polarity_fn polarity_cb)
 {
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	wm8996->jack = jack;
 	wm8996->detecting = true;
@@ -2265,8 +2268,12 @@ int wm8996_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 			    WM8996_MICB2_DISCH, 0);
 
 	/* LDO2 powers the microphones, SYSCLK clocks detection */
-	snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO2");
-	snd_soc_dapm_force_enable_pin(&codec->dapm, "SYSCLK");
+	snd_soc_dapm_mutex_lock(dapm);
+
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "LDO2");
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "SYSCLK");
+
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	/* We start off just enabling microphone detection - even a
 	 * plain headphone will trigger detection.
@@ -2593,7 +2600,7 @@ static void wm8996_retune_mobile_pdata(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "Allocated %d unique ReTune Mobile names\n",
 		wm8996->num_retune_mobile_texts);
 
-	wm8996->retune_mobile_enum.max = wm8996->num_retune_mobile_texts;
+	wm8996->retune_mobile_enum.items = wm8996->num_retune_mobile_texts;
 	wm8996->retune_mobile_enum.texts = wm8996->retune_mobile_texts;
 
 	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
@@ -2625,14 +2632,6 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 
 	init_completion(&wm8996->dcs_done);
 	init_completion(&wm8996->fll_lock);
-
-	codec->control_data = wm8996->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err;
-	}
 
 	if (wm8996->pdata.num_retune_mobile_cfgs)
 		wm8996_retune_mobile_pdata(codec);
@@ -2672,13 +2671,11 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 		} else {
 			dev_err(codec->dev, "Failed to request IRQ: %d\n",
 				ret);
+			return ret;
 		}
 	}
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static int wm8996_remove(struct snd_soc_codec *codec)

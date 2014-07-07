@@ -299,10 +299,8 @@ static struct tps62360_regulator_platform_data *
 	struct device_node *np = dev->of_node;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(dev, "Memory alloc failed for platform data\n");
+	if (!pdata)
 		return NULL;
-	}
 
 	pdata->reg_init_data = of_get_regulator_init_data(dev, dev->of_node);
 	if (!pdata->reg_init_data) {
@@ -360,7 +358,7 @@ static int tps62360_probe(struct i2c_client *client,
 			dev_err(&client->dev, "Error: No device match found\n");
 			return -ENODEV;
 		}
-		chip_id = (int)match->data;
+		chip_id = (int)(long)match->data;
 		if (!pdata)
 			pdata = of_get_tps62360_platform_data(&client->dev);
 	} else if (id) {
@@ -377,11 +375,8 @@ static int tps62360_probe(struct i2c_client *client,
 	}
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
-	if (!tps) {
-		dev_err(&client->dev, "%s(): Memory allocation failed\n",
-						__func__);
+	if (!tps)
 		return -ENOMEM;
-	}
 
 	tps->en_discharge = pdata->en_discharge;
 	tps->en_internal_pulldn = pdata->en_internal_pulldn;
@@ -476,7 +471,7 @@ static int tps62360_probe(struct i2c_client *client,
 	config.of_node = client->dev.of_node;
 
 	/* Register the regulators */
-	rdev = regulator_register(&tps->desc, &config);
+	rdev = devm_regulator_register(&client->dev, &tps->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(tps->dev,
 			"%s(): regulator register failed with err %s\n",
@@ -485,20 +480,6 @@ static int tps62360_probe(struct i2c_client *client,
 	}
 
 	tps->rdev = rdev;
-	return 0;
-}
-
-/**
- * tps62360_remove - tps62360 driver i2c remove handler
- * @client: i2c driver client device structure
- *
- * Unregister TPS driver as an i2c client device driver
- */
-static int tps62360_remove(struct i2c_client *client)
-{
-	struct tps62360_chip *tps = i2c_get_clientdata(client);
-
-	regulator_unregister(tps->rdev);
 	return 0;
 }
 
@@ -535,7 +516,6 @@ static struct i2c_driver tps62360_i2c_driver = {
 		.of_match_table = of_match_ptr(tps62360_of_match),
 	},
 	.probe = tps62360_probe,
-	.remove = tps62360_remove,
 	.shutdown = tps62360_shutdown,
 	.id_table = tps62360_id,
 };

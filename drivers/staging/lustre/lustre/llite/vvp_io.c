@@ -51,7 +51,7 @@ static struct vvp_io *cl2vvp_io(const struct lu_env *env,
 				const struct cl_io_slice *slice);
 
 /**
- * True, if \a io is a normal io, False for sendfile() / splice_{read|write}
+ * True, if \a io is a normal io, False for splice_{read,write}
  */
 int cl_is_normalio(const struct lu_env *env, const struct cl_io *io)
 {
@@ -80,7 +80,7 @@ static bool can_populate_pages(const struct lu_env *env, struct cl_io *io,
 	case CIT_WRITE:
 		/* don't need lock here to check lli_layout_gen as we have held
 		 * extent lock and GROUP lock has to hold to swap layout */
-		if (lli->lli_layout_gen != cio->cui_layout_gen) {
+		if (ll_layout_version_get(lli) != cio->cui_layout_gen) {
 			io->ci_need_restart = 1;
 			/* this will return application a short read/write */
 			io->ci_continue = 0;
@@ -121,8 +121,38 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
 
-	CDEBUG(D_VFSTRACE, "ignore/verify layout %d/%d, layout version %d.\n",
-		io->ci_ignore_layout, io->ci_verify_layout, cio->cui_layout_gen);
+	CDEBUG(D_VFSTRACE, DFID
+	       " ignore/verify layout %d/%d, layout version %d restore needed %d\n",
+	       PFID(lu_object_fid(&obj->co_lu)),
+	       io->ci_ignore_layout, io->ci_verify_layout,
+	       cio->cui_layout_gen, io->ci_restore_needed);
+
+	if (io->ci_restore_needed == 1) {
+		int	rc;
+
+		/* file was detected release, we need to restore it
+		 * before finishing the io
+		 */
+		rc = ll_layout_restore(ccc_object_inode(obj));
+		/* if restore registration failed, no restart,
+		 * we will return -ENODATA */
+		/* The layout will change after restore, so we need to
+		 * block on layout lock hold by the MDT
+		 * as MDT will not send new layout in lvb (see LU-3124)
+		 * we have to explicitly fetch it, all this will be done
+		 * by ll_layout_refresh()
+		 */
+		if (rc == 0) {
+			io->ci_restore_needed = 0;
+			io->ci_need_restart = 1;
+			io->ci_verify_layout = 1;
+		} else {
+			io->ci_restore_needed = 1;
+			io->ci_need_restart = 0;
+			io->ci_verify_layout = 0;
+			io->ci_result = rc;
+		}
+	}
 
 	if (!io->ci_ignore_layout && io->ci_verify_layout) {
 		__u32 gen = 0;
@@ -130,9 +160,17 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		/* check layout version */
 		ll_layout_refresh(ccc_object_inode(obj), &gen);
 		io->ci_need_restart = cio->cui_layout_gen != gen;
-		if (io->ci_need_restart)
-			CDEBUG(D_VFSTRACE, "layout changed from %d to %d.\n",
-				cio->cui_layout_gen, gen);
+		if (io->ci_need_restart) {
+			CDEBUG(D_VFSTRACE,
+			       DFID" layout changed from %d to %d.\n",
+			       PFID(lu_object_fid(&obj->co_lu)),
+			       cio->cui_layout_gen, gen);
+			/* today successful restore is the only possible
+			 * case */
+			/* restore was done, clear restoring state */
+			ll_i2info(ccc_object_inode(obj))->lli_flags &=
+				~LLIF_FILE_RESTORING;
+		}
 	}
 }
 
@@ -152,7 +190,7 @@ static void vvp_io_fault_fini(const struct lu_env *env,
 	vvp_io_fini(env, ios);
 }
 
-enum cl_lock_mode vvp_mode_from_vma(struct vm_area_struct *vma)
+static enum cl_lock_mode vvp_mode_from_vma(struct vm_area_struct *vma)
 {
 	/*
 	 * we only want to hold PW locks if the mmap() can generate
@@ -173,27 +211,26 @@ static int vvp_mmap_locks(const struct lu_env *env,
 	struct cl_lock_descr   *descr = &cti->cti_descr;
 	ldlm_policy_data_t      policy;
 	unsigned long	   addr;
-	unsigned long	   seg;
 	ssize_t		 count;
 	int		     result;
+	struct iov_iter i;
+	struct iovec iov;
 
 	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
 
 	if (!cl_is_normalio(env, io))
 		return 0;
 
-	if (vio->cui_iov == NULL) /* nfs or loop back device write */
+	if (vio->cui_iter == NULL) /* nfs or loop back device write */
 		return 0;
 
 	/* No MM (e.g. NFS)? No vmas too. */
 	if (mm == NULL)
 		return 0;
 
-	for (seg = 0; seg < vio->cui_nrsegs; seg++) {
-		const struct iovec *iv = &vio->cui_iov[seg];
-
-		addr = (unsigned long)iv->iov_base;
-		count = iv->iov_len;
+	iov_for_each(iov, i, *(vio->cui_iter)) {
+		addr = (unsigned long)iov.iov_base;
+		count = iov.iov_len;
 		if (count == 0)
 			continue;
 
@@ -436,20 +473,6 @@ static void vvp_io_setattr_fini(const struct lu_env *env,
 	vvp_io_fini(env, ios);
 }
 
-static ssize_t lustre_generic_file_read(struct file *file,
-					struct ccc_io *vio, loff_t *ppos)
-{
-	return generic_file_aio_read(vio->cui_iocb, vio->cui_iov,
-				     vio->cui_nrsegs, *ppos);
-}
-
-static ssize_t lustre_generic_file_write(struct file *file,
-					struct ccc_io *vio, loff_t *ppos)
-{
-	return generic_file_aio_write(vio->cui_iocb, vio->cui_iov,
-				      vio->cui_nrsegs, *ppos);
-}
-
 static int vvp_io_read_start(const struct lu_env *env,
 			     const struct cl_io_slice *ios)
 {
@@ -502,8 +525,9 @@ static int vvp_io_read_start(const struct lu_env *env,
 	file_accessed(file);
 	switch (vio->cui_io_subtype) {
 	case IO_NORMAL:
-		 result = lustre_generic_file_read(file, cio, &pos);
-		 break;
+		LASSERT(cio->cui_iocb->ki_pos == pos);
+		result = generic_file_read_iter(cio->cui_iocb, cio->cui_iter);
+		break;
 	case IO_SPLICE:
 		result = generic_file_splice_read(file, &pos,
 				vio->u.splice.cui_pipe, cnt,
@@ -548,7 +572,6 @@ static int vvp_io_write_start(const struct lu_env *env,
 	struct cl_io       *io    = ios->cis_io;
 	struct cl_object   *obj   = io->ci_obj;
 	struct inode       *inode = ccc_object_inode(obj);
-	struct file	*file  = cio->cui_fd->fd_file;
 	ssize_t result = 0;
 	loff_t pos = io->u.ci_wr.wr.crw_pos;
 	size_t cnt = io->u.ci_wr.wr.crw_count;
@@ -563,14 +586,16 @@ static int vvp_io_write_start(const struct lu_env *env,
 		 */
 		pos = io->u.ci_wr.wr.crw_pos = i_size_read(inode);
 		cio->cui_iocb->ki_pos = pos;
+	} else {
+		LASSERT(cio->cui_iocb->ki_pos == pos);
 	}
 
 	CDEBUG(D_VFSTRACE, "write: [%lli, %lli)\n", pos, pos + (long long)cnt);
 
-	if (cio->cui_iov == NULL) /* from a temp io in ll_cl_init(). */
+	if (cio->cui_iter == NULL) /* from a temp io in ll_cl_init(). */
 		result = 0;
 	else
-		result = lustre_generic_file_write(file, cio, &pos);
+		result = generic_file_write_iter(cio->cui_iocb, cio->cui_iter);
 
 	if (result > 0) {
 		if (result < cnt)
@@ -590,8 +615,11 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 	cfio->fault.ft_flags = filemap_fault(cfio->ft_vma, vmf);
 
 	if (vmf->page) {
-		LL_CDEBUG_PAGE(D_PAGE, vmf->page, "got addr %p type NOPAGE\n",
-			       vmf->virtual_address);
+		CDEBUG(D_PAGE,
+		       "page %p map %p index %lu flags %lx count %u priv %0lx: got addr %p type NOPAGE\n",
+		       vmf->page, vmf->page->mapping, vmf->page->index,
+		       (long)vmf->page->flags, page_count(vmf->page),
+		       page_private(vmf->page), vmf->virtual_address);
 		if (unlikely(!(cfio->fault.ft_flags & VM_FAULT_LOCKED))) {
 			lock_page(vmf->page);
 			cfio->fault.ft_flags &= VM_FAULT_LOCKED;
@@ -614,7 +642,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 	if (cfio->fault.ft_flags & VM_FAULT_RETRY)
 		return -EAGAIN;
 
-	CERROR("unknow error in page fault %d!\n", cfio->fault.ft_flags);
+	CERROR("Unknown error in page fault %d!\n", cfio->fault.ft_flags);
 	return -EINVAL;
 }
 
@@ -1111,6 +1139,12 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
 
+	CDEBUG(D_VFSTRACE, DFID
+	       " ignore/verify layout %d/%d, layout version %d restore needed %d\n",
+	       PFID(lu_object_fid(&obj->co_lu)),
+	       io->ci_ignore_layout, io->ci_verify_layout,
+	       cio->cui_layout_gen, io->ci_restore_needed);
+
 	CL_IO_SLICE_CLEAN(cio, cui_cl);
 	cl_io_slice_add(io, &cio->cui_cl, obj, &vvp_io_ops);
 	vio->cui_ra_window_set = 0;
@@ -1124,10 +1158,9 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 		 *  results."  -- Single Unix Spec */
 		if (count == 0)
 			result = 1;
-		else {
+		else
 			cio->cui_tot_count = count;
-			cio->cui_tot_nrsegs = 0;
-		}
+
 		/* for read/write, we store the jobid in the inode, and
 		 * it'll be fetched by osc when building RPC.
 		 *
@@ -1154,7 +1187,7 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 		if (result == -ENOENT)
 			/* If the inode on MDS has been removed, but the objects
 			 * on OSTs haven't been destroyed (async unlink), layout
-			 * fetch will return -ENOENT, we'd ingore this error
+			 * fetch will return -ENOENT, we'd ignore this error
 			 * and continue with dirty flush. LU-3230. */
 			result = 0;
 		if (result < 0)
@@ -1169,7 +1202,7 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 static struct vvp_io *cl2vvp_io(const struct lu_env *env,
 				const struct cl_io_slice *slice)
 {
-	/* Caling just for assertion */
+	/* Calling just for assertion */
 	cl2ccc_io(env, slice);
 	return vvp_env_io(env);
 }

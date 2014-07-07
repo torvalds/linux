@@ -5,7 +5,6 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/stringify.h>
-#include <linux/kprobes.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/memory.h>
@@ -402,17 +401,6 @@ void alternatives_enable_smp(void)
 {
 	struct smp_alt_module *mod;
 
-#ifdef CONFIG_LOCKDEP
-	/*
-	 * Older binutils section handling bug prevented
-	 * alternatives-replacement from working reliably.
-	 *
-	 * If this still occurs then you should see a hang
-	 * or crash shortly after this line:
-	 */
-	pr_info("lockdep: fixing up alternatives\n");
-#endif
-
 	/* Why bother if there are no other CPUs? */
 	BUG_ON(num_possible_cpus() == 1);
 
@@ -562,7 +550,7 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
  *
  * Note: Must be called under text_mutex.
  */
-void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
+void *text_poke(void *addr, const void *opcode, size_t len)
 {
 	unsigned long flags;
 	char *vaddr;

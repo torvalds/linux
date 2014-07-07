@@ -128,7 +128,7 @@ static int mpt2sas_remove_dead_ioc_func(void *arg)
 		pdev = ioc->pdev;
 		if ((pdev == NULL))
 			return -1;
-		pci_stop_and_remove_bus_device(pdev);
+		pci_stop_and_remove_bus_device_locked(pdev);
 		return 0;
 }
 
@@ -1739,14 +1739,14 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 			list_for_each_entry_safe(chain_req, next,
 			    &ioc->scsi_lookup[i].chain_list, tracker_list) {
 				list_del_init(&chain_req->tracker_list);
-				list_add_tail(&chain_req->tracker_list,
+				list_add(&chain_req->tracker_list,
 				    &ioc->free_chain_list);
 			}
 		}
 		ioc->scsi_lookup[i].cb_idx = 0xFF;
 		ioc->scsi_lookup[i].scmd = NULL;
 		ioc->scsi_lookup[i].direct_io = 0;
-		list_add_tail(&ioc->scsi_lookup[i].tracker_list,
+		list_add(&ioc->scsi_lookup[i].tracker_list,
 		    &ioc->free_list);
 		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
@@ -1764,13 +1764,13 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 		/* hi-priority */
 		i = smid - ioc->hi_priority_smid;
 		ioc->hpr_lookup[i].cb_idx = 0xFF;
-		list_add_tail(&ioc->hpr_lookup[i].tracker_list,
+		list_add(&ioc->hpr_lookup[i].tracker_list,
 		    &ioc->hpr_free_list);
 	} else if (smid <= ioc->hba_queue_depth) {
 		/* internal queue */
 		i = smid - ioc->internal_smid;
 		ioc->internal_lookup[i].cb_idx = 0xFF;
-		list_add_tail(&ioc->internal_lookup[i].tracker_list,
+		list_add(&ioc->internal_lookup[i].tracker_list,
 		    &ioc->internal_free_list);
 	}
 	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);

@@ -77,11 +77,6 @@ nv04_display_create(struct drm_device *dev)
 
 	nouveau_hw_save_vga_fonts(dev, 1);
 
-	ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE, 0xd1500000,
-				 NV04_DISP_CLASS, NULL, 0, &disp->core);
-	if (ret)
-		return ret;
-
 	nv04_crtc_create(dev, 0);
 	if (nv_two_heads(dev))
 		nv04_crtc_create(dev, 1);
@@ -120,7 +115,7 @@ nv04_display_create(struct drm_device *dev)
 				 &dev->mode_config.connector_list, head) {
 		if (!connector->encoder_ids[0]) {
 			NV_WARN(drm, "%s has no encoders, removing\n",
-				drm_get_connector_name(connector));
+				connector->name);
 			connector->funcs->destroy(connector);
 		}
 	}
@@ -139,6 +134,8 @@ nv04_display_create(struct drm_device *dev)
 
 		func->save(encoder);
 	}
+
+	nouveau_overlay_init(dev);
 
 	return 0;
 }

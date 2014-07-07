@@ -622,8 +622,8 @@ static int queue_manag(void *data)
 		}
 
 		if (async_req) {
-			if (async_req->tfm->__crt_alg->cra_type !=
-			    &crypto_ahash_type) {
+			if (crypto_tfm_alg_type(async_req->tfm) !=
+			    CRYPTO_ALG_TYPE_AHASH) {
 				struct ablkcipher_request *req =
 				    ablkcipher_request_cast(async_req);
 				mv_start_new_crypt_req(req);
@@ -843,7 +843,7 @@ static int mv_hash_setkey(struct crypto_ahash *tfm, const u8 * key,
 static int mv_cra_hash_init(struct crypto_tfm *tfm, const char *base_hash_name,
 			    enum hash_op op, int count_add)
 {
-	const char *fallback_driver_name = tfm->__crt_alg->cra_name;
+	const char *fallback_driver_name = crypto_tfm_alg_name(tfm);
 	struct mv_tfm_hash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_shash *fallback_tfm = NULL;
 	struct crypto_shash *base_hash = NULL;
@@ -907,7 +907,7 @@ static int mv_cra_hash_hmac_sha1_init(struct crypto_tfm *tfm)
 	return mv_cra_hash_init(tfm, "sha1", COP_HMAC_SHA1, SHA1_BLOCK_SIZE);
 }
 
-irqreturn_t crypto_int(int irq, void *priv)
+static irqreturn_t crypto_int(int irq, void *priv)
 {
 	u32 val;
 
@@ -928,7 +928,7 @@ irqreturn_t crypto_int(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-struct crypto_alg mv_aes_alg_ecb = {
+static struct crypto_alg mv_aes_alg_ecb = {
 	.cra_name		= "ecb(aes)",
 	.cra_driver_name	= "mv-ecb-aes",
 	.cra_priority	= 300,
@@ -951,7 +951,7 @@ struct crypto_alg mv_aes_alg_ecb = {
 	},
 };
 
-struct crypto_alg mv_aes_alg_cbc = {
+static struct crypto_alg mv_aes_alg_cbc = {
 	.cra_name		= "cbc(aes)",
 	.cra_driver_name	= "mv-cbc-aes",
 	.cra_priority	= 300,
@@ -975,7 +975,7 @@ struct crypto_alg mv_aes_alg_cbc = {
 	},
 };
 
-struct ahash_alg mv_sha1_alg = {
+static struct ahash_alg mv_sha1_alg = {
 	.init = mv_hash_init,
 	.update = mv_hash_update,
 	.final = mv_hash_final,
@@ -999,7 +999,7 @@ struct ahash_alg mv_sha1_alg = {
 		 }
 };
 
-struct ahash_alg mv_hmac_sha1_alg = {
+static struct ahash_alg mv_hmac_sha1_alg = {
 	.init = mv_hash_init,
 	.update = mv_hash_update,
 	.final = mv_hash_final,
@@ -1084,7 +1084,7 @@ static int mv_probe(struct platform_device *pdev)
 		goto err_unmap_sram;
 	}
 
-	ret = request_irq(irq, crypto_int, IRQF_DISABLED, dev_name(&pdev->dev),
+	ret = request_irq(irq, crypto_int, 0, dev_name(&pdev->dev),
 			cp);
 	if (ret)
 		goto err_thread;
@@ -1187,7 +1187,7 @@ static struct platform_driver marvell_crypto = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "mv_crypto",
-		.of_match_table = of_match_ptr(mv_cesa_of_match_table),
+		.of_match_table = mv_cesa_of_match_table,
 	},
 };
 MODULE_ALIAS("platform:mv_crypto");

@@ -28,7 +28,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/at73c213.h>
 #include <linux/clk.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 
@@ -49,6 +49,7 @@
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
+#include "gpio.h"
 
 
 static void __init ek_init_early(void)

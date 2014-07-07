@@ -408,20 +408,14 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	pci_using_dac = 0;
-	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (!err)
-			pci_using_dac = 1;
+		pci_using_dac = 1;
 	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err) {
-				pr_err("No usable DMA configuration, aborting\n");
-				goto err_dma_mask;
-			}
+			pr_err("No usable DMA configuration, aborting\n");
+			goto err_dma_mask;
 		}
 	}
 
@@ -1226,17 +1220,15 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	unsigned int i;
 	u8 ipcss, ipcso, tucss, tucso, hdr_len;
 	u16 ipcse, tucse, mss;
-	int err;
 
 	if (likely(skb_is_gso(skb))) {
 		struct ixgb_buffer *buffer_info;
 		struct iphdr *iph;
+		int err;
 
-		if (skb_header_cloned(skb)) {
-			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-			if (err)
-				return err;
-		}
+		err = skb_cow_head(skb, 0);
+		if (err < 0)
+			return err;
 
 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		mss = skb_shinfo(skb)->gso_size;
@@ -1527,12 +1519,12 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	int tso;
 
 	if (test_bit(__IXGB_DOWN, &adapter->flags)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
 	if (skb->len <= 0) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -1549,7 +1541,7 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	tso = ixgb_tso(adapter, skb);
 	if (tso < 0) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 

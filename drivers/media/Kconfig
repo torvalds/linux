@@ -172,6 +172,9 @@ comment "Media ancillary drivers (tuners, sensors, i2c, frontends)"
 config MEDIA_SUBDRV_AUTOSELECT
 	bool "Autoselect ancillary drivers (tuners, sensors, i2c, frontends)"
 	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_CAMERA_SUPPORT
+	depends on HAS_IOMEM
+	select I2C
+	select I2C_MUX
 	default y
 	help
 	  By default, a media driver auto-selects all possible ancillary

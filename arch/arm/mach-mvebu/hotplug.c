@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 #include <asm/proc-fns.h>
+#include "common.h"
 
 /*
  * platform-specific code to shutdown a CPU

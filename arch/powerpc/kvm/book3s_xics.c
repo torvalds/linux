@@ -818,7 +818,7 @@ int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 req)
 	}
 
 	/* Check for real mode returning too hard */
-	if (xics->real_mode)
+	if (xics->real_mode && is_kvmppc_hv_enabled(vcpu->kvm))
 		return kvmppc_xics_rm_complete(vcpu, req);
 
 	switch (req) {
@@ -840,6 +840,7 @@ int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 req)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(kvmppc_xics_hcall);
 
 
 /* -- Initialisation code etc. -- */
@@ -1245,18 +1246,20 @@ static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 		kvm->arch.xics = xics;
 	mutex_unlock(&kvm->lock);
 
-	if (ret)
+	if (ret) {
+		kfree(xics);
 		return ret;
+	}
 
 	xics_debugfs_init(xics);
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
 		/* Enable real mode support */
 		xics->real_mode = ENABLE_REALMODE;
 		xics->real_mode_dbg = DEBUG_REALMODE;
 	}
-#endif /* CONFIG_KVM_BOOK3S_64_HV */
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 	return 0;
 }

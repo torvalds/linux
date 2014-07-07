@@ -24,7 +24,7 @@
 #include <linux/threads.h>
 #include <asm/kmap_types.h>
 #else
-#include <asm/vsyscall.h>
+#include <uapi/asm/vsyscall.h>
 #endif
 
 /*
@@ -40,15 +40,9 @@
  */
 extern unsigned long __FIXADDR_TOP;
 #define FIXADDR_TOP	((unsigned long)__FIXADDR_TOP)
-
-#define FIXADDR_USER_START     __fix_to_virt(FIX_VDSO)
-#define FIXADDR_USER_END       __fix_to_virt(FIX_VDSO - 1)
 #else
-#define FIXADDR_TOP	(VSYSCALL_END-PAGE_SIZE)
-
-/* Only covers 32bit vsyscalls currently. Need another set for 64bit. */
-#define FIXADDR_USER_START	((unsigned long)VSYSCALL32_VSYSCALL)
-#define FIXADDR_USER_END	(FIXADDR_USER_START + PAGE_SIZE)
+#define FIXADDR_TOP	(round_up(VSYSCALL_ADDR + PAGE_SIZE, 1<<PMD_SHIFT) - \
+			 PAGE_SIZE)
 #endif
 
 
@@ -74,13 +68,8 @@ extern unsigned long __FIXADDR_TOP;
 enum fixed_addresses {
 #ifdef CONFIG_X86_32
 	FIX_HOLE,
-	FIX_VDSO,
 #else
-	VSYSCALL_LAST_PAGE,
-	VSYSCALL_FIRST_PAGE = VSYSCALL_LAST_PAGE
-			    + ((VSYSCALL_END-VSYSCALL_START) >> PAGE_SHIFT) - 1,
-	VVAR_PAGE,
-	VSYSCALL_HPET,
+	VSYSCALL_PAGE = (FIXADDR_TOP - VSYSCALL_ADDR) >> PAGE_SHIFT,
 #ifdef CONFIG_PARAVIRT_CLOCK
 	PVCLOCK_FIXMAP_BEGIN,
 	PVCLOCK_FIXMAP_END = PVCLOCK_FIXMAP_BEGIN+PVCLOCK_VSYSCALL_NR_PAGES-1,
@@ -97,12 +86,6 @@ enum fixed_addresses {
 #ifdef CONFIG_X86_IO_APIC
 	FIX_IO_APIC_BASE_0,
 	FIX_IO_APIC_BASE_END = FIX_IO_APIC_BASE_0 + MAX_IO_APICS - 1,
-#endif
-#ifdef CONFIG_X86_VISWS_APIC
-	FIX_CO_CPU,	/* Cobalt timer */
-	FIX_CO_APIC,	/* Cobalt APIC Redirection Table */
-	FIX_LI_PCIA,	/* Lithium PCI Bridge A */
-	FIX_LI_PCIB,	/* Lithium PCI Bridge B */
 #endif
 	FIX_RO_IDT,	/* Virtual mapping for read-only IDT */
 #ifdef CONFIG_X86_32
@@ -175,64 +158,13 @@ static inline void __set_fixmap(enum fixed_addresses idx,
 }
 #endif
 
-#define set_fixmap(idx, phys)				\
-	__set_fixmap(idx, phys, PAGE_KERNEL)
+#include <asm-generic/fixmap.h>
 
-/*
- * Some hardware wants to get fixmapped without caching.
- */
-#define set_fixmap_nocache(idx, phys)			\
-	__set_fixmap(idx, phys, PAGE_KERNEL_NOCACHE)
+#define __late_set_fixmap(idx, phys, flags) __set_fixmap(idx, phys, flags)
+#define __late_clear_fixmap(idx) __set_fixmap(idx, 0, __pgprot(0))
 
-#define clear_fixmap(idx)			\
-	__set_fixmap(idx, 0, __pgprot(0))
-
-#define __fix_to_virt(x)	(FIXADDR_TOP - ((x) << PAGE_SHIFT))
-#define __virt_to_fix(x)	((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
-
-extern void __this_fixmap_does_not_exist(void);
-
-/*
- * 'index to address' translation. If anyone tries to use the idx
- * directly without translation, we catch the bug with a NULL-deference
- * kernel oops. Illegal ranges of incoming indices are caught too.
- */
-static __always_inline unsigned long fix_to_virt(const unsigned int idx)
-{
-	/*
-	 * this branch gets completely eliminated after inlining,
-	 * except when someone tries to use fixaddr indices in an
-	 * illegal way. (such as mixing up address types or using
-	 * out-of-range indices).
-	 *
-	 * If it doesn't get removed, the linker will complain
-	 * loudly with a reasonably clear error message..
-	 */
-	if (idx >= __end_of_fixed_addresses)
-		__this_fixmap_does_not_exist();
-
-	return __fix_to_virt(idx);
-}
-
-static inline unsigned long virt_to_fix(const unsigned long vaddr)
-{
-	BUG_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
-	return __virt_to_fix(vaddr);
-}
-
-/* Return an pointer with offset calculated */
-static __always_inline unsigned long
-__set_fixmap_offset(enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
-{
-	__set_fixmap(idx, phys, flags);
-	return fix_to_virt(idx) + (phys & (PAGE_SIZE - 1));
-}
-
-#define set_fixmap_offset(idx, phys)			\
-	__set_fixmap_offset(idx, phys, PAGE_KERNEL)
-
-#define set_fixmap_offset_nocache(idx, phys)			\
-	__set_fixmap_offset(idx, phys, PAGE_KERNEL_NOCACHE)
+void __early_set_fixmap(enum fixed_addresses idx,
+			phys_addr_t phys, pgprot_t flags);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_X86_FIXMAP_H */

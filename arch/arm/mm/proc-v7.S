@@ -92,7 +92,7 @@ ENDPROC(cpu_v7_dcache_clean_area)
 
 /* Suspend/resume support: derived from arch/arm/mach-s5pv210/sleep.S */
 .globl	cpu_v7_suspend_size
-.equ	cpu_v7_suspend_size, 4 * 8
+.equ	cpu_v7_suspend_size, 4 * 9
 #ifdef CONFIG_ARM_CPU_SUSPEND
 ENTRY(cpu_v7_do_suspend)
 	stmfd	sp!, {r4 - r10, lr}
@@ -101,13 +101,17 @@ ENTRY(cpu_v7_do_suspend)
 	stmia	r0!, {r4 - r5}
 #ifdef CONFIG_MMU
 	mrc	p15, 0, r6, c3, c0, 0	@ Domain ID
+#ifdef CONFIG_ARM_LPAE
+	mrrc	p15, 1, r5, r7, c2	@ TTB 1
+#else
 	mrc	p15, 0, r7, c2, c0, 1	@ TTB 1
+#endif
 	mrc	p15, 0, r11, c2, c0, 2	@ TTB control register
 #endif
 	mrc	p15, 0, r8, c1, c0, 0	@ Control register
 	mrc	p15, 0, r9, c1, c0, 1	@ Auxiliary control register
 	mrc	p15, 0, r10, c1, c0, 2	@ Co-processor access control
-	stmia	r0, {r6 - r11}
+	stmia	r0, {r5 - r11}
 	ldmfd	sp!, {r4 - r10, pc}
 ENDPROC(cpu_v7_do_suspend)
 
@@ -118,16 +122,19 @@ ENTRY(cpu_v7_do_resume)
 	ldmia	r0!, {r4 - r5}
 	mcr	p15, 0, r4, c13, c0, 0	@ FCSE/PID
 	mcr	p15, 0, r5, c13, c0, 3	@ User r/o thread ID
-	ldmia	r0, {r6 - r11}
+	ldmia	r0, {r5 - r11}
 #ifdef CONFIG_MMU
 	mcr	p15, 0, ip, c8, c7, 0	@ invalidate TLBs
 	mcr	p15, 0, r6, c3, c0, 0	@ Domain ID
-#ifndef CONFIG_ARM_LPAE
+#ifdef CONFIG_ARM_LPAE
+	mcrr	p15, 0, r1, ip, c2	@ TTB 0
+	mcrr	p15, 1, r5, r7, c2	@ TTB 1
+#else
 	ALT_SMP(orr	r1, r1, #TTB_FLAGS_SMP)
 	ALT_UP(orr	r1, r1, #TTB_FLAGS_UP)
-#endif
 	mcr	p15, 0, r1, c2, c0, 0	@ TTB 0
 	mcr	p15, 0, r7, c2, c0, 1	@ TTB 1
+#endif
 	mcr	p15, 0, r11, c2, c0, 2	@ TTB control register
 	ldr	r4, =PRRR		@ PRRR
 	ldr	r5, =NMRR		@ NMRR
@@ -162,9 +169,31 @@ ENDPROC(cpu_pj4b_do_idle)
 	globl_equ	cpu_pj4b_do_idle,  	cpu_v7_do_idle
 #endif
 	globl_equ	cpu_pj4b_dcache_clean_area,	cpu_v7_dcache_clean_area
-	globl_equ	cpu_pj4b_do_suspend,	cpu_v7_do_suspend
-	globl_equ	cpu_pj4b_do_resume,	cpu_v7_do_resume
-	globl_equ	cpu_pj4b_suspend_size,	cpu_v7_suspend_size
+#ifdef CONFIG_ARM_CPU_SUSPEND
+ENTRY(cpu_pj4b_do_suspend)
+	stmfd	sp!, {r6 - r10}
+	mrc	p15, 1, r6, c15, c1, 0  @ save CP15 - extra features
+	mrc	p15, 1, r7, c15, c2, 0	@ save CP15 - Aux Func Modes Ctrl 0
+	mrc	p15, 1, r8, c15, c1, 2	@ save CP15 - Aux Debug Modes Ctrl 2
+	mrc	p15, 1, r9, c15, c1, 1  @ save CP15 - Aux Debug Modes Ctrl 1
+	mrc	p15, 0, r10, c9, c14, 0  @ save CP15 - PMC
+	stmia	r0!, {r6 - r10}
+	ldmfd	sp!, {r6 - r10}
+	b cpu_v7_do_suspend
+ENDPROC(cpu_pj4b_do_suspend)
+
+ENTRY(cpu_pj4b_do_resume)
+	ldmia	r0!, {r6 - r10}
+	mcr	p15, 1, r6, c15, c1, 0  @ save CP15 - extra features
+	mcr	p15, 1, r7, c15, c2, 0	@ save CP15 - Aux Func Modes Ctrl 0
+	mcr	p15, 1, r8, c15, c1, 2	@ save CP15 - Aux Debug Modes Ctrl 2
+	mcr	p15, 1, r9, c15, c1, 1  @ save CP15 - Aux Debug Modes Ctrl 1
+	mcr	p15, 0, r10, c9, c14, 0  @ save CP15 - PMC
+	b cpu_v7_do_resume
+ENDPROC(cpu_pj4b_do_resume)
+#endif
+.globl	cpu_pj4b_suspend_size
+.equ	cpu_pj4b_suspend_size, 4 * 14
 
 #endif
 
@@ -185,7 +214,9 @@ __v7_cr7mp_setup:
 	mov	r10, #(1 << 0)			@ Cache/TLB ops broadcasting
 	b	1f
 __v7_ca7mp_setup:
+__v7_ca12mp_setup:
 __v7_ca15mp_setup:
+__v7_ca17mp_setup:
 	mov	r10, #0
 1:
 #ifdef CONFIG_SMP
@@ -344,7 +375,6 @@ __v7_setup:
 
 4:	mov	r10, #0
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
-	dsb
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
 	v7_ttb_setup r10, r4, r8, r5		@ TTBCR, TTBRx setup
@@ -353,6 +383,7 @@ __v7_setup:
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
 #endif
+	dsb					@ Complete invalidations
 #ifndef CONFIG_ARM_THUMBEE
 	mrc	p15, 0, r0, c0, c1, 0		@ read ID_PFR0 for ThumbEE
 	and	r0, r0, #(0xf << 12)		@ ThumbEE enabled field
@@ -367,9 +398,7 @@ __v7_setup:
 #endif
 	adr	r5, v7_crval
 	ldmia	r5, {r5, r6}
-#ifdef CONFIG_CPU_ENDIAN_BE8
-	orr	r6, r6, #1 << 25		@ big-endian page tables
-#endif
+ ARM_BE8(orr	r6, r6, #1 << 25)		@ big-endian page tables
 #ifdef CONFIG_SWP_EMULATE
 	orr     r5, r5, #(1 << 10)              @ set SW bit in "clear"
 	bic     r6, r6, #(1 << 10)              @ clear it in "mmuset"
@@ -479,6 +508,16 @@ __v7_ca7mp_proc_info:
 	.size	__v7_ca7mp_proc_info, . - __v7_ca7mp_proc_info
 
 	/*
+	 * ARM Ltd. Cortex A12 processor.
+	 */
+	.type	__v7_ca12mp_proc_info, #object
+__v7_ca12mp_proc_info:
+	.long	0x410fc0d0
+	.long	0xff0ffff0
+	__v7_proc __v7_ca12mp_setup
+	.size	__v7_ca12mp_proc_info, . - __v7_ca12mp_proc_info
+
+	/*
 	 * ARM Ltd. Cortex A15 processor.
 	 */
 	.type	__v7_ca15mp_proc_info, #object
@@ -487,6 +526,16 @@ __v7_ca15mp_proc_info:
 	.long	0xff0ffff0
 	__v7_proc __v7_ca15mp_setup
 	.size	__v7_ca15mp_proc_info, . - __v7_ca15mp_proc_info
+
+	/*
+	 * ARM Ltd. Cortex A17 processor.
+	 */
+	.type	__v7_ca17mp_proc_info, #object
+__v7_ca17mp_proc_info:
+	.long	0x410fc0e0
+	.long	0xff0ffff0
+	__v7_proc __v7_ca17mp_setup
+	.size	__v7_ca17mp_proc_info, . - __v7_ca17mp_proc_info
 
 	/*
 	 * Qualcomm Inc. Krait processors.

@@ -104,7 +104,7 @@ $(obj-vdso32:%=%): KBUILD_AFLAGS = $(KBUILD_AFLAGS_32)
 $(obj-vdso32:%=%): KBUILD_CFLAGS = $(KBUILD_CFLAGS_32)
 
 $(obj)/vgettimeofday32.o: $(obj)/vgettimeofday.c
-	$(call if_changed,cc_o_c)
+	$(call if_changed_rule,cc_o_c)
 
 $(obj)/vrt_sigreturn32.o: $(obj)/vrt_sigreturn.S
 	$(call if_changed,as_o_S)

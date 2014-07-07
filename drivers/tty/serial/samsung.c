@@ -53,6 +53,29 @@
 
 #include "samsung.h"
 
+#if	defined(CONFIG_SERIAL_SAMSUNG_DEBUG) &&	\
+	defined(CONFIG_DEBUG_LL) &&		\
+	!defined(MODULE)
+
+extern void printascii(const char *);
+
+__printf(1, 2)
+static void dbg(const char *fmt, ...)
+{
+	va_list va;
+	char buff[256];
+
+	va_start(va, fmt);
+	vscnprintf(buff, sizeof(buff), fmt, va);
+	va_end(va);
+
+	printascii(buff);
+}
+
+#else
+#define dbg(fmt, ...) do { if (0) no_printk(fmt, ##__VA_ARGS__); } while (0)
+#endif
+
 /* UART name and device definitions */
 
 #define S3C24XX_SERIAL_NAME	"ttySAC"
@@ -407,7 +430,14 @@ static unsigned int s3c24xx_serial_get_mctrl(struct uart_port *port)
 
 static void s3c24xx_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* todo - possibly remove AFC and do manual CTS */
+	unsigned int umcon = rd_regl(port, S3C2410_UMCON);
+
+	if (mctrl & TIOCM_RTS)
+		umcon |= S3C2410_UMCOM_RTS_LOW;
+	else
+		umcon &= ~S3C2410_UMCOM_RTS_LOW;
+
+	wr_regl(port, S3C2410_UMCON, umcon);
 }
 
 static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
@@ -461,8 +491,8 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	int ret;
 
-	dbg("s3c24xx_serial_startup: port=%p (%08lx,%p)\n",
-	    port->mapbase, port->membase);
+	dbg("s3c24xx_serial_startup: port=%p (%08llx,%p)\n",
+	    port, (unsigned long long)port->mapbase, port->membase);
 
 	rx_enabled(port) = 1;
 
@@ -507,8 +537,8 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	int ret;
 
-	dbg("s3c64xx_serial_startup: port=%p (%08lx,%p)\n",
-	    port->mapbase, port->membase);
+	dbg("s3c64xx_serial_startup: port=%p (%08llx,%p)\n",
+	    port, (unsigned long long)port->mapbase, port->membase);
 
 	wr_regl(port, S3C64XX_UINTM, 0xf);
 
@@ -774,8 +804,6 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	if (termios->c_cflag & CSTOPB)
 		ulcon |= S3C2410_LCON_STOPB;
 
-	umcon = (termios->c_cflag & CRTSCTS) ? S3C2410_UMCOM_AFC : 0;
-
 	if (termios->c_cflag & PARENB) {
 		if (termios->c_cflag & PARODD)
 			ulcon |= S3C2410_LCON_PODD;
@@ -792,6 +820,15 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 	wr_regl(port, S3C2410_ULCON, ulcon);
 	wr_regl(port, S3C2410_UBRDIV, quot);
+
+	umcon = rd_regl(port, S3C2410_UMCON);
+	if (termios->c_cflag & CRTSCTS) {
+		umcon |= S3C2410_UMCOM_AFC;
+		/* Disable RTS when RX FIFO contains 63 bytes */
+		umcon &= ~S3C2412_UMCON_AFC_8;
+	} else {
+		umcon &= ~S3C2410_UMCOM_AFC;
+	}
 	wr_regl(port, S3C2410_UMCON, umcon);
 
 	if (ourport->info->has_divslot)
@@ -1146,7 +1183,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		return -EINVAL;
 	}
 
-	dbg("resource %p (%lx..%lx)\n", res, res->start, res->end);
+	dbg("resource %pR)\n", res);
 
 	port->membase = devm_ioremap(port->dev, res->start, resource_size(res));
 	if (!port->membase) {
@@ -1189,13 +1226,12 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		wr_regl(port, S3C64XX_UINTSP, 0xf);
 	}
 
-	dbg("port: map=%08x, mem=%08x, irq=%d (%d,%d), clock=%ld\n",
+	dbg("port: map=%08x, mem=%p, irq=%d (%d,%d), clock=%u\n",
 	    port->mapbase, port->membase, port->irq,
 	    ourport->rx_irq, ourport->tx_irq, port->uartclk);
 
 	/* reset the fifos (and setup the uart) */
 	s3c24xx_serial_resetport(port, cfg);
-	clk_disable_unprepare(ourport->clk);
 	return 0;
 }
 
@@ -1254,7 +1290,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	ourport->baudclk = ERR_PTR(-EINVAL);
 	ourport->info = ourport->drv_data->info;
 	ourport->cfg = (dev_get_platdata(&pdev->dev)) ?
-			(struct s3c2410_uartcfg *)dev_get_platdata(&pdev->dev) :
+			dev_get_platdata(&pdev->dev) :
 			ourport->drv_data->def_cfg;
 
 	ourport->port.fifosize = (ourport->info->fifosize) ?
@@ -1269,9 +1305,24 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto probe_err;
 
+	if (!s3c24xx_uart_drv.state) {
+		ret = uart_register_driver(&s3c24xx_uart_drv);
+		if (ret < 0) {
+			pr_err("Failed to register Samsung UART driver\n");
+			return ret;
+		}
+	}
+
 	dbg("%s: adding port\n", __func__);
 	uart_add_one_port(&s3c24xx_uart_drv, &ourport->port);
 	platform_set_drvdata(pdev, &ourport->port);
+
+	/*
+	 * Deactivate the clock enabled in s3c24xx_serial_init_port here,
+	 * so that a potential re-enablement through the pm-callback overlaps
+	 * and keeps the clock enabled in this case.
+	 */
+	clk_disable_unprepare(ourport->clk);
 
 #ifdef CONFIG_SAMSUNG_CLOCK
 	ret = device_create_file(&pdev->dev, &dev_attr_clock_source);
@@ -1300,6 +1351,8 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 #endif
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
 	}
+
+	uart_unregister_driver(&s3c24xx_uart_drv);
 
 	return 0;
 }
@@ -1416,8 +1469,8 @@ static int s3c24xx_serial_get_poll_char(struct uart_port *port)
 static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 		unsigned char c)
 {
-	unsigned int ufcon = rd_regl(cons_uart, S3C2410_UFCON);
-	unsigned int ucon = rd_regl(cons_uart, S3C2410_UCON);
+	unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
+	unsigned int ucon = rd_regl(port, S3C2410_UCON);
 
 	/* not possible to xmit on unconfigured port */
 	if (!s3c24xx_port_configured(ucon))
@@ -1425,7 +1478,7 @@ static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 
 	while (!s3c24xx_serial_console_txrdy(port, ufcon))
 		cpu_relax();
-	wr_regb(cons_uart, S3C2410_UTXH, c);
+	wr_regb(port, S3C2410_UTXH, c);
 }
 
 #endif /* CONFIG_CONSOLE_POLL */
@@ -1433,22 +1486,23 @@ static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 static void
 s3c24xx_serial_console_putchar(struct uart_port *port, int ch)
 {
-	unsigned int ufcon = rd_regl(cons_uart, S3C2410_UFCON);
-	unsigned int ucon = rd_regl(cons_uart, S3C2410_UCON);
-
-	/* not possible to xmit on unconfigured port */
-	if (!s3c24xx_port_configured(ucon))
-		return;
+	unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
 
 	while (!s3c24xx_serial_console_txrdy(port, ufcon))
-		barrier();
-	wr_regb(cons_uart, S3C2410_UTXH, ch);
+		cpu_relax();
+	wr_regb(port, S3C2410_UTXH, ch);
 }
 
 static void
 s3c24xx_serial_console_write(struct console *co, const char *s,
 			     unsigned int count)
 {
+	unsigned int ucon = rd_regl(cons_uart, S3C2410_UCON);
+
+	/* not possible to xmit on unconfigured port */
+	if (!s3c24xx_port_configured(ucon))
+		return;
+
 	uart_console_write(cons_uart, s, count, s3c24xx_serial_console_putchar);
 }
 
@@ -1800,35 +1854,7 @@ static struct platform_driver samsung_serial_driver = {
 	},
 };
 
-/* module initialisation code */
-
-static int __init s3c24xx_serial_modinit(void)
-{
-	int ret;
-
-	ret = uart_register_driver(&s3c24xx_uart_drv);
-	if (ret < 0) {
-		pr_err("Failed to register Samsung UART driver\n");
-		return ret;
-	}
-
-	ret = platform_driver_register(&samsung_serial_driver);
-	if (ret < 0) {
-		pr_err("Failed to register platform driver\n");
-		uart_unregister_driver(&s3c24xx_uart_drv);
-	}
-
-	return ret;
-}
-
-static void __exit s3c24xx_serial_modexit(void)
-{
-	platform_driver_unregister(&samsung_serial_driver);
-	uart_unregister_driver(&s3c24xx_uart_drv);
-}
-
-module_init(s3c24xx_serial_modinit);
-module_exit(s3c24xx_serial_modexit);
+module_platform_driver(samsung_serial_driver);
 
 MODULE_ALIAS("platform:samsung-uart");
 MODULE_DESCRIPTION("Samsung SoC Serial port driver");

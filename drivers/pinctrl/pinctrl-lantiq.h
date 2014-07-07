@@ -10,6 +10,7 @@
  */
 
 #ifndef __PINCTRL_LANTIQ_H
+#define __PINCTRL_LANTIQ_H
 
 #include <linux/clkdev.h>
 #include <linux/pinctrl/pinctrl.h>

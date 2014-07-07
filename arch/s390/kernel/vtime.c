@@ -161,7 +161,7 @@ void __kprobes vtime_stop_cpu(void)
 	trace_hardirqs_on();
 
 	/* Wait for external, I/O or machine check interrupt. */
-	psw_mask = psw_kernel_bits | PSW_MASK_WAIT | PSW_MASK_DAT |
+	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT | PSW_MASK_DAT |
 		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	idle->nohz_delay = 0;
 
@@ -191,7 +191,7 @@ cputime64_t s390_get_idle_time(int cpu)
 		sequence = ACCESS_ONCE(idle->sequence);
 		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
 		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
-	} while ((sequence & 1) || (idle->sequence != sequence));
+	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
 	return idle_enter ? ((idle_exit ?: now) - idle_enter) : 0;
 }
 

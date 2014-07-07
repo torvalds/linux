@@ -11,12 +11,6 @@
 /* that gives us 15 characters in the text event views */
 #define ZCRYPT_DBF_LEN	16
 
-/* sort out low debug levels early to avoid wasted sprints */
-static inline int zcrypt_dbf_passes(debug_info_t *dbf_grp, int level)
-{
-	return (level <= dbf_grp->level);
-}
-
 #define DBF_ERR		3	/* error conditions	*/
 #define DBF_WARN	4	/* warning conditions	*/
 #define DBF_INFO	6	/* informational	*/
@@ -25,7 +19,7 @@ static inline int zcrypt_dbf_passes(debug_info_t *dbf_grp, int level)
 
 #define ZCRYPT_DBF_COMMON(level, text...) \
 	do { \
-		if (zcrypt_dbf_passes(zcrypt_dbf_common, level)) { \
+		if (debug_level_enabled(zcrypt_dbf_common, level)) { \
 			char debug_buffer[ZCRYPT_DBF_LEN]; \
 			snprintf(debug_buffer, ZCRYPT_DBF_LEN, text); \
 			debug_text_event(zcrypt_dbf_common, level, \
@@ -35,7 +29,7 @@ static inline int zcrypt_dbf_passes(debug_info_t *dbf_grp, int level)
 
 #define ZCRYPT_DBF_DEVICES(level, text...) \
 	do { \
-		if (zcrypt_dbf_passes(zcrypt_dbf_devices, level)) { \
+		if (debug_level_enabled(zcrypt_dbf_devices, level)) { \
 			char debug_buffer[ZCRYPT_DBF_LEN]; \
 			snprintf(debug_buffer, ZCRYPT_DBF_LEN, text); \
 			debug_text_event(zcrypt_dbf_devices, level, \
@@ -45,7 +39,7 @@ static inline int zcrypt_dbf_passes(debug_info_t *dbf_grp, int level)
 
 #define ZCRYPT_DBF_DEV(level, device, text...) \
 	do { \
-		if (zcrypt_dbf_passes(device->dbf_area, level)) { \
+		if (debug_level_enabled(device->dbf_area, level)) { \
 			char debug_buffer[ZCRYPT_DBF_LEN]; \
 			snprintf(debug_buffer, ZCRYPT_DBF_LEN, text); \
 			debug_text_event(device->dbf_area, level, \

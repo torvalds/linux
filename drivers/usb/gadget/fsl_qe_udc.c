@@ -22,7 +22,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -33,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/moduleparam.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/ch9.h>
@@ -2428,7 +2428,7 @@ static int qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
 
 	ep->ep.ops = &qe_ep_ops;
 	ep->stopped = 1;
-	ep->ep.maxpacket = (unsigned short) ~0;
+	usb_ep_set_maxpacket_limit(&ep->ep, (unsigned short) ~0);
 	ep->ep.desc = NULL;
 	ep->dir = 0xff;
 	ep->epnum = (u8)pipe_num;
@@ -2716,7 +2716,7 @@ MODULE_DEVICE_TABLE(of, qe_udc_match);
 
 static struct platform_driver udc_driver = {
 	.driver = {
-		.name = (char *)driver_name,
+		.name = driver_name,
 		.owner = THIS_MODULE,
 		.of_match_table = qe_udc_match,
 	},

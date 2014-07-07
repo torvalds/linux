@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,8 @@
  *		PBW Snoozing enabled
  * @POWER_FLAGS_ADVANCE_PM_ENA_MSK: Advanced PM (uAPSD) enable mask
  * @POWER_FLAGS_LPRX_ENA_MSK: Low Power RX enable.
+ * @POWER_FLAGS_AP_UAPSD_MISBEHAVING_ENA_MSK: AP/GO's uAPSD misbehaving
+ *		detection enablement
 */
 enum iwl_power_flags {
 	POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
@@ -94,6 +96,7 @@ enum iwl_power_flags {
 	POWER_FLAGS_BT_SCO_ENA			= BIT(8),
 	POWER_FLAGS_ADVANCE_PM_ENA_MSK		= BIT(9),
 	POWER_FLAGS_LPRX_ENA_MSK		= BIT(11),
+	POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK	= BIT(12),
 };
 
 #define IWL_POWER_VEC_SIZE 5
@@ -129,6 +132,33 @@ struct iwl_powertable_cmd {
 	__le32 sleep_interval[IWL_POWER_VEC_SIZE];
 	__le32 skip_dtim_periods;
 	__le32 lprx_rssi_threshold;
+} __packed;
+
+/**
+ * enum iwl_device_power_flags - masks for device power command flags
+ * @DEVIC_POWER_FLAGS_POWER_SAVE_ENA_MSK: '1' Allow to save power by turning off
+ *	receiver and transmitter. '0' - does not allow. This flag should be
+ *	always set to '1' unless one need to disable actual power down for debug
+ *	purposes.
+ * @DEVICE_POWER_FLAGS_CAM_MSK: '1' CAM (Continuous Active Mode) is set, meaning
+ *	that power management is disabled. '0' Power management is enabled, one
+ *	of power schemes is applied.
+*/
+enum iwl_device_power_flags {
+	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK	= BIT(0),
+	DEVICE_POWER_FLAGS_CAM_MSK		= BIT(13),
+};
+
+/**
+ * struct iwl_device_power_cmd - device wide power command.
+ * DEVICE_POWER_CMD = 0x77 (command, has simple generic response)
+ *
+ * @flags:	Power table command flags from DEVICE_POWER_FLAGS_*
+ */
+struct iwl_device_power_cmd {
+	/* PM_POWER_TABLE_CMD_API_S_VER_6 */
+	__le16 flags;
+	__le16 reserved;
 } __packed;
 
 /**
@@ -201,6 +231,19 @@ struct iwl_mac_power_cmd {
 	u8 reserved;
 } __packed;
 
+/*
+ * struct iwl_uapsd_misbehaving_ap_notif - FW sends this notification when
+ * associated AP is identified as improperly implementing uAPSD protocol.
+ * PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78
+ * @sta_id: index of station in uCode's station table - associated AP ID in
+ *	    this context.
+ */
+struct iwl_uapsd_misbehaving_ap_notif {
+	__le32 sta_id;
+	u8 mac_id;
+	u8 reserved[3];
+} __packed;
+
 /**
  * struct iwl_beacon_filter_cmd
  * REPLY_BEACON_FILTERING_CMD = 0xd2 (command)
@@ -258,54 +301,65 @@ struct iwl_beacon_filter_cmd {
 
 /* Beacon filtering and beacon abort */
 #define IWL_BF_ENERGY_DELTA_DEFAULT 5
+#define IWL_BF_ENERGY_DELTA_D0I3 20
 #define IWL_BF_ENERGY_DELTA_MAX 255
 #define IWL_BF_ENERGY_DELTA_MIN 0
 
 #define IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT 1
+#define IWL_BF_ROAMING_ENERGY_DELTA_D0I3 20
 #define IWL_BF_ROAMING_ENERGY_DELTA_MAX 255
 #define IWL_BF_ROAMING_ENERGY_DELTA_MIN 0
 
 #define IWL_BF_ROAMING_STATE_DEFAULT 72
+#define IWL_BF_ROAMING_STATE_D0I3 72
 #define IWL_BF_ROAMING_STATE_MAX 255
 #define IWL_BF_ROAMING_STATE_MIN 0
 
 #define IWL_BF_TEMP_THRESHOLD_DEFAULT 112
+#define IWL_BF_TEMP_THRESHOLD_D0I3 112
 #define IWL_BF_TEMP_THRESHOLD_MAX 255
 #define IWL_BF_TEMP_THRESHOLD_MIN 0
 
 #define IWL_BF_TEMP_FAST_FILTER_DEFAULT 1
+#define IWL_BF_TEMP_FAST_FILTER_D0I3 1
 #define IWL_BF_TEMP_FAST_FILTER_MAX 255
 #define IWL_BF_TEMP_FAST_FILTER_MIN 0
 
 #define IWL_BF_TEMP_SLOW_FILTER_DEFAULT 5
+#define IWL_BF_TEMP_SLOW_FILTER_D0I3 5
 #define IWL_BF_TEMP_SLOW_FILTER_MAX 255
 #define IWL_BF_TEMP_SLOW_FILTER_MIN 0
 
 #define IWL_BF_ENABLE_BEACON_FILTER_DEFAULT 1
 
 #define IWL_BF_DEBUG_FLAG_DEFAULT 0
+#define IWL_BF_DEBUG_FLAG_D0I3 0
 
 #define IWL_BF_ESCAPE_TIMER_DEFAULT 50
+#define IWL_BF_ESCAPE_TIMER_D0I3 1024
 #define IWL_BF_ESCAPE_TIMER_MAX 1024
 #define IWL_BF_ESCAPE_TIMER_MIN 0
 
 #define IWL_BA_ESCAPE_TIMER_DEFAULT 6
-#define IWL_BA_ESCAPE_TIMER_D3 6
+#define IWL_BA_ESCAPE_TIMER_D0I3 6
+#define IWL_BA_ESCAPE_TIMER_D3 9
 #define IWL_BA_ESCAPE_TIMER_MAX 1024
 #define IWL_BA_ESCAPE_TIMER_MIN 0
 
 #define IWL_BA_ENABLE_BEACON_ABORT_DEFAULT 1
 
-#define IWL_BF_CMD_CONFIG_DEFAULTS					     \
-	.bf_energy_delta = cpu_to_le32(IWL_BF_ENERGY_DELTA_DEFAULT),	     \
-	.bf_roaming_energy_delta =					     \
-		cpu_to_le32(IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT),	     \
-	.bf_roaming_state = cpu_to_le32(IWL_BF_ROAMING_STATE_DEFAULT),	     \
-	.bf_temp_threshold = cpu_to_le32(IWL_BF_TEMP_THRESHOLD_DEFAULT),     \
-	.bf_temp_fast_filter = cpu_to_le32(IWL_BF_TEMP_FAST_FILTER_DEFAULT), \
-	.bf_temp_slow_filter = cpu_to_le32(IWL_BF_TEMP_SLOW_FILTER_DEFAULT), \
-	.bf_debug_flag = cpu_to_le32(IWL_BF_DEBUG_FLAG_DEFAULT),	     \
-	.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER_DEFAULT),	     \
-	.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_DEFAULT)
+#define IWL_BF_CMD_CONFIG(mode)					     \
+	.bf_energy_delta = cpu_to_le32(IWL_BF_ENERGY_DELTA ## mode),	      \
+	.bf_roaming_energy_delta =					      \
+		cpu_to_le32(IWL_BF_ROAMING_ENERGY_DELTA ## mode),	      \
+	.bf_roaming_state = cpu_to_le32(IWL_BF_ROAMING_STATE ## mode),	      \
+	.bf_temp_threshold = cpu_to_le32(IWL_BF_TEMP_THRESHOLD ## mode),      \
+	.bf_temp_fast_filter = cpu_to_le32(IWL_BF_TEMP_FAST_FILTER ## mode),  \
+	.bf_temp_slow_filter = cpu_to_le32(IWL_BF_TEMP_SLOW_FILTER ## mode),  \
+	.bf_debug_flag = cpu_to_le32(IWL_BF_DEBUG_FLAG ## mode),	      \
+	.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER ## mode),	      \
+	.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER ## mode)
 
+#define IWL_BF_CMD_CONFIG_DEFAULTS IWL_BF_CMD_CONFIG(_DEFAULT)
+#define IWL_BF_CMD_CONFIG_D0I3 IWL_BF_CMD_CONFIG(_D0I3)
 #endif

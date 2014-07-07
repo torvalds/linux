@@ -18,15 +18,16 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
+#include "xfs_log.h"
 
 #ifdef DEBUG
 /*
@@ -172,7 +173,6 @@ xfs_trans_ail_cursor_next(
  */
 void
 xfs_trans_ail_cursor_done(
-	struct xfs_ail		*ailp,
 	struct xfs_ail_cursor	*cur)
 {
 	cur->item = NULL;
@@ -367,7 +367,7 @@ xfsaild_push(
 		 * If the AIL is empty or our push has reached the end we are
 		 * done now.
 		 */
-		xfs_trans_ail_cursor_done(ailp, &cur);
+		xfs_trans_ail_cursor_done(&cur);
 		spin_unlock(&ailp->xa_lock);
 		goto out_done;
 	}
@@ -452,7 +452,7 @@ xfsaild_push(
 			break;
 		lsn = lip->li_lsn;
 	}
-	xfs_trans_ail_cursor_done(ailp, &cur);
+	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 
 	if (xfs_buf_delwri_submit_nowait(&ailp->xa_buf_list))
@@ -658,11 +658,13 @@ xfs_trans_ail_update_bulk(
 			if (XFS_LSN_CMP(lsn, lip->li_lsn) <= 0)
 				continue;
 
+			trace_xfs_ail_move(lip, lip->li_lsn, lsn);
 			xfs_ail_delete(ailp, lip);
 			if (mlip == lip)
 				mlip_changed = 1;
 		} else {
 			lip->li_flags |= XFS_LI_IN_AIL;
+			trace_xfs_ail_insert(lip, 0, lsn);
 		}
 		lip->li_lsn = lsn;
 		list_add(&lip->li_ail, &tmp);
@@ -731,6 +733,7 @@ xfs_trans_ail_delete_bulk(
 			return;
 		}
 
+		trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
 		xfs_ail_delete(ailp, lip);
 		lip->li_flags &= ~XFS_LI_IN_AIL;
 		lip->li_lsn = 0;

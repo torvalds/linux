@@ -48,8 +48,6 @@ AO commands are not supported.
    you the docs without one, also.
 */
 
-#define DEBUG 1
-
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -253,24 +251,6 @@ struct dt3k_private {
 	unsigned int ai_rear;
 };
 
-#ifdef DEBUG
-static char *intr_flags[] = {
-	"AdFull", "AdSwError", "AdHwError", "DaEmpty",
-	"DaSwError", "DaHwError", "CtDone", "CmDone",
-};
-
-static void debug_intr_flags(unsigned int flags)
-{
-	int i;
-	printk(KERN_DEBUG "dt3k: intr_flags:");
-	for (i = 0; i < 8; i++) {
-		if (flags & (1 << i))
-			printk(KERN_CONT " %s", intr_flags[i]);
-	}
-	printk(KERN_CONT "\n");
-}
-#endif
-
 #define TIMEOUT 100
 
 static void dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
@@ -331,7 +311,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 	int rear;
 	int count;
 	int i;
-	short data;
+	unsigned short data;
 
 	front = readw(devpriv->io_addr + DPR_AD_Buf_Front);
 	count = front - devpriv->ai_front;
@@ -342,7 +322,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 
 	for (i = 0; i < count; i++) {
 		data = readw(devpriv->io_addr + DPR_ADC_buffer + rear);
-		comedi_buf_put(s->async, data);
+		comedi_buf_put(s, data);
 		rear++;
 		if (rear >= AI_FIFO_DEPTH)
 			rear = 0;
@@ -372,17 +352,13 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct dt3k_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int status;
 
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	s = &dev->subdevices[0];
 	status = readw(devpriv->io_addr + DPR_Intr_Flag);
-#ifdef DEBUG
-	debug_intr_flags(status);
-#endif
 
 	if (status & DT3000_ADFULL) {
 		dt3k_ai_empty_fifo(dev, s);
@@ -393,12 +369,10 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 
 	debug_n_ints++;
-	if (debug_n_ints >= 10) {
-		dt3k_ai_cancel(dev, s);
+	if (debug_n_ints >= 10)
 		s->async->events |= COMEDI_CB_EOA;
-	}
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -442,7 +416,7 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 {
 	const struct dt3k_boardtype *this_board = comedi_board(dev);
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -492,25 +466,20 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		dt3k_ns_to_timer(100, &cmd->scan_begin_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		dt3k_ns_to_timer(100, &arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
-		dt3k_ns_to_timer(50, &cmd->convert_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-		    cmd->scan_begin_arg <
-		    cmd->convert_arg * cmd->scan_end_arg) {
-			cmd->scan_begin_arg =
-			    cmd->convert_arg * cmd->scan_end_arg;
-			err++;
+		arg = cmd->convert_arg;
+		dt3k_ns_to_timer(50, &arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			arg = cmd->convert_arg * cmd->scan_end_arg;
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 arg);
 		}
 	}
 
@@ -665,13 +634,12 @@ static int dt3k_dio_insn_config(struct comedi_device *dev,
 
 static int dt3k_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[1] & data[0];
+	if (comedi_dio_update_state(s, data))
 		dt3k_writesingle(dev, SUBS_DOUT, 0, s->state);
-	}
+
 	data[1] = dt3k_readsingle(dev, SUBS_DIN, 0, 0);
 
 	return insn->n;
@@ -726,29 +694,33 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	if (!devpriv->io_addr)
 		return -ENOMEM;
 
-	ret = request_irq(pcidev->irq, dt3k_interrupt, IRQF_SHARED,
-			  dev->board_name, dev);
-	if (ret)
-		return ret;
-	dev->irq = pcidev->irq;
+	if (pcidev->irq) {
+		ret = request_irq(pcidev->irq, dt3k_interrupt, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = pcidev->irq;
+	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* ai subdevice */
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= this_board->adchan;
 	s->insn_read	= dt3k_ai_insn;
 	s->maxdata	= (1 << this_board->adbits) - 1;
-	s->len_chanlist	= 512;
 	s->range_table	= &range_dt3000_ai;	/* XXX */
-	s->do_cmd	= dt3k_ai_cmd;
-	s->do_cmdtest	= dt3k_ai_cmdtest;
-	s->cancel	= dt3k_ai_cancel;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= 512;
+		s->do_cmd	= dt3k_ai_cmd;
+		s->do_cmdtest	= dt3k_ai_cmdtest;
+		s->cancel	= dt3k_ai_cancel;
+	}
 
 	s = &dev->subdevices[1];
 	/* ao subsystem */
@@ -788,8 +760,6 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_PROC;
 #endif
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
 	return 0;
 }
 
@@ -819,7 +789,7 @@ static int dt3000_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &dt3000_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dt3000_pci_table) = {
+static const struct pci_device_id dt3000_pci_table[] = {
 	{ PCI_VDEVICE(DT, 0x0022), BOARD_DT3001 },
 	{ PCI_VDEVICE(DT, 0x0023), BOARD_DT3002 },
 	{ PCI_VDEVICE(DT, 0x0024), BOARD_DT3003 },

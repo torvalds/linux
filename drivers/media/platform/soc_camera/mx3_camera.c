@@ -266,7 +266,6 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 	struct idmac_channel *ichan = mx3_cam->idmac_channel[0];
 	struct idmac_video_param *video = &ichan->params.video;
 	const struct soc_mbus_pixelfmt *host_fmt = icd->current_fmt->host_fmt;
-	unsigned long flags;
 	dma_cookie_t cookie;
 	size_t new_size;
 
@@ -328,7 +327,7 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 		memset(vb2_plane_vaddr(vb, 0), 0xaa, vb2_get_plane_payload(vb, 0));
 #endif
 
-	spin_lock_irqsave(&mx3_cam->lock, flags);
+	spin_lock_irq(&mx3_cam->lock);
 	list_add_tail(&buf->queue, &mx3_cam->capture);
 
 	if (!mx3_cam->active)
@@ -351,7 +350,7 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 	if (mx3_cam->active == buf)
 		mx3_cam->active = NULL;
 
-	spin_unlock_irqrestore(&mx3_cam->lock, flags);
+	spin_unlock_irq(&mx3_cam->lock);
 error:
 	vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 }
@@ -407,7 +406,7 @@ static int mx3_videobuf_init(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int mx3_stop_streaming(struct vb2_queue *q)
+static void mx3_stop_streaming(struct vb2_queue *q)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(q);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -431,8 +430,6 @@ static int mx3_stop_streaming(struct vb2_queue *q)
 	}
 
 	spin_unlock_irqrestore(&mx3_cam->lock, flags);
-
-	return 0;
 }
 
 static struct vb2_ops mx3_videobuf_ops = {
@@ -454,7 +451,7 @@ static int mx3_camera_init_videobuf(struct vb2_queue *q,
 	q->ops = &mx3_videobuf_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct mx3_camera_buffer);
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	return vb2_queue_init(q);
 }

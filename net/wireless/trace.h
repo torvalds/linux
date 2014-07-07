@@ -186,6 +186,28 @@
 
 #define BOOL_TO_STR(bo) (bo) ? "true" : "false"
 
+#define QOS_MAP_ENTRY __field(u8, num_des)			\
+		      __array(u8, dscp_exception,		\
+			      2 * IEEE80211_QOS_MAP_MAX_EX)	\
+		      __array(u8, up, IEEE80211_QOS_MAP_LEN_MIN)
+#define QOS_MAP_ASSIGN(qos_map)					\
+	do {							\
+		if ((qos_map)) {				\
+			__entry->num_des = (qos_map)->num_des;	\
+			memcpy(__entry->dscp_exception,		\
+			       &(qos_map)->dscp_exception,	\
+			       2 * IEEE80211_QOS_MAP_MAX_EX);	\
+			memcpy(__entry->up, &(qos_map)->up,	\
+			       IEEE80211_QOS_MAP_LEN_MIN);	\
+		} else {					\
+			__entry->num_des = 0;			\
+			memset(__entry->dscp_exception, 0,	\
+			       2 * IEEE80211_QOS_MAP_MAX_EX);	\
+			memset(__entry->up, 0,			\
+			       IEEE80211_QOS_MAP_LEN_MIN);	\
+		}						\
+	} while (0)
+
 /*************************************************************
  *			rdev->ops traces		     *
  *************************************************************/
@@ -1446,9 +1468,10 @@ TRACE_EVENT(rdev_sched_scan_start,
 TRACE_EVENT(rdev_tdls_mgmt,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
 		 u8 *peer, u8 action_code, u8 dialog_token,
-		 u16 status_code, const u8 *buf, size_t len),
+		 u16 status_code, u32 peer_capability,
+		 const u8 *buf, size_t len),
 	TP_ARGS(wiphy, netdev, peer, action_code, dialog_token, status_code,
-		buf, len),
+		peer_capability, buf, len),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
@@ -1456,6 +1479,7 @@ TRACE_EVENT(rdev_tdls_mgmt,
 		__field(u8, action_code)
 		__field(u8, dialog_token)
 		__field(u16, status_code)
+		__field(u32, peer_capability)
 		__dynamic_array(u8, buf, len)
 	),
 	TP_fast_assign(
@@ -1465,13 +1489,15 @@ TRACE_EVENT(rdev_tdls_mgmt,
 		__entry->action_code = action_code;
 		__entry->dialog_token = dialog_token;
 		__entry->status_code = status_code;
+		__entry->peer_capability = peer_capability;
 		memcpy(__get_dynamic_array(buf), buf, len);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " MAC_PR_FMT ", action_code: %u, "
-		  "dialog_token: %u, status_code: %u, buf: %#.2x ",
+		  "dialog_token: %u, status_code: %u, peer_capability: %u buf: %#.2x ",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer),
 		  __entry->action_code, __entry->dialog_token,
-		  __entry->status_code, ((u8 *)__get_dynamic_array(buf))[0])
+		  __entry->status_code, __entry->peer_capability,
+		  ((u8 *)__get_dynamic_array(buf))[0])
 );
 
 TRACE_EVENT(rdev_dump_survey,
@@ -1653,9 +1679,8 @@ TRACE_EVENT(rdev_cancel_remain_on_channel,
 
 TRACE_EVENT(rdev_mgmt_tx,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
-		 struct ieee80211_channel *chan, bool offchan,
-		 unsigned int wait, bool no_cck, bool dont_wait_for_ack),
-	TP_ARGS(wiphy, wdev, chan, offchan, wait, no_cck, dont_wait_for_ack),
+		 struct cfg80211_mgmt_tx_params *params),
+	TP_ARGS(wiphy, wdev, params),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		WDEV_ENTRY
@@ -1668,11 +1693,11 @@ TRACE_EVENT(rdev_mgmt_tx,
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		WDEV_ASSIGN;
-		CHAN_ASSIGN(chan);
-		__entry->offchan = offchan;
-		__entry->wait = wait;
-		__entry->no_cck = no_cck;
-		__entry->dont_wait_for_ack = dont_wait_for_ack;
+		CHAN_ASSIGN(params->chan);
+		__entry->offchan = params->offchan;
+		__entry->wait = params->wait;
+		__entry->no_cck = params->no_cck;
+		__entry->dont_wait_for_ack = params->dont_wait_for_ack;
 	),
 	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT ", " CHAN_PR_FMT ", offchan: %s,"
 		  " wait: %u, no cck: %s, dont wait for ack: %s",
@@ -1851,29 +1876,69 @@ TRACE_EVENT(rdev_channel_switch,
 		WIPHY_ENTRY
 		NETDEV_ENTRY
 		CHAN_DEF_ENTRY
-		__field(u16, counter_offset_beacon)
-		__field(u16, counter_offset_presp)
 		__field(bool, radar_required)
 		__field(bool, block_tx)
 		__field(u8, count)
+		__dynamic_array(u16, bcn_ofs, params->n_counter_offsets_beacon)
+		__dynamic_array(u16, pres_ofs, params->n_counter_offsets_presp)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		CHAN_DEF_ASSIGN(&params->chandef);
-		__entry->counter_offset_beacon = params->counter_offset_beacon;
-		__entry->counter_offset_presp = params->counter_offset_presp;
 		__entry->radar_required = params->radar_required;
 		__entry->block_tx = params->block_tx;
 		__entry->count = params->count;
+		memcpy(__get_dynamic_array(bcn_ofs),
+		       params->counter_offsets_beacon,
+		       params->n_counter_offsets_beacon * sizeof(u16));
+
+		/* probe response offsets are optional */
+		if (params->n_counter_offsets_presp)
+			memcpy(__get_dynamic_array(pres_ofs),
+			       params->counter_offsets_presp,
+			       params->n_counter_offsets_presp * sizeof(u16));
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT
-		  ", block_tx: %d, count: %u, radar_required: %d"
-		  ", counter offsets (beacon/presp): %u/%u",
+		  ", block_tx: %d, count: %u, radar_required: %d",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, CHAN_DEF_PR_ARG,
-		  __entry->block_tx, __entry->count, __entry->radar_required,
-		  __entry->counter_offset_beacon,
-		  __entry->counter_offset_presp)
+		  __entry->block_tx, __entry->count, __entry->radar_required)
+);
+
+TRACE_EVENT(rdev_set_qos_map,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_qos_map *qos_map),
+	TP_ARGS(wiphy, netdev, qos_map),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		QOS_MAP_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		QOS_MAP_ASSIGN(qos_map);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", num_des: %u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->num_des)
+);
+
+TRACE_EVENT(rdev_set_ap_chanwidth,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_chan_def *chandef),
+	TP_ARGS(wiphy, netdev, chandef),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		CHAN_DEF_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		CHAN_DEF_ASSIGN(chandef);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, CHAN_DEF_PR_ARG)
 );
 
 /*************************************************************
@@ -2150,18 +2215,21 @@ TRACE_EVENT(cfg80211_cqm_rssi_notify,
 );
 
 TRACE_EVENT(cfg80211_reg_can_beacon,
-	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
-	TP_ARGS(wiphy, chandef),
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef,
+		 enum nl80211_iftype iftype),
+	TP_ARGS(wiphy, chandef, iftype),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		CHAN_DEF_ENTRY
+		__field(enum nl80211_iftype, iftype)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		CHAN_DEF_ASSIGN(chandef);
+		__entry->iftype = iftype;
 	),
-	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
-		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
+	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT ", iftype=%d",
+		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG, __entry->iftype)
 );
 
 TRACE_EVENT(cfg80211_chandef_dfs_required,
@@ -2239,11 +2307,6 @@ DECLARE_EVENT_CLASS(cfg80211_rx_evt,
 	TP_printk(NETDEV_PR_FMT ", " MAC_PR_FMT, NETDEV_PR_ARG, MAC_PR_ARG(addr))
 );
 
-DEFINE_EVENT(cfg80211_rx_evt, cfg80211_ibss_joined,
-	TP_PROTO(struct net_device *netdev, const u8 *addr),
-	TP_ARGS(netdev, addr)
-);
-
 DEFINE_EVENT(cfg80211_rx_evt, cfg80211_rx_spurious_frame,
 	TP_PROTO(struct net_device *netdev, const u8 *addr),
 	TP_ARGS(netdev, addr)
@@ -2252,6 +2315,24 @@ DEFINE_EVENT(cfg80211_rx_evt, cfg80211_rx_spurious_frame,
 DEFINE_EVENT(cfg80211_rx_evt, cfg80211_rx_unexpected_4addr_frame,
 	TP_PROTO(struct net_device *netdev, const u8 *addr),
 	TP_ARGS(netdev, addr)
+);
+
+TRACE_EVENT(cfg80211_ibss_joined,
+	TP_PROTO(struct net_device *netdev, const u8 *bssid,
+		 struct ieee80211_channel *channel),
+	TP_ARGS(netdev, bssid, channel),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(bssid)
+		CHAN_ENTRY
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(bssid, bssid);
+		CHAN_ASSIGN(channel);
+	),
+	TP_printk(NETDEV_PR_FMT ", bssid: " MAC_PR_FMT ", " CHAN_PR_FMT,
+		  NETDEV_PR_ARG, MAC_PR_ARG(bssid), CHAN_PR_ARG)
 );
 
 TRACE_EVENT(cfg80211_probe_status,
@@ -2557,6 +2638,21 @@ TRACE_EVENT(cfg80211_ft_event,
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", target_ap: " MAC_PR_FMT,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(target_ap))
+);
+
+TRACE_EVENT(cfg80211_stop_iface,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
+	TP_ARGS(wiphy, wdev),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		WDEV_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		WDEV_ASSIGN;
+	),
+	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT,
+		  WIPHY_PR_ARG, WDEV_PR_ARG)
 );
 
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */

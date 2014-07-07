@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <mach/common.h>
+#include <mach/pm-rcar.h>
 #include <mach/r8a7779.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
@@ -33,25 +34,25 @@
 #define AVECR IOMEM(0xfe700040)
 #define R8A7779_SCU_BASE 0xf0000000
 
-static struct r8a7779_pm_ch r8a7779_ch_cpu1 = {
+static struct rcar_sysc_ch r8a7779_ch_cpu1 = {
 	.chan_offs = 0x40, /* PWRSR0 .. PWRER0 */
 	.chan_bit = 1, /* ARM1 */
 	.isr_bit = 1, /* ARM1 */
 };
 
-static struct r8a7779_pm_ch r8a7779_ch_cpu2 = {
+static struct rcar_sysc_ch r8a7779_ch_cpu2 = {
 	.chan_offs = 0x40, /* PWRSR0 .. PWRER0 */
 	.chan_bit = 2, /* ARM2 */
 	.isr_bit = 2, /* ARM2 */
 };
 
-static struct r8a7779_pm_ch r8a7779_ch_cpu3 = {
+static struct rcar_sysc_ch r8a7779_ch_cpu3 = {
 	.chan_offs = 0x40, /* PWRSR0 .. PWRER0 */
 	.chan_bit = 3, /* ARM3 */
 	.isr_bit = 3, /* ARM3 */
 };
 
-static struct r8a7779_pm_ch *r8a7779_ch_cpu[4] = {
+static struct rcar_sysc_ch *r8a7779_ch_cpu[4] = {
 	[1] = &r8a7779_ch_cpu1,
 	[2] = &r8a7779_ch_cpu2,
 	[3] = &r8a7779_ch_cpu3,
@@ -67,7 +68,7 @@ void __init r8a7779_register_twd(void)
 
 static int r8a7779_platform_cpu_kill(unsigned int cpu)
 {
-	struct r8a7779_pm_ch *ch = NULL;
+	struct rcar_sysc_ch *ch = NULL;
 	int ret = -EIO;
 
 	cpu = cpu_logical_map(cpu);
@@ -76,26 +77,22 @@ static int r8a7779_platform_cpu_kill(unsigned int cpu)
 		ch = r8a7779_ch_cpu[cpu];
 
 	if (ch)
-		ret = r8a7779_sysc_power_down(ch);
+		ret = rcar_sysc_power_down(ch);
 
 	return ret ? ret : 1;
 }
 
 static int r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	struct r8a7779_pm_ch *ch = NULL;
+	struct rcar_sysc_ch *ch = NULL;
 	unsigned int lcpu = cpu_logical_map(cpu);
 	int ret;
-
-	ret = shmobile_smp_scu_boot_secondary(cpu, idle);
-	if (ret)
-		return ret;
 
 	if (lcpu < ARRAY_SIZE(r8a7779_ch_cpu))
 		ch = r8a7779_ch_cpu[lcpu];
 
 	if (ch)
-		ret = r8a7779_sysc_power_up(ch);
+		ret = rcar_sysc_power_up(ch);
 	else
 		ret = -EIO;
 

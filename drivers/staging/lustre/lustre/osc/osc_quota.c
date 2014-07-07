@@ -51,11 +51,8 @@ int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[])
 
 		oqi = cfs_hash_lookup(cli->cl_quota_hash[type], &qid[type]);
 		if (oqi) {
-			obd_uid id = oqi->oqi_id;
-
-			LASSERTF(id == qid[type],
-				 "The ids don't match %u != %u\n",
-				 id, qid[type]);
+			/* do not try to access oqi here, it could have been
+			 * freed by osc_quota_setdq() */
 
 			/* the slot is busy, the user is about to run out of
 			 * quota space on this OST */
@@ -139,7 +136,7 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
  * Hash operations for uid/gid <-> osc_quota_info
  */
 static unsigned
-oqi_hashfn(cfs_hash_t *hs, const void *key, unsigned mask)
+oqi_hashfn(struct cfs_hash *hs, const void *key, unsigned mask)
 {
 	return cfs_hash_u32_hash(*((__u32*)key), mask);
 }
@@ -172,17 +169,17 @@ oqi_object(struct hlist_node *hnode)
 }
 
 static void
-oqi_get(cfs_hash_t *hs, struct hlist_node *hnode)
+oqi_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 }
 
 static void
-oqi_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
+oqi_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 }
 
 static void
-oqi_exit(cfs_hash_t *hs, struct hlist_node *hnode)
+oqi_exit(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct osc_quota_info *oqi;
 
@@ -268,11 +265,16 @@ int osc_quotactl(struct obd_device *unused, struct obd_export *exp,
 	if (rc)
 		CERROR("ptlrpc_queue_wait failed, rc: %d\n", rc);
 
-	if (req->rq_repmsg &&
-	    (oqc = req_capsule_server_get(&req->rq_pill, &RMF_OBD_QUOTACTL))) {
-		*oqctl = *oqc;
+	if (req->rq_repmsg) {
+		oqc = req_capsule_server_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
+		if (oqc) {
+			*oqctl = *oqc;
+		} else if (!rc) {
+			CERROR("Can't unpack obd_quotactl\n");
+			rc = -EPROTO;
+		}
 	} else if (!rc) {
-		CERROR ("Can't unpack obd_quotactl\n");
+		CERROR("Can't unpack obd_quotactl\n");
 		rc = -EPROTO;
 	}
 	ptlrpc_req_finished(req);

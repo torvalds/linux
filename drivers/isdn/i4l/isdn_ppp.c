@@ -378,10 +378,15 @@ isdn_ppp_release(int min, struct file *file)
 	is->slcomp = NULL;
 #endif
 #ifdef CONFIG_IPPP_FILTER
-	kfree(is->pass_filter);
-	is->pass_filter = NULL;
-	kfree(is->active_filter);
-	is->active_filter = NULL;
+	if (is->pass_filter) {
+		sk_unattached_filter_destroy(is->pass_filter);
+		is->pass_filter = NULL;
+	}
+
+	if (is->active_filter) {
+		sk_unattached_filter_destroy(is->active_filter);
+		is->active_filter = NULL;
+	}
 #endif
 
 /* TODO: if this was the previous master: link the stuff to the new master */
@@ -629,25 +634,41 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_IPPP_FILTER
 	case PPPIOCSPASS:
 	{
+		struct sock_fprog_kern fprog;
 		struct sock_filter *code;
-		int len = get_filter(argp, &code);
+		int err, len = get_filter(argp, &code);
+
 		if (len < 0)
 			return len;
-		kfree(is->pass_filter);
-		is->pass_filter = code;
-		is->pass_len = len;
-		break;
+
+		fprog.len = len;
+		fprog.filter = code;
+
+		if (is->pass_filter)
+			sk_unattached_filter_destroy(is->pass_filter);
+		err = sk_unattached_filter_create(&is->pass_filter, &fprog);
+		kfree(code);
+
+		return err;
 	}
 	case PPPIOCSACTIVE:
 	{
+		struct sock_fprog_kern fprog;
 		struct sock_filter *code;
-		int len = get_filter(argp, &code);
+		int err, len = get_filter(argp, &code);
+
 		if (len < 0)
 			return len;
-		kfree(is->active_filter);
-		is->active_filter = code;
-		is->active_len = len;
-		break;
+
+		fprog.len = len;
+		fprog.filter = code;
+
+		if (is->active_filter)
+			sk_unattached_filter_destroy(is->active_filter);
+		err = sk_unattached_filter_create(&is->active_filter, &fprog);
+		kfree(code);
+
+		return err;
 	}
 #endif /* CONFIG_IPPP_FILTER */
 	default:
@@ -1147,14 +1168,14 @@ isdn_ppp_push_higher(isdn_net_dev *net_dev, isdn_net_local *lp, struct sk_buff *
 	}
 
 	if (is->pass_filter
-	    && sk_run_filter(skb, is->pass_filter) == 0) {
+	    && SK_RUN_FILTER(is->pass_filter, skb) == 0) {
 		if (is->debug & 0x2)
 			printk(KERN_DEBUG "IPPP: inbound frame filtered.\n");
 		kfree_skb(skb);
 		return;
 	}
 	if (!(is->active_filter
-	      && sk_run_filter(skb, is->active_filter) == 0)) {
+	      && SK_RUN_FILTER(is->active_filter, skb) == 0)) {
 		if (is->debug & 0x2)
 			printk(KERN_DEBUG "IPPP: link-active filter: resetting huptimer.\n");
 		lp->huptimer = 0;
@@ -1293,14 +1314,14 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (ipt->pass_filter
-	    && sk_run_filter(skb, ipt->pass_filter) == 0) {
+	    && SK_RUN_FILTER(ipt->pass_filter, skb) == 0) {
 		if (ipt->debug & 0x4)
 			printk(KERN_DEBUG "IPPP: outbound frame filtered.\n");
 		kfree_skb(skb);
 		goto unlock;
 	}
 	if (!(ipt->active_filter
-	      && sk_run_filter(skb, ipt->active_filter) == 0)) {
+	      && SK_RUN_FILTER(ipt->active_filter, skb) == 0)) {
 		if (ipt->debug & 0x4)
 			printk(KERN_DEBUG "IPPP: link-active filter: resetting huptimer.\n");
 		lp->huptimer = 0;
@@ -1490,9 +1511,9 @@ int isdn_ppp_autodial_filter(struct sk_buff *skb, isdn_net_local *lp)
 	}
 
 	drop |= is->pass_filter
-		&& sk_run_filter(skb, is->pass_filter) == 0;
+		&& SK_RUN_FILTER(is->pass_filter, skb) == 0;
 	drop |= is->active_filter
-		&& sk_run_filter(skb, is->active_filter) == 0;
+		&& SK_RUN_FILTER(is->active_filter, skb) == 0;
 
 	skb_push(skb, IPPP_MAX_HEADER - 4);
 	return drop;

@@ -23,7 +23,7 @@
 #include <linux/smsc911x.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/irq.h>
@@ -371,8 +371,7 @@ static int pcm970_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
 #endif
 
 	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_SCK6)), detect_irq,
-			IRQF_DISABLED | IRQF_TRIGGER_FALLING,
-				"sdhc-detect", data);
+			IRQF_TRIGGER_FALLING, "sdhc-detect", data);
 	if (ret)
 		goto err_gpio_free_2;
 
@@ -704,7 +703,6 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
 	.init_time	= pcm037_timer_init,
 	.init_machine = pcm037_init,
 	.init_late = pcm037_init_late,

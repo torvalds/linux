@@ -127,12 +127,6 @@ extern asmlinkage long sys_kexec_load(unsigned long entry,
 					struct kexec_segment __user *segments,
 					unsigned long flags);
 extern int kernel_kexec(void);
-#ifdef CONFIG_COMPAT
-extern asmlinkage long compat_sys_kexec_load(unsigned long entry,
-				unsigned long nr_segments,
-				struct compat_kexec_segment __user *segments,
-				unsigned long flags);
-#endif
 extern struct page *kimage_alloc_control_pages(struct kimage *image,
 						unsigned int order);
 extern void crash_kexec(struct pt_regs *);
@@ -170,6 +164,7 @@ unsigned long paddr_vmcoreinfo_note(void);
 
 extern struct kimage *kexec_image;
 extern struct kimage *kexec_crash_image;
+extern int kexec_load_disabled;
 
 #ifndef kexec_flush_icache_page
 #define kexec_flush_icache_page(page)
@@ -197,6 +192,9 @@ extern note_buf_t __percpu *crash_notes;
 extern u32 vmcoreinfo_note[VMCOREINFO_NOTE_SIZE/4];
 extern size_t vmcoreinfo_size;
 extern size_t vmcoreinfo_max_size;
+
+/* flag to track if kexec reboot is in progress */
+extern bool kexec_in_progress;
 
 int __init parse_crashkernel(char *cmdline, unsigned long long system_ram,
 		unsigned long long *crash_size, unsigned long long *crash_base);

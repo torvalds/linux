@@ -10,21 +10,17 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
-#include <linux/platform_data/clk-integrator.h>
-
-#include <mach/hardware.h>
-#include <mach/platform.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "clk-icst.h"
 
-/*
- * Implementation of the ARM Integrator/AP and Integrator/CP clock tree.
- * Inspired by portions of:
- * plat-versatile/clock.c and plat-versatile/include/plat/clock.h
- */
+#define INTEGRATOR_HDR_LOCK_OFFSET	0x14
 
-static const struct icst_params cp_auxvco_params = {
-	.ref		= 24000000,
+/* Base offset for the core module */
+static void __iomem *cm_base;
+
+static const struct icst_params cp_auxosc_params = {
 	.vco_max	= ICST525_VCO_MAX_5V,
 	.vco_min	= ICST525_VCO_MIN,
 	.vd_min 	= 8,
@@ -35,50 +31,39 @@ static const struct icst_params cp_auxvco_params = {
 	.idx2s		= icst525_idx2s,
 };
 
-static const struct clk_icst_desc __initdata cp_icst_desc = {
-	.params = &cp_auxvco_params,
+static const struct clk_icst_desc __initdata cm_auxosc_desc = {
+	.params = &cp_auxosc_params,
 	.vco_offset = 0x1c,
 	.lock_offset = INTEGRATOR_HDR_LOCK_OFFSET,
 };
 
-/*
- * integrator_clk_init() - set up the integrator clock tree
- * @is_cp: pass true if it's the Integrator/CP else AP is assumed
- */
-void __init integrator_clk_init(bool is_cp)
+static void __init of_integrator_cm_osc_setup(struct device_node *np)
 {
-	struct clk *clk;
+	struct clk *clk = ERR_PTR(-EINVAL);
+	const char *clk_name = np->name;
+	const struct clk_icst_desc *desc = &cm_auxosc_desc;
+	const char *parent_name;
 
-	/* APB clock dummy */
-	clk = clk_register_fixed_rate(NULL, "apb_pclk", NULL, CLK_IS_ROOT, 0);
-	clk_register_clkdev(clk, "apb_pclk", NULL);
+	if (!cm_base) {
+		/* Remap the core module base if not done yet */
+		struct device_node *parent;
 
-	/* UART reference clock */
-	clk = clk_register_fixed_rate(NULL, "uartclk", NULL, CLK_IS_ROOT,
-				14745600);
-	clk_register_clkdev(clk, NULL, "uart0");
-	clk_register_clkdev(clk, NULL, "uart1");
-	if (is_cp)
-		clk_register_clkdev(clk, NULL, "mmci");
+		parent = of_get_parent(np);
+		if (!np) {
+			pr_err("no parent on core module clock\n");
+			return;
+		}
+		cm_base = of_iomap(parent, 0);
+		if (!cm_base) {
+			pr_err("could not remap core module base\n");
+			return;
+		}
+	}
 
-	/* 24 MHz clock */
-	clk = clk_register_fixed_rate(NULL, "clk24mhz", NULL, CLK_IS_ROOT,
-				24000000);
-	clk_register_clkdev(clk, NULL, "kmi0");
-	clk_register_clkdev(clk, NULL, "kmi1");
-	if (!is_cp)
-		clk_register_clkdev(clk, NULL, "ap_timer");
-
-	if (!is_cp)
-		return;
-
-	/* 1 MHz clock */
-	clk = clk_register_fixed_rate(NULL, "clk1mhz", NULL, CLK_IS_ROOT,
-				1000000);
-	clk_register_clkdev(clk, NULL, "sp804");
-
-	/* ICST VCO clock used on the Integrator/CP CLCD */
-	clk = icst_clk_register(NULL, &cp_icst_desc,
-				__io_address(INTEGRATOR_HDR_BASE));
-	clk_register_clkdev(clk, NULL, "clcd");
+	parent_name = of_clk_get_parent_name(np, 0);
+	clk = icst_clk_register(NULL, desc, clk_name, parent_name, cm_base);
+	if (!IS_ERR(clk))
+		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
+CLK_OF_DECLARE(integrator_cm_auxosc_clk,
+	"arm,integrator-cm-auxosc", of_integrator_cm_osc_setup);

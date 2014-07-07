@@ -15,6 +15,52 @@
 #include <linux/types.h>
 
 #define __KVM_S390
+#define __KVM_HAVE_GUEST_DEBUG
+
+/* Device control API: s390-specific devices */
+#define KVM_DEV_FLIC_GET_ALL_IRQS	1
+#define KVM_DEV_FLIC_ENQUEUE		2
+#define KVM_DEV_FLIC_CLEAR_IRQS		3
+#define KVM_DEV_FLIC_APF_ENABLE		4
+#define KVM_DEV_FLIC_APF_DISABLE_WAIT	5
+#define KVM_DEV_FLIC_ADAPTER_REGISTER	6
+#define KVM_DEV_FLIC_ADAPTER_MODIFY	7
+/*
+ * We can have up to 4*64k pending subchannels + 8 adapter interrupts,
+ * as well as up  to ASYNC_PF_PER_VCPU*KVM_MAX_VCPUS pfault done interrupts.
+ * There are also sclp and machine checks. This gives us
+ * sizeof(kvm_s390_irq)*(4*65536+8+64*64+1+1) = 72 * 266250 = 19170000
+ * Lets round up to 8192 pages.
+ */
+#define KVM_S390_MAX_FLOAT_IRQS	266250
+#define KVM_S390_FLIC_MAX_BUFFER	0x2000000
+
+struct kvm_s390_io_adapter {
+	__u32 id;
+	__u8 isc;
+	__u8 maskable;
+	__u8 swap;
+	__u8 pad;
+};
+
+#define KVM_S390_IO_ADAPTER_MASK 1
+#define KVM_S390_IO_ADAPTER_MAP 2
+#define KVM_S390_IO_ADAPTER_UNMAP 3
+
+struct kvm_s390_io_adapter_req {
+	__u32 id;
+	__u8 type;
+	__u8 mask;
+	__u16 pad0;
+	__u64 addr;
+};
+
+/* kvm attr_group  on vm fd */
+#define KVM_S390_VM_MEM_CTRL		0
+
+/* kvm attributes for mem_ctrl */
+#define KVM_S390_VM_MEM_ENABLE_CMMA	0
+#define KVM_S390_VM_MEM_CLR_CMMA	1
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
@@ -34,11 +80,31 @@ struct kvm_fpu {
 	__u64 fprs[16];
 };
 
+#define KVM_GUESTDBG_USE_HW_BP		0x00010000
+
+#define KVM_HW_BP			1
+#define KVM_HW_WP_WRITE			2
+#define KVM_SINGLESTEP			4
+
 struct kvm_debug_exit_arch {
+	__u64 addr;
+	__u8 type;
+	__u8 pad[7]; /* Should be set to 0 */
+};
+
+struct kvm_hw_breakpoint {
+	__u64 addr;
+	__u64 phys_addr;
+	__u64 len;
+	__u8 type;
+	__u8 pad[7]; /* Should be set to 0 */
 };
 
 /* for KVM_SET_GUEST_DEBUG */
 struct kvm_guest_debug_arch {
+	__u32 nr_hw_bp;
+	__u32 pad; /* Should be set to 0 */
+	struct kvm_hw_breakpoint __user *hw_bp;
 };
 
 #define KVM_SYNC_PREFIX (1UL << 0)
@@ -57,4 +123,9 @@ struct kvm_sync_regs {
 #define KVM_REG_S390_EPOCHDIFF	(KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x2)
 #define KVM_REG_S390_CPU_TIMER  (KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x3)
 #define KVM_REG_S390_CLOCK_COMP (KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x4)
+#define KVM_REG_S390_PFTOKEN	(KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x5)
+#define KVM_REG_S390_PFCOMPARE	(KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x6)
+#define KVM_REG_S390_PFSELECT	(KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x7)
+#define KVM_REG_S390_PP		(KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x8)
+#define KVM_REG_S390_GBEA	(KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x9)
 #endif

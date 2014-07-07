@@ -9,9 +9,61 @@ Required properties (in root node):
 
 FPGA type interrupt controllers, see the versatile-fpga-irq binding doc.
 
-In the root node the Integrator/CP must have a /cpcon node pointing
-to the CP control registers, and the Integrator/AP must have a
-/syscon node pointing to the Integrator/AP system controller.
+Required nodes:
+
+- core-module: the root node to the Integrator platforms must have
+  a core-module with regs and the compatible string
+  "arm,core-module-integrator"
+- external-bus-interface: the root node to the Integrator platforms
+  must have an external bus interface with regs and the
+  compatible-string "arm,external-bus-interface"
+
+  Required properties for the core module:
+  - regs: the location and size of the core module registers, one
+    range of 0x200 bytes.
+
+- syscon: the root node of the Integrator platforms must have a
+  system controller node pointong to the control registers,
+  with the compatible string
+  "arm,integrator-ap-syscon"
+  "arm,integrator-cp-syscon"
+  respectively.
+
+  Required properties for the system controller:
+  - regs: the location and size of the system controller registers,
+    one range of 0x100 bytes.
+
+  Required properties for the AP system controller:
+  - interrupts: the AP syscon node must include the logical module
+    interrupts, stated in order of module instance <module 0>,
+    <module 1>, <module 2> ... for the CP system controller this
+    is not required not of any use.
+
+/dts-v1/;
+/include/ "integrator.dtsi"
+
+/ {
+	model = "ARM Integrator/AP";
+	compatible = "arm,integrator-ap";
+
+	core-module@10000000 {
+		compatible = "arm,core-module-integrator";
+		reg = <0x10000000 0x200>;
+	};
+
+	ebi@12000000 {
+		compatible = "arm,external-bus-interface";
+		reg = <0x12000000 0x100>;
+	};
+
+	syscon {
+		compatible = "arm,integrator-ap-syscon";
+		reg = <0x11000000 0x100>;
+		interrupt-parent = <&pic>;
+		/* These are the logic module IRQs */
+		interrupts = <9>, <10>, <11>, <12>;
+	};
+};
 
 
 ARM Versatile Application and Platform Baseboards

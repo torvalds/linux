@@ -98,6 +98,11 @@ by the kernel.
 The destruction of the socket and all associated resources
 is done by a simple call to close(fd).
 
+Similarly as without PACKET_MMAP, it is possible to use one socket
+for capture and transmission. This can be done by mapping the
+allocated RX and TX buffer ring with a single mmap() call.
+See "Mapping and use of the circular buffer (ring)".
+
 Next I will describe PACKET_MMAP settings and its constraints,
 also the mapping of the circular buffer in the user process and 
 the use of this buffer.
@@ -122,6 +127,16 @@ Transmission process is similar to capture as shown below.
 
 [shutdown]  close() --------> destruction of the transmission socket and
                               deallocation of all associated resources.
+
+Socket creation and destruction is also straight forward, and is done
+the same way as in capturing described in the previous paragraph:
+
+ int fd = socket(PF_PACKET, mode, 0);
+
+The protocol can optionally be 0 in case we only want to transmit
+via this socket, which avoids an expensive call to packet_rcv().
+In this case, you also need to bind(2) the TX_RING with sll_protocol = 0
+set. Otherwise, htons(ETH_P_ALL) or any other protocol, for example.
 
 Binding the socket to your network interface is mandatory (with zero copy) to
 know the header size of frames used in the circular buffer.
@@ -404,6 +419,19 @@ tp_block_size/tp_frame_size frames there will be a gap between
 the frames. This is because a frame cannot be spawn across two
 blocks. 
 
+To use one socket for capture and transmission, the mapping of both the
+RX and TX buffer ring has to be done with one call to mmap:
+
+    ...
+    setsockopt(fd, SOL_PACKET, PACKET_RX_RING, &foo, sizeof(foo));
+    setsockopt(fd, SOL_PACKET, PACKET_TX_RING, &bar, sizeof(bar));
+    ...
+    rx_ring = mmap(0, size * 2, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    tx_ring = rx_ring + size;
+
+RX must be the first as the kernel maps the TX ring memory right
+after the RX one.
+
 At the beginning of each frame there is an status field (see 
 struct tpacket_hdr). If this field is 0 means that the frame is ready
 to be used for the kernel, If not, there is a frame the user can read 
@@ -425,7 +453,7 @@ TP_STATUS_COPY        : This flag indicates that the frame (and associated
                         enabled previously with setsockopt() and 
                         the PACKET_COPY_THRESH option. 
 
-                        The number of frames than can be buffered to 
+                        The number of frames that can be buffered to
                         be read with recvfrom is limited like a normal socket.
                         See the SO_RCVBUF option in the socket (7) man page.
 
@@ -507,8 +535,6 @@ where 'tpacket_version' can be TPACKET_V1 (default), TPACKET_V2, TPACKET_V3.
 TPACKET_V1:
 	- Default if not otherwise specified by setsockopt(2)
 	- RX_RING, TX_RING available
-	- VLAN metadata information available for packets
-	  (TP_STATUS_VLAN_VALID)
 
 TPACKET_V1 --> TPACKET_V2:
 	- Made 64 bit clean due to unsigned long usage in TPACKET_V1
@@ -516,6 +542,13 @@ TPACKET_V1 --> TPACKET_V2:
 	  userspace and the like
 	- Timestamp resolution in nanoseconds instead of microseconds
 	- RX_RING, TX_RING available
+	- VLAN metadata information available for packets
+	  (TP_STATUS_VLAN_VALID, TP_STATUS_VLAN_TPID_VALID),
+	  in the tpacket2_hdr structure:
+		- TP_STATUS_VLAN_VALID bit being set into the tp_status field indicates
+		  that the tp_vlan_tci field has valid VLAN TCI value
+		- TP_STATUS_VLAN_TPID_VALID bit being set into the tp_status field
+		  indicates that the tp_vlan_tpid field has valid VLAN TPID value
 	- How to switch to TPACKET_V2:
 		1. Replace struct tpacket_hdr by struct tpacket2_hdr
 		2. Query header len and save
@@ -545,11 +578,12 @@ processes. This also works in combination with mmap(2) on packet sockets.
 
 Currently implemented fanout policies are:
 
-  - PACKET_FANOUT_HASH: schedule to socket by skb's rxhash
+  - PACKET_FANOUT_HASH: schedule to socket by skb's packet hash
   - PACKET_FANOUT_LB: schedule to socket by round-robin
   - PACKET_FANOUT_CPU: schedule to socket by CPU packet arrives on
   - PACKET_FANOUT_RND: schedule to socket by random selection
   - PACKET_FANOUT_ROLLOVER: if one socket is full, rollover to another
+  - PACKET_FANOUT_QM: schedule to socket by skbs recorded queue_mapping
 
 Minimal example code by David S. Miller (try things like "./test eth0 hash",
 "./test eth0 lb", etc.):
@@ -941,6 +975,27 @@ int main(int argc, char **argp)
 	teardown_socket(&ring, fd);
 	return 0;
 }
+
+-------------------------------------------------------------------------------
++ PACKET_QDISC_BYPASS
+-------------------------------------------------------------------------------
+
+If there is a requirement to load the network with many packets in a similar
+fashion as pktgen does, you might set the following option after socket
+creation:
+
+    int one = 1;
+    setsockopt(fd, SOL_PACKET, PACKET_QDISC_BYPASS, &one, sizeof(one));
+
+This has the side-effect, that packets sent through PF_PACKET will bypass the
+kernel's qdisc layer and are forcedly pushed to the driver directly. Meaning,
+packet are not buffered, tc disciplines are ignored, increased loss can occur
+and such packets are also not visible to other PF_PACKET sockets anymore. So,
+you have been warned; generally, this can be useful for stress testing various
+components of a system.
+
+On default, PACKET_QDISC_BYPASS is disabled and needs to be explicitly enabled
+on PF_PACKET sockets.
 
 -------------------------------------------------------------------------------
 + PACKET_TIMESTAMP

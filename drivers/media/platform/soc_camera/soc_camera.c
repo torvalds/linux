@@ -71,13 +71,23 @@ static int video_dev_create(struct soc_camera_device *icd);
 int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd,
 			struct v4l2_clk *clk)
 {
-	int ret = clk ? v4l2_clk_enable(clk) : 0;
-	if (ret < 0) {
-		dev_err(dev, "Cannot enable clock: %d\n", ret);
-		return ret;
+	int ret;
+	bool clock_toggle;
+
+	if (clk && (!ssdd->unbalanced_power ||
+		    !test_and_set_bit(0, &ssdd->clock_state))) {
+		ret = v4l2_clk_enable(clk);
+		if (ret < 0) {
+			dev_err(dev, "Cannot enable clock: %d\n", ret);
+			return ret;
+		}
+		clock_toggle = true;
+	} else {
+		clock_toggle = false;
 	}
-	ret = regulator_bulk_enable(ssdd->num_regulators,
-					ssdd->regulators);
+
+	ret = regulator_bulk_enable(ssdd->sd_pdata.num_regulators,
+				    ssdd->sd_pdata.regulators);
 	if (ret < 0) {
 		dev_err(dev, "Cannot enable regulators\n");
 		goto eregenable;
@@ -95,10 +105,10 @@ int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd,
 	return 0;
 
 epwron:
-	regulator_bulk_disable(ssdd->num_regulators,
-			       ssdd->regulators);
+	regulator_bulk_disable(ssdd->sd_pdata.num_regulators,
+			       ssdd->sd_pdata.regulators);
 eregenable:
-	if (clk)
+	if (clock_toggle)
 		v4l2_clk_disable(clk);
 
 	return ret;
@@ -120,14 +130,14 @@ int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd
 		}
 	}
 
-	err = regulator_bulk_disable(ssdd->num_regulators,
-				     ssdd->regulators);
+	err = regulator_bulk_disable(ssdd->sd_pdata.num_regulators,
+				     ssdd->sd_pdata.regulators);
 	if (err < 0) {
 		dev_err(dev, "Cannot disable regulators\n");
 		ret = ret ? : err;
 	}
 
-	if (clk)
+	if (clk && (!ssdd->unbalanced_power || test_and_clear_bit(0, &ssdd->clock_state)))
 		v4l2_clk_disable(clk);
 
 	return ret;
@@ -137,8 +147,8 @@ EXPORT_SYMBOL(soc_camera_power_off);
 int soc_camera_power_init(struct device *dev, struct soc_camera_subdev_desc *ssdd)
 {
 	/* Should not have any effect in synchronous case */
-	return devm_regulator_bulk_get(dev, ssdd->num_regulators,
-				       ssdd->regulators);
+	return devm_regulator_bulk_get(dev, ssdd->sd_pdata.num_regulators,
+				       ssdd->sd_pdata.regulators);
 }
 EXPORT_SYMBOL(soc_camera_power_init);
 
@@ -304,7 +314,7 @@ static int soc_camera_s_std(struct file *file, void *priv, v4l2_std_id a)
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	return v4l2_subdev_call(sd, core, s_std, a);
+	return v4l2_subdev_call(sd, video, s_std, a);
 }
 
 static int soc_camera_g_std(struct file *file, void *priv, v4l2_std_id *a)
@@ -312,7 +322,7 @@ static int soc_camera_g_std(struct file *file, void *priv, v4l2_std_id *a)
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	return v4l2_subdev_call(sd, core, g_std, a);
+	return v4l2_subdev_call(sd, video, g_std, a);
 }
 
 static int soc_camera_enum_framesizes(struct file *file, void *fh,
@@ -1267,6 +1277,8 @@ static int soc_camera_probe_finish(struct soc_camera_device *icd)
 	sd->grp_id = soc_camera_grp_id(icd);
 	v4l2_set_subdev_hostdata(sd, icd);
 
+	v4l2_subdev_call(sd, video, g_tvnorms, &icd->vdev->tvnorms);
+
 	ret = v4l2_ctrl_add_handler(&icd->ctrl_handler, sd->ctrl_handler, NULL);
 	if (ret < 0)
 		return ret;
@@ -1346,8 +1358,8 @@ static int soc_camera_i2c_init(struct soc_camera_device *icd,
 	 * soc_camera_pdrv_probe(), make sure the subdevice driver doesn't try
 	 * to allocate them again.
 	 */
-	ssdd->num_regulators = 0;
-	ssdd->regulators = NULL;
+	ssdd->sd_pdata.num_regulators = 0;
+	ssdd->sd_pdata.regulators = NULL;
 	shd->board_info->platform_data = ssdd;
 
 	snprintf(clk_name, sizeof(clk_name), "%d-%04x",
@@ -1987,6 +1999,12 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 		return -ENODEV;
 
 	video_set_drvdata(icd->vdev, icd);
+	if (icd->vdev->tvnorms == 0) {
+		/* disable the STD API if there are no tvnorms defined */
+		v4l2_disable_ioctl(icd->vdev, VIDIOC_G_STD);
+		v4l2_disable_ioctl(icd->vdev, VIDIOC_S_STD);
+		v4l2_disable_ioctl(icd->vdev, VIDIOC_ENUMSTD);
+	}
 	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		dev_err(icd->pdev, "video_register_device failed: %d\n", ret);
@@ -2020,8 +2038,8 @@ static int soc_camera_pdrv_probe(struct platform_device *pdev)
 	 * that case regulators are attached to the I2C device and not to the
 	 * camera platform device.
 	 */
-	ret = devm_regulator_bulk_get(&pdev->dev, ssdd->num_regulators,
-				      ssdd->regulators);
+	ret = devm_regulator_bulk_get(&pdev->dev, ssdd->sd_pdata.num_regulators,
+				      ssdd->sd_pdata.regulators);
 	if (ret < 0)
 		return ret;
 

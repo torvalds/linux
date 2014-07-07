@@ -69,9 +69,8 @@ bool WCTLbIsDuplicate (PSCache pCache, struct ieee80211_hdr *pMACHeader)
         for (ii = 0; ii < DUPLICATE_RX_CACHE_LENGTH; ii++) {
             pCacheEntry = &(pCache->asCacheEntry[uIndex]);
             if ((pCacheEntry->wFmSequence == pMACHeader->seq_ctrl) &&
-		(!compare_ether_addr(&(pCacheEntry->abyAddr2[0]),
-				     &(pMACHeader->addr2[0]))) &&
-                (LOBYTE(pCacheEntry->wFrameCtl) == LOBYTE(pMACHeader->frame_control))
+		ether_addr_equal(pCacheEntry->abyAddr2, pMACHeader->addr2) &&
+		(pCacheEntry->wFrameCtl == pMACHeader->frame_control)
                 ) {
                 /* Duplicate match */
                 return true;
@@ -110,8 +109,8 @@ unsigned int WCTLuSearchDFCB(struct vnt_private *pDevice,
 
 	for (ii = 0; ii < pDevice->cbDFCB; ii++) {
 		if ((pDevice->sRxDFCB[ii].bInUse == true) &&
-		    (!compare_ether_addr(&(pDevice->sRxDFCB[ii].abyAddr2[0]),
-					  &(pMACHeader->addr2[0])))) {
+		    ether_addr_equal(pDevice->sRxDFCB[ii].abyAddr2,
+				     pMACHeader->addr2)) {
 			return ii;
 		}
 	}

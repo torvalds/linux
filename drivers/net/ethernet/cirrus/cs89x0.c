@@ -1174,7 +1174,7 @@ static netdev_tx_t net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	writewords(lp, TX_FRAME_PORT, skb->data, (skb->len + 1) >> 1);
 	spin_unlock_irqrestore(&lp->lock, flags);
 	dev->stats.tx_bytes += skb->len;
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 
 	/* We DO NOT call netif_wake_queue() here.
 	 * We also DO NOT call netif_start_queue().

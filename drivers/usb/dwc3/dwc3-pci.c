@@ -23,7 +23,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/usb/otg.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 
 /* FIXME define these in <linux/pci_ids.h> */
 #define PCI_VENDOR_ID_SYNOPSYS		0x16c3
@@ -40,24 +40,25 @@ struct dwc3_pci {
 
 static int dwc3_pci_register_phys(struct dwc3_pci *glue)
 {
-	struct usb_phy_gen_xceiv_platform_data pdata;
+	struct usb_phy_generic_platform_data pdata;
 	struct platform_device	*pdev;
 	int			ret;
 
 	memset(&pdata, 0x00, sizeof(pdata));
 
-	pdev = platform_device_alloc("usb_phy_gen_xceiv", 0);
+	pdev = platform_device_alloc("usb_phy_generic", 0);
 	if (!pdev)
 		return -ENOMEM;
 
 	glue->usb2_phy = pdev;
 	pdata.type = USB_PHY_TYPE_USB2;
+	pdata.gpio_reset = -1;
 
 	ret = platform_device_add_data(glue->usb2_phy, &pdata, sizeof(pdata));
 	if (ret)
 		goto err1;
 
-	pdev = platform_device_alloc("usb_phy_gen_xceiv", 1);
+	pdev = platform_device_alloc("usb_phy_generic", 1);
 	if (!pdev) {
 		ret = -ENOMEM;
 		goto err1;
@@ -98,7 +99,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	struct resource		res[2];
 	struct platform_device	*dwc3;
 	struct dwc3_pci		*glue;
-	int			ret = -ENOMEM;
+	int			ret;
 	struct device		*dev = &pci->dev;
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
@@ -109,7 +110,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 
 	glue->dev = dev;
 
-	ret = pci_enable_device(pci);
+	ret = pcim_enable_device(pci);
 	if (ret) {
 		dev_err(dev, "failed to enable pci device\n");
 		return -ENODEV;
@@ -126,8 +127,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	dwc3 = platform_device_alloc("dwc3", PLATFORM_DEVID_AUTO);
 	if (!dwc3) {
 		dev_err(dev, "couldn't allocate dwc3 device\n");
-		ret = -ENOMEM;
-		goto err1;
+		return -ENOMEM;
 	}
 
 	memset(res, 0x00, sizeof(struct resource) * ARRAY_SIZE(res));
@@ -144,7 +144,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	ret = platform_device_add_resources(dwc3, res, ARRAY_SIZE(res));
 	if (ret) {
 		dev_err(dev, "couldn't add resources to dwc3 device\n");
-		goto err1;
+		return ret;
 	}
 
 	pci_set_drvdata(pci, glue);
@@ -165,11 +165,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	return 0;
 
 err3:
-	pci_set_drvdata(pci, NULL);
 	platform_device_put(dwc3);
-err1:
-	pci_disable_device(pci);
-
 	return ret;
 }
 
@@ -180,11 +176,9 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 	platform_device_unregister(glue->dwc3);
 	platform_device_unregister(glue->usb2_phy);
 	platform_device_unregister(glue->usb3_phy);
-	pci_set_drvdata(pci, NULL);
-	pci_disable_device(pci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dwc3_pci_id_table) = {
+static const struct pci_device_id dwc3_pci_id_table[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
 				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3),

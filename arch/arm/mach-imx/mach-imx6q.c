@@ -11,9 +11,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/clkdev.h>
-#include <linux/clocksource.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -25,7 +23,8 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
+#include <linux/pci.h>
 #include <linux/phy.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
@@ -39,64 +38,6 @@
 #include "common.h"
 #include "cpuidle.h"
 #include "hardware.h"
-
-static u32 chip_revision;
-
-int imx6q_revision(void)
-{
-	return chip_revision;
-}
-
-static void __init imx6q_init_revision(void)
-{
-	u32 rev = imx_anatop_get_digprog();
-
-	switch (rev & 0xff) {
-	case 0:
-		chip_revision = IMX_CHIP_REVISION_1_0;
-		break;
-	case 1:
-		chip_revision = IMX_CHIP_REVISION_1_1;
-		break;
-	case 2:
-		chip_revision = IMX_CHIP_REVISION_1_2;
-		break;
-	default:
-		chip_revision = IMX_CHIP_REVISION_UNKNOWN;
-	}
-
-	mxc_set_cpu_type(rev >> 16 & 0xff);
-}
-
-static void imx6q_restart(enum reboot_mode mode, const char *cmd)
-{
-	struct device_node *np;
-	void __iomem *wdog_base;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-wdt");
-	wdog_base = of_iomap(np, 0);
-	if (!wdog_base)
-		goto soft;
-
-	imx_src_prepare_restart();
-
-	/* enable wdog */
-	writew_relaxed(1 << 2, wdog_base);
-	/* write twice to ensure the request will not get ignored */
-	writew_relaxed(1 << 2, wdog_base);
-
-	/* wait for reset to assert ... */
-	mdelay(500);
-
-	pr_err("Watchdog reset failed to assert reset\n");
-
-	/* delay to allow the serial port to show the message */
-	mdelay(50);
-
-soft:
-	/* we'll take a jump through zero as a poor second */
-	soft_restart(0);
-}
 
 /* For imx6q sabrelite board: set KSZ9021RN RGMII pad skew */
 static int ksz9021rn_phy_fixup(struct phy_device *phydev)
@@ -139,6 +80,34 @@ static int ksz9031rn_phy_fixup(struct phy_device *dev)
 	return 0;
 }
 
+/*
+ * fixup for PLX PEX8909 bridge to configure GPIO1-7 as output High
+ * as they are used for slots1-7 PERST#
+ */
+static void ventana_pciesw_early_fixup(struct pci_dev *dev)
+{
+	u32 dw;
+
+	if (!of_machine_is_compatible("gw,ventana"))
+		return;
+
+	if (dev->devfn != 0)
+		return;
+
+	pci_read_config_dword(dev, 0x62c, &dw);
+	dw |= 0xaaa8; // GPIO1-7 outputs
+	pci_write_config_dword(dev, 0x62c, dw);
+
+	pci_read_config_dword(dev, 0x644, &dw);
+	dw |= 0xfe;   // GPIO1-7 output high
+	pci_write_config_dword(dev, 0x644, dw);
+
+	msleep(100);
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8609, ventana_pciesw_early_fixup);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8606, ventana_pciesw_early_fixup);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8604, ventana_pciesw_early_fixup);
+
 static int ar8031_phy_fixup(struct phy_device *dev)
 {
 	u16 val;
@@ -164,6 +133,39 @@ static int ar8031_phy_fixup(struct phy_device *dev)
 
 #define PHY_ID_AR8031	0x004dd074
 
+static int ar8035_phy_fixup(struct phy_device *dev)
+{
+	u16 val;
+
+	/* Ar803x phy SmartEEE feature cause link status generates glitch,
+	 * which cause ethernet link down/up issue, so disable SmartEEE
+	 */
+	phy_write(dev, 0xd, 0x3);
+	phy_write(dev, 0xe, 0x805d);
+	phy_write(dev, 0xd, 0x4003);
+
+	val = phy_read(dev, 0xe);
+	phy_write(dev, 0xe, val & ~(1 << 8));
+
+	/*
+	 * Enable 125MHz clock from CLK_25M on the AR8031.  This
+	 * is fed in to the IMX6 on the ENET_REF_CLK (V22) pad.
+	 * Also, introduce a tx clock delay.
+	 *
+	 * This is the same as is the AR8031 fixup.
+	 */
+	ar8031_phy_fixup(dev);
+
+	/*check phy power*/
+	val = phy_read(dev, 0x0);
+	if (val & BMCR_PDOWN)
+		phy_write(dev, 0x0, val & ~BMCR_PDOWN);
+
+	return 0;
+}
+
+#define PHY_ID_AR8035 0x004dd072
+
 static void __init imx6q_enet_phy_init(void)
 {
 	if (IS_BUILTIN(CONFIG_PHYLIB)) {
@@ -173,39 +175,122 @@ static void __init imx6q_enet_phy_init(void)
 				ksz9031rn_phy_fixup);
 		phy_register_fixup_for_uid(PHY_ID_AR8031, 0xffffffff,
 				ar8031_phy_fixup);
+		phy_register_fixup_for_uid(PHY_ID_AR8035, 0xffffffef,
+				ar8035_phy_fixup);
 	}
 }
 
 static void __init imx6q_1588_init(void)
 {
+	struct device_node *np;
+	struct clk *ptp_clk;
+	struct clk *enet_ref;
 	struct regmap *gpr;
+	u32 clksel;
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-fec");
+	if (!np) {
+		pr_warn("%s: failed to find fec node\n", __func__);
+		return;
+	}
+
+	ptp_clk = of_clk_get(np, 2);
+	if (IS_ERR(ptp_clk)) {
+		pr_warn("%s: failed to get ptp clock\n", __func__);
+		goto put_node;
+	}
+
+	enet_ref = clk_get_sys(NULL, "enet_ref");
+	if (IS_ERR(enet_ref)) {
+		pr_warn("%s: failed to get enet clock\n", __func__);
+		goto put_ptp_clk;
+	}
+
+	/*
+	 * If enet_ref from ANATOP/CCM is the PTP clock source, we need to
+	 * set bit IOMUXC_GPR1[21].  Or the PTP clock must be from pad
+	 * (external OSC), and we need to clear the bit.
+	 */
+	clksel = ptp_clk == enet_ref ? IMX6Q_GPR1_ENET_CLK_SEL_ANATOP :
+				       IMX6Q_GPR1_ENET_CLK_SEL_PAD;
 	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
 	if (!IS_ERR(gpr))
 		regmap_update_bits(gpr, IOMUXC_GPR1,
 				IMX6Q_GPR1_ENET_CLK_SEL_MASK,
-				IMX6Q_GPR1_ENET_CLK_SEL_ANATOP);
+				clksel);
 	else
 		pr_err("failed to find fsl,imx6q-iomux-gpr regmap\n");
 
+	clk_put(enet_ref);
+put_ptp_clk:
+	clk_put(ptp_clk);
+put_node:
+	of_node_put(np);
+}
+
+static void __init imx6q_axi_init(void)
+{
+	struct regmap *gpr;
+	unsigned int mask;
+
+	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
+	if (!IS_ERR(gpr)) {
+		/*
+		 * Enable the cacheable attribute of VPU and IPU
+		 * AXI transactions.
+		 */
+		mask = IMX6Q_GPR4_VPU_WR_CACHE_SEL |
+			IMX6Q_GPR4_VPU_RD_CACHE_SEL |
+			IMX6Q_GPR4_VPU_P_WR_CACHE_VAL |
+			IMX6Q_GPR4_VPU_P_RD_CACHE_VAL_MASK |
+			IMX6Q_GPR4_IPU_WR_CACHE_CTL |
+			IMX6Q_GPR4_IPU_RD_CACHE_CTL;
+		regmap_update_bits(gpr, IOMUXC_GPR4, mask, mask);
+
+		/* Increase IPU read QoS priority */
+		regmap_update_bits(gpr, IOMUXC_GPR6,
+				IMX6Q_GPR6_IPU1_ID00_RD_QOS_MASK |
+				IMX6Q_GPR6_IPU1_ID01_RD_QOS_MASK,
+				(0xf << 16) | (0x7 << 20));
+		regmap_update_bits(gpr, IOMUXC_GPR7,
+				IMX6Q_GPR7_IPU2_ID00_RD_QOS_MASK |
+				IMX6Q_GPR7_IPU2_ID01_RD_QOS_MASK,
+				(0xf << 16) | (0x7 << 20));
+	} else {
+		pr_warn("failed to find fsl,imx6q-iomuxc-gpr regmap\n");
+	}
 }
 
 static void __init imx6q_init_machine(void)
 {
+	struct device *parent;
+
+	imx_print_silicon_rev(cpu_is_imx6dl() ? "i.MX6DL" : "i.MX6Q",
+			      imx_get_soc_revision());
+
+	mxc_arch_reset_init_dt();
+
+	parent = imx_soc_device_init();
+	if (parent == NULL)
+		pr_warn("failed to initialize soc device\n");
+
 	imx6q_enet_phy_init();
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
 
 	imx_anatop_init();
-	imx6q_pm_init();
+	cpu_is_imx6q() ?  imx6q_pm_init() : imx6dl_pm_init();
 	imx6q_1588_init();
+	imx6q_axi_init();
 }
 
 #define OCOTP_CFG3			0x440
 #define OCOTP_CFG3_SPEED_SHIFT		16
 #define OCOTP_CFG3_SPEED_1P2GHZ		0x3
+#define OCOTP_CFG3_SPEED_996MHZ		0x2
+#define OCOTP_CFG3_SPEED_852MHZ		0x1
 
-static void __init imx6q_opp_check_1p2ghz(struct device *cpu_dev)
+static void __init imx6q_opp_check_speed_grading(struct device *cpu_dev)
 {
 	struct device_node *np;
 	void __iomem *base;
@@ -223,11 +308,29 @@ static void __init imx6q_opp_check_1p2ghz(struct device *cpu_dev)
 		goto put_node;
 	}
 
+	/*
+	 * SPEED_GRADING[1:0] defines the max speed of ARM:
+	 * 2b'11: 1200000000Hz;
+	 * 2b'10: 996000000Hz;
+	 * 2b'01: 852000000Hz; -- i.MX6Q Only, exclusive with 996MHz.
+	 * 2b'00: 792000000Hz;
+	 * We need to set the max speed of ARM according to fuse map.
+	 */
 	val = readl_relaxed(base + OCOTP_CFG3);
 	val >>= OCOTP_CFG3_SPEED_SHIFT;
-	if ((val & 0x3) != OCOTP_CFG3_SPEED_1P2GHZ)
-		if (opp_disable(cpu_dev, 1200000000))
+	val &= 0x3;
+
+	if (val != OCOTP_CFG3_SPEED_1P2GHZ)
+		if (dev_pm_opp_disable(cpu_dev, 1200000000))
 			pr_warn("failed to disable 1.2 GHz OPP\n");
+	if (val < OCOTP_CFG3_SPEED_996MHZ)
+		if (dev_pm_opp_disable(cpu_dev, 996000000))
+			pr_warn("failed to disable 996 MHz OPP\n");
+	if (cpu_is_imx6q()) {
+		if (val != OCOTP_CFG3_SPEED_852MHZ)
+			if (dev_pm_opp_disable(cpu_dev, 852000000))
+				pr_warn("failed to disable 852 MHz OPP\n");
+	}
 
 put_node:
 	of_node_put(np);
@@ -253,7 +356,7 @@ static void __init imx6q_opp_init(void)
 		goto put_node;
 	}
 
-	imx6q_opp_check_1p2ghz(cpu_dev);
+	imx6q_opp_check_speed_grading(cpu_dev);
 
 put_node:
 	of_node_put(np);
@@ -269,7 +372,7 @@ static void __init imx6q_init_late(void)
 	 * WAIT mode is broken on TO 1.0 and 1.1, so there is no point
 	 * to run cpuidle on them.
 	 */
-	if (imx6q_revision() > IMX_CHIP_REVISION_1_1)
+	if (imx_get_soc_revision() > IMX_CHIP_REVISION_1_1)
 		imx6q_cpuidle_init();
 
 	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ)) {
@@ -286,22 +389,14 @@ static void __init imx6q_map_io(void)
 
 static void __init imx6q_init_irq(void)
 {
-	imx6q_init_revision();
+	imx_init_revision_from_anatop();
 	imx_init_l2cache();
 	imx_src_init();
 	imx_gpc_init();
 	irqchip_init();
 }
 
-static void __init imx6q_timer_init(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
-	imx_print_silicon_rev(cpu_is_imx6dl() ? "i.MX6DL" : "i.MX6Q",
-			      imx6q_revision());
-}
-
-static const char *imx6q_dt_compat[] __initdata = {
+static const char *imx6q_dt_compat[] __initconst = {
 	"fsl,imx6dl",
 	"fsl,imx6q",
 	NULL,
@@ -311,9 +406,8 @@ DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad/DualLite (Device Tree)")
 	.smp		= smp_ops(imx_smp_ops),
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,
-	.init_time	= imx6q_timer_init,
 	.init_machine	= imx6q_init_machine,
 	.init_late      = imx6q_init_late,
 	.dt_compat	= imx6q_dt_compat,
-	.restart	= imx6q_restart,
+	.restart	= mxc_restart,
 MACHINE_END

@@ -133,14 +133,14 @@ static int hvc_tile_probe(struct platform_device *pdev)
 	int tile_hvc_irq;
 
 	/* Create our IRQ and register it. */
-	tile_hvc_irq = create_irq();
-	if (tile_hvc_irq < 0)
+	tile_hvc_irq = irq_alloc_hwirq(-1);
+	if (!tile_hvc_irq)
 		return -ENXIO;
 
 	tile_irq_activate(tile_hvc_irq, TILE_IRQ_PERCPU);
 	hp = hvc_alloc(0, tile_hvc_irq, &hvc_tile_get_put_ops, 128);
 	if (IS_ERR(hp)) {
-		destroy_irq(tile_hvc_irq);
+		irq_free_hwirq(tile_hvc_irq);
 		return PTR_ERR(hp);
 	}
 	dev_set_drvdata(&pdev->dev, hp);
@@ -155,7 +155,7 @@ static int hvc_tile_remove(struct platform_device *pdev)
 
 	rc = hvc_remove(hp);
 	if (rc == 0)
-		destroy_irq(hp->data);
+		irq_free_hwirq(hp->data);
 
 	return rc;
 }
@@ -196,7 +196,7 @@ static int __init hvc_tile_init(void)
 #ifndef __tilegx__
 	struct hvc_struct *hp;
 	hp = hvc_alloc(0, 0, &hvc_tile_get_put_ops, 128);
-	return IS_ERR(hp) ? PTR_ERR(hp) : 0;
+	return PTR_ERR_OR_ZERO(hp);
 #else
 	platform_device_register(&hvc_tile_pdev);
 	return platform_driver_register(&hvc_tile_driver);

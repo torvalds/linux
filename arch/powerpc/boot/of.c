@@ -40,8 +40,8 @@ static void *of_try_claim(unsigned long size)
 #ifdef DEBUG
 		printf("    trying: 0x%08lx\n\r", claim_base);
 #endif
-		addr = (unsigned long)of_claim(claim_base, size, 0);
-		if ((void *)addr != (void *)-1)
+		addr = (unsigned long) of_claim(claim_base, size, 0);
+		if (addr != PROM_ERROR)
 			break;
 	}
 	if (addr == 0)

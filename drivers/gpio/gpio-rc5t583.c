@@ -97,7 +97,7 @@ static int rc5t583_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct rc5t583_gpio *rc5t583_gpio = to_rc5t583_gpio(gc);
 
-	if ((offset >= 0) && (offset < 8))
+	if (offset < RC5T583_MAX_GPIO)
 		return rc5t583_gpio->rc5t583->irq_base +
 				RC5T583_IRQ_GPIO0 + offset;
 	return -EINVAL;
@@ -119,10 +119,8 @@ static int rc5t583_gpio_probe(struct platform_device *pdev)
 
 	rc5t583_gpio = devm_kzalloc(&pdev->dev, sizeof(*rc5t583_gpio),
 					GFP_KERNEL);
-	if (!rc5t583_gpio) {
-		dev_warn(&pdev->dev, "Mem allocation for rc5t583_gpio failed");
+	if (!rc5t583_gpio)
 		return -ENOMEM;
-	}
 
 	rc5t583_gpio->gpio_chip.label = "gpio-rc5t583",
 	rc5t583_gpio->gpio_chip.owner = THIS_MODULE,
@@ -133,7 +131,7 @@ static int rc5t583_gpio_probe(struct platform_device *pdev)
 	rc5t583_gpio->gpio_chip.get = rc5t583_gpio_get,
 	rc5t583_gpio->gpio_chip.to_irq = rc5t583_gpio_to_irq,
 	rc5t583_gpio->gpio_chip.ngpio = RC5T583_MAX_GPIO,
-	rc5t583_gpio->gpio_chip.can_sleep = 1,
+	rc5t583_gpio->gpio_chip.can_sleep = true,
 	rc5t583_gpio->gpio_chip.dev = &pdev->dev;
 	rc5t583_gpio->gpio_chip.base = -1;
 	rc5t583_gpio->rc5t583 = rc5t583;

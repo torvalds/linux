@@ -55,7 +55,7 @@ struct drm_fb_helper_surface_size {
  *             save the current lut when force-restoring the fbdev for e.g.
  *             kdbg.
  * @fb_probe: Driver callback to allocate and initialize the fbdev info
- *            structure. Futhermore it also needs to allocate the drm
+ *            structure. Furthermore it also needs to allocate the drm
  *            framebuffer used to back the fbdev.
  * @initial_config: Setup an initial fbdev display configuration
  *
@@ -108,7 +108,7 @@ int drm_fb_helper_set_par(struct fb_info *info);
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info);
 
-bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper);
+bool drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
@@ -121,5 +121,11 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_debug_enter(struct fb_info *info);
 int drm_fb_helper_debug_leave(struct fb_info *info);
+struct drm_display_mode *
+drm_has_preferred_mode(struct drm_fb_helper_connector *fb_connector,
+			int width, int height);
+struct drm_display_mode *
+drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
+		      int width, int height);
 
 #endif

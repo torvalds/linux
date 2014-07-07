@@ -15,14 +15,20 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/list.h>
+#include <linux/interrupt.h>
+
+#include <linux/irqchip/chained_irq.h>
 
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf-generic.h>
+
+#include <linux/platform_data/pinctrl-single.h>
 
 #include "core.h"
 #include "pinconf.h"
@@ -150,19 +156,36 @@ struct pcs_name {
 };
 
 /**
+ * struct pcs_soc_data - SoC specific settings
+ * @flags:	initial SoC specific PCS_FEAT_xxx values
+ * @irq:	optional interrupt for the controller
+ * @irq_enable_mask:	optional SoC specific interrupt enable mask
+ * @irq_status_mask:	optional SoC specific interrupt status mask
+ * @rearm:	optional SoC specific wake-up rearm function
+ */
+struct pcs_soc_data {
+	unsigned flags;
+	int irq;
+	unsigned irq_enable_mask;
+	unsigned irq_status_mask;
+	void (*rearm)(void);
+};
+
+/**
  * struct pcs_device - pinctrl device instance
  * @res:	resources
  * @base:	virtual address of the controller
  * @size:	size of the ioremapped area
  * @dev:	device entry
  * @pctl:	pin controller device
+ * @flags:	mask of PCS_FEAT_xxx values
+ * @lock:	spinlock for register access
  * @mutex:	mutex protecting the lists
  * @width:	bits per mux register
  * @fmask:	function register mask
  * @fshift:	function register shift
  * @foff:	value to turn mux off
  * @fmax:	max number of functions in fmask
- * @is_pinconf:	whether supports pinconf
  * @bits_per_pin:number of bits per pin
  * @names:	array of register names for pins
  * @pins:	physical pins on the SoC
@@ -171,6 +194,9 @@ struct pcs_name {
  * @pingroups:	list of pingroups
  * @functions:	list of functions
  * @gpiofuncs:	list of gpio functions
+ * @irqs:	list of interrupt registers
+ * @chip:	chip container for this instance
+ * @domain:	IRQ domain for this instance
  * @ngroups:	number of pingroups
  * @nfuncs:	number of functions
  * @desc:	pin controller descriptor
@@ -183,6 +209,12 @@ struct pcs_device {
 	unsigned size;
 	struct device *dev;
 	struct pinctrl_dev *pctl;
+	unsigned flags;
+#define PCS_QUIRK_SHARED_IRQ	(1 << 2)
+#define PCS_FEAT_IRQ		(1 << 1)
+#define PCS_FEAT_PINCONF	(1 << 0)
+	struct pcs_soc_data socdata;
+	raw_spinlock_t lock;
 	struct mutex mutex;
 	unsigned width;
 	unsigned fmask;
@@ -190,7 +222,6 @@ struct pcs_device {
 	unsigned foff;
 	unsigned fmax;
 	bool bits_per_mux;
-	bool is_pinconf;
 	unsigned bits_per_pin;
 	struct pcs_name *names;
 	struct pcs_data pins;
@@ -199,12 +230,19 @@ struct pcs_device {
 	struct list_head pingroups;
 	struct list_head functions;
 	struct list_head gpiofuncs;
+	struct list_head irqs;
+	struct irq_chip chip;
+	struct irq_domain *domain;
 	unsigned ngroups;
 	unsigned nfuncs;
 	struct pinctrl_desc desc;
 	unsigned (*read)(void __iomem *reg);
 	void (*write)(unsigned val, void __iomem *reg);
 };
+
+#define PCS_QUIRK_HAS_SHARED_IRQ	(pcs->flags & PCS_QUIRK_SHARED_IRQ)
+#define PCS_HAS_IRQ		(pcs->flags & PCS_FEAT_IRQ)
+#define PCS_HAS_PINCONF		(pcs->flags & PCS_FEAT_PINCONF)
 
 static int pcs_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 			   unsigned long *config);
@@ -429,9 +467,11 @@ static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 
 	for (i = 0; i < func->nvals; i++) {
 		struct pcs_func_vals *vals;
+		unsigned long flags;
 		unsigned val, mask;
 
 		vals = &func->vals[i];
+		raw_spin_lock_irqsave(&pcs->lock, flags);
 		val = pcs->read(vals->reg);
 
 		if (pcs->bits_per_mux)
@@ -442,6 +482,7 @@ static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 		val &= ~mask;
 		val |= (vals->val & mask);
 		pcs->write(val, vals->reg);
+		raw_spin_unlock_irqrestore(&pcs->lock, flags);
 	}
 
 	return 0;
@@ -483,13 +524,22 @@ static void pcs_disable(struct pinctrl_dev *pctldev, unsigned fselector,
 
 	for (i = 0; i < func->nvals; i++) {
 		struct pcs_func_vals *vals;
-		unsigned val;
+		unsigned long flags;
+		unsigned val, mask;
 
 		vals = &func->vals[i];
+		raw_spin_lock_irqsave(&pcs->lock, flags);
 		val = pcs->read(vals->reg);
-		val &= ~pcs->fmask;
+
+		if (pcs->bits_per_mux)
+			mask = vals->mask;
+		else
+			mask = pcs->fmask;
+
+		val &= ~mask;
 		val |= pcs->foff << pcs->fshift;
 		pcs->write(val, vals->reg);
+		raw_spin_unlock_irqrestore(&pcs->lock, flags);
 	}
 }
 
@@ -612,6 +662,7 @@ static int pcs_pinconf_get(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
 		case PIN_CONFIG_SLEW_RATE:
+		case PIN_CONFIG_LOW_POWER_MODE:
 		default:
 			*config = data;
 			break;
@@ -649,6 +700,7 @@ static int pcs_pinconf_set(struct pinctrl_dev *pctldev,
 			case PIN_CONFIG_INPUT_SCHMITT:
 			case PIN_CONFIG_DRIVE_STRENGTH:
 			case PIN_CONFIG_SLEW_RATE:
+			case PIN_CONFIG_LOW_POWER_MODE:
 				shift = ffs(func->conf[i].mask) - 1;
 				data &= ~func->conf[i].mask;
 				data |= (arg << shift) & func->conf[i].mask;
@@ -758,6 +810,7 @@ static const struct pinconf_ops pcs_pinconf_ops = {
 static int pcs_add_pin(struct pcs_device *pcs, unsigned offset,
 		unsigned pin_pos)
 {
+	struct pcs_soc_data *pcs_soc = &pcs->socdata;
 	struct pinctrl_pin_desc *pin;
 	struct pcs_name *pn;
 	int i;
@@ -767,6 +820,18 @@ static int pcs_add_pin(struct pcs_device *pcs, unsigned offset,
 		dev_err(pcs->dev, "too many pins, max %i\n",
 			pcs->desc.npins);
 		return -ENOMEM;
+	}
+
+	if (pcs_soc->irq_enable_mask) {
+		unsigned val;
+
+		val = pcs->read(pcs->base + offset);
+		if (val & pcs_soc->irq_enable_mask) {
+			dev_dbg(pcs->dev, "irq enabled at boot for pin at %lx (%x), clearing\n",
+				(unsigned long)pcs->res->start + offset, val);
+			val &= ~pcs_soc->irq_enable_mask;
+			pcs->write(val, pcs->base + offset);
+		}
 	}
 
 	pin = &pcs->pins.pa[i];
@@ -1051,6 +1116,7 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
 		{ "pinctrl-single,drive-strength", PIN_CONFIG_DRIVE_STRENGTH, },
 		{ "pinctrl-single,slew-rate", PIN_CONFIG_SLEW_RATE, },
 		{ "pinctrl-single,input-schmitt", PIN_CONFIG_INPUT_SCHMITT, },
+		{ "pinctrl-single,low-power-mode", PIN_CONFIG_LOW_POWER_MODE, },
 	};
 	struct pcs_conf_type prop4[] = {
 		{ "pinctrl-single,bias-pullup", PIN_CONFIG_BIAS_PULL_UP, },
@@ -1060,7 +1126,7 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
 	};
 
 	/* If pinconf isn't supported, don't parse properties in below. */
-	if (!pcs->is_pinconf)
+	if (!PCS_HAS_PINCONF)
 		return 0;
 
 	/* cacluate how much properties are supported in current node */
@@ -1184,7 +1250,7 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 	(*map)->data.mux.group = np->name;
 	(*map)->data.mux.function = np->name;
 
-	if (pcs->is_pinconf) {
+	if (PCS_HAS_PINCONF) {
 		res = pcs_parse_pinconf(pcs, np, function, map);
 		if (res)
 			goto free_pingroups;
@@ -1268,6 +1334,14 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 			mask_pos = ((pcs->fmask) << (bit_pos - 1));
 			val_pos = val & mask_pos;
 			submask = mask & mask_pos;
+
+			if ((mask & mask_pos) == 0) {
+				dev_err(pcs->dev,
+					"Invalid mask for %s at 0x%x\n",
+					np->name, offset);
+				break;
+			}
+
 			mask &= ~mask_pos;
 
 			if (submask != mask_pos) {
@@ -1305,7 +1379,7 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 	(*map)->data.mux.group = np->name;
 	(*map)->data.mux.function = np->name;
 
-	if (pcs->is_pinconf) {
+	if (PCS_HAS_PINCONF) {
 		dev_err(pcs->dev, "pinconf not supported\n");
 		goto free_pingroups;
 	}
@@ -1440,11 +1514,33 @@ static void pcs_free_pingroups(struct pcs_device *pcs)
 }
 
 /**
+ * pcs_irq_free() - free interrupt
+ * @pcs: pcs driver instance
+ */
+static void pcs_irq_free(struct pcs_device *pcs)
+{
+	struct pcs_soc_data *pcs_soc = &pcs->socdata;
+
+	if (pcs_soc->irq < 0)
+		return;
+
+	if (pcs->domain)
+		irq_domain_remove(pcs->domain);
+
+	if (PCS_QUIRK_HAS_SHARED_IRQ)
+		free_irq(pcs_soc->irq, pcs_soc);
+	else
+		irq_set_chained_handler(pcs_soc->irq, NULL);
+}
+
+/**
  * pcs_free_resources() - free memory used by this driver
  * @pcs: pcs driver instance
  */
 static void pcs_free_resources(struct pcs_device *pcs)
 {
+	pcs_irq_free(pcs);
+
 	if (pcs->pctl)
 		pinctrl_unregister(pcs->pctl);
 
@@ -1493,6 +1589,264 @@ static int pcs_add_gpio_func(struct device_node *node, struct pcs_device *pcs)
 	}
 	return ret;
 }
+/**
+ * @reg:	virtual address of interrupt register
+ * @hwirq:	hardware irq number
+ * @irq:	virtual irq number
+ * @node:	list node
+ */
+struct pcs_interrupt {
+	void __iomem *reg;
+	irq_hw_number_t hwirq;
+	unsigned int irq;
+	struct list_head node;
+};
+
+/**
+ * pcs_irq_set() - enables or disables an interrupt
+ *
+ * Note that this currently assumes one interrupt per pinctrl
+ * register that is typically used for wake-up events.
+ */
+static inline void pcs_irq_set(struct pcs_soc_data *pcs_soc,
+			       int irq, const bool enable)
+{
+	struct pcs_device *pcs;
+	struct list_head *pos;
+	unsigned mask;
+
+	pcs = container_of(pcs_soc, struct pcs_device, socdata);
+	list_for_each(pos, &pcs->irqs) {
+		struct pcs_interrupt *pcswi;
+		unsigned soc_mask;
+
+		pcswi = list_entry(pos, struct pcs_interrupt, node);
+		if (irq != pcswi->irq)
+			continue;
+
+		soc_mask = pcs_soc->irq_enable_mask;
+		raw_spin_lock(&pcs->lock);
+		mask = pcs->read(pcswi->reg);
+		if (enable)
+			mask |= soc_mask;
+		else
+			mask &= ~soc_mask;
+		pcs->write(mask, pcswi->reg);
+		raw_spin_unlock(&pcs->lock);
+	}
+
+	if (pcs_soc->rearm)
+		pcs_soc->rearm();
+}
+
+/**
+ * pcs_irq_mask() - mask pinctrl interrupt
+ * @d: interrupt data
+ */
+static void pcs_irq_mask(struct irq_data *d)
+{
+	struct pcs_soc_data *pcs_soc = irq_data_get_irq_chip_data(d);
+
+	pcs_irq_set(pcs_soc, d->irq, false);
+}
+
+/**
+ * pcs_irq_unmask() - unmask pinctrl interrupt
+ * @d: interrupt data
+ */
+static void pcs_irq_unmask(struct irq_data *d)
+{
+	struct pcs_soc_data *pcs_soc = irq_data_get_irq_chip_data(d);
+
+	pcs_irq_set(pcs_soc, d->irq, true);
+}
+
+/**
+ * pcs_irq_set_wake() - toggle the suspend and resume wake up
+ * @d: interrupt data
+ * @state: wake-up state
+ *
+ * Note that this should be called only for suspend and resume.
+ * For runtime PM, the wake-up events should be enabled by default.
+ */
+static int pcs_irq_set_wake(struct irq_data *d, unsigned int state)
+{
+	if (state)
+		pcs_irq_unmask(d);
+	else
+		pcs_irq_mask(d);
+
+	return 0;
+}
+
+/**
+ * pcs_irq_handle() - common interrupt handler
+ * @pcs_irq: interrupt data
+ *
+ * Note that this currently assumes we have one interrupt bit per
+ * mux register. This interrupt is typically used for wake-up events.
+ * For more complex interrupts different handlers can be specified.
+ */
+static int pcs_irq_handle(struct pcs_soc_data *pcs_soc)
+{
+	struct pcs_device *pcs;
+	struct list_head *pos;
+	int count = 0;
+
+	pcs = container_of(pcs_soc, struct pcs_device, socdata);
+	list_for_each(pos, &pcs->irqs) {
+		struct pcs_interrupt *pcswi;
+		unsigned mask;
+
+		pcswi = list_entry(pos, struct pcs_interrupt, node);
+		raw_spin_lock(&pcs->lock);
+		mask = pcs->read(pcswi->reg);
+		raw_spin_unlock(&pcs->lock);
+		if (mask & pcs_soc->irq_status_mask) {
+			generic_handle_irq(irq_find_mapping(pcs->domain,
+							    pcswi->hwirq));
+			count++;
+		}
+	}
+
+	return count;
+}
+
+/**
+ * pcs_irq_handler() - handler for the shared interrupt case
+ * @irq: interrupt
+ * @d: data
+ *
+ * Use this for cases where multiple instances of
+ * pinctrl-single share a single interrupt like on omaps.
+ */
+static irqreturn_t pcs_irq_handler(int irq, void *d)
+{
+	struct pcs_soc_data *pcs_soc = d;
+
+	return pcs_irq_handle(pcs_soc) ? IRQ_HANDLED : IRQ_NONE;
+}
+
+/**
+ * pcs_irq_handle() - handler for the dedicated chained interrupt case
+ * @irq: interrupt
+ * @desc: interrupt descriptor
+ *
+ * Use this if you have a separate interrupt for each
+ * pinctrl-single instance.
+ */
+static void pcs_irq_chain_handler(unsigned int irq, struct irq_desc *desc)
+{
+	struct pcs_soc_data *pcs_soc = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip;
+	int res;
+
+	chip = irq_get_chip(irq);
+	chained_irq_enter(chip, desc);
+	res = pcs_irq_handle(pcs_soc);
+	/* REVISIT: export and add handle_bad_irq(irq, desc)? */
+	chained_irq_exit(chip, desc);
+
+	return;
+}
+
+static int pcs_irqdomain_map(struct irq_domain *d, unsigned int irq,
+			     irq_hw_number_t hwirq)
+{
+	struct pcs_soc_data *pcs_soc = d->host_data;
+	struct pcs_device *pcs;
+	struct pcs_interrupt *pcswi;
+
+	pcs = container_of(pcs_soc, struct pcs_device, socdata);
+	pcswi = devm_kzalloc(pcs->dev, sizeof(*pcswi), GFP_KERNEL);
+	if (!pcswi)
+		return -ENOMEM;
+
+	pcswi->reg = pcs->base + hwirq;
+	pcswi->hwirq = hwirq;
+	pcswi->irq = irq;
+
+	mutex_lock(&pcs->mutex);
+	list_add_tail(&pcswi->node, &pcs->irqs);
+	mutex_unlock(&pcs->mutex);
+
+	irq_set_chip_data(irq, pcs_soc);
+	irq_set_chip_and_handler(irq, &pcs->chip,
+				 handle_level_irq);
+
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID);
+#else
+	irq_set_noprobe(irq);
+#endif
+
+	return 0;
+}
+
+static struct irq_domain_ops pcs_irqdomain_ops = {
+	.map = pcs_irqdomain_map,
+	.xlate = irq_domain_xlate_onecell,
+};
+
+/**
+ * pcs_irq_init_chained_handler() - set up a chained interrupt handler
+ * @pcs: pcs driver instance
+ * @np: device node pointer
+ */
+static int pcs_irq_init_chained_handler(struct pcs_device *pcs,
+					struct device_node *np)
+{
+	struct pcs_soc_data *pcs_soc = &pcs->socdata;
+	const char *name = "pinctrl";
+	int num_irqs;
+
+	if (!pcs_soc->irq_enable_mask ||
+	    !pcs_soc->irq_status_mask) {
+		pcs_soc->irq = -1;
+		return -EINVAL;
+	}
+
+	INIT_LIST_HEAD(&pcs->irqs);
+	pcs->chip.name = name;
+	pcs->chip.irq_ack = pcs_irq_mask;
+	pcs->chip.irq_mask = pcs_irq_mask;
+	pcs->chip.irq_unmask = pcs_irq_unmask;
+	pcs->chip.irq_set_wake = pcs_irq_set_wake;
+
+	if (PCS_QUIRK_HAS_SHARED_IRQ) {
+		int res;
+
+		res = request_irq(pcs_soc->irq, pcs_irq_handler,
+				  IRQF_SHARED | IRQF_NO_SUSPEND,
+				  name, pcs_soc);
+		if (res) {
+			pcs_soc->irq = -1;
+			return res;
+		}
+	} else {
+		irq_set_handler_data(pcs_soc->irq, pcs_soc);
+		irq_set_chained_handler(pcs_soc->irq,
+					pcs_irq_chain_handler);
+	}
+
+	/*
+	 * We can use the register offset as the hardirq
+	 * number as irq_domain_add_simple maps them lazily.
+	 * This way we can easily support more than one
+	 * interrupt per function if needed.
+	 */
+	num_irqs = pcs->size;
+
+	pcs->domain = irq_domain_add_simple(np, num_irqs, 0,
+					    &pcs_irqdomain_ops,
+					    pcs_soc);
+	if (!pcs->domain) {
+		irq_set_chained_handler(pcs_soc->irq, NULL);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 #ifdef CONFIG_PM
 static int pinctrl_single_suspend(struct platform_device *pdev,
@@ -1523,8 +1877,10 @@ static int pcs_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
+	struct pcs_pdata *pdata;
 	struct resource *res;
 	struct pcs_device *pcs;
+	const struct pcs_soc_data *soc;
 	int ret;
 
 	match = of_match_device(pcs_of_match, &pdev->dev);
@@ -1537,11 +1893,14 @@ static int pcs_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	pcs->dev = &pdev->dev;
+	raw_spin_lock_init(&pcs->lock);
 	mutex_init(&pcs->mutex);
 	INIT_LIST_HEAD(&pcs->pingroups);
 	INIT_LIST_HEAD(&pcs->functions);
 	INIT_LIST_HEAD(&pcs->gpiofuncs);
-	pcs->is_pinconf = match->data;
+	soc = match->data;
+	pcs->flags = soc->flags;
+	memcpy(&pcs->socdata, soc, sizeof(*soc));
 
 	PCS_GET_PROP_U32("pinctrl-single,register-width", &pcs->width,
 			 "register width not specified\n");
@@ -1610,7 +1969,7 @@ static int pcs_probe(struct platform_device *pdev)
 	pcs->desc.name = DRIVER_NAME;
 	pcs->desc.pctlops = &pcs_pinctrl_ops;
 	pcs->desc.pmxops = &pcs_pinmux_ops;
-	if (pcs->is_pinconf)
+	if (PCS_HAS_PINCONF)
 		pcs->desc.confops = &pcs_pinconf_ops;
 	pcs->desc.owner = THIS_MODULE;
 
@@ -1628,6 +1987,27 @@ static int pcs_probe(struct platform_device *pdev)
 	ret = pcs_add_gpio_func(np, pcs);
 	if (ret < 0)
 		goto free;
+
+	pcs->socdata.irq = irq_of_parse_and_map(np, 0);
+	if (pcs->socdata.irq)
+		pcs->flags |= PCS_FEAT_IRQ;
+
+	/* We still need auxdata for some omaps for PRM interrupts */
+	pdata = dev_get_platdata(&pdev->dev);
+	if (pdata) {
+		if (pdata->rearm)
+			pcs->socdata.rearm = pdata->rearm;
+		if (pdata->irq) {
+			pcs->socdata.irq = pdata->irq;
+			pcs->flags |= PCS_FEAT_IRQ;
+		}
+	}
+
+	if (PCS_HAS_IRQ) {
+		ret = pcs_irq_init_chained_handler(pcs, np);
+		if (ret < 0)
+			dev_warn(pcs->dev, "initialized with no interrupts\n");
+	}
 
 	dev_info(pcs->dev, "%i pins at pa %p size %u\n",
 		 pcs->desc.npins, pcs->base, pcs->size);
@@ -1652,9 +2032,25 @@ static int pcs_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct pcs_soc_data pinctrl_single_omap_wkup = {
+	.flags = PCS_QUIRK_SHARED_IRQ,
+	.irq_enable_mask = (1 << 14),	/* OMAP_WAKEUP_EN */
+	.irq_status_mask = (1 << 15),	/* OMAP_WAKEUP_EVENT */
+};
+
+static const struct pcs_soc_data pinctrl_single = {
+};
+
+static const struct pcs_soc_data pinconf_single = {
+	.flags = PCS_FEAT_PINCONF,
+};
+
 static struct of_device_id pcs_of_match[] = {
-	{ .compatible = "pinctrl-single", .data = (void *)false },
-	{ .compatible = "pinconf-single", .data = (void *)true },
+	{ .compatible = "ti,omap3-padconf", .data = &pinctrl_single_omap_wkup },
+	{ .compatible = "ti,omap4-padconf", .data = &pinctrl_single_omap_wkup },
+	{ .compatible = "ti,omap5-padconf", .data = &pinctrl_single_omap_wkup },
+	{ .compatible = "pinctrl-single", .data = &pinctrl_single },
+	{ .compatible = "pinconf-single", .data = &pinconf_single },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pcs_of_match);

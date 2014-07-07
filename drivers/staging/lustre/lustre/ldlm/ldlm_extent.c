@@ -104,7 +104,7 @@ struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock)
 	struct ldlm_interval *node;
 
 	LASSERT(lock->l_resource->lr_type == LDLM_EXTENT);
-	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, GFP_NOFS);
 	if (node == NULL)
 		return NULL;
 
@@ -144,7 +144,7 @@ struct ldlm_interval *ldlm_interval_detach(struct ldlm_lock *l)
 	l->l_tree_node = NULL;
 	list_del_init(&l->l_sl_policy);
 
-	return (list_empty(&n->li_group) ? n : NULL);
+	return list_empty(&n->li_group) ? n : NULL;
 }
 
 static inline int lock_mode_to_index(ldlm_mode_t mode)

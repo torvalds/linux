@@ -161,16 +161,10 @@ static int apci3501_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
 	s->state = inl(dev->iobase + APCI3501_DO_REG);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outl(s->state, dev->iobase + APCI3501_DO_REG);
-	}
 
 	data[1] = s->state;
 
@@ -396,9 +390,9 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	s->maxdata = 0;
 	s->len_chanlist = 1;
 	s->range_table = &range_digital;
-	s->insn_write = i_APCI3501_StartStopWriteTimerCounterWatchdog;
-	s->insn_read = i_APCI3501_ReadTimerCounterWatchdog;
-	s->insn_config = i_APCI3501_ConfigTimerCounterWatchdog;
+	s->insn_write = apci3501_write_insn_timer;
+	s->insn_read = apci3501_read_insn_timer;
+	s->insn_config = apci3501_config_insn_timer;
 
 	/* Initialize the eeprom subdevice */
 	s = &dev->subdevices[4];
@@ -434,7 +428,7 @@ static int apci3501_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci3501_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci3501_pci_table) = {
+static const struct pci_device_id apci3501_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3001) },
 	{ 0 }
 };

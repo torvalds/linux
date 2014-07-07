@@ -1,7 +1,7 @@
 /*
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
- * Copyright (c) 2000-2007, Ericsson AB
+ * Copyright (c) 2000-2007, 2014, Ericsson AB
  * Copyright (c) 2005-2008, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -554,12 +554,6 @@ static inline void msg_set_last_bcast(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 4, 16, 0xffff, n);
 }
 
-
-static inline u32 msg_fragm_no(struct tipc_msg *m)
-{
-	return msg_bits(m, 4, 16, 0xffff);
-}
-
 static inline void msg_set_fragm_no(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 4, 16, 0xffff, n);
@@ -574,12 +568,6 @@ static inline u32 msg_next_sent(struct tipc_msg *m)
 static inline void msg_set_next_sent(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 4, 0, 0xffff, n);
-}
-
-
-static inline u32 msg_long_msgno(struct tipc_msg *m)
-{
-	return msg_bits(m, 4, 0, 0xffff);
 }
 
 static inline void msg_set_long_msgno(struct tipc_msg *m, u32 n)
@@ -722,6 +710,8 @@ u32 tipc_msg_tot_importance(struct tipc_msg *m);
 void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 		   u32 destnode);
 int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
-		   u32 num_sect, unsigned int total_len, int max_size,
-		   struct sk_buff **buf);
+		   unsigned int len, int max_size, struct sk_buff **buf);
+
+int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
+
 #endif

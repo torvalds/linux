@@ -35,22 +35,21 @@ void __cachefiles_printk_object(struct cachefiles_object *object,
 	struct fscache_cookie *cookie;
 	unsigned keylen, loop;
 
-	printk(KERN_ERR "%sobject: OBJ%x\n",
-	       prefix, object->fscache.debug_id);
-	printk(KERN_ERR "%sobjstate=%s fl=%lx wbusy=%x ev=%lx[%lx]\n",
+	pr_err("%sobject: OBJ%x\n", prefix, object->fscache.debug_id);
+	pr_err("%sobjstate=%s fl=%lx wbusy=%x ev=%lx[%lx]\n",
 	       prefix, object->fscache.state->name,
 	       object->fscache.flags, work_busy(&object->fscache.work),
 	       object->fscache.events, object->fscache.event_mask);
-	printk(KERN_ERR "%sops=%u inp=%u exc=%u\n",
+	pr_err("%sops=%u inp=%u exc=%u\n",
 	       prefix, object->fscache.n_ops, object->fscache.n_in_progress,
 	       object->fscache.n_exclusive);
-	printk(KERN_ERR "%sparent=%p\n",
+	pr_err("%sparent=%p\n",
 	       prefix, object->fscache.parent);
 
 	spin_lock(&object->fscache.lock);
 	cookie = object->fscache.cookie;
 	if (cookie) {
-		printk(KERN_ERR "%scookie=%p [pr=%p nd=%p fl=%lx]\n",
+		pr_err("%scookie=%p [pr=%p nd=%p fl=%lx]\n",
 		       prefix,
 		       object->fscache.cookie,
 		       object->fscache.cookie->parent,
@@ -62,16 +61,16 @@ void __cachefiles_printk_object(struct cachefiles_object *object,
 		else
 			keylen = 0;
 	} else {
-		printk(KERN_ERR "%scookie=NULL\n", prefix);
+		pr_err("%scookie=NULL\n", prefix);
 		keylen = 0;
 	}
 	spin_unlock(&object->fscache.lock);
 
 	if (keylen) {
-		printk(KERN_ERR "%skey=[%u] '", prefix, keylen);
+		pr_err("%skey=[%u] '", prefix, keylen);
 		for (loop = 0; loop < keylen; loop++)
-			printk("%02x", keybuf[loop]);
-		printk("'\n");
+			pr_cont("%02x", keybuf[loop]);
+		pr_cont("'\n");
 	}
 }
 
@@ -131,13 +130,11 @@ found_dentry:
 	       dentry);
 
 	if (fscache_object_is_live(&object->fscache)) {
-		printk(KERN_ERR "\n");
-		printk(KERN_ERR "CacheFiles: Error:"
-		       " Can't preemptively bury live object\n");
+		pr_err("\n");
+		pr_err("Error: Can't preemptively bury live object\n");
 		cachefiles_printk_object(object, NULL);
 	} else if (test_and_set_bit(CACHEFILES_OBJECT_BURIED, &object->flags)) {
-		printk(KERN_ERR "CacheFiles: Error:"
-		       " Object already preemptively buried\n");
+		pr_err("Error: Object already preemptively buried\n");
 	}
 
 	write_unlock(&cache->active_lock);
@@ -160,7 +157,7 @@ try_again:
 	write_lock(&cache->active_lock);
 
 	if (test_and_set_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags)) {
-		printk(KERN_ERR "CacheFiles: Error: Object already active\n");
+		pr_err("Error: Object already active\n");
 		cachefiles_printk_object(object, NULL);
 		BUG();
 	}
@@ -193,9 +190,8 @@ try_again:
 	 * need to wait for it to be destroyed */
 wait_for_old_object:
 	if (fscache_object_is_live(&object->fscache)) {
-		printk(KERN_ERR "\n");
-		printk(KERN_ERR "CacheFiles: Error:"
-		       " Unexpected object collision\n");
+		pr_err("\n");
+		pr_err("Error: Unexpected object collision\n");
 		cachefiles_printk_object(object, xobject);
 		BUG();
 	}
@@ -241,9 +237,8 @@ wait_for_old_object:
 		}
 
 		if (timeout <= 0) {
-			printk(KERN_ERR "\n");
-			printk(KERN_ERR "CacheFiles: Error: Overlong"
-			       " wait for old active object to go away\n");
+			pr_err("\n");
+			pr_err("Error: Overlong wait for old active object to go away\n");
 			cachefiles_printk_object(object, xobject);
 			goto requeue;
 		}
@@ -294,7 +289,7 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 		if (ret < 0) {
 			cachefiles_io_error(cache, "Unlink security error");
 		} else {
-			ret = vfs_unlink(dir->d_inode, rep);
+			ret = vfs_unlink(dir->d_inode, rep, NULL);
 
 			if (preemptive)
 				cachefiles_mark_object_buried(cache, rep);
@@ -391,12 +386,12 @@ try_again:
 	path.dentry = dir;
 	path_to_graveyard.mnt = cache->mnt;
 	path_to_graveyard.dentry = cache->graveyard;
-	ret = security_path_rename(&path, rep, &path_to_graveyard, grave);
+	ret = security_path_rename(&path, rep, &path_to_graveyard, grave, 0);
 	if (ret < 0) {
 		cachefiles_io_error(cache, "Rename security error %d", ret);
 	} else {
 		ret = vfs_rename(dir->d_inode, rep,
-				 cache->graveyard->d_inode, grave);
+				 cache->graveyard->d_inode, grave, NULL, 0);
 		if (ret != 0 && ret != -ENOMEM)
 			cachefiles_io_error(cache,
 					    "Rename failed with error %d", ret);
@@ -548,7 +543,7 @@ lookup_again:
 			       next, next->d_inode, next->d_inode->i_ino);
 
 		} else if (!S_ISDIR(next->d_inode->i_mode)) {
-			kerror("inode %lu is not a directory",
+			pr_err("inode %lu is not a directory",
 			       next->d_inode->i_ino);
 			ret = -ENOBUFS;
 			goto error;
@@ -579,7 +574,7 @@ lookup_again:
 		} else if (!S_ISDIR(next->d_inode->i_mode) &&
 			   !S_ISREG(next->d_inode->i_mode)
 			   ) {
-			kerror("inode %lu is not a file or directory",
+			pr_err("inode %lu is not a file or directory",
 			       next->d_inode->i_ino);
 			ret = -ENOBUFS;
 			goto error;
@@ -773,14 +768,13 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	ASSERT(subdir->d_inode);
 
 	if (!S_ISDIR(subdir->d_inode->i_mode)) {
-		kerror("%s is not a directory", dirname);
+		pr_err("%s is not a directory", dirname);
 		ret = -EIO;
 		goto check_error;
 	}
 
 	ret = -EPERM;
-	if (!subdir->d_inode->i_op ||
-	    !subdir->d_inode->i_op->setxattr ||
+	if (!subdir->d_inode->i_op->setxattr ||
 	    !subdir->d_inode->i_op->getxattr ||
 	    !subdir->d_inode->i_op->lookup ||
 	    !subdir->d_inode->i_op->mkdir ||
@@ -801,13 +795,13 @@ check_error:
 mkdir_error:
 	mutex_unlock(&dir->d_inode->i_mutex);
 	dput(subdir);
-	kerror("mkdir %s failed with error %d", dirname, ret);
+	pr_err("mkdir %s failed with error %d", dirname, ret);
 	return ERR_PTR(ret);
 
 lookup_error:
 	mutex_unlock(&dir->d_inode->i_mutex);
 	ret = PTR_ERR(subdir);
-	kerror("Lookup %s failed with error %d", dirname, ret);
+	pr_err("Lookup %s failed with error %d", dirname, ret);
 	return ERR_PTR(ret);
 
 nomem_d_alloc:
@@ -897,7 +891,7 @@ lookup_error:
 	if (ret == -EIO) {
 		cachefiles_io_error(cache, "Lookup failed");
 	} else if (ret != -ENOMEM) {
-		kerror("Internal error: %d", ret);
+		pr_err("Internal error: %d", ret);
 		ret = -EIO;
 	}
 
@@ -956,7 +950,7 @@ error:
 	}
 
 	if (ret != -ENOMEM) {
-		kerror("Internal error: %d", ret);
+		pr_err("Internal error: %d", ret);
 		ret = -EIO;
 	}
 

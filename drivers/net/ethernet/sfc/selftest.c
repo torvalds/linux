@@ -50,7 +50,7 @@ struct efx_loopback_payload {
 } __packed;
 
 /* Loopback test source MAC address */
-static const unsigned char payload_source[ETH_ALEN] = {
+static const u8 payload_source[ETH_ALEN] __aligned(2) = {
 	0x00, 0x0f, 0x53, 0x1b, 0x1b, 0x1b,
 };
 
@@ -366,8 +366,8 @@ static void efx_iterate_state(struct efx_nic *efx)
 	struct efx_loopback_payload *payload = &state->payload;
 
 	/* Initialise the layerII header */
-	memcpy(&payload->header.h_dest, net_dev->dev_addr, ETH_ALEN);
-	memcpy(&payload->header.h_source, &payload_source, ETH_ALEN);
+	ether_addr_copy((u8 *)&payload->header.h_dest, net_dev->dev_addr);
+	ether_addr_copy((u8 *)&payload->header.h_source, payload_source);
 	payload->header.h_proto = htons(ETH_P_IP);
 
 	/* saddr set later and used as incrementing count */
@@ -722,7 +722,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 			return rc_reset;
 		}
 
-		if ((tests->registers < 0) && !rc_test)
+		if ((tests->memory < 0 || tests->registers < 0) && !rc_test)
 			rc_test = -EIO;
 	}
 

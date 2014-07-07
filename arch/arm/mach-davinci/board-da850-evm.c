@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/platform_data/pca953x.h>
 #include <linux/input.h>
 #include <linux/input/tps6507x-ts.h>
@@ -28,6 +28,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/gpio-davinci.h>
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mtd-davinci-aemif.h>
 #include <linux/platform_data/spi-davinci.h>
@@ -38,6 +39,7 @@
 #include <linux/spi/flash.h>
 #include <linux/wl12xx.h>
 
+#include <mach/common.h>
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
 #include <mach/mux.h>
@@ -356,6 +358,9 @@ static inline void da850_evm_setup_nor_nand(void)
 
 		platform_add_devices(da850_evm_devices,
 					ARRAY_SIZE(da850_evm_devices));
+
+		if (davinci_aemif_setup(&da850_evm_nandflash_device))
+			pr_warn("%s: Cannot configure AEMIF.\n", __func__);
 	}
 }
 
@@ -1436,6 +1441,10 @@ static __init int da850_wl12xx_init(void)
 static __init void da850_evm_init(void)
 {
 	int ret;
+
+	ret = da850_register_gpio();
+	if (ret)
+		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
 
 	ret = pmic_tps65070_init();
 	if (ret)

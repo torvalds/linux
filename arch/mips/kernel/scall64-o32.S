@@ -53,7 +53,7 @@ NESTED(handle_sys, PT_SIZE, sp)
 	sll	a3, a3, 0
 
 	dsll	t0, v0, 3		# offset into table
-	ld	t2, (sys_call_table - (__NR_O32_Linux * 8))(t0)
+	ld	t2, (sys32_call_table - (__NR_O32_Linux * 8))(t0)
 
 	sd	a3, PT_R26(sp)		# save a3 for syscall restarting
 
@@ -112,7 +112,20 @@ trace_a_syscall:
 
 	move	s0, t2			# Save syscall pointer
 	move	a0, sp
-	jal	syscall_trace_enter
+	/*
+	 * syscall number is in v0 unless we called syscall(__NR_###)
+	 * where the real syscall number is in a0
+	 * note: NR_syscall is the first O32 syscall but the macro is
+	 * only defined when compiling with -mabi=32 (CONFIG_32BIT)
+	 * therefore __NR_O32_Linux is used (4000)
+	 */
+	addiu	a1, v0,  __NR_O32_Linux
+	bnez	v0, 1f /* __NR_syscall at offset 0 */
+	lw	a1, PT_R4(sp)
+
+1:	jal	syscall_trace_enter
+
+	bltz	v0, 2f			# seccomp failed? Skip syscall
 
 	move	t0, s0
 	RESTORE_STATIC
@@ -136,7 +149,7 @@ trace_a_syscall:
 	sd	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sd	v0, PT_R2(sp)		# result
 
-	j	syscall_exit
+2:	j	syscall_exit
 
 /* ------------------------------------------------------------------------ */
 
@@ -168,7 +181,7 @@ LEAF(sys32_syscall)
 	beqz	t0, einval		# do not recurse
 	dsll	t1, t0, 3
 	beqz	v0, einval
-	ld	t2, sys_call_table(t1)		# syscall routine
+	ld	t2, sys32_call_table(t1)		# syscall routine
 
 	move	a0, a1			# shift argument registers
 	move	a1, a2
@@ -190,8 +203,8 @@ einval: li	v0, -ENOSYS
 	END(sys32_syscall)
 
 	.align	3
-	.type	sys_call_table,@object
-sys_call_table:
+	.type	sys32_call_table,@object
+EXPORT(sys32_call_table)
 	PTR	sys32_syscall			/* 4000 */
 	PTR	sys_exit
 	PTR	__sys_fork
@@ -541,4 +554,7 @@ sys_call_table:
 	PTR	compat_sys_process_vm_writev
 	PTR	sys_kcmp
 	PTR	sys_finit_module
-	.size	sys_call_table,.-sys_call_table
+	PTR	sys_sched_setattr
+	PTR	sys_sched_getattr		/* 4350 */
+	PTR	sys_renameat2
+	.size	sys32_call_table,.-sys32_call_table

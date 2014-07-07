@@ -1,6 +1,7 @@
 config M68K
 	bool
 	default y
+	select ARCH_MIGHT_HAVE_PC_PARPORT if ISA
 	select HAVE_IDE
 	select HAVE_AOUT if MMU
 	select HAVE_DEBUG_BUGVERBOSE
@@ -16,6 +17,7 @@ config M68K
 	select FPU if MMU
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_USES_GETTIMEOFFSET if MMU && !COLDFIRE
+	select HAVE_FUTEX_CMPXCHG if MMU && FUTEX
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_REL
 	select MODULES_USE_ELF_RELA
@@ -50,7 +52,7 @@ config TIME_LOW_RES
 	bool
 	default y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config NO_DMA
@@ -85,6 +87,30 @@ config MMU_COLDFIRE
 config MMU_SUN3
 	bool
 	depends on MMU && !MMU_MOTOROLA && !MMU_COLDFIRE
+
+config KEXEC
+	bool "kexec system call"
+	depends on M68KCLASSIC
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is independent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  The name comes from the similarity to the exec system call.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  is properly shutdown, so do not be surprised if this code does not
+	  initially work for you.  As of this writing the exact hardware
+	  interface is strongly in flux, so no good recommendation can be
+	  made.
+
+config BOOTINFO_PROC
+	bool "Export bootinfo in procfs"
+	depends on KEXEC && M68KCLASSIC
+	help
+	  Say Y to export the bootinfo used to boot the kernel in a
+	  "bootinfo" file in procfs.  This is useful with kexec.
 
 menu "Platform setup"
 

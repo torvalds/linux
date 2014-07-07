@@ -23,9 +23,7 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/spinlock.h>
@@ -233,5 +231,4 @@ MODULE_PARM_DESC(nowayout,
 		 "Set to 1 to keep watchdog running after device release");
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:pnx4008-watchdog");

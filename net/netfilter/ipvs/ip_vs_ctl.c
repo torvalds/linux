@@ -704,7 +704,7 @@ static void ip_vs_dest_free(struct ip_vs_dest *dest)
 	__ip_vs_dst_cache_reset(dest);
 	__ip_vs_svc_put(svc, false);
 	free_percpu(dest->stats.cpustats);
-	kfree(dest);
+	ip_vs_dest_put_and_free(dest);
 }
 
 /*
@@ -842,7 +842,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	       struct ip_vs_dest **dest_p)
 {
 	struct ip_vs_dest *dest;
-	unsigned int atype;
+	unsigned int atype, i;
 
 	EnterFunction(2);
 
@@ -868,6 +868,12 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	dest->stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
 	if (!dest->stats.cpustats)
 		goto err_alloc;
+
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *ip_vs_dest_stats;
+		ip_vs_dest_stats = per_cpu_ptr(dest->stats.cpustats, i);
+		u64_stats_init(&ip_vs_dest_stats->syncp);
+	}
 
 	dest->af = svc->af;
 	dest->protocol = svc->protocol;
@@ -1134,7 +1140,7 @@ static int
 ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 		  struct ip_vs_service **svc_p)
 {
-	int ret = 0;
+	int ret = 0, i;
 	struct ip_vs_scheduler *sched = NULL;
 	struct ip_vs_pe *pe = NULL;
 	struct ip_vs_service *svc = NULL;
@@ -1183,6 +1189,13 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 		ret = -ENOMEM;
 		goto out_err;
 	}
+
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *ip_vs_stats;
+		ip_vs_stats = per_cpu_ptr(svc->stats.cpustats, i);
+		u64_stats_init(&ip_vs_stats->syncp);
+	}
+
 
 	/* I'm the first user of the service */
 	atomic_set(&svc->refcnt, 0);
@@ -2164,10 +2177,10 @@ static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
 		__u64 inbytes, outbytes;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&u->syncp);
+			start = u64_stats_fetch_begin_irq(&u->syncp);
 			inbytes = u->ustats.inbytes;
 			outbytes = u->ustats.outbytes;
-		} while (u64_stats_fetch_retry_bh(&u->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&u->syncp, start));
 
 		seq_printf(seq, "%3X %8X %8X %8X %16LX %16LX\n",
 			   i, u->ustats.conns, u->ustats.inpkts,
@@ -3567,7 +3580,7 @@ out:
 }
 
 
-static struct genl_ops ip_vs_genl_ops[] __read_mostly = {
+static const struct genl_ops ip_vs_genl_ops[] = {
 	{
 		.cmd	= IPVS_CMD_NEW_SERVICE,
 		.flags	= GENL_ADMIN_PERM,
@@ -3666,7 +3679,7 @@ static struct genl_ops ip_vs_genl_ops[] __read_mostly = {
 static int __init ip_vs_genl_register(void)
 {
 	return genl_register_family_with_ops(&ip_vs_genl_family,
-		ip_vs_genl_ops, ARRAY_SIZE(ip_vs_genl_ops));
+					     ip_vs_genl_ops);
 }
 
 static void ip_vs_genl_unregister(void)
@@ -3765,6 +3778,7 @@ static void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net)
 	cancel_delayed_work_sync(&ipvs->defense_work);
 	cancel_work_sync(&ipvs->defense_work.work);
 	unregister_net_sysctl_table(ipvs->sysctl_hdr);
+	ip_vs_stop_estimator(net, &ipvs->tot_stats);
 }
 
 #else
@@ -3780,7 +3794,7 @@ static struct notifier_block ip_vs_dst_notifier = {
 
 int __net_init ip_vs_control_net_init(struct net *net)
 {
-	int idx;
+	int i, idx;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	/* Initialize rs_table */
@@ -3798,6 +3812,12 @@ int __net_init ip_vs_control_net_init(struct net *net)
 	ipvs->tot_stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
 	if (!ipvs->tot_stats.cpustats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *ipvs_tot_stats;
+		ipvs_tot_stats = per_cpu_ptr(ipvs->tot_stats.cpustats, i);
+		u64_stats_init(&ipvs_tot_stats->syncp);
+	}
 
 	spin_lock_init(&ipvs->tot_stats.lock);
 
@@ -3820,12 +3840,7 @@ void __net_exit ip_vs_control_net_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	/* Some dest can be in grace period even before cleanup, we have to
-	 * defer ip_vs_trash_cleanup until ip_vs_dest_wait_readers is called.
-	 */
-	rcu_barrier();
 	ip_vs_trash_cleanup(net);
-	ip_vs_stop_estimator(net, &ipvs->tot_stats);
 	ip_vs_control_net_cleanup_sysctl(net);
 	remove_proc_entry("ip_vs_stats_percpu", net->proc_net);
 	remove_proc_entry("ip_vs_stats", net->proc_net);

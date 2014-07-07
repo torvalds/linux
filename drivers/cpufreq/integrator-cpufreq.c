@@ -15,18 +15,19 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/icst.h>
 
-static struct cpufreq_driver integrator_driver;
+static void __iomem *cm_base;
+/* The cpufreq driver only use the OSC register */
+#define INTEGRATOR_HDR_OSC_OFFSET       0x08
+#define INTEGRATOR_HDR_LOCK_OFFSET      0x14
 
-#define CM_ID  	__io_address(INTEGRATOR_HDR_ID)
-#define CM_OSC	__io_address(INTEGRATOR_HDR_OSC)
-#define CM_STAT __io_address(INTEGRATOR_HDR_STAT)
-#define CM_LOCK __io_address(INTEGRATOR_HDR_LOCK)
+static struct cpufreq_driver integrator_driver;
 
 static const struct icst_params lclk_params = {
 	.ref		= 24000000,
@@ -59,9 +60,7 @@ static int integrator_verify_policy(struct cpufreq_policy *policy)
 {
 	struct icst_vco vco;
 
-	cpufreq_verify_within_limits(policy, 
-				     policy->cpuinfo.min_freq, 
-				     policy->cpuinfo.max_freq);
+	cpufreq_verify_within_cpu_limits(policy);
 
 	vco = icst_hz_to_vco(&cclk_params, policy->max * 1000);
 	policy->max = icst_hz(&cclk_params, vco) / 1000;
@@ -69,10 +68,7 @@ static int integrator_verify_policy(struct cpufreq_policy *policy)
 	vco = icst_hz_to_vco(&cclk_params, policy->min * 1000);
 	policy->min = icst_hz(&cclk_params, vco) / 1000;
 
-	cpufreq_verify_within_limits(policy, 
-				     policy->cpuinfo.min_freq, 
-				     policy->cpuinfo.max_freq);
-
+	cpufreq_verify_within_cpu_limits(policy);
 	return 0;
 }
 
@@ -100,7 +96,7 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	BUG_ON(cpu != smp_processor_id());
 
 	/* get current setting */
-	cm_osc = __raw_readl(CM_OSC);
+	cm_osc = __raw_readl(cm_base + INTEGRATOR_HDR_OSC_OFFSET);
 
 	if (machine_is_integrator()) {
 		vco.s = (cm_osc >> 8) & 7;
@@ -126,9 +122,9 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 		return 0;
 	}
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
 
-	cm_osc = __raw_readl(CM_OSC);
+	cm_osc = __raw_readl(cm_base + INTEGRATOR_HDR_OSC_OFFSET);
 
 	if (machine_is_integrator()) {
 		cm_osc &= 0xfffff800;
@@ -138,16 +134,16 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	}
 	cm_osc |= vco.v;
 
-	__raw_writel(0xa05f, CM_LOCK);
-	__raw_writel(cm_osc, CM_OSC);
-	__raw_writel(0, CM_LOCK);
+	__raw_writel(0xa05f, cm_base + INTEGRATOR_HDR_LOCK_OFFSET);
+	__raw_writel(cm_osc, cm_base + INTEGRATOR_HDR_OSC_OFFSET);
+	__raw_writel(0, cm_base + INTEGRATOR_HDR_LOCK_OFFSET);
 
 	/*
 	 * Restore the CPUs allowed mask.
 	 */
 	set_cpus_allowed(current, cpus_allowed);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_freq_transition_end(policy, &freqs, 0);
 
 	return 0;
 }
@@ -165,7 +161,7 @@ static unsigned int integrator_get(unsigned int cpu)
 	BUG_ON(cpu != smp_processor_id());
 
 	/* detect memory etc. */
-	cm_osc = __raw_readl(CM_OSC);
+	cm_osc = __raw_readl(cm_base + INTEGRATOR_HDR_OSC_OFFSET);
 
 	if (machine_is_integrator()) {
 		vco.s = (cm_osc >> 8) & 7;
@@ -186,15 +182,15 @@ static int integrator_cpufreq_init(struct cpufreq_policy *policy)
 {
 
 	/* set default policy and cpuinfo */
-	policy->cpuinfo.max_freq = 160000;
-	policy->cpuinfo.min_freq = 12000;
+	policy->max = policy->cpuinfo.max_freq = 160000;
+	policy->min = policy->cpuinfo.min_freq = 12000;
 	policy->cpuinfo.transition_latency = 1000000; /* 1 ms, assumed */
-	policy->cur = policy->min = policy->max = integrator_get(policy->cpu);
 
 	return 0;
 }
 
 static struct cpufreq_driver integrator_driver = {
+	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= integrator_verify_policy,
 	.target		= integrator_set_target,
 	.get		= integrator_get,
@@ -202,19 +198,43 @@ static struct cpufreq_driver integrator_driver = {
 	.name		= "integrator",
 };
 
-static int __init integrator_cpu_init(void)
+static int __init integrator_cpufreq_probe(struct platform_device *pdev)
 {
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+        if (!res)
+		return -ENODEV;
+
+	cm_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (!cm_base)
+		return -ENODEV;
+
 	return cpufreq_register_driver(&integrator_driver);
 }
 
-static void __exit integrator_cpu_exit(void)
+static void __exit integrator_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&integrator_driver);
 }
 
+static const struct of_device_id integrator_cpufreq_match[] = {
+	{ .compatible = "arm,core-module-integrator"},
+	{ },
+};
+
+static struct platform_driver integrator_cpufreq_driver = {
+	.driver = {
+		.name = "integrator-cpufreq",
+		.owner = THIS_MODULE,
+		.of_match_table = integrator_cpufreq_match,
+	},
+	.remove = __exit_p(integrator_cpufreq_remove),
+};
+
+module_platform_driver_probe(integrator_cpufreq_driver,
+			     integrator_cpufreq_probe);
+
 MODULE_AUTHOR ("Russell M. King");
 MODULE_DESCRIPTION ("cpufreq driver for ARM Integrator CPUs");
 MODULE_LICENSE ("GPL");
-
-module_init(integrator_cpu_init);
-module_exit(integrator_cpu_exit);

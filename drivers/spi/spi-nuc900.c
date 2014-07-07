@@ -9,9 +9,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -38,7 +36,9 @@
 /* usi register bit */
 #define ENINT		(0x01 << 17)
 #define ENFLG		(0x01 << 16)
+#define SLEEP		(0x0f << 12)
 #define TXNUM		(0x03 << 8)
+#define TXBITLEN	(0x1f << 3)
 #define TXNEG		(0x01 << 2)
 #define RXNEG		(0x01 << 1)
 #define LSB		(0x01 << 10)
@@ -57,13 +57,9 @@ struct nuc900_spi {
 	const unsigned char	*tx;
 	unsigned char		*rx;
 	struct clk		*clk;
-	struct resource		*ioarea;
 	struct spi_master	*master;
-	struct spi_device	*curdev;
-	struct device		*dev;
 	struct nuc900_spi_info *pdata;
 	spinlock_t		lock;
-	struct resource		*res;
 };
 
 static inline struct nuc900_spi *to_hw(struct spi_device *sdev)
@@ -120,19 +116,16 @@ static void nuc900_spi_chipsel(struct spi_device *spi, int value)
 	}
 }
 
-static void nuc900_spi_setup_txnum(struct nuc900_spi *hw,
-							unsigned int txnum)
+static void nuc900_spi_setup_txnum(struct nuc900_spi *hw, unsigned int txnum)
 {
 	unsigned int val;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->lock, flags);
 
-	val = __raw_readl(hw->regs + USI_CNT);
+	val = __raw_readl(hw->regs + USI_CNT) & ~TXNUM;
 
-	if (!txnum)
-		val &= ~TXNUM;
-	else
+	if (txnum)
 		val |= txnum << 0x08;
 
 	__raw_writel(val, hw->regs + USI_CNT);
@@ -149,7 +142,7 @@ static void nuc900_spi_setup_txbitlen(struct nuc900_spi *hw,
 
 	spin_lock_irqsave(&hw->lock, flags);
 
-	val = __raw_readl(hw->regs + USI_CNT);
+	val = __raw_readl(hw->regs + USI_CNT) & ~TXBITLEN;
 
 	val |= (txbitlen << 0x03);
 
@@ -288,12 +281,11 @@ static void nuc900_set_sleep(struct nuc900_spi *hw, unsigned int sleep)
 
 	spin_lock_irqsave(&hw->lock, flags);
 
-	val = __raw_readl(hw->regs + USI_CNT);
+	val = __raw_readl(hw->regs + USI_CNT) & ~SLEEP;
 
 	if (sleep)
 		val |= (sleep << 12);
-	else
-		val &= ~(0x0f << 12);
+
 	__raw_writel(val, hw->regs + USI_CNT);
 
 	spin_unlock_irqrestore(&hw->lock, flags);
@@ -339,19 +331,18 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 {
 	struct nuc900_spi *hw;
 	struct spi_master *master;
+	struct resource *res;
 	int err = 0;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct nuc900_spi));
 	if (master == NULL) {
 		dev_err(&pdev->dev, "No memory for spi_master\n");
-		err = -ENOMEM;
-		goto err_nomem;
+		return -ENOMEM;
 	}
 
 	hw = spi_master_get_devdata(master);
-	hw->master = spi_master_get(master);
+	hw->master = master;
 	hw->pdata  = dev_get_platdata(&pdev->dev);
-	hw->dev = &pdev->dev;
 
 	if (hw->pdata == NULL) {
 		dev_err(&pdev->dev, "No platform data supplied\n");
@@ -363,53 +354,40 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	init_completion(&hw->done);
 
 	master->mode_bits          = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	if (hw->pdata->lsb)
+		master->mode_bits |= SPI_LSB_FIRST;
 	master->num_chipselect     = hw->pdata->num_cs;
 	master->bus_num            = hw->pdata->bus_num;
 	hw->bitbang.master         = hw->master;
 	hw->bitbang.chipselect     = nuc900_spi_chipsel;
 	hw->bitbang.txrx_bufs      = nuc900_spi_txrx;
 
-	hw->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (hw->res == NULL) {
-		dev_err(&pdev->dev, "Cannot get IORESOURCE_MEM\n");
-		err = -ENOENT;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	hw->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hw->regs)) {
+		err = PTR_ERR(hw->regs);
 		goto err_pdata;
-	}
-
-	hw->ioarea = request_mem_region(hw->res->start,
-					resource_size(hw->res), pdev->name);
-
-	if (hw->ioarea == NULL) {
-		dev_err(&pdev->dev, "Cannot reserve region\n");
-		err = -ENXIO;
-		goto err_pdata;
-	}
-
-	hw->regs = ioremap(hw->res->start, resource_size(hw->res));
-	if (hw->regs == NULL) {
-		dev_err(&pdev->dev, "Cannot map IO\n");
-		err = -ENXIO;
-		goto err_iomap;
 	}
 
 	hw->irq = platform_get_irq(pdev, 0);
 	if (hw->irq < 0) {
 		dev_err(&pdev->dev, "No IRQ specified\n");
 		err = -ENOENT;
-		goto err_irq;
+		goto err_pdata;
 	}
 
-	err = request_irq(hw->irq, nuc900_spi_irq, 0, pdev->name, hw);
+	err = devm_request_irq(&pdev->dev, hw->irq, nuc900_spi_irq, 0,
+				pdev->name, hw);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot claim IRQ\n");
-		goto err_irq;
+		goto err_pdata;
 	}
 
-	hw->clk = clk_get(&pdev->dev, "spi");
+	hw->clk = devm_clk_get(&pdev->dev, "spi");
 	if (IS_ERR(hw->clk)) {
 		dev_err(&pdev->dev, "No clock for device\n");
 		err = PTR_ERR(hw->clk);
-		goto err_clk;
+		goto err_pdata;
 	}
 
 	mfp_set_groupg(&pdev->dev, NULL);
@@ -425,18 +403,8 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 
 err_register:
 	clk_disable(hw->clk);
-	clk_put(hw->clk);
-err_clk:
-	free_irq(hw->irq, hw);
-err_irq:
-	iounmap(hw->regs);
-err_iomap:
-	release_mem_region(hw->res->start, resource_size(hw->res));
-	kfree(hw->ioarea);
 err_pdata:
 	spi_master_put(hw->master);
-
-err_nomem:
 	return err;
 }
 
@@ -444,18 +412,8 @@ static int nuc900_spi_remove(struct platform_device *dev)
 {
 	struct nuc900_spi *hw = platform_get_drvdata(dev);
 
-	free_irq(hw->irq, hw);
-
 	spi_bitbang_stop(&hw->bitbang);
-
 	clk_disable(hw->clk);
-	clk_put(hw->clk);
-
-	iounmap(hw->regs);
-
-	release_mem_region(hw->res->start, resource_size(hw->res));
-	kfree(hw->ioarea);
-
 	spi_master_put(hw->master);
 	return 0;
 }

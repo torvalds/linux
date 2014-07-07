@@ -24,6 +24,7 @@
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_trace.h"
 #include "sid.h"
 
 u32 si_gpu_check_soft_reset(struct radeon_device *rdev);
@@ -48,11 +49,9 @@ bool si_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 		mask = RADEON_RESET_DMA1;
 
 	if (!(reset_mask & mask)) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force ring activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
@@ -75,11 +74,30 @@ void si_dma_vm_set_page(struct radeon_device *rdev,
 			uint64_t addr, unsigned count,
 			uint32_t incr, uint32_t flags)
 {
-	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
 	uint64_t value;
 	unsigned ndw;
 
-	if (flags & RADEON_VM_PAGE_SYSTEM) {
+	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
+
+	if (flags == R600_PTE_GART) {
+		uint64_t src = rdev->gart.table_addr + (addr >> 12) * 8;
+		while (count) {
+			unsigned bytes = count * 8;
+			if (bytes > 0xFFFF8)
+				bytes = 0xFFFF8;
+
+			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_COPY,
+							      1, 0, 0, bytes);
+			ib->ptr[ib->length_dw++] = lower_32_bits(pe);
+			ib->ptr[ib->length_dw++] = lower_32_bits(src);
+			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+			ib->ptr[ib->length_dw++] = upper_32_bits(src) & 0xff;
+
+			pe += bytes;
+			src += bytes;
+			count -= bytes / 8;
+		}
+	} else if (flags & R600_PTE_SYSTEM) {
 		while (count) {
 			ndw = count * 2;
 			if (ndw > 0xFFFFE)
@@ -90,16 +108,10 @@ void si_dma_vm_set_page(struct radeon_device *rdev,
 			ib->ptr[ib->length_dw++] = pe;
 			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
 			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-				if (flags & RADEON_VM_PAGE_SYSTEM) {
-					value = radeon_vm_map_gart(rdev, addr);
-					value &= 0xFFFFFFFFFFFFF000ULL;
-				} else if (flags & RADEON_VM_PAGE_VALID) {
-					value = addr;
-				} else {
-					value = 0;
-				}
+				value = radeon_vm_map_gart(rdev, addr);
+				value &= 0xFFFFFFFFFFFFF000ULL;
 				addr += incr;
-				value |= r600_flags;
+				value |= flags;
 				ib->ptr[ib->length_dw++] = value;
 				ib->ptr[ib->length_dw++] = upper_32_bits(value);
 			}
@@ -110,7 +122,7 @@ void si_dma_vm_set_page(struct radeon_device *rdev,
 			if (ndw > 0xFFFFE)
 				ndw = 0xFFFFE;
 
-			if (flags & RADEON_VM_PAGE_VALID)
+			if (flags & R600_PTE_VALID)
 				value = addr;
 			else
 				value = 0;
@@ -118,7 +130,7 @@ void si_dma_vm_set_page(struct radeon_device *rdev,
 			ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
 			ib->ptr[ib->length_dw++] = pe; /* dst addr */
 			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-			ib->ptr[ib->length_dw++] = r600_flags; /* mask */
+			ib->ptr[ib->length_dw++] = flags; /* mask */
 			ib->ptr[ib->length_dw++] = 0;
 			ib->ptr[ib->length_dw++] = value; /* value */
 			ib->ptr[ib->length_dw++] = upper_32_bits(value);
@@ -199,13 +211,8 @@ int si_copy_dma(struct radeon_device *rdev,
 		return r;
 	}
 
-	if (radeon_fence_need_sync(*fence, ring->idx)) {
-		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
-					    ring->idx);
-		radeon_fence_note_sync(*fence, ring->idx);
-	} else {
-		radeon_semaphore_free(rdev, &sem, NULL);
-	}
+	radeon_semaphore_sync_to(sem, *fence);
+	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	for (i = 0; i < num_loops; i++) {
 		cur_size_in_bytes = size_in_bytes;
@@ -213,8 +220,8 @@ int si_copy_dma(struct radeon_device *rdev,
 			cur_size_in_bytes = 0xFFFFF;
 		size_in_bytes -= cur_size_in_bytes;
 		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_COPY, 1, 0, 0, cur_size_in_bytes));
-		radeon_ring_write(ring, dst_offset & 0xffffffff);
-		radeon_ring_write(ring, src_offset & 0xffffffff);
+		radeon_ring_write(ring, lower_32_bits(dst_offset));
+		radeon_ring_write(ring, lower_32_bits(src_offset));
 		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
 		radeon_ring_write(ring, upper_32_bits(src_offset) & 0xff);
 		src_offset += cur_size_in_bytes;
@@ -224,6 +231,7 @@ int si_copy_dma(struct radeon_device *rdev,
 	r = radeon_fence_emit(rdev, fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
+		radeon_semaphore_free(rdev, &sem, NULL);
 		return r;
 	}
 

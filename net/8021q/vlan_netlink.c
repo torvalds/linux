@@ -56,8 +56,8 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[])
 
 	if (data[IFLA_VLAN_PROTOCOL]) {
 		switch (nla_get_be16(data[IFLA_VLAN_PROTOCOL])) {
-		case __constant_htons(ETH_P_8021Q):
-		case __constant_htons(ETH_P_8021AD):
+		case htons(ETH_P_8021Q):
+		case htons(ETH_P_8021AD):
 			break;
 		default:
 			return -EPROTONOSUPPORT;
@@ -171,7 +171,7 @@ static size_t vlan_get_size(const struct net_device *dev)
 
 	return nla_total_size(2) +	/* IFLA_VLAN_PROTOCOL */
 	       nla_total_size(2) +	/* IFLA_VLAN_ID */
-	       sizeof(struct ifla_vlan_flags) + /* IFLA_VLAN_FLAGS */
+	       nla_total_size(sizeof(struct ifla_vlan_flags)) + /* IFLA_VLAN_FLAGS */
 	       vlan_qos_map_size(vlan->nr_ingress_mappings) +
 	       vlan_qos_map_size(vlan->nr_egress_mappings);
 }

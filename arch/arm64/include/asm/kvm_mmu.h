@@ -91,6 +91,7 @@ int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
 #define	kvm_set_pte(ptep, pte)		set_pte(ptep, pte)
+#define	kvm_set_pmd(pmdp, pmd)		set_pmd(pmdp, pmd)
 
 static inline bool kvm_is_write_fault(unsigned long esr)
 {
@@ -105,7 +106,6 @@ static inline bool kvm_is_write_fault(unsigned long esr)
 	return true;
 }
 
-static inline void kvm_clean_dcache_area(void *addr, size_t size) {}
 static inline void kvm_clean_pgd(pgd_t *pgd) {}
 static inline void kvm_clean_pmd_entry(pmd_t *pmd) {}
 static inline void kvm_clean_pte(pte_t *pte) {}
@@ -116,20 +116,41 @@ static inline void kvm_set_s2pte_writable(pte_t *pte)
 	pte_val(*pte) |= PTE_S2_RDWR;
 }
 
+static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
+{
+	pmd_val(*pmd) |= PMD_S2_RDWR;
+}
+
+#define kvm_pgd_addr_end(addr, end)	pgd_addr_end(addr, end)
+#define kvm_pud_addr_end(addr, end)	pud_addr_end(addr, end)
+#define kvm_pmd_addr_end(addr, end)	pmd_addr_end(addr, end)
+
 struct kvm;
 
-static inline void coherent_icache_guest_page(struct kvm *kvm, gfn_t gfn)
+#define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
+
+static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 {
+	return (vcpu_sys_reg(vcpu, SCTLR_EL1) & 0b101) == 0b101;
+}
+
+static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
+					     unsigned long size)
+{
+	if (!vcpu_has_cache_enabled(vcpu))
+		kvm_flush_dcache_to_poc((void *)hva, size);
+
 	if (!icache_is_aliasing()) {		/* PIPT */
-		unsigned long hva = gfn_to_hva(kvm, gfn);
-		flush_icache_range(hva, hva + PAGE_SIZE);
+		flush_icache_range(hva, hva + size);
 	} else if (!icache_is_aivivt()) {	/* non ASID-tagged VIVT */
 		/* any kind of VIPT cache */
 		__flush_icache_all();
 	}
 }
 
-#define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
+#define kvm_virt_to_phys(x)		__virt_to_phys((unsigned long)(x))
+
+void stage2_flush_vm(struct kvm *kvm);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */

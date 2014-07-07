@@ -6,10 +6,10 @@
  */
 
 #include <linux/gfp.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/sched.h>
+#include <linux/cpumask.h>
 #include <asm/apic.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -42,7 +42,7 @@ static DEFINE_PER_CPU(mce_banks_t, mce_banks_owned);
  * cmci_discover_lock protects against parallel discovery attempts
  * which could race against each other.
  */
-static DEFINE_RAW_SPINLOCK(cmci_discover_lock);
+static DEFINE_SPINLOCK(cmci_discover_lock);
 
 #define CMCI_THRESHOLD		1
 #define CMCI_POLL_INTERVAL	(30 * HZ)
@@ -138,6 +138,22 @@ unsigned long mce_intel_adjust_timer(unsigned long interval)
 	}
 }
 
+static void cmci_storm_disable_banks(void)
+{
+	unsigned long flags, *owned;
+	int bank;
+	u64 val;
+
+	spin_lock_irqsave(&cmci_discover_lock, flags);
+	owned = __get_cpu_var(mce_banks_owned);
+	for_each_set_bit(bank, owned, MAX_NR_BANKS) {
+		rdmsrl(MSR_IA32_MCx_CTL2(bank), val);
+		val &= ~MCI_CTL2_CMCI_EN;
+		wrmsrl(MSR_IA32_MCx_CTL2(bank), val);
+	}
+	spin_unlock_irqrestore(&cmci_discover_lock, flags);
+}
+
 static bool cmci_storm_detect(void)
 {
 	unsigned int cnt = __this_cpu_read(cmci_storm_cnt);
@@ -159,7 +175,7 @@ static bool cmci_storm_detect(void)
 	if (cnt <= CMCI_STORM_THRESHOLD)
 		return false;
 
-	cmci_clear();
+	cmci_storm_disable_banks();
 	__this_cpu_write(cmci_storm_state, CMCI_STORM_ACTIVE);
 	r = atomic_add_return(1, &cmci_storm_on_cpus);
 	mce_timer_kick(CMCI_POLL_INTERVAL);
@@ -195,7 +211,7 @@ static void cmci_discover(int banks)
 	int i;
 	int bios_wrong_thresh = 0;
 
-	raw_spin_lock_irqsave(&cmci_discover_lock, flags);
+	spin_lock_irqsave(&cmci_discover_lock, flags);
 	for (i = 0; i < banks; i++) {
 		u64 val;
 		int bios_zero_thresh = 0;
@@ -250,7 +266,7 @@ static void cmci_discover(int banks)
 			WARN_ON(!test_bit(i, __get_cpu_var(mce_poll_banks)));
 		}
 	}
-	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
+	spin_unlock_irqrestore(&cmci_discover_lock, flags);
 	if (mca_cfg.bios_cmci_threshold && bios_wrong_thresh) {
 		pr_info_once(
 			"bios_cmci_threshold: Some banks do not have valid thresholds set\n");
@@ -300,10 +316,10 @@ void cmci_clear(void)
 
 	if (!cmci_supported(&banks))
 		return;
-	raw_spin_lock_irqsave(&cmci_discover_lock, flags);
+	spin_lock_irqsave(&cmci_discover_lock, flags);
 	for (i = 0; i < banks; i++)
 		__cmci_disable_bank(i);
-	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
+	spin_unlock_irqrestore(&cmci_discover_lock, flags);
 }
 
 static void cmci_rediscover_work_func(void *arg)
@@ -344,9 +360,9 @@ void cmci_disable_bank(int bank)
 	if (!cmci_supported(&banks))
 		return;
 
-	raw_spin_lock_irqsave(&cmci_discover_lock, flags);
+	spin_lock_irqsave(&cmci_discover_lock, flags);
 	__cmci_disable_bank(bank);
-	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
+	spin_unlock_irqrestore(&cmci_discover_lock, flags);
 }
 
 static void intel_init_cmci(void)

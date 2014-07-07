@@ -17,32 +17,31 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_alloc.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_ioctl.h"
+#include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_itable.h"
 #include "xfs_error.h"
 #include "xfs_attr.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
-#include "xfs_buf_item.h"
 #include "xfs_fsops.h"
 #include "xfs_discard.h"
 #include "xfs_quota.h"
-#include "xfs_inode_item.h"
 #include "xfs_export.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
+#include "xfs_dinode.h"
+#include "xfs_trans.h"
 
 #include <linux/capability.h>
 #include <linux/dcache.h>
@@ -113,15 +112,11 @@ xfs_find_handle(
 		memset(&handle.ha_fid, 0, sizeof(handle.ha_fid));
 		hsize = sizeof(xfs_fsid_t);
 	} else {
-		int		lock_mode;
-
-		lock_mode = xfs_ilock_map_shared(ip);
 		handle.ha_fid.fid_len = sizeof(xfs_fid_t) -
 					sizeof(handle.ha_fid.fid_len);
 		handle.ha_fid.fid_pad = 0;
 		handle.ha_fid.fid_gen = ip->i_d.di_gen;
 		handle.ha_fid.fid_ino = ip->i_ino;
-		xfs_iunlock_map_shared(ip, lock_mode);
 
 		hsize = XFS_HSIZE(handle);
 	}
@@ -276,32 +271,6 @@ xfs_open_by_handle(
 	return error;
 }
 
-/*
- * This is a copy from fs/namei.c:vfs_readlink(), except for removing it's
- * unused first argument.
- */
-STATIC int
-do_readlink(
-	char __user		*buffer,
-	int			buflen,
-	const char		*link)
-{
-        int len;
-
-	len = PTR_ERR(link);
-	if (IS_ERR(link))
-		goto out;
-
-	len = strlen(link);
-	if (len > (unsigned) buflen)
-		len = buflen;
-	if (copy_to_user(buffer, link, len))
-		len = -EFAULT;
- out:
-	return len;
-}
-
-
 int
 xfs_readlink_by_handle(
 	struct file		*parfilp,
@@ -339,7 +308,7 @@ xfs_readlink_by_handle(
 	error = -xfs_readlink(XFS_I(dentry->d_inode), link);
 	if (error)
 		goto out_kfree;
-	error = do_readlink(hreq->ohandle, olen, link);
+	error = readlink_copy(hreq->ohandle, olen, link);
 	if (error)
 		goto out_kfree;
 
@@ -443,7 +412,8 @@ xfs_attrlist_by_handle(
 		return -XFS_ERROR(EPERM);
 	if (copy_from_user(&al_hreq, arg, sizeof(xfs_fsop_attrlist_handlereq_t)))
 		return -XFS_ERROR(EFAULT);
-	if (al_hreq.buflen > XATTR_LIST_MAX)
+	if (al_hreq.buflen < sizeof(struct attrlist) ||
+	    al_hreq.buflen > XATTR_LIST_MAX)
 		return -XFS_ERROR(EINVAL);
 
 	/*
@@ -573,10 +543,11 @@ xfs_attrmulti_by_handle(
 
 	ops = memdup_user(am_hreq.ops, size);
 	if (IS_ERR(ops)) {
-		error = PTR_ERR(ops);
+		error = -PTR_ERR(ops);
 		goto out_dput;
 	}
 
+	error = ENOMEM;
 	attr_name = kmalloc(MAXNAMELEN, GFP_KERNEL);
 	if (!attr_name)
 		goto out_kfree_ops;
@@ -586,7 +557,7 @@ xfs_attrmulti_by_handle(
 		ops[i].am_error = strncpy_from_user((char *)attr_name,
 				ops[i].am_attrname, MAXNAMELEN);
 		if (ops[i].am_error == 0 || ops[i].am_error == MAXNAMELEN)
-			error = -ERANGE;
+			error = ERANGE;
 		if (ops[i].am_error < 0)
 			break;
 
@@ -641,7 +612,11 @@ xfs_ioc_space(
 	unsigned int		cmd,
 	xfs_flock64_t		*bf)
 {
-	int			attr_flags = 0;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	struct iattr		iattr;
+	bool			setprealloc = false;
+	bool			clrprealloc = false;
 	int			error;
 
 	/*
@@ -661,19 +636,128 @@ xfs_ioc_space(
 	if (!S_ISREG(inode->i_mode))
 		return -XFS_ERROR(EINVAL);
 
-	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
-		attr_flags |= XFS_ATTR_NONBLOCK;
-
-	if (filp->f_flags & O_DSYNC)
-		attr_flags |= XFS_ATTR_SYNC;
-
-	if (ioflags & IO_INVIS)
-		attr_flags |= XFS_ATTR_DMI;
-
 	error = mnt_want_write_file(filp);
 	if (error)
 		return error;
-	error = xfs_change_file_space(ip, cmd, bf, filp->f_pos, attr_flags);
+
+	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+
+	switch (bf->l_whence) {
+	case 0: /*SEEK_SET*/
+		break;
+	case 1: /*SEEK_CUR*/
+		bf->l_start += filp->f_pos;
+		break;
+	case 2: /*SEEK_END*/
+		bf->l_start += XFS_ISIZE(ip);
+		break;
+	default:
+		error = XFS_ERROR(EINVAL);
+		goto out_unlock;
+	}
+
+	/*
+	 * length of <= 0 for resv/unresv/zero is invalid.  length for
+	 * alloc/free is ignored completely and we have no idea what userspace
+	 * might have set it to, so set it to zero to allow range
+	 * checks to pass.
+	 */
+	switch (cmd) {
+	case XFS_IOC_ZERO_RANGE:
+	case XFS_IOC_RESVSP:
+	case XFS_IOC_RESVSP64:
+	case XFS_IOC_UNRESVSP:
+	case XFS_IOC_UNRESVSP64:
+		if (bf->l_len <= 0) {
+			error = XFS_ERROR(EINVAL);
+			goto out_unlock;
+		}
+		break;
+	default:
+		bf->l_len = 0;
+		break;
+	}
+
+	if (bf->l_start < 0 ||
+	    bf->l_start > mp->m_super->s_maxbytes ||
+	    bf->l_start + bf->l_len < 0 ||
+	    bf->l_start + bf->l_len >= mp->m_super->s_maxbytes) {
+		error = XFS_ERROR(EINVAL);
+		goto out_unlock;
+	}
+
+	switch (cmd) {
+	case XFS_IOC_ZERO_RANGE:
+		error = xfs_zero_file_space(ip, bf->l_start, bf->l_len);
+		if (!error)
+			setprealloc = true;
+		break;
+	case XFS_IOC_RESVSP:
+	case XFS_IOC_RESVSP64:
+		error = xfs_alloc_file_space(ip, bf->l_start, bf->l_len,
+						XFS_BMAPI_PREALLOC);
+		if (!error)
+			setprealloc = true;
+		break;
+	case XFS_IOC_UNRESVSP:
+	case XFS_IOC_UNRESVSP64:
+		error = xfs_free_file_space(ip, bf->l_start, bf->l_len);
+		break;
+	case XFS_IOC_ALLOCSP:
+	case XFS_IOC_ALLOCSP64:
+	case XFS_IOC_FREESP:
+	case XFS_IOC_FREESP64:
+		if (bf->l_start > XFS_ISIZE(ip)) {
+			error = xfs_alloc_file_space(ip, XFS_ISIZE(ip),
+					bf->l_start - XFS_ISIZE(ip), 0);
+			if (error)
+				goto out_unlock;
+		}
+
+		iattr.ia_valid = ATTR_SIZE;
+		iattr.ia_size = bf->l_start;
+
+		error = xfs_setattr_size(ip, &iattr);
+		if (!error)
+			clrprealloc = true;
+		break;
+	default:
+		ASSERT(0);
+		error = XFS_ERROR(EINVAL);
+	}
+
+	if (error)
+		goto out_unlock;
+
+	tp = xfs_trans_alloc(mp, XFS_TRANS_WRITEID);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_writeid, 0, 0);
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		goto out_unlock;
+	}
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+
+	if (!(ioflags & IO_INVIS)) {
+		ip->i_d.di_mode &= ~S_ISUID;
+		if (ip->i_d.di_mode & S_IXGRP)
+			ip->i_d.di_mode &= ~S_ISGID;
+		xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	}
+
+	if (setprealloc)
+		ip->i_d.di_flags |= XFS_DIFLAG_PREALLOC;
+	else if (clrprealloc)
+		ip->i_d.di_flags &= ~XFS_DIFLAG_PREALLOC;
+
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	if (filp->f_flags & O_DSYNC)
+		xfs_trans_set_sync(tp);
+	error = xfs_trans_commit(tp, 0);
+
+out_unlock:
+	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 	mnt_drop_write_file(filp);
 	return -error;
 }
@@ -1132,7 +1216,7 @@ xfs_ioctl_setattr(
 		 * cleared upon successful return from chown()
 		 */
 		if ((ip->i_d.di_mode & (S_ISUID|S_ISGID)) &&
-		    !inode_capable(VFS_I(ip), CAP_FSETID))
+		    !capable_wrt_inode_uidgid(VFS_I(ip), CAP_FSETID))
 			ip->i_d.di_mode &= ~(S_ISUID|S_ISGID);
 
 		/*
@@ -1144,15 +1228,8 @@ xfs_ioctl_setattr(
 				olddquot = xfs_qm_vop_chown(tp, ip,
 							&ip->i_pdquot, pdqp);
 			}
+			ASSERT(ip->i_d.di_version > 1);
 			xfs_set_projid(ip, fa->fsx_projid);
-
-			/*
-			 * We may have to rev the inode as well as
-			 * the superblock version number since projids didn't
-			 * exist before DINODE_VERSION_2 and SB_VERSION_NLINK.
-			 */
-			if (ip->i_d.di_version == 1)
-				xfs_bump_ino_vers2(tp, ip);
 		}
 
 	}
@@ -1474,7 +1551,7 @@ xfs_file_ioctl(
 			XFS_IS_REALTIME_INODE(ip) ?
 			mp->m_rtdev_targp : mp->m_ddev_targp;
 
-		da.d_mem = da.d_miniosz = 1 << target->bt_sshift;
+		da.d_mem =  da.d_miniosz = target->bt_logical_sectorsize;
 		da.d_maxiosz = INT_MAX & ~(da.d_miniosz - 1);
 
 		if (copy_to_user(arg, &da, sizeof(da)))

@@ -16,7 +16,7 @@
 
 / {
 	model = "Hardkernel ODROID-X board based on Exynos4412";
-	compatible = "hardkernel,odroid-x", "samsung,exynos4412";
+	compatible = "hardkernel,odroid-x", "samsung,exynos4412", "samsung,exynos4";
 
 	memory {
 		reg = <0x40000000 0x40000000>;
@@ -38,9 +38,7 @@
 		};
 	};
 
-	mshc@12550000 {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	mmc@12550000 {
 		pinctrl-0 = <&sd4_clk &sd4_cmd &sd4_bus4 &sd4_bus8>;
 		pinctrl-names = "default";
 		vmmc-supply = <&ldo20_reg &buck8_reg>;
@@ -49,7 +47,6 @@
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
-		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -119,6 +116,7 @@
 		max77686: pmic@09 {
 			compatible = "maxim,max77686";
 			reg = <0x09>;
+			#clock-cells = <1>;
 
 			voltage-regulators {
 				ldo1_reg: LDO1 {
@@ -253,7 +251,7 @@
 				buck2_reg: BUCK2 {
 					regulator-name = "vdd_arm";
 					regulator-min-microvolt = <900000>;
-					regulator-max-microvolt = <1300000>;
+					regulator-max-microvolt = <1350000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};

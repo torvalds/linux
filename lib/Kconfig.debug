@@ -119,7 +119,7 @@ menu "Compile-time checks and compiler options"
 
 config DEBUG_INFO
 	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && !COMPILE_TEST
 	help
           If you say Y here the resulting kernel image will include
 	  debugging info resulting in a larger kernel image.
@@ -312,6 +312,15 @@ config MAGIC_SYSRQ
 	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
 	  unless you really know what this hack does.
 
+config MAGIC_SYSRQ_DEFAULT_ENABLE
+	hex "Enable magic SysRq key functions by default"
+	depends on MAGIC_SYSRQ
+	default 0x1
+	help
+	  Specifies which SysRq key functions are enabled by default.
+	  This may be set to 1 or 0 to enable or disable them all, or
+	  to a bitmask as described in Documentation/sysrq.txt.
+
 config DEBUG_KERNEL
 	bool "Kernel debugging"
 	help
@@ -492,12 +501,21 @@ config DEBUG_VM
 
 	  If unsure, say N.
 
+config DEBUG_VM_VMACACHE
+	bool "Debug VMA caching"
+	depends on DEBUG_VM
+	help
+	  Enable this to turn on VMA caching debug information. Doing so
+	  can cause significant overhead, so only enable it in non-production
+	  environments.
+
+	  If unsure, say N.
+
 config DEBUG_VM_RB
 	bool "Debug VM red-black trees"
 	depends on DEBUG_VM
 	help
-	  Enable this to turn on more extended checks in the virtual-memory
-	  system that may impact performance.
+	  Enable VM red-black tree debugging information and extra validations.
 
 	  If unsure, say N.
 
@@ -567,8 +585,8 @@ config DEBUG_HIGHMEM
 	bool "Highmem debugging"
 	depends on DEBUG_KERNEL && HIGHMEM
 	help
-	  This options enables addition error checking for high memory systems.
-	  Disable for production systems.
+	  This option enables additional error checking for high memory
+	  systems.  Disable for production systems.
 
 config HAVE_DEBUG_STACKOVERFLOW
 	bool
@@ -752,6 +770,15 @@ config PANIC_ON_OOPS_VALUE
 	default 0 if !PANIC_ON_OOPS
 	default 1 if PANIC_ON_OOPS
 
+config PANIC_TIMEOUT
+	int "panic timeout"
+	default 0
+	help
+	  Set the timeout value (in seconds) until a reboot occurs when the
+	  the kernel panics. If n = 0, then we wait forever. A timeout
+	  value n > 0 will wait n seconds before rebooting, while a timeout
+	  value n < 0 will reboot immediately.
+
 config SCHED_DEBUG
 	bool "Collect scheduler debugging info"
 	depends on DEBUG_KERNEL && PROC_FS
@@ -805,11 +832,6 @@ config DEBUG_RT_MUTEXES
 	help
 	 This allows rt mutex semantics violations and rt mutex related
 	 deadlocks (lockups) to be detected and reported automatically.
-
-config DEBUG_PI_LIST
-	bool
-	default y
-	depends on DEBUG_RT_MUTEXES
 
 config RT_MUTEX_TESTER
 	bool "Built-in scriptable tester for rt-mutexes"
@@ -908,7 +930,7 @@ config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE && !ARC
+	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE && !ARC && !SCORE
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -962,6 +984,21 @@ config DEBUG_LOCKING_API_SELFTESTS
 	  The following locking APIs are covered: spinlocks, rwlocks,
 	  mutexes and rwsems.
 
+config LOCK_TORTURE_TEST
+	tristate "torture tests for locking"
+	depends on DEBUG_KERNEL
+	select TORTURE_TEST
+	default n
+	help
+	  This option provides a kernel module that runs torture tests
+	  on kernel locking primitives.  The kernel module may be built
+	  after the fact on the running kernel to be tested, if desired.
+
+	  Say Y here if you want kernel locking-primitive torture tests
+	  to be built into the kernel.
+	  Say M if you want these torture tests to build as a module.
+	  Say N if you are unsure.
+
 endmenu # lock debugging
 
 config TRACE_IRQFLAGS
@@ -983,7 +1020,7 @@ config DEBUG_KOBJECT
 
 config DEBUG_KOBJECT_RELEASE
 	bool "kobject release debugging"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_OBJECTS_TIMERS
 	help
 	  kobjects are reference counted objects.  This means that their
 	  last reference count put is not predictable, and the kobject can
@@ -1012,22 +1049,22 @@ config DEBUG_BUGVERBOSE
 	  of the BUG call as well as the EIP and oops trace.  This aids
 	  debugging but costs about 70-100K of memory.
 
-config DEBUG_WRITECOUNT
-	bool "Debug filesystem writers count"
-	depends on DEBUG_KERNEL
-	help
-	  Enable this to catch wrong use of the writers count in struct
-	  vfsmount.  This will increase the size of each file struct by
-	  32 bits.
-
-	  If unsure, say N.
-
 config DEBUG_LIST
 	bool "Debug linked list manipulation"
 	depends on DEBUG_KERNEL
 	help
 	  Enable this to turn on extended checks in the linked-list
 	  walking routines.
+
+	  If unsure, say N.
+
+config DEBUG_PI_LIST
+	bool "Debug priority linked list manipulation"
+	depends on DEBUG_KERNEL
+	help
+	  Enable this to turn on extended checks in the priority-ordered
+	  linked-list (plist) walking routines.  This checks the entire
+	  list multiple times during each manipulation.
 
 	  If unsure, say N.
 
@@ -1123,9 +1160,14 @@ config SPARSE_RCU_POINTER
 
 	 Say N if you are unsure.
 
+config TORTURE_TEST
+	tristate
+	default n
+
 config RCU_TORTURE_TEST
 	tristate "torture tests for RCU"
 	depends on DEBUG_KERNEL
+	select TORTURE_TEST
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
@@ -1366,7 +1408,7 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC && !SCORE
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
@@ -1469,8 +1511,18 @@ config RBTREE_TEST
 config INTERVAL_TREE_TEST
 	tristate "Interval tree test"
 	depends on m && DEBUG_KERNEL
+	select INTERVAL_TREE
 	help
 	  A benchmark measuring the performance of the interval tree library
+
+config PERCPU_TEST
+	tristate "Per cpu operations test"
+	depends on m && DEBUG_KERNEL
+	help
+	  Enable this option to build test module which validates per-cpu
+	  operations.
+
+	  If unsure, say N.
 
 config ATOMIC64_SELFTEST
 	bool "Perform an atomic64_t self-test at boot"
@@ -1529,17 +1581,6 @@ config PROVIDE_OHCI1394_DMA_INIT
 
 	  See Documentation/debugging-via-ohci1394.txt for more information.
 
-config FIREWIRE_OHCI_REMOTE_DMA
-	bool "Remote debugging over FireWire with firewire-ohci"
-	depends on FIREWIRE_OHCI
-	help
-	  This option lets you use the FireWire bus for remote debugging
-	  with help of the firewire-ohci driver. It enables unfiltered
-	  remote DMA in firewire-ohci.
-	  See Documentation/debugging-via-ohci1394.txt for more information.
-
-	  If unsure, say N.
-
 config BUILD_DOCSRC
 	bool "Build targets in Documentation/ tree"
 	depends on HEADERS_CHECK
@@ -1557,8 +1598,56 @@ config DMA_API_DEBUG
 	  With this option you will be able to detect common bugs in device
 	  drivers like double-freeing of DMA mappings or freeing mappings that
 	  were never allocated.
-	  This option causes a performance degredation.  Use only if you want
-	  to debug device drivers. If unsure, say N.
+
+	  This also attempts to catch cases where a page owned by DMA is
+	  accessed by the cpu in a way that could cause data corruption.  For
+	  example, this enables cow_user_page() to check that the source page is
+	  not undergoing DMA.
+
+	  This option causes a performance degradation.  Use only if you want to
+	  debug device drivers and dma interactions.
+
+	  If unsure, say N.
+
+config TEST_MODULE
+	tristate "Test module loading with 'hello world' module"
+	default n
+	depends on m
+	help
+	  This builds the "test_module" module that emits "Hello, world"
+	  on printk when loaded. It is designed to be used for basic
+	  evaluation of the module loading subsystem (for example when
+	  validating module verification). It lacks any extra dependencies,
+	  and will not normally be loaded by the system unless explicitly
+	  requested by name.
+
+	  If unsure, say N.
+
+config TEST_USER_COPY
+	tristate "Test user/kernel boundary protections"
+	default n
+	depends on m
+	help
+	  This builds the "test_user_copy" module that runs sanity checks
+	  on the copy_to/from_user infrastructure, making sure basic
+	  user/kernel boundary testing is working. If it fails to load,
+	  a regression has been detected in the user/kernel memory boundary
+	  protections.
+
+	  If unsure, say N.
+
+config TEST_BPF
+	tristate "Test BPF filter functionality"
+	default n
+	depends on m && NET
+	help
+	  This builds the "test_bpf" module that runs various test vectors
+	  against the BPF interpreter or BPF JIT compiler depending on the
+	  current setting. This is in particular useful for BPF JIT compiler
+	  development, but also to run regression tests against changes in
+	  the interpreter code.
+
+	  If unsure, say N.
 
 source "samples/Kconfig"
 

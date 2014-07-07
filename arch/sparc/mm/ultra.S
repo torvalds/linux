@@ -153,10 +153,10 @@ __spitfire_flush_tlb_mm_slow:
 	.globl		__flush_icache_page
 __flush_icache_page:	/* %o0 = phys_page */
 	srlx		%o0, PAGE_SHIFT, %o0
-	sethi		%uhi(PAGE_OFFSET), %g1
+	sethi		%hi(PAGE_OFFSET), %g1
 	sllx		%o0, PAGE_SHIFT, %o0
 	sethi		%hi(PAGE_SIZE), %g2
-	sllx		%g1, 32, %g1
+	ldx		[%g1 + %lo(PAGE_OFFSET)], %g1
 	add		%o0, %g1, %o0
 1:	subcc		%g2, 32, %g2
 	bne,pt		%icc, 1b
@@ -178,8 +178,8 @@ __flush_icache_page:	/* %o0 = phys_page */
 	.align		64
 	.globl		__flush_dcache_page
 __flush_dcache_page:	/* %o0=kaddr, %o1=flush_icache */
-	sethi		%uhi(PAGE_OFFSET), %g1
-	sllx		%g1, 32, %g1
+	sethi		%hi(PAGE_OFFSET), %g1
+	ldx		[%g1 + %lo(PAGE_OFFSET)], %g1
 	sub		%o0, %g1, %o0			! physical address
 	srlx		%o0, 11, %o0			! make D-cache TAG
 	sethi		%hi(1 << 14), %o2		! D-cache size
@@ -287,8 +287,8 @@ __cheetah_flush_tlb_pending:	/* 27 insns */
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 __cheetah_flush_dcache_page: /* 11 insns */
-	sethi		%uhi(PAGE_OFFSET), %g1
-	sllx		%g1, 32, %g1
+	sethi		%hi(PAGE_OFFSET), %g1
+	ldx		[%g1 + %lo(PAGE_OFFSET)], %g1
 	sub		%o0, %g1, %o0
 	sethi		%hi(PAGE_SIZE), %o4
 1:	subcc		%o4, (1 << 5), %o4

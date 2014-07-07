@@ -2349,7 +2349,7 @@ static int ocfs2_dx_dir_attach_index(struct ocfs2_super *osb,
 
 	dx_root_bh = sb_getblk(osb->sb, dr_blkno);
 	if (dx_root_bh == NULL) {
-		ret = -EIO;
+		ret = -ENOMEM;
 		goto out;
 	}
 	ocfs2_set_new_buffer_uptodate(INODE_CACHE(dir), dx_root_bh);
@@ -2422,7 +2422,7 @@ static int ocfs2_dx_dir_format_cluster(struct ocfs2_super *osb,
 	for (i = 0; i < num_dx_leaves; i++) {
 		bh = sb_getblk(osb->sb, start_blk + i);
 		if (bh == NULL) {
-			ret = -EIO;
+			ret = -ENOMEM;
 			goto out;
 		}
 		dx_leaves[i] = bh;
@@ -2929,7 +2929,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	blkno = ocfs2_clusters_to_blocks(dir->i_sb, bit_off);
 	dirdata_bh = sb_getblk(sb, blkno);
 	if (!dirdata_bh) {
-		ret = -EIO;
+		ret = -ENOMEM;
 		mlog_errno(ret);
 		goto out_commit;
 	}
@@ -2957,6 +2957,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 		ocfs2_init_dir_trailer(dir, dirdata_bh, i);
 	}
 
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 	ocfs2_journal_dirty(handle, dirdata_bh);
 
 	if (ocfs2_supports_indexed_dirs(osb) && !dx_inline) {
@@ -3005,6 +3006,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	di->i_size = cpu_to_le64(sb->s_blocksize);
 	di->i_ctime = di->i_mtime = cpu_to_le64(dir->i_ctime.tv_sec);
 	di->i_ctime_nsec = di->i_mtime_nsec = cpu_to_le32(dir->i_ctime.tv_nsec);
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 
 	/*
 	 * This should never fail as our extent list is empty and all
@@ -3159,7 +3161,7 @@ static int ocfs2_do_extend_dir(struct super_block *sb,
 
 	*new_bh = sb_getblk(sb, p_blkno);
 	if (!*new_bh) {
-		status = -EIO;
+		status = -ENOMEM;
 		mlog_errno(status);
 		goto bail;
 	}
@@ -3284,7 +3286,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		if (ocfs2_dir_resv_allowed(osb))
 			data_ac->ac_resv = &OCFS2_I(dir)->ip_la_data_resv;
 
-		credits = ocfs2_calc_extend_credits(sb, el, 1);
+		credits = ocfs2_calc_extend_credits(sb, el);
 	} else {
 		spin_unlock(&OCFS2_I(dir)->ip_lock);
 		credits = OCFS2_SIMPLE_DIR_EXTEND_CREDITS;
@@ -3338,6 +3340,7 @@ do_extend:
 	} else {
 		de->rec_len = cpu_to_le16(sb->s_blocksize);
 	}
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 	ocfs2_journal_dirty(handle, new_bh);
 
 	dir_i_size += dir->i_sb->s_blocksize;
@@ -3716,7 +3719,7 @@ static int ocfs2_dx_dir_rebalance_credits(struct ocfs2_super *osb,
 {
 	int credits = ocfs2_clusters_to_blocks(osb->sb, 2);
 
-	credits += ocfs2_calc_extend_credits(osb->sb, &dx_root->dr_list, 1);
+	credits += ocfs2_calc_extend_credits(osb->sb, &dx_root->dr_list);
 	credits += ocfs2_quota_trans_credits(osb->sb);
 	return credits;
 }
@@ -3896,6 +3899,7 @@ out_commit:
 		dquot_free_space_nodirty(dir,
 				ocfs2_clusters_to_bytes(dir->i_sb, 1));
 
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 	ocfs2_commit_trans(osb, handle);
 
 out:
@@ -4134,6 +4138,7 @@ static int ocfs2_expand_inline_dx_root(struct inode *dir,
 		mlog_errno(ret);
 	did_quota = 0;
 
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 	ocfs2_journal_dirty(handle, dx_root_bh);
 
 out_commit:
@@ -4401,6 +4406,7 @@ static int ocfs2_dx_dir_remove_index(struct inode *dir,
 	di->i_dyn_features = cpu_to_le16(OCFS2_I(dir)->ip_dyn_features);
 	spin_unlock(&OCFS2_I(dir)->ip_lock);
 	di->i_dx_root = cpu_to_le64(0ULL);
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 
 	ocfs2_journal_dirty(handle, di_bh);
 

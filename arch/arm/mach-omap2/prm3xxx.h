@@ -26,7 +26,7 @@
 
 /*
  * OMAP3-specific global PRM registers
- * Use __raw_{read,write}l() with these registers.
+ * Use {read,write}l_relaxed() with these registers.
  *
  * With a few exceptions, these are the register names beginning with
  * PRM_* on 34xx.  (The exceptions are the IRQSTATUS and IRQENABLE
@@ -144,7 +144,13 @@ extern u32 omap3_prm_vcvp_read(u8 offset);
 extern void omap3_prm_vcvp_write(u32 val, u8 offset);
 extern u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset);
 
-extern void omap3xxx_prm_reconfigure_io_chain(void);
+#ifdef CONFIG_ARCH_OMAP3
+void omap3xxx_prm_reconfigure_io_chain(void);
+#else
+static inline void omap3xxx_prm_reconfigure_io_chain(void)
+{
+}
+#endif
 
 /* PRM interrupt-related functions */
 extern void omap3xxx_prm_read_pending_irqs(unsigned long *events);

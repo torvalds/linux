@@ -37,7 +37,6 @@
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
@@ -1708,7 +1707,9 @@ found:
 	return 0;
 }
 
-static void carl9170_op_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void carl9170_op_flush(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      u32 queues, bool drop)
 {
 	struct ar9170 *ar = hw->priv;
 	unsigned int vid;
@@ -1967,18 +1968,6 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	if (!ar->survey)
 		return -ENOMEM;
 	ar->num_channels = chans;
-
-	/*
-	 * I measured this, a bandswitch takes roughly
-	 * 135 ms and a frequency switch about 80.
-	 *
-	 * FIXME: measure these values again once EEPROM settings
-	 *	  are used, that will influence them!
-	 */
-	if (bands == 2)
-		ar->hw->channel_change_time = 135 * 1000;
-	else
-		ar->hw->channel_change_time = 80 * 1000;
 
 	regulatory->current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
 

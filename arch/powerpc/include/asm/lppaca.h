@@ -84,8 +84,8 @@ struct lppaca {
 	 * the processor is yielded (either because of an OS yield or a
 	 * hypervisor preempt).  An even value implies that the processor is
 	 * currently executing.
-	 * NOTE: This value will ALWAYS be zero for dedicated processors and
-	 * will NEVER be zero for shared processors (ie, initialized to a 1).
+	 * NOTE: Even dedicated processor partitions can yield so this
+	 * field cannot be used to determine if we are shared or dedicated.
 	 */
 	volatile __be32 yield_count;
 	volatile __be32 dispersion_count; /* dispatch changed physical cpu */
@@ -106,15 +106,15 @@ extern struct lppaca lppaca[];
 #define lppaca_of(cpu)	(*paca[cpu].lppaca_ptr)
 
 /*
- * Old kernels used a reserved bit in the VPA to determine if it was running
- * in shared processor mode. New kernels look for a non zero yield count
- * but KVM still needs to set the bit to keep the old stuff happy.
+ * We are using a non architected field to determine if a partition is
+ * shared or dedicated. This currently works on both KVM and PHYP, but
+ * we will have to transition to something better.
  */
 #define LPPACA_OLD_SHARED_PROC		2
 
 static inline bool lppaca_shared_proc(struct lppaca *l)
 {
-	return l->yield_count != 0;
+	return !!(l->__old_status & LPPACA_OLD_SHARED_PROC);
 }
 
 /*
@@ -131,8 +131,6 @@ struct slb_shadow {
 		__be64	vsid;
 	} save_area[SLB_NUM_BOLTED];
 } ____cacheline_aligned;
-
-extern struct slb_shadow slb_shadow[];
 
 /*
  * Layout of entries in the hypervisor's dispatch trace log buffer.

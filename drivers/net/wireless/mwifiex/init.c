@@ -137,6 +137,7 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->csa_expire_time = 0;
 	priv->del_list_idx = 0;
 	priv->hs2_enabled = false;
+	memcpy(priv->tos_to_tid_inv, tos_to_tid_inv, MAX_NUM_TID);
 
 	return mwifiex_add_bss_prio_tbl(priv);
 }
@@ -233,7 +234,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 
 	adapter->pm_wakeup_fw_try = false;
 
-	adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 	adapter->curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 
 	adapter->is_hs_configured = false;
@@ -281,6 +281,9 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->arp_filter_size = 0;
 	adapter->max_mgmt_ie_index = MAX_MGMT_IE_INDEX;
 	adapter->empty_tx_q_cnt = 0;
+	adapter->ext_scan = true;
+	adapter->fw_key_api_major_ver = 0;
+	adapter->fw_key_api_minor_ver = 0;
 }
 
 /*
@@ -450,6 +453,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 		INIT_LIST_HEAD(&priv->tx_ba_stream_tbl_ptr);
 		INIT_LIST_HEAD(&priv->rx_reorder_tbl_ptr);
 		INIT_LIST_HEAD(&priv->sta_list);
+		skb_queue_head_init(&priv->tdls_txq);
 
 		spin_lock_init(&priv->tx_ba_stream_tbl_lock);
 		spin_lock_init(&priv->rx_reorder_tbl_lock);
@@ -615,7 +619,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 	/* cancel current command */
 	if (adapter->curr_cmd) {
 		dev_warn(adapter->dev, "curr_cmd is still in processing\n");
-		del_timer(&adapter->cmd_timer);
+		del_timer_sync(&adapter->cmd_timer);
 		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 		adapter->curr_cmd = NULL;
 	}
@@ -643,7 +647,8 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 			if (priv)
 				priv->stats.rx_dropped++;
 
-			adapter->if_ops.data_complete(adapter, skb);
+			dev_kfree_skb_any(skb);
+			adapter->if_ops.data_complete(adapter);
 		}
 	}
 

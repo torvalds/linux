@@ -87,24 +87,3 @@ bool handle_irq(unsigned irq, struct pt_regs *regs)
 	generic_handle_irq_desc(irq, desc);
 	return true;
 }
-
-
-extern void call_softirq(void);
-
-asmlinkage void do_softirq(void)
-{
-	__u32 pending;
-	unsigned long flags;
-
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
-	pending = local_softirq_pending();
-	/* Switch to interrupt stack */
-	if (pending) {
-		call_softirq();
-		WARN_ON_ONCE(softirq_count());
-	}
-	local_irq_restore(flags);
-}

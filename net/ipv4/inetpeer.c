@@ -26,20 +26,7 @@
  *  Theory of operations.
  *  We keep one entry for each peer IP address.  The nodes contains long-living
  *  information about the peer which doesn't depend on routes.
- *  At this moment this information consists only of ID field for the next
- *  outgoing IP packet.  This field is incremented with each packet as encoded
- *  in inet_getid() function (include/net/inetpeer.h).
- *  At the moment of writing this notes identifier of IP packets is generated
- *  to be unpredictable using this code only for packets subjected
- *  (actually or potentially) to defragmentation.  I.e. DF packets less than
- *  PMTU in size when local fragmentation is disabled use a constant ID and do
- *  not use this code (see ip_select_ident() in include/net/ip.h).
  *
- *  Route cache entries hold references to our nodes.
- *  New cache entries get references via lookup by destination IP address in
- *  the avl tree.  The reference is grabbed only when it's needed i.e. only
- *  when we try to output IP packet which needs an unpredictable ID (see
- *  __ip_select_ident() in net/ipv4/route.c).
  *  Nodes are removed only when reference counter goes to 0.
  *  When it's happened the node may be removed when a sufficient amount of
  *  time has been passed since its last use.  The less-recently-used entry can
@@ -62,7 +49,6 @@
  *		refcnt: atomically against modifications on other CPU;
  *		   usually under some other lock to prevent node disappearing
  *		daddr: unchangeable
- *		ip_id_count: atomic value (no lock needed)
  */
 
 static struct kmem_cache *peer_cachep __read_mostly;
@@ -109,13 +95,6 @@ static inline void flush_check(struct inet_peer_base *base, int family)
 	}
 }
 
-void inetpeer_invalidate_family(int family)
-{
-	atomic_t *fp = inetpeer_seq_ptr(family);
-
-	atomic_inc(fp);
-}
-
 #define PEER_MAXDEPTH 40 /* sufficient for about 2^27 nodes */
 
 /* Exported for sysctl_net_ipv4.  */
@@ -127,7 +106,7 @@ int inet_peer_maxttl __read_mostly = 10 * 60 * HZ;	/* usual time to live: 10 min
 static void inetpeer_gc_worker(struct work_struct *work)
 {
 	struct inet_peer *p, *n, *c;
-	LIST_HEAD(list);
+	struct list_head list;
 
 	spin_lock_bh(&gc_lock);
 	list_replace_init(&gc_list, &list);
@@ -227,7 +206,7 @@ static int addr_compare(const struct inetpeer_addr *a,
 	stackptr = _stack;					\
 	*stackptr++ = &_base->root;				\
 	for (u = rcu_deref_locked(_base->root, _base);		\
-	     u != peer_avl_empty; ) {				\
+	     u != peer_avl_empty;) {				\
 		int cmp = addr_compare(_daddr, &u->daddr);	\
 		if (cmp == 0)					\
 			break;					\
@@ -282,7 +261,7 @@ static struct inet_peer *lookup_rcu(const struct inetpeer_addr *daddr,
 	*stackptr++ = &start->avl_left;				\
 	v = &start->avl_left;					\
 	for (u = rcu_deref_locked(*v, base);			\
-	     u->avl_right != peer_avl_empty_rcu; ) {		\
+	     u->avl_right != peer_avl_empty_rcu;) {		\
 		v = &u->avl_right;				\
 		*stackptr++ = v;				\
 		u = rcu_deref_locked(*v, base);			\
@@ -504,10 +483,6 @@ relookup:
 		p->daddr = *daddr;
 		atomic_set(&p->refcnt, 1);
 		atomic_set(&p->rid, 0);
-		atomic_set(&p->ip_id_count,
-				(daddr->family == AF_INET) ?
-					secure_ip_id(daddr->addr.a4) :
-					secure_ipv6_id(daddr->addr.a6));
 		p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;
 		p->rate_tokens = 0;
 		/* 60*HZ is arbitrary, but chosen enough high so that the first
@@ -529,7 +504,7 @@ EXPORT_SYMBOL_GPL(inet_getpeer);
 void inet_putpeer(struct inet_peer *p)
 {
 	p->dtime = (__u32)jiffies;
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_dec(&p->refcnt);
 }
 EXPORT_SYMBOL_GPL(inet_putpeer);

@@ -9,6 +9,7 @@
 #include "../util.h"
 #include "../libslang.h"
 #include "../keysyms.h"
+#include "tui.h"
 
 static volatile int ui__need_resize;
 
@@ -119,7 +120,7 @@ int ui__init(void)
 
 	ui_helpline__init();
 	ui_browser__init();
-	ui_progress__init();
+	tui_progress__init();
 
 	signal(SIGSEGV, ui__signal);
 	signal(SIGFPE, ui__signal);

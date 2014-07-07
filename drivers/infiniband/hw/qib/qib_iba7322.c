@@ -2395,6 +2395,11 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	qib_write_kreg_port(ppd, krp_ibcctrl_a, ppd->cpspec->ibcctrl_a);
 	qib_write_kreg(dd, kr_scratch, 0ULL);
 
+	/* ensure previous Tx parameters are not still forced */
+	qib_write_kreg_port(ppd, krp_tx_deemph_override,
+		SYM_MASK(IBSD_TX_DEEMPHASIS_OVERRIDE_0,
+		reset_tx_deemphasis_override));
+
 	if (qib_compat_ddr_negotiate) {
 		ppd->cpspec->ibdeltainprog = 1;
 		ppd->cpspec->ibsymsnap = read_7322_creg32_port(ppd,
@@ -3110,9 +3115,7 @@ static irqreturn_t qib_7322intr(int irq, void *data)
 		goto bail;
 	}
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
+	this_cpu_inc(*dd->int_counter);
 
 	/* handle "errors" of various kinds first, device ahead of port */
 	if (unlikely(istat & (~QIB_I_BITSEXTANT | QIB_I_GPIO |
@@ -3181,9 +3184,7 @@ static irqreturn_t qib_7322pintr(int irq, void *data)
 		 */
 		return IRQ_HANDLED;
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
+	this_cpu_inc(*dd->int_counter);
 
 	/* Clear the interrupt bit we expect to be set. */
 	qib_write_kreg(dd, kr_intclear, ((1ULL << QIB_I_RCVAVAIL_LSB) |
@@ -3210,9 +3211,7 @@ static irqreturn_t qib_7322bufavail(int irq, void *data)
 		 */
 		return IRQ_HANDLED;
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
+	this_cpu_inc(*dd->int_counter);
 
 	/* Clear the interrupt bit we expect to be set. */
 	qib_write_kreg(dd, kr_intclear, QIB_I_SPIOBUFAVAIL);
@@ -3243,9 +3242,7 @@ static irqreturn_t sdma_intr(int irq, void *data)
 		 */
 		return IRQ_HANDLED;
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
+	this_cpu_inc(*dd->int_counter);
 
 	/* Clear the interrupt bit we expect to be set. */
 	qib_write_kreg(dd, kr_intclear, ppd->hw_pidx ?
@@ -3272,9 +3269,7 @@ static irqreturn_t sdma_idle_intr(int irq, void *data)
 		 */
 		return IRQ_HANDLED;
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
+	this_cpu_inc(*dd->int_counter);
 
 	/* Clear the interrupt bit we expect to be set. */
 	qib_write_kreg(dd, kr_intclear, ppd->hw_pidx ?
@@ -3301,9 +3296,7 @@ static irqreturn_t sdma_progress_intr(int irq, void *data)
 		 */
 		return IRQ_HANDLED;
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
+	this_cpu_inc(*dd->int_counter);
 
 	/* Clear the interrupt bit we expect to be set. */
 	qib_write_kreg(dd, kr_intclear, ppd->hw_pidx ?
@@ -3331,9 +3324,7 @@ static irqreturn_t sdma_cleanup_intr(int irq, void *data)
 		 */
 		return IRQ_HANDLED;
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
+	this_cpu_inc(*dd->int_counter);
 
 	/* Clear the interrupt bit we expect to be set. */
 	qib_write_kreg(dd, kr_intclear, ppd->hw_pidx ?
@@ -3718,7 +3709,8 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	dd->pport->cpspec->ibsymdelta = 0;
 	dd->pport->cpspec->iblnkerrdelta = 0;
 	dd->pport->cpspec->ibmalfdelta = 0;
-	dd->int_counter = 0; /* so we check interrupts work again */
+	/* so we check interrupts work again */
+	dd->z_int_counter = qib_int_counter(dd);
 
 	/*
 	 * Keep chip from being accessed until we are ready.  Use
@@ -6190,21 +6182,20 @@ static int setup_txselect(const char *str, struct kernel_param *kp)
 {
 	struct qib_devdata *dd;
 	unsigned long val;
-	int ret;
-
+	char *n;
 	if (strlen(str) >= MAX_ATTEN_LEN) {
 		pr_info("txselect_values string too long\n");
 		return -ENOSPC;
 	}
-	ret = kstrtoul(str, 0, &val);
-	if (ret || val >= (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ +
+	val = simple_strtoul(str, &n, 0);
+	if (n == str || val >= (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ +
 				TXDDS_MFG_SZ)) {
 		pr_info("txselect_values must start with a number < %d\n",
 			TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ + TXDDS_MFG_SZ);
-		return ret ? ret : -EINVAL;
+		return -EINVAL;
 	}
-
 	strcpy(txselect_list, str);
+
 	list_for_each_entry(dd, &qib_dev_list, list)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)
 			set_no_qsfp_atten(dd, 1);
@@ -6553,7 +6544,11 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		}
 
 		dd->num_pports++;
-		qib_init_pportdata(ppd, dd, pidx, dd->num_pports);
+		ret = qib_init_pportdata(ppd, dd, pidx, dd->num_pports);
+		if (ret) {
+			dd->num_pports--;
+			goto bail;
+		}
 
 		ppd->link_width_supported = IB_WIDTH_1X | IB_WIDTH_4X;
 		ppd->link_width_enabled = IB_WIDTH_4X;

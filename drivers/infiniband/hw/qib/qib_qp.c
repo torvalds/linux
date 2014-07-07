@@ -585,7 +585,7 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
-				attr_mask))
+				attr_mask, IB_LINK_LAYER_UNSPECIFIED))
 		goto inval;
 
 	if (attr_mask & IB_QP_AV) {
@@ -985,7 +985,8 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 	struct ib_qp *ret;
 
 	if (init_attr->cap.max_send_sge > ib_qib_max_sges ||
-	    init_attr->cap.max_send_wr > ib_qib_max_qp_wrs) {
+	    init_attr->cap.max_send_wr > ib_qib_max_qp_wrs ||
+	    init_attr->create_flags) {
 		ret = ERR_PTR(-EINVAL);
 		goto bail;
 	}

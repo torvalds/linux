@@ -1,5 +1,5 @@
 /*
- * lp5523.c - LP5523 LED Driver
+ * lp5523.c - LP5523, LP55231 LED Driver
  *
  * Copyright (C) 2010 Nokia Corporation
  * Copyright (C) 2012 Texas Instruments
@@ -25,16 +25,24 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/slab.h>
 
 #include "leds-lp55xx-common.h"
 
-#define LP5523_PROGRAM_LENGTH		32
+#define LP5523_PROGRAM_LENGTH		32	/* bytes */
+/* Memory is used like this:
+   0x00 engine 1 program
+   0x10 engine 2 program
+   0x20 engine 3 program
+   0x30 engine 1 muxing info
+   0x40 engine 2 muxing info
+   0x50 engine 3 muxing info
+*/
 #define LP5523_MAX_LEDS			9
 
 /* Registers */
@@ -186,9 +194,23 @@ static void lp5523_load_engine_and_select_page(struct lp55xx_chip *chip)
 	lp55xx_write(chip, LP5523_REG_PROG_PAGE_SEL, page_sel[idx]);
 }
 
-static void lp5523_stop_engine(struct lp55xx_chip *chip)
+static void lp5523_stop_all_engines(struct lp55xx_chip *chip)
 {
 	lp55xx_write(chip, LP5523_REG_OP_MODE, 0);
+	lp5523_wait_opmode_done();
+}
+
+static void lp5523_stop_engine(struct lp55xx_chip *chip)
+{
+	enum lp55xx_engine_index idx = chip->engine_idx;
+	u8 mask[] = {
+		[LP55XX_ENGINE_1] = LP5523_MODE_ENG1_M,
+		[LP55XX_ENGINE_2] = LP5523_MODE_ENG2_M,
+		[LP55XX_ENGINE_3] = LP5523_MODE_ENG3_M,
+	};
+
+	lp55xx_update_bits(chip, LP5523_REG_OP_MODE, mask[idx], 0);
+
 	lp5523_wait_opmode_done();
 }
 
@@ -302,7 +324,7 @@ static int lp5523_init_program_engine(struct lp55xx_chip *chip)
 	}
 
 out:
-	lp5523_stop_engine(chip);
+	lp5523_stop_all_engines(chip);
 	return ret;
 }
 
@@ -336,17 +358,11 @@ static int lp5523_update_program_memory(struct lp55xx_chip *chip,
 	if (i % 2)
 		goto err;
 
-	mutex_lock(&chip->lock);
-
 	for (i = 0; i < LP5523_PROGRAM_LENGTH; i++) {
 		ret = lp55xx_write(chip, LP5523_REG_PROG_MEM + i, pattern[i]);
-		if (ret) {
-			mutex_unlock(&chip->lock);
+		if (ret)
 			return -EINVAL;
-		}
 	}
-
-	mutex_unlock(&chip->lock);
 
 	return size;
 
@@ -547,15 +563,17 @@ static ssize_t store_engine_load(struct device *dev,
 {
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 	struct lp55xx_chip *chip = led->chip;
+	int ret;
 
 	mutex_lock(&chip->lock);
 
 	chip->engine_idx = nr;
 	lp5523_load_engine_and_select_page(chip);
+	ret = lp5523_update_program_memory(chip, buf, len);
 
 	mutex_unlock(&chip->lock);
 
-	return lp5523_update_program_memory(chip, buf, len);
+	return ret;
 }
 store_load(1)
 store_load(2)
@@ -777,7 +795,7 @@ static int lp5523_remove(struct i2c_client *client)
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
 
-	lp5523_stop_engine(chip);
+	lp5523_stop_all_engines(chip);
 	lp55xx_unregister_sysfs(chip);
 	lp55xx_unregister_leds(led, chip);
 	lp55xx_deinit_device(chip);
@@ -796,6 +814,7 @@ MODULE_DEVICE_TABLE(i2c, lp5523_id);
 #ifdef CONFIG_OF
 static const struct of_device_id of_lp5523_leds_match[] = {
 	{ .compatible = "national,lp5523", },
+	{ .compatible = "ti,lp55231", },
 	{},
 };
 

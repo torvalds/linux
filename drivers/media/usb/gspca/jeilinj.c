@@ -378,11 +378,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	struct sd *dev = (struct sd *) gspca_dev;
 
 	/* create the JPEG header */
-	jpeg_define(dev->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(dev->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x21);          /* JPEG 422 */
 	jpeg_set_qual(dev->jpeg_hdr, dev->quality);
 	PDEBUG(D_STREAM, "Start streaming at %dx%d",
-		gspca_dev->height, gspca_dev->width);
+		gspca_dev->pixfmt.height, gspca_dev->pixfmt.width);
 	jlj_start(gspca_dev);
 	return gspca_dev->usb_err;
 }

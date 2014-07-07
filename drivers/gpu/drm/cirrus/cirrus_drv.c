@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/console.h>
 #include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "cirrus_drv.h"
 
@@ -75,6 +76,41 @@ static void cirrus_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
+static int cirrus_pm_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct cirrus_device *cdev = drm_dev->dev_private;
+
+	drm_kms_helper_poll_disable(drm_dev);
+
+	if (cdev->mode_info.gfbdev) {
+		console_lock();
+		fb_set_suspend(cdev->mode_info.gfbdev->helper.fbdev, 1);
+		console_unlock();
+	}
+
+	return 0;
+}
+
+static int cirrus_pm_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct cirrus_device *cdev = drm_dev->dev_private;
+
+	drm_helper_resume_force_mode(drm_dev);
+
+	if (cdev->mode_info.gfbdev) {
+		console_lock();
+		fb_set_suspend(cdev->mode_info.gfbdev->helper.fbdev, 0);
+		console_unlock();
+	}
+
+	drm_kms_helper_poll_enable(drm_dev);
+	return 0;
+}
+
 static const struct file_operations cirrus_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -97,11 +133,15 @@ static struct drm_driver driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
-	.gem_init_object = cirrus_gem_init_object,
 	.gem_free_object = cirrus_gem_free_object,
 	.dumb_create = cirrus_dumb_create,
 	.dumb_map_offset = cirrus_dumb_mmap_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,
+};
+
+static const struct dev_pm_ops cirrus_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(cirrus_pm_suspend,
+				cirrus_pm_resume)
 };
 
 static struct pci_driver cirrus_pci_driver = {
@@ -109,6 +149,7 @@ static struct pci_driver cirrus_pci_driver = {
 	.id_table = pciidlist,
 	.probe = cirrus_pci_probe,
 	.remove = cirrus_pci_remove,
+	.driver.pm = &cirrus_pm_ops,
 };
 
 static int __init cirrus_init(void)

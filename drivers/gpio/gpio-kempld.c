@@ -24,7 +24,7 @@
 #include <linux/mfd/kempld.h>
 
 #define KEMPLD_GPIO_MAX_NUM		16
-#define KEMPLD_GPIO_MASK(x)		(1 << ((x) % 8))
+#define KEMPLD_GPIO_MASK(x)		(BIT((x) % 8))
 #define KEMPLD_GPIO_DIR_NUM(x)		(0x40 + (x) / 8)
 #define KEMPLD_GPIO_LVL_NUM(x)		(0x42 + (x) / 8)
 #define KEMPLD_GPIO_EVT_LVL_EDGE	0x46
@@ -167,7 +167,7 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 	chip->label = "gpio-kempld";
 	chip->owner = THIS_MODULE;
 	chip->dev = dev;
-	chip->can_sleep = 1;
+	chip->can_sleep = true;
 	if (pdata && pdata->gpio_base)
 		chip->base = pdata->gpio_base;
 	else
@@ -216,4 +216,4 @@ module_platform_driver(kempld_gpio_driver);
 MODULE_DESCRIPTION("KEM PLD GPIO Driver");
 MODULE_AUTHOR("Michael Brunner <michael.brunner@kontron.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:gpio-kempld");
+MODULE_ALIAS("platform:kempld-gpio");

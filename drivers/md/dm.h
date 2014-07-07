@@ -15,6 +15,8 @@
 #include <linux/list.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
+#include <linux/completion.h>
+#include <linux/kobject.h>
 
 #include "dm-stats.h"
 
@@ -71,7 +73,6 @@ unsigned dm_table_get_type(struct dm_table *t);
 struct target_type *dm_table_get_immutable_target_type(struct dm_table *t);
 bool dm_table_request_based(struct dm_table *t);
 bool dm_table_supports_discards(struct dm_table *t);
-int dm_table_alloc_md_mempools(struct dm_table *t);
 void dm_table_free_md_mempools(struct dm_table *t);
 struct dm_md_mempools *dm_table_get_md_mempools(struct dm_table *t);
 
@@ -129,6 +130,16 @@ int dm_deleting_md(struct mapped_device *md);
 int dm_suspended_md(struct mapped_device *md);
 
 /*
+ * Test if the device is scheduled for deferred remove.
+ */
+int dm_test_deferred_remove_flag(struct mapped_device *md);
+
+/*
+ * Try to remove devices marked for deferred removal.
+ */
+void dm_deferred_remove(void);
+
+/*
  * The device-mapper can be driven through one of two interfaces;
  * ioctl or filesystem, depending which patch you have applied.
  */
@@ -138,10 +149,25 @@ void dm_interface_exit(void);
 /*
  * sysfs interface
  */
+struct dm_kobject_holder {
+	struct kobject kobj;
+	struct completion completion;
+};
+
+static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
+{
+	return &container_of(kobj, struct dm_kobject_holder, kobj)->completion;
+}
+
 int dm_sysfs_init(struct mapped_device *md);
 void dm_sysfs_exit(struct mapped_device *md);
 struct kobject *dm_kobject(struct mapped_device *md);
 struct mapped_device *dm_get_from_kobject(struct kobject *kobj);
+
+/*
+ * The kobject helper
+ */
+void dm_kobject_release(struct kobject *kobj);
 
 /*
  * Targets for linear and striped mappings
@@ -158,9 +184,11 @@ void dm_stripe_exit(void);
 void dm_destroy(struct mapped_device *md);
 void dm_destroy_immediate(struct mapped_device *md);
 int dm_open_count(struct mapped_device *md);
-int dm_lock_for_deletion(struct mapped_device *md);
+int dm_lock_for_deletion(struct mapped_device *md, bool mark_deferred, bool only_deferred);
+int dm_cancel_deferred_remove(struct mapped_device *md);
 int dm_request_based(struct mapped_device *md);
 sector_t dm_get_size(struct mapped_device *md);
+struct request_queue *dm_get_md_queue(struct mapped_device *md);
 struct dm_stats *dm_get_stats(struct mapped_device *md);
 
 int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,

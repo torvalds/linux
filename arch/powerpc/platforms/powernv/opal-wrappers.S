@@ -24,7 +24,7 @@
 	mflr	r0;			\
 	mfcr	r12;			\
 	std	r0,16(r1);		\
-	std	r12,8(r1);		\
+	stw	r12,8(r1);		\
 	std	r1,PACAR1(r13);		\
 	li	r0,0;			\
 	mfmsr	r12;			\
@@ -32,9 +32,9 @@
 	std	r12,PACASAVEDMSR(r13);	\
 	andc	r12,r12,r0;		\
 	mtmsrd	r12,1;			\
-	LOAD_REG_ADDR(r0,.opal_return);	\
+	LOAD_REG_ADDR(r0,opal_return);	\
 	mtlr	r0;			\
-	li	r0,MSR_DR|MSR_IR;	\
+	li	r0,MSR_DR|MSR_IR|MSR_LE;\
 	andc	r12,r12,r0;		\
 	li	r0,token;		\
 	mtspr	SPRN_HSRR1,r12;		\
@@ -44,9 +44,16 @@
 	mtspr	SPRN_HSRR0,r12;		\
 	hrfid
 
-_STATIC(opal_return)
+opal_return:
+	/*
+	 * Fixup endian on OPAL return... we should be able to simplify
+	 * this by instead converting the below trampoline to a set of
+	 * bytes (always BE) since MSR:LE will end up fixed up as a side
+	 * effect of the rfid.
+	 */
+	FIXUP_ENDIAN
 	ld	r2,PACATOC(r13);
-	ld	r4,8(r1);
+	lwz	r4,8(r1);
 	ld	r5,16(r1);
 	ld	r6,PACASAVEDMSR(r13);
 	mtspr	SPRN_SRR0,r5;
@@ -54,6 +61,7 @@ _STATIC(opal_return)
 	mtcr	r4;
 	rfid
 
+OPAL_CALL(opal_invalid_call,			OPAL_INVALID_CALL);
 OPAL_CALL(opal_console_write,			OPAL_CONSOLE_WRITE);
 OPAL_CALL(opal_console_read,			OPAL_CONSOLE_READ);
 OPAL_CALL(opal_console_write_buffer_space,	OPAL_CONSOLE_WRITE_BUFFER_SPACE);
@@ -116,3 +124,25 @@ OPAL_CALL(opal_xscom_write,			OPAL_XSCOM_WRITE);
 OPAL_CALL(opal_lpc_read,			OPAL_LPC_READ);
 OPAL_CALL(opal_lpc_write,			OPAL_LPC_WRITE);
 OPAL_CALL(opal_return_cpu,			OPAL_RETURN_CPU);
+OPAL_CALL(opal_reinit_cpus,			OPAL_REINIT_CPUS);
+OPAL_CALL(opal_read_elog,			OPAL_ELOG_READ);
+OPAL_CALL(opal_send_ack_elog,			OPAL_ELOG_ACK);
+OPAL_CALL(opal_get_elog_size,			OPAL_ELOG_SIZE);
+OPAL_CALL(opal_resend_pending_logs,		OPAL_ELOG_RESEND);
+OPAL_CALL(opal_write_elog,			OPAL_ELOG_WRITE);
+OPAL_CALL(opal_validate_flash,			OPAL_FLASH_VALIDATE);
+OPAL_CALL(opal_manage_flash,			OPAL_FLASH_MANAGE);
+OPAL_CALL(opal_update_flash,			OPAL_FLASH_UPDATE);
+OPAL_CALL(opal_resync_timebase,			OPAL_RESYNC_TIMEBASE);
+OPAL_CALL(opal_dump_init,			OPAL_DUMP_INIT);
+OPAL_CALL(opal_dump_info,			OPAL_DUMP_INFO);
+OPAL_CALL(opal_dump_info2,			OPAL_DUMP_INFO2);
+OPAL_CALL(opal_dump_read,			OPAL_DUMP_READ);
+OPAL_CALL(opal_dump_ack,			OPAL_DUMP_ACK);
+OPAL_CALL(opal_get_msg,				OPAL_GET_MSG);
+OPAL_CALL(opal_check_completion,		OPAL_CHECK_ASYNC_COMPLETION);
+OPAL_CALL(opal_dump_resend_notification,	OPAL_DUMP_RESEND);
+OPAL_CALL(opal_sync_host_reboot,		OPAL_SYNC_HOST_REBOOT);
+OPAL_CALL(opal_sensor_read,			OPAL_SENSOR_READ);
+OPAL_CALL(opal_get_param,			OPAL_GET_PARAM);
+OPAL_CALL(opal_set_param,			OPAL_SET_PARAM);

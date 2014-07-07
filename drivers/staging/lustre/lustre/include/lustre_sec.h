@@ -572,7 +572,7 @@ struct ptlrpc_sec_cops {
 	/**
 	 * Called then the reference of \a ctx dropped to 0. The policy module
 	 * is supposed to destroy this context or whatever else according to
-	 * its cache maintainance mechamism.
+	 * its cache maintenance mechanism.
 	 *
 	 * \param sync if zero, we shouldn't wait for the context being
 	 * destroyed completely.
@@ -903,12 +903,6 @@ struct ptlrpc_bulk_sec_desc {
 
 
 /*
- * lprocfs
- */
-struct proc_dir_entry;
-extern struct proc_dir_entry *sptlrpc_proc_root;
-
-/*
  * round size up to next power of 2, for slab allocation.
  * @size must be sane (can't overflow after round up)
  */
@@ -1008,7 +1002,7 @@ struct ptlrpc_sec *sptlrpc_sec_get(struct ptlrpc_sec *sec);
 void sptlrpc_sec_put(struct ptlrpc_sec *sec);
 
 /*
- * internal apis which only used by policy impelentation
+ * internal apis which only used by policy implementation
  */
 int  sptlrpc_get_next_secid(void);
 void sptlrpc_sec_destroy(struct ptlrpc_sec *sec);
@@ -1067,7 +1061,18 @@ void sptlrpc_gc_add_ctx(struct ptlrpc_cli_ctx *ctx);
 
 /* misc */
 const char * sec2target_str(struct ptlrpc_sec *sec);
+/*
+ * lprocfs
+ */
+#ifdef LPROCFS
+struct proc_dir_entry;
+extern struct proc_dir_entry *sptlrpc_proc_root;
 int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev);
+#else
+#define sptlrpc_proc_root	NULL
+static inline int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev)
+{ return 0; }
+#endif
 
 /*
  * server side

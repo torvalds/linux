@@ -13,7 +13,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/init.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -416,7 +415,7 @@ open_err:
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id imx_keypad_of_match[] = {
+static const struct of_device_id imx_keypad_of_match[] = {
 	{ .compatible = "fsl,imx21-kpp", },
 	{ /* sentinel */ }
 };
@@ -425,7 +424,8 @@ MODULE_DEVICE_TABLE(of, imx_keypad_of_match);
 
 static int imx_keypad_probe(struct platform_device *pdev)
 {
-	const struct matrix_keymap_data *keymap_data = pdev->dev.platform_data;
+	const struct matrix_keymap_data *keymap_data =
+			dev_get_platdata(&pdev->dev);
 	struct imx_keypad *keypad;
 	struct input_dev *input_dev;
 	struct resource *res;
@@ -439,7 +439,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "no irq defined in platform data\n");
-		return -EINVAL;
+		return irq;
 	}
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
@@ -449,7 +449,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	}
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(struct imx_keypad),
-			     GFP_KERNEL);
+			      GFP_KERNEL);
 	if (!keypad) {
 		dev_err(&pdev->dev, "not enough memory for driver data\n");
 		return -ENOMEM;

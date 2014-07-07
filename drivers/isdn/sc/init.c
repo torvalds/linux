@@ -336,7 +336,7 @@ static int __init sc_init(void)
 		 */
 		sc_adapter[cinst]->interrupt = irq[b];
 		if (request_irq(sc_adapter[cinst]->interrupt, interrupt_handler,
-				IRQF_DISABLED, interface->id,
+				0, interface->id,
 				(void *)(unsigned long) cinst))
 		{
 			kfree(sc_adapter[cinst]->channel);
@@ -390,8 +390,8 @@ static void __exit sc_exit(void)
 		/*
 		 * kill the timers
 		 */
-		del_timer(&(sc_adapter[i]->reset_timer));
-		del_timer(&(sc_adapter[i]->stat_timer));
+		del_timer_sync(&(sc_adapter[i]->reset_timer));
+		del_timer_sync(&(sc_adapter[i]->stat_timer));
 
 		/*
 		 * Tell I4L we're toast

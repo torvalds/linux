@@ -225,44 +225,31 @@ struct nl_info {
 	u32			portid;
 };
 
-extern int		netlink_rcv_skb(struct sk_buff *skb,
-					int (*cb)(struct sk_buff *,
-						  struct nlmsghdr *));
-extern int		nlmsg_notify(struct sock *sk, struct sk_buff *skb,
-				     u32 portid, unsigned int group, int report,
-				     gfp_t flags);
+int netlink_rcv_skb(struct sk_buff *skb,
+		    int (*cb)(struct sk_buff *, struct nlmsghdr *));
+int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 portid,
+		 unsigned int group, int report, gfp_t flags);
 
-extern int		nla_validate(const struct nlattr *head,
-				     int len, int maxtype,
-				     const struct nla_policy *policy);
-extern int		nla_parse(struct nlattr **tb, int maxtype,
-				  const struct nlattr *head, int len,
-				  const struct nla_policy *policy);
-extern int		nla_policy_len(const struct nla_policy *, int);
-extern struct nlattr *	nla_find(const struct nlattr *head,
-				 int len, int attrtype);
-extern size_t		nla_strlcpy(char *dst, const struct nlattr *nla,
-				    size_t dstsize);
-extern int		nla_memcpy(void *dest, const struct nlattr *src, int count);
-extern int		nla_memcmp(const struct nlattr *nla, const void *data,
-				   size_t size);
-extern int		nla_strcmp(const struct nlattr *nla, const char *str);
-extern struct nlattr *	__nla_reserve(struct sk_buff *skb, int attrtype,
-				      int attrlen);
-extern void *		__nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
-extern struct nlattr *	nla_reserve(struct sk_buff *skb, int attrtype,
-				    int attrlen);
-extern void *		nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
-extern void		__nla_put(struct sk_buff *skb, int attrtype,
-				  int attrlen, const void *data);
-extern void		__nla_put_nohdr(struct sk_buff *skb, int attrlen,
-					const void *data);
-extern int		nla_put(struct sk_buff *skb, int attrtype,
-				int attrlen, const void *data);
-extern int		nla_put_nohdr(struct sk_buff *skb, int attrlen,
-				      const void *data);
-extern int		nla_append(struct sk_buff *skb, int attrlen,
-				   const void *data);
+int nla_validate(const struct nlattr *head, int len, int maxtype,
+		 const struct nla_policy *policy);
+int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
+	      int len, const struct nla_policy *policy);
+int nla_policy_len(const struct nla_policy *, int);
+struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype);
+size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize);
+int nla_memcpy(void *dest, const struct nlattr *src, int count);
+int nla_memcmp(const struct nlattr *nla, const void *data, size_t size);
+int nla_strcmp(const struct nlattr *nla, const char *str);
+struct nlattr *__nla_reserve(struct sk_buff *skb, int attrtype, int attrlen);
+void *__nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
+struct nlattr *nla_reserve(struct sk_buff *skb, int attrtype, int attrlen);
+void *nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
+void __nla_put(struct sk_buff *skb, int attrtype, int attrlen,
+	       const void *data);
+void __nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data);
+int nla_put(struct sk_buff *skb, int attrtype, int attrlen, const void *data);
+int nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data);
+int nla_append(struct sk_buff *skb, int attrlen, const void *data);
 
 /**************************************************************************
  * Netlink Messages

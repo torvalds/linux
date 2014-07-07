@@ -24,9 +24,11 @@
 #ifdef __KERNEL__
 
 #include <linux/types.h>
+#include <linux/blk_types.h>
 #include <asm/byteorder.h>
 #include <asm/memory.h>
 #include <asm-generic/pci_iomap.h>
+#include <xen/xen.h>
 
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
@@ -34,6 +36,12 @@
 #define isa_virt_to_bus virt_to_phys
 #define isa_page_to_bus page_to_phys
 #define isa_bus_to_virt phys_to_virt
+
+/*
+ * Atomic MMIO-wide IO modify
+ */
+extern void atomic_io_modify(void __iomem *reg, u32 mask, u32 set);
+extern void atomic_io_modify_relaxed(void __iomem *reg, u32 mask, u32 set);
 
 /*
  * Generic IO read/write.  These perform native-endian accesses.  Note
@@ -170,6 +178,12 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
 
 /* PCI fixed i/o mapping */
 #define PCI_IO_VIRT_BASE	0xfee00000
+
+#if defined(CONFIG_PCI)
+void pci_ioremap_set_mem_type(int mem_type);
+#else
+static inline void pci_ioremap_set_mem_type(int mem_type) {}
+#endif
 
 extern int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr);
 
@@ -327,7 +341,7 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
  */
 #define ioremap(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE)
 #define ioremap_nocache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE)
-#define ioremap_cached(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE_CACHED)
+#define ioremap_cache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE_CACHED)
 #define ioremap_wc(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE_WC)
 #define iounmap				__arm_iounmap
 
@@ -371,6 +385,13 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
  */
 #define BIOVEC_MERGEABLE(vec1, vec2)	\
 	((bvec_to_phys((vec1)) + (vec1)->bv_len) == bvec_to_phys((vec2)))
+
+struct bio_vec;
+extern bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
+				      const struct bio_vec *vec2);
+#define BIOVEC_PHYS_MERGEABLE(vec1, vec2)				\
+	(__BIOVEC_PHYS_MERGEABLE(vec1, vec2) &&				\
+	 (!xen_domain() || xen_biovec_phys_mergeable(vec1, vec2)))
 
 #ifdef CONFIG_MMU
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE

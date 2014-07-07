@@ -448,45 +448,39 @@ static int pci_dio_insn_bits_di_w(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
 static int pci_dio_insn_bits_do_b(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
 	int i;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data)) {
 		for (i = 0; i < d->regs; i++)
 			outb((s->state >> (8 * i)) & 0xff,
 			     dev->iobase + d->addr + i);
 	}
+
 	data[1] = s->state;
 
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
 static int pci_dio_insn_bits_do_w(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
 	int i;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data)) {
 		for (i = 0; i < d->regs; i++)
 			outw((s->state >> (16 * i)) & 0xffff,
 			     dev->iobase + d->addr + 2 * i);
 	}
+
 	data[1] = s->state;
 
 	return insn->n;
@@ -641,12 +635,10 @@ static int pci1760_insn_bits_di(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
 static int pci1760_insn_bits_do(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	int ret;
 	unsigned char omb[4] = {
@@ -657,14 +649,13 @@ static int pci1760_insn_bits_do(struct comedi_device *dev,
 	};
 	unsigned char imb[4];
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data)) {
 		omb[0] = s->state;
 		ret = pci1760_mbxrequest(dev, omb, imb);
 		if (!ret)
 			return ret;
 	}
+
 	data[1] = s->state;
 
 	return insn->n;
@@ -1139,10 +1130,12 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < MAX_DIO_SUBDEVG; i++)
 		for (j = 0; j < this_board->sdio[i].regs; j++) {
 			s = &dev->subdevices[subdev];
-			subdev_8255_init(dev, s, NULL,
-					 dev->iobase +
-					 this_board->sdio[i].addr +
-					 SIZE_8255 * j);
+			ret = subdev_8255_init(dev, s, NULL,
+					       dev->iobase +
+					       this_board->sdio[i].addr +
+					       SIZE_8255 * j);
+			if (ret)
+				return ret;
 			subdev++;
 		}
 
@@ -1197,7 +1190,7 @@ static int adv_pci_dio_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adv_pci_dio_driver, cardtype);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(adv_pci_dio_pci_table) = {
+static const struct pci_device_id adv_pci_dio_pci_table[] = {
 	{ PCI_VDEVICE(ADVANTECH, 0x1730), TYPE_PCI1730 },
 	{ PCI_VDEVICE(ADVANTECH, 0x1733), TYPE_PCI1733 },
 	{ PCI_VDEVICE(ADVANTECH, 0x1734), TYPE_PCI1734 },

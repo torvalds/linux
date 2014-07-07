@@ -23,8 +23,7 @@
  * the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program;  if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program;  if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -1323,7 +1322,7 @@ unlabel_staticlistdef_return:
  * NetLabel Generic NETLINK Command Definitions
  */
 
-static struct genl_ops netlbl_unlabel_genl_ops[] = {
+static const struct genl_ops netlbl_unlabel_genl_ops[] = {
 	{
 	.cmd = NLBL_UNLABEL_C_STATICADD,
 	.flags = GENL_ADMIN_PERM,
@@ -1397,7 +1396,7 @@ static struct genl_ops netlbl_unlabel_genl_ops[] = {
 int __init netlbl_unlabel_genl_init(void)
 {
 	return genl_register_family_with_ops(&netlbl_unlabel_gnl_family,
-		netlbl_unlabel_genl_ops, ARRAY_SIZE(netlbl_unlabel_genl_ops));
+					     netlbl_unlabel_genl_ops);
 }
 
 /*

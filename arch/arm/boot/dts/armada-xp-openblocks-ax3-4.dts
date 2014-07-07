@@ -11,6 +11,8 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include "armada-xp-mv78260.dtsi"
 
 / {
@@ -23,7 +25,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0 0x00000000 0 0xC0000000>; /* 3 GB */
+		reg = <0 0x00000000 0 0x40000000>; /* 1 GB soldered on */
 	};
 
 	soc {
@@ -37,7 +39,7 @@
 			/* Device Bus parameters are required */
 
 			/* Read parameters */
-			devbus,bus-width    = <8>;
+			devbus,bus-width    = <16>;
 			devbus,turn-off-ps  = <60000>;
 			devbus,badr-skew-ps = <0>;
 			devbus,acc-first-ps = <124000>;
@@ -70,11 +72,9 @@
 
 		internal-regs {
 			serial@12000 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12100 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			pinctrl {
@@ -90,21 +90,20 @@
 
 				red_led {
 					label = "red_led";
-					gpios = <&gpio1 17 1>;
+					gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 					default-state = "off";
 				};
 
 				yellow_led {
 					label = "yellow_led";
-					gpios = <&gpio1 19 1>;
+					gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 					default-state = "off";
 				};
 
 				green_led {
 					label = "green_led";
-					gpios = <&gpio1 21 1>;
-					default-state = "off";
-					linux,default-trigger = "heartbeat";
+					gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+					default-state = "keep";
 				};
 			};
 
@@ -115,8 +114,8 @@
 
 				button@1 {
 					label = "Init Button";
-					linux,code = <116>;
-					gpios = <&gpio1 28 0>;
+					linux,code = <KEY_POWER>;
+					gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 				};
 			};
 

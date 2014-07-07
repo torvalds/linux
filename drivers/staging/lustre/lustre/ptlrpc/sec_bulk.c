@@ -113,7 +113,7 @@ static struct ptlrpc_enc_page_pool {
 	unsigned long    epp_st_missings;       /* # of cache missing */
 	unsigned long    epp_st_lowfree;	/* lowest free pages reached */
 	unsigned int     epp_st_max_wqlen;      /* highest waitqueue length */
-	cfs_time_t       epp_st_max_wait;       /* in jeffies */
+	cfs_time_t       epp_st_max_wait;       /* in jiffies */
 	/*
 	 * pointers to pools
 	 */
@@ -207,7 +207,7 @@ static void enc_pools_release_free_pages(long npages)
 			p_idx++;
 			g_idx = 0;
 		}
-	};
+	}
 
 	/* free unused pools */
 	while (p_idx_max1 < p_idx_max2) {
@@ -421,7 +421,7 @@ static int enc_pools_add_pages(int npages)
 			goto out_pools;
 
 		for (j = 0; j < PAGES_PER_POOL && alloced < npages; j++) {
-			pools[i][j] = alloc_page(__GFP_IO |
+			pools[i][j] = alloc_page(GFP_NOFS |
 						     __GFP_HIGHMEM);
 			if (pools[i][j] == NULL)
 				goto out_pools;
@@ -450,7 +450,7 @@ out:
 
 static inline void enc_pools_wakeup(void)
 {
-	LASSERT(spin_is_locked(&page_pools.epp_lock));
+	assert_spin_locked(&page_pools.epp_lock);
 	LASSERT(page_pools.epp_waitqlen >= 0);
 
 	if (unlikely(page_pools.epp_waitqlen)) {
@@ -545,11 +545,11 @@ again:
 						page_pools.epp_waitqlen;
 
 			set_current_state(TASK_UNINTERRUPTIBLE);
-			init_waitqueue_entry_current(&waitlink);
+			init_waitqueue_entry(&waitlink, current);
 			add_wait_queue(&page_pools.epp_waitq, &waitlink);
 
 			spin_unlock(&page_pools.epp_lock);
-			waitq_wait(&waitlink, TASK_UNINTERRUPTIBLE);
+			schedule();
 			remove_wait_queue(&page_pools.epp_waitq, &waitlink);
 			LASSERT(page_pools.epp_waitqlen > 0);
 			spin_lock(&page_pools.epp_lock);

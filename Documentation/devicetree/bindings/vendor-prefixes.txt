@@ -3,73 +3,144 @@ Device tree binding vendor prefix registry.  Keep list in alphabetical order.
 This isn't an exhaustive list, but you should add new prefixes to it before
 using them to avoid name-space collisions.
 
+abilis	Abilis Systems
+active-semi	Active-Semi International Inc
 ad	Avionic Design GmbH
 adi	Analog Devices, Inc.
 aeroflexgaisler	Aeroflex Gaisler AB
 ak	Asahi Kasei Corp.
+allwinner	Allwinner Technology Co., Ltd.
 altr	Altera Corp.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
+amd	Advanced Micro Devices (AMD), Inc.
+ams	AMS AG
+amstaos	AMS-Taos Inc.
 apm	Applied Micro Circuits Corporation (APM)
 arm	ARM Ltd.
+armadeus	ARMadeus Systems SARL
 atmel	Atmel Corporation
+auo	AU Optronics Corporation
 avago	Avago Technologies
 bosch	Bosch Sensortec GmbH
 brcm	Broadcom Corporation
+buffalo	Buffalo, Inc.
+calxeda	Calxeda
+capella	Capella Microsystems, Inc
 cavium	Cavium, Inc.
+cdns	Cadence Design Systems Inc.
 chrp	Common Hardware Reference Platform
+chunghwa	Chunghwa Picture Tubes Ltd.
 cirrus	Cirrus Logic, Inc.
 cortina	Cortina Systems, Inc.
+crystalfontz	Crystalfontz America, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 davicom	DAVICOM Semiconductor, Inc.
 denx	Denx Software Engineering
+digi	Digi International Inc.
+dlink	D-Link Corporation
+dmo	Data Modul AG
+ebv	EBV Elektronik
+edt	Emerging Display Technologies
 emmicro	EM Microelectronic
+epfl	Ecole Polytechnique Fédérale de Lausanne
 epson	Seiko Epson Corp.
 est	ESTeem Wireless Modems
+eukrea  Eukréa Electromatique
+excito	Excito
 fsl	Freescale Semiconductor
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+globalscale	Globalscale Technologies, Inc.
+gmt	Global Mixed-mode Technology, Inc.
+google	Google, Inc.
+gumstix	Gumstix, Inc.
+haoyu	Haoyu Microelectronic Co. Ltd.
 hisilicon	Hisilicon Limited.
+honeywell	Honeywell
 hp	Hewlett Packard
+i2se	I2SE GmbH
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
+iom	Iomega Corporation
 img	Imagination Technologies Ltd.
+intel	Intel Corporation
 intercontrol	Inter Control Group
+isee	ISEE 2007 S.L.
+isl	Intersil
+karo	Ka-Ro electronics GmbH
+keymile	Keymile GmbH
+lacie	LaCie
+lantiq	Lantiq Semiconductor
+lg	LG Corporation
 linux	Linux-specific binding
 lsi	LSI Corp. (LSI Logic)
+lltc	Linear Technology Corporation
 marvell	Marvell Technology Group Ltd.
 maxim	Maxim Integrated Products
+micrel	Micrel Inc.
 microchip	Microchip Technology Inc.
 mosaixtech	Mosaix Technologies, Inc.
+moxa	Moxa
+mpl	MPL AG
+mundoreader	Mundo Reader S.L.
+murata	Murata Manufacturing Co., Ltd.
+mxicy	Macronix International Co., Ltd.
 national	National Semiconductor
+neonode		Neonode Inc.
+netgear	NETGEAR
+newhaven	Newhaven Display International
 nintendo	Nintendo
+nokia	Nokia
 nvidia	NVIDIA
 nxp	NXP Semiconductors
 onnn	ON Semiconductor Corp.
+opencores	OpenCores.org
+panasonic	Panasonic Corporation
+phytec	PHYTEC Messtechnik GmbH
 picochip	Picochip Ltd
+plathome	Plat'Home Co., Ltd.
 powervr	PowerVR (deprecated, use img)
 qca	Qualcomm Atheros, Inc.
-qcom	Qualcomm, Inc.
+qcom	Qualcomm Technologies, Inc
+qnap	QNAP Systems, Inc.
+radxa	Radxa
+raidsonic	RaidSonic Technology GmbH
 ralink	Mediatek/Ralink Technology Corp.
 ramtron	Ramtron International
 realtek Realtek Semiconductor Corp.
 renesas	Renesas Electronics Corporation
+ricoh	Ricoh Co. Ltd.
+rockchip	Fuzhou Rockchip Electronics Co., Ltd
 samsung	Samsung Semiconductor
 sbs	Smart Battery System
 schindler	Schindler
+seagate	Seagate Technology PLC
 sil	Silicon Image
 silabs	Silicon Laboratories
 simtek
+sii	Seiko Instruments, Inc.
 sirf	SiRF Technology, Inc.
+smsc	Standard Microsystems Corporation
 snps 	Synopsys, Inc.
+spansion	Spansion Inc.
 st	STMicroelectronics
 ste	ST-Ericsson
 stericsson	ST-Ericsson
-toumaz	Toumaz
+synology	Synology, Inc.
 ti	Texas Instruments
+tlm	Trusted Logic Mobility
+toradex	Toradex AG
 toshiba	Toshiba Corporation
+toumaz	Toumaz
+usi	Universal Scientifc Industrial Co., Ltd.
 v3	V3 Semiconductor
+variscite	Variscite Ltd.
 via	VIA Technologies, Inc.
+voipac	Voipac Technologies s.r.o.
+winbond Winbond Electronics corp.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
-winbond Winbond Electronics corp.
+xes	Extreme Engineering Solutions (X-ES)
 xlnx	Xilinx
+zyxel	ZyXEL Communications Corp.
+zarlink	Zarlink Semiconductor

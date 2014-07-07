@@ -235,27 +235,6 @@ void pci_disable_pri(struct pci_dev *pdev)
 EXPORT_SYMBOL_GPL(pci_disable_pri);
 
 /**
- * pci_pri_enabled - Checks if PRI capability is enabled
- * @pdev: PCI device structure
- *
- * Returns true if PRI is enabled on the device, false otherwise
- */
-bool pci_pri_enabled(struct pci_dev *pdev)
-{
-	u16 control;
-	int pos;
-
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
-	if (!pos)
-		return false;
-
-	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
-
-	return (control & PCI_PRI_CTRL_ENABLE) ? true : false;
-}
-EXPORT_SYMBOL_GPL(pci_pri_enabled);
-
-/**
  * pci_reset_pri - Resets device's PRI state
  * @pdev: PCI device structure
  *
@@ -282,67 +261,6 @@ int pci_reset_pri(struct pci_dev *pdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_reset_pri);
-
-/**
- * pci_pri_stopped - Checks whether the PRI capability is stopped
- * @pdev: PCI device structure
- *
- * Returns true if the PRI capability on the device is disabled and the
- * device has no outstanding PRI requests, false otherwise. The device
- * indicates this via the STOPPED bit in the status register of the
- * capability.
- * The device internal state can be cleared by resetting the PRI state
- * with pci_reset_pri(). This can force the capability into the STOPPED
- * state.
- */
-bool pci_pri_stopped(struct pci_dev *pdev)
-{
-	u16 control, status;
-	int pos;
-
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
-	if (!pos)
-		return true;
-
-	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
-	pci_read_config_word(pdev, pos + PCI_PRI_STATUS, &status);
-
-	if (control & PCI_PRI_CTRL_ENABLE)
-		return false;
-
-	return (status & PCI_PRI_STATUS_STOPPED) ? true : false;
-}
-EXPORT_SYMBOL_GPL(pci_pri_stopped);
-
-/**
- * pci_pri_status - Request PRI status of a device
- * @pdev: PCI device structure
- *
- * Returns negative value on failure, status on success. The status can
- * be checked against status-bits. Supported bits are currently:
- * PCI_PRI_STATUS_RF:      Response failure
- * PCI_PRI_STATUS_UPRGI:   Unexpected Page Request Group Index
- * PCI_PRI_STATUS_STOPPED: PRI has stopped
- */
-int pci_pri_status(struct pci_dev *pdev)
-{
-	u16 status, control;
-	int pos;
-
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
-	if (!pos)
-		return -EINVAL;
-
-	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
-	pci_read_config_word(pdev, pos + PCI_PRI_STATUS, &status);
-
-	/* Stopped bit is undefined when enable == 1, so clear it */
-	if (control & PCI_PRI_CTRL_ENABLE)
-		status &= ~PCI_PRI_STATUS_STOPPED;
-
-	return status;
-}
-EXPORT_SYMBOL_GPL(pci_pri_status);
 #endif /* CONFIG_PCI_PRI */
 
 #ifdef CONFIG_PCI_PASID
@@ -410,7 +328,7 @@ EXPORT_SYMBOL_GPL(pci_disable_pasid);
  * Otherwise is returns a bitmask with supported features. Current
  * features reported are:
  * PCI_PASID_CAP_EXEC - Execute permission supported
- * PCI_PASID_CAP_PRIV - Priviledged mode supported
+ * PCI_PASID_CAP_PRIV - Privileged mode supported
  */
 int pci_pasid_features(struct pci_dev *pdev)
 {

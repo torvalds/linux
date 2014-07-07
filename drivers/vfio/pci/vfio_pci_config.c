@@ -975,20 +975,20 @@ static int vfio_vc_cap_len(struct vfio_pci_device *vdev, u16 pos)
 	int ret, evcc, phases, vc_arb;
 	int len = PCI_CAP_VC_BASE_SIZEOF;
 
-	ret = pci_read_config_dword(pdev, pos + PCI_VC_PORT_REG1, &tmp);
+	ret = pci_read_config_dword(pdev, pos + PCI_VC_PORT_CAP1, &tmp);
 	if (ret)
 		return pcibios_err_to_errno(ret);
 
-	evcc = tmp & PCI_VC_REG1_EVCC; /* extended vc count */
-	ret = pci_read_config_dword(pdev, pos + PCI_VC_PORT_REG2, &tmp);
+	evcc = tmp & PCI_VC_CAP1_EVCC; /* extended vc count */
+	ret = pci_read_config_dword(pdev, pos + PCI_VC_PORT_CAP2, &tmp);
 	if (ret)
 		return pcibios_err_to_errno(ret);
 
-	if (tmp & PCI_VC_REG2_128_PHASE)
+	if (tmp & PCI_VC_CAP2_128_PHASE)
 		phases = 128;
-	else if (tmp & PCI_VC_REG2_64_PHASE)
+	else if (tmp & PCI_VC_CAP2_64_PHASE)
 		phases = 64;
-	else if (tmp & PCI_VC_REG2_32_PHASE)
+	else if (tmp & PCI_VC_CAP2_32_PHASE)
 		phases = 32;
 	else
 		phases = 0;
@@ -1126,8 +1126,7 @@ static int vfio_ext_cap_len(struct vfio_pci_device *vdev, u16 ecap, u16 epos)
 			return pcibios_err_to_errno(ret);
 
 		byte &= PCI_DPA_CAP_SUBSTATE_MASK;
-		byte = round_up(byte + 1, 4);
-		return PCI_DPA_BASE_SIZEOF + byte;
+		return PCI_DPA_BASE_SIZEOF + byte + 1;
 	case PCI_EXT_CAP_ID_TPH:
 		ret = pci_read_config_dword(pdev, epos + PCI_TPH_CAP, &dword);
 		if (ret)
@@ -1136,9 +1135,9 @@ static int vfio_ext_cap_len(struct vfio_pci_device *vdev, u16 ecap, u16 epos)
 		if ((dword & PCI_TPH_CAP_LOC_MASK) == PCI_TPH_LOC_CAP) {
 			int sts;
 
-			sts = byte & PCI_TPH_CAP_ST_MASK;
+			sts = dword & PCI_TPH_CAP_ST_MASK;
 			sts >>= PCI_TPH_CAP_ST_SHIFT;
-			return PCI_TPH_BASE_SIZEOF + round_up(sts * 2, 4);
+			return PCI_TPH_BASE_SIZEOF + (sts * 2) + 2;
 		}
 		return PCI_TPH_BASE_SIZEOF;
 	default:

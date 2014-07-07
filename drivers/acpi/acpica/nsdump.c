@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,6 +59,17 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
 #endif
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+
+#ifdef	ACPI_FUTURE_USAGE
+static acpi_status
+acpi_ns_dump_one_object_path(acpi_handle obj_handle,
+			     u32 level, void *context, void **return_value);
+
+static acpi_status
+acpi_ns_get_max_depth(acpi_handle obj_handle,
+		      u32 level, void *context, void **return_value);
+#endif				/* ACPI_FUTURE_USAGE */
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_print_pathname
@@ -609,7 +620,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		obj_type = ACPI_TYPE_INVALID;	/* Terminate loop after next pass */
 	}
 
-      cleanup:
+cleanup:
 	acpi_os_printf("\n");
 	return (AE_OK);
 }
@@ -666,6 +677,136 @@ acpi_ns_dump_objects(acpi_object_type type,
 				     ACPI_NS_WALK_TEMP_NODES,
 				     acpi_ns_dump_one_object, NULL,
 				     (void *)&info, NULL);
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+}
+#endif				/* ACPI_FUTURE_USAGE */
+
+#ifdef	ACPI_FUTURE_USAGE
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_dump_one_object_path, acpi_ns_get_max_depth
+ *
+ * PARAMETERS:  obj_handle          - Node to be dumped
+ *              level               - Nesting level of the handle
+ *              context             - Passed into walk_namespace
+ *              return_value        - Not used
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Dump the full pathname to a namespace object. acp_ns_get_max_depth
+ *              computes the maximum nesting depth in the namespace tree, in
+ *              order to simplify formatting in acpi_ns_dump_one_object_path.
+ *              These procedures are user_functions called by acpi_ns_walk_namespace.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ns_dump_one_object_path(acpi_handle obj_handle,
+			     u32 level, void *context, void **return_value)
+{
+	u32 max_level = *((u32 *)context);
+	char *pathname;
+	struct acpi_namespace_node *node;
+	int path_indent;
+
+	if (!obj_handle) {
+		return (AE_OK);
+	}
+
+	node = acpi_ns_validate_handle(obj_handle);
+	if (!node) {
+
+		/* Ignore bad node during namespace walk */
+
+		return (AE_OK);
+	}
+
+	pathname = acpi_ns_get_external_pathname(node);
+
+	path_indent = 1;
+	if (level <= max_level) {
+		path_indent = max_level - level + 1;
+	}
+
+	acpi_os_printf("%2d%*s%-12s%*s",
+		       level, level, " ", acpi_ut_get_type_name(node->type),
+		       path_indent, " ");
+
+	acpi_os_printf("%s\n", &pathname[1]);
+	ACPI_FREE(pathname);
+	return (AE_OK);
+}
+
+static acpi_status
+acpi_ns_get_max_depth(acpi_handle obj_handle,
+		      u32 level, void *context, void **return_value)
+{
+	u32 *max_level = (u32 *)context;
+
+	if (level > *max_level) {
+		*max_level = level;
+	}
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_dump_object_paths
+ *
+ * PARAMETERS:  type                - Object type to be dumped
+ *              display_type        - 0 or ACPI_DISPLAY_SUMMARY
+ *              max_depth           - Maximum depth of dump. Use ACPI_UINT32_MAX
+ *                                    for an effectively unlimited depth.
+ *              owner_id            - Dump only objects owned by this ID. Use
+ *                                    ACPI_UINT32_MAX to match all owners.
+ *              start_handle        - Where in namespace to start/end search
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Dump full object pathnames within the loaded namespace. Uses
+ *              acpi_ns_walk_namespace in conjunction with acpi_ns_dump_one_object_path.
+ *
+ ******************************************************************************/
+
+void
+acpi_ns_dump_object_paths(acpi_object_type type,
+			  u8 display_type,
+			  u32 max_depth,
+			  acpi_owner_id owner_id, acpi_handle start_handle)
+{
+	acpi_status status;
+	u32 max_level = 0;
+
+	ACPI_FUNCTION_ENTRY();
+
+	/*
+	 * Just lock the entire namespace for the duration of the dump.
+	 * We don't want any changes to the namespace during this time,
+	 * especially the temporary nodes since we are going to display
+	 * them also.
+	 */
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		acpi_os_printf("Could not acquire namespace mutex\n");
+		return;
+	}
+
+	/* Get the max depth of the namespace tree, for formatting later */
+
+	(void)acpi_ns_walk_namespace(type, start_handle, max_depth,
+				     ACPI_NS_WALK_NO_UNLOCK |
+				     ACPI_NS_WALK_TEMP_NODES,
+				     acpi_ns_get_max_depth, NULL,
+				     (void *)&max_level, NULL);
+
+	/* Now dump the entire namespace */
+
+	(void)acpi_ns_walk_namespace(type, start_handle, max_depth,
+				     ACPI_NS_WALK_NO_UNLOCK |
+				     ACPI_NS_WALK_TEMP_NODES,
+				     acpi_ns_dump_one_object_path, NULL,
+				     (void *)&max_level, NULL);
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 }

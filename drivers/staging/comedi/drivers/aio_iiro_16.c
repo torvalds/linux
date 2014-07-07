@@ -45,9 +45,7 @@ static int aio_iiro_16_dio_insn_bits_write(struct comedi_device *dev,
 					   struct comedi_insn *insn,
 					   unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	if (comedi_dio_update_state(s, data)) {
 		outb(s->state & 0xff, dev->iobase + AIO_IIRO_16_RELAY_0_7);
 		outb((s->state >> 8) & 0xff,
 		     dev->iobase + AIO_IIRO_16_RELAY_8_15);
@@ -100,7 +98,7 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = aio_iiro_16_dio_insn_bits_read;
 
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver aio_iiro_16_driver = {

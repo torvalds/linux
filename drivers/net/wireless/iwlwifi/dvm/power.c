@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -30,7 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <net/mac80211.h>
 #include "iwl-io.h"
 #include "iwl-debug.h"
@@ -279,7 +278,7 @@ static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return iwl_dvm_send_cmd_pdu(priv, POWER_TABLE_CMD, CMD_SYNC,
+	return iwl_dvm_send_cmd_pdu(priv, POWER_TABLE_CMD, 0,
 				sizeof(struct iwl_powertable_cmd), cmd);
 }
 
@@ -362,7 +361,7 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 
 		memcpy(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd));
 	} else
-		IWL_ERR(priv, "set power fail, ret = %d", ret);
+		IWL_ERR(priv, "set power fail, ret = %d\n", ret);
 
 	return ret;
 }

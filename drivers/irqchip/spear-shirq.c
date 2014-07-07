@@ -5,7 +5,7 @@
  * Viresh Kumar <viresh.linux@gmail.com>
  *
  * Copyright (C) 2012 ST Microelectronics
- * Shiraz Hashim <shiraz.hashim@st.com>
+ * Shiraz Hashim <shiraz.linux.kernel@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -125,7 +125,7 @@ static struct spear_shirq spear320_shirq_ras2 = {
 };
 
 static struct spear_shirq spear320_shirq_ras3 = {
-	.irq_nr = 3,
+	.irq_nr = 7,
 	.irq_bit_off = 0,
 	.invalid_irq = 1,
 	.regs = {

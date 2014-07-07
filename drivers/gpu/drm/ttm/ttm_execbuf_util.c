@@ -32,8 +32,7 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 
-static void ttm_eu_backoff_reservation_locked(struct list_head *list,
-					      struct ww_acquire_ctx *ticket)
+static void ttm_eu_backoff_reservation_locked(struct list_head *list)
 {
 	struct ttm_validate_buffer *entry;
 
@@ -47,7 +46,7 @@ static void ttm_eu_backoff_reservation_locked(struct list_head *list,
 			ttm_bo_add_to_lru(bo);
 			entry->removed = false;
 		}
-		ww_mutex_unlock(&bo->resv->lock);
+		__ttm_bo_unreserve(bo);
 	}
 }
 
@@ -93,8 +92,9 @@ void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
 	entry = list_first_entry(list, struct ttm_validate_buffer, head);
 	glob = entry->bo->glob;
 	spin_lock(&glob->lru_lock);
-	ttm_eu_backoff_reservation_locked(list, ticket);
-	ww_acquire_fini(ticket);
+	ttm_eu_backoff_reservation_locked(list);
+	if (ticket)
+		ww_acquire_fini(ticket);
 	spin_unlock(&glob->lru_lock);
 }
 EXPORT_SYMBOL(ttm_eu_backoff_reservation);
@@ -130,7 +130,8 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 	entry = list_first_entry(list, struct ttm_validate_buffer, head);
 	glob = entry->bo->glob;
 
-	ww_acquire_init(ticket, &reservation_ww_class);
+	if (ticket)
+		ww_acquire_init(ticket, &reservation_ww_class);
 retry:
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
@@ -139,16 +140,17 @@ retry:
 		if (entry->reserved)
 			continue;
 
-
-		ret = ttm_bo_reserve_nolru(bo, true, false, true, ticket);
+		ret = __ttm_bo_reserve(bo, true, (ticket == NULL), true,
+				       ticket);
 
 		if (ret == -EDEADLK) {
 			/* uh oh, we lost out, drop every reservation and try
 			 * to only reserve this buffer, then start over if
 			 * this succeeds.
 			 */
+			BUG_ON(ticket == NULL);
 			spin_lock(&glob->lru_lock);
-			ttm_eu_backoff_reservation_locked(list, ticket);
+			ttm_eu_backoff_reservation_locked(list);
 			spin_unlock(&glob->lru_lock);
 			ttm_eu_list_ref_sub(list);
 			ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
@@ -175,7 +177,8 @@ retry:
 		}
 	}
 
-	ww_acquire_done(ticket);
+	if (ticket)
+		ww_acquire_done(ticket);
 	spin_lock(&glob->lru_lock);
 	ttm_eu_del_from_lru_locked(list);
 	spin_unlock(&glob->lru_lock);
@@ -184,12 +187,14 @@ retry:
 
 err:
 	spin_lock(&glob->lru_lock);
-	ttm_eu_backoff_reservation_locked(list, ticket);
+	ttm_eu_backoff_reservation_locked(list);
 	spin_unlock(&glob->lru_lock);
 	ttm_eu_list_ref_sub(list);
 err_fini:
-	ww_acquire_done(ticket);
-	ww_acquire_fini(ticket);
+	if (ticket) {
+		ww_acquire_done(ticket);
+		ww_acquire_fini(ticket);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(ttm_eu_reserve_buffers);
@@ -219,12 +224,13 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 		entry->old_sync_obj = bo->sync_obj;
 		bo->sync_obj = driver->sync_obj_ref(sync_obj);
 		ttm_bo_add_to_lru(bo);
-		ww_mutex_unlock(&bo->resv->lock);
+		__ttm_bo_unreserve(bo);
 		entry->reserved = false;
 	}
 	spin_unlock(&bdev->fence_lock);
 	spin_unlock(&glob->lru_lock);
-	ww_acquire_fini(ticket);
+	if (ticket)
+		ww_acquire_fini(ticket);
 
 	list_for_each_entry(entry, list, head) {
 		if (entry->old_sync_obj)

@@ -31,8 +31,6 @@ static inline u32 ioasic_read(unsigned int reg)
 	return ioasic_base[reg / 4];
 }
 
-extern void clear_ioasic_dma_irq(unsigned int irq);
-
 extern void init_ioasic_irqs(int base);
 
 extern int dec_ioasic_clocksource_init(void);

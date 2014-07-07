@@ -1,7 +1,7 @@
 /*
  * vsp1_wpf.c  --  R-Car VSP1 Write Pixel Formatter
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -48,8 +48,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct vsp1_pipeline *pipe =
 		to_vsp1_pipeline(&wpf->entity.subdev.entity);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
-	const struct v4l2_mbus_framefmt *format =
-		&wpf->entity.formats[RWPF_PAD_SOURCE];
+	const struct v4l2_rect *crop = &wpf->crop;
 	unsigned int i;
 	u32 srcrpf = 0;
 	u32 outfmt = 0;
@@ -59,16 +58,24 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		return 0;
 	}
 
-	/* Sources */
+	/* Sources. If the pipeline has a single input configure it as the
+	 * master layer. Otherwise configure all inputs as sub-layers and
+	 * select the virtual RPF as the master layer.
+	 */
 	for (i = 0; i < pipe->num_inputs; ++i) {
 		struct vsp1_rwpf *input = pipe->inputs[i];
 
-		srcrpf |= VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index);
+		srcrpf |= pipe->num_inputs == 1
+			? VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index)
+			: VI6_WPF_SRCRPF_RPF_ACT_SUB(input->entity.index);
 	}
+
+	if (pipe->num_inputs > 1)
+		srcrpf |= VI6_WPF_SRCRPF_VIRACT_MST;
 
 	vsp1_wpf_write(wpf, VI6_WPF_SRCRPF, srcrpf);
 
-	/* Destination stride. Cropping isn't supported yet. */
+	/* Destination stride. */
 	if (!pipe->lif) {
 		struct v4l2_pix_format_mplane *format = &wpf->video.format;
 
@@ -79,10 +86,12 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 				       format->plane_fmt[1].bytesperline);
 	}
 
-	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP,
-		       format->width << VI6_WPF_SZCLIP_SIZE_SHIFT);
-	vsp1_wpf_write(wpf, VI6_WPF_VSZCLIP,
-		       format->height << VI6_WPF_SZCLIP_SIZE_SHIFT);
+	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (crop->left << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (crop->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
+	vsp1_wpf_write(wpf, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (crop->top << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (crop->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
 	/* Format */
 	if (!pipe->lif) {
@@ -130,6 +139,8 @@ static struct v4l2_subdev_pad_ops wpf_pad_ops = {
 	.enum_frame_size = vsp1_rwpf_enum_frame_size,
 	.get_fmt = vsp1_rwpf_get_format,
 	.set_fmt = vsp1_rwpf_set_format,
+	.get_selection = vsp1_rwpf_get_selection,
+	.set_selection = vsp1_rwpf_set_selection,
 };
 
 static struct v4l2_subdev_ops wpf_ops = {
@@ -178,7 +189,6 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	wpf->entity.type = VSP1_ENTITY_WPF;
 	wpf->entity.index = index;
-	wpf->entity.id = VI6_DPR_NODE_WPF(index);
 
 	ret = vsp1_entity_init(vsp1, &wpf->entity, 2);
 	if (ret < 0)

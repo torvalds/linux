@@ -212,21 +212,16 @@ void rs400_gart_fini(struct radeon_device *rdev)
 #define RS400_PTE_WRITEABLE (1 << 2)
 #define RS400_PTE_READABLE  (1 << 3)
 
-int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
+void rs400_gart_set_page(struct radeon_device *rdev, unsigned i, uint64_t addr)
 {
 	uint32_t entry;
 	u32 *gtt = rdev->gart.ptr;
-
-	if (i < 0 || i > rdev->gart.num_gpu_pages) {
-		return -EINVAL;
-	}
 
 	entry = (lower_32_bits(addr) & PAGE_MASK) |
 		((upper_32_bits(addr) & 0xff) << 4) |
 		RS400_PTE_WRITEABLE | RS400_PTE_READABLE;
 	entry = cpu_to_le32(entry);
 	gtt[i] = entry;
-	return 0;
 }
 
 int rs400_mc_wait_for_idle(struct radeon_device *rdev)
@@ -484,6 +479,7 @@ int rs400_resume(struct radeon_device *rdev)
 
 int rs400_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -493,6 +489,7 @@ int rs400_suspend(struct radeon_device *rdev)
 
 void rs400_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
@@ -559,6 +556,9 @@ int rs400_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	r300_set_reg_safe(rdev);
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
 	rdev->accel_working = true;
 	r = rs400_startup(rdev);

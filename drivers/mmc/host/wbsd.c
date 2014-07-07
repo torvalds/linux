@@ -1814,28 +1814,11 @@ static void wbsd_pnp_remove(struct pnp_dev *dev)
 
 #ifdef CONFIG_PM
 
-static int wbsd_suspend(struct wbsd_host *host, pm_message_t state)
-{
-	BUG_ON(host == NULL);
-
-	return mmc_suspend_host(host->mmc);
-}
-
-static int wbsd_resume(struct wbsd_host *host)
-{
-	BUG_ON(host == NULL);
-
-	wbsd_init_device(host);
-
-	return mmc_resume_host(host->mmc);
-}
-
 static int wbsd_platform_suspend(struct platform_device *dev,
 				 pm_message_t state)
 {
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 	struct wbsd_host *host;
-	int ret;
 
 	if (mmc == NULL)
 		return 0;
@@ -1844,12 +1827,7 @@ static int wbsd_platform_suspend(struct platform_device *dev,
 
 	host = mmc_priv(mmc);
 
-	ret = wbsd_suspend(host, state);
-	if (ret)
-		return ret;
-
 	wbsd_chip_poweroff(host);
-
 	return 0;
 }
 
@@ -1872,7 +1850,8 @@ static int wbsd_platform_resume(struct platform_device *dev)
 	 */
 	mdelay(5);
 
-	return wbsd_resume(host);
+	wbsd_init_device(host);
+	return 0;
 }
 
 #ifdef CONFIG_PNP
@@ -1880,16 +1859,12 @@ static int wbsd_platform_resume(struct platform_device *dev)
 static int wbsd_pnp_suspend(struct pnp_dev *pnp_dev, pm_message_t state)
 {
 	struct mmc_host *mmc = dev_get_drvdata(&pnp_dev->dev);
-	struct wbsd_host *host;
 
 	if (mmc == NULL)
 		return 0;
 
 	DBGF("Suspending...\n");
-
-	host = mmc_priv(mmc);
-
-	return wbsd_suspend(host, state);
+	return 0;
 }
 
 static int wbsd_pnp_resume(struct pnp_dev *pnp_dev)
@@ -1922,7 +1897,8 @@ static int wbsd_pnp_resume(struct pnp_dev *pnp_dev)
 	 */
 	mdelay(5);
 
-	return wbsd_resume(host);
+	wbsd_init_device(host);
+	return 0;
 }
 
 #endif /* CONFIG_PNP */

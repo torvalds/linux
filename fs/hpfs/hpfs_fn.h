@@ -8,6 +8,11 @@
 
 //#define DBG
 //#define DEBUG_LOCKS
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
@@ -80,6 +85,7 @@ struct hpfs_sb_info {
 	unsigned sb_c_bitmap;		/* current bitmap */
 	unsigned sb_max_fwd_alloc;	/* max forwad allocation */
 	int sb_timeshift;
+	struct rcu_head rcu;
 };
 
 /* Four 512-byte buffers and the 2k block obtained by concatenating them */
@@ -311,7 +317,7 @@ static inline struct hpfs_sb_info *hpfs_sb(struct super_block *sb)
 __printf(2, 3)
 void hpfs_error(struct super_block *, const char *, ...);
 int hpfs_stop_cycles(struct super_block *, int, int *, int *, char *);
-unsigned hpfs_count_one_bitmap(struct super_block *, secno);
+unsigned hpfs_get_free_dnodes(struct super_block *);
 
 /*
  * local time (HPFS) to GMT (Unix)

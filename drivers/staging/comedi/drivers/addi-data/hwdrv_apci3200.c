@@ -623,16 +623,11 @@ static int apci3200_do_insn_bits(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 
 	s->state = inl(devpriv->i_IobaseAddon) & 0xf;
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outl(s->state, devpriv->i_IobaseAddon);
-	}
 
 	data[1] = s->state;
 
@@ -1273,7 +1268,7 @@ static int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev,
 	return 0;
 }
 
-static int i_APCI3200_Reset(struct comedi_device *dev)
+static int apci3200_reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_Temp;
@@ -1327,10 +1322,10 @@ static int i_APCI3200_Reset(struct comedi_device *dev)
  * data[7] : Channel current source from eeprom
  * data[8] : Channle gain factor from eeprom
  */
-static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
+static int apci3200_ai_read(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
 	unsigned int ui_DummyValue = 0;
 	int i_ConvertCJCCalibration;
@@ -1341,7 +1336,7 @@ static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
 	if (s_BoardInfos[dev->minor].i_Initialised == 0)
 		/* END JK 06.07.04: Management of sevrals boards */
 	{
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* if(i_Initialised==0); */
 
@@ -1591,7 +1586,7 @@ static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
 		break;
 	default:
 		printk("\nThe parameters passed are in error\n");
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* switch(insn->unused[0]) */
 
@@ -1631,10 +1626,10 @@ static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
  *	    = 2  RTD 3 wire connection
  *	    = 3  RTD 4 wire connection
  */
-static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
+static int apci3200_ai_config(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Config = 0, ul_Temp = 0;
@@ -1975,7 +1970,7 @@ static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
 		}		/*  switch(data[11]) */
 	}			/*  elseif(data[12]==0 || data[12]==1) */
 	if (i_err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}
 	/* if(i_ScanType!=1) */
@@ -2084,7 +2079,7 @@ static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
 		/* END JK 06.07.04: Management of sevrals boards */
 
 		insn->unused[0] = 0;
-		i_APCI3200_ReadAnalogInput(dev, s, insn, &ui_Dummy);
+		apci3200_ai_read(dev, s, insn, &ui_Dummy);
 	}
 
 	return insn->n;
@@ -2100,10 +2095,10 @@ static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
  * data[1] : calibration offset
  * data[2] : calibration gain
  */
-static int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
-						struct comedi_subdevice *s,
-						struct comedi_insn *insn,
-						unsigned int *data)
+static int apci3200_ai_bits_test(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Configuration = 0;
@@ -2112,12 +2107,12 @@ static int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 	/* if(i_Initialised==0) */
 
 	if (s_BoardInfos[dev->minor].i_Initialised == 0) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* if(i_Initialised==0); */
 	if (data[0] != 0 && data[0] != 1) {
 		printk("\nError in selection of functionality\n");
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* if(data[0]!=0 && data[0]!=1) */
 
@@ -2207,18 +2202,18 @@ static int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device *dev,
-						  struct comedi_subdevice *s,
-						  struct comedi_insn *insn,
-						  unsigned int *data)
+static int apci3200_ai_write(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
-	i_APCI3200_Reset(dev);
+	apci3200_reset(dev);
 	return insn->n;
 }
 
-static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
-					     struct comedi_subdevice *s,
-					     struct comedi_cmd *cmd)
+static int apci3200_ai_cmdtest(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_cmd *cmd)
 {
 
 	int err = 0;
@@ -2226,12 +2221,11 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 	unsigned int ui_ConvertTimeBase = 0;
 	unsigned int ui_DelayTime = 0;
 	unsigned int ui_DelayTimeBase = 0;
-	int i_Triggermode = 0;
-	int i_TriggerEdge = 0;
 	int i_NbrOfChannel = 0;
 	int i_Cpt = 0;
 	double d_ConversionTimeForAllChannels = 0.0;
 	double d_SCANTimeNewUnit = 0.0;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -2246,7 +2240,7 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 		err |= -EINVAL;
 
 	if (err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return 1;
 	}
 
@@ -2258,23 +2252,37 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
-	if (cmd->start_src == TRIG_EXT) {
-		i_TriggerEdge = cmd->start_arg & 0xFFFF;
-		i_Triggermode = cmd->start_arg >> 16;
-		if (i_TriggerEdge < 1 || i_TriggerEdge > 3) {
-			err++;
-			printk("\nThe trigger edge selection is in error\n");
-		}
-		if (i_Triggermode != 2) {
-			err++;
-			printk("\nThe trigger mode selection is in error\n");
-		}
-	}
-
 	if (err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return 2;
 	}
+
+	/* Step 3: check if arguments are trivially valid */
+
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/* validate the trigger edge selection */
+		arg = cmd->start_arg & 0xffff;
+		if (arg < 1 || arg > 3) {
+			cmd->start_arg &= ~0xffff;
+			cmd->start_arg |= 1;
+			err |= -EINVAL;
+		}
+		/* validate the trigger mode selection */
+		arg = cmd->start_arg >> 16;
+		if (arg != 2) {
+			cmd->start_arg &= ~(0xffff << 16);
+			cmd->start_arg |= (2 << 16);
+			err |= -EINVAL;
+		}
+		break;
+	}
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
 	/* i_FirstChannel=cmd->chanlist[0]; */
 	s_BoardInfos[dev->minor].i_FirstChannel = cmd->chanlist[0];
 	/* i_LastChannel=cmd->chanlist[1]; */
@@ -2313,7 +2321,7 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 			printk("\nThe Delay time value is in error\n");
 		}
 		if (err) {
-			i_APCI3200_Reset(dev);
+			apci3200_reset(dev);
 			return 3;
 		}
 		fpu_begin();
@@ -2371,15 +2379,15 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 	}			/* else if(cmd->scan_begin_src==TRIG_FOLLOW) */
 
 	if (err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return 4;
 	}
 
 	return 0;
 }
 
-static int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev,
-					    struct comedi_subdevice *s)
+static int apci3200_cancel(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Configuration = 0;
@@ -2415,8 +2423,8 @@ static int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev,
  * Does asynchronous acquisition
  * Determines the mode 1 or 2.
  */
-static int i_APCI3200_CommandAnalogInput(struct comedi_device *dev,
-					 struct comedi_subdevice *s)
+static int apci3200_ai_cmd(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	struct addi_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -2595,8 +2603,8 @@ static int i_APCI3200_CommandAnalogInput(struct comedi_device *dev,
 static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int ui_StatusRegister = 0;
-	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 	/* comedi_async *async = s->async; */
@@ -2624,7 +2632,6 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 		/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 		/* This value is not used */
 		/* ui_ChannelNumber = inl(devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 24); */
-		s->async->events = 0;
 		/* END JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 
       /*************************************/
@@ -2695,8 +2702,7 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 			s->async->events |= COMEDI_CB_EOS;
 
 			/*  Test if enougth memory is available and allocate it for 7 values */
-			/* n = comedi_buf_write_alloc(s->async, 7*sizeof(unsigned int)); */
-			n = comedi_buf_write_alloc(s->async,
+			n = comedi_buf_write_alloc(s,
 				(7 + 12) * sizeof(unsigned int));
 
 			/*  If not enough memory available, event is set to Comedi Buffer Error */
@@ -2705,12 +2711,12 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 				s->async->events |= COMEDI_CB_ERROR;
 			}
 			/*  Write all 7 scan values in the comedi buffer */
-			comedi_buf_memcpy_to(s->async, 0,
+			comedi_buf_memcpy_to(s, 0,
 				(unsigned int *) s_BoardInfos[dev->minor].
 				ui_ScanValueArray, (7 + 12) * sizeof(unsigned int));
 
 			/*  Update comedi buffer pinters indexes */
-			comedi_buf_write_free(s->async,
+			comedi_buf_write_free(s,
 				(7 + 12) * sizeof(unsigned int));
 
 			/*  Send events */
@@ -2735,7 +2741,7 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 	return 0;
 }
 
-static void v_APCI3200_Interrupt(int irq, void *d)
+static void apci3200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;

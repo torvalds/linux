@@ -91,18 +91,9 @@ extern struct ia64_tr_entry *ia64_idtrs[NR_CPUS];
 #define RR_RID_MASK	0x00000000ffffff00L
 #define RR_TO_RID(val) 	((val >> 8) & 0xffffff)
 
-/*
- * Flush the TLB for address range START to END and, if not in fast mode, release the
- * freed pages that where gathered up to this point.
- */
 static inline void
-ia64_tlb_flush_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long end)
+ia64_tlb_flush_mmu_tlbonly(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 {
-	unsigned long i;
-	unsigned int nr;
-
-	if (!tlb->need_flush)
-		return;
 	tlb->need_flush = 0;
 
 	if (tlb->fullmm) {
@@ -135,6 +126,14 @@ ia64_tlb_flush_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long e
 		flush_tlb_range(&vma, ia64_thash(start), ia64_thash(end));
 	}
 
+}
+
+static inline void
+ia64_tlb_flush_mmu_free(struct mmu_gather *tlb)
+{
+	unsigned long i;
+	unsigned int nr;
+
 	/* lastly, release the freed pages */
 	nr = tlb->nr;
 
@@ -142,6 +141,19 @@ ia64_tlb_flush_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long e
 	tlb->start_addr = ~0UL;
 	for (i = 0; i < nr; ++i)
 		free_page_and_swap_cache(tlb->pages[i]);
+}
+
+/*
+ * Flush the TLB for address range START to END and, if not in fast mode, release the
+ * freed pages that where gathered up to this point.
+ */
+static inline void
+ia64_tlb_flush_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long end)
+{
+	if (!tlb->need_flush)
+		return;
+	ia64_tlb_flush_mmu_tlbonly(tlb, start, end);
+	ia64_tlb_flush_mmu_free(tlb);
 }
 
 static inline void __tlb_alloc_page(struct mmu_gather *tlb)
@@ -204,6 +216,16 @@ static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 	VM_BUG_ON(tlb->nr > tlb->max);
 
 	return tlb->max - tlb->nr;
+}
+
+static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
+{
+	ia64_tlb_flush_mmu_tlbonly(tlb, tlb->start_addr, tlb->end_addr);
+}
+
+static inline void tlb_flush_mmu_free(struct mmu_gather *tlb)
+{
+	ia64_tlb_flush_mmu_free(tlb);
 }
 
 static inline void tlb_flush_mmu(struct mmu_gather *tlb)

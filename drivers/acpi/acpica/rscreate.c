@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,6 +72,8 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 	void *resource;
 	void *current_resource_ptr;
 
+	ACPI_FUNCTION_TRACE(acpi_buffer_to_resource);
+
 	/*
 	 * Note: we allow AE_AML_NO_RESOURCE_END_TAG, since an end tag
 	 * is not required here.
@@ -85,7 +87,7 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 		status = AE_OK;
 	}
 	if (ACPI_FAILURE(status)) {
-		return (status);
+		return_ACPI_STATUS(status);
 	}
 
 	/* Allocate a buffer for the converted resource */
@@ -93,7 +95,7 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 	resource = ACPI_ALLOCATE_ZEROED(list_size_needed);
 	current_resource_ptr = resource;
 	if (!resource) {
-		return (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/* Perform the AML-to-Resource conversion */
@@ -110,8 +112,10 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 		*resource_ptr = resource;
 	}
 
-	return (status);
+	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_buffer_to_resource)
 
 /*******************************************************************************
  *
@@ -130,10 +134,9 @@ acpi_buffer_to_resource(u8 *aml_buffer,
  *              of device resources.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
-			     struct acpi_buffer * output_buffer)
+			     struct acpi_buffer *output_buffer)
 {
 
 	acpi_status status;
@@ -273,7 +276,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		 */
 		user_prt->length = (sizeof(struct acpi_pci_routing_table) - 4);
 
-		/* Each sub-package must be of length 4 */
+		/* Each subpackage must be of length 4 */
 
 		if ((*top_object_list)->package.count != 4) {
 			ACPI_ERROR((AE_INFO,
@@ -283,7 +286,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		}
 
 		/*
-		 * Dereference the sub-package.
+		 * Dereference the subpackage.
 		 * The sub_object_list will now point to an array of the four IRQ
 		 * elements: [Address, Pin, Source, source_index]
 		 */
@@ -292,7 +295,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/* 1) First subobject: Dereference the PRT.Address */
 
 		obj_desc = sub_object_list[0];
-		if (obj_desc->common.type != ACPI_TYPE_INTEGER) {
+		if (!obj_desc || obj_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO,
 				    "(PRT[%u].Address) Need Integer, found %s",
 				    index,
@@ -305,7 +308,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/* 2) Second subobject: Dereference the PRT.Pin */
 
 		obj_desc = sub_object_list[1];
-		if (obj_desc->common.type != ACPI_TYPE_INTEGER) {
+		if (!obj_desc || obj_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO,
 				    "(PRT[%u].Pin) Need Integer, found %s",
 				    index,
@@ -394,7 +397,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/* 4) Fourth subobject: Dereference the PRT.source_index */
 
 		obj_desc = sub_object_list[3];
-		if (obj_desc->common.type != ACPI_TYPE_INTEGER) {
+		if (!obj_desc || obj_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO,
 				    "(PRT[%u].SourceIndex) Need Integer, found %s",
 				    index,
@@ -418,22 +421,21 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
  *
  * FUNCTION:    acpi_rs_create_aml_resources
  *
- * PARAMETERS:  linked_list_buffer      - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's buffer
+ * PARAMETERS:  resource_list           - Pointer to the resource list buffer
+ *              output_buffer           - Where the AML buffer is returned
  *
  * RETURN:      Status  AE_OK if okay, else a valid acpi_status code.
  *              If the output_buffer is too small, the error will be
  *              AE_BUFFER_OVERFLOW and output_buffer->Length will point
  *              to the size buffer needed.
  *
- * DESCRIPTION: Takes the linked list of device resources and
- *              creates a bytestream to be used as input for the
- *              _SRS control method.
+ * DESCRIPTION: Converts a list of device resources to an AML bytestream
+ *              to be used as input for the _SRS control method.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
+acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 			     struct acpi_buffer *output_buffer)
 {
 	acpi_status status;
@@ -441,16 +443,16 @@ acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
 
 	ACPI_FUNCTION_TRACE(rs_create_aml_resources);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "LinkedListBuffer = %p\n",
-			  linked_list_buffer));
+	/* Params already validated, no need to re-validate here */
 
-	/*
-	 * Params already validated, so we don't re-validate here
-	 *
-	 * Pass the linked_list_buffer into a module that calculates
-	 * the buffer size needed for the byte stream.
-	 */
-	status = acpi_rs_get_aml_length(linked_list_buffer, &aml_size_needed);
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "ResourceList Buffer = %p\n",
+			  resource_list->pointer));
+
+	/* Get the buffer size needed for the AML byte stream */
+
+	status = acpi_rs_get_aml_length(resource_list->pointer,
+					resource_list->length,
+					&aml_size_needed);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "AmlSizeNeeded=%X, %s\n",
 			  (u32)aml_size_needed, acpi_format_exception(status)));
@@ -467,10 +469,9 @@ acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
 
 	/* Do the conversion */
 
-	status =
-	    acpi_rs_convert_resources_to_aml(linked_list_buffer,
-					     aml_size_needed,
-					     output_buffer->pointer);
+	status = acpi_rs_convert_resources_to_aml(resource_list->pointer,
+						  aml_size_needed,
+						  output_buffer->pointer);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

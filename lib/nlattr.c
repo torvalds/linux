@@ -136,6 +136,7 @@ int nla_validate(const struct nlattr *head, int len, int maxtype,
 errout:
 	return err;
 }
+EXPORT_SYMBOL(nla_validate);
 
 /**
  * nla_policy_len - Determin the max. length of a policy
@@ -162,6 +163,7 @@ nla_policy_len(const struct nla_policy *p, int n)
 
 	return len;
 }
+EXPORT_SYMBOL(nla_policy_len);
 
 /**
  * nla_parse - Parse a stream of attributes into a tb buffer
@@ -201,13 +203,14 @@ int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 	}
 
 	if (unlikely(rem > 0))
-		printk(KERN_WARNING "netlink: %d bytes leftover after parsing "
-		       "attributes.\n", rem);
+		pr_warn_ratelimited("netlink: %d bytes leftover after parsing attributes in process `%s'.\n",
+				    rem, current->comm);
 
 	err = 0;
 errout:
 	return err;
 }
+EXPORT_SYMBOL(nla_parse);
 
 /**
  * nla_find - Find a specific attribute in a stream of attributes
@@ -228,6 +231,7 @@ struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype)
 
 	return NULL;
 }
+EXPORT_SYMBOL(nla_find);
 
 /**
  * nla_strlcpy - Copy string attribute payload into a sized buffer
@@ -258,6 +262,7 @@ size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize)
 
 	return srclen;
 }
+EXPORT_SYMBOL(nla_strlcpy);
 
 /**
  * nla_memcpy - Copy a netlink attribute into another memory area
@@ -278,6 +283,7 @@ int nla_memcpy(void *dest, const struct nlattr *src, int count)
 
 	return minlen;
 }
+EXPORT_SYMBOL(nla_memcpy);
 
 /**
  * nla_memcmp - Compare an attribute with sized memory area
@@ -295,6 +301,7 @@ int nla_memcmp(const struct nlattr *nla, const void *data,
 
 	return d;
 }
+EXPORT_SYMBOL(nla_memcmp);
 
 /**
  * nla_strcmp - Compare a string attribute against a string
@@ -303,14 +310,21 @@ int nla_memcmp(const struct nlattr *nla, const void *data,
  */
 int nla_strcmp(const struct nlattr *nla, const char *str)
 {
-	int len = strlen(str) + 1;
-	int d = nla_len(nla) - len;
+	int len = strlen(str);
+	char *buf = nla_data(nla);
+	int attrlen = nla_len(nla);
+	int d;
 
+	if (attrlen > 0 && buf[attrlen - 1] == '\0')
+		attrlen--;
+
+	d = attrlen - len;
 	if (d == 0)
 		d = memcmp(nla_data(nla), str, len);
 
 	return d;
 }
+EXPORT_SYMBOL(nla_strcmp);
 
 #ifdef CONFIG_NET
 /**
@@ -496,12 +510,3 @@ int nla_append(struct sk_buff *skb, int attrlen, const void *data)
 }
 EXPORT_SYMBOL(nla_append);
 #endif
-
-EXPORT_SYMBOL(nla_validate);
-EXPORT_SYMBOL(nla_policy_len);
-EXPORT_SYMBOL(nla_parse);
-EXPORT_SYMBOL(nla_find);
-EXPORT_SYMBOL(nla_strlcpy);
-EXPORT_SYMBOL(nla_memcpy);
-EXPORT_SYMBOL(nla_memcmp);
-EXPORT_SYMBOL(nla_strcmp);

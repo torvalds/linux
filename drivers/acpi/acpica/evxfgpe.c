@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acevents.h"
@@ -471,7 +472,7 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 	if (gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK)
 		*event_status |= ACPI_EVENT_FLAG_HANDLE;
 
-      unlock_and_exit:
+unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
@@ -582,13 +583,26 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		goto unlock_and_exit;
 	}
 
+	/* Validate the parent device */
+
+	if (node->type != ACPI_TYPE_DEVICE) {
+		status = AE_TYPE;
+		goto unlock_and_exit;
+	}
+
+	if (node->object) {
+		status = AE_ALREADY_EXISTS;
+		goto unlock_and_exit;
+	}
+
 	/*
 	 * For user-installed GPE Block Devices, the gpe_block_base_number
 	 * is always zero
 	 */
-	status =
-	    acpi_ev_create_gpe_block(node, gpe_block_address, register_count, 0,
-				     interrupt_number, &gpe_block);
+	status = acpi_ev_create_gpe_block(node, gpe_block_address->address,
+					  gpe_block_address->space_id,
+					  register_count, 0, interrupt_number,
+					  &gpe_block);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}
@@ -624,7 +638,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 
 	obj_desc->device.gpe_block = gpe_block;
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }
@@ -665,6 +679,13 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 		goto unlock_and_exit;
 	}
 
+	/* Validate the parent device */
+
+	if (node->type != ACPI_TYPE_DEVICE) {
+		status = AE_TYPE;
+		goto unlock_and_exit;
+	}
+
 	/* Get the device_object attached to the node */
 
 	obj_desc = acpi_ns_get_attached_object(node);
@@ -679,7 +700,7 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 		obj_desc->device.gpe_block = NULL;
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }

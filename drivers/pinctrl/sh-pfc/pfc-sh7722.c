@@ -754,7 +754,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_DATA(KEYOUT5_IN5_MARK, HIZA14_KEYSC, KEYOUT5_IN5),
 };
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	/* PTA */
 	PINMUX_GPIO(PTA7),
 	PINMUX_GPIO(PTA6),

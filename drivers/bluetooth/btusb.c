@@ -49,8 +49,9 @@ static struct usb_driver btusb_driver;
 #define BTUSB_WRONG_SCO_MTU	0x40
 #define BTUSB_ATH3012		0x80
 #define BTUSB_INTEL		0x100
+#define BTUSB_BCM_PATCHRAM	0x200
 
-static struct usb_device_id btusb_table[] = {
+static const struct usb_device_id btusb_table[] = {
 	/* Generic Bluetooth USB device */
 	{ USB_DEVICE_INFO(0xe0, 0x01, 0x01) },
 
@@ -101,27 +102,31 @@ static struct usb_device_id btusb_table[] = {
 	{ USB_DEVICE(0x0c10, 0x0000) },
 
 	/* Broadcom BCM20702A0 */
+	{ USB_DEVICE(0x0489, 0xe042) },
+	{ USB_DEVICE(0x04ca, 0x2003) },
 	{ USB_DEVICE(0x0b05, 0x17b5) },
 	{ USB_DEVICE(0x0b05, 0x17cb) },
-	{ USB_DEVICE(0x04ca, 0x2003) },
-	{ USB_DEVICE(0x0489, 0xe042) },
 	{ USB_DEVICE(0x413c, 0x8197) },
 
 	/* Foxconn - Hon Hai */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x0489, 0xff, 0x01, 0x01) },
 
-	/*Broadcom devices with vendor specific id */
-	{ USB_VENDOR_AND_INTERFACE_INFO(0x0a5c, 0xff, 0x01, 0x01) },
+	/* Broadcom devices with vendor specific id */
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x0a5c, 0xff, 0x01, 0x01),
+	  .driver_info = BTUSB_BCM_PATCHRAM },
 
 	/* Belkin F8065bf - Broadcom based */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x050d, 0xff, 0x01, 0x01) },
+
+	/* IMC Networks - Broadcom based */
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x13d3, 0xff, 0x01, 0x01) },
 
 	{ }	/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(usb, btusb_table);
 
-static struct usb_device_id blacklist_table[] = {
+static const struct usb_device_id blacklist_table[] = {
 	/* CSR BlueCore devices */
 	{ USB_DEVICE(0x0a12, 0x0001), .driver_info = BTUSB_CSR },
 
@@ -129,52 +134,60 @@ static struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0a5c, 0x2033), .driver_info = BTUSB_IGNORE },
 
 	/* Atheros 3011 with sflash firmware */
+	{ USB_DEVICE(0x0489, 0xe027), .driver_info = BTUSB_IGNORE },
+	{ USB_DEVICE(0x0489, 0xe03d), .driver_info = BTUSB_IGNORE },
+	{ USB_DEVICE(0x0930, 0x0215), .driver_info = BTUSB_IGNORE },
 	{ USB_DEVICE(0x0cf3, 0x3002), .driver_info = BTUSB_IGNORE },
 	{ USB_DEVICE(0x0cf3, 0xe019), .driver_info = BTUSB_IGNORE },
 	{ USB_DEVICE(0x13d3, 0x3304), .driver_info = BTUSB_IGNORE },
-	{ USB_DEVICE(0x0930, 0x0215), .driver_info = BTUSB_IGNORE },
-	{ USB_DEVICE(0x0489, 0xe03d), .driver_info = BTUSB_IGNORE },
-	{ USB_DEVICE(0x0489, 0xe027), .driver_info = BTUSB_IGNORE },
 
 	/* Atheros AR9285 Malbec with sflash firmware */
 	{ USB_DEVICE(0x03f0, 0x311d), .driver_info = BTUSB_IGNORE },
 
 	/* Atheros 3012 with sflash firmware */
-	{ USB_DEVICE(0x0cf3, 0x0036), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0cf3, 0x3004), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0cf3, 0x3008), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0cf3, 0x311d), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0cf3, 0x817a), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x13d3, 0x3375), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0489, 0xe04d), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0489, 0xe04e), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0489, 0xe056), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0489, 0xe057), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0489, 0xe05f), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x04c5, 0x1330), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3004), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3005), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3006), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x04ca, 0x3007), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3008), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x13d3, 0x3362), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x04ca, 0x300b), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0930, 0x0219), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0930, 0x0220), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0b05, 0x17d0), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0x0036), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0x3004), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0x3005), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0x3008), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0x311d), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0x311e), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0x311f), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0x3121), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0x817a), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0xe003), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0cf3, 0xe004), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0cf3, 0xe005), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0930, 0x0219), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0489, 0xe057), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x13d3, 0x3362), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x13d3, 0x3375), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x13d3, 0x3393), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0489, 0xe04e), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0489, 0xe056), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0489, 0xe04d), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x04c5, 0x1330), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x13d3, 0x3402), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0cf3, 0x3121), .driver_info = BTUSB_ATH3012 },
-	{ USB_DEVICE(0x0cf3, 0xe003), .driver_info = BTUSB_ATH3012 },
 
 	/* Atheros AR5BBU12 with sflash firmware */
 	{ USB_DEVICE(0x0489, 0xe02c), .driver_info = BTUSB_IGNORE },
 
 	/* Atheros AR5BBU12 with sflash firmware */
-	{ USB_DEVICE(0x0489, 0xe03c), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0489, 0xe036), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0489, 0xe03c), .driver_info = BTUSB_ATH3012 },
 
 	/* Broadcom BCM2035 */
-	{ USB_DEVICE(0x0a5c, 0x2035), .driver_info = BTUSB_WRONG_SCO_MTU },
-	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = BTUSB_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x0a5c, 0x2009), .driver_info = BTUSB_BCM92035 },
+	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = BTUSB_WRONG_SCO_MTU },
+	{ USB_DEVICE(0x0a5c, 0x2035), .driver_info = BTUSB_WRONG_SCO_MTU },
 
 	/* Broadcom BCM2045 */
 	{ USB_DEVICE(0x0a5c, 0x2039), .driver_info = BTUSB_WRONG_SCO_MTU },
@@ -223,6 +236,7 @@ static struct usb_device_id blacklist_table[] = {
 
 	/* Intel Bluetooth device */
 	{ USB_DEVICE(0x8087, 0x07dc), .driver_info = BTUSB_INTEL },
+	{ USB_DEVICE(0x8087, 0x0a2a), .driver_info = BTUSB_INTEL },
 
 	{ }	/* Terminating entry */
 };
@@ -716,9 +730,8 @@ static int btusb_flush(struct hci_dev *hdev)
 	return 0;
 }
 
-static int btusb_send_frame(struct sk_buff *skb)
+static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
@@ -729,6 +742,8 @@ static int btusb_send_frame(struct sk_buff *skb)
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
+
+	skb->dev = (void *) hdev;
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -774,7 +789,7 @@ static int btusb_send_frame(struct sk_buff *skb)
 		break;
 
 	case HCI_SCODATA_PKT:
-		if (!data->isoc_tx_ep || hdev->conn_hash.sco_num < 1)
+		if (!data->isoc_tx_ep || hci_conn_num(hdev, SCO_LINK) < 1)
 			return -ENODEV;
 
 		urb = usb_alloc_urb(BTUSB_MAX_ISOC_FRAMES, GFP_ATOMIC);
@@ -833,8 +848,8 @@ static void btusb_notify(struct hci_dev *hdev, unsigned int evt)
 
 	BT_DBG("%s evt %d", hdev->name, evt);
 
-	if (hdev->conn_hash.sco_num != data->sco_num) {
-		data->sco_num = hdev->conn_hash.sco_num;
+	if (hci_conn_num(hdev, SCO_LINK) != data->sco_num) {
+		data->sco_num = hci_conn_num(hdev, SCO_LINK);
 		schedule_work(&data->work);
 	}
 }
@@ -889,7 +904,7 @@ static void btusb_work(struct work_struct *work)
 	int new_alts;
 	int err;
 
-	if (hdev->conn_hash.sco_num > 0) {
+	if (data->sco_num > 0) {
 		if (!test_bit(BTUSB_DID_ISO_RESUME, &data->flags)) {
 			err = usb_autopm_get_interface(data->isoc ? data->isoc : data->intf);
 			if (err < 0) {
@@ -903,9 +918,9 @@ static void btusb_work(struct work_struct *work)
 
 		if (hdev->voice_setting & 0x0020) {
 			static const int alts[3] = { 2, 4, 5 };
-			new_alts = alts[hdev->conn_hash.sco_num - 1];
+			new_alts = alts[data->sco_num - 1];
 		} else {
-			new_alts = hdev->conn_hash.sco_num;
+			new_alts = data->sco_num;
 		}
 
 		if (data->isoc_altsetting != new_alts) {
@@ -958,6 +973,45 @@ static int btusb_setup_bcm92035(struct hci_dev *hdev)
 		kfree_skb(skb);
 
 	return 0;
+}
+
+static int btusb_setup_csr(struct hci_dev *hdev)
+{
+	struct hci_rp_read_local_version *rp;
+	struct sk_buff *skb;
+	int ret;
+
+	BT_DBG("%s", hdev->name);
+
+	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		BT_ERR("Reading local version failed (%ld)", -PTR_ERR(skb));
+		return -PTR_ERR(skb);
+	}
+
+	rp = (struct hci_rp_read_local_version *) skb->data;
+
+	if (!rp->status) {
+		if (le16_to_cpu(rp->manufacturer) != 10) {
+			/* Clear the reset quirk since this is not an actual
+			 * early Bluetooth 1.1 device from CSR.
+			 */
+			clear_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
+
+			/* These fake CSR controllers have all a broken
+			 * stored link key handling and so just disable it.
+			 */
+			set_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY,
+				&hdev->quirks);
+		}
+	}
+
+	ret = -bt_to_errno(rp->status);
+
+	kfree_skb(skb);
+
+	return ret;
 }
 
 struct intel_version {
@@ -1329,6 +1383,154 @@ exit_mfg_deactivate:
 	return 0;
 }
 
+static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
+{
+	struct btusb_data *data = hci_get_drvdata(hdev);
+	struct usb_device *udev = data->udev;
+	char fw_name[64];
+	const struct firmware *fw;
+	const u8 *fw_ptr;
+	size_t fw_size;
+	const struct hci_command_hdr *cmd;
+	const u8 *cmd_param;
+	u16 opcode;
+	struct sk_buff *skb;
+	struct hci_rp_read_local_version *ver;
+	long ret;
+
+	snprintf(fw_name, sizeof(fw_name), "brcm/%s-%04x-%04x.hcd",
+		 udev->product ? udev->product : "BCM",
+		 le16_to_cpu(udev->descriptor.idVendor),
+		 le16_to_cpu(udev->descriptor.idProduct));
+
+	ret = request_firmware(&fw, fw_name, &hdev->dev);
+	if (ret < 0) {
+		BT_INFO("%s: BCM: patch %s not found", hdev->name,
+			fw_name);
+		return 0;
+	}
+
+	/* Reset */
+	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		BT_ERR("%s: HCI_OP_RESET failed (%ld)", hdev->name, ret);
+		goto done;
+	}
+	kfree_skb(skb);
+
+	/* Read Local Version Info */
+	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION failed (%ld)",
+			hdev->name, ret);
+		goto done;
+	}
+
+	if (skb->len != sizeof(*ver)) {
+		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION event length mismatch",
+			hdev->name);
+		kfree_skb(skb);
+		ret = -EIO;
+		goto done;
+	}
+
+	ver = (struct hci_rp_read_local_version *) skb->data;
+	BT_INFO("%s: BCM: patching hci_ver=%02x hci_rev=%04x lmp_ver=%02x "
+		"lmp_subver=%04x", hdev->name, ver->hci_ver, ver->hci_rev,
+		ver->lmp_ver, ver->lmp_subver);
+	kfree_skb(skb);
+
+	/* Start Download */
+	skb = __hci_cmd_sync(hdev, 0xfc2e, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		BT_ERR("%s: BCM: Download Minidrv command failed (%ld)",
+			hdev->name, ret);
+		goto reset_fw;
+	}
+	kfree_skb(skb);
+
+	/* 50 msec delay after Download Minidrv completes */
+	msleep(50);
+
+	fw_ptr = fw->data;
+	fw_size = fw->size;
+
+	while (fw_size >= sizeof(*cmd)) {
+		cmd = (struct hci_command_hdr *) fw_ptr;
+		fw_ptr += sizeof(*cmd);
+		fw_size -= sizeof(*cmd);
+
+		if (fw_size < cmd->plen) {
+			BT_ERR("%s: BCM: patch %s is corrupted",
+				hdev->name, fw_name);
+			ret = -EINVAL;
+			goto reset_fw;
+		}
+
+		cmd_param = fw_ptr;
+		fw_ptr += cmd->plen;
+		fw_size -= cmd->plen;
+
+		opcode = le16_to_cpu(cmd->opcode);
+
+		skb = __hci_cmd_sync(hdev, opcode, cmd->plen, cmd_param,
+				     HCI_INIT_TIMEOUT);
+		if (IS_ERR(skb)) {
+			ret = PTR_ERR(skb);
+			BT_ERR("%s: BCM: patch command %04x failed (%ld)",
+				hdev->name, opcode, ret);
+			goto reset_fw;
+		}
+		kfree_skb(skb);
+	}
+
+	/* 250 msec delay after Launch Ram completes */
+	msleep(250);
+
+reset_fw:
+	/* Reset */
+	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		BT_ERR("%s: HCI_OP_RESET failed (%ld)", hdev->name, ret);
+		goto done;
+	}
+	kfree_skb(skb);
+
+	/* Read Local Version Info */
+	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION failed (%ld)",
+			hdev->name, ret);
+		goto done;
+	}
+
+	if (skb->len != sizeof(*ver)) {
+		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION event length mismatch",
+			hdev->name);
+		kfree_skb(skb);
+		ret = -EIO;
+		goto done;
+	}
+
+	ver = (struct hci_rp_read_local_version *) skb->data;
+	BT_INFO("%s: BCM: firmware hci_ver=%02x hci_rev=%04x lmp_ver=%02x "
+		"lmp_subver=%04x", hdev->name, ver->hci_ver, ver->hci_rev,
+		ver->lmp_ver, ver->lmp_subver);
+	kfree_skb(skb);
+
+done:
+	release_firmware(fw);
+
+	return ret;
+}
+
 static int btusb_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
@@ -1434,6 +1636,9 @@ static int btusb_probe(struct usb_interface *intf,
 	if (id->driver_info & BTUSB_BCM92035)
 		hdev->setup = btusb_setup_bcm92035;
 
+	if (id->driver_info & BTUSB_BCM_PATCHRAM)
+		hdev->setup = btusb_setup_bcm_patchram;
+
 	if (id->driver_info & BTUSB_INTEL)
 		hdev->setup = btusb_setup_intel;
 
@@ -1458,10 +1663,15 @@ static int btusb_probe(struct usb_interface *intf,
 
 	if (id->driver_info & BTUSB_CSR) {
 		struct usb_device *udev = data->udev;
+		u16 bcdDevice = le16_to_cpu(udev->descriptor.bcdDevice);
 
 		/* Old firmware would otherwise execute USB reset */
-		if (le16_to_cpu(udev->descriptor.bcdDevice) < 0x117)
+		if (bcdDevice < 0x117)
 			set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
+
+		/* Fake CSR devices with broken commands */
+		if (bcdDevice <= 0x100)
+			hdev->setup = btusb_setup_csr;
 	}
 
 	if (id->driver_info & BTUSB_SNIFFER) {
@@ -1628,7 +1838,6 @@ static struct usb_driver btusb_driver = {
 #ifdef CONFIG_PM
 	.suspend	= btusb_suspend,
 	.resume		= btusb_resume,
-	.reset_resume	= btusb_resume,
 #endif
 	.id_table	= btusb_table,
 	.supports_autosuspend = 1,

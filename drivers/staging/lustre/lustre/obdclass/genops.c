@@ -72,7 +72,7 @@ static struct obd_device *obd_device_alloc(void)
 {
 	struct obd_device *obd;
 
-	OBD_SLAB_ALLOC_PTR_GFP(obd, obd_device_cachep, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(obd, obd_device_cachep, GFP_NOFS);
 	if (obd != NULL) {
 		obd->obd_magic = OBD_DEVICE_MAGIC;
 	}
@@ -193,7 +193,6 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	strcpy(type->typ_name, name);
 	spin_lock_init(&type->obd_type_lock);
 
-#ifdef LPROCFS
 	type->typ_procroot = lprocfs_register(type->typ_name, proc_lustre_root,
 					      vars, type);
 	if (IS_ERR(type->typ_procroot)) {
@@ -201,7 +200,7 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 		type->typ_procroot = NULL;
 		GOTO (failed, rc);
 	}
-#endif
+
 	if (ldt != NULL) {
 		type->typ_lu = ldt;
 		rc = lu_device_type_init(ldt);
@@ -616,13 +615,13 @@ int class_notify_sptlrpc_conf(const char *fsname, int namelen)
 		if (strncmp(obd->obd_name, fsname, namelen))
 			continue;
 
-		class_incref(obd, __FUNCTION__, obd);
+		class_incref(obd, __func__, obd);
 		read_unlock(&obd_dev_lock);
 		rc2 = obd_set_info_async(NULL, obd->obd_self_export,
 					 sizeof(KEY_SPTLRPC_CONF),
 					 KEY_SPTLRPC_CONF, 0, NULL, NULL);
 		rc = rc ? rc : rc2;
-		class_decref(obd, __FUNCTION__, obd);
+		class_decref(obd, __func__, obd);
 		read_lock(&obd_dev_lock);
 	}
 	read_unlock(&obd_dev_lock);
@@ -816,7 +815,7 @@ struct obd_export *class_new_export(struct obd_device *obd,
 				    struct obd_uuid *cluuid)
 {
 	struct obd_export *export;
-	cfs_hash_t *hash = NULL;
+	struct cfs_hash *hash = NULL;
 	int rc = 0;
 
 	OBD_ALLOC_PTR(export);
@@ -1011,6 +1010,8 @@ struct obd_import *class_new_import(struct obd_device *obd)
 	INIT_LIST_HEAD(&imp->imp_replay_list);
 	INIT_LIST_HEAD(&imp->imp_sending_list);
 	INIT_LIST_HEAD(&imp->imp_delayed_list);
+	INIT_LIST_HEAD(&imp->imp_committed_list);
+	imp->imp_replay_cursor = &imp->imp_committed_list;
 	spin_lock_init(&imp->imp_lock);
 	imp->imp_last_success_conn = 0;
 	imp->imp_state = LUSTRE_IMP_NEW;
@@ -1384,7 +1385,7 @@ EXPORT_SYMBOL(obd_export_nid2str);
 
 int obd_export_evict_by_nid(struct obd_device *obd, const char *nid)
 {
-	cfs_hash_t *nid_hash;
+	struct cfs_hash *nid_hash;
 	struct obd_export *doomed_exp = NULL;
 	int exports_evicted = 0;
 
@@ -1432,7 +1433,7 @@ EXPORT_SYMBOL(obd_export_evict_by_nid);
 
 int obd_export_evict_by_uuid(struct obd_device *obd, const char *uuid)
 {
-	cfs_hash_t *uuid_hash;
+	struct cfs_hash *uuid_hash;
 	struct obd_export *doomed_exp = NULL;
 	struct obd_uuid doomed_uuid;
 	int exports_evicted = 0;
@@ -1533,8 +1534,8 @@ void obd_exports_barrier(struct obd_device *obd)
 	spin_lock(&obd->obd_dev_lock);
 	while (!list_empty(&obd->obd_unlinked_exports)) {
 		spin_unlock(&obd->obd_dev_lock);
-		schedule_timeout_and_set_state(TASK_UNINTERRUPTIBLE,
-						   cfs_time_seconds(waited));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(waited));
 		if (waited > 5 && IS_PO2(waited)) {
 			LCONSOLE_WARN("%s is waiting for obd_unlinked_exports "
 				      "more than %d seconds. "
@@ -1626,7 +1627,7 @@ static int obd_zombie_impexp_check(void *arg)
 }
 
 /**
- * Add export to the obd_zombe thread and notify it.
+ * Add export to the obd_zombie thread and notify it.
  */
 static void obd_zombie_export_add(struct obd_export *exp) {
 	spin_lock(&exp->exp_obd->obd_dev_lock);
@@ -1642,7 +1643,7 @@ static void obd_zombie_export_add(struct obd_export *exp) {
 }
 
 /**
- * Add import to the obd_zombe thread and notify it.
+ * Add import to the obd_zombie thread and notify it.
  */
 static void obd_zombie_import_add(struct obd_import *imp) {
 	LASSERT(imp->imp_sec == NULL);
@@ -1662,7 +1663,7 @@ static void obd_zombie_import_add(struct obd_import *imp) {
 static void obd_zombie_impexp_notify(void)
 {
 	/*
-	 * Make sure obd_zomebie_impexp_thread get this notification.
+	 * Make sure obd_zombie_impexp_thread get this notification.
 	 * It is possible this signal only get by obd_zombie_barrier, and
 	 * barrier gulps this notification and sleeps away and hangs ensues
 	 */

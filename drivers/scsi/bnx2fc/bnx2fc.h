@@ -64,7 +64,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.14"
+#define BNX2FC_VERSION		"2.4.2"
 
 #define PFX			"bnx2fc: "
 
@@ -367,6 +367,7 @@ struct bnx2fc_rport {
 	atomic_t num_active_ios;
 	u32 flush_in_prog;
 	unsigned long timestamp;
+	unsigned long retry_delay_timestamp;
 	struct list_head free_task_list;
 	struct bnx2fc_cmd *pending_queue[BNX2FC_SQ_WQES_MAX+1];
 	struct list_head active_cmd_queue;

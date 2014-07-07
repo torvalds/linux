@@ -29,9 +29,6 @@
 
 #include <asm/div64.h>
 
-#define MTD_CHAR_MAJOR 90
-#define MTD_BLOCK_MAJOR 31
-
 #define MTD_ERASE_PENDING	0x01
 #define MTD_ERASING		0x02
 #define MTD_ERASE_SUSPEND	0x04
@@ -207,12 +204,12 @@ struct mtd_info {
 			  struct mtd_oob_ops *ops);
 	int (*_write_oob) (struct mtd_info *mtd, loff_t to,
 			   struct mtd_oob_ops *ops);
-	int (*_get_fact_prot_info) (struct mtd_info *mtd, struct otp_info *buf,
-				    size_t len);
+	int (*_get_fact_prot_info) (struct mtd_info *mtd, size_t len,
+				    size_t *retlen, struct otp_info *buf);
 	int (*_read_fact_prot_reg) (struct mtd_info *mtd, loff_t from,
 				    size_t len, size_t *retlen, u_char *buf);
-	int (*_get_user_prot_info) (struct mtd_info *mtd, struct otp_info *buf,
-				    size_t len);
+	int (*_get_user_prot_info) (struct mtd_info *mtd, size_t len,
+				    size_t *retlen, struct otp_info *buf);
 	int (*_read_user_prot_reg) (struct mtd_info *mtd, loff_t from,
 				    size_t len, size_t *retlen, u_char *buf);
 	int (*_write_user_prot_reg) (struct mtd_info *mtd, loff_t to,
@@ -281,12 +278,12 @@ static inline int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 	return mtd->_write_oob(mtd, to, ops);
 }
 
-int mtd_get_fact_prot_info(struct mtd_info *mtd, struct otp_info *buf,
-			   size_t len);
+int mtd_get_fact_prot_info(struct mtd_info *mtd, size_t len, size_t *retlen,
+			   struct otp_info *buf);
 int mtd_read_fact_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
 			   size_t *retlen, u_char *buf);
-int mtd_get_user_prot_info(struct mtd_info *mtd, struct otp_info *buf,
-			   size_t len);
+int mtd_get_user_prot_info(struct mtd_info *mtd, size_t len, size_t *retlen,
+			   struct otp_info *buf);
 int mtd_read_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
 			   size_t *retlen, u_char *buf);
 int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to, size_t len,
@@ -352,6 +349,11 @@ static inline uint32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
 static inline int mtd_has_oob(const struct mtd_info *mtd)
 {
 	return mtd->_read_oob && mtd->_write_oob;
+}
+
+static inline int mtd_type_is_nand(const struct mtd_info *mtd)
+{
+	return mtd->type == MTD_NANDFLASH || mtd->type == MTD_MLCNANDFLASH;
 }
 
 static inline int mtd_can_have_bb(const struct mtd_info *mtd)

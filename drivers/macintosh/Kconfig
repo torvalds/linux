@@ -32,7 +32,7 @@ config ADB_MACII
 
 config ADB_MACIISI
 	bool "Include Mac IIsi ADB driver"
-	depends on ADB && MAC
+	depends on ADB && MAC && BROKEN
 	help
 	  Say Y here if want your kernel to support Macintosh systems that use
 	  the Mac IIsi style ADB.  This includes the IIsi, IIvi, IIvx, Classic
@@ -103,6 +103,7 @@ config ADB_PMU_LED_IDE
 	bool "Use front LED as IDE LED by default"
 	depends on ADB_PMU_LED
 	depends on LEDS_CLASS
+	depends on IDE_GD_ATA
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_IDE_DISK
 	help

@@ -42,7 +42,6 @@
 #include <linux/wireless.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/semaphore.h>
 #include <net/iw_handler.h>
@@ -425,10 +424,9 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 			wep_key_idx = 0;
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
-			pwep = (struct NDIS_802_11_WEP *)_malloc((u32)
-			       (wep_key_len +
-			       FIELD_OFFSET(struct NDIS_802_11_WEP,
-			       KeyMaterial)));
+			pwep = kmalloc((u32)(wep_key_len +
+				       FIELD_OFFSET(struct NDIS_802_11_WEP, KeyMaterial)),
+				       GFP_ATOMIC);
 			if (pwep == NULL)
 				return -ENOMEM;
 			memset(pwep, 0, sizeof(struct NDIS_802_11_WEP));
@@ -519,10 +517,9 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 	if ((ielen > MAX_WPA_IE_LEN) || (pie == NULL))
 		return -EINVAL;
 	if (ielen) {
-		buf = _malloc(ielen);
+		buf = kmemdup(pie, ielen, GFP_ATOMIC);
 		if (buf == NULL)
 			return -ENOMEM;
-		memcpy(buf, pie , ielen);
 		pos = buf;
 		if (ielen < RSN_HEADER_LEN) {
 			ret  = -EINVAL;
@@ -820,7 +817,7 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 			intReturn = true;
 		blInserted = false;
 		/* overwrite PMKID */
-		for (j = 0 ; j < NUM_PMKID_CACHE; j++) {
+		for (j = 0; j < NUM_PMKID_CACHE; j++) {
 			if (!memcmp(psecuritypriv->PMKIDList[j].Bssid,
 			    strIssueBssid, ETH_ALEN)) {
 				/* BSSID is matched, the same AP => rewrite
@@ -845,7 +842,7 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 				PMKIDIndex].PMKID, pPMK->pmkid, IW_PMKID_LEN);
 			psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].
 				bUsed = true;
-			psecuritypriv->PMKIDIndex++ ;
+			psecuritypriv->PMKIDIndex++;
 			if (psecuritypriv->PMKIDIndex == NUM_PMKID_CACHE)
 				psecuritypriv->PMKIDIndex = 0;
 		}
@@ -960,13 +957,9 @@ static int r871x_wx_set_priv(struct net_device *dev,
 	struct iw_point *dwrq = (struct iw_point *)awrq;
 
 	len = dwrq->length;
-	ext = _malloc(len);
-	if (!ext)
-		return -ENOMEM;
-	if (copy_from_user(ext, dwrq->pointer, len)) {
-		kfree(ext);
-		return -EFAULT;
-	}
+	ext = memdup_user(dwrq->pointer, len);
+	if (IS_ERR(ext))
+		return PTR_ERR(ext);
 
 	if (0 == strcasecmp(ext, "RSSI")) {
 		/*Return received signal strength indicator in -db for */
@@ -1598,7 +1591,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 		wep.Length = wep.KeyLength +
 			     FIELD_OFFSET(struct NDIS_802_11_WEP, KeyMaterial);
 	} else {
-		wep.KeyLength = 0 ;
+		wep.KeyLength = 0;
 		if (keyindex_provided == 1) { /* set key_id only, no given
 					       * KeyMaterial(erq->length==0).*/
 			padapter->securitypriv.PrivacyKeyIndex = key;
@@ -1802,13 +1795,6 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 	u32 param_len;
 	int ret = 0;
 
-	param_len = sizeof(struct ieee_param) + pext->key_len;
-	param = (struct ieee_param *)_malloc(param_len);
-	if (param == NULL)
-		return -ENOMEM;
-	memset(param, 0, param_len);
-	param->cmd = IEEE_CMD_SET_ENCRYPTION;
-	memset(param->sta_addr, 0xff, ETH_ALEN);
 	switch (pext->alg) {
 	case IW_ENCODE_ALG_NONE:
 		alg_name = "none";
@@ -1825,6 +1811,14 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 	default:
 		return -EINVAL;
 	}
+
+	param_len = sizeof(struct ieee_param) + pext->key_len;
+	param = kzalloc(param_len, GFP_ATOMIC);
+	if (param == NULL)
+		return -ENOMEM;
+	param->cmd = IEEE_CMD_SET_ENCRYPTION;
+	memset(param->sta_addr, 0xff, ETH_ALEN);
+
 	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
 	if (pext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
 		param->u.crypt.set_tx = 0;
@@ -1880,7 +1874,7 @@ static int r8711_wx_write32(struct net_device *dev,
 	u32 data32;
 
 	get_user(addr, (u32 __user *)wrqu->data.pointer);
-	data32 = ((u32)wrqu->data.length<<16) | (u32)wrqu->data.flags ;
+	data32 = ((u32)wrqu->data.length<<16) | (u32)wrqu->data.flags;
 	r8712_write32(padapter, addr, data32);
 	return 0;
 }
@@ -1921,7 +1915,7 @@ static int r871x_mp_ioctl_hdl(struct net_device *dev,
 	bset = (u8)(p->flags & 0xFFFF);
 	len = p->length;
 	pparmbuf = NULL;
-	pparmbuf = (u8 *)_malloc(len);
+	pparmbuf = kmalloc(len, GFP_ATOMIC);
 	if (pparmbuf == NULL) {
 		ret = -ENOMEM;
 		goto _r871x_mp_ioctl_hdl_exit;
@@ -2194,13 +2188,9 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 
 	if (p->length < sizeof(struct ieee_param) || !p->pointer)
 		return -EINVAL;
-	param = (struct ieee_param *)_malloc(p->length);
-	if (param == NULL)
-		return -ENOMEM;
-	if (copy_from_user(param, p->pointer, p->length)) {
-		kfree((u8 *)param);
-		return -EFAULT;
-	}
+	param = memdup_user(p->pointer, p->length);
+	if (IS_ERR(param))
+		return PTR_ERR(param);
 	switch (param->cmd) {
 	case IEEE_CMD_SET_WPA_PARAM:
 		ret = wpa_set_param(dev, param->u.wpa_param.name,

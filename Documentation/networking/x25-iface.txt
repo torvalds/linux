@@ -105,7 +105,7 @@ reduced by the following measures or a combination thereof:
     later.
     The lapb module interface was modified to support this. Its
     data_indication() method should now transparently pass the
-    netif_rx() return value to the (lapb mopdule) caller.
+    netif_rx() return value to the (lapb module) caller.
 (2) Drivers for kernel versions 2.2.x should always check the global
     variable netdev_dropping when a new frame is received. The driver
     should only call netif_rx() if netdev_dropping is zero. Otherwise

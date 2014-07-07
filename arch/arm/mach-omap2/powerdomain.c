@@ -32,6 +32,7 @@
 
 #include "powerdomain.h"
 #include "clockdomain.h"
+#include "voltage.h"
 
 #include "soc.h"
 #include "pm.h"
@@ -128,7 +129,8 @@ skip_voltdm:
 	for (i = 0; i < pwrdm->banks; i++)
 		pwrdm->ret_mem_off_counter[i] = 0;
 
-	arch_pwrdm->pwrdm_wait_transition(pwrdm);
+	if (arch_pwrdm && arch_pwrdm->pwrdm_wait_transition)
+		arch_pwrdm->pwrdm_wait_transition(pwrdm);
 	pwrdm->state = pwrdm_read_pwrst(pwrdm);
 	pwrdm->state_counter[pwrdm->state] = 1;
 

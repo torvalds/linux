@@ -18,32 +18,21 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_error.h"
-#include "xfs_da_btree.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_alloc.h"
 #include "xfs_extent_busy.h"
-#include "xfs_bmap.h"
 #include "xfs_quota.h"
-#include "xfs_qm.h"
+#include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-#include "xfs_trans_space.h"
-#include "xfs_inode_item.h"
-#include "xfs_log_priv.h"
-#include "xfs_buf_item.h"
+#include "xfs_log.h"
 #include "xfs_trace.h"
+#include "xfs_error.h"
 
 kmem_zone_t	*xfs_trans_zone;
 kmem_zone_t	*xfs_log_item_desc_zone;
@@ -838,7 +827,7 @@ xfs_trans_committed_bulk(
 		xfs_log_item_batch_insert(ailp, &cur, log_items, i, commit_lsn);
 
 	spin_lock(&ailp->xa_lock);
-	xfs_trans_ail_cursor_done(ailp, &cur);
+	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 }
 
@@ -898,12 +887,7 @@ xfs_trans_commit(
 		xfs_trans_apply_sb_deltas(tp);
 	xfs_trans_apply_dquot_deltas(tp);
 
-	error = xfs_log_commit_cil(mp, tp, &commit_lsn, flags);
-	if (error == ENOMEM) {
-		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
-		error = XFS_ERROR(EIO);
-		goto out_unreserve;
-	}
+	xfs_log_commit_cil(mp, tp, &commit_lsn, flags);
 
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 	xfs_trans_free(tp);
@@ -913,10 +897,7 @@ xfs_trans_commit(
 	 * log out now and wait for it.
 	 */
 	if (sync) {
-		if (!error) {
-			error = _xfs_log_force_lsn(mp, commit_lsn,
-				      XFS_LOG_SYNC, NULL);
-		}
+		error = _xfs_log_force_lsn(mp, commit_lsn, XFS_LOG_SYNC, NULL);
 		XFS_STATS_INC(xs_trans_sync);
 	} else {
 		XFS_STATS_INC(xs_trans_async);

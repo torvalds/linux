@@ -25,13 +25,17 @@
 #include "dw_mmc.h"
 #include "dw_mmc-pltfm.h"
 
-static void dw_mci_rockchip_prepare_command(struct dw_mci *host, u32 *cmdr)
+static void dw_mci_pltfm_prepare_command(struct dw_mci *host, u32 *cmdr)
 {
 	*cmdr |= SDMMC_CMD_USE_HOLD_REG;
 }
 
 static const struct dw_mci_drv_data rockchip_drv_data = {
-	.prepare_command	= dw_mci_rockchip_prepare_command,
+	.prepare_command	= dw_mci_pltfm_prepare_command,
+};
+
+static const struct dw_mci_drv_data socfpga_drv_data = {
+	.prepare_command	= dw_mci_pltfm_prepare_command,
 };
 
 int dw_mci_pltfm_register(struct platform_device *pdev,
@@ -39,7 +43,6 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 {
 	struct dw_mci *host;
 	struct resource	*regs;
-	int ret;
 
 	host = devm_kzalloc(&pdev->dev, sizeof(struct dw_mci), GFP_KERNEL);
 	if (!host)
@@ -58,12 +61,6 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	host->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(host->regs))
 		return PTR_ERR(host->regs);
-
-	if (drv_data && drv_data->init) {
-		ret = drv_data->init(host);
-		if (ret)
-			return ret;
-	}
 
 	platform_set_drvdata(pdev, host);
 	return dw_mci_probe(host);
@@ -99,6 +96,8 @@ static const struct of_device_id dw_mci_pltfm_match[] = {
 	{ .compatible = "snps,dw-mshc", },
 	{ .compatible = "rockchip,rk2928-dw-mshc",
 		.data = &rockchip_drv_data },
+	{ .compatible = "altr,socfpga-dw-mshc",
+		.data = &socfpga_drv_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
@@ -130,7 +129,7 @@ static struct platform_driver dw_mci_pltfm_driver = {
 	.remove		= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dw_mmc",
-		.of_match_table	= of_match_ptr(dw_mci_pltfm_match),
+		.of_match_table	= dw_mci_pltfm_match,
 		.pm		= &dw_mci_pltfm_pmops,
 	},
 };

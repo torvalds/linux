@@ -121,7 +121,7 @@ static int dump_midi(struct snd_rawmidi_substream *substream, const char *buf, i
 	runtime = substream->runtime;
 	if ((tmp = runtime->avail) < count) {
 		if (printk_ratelimit())
-			snd_printk(KERN_ERR "MIDI output buffer overrun\n");
+			pr_err("ALSA: seq_midi: MIDI output buffer overrun\n");
 		return -ENOMEM;
 	}
 	if (snd_rawmidi_kernel_write(substream, buf, count) < count)
@@ -145,7 +145,7 @@ static int event_process_midi(struct snd_seq_event *ev, int direct,
 	if (ev->type == SNDRV_SEQ_EVENT_SYSEX) {	/* special case, to save space */
 		if ((ev->flags & SNDRV_SEQ_EVENT_LENGTH_MASK) != SNDRV_SEQ_EVENT_LENGTH_VARIABLE) {
 			/* invalid event */
-			snd_printd("seq_midi: invalid sysex event flags = 0x%x\n", ev->flags);
+			pr_debug("ALSA: seq_midi: invalid sysex event flags = 0x%x\n", ev->flags);
 			return 0;
 		}
 		snd_seq_dump_var_event(ev, (snd_seq_dump_func_t)dump_midi, substream);
@@ -189,7 +189,7 @@ static int midisynth_subscribe(void *private_data, struct snd_seq_port_subscribe
 					   msynth->subdevice,
 					   SNDRV_RAWMIDI_LFLG_INPUT,
 					   &msynth->input_rfile)) < 0) {
-		snd_printd("midi input open failed!!!\n");
+		pr_debug("ALSA: seq_midi: midi input open failed!!!\n");
 		return err;
 	}
 	runtime = msynth->input_rfile.input->runtime;
@@ -231,7 +231,7 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 					   msynth->subdevice,
 					   SNDRV_RAWMIDI_LFLG_OUTPUT,
 					   &msynth->output_rfile)) < 0) {
-		snd_printd("midi output open failed!!!\n");
+		pr_debug("ALSA: seq_midi: midi output open failed!!!\n");
 		return err;
 	}
 	memset(&params, 0, sizeof(params));
@@ -362,13 +362,13 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 		if (! port->name[0]) {
 			if (info->name[0]) {
 				if (ports > 1)
-					snprintf(port->name, sizeof(port->name), "%s-%d", info->name, p);
+					snprintf(port->name, sizeof(port->name), "%s-%u", info->name, p);
 				else
 					snprintf(port->name, sizeof(port->name), "%s", info->name);
 			} else {
 				/* last resort */
 				if (ports > 1)
-					sprintf(port->name, "MIDI %d-%d-%d", card->number, device, p);
+					sprintf(port->name, "MIDI %d-%d-%u", card->number, device, p);
 				else
 					sprintf(port->name, "MIDI %d-%d", card->number, device);
 			}

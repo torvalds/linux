@@ -980,7 +980,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 			mpt3sas_scsih_issue_tm(ioc,
 			    le16_to_cpu(mpi_request->FunctionDependent1), 0, 0,
 			    0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 30,
-			    0, TM_MUTEX_ON);
+			    TM_MUTEX_ON);
 		} else
 			mpt3sas_base_hard_reset_handler(ioc, CAN_SLEEP,
 			    FORCE_BIG_HAMMER);

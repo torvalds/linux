@@ -121,7 +121,6 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct aead_givcrypt_request *req;
 	struct scatterlist *sg;
 	struct scatterlist *asg;
-	struct esp_data *esp;
 	struct sk_buff *trailer;
 	void *tmp;
 	u8 *iv;
@@ -139,8 +138,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* skb is pure payload to encrypt */
 
-	esp = x->data;
-	aead = esp->aead;
+	aead = x->data;
 	alen = crypto_aead_authsize(aead);
 
 	tfclen = 0;
@@ -154,8 +152,6 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	}
 	blksize = ALIGN(crypto_aead_blocksize(aead), 4);
 	clen = ALIGN(skb->len + 2 + tfclen, blksize);
-	if (esp->padlen)
-		clen = ALIGN(clen, esp->padlen);
 	plen = clen - skb->len - tfclen;
 
 	err = skb_cow_data(skb, tfclen + plen + alen, &trailer);
@@ -280,8 +276,7 @@ static int esp_input_done2(struct sk_buff *skb, int err)
 {
 	const struct iphdr *iph;
 	struct xfrm_state *x = xfrm_input_state(skb);
-	struct esp_data *esp = x->data;
-	struct crypto_aead *aead = esp->aead;
+	struct crypto_aead *aead = x->data;
 	int alen = crypto_aead_authsize(aead);
 	int hlen = sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead);
 	int elen = skb->len - hlen;
@@ -376,8 +371,7 @@ static void esp_input_done(struct crypto_async_request *base, int err)
 static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ip_esp_hdr *esph;
-	struct esp_data *esp = x->data;
-	struct crypto_aead *aead = esp->aead;
+	struct crypto_aead *aead = x->data;
 	struct aead_request *req;
 	struct sk_buff *trailer;
 	int elen = skb->len - sizeof(*esph) - crypto_aead_ivsize(aead);
@@ -459,9 +453,8 @@ out:
 
 static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 {
-	struct esp_data *esp = x->data;
-	u32 blksize = ALIGN(crypto_aead_blocksize(esp->aead), 4);
-	u32 align = max_t(u32, blksize, esp->padlen);
+	struct crypto_aead *aead = x->data;
+	u32 blksize = ALIGN(crypto_aead_blocksize(aead), 4);
 	unsigned int net_adj;
 
 	switch (x->props.mode) {
@@ -476,11 +469,11 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 		BUG();
 	}
 
-	return ((mtu - x->props.header_len - crypto_aead_authsize(esp->aead) -
-		 net_adj) & ~(align - 1)) + net_adj - 2;
+	return ((mtu - x->props.header_len - crypto_aead_authsize(aead) -
+		 net_adj) & ~(blksize - 1)) + net_adj - 2;
 }
 
-static void esp4_err(struct sk_buff *skb, u32 info)
+static int esp4_err(struct sk_buff *skb, u32 info)
 {
 	struct net *net = dev_net(skb->dev);
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
@@ -490,39 +483,39 @@ static void esp4_err(struct sk_buff *skb, u32 info)
 	switch (icmp_hdr(skb)->type) {
 	case ICMP_DEST_UNREACH:
 		if (icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
-			return;
+			return 0;
 	case ICMP_REDIRECT:
 		break;
 	default:
-		return;
+		return 0;
 	}
 
 	x = xfrm_state_lookup(net, skb->mark, (const xfrm_address_t *)&iph->daddr,
 			      esph->spi, IPPROTO_ESP, AF_INET);
 	if (!x)
-		return;
+		return 0;
 
 	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
 		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_ESP, 0);
 	else
 		ipv4_redirect(skb, net, 0, 0, IPPROTO_ESP, 0);
 	xfrm_state_put(x);
+
+	return 0;
 }
 
 static void esp_destroy(struct xfrm_state *x)
 {
-	struct esp_data *esp = x->data;
+	struct crypto_aead *aead = x->data;
 
-	if (!esp)
+	if (!aead)
 		return;
 
-	crypto_free_aead(esp->aead);
-	kfree(esp);
+	crypto_free_aead(aead);
 }
 
 static int esp_init_aead(struct xfrm_state *x)
 {
-	struct esp_data *esp = x->data;
 	struct crypto_aead *aead;
 	int err;
 
@@ -531,7 +524,7 @@ static int esp_init_aead(struct xfrm_state *x)
 	if (IS_ERR(aead))
 		goto error;
 
-	esp->aead = aead;
+	x->data = aead;
 
 	err = crypto_aead_setkey(aead, x->aead->alg_key,
 				 (x->aead->alg_key_len + 7) / 8);
@@ -548,7 +541,6 @@ error:
 
 static int esp_init_authenc(struct xfrm_state *x)
 {
-	struct esp_data *esp = x->data;
 	struct crypto_aead *aead;
 	struct crypto_authenc_key_param *param;
 	struct rtattr *rta;
@@ -583,7 +575,7 @@ static int esp_init_authenc(struct xfrm_state *x)
 	if (IS_ERR(aead))
 		goto error;
 
-	esp->aead = aead;
+	x->data = aead;
 
 	keylen = (x->aalg ? (x->aalg->alg_key_len + 7) / 8 : 0) +
 		 (x->ealg->alg_key_len + 7) / 8 + RTA_SPACE(sizeof(*param));
@@ -638,16 +630,11 @@ error:
 
 static int esp_init_state(struct xfrm_state *x)
 {
-	struct esp_data *esp;
 	struct crypto_aead *aead;
 	u32 align;
 	int err;
 
-	esp = kzalloc(sizeof(*esp), GFP_KERNEL);
-	if (esp == NULL)
-		return -ENOMEM;
-
-	x->data = esp;
+	x->data = NULL;
 
 	if (x->aead)
 		err = esp_init_aead(x);
@@ -657,9 +644,7 @@ static int esp_init_state(struct xfrm_state *x)
 	if (err)
 		goto error;
 
-	aead = esp->aead;
-
-	esp->padlen = 0;
+	aead = x->data;
 
 	x->props.header_len = sizeof(struct ip_esp_hdr) +
 			      crypto_aead_ivsize(aead);
@@ -683,12 +668,15 @@ static int esp_init_state(struct xfrm_state *x)
 	}
 
 	align = ALIGN(crypto_aead_blocksize(aead), 4);
-	if (esp->padlen)
-		align = max_t(u32, align, esp->padlen);
-	x->props.trailer_len = align + 1 + crypto_aead_authsize(esp->aead);
+	x->props.trailer_len = align + 1 + crypto_aead_authsize(aead);
 
 error:
 	return err;
+}
+
+static int esp4_rcv_cb(struct sk_buff *skb, int err)
+{
+	return 0;
 }
 
 static const struct xfrm_type esp_type =
@@ -704,11 +692,12 @@ static const struct xfrm_type esp_type =
 	.output		= esp_output
 };
 
-static const struct net_protocol esp4_protocol = {
+static struct xfrm4_protocol esp4_protocol = {
 	.handler	=	xfrm4_rcv,
+	.input_handler	=	xfrm_input,
+	.cb_handler	=	esp4_rcv_cb,
 	.err_handler	=	esp4_err,
-	.no_policy	=	1,
-	.netns_ok	=	1,
+	.priority	=	0,
 };
 
 static int __init esp4_init(void)
@@ -717,7 +706,7 @@ static int __init esp4_init(void)
 		pr_info("%s: can't add xfrm type\n", __func__);
 		return -EAGAIN;
 	}
-	if (inet_add_protocol(&esp4_protocol, IPPROTO_ESP) < 0) {
+	if (xfrm4_protocol_register(&esp4_protocol, IPPROTO_ESP) < 0) {
 		pr_info("%s: can't add protocol\n", __func__);
 		xfrm_unregister_type(&esp_type, AF_INET);
 		return -EAGAIN;
@@ -727,7 +716,7 @@ static int __init esp4_init(void)
 
 static void __exit esp4_fini(void)
 {
-	if (inet_del_protocol(&esp4_protocol, IPPROTO_ESP) < 0)
+	if (xfrm4_protocol_deregister(&esp4_protocol, IPPROTO_ESP) < 0)
 		pr_info("%s: can't remove protocol\n", __func__);
 	if (xfrm_unregister_type(&esp_type, AF_INET) < 0)
 		pr_info("%s: can't remove xfrm type\n", __func__);

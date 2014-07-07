@@ -1,0 +1,157 @@
+What:		/sys/class/mic/
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		The mic class directory belongs to Intel MIC devices and
+		provides information per MIC device. An Intel MIC device is a
+		PCIe form factor add-in Coprocessor card based on the Intel Many
+		Integrated Core (MIC) architecture that runs a Linux OS.
+
+What:		/sys/class/mic/mic(x)
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		The directories /sys/class/mic/mic0, /sys/class/mic/mic1 etc.,
+		represent MIC devices (0,1,..etc). Each directory has
+		information specific to that MIC device.
+
+What:		/sys/class/mic/mic(x)/family
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		Provides information about the Coprocessor family for an Intel
+		MIC device. For example - "x100"
+
+What:		/sys/class/mic/mic(x)/stepping
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		Provides information about the silicon stepping for an Intel
+		MIC device. For example - "A0" or "B0"
+
+What:		/sys/class/mic/mic(x)/state
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		When read, this entry provides the current state of an Intel
+		MIC device in the context of the card OS. Possible values that
+		will be read are:
+		"offline" - The MIC device is ready to boot the card OS. On
+		reading this entry after an OSPM resume, a "boot" has to be
+		written to this entry if the card was previously shutdown
+		during OSPM suspend.
+		"online" - The MIC device has initiated booting a card OS.
+		"shutting_down" - The card OS is shutting down.
+		"reset_failed" - The MIC device has failed to reset.
+		"suspending" - The MIC device is currently being prepared for
+		suspend. On reading this entry, a "suspend" has to be written
+		to the state sysfs entry to ensure the card is shutdown during
+		OSPM suspend.
+		"suspended" - The MIC device has been suspended.
+
+		When written, this sysfs entry triggers different state change
+		operations depending upon the current state of the card OS.
+		Acceptable values are:
+		"boot" - Boot the card OS image specified by the combination
+			 of firmware, ramdisk, cmdline and bootmode
+			sysfs entries.
+		"reset" - Initiates device reset.
+		"shutdown" - Initiates card OS shutdown.
+		"suspend" - Initiates card OS shutdown and also marks the card
+		as suspended.
+
+What:		/sys/class/mic/mic(x)/shutdown_status
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		An Intel MIC device runs a Linux OS during its operation. This
+		OS can shutdown because of various reasons. When read, this
+		entry provides the status on why the card OS was shutdown.
+		Possible values are:
+		"nop" -  shutdown status is not applicable, when the card OS is
+			"online"
+		"crashed" - Shutdown because of a HW or SW crash.
+		"halted" - Shutdown because of a halt command.
+		"poweroff" - Shutdown because of a poweroff command.
+		"restart" - Shutdown because of a restart command.
+
+What:		/sys/class/mic/mic(x)/cmdline
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		An Intel MIC device runs a Linux OS during its operation. Before
+		booting this card OS, it is possible to pass kernel command line
+		options to configure various features in it, similar to
+		self-bootable machines. When read, this entry provides
+		information about the current kernel command line options set to
+		boot the card OS. This entry can be written to change the
+		existing kernel command line options. Typically, the user would
+		want to read the current command line options, append new ones
+		or modify existing ones and then write the whole kernel command
+		line back to this entry.
+
+What:		/sys/class/mic/mic(x)/firmware
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		When read, this sysfs entry provides the path name under
+		/lib/firmware/ where the firmware image to be booted on the
+		card can be found. The entry can be written to change the
+		firmware image location under /lib/firmware/.
+
+What:		/sys/class/mic/mic(x)/ramdisk
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		When read, this sysfs entry provides the path name under
+		/lib/firmware/ where the ramdisk image to be used during card
+		OS boot can be found. The entry can be written to change
+		the ramdisk image location under /lib/firmware/.
+
+What:		/sys/class/mic/mic(x)/bootmode
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		When read, this sysfs entry provides the current bootmode for
+		the card. This sysfs entry can be written with the following
+		valid strings:
+		a) linux - Boot a Linux image.
+		b) elf - Boot an elf image for flash updates.
+
+What:		/sys/class/mic/mic(x)/log_buf_addr
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		An Intel MIC device runs a Linux OS during its operation. For
+		debugging purpose and early kernel boot messages, the user can
+		access the card OS log buffer via debugfs. When read, this entry
+		provides the kernel virtual address of the buffer where the card
+		OS log buffer can be read. This entry is written by the host
+		configuration daemon to set the log buffer address. The correct
+		log buffer address to be written can be found in the System.map
+		file of the card OS.
+
+What:		/sys/class/mic/mic(x)/log_buf_len
+Date:		October 2013
+KernelVersion:	3.13
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		An Intel MIC device runs a Linux OS during its operation. For
+		debugging purpose and early kernel boot messages, the user can
+		access the card OS log buffer via debugfs. When read, this entry
+		provides the kernel virtual address where the card OS log buffer
+		length can be read. This entry is written by host configuration
+		daemon to set the log buffer length address. The correct log
+		buffer length address to be written can be found in the
+		System.map file of the card OS.

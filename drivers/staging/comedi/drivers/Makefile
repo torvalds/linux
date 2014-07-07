@@ -1,5 +1,6 @@
 # Makefile for individual comedi drivers
 #
+ccflags-$(CONFIG_COMEDI_DEBUG)		:= -DDEBUG
 
 # Comedi "helper" modules
 
@@ -23,6 +24,7 @@ obj-$(CONFIG_COMEDI_PCL818)		+= pcl818.o
 obj-$(CONFIG_COMEDI_PCM3724)		+= pcm3724.o
 obj-$(CONFIG_COMEDI_RTI800)		+= rti800.o
 obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
+obj-$(CONFIG_COMEDI_DAC02)		+= dac02.o
 obj-$(CONFIG_COMEDI_DAS16M1)		+= das16m1.o
 obj-$(CONFIG_COMEDI_DAS08_ISA)		+= das08_isa.o
 obj-$(CONFIG_COMEDI_DAS16)		+= das16.o
@@ -52,7 +54,6 @@ obj-$(CONFIG_COMEDI_PCMDA12)		+= pcmda12.o
 obj-$(CONFIG_COMEDI_PCMMIO)		+= pcmmio.o
 obj-$(CONFIG_COMEDI_PCMUIO)		+= pcmuio.o
 obj-$(CONFIG_COMEDI_MULTIQ3)		+= multiq3.o
-obj-$(CONFIG_COMEDI_POC)		+= poc.o
 obj-$(CONFIG_COMEDI_S526)		+= s526.o
 
 # Comedi PCI drivers
@@ -110,6 +111,7 @@ obj-$(CONFIG_COMEDI_NI_PCIMIO)		+= ni_pcimio.o
 obj-$(CONFIG_COMEDI_RTD520)		+= rtd520.o
 obj-$(CONFIG_COMEDI_S626)		+= s626.o
 obj-$(CONFIG_COMEDI_SSV_DNP)		+= ssv_dnp.o
+obj-$(CONFIG_COMEDI_MF6X4)		+= mf6x4.o
 
 # Comedi PCMCIA drivers
 obj-$(CONFIG_COMEDI_CB_DAS16_CS)	+= cb_das16_cs.o

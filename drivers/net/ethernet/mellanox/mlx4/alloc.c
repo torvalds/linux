@@ -71,9 +71,9 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap)
 	return obj;
 }
 
-void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj)
+void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj, int use_rr)
 {
-	mlx4_bitmap_free_range(bitmap, obj, 1);
+	mlx4_bitmap_free_range(bitmap, obj, 1, use_rr);
 }
 
 u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
@@ -118,11 +118,17 @@ u32 mlx4_bitmap_avail(struct mlx4_bitmap *bitmap)
 	return bitmap->avail;
 }
 
-void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
+void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt,
+			    int use_rr)
 {
 	obj &= bitmap->max + bitmap->reserved_top - 1;
 
 	spin_lock(&bitmap->lock);
+	if (!use_rr) {
+		bitmap->last = min(bitmap->last, obj);
+		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
+				& bitmap->mask;
+	}
 	bitmap_clear(bitmap->table, obj, cnt);
 	bitmap->avail += cnt;
 	spin_unlock(&bitmap->lock);
@@ -165,7 +171,7 @@ void mlx4_bitmap_cleanup(struct mlx4_bitmap *bitmap)
  */
 
 int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
-		   struct mlx4_buf *buf)
+		   struct mlx4_buf *buf, gfp_t gfp)
 {
 	dma_addr_t t;
 
@@ -174,7 +180,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		buf->npages       = 1;
 		buf->page_shift   = get_order(size) + PAGE_SHIFT;
 		buf->direct.buf   = dma_alloc_coherent(&dev->pdev->dev,
-						       size, &t, GFP_KERNEL);
+						       size, &t, gfp);
 		if (!buf->direct.buf)
 			return -ENOMEM;
 
@@ -194,14 +200,14 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		buf->npages      = buf->nbufs;
 		buf->page_shift  = PAGE_SHIFT;
 		buf->page_list   = kcalloc(buf->nbufs, sizeof(*buf->page_list),
-					   GFP_KERNEL);
+					   gfp);
 		if (!buf->page_list)
 			return -ENOMEM;
 
 		for (i = 0; i < buf->nbufs; ++i) {
 			buf->page_list[i].buf =
 				dma_alloc_coherent(&dev->pdev->dev, PAGE_SIZE,
-						   &t, GFP_KERNEL);
+						   &t, gfp);
 			if (!buf->page_list[i].buf)
 				goto err_free;
 
@@ -212,7 +218,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 
 		if (BITS_PER_LONG == 64) {
 			struct page **pages;
-			pages = kmalloc(sizeof *pages * buf->nbufs, GFP_KERNEL);
+			pages = kmalloc(sizeof *pages * buf->nbufs, gfp);
 			if (!pages)
 				goto err_free;
 			for (i = 0; i < buf->nbufs; ++i)
@@ -254,11 +260,12 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf)
 }
 EXPORT_SYMBOL_GPL(mlx4_buf_free);
 
-static struct mlx4_db_pgdir *mlx4_alloc_db_pgdir(struct device *dma_device)
+static struct mlx4_db_pgdir *mlx4_alloc_db_pgdir(struct device *dma_device,
+						 gfp_t gfp)
 {
 	struct mlx4_db_pgdir *pgdir;
 
-	pgdir = kzalloc(sizeof *pgdir, GFP_KERNEL);
+	pgdir = kzalloc(sizeof *pgdir, gfp);
 	if (!pgdir)
 		return NULL;
 
@@ -266,7 +273,7 @@ static struct mlx4_db_pgdir *mlx4_alloc_db_pgdir(struct device *dma_device)
 	pgdir->bits[0] = pgdir->order0;
 	pgdir->bits[1] = pgdir->order1;
 	pgdir->db_page = dma_alloc_coherent(dma_device, PAGE_SIZE,
-					    &pgdir->db_dma, GFP_KERNEL);
+					    &pgdir->db_dma, gfp);
 	if (!pgdir->db_page) {
 		kfree(pgdir);
 		return NULL;
@@ -306,7 +313,7 @@ found:
 	return 0;
 }
 
-int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order)
+int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order, gfp_t gfp)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_db_pgdir *pgdir;
@@ -318,7 +325,7 @@ int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order)
 		if (!mlx4_alloc_db_from_pgdir(pgdir, db, order))
 			goto out;
 
-	pgdir = mlx4_alloc_db_pgdir(&(dev->pdev->dev));
+	pgdir = mlx4_alloc_db_pgdir(&(dev->pdev->dev), gfp);
 	if (!pgdir) {
 		ret = -ENOMEM;
 		goto out;
@@ -370,13 +377,13 @@ int mlx4_alloc_hwq_res(struct mlx4_dev *dev, struct mlx4_hwq_resources *wqres,
 {
 	int err;
 
-	err = mlx4_db_alloc(dev, &wqres->db, 1);
+	err = mlx4_db_alloc(dev, &wqres->db, 1, GFP_KERNEL);
 	if (err)
 		return err;
 
 	*wqres->db.db = 0;
 
-	err = mlx4_buf_alloc(dev, size, max_direct, &wqres->buf);
+	err = mlx4_buf_alloc(dev, size, max_direct, &wqres->buf, GFP_KERNEL);
 	if (err)
 		goto err_db;
 
@@ -385,7 +392,7 @@ int mlx4_alloc_hwq_res(struct mlx4_dev *dev, struct mlx4_hwq_resources *wqres,
 	if (err)
 		goto err_buf;
 
-	err = mlx4_buf_write_mtt(dev, &wqres->mtt, &wqres->buf);
+	err = mlx4_buf_write_mtt(dev, &wqres->mtt, &wqres->buf, GFP_KERNEL);
 	if (err)
 		goto err_mtt;
 

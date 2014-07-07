@@ -18,9 +18,7 @@
 #include "helpers/bitmask.h"
 
 static struct option set_opts[] = {
-	{ .name = "perf-bias",	.has_arg = optional_argument,	.flag = NULL,	.val = 'b'},
-	{ .name = "sched-mc",	.has_arg = optional_argument,	.flag = NULL,	.val = 'm'},
-	{ .name = "sched-smt",	.has_arg = optional_argument,	.flag = NULL,	.val = 's'},
+	{ .name = "perf-bias",	.has_arg = required_argument,	.flag = NULL,	.val = 'b'},
 	{ },
 };
 
@@ -38,13 +36,11 @@ int cmd_set(int argc, char **argv)
 
 	union {
 		struct {
-			int sched_mc:1;
-			int sched_smt:1;
 			int perf_bias:1;
 		};
 		int params;
 	} params;
-	int sched_mc = 0, sched_smt = 0, perf_bias = 0;
+	int perf_bias = 0;
 	int ret = 0;
 
 	setlocale(LC_ALL, "");
@@ -52,7 +48,7 @@ int cmd_set(int argc, char **argv)
 
 	params.params = 0;
 	/* parameter parsing */
-	while ((ret = getopt_long(argc, argv, "m:s:b:",
+	while ((ret = getopt_long(argc, argv, "b:",
 						set_opts, NULL)) != -1) {
 		switch (ret) {
 		case 'b':
@@ -66,28 +62,6 @@ int cmd_set(int argc, char **argv)
 			}
 			params.perf_bias = 1;
 			break;
-		case 'm':
-			if (params.sched_mc)
-				print_wrong_arg_exit();
-			sched_mc = atoi(optarg);
-			if (sched_mc < 0 || sched_mc > 2) {
-				printf(_("--sched-mc param out "
-					 "of range [0-%d]\n"), 2);
-				print_wrong_arg_exit();
-			}
-			params.sched_mc = 1;
-			break;
-		case 's':
-			if (params.sched_smt)
-				print_wrong_arg_exit();
-			sched_smt = atoi(optarg);
-			if (sched_smt < 0 || sched_smt > 2) {
-				printf(_("--sched-smt param out "
-					 "of range [0-%d]\n"), 2);
-				print_wrong_arg_exit();
-			}
-			params.sched_smt = 1;
-			break;
 		default:
 			print_wrong_arg_exit();
 		}
@@ -95,19 +69,6 @@ int cmd_set(int argc, char **argv)
 
 	if (!params.params)
 		print_wrong_arg_exit();
-
-	if (params.sched_mc) {
-		ret = sysfs_set_sched("mc", sched_mc);
-		if (ret)
-			fprintf(stderr, _("Error setting sched-mc %s\n"),
-				(ret == -ENODEV) ? "not supported" : "");
-	}
-	if (params.sched_smt) {
-		ret = sysfs_set_sched("smt", sched_smt);
-		if (ret)
-			fprintf(stderr, _("Error setting sched-smt %s\n"),
-				(ret == -ENODEV) ? "not supported" : "");
-	}
 
 	/* Default is: set all CPUs */
 	if (bitmask_isallclear(cpus_chosen))

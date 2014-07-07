@@ -37,7 +37,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/usb.h>
@@ -138,7 +137,10 @@
  * comedi constants
  */
 static const struct comedi_lrange range_usbduxfast_ai_range = {
-	2, {BIP_RANGE(0.75), BIP_RANGE(0.5)}
+	2, {
+		BIP_RANGE(0.75),
+		BIP_RANGE(0.5)
+	}
 };
 
 /*
@@ -152,7 +154,6 @@ struct usbduxfast_private {
 	uint8_t *duxbuf;
 	int8_t *inbuf;
 	short int ai_cmd_running;	/* asynchronous command is running */
-	short int ai_continous;	/* continous acquisition */
 	long int ai_sample_count;	/* number of samples to acquire */
 	int ignore;		/* counter which ignores the first
 				   buffers */
@@ -237,6 +238,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	struct comedi_device *dev = urb->context;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv = dev->private;
 	int n, err;
@@ -283,7 +285,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	}
 
 	if (!devpriv->ignore) {
-		if (!devpriv->ai_continous) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			/* not continuous, fixed number of samples */
 			n = urb->actual_length / sizeof(uint16_t);
 			if (unlikely(devpriv->ai_sample_count < n)) {
@@ -370,7 +372,7 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_src(&cmd->start_src,
 					TRIG_NOW | TRIG_EXT | TRIG_INT);
 	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
-					TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT);
+					TRIG_FOLLOW | TRIG_EXT);
 	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
 	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
@@ -396,8 +398,7 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src == TRIG_NOW)
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (!cmd->chanlist_len)
 		err |= -EINVAL;
@@ -421,9 +422,6 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 		tmp = steps / 30;
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, tmp);
 	}
-
-	if (cmd->scan_begin_src == TRIG_TIMER)
-		err |= -EINVAL;
 
 	/* stop source */
 	switch (cmd->stop_src) {
@@ -452,21 +450,20 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 
 static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 unsigned int trignum)
+				 unsigned int trig_num)
 {
 	struct usbduxfast_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
 
 	if (!devpriv)
 		return -EFAULT;
 
+	if (trig_num != cmd->start_arg)
+		return -EINVAL;
+
 	down(&devpriv->sem);
 
-	if (trignum != 0) {
-		dev_err(dev->class_dev, "invalid trignum\n");
-		up(&devpriv->sem);
-		return -EINVAL;
-	}
 	if (!devpriv->ai_cmd_running) {
 		devpriv->ai_cmd_running = 1;
 		ret = usbduxfast_submit_urb(dev);
@@ -512,36 +509,28 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	 */
 	devpriv->ignore = PACKETS_TO_IGNORE;
 
-	if (cmd->chanlist_len > 0) {
-		gain = CR_RANGE(cmd->chanlist[0]);
-		for (i = 0; i < cmd->chanlist_len; ++i) {
-			chan = CR_CHAN(cmd->chanlist[i]);
-			if (chan != i) {
-				dev_err(dev->class_dev,
-					"channels are not consecutive\n");
-				up(&devpriv->sem);
-				return -EINVAL;
-			}
-			if ((gain != CR_RANGE(cmd->chanlist[i]))
-			    && (cmd->chanlist_len > 3)) {
-				dev_err(dev->class_dev,
-					"gain must be the same for all channels\n");
-				up(&devpriv->sem);
-				return -EINVAL;
-			}
-			if (i >= NUMCHANNELS) {
-				dev_err(dev->class_dev, "chanlist too long\n");
-				break;
-			}
+	gain = CR_RANGE(cmd->chanlist[0]);
+	for (i = 0; i < cmd->chanlist_len; ++i) {
+		chan = CR_CHAN(cmd->chanlist[i]);
+		if (chan != i) {
+			dev_err(dev->class_dev,
+				"channels are not consecutive\n");
+			up(&devpriv->sem);
+			return -EINVAL;
+		}
+		if ((gain != CR_RANGE(cmd->chanlist[i]))
+			&& (cmd->chanlist_len > 3)) {
+			dev_err(dev->class_dev,
+				"gain must be the same for all channels\n");
+			up(&devpriv->sem);
+			return -EINVAL;
+		}
+		if (i >= NUMCHANNELS) {
+			dev_err(dev->class_dev, "chanlist too long\n");
+			break;
 		}
 	}
 	steps = 0;
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		dev_err(dev->class_dev,
-			"scan_begin_src==TRIG_TIMER not valid\n");
-		up(&devpriv->sem);
-		return -EINVAL;
-	}
 	if (cmd->convert_src == TRIG_TIMER)
 		steps = (cmd->convert_arg * 30) / 1000;
 
@@ -820,20 +809,11 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return result;
 	}
-	if (cmd->stop_src == TRIG_COUNT) {
+
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_sample_count = cmd->stop_arg * cmd->scan_end_arg;
-		if (devpriv->ai_sample_count < 1) {
-			dev_err(dev->class_dev,
-				"(cmd->stop_arg)*(cmd->scan_end_arg)<1, aborting\n");
-			up(&devpriv->sem);
-			return -EFAULT;
-		}
-		devpriv->ai_continous = 0;
-	} else {
-		/* continous acquisition */
-		devpriv->ai_continous = 1;
+	else	/* TRIG_NONE */
 		devpriv->ai_sample_count = 0;
-	}
 
 	if ((cmd->start_src == TRIG_NOW) || (cmd->start_src == TRIG_EXT)) {
 		/* enable this acquisition operation */
@@ -846,12 +826,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			return ret;
 		}
 		s->async->inttrig = NULL;
-	} else {
-		/*
-		 * TRIG_INT
-		 * don't enable the acquision operation
-		 * wait for an internal signal
-		 */
+	} else {	/* TRIG_INT */
 		s->async->inttrig = usbduxfast_ai_inttrig;
 	}
 	up(&devpriv->sem);

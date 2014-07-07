@@ -139,6 +139,7 @@ bool kvm_check_and_clear_guest_paused(void)
 	src = &hv_clock[cpu].pvti;
 	if ((src->flags & PVCLOCK_GUEST_STOPPED) != 0) {
 		src->flags &= ~PVCLOCK_GUEST_STOPPED;
+		pvclock_touch_watchdogs();
 		ret = true;
 	}
 
@@ -241,7 +242,7 @@ void __init kvmclock_init(void)
 	hv_clock = __va(mem);
 	memset(hv_clock, 0, size);
 
-	if (kvm_register_clock("boot clock")) {
+	if (kvm_register_clock("primary cpu clock")) {
 		hv_clock = NULL;
 		memblock_free(mem, size);
 		return;

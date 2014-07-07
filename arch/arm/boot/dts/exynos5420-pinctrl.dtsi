@@ -64,7 +64,7 @@
 			samsung,pins = "gpx0-7";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <0>;
-			samaung,pin-drv = <0>;
+			samsung,pin-drv = <0>;
 		};
 	};
 
@@ -621,6 +621,34 @@
 			samsung,pins = "gpb1-3", "gpb1-4";
 			samsung,pin-function = <4>;
 			samsung,pin-pud = <3>;
+			samsung,pin-drv = <0>;
+		};
+
+		pwm0_out: pwm0-out {
+			samsung,pins = "gpb2-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
+		pwm1_out: pwm1-out {
+			samsung,pins = "gpb2-1";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
+		pwm2_out: pwm2-out {
+			samsung,pins = "gpb2-2";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
+		pwm3_out: pwm3-out {
+			samsung,pins = "gpb2-3";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
 			samsung,pin-drv = <0>;
 		};
 

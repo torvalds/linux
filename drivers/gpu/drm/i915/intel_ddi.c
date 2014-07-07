@@ -42,7 +42,6 @@ static const u32 hsw_ddi_translations_dp[] = {
 	0x80C30FFF, 0x000B0000,
 	0x00FFFFFF, 0x00040006,
 	0x80D75FFF, 0x000B0000,
-	0x00FFFFFF, 0x00040006		/* HDMI parameters */
 };
 
 static const u32 hsw_ddi_translations_fdi[] = {
@@ -55,10 +54,64 @@ static const u32 hsw_ddi_translations_fdi[] = {
 	0x00C30FFF, 0x001E0000,
 	0x00FFFFFF, 0x00060006,
 	0x00D75FFF, 0x001E0000,
-	0x00FFFFFF, 0x00040006		/* HDMI parameters */
 };
 
-static enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
+static const u32 hsw_ddi_translations_hdmi[] = {
+				/* Idx	NT mV diff	T mV diff	db  */
+	0x00FFFFFF, 0x0006000E, /* 0:	400		400		0   */
+	0x00E79FFF, 0x000E000C, /* 1:	400		500		2   */
+	0x00D75FFF, 0x0005000A, /* 2:	400		600		3.5 */
+	0x00FFFFFF, 0x0005000A, /* 3:	600		600		0   */
+	0x00E79FFF, 0x001D0007, /* 4:	600		750		2   */
+	0x00D75FFF, 0x000C0004, /* 5:	600		900		3.5 */
+	0x00FFFFFF, 0x00040006, /* 6:	800		800		0   */
+	0x80E79FFF, 0x00030002, /* 7:	800		1000		2   */
+	0x00FFFFFF, 0x00140005, /* 8:	850		850		0   */
+	0x00FFFFFF, 0x000C0004, /* 9:	900		900		0   */
+	0x00FFFFFF, 0x001C0003, /* 10:	950		950		0   */
+	0x80FFFFFF, 0x00030002, /* 11:	1000		1000		0   */
+};
+
+static const u32 bdw_ddi_translations_edp[] = {
+	0x00FFFFFF, 0x00000012,		/* eDP parameters */
+	0x00EBAFFF, 0x00020011,
+	0x00C71FFF, 0x0006000F,
+	0x00FFFFFF, 0x00020011,
+	0x00DB6FFF, 0x0005000F,
+	0x00BEEFFF, 0x000A000C,
+	0x00FFFFFF, 0x0005000F,
+	0x00DB6FFF, 0x000A000C,
+	0x00FFFFFF, 0x000A000C,
+	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
+};
+
+static const u32 bdw_ddi_translations_dp[] = {
+	0x00FFFFFF, 0x0007000E,		/* DP parameters */
+	0x00D75FFF, 0x000E000A,
+	0x00BEFFFF, 0x00140006,
+	0x00FFFFFF, 0x000E000A,
+	0x00D75FFF, 0x00180004,
+	0x80CB2FFF, 0x001B0002,
+	0x00F7DFFF, 0x00180004,
+	0x80D75FFF, 0x001B0002,
+	0x80FFFFFF, 0x001B0002,
+	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
+};
+
+static const u32 bdw_ddi_translations_fdi[] = {
+	0x00FFFFFF, 0x0001000E,		/* FDI parameters */
+	0x00D75FFF, 0x0004000A,
+	0x00C30FFF, 0x00070006,
+	0x00AAAFFF, 0x000C0000,
+	0x00FFFFFF, 0x0004000A,
+	0x00D75FFF, 0x00090004,
+	0x00C30FFF, 0x000C0000,
+	0x00FFFFFF, 0x00070006,
+	0x00D75FFF, 0x000C0000,
+	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
+};
+
+enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	int type = intel_encoder->type;
@@ -78,8 +131,9 @@ static enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 	}
 }
 
-/* On Haswell, DDI port buffers must be programmed with correct values
- * in advance. The buffer values are different for FDI and DP modes,
+/*
+ * Starting with Haswell, DDI port buffers must be programmed with correct
+ * values in advance. The buffer values are different for FDI and DP modes,
  * but the HDMI/DVI fields are shared among those. So we program the DDI
  * in either FDI or DP modes only, as HDMI connections will work with both
  * of those
@@ -89,13 +143,56 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 	int i;
-	const u32 *ddi_translations = (port == PORT_E) ?
-		hsw_ddi_translations_fdi :
-		hsw_ddi_translations_dp;
+	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
+	const u32 *ddi_translations_fdi;
+	const u32 *ddi_translations_dp;
+	const u32 *ddi_translations_edp;
+	const u32 *ddi_translations;
+
+	if (IS_BROADWELL(dev)) {
+		ddi_translations_fdi = bdw_ddi_translations_fdi;
+		ddi_translations_dp = bdw_ddi_translations_dp;
+		ddi_translations_edp = bdw_ddi_translations_edp;
+	} else if (IS_HASWELL(dev)) {
+		ddi_translations_fdi = hsw_ddi_translations_fdi;
+		ddi_translations_dp = hsw_ddi_translations_dp;
+		ddi_translations_edp = hsw_ddi_translations_dp;
+	} else {
+		WARN(1, "ddi translation table missing\n");
+		ddi_translations_edp = bdw_ddi_translations_dp;
+		ddi_translations_fdi = bdw_ddi_translations_fdi;
+		ddi_translations_dp = bdw_ddi_translations_dp;
+	}
+
+	switch (port) {
+	case PORT_A:
+		ddi_translations = ddi_translations_edp;
+		break;
+	case PORT_B:
+	case PORT_C:
+		ddi_translations = ddi_translations_dp;
+		break;
+	case PORT_D:
+		if (intel_dp_is_edp(dev, PORT_D))
+			ddi_translations = ddi_translations_edp;
+		else
+			ddi_translations = ddi_translations_dp;
+		break;
+	case PORT_E:
+		ddi_translations = ddi_translations_fdi;
+		break;
+	default:
+		BUG();
+	}
 
 	for (i = 0, reg = DDI_BUF_TRANS(port);
 	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
 		I915_WRITE(reg, ddi_translations[i]);
+		reg += 4;
+	}
+	/* Entry 9 is for HDMI: */
+	for (i = 0; i < 2; i++) {
+		I915_WRITE(reg, hsw_ddi_translations_hdmi[hdmi_level * 2 + i]);
 		reg += 4;
 	}
 }
@@ -265,58 +362,6 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	}
 
 	DRM_ERROR("FDI link training failed!\n");
-}
-
-static void intel_ddi_mode_set(struct intel_encoder *encoder)
-{
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	int port = intel_ddi_get_encoder_port(encoder);
-	int pipe = crtc->pipe;
-	int type = encoder->type;
-	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
-
-	DRM_DEBUG_KMS("Preparing DDI mode on port %c, pipe %c\n",
-		      port_name(port), pipe_name(pipe));
-
-	crtc->eld_vld = false;
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-		struct intel_digital_port *intel_dig_port =
-			enc_to_dig_port(&encoder->base);
-
-		intel_dp->DP = intel_dig_port->saved_port_bits |
-			       DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
-		intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
-
-		if (intel_dp->has_audio) {
-			DRM_DEBUG_DRIVER("DP audio on pipe %c on DDI\n",
-					 pipe_name(crtc->pipe));
-
-			/* write eld */
-			DRM_DEBUG_DRIVER("DP audio: write eld information\n");
-			intel_write_eld(&encoder->base, adjusted_mode);
-		}
-
-		intel_dp_init_link_config(intel_dp);
-
-	} else if (type == INTEL_OUTPUT_HDMI) {
-		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-
-		if (intel_hdmi->has_audio) {
-			/* Proper support for digital audio needs a new logic
-			 * and a new set of registers, so we leave it for future
-			 * patch bombing.
-			 */
-			DRM_DEBUG_DRIVER("HDMI audio on pipe %c on DDI\n",
-					 pipe_name(crtc->pipe));
-
-			/* write eld */
-			DRM_DEBUG_DRIVER("HDMI audio: write eld information\n");
-			intel_write_eld(&encoder->base, adjusted_mode);
-		}
-
-		intel_hdmi->set_infoframes(&encoder->base, adjusted_mode);
-	}
 }
 
 static struct intel_encoder *
@@ -539,6 +584,97 @@ static void wrpll_update_rnp(uint64_t freq2k, unsigned budget,
 	/* Otherwise a < c && b >= d, do nothing */
 }
 
+static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
+				     int reg)
+{
+	int refclk = LC_FREQ;
+	int n, p, r;
+	u32 wrpll;
+
+	wrpll = I915_READ(reg);
+	switch (wrpll & SPLL_PLL_REF_MASK) {
+	case SPLL_PLL_SSC:
+	case SPLL_PLL_NON_SSC:
+		/*
+		 * We could calculate spread here, but our checking
+		 * code only cares about 5% accuracy, and spread is a max of
+		 * 0.5% downspread.
+		 */
+		refclk = 135;
+		break;
+	case SPLL_PLL_LCPLL:
+		refclk = LC_FREQ;
+		break;
+	default:
+		WARN(1, "bad wrpll refclk\n");
+		return 0;
+	}
+
+	r = wrpll & WRPLL_DIVIDER_REF_MASK;
+	p = (wrpll & WRPLL_DIVIDER_POST_MASK) >> WRPLL_DIVIDER_POST_SHIFT;
+	n = (wrpll & WRPLL_DIVIDER_FB_MASK) >> WRPLL_DIVIDER_FB_SHIFT;
+
+	/* Convert to KHz, p & r have a fixed point portion */
+	return (refclk * n * 100) / (p * r);
+}
+
+static void intel_ddi_clock_get(struct intel_encoder *encoder,
+				struct intel_crtc_config *pipe_config)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	enum port port = intel_ddi_get_encoder_port(encoder);
+	int link_clock = 0;
+	u32 val, pll;
+
+	val = I915_READ(PORT_CLK_SEL(port));
+	switch (val & PORT_CLK_SEL_MASK) {
+	case PORT_CLK_SEL_LCPLL_810:
+		link_clock = 81000;
+		break;
+	case PORT_CLK_SEL_LCPLL_1350:
+		link_clock = 135000;
+		break;
+	case PORT_CLK_SEL_LCPLL_2700:
+		link_clock = 270000;
+		break;
+	case PORT_CLK_SEL_WRPLL1:
+		link_clock = intel_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL1);
+		break;
+	case PORT_CLK_SEL_WRPLL2:
+		link_clock = intel_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL2);
+		break;
+	case PORT_CLK_SEL_SPLL:
+		pll = I915_READ(SPLL_CTL) & SPLL_PLL_FREQ_MASK;
+		if (pll == SPLL_PLL_FREQ_810MHz)
+			link_clock = 81000;
+		else if (pll == SPLL_PLL_FREQ_1350MHz)
+			link_clock = 135000;
+		else if (pll == SPLL_PLL_FREQ_2700MHz)
+			link_clock = 270000;
+		else {
+			WARN(1, "bad spll freq\n");
+			return;
+		}
+		break;
+	default:
+		WARN(1, "bad port clock sel\n");
+		return;
+	}
+
+	pipe_config->port_clock = link_clock * 2;
+
+	if (pipe_config->has_pch_encoder)
+		pipe_config->adjusted_mode.crtc_clock =
+			intel_dotclock_calculate(pipe_config->port_clock,
+						 &pipe_config->fdi_m_n);
+	else if (pipe_config->has_dp_encoder)
+		pipe_config->adjusted_mode.crtc_clock =
+			intel_dotclock_calculate(pipe_config->port_clock,
+						 &pipe_config->dp_m_n);
+	else
+		pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
+}
+
 static void
 intel_ddi_calculate_wrpll(int clock /* in Hz */,
 			  unsigned *r2_out, unsigned *n2_out, unsigned *p_out)
@@ -602,24 +738,24 @@ intel_ddi_calculate_wrpll(int clock /* in Hz */,
 	*n2_out = best.n2;
 	*p_out = best.p;
 	*r2_out = best.r2;
-
-	DRM_DEBUG_KMS("WRPLL: %dHz refresh rate with p=%d, n2=%d r2=%d\n",
-		      clock, *p_out, *n2_out, *r2_out);
 }
 
-bool intel_ddi_pll_mode_set(struct drm_crtc *crtc)
+/*
+ * Tries to find a PLL for the CRTC. If it finds, it increases the refcount and
+ * stores it in intel_crtc->ddi_pll_sel, so other mode sets won't be able to
+ * steal the selected PLL. You need to call intel_ddi_pll_enable to actually
+ * enable the PLL.
+ */
+bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_crtc *crtc = &intel_crtc->base;
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	int type = intel_encoder->type;
 	enum pipe pipe = intel_crtc->pipe;
-	uint32_t reg, val;
 	int clock = intel_crtc->config.port_clock;
-
-	/* TODO: reuse PLLs when possible (compare values) */
 
 	intel_ddi_put_crtc_pll(crtc);
 
@@ -642,31 +778,9 @@ bool intel_ddi_pll_mode_set(struct drm_crtc *crtc)
 			return false;
 		}
 
-		/* We don't need to turn any PLL on because we'll use LCPLL. */
-		return true;
-
 	} else if (type == INTEL_OUTPUT_HDMI) {
+		uint32_t reg, val;
 		unsigned p, n2, r2;
-
-		if (plls->wrpll1_refcount == 0) {
-			DRM_DEBUG_KMS("Using WRPLL 1 on pipe %c\n",
-				      pipe_name(pipe));
-			plls->wrpll1_refcount++;
-			reg = WRPLL_CTL1;
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL1;
-		} else if (plls->wrpll2_refcount == 0) {
-			DRM_DEBUG_KMS("Using WRPLL 2 on pipe %c\n",
-				      pipe_name(pipe));
-			plls->wrpll2_refcount++;
-			reg = WRPLL_CTL2;
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
-		} else {
-			DRM_ERROR("No WRPLLs available!\n");
-			return false;
-		}
-
-		WARN(I915_READ(reg) & WRPLL_PLL_ENABLE,
-		     "WRPLL already enabled\n");
 
 		intel_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
 
@@ -674,32 +788,133 @@ bool intel_ddi_pll_mode_set(struct drm_crtc *crtc)
 		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
 		      WRPLL_DIVIDER_POST(p);
 
+		if (val == I915_READ(WRPLL_CTL1)) {
+			DRM_DEBUG_KMS("Reusing WRPLL 1 on pipe %c\n",
+				      pipe_name(pipe));
+			reg = WRPLL_CTL1;
+		} else if (val == I915_READ(WRPLL_CTL2)) {
+			DRM_DEBUG_KMS("Reusing WRPLL 2 on pipe %c\n",
+				      pipe_name(pipe));
+			reg = WRPLL_CTL2;
+		} else if (plls->wrpll1_refcount == 0) {
+			DRM_DEBUG_KMS("Using WRPLL 1 on pipe %c\n",
+				      pipe_name(pipe));
+			reg = WRPLL_CTL1;
+		} else if (plls->wrpll2_refcount == 0) {
+			DRM_DEBUG_KMS("Using WRPLL 2 on pipe %c\n",
+				      pipe_name(pipe));
+			reg = WRPLL_CTL2;
+		} else {
+			DRM_ERROR("No WRPLLs available!\n");
+			return false;
+		}
+
+		DRM_DEBUG_KMS("WRPLL: %dKHz refresh rate with p=%d, n2=%d r2=%d\n",
+			      clock, p, n2, r2);
+
+		if (reg == WRPLL_CTL1) {
+			plls->wrpll1_refcount++;
+			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL1;
+		} else {
+			plls->wrpll2_refcount++;
+			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
+		}
+
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		if (plls->spll_refcount == 0) {
 			DRM_DEBUG_KMS("Using SPLL on pipe %c\n",
 				      pipe_name(pipe));
 			plls->spll_refcount++;
-			reg = SPLL_CTL;
 			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_SPLL;
 		} else {
 			DRM_ERROR("SPLL already in use\n");
 			return false;
 		}
 
-		WARN(I915_READ(reg) & SPLL_PLL_ENABLE,
-		     "SPLL already enabled\n");
-
-		val = SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
-
 	} else {
 		WARN(1, "Invalid DDI encoder type %d\n", type);
 		return false;
 	}
 
-	I915_WRITE(reg, val);
-	udelay(20);
-
 	return true;
+}
+
+/*
+ * To be called after intel_ddi_pll_select(). That one selects the PLL to be
+ * used, this one actually enables the PLL.
+ */
+void intel_ddi_pll_enable(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
+	int clock = crtc->config.port_clock;
+	uint32_t reg, cur_val, new_val;
+	int refcount;
+	const char *pll_name;
+	uint32_t enable_bit = (1 << 31);
+	unsigned int p, n2, r2;
+
+	BUILD_BUG_ON(enable_bit != SPLL_PLL_ENABLE);
+	BUILD_BUG_ON(enable_bit != WRPLL_PLL_ENABLE);
+
+	switch (crtc->ddi_pll_sel) {
+	case PORT_CLK_SEL_LCPLL_2700:
+	case PORT_CLK_SEL_LCPLL_1350:
+	case PORT_CLK_SEL_LCPLL_810:
+		/*
+		 * LCPLL should always be enabled at this point of the mode set
+		 * sequence, so nothing to do.
+		 */
+		return;
+
+	case PORT_CLK_SEL_SPLL:
+		pll_name = "SPLL";
+		reg = SPLL_CTL;
+		refcount = plls->spll_refcount;
+		new_val = SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz |
+			  SPLL_PLL_SSC;
+		break;
+
+	case PORT_CLK_SEL_WRPLL1:
+	case PORT_CLK_SEL_WRPLL2:
+		if (crtc->ddi_pll_sel == PORT_CLK_SEL_WRPLL1) {
+			pll_name = "WRPLL1";
+			reg = WRPLL_CTL1;
+			refcount = plls->wrpll1_refcount;
+		} else {
+			pll_name = "WRPLL2";
+			reg = WRPLL_CTL2;
+			refcount = plls->wrpll2_refcount;
+		}
+
+		intel_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
+
+		new_val = WRPLL_PLL_ENABLE | WRPLL_PLL_SELECT_LCPLL_2700 |
+			  WRPLL_DIVIDER_REFERENCE(r2) |
+			  WRPLL_DIVIDER_FEEDBACK(n2) | WRPLL_DIVIDER_POST(p);
+
+		break;
+
+	case PORT_CLK_SEL_NONE:
+		WARN(1, "Bad selected pll: PORT_CLK_SEL_NONE\n");
+		return;
+	default:
+		WARN(1, "Bad selected pll: 0x%08x\n", crtc->ddi_pll_sel);
+		return;
+	}
+
+	cur_val = I915_READ(reg);
+
+	WARN(refcount < 1, "Bad %s refcount: %d\n", pll_name, refcount);
+	if (refcount == 1) {
+		WARN(cur_val & enable_bit, "%s already enabled\n", pll_name);
+		I915_WRITE(reg, new_val);
+		POSTING_READ(reg);
+		udelay(20);
+	} else {
+		WARN((cur_val & enable_bit) == 0, "%s disabled\n", pll_name);
+	}
 }
 
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
@@ -739,7 +954,8 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
@@ -767,18 +983,19 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 		BUG();
 	}
 
-	if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
+	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_PVSYNC)
 		temp |= TRANS_DDI_PVSYNC;
-	if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
+	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_PHSYNC)
 		temp |= TRANS_DDI_PHSYNC;
 
 	if (cpu_transcoder == TRANSCODER_EDP) {
 		switch (pipe) {
 		case PIPE_A:
-			/* Can only use the always-on power well for eDP when
-			 * not using the panel fitter, and when not using motion
-			  * blur mitigation (which we don't support). */
-			if (intel_crtc->config.pch_pfit.enabled)
+			/* On Haswell, can only use the always-on power well for
+			 * eDP when not using the panel fitter, and when not
+			 * using motion blur mitigation (which we don't
+			 * support). */
+			if (IS_HASWELL(dev) && intel_crtc->config.pch_pfit.enabled)
 				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
 			else
 				temp |= TRANS_DDI_EDP_INPUT_A_ON;
@@ -796,9 +1013,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 	}
 
 	if (type == INTEL_OUTPUT_HDMI) {
-		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
-
-		if (intel_hdmi->has_hdmi_sink)
+		if (intel_crtc->config.has_hdmi_sink)
 			temp |= TRANS_DDI_MODE_SELECT_HDMI;
 		else
 			temp |= TRANS_DDI_MODE_SELECT_DVI;
@@ -842,7 +1057,12 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	enum pipe pipe = 0;
 	enum transcoder cpu_transcoder;
+	enum intel_display_power_domain power_domain;
 	uint32_t tmp;
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	if (!intel_display_power_enabled(dev_priv, power_domain))
+		return false;
 
 	if (!intel_encoder->get_hw_state(intel_encoder, &pipe))
 		return false;
@@ -879,8 +1099,13 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_ddi_get_encoder_port(encoder);
+	enum intel_display_power_domain power_domain;
 	u32 tmp;
 	int i;
+
+	power_domain = intel_display_port_power_domain(encoder);
+	if (!intel_display_power_enabled(dev_priv, power_domain))
+		return false;
 
 	tmp = I915_READ(DDI_BUF_CTL(port));
 
@@ -961,12 +1186,18 @@ void intel_ddi_setup_hw_pll_state(struct drm_device *dev)
 	enum pipe pipe;
 	struct intel_crtc *intel_crtc;
 
+	dev_priv->ddi_plls.spll_refcount = 0;
+	dev_priv->ddi_plls.wrpll1_refcount = 0;
+	dev_priv->ddi_plls.wrpll2_refcount = 0;
+
 	for_each_pipe(pipe) {
 		intel_crtc =
 			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
-		if (!intel_crtc->active)
+		if (!intel_crtc->active) {
+			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_NONE;
 			continue;
+		}
 
 		intel_crtc->ddi_pll_sel = intel_ddi_get_crtc_pll(dev_priv,
 								 pipe);
@@ -1011,30 +1242,48 @@ void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc)
 static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_crtc *crtc = encoder->crtc;
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
 
-	if (type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		ironlake_edp_panel_vdd_on(intel_dp);
-		ironlake_edp_panel_on(intel_dp);
-		ironlake_edp_panel_vdd_off(intel_dp, true);
+	if (crtc->config.has_audio) {
+		DRM_DEBUG_DRIVER("Audio on pipe %c on DDI\n",
+				 pipe_name(crtc->pipe));
+
+		/* write eld */
+		DRM_DEBUG_DRIVER("DDI audio: write eld information\n");
+		intel_write_eld(encoder, &crtc->config.adjusted_mode);
 	}
 
-	WARN_ON(intel_crtc->ddi_pll_sel == PORT_CLK_SEL_NONE);
-	I915_WRITE(PORT_CLK_SEL(port), intel_crtc->ddi_pll_sel);
+	if (type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		intel_edp_panel_on(intel_dp);
+	}
+
+	WARN_ON(crtc->ddi_pll_sel == PORT_CLK_SEL_NONE);
+	I915_WRITE(PORT_CLK_SEL(port), crtc->ddi_pll_sel);
 
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_digital_port *intel_dig_port =
+			enc_to_dig_port(encoder);
+
+		intel_dp->DP = intel_dig_port->saved_port_bits |
+			       DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
+		intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
 
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 		intel_dp_start_link_train(intel_dp);
 		intel_dp_complete_link_train(intel_dp);
 		if (port != PORT_A)
 			intel_dp_stop_link_train(intel_dp);
+	} else if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+
+		intel_hdmi->set_infoframes(encoder,
+					   crtc->config.has_hdmi_sink,
+					   &crtc->config.adjusted_mode);
 	}
 }
 
@@ -1062,10 +1311,11 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	if (wait)
 		intel_wait_ddi_buf_idle(dev_priv, port);
 
-	if (type == INTEL_OUTPUT_EDP) {
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		ironlake_edp_panel_vdd_on(intel_dp);
-		ironlake_edp_panel_off(intel_dp);
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+		intel_edp_panel_vdd_on(intel_dp);
+		intel_edp_panel_off(intel_dp);
 	}
 
 	I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
@@ -1100,11 +1350,12 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 		if (port == PORT_A)
 			intel_dp_stop_link_train(intel_dp);
 
-		ironlake_edp_backlight_on(intel_dp);
+		intel_edp_backlight_on(intel_dp);
 		intel_edp_psr_enable(intel_dp);
 	}
 
-	if (intel_crtc->eld_vld && type != INTEL_OUTPUT_EDP) {
+	if (intel_crtc->config.has_audio) {
+		intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
 		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
 		tmp |= ((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
 		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
@@ -1122,35 +1373,49 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
-	if (intel_crtc->eld_vld && type != INTEL_OUTPUT_EDP) {
+	/* We can't touch HSW_AUD_PIN_ELD_CP_VLD uncionditionally because this
+	 * register is part of the power well on Haswell. */
+	if (intel_crtc->config.has_audio) {
 		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
 		tmp &= ~((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) <<
 			 (pipe * 4));
 		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+		intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
 	}
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		intel_edp_psr_disable(intel_dp);
-		ironlake_edp_backlight_off(intel_dp);
+		intel_edp_backlight_off(intel_dp);
 	}
 }
 
 int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
 	uint32_t lcpll = I915_READ(LCPLL_CTL);
+	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
 
-	if (lcpll & LCPLL_CD_SOURCE_FCLK)
+	if (lcpll & LCPLL_CD_SOURCE_FCLK) {
 		return 800000;
-	else if (I915_READ(HSW_FUSE_STRAP) & HSW_CDCLK_LIMIT)
+	} else if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT) {
 		return 450000;
-	else if ((lcpll & LCPLL_CLK_FREQ_MASK) == LCPLL_CLK_FREQ_450)
+	} else if (freq == LCPLL_CLK_FREQ_450) {
 		return 450000;
-	else if (IS_ULT(dev_priv->dev))
-		return 337500;
-	else
-		return 540000;
+	} else if (IS_HASWELL(dev)) {
+		if (IS_ULT(dev))
+			return 337500;
+		else
+			return 540000;
+	} else {
+		if (freq == LCPLL_CLK_FREQ_54O_BDW)
+			return 540000;
+		else if (freq == LCPLL_CLK_FREQ_337_5_BDW)
+			return 337500;
+		else
+			return 675000;
+	}
 }
 
 void intel_ddi_pll_init(struct drm_device *dev)
@@ -1202,7 +1467,7 @@ void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder)
 
 	val = DP_TP_CTL_ENABLE | DP_TP_CTL_MODE_SST |
 	      DP_TP_CTL_LINK_TRAIN_PAT1 | DP_TP_CTL_SCRAMBLE_DISABLE;
-	if (intel_dp->link_configuration[1] & DP_LANE_COUNT_ENHANCED_FRAME_EN)
+	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 		val |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
 	I915_WRITE(DP_TP_CTL(port), val);
 	POSTING_READ(DP_TP_CTL(port));
@@ -1249,8 +1514,8 @@ static void intel_ddi_hot_plug(struct intel_encoder *intel_encoder)
 		intel_dp_check_link_status(intel_dp);
 }
 
-static void intel_ddi_get_config(struct intel_encoder *encoder,
-				 struct intel_crtc_config *pipe_config)
+void intel_ddi_get_config(struct intel_encoder *encoder,
+			  struct intel_crtc_config *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
@@ -1268,6 +1533,66 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
+
+	switch (temp & TRANS_DDI_BPC_MASK) {
+	case TRANS_DDI_BPC_6:
+		pipe_config->pipe_bpp = 18;
+		break;
+	case TRANS_DDI_BPC_8:
+		pipe_config->pipe_bpp = 24;
+		break;
+	case TRANS_DDI_BPC_10:
+		pipe_config->pipe_bpp = 30;
+		break;
+	case TRANS_DDI_BPC_12:
+		pipe_config->pipe_bpp = 36;
+		break;
+	default:
+		break;
+	}
+
+	switch (temp & TRANS_DDI_MODE_SELECT_MASK) {
+	case TRANS_DDI_MODE_SELECT_HDMI:
+		pipe_config->has_hdmi_sink = true;
+	case TRANS_DDI_MODE_SELECT_DVI:
+	case TRANS_DDI_MODE_SELECT_FDI:
+		break;
+	case TRANS_DDI_MODE_SELECT_DP_SST:
+	case TRANS_DDI_MODE_SELECT_DP_MST:
+		pipe_config->has_dp_encoder = true;
+		intel_dp_get_m_n(intel_crtc, pipe_config);
+		break;
+	default:
+		break;
+	}
+
+	if (intel_display_power_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
+		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+		if (temp & (AUDIO_OUTPUT_ENABLE_A << (intel_crtc->pipe * 4)))
+			pipe_config->has_audio = true;
+	}
+
+	if (encoder->type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp_bpp &&
+	    pipe_config->pipe_bpp > dev_priv->vbt.edp_bpp) {
+		/*
+		 * This is a big fat ugly hack.
+		 *
+		 * Some machines in UEFI boot mode provide us a VBT that has 18
+		 * bpp and 1.62 GHz link bandwidth for eDP, which for reasons
+		 * unknown we fail to light up. Yet the same BIOS boots up with
+		 * 24 bpp and 2.7 GHz link. Use the same bpp as the BIOS uses as
+		 * max, not what it tells us to use.
+		 *
+		 * Note: This will still be broken if the eDP panel is not lit
+		 * up by the BIOS, and thus we can't get the mode at module
+		 * load.
+		 */
+		DRM_DEBUG_KMS("pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
+			      pipe_config->pipe_bpp, dev_priv->vbt.edp_bpp);
+		dev_priv->vbt.edp_bpp = pipe_config->pipe_bpp;
+	}
+
+	intel_ddi_clock_get(encoder, pipe_config);
 }
 
 static void intel_ddi_destroy(struct drm_encoder *encoder)
@@ -1297,6 +1622,41 @@ static const struct drm_encoder_funcs intel_ddi_funcs = {
 	.destroy = intel_ddi_destroy,
 };
 
+static struct intel_connector *
+intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
+{
+	struct intel_connector *connector;
+	enum port port = intel_dig_port->port;
+
+	connector = kzalloc(sizeof(*connector), GFP_KERNEL);
+	if (!connector)
+		return NULL;
+
+	intel_dig_port->dp.output_reg = DDI_BUF_CTL(port);
+	if (!intel_dp_init_connector(intel_dig_port, connector)) {
+		kfree(connector);
+		return NULL;
+	}
+
+	return connector;
+}
+
+static struct intel_connector *
+intel_ddi_init_hdmi_connector(struct intel_digital_port *intel_dig_port)
+{
+	struct intel_connector *connector;
+	enum port port = intel_dig_port->port;
+
+	connector = kzalloc(sizeof(*connector), GFP_KERNEL);
+	if (!connector)
+		return NULL;
+
+	intel_dig_port->hdmi.hdmi_reg = DDI_BUF_CTL(port);
+	intel_hdmi_init_connector(intel_dig_port, connector);
+
+	return connector;
+}
+
 void intel_ddi_init(struct drm_device *dev, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1305,16 +1665,21 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct drm_encoder *encoder;
 	struct intel_connector *hdmi_connector = NULL;
 	struct intel_connector *dp_connector = NULL;
+	bool init_hdmi, init_dp;
 
-	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
+	init_hdmi = (dev_priv->vbt.ddi_port_info[port].supports_dvi ||
+		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
+	init_dp = dev_priv->vbt.ddi_port_info[port].supports_dp;
+	if (!init_dp && !init_hdmi) {
+		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible\n",
+			      port_name(port));
+		init_hdmi = true;
+		init_dp = true;
+	}
+
+	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
 	if (!intel_dig_port)
 		return;
-
-	dp_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
-	if (!dp_connector) {
-		kfree(intel_dig_port);
-		return;
-	}
 
 	intel_encoder = &intel_dig_port->base;
 	encoder = &intel_encoder->base;
@@ -1323,7 +1688,6 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 			 DRM_MODE_ENCODER_TMDS);
 
 	intel_encoder->compute_config = intel_ddi_compute_config;
-	intel_encoder->mode_set = intel_ddi_mode_set;
 	intel_encoder->enable = intel_enable_ddi;
 	intel_encoder->pre_enable = intel_ddi_pre_enable;
 	intel_encoder->disable = intel_disable_ddi;
@@ -1335,28 +1699,22 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
 					  (DDI_BUF_PORT_REVERSAL |
 					   DDI_A_4_LANES);
-	intel_dig_port->dp.output_reg = DDI_BUF_CTL(port);
 
 	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
 	intel_encoder->crtc_mask =  (1 << 0) | (1 << 1) | (1 << 2);
-	intel_encoder->cloneable = false;
+	intel_encoder->cloneable = 0;
 	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
-	if (!intel_dp_init_connector(intel_dig_port, dp_connector)) {
+	if (init_dp)
+		dp_connector = intel_ddi_init_dp_connector(intel_dig_port);
+
+	/* In theory we don't need the encoder->type check, but leave it just in
+	 * case we have some really bad VBTs... */
+	if (intel_encoder->type != INTEL_OUTPUT_EDP && init_hdmi)
+		hdmi_connector = intel_ddi_init_hdmi_connector(intel_dig_port);
+
+	if (!dp_connector && !hdmi_connector) {
 		drm_encoder_cleanup(encoder);
 		kfree(intel_dig_port);
-		kfree(dp_connector);
-		return;
-	}
-
-	if (intel_encoder->type != INTEL_OUTPUT_EDP) {
-		hdmi_connector = kzalloc(sizeof(struct intel_connector),
-					 GFP_KERNEL);
-		if (!hdmi_connector) {
-			return;
-		}
-
-		intel_dig_port->hdmi.hdmi_reg = DDI_BUF_CTL(port);
-		intel_hdmi_init_connector(intel_dig_port, hdmi_connector);
 	}
 }

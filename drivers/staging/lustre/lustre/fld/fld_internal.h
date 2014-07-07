@@ -90,7 +90,7 @@ struct fld_cache {
 	int		      fci_threshold;
 
 	/**
-	 * Prefered number of cached entries */
+	 * Preferred number of cached entries */
 	int		      fci_cache_size;
 
 	/**
@@ -190,5 +190,4 @@ fld_target_name(struct lu_fld_target *tar)
 	return (const char *)tar->ft_exp->exp_obd->obd_name;
 }
 
-extern struct proc_dir_entry *fld_type_proc_dir;
 #endif /* __FLD_INTERNAL_H */

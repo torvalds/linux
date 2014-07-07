@@ -40,7 +40,7 @@ config SGI_MBCS
 source "drivers/tty/serial/Kconfig"
 
 config TTY_PRINTK
-	bool "TTY driver to output user messages via printk"
+	tristate "TTY driver to output user messages via printk"
 	depends on EXPERT && TTY
 	default n
 	---help---
@@ -408,7 +408,7 @@ config APPLICOM
 
 config SONYPI
 	tristate "Sony Vaio Programmable I/O Control Device support"
-	depends on X86 && PCI && INPUT && !64BIT
+	depends on X86_32 && PCI && INPUT
 	---help---
 	  This driver enables access to the Sony Programmable I/O Control
 	  Device which can be found in many (all ?) Sony Vaio laptops.
@@ -499,6 +499,7 @@ config RAW_DRIVER
 config MAX_RAW_DEVS
 	int "Maximum number of RAW devices to support (1-65536)"
 	depends on RAW_DRIVER
+	range 1 65536
 	default "256"
 	help
 	  The maximum number of RAW devices that are supported.
@@ -522,10 +523,16 @@ config HPET_MMAP
 	  If you say Y here, user applications will be able to mmap
 	  the HPET registers.
 
+config HPET_MMAP_DEFAULT
+	bool "Enable HPET MMAP access by default"
+	default y
+	depends on HPET_MMAP
+	help
 	  In some hardware implementations, the page containing HPET
 	  registers may also contain other things that shouldn't be
-	  exposed to the user.  If this applies to your hardware,
-	  say N here.
+	  exposed to the user.  This option selects the default (if
+	  kernel parameter hpet_mmap is not set) user access to the
+	  registers for applications that require it.
 
 config HANGCHECK_TIMER
 	tristate "Hangcheck timer"

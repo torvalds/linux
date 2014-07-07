@@ -102,13 +102,20 @@ Examples:
                          The 'minimum' MAC is what you set with dstmac.
 
  pgset "flag [name]"     Set a flag to determine behaviour.  Current flags
-                         are: IPSRC_RND #IP Source is random (between min/max),
-                              IPDST_RND, UDPSRC_RND,
-                              UDPDST_RND, MACSRC_RND, MACDST_RND 
+                         are: IPSRC_RND # IP source is random (between min/max)
+                              IPDST_RND # IP destination is random
+                              UDPSRC_RND, UDPDST_RND,
+                              MACSRC_RND, MACDST_RND
+                              TXSIZE_RND, IPV6,
                               MPLS_RND, VID_RND, SVID_RND
+                              FLOW_SEQ,
                               QUEUE_MAP_RND # queue map random
                               QUEUE_MAP_CPU # queue map mirrors smp_processor_id()
+                              UDPCSUM,
+                              IPSEC # IPsec encapsulation (needs CONFIG_XFRM)
+                              NODE_ALLOC # node specific memory allocation
 
+ pgset spi SPI_VALUE     Set specific SA used to transform packet.
 
  pgset "udp_src_min 9"   set UDP source port min, If < udp_src_max, then
                          cycle through the port range.
@@ -177,6 +184,18 @@ Note when adding devices to a specific CPU there good idea to also assign
 /proc/irq/XX/smp_affinity so the TX-interrupts gets bound to the same CPU.
 as this reduces cache bouncing when freeing skb's.
 
+Enable IPsec
+============
+Default IPsec transformation with ESP encapsulation plus Transport mode
+could be enabled by simply setting:
+
+pgset "flag IPSEC"
+pgset "flows 1"
+
+To avoid breaking existing testbed scripts for using AH type and tunnel mode,
+user could use "pgset spi SPI_VALUE" to specify which formal of transformation
+to employ.
+
 
 Current commands and configuration options
 ==========================================
@@ -219,12 +238,22 @@ udp_dst_max
 
 flag
   IPSRC_RND
-  TXSIZE_RND
   IPDST_RND
   UDPSRC_RND
   UDPDST_RND
   MACSRC_RND
   MACDST_RND
+  TXSIZE_RND
+  IPV6
+  MPLS_RND
+  VID_RND
+  SVID_RND
+  FLOW_SEQ
+  QUEUE_MAP_RND
+  QUEUE_MAP_CPU
+  UDPCSUM
+  IPSEC
+  NODE_ALLOC
 
 dst_min
 dst_max

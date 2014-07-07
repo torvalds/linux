@@ -15,9 +15,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License 
- *	along with this program; if not, write to the Free Software 
- *	Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
- *	MA 02111-1307 USA
+ *	along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  ********************************************************************/
 
@@ -1695,7 +1693,6 @@ out_freedev:
 out_disable:
 	pci_disable_device(pdev);
 out:
-	pci_set_drvdata(pdev, NULL);
 	return -ENODEV;
 }
 
@@ -1720,8 +1717,6 @@ static void vlsi_irda_remove(struct pci_dev *pdev)
 	mutex_unlock(&idev->mtx);
 
 	free_netdev(ndev);
-
-	pci_set_drvdata(pdev, NULL);
 
 	IRDA_MESSAGE("%s: %s removed\n", drivername, pci_name(pdev));
 }

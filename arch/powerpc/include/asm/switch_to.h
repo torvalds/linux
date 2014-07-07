@@ -16,25 +16,26 @@ struct thread_struct;
 extern struct task_struct *_switch(struct thread_struct *prev,
 				   struct thread_struct *next);
 #ifdef CONFIG_PPC_BOOK3S_64
-static inline void save_tar(struct thread_struct *prev)
+static inline void save_early_sprs(struct thread_struct *prev)
 {
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		prev->tar = mfspr(SPRN_TAR);
+	if (cpu_has_feature(CPU_FTR_DSCR))
+		prev->dscr = mfspr(SPRN_DSCR);
 }
 #else
-static inline void save_tar(struct thread_struct *prev) {}
+static inline void save_early_sprs(struct thread_struct *prev) {}
 #endif
 
-extern void load_up_fpu(void);
 extern void enable_kernel_fp(void);
 extern void enable_kernel_altivec(void);
-extern void load_up_altivec(struct task_struct *);
 extern int emulate_altivec(struct pt_regs *);
 extern void __giveup_vsx(struct task_struct *);
 extern void giveup_vsx(struct task_struct *);
 extern void enable_kernel_spe(void);
 extern void giveup_spe(struct task_struct *);
 extern void load_up_spe(struct task_struct *);
+extern void switch_booke_debug_regs(struct debug_reg *new_debug);
 
 #ifndef CONFIG_SMP
 extern void discard_lazy_cpu_state(void);
@@ -85,6 +86,8 @@ static inline void clear_task_ebb(struct task_struct *t)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
     /* EBB perf events are not inherited, so clear all EBB state. */
+    t->thread.ebbrr = 0;
+    t->thread.ebbhr = 0;
     t->thread.bescr = 0;
     t->thread.mmcr2 = 0;
     t->thread.mmcr0 = 0;

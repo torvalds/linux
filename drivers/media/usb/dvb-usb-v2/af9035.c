@@ -21,6 +21,9 @@
 
 #include "af9035.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static u16 af9035_checksum(const u8 *buf, size_t len)
@@ -126,9 +129,15 @@ exit:
 /* write multiple registers */
 static int af9035_wr_regs(struct dvb_usb_device *d, u32 reg, u8 *val, int len)
 {
-	u8 wbuf[6 + len];
+	u8 wbuf[MAX_XFER_SIZE];
 	u8 mbox = (reg >> 16) & 0xff;
-	struct usb_req req = { CMD_MEM_WR, mbox, sizeof(wbuf), wbuf, 0, NULL };
+	struct usb_req req = { CMD_MEM_WR, mbox, 6 + len, wbuf, 0, NULL };
+
+	if (6 + len > sizeof(wbuf)) {
+		dev_warn(&d->udev->dev, "%s: i2c wr: len=%d is too big!\n",
+			 KBUILD_MODNAME, len);
+		return -EOPNOTSUPP;
+	}
 
 	wbuf[0] = len;
 	wbuf[1] = 2;
@@ -228,9 +237,17 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 					msg[1].len);
 		} else {
 			/* I2C */
-			u8 buf[5 + msg[0].len];
-			struct usb_req req = { CMD_I2C_RD, 0, sizeof(buf),
+			u8 buf[MAX_XFER_SIZE];
+			struct usb_req req = { CMD_I2C_RD, 0, 5 + msg[0].len,
 					buf, msg[1].len, msg[1].buf };
+
+			if (5 + msg[0].len > sizeof(buf)) {
+				dev_warn(&d->udev->dev,
+					 "%s: i2c xfer: len=%d is too big!\n",
+					 KBUILD_MODNAME, msg[0].len);
+				ret = -EOPNOTSUPP;
+				goto unlock;
+			}
 			req.mbox |= ((msg[0].addr & 0x80)  >>  3);
 			buf[0] = msg[1].len;
 			buf[1] = msg[0].addr << 1;
@@ -257,9 +274,17 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 					msg[0].len - 3);
 		} else {
 			/* I2C */
-			u8 buf[5 + msg[0].len];
-			struct usb_req req = { CMD_I2C_WR, 0, sizeof(buf), buf,
-					0, NULL };
+			u8 buf[MAX_XFER_SIZE];
+			struct usb_req req = { CMD_I2C_WR, 0, 5 + msg[0].len,
+					buf, 0, NULL };
+
+			if (5 + msg[0].len > sizeof(buf)) {
+				dev_warn(&d->udev->dev,
+					 "%s: i2c xfer: len=%d is too big!\n",
+					 KBUILD_MODNAME, msg[0].len);
+				ret = -EOPNOTSUPP;
+				goto unlock;
+			}
 			req.mbox |= ((msg[0].addr & 0x80)  >>  3);
 			buf[0] = msg[0].len;
 			buf[1] = msg[0].addr << 1;
@@ -296,6 +321,7 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 		ret = -EOPNOTSUPP;
 	}
 
+unlock:
 	mutex_unlock(&d->i2c_mutex);
 
 	if (ret < 0)
@@ -549,6 +575,10 @@ static int af9035_download_firmware(struct dvb_usb_device *d,
 		if (ret < 0)
 			goto err;
 
+		/* use default I2C address if eeprom has no address set */
+		if (!tmp)
+			tmp = 0x3a;
+
 		if (state->chip_type == 0x9135) {
 			ret = af9035_wr_reg(d, 0x004bfb, tmp);
 			if (ret < 0)
@@ -611,6 +641,7 @@ static int af9035_read_config(struct dvb_usb_device *d)
 
 	/* demod I2C "address" */
 	state->af9033_config[0].i2c_addr = 0x38;
+	state->af9033_config[1].i2c_addr = 0x3a;
 	state->af9033_config[0].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
 	state->af9033_config[1].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
 	state->af9033_config[0].ts_mode = AF9033_TS_MODE_USB;
@@ -658,7 +689,9 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		if (ret < 0)
 			goto err;
 
-		state->af9033_config[1].i2c_addr = tmp;
+		if (tmp)
+			state->af9033_config[1].i2c_addr = tmp;
+
 		dev_dbg(&d->udev->dev, "%s: 2nd demod I2C addr=%02x\n",
 				__func__, tmp);
 	}
@@ -912,12 +945,7 @@ static int af9035_frontend_callback(void *adapter_priv, int component,
 static int af9035_get_adapter_count(struct dvb_usb_device *d)
 {
 	struct state *state = d_to_priv(d);
-
-	/* disable 2nd adapter as we don't have PID filters implemented */
-	if (d->udev->speed == USB_SPEED_FULL)
-		return 1;
-	else
-		return state->dual_mode + 1;
+	return state->dual_mode + 1;
 }
 
 static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
@@ -935,7 +963,7 @@ static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 
 	/* attach demodulator */
 	adap->fe[0] = dvb_attach(af9033_attach, &state->af9033_config[adap->id],
-			&d->i2c_adap);
+			&d->i2c_adap, &state->ops);
 	if (adap->fe[0] == NULL) {
 		ret = -ENODEV;
 		goto err;
@@ -1343,58 +1371,19 @@ static int af9035_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 	return 0;
 }
 
-/*
- * FIXME: PID filter is property of demodulator and should be moved to the
- * correct driver. Also we support only adapter #0 PID filter and will
- * disable adapter #1 if USB1.1 is used.
- */
 static int af9035_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	struct dvb_usb_device *d = adap_to_d(adap);
-	int ret;
+	struct state *state = adap_to_priv(adap);
 
-	dev_dbg(&d->udev->dev, "%s: onoff=%d\n", __func__, onoff);
-
-	ret = af9035_wr_reg_mask(d, 0x80f993, onoff, 0x01);
-	if (ret < 0)
-		goto err;
-
-	return 0;
-
-err:
-	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
-
-	return ret;
+	return state->ops.pid_filter_ctrl(adap->fe[0], onoff);
 }
 
 static int af9035_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
 		int onoff)
 {
-	struct dvb_usb_device *d = adap_to_d(adap);
-	int ret;
-	u8 wbuf[2] = {(pid >> 0) & 0xff, (pid >> 8) & 0xff};
+	struct state *state = adap_to_priv(adap);
 
-	dev_dbg(&d->udev->dev, "%s: index=%d pid=%04x onoff=%d\n",
-			__func__, index, pid, onoff);
-
-	ret = af9035_wr_regs(d, 0x80f996, wbuf, 2);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg(d, 0x80f994, onoff);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg(d, 0x80f995, index);
-	if (ret < 0)
-		goto err;
-
-	return 0;
-
-err:
-	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
-
-	return ret;
+	return state->ops.pid_filter(adap->fe[0], index, pid, onoff);
 }
 
 static int af9035_probe(struct usb_interface *intf,
@@ -1468,6 +1457,13 @@ static const struct dvb_usb_device_properties af9035_props = {
 
 			.stream = DVB_USB_STREAM_BULK(0x84, 6, 87 * 188),
 		}, {
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER |
+				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+
+			.pid_filter_count = 32,
+			.pid_filter_ctrl = af9035_pid_filter_ctrl,
+			.pid_filter = af9035_pid_filter,
+
 			.stream = DVB_USB_STREAM_BULK(0x85, 6, 87 * 188),
 		},
 	},
@@ -1502,15 +1498,37 @@ static const struct usb_device_id af9035_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, 0x00aa,
 		&af9035_props, "TerraTec Cinergy T Stick (rev. 2)", NULL) },
 	/* IT9135 devices */
-#if 0
-	{ DVB_USB_DEVICE(0x048d, 0x9135,
-		&af9035_props, "IT9135 reference design", NULL) },
-	{ DVB_USB_DEVICE(0x048d, 0x9006,
-		&af9035_props, "IT9135 reference design", NULL) },
-#endif
+	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135,
+		&af9035_props, "ITE 9135 Generic", RC_MAP_IT913X_V1) },
+	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135_9005,
+		&af9035_props, "ITE 9135(9005) Generic", RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135_9006,
+		&af9035_props, "ITE 9135(9006) Generic", RC_MAP_IT913X_V1) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_1835,
+		&af9035_props, "Avermedia A835B(1835)", RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_2835,
+		&af9035_props, "Avermedia A835B(2835)", RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_3835,
+		&af9035_props, "Avermedia A835B(3835)", RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_4835,
+		&af9035_props, "Avermedia A835B(4835)",	RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_H335,
+		&af9035_props, "Avermedia H335", RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_UB499_2T_T09,
+		&af9035_props, "Kworld UB499-2T T09", RC_MAP_IT913X_V1) },
+	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_SVEON_STV22_IT9137,
+		&af9035_props, "Sveon STV22 Dual DVB-T HDTV",
+							RC_MAP_IT913X_V1) },
+	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_CTVDIGDUAL_V2,
+		&af9035_props, "Digital Dual TV Receiver CTVDIGDUAL_V2",
+							RC_MAP_IT913X_V1) },
 	/* XXX: that same ID [0ccd:0099] is used by af9015 driver too */
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, 0x0099,
 		&af9035_props, "TerraTec Cinergy T Stick Dual RC (rev. 2)", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_LEADTEK, 0x6a05,
+		&af9035_props, "Leadtek WinFast DTV Dongle Dual", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xf900,
+		&af9035_props, "Hauppauge WinTV-MiniStick 2", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, af9035_id_table);

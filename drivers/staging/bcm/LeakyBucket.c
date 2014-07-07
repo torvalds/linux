@@ -82,7 +82,7 @@ static ULONG GetSFTokenCount(struct bcm_mini_adapter *Adapter, struct bcm_packet
 		return 0;
 	}
 
-	if (FALSE != psSF->bValid && psSF->ucDirection) {
+	if (false != psSF->bValid && psSF->ucDirection) {
 		if (0 != psSF->uiCurrentTokenCount) {
 				return psSF->uiCurrentTokenCount;
 		} else {
@@ -188,7 +188,7 @@ static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter, struct
 				spin_unlock_bh(&psSF->SFQueueLock);
 
 				Status = SendPacketFromQueue(Adapter, psSF, QueuePacket);
-				psSF->uiPendedLast = FALSE;
+				psSF->uiPendedLast = false;
 			} else {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "For Queue: %zd\n", psSF-Adapter->PackInfo);
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "\nAvailable Tokens = %d required = %d\n",
@@ -250,7 +250,7 @@ VOID transmit_packets(struct bcm_mini_adapter *Adapter)
 	UINT uiPrevTotalCount = 0;
 	int iIndex = 0;
 
-	BOOLEAN exit_flag = TRUE;
+	bool exit_flag = TRUE;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "=====>");
 
@@ -299,7 +299,7 @@ VOID transmit_packets(struct bcm_mini_adapter *Adapter)
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Calling CheckAndSendPacketFromIndex..");
 				CheckAndSendPacketFromIndex(Adapter, &Adapter->PackInfo[iIndex]);
 				uiPrevTotalCount--;
-				exit_flag = FALSE;
+				exit_flag = false;
 			}
 		}
 

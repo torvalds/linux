@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -170,7 +170,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	(void)acpi_ds_do_implicit_return(local_obj_desc, walk_state, TRUE);
 
-      cleanup:
+cleanup:
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Completed a predicate eval=%X Op=%p\n",
 			  walk_state->control_state->common.value,
@@ -335,7 +335,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 
 	return_ACPI_STATUS(status);
 
-      error_exit:
+error_exit:
 	status = acpi_ds_method_error(status, walk_state);
 	return_ACPI_STATUS(status);
 }
@@ -722,7 +722,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		walk_state->result_obj = NULL;
 	}
 
-      cleanup:
+cleanup:
 
 	if (walk_state->result_obj) {
 

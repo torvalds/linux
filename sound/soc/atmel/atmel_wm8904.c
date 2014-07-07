@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 
 #include <sound/soc.h>
 
@@ -155,14 +154,7 @@ static int atmel_asoc_wm8904_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = &atmel_asoc_wm8904_card;
 	struct snd_soc_dai_link *dailink = &atmel_asoc_wm8904_dailink;
 	struct clk *clk_src;
-	struct pinctrl *pinctrl;
 	int id, ret;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "failed to request pinctrl\n");
-		return PTR_ERR(pinctrl);
-	}
 
 	card->dev = &pdev->dev;
 	ret = atmel_asoc_wm8904_dt_init(pdev);

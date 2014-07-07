@@ -30,7 +30,7 @@ int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 	uint8_t *out;
 	int csum, i;
 
-	BUG_ON(msg->out_len > EC_HOST_PARAM_SIZE);
+	BUG_ON(msg->out_len > EC_PROTO2_MAX_PARAM_SIZE);
 	out = ec_dev->dout;
 	out[0] = EC_CMD_VERSION0 + msg->version;
 	out[1] = msg->cmd;
@@ -84,11 +84,16 @@ static irqreturn_t ec_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct mfd_cell cros_devs[] = {
+static const struct mfd_cell cros_devs[] = {
 	{
 		.name = "cros-ec-keyb",
 		.id = 1,
 		.of_compatible = "google,cros-ec-keyb",
+	},
+	{
+		.name = "cros-ec-i2c-tunnel",
+		.id = 2,
+		.of_compatible = "google,cros-ec-i2c-tunnel",
 	},
 };
 
@@ -184,3 +189,6 @@ int cros_ec_resume(struct cros_ec_device *ec_dev)
 EXPORT_SYMBOL(cros_ec_resume);
 
 #endif
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ChromeOS EC core driver");

@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx23.dtsi"
+#include "imx23.dtsi"
 
 / {
 	model = "Freescale i.MX23 Evaluation Kit";
@@ -45,14 +45,14 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1123 /* MX23_PAD_LCD_RESET__GPIO_1_18 */
-						0x11d3 /* MX23_PAD_PWM3__GPIO_1_29 */
-						0x11e3 /* MX23_PAD_PWM4__GPIO_1_30 */
-						0x2010 /* MX23_PAD_SSP1_DETECT__SSP1_DETECT */
+						MX23_PAD_LCD_RESET__GPIO_1_18
+						MX23_PAD_PWM3__GPIO_1_29
+						MX23_PAD_PWM4__GPIO_1_30
+						MX23_PAD_SSP1_DETECT__SSP1_DETECT
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 
@@ -127,17 +127,21 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_vddio_sd0: vddio-sd0 {
+		reg_vddio_sd0: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "vddio-sd0";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio1 29 0>;
 		};
 
-		reg_lcd_3v3: lcd-3v3 {
+		reg_lcd_3v3: regulator@1 {
 			compatible = "regulator-fixed";
+			reg = <1>;
 			regulator-name = "lcd-3v3";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;

@@ -34,9 +34,10 @@ sirfsoc_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 	struct irq_chip_type *ct;
 	int ret;
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	unsigned int set = IRQ_LEVEL;
 
 	ret = irq_alloc_domain_generic_chips(sirfsoc_irqdomain, num, 1, "irq_sirfsoc",
-		handle_level_irq, clr, 0, IRQ_GC_INIT_MASK_CACHE);
+		handle_level_irq, clr, set, IRQ_GC_INIT_MASK_CACHE);
 
 	gc = irq_get_domain_generic_chip(sirfsoc_irqdomain, irq_start);
 	gc->reg_base = base;
@@ -46,7 +47,7 @@ sirfsoc_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 	ct->regs.mask = SIRFSOC_INT_RISC_MASK0;
 }
 
-static asmlinkage void __exception_irq_entry sirfsoc_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry sirfsoc_handle_irq(struct pt_regs *regs)
 {
 	void __iomem *base = sirfsoc_irqdomain->host_data;
 	u32 irqstat, irqnr;
@@ -57,7 +58,8 @@ static asmlinkage void __exception_irq_entry sirfsoc_handle_irq(struct pt_regs *
 	handle_IRQ(irqnr, regs);
 }
 
-static int __init sirfsoc_irq_init(struct device_node *np, struct device_node *parent)
+static int __init sirfsoc_irq_init(struct device_node *np,
+	struct device_node *parent)
 {
 	void __iomem *base = of_iomap(np, 0);
 	if (!base)

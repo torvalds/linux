@@ -270,6 +270,11 @@ When oom event notifier is registered, event will be delivered.
 
 2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
 
+WARNING: Current implementation lacks reclaim support. That means allocation
+	 attempts will fail when close to the limit even if there are plenty of
+	 kmem available for reclaim. That makes this option unusable in real
+	 life so DO NOT SELECT IT unless for development purposes.
+
 With the Kernel memory extension, the Memory Controller is able to limit
 the amount of kernel memory used by the system. Kernel memory is fundamentally
 different than user memory, since it can't be swapped out, which makes it
@@ -453,15 +458,11 @@ About use_hierarchy, see Section 6.
 
 5.1 force_empty
   memory.force_empty interface is provided to make cgroup's memory usage empty.
-  You can use this interface only when the cgroup has no tasks.
   When writing anything to this
 
   # echo 0 > memory.force_empty
 
-  Almost all pages tracked by this memory cgroup will be unmapped and freed.
-  Some pages cannot be freed because they are locked or in-use. Such pages are
-  moved to parent (if use_hierarchy==1) or root (if use_hierarchy==0) and this
-  cgroup will be empty.
+  the cgroup will be reclaimed and as many pages reclaimed as possible.
 
   The typical use case for this interface is before calling rmdir().
   Because rmdir() moves all pages to parent, some out-of-use page caches can be
@@ -535,16 +536,13 @@ Note:
 
 5.3 swappiness
 
-Similar to /proc/sys/vm/swappiness, but affecting a hierarchy of groups only.
-Please note that unlike the global swappiness, memcg knob set to 0
-really prevents from any swapping even if there is a swap storage
-available. This might lead to memcg OOM killer if there are no file
-pages to reclaim.
+Overrides /proc/sys/vm/swappiness for the particular group. The tunable
+in the root cgroup corresponds to the global swappiness setting.
 
-Following cgroups' swappiness can't be changed.
-- root cgroup (uses /proc/sys/vm/swappiness).
-- a cgroup which uses hierarchy and it has other cgroup(s) below it.
-- a cgroup which uses hierarchy and not the root of hierarchy.
+Please note that unlike during the global reclaim, limit reclaim
+enforces that 0 swappiness really prevents from any swapping even if
+there is a swap storage available. This might lead to memcg OOM killer
+if there are no file pages to reclaim.
 
 5.4 failcnt
 
@@ -573,15 +571,19 @@ an memcg since the pages are allowed to be allocated from any physical
 node.  One of the use cases is evaluating application performance by
 combining this information with the application's CPU allocation.
 
-We export "total", "file", "anon" and "unevictable" pages per-node for
-each memcg.  The ouput format of memory.numa_stat is:
+Each memcg's numa_stat file includes "total", "file", "anon" and "unevictable"
+per-node page counts including "hierarchical_<counter>" which sums up all
+hierarchical children's values in addition to the memcg's own value.
+
+The output format of memory.numa_stat is:
 
 total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
 file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
 anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
 unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+hierarchical_<counter>=<counter pages> N0=<node 0 pages> N1=<node 1 pages> ...
 
-And we have total = file + anon + unevictable.
+The "total" count is sum of file + anon + unevictable.
 
 6. Hierarchy support
 
@@ -666,7 +668,7 @@ page tables.
 
 8.1 Interface
 
-This feature is disabled by default. It can be enabledi (and disabled again) by
+This feature is disabled by default. It can be enabled (and disabled again) by
 writing to memory.move_charge_at_immigrate of the destination cgroup.
 
 If you want to enable it:
@@ -750,7 +752,6 @@ You can disable the OOM-killer by writing "1" to memory.oom_control file, as:
 
 	#echo 1 > memory.oom_control
 
-This operation is only allowed to the top cgroup of a sub-hierarchy.
 If OOM-killer is disabled, tasks under cgroup will hang/sleep
 in memory cgroup's OOM-waitqueue when they request accountable memory.
 

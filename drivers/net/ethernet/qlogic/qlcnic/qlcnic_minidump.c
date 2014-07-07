@@ -211,6 +211,114 @@ enum qlcnic_minidump_opcode {
 	QLCNIC_DUMP_RDEND	= 255
 };
 
+inline u32 qlcnic_82xx_get_saved_state(void *t_hdr, u32 index)
+{
+	struct qlcnic_82xx_dump_template_hdr *hdr = t_hdr;
+
+	return hdr->saved_state[index];
+}
+
+inline void qlcnic_82xx_set_saved_state(void *t_hdr, u32 index,
+					u32 value)
+{
+	struct qlcnic_82xx_dump_template_hdr *hdr = t_hdr;
+
+	hdr->saved_state[index] = value;
+}
+
+void qlcnic_82xx_cache_tmpl_hdr_values(struct qlcnic_fw_dump *fw_dump)
+{
+	struct qlcnic_82xx_dump_template_hdr *hdr;
+
+	hdr = fw_dump->tmpl_hdr;
+	fw_dump->tmpl_hdr_size = hdr->size;
+	fw_dump->version = hdr->version;
+	fw_dump->num_entries = hdr->num_entries;
+	fw_dump->offset = hdr->offset;
+
+	hdr->drv_cap_mask = hdr->cap_mask;
+	fw_dump->cap_mask = hdr->cap_mask;
+
+	fw_dump->use_pex_dma = (hdr->capabilities & BIT_0) ? true : false;
+}
+
+inline u32 qlcnic_82xx_get_cap_size(void *t_hdr, int index)
+{
+	struct qlcnic_82xx_dump_template_hdr *hdr = t_hdr;
+
+	return hdr->cap_sizes[index];
+}
+
+void qlcnic_82xx_set_sys_info(void *t_hdr, int idx, u32 value)
+{
+	struct qlcnic_82xx_dump_template_hdr *hdr = t_hdr;
+
+	hdr->sys_info[idx] = value;
+}
+
+void qlcnic_82xx_store_cap_mask(void *tmpl_hdr, u32 mask)
+{
+	struct qlcnic_82xx_dump_template_hdr *hdr = tmpl_hdr;
+
+	hdr->drv_cap_mask = mask;
+}
+
+inline u32 qlcnic_83xx_get_saved_state(void *t_hdr, u32 index)
+{
+	struct qlcnic_83xx_dump_template_hdr *hdr = t_hdr;
+
+	return hdr->saved_state[index];
+}
+
+inline void qlcnic_83xx_set_saved_state(void *t_hdr, u32 index,
+					u32 value)
+{
+	struct qlcnic_83xx_dump_template_hdr *hdr = t_hdr;
+
+	hdr->saved_state[index] = value;
+}
+
+#define QLCNIC_TEMPLATE_VERSION (0x20001)
+
+void qlcnic_83xx_cache_tmpl_hdr_values(struct qlcnic_fw_dump *fw_dump)
+{
+	struct qlcnic_83xx_dump_template_hdr *hdr;
+
+	hdr = fw_dump->tmpl_hdr;
+	fw_dump->tmpl_hdr_size = hdr->size;
+	fw_dump->version = hdr->version;
+	fw_dump->num_entries = hdr->num_entries;
+	fw_dump->offset = hdr->offset;
+
+	hdr->drv_cap_mask = hdr->cap_mask;
+	fw_dump->cap_mask = hdr->cap_mask;
+
+	fw_dump->use_pex_dma = (fw_dump->version & 0xfffff) >=
+			       QLCNIC_TEMPLATE_VERSION;
+}
+
+inline u32 qlcnic_83xx_get_cap_size(void *t_hdr, int index)
+{
+	struct qlcnic_83xx_dump_template_hdr *hdr = t_hdr;
+
+	return hdr->cap_sizes[index];
+}
+
+void qlcnic_83xx_set_sys_info(void *t_hdr, int idx, u32 value)
+{
+	struct qlcnic_83xx_dump_template_hdr *hdr = t_hdr;
+
+	hdr->sys_info[idx] = value;
+}
+
+void qlcnic_83xx_store_cap_mask(void *tmpl_hdr, u32 mask)
+{
+	struct qlcnic_83xx_dump_template_hdr *hdr;
+
+	hdr = tmpl_hdr;
+	hdr->drv_cap_mask = mask;
+}
+
 struct qlcnic_dump_operations {
 	enum qlcnic_minidump_opcode opcode;
 	u32 (*handler)(struct qlcnic_adapter *, struct qlcnic_dump_entry *,
@@ -238,11 +346,11 @@ static u32 qlcnic_dump_crb(struct qlcnic_adapter *adapter,
 static u32 qlcnic_dump_ctrl(struct qlcnic_adapter *adapter,
 			    struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
-	int i, k, timeout = 0;
-	u32 addr, data;
-	u8 no_ops;
+	void *hdr = adapter->ahw->fw_dump.tmpl_hdr;
 	struct __ctrl *ctr = &entry->region.ctrl;
-	struct qlcnic_dump_template_hdr *t_hdr = adapter->ahw->fw_dump.tmpl_hdr;
+	int i, k, timeout = 0;
+	u32 addr, data, temp;
+	u8 no_ops;
 
 	addr = ctr->addr;
 	no_ops = ctr->no_ops;
@@ -285,29 +393,42 @@ static u32 qlcnic_dump_ctrl(struct qlcnic_adapter *adapter,
 				}
 				break;
 			case QLCNIC_DUMP_RD_SAVE:
-				if (ctr->index_a)
-					addr = t_hdr->saved_state[ctr->index_a];
+				temp = ctr->index_a;
+				if (temp)
+					addr = qlcnic_get_saved_state(adapter,
+								      hdr,
+								      temp);
 				data = qlcnic_ind_rd(adapter, addr);
-				t_hdr->saved_state[ctr->index_v] = data;
+				qlcnic_set_saved_state(adapter, hdr,
+						       ctr->index_v, data);
 				break;
 			case QLCNIC_DUMP_WRT_SAVED:
-				if (ctr->index_v)
-					data = t_hdr->saved_state[ctr->index_v];
+				temp = ctr->index_v;
+				if (temp)
+					data = qlcnic_get_saved_state(adapter,
+								      hdr,
+								      temp);
 				else
 					data = ctr->val1;
-				if (ctr->index_a)
-					addr = t_hdr->saved_state[ctr->index_a];
+
+				temp = ctr->index_a;
+				if (temp)
+					addr = qlcnic_get_saved_state(adapter,
+								      hdr,
+								      temp);
 				qlcnic_ind_wr(adapter, addr, data);
 				break;
 			case QLCNIC_DUMP_MOD_SAVE_ST:
-				data = t_hdr->saved_state[ctr->index_v];
+				data = qlcnic_get_saved_state(adapter, hdr,
+							      ctr->index_v);
 				data <<= ctr->shl_val;
 				data >>= ctr->shr_val;
 				if (ctr->val2)
 					data &= ctr->val2;
 				data |= ctr->val3;
 				data += ctr->val1;
-				t_hdr->saved_state[ctr->index_v] = data;
+				qlcnic_set_saved_state(adapter, hdr,
+						       ctr->index_v, data);
 				break;
 			default:
 				dev_info(&adapter->pdev->dev,
@@ -539,34 +660,31 @@ out:
 #define QLC_DMA_CMD_BUFF_ADDR_HI	4
 #define QLC_DMA_CMD_STATUS_CTRL		8
 
-#define QLC_PEX_DMA_READ_SIZE		(PAGE_SIZE * 16)
-
 static int qlcnic_start_pex_dma(struct qlcnic_adapter *adapter,
 				struct __mem *mem)
 {
-	struct qlcnic_dump_template_hdr *tmpl_hdr;
 	struct device *dev = &adapter->pdev->dev;
 	u32 dma_no, dma_base_addr, temp_addr;
 	int i, ret, dma_sts;
+	void *tmpl_hdr;
 
 	tmpl_hdr = adapter->ahw->fw_dump.tmpl_hdr;
-	dma_no = tmpl_hdr->saved_state[QLC_83XX_DMA_ENGINE_INDEX];
+	dma_no = qlcnic_get_saved_state(adapter, tmpl_hdr,
+					QLC_83XX_DMA_ENGINE_INDEX);
 	dma_base_addr = QLC_DMA_REG_BASE_ADDR(dma_no);
 
 	temp_addr = dma_base_addr + QLC_DMA_CMD_BUFF_ADDR_LOW;
-	ret = qlcnic_83xx_wrt_reg_indirect(adapter, temp_addr,
-					   mem->desc_card_addr);
+	ret = qlcnic_ind_wr(adapter, temp_addr, mem->desc_card_addr);
 	if (ret)
 		return ret;
 
 	temp_addr = dma_base_addr + QLC_DMA_CMD_BUFF_ADDR_HI;
-	ret = qlcnic_83xx_wrt_reg_indirect(adapter, temp_addr, 0);
+	ret = qlcnic_ind_wr(adapter, temp_addr, 0);
 	if (ret)
 		return ret;
 
 	temp_addr = dma_base_addr + QLC_DMA_CMD_STATUS_CTRL;
-	ret = qlcnic_83xx_wrt_reg_indirect(adapter, temp_addr,
-					   mem->start_dma_cmd);
+	ret = qlcnic_ind_wr(adapter, temp_addr, mem->start_dma_cmd);
 	if (ret)
 		return ret;
 
@@ -596,15 +714,16 @@ static u32 qlcnic_read_memory_pexdma(struct qlcnic_adapter *adapter,
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 	u32 temp, dma_base_addr, size = 0, read_size = 0;
 	struct qlcnic_pex_dma_descriptor *dma_descr;
-	struct qlcnic_dump_template_hdr *tmpl_hdr;
 	struct device *dev = &adapter->pdev->dev;
 	dma_addr_t dma_phys_addr;
 	void *dma_buffer;
+	void *tmpl_hdr;
 
 	tmpl_hdr = fw_dump->tmpl_hdr;
 
 	/* Check if DMA engine is available */
-	temp = tmpl_hdr->saved_state[QLC_83XX_DMA_ENGINE_INDEX];
+	temp = qlcnic_get_saved_state(adapter, tmpl_hdr,
+				      QLC_83XX_DMA_ENGINE_INDEX);
 	dma_base_addr = QLC_DMA_REG_BASE_ADDR(temp);
 	temp = qlcnic_ind_rd(adapter,
 			     dma_base_addr + QLC_DMA_CMD_STATUS_CTRL);
@@ -650,8 +769,8 @@ static u32 qlcnic_read_memory_pexdma(struct qlcnic_adapter *adapter,
 
 		/* Write DMA descriptor to MS memory*/
 		temp = sizeof(struct qlcnic_pex_dma_descriptor) / 16;
-		*ret = qlcnic_83xx_ms_mem_write128(adapter, mem->desc_card_addr,
-						   (u32 *)dma_descr, temp);
+		*ret = qlcnic_ms_mem_write128(adapter, mem->desc_card_addr,
+					      (u32 *)dma_descr, temp);
 		if (*ret) {
 			dev_info(dev, "Failed to write DMA descriptor to MS memory at address 0x%x\n",
 				 mem->desc_card_addr);
@@ -938,8 +1057,8 @@ static int
 qlcnic_fw_flash_get_minidump_temp_size(struct qlcnic_adapter *adapter,
 				       struct qlcnic_cmd_args *cmd)
 {
-	struct qlcnic_dump_template_hdr tmp_hdr;
-	u32 size = sizeof(struct qlcnic_dump_template_hdr) / sizeof(u32);
+	struct qlcnic_83xx_dump_template_hdr tmp_hdr;
+	u32 size = sizeof(tmp_hdr) / sizeof(u32);
 	int ret = 0;
 
 	if (qlcnic_82xx_check(adapter))
@@ -1029,15 +1148,16 @@ free_mem:
 
 int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 {
-	int err;
-	u32 temp_size = 0;
-	u32 version, csum, *tmp_buf;
 	struct qlcnic_hardware_context *ahw;
-	struct qlcnic_dump_template_hdr *tmpl_hdr;
+	struct qlcnic_fw_dump *fw_dump;
+	u32 version, csum, *tmp_buf;
 	u8 use_flash_temp = 0;
+	u32 temp_size = 0;
+	void *temp_buffer;
+	int err;
 
 	ahw = adapter->ahw;
-
+	fw_dump = &ahw->fw_dump;
 	err = qlcnic_fw_get_minidump_temp_size(adapter, &version, &temp_size,
 					       &use_flash_temp);
 	if (err) {
@@ -1046,11 +1166,11 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 		return -EIO;
 	}
 
-	ahw->fw_dump.tmpl_hdr = vzalloc(temp_size);
-	if (!ahw->fw_dump.tmpl_hdr)
+	fw_dump->tmpl_hdr = vzalloc(temp_size);
+	if (!fw_dump->tmpl_hdr)
 		return -ENOMEM;
 
-	tmp_buf = (u32 *)ahw->fw_dump.tmpl_hdr;
+	tmp_buf = (u32 *)fw_dump->tmpl_hdr;
 	if (use_flash_temp)
 		goto flash_temp;
 
@@ -1065,8 +1185,8 @@ flash_temp:
 			dev_err(&adapter->pdev->dev,
 				"Failed to get minidump template header %d\n",
 				err);
-			vfree(ahw->fw_dump.tmpl_hdr);
-			ahw->fw_dump.tmpl_hdr = NULL;
+			vfree(fw_dump->tmpl_hdr);
+			fw_dump->tmpl_hdr = NULL;
 			return -EIO;
 		}
 	}
@@ -1076,21 +1196,29 @@ flash_temp:
 	if (csum) {
 		dev_err(&adapter->pdev->dev,
 			"Template header checksum validation failed\n");
-		vfree(ahw->fw_dump.tmpl_hdr);
-		ahw->fw_dump.tmpl_hdr = NULL;
+		vfree(fw_dump->tmpl_hdr);
+		fw_dump->tmpl_hdr = NULL;
 		return -EIO;
 	}
 
-	tmpl_hdr = ahw->fw_dump.tmpl_hdr;
-	tmpl_hdr->drv_cap_mask = tmpl_hdr->cap_mask;
+	qlcnic_cache_tmpl_hdr_values(adapter, fw_dump);
+
+	if (fw_dump->use_pex_dma) {
+		fw_dump->dma_buffer = NULL;
+		temp_buffer = dma_alloc_coherent(&adapter->pdev->dev,
+						 QLC_PEX_DMA_READ_SIZE,
+						 &fw_dump->phys_addr,
+						 GFP_KERNEL);
+		if (!temp_buffer)
+			fw_dump->use_pex_dma = false;
+		else
+			fw_dump->dma_buffer = temp_buffer;
+	}
+
+
 	dev_info(&adapter->pdev->dev,
 		 "Default minidump capture mask 0x%x\n",
-		 tmpl_hdr->cap_mask);
-
-	if ((tmpl_hdr->version & 0xfffff) >= 0x20001)
-		ahw->fw_dump.use_pex_dma = true;
-	else
-		ahw->fw_dump.use_pex_dma = false;
+		 fw_dump->cap_mask);
 
 	qlcnic_enable_fw_dump_state(adapter);
 
@@ -1099,21 +1227,22 @@ flash_temp:
 
 int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 {
-	__le32 *buffer;
-	u32 ocm_window;
-	char mesg[64];
-	char *msg[] = {mesg, NULL};
-	int i, k, ops_cnt, ops_index, dump_size = 0;
-	u32 entry_offset, dump, no_entries, buf_offset = 0;
-	struct qlcnic_dump_entry *entry;
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
-	struct qlcnic_dump_template_hdr *tmpl_hdr = fw_dump->tmpl_hdr;
 	static const struct qlcnic_dump_operations *fw_dump_ops;
+	struct qlcnic_83xx_dump_template_hdr *hdr_83xx;
+	u32 entry_offset, dump, no_entries, buf_offset = 0;
+	int i, k, ops_cnt, ops_index, dump_size = 0;
 	struct device *dev = &adapter->pdev->dev;
 	struct qlcnic_hardware_context *ahw;
-	void *temp_buffer;
+	struct qlcnic_dump_entry *entry;
+	void *tmpl_hdr;
+	u32 ocm_window;
+	__le32 *buffer;
+	char mesg[64];
+	char *msg[] = {mesg, NULL};
 
 	ahw = adapter->ahw;
+	tmpl_hdr = fw_dump->tmpl_hdr;
 
 	/* Return if we don't have firmware dump template header */
 	if (!tmpl_hdr)
@@ -1133,8 +1262,9 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 	netif_info(adapter->ahw, drv, adapter->netdev, "Take FW dump\n");
 	/* Calculate the size for dump data area only */
 	for (i = 2, k = 1; (i & QLCNIC_DUMP_MASK_MAX); i <<= 1, k++)
-		if (i & tmpl_hdr->drv_cap_mask)
-			dump_size += tmpl_hdr->cap_sizes[k];
+		if (i & fw_dump->cap_mask)
+			dump_size += qlcnic_get_cap_size(adapter, tmpl_hdr, k);
+
 	if (!dump_size)
 		return -EIO;
 
@@ -1144,35 +1274,26 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 
 	buffer = fw_dump->data;
 	fw_dump->size = dump_size;
-	no_entries = tmpl_hdr->num_entries;
-	entry_offset = tmpl_hdr->offset;
-	tmpl_hdr->sys_info[0] = QLCNIC_DRIVER_VERSION;
-	tmpl_hdr->sys_info[1] = adapter->fw_version;
-
-	if (fw_dump->use_pex_dma) {
-		temp_buffer = dma_alloc_coherent(dev, QLC_PEX_DMA_READ_SIZE,
-						 &fw_dump->phys_addr,
-						 GFP_KERNEL);
-		if (!temp_buffer)
-			fw_dump->use_pex_dma = false;
-		else
-			fw_dump->dma_buffer = temp_buffer;
-	}
+	no_entries = fw_dump->num_entries;
+	entry_offset = fw_dump->offset;
+	qlcnic_set_sys_info(adapter, tmpl_hdr, 0, QLCNIC_DRIVER_VERSION);
+	qlcnic_set_sys_info(adapter, tmpl_hdr, 1, adapter->fw_version);
 
 	if (qlcnic_82xx_check(adapter)) {
 		ops_cnt = ARRAY_SIZE(qlcnic_fw_dump_ops);
 		fw_dump_ops = qlcnic_fw_dump_ops;
 	} else {
+		hdr_83xx = tmpl_hdr;
 		ops_cnt = ARRAY_SIZE(qlcnic_83xx_fw_dump_ops);
 		fw_dump_ops = qlcnic_83xx_fw_dump_ops;
-		ocm_window = tmpl_hdr->ocm_wnd_reg[adapter->ahw->pci_func];
-		tmpl_hdr->saved_state[QLC_83XX_OCM_INDEX] = ocm_window;
-		tmpl_hdr->saved_state[QLC_83XX_PCI_INDEX] = ahw->pci_func;
+		ocm_window = hdr_83xx->ocm_wnd_reg[ahw->pci_func];
+		hdr_83xx->saved_state[QLC_83XX_OCM_INDEX] = ocm_window;
+		hdr_83xx->saved_state[QLC_83XX_PCI_INDEX] = ahw->pci_func;
 	}
 
 	for (i = 0; i < no_entries; i++) {
-		entry = (void *)tmpl_hdr + entry_offset;
-		if (!(entry->hdr.mask & tmpl_hdr->drv_cap_mask)) {
+		entry = tmpl_hdr + entry_offset;
+		if (!(entry->hdr.mask & fw_dump->cap_mask)) {
 			entry->hdr.flags |= QLCNIC_DUMP_SKIP;
 			entry_offset += entry->hdr.offset;
 			continue;
@@ -1187,41 +1308,35 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 		}
 
 		if (ops_index == ops_cnt) {
-			dev_info(&adapter->pdev->dev,
-				 "Invalid entry type %d, exiting dump\n",
+			dev_info(dev, "Skipping unknown entry opcode %d\n",
 				 entry->hdr.type);
-			goto error;
+			entry->hdr.flags |= QLCNIC_DUMP_SKIP;
+			entry_offset += entry->hdr.offset;
+			continue;
 		}
 
 		/* Collect dump for this entry */
 		dump = fw_dump_ops[ops_index].handler(adapter, entry, buffer);
-		if (!qlcnic_valid_dump_entry(&adapter->pdev->dev, entry, dump))
+		if (!qlcnic_valid_dump_entry(dev, entry, dump)) {
 			entry->hdr.flags |= QLCNIC_DUMP_SKIP;
+			entry_offset += entry->hdr.offset;
+			continue;
+		}
+
 		buf_offset += entry->hdr.cap_size;
 		entry_offset += entry->hdr.offset;
 		buffer = fw_dump->data + buf_offset;
 	}
-	if (dump_size != buf_offset) {
-		dev_info(&adapter->pdev->dev,
-			 "Captured(%d) and expected size(%d) do not match\n",
-			 buf_offset, dump_size);
-		goto error;
-	} else {
-		fw_dump->clr = 1;
-		snprintf(mesg, sizeof(mesg), "FW_DUMP=%s",
-			 adapter->netdev->name);
-		dev_info(&adapter->pdev->dev, "%s: Dump data, %d bytes captured\n",
-			 adapter->netdev->name, fw_dump->size);
-		/* Send a udev event to notify availability of FW dump */
-		kobject_uevent_env(&adapter->pdev->dev.kobj, KOBJ_CHANGE, msg);
-		return 0;
-	}
-error:
-	if (fw_dump->use_pex_dma)
-		dma_free_coherent(dev, QLC_PEX_DMA_READ_SIZE,
-				  fw_dump->dma_buffer, fw_dump->phys_addr);
-	vfree(fw_dump->data);
-	return -EINVAL;
+
+	fw_dump->clr = 1;
+	snprintf(mesg, sizeof(mesg), "FW_DUMP=%s", adapter->netdev->name);
+	netdev_info(adapter->netdev,
+		    "Dump data %d bytes captured, template header size %d bytes\n",
+		    fw_dump->size, fw_dump->tmpl_hdr_size);
+	/* Send a udev event to notify availability of FW dump */
+	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, msg);
+
+	return 0;
 }
 
 void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *adapter)

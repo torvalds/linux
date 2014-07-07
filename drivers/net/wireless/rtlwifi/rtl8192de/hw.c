@@ -318,7 +318,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_AC_PARAM: {
 		u8 e_aci = *val;
 		rtl92d_dm_init_edca_turbo(hw);
-		if (rtlpci->acm_method != eAcmWay2_SW)
+		if (rtlpci->acm_method != EACMWAY2_SW)
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ACM_CTRL,
 						      &e_aci);
 		break;
@@ -985,9 +985,9 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 	/* set default value after initialize RF,  */
 	rtl_set_bbreg(hw, RFPGA0_ANALOGPARAMETER4, 0x00f00000, 0);
 	rtlphy->rfreg_chnlval[0] = rtl_get_rfreg(hw, (enum radio_path)0,
-			RF_CHNLBW, BRFREGOFFSETMASK);
+			RF_CHNLBW, RFREG_OFFSET_MASK);
 	rtlphy->rfreg_chnlval[1] = rtl_get_rfreg(hw, (enum radio_path)1,
-			RF_CHNLBW, BRFREGOFFSETMASK);
+			RF_CHNLBW, RFREG_OFFSET_MASK);
 
 	/*---- Set CCK and OFDM Block "ON"----*/
 	if (rtlhal->current_bandtype == BAND_ON_2_4G)
@@ -1035,7 +1035,7 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 
 				tmp_rega = rtl_get_rfreg(hw,
 						  (enum radio_path)RF90_PATH_A,
-						  0x2a, BMASKDWORD);
+						  0x2a, MASKDWORD);
 
 				if (((tmp_rega & BIT(11)) == BIT(11)))
 					break;
@@ -1138,11 +1138,13 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 void rtl92de_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	u32 reg_rcr = rtlpci->receive_config;
+	u32 reg_rcr;
 
 	if (rtlpriv->psc.rfpwr_state != ERFON)
 		return;
+
+	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
+
 	if (check_bssid) {
 		reg_rcr |= (RCR_CBSSID_DATA | RCR_CBSSID_BCN);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
@@ -1194,25 +1196,7 @@ void rtl92d_linked_set_reg(struct ieee80211_hw *hw)
  * mac80211 will send pkt when scan */
 void rtl92de_set_qos(struct ieee80211_hw *hw, int aci)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	rtl92d_dm_init_edca_turbo(hw);
-	return;
-	switch (aci) {
-	case AC1_BK:
-		rtl_write_dword(rtlpriv, REG_EDCA_BK_PARAM, 0xa44f);
-		break;
-	case AC0_BE:
-		break;
-	case AC2_VI:
-		rtl_write_dword(rtlpriv, REG_EDCA_VI_PARAM, 0x5e4322);
-		break;
-	case AC3_VO:
-		rtl_write_dword(rtlpriv, REG_EDCA_VO_PARAM, 0x2f3222);
-		break;
-	default:
-		RT_ASSERT(false, "invalid aci: %d !\n", aci);
-		break;
-	}
 }
 
 void rtl92de_enable_interrupt(struct ieee80211_hw *hw)
@@ -1350,13 +1334,13 @@ void rtl92de_card_disable(struct ieee80211_hw *hw)
 	/* c. ========RF OFF sequence==========  */
 	/* 0x88c[23:20] = 0xf. */
 	rtl_set_bbreg(hw, RFPGA0_ANALOGPARAMETER4, 0x00f00000, 0xf);
-	rtl_set_rfreg(hw, RF90_PATH_A, 0x00, BRFREGOFFSETMASK, 0x00);
+	rtl_set_rfreg(hw, RF90_PATH_A, 0x00, RFREG_OFFSET_MASK, 0x00);
 
 	/* APSD_CTRL 0x600[7:0] = 0x40 */
 	rtl_write_byte(rtlpriv, REG_APSD_CTRL, 0x40);
 
 	/* Close antenna 0,0xc04,0xd04 */
-	rtl_set_bbreg(hw, ROFDM0_TRXPATHENABLE, BMASKBYTE0, 0);
+	rtl_set_bbreg(hw, ROFDM0_TRXPATHENABLE, MASKBYTE0, 0);
 	rtl_set_bbreg(hw, ROFDM1_TRXPATHENABLE, BDWORD, 0);
 
 	/*  SYS_FUNC_EN 0x02[7:0] = 0xE2   reset BB state machine */

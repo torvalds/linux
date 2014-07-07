@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/completion.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_mtd.h>
 
@@ -395,7 +396,7 @@ static void wait_op_done(struct mxc_nand_host *host, int useirq)
 
 	if (useirq) {
 		if (!host->devtype_data->check_int(host)) {
-			INIT_COMPLETION(host->op_completion);
+			reinit_completion(&host->op_completion);
 			irq_control(host, 1);
 			wait_for_completion(&host->op_completion);
 		}
@@ -676,7 +677,6 @@ static int mxc_nand_correct_data_v2_v3(struct mtd_info *mtd, u_char *dat,
 		ecc_stat >>= 4;
 	} while (--no_subpages);
 
-	mtd->ecc_stats.corrected += ret;
 	pr_debug("%d Symbol Correctable RS-ECC Error\n", ret);
 
 	return ret;
@@ -1399,12 +1399,15 @@ static int mxcnd_probe(struct platform_device *pdev)
 	int err = 0;
 
 	/* Allocate memory for MTD device structure and private data */
-	host = devm_kzalloc(&pdev->dev, sizeof(struct mxc_nand_host) +
-			NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE, GFP_KERNEL);
+	host = devm_kzalloc(&pdev->dev, sizeof(struct mxc_nand_host),
+			GFP_KERNEL);
 	if (!host)
 		return -ENOMEM;
 
-	host->data_buf = (uint8_t *)(host + 1);
+	/* allocate a temporary buffer for the nand_scan_ident() */
+	host->data_buf = devm_kzalloc(&pdev->dev, PAGE_SIZE, GFP_KERNEL);
+	if (!host->data_buf)
+		return -ENOMEM;
 
 	host->dev = &pdev->dev;
 	/* structures must be linked */
@@ -1498,6 +1501,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 	init_completion(&host->op_completion);
 
 	host->irq = platform_get_irq(pdev, 0);
+	if (host->irq < 0)
+		return host->irq;
 
 	/*
 	 * Use host->devtype_data->irq_control() here instead of irq_control()
@@ -1507,11 +1512,13 @@ static int mxcnd_probe(struct platform_device *pdev)
 	host->devtype_data->irq_control(host, 0);
 
 	err = devm_request_irq(&pdev->dev, host->irq, mxc_nfc_irq,
-			IRQF_DISABLED, DRIVER_NAME, host);
+			0, DRIVER_NAME, host);
 	if (err)
 		return err;
 
-	clk_prepare_enable(host->clk);
+	err = clk_prepare_enable(host->clk);
+	if (err)
+		return err;
 	host->clk_act = 1;
 
 	/*
@@ -1527,6 +1534,15 @@ static int mxcnd_probe(struct platform_device *pdev)
 	/* first scan to find the device and get the page size */
 	if (nand_scan_ident(mtd, is_imx25_nfc(host) ? 4 : 1, NULL)) {
 		err = -ENXIO;
+		goto escan;
+	}
+
+	/* allocate the right size buffer now */
+	devm_kfree(&pdev->dev, (void *)host->data_buf);
+	host->data_buf = devm_kzalloc(&pdev->dev, mtd->writesize + mtd->oobsize,
+					GFP_KERNEL);
+	if (!host->data_buf) {
+		err = -ENOMEM;
 		goto escan;
 	}
 
@@ -1575,6 +1591,8 @@ static int mxcnd_remove(struct platform_device *pdev)
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
 
 	nand_release(&host->mtd);
+	if (host->clk_act)
+		clk_disable_unprepare(host->clk);
 
 	return 0;
 }

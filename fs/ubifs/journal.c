@@ -933,10 +933,8 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	int move = (old_dir != new_dir);
 	struct ubifs_inode *uninitialized_var(new_ui);
 
-	dbg_jnl("dent '%.*s' in dir ino %lu to dent '%.*s' in dir ino %lu",
-		old_dentry->d_name.len, old_dentry->d_name.name,
-		old_dir->i_ino, new_dentry->d_name.len,
-		new_dentry->d_name.name, new_dir->i_ino);
+	dbg_jnl("dent '%pd' in dir ino %lu to dent '%pd' in dir ino %lu",
+		old_dentry, old_dir->i_ino, new_dentry, new_dir->i_ino);
 	ubifs_assert(ubifs_inode(old_dir)->data_len == 0);
 	ubifs_assert(ubifs_inode(new_dir)->data_len == 0);
 	ubifs_assert(mutex_is_locked(&ubifs_inode(old_dir)->ui_mutex));

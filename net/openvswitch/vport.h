@@ -87,7 +87,7 @@ struct vport {
 	struct hlist_node dp_hash_node;
 	const struct vport_ops *ops;
 
-	struct pcpu_tstats __percpu *percpu_stats;
+	struct pcpu_sw_netstats __percpu *percpu_stats;
 
 	spinlock_t stats_lock;
 	struct vport_err_stats err_stats;
@@ -172,7 +172,7 @@ void ovs_vport_deferred_free(struct vport *vport);
  */
 static inline void *vport_priv(const struct vport *vport)
 {
-	return (u8 *)vport + ALIGN(sizeof(struct vport), VPORT_ALIGN);
+	return (u8 *)(uintptr_t)vport + ALIGN(sizeof(struct vport), VPORT_ALIGN);
 }
 
 /**
@@ -185,14 +185,13 @@ static inline void *vport_priv(const struct vport *vport)
  * the result of a hash table lookup.  @priv must point to the start of the
  * private data area.
  */
-static inline struct vport *vport_from_priv(const void *priv)
+static inline struct vport *vport_from_priv(void *priv)
 {
-	return (struct vport *)(priv - ALIGN(sizeof(struct vport), VPORT_ALIGN));
+	return (struct vport *)((u8 *)priv - ALIGN(sizeof(struct vport), VPORT_ALIGN));
 }
 
 void ovs_vport_receive(struct vport *, struct sk_buff *,
 		       struct ovs_key_ipv4_tunnel *);
-void ovs_vport_record_error(struct vport *, enum vport_err_type err_type);
 
 /* List of statically compiled vport implementations.  Don't forget to also
  * add yours to the list at the top of vport.c. */

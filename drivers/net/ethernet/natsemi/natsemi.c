@@ -927,7 +927,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->netdev_ops = &natsemi_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 
 	if (mtu)
 		dev->mtu = mtu;
@@ -970,7 +970,6 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 
  err_ioremap:
 	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
 
  err_pci_request_regions:
 	free_netdev(dev);
@@ -3220,7 +3219,6 @@ static void natsemi_remove1(struct pci_dev *pdev)
 	pci_release_regions (pdev);
 	iounmap(ioaddr);
 	free_netdev (dev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM

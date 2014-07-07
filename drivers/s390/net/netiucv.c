@@ -105,15 +105,9 @@ MODULE_DESCRIPTION ("Linux for S/390 IUCV network driver");
 
 DECLARE_PER_CPU(char[256], iucv_dbf_txt_buf);
 
-/* Allow to sort out low debug levels early to avoid wasted sprints */
-static inline int iucv_dbf_passes(debug_info_t *dbf_grp, int level)
-{
-	return (level <= dbf_grp->level);
-}
-
 #define IUCV_DBF_TEXT_(name, level, text...) \
 	do { \
-		if (iucv_dbf_passes(iucv_dbf_##name, level)) { \
+		if (debug_level_enabled(iucv_dbf_##name, level)) { \
 			char* __buf = get_cpu_var(iucv_dbf_txt_buf); \
 			sprintf(__buf, text); \
 			debug_text_event(iucv_dbf_##name, level, __buf); \
@@ -745,8 +739,12 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 
 	IUCV_DBF_TEXT(trace, 4, __func__);
 
-	if (conn && conn->netdev)
-		privptr = netdev_priv(conn->netdev);
+	if (!conn || !conn->netdev) {
+		IUCV_DBF_TEXT(data, 2,
+			      "Send confirmation for unlinked connection\n");
+		return;
+	}
+	privptr = netdev_priv(conn->netdev);
 	conn->prof.tx_pending--;
 	if (single_flag) {
 		if ((skb = skb_dequeue(&conn->commit_queue))) {

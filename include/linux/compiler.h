@@ -63,6 +63,13 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 # include <linux/compiler-intel.h>
 #endif
 
+/* Clang compiler defines __GNUC__. So we will overwrite implementations
+ * coming from above header files here
+ */
+#ifdef __clang__
+#include <linux/compiler-clang.h>
+#endif
+
 /*
  * Generic compiler-dependent macros required for kernel
  * build go below this comment. Actual compiler/compiler version
@@ -168,6 +175,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
   ({ unsigned long __ptr;					\
      __ptr = (unsigned long) (ptr);				\
     (typeof(ptr)) (__ptr + (off)); })
+#endif
+
+#ifndef OPTIMIZER_HIDE_VAR
+#define OPTIMIZER_HIDE_VAR(var) barrier()
 #endif
 
 /* Not-quite-unique ID. */
@@ -298,6 +309,11 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 # define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
 #endif
 
+/* Is this type a native word size -- useful for atomic operations */
+#ifndef __native_word
+# define __native_word(t) (sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
+#endif
+
 /* Compile time object size, -1 for unknown */
 #ifndef __compiletime_object_size
 # define __compiletime_object_size(obj) -1
@@ -307,9 +323,18 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #endif
 #ifndef __compiletime_error
 # define __compiletime_error(message)
-# define __compiletime_error_fallback(condition) \
+/*
+ * Sparse complains of variable sized arrays due to the temporary variable in
+ * __compiletime_assert. Unfortunately we can't just expand it out to make
+ * sparse see a constant array size without breaking compiletime_assert on old
+ * versions of GCC (e.g. 4.2.4), so hide the array from sparse altogether.
+ */
+# ifndef __CHECKER__
+#  define __compiletime_error_fallback(condition) \
 	do { ((void)sizeof(char[1 - 2 * condition])); } while (0)
-#else
+# endif
+#endif
+#ifndef __compiletime_error_fallback
 # define __compiletime_error_fallback(condition) do { } while (0)
 #endif
 
@@ -337,6 +362,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #define compiletime_assert(condition, msg) \
 	_compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
 
+#define compiletime_assert_atomic_type(t)				\
+	compiletime_assert(__native_word(t),				\
+		"Need native word sized stores/loads for atomicity.")
+
 /*
  * Prevent the compiler from merging or refetching accesses.  The compiler
  * is also forbidden from reordering successive instances of ACCESS_ONCE(),
@@ -354,7 +383,9 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 /* Ignore/forbid kprobes attach on very low level functions marked by this attribute: */
 #ifdef CONFIG_KPROBES
 # define __kprobes	__attribute__((__section__(".kprobes.text")))
+# define nokprobe_inline	__always_inline
 #else
 # define __kprobes
+# define nokprobe_inline	inline
 #endif
 #endif /* __LINUX_COMPILER_H */

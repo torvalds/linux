@@ -23,20 +23,22 @@ static efs_ino_t efs_find_entry(struct inode *inode, const char *name, int len) 
 	efs_block_t		block;
  
 	if (inode->i_size & (EFS_DIRBSIZE-1))
-		printk(KERN_WARNING "EFS: WARNING: find_entry(): directory size not a multiple of EFS_DIRBSIZE\n");
+		pr_warn("%s(): directory size not a multiple of EFS_DIRBSIZE\n",
+			__func__);
 
 	for(block = 0; block < inode->i_blocks; block++) {
 
 		bh = sb_bread(inode->i_sb, efs_bmap(inode, block));
 		if (!bh) {
-			printk(KERN_ERR "EFS: find_entry(): failed to read dir block %d\n", block);
+			pr_err("%s(): failed to read dir block %d\n",
+			       __func__, block);
 			return 0;
 		}
     
 		dirblock = (struct efs_dir *) bh->b_data;
 
 		if (be16_to_cpu(dirblock->magic) != EFS_DIRBLK_MAGIC) {
-			printk(KERN_ERR "EFS: find_entry(): invalid directory block\n");
+			pr_err("%s(): invalid directory block\n", __func__);
 			brelse(bh);
 			return(0);
 		}

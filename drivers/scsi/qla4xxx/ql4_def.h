@@ -73,6 +73,7 @@
 
 #define QLA_SUCCESS			0
 #define QLA_ERROR			1
+#define STATUS(status)		status == QLA_ERROR ? "FAILED" : "SUCCEEDED"
 
 /*
  * Data bit definitions
@@ -179,6 +180,10 @@
 		n &= ~v;	\
 }
 
+#define OP_STATE(o, f, p) {			\
+	p = (o & f) ? "enable" : "disable";	\
+}
+
 /*
  * Retry & Timeout Values
  */
@@ -189,7 +194,7 @@
 #define ADAPTER_INIT_TOV		30
 #define ADAPTER_RESET_TOV		180
 #define EXTEND_CMD_TOV			60
-#define WAIT_CMD_TOV			30
+#define WAIT_CMD_TOV			5
 #define EH_WAIT_CMD_TOV			120
 #define FIRMWARE_UP_TOV			60
 #define RESET_FIRMWARE_TOV		30
@@ -206,6 +211,8 @@
 #define MAX_RESET_HA_RETRIES		2
 #define FW_ALIVE_WAIT_TOV		3
 #define IDC_EXTEND_TOV			8
+#define IDC_COMP_TOV			5
+#define LINK_UP_COMP_TOV		30
 
 #define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
 
@@ -290,6 +297,8 @@ struct ddb_entry {
 
 	/* Driver Re-login  */
 	unsigned long flags;		  /* DDB Flags */
+#define DDB_CONN_CLOSE_FAILURE		0 /* 0x00000001 */
+
 	uint16_t default_relogin_timeout; /*  Max time to wait for
 					   *  relogin to complete */
 	atomic_t retry_relogin_timer;	  /* Min Time between relogins
@@ -306,6 +315,7 @@ struct ddb_entry {
 struct qla_ddb_index {
 	struct list_head list;
 	uint16_t fw_ddb_idx;
+	uint16_t flash_ddb_idx;
 	struct dev_db_entry fw_ddb;
 	uint8_t flash_isid[6];
 };
@@ -475,6 +485,34 @@ struct ipaddress_config {
 	uint16_t eth_mtu_size;
 	uint16_t ipv4_port;
 	uint16_t ipv6_port;
+	uint8_t control;
+	uint16_t ipv6_tcp_options;
+	uint8_t tcp_wsf;
+	uint8_t ipv6_tcp_wsf;
+	uint8_t ipv4_tos;
+	uint8_t ipv4_cache_id;
+	uint8_t ipv6_cache_id;
+	uint8_t ipv4_alt_cid_len;
+	uint8_t ipv4_alt_cid[11];
+	uint8_t ipv4_vid_len;
+	uint8_t ipv4_vid[11];
+	uint8_t ipv4_ttl;
+	uint16_t ipv6_flow_lbl;
+	uint8_t ipv6_traffic_class;
+	uint8_t ipv6_hop_limit;
+	uint32_t ipv6_nd_reach_time;
+	uint32_t ipv6_nd_rexmit_timer;
+	uint32_t ipv6_nd_stale_timeout;
+	uint8_t ipv6_dup_addr_detect_count;
+	uint32_t ipv6_gw_advrt_mtu;
+	uint16_t def_timeout;
+	uint8_t abort_timer;
+	uint16_t iscsi_options;
+	uint16_t iscsi_max_pdu_size;
+	uint16_t iscsi_first_burst_len;
+	uint16_t iscsi_max_outstnd_r2t;
+	uint16_t iscsi_max_burst_len;
+	uint8_t iscsi_name[224];
 };
 
 #define QL4_CHAP_MAX_NAME_LEN 256
@@ -544,7 +582,6 @@ struct scsi_qla_host {
 #define AF_82XX_FW_DUMPED		24 /* 0x01000000 */
 #define AF_8XXX_RST_OWNER		25 /* 0x02000000 */
 #define AF_82XX_DUMP_READING		26 /* 0x04000000 */
-#define AF_83XX_NO_FW_DUMP		27 /* 0x08000000 */
 #define AF_83XX_IOCB_INTR_ON		28 /* 0x10000000 */
 #define AF_83XX_MBOX_INTR_ON		29 /* 0x20000000 */
 
@@ -559,11 +596,12 @@ struct scsi_qla_host {
 #define DPC_AEN				9 /* 0x00000200 */
 #define DPC_GET_DHCP_IP_ADDR		15 /* 0x00008000 */
 #define DPC_LINK_CHANGED		18 /* 0x00040000 */
-#define DPC_RESET_ACTIVE		20 /* 0x00040000 */
-#define DPC_HA_UNRECOVERABLE		21 /* 0x00080000 ISP-82xx only*/
-#define DPC_HA_NEED_QUIESCENT		22 /* 0x00100000 ISP-82xx only*/
-#define DPC_POST_IDC_ACK		23 /* 0x00200000 */
+#define DPC_RESET_ACTIVE		20 /* 0x00100000 */
+#define DPC_HA_UNRECOVERABLE		21 /* 0x00200000 ISP-82xx only*/
+#define DPC_HA_NEED_QUIESCENT		22 /* 0x00400000 ISP-82xx only*/
+#define DPC_POST_IDC_ACK		23 /* 0x00800000 */
 #define DPC_RESTORE_ACB			24 /* 0x01000000 */
+#define DPC_SYSFS_DDB_EXPORT		25 /* 0x02000000 */
 
 	struct Scsi_Host *host; /* pointer to host data */
 	uint32_t tot_ddbs;
@@ -732,6 +770,7 @@ struct scsi_qla_host {
 	uint32_t fw_dump_capture_mask;
 	void *fw_dump_tmplt_hdr;
 	uint32_t fw_dump_tmplt_size;
+	uint32_t fw_dump_skip_size;
 
 	struct completion mbx_intr_comp;
 
@@ -789,6 +828,11 @@ struct scsi_qla_host {
 	uint32_t pf_bit;
 	struct qla4_83xx_idc_information idc_info;
 	struct addr_ctrl_blk *saved_acb;
+	int notify_idc_comp;
+	int notify_link_up_comp;
+	int idc_extend_tmo;
+	struct completion idc_comp;
+	struct completion link_up_comp;
 };
 
 struct ql4_task_data {
@@ -869,7 +913,8 @@ static inline int is_qla80XX(struct scsi_qla_host *ha)
 static inline int is_aer_supported(struct scsi_qla_host *ha)
 {
 	return ((ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022) ||
-		(ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8324));
+		(ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8324) ||
+		(ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8042));
 }
 
 static inline int adapter_up(struct scsi_qla_host *ha)

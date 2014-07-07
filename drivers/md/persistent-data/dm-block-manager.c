@@ -104,7 +104,7 @@ static int __check_holder(struct block_lock *lock)
 
 	for (i = 0; i < MAX_HOLDERS; i++) {
 		if (lock->holders[i] == current) {
-			DMERR("recursive lock detected in pool metadata");
+			DMERR("recursive lock detected in metadata");
 #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
 			DMERR("previously held here:");
 			print_stack_trace(lock->traces + i, 4);
@@ -595,25 +595,14 @@ int dm_bm_unlock(struct dm_block *b)
 }
 EXPORT_SYMBOL_GPL(dm_bm_unlock);
 
-int dm_bm_flush_and_unlock(struct dm_block_manager *bm,
-			   struct dm_block *superblock)
+int dm_bm_flush(struct dm_block_manager *bm)
 {
-	int r;
-
 	if (bm->read_only)
 		return -EPERM;
 
-	r = dm_bufio_write_dirty_buffers(bm->bufio);
-	if (unlikely(r)) {
-		dm_bm_unlock(superblock);
-		return r;
-	}
-
-	dm_bm_unlock(superblock);
-
 	return dm_bufio_write_dirty_buffers(bm->bufio);
 }
-EXPORT_SYMBOL_GPL(dm_bm_flush_and_unlock);
+EXPORT_SYMBOL_GPL(dm_bm_flush);
 
 void dm_bm_prefetch(struct dm_block_manager *bm, dm_block_t b)
 {
@@ -625,6 +614,12 @@ void dm_bm_set_read_only(struct dm_block_manager *bm)
 	bm->read_only = true;
 }
 EXPORT_SYMBOL_GPL(dm_bm_set_read_only);
+
+void dm_bm_set_read_write(struct dm_block_manager *bm)
+{
+	bm->read_only = false;
+}
+EXPORT_SYMBOL_GPL(dm_bm_set_read_write);
 
 u32 dm_bm_checksum(const void *data, size_t len, u32 init_xor)
 {

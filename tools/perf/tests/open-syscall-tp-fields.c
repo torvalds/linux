@@ -6,15 +6,15 @@
 
 int test__syscall_open_tp_fields(void)
 {
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.target = {
 			.uid = UINT_MAX,
 			.uses_mmap = true,
 		},
-		.no_delay   = true,
-		.freq	    = 1,
-		.mmap_pages = 256,
-		.raw_samples = true,
+		.no_buffering = true,
+		.freq	      = 1,
+		.mmap_pages   = 256,
+		.raw_samples  = true,
 	};
 	const char *filename = "/etc/passwd";
 	int flags = O_RDONLY | O_DIRECTORY;
@@ -27,7 +27,7 @@ int test__syscall_open_tp_fields(void)
 		goto out;
 	}
 
-	evsel = perf_evsel__newtp("syscalls", "sys_enter_open", 0);
+	evsel = perf_evsel__newtp("syscalls", "sys_enter_open");
 	if (evsel == NULL) {
 		pr_debug("%s: perf_evsel__newtp\n", __func__);
 		goto out_delete_evlist;
@@ -48,13 +48,13 @@ int test__syscall_open_tp_fields(void)
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n", strerror(errno));
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	err = perf_evlist__mmap(evlist, UINT_MAX, false);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n", strerror(errno));
-		goto out_close_evlist;
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__enable(evlist);
@@ -77,13 +77,15 @@ int test__syscall_open_tp_fields(void)
 
 				++nr_events;
 
-				if (type != PERF_RECORD_SAMPLE)
+				if (type != PERF_RECORD_SAMPLE) {
+					perf_evlist__mmap_consume(evlist, i);
 					continue;
+				}
 
 				err = perf_evsel__parse_sample(evsel, event, &sample);
 				if (err) {
 					pr_err("Can't parse sample, err = %d\n", err);
-					goto out_munmap;
+					goto out_delete_evlist;
 				}
 
 				tp_flags = perf_evsel__intval(evsel, &sample, "flags");
@@ -91,7 +93,7 @@ int test__syscall_open_tp_fields(void)
 				if (flags != tp_flags) {
 					pr_debug("%s: Expected flags=%#x, got %#x\n",
 						 __func__, flags, tp_flags);
-					goto out_munmap;
+					goto out_delete_evlist;
 				}
 
 				goto out_ok;
@@ -103,17 +105,11 @@ int test__syscall_open_tp_fields(void)
 
 		if (++nr_polls > 5) {
 			pr_debug("%s: no events!\n", __func__);
-			goto out_munmap;
+			goto out_delete_evlist;
 		}
 	}
 out_ok:
 	err = 0;
-out_munmap:
-	perf_evlist__munmap(evlist);
-out_close_evlist:
-	perf_evlist__close(evlist);
-out_delete_maps:
-	perf_evlist__delete_maps(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:

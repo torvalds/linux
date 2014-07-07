@@ -9,6 +9,9 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#ifndef __DRIVER_USB_CHIPIDEA_CI_HDRC_IMX_H
+#define __DRIVER_USB_CHIPIDEA_CI_HDRC_IMX_H
+
 struct imx_usbmisc_data {
 	int index;
 
@@ -18,3 +21,5 @@ struct imx_usbmisc_data {
 
 int imx_usbmisc_init(struct imx_usbmisc_data *);
 int imx_usbmisc_init_post(struct imx_usbmisc_data *);
+
+#endif /* __DRIVER_USB_CHIPIDEA_CI_HDRC_IMX_H */

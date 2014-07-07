@@ -8,10 +8,6 @@ ad7606-$(CONFIG_AD7606_IFACE_PARALLEL) += ad7606_par.o
 ad7606-$(CONFIG_AD7606_IFACE_SPI) += ad7606_spi.o
 obj-$(CONFIG_AD7606) += ad7606.o
 
-ad799x-y := ad799x_core.o
-ad799x-$(CONFIG_AD799X_RING_BUFFER) += ad799x_ring.o
-obj-$(CONFIG_AD799X) += ad799x.o
-
 obj-$(CONFIG_AD7291) += ad7291.o
 obj-$(CONFIG_AD7780) += ad7780.o
 obj-$(CONFIG_AD7816) += ad7816.o

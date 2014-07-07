@@ -18,24 +18,19 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_log_priv.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_inum.h"
-#include "xfs_trans.h"
-#include "xfs_trans_priv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
-#include "xfs_dinode.h"
 #include "xfs_error.h"
-#include "xfs_filestream.h"
+#include "xfs_trans.h"
+#include "xfs_trans_priv.h"
 #include "xfs_inode_item.h"
 #include "xfs_quota.h"
 #include "xfs_trace.h"
-#include "xfs_fsops.h"
 #include "xfs_icache.h"
 #include "xfs_bmap_util.h"
 
@@ -500,11 +495,6 @@ xfs_inode_ag_walk_grab(
 	if (!igrab(inode))
 		return ENOENT;
 
-	if (is_bad_inode(inode)) {
-		IRELE(ip);
-		return ENOENT;
-	}
-
 	/* inode is valid */
 	return 0;
 
@@ -517,8 +507,7 @@ STATIC int
 xfs_inode_ag_walk(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
-	int			(*execute)(struct xfs_inode *ip,
-					   struct xfs_perag *pag, int flags,
+	int			(*execute)(struct xfs_inode *ip, int flags,
 					   void *args),
 	int			flags,
 	void			*args,
@@ -592,7 +581,7 @@ restart:
 		for (i = 0; i < nr_found; i++) {
 			if (!batch[i])
 				continue;
-			error = execute(batch[i], pag, flags, args);
+			error = execute(batch[i], flags, args);
 			IRELE(batch[i]);
 			if (error == EAGAIN) {
 				skipped++;
@@ -646,8 +635,7 @@ xfs_eofblocks_worker(
 int
 xfs_inode_ag_iterator(
 	struct xfs_mount	*mp,
-	int			(*execute)(struct xfs_inode *ip,
-					   struct xfs_perag *pag, int flags,
+	int			(*execute)(struct xfs_inode *ip, int flags,
 					   void *args),
 	int			flags,
 	void			*args)
@@ -674,8 +662,7 @@ xfs_inode_ag_iterator(
 int
 xfs_inode_ag_iterator_tag(
 	struct xfs_mount	*mp,
-	int			(*execute)(struct xfs_inode *ip,
-					   struct xfs_perag *pag, int flags,
+	int			(*execute)(struct xfs_inode *ip, int flags,
 					   void *args),
 	int			flags,
 	void			*args,
@@ -918,8 +905,6 @@ restart:
 		xfs_iflock(ip);
 	}
 
-	if (is_bad_inode(VFS_I(ip)))
-		goto reclaim;
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		xfs_iunpin_wait(ip);
 		xfs_iflush_abort(ip, false);
@@ -1221,7 +1206,6 @@ xfs_inode_match_id(
 STATIC int
 xfs_inode_free_eofblocks(
 	struct xfs_inode	*ip,
-	struct xfs_perag	*pag,
 	int			flags,
 	void			*args)
 {

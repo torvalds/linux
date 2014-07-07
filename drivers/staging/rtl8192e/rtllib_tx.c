@@ -171,7 +171,7 @@ inline int rtllib_put_snap(u8 *data, u16 h_proto)
 	snap->oui[1] = oui[1];
 	snap->oui[2] = oui[2];
 
-	*(u16 *)(data + SNAP_SIZE) = htons(h_proto);
+	*(__be16 *)(data + SNAP_SIZE) = htons(h_proto);
 
 	return SNAP_SIZE + sizeof(u16);
 }
@@ -231,7 +231,7 @@ static struct rtllib_txb *rtllib_alloc_txb(int nr_frags, int txb_size,
 
 	memset(txb, 0, sizeof(struct rtllib_txb));
 	txb->nr_frags = nr_frags;
-	txb->frag_size = txb_size;
+	txb->frag_size = cpu_to_le16(txb_size);
 
 	for (i = 0; i < nr_frags; i++) {
 		txb->fragments[i] = dev_alloc_skb(txb_size);
@@ -610,7 +610,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			}
 
 			txb->encrypted = 0;
-			txb->payload_size = skb->len;
+			txb->payload_size = cpu_to_le16(skb->len);
 			memcpy(skb_put(txb->fragments[0], skb->len), skb->data,
 			       skb->len);
 
@@ -764,7 +764,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			goto failed;
 		}
 		txb->encrypted = encrypt;
-		txb->payload_size = bytes;
+		txb->payload_size = cpu_to_le16(bytes);
 
 		if (qos_actived)
 			txb->queue_index = UP2AC(skb->priority);
@@ -812,10 +812,10 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			}
 			if ((qos_actived) && (!bIsMulticast)) {
 				frag_hdr->seq_ctl =
-					 rtllib_query_seqnum(ieee, skb_frag,
-							     header.addr1);
+					 cpu_to_le16(rtllib_query_seqnum(ieee, skb_frag,
+							     header.addr1));
 				frag_hdr->seq_ctl =
-					 cpu_to_le16(frag_hdr->seq_ctl<<4 | i);
+					 cpu_to_le16(le16_to_cpu(frag_hdr->seq_ctl)<<4 | i);
 			} else {
 				frag_hdr->seq_ctl =
 					 cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
@@ -870,7 +870,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		txb->encrypted = 0;
-		txb->payload_size = skb->len;
+		txb->payload_size = cpu_to_le16(skb->len);
 		memcpy(skb_put(txb->fragments[0], skb->len), skb->data,
 		       skb->len);
 	}
@@ -908,7 +908,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				tcb_desc->data_rate = CURRENT_RATE(ieee->mode,
 					ieee->rate, ieee->HTCurrentOperaRate);
 
-			if (bdhcp == true) {
+			if (bdhcp) {
 				if (ieee->pHTInfo->IOTAction &
 				    HT_IOT_ACT_WA_IOT_Broadcom) {
 					tcb_desc->data_rate =
@@ -939,12 +939,12 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	if (txb) {
 		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE) {
 			dev->stats.tx_packets++;
-			dev->stats.tx_bytes += txb->payload_size;
+			dev->stats.tx_bytes += le16_to_cpu(txb->payload_size);
 			rtllib_softmac_xmit(txb, ieee);
 		} else {
 			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
 				stats->tx_packets++;
-				stats->tx_bytes += txb->payload_size;
+				stats->tx_bytes += le16_to_cpu(txb->payload_size);
 				return 0;
 			}
 			rtllib_txb_free(txb);

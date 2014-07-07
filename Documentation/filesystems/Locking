@@ -47,6 +47,8 @@ prototypes:
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *);
+	int (*rename2) (struct inode *, struct dentry *,
+			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
 	void * (*follow_link) (struct dentry *, struct nameidata *);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);
@@ -78,6 +80,7 @@ mkdir:		yes
 unlink:		yes (both)
 rmdir:		yes (both)	(see below)
 rename:		yes (all)	(see below)
+rename2:	yes (all)	(see below)
 readlink:	no
 follow_link:	no
 put_link:	no
@@ -96,7 +99,8 @@ tmpfile:	no
 
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
-	cross-directory ->rename() has (per-superblock) ->s_vfs_rename_sem.
+	cross-directory ->rename() and rename2() has (per-superblock)
+->s_vfs_rename_sem.
 
 See Documentation/filesystems/directory-locking for more detailed discussion
 of the locking scheme for directory operations.
@@ -192,13 +196,12 @@ prototypes:
 	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
-	int (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
-			loff_t offset, unsigned long nr_segs);
+	int (*direct_IO)(int, struct kiocb *, struct iov_iter *iter, loff_t offset);
 	int (*get_xip_mem)(struct address_space *, pgoff_t, int, void **,
 				unsigned long *);
 	int (*migratepage)(struct address_space *, struct page *, struct page *);
 	int (*launder_page)(struct page *);
-	int (*is_partially_uptodate)(struct page *, read_descriptor_t *, unsigned long);
+	int (*is_partially_uptodate)(struct page *, unsigned long, unsigned long);
 	int (*error_remove_page)(struct address_space *, struct page *);
 	int (*swap_activate)(struct file *);
 	int (*swap_deactivate)(struct file *);
@@ -427,6 +430,8 @@ prototypes:
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
+	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
@@ -525,6 +530,7 @@ locking rules:
 open:		yes
 close:		yes
 fault:		yes		can return with page locked
+map_pages:	yes
 page_mkwrite:	yes		can return with page locked
 access:		yes
 
@@ -536,6 +542,15 @@ the page, then ensure it is not already truncated (the page lock will block
 subsequent truncate), and then return with VM_FAULT_LOCKED, and the page
 locked. The VM will unlock the page.
 
+	->map_pages() is called when VM asks to map easy accessible pages.
+Filesystem should find and map pages associated with offsets from "pgoff"
+till "max_pgoff". ->map_pages() is called with page table locked and must
+not block.  If it's not possible to reach a page without blocking,
+filesystem should skip it. Filesystem should use do_set_pte() to setup
+page table entry. Pointer to entry associated with offset "pgoff" is
+passed in "pte" field in vm_fault structure. Pointers to entries for other
+offsets should be calculated relative to "pte".
+
 	->page_mkwrite() is called when a previously read-only pte is
 about to become writeable. The filesystem again must ensure that there are
 no truncate/invalidate races, and then return with the page locked. If
@@ -544,7 +559,7 @@ like the ->fault() handler, but simply return with VM_FAULT_NOPAGE, which
 will cause the VM to retry the fault.
 
 	->access() is called when get_user_pages() fails in
-acces_process_vm(), typically used to debug a process through
+access_process_vm(), typically used to debug a process through
 /proc/pid/mem or ptrace.  This function is needed only for
 VM_IO | VM_PFNMAP VMAs.
 

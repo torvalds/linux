@@ -220,12 +220,11 @@ extern unsigned long empty_zero_page[1024];
 #ifdef CONFIG_MMU
 extern pgd_t swapper_pg_dir[PAGE_SIZE/sizeof(pgd_t)];
 extern void paging_init(void);
-extern void pgtable_cache_init(void);
 #else
 # define swapper_pg_dir NULL
 static inline void paging_init(void) { }
-static inline void pgtable_cache_init(void) { }
 #endif
+static inline void pgtable_cache_init(void) { }
 
 /*
  * The pmd contains the kernel virtual address of the pte page.
@@ -311,6 +310,10 @@ set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pteval)
 	update_pte(ptep, pteval);
 }
 
+static inline void set_pte(pte_t *ptep, pte_t pteval)
+{
+	update_pte(ptep, pteval);
+}
 
 static inline void
 set_pmd(pmd_t *pmdp, pmd_t pmdval)

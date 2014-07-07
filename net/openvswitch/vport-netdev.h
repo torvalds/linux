@@ -39,5 +39,6 @@ netdev_vport_priv(const struct vport *vport)
 }
 
 const char *ovs_netdev_get_name(const struct vport *);
+void ovs_netdev_detach_dev(struct vport *);
 
 #endif /* vport_netdev.h */

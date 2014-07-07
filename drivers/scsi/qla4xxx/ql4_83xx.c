@@ -249,110 +249,6 @@ void qla4_83xx_rom_lock_recovery(struct scsi_qla_host *ha)
 	qla4_83xx_flash_unlock(ha);
 }
 
-/**
- * qla4_83xx_ms_mem_write_128b - Writes data to MS/off-chip memory
- * @ha: Pointer to adapter structure
- * @addr: Flash address to write to
- * @data: Data to be written
- * @count: word_count to be written
- *
- * Return: On success return QLA_SUCCESS
- *	   On error return QLA_ERROR
- **/
-int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
-				uint32_t *data, uint32_t count)
-{
-	int i, j;
-	uint32_t agt_ctrl;
-	unsigned long flags;
-	int ret_val = QLA_SUCCESS;
-
-	/* Only 128-bit aligned access */
-	if (addr & 0xF) {
-		ret_val = QLA_ERROR;
-		goto exit_ms_mem_write;
-	}
-
-	write_lock_irqsave(&ha->hw_lock, flags);
-
-	/* Write address */
-	ret_val = qla4_83xx_wr_reg_indirect(ha, MD_MIU_TEST_AGT_ADDR_HI, 0);
-	if (ret_val == QLA_ERROR) {
-		ql4_printk(KERN_ERR, ha, "%s: write to AGT_ADDR_HI failed\n",
-			   __func__);
-		goto exit_ms_mem_write_unlock;
-	}
-
-	for (i = 0; i < count; i++, addr += 16) {
-		if (!((QLA8XXX_ADDR_IN_RANGE(addr, QLA8XXX_ADDR_QDR_NET,
-					     QLA8XXX_ADDR_QDR_NET_MAX)) ||
-		      (QLA8XXX_ADDR_IN_RANGE(addr, QLA8XXX_ADDR_DDR_NET,
-					     QLA8XXX_ADDR_DDR_NET_MAX)))) {
-			ret_val = QLA_ERROR;
-			goto exit_ms_mem_write_unlock;
-		}
-
-		ret_val = qla4_83xx_wr_reg_indirect(ha, MD_MIU_TEST_AGT_ADDR_LO,
-						    addr);
-		/* Write data */
-		ret_val |= qla4_83xx_wr_reg_indirect(ha,
-						     MD_MIU_TEST_AGT_WRDATA_LO,
-						     *data++);
-		ret_val |= qla4_83xx_wr_reg_indirect(ha,
-						     MD_MIU_TEST_AGT_WRDATA_HI,
-						     *data++);
-		ret_val |= qla4_83xx_wr_reg_indirect(ha,
-						     MD_MIU_TEST_AGT_WRDATA_ULO,
-						     *data++);
-		ret_val |= qla4_83xx_wr_reg_indirect(ha,
-						     MD_MIU_TEST_AGT_WRDATA_UHI,
-						     *data++);
-		if (ret_val == QLA_ERROR) {
-			ql4_printk(KERN_ERR, ha, "%s: write to AGT_WRDATA failed\n",
-				   __func__);
-			goto exit_ms_mem_write_unlock;
-		}
-
-		/* Check write status */
-		ret_val = qla4_83xx_wr_reg_indirect(ha, MD_MIU_TEST_AGT_CTRL,
-						    MIU_TA_CTL_WRITE_ENABLE);
-		ret_val |= qla4_83xx_wr_reg_indirect(ha, MD_MIU_TEST_AGT_CTRL,
-						     MIU_TA_CTL_WRITE_START);
-		if (ret_val == QLA_ERROR) {
-			ql4_printk(KERN_ERR, ha, "%s: write to AGT_CTRL failed\n",
-				   __func__);
-			goto exit_ms_mem_write_unlock;
-		}
-
-		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			ret_val = qla4_83xx_rd_reg_indirect(ha,
-							MD_MIU_TEST_AGT_CTRL,
-							&agt_ctrl);
-			if (ret_val == QLA_ERROR) {
-				ql4_printk(KERN_ERR, ha, "%s: failed to read MD_MIU_TEST_AGT_CTRL\n",
-					   __func__);
-				goto exit_ms_mem_write_unlock;
-			}
-			if ((agt_ctrl & MIU_TA_CTL_BUSY) == 0)
-				break;
-		}
-
-		/* Status check failed */
-		if (j >= MAX_CTL_CHECK) {
-			printk_ratelimited(KERN_ERR "%s: MS memory write failed!\n",
-					   __func__);
-			ret_val = QLA_ERROR;
-			goto exit_ms_mem_write_unlock;
-		}
-	}
-
-exit_ms_mem_write_unlock:
-	write_unlock_irqrestore(&ha->hw_lock, flags);
-
-exit_ms_mem_write:
-	return ret_val;
-}
-
 #define INTENT_TO_RECOVER	0x01
 #define PROCEED_TO_RECOVER	0x02
 
@@ -465,7 +361,7 @@ int qla4_83xx_drv_lock(struct scsi_qla_host *ha)
 				}
 				/* Recovery Failed, some other function
 				 * has the lock, wait for 2secs and retry */
-				ql4_printk(KERN_INFO, ha, "%s: IDC lock Recovery by %d failed, Retrying timout\n",
+				ql4_printk(KERN_INFO, ha, "%s: IDC lock Recovery by %d failed, Retrying timeout\n",
 					   __func__, ha->func_num);
 				timeout = 0;
 			}
@@ -760,7 +656,7 @@ static int qla4_83xx_copy_bootloader(struct scsi_qla_host *ha)
 			  __func__));
 
 	/* 128 bit/16 byte write to MS memory */
-	ret_val = qla4_83xx_ms_mem_write_128b(ha, dest, (uint32_t *)p_cache,
+	ret_val = qla4_8xxx_ms_mem_write_128b(ha, dest, (uint32_t *)p_cache,
 					      count);
 	if (ret_val == QLA_ERROR) {
 		ql4_printk(KERN_ERR, ha, "%s: Error writing firmware to MS\n",
@@ -1304,12 +1200,24 @@ static void qla4_83xx_process_init_seq(struct scsi_qla_host *ha)
 static int qla4_83xx_restart(struct scsi_qla_host *ha)
 {
 	int ret_val = QLA_SUCCESS;
+	uint32_t idc_ctrl;
 
 	qla4_83xx_process_stop_seq(ha);
 
-	/* Collect minidump*/
-	if (!test_and_clear_bit(AF_83XX_NO_FW_DUMP, &ha->flags))
+	/*
+	 * Collect minidump.
+	 * If IDC_CTRL BIT1 is set, clear it on going to INIT state and
+	 * don't collect minidump
+	 */
+	idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
+	if (idc_ctrl & GRACEFUL_RESET_BIT1) {
+		qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
+				 (idc_ctrl & ~GRACEFUL_RESET_BIT1));
+		ql4_printk(KERN_INFO, ha, "%s: Graceful RESET: Not collecting minidump\n",
+			   __func__);
+	} else {
 		qla4_8xxx_get_minidump(ha);
+	}
 
 	qla4_83xx_process_init_seq(ha);
 
@@ -1663,4 +1571,24 @@ void qla4_83xx_disable_pause(struct scsi_qla_host *ha)
 	qla4_83xx_dump_pause_control_regs(ha);
 	__qla4_83xx_disable_pause(ha);
 	ha->isp_ops->idc_unlock(ha);
+}
+
+/**
+ * qla4_83xx_is_detached - Check if we are marked invisible.
+ * @ha: Pointer to host adapter structure.
+ **/
+int qla4_83xx_is_detached(struct scsi_qla_host *ha)
+{
+	uint32_t drv_active;
+
+	drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
+
+	if (test_bit(AF_INIT_DONE, &ha->flags) &&
+	    !(drv_active & (1 << ha->func_num))) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: drv_active = 0x%X\n",
+				  __func__, drv_active));
+		return QLA_SUCCESS;
+	}
+
+	return QLA_ERROR;
 }

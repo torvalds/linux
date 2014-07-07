@@ -90,14 +90,6 @@
 #define ANTTESTA		0x01	/* Ant A will be Testing */
 #define ANTTESTB		0x02	/* Ant B will be testing */
 
-/*  structure and define */
-
-/*  Add for AP/ADSLpseudo DM structuer requirement. */
-/*  We need to remove to other position??? */
-struct rtl8192cd_priv {
-	u8		temp;
-};
-
 struct rtw_dig {
 	u8		Dig_Enable_Flag;
 	u8		Dig_Ext_Port_Stage;
@@ -151,7 +143,7 @@ struct rtl_ps {
 	int		    Rssi_val_min;
 
 	u8		initialize;
-	u32		Reg874,RegC70,Reg85C,RegA74;
+	u32		Reg874, RegC70, Reg85C, RegA74;
 
 };
 
@@ -282,8 +274,6 @@ struct odm_rate_adapt {
 #define	DM_Type_ByDriver	1
 
 /*  Declare for common info */
-
-#define MAX_PATH_NUM_92CS	2
 
 struct odm_phy_status_info {
 	u8	RxPWDBAll;
@@ -456,29 +446,7 @@ enum odm_ability_def {
 	ODM_RF_CALIBRATION		= BIT26,
 };
 
-/* 	ODM_CMNINFO_INTERFACE */
-enum odm_interface_def {
-	ODM_ITRF_PCIE	=	0x1,
-	ODM_ITRF_USB	=	0x2,
-	ODM_ITRF_SDIO	=	0x4,
-	ODM_ITRF_ALL	=	0x7,
-};
-
-/*  ODM_CMNINFO_IC_TYPE */
-enum odm_ic_type {
-	ODM_RTL8192S	=	BIT0,
-	ODM_RTL8192C	=	BIT1,
-	ODM_RTL8192D	=	BIT2,
-	ODM_RTL8723A	=	BIT3,
-	ODM_RTL8188E	=	BIT4,
-	ODM_RTL8812	=	BIT5,
-	ODM_RTL8821	=	BIT6,
-};
-
-#define ODM_IC_11N_SERIES						\
-	(ODM_RTL8192S | ODM_RTL8192C | ODM_RTL8192D |			\
-	 ODM_RTL8723A | ODM_RTL8188E)
-#define ODM_IC_11AC_SERIES		(ODM_RTL8812)
+#define ODM_RTL8188E		BIT4
 
 /* ODM_CMNINFO_CUT_VER */
 enum odm_cut_version {
@@ -950,14 +918,7 @@ struct odm_dm_struct {
 	struct timer_list FastAntTrainingTimer;
 };		/*  DM_Dynamic_Mechanism_Structure */
 
-#define ODM_RF_PATH_MAX 2
-
-enum ODM_RF_RADIO_PATH {
-	ODM_RF_PATH_A = 0,   /* Radio Path A */
-	ODM_RF_PATH_B = 1,   /* Radio Path B */
-	ODM_RF_PATH_C = 2,   /* Radio Path C */
-	ODM_RF_PATH_D = 3,   /* Radio Path D */
-};
+#define ODM_RF_PATH_MAX 3
 
 enum ODM_RF_CONTENT {
 	odm_radioa_txt = 0x1000,
@@ -1130,69 +1091,28 @@ extern	u8 CCKSwingTable_Ch14 [CCK_TABLE_SIZE][8];
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1
 
-void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI);
-void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres);
-
-void ODM_SetAntenna(struct odm_dm_struct *pDM_Odm, u8 Antenna);
-
-
-#define dm_RF_Saving	ODM_RF_Saving
-void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal);
-
-#define SwAntDivRestAfterLink	ODM_SwAntDivRestAfterLink
-void ODM_SwAntDivRestAfterLink(struct odm_dm_struct *pDM_Odm);
-
 #define dm_CheckTXPowerTracking ODM_TXPowerTrackingCheck
-void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm);
+#define dm_RF_Saving	ODM_RF_Saving
 
+void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal);
+void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm);
+void odm_DIGbyRSSI_LPS(struct odm_dm_struct *pDM_Odm);
+void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres);
 bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI,
 		      bool bForceUpdate, u8 *pRATRState);
-
-#define dm_SWAW_RSSI_Check	ODM_SwAntDivChkPerPktRssi
-void ODM_SwAntDivChkPerPktRssi(struct odm_dm_struct *pDM_Odm, u8 StationID,
-			       struct odm_phy_status_info *pPhyInfo);
-
 u32 ConvertTo_dB(u32 Value);
-
-u32 GetPSDData(struct odm_dm_struct *pDM_Odm, unsigned int point,
-	       u8 initial_gain_psd);
-
-void odm_DIGbyRSSI_LPS(struct odm_dm_struct *pDM_Odm);
-
 u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid,
 			u32 ra_mask, u8 rssi_level);
-
-void ODM_DMInit(struct odm_dm_struct *pDM_Odm);
-
-void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm);
-
 void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm,
 		     enum odm_common_info_def CmnInfo, u32 Value);
-
+void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value);
 void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm,
 		     enum odm_common_info_def CmnInfo, void *pValue);
-
 void ODM_CmnInfoPtrArrayHook(struct odm_dm_struct *pDM_Odm,
 			     enum odm_common_info_def CmnInfo,
 			     u16 Index, void *pValue);
-
-void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value);
-
-void ODM_InitAllTimers(struct odm_dm_struct *pDM_Odm);
-
-void ODM_CancelAllTimers(struct odm_dm_struct *pDM_Odm);
-
-void ODM_ReleaseAllTimers(struct odm_dm_struct *pDM_Odm);
-
-void ODM_ResetIQKResult(struct odm_dm_struct *pDM_Odm);
-
-void ODM_AntselStatistics_88C(struct odm_dm_struct *pDM_Odm, u8 MacId,
-			      u32 PWDBAll, bool isCCKrate);
-
-void ODM_SingleDualAntennaDefaultSetting(struct odm_dm_struct *pDM_Odm);
-
-bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode);
-
-void odm_dtc(struct odm_dm_struct *pDM_Odm);
+void ODM_DMInit(struct odm_dm_struct *pDM_Odm);
+void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm);
+void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI);
 
 #endif

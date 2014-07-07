@@ -21,7 +21,7 @@ aircraft.
 The rfkill subsystem has a concept of "hard" and "soft" block, which
 differ little in their meaning (block == transmitters off) but rather in
 whether they can be changed or not:
- - hard block: read-only radio block that cannot be overriden by software
+ - hard block: read-only radio block that cannot be overridden by software
  - soft block: writable radio block (need not be readable) that is set by
                the system software.
 
@@ -71,7 +71,7 @@ To create an rfkill driver, driver's Kconfig needs to have
 	depends on RFKILL || !RFKILL
 
 to ensure the driver cannot be built-in when rfkill is modular. The !RFKILL
-case allows the driver to be built when rfkill is not configured, which which
+case allows the driver to be built when rfkill is not configured, which
 case all rfkill API can still be used but will be provided by static inlines
 which compile to almost nothing.
 

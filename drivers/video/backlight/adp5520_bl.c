@@ -297,7 +297,7 @@ static int adp5520_bl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->master = pdev->dev.parent;
-	data->pdata = pdev->dev.platform_data;
+	data->pdata = dev_get_platdata(&pdev->dev);
 
 	if (data->pdata  == NULL) {
 		dev_err(&pdev->dev, "missing platform data\n");
@@ -312,8 +312,9 @@ static int adp5520_bl_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = ADP5020_MAX_BRIGHTNESS;
-	bl = backlight_device_register(pdev->name, data->master, data,
-				       &adp5520_bl_ops, &props);
+	bl = devm_backlight_device_register(&pdev->dev, pdev->name,
+					data->master, data, &adp5520_bl_ops,
+					&props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		return PTR_ERR(bl);
@@ -326,7 +327,7 @@ static int adp5520_bl_probe(struct platform_device *pdev)
 
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register sysfs\n");
-		backlight_device_unregister(bl);
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, bl);
@@ -346,8 +347,6 @@ static int adp5520_bl_remove(struct platform_device *pdev)
 	if (data->pdata->en_ambl_sens)
 		sysfs_remove_group(&bl->dev.kobj,
 				&adp5520_bl_attr_group);
-
-	backlight_device_unregister(bl);
 
 	return 0;
 }

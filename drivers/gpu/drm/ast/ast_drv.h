@@ -61,7 +61,15 @@ enum ast_chip {
 	AST2200,
 	AST2150,
 	AST2300,
+	AST2400,
 	AST1180,
+};
+
+enum ast_tx_chip {
+	AST_TX_NONE,
+	AST_TX_SIL164,
+	AST_TX_ITE66121,
+	AST_TX_DP501,
 };
 
 #define AST_DRAM_512Mx16 0
@@ -102,6 +110,12 @@ struct ast_private {
 	 * we have. */
 	struct ttm_bo_kmap_obj cache_kmap;
 	int next_cursor;
+	bool support_wide_screen;
+
+	enum ast_tx_chip tx_chip_type;
+	u8 dp501_maxclk;
+	u8 *dp501_fw_addr;
+	const struct firmware *dp501_fw;	/* dp501 fw */
 };
 
 int ast_driver_load(struct drm_device *dev, unsigned long flags);
@@ -323,7 +337,6 @@ extern int ast_dumb_create(struct drm_file *file,
 			   struct drm_device *dev,
 			   struct drm_mode_create_dumb *args);
 
-extern int ast_gem_init_object(struct drm_gem_object *obj);
 extern void ast_gem_free_object(struct drm_gem_object *obj);
 extern int ast_dumb_mmap_offset(struct drm_file *file,
 				struct drm_device *dev,
@@ -369,4 +382,14 @@ int ast_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* ast post */
 void ast_post_gpu(struct drm_device *dev);
+u32 ast_mindwm(struct ast_private *ast, u32 r);
+void ast_moutdwm(struct ast_private *ast, u32 r, u32 v);
+/* ast dp501 */
+int ast_load_dp501_microcode(struct drm_device *dev);
+void ast_set_dp501_video_output(struct drm_device *dev, u8 mode);
+bool ast_launch_m68k(struct drm_device *dev);
+bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
+bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
+u8 ast_get_dp501_max_clk(struct drm_device *dev);
+void ast_init_3rdtx(struct drm_device *dev);
 #endif

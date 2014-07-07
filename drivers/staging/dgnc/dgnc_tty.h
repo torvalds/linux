@@ -24,13 +24,13 @@
 
 #include "dgnc_driver.h"
 
-int	dgnc_tty_register(struct board_t *brd);
+int	dgnc_tty_register(struct dgnc_board *brd);
 
 int	dgnc_tty_preinit(void);
-int     dgnc_tty_init(struct board_t *);
+int     dgnc_tty_init(struct dgnc_board *);
 
 void	dgnc_tty_post_uninit(void);
-void	dgnc_tty_uninit(struct board_t *);
+void	dgnc_tty_uninit(struct dgnc_board *);
 
 void	dgnc_input(struct channel_t *ch);
 void	dgnc_carrier(struct channel_t *ch);

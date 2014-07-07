@@ -17,7 +17,7 @@
 
 / {
 	model = "Samsung Universal C210 based on Exynos4210 rev0";
-	compatible = "samsung,universal_c210", "samsung,exynos4210";
+	compatible = "samsung,universal_c210", "samsung,exynos4210", "samsung,exynos4";
 
 	memory {
 		reg =  <0x40000000 0x10000000
@@ -26,6 +26,21 @@
 
 	chosen {
 		bootargs = "console=ttySAC2,115200N8 root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
+	};
+
+	sysram@02020000 {
+		smp-sysram@0 {
+			status = "disabled";
+		};
+
+		smp-sysram@5000 {
+			compatible = "samsung,exynos4210-sysram";
+			reg = <0x5000 0x1000>;
+		};
+
+		smp-sysram@1f000 {
+			status = "disabled";
+		};
 	};
 
 	mct@10050000 {
@@ -53,12 +68,46 @@
 		enable-active-high;
 	};
 
+	hsotg@12480000 {
+		vusb_d-supply = <&ldo3_reg>;
+		vusb_a-supply = <&ldo8_reg>;
+		status = "okay";
+	};
+
 	sdhci_emmc: sdhci@12510000 {
 		bus-width = <8>;
 		non-removable;
 		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus8>;
 		pinctrl-names = "default";
 		vmmc-supply = <&vemmc_reg>;
+		status = "okay";
+	};
+
+	sdhci_sd: sdhci@12530000 {
+		bus-width = <4>;
+		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
+		pinctrl-names = "default";
+		vmmc-supply = <&ldo5_reg>;
+		cd-gpios = <&gpx3 4 0>;
+		cd-inverted;
+		status = "okay";
+	};
+
+	ehci@12580000 {
+		status = "okay";
+		port@0 {
+			status = "okay";
+		};
+	};
+
+	ohci@12590000 {
+		status = "okay";
+		port@0 {
+			status = "okay";
+		};
+	};
+
+	exynos-usbphy@125B0000 {
 		status = "okay";
 	};
 
@@ -201,6 +250,7 @@
 					regulator-name = "VUSB+MIPI_1.1V";
 					regulator-min-microvolt = <1100000>;
 					regulator-max-microvolt = <1100000>;
+					regulator-always-on;
 				};
 
 				ldo4_reg: LDO4 {
@@ -231,6 +281,7 @@
 					regulator-name = "VUSB+VDAC_3.3V";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
 				};
 
 				ldo9_reg: LDO9 {
@@ -345,8 +396,99 @@
 		};
 	};
 
+	spi-lcd {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gpio-sck = <&gpy3 1 0>;
+		gpio-mosi = <&gpy3 3 0>;
+		num-chipselects = <1>;
+		cs-gpios = <&gpy4 3 0>;
+
+		lcd@0 {
+			compatible = "samsung,ld9040";
+			reg = <0>;
+			vdd3-supply = <&ldo7_reg>;
+			vci-supply = <&ldo17_reg>;
+			reset-gpios = <&gpy4 5 0>;
+			spi-max-frequency = <1200000>;
+			spi-cpol;
+			spi-cpha;
+			power-on-delay = <10>;
+			reset-delay = <10>;
+			panel-width-mm = <90>;
+			panel-height-mm = <154>;
+			display-timings {
+				timing {
+					clock-frequency = <23492370>;
+					hactive = <480>;
+					vactive = <800>;
+					hback-porch = <16>;
+					hfront-porch = <16>;
+					vback-porch = <2>;
+					vfront-porch = <28>;
+					hsync-len = <2>;
+					vsync-len = <1>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
+			};
+			port {
+				lcd_ep: endpoint {
+					remote-endpoint = <&fimd_dpi_ep>;
+				};
+			};
+		};
+	};
+
+	fimd: fimd@11c00000 {
+		pinctrl-0 = <&lcd_clk>, <&lcd_data24>;
+		pinctrl-names = "default";
+		status = "okay";
+		samsung,invert-vden;
+		samsung,invert-vclk;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@3 {
+			reg = <3>;
+			fimd_dpi_ep: endpoint {
+				remote-endpoint = <&lcd_ep>;
+			};
+		};
+	};
+
 	pwm@139D0000 {
 		compatible = "samsung,s5p6440-pwm";
 		status = "okay";
 	};
+
+	camera {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <>;
+
+		fimc_0: fimc@11800000 {
+			status = "okay";
+		};
+
+		fimc_1: fimc@11810000 {
+			status = "okay";
+		};
+
+		fimc_2: fimc@11820000 {
+			status = "okay";
+		};
+
+		fimc_3: fimc@11830000 {
+			status = "okay";
+		};
+	};
+};
+
+&mdma1 {
+	reg = <0x12840000 0x1000>;
 };

@@ -33,14 +33,15 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/stddef.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/cpm.h>
@@ -447,7 +448,7 @@ static int cpm_i2c_setup(struct cpm_i2c *cpm)
 
 	init_waitqueue_head(&cpm->i2c_wait);
 
-	cpm->irq = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
+	cpm->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
 	if (!cpm->irq)
 		return -EINVAL;
 

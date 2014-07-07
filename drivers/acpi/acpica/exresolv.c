@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -521,7 +521,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 	 */
 	type = obj_desc->common.type;
 
-      exit:
+exit:
 	/* Convert internal types to external types */
 
 	switch (type) {

@@ -179,13 +179,12 @@ static int pxa2xx_ac97_probe(struct platform_device *dev)
 		goto err_dev;
 	}
 
-	ret = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			      THIS_MODULE, 0, &card);
+	ret = snd_card_new(&dev->dev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			   THIS_MODULE, 0, &card);
 	if (ret < 0)
 		goto err;
 
-	card->dev = &dev->dev;
-	strncpy(card->driver, dev->dev.driver->name, sizeof(card->driver));
+	strlcpy(card->driver, dev->dev.driver->name, sizeof(card->driver));
 
 	ret = pxa2xx_pcm_new(card, &pxa2xx_ac97_pcm_client, &pxa2xx_ac97_pcm);
 	if (ret)
@@ -210,7 +209,6 @@ static int pxa2xx_ac97_probe(struct platform_device *dev)
 
 	if (pdata && pdata->codec_pdata[0])
 		snd_ac97_dev_add_pdata(ac97_bus->codec[0], pdata->codec_pdata[0]);
-	snd_card_set_dev(card, &dev->dev);
 	ret = snd_card_register(card);
 	if (ret == 0) {
 		platform_set_drvdata(dev, card);

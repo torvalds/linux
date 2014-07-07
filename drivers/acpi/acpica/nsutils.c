@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -593,23 +593,25 @@ struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
 
 void acpi_ns_terminate(void)
 {
-	union acpi_operand_object *obj_desc;
+	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ns_terminate);
 
 	/*
-	 * 1) Free the entire namespace -- all nodes and objects
-	 *
-	 * Delete all object descriptors attached to namepsace nodes
+	 * Free the entire namespace -- all nodes and all objects
+	 * attached to the nodes
 	 */
 	acpi_ns_delete_namespace_subtree(acpi_gbl_root_node);
 
-	/* Detach any objects attached to the root */
+	/* Delete any objects attached to the root node */
 
-	obj_desc = acpi_ns_get_attached_object(acpi_gbl_root_node);
-	if (obj_desc) {
-		acpi_ns_detach_object(acpi_gbl_root_node);
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return_VOID;
 	}
+
+	acpi_ns_delete_node(acpi_gbl_root_node);
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Namespace freed\n"));
 	return_VOID;
@@ -722,7 +724,7 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
-      cleanup:
+cleanup:
 	ACPI_FREE(internal_path);
 	return_ACPI_STATUS(status);
 }

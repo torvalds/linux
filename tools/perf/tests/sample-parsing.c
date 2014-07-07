@@ -1,5 +1,5 @@
 #include <stdbool.h>
-#include <inttypes.h>
+#include <linux/types.h>
 
 #include "util.h"
 #include "event.h"
@@ -22,8 +22,8 @@
 } while (0)
 
 static bool samples_same(const struct perf_sample *s1,
-			 const struct perf_sample *s2, u64 type, u64 regs_user,
-			 u64 read_format)
+			 const struct perf_sample *s2,
+			 u64 type, u64 read_format)
 {
 	size_t i;
 
@@ -95,8 +95,9 @@ static bool samples_same(const struct perf_sample *s1,
 	}
 
 	if (type & PERF_SAMPLE_REGS_USER) {
-		size_t sz = hweight_long(regs_user) * sizeof(u64);
+		size_t sz = hweight_long(s1->user_regs.mask) * sizeof(u64);
 
+		COMP(user_regs.mask);
 		COMP(user_regs.abi);
 		if (s1->user_regs.abi &&
 		    (!s1->user_regs.regs || !s2->user_regs.regs ||
@@ -120,6 +121,9 @@ static bool samples_same(const struct perf_sample *s1,
 
 	if (type & PERF_SAMPLE_DATA_SRC)
 		COMP(data_src);
+
+	if (type & PERF_SAMPLE_TRANSACTION)
+		COMP(transaction);
 
 	return true;
 }
@@ -165,11 +169,13 @@ static int do_test(u64 sample_type, u64 sample_regs_user, u64 read_format)
 		.cpu		= 110,
 		.raw_size	= sizeof(raw_data),
 		.data_src	= 111,
+		.transaction	= 112,
 		.raw_data	= (void *)raw_data,
 		.callchain	= &callchain.callchain,
 		.branch_stack	= &branch_stack.branch_stack,
 		.user_regs	= {
 			.abi	= PERF_SAMPLE_REGS_ABI_64,
+			.mask	= sample_regs_user,
 			.regs	= user_regs,
 		},
 		.user_stack	= {
@@ -197,8 +203,7 @@ static int do_test(u64 sample_type, u64 sample_regs_user, u64 read_format)
 		sample.read.one.id    = 99;
 	}
 
-	sz = perf_event__sample_event_size(&sample, sample_type,
-					   sample_regs_user, read_format);
+	sz = perf_event__sample_event_size(&sample, sample_type, read_format);
 	bufsz = sz + 4096; /* Add a bit for overrun checking */
 	event = malloc(bufsz);
 	if (!event) {
@@ -211,8 +216,7 @@ static int do_test(u64 sample_type, u64 sample_regs_user, u64 read_format)
 	event->header.misc = 0;
 	event->header.size = sz;
 
-	err = perf_event__synthesize_sample(event, sample_type,
-					    sample_regs_user, read_format,
+	err = perf_event__synthesize_sample(event, sample_type, read_format,
 					    &sample, false);
 	if (err) {
 		pr_debug("%s failed for sample_type %#"PRIx64", error %d\n",
@@ -240,8 +244,7 @@ static int do_test(u64 sample_type, u64 sample_regs_user, u64 read_format)
 		goto out_free;
 	}
 
-	if (!samples_same(&sample, &sample_out, sample_type,
-			  sample_regs_user, read_format)) {
+	if (!samples_same(&sample, &sample_out, sample_type, read_format)) {
 		pr_debug("parsing failed for sample_type %#"PRIx64"\n",
 			 sample_type);
 		goto out_free;
@@ -273,10 +276,11 @@ int test__sample_parsing(void)
 
 	/*
 	 * Fail the test if it has not been updated when new sample format bits
-	 * were added.
+	 * were added.  Please actually update the test rather than just change
+	 * the condition below.
 	 */
-	if (PERF_SAMPLE_MAX > PERF_SAMPLE_IDENTIFIER << 1) {
-		pr_debug("sample format has changed - test needs updating\n");
+	if (PERF_SAMPLE_MAX > PERF_SAMPLE_TRANSACTION << 1) {
+		pr_debug("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
 		return -1;
 	}
 

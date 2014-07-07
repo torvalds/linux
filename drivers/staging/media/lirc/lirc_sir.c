@@ -187,10 +187,10 @@ static bool debug;
 
 /* Communication with user-space */
 static unsigned int lirc_poll(struct file *file, poll_table *wait);
-static ssize_t lirc_read(struct file *file, char *buf, size_t count,
-		loff_t *ppos);
-static ssize_t lirc_write(struct file *file, const char *buf, size_t n,
-		loff_t *pos);
+static ssize_t lirc_read(struct file *file, char __user *buf, size_t count,
+			 loff_t *ppos);
+static ssize_t lirc_write(struct file *file, const char __user *buf, size_t n,
+			  loff_t *pos);
 static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 static void add_read_queue(int flag, unsigned long val);
 static int init_chrdev(void);
@@ -252,8 +252,8 @@ static unsigned int lirc_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static ssize_t lirc_read(struct file *file, char *buf, size_t count,
-		loff_t *ppos)
+static ssize_t lirc_read(struct file *file, char __user *buf, size_t count,
+			 loff_t *ppos)
 {
 	int n = 0;
 	int retval = 0;
@@ -266,9 +266,9 @@ static ssize_t lirc_read(struct file *file, char *buf, size_t count,
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (n < count) {
 		if (rx_head != rx_tail) {
-			if (copy_to_user((void *) buf + n,
-					(void *) (rx_buf + rx_head),
-					sizeof(int))) {
+			if (copy_to_user(buf + n,
+					 rx_buf + rx_head,
+					 sizeof(int))) {
 				retval = -EFAULT;
 				break;
 			}
@@ -291,8 +291,8 @@ static ssize_t lirc_read(struct file *file, char *buf, size_t count,
 	set_current_state(TASK_RUNNING);
 	return n ? n : retval;
 }
-static ssize_t lirc_write(struct file *file, const char *buf, size_t n,
-				loff_t *pos)
+static ssize_t lirc_write(struct file *file, const char __user *buf, size_t n,
+			  loff_t *pos)
 {
 	unsigned long flags;
 	int i, count;
@@ -338,8 +338,9 @@ static ssize_t lirc_write(struct file *file, const char *buf, size_t n,
 
 static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
+	u32 __user *uptr = (u32 __user *)arg;
 	int retval = 0;
-	__u32 value = 0;
+	u32 value = 0;
 #ifdef LIRC_ON_SA1100
 
 	if (cmd == LIRC_GET_FEATURES)
@@ -364,16 +365,16 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	case LIRC_GET_FEATURES:
 	case LIRC_GET_SEND_MODE:
 	case LIRC_GET_REC_MODE:
-		retval = put_user(value, (__u32 *) arg);
+		retval = put_user(value, uptr);
 		break;
 
 	case LIRC_SET_SEND_MODE:
 	case LIRC_SET_REC_MODE:
-		retval = get_user(value, (__u32 *) arg);
+		retval = get_user(value, uptr);
 		break;
 #ifdef LIRC_ON_SA1100
 	case LIRC_SET_SEND_DUTY_CYCLE:
-		retval = get_user(value, (__u32 *) arg);
+		retval = get_user(value, uptr);
 		if (retval)
 			return retval;
 		if (value <= 0 || value > 100)
@@ -388,7 +389,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 			space_width -= LIRC_ON_SA1100_TRANSMITTER_LATENCY;
 		break;
 	case LIRC_SET_SEND_CARRIER:
-		retval = get_user(value, (__u32 *) arg);
+		retval = get_user(value, uptr);
 		if (retval)
 			return retval;
 		if (value > 500000 || value < 20000)

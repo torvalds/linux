@@ -45,7 +45,7 @@ processing.
 
 Conversion of the reception path involves calling poll() on the file
 descriptor, once the socket is readable the frames from the ring are
-processsed in order until no more messages are available, as indicated by
+processed in order until no more messages are available, as indicated by
 a status word in the frame header.
 
 On kernel side, in order to make use of memory mapped I/O on receive, the
@@ -56,7 +56,7 @@ Dumps of kernel databases automatically support memory mapped I/O.
 
 Conversion of the transmit path involves changing message construction to
 use memory from the TX ring instead of (usually) a buffer declared on the
-stack and setting up the frame header approriately. Optionally poll() can
+stack and setting up the frame header appropriately. Optionally poll() can
 be used to wait for free frames in the TX ring.
 
 Structured and definitions for using memory mapped I/O are contained in
@@ -226,12 +226,12 @@ Ring setup:
 	void *rx_ring, *tx_ring;
 
 	/* Configure ring parameters */
-	if (setsockopt(fd, NETLINK_RX_RING, &req, sizeof(req)) < 0)
+	if (setsockopt(fd, SOL_NETLINK, NETLINK_RX_RING, &req, sizeof(req)) < 0)
 		exit(1);
-	if (setsockopt(fd, NETLINK_TX_RING, &req, sizeof(req)) < 0)
+	if (setsockopt(fd, SOL_NETLINK, NETLINK_TX_RING, &req, sizeof(req)) < 0)
 		exit(1)
 
-	/* Calculate size of each invididual ring */
+	/* Calculate size of each individual ring */
 	ring_size = req.nm_block_nr * req.nm_block_size;
 
 	/* Map RX/TX rings. The TX ring is located after the RX ring */

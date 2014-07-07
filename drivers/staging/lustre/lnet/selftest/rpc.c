@@ -124,7 +124,6 @@ srpc_bulk_t *
 srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
 {
 	srpc_bulk_t  *bk;
-	struct page  **pages;
 	int	      i;
 
 	LASSERT(bulk_npg > 0 && bulk_npg <= LNET_MAX_IOV);
@@ -140,7 +139,6 @@ srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
 	bk->bk_sink   = sink;
 	bk->bk_len    = bulk_len;
 	bk->bk_niov   = bulk_npg;
-	UNUSED(pages);
 
 	for (i = 0; i < bulk_npg; i++) {
 		struct page *pg;
@@ -718,7 +716,7 @@ srpc_service_recycle_buffer(struct srpc_service_cd *scd, srpc_buffer_t *buf)
 		if (scd->scd_buf_adjust < 0 &&
 		    scd->scd_buf_total == 0 && scd->scd_buf_posting == 0) {
 			CDEBUG(D_INFO,
-			       "Try to recyle %d buffers but nothing left\n",
+			       "Try to recycle %d buffers but nothing left\n",
 			       scd->scd_buf_adjust);
 			scd->scd_buf_adjust = 0;
 		}
@@ -1587,7 +1585,8 @@ srpc_startup (void)
 	spin_lock_init(&srpc_data.rpc_glock);
 
 	/* 1 second pause to avoid timestamp reuse */
-	cfs_pause(cfs_time_seconds(1));
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(cfs_time_seconds(1));
 	srpc_data.rpc_matchbits = ((__u64) cfs_time_current_sec()) << 48;
 
 	srpc_data.rpc_state = SRPC_STATE_NONE;

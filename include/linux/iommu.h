@@ -22,10 +22,12 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/types.h>
+#include <trace/events/iommu.h>
 
-#define IOMMU_READ	(1)
-#define IOMMU_WRITE	(2)
-#define IOMMU_CACHE	(4) /* DMA cache coherency */
+#define IOMMU_READ	(1 << 0)
+#define IOMMU_WRITE	(1 << 1)
+#define IOMMU_CACHE	(1 << 2) /* DMA cache coherency */
+#define IOMMU_EXEC	(1 << 3)
 
 struct iommu_ops;
 struct iommu_group;
@@ -227,6 +229,7 @@ static inline int report_iommu_fault(struct iommu_domain *domain,
 		ret = domain->handler(domain, dev, iova, flags,
 						domain->handler_token);
 
+	trace_io_page_fault(dev, iova, flags);
 	return ret;
 }
 
@@ -241,6 +244,11 @@ static inline bool iommu_present(struct bus_type *bus)
 }
 
 static inline struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
+{
+	return NULL;
+}
+
+static inline struct iommu_group *iommu_group_get_by_id(int id)
 {
 	return NULL;
 }
@@ -289,8 +297,8 @@ static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_ad
 	return 0;
 }
 
-static inline int domain_has_cap(struct iommu_domain *domain,
-				 unsigned long cap)
+static inline int iommu_domain_has_cap(struct iommu_domain *domain,
+				       unsigned long cap)
 {
 	return 0;
 }

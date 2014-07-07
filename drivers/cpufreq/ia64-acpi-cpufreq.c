@@ -141,7 +141,6 @@ processor_set_freq (
 {
 	int			ret = 0;
 	u32			value = 0;
-	struct cpufreq_freqs    cpufreq_freqs;
 	cpumask_t		saved_mask;
 	int			retval;
 
@@ -168,13 +167,6 @@ processor_set_freq (
 	pr_debug("Transitioning from P%d to P%d\n",
 		data->acpi_data.state, state);
 
-	/* cpufreq frequency struct */
-	cpufreq_freqs.old = data->freq_table[data->acpi_data.state].frequency;
-	cpufreq_freqs.new = data->freq_table[state].frequency;
-
-	/* notify cpufreq */
-	cpufreq_notify_transition(policy, &cpufreq_freqs, CPUFREQ_PRECHANGE);
-
 	/*
 	 * First we write the target state's 'control' value to the
 	 * control_register.
@@ -186,21 +178,10 @@ processor_set_freq (
 
 	ret = processor_set_pstate(value);
 	if (ret) {
-		unsigned int tmp = cpufreq_freqs.new;
-		cpufreq_notify_transition(policy, &cpufreq_freqs,
-				CPUFREQ_POSTCHANGE);
-		cpufreq_freqs.new = cpufreq_freqs.old;
-		cpufreq_freqs.old = tmp;
-		cpufreq_notify_transition(policy, &cpufreq_freqs,
-				CPUFREQ_PRECHANGE);
-		cpufreq_notify_transition(policy, &cpufreq_freqs,
-				CPUFREQ_POSTCHANGE);
 		printk(KERN_WARNING "Transition failed with error %d\n", ret);
 		retval = -ENODEV;
 		goto migrate_end;
 	}
-
-	cpufreq_notify_transition(policy, &cpufreq_freqs, CPUFREQ_POSTCHANGE);
 
 	data->acpi_data.state = state;
 
@@ -227,41 +208,10 @@ acpi_cpufreq_get (
 static int
 acpi_cpufreq_target (
 	struct cpufreq_policy   *policy,
-	unsigned int target_freq,
-	unsigned int relation)
+	unsigned int index)
 {
-	struct cpufreq_acpi_io *data = acpi_io_data[policy->cpu];
-	unsigned int next_state = 0;
-	unsigned int result = 0;
-
-	pr_debug("acpi_cpufreq_setpolicy\n");
-
-	result = cpufreq_frequency_table_target(policy,
-			data->freq_table, target_freq, relation, &next_state);
-	if (result)
-		return (result);
-
-	result = processor_set_freq(data, policy, next_state);
-
-	return (result);
+	return processor_set_freq(acpi_io_data[policy->cpu], policy, index);
 }
-
-
-static int
-acpi_cpufreq_verify (
-	struct cpufreq_policy   *policy)
-{
-	unsigned int result = 0;
-	struct cpufreq_acpi_io *data = acpi_io_data[policy->cpu];
-
-	pr_debug("acpi_cpufreq_verify\n");
-
-	result = cpufreq_frequency_table_verify(policy,
-			data->freq_table);
-
-	return (result);
-}
-
 
 static int
 acpi_cpufreq_cpu_init (
@@ -304,7 +254,7 @@ acpi_cpufreq_cpu_init (
 	}
 
 	/* alloc freq_table */
-	data->freq_table = kmalloc(sizeof(*data->freq_table) *
+	data->freq_table = kzalloc(sizeof(*data->freq_table) *
 	                           (data->acpi_data.state_count + 1),
 	                           GFP_KERNEL);
 	if (!data->freq_table) {
@@ -321,12 +271,10 @@ acpi_cpufreq_cpu_init (
 			    data->acpi_data.states[i].transition_latency * 1000;
 		}
 	}
-	policy->cur = processor_get_freq(data, policy->cpu);
 
 	/* table init */
 	for (i = 0; i <= data->acpi_data.state_count; i++)
 	{
-		data->freq_table[i].driver_data = i;
 		if (i < data->acpi_data.state_count) {
 			data->freq_table[i].frequency =
 			      data->acpi_data.states[i].core_frequency * 1000;
@@ -335,7 +283,7 @@ acpi_cpufreq_cpu_init (
 		}
 	}
 
-	result = cpufreq_frequency_table_cpuinfo(policy, data->freq_table);
+	result = cpufreq_table_validate_and_show(policy, data->freq_table);
 	if (result) {
 		goto err_freqfree;
 	}
@@ -355,8 +303,6 @@ acpi_cpufreq_cpu_init (
 			(u32) data->acpi_data.states[i].bus_master_latency,
 			(u32) data->acpi_data.states[i].status,
 			(u32) data->acpi_data.states[i].control);
-
-	cpufreq_frequency_table_get_attr(data->freq_table, policy->cpu);
 
 	/* the first call to ->target() should result in us actually
 	 * writing something to the appropriate registers. */
@@ -385,7 +331,6 @@ acpi_cpufreq_cpu_exit (
 	pr_debug("acpi_cpufreq_cpu_exit\n");
 
 	if (data) {
-		cpufreq_frequency_table_put_attr(policy->cpu);
 		acpi_io_data[policy->cpu] = NULL;
 		acpi_processor_unregister_performance(&data->acpi_data,
 		                                      policy->cpu);
@@ -396,20 +341,14 @@ acpi_cpufreq_cpu_exit (
 }
 
 
-static struct freq_attr* acpi_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
-
 static struct cpufreq_driver acpi_cpufreq_driver = {
-	.verify 	= acpi_cpufreq_verify,
-	.target 	= acpi_cpufreq_target,
+	.verify 	= cpufreq_generic_frequency_table_verify,
+	.target_index	= acpi_cpufreq_target,
 	.get 		= acpi_cpufreq_get,
 	.init		= acpi_cpufreq_cpu_init,
 	.exit		= acpi_cpufreq_cpu_exit,
 	.name		= "acpi-cpufreq",
-	.attr           = acpi_cpufreq_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 

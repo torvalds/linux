@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
@@ -144,9 +145,9 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	rcdev->dev.parent = &pdev->dev;
 	rcdev->driver_name = GPIO_IR_DRIVER_NAME;
 	if (pdata->allowed_protos)
-		rcdev->allowed_protos = pdata->allowed_protos;
+		rc_set_allowed_protocols(rcdev, pdata->allowed_protos);
 	else
-		rcdev->allowed_protos = RC_BIT_ALL;
+		rc_set_allowed_protocols(rcdev, RC_BIT_ALL);
 	rcdev->map_name = pdata->map_name ?: RC_MAP_EMPTY;
 
 	gpio_dev->rcdev = rcdev;

@@ -350,7 +350,7 @@ typedef struct {
 } sfw_batch_t;
 
 typedef struct {
-	int  (*tso_init)(struct sfw_test_instance *tsi); /* intialize test client */
+	int  (*tso_init)(struct sfw_test_instance *tsi); /* initialize test client */
 	void (*tso_fini)(struct sfw_test_instance *tsi); /* finalize test client */
 	int  (*tso_prep_rpc)(struct sfw_test_unit *tsu,
 			     lnet_process_id_t dest,
@@ -572,10 +572,11 @@ swi_state2str (int state)
 #undef STATE2STR
 }
 
-#define UNUSED(x)       ( (void)(x) )
-
-
-#define selftest_wait_events()	cfs_pause(cfs_time_seconds(1) / 10)
+#define selftest_wait_events()					\
+	do {							\
+		set_current_state(TASK_UNINTERRUPTIBLE);	\
+		schedule_timeout(cfs_time_seconds(1) / 10);	\
+	} while (0)
 
 
 #define lst_wait_until(cond, lock, fmt, ...)				\

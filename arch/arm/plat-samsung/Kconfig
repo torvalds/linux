@@ -9,7 +9,7 @@ config PLAT_SAMSUNG
 	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P || ARCH_EXYNOS
 	default y
 	select GENERIC_IRQ_CHIP
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	help
 	  Base platform code for all Samsung SoC based systems
 
@@ -19,12 +19,11 @@ config PLAT_S5P
 	default y
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_VIC
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select PLAT_SAMSUNG
 	select S3C_GPIO_TRACK
 	select S5P_GPIO_DRVSTR
 	select SAMSUNG_CLKSRC if !COMMON_CLK
-	select SAMSUNG_GPIOLIB_4BIT
 	help
 	  Base platform code for Samsung's S5P series SoC.
 
@@ -36,27 +35,15 @@ config SAMSUNG_PM
 	  Base platform power management code for samsung code
 
 if PLAT_SAMSUNG
+menu "Samsung Common options"
 
 # boot configurations
 
 comment "Boot options"
 
-config S3C_BOOT_ERROR_RESET
-	bool "S3C Reboot on decompression error"
-	help
-	  Say y here to use the watchdog to reset the system if the
-	  kernel decompressor detects an error during decompression.
-
-config S3C_BOOT_UART_FORCE_FIFO
-       bool "Force UART FIFO on during boot process"
-       default y
-       help
-         Say Y here to force the UART FIFOs on during the kernel
-	 uncompressor
-
-
 config S3C_LOWLEVEL_UART_PORT
 	int "S3C UART to use for low-level messages"
+	depends on ARCH_S3C64XX
 	default 0
 	help
 	  Choice of which UART port to use for the low-level messages,
@@ -114,13 +101,6 @@ config S5P_GPIO_INT
 	  Common code for the GPIO interrupts (other than external interrupts.)
 
 # options for gpio configuration support
-
-config SAMSUNG_GPIOLIB_4BIT
-	bool
-	help
-	  GPIOlib file contains the 4 bit modification functions for gpio
-	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
-	  series of processors.
 
 config S5P_GPIO_DRVSTR
 	bool
@@ -382,11 +362,6 @@ config S5P_DEV_TV
 	help
 	  Compile in platform device definition for TV interface
 
-config S5P_DEV_USB_EHCI
-	bool
-	help
-	  Compile in platform device definition for USB EHCI
-
 config S3C24XX_PWM
 	bool "PWM device support"
 	select PWM
@@ -394,11 +369,6 @@ config S3C24XX_PWM
 	help
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
-
-config S5P_SETUP_MIPIPHY
-	bool
-	help
-	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
 
 config S3C_SETUP_CAMIF
 	bool
@@ -425,16 +395,15 @@ config SAMSUNG_PM_GPIO
 	  Include legacy GPIO power management code for platforms not using
 	  pinctrl-samsung driver.
 
-endif
-
 config SAMSUNG_DMADEV
-	bool
-	select ARM_AMBA
+	bool "Use legacy Samsung DMA abstraction"
+	depends on CPU_S5PV210 || CPU_S5PC100 || ARCH_S5P64X0 || ARCH_S3C64XX
 	select DMADEVICES
-	select PL330_DMA if (ARCH_EXYNOS5 || ARCH_EXYNOS4 || CPU_S5PV210 || CPU_S5PC100 || \
-					CPU_S5P6450 || CPU_S5P6440)
+	default y
 	help
 	  Use DMA device engine for PL330 DMAC.
+
+endif
 
 config S5P_DEV_MFC
 	bool
@@ -445,8 +414,7 @@ comment "Power management"
 
 config SAMSUNG_PM_DEBUG
 	bool "S3C2410 PM Suspend debug"
-	depends on PM
-	select DEBUG_LL
+	depends on PM && DEBUG_KERNEL && DEBUG_S3C_UART
 	help
 	  Say Y here if you want verbose debugging from the PM Suspend and
 	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
@@ -463,7 +431,8 @@ config S3C_PM_DEBUG_LED_SMDK
 
 config SAMSUNG_PM_CHECK
 	bool "S3C2410 PM Suspend Memory CRC"
-	depends on PM && CRC32
+	depends on PM
+	select CRC32
 	help
 	  Enable the PM code's memory area checksum over sleep. This option
 	  will generate CRCs of all blocks of memory, and store them before
@@ -521,4 +490,5 @@ config DEBUG_S3C_UART
 	default "2" if DEBUG_S3C_UART2
 	default "3" if DEBUG_S3C_UART3
 
+endmenu
 endif

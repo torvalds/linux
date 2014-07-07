@@ -52,8 +52,8 @@ struct lustre_intent_data {
 
 struct lookup_intent {
 	int     it_op;
-	int     it_flags;
 	int     it_create_mode;
+	__u64   it_flags;
 	union {
 		struct lustre_intent_data lustre;
 	} d;

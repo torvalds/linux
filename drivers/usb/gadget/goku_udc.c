@@ -30,7 +30,6 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -231,7 +230,7 @@ static void ep_reset(struct goku_udc_regs __iomem *regs, struct goku_ep *ep)
 		}
 	}
 
-	ep->ep.maxpacket = MAX_FIFO_SIZE;
+	usb_ep_set_maxpacket_limit(&ep->ep, MAX_FIFO_SIZE);
 	ep->ep.desc = NULL;
 	ep->stopped = 1;
 	ep->irqs = 0;
@@ -1165,7 +1164,7 @@ static int udc_proc_read(struct seq_file *m, void *v)
 				s = "invalid"; break;
 			default:
 				s = "?"; break;
-			}; s; }),
+			} s; }),
 			(tmp & EPxSTATUS_TOGGLE) ? "data1" : "data0",
 			(tmp & EPxSTATUS_SUSPEND) ? " suspend" : "",
 			(tmp & EPxSTATUS_FIFO_DISABLE) ? " disable" : "",
@@ -1251,7 +1250,7 @@ static void udc_reinit (struct goku_udc *dev)
 	}
 
 	dev->ep[0].reg_mode = NULL;
-	dev->ep[0].ep.maxpacket = MAX_EP0_SIZE;
+	usb_ep_set_maxpacket_limit(&dev->ep[0].ep, MAX_EP0_SIZE);
 	list_del_init (&dev->ep[0].ep.ep_list);
 }
 
@@ -1350,15 +1349,11 @@ static int goku_udc_start(struct usb_gadget *g,
 	return 0;
 }
 
-static void
-stop_activity(struct goku_udc *dev, struct usb_gadget_driver *driver)
+static void stop_activity(struct goku_udc *dev)
 {
 	unsigned	i;
 
 	DBG (dev, "%s\n", __func__);
-
-	if (dev->gadget.speed == USB_SPEED_UNKNOWN)
-		driver = NULL;
 
 	/* disconnect gadget driver after quiesceing hw and the driver */
 	udc_reset (dev);
@@ -1377,7 +1372,7 @@ static int goku_udc_stop(struct usb_gadget *g,
 
 	spin_lock_irqsave(&dev->lock, flags);
 	dev->driver = NULL;
-	stop_activity(dev, driver);
+	stop_activity(dev);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	return 0;
@@ -1521,7 +1516,7 @@ rescan:
 	if (unlikely(stat & INT_DEVWIDE)) {
 		if (stat & INT_SYSERROR) {
 			ERROR(dev, "system error\n");
-			stop_activity(dev, dev->driver);
+			stop_activity(dev);
 			stat = 0;
 			handled = 1;
 			// FIXME have a neater way to prevent re-enumeration
@@ -1536,7 +1531,7 @@ rescan:
 			} else {
 				DBG(dev, "disconnect\n");
 				if (dev->gadget.speed == USB_SPEED_FULL)
-					stop_activity(dev, dev->driver);
+					stop_activity(dev);
 				dev->ep0state = EP0_DISCONNECT;
 				dev->int_enable = INT_DEVWIDE;
 				writel(dev->int_enable, &dev->regs->int_enable);
@@ -1701,7 +1696,6 @@ static void goku_remove(struct pci_dev *pdev)
 	if (dev->enabled)
 		pci_disable_device(pdev);
 
-	pci_set_drvdata(pdev, NULL);
 	dev->regs = NULL;
 
 	INFO(dev, "unbind\n");

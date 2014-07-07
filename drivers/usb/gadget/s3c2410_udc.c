@@ -117,7 +117,8 @@ static int dprintk(int level, const char *fmt, ...)
 			sizeof(printk_buf)-len, fmt, args);
 	va_end(args);
 
-	return pr_debug("%s", printk_buf);
+	pr_debug("%s", printk_buf);
+	return len;
 }
 #else
 static int dprintk(int level, const char *fmt, ...)
@@ -1629,6 +1630,7 @@ static void s3c2410_udc_reinit(struct s3c2410_udc *dev)
 		ep->ep.desc = NULL;
 		ep->halted = 0;
 		INIT_LIST_HEAD(&ep->queue);
+		usb_ep_set_maxpacket_limit(&ep->ep, ep->ep.maxpacket);
 	}
 }
 

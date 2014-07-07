@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_drivers.h>
 #include <xen/acpi.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
@@ -169,7 +168,7 @@ static int acpi_memory_get_device(acpi_handle handle,
 	acpi_scan_lock_acquire();
 
 	acpi_bus_get_device(handle, &device);
-	if (device)
+	if (acpi_device_enumerated(device))
 		goto end;
 
 	/*
@@ -182,8 +181,9 @@ static int acpi_memory_get_device(acpi_handle handle,
 		result = -EINVAL;
 		goto out;
 	}
-	result = acpi_bus_get_device(handle, &device);
-	if (result) {
+	device = NULL;
+	acpi_bus_get_device(handle, &device);
+	if (!acpi_device_enumerated(device)) {
 		pr_warn(PREFIX "Missing device object\n");
 		result = -EINVAL;
 		goto out;
@@ -285,7 +285,7 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 		return;
 	}
 
-	(void) acpi_evaluate_hotplug_ost(handle, event, ost_code, NULL);
+	(void) acpi_evaluate_ost(handle, event, ost_code, NULL);
 	return;
 }
 

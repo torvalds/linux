@@ -127,6 +127,9 @@ extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
 extern void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
+extern int cifs_get_writer(struct cifsInodeInfo *cinode);
+extern void cifs_put_writer(struct cifsInodeInfo *cinode);
+extern void cifs_done_oplock_break(struct cifsInodeInfo *cinode);
 extern int cifs_unlock_range(struct cifsFileInfo *cfile,
 			     struct file_lock *flock, const unsigned int xid);
 extern int cifs_push_mandatory_locks(struct cifsFileInfo *cfile);
@@ -151,7 +154,7 @@ extern struct inode *cifs_iget(struct super_block *sb,
 
 extern int cifs_get_inode_info(struct inode **inode, const char *full_path,
 			       FILE_ALL_INFO *data, struct super_block *sb,
-			       int xid, const __u16 *fid);
+			       int xid, const struct cifs_fid *fid);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, unsigned int xid);
@@ -162,11 +165,13 @@ extern int cifs_rename_pending_delete(const char *full_path,
 				      const unsigned int xid);
 extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
-			      const char *path, const __u16 *pfid);
+			      const char *path, const struct cifs_fid *pfid);
 extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64,
 					kuid_t, kgid_t);
 extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
 					const char *, u32 *);
+extern struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *,
+						const struct cifs_fid *, u32 *);
 extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
 				const char *, int);
 
@@ -360,11 +365,10 @@ extern int CIFSSMBUnixQuerySymLink(const unsigned int xid,
 extern int CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
 			       __u16 fid, char **symlinkinfo,
 			       const struct nls_table *nls_codepage);
-extern int CIFSSMBOpen(const unsigned int xid, struct cifs_tcon *tcon,
-			const char *fileName, const int disposition,
-			const int access_flags, const int omode,
-			__u16 *netfid, int *pOplock, FILE_ALL_INFO *,
-			const struct nls_table *nls_codepage, int remap);
+extern int CIFSSMB_set_compression(const unsigned int xid,
+				   struct cifs_tcon *tcon, __u16 fid);
+extern int CIFS_open(const unsigned int xid, struct cifs_open_parms *oparms,
+		     int *oplock, FILE_ALL_INFO *buf);
 extern int SMBLegacyOpen(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *fileName, const int disposition,
 			const int access_flags, const int omode,
@@ -474,10 +478,11 @@ extern int CIFSSMBSetPosixACL(const unsigned int xid, struct cifs_tcon *tcon,
 extern int CIFSGetExtAttr(const unsigned int xid, struct cifs_tcon *tcon,
 			const int netfid, __u64 *pExtAttrBits, __u64 *pMask);
 extern void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb);
-extern bool CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr);
-extern int CIFSCheckMFSymlink(struct cifs_fattr *fattr,
-		const unsigned char *path,
-		struct cifs_sb_info *cifs_sb, unsigned int xid);
+extern bool couldbe_mf_symlink(const struct cifs_fattr *fattr);
+extern int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+			      struct cifs_sb_info *cifs_sb,
+			      struct cifs_fattr *fattr,
+			      const unsigned char *path);
 extern int mdfour(unsigned char *, unsigned char *, int);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 			const struct nls_table *codepage);
@@ -488,12 +493,18 @@ void cifs_readdata_release(struct kref *refcount);
 int cifs_async_readv(struct cifs_readdata *rdata);
 int cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid);
 
-int cifs_async_writev(struct cifs_writedata *wdata);
+int cifs_async_writev(struct cifs_writedata *wdata,
+		      void (*release)(struct kref *kref));
 void cifs_writev_complete(struct work_struct *work);
 struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages,
 						work_func_t complete);
 void cifs_writedata_release(struct kref *refcount);
-int open_query_close_cifs_symlink(const unsigned char *path, char *pbuf,
-			unsigned int *pbytes_read, struct cifs_sb_info *cifs_sb,
-			unsigned int xid);
+int cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+			  struct cifs_sb_info *cifs_sb,
+			  const unsigned char *path, char *pbuf,
+			  unsigned int *pbytes_read);
+int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+			   struct cifs_sb_info *cifs_sb,
+			   const unsigned char *path, char *pbuf,
+			   unsigned int *pbytes_written);
 #endif			/* _CIFSPROTO_H */

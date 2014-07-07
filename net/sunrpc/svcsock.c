@@ -60,7 +60,7 @@
 
 static struct svc_sock *svc_setup_socket(struct svc_serv *, struct socket *,
 					 int flags);
-static void		svc_udp_data_ready(struct sock *, int);
+static void		svc_udp_data_ready(struct sock *);
 static int		svc_udp_recvfrom(struct svc_rqst *);
 static int		svc_udp_sendto(struct svc_rqst *);
 static void		svc_sock_detach(struct svc_xprt *);
@@ -291,12 +291,14 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 				&inet_sk(sk)->inet_rcv_saddr,
 				inet_sk(sk)->inet_num);
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case PF_INET6:
 		len = snprintf(buf, remaining, "ipv6 %s %pI6 %d\n",
 				proto_name,
-				&inet6_sk(sk)->rcv_saddr,
+				&sk->sk_v6_rcv_saddr,
 				inet_sk(sk)->inet_num);
 		break;
+#endif
 	default:
 		len = snprintf(buf, remaining, "*unknown-%d*\n",
 				sk->sk_family);
@@ -398,17 +400,23 @@ static void svc_sock_setbufsize(struct socket *sock, unsigned int snd,
 	release_sock(sock->sk);
 #endif
 }
+
+static int svc_sock_secure_port(struct svc_rqst *rqstp)
+{
+	return svc_port_is_privileged(svc_addr(rqstp));
+}
+
 /*
  * INET callback when data has been received on the socket.
  */
-static void svc_udp_data_ready(struct sock *sk, int count)
+static void svc_udp_data_ready(struct sock *sk)
 {
 	struct svc_sock	*svsk = (struct svc_sock *)sk->sk_user_data;
 	wait_queue_head_t *wq = sk_sleep(sk);
 
 	if (svsk) {
-		dprintk("svc: socket %p(inet %p), count=%d, busy=%d\n",
-			svsk, sk, count,
+		dprintk("svc: socket %p(inet %p), busy=%d\n",
+			svsk, sk,
 			test_bit(XPT_BUSY, &svsk->sk_xprt.xpt_flags));
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
@@ -676,6 +684,7 @@ static struct svc_xprt_ops svc_udp_ops = {
 	.xpo_prep_reply_hdr = svc_udp_prep_reply_hdr,
 	.xpo_has_wspace = svc_udp_has_wspace,
 	.xpo_accept = svc_udp_accept,
+	.xpo_secure_port = svc_sock_secure_port,
 };
 
 static struct svc_xprt_class svc_udp_class = {
@@ -729,7 +738,7 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
  * A data_ready event on a listening socket means there's a connection
  * pending. Do not use state_change as a substitute for it.
  */
-static void svc_tcp_listen_data_ready(struct sock *sk, int count_unused)
+static void svc_tcp_listen_data_ready(struct sock *sk)
 {
 	struct svc_sock	*svsk = (struct svc_sock *)sk->sk_user_data;
 	wait_queue_head_t *wq;
@@ -781,7 +790,7 @@ static void svc_tcp_state_change(struct sock *sk)
 		wake_up_interruptible_all(wq);
 }
 
-static void svc_tcp_data_ready(struct sock *sk, int count)
+static void svc_tcp_data_ready(struct sock *sk)
 {
 	struct svc_sock *svsk = (struct svc_sock *)sk->sk_user_data;
 	wait_queue_head_t *wq = sk_sleep(sk);
@@ -840,8 +849,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	 * tell us anything.  For now just warn about unpriv connections.
 	 */
 	if (!svc_port_is_privileged(sin)) {
-		dprintk(KERN_WARNING
-			"%s: connect from unprivileged port: %s\n",
+		dprintk("%s: connect from unprivileged port: %s\n",
 			serv->sv_name,
 			__svc_print_addr(sin, buf, sizeof(buf)));
 	}
@@ -865,6 +873,10 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	}
 	svc_xprt_set_local(&newsvsk->sk_xprt, sin, slen);
 
+	if (sock_is_loopback(newsock->sk))
+		set_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
+	else
+		clear_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpconn++;
 
@@ -1110,6 +1122,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 	rqstp->rq_xprt_ctxt   = NULL;
 	rqstp->rq_prot	      = IPPROTO_TCP;
+	rqstp->rq_local	      = !!test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags);
 
 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
 	calldir = p[1];
@@ -1232,6 +1245,7 @@ static struct svc_xprt_ops svc_tcp_bc_ops = {
 	.xpo_detach = svc_bc_tcp_sock_detach,
 	.xpo_free = svc_bc_sock_free,
 	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
+	.xpo_secure_port = svc_sock_secure_port,
 };
 
 static struct svc_xprt_class svc_tcp_bc_class = {
@@ -1270,6 +1284,7 @@ static struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
 	.xpo_has_wspace = svc_tcp_has_wspace,
 	.xpo_accept = svc_tcp_accept,
+	.xpo_secure_port = svc_sock_secure_port,
 };
 
 static struct svc_xprt_class svc_tcp_class = {
@@ -1394,6 +1409,22 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 
 	return svsk;
 }
+
+bool svc_alien_sock(struct net *net, int fd)
+{
+	int err;
+	struct socket *sock = sockfd_lookup(fd, &err);
+	bool ret = false;
+
+	if (!sock)
+		goto out;
+	if (sock_net(sock->sk) != net)
+		ret = true;
+	sockfd_put(sock);
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(svc_alien_sock);
 
 /**
  * svc_addsock - add a listener socket to an RPC service

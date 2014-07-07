@@ -22,7 +22,7 @@ do {						\
 	int  i;					\
 	if (1) {				\
 		for (i = 0; i < 1000; i++) {	\
-			udelay(x) ;		\
+			udelay(x);		\
 		}				\
 	} else {				\
 		msleep(x);			\
@@ -497,11 +497,19 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 #define BPCTLI_STATUS   0x00008	/* Device Status - RO */
 
 /* HW related */
-#define BPCTLI_CTRL_EXT_SDP6_DATA 0x00000040	/* Value of SW Defineable Pin 6 */
-#define BPCTLI_CTRL_EXT_SDP7_DATA 0x00000080	/* Value of SW Defineable Pin 7 */
+#define BPCTLI_CTRL_EXT_SDP6_DATA 0x00000040	/* Value of SW
+										     * Defineable Pin 6
+										     */
+#define BPCTLI_CTRL_EXT_SDP7_DATA 0x00000080	/* Value of SW
+										     * Defineable Pin 7
+										     */
 #define BPCTLI_CTRL_SDP0_DATA     0x00040000	/* SWDPIN 0 value */
-#define BPCTLI_CTRL_EXT_SDP6_DIR  0x00000400	/* Direction of SDP6 0=in 1=out */
-#define BPCTLI_CTRL_EXT_SDP7_DIR  0x00000800	/* Direction of SDP7 0=in 1=out */
+#define BPCTLI_CTRL_EXT_SDP6_DIR  0x00000400	/* Direction of SDP6
+										   * 0=in 1=out
+										   */
+#define BPCTLI_CTRL_EXT_SDP7_DIR  0x00000800	/* Direction of SDP7
+										   * 0=in 1=out
+										   */
 #define BPCTLI_CTRL_SDP0_DIR      0x00400000	/* SDP0 Input or output */
 #define BPCTLI_CTRL_SWDPIN1       0x00080000
 #define BPCTLI_CTRL_SDP1_DIR      0x00800000
@@ -565,7 +573,9 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 #define BPCTLI_SWFW_PHY0_SM  0x02
 #define BPCTLI_SWFW_PHY1_SM  0x04
 
-#define BPCTLI_SW_FW_SYNC  0x05B5C	/* Software-Firmware Synchronization - RW */
+#define BPCTLI_SW_FW_SYNC  0x05B5C	/* Software-Firmware
+								     * Synchronization - RW
+								     */
 
 #define BPCTLI_SWSM      0x05B50	/* SW Semaphore */
 #define BPCTLI_FWSM      0x05B54	/* FW Semaphore */
@@ -623,7 +633,8 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 /*#define BP10G_MCLK_DATA_OUT9       BP10G_I2C_CLK_OUT
 #define BP10G_MDIO_DATA_OUT9       BP10G_I2C_DATA_OUT*/
 
-				       /*#define BP10G_MCLK_DATA_OUT9*//*BP10G_I2C_DATA_OUT */
+				       /*#define BP10G_MCLK_DATA_OUT9*/
+					/*BP10G_I2C_DATA_OUT */
 #define BP10G_MDIO_DATA_OUT9           BP10G_I2C_DATA_OUT	/*BP10G_I2C_CLK_OUT */
 
 /* VIA EOSDP ! */
@@ -698,5 +709,3 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	readl((void *)((a)->mem_map) + BP10GB_##reg))
 
 #endif
-
-int bp_proc_create(void);

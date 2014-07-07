@@ -39,7 +39,6 @@
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
 #define ATH_DEFAULT_BMISS_LIMIT 10
-#define IEEE80211_MS_TO_TU(x)   (((x) * 1000) / 1024)
 #define TSF_TO_TU(_h, _l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
@@ -262,6 +261,8 @@ enum tid_aggr_state {
 struct ath9k_htc_sta {
 	u8 index;
 	enum tid_aggr_state tid_state[ATH9K_HTC_MAX_TID];
+	struct work_struct rc_update_work;
+	struct ath9k_htc_priv *htc_priv;
 };
 
 #define ATH9K_HTC_RXBUF 256
@@ -275,7 +276,6 @@ struct ath9k_htc_rxbuf {
 };
 
 struct ath9k_htc_rx {
-	int last_rssi; /* FIXME: per-STA */
 	struct list_head rxbuf;
 	spinlock_t rxbuflock;
 };
@@ -325,14 +325,14 @@ static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)
 
 #define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)
 #define TX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c += a)
-#define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c++)
-#define RX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c += a)
+#define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.skbrx_stats.c++)
+#define RX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.skbrx_stats.c += a)
 #define CAB_STAT_INC   priv->debug.tx_stats.cab_queued++
 
 #define TX_QSTAT_INC(q) (priv->debug.tx_stats.queue_stats[q]++)
 
 void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
-			   struct ath_htc_rx_status *rxs);
+			   struct ath_rx_status *rs);
 
 struct ath_tx_stats {
 	u32 buf_queued;
@@ -345,25 +345,18 @@ struct ath_tx_stats {
 	u32 queue_stats[IEEE80211_NUM_ACS];
 };
 
-struct ath_rx_stats {
+struct ath_skbrx_stats {
 	u32 skb_allocated;
 	u32 skb_completed;
 	u32 skb_completed_bytes;
 	u32 skb_dropped;
-	u32 err_crc;
-	u32 err_decrypt_crc;
-	u32 err_mic;
-	u32 err_pre_delim;
-	u32 err_post_delim;
-	u32 err_decrypt_busy;
-	u32 err_phy;
-	u32 err_phy_stats[ATH9K_PHYERR_MAX];
 };
 
 struct ath9k_debug {
 	struct dentry *debugfs_phy;
 	struct ath_tx_stats tx_stats;
 	struct ath_rx_stats rx_stats;
+	struct ath_skbrx_stats skbrx_stats;
 };
 
 void ath9k_htc_get_et_strings(struct ieee80211_hw *hw,
@@ -385,7 +378,7 @@ void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
 #define TX_QSTAT_INC(c) do { } while (0)
 
 static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
-					 struct ath_htc_rx_status *rxs)
+					 struct ath_rx_status *rs)
 {
 }
 
@@ -405,12 +398,18 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 #define DEFAULT_SWBA_RESPONSE 40 /* in TUs */
 #define MIN_SWBA_RESPONSE     10 /* in TUs */
 
-struct htc_beacon_config {
+struct htc_beacon {
+	enum {
+		OK,		/* no change needed */
+		UPDATE,		/* update pending */
+		COMMIT		/* beacon sent, commit change */
+	} updateslot;		/* slot time update fsm */
+
 	struct ieee80211_vif *bslot[ATH9K_HTC_MAX_BCN_VIF];
-	u16 beacon_interval;
-	u16 dtim_period;
-	u16 bmiss_timeout;
-	u32 bmiss_cnt;
+	u32 bmisscnt;
+	u32 beaconq;
+	int slottime;
+	int slotupdate;
 };
 
 struct ath_btcoex {
@@ -438,12 +437,8 @@ static inline void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
-#define OP_INVALID		   BIT(0)
-#define OP_SCANNING		   BIT(1)
-#define OP_ENABLE_BEACON           BIT(2)
 #define OP_BT_PRIORITY_DETECTED    BIT(3)
 #define OP_BT_SCAN                 BIT(4)
-#define OP_ANI_RUNNING             BIT(5)
 #define OP_TSF_RESET               BIT(6)
 
 struct ath9k_htc_priv {
@@ -486,10 +481,10 @@ struct ath9k_htc_priv {
 	unsigned long op_flags;
 
 	struct ath9k_hw_cal_data caldata;
-	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
 	spinlock_t beacon_lock;
-	struct htc_beacon_config cur_beacon_conf;
+	struct ath_beacon_config cur_beacon_conf;
+	struct htc_beacon beacon;
 
 	struct ath9k_htc_rx rx;
 	struct ath9k_htc_tx tx;
@@ -514,7 +509,6 @@ struct ath9k_htc_priv {
 	struct work_struct led_work;
 #endif
 
-	int beaconq;
 	int cabq;
 	int hwq_map[IEEE80211_NUM_ACS];
 
@@ -600,10 +594,15 @@ void ath9k_htc_rfkill_poll_state(struct ieee80211_hw *hw);
 struct base_eep_header *ath9k_htc_get_eeprom_base(struct ath9k_htc_priv *priv);
 
 #ifdef CONFIG_MAC80211_LEDS
+void ath9k_configure_leds(struct ath9k_htc_priv *priv);
 void ath9k_init_leds(struct ath9k_htc_priv *priv);
 void ath9k_deinit_leds(struct ath9k_htc_priv *priv);
 void ath9k_led_work(struct work_struct *work);
 #else
+static inline void ath9k_configure_leds(struct ath9k_htc_priv *priv)
+{
+}
+
 static inline void ath9k_init_leds(struct ath9k_htc_priv *priv)
 {
 }

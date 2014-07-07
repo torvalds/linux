@@ -87,7 +87,7 @@
 void
 i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
@@ -294,7 +294,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		   struct drm_file *file)
 {
 	struct drm_i915_gem_set_tiling *args = data;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 
@@ -308,7 +308,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (obj->pin_count) {
+	if (i915_gem_obj_is_pinned(obj) || obj->framebuffer_references) {
 		drm_gem_object_unreference_unlocked(&obj->base);
 		return -EBUSY;
 	}
@@ -393,7 +393,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	/* Try to preallocate memory required to save swizzling on put-pages */
 	if (i915_gem_object_needs_bit17_swizzle(obj)) {
 		if (obj->bit_17 == NULL) {
-			obj->bit_17 = kmalloc(BITS_TO_LONGS(obj->base.size >> PAGE_SHIFT) *
+			obj->bit_17 = kcalloc(BITS_TO_LONGS(obj->base.size >> PAGE_SHIFT),
 					      sizeof(long), GFP_KERNEL);
 		}
 	} else {
@@ -415,7 +415,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 		   struct drm_file *file)
 {
 	struct drm_i915_gem_get_tiling *args = data;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
@@ -504,8 +504,8 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 	int i;
 
 	if (obj->bit_17 == NULL) {
-		obj->bit_17 = kmalloc(BITS_TO_LONGS(page_count) *
-					   sizeof(long), GFP_KERNEL);
+		obj->bit_17 = kcalloc(BITS_TO_LONGS(page_count),
+				      sizeof(long), GFP_KERNEL);
 		if (obj->bit_17 == NULL) {
 			DRM_ERROR("Failed to allocate memory for bit 17 "
 				  "record\n");

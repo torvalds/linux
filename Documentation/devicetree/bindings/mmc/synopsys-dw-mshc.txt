@@ -52,6 +52,9 @@ Optional properties:
   is specified and the ciu clock is specified then we'll try to set the ciu
   clock to this at probe time.
 
+* clock-freq-min-max: Minimum and Maximum clock frequency for card output
+  clock(cclk_out). If it's not specified, max is 200MHZ and min is 400KHz by default.
+
 * num-slots: specifies the number of slots supported by the controller.
   The number of physical slots actually used could be equal or less than the
   value specified by num-slots. If this property is not specified, the value
@@ -93,6 +96,7 @@ board specific portions as listed below.
 
 	dwmmc0@12200000 {
 		clock-frequency = <400000000>;
+		clock-freq-min-max = <400000 200000000>;
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;

@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/irqnr.h>
-#include <asm/cputime.h>
+#include <linux/cputime.h>
 #include <linux/tick.h>
 
 #ifndef arch_irq_stat_cpu
@@ -184,29 +184,11 @@ static int show_stat(struct seq_file *p, void *v)
 
 static int stat_open(struct inode *inode, struct file *file)
 {
-	size_t size = 1024 + 128 * num_possible_cpus();
-	char *buf;
-	struct seq_file *m;
-	int res;
+	size_t size = 1024 + 128 * num_online_cpus();
 
 	/* minimum size to display an interrupt count : 2 bytes */
 	size += 2 * nr_irqs;
-
-	/* don't ask for more than the kmalloc() max size */
-	if (size > KMALLOC_MAX_SIZE)
-		size = KMALLOC_MAX_SIZE;
-	buf = kmalloc(size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	res = single_open(file, show_stat, NULL);
-	if (!res) {
-		m = file->private_data;
-		m->buf = buf;
-		m->size = ksize(buf);
-	} else
-		kfree(buf);
-	return res;
+	return single_open_size(file, show_stat, NULL, size);
 }
 
 static const struct file_operations proc_stat_operations = {
@@ -221,4 +203,4 @@ static int __init proc_stat_init(void)
 	proc_create("stat", 0, NULL, &proc_stat_operations);
 	return 0;
 }
-module_init(proc_stat_init);
+fs_initcall(proc_stat_init);

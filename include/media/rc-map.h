@@ -1,7 +1,7 @@
 /*
  * rc-map.h - define RC map names used by RC drivers
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ enum rc_type {
 	RC_TYPE_RC6_6A_24	= 15,	/* Philips RC6-6A-24 protocol */
 	RC_TYPE_RC6_6A_32	= 16,	/* Philips RC6-6A-32 protocol */
 	RC_TYPE_RC6_MCE		= 17,	/* MCE (Philips RC6-6A-32 subtype) protocol */
+	RC_TYPE_SHARP		= 18,	/* Sharp protocol */
 };
 
 #define RC_BIT_NONE		0
@@ -51,6 +52,7 @@ enum rc_type {
 #define RC_BIT_RC6_6A_24	(1 << RC_TYPE_RC6_6A_24)
 #define RC_BIT_RC6_6A_32	(1 << RC_TYPE_RC6_6A_32)
 #define RC_BIT_RC6_MCE		(1 << RC_TYPE_RC6_MCE)
+#define RC_BIT_SHARP		(1 << RC_TYPE_SHARP)
 
 #define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | RC_BIT_LIRC | \
 			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
@@ -58,7 +60,7 @@ enum rc_type {
 			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
 			 RC_BIT_NEC | RC_BIT_SANYO | RC_BIT_MCE_KBD | \
 			 RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
-			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE)
+			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | RC_BIT_SHARP)
 
 struct rc_map_table {
 	u32	scancode;
@@ -193,6 +195,7 @@ void rc_map_init(void);
 #define RC_MAP_VIDEOMATE_TV_PVR          "rc-videomate-tv-pvr"
 #define RC_MAP_WINFAST                   "rc-winfast"
 #define RC_MAP_WINFAST_USBII_DELUXE      "rc-winfast-usbii-deluxe"
+#define RC_MAP_SU3000                    "rc-su3000"
 
 /*
  * Please, do not just append newer Remote Controller names at the end.

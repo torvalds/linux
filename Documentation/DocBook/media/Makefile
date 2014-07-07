@@ -195,15 +195,15 @@ DVB_DOCUMENTED = \
 #
 
 install_media_images = \
-	$(Q)cp $(OBJIMGFILES) $(MEDIA_SRC_DIR)/v4l/*.svg $(MEDIA_OBJ_DIR)/media_api
+	$(Q)-cp $(OBJIMGFILES) $(MEDIA_SRC_DIR)/v4l/*.svg $(MEDIA_OBJ_DIR)/media_api
 
 $(MEDIA_OBJ_DIR)/%: $(MEDIA_SRC_DIR)/%.b64
 	$(Q)base64 -d $< >$@
 
 $(MEDIA_OBJ_DIR)/v4l2.xml: $(OBJIMGFILES)
 	@$($(quiet)gen_xml)
-	@(ln -sf $(MEDIA_SRC_DIR)/v4l/*xml $(MEDIA_OBJ_DIR)/)
-	@(ln -sf $(MEDIA_SRC_DIR)/dvb/*xml $(MEDIA_OBJ_DIR)/)
+	@(ln -sf `cd $(MEDIA_SRC_DIR) && /bin/pwd`/v4l/*xml $(MEDIA_OBJ_DIR)/)
+	@(ln -sf `cd $(MEDIA_SRC_DIR) && /bin/pwd`/dvb/*xml $(MEDIA_OBJ_DIR)/)
 
 $(MEDIA_OBJ_DIR)/videodev2.h.xml: $(srctree)/include/uapi/linux/videodev2.h $(MEDIA_OBJ_DIR)/v4l2.xml
 	@$($(quiet)gen_xml)

@@ -31,9 +31,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	 * -EOPENSTALE.  The VFS will retry the lookup/create/open.
 	 */
 
-	dprintk("NFS: open file(%s/%s)\n",
-		dentry->d_parent->d_name.name,
-		dentry->d_name.name);
+	dprintk("NFS: open file(%pd2)\n", dentry);
 
 	if ((openflags & O_ACCMODE) == 3)
 		openflags--;
@@ -75,7 +73,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	nfs_file_set_open_context(filp, ctx);
-	nfs_fscache_set_inode_cookie(inode, filp);
+	nfs_fscache_open_file(inode, filp);
 	err = 0;
 
 out_put_ctx:
@@ -102,8 +100,7 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 			break;
 		mutex_lock(&inode->i_mutex);
 		ret = nfs_file_fsync_commit(file, start, end, datasync);
-		if (!ret && !datasync)
-			/* application has asked for meta-data sync */
+		if (!ret)
 			ret = pnfs_layoutcommit_inode(inode, true);
 		mutex_unlock(&inode->i_mutex);
 		/*
@@ -120,10 +117,10 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 const struct file_operations nfs4_file_operations = {
 	.llseek		= nfs_file_llseek,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read	= nfs_file_read,
-	.aio_write	= nfs_file_write,
+	.read		= new_sync_read,
+	.write		= new_sync_write,
+	.read_iter	= nfs_file_read,
+	.write_iter	= nfs_file_write,
 	.mmap		= nfs_file_mmap,
 	.open		= nfs4_file_open,
 	.flush		= nfs_file_flush,
@@ -132,7 +129,7 @@ const struct file_operations nfs4_file_operations = {
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,
-	.splice_write	= nfs_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 	.check_flags	= nfs_check_flags,
 	.setlease	= nfs_setlease,
 };

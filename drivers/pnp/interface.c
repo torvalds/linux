@@ -203,8 +203,8 @@ static void pnp_print_option(pnp_info_buffer_t * buffer, char *space,
 	}
 }
 
-static ssize_t pnp_show_options(struct device *dmdev,
-				struct device_attribute *attr, char *buf)
+static ssize_t options_show(struct device *dmdev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	pnp_info_buffer_t *buffer;
@@ -241,10 +241,10 @@ static ssize_t pnp_show_options(struct device *dmdev,
 	kfree(buffer);
 	return ret;
 }
+static DEVICE_ATTR_RO(options);
 
-static ssize_t pnp_show_current_resources(struct device *dmdev,
-					  struct device_attribute *attr,
-					  char *buf)
+static ssize_t resources_show(struct device *dmdev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	pnp_info_buffer_t *buffer;
@@ -331,9 +331,9 @@ static char *pnp_get_resource_value(char *buf,
 	return buf;
 }
 
-static ssize_t pnp_set_current_resources(struct device *dmdev,
-					 struct device_attribute *attr,
-					 const char *ubuf, size_t count)
+static ssize_t resources_store(struct device *dmdev,
+			       struct device_attribute *attr, const char *ubuf,
+			       size_t count)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	char *buf = (void *)ubuf;
@@ -434,9 +434,10 @@ done:
 		return retval;
 	return count;
 }
+static DEVICE_ATTR_RW(resources);
 
-static ssize_t pnp_show_current_ids(struct device *dmdev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t id_show(struct device *dmdev, struct device_attribute *attr,
+		       char *buf)
 {
 	char *str = buf;
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
@@ -448,12 +449,20 @@ static ssize_t pnp_show_current_ids(struct device *dmdev,
 	}
 	return (str - buf);
 }
+static DEVICE_ATTR_RO(id);
 
-struct device_attribute pnp_interface_attrs[] = {
-	__ATTR(resources, S_IRUGO | S_IWUSR,
-		   pnp_show_current_resources,
-		   pnp_set_current_resources),
-	__ATTR(options, S_IRUGO, pnp_show_options, NULL),
-	__ATTR(id, S_IRUGO, pnp_show_current_ids, NULL),
-	__ATTR_NULL,
+static struct attribute *pnp_dev_attrs[] = {
+	&dev_attr_resources.attr,
+	&dev_attr_options.attr,
+	&dev_attr_id.attr,
+	NULL,
+};
+
+static const struct attribute_group pnp_dev_group = {
+	.attrs = pnp_dev_attrs,
+};
+
+const struct attribute_group *pnp_dev_groups[] = {
+	&pnp_dev_group,
+	NULL,
 };

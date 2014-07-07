@@ -26,7 +26,6 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/hrtimer.h>
-#include <linux/backing-dev.h>
 
 static void __journal_temp_unlink_buffer(struct journal_head *jh);
 
@@ -100,10 +99,11 @@ static int start_this_handle(journal_t *journal, handle_t *handle)
 
 alloc_transaction:
 	if (!journal->j_running_transaction) {
-		new_transaction = kzalloc(sizeof(*new_transaction), GFP_NOFS);
+		new_transaction = kzalloc(sizeof(*new_transaction),
+						GFP_NOFS|__GFP_NOFAIL);
 		if (!new_transaction) {
-			congestion_wait(BLK_RW_ASYNC, HZ/50);
-			goto alloc_transaction;
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
 
@@ -675,7 +675,7 @@ repeat:
 					jbd_alloc(jh2bh(jh)->b_size,
 							 GFP_NOFS);
 				if (!frozen_buffer) {
-					printk(KERN_EMERG
+					printk(KERN_ERR
 					       "%s: OOM for frozen_buffer\n",
 					       __func__);
 					JBUFFER_TRACE(jh, "oom!");
@@ -898,7 +898,7 @@ repeat:
 	if (!jh->b_committed_data) {
 		committed_data = jbd_alloc(jh2bh(jh)->b_size, GFP_NOFS);
 		if (!committed_data) {
-			printk(KERN_EMERG "%s: No memory for committed data\n",
+			printk(KERN_ERR "%s: No memory for committed data\n",
 				__func__);
 			err = -ENOMEM;
 			goto out;

@@ -151,13 +151,17 @@ drive-push-pull		- drive actively high and low
 drive-open-drain	- drive with open drain
 drive-open-source	- drive with open source
 drive-strength		- sink or source at most X mA
+input-enable		- enable input on pin (no effect on output)
+input-disable		- disable input on pin (no effect on output)
 input-schmitt-enable	- enable schmitt-trigger mode
 input-schmitt-disable	- disable schmitt-trigger mode
 input-debounce		- debounce mode with debound time X
+power-source		- select between different power supplies
 low-power-enable	- enable low power mode
 low-power-disable	- disable low power mode
 output-low		- set the pin to output mode with low level
 output-high		- set the pin to output mode with high level
+slew-rate		- set the slew rate
 
 Some of the generic properties take arguments. For those that do, the
 arguments are described below.

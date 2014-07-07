@@ -43,6 +43,7 @@ extern struct ppc_emulated {
 	struct ppc_emulated_entry popcntb;
 	struct ppc_emulated_entry spe;
 	struct ppc_emulated_entry string;
+	struct ppc_emulated_entry sync;
 	struct ppc_emulated_entry unaligned;
 #ifdef CONFIG_MATH_EMULATION
 	struct ppc_emulated_entry math;
@@ -53,6 +54,7 @@ extern struct ppc_emulated {
 #ifdef CONFIG_PPC64
 	struct ppc_emulated_entry mfdscr;
 	struct ppc_emulated_entry mtdscr;
+	struct ppc_emulated_entry lq_stq;
 #endif
 } ppc_emulated;
 

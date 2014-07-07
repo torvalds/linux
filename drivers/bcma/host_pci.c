@@ -188,8 +188,11 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 		pci_write_config_dword(dev, 0x40, val & 0xffff00ff);
 
 	/* SSB needed additional powering up, do we have any AMBA PCI cards? */
-	if (!pci_is_pcie(dev))
-		bcma_err(bus, "PCI card detected, report problems.\n");
+	if (!pci_is_pcie(dev)) {
+		bcma_err(bus, "PCI card detected, they are not supported.\n");
+		err = -ENXIO;
+		goto err_pci_release_regions;
+	}
 
 	/* Map MMIO */
 	err = -ENOMEM;
@@ -235,7 +238,6 @@ static void bcma_host_pci_remove(struct pci_dev *dev)
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 	kfree(bus);
-	pci_set_drvdata(dev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -267,8 +269,9 @@ static SIMPLE_DEV_PM_OPS(bcma_pm_ops, bcma_host_pci_suspend,
 
 #endif /* CONFIG_PM_SLEEP */
 
-static DEFINE_PCI_DEVICE_TABLE(bcma_pci_bridge_tbl) = {
+static const struct pci_device_id bcma_pci_bridge_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x0576) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4313) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 43224) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4331) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4353) },

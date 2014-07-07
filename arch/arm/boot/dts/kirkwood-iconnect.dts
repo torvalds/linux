@@ -14,12 +14,12 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 		linux,initrd-start = <0x4500040>;
 		linux,initrd-end   = <0x4800000>;
 	};
 
 	mbus {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 		pcie-controller {
 			status = "okay";
 
@@ -30,7 +30,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pmx_button_reset: pmx-button-reset {
 				marvell,pins = "mpp12";
 				marvell,function = "gpio";
@@ -83,35 +83,6 @@
 		serial@12000 {
 			status = "ok";
 		};
-
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "uboot";
-				reg = <0x0000000 0xc0000>;
-			};
-
-			partition@a0000 {
-				label = "env";
-				reg = <0xa0000 0x20000>;
-			};
-
-			partition@100000 {
-				label = "zImage";
-				reg = <0x100000 0x300000>;
-			};
-
-			partition@540000 {
-				label = "initrd";
-				reg = <0x540000 0x300000>;
-			};
-
-			partition@980000 {
-				label = "boot";
-				reg = <0x980000 0x1f400000>;
-			};
-		};
 	};
 
 	gpio-leds {
@@ -124,37 +95,37 @@
 
 		led-level {
 			label = "led_level";
-			gpios = <&gpio1 9 0>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 		};
 		power-blue {
 			label = "power:blue";
-			gpios = <&gpio1 10 0>;
-			linux,default-trigger = "timer";
+			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+			default-state = "keep";
 		};
 		power-red {
 			label = "power:red";
-			gpios = <&gpio1 11 0>;
+			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 		};
 		usb1 {
 			label = "usb1:blue";
-			gpios = <&gpio1 12 0>;
+			gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		};
 		usb2 {
 			label = "usb2:blue";
-			gpios = <&gpio1 13 0>;
+			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		};
 		usb3 {
 			label = "usb3:blue";
-			gpios = <&gpio1 14 0>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 		};
 		usb4 {
 			label = "usb4:blue";
-			gpios = <&gpio1 15 0>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
 		};
 		otb {
 			label = "otb:blue";
-			gpios = <&gpio1 16 0>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -167,16 +138,45 @@
 
 		button@1 {
 			label = "OTB Button";
-			linux,code = <133>;
-			gpios = <&gpio1 3 1>;
+			linux,code = <KEY_COPY>;
+			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 			debounce-interval = <100>;
 		};
 		button@2 {
 			label = "Reset";
-			linux,code = <0x198>;
-			gpios = <&gpio0 12 1>;
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
 			debounce-interval = <100>;
 		};
+	};
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0000000 0xc0000>;
+	};
+
+	partition@a0000 {
+		label = "env";
+		reg = <0xa0000 0x20000>;
+	};
+
+	partition@100000 {
+		label = "zImage";
+		reg = <0x100000 0x300000>;
+	};
+
+	partition@540000 {
+		label = "initrd";
+		reg = <0x540000 0x300000>;
+	};
+
+	partition@980000 {
+		label = "boot";
+		reg = <0x980000 0x1f400000>;
 	};
 };
 
@@ -184,7 +184,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@11 {
-		device_type = "ethernet-phy";
 		reg = <11>;
 	};
 };

@@ -18,6 +18,7 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/slab.h>
 
@@ -262,7 +263,7 @@ static void lp8501_firmware_loaded(struct lp55xx_chip *chip)
 	}
 
 	/*
-	 * Program momery sequence
+	 * Program memory sequence
 	 *  1) set engine mode to "LOAD"
 	 *  2) write firmware data into program memory
 	 */

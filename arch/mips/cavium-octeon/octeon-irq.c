@@ -635,7 +635,7 @@ static void octeon_irq_cpu_offline_ciu(struct irq_data *data)
 		cpumask_clear(&new_affinity);
 		cpumask_set_cpu(cpumask_first(cpu_online_mask), &new_affinity);
 	}
-	__irq_set_affinity_locked(data, &new_affinity);
+	irq_set_affinity_locked(data, &new_affinity, false);
 }
 
 static int octeon_irq_ciu_set_affinity(struct irq_data *data,
@@ -975,10 +975,6 @@ static int octeon_irq_ciu_xlat(struct irq_domain *d,
 	if (ciu > 1 || bit > 63)
 		return -EINVAL;
 
-	/* These are the GPIO lines */
-	if (ciu == 0 && bit >= 16 && bit < 32)
-		return -EINVAL;
-
 	*out_hwirq = (ciu << 6) | bit;
 	*out_type = 0;
 
@@ -1006,6 +1002,10 @@ static int octeon_irq_ciu_map(struct irq_domain *d,
 
 	if (!octeon_irq_virq_in_range(virq))
 		return -EINVAL;
+
+	/* Don't map irq if it is reserved for GPIO. */
+	if (line == 0 && bit >= 16 && bit <32)
+		return 0;
 
 	if (line > 1 || octeon_irq_ciu_to_irq[line][bit] != 0)
 		return -EINVAL;
@@ -1260,11 +1260,13 @@ static void __init octeon_irq_init_ciu(void)
 	for (i = 0; i < 4; i++)
 		octeon_irq_force_ciu_mapping(ciu_domain, i + OCTEON_IRQ_PCI_MSI0, 0, i + 40);
 
+	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_TWSI, 0, 45);
 	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_RML, 0, 46);
 	for (i = 0; i < 4; i++)
 		octeon_irq_force_ciu_mapping(ciu_domain, i + OCTEON_IRQ_TIMER0, 0, i + 52);
 
 	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_USB0, 0, 56);
+	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_TWSI2, 0, 59);
 
 	/* CIU_1 */
 	for (i = 0; i < 16; i++)
@@ -1525,10 +1527,6 @@ static int octeon_irq_ciu2_xlat(struct irq_domain *d,
 	ciu = intspec[0];
 	bit = intspec[1];
 
-	/* Line 7  are the GPIO lines */
-	if (ciu > 6 || bit > 63)
-		return -EINVAL;
-
 	*out_hwirq = (ciu << 6) | bit;
 	*out_type = 0;
 
@@ -1570,8 +1568,14 @@ static int octeon_irq_ciu2_map(struct irq_domain *d,
 	if (!octeon_irq_virq_in_range(virq))
 		return -EINVAL;
 
-	/* Line 7  are the GPIO lines */
-	if (line > 6 || octeon_irq_ciu_to_irq[line][bit] != 0)
+	/*
+	 * Don't map irq if it is reserved for GPIO.
+	 * (Line 7 are the GPIO lines.)
+	 */
+	if (line == 7)
+		return 0;
+
+	if (line > 7 || octeon_irq_ciu_to_irq[line][bit] != 0)
 		return -EINVAL;
 
 	if (octeon_irq_ciu2_is_edge(line, bit))

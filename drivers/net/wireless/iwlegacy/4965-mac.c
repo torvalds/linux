@@ -92,7 +92,6 @@ il4965_check_abort_status(struct il_priv *il, u8 frame_count, u32 status)
  * EEPROM
  */
 struct il_mod_params il4965_mod_params = {
-	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	/* the rest are 0 by default */
 };
@@ -671,7 +670,7 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	}
 
 	if ((unlikely(phy_res->cfg_phy_cnt > 20))) {
-		D_DROP("dsp size out of range [0,20]: %d/n",
+		D_DROP("dsp size out of range [0,20]: %d\n",
 		       phy_res->cfg_phy_cnt);
 		return;
 	}
@@ -805,7 +804,7 @@ il4965_get_channels_for_scan(struct il_priv *il, struct ieee80211_vif *vif,
 		}
 
 		if (!is_active || il_is_channel_passive(ch_info) ||
-		    (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN))
+		    (chan->flags & IEEE80211_CHAN_NO_IR))
 			scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
 		else
 			scan_ch->type = SCAN_CHANNEL_TYPE_ACTIVE;
@@ -4274,17 +4273,7 @@ il4965_rx_handle(struct il_priv *il)
 		len = le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK;
 		len += sizeof(u32);	/* account for status word */
 
-		/* Reclaim a command buffer only if this packet is a response
-		 *   to a (driver-originated) command.
-		 * If the packet (e.g. Rx frame) originated from uCode,
-		 *   there is no command buffer to reclaim.
-		 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
-		 *   but apparently a few don't get set; catch them here. */
-		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME) &&
-		    (pkt->hdr.cmd != N_RX_PHY) && (pkt->hdr.cmd != N_RX) &&
-		    (pkt->hdr.cmd != N_RX_MPDU) &&
-		    (pkt->hdr.cmd != N_COMPRESSED_BA) &&
-		    (pkt->hdr.cmd != N_STATS) && (pkt->hdr.cmd != C_TX);
+		reclaim = il_need_reclaim(il, pkt);
 
 		/* Based on type of command response or notification,
 		 *   handle those that need handling via function in
@@ -5778,9 +5767,9 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 	hw->wiphy->interface_modes =
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->wiphy->flags |=
-	    WIPHY_FLAG_CUSTOM_REGULATORY | WIPHY_FLAG_DISABLE_BEACON_HINTS |
-	    WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				       REGULATORY_DISABLE_BEACON_HINTS;
 
 	/*
 	 * For now, disable PS by default because it affects
@@ -6706,7 +6695,6 @@ out_free_eeprom:
 out_iounmap:
 	iounmap(il->hw_base);
 out_pci_release_regions:
-	pci_set_drvdata(pdev, NULL);
 	pci_release_regions(pdev);
 out_pci_disable_device:
 	pci_disable_device(pdev);
@@ -6787,7 +6775,6 @@ il4965_pci_remove(struct pci_dev *pdev)
 	iounmap(il->hw_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	il4965_uninit_drv(il);
 
@@ -6878,6 +6865,6 @@ module_param_named(11n_disable, il4965_mod_params.disable_11n, int, S_IRUGO);
 MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
 module_param_named(amsdu_size_8K, il4965_mod_params.amsdu_size_8K, int,
 		   S_IRUGO);
-MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0 [disabled])");
 module_param_named(fw_restart, il4965_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");

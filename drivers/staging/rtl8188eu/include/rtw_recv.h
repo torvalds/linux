@@ -83,7 +83,7 @@ struct signal_stat {
 	u32	total_num;		/* num of valid elements */
 	u32	total_val;		/* sum of valid elements */
 };
-#define MAX_PATH_NUM_92CS		2
+#define MAX_PATH_NUM_92CS		3
 struct phy_info {
 	u8	RxPWDBAll;
 	u8	SignalQuality;	 /*  in 0-100 index. */
@@ -175,7 +175,6 @@ recv_thread(passive) ; returnpkt(dispatch)
 using enter_critical section to protect
 */
 struct recv_priv {
-	spinlock_t lock;
 	struct __queue free_recv_queue;
 	struct __queue recv_pending_queue;
 	struct __queue uc_swdec_pending_queue;
@@ -189,11 +188,6 @@ struct recv_priv {
 	u64	rx_drop;
 	u64	last_rx_bytes;
 
-	uint  rx_icv_err;
-	uint  rx_largepacket_crcerr;
-	uint  rx_smallpacket_crcerr;
-	uint  rx_middlepacket_crcerr;
-	struct semaphore allrxreturnevt;
 	uint	ff_hwaddr;
 	u8	rx_pending_cnt;
 
@@ -213,9 +207,7 @@ struct recv_priv {
 	u8 signal_strength;
 	u8 signal_qual;
 	u8 noise;
-	int RxSNRdB[2];
 	s8 RxRssi[2];
-	int FalseAlmCnt_all;
 
 	struct timer_list signal_stat_timer;
 	u32 signal_stat_sampling_interval;
@@ -235,22 +227,8 @@ struct sta_recv_priv {
 };
 
 struct recv_buf {
-	struct list_head list;
-	spinlock_t recvbuf_lock;
-	u32	ref_cnt;
 	struct adapter *adapter;
-	u8	*pbuf;
-	u8	*pallocated_buf;
-	u32	len;
-	u8	*phead;
-	u8	*pdata;
-	u8	*ptail;
-	u8	*pend;
 	struct urb *purb;
-	dma_addr_t dma_transfer_addr;	/* (in) dma addr for transfer_buffer */
-	u32 alloc_sz;
-	u8  irp_pending;
-	int  transfer_len;
 	struct sk_buff *pskb;
 	u8	reuse;
 };
@@ -270,94 +248,47 @@ struct recv_buf {
 	len = (unsigned int )(tail - data);
 
 */
-struct recv_frame_hdr {
+struct recv_frame {
 	struct list_head list;
 	struct sk_buff	 *pkt;
 	struct sk_buff	 *pkt_newalloc;
 	struct adapter  *adapter;
-	u8 fragcnt;
-	int frame_tag;
 	struct rx_pkt_attrib attrib;
 	uint  len;
 	u8 *rx_head;
 	u8 *rx_data;
 	u8 *rx_tail;
 	u8 *rx_end;
-	void *precvbuf;
 	struct sta_info *psta;
 	/* for A-MPDU Rx reordering buffer control */
 	struct recv_reorder_ctrl *preorder_ctrl;
 };
 
-union recv_frame {
-	union {
-		struct list_head list;
-		struct recv_frame_hdr hdr;
-		uint mem[RECVFRAME_HDR_ALIGN>>2];
-	} u;
-};
-
-union recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue);
-union recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue);
-void rtw_init_recvframe(union recv_frame *precvframe,
+struct recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue);
+struct recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue);
+void rtw_init_recvframe(struct recv_frame *precvframe,
 			struct recv_priv *precvpriv);
-int  rtw_free_recvframe(union recv_frame *precvframe,
+int  rtw_free_recvframe(struct recv_frame *precvframe,
 			struct __queue *pfree_recv_queue);
 #define rtw_dequeue_recvframe(queue) rtw_alloc_recvframe(queue)
-int _rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
-int rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
+int _rtw_enqueue_recvframe(struct recv_frame *precvframe,
+			   struct __queue *queue);
+int rtw_enqueue_recvframe(struct recv_frame *precvframe, struct __queue *queue);
 void rtw_free_recvframe_queue(struct __queue *pframequeue,
 			      struct __queue *pfree_recv_queue);
 u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter);
-int rtw_enqueue_recvbuf_to_head(struct recv_buf *buf, struct __queue *queue);
-int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue);
-struct recv_buf *rtw_dequeue_recvbuf(struct __queue *queue);
 
 void rtw_reordering_ctrl_timeout_handler(void *pcontext);
 
-static inline u8 *get_rxmem(union recv_frame *precvframe)
+static inline u8 *get_rxmem(struct recv_frame *precvframe)
 {
 	/* always return rx_head... */
 	if (precvframe == NULL)
 		return NULL;
-	return precvframe->u.hdr.rx_head;
+	return precvframe->rx_head;
 }
 
-static inline u8 *get_rx_status(union recv_frame *precvframe)
-{
-	return get_rxmem(precvframe);
-}
-
-static inline u8 *get_recvframe_data(union recv_frame *precvframe)
-{
-	/* always return rx_data */
-	if (precvframe == NULL)
-		return NULL;
-
-	return precvframe->u.hdr.rx_data;
-}
-
-static inline u8 *recvframe_push(union recv_frame *precvframe, int sz)
-{
-	/*  append data before rx_data */
-
-	/* add data to the start of recv_frame
- *
- *      This function extends the used data area of the recv_frame at the buffer
- *      start. rx_data must be still larger than rx_head, after pushing.
- */
-	if (precvframe == NULL)
-		return NULL;
-	precvframe->u.hdr.rx_data -= sz ;
-	if (precvframe->u.hdr.rx_data < precvframe->u.hdr.rx_head) {
-		precvframe->u.hdr.rx_data += sz;
-		return NULL;
-	}
-	precvframe->u.hdr.len += sz;
-	return precvframe->u.hdr.rx_data;
-}
-
-static inline u8 *recvframe_pull(union recv_frame *precvframe, int sz)
+static inline u8 *recvframe_pull(struct recv_frame *precvframe, int sz)
 {
 	/*  rx_data += sz; move rx_data sz bytes  hereafter */
 
@@ -366,16 +297,16 @@ static inline u8 *recvframe_pull(union recv_frame *precvframe, int sz)
 
 	if (precvframe == NULL)
 		return NULL;
-	precvframe->u.hdr.rx_data += sz;
-	if (precvframe->u.hdr.rx_data > precvframe->u.hdr.rx_tail) {
-		precvframe->u.hdr.rx_data -= sz;
+	precvframe->rx_data += sz;
+	if (precvframe->rx_data > precvframe->rx_tail) {
+		precvframe->rx_data -= sz;
 		return NULL;
 	}
-	precvframe->u.hdr.len -= sz;
-	return precvframe->u.hdr.rx_data;
+	precvframe->len -= sz;
+	return precvframe->rx_data;
 }
 
-static inline u8 *recvframe_put(union recv_frame *precvframe, int sz)
+static inline u8 *recvframe_put(struct recv_frame *precvframe, int sz)
 {
 	/* used for append sz bytes from ptr to rx_tail, update rx_tail
 	 * and return the updated rx_tail to the caller */
@@ -384,17 +315,17 @@ static inline u8 *recvframe_put(union recv_frame *precvframe, int sz)
 	if (precvframe == NULL)
 		return NULL;
 
-	precvframe->u.hdr.rx_tail += sz;
+	precvframe->rx_tail += sz;
 
-	if (precvframe->u.hdr.rx_tail > precvframe->u.hdr.rx_end) {
-		precvframe->u.hdr.rx_tail -= sz;
+	if (precvframe->rx_tail > precvframe->rx_end) {
+		precvframe->rx_tail -= sz;
 		return NULL;
 	}
-	precvframe->u.hdr.len += sz;
-	return precvframe->u.hdr.rx_tail;
+	precvframe->len += sz;
+	return precvframe->rx_tail;
 }
 
-static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, int sz)
+static inline u8 *recvframe_pull_tail(struct recv_frame *precvframe, int sz)
 {
 	/*  rmv data from rx_tail (by yitsen) */
 
@@ -404,64 +335,13 @@ static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, int sz)
 
 	if (precvframe == NULL)
 		return NULL;
-	precvframe->u.hdr.rx_tail -= sz;
-	if (precvframe->u.hdr.rx_tail < precvframe->u.hdr.rx_data) {
-		precvframe->u.hdr.rx_tail += sz;
+	precvframe->rx_tail -= sz;
+	if (precvframe->rx_tail < precvframe->rx_data) {
+		precvframe->rx_tail += sz;
 		return NULL;
 	}
-	precvframe->u.hdr.len -= sz;
-	return precvframe->u.hdr.rx_tail;
-}
-
-static inline unsigned char *get_rxbuf_desc(union recv_frame *precvframe)
-{
-	unsigned char *buf_desc;
-
-	if (precvframe == NULL)
-		return NULL;
-	return buf_desc;
-}
-
-static inline union recv_frame *rxmem_to_recvframe(u8 *rxmem)
-{
-	/* due to the design of 2048 bytes alignment of recv_frame,
-	 * we can reference the union recv_frame */
-	/* from any given member of recv_frame. */
-	/*  rxmem indicates the any member/address in recv_frame */
-
-	return (union recv_frame *)(((size_t)rxmem >> RXFRAME_ALIGN) << RXFRAME_ALIGN);
-}
-
-static inline union recv_frame *pkt_to_recvframe(struct sk_buff *pkt)
-{
-	u8 *buf_star;
-	union recv_frame *precv_frame;
-	precv_frame = rxmem_to_recvframe((unsigned char *)buf_star);
-
-	return precv_frame;
-}
-
-static inline u8 *pkt_to_recvmem(struct sk_buff *pkt)
-{
-	/*  return the rx_head */
-
-	union recv_frame *precv_frame = pkt_to_recvframe(pkt);
-
-	return	precv_frame->u.hdr.rx_head;
-}
-
-static inline u8 *pkt_to_recvdata(struct sk_buff *pkt)
-{
-	/*  return the rx_data */
-
-	union recv_frame *precv_frame = pkt_to_recvframe(pkt);
-
-	return	precv_frame->u.hdr.rx_data;
-}
-
-static inline int get_recvframe_len(union recv_frame *precvframe)
-{
-	return precvframe->u.hdr.len;
+	precvframe->len -= sz;
+	return precvframe->rx_tail;
 }
 
 static inline s32 translate_percentage_to_dbm(u32 sig_stren_index)
@@ -480,6 +360,6 @@ struct sta_info;
 
 void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv);
 
-void  mgt_dispatcher(struct adapter *padapter, union recv_frame *precv_frame);
+void  mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame);
 
 #endif

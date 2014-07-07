@@ -16,7 +16,7 @@ static int proc_self_readlink(struct dentry *dentry, char __user *buffer,
 	if (!tgid)
 		return -ENOENT;
 	sprintf(tmp, "%d", tgid);
-	return vfs_readlink(dentry,buffer,buflen,tmp);
+	return readlink_copy(buffer, buflen, tmp);
 }
 
 static void *proc_self_follow_link(struct dentry *dentry, struct nameidata *nd)
@@ -36,18 +36,10 @@ static void *proc_self_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-static void proc_self_put_link(struct dentry *dentry, struct nameidata *nd,
-				void *cookie)
-{
-	char *s = nd_get_link(nd);
-	if (!IS_ERR(s))
-		kfree(s);
-}
-
 static const struct inode_operations proc_self_inode_operations = {
 	.readlink	= proc_self_readlink,
 	.follow_link	= proc_self_follow_link,
-	.put_link	= proc_self_put_link,
+	.put_link	= kfree_put_link,
 };
 
 static unsigned self_inum;

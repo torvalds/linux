@@ -102,11 +102,13 @@ static int tweak_clear_halt_cmd(struct urb *urb)
 
 	ret = usb_clear_halt(urb->dev, target_pipe);
 	if (ret < 0)
-		dev_err(&urb->dev->dev, "usb_clear_halt error: devnum %d endp "
-			"%d ret %d\n", urb->dev->devnum, target_endp, ret);
+		dev_err(&urb->dev->dev,
+			"usb_clear_halt error: devnum %d endp %d ret %d\n",
+			urb->dev->devnum, target_endp, ret);
 	else
-		dev_info(&urb->dev->dev, "usb_clear_halt done: devnum %d endp "
-			 "%d\n", urb->dev->devnum, target_endp);
+		dev_info(&urb->dev->dev,
+			 "usb_clear_halt done: devnum %d endp %d\n",
+			 urb->dev->devnum, target_endp);
 
 	return ret;
 }
@@ -127,42 +129,32 @@ static int tweak_set_interface_cmd(struct urb *urb)
 
 	ret = usb_set_interface(urb->dev, interface, alternate);
 	if (ret < 0)
-		dev_err(&urb->dev->dev, "usb_set_interface error: inf %u alt "
-			"%u ret %d\n", interface, alternate, ret);
+		dev_err(&urb->dev->dev,
+			"usb_set_interface error: inf %u alt %u ret %d\n",
+			interface, alternate, ret);
 	else
-		dev_info(&urb->dev->dev, "usb_set_interface done: inf %u alt "
-			 "%u\n", interface, alternate);
+		dev_info(&urb->dev->dev,
+			"usb_set_interface done: inf %u alt %u\n",
+			interface, alternate);
 
 	return ret;
 }
 
 static int tweak_set_configuration_cmd(struct urb *urb)
 {
+	struct stub_priv *priv = (struct stub_priv *) urb->context;
+	struct stub_device *sdev = priv->sdev;
 	struct usb_ctrlrequest *req;
 	__u16 config;
+	int err;
 
 	req = (struct usb_ctrlrequest *) urb->setup_packet;
 	config = le16_to_cpu(req->wValue);
 
-	/*
-	 * I have never seen a multi-config device. Very rare.
-	 * For most devices, this will be called to choose a default
-	 * configuration only once in an initialization phase.
-	 *
-	 * set_configuration may change a device configuration and its device
-	 * drivers will be unbound and assigned for a new device configuration.
-	 * This means this usbip driver will be also unbound when called, then
-	 * eventually reassigned to the device as far as driver matching
-	 * condition is kept.
-	 *
-	 * Unfortunately, an existing usbip connection will be dropped
-	 * due to this driver unbinding. So, skip here.
-	 * A user may need to set a special configuration value before
-	 * exporting the device.
-	 */
-	dev_info(&urb->dev->dev, "usb_set_configuration %d to %s... skip!\n",
-		 config, dev_name(&urb->dev->dev));
-
+	err = usb_set_configuration(sdev->udev, config);
+	if (err && err != -ENODEV)
+		dev_err(&sdev->udev->dev, "can't set config #%d, error %d\n",
+			config, err);
 	return 0;
 }
 
@@ -546,7 +538,7 @@ static void stub_rx_pdu(struct usbip_device *ud)
 	int ret;
 	struct usbip_header pdu;
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
-	struct device *dev = &sdev->interface->dev;
+	struct device *dev = &sdev->udev->dev;
 
 	usbip_dbg_stub_rx("Enter\n");
 

@@ -44,7 +44,6 @@ struct cpu_task {
 
 extern struct cpu_task cpu_tasks[];
 
-extern unsigned long low_physmem;
 extern unsigned long high_physmem;
 extern unsigned long uml_physmem;
 extern unsigned long uml_reserved;
@@ -52,8 +51,6 @@ extern unsigned long end_vm;
 extern unsigned long start_vm;
 extern unsigned long long highmem;
 
-extern unsigned long _stext, _etext, _sdata, _edata, __bss_start, _end;
-extern unsigned long _unprotected_end;
 extern unsigned long brk_start;
 
 extern unsigned long host_task_size;

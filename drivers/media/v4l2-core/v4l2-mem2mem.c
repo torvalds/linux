@@ -41,6 +41,8 @@ module_param(debug, bool, 0644);
 #define TRANS_QUEUED		(1 << 0)
 /* Instance is currently running in hardware */
 #define TRANS_RUNNING		(1 << 1)
+/* Instance is currently aborting */
+#define TRANS_ABORT		(1 << 2)
 
 
 /* Offset base for buffers on the destination queue - used to distinguish
@@ -221,6 +223,14 @@ static void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 	}
 
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags_job);
+
+	/* If the context is aborted then don't schedule it */
+	if (m2m_ctx->job_flags & TRANS_ABORT) {
+		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
+		dprintk("Aborted context\n");
+		return;
+	}
+
 	if (m2m_ctx->job_flags & TRANS_QUEUED) {
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 		dprintk("On job queue already\n");
@@ -280,6 +290,8 @@ static void v4l2_m2m_cancel_job(struct v4l2_m2m_ctx *m2m_ctx)
 
 	m2m_dev = m2m_ctx->m2m_dev;
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+
+	m2m_ctx->job_flags |= TRANS_ABORT;
 	if (m2m_ctx->job_flags & TRANS_RUNNING) {
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 		m2m_dev->m2m_ops->job_abort(m2m_ctx->priv);
@@ -480,13 +492,15 @@ int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	m2m_dev = m2m_ctx->m2m_dev;
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags_job);
 	/* We should not be scheduled anymore, since we're dropping a queue. */
-	INIT_LIST_HEAD(&m2m_ctx->queue);
+	if (m2m_ctx->job_flags & TRANS_QUEUED)
+		list_del(&m2m_ctx->queue);
 	m2m_ctx->job_flags = 0;
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
 	/* Drop queue, since streamoff returns device to the same state as after
 	 * calling reqbufs. */
 	INIT_LIST_HEAD(&q_ctx->rdy_queue);
+	q_ctx->num_rdy = 0;
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 
 	if (m2m_dev->curr_ctx == m2m_ctx) {
@@ -544,6 +558,8 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 
 	if (m2m_ctx->m2m_dev->m2m_ops->unlock)
 		m2m_ctx->m2m_dev->m2m_ops->unlock(m2m_ctx->priv);
+	else if (m2m_ctx->q_lock)
+		mutex_unlock(m2m_ctx->q_lock);
 
 	if (list_empty(&src_q->done_list))
 		poll_wait(file, &src_q->done_wq, wait);
@@ -552,6 +568,8 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 
 	if (m2m_ctx->m2m_dev->m2m_ops->lock)
 		m2m_ctx->m2m_dev->m2m_ops->lock(m2m_ctx->priv);
+	else if (m2m_ctx->q_lock)
+		mutex_lock(m2m_ctx->q_lock);
 
 	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (!list_empty(&src_q->done_list))
@@ -679,6 +697,13 @@ struct v4l2_m2m_ctx *v4l2_m2m_ctx_init(struct v4l2_m2m_dev *m2m_dev,
 
 	if (ret)
 		goto err;
+	/*
+	 * If both queues use same mutex assign it as the common buffer
+	 * queues lock to the m2m context. This lock is used in the
+	 * v4l2_m2m_ioctl_* helpers.
+	 */
+	if (out_q_ctx->q.lock == cap_q_ctx->q.lock)
+		m2m_ctx->q_lock = out_q_ctx->q.lock;
 
 	return m2m_ctx;
 err:
@@ -725,4 +750,119 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx, struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_buf_queue);
+
+/* Videobuf2 ioctl helpers */
+
+int v4l2_m2m_ioctl_reqbufs(struct file *file, void *priv,
+				struct v4l2_requestbuffers *rb)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_reqbufs(file, fh->m2m_ctx, rb);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_reqbufs);
+
+int v4l2_m2m_ioctl_create_bufs(struct file *file, void *priv,
+				struct v4l2_create_buffers *create)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_create_bufs(file, fh->m2m_ctx, create);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_create_bufs);
+
+int v4l2_m2m_ioctl_querybuf(struct file *file, void *priv,
+				struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_querybuf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_querybuf);
+
+int v4l2_m2m_ioctl_qbuf(struct file *file, void *priv,
+				struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_qbuf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_qbuf);
+
+int v4l2_m2m_ioctl_dqbuf(struct file *file, void *priv,
+				struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_dqbuf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_dqbuf);
+
+int v4l2_m2m_ioctl_expbuf(struct file *file, void *priv,
+				struct v4l2_exportbuffer *eb)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_expbuf(file, fh->m2m_ctx, eb);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_expbuf);
+
+int v4l2_m2m_ioctl_streamon(struct file *file, void *priv,
+				enum v4l2_buf_type type)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_streamon(file, fh->m2m_ctx, type);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamon);
+
+int v4l2_m2m_ioctl_streamoff(struct file *file, void *priv,
+				enum v4l2_buf_type type)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_streamoff(file, fh->m2m_ctx, type);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamoff);
+
+/*
+ * v4l2_file_operations helpers. It is assumed here same lock is used
+ * for the output and the capture buffer queue.
+ */
+
+int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_m2m_ctx *m2m_ctx = fh->m2m_ctx;
+	int ret;
+
+	if (m2m_ctx->q_lock && mutex_lock_interruptible(m2m_ctx->q_lock))
+		return -ERESTARTSYS;
+
+	ret = v4l2_m2m_mmap(file, m2m_ctx, vma);
+
+	if (m2m_ctx->q_lock)
+		mutex_unlock(m2m_ctx->q_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_fop_mmap);
+
+unsigned int v4l2_m2m_fop_poll(struct file *file, poll_table *wait)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_m2m_ctx *m2m_ctx = fh->m2m_ctx;
+	unsigned int ret;
+
+	if (m2m_ctx->q_lock)
+		mutex_lock(m2m_ctx->q_lock);
+
+	ret = v4l2_m2m_poll(file, m2m_ctx, wait);
+
+	if (m2m_ctx->q_lock)
+		mutex_unlock(m2m_ctx->q_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_fop_poll);
 

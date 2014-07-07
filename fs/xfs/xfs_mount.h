@@ -26,6 +26,8 @@ struct xfs_mru_cache;
 struct xfs_nameops;
 struct xfs_ail;
 struct xfs_quotainfo;
+struct xfs_dir_ops;
+struct xfs_da_geometry;
 
 #ifdef HAVE_PERCPU_SB
 
@@ -95,6 +97,8 @@ typedef struct xfs_mount {
 	uint			m_readio_blocks; /* min read size blocks */
 	uint			m_writeio_log;	/* min write size log bytes */
 	uint			m_writeio_blocks; /* min write size blocks */
+	struct xfs_da_geometry	*m_dir_geo;	/* directory block geometry */
+	struct xfs_da_geometry	*m_attr_geo;	/* attribute block geometry */
 	struct xlog		*m_log;		/* log specific stuff */
 	int			m_logbufs;	/* number of log buffers */
 	int			m_logbsize;	/* size of each log buffer */
@@ -111,7 +115,7 @@ typedef struct xfs_mount {
 	__uint8_t		m_blkbb_log;	/* blocklog - BBSHIFT */
 	__uint8_t		m_agno_log;	/* log #ag's */
 	__uint8_t		m_agino_log;	/* #bits for agino in inum */
-	__uint16_t		m_inode_cluster_size;/* min inode buf size */
+	uint			m_inode_cluster_size;/* min inode buf size */
 	uint			m_blockmask;	/* sb_blocksize-1 */
 	uint			m_blockwsize;	/* sb_blocksize in words */
 	uint			m_blockwmask;	/* blockwsize-1 */
@@ -130,8 +134,6 @@ typedef struct xfs_mount {
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
 	__uint64_t		m_flags;	/* global mount flags */
-	uint			m_dir_node_ents; /* #entries in a dir danode */
-	uint			m_attr_node_ents; /* #entries in attr danode */
 	int			m_ialloc_inos;	/* inodes in inode allocation */
 	int			m_ialloc_blks;	/* blocks in inode allocation */
 	int			m_inoalign_mask;/* mask sb_inoalignmt if used */
@@ -144,15 +146,10 @@ typedef struct xfs_mount {
 	int			m_dalign;	/* stripe unit */
 	int			m_swidth;	/* stripe width */
 	int			m_sinoalign;	/* stripe unit inode alignment */
-	int			m_attr_magicpct;/* 37% of the blocksize */
-	int			m_dir_magicpct;	/* 37% of the dir blocksize */
 	__uint8_t		m_sectbb_log;	/* sectlog - BBSHIFT */
 	const struct xfs_nameops *m_dirnameops;	/* vector of dir name ops */
-	int			m_dirblksize;	/* directory block sz--bytes */
-	int			m_dirblkfsbs;	/* directory block sz--fsbs */
-	xfs_dablk_t		m_dirdatablk;	/* blockno of dir data v2 */
-	xfs_dablk_t		m_dirleafblk;	/* blockno of dir non-data v2 */
-	xfs_dablk_t		m_dirfreeblk;	/* blockno of dirfreeindex v2 */
+	const struct xfs_dir_ops *m_dir_inode_ops; /* vector of dir inode ops */
+	const struct xfs_dir_ops *m_nondir_inode_ops; /* !dir inode ops */
 	uint			m_chsize;	/* size of next field */
 	atomic_t		m_active_trans;	/* number trans frozen */
 #ifdef HAVE_PERCPU_SB

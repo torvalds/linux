@@ -1,0 +1,152 @@
+What:		/sys/class/powercap/
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		The powercap/ class sub directory belongs to the power cap
+		subsystem. Refer to
+		Documentation/power/powercap/powercap.txt for details.
+
+What:		/sys/class/powercap/<control type>
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		A <control type> is a unique name under /sys/class/powercap.
+		Here <control type> determines how the power is going to be
+		controlled. A <control type> can contain multiple power zones.
+
+What:		/sys/class/powercap/<control type>/enabled
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		This allows to enable/disable power capping for a "control type".
+		This status affects every power zone using this "control_type.
+
+What:		/sys/class/powercap/<control type>/<power zone>
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		A power zone is a single or a collection of devices, which can
+		be independently monitored and controlled. A power zone sysfs
+		entry is qualified with the name of the <control type>.
+		E.g. intel-rapl:0:1:1.
+
+What:		/sys/class/powercap/<control type>/<power zone>/<child power zone>
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Power zones may be organized in a hierarchy in which child
+		power zones provide monitoring and control for a subset of
+		devices under the parent. For example, if there is a parent
+		power zone for a whole CPU package, each CPU core in it can
+		be a child power zone.
+
+What:		/sys/class/powercap/.../<power zone>/name
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Specifies the name of this power zone.
+
+What:		/sys/class/powercap/.../<power zone>/energy_uj
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Current energy counter in micro-joules. Write "0" to reset.
+		If the counter can not be reset, then this attribute is
+		read-only.
+
+What:		/sys/class/powercap/.../<power zone>/max_energy_range_uj
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Range of the above energy counter in micro-joules.
+
+
+What:		/sys/class/powercap/.../<power zone>/power_uw
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Current power in micro-watts.
+
+What:		/sys/class/powercap/.../<power zone>/max_power_range_uw
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Range of the above power value in micro-watts.
+
+What:		/sys/class/powercap/.../<power zone>/constraint_X_name
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Each power zone can define one or more constraints. Each
+		constraint can have an optional name. Here "X" can have values
+		from 0 to max integer.
+
+What:		/sys/class/powercap/.../<power zone>/constraint_X_power_limit_uw
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Power limit in micro-watts should be applicable for
+		the time window specified by "constraint_X_time_window_us".
+		Here "X" can have values from 0 to max integer.
+
+What:		/sys/class/powercap/.../<power zone>/constraint_X_time_window_us
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Time window in micro seconds. This is used along with
+		constraint_X_power_limit_uw to define a power constraint.
+		Here "X" can have values from 0 to max integer.
+
+
+What:		/sys/class/powercap/<control type>/.../constraint_X_max_power_uw
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Maximum allowed power in micro watts for this constraint.
+		Here "X" can have values from 0 to max integer.
+
+What:		/sys/class/powercap/<control type>/.../constraint_X_min_power_uw
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Minimum allowed power in micro watts for this constraint.
+		Here "X" can have values from 0 to max integer.
+
+What:		/sys/class/powercap/.../<power zone>/constraint_X_max_time_window_us
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Maximum allowed time window in micro seconds for this
+		constraint. Here "X" can have values from 0 to max integer.
+
+What:		/sys/class/powercap/.../<power zone>/constraint_X_min_time_window_us
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Minimum allowed time window in micro seconds for this
+		constraint. Here "X" can have values from 0 to max integer.
+
+What:		/sys/class/powercap/.../<power zone>/enabled
+Date:		September 2013
+KernelVersion:	3.13
+Contact:	linux-pm@vger.kernel.org
+Description
+		This allows to enable/disable power capping at power zone level.
+		This applies to current power zone and its children.

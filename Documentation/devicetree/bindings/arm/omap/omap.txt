@@ -21,7 +21,8 @@ Required properties:
 Optional properties:
 - ti,no_idle_on_suspend: When present, it prevents the PM to idle the module
   during suspend.
-
+- ti,no-reset-on-init: When present, the module should not be reset at init
+- ti,no-idle-on-init: When present, the module should not be idled at init
 
 Example:
 
@@ -30,6 +31,62 @@ spinlock@1 {
     ti,hwmods = "spinlock";
 };
 
+SoC Type (optional):
+
+- General Purpose devices
+  compatible = "ti,gp"
+- High Security devices
+  compatible = "ti,hs"
+
+SoC Families:
+
+- OMAP2 generic - defaults to OMAP2420
+  compatible = "ti,omap2"
+- OMAP3 generic - defaults to OMAP3430
+  compatible = "ti,omap3"
+- OMAP4 generic - defaults to OMAP4430
+  compatible = "ti,omap4"
+- OMAP5 generic - defaults to OMAP5430
+  compatible = "ti,omap5"
+- DRA7 generic - defaults to DRA742
+  compatible = "ti,dra7"
+- AM43x generic - defaults to AM4372
+  compatible = "ti,am43"
+
+SoCs:
+
+- OMAP2420
+  compatible = "ti,omap2420", "ti,omap2"
+- OMAP2430
+  compatible = "ti,omap2430", "ti,omap2"
+
+- OMAP3430
+  compatible = "ti,omap3430", "ti,omap3"
+- AM3517
+  compatible = "ti,am3517", "ti,omap3"
+- OMAP3630
+  compatible = "ti,omap36xx", "ti,omap3"
+- AM33xx
+  compatible = "ti,am33xx", "ti,omap3"
+
+- OMAP4430
+  compatible = "ti,omap4430", "ti,omap4"
+- OMAP4460
+  compatible = "ti,omap4460", "ti,omap4"
+
+- OMAP5430
+  compatible = "ti,omap5430", "ti,omap5"
+- OMAP5432
+  compatible = "ti,omap5432", "ti,omap5"
+
+- DRA742
+  compatible = "ti,dra742", "ti,dra74", "ti,dra7"
+
+- DRA722
+  compatible = "ti,dra722", "ti,dra72", "ti,dra7"
+
+- AM4372
+  compatible = "ti,am4372", "ti,am43"
 
 Boards:
 
@@ -37,13 +94,22 @@ Boards:
   compatible = "ti,omap3-beagle", "ti,omap3"
 
 - OMAP3 Tobi with Overo : Commercial expansion board with daughter board
-  compatible = "ti,omap3-tobi", "ti,omap3-overo", "ti,omap3"
+  compatible = "gumstix,omap3-overo-tobi", "gumstix,omap3-overo", "ti,omap3"
 
 - OMAP4 SDP : Software Development Board
   compatible = "ti,omap4-sdp", "ti,omap4430"
 
 - OMAP4 PandaBoard : Low cost community board
   compatible = "ti,omap4-panda", "ti,omap4430"
+
+- OMAP4 DuoVero with Parlor : Commercial expansion board with daughter board
+  compatible = "gumstix,omap4-duovero-parlor", "gumstix,omap4-duovero", "ti,omap4430", "ti,omap4";
+
+- OMAP4 VAR-STK-OM44 : Commercial dev kit with VAR-OM44CustomBoard and VAR-SOM-OM44 w/WLAN
+  compatible = "variscite,var-stk-om44", "variscite,var-som-om44", "ti,omap4460", "ti,omap4";
+
+- OMAP4 VAR-DVK-OM44 : Commercial dev kit with VAR-OM44CustomBoard, VAR-SOM-OM44 w/WLAN and LCD touchscreen
+  compatible = "variscite,var-dvk-om44", "variscite,var-som-om44", "ti,omap4460", "ti,omap4";
 
 - OMAP3 EVM : Software Development Board for OMAP35x, AM/DM37x
   compatible = "ti,omap3-evm", "ti,omap3"
@@ -60,5 +126,11 @@ Boards:
 - AM43x EPOS EVM
   compatible = "ti,am43x-epos-evm", "ti,am4372", "ti,am43"
 
-- DRA7 EVM:  Software Developement Board for DRA7XX
-  compatible = "ti,dra7-evm", "ti,dra7"
+- AM437x GP EVM
+  compatible = "ti,am437x-gp-evm", "ti,am4372", "ti,am43"
+
+- DRA742 EVM:  Software Development Board for DRA742
+  compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7"
+
+- DRA722 EVM: Software Development Board for DRA722
+  compatible = "ti,dra72-evm", "ti,dra722", "ti,dra72", "ti,dra7"

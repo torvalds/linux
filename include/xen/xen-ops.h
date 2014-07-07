@@ -2,27 +2,28 @@
 #define INCLUDE_XEN_OPS_H
 
 #include <linux/percpu.h>
+#include <linux/notifier.h>
 #include <asm/xen/interface.h>
 
 DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
 
 void xen_arch_pre_suspend(void);
 void xen_arch_post_suspend(int suspend_cancelled);
-void xen_arch_hvm_post_suspend(int suspend_cancelled);
-
-void xen_mm_pin_all(void);
-void xen_mm_unpin_all(void);
 
 void xen_timer_resume(void);
 void xen_arch_resume(void);
 
+void xen_resume_notifier_register(struct notifier_block *nb);
+void xen_resume_notifier_unregister(struct notifier_block *nb);
+
 int xen_setup_shutdown_event(void);
 
 extern unsigned long *xen_contiguous_bitmap;
-int xen_create_contiguous_region(unsigned long vstart, unsigned int order,
-				unsigned int address_bits);
+int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
+				unsigned int address_bits,
+				dma_addr_t *dma_handle);
 
-void xen_destroy_contiguous_region(unsigned long vstart, unsigned int order);
+void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order);
 
 struct vm_area_struct;
 int xen_remap_domain_mfn_range(struct vm_area_struct *vma,

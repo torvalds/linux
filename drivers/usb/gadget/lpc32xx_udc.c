@@ -55,7 +55,6 @@
 #include <mach/hardware.h>
 #include <linux/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 
 #include <mach/platform.h>
 #include <mach/irqs.h>
@@ -1449,7 +1448,7 @@ static void udc_reinit(struct lpc32xx_udc *udc)
 
 		if (i != 0)
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
-		ep->ep.maxpacket = ep->maxpacket;
+		usb_ep_set_maxpacket_limit(&ep->ep, ep->maxpacket);
 		INIT_LIST_HEAD(&ep->queue);
 		ep->req_pending = 0;
 	}
@@ -3078,7 +3077,9 @@ static int __init lpc32xx_udc_probe(struct platform_device *pdev)
 		 udc->isp1301_i2c_client->addr);
 
 	pdev->dev.dma_mask = &lpc32xx_usbd_dmamask;
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	retval = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (retval)
+		goto resource_fail;
 
 	udc->board = &lpc32xx_usbddata;
 
@@ -3293,9 +3294,9 @@ usb_clk_enable_fail:
 pll_set_fail:
 	clk_disable(udc->usb_pll_clk);
 pll_enable_fail:
-	clk_put(udc->usb_slv_clk);
-usb_otg_clk_get_fail:
 	clk_put(udc->usb_otg_clk);
+usb_otg_clk_get_fail:
+	clk_put(udc->usb_slv_clk);
 usb_clk_get_fail:
 	clk_put(udc->usb_pll_clk);
 pll_get_fail:

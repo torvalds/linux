@@ -1020,7 +1020,7 @@ out:
 
 /**
  * This function is used to make the extent prepared for transfer.
- * A race with flusing page - ll_writepage() has to be handled cautiously.
+ * A race with flushing page - ll_writepage() has to be handled cautiously.
  */
 static int osc_extent_make_ready(const struct lu_env *env,
 				 struct osc_extent *ext)
@@ -1311,7 +1311,7 @@ static int osc_completion(const struct lu_env *env, struct osc_async_page *oap,
 static void osc_consume_write_grant(struct client_obd *cli,
 				    struct brw_page *pga)
 {
-	LASSERT(spin_is_locked(&cli->cl_loi_list_lock.lock));
+	assert_spin_locked(&cli->cl_loi_list_lock.lock);
 	LASSERT(!(pga->flag & OBD_BRW_FROM_GRANT));
 	atomic_inc(&obd_dirty_pages);
 	cli->cl_dirty += PAGE_CACHE_SIZE;
@@ -1326,7 +1326,7 @@ static void osc_consume_write_grant(struct client_obd *cli,
 static void osc_release_write_grant(struct client_obd *cli,
 				    struct brw_page *pga)
 {
-	LASSERT(spin_is_locked(&cli->cl_loi_list_lock.lock));
+	assert_spin_locked(&cli->cl_loi_list_lock.lock);
 	if (!(pga->flag & OBD_BRW_FROM_GRANT)) {
 		return;
 	}
@@ -1703,7 +1703,7 @@ static int osc_list_maint(struct client_obd *cli, struct osc_object *osc)
 	return is_ready;
 }
 
-/* this is trying to propogate async writeback errors back up to the
+/* this is trying to propagate async writeback errors back up to the
  * application.  As an async write fails we record the error code for later if
  * the app does an fsync.  As long as errors persist we force future rpcs to be
  * sync so that the app can get a sync error and break the cycle of queueing
@@ -2006,7 +2006,7 @@ static struct osc_object *osc_next_obj(struct client_obd *cli)
 	/* then if we have cache waiters, return all objects with queued
 	 * writes.  This is especially important when many small files
 	 * have filled up the cache and not been fired into rpcs because
-	 * they don't pass the nr_pending/object threshhold */
+	 * they don't pass the nr_pending/object threshold */
 	if (!list_empty(&cli->cl_cache_waiters) &&
 	    !list_empty(&cli->cl_loi_write_list))
 		return list_to_obj(&cli->cl_loi_write_list, write_item);
@@ -2146,7 +2146,7 @@ int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 	oap->oap_obj_off = offset;
 	LASSERT(!(offset & ~CFS_PAGE_MASK));
 
-	if (!client_is_remote(exp) && cfs_capable(CFS_CAP_SYS_RESOURCE))
+	if (!client_is_remote(exp) && capable(CFS_CAP_SYS_RESOURCE))
 		oap->oap_brw_flags = OBD_BRW_NOQUOTA;
 
 	INIT_LIST_HEAD(&oap->oap_pending_item);
@@ -2186,7 +2186,7 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 	/* Set the OBD_BRW_SRVLOCK before the page is queued. */
 	brw_flags |= ops->ops_srvlock ? OBD_BRW_SRVLOCK : 0;
 	if (!client_is_remote(osc_export(osc)) &&
-	    cfs_capable(CFS_CAP_SYS_RESOURCE)) {
+	    capable(CFS_CAP_SYS_RESOURCE)) {
 		brw_flags |= OBD_BRW_NOQUOTA;
 		cmd |= OBD_BRW_NOQUOTA;
 	}
@@ -2226,7 +2226,7 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 	/* Add this page into extent by the following steps:
 	 * 1. if there exists an active extent for this IO, mostly this page
 	 *    can be added to the active extent and sometimes we need to
-	 *    expand extent to accomodate this page;
+	 *    expand extent to accommodate this page;
 	 * 2. otherwise, a new extent will be allocated. */
 
 	ext = oio->oi_active;
@@ -2394,6 +2394,12 @@ int osc_flush_async_page(const struct lu_env *env, struct cl_io *io,
 		 * really sending the RPC. */
 	case OES_TRUNC:
 		/* race with truncate, page will be redirtied */
+	case OES_ACTIVE:
+		/* The extent is active so we need to abort and let the caller
+		 * re-dirty the page. If we continued on here, and we were the
+		 * one making the extent active, we could deadlock waiting for
+		 * the page writeback to clear but it won't because the extent
+		 * is active and won't be written out. */
 		GOTO(out, rc = -EAGAIN);
 	default:
 		break;

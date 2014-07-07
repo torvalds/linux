@@ -51,10 +51,10 @@ static int mlx4_en_moderation_update(struct mlx4_en_priv *priv)
 	int err = 0;
 
 	for (i = 0; i < priv->tx_ring_num; i++) {
-		priv->tx_cq[i].moder_cnt = priv->tx_frames;
-		priv->tx_cq[i].moder_time = priv->tx_usecs;
+		priv->tx_cq[i]->moder_cnt = priv->tx_frames;
+		priv->tx_cq[i]->moder_time = priv->tx_usecs;
 		if (priv->port_up) {
-			err = mlx4_en_set_cq_moder(priv, &priv->tx_cq[i]);
+			err = mlx4_en_set_cq_moder(priv, priv->tx_cq[i]);
 			if (err)
 				return err;
 		}
@@ -64,11 +64,11 @@ static int mlx4_en_moderation_update(struct mlx4_en_priv *priv)
 		return 0;
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		priv->rx_cq[i].moder_cnt = priv->rx_frames;
-		priv->rx_cq[i].moder_time = priv->rx_usecs;
+		priv->rx_cq[i]->moder_cnt = priv->rx_frames;
+		priv->rx_cq[i]->moder_time = priv->rx_usecs;
 		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
 		if (priv->port_up) {
-			err = mlx4_en_set_cq_moder(priv, &priv->rx_cq[i]);
+			err = mlx4_en_set_cq_moder(priv, priv->rx_cq[i]);
 			if (err)
 				return err;
 		}
@@ -274,16 +274,16 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 		}
 	}
 	for (i = 0; i < priv->tx_ring_num; i++) {
-		data[index++] = priv->tx_ring[i].packets;
-		data[index++] = priv->tx_ring[i].bytes;
+		data[index++] = priv->tx_ring[i]->packets;
+		data[index++] = priv->tx_ring[i]->bytes;
 	}
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		data[index++] = priv->rx_ring[i].packets;
-		data[index++] = priv->rx_ring[i].bytes;
+		data[index++] = priv->rx_ring[i]->packets;
+		data[index++] = priv->rx_ring[i]->bytes;
 #ifdef CONFIG_NET_RX_BUSY_POLL
-		data[index++] = priv->rx_ring[i].yields;
-		data[index++] = priv->rx_ring[i].misses;
-		data[index++] = priv->rx_ring[i].cleaned;
+		data[index++] = priv->rx_ring[i]->yields;
+		data[index++] = priv->rx_ring[i]->misses;
+		data[index++] = priv->rx_ring[i]->cleaned;
 #endif
 	}
 	spin_unlock_bh(&priv->stats_lock);
@@ -378,8 +378,8 @@ static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		ethtool_cmd_speed_set(cmd, priv->port_state.link_speed);
 		cmd->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(cmd, -1);
-		cmd->duplex = -1;
+		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->duplex = DUPLEX_UNKNOWN;
 	}
 
 	if (trans_type > 0 && trans_type <= 0xC) {
@@ -510,9 +510,9 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	tx_size = max_t(u32, tx_size, MLX4_EN_MIN_TX_SIZE);
 	tx_size = min_t(u32, tx_size, MLX4_EN_MAX_TX_SIZE);
 
-	if (rx_size == (priv->port_up ? priv->rx_ring[0].actual_size :
-					priv->rx_ring[0].size) &&
-	    tx_size == priv->tx_ring[0].size)
+	if (rx_size == (priv->port_up ? priv->rx_ring[0]->actual_size :
+					priv->rx_ring[0]->size) &&
+	    tx_size == priv->tx_ring[0]->size)
 		return 0;
 
 	mutex_lock(&mdev->state_lock);
@@ -553,8 +553,8 @@ static void mlx4_en_get_ringparam(struct net_device *dev,
 	param->rx_max_pending = MLX4_EN_MAX_RX_SIZE;
 	param->tx_max_pending = MLX4_EN_MAX_TX_SIZE;
 	param->rx_pending = priv->port_up ?
-		priv->rx_ring[0].actual_size : priv->rx_ring[0].size;
-	param->tx_pending = priv->tx_ring[0].size;
+		priv->rx_ring[0]->actual_size : priv->rx_ring[0]->size;
+	param->tx_pending = priv->tx_ring[0]->size;
 }
 
 static u32 mlx4_en_get_rxfh_indir_size(struct net_device *dev)
@@ -564,7 +564,7 @@ static u32 mlx4_en_get_rxfh_indir_size(struct net_device *dev)
 	return priv->rx_ring_num;
 }
 
-static int mlx4_en_get_rxfh_indir(struct net_device *dev, u32 *ring_index)
+static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
@@ -582,8 +582,8 @@ static int mlx4_en_get_rxfh_indir(struct net_device *dev, u32 *ring_index)
 	return err;
 }
 
-static int mlx4_en_set_rxfh_indir(struct net_device *dev,
-		const u32 *ring_index)
+static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
+			    const u8 *key)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -925,13 +925,13 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 		qpn = cmd->fs.ring_cookie & (EN_ETHTOOL_QP_ATTACH - 1);
 	} else {
 		if (cmd->fs.ring_cookie >= priv->rx_ring_num) {
-			en_warn(priv, "rxnfc: RX ring (%llu) doesn't exist.\n",
+			en_warn(priv, "rxnfc: RX ring (%llu) doesn't exist\n",
 				cmd->fs.ring_cookie);
 			return -EINVAL;
 		}
 		qpn = priv->rss_map.qps[cmd->fs.ring_cookie].qpn;
 		if (!qpn) {
-			en_warn(priv, "rxnfc: RX ring (%llu) is inactive.\n",
+			en_warn(priv, "rxnfc: RX ring (%llu) is inactive\n",
 				cmd->fs.ring_cookie);
 			return -EINVAL;
 		}
@@ -956,7 +956,7 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 	}
 	err = mlx4_flow_attach(priv->mdev->dev, &rule, &reg_id);
 	if (err) {
-		en_err(priv, "Fail to attach network rule at location %d.\n",
+		en_err(priv, "Fail to attach network rule at location %d\n",
 		       cmd->fs.location);
 		goto out_free_list;
 	}
@@ -1121,7 +1121,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	int port_up;
+	int port_up = 0;
 	int err = 0;
 
 	if (channel->other_count || channel->combined_count ||
@@ -1151,7 +1151,8 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
-	mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
+	if (dev->num_tc)
+		mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
 
 	en_warn(priv, "Using %d TX rings\n", priv->tx_ring_num);
 	en_warn(priv, "Using %d RX rings\n", priv->rx_ring_num);
@@ -1193,6 +1194,9 @@ static int mlx4_en_get_ts_info(struct net_device *dev,
 		info->rx_filters =
 			(1 << HWTSTAMP_FILTER_NONE) |
 			(1 << HWTSTAMP_FILTER_ALL);
+
+		if (mdev->ptp_clock)
+			info->phc_index = ptp_clock_index(mdev->ptp_clock);
 	}
 
 	return ret;
@@ -1220,8 +1224,8 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_rxnfc = mlx4_en_get_rxnfc,
 	.set_rxnfc = mlx4_en_set_rxnfc,
 	.get_rxfh_indir_size = mlx4_en_get_rxfh_indir_size,
-	.get_rxfh_indir = mlx4_en_get_rxfh_indir,
-	.set_rxfh_indir = mlx4_en_set_rxfh_indir,
+	.get_rxfh = mlx4_en_get_rxfh,
+	.set_rxfh = mlx4_en_set_rxfh,
 	.get_channels = mlx4_en_get_channels,
 	.set_channels = mlx4_en_set_channels,
 	.get_ts_info = mlx4_en_get_ts_info,

@@ -41,12 +41,12 @@ static inline struct cpuacct *css_ca(struct cgroup_subsys_state *css)
 /* return cpu accounting group to which this task belongs */
 static inline struct cpuacct *task_ca(struct task_struct *tsk)
 {
-	return css_ca(task_css(tsk, cpuacct_subsys_id));
+	return css_ca(task_css(tsk, cpuacct_cgrp_id));
 }
 
 static inline struct cpuacct *parent_ca(struct cpuacct *ca)
 {
-	return css_ca(css_parent(&ca->css));
+	return css_ca(ca->css.parent);
 }
 
 static DEFINE_PER_CPU(u64, root_cpuacct_cpuusage);
@@ -163,10 +163,9 @@ out:
 	return err;
 }
 
-static int cpuacct_percpu_seq_read(struct cgroup_subsys_state *css,
-				   struct cftype *cft, struct seq_file *m)
+static int cpuacct_percpu_seq_show(struct seq_file *m, void *V)
 {
-	struct cpuacct *ca = css_ca(css);
+	struct cpuacct *ca = css_ca(seq_css(m));
 	u64 percpu;
 	int i;
 
@@ -183,10 +182,9 @@ static const char * const cpuacct_stat_desc[] = {
 	[CPUACCT_STAT_SYSTEM] = "system",
 };
 
-static int cpuacct_stats_show(struct cgroup_subsys_state *css,
-			      struct cftype *cft, struct cgroup_map_cb *cb)
+static int cpuacct_stats_show(struct seq_file *sf, void *v)
 {
-	struct cpuacct *ca = css_ca(css);
+	struct cpuacct *ca = css_ca(seq_css(sf));
 	int cpu;
 	s64 val = 0;
 
@@ -196,7 +194,7 @@ static int cpuacct_stats_show(struct cgroup_subsys_state *css,
 		val += kcpustat->cpustat[CPUTIME_NICE];
 	}
 	val = cputime64_to_clock_t(val);
-	cb->fill(cb, cpuacct_stat_desc[CPUACCT_STAT_USER], val);
+	seq_printf(sf, "%s %lld\n", cpuacct_stat_desc[CPUACCT_STAT_USER], val);
 
 	val = 0;
 	for_each_online_cpu(cpu) {
@@ -207,7 +205,7 @@ static int cpuacct_stats_show(struct cgroup_subsys_state *css,
 	}
 
 	val = cputime64_to_clock_t(val);
-	cb->fill(cb, cpuacct_stat_desc[CPUACCT_STAT_SYSTEM], val);
+	seq_printf(sf, "%s %lld\n", cpuacct_stat_desc[CPUACCT_STAT_SYSTEM], val);
 
 	return 0;
 }
@@ -220,11 +218,11 @@ static struct cftype files[] = {
 	},
 	{
 		.name = "usage_percpu",
-		.read_seq_string = cpuacct_percpu_seq_read,
+		.seq_show = cpuacct_percpu_seq_show,
 	},
 	{
 		.name = "stat",
-		.read_map = cpuacct_stats_show,
+		.seq_show = cpuacct_stats_show,
 	},
 	{ }	/* terminate */
 };
@@ -277,11 +275,9 @@ void cpuacct_account_field(struct task_struct *p, int index, u64 val)
 	rcu_read_unlock();
 }
 
-struct cgroup_subsys cpuacct_subsys = {
-	.name		= "cpuacct",
+struct cgroup_subsys cpuacct_cgrp_subsys = {
 	.css_alloc	= cpuacct_css_alloc,
 	.css_free	= cpuacct_css_free,
-	.subsys_id	= cpuacct_subsys_id,
 	.base_cftypes	= files,
 	.early_init	= 1,
 };

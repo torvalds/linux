@@ -214,8 +214,8 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	struct snd_wss *wss;
 	struct snd_gusmax *maxcard;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_gusmax), &card);
+	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_gusmax), &card);
 	if (err < 0)
 		return err;
 	card->private_free = snd_gusmax_free;
@@ -336,8 +336,6 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	sprintf(card->longname + strlen(card->longname), " at 0x%lx, irq %i, dma %i", gus->gf1.port, xirq, xdma1);
 	if (xdma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%i", xdma2);
-
-	snd_card_set_dev(card, pdev);
 
 	err = snd_card_register(card);
 	if (err < 0)

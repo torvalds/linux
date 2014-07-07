@@ -281,17 +281,14 @@ struct sdhci_ops {
 	unsigned int	(*get_max_clock)(struct sdhci_host *host);
 	unsigned int	(*get_min_clock)(struct sdhci_host *host);
 	unsigned int	(*get_timeout_clock)(struct sdhci_host *host);
-	int		(*platform_bus_width)(struct sdhci_host *host,
-					       int width);
+	void		(*set_bus_width)(struct sdhci_host *host, int width);
 	void (*platform_send_init_74_clocks)(struct sdhci_host *host,
 					     u8 power_mode);
 	unsigned int    (*get_ro)(struct sdhci_host *host);
-	void	(*platform_reset_enter)(struct sdhci_host *host, u8 mask);
-	void	(*platform_reset_exit)(struct sdhci_host *host, u8 mask);
-	int	(*set_uhs_signaling)(struct sdhci_host *host, unsigned int uhs);
+	void		(*reset)(struct sdhci_host *host, u8 mask);
+	int	(*platform_execute_tuning)(struct sdhci_host *host, u32 opcode);
+	void	(*set_uhs_signaling)(struct sdhci_host *host, unsigned int uhs);
 	void	(*hw_reset)(struct sdhci_host *host);
-	void	(*platform_suspend)(struct sdhci_host *host);
-	void	(*platform_resume)(struct sdhci_host *host);
 	void    (*adma_workaround)(struct sdhci_host *host, u32 intmask);
 	void	(*platform_init)(struct sdhci_host *host);
 	void    (*card_event)(struct sdhci_host *host);
@@ -393,6 +390,18 @@ static inline void *sdhci_priv(struct sdhci_host *host)
 extern void sdhci_card_detect(struct sdhci_host *host);
 extern int sdhci_add_host(struct sdhci_host *host);
 extern void sdhci_remove_host(struct sdhci_host *host, int dead);
+extern void sdhci_send_command(struct sdhci_host *host,
+				struct mmc_command *cmd);
+
+static inline bool sdhci_sdio_irq_enabled(struct sdhci_host *host)
+{
+	return !!(host->flags & SDHCI_SDIO_IRQ_ENABLED);
+}
+
+void sdhci_set_clock(struct sdhci_host *host, unsigned int clock);
+void sdhci_set_bus_width(struct sdhci_host *host, int width);
+void sdhci_reset(struct sdhci_host *host, u8 mask);
+void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing);
 
 #ifdef CONFIG_PM
 extern int sdhci_suspend_host(struct sdhci_host *host);

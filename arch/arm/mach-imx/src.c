@@ -91,6 +91,7 @@ void imx_enable_cpu(int cpu, bool enable)
 	spin_lock(&scr_lock);
 	val = readl_relaxed(src_base + SRC_SCR);
 	val = enable ? val | mask : val & ~mask;
+	val |= 1 << (BP_SRC_SCR_CORE1_RST + cpu - 1);
 	writel_relaxed(val, src_base + SRC_SCR);
 	spin_unlock(&scr_lock);
 }
@@ -112,21 +113,6 @@ void imx_set_cpu_arg(int cpu, u32 arg)
 {
 	cpu = cpu_logical_map(cpu);
 	writel_relaxed(arg, src_base + SRC_GPR1 + cpu * 8 + 4);
-}
-
-void imx_src_prepare_restart(void)
-{
-	u32 val;
-
-	/* clear enable bits of secondary cores */
-	spin_lock(&scr_lock);
-	val = readl_relaxed(src_base + SRC_SCR);
-	val &= ~(0x7 << BP_SRC_SCR_CORE1_ENABLE);
-	writel_relaxed(val, src_base + SRC_SCR);
-	spin_unlock(&scr_lock);
-
-	/* clear persistent entry register of primary core */
-	writel_relaxed(0, src_base + SRC_GPR1);
 }
 
 void __init imx_src_init(void)

@@ -255,7 +255,7 @@ static struct miscdevice mv64x60_wdt_miscdev = {
 
 static int mv64x60_wdt_probe(struct platform_device *dev)
 {
-	struct mv64x60_wdt_pdata *pdata = dev->dev.platform_data;
+	struct mv64x60_wdt_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct resource *r;
 	int timeout = 10;
 
@@ -323,5 +323,4 @@ module_exit(mv64x60_wdt_exit);
 MODULE_AUTHOR("James Chapman <jchapman@katalix.com>");
 MODULE_DESCRIPTION("MV64x60 watchdog driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:" MV64x60_WDT_NAME);

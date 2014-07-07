@@ -20,11 +20,14 @@ static void __dma_tx_complete(void *param)
 	struct uart_8250_port	*p = param;
 	struct uart_8250_dma	*dma = p->dma;
 	struct circ_buf		*xmit = &p->port.state->xmit;
-
-	dma->tx_running = 0;
+	unsigned long	flags;
 
 	dma_sync_single_for_cpu(dma->txchan->device->dev, dma->tx_addr,
 				UART_XMIT_SIZE, DMA_TO_DEVICE);
+
+	spin_lock_irqsave(&p->port.lock, flags);
+
+	dma->tx_running = 0;
 
 	xmit->tail += dma->tx_size;
 	xmit->tail &= UART_XMIT_SIZE - 1;
@@ -35,6 +38,8 @@ static void __dma_tx_complete(void *param)
 
 	if (!uart_circ_empty(xmit) && !uart_tx_stopped(&p->port))
 		serial8250_tx_dma(p);
+
+	spin_unlock_irqrestore(&p->port.lock, flags);
 }
 
 static void __dma_rx_complete(void *param)
@@ -187,21 +192,28 @@ int serial8250_request_dma(struct uart_8250_port *p)
 
 	dma->rx_buf = dma_alloc_coherent(dma->rxchan->device->dev, dma->rx_size,
 					&dma->rx_addr, GFP_KERNEL);
-	if (!dma->rx_buf) {
-		dma_release_channel(dma->rxchan);
-		dma_release_channel(dma->txchan);
-		return -ENOMEM;
-	}
+	if (!dma->rx_buf)
+		goto err;
 
 	/* TX buffer */
 	dma->tx_addr = dma_map_single(dma->txchan->device->dev,
 					p->port.state->xmit.buf,
 					UART_XMIT_SIZE,
 					DMA_TO_DEVICE);
+	if (dma_mapping_error(dma->txchan->device->dev, dma->tx_addr)) {
+		dma_free_coherent(dma->rxchan->device->dev, dma->rx_size,
+				  dma->rx_buf, dma->rx_addr);
+		goto err;
+	}
 
 	dev_dbg_ratelimited(p->port.dev, "got both dma channels\n");
 
 	return 0;
+err:
+	dma_release_channel(dma->rxchan);
+	dma_release_channel(dma->txchan);
+
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(serial8250_request_dma);
 

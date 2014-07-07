@@ -178,6 +178,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	i = 0;
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
 		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, v[i],
+					       (type == PCI_CAP_ID_MSI) ? nvec : 1,
 					       (type == PCI_CAP_ID_MSIX) ?
 					       "pcifront-msi-x" :
 					       "pcifront-msi",
@@ -245,6 +246,7 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 				"xen: msi already bound to pirq=%d\n", pirq);
 		}
 		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, pirq,
+					       (type == PCI_CAP_ID_MSI) ? nvec : 1,
 					       (type == PCI_CAP_ID_MSIX) ?
 					       "msi-x" : "msi",
 					       DOMID_SELF);
@@ -269,9 +271,6 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	int ret = 0;
 	struct msi_desc *msidesc;
 
-	if (type == PCI_CAP_ID_MSI && nvec > 1)
-		return 1;
-
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
 		struct physdev_map_pirq map_irq;
 		domid_t domid;
@@ -291,7 +290,10 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			      (pci_domain_nr(dev->bus) << 16);
 		map_irq.devfn = dev->devfn;
 
-		if (type == PCI_CAP_ID_MSIX) {
+		if (type == PCI_CAP_ID_MSI && nvec > 1) {
+			map_irq.type = MAP_PIRQ_TYPE_MULTI_MSI;
+			map_irq.entry_nr = nvec;
+		} else if (type == PCI_CAP_ID_MSIX) {
 			int pos;
 			u32 table_offset, bir;
 
@@ -308,6 +310,16 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		if (pci_seg_supported)
 			ret = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq,
 						    &map_irq);
+		if (type == PCI_CAP_ID_MSI && nvec > 1 && ret) {
+			/*
+			 * If MAP_PIRQ_TYPE_MULTI_MSI is not available
+			 * there's nothing else we can do in this case.
+			 * Just set ret > 0 so driver can retry with
+			 * single MSI.
+			 */
+			ret = 1;
+			goto out;
+		}
 		if (ret == -EINVAL && !pci_domain_nr(dev->bus)) {
 			map_irq.type = MAP_PIRQ_TYPE_MSI;
 			map_irq.index = -1;
@@ -324,11 +336,10 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			goto out;
 		}
 
-		ret = xen_bind_pirq_msi_to_irq(dev, msidesc,
-					       map_irq.pirq,
-					       (type == PCI_CAP_ID_MSIX) ?
-					       "msi-x" : "msi",
-						domid);
+		ret = xen_bind_pirq_msi_to_irq(dev, msidesc, map_irq.pirq,
+		                               (type == PCI_CAP_ID_MSI) ? nvec : 1,
+		                               (type == PCI_CAP_ID_MSIX) ? "msi-x" : "msi",
+		                               domid);
 		if (ret < 0)
 			goto out;
 	}
@@ -337,7 +348,7 @@ out:
 	return ret;
 }
 
-static void xen_initdom_restore_msi_irqs(struct pci_dev *dev, int irq)
+static void xen_initdom_restore_msi_irqs(struct pci_dev *dev)
 {
 	int ret = 0;
 
@@ -382,7 +393,14 @@ static void xen_teardown_msi_irq(unsigned int irq)
 {
 	xen_destroy_irq(irq);
 }
-
+static u32 xen_nop_msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
+{
+	return 0;
+}
+static u32 xen_nop_msix_mask_irq(struct msi_desc *desc, u32 flag)
+{
+	return 0;
+}
 #endif
 
 int __init pci_xen_init(void)
@@ -406,6 +424,8 @@ int __init pci_xen_init(void)
 	x86_msi.setup_msi_irqs = xen_setup_msi_irqs;
 	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
 	x86_msi.teardown_msi_irqs = xen_teardown_msi_irqs;
+	x86_msi.msi_mask_irq = xen_nop_msi_mask_irq;
+	x86_msi.msix_mask_irq = xen_nop_msix_mask_irq;
 #endif
 	return 0;
 }
@@ -485,6 +505,8 @@ int __init pci_xen_initial_domain(void)
 	x86_msi.setup_msi_irqs = xen_initdom_setup_msi_irqs;
 	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
 	x86_msi.restore_msi_irqs = xen_initdom_restore_msi_irqs;
+	x86_msi.msi_mask_irq = xen_nop_msi_mask_irq;
+	x86_msi.msix_mask_irq = xen_nop_msix_mask_irq;
 #endif
 	xen_setup_acpi_sci();
 	__acpi_register_gsi = acpi_register_gsi_xen;

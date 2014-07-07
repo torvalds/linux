@@ -361,7 +361,7 @@ static int wm8350_dcdc_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 
 	sel = regulator_map_voltage_linear(rdev, uV, uV);
 	if (sel < 0)
-		return -EINVAL;
+		return sel;
 
 	/* all DCDCs have same mV bits */
 	val = wm8350_reg_read(wm8350, volt_reg) & ~WM8350_DC1_VSEL_MASK;
@@ -543,10 +543,8 @@ static int wm8350_dcdc_set_suspend_mode(struct regulator_dev *rdev,
 }
 
 static const struct regulator_linear_range wm8350_ldo_ranges[] = {
-	{ .min_uV =  900000, .max_uV = 1650000, .min_sel =  0, .max_sel = 15,
-	  .uV_step =  50000 },
-	{ .min_uV = 1800000, .max_uV = 3300000, .min_sel = 16, .max_sel = 31,
-	  .uV_step = 100000 },
+	REGULATOR_LINEAR_RANGE(900000, 0, 15, 50000),
+	REGULATOR_LINEAR_RANGE(1800000, 16, 31, 100000),
 };
 
 static int wm8350_ldo_set_suspend_voltage(struct regulator_dev *rdev, int uV)
@@ -576,7 +574,7 @@ static int wm8350_ldo_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 
 	sel = regulator_map_voltage_linear_range(rdev, uV, uV);
 	if (sel < 0)
-		return -EINVAL;
+		return sel;
 
 	/* all LDOs have same mV bits */
 	val = wm8350_reg_read(wm8350, volt_reg) & ~WM8350_LDO1_VSEL_MASK;
@@ -1206,7 +1204,8 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	config.regmap = wm8350->regmap;
 
 	/* register regulator */
-	rdev = regulator_register(&wm8350_reg[pdev->id], &config);
+	rdev = devm_regulator_register(&pdev->dev, &wm8350_reg[pdev->id],
+				       &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register %s\n",
 			wm8350_reg[pdev->id].name);
@@ -1217,7 +1216,6 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	ret = wm8350_register_irq(wm8350, wm8350_reg[pdev->id].irq,
 				  pmic_uv_handler, 0, "UV", rdev);
 	if (ret < 0) {
-		regulator_unregister(rdev);
 		dev_err(&pdev->dev, "failed to register regulator %s IRQ\n",
 			wm8350_reg[pdev->id].name);
 		return ret;
@@ -1232,8 +1230,6 @@ static int wm8350_regulator_remove(struct platform_device *pdev)
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
 	wm8350_free_irq(wm8350, wm8350_reg[pdev->id].irq, rdev);
-
-	regulator_unregister(rdev);
 
 	return 0;
 }

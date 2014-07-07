@@ -72,7 +72,6 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 	u32 h2c_cmd_ex = 0;
 	s32 ret = _FAIL;
 
-_func_enter_;
 
 	if (!adapt->bFWReady) {
 		DBG_88E("FillH2CCmd_88E(): return H2C cmd because fw is not ready\n");
@@ -125,7 +124,6 @@ _func_enter_;
 
 exit:
 
-_func_exit_;
 
 	return ret;
 }
@@ -134,7 +132,6 @@ u8 rtl8188e_set_rssi_cmd(struct adapter *adapt, u8 *param)
 {
 	u8 res = _SUCCESS;
 	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
-_func_enter_;
 
 	if (haldata->fw_ractrl) {
 		;
@@ -143,7 +140,6 @@ _func_enter_;
 		res = _FAIL;
 	}
 
-_func_exit_;
 
 	return res;
 }
@@ -154,7 +150,6 @@ u8 rtl8188e_set_raid_cmd(struct adapter *adapt, u32 mask)
 	u8 res = _SUCCESS;
 	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
 
-_func_enter_;
 	if (haldata->fw_ractrl) {
 		__le32 lmask;
 
@@ -168,7 +163,6 @@ _func_enter_;
 		res = _FAIL;
 	}
 
-_func_exit_;
 
 	return res;
 }
@@ -215,7 +209,6 @@ void rtl8188e_set_FwPwrMode_cmd(struct adapter *adapt, u8 Mode)
 	struct setpwrmode_parm H2CSetPwrMode;
 	struct pwrctrl_priv *pwrpriv = &adapt->pwrctrlpriv;
 	u8 RLBM = 0; /*  0:Min, 1:Max, 2:User define */
-_func_enter_;
 
 	DBG_88E("%s: Mode=%d SmartPS=%d UAPSD=%d\n", __func__,
 		Mode, pwrpriv->smart_ps, adapt->registrypriv.uapsd_enable);
@@ -256,7 +249,6 @@ _func_enter_;
 
 	FillH2CCmd_88E(adapt, H2C_PS_PWR_MODE, sizeof(H2CSetPwrMode), (u8 *)&H2CSetPwrMode);
 
-_func_exit_;
 }
 
 void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt)
@@ -273,7 +265,7 @@ void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt)
 static void ConstructBeacon(struct adapter *adapt, u8 *pframe, u32 *pLength)
 {
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	u32 rate_len, pktlen;
 	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
@@ -360,7 +352,7 @@ static void ConstructPSPoll(struct adapter *adapt, u8 *pframe, u32 *pLength)
 	struct rtw_ieee80211_hdr	*pwlanhdr;
 	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u16 *fctrl;
+	__le16 *fctrl;
 
 	pwlanhdr = (struct rtw_ieee80211_hdr *)pframe;
 
@@ -391,7 +383,7 @@ static void ConstructNullFunctionData(struct adapter *adapt, u8 *pframe,
 	u8 bForcePowerSave)
 {
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	u32 pktlen;
 	struct mlme_priv *pmlmepriv = &adapt->mlmepriv;
 	struct wlan_network		*cur_network = &pmlmepriv->cur_network;
@@ -450,7 +442,7 @@ static void ConstructNullFunctionData(struct adapter *adapt, u8 *pframe,
 static void ConstructProbeRsp(struct adapter *adapt, u8 *pframe, u32 *pLength, u8 *StaAddr, bool bHideSSID)
 {
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	u8 *mac, *bssid;
 	u32 pktlen;
 	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
@@ -484,7 +476,7 @@ static void ConstructProbeRsp(struct adapter *adapt, u8 *pframe, u32 *pLength, u
 	*pLength = pktlen;
 }
 
-/*  To check if reserved page content is destroyed by beacon beacuse beacon is too large. */
+/*  To check if reserved page content is destroyed by beacon because beacon is too large. */
 /*  2010.06.23. Added by tynli. */
 void CheckFwRsvdPageContent(struct adapter *Adapter)
 {
@@ -496,9 +488,9 @@ void CheckFwRsvdPageContent(struct adapter *Adapter)
 /*			(1)Beacon, (2)Ps-poll, (3)Null data, (4)ProbeRsp. */
 /*	Input: */
 /*	    bDLFinished - false: At the first time we will send all the packets as a large packet to Hw, */
-/*						so we need to set the packet length to total lengh. */
+/*						so we need to set the packet length to total length. */
 /*			      true: At the second time, we should send the first packet (default:beacon) */
-/*						to Hw again and set the lengh in descriptor to the real beacon lengh. */
+/*						to Hw again and set the length in descriptor to the real beacon length. */
 /*  2009.10.15 by tynli. */
 static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 {
@@ -617,7 +609,6 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 	u8 DLBcnCount = 0;
 	u32 poll = 0;
 
-_func_enter_;
 
 	DBG_88E("%s mstatus(%x)\n", __func__, mstatus);
 
@@ -655,8 +646,8 @@ _func_enter_;
 			SetFwRsvdPagePkt(adapt, false);
 			DLBcnCount++;
 			do {
-				rtw_yield_os();
-				/* rtw_mdelay_os(10); */
+				yield();
+				/* mdelay(10); */
 				/*  check rsvd page download OK. */
 				rtw_hal_get_hwreg(adapt, HW_VAR_BCN_VALID, (u8 *)(&bcn_valid));
 				poll++;
@@ -671,7 +662,7 @@ _func_enter_;
 			DBG_88E("%s: 1 Download RSVD success! DLBcnCount:%u, poll:%u\n", __func__, DLBcnCount, poll);
 		/*  */
 		/*  We just can send the reserved page twice during the time that Tx thread is stopped (e.g. pnpsetpower) */
-		/*  becuase we need to free the Tx BCN Desc which is used by the first reserved page packet. */
+		/*  because we need to free the Tx BCN Desc which is used by the first reserved page packet. */
 		/*  At run time, we cannot get the Tx Desc until it is released in TxHandleInterrupt() so we will return */
 		/*  the beacon TCB in the following code. 2011.11.23. by tynli. */
 		/*  */
@@ -701,7 +692,6 @@ _func_enter_;
 		haldata->RegCR_1 &= (~BIT0);
 		rtw_write8(adapt,  REG_CR+1, haldata->RegCR_1);
 	}
-_func_exit_;
 }
 
 void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state)
@@ -712,7 +702,6 @@ void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state)
 	struct P2P_PS_Offload_t	*p2p_ps_offload = &haldata->p2p_ps_offload;
 	u8 i;
 
-_func_enter_;
 
 	switch (p2p_ps_state) {
 	case P2P_PS_DISABLE:
@@ -775,5 +764,4 @@ _func_enter_;
 	FillH2CCmd_88E(adapt, H2C_PS_P2P_OFFLOAD, 1, (u8 *)p2p_ps_offload);
 #endif
 
-_func_exit_;
 }

@@ -19,7 +19,6 @@
 
 #include <asm/cache.h>
 #include <asm/asm-offsets.h>
-#include <asm/hardware/cache-l2x0.h>
 
 #include "flowctrl.h"
 #include "fuse.h"
@@ -45,17 +44,11 @@
 ENTRY(tegra_resume)
 	check_cpu_part_num 0xc09, r8, r9
 	bleq	v7_invalidate_l1
-	blne	tegra_init_l2_for_a15
 
 	cpu_id	r0
-	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
-	cmp	r6, #TEGRA114
-	beq	no_cpu0_chk
-
 	cmp	r0, #0				@ CPU0?
  THUMB(	it	ne )
 	bne	cpu_resume			@ no
-no_cpu0_chk:
 
 	/* Are we on Tegra20? */
 	cmp	r6, #TEGRA20
@@ -75,7 +68,7 @@ no_cpu0_chk:
 
 	mov32	r9, 0xc09
 	cmp	r8, r9
-	bne	not_ca9
+	bne	end_ca9_scu_l2_resume
 #ifdef CONFIG_HAVE_ARM_SCU
 	/* enable SCU */
 	mov32	r0, TEGRA_ARM_PERIF_BASE
@@ -84,18 +77,17 @@ no_cpu0_chk:
 	str	r1, [r0]
 #endif
 
+#ifdef CONFIG_CACHE_L2X0
 	/* L2 cache resume & re-enable */
-	l2_cache_resume r0, r1, r2, l2x0_saved_regs_addr
-not_ca9:
+	bl	l2c310_early_resume
+#endif
+end_ca9_scu_l2_resume:
+	mov32	r9, 0xc0f
+	cmp	r8, r9
+	bleq	tegra_init_l2_for_a15
 
 	b	cpu_resume
 ENDPROC(tegra_resume)
-#endif
-
-#ifdef CONFIG_CACHE_L2X0
-	.globl	l2x0_saved_regs_addr
-l2x0_saved_regs_addr:
-	.long	0
 #endif
 
 	.align L1_CACHE_SHIFT

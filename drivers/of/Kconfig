@@ -7,19 +7,12 @@ config OF
 menu "Device Tree and Open Firmware support"
 	depends on OF
 
-config PROC_DEVICETREE
-	bool "Support for device tree in /proc"
-	depends on PROC_FS && !SPARC
-	help
-	  This option adds a device-tree directory under /proc which contains
-	  an image of the device tree that the kernel copies from Open
-	  Firmware or other boot firmware. If unsure, say Y here.
-
 config OF_SELFTEST
 	bool "Device Tree Runtime self tests"
+	depends on OF_IRQ
 	help
 	  This option builds in test cases for the device tree infrastructure
-	  that are executed one at boot time, and the results dumped to the
+	  that are executed once at boot time, and the results dumped to the
 	  console.
 
 	  If unsure, say N here, but this option is safe to enable.
@@ -27,6 +20,7 @@ config OF_SELFTEST
 config OF_FLATTREE
 	bool
 	select DTC
+	select LIBFDT
 
 config OF_EARLY_FLATTREE
 	bool
@@ -43,6 +37,10 @@ config OF_DYNAMIC
 config OF_ADDRESS
 	def_bool y
 	depends on !SPARC
+	select OF_ADDRESS_PCI if PCI
+
+config OF_ADDRESS_PCI
+	bool
 
 config OF_IRQ
 	def_bool y
@@ -75,9 +73,9 @@ config OF_MTD
 	def_bool y
 
 config OF_RESERVED_MEM
-	depends on OF_FLATTREE && (DMA_CMA || (HAVE_GENERIC_DMA_COHERENT && HAVE_MEMBLOCK))
-	def_bool y
+	depends on OF_EARLY_FLATTREE
+	bool
 	help
-	  Initialization code for DMA reserved memory
+	  Helpers to allow for reservation of memory regions
 
 endmenu # OF

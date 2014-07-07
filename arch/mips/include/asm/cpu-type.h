@@ -20,6 +20,10 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_LOONGSON2:
 #endif
 
+#ifdef CONFIG_SYS_HAS_CPU_LOONGSON3
+	case CPU_LOONGSON3:
+#endif
+
 #ifdef CONFIG_SYS_HAS_CPU_LOONGSON1B
 	case CPU_LOONGSON1:
 #endif
@@ -27,10 +31,7 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 #ifdef CONFIG_SYS_HAS_CPU_MIPS32_R1
 	case CPU_4KC:
 	case CPU_ALCHEMY:
-	case CPU_BMIPS3300:
-	case CPU_BMIPS4350:
 	case CPU_PR4450:
-	case CPU_BMIPS32:
 	case CPU_JZRISC:
 #endif
 
@@ -47,6 +48,10 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_74K:
 	case CPU_M14KC:
 	case CPU_M14KEC:
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
+	case CPU_P5600:
+	case CPU_M5150:
 #endif
 
 #ifdef CONFIG_SYS_HAS_CPU_MIPS64_R1
@@ -150,9 +155,6 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_RM7000:
 	case CPU_SR71000:
 #endif
-#ifdef CONFIG_SYS_HAS_CPU_RM9000
-	case CPU_RM9000:
-#endif
 #ifdef CONFIG_SYS_HAS_CPU_SB1
 	case CPU_SB1:
 	case CPU_SB1A:
@@ -161,6 +163,17 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_CAVIUM_OCTEON:
 	case CPU_CAVIUM_OCTEON_PLUS:
 	case CPU_CAVIUM_OCTEON2:
+	case CPU_CAVIUM_OCTEON3:
+#endif
+
+#if defined(CONFIG_SYS_HAS_CPU_BMIPS32_3300) || \
+	defined (CONFIG_SYS_HAS_CPU_MIPS32_R1)
+	case CPU_BMIPS32:
+	case CPU_BMIPS3300:
+#endif
+
+#ifdef CONFIG_SYS_HAS_CPU_BMIPS4350
+	case CPU_BMIPS4350:
 #endif
 
 #ifdef CONFIG_SYS_HAS_CPU_BMIPS4380

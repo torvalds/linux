@@ -9,7 +9,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
@@ -529,6 +528,7 @@ static const struct net_device_ops bfin_can_netdev_ops = {
 	.ndo_open               = bfin_can_open,
 	.ndo_stop               = bfin_can_close,
 	.ndo_start_xmit         = bfin_can_start_xmit,
+	.ndo_change_mtu         = can_change_mtu,
 };
 
 static int bfin_can_probe(struct platform_device *pdev)
@@ -539,7 +539,7 @@ static int bfin_can_probe(struct platform_device *pdev)
 	struct resource *res_mem, *rx_irq, *tx_irq, *err_irq;
 	unsigned short *pdata;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "No platform data provided!\n");
 		err = -EINVAL;

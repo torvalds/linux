@@ -220,7 +220,7 @@ int cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	LASSERT(spin_is_locked(cl_object_attr_guard(obj)));
+	assert_spin_locked(cl_object_attr_guard(obj));
 
 	top = obj->co_lu.lo_header;
 	result = 0;
@@ -251,7 +251,7 @@ int cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	LASSERT(spin_is_locked(cl_object_attr_guard(obj)));
+	assert_spin_locked(cl_object_attr_guard(obj));
 
 	top = obj->co_lu.lo_header;
 	result = 0;
@@ -508,7 +508,7 @@ EXPORT_SYMBOL(cl_site_stats_print);
  * about journal_info. Currently following fields in task_struct are identified
  * can be used for this purpose:
  *  - cl_env: for liblustre.
- *  - tux_info: ony on RedHat kernel.
+ *  - tux_info: only on RedHat kernel.
  *  - ...
  * \note As long as we use task_struct to store cl_env, we assume that once
  * called into Lustre, we'll never call into the other part of the kernel
@@ -577,9 +577,9 @@ static void cl_env_init0(struct cl_env *cle, void *debug)
  * The implementation of using hash table to connect cl_env and thread
  */
 
-static cfs_hash_t *cl_env_hash;
+static struct cfs_hash *cl_env_hash;
 
-static unsigned cl_env_hops_hash(cfs_hash_t *lh,
+static unsigned cl_env_hops_hash(struct cfs_hash *lh,
 				 const void *key, unsigned mask)
 {
 #if BITS_PER_LONG == 64
@@ -604,7 +604,7 @@ static int cl_env_hops_keycmp(const void *key, struct hlist_node *hn)
 	return (key == cle->ce_owner);
 }
 
-static void cl_env_hops_noop(cfs_hash_t *hs, struct hlist_node *hn)
+static void cl_env_hops_noop(struct cfs_hash *hs, struct hlist_node *hn)
 {
 	struct cl_env *cle = hlist_entry(hn, struct cl_env, ce_node);
 	LASSERT(cle->ce_magic == &cl_env_init0);
@@ -684,7 +684,7 @@ static struct lu_env *cl_env_new(__u32 ctx_tags, __u32 ses_tags, void *debug)
 	struct lu_env *env;
 	struct cl_env *cle;
 
-	OBD_SLAB_ALLOC_PTR_GFP(cle, cl_env_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(cle, cl_env_kmem, GFP_NOFS);
 	if (cle != NULL) {
 		int rc;
 

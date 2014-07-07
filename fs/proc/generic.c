@@ -49,8 +49,7 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 	setattr_copy(inode, iattr);
 	mark_inode_dirty(inode);
 
-	de->uid = inode->i_uid;
-	de->gid = inode->i_gid;
+	proc_set_user(de, inode->i_uid, inode->i_gid);
 	de->mode = inode->i_mode;
 	return 0;
 }
@@ -175,22 +174,6 @@ static const struct inode_operations proc_link_inode_operations = {
 };
 
 /*
- * As some entries in /proc are volatile, we want to 
- * get rid of unused dentries.  This could be made 
- * smarter: we could keep a "volatile" flag in the 
- * inode to indicate which ones to keep.
- */
-static int proc_delete_dentry(const struct dentry * dentry)
-{
-	return 1;
-}
-
-static const struct dentry_operations proc_dentry_operations =
-{
-	.d_delete	= proc_delete_dentry,
-};
-
-/*
  * Don't create negative dentries here, return -ENOENT by hand
  * instead.
  */
@@ -209,7 +192,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 			inode = proc_get_inode(dir->i_sb, de);
 			if (!inode)
 				return ERR_PTR(-ENOMEM);
-			d_set_d_op(dentry, &proc_dentry_operations);
+			d_set_d_op(dentry, &simple_dentry_operations);
 			d_add(dentry, inode);
 			return NULL;
 		}

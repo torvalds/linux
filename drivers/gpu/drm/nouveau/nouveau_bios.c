@@ -127,8 +127,8 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_outp
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
 	if (script == LVDS_RESET &&
-	    (dev->pci_device == 0x0179 || dev->pci_device == 0x0189 ||
-	     dev->pci_device == 0x0329))
+	    (dev->pdev->device == 0x0179 || dev->pdev->device == 0x0189 ||
+	     dev->pdev->device == 0x0329))
 		nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
 #endif
 
@@ -1474,8 +1474,11 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		case 0:
 			entry->dpconf.link_bw = 162000;
 			break;
-		default:
+		case 1:
 			entry->dpconf.link_bw = 270000;
+			break;
+		default:
+			entry->dpconf.link_bw = 540000;
 			break;
 		}
 		switch ((conf & 0x0f000000) >> 24) {
@@ -2068,6 +2071,10 @@ nouveau_bios_init(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	int ret;
+
+	/* only relevant for PCI devices */
+	if (!dev->pdev)
+		return 0;
 
 	if (!NVInitVBIOS(dev))
 		return -ENODEV;

@@ -1,6 +1,7 @@
 #ifndef _LINUX_DN_H
 #define _LINUX_DN_H
 
+#include <linux/ioctl.h>
 #include <linux/types.h>
 #include <linux/if_ether.h>
 

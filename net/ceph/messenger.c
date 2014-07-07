@@ -15,6 +15,7 @@
 #include <linux/dns_resolver.h>
 #include <net/tcp.h>
 
+#include <linux/ceph/ceph_features.h>
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/messenger.h>
 #include <linux/ceph/decode.h>
@@ -382,7 +383,7 @@ static void con_sock_state_closed(struct ceph_connection *con)
  */
 
 /* data available on socket, or listen socket received a connect */
-static void ceph_sock_data_ready(struct sock *sk, int count_unused)
+static void ceph_sock_data_ready(struct sock *sk)
 {
 	struct ceph_connection *con = sk->sk_user_data;
 	if (atomic_read(&con->msgr->stopping)) {
@@ -556,7 +557,7 @@ static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 	return r;
 }
 
-static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
+static int __ceph_tcp_sendpage(struct socket *sock, struct page *page,
 		     int offset, size_t size, bool more)
 {
 	int flags = MSG_DONTWAIT | MSG_NOSIGNAL | (more ? MSG_MORE : MSG_EOR);
@@ -569,6 +570,24 @@ static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 	return ret;
 }
 
+static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
+		     int offset, size_t size, bool more)
+{
+	int ret;
+	struct kvec iov;
+
+	/* sendpage cannot properly handle pages with page_count == 0,
+	 * we need to fallback to sendmsg if that's the case */
+	if (page_count(page) >= 1)
+		return __ceph_tcp_sendpage(sock, page, offset, size, more);
+
+	iov.iov_base = kmap(page) + offset;
+	iov.iov_len = size;
+	ret = ceph_tcp_sendmsg(sock, &iov, 1, size, more);
+	kunmap(page);
+
+	return ret;
+}
 
 /*
  * Shutdown/close the socket for the given connection.
@@ -777,13 +796,12 @@ static void ceph_msg_data_bio_cursor_init(struct ceph_msg_data_cursor *cursor,
 
 	bio = data->bio;
 	BUG_ON(!bio);
-	BUG_ON(!bio->bi_vcnt);
 
 	cursor->resid = min(length, data->bio_length);
 	cursor->bio = bio;
-	cursor->vector_index = 0;
-	cursor->vector_offset = 0;
-	cursor->last_piece = length <= bio->bi_io_vec[0].bv_len;
+	cursor->bvec_iter = bio->bi_iter;
+	cursor->last_piece =
+		cursor->resid <= bio_iter_len(bio, cursor->bvec_iter);
 }
 
 static struct page *ceph_msg_data_bio_next(struct ceph_msg_data_cursor *cursor,
@@ -792,71 +810,67 @@ static struct page *ceph_msg_data_bio_next(struct ceph_msg_data_cursor *cursor,
 {
 	struct ceph_msg_data *data = cursor->data;
 	struct bio *bio;
-	struct bio_vec *bio_vec;
-	unsigned int index;
+	struct bio_vec bio_vec;
 
 	BUG_ON(data->type != CEPH_MSG_DATA_BIO);
 
 	bio = cursor->bio;
 	BUG_ON(!bio);
 
-	index = cursor->vector_index;
-	BUG_ON(index >= (unsigned int) bio->bi_vcnt);
+	bio_vec = bio_iter_iovec(bio, cursor->bvec_iter);
 
-	bio_vec = &bio->bi_io_vec[index];
-	BUG_ON(cursor->vector_offset >= bio_vec->bv_len);
-	*page_offset = (size_t) (bio_vec->bv_offset + cursor->vector_offset);
+	*page_offset = (size_t) bio_vec.bv_offset;
 	BUG_ON(*page_offset >= PAGE_SIZE);
 	if (cursor->last_piece) /* pagelist offset is always 0 */
 		*length = cursor->resid;
 	else
-		*length = (size_t) (bio_vec->bv_len - cursor->vector_offset);
+		*length = (size_t) bio_vec.bv_len;
 	BUG_ON(*length > cursor->resid);
 	BUG_ON(*page_offset + *length > PAGE_SIZE);
 
-	return bio_vec->bv_page;
+	return bio_vec.bv_page;
 }
 
 static bool ceph_msg_data_bio_advance(struct ceph_msg_data_cursor *cursor,
 					size_t bytes)
 {
 	struct bio *bio;
-	struct bio_vec *bio_vec;
-	unsigned int index;
+	struct bio_vec bio_vec;
 
 	BUG_ON(cursor->data->type != CEPH_MSG_DATA_BIO);
 
 	bio = cursor->bio;
 	BUG_ON(!bio);
 
-	index = cursor->vector_index;
-	BUG_ON(index >= (unsigned int) bio->bi_vcnt);
-	bio_vec = &bio->bi_io_vec[index];
+	bio_vec = bio_iter_iovec(bio, cursor->bvec_iter);
 
 	/* Advance the cursor offset */
 
 	BUG_ON(cursor->resid < bytes);
 	cursor->resid -= bytes;
-	cursor->vector_offset += bytes;
-	if (cursor->vector_offset < bio_vec->bv_len)
+
+	bio_advance_iter(bio, &cursor->bvec_iter, bytes);
+
+	if (bytes < bio_vec.bv_len)
 		return false;	/* more bytes to process in this segment */
-	BUG_ON(cursor->vector_offset != bio_vec->bv_len);
 
 	/* Move on to the next segment, and possibly the next bio */
 
-	if (++index == (unsigned int) bio->bi_vcnt) {
+	if (!cursor->bvec_iter.bi_size) {
 		bio = bio->bi_next;
-		index = 0;
+		cursor->bio = bio;
+		if (bio)
+			cursor->bvec_iter = bio->bi_iter;
+		else
+			memset(&cursor->bvec_iter, 0,
+			       sizeof(cursor->bvec_iter));
 	}
-	cursor->bio = bio;
-	cursor->vector_index = index;
-	cursor->vector_offset = 0;
 
 	if (!cursor->last_piece) {
 		BUG_ON(!cursor->resid);
 		BUG_ON(!bio);
 		/* A short read is OK, so use <= rather than == */
-		if (cursor->resid <= bio->bi_io_vec[index].bv_len)
+		if (cursor->resid <= bio_iter_len(bio, cursor->bvec_iter))
 			cursor->last_piece = true;
 	}
 
@@ -922,6 +936,9 @@ static bool ceph_msg_data_pages_advance(struct ceph_msg_data_cursor *cursor,
 	cursor->page_offset = (cursor->page_offset + bytes) & ~PAGE_MASK;
 	if (!bytes || cursor->page_offset)
 		return false;	/* more bytes to process in the current page */
+
+	if (!cursor->resid)
+		return false;   /* no more data */
 
 	/* Move on to the next page; offset is already at 0 */
 
@@ -1007,6 +1024,9 @@ static bool ceph_msg_data_pagelist_advance(struct ceph_msg_data_cursor *cursor,
 	/* offset of first page in pagelist is always 0 */
 	if (!bytes || cursor->offset & ~PAGE_MASK)
 		return false;	/* more bytes to process in the current page */
+
+	if (!cursor->resid)
+		return false;   /* no more data */
 
 	/* Move on to the next page */
 
@@ -1865,7 +1885,9 @@ int ceph_parse_ips(const char *c, const char *end,
 				port = (port * 10) + (*p - '0');
 				p++;
 			}
-			if (port > 65535 || port == 0)
+			if (port == 0)
+				port = CEPH_MON_PORT;
+			else if (port > 65535)
 				goto bad;
 		} else {
 			port = CEPH_MON_PORT;
@@ -1945,7 +1967,8 @@ static int process_connect(struct ceph_connection *con)
 {
 	u64 sup_feat = con->msgr->supported_features;
 	u64 req_feat = con->msgr->required_features;
-	u64 server_feat = le64_to_cpu(con->in_reply.features);
+	u64 server_feat = ceph_sanitize_features(
+				le64_to_cpu(con->in_reply.features));
 	int ret;
 
 	dout("process_connect on %p tag %d\n", con, (int)con->in_tag);
@@ -2853,8 +2876,8 @@ static void con_fault(struct ceph_connection *con)
  */
 void ceph_messenger_init(struct ceph_messenger *msgr,
 			struct ceph_entity_addr *myaddr,
-			u32 supported_features,
-			u32 required_features,
+			u64 supported_features,
+			u64 required_features,
 			bool nocrc)
 {
 	msgr->supported_features = supported_features;
@@ -3126,15 +3149,8 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 	INIT_LIST_HEAD(&m->data);
 
 	/* front */
-	m->front_max = front_len;
 	if (front_len) {
-		if (front_len > PAGE_CACHE_SIZE) {
-			m->front.iov_base = __vmalloc(front_len, flags,
-						      PAGE_KERNEL);
-			m->front_is_vmalloc = true;
-		} else {
-			m->front.iov_base = kmalloc(front_len, flags);
-		}
+		m->front.iov_base = ceph_kvmalloc(front_len, flags);
 		if (m->front.iov_base == NULL) {
 			dout("ceph_msg_new can't allocate %d bytes\n",
 			     front_len);
@@ -3143,7 +3159,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 	} else {
 		m->front.iov_base = NULL;
 	}
-	m->front.iov_len = front_len;
+	m->front_alloc_len = m->front.iov_len = front_len;
 
 	dout("ceph_msg_new %p front %d\n", m, front_len);
 	return m;
@@ -3256,10 +3272,7 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 void ceph_msg_kfree(struct ceph_msg *m)
 {
 	dout("msg_kfree %p\n", m);
-	if (m->front_is_vmalloc)
-		vfree(m->front.iov_base);
-	else
-		kfree(m->front.iov_base);
+	ceph_kvfree(m->front.iov_base);
 	kmem_cache_free(ceph_msg_cache, m);
 }
 
@@ -3301,8 +3314,8 @@ EXPORT_SYMBOL(ceph_msg_last_put);
 
 void ceph_msg_dump(struct ceph_msg *msg)
 {
-	pr_debug("msg_dump %p (front_max %d length %zd)\n", msg,
-		 msg->front_max, msg->data_length);
+	pr_debug("msg_dump %p (front_alloc_len %d length %zd)\n", msg,
+		 msg->front_alloc_len, msg->data_length);
 	print_hex_dump(KERN_DEBUG, "header: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       &msg->hdr, sizeof(msg->hdr), true);

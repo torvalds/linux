@@ -103,13 +103,6 @@ static void sb1250_smp_finish(void)
 }
 
 /*
- * Final cleanup after all secondaries booted
- */
-static void sb1250_cpus_done(void)
-{
-}
-
-/*
  * Setup the PC, SP, and GP of a secondary processor and start it
  * running!
  */
@@ -158,7 +151,6 @@ struct plat_smp_ops sb_smp_ops = {
 	.send_ipi_mask		= sb1250_send_ipi_mask,
 	.init_secondary		= sb1250_init_secondary,
 	.smp_finish		= sb1250_smp_finish,
-	.cpus_done		= sb1250_cpus_done,
 	.boot_secondary		= sb1250_boot_secondary,
 	.smp_setup		= sb1250_smp_setup,
 	.prepare_cpus		= sb1250_prepare_cpus,
@@ -170,7 +162,7 @@ void sb1250_mailbox_interrupt(void)
 	int irq = K_INT_MBOX_0;
 	unsigned int action;
 
-	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
+	kstat_incr_irq_this_cpu(irq);
 	/* Load the mailbox register to figure out what we're supposed to do */
 	action = (____raw_readq(mailbox_regs[cpu]) >> 48) & 0xffff;
 

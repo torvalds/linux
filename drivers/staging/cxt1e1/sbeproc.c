@@ -44,7 +44,7 @@ void sbecom_proc_brd_cleanup(ci_t *ci)
 static void sbecom_proc_get_brdinfo(ci_t *ci, struct sbe_brd_info *bip)
 {
 	hdw_info_t *hi = &hdw_info[ci->brdno];
-	u_int8_t *bsn = 0;
+	u_int8_t *bsn = NULL;
 
 	switch (hi->promfmt)
 	{
@@ -72,7 +72,8 @@ static int sbecom_proc_get_sbe_info(struct seq_file *m, void *v)
 	char       *spd;
 	struct sbe_brd_info *bip;
 
-	if (!(bip = OS_kmalloc(sizeof(struct sbe_brd_info))))
+	bip = kzalloc(sizeof(struct sbe_brd_info), GFP_KERNEL | GFP_DMA);
+	if (!bip)
 		return -ENOMEM;
 
 	pr_devel(">> sbecom_proc_get_sbe_info: entered\n");
@@ -150,7 +151,6 @@ static int sbecom_proc_get_sbe_info(struct seq_file *m, void *v)
 		break;
 	}
 	seq_printf(m, "PCI Bus Speed: %s\n", spd);
-	seq_printf(m, "Release:       %s\n", ci->release);
 
 #ifdef SBE_PMCC4_ENABLE
 	{

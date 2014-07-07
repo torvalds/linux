@@ -11,25 +11,26 @@
  *  This file contains the ARM-specific time handling details:
  *  reading the RTC at bootup, etc...
  */
-#include <linux/export.h>
-#include <linux/kernel.h>
-#include <linux/interrupt.h>
-#include <linux/time.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/smp.h>
-#include <linux/timex.h>
-#include <linux/errno.h>
-#include <linux/profile.h>
-#include <linux/timer.h>
+#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
+#include <linux/errno.h>
+#include <linux/export.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/profile.h>
+#include <linux/sched.h>
 #include <linux/sched_clock.h>
+#include <linux/smp.h>
+#include <linux/time.h>
+#include <linux/timex.h>
+#include <linux/timer.h>
 
-#include <asm/thread_info.h>
-#include <asm/stacktrace.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include <asm/stacktrace.h>
+#include <asm/thread_info.h>
 
 #if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE) || \
     defined(CONFIG_NVRAM) || defined(CONFIG_NVRAM_MODULE)
@@ -116,8 +117,12 @@ int __init register_persistent_clock(clock_access_fn read_boot,
 
 void __init time_init(void)
 {
-	if (machine_desc->init_time)
+	if (machine_desc->init_time) {
 		machine_desc->init_time();
-	else
+	} else {
+#ifdef CONFIG_COMMON_CLK
+		of_clk_init(NULL);
+#endif
 		clocksource_of_init();
+	}
 }

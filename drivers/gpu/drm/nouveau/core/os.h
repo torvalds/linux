@@ -5,6 +5,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <linux/printk.h>
 #include <linux/bitops.h>
 #include <linux/firmware.h>
@@ -22,17 +23,6 @@
 #include <linux/pm_runtime.h>
 
 #include <asm/unaligned.h>
-
-static inline int
-ffsll(u64 mask)
-{
-	int i;
-	for (i = 0; i < 64; i++) {
-		if (mask & (1ULL << i))
-			return i + 1;
-	}
-	return 0;
-}
 
 #ifndef ioread32_native
 #ifdef __BIG_ENDIAN

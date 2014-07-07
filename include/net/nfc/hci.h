@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __NET_HCI_H
@@ -24,17 +22,12 @@
 
 #include <net/nfc/nfc.h>
 
-struct nfc_phy_ops {
-	int (*write)(void *dev_id, struct sk_buff *skb);
-	int (*enable)(void *dev_id);
-	void (*disable)(void *dev_id);
-};
-
 struct nfc_hci_dev;
 
 struct nfc_hci_ops {
 	int (*open) (struct nfc_hci_dev *hdev);
 	void (*close) (struct nfc_hci_dev *hdev);
+	int (*load_session) (struct nfc_hci_dev *hdev);
 	int (*hci_ready) (struct nfc_hci_dev *hdev);
 	/*
 	 * xmit must always send the complete buffer before

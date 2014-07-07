@@ -51,7 +51,9 @@ __u32 get_uuid2int(const char *name, int len)
 	__u32 key0 = 0x12a3fe2d, key1 = 0x37abe8f9;
 	while (len--) {
 		__u32 key = key1 + (key0 ^ (*name++ * 7152373));
-		if (key & 0x80000000) key -= 0x7fffffff;
+
+		if (key & 0x80000000)
+			key -= 0x7fffffff;
 		key1 = key0;
 		key0 = key;
 	}
@@ -98,7 +100,7 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 	if (inode)
 		return inode;
 
-	rc = ll_get_max_mdsize(sbi, &eadatalen);
+	rc = ll_get_default_mdsize(sbi, &eadatalen);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -167,10 +169,10 @@ ll_iget_for_nfs(struct super_block *sb, struct lu_fid *fid, struct lu_fid *paren
 	}
 
 	result = d_obtain_alias(inode);
-	if (IS_ERR(result))
+	if (IS_ERR(result)) {
+		iput(inode);
 		return result;
-
-	ll_dops_init(result, 1, 0);
+	}
 
 	return result;
 }
@@ -290,7 +292,7 @@ static struct dentry *ll_get_parent(struct dentry *dchild)
 	CDEBUG(D_INFO, "getting parent for (%lu,"DFID")\n",
 			dir->i_ino, PFID(ll_inode2fid(dir)));
 
-	rc = ll_get_max_mdsize(sbi, &lmmsize);
+	rc = ll_get_default_mdsize(sbi, &lmmsize);
 	if (rc != 0)
 		return ERR_PTR(rc);
 

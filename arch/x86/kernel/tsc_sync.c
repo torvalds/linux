@@ -16,7 +16,6 @@
  */
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/nmi.h>
 #include <asm/tsc.h>

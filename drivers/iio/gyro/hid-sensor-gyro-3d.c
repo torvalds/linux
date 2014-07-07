@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -42,6 +43,10 @@ struct gyro_3d_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info gyro[GYRO_3D_CHANNEL_MAX];
 	u32 gyro_val[GYRO_3D_CHANNEL_MAX];
+	int scale_pre_decml;
+	int scale_post_decml;
+	int scale_precision;
+	int value_offset;
 };
 
 static const u32 gyro_3d_addresses[GYRO_3D_CHANNEL_MAX] = {
@@ -56,6 +61,7 @@ static const struct iio_chan_spec gyro_3d_channels[] = {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_X,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
@@ -65,6 +71,7 @@ static const struct iio_chan_spec gyro_3d_channels[] = {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Y,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
@@ -74,6 +81,7 @@ static const struct iio_chan_spec gyro_3d_channels[] = {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
@@ -104,31 +112,42 @@ static int gyro_3d_read_raw(struct iio_dev *indio_dev,
 	u32 address;
 	int ret;
 	int ret_type;
+	s32 poll_value;
 
 	*val = 0;
 	*val2 = 0;
 	switch (mask) {
 	case 0:
+		poll_value = hid_sensor_read_poll_value(
+					&gyro_state->common_attributes);
+		if (poll_value < 0)
+			return -EINVAL;
+
+		hid_sensor_power_state(&gyro_state->common_attributes, true);
+		msleep_interruptible(poll_value * 2);
 		report_id = gyro_state->gyro[chan->scan_index].report_id;
 		address = gyro_3d_addresses[chan->scan_index];
 		if (report_id >= 0)
 			*val = sensor_hub_input_attr_get_raw_value(
-				gyro_state->common_attributes.hsdev,
-				HID_USAGE_SENSOR_GYRO_3D, address,
-				report_id);
+					gyro_state->common_attributes.hsdev,
+					HID_USAGE_SENSOR_GYRO_3D, address,
+					report_id);
 		else {
 			*val = 0;
+			hid_sensor_power_state(&gyro_state->common_attributes,
+						false);
 			return -EINVAL;
 		}
+		hid_sensor_power_state(&gyro_state->common_attributes, false);
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = gyro_state->gyro[CHANNEL_SCAN_INDEX_X].units;
-		ret_type = IIO_VAL_INT;
+		*val = gyro_state->scale_pre_decml;
+		*val2 = gyro_state->scale_post_decml;
+		ret_type = gyro_state->scale_precision;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = hid_sensor_convert_exponent(
-			gyro_state->gyro[CHANNEL_SCAN_INDEX_X].unit_expo);
+		*val = gyro_state->value_offset;
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -182,10 +201,11 @@ static const struct iio_info gyro_3d_info = {
 };
 
 /* Function to push data to buffer */
-static void hid_sensor_push_data(struct iio_dev *indio_dev, u8 *data, int len)
+static void hid_sensor_push_data(struct iio_dev *indio_dev, const void *data,
+	int len)
 {
 	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
-	iio_push_to_buffers(indio_dev, (u8 *)data);
+	iio_push_to_buffers(indio_dev, data);
 }
 
 /* Callback handler to send event after all samples are received and captured */
@@ -196,11 +216,10 @@ static int gyro_3d_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct gyro_3d_state *gyro_state = iio_priv(indio_dev);
 
-	dev_dbg(&indio_dev->dev, "gyro_3d_proc_event [%d]\n",
-				gyro_state->common_attributes.data_ready);
-	if (gyro_state->common_attributes.data_ready)
+	dev_dbg(&indio_dev->dev, "gyro_3d_proc_event\n");
+	if (atomic_read(&gyro_state->common_attributes.data_ready))
 		hid_sensor_push_data(indio_dev,
-				(u8 *)gyro_state->gyro_val,
+				gyro_state->gyro_val,
 				sizeof(gyro_state->gyro_val));
 
 	return 0;
@@ -261,6 +280,22 @@ static int gyro_3d_parse_report(struct platform_device *pdev,
 			st->gyro[1].index, st->gyro[1].report_id,
 			st->gyro[2].index, st->gyro[2].report_id);
 
+	st->scale_precision = hid_sensor_format_scale(
+				HID_USAGE_SENSOR_GYRO_3D,
+				&st->gyro[CHANNEL_SCAN_INDEX_X],
+				&st->scale_pre_decml, &st->scale_post_decml);
+
+	/* Set Sensitivity field ids, when there is no individual modifier */
+	if (st->common_attributes.sensitivity.index < 0) {
+		sensor_hub_input_get_attribute_info(hsdev,
+			HID_FEATURE_REPORT, usage_id,
+			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
+			HID_USAGE_SENSOR_DATA_ANGL_VELOCITY,
+			&st->common_attributes.sensitivity);
+		dev_dbg(&pdev->dev, "Sensitivity index:report %d:%d\n",
+			st->common_attributes.sensitivity.index,
+			st->common_attributes.sensitivity.report_id);
+	}
 	return ret;
 }
 
@@ -318,7 +353,7 @@ static int hid_gyro_3d_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to initialize trigger buffer\n");
 		goto error_free_dev_mem;
 	}
-	gyro_state->common_attributes.data_ready = false;
+	atomic_set(&gyro_state->common_attributes.data_ready, 0);
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 					&gyro_state->common_attributes);
 	if (ret < 0) {
@@ -347,7 +382,7 @@ static int hid_gyro_3d_probe(struct platform_device *pdev)
 error_iio_unreg:
 	iio_device_unregister(indio_dev);
 error_remove_trigger:
-	hid_sensor_remove_trigger(indio_dev);
+	hid_sensor_remove_trigger(&gyro_state->common_attributes);
 error_unreg_buffer_funcs:
 	iio_triggered_buffer_cleanup(indio_dev);
 error_free_dev_mem:
@@ -360,10 +395,11 @@ static int hid_gyro_3d_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct gyro_3d_state *gyro_state = iio_priv(indio_dev);
 
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_GYRO_3D);
 	iio_device_unregister(indio_dev);
-	hid_sensor_remove_trigger(indio_dev);
+	hid_sensor_remove_trigger(&gyro_state->common_attributes);
 	iio_triggered_buffer_cleanup(indio_dev);
 	kfree(indio_dev->channels);
 

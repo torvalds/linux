@@ -282,6 +282,8 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba)
 				       arr_sz, GFP_KERNEL);
 	if (!cmgr->free_list_lock) {
 		printk(KERN_ERR PFX "failed to alloc free_list_lock\n");
+		kfree(cmgr->free_list);
+		cmgr->free_list = NULL;
 		goto mem_err;
 	}
 
@@ -594,13 +596,13 @@ static void bnx2fc_free_mp_resc(struct bnx2fc_cmd *io_req)
 		mp_req->mp_resp_bd = NULL;
 	}
 	if (mp_req->req_buf) {
-		dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				     mp_req->req_buf,
 				     mp_req->req_buf_dma);
 		mp_req->req_buf = NULL;
 	}
 	if (mp_req->resp_buf) {
-		dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				     mp_req->resp_buf,
 				     mp_req->resp_buf_dma);
 		mp_req->resp_buf = NULL;
@@ -622,7 +624,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 
 	mp_req->req_len = sizeof(struct fcp_cmnd);
 	io_req->data_xfer_len = mp_req->req_len;
-	mp_req->req_buf = dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
+	mp_req->req_buf = dma_alloc_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 					     &mp_req->req_buf_dma,
 					     GFP_ATOMIC);
 	if (!mp_req->req_buf) {
@@ -631,7 +633,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 		return FAILED;
 	}
 
-	mp_req->resp_buf = dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
+	mp_req->resp_buf = dma_alloc_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 					      &mp_req->resp_buf_dma,
 					      GFP_ATOMIC);
 	if (!mp_req->resp_buf) {
@@ -639,8 +641,8 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 		bnx2fc_free_mp_resc(io_req);
 		return FAILED;
 	}
-	memset(mp_req->req_buf, 0, PAGE_SIZE);
-	memset(mp_req->resp_buf, 0, PAGE_SIZE);
+	memset(mp_req->req_buf, 0, CNIC_PAGE_SIZE);
+	memset(mp_req->resp_buf, 0, CNIC_PAGE_SIZE);
 
 	/* Allocate and map mp_req_bd and mp_resp_bd */
 	sz = sizeof(struct fcoe_bd_ctx);
@@ -665,7 +667,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 	mp_req_bd = mp_req->mp_req_bd;
 	mp_req_bd->buf_addr_lo = (u32)addr & 0xffffffff;
 	mp_req_bd->buf_addr_hi = (u32)((u64)addr >> 32);
-	mp_req_bd->buf_len = PAGE_SIZE;
+	mp_req_bd->buf_len = CNIC_PAGE_SIZE;
 	mp_req_bd->flags = 0;
 
 	/*
@@ -677,7 +679,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 	addr = mp_req->resp_buf_dma;
 	mp_resp_bd->buf_addr_lo = (u32)addr & 0xffffffff;
 	mp_resp_bd->buf_addr_hi = (u32)((u64)addr >> 32);
-	mp_resp_bd->buf_len = PAGE_SIZE;
+	mp_resp_bd->buf_len = CNIC_PAGE_SIZE;
 	mp_resp_bd->flags = 0;
 
 	return SUCCESS;
@@ -1246,6 +1248,12 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 			kref_put(&io_req->refcount,
 				 bnx2fc_cmd_release); /* drop timer hold */
 		rc = bnx2fc_expl_logo(lport, io_req);
+		/* This only occurs when an task abort was requested while ABTS
+		   is in progress.  Setting the IO_CLEANUP flag will skip the
+		   RRQ process in the case when the fw generated SCSI_CMD cmpl
+		   was a result from the ABTS request rather than the CLEANUP
+		   request */
+		set_bit(BNX2FC_FLAG_IO_CLEANUP,	&io_req->req_flags);
 		goto out;
 	}
 
@@ -1865,7 +1873,15 @@ int bnx2fc_queuecommand(struct Scsi_Host *host,
 		rc = SCSI_MLQUEUE_TARGET_BUSY;
 		goto exit_qcmd;
 	}
-
+	if (tgt->retry_delay_timestamp) {
+		if (time_after(jiffies, tgt->retry_delay_timestamp)) {
+			tgt->retry_delay_timestamp = 0;
+		} else {
+			/* If retry_delay timer is active, flow off the ML */
+			rc = SCSI_MLQUEUE_TARGET_BUSY;
+			goto exit_qcmd;
+		}
+	}
 	io_req = bnx2fc_cmd_alloc(tgt);
 	if (!io_req) {
 		rc = SCSI_MLQUEUE_HOST_BUSY;
@@ -1955,6 +1971,15 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 				 " fcp_resid = 0x%x\n",
 				io_req->cdb_status, io_req->fcp_resid);
 			sc_cmd->result = (DID_OK << 16) | io_req->cdb_status;
+
+			if (io_req->cdb_status == SAM_STAT_TASK_SET_FULL ||
+			    io_req->cdb_status == SAM_STAT_BUSY) {
+				/* Set the jiffies + retry_delay_timer * 100ms
+				   for the rport/tgt */
+				tgt->retry_delay_timestamp = jiffies +
+					fcp_rsp->retry_delay_timer * HZ / 10;
+			}
+
 		}
 		if (io_req->fcp_resid)
 			scsi_set_resid(sc_cmd, io_req->fcp_resid);

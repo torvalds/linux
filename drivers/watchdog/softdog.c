@@ -42,7 +42,6 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/timer.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
@@ -63,7 +62,7 @@ MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-static int soft_noboot = 0;
+static int soft_noboot;
 module_param(soft_noboot, int, 0);
 MODULE_PARM_DESC(soft_noboot,
 	"Softdog action, set to 1 to ignore reboots, 0 to reboot (default=0)");
@@ -207,4 +206,3 @@ module_exit(watchdog_exit);
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("Software Watchdog Device Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

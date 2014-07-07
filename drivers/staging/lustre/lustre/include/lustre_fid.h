@@ -339,7 +339,7 @@ struct lu_client_seq {
 	struct mutex		lcs_mutex;
 
 	/*
-	 * Range of allowed for allocation sequeces. When using lu_client_seq on
+	 * Range of allowed for allocation sequences. When using lu_client_seq on
 	 * clients, this contains meta-sequence range. And for servers this
 	 * contains super-sequence range.
 	 */
@@ -398,7 +398,7 @@ struct lu_server_seq {
 	/* LUSTRE_SEQ_SERVER or LUSTRE_SEQ_CONTROLLER */
 	enum lu_mgr_type       lss_type;
 
-	/* Client interafce to request controller */
+	/* Client interface to request controller */
 	struct lu_client_seq   *lss_cli;
 
 	/* Mutex for protecting allocation */
@@ -430,12 +430,6 @@ struct lu_server_seq {
 	 */
 	struct seq_server_site  *lss_site;
 };
-
-struct com_thread_info;
-int seq_query(struct com_thread_info *info);
-
-struct ptlrpc_request;
-int seq_handle(struct ptlrpc_request *req);
 
 /* Server methods */
 
@@ -574,14 +568,14 @@ fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
  * finally, when we replace ost_id with FID in data stack.
  *
  * Currently, resid from the old client, whose res[0] = object_id,
- * res[1] = object_seq, is just oposite with Metatdata
+ * res[1] = object_seq, is just opposite with Metatdata
  * resid, where, res[0] = fid->f_seq, res[1] = fid->f_oid.
- * To unifiy the resid identification, we will reverse the data
+ * To unify the resid identification, we will reverse the data
  * resid to keep it same with Metadata resid, i.e.
  *
  * For resid from the old client,
  *    res[0] = objid,  res[1] = 0, still keep the original order,
- *    for compatiblity.
+ *    for compatibility.
  *
  * For new resid
  *    res will be built from normal FID directly, i.e. res[0] = f_seq,
@@ -590,7 +584,7 @@ fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
 static inline void ostid_build_res_name(struct ost_id *oi,
 					struct ldlm_res_id *name)
 {
-	memset(name, 0, sizeof *name);
+	memset(name, 0, sizeof(*name));
 	if (fid_seq_is_mdt0(ostid_seq(oi))) {
 		name->name[LUSTRE_RES_ID_SEQ_OFF] = ostid_id(oi);
 		name->name[LUSTRE_RES_ID_VER_OID_OFF] = ostid_seq(oi);
@@ -691,7 +685,7 @@ static inline __u32 fid_hash(const struct lu_fid *f, int bits)
 {
 	/* all objects with same id and different versions will belong to same
 	 * collisions list. */
-	return cfs_hash_long(fid_flatten(f), bits);
+	return hash_long(fid_flatten(f), bits);
 }
 
 /**

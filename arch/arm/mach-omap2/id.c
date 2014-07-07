@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/random.h>
 #include <linux/slab.h>
 
 #ifdef CONFIG_SOC_BUS
@@ -93,7 +94,7 @@ EXPORT_SYMBOL(omap_type);
 #define OMAP_TAP_DIE_ID_44XX_2	0x020c
 #define OMAP_TAP_DIE_ID_44XX_3	0x0210
 
-#define read_tap_reg(reg)	__raw_readl(tap_base  + (reg))
+#define read_tap_reg(reg)	readl_relaxed(tap_base  + (reg))
 
 struct omap_id {
 	u16	hawkeye;	/* Silicon type (Hawkeye id) */
@@ -129,6 +130,17 @@ void omap_get_die_id(struct omap_die_id *odi)
 	odi->id_2 = read_tap_reg(OMAP_TAP_DIE_ID_2);
 	odi->id_3 = read_tap_reg(OMAP_TAP_DIE_ID_3);
 }
+
+static int __init omap_feed_randpool(void)
+{
+	struct omap_die_id odi;
+
+	/* Throw the die ID into the entropy pool at boot */
+	omap_get_die_id(&odi);
+	add_device_randomness(&odi, sizeof(odi));
+	return 0;
+}
+omap_device_initcall(omap_feed_randpool);
 
 void __init omap2xxx_check_revision(void)
 {
@@ -453,8 +465,18 @@ void __init omap3xxx_check_revision(void)
 		}
 		break;
 	case 0xb98c:
-		omap_revision = AM437X_REV_ES1_0;
-		cpu_rev = "1.0";
+		switch (rev) {
+		case 0:
+			omap_revision = AM437X_REV_ES1_0;
+			cpu_rev = "1.0";
+			break;
+		case 1:
+		/* FALLTHROUGH */
+		default:
+			omap_revision = AM437X_REV_ES1_1;
+			cpu_rev = "1.1";
+			break;
+		}
 		break;
 	case 0xb8f2:
 		switch (rev) {
@@ -576,8 +598,8 @@ void __init omap5xxx_check_revision(void)
 	case 0xb942:
 		switch (rev) {
 		case 0:
-			omap_revision = OMAP5430_REV_ES1_0;
-			break;
+			/* No support for ES1.0 Test chip */
+			BUG();
 		case 1:
 		default:
 			omap_revision = OMAP5430_REV_ES2_0;
@@ -587,8 +609,8 @@ void __init omap5xxx_check_revision(void)
 	case 0xb998:
 		switch (rev) {
 		case 0:
-			omap_revision = OMAP5432_REV_ES1_0;
-			break;
+			/* No support for ES1.0 Test chip */
+			BUG();
 		case 1:
 		default:
 			omap_revision = OMAP5432_REV_ES2_0;
@@ -602,6 +624,53 @@ void __init omap5xxx_check_revision(void)
 
 	sprintf(soc_name, "OMAP%04x", omap_rev() >> 16);
 	sprintf(soc_rev, "ES%d.0", (omap_rev() >> 12) & 0xf);
+
+	pr_info("%s %s\n", soc_name, soc_rev);
+}
+
+void __init dra7xxx_check_revision(void)
+{
+	u32 idcode;
+	u16 hawkeye;
+	u8 rev;
+
+	idcode = read_tap_reg(OMAP_TAP_IDCODE);
+	hawkeye = (idcode >> 12) & 0xffff;
+	rev = (idcode >> 28) & 0xff;
+	switch (hawkeye) {
+	case 0xb990:
+		switch (rev) {
+		case 0:
+			omap_revision = DRA752_REV_ES1_0;
+			break;
+		case 1:
+		default:
+			omap_revision = DRA752_REV_ES1_1;
+		}
+		break;
+
+	case 0xb9bc:
+		switch (rev) {
+		case 0:
+			omap_revision = DRA722_REV_ES1_0;
+			break;
+		default:
+			/* If we have no new revisions */
+			omap_revision = DRA722_REV_ES1_0;
+			break;
+		}
+		break;
+
+	default:
+		/* Unknown default to latest silicon rev as default*/
+		pr_warn("%s: unknown idcode=0x%08x (hawkeye=0x%08x,rev=0x%d)\n",
+			__func__, idcode, hawkeye, rev);
+		omap_revision = DRA752_REV_ES1_1;
+	}
+
+	sprintf(soc_name, "DRA%03x", omap_rev() >> 16);
+	sprintf(soc_rev, "ES%d.%d", (omap_rev() >> 12) & 0xf,
+		(omap_rev() >> 8) & 0xf);
 
 	pr_info("%s %s\n", soc_name, soc_rev);
 }
@@ -645,6 +714,10 @@ static const char * __init omap_get_family(void)
 		return kasprintf(GFP_KERNEL, "OMAP4");
 	else if (soc_is_omap54xx())
 		return kasprintf(GFP_KERNEL, "OMAP5");
+	else if (soc_is_am43xx())
+		return kasprintf(GFP_KERNEL, "AM43xx");
+	else if (soc_is_dra7xx())
+		return kasprintf(GFP_KERNEL, "DRA7");
 	else
 		return kasprintf(GFP_KERNEL, "Unknown");
 }

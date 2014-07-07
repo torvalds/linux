@@ -136,6 +136,7 @@ extern int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg);
 extern int os_get_ifname(int fd, char *namebuf);
 extern int os_set_slip(int fd);
 extern int os_mode_fd(int fd, int mode);
+extern int os_fsync_file(int fd);
 
 extern int os_seek_file(int fd, unsigned long long offset);
 extern int os_open_file(const char *file, struct openflags flags, int mode);
@@ -227,6 +228,7 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
+extern int os_is_signal_stack(void);
 
 /* util.c */
 extern void stack_protections(unsigned long address);

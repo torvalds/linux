@@ -248,8 +248,8 @@ static bool check_device(struct device *dev)
 	if (!dev || !dev->dma_mask)
 		return false;
 
-	/* No device or no PCI device */
-	if (dev->bus != &pci_bus_type)
+	/* No PCI device */
+	if (!dev_is_pci(dev))
 		return false;
 
 	devid = get_device_id(dev);
@@ -963,7 +963,7 @@ static void build_inv_iommu_pasid(struct iommu_cmd *cmd, u16 domid, int pasid,
 
 	address &= ~(0xfffULL);
 
-	cmd->data[0]  = pasid & PASID_MASK;
+	cmd->data[0]  = pasid;
 	cmd->data[1]  = domid;
 	cmd->data[2]  = lower_32_bits(address);
 	cmd->data[3]  = upper_32_bits(address);
@@ -982,10 +982,10 @@ static void build_inv_iotlb_pasid(struct iommu_cmd *cmd, u16 devid, int pasid,
 	address &= ~(0xfffULL);
 
 	cmd->data[0]  = devid;
-	cmd->data[0] |= (pasid & 0xff) << 16;
+	cmd->data[0] |= ((pasid >> 8) & 0xff) << 16;
 	cmd->data[0] |= (qdep  & 0xff) << 24;
 	cmd->data[1]  = devid;
-	cmd->data[1] |= ((pasid >> 8) & 0xfff) << 16;
+	cmd->data[1] |= (pasid & 0xff) << 16;
 	cmd->data[2]  = lower_32_bits(address);
 	cmd->data[2] |= CMD_INV_IOMMU_PAGES_GN_MASK;
 	cmd->data[3]  = upper_32_bits(address);
@@ -1001,7 +1001,7 @@ static void build_complete_ppr(struct iommu_cmd *cmd, u16 devid, int pasid,
 
 	cmd->data[0]  = devid;
 	if (gn) {
-		cmd->data[1]  = pasid & PASID_MASK;
+		cmd->data[1]  = pasid;
 		cmd->data[2]  = CMD_INV_IOMMU_PAGES_GN_MASK;
 	}
 	cmd->data[3]  = tag & 0x1ff;
@@ -3499,8 +3499,6 @@ int __init amd_iommu_init_passthrough(void)
 {
 	struct iommu_dev_data *dev_data;
 	struct pci_dev *dev = NULL;
-	struct amd_iommu *iommu;
-	u16 devid;
 	int ret;
 
 	ret = alloc_passthrough_domain();
@@ -3513,12 +3511,6 @@ int __init amd_iommu_init_passthrough(void)
 
 		dev_data = get_dev_data(&dev->dev);
 		dev_data->passthrough = true;
-
-		devid = get_device_id(&dev->dev);
-
-		iommu = amd_iommu_rlookup_table[devid];
-		if (!iommu)
-			continue;
 
 		attach_device(&dev->dev, pt_domain);
 	}
@@ -3999,7 +3991,7 @@ static struct irq_remap_table *get_irq_table(u16 devid, bool ioapic)
 	iommu_flush_dte(iommu, devid);
 	if (devid != alias) {
 		irq_lookup_table[alias] = table;
-		set_dte_irq_entry(devid, table);
+		set_dte_irq_entry(alias, table);
 		iommu_flush_dte(iommu, alias);
 	}
 

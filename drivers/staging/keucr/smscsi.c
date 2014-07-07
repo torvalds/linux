@@ -11,16 +11,12 @@
 #include "transport.h"
 #include "smil.h"
 
-int SM_SCSI_Test_Unit_Ready(struct us_data *us, struct scsi_cmnd *srb);
-int SM_SCSI_Inquiry(struct us_data *us, struct scsi_cmnd *srb);
-int SM_SCSI_Mode_Sense(struct us_data *us, struct scsi_cmnd *srb);
-int SM_SCSI_Start_Stop(struct us_data *us, struct scsi_cmnd *srb);
-int SM_SCSI_Read_Capacity(struct us_data *us, struct scsi_cmnd *srb);
-int SM_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb);
-int SM_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb);
-
-extern PBYTE                SMHostAddr;
-extern DWORD                ErrXDCode;
+static int SM_SCSI_Test_Unit_Ready(struct us_data *us, struct scsi_cmnd *srb);
+static int SM_SCSI_Inquiry(struct us_data *us, struct scsi_cmnd *srb);
+static int SM_SCSI_Mode_Sense(struct us_data *us, struct scsi_cmnd *srb);
+static int SM_SCSI_Read_Capacity(struct us_data *us, struct scsi_cmnd *srb);
+static int SM_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb);
+static int SM_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb);
 
 /* ----- SM_SCSIIrp() -------------------------------------------------- */
 int SM_SCSIIrp(struct us_data *us, struct scsi_cmnd *srb)
@@ -57,7 +53,7 @@ int SM_SCSIIrp(struct us_data *us, struct scsi_cmnd *srb)
 }
 
 /* ----- SM_SCSI_Test_Unit_Ready() ------------------------------------- */
-int SM_SCSI_Test_Unit_Ready(struct us_data *us, struct scsi_cmnd *srb)
+static int SM_SCSI_Test_Unit_Ready(struct us_data *us, struct scsi_cmnd *srb)
 {
 	if (us->SM_Status.Insert && us->SM_Status.Ready)
 		return USB_STOR_TRANSPORT_GOOD;
@@ -70,9 +66,9 @@ int SM_SCSI_Test_Unit_Ready(struct us_data *us, struct scsi_cmnd *srb)
 }
 
 /* ----- SM_SCSI_Inquiry() --------------------------------------------- */
-int SM_SCSI_Inquiry(struct us_data *us, struct scsi_cmnd *srb)
+static int SM_SCSI_Inquiry(struct us_data *us, struct scsi_cmnd *srb)
 {
-	BYTE data_ptr[36] = {0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00,
+	u8 data_ptr[36] = {0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00,
 				 0x55, 0x53, 0x42, 0x32, 0x2E, 0x30, 0x20,
 				 0x20, 0x43, 0x61, 0x72, 0x64, 0x52, 0x65,
 				 0x61, 0x64, 0x65, 0x72, 0x20, 0x20, 0x20,
@@ -84,11 +80,11 @@ int SM_SCSI_Inquiry(struct us_data *us, struct scsi_cmnd *srb)
 
 
 /* ----- SM_SCSI_Mode_Sense() ------------------------------------------ */
-int SM_SCSI_Mode_Sense(struct us_data *us, struct scsi_cmnd *srb)
+static int SM_SCSI_Mode_Sense(struct us_data *us, struct scsi_cmnd *srb)
 {
-	BYTE	mediaNoWP[12] = {0x0b, 0x00, 0x00, 0x08, 0x00, 0x00,
+	u8	mediaNoWP[12] = {0x0b, 0x00, 0x00, 0x08, 0x00, 0x00,
 				0x71, 0xc0, 0x00, 0x00, 0x02, 0x00};
-	BYTE	mediaWP[12]   = {0x0b, 0x00, 0x80, 0x08, 0x00, 0x00,
+	u8	mediaWP[12]   = {0x0b, 0x00, 0x80, 0x08, 0x00, 0x00,
 				0x71, 0xc0, 0x00, 0x00, 0x02, 0x00};
 
 	if (us->SM_Status.WtP)
@@ -101,13 +97,13 @@ int SM_SCSI_Mode_Sense(struct us_data *us, struct scsi_cmnd *srb)
 }
 
 /* ----- SM_SCSI_Read_Capacity() --------------------------------------- */
-int SM_SCSI_Read_Capacity(struct us_data *us, struct scsi_cmnd *srb)
+static int SM_SCSI_Read_Capacity(struct us_data *us, struct scsi_cmnd *srb)
 {
 	unsigned int offset = 0;
 	struct scatterlist *sg = NULL;
-	DWORD   bl_num;
-	WORD    bl_len;
-	BYTE    buf[8];
+	u32   bl_num;
+	u16    bl_len;
+	u8    buf[8];
 
 	dev_dbg(&us->pusb_dev->dev, "SM_SCSI_Read_Capacity\n");
 
@@ -133,16 +129,16 @@ int SM_SCSI_Read_Capacity(struct us_data *us, struct scsi_cmnd *srb)
 }
 
 /* ----- SM_SCSI_Read() -------------------------------------------------- */
-int SM_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
+static int SM_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 {
 	int result = 0;
-	PBYTE	Cdb = srb->cmnd;
-	DWORD bn  =  ((Cdb[2] << 24) & 0xff000000) |
+	u8 *Cdb = srb->cmnd;
+	u32 bn  =  ((Cdb[2] << 24) & 0xff000000) |
 			((Cdb[3] << 16) & 0x00ff0000) |
 			((Cdb[4] << 8) & 0x0000ff00) |
 			((Cdb[5] << 0) & 0x000000ff);
-	WORD  blen = ((Cdb[7] << 8) & 0xff00)     | ((Cdb[8] << 0) & 0x00ff);
-	DWORD	blenByte = blen * 0x200;
+	u16  blen = ((Cdb[7] << 8) & 0xff00)     | ((Cdb[8] << 0) & 0x00ff);
+	u32	blenByte = blen * 0x200;
 	void	*buf;
 
 
@@ -165,16 +161,16 @@ int SM_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 }
 
 /* ----- SM_SCSI_Write() -------------------------------------------------- */
-int SM_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb)
+static int SM_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb)
 {
 	int result = 0;
-	PBYTE	Cdb = srb->cmnd;
-	DWORD bn  =  ((Cdb[2] << 24) & 0xff000000) |
+	u8 *Cdb = srb->cmnd;
+	u32 bn  =  ((Cdb[2] << 24) & 0xff000000) |
 			((Cdb[3] << 16) & 0x00ff0000) |
 			((Cdb[4] << 8) & 0x0000ff00) |
 			((Cdb[5] << 0) & 0x000000ff);
-	WORD  blen = ((Cdb[7] << 8) & 0xff00)     | ((Cdb[8] << 0) & 0x00ff);
-	DWORD	blenByte = blen * 0x200;
+	u16  blen = ((Cdb[7] << 8) & 0xff00)     | ((Cdb[8] << 0) & 0x00ff);
+	u32	blenByte = blen * 0x200;
 	void	*buf;
 
 

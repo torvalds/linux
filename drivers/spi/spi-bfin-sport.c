@@ -8,7 +8,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -592,7 +591,7 @@ bfin_sport_spi_setup(struct spi_device *spi)
 			 */
 			if (chip_info->ctl_reg || chip_info->enable_dma) {
 				ret = -EINVAL;
-				dev_err(&spi->dev, "don't set ctl_reg/enable_dma fields");
+				dev_err(&spi->dev, "don't set ctl_reg/enable_dma fields\n");
 				goto error;
 			}
 			chip->cs_chg_udelay = chip_info->cs_chg_udelay;
@@ -879,11 +878,10 @@ static int bfin_sport_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int
-bfin_sport_spi_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int bfin_sport_spi_suspend(struct device *dev)
 {
-	struct bfin_sport_spi_master_data *drv_data = platform_get_drvdata(pdev);
+	struct bfin_sport_spi_master_data *drv_data = dev_get_drvdata(dev);
 	int status;
 
 	status = bfin_sport_spi_stop_queue(drv_data);
@@ -896,10 +894,9 @@ bfin_sport_spi_suspend(struct platform_device *pdev, pm_message_t state)
 	return status;
 }
 
-static int
-bfin_sport_spi_resume(struct platform_device *pdev)
+static int bfin_sport_spi_resume(struct device *dev)
 {
-	struct bfin_sport_spi_master_data *drv_data = platform_get_drvdata(pdev);
+	struct bfin_sport_spi_master_data *drv_data = dev_get_drvdata(dev);
 	int status;
 
 	/* Enable the SPI interface */
@@ -912,19 +909,22 @@ bfin_sport_spi_resume(struct platform_device *pdev)
 
 	return status;
 }
+
+static SIMPLE_DEV_PM_OPS(bfin_sport_spi_pm_ops, bfin_sport_spi_suspend,
+			bfin_sport_spi_resume);
+
+#define BFIN_SPORT_SPI_PM_OPS		(&bfin_sport_spi_pm_ops)
 #else
-# define bfin_sport_spi_suspend NULL
-# define bfin_sport_spi_resume  NULL
+#define BFIN_SPORT_SPI_PM_OPS		NULL
 #endif
 
 static struct platform_driver bfin_sport_spi_driver = {
 	.driver	= {
-		.name = DRV_NAME,
-		.owner = THIS_MODULE,
+		.name	= DRV_NAME,
+		.owner	= THIS_MODULE,
+		.pm	= BFIN_SPORT_SPI_PM_OPS,
 	},
 	.probe   = bfin_sport_spi_probe,
 	.remove  = bfin_sport_spi_remove,
-	.suspend = bfin_sport_spi_suspend,
-	.resume  = bfin_sport_spi_resume,
 };
 module_platform_driver(bfin_sport_spi_driver);

@@ -39,7 +39,6 @@
 #include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
-#include <linux/cpuidle.h>
 #include <linux/of.h>
 #include <linux/kexec.h>
 
@@ -72,7 +71,7 @@
 
 int CMO_PrPSP = -1;
 int CMO_SecPSP = -1;
-unsigned long CMO_PageSize = (ASM_CONST(1) << IOMMU_PAGE_SHIFT);
+unsigned long CMO_PageSize = (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K);
 EXPORT_SYMBOL(CMO_PageSize);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
@@ -356,29 +355,24 @@ early_initcall(alloc_dispatch_log_kmem_cache);
 
 static void pseries_lpar_idle(void)
 {
-	/* This would call on the cpuidle framework, and the back-end pseries
-	 * driver to  go to idle states
+	/*
+	 * Default handler to go into low thread priority and possibly
+	 * low power mode by cedeing processor to hypervisor
 	 */
-	if (cpuidle_idle_call()) {
-		/* On error, execute default handler
-		 * to go into low thread priority and possibly
-		 * low power mode by cedeing processor to hypervisor
-		 */
 
-		/* Indicate to hypervisor that we are idle. */
-		get_lppaca()->idle = 1;
+	/* Indicate to hypervisor that we are idle. */
+	get_lppaca()->idle = 1;
 
-		/*
-		 * Yield the processor to the hypervisor.  We return if
-		 * an external interrupt occurs (which are driven prior
-		 * to returning here) or if a prod occurs from another
-		 * processor. When returning here, external interrupts
-		 * are enabled.
-		 */
-		cede_processor();
+	/*
+	 * Yield the processor to the hypervisor.  We return if
+	 * an external interrupt occurs (which are driven prior
+	 * to returning here) or if a prod occurs from another
+	 * processor. When returning here, external interrupts
+	 * are enabled.
+	 */
+	cede_processor();
 
-		get_lppaca()->idle = 0;
-	}
+	get_lppaca()->idle = 0;
 }
 
 /*
@@ -430,8 +424,7 @@ static void pSeries_machine_kexec(struct kimage *image)
 {
 	long rc;
 
-	if (firmware_has_feature(FW_FEATURE_SET_MODE) &&
-	    (image->type != KEXEC_TYPE_CRASH)) {
+	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		rc = pSeries_disable_reloc_on_exc();
 		if (rc != H_SUCCESS)
 			pr_warning("Warning: Failed to disable relocation on "
@@ -442,9 +435,35 @@ static void pSeries_machine_kexec(struct kimage *image)
 }
 #endif
 
+#ifdef __LITTLE_ENDIAN__
+long pseries_big_endian_exceptions(void)
+{
+	long rc;
+
+	while (1) {
+		rc = enable_big_endian_exceptions();
+		if (!H_IS_LONG_BUSY(rc))
+			return rc;
+		mdelay(get_longbusy_msecs(rc));
+	}
+}
+
+static long pseries_little_endian_exceptions(void)
+{
+	long rc;
+
+	while (1) {
+		rc = enable_little_endian_exceptions();
+		if (!H_IS_LONG_BUSY(rc))
+			return rc;
+		mdelay(get_longbusy_msecs(rc));
+	}
+}
+#endif
+
 static void __init pSeries_setup_arch(void)
 {
-	panic_timeout = 10;
+	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
 
 	/* Discover PIC type and setup ppc_md accordingly */
 	pseries_discover_pic();
@@ -491,7 +510,11 @@ static void __init pSeries_setup_arch(void)
 static int __init pSeries_init_panel(void)
 {
 	/* Manually leave the kernel version on the panel. */
+#ifdef __BIG_ENDIAN__
 	ppc_md.progress("Linux ppc64\n", 0);
+#else
+	ppc_md.progress("Linux ppc64le\n", 0);
+#endif
 	ppc_md.progress(init_utsname()->version, 0);
 
 	return 0;
@@ -543,7 +566,7 @@ void pSeries_cmo_feature_init(void)
 {
 	char *ptr, *key, *value, *end;
 	int call_status;
-	int page_order = IOMMU_PAGE_SHIFT;
+	int page_order = IOMMU_PAGE_SHIFT_4K;
 
 	pr_debug(" -> fw_cmo_feature_init()\n");
 	spin_lock(&rtas_data_buf_lock);
@@ -646,7 +669,7 @@ static int __init pseries_probe_fw_features(unsigned long node,
 					    void *data)
 {
 	const char *prop;
-	unsigned long len;
+	int len;
 	static int hypertas_found;
 	static int vec5_found;
 
@@ -679,7 +702,7 @@ static int __init pseries_probe_fw_features(unsigned long node,
 static int __init pSeries_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
- 	char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
+	const char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
 
  	if (dtype == NULL)
  		return 0;
@@ -697,6 +720,22 @@ static int __init pSeries_probe(void)
 
 	/* Now try to figure out if we are running on LPAR */
 	of_scan_flat_dt(pseries_probe_fw_features, NULL);
+
+#ifdef __LITTLE_ENDIAN__
+	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
+		long rc;
+		/*
+		 * Tell the hypervisor that we want our exceptions to
+		 * be taken in little endian mode. If this fails we don't
+		 * want to use BUG() because it will trigger an exception.
+		 */
+		rc = pseries_little_endian_exceptions();
+		if (rc) {
+			ppc_md.progress("H_SET_MODE LE exception fail", 0);
+			panic("Could not enable little endian exceptions");
+		}
+	}
+#endif
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		hpte_init_lpar();
@@ -770,5 +809,8 @@ define_machine(pseries) {
 	.machine_check_exception = pSeries_machine_check_exception,
 #ifdef CONFIG_KEXEC
 	.machine_kexec          = pSeries_machine_kexec,
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	.memory_block_size	= pseries_memory_block_size,
 #endif
 };

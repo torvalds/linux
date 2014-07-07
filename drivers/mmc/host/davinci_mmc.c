@@ -193,7 +193,6 @@ struct mmc_davinci_host {
 #define DAVINCI_MMC_DATADIR_READ	1
 #define DAVINCI_MMC_DATADIR_WRITE	2
 	unsigned char data_dir;
-	unsigned char suspended;
 
 	/* buffer is used during PIO of one scatterlist segment, and
 	 * is updated along with buffer_bytes_left.  bytes_left applies
@@ -1193,7 +1192,7 @@ static struct davinci_mmc_config
 	struct device_node *np;
 	struct davinci_mmc_config *pdata = pdev->dev.platform_data;
 	const struct of_device_id *match =
-		of_match_device(of_match_ptr(davinci_mmc_dt_ids), &pdev->dev);
+		of_match_device(davinci_mmc_dt_ids, &pdev->dev);
 	u32 data;
 
 	np = pdev->dev.of_node;
@@ -1435,38 +1434,23 @@ static int davinci_mmcsd_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mmc_davinci_host *host = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = mmc_suspend_host(host->mmc);
-	if (!ret) {
-		writel(0, host->base + DAVINCI_MMCIM);
-		mmc_davinci_reset_ctrl(host, 1);
-		clk_disable(host->clk);
-		host->suspended = 1;
-	} else {
-		host->suspended = 0;
-	}
+	writel(0, host->base + DAVINCI_MMCIM);
+	mmc_davinci_reset_ctrl(host, 1);
+	clk_disable(host->clk);
 
-	return ret;
+	return 0;
 }
 
 static int davinci_mmcsd_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mmc_davinci_host *host = platform_get_drvdata(pdev);
-	int ret;
-
-	if (!host->suspended)
-		return 0;
 
 	clk_enable(host->clk);
-
 	mmc_davinci_reset_ctrl(host, 0);
-	ret = mmc_resume_host(host->mmc);
-	if (!ret)
-		host->suspended = 0;
 
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops davinci_mmcsd_pm = {
@@ -1484,7 +1468,7 @@ static struct platform_driver davinci_mmcsd_driver = {
 		.name	= "davinci_mmc",
 		.owner	= THIS_MODULE,
 		.pm	= davinci_mmcsd_pm_ops,
-		.of_match_table = of_match_ptr(davinci_mmc_dt_ids),
+		.of_match_table = davinci_mmc_dt_ids,
 	},
 	.remove		= __exit_p(davinci_mmcsd_remove),
 	.id_table	= davinci_mmc_devtype,

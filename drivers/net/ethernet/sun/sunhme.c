@@ -2675,10 +2675,10 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 
 		addr = of_get_property(dp, "local-mac-address", &len);
 
-		if (qfe_slot != -1 && addr && len == 6)
-			memcpy(dev->dev_addr, addr, 6);
+		if (qfe_slot != -1 && addr && len == ETH_ALEN)
+			memcpy(dev->dev_addr, addr, ETH_ALEN);
 		else
-			memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
+			memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
 	}
 
 	hp = netdev_priv(dev);
@@ -3024,9 +3024,9 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 		    (addr = of_get_property(dp, "local-mac-address", &len))
 			!= NULL &&
 		    len == 6) {
-			memcpy(dev->dev_addr, addr, 6);
+			memcpy(dev->dev_addr, addr, ETH_ALEN);
 		} else {
-			memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
+			memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
 		}
 #else
 		get_hme_mac_nonsparc(pdev, &dev->dev_addr[0]);
@@ -3170,8 +3170,6 @@ static void happy_meal_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(hp->happy_dev);
 
 	free_netdev(net_dev);
-
-	pci_set_drvdata(pdev, NULL);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(happymeal_pci_ids) = {

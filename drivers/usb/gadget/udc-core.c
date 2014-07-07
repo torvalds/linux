@@ -356,7 +356,8 @@ static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *dri
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 	return 0;
 err1:
-	dev_err(&udc->dev, "failed to start %s: %d\n",
+	if (ret != -EISNAM)
+		dev_err(&udc->dev, "failed to start %s: %d\n",
 			udc->driver->function, ret);
 	udc->driver = NULL;
 	udc->dev.driver = NULL;
@@ -427,6 +428,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	list_for_each_entry(udc, &udc_list, list)
 		if (udc->driver == driver) {
 			usb_gadget_remove_driver(udc);
+			usb_gadget_set_state(udc->gadget,
+					USB_STATE_NOTATTACHED);
 			ret = 0;
 			break;
 		}

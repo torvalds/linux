@@ -40,8 +40,6 @@
 
 #include "internal.h"
 
-#define PREFIX "ACPI: "
-
 ACPI_MODULE_NAME("video");
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
 
@@ -50,7 +48,7 @@ static bool acpi_video_caps_checked;
 
 static acpi_status
 acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
-			  void **retyurn_value)
+			  void **return_value)
 {
 	long *cap = context;
 
@@ -233,11 +231,11 @@ static void acpi_video_caps_check(void)
 		acpi_video_get_capabilities(NULL);
 }
 
-bool acpi_video_backlight_quirks(void)
+bool acpi_osi_is_win8(void)
 {
 	return acpi_gbl_osi_data >= ACPI_OSI_WIN_8;
 }
-EXPORT_SYMBOL(acpi_video_backlight_quirks);
+EXPORT_SYMBOL(acpi_osi_is_win8);
 
 /* Promote the vendor interface instead of the generic video module.
  * This function allow DMI blacklists to be implemented by externals

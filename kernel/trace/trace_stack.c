@@ -13,6 +13,7 @@
 #include <linux/sysctl.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/magic.h>
 
 #include <asm/setup.h>
 
@@ -50,11 +51,33 @@ static DEFINE_MUTEX(stack_sysctl_mutex);
 int stack_tracer_enabled;
 static int last_stack_tracer_enabled;
 
+static inline void print_max_stack(void)
+{
+	long i;
+	int size;
+
+	pr_emerg("        Depth    Size   Location    (%d entries)\n"
+			   "        -----    ----   --------\n",
+			   max_stack_trace.nr_entries - 1);
+
+	for (i = 0; i < max_stack_trace.nr_entries; i++) {
+		if (stack_dump_trace[i] == ULONG_MAX)
+			break;
+		if (i+1 == max_stack_trace.nr_entries ||
+				stack_dump_trace[i+1] == ULONG_MAX)
+			size = stack_dump_index[i];
+		else
+			size = stack_dump_index[i] - stack_dump_index[i+1];
+
+		pr_emerg("%3ld) %8d   %5d   %pS\n", i, stack_dump_index[i],
+				size, (void *)stack_dump_trace[i]);
+	}
+}
+
 static inline void
 check_stack(unsigned long ip, unsigned long *stack)
 {
-	unsigned long this_size, flags;
-	unsigned long *p, *top, *start;
+	unsigned long this_size, flags; unsigned long *p, *top, *start;
 	static int tracer_frame;
 	int frame_size = ACCESS_ONCE(tracer_frame);
 	int i;
@@ -84,8 +107,12 @@ check_stack(unsigned long ip, unsigned long *stack)
 
 	max_stack_size = this_size;
 
-	max_stack_trace.nr_entries	= 0;
-	max_stack_trace.skip		= 3;
+	max_stack_trace.nr_entries = 0;
+
+	if (using_ftrace_ops_list_func())
+		max_stack_trace.skip = 4;
+	else
+		max_stack_trace.skip = 3;
 
 	save_stack_trace(&max_stack_trace);
 
@@ -142,6 +169,12 @@ check_stack(unsigned long ip, unsigned long *stack)
 
 		if (!found)
 			i++;
+	}
+
+	if ((current != &init_task &&
+		*(end_of_stack(current)) != STACK_END_MAGIC)) {
+		print_max_stack();
+		BUG();
 	}
 
  out:
@@ -382,7 +415,7 @@ static const struct file_operations stack_trace_filter_fops = {
 	.open = stack_trace_filter_open,
 	.read = seq_read,
 	.write = ftrace_filter_write,
-	.llseek = ftrace_filter_lseek,
+	.llseek = tracing_lseek,
 	.release = ftrace_regex_release,
 };
 

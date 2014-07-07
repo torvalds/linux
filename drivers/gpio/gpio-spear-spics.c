@@ -2,7 +2,7 @@
  * SPEAr platform SPI chipselect abstraction over gpiolib
  *
  * Copyright (C) 2012 ST Microelectronics
- * Shiraz Hashim <shiraz.hashim@st.com>
+ * Shiraz Hashim <shiraz.linux.kernel@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -129,10 +129,8 @@ static int spics_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 	spics = devm_kzalloc(&pdev->dev, sizeof(*spics), GFP_KERNEL);
-	if (!spics) {
-		dev_err(&pdev->dev, "memory allocation fail\n");
+	if (!spics)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	spics->base = devm_ioremap_resource(&pdev->dev, res);
@@ -205,6 +203,6 @@ static int __init spics_gpio_init(void)
 }
 subsys_initcall(spics_gpio_init);
 
-MODULE_AUTHOR("Shiraz Hashim <shiraz.hashim@st.com>");
+MODULE_AUTHOR("Shiraz Hashim <shiraz.linux.kernel@gmail.com>");
 MODULE_DESCRIPTION("ST Microlectronics SPEAr SPI Chip Select Abstraction");
 MODULE_LICENSE("GPL");

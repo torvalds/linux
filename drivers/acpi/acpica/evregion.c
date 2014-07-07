@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -217,16 +217,11 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		if (!(region_obj->region.flags & AOPOBJ_SETUP_COMPLETE)) {
 			region_obj->region.flags |= AOPOBJ_SETUP_COMPLETE;
 
-			if (region_obj2->extra.region_context) {
-
-				/* The handler for this region was already installed */
-
-				ACPI_FREE(region_context);
-			} else {
-				/*
-				 * Save the returned context for use in all accesses to
-				 * this particular region
-				 */
+			/*
+			 * Save the returned context for use in all accesses to
+			 * the handler for this particular region
+			 */
+			if (!(region_obj2->extra.region_context)) {
 				region_obj2->extra.region_context =
 				    region_context;
 			}
@@ -319,6 +314,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 {
 	union acpi_operand_object *handler_obj;
 	union acpi_operand_object *obj_desc;
+	union acpi_operand_object *start_desc;
 	union acpi_operand_object **last_obj_ptr;
 	acpi_adr_space_setup region_setup;
 	void **region_context;
@@ -346,6 +342,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 	/* Find this region in the handler's list */
 
 	obj_desc = handler_obj->address_space.region_list;
+	start_desc = obj_desc;
 	last_obj_ptr = &handler_obj->address_space.region_list;
 
 	while (obj_desc) {
@@ -402,6 +399,14 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 						 handler_obj->address_space.
 						 context, region_context);
 
+				/*
+				 * region_context should have been released by the deactivate
+				 * operation. We don't need access to it anymore here.
+				 */
+				if (region_context) {
+					*region_context = NULL;
+				}
+
 				/* Init routine may fail, Just ignore errors */
 
 				if (ACPI_FAILURE(status)) {
@@ -435,6 +440,15 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 
 		last_obj_ptr = &obj_desc->region.next;
 		obj_desc = obj_desc->region.next;
+
+		/* Prevent infinite loop if list is corrupted */
+
+		if (obj_desc == start_desc) {
+			ACPI_ERROR((AE_INFO,
+				    "Circular handler list in region object %p",
+				    region_obj));
+			return_VOID;
+		}
 	}
 
 	/* If we get here, the region was not in the handler's region list */
@@ -570,10 +584,10 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 	status = acpi_ns_evaluate(info);
 	acpi_ut_remove_reference(args[1]);
 
-      cleanup2:
+cleanup2:
 	acpi_ut_remove_reference(args[0]);
 
-      cleanup1:
+cleanup1:
 	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }
@@ -758,7 +772,7 @@ acpi_ev_orphan_ec_reg_method(struct acpi_namespace_node *ec_device_node)
 
 	status = acpi_evaluate_object(reg_method, NULL, &args, NULL);
 
-      exit:
+exit:
 	/* We ignore all errors from above, don't care */
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);

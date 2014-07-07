@@ -187,10 +187,10 @@ static const struct v4l2_ctrl_ops tw9903_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops tw9903_core_ops = {
 	.log_status = tw9903_log_status,
-	.s_std = tw9903_s_std,
 };
 
 static const struct v4l2_subdev_video_ops tw9903_video_ops = {
+	.s_std = tw9903_s_std,
 	.s_routing = tw9903_s_video_routing,
 };
 

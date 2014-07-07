@@ -17,6 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301, USA.
  */
+#include <linux/component.h>
 #include <linux/module.h>
 #include <linux/export.h>
 #include <linux/device.h>
@@ -25,29 +26,25 @@
 #include <drm/drm_crtc_helper.h>
 #include <linux/fb.h>
 #include <linux/clk.h>
+#include <linux/errno.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 
-#include "ipu-v3/imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
 #include "imx-drm.h"
+#include "ipuv3-plane.h"
 
 #define DRIVER_DESC		"i.MX IPUv3 Graphics"
-
-struct ipu_framebuffer {
-	struct drm_framebuffer	base;
-	void			*virt;
-	dma_addr_t		phys;
-	size_t			len;
-};
 
 struct ipu_crtc {
 	struct device		*dev;
 	struct drm_crtc		base;
 	struct imx_drm_crtc	*imx_crtc;
-	struct ipuv3_channel	*ipu_ch;
+
+	/* plane[0] is the full plane, plane[1] is the partial plane */
+	struct ipu_plane	*plane[2];
+
 	struct ipu_dc		*dc;
-	struct ipu_dp		*dp;
-	struct dmfc_channel	*dmfc;
 	struct ipu_di		*di;
 	int			enabled;
 	struct drm_pending_vblank_event *page_flip_event;
@@ -61,50 +58,34 @@ struct ipu_crtc {
 
 #define to_ipu_crtc(x) container_of(x, struct ipu_crtc, base)
 
-static int calc_vref(struct drm_display_mode *mode)
-{
-	unsigned long htotal, vtotal;
-
-	htotal = mode->htotal;
-	vtotal = mode->vtotal;
-
-	if (!htotal || !vtotal)
-		return 60;
-
-	return mode->clock * 1000 / vtotal / htotal;
-}
-
-static int calc_bandwidth(struct drm_display_mode *mode, unsigned int vref)
-{
-	return mode->hdisplay * mode->vdisplay * vref;
-}
-
 static void ipu_fb_enable(struct ipu_crtc *ipu_crtc)
 {
+	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
+
 	if (ipu_crtc->enabled)
 		return;
 
-	ipu_di_enable(ipu_crtc->di);
-	ipu_dmfc_enable_channel(ipu_crtc->dmfc);
-	ipu_idmac_enable_channel(ipu_crtc->ipu_ch);
+	ipu_dc_enable(ipu);
+	ipu_plane_enable(ipu_crtc->plane[0]);
+	/* Start DC channel and DI after IDMAC */
 	ipu_dc_enable_channel(ipu_crtc->dc);
-	if (ipu_crtc->dp)
-		ipu_dp_enable_channel(ipu_crtc->dp);
+	ipu_di_enable(ipu_crtc->di);
 
 	ipu_crtc->enabled = 1;
 }
 
 static void ipu_fb_disable(struct ipu_crtc *ipu_crtc)
 {
+	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
+
 	if (!ipu_crtc->enabled)
 		return;
 
-	if (ipu_crtc->dp)
-		ipu_dp_disable_channel(ipu_crtc->dp);
+	/* Stop DC channel and DI before IDMAC */
 	ipu_dc_disable_channel(ipu_crtc->dc);
-	ipu_idmac_disable_channel(ipu_crtc->ipu_ch);
-	ipu_dmfc_disable_channel(ipu_crtc->dmfc);
 	ipu_di_disable(ipu_crtc->di);
+	ipu_plane_disable(ipu_crtc->plane[0]);
+	ipu_dc_disable(ipu);
 
 	ipu_crtc->enabled = 0;
 }
@@ -148,7 +129,7 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 
 	ipu_crtc->newfb = fb;
 	ipu_crtc->page_flip_event = event;
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 
 	return 0;
 }
@@ -159,33 +140,6 @@ static const struct drm_crtc_funcs ipu_crtc_funcs = {
 	.page_flip = ipu_page_flip,
 };
 
-static int ipu_drm_set_base(struct drm_crtc *crtc, int x, int y)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-	struct drm_gem_cma_object *cma_obj;
-	struct drm_framebuffer *fb = crtc->fb;
-	unsigned long phys;
-
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	if (!cma_obj) {
-		DRM_LOG_KMS("entry is null.\n");
-		return -EFAULT;
-	}
-
-	phys = cma_obj->paddr;
-	phys += x * (fb->bits_per_pixel >> 3);
-	phys += y * fb->pitches[0];
-
-	dev_dbg(ipu_crtc->dev, "%s: phys: 0x%lx\n", __func__, phys);
-	dev_dbg(ipu_crtc->dev, "%s: xy: %dx%d\n", __func__, x, y);
-
-	ipu_cpmem_set_stride(ipu_get_cpmem(ipu_crtc->ipu_ch), fb->pitches[0]);
-	ipu_cpmem_set_buffer(ipu_get_cpmem(ipu_crtc->ipu_ch),
-			  0, phys);
-
-	return 0;
-}
-
 static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *orig_mode,
 			       struct drm_display_mode *mode,
@@ -193,40 +147,14 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_framebuffer *old_fb)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-	struct drm_framebuffer *fb = ipu_crtc->base.fb;
 	int ret;
 	struct ipu_di_signal_cfg sig_cfg = {};
 	u32 out_pixel_fmt;
-	struct ipu_ch_param __iomem *cpmem = ipu_get_cpmem(ipu_crtc->ipu_ch);
-	int bpp;
-	u32 v4l2_fmt;
 
 	dev_dbg(ipu_crtc->dev, "%s: mode->hdisplay: %d\n", __func__,
 			mode->hdisplay);
 	dev_dbg(ipu_crtc->dev, "%s: mode->vdisplay: %d\n", __func__,
 			mode->vdisplay);
-
-	ipu_ch_param_zero(cpmem);
-
-	switch (fb->pixel_format) {
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_ARGB8888:
-		v4l2_fmt = V4L2_PIX_FMT_RGB32;
-		bpp = 32;
-		break;
-	case DRM_FORMAT_RGB565:
-		v4l2_fmt = V4L2_PIX_FMT_RGB565;
-		bpp = 16;
-		break;
-	case DRM_FORMAT_RGB888:
-		v4l2_fmt = V4L2_PIX_FMT_RGB24;
-		bpp = 24;
-		break;
-	default:
-		dev_err(ipu_crtc->dev, "unsupported pixel format 0x%08x\n",
-				fb->pixel_format);
-		return -EINVAL;
-	}
 
 	out_pixel_fmt = ipu_crtc->interface_pix_fmt;
 
@@ -257,18 +185,6 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
 	sig_cfg.vsync_pin = ipu_crtc->di_vsync_pin;
 
-	if (ipu_crtc->dp) {
-		ret = ipu_dp_setup_channel(ipu_crtc->dp, IPUV3_COLORSPACE_RGB,
-				IPUV3_COLORSPACE_RGB);
-		if (ret) {
-			dev_err(ipu_crtc->dev,
-				"initializing display processor failed with %d\n",
-				ret);
-			return ret;
-		}
-		ipu_dp_set_global_alpha(ipu_crtc->dp, 1, 0, 1);
-	}
-
 	ret = ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di, sig_cfg.interlaced,
 			out_pixel_fmt, mode->hdisplay);
 	if (ret) {
@@ -285,30 +201,9 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	ipu_cpmem_set_resolution(cpmem, mode->hdisplay, mode->vdisplay);
-	ipu_cpmem_set_fmt(cpmem, v4l2_fmt);
-	ipu_cpmem_set_high_priority(ipu_crtc->ipu_ch);
-
-	ret = ipu_dmfc_init_channel(ipu_crtc->dmfc, mode->hdisplay);
-	if (ret) {
-		dev_err(ipu_crtc->dev,
-				"initializing dmfc channel failed with %d\n",
-				ret);
-		return ret;
-	}
-
-	ret = ipu_dmfc_alloc_bandwidth(ipu_crtc->dmfc,
-			calc_bandwidth(mode, calc_vref(mode)), 64);
-	if (ret) {
-		dev_err(ipu_crtc->dev,
-				"allocating dmfc bandwidth failed with %d\n",
-				ret);
-		return ret;
-	}
-
-	ipu_drm_set_base(crtc, x, y);
-
-	return 0;
+	return ipu_plane_mode_set(ipu_crtc->plane[0], crtc, mode, crtc->primary->fb,
+				  0, 0, mode->hdisplay, mode->vdisplay,
+				  x, y, mode->hdisplay, mode->vdisplay);
 }
 
 static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
@@ -332,7 +227,8 @@ static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 
 	if (ipu_crtc->newfb) {
 		ipu_crtc->newfb = NULL;
-		ipu_drm_set_base(&ipu_crtc->base, 0, 0);
+		ipu_plane_set_base(ipu_crtc->plane[0], ipu_crtc->base.primary->fb,
+				ipu_crtc->plane[0]->x, ipu_crtc->plane[0]->y);
 		ipu_crtc_handle_pageflip(ipu_crtc);
 	}
 
@@ -370,10 +266,6 @@ static struct drm_crtc_helper_funcs ipu_helper_funcs = {
 
 static int ipu_enable_vblank(struct drm_crtc *crtc)
 {
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	enable_irq(ipu_crtc->irq);
-
 	return 0;
 }
 
@@ -381,7 +273,8 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
-	disable_irq(ipu_crtc->irq);
+	ipu_crtc->page_flip_event = NULL;
+	ipu_crtc->newfb = NULL;
 }
 
 static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
@@ -400,6 +293,7 @@ static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
 		ipu_crtc->di_clkflags = IPU_DI_CLKMODE_SYNC |
 			IPU_DI_CLKMODE_EXT;
 		break;
+	case DRM_MODE_ENCODER_TMDS:
 	case DRM_MODE_ENCODER_NONE:
 		ipu_crtc->di_clkflags = 0;
 		break;
@@ -418,12 +312,8 @@ static const struct imx_drm_crtc_helper_funcs ipu_crtc_helper_funcs = {
 
 static void ipu_put_resources(struct ipu_crtc *ipu_crtc)
 {
-	if (!IS_ERR_OR_NULL(ipu_crtc->ipu_ch))
-		ipu_idmac_put(ipu_crtc->ipu_ch);
-	if (!IS_ERR_OR_NULL(ipu_crtc->dmfc))
-		ipu_dmfc_put(ipu_crtc->dmfc);
-	if (!IS_ERR_OR_NULL(ipu_crtc->dp))
-		ipu_dp_put(ipu_crtc->dp);
+	if (!IS_ERR_OR_NULL(ipu_crtc->dc))
+		ipu_dc_put(ipu_crtc->dc);
 	if (!IS_ERR_OR_NULL(ipu_crtc->di))
 		ipu_di_put(ipu_crtc->di);
 }
@@ -434,30 +324,10 @@ static int ipu_get_resources(struct ipu_crtc *ipu_crtc,
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 	int ret;
 
-	ipu_crtc->ipu_ch = ipu_idmac_get(ipu, pdata->dma[0]);
-	if (IS_ERR(ipu_crtc->ipu_ch)) {
-		ret = PTR_ERR(ipu_crtc->ipu_ch);
-		goto err_out;
-	}
-
 	ipu_crtc->dc = ipu_dc_get(ipu, pdata->dc);
 	if (IS_ERR(ipu_crtc->dc)) {
 		ret = PTR_ERR(ipu_crtc->dc);
 		goto err_out;
-	}
-
-	ipu_crtc->dmfc = ipu_dmfc_get(ipu, pdata->dma[0]);
-	if (IS_ERR(ipu_crtc->dmfc)) {
-		ret = PTR_ERR(ipu_crtc->dmfc);
-		goto err_out;
-	}
-
-	if (pdata->dp >= 0) {
-		ipu_crtc->dp = ipu_dp_get(ipu, pdata->dp);
-		if (IS_ERR(ipu_crtc->dp)) {
-			ret = PTR_ERR(ipu_crtc->dp);
-			goto err_out;
-		}
 	}
 
 	ipu_crtc->di = ipu_di_get(ipu, pdata->di);
@@ -474,10 +344,12 @@ err_out:
 }
 
 static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
-		struct ipu_client_platformdata *pdata)
+	struct ipu_client_platformdata *pdata, struct drm_device *drm)
 {
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
+	int dp = -EINVAL;
 	int ret;
+	int id;
 
 	ret = ipu_get_resources(ipu_crtc, pdata);
 	if (ret) {
@@ -486,68 +358,145 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		return ret;
 	}
 
-	ret = imx_drm_add_crtc(&ipu_crtc->base,
-			&ipu_crtc->imx_crtc,
-			&ipu_crtc_helper_funcs, THIS_MODULE,
-			ipu_crtc->dev->parent->of_node, pdata->di);
+	ret = imx_drm_add_crtc(drm, &ipu_crtc->base, &ipu_crtc->imx_crtc,
+			&ipu_crtc_helper_funcs, ipu_crtc->dev->of_node);
 	if (ret) {
 		dev_err(ipu_crtc->dev, "adding crtc failed with %d.\n", ret);
 		goto err_put_resources;
 	}
 
-	ipu_crtc->irq = ipu_idmac_channel_irq(ipu, ipu_crtc->ipu_ch,
-			IPU_IRQ_EOF);
+	if (pdata->dp >= 0)
+		dp = IPU_DP_FLOW_SYNC_BG;
+	id = imx_drm_crtc_id(ipu_crtc->imx_crtc);
+	ipu_crtc->plane[0] = ipu_plane_init(ipu_crtc->base.dev, ipu,
+					    pdata->dma[0], dp, BIT(id), true);
+	ret = ipu_plane_get_resources(ipu_crtc->plane[0]);
+	if (ret) {
+		dev_err(ipu_crtc->dev, "getting plane 0 resources failed with %d.\n",
+			ret);
+		goto err_remove_crtc;
+	}
+
+	/* If this crtc is using the DP, add an overlay plane */
+	if (pdata->dp >= 0 && pdata->dma[1] > 0) {
+		ipu_crtc->plane[1] = ipu_plane_init(ipu_crtc->base.dev, ipu,
+						    pdata->dma[1],
+						    IPU_DP_FLOW_SYNC_FG,
+						    BIT(id), false);
+		if (IS_ERR(ipu_crtc->plane[1]))
+			ipu_crtc->plane[1] = NULL;
+	}
+
+	ipu_crtc->irq = ipu_plane_irq(ipu_crtc->plane[0]);
 	ret = devm_request_irq(ipu_crtc->dev, ipu_crtc->irq, ipu_irq_handler, 0,
 			"imx_drm", ipu_crtc);
 	if (ret < 0) {
 		dev_err(ipu_crtc->dev, "irq request failed with %d.\n", ret);
-		goto err_put_resources;
+		goto err_put_plane_res;
 	}
-
-	disable_irq(ipu_crtc->irq);
 
 	return 0;
 
+err_put_plane_res:
+	ipu_plane_put_resources(ipu_crtc->plane[0]);
+err_remove_crtc:
+	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
 err_put_resources:
 	ipu_put_resources(ipu_crtc);
 
 	return ret;
 }
 
-static int ipu_drm_probe(struct platform_device *pdev)
+static struct device_node *ipu_drm_get_port_by_id(struct device_node *parent,
+						  int port_id)
 {
-	struct ipu_client_platformdata *pdata = pdev->dev.platform_data;
+	struct device_node *port;
+	int id, ret;
+
+	port = of_get_child_by_name(parent, "port");
+	while (port) {
+		ret = of_property_read_u32(port, "reg", &id);
+		if (!ret && id == port_id)
+			return port;
+
+		do {
+			port = of_get_next_child(parent, port);
+			if (!port)
+				return NULL;
+		} while (of_node_cmp(port->name, "port"));
+	}
+
+	return NULL;
+}
+
+static int ipu_drm_bind(struct device *dev, struct device *master, void *data)
+{
+	struct ipu_client_platformdata *pdata = dev->platform_data;
+	struct drm_device *drm = data;
 	struct ipu_crtc *ipu_crtc;
 	int ret;
 
-	if (!pdata)
-		return -EINVAL;
-
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-
-	ipu_crtc = devm_kzalloc(&pdev->dev, sizeof(*ipu_crtc), GFP_KERNEL);
+	ipu_crtc = devm_kzalloc(dev, sizeof(*ipu_crtc), GFP_KERNEL);
 	if (!ipu_crtc)
 		return -ENOMEM;
 
-	ipu_crtc->dev = &pdev->dev;
+	ipu_crtc->dev = dev;
 
-	ret = ipu_crtc_init(ipu_crtc, pdata);
+	ret = ipu_crtc_init(ipu_crtc, pdata, drm);
 	if (ret)
 		return ret;
 
-	platform_set_drvdata(pdev, ipu_crtc);
+	dev_set_drvdata(dev, ipu_crtc);
 
 	return 0;
 }
 
-static int ipu_drm_remove(struct platform_device *pdev)
+static void ipu_drm_unbind(struct device *dev, struct device *master,
+	void *data)
 {
-	struct ipu_crtc *ipu_crtc = platform_get_drvdata(pdev);
+	struct ipu_crtc *ipu_crtc = dev_get_drvdata(dev);
 
 	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
 
+	ipu_plane_put_resources(ipu_crtc->plane[0]);
 	ipu_put_resources(ipu_crtc);
+}
 
+static const struct component_ops ipu_crtc_ops = {
+	.bind = ipu_drm_bind,
+	.unbind = ipu_drm_unbind,
+};
+
+static int ipu_drm_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct ipu_client_platformdata *pdata = dev->platform_data;
+	int ret;
+
+	if (!dev->platform_data)
+		return -EINVAL;
+
+	if (!dev->of_node) {
+		/* Associate crtc device with the corresponding DI port node */
+		dev->of_node = ipu_drm_get_port_by_id(dev->parent->of_node,
+						      pdata->di + 2);
+		if (!dev->of_node) {
+			dev_err(dev, "missing port@%d node in %s\n",
+				pdata->di + 2, dev->parent->of_node->full_name);
+			return -ENODEV;
+		}
+	}
+
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	return component_add(dev, &ipu_crtc_ops);
+}
+
+static int ipu_drm_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &ipu_crtc_ops);
 	return 0;
 }
 

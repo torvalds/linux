@@ -30,43 +30,55 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/otg.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
+#include <linux/delay.h>
 
 #include "phy-generic.h"
 
-static struct platform_device *pd;
-
-void usb_nop_xceiv_register(void)
+struct platform_device *usb_phy_generic_register(void)
 {
-	if (pd)
-		return;
-	pd = platform_device_register_simple("usb_phy_gen_xceiv", -1, NULL, 0);
-	if (!pd) {
-		pr_err("Unable to register generic usb transceiver\n");
-		return;
-	}
+	return platform_device_register_simple("usb_phy_generic",
+			PLATFORM_DEVID_AUTO, NULL, 0);
 }
-EXPORT_SYMBOL(usb_nop_xceiv_register);
+EXPORT_SYMBOL_GPL(usb_phy_generic_register);
 
-void usb_nop_xceiv_unregister(void)
+void usb_phy_generic_unregister(struct platform_device *pdev)
 {
-	platform_device_unregister(pd);
-	pd = NULL;
+	platform_device_unregister(pdev);
 }
-EXPORT_SYMBOL(usb_nop_xceiv_unregister);
+EXPORT_SYMBOL_GPL(usb_phy_generic_unregister);
 
 static int nop_set_suspend(struct usb_phy *x, int suspend)
 {
 	return 0;
 }
 
+static void nop_reset_set(struct usb_phy_generic *nop, int asserted)
+{
+	int value;
+
+	if (!gpio_is_valid(nop->gpio_reset))
+		return;
+
+	value = asserted;
+	if (nop->reset_active_low)
+		value = !value;
+
+	gpio_set_value_cansleep(nop->gpio_reset, value);
+
+	if (!asserted)
+		usleep_range(10000, 20000);
+}
+
 int usb_gen_phy_init(struct usb_phy *phy)
 {
-	struct usb_phy_gen_xceiv *nop = dev_get_drvdata(phy->dev);
+	struct usb_phy_generic *nop = dev_get_drvdata(phy->dev);
 
 	if (!IS_ERR(nop->vcc)) {
 		if (regulator_enable(nop->vcc))
@@ -74,13 +86,10 @@ int usb_gen_phy_init(struct usb_phy *phy)
 	}
 
 	if (!IS_ERR(nop->clk))
-		clk_enable(nop->clk);
+		clk_prepare_enable(nop->clk);
 
-	if (!IS_ERR(nop->reset)) {
-		/* De-assert RESET */
-		if (regulator_enable(nop->reset))
-			dev_err(phy->dev, "Failed to de-assert reset\n");
-	}
+	/* De-assert RESET */
+	nop_reset_set(nop, 0);
 
 	return 0;
 }
@@ -88,16 +97,13 @@ EXPORT_SYMBOL_GPL(usb_gen_phy_init);
 
 void usb_gen_phy_shutdown(struct usb_phy *phy)
 {
-	struct usb_phy_gen_xceiv *nop = dev_get_drvdata(phy->dev);
+	struct usb_phy_generic *nop = dev_get_drvdata(phy->dev);
 
-	if (!IS_ERR(nop->reset)) {
-		/* Assert RESET */
-		if (regulator_disable(nop->reset))
-			dev_err(phy->dev, "Failed to assert reset\n");
-	}
+	/* Assert RESET */
+	nop_reset_set(nop, 1);
 
 	if (!IS_ERR(nop->clk))
-		clk_disable(nop->clk);
+		clk_disable_unprepare(nop->clk);
 
 	if (!IS_ERR(nop->vcc)) {
 		if (regulator_disable(nop->vcc))
@@ -135,11 +141,40 @@ static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
-int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
-		enum usb_phy_type type, u32 clk_rate, bool needs_vcc,
-		bool needs_reset)
+int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
+		struct usb_phy_generic_platform_data *pdata)
 {
+	enum usb_phy_type type = USB_PHY_TYPE_USB2;
 	int err;
+
+	u32 clk_rate = 0;
+	bool needs_vcc = false;
+
+	nop->reset_active_low = true;	/* default behaviour */
+
+	if (dev->of_node) {
+		struct device_node *node = dev->of_node;
+		enum of_gpio_flags flags = 0;
+
+		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
+			clk_rate = 0;
+
+		needs_vcc = of_property_read_bool(node, "vcc-supply");
+		nop->gpio_reset = of_get_named_gpio_flags(node, "reset-gpios",
+								0, &flags);
+		if (nop->gpio_reset == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		nop->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
+
+	} else if (pdata) {
+		type = pdata->type;
+		clk_rate = pdata->clk_rate;
+		needs_vcc = pdata->needs_vcc;
+		nop->gpio_reset = pdata->gpio_reset;
+	} else {
+		nop->gpio_reset = -1;
+	}
 
 	nop->phy.otg = devm_kzalloc(dev, sizeof(*nop->phy.otg),
 			GFP_KERNEL);
@@ -160,14 +195,6 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
 		}
 	}
 
-	if (!IS_ERR(nop->clk)) {
-		err = clk_prepare(nop->clk);
-		if (err) {
-			dev_err(dev, "Error preparing clock\n");
-			return err;
-		}
-	}
-
 	nop->vcc = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(nop->vcc)) {
 		dev_dbg(dev, "Error getting vcc regulator: %ld\n",
@@ -176,12 +203,22 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
 			return -EPROBE_DEFER;
 	}
 
-	nop->reset = devm_regulator_get(dev, "reset");
-	if (IS_ERR(nop->reset)) {
-		dev_dbg(dev, "Error getting reset regulator: %ld\n",
-					PTR_ERR(nop->reset));
-		if (needs_reset)
-			return -EPROBE_DEFER;
+	if (gpio_is_valid(nop->gpio_reset)) {
+		unsigned long gpio_flags;
+
+		/* Assert RESET */
+		if (nop->reset_active_low)
+			gpio_flags = GPIOF_OUT_INIT_LOW;
+		else
+			gpio_flags = GPIOF_OUT_INIT_HIGH;
+
+		err = devm_gpio_request_one(dev, nop->gpio_reset,
+						gpio_flags, dev_name(dev));
+		if (err) {
+			dev_err(dev, "Error requesting RESET GPIO %d\n",
+					nop->gpio_reset);
+			return err;
+		}
 	}
 
 	nop->dev		= dev;
@@ -195,53 +232,21 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
 	nop->phy.otg->set_host		= nop_set_host;
 	nop->phy.otg->set_peripheral	= nop_set_peripheral;
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&nop->phy.notifier);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_phy_gen_create_phy);
 
-void usb_phy_gen_cleanup_phy(struct usb_phy_gen_xceiv *nop)
-{
-	if (!IS_ERR(nop->clk))
-		clk_unprepare(nop->clk);
-}
-EXPORT_SYMBOL_GPL(usb_phy_gen_cleanup_phy);
-
-static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
+static int usb_phy_generic_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct usb_phy_gen_xceiv_platform_data *pdata =
-			dev_get_platdata(&pdev->dev);
-	struct usb_phy_gen_xceiv	*nop;
-	enum usb_phy_type	type = USB_PHY_TYPE_USB2;
+	struct usb_phy_generic	*nop;
 	int err;
-	u32 clk_rate = 0;
-	bool needs_vcc = false;
-	bool needs_reset = false;
-
-	if (dev->of_node) {
-		struct device_node *node = dev->of_node;
-
-		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
-			clk_rate = 0;
-
-		needs_vcc = of_property_read_bool(node, "vcc-supply");
-		needs_reset = of_property_read_bool(node, "reset-supply");
-
-	} else if (pdata) {
-		type = pdata->type;
-		clk_rate = pdata->clk_rate;
-		needs_vcc = pdata->needs_vcc;
-		needs_reset = pdata->needs_reset;
-	}
 
 	nop = devm_kzalloc(dev, sizeof(*nop), GFP_KERNEL);
 	if (!nop)
 		return -ENOMEM;
 
-
-	err = usb_phy_gen_create_phy(dev, nop, type, clk_rate, needs_vcc,
-			needs_reset);
+	err = usb_phy_gen_create_phy(dev, nop, dev_get_platdata(&pdev->dev));
 	if (err)
 		return err;
 
@@ -252,23 +257,18 @@ static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
 			err);
-		goto err_add;
+		return err;
 	}
 
 	platform_set_drvdata(pdev, nop);
 
 	return 0;
-
-err_add:
-	usb_phy_gen_cleanup_phy(nop);
-	return err;
 }
 
-static int usb_phy_gen_xceiv_remove(struct platform_device *pdev)
+static int usb_phy_generic_remove(struct platform_device *pdev)
 {
-	struct usb_phy_gen_xceiv *nop = platform_get_drvdata(pdev);
+	struct usb_phy_generic *nop = platform_get_drvdata(pdev);
 
-	usb_phy_gen_cleanup_phy(nop);
 	usb_remove_phy(&nop->phy);
 
 	return 0;
@@ -281,29 +281,29 @@ static const struct of_device_id nop_xceiv_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, nop_xceiv_dt_ids);
 
-static struct platform_driver usb_phy_gen_xceiv_driver = {
-	.probe		= usb_phy_gen_xceiv_probe,
-	.remove		= usb_phy_gen_xceiv_remove,
+static struct platform_driver usb_phy_generic_driver = {
+	.probe		= usb_phy_generic_probe,
+	.remove		= usb_phy_generic_remove,
 	.driver		= {
-		.name	= "usb_phy_gen_xceiv",
+		.name	= "usb_phy_generic",
 		.owner	= THIS_MODULE,
 		.of_match_table = nop_xceiv_dt_ids,
 	},
 };
 
-static int __init usb_phy_gen_xceiv_init(void)
+static int __init usb_phy_generic_init(void)
 {
-	return platform_driver_register(&usb_phy_gen_xceiv_driver);
+	return platform_driver_register(&usb_phy_generic_driver);
 }
-subsys_initcall(usb_phy_gen_xceiv_init);
+subsys_initcall(usb_phy_generic_init);
 
-static void __exit usb_phy_gen_xceiv_exit(void)
+static void __exit usb_phy_generic_exit(void)
 {
-	platform_driver_unregister(&usb_phy_gen_xceiv_driver);
+	platform_driver_unregister(&usb_phy_generic_driver);
 }
-module_exit(usb_phy_gen_xceiv_exit);
+module_exit(usb_phy_generic_exit);
 
-MODULE_ALIAS("platform:usb_phy_gen_xceiv");
+MODULE_ALIAS("platform:usb_phy_generic");
 MODULE_AUTHOR("Texas Instruments Inc");
 MODULE_DESCRIPTION("NOP USB Transceiver driver");
 MODULE_LICENSE("GPL");

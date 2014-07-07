@@ -68,13 +68,22 @@ __do_hyp_init:
 	msr	tcr_el2, x4
 
 	ldr	x4, =VTCR_EL2_FLAGS
+	/*
+	 * Read the PARange bits from ID_AA64MMFR0_EL1 and set the PS bits in
+	 * VTCR_EL2.
+	 */
+	mrs	x5, ID_AA64MMFR0_EL1
+	bfi	x4, x5, #16, #3
 	msr	vtcr_el2, x4
 
 	mrs	x4, mair_el1
 	msr	mair_el2, x4
 	isb
 
-	mov	x4, #SCTLR_EL2_FLAGS
+	mrs	x4, sctlr_el2
+	and	x4, x4, #SCTLR_EL2_EE	// preserve endianness of EL2
+	ldr	x5, =SCTLR_EL2_FLAGS
+	orr	x4, x4, x5
 	msr	sctlr_el2, x4
 	isb
 

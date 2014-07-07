@@ -3,7 +3,6 @@ menu "Xen driver support"
 
 config XEN_BALLOON
 	bool "Xen memory balloon driver"
-	depends on !ARM
 	default y
 	help
 	  The balloon driver allows the Xen domain to request more memory from
@@ -140,7 +139,6 @@ config XEN_GRANT_DEV_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
-	depends on PCI && X86
 	select SWIOTLB
 
 config XEN_TMEM
@@ -223,7 +221,7 @@ config XEN_ACPI_PROCESSOR
 
 	  To do that the driver parses the Power Management data and uploads
 	  said information to the Xen hypervisor. Then the Xen hypervisor can
-	  select the proper Cx and Pxx states. It also registers itslef as the
+	  select the proper Cx and Pxx states. It also registers itself as the
 	  SMM so that other drivers (such as ACPI cpufreq scaling driver) will
 	  not load.
 

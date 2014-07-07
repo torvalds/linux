@@ -9,7 +9,7 @@
  * Maintainer: Kumar Gala
  * Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- * Copyright 2002-2009, 2011 Freescale Semiconductor, Inc.
+ * Copyright 2002-2009, 2011-2013 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -29,7 +29,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -378,8 +377,11 @@ extern const char gfar_driver_version[];
 		IMASK_RXFEN0 | IMASK_BSY | IMASK_EBERR | IMASK_BABR | \
 		IMASK_XFUN | IMASK_RXC | IMASK_BABT | IMASK_DPE \
 		| IMASK_PERR)
-#define IMASK_RTX_DISABLED ((~(IMASK_RXFEN0 | IMASK_TXFEN | IMASK_BSY)) \
-			   & IMASK_DEFAULT)
+#define IMASK_RX_DEFAULT (IMASK_RXFEN0 | IMASK_BSY)
+#define IMASK_TX_DEFAULT (IMASK_TXFEN | IMASK_TXBEN)
+
+#define IMASK_RX_DISABLED ((~(IMASK_RX_DEFAULT)) & IMASK_DEFAULT)
+#define IMASK_TX_DISABLED ((~(IMASK_TX_DEFAULT)) & IMASK_DEFAULT)
 
 /* Fifo management */
 #define FIFO_TX_THR_MASK	0x01ff
@@ -410,7 +412,9 @@ extern const char gfar_driver_version[];
 
 /* This default RIR value directly corresponds
  * to the 3-bit hash value generated */
-#define DEFAULT_RIR0	0x05397700
+#define DEFAULT_8RXQ_RIR0	0x05397700
+/* Map even hash values to Q0, and odd ones to Q1 */
+#define DEFAULT_2RXQ_RIR0	0x04104100
 
 /* RQFCR register bits */
 #define RQFCR_GPI		0x80000000
@@ -881,7 +885,6 @@ struct gfar {
 #define FSL_GIANFAR_DEV_HAS_CSUM		0x00000010
 #define FSL_GIANFAR_DEV_HAS_VLAN		0x00000020
 #define FSL_GIANFAR_DEV_HAS_EXTENDED_HASH	0x00000040
-#define FSL_GIANFAR_DEV_HAS_PADDING		0x00000080
 #define FSL_GIANFAR_DEV_HAS_MAGIC_PACKET	0x00000100
 #define FSL_GIANFAR_DEV_HAS_BD_STASHING		0x00000200
 #define FSL_GIANFAR_DEV_HAS_BUF_STASHING	0x00000400
@@ -893,8 +896,8 @@ struct gfar {
 #define DEFAULT_MAPPING 	0xFF
 #endif
 
-#define ISRG_SHIFT_TX	0x10
-#define ISRG_SHIFT_RX	0x18
+#define ISRG_RR0	0x80000000
+#define ISRG_TR0	0x00800000
 
 /* The same driver can operate in two modes */
 /* SQ_SG_MODE: Single Queue Single Group Mode
@@ -904,6 +907,22 @@ struct gfar {
 enum {
 	SQ_SG_MODE = 0,
 	MQ_MG_MODE
+};
+
+/* GFAR_SQ_POLLING: Single Queue NAPI polling mode
+ *	The driver supports a single pair of RX/Tx queues
+ *	per interrupt group (Rx/Tx int line). MQ_MG mode
+ *	devices have 2 interrupt groups, so the device will
+ *	have a total of 2 Tx and 2 Rx queues in this case.
+ * GFAR_MQ_POLLING: Multi Queue NAPI polling mode
+ *	The driver supports all the 8 Rx and Tx HW queues
+ *	each queue mapped by the Device Tree to one of
+ *	the 2 interrupt groups. This mode implies significant
+ *	processing overhead (CPU and controller level).
+ */
+enum gfar_poll_mode {
+	GFAR_SQ_POLLING = 0,
+	GFAR_MQ_POLLING
 };
 
 /*
@@ -967,7 +986,6 @@ struct rx_q_stats {
 
 /**
  *	struct gfar_priv_rx_q - per rx queue structure
- *	@rxlock: per queue rx spin lock
  *	@rx_skbuff: skb pointers
  *	@skb_currx: currently use skb pointer
  *	@rx_bd_base: First rx buffer descriptor
@@ -980,8 +998,7 @@ struct rx_q_stats {
  */
 
 struct gfar_priv_rx_q {
-	spinlock_t rxlock __attribute__ ((aligned (SMP_CACHE_BYTES)));
-	struct	sk_buff ** rx_skbuff;
+	struct	sk_buff **rx_skbuff __aligned(SMP_CACHE_BYTES);
 	dma_addr_t rx_bd_dma_base;
 	struct	rxbd8 *rx_bd_base;
 	struct	rxbd8 *cur_rx;
@@ -1017,17 +1034,20 @@ struct gfar_irqinfo {
  */
 
 struct gfar_priv_grp {
-	spinlock_t grplock __attribute__ ((aligned (SMP_CACHE_BYTES)));
-	struct	napi_struct napi;
-	struct gfar_private *priv;
+	spinlock_t grplock __aligned(SMP_CACHE_BYTES);
+	struct	napi_struct napi_rx;
+	struct	napi_struct napi_tx;
 	struct gfar __iomem *regs;
-	unsigned int rstat;
-	unsigned long num_rx_queues;
-	unsigned long rx_bit_map;
-	/* cacheline 3 */
+	struct gfar_priv_tx_q *tx_queue;
+	struct gfar_priv_rx_q *rx_queue;
 	unsigned int tstat;
+	unsigned int rstat;
+
+	struct gfar_private *priv;
 	unsigned long num_tx_queues;
 	unsigned long tx_bit_map;
+	unsigned long num_rx_queues;
+	unsigned long rx_bit_map;
 
 	struct gfar_irqinfo *irqinfo[GFAR_NUM_IRQS];
 };
@@ -1042,6 +1062,11 @@ enum gfar_errata {
 	GFAR_ERRATA_12		= 0x08, /* a.k.a errata eTSEC49 */
 };
 
+enum gfar_dev_state {
+	GFAR_DOWN = 1,
+	GFAR_RESETTING
+};
+
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
  * (Ok, that's not so true anymore, but there is a family resemblance)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
@@ -1052,8 +1077,6 @@ enum gfar_errata {
  * the buffer descriptor determines the actual condition.
  */
 struct gfar_private {
-	unsigned int num_rx_queues;
-
 	struct device *dev;
 	struct net_device *ndev;
 	enum gfar_errata errata;
@@ -1061,6 +1084,7 @@ struct gfar_private {
 
 	u16 uses_rxfcb;
 	u16 padding;
+	u32 device_flags;
 
 	/* HW time stamping enabled flag */
 	int hwts_rx_en;
@@ -1070,10 +1094,12 @@ struct gfar_private {
 	struct gfar_priv_rx_q *rx_queue[MAX_RX_QS];
 	struct gfar_priv_grp gfargrp[MAXGROUPS];
 
-	u32 device_flags;
+	unsigned long state;
 
-	unsigned int mode;
+	unsigned short mode;
+	unsigned short poll_mode;
 	unsigned int num_tx_queues;
+	unsigned int num_rx_queues;
 	unsigned int num_grps;
 
 	/* Network Statistics */
@@ -1114,6 +1140,9 @@ struct gfar_private {
 	unsigned int total_tx_ring_size;
 	unsigned int total_rx_ring_size;
 
+	u32 rqueue;
+	u32 tqueue;
+
 	/* RX per device parameters */
 	unsigned int rx_stash_size;
 	unsigned int rx_stash_index;
@@ -1127,11 +1156,6 @@ struct gfar_private {
 	/* Hash registers and their width */
 	u32 __iomem *hash_regs[16];
 	int hash_width;
-
-	/* global parameters */
-	unsigned int fifo_threshold;
-	unsigned int fifo_starve;
-	unsigned int fifo_starve_off;
 
 	/*Filer table*/
 	unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
@@ -1177,21 +1201,42 @@ static inline void gfar_read_filer(struct gfar_private *priv,
 	*fpr = gfar_read(&regs->rqfpr);
 }
 
-extern void lock_rx_qs(struct gfar_private *priv);
-extern void lock_tx_qs(struct gfar_private *priv);
-extern void unlock_rx_qs(struct gfar_private *priv);
-extern void unlock_tx_qs(struct gfar_private *priv);
-extern irqreturn_t gfar_receive(int irq, void *dev_id);
-extern int startup_gfar(struct net_device *dev);
-extern void stop_gfar(struct net_device *dev);
-extern void gfar_halt(struct net_device *dev);
-extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
-		int enable, u32 regnum, u32 read);
-extern void gfar_configure_coalescing_all(struct gfar_private *priv);
-void gfar_init_sysfs(struct net_device *dev);
+static inline void gfar_write_isrg(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+	u32 __iomem *baddr = &regs->isrg0;
+	u32 isrg = 0;
+	int grp_idx, i;
+
+	for (grp_idx = 0; grp_idx < priv->num_grps; grp_idx++) {
+		struct gfar_priv_grp *grp = &priv->gfargrp[grp_idx];
+
+		for_each_set_bit(i, &grp->rx_bit_map, priv->num_rx_queues) {
+			isrg |= (ISRG_RR0 >> i);
+		}
+
+		for_each_set_bit(i, &grp->tx_bit_map, priv->num_tx_queues) {
+			isrg |= (ISRG_TR0 >> i);
+		}
+
+		gfar_write(baddr, isrg);
+
+		baddr++;
+		isrg = 0;
+	}
+}
+
+irqreturn_t gfar_receive(int irq, void *dev_id);
+int startup_gfar(struct net_device *dev);
+void stop_gfar(struct net_device *dev);
+void reset_gfar(struct net_device *dev);
+void gfar_mac_reset(struct gfar_private *priv);
+void gfar_halt(struct gfar_private *priv);
+void gfar_start(struct gfar_private *priv);
+void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev, int enable,
+		   u32 regnum, u32 read);
+void gfar_configure_coalescing_all(struct gfar_private *priv);
 int gfar_set_features(struct net_device *dev, netdev_features_t features);
-extern void gfar_check_rx_parser_mode(struct gfar_private *priv);
-extern void gfar_vlan_mode(struct net_device *dev, netdev_features_t features);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
 

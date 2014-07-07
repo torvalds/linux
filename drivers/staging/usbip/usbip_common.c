@@ -55,7 +55,8 @@ static ssize_t usbip_debug_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
 				 size_t count)
 {
-	sscanf(buf, "%lx", &usbip_debug_flag);
+	if (sscanf(buf, "%lx", &usbip_debug_flag) != 1)
+		return -EINVAL;
 	return count;
 }
 DEVICE_ATTR_RW(usbip_debug);
@@ -99,26 +100,8 @@ static void usbip_dump_usb_device(struct usb_device *udev)
 	struct device *dev = &udev->dev;
 	int i;
 
-	dev_dbg(dev, "       devnum(%d) devpath(%s) ",
-		udev->devnum, udev->devpath);
-
-	switch (udev->speed) {
-	case USB_SPEED_HIGH:
-		pr_debug("SPD_HIGH ");
-		break;
-	case USB_SPEED_FULL:
-		pr_debug("SPD_FULL ");
-		break;
-	case USB_SPEED_LOW:
-		pr_debug("SPD_LOW ");
-		break;
-	case USB_SPEED_UNKNOWN:
-		pr_debug("SPD_UNKNOWN ");
-		break;
-	default:
-		pr_debug("SPD_ERROR ");
-		break;
-	}
+	dev_dbg(dev, "       devnum(%d) devpath(%s) usb speed(%s)",
+		udev->devnum, udev->devpath, usb_speed_string(udev->speed));
 
 	pr_debug("tt %p, ttport %d\n", udev->tt, udev->ttport);
 
@@ -155,8 +138,9 @@ static void usbip_dump_usb_device(struct usb_device *udev)
 
 	dev_dbg(dev, "parent %p, bus %p\n", udev->parent, udev->bus);
 
-	dev_dbg(dev, "descriptor %p, config %p, actconfig %p, "
-		"rawdescriptors %p\n", &udev->descriptor, udev->config,
+	dev_dbg(dev,
+		"descriptor %p, config %p, actconfig %p, rawdescriptors %p\n",
+		&udev->descriptor, udev->config,
 		udev->actconfig, udev->rawdescriptors);
 
 	dev_dbg(dev, "have_langid %d, string_langid %d\n",
@@ -194,8 +178,8 @@ static void usbip_dump_usb_ctrlrequest(struct usb_ctrlrequest *cmd)
 	}
 
 	pr_debug("       ");
-	pr_debug("bRequestType(%02X) bRequest(%02X) wValue(%04X) wIndex(%04X) "
-		 "wLength(%04X) ", cmd->bRequestType, cmd->bRequest,
+	pr_debug("bRequestType(%02X) bRequest(%02X) wValue(%04X) wIndex(%04X) wLength(%04X) ",
+		 cmd->bRequestType, cmd->bRequest,
 		 cmd->wValue, cmd->wIndex, cmd->wLength);
 	pr_debug("\n       ");
 
@@ -306,8 +290,7 @@ void usbip_dump_header(struct usbip_header *pdu)
 
 	switch (pdu->base.command) {
 	case USBIP_CMD_SUBMIT:
-		pr_debug("USBIP_CMD_SUBMIT: "
-			 "x_flags %u x_len %u sf %u #p %d iv %d\n",
+		pr_debug("USBIP_CMD_SUBMIT: x_flags %u x_len %u sf %u #p %d iv %d\n",
 			 pdu->u.cmd_submit.transfer_flags,
 			 pdu->u.cmd_submit.transfer_buffer_length,
 			 pdu->u.cmd_submit.start_frame,
@@ -366,7 +349,6 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 		msg.msg_namelen = 0;
 		msg.msg_control = NULL;
 		msg.msg_controllen = 0;
-		msg.msg_namelen    = 0;
 		msg.msg_flags      = MSG_NOSIGNAL;
 
 		result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_WAITALL);
@@ -399,31 +381,6 @@ err:
 	return result;
 }
 EXPORT_SYMBOL_GPL(usbip_recv);
-
-struct socket *sockfd_to_socket(unsigned int sockfd)
-{
-	struct socket *socket;
-	struct file *file;
-	struct inode *inode;
-
-	file = fget(sockfd);
-	if (!file) {
-		pr_err("invalid sockfd\n");
-		return NULL;
-	}
-
-	inode = file_inode(file);
-
-	if (!inode || !S_ISSOCK(inode->i_mode)) {
-		fput(file);
-		return NULL;
-	}
-
-	socket = SOCKET_I(inode);
-
-	return socket;
-}
-EXPORT_SYMBOL_GPL(sockfd_to_socket);
 
 /* there may be more cases to tweak the flags. */
 static unsigned int tweak_transfer_flags(unsigned int flags)
@@ -705,8 +662,7 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 
 	if (total_length != urb->actual_length) {
 		dev_err(&urb->dev->dev,
-			"total length of iso packets %d not equal to actual "
-			"length of buffer %d\n",
+			"total length of iso packets %d not equal to actual length of buffer %d\n",
 			total_length, urb->actual_length);
 
 		if (ud->side == USBIP_STUB)

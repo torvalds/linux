@@ -402,7 +402,9 @@ _GLOBAL(set_context)
  * Load TLBCAM[index] entry in to the L2 CAM MMU
  */
 _GLOBAL(loadcam_entry)
-	LOAD_REG_ADDR(r4, TLBCAM)
+	mflr	r5
+	LOAD_REG_ADDR_PIC(r4, TLBCAM)
+	mtlr	r5
 	mulli	r5,r3,TLBCAM_SIZE
 	add	r3,r5,r4
 	lwz	r4,TLBCAM_MAS0(r3)

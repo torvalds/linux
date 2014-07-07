@@ -1,29 +1,25 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #ifndef _E1000_REGS_H_
 #define _E1000_REGS_H_
@@ -41,6 +37,7 @@
 #define E1000_FCT      0x00030  /* Flow Control Type - RW */
 #define E1000_CONNSW   0x00034  /* Copper/Fiber switch control - RW */
 #define E1000_VET      0x00038  /* VLAN Ether Type - RW */
+#define E1000_TSSDP    0x0003C  /* Time Sync SDP Configuration Register - RW */
 #define E1000_ICR      0x000C0  /* Interrupt Cause Read - R/clr */
 #define E1000_ITR      0x000C4  /* Interrupt Throttling Rate - RW */
 #define E1000_ICS      0x000C8  /* Interrupt Cause Set - WO */
@@ -102,6 +99,14 @@
 #define E1000_SYSTIMH    0x0B604 /* System time register High - RO */
 #define E1000_TIMINCA    0x0B608 /* Increment attributes register - RW */
 #define E1000_TSAUXC     0x0B640 /* Timesync Auxiliary Control register */
+#define E1000_TRGTTIML0  0x0B644 /* Target Time Register 0 Low  - RW */
+#define E1000_TRGTTIMH0  0x0B648 /* Target Time Register 0 High - RW */
+#define E1000_TRGTTIML1  0x0B64C /* Target Time Register 1 Low  - RW */
+#define E1000_TRGTTIMH1  0x0B650 /* Target Time Register 1 High - RW */
+#define E1000_AUXSTMPL0  0x0B65C /* Auxiliary Time Stamp 0 Register Low  - RO */
+#define E1000_AUXSTMPH0  0x0B660 /* Auxiliary Time Stamp 0 Register High - RO */
+#define E1000_AUXSTMPL1  0x0B664 /* Auxiliary Time Stamp 1 Register Low  - RO */
+#define E1000_AUXSTMPH1  0x0B668 /* Auxiliary Time Stamp 1 Register High - RO */
 #define E1000_SYSTIMR    0x0B6F8 /* System time register Residue */
 #define E1000_TSICR      0x0B66C /* Interrupt Cause Register */
 #define E1000_TSIM       0x0B674 /* Interrupt Mask Register */
@@ -187,6 +192,10 @@
 				    : (0x0E038 + ((_n) * 0x40)))
 #define E1000_TDWBAH(_n)  ((_n) < 4 ? (0x0383C + ((_n) * 0x100)) \
 				    : (0x0E03C + ((_n) * 0x40)))
+
+#define E1000_RXPBS	0x02404  /* Rx Packet Buffer Size - RW */
+#define E1000_TXPBS	0x03404  /* Tx Packet Buffer Size - RW */
+
 #define E1000_TDFH     0x03410  /* TX Data FIFO Head - RW */
 #define E1000_TDFT     0x03418  /* TX Data FIFO Tail - RW */
 #define E1000_TDFHS    0x03420  /* TX Data FIFO Head Saved - RW */
@@ -293,9 +302,9 @@
 #define E1000_RA2      0x054E0  /* 2nd half of Rx address array - RW Array */
 #define E1000_PSRTYPE(_i)       (0x05480 + ((_i) * 4))
 #define E1000_RAL(_i)  (((_i) <= 15) ? (0x05400 + ((_i) * 8)) : \
-                                       (0x054E0 + ((_i - 16) * 8)))
+					(0x054E0 + ((_i - 16) * 8)))
 #define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \
-                                       (0x054E4 + ((_i - 16) * 8)))
+					(0x054E4 + ((_i - 16) * 8)))
 #define E1000_IP4AT_REG(_i)     (0x05840 + ((_i) * 8))
 #define E1000_IP6AT_REG(_i)     (0x05880 + ((_i) * 4))
 #define E1000_WUPM_REG(_i)      (0x05A00 + ((_i) * 4))
@@ -349,16 +358,29 @@
 #define E1000_P2VMAILBOX(_n)   (0x00C00 + (4 * (_n)))
 #define E1000_VMBMEM(_n)       (0x00800 + (64 * (_n)))
 #define E1000_VMOLR(_n)        (0x05AD0 + (4 * (_n)))
-#define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN Virtual Machine
-                                                       * Filter - RW */
+#define E1000_DVMOLR(_n)       (0x0C038 + (64 * (_n)))
+#define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN VM Filter */
 #define E1000_VMVIR(_n)        (0x03700 + (4 * (_n)))
 
-#define wr32(reg, value) (writel(value, hw->hw_addr + reg))
-#define rd32(reg) (readl(hw->hw_addr + reg))
+struct e1000_hw;
+
+u32 igb_rd32(struct e1000_hw *hw, u32 reg);
+
+/* write operations, indexed using DWORDS */
+#define wr32(reg, val) \
+do { \
+	u8 __iomem *hw_addr = ACCESS_ONCE((hw)->hw_addr); \
+	if (!E1000_REMOVED(hw_addr)) \
+		writel((val), &hw_addr[(reg)]); \
+} while (0)
+
+#define rd32(reg) (igb_rd32(hw, reg))
+
 #define wrfl() ((void)rd32(E1000_STATUS))
 
 #define array_wr32(reg, offset, value) \
-	(writel(value, hw->hw_addr + reg + ((offset) << 2)))
+	wr32((reg) + ((offset) << 2), (value))
+
 #define array_rd32(reg, offset) \
 	(readl(hw->hw_addr + reg + ((offset) << 2)))
 
@@ -396,5 +418,7 @@
 
 #define E1000_INVM_DATA_REG(_n)	(0x12120 + 4*(_n))
 #define E1000_INVM_SIZE		64 /* Number of INVM Data Registers */
+
+#define E1000_REMOVED(h) unlikely(!(h))
 
 #endif

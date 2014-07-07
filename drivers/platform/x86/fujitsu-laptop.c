@@ -66,7 +66,6 @@
 #include <linux/backlight.h>
 #include <linux/input.h>
 #include <linux/kfifo.h>
-#include <linux/video_output.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
@@ -219,8 +218,7 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 	{ .type = ACPI_TYPE_INTEGER }
 	};
 	struct acpi_object_list arg_list = { 4, &params[0] };
-	struct acpi_buffer output;
-	union acpi_object out_obj;
+	unsigned long long value;
 	acpi_handle handle = NULL;
 
 	status = acpi_get_handle(fujitsu_hotkey->acpi_handle, "FUNC", &handle);
@@ -235,10 +233,7 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 	params[2].integer.value = arg1;
 	params[3].integer.value = arg2;
 
-	output.length = sizeof(out_obj);
-	output.pointer = &out_obj;
-
-	status = acpi_evaluate_object(handle, NULL, &arg_list, &output);
+	status = acpi_evaluate_integer(handle, NULL, &arg_list, &value);
 	if (ACPI_FAILURE(status)) {
 		vdbg_printk(FUJLAPTOP_DBG_WARN,
 			"FUNC 0x%x (args 0x%x, 0x%x, 0x%x) call failed\n",
@@ -246,18 +241,10 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 		return -ENODEV;
 	}
 
-	if (out_obj.type != ACPI_TYPE_INTEGER) {
-		vdbg_printk(FUJLAPTOP_DBG_WARN,
-			"FUNC 0x%x (args 0x%x, 0x%x, 0x%x) did not "
-			"return an integer\n",
-			cmd, arg0, arg1, arg2);
-		return -ENODEV;
-	}
-
 	vdbg_printk(FUJLAPTOP_DBG_TRACE,
 		"FUNC 0x%x (args 0x%x, 0x%x, 0x%x) returned 0x%x\n",
-			cmd, arg0, arg1, arg2, (int)out_obj.integer.value);
-	return out_obj.integer.value;
+			cmd, arg0, arg1, arg2, (int)value);
+	return value;
 }
 
 #if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
@@ -317,8 +304,6 @@ static enum led_brightness kblamps_get(struct led_classdev *cdev)
 static int set_lcd_level(int level)
 {
 	acpi_status status = AE_OK;
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg0 };
 	acpi_handle handle = NULL;
 
 	vdbg_printk(FUJLAPTOP_DBG_TRACE, "set lcd level via SBLL [%d]\n",
@@ -333,9 +318,8 @@ static int set_lcd_level(int level)
 		return -ENODEV;
 	}
 
-	arg0.integer.value = level;
 
-	status = acpi_evaluate_object(handle, NULL, &arg_list, NULL);
+	status = acpi_execute_simple_method(handle, NULL, level);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -345,8 +329,6 @@ static int set_lcd_level(int level)
 static int set_lcd_level_alt(int level)
 {
 	acpi_status status = AE_OK;
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg0 };
 	acpi_handle handle = NULL;
 
 	vdbg_printk(FUJLAPTOP_DBG_TRACE, "set lcd level via SBL2 [%d]\n",
@@ -361,9 +343,7 @@ static int set_lcd_level_alt(int level)
 		return -ENODEV;
 	}
 
-	arg0.integer.value = level;
-
-	status = acpi_evaluate_object(handle, NULL, &arg_list, NULL);
+	status = acpi_execute_simple_method(handle, NULL, level);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -586,11 +566,10 @@ static struct platform_driver fujitsupf_driver = {
 
 static void dmi_check_cb_common(const struct dmi_system_id *id)
 {
-	acpi_handle handle;
 	pr_info("Identified laptop model '%s'\n", id->ident);
 	if (use_alt_lcd_levels == -1) {
-		if (ACPI_SUCCESS(acpi_get_handle(NULL,
-				"\\_SB.PCI0.LPCB.FJEX.SBL2", &handle)))
+		if (acpi_has_method(NULL,
+				"\\_SB.PCI0.LPCB.FJEX.SBL2"))
 			use_alt_lcd_levels = 1;
 		else
 			use_alt_lcd_levels = 0;
@@ -653,8 +632,6 @@ static struct dmi_system_id fujitsu_dmi_table[] = {
 
 static int acpi_fujitsu_add(struct acpi_device *device)
 {
-	acpi_handle handle;
-	int result = 0;
 	int state = 0;
 	struct input_dev *input;
 	int error;
@@ -690,8 +667,8 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 	if (error)
 		goto err_free_input_dev;
 
-	result = acpi_bus_update_power(fujitsu->acpi_handle, &state);
-	if (result) {
+	error = acpi_bus_update_power(fujitsu->acpi_handle, &state);
+	if (error) {
 		pr_err("Error reading power state\n");
 		goto err_unregister_input_dev;
 	}
@@ -702,8 +679,7 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 
 	fujitsu->dev = device;
 
-	if (ACPI_SUCCESS
-	    (acpi_get_handle(device->handle, METHOD_NAME__INI, &handle))) {
+	if (acpi_has_method(device->handle, METHOD_NAME__INI)) {
 		vdbg_printk(FUJLAPTOP_DBG_INFO, "Invoking _INI\n");
 		if (ACPI_FAILURE
 		    (acpi_evaluate_object
@@ -722,7 +698,7 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 		fujitsu->max_brightness = FUJITSU_LCD_N_LEVELS;
 	get_lcd_level();
 
-	return result;
+	return 0;
 
 err_unregister_input_dev:
 	input_unregister_device(input);
@@ -730,7 +706,7 @@ err_unregister_input_dev:
 err_free_input_dev:
 	input_free_device(input);
 err_stop:
-	return result;
+	return error;
 }
 
 static int acpi_fujitsu_remove(struct acpi_device *device)
@@ -803,7 +779,6 @@ static void acpi_fujitsu_notify(struct acpi_device *device, u32 event)
 
 static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 {
-	acpi_handle handle;
 	int result = 0;
 	int state = 0;
 	struct input_dev *input;
@@ -854,8 +829,8 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	if (error)
 		goto err_free_input_dev;
 
-	result = acpi_bus_update_power(fujitsu_hotkey->acpi_handle, &state);
-	if (result) {
+	error = acpi_bus_update_power(fujitsu_hotkey->acpi_handle, &state);
+	if (error) {
 		pr_err("Error reading power state\n");
 		goto err_unregister_input_dev;
 	}
@@ -866,8 +841,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 
 	fujitsu_hotkey->dev = device;
 
-	if (ACPI_SUCCESS
-	    (acpi_get_handle(device->handle, METHOD_NAME__INI, &handle))) {
+	if (acpi_has_method(device->handle, METHOD_NAME__INI)) {
 		vdbg_printk(FUJLAPTOP_DBG_INFO, "Invoking _INI\n");
 		if (ACPI_FAILURE
 		    (acpi_evaluate_object
@@ -931,7 +905,7 @@ err_free_input_dev:
 err_free_fifo:
 	kfifo_free(&fujitsu_hotkey->fifo);
 err_stop:
-	return result;
+	return error;
 }
 
 static int acpi_fujitsu_hotkey_remove(struct acpi_device *device)

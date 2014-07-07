@@ -12,8 +12,13 @@ Optional properties:
 - regulator-allow-bypass: allow the regulator to go into bypass mode
 - <name>-supply: phandle to the parent supply/regulator node
 - regulator-ramp-delay: ramp delay for regulator(in uV/uS)
-  For hardwares which support disabling ramp rate, it should be explicitly
+  For hardware which supports disabling ramp rate, it should be explicitly
   intialised to zero (regulator-ramp-delay = <0>) for disabling ramp delay.
+- regulator-enable-ramp-delay: The time taken, in microseconds, for the supply
+  rail to reach the target voltage, plus/minus whatever tolerance the board
+  design requires. This property describes the total system ramp time
+  required due to the combination of internal ramping of the regulator itself,
+  and board design issues such as trace capacitance and load on the supply.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple

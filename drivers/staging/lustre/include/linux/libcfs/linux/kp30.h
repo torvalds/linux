@@ -42,7 +42,6 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/stat.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
 #include <linux/kmod.h>
@@ -63,141 +62,14 @@
 #include <linux/smp.h>
 #include <linux/ctype.h>
 #include <linux/compiler.h>
-#ifdef HAVE_MM_INLINE
-# include <linux/mm_inline.h>
-#endif
+#include <linux/mm_inline.h>
 #include <linux/kallsyms.h>
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
 
 #include <linux/libcfs/linux/portals_compat25.h>
 
-
-/******************************************************************************/
-/* Module parameter support */
-#define CFS_MODULE_PARM(name, t, type, perm, desc) \
-	module_param(name, type, perm);\
-	MODULE_PARM_DESC(name, desc)
-
-#define CFS_SYSFS_MODULE_PARM  1 /* module parameters accessible via sysfs */
-
-/******************************************************************************/
-/* Light-weight trace
- * Support for temporary event tracing with minimal Heisenberg effect. */
-#define LWT_SUPPORT  0
-
-#define LWT_MEMORY   (16<<20)
-
-#ifndef KLWT_SUPPORT
-#  if !defined(BITS_PER_LONG)
-#   error "BITS_PER_LONG not defined"
-#  endif
-
-/* kernel hasn't defined this? */
-typedef struct {
-	long long   lwte_when;
-	char       *lwte_where;
-	void       *lwte_task;
-	long	lwte_p1;
-	long	lwte_p2;
-	long	lwte_p3;
-	long	lwte_p4;
-# if BITS_PER_LONG > 32
-	long	lwte_pad;
-# endif
-} lwt_event_t;
-#endif /* !KLWT_SUPPORT */
-
-#if LWT_SUPPORT
-#  if !KLWT_SUPPORT
-
-typedef struct _lwt_page {
-	struct list_head	       lwtp_list;
-	struct page	     *lwtp_page;
-	lwt_event_t	     *lwtp_events;
-} lwt_page_t;
-
-typedef struct {
-	int		lwtc_current_index;
-	lwt_page_t	*lwtc_current_page;
-} lwt_cpu_t;
-
-extern int       lwt_enabled;
-extern lwt_cpu_t lwt_cpus[];
-
-/* Note that we _don't_ define LWT_EVENT at all if LWT_SUPPORT isn't set.
- * This stuff is meant for finding specific problems; it never stays in
- * production code... */
-
-#define LWTSTR(n)       #n
-#define LWTWHERE(f,l)   f ":" LWTSTR(l)
-#define LWT_EVENTS_PER_PAGE (PAGE_CACHE_SIZE / sizeof (lwt_event_t))
-
-#define LWT_EVENT(p1, p2, p3, p4)				       \
-do {								    \
-	unsigned long    flags;					 \
-	lwt_cpu_t       *cpu;					   \
-	lwt_page_t      *p;					     \
-	lwt_event_t     *e;					     \
-									\
-	if (lwt_enabled) {					      \
-		local_irq_save (flags);				 \
-									\
-		cpu = &lwt_cpus[smp_processor_id()];		    \
-		p = cpu->lwtc_current_page;			     \
-		e = &p->lwtp_events[cpu->lwtc_current_index++];	 \
-									\
-		if (cpu->lwtc_current_index >= LWT_EVENTS_PER_PAGE) {   \
-			cpu->lwtc_current_page =			\
-				list_entry (p->lwtp_list.next,      \
-						lwt_page_t, lwtp_list); \
-			cpu->lwtc_current_index = 0;		    \
-		}						       \
-									\
-		e->lwte_when  = get_cycles();			   \
-		e->lwte_where = LWTWHERE(__FILE__,__LINE__);	    \
-		e->lwte_task  = current;				\
-		e->lwte_p1    = (long)(p1);			     \
-		e->lwte_p2    = (long)(p2);			     \
-		e->lwte_p3    = (long)(p3);			     \
-		e->lwte_p4    = (long)(p4);			     \
-									\
-		local_irq_restore (flags);			      \
-	}							       \
-} while (0)
-
-#endif /* !KLWT_SUPPORT */
-
-extern int  lwt_init (void);
-extern void lwt_fini (void);
-extern int  lwt_lookup_string (int *size, char *knlptr,
-			       char *usrptr, int usrsize);
-extern int  lwt_control (int enable, int clear);
-extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
-			  void *user_ptr, int user_size);
-#endif /* LWT_SUPPORT */
-
-/* ------------------------------------------------------------------ */
-
-#define IOCTL_LIBCFS_TYPE long
-
-#ifdef __CYGWIN__
-# ifndef BITS_PER_LONG
-#   define BITS_PER_LONG 64
-# endif
-#endif
-
-# define LI_POISON 0x5a5a5a5a
-#if BITS_PER_LONG > 32
-# define LL_POISON 0x5a5a5a5a5a5a5a5aL
-#else
-# define LL_POISON 0x5a5a5a5aL
-#endif
-# define LP_POISON ((void *)LL_POISON)
-
 /* this is a bit chunky */
-
-#define _LWORDSIZE BITS_PER_LONG
 
 # define LPU64 "%llu"
 # define LPD64 "%lld"
@@ -217,25 +89,5 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
  * pid_t
  */
 # define LPPID "%d"
-
-
-#undef _LWORDSIZE
-
-/* compat macroses */
-
-
-#ifndef get_cpu
-# ifdef CONFIG_PREEMPT
-#  define get_cpu()  ({ preempt_disable(); smp_processor_id(); })
-#  define put_cpu()  preempt_enable()
-# else
-#  define get_cpu()  smp_processor_id()
-#  define put_cpu()
-# endif
-#else
-#endif /* get_cpu & put_cpu */
-
-#define INIT_CTL_NAME(a)
-#define INIT_STRATEGY(a)
 
 #endif

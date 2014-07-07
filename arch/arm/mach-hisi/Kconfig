@@ -1,0 +1,12 @@
+config ARCH_HI3xxx
+	bool "Hisilicon Hi36xx/Hi37xx family" if ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CACHE_L2X0
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select PINCTRL
+	select PINCTRL_SINGLE
+	help
+	  Support for Hisilicon Hi36xx/Hi37xx processor family

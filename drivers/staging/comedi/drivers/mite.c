@@ -288,7 +288,6 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	int chor;
 	unsigned long flags;
 
-	MDPRINTK("mite_dma_arm ch%i\n", mite_chan->channel);
 	/*
 	 * memory barrier is intended to insure any twiddling with the buffer
 	 * is done before writing to the mite to arm dma transfer
@@ -308,8 +307,9 @@ EXPORT_SYMBOL_GPL(mite_dma_arm);
 /**************************************/
 
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
-		    struct comedi_async *async)
+		    struct comedi_subdevice *s)
 {
+	struct comedi_async *async = s->async;
 	unsigned int n_links;
 	int i;
 
@@ -329,14 +329,12 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 
 	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
 
-	MDPRINTK("ring->hw_dev=%p, n_links=0x%04x\n", ring->hw_dev, n_links);
-
 	ring->descriptors =
 	    dma_alloc_coherent(ring->hw_dev,
 			       n_links * sizeof(struct mite_dma_descriptor),
 			       &ring->descriptors_dma_addr, GFP_KERNEL);
 	if (!ring->descriptors) {
-		dev_err(async->subdevice->device->class_dev,
+		dev_err(s->device->class_dev,
 			"mite: ring buffer allocation failed\n");
 		return -ENOMEM;
 	}
@@ -345,7 +343,7 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 	for (i = 0; i < n_links; i++) {
 		ring->descriptors[i].count = cpu_to_le32(PAGE_SIZE);
 		ring->descriptors[i].addr =
-		    cpu_to_le32(async->buf_page_list[i].dma_addr);
+		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
 		ring->descriptors[i].next =
 		    cpu_to_le32(ring->descriptors_dma_addr + (i +
 							      1) *
@@ -367,8 +365,6 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 {
 	unsigned int chor, chcr, mcr, dcr, lkcr;
 	struct mite_struct *mite = mite_chan->mite;
-
-	MDPRINTK("mite_prep_dma ch%i\n", mite_chan->channel);
 
 	/* reset DMA and FIFO */
 	chor = CHOR_DMARESET | CHOR_FRESET;
@@ -448,8 +444,6 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	/* starting address for link chaining */
 	writel(mite_chan->ring->descriptors_dma_addr,
 	       mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
-
-	MDPRINTK("exit mite_prep_dma\n");
 }
 EXPORT_SYMBOL_GPL(mite_prep_dma);
 
@@ -515,8 +509,6 @@ unsigned mite_dma_tcr(struct mite_channel *mite_chan)
 
 	lkar = readl(mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
 	tcr = readl(mite->mite_io_addr + MITE_TCR(mite_chan->channel));
-	MDPRINTK("mite_dma_tcr ch%i, lkar=0x%08x tcr=%d\n", mite_chan->channel,
-		 lkar, tcr);
 
 	return tcr;
 }
@@ -534,20 +526,20 @@ void mite_dma_disarm(struct mite_channel *mite_chan)
 EXPORT_SYMBOL_GPL(mite_dma_disarm);
 
 int mite_sync_input_dma(struct mite_channel *mite_chan,
-			struct comedi_async *async)
+			struct comedi_subdevice *s)
 {
+	struct comedi_async *async = s->async;
 	int count;
 	unsigned int nbytes, old_alloc_count;
-	const unsigned bytes_per_scan = cfc_bytes_per_scan(async->subdevice);
 
 	old_alloc_count = async->buf_write_alloc_count;
 	/* write alloc as much as we can */
-	comedi_buf_write_alloc(async, async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, async->prealloc_bufsz);
 
 	nbytes = mite_bytes_written_to_memory_lb(mite_chan);
 	if ((int)(mite_bytes_written_to_memory_ub(mite_chan) -
 		  old_alloc_count) > 0) {
-		dev_warn(async->subdevice->device->class_dev,
+		dev_warn(s->device->class_dev,
 			 "mite: DMA overwrite of free area\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return -1;
@@ -559,41 +551,33 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 	if (count <= 0)
 		return 0;
 
-	comedi_buf_write_free(async, count);
-
-	async->scan_progress += count;
-	if (async->scan_progress >= bytes_per_scan) {
-		async->scan_progress %= bytes_per_scan;
-		async->events |= COMEDI_CB_EOS;
-	}
+	comedi_buf_write_free(s, count);
+	cfc_inc_scan_progress(s, count);
 	async->events |= COMEDI_CB_BLOCK;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mite_sync_input_dma);
 
 int mite_sync_output_dma(struct mite_channel *mite_chan,
-			 struct comedi_async *async)
+			 struct comedi_subdevice *s)
 {
-	int count;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	u32 stop_count = cmd->stop_arg * cfc_bytes_per_scan(s);
+	unsigned int old_alloc_count = async->buf_read_alloc_count;
 	u32 nbytes_ub, nbytes_lb;
-	unsigned int old_alloc_count;
-	u32 stop_count =
-	    async->cmd.stop_arg * cfc_bytes_per_scan(async->subdevice);
+	int count;
 
-	old_alloc_count = async->buf_read_alloc_count;
 	/*  read alloc as much as we can */
-	comedi_buf_read_alloc(async, async->prealloc_bufsz);
+	comedi_buf_read_alloc(s, async->prealloc_bufsz);
 	nbytes_lb = mite_bytes_read_from_memory_lb(mite_chan);
-	if (async->cmd.stop_src == TRIG_COUNT &&
-	    (int)(nbytes_lb - stop_count) > 0)
+	if (cmd->stop_src == TRIG_COUNT && (int)(nbytes_lb - stop_count) > 0)
 		nbytes_lb = stop_count;
 	nbytes_ub = mite_bytes_read_from_memory_ub(mite_chan);
-	if (async->cmd.stop_src == TRIG_COUNT &&
-	    (int)(nbytes_ub - stop_count) > 0)
+	if (cmd->stop_src == TRIG_COUNT && (int)(nbytes_ub - stop_count) > 0)
 		nbytes_ub = stop_count;
 	if ((int)(nbytes_ub - old_alloc_count) > 0) {
-		dev_warn(async->subdevice->device->class_dev,
-			 "mite: DMA underrun\n");
+		dev_warn(s->device->class_dev, "mite: DMA underrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return -1;
 	}
@@ -602,7 +586,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 		return 0;
 
 	if (count) {
-		comedi_buf_read_free(async, count);
+		comedi_buf_read_free(s, count);
 		async->events |= COMEDI_CB_BLOCK;
 	}
 	return 0;
@@ -641,140 +625,6 @@ int mite_done(struct mite_channel *mite_chan)
 	return done;
 }
 EXPORT_SYMBOL_GPL(mite_done);
-
-#ifdef DEBUG_MITE
-
-/* names of bits in mite registers */
-
-static const char *const mite_CHOR_strings[] = {
-	"start", "cont", "stop", "abort",
-	"freset", "clrlc", "clrrb", "clrdone",
-	"clr_lpause", "set_lpause", "clr_send_tc",
-	"set_send_tc", "12", "13", "14",
-	"15", "16", "17", "18",
-	"19", "20", "21", "22",
-	"23", "24", "25", "26",
-	"27", "28", "29", "30",
-	"dmareset",
-};
-
-static const char *const mite_CHCR_strings[] = {
-	"continue", "ringbuff", "2", "3",
-	"4", "5", "6", "7",
-	"8", "9", "10", "11",
-	"12", "13", "bursten", "fifodis",
-	"clr_cont_rb_ie", "set_cont_rb_ie", "clr_lc_ie", "set_lc_ie",
-	"clr_drdy_ie", "set_drdy_ie", "clr_mrdy_ie", "set_mrdy_ie",
-	"clr_done_ie", "set_done_ie", "clr_sar_ie", "set_sar_ie",
-	"clr_linkp_ie", "set_linkp_ie", "clr_dma_ie", "set_dma_ie",
-};
-
-static const char *const mite_MCR_strings[] = {
-	"amdevice", "1", "2", "3",
-	"4", "5", "portio", "portvxi",
-	"psizebyte", "psizehalf (byte & half = word)", "aseqxp1", "11",
-	"12", "13", "blocken", "berhand",
-	"reqsintlim/reqs0", "reqs1", "reqs2", "rd32",
-	"rd512", "rl1", "rl2", "rl8",
-	"24", "25", "26", "27",
-	"28", "29", "30", "stopen",
-};
-
-static const char *const mite_DCR_strings[] = {
-	"amdevice", "1", "2", "3",
-	"4", "5", "portio", "portvxi",
-	"psizebyte", "psizehalf (byte & half = word)", "aseqxp1", "aseqxp2",
-	"aseqxp8", "13", "blocken", "berhand",
-	"reqsintlim", "reqs1", "reqs2", "rd32",
-	"rd512", "rl1", "rl2", "rl8",
-	"23", "24", "25", "27",
-	"28", "wsdevc", "wsdevs", "rwdevpack",
-};
-
-static const char *const mite_LKCR_strings[] = {
-	"amdevice", "1", "2", "3",
-	"4", "5", "portio", "portvxi",
-	"psizebyte", "psizehalf (byte & half = word)", "asequp", "aseqdown",
-	"12", "13", "14", "berhand",
-	"16", "17", "18", "rd32",
-	"rd512", "rl1", "rl2", "rl8",
-	"24", "25", "26", "27",
-	"28", "29", "30", "chngend",
-};
-
-static const char *const mite_CHSR_strings[] = {
-	"d.err0", "d.err1", "m.err0", "m.err1",
-	"l.err0", "l.err1", "drq0", "drq1",
-	"end", "xferr", "operr0", "operr1",
-	"stops", "habort", "sabort", "error",
-	"16", "conts_rb", "18", "linkc",
-	"20", "drdy", "22", "mrdy",
-	"24", "done", "26", "sars",
-	"28", "lpauses", "30", "int",
-};
-
-static void mite_decode(const char *const *bit_str, unsigned int bits)
-{
-	int i;
-
-	for (i = 31; i >= 0; i--) {
-		if (bits & (1 << i))
-			pr_debug(" %s\n", bit_str[i]);
-	}
-}
-
-void mite_dump_regs(struct mite_channel *mite_chan)
-{
-	void __iomem *mite_io_addr = mite_chan->mite->mite_io_addr;
-	unsigned int offset;
-	unsigned int value;
-	int channel = mite_chan->channel;
-
-	pr_debug("mite_dump_regs ch%i\n", channel);
-	pr_debug("mite address is  =%p\n", mite_io_addr);
-
-	offset = MITE_CHOR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[CHOR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_CHOR_strings, value);
-	offset = MITE_CHCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[CHCR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_CHCR_strings, value);
-	offset = MITE_TCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[TCR] at 0x%08x =0x%08x\n", offset, value);
-	offset = MITE_MCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[MCR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_MCR_strings, value);
-	offset = MITE_MAR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[MAR] at 0x%08x =0x%08x\n", offset, value);
-	offset = MITE_DCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[DCR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_DCR_strings, value);
-	offset = MITE_DAR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[DAR] at 0x%08x =0x%08x\n", offset, value);
-	offset = MITE_LKCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[LKCR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_LKCR_strings, value);
-	offset = MITE_LKAR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[LKAR] at 0x%08x =0x%08x\n", offset, value);
-	offset = MITE_CHSR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[CHSR] at 0x%08x =0x%08x\n", offset, value);
-	mite_decode(mite_CHSR_strings, value);
-	offset = MITE_FCR(channel);
-	value = readl(mite_io_addr + offset);
-	pr_debug("mite status[FCR] at 0x%08x =0x%08x\n", offset, value);
-}
-EXPORT_SYMBOL_GPL(mite_dump_regs);
-#endif
 
 static int __init mite_module_init(void)
 {

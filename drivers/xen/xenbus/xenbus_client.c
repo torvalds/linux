@@ -45,6 +45,7 @@
 #include <xen/grant_table.h>
 #include <xen/xenbus.h>
 #include <xen/xen.h>
+#include <xen/features.h>
 
 #include "xenbus_probe.h"
 
@@ -400,33 +401,6 @@ EXPORT_SYMBOL_GPL(xenbus_alloc_evtchn);
 
 
 /**
- * Bind to an existing interdomain event channel in another domain. Returns 0
- * on success and stores the local port in *port. On error, returns -errno,
- * switches the device to XenbusStateClosing, and saves the error in XenStore.
- */
-int xenbus_bind_evtchn(struct xenbus_device *dev, int remote_port, int *port)
-{
-	struct evtchn_bind_interdomain bind_interdomain;
-	int err;
-
-	bind_interdomain.remote_dom = dev->otherend_id;
-	bind_interdomain.remote_port = remote_port;
-
-	err = HYPERVISOR_event_channel_op(EVTCHNOP_bind_interdomain,
-					  &bind_interdomain);
-	if (err)
-		xenbus_dev_fatal(dev, err,
-				 "binding to event channel %d from domain %d",
-				 remote_port, dev->otherend_id);
-	else
-		*port = bind_interdomain.local_port;
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(xenbus_bind_evtchn);
-
-
-/**
  * Free an existing event channel. Returns 0 on success or -errno on error.
  */
 int xenbus_free_evtchn(struct xenbus_device *dev, int port)
@@ -743,7 +717,7 @@ static const struct xenbus_ring_ops ring_ops_hvm = {
 
 void __init xenbus_ring_ops_init(void)
 {
-	if (xen_pv_domain())
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
 		ring_ops = &ring_ops_pv;
 	else
 		ring_ops = &ring_ops_hvm;

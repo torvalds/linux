@@ -32,7 +32,7 @@
 #include <linux/slab.h>
 #include <linux/platform_data/dma-atmel.h>
 
-#define TWI_CLK_HZ		100000			/* max 400 Kbits/s */
+#define DEFAULT_TWI_CLK_HZ		100000		/* max 400 Kbits/s */
 #define AT91_I2C_TIMEOUT	msecs_to_jiffies(100)	/* transfer timeout */
 #define AT91_I2C_DMA_THRESHOLD	8			/* enable DMA if transfer size is bigger than this threshold */
 
@@ -371,7 +371,7 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 	dev_dbg(dev->dev, "transfer: %s %d bytes.\n",
 		(dev->msg->flags & I2C_M_RD) ? "read" : "write", dev->buf_len);
 
-	INIT_COMPLETION(dev->cmd_complete);
+	reinit_completion(&dev->cmd_complete);
 	dev->transfer_status = 0;
 
 	if (!dev->buf_len) {
@@ -589,6 +589,9 @@ static const struct of_device_id atmel_twi_dt_ids[] = {
 		.compatible = "atmel,at91sam9260-i2c",
 		.data = &at91sam9260_config,
 	} , {
+		.compatible = "atmel,at91sam9261-i2c",
+		.data = &at91sam9261_config,
+	} , {
 		.compatible = "atmel,at91sam9g20-i2c",
 		.data = &at91sam9g20_config,
 	} , {
@@ -708,6 +711,7 @@ static int at91_twi_probe(struct platform_device *pdev)
 	struct resource *mem;
 	int rc;
 	u32 phy_addr;
+	u32 bus_clk_rate;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -753,13 +757,18 @@ static int at91_twi_probe(struct platform_device *pdev)
 			dev->use_dma = true;
 	}
 
-	at91_calc_twi_clock(dev, TWI_CLK_HZ);
+	rc = of_property_read_u32(dev->dev->of_node, "clock-frequency",
+			&bus_clk_rate);
+	if (rc)
+		bus_clk_rate = DEFAULT_TWI_CLK_HZ;
+
+	at91_calc_twi_clock(dev, bus_clk_rate);
 	at91_init_twi_bus(dev);
 
 	snprintf(dev->adapter.name, sizeof(dev->adapter.name), "AT91");
 	i2c_set_adapdata(&dev->adapter, dev);
 	dev->adapter.owner = THIS_MODULE;
-	dev->adapter.class = I2C_CLASS_HWMON;
+	dev->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_DEPRECATED;
 	dev->adapter.algo = &at91_twi_algorithm;
 	dev->adapter.dev.parent = dev->dev;
 	dev->adapter.nr = pdev->id;

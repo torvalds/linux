@@ -253,7 +253,8 @@ static int snd_wm8766_ctl_get(struct snd_kcontrol *kcontrol,
 	}
 	if (wm->ctl[n].flags & WM8766_FLAG_INVERT) {
 		val1 = wm->ctl[n].max - (val1 - wm->ctl[n].min);
-		val2 = wm->ctl[n].max - (val2 - wm->ctl[n].min);
+		if (wm->ctl[n].flags & WM8766_FLAG_STEREO)
+			val2 = wm->ctl[n].max - (val2 - wm->ctl[n].min);
 	}
 	ucontrol->value.integer.value[0] = val1;
 	if (wm->ctl[n].flags & WM8766_FLAG_STEREO)

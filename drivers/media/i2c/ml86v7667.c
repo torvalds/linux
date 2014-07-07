@@ -276,6 +276,7 @@ static const struct v4l2_ctrl_ops ml86v7667_ctrl_ops = {
 };
 
 static struct v4l2_subdev_video_ops ml86v7667_subdev_video_ops = {
+	.s_std = ml86v7667_s_std,
 	.querystd = ml86v7667_querystd,
 	.g_input_status = ml86v7667_g_input_status,
 	.enum_mbus_fmt = ml86v7667_enum_mbus_fmt,
@@ -286,7 +287,6 @@ static struct v4l2_subdev_video_ops ml86v7667_subdev_video_ops = {
 };
 
 static struct v4l2_subdev_core_ops ml86v7667_subdev_core_ops = {
-	.s_std = ml86v7667_s_std,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ml86v7667_g_register,
 	.s_register = ml86v7667_s_register,

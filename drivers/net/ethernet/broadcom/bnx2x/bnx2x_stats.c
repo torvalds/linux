@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
  * UDP CSUM errata workaround by Arik Gendelman
@@ -196,7 +196,7 @@ static void bnx2x_hw_stats_post(struct bnx2x *bp)
 
 	} else if (bp->func_stx) {
 		*stats_comp = 0;
-		bnx2x_post_dmae(bp, dmae, INIT_DMAE_C(bp));
+		bnx2x_issue_dmae_with_comp(bp, dmae, stats_comp);
 	}
 }
 

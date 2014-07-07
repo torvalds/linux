@@ -30,5 +30,6 @@ nouveau_ibus(void *obj)
 
 extern struct nouveau_oclass nvc0_ibus_oclass;
 extern struct nouveau_oclass nve0_ibus_oclass;
+extern struct nouveau_oclass gk20a_ibus_oclass;
 
 #endif

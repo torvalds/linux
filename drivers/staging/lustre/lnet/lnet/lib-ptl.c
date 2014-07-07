@@ -40,8 +40,8 @@
 
 /* NB: add /proc interfaces in upcoming patches */
 int	portal_rotor	= LNET_PTL_ROTOR_HASH_RT;
-CFS_MODULE_PARM(portal_rotor, "i", int, 0644,
-		"redirect PUTs to different cpu-partitions");
+module_param(portal_rotor, int, 0644);
+MODULE_PARM_DESC(portal_rotor, "redirect PUTs to different cpu-partitions");
 
 static int
 lnet_ptl_match_type(unsigned int index, lnet_process_id_t match_id,
@@ -366,7 +366,7 @@ lnet_mt_match_head(struct lnet_match_table *mtable,
 		unsigned long hash = mbits + id.nid + id.pid;
 
 		LASSERT(lnet_ptl_is_unique(ptl));
-		hash = cfs_hash_long(hash, LNET_MT_HASH_BITS);
+		hash = hash_long(hash, LNET_MT_HASH_BITS);
 		return &mtable->mt_mhash[hash];
 	}
 }

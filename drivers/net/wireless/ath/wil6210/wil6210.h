@@ -35,10 +35,14 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
 #define WIL6210_RX_RING_SIZE	(128)
-#define WIL6210_TX_RING_SIZE	(128)
+#define WIL6210_TX_RING_SIZE	(512)
 #define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
 #define WIL6210_MAX_CID		(8) /* HW limit */
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
+#define WIL6210_ITR_TRSH	(10000) /* arbitrary - about 15 IRQs/msec */
+#define WIL6210_FW_RECOVERY_RETRIES	(5) /* try to recover this many times */
+#define WIL6210_FW_RECOVERY_TO	msecs_to_jiffies(5000)
+#define WIL6210_SCAN_TO		msecs_to_jiffies(10000)
 
 /* Hardware definitions begin */
 
@@ -73,23 +77,21 @@ struct RGF_ICR {
 } __packed;
 
 /* registers - FW addresses */
-#define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
-#define RGF_USER_USER_ICR		(0x880b4c) /* struct RGF_ICR */
-	#define BIT_USER_USER_ICR_SW_INT_2	BIT(18)
-#define RGF_USER_CLKS_CTL_SW_RST_MASK_0	(0x880b14)
-#define RGF_USER_MAC_CPU_0		(0x8801fc)
+#define RGF_USER_HW_MACHINE_STATE	(0x8801dc)
+	#define HW_MACHINE_BOOT_DONE	(0x3fffffd)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
+#define RGF_USER_MAC_CPU_0		(0x8801fc)
+#define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
+#define RGF_USER_FW_REV_ID		(0x880a8c) /* chip revision */
+#define RGF_USER_CLKS_CTL_0		(0x880abc)
+	#define BIT_USER_CLKS_RST_PWGD	BIT(11) /* reset on "power good" */
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_0	(0x880b04)
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_1	(0x880b08)
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_2	(0x880b0c)
 #define RGF_USER_CLKS_CTL_SW_RST_VEC_3	(0x880b10)
-
-#define RGF_DMA_PSEUDO_CAUSE		(0x881c68)
-#define RGF_DMA_PSEUDO_CAUSE_MASK_SW	(0x881c6c)
-#define RGF_DMA_PSEUDO_CAUSE_MASK_FW	(0x881c70)
-	#define BIT_DMA_PSEUDO_CAUSE_RX		BIT(0)
-	#define BIT_DMA_PSEUDO_CAUSE_TX		BIT(1)
-	#define BIT_DMA_PSEUDO_CAUSE_MISC	BIT(2)
+#define RGF_USER_CLKS_CTL_SW_RST_MASK_0	(0x880b14)
+#define RGF_USER_USER_ICR		(0x880b4c) /* struct RGF_ICR */
+	#define BIT_USER_USER_ICR_SW_INT_2	BIT(18)
 
 #define RGF_DMA_EP_TX_ICR		(0x881bb4) /* struct RGF_ICR */
 	#define BIT_DMA_EP_TX_ICR_TX_DONE	BIT(0)
@@ -104,12 +106,21 @@ struct RGF_ICR {
 /* Interrupt moderation control */
 #define RGF_DMA_ITR_CNT_TRSH		(0x881c5c)
 #define RGF_DMA_ITR_CNT_DATA		(0x881c60)
-#define RGF_DMA_ITR_CNT_CRL		(0x881C64)
+#define RGF_DMA_ITR_CNT_CRL		(0x881c64)
 	#define BIT_DMA_ITR_CNT_CRL_EN		BIT(0)
 	#define BIT_DMA_ITR_CNT_CRL_EXT_TICK	BIT(1)
 	#define BIT_DMA_ITR_CNT_CRL_FOREVER	BIT(2)
 	#define BIT_DMA_ITR_CNT_CRL_CLR		BIT(3)
 	#define BIT_DMA_ITR_CNT_CRL_REACH_TRSH	BIT(4)
+
+#define RGF_DMA_PSEUDO_CAUSE		(0x881c68)
+#define RGF_DMA_PSEUDO_CAUSE_MASK_SW	(0x881c6c)
+#define RGF_DMA_PSEUDO_CAUSE_MASK_FW	(0x881c70)
+	#define BIT_DMA_PSEUDO_CAUSE_RX		BIT(0)
+	#define BIT_DMA_PSEUDO_CAUSE_TX		BIT(1)
+	#define BIT_DMA_PSEUDO_CAUSE_MISC	BIT(2)
+
+#define RGF_PCIE_LOS_COUNTER_CTL	(0x882dc4)
 
 /* popular locations */
 #define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)
@@ -123,6 +134,31 @@ struct RGF_ICR {
 #define ISR_MISC_FW_ERROR	BIT_DMA_EP_MISC_ICR_FW_INT(3)
 
 /* Hardware definitions end */
+
+/**
+ * mk_cidxtid - construct @cidxtid field
+ * @cid: CID value
+ * @tid: TID value
+ *
+ * @cidxtid field encoded as bits 0..3 - CID; 4..7 - TID
+ */
+static inline u8 mk_cidxtid(u8 cid, u8 tid)
+{
+	return ((tid & 0xf) << 4) | (cid & 0xf);
+}
+
+/**
+ * parse_cidxtid - parse @cidxtid field
+ * @cid: store CID value here
+ * @tid: store TID value here
+ *
+ * @cidxtid field encoded as bits 0..3 - CID; 4..7 - TID
+ */
+static inline void parse_cidxtid(u8 cidxtid, u8 *cid, u8 *tid)
+{
+	*cid = cidxtid & 0xf;
+	*tid = (cidxtid >> 4) & 0xf;
+}
 
 struct wil6210_mbox_ring {
 	u32 base;
@@ -183,12 +219,19 @@ struct pending_wmi_event {
 	} __packed event;
 };
 
+enum { /* for wil_ctx.mapped_as */
+	wil_mapped_as_none = 0,
+	wil_mapped_as_single = 1,
+	wil_mapped_as_page = 2,
+};
+
 /**
  * struct wil_ctx - software context for Vring descriptor
  */
 struct wil_ctx {
 	struct sk_buff *skb;
-	u8 mapped_as_page:1;
+	u8 nr_frags;
+	u8 mapped_as;
 };
 
 union vring_desc;
@@ -203,6 +246,14 @@ struct vring {
 	struct wil_ctx *ctx; /* ctx[size] - software context */
 };
 
+/**
+ * Additional data for Tx Vring
+ */
+struct vring_tx_data {
+	int enabled;
+
+};
+
 enum { /* for wil6210_priv.status */
 	wil_status_fwready = 0,
 	wil_status_fwconnecting,
@@ -210,9 +261,51 @@ enum { /* for wil6210_priv.status */
 	wil_status_dontscan,
 	wil_status_reset_done,
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
+	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
 };
 
 struct pci_dev;
+
+/**
+ * struct tid_ampdu_rx - TID aggregation information (Rx).
+ *
+ * @reorder_buf: buffer to reorder incoming aggregated MPDUs
+ * @reorder_time: jiffies when skb was added
+ * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
+ * @reorder_timer: releases expired frames from the reorder buffer.
+ * @last_rx: jiffies of last rx activity
+ * @head_seq_num: head sequence number in reordering buffer.
+ * @stored_mpdu_num: number of MPDUs in reordering buffer
+ * @ssn: Starting Sequence Number expected to be aggregated.
+ * @buf_size: buffer size for incoming A-MPDUs
+ * @timeout: reset timer value (in TUs).
+ * @dialog_token: dialog token for aggregation session
+ * @rcu_head: RCU head used for freeing this struct
+ * @reorder_lock: serializes access to reorder buffer, see below.
+ *
+ * This structure's lifetime is managed by RCU, assignments to
+ * the array holding it must hold the aggregation mutex.
+ *
+ * The @reorder_lock is used to protect the members of this
+ * struct, except for @timeout, @buf_size and @dialog_token,
+ * which are constant across the lifetime of the struct (the
+ * dialog token being used only for debugging).
+ */
+struct wil_tid_ampdu_rx {
+	spinlock_t reorder_lock; /* see above */
+	struct sk_buff **reorder_buf;
+	unsigned long *reorder_time;
+	struct timer_list session_timer;
+	struct timer_list reorder_timer;
+	unsigned long last_rx;
+	u16 head_seq_num;
+	u16 stored_mpdu_num;
+	u16 ssn;
+	u16 buf_size;
+	u16 timeout;
+	u8 dialog_token;
+	bool first_time; /* is it 1-st time this buffer used? */
+};
 
 struct wil6210_stats {
 	u64 tsf;
@@ -225,6 +318,43 @@ struct wil6210_stats {
 	u16 peer_tx_sector;
 };
 
+enum wil_sta_status {
+	wil_sta_unused = 0,
+	wil_sta_conn_pending = 1,
+	wil_sta_connected = 2,
+};
+
+#define WIL_STA_TID_NUM (16)
+
+struct wil_net_stats {
+	unsigned long	rx_packets;
+	unsigned long	tx_packets;
+	unsigned long	rx_bytes;
+	unsigned long	tx_bytes;
+	unsigned long	tx_errors;
+	unsigned long	rx_dropped;
+	u16 last_mcs_rx;
+};
+
+/**
+ * struct wil_sta_info - data for peer
+ *
+ * Peer identified by its CID (connection ID)
+ * NIC performs beam forming for each peer;
+ * if no beam forming done, frame exchange is not
+ * possible.
+ */
+struct wil_sta_info {
+	u8 addr[ETH_ALEN];
+	enum wil_sta_status status;
+	struct wil_net_stats stats;
+	bool data_port_open; /* can send any data, not only EAPOL */
+	/* Rx BACK */
+	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
+	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(WIL_STA_TID_NUM)];
+	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	int n_msi;
@@ -232,7 +362,10 @@ struct wil6210_priv {
 	void __iomem *csr;
 	ulong status;
 	u32 fw_version;
+	u32 hw_version;
 	u8 n_mids; /* number of additional MIDs as reported by FW */
+	int recovery_count; /* num of FW recovery attempts in a short time */
+	unsigned long last_fw_recovery; /* jiffies of last fw recovery */
 	/* profile */
 	u32 monitor_flags;
 	u32 secure_pcp; /* create secure PCP? */
@@ -252,7 +385,9 @@ struct wil6210_priv {
 	struct workqueue_struct *wmi_wq_conn; /* for connect worker */
 	struct work_struct connect_worker;
 	struct work_struct disconnect_worker;
+	struct work_struct fw_error_worker;	/* for FW error recovery */
 	struct timer_list connect_timer;
+	struct timer_list scan_timer; /* detect scan timeout */
 	int pending_connect_cid;
 	struct list_head pending_wmi_ev;
 	/*
@@ -266,7 +401,9 @@ struct wil6210_priv {
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
-	u8 dst_addr[WIL6210_MAX_TX_RINGS][ETH_ALEN];
+	struct vring_tx_data vring_tx_data[WIL6210_MAX_TX_RINGS];
+	u8 vring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
+	struct wil_sta_info sta[WIL6210_MAX_CID];
 	/* scan */
 	struct cfg80211_scan_request *scan_request;
 
@@ -328,11 +465,13 @@ void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_reset(struct wil6210_priv *wil);
+void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_link_on(struct wil6210_priv *wil);
 void wil_link_off(struct wil6210_priv *wil);
 int wil_up(struct wil6210_priv *wil);
 int wil_down(struct wil6210_priv *wil);
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r);
+int wil_find_cid(struct wil6210_priv *wil, const u8 *mac);
 
 void __iomem *wmi_buffer(struct wil6210_priv *wil, __le32 ptr);
 void __iomem *wmi_addr(struct wil6210_priv *wil, u32 ptr);
@@ -356,8 +495,11 @@ int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
 int wmi_p2p_cfg(struct wil6210_priv *wil, int channel);
+int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
+int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason);
 
+void wil6210_clear_irq(struct wil6210_priv *wil);
 int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);
 void wil6210_disable_irq(struct wil6210_priv *wil);
@@ -372,7 +514,7 @@ void wil_wdev_free(struct wil6210_priv *wil);
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
 int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan);
 int wmi_pcp_stop(struct wil6210_priv *wil);
-void wil6210_disconnect(struct wil6210_priv *wil, void *bssid);
+void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid);
 
 int wil_rx_init(struct wil6210_priv *wil);
 void wil_rx_fini(struct wil6210_priv *wil);

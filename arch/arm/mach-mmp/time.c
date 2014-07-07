@@ -39,6 +39,12 @@
 
 #include "clock.h"
 
+#ifdef CONFIG_CPU_MMP2
+#define MMP_CLOCK_FREQ		6500000
+#else
+#define MMP_CLOCK_FREQ		3250000
+#endif
+
 #define TIMERS_VIRT_BASE	TIMERS1_VIRT_BASE
 
 #define MAX_DELTA		(0xfffffffe)
@@ -61,7 +67,7 @@ static inline uint32_t timer_read(void)
 	return __raw_readl(mmp_timer_base + TMR_CVWR(1));
 }
 
-static u32 notrace mmp_read_sched_clock(void)
+static u64 notrace mmp_read_sched_clock(void)
 {
 	return timer_read();
 }
@@ -186,7 +192,7 @@ static void __init timer_config(void)
 
 static struct irqaction timer_irq = {
 	.name		= "timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= timer_interrupt,
 	.dev_id		= &ckevt,
 };
@@ -195,14 +201,14 @@ void __init timer_init(int irq)
 {
 	timer_config();
 
-	setup_sched_clock(mmp_read_sched_clock, 32, CLOCK_TICK_RATE);
+	sched_clock_register(mmp_read_sched_clock, 32, MMP_CLOCK_FREQ);
 
 	ckevt.cpumask = cpumask_of(0);
 
 	setup_irq(irq, &timer_irq);
 
-	clocksource_register_hz(&cksrc, CLOCK_TICK_RATE);
-	clockevents_config_and_register(&ckevt, CLOCK_TICK_RATE,
+	clocksource_register_hz(&cksrc, MMP_CLOCK_FREQ);
+	clockevents_config_and_register(&ckevt, MMP_CLOCK_FREQ,
 					MIN_DELTA, MAX_DELTA);
 }
 

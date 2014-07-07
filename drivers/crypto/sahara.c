@@ -728,7 +728,7 @@ static int sahara_aes_cbc_decrypt(struct ablkcipher_request *req)
 
 static int sahara_aes_cra_init(struct crypto_tfm *tfm)
 {
-	const char *name = tfm->__crt_alg->cra_name;
+	const char *name = crypto_tfm_alg_name(tfm);
 	struct sahara_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	ctx->fallback = crypto_alloc_ablkcipher(name, 0,
@@ -885,22 +885,9 @@ static int sahara_probe(struct platform_device *pdev)
 
 	/* Get the base address */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get memory region resource\n");
-		return -ENODEV;
-	}
-
-	if (devm_request_mem_region(&pdev->dev, res->start,
-			resource_size(res), SAHARA_NAME) == NULL) {
-		dev_err(&pdev->dev, "failed to request memory region\n");
-		return -ENOENT;
-	}
-	dev->regs_base = devm_ioremap(&pdev->dev, res->start,
-				      resource_size(res));
-	if (!dev->regs_base) {
-		dev_err(&pdev->dev, "failed to ioremap address region\n");
-		return -ENOENT;
-	}
+	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dev->regs_base))
+		return PTR_ERR(dev->regs_base);
 
 	/* Get the IRQ */
 	irq = platform_get_irq(pdev,  0);
@@ -909,10 +896,11 @@ static int sahara_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	if (devm_request_irq(&pdev->dev, irq, sahara_irq_handler,
-		0, SAHARA_NAME, dev) < 0) {
+	err = devm_request_irq(&pdev->dev, irq, sahara_irq_handler,
+			       0, dev_name(&pdev->dev), dev);
+	if (err) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		return -ENOENT;
+		return err;
 	}
 
 	/* clocks */
@@ -1058,7 +1046,7 @@ static struct platform_driver sahara_driver = {
 	.driver		= {
 		.name	= SAHARA_NAME,
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(sahara_dt_ids),
+		.of_match_table = sahara_dt_ids,
 	},
 	.id_table = sahara_platform_ids,
 };

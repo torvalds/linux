@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/etherdevice.h>
 
 #include "cw1200.h"
 #include "sta.h"
@@ -555,8 +556,8 @@ u64 cw1200_prepare_multicast(struct ieee80211_hw *hw,
 		pr_debug("[STA] multicast: %pM\n", ha->addr);
 		memcpy(&priv->multicast_filter.macaddrs[count],
 		       ha->addr, ETH_ALEN);
-		if (memcmp(ha->addr, broadcast_ipv4, ETH_ALEN) &&
-		    memcmp(ha->addr, broadcast_ipv6, ETH_ALEN))
+		if (!ether_addr_equal(ha->addr, broadcast_ipv4) &&
+		    !ether_addr_equal(ha->addr, broadcast_ipv6))
 			priv->has_multicast_subscription = true;
 		count++;
 	}
@@ -935,7 +936,8 @@ static int __cw1200_flush(struct cw1200_common *priv, bool drop)
 	return ret;
 }
 
-void cw1200_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+void cw1200_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  u32 queues, bool drop)
 {
 	struct cw1200_common *priv = hw->priv;
 

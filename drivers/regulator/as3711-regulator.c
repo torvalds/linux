@@ -117,26 +117,19 @@ static struct regulator_ops as3711_dldo_ops = {
 };
 
 static const struct regulator_linear_range as3711_sd_ranges[] = {
-	{ .min_uV = 612500, .max_uV = 1400000,
-	  .min_sel = 0x1, .max_sel = 0x40, .uV_step = 12500 },
-	{ .min_uV = 1425000, .max_uV = 2600000,
-	  .min_sel = 0x41, .max_sel = 0x70, .uV_step = 25000 },
-	{ .min_uV = 2650000, .max_uV = 3350000,
-	  .min_sel = 0x71, .max_sel = 0x7f, .uV_step = 50000 },
+	REGULATOR_LINEAR_RANGE(612500, 0x1, 0x40, 12500),
+	REGULATOR_LINEAR_RANGE(1425000, 0x41, 0x70, 25000),
+	REGULATOR_LINEAR_RANGE(2650000, 0x71, 0x7f, 50000),
 };
 
 static const struct regulator_linear_range as3711_aldo_ranges[] = {
-	{ .min_uV = 1200000, .max_uV = 1950000,
-	  .min_sel = 0, .max_sel = 0xf, .uV_step = 50000 },
-	{ .min_uV = 1800000, .max_uV = 3300000,
-	  .min_sel = 0x10, .max_sel = 0x1f, .uV_step = 100000 },
+	REGULATOR_LINEAR_RANGE(1200000, 0, 0xf, 50000),
+	REGULATOR_LINEAR_RANGE(1800000, 0x10, 0x1f, 100000),
 };
 
 static const struct regulator_linear_range as3711_dldo_ranges[] = {
-	{ .min_uV = 900000, .max_uV = 1700000,
-	  .min_sel = 0, .max_sel = 0x10, .uV_step = 50000 },
-	{ .min_uV = 1750000, .max_uV = 3300000,
-	  .min_sel = 0x20, .max_sel = 0x3f, .uV_step = 50000 },
+	REGULATOR_LINEAR_RANGE(900000, 0, 0x10, 50000),
+	REGULATOR_LINEAR_RANGE(1750000, 0x20, 0x3f, 50000),
 };
 
 #define AS3711_REG(_id, _en_reg, _en_bit, _vmask, _vshift, _min_uV, _max_uV, _sfx)	\
@@ -198,7 +191,7 @@ static int as3711_regulator_parse_dt(struct device *dev,
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(dev);
 	struct device_node *regulators =
-		of_find_node_by_name(dev->parent->of_node, "regulators");
+		of_get_child_by_name(dev->parent->of_node, "regulators");
 	struct of_regulator_match *match;
 	int ret, i;
 
@@ -228,7 +221,6 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct as3711 *as3711 = dev_get_drvdata(pdev->dev.parent);
-	struct regulator_init_data *reg_data;
 	struct regulator_config config = {.dev = &pdev->dev,};
 	struct as3711_regulator *reg = NULL;
 	struct as3711_regulator *regs;
@@ -253,52 +245,27 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 
 	regs = devm_kzalloc(&pdev->dev, AS3711_REGULATOR_NUM *
 			sizeof(struct as3711_regulator), GFP_KERNEL);
-	if (!regs) {
-		dev_err(&pdev->dev, "Memory allocation failed exiting..\n");
+	if (!regs)
 		return -ENOMEM;
-	}
 
 	for (id = 0, ri = as3711_reg_info; id < AS3711_REGULATOR_NUM; ++id, ri++) {
-		reg_data = pdata->init_data[id];
-
-		/* No need to register if there is no regulator data */
-		if (!reg_data)
-			continue;
-
 		reg = &regs[id];
 		reg->reg_info = ri;
 
-		config.init_data = reg_data;
+		config.init_data = pdata->init_data[id];
 		config.driver_data = reg;
 		config.regmap = as3711->regmap;
 		config.of_node = of_node[id];
 
-		rdev = regulator_register(&ri->desc, &config);
+		rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "Failed to register regulator %s\n",
 				ri->desc.name);
-			ret = PTR_ERR(rdev);
-			goto eregreg;
+			return PTR_ERR(rdev);
 		}
 		reg->rdev = rdev;
 	}
 	platform_set_drvdata(pdev, regs);
-	return 0;
-
-eregreg:
-	while (--id >= 0)
-		regulator_unregister(regs[id].rdev);
-
-	return ret;
-}
-
-static int as3711_regulator_remove(struct platform_device *pdev)
-{
-	struct as3711_regulator *regs = platform_get_drvdata(pdev);
-	int id;
-
-	for (id = 0; id < AS3711_REGULATOR_NUM; ++id)
-		regulator_unregister(regs[id].rdev);
 	return 0;
 }
 
@@ -308,7 +275,6 @@ static struct platform_driver as3711_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= as3711_regulator_probe,
-	.remove		= as3711_regulator_remove,
 };
 
 static int __init as3711_regulator_init(void)

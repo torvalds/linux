@@ -524,8 +524,7 @@ static inline int ocfs2_calc_dxi_expand_credits(struct super_block *sb)
  * the result may be wrong.
  */
 static inline int ocfs2_calc_extend_credits(struct super_block *sb,
-					    struct ocfs2_extent_list *root_el,
-					    u32 bits_wanted)
+					    struct ocfs2_extent_list *root_el)
 {
 	int bitmap_blocks, sysfile_bitmap_blocks, extent_blocks;
 
@@ -625,6 +624,17 @@ static inline int ocfs2_begin_ordered_truncate(struct inode *inode,
 				OCFS2_SB(inode->i_sb)->journal->j_journal,
 				&OCFS2_I(inode)->ip_jinode,
 				new_size);
+}
+
+static inline void ocfs2_update_inode_fsync_trans(handle_t *handle,
+						  struct inode *inode,
+						  int datasync)
+{
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+
+	oi->i_sync_tid = handle->h_transaction->t_tid;
+	if (datasync)
+		oi->i_datasync_tid = handle->h_transaction->t_tid;
 }
 
 #endif /* OCFS2_JOURNAL_H */

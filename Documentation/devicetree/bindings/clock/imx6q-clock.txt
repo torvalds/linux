@@ -215,6 +215,12 @@ clocks and IDs.
 	cko2      		200
 	cko      		201
 	vdoa      		202
+	pll4_audio_div		203
+	lvds1_sel		204
+	lvds2_sel		205
+	lvds1_gate		206
+	lvds2_gate		207
+	esai_ahb		208
 
 Examples:
 

@@ -150,11 +150,9 @@
 #else
 /* Reserved 0x04-0x09 */
 #endif
-#define TBID_SIGNUM_SWS     0x0A /* KICK received with SigMask != 0 */
-#define TBID_SIGNUM_SWK     0x0B /* KICK received with SigMask == 0 */
-/* Reserved 0x0C-0x0F */
+/* Reserved 0x0A-0x0F */
 #define TBID_SIGNUM_TRT     0x10 /* Timer trigger */
-#define TBID_SIGNUM_LWK     0x11 /* Low level kick (handler provided by TBI) */
+#define TBID_SIGNUM_LWK     0x11 /* Low level kick */
 #define TBID_SIGNUM_XXF     0x12 /* Fault handler - receives ALL _xxF sigs */
 #ifdef TBI_1_4
 #define TBID_SIGNUM_DFR     0x13 /* Deferred Exception handler */
@@ -183,8 +181,7 @@
    each hardware signal, sometimes this is a many-to-one relationship. */
 #define TBI_TRIG_BIT(SigNum)                                      (\
     ((SigNum) >= TBID_SIGNUM_TRT) ? 1<<((SigNum)-TBID_SIGNUM_TRT) :\
-    ( ((SigNum) == TBID_SIGNUM_SWS) ||                             \
-      ((SigNum) == TBID_SIGNUM_SWK)    ) ?                         \
+    ((SigNum) == TBID_SIGNUM_LWK) ?                                \
                          TXSTAT_KICK_BIT : TXSTATI_BGNDHALT_BIT    )
 
 /* Return the hardware trigger vector number for entries in the
@@ -687,10 +684,8 @@ typedef union _tbires_tag_ {
    Triggers will indicate the status of TXSTAT or TXSTATI sampled by the
           code that called the handler.
           
-   InstOrSWSId is defined firstly as 'Inst' if the SigNum is TBID_SIGNUM_SWx
-          and hold the actual SWITCH instruction detected, secondly if SigNum
-          is TBID_SIGNUM_SWS the 'SWSId' is defined to hold the Id of the
-          software signal detected, in other cases the value of this
+   Inst is defined as 'Inst' if the SigNum is TBID_SIGNUM_SWx and holds the
+          actual SWITCH instruction detected, in other cases the value of this
           parameter is undefined.
    
    pTBI   points at the PTBI structure related to the thread and processing
@@ -709,7 +704,7 @@ typedef union _tbires_tag_ {
 
  */
 typedef TBIRES (*PTBIAPIFN)( TBIRES State, int SigNum,
-                             int Triggers, int InstOrSWSId,
+                             int Triggers, int Inst,
                              volatile struct _tbi_tag_ *pTBI );
 #endif /* ifndef __ASSEMBLY__ */
 
@@ -757,7 +752,7 @@ typedef volatile struct _tbi_tag_ {
 #ifndef __ASSEMBLY__
 /* This handler should be used for TBID_SIGNUM_DFR */
 extern TBIRES __TBIHandleDFR ( TBIRES State, int SigNum,
-                               int Triggers, int InstOrSWSId,
+                               int Triggers, int Inst,
                                volatile struct _tbi_tag_ *pTBI );
 #endif
 #endif

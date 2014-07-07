@@ -26,7 +26,11 @@
 #include <linux/ptrace.h>
 
 #define COMPAT_USER_HZ		100
+#ifdef __AARCH64EB__
+#define COMPAT_UTS_MACHINE	"armv8b\0\0"
+#else
 #define COMPAT_UTS_MACHINE	"armv8l\0\0"
+#endif
 
 typedef u32		compat_size_t;
 typedef s32		compat_ssize_t;
@@ -73,13 +77,23 @@ struct compat_timeval {
 };
 
 struct compat_stat {
+#ifdef __AARCH64EB__
+	short		st_dev;
+	short		__pad1;
+#else
 	compat_dev_t	st_dev;
+#endif
 	compat_ino_t	st_ino;
 	compat_mode_t	st_mode;
 	compat_ushort_t	st_nlink;
 	__compat_uid16_t	st_uid;
 	__compat_gid16_t	st_gid;
+#ifdef __AARCH64EB__
+	short		st_rdev;
+	short		__pad2;
+#else
 	compat_dev_t	st_rdev;
+#endif
 	compat_off_t	st_size;
 	compat_off_t	st_blksize;
 	compat_off_t	st_blocks;
@@ -214,7 +228,7 @@ static inline compat_uptr_t ptr_to_compat(void __user *uptr)
 	return (u32)(unsigned long)uptr;
 }
 
-#define compat_user_stack_pointer() (current_pt_regs()->compat_sp)
+#define compat_user_stack_pointer() (user_stack_pointer(current_pt_regs()))
 
 static inline void __user *arch_compat_alloc_user_space(long len)
 {
@@ -290,11 +304,6 @@ static inline int is_compat_thread(struct thread_info *thread)
 }
 
 #else /* !CONFIG_COMPAT */
-
-static inline int is_compat_task(void)
-{
-	return 0;
-}
 
 static inline int is_compat_thread(struct thread_info *thread)
 {

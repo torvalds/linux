@@ -35,6 +35,7 @@
 #include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
@@ -1256,7 +1257,8 @@ static unsigned int smu_fpoll(struct file *file, poll_table *wait)
 		if (pp->busy && pp->cmd.status != 1)
 			mask |= POLLIN;
 		spin_unlock_irqrestore(&pp->lock, flags);
-	} if (pp->mode == smu_file_events) {
+	}
+	if (pp->mode == smu_file_events) {
 		/* Not yet implemented */
 	}
 	return mask;

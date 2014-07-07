@@ -408,6 +408,7 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 	}
 
 	ctlr = fcoe_ctlr_device_priv(ctlr_dev);
+	ctlr->cdev = ctlr_dev;
 	fcoe = fcoe_ctlr_priv(ctlr);
 
 	dev_hold(netdev);
@@ -1440,22 +1441,28 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	ctlr = fcoe_to_ctlr(fcoe);
 	lport = ctlr->lp;
 	if (unlikely(!lport)) {
-		FCOE_NETDEV_DBG(netdev, "Cannot find hba structure");
+		FCOE_NETDEV_DBG(netdev, "Cannot find hba structure\n");
 		goto err2;
 	}
 	if (!lport->link_up)
 		goto err2;
 
-	FCOE_NETDEV_DBG(netdev, "skb_info: len:%d data_len:%d head:%p "
-			"data:%p tail:%p end:%p sum:%d dev:%s",
+	FCOE_NETDEV_DBG(netdev,
+			"skb_info: len:%d data_len:%d head:%p data:%p tail:%p end:%p sum:%d dev:%s\n",
 			skb->len, skb->data_len, skb->head, skb->data,
 			skb_tail_pointer(skb), skb_end_pointer(skb),
 			skb->csum, skb->dev ? skb->dev->name : "<NULL>");
 
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+
+	if (skb == NULL)
+		return NET_RX_DROP;
+
 	eh = eth_hdr(skb);
 
 	if (is_fip_mode(ctlr) &&
-	    compare_ether_addr(eh->h_source, ctlr->dest_addr)) {
+	    !ether_addr_equal(eh->h_source, ctlr->dest_addr)) {
 		FCOE_NETDEV_DBG(netdev, "wrong source mac address:%pM\n",
 				eh->h_source);
 		goto err;
@@ -1540,13 +1547,13 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 		wake_up_process(fps->thread);
 	spin_unlock(&fps->fcoe_rx_list.lock);
 
-	return 0;
+	return NET_RX_SUCCESS;
 err:
 	per_cpu_ptr(lport->stats, get_cpu())->ErrorFrames++;
 	put_cpu();
 err2:
 	kfree_skb(skb);
-	return -1;
+	return NET_RX_DROP;
 }
 
 /**
@@ -1788,13 +1795,13 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	lport = fr->fr_dev;
 	if (unlikely(!lport)) {
 		if (skb->destructor != fcoe_percpu_flush_done)
-			FCOE_NETDEV_DBG(skb->dev, "NULL lport in skb");
+			FCOE_NETDEV_DBG(skb->dev, "NULL lport in skb\n");
 		kfree_skb(skb);
 		return;
 	}
 
-	FCOE_NETDEV_DBG(skb->dev, "skb_info: len:%d data_len:%d "
-			"head:%p data:%p tail:%p end:%p sum:%d dev:%s",
+	FCOE_NETDEV_DBG(skb->dev,
+			"skb_info: len:%d data_len:%d head:%p data:%p tail:%p end:%p sum:%d dev:%s\n",
 			skb->len, skb->data_len,
 			skb->head, skb->data, skb_tail_pointer(skb),
 			skb_end_pointer(skb), skb->csum,
@@ -1865,7 +1872,7 @@ static int fcoe_percpu_receive_thread(void *arg)
 
 	skb_queue_head_init(&tmp);
 
-	set_user_nice(current, -20);
+	set_user_nice(current, MIN_NICE);
 
 retry:
 	while (!kthread_should_stop()) {
@@ -2626,13 +2633,17 @@ static int __init fcoe_init(void)
 		skb_queue_head_init(&p->fcoe_rx_list);
 	}
 
+	cpu_notifier_register_begin();
+
 	for_each_online_cpu(cpu)
 		fcoe_percpu_thread_create(cpu);
 
 	/* Initialize per CPU interrupt thread */
-	rc = register_hotcpu_notifier(&fcoe_cpu_notifier);
+	rc = __register_hotcpu_notifier(&fcoe_cpu_notifier);
 	if (rc)
 		goto out_free;
+
+	cpu_notifier_register_done();
 
 	/* Setup link change notification */
 	fcoe_dev_setup();
@@ -2648,6 +2659,9 @@ out_free:
 	for_each_online_cpu(cpu) {
 		fcoe_percpu_thread_destroy(cpu);
 	}
+
+	cpu_notifier_register_done();
+
 	mutex_unlock(&fcoe_config_mutex);
 	destroy_workqueue(fcoe_wq);
 	return rc;
@@ -2680,10 +2694,14 @@ static void __exit fcoe_exit(void)
 	}
 	rtnl_unlock();
 
-	unregister_hotcpu_notifier(&fcoe_cpu_notifier);
+	cpu_notifier_register_begin();
 
 	for_each_online_cpu(cpu)
 		fcoe_percpu_thread_destroy(cpu);
+
+	__unregister_hotcpu_notifier(&fcoe_cpu_notifier);
+
+	cpu_notifier_register_done();
 
 	mutex_unlock(&fcoe_config_mutex);
 

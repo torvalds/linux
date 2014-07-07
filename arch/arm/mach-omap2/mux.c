@@ -70,18 +70,18 @@ struct omap_mux_partition *omap_mux_get(const char *name)
 u16 omap_mux_read(struct omap_mux_partition *partition, u16 reg)
 {
 	if (partition->flags & OMAP_MUX_REG_8BIT)
-		return __raw_readb(partition->base + reg);
+		return readb_relaxed(partition->base + reg);
 	else
-		return __raw_readw(partition->base + reg);
+		return readw_relaxed(partition->base + reg);
 }
 
 void omap_mux_write(struct omap_mux_partition *partition, u16 val,
 			   u16 reg)
 {
 	if (partition->flags & OMAP_MUX_REG_8BIT)
-		__raw_writeb(val, partition->base + reg);
+		writeb_relaxed(val, partition->base + reg);
 	else
-		__raw_writew(val, partition->base + reg);
+		writew_relaxed(val, partition->base + reg);
 }
 
 void omap_mux_write_array(struct omap_mux_partition *partition,
@@ -183,8 +183,10 @@ static int __init _omap_mux_get_by_name(struct omap_mux_partition *partition,
 		m0_entry = mux->muxnames[0];
 
 		/* First check for full name in mode0.muxmode format */
-		if (mode0_len && strncmp(muxname, m0_entry, mode0_len))
-			continue;
+		if (mode0_len)
+			if (strncmp(muxname, m0_entry, mode0_len) ||
+			    (strlen(m0_entry) != mode0_len))
+				continue;
 
 		/* Then check for muxmode only */
 		for (i = 0; i < OMAP_MUX_NR_MODES; i++) {
@@ -811,14 +813,18 @@ int __init omap_mux_late_init(void)
 		}
 	}
 
+	omap_mux_dbg_init();
+
+	/* see pinctrl-single-omap for the wake-up interrupt handling */
+	if (of_have_populated_dt())
+		return 0;
+
 	ret = request_irq(omap_prcm_event_to_irq("io"),
 		omap_hwmod_mux_handle_irq, IRQF_SHARED | IRQF_NO_SUSPEND,
 			"hwmod_io", omap_mux_late_init);
 
 	if (ret)
 		pr_warning("mux: Failed to setup hwmod io irq %d\n", ret);
-
-	omap_mux_dbg_init();
 
 	return 0;
 }

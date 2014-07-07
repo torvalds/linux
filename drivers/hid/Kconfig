@@ -175,6 +175,15 @@ config HID_PRODIKEYS
 	  multimedia keyboard, but will lack support for the musical keyboard
 	  and some additional multimedia keys.
 
+config HID_CP2112
+	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
+	depends on USB_HID && I2C && GPIOLIB
+	---help---
+	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
+	This is a HID device driver which registers as an i2c adapter
+	and gpiochip to expose these functions of the CP2112. The
+	customizable USB descriptor fields are exposed as sysfs attributes.
+
 config HID_CYPRESS
 	tristate "Cypress mouse and barcode readers" if EXPERT
 	depends on HID
@@ -242,6 +251,7 @@ config HID_HOLTEK
 	  - Tracer Sniper TRM-503 / NOVA Gaming Slider X200 /
 	    Zalman ZM-GM1
 	  - SHARKOON DarkGlider Gaming mouse
+	  - LEETGION Hellion Gaming Mouse
 
 config HOLTEK_FF
 	bool "Holtek On Line Grip force feedback support"
@@ -323,7 +333,7 @@ config HID_LCPOWER
 
 config HID_LENOVO_TPKBD
 	tristate "Lenovo ThinkPad USB Keyboard with TrackPoint"
-	depends on USB_HID
+	depends on HID
 	select NEW_LEDS
 	select LEDS_CLASS
 	---help---
@@ -343,6 +353,7 @@ config HID_LOGITECH
 
 config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
+	depends on HIDRAW
 	depends on HID_LOGITECH
 	---help---
 	Say Y if you want support for Logitech Unifying receivers and devices.
@@ -362,19 +373,20 @@ config LOGITECH_FF
 	  - Logitech WingMan Force 3D
 	  - Logitech Formula Force EX
 	  - Logitech WingMan Formula Force GP
-	  - Logitech MOMO Force wheel
 
 	  and if you want to enable force feedback for them.
 	  Note: if you say N here, this device will still be supported, but without
 	  force feedback.
 
 config LOGIRUMBLEPAD2_FF
-	bool "Logitech RumblePad/Rumblepad 2 force feedback support"
+	bool "Logitech force feedback support (variant 2)"
 	depends on HID_LOGITECH
 	select INPUT_FF_MEMLESS
 	help
-	  Say Y here if you want to enable force feedback support for Logitech
-	  RumblePad and Rumblepad 2 devices.
+	  Say Y here if you want to enable force feedback support for:
+	  - Logitech RumblePad
+	  - Logitech Rumblepad 2
+	  - Logitech Formula Vibration Feedback Wheel
 
 config LOGIG940_FF
 	bool "Logitech Flight System G940 force feedback support"
@@ -437,6 +449,7 @@ config HID_MULTITOUCH
 	  - Chunghwa panels
 	  - CVTouch panels
 	  - Cypress TrueTouch panels
+	  - Elan Microelectronics touch panels
 	  - Elo TouchSystems IntelliTouch Plus panels
 	  - GeneralTouch 'Sensing Win7-TwoFinger' panels
 	  - GoodTouch panels
@@ -453,9 +466,11 @@ config HID_MULTITOUCH
 	  - Pixcir dual touch panels
 	  - Quanta panels
 	  - eGalax dual-touch panels, including the Joojoo and Wetab tablets
+	  - SiS multitouch panels
 	  - Stantum multitouch panels
 	  - Touch International Panels
 	  - Unitec Panels
+	  - Wistron optical touch panels
 	  - XAT optical touch panels
 	  - Xiroku optical touch panels
 	  - Zytronic touch panels
@@ -593,7 +608,10 @@ config HID_SAITEK
 	Support for Saitek devices that are not fully compliant with the
 	HID standard.
 
-	Currently only supports the PS1000 controller.
+	Supported devices:
+	- PS1000 Dual Analog Pad
+	- R.A.T.7 Gaming Mouse
+	- M.M.O.7 Gaming Mouse
 
 config HID_SAMSUNG
 	tristate "Samsung InfraRed remote control or keyboards"
@@ -602,17 +620,27 @@ config HID_SAMSUNG
 	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
-	tristate "Sony PS2/3 accessories"
+	tristate "Sony PS2/3/4 accessories"
 	depends on USB_HID
 	depends on NEW_LEDS
 	depends on LEDS_CLASS
+	select POWER_SUPPLY
 	---help---
 	Support for
 
 	  * Sony PS3 6-axis controllers
+	  * Sony PS4 DualShock 4 controllers
 	  * Buzz controllers
 	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
 	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
+
+config SONY_FF
+	bool "Sony PS2/3/4 accessories force feedback support" 
+	depends on HID_SONY
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you have a Sony PS2/3/4 accessory and want to enable
+	force feedback support for it.
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"
@@ -631,6 +659,14 @@ config HID_SUNPLUS
 	depends on HID
 	---help---
 	Support for Sunplus wireless desktop.
+
+config HID_RMI
+	tristate "Synaptics RMI4 device support"
+	depends on HID
+	---help---
+	Support for Synaptics RMI4 touchpads.
+	Say Y here if you have a Synaptics RMI4 touchpads over i2c-hid or usbhid
+	and want support for its special functionalities.
 
 config HID_GREENASIA
 	tristate "GreenAsia (Product ID 0x12) game controller support"

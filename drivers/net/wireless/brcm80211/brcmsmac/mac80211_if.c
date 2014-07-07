@@ -125,13 +125,13 @@ static struct ieee80211_channel brcms_2ghz_chantable[] = {
 	CHAN2GHZ(10, 2457, IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN2GHZ(11, 2462, IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN2GHZ(12, 2467,
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_NO_IR |
 		 IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN2GHZ(13, 2472,
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_NO_IR |
 		 IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN2GHZ(14, 2484,
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
+		 IEEE80211_CHAN_NO_IR |
 		 IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS |
 		 IEEE80211_CHAN_NO_OFDM)
 };
@@ -144,51 +144,51 @@ static struct ieee80211_channel brcms_5ghz_nphy_chantable[] = {
 	CHAN5GHZ(48, IEEE80211_CHAN_NO_HT40PLUS),
 	/* UNII-2 */
 	CHAN5GHZ(52,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
 	CHAN5GHZ(56,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN5GHZ(60,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
 	CHAN5GHZ(64,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
 	/* MID */
 	CHAN5GHZ(100,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
 	CHAN5GHZ(104,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN5GHZ(108,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
 	CHAN5GHZ(112,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN5GHZ(116,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
 	CHAN5GHZ(120,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN5GHZ(124,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
 	CHAN5GHZ(128,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN5GHZ(132,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
 	CHAN5GHZ(136,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN5GHZ(140,
-		 IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_HT40PLUS |
+		 IEEE80211_CHAN_RADAR |
+		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS |
 		 IEEE80211_CHAN_NO_HT40MINUS),
 	/* UNII-3 */
 	CHAN5GHZ(149, IEEE80211_CHAN_NO_HT40MINUS),
@@ -426,20 +426,18 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	bool blocked;
 	int err;
 
+	if (!wl->ucode.bcm43xx_bomminor) {
+		err = brcms_request_fw(wl, wl->wlc->hw->d11core);
+		if (err)
+			return -ENOENT;
+	}
+
 	ieee80211_wake_queues(hw);
 	spin_lock_bh(&wl->lock);
 	blocked = brcms_rfkill_set_hw_state(wl);
 	spin_unlock_bh(&wl->lock);
 	if (!blocked)
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
-
-	if (!wl->ucode.bcm43xx_bomminor) {
-		err = brcms_request_fw(wl, wl->wlc->hw->d11core);
-		if (err) {
-			brcms_remove(wl->wlc->hw->d11core);
-			return -ENOENT;
-		}
-	}
 
 	spin_lock_bh(&wl->lock);
 	/* avoid acknowledging frames before a non-monitor device is added */
@@ -899,7 +897,8 @@ static bool brcms_tx_flush_completed(struct brcms_info *wl)
 	return result;
 }
 
-static void brcms_ops_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void brcms_ops_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			    u32 queues, bool drop)
 {
 	struct brcms_info *wl = hw->priv;
 	int ret;
@@ -1071,7 +1070,6 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	hw->max_rates = 2;	/* Primary rate and 1 fallback rate */
 
 	/* channel change time is dependent on chip and band  */
-	hw->channel_change_time = 7 * 1000;
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_AP) |
 				     BIT(NL80211_IFTYPE_ADHOC);
@@ -1094,12 +1092,6 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
  *
  * Attach to the WL device identified by vendor and device parameters.
  * regs is a host accessible memory address pointing to WL device registers.
- *
- * brcms_attach is not defined as static because in the case where no bus
- * is defined, wl_attach will never be called, and thus, gcc will issue
- * a warning that this function is defined but not used if we declare
- * it as static.
- *
  *
  * is called in brcms_bcma_probe() context, therefore no locking required.
  */

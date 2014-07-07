@@ -34,8 +34,16 @@ struct se_subsystem_api {
 	sense_reason_t (*parse_cdb)(struct se_cmd *cmd);
 	u32 (*get_device_type)(struct se_device *);
 	sector_t (*get_blocks)(struct se_device *);
+	sector_t (*get_alignment_offset_lbas)(struct se_device *);
+	/* lbppbe = logical blocks per physical block exponent. see SBC-3 */
+	unsigned int (*get_lbppbe)(struct se_device *);
+	unsigned int (*get_io_min)(struct se_device *);
+	unsigned int (*get_io_opt)(struct se_device *);
 	unsigned char *(*get_sense_buffer)(struct se_cmd *);
 	bool (*get_write_cache)(struct se_device *);
+	int (*init_prot)(struct se_device *);
+	int (*format_prot)(struct se_device *);
+	void (*free_prot)(struct se_device *);
 };
 
 struct sbc_ops {
@@ -51,6 +59,7 @@ int	transport_subsystem_register(struct se_subsystem_api *);
 void	transport_subsystem_release(struct se_subsystem_api *);
 
 void	target_complete_cmd(struct se_cmd *, u8);
+void	target_complete_cmd_with_length(struct se_cmd *, u8, int);
 
 sense_reason_t	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
 sense_reason_t	spc_emulate_report_luns(struct se_cmd *cmd);
@@ -65,6 +74,12 @@ sense_reason_t sbc_execute_unmap(struct se_cmd *cmd,
 	sense_reason_t (*do_unmap_fn)(struct se_cmd *cmd, void *priv,
 				      sector_t lba, sector_t nolb),
 	void *priv);
+void	sbc_dif_generate(struct se_cmd *);
+sense_reason_t	sbc_dif_verify_write(struct se_cmd *, sector_t, unsigned int,
+				     unsigned int, struct scatterlist *, int);
+sense_reason_t	sbc_dif_verify_read(struct se_cmd *, sector_t, unsigned int,
+				    unsigned int, struct scatterlist *, int);
+sense_reason_t	sbc_dif_read_strip(struct se_cmd *);
 
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_assoc(struct t10_vpd *, unsigned char *);

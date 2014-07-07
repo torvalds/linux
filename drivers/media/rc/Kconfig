@@ -106,6 +106,15 @@ config IR_SANYO_DECODER
 	   uses the Sanyo protocol (Sanyo, Aiwa, Chinon remotes),
 	   and you need software decoding support.
 
+config IR_SHARP_DECODER
+	tristate "Enable IR raw decoder for the Sharp protocol"
+	depends on RC_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sharp protocol, and you need software decoding support.
+
 config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
 	depends on RC_CORE
@@ -300,6 +309,8 @@ config IR_RX51
 	   The driver uses omap DM timers for generating the carrier
 	   wave and pulses.
 
+source "drivers/media/rc/img-ir/Kconfig"
+
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"
 	depends on RC_CORE
@@ -321,5 +332,15 @@ config IR_GPIO_CIR
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
+
+config RC_ST
+	tristate "ST remote control receiver"
+	depends on ARCH_STI && RC_CORE
+	help
+	 Say Y here if you want support for ST remote control driver
+	 which allows both IR and UHF RX.
+	 The driver passes raw pulse and space information to the LIRC decoder.
+
+	 If you're not sure, select N here.
 
 endif #RC_DEVICES

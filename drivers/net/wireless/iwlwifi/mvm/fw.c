@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,7 +99,7 @@ static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 	};
 
 	IWL_DEBUG_FW(mvm, "select valid tx ant: %u\n", valid_tx_ant);
-	return iwl_mvm_send_cmd_pdu(mvm, TX_ANT_CONFIGURATION_CMD, CMD_SYNC,
+	return iwl_mvm_send_cmd_pdu(mvm, TX_ANT_CONFIGURATION_CMD, 0,
 				    sizeof(tx_ant_cmd), &tx_ant_cmd);
 }
 
@@ -110,18 +110,50 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		container_of(notif_wait, struct iwl_mvm, notif_wait);
 	struct iwl_mvm_alive_data *alive_data = data;
 	struct mvm_alive_resp *palive;
+	struct mvm_alive_resp_ver2 *palive2;
 
-	palive = (void *)pkt->data;
+	if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive)) {
+		palive = (void *)pkt->data;
 
-	mvm->error_event_table = le32_to_cpu(palive->error_event_table_ptr);
-	mvm->log_event_table = le32_to_cpu(palive->log_event_table_ptr);
-	alive_data->scd_base_addr = le32_to_cpu(palive->scd_base_ptr);
+		mvm->support_umac_log = false;
+		mvm->error_event_table =
+			le32_to_cpu(palive->error_event_table_ptr);
+		mvm->log_event_table = le32_to_cpu(palive->log_event_table_ptr);
+		alive_data->scd_base_addr = le32_to_cpu(palive->scd_base_ptr);
 
-	alive_data->valid = le16_to_cpu(palive->status) == IWL_ALIVE_STATUS_OK;
-	IWL_DEBUG_FW(mvm,
-		     "Alive ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-		     le16_to_cpu(palive->status), palive->ver_type,
-		     palive->ver_subtype, palive->flags);
+		alive_data->valid = le16_to_cpu(palive->status) ==
+				    IWL_ALIVE_STATUS_OK;
+		IWL_DEBUG_FW(mvm,
+			     "Alive VER1 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
+			     le16_to_cpu(palive->status), palive->ver_type,
+			     palive->ver_subtype, palive->flags);
+	} else {
+		palive2 = (void *)pkt->data;
+
+		mvm->error_event_table =
+			le32_to_cpu(palive2->error_event_table_ptr);
+		mvm->log_event_table =
+			le32_to_cpu(palive2->log_event_table_ptr);
+		alive_data->scd_base_addr = le32_to_cpu(palive2->scd_base_ptr);
+		mvm->umac_error_event_table =
+			le32_to_cpu(palive2->error_info_addr);
+		mvm->sf_space.addr = le32_to_cpu(palive2->st_fwrd_addr);
+		mvm->sf_space.size = le32_to_cpu(palive2->st_fwrd_size);
+
+		alive_data->valid = le16_to_cpu(palive2->status) ==
+				    IWL_ALIVE_STATUS_OK;
+		if (mvm->umac_error_event_table)
+			mvm->support_umac_log = true;
+
+		IWL_DEBUG_FW(mvm,
+			     "Alive VER2 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
+			     le16_to_cpu(palive2->status), palive2->ver_type,
+			     palive2->ver_subtype, palive2->flags);
+
+		IWL_DEBUG_FW(mvm,
+			     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
+			     palive2->umac_major, palive2->umac_minor);
+	}
 
 	return true;
 }
@@ -150,14 +182,13 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	int ret, i;
 	enum iwl_ucode_type old_type = mvm->cur_ucode;
 	static const u8 alive_cmd[] = { MVM_ALIVE };
+	struct iwl_sf_region st_fwrd_space;
 
-	mvm->cur_ucode = ucode_type;
 	fw = iwl_get_ucode_image(mvm, ucode_type);
-
-	mvm->ucode_loaded = false;
-
-	if (!fw)
+	if (WARN_ON(!fw))
 		return -EINVAL;
+	mvm->cur_ucode = ucode_type;
+	mvm->ucode_loaded = false;
 
 	iwl_init_notification_wait(&mvm->notif_wait, &alive_wait,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
@@ -187,6 +218,14 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		return -EIO;
 	}
 
+	/*
+	 * update the sdio allocation according to the pointer we get in the
+	 * alive notification.
+	 */
+	st_fwrd_space.addr = mvm->sf_space.addr;
+	st_fwrd_space.size = mvm->sf_space.size;
+	ret = iwl_trans_update_sf(mvm->trans, &st_fwrd_space);
+
 	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
 
 	/*
@@ -199,7 +238,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 */
 
 	for (i = 0; i < IWL_MAX_HW_QUEUES; i++) {
-		if (i < IWL_MVM_FIRST_AGG_QUEUE && i != IWL_MVM_CMD_QUEUE)
+		if (i < mvm->first_agg_queue && i != IWL_MVM_CMD_QUEUE)
 			mvm->queue_to_mac80211[i] = i;
 		else
 			mvm->queue_to_mac80211[i] = IWL_INVALID_MAC80211_QUEUE;
@@ -228,7 +267,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	IWL_DEBUG_INFO(mvm, "Sending Phy CFG command: 0x%x\n",
 		       phy_cfg_cmd.phy_cfg);
 
-	return iwl_mvm_send_cmd_pdu(mvm, PHY_CONFIGURATION_CMD, CMD_SYNC,
+	return iwl_mvm_send_cmd_pdu(mvm, PHY_CONFIGURATION_CMD, 0,
 				    sizeof(phy_cfg_cmd), &phy_cfg_cmd);
 }
 
@@ -243,7 +282,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvm->init_ucode_run)
+	if (WARN_ON_ONCE(mvm->init_ucode_complete))
 		return 0;
 
 	iwl_init_notification_wait(&mvm->notif_wait,
@@ -260,18 +299,23 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto error;
 	}
 
-	ret = iwl_send_bt_prio_tbl(mvm);
+	ret = iwl_send_bt_init_conf(mvm);
 	if (ret)
 		goto error;
 
+	/* Read the NVM only at driver load time, no need to do this twice */
 	if (read_nvm) {
 		/* Read nvm */
-		ret = iwl_nvm_init(mvm);
+		ret = iwl_nvm_init(mvm, true);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
 			goto error;
 		}
 	}
+
+	/* In case we read the NVM from external file, load it to the NIC */
+	if (mvm->nvm_file_name)
+		iwl_mvm_load_nvm_to_nic(mvm);
 
 	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
 	WARN_ON(ret);
@@ -284,11 +328,12 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		IWL_DEBUG_RF_KILL(mvm,
 				  "jump over all phy activities due to RF kill\n");
 		iwl_remove_notification(&mvm->notif_wait, &calib_wait);
-		return 1;
+		ret = 1;
+		goto out;
 	}
 
 	/* Send TX valid antennas before triggering calibrations */
-	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
+	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
 	if (ret)
 		goto error;
 
@@ -310,15 +355,13 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_wait_notification(&mvm->notif_wait, &calib_wait,
 			MVM_UCODE_CALIB_TIMEOUT);
 	if (!ret)
-		mvm->init_ucode_run = true;
+		mvm->init_ucode_complete = true;
 	goto out;
 
 error:
 	iwl_remove_notification(&mvm->notif_wait, &calib_wait);
 out:
-	if (!iwlmvm_mod_params.init_dbg) {
-		iwl_trans_stop_device(mvm->trans);
-	} else if (!mvm->nvm_data) {
+	if (iwlmvm_mod_params.init_dbg && !mvm->nvm_data) {
 		/* we want to debug INIT and we have no NVM - fake */
 		mvm->nvm_data = kzalloc(sizeof(struct iwl_nvm_data) +
 					sizeof(struct ieee80211_channel) +
@@ -326,8 +369,6 @@ out:
 					GFP_KERNEL);
 		if (!mvm->nvm_data)
 			return -ENOMEM;
-		mvm->nvm_data->valid_rx_ant = 1;
-		mvm->nvm_data->valid_tx_ant = 1;
 		mvm->nvm_data->bands[0].channels = mvm->nvm_data->channels;
 		mvm->nvm_data->bands[0].n_channels = 1;
 		mvm->nvm_data->bands[0].n_bitrates = 1;
@@ -338,8 +379,6 @@ out:
 
 	return ret;
 }
-
-#define UCODE_CALIB_TIMEOUT	(2*HZ)
 
 int iwl_mvm_up(struct iwl_mvm *mvm)
 {
@@ -353,8 +392,12 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	/* If we were in RFKILL during module loading, load init ucode now */
-	if (!mvm->init_ucode_run) {
+	/*
+	 * If we haven't completed the run of the init ucode during
+	 * module loading, load init ucode now
+	 * (for example, if we were in RFKILL)
+	 */
+	if (!mvm->init_ucode_complete) {
 		ret = iwl_run_init_mvm_ucode(mvm, false);
 		if (ret && !iwlmvm_mod_params.init_dbg) {
 			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
@@ -363,11 +406,16 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 				ret = -ERFKILL;
 			goto error;
 		}
-		/* should stop & start HW since that INIT image just loaded */
-		iwl_trans_stop_hw(mvm->trans, false);
-		ret = iwl_trans_start_hw(mvm->trans);
-		if (ret)
-			return ret;
+		if (!iwlmvm_mod_params.init_dbg) {
+			/*
+			 * should stop and start HW since that INIT
+			 * image just loaded
+			 */
+			iwl_trans_stop_device(mvm->trans);
+			ret = iwl_trans_start_hw(mvm->trans);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -379,11 +427,11 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 	}
 
-	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
+	ret = iwl_mvm_sf_update(mvm, NULL, false);
 	if (ret)
-		goto error;
+		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
-	ret = iwl_send_bt_prio_tbl(mvm);
+	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
 	if (ret)
 		goto error;
 
@@ -424,6 +472,17 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+	/* Initialize tx backoffs to the minimal possible */
+	iwl_mvm_tt_tx_backoff(mvm, 0);
+
+	ret = iwl_mvm_power_update_device(mvm);
+	if (ret)
+		goto error;
+
+	/* allow FW/transport low power modes if not during restart */
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		iwl_mvm_unref(mvm, IWL_MVM_REF_UCODE_DOWN);
+
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
@@ -447,7 +506,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		goto error;
 	}
 
-	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
+	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
 	if (ret)
 		goto error;
 

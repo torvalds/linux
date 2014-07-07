@@ -39,7 +39,7 @@
 #define c6_IFAR		17	/* Instruction Fault Address Register */
 #define c7_PAR		18	/* Physical Address Register */
 #define c7_PAR_high	19	/* PAR top 32 bits */
-#define c9_L2CTLR	20	/* Cortex A15 L2 Control Register */
+#define c9_L2CTLR	20	/* Cortex A15/A7 L2 Control Register */
 #define c10_PRRR	21	/* Primary Region Remap Register */
 #define c10_NMRR	22	/* Normal Memory Remap Register */
 #define c12_VBAR	23	/* Vector Base Address Register */
@@ -48,7 +48,9 @@
 #define c13_TID_URO	26	/* Thread ID, User R/O */
 #define c13_TID_PRIV	27	/* Thread ID, Privileged */
 #define c14_CNTKCTL	28	/* Timer Control Register (PL1) */
-#define NR_CP15_REGS	29	/* Number of regs (incl. invalid) */
+#define c10_AMAIR0	29	/* Auxilary Memory Attribute Indirection Reg0 */
+#define c10_AMAIR1	30	/* Auxilary Memory Attribute Indirection Reg1 */
+#define NR_CP15_REGS	31	/* Number of regs (incl. invalid) */
 
 #define ARM_EXCEPTION_RESET	  0
 #define ARM_EXCEPTION_UNDEFINED   1

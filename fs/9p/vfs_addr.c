@@ -202,6 +202,8 @@ static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int retval;
 
+	p9_debug(P9_DEBUG_VFS, "page %p\n", page);
+
 	retval = v9fs_vfs_writepage_locked(page);
 	if (retval < 0) {
 		if (retval == -EAGAIN) {
@@ -257,8 +259,7 @@ static int v9fs_launder_page(struct page *page)
  *
  */
 static ssize_t
-v9fs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
-	       loff_t pos, unsigned long nr_segs)
+v9fs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
 	/*
 	 * FIXME
@@ -267,7 +268,7 @@ v9fs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	 */
 	p9_debug(P9_DEBUG_VFS, "v9fs_direct_IO: v9fs_direct_IO (%s) off/no(%lld/%lu) EINVAL\n",
 		 iocb->ki_filp->f_path.dentry->d_name.name,
-		 (long long)pos, nr_segs);
+		 (long long)pos, iter->nr_segs);
 
 	return -EINVAL;
 }
@@ -281,6 +282,9 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 	struct v9fs_inode *v9inode;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	struct inode *inode = mapping->host;
+
+
+	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
 
 	v9inode = V9FS_I(inode);
 start:
@@ -311,6 +315,8 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 {
 	loff_t last_pos = pos + copied;
 	struct inode *inode = page->mapping->host;
+
+	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
 
 	if (unlikely(copied < len)) {
 		/*

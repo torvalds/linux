@@ -16,6 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/err.h>
 #include <linux/uuid.h>
 #include "ctree.h"
 #include "transaction.h"
@@ -44,7 +45,7 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 	if (!need_reset && btrfs_root_generation(item)
 		!= btrfs_root_generation_v2(item)) {
 		if (btrfs_root_generation_v2(item) != 0) {
-			printk(KERN_WARNING "btrfs: mismatching "
+			printk(KERN_WARNING "BTRFS: mismatching "
 					"generation and generation_v2 "
 					"found in root item. This root "
 					"was probably mounted with an "
@@ -154,7 +155,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	if (ret != 0) {
 		btrfs_print_leaf(root, path->nodes[0]);
-		printk(KERN_CRIT "unable to update root key %llu %u %llu\n",
+		btrfs_crit(root->fs_info, "unable to update root key %llu %u %llu",
 		       key->objectid, key->type, key->offset);
 		BUG_ON(1);
 	}
@@ -271,7 +272,7 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 		key.offset++;
 
 		root = btrfs_read_fs_root(tree_root, &root_key);
-		err = PTR_RET(root);
+		err = PTR_ERR_OR_ZERO(root);
 		if (err && err != -ENOENT) {
 			break;
 		} else if (err == -ENOENT) {
@@ -299,18 +300,13 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			continue;
 		}
 
-		if (btrfs_root_refs(&root->root_item) == 0) {
-			btrfs_add_dead_root(root);
-			continue;
-		}
-
 		err = btrfs_init_fs_root(root);
 		if (err) {
 			btrfs_free_fs_root(root);
 			break;
 		}
 
-		root->orphan_item_inserted = 1;
+		set_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state);
 
 		err = btrfs_insert_fs_root(root->fs_info, root);
 		if (err) {
@@ -318,6 +314,9 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			btrfs_free_fs_root(root);
 			break;
 		}
+
+		if (btrfs_root_refs(&root->root_item) == 0)
+			btrfs_add_dead_root(root);
 	}
 
 	btrfs_free_path(path);
@@ -400,21 +399,6 @@ again:
 out:
 	btrfs_free_path(path);
 	return err;
-}
-
-int btrfs_find_root_ref(struct btrfs_root *tree_root,
-		   struct btrfs_path *path,
-		   u64 root_id, u64 ref_id)
-{
-	struct btrfs_key key;
-	int ret;
-
-	key.objectid = root_id;
-	key.type = BTRFS_ROOT_REF_KEY;
-	key.offset = ref_id;
-
-	ret = btrfs_search_slot(NULL, tree_root, &key, path, 0, 0);
-	return ret;
 }
 
 /*

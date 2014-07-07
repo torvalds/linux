@@ -30,7 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
 #include <linux/dmi.h>
 
 #include "internal.h"
@@ -74,39 +73,6 @@ static struct acpi_blacklist_item acpi_blacklist[] __initdata = {
 
 	{""}
 };
-
-#if	CONFIG_ACPI_BLACKLIST_YEAR
-
-static int __init blacklist_by_year(void)
-{
-	int year;
-
-	/* Doesn't exist? Likely an old system */
-	if (!dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL)) {
-		printk(KERN_ERR PREFIX "no DMI BIOS year, "
-			"acpi=force is required to enable ACPI\n" );
-		return 1;
-	}
-	/* 0? Likely a buggy new BIOS */
-	if (year == 0) {
-		printk(KERN_ERR PREFIX "DMI BIOS year==0, "
-			"assuming ACPI-capable machine\n" );
-		return 0;
-	}
-	if (year < CONFIG_ACPI_BLACKLIST_YEAR) {
-		printk(KERN_ERR PREFIX "BIOS age (%d) fails cutoff (%d), "
-		       "acpi=force is required to enable ACPI\n",
-		       year, CONFIG_ACPI_BLACKLIST_YEAR);
-		return 1;
-	}
-	return 0;
-}
-#else
-static inline int blacklist_by_year(void)
-{
-	return 0;
-}
-#endif
 
 int __init acpi_blacklisted(void)
 {
@@ -165,8 +131,6 @@ int __init acpi_blacklisted(void)
 			i++;
 		}
 	}
-
-	blacklisted += blacklist_by_year();
 
 	dmi_check_system(acpi_osi_dmi_table);
 
@@ -274,6 +238,19 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 		},
 	},
 	{
+	.callback = dmi_disable_osi_vista,
+	.ident = "Toshiba NB100",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "NB100"),
+		},
+	},
+
+	/*
+	 * The following machines have broken backlight support when reporting
+	 * the Windows 2012 OSI, so disable it until their support is fixed.
+	 */
+	{
 	.callback = dmi_disable_osi_win8,
 	.ident = "ASUS Zenbook Prime UX31A",
 	.matches = {
@@ -283,18 +260,66 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 	{
 	.callback = dmi_disable_osi_win8,
-	.ident = "Dell Inspiron 15R SE",
+	.ident = "ThinkPad Edge E530",
 	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7520"),
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259A2G"),
 		},
 	},
 	{
 	.callback = dmi_disable_osi_win8,
-	.ident = "Lenovo ThinkPad Edge E530",
+	.ident = "ThinkPad Edge E530",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259A2G"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259CTO"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "ThinkPad Edge E530",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259HJG"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "Acer Aspire V5-573G",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Acer Aspire"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "V5-573G/Dazzle_HW"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "Acer Aspire V5-572G",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Acer Aspire"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "V5-572G/Dazzle_CX"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "ThinkPad T431s",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "20AACTO1WW"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "ThinkPad T430",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "2349D15"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "Dell Inspiron 7737",
+	.matches = {
+		    DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		    DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7737"),
 		},
 	},
 
@@ -355,6 +380,19 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T500"),
+		},
+	},
+	/*
+	 * Without this this EEEpc exports a non working WMI interface, with
+	 * this it exports a working "good old" eeepc_laptop interface, fixing
+	 * both brightness control, and rfkill not working.
+	 */
+	{
+	.callback = dmi_enable_osi_linux,
+	.ident = "Asus EEE PC 1015PX",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer INC."),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "1015PX"),
 		},
 	},
 	{}

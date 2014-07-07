@@ -22,6 +22,17 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 }
 EXPORT_SYMBOL(smp_call_function_single);
 
+int smp_call_function_single_async(int cpu, struct call_single_data *csd)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	csd->func(csd->info);
+	local_irq_restore(flags);
+	return 0;
+}
+EXPORT_SYMBOL(smp_call_function_single_async);
+
 int on_each_cpu(smp_call_func_t func, void *info, int wait)
 {
 	unsigned long flags;

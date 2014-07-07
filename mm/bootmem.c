@@ -172,11 +172,12 @@ void __init free_bootmem_late(unsigned long physaddr, unsigned long size)
 static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 {
 	struct page *page;
-	unsigned long start, end, pages, count = 0;
+	unsigned long *map, start, end, pages, count = 0;
 
 	if (!bdata->node_bootmem_map)
 		return 0;
 
+	map = bdata->node_bootmem_map;
 	start = bdata->node_min_pfn;
 	end = bdata->node_low_pfn;
 
@@ -184,10 +185,9 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 		bdata - bootmem_node_data, start, end);
 
 	while (start < end) {
-		unsigned long *map, idx, vec;
+		unsigned long idx, vec;
 		unsigned shift;
 
-		map = bdata->node_bootmem_map;
 		idx = start - bdata->node_min_pfn;
 		shift = idx & (BITS_PER_LONG - 1);
 		/*
@@ -784,7 +784,7 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
 		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
 
 	/* update goal according ...MAX_DMA32_PFN */
-	end_pfn = pgdat->node_start_pfn + pgdat->node_spanned_pages;
+	end_pfn = pgdat_end_pfn(pgdat);
 
 	if (end_pfn > MAX_DMA32_PFN + (128 >> (20 - PAGE_SHIFT)) &&
 	    (goal >> PAGE_SHIFT) < MAX_DMA32_PFN) {

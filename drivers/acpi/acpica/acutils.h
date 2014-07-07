@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ extern const u8 acpi_gbl_resource_aml_serial_bus_sizes[];
 
 /* Strings used by the disassembler and debugger resource dump routines */
 
-#if defined(ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
+#if defined(ACPI_DEBUG_OUTPUT) || defined (ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
 
 extern const char *acpi_gbl_bm_decode[];
 extern const char *acpi_gbl_config_decode[];
@@ -176,8 +176,7 @@ acpi_status acpi_ut_init_globals(void);
 
 char *acpi_ut_get_mutex_name(u32 mutex_id);
 
-const char *acpi_ut_get_notify_name(u32 notify_value);
-
+const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type);
 #endif
 
 char *acpi_ut_get_type_name(acpi_object_type type);
@@ -628,6 +627,17 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
 void acpi_ut_repair_name(char *name);
 
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+u8 acpi_ut_safe_strcpy(char *dest, acpi_size dest_size, char *source);
+
+u8 acpi_ut_safe_strcat(char *dest, acpi_size dest_size, char *source);
+
+u8
+acpi_ut_safe_strncat(char *dest,
+		     acpi_size dest_size,
+		     char *source, acpi_size max_transfer_length);
+#endif
+
 /*
  * utmutex - mutex support
  */
@@ -651,12 +661,6 @@ acpi_status acpi_ut_validate_buffer(struct acpi_buffer *buffer);
 acpi_status
 acpi_ut_initialize_buffer(struct acpi_buffer *buffer,
 			  acpi_size required_length);
-
-void *acpi_ut_allocate(acpi_size size,
-		       u32 component, const char *module, u32 line);
-
-void *acpi_ut_allocate_zeroed(acpi_size size,
-			      u32 component, const char *module, u32 line);
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 void *acpi_ut_allocate_and_track(acpi_size size,
@@ -731,5 +735,12 @@ acpi_ut_method_error(const char *module_name,
 		     const char *message,
 		     struct acpi_namespace_node *node,
 		     const char *path, acpi_status lookup_status);
+
+/*
+ * Utility functions for ACPI names and IDs
+ */
+const struct ah_predefined_name *acpi_ah_match_predefined_name(char *nameseg);
+
+const struct ah_device_id *acpi_ah_match_hardware_id(char *hid);
 
 #endif				/* _ACUTILS_H */

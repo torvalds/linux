@@ -124,13 +124,12 @@ Configuration Options:
 
 /* board AI ranges in comedi structure */
 static const struct comedi_lrange dmm32at_airanges = {
-	4,
-	{
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 }
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		BIP_RANGE(10),
+		BIP_RANGE(5)
+	}
 };
 
 /* register values for above ranges */
@@ -145,13 +144,12 @@ static const unsigned char dmm32at_rangebits[] = {
  * board. The application should only use the range set by the jumper
  */
 static const struct comedi_lrange dmm32at_aoranges = {
-	4,
-	{
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 }
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		BIP_RANGE(10),
+		BIP_RANGE(5)
+	}
 };
 
 struct dmm32at_private {
@@ -166,23 +164,34 @@ struct dmm32at_private {
 
 };
 
+static int dmm32at_ai_status(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	unsigned char status;
+
+	status = inb(dev->iobase + context);
+	if ((status & DMM32AT_STATUS) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int dmm32at_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	int n, i;
+	int n;
 	unsigned int d;
-	unsigned char status;
 	unsigned short msb, lsb;
 	unsigned char chan;
 	int range;
+	int ret;
 
 	/* get the channel and range number */
 
 	chan = CR_CHAN(insn->chanspec) & (s->n_chan - 1);
 	range = CR_RANGE(insn->chanspec);
-
-	/* printk("channel=0x%02x, range=%d\n",chan,range); */
 
 	/* zero scan and fifo control and reset fifo */
 	outb(DMM32AT_FIFORESET, dev->iobase + DMM32AT_FIFOCNTRL);
@@ -194,30 +203,20 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 	outb(dmm32at_rangebits[range], dev->iobase + DMM32AT_AICONF);
 
 	/* wait for circuit to settle */
-	for (i = 0; i < 40000; i++) {
-		status = inb(dev->iobase + DMM32AT_AIRBACK);
-		if ((status & DMM32AT_STATUS) == 0)
-			break;
-	}
-	if (i == 40000) {
-		printk(KERN_WARNING "dmm32at: timeout\n");
-		return -ETIMEDOUT;
-	}
+	ret = comedi_timeout(dev, s, insn, dmm32at_ai_status, DMM32AT_AIRBACK);
+	if (ret)
+		return ret;
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
 		outb(0xff, dev->iobase + DMM32AT_CONV);
+
 		/* wait for conversion to end */
-		for (i = 0; i < 40000; i++) {
-			status = inb(dev->iobase + DMM32AT_AISTAT);
-			if ((status & DMM32AT_STATUS) == 0)
-				break;
-		}
-		if (i == 40000) {
-			printk(KERN_WARNING "dmm32at: timeout\n");
-			return -ETIMEDOUT;
-		}
+		ret = comedi_timeout(dev, s, insn, dmm32at_ai_status,
+				     DMM32AT_AISTAT);
+		if (ret)
+			return ret;
 
 		/* read data */
 		lsb = inb(dev->iobase + DMM32AT_AILSB);
@@ -244,13 +243,39 @@ static int dmm32at_ns_to_timer(unsigned int *ns, int round)
 	return *ns;
 }
 
+static int dmm32at_ai_check_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
+		if (chan != (chan0 + i) % s->n_chan) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must be consecutive channels, counting upwards\n");
+			return -EINVAL;
+		}
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same gain\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
-	int start_chan, gain, i;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -326,50 +351,28 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		dmm32at_ns_to_timer(&cmd->scan_begin_arg,
-				    cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		dmm32at_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
-		dmm32at_ns_to_timer(&cmd->convert_arg,
-				    cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-		    cmd->scan_begin_arg <
-		    cmd->convert_arg * cmd->scan_end_arg) {
-			cmd->scan_begin_arg =
-			    cmd->convert_arg * cmd->scan_end_arg;
-			err++;
+		arg = cmd->convert_arg;
+		dmm32at_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			arg = cmd->convert_arg * cmd->scan_end_arg;
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 arg);
 		}
 	}
 
 	if (err)
 		return 4;
 
-	/* step 5 check the channel list, the channel list for this
-	   board must be consecutive and gains must be the same */
-
-	if (cmd->chanlist) {
-		gain = CR_RANGE(cmd->chanlist[0]);
-		start_chan = CR_CHAN(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) !=
-			    (start_chan + i) % s->n_chan) {
-				comedi_error(dev,
-					     "entries in chanlist must be consecutive channels, counting upwards\n");
-				err++;
-			}
-			if (CR_RANGE(cmd->chanlist[i]) != gain) {
-				comedi_error(dev,
-					     "entries in chanlist must all have the same gain\n");
-				err++;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= dmm32at_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -411,8 +414,9 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dmm32at_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int i, range;
-	unsigned char chanlo, chanhi, status;
+	int range;
+	unsigned char chanlo, chanhi;
+	int ret;
 
 	if (!cmd->chanlist)
 		return -EINVAL;
@@ -447,16 +451,13 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 						      * isr */
 	}
 
-	/* wait for circuit to settle */
-	for (i = 0; i < 40000; i++) {
-		status = inb(dev->iobase + DMM32AT_AIRBACK);
-		if ((status & DMM32AT_STATUS) == 0)
-			break;
-	}
-	if (i == 40000) {
-		printk(KERN_WARNING "dmm32at: timeout\n");
-		return -ETIMEDOUT;
-	}
+	/*
+	 * wait for circuit to settle
+	 * we don't have the 'insn' here but it's not needed
+	 */
+	ret = comedi_timeout(dev, s, NULL, dmm32at_ai_status, DMM32AT_AIRBACK);
+	if (ret)
+		return ret;
 
 	if (devpriv->ai_scans_left > 1) {
 		/* start the clock and enable the interrupts */
@@ -466,14 +467,6 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		outb(DMM32AT_ADINT, dev->iobase + DMM32AT_INTCLOCK);
 		outb(0xff, dev->iobase + DMM32AT_CONV);
 	}
-
-/*	printk("dmmat32 in command\n"); */
-
-/*	for(i=0;i<cmd->chanlist_len;i++) */
-/*		comedi_buf_put(s->async,i*100); */
-
-/*	s->async->events |= COMEDI_CB_EOA; */
-/*	comedi_event(dev, s); */
 
 	return 0;
 
@@ -515,7 +508,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 
 			/* invert sign bit to make range unsigned */
 			samp = ((msb ^ 0x0080) << 8) + lsb;
-			comedi_buf_put(s->async, samp);
+			comedi_buf_put(s, samp);
 		}
 
 		if (devpriv->ai_scans_left != 0xffffffff) {	/* TRIG_COUNT */
@@ -537,6 +530,19 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
+static int dmm32at_ao_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned char status;
+
+	status = inb(dev->iobase + DMM32AT_DACSTAT);
+	if ((status & DMM32AT_DACBUSY) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int dmm32at_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -545,6 +551,7 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned char hi, lo, status;
+	int ret;
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
@@ -556,21 +563,15 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 		lo = data[i] & 0x00ff;
 		/* high byte also contains channel number */
 		hi = (data[i] >> 8) + chan * (1 << 6);
-		/* printk("writing 0x%02x  0x%02x\n",hi,lo); */
 		/* write the low and high values to the board */
 		outb(lo, dev->iobase + DMM32AT_DACLSB);
 		outb(hi, dev->iobase + DMM32AT_DACMSB);
 
 		/* wait for circuit to settle */
-		for (i = 0; i < 40000; i++) {
-			status = inb(dev->iobase + DMM32AT_DACSTAT);
-			if ((status & DMM32AT_DACBUSY) == 0)
-				break;
-		}
-		if (i == 40000) {
-			printk(KERN_WARNING "dmm32at: timeout\n");
-			return -ETIMEDOUT;
-		}
+		ret = comedi_timeout(dev, s, insn, dmm32at_ao_eoc, 0);
+		if (ret)
+			return ret;
+
 		/* dummy read to update trigger the output */
 		status = inb(dev->iobase + DMM32AT_DACMSB);
 
@@ -596,52 +597,40 @@ static int dmm32at_ao_rinsn(struct comedi_device *dev,
 
 static int dmm32at_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct dmm32at_private *devpriv = dev->private;
-	unsigned char diobits;
+	unsigned int mask;
+	unsigned int val;
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-		/* Write out the new digital output lines */
-		/* outw(s->state,dev->iobase + DMM32AT_DIO); */
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		/* get access to the DIO regs */
+		outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
+
+		/* if either part of dio is set for output */
+		if (((devpriv->dio_config & DMM32AT_DIRCL) == 0) ||
+		    ((devpriv->dio_config & DMM32AT_DIRCH) == 0)) {
+			val = (s->state & 0x00ff0000) >> 16;
+			outb(val, dev->iobase + DMM32AT_DIOC);
+		}
+		if ((devpriv->dio_config & DMM32AT_DIRB) == 0) {
+			val = (s->state & 0x0000ff00) >> 8;
+			outb(val, dev->iobase + DMM32AT_DIOB);
+		}
+		if ((devpriv->dio_config & DMM32AT_DIRA) == 0) {
+			val = (s->state & 0x000000ff);
+			outb(val, dev->iobase + DMM32AT_DIOA);
+		}
 	}
 
-	/* get access to the DIO regs */
-	outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
+	val = inb(dev->iobase + DMM32AT_DIOA);
+	val |= inb(dev->iobase + DMM32AT_DIOB) << 8;
+	val |= inb(dev->iobase + DMM32AT_DIOC) << 16;
+	s->state = val;
 
-	/* if either part of dio is set for output */
-	if (((devpriv->dio_config & DMM32AT_DIRCL) == 0) ||
-	    ((devpriv->dio_config & DMM32AT_DIRCH) == 0)) {
-		diobits = (s->state & 0x00ff0000) >> 16;
-		outb(diobits, dev->iobase + DMM32AT_DIOC);
-	}
-	if ((devpriv->dio_config & DMM32AT_DIRB) == 0) {
-		diobits = (s->state & 0x0000ff00) >> 8;
-		outb(diobits, dev->iobase + DMM32AT_DIOB);
-	}
-	if ((devpriv->dio_config & DMM32AT_DIRA) == 0) {
-		diobits = (s->state & 0x000000ff);
-		outb(diobits, dev->iobase + DMM32AT_DIOA);
-	}
-
-	/* now read the state back in */
-	s->state = inb(dev->iobase + DMM32AT_DIOC);
-	s->state <<= 8;
-	s->state |= inb(dev->iobase + DMM32AT_DIOB);
-	s->state <<= 8;
-	s->state |= inb(dev->iobase + DMM32AT_DIOA);
-	data[1] = s->state;
-
-	/* on return, data[1] contains the value of the digital
-	 * input and output lines. */
-	/* data[1]=inw(dev->iobase + DMM32AT_DIO); */
-	/* or we could just return the software copy of the output values if
-	 * it was a purely digital output subdevice */
-	/* data[1]=s->state; */
+	data[1] = val;
 
 	return insn->n;
 }
@@ -694,9 +683,6 @@ static int dmm32at_attach(struct comedi_device *dev,
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
-	unsigned int irq;
-
-	irq = it->options[1];
 
 	ret = comedi_request_region(dev, it->options[0], DMM32AT_MEMSIZE);
 	if (ret)
@@ -735,26 +721,17 @@ static int dmm32at_attach(struct comedi_device *dev,
 	intstat = inb(dev->iobase + DMM32AT_INTCLOCK);
 	airback = inb(dev->iobase + DMM32AT_AIRBACK);
 
-	printk(KERN_DEBUG "dmm32at: lo=0x%02x hi=0x%02x fifostat=0x%02x\n",
-	       ailo, aihi, fifostat);
-	printk(KERN_DEBUG
-	       "dmm32at: aistat=0x%02x intstat=0x%02x airback=0x%02x\n",
-	       aistat, intstat, airback);
-
 	if ((ailo != 0x00) || (aihi != 0x1f) || (fifostat != 0x80) ||
 	    (aistat != 0x60 || (intstat != 0x00) || airback != 0x0c)) {
-		printk(KERN_ERR "dmmat32: board detection failed\n");
+		dev_err(dev->class_dev, "board detection failed\n");
 		return -EIO;
 	}
 
-	/* board is there, register interrupt */
-	if (irq) {
-		ret = request_irq(irq, dmm32at_isr, 0, dev->board_name, dev);
-		if (ret < 0) {
-			printk(KERN_ERR "dmm32at: irq conflict\n");
-			return ret;
-		}
-		dev->irq = irq;
+	if (it->options[1]) {
+		ret = request_irq(it->options[1], dmm32at_isr, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -766,20 +743,22 @@ static int dmm32at_attach(struct comedi_device *dev,
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	/* we support single-ended (ground) and differential */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan = 32;
 	s->maxdata = 0xffff;
 	s->range_table = &dmm32at_airanges;
-	s->len_chanlist = 32;	/* This is the maximum chanlist length that
-				   the board can handle */
 	s->insn_read = dmm32at_ai_rinsn;
-	s->do_cmd = dmm32at_ai_cmd;
-	s->do_cmdtest = dmm32at_ai_cmdtest;
-	s->cancel = dmm32at_ai_cancel;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = 32;
+		s->do_cmd = dmm32at_ai_cmd;
+		s->do_cmdtest = dmm32at_ai_cmdtest;
+		s->cancel = dmm32at_ai_cancel;
+	}
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
@@ -811,11 +790,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->insn_bits = dmm32at_dio_insn_bits;
 	s->insn_config = dmm32at_dio_insn_config;
 
-	/* success */
-	printk(KERN_INFO "comedi%d: dmm32at: attached\n", dev->minor);
-
-	return 1;
-
+	return 0;
 }
 
 static struct comedi_driver dmm32at_driver = {

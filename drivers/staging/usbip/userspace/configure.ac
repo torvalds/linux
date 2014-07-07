@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([usbip-utils], [1.1.1], [linux-usb@vger.kernel.org])
+AC_INIT([usbip-utils], [2.0], [linux-usb@vger.kernel.org])
 AC_DEFINE([USBIP_VERSION], [0x00000111], [binary-coded decimal version number])
 
 CURRENT=0
@@ -44,11 +44,11 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memset mkdir regcomp socket strchr strerror strstr dnl
 		strtoul])
 
-AC_CHECK_HEADER([sysfs/libsysfs.h],
-		[AC_CHECK_LIB([sysfs], [sysfs_open_directory_list],
-			      [LIBS="$LIBS -lsysfs"],
-			      [AC_MSG_ERROR([Missing sysfs2 library!])])],
-		[AC_MSG_ERROR([Missing /usr/include/sysfs/libsysfs.h])])
+AC_CHECK_HEADER([libudev.h],
+		[AC_CHECK_LIB([udev], [udev_new],
+			      [LIBS="$LIBS -ludev"],
+			      [AC_MSG_ERROR([Missing udev library!])])],
+		[AC_MSG_ERROR([Missing /usr/include/libudev.h])])
 
 # Checks for libwrap library.
 AC_MSG_CHECKING([whether to use the libwrap (TCP wrappers) library])
@@ -70,7 +70,6 @@ AC_ARG_WITH([tcp-wrappers],
 		       [AC_MSG_RESULT([not found]); exit 1])
 	     else
 		     AC_MSG_RESULT([no]);
-		     LIBS="$saved_LIBS"
 	     fi],
 	    dnl [ACTION-IF-NOT-GIVEN]
 	    [AC_MSG_RESULT([(default)])

@@ -98,13 +98,13 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 		vlan_gvrp_request_leave(dev);
 
 	vlan_group_set_device(grp, vlan->vlan_proto, vlan_id, NULL);
+
+	netdev_upper_dev_unlink(real_dev, dev);
 	/* Because unregister_netdevice_queue() makes sure at least one rcu
 	 * grace period is respected before device freeing,
 	 * we dont need to call synchronize_net() here.
 	 */
 	unregister_netdevice_queue(dev, head);
-
-	netdev_upper_dev_unlink(real_dev, dev);
 
 	if (grp->nr_vlan_devs == 0) {
 		vlan_mvrp_uninit_applicant(real_dev);
@@ -169,13 +169,14 @@ int register_vlan_dev(struct net_device *dev)
 	if (err < 0)
 		goto out_uninit_mvrp;
 
-	err = netdev_upper_dev_link(real_dev, dev);
-	if (err)
-		goto out_uninit_mvrp;
-
+	vlan->nest_level = dev_get_nest_level(real_dev, is_vlan_dev) + 1;
 	err = register_netdevice(dev);
 	if (err < 0)
-		goto out_upper_dev_unlink;
+		goto out_uninit_mvrp;
+
+	err = netdev_upper_dev_link(real_dev, dev);
+	if (err)
+		goto out_unregister_netdev;
 
 	/* Account for reference in struct vlan_dev_priv */
 	dev_hold(real_dev);
@@ -191,8 +192,8 @@ int register_vlan_dev(struct net_device *dev)
 
 	return 0;
 
-out_upper_dev_unlink:
-	netdev_upper_dev_unlink(real_dev, dev);
+out_unregister_netdev:
+	unregister_netdevice(dev);
 out_uninit_mvrp:
 	if (grp->nr_vlan_devs == 0)
 		vlan_mvrp_uninit_applicant(real_dev);
@@ -301,15 +302,17 @@ static void vlan_sync_address(struct net_device *dev,
 	    !ether_addr_equal(vlandev->dev_addr, dev->dev_addr))
 		dev_uc_add(dev, vlandev->dev_addr);
 
-	memcpy(vlan->real_dev_addr, dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(vlan->real_dev_addr, dev->dev_addr);
 }
 
 static void vlan_transfer_features(struct net_device *dev,
 				   struct net_device *vlandev)
 {
+	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
+
 	vlandev->gso_max_size = dev->gso_max_size;
 
-	if (dev->features & NETIF_F_HW_VLAN_CTAG_TX)
+	if (vlan_hw_offload_capable(dev->features, vlan->vlan_proto))
 		vlandev->hard_header_len = dev->hard_header_len;
 	else
 		vlandev->hard_header_len = dev->hard_header_len + VLAN_HLEN;

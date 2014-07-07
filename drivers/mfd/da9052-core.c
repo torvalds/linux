@@ -279,6 +279,9 @@ static bool da9052_reg_volatile(struct device *dev, unsigned int reg)
 	case DA9052_EVENT_B_REG:
 	case DA9052_EVENT_C_REG:
 	case DA9052_EVENT_D_REG:
+	case DA9052_CONTROL_B_REG:
+	case DA9052_CONTROL_D_REG:
+	case DA9052_SUPPLY_REG:
 	case DA9052_FAULTLOG_REG:
 	case DA9052_CHG_TIME_REG:
 	case DA9052_ADC_RES_L_REG:
@@ -427,7 +430,7 @@ int da9052_adc_read_temp(struct da9052 *da9052)
 }
 EXPORT_SYMBOL_GPL(da9052_adc_read_temp);
 
-static struct mfd_cell da9052_subdev_info[] = {
+static const struct mfd_cell da9052_subdev_info[] = {
 	{
 		.name = "da9052-regulator",
 		.id = 1,

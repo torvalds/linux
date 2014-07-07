@@ -40,7 +40,6 @@
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
 #include <linux/completion.h>
@@ -257,5 +256,4 @@ module_platform_driver(mtx1_wdt_driver);
 MODULE_AUTHOR("Michael Stickel, Florian Fainelli");
 MODULE_DESCRIPTION("Driver for the MTX-1 watchdog");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:mtx1-wdt");

@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/kexec.h>
 #include <linux/highmem.h>
 #include <linux/cpu.h>
@@ -26,6 +27,7 @@
 #include <asm/cacheflush.h>
 #include <asm/dbell.h>
 #include <asm/fsl_guts.h>
+#include <asm/code-patching.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/mpic.h>
@@ -266,7 +268,7 @@ out:
 	flush_spin_table(spin_table);
 	out_be32(&spin_table->pir, hw_cpu);
 	out_be64((u64 *)(&spin_table->addr_h),
-	  __pa((u64)*((unsigned long long *)generic_secondary_smp_init)));
+		__pa(ppc_function_entry(generic_secondary_smp_init)));
 	flush_spin_table(spin_table);
 #endif
 
@@ -388,13 +390,16 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 }
 #endif /* CONFIG_KEXEC */
 
-static void smp_85xx_setup_cpu(int cpu_nr)
+static void smp_85xx_basic_setup(int cpu_nr)
 {
-	if (smp_85xx_ops.probe == smp_mpic_probe)
-		mpic_setup_this_cpu();
-
 	if (cpu_has_feature(CPU_FTR_DBELL))
 		doorbell_setup_this_cpu();
+}
+
+static void smp_85xx_setup_cpu(int cpu_nr)
+{
+	mpic_setup_this_cpu();
+	smp_85xx_basic_setup(cpu_nr);
 }
 
 static const struct of_device_id mpc85xx_smp_guts_ids[] = {
@@ -411,13 +416,14 @@ void __init mpc85xx_smp_init(void)
 {
 	struct device_node *np;
 
-	smp_85xx_ops.setup_cpu = smp_85xx_setup_cpu;
 
 	np = of_find_node_by_type(NULL, "open-pic");
 	if (np) {
 		smp_85xx_ops.probe = smp_mpic_probe;
+		smp_85xx_ops.setup_cpu = smp_85xx_setup_cpu;
 		smp_85xx_ops.message_pass = smp_mpic_message_pass;
-	}
+	} else
+		smp_85xx_ops.setup_cpu = smp_85xx_basic_setup;
 
 	if (cpu_has_feature(CPU_FTR_DBELL)) {
 		/*
@@ -426,6 +432,7 @@ void __init mpc85xx_smp_init(void)
 		 */
 		smp_85xx_ops.message_pass = NULL;
 		smp_85xx_ops.cause_ipi = doorbell_cause_ipi;
+		smp_85xx_ops.probe = NULL;
 	}
 
 	np = of_find_matching_node(NULL, mpc85xx_smp_guts_ids);

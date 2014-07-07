@@ -98,7 +98,6 @@ int core_scsi3_ua_allocate(
 		pr_err("Unable to allocate struct se_ua\n");
 		return -ENOMEM;
 	}
-	INIT_LIST_HEAD(&ua->ua_dev_list);
 	INIT_LIST_HEAD(&ua->ua_nacl_list);
 
 	ua->ua_nacl = nacl;
@@ -163,7 +162,7 @@ int core_scsi3_ua_allocate(
 		spin_unlock_irq(&nacl->device_list_lock);
 
 		atomic_inc(&deve->ua_count);
-		smp_mb__after_atomic_inc();
+		smp_mb__after_atomic();
 		return 0;
 	}
 	list_add_tail(&ua->ua_nacl_list, &deve->ua_list);
@@ -176,7 +175,7 @@ int core_scsi3_ua_allocate(
 		asc, ascq);
 
 	atomic_inc(&deve->ua_count);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 	return 0;
 }
 
@@ -191,7 +190,7 @@ void core_scsi3_ua_release_all(
 		kmem_cache_free(se_ua_cache, ua);
 
 		atomic_dec(&deve->ua_count);
-		smp_mb__after_atomic_dec();
+		smp_mb__after_atomic();
 	}
 	spin_unlock(&deve->ua_lock);
 }
@@ -252,7 +251,7 @@ void core_scsi3_ua_for_check_condition(
 		kmem_cache_free(se_ua_cache, ua);
 
 		atomic_dec(&deve->ua_count);
-		smp_mb__after_atomic_dec();
+		smp_mb__after_atomic();
 	}
 	spin_unlock(&deve->ua_lock);
 	spin_unlock_irq(&nacl->device_list_lock);
@@ -311,7 +310,7 @@ int core_scsi3_ua_clear_for_request_sense(
 		kmem_cache_free(se_ua_cache, ua);
 
 		atomic_dec(&deve->ua_count);
-		smp_mb__after_atomic_dec();
+		smp_mb__after_atomic();
 	}
 	spin_unlock(&deve->ua_lock);
 	spin_unlock_irq(&nacl->device_list_lock);

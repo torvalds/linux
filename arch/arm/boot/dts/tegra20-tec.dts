@@ -6,8 +6,8 @@
 	model = "Avionic Design Tamonten Evaluation Carrier";
 	compatible = "ad,tec", "ad,tamonten", "nvidia,tegra20";
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 		};
 	};
@@ -32,7 +32,7 @@
 		};
 	};
 
-	pcie-controller {
+	pcie-controller@80003000 {
 		status = "okay";
 
 		pci@1,0 {

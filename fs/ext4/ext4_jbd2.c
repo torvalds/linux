@@ -122,9 +122,10 @@ handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 	return handle;
 }
 
-void ext4_journal_abort_handle(const char *caller, unsigned int line,
-			       const char *err_fn, struct buffer_head *bh,
-			       handle_t *handle, int err)
+static void ext4_journal_abort_handle(const char *caller, unsigned int line,
+				      const char *err_fn,
+				      struct buffer_head *bh,
+				      handle_t *handle, int err)
 {
 	char nbuf[16];
 	const char *errstr = ext4_decode_error(NULL, err, nbuf);
@@ -259,6 +260,25 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 		if (WARN_ON_ONCE(err)) {
 			ext4_journal_abort_handle(where, line, __func__, bh,
 						  handle, err);
+			if (inode == NULL) {
+				pr_err("EXT4: jbd2_journal_dirty_metadata "
+				       "failed: handle type %u started at "
+				       "line %u, credits %u/%u, errcode %d",
+				       handle->h_type,
+				       handle->h_line_no,
+				       handle->h_requested_credits,
+				       handle->h_buffer_credits, err);
+				return err;
+			}
+			ext4_error_inode(inode, where, line,
+					 bh->b_blocknr,
+					 "journal_dirty_metadata failed: "
+					 "handle type %u started at line %u, "
+					 "credits %u/%u, errcode %d",
+					 handle->h_type,
+					 handle->h_line_no,
+					 handle->h_requested_credits,
+					 handle->h_buffer_credits, err);
 		}
 	} else {
 		if (inode)

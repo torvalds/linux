@@ -10,8 +10,9 @@
  */
 
 /dts-v1/;
-/include/ "r8a7779.dtsi"
+#include "r8a7779.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "marzen";
@@ -42,8 +43,9 @@
 		pinctrl-names = "default";
 
 		phy-mode = "mii";
-		interrupt-parent = <&gic>;
-		interrupts = <0 28 0x4>;
+		interrupt-parent = <&irqpin0>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+		smsc,irq-push-pull;
 		reg-io-width = <4>;
 		vddvario-supply = <&fixedregulator3v3>;
 		vdd33a-supply = <&fixedregulator3v3>;
@@ -63,8 +65,12 @@
 	};
 };
 
+&irqpin0 {
+	status = "okay";
+};
+
 &pfc {
-	pinctrl-0 = <&scif2_pins &scif4_pins &sdhi0_pins>;
+	pinctrl-0 = <&scif2_pins &scif4_pins>;
 	pinctrl-names = "default";
 
 	lan0_pins: lan0 {
@@ -78,19 +84,38 @@
 		};
 	};
 
-	scif2_pins: scif2 {
+	scif2_pins: serial2 {
 		renesas,groups = "scif2_data_c";
 		renesas,function = "scif2";
 	};
 
-	scif4_pins: scif4 {
+	scif4_pins: serial4 {
 		renesas,groups = "scif4_data";
 		renesas,function = "scif4";
 	};
 
-	sdhi0_pins: sdhi0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd",
-				 "sdhi0_wp";
+	sdhi0_pins: sd0 {
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
 		renesas,function = "sdhi0";
 	};
+
+	hspi0_pins: hspi0 {
+		renesas,groups = "hspi0";
+		renesas,function = "hspi0";
+	};
+};
+
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&fixedregulator3v3>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&hspi0 {
+	pinctrl-0 = <&hspi0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };

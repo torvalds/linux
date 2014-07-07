@@ -47,6 +47,22 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 
+#define INIT_UDATA(udata, ibuf, obuf, ilen, olen)			\
+	do {								\
+		(udata)->inbuf  = (const void __user *) (ibuf);		\
+		(udata)->outbuf = (void __user *) (obuf);		\
+		(udata)->inlen  = (ilen);				\
+		(udata)->outlen = (olen);				\
+	} while (0)
+
+#define INIT_UDATA_BUF_OR_NULL(udata, ibuf, obuf, ilen, olen)			\
+	do {									\
+		(udata)->inbuf  = (ilen) ? (const void __user *) (ibuf) : NULL;	\
+		(udata)->outbuf = (olen) ? (void __user *) (obuf) : NULL;	\
+		(udata)->inlen  = (ilen);					\
+		(udata)->outlen = (olen);					\
+	} while (0)
+
 /*
  * Our lifetime rules for these structs are the following:
  *
@@ -178,6 +194,22 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 			     struct ib_event *event);
 void ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev, struct ib_xrcd *xrcd);
 
+struct ib_uverbs_flow_spec {
+	union {
+		union {
+			struct ib_uverbs_flow_spec_hdr hdr;
+			struct {
+				__u32 type;
+				__u16 size;
+				__u16 reserved;
+			};
+		};
+		struct ib_uverbs_flow_spec_eth     eth;
+		struct ib_uverbs_flow_spec_ipv4    ipv4;
+		struct ib_uverbs_flow_spec_tcp_udp tcp_udp;
+	};
+};
+
 #define IB_UVERBS_DECLARE_CMD(name)					\
 	ssize_t ib_uverbs_##name(struct ib_uverbs_file *file,		\
 				 const char __user *buf, int in_len,	\
@@ -217,7 +249,13 @@ IB_UVERBS_DECLARE_CMD(destroy_srq);
 IB_UVERBS_DECLARE_CMD(create_xsrq);
 IB_UVERBS_DECLARE_CMD(open_xrcd);
 IB_UVERBS_DECLARE_CMD(close_xrcd);
-IB_UVERBS_DECLARE_CMD(create_flow);
-IB_UVERBS_DECLARE_CMD(destroy_flow);
+
+#define IB_UVERBS_DECLARE_EX_CMD(name)				\
+	int ib_uverbs_ex_##name(struct ib_uverbs_file *file,	\
+				struct ib_udata *ucore,		\
+				struct ib_udata *uhw)
+
+IB_UVERBS_DECLARE_EX_CMD(create_flow);
+IB_UVERBS_DECLARE_EX_CMD(destroy_flow);
 
 #endif /* UVERBS_H */

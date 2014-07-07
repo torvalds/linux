@@ -62,6 +62,7 @@ struct target_core_fabric_ops {
 	int (*queue_data_in)(struct se_cmd *);
 	int (*queue_status)(struct se_cmd *);
 	void (*queue_tm_rsp)(struct se_cmd *);
+	void (*aborted_task)(struct se_cmd *);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */
@@ -83,10 +84,11 @@ struct target_core_fabric_ops {
 	void (*fabric_drop_nodeacl)(struct se_node_acl *);
 };
 
-struct se_session *transport_init_session(void);
+struct se_session *transport_init_session(enum target_prot_op);
 int transport_alloc_session_tags(struct se_session *, unsigned int,
 		unsigned int);
-struct se_session *transport_init_session_tags(unsigned int, unsigned int);
+struct se_session *transport_init_session_tags(unsigned int, unsigned int,
+		enum target_prot_op);
 void	__transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 void	transport_register_session(struct se_portal_group *,
@@ -105,7 +107,8 @@ sense_reason_t transport_lookup_cmd_lun(struct se_cmd *, u32);
 sense_reason_t target_setup_cmd_from_cdb(struct se_cmd *, unsigned char *);
 int	target_submit_cmd_map_sgls(struct se_cmd *, struct se_session *,
 		unsigned char *, unsigned char *, u32, u32, int, int, int,
-		struct scatterlist *, u32, struct scatterlist *, u32);
+		struct scatterlist *, u32, struct scatterlist *, u32,
+		struct scatterlist *, u32);
 int	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 		unsigned char *, u32, u32, int, int, int);
 int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
@@ -137,6 +140,8 @@ void	transport_generic_request_failure(struct se_cmd *, sense_reason_t);
 void	__target_execute_cmd(struct se_cmd *);
 int	transport_lookup_tmr_lun(struct se_cmd *, u32);
 
+struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
+		unsigned char *);
 struct se_node_acl *core_tpg_check_initiator_node_acl(struct se_portal_group *,
 		unsigned char *);
 void	core_tpg_clear_object_luns(struct se_portal_group *);

@@ -13,6 +13,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/syscore_ops.h>
 
 #include <dt-bindings/clock/samsung,s3c64xx-clock.h>
 
@@ -61,6 +62,13 @@ enum s3c64xx_plls {
 	apll, mpll, epll,
 };
 
+static void __iomem *reg_base;
+static bool is_s3c6400;
+
+#ifdef CONFIG_PM_SLEEP
+static struct samsung_clk_reg_dump *s3c64xx_save_common;
+static struct samsung_clk_reg_dump *s3c64xx_save_soc;
+
 /*
  * List of controller registers to be saved and restored during
  * a suspend/resume cycle.
@@ -86,6 +94,60 @@ static unsigned long s3c6410_clk_regs[] __initdata = {
 	CLK_SRC2,
 	MEM0_GATE,
 };
+
+static int s3c64xx_clk_suspend(void)
+{
+	samsung_clk_save(reg_base, s3c64xx_save_common,
+				ARRAY_SIZE(s3c64xx_clk_regs));
+
+	if (!is_s3c6400)
+		samsung_clk_save(reg_base, s3c64xx_save_soc,
+					ARRAY_SIZE(s3c6410_clk_regs));
+
+	return 0;
+}
+
+static void s3c64xx_clk_resume(void)
+{
+	samsung_clk_restore(reg_base, s3c64xx_save_common,
+				ARRAY_SIZE(s3c64xx_clk_regs));
+
+	if (!is_s3c6400)
+		samsung_clk_restore(reg_base, s3c64xx_save_soc,
+					ARRAY_SIZE(s3c6410_clk_regs));
+}
+
+static struct syscore_ops s3c64xx_clk_syscore_ops = {
+	.suspend = s3c64xx_clk_suspend,
+	.resume = s3c64xx_clk_resume,
+};
+
+static void s3c64xx_clk_sleep_init(void)
+{
+	s3c64xx_save_common = samsung_clk_alloc_reg_dump(s3c64xx_clk_regs,
+						ARRAY_SIZE(s3c64xx_clk_regs));
+	if (!s3c64xx_save_common)
+		goto err_warn;
+
+	if (!is_s3c6400) {
+		s3c64xx_save_soc = samsung_clk_alloc_reg_dump(s3c6410_clk_regs,
+						ARRAY_SIZE(s3c6410_clk_regs));
+		if (!s3c64xx_save_soc)
+			goto err_soc;
+	}
+
+	register_syscore_ops(&s3c64xx_clk_syscore_ops);
+	return;
+
+err_soc:
+	kfree(s3c64xx_save_common);
+err_warn:
+	pr_warn("%s: failed to allocate sleep save data, no sleep support!\n",
+		__func__);
+}
+#else
+static void s3c64xx_clk_sleep_init(void) {}
+#endif
 
 /* List of parent clocks common for all S3C64xx SoCs. */
 PNAME(spi_mmc_p)	= { "mout_epll", "dout_mpll", "fin_pll", "clk27m" };
@@ -331,8 +393,8 @@ static struct samsung_clock_alias s3c64xx_clock_aliases[] = {
 	ALIAS(HCLK_HSMMC1, "s3c-sdhci.1", "mmc_busclk.0"),
 	ALIAS(HCLK_HSMMC0, "s3c-sdhci.0", "hsmmc"),
 	ALIAS(HCLK_HSMMC0, "s3c-sdhci.0", "mmc_busclk.0"),
-	ALIAS(HCLK_DMA1, NULL, "dma1"),
-	ALIAS(HCLK_DMA0, NULL, "dma0"),
+	ALIAS(HCLK_DMA1, "dma-pl080s.1", "apb_pclk"),
+	ALIAS(HCLK_DMA0, "dma-pl080s.0", "apb_pclk"),
 	ALIAS(HCLK_CAMIF, "s3c-camif", "camif"),
 	ALIAS(HCLK_LCD, "s3c-fb", "lcd"),
 	ALIAS(PCLK_SPI1, "s3c6410-spi.1", "spi"),
@@ -380,22 +442,26 @@ static struct samsung_clock_alias s3c6410_clock_aliases[] = {
 	ALIAS(MEM0_SROM, NULL, "srom"),
 };
 
-static void __init s3c64xx_clk_register_fixed_ext(unsigned long fin_pll_f,
-							unsigned long xusbxti_f)
+static void __init s3c64xx_clk_register_fixed_ext(
+				struct samsung_clk_provider *ctx,
+				unsigned long fin_pll_f,
+				unsigned long xusbxti_f)
 {
 	s3c64xx_fixed_rate_ext_clks[0].fixed_rate = fin_pll_f;
 	s3c64xx_fixed_rate_ext_clks[1].fixed_rate = xusbxti_f;
-	samsung_clk_register_fixed_rate(s3c64xx_fixed_rate_ext_clks,
+	samsung_clk_register_fixed_rate(ctx, s3c64xx_fixed_rate_ext_clks,
 				ARRAY_SIZE(s3c64xx_fixed_rate_ext_clks));
 }
 
 /* Register s3c64xx clocks. */
 void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
-			     unsigned long xusbxti_f, bool is_s3c6400,
-			     void __iomem *reg_base)
+			     unsigned long xusbxti_f, bool s3c6400,
+			     void __iomem *base)
 {
-	unsigned long *soc_regs = NULL;
-	unsigned long nr_soc_regs = 0;
+	struct samsung_clk_provider *ctx;
+
+	reg_base = base;
+	is_s3c6400 = s3c6400;
 
 	if (np) {
 		reg_base = of_iomap(np, 0);
@@ -403,55 +469,52 @@ void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 			panic("%s: failed to map registers\n", __func__);
 	}
 
-	if (!is_s3c6400) {
-		soc_regs = s3c6410_clk_regs;
-		nr_soc_regs = ARRAY_SIZE(s3c6410_clk_regs);
-	}
-
-	samsung_clk_init(np, reg_base, NR_CLKS, s3c64xx_clk_regs,
-			ARRAY_SIZE(s3c64xx_clk_regs), soc_regs, nr_soc_regs);
+	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
+	if (!ctx)
+		panic("%s: unable to allocate context.\n", __func__);
 
 	/* Register external clocks. */
 	if (!np)
-		s3c64xx_clk_register_fixed_ext(xtal_f, xusbxti_f);
+		s3c64xx_clk_register_fixed_ext(ctx, xtal_f, xusbxti_f);
 
 	/* Register PLLs. */
-	samsung_clk_register_pll(s3c64xx_pll_clks,
+	samsung_clk_register_pll(ctx, s3c64xx_pll_clks,
 				ARRAY_SIZE(s3c64xx_pll_clks), reg_base);
 
 	/* Register common internal clocks. */
-	samsung_clk_register_fixed_rate(s3c64xx_fixed_rate_clks,
+	samsung_clk_register_fixed_rate(ctx, s3c64xx_fixed_rate_clks,
 					ARRAY_SIZE(s3c64xx_fixed_rate_clks));
-	samsung_clk_register_mux(s3c64xx_mux_clks,
+	samsung_clk_register_mux(ctx, s3c64xx_mux_clks,
 					ARRAY_SIZE(s3c64xx_mux_clks));
-	samsung_clk_register_div(s3c64xx_div_clks,
+	samsung_clk_register_div(ctx, s3c64xx_div_clks,
 					ARRAY_SIZE(s3c64xx_div_clks));
-	samsung_clk_register_gate(s3c64xx_gate_clks,
+	samsung_clk_register_gate(ctx, s3c64xx_gate_clks,
 					ARRAY_SIZE(s3c64xx_gate_clks));
 
 	/* Register SoC-specific clocks. */
 	if (is_s3c6400) {
-		samsung_clk_register_mux(s3c6400_mux_clks,
+		samsung_clk_register_mux(ctx, s3c6400_mux_clks,
 					ARRAY_SIZE(s3c6400_mux_clks));
-		samsung_clk_register_div(s3c6400_div_clks,
+		samsung_clk_register_div(ctx, s3c6400_div_clks,
 					ARRAY_SIZE(s3c6400_div_clks));
-		samsung_clk_register_gate(s3c6400_gate_clks,
+		samsung_clk_register_gate(ctx, s3c6400_gate_clks,
 					ARRAY_SIZE(s3c6400_gate_clks));
-		samsung_clk_register_alias(s3c6400_clock_aliases,
+		samsung_clk_register_alias(ctx, s3c6400_clock_aliases,
 					ARRAY_SIZE(s3c6400_clock_aliases));
 	} else {
-		samsung_clk_register_mux(s3c6410_mux_clks,
+		samsung_clk_register_mux(ctx, s3c6410_mux_clks,
 					ARRAY_SIZE(s3c6410_mux_clks));
-		samsung_clk_register_div(s3c6410_div_clks,
+		samsung_clk_register_div(ctx, s3c6410_div_clks,
 					ARRAY_SIZE(s3c6410_div_clks));
-		samsung_clk_register_gate(s3c6410_gate_clks,
+		samsung_clk_register_gate(ctx, s3c6410_gate_clks,
 					ARRAY_SIZE(s3c6410_gate_clks));
-		samsung_clk_register_alias(s3c6410_clock_aliases,
+		samsung_clk_register_alias(ctx, s3c6410_clock_aliases,
 					ARRAY_SIZE(s3c6410_clock_aliases));
 	}
 
-	samsung_clk_register_alias(s3c64xx_clock_aliases,
+	samsung_clk_register_alias(ctx, s3c64xx_clock_aliases,
 					ARRAY_SIZE(s3c64xx_clock_aliases));
+	s3c64xx_clk_sleep_init();
 
 	pr_info("%s clocks: apll = %lu, mpll = %lu\n"
 		"\tepll = %lu, arm_clk = %lu\n",

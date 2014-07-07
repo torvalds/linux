@@ -42,9 +42,6 @@ static int (*restore_fp_context32)(struct sigcontext32 __user *sc);
 extern asmlinkage int _save_fp_context32(struct sigcontext32 __user *sc);
 extern asmlinkage int _restore_fp_context32(struct sigcontext32 __user *sc);
 
-extern asmlinkage int fpu_emulator_save_context32(struct sigcontext32 __user *sc);
-extern asmlinkage int fpu_emulator_restore_context32(struct sigcontext32 __user *sc);
-
 /*
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
  */
@@ -78,6 +75,42 @@ struct rt_sigframe32 {
 };
 
 /*
+ * Thread saved context copy to/from a signal context presumed to be on the
+ * user stack, and therefore accessed with appropriate macros from uaccess.h.
+ */
+static int copy_fp_to_sigcontext32(struct sigcontext32 __user *sc)
+{
+	int i;
+	int err = 0;
+	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
+
+	for (i = 0; i < NUM_FPU_REGS; i += inc) {
+		err |=
+		    __put_user(get_fpr64(&current->thread.fpu.fpr[i], 0),
+			       &sc->sc_fpregs[i]);
+	}
+	err |= __put_user(current->thread.fpu.fcr31, &sc->sc_fpc_csr);
+
+	return err;
+}
+
+static int copy_fp_from_sigcontext32(struct sigcontext32 __user *sc)
+{
+	int i;
+	int err = 0;
+	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
+	u64 fpr_val;
+
+	for (i = 0; i < NUM_FPU_REGS; i += inc) {
+		err |= __get_user(fpr_val, &sc->sc_fpregs[i]);
+		set_fpr64(&current->thread.fpu.fpr[i], 0, fpr_val);
+	}
+	err |= __get_user(current->thread.fpu.fcr31, &sc->sc_fpc_csr);
+
+	return err;
+}
+
+/*
  * sigcontext handlers
  */
 static int protected_save_fp_context32(struct sigcontext32 __user *sc)
@@ -85,9 +118,13 @@ static int protected_save_fp_context32(struct sigcontext32 __user *sc)
 	int err;
 	while (1) {
 		lock_fpu_owner();
-		own_fpu_inatomic(1);
-		err = save_fp_context32(sc); /* this might fail */
-		unlock_fpu_owner();
+		if (is_fpu_owner()) {
+			err = save_fp_context32(sc);
+			unlock_fpu_owner();
+		} else {
+			unlock_fpu_owner();
+			err = copy_fp_to_sigcontext32(sc);
+		}
 		if (likely(!err))
 			break;
 		/* touch the sigcontext and try again */
@@ -105,9 +142,13 @@ static int protected_restore_fp_context32(struct sigcontext32 __user *sc)
 	int err, tmp __maybe_unused;
 	while (1) {
 		lock_fpu_owner();
-		own_fpu_inatomic(0);
-		err = restore_fp_context32(sc); /* this might fail */
-		unlock_fpu_owner();
+		if (is_fpu_owner()) {
+			err = restore_fp_context32(sc);
+			unlock_fpu_owner();
+		} else {
+			unlock_fpu_owner();
+			err = copy_fp_from_sigcontext32(sc);
+		}
 		if (likely(!err))
 			break;
 		/* touch the sigcontext and try again */
@@ -314,7 +355,7 @@ SYSCALL_DEFINE3(32_sigaction, long, sig, const struct compat_sigaction __user *,
 	return ret;
 }
 
-int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
+int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
 {
 	int err;
 
@@ -564,8 +605,8 @@ static int signal32_init(void)
 		save_fp_context32 = _save_fp_context32;
 		restore_fp_context32 = _restore_fp_context32;
 	} else {
-		save_fp_context32 = fpu_emulator_save_context32;
-		restore_fp_context32 = fpu_emulator_restore_context32;
+		save_fp_context32 = copy_fp_to_sigcontext32;
+		restore_fp_context32 = copy_fp_from_sigcontext32;
 	}
 
 	return 0;

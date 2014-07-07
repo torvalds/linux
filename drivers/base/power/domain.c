@@ -6,7 +6,6 @@
  * This file is released under the GPLv2.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
@@ -42,7 +41,7 @@
 	struct gpd_timing_data *__td = &dev_gpd_data(dev)->td;			\
 	if (!__retval && __elapsed > __td->field) {				\
 		__td->field = __elapsed;					\
-		dev_warn(dev, name " latency exceeded, new value %lld ns\n",	\
+		dev_dbg(dev, name " latency exceeded, new value %lld ns\n",	\
 			__elapsed);						\
 		genpd->max_off_time_changed = true;				\
 		__td->constraint_changed = true;				\
@@ -106,7 +105,7 @@ static bool genpd_sd_counter_dec(struct generic_pm_domain *genpd)
 static void genpd_sd_counter_inc(struct generic_pm_domain *genpd)
 {
 	atomic_inc(&genpd->sd_count);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 }
 
 static void genpd_acquire_lock(struct generic_pm_domain *genpd)
@@ -706,12 +705,25 @@ static int pm_genpd_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static bool pd_ignore_unused;
+static int __init pd_ignore_unused_setup(char *__unused)
+{
+	pd_ignore_unused = true;
+	return 1;
+}
+__setup("pd_ignore_unused", pd_ignore_unused_setup);
+
 /**
  * pm_genpd_poweroff_unused - Power off all PM domains with no devices in use.
  */
 void pm_genpd_poweroff_unused(void)
 {
 	struct generic_pm_domain *genpd;
+
+	if (pd_ignore_unused) {
+		pr_warn("genpd: Not disabling unused power domains\n");
+		return;
+	}
 
 	mutex_lock(&gpd_list_lock);
 

@@ -26,6 +26,8 @@
 #include <linux/io.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
@@ -751,6 +753,8 @@ static int of_fhci_probe(struct platform_device *ofdev)
 	ret = usb_add_hcd(hcd, usb_irq, 0);
 	if (ret < 0)
 		goto err_add_hcd;
+
+	device_wakeup_enable(hcd->self.controller);
 
 	fhci_dfs_create(fhci);
 

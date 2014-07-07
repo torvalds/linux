@@ -34,7 +34,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
@@ -222,6 +221,7 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 		cmd = ioread16(ioaddr + MMDIO);
 		if (!(cmd & MDIO_READ))
 			break;
+		udelay(1);
 	}
 
 	if (limit < 0)
@@ -245,6 +245,7 @@ static int r6040_phy_write(void __iomem *ioaddr,
 		cmd = ioread16(ioaddr + MMDIO);
 		if (!(cmd & MDIO_WRITE))
 			break;
+		udelay(1);
 	}
 
 	return (limit < 0) ? -ETIMEDOUT : 0;
@@ -267,11 +268,6 @@ static int r6040_mdiobus_write(struct mii_bus *bus, int phy_addr,
 	void __iomem *ioaddr = lp->base;
 
 	return r6040_phy_write(ioaddr, phy_addr, reg, value);
-}
-
-static int r6040_mdiobus_reset(struct mii_bus *bus)
-{
-	return 0;
 }
 
 static void r6040_free_txbufs(struct net_device *dev)
@@ -834,8 +830,8 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	/* Set TX descriptor & Transmit it */
 	lp->tx_free_desc--;
 	descptr = lp->tx_insert_ptr;
-	if (skb->len < MISR)
-		descptr->len = MISR;
+	if (skb->len < ETH_ZLEN)
+		descptr->len = ETH_ZLEN;
 	else
 		descptr->len = skb->len;
 
@@ -1190,7 +1186,6 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	lp->mii_bus->priv = dev;
 	lp->mii_bus->read = r6040_mdiobus_read;
 	lp->mii_bus->write = r6040_mdiobus_write;
-	lp->mii_bus->reset = r6040_mdiobus_reset;
 	lp->mii_bus->name = "r6040_eth_mii";
 	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		dev_name(&pdev->dev), card_idx);
@@ -1231,7 +1226,6 @@ err_out_mdio:
 	mdiobus_free(lp->mii_bus);
 err_out_unmap:
 	netif_napi_del(&lp->napi);
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
 err_out_free_res:
 	pci_release_regions(pdev);
@@ -1257,7 +1251,6 @@ static void r6040_remove_one(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	free_netdev(dev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 

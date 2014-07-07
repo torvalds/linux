@@ -3,13 +3,12 @@
 
 #include <asm/page.h>
 #include <uapi/linux/shm.h>
-
-#define SHMALL (SHMMAX/PAGE_SIZE*(SHMMNI/16)) /* max shm system wide (pages) */
 #include <asm/shmparam.h>
+
 struct shmid_kernel /* private to the kernel */
 {	
 	struct kern_ipc_perm	shm_perm;
-	struct file *		shm_file;
+	struct file		*shm_file;
 	unsigned long		shm_nattch;
 	unsigned long		shm_segsz;
 	time_t			shm_atim;

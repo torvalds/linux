@@ -25,8 +25,10 @@
 #define CIK_H
 
 #define BONAIRE_GB_ADDR_CONFIG_GOLDEN        0x12010001
+#define HAWAII_GB_ADDR_CONFIG_GOLDEN         0x12011003
 
-#define CIK_RB_BITMAP_WIDTH_PER_SH  2
+#define CIK_RB_BITMAP_WIDTH_PER_SH     2
+#define HAWAII_RB_BITMAP_WIDTH_PER_SH  4
 
 /* DIDT IND registers */
 #define DIDT_SQ_CTRL0                                     0x0
@@ -200,6 +202,12 @@
 #define		CTF_TEMP(x)				((x) << 9)
 #define		CTF_TEMP_MASK				0x0003fe00
 #define		CTF_TEMP_SHIFT				9
+
+#define CG_ECLK_CNTL                                    0xC05000AC
+#       define ECLK_DIVIDER_MASK                        0x7f
+#       define ECLK_DIR_CNTL_EN                         (1 << 8)
+#define CG_ECLK_STATUS                                  0xC05000B0
+#       define ECLK_STATUS                              (1 << 0)
 
 #define	CG_SPLL_FUNC_CNTL				0xC0500140
 #define		SPLL_RESET				(1 << 0)
@@ -474,6 +482,7 @@
 #define		READ_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 16)
 #define		WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 18)
 #define		WRITE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 19)
+#define		PAGE_TABLE_BLOCK_SIZE(x)			(((x) & 0xF) << 24)
 #define VM_CONTEXT1_CNTL				0x1414
 #define VM_CONTEXT0_CNTL2				0x1430
 #define VM_CONTEXT1_CNTL2				0x1434
@@ -499,6 +508,7 @@
 		 * bit 4: write
 		 */
 #define		MEMORY_CLIENT_ID_MASK			(0xff << 12)
+#define		HAWAII_MEMORY_CLIENT_ID_MASK		(0x1ff << 12)
 #define		MEMORY_CLIENT_ID_SHIFT			12
 #define		MEMORY_CLIENT_RW_MASK			(1 << 24)
 #define		MEMORY_CLIENT_RW_SHIFT			24
@@ -721,6 +731,17 @@
 
 #define ATC_MISC_CG           				0x3350
 
+#define GMCON_RENG_EXECUTE				0x3508
+#define 	RENG_EXECUTE_ON_PWR_UP			(1 << 0)
+#define GMCON_MISC					0x350c
+#define 	RENG_EXECUTE_ON_REG_UPDATE		(1 << 11)
+#define 	STCTRL_STUTTER_EN			(1 << 16)
+
+#define GMCON_PGFSM_CONFIG				0x3538
+#define GMCON_PGFSM_WRITE				0x353c
+#define GMCON_PGFSM_READ				0x3540
+#define GMCON_MISC3					0x3544
+
 #define MC_SEQ_CNTL_3                                     0x3600
 #       define CAC_EN                                     (1 << 31)
 #define MC_SEQ_G5PDX_CTRL                                 0x3604
@@ -868,6 +889,15 @@
 #       define DC_HPD6_RX_INTERRUPT                     (1 << 18)
 #define DISP_INTERRUPT_STATUS_CONTINUE6                 0x6780
 
+/* 0x6858, 0x7458, 0x10058, 0x10c58, 0x11858, 0x12458 */
+#define GRPH_INT_STATUS                                 0x6858
+#       define GRPH_PFLIP_INT_OCCURRED                  (1 << 0)
+#       define GRPH_PFLIP_INT_CLEAR                     (1 << 8)
+/* 0x685c, 0x745c, 0x1005c, 0x10c5c, 0x1185c, 0x1245c */
+#define GRPH_INT_CONTROL                                0x685c
+#       define GRPH_PFLIP_INT_MASK                      (1 << 0)
+#       define GRPH_PFLIP_INT_TYPE                      (1 << 8)
+
 #define	DAC_AUTODETECT_INT_CONTROL			0x67c8
 
 #define DC_HPD1_INT_STATUS                              0x601c
@@ -905,6 +935,39 @@
 
 #define DPG_PIPE_STUTTER_CONTROL                          0x6cd4
 #       define STUTTER_ENABLE                             (1 << 0)
+
+/* DCE8 FMT blocks */
+#define FMT_DYNAMIC_EXP_CNTL                 0x6fb4
+#       define FMT_DYNAMIC_EXP_EN            (1 << 0)
+#       define FMT_DYNAMIC_EXP_MODE          (1 << 4)
+        /* 0 = 10bit -> 12bit, 1 = 8bit -> 12bit */
+#define FMT_CONTROL                          0x6fb8
+#       define FMT_PIXEL_ENCODING            (1 << 16)
+        /* 0 = RGB 4:4:4 or YCbCr 4:4:4, 1 = YCbCr 4:2:2 */
+#define FMT_BIT_DEPTH_CONTROL                0x6fc8
+#       define FMT_TRUNCATE_EN               (1 << 0)
+#       define FMT_TRUNCATE_MODE             (1 << 1)
+#       define FMT_TRUNCATE_DEPTH(x)         ((x) << 4) /* 0 - 18bpp, 1 - 24bpp, 2 - 30bpp */
+#       define FMT_SPATIAL_DITHER_EN         (1 << 8)
+#       define FMT_SPATIAL_DITHER_MODE(x)    ((x) << 9)
+#       define FMT_SPATIAL_DITHER_DEPTH(x)   ((x) << 11) /* 0 - 18bpp, 1 - 24bpp, 2 - 30bpp */
+#       define FMT_FRAME_RANDOM_ENABLE       (1 << 13)
+#       define FMT_RGB_RANDOM_ENABLE         (1 << 14)
+#       define FMT_HIGHPASS_RANDOM_ENABLE    (1 << 15)
+#       define FMT_TEMPORAL_DITHER_EN        (1 << 16)
+#       define FMT_TEMPORAL_DITHER_DEPTH(x)  ((x) << 17) /* 0 - 18bpp, 1 - 24bpp, 2 - 30bpp */
+#       define FMT_TEMPORAL_DITHER_OFFSET(x) ((x) << 21)
+#       define FMT_TEMPORAL_LEVEL            (1 << 24)
+#       define FMT_TEMPORAL_DITHER_RESET     (1 << 25)
+#       define FMT_25FRC_SEL(x)              ((x) << 26)
+#       define FMT_50FRC_SEL(x)              ((x) << 28)
+#       define FMT_75FRC_SEL(x)              ((x) << 30)
+#define FMT_CLAMP_CONTROL                    0x6fe4
+#       define FMT_CLAMP_DATA_EN             (1 << 0)
+#       define FMT_CLAMP_COLOR_FORMAT(x)     ((x) << 16)
+#       define FMT_CLAMP_6BPC                0
+#       define FMT_CLAMP_8BPC                1
+#       define FMT_CLAMP_10BPC               2
 
 #define	GRBM_CNTL					0x8000
 #define		GRBM_READ_TIMEOUT(x)				((x) << 0)
@@ -1129,6 +1192,8 @@
 #              define	ADDR_SURF_P8_32x32_16x16		12
 #              define	ADDR_SURF_P8_32x32_16x32		13
 #              define	ADDR_SURF_P8_32x64_32x32		14
+#              define	ADDR_SURF_P16_32x32_8x16		16
+#              define	ADDR_SURF_P16_32x32_16x16		17
 #       define TILE_SPLIT(x)					((x) << 11)
 #              define	ADDR_SURF_TILE_SPLIT_64B		0
 #              define	ADDR_SURF_TILE_SPLIT_128B		1
@@ -1422,6 +1487,7 @@
 #       define RASTER_CONFIG_RB_MAP_1                   1
 #       define RASTER_CONFIG_RB_MAP_2                   2
 #       define RASTER_CONFIG_RB_MAP_3                   3
+#define		PKR_MAP(x)				((x) << 8)
 
 #define VGT_EVENT_INITIATOR                             0x28a90
 #       define SAMPLE_STREAMOUTSTATS1                   (1 << 0)
@@ -1686,12 +1752,12 @@
 #define		EOP_TC_WB_ACTION_EN                     (1 << 15) /* L2 */
 #define		EOP_TCL1_ACTION_EN                      (1 << 16)
 #define		EOP_TC_ACTION_EN                        (1 << 17) /* L2 */
+#define		EOP_TCL2_VOLATILE                       (1 << 24)
 #define		EOP_CACHE_POLICY(x)                     ((x) << 25)
                 /* 0 - LRU
 		 * 1 - Stream
 		 * 2 - Bypass
 		 */
-#define		EOP_TCL2_VOLATILE                       (1 << 27)
 #define		DATA_SEL(x)                             ((x) << 29)
                 /* 0 - discard
 		 * 1 - send low 32bit data
@@ -1714,6 +1780,68 @@
 #              define PACKET3_PREAMBLE_BEGIN_CLEAR_STATE     (2 << 28)
 #              define PACKET3_PREAMBLE_END_CLEAR_STATE       (3 << 28)
 #define	PACKET3_DMA_DATA				0x50
+/* 1. header
+ * 2. CONTROL
+ * 3. SRC_ADDR_LO or DATA [31:0]
+ * 4. SRC_ADDR_HI [31:0]
+ * 5. DST_ADDR_LO [31:0]
+ * 6. DST_ADDR_HI [7:0]
+ * 7. COMMAND [30:21] | BYTE_COUNT [20:0]
+ */
+/* CONTROL */
+#              define PACKET3_DMA_DATA_ENGINE(x)     ((x) << 0)
+                /* 0 - ME
+		 * 1 - PFP
+		 */
+#              define PACKET3_DMA_DATA_SRC_CACHE_POLICY(x) ((x) << 13)
+                /* 0 - LRU
+		 * 1 - Stream
+		 * 2 - Bypass
+		 */
+#              define PACKET3_DMA_DATA_SRC_VOLATILE (1 << 15)
+#              define PACKET3_DMA_DATA_DST_SEL(x)  ((x) << 20)
+                /* 0 - DST_ADDR using DAS
+		 * 1 - GDS
+		 * 3 - DST_ADDR using L2
+		 */
+#              define PACKET3_DMA_DATA_DST_CACHE_POLICY(x) ((x) << 25)
+                /* 0 - LRU
+		 * 1 - Stream
+		 * 2 - Bypass
+		 */
+#              define PACKET3_DMA_DATA_DST_VOLATILE (1 << 27)
+#              define PACKET3_DMA_DATA_SRC_SEL(x)  ((x) << 29)
+                /* 0 - SRC_ADDR using SAS
+		 * 1 - GDS
+		 * 2 - DATA
+		 * 3 - SRC_ADDR using L2
+		 */
+#              define PACKET3_DMA_DATA_CP_SYNC     (1 << 31)
+/* COMMAND */
+#              define PACKET3_DMA_DATA_DIS_WC      (1 << 21)
+#              define PACKET3_DMA_DATA_CMD_SRC_SWAP(x) ((x) << 22)
+                /* 0 - none
+		 * 1 - 8 in 16
+		 * 2 - 8 in 32
+		 * 3 - 8 in 64
+		 */
+#              define PACKET3_DMA_DATA_CMD_DST_SWAP(x) ((x) << 24)
+                /* 0 - none
+		 * 1 - 8 in 16
+		 * 2 - 8 in 32
+		 * 3 - 8 in 64
+		 */
+#              define PACKET3_DMA_DATA_CMD_SAS     (1 << 26)
+                /* 0 - memory
+		 * 1 - register
+		 */
+#              define PACKET3_DMA_DATA_CMD_DAS     (1 << 27)
+                /* 0 - memory
+		 * 1 - register
+		 */
+#              define PACKET3_DMA_DATA_CMD_SAIC    (1 << 28)
+#              define PACKET3_DMA_DATA_CMD_DAIC    (1 << 29)
+#              define PACKET3_DMA_DATA_CMD_RAW_WAIT  (1 << 30)
 #define	PACKET3_AQUIRE_MEM				0x58
 #define	PACKET3_REWIND					0x59
 #define	PACKET3_LOAD_UCONFIG_REG			0x5E
@@ -1897,5 +2025,48 @@
 
 /* UVD CTX indirect */
 #define	UVD_CGC_MEM_CTRL				0xC0
+
+/* VCE */
+
+#define VCE_VCPU_CACHE_OFFSET0		0x20024
+#define VCE_VCPU_CACHE_SIZE0		0x20028
+#define VCE_VCPU_CACHE_OFFSET1		0x2002c
+#define VCE_VCPU_CACHE_SIZE1		0x20030
+#define VCE_VCPU_CACHE_OFFSET2		0x20034
+#define VCE_VCPU_CACHE_SIZE2		0x20038
+#define VCE_RB_RPTR2			0x20178
+#define VCE_RB_WPTR2			0x2017c
+#define VCE_RB_RPTR			0x2018c
+#define VCE_RB_WPTR			0x20190
+#define VCE_CLOCK_GATING_A		0x202f8
+#	define CGC_CLK_GATE_DLY_TIMER_MASK	(0xf << 0)
+#	define CGC_CLK_GATE_DLY_TIMER(x)	((x) << 0)
+#	define CGC_CLK_GATER_OFF_DLY_TIMER_MASK	(0xff << 4)
+#	define CGC_CLK_GATER_OFF_DLY_TIMER(x)	((x) << 4)
+#	define CGC_UENC_WAIT_AWAKE	(1 << 18)
+#define VCE_CLOCK_GATING_B		0x202fc
+#define VCE_CGTT_CLK_OVERRIDE		0x207a0
+#define VCE_UENC_CLOCK_GATING		0x207bc
+#	define CLOCK_ON_DELAY_MASK	(0xf << 0)
+#	define CLOCK_ON_DELAY(x)	((x) << 0)
+#	define CLOCK_OFF_DELAY_MASK	(0xff << 4)
+#	define CLOCK_OFF_DELAY(x)	((x) << 4)
+#define VCE_UENC_REG_CLOCK_GATING	0x207c0
+#define VCE_SYS_INT_EN			0x21300
+#	define VCE_SYS_INT_TRAP_INTERRUPT_EN	(1 << 3)
+#define VCE_LMI_CTRL2			0x21474
+#define VCE_LMI_CTRL			0x21498
+#define VCE_LMI_VM_CTRL			0x214a0
+#define VCE_LMI_SWAP_CNTL		0x214b4
+#define VCE_LMI_SWAP_CNTL1		0x214b8
+#define VCE_LMI_CACHE_CTRL		0x214f4
+
+#define VCE_CMD_NO_OP		0x00000000
+#define VCE_CMD_END		0x00000001
+#define VCE_CMD_IB		0x00000002
+#define VCE_CMD_FENCE		0x00000003
+#define VCE_CMD_TRAP		0x00000004
+#define VCE_CMD_IB_AUTO		0x00000005
+#define VCE_CMD_SEMAPHORE	0x00000006
 
 #endif

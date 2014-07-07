@@ -14,6 +14,7 @@
 #include <linux/etherdevice.h>
 #include <linux/u64_stats_sync.h>
 
+#include <net/rtnetlink.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <linux/veth.h>
@@ -155,10 +156,10 @@ static u64 veth_stats_one(struct pcpu_vstats *result, struct net_device *dev)
 		unsigned int start;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->syncp);
+			start = u64_stats_fetch_begin_irq(&stats->syncp);
 			packets = stats->packets;
 			bytes = stats->bytes;
-		} while (u64_stats_fetch_retry_bh(&stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
 		result->packets += packets;
 		result->bytes += bytes;
 	}
@@ -186,6 +187,11 @@ static struct rtnl_link_stats64 *veth_get_stats64(struct net_device *dev,
 	rcu_read_unlock();
 
 	return tot;
+}
+
+/* fake multicast ability */
+static void veth_set_multicast_list(struct net_device *dev)
+{
 }
 
 static int veth_open(struct net_device *dev)
@@ -230,10 +236,9 @@ static int veth_change_mtu(struct net_device *dev, int new_mtu)
 
 static int veth_dev_init(struct net_device *dev)
 {
-	dev->vstats = alloc_percpu(struct pcpu_vstats);
+	dev->vstats = netdev_alloc_pcpu_stats(struct pcpu_vstats);
 	if (!dev->vstats)
 		return -ENOMEM;
-
 	return 0;
 }
 
@@ -250,11 +255,14 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_start_xmit      = veth_xmit,
 	.ndo_change_mtu      = veth_change_mtu,
 	.ndo_get_stats64     = veth_get_stats64,
+	.ndo_set_rx_mode     = veth_set_multicast_list,
 	.ndo_set_mac_address = eth_mac_addr,
 };
 
 #define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |    \
 		       NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HIGHDMA | \
+		       NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |	    \
+		       NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT | NETIF_F_UFO	|   \
 		       NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX | \
 		       NETIF_F_HW_VLAN_STAG_TX | NETIF_F_HW_VLAN_STAG_RX )
 
@@ -269,10 +277,15 @@ static void veth_setup(struct net_device *dev)
 	dev->ethtool_ops = &veth_ethtool_ops;
 	dev->features |= NETIF_F_LLTX;
 	dev->features |= VETH_FEATURES;
-	dev->vlan_features = dev->features;
+	dev->vlan_features = dev->features &
+			     ~(NETIF_F_HW_VLAN_CTAG_TX |
+			       NETIF_F_HW_VLAN_STAG_TX |
+			       NETIF_F_HW_VLAN_CTAG_RX |
+			       NETIF_F_HW_VLAN_STAG_RX);
 	dev->destructor = veth_dev_free;
 
 	dev->hw_features = VETH_FEATURES;
+	dev->hw_enc_features = VETH_FEATURES;
 }
 
 /*
@@ -315,10 +328,9 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 
 		nla_peer = data[VETH_INFO_PEER];
 		ifmp = nla_data(nla_peer);
-		err = nla_parse(peer_tb, IFLA_MAX,
-				nla_data(nla_peer) + sizeof(struct ifinfomsg),
-				nla_len(nla_peer) - sizeof(struct ifinfomsg),
-				ifla_policy);
+		err = rtnl_nla_parse_ifla(peer_tb,
+					  nla_data(nla_peer) + sizeof(struct ifinfomsg),
+					  nla_len(nla_peer) - sizeof(struct ifinfomsg));
 		if (err < 0)
 			return err;
 

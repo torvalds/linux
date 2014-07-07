@@ -30,7 +30,6 @@ struct hugetlb_cgroup {
 #define MEMFILE_IDX(val)	(((val) >> 16) & 0xffff)
 #define MEMFILE_ATTR(val)	((val) & 0xffff)
 
-struct cgroup_subsys hugetlb_subsys __read_mostly;
 static struct hugetlb_cgroup *root_h_cgroup __read_mostly;
 
 static inline
@@ -42,7 +41,7 @@ struct hugetlb_cgroup *hugetlb_cgroup_from_css(struct cgroup_subsys_state *s)
 static inline
 struct hugetlb_cgroup *hugetlb_cgroup_from_task(struct task_struct *task)
 {
-	return hugetlb_cgroup_from_css(task_css(task, hugetlb_subsys_id));
+	return hugetlb_cgroup_from_css(task_css(task, hugetlb_cgrp_id));
 }
 
 static inline bool hugetlb_cgroup_is_root(struct hugetlb_cgroup *h_cg)
@@ -53,7 +52,7 @@ static inline bool hugetlb_cgroup_is_root(struct hugetlb_cgroup *h_cg)
 static inline struct hugetlb_cgroup *
 parent_hugetlb_cgroup(struct hugetlb_cgroup *h_cg)
 {
-	return hugetlb_cgroup_from_css(css_parent(&h_cg->css));
+	return hugetlb_cgroup_from_css(h_cg->css.parent);
 }
 
 static inline bool hugetlb_cgroup_have_usage(struct hugetlb_cgroup *h_cg)
@@ -182,7 +181,7 @@ int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
 again:
 	rcu_read_lock();
 	h_cg = hugetlb_cgroup_from_task(current);
-	if (!css_tryget(&h_cg->css)) {
+	if (!css_tryget_online(&h_cg->css)) {
 		rcu_read_unlock();
 		goto again;
 	}
@@ -242,33 +241,28 @@ void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 	return;
 }
 
-static ssize_t hugetlb_cgroup_read(struct cgroup_subsys_state *css,
-				   struct cftype *cft, struct file *file,
-				   char __user *buf, size_t nbytes,
-				   loff_t *ppos)
+static u64 hugetlb_cgroup_read_u64(struct cgroup_subsys_state *css,
+				   struct cftype *cft)
 {
-	u64 val;
-	char str[64];
-	int idx, name, len;
+	int idx, name;
 	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 
 	idx = MEMFILE_IDX(cft->private);
 	name = MEMFILE_ATTR(cft->private);
 
-	val = res_counter_read_u64(&h_cg->hugepage[idx], name);
-	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
-	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+	return res_counter_read_u64(&h_cg->hugepage[idx], name);
 }
 
-static int hugetlb_cgroup_write(struct cgroup_subsys_state *css,
-				struct cftype *cft, const char *buffer)
+static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes, loff_t off)
 {
 	int idx, name, ret;
 	unsigned long long val;
-	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(of_css(of));
 
-	idx = MEMFILE_IDX(cft->private);
-	name = MEMFILE_ATTR(cft->private);
+	buf = strstrip(buf);
+	idx = MEMFILE_IDX(of_cft(of)->private);
+	name = MEMFILE_ATTR(of_cft(of)->private);
 
 	switch (name) {
 	case RES_LIMIT:
@@ -278,7 +272,7 @@ static int hugetlb_cgroup_write(struct cgroup_subsys_state *css,
 			break;
 		}
 		/* This function does all necessary parse...reuse it */
-		ret = res_counter_memparse_write_strategy(buffer, &val);
+		ret = res_counter_memparse_write_strategy(buf, &val);
 		if (ret)
 			break;
 		ret = res_counter_set_limit(&h_cg->hugepage[idx], val);
@@ -287,17 +281,17 @@ static int hugetlb_cgroup_write(struct cgroup_subsys_state *css,
 		ret = -EINVAL;
 		break;
 	}
-	return ret;
+	return ret ?: nbytes;
 }
 
-static int hugetlb_cgroup_reset(struct cgroup_subsys_state *css,
-				unsigned int event)
+static ssize_t hugetlb_cgroup_reset(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes, loff_t off)
 {
 	int idx, name, ret = 0;
-	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(of_css(of));
 
-	idx = MEMFILE_IDX(event);
-	name = MEMFILE_ATTR(event);
+	idx = MEMFILE_IDX(of_cft(of)->private);
+	name = MEMFILE_ATTR(of_cft(of)->private);
 
 	switch (name) {
 	case RES_MAX_USAGE:
@@ -310,7 +304,7 @@ static int hugetlb_cgroup_reset(struct cgroup_subsys_state *css,
 		ret = -EINVAL;
 		break;
 	}
-	return ret;
+	return ret ?: nbytes;
 }
 
 static char *mem_fmt(char *buf, int size, unsigned long hsize)
@@ -337,34 +331,34 @@ static void __init __hugetlb_cgroup_file_init(int idx)
 	cft = &h->cgroup_files[0];
 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.limit_in_bytes", buf);
 	cft->private = MEMFILE_PRIVATE(idx, RES_LIMIT);
-	cft->read = hugetlb_cgroup_read;
-	cft->write_string = hugetlb_cgroup_write;
+	cft->read_u64 = hugetlb_cgroup_read_u64;
+	cft->write = hugetlb_cgroup_write;
 
 	/* Add the usage file */
 	cft = &h->cgroup_files[1];
 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.usage_in_bytes", buf);
 	cft->private = MEMFILE_PRIVATE(idx, RES_USAGE);
-	cft->read = hugetlb_cgroup_read;
+	cft->read_u64 = hugetlb_cgroup_read_u64;
 
 	/* Add the MAX usage file */
 	cft = &h->cgroup_files[2];
 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.max_usage_in_bytes", buf);
 	cft->private = MEMFILE_PRIVATE(idx, RES_MAX_USAGE);
-	cft->trigger = hugetlb_cgroup_reset;
-	cft->read = hugetlb_cgroup_read;
+	cft->write = hugetlb_cgroup_reset;
+	cft->read_u64 = hugetlb_cgroup_read_u64;
 
 	/* Add the failcntfile */
 	cft = &h->cgroup_files[3];
 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.failcnt", buf);
 	cft->private  = MEMFILE_PRIVATE(idx, RES_FAILCNT);
-	cft->trigger  = hugetlb_cgroup_reset;
-	cft->read = hugetlb_cgroup_read;
+	cft->write = hugetlb_cgroup_reset;
+	cft->read_u64 = hugetlb_cgroup_read_u64;
 
 	/* NULL terminate the last cft */
 	cft = &h->cgroup_files[4];
 	memset(cft, 0, sizeof(*cft));
 
-	WARN_ON(cgroup_add_cftypes(&hugetlb_subsys, h->cgroup_files));
+	WARN_ON(cgroup_add_cftypes(&hugetlb_cgrp_subsys, h->cgroup_files));
 
 	return;
 }
@@ -396,7 +390,7 @@ void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
 	if (hugetlb_cgroup_disabled())
 		return;
 
-	VM_BUG_ON(!PageHuge(oldhpage));
+	VM_BUG_ON_PAGE(!PageHuge(oldhpage), oldhpage);
 	spin_lock(&hugetlb_lock);
 	h_cg = hugetlb_cgroup_from_page(oldhpage);
 	set_hugetlb_cgroup(oldhpage, NULL);
@@ -408,10 +402,8 @@ void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
 	return;
 }
 
-struct cgroup_subsys hugetlb_subsys = {
-	.name = "hugetlb",
+struct cgroup_subsys hugetlb_cgrp_subsys = {
 	.css_alloc	= hugetlb_cgroup_css_alloc,
 	.css_offline	= hugetlb_cgroup_css_offline,
 	.css_free	= hugetlb_cgroup_css_free,
-	.subsys_id	= hugetlb_subsys_id,
 };

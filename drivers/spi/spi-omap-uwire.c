@@ -37,7 +37,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -99,7 +98,6 @@ struct uwire_spi {
 };
 
 struct uwire_state {
-	unsigned	bits_per_word;
 	unsigned	div1_idx;
 };
 
@@ -210,19 +208,14 @@ static void uwire_chipselect(struct spi_device *spi, int value)
 
 static int uwire_txrx(struct spi_device *spi, struct spi_transfer *t)
 {
-	struct uwire_state *ust = spi->controller_state;
 	unsigned	len = t->len;
-	unsigned	bits = ust->bits_per_word;
+	unsigned	bits = t->bits_per_word ? : spi->bits_per_word;
 	unsigned	bytes;
 	u16		val, w;
 	int		status = 0;
 
 	if (!t->tx_buf && !t->rx_buf)
 		return 0;
-
-	/* Microwire doesn't read and write concurrently */
-	if (t->tx_buf && t->rx_buf)
-		return -EPERM;
 
 	w = spi->chip_select << 10;
 	w |= CS_CMD;
@@ -322,7 +315,6 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	struct uwire_state	*ust = spi->controller_state;
 	struct uwire_spi	*uwire;
 	unsigned		flags = 0;
-	unsigned		bits;
 	unsigned		hz;
 	unsigned long		rate;
 	int			div1_idx;
@@ -331,23 +323,6 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	int			status;
 
 	uwire = spi_master_get_devdata(spi->master);
-
-	if (spi->chip_select > 3) {
-		pr_debug("%s: cs%d?\n", dev_name(&spi->dev), spi->chip_select);
-		status = -ENODEV;
-		goto done;
-	}
-
-	bits = spi->bits_per_word;
-	if (t != NULL && t->bits_per_word)
-		bits = t->bits_per_word;
-
-	if (bits > 16) {
-		pr_debug("%s: wordsize %d?\n", dev_name(&spi->dev), bits);
-		status = -ENODEV;
-		goto done;
-	}
-	ust->bits_per_word = bits;
 
 	/* mode 0..3, clock inverted separately;
 	 * standard nCS signaling;
@@ -502,6 +477,7 @@ static int uwire_probe(struct platform_device *pdev)
 		status = PTR_ERR(uwire->ck);
 		dev_dbg(&pdev->dev, "no functional clock?\n");
 		spi_master_put(master);
+		iounmap(uwire_base);
 		return status;
 	}
 	clk_enable(uwire->ck);
@@ -515,7 +491,7 @@ static int uwire_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
-
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
 	master->flags = SPI_MASTER_HALF_DUPLEX;
 
 	master->bus_num = 2;	/* "official" */
@@ -539,14 +515,13 @@ static int uwire_probe(struct platform_device *pdev)
 static int uwire_remove(struct platform_device *pdev)
 {
 	struct uwire_spi	*uwire = platform_get_drvdata(pdev);
-	int			status;
 
 	// FIXME remove all child devices, somewhere ...
 
-	status = spi_bitbang_stop(&uwire->bitbang);
+	spi_bitbang_stop(&uwire->bitbang);
 	uwire_off(uwire);
 	iounmap(uwire_base);
-	return status;
+	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -557,7 +532,8 @@ static struct platform_driver uwire_driver = {
 		.name		= "omap_uwire",
 		.owner		= THIS_MODULE,
 	},
-	.remove		= uwire_remove,
+	.probe = uwire_probe,
+	.remove = uwire_remove,
 	// suspend ... unuse ck
 	// resume ... use ck
 };
@@ -579,7 +555,7 @@ static int __init omap_uwire_init(void)
 		omap_writel(val | 0x00AAA000, OMAP7XX_IO_CONF_9);
 	}
 
-	return platform_driver_probe(&uwire_driver, uwire_probe);
+	return platform_driver_register(&uwire_driver);
 }
 
 static void __exit omap_uwire_exit(void)

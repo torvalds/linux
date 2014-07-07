@@ -52,9 +52,9 @@ static inline void pit_irq_acknowledge(void)
 	__raw_writel(PITTFLG_TIF, clkevt_base + PITTFLG);
 }
 
-static unsigned int pit_read_sched_clock(void)
+static u64 pit_read_sched_clock(void)
 {
-	return __raw_readl(clksrc_base + PITCVAL);
+	return ~__raw_readl(clksrc_base + PITCVAL);
 }
 
 static int __init pit_clocksource_init(unsigned long rate)
@@ -64,7 +64,7 @@ static int __init pit_clocksource_init(unsigned long rate)
 	__raw_writel(~0UL, clksrc_base + PITLDVAL);
 	__raw_writel(PITTCTRL_TEN, clksrc_base + PITTCTRL);
 
-	setup_sched_clock(pit_read_sched_clock, 32, rate);
+	sched_clock_register(pit_read_sched_clock, 32, rate);
 	return clocksource_mmio_init(clksrc_base + PITCVAL, "vf-pit", rate,
 			300, 32, clocksource_mmio_readl_down);
 }

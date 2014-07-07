@@ -362,7 +362,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		struct ptlrpc_request *request;
 		struct md_op_data *op_data;
 
-		op_data = ll_prep_md_op_data(NULL, dir, NULL, NULL, 0, 0,
+		op_data = ll_prep_md_op_data(NULL, dir, dir, NULL, 0, 0,
 		LUSTRE_OPC_ANY, NULL);
 		if (IS_ERR(op_data))
 			return (void *)op_data;
@@ -632,7 +632,7 @@ out:
 	return rc;
 }
 
-int ll_send_mgc_param(struct obd_export *mgc, char *string)
+static int ll_send_mgc_param(struct obd_export *mgc, char *string)
 {
 	struct mgs_send_param *msp;
 	int rc = 0;
@@ -743,7 +743,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 
 	/* In the following we use the fact that LOV_USER_MAGIC_V1 and
 	 LOV_USER_MAGIC_V3 have the same initial fields so we do not
-	 need the make the distiction between the 2 versions */
+	 need to make the distinction between the 2 versions */
 	if (set_default && mgc->u.cli.cl_mgc_mgsexp) {
 		char *param = NULL;
 		char *buf;
@@ -795,7 +795,7 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 	int rc, lmmsize;
 	struct md_op_data *op_data;
 
-	rc = ll_get_max_mdsize(sbi, &lmmsize);
+	rc = ll_get_default_mdsize(sbi, &lmmsize);
 	if (rc)
 		return rc;
 
@@ -1048,20 +1048,25 @@ progress:
 }
 
 
-static int copy_and_ioctl(int cmd, struct obd_export *exp, void *data, int len)
+static int copy_and_ioctl(int cmd, struct obd_export *exp,
+			  const void __user *data, size_t size)
 {
-	void *ptr;
+	void *copy;
 	int rc;
 
-	OBD_ALLOC(ptr, len);
-	if (ptr == NULL)
+	OBD_ALLOC(copy, size);
+	if (copy == NULL)
 		return -ENOMEM;
-	if (copy_from_user(ptr, data, len)) {
-		OBD_FREE(ptr, len);
-		return -EFAULT;
+
+	if (copy_from_user(copy, data, size)) {
+		rc = -EFAULT;
+		goto out;
 	}
-	rc = obd_iocontrol(cmd, exp, len, data, NULL);
-	OBD_FREE(ptr, len);
+
+	rc = obd_iocontrol(cmd, exp, size, copy, NULL);
+out:
+	OBD_FREE(copy, size);
+
 	return rc;
 }
 
@@ -1080,16 +1085,16 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	case Q_QUOTAOFF:
 	case Q_SETQUOTA:
 	case Q_SETINFO:
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 		break;
 	case Q_GETQUOTA:
 		if (((type == USRQUOTA &&
-		      uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
+		      !uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
 		     (type == GRPQUOTA &&
 		      !in_egroup_p(make_kgid(&init_user_ns, id)))) &&
-		    (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		    (!capable(CFS_CAP_SYS_ADMIN) ||
 		     sbi->ll_flags & LL_SBI_RMT_CLIENT))
 			return -EPERM;
 		break;
@@ -1395,7 +1400,7 @@ lmv_out_free:
 		if (tmp == NULL)
 			GOTO(free_lmv, rc = -ENOMEM);
 
-		memcpy(tmp, &lum, sizeof(lum));
+		*tmp = lum;
 		tmp->lum_type = LMV_STRIPE_TYPE;
 		tmp->lum_stripe_count = 1;
 		mdtindex = ll_get_mdt_idx(inode);
@@ -1597,7 +1602,7 @@ out_rmdir:
 		struct obd_quotactl *oqctl;
 		int error = 0;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 
@@ -1621,7 +1626,7 @@ out_rmdir:
 	case OBD_IOC_POLL_QUOTACHECK: {
 		struct if_quotacheck *check;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 
@@ -1799,6 +1804,11 @@ out_rmdir:
 		/* Compute the whole struct size */
 		totalsize = hur_len(hur);
 		OBD_FREE_PTR(hur);
+
+		/* Final size will be more than double totalsize */
+		if (totalsize >= MDS_MAXREQSIZE / 3)
+			return -E2BIG;
+
 		OBD_ALLOC_LARGE(hur, totalsize);
 		if (hur == NULL)
 			return -ENOMEM;
@@ -1809,8 +1819,28 @@ out_rmdir:
 			return -EFAULT;
 		}
 
-		rc = obd_iocontrol(cmd, ll_i2mdexp(inode), totalsize,
-				   hur, NULL);
+		if (hur->hur_request.hr_action == HUA_RELEASE) {
+			const struct lu_fid *fid;
+			struct inode *f;
+			int i;
+
+			for (i = 0; i < hur->hur_request.hr_itemcount; i++) {
+				fid = &hur->hur_user_item[i].hui_fid;
+				f = search_inode_for_lustre(inode->i_sb, fid);
+				if (IS_ERR(f)) {
+					rc = PTR_ERR(f);
+					break;
+				}
+
+				rc = ll_hsm_release(f);
+				iput(f);
+				if (rc != 0)
+					break;
+			}
+		} else {
+			rc = obd_iocontrol(cmd, ll_i2mdexp(inode), totalsize,
+					   hur, NULL);
+		}
 
 		OBD_FREE_LARGE(hur, totalsize);
 
@@ -1934,17 +1964,17 @@ out:
 	return ret;
 }
 
-int ll_dir_open(struct inode *inode, struct file *file)
+static int ll_dir_open(struct inode *inode, struct file *file)
 {
 	return ll_file_open(inode, file);
 }
 
-int ll_dir_release(struct inode *inode, struct file *file)
+static int ll_dir_release(struct inode *inode, struct file *file)
 {
 	return ll_file_release(inode, file);
 }
 
-struct file_operations ll_dir_operations = {
+const struct file_operations ll_dir_operations = {
 	.llseek   = ll_dir_seek,
 	.open     = ll_dir_open,
 	.release  = ll_dir_release,

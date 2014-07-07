@@ -6,6 +6,10 @@
 #include "spk_priv.h"
 #include "serialio.h"
 
+#ifndef SERIAL_PORT_DFNS
+#define SERIAL_PORT_DFNS
+#endif
+
 static void start_serial_interrupt(int irq);
 
 static const struct old_serial_port rs_table[] = {
@@ -36,7 +40,7 @@ const struct old_serial_port *spk_serial_init(int index)
 		cval |= UART_LCR_EPAR;
 	if (synth_request_region(ser->port, 8)) {
 		/* try to take it back. */
-		printk(KERN_INFO "Ports not available, trying to steal them\n");
+		pr_info("Ports not available, trying to steal them\n");
 		__release_region(&ioport_resource, ser->port, 8);
 		err = synth_request_region(ser->port, 8);
 		if (err) {
@@ -102,7 +106,7 @@ static void start_serial_interrupt(int irq)
 			 "serial", (void *) synth_readbuf_handler);
 
 	if (rv)
-		printk(KERN_ERR "Unable to request Speakup serial I R Q\n");
+		pr_err("Unable to request Speakup serial I R Q\n");
 	/* Set MCR */
 	outb(UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT2,
 			speakup_info.port_tts + UART_MCR);

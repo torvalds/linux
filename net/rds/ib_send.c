@@ -298,7 +298,7 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 		rds_ib_stats_inc(s_ib_tx_cq_event);
 
 		if (wc.wr_id == RDS_IB_ACK_WR_ID) {
-			if (ic->i_ack_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, ic->i_ack_queued + HZ/2))
 				rds_ib_stats_inc(s_ib_tx_stalled);
 			rds_ib_ack_send_complete(ic);
 			continue;
@@ -315,7 +315,7 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 
 			rm = rds_ib_send_unmap_op(ic, send, wc.status);
 
-			if (send->s_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, send->s_queued + HZ/2))
 				rds_ib_stats_inc(s_ib_tx_stalled);
 
 			if (send->s_op) {
@@ -552,9 +552,8 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	    && rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
 		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
 		scat = &rm->data.op_sg[sg];
-		ret = sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
-		ret = min_t(int, ret, scat->length - conn->c_xmit_data_off);
-		return ret;
+		ret = max_t(int, RDS_CONG_MAP_BYTES, scat->length);
+		return sizeof(struct rds_header) + ret;
 	}
 
 	/* FIXME we may overallocate here */

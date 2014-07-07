@@ -57,6 +57,7 @@
  56 -> Pinnacle Hybrid Pro (330e)               (em2882)        [2304:0226]
  57 -> Kworld PlusTV HD Hybrid 330              (em2883)        [eb1a:a316]
  58 -> Compro VideoMate ForYou/Stereo           (em2820/em2840) [185b:2041]
+ 59 -> Pinnacle PCTV HD Mini                    (em2874)        [2304:023f]
  60 -> Hauppauge WinTV HVR 850                  (em2883)        [2040:651f]
  61 -> Pixelview PlayTV Box 4 USB 2.0           (em2820/em2840)
  62 -> Gadmei TVR200                            (em2820/em2840)
@@ -86,3 +87,9 @@
  86 -> PCTV QuatroStick nano (520e)             (em2884)        [2013:0251]
  87 -> Terratec Cinergy HTC USB XS              (em2884)        [0ccd:008e,0ccd:00ac]
  88 -> C3 Tech Digital Duo HDTV/SDTV USB        (em2884)        [1b80:e755]
+ 89 -> Delock 61959                             (em2874)        [1b80:e1cc]
+ 90 -> KWorld USB ATSC TV Stick UB435-Q V2      (em2874)        [1b80:e346]
+ 91 -> SpeedLink Vicious And Devine Laplace webcam (em2765)        [1ae7:9003,1ae7:9004]
+ 92 -> PCTV DVB-S2 Stick (461e)                 (em28178)
+ 93 -> KWorld USB ATSC TV Stick UB435-Q V3      (em2874)        [1b80:e34c]
+ 94 -> PCTV tripleStick (292e)                  (em28178)

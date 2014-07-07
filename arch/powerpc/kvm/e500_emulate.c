@@ -19,6 +19,7 @@
 #include "booke.h"
 #include "e500.h"
 
+#define XOP_DCBTLS  166
 #define XOP_MSGSND  206
 #define XOP_MSGCLR  238
 #define XOP_TLBIVAX 786
@@ -26,6 +27,7 @@
 #define XOP_TLBRE   946
 #define XOP_TLBWE   978
 #define XOP_TLBILX  18
+#define XOP_EHPRIV  270
 
 #ifdef CONFIG_KVM_E500MC
 static int dbell2prio(ulong param)
@@ -82,8 +84,37 @@ static int kvmppc_e500_emul_msgsnd(struct kvm_vcpu *vcpu, int rb)
 }
 #endif
 
-int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                           unsigned int inst, int *advance)
+static int kvmppc_e500_emul_ehpriv(struct kvm_run *run, struct kvm_vcpu *vcpu,
+				   unsigned int inst, int *advance)
+{
+	int emulated = EMULATE_DONE;
+
+	switch (get_oc(inst)) {
+	case EHPRIV_OC_DEBUG:
+		run->exit_reason = KVM_EXIT_DEBUG;
+		run->debug.arch.address = vcpu->arch.pc;
+		run->debug.arch.status = 0;
+		kvmppc_account_exit(vcpu, DEBUG_EXITS);
+		emulated = EMULATE_EXIT_USER;
+		*advance = 0;
+		break;
+	default:
+		emulated = EMULATE_FAIL;
+	}
+	return emulated;
+}
+
+static int kvmppc_e500_emul_dcbtls(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+
+	/* Always fail to lock the cache */
+	vcpu_e500->l1csr0 |= L1CSR0_CUL;
+	return EMULATE_DONE;
+}
+
+int kvmppc_core_emulate_op_e500(struct kvm_run *run, struct kvm_vcpu *vcpu,
+				unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;
 	int ra = get_ra(inst);
@@ -94,6 +125,10 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	switch (get_op(inst)) {
 	case 31:
 		switch (get_xop(inst)) {
+
+		case XOP_DCBTLS:
+			emulated = kvmppc_e500_emul_dcbtls(vcpu);
+			break;
 
 #ifdef CONFIG_KVM_E500MC
 		case XOP_MSGSND:
@@ -130,6 +165,11 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			emulated = kvmppc_e500_emul_tlbivax(vcpu, ea);
 			break;
 
+		case XOP_EHPRIV:
+			emulated = kvmppc_e500_emul_ehpriv(run, vcpu, inst,
+							   advance);
+			break;
+
 		default:
 			emulated = EMULATE_FAIL;
 		}
@@ -146,7 +186,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return emulated;
 }
 
-int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
+int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	int emulated = EMULATE_DONE;
@@ -196,6 +236,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		break;
 	case SPRN_L1CSR1:
 		vcpu_e500->l1csr1 = spr_val;
+		vcpu_e500->l1csr1 &= ~(L1CSR1_ICFI | L1CSR1_ICLFR);
 		break;
 	case SPRN_HID0:
 		vcpu_e500->hid0 = spr_val;
@@ -237,7 +278,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	return emulated;
 }
 
-int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
+int kvmppc_core_emulate_mfspr_e500(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	int emulated = EMULATE_DONE;

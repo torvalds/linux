@@ -16,36 +16,29 @@ config ALCHEMY_GPIO_INDIRECT
 choice
 	prompt "Machine type"
 	depends on MIPS_ALCHEMY
-	default MIPS_DB1000
+	default MIPS_DB1XXX
 
 config MIPS_MTX1
 	bool "4G Systems MTX-1 board"
-	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select ALCHEMY_GPIOINT_AU1000
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
 
-config MIPS_DB1000
-	bool "Alchemy DB1000/DB1500/DB1100 PB1500/1100 boards"
-	select ALCHEMY_GPIOINT_AU1000
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_HAS_EARLY_PRINTK
-
-config MIPS_DB1235
-	bool "Alchemy DB1200/PB1200/DB1300/DB1550/PB1550 boards"
+config MIPS_DB1XXX
+	bool "Alchemy DB1XXX / PB1XXX boards"
 	select ARCH_REQUIRE_GPIOLIB
 	select HW_HAS_PCI
-	select DMA_COHERENT
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
+	help
+	  Select this option if you have one of the following Alchemy
+	  development boards:  DB1000 DB1500 DB1100 DB1550 DB1200 DB1300
+			       PB1500 PB1100 PB1550 PB1200
+	  Board type is autodetected during boot.
 
 config MIPS_XXS1500
 	bool "MyCable XXS1500 board"
-	select DMA_NONCOHERENT
 	select ALCHEMY_GPIOINT_AU1000
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
@@ -54,7 +47,6 @@ config MIPS_GPR
 	bool "Trapeze ITS GPR board"
 	select ALCHEMY_GPIOINT_AU1000
 	select HW_HAS_PCI
-	select DMA_NONCOHERENT
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
 

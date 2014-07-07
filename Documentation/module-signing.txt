@@ -1,0 +1,241 @@
+			==============================
+			KERNEL MODULE SIGNING FACILITY
+			==============================
+
+CONTENTS
+
+ - Overview.
+ - Configuring module signing.
+ - Generating signing keys.
+ - Public keys in the kernel.
+ - Manually signing modules.
+ - Signed modules and stripping.
+ - Loading signed modules.
+ - Non-valid signatures and unsigned modules.
+ - Administering/protecting the private key.
+
+
+========
+OVERVIEW
+========
+
+The kernel module signing facility cryptographically signs modules during
+installation and then checks the signature upon loading the module.  This
+allows increased kernel security by disallowing the loading of unsigned modules
+or modules signed with an invalid key.  Module signing increases security by
+making it harder to load a malicious module into the kernel.  The module
+signature checking is done by the kernel so that it is not necessary to have
+trusted userspace bits.
+
+This facility uses X.509 ITU-T standard certificates to encode the public keys
+involved.  The signatures are not themselves encoded in any industrial standard
+type.  The facility currently only supports the RSA public key encryption
+standard (though it is pluggable and permits others to be used).  The possible
+hash algorithms that can be used are SHA-1, SHA-224, SHA-256, SHA-384, and
+SHA-512 (the algorithm is selected by data in the signature).
+
+
+==========================
+CONFIGURING MODULE SIGNING
+==========================
+
+The module signing facility is enabled by going to the "Enable Loadable Module
+Support" section of the kernel configuration and turning on
+
+	CONFIG_MODULE_SIG	"Module signature verification"
+
+This has a number of options available:
+
+ (1) "Require modules to be validly signed" (CONFIG_MODULE_SIG_FORCE)
+
+     This specifies how the kernel should deal with a module that has a
+     signature for which the key is not known or a module that is unsigned.
+
+     If this is off (ie. "permissive"), then modules for which the key is not
+     available and modules that are unsigned are permitted, but the kernel will
+     be marked as being tainted, and the concerned modules will be marked as
+     tainted, shown with the character 'E'.
+
+     If this is on (ie. "restrictive"), only modules that have a valid
+     signature that can be verified by a public key in the kernel's possession
+     will be loaded.  All other modules will generate an error.
+
+     Irrespective of the setting here, if the module has a signature block that
+     cannot be parsed, it will be rejected out of hand.
+
+
+ (2) "Automatically sign all modules" (CONFIG_MODULE_SIG_ALL)
+
+     If this is on then modules will be automatically signed during the
+     modules_install phase of a build.  If this is off, then the modules must
+     be signed manually using:
+
+	scripts/sign-file
+
+
+ (3) "Which hash algorithm should modules be signed with?"
+
+     This presents a choice of which hash algorithm the installation phase will
+     sign the modules with:
+
+	CONFIG_MODULE_SIG_SHA1		"Sign modules with SHA-1"
+	CONFIG_MODULE_SIG_SHA224	"Sign modules with SHA-224"
+	CONFIG_MODULE_SIG_SHA256	"Sign modules with SHA-256"
+	CONFIG_MODULE_SIG_SHA384	"Sign modules with SHA-384"
+	CONFIG_MODULE_SIG_SHA512	"Sign modules with SHA-512"
+
+     The algorithm selected here will also be built into the kernel (rather
+     than being a module) so that modules signed with that algorithm can have
+     their signatures checked without causing a dependency loop.
+
+
+=======================
+GENERATING SIGNING KEYS
+=======================
+
+Cryptographic keypairs are required to generate and check signatures.  A
+private key is used to generate a signature and the corresponding public key is
+used to check it.  The private key is only needed during the build, after which
+it can be deleted or stored securely.  The public key gets built into the
+kernel so that it can be used to check the signatures as the modules are
+loaded.
+
+Under normal conditions, the kernel build will automatically generate a new
+keypair using openssl if one does not exist in the files:
+
+	signing_key.priv
+	signing_key.x509
+
+during the building of vmlinux (the public part of the key needs to be built
+into vmlinux) using parameters in the:
+
+	x509.genkey
+
+file (which is also generated if it does not already exist).
+
+It is strongly recommended that you provide your own x509.genkey file.
+
+Most notably, in the x509.genkey file, the req_distinguished_name section
+should be altered from the default:
+
+	[ req_distinguished_name ]
+	O = Magrathea
+	CN = Glacier signing key
+	emailAddress = slartibartfast@magrathea.h2g2
+
+The generated RSA key size can also be set with:
+
+	[ req ]
+	default_bits = 4096
+
+
+It is also possible to manually generate the key private/public files using the
+x509.genkey key generation configuration file in the root node of the Linux
+kernel sources tree and the openssl command.  The following is an example to
+generate the public/private key files:
+
+	openssl req -new -nodes -utf8 -sha256 -days 36500 -batch -x509 \
+	   -config x509.genkey -outform DER -out signing_key.x509 \
+	   -keyout signing_key.priv
+
+
+=========================
+PUBLIC KEYS IN THE KERNEL
+=========================
+
+The kernel contains a ring of public keys that can be viewed by root.  They're
+in a keyring called ".system_keyring" that can be seen by:
+
+	[root@deneb ~]# cat /proc/keys
+	...
+	223c7853 I------     1 perm 1f030000     0     0 keyring   .system_keyring: 1
+	302d2d52 I------     1 perm 1f010000     0     0 asymmetri Fedora kernel signing key: d69a84e6bce3d216b979e9505b3e3ef9a7118079: X509.RSA a7118079 []
+	...
+
+Beyond the public key generated specifically for module signing, any file
+placed in the kernel source root directory or the kernel build root directory
+whose name is suffixed with ".x509" will be assumed to be an X.509 public key
+and will be added to the keyring.
+
+Further, the architecture code may take public keys from a hardware store and
+add those in also (e.g. from the UEFI key database).
+
+Finally, it is possible to add additional public keys by doing:
+
+	keyctl padd asymmetric "" [.system_keyring-ID] <[key-file]
+
+e.g.:
+
+	keyctl padd asymmetric "" 0x223c7853 <my_public_key.x509
+
+Note, however, that the kernel will only permit keys to be added to
+.system_keyring _if_ the new key's X.509 wrapper is validly signed by a key
+that is already resident in the .system_keyring at the time the key was added.
+
+
+=========================
+MANUALLY SIGNING MODULES
+=========================
+
+To manually sign a module, use the scripts/sign-file tool available in
+the Linux kernel source tree.  The script requires 4 arguments:
+
+	1.  The hash algorithm (e.g., sha256)
+	2.  The private key filename
+	3.  The public key filename
+	4.  The kernel module to be signed
+
+The following is an example to sign a kernel module:
+
+	scripts/sign-file sha512 kernel-signkey.priv \
+		kernel-signkey.x509 module.ko
+
+The hash algorithm used does not have to match the one configured, but if it
+doesn't, you should make sure that hash algorithm is either built into the
+kernel or can be loaded without requiring itself.
+
+
+============================
+SIGNED MODULES AND STRIPPING
+============================
+
+A signed module has a digital signature simply appended at the end.  The string
+"~Module signature appended~." at the end of the module's file confirms that a
+signature is present but it does not confirm that the signature is valid!
+
+Signed modules are BRITTLE as the signature is outside of the defined ELF
+container.  Thus they MAY NOT be stripped once the signature is computed and
+attached.  Note the entire module is the signed payload, including any and all
+debug information present at the time of signing.
+
+
+======================
+LOADING SIGNED MODULES
+======================
+
+Modules are loaded with insmod, modprobe, init_module() or finit_module(),
+exactly as for unsigned modules as no processing is done in userspace.  The
+signature checking is all done within the kernel.
+
+
+=========================================
+NON-VALID SIGNATURES AND UNSIGNED MODULES
+=========================================
+
+If CONFIG_MODULE_SIG_FORCE is enabled or enforcemodulesig=1 is supplied on
+the kernel command line, the kernel will only load validly signed modules
+for which it has a public key.   Otherwise, it will also load modules that are
+unsigned.   Any module for which the kernel has a key, but which proves to have
+a signature mismatch will not be permitted to load.
+
+Any module that has an unparseable signature will be rejected.
+
+
+=========================================
+ADMINISTERING/PROTECTING THE PRIVATE KEY
+=========================================
+
+Since the private key is used to sign modules, viruses and malware could use
+the private key to sign modules and compromise the operating system.  The
+private key must be either destroyed or moved to a secure location and not kept
+in the root node of the kernel source tree.

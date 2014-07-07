@@ -81,7 +81,7 @@ struct arizona_priv {
 	unsigned int spk_ena_pending:1;
 };
 
-#define ARIZONA_NUM_MIXER_INPUTS 99
+#define ARIZONA_NUM_MIXER_INPUTS 103
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
@@ -107,7 +107,7 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 
 #define ARIZONA_MUX_CTL_DECL(name) \
 	const struct snd_kcontrol_new name##_mux =	\
-		SOC_DAPM_VALUE_ENUM("Route", name##_enum)
+		SOC_DAPM_ENUM("Route", name##_enum)
 
 #define ARIZONA_MUX_ENUMS(name, base_reg) \
 	static ARIZONA_MUX_ENUM_DECL(name##_enum, base_reg);      \
@@ -128,7 +128,7 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX_ENUMS(name##_aux6, base_reg + 40)
 
 #define ARIZONA_MUX(name, ctrl) \
-	SND_SOC_DAPM_VALUE_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
 
 #define ARIZONA_MUX_WIDGETS(name, name_str) \
 	ARIZONA_MUX(name_str " Input", &name##_mux)
@@ -166,26 +166,29 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MIXER_INPUT_ROUTES(name " Input 4")
 
 #define ARIZONA_DSP_ROUTES(name) \
-	{ name, NULL, name " Aux 1" }, \
-	{ name, NULL, name " Aux 2" }, \
-	{ name, NULL, name " Aux 3" }, \
-	{ name, NULL, name " Aux 4" }, \
-	{ name, NULL, name " Aux 5" }, \
-	{ name, NULL, name " Aux 6" }, \
+	{ name, NULL, name " Preloader"}, \
+	{ name " Preloader", NULL, name " Aux 1" }, \
+	{ name " Preloader", NULL, name " Aux 2" }, \
+	{ name " Preloader", NULL, name " Aux 3" }, \
+	{ name " Preloader", NULL, name " Aux 4" }, \
+	{ name " Preloader", NULL, name " Aux 5" }, \
+	{ name " Preloader", NULL, name " Aux 6" }, \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 1"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 2"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 3"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 4"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 5"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 6"), \
-	ARIZONA_MIXER_ROUTES(name, name "L"), \
-	ARIZONA_MIXER_ROUTES(name, name "R")
+	ARIZONA_MIXER_ROUTES(name " Preloader", name "L"), \
+	ARIZONA_MIXER_ROUTES(name " Preloader", name "R")
 
 #define ARIZONA_RATE_ENUM_SIZE 4
 extern const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
 extern const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
 
 extern const struct soc_enum arizona_isrc_fsl[];
+extern const struct soc_enum arizona_isrc_fsh[];
+extern const struct soc_enum arizona_asrc_rate1;
 
 extern const struct soc_enum arizona_in_vi_ramp;
 extern const struct soc_enum arizona_in_vd_ramp;
@@ -199,6 +202,7 @@ extern const struct soc_enum arizona_lhpf3_mode;
 extern const struct soc_enum arizona_lhpf4_mode;
 
 extern const struct soc_enum arizona_ng_hold;
+extern const struct soc_enum arizona_in_hpf_cut_enum;
 extern const struct soc_enum arizona_in_dmic_osr[];
 
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,

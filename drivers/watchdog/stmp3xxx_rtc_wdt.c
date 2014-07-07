@@ -9,10 +9,8 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
 #include <linux/stmp3xxx_rtc_wdt.h>
@@ -30,7 +28,7 @@ MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat period in seconds from 1 to "
 static int wdt_start(struct watchdog_device *wdd)
 {
 	struct device *dev = watchdog_get_drvdata(wdd);
-	struct stmp3xxx_wdt_pdata *pdata = dev->platform_data;
+	struct stmp3xxx_wdt_pdata *pdata = dev_get_platdata(dev);
 
 	pdata->wdt_set_timeout(dev->parent, wdd->timeout * WDOG_TICK_RATE);
 	return 0;
@@ -39,7 +37,7 @@ static int wdt_start(struct watchdog_device *wdd)
 static int wdt_stop(struct watchdog_device *wdd)
 {
 	struct device *dev = watchdog_get_drvdata(wdd);
-	struct stmp3xxx_wdt_pdata *pdata = dev->platform_data;
+	struct stmp3xxx_wdt_pdata *pdata = dev_get_platdata(dev);
 
 	pdata->wdt_set_timeout(dev->parent, 0);
 	return 0;
@@ -108,4 +106,3 @@ module_platform_driver(stmp3xxx_wdt_driver);
 MODULE_DESCRIPTION("STMP3XXX RTC Watchdog Driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

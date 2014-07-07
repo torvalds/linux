@@ -2,6 +2,7 @@
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
 
+#include <libudev.h>
 #include "usbip_common.h"
 #include "names.h"
 
@@ -11,6 +12,8 @@
 int usbip_use_syslog;
 int usbip_use_stderr;
 int usbip_use_debug;
+
+extern struct udev *udev_context;
 
 struct speed_string {
 	int num;
@@ -23,6 +26,8 @@ static const struct speed_string speed_strings[] = {
 	{ USB_SPEED_LOW,  "1.5", "Low Speed(1.5Mbps)"  },
 	{ USB_SPEED_FULL, "12",  "Full Speed(12Mbps)" },
 	{ USB_SPEED_HIGH, "480", "High Speed(480Mbps)" },
+	{ USB_SPEED_WIRELESS, "53.3-480", "Wireless"},
+	{ USB_SPEED_SUPER, "5000", "Super Speed(5000Mbps)" },
 	{ 0, NULL, NULL }
 };
 
@@ -70,6 +75,7 @@ const char *usbip_speed_string(int num)
 void dump_usb_interface(struct usbip_usb_interface *uinf)
 {
 	char buff[100];
+
 	usbip_names_get_class(buff, sizeof(buff),
 			uinf->bInterfaceClass,
 			uinf->bInterfaceSubClass,
@@ -80,7 +86,6 @@ void dump_usb_interface(struct usbip_usb_interface *uinf)
 void dump_usb_device(struct usbip_usb_device *udev)
 {
 	char buff[100];
-
 
 	dbg("%-20s = %s", "path",  udev->path);
 	dbg("%-20s = %s", "busid", udev->busid);
@@ -109,74 +114,60 @@ void dump_usb_device(struct usbip_usb_device *udev)
 }
 
 
-int read_attr_value(struct sysfs_device *dev, const char *name,
+int read_attr_value(struct udev_device *dev, const char *name,
 		    const char *format)
 {
-	char attrpath[SYSFS_PATH_MAX];
-	struct sysfs_attribute *attr;
+	const char *attr;
 	int num = 0;
 	int ret;
 
-	snprintf(attrpath, sizeof(attrpath), "%s/%s", dev->path, name);
-
-	attr = sysfs_open_attribute(attrpath);
+	attr = udev_device_get_sysattr_value(dev, name);
 	if (!attr) {
-		dbg("sysfs_open_attribute failed: %s", attrpath);
-		return 0;
-	}
-
-	ret = sysfs_read_attribute(attr);
-	if (ret < 0) {
-		dbg("sysfs_read_attribute failed");
+		err("udev_device_get_sysattr_value failed");
 		goto err;
 	}
 
-	ret = sscanf(attr->value, format, &num);
+	/* The client chooses the device configuration
+	 * when attaching it so right after being bound
+	 * to usbip-host on the server the device will
+	 * have no configuration.
+	 * Therefore, attributes such as bConfigurationValue
+	 * and bNumInterfaces will not exist and sscanf will
+	 * fail. Check for these cases and don't treat them
+	 * as errors.
+	 */
+
+	ret = sscanf(attr, format, &num);
 	if (ret < 1) {
-		dbg("sscanf failed");
-		goto err;
+		if (strcmp(name, "bConfigurationValue") &&
+				strcmp(name, "bNumInterfaces")) {
+			err("sscanf failed for attribute %s", name);
+			goto err;
+		}
 	}
 
 err:
-	sysfs_close_attribute(attr);
 
 	return num;
 }
 
 
-int read_attr_speed(struct sysfs_device *dev)
+int read_attr_speed(struct udev_device *dev)
 {
-	char attrpath[SYSFS_PATH_MAX];
-	struct sysfs_attribute *attr;
-	char speed[100];
-	int ret;
+	const char *speed;
 
-	snprintf(attrpath, sizeof(attrpath), "%s/%s", dev->path, "speed");
-
-	attr = sysfs_open_attribute(attrpath);
-	if (!attr) {
-		dbg("sysfs_open_attribute failed: %s", attrpath);
-		return 0;
-	}
-
-	ret = sysfs_read_attribute(attr);
-	if (ret < 0) {
-		dbg("sysfs_read_attribute failed");
+	speed = udev_device_get_sysattr_value(dev, "speed");
+	if (!speed) {
+		err("udev_device_get_sysattr_value failed");
 		goto err;
 	}
-
-	ret = sscanf(attr->value, "%s\n", speed);
-	if (ret < 1) {
-		dbg("sscanf failed");
-		goto err;
-	}
-err:
-	sysfs_close_attribute(attr);
 
 	for (int i = 0; speed_strings[i].speed != NULL; i++) {
 		if (!strcmp(speed, speed_strings[i].speed))
 			return speed_strings[i].num;
 	}
+
+err:
 
 	return USB_SPEED_UNKNOWN;
 }
@@ -188,9 +179,10 @@ err:
 	} while (0)
 
 
-int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev)
+int read_usb_device(struct udev_device *sdev, struct usbip_usb_device *udev)
 {
 	uint32_t busnum, devnum;
+	const char *path, *name;
 
 	READ_ATTR(udev, uint8_t,  sdev, bDeviceClass,		"%02x\n");
 	READ_ATTR(udev, uint8_t,  sdev, bDeviceSubClass,	"%02x\n");
@@ -207,10 +199,13 @@ int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev)
 	READ_ATTR(udev, uint8_t,  sdev, devnum,			"%d\n");
 	udev->speed = read_attr_speed(sdev);
 
-	strncpy(udev->path,  sdev->path,  SYSFS_PATH_MAX);
-	strncpy(udev->busid, sdev->name, SYSFS_BUS_ID_SIZE);
+	path = udev_device_get_syspath(sdev);
+	name = udev_device_get_sysname(sdev);
 
-	sscanf(sdev->name, "%u-%u", &busnum, &devnum);
+	strncpy(udev->path,  path,  SYSFS_PATH_MAX);
+	strncpy(udev->busid, name, SYSFS_BUS_ID_SIZE);
+
+	sscanf(name, "%u-%u", &busnum, &devnum);
 	udev->busnum = busnum;
 
 	return 0;
@@ -220,21 +215,19 @@ int read_usb_interface(struct usbip_usb_device *udev, int i,
 		       struct usbip_usb_interface *uinf)
 {
 	char busid[SYSFS_BUS_ID_SIZE];
-	struct sysfs_device *sif;
+	struct udev_device *sif;
 
 	sprintf(busid, "%s:%d.%d", udev->busid, udev->bConfigurationValue, i);
 
-	sif = sysfs_open_device("usb", busid);
+	sif = udev_device_new_from_subsystem_sysname(udev_context, "usb", busid);
 	if (!sif) {
-		dbg("sysfs_open_device(\"usb\", \"%s\") failed", busid);
+		err("udev_device_new_from_subsystem_sysname %s failed", busid);
 		return -1;
 	}
 
 	READ_ATTR(uinf, uint8_t,  sif, bInterfaceClass,		"%02x\n");
 	READ_ATTR(uinf, uint8_t,  sif, bInterfaceSubClass,	"%02x\n");
 	READ_ATTR(uinf, uint8_t,  sif, bInterfaceProtocol,	"%02x\n");
-
-	sysfs_close_device(sif);
 
 	return 0;
 }
@@ -244,7 +237,7 @@ int usbip_names_init(char *f)
 	return names_init(f);
 }
 
-void usbip_names_free()
+void usbip_names_free(void)
 {
 	names_free();
 }

@@ -122,7 +122,7 @@ EXPORT_SYMBOL(__jbd2_debug);
 #endif
 
 /* Checksumming functions */
-int jbd2_verify_csum_type(journal_t *j, journal_superblock_t *sb)
+static int jbd2_verify_csum_type(journal_t *j, journal_superblock_t *sb)
 {
 	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
 		return 1;
@@ -143,7 +143,7 @@ static __be32 jbd2_superblock_csum(journal_t *j, journal_superblock_t *sb)
 	return cpu_to_be32(csum);
 }
 
-int jbd2_superblock_csum_verify(journal_t *j, journal_superblock_t *sb)
+static int jbd2_superblock_csum_verify(journal_t *j, journal_superblock_t *sb)
 {
 	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
 		return 1;
@@ -151,7 +151,7 @@ int jbd2_superblock_csum_verify(journal_t *j, journal_superblock_t *sb)
 	return sb->s_checksum == jbd2_superblock_csum(j, sb);
 }
 
-void jbd2_superblock_csum_set(journal_t *j, journal_superblock_t *sb)
+static void jbd2_superblock_csum_set(journal_t *j, journal_superblock_t *sb)
 {
 	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
 		return;
@@ -302,8 +302,8 @@ static void journal_kill_thread(journal_t *journal)
 	journal->j_flags |= JBD2_UNMOUNT;
 
 	while (journal->j_task) {
-		wake_up(&journal->j_wait_commit);
 		write_unlock(&journal->j_state_lock);
+		wake_up(&journal->j_wait_commit);
 		wait_event(journal->j_wait_done_commit, journal->j_task == NULL);
 		write_lock(&journal->j_state_lock);
 	}
@@ -702,7 +702,7 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 	read_lock(&journal->j_state_lock);
 #ifdef CONFIG_JBD2_DEBUG
 	if (!tid_geq(journal->j_commit_request, tid)) {
-		printk(KERN_EMERG
+		printk(KERN_ERR
 		       "%s: error: j_commit_request=%d, tid=%d\n",
 		       __func__, journal->j_commit_request, tid);
 	}
@@ -710,18 +710,16 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 	while (tid_gt(tid, journal->j_commit_sequence)) {
 		jbd_debug(1, "JBD2: want %d, j_commit_sequence=%d\n",
 				  tid, journal->j_commit_sequence);
-		wake_up(&journal->j_wait_commit);
 		read_unlock(&journal->j_state_lock);
+		wake_up(&journal->j_wait_commit);
 		wait_event(journal->j_wait_done_commit,
 				!tid_gt(tid, journal->j_commit_sequence));
 		read_lock(&journal->j_state_lock);
 	}
 	read_unlock(&journal->j_state_lock);
 
-	if (unlikely(is_journal_aborted(journal))) {
-		printk(KERN_EMERG "journal commit I/O error\n");
+	if (unlikely(is_journal_aborted(journal)))
 		err = -EIO;
-	}
 	return err;
 }
 
@@ -1527,13 +1525,13 @@ static int journal_get_superblock(journal_t *journal)
 	if (JBD2_HAS_COMPAT_FEATURE(journal, JBD2_FEATURE_COMPAT_CHECKSUM) &&
 	    JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2)) {
 		/* Can't have checksum v1 and v2 on at the same time! */
-		printk(KERN_ERR "JBD: Can't enable checksumming v1 and v2 "
+		printk(KERN_ERR "JBD2: Can't enable checksumming v1 and v2 "
 		       "at the same time!\n");
 		goto out;
 	}
 
 	if (!jbd2_verify_csum_type(journal, sb)) {
-		printk(KERN_ERR "JBD: Unknown checksum type\n");
+		printk(KERN_ERR "JBD2: Unknown checksum type\n");
 		goto out;
 	}
 
@@ -1541,7 +1539,7 @@ static int journal_get_superblock(journal_t *journal)
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2)) {
 		journal->j_chksum_driver = crypto_alloc_shash("crc32c", 0, 0);
 		if (IS_ERR(journal->j_chksum_driver)) {
-			printk(KERN_ERR "JBD: Cannot load crc32c driver.\n");
+			printk(KERN_ERR "JBD2: Cannot load crc32c driver.\n");
 			err = PTR_ERR(journal->j_chksum_driver);
 			journal->j_chksum_driver = NULL;
 			goto out;
@@ -1550,7 +1548,7 @@ static int journal_get_superblock(journal_t *journal)
 
 	/* Check superblock checksum */
 	if (!jbd2_superblock_csum_verify(journal, sb)) {
-		printk(KERN_ERR "JBD: journal checksum error\n");
+		printk(KERN_ERR "JBD2: journal checksum error\n");
 		goto out;
 	}
 
@@ -1836,7 +1834,7 @@ int jbd2_journal_set_features (journal_t *journal, unsigned long compat,
 			journal->j_chksum_driver = crypto_alloc_shash("crc32c",
 								      0, 0);
 			if (IS_ERR(journal->j_chksum_driver)) {
-				printk(KERN_ERR "JBD: Cannot load crc32c "
+				printk(KERN_ERR "JBD2: Cannot load crc32c "
 				       "driver.\n");
 				journal->j_chksum_driver = NULL;
 				return 0;
@@ -2645,7 +2643,7 @@ static void __exit journal_exit(void)
 #ifdef CONFIG_JBD2_DEBUG
 	int n = atomic_read(&nr_journal_heads);
 	if (n)
-		printk(KERN_EMERG "JBD2: leaked %d journal_heads!\n", n);
+		printk(KERN_ERR "JBD2: leaked %d journal_heads!\n", n);
 #endif
 	jbd2_remove_jbd_stats_proc_entry();
 	jbd2_journal_destroy_caches();

@@ -477,19 +477,19 @@ void Hal_SetChannel(struct adapter *pAdapter);
 void Hal_SetAntennaPathPower(struct adapter *pAdapter);
 s32 Hal_SetThermalMeter(struct adapter *pAdapter, u8 target_ther);
 s32 Hal_SetPowerTracking(struct adapter *padapter, u8 enable);
-void Hal_GetPowerTracking(struct adapter *padapter, u8 * enable);
+void Hal_GetPowerTracking(struct adapter *padapter, u8 *enable);
 void Hal_GetThermalMeter(struct adapter *pAdapter, u8 *value);
 void Hal_mpt_SwitchRfSetting(struct adapter *pAdapter);
-void Hal_MPT_CCKTxPowerAdjust(struct adapter * Adapter, bool bInCH14);
+void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14);
 void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *pAdapter, bool beven);
-void Hal_SetCCKTxPower(struct adapter *pAdapter, u8 * TxPower);
-void Hal_SetOFDMTxPower(struct adapter *pAdapter, u8 * TxPower);
+void Hal_SetCCKTxPower(struct adapter *pAdapter, u8 *TxPower);
+void Hal_SetOFDMTxPower(struct adapter *pAdapter, u8 *TxPower);
 void Hal_TriggerRFThermalMeter(struct adapter *pAdapter);
 u8 Hal_ReadRFThermalMeter(struct adapter *pAdapter);
 void Hal_SetCCKContinuousTx(struct adapter *pAdapter, u8 bStart);
 void Hal_SetOFDMContinuousTx(struct adapter *pAdapter, u8 bStart);
 void Hal_ProSetCrystalCap (struct adapter *pAdapter , u32 CrystalCapVal);
 void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv);
-void MP_PHY_SetRFPathSwitch(struct adapter *pAdapter ,bool bMain);
+void MP_PHY_SetRFPathSwitch(struct adapter *pAdapter , bool bMain);
 
 #endif /* _RTW_MP_H_ */

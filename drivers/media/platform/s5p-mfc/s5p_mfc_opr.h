@@ -17,6 +17,259 @@
 
 #include "s5p_mfc_common.h"
 
+struct s5p_mfc_regs {
+
+	/* codec common registers */
+	void *risc_on;
+	void *risc2host_int;
+	void *host2risc_int;
+	void *risc_base_address;
+	void *mfc_reset;
+	void *host2risc_command;
+	void *risc2host_command;
+	void *mfc_bus_reset_ctrl;
+	void *firmware_version;
+	void *instance_id;
+	void *codec_type;
+	void *context_mem_addr;
+	void *context_mem_size;
+	void *pixel_format;
+	void *metadata_enable;
+	void *mfc_version;
+	void *dbg_info_enable;
+	void *dbg_buffer_addr;
+	void *dbg_buffer_size;
+	void *hed_control;
+	void *mfc_timeout_value;
+	void *hed_shared_mem_addr;
+	void *dis_shared_mem_addr;/* only v7 */
+	void *ret_instance_id;
+	void *error_code;
+	void *dbg_buffer_output_size;
+	void *metadata_status;
+	void *metadata_addr_mb_info;
+	void *metadata_size_mb_info;
+	void *dbg_info_stage_counter;
+
+	/* decoder registers */
+	void *d_crc_ctrl;
+	void *d_dec_options;
+	void *d_display_delay;
+	void *d_set_frame_width;
+	void *d_set_frame_height;
+	void *d_sei_enable;
+	void *d_min_num_dpb;
+	void *d_min_first_plane_dpb_size;
+	void *d_min_second_plane_dpb_size;
+	void *d_min_third_plane_dpb_size;/* only v8 */
+	void *d_min_num_mv;
+	void *d_mvc_num_views;
+	void *d_min_num_dis;/* only v7 */
+	void *d_min_first_dis_size;/* only v7 */
+	void *d_min_second_dis_size;/* only v7 */
+	void *d_min_third_dis_size;/* only v7 */
+	void *d_post_filter_luma_dpb0;/*  v7 and v8 */
+	void *d_post_filter_luma_dpb1;/* v7 and v8 */
+	void *d_post_filter_luma_dpb2;/* only v7 */
+	void *d_post_filter_chroma_dpb0;/* v7 and v8 */
+	void *d_post_filter_chroma_dpb1;/* v7 and v8 */
+	void *d_post_filter_chroma_dpb2;/* only v7 */
+	void *d_num_dpb;
+	void *d_num_mv;
+	void *d_init_buffer_options;
+	void *d_first_plane_dpb_stride_size;/* only v8 */
+	void *d_second_plane_dpb_stride_size;/* only v8 */
+	void *d_third_plane_dpb_stride_size;/* only v8 */
+	void *d_first_plane_dpb_size;
+	void *d_second_plane_dpb_size;
+	void *d_third_plane_dpb_size;/* only v8 */
+	void *d_mv_buffer_size;
+	void *d_first_plane_dpb;
+	void *d_second_plane_dpb;
+	void *d_third_plane_dpb;
+	void *d_mv_buffer;
+	void *d_scratch_buffer_addr;
+	void *d_scratch_buffer_size;
+	void *d_metadata_buffer_addr;
+	void *d_metadata_buffer_size;
+	void *d_nal_start_options;/* v7 and v8 */
+	void *d_cpb_buffer_addr;
+	void *d_cpb_buffer_size;
+	void *d_available_dpb_flag_upper;
+	void *d_available_dpb_flag_lower;
+	void *d_cpb_buffer_offset;
+	void *d_slice_if_enable;
+	void *d_picture_tag;
+	void *d_stream_data_size;
+	void *d_dynamic_dpb_flag_upper;/* v7 and v8 */
+	void *d_dynamic_dpb_flag_lower;/* v7 and v8 */
+	void *d_display_frame_width;
+	void *d_display_frame_height;
+	void *d_display_status;
+	void *d_display_first_plane_addr;
+	void *d_display_second_plane_addr;
+	void *d_display_third_plane_addr;/* only v8 */
+	void *d_display_frame_type;
+	void *d_display_crop_info1;
+	void *d_display_crop_info2;
+	void *d_display_picture_profile;
+	void *d_display_luma_crc;/* v7 and v8 */
+	void *d_display_chroma0_crc;/* v7 and v8 */
+	void *d_display_chroma1_crc;/* only v8 */
+	void *d_display_luma_crc_top;/* only v6 */
+	void *d_display_chroma_crc_top;/* only v6 */
+	void *d_display_luma_crc_bot;/* only v6 */
+	void *d_display_chroma_crc_bot;/* only v6 */
+	void *d_display_aspect_ratio;
+	void *d_display_extended_ar;
+	void *d_decoded_frame_width;
+	void *d_decoded_frame_height;
+	void *d_decoded_status;
+	void *d_decoded_first_plane_addr;
+	void *d_decoded_second_plane_addr;
+	void *d_decoded_third_plane_addr;/* only v8 */
+	void *d_decoded_frame_type;
+	void *d_decoded_crop_info1;
+	void *d_decoded_crop_info2;
+	void *d_decoded_picture_profile;
+	void *d_decoded_nal_size;
+	void *d_decoded_luma_crc;
+	void *d_decoded_chroma0_crc;
+	void *d_decoded_chroma1_crc;/* only v8 */
+	void *d_ret_picture_tag_top;
+	void *d_ret_picture_tag_bot;
+	void *d_ret_picture_time_top;
+	void *d_ret_picture_time_bot;
+	void *d_chroma_format;
+	void *d_vc1_info;/* v7 and v8 */
+	void *d_mpeg4_info;
+	void *d_h264_info;
+	void *d_metadata_addr_concealed_mb;
+	void *d_metadata_size_concealed_mb;
+	void *d_metadata_addr_vc1_param;
+	void *d_metadata_size_vc1_param;
+	void *d_metadata_addr_sei_nal;
+	void *d_metadata_size_sei_nal;
+	void *d_metadata_addr_vui;
+	void *d_metadata_size_vui;
+	void *d_metadata_addr_mvcvui;/* v7 and v8 */
+	void *d_metadata_size_mvcvui;/* v7 and v8 */
+	void *d_mvc_view_id;
+	void *d_frame_pack_sei_avail;
+	void *d_frame_pack_arrgment_id;
+	void *d_frame_pack_sei_info;
+	void *d_frame_pack_grid_pos;
+	void *d_display_recovery_sei_info;/* v7 and v8 */
+	void *d_decoded_recovery_sei_info;/* v7 and v8 */
+	void *d_display_first_addr;/* only v7 */
+	void *d_display_second_addr;/* only v7 */
+	void *d_display_third_addr;/* only v7 */
+	void *d_decoded_first_addr;/* only v7 */
+	void *d_decoded_second_addr;/* only v7 */
+	void *d_decoded_third_addr;/* only v7 */
+	void *d_used_dpb_flag_upper;/* v7 and v8 */
+	void *d_used_dpb_flag_lower;/* v7 and v8 */
+
+	/* encoder registers */
+	void *e_frame_width;
+	void *e_frame_height;
+	void *e_cropped_frame_width;
+	void *e_cropped_frame_height;
+	void *e_frame_crop_offset;
+	void *e_enc_options;
+	void *e_picture_profile;
+	void *e_vbv_buffer_size;
+	void *e_vbv_init_delay;
+	void *e_fixed_picture_qp;
+	void *e_rc_config;
+	void *e_rc_qp_bound;
+	void *e_rc_qp_bound_pb;/* v7 and v8 */
+	void *e_rc_mode;
+	void *e_mb_rc_config;
+	void *e_padding_ctrl;
+	void *e_air_threshold;
+	void *e_mv_hor_range;
+	void *e_mv_ver_range;
+	void *e_num_dpb;
+	void *e_luma_dpb;
+	void *e_chroma_dpb;
+	void *e_me_buffer;
+	void *e_scratch_buffer_addr;
+	void *e_scratch_buffer_size;
+	void *e_tmv_buffer0;
+	void *e_tmv_buffer1;
+	void *e_ir_buffer_addr;/* v7 and v8 */
+	void *e_source_first_plane_addr;
+	void *e_source_second_plane_addr;
+	void *e_source_third_plane_addr;/* v7 and v8 */
+	void *e_source_first_plane_stride;/* v7 and v8 */
+	void *e_source_second_plane_stride;/* v7 and v8 */
+	void *e_source_third_plane_stride;/* v7 and v8 */
+	void *e_stream_buffer_addr;
+	void *e_stream_buffer_size;
+	void *e_roi_buffer_addr;
+	void *e_param_change;
+	void *e_ir_size;
+	void *e_gop_config;
+	void *e_mslice_mode;
+	void *e_mslice_size_mb;
+	void *e_mslice_size_bits;
+	void *e_frame_insertion;
+	void *e_rc_frame_rate;
+	void *e_rc_bit_rate;
+	void *e_rc_roi_ctrl;
+	void *e_picture_tag;
+	void *e_bit_count_enable;
+	void *e_max_bit_count;
+	void *e_min_bit_count;
+	void *e_metadata_buffer_addr;
+	void *e_metadata_buffer_size;
+	void *e_encoded_source_first_plane_addr;
+	void *e_encoded_source_second_plane_addr;
+	void *e_encoded_source_third_plane_addr;/* v7 and v8 */
+	void *e_stream_size;
+	void *e_slice_type;
+	void *e_picture_count;
+	void *e_ret_picture_tag;
+	void *e_stream_buffer_write_pointer; /*  only v6 */
+	void *e_recon_luma_dpb_addr;
+	void *e_recon_chroma_dpb_addr;
+	void *e_metadata_addr_enc_slice;
+	void *e_metadata_size_enc_slice;
+	void *e_mpeg4_options;
+	void *e_mpeg4_hec_period;
+	void *e_aspect_ratio;
+	void *e_extended_sar;
+	void *e_h264_options;
+	void *e_h264_options_2;/* v7 and v8 */
+	void *e_h264_lf_alpha_offset;
+	void *e_h264_lf_beta_offset;
+	void *e_h264_i_period;
+	void *e_h264_fmo_slice_grp_map_type;
+	void *e_h264_fmo_num_slice_grp_minus1;
+	void *e_h264_fmo_slice_grp_change_dir;
+	void *e_h264_fmo_slice_grp_change_rate_minus1;
+	void *e_h264_fmo_run_length_minus1_0;
+	void *e_h264_aso_slice_order_0;
+	void *e_h264_chroma_qp_offset;
+	void *e_h264_num_t_layer;
+	void *e_h264_hierarchical_qp_layer0;
+	void *e_h264_frame_packing_sei_info;
+	void *e_h264_nal_control;/* v7 and v8 */
+	void *e_mvc_frame_qp_view1;
+	void *e_mvc_rc_bit_rate_view1;
+	void *e_mvc_rc_qbound_view1;
+	void *e_mvc_rc_mode_view1;
+	void *e_mvc_inter_view_prediction_on;
+	void *e_vp8_options;/* v7 and v8 */
+	void *e_vp8_filter_options;/* v7 and v8 */
+	void *e_vp8_golden_frame_option;/* v7 and v8 */
+	void *e_vp8_num_t_layer;/* v7 and v8 */
+	void *e_vp8_hierarchical_qp_layer0;/* v7 and v8 */
+	void *e_vp8_hierarchical_qp_layer1;/* v7 and v8 */
+	void *e_vp8_hierarchical_qp_layer2;/* v7 and v8 */
+};
+
 struct s5p_mfc_hw_ops {
 	int (*alloc_dec_temp_buffers)(struct s5p_mfc_ctx *ctx);
 	void (*release_dec_desc_buffer)(struct s5p_mfc_ctx *ctx);
@@ -80,6 +333,7 @@ struct s5p_mfc_hw_ops {
 };
 
 void s5p_mfc_init_hw_ops(struct s5p_mfc_dev *dev);
+void s5p_mfc_init_regs(struct s5p_mfc_dev *dev);
 int s5p_mfc_alloc_priv_buf(struct device *dev,
 					struct s5p_mfc_priv_buf *b);
 void s5p_mfc_release_priv_buf(struct device *dev,

@@ -29,7 +29,6 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/sysctl.h>
 #include <linux/jiffies.h>

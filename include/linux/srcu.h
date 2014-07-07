@@ -12,8 +12,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright (C) IBM Corporation, 2006
  * Copyright (C) Fujitsu, 2012
@@ -235,6 +235,20 @@ static inline void srcu_read_unlock(struct srcu_struct *sp, int idx)
 {
 	rcu_lock_release(&(sp)->dep_map);
 	__srcu_read_unlock(sp, idx);
+}
+
+/**
+ * smp_mb__after_srcu_read_unlock - ensure full ordering after srcu_read_unlock
+ *
+ * Converts the preceding srcu_read_unlock into a two-way memory barrier.
+ *
+ * Call this after srcu_read_unlock, to guarantee that all memory operations
+ * that occur after smp_mb__after_srcu_read_unlock will appear to happen after
+ * the preceding srcu_read_unlock.
+ */
+static inline void smp_mb__after_srcu_read_unlock(void)
+{
+	/* __srcu_read_unlock has smp_mb() internally so nothing to do here. */
 }
 
 #endif

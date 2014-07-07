@@ -75,11 +75,142 @@ void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 
 EXPORT_SYMBOL(ASSABET_BCR_frob);
 
+/*
+ * The codec reset goes to three devices, so we need to release
+ * the rest when any one of these requests it.  However, that
+ * causes the ADV7171 to consume around 100mA - more than half
+ * the LCD-blanked power.
+ *
+ * With the ADV7171, LCD and backlight enabled, we go over
+ * budget on the MAX846 Li-Ion charger, and if no Li-Ion battery
+ * is connected, the Assabet crashes.
+ */
+#define RST_UCB1X00 (1 << 0)
+#define RST_UDA1341 (1 << 1)
+#define RST_ADV7171 (1 << 2)
+
+#define SDA GPIO_GPIO(15)
+#define SCK GPIO_GPIO(18)
+#define MOD GPIO_GPIO(17)
+
+static void adv7171_start(void)
+{
+	GPSR = SCK;
+	udelay(1);
+	GPSR = SDA;
+	udelay(2);
+	GPCR = SDA;
+}
+
+static void adv7171_stop(void)
+{
+	GPSR = SCK;
+	udelay(2);
+	GPSR = SDA;
+	udelay(1);
+}
+
+static void adv7171_send(unsigned byte)
+{
+	unsigned i;
+
+	for (i = 0; i < 8; i++, byte <<= 1) {
+		GPCR = SCK;
+		udelay(1);
+		if (byte & 0x80)
+			GPSR = SDA;
+		else
+			GPCR = SDA;
+		udelay(1);
+		GPSR = SCK;
+		udelay(1);
+	}
+	GPCR = SCK;
+	udelay(1);
+	GPSR = SDA;
+	udelay(1);
+	GPDR &= ~SDA;
+	GPSR = SCK;
+	udelay(1);
+	if (GPLR & SDA)
+		printk(KERN_WARNING "No ACK from ADV7171\n");
+	udelay(1);
+	GPCR = SCK | SDA;
+	udelay(1);
+	GPDR |= SDA;
+	udelay(1);
+}
+
+static void adv7171_write(unsigned reg, unsigned val)
+{
+	unsigned gpdr = GPDR;
+	unsigned gplr = GPLR;
+
+	ASSABET_BCR = BCR_value | ASSABET_BCR_AUDIO_ON;
+	udelay(100);
+
+	GPCR = SDA | SCK | MOD; /* clear L3 mode to ensure UDA1341 doesn't respond */
+	GPDR = (GPDR | SCK | MOD) & ~SDA;
+	udelay(10);
+	if (!(GPLR & SDA))
+		printk(KERN_WARNING "Something dragging SDA down?\n");
+	GPDR |= SDA;
+
+	adv7171_start();
+	adv7171_send(0x54);
+	adv7171_send(reg);
+	adv7171_send(val);
+	adv7171_stop();
+
+	/* Restore GPIO state for L3 bus */
+	GPSR = gplr & (SDA | SCK | MOD);
+	GPCR = (~gplr) & (SDA | SCK | MOD);
+	GPDR = gpdr;
+}
+
+static void adv7171_sleep(void)
+{
+	/* Put the ADV7171 into sleep mode */
+	adv7171_write(0x04, 0x40);
+}
+
+static unsigned codec_nreset;
+
+static void assabet_codec_reset(unsigned mask, int set)
+{
+	unsigned long flags;
+	bool old;
+
+	local_irq_save(flags);
+	old = !codec_nreset;
+	if (set)
+		codec_nreset &= ~mask;
+	else
+		codec_nreset |= mask;
+
+	if (old != !codec_nreset) {
+		if (codec_nreset) {
+			ASSABET_BCR_set(ASSABET_BCR_NCODEC_RST);
+			adv7171_sleep();
+		} else {
+			ASSABET_BCR_clear(ASSABET_BCR_NCODEC_RST);
+		}
+	}
+	local_irq_restore(flags);
+}
+
 static void assabet_ucb1x00_reset(enum ucb1x00_reset state)
 {
-	if (state == UCB_RST_PROBE)
-		ASSABET_BCR_set(ASSABET_BCR_CODEC_RST);
+	int set = state == UCB_RST_REMOVE || state == UCB_RST_SUSPEND ||
+		state == UCB_RST_PROBE_FAIL;
+	assabet_codec_reset(RST_UCB1X00, set);
 }
+
+void assabet_uda1341_reset(int set)
+{
+	assabet_codec_reset(RST_UDA1341, set);
+}
+EXPORT_SYMBOL(assabet_uda1341_reset);
 
 
 /*
@@ -155,12 +286,9 @@ static int assabet_irda_set_power(struct device *dev, unsigned int state)
 		0
 	};
 
-	if (state < 4) {
-		state = bcr_state[state];
-		ASSABET_BCR_clear(state ^ (ASSABET_BCR_IRDA_MD1|
-					   ASSABET_BCR_IRDA_MD0));
-		ASSABET_BCR_set(state);
-	}
+	if (state < 4)
+		ASSABET_BCR_frob(ASSABET_BCR_IRDA_MD1 | ASSABET_BCR_IRDA_MD0,
+				 bcr_state[state]);
 	return 0;
 }
 
@@ -180,6 +308,7 @@ static struct irda_platform_data assabet_irda_data = {
 static struct ucb1x00_plat_data assabet_ucb1x00_data = {
 	.reset		= assabet_ucb1x00_reset,
 	.gpio_base	= -1,
+	.can_wakeup	= 1,
 };
 
 static struct mcp_plat_data assabet_mcp_data = {
@@ -402,7 +531,7 @@ static void __init get_assabet_scr(void)
 }
 
 static void __init
-fixup_assabet(struct tag *tags, char **cmdline, struct meminfo *mi)
+fixup_assabet(struct tag *tags, char **cmdline)
 {
 	/* This must be done before any call to machine_has_neponset() */
 	map_sa1100_gpio_regs();
@@ -512,6 +641,9 @@ static void __init assabet_map_io(void)
 	 * Its called GPCLKR0 in my SA1110 manual.
 	 */
 	Ser1SDCR0 |= SDCR0_SUS;
+	MSC1 = (MSC1 & ~0xffff) |
+		MSC_NonBrst | MSC_32BitStMem |
+		MSC_RdAcc(2) | MSC_WrAcc(2) | MSC_Rec(0);
 
 	if (!machine_has_neponset())
 		sa1100_register_uart_fns(&assabet_port_fns);

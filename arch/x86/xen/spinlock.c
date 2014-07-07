@@ -106,7 +106,7 @@ static DEFINE_PER_CPU(struct xen_lock_waiting, lock_waiting);
 static cpumask_t waiting_cpus;
 
 static bool xen_pvspin = true;
-static void xen_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
+__visible void xen_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
 {
 	int irq = __this_cpu_read(lock_kicker_irq);
 	struct xen_lock_waiting *w = &__get_cpu_var(lock_waiting);
@@ -183,7 +183,7 @@ static void xen_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
 
 	local_irq_save(flags);
 
-	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
+	kstat_incr_irq_this_cpu(irq);
 out:
 	cpumask_clear_cpu(cpu, &waiting_cpus);
 	w->lock = NULL;
@@ -234,7 +234,7 @@ void xen_init_lock_cpu(int cpu)
 	irq = bind_ipi_to_irqhandler(XEN_SPIN_UNLOCK_VECTOR,
 				     cpu,
 				     dummy_handler,
-				     IRQF_DISABLED|IRQF_PERCPU|IRQF_NOBALANCING,
+				     IRQF_PERCPU|IRQF_NOBALANCING,
 				     name,
 				     NULL);
 
@@ -274,7 +274,7 @@ void __init xen_init_spinlocks(void)
 		printk(KERN_DEBUG "xen: PV spinlocks disabled\n");
 		return;
 	}
-
+	printk(KERN_DEBUG "xen: PV spinlocks enabled\n");
 	pv_lock_ops.lock_spinning = PV_CALLEE_SAVE(xen_lock_spinning);
 	pv_lock_ops.unlock_kick = xen_unlock_kick;
 }
@@ -288,6 +288,9 @@ void __init xen_init_spinlocks(void)
 static __init int xen_init_spinlocks_jump(void)
 {
 	if (!xen_pvspin)
+		return 0;
+
+	if (!xen_domain())
 		return 0;
 
 	static_key_slow_inc(&paravirt_ticketlocks_enabled);

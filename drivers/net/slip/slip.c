@@ -83,6 +83,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include "slip.h"
 #ifdef CONFIG_INET
 #include <linux/ip.h>
@@ -416,34 +417,44 @@ static void sl_encaps(struct slip *sl, unsigned char *icp, int len)
 #endif
 }
 
-/*
- * Called by the driver when there's room for more data.  If we have
- * more packets to send, we send them here.
- */
-static void slip_write_wakeup(struct tty_struct *tty)
+/* Write out any remaining transmit buffer. Scheduled when tty is writable */
+static void slip_transmit(struct work_struct *work)
 {
+	struct slip *sl = container_of(work, struct slip, tx_work);
 	int actual;
-	struct slip *sl = tty->disc_data;
 
+	spin_lock_bh(&sl->lock);
 	/* First make sure we're connected. */
-	if (!sl || sl->magic != SLIP_MAGIC || !netif_running(sl->dev))
+	if (!sl->tty || sl->magic != SLIP_MAGIC || !netif_running(sl->dev)) {
+		spin_unlock_bh(&sl->lock);
 		return;
+	}
 
-	spin_lock(&sl->lock);
 	if (sl->xleft <= 0)  {
 		/* Now serial buffer is almost free & we can start
 		 * transmission of another packet */
 		sl->dev->stats.tx_packets++;
-		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
-		spin_unlock(&sl->lock);
+		clear_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
+		spin_unlock_bh(&sl->lock);
 		sl_unlock(sl);
 		return;
 	}
 
-	actual = tty->ops->write(tty, sl->xhead, sl->xleft);
+	actual = sl->tty->ops->write(sl->tty, sl->xhead, sl->xleft);
 	sl->xleft -= actual;
 	sl->xhead += actual;
-	spin_unlock(&sl->lock);
+	spin_unlock_bh(&sl->lock);
+}
+
+/*
+ * Called by the driver when there's room for more data.
+ * Schedule the transmit.
+ */
+static void slip_write_wakeup(struct tty_struct *tty)
+{
+	struct slip *sl = tty->disc_data;
+
+	schedule_work(&sl->tx_work);
 }
 
 static void sl_tx_timeout(struct net_device *dev)
@@ -749,6 +760,7 @@ static struct slip *sl_alloc(dev_t line)
 	sl->magic       = SLIP_MAGIC;
 	sl->dev	      	= dev;
 	spin_lock_init(&sl->lock);
+	INIT_WORK(&sl->tx_work, slip_transmit);
 	sl->mode        = SL_MODE_DEFAULT;
 #ifdef CONFIG_SLIP_SMART
 	/* initialize timer_list struct */
@@ -872,8 +884,12 @@ static void slip_close(struct tty_struct *tty)
 	if (!sl || sl->magic != SLIP_MAGIC || sl->tty != tty)
 		return;
 
+	spin_lock_bh(&sl->lock);
 	tty->disc_data = NULL;
 	sl->tty = NULL;
+	spin_unlock_bh(&sl->lock);
+
+	flush_work(&sl->tx_work);
 
 	/* VSV = very important to remove timers */
 #ifdef CONFIG_SLIP_SMART

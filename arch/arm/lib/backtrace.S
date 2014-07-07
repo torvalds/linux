@@ -80,14 +80,14 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 
 		ldr	r1, [sv_pc, #-4]	@ if stmfd sp!, {args} exists,
 		ldr	r3, .Ldsi+4
-		teq	r3, r1, lsr #10
+		teq	r3, r1, lsr #11
 		ldreq	r0, [frame, #-8]	@ get sp
 		subeq	r0, r0, #4		@ point at the last arg
 		bleq	.Ldumpstm		@ dump saved registers
 
 1004:		ldr	r1, [sv_pc, #0]		@ if stmfd sp!, {..., fp, ip, lr, pc}
 		ldr	r3, .Ldsi		@ instruction exists,
-		teq	r3, r1, lsr #10
+		teq	r3, r1, lsr #11
 		subeq	r0, frame, #16
 		bleq	.Ldumpstm		@ dump saved registers
 
@@ -128,11 +128,11 @@ ENDPROC(c_backtrace)
 		beq	2f
 		add	r7, r7, #1
 		teq	r7, #6
-		moveq	r7, #1
-		moveq	r1, #'\n'
-		movne	r1, #' '
-		ldr	r3, [stack], #-4
-		mov	r2, reg
+		moveq	r7, #0
+		adr	r3, .Lcr
+		addne	r3, r3, #1		@ skip newline
+		ldr	r2, [stack], #-4
+		mov	r1, reg
 		adr	r0, .Lfp
 		bl	printk
 2:		subs	reg, reg, #1
@@ -142,11 +142,11 @@ ENDPROC(c_backtrace)
 		blne	printk
 		ldmfd	sp!, {instr, reg, stack, r7, pc}
 
-.Lfp:		.asciz	"%cr%d:%08x"
+.Lfp:		.asciz	" r%d:%08x%s"
 .Lcr:		.asciz	"\n"
 .Lbad:		.asciz	"Backtrace aborted due to bad frame pointer <%p>\n"
 		.align
-.Ldsi:		.word	0xe92dd800 >> 10	@ stmfd sp!, {... fp, ip, lr, pc}
-		.word	0xe92d0000 >> 10	@ stmfd sp!, {}
+.Ldsi:		.word	0xe92dd800 >> 11	@ stmfd sp!, {... fp, ip, lr, pc}
+		.word	0xe92d0000 >> 11	@ stmfd sp!, {}
 
 #endif

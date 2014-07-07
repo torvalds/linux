@@ -693,7 +693,7 @@ DEFINE_WINDOW_IO(16)
 DEFINE_WINDOW_IO(32)
 
 #ifdef CONFIG_PCI
-#define DEVICE_PCI(dev) (((dev)->bus == &pci_bus_type) ? to_pci_dev((dev)) : NULL)
+#define DEVICE_PCI(dev) ((dev_is_pci(dev)) ? to_pci_dev((dev)) : NULL)
 #else
 #define DEVICE_PCI(dev) NULL
 #endif
@@ -2079,12 +2079,14 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		iowrite16(len, ioaddr + Wn7_MasterLen);
 		spin_unlock_irq(&vp->window_lock);
 		vp->tx_skb = skb;
+		skb_tx_timestamp(skb);
 		iowrite16(StartDMADown, ioaddr + EL3_CMD);
 		/* netif_wake_queue() will be called at the DMADone interrupt. */
 	} else {
 		/* ... and the packet rounded to a doubleword. */
+		skb_tx_timestamp(skb);
 		iowrite32_rep(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
-		dev_kfree_skb (skb);
+		dev_consume_skb_any (skb);
 		if (ioread16(ioaddr + TxFree) > 1536) {
 			netif_start_queue (dev);	/* AKPM: redundant? */
 		} else {
@@ -2212,6 +2214,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		prev_entry->status &= cpu_to_le32(~TxIntrUploaded);
 #endif
 	}
+	skb_tx_timestamp(skb);
 	iowrite16(DownUnstall, ioaddr + EL3_CMD);
 	spin_unlock_irqrestore(&vp->lock, flags);
 	return NETDEV_TX_OK;
@@ -2986,6 +2989,7 @@ static const struct ethtool_ops vortex_ethtool_ops = {
 	.nway_reset             = vortex_nway_reset,
 	.get_wol                = vortex_get_wol,
 	.set_wol                = vortex_set_wol,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 #ifdef CONFIG_PCI
@@ -3290,7 +3294,6 @@ static int __init vortex_init(void)
 
 static void __exit vortex_eisa_cleanup(void)
 {
-	struct vortex_private *vp;
 	void __iomem *ioaddr;
 
 #ifdef CONFIG_EISA
@@ -3299,7 +3302,6 @@ static void __exit vortex_eisa_cleanup(void)
 #endif
 
 	if (compaq_net_device) {
-		vp = netdev_priv(compaq_net_device);
 		ioaddr = ioport_map(compaq_net_device->base_addr,
 		                    VORTEX_TOTAL_SIZE);
 

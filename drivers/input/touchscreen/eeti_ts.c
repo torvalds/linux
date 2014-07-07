@@ -157,7 +157,7 @@ static void eeti_ts_close(struct input_dev *dev)
 static int eeti_ts_probe(struct i2c_client *client,
 				   const struct i2c_device_id *idp)
 {
-	struct eeti_ts_platform_data *pdata = client->dev.platform_data;
+	struct eeti_ts_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct eeti_ts_priv *priv;
 	struct input_dev *input;
 	unsigned int irq_flags;

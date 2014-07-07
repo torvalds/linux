@@ -85,8 +85,8 @@ static struct mwifiex_debug_data items[] = {
 	 item_addr(hs_activated), 1},
 	{"num_tx_timeout", item_size(num_tx_timeout),
 	 item_addr(num_tx_timeout), 1},
-	{"num_cmd_timeout", item_size(num_cmd_timeout),
-	 item_addr(num_cmd_timeout), 1},
+	{"is_cmd_timedout", item_size(is_cmd_timedout),
+	 item_addr(is_cmd_timedout), 1},
 	{"timeout_cmd_id", item_size(timeout_cmd_id),
 	 item_addr(timeout_cmd_id), 1},
 	{"timeout_cmd_act", item_size(timeout_cmd_act),
@@ -254,6 +254,29 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 free_and_exit:
 	free_page(page);
 	return ret;
+}
+
+/*
+ * Proc firmware dump read handler.
+ *
+ * This function is called when the 'fw_dump' file is opened for
+ * reading.
+ * This function dumps firmware memory in different files
+ * (ex. DTCM, ITCM, SQRAM etc.) based on the the segments for
+ * debugging.
+ */
+static ssize_t
+mwifiex_fw_dump_read(struct file *file, char __user *ubuf,
+		     size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv = file->private_data;
+
+	if (!priv->adapter->if_ops.fw_dump)
+		return -EIO;
+
+	priv->adapter->if_ops.fw_dump(priv->adapter);
+
+	return 0;
 }
 
 /*
@@ -493,7 +516,7 @@ mwifiex_regrdwr_write(struct file *file,
 {
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *) addr;
-	size_t buf_size = min(count, (size_t) (PAGE_SIZE - 1));
+	size_t buf_size = min_t(size_t, count, PAGE_SIZE - 1);
 	int ret;
 	u32 reg_type = 0, reg_offset = 0, reg_value = UINT_MAX;
 
@@ -594,7 +617,7 @@ mwifiex_rdeeprom_write(struct file *file,
 {
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *) addr;
-	size_t buf_size = min(count, (size_t) (PAGE_SIZE - 1));
+	size_t buf_size = min_t(size_t, count, PAGE_SIZE - 1);
 	int ret = 0;
 	int offset = -1, bytes = -1;
 
@@ -699,6 +722,7 @@ static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 MWIFIEX_DFS_FILE_READ_OPS(info);
 MWIFIEX_DFS_FILE_READ_OPS(debug);
 MWIFIEX_DFS_FILE_READ_OPS(getlog);
+MWIFIEX_DFS_FILE_READ_OPS(fw_dump);
 MWIFIEX_DFS_FILE_OPS(regrdwr);
 MWIFIEX_DFS_FILE_OPS(rdeeprom);
 
@@ -722,6 +746,7 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(getlog);
 	MWIFIEX_DFS_ADD_FILE(regrdwr);
 	MWIFIEX_DFS_ADD_FILE(rdeeprom);
+	MWIFIEX_DFS_ADD_FILE(fw_dump);
 }
 
 /*

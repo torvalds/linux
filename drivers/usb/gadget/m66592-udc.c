@@ -1594,7 +1594,6 @@ static int __init m66592_probe(struct platform_device *pdev)
 	m66592 = kzalloc(sizeof(struct m66592), GFP_KERNEL);
 	if (m66592 == NULL) {
 		ret = -ENOMEM;
-		pr_err("kzalloc error\n");
 		goto clean_up;
 	}
 
@@ -1647,9 +1646,9 @@ static int __init m66592_probe(struct platform_device *pdev)
 		INIT_LIST_HEAD(&ep->queue);
 		ep->ep.name = m66592_ep_name[i];
 		ep->ep.ops = &m66592_ep_ops;
-		ep->ep.maxpacket = 512;
+		usb_ep_set_maxpacket_limit(&ep->ep, 512);
 	}
-	m66592->ep[0].ep.maxpacket = 64;
+	usb_ep_set_maxpacket_limit(&m66592->ep[0].ep, 64);
 	m66592->ep[0].pipenum = 0;
 	m66592->ep[0].fifoaddr = M66592_CFIFO;
 	m66592->ep[0].fifosel = M66592_CFIFOSEL;

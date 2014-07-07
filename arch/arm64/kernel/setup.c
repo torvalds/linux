@@ -25,6 +25,7 @@
 #include <linux/utsname.h>
 #include <linux/initrd.h>
 #include <linux/console.h>
+#include <linux/cache.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/screen_info.h>
@@ -41,10 +42,13 @@
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
+#include <linux/efi.h>
 
+#include <asm/fixmap.h>
 #include <asm/cputype.h>
 #include <asm/elf.h>
 #include <asm/cputable.h>
+#include <asm/cpu_ops.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp_plat.h>
@@ -53,12 +57,24 @@
 #include <asm/traps.h>
 #include <asm/memblock.h>
 #include <asm/psci.h>
+#include <asm/efi.h>
 
 unsigned int processor_id;
 EXPORT_SYMBOL(processor_id);
 
 unsigned long elf_hwcap __read_mostly;
 EXPORT_SYMBOL_GPL(elf_hwcap);
+
+#ifdef CONFIG_COMPAT
+#define COMPAT_ELF_HWCAP_DEFAULT	\
+				(COMPAT_HWCAP_HALF|COMPAT_HWCAP_THUMB|\
+				 COMPAT_HWCAP_FAST_MULT|COMPAT_HWCAP_EDSP|\
+				 COMPAT_HWCAP_TLS|COMPAT_HWCAP_VFP|\
+				 COMPAT_HWCAP_VFPv3|COMPAT_HWCAP_VFPv4|\
+				 COMPAT_HWCAP_NEON|COMPAT_HWCAP_IDIV)
+unsigned int compat_elf_hwcap __read_mostly = COMPAT_ELF_HWCAP_DEFAULT;
+unsigned int compat_elf_hwcap2 __read_mostly;
+#endif
 
 static const char *cpu_name;
 static const char *machine_name;
@@ -97,15 +113,97 @@ void __init early_print(const char *str, ...)
 	printk("%s", buf);
 }
 
+void __init smp_setup_processor_id(void)
+{
+	/*
+	 * clear __my_cpu_offset on boot CPU to avoid hang caused by
+	 * using percpu variable early, for example, lockdep will
+	 * access percpu variable inside lock_release
+	 */
+	set_my_cpu_offset(0);
+}
+
+bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
+{
+	return phys_id == cpu_logical_map(cpu);
+}
+
+struct mpidr_hash mpidr_hash;
+#ifdef CONFIG_SMP
+/**
+ * smp_build_mpidr_hash - Pre-compute shifts required at each affinity
+ *			  level in order to build a linear index from an
+ *			  MPIDR value. Resulting algorithm is a collision
+ *			  free hash carried out through shifting and ORing
+ */
+static void __init smp_build_mpidr_hash(void)
+{
+	u32 i, affinity, fs[4], bits[4], ls;
+	u64 mask = 0;
+	/*
+	 * Pre-scan the list of MPIDRS and filter out bits that do
+	 * not contribute to affinity levels, ie they never toggle.
+	 */
+	for_each_possible_cpu(i)
+		mask |= (cpu_logical_map(i) ^ cpu_logical_map(0));
+	pr_debug("mask of set bits %#llx\n", mask);
+	/*
+	 * Find and stash the last and first bit set at all affinity levels to
+	 * check how many bits are required to represent them.
+	 */
+	for (i = 0; i < 4; i++) {
+		affinity = MPIDR_AFFINITY_LEVEL(mask, i);
+		/*
+		 * Find the MSB bit and LSB bits position
+		 * to determine how many bits are required
+		 * to express the affinity level.
+		 */
+		ls = fls(affinity);
+		fs[i] = affinity ? ffs(affinity) - 1 : 0;
+		bits[i] = ls - fs[i];
+	}
+	/*
+	 * An index can be created from the MPIDR_EL1 by isolating the
+	 * significant bits at each affinity level and by shifting
+	 * them in order to compress the 32 bits values space to a
+	 * compressed set of values. This is equivalent to hashing
+	 * the MPIDR_EL1 through shifting and ORing. It is a collision free
+	 * hash though not minimal since some levels might contain a number
+	 * of CPUs that is not an exact power of 2 and their bit
+	 * representation might contain holes, eg MPIDR_EL1[7:0] = {0x2, 0x80}.
+	 */
+	mpidr_hash.shift_aff[0] = MPIDR_LEVEL_SHIFT(0) + fs[0];
+	mpidr_hash.shift_aff[1] = MPIDR_LEVEL_SHIFT(1) + fs[1] - bits[0];
+	mpidr_hash.shift_aff[2] = MPIDR_LEVEL_SHIFT(2) + fs[2] -
+						(bits[1] + bits[0]);
+	mpidr_hash.shift_aff[3] = MPIDR_LEVEL_SHIFT(3) +
+				  fs[3] - (bits[2] + bits[1] + bits[0]);
+	mpidr_hash.mask = mask;
+	mpidr_hash.bits = bits[3] + bits[2] + bits[1] + bits[0];
+	pr_debug("MPIDR hash: aff0[%u] aff1[%u] aff2[%u] aff3[%u] mask[%#llx] bits[%u]\n",
+		mpidr_hash.shift_aff[0],
+		mpidr_hash.shift_aff[1],
+		mpidr_hash.shift_aff[2],
+		mpidr_hash.shift_aff[3],
+		mpidr_hash.mask,
+		mpidr_hash.bits);
+	/*
+	 * 4x is an arbitrary value used to warn on a hash table much bigger
+	 * than expected on most systems.
+	 */
+	if (mpidr_hash_size() > 4 * num_possible_cpus())
+		pr_warn("Large number of MPIDR hash buckets detected\n");
+	__flush_dcache_area(&mpidr_hash, sizeof(struct mpidr_hash));
+}
+#endif
+
 static void __init setup_processor(void)
 {
 	struct cpu_info *cpu_info;
+	u64 features, block;
+	u32 cwg;
+	int cls;
 
-	/*
-	 * locate processor in the list of supported processor
-	 * types.  The linker builds this table for us from the
-	 * entries in arch/arm/mm/proc.S
-	 */
 	cpu_info = lookup_processor_type(read_cpuid_id());
 	if (!cpu_info) {
 		printk("CPU configuration botched (ID %08x), unable to continue.\n",
@@ -118,76 +216,99 @@ static void __init setup_processor(void)
 	printk("CPU: %s [%08x] revision %d\n",
 	       cpu_name, read_cpuid_id(), read_cpuid_id() & 15);
 
-	sprintf(init_utsname()->machine, "aarch64");
+	sprintf(init_utsname()->machine, ELF_PLATFORM);
 	elf_hwcap = 0;
+
+	/*
+	 * Check for sane CTR_EL0.CWG value.
+	 */
+	cwg = cache_type_cwg();
+	cls = cache_line_size();
+	if (!cwg)
+		pr_warn("No Cache Writeback Granule information, assuming cache line size %d\n",
+			cls);
+	if (L1_CACHE_BYTES < cls)
+		pr_warn("L1_CACHE_BYTES smaller than the Cache Writeback Granule (%d < %d)\n",
+			L1_CACHE_BYTES, cls);
+
+	/*
+	 * ID_AA64ISAR0_EL1 contains 4-bit wide signed feature blocks.
+	 * The blocks we test below represent incremental functionality
+	 * for non-negative values. Negative values are reserved.
+	 */
+	features = read_cpuid(ID_AA64ISAR0_EL1);
+	block = (features >> 4) & 0xf;
+	if (!(block & 0x8)) {
+		switch (block) {
+		default:
+		case 2:
+			elf_hwcap |= HWCAP_PMULL;
+		case 1:
+			elf_hwcap |= HWCAP_AES;
+		case 0:
+			break;
+		}
+	}
+
+	block = (features >> 8) & 0xf;
+	if (block && !(block & 0x8))
+		elf_hwcap |= HWCAP_SHA1;
+
+	block = (features >> 12) & 0xf;
+	if (block && !(block & 0x8))
+		elf_hwcap |= HWCAP_SHA2;
+
+	block = (features >> 16) & 0xf;
+	if (block && !(block & 0x8))
+		elf_hwcap |= HWCAP_CRC32;
+
+#ifdef CONFIG_COMPAT
+	/*
+	 * ID_ISAR5_EL1 carries similar information as above, but pertaining to
+	 * the Aarch32 32-bit execution state.
+	 */
+	features = read_cpuid(ID_ISAR5_EL1);
+	block = (features >> 4) & 0xf;
+	if (!(block & 0x8)) {
+		switch (block) {
+		default:
+		case 2:
+			compat_elf_hwcap2 |= COMPAT_HWCAP2_PMULL;
+		case 1:
+			compat_elf_hwcap2 |= COMPAT_HWCAP2_AES;
+		case 0:
+			break;
+		}
+	}
+
+	block = (features >> 8) & 0xf;
+	if (block && !(block & 0x8))
+		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA1;
+
+	block = (features >> 12) & 0xf;
+	if (block && !(block & 0x8))
+		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA2;
+
+	block = (features >> 16) & 0xf;
+	if (block && !(block & 0x8))
+		compat_elf_hwcap2 |= COMPAT_HWCAP2_CRC32;
+#endif
 }
 
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
 {
-	struct boot_param_header *devtree;
-	unsigned long dt_root;
-
-	/* Check we have a non-NULL DT pointer */
-	if (!dt_phys) {
-		early_print("\n"
-			"Error: NULL or invalid device tree blob\n"
-			"The dtb must be 8-byte aligned and passed in the first 512MB of memory\n"
-			"\nPlease check your bootloader.\n");
-
-		while (true)
-			cpu_relax();
-
-	}
-
-	devtree = phys_to_virt(dt_phys);
-
-	/* Check device tree validity */
-	if (be32_to_cpu(devtree->magic) != OF_DT_HEADER) {
+	if (!dt_phys || !early_init_dt_scan(phys_to_virt(dt_phys))) {
 		early_print("\n"
 			"Error: invalid device tree blob at physical address 0x%p (virtual address 0x%p)\n"
-			"Expected 0x%x, found 0x%x\n"
+			"The dtb must be 8-byte aligned and passed in the first 512MB of memory\n"
 			"\nPlease check your bootloader.\n",
-			dt_phys, devtree, OF_DT_HEADER,
-			be32_to_cpu(devtree->magic));
+			dt_phys, phys_to_virt(dt_phys));
 
 		while (true)
 			cpu_relax();
 	}
 
-	initial_boot_params = devtree;
-	dt_root = of_get_flat_dt_root();
-
-	machine_name = of_get_flat_dt_prop(dt_root, "model", NULL);
-	if (!machine_name)
-		machine_name = of_get_flat_dt_prop(dt_root, "compatible", NULL);
-	if (!machine_name)
-		machine_name = "<unknown>";
-	pr_info("Machine: %s\n", machine_name);
-
-	/* Retrieve various information from the /chosen node */
-	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
-	/* Initialize {size,address}-cells info */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-	/* Setup memory, calling early_init_dt_add_memory_arch */
-	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-}
-
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	base &= PAGE_MASK;
-	size &= PAGE_MASK;
-	if (base + size < PHYS_OFFSET) {
-		pr_warning("Ignoring memory block 0x%llx - 0x%llx\n",
-			   base, base + size);
-		return;
-	}
-	if (base < PHYS_OFFSET) {
-		pr_warning("Ignoring memory range 0x%llx - 0x%llx\n",
-			   base, PHYS_OFFSET);
-		size -= PHYS_OFFSET - base;
-		base = PHYS_OFFSET;
-	}
-	memblock_add(base, size);
+	machine_name = of_flat_dt_get_machine_name();
 }
 
 /*
@@ -241,6 +362,11 @@ u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
 
 void __init setup_arch(char **cmdline_p)
 {
+	/*
+	 * Unmask asynchronous aborts early to catch possible system errors.
+	 */
+	local_async_enable();
+
 	setup_processor();
 
 	setup_machine_fdt(__fdt_pointer);
@@ -252,20 +378,27 @@ void __init setup_arch(char **cmdline_p)
 
 	*cmdline_p = boot_command_line;
 
+	early_ioremap_init();
+
 	parse_early_param();
 
+	efi_init();
 	arm64_memblock_init();
 
 	paging_init();
 	request_standard_resources();
+
+	efi_idmap_init();
 
 	unflatten_device_tree();
 
 	psci_init();
 
 	cpu_logical_map(0) = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
+	cpu_read_bootcpu_ops();
 #ifdef CONFIG_SMP
 	smp_init_cpus();
+	smp_build_mpidr_hash();
 #endif
 
 #ifdef CONFIG_VT
@@ -279,11 +412,10 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init arm64_device_init(void)
 {
-	of_clk_init(NULL);
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	return 0;
 }
-arch_initcall(arm64_device_init);
+arch_initcall_sync(arm64_device_init);
 
 static DEFINE_PER_CPU(struct cpu, cpu_data);
 
@@ -304,6 +436,12 @@ subsys_initcall(topology_init);
 static const char *hwcap_str[] = {
 	"fp",
 	"asimd",
+	"evtstrm",
+	"aes",
+	"pmull",
+	"sha1",
+	"sha2",
+	"crc32",
 	NULL
 };
 

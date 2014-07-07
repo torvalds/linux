@@ -44,6 +44,8 @@
 #include "zcrypt_debug.h"
 #include "zcrypt_api.h"
 
+#include "zcrypt_msgtype6.h"
+
 /*
  * Module description.
  */
@@ -354,7 +356,7 @@ struct zcrypt_ops *zcrypt_msgtype_request(unsigned char *name, int variant)
 
 	zops = __ops_lookup(name, variant);
 	if (!zops) {
-		request_module(name);
+		request_module("%s", name);
 		zops = __ops_lookup(name, variant);
 	}
 	if ((!zops) || (!try_module_get(zops->owner)))
@@ -554,9 +556,9 @@ static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 	spin_lock_bh(&zcrypt_device_lock);
 	list_for_each_entry(zdev, &zcrypt_device_list, list) {
 		if (!zdev->online || !zdev->ops->send_cprb ||
-		    (xcRB->user_defined != AUTOSELECT &&
-			AP_QID_DEVICE(zdev->ap_dev->qid) != xcRB->user_defined)
-		    )
+		   (zdev->ops->variant == MSGTYPE06_VARIANT_EP11) ||
+		   (xcRB->user_defined != AUTOSELECT &&
+		    AP_QID_DEVICE(zdev->ap_dev->qid) != xcRB->user_defined))
 			continue;
 		zcrypt_device_get(zdev);
 		get_device(&zdev->ap_dev->device);
@@ -570,6 +572,90 @@ static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 		}
 		else
 			rc = -EAGAIN;
+		zdev->request_count--;
+		__zcrypt_increase_preference(zdev);
+		put_device(&zdev->ap_dev->device);
+		zcrypt_device_put(zdev);
+		spin_unlock_bh(&zcrypt_device_lock);
+		return rc;
+	}
+	spin_unlock_bh(&zcrypt_device_lock);
+	return -ENODEV;
+}
+
+struct ep11_target_dev_list {
+	unsigned short		targets_num;
+	struct ep11_target_dev	*targets;
+};
+
+static bool is_desired_ep11dev(unsigned int dev_qid,
+			       struct ep11_target_dev_list dev_list)
+{
+	int n;
+
+	for (n = 0; n < dev_list.targets_num; n++, dev_list.targets++) {
+		if ((AP_QID_DEVICE(dev_qid) == dev_list.targets->ap_id) &&
+		    (AP_QID_QUEUE(dev_qid) == dev_list.targets->dom_id)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
+{
+	struct zcrypt_device *zdev;
+	bool autoselect = false;
+	int rc;
+	struct ep11_target_dev_list ep11_dev_list = {
+		.targets_num	=  0x00,
+		.targets	=  NULL,
+	};
+
+	ep11_dev_list.targets_num = (unsigned short) xcrb->targets_num;
+
+	/* empty list indicates autoselect (all available targets) */
+	if (ep11_dev_list.targets_num == 0)
+		autoselect = true;
+	else {
+		ep11_dev_list.targets = kcalloc((unsigned short)
+						xcrb->targets_num,
+						sizeof(struct ep11_target_dev),
+						GFP_KERNEL);
+		if (!ep11_dev_list.targets)
+			return -ENOMEM;
+
+		if (copy_from_user(ep11_dev_list.targets,
+				   (struct ep11_target_dev __force __user *)
+				   xcrb->targets, xcrb->targets_num *
+				   sizeof(struct ep11_target_dev)))
+			return -EFAULT;
+	}
+
+	spin_lock_bh(&zcrypt_device_lock);
+	list_for_each_entry(zdev, &zcrypt_device_list, list) {
+		/* check if device is eligible */
+		if (!zdev->online ||
+		    zdev->ops->variant != MSGTYPE06_VARIANT_EP11)
+			continue;
+
+		/* check if device is selected as valid target */
+		if (!is_desired_ep11dev(zdev->ap_dev->qid, ep11_dev_list) &&
+		    !autoselect)
+			continue;
+
+		zcrypt_device_get(zdev);
+		get_device(&zdev->ap_dev->device);
+		zdev->request_count++;
+		__zcrypt_decrease_preference(zdev);
+		if (try_module_get(zdev->ap_dev->drv->driver.owner)) {
+			spin_unlock_bh(&zcrypt_device_lock);
+			rc = zdev->ops->send_ep11_cprb(zdev, xcrb);
+			spin_lock_bh(&zcrypt_device_lock);
+			module_put(zdev->ap_dev->drv->driver.owner);
+		} else {
+			rc = -EAGAIN;
+		  }
 		zdev->request_count--;
 		__zcrypt_increase_preference(zdev);
 		put_device(&zdev->ap_dev->device);
@@ -781,6 +867,23 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = zcrypt_send_cprb(&xcRB);
 			} while (rc == -EAGAIN);
 		if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
+			return -EFAULT;
+		return rc;
+	}
+	case ZSENDEP11CPRB: {
+		struct ep11_urb __user *uxcrb = (void __user *)arg;
+		struct ep11_urb xcrb;
+		if (copy_from_user(&xcrb, uxcrb, sizeof(xcrb)))
+			return -EFAULT;
+		do {
+			rc = zcrypt_send_ep11_cprb(&xcrb);
+		} while (rc == -EAGAIN);
+		/* on failure: retry once again after a requested rescan */
+		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+			do {
+				rc = zcrypt_send_ep11_cprb(&xcrb);
+			} while (rc == -EAGAIN);
+		if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
 			return -EFAULT;
 		return rc;
 	}

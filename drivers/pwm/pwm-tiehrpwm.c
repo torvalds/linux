@@ -26,7 +26,6 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "pwm-tipwmss.h"
 
@@ -139,12 +138,12 @@ static inline struct ehrpwm_pwm_chip *to_ehrpwm_pwm_chip(struct pwm_chip *chip)
 	return container_of(chip, struct ehrpwm_pwm_chip, chip);
 }
 
-static u16 ehrpwm_read(void __iomem *base, int offset)
+static inline u16 ehrpwm_read(void __iomem *base, int offset)
 {
 	return readw(base + offset);
 }
 
-static void ehrpwm_write(void __iomem *base, int offset, unsigned int val)
+static inline void ehrpwm_write(void __iomem *base, int offset, unsigned int val)
 {
 	writew(val & 0xFFFF, base + offset);
 }
@@ -361,8 +360,8 @@ static int ehrpwm_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	/* Enable TBCLK before enabling PWM device */
 	ret = clk_enable(pc->tbclk);
 	if (ret) {
-		pr_err("Failed to enable TBCLK for %s\n",
-				dev_name(pc->chip.dev));
+		dev_err(chip->dev, "Failed to enable TBCLK for %s\n",
+			dev_name(pc->chip.dev));
 		return ret;
 	}
 
@@ -439,17 +438,10 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct ehrpwm_pwm_chip *pc;
 	u16 status;
-	struct pinctrl *pinctrl;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev, "unable to select pin group\n");
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!pc)
 		return -ENOMEM;
-	}
 
 	clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(clk)) {
@@ -537,6 +529,7 @@ static int ehrpwm_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&pc->chip);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static void ehrpwm_pwm_save_context(struct ehrpwm_pwm_chip *pc)
 {
 	pm_runtime_get_sync(pc->chip.dev);
@@ -563,7 +556,6 @@ static void ehrpwm_pwm_restore_context(struct ehrpwm_pwm_chip *pc)
 	ehrpwm_write(pc->mmio_base, TBCTL, pc->ctx.tbctl);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int ehrpwm_pwm_suspend(struct device *dev)
 {
 	struct ehrpwm_pwm_chip *pc = dev_get_drvdata(dev);

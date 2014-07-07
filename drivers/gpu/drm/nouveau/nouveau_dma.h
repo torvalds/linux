@@ -51,9 +51,11 @@ enum {
 	NvSubCtxSurf2D  = 0,
 	NvSubSw		= 1,
 	NvSubImageBlit  = 2,
-	NvSub2D		= 3,
 	NvSubGdiRect    = 3,
-	NvSubCopy	= 4,
+
+	NvSub2D		= 3, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
+	NvSubCopy	= 4, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
+	FermiSw		= 5, /* DO NOT CHANGE (well.. 6/7 will work...) */
 };
 
 /* Object handles. */
@@ -153,7 +155,7 @@ BEGIN_IMC0(struct nouveau_channel *chan, int subc, int mthd, u16 data)
 }
 
 #define WRITE_PUT(val) do {                                                    \
-	DRM_MEMORYBARRIER();                                                   \
+	mb();                                                   \
 	nouveau_bo_rd32(chan->push.buffer, 0);                                 \
 	nv_wo32(chan->object, chan->user_put, ((val) << 2) + chan->push.vma.offset);  \
 } while (0)
@@ -194,7 +196,6 @@ WIND_RING(struct nouveau_channel *chan)
 #define NV84_SUBCHAN_UEVENT                                          0x00000020
 #define NV84_SUBCHAN_WRCACHE_FLUSH                                   0x00000024
 #define NV10_SUBCHAN_REF_CNT                                         0x00000050
-#define NVSW_SUBCHAN_PAGE_FLIP                                       0x00000054
 #define NV11_SUBCHAN_DMA_SEMAPHORE                                   0x00000060
 #define NV11_SUBCHAN_SEMAPHORE_OFFSET                                0x00000064
 #define NV11_SUBCHAN_SEMAPHORE_ACQUIRE                               0x00000068

@@ -577,7 +577,8 @@ static ssize_t __send_control_msg(struct ports_device *portdev, u32 port_id,
 	spin_lock(&portdev->c_ovq_lock);
 	if (virtqueue_add_outbuf(vq, sg, 1, &cpkt, GFP_ATOMIC) == 0) {
 		virtqueue_kick(vq);
-		while (!virtqueue_get_buf(vq, &len))
+		while (!virtqueue_get_buf(vq, &len)
+			&& !virtqueue_is_broken(vq))
 			cpu_relax();
 	}
 	spin_unlock(&portdev->c_ovq_lock);
@@ -650,7 +651,8 @@ static ssize_t __send_to_port(struct port *port, struct scatterlist *sg,
 	 * we need to kmalloc a GFP_ATOMIC buffer each time the
 	 * console driver writes something out.
 	 */
-	while (!virtqueue_get_buf(out_vq, &len))
+	while (!virtqueue_get_buf(out_vq, &len)
+		&& !virtqueue_is_broken(out_vq))
 		cpu_relax();
 done:
 	spin_unlock_irqrestore(&port->outvq_lock, flags);
@@ -888,12 +890,10 @@ static int pipe_to_sg(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	} else {
 		/* Failback to copying a page */
 		struct page *page = alloc_page(GFP_KERNEL);
-		char *src = buf->ops->map(pipe, buf, 1);
-		char *dst;
+		char *src;
 
 		if (!page)
 			return -ENOMEM;
-		dst = kmap(page);
 
 		offset = sd->pos & ~PAGE_MASK;
 
@@ -901,10 +901,9 @@ static int pipe_to_sg(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 		if (len + offset > PAGE_SIZE)
 			len = PAGE_SIZE - offset;
 
-		memcpy(dst + offset, src + buf->offset, len);
-
-		kunmap(page);
-		buf->ops->unmap(pipe, buf, src);
+		src = kmap_atomic(buf->page);
+		memcpy(page_address(page) + offset, src + buf->offset, len);
+		kunmap_atomic(src);
 
 		sg_set_page(&(sgl->sg[sgl->n]), page, len, offset);
 	}
@@ -1837,12 +1836,8 @@ static void config_intr(struct virtio_device *vdev)
 		struct port *port;
 		u16 rows, cols;
 
-		vdev->config->get(vdev,
-				  offsetof(struct virtio_console_config, cols),
-				  &cols, sizeof(u16));
-		vdev->config->get(vdev,
-				  offsetof(struct virtio_console_config, rows),
-				  &rows, sizeof(u16));
+		virtio_cread(vdev, struct virtio_console_config, cols, &cols);
+		virtio_cread(vdev, struct virtio_console_config, rows, &rows);
 
 		port = find_port_by_id(portdev, 0);
 		set_console_size(port, rows, cols);
@@ -2014,10 +2009,9 @@ static int virtcons_probe(struct virtio_device *vdev)
 
 	/* Don't test MULTIPORT at all if we're rproc: not a valid feature! */
 	if (!is_rproc_serial(vdev) &&
-	    virtio_config_val(vdev, VIRTIO_CONSOLE_F_MULTIPORT,
-				  offsetof(struct virtio_console_config,
-					   max_nr_ports),
-				  &portdev->config.max_nr_ports) == 0) {
+	    virtio_cread_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT,
+				 struct virtio_console_config, max_nr_ports,
+				 &portdev->config.max_nr_ports) == 0) {
 		multiport = true;
 	}
 
@@ -2142,7 +2136,7 @@ static struct virtio_device_id rproc_serial_id_table[] = {
 static unsigned int rproc_serial_features[] = {
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtcons_freeze(struct virtio_device *vdev)
 {
 	struct ports_device *portdev;
@@ -2220,7 +2214,7 @@ static struct virtio_driver virtio_console = {
 	.probe =	virtcons_probe,
 	.remove =	virtcons_remove,
 	.config_changed = config_intr,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.freeze =	virtcons_freeze,
 	.restore =	virtcons_restore,
 #endif

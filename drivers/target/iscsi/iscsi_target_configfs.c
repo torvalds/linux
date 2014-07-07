@@ -372,7 +372,7 @@ static ssize_t iscsi_nacl_attrib_show_##name(				\
 	struct iscsi_node_acl *nacl = container_of(se_nacl, struct iscsi_node_acl, \
 					se_node_acl);			\
 									\
-	return sprintf(page, "%u\n", ISCSI_NODE_ATTRIB(nacl)->name);	\
+	return sprintf(page, "%u\n", nacl->node_attrib.name);		\
 }									\
 									\
 static ssize_t iscsi_nacl_attrib_store_##name(				\
@@ -474,7 +474,8 @@ static ssize_t __iscsi_##prefix##_store_##name(				\
 									\
 	if (!capable(CAP_SYS_ADMIN))					\
 		return -EPERM;						\
-									\
+	if (count >= sizeof(auth->name))				\
+		return -EINVAL;						\
 	snprintf(auth->name, sizeof(auth->name), "%s", page);		\
 	if (!strncmp("NULL", auth->name, 4))				\
 		auth->naf_flags &= ~flags;				\
@@ -897,7 +898,7 @@ static struct se_node_acl *lio_target_make_nodeacl(
 	if (!se_nacl_new)
 		return ERR_PTR(-ENOMEM);
 
-	cmdsn_depth = ISCSI_TPG_ATTRIB(tpg)->default_cmdsn_depth;
+	cmdsn_depth = tpg->tpg_attrib.default_cmdsn_depth;
 	/*
 	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
 	 * when converting a NdoeACL from demo mode -> explict
@@ -920,9 +921,9 @@ static struct se_node_acl *lio_target_make_nodeacl(
 		return ERR_PTR(-ENOMEM);
 	}
 
-	stats_cg->default_groups[0] = &NODE_STAT_GRPS(acl)->iscsi_sess_stats_group;
+	stats_cg->default_groups[0] = &acl->node_stat_grps.iscsi_sess_stats_group;
 	stats_cg->default_groups[1] = NULL;
-	config_group_init_type_name(&NODE_STAT_GRPS(acl)->iscsi_sess_stats_group,
+	config_group_init_type_name(&acl->node_stat_grps.iscsi_sess_stats_group,
 			"iscsi_sess_stats", &iscsi_stat_sess_cit);
 
 	return se_nacl;
@@ -967,7 +968,7 @@ static ssize_t iscsi_tpg_attrib_show_##name(				\
 	if (iscsit_get_tpg(tpg) < 0)					\
 		return -EINVAL;						\
 									\
-	rb = sprintf(page, "%u\n", ISCSI_TPG_ATTRIB(tpg)->name);	\
+	rb = sprintf(page, "%u\n", tpg->tpg_attrib.name);		\
 	iscsit_put_tpg(tpg);						\
 	return rb;							\
 }									\
@@ -1041,6 +1042,21 @@ TPG_ATTR(demo_mode_write_protect, S_IRUGO | S_IWUSR);
  */
 DEF_TPG_ATTRIB(prod_mode_write_protect);
 TPG_ATTR(prod_mode_write_protect, S_IRUGO | S_IWUSR);
+/*
+ * Define iscsi_tpg_attrib_s_demo_mode_discovery,
+ */
+DEF_TPG_ATTRIB(demo_mode_discovery);
+TPG_ATTR(demo_mode_discovery, S_IRUGO | S_IWUSR);
+/*
+ * Define iscsi_tpg_attrib_s_default_erl
+ */
+DEF_TPG_ATTRIB(default_erl);
+TPG_ATTR(default_erl, S_IRUGO | S_IWUSR);
+/*
+ * Define iscsi_tpg_attrib_s_t10_pi
+ */
+DEF_TPG_ATTRIB(t10_pi);
+TPG_ATTR(t10_pi, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_authentication.attr,
@@ -1051,6 +1067,9 @@ static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_cache_dynamic_acls.attr,
 	&iscsi_tpg_attrib_demo_mode_write_protect.attr,
 	&iscsi_tpg_attrib_prod_mode_write_protect.attr,
+	&iscsi_tpg_attrib_demo_mode_discovery.attr,
+	&iscsi_tpg_attrib_default_erl.attr,
+	&iscsi_tpg_attrib_t10_pi.attr,
 	NULL,
 };
 
@@ -1514,21 +1533,21 @@ static struct se_wwn *lio_target_call_coreaddtiqn(
 		return ERR_PTR(-ENOMEM);
 	}
 
-	stats_cg->default_groups[0] = &WWN_STAT_GRPS(tiqn)->iscsi_instance_group;
-	stats_cg->default_groups[1] = &WWN_STAT_GRPS(tiqn)->iscsi_sess_err_group;
-	stats_cg->default_groups[2] = &WWN_STAT_GRPS(tiqn)->iscsi_tgt_attr_group;
-	stats_cg->default_groups[3] = &WWN_STAT_GRPS(tiqn)->iscsi_login_stats_group;
-	stats_cg->default_groups[4] = &WWN_STAT_GRPS(tiqn)->iscsi_logout_stats_group;
+	stats_cg->default_groups[0] = &tiqn->tiqn_stat_grps.iscsi_instance_group;
+	stats_cg->default_groups[1] = &tiqn->tiqn_stat_grps.iscsi_sess_err_group;
+	stats_cg->default_groups[2] = &tiqn->tiqn_stat_grps.iscsi_tgt_attr_group;
+	stats_cg->default_groups[3] = &tiqn->tiqn_stat_grps.iscsi_login_stats_group;
+	stats_cg->default_groups[4] = &tiqn->tiqn_stat_grps.iscsi_logout_stats_group;
 	stats_cg->default_groups[5] = NULL;
-	config_group_init_type_name(&WWN_STAT_GRPS(tiqn)->iscsi_instance_group,
+	config_group_init_type_name(&tiqn->tiqn_stat_grps.iscsi_instance_group,
 			"iscsi_instance", &iscsi_stat_instance_cit);
-	config_group_init_type_name(&WWN_STAT_GRPS(tiqn)->iscsi_sess_err_group,
+	config_group_init_type_name(&tiqn->tiqn_stat_grps.iscsi_sess_err_group,
 			"iscsi_sess_err", &iscsi_stat_sess_err_cit);
-	config_group_init_type_name(&WWN_STAT_GRPS(tiqn)->iscsi_tgt_attr_group,
+	config_group_init_type_name(&tiqn->tiqn_stat_grps.iscsi_tgt_attr_group,
 			"iscsi_tgt_attr", &iscsi_stat_tgt_attr_cit);
-	config_group_init_type_name(&WWN_STAT_GRPS(tiqn)->iscsi_login_stats_group,
+	config_group_init_type_name(&tiqn->tiqn_stat_grps.iscsi_login_stats_group,
 			"iscsi_login_stats", &iscsi_stat_login_cit);
-	config_group_init_type_name(&WWN_STAT_GRPS(tiqn)->iscsi_logout_stats_group,
+	config_group_init_type_name(&tiqn->tiqn_stat_grps.iscsi_logout_stats_group,
 			"iscsi_logout_stats", &iscsi_stat_logout_cit);
 
 	pr_debug("LIO_Target_ConfigFS: REGISTER -> %s\n", tiqn->tiqn);
@@ -1784,6 +1803,11 @@ static int lio_queue_status(struct se_cmd *se_cmd)
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
 	cmd->i_state = ISTATE_SEND_STATUS;
+
+	if (cmd->se_cmd.scsi_status || cmd->sense_reason) {
+		iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
+		return 0;
+	}
 	cmd->conn->conn_transport->iscsit_queue_status(cmd->conn, cmd);
 
 	return 0;
@@ -1795,6 +1819,13 @@ static void lio_queue_tm_rsp(struct se_cmd *se_cmd)
 
 	cmd->i_state = ISTATE_SEND_TASKMGTRSP;
 	iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
+}
+
+static void lio_aborted_task(struct se_cmd *se_cmd)
+{
+	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+
+	cmd->conn->conn_transport->iscsit_aborted_task(cmd->conn, cmd);
 }
 
 static char *lio_tpg_get_endpoint_wwn(struct se_portal_group *se_tpg)
@@ -1815,21 +1846,21 @@ static u32 lio_tpg_get_default_depth(struct se_portal_group *se_tpg)
 {
 	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
 
-	return ISCSI_TPG_ATTRIB(tpg)->default_cmdsn_depth;
+	return tpg->tpg_attrib.default_cmdsn_depth;
 }
 
 static int lio_tpg_check_demo_mode(struct se_portal_group *se_tpg)
 {
 	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
 
-	return ISCSI_TPG_ATTRIB(tpg)->generate_node_acls;
+	return tpg->tpg_attrib.generate_node_acls;
 }
 
 static int lio_tpg_check_demo_mode_cache(struct se_portal_group *se_tpg)
 {
 	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
 
-	return ISCSI_TPG_ATTRIB(tpg)->cache_dynamic_acls;
+	return tpg->tpg_attrib.cache_dynamic_acls;
 }
 
 static int lio_tpg_check_demo_mode_write_protect(
@@ -1837,7 +1868,7 @@ static int lio_tpg_check_demo_mode_write_protect(
 {
 	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
 
-	return ISCSI_TPG_ATTRIB(tpg)->demo_mode_write_protect;
+	return tpg->tpg_attrib.demo_mode_write_protect;
 }
 
 static int lio_tpg_check_prod_mode_write_protect(
@@ -1845,7 +1876,7 @@ static int lio_tpg_check_prod_mode_write_protect(
 {
 	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
 
-	return ISCSI_TPG_ATTRIB(tpg)->prod_mode_write_protect;
+	return tpg->tpg_attrib.prod_mode_write_protect;
 }
 
 static void lio_tpg_release_fabric_acl(
@@ -1908,9 +1939,12 @@ static void lio_set_default_node_attributes(struct se_node_acl *se_acl)
 {
 	struct iscsi_node_acl *acl = container_of(se_acl, struct iscsi_node_acl,
 				se_node_acl);
+	struct se_portal_group *se_tpg = se_acl->se_tpg;
+	struct iscsi_portal_group *tpg = container_of(se_tpg,
+				struct iscsi_portal_group, tpg_se_tpg);
 
-	ISCSI_NODE_ATTRIB(acl)->nacl = acl;
-	iscsit_set_default_node_attribues(acl);
+	acl->node_attrib.nacl = acl;
+	iscsit_set_default_node_attribues(acl, tpg);
 }
 
 static int lio_check_stop_free(struct se_cmd *se_cmd)
@@ -1978,6 +2012,7 @@ int iscsi_target_register_configfs(void)
 	fabric->tf_ops.queue_data_in = &lio_queue_data_in;
 	fabric->tf_ops.queue_status = &lio_queue_status;
 	fabric->tf_ops.queue_tm_rsp = &lio_queue_tm_rsp;
+	fabric->tf_ops.aborted_task = &lio_aborted_task;
 	/*
 	 * Setup function pointers for generic logic in target_core_fabric_configfs.c
 	 */
@@ -1995,17 +2030,17 @@ int iscsi_target_register_configfs(void)
 	 * Setup default attribute lists for various fabric->tf_cit_tmpl
 	 * sturct config_item_type's
 	 */
-	TF_CIT_TMPL(fabric)->tfc_discovery_cit.ct_attrs = lio_target_discovery_auth_attrs;
-	TF_CIT_TMPL(fabric)->tfc_wwn_cit.ct_attrs = lio_target_wwn_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_base_cit.ct_attrs = lio_target_tpg_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_attrib_cit.ct_attrs = lio_target_tpg_attrib_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_auth_cit.ct_attrs = lio_target_tpg_auth_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_param_cit.ct_attrs = lio_target_tpg_param_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_np_base_cit.ct_attrs = lio_target_portal_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_base_cit.ct_attrs = lio_target_initiator_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_attrib_cit.ct_attrs = lio_target_nacl_attrib_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_auth_cit.ct_attrs = lio_target_nacl_auth_attrs;
-	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_param_cit.ct_attrs = lio_target_nacl_param_attrs;
+	fabric->tf_cit_tmpl.tfc_discovery_cit.ct_attrs = lio_target_discovery_auth_attrs;
+	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = lio_target_wwn_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = lio_target_tpg_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = lio_target_tpg_attrib_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_auth_cit.ct_attrs = lio_target_tpg_auth_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = lio_target_tpg_param_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = lio_target_portal_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = lio_target_initiator_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = lio_target_nacl_attrib_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = lio_target_nacl_auth_attrs;
+	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = lio_target_nacl_param_attrs;
 
 	ret = target_fabric_configfs_register(fabric);
 	if (ret < 0) {

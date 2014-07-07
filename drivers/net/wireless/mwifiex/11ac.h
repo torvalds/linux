@@ -40,4 +40,6 @@ int mwifiex_cmd_append_11ac_tlv(struct mwifiex_private *priv,
 int mwifiex_cmd_11ac_cfg(struct mwifiex_private *priv,
 			 struct host_cmd_ds_command *cmd, u16 cmd_action,
 			 struct mwifiex_11ac_vht_cfg *cfg);
+void mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
+			      struct ieee80211_vht_cap *vht_cap, u8 bands);
 #endif /* _MWIFIEX_11AC_H_ */

@@ -24,15 +24,10 @@
 
 #include "priv.h"
 
-struct nvd0_gpio_priv {
-	struct nouveau_gpio base;
-};
-
 void
 nvd0_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 {
 	struct nouveau_bios *bios = nouveau_bios(gpio);
-	struct nvd0_gpio_priv *priv = (void *)gpio;
 	u8 ver, len;
 	u16 entry;
 	int ent = -1;
@@ -51,9 +46,9 @@ nvd0_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 
 		gpio->set(gpio, 0, func, line, defs);
 
-		nv_mask(priv, 0x00d610 + (line * 4), 0xff, unk0);
+		nv_mask(gpio, 0x00d610 + (line * 4), 0xff, unk0);
 		if (unk1--)
-			nv_mask(priv, 0x00d740 + (unk1 * 4), 0xff, line);
+			nv_mask(gpio, 0x00d740 + (unk1 * 4), 0xff, line);
 	}
 }
 
@@ -72,36 +67,19 @@ nvd0_gpio_sense(struct nouveau_gpio *gpio, int line)
 	return !!(nv_rd32(gpio, 0x00d610 + (line * 4)) & 0x00004000);
 }
 
-static int
-nvd0_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
-{
-	struct nvd0_gpio_priv *priv;
-	int ret;
-
-	ret = nouveau_gpio_create(parent, engine, oclass, 32, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.reset = nvd0_gpio_reset;
-	priv->base.drive = nvd0_gpio_drive;
-	priv->base.sense = nvd0_gpio_sense;
-	priv->base.events->priv = priv;
-	priv->base.events->enable = nv50_gpio_intr_enable;
-	priv->base.events->disable = nv50_gpio_intr_disable;
-	nv_subdev(priv)->intr = nv50_gpio_intr;
-	return 0;
-}
-
-struct nouveau_oclass
-nvd0_gpio_oclass = {
-	.handle = NV_SUBDEV(GPIO, 0xd0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvd0_gpio_ctor,
-		.dtor = nv50_gpio_dtor,
-		.init = nv50_gpio_init,
-		.fini = nv50_gpio_fini,
+struct nouveau_oclass *
+nvd0_gpio_oclass = &(struct nouveau_gpio_impl) {
+	.base.handle = NV_SUBDEV(GPIO, 0xd0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nouveau_gpio_ctor,
+		.dtor = _nouveau_gpio_dtor,
+		.init = _nouveau_gpio_init,
+		.fini = _nouveau_gpio_fini,
 	},
-};
+	.lines = 32,
+	.intr_stat = nv92_gpio_intr_stat,
+	.intr_mask = nv92_gpio_intr_mask,
+	.drive = nvd0_gpio_drive,
+	.sense = nvd0_gpio_sense,
+	.reset = nvd0_gpio_reset,
+}.base;

@@ -60,8 +60,7 @@
 #include <linux/types.h>		/* For standard types (like size_t) */
 #include <linux/errno.h>		/* For the -ENODEV/... values */
 #include <linux/kernel.h>		/* For printk/panic/... */
-#include <linux/miscdevice.h>		/* For MODULE_ALIAS_MISCDEV
-							(WATCHDOG_MINOR) */
+#include <linux/miscdevice.h>		/* For struct miscdevice */
 #include <linux/watchdog.h>		/* For the watchdog specific items */
 #include <linux/fs.h>			/* For file operations */
 #include <linux/ioport.h>		/* For io-port access */
@@ -240,7 +239,7 @@ static struct miscdevice acq_miscdev = {
  *	Init & exit routines
  */
 
-static int acq_probe(struct platform_device *dev)
+static int __init acq_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -292,7 +291,6 @@ static void acq_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver acquirewdt_driver = {
-	.probe		= acq_probe,
 	.remove		= acq_remove,
 	.shutdown	= acq_shutdown,
 	.driver		= {
@@ -307,20 +305,18 @@ static int __init acq_init(void)
 
 	pr_info("WDT driver for Acquire single board computer initialising\n");
 
-	err = platform_driver_register(&acquirewdt_driver);
-	if (err)
-		return err;
-
 	acq_platform_device = platform_device_register_simple(DRV_NAME,
 								-1, NULL, 0);
-	if (IS_ERR(acq_platform_device)) {
-		err = PTR_ERR(acq_platform_device);
-		goto unreg_platform_driver;
-	}
+	if (IS_ERR(acq_platform_device))
+		return PTR_ERR(acq_platform_device);
+
+	err = platform_driver_probe(&acquirewdt_driver, acq_probe);
+	if (err)
+		goto unreg_platform_device;
 	return 0;
 
-unreg_platform_driver:
-	platform_driver_unregister(&acquirewdt_driver);
+unreg_platform_device:
+	platform_device_unregister(acq_platform_device);
 	return err;
 }
 
@@ -337,4 +333,3 @@ module_exit(acq_exit);
 MODULE_AUTHOR("David Woodhouse");
 MODULE_DESCRIPTION("Acquire Inc. Single Board Computer Watchdog Timer driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

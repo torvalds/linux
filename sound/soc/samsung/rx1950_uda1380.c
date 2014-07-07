@@ -24,12 +24,14 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 
+#include <mach/gpio-samsung.h>
 #include "regs-iis.h"
 #include <asm/mach-types.h>
 
 #include "s3c24xx-i2s.h"
 
 static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd);
+static int rx1950_uda1380_card_remove(struct snd_soc_card *card);
 static int rx1950_startup(struct snd_pcm_substream *substream);
 static int rx1950_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params);
@@ -115,6 +117,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static struct snd_soc_card rx1950_asoc = {
 	.name = "rx1950",
 	.owner = THIS_MODULE,
+	.remove = rx1950_uda1380_card_remove,
 	.dai_link = rx1950_uda1380_dai,
 	.num_links = ARRAY_SIZE(rx1950_uda1380_dai),
 
@@ -129,10 +132,6 @@ static struct platform_device *s3c24xx_snd_device;
 static int rx1950_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-
-	runtime->hw.rate_min = hw_rates.list[0];
-	runtime->hw.rate_max = hw_rates.list[hw_rates.count - 1];
-	runtime->hw.rates = SNDRV_PCM_RATE_KNOT;
 
 	return snd_pcm_hw_constraint_list(runtime, 0,
 					SNDRV_PCM_HW_PARAM_RATE,
@@ -224,12 +223,6 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
-
-	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
-	snd_soc_dapm_enable_pin(dapm, "Speaker");
-	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
 		&hp_jack);
@@ -238,6 +231,14 @@ static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 		hp_jack_pins);
 
 	snd_soc_jack_add_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
+		hp_jack_gpios);
+
+	return 0;
+}
+
+static int rx1950_uda1380_card_remove(struct snd_soc_card *card)
+{
+	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
 		hp_jack_gpios);
 
 	return 0;
@@ -287,8 +288,6 @@ err_gpio:
 static void __exit rx1950_exit(void)
 {
 	platform_device_unregister(s3c24xx_snd_device);
-	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
-		hp_jack_gpios);
 	gpio_free(S3C2410_GPA(1));
 }
 

@@ -336,7 +336,7 @@ int gss_do_ctx_init_rpc(__user char *buffer, unsigned long count)
 	if (rc) {
 		/* If any _real_ denial be made, we expect server return
 		 * -EACCES reply or return success but indicate gss error
-		 * inside reply messsage. All other errors are treated as
+		 * inside reply message. All other errors are treated as
 		 * timeout, caller might try the negotiation repeatedly,
 		 * leave recovery decisions to general ptlrpc layer.
 		 *

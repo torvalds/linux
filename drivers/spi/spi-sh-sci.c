@@ -14,10 +14,8 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <linux/platform_device.h>
 
 #include <linux/spi/spi.h>
@@ -109,7 +107,7 @@ static void sh_sci_spi_chipselect(struct spi_device *dev, int value)
 {
 	struct sh_sci_spi *sp = spi_master_get_devdata(dev->master);
 
-	if (sp->info && sp->info->chip_select)
+	if (sp->info->chip_select)
 		(sp->info->chip_select)(sp->info, dev->chip_select, value);
 }
 
@@ -131,9 +129,14 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, sp);
 	sp->info = dev_get_platdata(&dev->dev);
+	if (!sp->info) {
+		dev_err(&dev->dev, "platform data is missing\n");
+		ret = -ENOENT;
+		goto err1;
+	}
 
 	/* setup spi bitbang adaptor */
-	sp->bitbang.master = spi_master_get(master);
+	sp->bitbang.master = master;
 	sp->bitbang.master->bus_num = sp->info->bus_num;
 	sp->bitbang.master->num_chipselect = sp->info->num_chipselect;
 	sp->bitbang.chipselect = sh_sci_spi_chipselect;
@@ -172,9 +175,9 @@ static int sh_sci_spi_remove(struct platform_device *dev)
 {
 	struct sh_sci_spi *sp = platform_get_drvdata(dev);
 
-	iounmap(sp->membase);
-	setbits(sp, PIN_INIT, 0);
 	spi_bitbang_stop(&sp->bitbang);
+	setbits(sp, PIN_INIT, 0);
+	iounmap(sp->membase);
 	spi_master_put(sp->bitbang.master);
 	return 0;
 }

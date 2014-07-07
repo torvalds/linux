@@ -15,39 +15,48 @@ be built as module or inside kernel. Let's consider those cases.
 
 	Part 2 - When dmatest is built as a module...
 
-After mounting debugfs and loading the module, the /sys/kernel/debug/dmatest
-folder with nodes will be created. There are two important files located. First
-is the 'run' node that controls run and stop phases of the test, and the second
-one, 'results', is used to get the test case results.
-
-Note that in this case test will not run on load automatically.
-
 Example of usage:
+	% modprobe dmatest channel=dma0chan0 timeout=2000 iterations=1 run=1
+
+...or:
+	% modprobe dmatest
 	% echo dma0chan0 > /sys/module/dmatest/parameters/channel
 	% echo 2000 > /sys/module/dmatest/parameters/timeout
 	% echo 1 > /sys/module/dmatest/parameters/iterations
-	% echo 1 > /sys/kernel/debug/dmatest/run
+	% echo 1 > /sys/module/dmatest/parameters/run
+
+...or on the kernel command line:
+
+	dmatest.channel=dma0chan0 dmatest.timeout=2000 dmatest.iterations=1 dmatest.run=1
 
 Hint: available channel list could be extracted by running the following
 command:
 	% ls -1 /sys/class/dma/
 
-After a while you will start to get messages about current status or error like
-in the original code.
+Once started a message like "dmatest: Started 1 threads using dma0chan0" is
+emitted.  After that only test failure messages are reported until the test
+stops.
 
 Note that running a new test will not stop any in progress test.
 
-The following command should return actual state of the test.
-	% cat /sys/kernel/debug/dmatest/run
+The following command returns the state of the test.
+	% cat /sys/module/dmatest/parameters/run
 
-To wait for test done the user may perform a busy loop that checks the state.
+To wait for test completion userpace can poll 'run' until it is false, or use
+the wait parameter.  Specifying 'wait=1' when loading the module causes module
+initialization to pause until a test run has completed, while reading
+/sys/module/dmatest/parameters/wait waits for any running test to complete
+before returning.  For example, the following scripts wait for 42 tests
+to complete before exiting.  Note that if 'iterations' is set to 'infinite' then
+waiting is disabled.
 
-	% while [ $(cat /sys/kernel/debug/dmatest/run) = "Y" ]
-	> do
-	> 	echo -n "."
-	> 	sleep 1
-	> done
-	> echo
+Example:
+	% modprobe dmatest run=1 iterations=42 wait=1
+	% modprobe -r dmatest
+...or:
+	% modprobe dmatest run=1 iterations=42
+	% cat /sys/module/dmatest/parameters/wait
+	% modprobe -r dmatest
 
 	Part 3 - When built-in in the kernel...
 
@@ -62,21 +71,22 @@ case. You always could check them at run-time by running
 
 	Part 4 - Gathering the test results
 
-The module provides a storage for the test results in the memory. The gathered
-data could be used after test is done.
+Test results are printed to the kernel log buffer with the format:
 
-The special file 'results' in the debugfs represents gathered data of the in
-progress test. The messages collected are printed to the kernel log as well.
+"dmatest: result <channel>: <test id>: '<error msg>' with src_off=<val> dst_off=<val> len=<val> (<err code>)"
 
 Example of output:
-	% cat /sys/kernel/debug/dmatest/results
-	dma0chan0-copy0: #1: No errors with src_off=0x7bf dst_off=0x8ad len=0x3fea (0)
+	% dmesg | tail -n 1
+	dmatest: result dma0chan0-copy0: #1: No errors with src_off=0x7bf dst_off=0x8ad len=0x3fea (0)
 
 The message format is unified across the different types of errors. A number in
 the parens represents additional information, e.g. error code, error counter,
-or status.
+or status.  A test thread also emits a summary line at completion listing the
+number of tests executed, number that failed, and a result code.
 
-Comparison between buffers is stored to the dedicated structure.
+Example:
+	% dmesg | tail -n 1
+	dmatest: dma0chan0-copy0: summary 1 test, 0 failures 1000 iops 100000 KB/s (0)
 
-Note that the verify result is now accessible only via file 'results' in the
-debugfs.
+The details of a data miscompare error are also emitted, but do not follow the
+above format.

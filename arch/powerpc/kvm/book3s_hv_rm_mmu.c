@@ -42,13 +42,14 @@ static int global_invalidates(struct kvm *kvm, unsigned long flags)
 
 	/*
 	 * If there is only one vcore, and it's currently running,
+	 * as indicated by local_paca->kvm_hstate.kvm_vcpu being set,
 	 * we can use tlbiel as long as we mark all other physical
 	 * cores as potentially having stale TLB entries for this lpid.
 	 * If we're not using MMU notifiers, we never take pages away
 	 * from the guest, so we can use tlbiel if requested.
 	 * Otherwise, don't use tlbiel.
 	 */
-	if (kvm->arch.online_vcores == 1 && local_paca->kvm_hstate.kvm_vcore)
+	if (kvm->arch.online_vcores == 1 && local_paca->kvm_hstate.kvm_vcpu)
 		global = 0;
 	else if (kvm->arch.using_mmu_notifiers)
 		global = 1;
@@ -111,7 +112,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	rcbits = hpte_r & (HPTE_R_R | HPTE_R_C);
 	ptel = rev->guest_rpte |= rcbits;
 	gfn = hpte_rpn(ptel, hpte_page_size(hpte_v, ptel));
-	memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
+	memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
 	if (!memslot)
 		return;
 
@@ -134,7 +135,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	unlock_rmap(rmap);
 }
 
-static pte_t lookup_linux_pte(pgd_t *pgdir, unsigned long hva,
+static pte_t lookup_linux_pte_and_update(pgd_t *pgdir, unsigned long hva,
 			      int writing, unsigned long *pte_sizep)
 {
 	pte_t *ptep;
@@ -192,7 +193,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	/* Find the memslot (if any) for this address */
 	gpa = (ptel & HPTE_R_RPN) & ~(psize - 1);
 	gfn = gpa >> PAGE_SHIFT;
-	memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
+	memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
 	pa = 0;
 	is_io = ~0ul;
 	rmap = NULL;
@@ -225,26 +226,28 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		is_io = pa & (HPTE_R_I | HPTE_R_W);
 		pte_size = PAGE_SIZE << (pa & KVMPPC_PAGE_ORDER_MASK);
 		pa &= PAGE_MASK;
+		pa |= gpa & ~PAGE_MASK;
 	} else {
 		/* Translate to host virtual address */
 		hva = __gfn_to_hva_memslot(memslot, gfn);
 
 		/* Look up the Linux PTE for the backing page */
 		pte_size = psize;
-		pte = lookup_linux_pte(pgdir, hva, writing, &pte_size);
-		if (pte_present(pte)) {
+		pte = lookup_linux_pte_and_update(pgdir, hva, writing,
+						  &pte_size);
+		if (pte_present(pte) && !pte_numa(pte)) {
 			if (writing && !pte_write(pte))
 				/* make the actual HPTE be read-only */
 				ptel = hpte_make_readonly(ptel);
 			is_io = hpte_cache_bits(pte_val(pte));
 			pa = pte_pfn(pte) << PAGE_SHIFT;
+			pa |= hva & (pte_size - 1);
+			pa |= gpa & ~PAGE_MASK;
 		}
 	}
 
 	if (pte_size < psize)
 		return H_PARAMETER;
-	if (pa && pte_size > psize)
-		pa |= gpa & (pte_size - 1);
 
 	ptel &= ~(HPTE_R_PP0 - psize);
 	ptel |= pa;
@@ -668,10 +671,11 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 
 			psize = hpte_page_size(v, r);
 			gfn = ((r & HPTE_R_RPN) & ~(psize - 1)) >> PAGE_SHIFT;
-			memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
+			memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
 			if (memslot) {
 				hva = __gfn_to_hva_memslot(memslot, gfn);
-				pte = lookup_linux_pte(pgdir, hva, 1, &psize);
+				pte = lookup_linux_pte_and_update(pgdir, hva,
+								  1, &psize);
 				if (pte_present(pte) && !pte_write(pte))
 					r = hpte_make_readonly(r);
 			}
@@ -749,6 +753,10 @@ static int slb_base_page_shift[4] = {
 	20,	/* 1M, unsupported */
 };
 
+/* When called from virtmode, this func should be protected by
+ * preempt_disable(), otherwise, the holding of HPTE_V_HVLOCK
+ * can trigger deadlock issue.
+ */
 long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 			      unsigned long valid)
 {

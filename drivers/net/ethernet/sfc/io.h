@@ -66,6 +66,18 @@
 #define EFX_USE_QWORD_IO 1
 #endif
 
+/* Hardware issue requires that only 64-bit naturally aligned writes
+ * are seen by hardware. Its not strictly necessary to restrict to
+ * x86_64 arch, but done for safety since unusual write combining behaviour
+ * can break PIO.
+ */
+#ifdef CONFIG_X86_64
+/* PIO is a win only if write-combining is possible */
+#ifdef ARCH_HAS_IOREMAP_WC
+#define EFX_USE_PIO 1
+#endif
+#endif
+
 #ifdef EFX_USE_QWORD_IO
 static inline void _efx_writeq(struct efx_nic *efx, __le64 value,
 				  unsigned int reg)

@@ -436,9 +436,6 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	rpc->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(rpc->base))
 		return PTR_ERR(rpc->base);
@@ -583,29 +580,7 @@ err_put_intc_node:
 
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	struct of_irq dev_irq;
-	int err;
-	int irq;
-
-	err = of_irq_map_pci(dev, &dev_irq);
-	if (err) {
-		pr_err("pci %s: unable to get irq map, err=%d\n",
-		       pci_name((struct pci_dev *) dev), err);
-		return 0;
-	}
-
-	irq = irq_create_of_mapping(dev_irq.controller,
-				    dev_irq.specifier,
-				    dev_irq.size);
-
-	if (irq == 0)
-		pr_crit("pci %s: no irq found for pin %u\n",
-			pci_name((struct pci_dev *) dev), pin);
-	else
-		pr_info("pci %s: using irq %d for pin %u\n",
-			pci_name((struct pci_dev *) dev), irq, pin);
-
-	return irq;
+	return of_irq_parse_and_map_pci(dev, slot, pin);
 }
 
 int pcibios_plat_dev_init(struct pci_dev *dev)

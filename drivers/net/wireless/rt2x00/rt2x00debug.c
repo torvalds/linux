@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -288,7 +286,7 @@ static ssize_t rt2x00debug_read_queue_dump(struct file *file,
 	if (retval)
 		return retval;
 
-	status = min((size_t)skb->len, length);
+	status = min_t(size_t, skb->len, length);
 	if (copy_to_user(buf, skb->data, status)) {
 		status = -EFAULT;
 		goto exit;
@@ -750,7 +748,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 				intf, &rt2x00debug_fop_queue_stats);
 
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
-	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_hw_crypto(rt2x00dev))
 		intf->crypto_stats_entry =
 		    debugfs_create_file("crypto", S_IRUGO, intf->queue_folder,
 					intf, &rt2x00debug_fop_crypto_stats);

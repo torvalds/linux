@@ -1916,8 +1916,6 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*rchip = chip;
 	return 0;
 }
@@ -2086,7 +2084,8 @@ snd_card_riptide_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 	err = snd_riptide_create(card, pci, &chip);

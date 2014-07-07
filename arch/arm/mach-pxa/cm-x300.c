@@ -310,6 +310,7 @@ static struct platform_pwm_backlight_data cm_x300_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
 	.pwm_period_ns	= 10000,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device cm_x300_backlight_device = {
@@ -836,8 +837,7 @@ static void __init cm_x300_init(void)
 	cm_x300_init_bl();
 }
 
-static void __init cm_x300_fixup(struct tag *tags, char **cmdline,
-				 struct meminfo *mi)
+static void __init cm_x300_fixup(struct tag *tags, char **cmdline)
 {
 	/* Make sure that mi->bank[0].start = PHYS_ADDR */
 	for (; tags->hdr.size; tags = tag_next(tags))

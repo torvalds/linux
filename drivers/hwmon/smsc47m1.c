@@ -7,7 +7,7 @@
  * Super-I/O chips.
  *
  * Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
- * Copyright (C) 2004-2007 Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2004-2007 Jean Delvare <jdelvare@suse.de>
  * Ported to Linux 2.6 by Gabriele Gorla <gorlik@yahoo.com>
  *			and Jean Delvare
  *

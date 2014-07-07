@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -457,7 +457,7 @@ struct acpi_hest_aer_common {
 	u8 enabled;
 	u32 records_to_preallocate;
 	u32 max_sections_per_record;
-	u32 bus;
+	u32 bus;		/* Bus and Segment numbers */
 	u16 device;
 	u16 function;
 	u16 device_control;
@@ -472,6 +472,14 @@ struct acpi_hest_aer_common {
 
 #define ACPI_HEST_FIRMWARE_FIRST        (1)
 #define ACPI_HEST_GLOBAL                (1<<1)
+
+/*
+ * Macros to access the bus/segment numbers in Bus field above:
+ *  Bus number is encoded in bits 7:0
+ *  Segment number is encoded in bits 23:8
+ */
+#define ACPI_HEST_BUS(bus)              ((bus) & 0xFF)
+#define ACPI_HEST_SEGMENT(bus)          (((bus) >> 8) & 0xFFFF)
 
 /* Hardware Error Notification */
 
@@ -596,7 +604,7 @@ struct acpi_hest_generic {
 
 /* Generic Error Status block */
 
-struct acpi_hest_generic_status {
+struct acpi_generic_status {
 	u32 block_status;
 	u32 raw_data_offset;
 	u32 raw_data_length;
@@ -606,15 +614,15 @@ struct acpi_hest_generic_status {
 
 /* Values for block_status flags above */
 
-#define ACPI_HEST_UNCORRECTABLE             (1)
-#define ACPI_HEST_CORRECTABLE               (1<<1)
-#define ACPI_HEST_MULTIPLE_UNCORRECTABLE    (1<<2)
-#define ACPI_HEST_MULTIPLE_CORRECTABLE      (1<<3)
-#define ACPI_HEST_ERROR_ENTRY_COUNT         (0xFF<<4)	/* 8 bits, error count */
+#define ACPI_GEN_ERR_UC			BIT(0)
+#define ACPI_GEN_ERR_CE			BIT(1)
+#define ACPI_GEN_ERR_MULTI_UC		BIT(2)
+#define ACPI_GEN_ERR_MULTI_CE		BIT(3)
+#define ACPI_GEN_ERR_COUNT_SHIFT	(0xFF<<4) /* 8 bits, error count */
 
 /* Generic Error Data entry */
 
-struct acpi_hest_generic_data {
+struct acpi_generic_data {
 	u8 section_type[16];
 	u32 error_severity;
 	u16 revision;
@@ -667,7 +675,7 @@ enum acpi_madt_type {
 };
 
 /*
- * MADT Sub-tables, correspond to Type in struct acpi_subtable_header
+ * MADT Subtables, correspond to Type in struct acpi_subtable_header
  */
 
 /* 0: Processor Local APIC */
@@ -910,7 +918,7 @@ enum acpi_srat_type {
 };
 
 /*
- * SRAT Sub-tables, correspond to Type in struct acpi_subtable_header
+ * SRAT Subtables, correspond to Type in struct acpi_subtable_header
  */
 
 /* 0: Processor Local APIC/SAPIC Affinity */

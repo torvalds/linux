@@ -244,7 +244,7 @@ static ssize_t uwb_dev_RSSI_store(struct device *dev,
 static DEVICE_ATTR(RSSI, S_IRUGO | S_IWUSR, uwb_dev_RSSI_show, uwb_dev_RSSI_store);
 
 
-static struct attribute *dev_attrs[] = {
+static struct attribute *uwb_dev_attrs[] = {
 	&dev_attr_EUI_48.attr,
 	&dev_attr_DevAddr.attr,
 	&dev_attr_BPST.attr,
@@ -253,20 +253,10 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_RSSI.attr,
 	NULL,
 };
-
-static struct attribute_group dev_attr_group = {
-	.attrs = dev_attrs,
-};
-
-static const struct attribute_group *groups[] = {
-	&dev_attr_group,
-	NULL,
-};
+ATTRIBUTE_GROUPS(uwb_dev);
 
 /**
  * Device SYSFS registration
- *
- *
  */
 static int __uwb_dev_sys_add(struct uwb_dev *uwb_dev, struct device *parent_dev)
 {
@@ -276,7 +266,7 @@ static int __uwb_dev_sys_add(struct uwb_dev *uwb_dev, struct device *parent_dev)
 	/* Device sysfs files are only useful for neighbor devices not
 	   local radio controllers. */
 	if (&uwb_dev->rc->uwb_dev != uwb_dev)
-		dev->groups = groups;
+		dev->groups = uwb_dev_groups;
 	dev->parent = parent_dev;
 	dev_set_drvdata(dev, uwb_dev);
 

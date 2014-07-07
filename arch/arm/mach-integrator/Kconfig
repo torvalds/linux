@@ -6,8 +6,8 @@ config ARCH_INTEGRATOR_AP
 	bool "Support Integrator/AP and Integrator/PP2 platforms"
 	select CLKSRC_MMIO
 	select MIGHT_HAVE_PCI
-	select SERIAL_AMBA_PL010
-	select SERIAL_AMBA_PL010_CONSOLE
+	select SERIAL_AMBA_PL010 if TTY
+	select SERIAL_AMBA_PL010_CONSOLE if TTY
 	select SOC_BUS
 	help
 	  Include support for the ARM(R) Integrator/AP and
@@ -18,8 +18,8 @@ config ARCH_INTEGRATOR_CP
 	select ARCH_CINTEGRATOR
 	select ARM_TIMER_SP804
 	select PLAT_VERSATILE_CLCD
-	select SERIAL_AMBA_PL011
-	select SERIAL_AMBA_PL011_CONSOLE
+	select SERIAL_AMBA_PL011 if TTY
+	select SERIAL_AMBA_PL011_CONSOLE if TTY
 	select SOC_BUS
 	help
 	  Include support for the ARM(R) Integrator CP platform.
@@ -28,8 +28,11 @@ config ARCH_CINTEGRATOR
 	bool
 
 config INTEGRATOR_IMPD1
-	tristate "Include support for Integrator/IM-PD1"
+	bool "Include support for Integrator/IM-PD1"
 	depends on ARCH_INTEGRATOR_AP
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_VIC
+	select GPIO_PL061 if GPIOLIB
 	help
 	  The IM-PD1 is an add-on logic module for the Integrator which
 	  allows ARM(R) Ltd PrimeCells to be developed and evaluated.

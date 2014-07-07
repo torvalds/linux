@@ -24,6 +24,8 @@
 #include "powerdomain.h"
 #include "pm.h"
 
+u16 pm44xx_errata;
+
 struct power_state {
 	struct powerdomain *pwrdm;
 	u32 next_state;
@@ -94,6 +96,8 @@ static int omap4_pm_suspend(void)
 
 	return 0;
 }
+#else
+#define omap4_pm_suspend NULL
 #endif /* CONFIG_SUSPEND */
 
 static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
@@ -199,6 +203,19 @@ static inline int omap4_init_static_deps(void)
 }
 
 /**
+ * omap4_pm_init_early - Does early initialization necessary for OMAP4+ devices
+ *
+ * Initializes basic stuff for power management functionality.
+ */
+int __init omap4_pm_init_early(void)
+{
+	if (cpu_is_omap446x())
+		pm44xx_errata |= PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD;
+
+	return 0;
+}
+
+/**
  * omap4_pm_init - Init routine for OMAP4+ devices
  *
  * Initializes all powerdomain and clockdomain target states
@@ -236,9 +253,7 @@ int __init omap4_pm_init(void)
 
 	(void) clkdm_for_each(omap_pm_clkdms_setup, NULL);
 
-#ifdef CONFIG_SUSPEND
-	omap_pm_suspend = omap4_pm_suspend;
-#endif
+	omap_common_suspend_init(omap4_pm_suspend);
 
 	/* Overwrite the default cpu_do_idle() */
 	arm_pm_idle = omap_default_idle;

@@ -195,16 +195,17 @@ static int cr_backlight_probe(struct platform_device *pdev)
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
-	bdp = backlight_device_register("cr-backlight", &pdev->dev, NULL,
-					&cr_backlight_ops, &props);
+	bdp = devm_backlight_device_register(&pdev->dev, "cr-backlight",
+					&pdev->dev, NULL, &cr_backlight_ops,
+					&props);
 	if (IS_ERR(bdp)) {
 		pci_dev_put(lpc_dev);
 		return PTR_ERR(bdp);
 	}
 
-	ldp = lcd_device_register("cr-lcd", &pdev->dev, NULL, &cr_lcd_ops);
+	ldp = devm_lcd_device_register(&pdev->dev, "cr-lcd", &pdev->dev, NULL,
+					&cr_lcd_ops);
 	if (IS_ERR(ldp)) {
-		backlight_device_unregister(bdp);
 		pci_dev_put(lpc_dev);
 		return PTR_ERR(ldp);
 	}
@@ -215,8 +216,6 @@ static int cr_backlight_probe(struct platform_device *pdev)
 
 	crp = devm_kzalloc(&pdev->dev, sizeof(*crp), GFP_KERNEL);
 	if (!crp) {
-		lcd_device_unregister(ldp);
-		backlight_device_unregister(bdp);
 		pci_dev_put(lpc_dev);
 		return -ENOMEM;
 	}
@@ -241,8 +240,6 @@ static int cr_backlight_remove(struct platform_device *pdev)
 	crp->cr_backlight_device->props.max_brightness = 0;
 	cr_backlight_set_intensity(crp->cr_backlight_device);
 	cr_lcd_set_power(crp->cr_lcd_device, FB_BLANK_POWERDOWN);
-	backlight_device_unregister(crp->cr_backlight_device);
-	lcd_device_unregister(crp->cr_lcd_device);
 	pci_dev_put(lpc_dev);
 
 	return 0;

@@ -63,9 +63,10 @@ enum zpci_state {
 };
 
 struct zpci_bar_struct {
+	struct resource *res;		/* bus resource */
 	u32		val;		/* bar start & 3 flag bits */
-	u8		size;		/* order 2 exponent */
 	u16		map_idx;	/* index into bar mapping array */
+	u8		size;		/* order 2 exponent */
 };
 
 /* Private data per function */
@@ -77,9 +78,15 @@ struct zpci_dev {
 	enum zpci_state state;
 	u32		fid;		/* function ID, used by sclp */
 	u32		fh;		/* function handle, used by insn's */
+	u16		vfn;		/* virtual function number */
 	u16		pchid;		/* physical channel ID */
 	u8		pfgid;		/* function group ID */
+	u8		pft;		/* pci function type */
 	u16		domain;
+
+	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
+	u32 uid;			/* user defined id */
+	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
 
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
@@ -97,6 +104,7 @@ struct zpci_dev {
 	unsigned long	iommu_pages;
 	unsigned int	next_bit;
 
+	char res_name[16];
 	struct zpci_bar_struct bars[PCI_BAR_COUNT];
 
 	u64		start_dma;	/* Start of available DMA addresses */
@@ -118,16 +126,16 @@ static inline bool zdev_enabled(struct zpci_dev *zdev)
 	return (zdev->fh & (1UL << 31)) ? true : false;
 }
 
+extern const struct attribute_group *zpci_attr_groups[];
+
 /* -----------------------------------------------------------------------------
   Prototypes
 ----------------------------------------------------------------------------- */
 /* Base stuff */
-struct zpci_dev *zpci_alloc_device(void);
 int zpci_create_device(struct zpci_dev *);
 int zpci_enable_device(struct zpci_dev *);
 int zpci_disable_device(struct zpci_dev *);
 void zpci_stop_device(struct zpci_dev *);
-void zpci_free_device(struct zpci_dev *);
 int zpci_register_ioat(struct zpci_dev *, u8, u64, u64, u64);
 int zpci_unregister_ioat(struct zpci_dev *, u8);
 
@@ -144,6 +152,7 @@ int clp_disable_fh(struct zpci_dev *);
 void zpci_event_error(void *);
 void zpci_event_availability(void *);
 void zpci_rescan(void);
+bool zpci_is_enabled(void);
 #else /* CONFIG_PCI */
 static inline void zpci_event_error(void *e) {}
 static inline void zpci_event_availability(void *e) {}
@@ -164,10 +173,6 @@ static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);
 struct zpci_dev *get_zdev_by_fid(u32);
-
-/* sysfs */
-int zpci_sysfs_add_device(struct device *);
-void zpci_sysfs_remove_device(struct device *);
 
 /* DMA */
 int zpci_dma_init(void);

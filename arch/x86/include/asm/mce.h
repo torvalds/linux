@@ -16,6 +16,7 @@
 #define MCG_EXT_CNT_SHIFT	16
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
 #define MCG_SER_P		(1ULL<<24)   /* MCA recovery/new status bits */
+#define MCG_ELOG_P		(1ULL<<26)   /* Extended error log supported */
 
 /* MCG_STATUS register defines */
 #define MCG_STATUS_RIPV  (1ULL<<0)   /* restart ip valid */
@@ -117,7 +118,6 @@ extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
 #include <linux/percpu.h>
-#include <linux/init.h>
 #include <linux/atomic.h>
 
 extern int mce_p5_enabled;
@@ -175,8 +175,6 @@ int mce_available(struct cpuinfo_x86 *c);
 
 DECLARE_PER_CPU(unsigned, mce_exception_count);
 DECLARE_PER_CPU(unsigned, mce_poll_count);
-
-extern atomic_t mce_entry;
 
 typedef DECLARE_BITMAP(mce_banks_t, MAX_NR_BANKS);
 DECLARE_PER_CPU(mce_banks_t, mce_poll_banks);

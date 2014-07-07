@@ -137,7 +137,7 @@ ENTRY(csum_partial)
 	ldi r25, 0
 	mv r10, r5
 	cmpi.c	r5, 0x8
-	blt	small_csumcpy		/* < 8(singed) bytes to copy */
+	blt	small_csumcpy		/* < 8(signed) bytes to copy */
 	cmpi.c	r5, 0x0
 	beq	out
 	andri.c	r25, src, 0x1		/* odd buffer? */

@@ -11,6 +11,7 @@
 #include <linux/user_namespace.h>
 #include <linux/securebits.h>
 #include <linux/seqlock.h>
+#include <linux/rbtree.h>
 #include <net/net_namespace.h>
 #include <linux/sched/rt.h>
 
@@ -32,14 +33,15 @@ extern struct fs_struct init_fs;
 #endif
 
 #ifdef CONFIG_CPUSETS
-#define INIT_CPUSET_SEQ							\
-	.mems_allowed_seq = SEQCNT_ZERO,
+#define INIT_CPUSET_SEQ(tsk)							\
+	.mems_allowed_seq = SEQCNT_ZERO(tsk.mems_allowed_seq),
 #else
-#define INIT_CPUSET_SEQ
+#define INIT_CPUSET_SEQ(tsk)
 #endif
 
 #define INIT_SIGNALS(sig) {						\
 	.nr_threads	= 1,						\
+	.thread_head	= LIST_HEAD_INIT(init_task.thread_node),	\
 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(sig.wait_chldexit),\
 	.shared_pending	= { 						\
 		.list = LIST_HEAD_INIT(sig.shared_pending.list),	\
@@ -95,7 +97,7 @@ extern struct group_info init_groups;
 #ifdef CONFIG_AUDITSYSCALL
 #define INIT_IDS \
 	.loginuid = INVALID_UID, \
-	.sessionid = -1,
+	.sessionid = (unsigned int)-1,
 #else
 #define INIT_IDS
 #endif
@@ -153,6 +155,14 @@ extern struct task_group root_task_group;
 #endif
 
 #define INIT_TASK_COMM "swapper"
+
+#ifdef CONFIG_RT_MUTEXES
+# define INIT_RT_MUTEXES(tsk)						\
+	.pi_waiters = RB_ROOT,						\
+	.pi_waiters_leftmost = NULL,
+#else
+# define INIT_RT_MUTEXES(tsk)
+#endif
 
 /*
  *  INIT_TASK is used to set up the first task table, touch at
@@ -213,6 +223,7 @@ extern struct task_group root_task_group;
 		[PIDTYPE_SID]  = INIT_PID_LINK(PIDTYPE_SID),		\
 	},								\
 	.thread_group	= LIST_HEAD_INIT(tsk.thread_group),		\
+	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),	\
 	INIT_IDS							\
 	INIT_PERF_EVENTS(tsk)						\
 	INIT_TRACE_IRQFLAGS						\
@@ -220,7 +231,8 @@ extern struct task_group root_task_group;
 	INIT_FTRACE_GRAPH						\
 	INIT_TRACE_RECURSION						\
 	INIT_TASK_RCU_PREEMPT(tsk)					\
-	INIT_CPUSET_SEQ							\
+	INIT_CPUSET_SEQ(tsk)						\
+	INIT_RT_MUTEXES(tsk)						\
 	INIT_VTIME(tsk)							\
 }
 

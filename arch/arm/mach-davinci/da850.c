@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/cpufreq.h>
 #include <linux/regulator/consumer.h>
+#include <linux/platform_data/gpio-davinci.h>
 
 #include <asm/mach/map.h>
 
@@ -28,7 +29,6 @@
 #include <mach/da8xx.h>
 #include <mach/cpufreq.h>
 #include <mach/pm.h>
-#include <mach/gpio-davinci.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -443,7 +443,7 @@ static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"pll1_sysclk3",	&pll1_sysclk3),
 	CLK("i2c_davinci.1",	NULL,		&i2c0_clk),
 	CLK(NULL,		"timer0",	&timerp64_0_clk),
-	CLK("watchdog",		NULL,		&timerp64_1_clk),
+	CLK("davinci-wdt",	NULL,		&timerp64_1_clk),
 	CLK(NULL,		"arm_rom",	&arm_rom_clk),
 	CLK(NULL,		"tpcc0",	&tpcc0_clk),
 	CLK(NULL,		"tptc0",	&tptc0_clk),
@@ -472,7 +472,7 @@ static struct clk_lookup da850_clks[] = {
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
 	CLK("vpif",		NULL,		&vpif_clk),
-	CLK("ahci",		NULL,		&sata_clk),
+	CLK("ahci_da850",		NULL,		&sata_clk),
 	CLK("davinci-rproc.0",	NULL,		&dsp_clk),
 	CLK("ehrpwm",		"fck",		&ehrpwm_clk),
 	CLK("ehrpwm",		"tbclk",	&ehrpwm_tbclk),
@@ -1092,20 +1092,21 @@ int da850_register_cpufreq(char *async_clk)
 
 static int da850_round_armrate(struct clk *clk, unsigned long rate)
 {
-	int i, ret = 0, diff;
+	int ret = 0, diff;
 	unsigned int best = (unsigned int) -1;
 	struct cpufreq_frequency_table *table = cpufreq_info.freq_table;
+	struct cpufreq_frequency_table *pos;
 
 	rate /= 1000; /* convert to kHz */
 
-	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		diff = table[i].frequency - rate;
+	cpufreq_for_each_entry(pos, table) {
+		diff = pos->frequency - rate;
 		if (diff < 0)
 			diff = -diff;
 
 		if (diff < best) {
 			best = diff;
-			ret = table[i].frequency;
+			ret = pos->frequency;
 		}
 	}
 
@@ -1281,6 +1282,15 @@ int __init da850_register_vpif_capture(struct vpif_capture_config
 	return platform_device_register(&da850_vpif_capture_dev);
 }
 
+static struct davinci_gpio_platform_data da850_gpio_platform_data = {
+	.ngpio = 144,
+};
+
+int __init da850_register_gpio(void)
+{
+	return da8xx_register_gpio(&da850_gpio_platform_data);
+}
+
 static struct davinci_soc_info davinci_soc_info_da850 = {
 	.io_desc		= da850_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da850_io_desc),
@@ -1298,10 +1308,6 @@ static struct davinci_soc_info davinci_soc_info_da850 = {
 	.intc_irq_prios		= da850_default_priorities,
 	.intc_irq_num		= DA850_N_CP_INTC_IRQ,
 	.timer_info		= &da850_timer_info,
-	.gpio_type		= GPIO_TYPE_DAVINCI,
-	.gpio_base		= DA8XX_GPIO_BASE,
-	.gpio_num		= 144,
-	.gpio_irq		= IRQ_DA8XX_GPIO0,
 	.emac_pdata		= &da8xx_emac_pdata,
 	.sram_dma		= DA8XX_SHARED_RAM_BASE,
 	.sram_len		= SZ_128K,

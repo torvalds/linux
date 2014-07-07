@@ -21,6 +21,10 @@
 #include <asm/backlight.h>
 #endif
 
+static struct list_head backlight_dev_list;
+static struct mutex backlight_dev_list_mutex;
+static struct blocking_notifier_head backlight_notifier;
+
 static const char *const backlight_types[] = {
 	[BACKLIGHT_RAW] = "raw",
 	[BACKLIGHT_PLATFORM] = "platform",
@@ -31,13 +35,15 @@ static const char *const backlight_types[] = {
 			   defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE))
 /* This callback gets called when something important happens inside a
  * framebuffer driver. We're looking if that important event is blanking,
- * and if it is, we're switching backlight power as well ...
+ * and if it is and necessary, we're switching backlight power as well ...
  */
 static int fb_notifier_callback(struct notifier_block *self,
 				unsigned long event, void *data)
 {
 	struct backlight_device *bd;
 	struct fb_event *evdata = data;
+	int node = evdata->info->node;
+	int fb_blank = 0;
 
 	/* If we aren't interested in this event, skip it immediately ... */
 	if (event != FB_EVENT_BLANK && event != FB_EVENT_CONBLANK)
@@ -48,12 +54,24 @@ static int fb_notifier_callback(struct notifier_block *self,
 	if (bd->ops)
 		if (!bd->ops->check_fb ||
 		    bd->ops->check_fb(bd, evdata->info)) {
-			bd->props.fb_blank = *(int *)evdata->data;
-			if (bd->props.fb_blank == FB_BLANK_UNBLANK)
-				bd->props.state &= ~BL_CORE_FBBLANK;
-			else
-				bd->props.state |= BL_CORE_FBBLANK;
-			backlight_update_status(bd);
+			fb_blank = *(int *)evdata->data;
+			if (fb_blank == FB_BLANK_UNBLANK &&
+			    !bd->fb_bl_on[node]) {
+				bd->fb_bl_on[node] = true;
+				if (!bd->use_count++) {
+					bd->props.state &= ~BL_CORE_FBBLANK;
+					bd->props.fb_blank = FB_BLANK_UNBLANK;
+					backlight_update_status(bd);
+				}
+			} else if (fb_blank != FB_BLANK_UNBLANK &&
+				   bd->fb_bl_on[node]) {
+				bd->fb_bl_on[node] = false;
+				if (!(--bd->use_count)) {
+					bd->props.state |= BL_CORE_FBBLANK;
+					bd->props.fb_blank = fb_blank;
+					backlight_update_status(bd);
+				}
+			}
 		}
 	mutex_unlock(&bd->ops_lock);
 	return 0;
@@ -330,7 +348,7 @@ struct backlight_device *backlight_device_register(const char *name,
 
 	rc = device_register(&new_bd->dev);
 	if (rc) {
-		kfree(new_bd);
+		put_device(&new_bd->dev);
 		return ERR_PTR(rc);
 	}
 
@@ -349,9 +367,34 @@ struct backlight_device *backlight_device_register(const char *name,
 	mutex_unlock(&pmac_backlight_mutex);
 #endif
 
+	mutex_lock(&backlight_dev_list_mutex);
+	list_add(&new_bd->entry, &backlight_dev_list);
+	mutex_unlock(&backlight_dev_list_mutex);
+
+	blocking_notifier_call_chain(&backlight_notifier,
+				     BACKLIGHT_REGISTERED, new_bd);
+
 	return new_bd;
 }
 EXPORT_SYMBOL(backlight_device_register);
+
+bool backlight_device_registered(enum backlight_type type)
+{
+	bool found = false;
+	struct backlight_device *bd;
+
+	mutex_lock(&backlight_dev_list_mutex);
+	list_for_each_entry(bd, &backlight_dev_list, entry) {
+		if (bd->props.type == type) {
+			found = true;
+			break;
+		}
+	}
+	mutex_unlock(&backlight_dev_list_mutex);
+
+	return found;
+}
+EXPORT_SYMBOL(backlight_device_registered);
 
 /**
  * backlight_device_unregister - unregisters a backlight device object.
@@ -364,12 +407,20 @@ void backlight_device_unregister(struct backlight_device *bd)
 	if (!bd)
 		return;
 
+	mutex_lock(&backlight_dev_list_mutex);
+	list_del(&bd->entry);
+	mutex_unlock(&backlight_dev_list_mutex);
+
 #ifdef CONFIG_PMAC_BACKLIGHT
 	mutex_lock(&pmac_backlight_mutex);
 	if (pmac_backlight == bd)
 		pmac_backlight = NULL;
 	mutex_unlock(&pmac_backlight_mutex);
 #endif
+
+	blocking_notifier_call_chain(&backlight_notifier,
+				     BACKLIGHT_UNREGISTERED, bd);
+
 	mutex_lock(&bd->ops_lock);
 	bd->ops = NULL;
 	mutex_unlock(&bd->ops_lock);
@@ -393,6 +444,36 @@ static int devm_backlight_device_match(struct device *dev, void *res,
 
 	return *r == data;
 }
+
+/**
+ * backlight_register_notifier - get notified of backlight (un)registration
+ * @nb: notifier block with the notifier to call on backlight (un)registration
+ *
+ * @return 0 on success, otherwise a negative error code
+ *
+ * Register a notifier to get notified when backlight devices get registered
+ * or unregistered.
+ */
+int backlight_register_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&backlight_notifier, nb);
+}
+EXPORT_SYMBOL(backlight_register_notifier);
+
+/**
+ * backlight_unregister_notifier - unregister a backlight notifier
+ * @nb: notifier block to unregister
+ *
+ * @return 0 on success, otherwise a negative error code
+ *
+ * Register a notifier to get notified when backlight devices get registered
+ * or unregistered.
+ */
+int backlight_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&backlight_notifier, nb);
+}
+EXPORT_SYMBOL(backlight_unregister_notifier);
 
 /**
  * devm_backlight_device_register - resource managed backlight_device_register()
@@ -499,6 +580,10 @@ static int __init backlight_class_init(void)
 
 	backlight_class->dev_groups = bl_device_groups;
 	backlight_class->pm = &backlight_class_dev_pm_ops;
+	INIT_LIST_HEAD(&backlight_dev_list);
+	mutex_init(&backlight_dev_list_mutex);
+	BLOCKING_INIT_NOTIFIER_HEAD(&backlight_notifier);
+
 	return 0;
 }
 

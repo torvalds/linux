@@ -521,7 +521,7 @@ static pmu_config_t		*pmu_conf;
 pfm_sysctl_t pfm_sysctl;
 EXPORT_SYMBOL(pfm_sysctl);
 
-static ctl_table pfm_ctl_table[]={
+static struct ctl_table pfm_ctl_table[] = {
 	{
 		.procname	= "debug",
 		.data		= &pfm_sysctl.debug,
@@ -552,7 +552,7 @@ static ctl_table pfm_ctl_table[]={
 	},
 	{}
 };
-static ctl_table pfm_sysctl_dir[] = {
+static struct ctl_table pfm_sysctl_dir[] = {
 	{
 		.procname	= "perfmon",
 		.mode		= 0555,
@@ -560,7 +560,7 @@ static ctl_table pfm_sysctl_dir[] = {
 	},
  	{}
 };
-static ctl_table pfm_sysctl_root[] = {
+static struct ctl_table pfm_sysctl_root[] = {
 	{
 		.procname	= "kernel",
 		.mode		= 0555,
@@ -2166,12 +2166,6 @@ static const struct file_operations pfm_file_ops = {
 	.flush		= pfm_flush
 };
 
-static int
-pfmfs_delete_dentry(const struct dentry *dentry)
-{
-	return 1;
-}
-
 static char *pfmfs_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	return dynamic_dname(dentry, buffer, buflen, "pfm:[%lu]",
@@ -2179,7 +2173,7 @@ static char *pfmfs_dname(struct dentry *dentry, char *buffer, int buflen)
 }
 
 static const struct dentry_operations pfmfs_dentry_operations = {
-	.d_delete = pfmfs_delete_dentry,
+	.d_delete = always_delete_dentry,
 	.d_dname = pfmfs_dname,
 };
 
@@ -6393,7 +6387,6 @@ pfm_flush_pmds(struct task_struct *task, pfm_context_t *ctx)
 
 static struct irqaction perfmon_irqaction = {
 	.handler = pfm_interrupt_handler,
-	.flags   = IRQF_DISABLED,
 	.name    = "perfmon"
 };
 

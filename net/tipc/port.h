@@ -1,7 +1,7 @@
 /*
  * net/tipc/port.h: Include file for TIPC port code
  *
- * Copyright (c) 1994-2007, Ericsson AB
+ * Copyright (c) 1994-2007, 2014, Ericsson AB
  * Copyright (c) 2004-2007, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -42,13 +42,13 @@
 #include "msg.h"
 #include "node_subscr.h"
 
-#define TIPC_FLOW_CONTROL_WIN 512
-#define CONN_OVERLOAD_LIMIT	((TIPC_FLOW_CONTROL_WIN * 2 + 1) * \
-				SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
+#define TIPC_CONNACK_INTV         256
+#define TIPC_FLOWCTRL_WIN        (TIPC_CONNACK_INTV * 2)
+#define TIPC_CONN_OVERLOAD_LIMIT ((TIPC_FLOWCTRL_WIN * 2 + 1) * \
+				  SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
 
 /**
  * struct tipc_port - TIPC port structure
- * @sk: pointer to socket handle
  * @lock: pointer to spinlock for controlling access to port
  * @connected: non-zero if port is currently connected to a peer port
  * @conn_type: TIPC type used when connection was established
@@ -60,8 +60,6 @@
  * @ref: unique reference to port in TIPC object registry
  * @phdr: preformatted message header used when sending messages
  * @port_list: adjacent ports in TIPC's global list of ports
- * @dispatcher: ptr to routine which handles received messages
- * @wakeup: ptr to routine to call when port is no longer congested
  * @wait_list: adjacent ports in list of ports waiting on link congestion
  * @waiting_pkts:
  * @sent: # of non-empty messages sent by port
@@ -74,7 +72,6 @@
  * @subscription: "node down" subscription used to terminate failed connections
  */
 struct tipc_port {
-	struct sock *sk;
 	spinlock_t *lock;
 	int connected;
 	u32 conn_type;
@@ -86,8 +83,6 @@ struct tipc_port {
 	u32 ref;
 	struct tipc_msg phdr;
 	struct list_head port_list;
-	u32 (*dispatcher)(struct tipc_port *, struct sk_buff *);
-	void (*wakeup)(struct tipc_port *);
 	struct list_head wait_list;
 	u32 waiting_pkts;
 	u32 sent;
@@ -106,72 +101,70 @@ struct tipc_port_list;
 /*
  * TIPC port manipulation routines
  */
-struct tipc_port *tipc_createport(struct sock *sk,
-				  u32 (*dispatcher)(struct tipc_port *,
-				  struct sk_buff *),
-				  void (*wakeup)(struct tipc_port *),
-				  const u32 importance);
+u32 tipc_port_init(struct tipc_port *p_ptr,
+		   const unsigned int importance);
 
 int tipc_reject_msg(struct sk_buff *buf, u32 err);
 
 void tipc_acknowledge(u32 port_ref, u32 ack);
 
-int tipc_deleteport(u32 portref);
+void tipc_port_destroy(struct tipc_port *p_ptr);
 
-int tipc_portimportance(u32 portref, unsigned int *importance);
-int tipc_set_portimportance(u32 portref, unsigned int importance);
-
-int tipc_portunreliable(u32 portref, unsigned int *isunreliable);
-int tipc_set_portunreliable(u32 portref, unsigned int isunreliable);
-
-int tipc_portunreturnable(u32 portref, unsigned int *isunreturnable);
-int tipc_set_portunreturnable(u32 portref, unsigned int isunreturnable);
-
-int tipc_publish(u32 portref, unsigned int scope,
+int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
 		 struct tipc_name_seq const *name_seq);
-int tipc_withdraw(u32 portref, unsigned int scope,
+
+int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
 		  struct tipc_name_seq const *name_seq);
 
-int tipc_connect(u32 portref, struct tipc_portid const *port);
+int tipc_port_connect(u32 portref, struct tipc_portid const *port);
 
-int tipc_disconnect(u32 portref);
+int tipc_port_disconnect(u32 portref);
 
-int tipc_shutdown(u32 ref);
+int tipc_port_shutdown(u32 ref);
 
+void tipc_port_wakeup(struct tipc_port *port);
 
 /*
  * The following routines require that the port be locked on entry
  */
-int __tipc_disconnect(struct tipc_port *tp_ptr);
-int __tipc_connect(u32 ref, struct tipc_port *p_ptr,
+int __tipc_port_disconnect(struct tipc_port *tp_ptr);
+int __tipc_port_connect(u32 ref, struct tipc_port *p_ptr,
 		   struct tipc_portid const *peer);
 int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 
 /*
  * TIPC messaging routines
  */
-int tipc_port_recv_msg(struct sk_buff *buf);
-int tipc_send(u32 portref, unsigned int num_sect, struct iovec const *msg_sect,
-	      unsigned int total_len);
 
-int tipc_send2name(u32 portref, struct tipc_name const *name, u32 domain,
-		   unsigned int num_sect, struct iovec const *msg_sect,
-		   unsigned int total_len);
+int tipc_send(struct tipc_port *port,
+	      struct iovec const *msg_sect,
+	      unsigned int len);
 
-int tipc_send2port(u32 portref, struct tipc_portid const *dest,
-		   unsigned int num_sect, struct iovec const *msg_sect,
-		   unsigned int total_len);
+int tipc_send2name(struct tipc_port *port,
+		   struct tipc_name const *name,
+		   u32 domain,
+		   struct iovec const *msg_sect,
+		   unsigned int len);
 
-int tipc_multicast(u32 portref, struct tipc_name_seq const *seq,
-		   unsigned int section_count, struct iovec const *msg,
-		   unsigned int total_len);
+int tipc_send2port(struct tipc_port *port,
+		   struct tipc_portid const *dest,
+		   struct iovec const *msg_sect,
+		   unsigned int len);
 
-int tipc_port_reject_sections(struct tipc_port *p_ptr, struct tipc_msg *hdr,
-			      struct iovec const *msg_sect, u32 num_sect,
-			      unsigned int total_len, int err);
+int tipc_port_mcast_xmit(struct tipc_port *port,
+			 struct tipc_name_seq const *seq,
+			 struct iovec const *msg,
+			 unsigned int len);
+
+int tipc_port_iovec_reject(struct tipc_port *p_ptr,
+			   struct tipc_msg *hdr,
+			   struct iovec const *msg_sect,
+			   unsigned int len,
+			   int err);
+
 struct sk_buff *tipc_port_get_ports(void);
-void tipc_port_recv_proto_msg(struct sk_buff *buf);
-void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp);
+void tipc_port_proto_rcv(struct sk_buff *buf);
+void tipc_port_mcast_rcv(struct sk_buff *buf, struct tipc_port_list *dp);
 void tipc_port_reinit(void);
 
 /**
@@ -192,14 +185,53 @@ static inline void tipc_port_unlock(struct tipc_port *p_ptr)
 	spin_unlock_bh(p_ptr->lock);
 }
 
-static inline struct tipc_port *tipc_port_deref(u32 ref)
-{
-	return (struct tipc_port *)tipc_ref_deref(ref);
-}
-
 static inline int tipc_port_congested(struct tipc_port *p_ptr)
 {
-	return (p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2);
+	return ((p_ptr->sent - p_ptr->acked) >= TIPC_FLOWCTRL_WIN);
+}
+
+
+static inline u32 tipc_port_peernode(struct tipc_port *p_ptr)
+{
+	return msg_destnode(&p_ptr->phdr);
+}
+
+static inline u32 tipc_port_peerport(struct tipc_port *p_ptr)
+{
+	return msg_destport(&p_ptr->phdr);
+}
+
+static inline  bool tipc_port_unreliable(struct tipc_port *port)
+{
+	return msg_src_droppable(&port->phdr) != 0;
+}
+
+static inline void tipc_port_set_unreliable(struct tipc_port *port,
+					    bool unreliable)
+{
+	msg_set_src_droppable(&port->phdr, unreliable ? 1 : 0);
+}
+
+static inline bool tipc_port_unreturnable(struct tipc_port *port)
+{
+	return msg_dest_droppable(&port->phdr) != 0;
+}
+
+static inline void tipc_port_set_unreturnable(struct tipc_port *port,
+					     bool unreturnable)
+{
+	msg_set_dest_droppable(&port->phdr, unreturnable ? 1 : 0);
+}
+
+
+static inline int tipc_port_importance(struct tipc_port *port)
+{
+	return msg_importance(&port->phdr);
+}
+
+static inline void tipc_port_set_importance(struct tipc_port *port, int imp)
+{
+	msg_set_importance(&port->phdr, (u32)imp);
 }
 
 #endif

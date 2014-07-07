@@ -579,7 +579,7 @@ static ssize_t store_temp23(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-/* get reatime status of all sensors items: voltage, temp, fan */
+/* get realtime status of all sensors items: voltage, temp, fan */
 static ssize_t
 show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1376,7 +1376,6 @@ w83792d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	err = w83792d_detect_subclients(client);

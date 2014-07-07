@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,7 @@
 #ifndef __iwl_op_mode_h__
 #define __iwl_op_mode_h__
 
+#include <linux/netdevice.h>
 #include <linux/debugfs.h>
 
 struct iwl_op_mode;
@@ -112,14 +113,18 @@ struct iwl_cfg;
  * @stop: stop the op_mode. Must free all the memory allocated.
  *	May sleep
  * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
- *	HCMD this Rx responds to.
- *	This callback may sleep, it is called from a threaded IRQ handler.
+ *	HCMD this Rx responds to. Can't sleep.
+ * @napi_add: NAPI initialisation. The transport is fully responsible for NAPI,
+ *	but the higher layers need to know about it (in particular mac80211 to
+ *	to able to call the right NAPI RX functions); this function is needed
+ *	to eventually call netif_napi_add() with higher layer involvement.
  * @queue_full: notifies that a HW queue is full.
  *	Must be atomic and called with BH disabled.
  * @queue_not_full: notifies that a HW queue is not full any more.
  *	Must be atomic and called with BH disabled.
  * @hw_rf_kill:notifies of a change in the HW rf kill switch. True means that
- *	the radio is killed. May sleep.
+ *	the radio is killed. Return %true if the device should be stopped by
+ *	the transport immediately after the call. May sleep.
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
@@ -131,6 +136,8 @@ struct iwl_cfg;
  * @nic_config: configure NIC, called before firmware is started.
  *	May sleep
  * @wimax_active: invoked when WiMax becomes active. May sleep
+ * @enter_d0i3: configure the fw to enter d0i3. May sleep.
+ * @exit_d0i3: configure the fw to exit d0i3. May sleep.
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -140,14 +147,21 @@ struct iwl_op_mode_ops {
 	void (*stop)(struct iwl_op_mode *op_mode);
 	int (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 		  struct iwl_device_cmd *cmd);
+	void (*napi_add)(struct iwl_op_mode *op_mode,
+			 struct napi_struct *napi,
+			 struct net_device *napi_dev,
+			 int (*poll)(struct napi_struct *, int),
+			 int weight);
 	void (*queue_full)(struct iwl_op_mode *op_mode, int queue);
 	void (*queue_not_full)(struct iwl_op_mode *op_mode, int queue);
-	void (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
+	bool (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 	void (*nic_error)(struct iwl_op_mode *op_mode);
 	void (*cmd_queue_full)(struct iwl_op_mode *op_mode);
 	void (*nic_config)(struct iwl_op_mode *op_mode);
 	void (*wimax_active)(struct iwl_op_mode *op_mode);
+	int (*enter_d0i3)(struct iwl_op_mode *op_mode);
+	int (*exit_d0i3)(struct iwl_op_mode *op_mode);
 };
 
 int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops);
@@ -155,14 +169,12 @@ void iwl_opmode_deregister(const char *name);
 
 /**
  * struct iwl_op_mode - operational mode
+ * @ops: pointer to its own ops
  *
  * This holds an implementation of the mac80211 / fw API.
- *
- * @ops - pointer to its own ops
  */
 struct iwl_op_mode {
 	const struct iwl_op_mode_ops *ops;
-	const struct iwl_trans *trans;
 
 	char op_mode_specific[0] __aligned(sizeof(void *));
 };
@@ -177,7 +189,6 @@ static inline int iwl_op_mode_rx(struct iwl_op_mode *op_mode,
 				  struct iwl_rx_cmd_buffer *rxb,
 				  struct iwl_device_cmd *cmd)
 {
-	might_sleep();
 	return op_mode->ops->rx(op_mode, rxb, cmd);
 }
 
@@ -193,11 +204,11 @@ static inline void iwl_op_mode_queue_not_full(struct iwl_op_mode *op_mode,
 	op_mode->ops->queue_not_full(op_mode, queue);
 }
 
-static inline void iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode,
-					  bool state)
+static inline bool __must_check
+iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode, bool state)
 {
 	might_sleep();
-	op_mode->ops->hw_rf_kill(op_mode, state);
+	return op_mode->ops->hw_rf_kill(op_mode, state);
 }
 
 static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,
@@ -226,6 +237,35 @@ static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)
 {
 	might_sleep();
 	op_mode->ops->wimax_active(op_mode);
+}
+
+static inline int iwl_op_mode_enter_d0i3(struct iwl_op_mode *op_mode)
+{
+	might_sleep();
+
+	if (!op_mode->ops->enter_d0i3)
+		return 0;
+	return op_mode->ops->enter_d0i3(op_mode);
+}
+
+static inline int iwl_op_mode_exit_d0i3(struct iwl_op_mode *op_mode)
+{
+	might_sleep();
+
+	if (!op_mode->ops->exit_d0i3)
+		return 0;
+	return op_mode->ops->exit_d0i3(op_mode);
+}
+
+static inline void iwl_op_mode_napi_add(struct iwl_op_mode *op_mode,
+					struct napi_struct *napi,
+					struct net_device *napi_dev,
+					int (*poll)(struct napi_struct *, int),
+					int weight)
+{
+	if (!op_mode->ops->napi_add)
+		return;
+	op_mode->ops->napi_add(op_mode, napi, napi_dev, poll, weight);
 }
 
 #endif /* __iwl_op_mode_h__ */

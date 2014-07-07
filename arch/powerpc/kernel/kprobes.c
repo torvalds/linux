@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/kdebug.h>
 #include <linux/slab.h>
+#include <asm/code-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
 #include <asm/uaccess.h>
@@ -429,7 +430,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 	case KPROBE_HIT_SSDONE:
 		/*
 		 * We increment the nmissed count for accounting,
-		 * we can also use npre/npostfault count for accouting
+		 * we can also use npre/npostfault count for accounting
 		 * these specific fault cases.
 		 */
 		kprobes_inc_nmissed_count(cur);
@@ -491,12 +492,10 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	return ret;
 }
 
-#ifdef CONFIG_PPC64
 unsigned long arch_deref_entry_point(void *entry)
 {
-	return ((func_descr_t *)entry)->entry;
+	return ppc_global_function_entry(entry);
 }
-#endif
 
 int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
@@ -508,7 +507,11 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	/* setup return addr to the jprobe handler routine */
 	regs->nip = arch_deref_entry_point(jp->entry);
 #ifdef CONFIG_PPC64
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+	regs->gpr[12] = (unsigned long)jp->entry;
+#else
 	regs->gpr[2] = (unsigned long)(((func_descr_t *)jp->entry)->toc);
+#endif
 #endif
 
 	return 1;

@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <crypto/algapi.h>
 #include "public_key.h"
 
 MODULE_LICENSE("GPL");
@@ -73,13 +74,13 @@ static const struct {
 	size_t size;
 } RSA_ASN1_templates[PKEY_HASH__LAST] = {
 #define _(X) { RSA_digest_info_##X, sizeof(RSA_digest_info_##X) }
-	[PKEY_HASH_MD5]		= _(MD5),
-	[PKEY_HASH_SHA1]	= _(SHA1),
-	[PKEY_HASH_RIPE_MD_160]	= _(RIPE_MD_160),
-	[PKEY_HASH_SHA256]	= _(SHA256),
-	[PKEY_HASH_SHA384]	= _(SHA384),
-	[PKEY_HASH_SHA512]	= _(SHA512),
-	[PKEY_HASH_SHA224]	= _(SHA224),
+	[HASH_ALGO_MD5]		= _(MD5),
+	[HASH_ALGO_SHA1]	= _(SHA1),
+	[HASH_ALGO_RIPE_MD_160]	= _(RIPE_MD_160),
+	[HASH_ALGO_SHA256]	= _(SHA256),
+	[HASH_ALGO_SHA384]	= _(SHA384),
+	[HASH_ALGO_SHA512]	= _(SHA512),
+	[HASH_ALGO_SHA224]	= _(SHA224),
 #undef _
 };
 
@@ -189,12 +190,12 @@ static int RSA_verify(const u8 *H, const u8 *EM, size_t k, size_t hash_size,
 		}
 	}
 
-	if (memcmp(asn1_template, EM + T_offset, asn1_size) != 0) {
+	if (crypto_memneq(asn1_template, EM + T_offset, asn1_size) != 0) {
 		kleave(" = -EBADMSG [EM[T] ASN.1 mismatch]");
 		return -EBADMSG;
 	}
 
-	if (memcmp(H, EM + T_offset + asn1_size, hash_size) != 0) {
+	if (crypto_memneq(H, EM + T_offset + asn1_size, hash_size) != 0) {
 		kleave(" = -EKEYREJECTED [EM[T] hash mismatch]");
 		return -EKEYREJECTED;
 	}

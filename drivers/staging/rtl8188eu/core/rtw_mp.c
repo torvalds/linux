@@ -21,8 +21,8 @@
 
 #include <drv_types.h>
 
-#include "odm_precomp.h"
 #include "rtl8188e_hal.h"
+#include <linux/vmalloc.h>
 
 u32 read_macreg(struct adapter *padapter, u32 addr, u32 sz)
 {
@@ -323,10 +323,7 @@ s32 mp_start_test(struct adapter *padapter)
 	struct sta_info *psta;
 	u32 length;
 	u8 val8;
-
-	unsigned long irqL;
 	s32 res = _SUCCESS;
-
 	struct mp_priv *pmppriv = &padapter->mppriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
@@ -379,7 +376,7 @@ s32 mp_start_test(struct adapter *padapter)
 	else
 		bssid.Length = length;
 
-	_enter_critical_bh(&pmlmepriv->lock, &irqL);
+	spin_lock_bh(&pmlmepriv->lock);
 
 	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)
 		goto end_of_mp_start_test;
@@ -409,7 +406,7 @@ s32 mp_start_test(struct adapter *padapter)
 		goto end_of_mp_start_test;
 	}
 
-	/* 3 3. join psudo AdHoc */
+	/* 3 3. join pseudo AdHoc */
 	tgt_network->join_res = 1;
 	tgt_network->aid = 1;
 	psta->aid = 1;
@@ -420,7 +417,7 @@ s32 mp_start_test(struct adapter *padapter)
 
 end_of_mp_start_test:
 
-	_exit_critical_bh(&pmlmepriv->lock, &irqL);
+	spin_unlock_bh(&pmlmepriv->lock);
 
 	if (res == _SUCCESS) {
 		/*  set MSR to WIFI_FW_ADHOC_STATE */
@@ -439,15 +436,13 @@ void mp_stop_test(struct adapter *padapter)
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
 	struct sta_info *psta;
 
-	unsigned long irqL;
-
 	if (pmppriv->mode == MP_ON) {
 		pmppriv->bSetTxPower = 0;
-		_enter_critical_bh(&pmlmepriv->lock, &irqL);
+		spin_lock_bh(&pmlmepriv->lock);
 		if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false)
 			goto end_of_mp_stop_test;
 
-		/* 3 1. disconnect psudo AdHoc */
+		/* 3 1. disconnect pseudo AdHoc */
 		rtw_indicate_disconnect(padapter);
 
 		/* 3 2. clear psta used in mp test mode. */
@@ -465,7 +460,7 @@ void mp_stop_test(struct adapter *padapter)
 
 end_of_mp_stop_test:
 
-		_exit_critical_bh(&pmlmepriv->lock, &irqL);
+		spin_unlock_bh(&pmlmepriv->lock);
 	}
 }
 
@@ -614,7 +609,7 @@ static int mp_xmit_packet_thread(void *context)
 			    padapter->bDriverStopped) {
 				goto exit;
 			} else {
-				rtw_msleep_os(1);
+				msleep(1);
 				continue;
 			}
 		}
@@ -643,7 +638,7 @@ exit:
 	pmptx->pallocated_buf = NULL;
 	pmptx->stop = 1;
 
-	thread_exit();
+	complete_and_exit(NULL, 0);
 }
 
 void fill_txdesc_for_mp(struct adapter *padapter, struct tx_desc *ptxdesc)
@@ -863,11 +858,11 @@ static u32 rtw_GetPSDData(struct adapter *pAdapter, u32 point)
 	psd_val |= point;
 
 	rtw_write32(pAdapter, 0x808, psd_val);
-	rtw_mdelay_os(1);
+	mdelay(1);
 	psd_val |= 0x00400000;
 
 	rtw_write32(pAdapter, 0x808, psd_val);
-	rtw_mdelay_os(1);
+	mdelay(1);
 	psd_val = rtw_read32(pAdapter, 0x8B4);
 
 	psd_val &= 0x0000FFFF;
@@ -887,7 +882,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 {
 	u32 i, psd_pts = 0, psd_start = 0, psd_stop = 0;
 	u32 psd_data = 0;
-
+	int ret;
 
 	if (!netif_running(pAdapter->pnetdev)) {
 		RT_TRACE(_module_mp_, _drv_warning_, ("mp_query_psd: Fail! interface not opened!\n"));
@@ -904,7 +899,10 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 		psd_start = 64;
 		psd_stop = 128;
 	} else {
-		sscanf(data, "pts =%d, start =%d, stop =%d", &psd_pts, &psd_start, &psd_stop);
+		ret = sscanf(data, "pts =%d, start =%d, stop =%d",
+				&psd_pts, &psd_start, &psd_stop);
+		if (ret != 3)
+			return 0;
 	}
 
 	_rtw_memset(data, '\0', sizeof(*data));
@@ -920,7 +918,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 		i++;
 	}
 
-	rtw_msleep_os(100);
+	msleep(100);
 	return strlen(data)+1;
 }
 
@@ -948,7 +946,7 @@ void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 	}
 
 	if (pxmitpriv->pallocated_xmit_extbuf)
-		rtw_vmfree(pxmitpriv->pallocated_xmit_extbuf, num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
+		vfree(pxmitpriv->pallocated_xmit_extbuf);
 
 	if (padapter->registrypriv.mp_mode == 0) {
 		max_xmit_extbuf_size = 20000;
@@ -961,7 +959,7 @@ void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 	/*  Init xmit extension buff */
 	_rtw_init_queue(&pxmitpriv->free_xmit_extbuf_queue);
 
-	pxmitpriv->pallocated_xmit_extbuf = rtw_zvmalloc(num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
+	pxmitpriv->pallocated_xmit_extbuf = vzalloc(num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
 
 	if (pxmitpriv->pallocated_xmit_extbuf  == NULL) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("alloc xmit_extbuf fail!\n"));

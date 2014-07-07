@@ -36,7 +36,7 @@ static const struct hc_driver ehci_sh_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq				= ehci_irq,
-	.flags				= HCD_USB2 | HCD_MEMORY,
+	.flags				= HCD_USB2 | HCD_MEMORY | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -151,6 +151,7 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add hcd");
 		goto fail_add_hcd;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	priv->hcd = hcd;
 	platform_set_drvdata(pdev, priv);

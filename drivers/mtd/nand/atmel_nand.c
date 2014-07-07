@@ -375,8 +375,7 @@ static int atmel_nand_dma_op(struct mtd_info *mtd, void *buf, int len,
 
 	dma_dev = host->dma_chan->device;
 
-	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP |
-		DMA_COMPL_SKIP_DEST_UNMAP;
+	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 
 	phys_addr = dma_map_single(dma_dev->dev, p, len, dir);
 	if (dma_mapping_error(dma_dev->dev, phys_addr)) {
@@ -431,7 +430,7 @@ err_dma:
 	dma_unmap_single(dma_dev->dev, phys_addr, len, dir);
 err_buf:
 	if (err != 0)
-		dev_warn(host->dev, "Fall back to CPU I/O\n");
+		dev_dbg(host->dev, "Fall back to CPU I/O\n");
 	return err;
 }
 
@@ -1062,56 +1061,28 @@ static void atmel_pmecc_core_init(struct mtd_info *mtd)
 }
 
 /*
- * Get ECC requirement in ONFI parameters, returns -1 if ONFI
- * parameters is not supported.
- * return 0 if success to get the ECC requirement.
- */
-static int get_onfi_ecc_param(struct nand_chip *chip,
-		int *ecc_bits, int *sector_size)
-{
-	*ecc_bits = *sector_size = 0;
-
-	if (chip->onfi_params.ecc_bits == 0xff)
-		/* TODO: the sector_size and ecc_bits need to be find in
-		 * extended ecc parameter, currently we don't support it.
-		 */
-		return -1;
-
-	*ecc_bits = chip->onfi_params.ecc_bits;
-
-	/* The default sector size (ecc codeword size) is 512 */
-	*sector_size = 512;
-
-	return 0;
-}
-
-/*
- * Get ecc requirement from ONFI parameters ecc requirement.
+ * Get minimum ecc requirements from NAND.
  * If pmecc-cap, pmecc-sector-size in DTS are not specified, this function
- * will set them according to ONFI ecc requirement. Otherwise, use the
+ * will set them according to minimum ecc requirement. Otherwise, use the
  * value in DTS file.
  * return 0 if success. otherwise return error code.
  */
 static int pmecc_choose_ecc(struct atmel_nand_host *host,
 		int *cap, int *sector_size)
 {
-	/* Get ECC requirement from ONFI parameters */
-	*cap = *sector_size = 0;
-	if (host->nand_chip.onfi_version) {
-		if (!get_onfi_ecc_param(&host->nand_chip, cap, sector_size))
-			dev_info(host->dev, "ONFI params, minimum required ECC: %d bits in %d bytes\n",
+	/* Get minimum ECC requirements */
+	if (host->nand_chip.ecc_strength_ds) {
+		*cap = host->nand_chip.ecc_strength_ds;
+		*sector_size = host->nand_chip.ecc_step_ds;
+		dev_info(host->dev, "minimum ECC: %d bits in %d bytes\n",
 				*cap, *sector_size);
-		else
-			dev_info(host->dev, "NAND chip ECC reqirement is in Extended ONFI parameter, we don't support yet.\n");
 	} else {
-		dev_info(host->dev, "NAND chip is not ONFI compliant, assume ecc_bits is 2 in 512 bytes");
-	}
-	if (*cap == 0 && *sector_size == 0) {
 		*cap = 2;
 		*sector_size = 512;
+		dev_info(host->dev, "can't detect min. ECC, assume 2 bits in 512 bytes\n");
 	}
 
-	/* If dts file doesn't specify then use the one in ONFI parameters */
+	/* If device tree doesn't specify, use NAND's minimum ECC parameters */
 	if (host->pmecc_corr_cap == 0) {
 		/* use the most fitable ecc bits (the near bigger one ) */
 		if (*cap <= 2)
@@ -1139,7 +1110,7 @@ static int pmecc_choose_ecc(struct atmel_nand_host *host,
 	return 0;
 }
 
-static int __init atmel_pmecc_nand_init_params(struct platform_device *pdev,
+static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 					 struct atmel_nand_host *host)
 {
 	struct mtd_info *mtd = &host->mtd;
@@ -1249,6 +1220,7 @@ static int __init atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		goto err;
 	}
 
+	nand_chip->options |= NAND_NO_SUBPAGE_WRITE;
 	nand_chip->ecc.read_page = atmel_nand_pmecc_read_page;
 	nand_chip->ecc.write_page = atmel_nand_pmecc_write_page;
 
@@ -1449,7 +1421,6 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 		ecc_writel(host->ecc, CR, ATMEL_ECC_RST);
 }
 
-#if defined(CONFIG_OF)
 static int atmel_of_init_port(struct atmel_nand_host *host,
 			      struct device_node *np)
 {
@@ -1457,7 +1428,7 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 	u32 offset[2];
 	int ecc_mode;
 	struct atmel_nand_data *board = &host->board;
-	enum of_gpio_flags flags;
+	enum of_gpio_flags flags = 0;
 
 	if (of_property_read_u32(np, "atmel,nand-addr-offset", &val) == 0) {
 		if (val >= 32) {
@@ -1540,15 +1511,8 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 
 	return 0;
 }
-#else
-static int atmel_of_init_port(struct atmel_nand_host *host,
-			      struct device_node *np)
-{
-	return -EINVAL;
-}
-#endif
 
-static int __init atmel_hw_nand_init_params(struct platform_device *pdev,
+static int atmel_hw_nand_init_params(struct platform_device *pdev,
 					 struct atmel_nand_host *host)
 {
 	struct mtd_info *mtd = &host->mtd;
@@ -1696,8 +1660,8 @@ static void nfc_select_chip(struct mtd_info *mtd, int chip)
 		nfc_writel(host->nfc->hsmc_regs, CTRL, NFC_CTRL_ENABLE);
 }
 
-static int nfc_make_addr(struct mtd_info *mtd, int column, int page_addr,
-		unsigned int *addr1234, unsigned int *cycle0)
+static int nfc_make_addr(struct mtd_info *mtd, int command, int column,
+		int page_addr, unsigned int *addr1234, unsigned int *cycle0)
 {
 	struct nand_chip *chip = mtd->priv;
 
@@ -1711,7 +1675,8 @@ static int nfc_make_addr(struct mtd_info *mtd, int column, int page_addr,
 	*addr1234 = 0;
 
 	if (column != -1) {
-		if (chip->options & NAND_BUSWIDTH_16)
+		if (chip->options & NAND_BUSWIDTH_16 &&
+				!nand_opcode_8bits(command))
 			column >>= 1;
 		addr_bytes[acycle++] = column & 0xff;
 		if (mtd->writesize > 512)
@@ -1824,8 +1789,8 @@ static void nfc_nand_command(struct mtd_info *mtd, unsigned int command,
 	}
 
 	if (do_addr)
-		acycle = nfc_make_addr(mtd, column, page_addr, &addr1234,
-				&cycle0);
+		acycle = nfc_make_addr(mtd, command, column, page_addr,
+				&addr1234, &cycle0);
 
 	nfc_addr_cmd = cmd1 | cmd2 | vcmd2 | acycle | csid | dataen | nfcwr;
 	nfc_send_command(host, nfc_addr_cmd, addr1234, cycle0);
@@ -1987,7 +1952,7 @@ static struct platform_driver atmel_nand_nfc_driver;
 /*
  * Probe for the NAND device.
  */
-static int __init atmel_nand_probe(struct platform_device *pdev)
+static int atmel_nand_probe(struct platform_device *pdev)
 {
 	struct atmel_nand_host *host;
 	struct mtd_info *mtd;
@@ -1998,10 +1963,8 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
-	if (!host) {
-		printk(KERN_ERR "atmel_nand: failed to allocate device structure.\n");
+	if (!host)
 		return -ENOMEM;
-	}
 
 	res = platform_driver_register(&atmel_nand_nfc_driver);
 	if (res)
@@ -2019,7 +1982,8 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	mtd = &host->mtd;
 	nand_chip = &host->nand_chip;
 	host->dev = &pdev->dev;
-	if (pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+		/* Only when CONFIG_OF is enabled of_node can be parsed */
 		res = atmel_of_init_port(host, pdev->dev.of_node);
 		if (res)
 			goto err_nand_ioremap;
@@ -2098,14 +2062,14 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		}
 
 		if (gpio_get_value(host->board.det_pin)) {
-			printk(KERN_INFO "No SmartMedia card inserted.\n");
+			dev_info(&pdev->dev, "No SmartMedia card inserted.\n");
 			res = -ENXIO;
 			goto err_no_card;
 		}
 	}
 
 	if (host->board.on_flash_bbt || on_flash_bbt) {
-		printk(KERN_INFO "atmel_nand: Use On Flash BBT\n");
+		dev_info(&pdev->dev, "Use On Flash BBT\n");
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
 	}
 
@@ -2177,14 +2141,13 @@ err_no_card:
 	if (host->dma_chan)
 		dma_release_channel(host->dma_chan);
 err_nand_ioremap:
-	platform_driver_unregister(&atmel_nand_nfc_driver);
 	return res;
 }
 
 /*
  * Remove a NAND device.
  */
-static int __exit atmel_nand_remove(struct platform_device *pdev)
+static int atmel_nand_remove(struct platform_device *pdev)
 {
 	struct atmel_nand_host *host = platform_get_drvdata(pdev);
 	struct mtd_info *mtd = &host->mtd;
@@ -2207,14 +2170,12 @@ static int __exit atmel_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_OF)
 static const struct of_device_id atmel_nand_dt_ids[] = {
 	{ .compatible = "atmel,at91rm9200-nand" },
 	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(of, atmel_nand_dt_ids);
-#endif
 
 static int atmel_nand_nfc_probe(struct platform_device *pdev)
 {
@@ -2253,12 +2214,11 @@ static int atmel_nand_nfc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_OF)
-static struct of_device_id atmel_nand_nfc_match[] = {
+static const struct of_device_id atmel_nand_nfc_match[] = {
 	{ .compatible = "atmel,sama5d3-nfc" },
 	{ /* sentinel */ }
 };
-#endif
+MODULE_DEVICE_TABLE(of, atmel_nand_nfc_match);
 
 static struct platform_driver atmel_nand_nfc_driver = {
 	.driver = {
@@ -2270,7 +2230,8 @@ static struct platform_driver atmel_nand_nfc_driver = {
 };
 
 static struct platform_driver atmel_nand_driver = {
-	.remove		= __exit_p(atmel_nand_remove),
+	.probe		= atmel_nand_probe,
+	.remove		= atmel_nand_remove,
 	.driver		= {
 		.name	= "atmel_nand",
 		.owner	= THIS_MODULE,
@@ -2278,7 +2239,7 @@ static struct platform_driver atmel_nand_driver = {
 	},
 };
 
-module_platform_driver_probe(atmel_nand_driver, atmel_nand_probe);
+module_platform_driver(atmel_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rick Bronson");

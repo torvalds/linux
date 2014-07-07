@@ -397,13 +397,11 @@
 				interrupt-parent = <&ipic>;
 				interrupts = <17 0x8>;
 				reg = <0x0>;
-				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@01 {
 				interrupt-parent = <&ipic>;
 				interrupts = <18 0x8>;
 				reg = <0x1>;
-				device_type = "ethernet-phy";
 			};
 			tbi-phy@2 {
 				device_type = "tbi-phy";

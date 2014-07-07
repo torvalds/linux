@@ -158,7 +158,7 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 		writew(val, i2c_dev->base + REG_CR);
 	}
 
-	INIT_COMPLETION(i2c_dev->complete);
+	reinit_completion(&i2c_dev->complete);
 
 	if (i2c_dev->mode == I2C_MODE_STANDARD)
 		tcr_val = TCR_STANDARD_MODE;
@@ -247,7 +247,7 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 		writew(val, i2c_dev->base + REG_CR);
 	}
 
-	INIT_COMPLETION(i2c_dev->complete);
+	reinit_completion(&i2c_dev->complete);
 
 	if (i2c_dev->mode == I2C_MODE_STANDARD)
 		tcr_val = TCR_STANDARD_MODE;
@@ -349,6 +349,7 @@ static int wmt_i2c_reset_hardware(struct wmt_i2c_dev *i2c_dev)
 	err = clk_set_rate(i2c_dev->clk, 20000000);
 	if (err) {
 		dev_err(i2c_dev->dev, "failed to set clock = 20Mhz\n");
+		clk_disable_unprepare(i2c_dev->clk);
 		return err;
 	}
 
@@ -378,10 +379,8 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	u32 clk_rate;
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
-	if (!i2c_dev) {
-		dev_err(&pdev->dev, "device memory allocation failed\n");
+	if (!i2c_dev)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i2c_dev->base = devm_ioremap_resource(&pdev->dev, res);
@@ -453,7 +452,7 @@ static int wmt_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id wmt_i2c_dt_ids[] = {
+static const struct of_device_id wmt_i2c_dt_ids[] = {
 	{ .compatible = "wm,wm8505-i2c" },
 	{ /* Sentinel */ },
 };

@@ -12,8 +12,8 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/acpi_io.h>
-#include <acpi/acpiosxf.h>
+
+#include "internal.h"
 
 /* ACPI NVS regions, APEI may use it */
 
@@ -139,8 +139,8 @@ void suspend_nvs_free(void)
 					iounmap(entry->kaddr);
 					entry->unmap = false;
 				} else {
-					acpi_os_unmap_memory(entry->kaddr,
-							     entry->size);
+					acpi_os_unmap_iomem(entry->kaddr,
+							    entry->size);
 				}
 				entry->kaddr = NULL;
 			}

@@ -420,7 +420,7 @@ pl010_set_termios(struct uart_port *port, struct ktermios *termios,
 	uap->port.read_status_mask = UART01x_RSR_OE;
 	if (termios->c_iflag & INPCK)
 		uap->port.read_status_mask |= UART01x_RSR_FE | UART01x_RSR_PE;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		uap->port.read_status_mask |= UART01x_RSR_BE;
 
 	/*
@@ -728,7 +728,6 @@ static int pl010_probe(struct amba_device *dev, const struct amba_id *id)
 	amba_set_drvdata(dev, uap);
 	ret = uart_add_one_port(&amba_reg, &uap->port);
 	if (ret) {
-		amba_set_drvdata(dev, NULL);
 		amba_ports[i] = NULL;
 		clk_put(uap->clk);
  unmap:
@@ -745,8 +744,6 @@ static int pl010_remove(struct amba_device *dev)
 	struct uart_amba_port *uap = amba_get_drvdata(dev);
 	int i;
 
-	amba_set_drvdata(dev, NULL);
-
 	uart_remove_one_port(&amba_reg, &uap->port);
 
 	for (i = 0; i < ARRAY_SIZE(amba_ports); i++)
@@ -759,9 +756,10 @@ static int pl010_remove(struct amba_device *dev)
 	return 0;
 }
 
-static int pl010_suspend(struct amba_device *dev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int pl010_suspend(struct device *dev)
 {
-	struct uart_amba_port *uap = amba_get_drvdata(dev);
+	struct uart_amba_port *uap = dev_get_drvdata(dev);
 
 	if (uap)
 		uart_suspend_port(&amba_reg, &uap->port);
@@ -769,15 +767,18 @@ static int pl010_suspend(struct amba_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int pl010_resume(struct amba_device *dev)
+static int pl010_resume(struct device *dev)
 {
-	struct uart_amba_port *uap = amba_get_drvdata(dev);
+	struct uart_amba_port *uap = dev_get_drvdata(dev);
 
 	if (uap)
 		uart_resume_port(&amba_reg, &uap->port);
 
 	return 0;
 }
+#endif
+
+static SIMPLE_DEV_PM_OPS(pl010_dev_pm_ops, pl010_suspend, pl010_resume);
 
 static struct amba_id pl010_ids[] = {
 	{
@@ -792,12 +793,11 @@ MODULE_DEVICE_TABLE(amba, pl010_ids);
 static struct amba_driver pl010_driver = {
 	.drv = {
 		.name	= "uart-pl010",
+		.pm	= &pl010_dev_pm_ops,
 	},
 	.id_table	= pl010_ids,
 	.probe		= pl010_probe,
 	.remove		= pl010_remove,
-	.suspend	= pl010_suspend,
-	.resume		= pl010_resume,
 };
 
 static int __init pl010_init(void)

@@ -45,20 +45,20 @@ EXPORT_SYMBOL(the_lnet);
 
 
 static char *ip2nets = "";
-CFS_MODULE_PARM(ip2nets, "s", charp, 0444,
-		"LNET network <- IP table");
+module_param(ip2nets, charp, 0444);
+MODULE_PARM_DESC(ip2nets, "LNET network <- IP table");
 
 static char *networks = "";
-CFS_MODULE_PARM(networks, "s", charp, 0444,
-		"local networks");
+module_param(networks, charp, 0444);
+MODULE_PARM_DESC(networks, "local networks");
 
 static char *routes = "";
-CFS_MODULE_PARM(routes, "s", charp, 0444,
-		"routes to non-local networks");
+module_param(routes, charp, 0444);
+MODULE_PARM_DESC(routes, "routes to non-local networks");
 
 static int rnet_htable_size = LNET_REMOTE_NETS_HASH_DEFAULT;
-CFS_MODULE_PARM(rnet_htable_size, "i", int, 0444,
-		"size of remote network hash table");
+module_param(rnet_htable_size, int, 0444);
+MODULE_PARM_DESC(rnet_htable_size, "size of remote network hash table");
 
 char *
 lnet_get_routes(void)
@@ -127,8 +127,7 @@ lnet_create_remote_nets_table(void)
 static void
 lnet_destroy_remote_nets_table(void)
 {
-	int		i;
-	struct list_head	*hash;
+	int i;
 
 	if (the_lnet.ln_remote_nets_hash == NULL)
 		return;
@@ -137,7 +136,8 @@ lnet_destroy_remote_nets_table(void)
 		LASSERT(list_empty(&the_lnet.ln_remote_nets_hash[i]));
 
 	LIBCFS_FREE(the_lnet.ln_remote_nets_hash,
-		    LNET_REMOTE_NETS_HASH_SIZE * sizeof(*hash));
+		    LNET_REMOTE_NETS_HASH_SIZE *
+		    sizeof(the_lnet.ln_remote_nets_hash[0]));
 	the_lnet.ln_remote_nets_hash = NULL;
 }
 
@@ -338,7 +338,7 @@ lnet_counters_get(lnet_counters_t *counters)
 		counters->send_count   += ctr->send_count;
 		counters->recv_count   += ctr->recv_count;
 		counters->route_count  += ctr->route_count;
-		counters->drop_length  += ctr->drop_length;
+		counters->drop_count   += ctr->drop_count;
 		counters->send_length  += ctr->send_length;
 		counters->recv_length  += ctr->recv_length;
 		counters->route_length += ctr->route_length;
@@ -770,7 +770,7 @@ lnet_nid_cpt_hash(lnet_nid_t nid, unsigned int number)
 	if (number == 1)
 		return 0;
 
-	val = cfs_hash_long(key, LNET_CPT_BITS);
+	val = hash_long(key, LNET_CPT_BITS);
 	/* NB: LNET_CP_NUMBER doesn't have to be PO2 */
 	if (val < number)
 		return val;
@@ -986,15 +986,15 @@ lnet_shutdown_lndnis (void)
 			break;
 		}
 
-		while (!list_empty(&ni->ni_list)) {
+		if (!list_empty(&ni->ni_list)) {
 			lnet_net_unlock(LNET_LOCK_EX);
 			++i;
 			if ((i & (-i)) == i) {
-				CDEBUG(D_WARNING,
-				       "Waiting for zombie LNI %s\n",
+				CDEBUG(D_WARNING, "Waiting for zombie LNI %s\n",
 				       libcfs_nid2str(ni->ni_nid));
 			}
-			cfs_pause(cfs_time_seconds(1));
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(1));
 			lnet_net_lock(LNET_LOCK_EX);
 			continue;
 		}
@@ -1015,6 +1015,8 @@ lnet_shutdown_lndnis (void)
 			       libcfs_nid2str(ni->ni_nid));
 
 		lnet_ni_free(ni);
+		i = 2;
+
 		lnet_net_lock(LNET_LOCK_EX);
 	}
 
@@ -1436,7 +1438,7 @@ LNetCtl(unsigned int cmd, void *arg)
 
 	case IOC_LIBCFS_ADD_ROUTE:
 		rc = lnet_add_route(data->ioc_net, data->ioc_count,
-				    data->ioc_nid);
+				    data->ioc_nid, data->ioc_priority);
 		return (rc != 0) ? rc : lnet_check_routes();
 
 	case IOC_LIBCFS_DEL_ROUTE:
@@ -1445,7 +1447,8 @@ LNetCtl(unsigned int cmd, void *arg)
 	case IOC_LIBCFS_GET_ROUTE:
 		return lnet_get_route(data->ioc_count,
 				      &data->ioc_net, &data->ioc_count,
-				      &data->ioc_nid, &data->ioc_flags);
+				      &data->ioc_nid, &data->ioc_flags,
+				      &data->ioc_priority);
 	case IOC_LIBCFS_NOTIFY_ROUTER:
 		return lnet_notify(NULL, data->ioc_nid, data->ioc_flags,
 				   cfs_time_current() -
@@ -1924,6 +1927,7 @@ lnet_ping (lnet_process_id_t id, int timeout_ms, lnet_process_id_t *ids, int n_i
 
 	rc = -EFAULT;			   /* If I SEGV... */
 
+	memset(&tmpid, 0, sizeof(tmpid));
 	for (i = 0; i < n_ids; i++) {
 		tmpid.pid = info->pi_pid;
 		tmpid.nid = info->pi_ni[i].ns_nid;

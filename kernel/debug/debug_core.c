@@ -49,6 +49,7 @@
 #include <linux/pid.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/vmacache.h>
 #include <linux/rcupdate.h>
 
 #include <asm/cacheflush.h>
@@ -224,10 +225,17 @@ static void kgdb_flush_swbreak_addr(unsigned long addr)
 	if (!CACHE_FLUSH_IS_SAFE)
 		return;
 
-	if (current->mm && current->mm->mmap_cache) {
-		flush_cache_range(current->mm->mmap_cache,
-				  addr, addr + BREAK_INSTR_SIZE);
+	if (current->mm) {
+		int i;
+
+		for (i = 0; i < VMACACHE_SIZE; i++) {
+			if (!current->vmacache[i])
+				continue;
+			flush_cache_range(current->vmacache[i],
+					  addr, addr + BREAK_INSTR_SIZE);
+		}
 	}
+
 	/* Force flush instruction cache if it was outside the mm */
 	flush_icache_range(addr, addr + BREAK_INSTR_SIZE);
 }
@@ -526,7 +534,7 @@ return_normal:
 			kgdb_info[cpu].exception_state &=
 				~(DCPU_WANT_MASTER | DCPU_IS_SLAVE);
 			kgdb_info[cpu].enter_kgdb--;
-			smp_mb__before_atomic_dec();
+			smp_mb__before_atomic();
 			atomic_dec(&slaves_in_kgdb);
 			dbg_touch_watchdogs();
 			local_irq_restore(flags);
@@ -575,8 +583,12 @@ return_normal:
 		raw_spin_lock(&dbg_slave_lock);
 
 #ifdef CONFIG_SMP
+	/* If send_ready set, slaves are already waiting */
+	if (ks->send_ready)
+		atomic_set(ks->send_ready, 1);
+
 	/* Signal the other CPUs to enter kgdb_wait() */
-	if ((!kgdb_single_step) && kgdb_do_roundup)
+	else if ((!kgdb_single_step) && kgdb_do_roundup)
 		kgdb_roundup_cpus(flags);
 #endif
 
@@ -650,7 +662,7 @@ kgdb_restore:
 	kgdb_info[cpu].exception_state &=
 		~(DCPU_WANT_MASTER | DCPU_IS_SLAVE);
 	kgdb_info[cpu].enter_kgdb--;
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_dec(&masters_in_kgdb);
 	/* Free kgdb_active */
 	atomic_set(&kgdb_active, -1);
@@ -678,11 +690,11 @@ kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 	if (arch_kgdb_ops.enable_nmi)
 		arch_kgdb_ops.enable_nmi(0);
 
+	memset(ks, 0, sizeof(struct kgdb_state));
 	ks->cpu			= raw_smp_processor_id();
 	ks->ex_vector		= evector;
 	ks->signo		= signo;
 	ks->err_code		= ecode;
-	ks->kgdb_usethreadid	= 0;
 	ks->linux_regs		= regs;
 
 	if (kgdb_reenter_check(ks))
@@ -726,6 +738,31 @@ int kgdb_nmicallback(int cpu, void *regs)
 	if (kgdb_info[ks->cpu].enter_kgdb == 0 &&
 			raw_spin_is_locked(&dbg_master_lock)) {
 		kgdb_cpu_enter(ks, regs, DCPU_IS_SLAVE);
+		return 0;
+	}
+#endif
+	return 1;
+}
+
+int kgdb_nmicallin(int cpu, int trapnr, void *regs, int err_code,
+							atomic_t *send_ready)
+{
+#ifdef CONFIG_SMP
+	if (!kgdb_io_ready(0) || !send_ready)
+		return 1;
+
+	if (kgdb_info[cpu].enter_kgdb == 0) {
+		struct kgdb_state kgdb_var;
+		struct kgdb_state *ks = &kgdb_var;
+
+		memset(ks, 0, sizeof(struct kgdb_state));
+		ks->cpu			= cpu;
+		ks->ex_vector		= trapnr;
+		ks->signo		= SIGTRAP;
+		ks->err_code		= err_code;
+		ks->linux_regs		= regs;
+		ks->send_ready		= send_ready;
+		kgdb_cpu_enter(ks, regs, DCPU_WANT_MASTER);
 		return 0;
 	}
 #endif
@@ -1006,7 +1043,7 @@ int dbg_io_get_char(void)
  * otherwise as a quick means to stop program execution and "break" into
  * the debugger.
  */
-void kgdb_breakpoint(void)
+noinline void kgdb_breakpoint(void)
 {
 	atomic_inc(&kgdb_setting_breakpoint);
 	wmb(); /* Sync point before breakpoint */

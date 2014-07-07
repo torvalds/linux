@@ -1,0 +1,20 @@
+TWL BCI (Battery Charger Interface)
+
+Required properties:
+- compatible:
+  - "ti,twl4030-bci"
+- interrupts: two interrupt lines from the TWL SIH (secondary
+  interrupt handler) - interrupts 9 and 2.
+
+Optional properties:
+- ti,bb-uvolt: microvolts for charging the backup battery.
+- ti,bb-uamp: microamps for charging the backup battery.
+
+Examples:
+
+bci {
+   compatible = "ti,twl4030-bci";
+   interrupts = <9>, <2>;
+   ti,bb-uvolt = <3200000>;
+   ti,bb-uamp = <150>;
+};

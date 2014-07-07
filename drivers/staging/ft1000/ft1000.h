@@ -1,5 +1,6 @@
 /*
- * Common structures and definitions for FT1000 Flarion Flash OFDM PCMCIA and USB devices
+ * Common structures and definitions for FT1000 Flarion Flash OFDM PCMCIA and
+ * USB devices.
  *
  * Originally copyright (c) 2002 Flarion Technologies
  *
@@ -17,38 +18,70 @@
 #define MAGNEMITE_ID	0x1a01	/* ASIC ID for Magnemite */
 
 /* MEMORY MAP common to both ELECTRABUZZ and MAGNEMITE */
-#define	FT1000_REG_DPRAM_ADDR	0x000E	/* DPADR - Dual Port Ram Indirect Address Register */
+#define	FT1000_REG_DPRAM_ADDR	0x000E	/* DPADR - Dual Port Ram Indirect
+					 * Address Register
+					 */
 #define	FT1000_REG_SUP_CTRL	0x0020	/* HCTR - Host Control Register */
 #define	FT1000_REG_SUP_STAT	0x0022	/* HSTAT - Host Status Register */
 #define	FT1000_REG_RESET	0x0024	/* HCTR - Host Control Register */
-#define	FT1000_REG_SUP_ISR	0x0026	/* HISR - Host Interrupt Status Register */
+#define	FT1000_REG_SUP_ISR	0x0026	/* HISR - Host Interrupt Status
+					 * Register
+					 */
 #define	FT1000_REG_SUP_IMASK	0x0028	/* HIMASK - Host Interrupt Mask */
 #define	FT1000_REG_DOORBELL	0x002a	/* DBELL - Door Bell Register */
-#define FT1000_REG_ASIC_ID	0x002e	/* ASICID - ASIC Identification Number */
+#define FT1000_REG_ASIC_ID	0x002e	/* ASICID - ASIC Identification
+					 * Number
+					 */
 
 /* MEMORY MAP FOR ELECTRABUZZ ASIC */
 #define FT1000_REG_UFIFO_STAT	0x0000	/* UFSR - Uplink FIFO status register */
-#define FT1000_REG_UFIFO_BEG	0x0002	/* UFBR	- Uplink FIFO beginning register */
+#define FT1000_REG_UFIFO_BEG	0x0002	/* UFBR	- Uplink FIFO beginning
+					 * register
+					 */
 #define	FT1000_REG_UFIFO_MID	0x0004	/* UFMR	- Uplink FIFO middle register */
 #define	FT1000_REG_UFIFO_END	0x0006	/* UFER	- Uplink FIFO end register */
-#define	FT1000_REG_DFIFO_STAT	0x0008	/* DFSR - Downlink FIFO status register */
+#define	FT1000_REG_DFIFO_STAT	0x0008	/* DFSR - Downlink FIFO status
+					 * register
+					 */
 #define	FT1000_REG_DFIFO	0x000A	/* DFR - Downlink FIFO Register */
-#define	FT1000_REG_DPRAM_DATA	0x000C	/* DPRAM - Dual Port Indirect Data Register */
+#define	FT1000_REG_DPRAM_DATA	0x000C	/* DPRAM - Dual Port Indirect
+					 * Data Register
+					 */
 #define	FT1000_REG_WATERMARK	0x0010	/* WMARK - Watermark Register */
 
 /* MEMORY MAP FOR MAGNEMITE */
-#define FT1000_REG_MAG_UFDR	0x0000	/* UFDR - Uplink FIFO Data Register (32-bits) */
-#define FT1000_REG_MAG_UFDRL	0x0000	/* UFDRL - Uplink FIFO Data Register low-word (16-bits) */
-#define FT1000_REG_MAG_UFDRH	0x0002	/* UFDRH - Uplink FIFO Data Register high-word (16-bits) */
+#define FT1000_REG_MAG_UFDR	0x0000	/* UFDR - Uplink FIFO Data
+					 * Register (32-bits)
+					 */
+#define FT1000_REG_MAG_UFDRL	0x0000	/* UFDRL - Uplink FIFO Data
+					 * Register low-word (16-bits)
+					 */
+#define FT1000_REG_MAG_UFDRH	0x0002	/* UFDRH - Uplink FIFO Data Register
+					 * high-word (16-bits)
+					 */
 #define FT1000_REG_MAG_UFER	0x0004	/* UFER - Uplink FIFO End Register */
 #define FT1000_REG_MAG_UFSR	0x0006	/* UFSR - Uplink FIFO Status Register */
-#define FT1000_REG_MAG_DFR	0x0008	/* DFR - Downlink FIFO Register (32-bits) */
-#define FT1000_REG_MAG_DFRL	0x0008	/* DFRL - Downlink FIFO Register low-word (16-bits) */
-#define FT1000_REG_MAG_DFRH	0x000a	/* DFRH - Downlink FIFO Register high-word (16-bits) */
-#define FT1000_REG_MAG_DFSR	0x000c	/* DFSR - Downlink FIFO Status Register */
-#define FT1000_REG_MAG_DPDATA	0x0010	/* DPDATA - Dual Port RAM Indirect Data Register (32-bits) */
-#define FT1000_REG_MAG_DPDATAL	0x0010	/* DPDATAL - Dual Port RAM Indirect Data Register low-word (16-bits) */
-#define FT1000_REG_MAG_DPDATAH	0x0012	/* DPDATAH - Dual Port RAM Indirect Data Register high-word (16-bits) */
+#define FT1000_REG_MAG_DFR	0x0008	/* DFR - Downlink FIFO Register
+					 * (32-bits)
+					 */
+#define FT1000_REG_MAG_DFRL	0x0008	/* DFRL - Downlink FIFO Register
+					 * low-word (16-bits)
+					 */
+#define FT1000_REG_MAG_DFRH	0x000a	/* DFRH - Downlink FIFO Register
+					 * high-word (16-bits)
+					 */
+#define FT1000_REG_MAG_DFSR	0x000c	/* DFSR - Downlink FIFO Status
+					 * Register
+					 */
+#define FT1000_REG_MAG_DPDATA	0x0010	/* DPDATA - Dual Port RAM Indirect
+					 * Data Register (32-bits)
+					 */
+#define FT1000_REG_MAG_DPDATAL	0x0010	/* DPDATAL - Dual Port RAM Indirect
+					 * Data Register low-word (16-bits)
+					 */
+#define FT1000_REG_MAG_DPDATAH	0x0012	/* DPDATAH - Dual Port RAM Indirect Data
+					 * Register high-word (16-bits)
+					 */
 #define	FT1000_REG_MAG_WATERMARK 0x002c	/* WMARK - Watermark Register */
 #define FT1000_REG_MAG_VERSION	0x0030	/* LLC Version */
 
@@ -57,7 +90,9 @@
 #define FT1000_DPRAM_RX_BASE	0x0800	/* PC Card to Host Messaging Area */
 #define FT1000_FIFO_LEN		0x07FC	/* total length for DSP FIFO tracking */
 #define FT1000_HI_HO		0x07FE	/* heartbeat with HI/HO */
-#define FT1000_DSP_STATUS	0x0FFE	/* dsp status - non-zero is a request to reset dsp */
+#define FT1000_DSP_STATUS	0x0FFE	/* dsp status - non-zero is a request
+					 * to reset dsp
+					 */
 #define FT1000_DSP_LED		0x0FFA	/* dsp led status for PAD device */
 #define FT1000_DSP_CON_STATE	0x0FF8	/* DSP Connection Status Info */
 #define FT1000_DPRAM_FEFE	0x0002	/* location for dsp ready indicator */
@@ -67,26 +102,48 @@
 #define FT1000_DSP_TIMER3	0x1FF6	/* Timer Field from Basestation */
 
 /* Reserved Dual Port RAM offsets for Magnemite */
-#define FT1000_DPRAM_MAG_TX_BASE	0x0000	/* Host to PC Card Messaging Area */
-#define FT1000_DPRAM_MAG_RX_BASE	0x0200	/* PC Card to Host Messaging Area */
+#define FT1000_DPRAM_MAG_TX_BASE	0x0000	/* Host to PC Card
+						 * Messaging Area
+						 */
+#define FT1000_DPRAM_MAG_RX_BASE	0x0200	/* PC Card to Host
+						 * Messaging Area
+						 */
 
-#define FT1000_MAG_FIFO_LEN		0x1FF	/* total length for DSP FIFO tracking */
+#define FT1000_MAG_FIFO_LEN		0x1FF	/* total length for DSP
+						 * FIFO tracking
+						 */
 #define FT1000_MAG_FIFO_LEN_INDX	0x1	/* low-word index */
 #define FT1000_MAG_HI_HO		0x1FF	/* heartbeat with HI/HO */
 #define FT1000_MAG_HI_HO_INDX		0x0	/* high-word index */
-#define FT1000_MAG_DSP_LED		0x3FE	/* dsp led status for PAD device */
-#define FT1000_MAG_DSP_LED_INDX		0x0	/* dsp led status for PAD device */
+#define FT1000_MAG_DSP_LED		0x3FE	/* dsp led status for
+						 * PAD device
+						 */
+#define FT1000_MAG_DSP_LED_INDX		0x0	/* dsp led status for
+						 * PAD device
+						 */
 #define FT1000_MAG_DSP_CON_STATE	0x3FE	/* DSP Connection Status Info */
 #define FT1000_MAG_DSP_CON_STATE_INDX	0x1	/* DSP Connection Status Info */
-#define FT1000_MAG_DPRAM_FEFE		0x000	/* location for dsp ready indicator */
-#define FT1000_MAG_DPRAM_FEFE_INDX	0x0	/* location for dsp ready indicator */
-#define FT1000_MAG_DSP_TIMER0		0x3FC	/* Timer Field from Basestation */
+#define FT1000_MAG_DPRAM_FEFE		0x000	/* location for dsp ready
+						 * indicator
+						 */
+#define FT1000_MAG_DPRAM_FEFE_INDX	0x0	/* location for dsp ready
+						 * indicator
+						 */
+#define FT1000_MAG_DSP_TIMER0		0x3FC	/* Timer Field from
+						 * Basestation
+						 */
 #define FT1000_MAG_DSP_TIMER0_INDX	0x1
-#define FT1000_MAG_DSP_TIMER1		0x3FC	/* Timer Field from Basestation */
+#define FT1000_MAG_DSP_TIMER1		0x3FC	/* Timer Field from
+						 * Basestation
+						 */
 #define FT1000_MAG_DSP_TIMER1_INDX	0x0
-#define FT1000_MAG_DSP_TIMER2		0x3FD	/* Timer Field from Basestation */
+#define FT1000_MAG_DSP_TIMER2		0x3FD	/* Timer Field from
+						 * Basestation
+						 */
 #define FT1000_MAG_DSP_TIMER2_INDX	0x1
-#define FT1000_MAG_DSP_TIMER3		0x3FD	/* Timer Field from Basestation */
+#define FT1000_MAG_DSP_TIMER3		0x3FD	/* Timer Field from
+						 * Basestation
+						 */
 #define FT1000_MAG_DSP_TIMER3_INDX	0x0
 #define FT1000_MAG_TOTAL_LEN		0x200
 #define FT1000_MAG_TOTAL_LEN_INDX	0x1
@@ -99,24 +156,38 @@
 #define HOST_INTF_BE	0x1	/* Host interface big endian mode */
 
 /* FT1000 to Host Doorbell assignments */
-#define FT1000_DB_DPRAM_RX	0x0001	/* this value indicates that DSP has data for host in DPRAM */
+#define FT1000_DB_DPRAM_RX	0x0001	/* this value indicates that DSP
+					 * has data for host in DPRAM
+					 */
 #define FT1000_DB_DNLD_RX	0x0002	/* Downloader handshake doorbell */
-#define FT1000_ASIC_RESET_REQ	0x0004	/* DSP requesting host to reset the ASIC */
-#define FT1000_DSP_ASIC_RESET	0x0008	/* DSP indicating host that it will reset the ASIC */
+#define FT1000_ASIC_RESET_REQ	0x0004	/* DSP requesting host to
+					 * reset the ASIC
+					 */
+#define FT1000_DSP_ASIC_RESET	0x0008	/* DSP indicating host that
+					 * it will reset the ASIC
+					 */
 #define FT1000_DB_COND_RESET	0x0010	/* DSP request for a card reset. */
 
 /* Host to FT1000 Doorbell assignments */
-#define FT1000_DB_DPRAM_TX	0x0100	/* this value indicates that host has data for DSP in DPRAM. */
+#define FT1000_DB_DPRAM_TX	0x0100	/* this value indicates that host
+					 * has data for DSP in DPRAM.
+					 */
 #define FT1000_DB_DNLD_TX	0x0200	/* Downloader handshake doorbell */
 #define FT1000_ASIC_RESET_DSP	0x0400	/* Responds to FT1000_ASIC_RESET_REQ */
-#define FT1000_DB_HB		0x1000	/* Indicates that supervisor has a heartbeat message for DSP. */
+#define FT1000_DB_HB		0x1000	/* Indicates that supervisor has a
+					 * heartbeat message for DSP.
+					 */
 
 #define hi			0x6869	/* PC Card heartbeat values */
 #define ho			0x686f	/* PC Card heartbeat values */
 
 /* Magnemite specific defines */
-#define hi_mag			0x6968	/* Byte swap hi to avoid additional system call */
-#define ho_mag			0x6f68	/* Byte swap ho to avoid additional system call */
+#define hi_mag			0x6968	/* Byte swap hi to avoid
+					 * additional system call
+					 */
+#define ho_mag			0x6f68	/* Byte swap ho to avoid
+					 * additional system call
+					 */
 
 /* Bit field definitions for Host Interrupt Status Register */
 /* Indicate the cause of an interrupt. */
@@ -133,13 +204,19 @@
 #define ISR_MASK_RCV		0x0004	/* Downlink Packet available mask */
 #define ISR_MASK_WATERMARK	0x0008	/* Watermark interrupt mask */
 #define ISR_MASK_ALL		0xffff	/* Mask all interrupts */
-/* Default interrupt mask (Enable Doorbell pending and Packet available interrupts) */
+/* Default interrupt mask
+ * (Enable Doorbell pending and Packet available interrupts)
+ */
 #define ISR_DEFAULT_MASK	0x7ff9
 
 /* Bit field definition for Host Control Register */
-#define DSP_RESET_BIT		0x0001	/* Bit field to control dsp reset state */
+#define DSP_RESET_BIT		0x0001	/* Bit field to control
+					 * dsp reset state
+					 */
 					/* (0 = out of reset 1 = reset) */
-#define ASIC_RESET_BIT		0x0002	/* Bit field to control ASIC reset state */
+#define ASIC_RESET_BIT		0x0002	/* Bit field to control
+					 * ASIC reset state
+					 */
 					/* (0 = out of reset 1 = reset) */
 #define DSP_UNENCRYPTED		0x0004
 #define DSP_ENCRYPTED		0x0008
@@ -195,7 +272,9 @@ struct pseudo_hdr {
 	unsigned char	source;		/* hardware source id */
 					/*    Host = 0x10 */
 					/*    Dsp  = 0x20 */
-	unsigned char	destination;	/* hardware destination id (refer to source) */
+	unsigned char	destination;	/* hardware destination id
+					 * (refer to source)
+					 */
 	unsigned char	portdest;	/* software destination port id */
 					/*    Host = 0x00 */
 					/*    Applicaton Broadcast = 0x10 */
@@ -204,7 +283,9 @@ struct pseudo_hdr {
 					/*    Dsp Airlink = 0x90 */
 					/*    Dsp Loader = 0xa0 */
 					/*    Dsp MIP = 0xb0 */
-	unsigned char	portsrc;	/* software source port id (refer to portdest) */
+	unsigned char	portsrc;	/* software source port id
+					 * (refer to portdest)
+					 */
 	unsigned short	sh_str_id;	/* not used */
 	unsigned char	control;	/* not used */
 	unsigned char	rsvd1;

@@ -34,10 +34,7 @@
 #include <linux/io.h>
 #include <linux/can/dev.h>
 #include <linux/spinlock.h>
-
 #include <linux/of_platform.h>
-#include <asm/prom.h>
-
 #include <linux/of_irq.h>
 
 #include <linux/dma-mapping.h>
@@ -1581,6 +1578,7 @@ static const struct net_device_ops grcan_netdev_ops = {
 	.ndo_open	= grcan_open,
 	.ndo_stop	= grcan_close,
 	.ndo_start_xmit	= grcan_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static int grcan_setup_netdev(struct platform_device *ofdev,

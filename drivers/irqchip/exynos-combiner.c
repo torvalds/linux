@@ -17,7 +17,6 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <asm/mach/irq.h>
 
 #include "irqchip.h"
 
@@ -81,7 +80,7 @@ static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	cascade_irq = irq_find_mapping(combiner_irq_domain, combiner_irq);
 
 	if (unlikely(!cascade_irq))
-		do_bad_IRQ(irq, desc);
+		handle_bad_irq(irq, desc);
 	else
 		generic_handle_irq(cascade_irq);
 
@@ -171,8 +170,7 @@ static struct irq_domain_ops combiner_irq_domain_ops = {
 
 static void __init combiner_init(void __iomem *combiner_base,
 				 struct device_node *np,
-				 unsigned int max_nr,
-				 int irq_base)
+				 unsigned int max_nr)
 {
 	int i, irq;
 	unsigned int nr_irq;
@@ -186,7 +184,7 @@ static void __init combiner_init(void __iomem *combiner_base,
 		return;
 	}
 
-	combiner_irq_domain = irq_domain_add_simple(np, nr_irq, irq_base,
+	combiner_irq_domain = irq_domain_add_linear(np, nr_irq,
 				&combiner_irq_domain_ops, combiner_data);
 	if (WARN_ON(!combiner_irq_domain)) {
 		pr_warning("%s: irq domain init failed\n", __func__);
@@ -207,7 +205,6 @@ static int __init combiner_of_init(struct device_node *np,
 {
 	void __iomem *combiner_base;
 	unsigned int max_nr = 20;
-	int irq_base = -1;
 
 	combiner_base = of_iomap(np, 0);
 	if (!combiner_base) {
@@ -221,14 +218,7 @@ static int __init combiner_of_init(struct device_node *np,
 			__func__, max_nr);
 	}
 
-	/* 
-	 * FIXME: This is a hardwired COMBINER_IRQ(0,0). Once all devices
-	 * get their IRQ from DT, remove this in order to get dynamic
-	 * allocation.
-	 */
-	irq_base = 160;
-
-	combiner_init(combiner_base, np, max_nr, irq_base);
+	combiner_init(combiner_base, np, max_nr);
 
 	return 0;
 }

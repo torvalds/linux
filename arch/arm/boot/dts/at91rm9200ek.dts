@@ -29,8 +29,20 @@
 
 	ahb {
 		apb {
-			dbgu: serial@fffff200 {
+			usb1: gadget@fffb0000 {
+				atmel,vbus-gpio = <&pioD 4 GPIO_ACTIVE_HIGH>;
+				atmel,pullup-gpio = <&pioD 5 GPIO_ACTIVE_HIGH>;
 				status = "okay";
+			};
+
+			macb0: ethernet@fffbc000 {
+				phy-mode = "rmii";
+				status = "okay";
+
+				phy0: ethernet-phy {
+					interrupt-parent = <&pioC>;
+					interrupts = <4 IRQ_TYPE_EDGE_BOTH>;
+				};
 			};
 
 			usart1: serial@fffc4000 {
@@ -44,16 +56,6 @@
 				status = "okay";
 			};
 
-			macb0: ethernet@fffbc000 {
-				phy-mode = "rmii";
-				status = "okay";
-			};
-
-			usb1: gadget@fffb0000 {
-				atmel,vbus-gpio = <&pioD 4 GPIO_ACTIVE_HIGH>;
-				status = "okay";
-			};
-
 			spi0: spi@fffe0000 {
 				status = "okay";
 				cs-gpios = <&pioA 3 0>, <0>, <0>, <0>;
@@ -63,11 +65,44 @@
 					reg = <0>;
 				};
 			};
+
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
 		};
 
 		usb0: ohci@00300000 {
 			num-ports = <2>;
 			status = "okay";
+		};
+
+		nor_flash@10000000 {
+			compatible = "cfi-flash";
+			reg = <0x10000000 0x800000>;
+			linux,mtd-name = "physmap-flash.0";
+			bank-width = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			barebox@0 {
+				label = "barebox";
+				reg = <0x00000 0x40000>;
+			};
+
+			bareboxenv@40000 {
+				label = "bareboxenv";
+				reg = <0x40000 0x10000>;
+			};
+
+			kernel@50000 {
+				label = "kernel";
+				reg = <0x50000 0x300000>;
+			};
+
+			root@350000  {
+				label = "root";
+				reg = <0x350000 0x4B0000>;
+			};
 		};
 	};
 

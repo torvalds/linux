@@ -36,18 +36,32 @@
 
 /* default value of sgtl5000 registers */
 static const struct reg_default sgtl5000_reg_defaults[] = {
+	{ SGTL5000_CHIP_DIG_POWER,		0x0000 },
 	{ SGTL5000_CHIP_CLK_CTRL,		0x0008 },
 	{ SGTL5000_CHIP_I2S_CTRL,		0x0010 },
 	{ SGTL5000_CHIP_SSS_CTRL,		0x0010 },
+	{ SGTL5000_CHIP_ADCDAC_CTRL,		0x020c },
 	{ SGTL5000_CHIP_DAC_VOL,		0x3c3c },
 	{ SGTL5000_CHIP_PAD_STRENGTH,		0x015f },
+	{ SGTL5000_CHIP_ANA_ADC_CTRL,		0x0000 },
 	{ SGTL5000_CHIP_ANA_HP_CTRL,		0x1818 },
 	{ SGTL5000_CHIP_ANA_CTRL,		0x0111 },
+	{ SGTL5000_CHIP_LINREG_CTRL,		0x0000 },
+	{ SGTL5000_CHIP_REF_CTRL,		0x0000 },
+	{ SGTL5000_CHIP_MIC_CTRL,		0x0000 },
+	{ SGTL5000_CHIP_LINE_OUT_CTRL,		0x0000 },
 	{ SGTL5000_CHIP_LINE_OUT_VOL,		0x0404 },
 	{ SGTL5000_CHIP_ANA_POWER,		0x7060 },
 	{ SGTL5000_CHIP_PLL_CTRL,		0x5000 },
+	{ SGTL5000_CHIP_CLK_TOP_CTRL,		0x0000 },
+	{ SGTL5000_CHIP_ANA_STATUS,		0x0000 },
+	{ SGTL5000_CHIP_SHORT_CTRL,		0x0000 },
+	{ SGTL5000_CHIP_ANA_TEST2,		0x0000 },
+	{ SGTL5000_DAP_CTRL,			0x0000 },
+	{ SGTL5000_DAP_PEQ,			0x0000 },
 	{ SGTL5000_DAP_BASS_ENHANCE,		0x0040 },
 	{ SGTL5000_DAP_BASS_ENHANCE_CTRL,	0x051f },
+	{ SGTL5000_DAP_AUDIO_EQ,		0x0000 },
 	{ SGTL5000_DAP_SURROUND,		0x0040 },
 	{ SGTL5000_DAP_EQ_BASS_BAND0,		0x002f },
 	{ SGTL5000_DAP_EQ_BASS_BAND1,		0x002f },
@@ -55,6 +69,7 @@ static const struct reg_default sgtl5000_reg_defaults[] = {
 	{ SGTL5000_DAP_EQ_BASS_BAND3,		0x002f },
 	{ SGTL5000_DAP_EQ_BASS_BAND4,		0x002f },
 	{ SGTL5000_DAP_MAIN_CHAN,		0x8000 },
+	{ SGTL5000_DAP_MIX_CHAN,		0x0000 },
 	{ SGTL5000_DAP_AVC_CTRL,		0x0510 },
 	{ SGTL5000_DAP_AVC_THRESHOLD,		0x1473 },
 	{ SGTL5000_DAP_AVC_ATTACK,		0x0028 },
@@ -115,6 +130,7 @@ struct sgtl5000_priv {
 	struct ldo_regulator *ldo;
 	struct regmap *regmap;
 	struct clk *mclk;
+	int revision;
 };
 
 /*
@@ -186,8 +202,9 @@ static const char *adc_mux_text[] = {
 	"MIC_IN", "LINE_IN"
 };
 
-static const struct soc_enum adc_enum =
-SOC_ENUM_SINGLE(SGTL5000_CHIP_ANA_CTRL, 2, 2, adc_mux_text);
+static SOC_ENUM_SINGLE_DECL(adc_enum,
+			    SGTL5000_CHIP_ANA_CTRL, 2,
+			    adc_mux_text);
 
 static const struct snd_kcontrol_new adc_mux =
 SOC_DAPM_ENUM("Capture Mux", adc_enum);
@@ -197,8 +214,9 @@ static const char *dac_mux_text[] = {
 	"DAC", "LINE_IN"
 };
 
-static const struct soc_enum dac_enum =
-SOC_ENUM_SINGLE(SGTL5000_CHIP_ANA_CTRL, 6, 2, dac_mux_text);
+static SOC_ENUM_SINGLE_DECL(dac_enum,
+			    SGTL5000_CHIP_ANA_CTRL, 6,
+			    dac_mux_text);
 
 static const struct snd_kcontrol_new dac_mux =
 SOC_DAPM_ENUM("Headphone Mux", dac_enum);
@@ -293,7 +311,7 @@ static int dac_info_volsw(struct snd_kcontrol *kcontrol,
 static int dac_get_volsw(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	int reg;
 	int l;
 	int r;
@@ -346,7 +364,7 @@ static int dac_get_volsw(struct snd_kcontrol *kcontrol,
 static int dac_put_volsw(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	int reg;
 	int l;
 	int r;
@@ -1065,71 +1083,11 @@ static int sgtl5000_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/*
- * restore all sgtl5000 registers,
- * since a big hole between dap and regular registers,
- * we will restore them respectively.
- */
-static int sgtl5000_restore_regs(struct snd_soc_codec *codec)
-{
-	u16 *cache = codec->reg_cache;
-	u16 reg;
-
-	/* restore regular registers */
-	for (reg = 0; reg <= SGTL5000_CHIP_SHORT_CTRL; reg += 2) {
-
-		/* These regs should restore in particular order */
-		if (reg == SGTL5000_CHIP_ANA_POWER ||
-			reg == SGTL5000_CHIP_CLK_CTRL ||
-			reg == SGTL5000_CHIP_LINREG_CTRL ||
-			reg == SGTL5000_CHIP_LINE_OUT_CTRL ||
-			reg == SGTL5000_CHIP_REF_CTRL)
-			continue;
-
-		snd_soc_write(codec, reg, cache[reg]);
-	}
-
-	/* restore dap registers */
-	for (reg = SGTL5000_DAP_REG_OFFSET; reg < SGTL5000_MAX_REG_OFFSET; reg += 2)
-		snd_soc_write(codec, reg, cache[reg]);
-
-	/*
-	 * restore these regs according to the power setting sequence in
-	 * sgtl5000_set_power_regs() and clock setting sequence in
-	 * sgtl5000_set_clock().
-	 *
-	 * The order of restore is:
-	 * 1. SGTL5000_CHIP_CLK_CTRL MCLK_FREQ bits (1:0) should be restore after
-	 *    SGTL5000_CHIP_ANA_POWER PLL bits set
-	 * 2. SGTL5000_CHIP_LINREG_CTRL should be set before
-	 *    SGTL5000_CHIP_ANA_POWER LINREG_D restored
-	 * 3. SGTL5000_CHIP_REF_CTRL controls Analog Ground Voltage,
-	 *    prefer to resotre it after SGTL5000_CHIP_ANA_POWER restored
-	 */
-	snd_soc_write(codec, SGTL5000_CHIP_LINREG_CTRL,
-			cache[SGTL5000_CHIP_LINREG_CTRL]);
-
-	snd_soc_write(codec, SGTL5000_CHIP_ANA_POWER,
-			cache[SGTL5000_CHIP_ANA_POWER]);
-
-	snd_soc_write(codec, SGTL5000_CHIP_CLK_CTRL,
-			cache[SGTL5000_CHIP_CLK_CTRL]);
-
-	snd_soc_write(codec, SGTL5000_CHIP_REF_CTRL,
-			cache[SGTL5000_CHIP_REF_CTRL]);
-
-	snd_soc_write(codec, SGTL5000_CHIP_LINE_OUT_CTRL,
-			cache[SGTL5000_CHIP_LINE_OUT_CTRL]);
-	return 0;
-}
-
 static int sgtl5000_resume(struct snd_soc_codec *codec)
 {
 	/* Bring the codec back up to standby to enable regulators */
 	sgtl5000_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	/* Restore registers by cached in memory */
-	sgtl5000_restore_regs(codec);
 	return 0;
 }
 #else
@@ -1285,90 +1243,57 @@ static int sgtl5000_replace_vddd_with_ldo(struct snd_soc_codec *codec)
 
 	sgtl5000->supplies[VDDD].supply = LDO_CONSUMER_NAME;
 
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(sgtl5000->supplies),
-			sgtl5000->supplies);
-
-	if (ret) {
-		ldo_regulator_remove(codec);
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		return ret;
-	}
-
 	dev_info(codec->dev, "Using internal LDO instead of VDDD\n");
 	return 0;
 }
 
 static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 {
-	int reg;
 	int ret;
-	int rev;
 	int i;
 	int external_vddd = 0;
 	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
+	struct regulator *vddd;
 
 	for (i = 0; i < ARRAY_SIZE(sgtl5000->supplies); i++)
 		sgtl5000->supplies[i].supply = supply_names[i];
 
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(sgtl5000->supplies),
-				sgtl5000->supplies);
-	if (!ret)
-		external_vddd = 1;
-	else {
+	/* External VDDD only works before revision 0x11 */
+	if (sgtl5000->revision < 0x11) {
+		vddd = regulator_get_optional(codec->dev, "VDDD");
+		if (IS_ERR(vddd)) {
+			/* See if it's just not registered yet */
+			if (PTR_ERR(vddd) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+		} else {
+			external_vddd = 1;
+			regulator_put(vddd);
+		}
+	}
+
+	if (!external_vddd) {
 		ret = sgtl5000_replace_vddd_with_ldo(codec);
 		if (ret)
 			return ret;
 	}
+
+	ret = devm_regulator_bulk_get(codec->dev, ARRAY_SIZE(sgtl5000->supplies),
+				 sgtl5000->supplies);
+	if (ret)
+		goto err_ldo_remove;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(sgtl5000->supplies),
 					sgtl5000->supplies);
 	if (ret)
-		goto err_regulator_free;
+		goto err_ldo_remove;
 
 	/* wait for all power rails bring up */
 	udelay(10);
 
-	/*
-	 * workaround for revision 0x11 and later,
-	 * roll back to use internal LDO
-	 */
-
-	ret = regmap_read(sgtl5000->regmap, SGTL5000_CHIP_ID, &reg);
-	if (ret)
-		goto err_regulator_disable;
-
-	rev = (reg & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
-
-	if (external_vddd && rev >= 0x11) {
-		/* disable all regulator first */
-		regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
-					sgtl5000->supplies);
-		/* free VDDD regulator */
-		regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
-					sgtl5000->supplies);
-
-		ret = sgtl5000_replace_vddd_with_ldo(codec);
-		if (ret)
-			return ret;
-
-		ret = regulator_bulk_enable(ARRAY_SIZE(sgtl5000->supplies),
-						sgtl5000->supplies);
-		if (ret)
-			goto err_regulator_free;
-
-		/* wait for all power rails bring up */
-		udelay(10);
-	}
-
 	return 0;
 
-err_regulator_disable:
-	regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
-				sgtl5000->supplies);
-err_regulator_free:
-	regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
-				sgtl5000->supplies);
-	if (external_vddd)
+err_ldo_remove:
+	if (!external_vddd)
 		ldo_regulator_remove(codec);
 	return ret;
 
@@ -1378,14 +1303,6 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 {
 	int ret;
 	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
-
-	/* setup i2c data ops */
-	codec->control_data = sgtl5000->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	ret = sgtl5000_enable_regulators(codec);
 	if (ret)
@@ -1444,8 +1361,6 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 err:
 	regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
 						sgtl5000->supplies);
-	regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
-				sgtl5000->supplies);
 	ldo_regulator_remove(codec);
 
 	return ret;
@@ -1459,8 +1374,6 @@ static int sgtl5000_remove(struct snd_soc_codec *codec)
 
 	regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
 						sgtl5000->supplies);
-	regulator_bulk_free(ARRAY_SIZE(sgtl5000->supplies),
-				sgtl5000->supplies);
 	ldo_regulator_remove(codec);
 
 	return 0;
@@ -1566,6 +1479,7 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 
 	rev = (reg & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
 	dev_info(&client->dev, "sgtl5000 revision 0x%x\n", rev);
+	sgtl5000->revision = rev;
 
 	i2c_set_clientdata(client, sgtl5000);
 

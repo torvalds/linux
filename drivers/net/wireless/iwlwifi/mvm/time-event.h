@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -123,6 +123,7 @@
  * @duration: the duration of the session in TU.
  * @min_duration: will start a new session if the current session will end
  *	in less than min_duration.
+ * @max_delay: maximum delay before starting the time event (in TU)
  *
  * This function can be used to start a session protection which means that the
  * fw will stay on the channel for %duration_ms milliseconds. This function
@@ -133,7 +134,8 @@
  */
 void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
-			     u32 duration, u32 min_duration);
+			     u32 duration, u32 min_duration,
+			     u32 max_delay);
 
 /**
  * iwl_mvm_stop_session_protection - cancel the session protection.

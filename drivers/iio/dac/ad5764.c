@@ -83,7 +83,12 @@ enum ad5764_type {
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |			\
 		BIT(IIO_CHAN_INFO_CALIBBIAS),			\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET),	\
-	.scan_type = IIO_ST('u', (_bits), 16, 16 - (_bits))	\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (_bits),				\
+		.storagebits = 16,				\
+		.shift = 16 - (_bits),				\
+	},							\
 }
 
 #define DECLARE_AD5764_CHANNELS(_name, _bits) \
@@ -217,7 +222,6 @@ static int ad5764_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long info)
 {
 	struct ad5764_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 	unsigned int reg;
 	int vref;
 	int ret;
@@ -245,15 +249,14 @@ static int ad5764_read_raw(struct iio_dev *indio_dev,
 		*val = sign_extend32(*val, 5);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		/* vout = 4 * vref + ((dac_code / 65535) - 0.5) */
+		/* vout = 4 * vref + ((dac_code / 65536) - 0.5) */
 		vref = ad5764_get_channel_vref(st, chan->channel);
 		if (vref < 0)
 			return vref;
 
-		scale_uv = (vref * 4 * 100) >> chan->scan_type.realbits;
-		*val = scale_uv / 100000;
-		*val2 = (scale_uv % 100000) * 10;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = vref * 4 / 1000;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = -(1 << chan->scan_type.realbits) / 2;
 		return IIO_VAL_INT;

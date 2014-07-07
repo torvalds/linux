@@ -2,7 +2,6 @@
 #include <linux/errno.h>
 #include <linux/freezer.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
@@ -51,7 +50,7 @@ static int eucr_suspend(struct usb_interface *iface, pm_message_t message)
 
 static int eucr_resume(struct usb_interface *iface)
 {
-	BYTE    tmp = 0;
+	u8    tmp = 0;
 
 	struct us_data *us = usb_get_intfdata(iface);
 	pr_info("--- eucr_resume---\n");
@@ -72,7 +71,7 @@ static int eucr_resume(struct usb_interface *iface)
 
 static int eucr_reset_resume(struct usb_interface *iface)
 {
-	BYTE    tmp = 0;
+	u8    tmp = 0;
 	struct us_data *us = usb_get_intfdata(iface);
 
 	pr_info("--- eucr_reset_resume---\n");
@@ -529,7 +528,7 @@ static int eucr_probe(struct usb_interface *intf,
 	struct Scsi_Host *host;
 	struct us_data *us;
 	int result;
-	BYTE	MiscReg03 = 0;
+	u8	MiscReg03 = 0;
 	struct task_struct *th;
 
 	pr_info("usb --- eucr_probe\n");
@@ -604,9 +603,7 @@ static int eucr_probe(struct usb_interface *intf,
 	if (!(MiscReg03 & 0x02)) {
 		result = -ENODEV;
 		quiesce_and_remove_host(us);
-		pr_info("keucr: The driver only supports SM/MS card. "
-			"To use SD card, "
-			"please build driver/usb/storage/ums-eneub6250.ko\n");
+		pr_info("keucr: The driver only supports SM/MS card. To use SD card, please build driver/usb/storage/ums-eneub6250.ko\n");
 		goto BadDevice;
 	}
 

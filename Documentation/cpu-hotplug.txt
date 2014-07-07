@@ -5,7 +5,7 @@
 			Rusty Russell <rusty@rustcorp.com.au>
 			Srivatsa Vaddagiri <vatsa@in.ibm.com>
 		i386:
-			Zwane Mwaikambo <zwane@arm.linux.org.uk>
+			Zwane Mwaikambo <zwanem@gmail.com>
 		ppc64:
 			Nathan Lynch <nathanl@austin.ibm.com>
 			Joel Schopp <jschopp@austin.ibm.com>
@@ -285,7 +285,7 @@ A: This is what you would need in your kernel code to receive notifications.
 		return NOTIFY_OK;
 	}
 
-	static struct notifier_block foobar_cpu_notifer =
+	static struct notifier_block foobar_cpu_notifier =
 	{
 	   .notifier_call = foobar_cpu_callback,
 	};
@@ -312,11 +312,56 @@ things will happen if a notifier in path sent a BAD notify code.
 Q: I don't see my action being called for all CPUs already up and running?
 A: Yes, CPU notifiers are called only when new CPUs are on-lined or offlined.
    If you need to perform some action for each cpu already in the system, then
+   do this:
 
 	for_each_online_cpu(i) {
 		foobar_cpu_callback(&foobar_cpu_notifier, CPU_UP_PREPARE, i);
 		foobar_cpu_callback(&foobar_cpu_notifier, CPU_ONLINE, i);
 	}
+
+   However, if you want to register a hotplug callback, as well as perform
+   some initialization for CPUs that are already online, then do this:
+
+   Version 1: (Correct)
+   ---------
+
+   	cpu_notifier_register_begin();
+
+		for_each_online_cpu(i) {
+			foobar_cpu_callback(&foobar_cpu_notifier,
+					    CPU_UP_PREPARE, i);
+			foobar_cpu_callback(&foobar_cpu_notifier,
+					    CPU_ONLINE, i);
+		}
+
+	/* Note the use of the double underscored version of the API */
+	__register_cpu_notifier(&foobar_cpu_notifier);
+
+	cpu_notifier_register_done();
+
+   Note that the following code is *NOT* the right way to achieve this,
+   because it is prone to an ABBA deadlock between the cpu_add_remove_lock
+   and the cpu_hotplug.lock.
+
+   Version 2: (Wrong!)
+   ---------
+
+	get_online_cpus();
+
+		for_each_online_cpu(i) {
+			foobar_cpu_callback(&foobar_cpu_notifier,
+					    CPU_UP_PREPARE, i);
+			foobar_cpu_callback(&foobar_cpu_notifier,
+					    CPU_ONLINE, i);
+		}
+
+	register_cpu_notifier(&foobar_cpu_notifier);
+
+	put_online_cpus();
+
+    So always use the first version shown above when you want to register
+    callbacks as well as initialize the already online CPUs.
+
 
 Q: If i would like to develop cpu hotplug support for a new architecture,
    what do i need at a minimum?

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -374,16 +374,22 @@ struct acpi_mpst_shared {
 struct acpi_table_pcct {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u32 flags;
-	u32 latency;
-	u32 reserved;
+	u64 reserved;
 };
 
 /* Values for Flags field above */
 
 #define ACPI_PCCT_DOORBELL              1
 
+/* Values for subtable type in struct acpi_subtable_header */
+
+enum acpi_pcct_type {
+	ACPI_PCCT_TYPE_GENERIC_SUBSPACE = 0,
+	ACPI_PCCT_TYPE_RESERVED = 1	/* 1 and greater are reserved */
+};
+
 /*
- * PCCT subtables
+ * PCCT Subtables, correspond to Type in struct acpi_subtable_header
  */
 
 /* 0: Generic Communications Subspace */
@@ -396,6 +402,9 @@ struct acpi_pcct_subspace {
 	struct acpi_generic_address doorbell_register;
 	u64 preserve_mask;
 	u64 write_mask;
+	u32 latency;
+	u32 max_access_rate;
+	u16 min_turnaround_time;
 };
 
 /*

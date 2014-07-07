@@ -644,7 +644,7 @@ static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 	pci_read_config_word(pm8001_ha->pdev, PCI_DEVICE_ID, &deviceid);
 	/* 8081 controllers need BAR shift to access MPI space
 	* as this is shared with BIOS data */
-	if (deviceid == 0x8081) {
+	if (deviceid == 0x8081 || deviceid == 0x0042) {
 		if (-1 == pm8001_bar4_shift(pm8001_ha, GSM_SM_BASE)) {
 			PM8001_FAIL_DBG(pm8001_ha,
 				pm8001_printk("Shift Bar4 to 0x%x failed\n",
@@ -673,7 +673,7 @@ static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 	for (i = 0; i < PM8001_MAX_OUTB_NUM; i++)
 		update_outbnd_queue_table(pm8001_ha, i);
 	/* 8081 controller donot require these operations */
-	if (deviceid != 0x8081) {
+	if (deviceid != 0x8081 && deviceid != 0x0042) {
 		mpi_set_phys_g3_with_ssc(pm8001_ha, 0);
 		/* 7->130ms, 34->500ms, 119->1.5s */
 		mpi_set_open_retry_interval_reg(pm8001_ha, 119);
@@ -701,7 +701,7 @@ static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
 	u32 gst_len_mpistate;
 	u16 deviceid;
 	pci_read_config_word(pm8001_ha->pdev, PCI_DEVICE_ID, &deviceid);
-	if (deviceid == 0x8081) {
+	if (deviceid == 0x8081 || deviceid == 0x0042) {
 		if (-1 == pm8001_bar4_shift(pm8001_ha, GSM_SM_BASE)) {
 			PM8001_FAIL_DBG(pm8001_ha,
 				pm8001_printk("Shift Bar4 to 0x%x failed\n",
@@ -1868,6 +1868,13 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	if (unlikely(!t || !t->lldd_task || !t->dev))
 		return;
 	ts = &t->task_status;
+	/* Print sas address of IO failed device */
+	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
+		(status != IO_UNDERFLOW))
+		PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("SAS Address of IO Failure Drive:"
+			"%016llx", SAS_ADDR(t->dev->sas_addr)));
+
 	switch (status) {
 	case IO_SUCCESS:
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS"
@@ -2276,6 +2283,11 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 param;
 	u32 status;
 	u32 tag;
+	int i, j;
+	u8 sata_addr_low[4];
+	u32 temp_sata_addr_low;
+	u8 sata_addr_hi[4];
+	u32 temp_sata_addr_hi;
 	struct sata_completion_resp *psataPayload;
 	struct task_status_struct *ts;
 	struct ata_task_resp *resp ;
@@ -2325,7 +2337,46 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk("ts null\n"));
 		return;
 	}
-
+	/* Print sas address of IO failed device */
+	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
+		(status != IO_UNDERFLOW)) {
+		if (!((t->dev->parent) &&
+			(DEV_IS_EXPANDER(t->dev->parent->dev_type)))) {
+			for (i = 0 , j = 4; j <= 7 && i <= 3; i++ , j++)
+				sata_addr_low[i] = pm8001_ha->sas_addr[j];
+			for (i = 0 , j = 0; j <= 3 && i <= 3; i++ , j++)
+				sata_addr_hi[i] = pm8001_ha->sas_addr[j];
+			memcpy(&temp_sata_addr_low, sata_addr_low,
+				sizeof(sata_addr_low));
+			memcpy(&temp_sata_addr_hi, sata_addr_hi,
+				sizeof(sata_addr_hi));
+			temp_sata_addr_hi = (((temp_sata_addr_hi >> 24) & 0xff)
+						|((temp_sata_addr_hi << 8) &
+						0xff0000) |
+						((temp_sata_addr_hi >> 8)
+						& 0xff00) |
+						((temp_sata_addr_hi << 24) &
+						0xff000000));
+			temp_sata_addr_low = ((((temp_sata_addr_low >> 24)
+						& 0xff) |
+						((temp_sata_addr_low << 8)
+						& 0xff0000) |
+						((temp_sata_addr_low >> 8)
+						& 0xff00) |
+						((temp_sata_addr_low << 24)
+						& 0xff000000)) +
+						pm8001_dev->attached_phy +
+						0x10);
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("SAS Address of IO Failure Drive:"
+				"%08x%08x", temp_sata_addr_hi,
+					temp_sata_addr_low));
+		} else {
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("SAS Address of IO Failure Drive:"
+				"%016llx", SAS_ADDR(t->dev->sas_addr)));
+		}
+	}
 	switch (status) {
 	case IO_SUCCESS:
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS\n"));
@@ -2451,11 +2502,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-			mb();/*in order to force CPU ordering*/
-			spin_unlock_irq(&pm8001_ha->lock);
-			t->task_done(t);
-			spin_lock_irq(&pm8001_ha->lock);
+			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
 			return;
 		}
 		break;
@@ -2471,11 +2518,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-			mb();/*ditto*/
-			spin_unlock_irq(&pm8001_ha->lock);
-			t->task_done(t);
-			spin_lock_irq(&pm8001_ha->lock);
+			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
 			return;
 		}
 		break;
@@ -2499,11 +2542,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-			mb();/* ditto*/
-			spin_unlock_irq(&pm8001_ha->lock);
-			t->task_done(t);
-			spin_lock_irq(&pm8001_ha->lock);
+			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
 			return;
 		}
 		break;
@@ -2566,11 +2605,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				    IO_DS_NON_OPERATIONAL);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-			mb();/*ditto*/
-			spin_unlock_irq(&pm8001_ha->lock);
-			t->task_done(t);
-			spin_lock_irq(&pm8001_ha->lock);
+			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
 			return;
 		}
 		break;
@@ -2590,11 +2625,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				    IO_DS_IN_ERROR);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-			mb();/*ditto*/
-			spin_unlock_irq(&pm8001_ha->lock);
-			t->task_done(t);
-			spin_lock_irq(&pm8001_ha->lock);
+			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
 			return;
 		}
 		break;
@@ -2623,20 +2654,9 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			" resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			t, status, ts->resp, ts->stat));
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-	} else if (t->uldd_task) {
+	} else {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-		mb();/* ditto */
-		spin_unlock_irq(&pm8001_ha->lock);
-		t->task_done(t);
-		spin_lock_irq(&pm8001_ha->lock);
-	} else if (!t->uldd_task) {
-		spin_unlock_irqrestore(&t->task_state_lock, flags);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-		mb();/*ditto*/
-		spin_unlock_irq(&pm8001_ha->lock);
-		t->task_done(t);
-		spin_lock_irq(&pm8001_ha->lock);
+		pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
 	}
 }
 
@@ -2745,11 +2765,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 				IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS);
 			ts->resp = SAS_TASK_COMPLETE;
 			ts->stat = SAS_QUEUE_FULL;
-			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-			mb();/*ditto*/
-			spin_unlock_irq(&pm8001_ha->lock);
-			t->task_done(t);
-			spin_lock_irq(&pm8001_ha->lock);
+			pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
 			return;
 		}
 		break;
@@ -2858,20 +2874,9 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 			" resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			t, event, ts->resp, ts->stat));
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-	} else if (t->uldd_task) {
+	} else {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-		mb();/* ditto */
-		spin_unlock_irq(&pm8001_ha->lock);
-		t->task_done(t);
-		spin_lock_irq(&pm8001_ha->lock);
-	} else if (!t->uldd_task) {
-		spin_unlock_irqrestore(&t->task_state_lock, flags);
-		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-		mb();/*ditto*/
-		spin_unlock_irq(&pm8001_ha->lock);
-		t->task_done(t);
-		spin_lock_irq(&pm8001_ha->lock);
+		pm8001_ccb_task_free_done(pm8001_ha, t, ccb, tag);
 	}
 }
 
@@ -3087,8 +3092,8 @@ void pm8001_mpi_set_dev_state_resp(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_device *pm8001_dev = ccb->device;
 	u32 status = le32_to_cpu(pPayload->status);
 	u32 device_id = le32_to_cpu(pPayload->device_id);
-	u8 pds = le32_to_cpu(pPayload->pds_nds) | PDS_BITS;
-	u8 nds = le32_to_cpu(pPayload->pds_nds) | NDS_BITS;
+	u8 pds = le32_to_cpu(pPayload->pds_nds) & PDS_BITS;
+	u8 nds = le32_to_cpu(pPayload->pds_nds) & NDS_BITS;
 	PM8001_MSG_DBG(pm8001_ha, pm8001_printk("Set device id = 0x%x state "
 		"from 0x%x to 0x%x status = 0x%x!\n",
 		device_id, pds, nds, status));
@@ -3352,6 +3357,7 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	unsigned long flags;
 	u8 deviceType = pPayload->sas_identify.dev_type;
 	port->port_state =  portstate;
+	phy->phy_state = PHY_STATE_LINK_UP_SPC;
 	PM8001_MSG_DBG(pm8001_ha,
 		pm8001_printk("HW_EVENT_SAS_PHY_UP port id = %d, phy id = %d\n",
 		port_id, phy_id));
@@ -3432,6 +3438,7 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_printk("HW_EVENT_SATA_PHY_UP port id = %d,"
 		" phy id = %d\n", port_id, phy_id));
 	port->port_state =  portstate;
+	phy->phy_state = PHY_STATE_LINK_UP_SPC;
 	port->port_attached = 1;
 	pm8001_get_lrate_mode(phy, link_rate);
 	phy->phy_type |= PORT_TYPE_SATA;
@@ -4414,23 +4421,11 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 					" stat 0x%x but aborted by upper layer "
 					"\n", task, ts->resp, ts->stat));
 				pm8001_ccb_task_free(pm8001_ha, task, ccb, tag);
-			} else if (task->uldd_task) {
+			} else {
 				spin_unlock_irqrestore(&task->task_state_lock,
 							flags);
-				pm8001_ccb_task_free(pm8001_ha, task, ccb, tag);
-				mb();/* ditto */
-				spin_unlock_irq(&pm8001_ha->lock);
-				task->task_done(task);
-				spin_lock_irq(&pm8001_ha->lock);
-				return 0;
-			} else if (!task->uldd_task) {
-				spin_unlock_irqrestore(&task->task_state_lock,
-							flags);
-				pm8001_ccb_task_free(pm8001_ha, task, ccb, tag);
-				mb();/*ditto*/
-				spin_unlock_irq(&pm8001_ha->lock);
-				task->task_done(task);
-				spin_lock_irq(&pm8001_ha->lock);
+				pm8001_ccb_task_free_done(pm8001_ha, task,
+								ccb, tag);
 				return 0;
 			}
 		}
@@ -4700,6 +4695,8 @@ int pm8001_chip_ssp_tm_req(struct pm8001_hba_info *pm8001_ha,
 	sspTMCmd.tmf = cpu_to_le32(tmf->tmf);
 	memcpy(sspTMCmd.lun, task->ssp_task.LUN, 8);
 	sspTMCmd.tag = cpu_to_le32(ccb->ccb_tag);
+	if (pm8001_ha->chip_id != chip_8001)
+		sspTMCmd.ds_ads_m = 0x08;
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &sspTMCmd, 0);
 	return ret;
@@ -4776,6 +4773,16 @@ int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 		    cpu_to_le32(pm8001_ha->memoryMap.region[NVMD].phys_addr_hi);
 		nvmd_req.resp_addr_lo =
 		    cpu_to_le32(pm8001_ha->memoryMap.region[NVMD].phys_addr_lo);
+		break;
+	}
+	case IOP_RDUMP: {
+		nvmd_req.len_ir_vpdd = cpu_to_le32(IPMode | IOP_RDUMP);
+		nvmd_req.resp_len = cpu_to_le32(ioctl_payload->length);
+		nvmd_req.vpd_offset = cpu_to_le32(ioctl_payload->offset);
+		nvmd_req.resp_addr_hi =
+		cpu_to_le32(pm8001_ha->memoryMap.region[NVMD].phys_addr_hi);
+		nvmd_req.resp_addr_lo =
+		cpu_to_le32(pm8001_ha->memoryMap.region[NVMD].phys_addr_lo);
 		break;
 	}
 	default:
@@ -4936,6 +4943,84 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	rc = pm8001_chip_fw_flash_update_build(pm8001_ha, &flash_update_info,
 		tag);
 	return rc;
+}
+
+ssize_t
+pm8001_get_gsm_dump(struct device *cdev, u32 length, char *buf)
+{
+	u32 value, rem, offset = 0, bar = 0;
+	u32 index, work_offset, dw_length;
+	u32 shift_value, gsm_base, gsm_dump_offset;
+	char *direct_data;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	direct_data = buf;
+	gsm_dump_offset = pm8001_ha->fatal_forensic_shift_offset;
+
+	/* check max is 1 Mbytes */
+	if ((length > 0x100000) || (gsm_dump_offset & 3) ||
+		((gsm_dump_offset + length) > 0x1000000))
+			return -EINVAL;
+
+	if (pm8001_ha->chip_id == chip_8001)
+		bar = 2;
+	else
+		bar = 1;
+
+	work_offset = gsm_dump_offset & 0xFFFF0000;
+	offset = gsm_dump_offset & 0x0000FFFF;
+	gsm_dump_offset = work_offset;
+	/* adjust length to dword boundary */
+	rem = length & 3;
+	dw_length = length >> 2;
+
+	for (index = 0; index < dw_length; index++) {
+		if ((work_offset + offset) & 0xFFFF0000) {
+			if (pm8001_ha->chip_id == chip_8001)
+				shift_value = ((gsm_dump_offset + offset) &
+						SHIFT_REG_64K_MASK);
+			else
+				shift_value = (((gsm_dump_offset + offset) &
+						SHIFT_REG_64K_MASK) >>
+						SHIFT_REG_BIT_SHIFT);
+
+			if (pm8001_ha->chip_id == chip_8001) {
+				gsm_base = GSM_BASE;
+				if (-1 == pm8001_bar4_shift(pm8001_ha,
+						(gsm_base + shift_value)))
+					return -EIO;
+			} else {
+				gsm_base = 0;
+				if (-1 == pm80xx_bar4_shift(pm8001_ha,
+						(gsm_base + shift_value)))
+					return -EIO;
+			}
+			gsm_dump_offset = (gsm_dump_offset + offset) &
+						0xFFFF0000;
+			work_offset = 0;
+			offset = offset & 0x0000FFFF;
+		}
+		value = pm8001_cr32(pm8001_ha, bar, (work_offset + offset) &
+						0x0000FFFF);
+		direct_data += sprintf(direct_data, "%08x ", value);
+		offset += 4;
+	}
+	if (rem != 0) {
+		value = pm8001_cr32(pm8001_ha, bar, (work_offset + offset) &
+						0x0000FFFF);
+		/* xfr for non_dw */
+		direct_data += sprintf(direct_data, "%08x ", value);
+	}
+	/* Shift back to BAR4 original address */
+	if (-1 == pm8001_bar4_shift(pm8001_ha, 0))
+			return -EIO;
+	pm8001_ha->fatal_forensic_shift_offset += 1024;
+
+	if (pm8001_ha->fatal_forensic_shift_offset >= 0x100000)
+		pm8001_ha->fatal_forensic_shift_offset = 0;
+	return direct_data - buf;
 }
 
 int

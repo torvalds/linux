@@ -101,7 +101,7 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/*
 	 * Find the right map
 	 */
-	if (!drm_core_has_AGP(dev))
+	if (!dev->agp)
 		goto vm_fault_error;
 
 	if (!dev->agp || !dev->agp->cant_use_aperture)
@@ -220,7 +220,6 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_dec(&dev->vma_count);
 
 	map = vma->vm_private_data;
 
@@ -266,9 +265,6 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 				dmah.size = map->size;
 				__drm_pci_free(dev, &dmah);
 				break;
-			case _DRM_GEM:
-				DRM_ERROR("tried to rmmap GEM object\n");
-				break;
 			}
 			kfree(map);
 		}
@@ -301,7 +297,7 @@ static int drm_do_vm_dma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	offset = (unsigned long)vmf->virtual_address - vma->vm_start;	/* vm_[pg]off[set] should be 0 */
 	page_nr = offset >> PAGE_SHIFT; /* page_nr could just be vmf->pgoff */
-	page = virt_to_page((dma->pagelist[page_nr] + (offset & (~PAGE_MASK))));
+	page = virt_to_page((void *)dma->pagelist[page_nr]);
 
 	get_page(page);
 	vmf->page = page;
@@ -408,7 +404,6 @@ void drm_vm_open_locked(struct drm_device *dev,
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_inc(&dev->vma_count);
 
 	vma_entry = kmalloc(sizeof(*vma_entry), GFP_KERNEL);
 	if (vma_entry) {
@@ -436,7 +431,6 @@ void drm_vm_close_locked(struct drm_device *dev,
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_dec(&dev->vma_count);
 
 	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
 		if (pt->vma == vma) {
@@ -595,7 +589,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	switch (map->type) {
 #if !defined(__arm__)
 	case _DRM_AGP:
-		if (drm_core_has_AGP(dev) && dev->agp->cant_use_aperture) {
+		if (dev->agp && dev->agp->cant_use_aperture) {
 			/*
 			 * On some platforms we can't talk to bus dma address from the CPU, so for
 			 * memory of type DRM_AGP, we'll deal with sorting out the real physical

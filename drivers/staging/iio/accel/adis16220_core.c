@@ -102,7 +102,6 @@ static ssize_t adis16220_capture_buffer_read(struct iio_dev *indio_dev,
 					int addr)
 {
 	struct adis16220_state *st = iio_priv(indio_dev);
-	struct spi_message msg;
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = st->tx,
@@ -147,10 +146,7 @@ static ssize_t adis16220_capture_buffer_read(struct iio_dev *indio_dev,
 	}
 	xfers[1].len = count;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->adis.spi, &msg);
+	ret = spi_sync_transfer(st->adis.spi, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 
 		mutex_unlock(&st->buf_lock);
@@ -443,13 +439,13 @@ static int adis16220_probe(struct spi_device *spi)
 	indio_dev->channels = adis16220_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16220_channels);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)
 		return ret;
 
 	ret = sysfs_create_bin_file(&indio_dev->dev.kobj, &accel_bin);
 	if (ret)
-		goto error_unregister_dev;
+		return ret;
 
 	ret = sysfs_create_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 	if (ret)
@@ -474,8 +470,6 @@ error_rm_adc1_bin:
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 error_rm_accel_bin:
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &accel_bin);
-error_unregister_dev:
-	iio_device_unregister(indio_dev);
 	return ret;
 }
 
@@ -486,7 +480,6 @@ static int adis16220_remove(struct spi_device *spi)
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc2_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &accel_bin);
-	iio_device_unregister(indio_dev);
 
 	return 0;
 }

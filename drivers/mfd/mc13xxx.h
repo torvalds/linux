@@ -43,9 +43,7 @@ struct mc13xxx {
 	int adcflags;
 };
 
-int mc13xxx_common_init(struct mc13xxx *mc13xxx,
-		struct mc13xxx_platform_data *pdata, int irq);
-
-void mc13xxx_common_cleanup(struct mc13xxx *mc13xxx);
+int mc13xxx_common_init(struct device *dev);
+int mc13xxx_common_exit(struct device *dev);
 
 #endif /* __DRIVERS_MFD_MC13XXX_H */

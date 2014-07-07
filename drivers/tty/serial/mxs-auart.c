@@ -39,6 +39,7 @@
 #include <asm/cacheflush.h>
 
 #define MXS_AUART_PORTS 5
+#define MXS_AUART_FIFO_SIZE		16
 
 #define AUART_CTRL0			0x00000000
 #define AUART_CTRL0_SET			0x00000004
@@ -199,7 +200,7 @@ static void dma_tx_callback(void *param)
 
 	/* clear the bit used to serialize the DMA tx. */
 	clear_bit(MXS_AUART_DMA_TX_SYNC, &s->flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	/* wake up the possible processes. */
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -274,7 +275,7 @@ static void mxs_auart_tx_chars(struct mxs_auart_port *s)
 			mxs_auart_dma_tx(s, i);
 		} else {
 			clear_bit(MXS_AUART_DMA_TX_SYNC, &s->flags);
-			smp_mb__after_clear_bit();
+			smp_mb__after_atomic();
 		}
 		return;
 	}
@@ -548,6 +549,9 @@ static int mxs_auart_dma_init(struct mxs_auart_port *s)
 	s->flags |= MXS_AUART_DMA_ENABLED;
 	dev_dbg(s->dev, "enabled the DMA support.");
 
+	/* The DMA buffer is now the FIFO the TTY subsystem can use */
+	s->port.fifosize = UART_XMIT_SIZE;
+
 	return 0;
 
 err_out:
@@ -600,7 +604,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 
 	if (termios->c_iflag & INPCK)
 		u->read_status_mask |= AUART_STAT_PERR;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		u->read_status_mask |= AUART_STAT_BERR;
 
 	/*
@@ -730,9 +734,12 @@ static void mxs_auart_reset(struct uart_port *u)
 
 static int mxs_auart_startup(struct uart_port *u)
 {
+	int ret;
 	struct mxs_auart_port *s = to_auart_port(u);
 
-	clk_prepare_enable(s->clk);
+	ret = clk_prepare_enable(s->clk);
+	if (ret)
+		return ret;
 
 	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_CLR);
 
@@ -740,6 +747,9 @@ static int mxs_auart_startup(struct uart_port *u)
 
 	writel(AUART_INTR_RXIEN | AUART_INTR_RTIEN | AUART_INTR_CTSMIEN,
 			u->membase + AUART_INTR);
+
+	/* Reset FIFO size (it could have changed if DMA was enabled) */
+	u->fifosize = MXS_AUART_FIFO_SIZE;
 
 	/*
 	 * Enable fifo so all four bytes of a DMA word are written to
@@ -950,7 +960,9 @@ auart_console_setup(struct console *co, char *options)
 	if (!s)
 		return -ENODEV;
 
-	clk_prepare_enable(s->clk);
+	ret = clk_prepare_enable(s->clk);
+	if (ret)
+		return ret;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1056,7 +1068,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	s->port.membase = ioremap(r->start, resource_size(r));
 	s->port.ops = &mxs_auart_ops;
 	s->port.iotype = UPIO_MEM;
-	s->port.fifosize = 16;
+	s->port.fifosize = MXS_AUART_FIFO_SIZE;
 	s->port.uartclk = clk_get_rate(s->clk);
 	s->port.type = PORT_IMX;
 	s->port.dev = s->dev = &pdev->dev;

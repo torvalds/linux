@@ -165,7 +165,7 @@
 #define LUSTRE_EHOSTUNREACH	113	/* No route to host */
 #define LUSTRE_EALREADY		114	/* Operation already in progress */
 #define LUSTRE_EINPROGRESS	115	/* Operation now in progress */
-#define LUSTRE_ESTALE		116	/* Stale NFS file handle */
+#define LUSTRE_ESTALE		116	/* Stale file handle */
 #define LUSTRE_EUCLEAN		117	/* Structure needs cleaning */
 #define LUSTRE_ENOTNAM		118	/* Not a XENIX named type file */
 #define LUSTRE_ENAVAIL		119	/* No XENIX semaphores available */

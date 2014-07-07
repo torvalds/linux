@@ -98,6 +98,8 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 	Elf_Shdr *symtab_sec = NULL;
 	Elf_Shdr *extab_sec = NULL;
 	Elf_Sym *sym;
+	const Elf_Sym *symtab;
+	Elf32_Word *symtab_shndx_start = NULL;
 	Elf_Sym *sort_needed_sym;
 	Elf_Shdr *sort_needed_sec;
 	Elf_Rel *relocs = NULL;
@@ -109,11 +111,22 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 	int extab_index = 0;
 	int i;
 	int idx;
+	unsigned int num_sections;
+	unsigned int secindex_strings;
 
 	shdr = (Elf_Shdr *)((char *)ehdr + _r(&ehdr->e_shoff));
-	shstrtab_sec = shdr + r2(&ehdr->e_shstrndx);
+
+	num_sections = r2(&ehdr->e_shnum);
+	if (num_sections == SHN_UNDEF)
+		num_sections = _r(&shdr[0].sh_size);
+
+	secindex_strings = r2(&ehdr->e_shstrndx);
+	if (secindex_strings == SHN_XINDEX)
+		secindex_strings = r(&shdr[0].sh_link);
+
+	shstrtab_sec = shdr + secindex_strings;
 	secstrtab = (const char *)ehdr + _r(&shstrtab_sec->sh_offset);
-	for (i = 0; i < r2(&ehdr->e_shnum); i++) {
+	for (i = 0; i < num_sections; i++) {
 		idx = r(&shdr[i].sh_name);
 		if (strcmp(secstrtab + idx, "__ex_table") == 0) {
 			extab_sec = shdr + i;
@@ -129,6 +142,9 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 			symtab_sec = shdr + i;
 		if (strcmp(secstrtab + idx, ".strtab") == 0)
 			strtab_sec = shdr + i;
+		if (r(&shdr[i].sh_type) == SHT_SYMTAB_SHNDX)
+			symtab_shndx_start = (Elf32_Word *)(
+				(const char *)ehdr + _r(&shdr[i].sh_offset));
 	}
 	if (strtab_sec == NULL) {
 		fprintf(stderr,	"no .strtab in  file: %s\n", fname);
@@ -138,6 +154,8 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 		fprintf(stderr,	"no .symtab in  file: %s\n", fname);
 		fail_file();
 	}
+	symtab = (const Elf_Sym *)((const char *)ehdr +
+				   _r(&symtab_sec->sh_offset));
 	if (extab_sec == NULL) {
 		fprintf(stderr,	"no __ex_table in  file: %s\n", fname);
 		fail_file();
@@ -176,7 +194,9 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 			fname);
 		fail_file();
 	}
-	sort_needed_sec = &shdr[r2(&sort_needed_sym->st_shndx)];
+	sort_needed_sec = &shdr[get_secindex(r2(&sym->st_shndx),
+					     sort_needed_sym - symtab,
+					     symtab_shndx_start)];
 	sort_done_location = (void *)ehdr +
 		_r(&sort_needed_sec->sh_offset) +
 		_r(&sort_needed_sym->st_value) -

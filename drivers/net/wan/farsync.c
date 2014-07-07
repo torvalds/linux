@@ -26,6 +26,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 #include <linux/if.h>
 #include <linux/hdlc.h>
 #include <asm/io.h>
@@ -678,7 +679,6 @@ static inline void
 fst_cpureset(struct fst_card_info *card)
 {
 	unsigned char interrupt_line_register;
-	unsigned long j = jiffies + 1;
 	unsigned int regval;
 
 	if (card->family == FST_FAMILY_TXU) {
@@ -696,16 +696,12 @@ fst_cpureset(struct fst_card_info *card)
 		/*
 		 * We are delaying here to allow the 9054 to reset itself
 		 */
-		j = jiffies + 1;
-		while (jiffies < j)
-			/* Do nothing */ ;
+		usleep_range(10, 20);
 		outw(0x240f, card->pci_conf + CNTRL_9054 + 2);
 		/*
 		 * We are delaying here to allow the 9054 to reload its eeprom
 		 */
-		j = jiffies + 1;
-		while (jiffies < j)
-			/* Do nothing */ ;
+		usleep_range(10, 20);
 		outw(0x040f, card->pci_conf + CNTRL_9054 + 2);
 
 		if (pci_write_config_byte
@@ -886,20 +882,18 @@ fst_rx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
  *      Receive a frame through the DMA
  */
 static inline void
-fst_rx_dma(struct fst_card_info *card, dma_addr_t skb,
-	   dma_addr_t mem, int len)
+fst_rx_dma(struct fst_card_info *card, dma_addr_t dma, u32 mem, int len)
 {
 	/*
 	 * This routine will setup the DMA and start it
 	 */
 
-	dbg(DBG_RX, "In fst_rx_dma %lx %lx %d\n",
-	    (unsigned long) skb, (unsigned long) mem, len);
+	dbg(DBG_RX, "In fst_rx_dma %x %x %d\n", (u32)dma, mem, len);
 	if (card->dmarx_in_progress) {
 		dbg(DBG_ASS, "In fst_rx_dma while dma in progress\n");
 	}
 
-	outl(skb, card->pci_conf + DMAPADR0);	/* Copy to here */
+	outl(dma, card->pci_conf + DMAPADR0);	/* Copy to here */
 	outl(mem, card->pci_conf + DMALADR0);	/* from here */
 	outl(len, card->pci_conf + DMASIZ0);	/* for this length */
 	outl(0x00000000c, card->pci_conf + DMADPR0);	/* In this direction */
@@ -915,20 +909,19 @@ fst_rx_dma(struct fst_card_info *card, dma_addr_t skb,
  *      Send a frame through the DMA
  */
 static inline void
-fst_tx_dma(struct fst_card_info *card, unsigned char *skb,
-	   unsigned char *mem, int len)
+fst_tx_dma(struct fst_card_info *card, dma_addr_t dma, u32 mem, int len)
 {
 	/*
 	 * This routine will setup the DMA and start it.
 	 */
 
-	dbg(DBG_TX, "In fst_tx_dma %p %p %d\n", skb, mem, len);
+	dbg(DBG_TX, "In fst_tx_dma %x %x %d\n", (u32)dma, mem, len);
 	if (card->dmatx_in_progress) {
 		dbg(DBG_ASS, "In fst_tx_dma while dma in progress\n");
 	}
 
-	outl((unsigned long) skb, card->pci_conf + DMAPADR1);	/* Copy from here */
-	outl((unsigned long) mem, card->pci_conf + DMALADR1);	/* to here */
+	outl(dma, card->pci_conf + DMAPADR1);	/* Copy from here */
+	outl(mem, card->pci_conf + DMALADR1);	/* to here */
 	outl(len, card->pci_conf + DMASIZ1);	/* for this length */
 	outl(0x000000004, card->pci_conf + DMADPR1);	/* In this direction */
 
@@ -1405,9 +1398,7 @@ do_bottom_half_tx(struct fst_card_info *card)
 					card->dma_len_tx = skb->len;
 					card->dma_txpos = port->txpos;
 					fst_tx_dma(card,
-						   (char *) card->
-						   tx_dma_handle_card,
-						   (char *)
+						   card->tx_dma_handle_card,
 						   BUF_OFFSET(txBuffer[pi]
 							      [port->txpos][0]),
 						   skb->len);
@@ -1972,6 +1963,7 @@ fst_get_iface(struct fst_card_info *card, struct fst_port_info *port,
 	}
 
 	i = port->index;
+	memset(&sync, 0, sizeof(sync));
 	sync.clock_rate = FST_RDL(card, portConfig[i].lineSpeed);
 	/* Lucky card and linux use same encoding here */
 	sync.clock_type = FST_RDB(card, portConfig[i].internalClock) ==

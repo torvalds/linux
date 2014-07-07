@@ -50,6 +50,8 @@ void fscache_objlist_add(struct fscache_object *obj)
 	struct fscache_object *xobj;
 	struct rb_node **p = &fscache_object_list.rb_node, *parent = NULL;
 
+	ASSERT(RB_EMPTY_NODE(&obj->objlist_link));
+
 	write_lock(&fscache_object_list_lock);
 
 	while (*p) {
@@ -75,6 +77,9 @@ void fscache_objlist_add(struct fscache_object *obj)
  */
 void fscache_objlist_remove(struct fscache_object *obj)
 {
+	if (RB_EMPTY_NODE(&obj->objlist_link))
+		return;
+
 	write_lock(&fscache_object_list_lock);
 
 	BUG_ON(RB_EMPTY_ROOT(&fscache_object_list));
@@ -280,20 +285,20 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 		fscache_unuse_cookie(obj);
 
 		if (keylen > 0 || auxlen > 0) {
-			seq_printf(m, " ");
+			seq_puts(m, " ");
 			for (p = buf; keylen > 0; keylen--)
 				seq_printf(m, "%02x", *p++);
 			if (auxlen > 0) {
 				if (config & FSCACHE_OBJLIST_CONFIG_KEY)
-					seq_printf(m, ", ");
+					seq_puts(m, ", ");
 				for (; auxlen > 0; auxlen--)
 					seq_printf(m, "%02x", *p++);
 			}
 		}
 
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	} else {
-		seq_printf(m, "<no_netfs>\n");
+		seq_puts(m, "<no_netfs>\n");
 	}
 	return 0;
 }

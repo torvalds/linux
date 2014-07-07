@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 /* ethtool support for e1000 */
 
@@ -111,6 +104,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	E1000_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
 	E1000_STAT("uncorr_ecc_errors", uncorr_errors),
 	E1000_STAT("corr_ecc_errors", corr_errors),
+	E1000_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
 };
 
 #define E1000_GLOBAL_STATS_LEN	ARRAY_SIZE(e1000_gstrings_stats)
@@ -165,8 +159,8 @@ static int e1000_get_settings(struct net_device *netdev,
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
 
-	speed = -1;
-	ecmd->duplex = -1;
+	speed = SPEED_UNKNOWN;
+	ecmd->duplex = DUPLEX_UNKNOWN;
 
 	if (netif_running(netdev)) {
 		if (netif_carrier_ok(netdev)) {
@@ -175,6 +169,7 @@ static int e1000_get_settings(struct net_device *netdev,
 		}
 	} else if (!pm_runtime_suspended(netdev->dev.parent)) {
 		u32 status = er32(STATUS);
+
 		if (status & E1000_STATUS_LU) {
 			if (status & E1000_STATUS_SPEED_1000)
 				speed = SPEED_1000;
@@ -332,7 +327,7 @@ static int e1000_set_settings(struct net_device *netdev,
 
 	/* reset the link */
 	if (netif_running(adapter->netdev)) {
-		e1000e_down(adapter);
+		e1000e_down(adapter, true);
 		e1000e_up(adapter);
 	} else {
 		e1000e_reset(adapter);
@@ -380,7 +375,7 @@ static int e1000_set_pauseparam(struct net_device *netdev,
 	if (adapter->fc_autoneg == AUTONEG_ENABLE) {
 		hw->fc.requested_mode = e1000_fc_default;
 		if (netif_running(adapter->netdev)) {
-			e1000e_down(adapter);
+			e1000e_down(adapter, true);
 			e1000e_up(adapter);
 		} else {
 			e1000e_reset(adapter);
@@ -726,7 +721,7 @@ static int e1000_set_ringparam(struct net_device *netdev,
 
 	pm_runtime_get_sync(netdev->dev.parent);
 
-	e1000e_down(adapter);
+	e1000e_down(adapter, true);
 
 	/* We can't just free everything and then setup again, because the
 	 * ISRs in MSI-X mode get passed pointers to the Tx and Rx ring
@@ -789,25 +784,26 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data,
 			      reg + (offset << 2), val,
 			      (test[pat] & write & mask));
 			*data = reg;
-			return 1;
+			return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data,
 			      int reg, u32 mask, u32 write)
 {
 	u32 val;
+
 	__ew32(&adapter->hw, reg, write & mask);
 	val = __er32(&adapter->hw, reg);
 	if ((write & mask) != (val & mask)) {
 		e_err("set/check test failed (reg 0x%05X): got 0x%08X expected 0x%08X\n",
 		      reg, (val & mask), (write & mask));
 		*data = reg;
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 #define REG_PATTERN_TEST_ARRAY(reg, offset, mask, write)                       \
@@ -924,15 +920,21 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 		}
 		if (mac->type == e1000_pch2lan) {
 			/* SHRAH[0,1,2] different than previous */
-			if (i == 7)
+			if (i == 1)
 				mask &= 0xFFF4FFFF;
 			/* SHRAH[3] different than SHRAH[0,1,2] */
-			if (i == 10)
+			if (i == 4)
 				mask |= (1 << 30);
+			/* RAR[1-6] owned by management engine - skipping */
+			if (i > 0)
+				i += 6;
 		}
 
 		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1), mask,
 				       0xFFFFFFFF);
+		/* reset index to actual value */
+		if ((mac->type == e1000_pch2lan) && (i > 6))
+			i -= 6;
 	}
 
 	for (i = 0; i < mac->mta_reg_count; i++)
@@ -1717,6 +1719,7 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	*data = 0;
 	if (hw->phy.media_type == e1000_media_type_internal_serdes) {
 		int i = 0;
+
 		hw->mac.serdes_has_link = false;
 
 		/* On some blade server designs, link establishment
@@ -2315,5 +2318,5 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &e1000_ethtool_ops);
+	netdev->ethtool_ops = &e1000_ethtool_ops;
 }

@@ -132,20 +132,26 @@ static const struct iio_chan_spec_ext_info ad5446_ext_info_powerdown[] = {
 		.name = "powerdown",
 		.read = ad5446_read_dac_powerdown,
 		.write = ad5446_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", false, &ad5446_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &ad5446_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5446_powerdown_mode_enum),
 	{ },
 };
 
-#define _AD5446_CHANNEL(bits, storage, shift, ext) { \
+#define _AD5446_CHANNEL(bits, storage, _shift, ext) { \
 	.type = IIO_VOLTAGE, \
 	.indexed = 1, \
 	.output = 1, \
 	.channel = 0, \
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
-	.scan_type = IIO_ST('u', (bits), (storage), (shift)), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = (bits), \
+		.storagebits = (storage), \
+		.shift = (_shift), \
+		}, \
 	.ext_info = (ext), \
 }
 
@@ -162,18 +168,15 @@ static int ad5446_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad5446_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
 		*val = st->cached_val;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = (st->vref_mv * 1000) >> chan->scan_type.realbits;
-		*val =  scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
-
+		*val = st->vref_mv;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }
@@ -329,6 +332,7 @@ enum ad5446_supported_spi_device_ids {
 	ID_AD5601,
 	ID_AD5611,
 	ID_AD5621,
+	ID_AD5641,
 	ID_AD5620_2500,
 	ID_AD5620_1250,
 	ID_AD5640_2500,
@@ -391,6 +395,10 @@ static const struct ad5446_chip_info ad5446_spi_chip_info[] = {
 		.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 2),
 		.write = ad5446_write,
 	},
+	[ID_AD5641] = {
+		.channel = AD5446_CHANNEL_POWERDOWN(14, 16, 0),
+		.write = ad5446_write,
+	},
 	[ID_AD5620_2500] = {
 		.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 2),
 		.int_vref_mv = 2500,
@@ -445,6 +453,7 @@ static const struct spi_device_id ad5446_spi_ids[] = {
 	{"ad5601", ID_AD5601},
 	{"ad5611", ID_AD5611},
 	{"ad5621", ID_AD5621},
+	{"ad5641", ID_AD5641},
 	{"ad5620-2500", ID_AD5620_2500}, /* AD5620/40/60: */
 	{"ad5620-1250", ID_AD5620_1250}, /* part numbers may look differently */
 	{"ad5640-2500", ID_AD5640_2500},

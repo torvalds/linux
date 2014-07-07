@@ -55,6 +55,7 @@
 #include "soc.h"
 #include "common.h"
 #include "powerdomain.h"
+#include "omap-secure.h"
 
 #define REALTIME_COUNTER_BASE				0x48243200
 #define INCREMENTER_NUMERATOR_OFFSET			0x10
@@ -65,6 +66,15 @@
 
 static struct omap_dm_timer clkev;
 static struct clock_event_device clockevent_gpt;
+
+#ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
+static unsigned long arch_timer_freq;
+
+void set_cntfreq(void)
+{
+	omap_smc1(OMAP5_DRA7_MON_SET_CNTFRQ_INDEX, arch_timer_freq);
+}
+#endif
 
 static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 {
@@ -78,7 +88,7 @@ static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction omap2_gp_timer_irq = {
 	.name		= "gp_timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= omap2_gp_timer_interrupt,
 };
 
@@ -351,7 +361,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 
 /* Clocksource code */
 static struct omap_dm_timer clksrc;
-static bool use_gptimer_clksrc;
+static bool use_gptimer_clksrc __initdata;
 
 /*
  * clocksource
@@ -369,7 +379,7 @@ static struct clocksource clocksource_gpt = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u32 notrace dmtimer_read_sched_clock(void)
+static u64 notrace dmtimer_read_sched_clock(void)
 {
 	if (clksrc.reserved)
 		return __omap_dm_timer_read_counter(&clksrc,
@@ -461,7 +471,7 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 	__omap_dm_timer_load_start(&clksrc,
 				   OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR, 0,
 				   OMAP_TIMER_NONPOSTED);
-	setup_sched_clock(dmtimer_read_sched_clock, 32, clksrc.rate);
+	sched_clock_register(dmtimer_read_sched_clock, 32, clksrc.rate);
 
 	if (clocksource_register_hz(&clocksource_gpt, clksrc.rate))
 		pr_err("Could not register clocksource %s\n",
@@ -515,6 +525,10 @@ static void __init realtime_counter_init(void)
 		num = 8;
 		den = 25;
 		break;
+	case 20000000:
+		num = 192;
+		den = 625;
+		break;
 	case 2600000:
 		num = 384;
 		den = 1625;
@@ -532,15 +546,18 @@ static void __init realtime_counter_init(void)
 	}
 
 	/* Program numerator and denumerator registers */
-	reg = __raw_readl(base + INCREMENTER_NUMERATOR_OFFSET) &
+	reg = readl_relaxed(base + INCREMENTER_NUMERATOR_OFFSET) &
 			NUMERATOR_DENUMERATOR_MASK;
 	reg |= num;
-	__raw_writel(reg, base + INCREMENTER_NUMERATOR_OFFSET);
+	writel_relaxed(reg, base + INCREMENTER_NUMERATOR_OFFSET);
 
-	reg = __raw_readl(base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET) &
+	reg = readl_relaxed(base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET) &
 			NUMERATOR_DENUMERATOR_MASK;
 	reg |= den;
-	__raw_writel(reg, base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET);
+	writel_relaxed(reg, base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET);
+
+	arch_timer_freq = (rate / den) * num;
+	set_cntfreq();
 
 	iounmap(base);
 }
@@ -553,8 +570,7 @@ static inline void __init realtime_counter_init(void)
 			       clksrc_nr, clksrc_src, clksrc_prop)	\
 void __init omap##name##_gptimer_timer_init(void)			\
 {									\
-	if (omap_clk_init)						\
-		omap_clk_init();					\
+	omap_clk_init();					\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
 	omap2_gptimer_clocksource_init((clksrc_nr), clksrc_src,		\
@@ -565,8 +581,7 @@ void __init omap##name##_gptimer_timer_init(void)			\
 				clksrc_nr, clksrc_src, clksrc_prop)	\
 void __init omap##name##_sync32k_timer_init(void)		\
 {									\
-	if (omap_clk_init)						\
-		omap_clk_init();					\
+	omap_clk_init();					\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
 	/* Enable the use of clocksource="gp_timer" kernel parameter */	\
@@ -589,7 +604,8 @@ OMAP_SYS_32K_TIMER_INIT(3_secure, 12, "secure_32k_fck", "ti,timer-secure",
 			2, "timer_sys_ck", NULL);
 #endif /* CONFIG_ARCH_OMAP3 */
 
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX)
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX) || \
+	defined(CONFIG_SOC_AM43XX)
 OMAP_SYS_GP_TIMER_INIT(3, 2, "timer_sys_ck", NULL,
 		       1, "timer_sys_ck", "ti,timer-alwon");
 #endif
@@ -628,7 +644,7 @@ void __init omap4_local_timer_init(void)
 #endif /* CONFIG_HAVE_ARM_TWD */
 #endif /* CONFIG_ARCH_OMAP4 */
 
-#ifdef CONFIG_SOC_OMAP5
+#if defined(CONFIG_SOC_OMAP5) || defined(CONFIG_SOC_DRA7XX)
 void __init omap5_realtime_timer_init(void)
 {
 	omap4_sync32k_timer_init();
@@ -636,7 +652,7 @@ void __init omap5_realtime_timer_init(void)
 
 	clocksource_of_init();
 }
-#endif /* CONFIG_SOC_OMAP5 */
+#endif /* CONFIG_SOC_OMAP5 || CONFIG_SOC_DRA7XX */
 
 /**
  * omap_timer_init - build and register timer device with an

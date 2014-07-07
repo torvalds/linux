@@ -131,7 +131,7 @@ info
 	hs_configured = <0/1, host sleep not configured/configured>
 	hs_activated = <0/1, extended host sleep not activated/activated>
 	num_tx_timeout = <number of Tx timeout>
-	num_cmd_timeout = <number of timeout commands>
+	is_cmd_timedout = <0/1 command timeout not occurred/occurred>
 	timeout_cmd_id = <command id of the last timeout command>
 	timeout_cmd_act = <command action of the last timeout command>
 	last_cmd_id = <command id of the last several commands sent to device>
@@ -199,5 +199,12 @@ getlog
 	Usage:
 
 	cat getlog
+
+fw_dump
+	This command is used to dump firmware memory into files.
+	Separate file will be created for each memory segment.
+	Usage:
+
+	cat fw_dump
 
 ===============================================================================

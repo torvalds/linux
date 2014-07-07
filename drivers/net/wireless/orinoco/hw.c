@@ -988,8 +988,8 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
  * tsc must be NULL or up to 8 bytes
  */
 int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
-			      int set_tx, u8 *key, u8 *rsc, size_t rsc_len,
-			      u8 *tsc, size_t tsc_len)
+			      int set_tx, const u8 *key, const u8 *rsc,
+			      size_t rsc_len, const u8 *tsc, size_t tsc_len)
 {
 	struct {
 		__le16 idx;
@@ -1193,7 +1193,7 @@ int orinoco_hw_get_freq(struct orinoco_private *priv)
 		goto out;
 
 	}
-	freq = ieee80211_dsss_chan_to_freq(channel);
+	freq = ieee80211_channel_to_frequency(channel, IEEE80211_BAND_2GHZ);
 
  out:
 	orinoco_unlock(priv, &flags);

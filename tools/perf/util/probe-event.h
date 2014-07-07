@@ -2,6 +2,7 @@
 #define _PROBE_EVENT_H
 
 #include <stdbool.h>
+#include "intlist.h"
 #include "strlist.h"
 #include "strfilter.h"
 
@@ -12,6 +13,7 @@ struct probe_trace_point {
 	char		*symbol;	/* Base symbol */
 	char		*module;	/* Module name */
 	unsigned long	offset;		/* Offset from symbol */
+	unsigned long	address;	/* Actual address of the trace point */
 	bool		retprobe;	/* Return probe flag */
 };
 
@@ -75,13 +77,6 @@ struct perf_probe_event {
 	struct perf_probe_arg	*args;	/* Arguments */
 };
 
-
-/* Line number container */
-struct line_node {
-	struct list_head	list;
-	int			line;
-};
-
 /* Line range */
 struct line_range {
 	char			*file;		/* File name */
@@ -91,7 +86,7 @@ struct line_range {
 	int			offset;		/* Start line offset */
 	char			*path;		/* Real path name */
 	char			*comp_dir;	/* Compile directory */
-	struct list_head	line_list;	/* Visible lines */
+	struct intlist		*line_list;	/* Visible lines */
 };
 
 /* List of variables */
@@ -118,6 +113,12 @@ extern void clear_perf_probe_event(struct perf_probe_event *pev);
 
 /* Command string to line-range */
 extern int parse_line_range_desc(const char *cmd, struct line_range *lr);
+
+/* Release line range members */
+extern void line_range__clear(struct line_range *lr);
+
+/* Initialize line range */
+extern int line_range__init(struct line_range *lr);
 
 /* Internal use: Return kernel/module path */
 extern const char *kernel_get_module_path(const char *module);

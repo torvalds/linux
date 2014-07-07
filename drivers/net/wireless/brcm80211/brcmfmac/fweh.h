@@ -102,7 +102,8 @@ struct brcmf_event;
 	BRCMF_ENUM_DEF(DCS_REQUEST, 73) \
 	BRCMF_ENUM_DEF(FIFO_CREDIT_MAP, 74) \
 	BRCMF_ENUM_DEF(ACTION_FRAME_RX, 75) \
-	BRCMF_ENUM_DEF(BCMC_CREDIT_SUPPORT, 127)
+	BRCMF_ENUM_DEF(BCMC_CREDIT_SUPPORT, 127) \
+	BRCMF_ENUM_DEF(PSTA_PRIMARY_INTF_IND, 128)
 
 #define BRCMF_ENUM_DEF(id, val) \
 	BRCMF_E_##id = (val),
@@ -114,10 +115,58 @@ enum brcmf_fweh_event_code {
 };
 #undef BRCMF_ENUM_DEF
 
+#define BRCMF_EVENTING_MASK_LEN		DIV_ROUND_UP(BRCMF_E_LAST, 8)
+
 /* flags field values in struct brcmf_event_msg */
 #define BRCMF_EVENT_MSG_LINK		0x01
 #define BRCMF_EVENT_MSG_FLUSHTXQ	0x02
 #define BRCMF_EVENT_MSG_GROUP		0x04
+
+/* status field values in struct brcmf_event_msg */
+#define BRCMF_E_STATUS_SUCCESS			0
+#define BRCMF_E_STATUS_FAIL			1
+#define BRCMF_E_STATUS_TIMEOUT			2
+#define BRCMF_E_STATUS_NO_NETWORKS		3
+#define BRCMF_E_STATUS_ABORT			4
+#define BRCMF_E_STATUS_NO_ACK			5
+#define BRCMF_E_STATUS_UNSOLICITED		6
+#define BRCMF_E_STATUS_ATTEMPT			7
+#define BRCMF_E_STATUS_PARTIAL			8
+#define BRCMF_E_STATUS_NEWSCAN			9
+#define BRCMF_E_STATUS_NEWASSOC			10
+#define BRCMF_E_STATUS_11HQUIET			11
+#define BRCMF_E_STATUS_SUPPRESS			12
+#define BRCMF_E_STATUS_NOCHANS			13
+#define BRCMF_E_STATUS_CS_ABORT			15
+#define BRCMF_E_STATUS_ERROR			16
+
+/* reason field values in struct brcmf_event_msg */
+#define BRCMF_E_REASON_INITIAL_ASSOC		0
+#define BRCMF_E_REASON_LOW_RSSI			1
+#define BRCMF_E_REASON_DEAUTH			2
+#define BRCMF_E_REASON_DISASSOC			3
+#define BRCMF_E_REASON_BCNS_LOST		4
+#define BRCMF_E_REASON_MINTXRATE		9
+#define BRCMF_E_REASON_TXFAIL			10
+
+#define BRCMF_E_REASON_LINK_BSSCFG_DIS		4
+#define BRCMF_E_REASON_FAST_ROAM_FAILED		5
+#define BRCMF_E_REASON_DIRECTED_ROAM		6
+#define BRCMF_E_REASON_TSPEC_REJECTED		7
+#define BRCMF_E_REASON_BETTER_AP		8
+
+/* action field values for brcmf_ifevent */
+#define BRCMF_E_IF_ADD				1
+#define BRCMF_E_IF_DEL				2
+#define BRCMF_E_IF_CHANGE			3
+
+/* flag field values for brcmf_ifevent */
+#define BRCMF_E_IF_FLAG_NOIF			1
+
+/* role field values for brcmf_ifevent */
+#define BRCMF_E_IF_ROLE_STA			0
+#define BRCMF_E_IF_ROLE_AP			1
+#define BRCMF_E_IF_ROLE_WDS			2
 
 /**
  * definitions for event packet validation.
@@ -155,6 +204,14 @@ struct brcmf_event_msg {
 	char ifname[IFNAMSIZ];
 	u8 ifidx;
 	u8 bsscfgidx;
+};
+
+struct brcmf_if_event {
+	u8 ifidx;
+	u8 action;
+	u8 flags;
+	u8 bssidx;
+	u8 role;
 };
 
 typedef int (*brcmf_fweh_handler_t)(struct brcmf_if *ifp,

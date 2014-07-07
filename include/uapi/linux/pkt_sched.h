@@ -171,6 +171,10 @@ enum {
 	TCA_TBF_PARMS,
 	TCA_TBF_RTAB,
 	TCA_TBF_PTAB,
+	TCA_TBF_RATE64,
+	TCA_TBF_PRATE64,
+	TCA_TBF_BURST,
+	TCA_TBF_PBURST,
 	__TCA_TBF_MAX,
 };
 
@@ -357,6 +361,8 @@ enum {
 	TCA_HTB_CTAB,
 	TCA_HTB_RTAB,
 	TCA_HTB_DIRECT_QLEN,
+	TCA_HTB_RATE64,
+	TCA_HTB_CEIL64,
 	__TCA_HTB_MAX,
 };
 
@@ -519,6 +525,7 @@ enum {
 	TCA_NETEM_LOSS,
 	TCA_NETEM_RATE,
 	TCA_NETEM_ECN,
+	TCA_NETEM_RATE64,
 	__TCA_NETEM_MAX,
 };
 
@@ -759,13 +766,14 @@ enum {
 
 	TCA_FQ_RATE_ENABLE,	/* enable/disable rate limiting */
 
-	TCA_FQ_FLOW_DEFAULT_RATE,/* for sockets with unspecified sk_rate,
-				  * use the following rate
-				  */
+	TCA_FQ_FLOW_DEFAULT_RATE,/* obsolete, do not use */
 
 	TCA_FQ_FLOW_MAX_RATE,	/* per flow max rate */
 
 	TCA_FQ_BUCKETS_LOG,	/* log2(number of buckets) */
+
+	TCA_FQ_FLOW_REFILL_DELAY,	/* flow credit refill delay in usec */
+
 	__TCA_FQ_MAX
 };
 
@@ -784,5 +792,55 @@ struct tc_fq_qd_stats {
 	__u32	inactive_flows;
 	__u32	throttled_flows;
 	__u32	pad;
+};
+
+/* Heavy-Hitter Filter */
+
+enum {
+	TCA_HHF_UNSPEC,
+	TCA_HHF_BACKLOG_LIMIT,
+	TCA_HHF_QUANTUM,
+	TCA_HHF_HH_FLOWS_LIMIT,
+	TCA_HHF_RESET_TIMEOUT,
+	TCA_HHF_ADMIT_BYTES,
+	TCA_HHF_EVICT_TIMEOUT,
+	TCA_HHF_NON_HH_WEIGHT,
+	__TCA_HHF_MAX
+};
+
+#define TCA_HHF_MAX	(__TCA_HHF_MAX - 1)
+
+struct tc_hhf_xstats {
+	__u32	drop_overlimit; /* number of times max qdisc packet limit
+				 * was hit
+				 */
+	__u32	hh_overlimit;   /* number of times max heavy-hitters was hit */
+	__u32	hh_tot_count;   /* number of captured heavy-hitters so far */
+	__u32	hh_cur_count;   /* number of current heavy-hitters */
+};
+
+/* PIE */
+enum {
+	TCA_PIE_UNSPEC,
+	TCA_PIE_TARGET,
+	TCA_PIE_LIMIT,
+	TCA_PIE_TUPDATE,
+	TCA_PIE_ALPHA,
+	TCA_PIE_BETA,
+	TCA_PIE_ECN,
+	TCA_PIE_BYTEMODE,
+	__TCA_PIE_MAX
+};
+#define TCA_PIE_MAX   (__TCA_PIE_MAX - 1)
+
+struct tc_pie_xstats {
+	__u32 prob;             /* current probability */
+	__u32 delay;            /* current delay in ms */
+	__u32 avg_dq_rate;      /* current average dq_rate in bits/pie_time */
+	__u32 packets_in;       /* total number of packets enqueued */
+	__u32 dropped;          /* packets dropped due to pie_action */
+	__u32 overlimit;        /* dropped due to lack of space in queue */
+	__u32 maxq;             /* maximum queue size */
+	__u32 ecn_mark;         /* packets marked with ecn*/
 };
 #endif

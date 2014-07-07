@@ -28,21 +28,20 @@
  * Based on:
  *	i2c-virtual_cb.c from Brian Kuschak <bkuschak@yahoo.com>
  * and
- *	pca9540.c from Jean Delvare <khali@linux-fr.org>.
+ *	pca9540.c from Jean Delvare <jdelvare@suse.de>.
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-
 #include <linux/i2c/pca954x.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 
 #define PCA954X_MAX_NCHANS 8
 
@@ -186,20 +185,24 @@ static int pca954x_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
 	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
+	struct gpio_desc *gpio;
 	int num, force, class;
 	struct pca954x *data;
-	int ret = -ENODEV;
+	int ret;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_BYTE))
-		goto err;
+		return -ENODEV;
 
-	data = kzalloc(sizeof(struct pca954x), GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct pca954x), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
+
+	/* Get the mux out of reset if a reset GPIO is specified. */
+	gpio = devm_gpiod_get(&client->dev, "reset");
+	if (!IS_ERR(gpio))
+		gpiod_direction_output(gpio, 0);
 
 	/* Write the mux register at addr to verify
 	 * that the mux is in fact present. This also
@@ -207,7 +210,7 @@ static int pca954x_probe(struct i2c_client *client,
 	 */
 	if (i2c_smbus_write_byte(client, 0) < 0) {
 		dev_warn(&client->dev, "probe failed\n");
-		goto exit_free;
+		return -ENODEV;
 	}
 
 	data->type = id->driver_data;
@@ -252,9 +255,6 @@ static int pca954x_probe(struct i2c_client *client,
 virt_reg_failed:
 	for (num--; num >= 0; num--)
 		i2c_del_mux_adapter(data->virt_adaps[num]);
-exit_free:
-	kfree(data);
-err:
 	return ret;
 }
 
@@ -270,7 +270,6 @@ static int pca954x_remove(struct i2c_client *client)
 			data->virt_adaps[i] = NULL;
 		}
 
-	kfree(data);
 	return 0;
 }
 

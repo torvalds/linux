@@ -27,10 +27,10 @@ always		:= $(hostprogs-y) $(hostprogs-m)
 hostprogs-y += unifdef docproc
 
 # These targets are used internally to avoid "is up to date" messages
-PHONY += build_unifdef
-build_unifdef: scripts/unifdef FORCE
+PHONY += build_unifdef build_docproc
+build_unifdef: $(obj)/unifdef
 	@:
-build_docproc: scripts/docproc FORCE
+build_docproc: $(obj)/docproc
 	@:
 
 subdir-$(CONFIG_MODVERSIONS) += genksyms
@@ -39,4 +39,4 @@ subdir-$(CONFIG_SECURITY_SELINUX) += selinux
 subdir-$(CONFIG_DTC)         += dtc
 
 # Let clean descend into subdirs
-subdir-	+= basic kconfig package selinux
+subdir-	+= basic kconfig package

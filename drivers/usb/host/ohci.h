@@ -405,6 +405,8 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_HUB_POWER	0x100			/* distrust firmware power/oc setup */
 #define	OHCI_QUIRK_AMD_PLL	0x200			/* AMD PLL quirk*/
 #define	OHCI_QUIRK_AMD_PREFETCH	0x400			/* pre-fetch for ISO transfer */
+#define	OHCI_QUIRK_GLOBAL_SUSPEND	0x800		/* must suspend ports */
+
 	// there are also chip quirks/bugs in init logic
 
 	struct work_struct	nec_work;	/* Worker for NEC quirk */
@@ -415,12 +417,11 @@ struct ohci_hcd {
 	struct ed		*ed_to_check;
 	unsigned		zf_delay;
 
-#ifdef DEBUG
 	struct dentry		*debug_dir;
 	struct dentry		*debug_async;
 	struct dentry		*debug_periodic;
 	struct dentry		*debug_registers;
-#endif
+
 	/* platform-specific data -- must come last */
 	unsigned long           priv[0] __aligned(sizeof(s64));
 
@@ -474,10 +475,6 @@ static inline struct usb_hcd *ohci_to_hcd (const struct ohci_hcd *ohci)
 
 /*-------------------------------------------------------------------------*/
 
-#ifndef DEBUG
-#define STUB_DEBUG_FILES
-#endif	/* DEBUG */
-
 #define ohci_dbg(ohci, fmt, args...) \
 	dev_dbg (ohci_to_hcd(ohci)->self.controller , fmt , ## args )
 #define ohci_err(ohci, fmt, args...) \
@@ -486,12 +483,6 @@ static inline struct usb_hcd *ohci_to_hcd (const struct ohci_hcd *ohci)
 	dev_info (ohci_to_hcd(ohci)->self.controller , fmt , ## args )
 #define ohci_warn(ohci, fmt, args...) \
 	dev_warn (ohci_to_hcd(ohci)->self.controller , fmt , ## args )
-
-#ifdef OHCI_VERBOSE_DEBUG
-#	define ohci_vdbg ohci_dbg
-#else
-#	define ohci_vdbg(ohci, fmt, args...) do { } while (0)
-#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -738,3 +729,6 @@ extern int	ohci_setup(struct usb_hcd *hcd);
 extern int	ohci_suspend(struct usb_hcd *hcd, bool do_wakeup);
 extern int	ohci_resume(struct usb_hcd *hcd, bool hibernated);
 #endif
+extern int	ohci_hub_control(struct usb_hcd	*hcd, u16 typeReq, u16 wValue,
+				 u16 wIndex, char *buf, u16 wLength);
+extern int	ohci_hub_status_data(struct usb_hcd *hcd, char *buf);

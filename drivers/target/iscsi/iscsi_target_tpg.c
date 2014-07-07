@@ -137,7 +137,7 @@ struct iscsi_portal_group *iscsit_get_tpg_from_np(
 	list_for_each_entry(tpg, &tiqn->tiqn_tpg_list, tpg_list) {
 
 		spin_lock(&tpg->tpg_state_lock);
-		if (tpg->tpg_state == TPG_STATE_FREE) {
+		if (tpg->tpg_state != TPG_STATE_ACTIVE) {
 			spin_unlock(&tpg->tpg_state_lock);
 			continue;
 		}
@@ -184,10 +184,12 @@ static void iscsit_clear_tpg_np_login_thread(
 		return;
 	}
 
+	if (shutdown)
+		tpg_np->tpg_np->enabled = false;
 	iscsit_reset_np_thread(tpg_np->tpg_np, tpg_np, tpg, shutdown);
 }
 
-void iscsit_clear_tpg_np_login_threads(
+static void iscsit_clear_tpg_np_login_threads(
 	struct iscsi_portal_group *tpg,
 	bool shutdown)
 {
@@ -223,6 +225,9 @@ static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 	a->cache_dynamic_acls = TA_CACHE_DYNAMIC_ACLS;
 	a->demo_mode_write_protect = TA_DEMO_MODE_WRITE_PROTECT;
 	a->prod_mode_write_protect = TA_PROD_MODE_WRITE_PROTECT;
+	a->demo_mode_discovery = TA_DEMO_MODE_DISCOVERY;
+	a->default_erl = TA_DEFAULT_ERL;
+	a->t10_pi = TA_DEFAULT_T10_PI;
 }
 
 int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_group *tpg)
@@ -237,7 +242,7 @@ int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_gro
 	if (iscsi_create_default_params(&tpg->param_list) < 0)
 		goto err_out;
 
-	ISCSI_TPG_ATTRIB(tpg)->tpg = tpg;
+	tpg->tpg_attrib.tpg = tpg;
 
 	spin_lock(&tpg->tpg_state_lock);
 	tpg->tpg_state	= TPG_STATE_INACTIVE;
@@ -270,8 +275,6 @@ int iscsit_tpg_del_portal_group(
 	spin_lock(&tpg->tpg_state_lock);
 	tpg->tpg_state = TPG_STATE_INACTIVE;
 	spin_unlock(&tpg->tpg_state_lock);
-
-	iscsit_clear_tpg_np_login_threads(tpg, true);
 
 	if (iscsit_release_sessions_for_tpg(tpg, force) < 0) {
 		pr_err("Unable to delete iSCSI Target Portal Group:"
@@ -330,7 +333,7 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 		return -EINVAL;
 	}
 
-	if (ISCSI_TPG_ATTRIB(tpg)->authentication) {
+	if (tpg->tpg_attrib.authentication) {
 		if (!strcmp(param->value, NONE)) {
 			ret = iscsi_update_param_value(param, CHAP);
 			if (ret)
@@ -448,7 +451,7 @@ static bool iscsit_tpg_check_network_portal(
 
 			match = iscsit_check_np_match(sockaddr, np,
 						network_transport);
-			if (match == true)
+			if (match)
 				break;
 		}
 		spin_unlock(&tpg->tpg_np_lock);
@@ -470,7 +473,7 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 
 	if (!tpg_np_parent) {
 		if (iscsit_tpg_check_network_portal(tpg->tpg_tiqn, sockaddr,
-				network_transport) == true) {
+				network_transport)) {
 			pr_err("Network Portal: %s already exists on a"
 				" different TPG on %s\n", ip_str,
 				tpg->tpg_tiqn->tiqn);
@@ -498,6 +501,7 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 	init_completion(&tpg_np->tpg_np_comp);
 	kref_init(&tpg_np->tpg_np_kref);
 	tpg_np->tpg_np		= np;
+	np->tpg_np		= tpg_np;
 	tpg_np->tpg		= tpg;
 
 	spin_lock(&tpg->tpg_np_lock);
@@ -816,6 +820,61 @@ int iscsit_ta_prod_mode_write_protect(
 	a->prod_mode_write_protect = flag;
 	pr_debug("iSCSI_TPG[%hu] - Production Mode Write Protect bit:"
 		" %s\n", tpg->tpgt, (a->prod_mode_write_protect) ?
+		"ON" : "OFF");
+
+	return 0;
+}
+
+int iscsit_ta_demo_mode_discovery(
+	struct iscsi_portal_group *tpg,
+	u32 flag)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((flag != 0) && (flag != 1)) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	a->demo_mode_discovery = flag;
+	pr_debug("iSCSI_TPG[%hu] - Demo Mode Discovery bit:"
+		" %s\n", tpg->tpgt, (a->demo_mode_discovery) ?
+		"ON" : "OFF");
+
+	return 0;
+}
+
+int iscsit_ta_default_erl(
+	struct iscsi_portal_group *tpg,
+	u32 default_erl)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((default_erl != 0) && (default_erl != 1) && (default_erl != 2)) {
+		pr_err("Illegal value for default_erl: %u\n", default_erl);
+		return -EINVAL;
+	}
+
+	a->default_erl = default_erl;
+	pr_debug("iSCSI_TPG[%hu] - DefaultERL: %u\n", tpg->tpgt, a->default_erl);
+
+	return 0;
+}
+
+int iscsit_ta_t10_pi(
+	struct iscsi_portal_group *tpg,
+	u32 flag)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((flag != 0) && (flag != 1)) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	a->t10_pi = flag;
+	pr_debug("iSCSI_TPG[%hu] - T10 Protection information bit:"
+		" %s\n", tpg->tpgt, (a->t10_pi) ?
 		"ON" : "OFF");
 
 	return 0;

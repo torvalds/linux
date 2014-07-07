@@ -18,22 +18,20 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_btree.h"
-#include "xfs_attr_remote.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_alloc.h"
+#include "xfs_attr_remote.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_attr.h"
@@ -41,7 +39,8 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_trace.h"
-#include "xfs_trans_priv.h"
+#include "xfs_dinode.h"
+#include "xfs_dir2.h"
 
 /*
  * Look at all the extents for this logical region,
@@ -232,13 +231,13 @@ xfs_attr3_node_inactive(
 	}
 
 	node = bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&ichdr, node);
+	dp->d_ops->node_hdr_from_disk(&ichdr, node);
 	parent_blkno = bp->b_bn;
 	if (!ichdr.count) {
 		xfs_trans_brelse(*trans, bp);
 		return 0;
 	}
-	btree = xfs_da3_node_tree_p(node);
+	btree = dp->d_ops->node_tree_p(node);
 	child_fsb = be32_to_cpu(btree[0].before);
 	xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
 

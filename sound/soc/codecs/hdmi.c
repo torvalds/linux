@@ -20,6 +20,8 @@
  */
 #include <linux/module.h>
 #include <sound/soc.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #define DRV_NAME "hdmi-audio-codec"
 
@@ -44,7 +46,7 @@ static struct snd_soc_dai_driver hdmi_codec_dai = {
 			SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 |
 			SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE |
-			SNDRV_PCM_FMTBIT_S24_LE,
+			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
 	},
 	.capture = {
 		.stream_name = "Capture",
@@ -59,6 +61,14 @@ static struct snd_soc_dai_driver hdmi_codec_dai = {
 	},
 
 };
+
+#ifdef CONFIG_OF
+static const struct of_device_id hdmi_audio_codec_ids[] = {
+	{ .compatible = "linux,hdmi-audio", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, hdmi_audio_codec_ids);
+#endif
 
 static struct snd_soc_codec_driver hdmi_codec = {
 	.dapm_widgets = hdmi_widgets,
@@ -83,6 +93,7 @@ static struct platform_driver hdmi_codec_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(hdmi_audio_codec_ids),
 	},
 
 	.probe		= hdmi_codec_probe,

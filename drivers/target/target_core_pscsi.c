@@ -134,10 +134,10 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 	 * pSCSI Host ID and enable for phba mode
 	 */
 	sh = scsi_host_lookup(phv->phv_host_id);
-	if (IS_ERR(sh)) {
+	if (!sh) {
 		pr_err("pSCSI: Unable to locate SCSI Host for"
 			" phv_host_id: %d\n", phv->phv_host_id);
-		return PTR_ERR(sh);
+		return -EINVAL;
 	}
 
 	phv->phv_lld_host = sh;
@@ -515,10 +515,10 @@ static int pscsi_configure_device(struct se_device *dev)
 			sh = phv->phv_lld_host;
 		} else {
 			sh = scsi_host_lookup(pdv->pdv_host_id);
-			if (IS_ERR(sh)) {
+			if (!sh) {
 				pr_err("pSCSI: Unable to locate"
 					" pdv_host_id: %d\n", pdv->pdv_host_id);
-				return PTR_ERR(sh);
+				return -EINVAL;
 			}
 		}
 	} else {
@@ -1055,6 +1055,8 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			goto fail;
 		}
+
+		blk_rq_set_block_pc(req);
 	} else {
 		BUG_ON(!cmd->data_length);
 
@@ -1071,7 +1073,6 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		}
 	}
 
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
 	req->end_io = pscsi_req_done;
 	req->end_io_data = cmd;
 	req->cmd_len = scsi_command_size(pt->pscsi_cdb);

@@ -865,15 +865,14 @@ encountered:
      calling processes has a searchable link to the key from one of its
      keyrings. There are three functions for dealing with these:
 
-	key_ref_t make_key_ref(const struct key *key,
-			       unsigned long possession);
+	key_ref_t make_key_ref(const struct key *key, bool possession);
 
 	struct key *key_ref_to_ptr(const key_ref_t key_ref);
 
-	unsigned long is_key_possessed(const key_ref_t key_ref);
+	bool is_key_possessed(const key_ref_t key_ref);
 
      The first function constructs a key reference from a key pointer and
-     possession information (which must be 0 or 1 and not any other value).
+     possession information (which must be true or false).
 
      The second function retrieves the key pointer from a reference and the
      third retrieves the possession flag.
@@ -961,14 +960,17 @@ payload contents" for more information.
     the argument will not be parsed.
 
 
-(*) Extra references can be made to a key by calling the following function:
+(*) Extra references can be made to a key by calling one of the following
+    functions:
 
+	struct key *__key_get(struct key *key);
 	struct key *key_get(struct key *key);
 
-    These need to be disposed of by calling key_put() when they've been
-    finished with. The key pointer passed in will be returned. If the pointer
-    is NULL or CONFIG_KEYS is not set then the key will not be dereferenced and
-    no increment will take place.
+    Keys so references will need to be disposed of by calling key_put() when
+    they've been finished with.  The key pointer passed in will be returned.
+
+    In the case of key_get(), if the pointer is NULL or CONFIG_KEYS is not set
+    then the key will not be dereferenced and no increment will take place.
 
 
 (*) A key's serial number can be obtained by calling:

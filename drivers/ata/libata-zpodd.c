@@ -85,23 +85,6 @@ static enum odd_mech_type zpodd_get_mech_type(struct ata_device *dev)
 		return ODD_MECH_TYPE_UNSUPPORTED;
 }
 
-static bool odd_can_poweroff(struct ata_device *ata_dev)
-{
-	acpi_handle handle;
-	acpi_status status;
-	struct acpi_device *acpi_dev;
-
-	handle = ata_dev_acpi_handle(ata_dev);
-	if (!handle)
-		return false;
-
-	status = acpi_bus_get_device(handle, &acpi_dev);
-	if (ACPI_FAILURE(status))
-		return false;
-
-	return acpi_device_can_poweroff(acpi_dev);
-}
-
 /* Test if ODD is zero power ready by sense code */
 static bool zpready(struct ata_device *dev)
 {
@@ -269,13 +252,11 @@ static void ata_acpi_remove_pm_notifier(struct ata_device *dev)
 
 void zpodd_init(struct ata_device *dev)
 {
+	struct acpi_device *adev = ACPI_COMPANION(&dev->tdev);
 	enum odd_mech_type mech_type;
 	struct zpodd *zpodd;
 
-	if (dev->zpodd)
-		return;
-
-	if (!odd_can_poweroff(dev))
+	if (dev->zpodd || !adev || !acpi_device_can_poweroff(adev))
 		return;
 
 	mech_type = zpodd_get_mech_type(dev);

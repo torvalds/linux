@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -35,9 +35,11 @@
 #include "iwl-trans.h"
 
 struct iwl_rs_rate_info {
-	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */
-	u8 plcp_siso;	/* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */
-	u8 plcp_mimo2;	/* uCode API:  IWL_RATE_MIMO2_6M_PLCP, etc. */
+	u8 plcp;	  /* uCode API:  IWL_RATE_6M_PLCP, etc. */
+	u8 plcp_ht_siso;  /* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */
+	u8 plcp_ht_mimo2; /* uCode API:  IWL_RATE_MIMO2_6M_PLCP, etc. */
+	u8 plcp_vht_siso;
+	u8 plcp_vht_mimo2;
 	u8 prev_rs;      /* previous rate used in rs algo */
 	u8 next_rs;      /* next rate used in rs algo */
 };
@@ -83,35 +85,52 @@ enum {
 #define	IWL_RATE_11M_MASK  (1 << IWL_RATE_11M_INDEX)
 
 
-/* uCode API values for OFDM high-throughput (HT) bit rates */
+/* uCode API values for HT/VHT bit rates */
 enum {
-	IWL_RATE_SISO_6M_PLCP = 0,
-	IWL_RATE_SISO_12M_PLCP = 1,
-	IWL_RATE_SISO_18M_PLCP = 2,
-	IWL_RATE_SISO_24M_PLCP = 3,
-	IWL_RATE_SISO_36M_PLCP = 4,
-	IWL_RATE_SISO_48M_PLCP = 5,
-	IWL_RATE_SISO_54M_PLCP = 6,
-	IWL_RATE_SISO_60M_PLCP = 7,
-	IWL_RATE_MIMO2_6M_PLCP  = 0x8,
-	IWL_RATE_MIMO2_12M_PLCP = 0x9,
-	IWL_RATE_MIMO2_18M_PLCP = 0xa,
-	IWL_RATE_MIMO2_24M_PLCP = 0xb,
-	IWL_RATE_MIMO2_36M_PLCP = 0xc,
-	IWL_RATE_MIMO2_48M_PLCP = 0xd,
-	IWL_RATE_MIMO2_54M_PLCP = 0xe,
-	IWL_RATE_MIMO2_60M_PLCP = 0xf,
-	IWL_RATE_MIMO3_6M_PLCP  = 0x10,
-	IWL_RATE_MIMO3_12M_PLCP = 0x11,
-	IWL_RATE_MIMO3_18M_PLCP = 0x12,
-	IWL_RATE_MIMO3_24M_PLCP = 0x13,
-	IWL_RATE_MIMO3_36M_PLCP = 0x14,
-	IWL_RATE_MIMO3_48M_PLCP = 0x15,
-	IWL_RATE_MIMO3_54M_PLCP = 0x16,
-	IWL_RATE_MIMO3_60M_PLCP = 0x17,
-	IWL_RATE_SISO_INVM_PLCP,
-	IWL_RATE_MIMO2_INVM_PLCP = IWL_RATE_SISO_INVM_PLCP,
-	IWL_RATE_MIMO3_INVM_PLCP = IWL_RATE_SISO_INVM_PLCP,
+	IWL_RATE_HT_SISO_MCS_0_PLCP = 0,
+	IWL_RATE_HT_SISO_MCS_1_PLCP = 1,
+	IWL_RATE_HT_SISO_MCS_2_PLCP = 2,
+	IWL_RATE_HT_SISO_MCS_3_PLCP = 3,
+	IWL_RATE_HT_SISO_MCS_4_PLCP = 4,
+	IWL_RATE_HT_SISO_MCS_5_PLCP = 5,
+	IWL_RATE_HT_SISO_MCS_6_PLCP = 6,
+	IWL_RATE_HT_SISO_MCS_7_PLCP = 7,
+	IWL_RATE_HT_MIMO2_MCS_0_PLCP = 0x8,
+	IWL_RATE_HT_MIMO2_MCS_1_PLCP = 0x9,
+	IWL_RATE_HT_MIMO2_MCS_2_PLCP = 0xA,
+	IWL_RATE_HT_MIMO2_MCS_3_PLCP = 0xB,
+	IWL_RATE_HT_MIMO2_MCS_4_PLCP = 0xC,
+	IWL_RATE_HT_MIMO2_MCS_5_PLCP = 0xD,
+	IWL_RATE_HT_MIMO2_MCS_6_PLCP = 0xE,
+	IWL_RATE_HT_MIMO2_MCS_7_PLCP = 0xF,
+	IWL_RATE_VHT_SISO_MCS_0_PLCP = 0,
+	IWL_RATE_VHT_SISO_MCS_1_PLCP = 1,
+	IWL_RATE_VHT_SISO_MCS_2_PLCP = 2,
+	IWL_RATE_VHT_SISO_MCS_3_PLCP = 3,
+	IWL_RATE_VHT_SISO_MCS_4_PLCP = 4,
+	IWL_RATE_VHT_SISO_MCS_5_PLCP = 5,
+	IWL_RATE_VHT_SISO_MCS_6_PLCP = 6,
+	IWL_RATE_VHT_SISO_MCS_7_PLCP = 7,
+	IWL_RATE_VHT_SISO_MCS_8_PLCP = 8,
+	IWL_RATE_VHT_SISO_MCS_9_PLCP = 9,
+	IWL_RATE_VHT_MIMO2_MCS_0_PLCP = 0x10,
+	IWL_RATE_VHT_MIMO2_MCS_1_PLCP = 0x11,
+	IWL_RATE_VHT_MIMO2_MCS_2_PLCP = 0x12,
+	IWL_RATE_VHT_MIMO2_MCS_3_PLCP = 0x13,
+	IWL_RATE_VHT_MIMO2_MCS_4_PLCP = 0x14,
+	IWL_RATE_VHT_MIMO2_MCS_5_PLCP = 0x15,
+	IWL_RATE_VHT_MIMO2_MCS_6_PLCP = 0x16,
+	IWL_RATE_VHT_MIMO2_MCS_7_PLCP = 0x17,
+	IWL_RATE_VHT_MIMO2_MCS_8_PLCP = 0x18,
+	IWL_RATE_VHT_MIMO2_MCS_9_PLCP = 0x19,
+	IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_MIMO2_MCS_INV_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_VHT_SISO_MCS_INV_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_VHT_MIMO2_MCS_INV_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_SISO_MCS_8_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_SISO_MCS_9_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_MIMO2_MCS_8_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
+	IWL_RATE_HT_MIMO2_MCS_9_PLCP = IWL_RATE_HT_SISO_MCS_INV_PLCP,
 };
 
 #define IWL_RATES_MASK ((1 << IWL_RATE_COUNT) - 1)
@@ -136,30 +155,15 @@ enum {
 #define IWL_RATE_SCALE_SWITCH		10880	/*  85% */
 #define IWL_RATE_HIGH_TH		10880	/*  85% */
 #define IWL_RATE_INCREASE_TH		6400	/*  50% */
-#define IWL_RATE_DECREASE_TH		1920	/*  15% */
+#define RS_SR_FORCE_DECREASE		1920	/*  15% */
+#define RS_SR_NO_DECREASE		10880	/*  85% */
 
-/* possible actions when in legacy mode */
-#define IWL_LEGACY_SWITCH_ANTENNA1      0
-#define IWL_LEGACY_SWITCH_ANTENNA2      1
-#define IWL_LEGACY_SWITCH_SISO          2
-#define IWL_LEGACY_SWITCH_MIMO2         3
-
-/* possible actions when in siso mode */
-#define IWL_SISO_SWITCH_ANTENNA1        0
-#define IWL_SISO_SWITCH_ANTENNA2        1
-#define IWL_SISO_SWITCH_MIMO2           2
-#define IWL_SISO_SWITCH_GI              3
-
-/* possible actions when in mimo mode */
-#define IWL_MIMO2_SWITCH_ANTENNA1       0
-#define IWL_MIMO2_SWITCH_ANTENNA2       1
-#define IWL_MIMO2_SWITCH_SISO_A         2
-#define IWL_MIMO2_SWITCH_SISO_B         3
-#define IWL_MIMO2_SWITCH_GI             4
-
-#define IWL_MAX_SEARCH IWL_MIMO2_SWITCH_GI
-
-#define IWL_ACTION_LIMIT		3	/* # possible actions */
+#define TPC_SR_FORCE_INCREASE		9600	/* 75% */
+#define TPC_SR_NO_INCREASE		10880	/* 85% */
+#define TPC_TX_POWER_STEP		3
+#define TPC_MAX_REDUCTION		15
+#define TPC_NO_REDUCTION		0
+#define TPC_INVALID			0xff
 
 #define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000) /* 4 milliseconds */
 #define LINK_QUAL_AGG_TIME_LIMIT_MAX	(8000)
@@ -188,20 +192,54 @@ enum {
 
 enum iwl_table_type {
 	LQ_NONE,
-	LQ_G,		/* legacy types */
-	LQ_A,
-	LQ_SISO,	/* high-throughput types */
-	LQ_MIMO2,
+	LQ_LEGACY_G,	/* legacy types */
+	LQ_LEGACY_A,
+	LQ_HT_SISO,	/* HT types */
+	LQ_HT_MIMO2,
+	LQ_VHT_SISO,    /* VHT types */
+	LQ_VHT_MIMO2,
 	LQ_MAX,
 };
 
-#define is_legacy(tbl) (((tbl) == LQ_G) || ((tbl) == LQ_A))
-#define is_siso(tbl) ((tbl) == LQ_SISO)
-#define is_mimo2(tbl) ((tbl) == LQ_MIMO2)
-#define is_mimo(tbl) is_mimo2(tbl)
-#define is_Ht(tbl) (is_siso(tbl) || is_mimo(tbl))
-#define is_a_band(tbl) ((tbl) == LQ_A)
-#define is_g_and(tbl) ((tbl) == LQ_G)
+struct rs_rate {
+	int index;
+	enum iwl_table_type type;
+	u8 ant;
+	u32 bw;
+	bool sgi;
+};
+
+
+#define is_type_legacy(type) (((type) == LQ_LEGACY_G) || \
+			      ((type) == LQ_LEGACY_A))
+#define is_type_ht_siso(type) ((type) == LQ_HT_SISO)
+#define is_type_ht_mimo2(type) ((type) == LQ_HT_MIMO2)
+#define is_type_vht_siso(type) ((type) == LQ_VHT_SISO)
+#define is_type_vht_mimo2(type) ((type) == LQ_VHT_MIMO2)
+#define is_type_siso(type) (is_type_ht_siso(type) || is_type_vht_siso(type))
+#define is_type_mimo2(type) (is_type_ht_mimo2(type) || is_type_vht_mimo2(type))
+#define is_type_mimo(type) (is_type_mimo2(type))
+#define is_type_ht(type) (is_type_ht_siso(type) || is_type_ht_mimo2(type))
+#define is_type_vht(type) (is_type_vht_siso(type) || is_type_vht_mimo2(type))
+#define is_type_a_band(type) ((type) == LQ_LEGACY_A)
+#define is_type_g_band(type) ((type) == LQ_LEGACY_G)
+
+#define is_legacy(rate)       is_type_legacy((rate)->type)
+#define is_ht_siso(rate)      is_type_ht_siso((rate)->type)
+#define is_ht_mimo2(rate)     is_type_ht_mimo2((rate)->type)
+#define is_vht_siso(rate)     is_type_vht_siso((rate)->type)
+#define is_vht_mimo2(rate)    is_type_vht_mimo2((rate)->type)
+#define is_siso(rate)         is_type_siso((rate)->type)
+#define is_mimo2(rate)        is_type_mimo2((rate)->type)
+#define is_mimo(rate)         is_type_mimo((rate)->type)
+#define is_ht(rate)           is_type_ht((rate)->type)
+#define is_vht(rate)          is_type_vht((rate)->type)
+#define is_a_band(rate)       is_type_a_band((rate)->type)
+#define is_g_band(rate)       is_type_g_band((rate)->type)
+
+#define is_ht20(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_20)
+#define is_ht40(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_40)
+#define is_ht80(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_80)
 
 #define IWL_MAX_MCS_DISPLAY_SIZE	12
 
@@ -219,7 +257,30 @@ struct iwl_rate_scale_data {
 	s32 success_ratio;	/* per-cent * 128  */
 	s32 counter;		/* number of frames attempted */
 	s32 average_tpt;	/* success ratio * expected throughput */
-	unsigned long stamp;
+};
+
+/* Possible Tx columns
+ * Tx Column = a combo of legacy/siso/mimo x antenna x SGI
+ */
+enum rs_column {
+	RS_COLUMN_LEGACY_ANT_A = 0,
+	RS_COLUMN_LEGACY_ANT_B,
+	RS_COLUMN_SISO_ANT_A,
+	RS_COLUMN_SISO_ANT_B,
+	RS_COLUMN_SISO_ANT_A_SGI,
+	RS_COLUMN_SISO_ANT_B_SGI,
+	RS_COLUMN_MIMO2,
+	RS_COLUMN_MIMO2_SGI,
+
+	RS_COLUMN_LAST = RS_COLUMN_MIMO2_SGI,
+	RS_COLUMN_COUNT = RS_COLUMN_LAST + 1,
+	RS_COLUMN_INVALID,
+};
+
+/* Packet stats per rate */
+struct rs_rate_stats {
+	u64 success;
+	u64 total;
 };
 
 /**
@@ -229,15 +290,18 @@ struct iwl_rate_scale_data {
  * one for "active", and one for "search".
  */
 struct iwl_scale_tbl_info {
-	enum iwl_table_type lq_type;
-	u8 ant_type;
-	u8 is_SGI;	/* 1 = short guard interval */
-	u8 is_ht40;	/* 1 = 40 MHz channel width */
-	u8 action;	/* change modulation; IWL_[LEGACY/SISO/MIMO]_SWITCH_* */
-	u8 max_search;	/* maximun number of tables we can search */
-	s32 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
-	u32 current_rate;  /* rate_n_flags, uCode API format */
+	struct rs_rate rate;
+	enum rs_column column;
+	const u16 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
 	struct iwl_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
+	/* per txpower-reduction history */
+	struct iwl_rate_scale_data tpc_win[TPC_MAX_REDUCTION + 1];
+};
+
+enum {
+	RS_STATE_SEARCH_CYCLE_STARTED,
+	RS_STATE_SEARCH_CYCLE_ENDED,
+	RS_STATE_STAY_IN_COLUMN,
 };
 
 /**
@@ -247,8 +311,7 @@ struct iwl_scale_tbl_info {
  */
 struct iwl_lq_sta {
 	u8 active_tbl;		/* index of active table, range 0-1 */
-	u8 enable_counter;	/* indicates HT mode */
-	u8 stay_in_tbl;		/* 1: disallow, 0: allow search for new mode */
+	u8 rs_state;            /* RS_STATE_* */
 	u8 search_better_tbl;	/* 1: currently trying alternate mode */
 	s32 last_tpt;
 
@@ -261,15 +324,25 @@ struct iwl_lq_sta {
 	u32 total_success;	/* total successful frames, any/all rates */
 	u64 flush_timer;	/* time staying in mode before new search */
 
-	u8 action_counter;	/* # mode-switch actions tried */
-	u8 is_green;
+	u32 visited_columns;    /* Bitmask marking which Tx columns were
+				 * explored during a search cycle
+				 */
+	u64 last_tx;
+	bool is_vht;
 	enum ieee80211_band band;
 
+	struct rs_rate_stats tx_stats[RS_COLUMN_COUNT][IWL_RATE_COUNT];
+
 	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
-	u32 supp_rates;
-	u16 active_legacy_rate;
-	u16 active_siso_rate;
-	u16 active_mimo2_rate;
+	unsigned long active_legacy_rate;
+	unsigned long active_siso_rate;
+	unsigned long active_mimo2_rate;
+
+	/* Highest rate per Tx mode */
+	u8 max_legacy_rate_idx;
+	u8 max_siso_rate_idx;
+	u8 max_mimo2_rate_idx;
+
 	s8 max_rate_idx;     /* Max rate set by user */
 	u8 missed_rate_counter;
 
@@ -279,8 +352,11 @@ struct iwl_lq_sta {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
 	struct dentry *rs_sta_dbgfs_stats_table_file;
+	struct dentry *rs_sta_dbgfs_drv_tx_stats_file;
 	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
+	struct dentry *rs_sta_dbgfs_reduced_txp_file;
 	u32 dbg_fixed_rate;
+	u8 dbg_fixed_txp_reduction;
 #endif
 	struct iwl_mvm *drv;
 
@@ -290,33 +366,14 @@ struct iwl_lq_sta {
 	u32 last_rate_n_flags;
 	/* packets destined for this STA are aggregated */
 	u8 is_agg;
-	/* BT traffic this sta was last updated in */
-	u8 last_bt_traffic;
+
+	/* tx power reduce for this sta */
+	int tpc_reduce;
 };
-
-enum iwl_bt_coex_profile_traffic_load {
-	IWL_BT_COEX_TRAFFIC_LOAD_NONE		= 0,
-	IWL_BT_COEX_TRAFFIC_LOAD_LOW		= 1,
-	IWL_BT_COEX_TRAFFIC_LOAD_HIGH		= 2,
-	IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS	= 3,
-/*
- * There are no more even though below is a u8, the
- * indication from the BT device only has two bits.
- */
-};
-
-
-static inline u8 num_of_ant(u8 mask)
-{
-	return  !!((mask) & ANT_A) +
-		!!((mask) & ANT_B) +
-		!!((mask) & ANT_C);
-}
 
 /* Initialize station's rate scaling information after adding station */
-extern void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm,
-				 struct ieee80211_sta *sta,
-				 enum ieee80211_band band);
+void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			  enum ieee80211_band band, bool init);
 
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
@@ -328,7 +385,7 @@ extern void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm,
  * ieee80211_register_hw
  *
  */
-extern int iwl_mvm_rate_control_register(void);
+int iwl_mvm_rate_control_register(void);
 
 /**
  * iwl_rate_control_unregister - Unregister the rate control callbacks
@@ -336,7 +393,7 @@ extern int iwl_mvm_rate_control_register(void);
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void iwl_mvm_rate_control_unregister(void);
+void iwl_mvm_rate_control_unregister(void);
 
 struct iwl_mvm_sta;
 

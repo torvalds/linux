@@ -95,20 +95,20 @@ static int ft1000_config(struct pcmcia_device *link)
 	/* setup IO window */
 	ret = pcmcia_loop_config(link, ft1000_confcheck, NULL);
 	if (ret) {
-		printk(KERN_INFO "ft1000: Could not configure pcmcia\n");
+		dev_err(&link->dev, "Could not configure pcmcia\n");
 		return -ENODEV;
 	}
 
 	/* configure device */
 	ret = pcmcia_enable_device(link);
 	if (ret) {
-		printk(KERN_INFO "ft1000: could not enable pcmcia\n");
+		dev_err(&link->dev, "Could not enable pcmcia\n");
 		goto failed;
 	}
 
 	link->priv = init_ft1000_card(link, &ft1000_reset);
 	if (!link->priv) {
-		printk(KERN_INFO "ft1000: Could not register as network device\n");
+		dev_err(&link->dev, "Could not register as network device\n");
 		goto failed;
 	}
 

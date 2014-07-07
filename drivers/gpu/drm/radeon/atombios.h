@@ -1711,7 +1711,9 @@ typedef struct _PIXEL_CLOCK_PARAMETERS_V6
 #define PIXEL_CLOCK_V6_MISC_HDMI_BPP_MASK           0x0c
 #define PIXEL_CLOCK_V6_MISC_HDMI_24BPP              0x00
 #define PIXEL_CLOCK_V6_MISC_HDMI_36BPP              0x04
+#define PIXEL_CLOCK_V6_MISC_HDMI_36BPP_V6           0x08    //for V6, the correct defintion for 36bpp should be 2 for 36bpp(2:1)
 #define PIXEL_CLOCK_V6_MISC_HDMI_30BPP              0x08
+#define PIXEL_CLOCK_V6_MISC_HDMI_30BPP_V6           0x04    //for V6, the correct defintion for 30bpp should be 1 for 36bpp(5:4)
 #define PIXEL_CLOCK_V6_MISC_HDMI_48BPP              0x0c
 #define PIXEL_CLOCK_V6_MISC_REF_DIV_SRC             0x10
 #define PIXEL_CLOCK_V6_MISC_GEN_DPREFCLK            0x40
@@ -2223,7 +2225,7 @@ typedef struct	_SET_VOLTAGE_PARAMETERS_V2
   USHORT   usVoltageLevel;              // real voltage level
 }SET_VOLTAGE_PARAMETERS_V2;
 
-
+// used by both SetVoltageTable v1.3 and v1.4
 typedef struct	_SET_VOLTAGE_PARAMETERS_V1_3
 {
   UCHAR    ucVoltageType;               // To tell which voltage to set up, VDDC/MVDDC/MVDDQ/VDDCI
@@ -2290,14 +2292,35 @@ typedef struct  _GET_LEAKAGE_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_1
 #define	ATOM_GET_VOLTAGE_VID                0x00
 #define ATOM_GET_VOTLAGE_INIT_SEQ           0x03
 #define ATOM_GET_VOLTTAGE_PHASE_PHASE_VID   0x04
-// for SI, this state map to 0xff02 voltage state in Power Play table, which is power boost state
-#define	ATOM_GET_VOLTAGE_STATE0_LEAKAGE_VID 0x10
+#define ATOM_GET_VOLTAGE_SVID2              0x07        //Get SVI2 Regulator Info
 
+// for SI, this state map to 0xff02 voltage state in Power Play table, which is power boost state
+#define ATOM_GET_VOLTAGE_STATE0_LEAKAGE_VID 0x10
 // for SI, this state map to 0xff01 voltage state in Power Play table, which is performance state
 #define	ATOM_GET_VOLTAGE_STATE1_LEAKAGE_VID 0x11
-// undefined power state
+
 #define	ATOM_GET_VOLTAGE_STATE2_LEAKAGE_VID 0x12
 #define	ATOM_GET_VOLTAGE_STATE3_LEAKAGE_VID 0x13
+
+// New Added from CI Hawaii for GetVoltageInfoTable, input parameter structure
+typedef struct  _GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2
+{
+  UCHAR    ucVoltageType;               // Input: To tell which voltage to set up, VDDC/MVDDC/MVDDQ/VDDCI
+  UCHAR    ucVoltageMode;               // Input: Indicate action: Get voltage info
+  USHORT   usVoltageLevel;              // Input: real voltage level in unit of mv or Voltage Phase (0, 1, 2, .. ) or Leakage Id 
+  ULONG    ulSCLKFreq;                  // Input: when ucVoltageMode= ATOM_GET_VOLTAGE_EVV_VOLTAGE, DPM state SCLK frequency, Define in PPTable SCLK/Voltage dependence table
+}GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2;
+
+// New in GetVoltageInfo v1.2 ucVoltageMode
+#define ATOM_GET_VOLTAGE_EVV_VOLTAGE        0x09        
+
+// New Added from CI Hawaii for EVV feature 
+typedef struct  _GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2
+{
+  USHORT   usVoltageLevel;                               // real voltage level in unit of mv
+  USHORT   usVoltageId;                                  // Voltage Id programmed in Voltage Regulator
+  ULONG    ulReseved;
+}GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2;
 
 /****************************************************************************/	
 // Structures used by TVEncoderControlTable
@@ -3864,6 +3887,8 @@ typedef struct _ATOM_GPIO_PIN_ASSIGNMENT
 #define PP_AC_DC_SWITCH_GPIO_PINID          60
 //from SMU7.x, if ucGPIO_ID=VDDC_REGULATOR_VRHOT_GPIO_PINID in GPIO_LUTable, VRHot feature is enable
 #define VDDC_VRHOT_GPIO_PINID               61
+//if ucGPIO_ID=VDDC_PCC_GPIO_PINID in GPIO_LUTable, Peak Current Control feature is enabled
+#define VDDC_PCC_GPIO_PINID                 62
 
 typedef struct _ATOM_GPIO_PIN_LUT
 {
@@ -4169,10 +4194,10 @@ typedef struct _ATOM_COMMON_RECORD_HEADER
 #define ATOM_OBJECT_LINK_RECORD_TYPE                   18 //Once this record is present under one object, it indicats the oobject is linked to another obj described by the record
 #define ATOM_CONNECTOR_REMOTE_CAP_RECORD_TYPE          19
 #define ATOM_ENCODER_CAP_RECORD_TYPE                   20
-
+#define ATOM_BRACKET_LAYOUT_RECORD_TYPE                21
 
 //Must be updated when new record type is added,equal to that record definition!
-#define ATOM_MAX_OBJECT_RECORD_NUMBER             ATOM_ENCODER_CAP_RECORD_TYPE
+#define ATOM_MAX_OBJECT_RECORD_NUMBER             ATOM_BRACKET_LAYOUT_RECORD_TYPE
 
 typedef struct  _ATOM_I2C_RECORD
 {
@@ -4397,6 +4422,31 @@ typedef struct _ATOM_CONNECTOR_REMOTE_CAP_RECORD
   USHORT                      usReserved;
 }ATOM_CONNECTOR_REMOTE_CAP_RECORD;
 
+typedef struct  _ATOM_CONNECTOR_LAYOUT_INFO
+{
+   USHORT usConnectorObjectId;
+   UCHAR  ucConnectorType;
+   UCHAR  ucPosition;
+}ATOM_CONNECTOR_LAYOUT_INFO;
+
+// define ATOM_CONNECTOR_LAYOUT_INFO.ucConnectorType to describe the display connector size
+#define CONNECTOR_TYPE_DVI_D                 1
+#define CONNECTOR_TYPE_DVI_I                 2
+#define CONNECTOR_TYPE_VGA                   3
+#define CONNECTOR_TYPE_HDMI                  4
+#define CONNECTOR_TYPE_DISPLAY_PORT          5
+#define CONNECTOR_TYPE_MINI_DISPLAY_PORT     6
+
+typedef struct  _ATOM_BRACKET_LAYOUT_RECORD
+{
+  ATOM_COMMON_RECORD_HEADER   sheader;
+  UCHAR                       ucLength;
+  UCHAR                       ucWidth;
+  UCHAR                       ucConnNum;
+  UCHAR                       ucReserved;
+  ATOM_CONNECTOR_LAYOUT_INFO  asConnInfo[1];
+}ATOM_BRACKET_LAYOUT_RECORD;
+
 /****************************************************************************/	
 // ASIC voltage data table
 /****************************************************************************/	
@@ -4524,8 +4574,9 @@ typedef struct _ATOM_VOLTAGE_OBJECT_HEADER_V3{
 #define VOLTAGE_OBJ_VR_I2C_INIT_SEQ          3        //VOLTAGE REGULATOR INIT sequece through I2C -> ATOM_I2C_VOLTAGE_OBJECT_V3
 #define VOLTAGE_OBJ_PHASE_LUT                4        //Set Vregulator Phase lookup table ->ATOM_GPIO_VOLTAGE_OBJECT_V3
 #define VOLTAGE_OBJ_SVID2                    7        //Indicate voltage control by SVID2 ->ATOM_SVID2_VOLTAGE_OBJECT_V3
-#define	VOLTAGE_OBJ_PWRBOOST_LEAKAGE_LUT     0x10     //Powerboost Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
-#define	VOLTAGE_OBJ_HIGH_STATE_LEAKAGE_LUT   0x11     //High voltage state Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
+#define VOLTAGE_OBJ_EVV                      8 
+#define VOLTAGE_OBJ_PWRBOOST_LEAKAGE_LUT     0x10     //Powerboost Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
+#define VOLTAGE_OBJ_HIGH_STATE_LEAKAGE_LUT   0x11     //High voltage state Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
 #define VOLTAGE_OBJ_HIGH1_STATE_LEAKAGE_LUT  0x12     //High1 voltage state Voltage and LeakageId lookup table->ATOM_LEAKAGE_VOLTAGE_OBJECT_V3
 
 typedef struct  _VOLTAGE_LUT_ENTRY_V2
@@ -4551,6 +4602,10 @@ typedef struct  _ATOM_I2C_VOLTAGE_OBJECT_V3
    ULONG    ulReserved;
    VOLTAGE_LUT_ENTRY asVolI2cLut[1];        // end with 0xff
 }ATOM_I2C_VOLTAGE_OBJECT_V3;
+
+// ATOM_I2C_VOLTAGE_OBJECT_V3.ucVoltageControlFlag
+#define VOLTAGE_DATA_ONE_BYTE                0
+#define VOLTAGE_DATA_TWO_BYTE                1
 
 typedef struct  _ATOM_GPIO_VOLTAGE_OBJECT_V3
 {
@@ -4584,7 +4639,8 @@ typedef struct  _ATOM_SVID2_VOLTAGE_OBJECT_V3
 // 1:0  offset trim, 
    USHORT   usLoadLine_PSI;    
 // GPU GPIO pin Id to SVID2 regulator VRHot pin. possible value 0~31. 0 means GPIO0, 31 means GPIO31
-   UCHAR    ucReserved[2];
+   UCHAR    ucSVDGpioId;     //0~31 indicate GPIO0~31
+   UCHAR    ucSVCGpioId;     //0~31 indicate GPIO0~31
    ULONG    ulReserved;
 }ATOM_SVID2_VOLTAGE_OBJECT_V3;
 
@@ -4636,6 +4692,49 @@ typedef struct  _ATOM_ASIC_PROFILING_INFO_V2_1
   USHORT usElbVDDCI_IdArrayOffset;       // offset of USHORT virtual VDDCI voltage id ( 0xff01~0xff08 )
   USHORT usElbVDDCI_LevelArrayOffset;    // offset of 2 dimension voltage level USHORT array
 }ATOM_ASIC_PROFILING_INFO_V2_1;
+
+typedef struct  _ATOM_ASIC_PROFILING_INFO_V3_1
+{
+  ATOM_COMMON_TABLE_HEADER         asHeader; 
+  ULONG  ulEvvDerateTdp;
+  ULONG  ulEvvDerateTdc;
+  ULONG  ulBoardCoreTemp;
+  ULONG  ulMaxVddc;
+  ULONG  ulMinVddc;
+  ULONG  ulLoadLineSlop;
+  ULONG  ulLeakageTemp;
+  ULONG  ulLeakageVoltage;
+  ULONG  ulCACmEncodeRange;
+  ULONG  ulCACmEncodeAverage;
+  ULONG  ulCACbEncodeRange;
+  ULONG  ulCACbEncodeAverage;
+  ULONG  ulKt_bEncodeRange;
+  ULONG  ulKt_bEncodeAverage;
+  ULONG  ulKv_mEncodeRange;
+  ULONG  ulKv_mEncodeAverage;
+  ULONG  ulKv_bEncodeRange;
+  ULONG  ulKv_bEncodeAverage;
+  ULONG  ulLkgEncodeLn_MaxDivMin;
+  ULONG  ulLkgEncodeMin;
+  ULONG  ulEfuseLogisticAlpha;
+  USHORT usPowerDpm0;
+  USHORT usCurrentDpm0;
+  USHORT usPowerDpm1;
+  USHORT usCurrentDpm1;
+  USHORT usPowerDpm2;
+  USHORT usCurrentDpm2;
+  USHORT usPowerDpm3;
+  USHORT usCurrentDpm3;
+  USHORT usPowerDpm4;
+  USHORT usCurrentDpm4;
+  USHORT usPowerDpm5;
+  USHORT usCurrentDpm5;
+  USHORT usPowerDpm6;
+  USHORT usCurrentDpm6;
+  USHORT usPowerDpm7;
+  USHORT usCurrentDpm7;
+}ATOM_ASIC_PROFILING_INFO_V3_1;
+
 
 typedef struct _ATOM_POWER_SOURCE_OBJECT
 {
@@ -5808,6 +5907,8 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S7_DOS_MODE_PIXEL_DEPTHb0      0x0C
 #define ATOM_S7_DOS_MODE_PIXEL_FORMATb0     0xF0
 #define ATOM_S7_DOS_8BIT_DAC_ENb1           0x01
+#define ATOM_S7_ASIC_INIT_COMPLETEb1        0x02
+#define ATOM_S7_ASIC_INIT_COMPLETE_MASK     0x00000200
 #define ATOM_S7_DOS_MODE_NUMBERw1           0x0FFFF
 
 #define ATOM_S7_DOS_8BIT_DAC_EN_SHIFT       8
@@ -6242,6 +6343,7 @@ typedef struct _ATOM_MC_INIT_PARAM_TABLE
 #define _128Mx32            0x53
 #define _256Mx8             0x61
 #define _256Mx16            0x62
+#define _512Mx8             0x71
 
 #define SAMSUNG             0x1
 #define INFINEON            0x2
@@ -6987,9 +7089,10 @@ typedef struct _ATOM_DISP_OUT_INFO_V3
   UCHAR  ucMaxDispEngineNum;
   UCHAR  ucMaxActiveDispEngineNum;
   UCHAR  ucMaxPPLLNum;
-  UCHAR  ucCoreRefClkSource;                          // value of CORE_REF_CLK_SOURCE
-  UCHAR  ucReserved[3];
-	ASIC_TRANSMITTER_INFO_V2  asTransmitterInfo[1];     // for alligment only
+  UCHAR  ucCoreRefClkSource;                    // value of CORE_REF_CLK_SOURCE
+  UCHAR  ucDispCaps;
+  UCHAR  ucReserved[2];
+  ASIC_TRANSMITTER_INFO_V2  asTransmitterInfo[1];     // for alligment only
 }ATOM_DISP_OUT_INFO_V3;
 
 //ucDispCaps

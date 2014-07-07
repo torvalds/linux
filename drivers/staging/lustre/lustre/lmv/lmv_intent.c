@@ -37,7 +37,6 @@
 #define DEBUG_SUBSYSTEM S_LMV
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/pagemap.h>
 #include <asm/div64.h>
 #include <linux/seq_file.h>
@@ -120,7 +119,6 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	CDEBUG(D_INODE, "REMOTE_INTENT with fid="DFID" -> mds #%d\n",
 	       PFID(&body->fid1), tgt->ltd_idx);
 
-	it->d.lustre.it_disposition &= ~DISP_ENQ_COMPLETE;
 	rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it,
 			    flags, &req, cb_blocking, extra_lock_flags);
 	if (rc)

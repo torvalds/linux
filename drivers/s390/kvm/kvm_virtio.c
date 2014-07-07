@@ -166,11 +166,15 @@ static void kvm_reset(struct virtio_device *vdev)
  * make a hypercall.  We hand the address  of the virtqueue so the Host
  * knows which virtqueue we're talking about.
  */
-static void kvm_notify(struct virtqueue *vq)
+static bool kvm_notify(struct virtqueue *vq)
 {
+	long rc;
 	struct kvm_vqconfig *config = vq->priv;
 
-	kvm_hypercall1(KVM_S390_VIRTIO_NOTIFY, config->address);
+	rc = kvm_hypercall1(KVM_S390_VIRTIO_NOTIFY, config->address);
+	if (rc < 0)
+		return false;
+	return true;
 }
 
 /*
@@ -473,7 +477,7 @@ static int __init kvm_devices_init(void)
 	INIT_WORK(&hotplug_work, hotplug_devices);
 
 	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
-	register_external_interrupt(0x2603, kvm_extint_handler);
+	register_external_irq(EXT_IRQ_CP_SERVICE, kvm_extint_handler);
 
 	scan_devices();
 	return 0;

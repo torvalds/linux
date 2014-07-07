@@ -268,7 +268,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	pm_runtime_get_sync(dev->dev);
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
 	pm_runtime_put_sync(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to install IRQ handler\n");
@@ -311,7 +311,7 @@ static void tilcdc_lastclose(struct drm_device *dev)
 	drm_fbdev_cma_restore_mode(priv->fbdev);
 }
 
-static irqreturn_t tilcdc_irq(DRM_IRQ_ARGS)
+static irqreturn_t tilcdc_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct tilcdc_drm_private *priv = dev->dev_private;
@@ -444,7 +444,7 @@ static int tilcdc_mm_show(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	return drm_mm_dump_table(m, dev->mm_private);
+	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
 }
 
 static struct drm_info_list tilcdc_debugfs_list[] = {
@@ -594,7 +594,7 @@ static int tilcdc_pdev_probe(struct platform_device *pdev)
 
 static int tilcdc_pdev_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&tilcdc_driver, pdev);
+	drm_put_dev(platform_get_drvdata(pdev));
 
 	return 0;
 }

@@ -321,14 +321,13 @@ int show_unhandled_signals = 1;
 
 static int __init crashinfo(char *str)
 {
-	unsigned long val;
 	const char *word;
 
 	if (*str == '\0')
-		val = 2;
-	else if (*str != '=' || strict_strtoul(++str, 0, &val) != 0)
+		show_unhandled_signals = 2;
+	else if (*str != '=' || kstrtoint(++str, 0, &show_unhandled_signals) != 0)
 		return 0;
-	show_unhandled_signals = val;
+
 	switch (show_unhandled_signals) {
 	case 0:
 		word = "No";

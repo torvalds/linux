@@ -34,16 +34,11 @@ struct basic_filter {
 	struct list_head	link;
 };
 
-static const struct tcf_ext_map basic_ext_map = {
-	.action = TCA_BASIC_ACT,
-	.police = TCA_BASIC_POLICE
-};
-
 static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			  struct tcf_result *res)
 {
 	int r;
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct basic_filter *f;
 
 	list_for_each_entry(f, &head->flist, link) {
@@ -61,7 +56,7 @@ static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 static unsigned long basic_get(struct tcf_proto *tp, u32 handle)
 {
 	unsigned long l = 0UL;
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct basic_filter *f;
 
 	if (head == NULL)
@@ -112,7 +107,7 @@ static void basic_destroy(struct tcf_proto *tp)
 
 static int basic_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct basic_filter *t, *f = (struct basic_filter *) arg;
 
 	list_for_each_entry(t, &head->flist, link)
@@ -135,13 +130,14 @@ static const struct nla_policy basic_policy[TCA_BASIC_MAX + 1] = {
 static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 			   struct basic_filter *f, unsigned long base,
 			   struct nlattr **tb,
-			   struct nlattr *est)
+			   struct nlattr *est, bool ovr)
 {
-	int err = -EINVAL;
+	int err;
 	struct tcf_exts e;
 	struct tcf_ematch_tree t;
 
-	err = tcf_exts_validate(net, tp, tb, est, &e, &basic_ext_map);
+	tcf_exts_init(&e, TCA_BASIC_ACT, TCA_BASIC_POLICE);
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
 	if (err < 0)
 		return err;
 
@@ -165,10 +161,10 @@ errout:
 
 static int basic_change(struct net *net, struct sk_buff *in_skb,
 			struct tcf_proto *tp, unsigned long base, u32 handle,
-			struct nlattr **tca, unsigned long *arg)
+			struct nlattr **tca, unsigned long *arg, bool ovr)
 {
 	int err;
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct nlattr *tb[TCA_BASIC_MAX + 1];
 	struct basic_filter *f = (struct basic_filter *) *arg;
 
@@ -183,7 +179,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (f != NULL) {
 		if (handle && f->handle != handle)
 			return -EINVAL;
-		return basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE]);
+		return basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE], ovr);
 	}
 
 	err = -ENOBUFS;
@@ -191,6 +187,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		goto errout;
 
+	tcf_exts_init(&f->exts, TCA_BASIC_ACT, TCA_BASIC_POLICE);
 	err = -EINVAL;
 	if (handle)
 		f->handle = handle;
@@ -209,7 +206,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 		f->handle = head->hgenerator;
 	}
 
-	err = basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE]);
+	err = basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE], ovr);
 	if (err < 0)
 		goto errout;
 
@@ -228,7 +225,7 @@ errout:
 
 static void basic_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 {
-	struct basic_head *head = (struct basic_head *) tp->root;
+	struct basic_head *head = tp->root;
 	struct basic_filter *f;
 
 	list_for_each_entry(f, &head->flist, link) {
@@ -244,7 +241,7 @@ skip:
 	}
 }
 
-static int basic_dump(struct tcf_proto *tp, unsigned long fh,
+static int basic_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		      struct sk_buff *skb, struct tcmsg *t)
 {
 	struct basic_filter *f = (struct basic_filter *) fh;
@@ -263,13 +260,13 @@ static int basic_dump(struct tcf_proto *tp, unsigned long fh,
 	    nla_put_u32(skb, TCA_BASIC_CLASSID, f->res.classid))
 		goto nla_put_failure;
 
-	if (tcf_exts_dump(skb, &f->exts, &basic_ext_map) < 0 ||
+	if (tcf_exts_dump(skb, &f->exts) < 0 ||
 	    tcf_em_tree_dump(skb, &f->ematches, TCA_BASIC_EMATCHES) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 
-	if (tcf_exts_dump_stats(skb, &f->exts, &basic_ext_map) < 0)
+	if (tcf_exts_dump_stats(skb, &f->exts) < 0)
 		goto nla_put_failure;
 
 	return skb->len;

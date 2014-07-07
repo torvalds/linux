@@ -17,7 +17,6 @@
  */
 
 #include <sys/stat.h>
-#include <sysfs/libsysfs.h>
 
 #include <limits.h>
 #include <stdint.h>
@@ -57,6 +56,7 @@ static int record_connection(char *host, char *port, char *busid, int rhport)
 		/* if VHCI_STATE_PATH exists, then it better be a directory */
 		if (errno == EEXIST) {
 			struct stat s;
+
 			ret = stat(VHCI_STATE_PATH, &s);
 			if (ret < 0)
 				return -1;

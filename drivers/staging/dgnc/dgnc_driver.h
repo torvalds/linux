@@ -45,7 +45,7 @@
 /*
  * Driver identification, error and debugging statments
  *
- * In theory, you can change all occurances of "digi" in the next
+ * In theory, you can change all occurrences of "digi" in the next
  * three lines, and the driver printk's will all automagically change.
  *
  * APR((fmt, args, ...));	Always prints message
@@ -246,7 +246,7 @@ enum {
  *
  *************************************************************************/
 
-struct board_t;
+struct dgnc_board;
 struct channel_t;
 
 /************************************************************************
@@ -259,7 +259,7 @@ struct board_ops {
 	void (*uart_off) (struct channel_t *ch);
 	int  (*drain) (struct tty_struct *tty, uint seconds);
 	void (*param) (struct tty_struct *tty);
-	void (*vpd) (struct board_t *brd);
+	void (*vpd) (struct dgnc_board *brd);
 	void (*assert_modem_signals) (struct channel_t *ch);
 	void (*flush_uart_write) (struct channel_t *ch);
 	void (*flush_uart_read) (struct channel_t *ch);
@@ -282,7 +282,7 @@ struct board_ops {
 /*
  *	Per-board information
  */
-struct board_t {
+struct dgnc_board {
 	int		magic;		/* Board Magic number.  */
 	int		boardnum;	/* Board number: 0-32 */
 
@@ -449,7 +449,7 @@ struct un_t {
  ************************************************************************/
 struct channel_t {
 	int magic;			/* Channel Magic Number		*/
-	struct board_t	*ch_bd;		/* Board structure pointer      */
+	struct dgnc_board	*ch_bd;		/* Board structure pointer      */
 	struct digi_t	ch_digi;	/* Transparent Print structure  */
 	struct un_t	ch_tun;		/* Terminal unit info	   */
 	struct un_t	ch_pun;		/* Printer unit info	    */
@@ -555,7 +555,7 @@ extern int		dgnc_poll_tick;		/* Poll interval - 20 ms	*/
 extern int		dgnc_trcbuf_size;	/* Size of the ringbuffer	*/
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock	*/
 extern uint		dgnc_NumBoards;		/* Total number of boards	*/
-extern struct board_t	*dgnc_Board[MAXBOARDS];	/* Array of board structs	*/
+extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs	*/
 extern ulong		dgnc_poll_counter;	/* Times the poller has run	*/
 extern char		*dgnc_state_text[];	/* Array of state text		*/
 extern char		*dgnc_driver_state_text[];/* Array of driver state text */

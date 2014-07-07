@@ -24,7 +24,7 @@
 #include "gc.h"
 
 static LIST_HEAD(f2fs_stat_list);
-static struct dentry *debugfs_root;
+static struct dentry *f2fs_debugfs_root;
 static DEFINE_MUTEX(f2fs_stat_mutex);
 
 static void update_general_status(struct f2fs_sb_info *sbi)
@@ -45,14 +45,15 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->valid_count = valid_user_blocks(sbi);
 	si->valid_node_count = valid_node_count(sbi);
 	si->valid_inode_count = valid_inode_count(sbi);
+	si->inline_inode = sbi->inline_inode;
 	si->utilization = utilization(sbi);
 
 	si->free_segs = free_segments(sbi);
 	si->free_secs = free_sections(sbi);
 	si->prefree_count = prefree_segments(sbi);
 	si->dirty_count = dirty_segments(sbi);
-	si->node_pages = sbi->node_inode->i_mapping->nrpages;
-	si->meta_pages = sbi->meta_inode->i_mapping->nrpages;
+	si->node_pages = NODE_MAPPING(sbi)->nrpages;
+	si->meta_pages = META_MAPPING(sbi)->nrpages;
 	si->nats = NM_I(sbi)->nat_cnt;
 	si->sits = SIT_I(sbi)->dirty_sentries;
 	si->fnids = NM_I(sbi)->fcnt;
@@ -85,7 +86,6 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_stat_info *si = F2FS_STAT(sbi);
 	unsigned int blks_per_sec, hblks_per_sec, total_vblocks, bimodal, dist;
-	struct sit_info *sit_i = SIT_I(sbi);
 	unsigned int segno, vblocks;
 	int ndirty = 0;
 
@@ -93,7 +93,6 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 	total_vblocks = 0;
 	blks_per_sec = sbi->segs_per_sec * (1 << sbi->log_blocks_per_seg);
 	hblks_per_sec = blks_per_sec / 2;
-	mutex_lock(&sit_i->sentry_lock);
 	for (segno = 0; segno < TOTAL_SEGS(sbi); segno += sbi->segs_per_sec) {
 		vblocks = get_valid_blocks(sbi, segno, sbi->segs_per_sec);
 		dist = abs(vblocks - hblks_per_sec);
@@ -104,7 +103,6 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 			ndirty++;
 		}
 	}
-	mutex_unlock(&sit_i->sentry_lock);
 	dist = TOTAL_SECS(sbi) * hblks_per_sec * hblks_per_sec / 100;
 	si->bimodal = bimodal / dist;
 	if (si->dirty_count)
@@ -165,9 +163,9 @@ get_cache:
 	/* free nids */
 	si->cache_mem = NM_I(sbi)->fcnt;
 	si->cache_mem += NM_I(sbi)->nat_cnt;
-	npages = sbi->node_inode->i_mapping->nrpages;
+	npages = NODE_MAPPING(sbi)->nrpages;
 	si->cache_mem += npages << PAGE_CACHE_SHIFT;
-	npages = sbi->meta_inode->i_mapping->nrpages;
+	npages = META_MAPPING(sbi)->nrpages;
 	si->cache_mem += npages << PAGE_CACHE_SHIFT;
 	si->cache_mem += sbi->n_orphans * sizeof(struct orphan_inode_entry);
 	si->cache_mem += sbi->n_dirty_dirs * sizeof(struct dir_inode_entry);
@@ -200,6 +198,8 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "Other: %u)\n  - Data: %u\n",
 			   si->valid_node_count - si->valid_inode_count,
 			   si->valid_count - si->valid_node_count);
+		seq_printf(s, "  - Inline_data Inode: %u\n",
+			   si->inline_inode);
 		seq_printf(s, "\nMain area: %d segs, %d secs %d zones\n",
 			   si->main_area_segs, si->main_area_sections,
 			   si->main_area_zones);
@@ -233,6 +233,7 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->dirty_count);
 		seq_printf(s, "  - Prefree: %d\n  - Free: %d (%d)\n\n",
 			   si->prefree_count, si->free_segs, si->free_secs);
+		seq_printf(s, "CP calls: %d\n", si->cp_count);
 		seq_printf(s, "GC calls: %d (BG: %d)\n",
 			   si->call_count, si->bg_gc);
 		seq_printf(s, "  - data segments : %d\n", si->data_segs);
@@ -242,17 +243,17 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - node blocks : %d\n", si->node_blks);
 		seq_printf(s, "\nExtent Hit Ratio: %d / %d\n",
 			   si->hit_ext, si->total_ext);
-		seq_printf(s, "\nBalancing F2FS Async:\n");
-		seq_printf(s, "  - nodes %4d in %4d\n",
+		seq_puts(s, "\nBalancing F2FS Async:\n");
+		seq_printf(s, "  - nodes: %4d in %4d\n",
 			   si->ndirty_node, si->node_pages);
-		seq_printf(s, "  - dents %4d in dirs:%4d\n",
+		seq_printf(s, "  - dents: %4d in dirs:%4d\n",
 			   si->ndirty_dent, si->ndirty_dirs);
-		seq_printf(s, "  - meta %4d in %4d\n",
+		seq_printf(s, "  - meta: %4d in %4d\n",
 			   si->ndirty_meta, si->meta_pages);
-		seq_printf(s, "  - NATs %5d > %lu\n",
-			   si->nats, NM_WOUT_THRESHOLD);
-		seq_printf(s, "  - SITs: %5d\n  - free_nids: %5d\n",
-			   si->sits, si->fnids);
+		seq_printf(s, "  - NATs: %9d\n  - SITs: %9d\n",
+			   si->nats, si->sits);
+		seq_printf(s, "  - free_nids: %9d\n",
+			   si->fnids);
 		seq_puts(s, "\nDistribution of User Blocks:");
 		seq_puts(s, " [ valid | invalid | free ]\n");
 		seq_puts(s, "  [");
@@ -340,14 +341,32 @@ void f2fs_destroy_stats(struct f2fs_sb_info *sbi)
 
 void __init f2fs_create_root_stats(void)
 {
-	debugfs_root = debugfs_create_dir("f2fs", NULL);
-	if (debugfs_root)
-		debugfs_create_file("status", S_IRUGO, debugfs_root,
-					 NULL, &stat_fops);
+	struct dentry *file;
+
+	f2fs_debugfs_root = debugfs_create_dir("f2fs", NULL);
+	if (!f2fs_debugfs_root)
+		goto bail;
+
+	file = debugfs_create_file("status", S_IRUGO, f2fs_debugfs_root,
+			NULL, &stat_fops);
+	if (!file)
+		goto free_debugfs_dir;
+
+	return;
+
+free_debugfs_dir:
+	debugfs_remove(f2fs_debugfs_root);
+
+bail:
+	f2fs_debugfs_root = NULL;
+	return;
 }
 
 void f2fs_destroy_root_stats(void)
 {
-	debugfs_remove_recursive(debugfs_root);
-	debugfs_root = NULL;
+	if (!f2fs_debugfs_root)
+		return;
+
+	debugfs_remove_recursive(f2fs_debugfs_root);
+	f2fs_debugfs_root = NULL;
 }

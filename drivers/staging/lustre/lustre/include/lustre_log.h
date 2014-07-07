@@ -136,7 +136,11 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	      struct llog_handle **lgh, struct llog_logid *logid,
 	      char *name, enum llog_open_param open_param);
 int llog_close(const struct lu_env *env, struct llog_handle *cathandle);
-int llog_get_size(struct llog_handle *loghandle);
+int llog_is_empty(const struct lu_env *env, struct llog_ctxt *ctxt,
+		  char *name);
+int llog_backup(const struct lu_env *env, struct obd_device *obd,
+		struct llog_ctxt *ctxt, struct llog_ctxt *bak_ctxt,
+		char *name, char *backup);
 
 /* llog_process flags */
 #define LLOG_FLAG_NODEAMON 0x0001
@@ -202,11 +206,7 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 int __llog_ctxt_put(const struct lu_env *env, struct llog_ctxt *ctxt);
 int llog_cleanup(const struct lu_env *env, struct llog_ctxt *);
 int llog_sync(struct llog_ctxt *ctxt, struct obd_export *exp, int flags);
-int llog_obd_add(const struct lu_env *env, struct llog_ctxt *ctxt,
-		 struct llog_rec_hdr *rec, struct lov_stripe_md *lsm,
-		 struct llog_cookie *logcookies, int numcookies);
 int llog_cancel(const struct lu_env *env, struct llog_ctxt *ctxt,
-		struct lov_stripe_md *lsm, int count,
 		struct llog_cookie *cookies, int flags);
 
 int obd_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
@@ -238,7 +238,6 @@ struct llog_operations {
 			int flags);
 	int (*lop_cleanup)(const struct lu_env *env, struct llog_ctxt *ctxt);
 	int (*lop_cancel)(const struct lu_env *env, struct llog_ctxt *ctxt,
-			  struct lov_stripe_md *lsm, int count,
 			  struct llog_cookie *cookies, int flags);
 	int (*lop_connect)(struct llog_ctxt *ctxt, struct llog_logid *logid,
 			   struct llog_gen *gen, struct obd_uuid *uuid);
@@ -292,11 +291,6 @@ struct llog_operations {
 	int (*lop_add)(const struct lu_env *env, struct llog_handle *lgh,
 		       struct llog_rec_hdr *rec, struct llog_cookie *cookie,
 		       void *buf, struct thandle *th);
-	/* Old llog_add version, used in MDS-LOV-OSC now and will gone with
-	 * LOD/OSP replacement */
-	int (*lop_obd_add)(const struct lu_env *env, struct llog_ctxt *ctxt,
-			   struct llog_rec_hdr *rec, struct lov_stripe_md *lsm,
-			   struct llog_cookie *logcookies, int numcookies);
 };
 
 /* In-memory descriptor for a log object or log catalog */
@@ -380,6 +374,13 @@ static inline int llog_handle2ops(struct llog_handle *loghandle,
 static inline int llog_data_len(int len)
 {
 	return cfs_size_round(len);
+}
+
+static inline int llog_get_size(struct llog_handle *loghandle)
+{
+	if (loghandle && loghandle->lgh_hdr)
+		return loghandle->lgh_hdr->llh_count;
+	return 0;
 }
 
 static inline struct llog_ctxt *llog_ctxt_get(struct llog_ctxt *ctxt)

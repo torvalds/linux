@@ -746,7 +746,7 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 	LASSERT(desc->pd_compat != NULL);
 
 	OBD_CPT_ALLOC_GFP(policy, svcpt->scp_service->srv_cptable,
-			  svcpt->scp_cpt, sizeof(*policy), __GFP_IO);
+			  svcpt->scp_cpt, sizeof(*policy), GFP_NOFS);
 	if (policy == NULL)
 		return -ENOMEM;
 
@@ -1322,7 +1322,7 @@ EXPORT_SYMBOL(ptlrpc_nrs_policy_unregister);
  * Setup NRS heads on all service partitions of service \a svc, and register
  * all compatible policies on those NRS heads.
  *
- * To be called from withing ptl
+ * To be called from within ptl
  * \param[in] svc the service to setup
  *
  * \retval -ve error, the calling logic should eventually call
@@ -1736,7 +1736,7 @@ fail:
 }
 
 /**
- * Removes all policy desciptors from nrs_core::nrs_policies, and frees the
+ * Removes all policy descriptors from nrs_core::nrs_policies, and frees the
  * policy descriptors.
  *
  * Since all PTLRPC services are stopped at this point, there are no more

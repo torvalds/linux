@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -388,7 +388,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 	*actual_return_desc = return_desc;
 
-      cleanup:
+cleanup:
 	if (local_operand1 != operand1) {
 		acpi_ut_remove_reference(local_operand1);
 	}
@@ -718,7 +718,7 @@ acpi_ex_do_logical_op(u16 opcode,
 		}
 	}
 
-      cleanup:
+cleanup:
 
 	/* New object was created if implicit conversion performed - delete */
 

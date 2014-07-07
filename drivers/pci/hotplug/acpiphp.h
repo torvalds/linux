@@ -39,16 +39,6 @@
 #include <linux/mutex.h>
 #include <linux/pci_hotplug.h>
 
-#define dbg(format, arg...)					\
-	do {							\
-		if (acpiphp_debug)				\
-			printk(KERN_DEBUG "%s: " format,	\
-				MY_NAME , ## arg);		\
-	} while (0)
-#define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
-
 struct acpiphp_context;
 struct acpiphp_bridge;
 struct acpiphp_slot;
@@ -87,6 +77,8 @@ struct acpiphp_bridge {
 
 	/* PCI-to-PCI bridge device */
 	struct pci_dev *pci_dev;
+
+	bool is_going_away;
 };
 
 
@@ -101,7 +93,6 @@ struct acpiphp_slot {
 	struct list_head funcs;		/* one slot may have different
 					   objects (i.e. for each function) */
 	struct slot *slot;
-	struct mutex crit_sect;
 
 	u8		device;		/* pci device# */
 	u32		flags;		/* see below */
@@ -125,20 +116,40 @@ struct acpiphp_func {
 };
 
 struct acpiphp_context {
-	acpi_handle handle;
+	struct acpi_hotplug_context hp;
 	struct acpiphp_func func;
 	struct acpiphp_bridge *bridge;
 	unsigned int refcount;
 };
+
+static inline struct acpiphp_context *to_acpiphp_context(struct acpi_hotplug_context *hp)
+{
+	return container_of(hp, struct acpiphp_context, hp);
+}
 
 static inline struct acpiphp_context *func_to_context(struct acpiphp_func *func)
 {
 	return container_of(func, struct acpiphp_context, func);
 }
 
+static inline struct acpi_device *func_to_acpi_device(struct acpiphp_func *func)
+{
+	return func_to_context(func)->hp.self;
+}
+
 static inline acpi_handle func_to_handle(struct acpiphp_func *func)
 {
-	return func_to_context(func)->handle;
+	return func_to_acpi_device(func)->handle;
+}
+
+struct acpiphp_root_context {
+	struct acpi_hotplug_context hp;
+	struct acpiphp_bridge *root_bridge;
+};
+
+static inline struct acpiphp_root_context *to_acpiphp_root_context(struct acpi_hotplug_context *hp)
+{
+	return container_of(hp, struct acpiphp_root_context, hp);
 }
 
 /*
@@ -160,12 +171,12 @@ struct acpiphp_attention_info
 /* slot flags */
 
 #define SLOT_ENABLED		(0x00000001)
+#define SLOT_IS_GOING_AWAY	(0x00000002)
 
 /* function flags */
 
 #define FUNC_HAS_STA		(0x00000001)
 #define FUNC_HAS_EJ0		(0x00000002)
-#define FUNC_HAS_DCK            (0x00000004)
 
 /* function prototypes */
 
@@ -179,14 +190,13 @@ void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
 typedef int (*acpiphp_callback)(struct acpiphp_slot *slot, void *data);
 
 int acpiphp_enable_slot(struct acpiphp_slot *slot);
-int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot);
+int acpiphp_disable_slot(struct acpiphp_slot *slot);
 u8 acpiphp_get_power_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_attention_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_latch_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_adapter_status(struct acpiphp_slot *slot);
 
 /* variables */
-extern bool acpiphp_debug;
 extern bool acpiphp_disabled;
 
 #endif /* _ACPIPHP_H */

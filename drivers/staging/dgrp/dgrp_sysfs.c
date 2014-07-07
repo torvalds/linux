@@ -65,7 +65,9 @@ static ssize_t dgrp_class_pollrate_store(struct device *c,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	sscanf(buf, "0x%x\n", &dgrp_poll_tick);
+	if (sscanf(buf, "0x%x\n", &dgrp_poll_tick) != 1)
+		return -EINVAL;
+
 	return count;
 }
 static DEVICE_ATTR(pollrate, 0600, dgrp_class_pollrate_show,
@@ -157,7 +159,7 @@ static ssize_t dgrp_node_state_show(struct device *c,
 
 	if (!c)
 		return 0;
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -174,7 +176,7 @@ static ssize_t dgrp_node_description_show(struct device *c,
 
 	if (!c)
 		return 0;
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -192,7 +194,7 @@ static ssize_t dgrp_node_hw_version_show(struct device *c,
 
 	if (!c)
 		return 0;
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -212,7 +214,7 @@ static ssize_t dgrp_node_hw_id_show(struct device *c,
 
 	if (!c)
 		return 0;
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -232,7 +234,7 @@ static ssize_t dgrp_node_sw_version_show(struct device *c,
 	if (!c)
 		return 0;
 
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -311,7 +313,7 @@ static ssize_t dgrp_tty_state_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 
@@ -328,7 +330,7 @@ static ssize_t dgrp_tty_baud_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -348,7 +350,7 @@ static ssize_t dgrp_tty_msignals_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -377,7 +379,7 @@ static ssize_t dgrp_tty_iflag_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -396,7 +398,7 @@ static ssize_t dgrp_tty_cflag_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -415,7 +417,7 @@ static ssize_t dgrp_tty_oflag_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -434,7 +436,7 @@ static ssize_t dgrp_tty_digi_flag_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -453,7 +455,7 @@ static ssize_t dgrp_tty_rxcount_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -472,7 +474,7 @@ static ssize_t dgrp_tty_txcount_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -493,7 +495,7 @@ static ssize_t dgrp_tty_name_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;

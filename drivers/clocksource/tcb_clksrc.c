@@ -180,14 +180,21 @@ static irqreturn_t ch2_irq(int irq, void *handle)
 
 static struct irqaction tc_irqaction = {
 	.name		= "tc_clkevt",
-	.flags		= IRQF_TIMER | IRQF_DISABLED,
+	.flags		= IRQF_TIMER,
 	.handler	= ch2_irq,
 };
 
-static void __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
+static int __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 {
+	int ret;
 	struct clk *t2_clk = tc->clk[2];
 	int irq = tc->irq[2];
+
+	/* try to enable t2 clk to avoid future errors in mode change */
+	ret = clk_prepare_enable(t2_clk);
+	if (ret)
+		return ret;
+	clk_disable(t2_clk);
 
 	clkevt.regs = tc->regs;
 	clkevt.clk = t2_clk;
@@ -197,16 +204,21 @@ static void __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 
 	clkevt.clkevt.cpumask = cpumask_of(0);
 
+	ret = setup_irq(irq, &tc_irqaction);
+	if (ret)
+		return ret;
+
 	clockevents_config_and_register(&clkevt.clkevt, 32768, 1, 0xffff);
 
-	setup_irq(irq, &tc_irqaction);
+	return ret;
 }
 
 #else /* !CONFIG_GENERIC_CLOCKEVENTS */
 
-static void __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
+static int __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 {
 	/* NOTHING */
+	return 0;
 }
 
 #endif
@@ -265,6 +277,7 @@ static int __init tcb_clksrc_init(void)
 	int best_divisor_idx = -1;
 	int clk32k_divisor_idx = -1;
 	int i;
+	int ret;
 
 	tc = atmel_tc_alloc(CONFIG_ATMEL_TCB_CLKSRC_BLOCK, clksrc.name);
 	if (!tc) {
@@ -275,7 +288,11 @@ static int __init tcb_clksrc_init(void)
 	pdev = tc->pdev;
 
 	t0_clk = tc->clk[0];
-	clk_enable(t0_clk);
+	ret = clk_prepare_enable(t0_clk);
+	if (ret) {
+		pr_debug("can't enable T0 clk\n");
+		goto err_free_tc;
+	}
 
 	/* How fast will we be counting?  Pick something over 5 MHz.  */
 	rate = (u32) clk_get_rate(t0_clk);
@@ -313,17 +330,39 @@ static int __init tcb_clksrc_init(void)
 		/* tclib will give us three clocks no matter what the
 		 * underlying platform supports.
 		 */
-		clk_enable(tc->clk[1]);
+		ret = clk_prepare_enable(tc->clk[1]);
+		if (ret) {
+			pr_debug("can't enable T1 clk\n");
+			goto err_disable_t0;
+		}
 		/* setup both channel 0 & 1 */
 		tcb_setup_dual_chan(tc, best_divisor_idx);
 	}
 
 	/* and away we go! */
-	clocksource_register_hz(&clksrc, divided_rate);
+	ret = clocksource_register_hz(&clksrc, divided_rate);
+	if (ret)
+		goto err_disable_t1;
 
 	/* channel 2:  periodic and oneshot timer support */
-	setup_clkevents(tc, clk32k_divisor_idx);
+	ret = setup_clkevents(tc, clk32k_divisor_idx);
+	if (ret)
+		goto err_unregister_clksrc;
 
 	return 0;
+
+err_unregister_clksrc:
+	clocksource_unregister(&clksrc);
+
+err_disable_t1:
+	if (!tc->tcb_config || tc->tcb_config->counter_width != 32)
+		clk_disable_unprepare(tc->clk[1]);
+
+err_disable_t0:
+	clk_disable_unprepare(t0_clk);
+
+err_free_tc:
+	atmel_tc_free(tc);
+	return ret;
 }
 arch_initcall(tcb_clksrc_init);

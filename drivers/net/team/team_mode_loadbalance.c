@@ -49,7 +49,7 @@ struct lb_port_mapping {
 struct lb_priv_ex {
 	struct team *team;
 	struct lb_port_mapping tx_hash_to_port_mapping[LB_TX_HASHTABLE_SIZE];
-	struct sock_fprog *orig_fprog;
+	struct sock_fprog_kern *orig_fprog;
 	struct {
 		unsigned int refresh_interval; /* in tenths of second */
 		struct delayed_work refresh_dw;
@@ -241,15 +241,15 @@ static int lb_bpf_func_get(struct team *team, struct team_gsetter_ctx *ctx)
 	return 0;
 }
 
-static int __fprog_create(struct sock_fprog **pfprog, u32 data_len,
+static int __fprog_create(struct sock_fprog_kern **pfprog, u32 data_len,
 			  const void *data)
 {
-	struct sock_fprog *fprog;
+	struct sock_fprog_kern *fprog;
 	struct sock_filter *filter = (struct sock_filter *) data;
 
 	if (data_len % sizeof(struct sock_filter))
 		return -EINVAL;
-	fprog = kmalloc(sizeof(struct sock_fprog), GFP_KERNEL);
+	fprog = kmalloc(sizeof(*fprog), GFP_KERNEL);
 	if (!fprog)
 		return -ENOMEM;
 	fprog->filter = kmemdup(filter, data_len, GFP_KERNEL);
@@ -262,7 +262,7 @@ static int __fprog_create(struct sock_fprog **pfprog, u32 data_len,
 	return 0;
 }
 
-static void __fprog_destroy(struct sock_fprog *fprog)
+static void __fprog_destroy(struct sock_fprog_kern *fprog)
 {
 	kfree(fprog->filter);
 	kfree(fprog);
@@ -273,7 +273,7 @@ static int lb_bpf_func_set(struct team *team, struct team_gsetter_ctx *ctx)
 	struct lb_priv *lb_priv = get_lb_priv(team);
 	struct sk_filter *fp = NULL;
 	struct sk_filter *orig_fp;
-	struct sock_fprog *fprog = NULL;
+	struct sock_fprog_kern *fprog = NULL;
 	int err;
 
 	if (ctx->data.bin_val.len) {
@@ -432,9 +432,9 @@ static void __lb_one_cpu_stats_add(struct lb_stats *acc_stats,
 	struct lb_stats tmp;
 
 	do {
-		start = u64_stats_fetch_begin_bh(syncp);
+		start = u64_stats_fetch_begin_irq(syncp);
 		tmp.tx_bytes = cpu_stats->tx_bytes;
-	} while (u64_stats_fetch_retry_bh(syncp, start));
+	} while (u64_stats_fetch_retry_irq(syncp, start));
 	acc_stats->tx_bytes += tmp.tx_bytes;
 }
 
@@ -570,7 +570,7 @@ static int lb_init(struct team *team)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 	lb_select_tx_port_func_t *func;
-	int err;
+	int i, err;
 
 	/* set default tx port selector */
 	func = lb_select_tx_port_get_func("hash");
@@ -587,6 +587,13 @@ static int lb_init(struct team *team)
 		err = -ENOMEM;
 		goto err_alloc_pcpu_stats;
 	}
+
+	for_each_possible_cpu(i) {
+		struct lb_pcpu_stats *team_lb_stats;
+		team_lb_stats = per_cpu_ptr(lb_priv->pcpu_stats, i);
+		u64_stats_init(&team_lb_stats->syncp);
+	}
+
 
 	INIT_DELAYED_WORK(&lb_priv->ex->stats.refresh_dw, lb_stats_refresh);
 

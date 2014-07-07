@@ -37,12 +37,6 @@ SECTIONS
 		_vectors_end = .;
 	}
 
-	. = ALIGN(0x1000);
-	.cmdline :
-	{
-		*(.cmdline)
-	}
-
 	/*
 	 * This section contains data which may be shared with other
 	 * cores. It needs to be a fixed offset from PAGE_OFFSET

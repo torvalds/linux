@@ -42,12 +42,6 @@ static const struct inode_operations ns_inode_operations = {
 	.setattr	= proc_setattr,
 };
 
-static int ns_delete_dentry(const struct dentry *dentry)
-{
-	/* Don't cache namespace inodes when not in use */
-	return 1;
-}
-
 static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	struct inode *inode = dentry->d_inode;
@@ -59,7 +53,7 @@ static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 
 const struct dentry_operations ns_dentry_operations =
 {
-	.d_delete	= ns_delete_dentry,
+	.d_delete	= always_delete_dentry,
 	.d_dname	= ns_dname,
 };
 
@@ -152,7 +146,7 @@ static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int bufl
 	struct task_struct *task;
 	void *ns;
 	char name[50];
-	int len = -EACCES;
+	int res = -EACCES;
 
 	task = get_proc_task(inode);
 	if (!task)
@@ -161,24 +155,18 @@ static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int bufl
 	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out_put_task;
 
-	len = -ENOENT;
+	res = -ENOENT;
 	ns = ns_ops->get(task);
 	if (!ns)
 		goto out_put_task;
 
 	snprintf(name, sizeof(name), "%s:[%u]", ns_ops->name, ns_ops->inum(ns));
-	len = strlen(name);
-
-	if (len > buflen)
-		len = buflen;
-	if (copy_to_user(buffer, name, len))
-		len = -EFAULT;
-
+	res = readlink_copy(buffer, buflen, name);
 	ns_ops->put(ns);
 out_put_task:
 	put_task_struct(task);
 out:
-	return len;
+	return res;
 }
 
 static const struct inode_operations proc_ns_link_inode_operations = {

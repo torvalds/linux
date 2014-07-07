@@ -53,6 +53,7 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release)
 	ref->release = release;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(percpu_ref_init);
 
 /**
  * percpu_ref_cancel_init - cancel percpu_ref_init()
@@ -84,6 +85,7 @@ void percpu_ref_cancel_init(struct percpu_ref *ref)
 		free_percpu(ref->pcpu_count);
 	}
 }
+EXPORT_SYMBOL_GPL(percpu_ref_cancel_init);
 
 static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 {
@@ -117,6 +119,9 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 	 */
 
 	atomic_add((int) count - PCPU_COUNT_BIAS, &ref->count);
+
+	WARN_ONCE(atomic_read(&ref->count) <= 0, "percpu ref <= 0 (%i)",
+		  atomic_read(&ref->count));
 
 	/* @ref is viewed as dead on all CPUs, send out kill confirmation */
 	if (ref->confirm_kill)
@@ -156,3 +161,4 @@ void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 
 	call_rcu_sched(&ref->rcu, percpu_ref_kill_rcu);
 }
+EXPORT_SYMBOL_GPL(percpu_ref_kill_and_confirm);

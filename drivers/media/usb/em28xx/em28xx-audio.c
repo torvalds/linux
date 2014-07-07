@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2006 Markus Rechberger <mrechberger@gmail.com>
  *
- *  Copyright (C) 2007-2011 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *  Copyright (C) 2007-2014 Mauro Carvalho Chehab
  *	- Port to work with the in-kernel driver
  *	- Cleanups, fixes, alsa-controls, etc.
  *
@@ -50,6 +50,9 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "activates debug info");
 
+#define EM28XX_MAX_AUDIO_BUFS		5
+#define EM28XX_MIN_AUDIO_PACKETS	64
+
 #define dprintk(fmt, arg...) do {					\
 	    if (debug)							\
 		printk(KERN_INFO "em28xx-audio %s: " fmt,		\
@@ -63,17 +66,13 @@ static int em28xx_deinit_isoc_audio(struct em28xx *dev)
 	int i;
 
 	dprintk("Stopping isoc\n");
-	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
+	for (i = 0; i < dev->adev.num_urb; i++) {
+		struct urb *urb = dev->adev.urb[i];
+
 		if (!irqs_disabled())
-			usb_kill_urb(dev->adev.urb[i]);
+			usb_kill_urb(urb);
 		else
-			usb_unlink_urb(dev->adev.urb[i]);
-
-		usb_free_urb(dev->adev.urb[i]);
-		dev->adev.urb[i] = NULL;
-
-		kfree(dev->adev.transfer_buffer[i]);
-		dev->adev.transfer_buffer[i] = NULL;
+			usb_unlink_urb(urb);
 	}
 
 	return 0;
@@ -91,6 +90,12 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime   *runtime;
 
+	if (dev->disconnected) {
+		dprintk("device disconnected while streaming. URB status=%d.\n", urb->status);
+		atomic_set(&dev->adev.stream_started, 0);
+		return;
+	}
+
 	switch (urb->status) {
 	case 0:             /* success */
 	case -ETIMEDOUT:    /* NAK */
@@ -104,7 +109,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 		break;
 	}
 
-	if (atomic_read(&dev->stream_started) == 0)
+	if (atomic_read(&dev->adev.stream_started) == 0)
 		return;
 
 	if (dev->adev.capture_pcm_substream) {
@@ -158,65 +163,29 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	urb->status = 0;
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status < 0) {
+	if (status < 0)
 		em28xx_errdev("resubmit of audio urb failed (error=%i)\n",
 			      status);
-	}
 	return;
 }
 
 static int em28xx_init_audio_isoc(struct em28xx *dev)
 {
 	int       i, errCode;
-	const int sb_size = EM28XX_NUM_AUDIO_PACKETS *
-			    EM28XX_AUDIO_MAX_PACKET_SIZE;
 
 	dprintk("Starting isoc transfers\n");
 
-	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
-		struct urb *urb;
-		int j, k;
+	/* Start streaming */
+	for (i = 0; i < dev->adev.num_urb; i++) {
+		memset(dev->adev.transfer_buffer[i], 0x80,
+		       dev->adev.urb[i]->transfer_buffer_length);
 
-		dev->adev.transfer_buffer[i] = kmalloc(sb_size, GFP_ATOMIC);
-		if (!dev->adev.transfer_buffer[i])
-			return -ENOMEM;
-
-		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
-		urb = usb_alloc_urb(EM28XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
-		if (!urb) {
-			em28xx_errdev("usb_alloc_urb failed!\n");
-			for (j = 0; j < i; j++) {
-				usb_free_urb(dev->adev.urb[j]);
-				kfree(dev->adev.transfer_buffer[j]);
-			}
-			return -ENOMEM;
-		}
-
-		urb->dev = dev->udev;
-		urb->context = dev;
-		urb->pipe = usb_rcvisocpipe(dev->udev, EM28XX_EP_AUDIO);
-		urb->transfer_flags = URB_ISO_ASAP;
-		urb->transfer_buffer = dev->adev.transfer_buffer[i];
-		urb->interval = 1;
-		urb->complete = em28xx_audio_isocirq;
-		urb->number_of_packets = EM28XX_NUM_AUDIO_PACKETS;
-		urb->transfer_buffer_length = sb_size;
-
-		for (j = k = 0; j < EM28XX_NUM_AUDIO_PACKETS;
-			     j++, k += EM28XX_AUDIO_MAX_PACKET_SIZE) {
-			urb->iso_frame_desc[j].offset = k;
-			urb->iso_frame_desc[j].length =
-			    EM28XX_AUDIO_MAX_PACKET_SIZE;
-		}
-		dev->adev.urb[i] = urb;
-	}
-
-	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
 		errCode = usb_submit_urb(dev->adev.urb[i], GFP_ATOMIC);
 		if (errCode) {
-			em28xx_errdev("submit of audio urb failed\n");
+			em28xx_errdev("submit of audio urb failed (error=%i)\n",
+				      errCode);
 			em28xx_deinit_isoc_audio(dev);
-			atomic_set(&dev->stream_started, 0);
+			atomic_set(&dev->adev.stream_started, 0);
 			return errCode;
 		}
 
@@ -255,15 +224,26 @@ static struct snd_pcm_hardware snd_em28xx_hw_capture = {
 
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 
-	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_KNOT,
+	.rates = SNDRV_PCM_RATE_48000,
 
 	.rate_min = 48000,
 	.rate_max = 48000,
 	.channels_min = 2,
 	.channels_max = 2,
 	.buffer_bytes_max = 62720 * 8,	/* just about the value in usbaudio.c */
-	.period_bytes_min = 64,		/* 12544/2, */
-	.period_bytes_max = 12544,
+
+
+	/*
+	 * The period is 12.288 bytes. Allow a 10% of variation along its
+	 * value, in order to avoid overruns/underruns due to some clock
+	 * drift.
+	 *
+	 * FIXME: This period assumes 64 packets, and a 48000 PCM rate.
+	 * Calculate it dynamically.
+	 */
+	.period_bytes_min = 11059,
+	.period_bytes_max = 13516,
+
 	.periods_min = 2,
 	.periods_max = 98,		/* 12544, */
 };
@@ -272,9 +252,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int ret = 0;
-
-	dprintk("opening device and trying to acquire exclusive lock\n");
+	int nonblock, ret = 0;
 
 	if (!dev) {
 		em28xx_err("BUG: em28xx can't find device struct."
@@ -282,29 +260,59 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 		return -ENODEV;
 	}
 
-	runtime->hw = snd_em28xx_hw_capture;
-	if ((dev->alt == 0 || dev->audio_ifnum) && dev->adev.users == 0) {
-		if (dev->audio_ifnum)
-			dev->alt = 1;
-		else
-			dev->alt = 7;
+	if (dev->disconnected)
+		return -ENODEV;
 
-		dprintk("changing alternate number on interface %d to %d\n",
-			dev->audio_ifnum, dev->alt);
-		usb_set_interface(dev->udev, dev->audio_ifnum, dev->alt);
+	dprintk("opening device and trying to acquire exclusive lock\n");
+
+	nonblock = !!(substream->f_flags & O_NONBLOCK);
+	if (nonblock) {
+		if (!mutex_trylock(&dev->lock))
+		return -EAGAIN;
+	} else
+		mutex_lock(&dev->lock);
+
+	runtime->hw = snd_em28xx_hw_capture;
+
+	if (dev->adev.users == 0) {
+		if (dev->alt == 0 || dev->is_audio_only) {
+			if (dev->is_audio_only)
+				/* audio is on a separate interface */
+				dev->alt = 1;
+			else
+				/* audio is on the same interface as video */
+				dev->alt = 7;
+				/*
+				 * FIXME: The intention seems to be to select
+				 * the alt setting with the largest
+				 * wMaxPacketSize for the video endpoint.
+				 * At least dev->alt should be used instead, but
+				 * we should probably not touch it at all if it
+				 * is already >0, because wMaxPacketSize of the
+				 * audio endpoints seems to be the same for all.
+				 */
+			dprintk("changing alternate number on interface %d to %d\n",
+				dev->ifnum, dev->alt);
+			usb_set_interface(dev->udev, dev->ifnum, dev->alt);
+		}
 
 		/* Sets volume, mute, etc */
 		dev->mute = 0;
-		mutex_lock(&dev->lock);
 		ret = em28xx_audio_analog_set(dev);
 		if (ret < 0)
 			goto err;
-
-		dev->adev.users++;
-		mutex_unlock(&dev->lock);
 	}
 
+	kref_get(&dev->ref);
+	dev->adev.users++;
+	mutex_unlock(&dev->lock);
+
+	/* Dynamically adjust the period size */
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
+				     dev->adev.period * 95 / 100,
+				     dev->adev.period * 105 / 100);
+
 	dev->adev.capture_pcm_substream = substream;
 
 	return 0;
@@ -324,9 +332,9 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 	dev->mute = 1;
 	mutex_lock(&dev->lock);
 	dev->adev.users--;
-	if (atomic_read(&dev->stream_started) > 0) {
-		atomic_set(&dev->stream_started, 0);
-		schedule_work(&dev->wq_trigger);
+	if (atomic_read(&dev->adev.stream_started) > 0) {
+		atomic_set(&dev->adev.stream_started, 0);
+		schedule_work(&dev->adev.wq_trigger);
 	}
 
 	em28xx_audio_analog_set(dev);
@@ -336,6 +344,7 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 		substream->runtime->dma_area = NULL;
 	}
 	mutex_unlock(&dev->lock);
+	kref_put(&dev->ref, em28xx_free_device);
 
 	return 0;
 }
@@ -344,6 +353,10 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *hw_params)
 {
 	int ret;
+	struct em28xx *dev = snd_pcm_substream_chip(substream);
+
+	if (dev->disconnected)
+		return -ENODEV;
 
 	dprintk("Setting capture parameters\n");
 
@@ -368,12 +381,13 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 static int snd_em28xx_hw_capture_free(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
+	struct em28xx_audio *adev = &dev->adev;
 
 	dprintk("Stop capture, if needed\n");
 
-	if (atomic_read(&dev->stream_started) > 0) {
-		atomic_set(&dev->stream_started, 0);
-		schedule_work(&dev->wq_trigger);
+	if (atomic_read(&adev->stream_started) > 0) {
+		atomic_set(&adev->stream_started, 0);
+		schedule_work(&adev->wq_trigger);
 	}
 
 	return 0;
@@ -383,6 +397,9 @@ static int snd_em28xx_prepare(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 
+	if (dev->disconnected)
+		return -ENODEV;
+
 	dev->adev.hwptr_done_capture = 0;
 	dev->adev.capture_transfer_done = 0;
 
@@ -391,9 +408,11 @@ static int snd_em28xx_prepare(struct snd_pcm_substream *substream)
 
 static void audio_trigger(struct work_struct *work)
 {
-	struct em28xx *dev = container_of(work, struct em28xx, wq_trigger);
+	struct em28xx_audio *adev =
+			    container_of(work, struct em28xx_audio, wq_trigger);
+	struct em28xx *dev = container_of(adev, struct em28xx, adev);
 
-	if (atomic_read(&dev->stream_started)) {
+	if (atomic_read(&adev->stream_started)) {
 		dprintk("starting capture");
 		em28xx_init_audio_isoc(dev);
 	} else {
@@ -408,21 +427,24 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 	int retval = 0;
 
+	if (dev->disconnected)
+		return -ENODEV;
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE: /* fall through */
 	case SNDRV_PCM_TRIGGER_RESUME: /* fall through */
 	case SNDRV_PCM_TRIGGER_START:
-		atomic_set(&dev->stream_started, 1);
+		atomic_set(&dev->adev.stream_started, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH: /* fall through */
 	case SNDRV_PCM_TRIGGER_SUSPEND: /* fall through */
 	case SNDRV_PCM_TRIGGER_STOP:
-		atomic_set(&dev->stream_started, 0);
+		atomic_set(&dev->adev.stream_started, 0);
 		break;
 	default:
 		retval = -EINVAL;
 	}
-	schedule_work(&dev->wq_trigger);
+	schedule_work(&dev->adev.wq_trigger);
 	return retval;
 }
 
@@ -434,6 +456,9 @@ static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
 	snd_pcm_uframes_t hwptr_done;
 
 	dev = snd_pcm_substream_chip(substream);
+	if (dev->disconnected)
+		return SNDRV_PCM_POS_XRUN;
+
 	spin_lock_irqsave(&dev->adev.slock, flags);
 	hwptr_done = dev->adev.hwptr_done_capture;
 	spin_unlock_irqrestore(&dev->adev.slock, flags);
@@ -455,6 +480,11 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 static int em28xx_vol_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *info)
 {
+	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
+
+	if (dev->disconnected)
+		return -ENODEV;
+
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	info->count = 2;
 	info->value.integer.min = 0;
@@ -467,11 +497,22 @@ static int em28xx_vol_put(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *value)
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
+	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
 	u16 val = (0x1f - (value->value.integer.value[0] & 0x1f)) |
 		  (0x1f - (value->value.integer.value[1] & 0x1f)) << 8;
+	int nonblock = 0;
 	int rc;
 
-	mutex_lock(&dev->lock);
+	if (dev->disconnected)
+		return -ENODEV;
+
+	if (substream)
+		nonblock = !!(substream->f_flags & O_NONBLOCK);
+	if (nonblock) {
+		if (!mutex_trylock(&dev->lock))
+			return -EAGAIN;
+	} else
+		mutex_lock(&dev->lock);
 	rc = em28xx_read_ac97(dev, kcontrol->private_value);
 	if (rc < 0)
 		goto err;
@@ -496,9 +537,20 @@ static int em28xx_vol_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *value)
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
+	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
+	int nonblock = 0;
 	int val;
 
-	mutex_lock(&dev->lock);
+	if (dev->disconnected)
+		return -ENODEV;
+
+	if (substream)
+		nonblock = !!(substream->f_flags & O_NONBLOCK);
+	if (nonblock) {
+		if (!mutex_trylock(&dev->lock))
+			return -EAGAIN;
+	} else
+		mutex_lock(&dev->lock);
 	val = em28xx_read_ac97(dev, kcontrol->private_value);
 	mutex_unlock(&dev->lock);
 	if (val < 0)
@@ -520,9 +572,20 @@ static int em28xx_vol_put_mute(struct snd_kcontrol *kcontrol,
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
 	u16 val = value->value.integer.value[0];
+	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
+	int nonblock = 0;
 	int rc;
 
-	mutex_lock(&dev->lock);
+	if (dev->disconnected)
+		return -ENODEV;
+
+	if (substream)
+		nonblock = !!(substream->f_flags & O_NONBLOCK);
+	if (nonblock) {
+		if (!mutex_trylock(&dev->lock))
+			return -EAGAIN;
+	} else
+		mutex_lock(&dev->lock);
 	rc = em28xx_read_ac97(dev, kcontrol->private_value);
 	if (rc < 0)
 		goto err;
@@ -550,9 +613,20 @@ static int em28xx_vol_get_mute(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *value)
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
+	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
+	int nonblock = 0;
 	int val;
 
-	mutex_lock(&dev->lock);
+	if (dev->disconnected)
+		return -ENODEV;
+
+	if (substream)
+		nonblock = !!(substream->f_flags & O_NONBLOCK);
+	if (nonblock) {
+		if (!mutex_trylock(&dev->lock))
+			return -EAGAIN;
+	} else
+		mutex_lock(&dev->lock);
 	val = em28xx_read_ac97(dev, kcontrol->private_value);
 	mutex_unlock(&dev->lock);
 	if (val < 0)
@@ -634,49 +708,230 @@ static struct snd_pcm_ops snd_em28xx_pcm_capture = {
 	.page      = snd_pcm_get_vmalloc_page,
 };
 
+static void em28xx_audio_free_urb(struct em28xx *dev)
+{
+	int i;
+
+	for (i = 0; i < dev->adev.num_urb; i++) {
+		struct urb *urb = dev->adev.urb[i];
+
+		if (!urb)
+			continue;
+
+		usb_free_coherent(dev->udev, urb->transfer_buffer_length,
+				  dev->adev.transfer_buffer[i],
+				  urb->transfer_dma);
+
+		usb_free_urb(urb);
+	}
+	kfree(dev->adev.urb);
+	kfree(dev->adev.transfer_buffer);
+	dev->adev.num_urb = 0;
+}
+
+/* high bandwidth multiplier, as encoded in highspeed endpoint descriptors */
+static int em28xx_audio_ep_packet_size(struct usb_device *udev,
+					struct usb_endpoint_descriptor *e)
+{
+	int size = le16_to_cpu(e->wMaxPacketSize);
+
+	if (udev->speed == USB_SPEED_HIGH)
+		return (size & 0x7ff) *  (1 + (((size) >> 11) & 0x03));
+
+	return size & 0x7ff;
+}
+
+static int em28xx_audio_urb_init(struct em28xx *dev)
+{
+	struct usb_interface *intf;
+	struct usb_endpoint_descriptor *e, *ep = NULL;
+	int                 i, ep_size, interval, num_urb, npackets;
+	int		    urb_size, bytes_per_transfer;
+	u8 alt;
+
+	if (dev->ifnum)
+		alt = 1;
+	else
+		alt = 7;
+
+	intf = usb_ifnum_to_if(dev->udev, dev->ifnum);
+
+	if (intf->num_altsetting <= alt) {
+		em28xx_errdev("alt %d doesn't exist on interface %d\n",
+			      dev->ifnum, alt);
+		return -ENODEV;
+	}
+
+	for (i = 0; i < intf->altsetting[alt].desc.bNumEndpoints; i++) {
+		e = &intf->altsetting[alt].endpoint[i].desc;
+		if (!usb_endpoint_dir_in(e))
+			continue;
+		if (e->bEndpointAddress == EM28XX_EP_AUDIO) {
+			ep = e;
+			break;
+		}
+	}
+
+	if (!ep) {
+		em28xx_errdev("Couldn't find an audio endpoint");
+		return -ENODEV;
+	}
+
+	ep_size = em28xx_audio_ep_packet_size(dev->udev, ep);
+	interval = 1 << (ep->bInterval - 1);
+
+	em28xx_info("Endpoint 0x%02x %s on intf %d alt %d interval = %d, size %d\n",
+		     EM28XX_EP_AUDIO, usb_speed_string(dev->udev->speed),
+		     dev->ifnum, alt,
+		     interval,
+		     ep_size);
+
+	/* Calculate the number and size of URBs to better fit the audio samples */
+
+	/*
+	 * Estimate the number of bytes per DMA transfer.
+	 *
+	 * This is given by the bit rate (for now, only 48000 Hz) multiplied
+	 * by 2 channels and 2 bytes/sample divided by the number of microframe
+	 * intervals and by the microframe rate (125 us)
+	 */
+	bytes_per_transfer = DIV_ROUND_UP(48000 * 2 * 2, 125 * interval);
+
+	/*
+	 * Estimate the number of transfer URBs. Don't let it go past the
+	 * maximum number of URBs that is known to be supported by the device.
+	 */
+	num_urb = DIV_ROUND_UP(bytes_per_transfer, ep_size);
+	if (num_urb > EM28XX_MAX_AUDIO_BUFS)
+		num_urb = EM28XX_MAX_AUDIO_BUFS;
+
+	/*
+	 * Now that we know the number of bytes per transfer and the number of
+	 * URBs, estimate the typical size of an URB, in order to adjust the
+	 * minimal number of packets.
+	 */
+	urb_size = bytes_per_transfer / num_urb;
+
+	/*
+	 * Now, calculate the amount of audio packets to be filled on each
+	 * URB. In order to preserve the old behaviour, use a minimal
+	 * threshold for this value.
+	 */
+	npackets = EM28XX_MIN_AUDIO_PACKETS;
+	if (urb_size > ep_size * npackets)
+		npackets = DIV_ROUND_UP(urb_size, ep_size);
+
+	em28xx_info("Number of URBs: %d, with %d packets and %d size",
+		    num_urb, npackets, urb_size);
+
+	/* Estimate the bytes per period */
+	dev->adev.period = urb_size * npackets;
+
+	/* Allocate space to store the number of URBs to be used */
+
+	dev->adev.transfer_buffer = kcalloc(num_urb,
+					    sizeof(*dev->adev.transfer_buffer),
+					    GFP_ATOMIC);
+	if (!dev->adev.transfer_buffer) {
+		return -ENOMEM;
+	}
+
+	dev->adev.urb = kcalloc(num_urb, sizeof(*dev->adev.urb), GFP_ATOMIC);
+	if (!dev->adev.urb) {
+		kfree(dev->adev.transfer_buffer);
+		return -ENOMEM;
+	}
+
+	/* Alloc memory for each URB and for each transfer buffer */
+	dev->adev.num_urb = num_urb;
+	for (i = 0; i < num_urb; i++) {
+		struct urb *urb;
+		int j, k;
+		void *buf;
+
+		urb = usb_alloc_urb(npackets, GFP_ATOMIC);
+		if (!urb) {
+			em28xx_errdev("usb_alloc_urb failed!\n");
+			em28xx_audio_free_urb(dev);
+			return -ENOMEM;
+		}
+		dev->adev.urb[i] = urb;
+
+		buf = usb_alloc_coherent(dev->udev, npackets * ep_size, GFP_ATOMIC,
+					 &urb->transfer_dma);
+		if (!buf) {
+			em28xx_errdev("usb_alloc_coherent failed!\n");
+			em28xx_audio_free_urb(dev);
+			return -ENOMEM;
+		}
+		dev->adev.transfer_buffer[i] = buf;
+
+		urb->dev = dev->udev;
+		urb->context = dev;
+		urb->pipe = usb_rcvisocpipe(dev->udev, EM28XX_EP_AUDIO);
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_buffer = buf;
+		urb->interval = interval;
+		urb->complete = em28xx_audio_isocirq;
+		urb->number_of_packets = npackets;
+		urb->transfer_buffer_length = ep_size * npackets;
+
+		for (j = k = 0; j < npackets; j++, k += ep_size) {
+			urb->iso_frame_desc[j].offset = k;
+			urb->iso_frame_desc[j].length = ep_size;
+		}
+	}
+
+	return 0;
+}
+
 static int em28xx_audio_init(struct em28xx *dev)
 {
 	struct em28xx_audio *adev = &dev->adev;
 	struct snd_pcm      *pcm;
 	struct snd_card     *card;
 	static int          devnr;
-	int                 err;
+	int		    err;
 
-	if (!dev->has_alsa_audio || dev->audio_ifnum < 0) {
+	if (!dev->has_alsa_audio) {
 		/* This device does not support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
 		return 0;
 	}
 
-	printk(KERN_INFO "em28xx-audio.c: probing for em28xx Audio Vendor Class\n");
+	em28xx_info("Binding audio extension\n");
+
+	kref_get(&dev->ref);
+
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
 			 "Rechberger\n");
-	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2007-2011 Mauro Carvalho Chehab\n");
+	printk(KERN_INFO
+	       "em28xx-audio.c: Copyright (C) 2007-2014 Mauro Carvalho Chehab\n");
 
-	err = snd_card_create(index[devnr], "Em28xx Audio", THIS_MODULE, 0,
-			      &card);
+	err = snd_card_new(&dev->udev->dev, index[devnr], "Em28xx Audio",
+			   THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
 	spin_lock_init(&adev->slock);
+	adev->sndcard = card;
+	adev->udev = dev->udev;
+
 	err = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto card_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_em28xx_pcm_capture);
 	pcm->info_flags = 0;
 	pcm->private_data = dev;
 	strcpy(pcm->name, "Empia 28xx Capture");
 
-	snd_card_set_dev(card, &dev->udev->dev);
 	strcpy(card->driver, "Em28xx-Audio");
 	strcpy(card->shortname, "Em28xx Audio");
 	strcpy(card->longname, "Empia Em28xx Audio");
 
-	INIT_WORK(&dev->wq_trigger, audio_trigger);
+	INIT_WORK(&adev->wq_trigger, audio_trigger);
 
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
 		em28xx_cvol_new(card, dev, "Video", AC97_VIDEO);
@@ -694,15 +949,25 @@ static int em28xx_audio_init(struct em28xx *dev)
 		em28xx_cvol_new(card, dev, "Surround", AC97_SURROUND_MASTER);
 	}
 
-	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	adev->sndcard = card;
-	adev->udev = dev->udev;
+	err = em28xx_audio_urb_init(dev);
+	if (err)
+		goto card_free;
 
+	err = snd_card_register(card);
+	if (err < 0)
+		goto urb_free;
+
+	em28xx_info("Audio extension successfully initialized\n");
 	return 0;
+
+urb_free:
+	em28xx_audio_free_urb(dev);
+
+card_free:
+	snd_card_free(card);
+	adev->sndcard = NULL;
+
+	return err;
 }
 
 static int em28xx_audio_fini(struct em28xx *dev)
@@ -710,18 +975,54 @@ static int em28xx_audio_fini(struct em28xx *dev)
 	if (dev == NULL)
 		return 0;
 
-	if (dev->has_alsa_audio != 1) {
+	if (!dev->has_alsa_audio) {
 		/* This device does not support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
 		return 0;
 	}
 
+	em28xx_info("Closing audio extension");
+
 	if (dev->adev.sndcard) {
+		snd_card_disconnect(dev->adev.sndcard);
+		flush_work(&dev->adev.wq_trigger);
+
+		em28xx_audio_free_urb(dev);
+
 		snd_card_free(dev->adev.sndcard);
 		dev->adev.sndcard = NULL;
 	}
 
+	kref_put(&dev->ref, em28xx_free_device);
+	return 0;
+}
+
+static int em28xx_audio_suspend(struct em28xx *dev)
+{
+	if (dev == NULL)
+		return 0;
+
+	if (!dev->has_alsa_audio)
+		return 0;
+
+	em28xx_info("Suspending audio extension");
+	em28xx_deinit_isoc_audio(dev);
+	atomic_set(&dev->adev.stream_started, 0);
+	return 0;
+}
+
+static int em28xx_audio_resume(struct em28xx *dev)
+{
+	if (dev == NULL)
+		return 0;
+
+	if (!dev->has_alsa_audio)
+		return 0;
+
+	em28xx_info("Resuming audio extension");
+	/* Nothing to do other than schedule_work() ?? */
+	schedule_work(&dev->adev.wq_trigger);
 	return 0;
 }
 
@@ -730,6 +1031,8 @@ static struct em28xx_ops audio_ops = {
 	.name = "Em28xx Audio Extension",
 	.init = em28xx_audio_init,
 	.fini = em28xx_audio_fini,
+	.suspend = em28xx_audio_suspend,
+	.resume = em28xx_audio_resume,
 };
 
 static int __init em28xx_alsa_register(void)
@@ -744,8 +1047,9 @@ static void __exit em28xx_alsa_unregister(void)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Markus Rechberger <mrechberger@gmail.com>");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
-MODULE_DESCRIPTION("Em28xx Audio driver");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION(DRIVER_DESC " - audio interface");
+MODULE_VERSION(EM28XX_VERSION);
 
 module_init(em28xx_alsa_register);
 module_exit(em28xx_alsa_unregister);

@@ -15,10 +15,9 @@
 #include <linux/module.h>
 #include <linux/devfreq.h>
 #include <linux/io.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
-#include <linux/opp.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -51,7 +50,7 @@ struct busfreq_data_int {
 	struct device *dev;
 	struct devfreq *devfreq;
 	struct regulator *vdd_int;
-	struct exynos_ppmu ppmu[PPMU_END];
+	struct busfreq_ppmu_data ppmu_data;
 	unsigned long curr_freq;
 	bool disabled;
 
@@ -76,49 +75,6 @@ static struct int_bus_opp_table exynos5_int_opp_table[] = {
 	{0, 0, 0},
 };
 
-static void busfreq_mon_reset(struct busfreq_data_int *data)
-{
-	unsigned int i;
-
-	for (i = PPMU_RIGHT; i < PPMU_END; i++) {
-		void __iomem *ppmu_base = data->ppmu[i].hw_base;
-
-		/* Reset the performance and cycle counters */
-		exynos_ppmu_reset(ppmu_base);
-
-		/* Setup count registers to monitor read/write transactions */
-		data->ppmu[i].event[PPMU_PMNCNT3] = RDWR_DATA_COUNT;
-		exynos_ppmu_setevent(ppmu_base, PPMU_PMNCNT3,
-					data->ppmu[i].event[PPMU_PMNCNT3]);
-
-		exynos_ppmu_start(ppmu_base);
-	}
-}
-
-static void exynos5_read_ppmu(struct busfreq_data_int *data)
-{
-	int i, j;
-
-	for (i = PPMU_RIGHT; i < PPMU_END; i++) {
-		void __iomem *ppmu_base = data->ppmu[i].hw_base;
-
-		exynos_ppmu_stop(ppmu_base);
-
-		/* Update local data from PPMU */
-		data->ppmu[i].ccnt = __raw_readl(ppmu_base + PPMU_CCNT);
-
-		for (j = PPMU_PMNCNT0; j < PPMU_PMNCNT_MAX; j++) {
-			if (data->ppmu[i].event[j] == 0)
-				data->ppmu[i].count[j] = 0;
-			else
-				data->ppmu[i].count[j] =
-					exynos_ppmu_read(ppmu_base, j);
-		}
-	}
-
-	busfreq_mon_reset(data);
-}
-
 static int exynos5_int_setvolt(struct busfreq_data_int *data,
 				unsigned long volt)
 {
@@ -132,7 +88,7 @@ static int exynos5_busfreq_int_target(struct device *dev, unsigned long *_freq,
 	struct platform_device *pdev = container_of(dev, struct platform_device,
 						    dev);
 	struct busfreq_data_int *data = platform_get_drvdata(pdev);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long old_freq, freq;
 	unsigned long volt;
 
@@ -144,8 +100,8 @@ static int exynos5_busfreq_int_target(struct device *dev, unsigned long *_freq,
 		return PTR_ERR(opp);
 	}
 
-	freq = opp_get_freq(opp);
-	volt = opp_get_voltage(opp);
+	freq = dev_pm_opp_get_freq(opp);
+	volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
 
 	old_freq = data->curr_freq;
@@ -153,7 +109,7 @@ static int exynos5_busfreq_int_target(struct device *dev, unsigned long *_freq,
 	if (old_freq == freq)
 		return 0;
 
-	dev_dbg(dev, "targetting %lukHz %luuV\n", freq, volt);
+	dev_dbg(dev, "targeting %lukHz %luuV\n", freq, volt);
 
 	mutex_lock(&data->lock);
 
@@ -186,51 +142,26 @@ out:
 	return err;
 }
 
-static int exynos5_get_busier_dmc(struct busfreq_data_int *data)
-{
-	int i, j;
-	int busy = 0;
-	unsigned int temp = 0;
-
-	for (i = PPMU_RIGHT; i < PPMU_END; i++) {
-		for (j = PPMU_PMNCNT0; j < PPMU_PMNCNT_MAX; j++) {
-			if (data->ppmu[i].count[j] > temp) {
-				temp = data->ppmu[i].count[j];
-				busy = i;
-			}
-		}
-	}
-
-	return busy;
-}
-
 static int exynos5_int_get_dev_status(struct device *dev,
 				      struct devfreq_dev_status *stat)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device,
 						    dev);
 	struct busfreq_data_int *data = platform_get_drvdata(pdev);
+	struct busfreq_ppmu_data *ppmu_data = &data->ppmu_data;
 	int busier_dmc;
 
-	exynos5_read_ppmu(data);
-	busier_dmc = exynos5_get_busier_dmc(data);
+	exynos_read_ppmu(ppmu_data);
+	busier_dmc = exynos_get_busier_ppmu(ppmu_data);
 
 	stat->current_frequency = data->curr_freq;
 
 	/* Number of cycles spent on memory access */
-	stat->busy_time = data->ppmu[busier_dmc].count[PPMU_PMNCNT3];
+	stat->busy_time = ppmu_data->ppmu[busier_dmc].count[PPMU_PMNCNT3];
 	stat->busy_time *= 100 / INT_BUS_SATURATION_RATIO;
-	stat->total_time = data->ppmu[busier_dmc].ccnt;
+	stat->total_time = ppmu_data->ppmu[busier_dmc].ccnt;
 
 	return 0;
-}
-static void exynos5_int_exit(struct device *dev)
-{
-	struct platform_device *pdev = container_of(dev, struct platform_device,
-						    dev);
-	struct busfreq_data_int *data = platform_get_drvdata(pdev);
-
-	devfreq_unregister_opp_notifier(dev, data->devfreq);
 }
 
 static struct devfreq_dev_profile exynos5_devfreq_int_profile = {
@@ -238,7 +169,6 @@ static struct devfreq_dev_profile exynos5_devfreq_int_profile = {
 	.polling_ms		= 100,
 	.target			= exynos5_busfreq_int_target,
 	.get_dev_status		= exynos5_int_get_dev_status,
-	.exit			= exynos5_int_exit,
 };
 
 static int exynos5250_init_int_tables(struct busfreq_data_int *data)
@@ -246,7 +176,7 @@ static int exynos5250_init_int_tables(struct busfreq_data_int *data)
 	int i, err = 0;
 
 	for (i = LV_0; i < _LV_END; i++) {
-		err = opp_add(data->dev, exynos5_int_opp_table[i].clk,
+		err = dev_pm_opp_add(data->dev, exynos5_int_opp_table[i].clk,
 				exynos5_int_opp_table[i].volt);
 		if (err) {
 			dev_err(data->dev, "Cannot add opp entries.\n");
@@ -262,7 +192,7 @@ static int exynos5_busfreq_int_pm_notifier_event(struct notifier_block *this,
 {
 	struct busfreq_data_int *data = container_of(this,
 					struct busfreq_data_int, pm_notifier);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long maxfreq = ULONG_MAX;
 	unsigned long freq;
 	unsigned long volt;
@@ -276,14 +206,14 @@ static int exynos5_busfreq_int_pm_notifier_event(struct notifier_block *this,
 		data->disabled = true;
 
 		rcu_read_lock();
-		opp = opp_find_freq_floor(data->dev, &maxfreq);
+		opp = dev_pm_opp_find_freq_floor(data->dev, &maxfreq);
 		if (IS_ERR(opp)) {
 			rcu_read_unlock();
 			err = PTR_ERR(opp);
 			goto unlock;
 		}
-		freq = opp_get_freq(opp);
-		volt = opp_get_voltage(opp);
+		freq = dev_pm_opp_get_freq(opp);
+		volt = dev_pm_opp_get_voltage(opp);
 		rcu_read_unlock();
 
 		err = exynos5_int_setvolt(data, volt);
@@ -316,7 +246,8 @@ unlock:
 static int exynos5_busfreq_int_probe(struct platform_device *pdev)
 {
 	struct busfreq_data_int *data;
-	struct opp *opp;
+	struct busfreq_ppmu_data *ppmu_data;
+	struct dev_pm_opp *opp;
 	struct device *dev = &pdev->dev;
 	struct device_node *np;
 	unsigned long initial_freq;
@@ -331,16 +262,26 @@ static int exynos5_busfreq_int_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	ppmu_data = &data->ppmu_data;
+	ppmu_data->ppmu_end = PPMU_END;
+	ppmu_data->ppmu = devm_kzalloc(dev,
+				       sizeof(struct exynos_ppmu) * PPMU_END,
+				       GFP_KERNEL);
+	if (!ppmu_data->ppmu) {
+		dev_err(dev, "Failed to allocate memory for exynos_ppmu\n");
+		return -ENOMEM;
+	}
+
 	np = of_find_compatible_node(NULL, NULL, "samsung,exynos5250-ppmu");
 	if (np == NULL) {
 		pr_err("Unable to find PPMU node\n");
 		return -ENOENT;
 	}
 
-	for (i = PPMU_RIGHT; i < PPMU_END; i++) {
+	for (i = 0; i < ppmu_data->ppmu_end; i++) {
 		/* map PPMU memory region */
-		data->ppmu[i].hw_base = of_iomap(np, i);
-		if (data->ppmu[i].hw_base == NULL) {
+		ppmu_data->ppmu[i].hw_base = of_iomap(np, i);
+		if (ppmu_data->ppmu[i].hw_base == NULL) {
 			dev_err(&pdev->dev, "failed to map memory region\n");
 			return -ENOMEM;
 		}
@@ -351,81 +292,69 @@ static int exynos5_busfreq_int_probe(struct platform_device *pdev)
 
 	err = exynos5250_init_int_tables(data);
 	if (err)
-		goto err_regulator;
+		return err;
 
-	data->vdd_int = regulator_get(dev, "vdd_int");
+	data->vdd_int = devm_regulator_get(dev, "vdd_int");
 	if (IS_ERR(data->vdd_int)) {
 		dev_err(dev, "Cannot get the regulator \"vdd_int\"\n");
-		err = PTR_ERR(data->vdd_int);
-		goto err_regulator;
+		return PTR_ERR(data->vdd_int);
 	}
 
-	data->int_clk = clk_get(dev, "int_clk");
+	data->int_clk = devm_clk_get(dev, "int_clk");
 	if (IS_ERR(data->int_clk)) {
 		dev_err(dev, "Cannot get clock \"int_clk\"\n");
-		err = PTR_ERR(data->int_clk);
-		goto err_clock;
+		return PTR_ERR(data->int_clk);
 	}
 
 	rcu_read_lock();
-	opp = opp_find_freq_floor(dev,
+	opp = dev_pm_opp_find_freq_floor(dev,
 			&exynos5_devfreq_int_profile.initial_freq);
 	if (IS_ERR(opp)) {
 		rcu_read_unlock();
 		dev_err(dev, "Invalid initial frequency %lu kHz.\n",
 		       exynos5_devfreq_int_profile.initial_freq);
-		err = PTR_ERR(opp);
-		goto err_opp_add;
+		return PTR_ERR(opp);
 	}
-	initial_freq = opp_get_freq(opp);
-	initial_volt = opp_get_voltage(opp);
+	initial_freq = dev_pm_opp_get_freq(opp);
+	initial_volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
 	data->curr_freq = initial_freq;
 
 	err = clk_set_rate(data->int_clk, initial_freq * 1000);
 	if (err) {
 		dev_err(dev, "Failed to set initial frequency\n");
-		goto err_opp_add;
+		return err;
 	}
 
 	err = exynos5_int_setvolt(data, initial_volt);
 	if (err)
-		goto err_opp_add;
+		return err;
 
 	platform_set_drvdata(pdev, data);
 
-	busfreq_mon_reset(data);
+	busfreq_mon_reset(ppmu_data);
 
-	data->devfreq = devfreq_add_device(dev, &exynos5_devfreq_int_profile,
+	data->devfreq = devm_devfreq_add_device(dev, &exynos5_devfreq_int_profile,
 					   "simple_ondemand", NULL);
+	if (IS_ERR(data->devfreq))
+		return PTR_ERR(data->devfreq);
 
-	if (IS_ERR(data->devfreq)) {
-		err = PTR_ERR(data->devfreq);
-		goto err_devfreq_add;
+	err = devm_devfreq_register_opp_notifier(dev, data->devfreq);
+	if (err < 0) {
+		dev_err(dev, "Failed to register opp notifier\n");
+		return err;
 	}
-
-	devfreq_register_opp_notifier(dev, data->devfreq);
 
 	err = register_pm_notifier(&data->pm_notifier);
 	if (err) {
 		dev_err(dev, "Failed to setup pm notifier\n");
-		goto err_devfreq_add;
+		return err;
 	}
 
 	/* TODO: Add a new QOS class for int/mif bus */
 	pm_qos_add_request(&data->int_req, PM_QOS_NETWORK_THROUGHPUT, -1);
 
 	return 0;
-
-err_devfreq_add:
-	devfreq_remove_device(data->devfreq);
-	platform_set_drvdata(pdev, NULL);
-err_opp_add:
-	clk_put(data->int_clk);
-err_clock:
-	regulator_put(data->vdd_int);
-err_regulator:
-	return err;
 }
 
 static int exynos5_busfreq_int_remove(struct platform_device *pdev)
@@ -434,27 +363,27 @@ static int exynos5_busfreq_int_remove(struct platform_device *pdev)
 
 	pm_qos_remove_request(&data->int_req);
 	unregister_pm_notifier(&data->pm_notifier);
-	devfreq_remove_device(data->devfreq);
-	regulator_put(data->vdd_int);
-	clk_put(data->int_clk);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int exynos5_busfreq_int_resume(struct device *dev)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device,
 						    dev);
 	struct busfreq_data_int *data = platform_get_drvdata(pdev);
+	struct busfreq_ppmu_data *ppmu_data = &data->ppmu_data;
 
-	busfreq_mon_reset(data);
+	busfreq_mon_reset(ppmu_data);
 	return 0;
 }
-
 static const struct dev_pm_ops exynos5_busfreq_int_pm = {
 	.resume	= exynos5_busfreq_int_resume,
 };
+#endif
+static SIMPLE_DEV_PM_OPS(exynos5_busfreq_int_pm_ops, NULL,
+			 exynos5_busfreq_int_resume);
 
 /* platform device pointer for exynos5 devfreq device. */
 static struct platform_device *exynos5_devfreq_pdev;
@@ -465,7 +394,7 @@ static struct platform_driver exynos5_busfreq_int_driver = {
 	.driver		= {
 		.name		= "exynos5-bus-int",
 		.owner		= THIS_MODULE,
-		.pm		= &exynos5_busfreq_int_pm,
+		.pm		= &exynos5_busfreq_int_pm_ops,
 	},
 };
 
@@ -479,7 +408,7 @@ static int __init exynos5_busfreq_int_init(void)
 
 	exynos5_devfreq_pdev =
 		platform_device_register_simple("exynos5-bus-int", -1, NULL, 0);
-	if (IS_ERR_OR_NULL(exynos5_devfreq_pdev)) {
+	if (IS_ERR(exynos5_devfreq_pdev)) {
 		ret = PTR_ERR(exynos5_devfreq_pdev);
 		goto out1;
 	}

@@ -1,266 +1,302 @@
 /*
-   comedi/drivers/pcl711.c
-   hardware driver for PC-LabCard PCL-711 and AdSys ACL-8112
-   and compatibles
-
-   COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 1998 David A. Schleef <ds@schleef.org>
-   Janne Jalkanen <jalkanen@cs.hut.fi>
-   Eric Bunn <ebu@cs.hut.fi>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * pcl711.c
+ * Comedi driver for PC-LabCard PCL-711 and AdSys ACL-8112 and compatibles
+ * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
+ *		      Janne Jalkanen <jalkanen@cs.hut.fi>
+ *		      Eric Bunn <ebu@cs.hut.fi>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
-/*
-Driver: pcl711
-Description: Advantech PCL-711 and 711b, ADLink ACL-8112
-Author: ds, Janne Jalkanen <jalkanen@cs.hut.fi>, Eric Bunn <ebu@cs.hut.fi>
-Status: mostly complete
-Devices: [Advantech] PCL-711 (pcl711), PCL-711B (pcl711b),
-  [AdLink] ACL-8112HG (acl8112hg), ACL-8112DG (acl8112dg)
-
-Since these boards do not have DMA or FIFOs, only immediate mode is
-supported.
-
-*/
 
 /*
-   Dave Andruczyk <dave@tech.buffalostate.edu> also wrote a
-   driver for the PCL-711.  I used a few ideas from his driver
-   here.  His driver also has more comments, if you are
-   interested in understanding how this driver works.
-   http://tech.buffalostate.edu/~dave/driver/
-
-   The ACL-8112 driver was hacked from the sources of the PCL-711
-   driver (the 744 chip used on the 8112 is almost the same as
-   the 711b chip, but it has more I/O channels) by
-   Janne Jalkanen (jalkanen@cs.hut.fi) and
-   Erik Bunn (ebu@cs.hut.fi).  Remerged with the PCL-711 driver
-   by ds.
-
-   [acl-8112]
-   This driver supports both TRIGNOW and TRIGCLK,
-   but does not yet support DMA transfers.  It also supports
-   both high (HG) and low (DG) versions of the card, though
-   the HG version has been untested.
-
+ * Driver: pcl711
+ * Description: Advantech PCL-711 and 711b, ADLink ACL-8112
+ * Devices: (Advantech) PCL-711 [pcl711]
+ *	    (Advantech) PCL-711B [pcl711b]
+ *	    (AdLink) ACL-8112HG [acl8112hg]
+ *	    (AdLink) ACL-8112DG [acl8112dg]
+ * Author: David A. Schleef <ds@schleef.org>
+ *	   Janne Jalkanen <jalkanen@cs.hut.fi>
+ *	   Eric Bunn <ebu@cs.hut.fi>
+ * Updated:
+ * Status: mostly complete
+ *
+ * Configuration Options:
+ *   [0] - I/O port base
+ *   [1] - IRQ, optional
  */
 
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include "../comedidev.h"
-
 #include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "comedi_fc.h"
 #include "8253.h"
 
-#define PCL711_SIZE 16
-
-#define PCL711_CTR0 0
-#define PCL711_CTR1 1
-#define PCL711_CTR2 2
-#define PCL711_CTRCTL 3
-#define PCL711_AD_LO 4
-#define PCL711_DA0_LO 4
-#define PCL711_AD_HI 5
-#define PCL711_DA0_HI 5
-#define PCL711_DI_LO 6
-#define PCL711_DA1_LO 6
-#define PCL711_DI_HI 7
-#define PCL711_DA1_HI 7
-#define PCL711_CLRINTR 8
-#define PCL711_GAIN 9
-#define PCL711_MUX 10
-#define PCL711_MODE 11
-#define PCL711_SOFTTRIG 12
-#define PCL711_DO_LO 13
-#define PCL711_DO_HI 14
-
-static const struct comedi_lrange range_pcl711b_ai = { 5, {
-							   BIP_RANGE(5),
-							   BIP_RANGE(2.5),
-							   BIP_RANGE(1.25),
-							   BIP_RANGE(0.625),
-							   BIP_RANGE(0.3125)
-							   }
-};
-
-static const struct comedi_lrange range_acl8112hg_ai = { 12, {
-							      BIP_RANGE(5),
-							      BIP_RANGE(0.5),
-							      BIP_RANGE(0.05),
-							      BIP_RANGE(0.005),
-							      UNI_RANGE(10),
-							      UNI_RANGE(1),
-							      UNI_RANGE(0.1),
-							      UNI_RANGE(0.01),
-							      BIP_RANGE(10),
-							      BIP_RANGE(1),
-							      BIP_RANGE(0.1),
-							      BIP_RANGE(0.01)
-							      }
-};
-
-static const struct comedi_lrange range_acl8112dg_ai = { 9, {
-							     BIP_RANGE(5),
-							     BIP_RANGE(2.5),
-							     BIP_RANGE(1.25),
-							     BIP_RANGE(0.625),
-							     UNI_RANGE(10),
-							     UNI_RANGE(5),
-							     UNI_RANGE(2.5),
-							     UNI_RANGE(1.25),
-							     BIP_RANGE(10)
-							     }
-};
-
 /*
- * flags
+ * I/O port register map
  */
+#define PCL711_TIMER_BASE	0x00
+#define PCL711_AI_LSB_REG	0x04
+#define PCL711_AI_MSB_REG	0x05
+#define PCL711_AI_MSB_DRDY	(1 << 4)
+#define PCL711_AO_LSB_REG(x)	(0x04 + ((x) * 2))
+#define PCL711_AO_MSB_REG(x)	(0x05 + ((x) * 2))
+#define PCL711_DI_LSB_REG	0x06
+#define PCL711_DI_MSB_REG	0x07
+#define PCL711_INT_STAT_REG	0x08
+#define PCL711_INT_STAT_CLR	(0 << 0)  /* any value will work */
+#define PCL711_AI_GAIN_REG	0x09
+#define PCL711_AI_GAIN(x)	(((x) & 0xf) << 0)
+#define PCL711_MUX_REG		0x0a
+#define PCL711_MUX_CHAN(x)	(((x) & 0xf) << 0)
+#define PCL711_MUX_CS0		(1 << 4)
+#define PCL711_MUX_CS1		(1 << 5)
+#define PCL711_MUX_DIFF		(PCL711_MUX_CS0 | PCL711_MUX_CS1)
+#define PCL711_MODE_REG		0x0b
+#define PCL711_MODE_DEFAULT	(0 << 0)
+#define PCL711_MODE_SOFTTRIG	(1 << 0)
+#define PCL711_MODE_EXT		(2 << 0)
+#define PCL711_MODE_EXT_IRQ	(3 << 0)
+#define PCL711_MODE_PACER	(4 << 0)
+#define PCL711_MODE_PACER_IRQ	(6 << 0)
+#define PCL711_MODE_IRQ(x)	(((x) & 0x7) << 4)
+#define PCL711_SOFTTRIG_REG	0x0c
+#define PCL711_SOFTTRIG		(0 << 0)  /* any value will work */
+#define PCL711_DO_LSB_REG	0x0d
+#define PCL711_DO_MSB_REG	0x0e
 
-#define PCL711_TIMEOUT 100
-#define PCL711_DRDY 0x10
+static const struct comedi_lrange range_pcl711b_ai = {
+	5, {
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		BIP_RANGE(0.3125)
+	}
+};
 
-static const int i8253_osc_base = 500;	/* 2 Mhz */
+static const struct comedi_lrange range_acl8112hg_ai = {
+	12, {
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.005),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01),
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.01)
+	}
+};
+
+static const struct comedi_lrange range_acl8112dg_ai = {
+	9, {
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+		BIP_RANGE(10)
+	}
+};
 
 struct pcl711_board {
-
 	const char *name;
-	int is_pcl711b;
-	int is_8112;
-	int is_dg;
-	int n_ranges;
 	int n_aichan;
 	int n_aochan;
 	int maxirq;
 	const struct comedi_lrange *ai_range_type;
 };
 
-struct pcl711_private {
+static const struct pcl711_board boardtypes[] = {
+	{
+		.name		= "pcl711",
+		.n_aichan	= 8,
+		.n_aochan	= 1,
+		.ai_range_type	= &range_bipolar5,
+	}, {
+		.name		= "pcl711b",
+		.n_aichan	= 8,
+		.n_aochan	= 1,
+		.maxirq		= 7,
+		.ai_range_type	= &range_pcl711b_ai,
+	}, {
+		.name		= "acl8112hg",
+		.n_aichan	= 16,
+		.n_aochan	= 2,
+		.maxirq		= 15,
+		.ai_range_type	= &range_acl8112hg_ai,
+	}, {
+		.name		= "acl8112dg",
+		.n_aichan	= 16,
+		.n_aochan	= 2,
+		.maxirq		= 15,
+		.ai_range_type	= &range_acl8112dg_ai,
+	},
+};
 
-	int board;
-	int adchan;
-	int ntrig;
-	int aip[8];
-	int mode;
+struct pcl711_private {
+	unsigned int ntrig;
 	unsigned int ao_readback[2];
 	unsigned int divisor1;
 	unsigned int divisor2;
 };
 
+static void pcl711_ai_set_mode(struct comedi_device *dev, unsigned int mode)
+{
+	/*
+	 * The pcl711b board uses bits in the mode register to select the
+	 * interrupt. The other boards supported by this driver all use
+	 * jumpers on the board.
+	 *
+	 * Enables the interrupt when needed on the pcl711b board. These
+	 * bits do nothing on the other boards.
+	 */
+	if (mode == PCL711_MODE_EXT_IRQ || mode == PCL711_MODE_PACER_IRQ)
+		mode |= PCL711_MODE_IRQ(dev->irq);
+
+	outb(mode, dev->iobase + PCL711_MODE_REG);
+}
+
+static unsigned int pcl711_ai_get_sample(struct comedi_device *dev,
+					 struct comedi_subdevice *s)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + PCL711_AI_MSB_REG) << 8;
+	val |= inb(dev->iobase + PCL711_AI_LSB_REG);
+
+	return val & s->maxdata;
+}
+
+static int pcl711_ai_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
+{
+	outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
+	pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
+	return 0;
+}
+
 static irqreturn_t pcl711_interrupt(int irq, void *d)
 {
-	int lo, hi;
-	int data;
 	struct comedi_device *dev = d;
-	const struct pcl711_board *board = comedi_board(dev);
 	struct pcl711_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int data;
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
 		return IRQ_HANDLED;
 	}
 
-	hi = inb(dev->iobase + PCL711_AD_HI);
-	lo = inb(dev->iobase + PCL711_AD_LO);
-	outb(0, dev->iobase + PCL711_CLRINTR);
+	data = pcl711_ai_get_sample(dev, s);
 
-	data = (hi << 8) | lo;
+	outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
 
-	/* FIXME! Nothing else sets ntrig! */
-	if (!(--devpriv->ntrig)) {
-		if (board->is_8112)
-			outb(1, dev->iobase + PCL711_MODE);
-		else
-			outb(0, dev->iobase + PCL711_MODE);
-
-		s->async->events |= COMEDI_CB_EOA;
+	if (comedi_buf_put(s, data) == 0) {
+		s->async->events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+	} else {
+		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+		if (cmd->stop_src == TRIG_COUNT && !(--devpriv->ntrig)) {
+			pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
+			s->async->events |= COMEDI_CB_EOA;
+		}
 	}
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
-static void pcl711_set_changain(struct comedi_device *dev, int chan)
+static void pcl711_set_changain(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				unsigned int chanspec)
 {
-	const struct pcl711_board *board = comedi_board(dev);
-	int chan_register;
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
+	unsigned int mux = 0;
 
-	outb(CR_RANGE(chan), dev->iobase + PCL711_GAIN);
+	outb(PCL711_AI_GAIN(range), dev->iobase + PCL711_AI_GAIN_REG);
 
-	chan_register = CR_CHAN(chan);
-
-	if (board->is_8112) {
-
-		/*
-		 *  Set the correct channel.  The two channel banks are switched
-		 *  using the mask value.
-		 *  NB: To use differential channels, you should use
-		 *  mask = 0x30, but I haven't written the support for this
-		 *  yet. /JJ
-		 */
-
-		if (chan_register >= 8)
-			chan_register = 0x20 | (chan_register & 0x7);
-		else
-			chan_register |= 0x10;
-	} else {
-		outb(chan_register, dev->iobase + PCL711_MUX);
+	if (s->n_chan > 8) {
+		/* Select the correct MPC508A chip */
+		if (aref == AREF_DIFF) {
+			chan &= 0x7;
+			mux |= PCL711_MUX_DIFF;
+		} else {
+			if (chan < 8)
+				mux |= PCL711_MUX_CS0;
+			else
+				mux |= PCL711_MUX_CS1;
+		}
 	}
+	outb(mux | PCL711_MUX_CHAN(chan), dev->iobase + PCL711_MUX_REG);
 }
 
-static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int pcl711_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
-	const struct pcl711_board *board = comedi_board(dev);
-	int i, n;
-	int hi, lo;
+	unsigned int status;
 
-	pcl711_set_changain(dev, insn->chanspec);
+	status = inb(dev->iobase + PCL711_AI_MSB_REG);
+	if ((status & PCL711_AI_MSB_DRDY) == 0)
+		return 0;
+	return -EBUSY;
+}
 
-	for (n = 0; n < insn->n; n++) {
-		/*
-		 *  Write the correct mode (software polling) and start polling
-		 *  by writing to the trigger register
-		 */
-		outb(1, dev->iobase + PCL711_MODE);
+static int pcl711_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	int ret;
+	int i;
 
-		if (!board->is_8112)
-			outb(0, dev->iobase + PCL711_SOFTTRIG);
+	pcl711_set_changain(dev, s, insn->chanspec);
 
-		i = PCL711_TIMEOUT;
-		while (--i) {
-			hi = inb(dev->iobase + PCL711_AD_HI);
-			if (!(hi & PCL711_DRDY))
-				goto ok;
-			udelay(1);
-		}
-		printk(KERN_ERR "comedi%d: pcl711: A/D timeout\n", dev->minor);
-		return -ETIME;
+	pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
 
-ok:
-		lo = inb(dev->iobase + PCL711_AD_LO);
+	for (i = 0; i < insn->n; i++) {
+		outb(PCL711_SOFTTRIG, dev->iobase + PCL711_SOFTTRIG_REG);
 
-		data[n] = ((hi & 0xf) << 8) | lo;
+		ret = comedi_timeout(dev, s, insn, pcl711_ai_eoc, 0);
+		if (ret)
+			return ret;
+
+		data[i] = pcl711_ai_get_sample(dev, s);
 	}
 
-	return n;
+	return insn->n;
 }
 
 static int pcl711_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	struct pcl711_private *devpriv = dev->private;
-	int tmp;
 	int err = 0;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -292,7 +328,6 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	} else {
 #define MAX_SPEED 1000
-#define TIMER_BASE 100
 		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 						 MAX_SPEED);
 	}
@@ -300,11 +335,8 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_NONE) {
+	if (cmd->stop_src == TRIG_NONE)
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	} else {
-		/* ignore */
-	}
 
 	if (err)
 		return 3;
@@ -312,14 +344,12 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 	/* step 4 */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-					       &devpriv->divisor1,
-					       &devpriv->divisor2,
-					       &cmd->scan_begin_arg,
-					       cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
@@ -328,113 +358,116 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static void pcl711_ai_load_counters(struct comedi_device *dev)
+{
+	struct pcl711_private *devpriv = dev->private;
+	unsigned long timer_base = dev->iobase + PCL711_TIMER_BASE;
+
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+
+	i8254_write(timer_base, 0, 1, devpriv->divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->divisor2);
+}
+
 static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl711_private *devpriv = dev->private;
-	int timer1, timer2;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	pcl711_set_changain(dev, cmd->chanlist[0]);
+	pcl711_set_changain(dev, s, cmd->chanlist[0]);
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		if (cmd->stop_arg == 0) {
+			/* an empty acquisition */
+			s->async->events |= COMEDI_CB_EOA;
+			comedi_event(dev, s);
+			return 0;
+		}
+		devpriv->ntrig = cmd->stop_arg;
+	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/*
-		 *  Set timers
-		 *      timer chip is an 8253, with timers 1 and 2
-		 *      cascaded
-		 *  0x74 = Select Counter 1 | LSB/MSB | Mode=2 | Binary
-		 *        Mode 2 = Rate generator
-		 *
-		 *  0xb4 = Select Counter 2 | LSB/MSB | Mode=2 | Binary
-		 */
-
-		timer1 = timer2 = 0;
-		i8253_cascade_ns_to_timer(i8253_osc_base, &timer1, &timer2,
-					  &cmd->scan_begin_arg,
-					  TRIG_ROUND_NEAREST);
-
-		outb(0x74, dev->iobase + PCL711_CTRCTL);
-		outb(timer1 & 0xff, dev->iobase + PCL711_CTR1);
-		outb((timer1 >> 8) & 0xff, dev->iobase + PCL711_CTR1);
-		outb(0xb4, dev->iobase + PCL711_CTRCTL);
-		outb(timer2 & 0xff, dev->iobase + PCL711_CTR2);
-		outb((timer2 >> 8) & 0xff, dev->iobase + PCL711_CTR2);
-
-		/* clear pending interrupts (just in case) */
-		outb(0, dev->iobase + PCL711_CLRINTR);
-
-		/*
-		 *  Set mode to IRQ transfer
-		 */
-		outb(devpriv->mode | 6, dev->iobase + PCL711_MODE);
+		pcl711_ai_load_counters(dev);
+		outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
+		pcl711_ai_set_mode(dev, PCL711_MODE_PACER_IRQ);
 	} else {
-		/* external trigger */
-		outb(devpriv->mode | 3, dev->iobase + PCL711_MODE);
+		pcl711_ai_set_mode(dev, PCL711_MODE_EXT_IRQ);
 	}
 
 	return 0;
 }
 
-/*
-   analog output
-*/
-static int pcl711_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static void pcl711_ao_write(struct comedi_device *dev,
+			    unsigned int chan, unsigned int val)
+{
+	outb(val & 0xff, dev->iobase + PCL711_AO_LSB_REG(chan));
+	outb((val >> 8) & 0xff, dev->iobase + PCL711_AO_MSB_REG(chan));
+}
+
+static int pcl711_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pcl711_private *devpriv = dev->private;
-	int n;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = devpriv->ao_readback[chan];
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
-		outb((data[n] & 0xff),
-		     dev->iobase + (chan ? PCL711_DA1_LO : PCL711_DA0_LO));
-		outb((data[n] >> 8),
-		     dev->iobase + (chan ? PCL711_DA1_HI : PCL711_DA0_HI));
-
-		devpriv->ao_readback[chan] = data[n];
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		pcl711_ao_write(dev, chan, val);
 	}
-
-	return n;
-}
-
-static int pcl711_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct pcl711_private *devpriv = dev->private;
-	int n;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_readback[chan];
-
-	return n;
-
-}
-
-/* Digital port read - Untested on 8112 */
-static int pcl711_di_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	data[1] = inb(dev->iobase + PCL711_DI_LO) |
-	    (inb(dev->iobase + PCL711_DI_HI) << 8);
+	devpriv->ao_readback[chan] = val;
 
 	return insn->n;
 }
 
-/* Digital port write - Untested on 8112 */
+static int pcl711_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	struct pcl711_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_readback[chan];
+
+	return insn->n;
+}
+
+static int pcl711_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + PCL711_DI_LSB_REG);
+	val |= (inb(dev->iobase + PCL711_DI_MSB_REG) << 8);
+
+	data[1] = val;
+
+	return insn->n;
+}
+
 static int pcl711_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	unsigned int mask;
+
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0x00ff)
+			outb(s->state & 0xff, dev->iobase + PCL711_DO_LSB_REG);
+		if (mask & 0xff00)
+			outb((s->state >> 8), dev->iobase + PCL711_DO_MSB_REG);
 	}
-	if (data[0] & 0x00ff)
-		outb(s->state & 0xff, dev->iobase + PCL711_DO_LO);
-	if (data[0] & 0xff00)
-		outb((s->state >> 8), dev->iobase + PCL711_DO_HI);
 
 	data[1] = s->state;
 
@@ -445,111 +478,81 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl711_board *board = comedi_board(dev);
 	struct pcl711_private *devpriv;
-	int ret;
-	unsigned int irq;
 	struct comedi_subdevice *s;
-
-	ret = comedi_request_region(dev, it->options[0], PCL711_SIZE);
-	if (ret)
-		return ret;
-
-	/* grab our IRQ */
-	irq = it->options[1];
-	if (irq > board->maxirq) {
-		printk(KERN_ERR "irq out of range\n");
-		return -EINVAL;
-	}
-	if (irq) {
-		if (request_irq(irq, pcl711_interrupt, 0, dev->board_name,
-			        dev)) {
-			printk(KERN_ERR "unable to allocate irq %u\n", irq);
-			return -EINVAL;
-		} else {
-			printk(KERN_INFO "( irq = %u )\n", irq);
-		}
-	}
-	dev->irq = irq;
-
-	ret = comedi_alloc_subdevices(dev, 4);
-	if (ret)
-		return ret;
+	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
 
-	s = &dev->subdevices[0];
-	/* AI subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = board->n_aichan;
-	s->maxdata = 0xfff;
-	s->len_chanlist = 1;
-	s->range_table = board->ai_range_type;
-	s->insn_read = pcl711_ai_insn;
-	if (irq) {
-		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->do_cmdtest = pcl711_ai_cmdtest;
-		s->do_cmd = pcl711_ai_cmd;
+	ret = comedi_request_region(dev, it->options[0], 0x10);
+	if (ret)
+		return ret;
+
+	if (it->options[1] && it->options[1] <= board->maxirq) {
+		ret = request_irq(it->options[1], pcl711_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
+
+	/* Analog Input subdevice */
+	s = &dev->subdevices[0];
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	if (board->n_aichan > 8)
+		s->subdev_flags	|= SDF_DIFF;
+	s->n_chan	= board->n_aichan;
+	s->maxdata	= 0xfff;
+	s->range_table	= board->ai_range_type;
+	s->insn_read	= pcl711_ai_insn_read;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= 1;
+		s->do_cmdtest	= pcl711_ai_cmdtest;
+		s->do_cmd	= pcl711_ai_cmd;
+		s->cancel	= pcl711_ai_cancel;
+	}
+
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	/* AO subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = board->n_aochan;
-	s->maxdata = 0xfff;
-	s->len_chanlist = 1;
-	s->range_table = &range_bipolar5;
-	s->insn_write = pcl711_ao_insn;
-	s->insn_read = pcl711_ao_insn_read;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= board->n_aochan;
+	s->maxdata	= 0xfff;
+	s->range_table	= &range_bipolar5;
+	s->insn_write	= pcl711_ao_insn_write;
+	s->insn_read	= pcl711_ao_insn_read;
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	/* 16-bit digital input */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->len_chanlist = 16;
-	s->range_table = &range_digital;
-	s->insn_bits = pcl711_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl711_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	/* 16-bit digital out */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->len_chanlist = 16;
-	s->range_table = &range_digital;
-	s->state = 0;
-	s->insn_bits = pcl711_do_insn_bits;
-
-	/*
-	   this is the "base value" for the mode register, which is
-	   used for the irq on the PCL711
-	 */
-	if (board->is_pcl711b)
-		devpriv->mode = (dev->irq << 4);
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl711_do_insn_bits;
 
 	/* clear DAC */
-	outb(0, dev->iobase + PCL711_DA0_LO);
-	outb(0, dev->iobase + PCL711_DA0_HI);
-	outb(0, dev->iobase + PCL711_DA1_LO);
-	outb(0, dev->iobase + PCL711_DA1_HI);
-
-	printk(KERN_INFO "\n");
+	pcl711_ao_write(dev, 0, 0x0);
+	pcl711_ao_write(dev, 1, 0x0);
 
 	return 0;
 }
-
-static const struct pcl711_board boardtypes[] = {
-	{ "pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5 },
-	{ "pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai },
-	{ "acl8112hg", 0, 1, 0, 12, 16, 2, 15, &range_acl8112hg_ai },
-	{ "acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai },
-};
 
 static struct comedi_driver pcl711_driver = {
 	.driver_name	= "pcl711",
@@ -563,5 +566,5 @@ static struct comedi_driver pcl711_driver = {
 module_comedi_driver(pcl711_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for PCL-711 compatible boards");
 MODULE_LICENSE("GPL");

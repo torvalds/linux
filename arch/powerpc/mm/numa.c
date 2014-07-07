@@ -31,6 +31,8 @@
 #include <asm/sparsemem.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
+#include <asm/cputhreads.h>
+#include <asm/topology.h>
 #include <asm/firmware.h>
 #include <asm/paca.h>
 #include <asm/hvcall.h>
@@ -152,9 +154,22 @@ static void __init get_node_active_region(unsigned long pfn,
 	}
 }
 
-static void map_cpu_to_node(int cpu, int node)
+static void reset_numa_cpu_lookup_table(void)
+{
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu)
+		numa_cpu_lookup_table[cpu] = -1;
+}
+
+static void update_numa_cpu_lookup_table(unsigned int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
+}
+
+static void map_cpu_to_node(int cpu, int node)
+{
+	update_numa_cpu_lookup_table(cpu, node);
 
 	dbg("adding cpu %d to node %d\n", cpu, node);
 
@@ -195,7 +210,7 @@ static const __be32 *of_get_usable_memory(struct device_node *memory)
 	u32 len;
 	prop = of_get_property(memory, "linux,drconf-usable-memory", &len);
 	if (!prop || len < sizeof(unsigned int))
-		return 0;
+		return NULL;
 	return prop;
 }
 
@@ -217,6 +232,7 @@ int __node_distance(int a, int b)
 
 	return distance;
 }
+EXPORT_SYMBOL(__node_distance);
 
 static void initialize_distance_lookup_table(int nid,
 		const __be32 *associativity)
@@ -522,11 +538,24 @@ static int of_drconf_to_nid_single(struct of_drconf_cell *drmem,
  */
 static int numa_setup_cpu(unsigned long lcpu)
 {
-	int nid = 0;
-	struct device_node *cpu = of_get_cpu_node(lcpu, NULL);
+	int nid;
+	struct device_node *cpu;
+
+	/*
+	 * If a valid cpu-to-node mapping is already available, use it
+	 * directly instead of querying the firmware, since it represents
+	 * the most recent mapping notified to us by the platform (eg: VPHN).
+	 */
+	if ((nid = numa_cpu_lookup_table[lcpu]) >= 0) {
+		map_cpu_to_node(lcpu, nid);
+		return nid;
+	}
+
+	cpu = of_get_cpu_node(lcpu, NULL);
 
 	if (!cpu) {
 		WARN_ON(1);
+		nid = 0;
 		goto out;
 	}
 
@@ -542,16 +571,38 @@ out:
 	return nid;
 }
 
+static void verify_cpu_node_mapping(int cpu, int node)
+{
+	int base, sibling, i;
+
+	/* Verify that all the threads in the core belong to the same node */
+	base = cpu_first_thread_sibling(cpu);
+
+	for (i = 0; i < threads_per_core; i++) {
+		sibling = base + i;
+
+		if (sibling == cpu || cpu_is_offline(sibling))
+			continue;
+
+		if (cpu_to_node(sibling) != node) {
+			WARN(1, "CPU thread siblings %d and %d don't belong"
+				" to the same node!\n", cpu, sibling);
+			break;
+		}
+	}
+}
+
 static int cpu_numa_callback(struct notifier_block *nfb, unsigned long action,
 			     void *hcpu)
 {
 	unsigned long lcpu = (unsigned long)hcpu;
-	int ret = NOTIFY_DONE;
+	int ret = NOTIFY_DONE, nid;
 
 	switch (action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
-		numa_setup_cpu(lcpu);
+		nid = numa_setup_cpu(lcpu);
+		verify_cpu_node_mapping((int)lcpu, nid);
 		ret = NOTIFY_OK;
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
@@ -670,7 +721,8 @@ static void __init parse_drconf_memory(struct device_node *memory)
 			node_set_online(nid);
 			sz = numa_enforce_memory_limit(base, size);
 			if (sz)
-				memblock_set_node(base, sz, nid);
+				memblock_set_node(base, sz,
+						  &memblock.memory, nid);
 		} while (--ranges);
 	}
 }
@@ -760,7 +812,7 @@ new_range:
 				continue;
 		}
 
-		memblock_set_node(start, size, nid);
+		memblock_set_node(start, size, &memblock.memory, nid);
 
 		if (--ranges)
 			goto new_range;
@@ -797,7 +849,8 @@ static void __init setup_nonnuma(void)
 
 		fake_numa_create_new_node(end_pfn, &nid);
 		memblock_set_node(PFN_PHYS(start_pfn),
-				  PFN_PHYS(end_pfn - start_pfn), nid);
+				  PFN_PHYS(end_pfn - start_pfn),
+				  &memblock.memory, nid);
 		node_set_online(nid);
 	}
 }
@@ -938,8 +991,7 @@ static void __init mark_reserved_regions_for_nid(int nid)
 		unsigned long start_pfn = physbase >> PAGE_SHIFT;
 		unsigned long end_pfn = PFN_UP(physbase + size);
 		struct node_active_region node_ar;
-		unsigned long node_end_pfn = node->node_start_pfn +
-					     node->node_spanned_pages;
+		unsigned long node_end_pfn = pgdat_end_pfn(node);
 
 		/*
 		 * Check to make sure that this memblock.reserved area is
@@ -1068,6 +1120,7 @@ void __init do_init_bootmem(void)
 	 */
 	setup_node_to_cpumask_map();
 
+	reset_numa_cpu_lookup_table();
 	register_cpu_notifier(&ppc64_numa_nb);
 	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
 			  (void *)(unsigned long)boot_cpuid);
@@ -1154,7 +1207,7 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
  * represented in the device tree as a node (i.e. memory@XXXX) for
  * each memblock.
  */
-int hot_add_node_scn_to_nid(unsigned long scn_addr)
+static int hot_add_node_scn_to_nid(unsigned long scn_addr)
 {
 	struct device_node *memory;
 	int nid = -1;
@@ -1235,7 +1288,7 @@ static u64 hot_add_drconf_memory_max(void)
         struct device_node *memory = NULL;
         unsigned int drconf_cell_cnt = 0;
         u64 lmb_size = 0;
-	const __be32 *dm = 0;
+	const __be32 *dm = NULL;
 
         memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
         if (memory) {
@@ -1446,6 +1499,33 @@ static int update_cpu_topology(void *data)
 	return 0;
 }
 
+static int update_lookup_table(void *data)
+{
+	struct topology_update_data *update;
+
+	if (!data)
+		return -EINVAL;
+
+	/*
+	 * Upon topology update, the numa-cpu lookup table needs to be updated
+	 * for all threads in the core, including offline CPUs, to ensure that
+	 * future hotplug operations respect the cpu-to-node associativity
+	 * properly.
+	 */
+	for (update = data; update; update = update->next) {
+		int nid, base, j;
+
+		nid = update->new_nid;
+		base = cpu_first_thread_sibling(update->cpu);
+
+		for (j = 0; j < threads_per_core; j++) {
+			update_numa_cpu_lookup_table(base + j, nid);
+		}
+	}
+
+	return 0;
+}
+
 /*
  * Update the node maps and sysfs entries for each cpu whose home node
  * has changed. Returns 1 when the topology has changed, and 0 otherwise.
@@ -1512,7 +1592,29 @@ int arch_update_cpu_topology(void)
 		cpu = cpu_last_thread_sibling(cpu);
 	}
 
+	/*
+	 * In cases where we have nothing to update (because the updates list
+	 * is too short or because the new topology is same as the old one),
+	 * skip invoking update_cpu_topology() via stop-machine(). This is
+	 * necessary (and not just a fast-path optimization) since stop-machine
+	 * can end up electing a random CPU to run update_cpu_topology(), and
+	 * thus trick us into setting up incorrect cpu-node mappings (since
+	 * 'updates' is kzalloc()'ed).
+	 *
+	 * And for the similar reason, we will skip all the following updating.
+	 */
+	if (!cpumask_weight(&updated_cpus))
+		goto out;
+
 	stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
+
+	/*
+	 * Update the numa-cpu lookup table with the new mappings, even for
+	 * offline CPUs. It is best to perform this update from the stop-
+	 * machine context.
+	 */
+	stop_machine(update_lookup_table, &updates[0],
+					cpumask_of(raw_smp_processor_id()));
 
 	for (ud = &updates[0]; ud; ud = ud->next) {
 		unregister_cpu_under_node(ud->cpu, ud->old_nid);
@@ -1525,6 +1627,7 @@ int arch_update_cpu_topology(void)
 		changed = 1;
 	}
 
+out:
 	kfree(updates);
 	return changed;
 }
@@ -1535,7 +1638,7 @@ static void topology_work_fn(struct work_struct *work)
 }
 static DECLARE_WORK(topology_work, topology_work_fn);
 
-void topology_schedule_update(void)
+static void topology_schedule_update(void)
 {
 	schedule_work(&topology_work);
 }
@@ -1698,7 +1801,7 @@ static const struct file_operations topology_ops = {
 static int topology_update_init(void)
 {
 	start_topology_update();
-	proc_create("powerpc/topology_updates", 644, NULL, &topology_ops);
+	proc_create("powerpc/topology_updates", 0644, NULL, &topology_ops);
 
 	return 0;
 }

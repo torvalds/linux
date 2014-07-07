@@ -6,7 +6,6 @@
 
 / {
 	mbus {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 		pcie-controller {
 			status = "okay";
 
@@ -17,7 +16,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 
 			pinctrl-0 = <&pmx_ram_size &pmx_board_id>;
 			pinctrl-names = "default";
@@ -52,13 +51,13 @@
 
 		button@1 {
 			label = "USB Copy";
-			linux,code = <133>;
-			gpios = <&gpio1 11 1>;
+			linux,code = <KEY_COPY>;
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 		};
 		button@2 {
 			label = "Reset";
-			linux,code = <0x198>;
-			gpios = <&gpio1 5 1>;
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 		};
 	};
 };

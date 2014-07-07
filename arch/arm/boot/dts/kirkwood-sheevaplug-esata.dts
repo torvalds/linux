@@ -24,8 +24,8 @@
 			pinctrl-0 = <&pmx_sdio &pmx_sdio_cd &pmx_sdio_wp>;
 			pinctrl-names = "default";
 			status = "okay";
-			cd-gpios = <&gpio1 12 1>;
-			wp-gpios = <&gpio1 15 0>;
+			cd-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+			wp-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -36,8 +36,8 @@
 
 		health {
 			label = "sheevaplug:blue:health";
-			gpios = <&gpio1 17 1>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
 		};
 	};
 };

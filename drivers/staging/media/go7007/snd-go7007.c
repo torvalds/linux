@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -246,8 +245,8 @@ int go7007_snd_init(struct go7007 *go)
 	spin_lock_init(&gosnd->lock);
 	gosnd->hw_ptr = gosnd->w_idx = gosnd->avail = 0;
 	gosnd->capturing = 0;
-	ret = snd_card_create(index[dev], id[dev], THIS_MODULE, 0,
-			      &gosnd->card);
+	ret = snd_card_new(go->dev, index[dev], id[dev], THIS_MODULE, 0,
+			   &gosnd->card);
 	if (ret < 0) {
 		kfree(gosnd);
 		return ret;
@@ -258,7 +257,6 @@ int go7007_snd_init(struct go7007 *go)
 		kfree(gosnd);
 		return ret;
 	}
-	snd_card_set_dev(gosnd->card, go->dev);
 	ret = snd_pcm_new(gosnd->card, "go7007", 0, 0, 1, &gosnd->pcm);
 	if (ret < 0) {
 		snd_card_free(gosnd->card);

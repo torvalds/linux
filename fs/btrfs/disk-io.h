@@ -68,14 +68,28 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_root *tree_root,
 int btrfs_init_fs_root(struct btrfs_root *root);
 int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 			 struct btrfs_root *root);
-struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
-					      struct btrfs_key *location);
+void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info);
+
+struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
+				     struct btrfs_key *key,
+				     bool check_ref);
+static inline struct btrfs_root *
+btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
+			   struct btrfs_key *location)
+{
+	return btrfs_get_fs_root(fs_info, location, true);
+}
+
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info);
 void btrfs_btree_balance_dirty(struct btrfs_root *root);
 void btrfs_btree_balance_dirty_nodelay(struct btrfs_root *root);
 void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 				 struct btrfs_root *root);
 void btrfs_free_fs_root(struct btrfs_root *root);
+
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+struct btrfs_root *btrfs_alloc_dummy_root(void);
+#endif
 
 /*
  * This function is used to grab the root, and avoid it is freed when we

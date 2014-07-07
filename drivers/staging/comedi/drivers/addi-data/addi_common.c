@@ -204,7 +204,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrDiChannel;
 		s->range_table = &range_digital;
-		s->io_bits = 0;	/* all bits input */
 		s->insn_config = this_board->di_config;
 		s->insn_read = this_board->di_read;
 		s->insn_write = this_board->di_write;
@@ -223,7 +222,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrDoChannel;
 		s->range_table = &range_digital;
-		s->io_bits = 0xf;	/* all bits output */
 
 		/* insn_config - for digital output memory */
 		s->insn_config = this_board->do_config;

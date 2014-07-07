@@ -37,6 +37,7 @@
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/io.h>
 
 #include <asm/mach/arch.h>
@@ -49,9 +50,9 @@
 #include <asm/mach-types.h>
 #include <mach/fb.h>
 
-#include <plat/regs-serial.h>
 #include <mach/regs-lcd.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/devs.h>
@@ -160,9 +161,14 @@ static struct platform_device *amlm5900_devices[] __initdata = {
 static void __init amlm5900_map_io(void)
 {
 	s3c24xx_init_io(amlm5900_iodesc, ARRAY_SIZE(amlm5900_iodesc));
-	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(amlm5900_uartcfgs, ARRAY_SIZE(amlm5900_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init amlm5900_init_time(void)
+{
+	s3c2410_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 #ifdef CONFIG_FB_S3C2410
@@ -240,6 +246,6 @@ MACHINE_START(AML_M5900, "AML_M5900")
 	.map_io		= amlm5900_map_io,
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= amlm5900_init,
-	.init_time	= samsung_timer_init,
+	.init_time	= amlm5900_init_time,
 	.restart	= s3c2410_restart,
 MACHINE_END

@@ -334,7 +334,7 @@ static struct platform_device lcdc_device = {
 	.resource	= lcdc_resources,
 	.dev	= {
 		.platform_data	= &lcdc_info,
-		.coherent_dma_mask = ~0,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -366,6 +366,7 @@ static struct resource sh_mmcif_resources[] = {
 static struct sh_mmcif_plat_data sh_mmcif_platdata = {
 	.ocr		= MMC_VDD_165_195,
 	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+	.ccs_unsupported = true,
 	.slave_id_tx	= SHDMA_SLAVE_MMCIF_TX,
 	.slave_id_rx	= SHDMA_SLAVE_MMCIF_RX,
 };
@@ -588,14 +589,12 @@ static struct asoc_simple_card_info fsi2_ak4648_info = {
 	.card		= "FSI2A-AK4648",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi2",
-	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_CBM_CFM,
 	.cpu_dai = {
 		.name	= "fsia-dai",
-		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
 	},
 	.codec_dai = {
 		.name	= "ak4642-hifi",
-		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
 		.sysclk	= 11289600,
 	},
 };
@@ -877,8 +876,8 @@ static void __init kzm_init(void)
 	gpio_request_one(223, GPIOF_IN, NULL); /* IRQ8 */
 
 #ifdef CONFIG_CACHE_L2X0
-	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
-	l2x0_init(IOMEM(0xf0100000), 0x40460000, 0x82000fff);
+	/* Shared attribute override enable, 64K*8way */
+	l2x0_init(IOMEM(0xf0100000), 0x00400000, 0xc20f0fff);
 #endif
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
