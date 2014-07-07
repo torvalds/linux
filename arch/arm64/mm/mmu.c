@@ -32,6 +32,8 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/dma-contiguous.h>
+#include <linux/cma.h>
 
 #include <asm/barrier.h>
 #include <asm/cputype.h>
@@ -66,6 +68,40 @@ EXPORT_SYMBOL(empty_zero_page);
 static pte_t bm_pte[PTRS_PER_PTE] __page_aligned_bss;
 static pmd_t bm_pmd[PTRS_PER_PMD] __page_aligned_bss __maybe_unused;
 static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss __maybe_unused;
+
+struct dma_contig_early_reserve {
+	phys_addr_t base;
+	unsigned long size;
+};
+
+static struct dma_contig_early_reserve dma_mmu_remap[MAX_CMA_AREAS];
+static int dma_mmu_remap_num;
+
+void __init dma_contiguous_early_fixup(phys_addr_t base, unsigned long size)
+{
+	if (dma_mmu_remap_num >= ARRAY_SIZE(dma_mmu_remap)) {
+		pr_err("ARM64: Not enough slots for DMA fixup reserved regions!\n");
+		return;
+	}
+	dma_mmu_remap[dma_mmu_remap_num].base = base;
+	dma_mmu_remap[dma_mmu_remap_num].size = size;
+	dma_mmu_remap_num++;
+}
+
+static bool dma_overlap(phys_addr_t start, phys_addr_t end)
+{
+	int i;
+
+	for (i = 0; i < dma_mmu_remap_num; i++) {
+		phys_addr_t dma_base = dma_mmu_remap[i].base;
+		phys_addr_t dma_end = dma_mmu_remap[i].base +
+			dma_mmu_remap[i].size;
+
+		if ((dma_base < end) && (dma_end > start))
+			return true;
+	}
+	return false;
+}
 
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
@@ -200,7 +236,8 @@ static void init_pmd(pud_t *pudp, unsigned long addr, unsigned long end,
 
 		/* try section mapping first */
 		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
-		    (flags & NO_BLOCK_MAPPINGS) == 0) {
+		    (flags & NO_BLOCK_MAPPINGS) == 0 &&
+		    !dma_overlap(phys, phys + next - addr)) {
 			pmd_set_huge(pmdp, phys, prot);
 
 			/*
@@ -299,7 +336,8 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 		 * For 4K granule only, attempt to put down a 1GB block
 		 */
 		if (use_1G_block(addr, next, phys) &&
-		    (flags & NO_BLOCK_MAPPINGS) == 0) {
+		    (flags & NO_BLOCK_MAPPINGS) == 0 &&
+		    !dma_overlap(phys, phys + next - addr)) {
 			pud_set_huge(pudp, phys, prot);
 
 			/*
