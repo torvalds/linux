@@ -617,11 +617,11 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 
 		pm8001_ha->nvmd_completion = &completion;
 		ret = PM8001_CHIP_DISP->fw_flash_update_req(pm8001_ha, payload);
+		if (ret)
+			break;
 		wait_for_completion(&completion);
-		if (ret || (fwControl->retcode > FLASH_UPDATE_IN_PROGRESS)) {
+		if (fwControl->retcode > FLASH_UPDATE_IN_PROGRESS) {
 			ret = fwControl->retcode;
-			kfree(ioctlbuffer);
-			ioctlbuffer = NULL;
 			break;
 		}
 	}
