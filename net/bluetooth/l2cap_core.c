@@ -7048,7 +7048,6 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	struct l2cap_conn *conn;
 	struct hci_conn *hcon;
 	struct hci_dev *hdev;
-	__u8 auth_type;
 	int err;
 
 	BT_DBG("%pMR -> %pMR (type %u) psm 0x%2.2x", &chan->src, dst,
@@ -7124,8 +7123,6 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	chan->psm = psm;
 	chan->dcid = cid;
 
-	auth_type = l2cap_get_auth_type(chan);
-
 	if (bdaddr_type_is_le(dst_type)) {
 		/* Convert from L2CAP channel address type to HCI address type
 		 */
@@ -7135,8 +7132,9 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 			dst_type = ADDR_LE_DEV_RANDOM;
 
 		hcon = hci_connect_le(hdev, dst, dst_type, chan->sec_level,
-				      auth_type, HCI_LE_CONN_TIMEOUT);
+				      HCI_LE_CONN_TIMEOUT);
 	} else {
+		u8 auth_type = l2cap_get_auth_type(chan);
 		hcon = hci_connect_acl(hdev, dst, chan->sec_level, auth_type);
 	}
 

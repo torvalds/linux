@@ -700,8 +700,7 @@ static void hci_req_directed_advertising(struct hci_request *req,
 }
 
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
-				u8 dst_type, u8 sec_level, u8 auth_type,
-				u16 conn_timeout)
+				u8 dst_type, u8 sec_level, u16 conn_timeout)
 {
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
@@ -721,7 +720,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
 	if (conn) {
 		conn->pending_sec_level = sec_level;
-		conn->auth_type = auth_type;
 		goto done;
 	}
 
@@ -758,7 +756,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	conn->dst_type = dst_type;
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->pending_sec_level = sec_level;
-	conn->auth_type = auth_type;
 	conn->conn_timeout = conn_timeout;
 
 	hci_req_init(&req, hdev);

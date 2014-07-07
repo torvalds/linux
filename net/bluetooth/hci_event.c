@@ -4254,7 +4254,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 
 connect:
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
-			      HCI_AT_NO_BONDING, HCI_LE_AUTOCONN_TIMEOUT);
+			      HCI_LE_AUTOCONN_TIMEOUT);
 	if (!IS_ERR(conn))
 		return;
 
