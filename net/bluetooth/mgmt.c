@@ -1750,8 +1750,10 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 
 	send_settings_rsp(cmd->sk, MGMT_OP_SET_CONNECTABLE, hdev);
 
-	if (changed)
+	if (changed) {
 		new_settings(hdev, cmd->sk);
+		hci_update_background_scan(hdev);
+	}
 
 remove_cmd:
 	mgmt_pending_remove(cmd);
