@@ -700,7 +700,8 @@ static void hci_req_directed_advertising(struct hci_request *req,
 }
 
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
-				u8 dst_type, u8 sec_level, u16 conn_timeout)
+				u8 dst_type, u8 sec_level, u16 conn_timeout,
+				bool master)
 {
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
@@ -760,7 +761,8 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 
 	hci_req_init(&req, hdev);
 
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
+	/* If requested to connect as slave use directed advertising */
+	if (!master) {
 		hci_req_directed_advertising(&req, conn);
 		goto create_conn;
 	}

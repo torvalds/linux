@@ -3117,8 +3117,9 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		 */
 		hci_conn_params_add(hdev, &cp->addr.bdaddr, addr_type);
 
+		/* Request a connection with master = true role */
 		conn = hci_connect_le(hdev, &cp->addr.bdaddr, addr_type,
-				      sec_level, HCI_LE_CONN_TIMEOUT);
+				      sec_level, HCI_LE_CONN_TIMEOUT, true);
 	}
 
 	if (IS_ERR(conn)) {
