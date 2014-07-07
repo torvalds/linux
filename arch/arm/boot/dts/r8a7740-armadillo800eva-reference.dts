@@ -104,17 +104,21 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led1 {
-			gpios = <&pfc 102 GPIO_ACTIVE_HIGH>;
-		};
-		led2 {
-			gpios = <&pfc 111 GPIO_ACTIVE_HIGH>;
-		};
 		led3 {
-			gpios = <&pfc 110 GPIO_ACTIVE_HIGH>;
+			gpios = <&pfc 102 GPIO_ACTIVE_HIGH>;
+			label = "LED3";
 		};
 		led4 {
+			gpios = <&pfc 111 GPIO_ACTIVE_HIGH>;
+			label = "LED4";
+		};
+		led5 {
+			gpios = <&pfc 110 GPIO_ACTIVE_HIGH>;
+			label = "LED5";
+		};
+		led6 {
 			gpios = <&pfc 177 GPIO_ACTIVE_HIGH>;
+			label = "LED6";
 		};
 	};
 

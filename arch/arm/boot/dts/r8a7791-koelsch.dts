@@ -215,25 +215,6 @@
 	clock-frequency = <20000000>;
 };
 
-&i2c2 {
-	pinctrl-0 = <&i2c2_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-	clock-frequency = <400000>;
-
-	eeprom@50 {
-		compatible = "renesas,24c02";
-		reg = <0x50>;
-		pagesize = <16>;
-	};
-};
-
-&i2c6 {
-	status = "okay";
-	clock-frequency = <100000>;
-};
-
 &pfc {
 	pinctrl-0 = <&du_pins>;
 	pinctrl-names = "default";
@@ -292,6 +273,11 @@
 		renesas,groups = "msiof0_clk", "msiof0_sync", "msiof0_rx",
 				 "msiof0_tx";
 		renesas,function = "msiof0";
+	};
+
+	i2c6_pins: i2c6 {
+		renesas,groups = "i2c6";
+		renesas,function = "i2c6";
 	};
 };
 
@@ -407,4 +393,47 @@
 		spi-cpol;
 		spi-cpha;
 	};
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	eeprom@50 {
+		compatible = "renesas,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&i2c6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6_pins>;
+	status = "okay";
+	clock-frequency = <100000>;
+
+	vdd_dvfs: regulator@68 {
+		compatible = "diasemi,da9210";
+		reg = <0x68>;
+
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&pcie_bus_clk {
+	status = "okay";
+};
+
+&pciec {
+	status = "okay";
+};
+
+&cpu0 {
+	cpu0-supply = <&vdd_dvfs>;
 };
