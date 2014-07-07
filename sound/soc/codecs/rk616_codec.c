@@ -3243,8 +3243,14 @@ void rk616_platform_shutdown(struct platform_device *pdev)
 	mdelay(10);
 	snd_soc_write(codec, RK616_RESET, 0x3);
 
-	kfree(rk616);
-	rk616_priv = NULL;
+	if (rk616) {
+		kfree(rk616);
+		printk("rk616 = %d, rk616_priv = %d\n", rk616, rk616_priv);
+		if (rk616_priv) 
+			rk616_priv = NULL;
+		rk616_codec_power_up(RK616_CODEC_PLAYBACK);
+	}
+
 }
 
 static struct platform_driver rk616_codec_driver = {
