@@ -1479,7 +1479,7 @@ static void dwc_phy_reconnect(struct work_struct *work)
 
 	if (gctrl.b.bsesvld) {
 		pcd->conn_status++;
-		pldata->soft_reset();
+		pldata->soft_reset(pldata, RST_RECNT);
 		dwc_pcd_reset(pcd);
 		/*
 		 * Enable the global interrupt after all the interrupt

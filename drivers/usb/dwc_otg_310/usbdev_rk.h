@@ -18,6 +18,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/reset.h>
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/cpu.h>
@@ -39,6 +40,13 @@
 #define USB_CHIP_ID           (5)
 #define USB_REMOTE_WAKEUP     (6)
 #define USB_IRQ_WAKEUP        (7)
+
+enum rkusb_rst_flag {
+	RST_POR = 0, /* Reset power-on */
+	RST_RECNT,	/* Reset re-connect */
+	RST_CHN_HALT, /* Reset a channel halt has been detected */
+	RST_OTHER,
+};
 
 extern int rk_usb_charger_status;
 extern void rk_send_wakeup_key(void);
@@ -63,7 +71,7 @@ struct dwc_otg_platform_data {
 	int phy_status;
 	void (*hw_init) (void);
 	void (*phy_suspend) (void *pdata, int suspend);
-	void (*soft_reset) (void);
+	void (*soft_reset) (void *pdata, enum rkusb_rst_flag rst_type);
 	void (*clock_init) (void *pdata);
 	void (*clock_enable) (void *pdata, int enable);
 	void (*power_enable) (int enable);
@@ -83,7 +91,7 @@ struct rkehci_platform_data {
 	void (*clock_init) (void *pdata);
 	void (*clock_enable) (void *pdata, int enable);
 	void (*phy_suspend) (void *pdata, int suspend);
-	void (*soft_reset) (void);
+	void (*soft_reset) (void *pdata, enum rkusb_rst_flag rst_type);
 	int (*get_status) (int id);
 	int clk_status;
 	int phy_status;

@@ -1029,7 +1029,7 @@ static int host20_driver_probe(struct platform_device *_dev)
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 
 	if (pldata->soft_reset)
-		pldata->soft_reset();
+		pldata->soft_reset(pldata, RST_POR);
 
 	res_base = platform_get_resource(_dev, IORESOURCE_MEM, 0);
 

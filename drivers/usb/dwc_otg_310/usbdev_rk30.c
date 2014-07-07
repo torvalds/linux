@@ -43,7 +43,7 @@ static void usb20otg_phy_suspend(void *pdata, int suspend)
 	}
 }
 
-static void usb20otg_soft_reset(void)
+static void usb20otg_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
 }
 
@@ -192,7 +192,7 @@ static void usb20host_phy_suspend(void *pdata, int suspend)
 	}
 }
 
-static void usb20host_soft_reset(void)
+static void usb20host_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
 }
 
@@ -368,7 +368,7 @@ static void rk_hsic_clock_enable(void *pdata, int enable)
 	}
 }
 
-static void rk_hsic_soft_reset(void)
+static void rk_hsic_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
 
 }

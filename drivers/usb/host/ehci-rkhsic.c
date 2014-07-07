@@ -142,7 +142,7 @@ static ssize_t ehci_rkhsic_power_store(struct device *_dev,
 		usb_remove_hcd(hcd);
 		break;
 	case 1:	/* power on */
-		pldata->soft_reset();
+		pldata->soft_reset(pldata, RST_POR);
 		usb_add_hcd(hcd, hcd->irq, IRQF_DISABLED | IRQF_SHARED);
 
 		ehci_rkhsic_port_power(ehci, 1);
@@ -275,7 +275,7 @@ static int ehci_rkhsic_probe(struct platform_device *pdev)
 	}
 
 	if (pldata->soft_reset)
-		pldata->soft_reset();
+		pldata->soft_reset(pldata, RST_POR);;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {

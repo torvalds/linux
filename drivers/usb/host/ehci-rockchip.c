@@ -97,7 +97,7 @@ static void rk_ehci_hcd_enable(struct work_struct *work)
 		usb_remove_hcd(hcd);
 
 		/* reset cru and reinitialize EHCI controller */
-		pldata->soft_reset();
+		pldata->soft_reset(pldata, RST_RECNT);
 		usb_add_hcd(hcd, hcd->irq, IRQF_DISABLED | IRQF_SHARED);
 		if (pldata->phy_suspend)
 			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
@@ -228,7 +228,7 @@ static ssize_t ehci_power_store(struct device *_dev,
 		usb_remove_hcd(hcd);
 		break;
 	case 1:	/*  power on */
-		pldata->soft_reset();
+		pldata->soft_reset(pldata, RST_POR);
 		usb_add_hcd(hcd, hcd->irq, IRQF_DISABLED | IRQF_SHARED);
 		ehci_port_power(ehci, 1);
 		break;
@@ -357,7 +357,7 @@ static int ehci_rk_probe(struct platform_device *pdev)
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 
 	if (pldata->soft_reset)
-		pldata->soft_reset();
+		pldata->soft_reset(pldata, RST_POR);;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {

@@ -1075,6 +1075,9 @@
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates13 4>, <&clk_gates7 4>;
 		clock-names = "clk_usbphy0", "hclk_usb0";
+		resets = <&reset RK3288_SOFT_RST_USBOTG_H>, <&reset RK3288_SOFT_RST_USBOTGPHY>,
+				<&reset RK3288_SOFT_RST_USBOTGC>;
+		reset-names = "otg_ahb", "otg_phy", "otg_controller";
 		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
 		rockchip,usb-mode = <0>;
 	};
@@ -1087,6 +1090,9 @@
 			 <&usbphy_480m>;
 		clock-names = "clk_usbphy1", "hclk_usb1",
 			      "usbphy_480m";
+		resets = <&reset RK3288_SOFT_RST_USBHOST1_H>, <&reset RK3288_SOFT_RST_USBHOST1PHY>,
+				<&reset RK3288_SOFT_RST_USBHOST1C>;
+		reset-names = "host1_ahb", "host1_phy", "host1_controller";
 	};
 
 	usb2: usb@ff500000 {
@@ -1095,6 +1101,9 @@
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates13 5>, <&clk_gates7 6>;
 		clock-names = "clk_usbphy2", "hclk_usb2";
+		resets = <&reset RK3288_SOFT_RST_USBHOST0_H>, <&reset RK3288_SOFT_RST_USBHOST0PHY>,
+				<&reset RK3288_SOFT_RST_USBHOST0C>, <&reset RK3288_SOFT_RST_USB_HOST0>;
+		reset-names = "ehci_ahb", "ehci_phy", "ehci_controller", "ehci";
 	};
 
 	usb3: usb@ff520000 {
@@ -1115,6 +1124,9 @@
 		clock-names = "hsicphy_480m", "hclk_hsic",
 			      "hsicphy_12m", "usbphy_480m",
 			      "hsic_usbphy1", "hsic_usbphy2";
+		resets = <&reset RK3288_SOFT_RST_HSIC>, <&reset RK3288_SOFT_RST_HSIC_AUX>,
+				<&reset RK3288_SOFT_RST_HSICPHY>;
+		reset-names = "hsic_ahb", "hsic_aux", "hsic_phy";
 	};
 
 	gmac: eth@ff290000 {
