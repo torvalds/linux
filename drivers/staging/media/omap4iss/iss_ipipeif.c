@@ -242,23 +242,6 @@ static void ipipeif_isr_buffer(struct iss_ipipeif_device *ipipeif)
 }
 
 /*
- * ipipeif_isif0_isr - Handle ISIF0 event
- * @ipipeif: Pointer to ISP IPIPEIF device.
- *
- * Executes LSC deferred enablement before next frame starts.
- */
-static void ipipeif_isif0_isr(struct iss_ipipeif_device *ipipeif)
-{
-	struct iss_pipeline *pipe =
-			     to_iss_pipeline(&ipipeif->subdev.entity);
-	if (pipe->do_propagation)
-		atomic_inc(&pipe->frame_number);
-
-	if (ipipeif->output & IPIPEIF_OUTPUT_MEMORY)
-		ipipeif_isr_buffer(ipipeif);
-}
-
-/*
  * omap4iss_ipipeif_isr - Configure ipipeif during interframe time.
  * @ipipeif: Pointer to ISP IPIPEIF device.
  * @events: IPIPEIF events
@@ -269,8 +252,9 @@ void omap4iss_ipipeif_isr(struct iss_ipipeif_device *ipipeif, u32 events)
 					     &ipipeif->stopping))
 		return;
 
-	if (events & ISP5_IRQ_ISIF_INT(0))
-		ipipeif_isif0_isr(ipipeif);
+	if ((events & ISP5_IRQ_ISIF_INT(0)) &&
+	    (ipipeif->output & IPIPEIF_OUTPUT_MEMORY))
+		ipipeif_isr_buffer(ipipeif);
 }
 
 /* -----------------------------------------------------------------------------
