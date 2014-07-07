@@ -105,14 +105,14 @@ static int dw_mci_rockchip_priv_init(struct dw_mci *host)
 	int idx;
 
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
+	if(!priv){
 		dev_err(host->dev, "mem alloc failed for private data\n");
 		return -ENOMEM;
 	}
 
-	for (idx = 0; idx < ARRAY_SIZE(rockchip_compat); idx++) {
-		if (of_device_is_compatible(host->dev->of_node,
-					rockchip_compat[idx].compatible))
+	for(idx = 0; idx < ARRAY_SIZE(rockchip_compat); idx++){
+                if(of_device_is_compatible(host->dev->of_node,
+                                rockchip_compat[idx].compatible))
 			priv->ctrl_type = rockchip_compat[idx].ctrl_type;
 	}
 
@@ -124,7 +124,7 @@ static int dw_mci_rockchip_setup_clock(struct dw_mci *host)
 {
 	struct dw_mci_rockchip_priv_data *priv = host->priv;
 
-	if ((priv->ctrl_type == DW_MCI_TYPE_RK3288) || 
+	if ((priv->ctrl_type == DW_MCI_TYPE_RK3288) ||
 	        (priv->ctrl_type == DW_MCI_TYPE_RK3036))
 		host->bus_hz /= (priv->ciu_div + 1);
 
@@ -133,8 +133,7 @@ static int dw_mci_rockchip_setup_clock(struct dw_mci *host)
 
 static void dw_mci_rockchip_prepare_command(struct dw_mci *host, u32 *cmdr)
 {
-//	if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL)))
-//		*cmdr |= SDMMC_CMD_USE_HOLD_REG;
+
 }
 
 static void dw_mci_rockchip_set_ios(struct dw_mci *host, struct mmc_ios *ios)
@@ -310,10 +309,8 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
            So we take average --- 60ps, (1.66ns/ 2) = 0.83(middle-value),TAKE 0.9
            0.9 / 60ps = 15 delayline
          */
-        if(cpu_is_rk3288()){ 
-                /*
-                        Fixme: 3036:  dose it compatitable?
-                */
+        if(cpu_is_rk3288()){
+                /* Fixme: 3036:  dose it compatitable? */
                  ref = ((FREQ_REF_150MHZ + host->bus_hz - 1) / host->bus_hz);
                  step = (15 * ref);
 

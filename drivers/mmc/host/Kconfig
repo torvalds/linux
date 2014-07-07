@@ -541,7 +541,6 @@ config MMC_DW_EDMAC
           Designware Mobile Storage IP block. This disables the internal DMA
           interface.
 
-
 config MMC_DW_PLTFM
 	tristate "Synopsys Designware MCI Support as platform device"
 	depends on MMC_DW
