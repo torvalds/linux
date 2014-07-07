@@ -308,13 +308,6 @@ void __init r8a7790_add_standard_devices(void)
 	r8a7790_register_audio_dmac(1);
 }
 
-void __init r8a7790_init_early(void)
-{
-#ifndef CONFIG_ARM_ARCH_TIMER
-	shmobile_setup_delay(1300, 2, 4); /* Cortex-A15 @ 1300MHz */
-#endif
-}
-
 #ifdef CONFIG_USE_OF
 
 static const char * const r8a7790_boards_compat_dt[] __initconst = {
@@ -324,7 +317,7 @@ static const char * const r8a7790_boards_compat_dt[] __initconst = {
 
 DT_MACHINE_START(R8A7790_DT, "Generic R8A7790 (Flattened Device Tree)")
 	.smp		= smp_ops(r8a7790_smp_ops),
-	.init_early	= r8a7790_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_time	= rcar_gen2_timer_init,
 	.dt_compat	= r8a7790_boards_compat_dt,
 MACHINE_END

@@ -43,11 +43,6 @@ void __init r7s72100_add_dt_devices(void)
 	r7s72100_register_mtu2();
 }
 
-void __init r7s72100_init_early(void)
-{
-	shmobile_setup_delay(400, 1, 3); /* Cortex-A9 @ 400MHz */
-}
-
 #ifdef CONFIG_USE_OF
 static const char *r7s72100_boards_compat_dt[] __initdata = {
 	"renesas,r7s72100",
@@ -55,7 +50,7 @@ static const char *r7s72100_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R7S72100_DT, "Generic R7S72100 (Flattened Device Tree)")
-	.init_early	= r7s72100_init_early,
+	.init_early	= shmobile_init_delay,
 	.dt_compat	= r7s72100_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */
