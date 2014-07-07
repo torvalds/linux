@@ -241,13 +241,14 @@ static bool acpi_video_use_native_backlight(void)
 		return use_native_backlight_dmi;
 }
 
-static bool acpi_video_verify_backlight_support(void)
+bool acpi_video_verify_backlight_support(void)
 {
 	if (acpi_osi_is_win8() && acpi_video_use_native_backlight() &&
 	    backlight_device_registered(BACKLIGHT_RAW))
 		return false;
 	return acpi_video_backlight_support();
 }
+EXPORT_SYMBOL_GPL(acpi_video_verify_backlight_support);
 
 /* backlight device sysfs support */
 static int acpi_video_get_brightness(struct backlight_device *bd)
