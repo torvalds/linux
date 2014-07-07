@@ -7143,8 +7143,10 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 						       block_start, len,
 						       orig_block_len,
 						       ram_bytes, type);
-				if (IS_ERR(em))
+				if (IS_ERR(em)) {
+					ret = PTR_ERR(em);
 					goto unlock_err;
+				}
 			}
 
 			ret = btrfs_add_ordered_extent_dio(inode, start,
