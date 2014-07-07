@@ -2690,6 +2690,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_framebuffer *old_fb;
 	struct drm_i915_gem_object *obj = to_intel_framebuffer(fb)->obj;
+	struct drm_i915_gem_object *old_obj;
 	int ret;
 
 	if (intel_crtc_has_pending_flip(crtc)) {
@@ -2711,11 +2712,12 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	old_fb = crtc->primary->fb;
+	old_obj = old_fb ? to_intel_framebuffer(old_fb)->obj : NULL;
 
 	mutex_lock(&dev->struct_mutex);
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret == 0)
-		i915_gem_track_fb(to_intel_framebuffer(old_fb)->obj, obj,
+		i915_gem_track_fb(old_obj, obj,
 				  INTEL_FRONTBUFFER_PRIMARY(pipe));
 	mutex_unlock(&dev->struct_mutex);
 	if (ret != 0) {
@@ -6207,8 +6209,8 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 	aligned_height = intel_align_height(dev, crtc->base.primary->fb->height,
 					    plane_config->tiled);
 
-	plane_config->size = ALIGN(crtc->base.primary->fb->pitches[0] *
-				   aligned_height, PAGE_SIZE);
+	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
+					aligned_height);
 
 	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
 		      pipe, plane, crtc->base.primary->fb->width,
@@ -7227,8 +7229,8 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	aligned_height = intel_align_height(dev, crtc->base.primary->fb->height,
 					    plane_config->tiled);
 
-	plane_config->size = ALIGN(crtc->base.primary->fb->pitches[0] *
-				   aligned_height, PAGE_SIZE);
+	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
+					aligned_height);
 
 	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
 		      pipe, plane, crtc->base.primary->fb->width,
@@ -8316,7 +8318,7 @@ static u32
 intel_framebuffer_size_for_mode(struct drm_display_mode *mode, int bpp)
 {
 	u32 pitch = intel_framebuffer_pitch_for_width(mode->hdisplay, bpp);
-	return ALIGN(pitch * mode->vdisplay, PAGE_SIZE);
+	return PAGE_ALIGN(pitch * mode->vdisplay);
 }
 
 static struct drm_framebuffer *

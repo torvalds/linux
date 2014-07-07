@@ -2356,17 +2356,17 @@ static int i915_display_info(struct seq_file *m, void *unused)
 		bool active;
 		int x, y;
 
-		seq_printf(m, "CRTC %d: pipe: %c, active: %s\n",
+		seq_printf(m, "CRTC %d: pipe: %c, active=%s (size=%dx%d)\n",
 			   crtc->base.base.id, pipe_name(crtc->pipe),
-			   yesno(crtc->active));
+			   yesno(crtc->active), crtc->config.pipe_src_w, crtc->config.pipe_src_h);
 		if (crtc->active) {
 			intel_crtc_info(m, crtc);
 
 			active = cursor_position(dev, crtc->pipe, &x, &y);
-			seq_printf(m, "\tcursor visible? %s, position (%d, %d), addr 0x%08x, active? %s\n",
+			seq_printf(m, "\tcursor visible? %s, position (%d, %d), size %dx%d, addr 0x%08x, active? %s\n",
 				   yesno(crtc->cursor_base),
-				   x, y, crtc->cursor_addr,
-				   yesno(active));
+				   x, y, crtc->cursor_width, crtc->cursor_height,
+				   crtc->cursor_addr, yesno(active));
 		}
 
 		seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s \n",

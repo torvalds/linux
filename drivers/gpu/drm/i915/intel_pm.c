@@ -229,9 +229,20 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc)
 
 	dpfc_ctl = DPFC_CTL_PLANE(intel_crtc->plane);
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
+		dev_priv->fbc.threshold++;
+
+	switch (dev_priv->fbc.threshold) {
+	case 4:
+	case 3:
+		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
+		break;
+	case 2:
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
-	else
+		break;
+	case 1:
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
+		break;
+	}
 	dpfc_ctl |= DPFC_CTL_FENCE_EN;
 	if (IS_GEN5(dev))
 		dpfc_ctl |= obj->fence_reg;
@@ -285,9 +296,21 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 
 	dpfc_ctl = IVB_DPFC_CTL_PLANE(intel_crtc->plane);
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
+		dev_priv->fbc.threshold++;
+
+	switch (dev_priv->fbc.threshold) {
+	case 4:
+	case 3:
+		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
+		break;
+	case 2:
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
-	else
+		break;
+	case 1:
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
+		break;
+	}
+
 	dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
 
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
@@ -567,7 +590,8 @@ void intel_update_fbc(struct drm_device *dev)
 	if (in_dbg_master())
 		goto out_disable;
 
-	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size)) {
+	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size,
+					      drm_format_plane_cpp(fb->pixel_format, 0))) {
 		if (set_no_fbc_reason(dev_priv, FBC_STOLEN_TOO_SMALL))
 			DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
 		goto out_disable;
@@ -3486,15 +3510,23 @@ static void gen8_enable_rps(struct drm_device *dev)
 	for_each_ring(ring, dev_priv, unused)
 		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 	I915_WRITE(GEN6_RC_SLEEP, 0);
-	I915_WRITE(GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
+	if (IS_BROADWELL(dev))
+		I915_WRITE(GEN6_RC6_THRESHOLD, 625); /* 800us/1.28 for TO */
+	else
+		I915_WRITE(GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
 
 	/* 3: Enable RC6 */
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
 	intel_print_rc6_info(dev, rc6_mask);
-	I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
-				    GEN6_RC_CTL_EI_MODE(1) |
-				    rc6_mask);
+	if (IS_BROADWELL(dev))
+		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
+				GEN7_RC_CTL_TO_MODE |
+				rc6_mask);
+	else
+		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
+				GEN6_RC_CTL_EI_MODE(1) |
+				rc6_mask);
 
 	/* 4 Program defaults and thresholds for RPS*/
 	I915_WRITE(GEN6_RPNSWREQ,

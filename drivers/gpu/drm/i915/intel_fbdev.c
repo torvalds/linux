@@ -107,7 +107,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 							  sizes->surface_depth);
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
-	size = ALIGN(size, PAGE_SIZE);
+	size = PAGE_ALIGN(size);
 	obj = i915_gem_object_create_stolen(dev, size);
 	if (obj == NULL)
 		obj = i915_gem_alloc_object(dev, size);
