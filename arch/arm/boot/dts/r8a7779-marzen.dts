@@ -112,17 +112,17 @@
 };
 
 &scif2 {
-       pinctrl-0 = <&scif2_pins>;
-       pinctrl-names = "default";
+	pinctrl-0 = <&scif2_pins>;
+	pinctrl-names = "default";
 
-       status = "okay";
+	status = "okay";
 };
 
 &scif4 {
-       pinctrl-0 = <&scif4_pins>;
-       pinctrl-names = "default";
+	pinctrl-0 = <&scif4_pins>;
+	pinctrl-names = "default";
 
-       status = "okay";
+	status = "okay";
 };
 
 &sdhi0 {
