@@ -107,12 +107,12 @@
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&spi0_txd &spi0_rxd &spi0_clk &spi0_cs0 &spi0_cs1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0_txd &spi0_rxd &spi0_clk &spi0_cs0 &spi0_cs1>;
 		rockchip,spi-src-clk = <0>;
 		num-cs = <2>;
-		//clocks =<&clk_spi0>, <&clk_gates7 12>;
-		//clock-names = "spi","pclk_spi0";
+		clocks =<&clk_spi0>, <&clk_gates7 12>;
+		clock-names = "spi","pclk_spi0";
 		//dmas = <&pdma 8>, <&pdma 9>;
 		//#dma-cells = <2>;
 		//dma-names = "tx", "rx";
@@ -130,8 +130,8 @@
 		reg-io-width = <4>;
 		dmas = <&pdma 2>, <&pdma 3>;
 		#dma-cells = <2>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
 		status = "disabled";
 	};
 
@@ -146,8 +146,8 @@
 		reg-io-width = <4>;
 		dmas = <&pdma 4>, <&pdma 5>;
 		#dma-cells = <2>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&uart1_xfer &uart1_cts &uart1_rts>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart1_xfer>;
 		status = "disabled";
 	};
 
@@ -162,8 +162,8 @@
 		reg-io-width = <4>;
 		dmas = <&pdma 6>, <&pdma 7>;
 		#dma-cells = <2>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&uart2_xfer>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2_xfer>;
 		status = "disabled";
 	};
 
@@ -261,10 +261,10 @@
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		//pinctrl-names = "default", "gpio";
-		//pinctrl-0 = <&i2c0_sda &i2c0_scl>;
-		//pinctrl-1 = <&i2c0_gpio>;
-		//gpios = <&gpio0 GPIO_B7 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_C0 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&i2c0_sda &i2c0_scl>;
+		pinctrl-1 = <&i2c0_gpio>;
+		gpios = <&gpio0 GPIO_B7 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_C0 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates8 4>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
