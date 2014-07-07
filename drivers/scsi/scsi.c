@@ -846,6 +846,10 @@ void scsi_adjust_queue_depth(struct scsi_device *sdev, int tagged, int tags)
 
 	sdev->queue_depth = tags;
 	switch (tagged) {
+		case 0:
+			sdev->ordered_tags = 0;
+			sdev->simple_tags = 0;
+			break;
 		case MSG_ORDERED_TAG:
 			sdev->ordered_tags = 1;
 			sdev->simple_tags = 1;
@@ -855,13 +859,11 @@ void scsi_adjust_queue_depth(struct scsi_device *sdev, int tagged, int tags)
 			sdev->simple_tags = 1;
 			break;
 		default:
+			sdev->ordered_tags = 0;
+			sdev->simple_tags = 0;
 			sdev_printk(KERN_WARNING, sdev,
 				    "scsi_adjust_queue_depth, bad queue type, "
 				    "disabled\n");
-		case 0:
-			sdev->ordered_tags = sdev->simple_tags = 0;
-			sdev->queue_depth = tags;
-			break;
 	}
  out:
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
