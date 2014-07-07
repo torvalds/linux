@@ -373,6 +373,7 @@ fec_enet_txq_submit_frag_skb(struct sk_buff *skb, struct net_device *ndev)
 	skb_frag_t *this_frag;
 	unsigned int index;
 	void *bufaddr;
+	dma_addr_t addr;
 	int i;
 
 	for (frag = 0; frag < nr_frags; frag++) {
@@ -415,15 +416,16 @@ fec_enet_txq_submit_frag_skb(struct sk_buff *skb, struct net_device *ndev)
 				swap_buffer(bufaddr, frag_len);
 		}
 
-		bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, bufaddr,
-						frag_len, DMA_TO_DEVICE);
-		if (dma_mapping_error(&fep->pdev->dev, bdp->cbd_bufaddr)) {
+		addr = dma_map_single(&fep->pdev->dev, bufaddr, frag_len,
+				      DMA_TO_DEVICE);
+		if (dma_mapping_error(&fep->pdev->dev, addr)) {
 			dev_kfree_skb_any(skb);
 			if (net_ratelimit())
 				netdev_err(ndev, "Tx DMA memory map failed\n");
 			goto dma_mapping_error;
 		}
 
+		bdp->cbd_bufaddr = addr;
 		bdp->cbd_datlen = frag_len;
 		bdp->cbd_sc = status;
 	}
@@ -450,6 +452,7 @@ static int fec_enet_txq_submit_skb(struct sk_buff *skb, struct net_device *ndev)
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	struct bufdesc *bdp, *last_bdp;
 	void *bufaddr;
+	dma_addr_t addr;
 	unsigned short status;
 	unsigned short buflen;
 	unsigned int estatus = 0;
@@ -490,12 +493,9 @@ static int fec_enet_txq_submit_skb(struct sk_buff *skb, struct net_device *ndev)
 			swap_buffer(bufaddr, buflen);
 	}
 
-	/* Push the data cache so the CPM does not get stale memory
-	 * data.
-	 */
-	bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, bufaddr,
-					buflen, DMA_TO_DEVICE);
-	if (dma_mapping_error(&fep->pdev->dev, bdp->cbd_bufaddr)) {
+	/* Push the data cache so the CPM does not get stale memory data. */
+	addr = dma_map_single(&fep->pdev->dev, bufaddr, buflen, DMA_TO_DEVICE);
+	if (dma_mapping_error(&fep->pdev->dev, addr)) {
 		dev_kfree_skb_any(skb);
 		if (net_ratelimit())
 			netdev_err(ndev, "Tx DMA memory map failed\n");
@@ -537,6 +537,7 @@ static int fec_enet_txq_submit_skb(struct sk_buff *skb, struct net_device *ndev)
 	fep->tx_skbuff[index] = skb;
 
 	bdp->cbd_datlen = buflen;
+	bdp->cbd_bufaddr = addr;
 
 	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
 	 * it's the last BD of the frame, and to put the CRC on the end.
@@ -570,12 +571,12 @@ fec_enet_txq_put_data_tso(struct sk_buff *skb, struct net_device *ndev,
 	struct bufdesc_ex *ebdp = (struct bufdesc_ex *)bdp;
 	unsigned short status;
 	unsigned int estatus = 0;
+	dma_addr_t addr;
 
 	status = bdp->cbd_sc;
 	status &= ~BD_ENET_TX_STATS;
 
 	status |= (BD_ENET_TX_TC | BD_ENET_TX_READY);
-	bdp->cbd_datlen = size;
 
 	if (((unsigned long) data) & FEC_ALIGNMENT ||
 		id_entry->driver_data & FEC_QUIRK_SWAP_FRAME) {
@@ -586,14 +587,16 @@ fec_enet_txq_put_data_tso(struct sk_buff *skb, struct net_device *ndev,
 			swap_buffer(data, size);
 	}
 
-	bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, data,
-					size, DMA_TO_DEVICE);
-	if (dma_mapping_error(&fep->pdev->dev, bdp->cbd_bufaddr)) {
+	addr = dma_map_single(&fep->pdev->dev, data, size, DMA_TO_DEVICE);
+	if (dma_mapping_error(&fep->pdev->dev, addr)) {
 		dev_kfree_skb_any(skb);
 		if (net_ratelimit())
 			netdev_err(ndev, "Tx DMA memory map failed\n");
 		return NETDEV_TX_BUSY;
 	}
+
+	bdp->cbd_datlen = size;
+	bdp->cbd_bufaddr = addr;
 
 	if (fep->bufdesc_ex) {
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -801,7 +804,7 @@ static void fec_enet_bd_init(struct net_device *dev)
 
 		/* Initialize the BD for every fragment in the page. */
 		bdp->cbd_sc = 0;
-		if (bdp->cbd_bufaddr && fep->tx_skbuff[i]) {
+		if (fep->tx_skbuff[i]) {
 			dev_kfree_skb_any(fep->tx_skbuff[i]);
 			fep->tx_skbuff[i] = NULL;
 		}
@@ -1100,6 +1103,7 @@ fec_enet_tx(struct net_device *ndev)
 		index = fec_enet_get_bd_index(fep->tx_bd_base, bdp, fep);
 
 		skb = fep->tx_skbuff[index];
+		fep->tx_skbuff[index] = NULL;
 		if (!IS_TSO_HEADER(fep, bdp->cbd_bufaddr))
 			dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
 					bdp->cbd_datlen, DMA_TO_DEVICE);
@@ -1154,7 +1158,6 @@ fec_enet_tx(struct net_device *ndev)
 
 		/* Free the sk buffer associated with this last transmit */
 		dev_kfree_skb_any(skb);
-		fep->tx_skbuff[index] = NULL;
 
 		fep->dirty_tx = bdp;
 
