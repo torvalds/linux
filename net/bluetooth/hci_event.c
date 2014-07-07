@@ -4228,18 +4228,18 @@ static void hci_le_conn_update_complete_evt(struct hci_dev *hdev,
 }
 
 /* This function requires the caller holds hdev->lock */
-static bool check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
+static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 				  u8 addr_type, u8 adv_type)
 {
 	struct hci_conn *conn;
 
 	/* If the event is not connectable don't proceed further */
 	if (adv_type != LE_ADV_IND && adv_type != LE_ADV_DIRECT_IND)
-		return false;
+		return;
 
 	/* Ignore if the device is blocked */
 	if (hci_blacklist_lookup(hdev, addr, addr_type))
-		return false;
+		return;
 
 	/* If we're connectable, always connect any ADV_DIRECT_IND event */
 	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
@@ -4250,13 +4250,13 @@ static bool check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	 * our pend_le_conns list.
 	 */
 	if (!hci_pend_le_action_lookup(&hdev->pend_le_conns, addr, addr_type))
-		return false;
+		return;
 
 connect:
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
 			      HCI_AT_NO_BONDING, HCI_LE_AUTOCONN_TIMEOUT);
 	if (!IS_ERR(conn))
-		return true;
+		return;
 
 	switch (PTR_ERR(conn)) {
 	case -EBUSY:
@@ -4269,8 +4269,6 @@ connect:
 	default:
 		BT_DBG("Failed to connect: err %ld", PTR_ERR(conn));
 	}
-
-	return true;
 }
 
 static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
