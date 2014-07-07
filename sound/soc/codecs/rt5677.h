@@ -1393,13 +1393,6 @@
 #define RT5677_DSP_IB_9_L			(0x1 << 1)
 #define RT5677_DSP_IB_9_L_SFT			1
 
-/* Debug String Length */
-#define RT5677_REG_DISP_LEN 23
-
-#define RT5677_NO_JACK		BIT(0)
-#define RT5677_HEADSET_DET	BIT(1)
-#define RT5677_HEADPHO_DET	BIT(2)
-
 /* System Clock Source */
 enum {
 	RT5677_SCLK_S_MCLK,
