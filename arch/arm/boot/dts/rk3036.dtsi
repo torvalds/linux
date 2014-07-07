@@ -2,6 +2,7 @@
 
 #include "skeleton.dtsi"
 #include "rk3036-clocks.dtsi"
+#include "rk3036-pinctrl.dtsi"
 
 / {
 	compatible = "rockchip,rk3036";
@@ -405,9 +406,9 @@
 		reg = <0x20034000 0x4000>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,hdmi_lcdc_source = <0>;
-		//pinctrl-names = "default", "gpio";
-		//pinctrl-0 = <&i2c5_sda &i2c5_scl>;
-		//pinctrl-1 = <&i2c5_gpio>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&hdmi_cec &hdmi_sda &hdmi_scl &hdmi_hpd>;
+		pinctrl-1 = <&hdmi_gpio>;
 		clocks = <&clk_gates3 8>;
 		clock-names = "pclk_hdmi";	
 		status = "disabled";

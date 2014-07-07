@@ -252,6 +252,40 @@
 
 		};
 
+		gpio1_hdmi {
+			hdmi_cec:hdmi-cec {
+				rockchip,pins = <HDMI_CEC>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+			};
+
+			hdmi_sda:hdmi-sda {
+				rockchip,pins = <HDMI_SDA>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+			};
+
+			hdmi_scl:hdmi-scl {
+				rockchip,pins = <HDMI_SCL>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+			};
+
+			hdmi_hpd:hdmi-hpd {
+				rockchip,pins = <HDMI_HPD>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_8MA>;
+			};
+
+			hdmi_gpio: hdmi-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(HDMI_CEC)>, <FUNC_TO_GPIO(HDMI_SDA)>, <FUNC_TO_GPIO(HDMI_SCL)>, <FUNC_TO_GPIO(HDMI_HPD)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+		};
 
 		gpio1_i2s0 {
 
