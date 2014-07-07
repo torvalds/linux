@@ -35,7 +35,7 @@ static inline int __mutex_init(liblockdep_pthread_mutex_t *lock,
 
 static inline int liblockdep_pthread_mutex_lock(liblockdep_pthread_mutex_t *lock)
 {
-	lock_acquire(&lock->dep_map, 0, 0, 0, 2, NULL, (unsigned long)_RET_IP_);
+	lock_acquire(&lock->dep_map, 0, 0, 0, 1, NULL, (unsigned long)_RET_IP_);
 	return pthread_mutex_lock(&lock->mutex);
 }
 
@@ -47,7 +47,7 @@ static inline int liblockdep_pthread_mutex_unlock(liblockdep_pthread_mutex_t *lo
 
 static inline int liblockdep_pthread_mutex_trylock(liblockdep_pthread_mutex_t *lock)
 {
-	lock_acquire(&lock->dep_map, 0, 1, 0, 2, NULL, (unsigned long)_RET_IP_);
+	lock_acquire(&lock->dep_map, 0, 1, 0, 1, NULL, (unsigned long)_RET_IP_);
 	return pthread_mutex_trylock(&lock->mutex) == 0 ? 1 : 0;
 }
 
