@@ -838,10 +838,10 @@ static int tda10071_get_frontend(struct dvb_frontend *fe)
 
 	switch ((buf[1] >> 0) & 0x01) {
 	case 0:
-		c->inversion = INVERSION_OFF;
+		c->inversion = INVERSION_ON;
 		break;
 	case 1:
-		c->inversion = INVERSION_ON;
+		c->inversion = INVERSION_OFF;
 		break;
 	}
 
