@@ -158,14 +158,11 @@
         //pinctrl-0 = <&uart0_xfer &uart0_cts>;
 };
 
-&i2c0 {
-	status = "okay";
-};
-
 &i2c1 {
 	status = "okay";
-};
-
-&i2c2 {
-	status = "okay";
+        rtc@51 {
+                compatible = "rtc,hym8563";
+                reg = <0x51>;
+                //irq_gpio = <&gpio0 GPIO_A4 IRQ_TYPE_EDGE_FALLING>;
+        };
 };

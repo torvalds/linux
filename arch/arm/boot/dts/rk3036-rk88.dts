@@ -157,15 +157,3 @@
         dma-names = "!tx", "!rx";
         //pinctrl-0 = <&uart0_xfer &uart0_cts>;
 };
-
-&i2c0 {
-	status = "okay";
-};
-
-&i2c1 {
-	status = "okay";
-};
-
-&i2c2 {
-	status = "okay";
-};
