@@ -952,14 +952,6 @@ static int rt286_probe(struct snd_soc_codec *codec)
 	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 
-	ret = snd_soc_read(codec,
-		RT286_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID));
-	if (ret != RT286_VENDOR_ID) {
-		dev_err(codec->dev,
-			"Device with ID register %x is not rt286\n", ret);
-		return -ENODEV;
-	}
-
 	snd_soc_write(codec, RT286_SET_AUDIO_POWER, AC_PWRST_D3);
 
 	for (i = 0; i < RT286_POWER_REG_LEN; i++)
@@ -1162,6 +1154,14 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
 		return ret;
+	}
+
+	regmap_read(rt286->regmap,
+		RT286_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID), &ret);
+	if (ret != RT286_VENDOR_ID) {
+		dev_err(&i2c->dev,
+			"Device with ID register %x is not rt286\n", ret);
+		return -ENODEV;
 	}
 
 	rt286->index_cache = rt286_index_def;
