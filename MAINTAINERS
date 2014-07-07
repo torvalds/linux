@@ -1314,6 +1314,20 @@ W:	http://oss.renesas.com
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas.git next
 S:	Supported
+F:	arch/arm/boot/dts/emev2*
+F:	arch/arm/boot/dts/r7s*
+F:	arch/arm/boot/dts/r8a*
+F:	arch/arm/boot/dts/sh*
+F:	arch/arm/configs/ape6evm_defconfig
+F:	arch/arm/configs/armadillo800eva_defconfig
+F:	arch/arm/configs/bockw_defconfig
+F:	arch/arm/configs/genmai_defconfig
+F:	arch/arm/configs/koelsch_defconfig
+F:	arch/arm/configs/kzm9g_defconfig
+F:	arch/arm/configs/lager_defconfig
+F:	arch/arm/configs/mackerel_defconfig
+F:	arch/arm/configs/marzen_defconfig
+F:	arch/arm/configs/shmobile_defconfig
 F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
 
