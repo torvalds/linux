@@ -895,9 +895,9 @@ static int write_index(struct ubifs_info *c)
 		 * the reason for the second barrier.
 		 */
 		clear_bit(DIRTY_ZNODE, &znode->flags);
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		clear_bit(COW_ZNODE, &znode->flags);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 
 		/*
 		 * We have marked the znode as clean but have not updated the

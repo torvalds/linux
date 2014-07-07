@@ -48,7 +48,6 @@
 
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
-#include <mach/gpio.h>
 
 #include "../codecs/wm8731.h"
 #include "atmel-pcm.h"

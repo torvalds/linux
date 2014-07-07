@@ -62,6 +62,7 @@ static const struct iwl_base_params iwl1000_base_params = {
 	.led_compensation = 51,
 	.wd_timeout = IWL_WATCHDOG_DISABLED,
 	.max_event_log_size = 128,
+	.scd_chain_ext_wa = true,
 };
 
 static const struct iwl_ht_params iwl1000_ht_params = {

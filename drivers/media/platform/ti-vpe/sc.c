@@ -302,9 +302,9 @@ struct sc_data *sc_create(struct platform_device *pdev)
 	}
 
 	sc->base = devm_ioremap_resource(&pdev->dev, sc->res);
-	if (!sc->base) {
+	if (IS_ERR(sc->base)) {
 		dev_err(&pdev->dev, "failed to ioremap\n");
-		return ERR_PTR(-ENOMEM);
+		return sc->base;
 	}
 
 	return sc;

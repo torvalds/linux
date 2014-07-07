@@ -80,7 +80,7 @@ static bool spr_allowed(struct kvm_vcpu *vcpu, enum priv_level level)
 		return false;
 
 	/* Limit user space to its own small SPR set */
-	if ((vcpu->arch.shared->msr & MSR_PR) && level > PRIV_PROBLEM)
+	if ((kvmppc_get_msr(vcpu) & MSR_PR) && level > PRIV_PROBLEM)
 		return false;
 
 	return true;
@@ -94,14 +94,31 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int rs = get_rs(inst);
 	int ra = get_ra(inst);
 	int rb = get_rb(inst);
+	u32 inst_sc = 0x44000002;
 
 	switch (get_op(inst)) {
+	case 0:
+		emulated = EMULATE_FAIL;
+		if ((kvmppc_get_msr(vcpu) & MSR_LE) &&
+		    (inst == swab32(inst_sc))) {
+			/*
+			 * This is the byte reversed syscall instruction of our
+			 * hypercall handler. Early versions of LE Linux didn't
+			 * swap the instructions correctly and ended up in
+			 * illegal instructions.
+			 * Just always fail hypercalls on these broken systems.
+			 */
+			kvmppc_set_gpr(vcpu, 3, EV_UNIMPLEMENTED);
+			kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
+			emulated = EMULATE_DONE;
+		}
+		break;
 	case 19:
 		switch (get_xop(inst)) {
 		case OP_19_XOP_RFID:
 		case OP_19_XOP_RFI:
-			kvmppc_set_pc(vcpu, vcpu->arch.shared->srr0);
-			kvmppc_set_msr(vcpu, vcpu->arch.shared->srr1);
+			kvmppc_set_pc(vcpu, kvmppc_get_srr0(vcpu));
+			kvmppc_set_msr(vcpu, kvmppc_get_srr1(vcpu));
 			*advance = 0;
 			break;
 
@@ -113,16 +130,16 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case 31:
 		switch (get_xop(inst)) {
 		case OP_31_XOP_MFMSR:
-			kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->msr);
+			kvmppc_set_gpr(vcpu, rt, kvmppc_get_msr(vcpu));
 			break;
 		case OP_31_XOP_MTMSRD:
 		{
 			ulong rs_val = kvmppc_get_gpr(vcpu, rs);
 			if (inst & 0x10000) {
-				ulong new_msr = vcpu->arch.shared->msr;
+				ulong new_msr = kvmppc_get_msr(vcpu);
 				new_msr &= ~(MSR_RI | MSR_EE);
 				new_msr |= rs_val & (MSR_RI | MSR_EE);
-				vcpu->arch.shared->msr = new_msr;
+				kvmppc_set_msr_fast(vcpu, new_msr);
 			} else
 				kvmppc_set_msr(vcpu, rs_val);
 			break;
@@ -179,7 +196,7 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			ulong cmd = kvmppc_get_gpr(vcpu, 3);
 			int i;
 
-		        if ((vcpu->arch.shared->msr & MSR_PR) ||
+		        if ((kvmppc_get_msr(vcpu) & MSR_PR) ||
 			    !vcpu->arch.papr_enabled) {
 				emulated = EMULATE_FAIL;
 				break;
@@ -261,14 +278,14 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				ra_val = kvmppc_get_gpr(vcpu, ra);
 
 			addr = (ra_val + rb_val) & ~31ULL;
-			if (!(vcpu->arch.shared->msr & MSR_SF))
+			if (!(kvmppc_get_msr(vcpu) & MSR_SF))
 				addr &= 0xffffffff;
 			vaddr = addr;
 
 			r = kvmppc_st(vcpu, &addr, 32, zeros, true);
 			if ((r == -ENOENT) || (r == -EPERM)) {
 				*advance = 0;
-				vcpu->arch.shared->dar = vaddr;
+				kvmppc_set_dar(vcpu, vaddr);
 				vcpu->arch.fault_dar = vaddr;
 
 				dsisr = DSISR_ISSTORE;
@@ -277,7 +294,7 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				else if (r == -EPERM)
 					dsisr |= DSISR_PROTFAULT;
 
-				vcpu->arch.shared->dsisr = dsisr;
+				kvmppc_set_dsisr(vcpu, dsisr);
 				vcpu->arch.fault_dsisr = dsisr;
 
 				kvmppc_book3s_queue_irqprio(vcpu,
@@ -356,10 +373,10 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		to_book3s(vcpu)->sdr1 = spr_val;
 		break;
 	case SPRN_DSISR:
-		vcpu->arch.shared->dsisr = spr_val;
+		kvmppc_set_dsisr(vcpu, spr_val);
 		break;
 	case SPRN_DAR:
-		vcpu->arch.shared->dar = spr_val;
+		kvmppc_set_dar(vcpu, spr_val);
 		break;
 	case SPRN_HIOR:
 		to_book3s(vcpu)->hior = spr_val;
@@ -438,6 +455,31 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_GQR7:
 		to_book3s(vcpu)->gqr[sprn - SPRN_GQR0] = spr_val;
 		break;
+	case SPRN_FSCR:
+		vcpu->arch.fscr = spr_val;
+		break;
+#ifdef CONFIG_PPC_BOOK3S_64
+	case SPRN_BESCR:
+		vcpu->arch.bescr = spr_val;
+		break;
+	case SPRN_EBBHR:
+		vcpu->arch.ebbhr = spr_val;
+		break;
+	case SPRN_EBBRR:
+		vcpu->arch.ebbrr = spr_val;
+		break;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	case SPRN_TFHAR:
+		vcpu->arch.tfhar = spr_val;
+		break;
+	case SPRN_TEXASR:
+		vcpu->arch.texasr = spr_val;
+		break;
+	case SPRN_TFIAR:
+		vcpu->arch.tfiar = spr_val;
+		break;
+#endif
+#endif
 	case SPRN_ICTC:
 	case SPRN_THRM1:
 	case SPRN_THRM2:
@@ -455,6 +497,13 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_WPAR_GEKKO:
 	case SPRN_MSSSR0:
 	case SPRN_DABR:
+#ifdef CONFIG_PPC_BOOK3S_64
+	case SPRN_MMCRS:
+	case SPRN_MMCRA:
+	case SPRN_MMCR0:
+	case SPRN_MMCR1:
+	case SPRN_MMCR2:
+#endif
 		break;
 unprivileged:
 	default:
@@ -493,10 +542,10 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 		*spr_val = to_book3s(vcpu)->sdr1;
 		break;
 	case SPRN_DSISR:
-		*spr_val = vcpu->arch.shared->dsisr;
+		*spr_val = kvmppc_get_dsisr(vcpu);
 		break;
 	case SPRN_DAR:
-		*spr_val = vcpu->arch.shared->dar;
+		*spr_val = kvmppc_get_dar(vcpu);
 		break;
 	case SPRN_HIOR:
 		*spr_val = to_book3s(vcpu)->hior;
@@ -538,6 +587,31 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 	case SPRN_GQR7:
 		*spr_val = to_book3s(vcpu)->gqr[sprn - SPRN_GQR0];
 		break;
+	case SPRN_FSCR:
+		*spr_val = vcpu->arch.fscr;
+		break;
+#ifdef CONFIG_PPC_BOOK3S_64
+	case SPRN_BESCR:
+		*spr_val = vcpu->arch.bescr;
+		break;
+	case SPRN_EBBHR:
+		*spr_val = vcpu->arch.ebbhr;
+		break;
+	case SPRN_EBBRR:
+		*spr_val = vcpu->arch.ebbrr;
+		break;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	case SPRN_TFHAR:
+		*spr_val = vcpu->arch.tfhar;
+		break;
+	case SPRN_TEXASR:
+		*spr_val = vcpu->arch.texasr;
+		break;
+	case SPRN_TFIAR:
+		*spr_val = vcpu->arch.tfiar;
+		break;
+#endif
+#endif
 	case SPRN_THRM1:
 	case SPRN_THRM2:
 	case SPRN_THRM3:
@@ -553,6 +627,14 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 	case SPRN_WPAR_GEKKO:
 	case SPRN_MSSSR0:
 	case SPRN_DABR:
+#ifdef CONFIG_PPC_BOOK3S_64
+	case SPRN_MMCRS:
+	case SPRN_MMCRA:
+	case SPRN_MMCR0:
+	case SPRN_MMCR1:
+	case SPRN_MMCR2:
+	case SPRN_TIR:
+#endif
 		*spr_val = 0;
 		break;
 	default:
@@ -569,48 +651,17 @@ unprivileged:
 
 u32 kvmppc_alignment_dsisr(struct kvm_vcpu *vcpu, unsigned int inst)
 {
-	u32 dsisr = 0;
-
-	/*
-	 * This is what the spec says about DSISR bits (not mentioned = 0):
-	 *
-	 * 12:13		[DS]	Set to bits 30:31
-	 * 15:16		[X]	Set to bits 29:30
-	 * 17			[X]	Set to bit 25
-	 *			[D/DS]	Set to bit 5
-	 * 18:21		[X]	Set to bits 21:24
-	 *			[D/DS]	Set to bits 1:4
-	 * 22:26			Set to bits 6:10 (RT/RS/FRT/FRS)
-	 * 27:31			Set to bits 11:15 (RA)
-	 */
-
-	switch (get_op(inst)) {
-	/* D-form */
-	case OP_LFS:
-	case OP_LFD:
-	case OP_STFD:
-	case OP_STFS:
-		dsisr |= (inst >> 12) & 0x4000;	/* bit 17 */
-		dsisr |= (inst >> 17) & 0x3c00; /* bits 18:21 */
-		break;
-	/* X-form */
-	case 31:
-		dsisr |= (inst << 14) & 0x18000; /* bits 15:16 */
-		dsisr |= (inst << 8)  & 0x04000; /* bit 17 */
-		dsisr |= (inst << 3)  & 0x03c00; /* bits 18:21 */
-		break;
-	default:
-		printk(KERN_INFO "KVM: Unaligned instruction 0x%x\n", inst);
-		break;
-	}
-
-	dsisr |= (inst >> 16) & 0x03ff; /* bits 22:31 */
-
-	return dsisr;
+	return make_dsisr(inst);
 }
 
 ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst)
 {
+#ifdef CONFIG_PPC_BOOK3S_64
+	/*
+	 * Linux's fix_alignment() assumes that DAR is valid, so can we
+	 */
+	return vcpu->arch.fault_dar;
+#else
 	ulong dar = 0;
 	ulong ra = get_ra(inst);
 	ulong rb = get_rb(inst);
@@ -635,4 +686,5 @@ ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst)
 	}
 
 	return dar;
+#endif
 }

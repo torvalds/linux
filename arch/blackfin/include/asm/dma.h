@@ -316,6 +316,8 @@ static inline void disable_dma(unsigned int channel)
 }
 static inline void enable_dma(unsigned int channel)
 {
+	dma_ch[channel].regs->curr_x_count = 0;
+	dma_ch[channel].regs->curr_y_count = 0;
 	dma_ch[channel].regs->cfg |= DMAEN;
 }
 int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data);

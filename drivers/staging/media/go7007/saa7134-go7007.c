@@ -434,11 +434,15 @@ static const struct v4l2_subdev_core_ops saa7134_go7007_core_ops = {
 	.g_ctrl = saa7134_go7007_g_ctrl,
 	.s_ctrl = saa7134_go7007_s_ctrl,
 	.queryctrl = saa7134_go7007_queryctrl,
+};
+
+static const struct v4l2_subdev_video_ops saa7134_go7007_video_ops = {
 	.s_std = saa7134_go7007_s_std,
 };
 
 static const struct v4l2_subdev_ops saa7134_go7007_sd_ops = {
 	.core = &saa7134_go7007_core_ops,
+	.video = &saa7134_go7007_video_ops,
 };
 
 /* --------------------------------------------------------------------------*/

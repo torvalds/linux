@@ -25,8 +25,6 @@ struct rspi_plat_data {
 	unsigned int dma_tx_id;
 	unsigned int dma_rx_id;
 
-	unsigned dma_width_16bit:1;	/* DMAC read/write width = 16-bit */
-
 	u16 num_chipselect;
 };
 

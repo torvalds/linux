@@ -220,6 +220,7 @@ clocks and IDs.
 	lvds2_sel		205
 	lvds1_gate		206
 	lvds2_gate		207
+	esai_ahb		208
 
 Examples:
 

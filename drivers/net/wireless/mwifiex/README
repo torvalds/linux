@@ -200,4 +200,11 @@ getlog
 
 	cat getlog
 
+fw_dump
+	This command is used to dump firmware memory into files.
+	Separate file will be created for each memory segment.
+	Usage:
+
+	cat fw_dump
+
 ===============================================================================

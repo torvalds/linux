@@ -213,7 +213,7 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	       sizeof(current->thread.fp_regs));
 
 	restore_fp_regs(current->thread.fp_regs.fprs);
-	clear_thread_flag(TIF_SYSCALL);	/* No longer in a system call */
+	clear_pt_regs_flag(regs, PIF_SYSCALL); /* No longer in a system call */
 	return 0;
 }
 

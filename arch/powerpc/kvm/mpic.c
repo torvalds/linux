@@ -126,6 +126,8 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 				      u32 val, int idx);
 static int openpic_cpu_read_internal(void *opaque, gpa_t addr,
 				     u32 *ptr, int idx);
+static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
+				    uint32_t val);
 
 enum irq_type {
 	IRQ_TYPE_NORMAL = 0,
@@ -528,7 +530,6 @@ static void openpic_reset(struct openpic *opp)
 	/* Initialise IRQ sources */
 	for (i = 0; i < opp->max_irq; i++) {
 		opp->src[i].ivpr = opp->ivpr_reset;
-		opp->src[i].idr = opp->idr_reset;
 
 		switch (opp->src[i].type) {
 		case IRQ_TYPE_NORMAL:
@@ -543,6 +544,8 @@ static void openpic_reset(struct openpic *opp)
 		case IRQ_TYPE_FSLSPECIAL:
 			break;
 		}
+
+		write_IRQreg_idr(opp, i, opp->idr_reset);
 	}
 	/* Initialise IRQ destinations */
 	for (i = 0; i < MAX_CPU; i++) {

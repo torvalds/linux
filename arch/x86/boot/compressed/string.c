@@ -1,8 +1,4 @@
-#include "misc.h"
 #include "../string.c"
-
-/* misc.h might pull in string_32.h which has a macro for memcpy. undef that */
-#undef memcpy
 
 #ifdef CONFIG_X86_32
 void *memcpy(void *dest, const void *src, size_t n)

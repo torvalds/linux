@@ -42,8 +42,8 @@
  * DAMAGE.
  */
 
-#ifndef CAN_H
-#define CAN_H
+#ifndef _UAPI_CAN_H
+#define _UAPI_CAN_H
 
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -191,4 +191,4 @@ struct can_filter {
 
 #define CAN_INV_FILTER 0x20000000U /* to be set in can_filter.can_id */
 
-#endif /* CAN_H */
+#endif /* !_UAPI_CAN_H */

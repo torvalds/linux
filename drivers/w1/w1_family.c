@@ -139,9 +139,9 @@ void w1_family_get(struct w1_family *f)
 
 void __w1_family_get(struct w1_family *f)
 {
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_inc(&f->refcnt);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 }
 
 EXPORT_SYMBOL(w1_unregister_family);

@@ -123,7 +123,7 @@ extern void flush_dcache_page(struct page *);
 static inline void __flush_icache_all(void)
 {
 	asm("ic	ialluis");
-	dsb();
+	dsb(ish);
 }
 
 #define flush_dcache_mmap_lock(mapping) \
@@ -150,7 +150,7 @@ static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 	 * set_pte_at() called from vmap_pte_range() does not
 	 * have a DSB after cleaning the cache line.
 	 */
-	dsb();
+	dsb(ish);
 }
 
 static inline void flush_cache_vunmap(unsigned long start, unsigned long end)

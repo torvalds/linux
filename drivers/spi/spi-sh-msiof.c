@@ -642,10 +642,8 @@ static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 	u32 num_cs = 1;
 
 	info = devm_kzalloc(dev, sizeof(struct sh_msiof_spi_info), GFP_KERNEL);
-	if (!info) {
-		dev_err(dev, "failed to allocate setup data\n");
+	if (!info)
 		return NULL;
-	}
 
 	/* Parse the MSIOF properties */
 	of_property_read_u32(np, "num-cs", &num_cs);

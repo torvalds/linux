@@ -322,9 +322,7 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 		return -EBUSY;
 	}
 	cmd->transceiver = XCVR_INTERNAL;
-	spin_lock_irq(&priv->lock);
 	rc = phy_ethtool_gset(phy, cmd);
-	spin_unlock_irq(&priv->lock);
 	return rc;
 }
 
@@ -431,8 +429,6 @@ stmmac_get_pauseparam(struct net_device *netdev,
 	if (priv->pcs)	/* FIXME */
 		return;
 
-	spin_lock(&priv->lock);
-
 	pause->rx_pause = 0;
 	pause->tx_pause = 0;
 	pause->autoneg = priv->phydev->autoneg;
@@ -442,7 +438,6 @@ stmmac_get_pauseparam(struct net_device *netdev,
 	if (priv->flow_ctrl & FLOW_TX)
 		pause->tx_pause = 1;
 
-	spin_unlock(&priv->lock);
 }
 
 static int
@@ -456,8 +451,6 @@ stmmac_set_pauseparam(struct net_device *netdev,
 
 	if (priv->pcs)	/* FIXME */
 		return -EOPNOTSUPP;
-
-	spin_lock(&priv->lock);
 
 	if (pause->rx_pause)
 		new_pause |= FLOW_RX;
@@ -473,7 +466,6 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	} else
 		priv->hw->mac->flow_ctrl(priv->ioaddr, phy->duplex,
 					 priv->flow_ctrl, priv->pause);
-	spin_unlock(&priv->lock);
 	return ret;
 }
 
@@ -784,5 +776,5 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 
 void stmmac_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &stmmac_ethtool_ops);
+	netdev->ethtool_ops = &stmmac_ethtool_ops;
 }

@@ -134,6 +134,8 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_EPR_EXIT          20
 #define KVM_REQ_SCAN_IOAPIC       21
 #define KVM_REQ_GLOBAL_CLOCK_UPDATE 22
+#define KVM_REQ_ENABLE_IBS        23
+#define KVM_REQ_DISABLE_IBS       24
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
@@ -163,6 +165,7 @@ enum kvm_bus {
 	KVM_MMIO_BUS,
 	KVM_PIO_BUS,
 	KVM_VIRTIO_CCW_NOTIFY_BUS,
+	KVM_FAST_MMIO_BUS,
 	KVM_NR_BUSES
 };
 
@@ -367,6 +370,7 @@ struct kvm {
 	struct mm_struct *mm; /* userspace tied to this vm */
 	struct kvm_memslots *memslots;
 	struct srcu_struct srcu;
+	struct srcu_struct irq_srcu;
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
 	u32 bsp_vcpu_id;
 #endif
@@ -410,9 +414,7 @@ struct kvm {
 	unsigned long mmu_notifier_seq;
 	long mmu_notifier_count;
 #endif
-	/* Protected by mmu_lock */
-	bool tlbs_dirty;
-
+	long tlbs_dirty;
 	struct list_head devices;
 };
 
@@ -584,7 +586,7 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
 
 void kvm_vcpu_block(struct kvm_vcpu *vcpu);
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
-bool kvm_vcpu_yield_to(struct kvm_vcpu *target);
+int kvm_vcpu_yield_to(struct kvm_vcpu *target);
 void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu);
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
@@ -877,6 +879,13 @@ static inline gfn_t gpa_to_gfn(gpa_t gpa)
 static inline hpa_t pfn_to_hpa(pfn_t pfn)
 {
 	return (hpa_t)pfn << PAGE_SHIFT;
+}
+
+static inline bool kvm_is_error_gpa(struct kvm *kvm, gpa_t gpa)
+{
+	unsigned long hva = gfn_to_hva(kvm, gpa_to_gfn(gpa));
+
+	return kvm_is_error_hva(hva);
 }
 
 static inline void kvm_migrate_timers(struct kvm_vcpu *vcpu)

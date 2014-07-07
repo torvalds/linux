@@ -240,8 +240,8 @@ static ssize_t demote_rq_store(struct gfs2_sbd *sdp, const char *buf, size_t len
 
 	if (gltype > LM_TYPE_JOURNAL)
 		return -EINVAL;
-	if (gltype == LM_TYPE_NONDISK && glnum == GFS2_TRANS_LOCK)
-		glops = &gfs2_trans_glops;
+	if (gltype == LM_TYPE_NONDISK && glnum == GFS2_FREEZE_LOCK)
+		glops = &gfs2_freeze_glops;
 	else
 		glops = gfs2_glops_list[gltype];
 	if (glops == NULL)
@@ -333,7 +333,7 @@ static ssize_t block_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 		set_bit(DFL_BLOCK_LOCKS, &ls->ls_recover_flags);
 	else if (val == 0) {
 		clear_bit(DFL_BLOCK_LOCKS, &ls->ls_recover_flags);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 		gfs2_glock_thaw(sdp);
 	} else {
 		ret = -EINVAL;
@@ -406,6 +406,9 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 {
 	struct gfs2_jdesc *jd;
 	int rv;
+
+	/* Wait for our primary journal to be initialized */
+	wait_for_completion(&sdp->sd_journal_ready);
 
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EBUSY;
@@ -482,7 +485,7 @@ static ssize_t jid_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 		rv = jid = -EINVAL;
 	sdp->sd_lockstruct.ls_jid = jid;
 	clear_bit(SDF_NOJOURNALID, &sdp->sd_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&sdp->sd_flags, SDF_NOJOURNALID);
 out:
 	spin_unlock(&sdp->sd_jindex_spin);

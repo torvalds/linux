@@ -23,33 +23,6 @@
 #include "../extent_io.h"
 #include "../volumes.h"
 
-static struct btrfs_fs_info *alloc_dummy_fs_info(void)
-{
-	struct btrfs_fs_info *fs_info = kzalloc(sizeof(struct btrfs_fs_info),
-						GFP_NOFS);
-	if (!fs_info)
-		return fs_info;
-	fs_info->fs_devices = kzalloc(sizeof(struct btrfs_fs_devices),
-				      GFP_NOFS);
-	if (!fs_info->fs_devices) {
-		kfree(fs_info);
-		return NULL;
-	}
-	return fs_info;
-}
-static void free_dummy_root(struct btrfs_root *root)
-{
-	if (!root)
-		return;
-	if (root->fs_info) {
-		kfree(root->fs_info->fs_devices);
-		kfree(root->fs_info);
-	}
-	if (root->node)
-		free_extent_buffer(root->node);
-	kfree(root);
-}
-
 static void insert_extent(struct btrfs_root *root, u64 start, u64 len,
 			  u64 ram_bytes, u64 offset, u64 disk_bytenr,
 			  u64 disk_len, u32 type, u8 compression, int slot)
@@ -276,7 +249,7 @@ static noinline int test_btrfs_get_extent(void)
 	 * We do this since btrfs_get_extent wants to assign em->bdev to
 	 * root->fs_info->fs_devices->latest_bdev.
 	 */
-	root->fs_info = alloc_dummy_fs_info();
+	root->fs_info = btrfs_alloc_dummy_fs_info();
 	if (!root->fs_info) {
 		test_msg("Couldn't allocate dummy fs info\n");
 		goto out;
@@ -837,7 +810,7 @@ out:
 	if (!IS_ERR(em))
 		free_extent_map(em);
 	iput(inode);
-	free_dummy_root(root);
+	btrfs_free_dummy_root(root);
 	return ret;
 }
 
@@ -864,7 +837,7 @@ static int test_hole_first(void)
 		goto out;
 	}
 
-	root->fs_info = alloc_dummy_fs_info();
+	root->fs_info = btrfs_alloc_dummy_fs_info();
 	if (!root->fs_info) {
 		test_msg("Couldn't allocate dummy fs info\n");
 		goto out;
@@ -934,7 +907,7 @@ out:
 	if (!IS_ERR(em))
 		free_extent_map(em);
 	iput(inode);
-	free_dummy_root(root);
+	btrfs_free_dummy_root(root);
 	return ret;
 }
 

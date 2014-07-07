@@ -41,7 +41,7 @@ MODULE_AUTHOR("Anna Lukin, annal@silicom.co.il");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(BP_MOD_DESCR);
 MODULE_VERSION(BP_MOD_VER);
-spinlock_t bpvm_lock;
+static spinlock_t bpvm_lock;
 
 #define unlock_bpctl()					\
 	up(&bpctl_sema);
@@ -119,7 +119,6 @@ static void if_scan_init(void);
 
 static int bypass_proc_create_dev_sd(struct bpctl_dev *pbp_device_block);
 static int bypass_proc_remove_dev_sd(struct bpctl_dev *pbp_device_block);
-static int bp_proc_create(void);
 
 static int is_bypass_fn(struct bpctl_dev *pbpctl_dev);
 static int get_dev_idx_bsf(int bus, int slot, int func);
@@ -220,8 +219,12 @@ static int bp_device_event(struct notifier_block *unused,
 			if (netif_carrier_ok(dev))
 				return NOTIFY_DONE;
 
-			if (((dev_num = get_dev_idx(dev->ifindex)) == -1) ||
-			    (!(pbpctl_dev = &bpctl_dev_arr[dev_num])))
+			dev_num = get_dev_idx(dev->ifindex);
+			if (dev_num == -1)
+				return NOTIFY_DONE;
+
+			pbpctl_dev = &bpctl_dev_arr[dev_num];
+			if (!pbpctl_dev)
 				return NOTIFY_DONE;
 
 			if ((is_bypass_fn(pbpctl_dev)) == 1)
@@ -749,6 +752,7 @@ static void write_reg(struct bpctl_dev *pbpctl_dev, unsigned char value,
 	uint32_t ctrl_ext = 0, ctrl = 0;
 	struct bpctl_dev *pbpctl_dev_c = NULL;
 	unsigned long flags;
+
 	if (pbpctl_dev->bp_10g9) {
 		pbpctl_dev_c = get_status_port_fn(pbpctl_dev);
 		if (!pbpctl_dev_c)
@@ -924,6 +928,7 @@ static int read_reg(struct bpctl_dev *pbpctl_dev, unsigned char addr)
 
 #ifdef BP_SYNC_FLAG
 	unsigned long flags;
+
 	spin_lock_irqsave(&pbpctl_dev->bypass_wr_lock, flags);
 #else
 	atomic_set(&pbpctl_dev->wdt_busy, 1);
@@ -1559,7 +1564,8 @@ int pulse_set_fn(struct bpctl_dev *pbpctl_dev, unsigned int counter)
 
 int zero_set_fn(struct bpctl_dev *pbpctl_dev)
 {
-	uint32_t ctrl_ext = 0, ctrl_value = 0;
+	uint32_t ctrl_ext = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -1579,12 +1585,13 @@ int zero_set_fn(struct bpctl_dev *pbpctl_dev)
 							   BPCTLI_CTRL_EXT_MDIO_DATA)));
 
 	}
-	return ctrl_value;
+	return 0;
 }
 
 int pulse_get2_fn(struct bpctl_dev *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0, ctrl_value = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -1600,6 +1607,7 @@ int pulse_get2_fn(struct bpctl_dev *pbpctl_dev)
 int pulse_get1_fn(struct bpctl_dev *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0, ctrl_value = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -1663,6 +1671,7 @@ static struct bpctl_dev *lookup_port(struct bpctl_dev *dev)
 {
 	struct bpctl_dev *p;
 	int n;
+
 	for (n = 0, p = bpctl_dev_arr; n < device_num && p->pdev; n++) {
 		if (p->bus == dev->bus
 		    && p->slot == dev->slot
@@ -1840,6 +1849,7 @@ static int bypass_off(struct bpctl_dev *pbpctl_dev)
 static int tap_off(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
+
 	if ((pbpctl_dev->bp_caps & TAP_CAP)
 	    && (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER)) {
 		write_data(pbpctl_dev, TAP_OFF);
@@ -1853,6 +1863,7 @@ static int tap_off(struct bpctl_dev *pbpctl_dev)
 static int tap_on(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
+
 	if ((pbpctl_dev->bp_caps & TAP_CAP)
 	    && (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER)) {
 		write_data(pbpctl_dev, TAP_ON);
@@ -1866,6 +1877,7 @@ static int tap_on(struct bpctl_dev *pbpctl_dev)
 static int disc_off(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = 0;
+
 	if ((pbpctl_dev->bp_caps & DISC_CAP) && (pbpctl_dev->bp_ext_ver >= 0x8)) {
 		write_data(pbpctl_dev, DISC_OFF);
 		msec_delay_bp(LATCH_DELAY);
@@ -1878,6 +1890,7 @@ static int disc_off(struct bpctl_dev *pbpctl_dev)
 static int disc_on(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = 0;
+
 	if ((pbpctl_dev->bp_caps & DISC_CAP) && (pbpctl_dev->bp_ext_ver >= 0x8)) {
 		write_data(pbpctl_dev, /*DISC_ON */ 0x85);
 		msec_delay_bp(LATCH_DELAY);
@@ -2267,6 +2280,7 @@ static int set_tx(struct bpctl_dev *pbpctl_dev, int tx_state)
 {
 	int ret = 0, ctrl = 0;
 	struct bpctl_dev *pbpctl_dev_m;
+
 	if ((is_bypass_fn(pbpctl_dev)) == 1)
 		pbpctl_dev_m = pbpctl_dev;
 	else
@@ -2799,6 +2813,7 @@ int wdt_time_left(struct bpctl_dev *pbpctl_dev)
 static int wdt_timer(struct bpctl_dev *pbpctl_dev, int *time_left)
 {
 	int ret = 0;
+
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
 		{
 			if (pbpctl_dev->wdt_status == WDT_STATUS_UNKNOWN)
@@ -3011,6 +3026,7 @@ static int tx_status(struct bpctl_dev *pbpctl_dev)
 {
 	uint32_t ctrl = 0;
 	struct bpctl_dev *pbpctl_dev_m;
+
 	if ((is_bypass_fn(pbpctl_dev)) == 1)
 		pbpctl_dev_m = pbpctl_dev;
 	else
@@ -3192,6 +3208,7 @@ static int bypass_change_status(struct bpctl_dev *pbpctl_dev)
 static int bypass_status(struct bpctl_dev *pbpctl_dev)
 {
 	u32 ctrl_ext = 0;
+
 	if (pbpctl_dev->bp_caps & BP_CAP) {
 
 		struct bpctl_dev *pbpctl_dev_b = NULL;
@@ -3320,6 +3337,7 @@ static int dis_bypass_cap_status(struct bpctl_dev *pbpctl_dev)
 static int wdt_programmed(struct bpctl_dev *pbpctl_dev, int *timeout)
 {
 	int ret = 0;
+
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
 		if (pbpctl_dev->bp_ext_ver >= PXG2BPI_VER) {
 			if ((read_reg(pbpctl_dev, STATUS_REG_ADDR)) &
@@ -3383,6 +3401,7 @@ static int tap_flag_status(struct bpctl_dev *pbpctl_dev)
 static int tap_flag_status_clear(struct bpctl_dev *pbpctl_dev)
 {
 	uint32_t status_reg = 0;
+
 	if (pbpctl_dev->bp_caps & TAP_STATUS_CAP) {
 		if (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER) {
 			status_reg = read_reg(pbpctl_dev, STATUS_TAP_REG_ADDR);
@@ -3397,6 +3416,7 @@ static int tap_flag_status_clear(struct bpctl_dev *pbpctl_dev)
 static int tap_change_status(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
+
 	if (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER) {
 		if (pbpctl_dev->bp_caps & TAP_CAP) {
 			if (pbpctl_dev->bp_caps & BP_CAP) {
@@ -3487,6 +3507,7 @@ static int disc_flag_status(struct bpctl_dev *pbpctl_dev)
 static int disc_flag_status_clear(struct bpctl_dev *pbpctl_dev)
 {
 	uint32_t status_reg = 0;
+
 	if (pbpctl_dev->bp_caps & DISC_CAP) {
 		if (pbpctl_dev->bp_ext_ver >= 0x8) {
 			status_reg = read_reg(pbpctl_dev, STATUS_DISC_REG_ADDR);
@@ -3501,6 +3522,7 @@ static int disc_flag_status_clear(struct bpctl_dev *pbpctl_dev)
 static int disc_change_status(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
+
 	if (pbpctl_dev->bp_caps & DISC_CAP) {
 		ret = disc_flag_status(pbpctl_dev);
 		disc_flag_status_clear(pbpctl_dev);
@@ -3596,6 +3618,7 @@ static int disc_off_status(struct bpctl_dev *pbpctl_dev)
 static int disc_status(struct bpctl_dev *pbpctl_dev)
 {
 	int ctrl = 0;
+
 	if (pbpctl_dev->bp_caps & DISC_CAP) {
 		ctrl = disc_off_status(pbpctl_dev);
 		if (ctrl < 0)
@@ -3741,6 +3764,7 @@ static void bypass_caps_init(struct bpctl_dev *pbpctl_dev)
 
 #ifdef BYPASS_DEBUG
 	int ret = 0;
+
 	if (!(INTEL_IF_SERIES(adapter->bp_device_block.subdevice))) {
 		ret = read_reg(pbpctl_dev, VER_REG_ADDR);
 		printk("VER_REG reg1=%x\n", ret);
@@ -4152,6 +4176,7 @@ static int get_bypass_change_fn(struct bpctl_dev *pbpctl_dev)
 static int set_dis_bypass_fn(struct bpctl_dev *pbpctl_dev, int dis_param)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4179,6 +4204,7 @@ static int get_dis_bypass_fn(struct bpctl_dev *pbpctl_dev)
 static int set_bypass_pwoff_fn(struct bpctl_dev *pbpctl_dev, int bypass_mode)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4206,6 +4232,7 @@ static int get_bypass_pwoff_fn(struct bpctl_dev *pbpctl_dev)
 static int set_bypass_pwup_fn(struct bpctl_dev *pbpctl_dev, int bypass_mode)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4233,6 +4260,7 @@ static int get_bypass_pwup_fn(struct bpctl_dev *pbpctl_dev)
 static int set_bypass_wd_fn(struct bpctl_dev *pbpctl_dev, int timeout)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4279,8 +4307,8 @@ static int reset_bypass_wd_timer_fn(struct bpctl_dev *pbpctl_dev)
 static int get_wd_set_caps_fn(struct bpctl_dev *pbpctl_dev)
 {
 	int bp_status = 0;
-
 	unsigned int step_value = TIMEOUT_MAX_STEP + 1, bit_cnt = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4303,6 +4331,7 @@ static int get_wd_set_caps_fn(struct bpctl_dev *pbpctl_dev)
 static int set_std_nic_fn(struct bpctl_dev *pbpctl_dev, int nic_mode)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4355,6 +4384,7 @@ static int get_tap_fn(struct bpctl_dev *pbpctl_dev)
 static int set_tap_pwup_fn(struct bpctl_dev *pbpctl_dev, int tap_mode)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4373,6 +4403,7 @@ static int set_tap_pwup_fn(struct bpctl_dev *pbpctl_dev, int tap_mode)
 static int get_tap_pwup_fn(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4393,6 +4424,7 @@ static int get_tap_change_fn(struct bpctl_dev *pbpctl_dev)
 static int set_dis_tap_fn(struct bpctl_dev *pbpctl_dev, int dis_param)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4435,6 +4467,7 @@ static int set_disc_fn(struct bpctl_dev *pbpctl_dev, int disc_mode)
 static int get_disc_fn(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4446,6 +4479,7 @@ static int get_disc_fn(struct bpctl_dev *pbpctl_dev)
 static int set_disc_pwup_fn(struct bpctl_dev *pbpctl_dev, int disc_mode)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4464,6 +4498,7 @@ static int set_disc_pwup_fn(struct bpctl_dev *pbpctl_dev, int disc_mode)
 static int get_disc_pwup_fn(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4474,6 +4509,7 @@ static int get_disc_pwup_fn(struct bpctl_dev *pbpctl_dev)
 static int get_disc_change_fn(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4484,6 +4520,7 @@ static int get_disc_change_fn(struct bpctl_dev *pbpctl_dev)
 static int set_dis_disc_fn(struct bpctl_dev *pbpctl_dev, int dis_param)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4502,6 +4539,7 @@ static int set_dis_disc_fn(struct bpctl_dev *pbpctl_dev, int dis_param)
 static int get_dis_disc_fn(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4528,8 +4566,8 @@ static int set_wd_exp_mode_fn(struct bpctl_dev *pbpctl_dev, int param)
 
 static int set_tx_fn(struct bpctl_dev *pbpctl_dev, int tx_state)
 {
-
 	struct bpctl_dev *pbpctl_dev_b = NULL;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4607,6 +4645,7 @@ static int get_bypass_slave_fn(struct bpctl_dev *pbpctl_dev,
 			       struct bpctl_dev **pbpctl_dev_out)
 {
 	int idx_dev = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4650,6 +4689,7 @@ static int is_bypass(struct bpctl_dev *pbpctl_dev)
 static int get_tx_fn(struct bpctl_dev *pbpctl_dev)
 {
 	struct bpctl_dev *pbpctl_dev_b = NULL;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4732,10 +4772,9 @@ static void bp_tpl_timer_fn(unsigned long param)
 
 static void remove_bypass_tpl_auto(struct bpctl_dev *pbpctl_dev)
 {
-	struct bpctl_dev *pbpctl_dev_b = NULL;
+	struct bpctl_dev *pbpctl_dev_b;
 	if (!pbpctl_dev)
 		return;
-	pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
 
 	if (pbpctl_dev->bp_caps & TPL_CAP) {
 		del_timer_sync(&pbpctl_dev->bp_tpl_timer);
@@ -4782,11 +4821,9 @@ static int set_bypass_tpl_auto(struct bpctl_dev *pbpctl_dev, unsigned int param)
 static int set_tpl_fn(struct bpctl_dev *pbpctl_dev, int tpl_mode)
 {
 
-	struct bpctl_dev *pbpctl_dev_b = NULL;
+	struct bpctl_dev *pbpctl_dev_b;
 	if (!pbpctl_dev)
 		return -1;
-
-	pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
 
 	if (pbpctl_dev->bp_caps & TPL_CAP) {
 		if (tpl_mode) {
@@ -4812,6 +4849,7 @@ static int set_tpl_fn(struct bpctl_dev *pbpctl_dev, int tpl_mode)
 static int get_tpl_fn(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4846,6 +4884,7 @@ static int set_bp_wait_at_pwup_fn(struct bpctl_dev *pbpctl_dev, int tap_mode)
 static int get_bp_wait_at_pwup_fn(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4879,6 +4918,7 @@ static int set_bp_hw_reset_fn(struct bpctl_dev *pbpctl_dev, int tap_mode)
 static int get_bp_hw_reset_fn(struct bpctl_dev *pbpctl_dev)
 {
 	int ret = 0;
+
 	if (!pbpctl_dev)
 		return -1;
 
@@ -4906,6 +4946,7 @@ static int get_bypass_info_fn(struct bpctl_dev *pbpctl_dev, char *dev_name,
 static int get_dev_idx_bsf(int bus, int slot, int func)
 {
 	int idx_dev = 0;
+
 	for (idx_dev = 0;
 	     ((bpctl_dev_arr[idx_dev].pdev != NULL) && (idx_dev < device_num));
 	     idx_dev++) {
@@ -6368,56 +6409,30 @@ static int __init bypass_init_module(void)
 
 	sema_init(&bpctl_sema, 1);
 	spin_lock_init(&bpvm_lock);
-	{
 
-		struct bpctl_dev *pbpctl_dev_c = NULL;
-		for (idx_dev = 0, dev = bpctl_dev_arr;
-		     idx_dev < device_num && dev->pdev;
-		     idx_dev++, dev++) {
-			if (dev->bp_10g9) {
-				pbpctl_dev_c = get_status_port_fn(dev);
-				if (is_bypass_fn(dev)) {
-					printk(KERN_INFO "%s found, ",
-					       dev->name);
-					dev->bp_fw_ver = bypass_fw_ver(dev);
-					printk("firmware version: 0x%x\n",
-					       dev->bp_fw_ver);
-				}
-				dev->wdt_status = WDT_STATUS_UNKNOWN;
-				dev->reset_time = 0;
-				atomic_set(&dev->wdt_busy, 0);
-				dev->bp_status_un = 1;
-
-				bypass_caps_init(dev);
-
-				init_bypass_wd_auto(dev);
-				init_bypass_tpl_auto(dev);
-
+	for (idx_dev = 0, dev = bpctl_dev_arr;
+	     idx_dev < device_num && dev->pdev;
+	     idx_dev++, dev++) {
+		if (dev->bp_10g9) {
+			if (is_bypass_fn(dev)) {
+				printk(KERN_INFO "%s found, ", dev->name);
+				dev->bp_fw_ver = bypass_fw_ver(dev);
+				printk("firmware version: 0x%x\n",
+				       dev->bp_fw_ver);
 			}
+			dev->wdt_status = WDT_STATUS_UNKNOWN;
+			dev->reset_time = 0;
+			atomic_set(&dev->wdt_busy, 0);
+			dev->bp_status_un = 1;
 
+			bypass_caps_init(dev);
+
+			init_bypass_wd_auto(dev);
+			init_bypass_tpl_auto(dev);
 		}
 	}
 
 	register_netdevice_notifier(&bp_notifier_block);
-#ifdef BP_PROC_SUPPORT
-	{
-		int i = 0;
-		/* unsigned long flags; */
-		/* rcu_read_lock(); */
-		bp_proc_create();
-		for (i = 0; i < device_num; i++) {
-			if (bpctl_dev_arr[i].ifindex) {
-				/* spin_lock_irqsave(&bpvm_lock, flags); */
-				bypass_proc_remove_dev_sd(&bpctl_dev_arr[i]);
-				bypass_proc_create_dev_sd(&bpctl_dev_arr[i]);
-				/* spin_unlock_irqrestore(&bpvm_lock, flags); */
-			}
-
-		}
-		/* rcu_read_unlock(); */
-	}
-#endif
-
 	return 0;
 }
 
@@ -6427,17 +6442,11 @@ static int __init bypass_init_module(void)
 static void __exit bypass_cleanup_module(void)
 {
 	int i;
+
 	unregister_netdevice_notifier(&bp_notifier_block);
 
 	for (i = 0; i < device_num; i++) {
 		/* unsigned long flags; */
-#ifdef BP_PROC_SUPPORT
-/*	spin_lock_irqsave(&bpvm_lock, flags);
-	rcu_read_lock(); */
-		bypass_proc_remove_dev_sd(&bpctl_dev_arr[i]);
-/*	spin_unlock_irqrestore(&bpvm_lock, flags);
-	rcu_read_unlock(); */
-#endif
 		remove_bypass_wd_auto(&bpctl_dev_arr[i]);
 		bpctl_dev_arr[i].reset_time = 0;
 
@@ -6738,6 +6747,7 @@ int get_bypass_slave_sd(int ifindex)
 {
 	struct bpctl_dev *pbpctl_dev_out;
 	int ret = get_bypass_slave_fn(get_dev_idx_p(ifindex), &pbpctl_dev_out);
+
 	if (ret == 1)
 		return pbpctl_dev_out->ifindex;
 	return -1;
@@ -6783,22 +6793,11 @@ EXPORT_SYMBOL(bp_if_scan_sd);
 
 static struct proc_dir_entry *bp_procfs_dir;
 
-static int bp_proc_create(void)
-{
-	bp_procfs_dir = proc_mkdir(BP_PROC_DIR, init_net.proc_net);
-	if (bp_procfs_dir == (struct proc_dir_entry *)0) {
-		printk(KERN_DEBUG
-		       "Could not create procfs nicinfo directory %s\n",
-		       BP_PROC_DIR);
-		return -1;
-	}
-	return 0;
-}
-
 static int procfs_add(char *proc_name, const struct file_operations *fops,
 		      struct bpctl_dev *dev)
 {
 	struct bypass_pfs_sd *pfs = &dev->bypass_pfs_set;
+
 	if (!proc_create_data(proc_name, 0644, pfs->bypass_entry, fops, dev))
 		return -1;
 	return 0;
@@ -6843,6 +6842,7 @@ static int show_bypass_slave(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	struct bpctl_dev *slave = get_status_port_fn(dev);
+
 	if (!slave)
 		slave = dev;
 	if (!slave)
@@ -6857,6 +6857,7 @@ static int show_bypass_caps(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_bypass_caps_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "-1\n");
 	else
@@ -6869,6 +6870,7 @@ static int show_wd_set_caps(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_wd_set_caps_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "-1\n");
 	else
@@ -6905,6 +6907,7 @@ static ssize_t bypass_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int bypass_param = user_on_off(buffer, count);
+
 	if (bypass_param < 0)
 		return -1;
 
@@ -6915,6 +6918,7 @@ static int show_bypass(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_bypass_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 1)
@@ -6929,6 +6933,7 @@ static ssize_t tap_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int tap_param = user_on_off(buffer, count);
+
 	if (tap_param < 0)
 		return -1;
 
@@ -6939,6 +6944,7 @@ static int show_tap(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_tap_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 1)
@@ -6953,6 +6959,7 @@ static ssize_t disc_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int tap_param = user_on_off(buffer, count);
+
 	if (tap_param < 0)
 		return -1;
 
@@ -6963,6 +6970,7 @@ static int show_disc(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_disc_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 1)
@@ -6977,6 +6985,7 @@ static int show_bypass_change(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_bypass_change_fn(dev);
+
 	if (ret == 1)
 		seq_puts(m, "on\n");
 	else if (ret == 0)
@@ -6991,6 +7000,7 @@ static int show_tap_change(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_tap_change_fn(dev);
+
 	if (ret == 1)
 		seq_puts(m, "on\n");
 	else if (ret == 0)
@@ -7005,6 +7015,7 @@ static int show_disc_change(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_disc_change_fn(dev);
+
 	if (ret == 1)
 		seq_puts(m, "on\n");
 	else if (ret == 0)
@@ -7021,6 +7032,7 @@ static ssize_t bypass_wd_write(struct file *file, const char __user *buffer,
 	struct bpctl_dev *dev = PDE_DATA(file_inode(file));
 	int timeout;
 	int ret = kstrtoint_from_user(buffer, count, 10, &timeout);
+
 	if (ret)
 		return ret;
 	set_bypass_wd_fn(dev, timeout);
@@ -7048,6 +7060,7 @@ static int show_wd_expire_time(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = 0, timeout = 0;
+
 	ret = get_wd_expire_time_fn(dev, &timeout);
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
@@ -7066,6 +7079,7 @@ static ssize_t tpl_write(struct file *file, const char __user *buffer,
 {
 	struct bpctl_dev *dev = PDE_DATA(file_inode(file));
 	int tpl_param = user_on_off(buffer, count);
+
 	if (tpl_param < 0)
 		return -1;
 
@@ -7076,6 +7090,7 @@ static int show_tpl(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_tpl_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 1)
@@ -7092,6 +7107,7 @@ static ssize_t wait_at_pwup_write(struct file *file, const char __user *buffer,
 {
 	struct bpctl_dev *dev = PDE_DATA(file_inode(file));
 	int tpl_param = user_on_off(buffer, count);
+
 	if (tpl_param < 0)
 		return -1;
 
@@ -7102,6 +7118,7 @@ static int show_wait_at_pwup(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_bp_wait_at_pwup_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 1)
@@ -7117,6 +7134,7 @@ static ssize_t hw_reset_write(struct file *file, const char __user *buffer,
 {
 	struct bpctl_dev *dev = PDE_DATA(file_inode(file));
 	int tpl_param = user_on_off(buffer, count);
+
 	if (tpl_param < 0)
 		return -1;
 
@@ -7127,6 +7145,7 @@ static int show_hw_reset(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_bp_hw_reset_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 1)
@@ -7143,6 +7162,7 @@ static int show_reset_bypass_wd(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = reset_bypass_wd_timer_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 0)
@@ -7157,6 +7177,7 @@ static ssize_t dis_bypass_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int bypass_param = user_on_off(buffer, count);
+
 	if (bypass_param < 0)
 		return -EINVAL;
 
@@ -7167,6 +7188,7 @@ static int show_dis_bypass(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_dis_bypass_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 0)
@@ -7181,6 +7203,7 @@ static ssize_t dis_tap_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int tap_param = user_on_off(buffer, count);
+
 	if (tap_param < 0)
 		return -EINVAL;
 
@@ -7191,6 +7214,7 @@ static int show_dis_tap(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_dis_tap_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 0)
@@ -7205,6 +7229,7 @@ static ssize_t dis_disc_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int tap_param = user_on_off(buffer, count);
+
 	if (tap_param < 0)
 		return -EINVAL;
 
@@ -7215,6 +7240,7 @@ static int show_dis_disc(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_dis_disc_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 0)
@@ -7229,6 +7255,7 @@ static ssize_t bypass_pwup_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int bypass_param = user_on_off(buffer, count);
+
 	if (bypass_param < 0)
 		return -EINVAL;
 
@@ -7239,6 +7266,7 @@ static int show_bypass_pwup(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_bypass_pwup_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 0)
@@ -7253,6 +7281,7 @@ static ssize_t bypass_pwoff_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int bypass_param = user_on_off(buffer, count);
+
 	if (bypass_param < 0)
 		return -EINVAL;
 
@@ -7263,6 +7292,7 @@ static int show_bypass_pwoff(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_bypass_pwoff_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 0)
@@ -7277,6 +7307,7 @@ static ssize_t tap_pwup_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int tap_param = user_on_off(buffer, count);
+
 	if (tap_param < 0)
 		return -EINVAL;
 
@@ -7287,6 +7318,7 @@ static int show_tap_pwup(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_tap_pwup_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 0)
@@ -7301,6 +7333,7 @@ static ssize_t disc_pwup_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int tap_param = user_on_off(buffer, count);
+
 	if (tap_param < 0)
 		return -EINVAL;
 
@@ -7311,6 +7344,7 @@ static int show_disc_pwup(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_disc_pwup_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 0)
@@ -7325,6 +7359,7 @@ static ssize_t std_nic_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int bypass_param = user_on_off(buffer, count);
+
 	if (bypass_param < 0)
 		return -EINVAL;
 
@@ -7335,6 +7370,7 @@ static int show_std_nic(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_std_nic_fn(dev);
+
 	if (ret == BP_NOT_CAP)
 		seq_puts(m, "fail\n");
 	else if (ret == 0)
@@ -7377,6 +7413,7 @@ static int show_wd_exp_mode(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_wd_exp_mode_fn(dev);
+
 	if (ret == 1)
 		seq_puts(m, "tap\n");
 	else if (ret == 0)
@@ -7394,6 +7431,7 @@ static ssize_t wd_autoreset_write(struct file *file, const char __user *buffer,
 {
 	int timeout;
 	int ret = kstrtoint_from_user(buffer, count, 10, &timeout);
+
 	if (ret)
 		return ret;
 	set_wd_autoreset_fn(PDE_DATA(file_inode(file)), timeout);
@@ -7403,6 +7441,7 @@ static int show_wd_autoreset(struct seq_file *m, void *v)
 {
 	struct bpctl_dev *dev = m->private;
 	int ret = get_wd_autoreset_fn(dev);
+
 	if (ret >= 0)
 		seq_printf(m, "%d\n", ret);
 	else
@@ -7483,8 +7522,8 @@ static int bypass_proc_create_dev_sd(struct bpctl_dev *pbp_device_block)
 
 static int bypass_proc_remove_dev_sd(struct bpctl_dev *pbp_device_block)
 {
-
 	struct bypass_pfs_sd *current_pfs = &pbp_device_block->bypass_pfs_set;
+
 	remove_proc_subtree(current_pfs->dir_name, bp_procfs_dir);
 	current_pfs->bypass_entry = NULL;
 	return 0;

@@ -32,6 +32,7 @@
 #include <asm/lsu.h>
 #include <asm/sections.h>
 #include <asm/mmu_context.h>
+#include <asm/setup.h>
 
 int show_unhandled_signals = 1;
 
@@ -195,9 +196,6 @@ static void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 
 	force_sig_info(sig, &info, current);
 }
-
-extern int handle_ldf_stq(u32, struct pt_regs *);
-extern int handle_ld_nf(u32, struct pt_regs *);
 
 static unsigned int get_fault_insn(struct pt_regs *regs, unsigned int insn)
 {

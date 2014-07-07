@@ -17,6 +17,14 @@ Optional properties:
  - num-cs:			Number of chipselect lines to usw
  - nand-on-flash-bbt: 		boolean to enable on flash bbt option if
 				not present false
+ - nand-ecc-strength:           number of bits to correct per ECC step
+ - nand-ecc-step-size:          number of data bytes covered by a single ECC step
+
+The following ECC strength and step size are currently supported:
+
+ - nand-ecc-strength = <1>, nand-ecc-step-size = <512>
+ - nand-ecc-strength = <4>, nand-ecc-step-size = <512>
+ - nand-ecc-strength = <8>, nand-ecc-step-size = <512>
 
 Example:
 

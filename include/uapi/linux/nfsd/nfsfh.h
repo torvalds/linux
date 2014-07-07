@@ -1,12 +1,6 @@
 /*
- * include/linux/nfsd/nfsfh.h
- *
  * This file describes the layout of the file handles as passed
  * over the wire.
- *
- * Earlier versions of knfsd used to sign file handles using keyed MD5
- * or SHA. I've removed this code, because it doesn't give you more
- * security than blocking external access to port 2049 on your firewall.
  *
  * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
  */
@@ -37,7 +31,7 @@ struct nfs_fhbase_old {
 };
 
 /*
- * This is the new flexible, extensible style NFSv2/v3 file handle.
+ * This is the new flexible, extensible style NFSv2/v3/v4 file handle.
  * by Neil Brown <neilb@cse.unsw.edu.au> - March 2000
  *
  * The file handle starts with a sequence of four-byte words.
@@ -47,14 +41,7 @@ struct nfs_fhbase_old {
  *
  * All four-byte values are in host-byte-order.
  *
- * The auth_type field specifies how the filehandle can be authenticated
- * This might allow a file to be confirmed to be in a writable part of a
- * filetree without checking the path from it up to the root.
- * Current values:
- *     0  - No authentication.  fb_auth is 0 bytes long
- * Possible future values:
- *     1  - 4 bytes taken from MD5 hash of the remainer of the file handle
- *          prefixed by a secret and with the important export flags.
+ * The auth_type field is deprecated and must be set to 0.
  *
  * The fsid_type identifies how the filesystem (or export point) is
  *    encoded.
@@ -71,14 +58,9 @@ struct nfs_fhbase_old {
  *     7  - 8 byte inode number and 16 byte uuid
  *
  * The fileid_type identified how the file within the filesystem is encoded.
- * This is (will be) passed to, and set by, the underlying filesystem if it supports
- * filehandle operations.  The filesystem must not use the value '0' or '0xff' and may
- * only use the values 1 and 2 as defined below:
- *  Current values:
- *    0   - The root, or export point, of the filesystem.  fb_fileid is 0 bytes.
- *    1   - 32bit inode number, 32 bit generation number.
- *    2   - 32bit inode number, 32 bit generation number, 32 bit parent directory inode number.
- *
+ *   The values for this field are filesystem specific, exccept that
+ *   filesystems must not use the values '0' or '0xff'. 'See enum fid_type'
+ *   in include/linux/exportfs.h for currently registered values.
  */
 struct nfs_fhbase_new {
 	__u8		fb_version;	/* == 1, even => nfs_fhbase_old */
@@ -114,9 +96,9 @@ struct knfsd_fh {
 #define	fh_fsid_type		fh_base.fh_new.fb_fsid_type
 #define	fh_auth_type		fh_base.fh_new.fb_auth_type
 #define	fh_fileid_type		fh_base.fh_new.fb_fileid_type
-#define	fh_auth			fh_base.fh_new.fb_auth
 #define	fh_fsid			fh_base.fh_new.fb_auth
 
-
+/* Do not use, provided for userspace compatiblity. */
+#define	fh_auth			fh_base.fh_new.fb_auth
 
 #endif /* _UAPI_LINUX_NFSD_FH_H */

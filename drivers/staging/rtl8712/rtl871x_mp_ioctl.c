@@ -66,7 +66,6 @@ uint oid_rt_wireless_mode_hdl(struct oid_par_priv *poid_par_priv)
 
 uint oid_rt_pro_write_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
 {
-	uint status = RNDIS_STATUS_SUCCESS;
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
 	struct bb_reg_param *pbbreg;
@@ -83,12 +82,11 @@ uint oid_rt_pro_write_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
 		offset |= BB_REG_BASE_ADDR;
 	value = pbbreg->value;
 	r8712_bb_reg_write(Adapter, offset, value);
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_read_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
 {
-	uint status = RNDIS_STATUS_SUCCESS;
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
 	struct bb_reg_param *pbbreg;
@@ -106,12 +104,11 @@ uint oid_rt_pro_read_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
 	value = r8712_bb_reg_read(Adapter, offset);
 	pbbreg->value = value;
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_write_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
 {
-	uint status = RNDIS_STATUS_SUCCESS;
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
 	struct rf_reg_param *pbbreg;
@@ -130,14 +127,13 @@ uint oid_rt_pro_write_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
 	offset = (u8)pbbreg->offset;
 	value = pbbreg->value;
 	r8712_rf_reg_write(Adapter, path, offset, value);
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_read_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 	struct rf_reg_param *pbbreg;
 	u8 path;
 	u8 offset;
@@ -155,7 +151,7 @@ uint oid_rt_pro_read_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
 	value = r8712_rf_reg_read(Adapter, path, offset);
 	pbbreg->value = value;
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 /*This function initializes the DUT to the MP test mode*/
@@ -266,7 +262,6 @@ uint oid_rt_pro_set_data_rate_hdl(struct oid_par_priv
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 	u32 ratevalue;
 
 	if (poid_par_priv->type_of_oid != SET_OID)
@@ -278,7 +273,7 @@ uint oid_rt_pro_set_data_rate_hdl(struct oid_par_priv
 		return RNDIS_STATUS_INVALID_DATA;
 	Adapter->mppriv.curr_rateidx = ratevalue;
 	r8712_SetDataRate(Adapter);
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_start_test_hdl(struct oid_par_priv *poid_par_priv)
@@ -328,7 +323,6 @@ uint oid_rt_pro_set_channel_direct_call_hdl(struct oid_par_priv
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 	u32		Channel;
 
 	if (poid_par_priv->type_of_oid != SET_OID)
@@ -340,14 +334,13 @@ uint oid_rt_pro_set_channel_direct_call_hdl(struct oid_par_priv
 		return RNDIS_STATUS_NOT_ACCEPTED;
 	Adapter->mppriv.curr_ch = Channel;
 	r8712_SetChannel(Adapter);
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_set_antenna_bb_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 	u32 antenna;
 
 	if (poid_par_priv->type_of_oid != SET_OID)
@@ -358,7 +351,7 @@ uint oid_rt_pro_set_antenna_bb_hdl(struct oid_par_priv *poid_par_priv)
 	Adapter->mppriv.antenna_tx = (u16)((antenna & 0xFFFF0000) >> 16);
 	Adapter->mppriv.antenna_rx = (u16)(antenna & 0x0000FFFF);
 	r8712_SwitchAntenna(Adapter);
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_set_tx_power_control_hdl(
@@ -366,7 +359,6 @@ uint oid_rt_pro_set_tx_power_control_hdl(
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 	u32 tx_pwr_idx;
 
 	if (poid_par_priv->type_of_oid != SET_OID)
@@ -378,7 +370,7 @@ uint oid_rt_pro_set_tx_power_control_hdl(
 		return RNDIS_STATUS_NOT_ACCEPTED;
 	Adapter->mppriv.curr_txpoweridx = (u8)tx_pwr_idx;
 	r8712_SetTxPower(Adapter);
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_query_tx_packet_sent_hdl(
@@ -839,7 +831,6 @@ uint oid_rt_poll_rx_status_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return RNDIS_STATUS_NOT_ACCEPTED;
@@ -847,7 +838,7 @@ uint oid_rt_poll_rx_status_hdl(struct oid_par_priv *poid_par_priv)
 		(unsigned char *)&Adapter->mppriv.rxstat,
 		sizeof(struct recv_stat));
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_cfg_debug_message_hdl(struct oid_par_priv
@@ -875,7 +866,6 @@ uint oid_rt_get_thermal_meter_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return RNDIS_STATUS_NOT_ACCEPTED;
@@ -897,7 +887,7 @@ uint oid_rt_get_thermal_meter_hdl(struct oid_par_priv *poid_par_priv)
 	*(u32 *)poid_par_priv->information_buf =
 				 Adapter->mppriv.workparam.io_value;
 	*poid_par_priv->bytes_rw = sizeof(u32);
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_set_power_tracking_hdl(struct oid_par_priv
@@ -1091,7 +1081,6 @@ uint oid_rt_pro_dele_sta_info_hdl(struct oid_par_priv *poid_par_priv)
 				   (poid_par_priv->adapter_context);
 
 	unsigned long			irqL;
-	uint status = RNDIS_STATUS_SUCCESS;
 
 	struct sta_info		*psta = NULL;
 	u8			*macaddr;
@@ -1113,7 +1102,7 @@ uint oid_rt_pro_dele_sta_info_hdl(struct oid_par_priv *poid_par_priv)
 		spin_unlock_irqrestore(&(Adapter->stapriv.sta_hash_lock), irqL);
 	}
 
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 /*--------------------------------------------------------------------------*/
 static u32 mp_query_drv_var(struct _adapter *padapter, u8 offset, u32 var)
@@ -1126,8 +1115,6 @@ uint oid_rt_pro_query_dr_variable_hdl(struct oid_par_priv *poid_par_priv)
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
 
-	uint status = RNDIS_STATUS_SUCCESS;
-
 	struct DR_VARIABLE_STRUCT *pdrv_var;
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
@@ -1139,7 +1126,7 @@ uint oid_rt_pro_query_dr_variable_hdl(struct oid_par_priv *poid_par_priv)
 	pdrv_var->variable = mp_query_drv_var(Adapter, pdrv_var->offset,
 					      pdrv_var->variable);
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1243,7 +1230,6 @@ uint oid_rt_get_efuse_current_size_hdl(struct oid_par_priv
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return RNDIS_STATUS_NOT_ACCEPTED;
@@ -1254,14 +1240,13 @@ uint oid_rt_get_efuse_current_size_hdl(struct oid_par_priv
 				 r8712_efuse_get_current_size(Adapter);
 	r8712_efuse_reg_uninit(Adapter);
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_get_efuse_max_size_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return RNDIS_STATUS_NOT_ACCEPTED;
@@ -1270,7 +1255,7 @@ uint oid_rt_get_efuse_max_size_hdl(struct oid_par_priv *poid_par_priv)
 	*(int *)poid_par_priv->information_buf =
 					 r8712_efuse_get_max_size(Adapter);
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_pro_efuse_hdl(struct oid_par_priv *poid_par_priv)
@@ -1320,7 +1305,6 @@ uint oid_rt_set_bandwidth_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 	u32		bandwidth;
 
 	if (poid_par_priv->type_of_oid != SET_OID)
@@ -1332,14 +1316,13 @@ uint oid_rt_set_bandwidth_hdl(struct oid_par_priv *poid_par_priv)
 		bandwidth = HT_CHANNEL_WIDTH_40;
 	Adapter->mppriv.curr_bandwidth = (u8)bandwidth;
 	r8712_SwitchBandwidth(Adapter);
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_set_crystal_cap_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct _adapter *Adapter = (struct _adapter *)
 				   (poid_par_priv->adapter_context);
-	uint status = RNDIS_STATUS_SUCCESS;
 	u32		crystal_cap = 0;
 
 	if (poid_par_priv->type_of_oid != SET_OID)
@@ -1351,7 +1334,7 @@ uint oid_rt_set_crystal_cap_hdl(struct oid_par_priv *poid_par_priv)
 		return RNDIS_STATUS_NOT_ACCEPTED;
 	Adapter->mppriv.curr_crystalcap = crystal_cap;
 	r8712_SetCrystalCap(Adapter);
-	return status;
+	return RNDIS_STATUS_SUCCESS;
 }
 
 uint oid_rt_set_rx_packet_type_hdl(struct oid_par_priv

@@ -97,10 +97,8 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 	pdata = dev_get_platdata(pdev->dev.parent);
 	tps6586x_gpio = devm_kzalloc(&pdev->dev,
 				sizeof(*tps6586x_gpio), GFP_KERNEL);
-	if (!tps6586x_gpio) {
-		dev_err(&pdev->dev, "Could not allocate tps6586x_gpio\n");
+	if (!tps6586x_gpio)
 		return -ENOMEM;
-	}
 
 	tps6586x_gpio->parent = pdev->dev.parent;
 

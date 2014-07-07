@@ -444,7 +444,7 @@ static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *clien
 	return pdata;
 }
 
-static struct of_device_id tps6586x_of_match[] = {
+static const struct of_device_id tps6586x_of_match[] = {
 	{ .compatible = "ti,tps6586x", },
 	{ },
 };
@@ -494,6 +494,10 @@ static void tps6586x_print_version(struct i2c_client *client, int version)
 		break;
 	case TPS658623:
 		name = "TPS658623";
+		break;
+	case TPS658640:
+	case TPS658640v2:
+		name = "TPS658640";
 		break;
 	case TPS658643:
 		name = "TPS658643";

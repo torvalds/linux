@@ -14,18 +14,32 @@ a subtype of a DPLL [2], although a simplified one at that.
 [2] Documentation/devicetree/bindings/clock/ti/dpll.txt
 
 Required properties:
-- compatible : shall be "ti,dra7-apll-clock"
+- compatible : shall be "ti,dra7-apll-clock" or "ti,omap2-apll-clock"
 - #clock-cells : from common clock binding; shall be set to 0.
 - clocks : link phandles of parent clocks (clk-ref and clk-bypass)
 - reg : address and length of the register set for controlling the APLL.
   It contains the information of registers in the following order:
-	"control" - contains the control register base address
-	"idlest" - contains the idlest register base address
+	"control" - contains the control register offset
+	"idlest" - contains the idlest register offset
+	"autoidle" - contains the autoidle register offset (OMAP2 only)
+- ti,clock-frequency : static clock frequency for the clock (OMAP2 only)
+- ti,idlest-shift : bit-shift for the idlest field (OMAP2 only)
+- ti,bit-shift : bit-shift for enable and autoidle fields (OMAP2 only)
 
 Examples:
-	apll_pcie_ck: apll_pcie_ck@4a008200 {
+	apll_pcie_ck: apll_pcie_ck {
 		#clock-cells = <0>;
 		clocks = <&apll_pcie_in_clk_mux>, <&dpll_pcie_ref_ck>;
-		reg = <0x4a00821c 0x4>, <0x4a008220 0x4>;
+		reg = <0x021c>, <0x0220>;
 		compatible = "ti,dra7-apll-clock";
+	};
+
+	apll96_ck: apll96_ck {
+		#clock-cells = <0>;
+		compatible = "ti,omap2-apll-clock";
+		clocks = <&sys_ck>;
+		ti,bit-shift = <2>;
+		ti,idlest-shift = <8>;
+		ti,clock-frequency = <96000000>;
+		reg = <0x0500>, <0x0530>, <0x0520>;
 	};

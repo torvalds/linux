@@ -115,8 +115,8 @@ For example, consider the following sequence of events:
 	CPU 1		CPU 2
 	===============	===============
 	{ A == 1; B == 2 }
-	A = 3;		x = A;
-	B = 4;		y = B;
+	A = 3;		x = B;
+	B = 4;		y = A;
 
 The set of accesses as seen by the memory system in the middle can be arranged
 in 24 different combinations:
@@ -1583,45 +1583,25 @@ There are some more advanced barrier functions:
      insert anything more than a compiler barrier in a UP compilation.
 
 
- (*) smp_mb__before_atomic_dec();
- (*) smp_mb__after_atomic_dec();
- (*) smp_mb__before_atomic_inc();
- (*) smp_mb__after_atomic_inc();
+ (*) smp_mb__before_atomic();
+ (*) smp_mb__after_atomic();
 
-     These are for use with atomic add, subtract, increment and decrement
-     functions that don't return a value, especially when used for reference
-     counting.  These functions do not imply memory barriers.
+     These are for use with atomic (such as add, subtract, increment and
+     decrement) functions that don't return a value, especially when used for
+     reference counting.  These functions do not imply memory barriers.
+
+     These are also used for atomic bitop functions that do not return a
+     value (such as set_bit and clear_bit).
 
      As an example, consider a piece of code that marks an object as being dead
      and then decrements the object's reference count:
 
 	obj->dead = 1;
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_dec(&obj->ref_count);
 
      This makes sure that the death mark on the object is perceived to be set
      *before* the reference counter is decremented.
-
-     See Documentation/atomic_ops.txt for more information.  See the "Atomic
-     operations" subsection for information on where to use these.
-
-
- (*) smp_mb__before_clear_bit(void);
- (*) smp_mb__after_clear_bit(void);
-
-     These are for use similar to the atomic inc/dec barriers.  These are
-     typically used for bitwise unlocking operations, so care must be taken as
-     there are no implicit memory barriers here either.
-
-     Consider implementing an unlock operation of some nature by clearing a
-     locking bit.  The clear_bit() would then need to be barriered like this:
-
-	smp_mb__before_clear_bit();
-	clear_bit( ... );
-
-     This prevents memory operations before the clear leaking to after it.  See
-     the subsection on "Locking Functions" with reference to RELEASE operation
-     implications.
 
      See Documentation/atomic_ops.txt for more information.  See the "Atomic
      operations" subsection for information on where to use these.
@@ -2283,11 +2263,11 @@ operations:
 	change_bit();
 
 With these the appropriate explicit memory barrier should be used if necessary
-(smp_mb__before_clear_bit() for instance).
+(smp_mb__before_atomic() for instance).
 
 
 The following also do _not_ imply memory barriers, and so may require explicit
-memory barriers under some circumstances (smp_mb__before_atomic_dec() for
+memory barriers under some circumstances (smp_mb__before_atomic() for
 instance):
 
 	atomic_add();

@@ -7,7 +7,7 @@
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
  *
  * Much of the code is derived from the original DDB5074 port by
- * Geert Uytterhoeven <geert@sonycom.com>
+ * Geert Uytterhoeven <geert@linux-m68k.org>
  *
  * This program is free software; you can redistribute	it and/or modify it
  * under  the terms of	the GNU General	 Public License as published by the

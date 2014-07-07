@@ -23,7 +23,7 @@
 #include "sn9c102_devtable.h"
 
 
-static int tas5130d1b_init(struct sn9c102_device* cam)
+static int tas5130d1b_init(struct sn9c102_device *cam)
 {
 	int err;
 
@@ -36,8 +36,8 @@ static int tas5130d1b_init(struct sn9c102_device* cam)
 }
 
 
-static int tas5130d1b_set_ctrl(struct sn9c102_device* cam,
-			       const struct v4l2_control* ctrl)
+static int tas5130d1b_set_ctrl(struct sn9c102_device *cam,
+			       const struct v4l2_control *ctrl)
 {
 	int err = 0;
 
@@ -56,10 +56,10 @@ static int tas5130d1b_set_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int tas5130d1b_set_crop(struct sn9c102_device* cam,
-			       const struct v4l2_rect* rect)
+static int tas5130d1b_set_crop(struct sn9c102_device *cam,
+			       const struct v4l2_rect *rect)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	u8 h_start = (u8)(rect->left - s->cropcap.bounds.left) + 104,
 	   v_start = (u8)(rect->top - s->cropcap.bounds.top) + 12;
 	int err = 0;
@@ -76,8 +76,8 @@ static int tas5130d1b_set_crop(struct sn9c102_device* cam,
 }
 
 
-static int tas5130d1b_set_pix_format(struct sn9c102_device* cam,
-				     const struct v4l2_pix_format* pix)
+static int tas5130d1b_set_pix_format(struct sn9c102_device *cam,
+				     const struct v4l2_pix_format *pix)
 {
 	int err = 0;
 
@@ -146,7 +146,7 @@ static const struct sn9c102_sensor tas5130d1b = {
 };
 
 
-int sn9c102_probe_tas5130d1b(struct sn9c102_device* cam)
+int sn9c102_probe_tas5130d1b(struct sn9c102_device *cam)
 {
 	const struct usb_device_id tas5130d1b_id_table[] = {
 		{ USB_DEVICE(0x0c45, 0x6024), },

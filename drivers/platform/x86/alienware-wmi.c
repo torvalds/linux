@@ -32,6 +32,7 @@
 #define WMAX_METHOD_HDMI_STATUS		0x2
 #define WMAX_METHOD_BRIGHTNESS		0x3
 #define WMAX_METHOD_ZONE_CONTROL	0x4
+#define WMAX_METHOD_HDMI_CABLE		0x5
 
 MODULE_AUTHOR("Mario Limonciello <mario_limonciello@dell.com>");
 MODULE_DESCRIPTION("Alienware special feature control");
@@ -350,12 +351,11 @@ static int alienware_zone_init(struct platform_device *dev)
 	char *name;
 
 	if (interface == WMAX) {
-		global_led.max_brightness = 100;
 		lighting_control_state = WMAX_RUNNING;
 	} else if (interface == LEGACY) {
-		global_led.max_brightness = 0x0F;
 		lighting_control_state = LEGACY_RUNNING;
 	}
+	global_led.max_brightness = 0x0F;
 	global_brightness = global_led.max_brightness;
 
 	/*
@@ -423,41 +423,85 @@ static void alienware_zone_exit(struct platform_device *dev)
 	The HDMI mux sysfs node indicates the status of the HDMI input mux.
 	It can toggle between standard system GPU output and HDMI input.
 */
-static ssize_t show_hdmi(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static acpi_status alienware_hdmi_command(struct hdmi_args *in_args,
+					  u32 command, int *out_data)
 {
 	acpi_status status;
-	struct acpi_buffer input;
 	union acpi_object *obj;
-	u32 tmp = 0;
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_buffer input;
+	struct acpi_buffer output;
+
+	input.length = (acpi_size) sizeof(*in_args);
+	input.pointer = in_args;
+	if (out_data != NULL) {
+		output.length = ACPI_ALLOCATE_BUFFER;
+		output.pointer = NULL;
+		status = wmi_evaluate_method(WMAX_CONTROL_GUID, 1,
+					     command, &input, &output);
+	} else
+		status = wmi_evaluate_method(WMAX_CONTROL_GUID, 1,
+					     command, &input, NULL);
+
+	if (ACPI_SUCCESS(status) && out_data != NULL) {
+		obj = (union acpi_object *)output.pointer;
+		if (obj && obj->type == ACPI_TYPE_INTEGER)
+			*out_data = (u32) obj->integer.value;
+	}
+	return status;
+
+}
+
+static ssize_t show_hdmi_cable(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	acpi_status status;
+	u32 out_data;
 	struct hdmi_args in_args = {
 		.arg = 0,
 	};
-	input.length = (acpi_size) sizeof(in_args);
-	input.pointer = &in_args;
-	status = wmi_evaluate_method(WMAX_CONTROL_GUID, 1,
-				     WMAX_METHOD_HDMI_STATUS, &input, &output);
+	status =
+	    alienware_hdmi_command(&in_args, WMAX_METHOD_HDMI_CABLE,
+				   (u32 *) &out_data);
+	if (ACPI_SUCCESS(status)) {
+		if (out_data == 0)
+			return scnprintf(buf, PAGE_SIZE,
+					 "[unconnected] connected unknown\n");
+		else if (out_data == 1)
+			return scnprintf(buf, PAGE_SIZE,
+					 "unconnected [connected] unknown\n");
+	}
+	pr_err("alienware-wmi: unknown HDMI cable status: %d\n", status);
+	return scnprintf(buf, PAGE_SIZE, "unconnected connected [unknown]\n");
+}
+
+static ssize_t show_hdmi_source(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	acpi_status status;
+	u32 out_data;
+	struct hdmi_args in_args = {
+		.arg = 0,
+	};
+	status =
+	    alienware_hdmi_command(&in_args, WMAX_METHOD_HDMI_STATUS,
+				   (u32 *) &out_data);
 
 	if (ACPI_SUCCESS(status)) {
-		obj = (union acpi_object *)output.pointer;
-		if (obj && obj->type == ACPI_TYPE_INTEGER)
-			tmp = (u32) obj->integer.value;
-		if (tmp == 1)
+		if (out_data == 1)
 			return scnprintf(buf, PAGE_SIZE,
 					 "[input] gpu unknown\n");
-		else if (tmp == 2)
+		else if (out_data == 2)
 			return scnprintf(buf, PAGE_SIZE,
 					 "input [gpu] unknown\n");
 	}
-	pr_err("alienware-wmi: unknown HDMI status: %d\n", status);
+	pr_err("alienware-wmi: unknown HDMI source status: %d\n", out_data);
 	return scnprintf(buf, PAGE_SIZE, "input gpu [unknown]\n");
 }
 
-static ssize_t toggle_hdmi(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t toggle_hdmi_source(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
-	struct acpi_buffer input;
 	acpi_status status;
 	struct hdmi_args args;
 	if (strcmp(buf, "gpu\n") == 0)
@@ -467,33 +511,46 @@ static ssize_t toggle_hdmi(struct device *dev, struct device_attribute *attr,
 	else
 		args.arg = 3;
 	pr_debug("alienware-wmi: setting hdmi to %d : %s", args.arg, buf);
-	input.length = (acpi_size) sizeof(args);
-	input.pointer = &args;
-	status = wmi_evaluate_method(WMAX_CONTROL_GUID, 1,
-				     WMAX_METHOD_HDMI_SOURCE, &input, NULL);
+
+	status = alienware_hdmi_command(&args, WMAX_METHOD_HDMI_SOURCE, NULL);
+
 	if (ACPI_FAILURE(status))
 		pr_err("alienware-wmi: HDMI toggle failed: results: %u\n",
 		       status);
 	return count;
 }
 
-static DEVICE_ATTR(hdmi, S_IRUGO | S_IWUSR, show_hdmi, toggle_hdmi);
+static DEVICE_ATTR(cable, S_IRUGO, show_hdmi_cable, NULL);
+static DEVICE_ATTR(source, S_IRUGO | S_IWUSR, show_hdmi_source,
+		   toggle_hdmi_source);
 
-static void remove_hdmi(struct platform_device *device)
+static struct attribute *hdmi_attrs[] = {
+	&dev_attr_cable.attr,
+	&dev_attr_source.attr,
+	NULL,
+};
+
+static struct attribute_group hdmi_attribute_group = {
+	.name = "hdmi",
+	.attrs = hdmi_attrs,
+};
+
+static void remove_hdmi(struct platform_device *dev)
 {
-	device_remove_file(&device->dev, &dev_attr_hdmi);
+	sysfs_remove_group(&dev->dev.kobj, &hdmi_attribute_group);
 }
 
-static int create_hdmi(void)
+static int create_hdmi(struct platform_device *dev)
 {
-	int ret = -ENOMEM;
-	ret = device_create_file(&platform_device->dev, &dev_attr_hdmi);
+	int ret;
+
+	ret = sysfs_create_group(&dev->dev.kobj, &hdmi_attribute_group);
 	if (ret)
 		goto error_create_hdmi;
 	return 0;
 
 error_create_hdmi:
-	remove_hdmi(platform_device);
+	remove_hdmi(dev);
 	return ret;
 }
 
@@ -527,7 +584,7 @@ static int __init alienware_wmi_init(void)
 		goto fail_platform_device2;
 
 	if (interface == WMAX) {
-		ret = create_hdmi();
+		ret = create_hdmi(platform_device);
 		if (ret)
 			goto fail_prep_hdmi;
 	}

@@ -18,7 +18,6 @@ struct dma_iommu_mapping {
 	unsigned int		extensions;
 	size_t			bitmap_size;	/* size of a single bitmap */
 	size_t			bits;		/* per bitmap */
-	unsigned int		size;		/* per bitmap */
 	dma_addr_t		base;
 
 	spinlock_t		lock;

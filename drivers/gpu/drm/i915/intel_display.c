@@ -2134,6 +2134,7 @@ void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
 static void intel_enable_primary_hw_plane(struct drm_i915_private *dev_priv,
 					  enum plane plane, enum pipe pipe)
 {
+	struct drm_device *dev = dev_priv->dev;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 	int reg;
@@ -2153,6 +2154,14 @@ static void intel_enable_primary_hw_plane(struct drm_i915_private *dev_priv,
 
 	I915_WRITE(reg, val | DISPLAY_PLANE_ENABLE);
 	intel_flush_primary_plane(dev_priv, plane);
+
+	/*
+	 * BDW signals flip done immediately if the plane
+	 * is disabled, even if the plane enable is already
+	 * armed to occur at the next vblank :(
+	 */
+	if (IS_BROADWELL(dev))
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
 }
 
 /**
@@ -4631,7 +4640,10 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->active)
 		return;
 
-	vlv_prepare_pll(intel_crtc);
+	is_dsi = intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI);
+
+	if (!is_dsi && !IS_CHERRYVIEW(dev))
+		vlv_prepare_pll(intel_crtc);
 
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
@@ -4664,8 +4676,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
-
-	is_dsi = intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI);
 
 	if (!is_dsi) {
 		if (IS_CHERRYVIEW(dev))
@@ -11806,6 +11816,22 @@ const char *intel_output_name(int output)
 	return names[output];
 }
 
+static bool intel_crt_present(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_ULT(dev))
+		return false;
+
+	if (IS_CHERRYVIEW(dev))
+		return false;
+
+	if (IS_VALLEYVIEW(dev) && !dev_priv->vbt.int_crt_support)
+		return false;
+
+	return true;
+}
+
 static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -11814,7 +11840,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	intel_lvds_init(dev);
 
-	if (!IS_ULT(dev) && !IS_CHERRYVIEW(dev) && dev_priv->vbt.int_crt_support)
+	if (intel_crt_present(dev))
 		intel_crt_init(dev);
 
 	if (HAS_DDI(dev)) {
@@ -13126,8 +13152,8 @@ intel_display_capture_error_state(struct drm_device *dev)
 
 	for_each_pipe(i) {
 		error->pipe[i].power_domain_on =
-			intel_display_power_enabled_sw(dev_priv,
-						       POWER_DOMAIN_PIPE(i));
+			intel_display_power_enabled_unlocked(dev_priv,
+							   POWER_DOMAIN_PIPE(i));
 		if (!error->pipe[i].power_domain_on)
 			continue;
 
@@ -13162,7 +13188,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 		enum transcoder cpu_transcoder = transcoders[i];
 
 		error->transcoder[i].power_domain_on =
-			intel_display_power_enabled_sw(dev_priv,
+			intel_display_power_enabled_unlocked(dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder));
 		if (!error->transcoder[i].power_domain_on)
 			continue;

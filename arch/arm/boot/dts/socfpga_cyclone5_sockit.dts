@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/include/ "socfpga_cyclone5.dtsi"
+#include "socfpga_cyclone5.dtsi"
 
 / {
 	model = "Terasic SoCkit";
@@ -51,4 +51,8 @@
 	txc-skew-ps = <2600>;
 	rxdv-skew-ps = <0>;
 	rxc-skew-ps = <2000>;
+};
+
+&usb1 {
+	status = "okay";
 };

@@ -10,12 +10,12 @@ This binding uses the common clock binding:
 
 Required properties:
 - compatible
-	Shall have one of the following values:
-	- "brcm,bcm11351-root-ccu"
-	- "brcm,bcm11351-aon-ccu"
-	- "brcm,bcm11351-hub-ccu"
-	- "brcm,bcm11351-master-ccu"
-	- "brcm,bcm11351-slave-ccu"
+	Shall have a value of the form "brcm,<model>-<which>-ccu",
+	where <model> is a Broadcom SoC model number and <which> is
+	the name of a defined CCU.  For example:
+	    "brcm,bcm11351-root-ccu"
+	The compatible strings used for each supported SoC family
+	are defined below.
 - reg
 	Shall define the base and range of the address space
 	containing clock control registers
@@ -26,12 +26,48 @@ Required properties:
 	Shall be an ordered list of strings defining the names of
 	the clocks provided by the CCU.
 
+Device tree example:
 
-BCM281XX family SoCs use Kona CCUs.  The following table defines
-the set of CCUs and clock specifiers for BCM281XX clocks.  When
-a clock consumer references a clocks, its symbolic specifier
-(rather than its numeric index value) should be used.  These
-specifiers are defined in "include/dt-bindings/clock/bcm281xx.h".
+	slave_ccu: slave_ccu {
+		compatible = "brcm,bcm11351-slave-ccu";
+		reg = <0x3e011000 0x0f00>;
+		#clock-cells = <1>;
+		clock-output-names = "uartb",
+				     "uartb2",
+				     "uartb3",
+				     "uartb4";
+	};
+
+	ref_crystal_clk: ref_crystal {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <26000000>;
+	};
+
+	uart@3e002000 {
+		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
+		status = "disabled";
+		reg = <0x3e002000 0x1000>;
+		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB3>;
+		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+BCM281XX family
+---------------
+CCU compatible string values for SoCs in the BCM281XX family are:
+    "brcm,bcm11351-root-ccu"
+    "brcm,bcm11351-aon-ccu"
+    "brcm,bcm11351-hub-ccu"
+    "brcm,bcm11351-master-ccu"
+    "brcm,bcm11351-slave-ccu"
+
+The following table defines the set of CCUs and clock specifiers for
+BCM281XX family clocks.  When a clock consumer references a clocks,
+its symbolic specifier (rather than its numeric index value) should
+be used.  These specifiers are defined in:
+    "include/dt-bindings/clock/bcm281xx.h"
 
     CCU     Clock           Type    Index   Specifier
     ---     -----           ----    -----   ---------
@@ -64,30 +100,40 @@ specifiers are defined in "include/dt-bindings/clock/bcm281xx.h".
     slave   pwm             peri      9     BCM281XX_SLAVE_CCU_PWM
 
 
-Device tree example:
+BCM21664 family
+---------------
+CCU compatible string values for SoCs in the BCM21664 family are:
+    "brcm,bcm21664-root-ccu"
+    "brcm,bcm21664-aon-ccu"
+    "brcm,bcm21664-master-ccu"
+    "brcm,bcm21664-slave-ccu"
 
-	slave_ccu: slave_ccu {
-		compatible = "brcm,bcm11351-slave-ccu";
-		reg = <0x3e011000 0x0f00>;
-		#clock-cells = <1>;
-		clock-output-names = "uartb",
-				     "uartb2",
-				     "uartb3",
-				     "uartb4";
-	};
+The following table defines the set of CCUs and clock specifiers for
+BCM21664 family clocks.  When a clock consumer references a clocks,
+its symbolic specifier (rather than its numeric index value) should
+be used.  These specifiers are defined in:
+    "include/dt-bindings/clock/bcm21664.h"
 
-	ref_crystal_clk: ref_crystal {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <26000000>;
-	};
+    CCU     Clock           Type    Index   Specifier
+    ---     -----           ----    -----   ---------
+    root    frac_1m         peri      0     BCM21664_ROOT_CCU_FRAC_1M
 
-	uart@3e002000 {
-		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
-		status = "disabled";
-		reg = <0x3e002000 0x1000>;
-		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB3>;
-		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
-		reg-shift = <2>;
-		reg-io-width = <4>;
-	};
+    aon     hub_timer       peri      0     BCM21664_AON_CCU_HUB_TIMER
+
+    master  sdio1           peri      0     BCM21664_MASTER_CCU_SDIO1
+    master  sdio2           peri      1     BCM21664_MASTER_CCU_SDIO2
+    master  sdio3           peri      2     BCM21664_MASTER_CCU_SDIO3
+    master  sdio4           peri      3     BCM21664_MASTER_CCU_SDIO4
+    master  sdio1_sleep     peri      4     BCM21664_MASTER_CCU_SDIO1_SLEEP
+    master  sdio2_sleep     peri      5     BCM21664_MASTER_CCU_SDIO2_SLEEP
+    master  sdio3_sleep     peri      6     BCM21664_MASTER_CCU_SDIO3_SLEEP
+    master  sdio4_sleep     peri      7     BCM21664_MASTER_CCU_SDIO4_SLEEP
+
+    slave   uartb           peri      0     BCM21664_SLAVE_CCU_UARTB
+    slave   uartb2          peri      1     BCM21664_SLAVE_CCU_UARTB2
+    slave   uartb3          peri      2     BCM21664_SLAVE_CCU_UARTB3
+    slave   uartb4          peri      3     BCM21664_SLAVE_CCU_UARTB4
+    slave   bsc1            peri      4     BCM21664_SLAVE_CCU_BSC1
+    slave   bsc2            peri      5     BCM21664_SLAVE_CCU_BSC2
+    slave   bsc3            peri      6     BCM21664_SLAVE_CCU_BSC3
+    slave   bsc4            peri      7     BCM21664_SLAVE_CCU_BSC4

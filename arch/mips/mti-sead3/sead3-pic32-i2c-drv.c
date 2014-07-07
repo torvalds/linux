@@ -312,16 +312,13 @@ static int i2c_platform_probe(struct platform_device *pdev)
 
 	pr_debug("i2c_platform_probe\n");
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		ret = -ENODEV;
-		goto out;
-	}
+	if (!r)
+		return -ENODEV;
 
-	priv = kzalloc(sizeof(struct i2c_platform_data), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct i2c_platform_data),
+			    GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	/* FIXME: need to allocate resource in PIC32 space */
 #if 0
@@ -330,10 +327,8 @@ static int i2c_platform_probe(struct platform_device *pdev)
 #else
 	priv->base = r->start;
 #endif
-	if (!priv->base) {
-		ret = -EBUSY;
-		goto out_mem;
-	}
+	if (!priv->base)
+		return -EBUSY;
 
 	priv->xfer_timeout = 200;
 	priv->ack_timeout = 200;
@@ -348,17 +343,13 @@ static int i2c_platform_probe(struct platform_device *pdev)
 	i2c_platform_setup(priv);
 
 	ret = i2c_add_numbered_adapter(&priv->adap);
-	if (ret == 0) {
-		platform_set_drvdata(pdev, priv);
-		return 0;
+	if (ret) {
+		i2c_platform_disable(priv);
+		return ret;
 	}
 
-	i2c_platform_disable(priv);
-
-out_mem:
-	kfree(priv);
-out:
-	return ret;
+	platform_set_drvdata(pdev, priv);
+	return 0;
 }
 
 static int i2c_platform_remove(struct platform_device *pdev)
@@ -369,7 +360,6 @@ static int i2c_platform_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&priv->adap);
 	i2c_platform_disable(priv);
-	kfree(priv);
 	return 0;
 }
 

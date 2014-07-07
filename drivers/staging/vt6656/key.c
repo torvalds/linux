@@ -39,8 +39,7 @@
 #include "mac.h"
 #include "tmacro.h"
 #include "key.h"
-#include "rndis.h"
-#include "control.h"
+#include "usbpipe.h"
 
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
@@ -68,15 +67,10 @@ static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
             //MACvDisableKeyEntry(pDevice, i);
         }
     }
-    if ( wLength != 0 ) {
-        CONTROLnsRequestOut(pDevice,
-                            MESSAGE_TYPE_CLRKEYENTRY,
-                            0,
-                            0,
-                            wLength,
-                            pbyData
-                            );
-    }
+
+	if (wLength != 0)
+		vnt_control_out(pDevice, MESSAGE_TYPE_CLRKEYENTRY,
+			0, 0, wLength, pbyData);
 
 }
 
@@ -97,7 +91,6 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
 	int i, jj;
 	u8 pbyData[MAX_KEY_TABLE+1];
 
-    spin_lock_irq(&pDevice->lock);
     for (i=0;i<MAX_KEY_TABLE;i++) {
         pTable->KeyTable[i].bInUse = false;
         pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
@@ -114,15 +107,9 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
         pbyData[i] = (u8) i;
     }
     pbyData[i] = (u8) i;
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_CLRKEYENTRY,
-                        0,
-                        0,
-                        11,
-                        pbyData
-                        );
 
-    spin_unlock_irq(&pDevice->lock);
+	vnt_control_out(pDevice, MESSAGE_TYPE_CLRKEYENTRY,
+			0, 0, 11, pbyData);
 
     return;
 }
@@ -251,7 +238,9 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
                 if (uKeyLength == WLAN_WEP104_KEYLEN)
                     pKey->abyKey[15] |= 0x80;
             }
-            MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pbyBSSID, (u32 *)pKey->abyKey);
+
+	    MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx,
+			pbyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */
@@ -319,7 +308,9 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
             if (uKeyLength == WLAN_WEP104_KEYLEN)
                 pKey->abyKey[15] |= 0x80;
         }
-        MACvSetKeyEntry(pDevice, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx, pbyBSSID, (u32 *)pKey->abyKey);
+
+	MACvSetKeyEntry(pDevice, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx,
+					pbyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */
@@ -614,7 +605,9 @@ int KeybSetDefaultKey(struct vnt_private *pDevice, PSKeyManagement pTable,
             pKey->abyKey[15] |= 0x80;
     }
 
-    MACvSetKeyEntry(pDevice, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl, MAX_KEY_TABLE-1, uKeyIdx, pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, (u32 *) pKey->abyKey);
+	MACvSetKeyEntry(pDevice, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl,
+		MAX_KEY_TABLE-1, uKeyIdx,
+		pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */
@@ -708,7 +701,8 @@ int KeybSetAllGroupKey(struct vnt_private *pDevice, PSKeyManagement pTable,
                     pKey->abyKey[15] |= 0x80;
             }
 
-            MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pTable->KeyTable[i].abyBSSID, (u32 *) pKey->abyKey);
+	    MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx,
+			pTable->KeyTable[i].abyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */

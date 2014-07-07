@@ -4160,7 +4160,7 @@ static int __init sensors_nct6775_init(void)
 		pdev[i] = platform_device_alloc(DRVNAME, address);
 		if (!pdev[i]) {
 			err = -ENOMEM;
-			goto exit_device_put;
+			goto exit_device_unregister;
 		}
 
 		err = platform_device_add_data(pdev[i], &sio_data,
@@ -4198,9 +4198,11 @@ static int __init sensors_nct6775_init(void)
 	return 0;
 
 exit_device_put:
-	for (i = 0; i < ARRAY_SIZE(pdev); i++) {
+	platform_device_put(pdev[i]);
+exit_device_unregister:
+	while (--i >= 0) {
 		if (pdev[i])
-			platform_device_put(pdev[i]);
+			platform_device_unregister(pdev[i]);
 	}
 exit_unregister:
 	platform_driver_unregister(&nct6775_driver);

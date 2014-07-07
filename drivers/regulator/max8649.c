@@ -161,10 +161,8 @@ static int max8649_regulator_probe(struct i2c_client *client,
 
 	info = devm_kzalloc(&client->dev, sizeof(struct max8649_regulator_info),
 			    GFP_KERNEL);
-	if (!info) {
-		dev_err(&client->dev, "No enough memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	info->regmap = devm_regmap_init_i2c(client, &max8649_regmap_config);
 	if (IS_ERR(info->regmap)) {

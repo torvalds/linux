@@ -1972,7 +1972,9 @@ static int net2280_stop(struct usb_gadget *_gadget,
 	device_remove_file (&dev->pdev->dev, &dev_attr_function);
 	device_remove_file (&dev->pdev->dev, &dev_attr_queues);
 
-	DEBUG (dev, "unregistered driver '%s'\n", driver->driver.name);
+	DEBUG(dev, "unregistered driver '%s'\n",
+			driver ? driver->driver.name : "");
+
 	return 0;
 }
 

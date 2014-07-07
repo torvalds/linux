@@ -62,6 +62,8 @@ static struct omap_prcm_irq_setup *prcm_irq_setup;
 /* prm_base: base virtual address of the PRM IP block */
 void __iomem *prm_base;
 
+u16 prm_features;
+
 /*
  * prm_ll_data: function pointers to SoC-specific implementations of
  * common PRM functions
@@ -330,12 +332,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 
 	if (of_have_populated_dt()) {
 		int irq = omap_prcm_event_to_irq("io");
-		if (cpu_is_omap34xx())
-			omap_pcs_legacy_init(irq,
-				omap3xxx_prm_reconfigure_io_chain);
-		else
-			omap_pcs_legacy_init(irq,
-				omap44xx_prm_reconfigure_io_chain);
+		omap_pcs_legacy_init(irq, irq_setup->reconfigure_io_chain);
 	}
 
 	return 0;
@@ -530,3 +527,11 @@ int __init of_prcm_init(void)
 
 	return 0;
 }
+
+static int __init prm_late_init(void)
+{
+	if (prm_ll_data->late_init)
+		return prm_ll_data->late_init();
+	return 0;
+}
+subsys_initcall(prm_late_init);

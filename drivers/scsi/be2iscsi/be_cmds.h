@@ -71,6 +71,7 @@ struct be_mcc_wrb {
 #define BEISCSI_FW_MBX_TIMEOUT	100
 
 /* MBOX Command VER */
+#define MBX_CMD_VER1	0x01
 #define MBX_CMD_VER2	0x02
 
 struct be_mcc_compl {
@@ -269,6 +270,12 @@ struct be_cmd_resp_eq_create {
 	struct be_cmd_resp_hdr resp_hdr;
 	u16 eq_id;		/* sword */
 	u16 rsvd0;		/* sword */
+} __packed;
+
+struct be_set_eqd {
+	u32 eq_id;
+	u32 phase;
+	u32 delay_multiplier;
 } __packed;
 
 struct mgmt_chap_format {
@@ -622,7 +629,7 @@ struct be_cmd_req_modify_eq_delay {
 		u32 eq_id;
 		u32 phase;
 		u32 delay_multiplier;
-	} delay[8];
+	} delay[MAX_CPUS];
 } __packed;
 
 /******************** Get MAC ADDR *******************/
@@ -708,6 +715,8 @@ unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba);
 
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
 
+int be_cmd_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,
+			    int num);
 int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 			uint32_t tag, struct be_mcc_wrb **wrb,
 			struct be_dma_mem *mbx_cmd_mem);
@@ -1003,6 +1012,26 @@ struct tcp_connect_and_offload_in {
 	u16 data_ring_id;
 	u8 do_offload;
 	u8 rsvd0[3];
+} __packed;
+
+struct tcp_connect_and_offload_in_v1 {
+	struct be_cmd_req_hdr hdr;
+	struct ip_addr_format ip_address;
+	u16 tcp_port;
+	u16 cid;
+	u16 cq_id;
+	u16 defq_id;
+	struct phys_addr dataout_template_pa;
+	u16 hdr_ring_id;
+	u16 data_ring_id;
+	u8 do_offload;
+	u8 ifd_state;
+	u8 rsvd0[2];
+	u16 tcp_window_size;
+	u8 tcp_window_scale_count;
+	u8 rsvd1;
+	u32 tcp_mss:24;
+	u8 rsvd2;
 } __packed;
 
 struct tcp_connect_and_offload_out {

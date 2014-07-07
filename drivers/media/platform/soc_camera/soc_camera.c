@@ -314,7 +314,7 @@ static int soc_camera_s_std(struct file *file, void *priv, v4l2_std_id a)
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	return v4l2_subdev_call(sd, core, s_std, a);
+	return v4l2_subdev_call(sd, video, s_std, a);
 }
 
 static int soc_camera_g_std(struct file *file, void *priv, v4l2_std_id *a)
@@ -322,7 +322,7 @@ static int soc_camera_g_std(struct file *file, void *priv, v4l2_std_id *a)
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	return v4l2_subdev_call(sd, core, g_std, a);
+	return v4l2_subdev_call(sd, video, g_std, a);
 }
 
 static int soc_camera_enum_framesizes(struct file *file, void *fh,
@@ -1277,6 +1277,8 @@ static int soc_camera_probe_finish(struct soc_camera_device *icd)
 	sd->grp_id = soc_camera_grp_id(icd);
 	v4l2_set_subdev_hostdata(sd, icd);
 
+	v4l2_subdev_call(sd, video, g_tvnorms, &icd->vdev->tvnorms);
+
 	ret = v4l2_ctrl_add_handler(&icd->ctrl_handler, sd->ctrl_handler, NULL);
 	if (ret < 0)
 		return ret;
@@ -1997,6 +1999,12 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 		return -ENODEV;
 
 	video_set_drvdata(icd->vdev, icd);
+	if (icd->vdev->tvnorms == 0) {
+		/* disable the STD API if there are no tvnorms defined */
+		v4l2_disable_ioctl(icd->vdev, VIDIOC_G_STD);
+		v4l2_disable_ioctl(icd->vdev, VIDIOC_S_STD);
+		v4l2_disable_ioctl(icd->vdev, VIDIOC_ENUMSTD);
+	}
 	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		dev_err(icd->pdev, "video_register_device failed: %d\n", ret);

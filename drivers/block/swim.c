@@ -549,7 +549,7 @@ static void redo_fd_request(struct request_queue *q)
 		case READ:
 			err = floppy_read_sectors(fs, blk_rq_pos(req),
 						  blk_rq_cur_sectors(req),
-						  req->buffer);
+						  bio_data(req->bio));
 			break;
 		}
 	done:

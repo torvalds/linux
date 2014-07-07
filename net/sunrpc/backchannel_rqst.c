@@ -244,10 +244,10 @@ void xprt_free_bc_request(struct rpc_rqst *req)
 	dprintk("RPC:       free backchannel req=%p\n", req);
 
 	req->rq_connect_cookie = xprt->connect_cookie - 1;
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	WARN_ON_ONCE(!test_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state));
 	clear_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	if (!xprt_need_to_requeue(xprt)) {
 		/*

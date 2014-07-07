@@ -375,10 +375,8 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	int ret = -ENODEV;
 
 	lg = devm_kzalloc(dev, sizeof(struct lp_gpio), GFP_KERNEL);
-	if (!lg) {
-		dev_err(dev, "can't allocate lp_gpio chip data\n");
+	if (!lg)
 		return -ENOMEM;
-	}
 
 	lg->pdev = pdev;
 	platform_set_drvdata(pdev, lg);

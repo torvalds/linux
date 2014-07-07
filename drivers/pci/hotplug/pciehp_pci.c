@@ -46,9 +46,8 @@ int pciehp_configure_device(struct slot *p_slot)
 
 	dev = pci_get_slot(parent, PCI_DEVFN(0, 0));
 	if (dev) {
-		ctrl_err(ctrl, "Device %s already exists "
-			 "at %04x:%02x:00, cannot hot-add\n", pci_name(dev),
-			 pci_domain_nr(parent), parent->number);
+		ctrl_err(ctrl, "Device %s already exists at %04x:%02x:00, cannot hot-add\n",
+			 pci_name(dev), pci_domain_nr(parent), parent->number);
 		pci_dev_put(dev);
 		ret = -EEXIST;
 		goto out;
@@ -62,8 +61,7 @@ int pciehp_configure_device(struct slot *p_slot)
 	}
 
 	list_for_each_entry(dev, &parent->devices, bus_list)
-		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
-				(dev->hdr_type == PCI_HEADER_TYPE_CARDBUS))
+		if (pci_is_bridge(dev))
 			pci_hp_add_bridge(dev);
 
 	pci_assign_unassigned_bridge_resources(bridge);

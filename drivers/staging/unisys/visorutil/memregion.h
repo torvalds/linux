@@ -1,6 +1,6 @@
 /* memregion.h
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -38,6 +38,6 @@ HOSTADDRESS visor_memregion_get_physaddr(MEMREGION *memregion);
 ulong visor_memregion_get_nbytes(MEMREGION *memregion);
 void memregion_dump(MEMREGION *memregion, char *s,
 		    ulong off, ulong len, struct seq_file *seq);
-void *visor_memregion_get_pointer(MEMREGION *memregion);
+void __iomem *visor_memregion_get_pointer(MEMREGION *memregion);
 
 #endif

@@ -775,7 +775,6 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
 	.init_time	= mx31_3ds_timer_init,
 	.init_machine = mx31_3ds_init,
 	.reserve = mx31_3ds_reserve,

@@ -17,6 +17,7 @@ struct irq_data;
 struct platform_device;
 struct pt_regs;
 struct clk;
+struct device_node;
 enum mxc_cpu_pwr_mode;
 
 void mx1_map_io(void);
@@ -56,6 +57,7 @@ void imx51_init_late(void);
 void imx53_init_late(void);
 void epit_timer_init(void __iomem *base, int irq);
 void mxc_timer_init(void __iomem *, int);
+void mxc_timer_init_dt(struct device_node *);
 int mx1_clocks_init(unsigned long fref);
 int mx21_clocks_init(unsigned long lref, unsigned long fref);
 int mx25_clocks_init(void);
@@ -98,19 +100,6 @@ enum mx3_cpu_pwr_mode {
 
 void mx3_cpu_lp_set(enum mx3_cpu_pwr_mode mode);
 void imx_print_silicon_rev(const char *cpu, int srev);
-
-void avic_handle_irq(struct pt_regs *);
-void tzic_handle_irq(struct pt_regs *);
-
-#define imx1_handle_irq avic_handle_irq
-#define imx21_handle_irq avic_handle_irq
-#define imx25_handle_irq avic_handle_irq
-#define imx27_handle_irq avic_handle_irq
-#define imx31_handle_irq avic_handle_irq
-#define imx35_handle_irq avic_handle_irq
-#define imx50_handle_irq tzic_handle_irq
-#define imx51_handle_irq tzic_handle_irq
-#define imx53_handle_irq tzic_handle_irq
 
 void imx_enable_cpu(int cpu, bool enable);
 void imx_set_cpu_jump(int cpu, void *jump_addr);

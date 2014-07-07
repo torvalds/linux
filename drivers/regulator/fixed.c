@@ -50,7 +50,6 @@ of_get_fixed_voltage_config(struct device *dev)
 {
 	struct fixed_voltage_config *config;
 	struct device_node *np = dev->of_node;
-	const __be32 *delay;
 	struct regulator_init_data *init_data;
 
 	config = devm_kzalloc(dev, sizeof(struct fixed_voltage_config),
@@ -91,15 +90,11 @@ of_get_fixed_voltage_config(struct device *dev)
 	if ((config->gpio == -ENODEV) || (config->gpio == -EPROBE_DEFER))
 		return ERR_PTR(-EPROBE_DEFER);
 
-	delay = of_get_property(np, "startup-delay-us", NULL);
-	if (delay)
-		config->startup_delay = be32_to_cpu(*delay);
+	of_property_read_u32(np, "startup-delay-us", &config->startup_delay);
 
-	if (of_find_property(np, "enable-active-high", NULL))
-		config->enable_high = true;
-
-	if (of_find_property(np, "gpio-open-drain", NULL))
-		config->gpio_is_open_drain = true;
+	config->enable_high = of_property_read_bool(np, "enable-active-high");
+	config->gpio_is_open_drain = of_property_read_bool(np,
+							   "gpio-open-drain");
 
 	if (of_find_property(np, "vin-supply", NULL))
 		config->input_supply = "vin";

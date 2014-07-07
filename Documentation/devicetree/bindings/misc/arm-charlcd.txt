@@ -1,0 +1,18 @@
+ARM Versatile Character LCD
+-----------------------------------------------------
+This binding defines the character LCD interface found on ARM Versatile AB
+and PB reference platforms.
+
+Required properties:
+- compatible : "arm,versatile-clcd"
+- reg : Location and size of character LCD registers
+
+Optional properties:
+- interrupts - single interrupt for character LCD. The character LCD can
+  operate in polled mode without an interrupt.
+
+Example:
+	lcd@10008000 {
+		compatible = "arm,versatile-lcd";
+		reg = <0x10008000 0x1000>;
+	};

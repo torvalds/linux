@@ -1453,7 +1453,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 			tbl->action = IWL_LEGACY_SWITCH_SISO;
 		break;
 	default:
-		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		IWL_ERR(priv, "Invalid BT load %d\n", priv->bt_traffic_load);
 		break;
 	}
 
@@ -1628,7 +1628,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 			tbl->action = IWL_SISO_SWITCH_ANTENNA1;
 		break;
 	default:
-		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		IWL_ERR(priv, "Invalid BT load %d\n", priv->bt_traffic_load);
 		break;
 	}
 
@@ -1799,7 +1799,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 			tbl->action = IWL_MIMO2_SWITCH_SISO_A;
 		break;
 	default:
-		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		IWL_ERR(priv, "Invalid BT load %d\n", priv->bt_traffic_load);
 		break;
 	}
 
@@ -1969,7 +1969,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 			tbl->action = IWL_MIMO3_SWITCH_SISO_A;
 		break;
 	default:
-		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		IWL_ERR(priv, "Invalid BT load %d\n", priv->bt_traffic_load);
 		break;
 	}
 
@@ -2709,7 +2709,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rs_fill_link_cmd(NULL, lq_sta, rate);
 	priv->stations[lq_sta->lq.sta_id].lq = &lq_sta->lq;
-	iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_SYNC, true);
+	iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, 0, true);
 }
 
 static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,

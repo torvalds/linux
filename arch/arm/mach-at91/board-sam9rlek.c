@@ -18,6 +18,7 @@
 #include <linux/clk.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/platform_data/at91_adc.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -38,6 +39,7 @@
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
+#include "gpio.h"
 
 
 static void __init ek_init_early(void)
@@ -229,12 +231,13 @@ static struct gpio_led ek_leds[] = {
 
 
 /*
- * Touchscreen
+ * ADC + Touchscreen
  */
-static struct at91_tsadcc_data ek_tsadcc_data = {
-	.adc_clock		= 1000000,
-	.pendet_debounce	= 0x0f,
-	.ts_sample_hold_time	= 0x03,
+static struct at91_adc_data ek_adc_data = {
+	.channels_used = BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5),
+	.use_external_triggers = true,
+	.vref = 3300,
+	.touchscreen_type = ATMEL_ADC_TOUCHSCREEN_4WIRE,
 };
 
 
@@ -310,8 +313,8 @@ static void __init ek_board_init(void)
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* AC97 */
 	at91_add_device_ac97(&ek_ac97_data);
-	/* Touch Screen Controller */
-	at91_add_device_tsadcc(&ek_tsadcc_data);
+	/* Touch Screen Controller + ADC */
+	at91_add_device_adc(&ek_adc_data);
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 	/* Push Buttons */

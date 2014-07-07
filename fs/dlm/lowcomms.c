@@ -617,6 +617,11 @@ static void retry_failed_sctp_send(struct connection *recv_con,
 	int nodeid = sn_send_failed->ssf_info.sinfo_ppid;
 
 	log_print("Retry sending %d bytes to node id %d", len, nodeid);
+	
+	if (!nodeid) {
+		log_print("Shouldn't resend data via listening connection.");
+		return;
+	}
 
 	con = nodeid2con(nodeid, 0);
 	if (!con) {

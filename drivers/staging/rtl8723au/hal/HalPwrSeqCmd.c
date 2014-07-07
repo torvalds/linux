@@ -30,6 +30,7 @@ Major Change History:
 
 --*/
 #include <HalPwrSeqCmd.h>
+#include <usb_ops_linux.h>
 
 /*  */
 /*	Description: */
@@ -89,14 +90,14 @@ u8 HalPwrSeqCmdParsing23a(struct rtw_adapter *padapter, u8 CutVersion,
 				offset = GET_PWR_CFG_OFFSET(PwrCfgCmd);
 
 				/*  Read the value from system register */
-				value = rtw_read8(padapter, offset);
+				value = rtl8723au_read8(padapter, offset);
 
 				value &= ~(GET_PWR_CFG_MASK(PwrCfgCmd));
 				value |= (GET_PWR_CFG_VALUE(PwrCfgCmd) &
 					  GET_PWR_CFG_MASK(PwrCfgCmd));
 
 				/*  Write the value back to sytem register */
-				rtw_write8(padapter, offset, value);
+				rtl8723au_write8(padapter, offset, value);
 				break;
 
 			case PWR_CMD_POLLING:
@@ -107,7 +108,8 @@ u8 HalPwrSeqCmdParsing23a(struct rtw_adapter *padapter, u8 CutVersion,
 				bPollingBit = false;
 				offset = GET_PWR_CFG_OFFSET(PwrCfgCmd);
 				do {
-					value = rtw_read8(padapter, offset);
+					value = rtl8723au_read8(padapter,
+								offset);
 
 					value &= GET_PWR_CFG_MASK(PwrCfgCmd);
 					if (value ==

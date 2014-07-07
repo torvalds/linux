@@ -2068,7 +2068,7 @@ static void wcn36xx_smd_rsp_process(struct wcn36xx *wcn, void *buf, size_t len)
 		if (!msg_ind)
 			goto nomem;
 		msg_ind->msg_len = len;
-		msg_ind->msg = kmalloc(len, GFP_KERNEL);
+		msg_ind->msg = kmemdup(buf, len, GFP_KERNEL);
 		if (!msg_ind->msg) {
 			kfree(msg_ind);
 nomem:
@@ -2080,7 +2080,6 @@ nomem:
 				    msg_header->msg_type);
 			break;
 		}
-		memcpy(msg_ind->msg, buf, len);
 		mutex_lock(&wcn->hal_ind_mutex);
 		list_add_tail(&msg_ind->list, &wcn->hal_ind_queue);
 		queue_work(wcn->hal_ind_wq, &wcn->hal_ind_work);

@@ -80,7 +80,10 @@ SoCs:
   compatible = "ti,omap5432", "ti,omap5"
 
 - DRA742
-  compatible = "ti,dra7xx", "ti,dra7"
+  compatible = "ti,dra742", "ti,dra74", "ti,dra7"
+
+- DRA722
+  compatible = "ti,dra722", "ti,dra72", "ti,dra7"
 
 - AM4372
   compatible = "ti,am4372", "ti,am43"
@@ -102,6 +105,12 @@ Boards:
 - OMAP4 DuoVero with Parlor : Commercial expansion board with daughter board
   compatible = "gumstix,omap4-duovero-parlor", "gumstix,omap4-duovero", "ti,omap4430", "ti,omap4";
 
+- OMAP4 VAR-STK-OM44 : Commercial dev kit with VAR-OM44CustomBoard and VAR-SOM-OM44 w/WLAN
+  compatible = "variscite,var-stk-om44", "variscite,var-som-om44", "ti,omap4460", "ti,omap4";
+
+- OMAP4 VAR-DVK-OM44 : Commercial dev kit with VAR-OM44CustomBoard, VAR-SOM-OM44 w/WLAN and LCD touchscreen
+  compatible = "variscite,var-dvk-om44", "variscite,var-som-om44", "ti,omap4460", "ti,omap4";
+
 - OMAP3 EVM : Software Development Board for OMAP35x, AM/DM37x
   compatible = "ti,omap3-evm", "ti,omap3"
 
@@ -120,5 +129,8 @@ Boards:
 - AM437x GP EVM
   compatible = "ti,am437x-gp-evm", "ti,am4372", "ti,am43"
 
-- DRA7 EVM:  Software Developement Board for DRA7XX
-  compatible = "ti,dra7-evm", "ti,dra7"
+- DRA742 EVM:  Software Development Board for DRA742
+  compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7"
+
+- DRA722 EVM: Software Development Board for DRA722
+  compatible = "ti,dra72-evm", "ti,dra722", "ti,dra72", "ti,dra7"

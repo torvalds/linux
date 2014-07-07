@@ -407,7 +407,7 @@ static void efm32_uart_set_termios(struct uart_port *port,
 	if (new->c_iflag & INPCK)
 		port->read_status_mask |=
 			UARTn_RXDATAX_FERR | UARTn_RXDATAX_PERR;
-	if (new->c_iflag & (BRKINT | PARMRK))
+	if (new->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SW_UARTn_RXDATAX_BERR;
 
 	port->ignore_status_mask = 0;
@@ -842,6 +842,7 @@ static void __exit efm32_uart_exit(void)
 	platform_driver_unregister(&efm32_uart_driver);
 	uart_unregister_driver(&efm32_uart_reg);
 }
+module_exit(efm32_uart_exit);
 
 MODULE_AUTHOR("Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>");
 MODULE_DESCRIPTION("EFM32 UART/USART driver");

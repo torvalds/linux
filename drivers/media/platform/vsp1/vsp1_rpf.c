@@ -96,8 +96,10 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	vsp1_rpf_write(rpf, VI6_RPF_INFMT, infmt);
 	vsp1_rpf_write(rpf, VI6_RPF_DSWAP, fmtinfo->swap);
 
-	/* Output location. Composing isn't supported yet. */
-	vsp1_rpf_write(rpf, VI6_RPF_LOC, 0);
+	/* Output location */
+	vsp1_rpf_write(rpf, VI6_RPF_LOC,
+		       (rpf->location.left << VI6_RPF_LOC_HCOORD_SHIFT) |
+		       (rpf->location.top << VI6_RPF_LOC_VCOORD_SHIFT));
 
 	/* Disable alpha, mask and color key. Set the alpha channel to a fixed
 	 * value of 255.
@@ -176,7 +178,6 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	rpf->entity.type = VSP1_ENTITY_RPF;
 	rpf->entity.index = index;
-	rpf->entity.id = VI6_DPR_NODE_RPF(index);
 
 	ret = vsp1_entity_init(vsp1, &rpf->entity, 2);
 	if (ret < 0)

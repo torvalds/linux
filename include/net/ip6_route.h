@@ -186,7 +186,7 @@ static inline bool ip6_sk_accept_pmtu(const struct sock *sk)
 	       inet6_sk(sk)->pmtudisc != IPV6_PMTUDISC_OMIT;
 }
 
-static inline bool ip6_sk_local_df(const struct sock *sk)
+static inline bool ip6_sk_ignore_df(const struct sock *sk)
 {
 	return inet6_sk(sk)->pmtudisc < IPV6_PMTUDISC_DO ||
 	       inet6_sk(sk)->pmtudisc == IPV6_PMTUDISC_OMIT;

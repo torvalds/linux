@@ -119,6 +119,7 @@ struct iwl_mod_params {
 #endif
 	int ant_coupling;
 	char *nvm_file;
+	bool uapsd_disable;
 };
 
 #endif /* #__iwl_modparams_h__ */

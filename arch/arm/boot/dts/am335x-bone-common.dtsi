@@ -182,31 +182,31 @@
 
 &usb {
 	status = "okay";
+};
 
-	control@44e10620 {
-		status = "okay";
-	};
+&usb_ctrl_mod {
+	status = "okay";
+};
 
-	usb-phy@47401300 {
-		status = "okay";
-	};
+&usb0_phy {
+	status = "okay";
+};
 
-	usb-phy@47401b00 {
-		status = "okay";
-	};
+&usb1_phy {
+	status = "okay";
+};
 
-	usb@47401000 {
-		status = "okay";
-	};
+&usb0 {
+	status = "okay";
+};
 
-	usb@47401800 {
-		status = "okay";
-		dr_mode = "host";
-	};
+&usb1 {
+	status = "okay";
+	dr_mode = "host";
+};
 
-	dma-controller@47402000  {
-		status = "okay";
-	};
+&cppi41dma  {
+	status = "okay";
 };
 
 &i2c0 {
@@ -280,13 +280,14 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
-
+	status = "okay";
 };
 
 &davinci_mdio {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
+	status = "okay";
 };
 
 &mmc1 {

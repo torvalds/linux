@@ -213,6 +213,28 @@ static void elm_load_syndrome(struct elm_info *info,
 				val = cpu_to_be32(*(u32 *) &ecc[0]) >> 12;
 				elm_write_reg(info, offset, val);
 				break;
+			case BCH16_ECC:
+				val = cpu_to_be32(*(u32 *) &ecc[22]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[18]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[14]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[10]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[6]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[2]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[0]) >> 16;
+				elm_write_reg(info, offset, val);
+				break;
 			default:
 				pr_err("invalid config bch_type\n");
 			}
@@ -418,6 +440,7 @@ static int elm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 /**
  * elm_context_save
  * saves ELM configurations to preserve them across Hardware powered-down
@@ -435,6 +458,13 @@ static int elm_context_save(struct elm_info *info)
 	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
 		offset = i * SYNDROME_FRAGMENT_REG_SIZE;
 		switch (bch_type) {
+		case BCH16_ECC:
+			regs->elm_syndrome_fragment_6[i] = elm_read_reg(info,
+					ELM_SYNDROME_FRAGMENT_6 + offset);
+			regs->elm_syndrome_fragment_5[i] = elm_read_reg(info,
+					ELM_SYNDROME_FRAGMENT_5 + offset);
+			regs->elm_syndrome_fragment_4[i] = elm_read_reg(info,
+					ELM_SYNDROME_FRAGMENT_4 + offset);
 		case BCH8_ECC:
 			regs->elm_syndrome_fragment_3[i] = elm_read_reg(info,
 					ELM_SYNDROME_FRAGMENT_3 + offset);
@@ -473,6 +503,13 @@ static int elm_context_restore(struct elm_info *info)
 	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
 		offset = i * SYNDROME_FRAGMENT_REG_SIZE;
 		switch (bch_type) {
+		case BCH16_ECC:
+			elm_write_reg(info, ELM_SYNDROME_FRAGMENT_6 + offset,
+					regs->elm_syndrome_fragment_6[i]);
+			elm_write_reg(info, ELM_SYNDROME_FRAGMENT_5 + offset,
+					regs->elm_syndrome_fragment_5[i]);
+			elm_write_reg(info, ELM_SYNDROME_FRAGMENT_4 + offset,
+					regs->elm_syndrome_fragment_4[i]);
 		case BCH8_ECC:
 			elm_write_reg(info, ELM_SYNDROME_FRAGMENT_3 + offset,
 					regs->elm_syndrome_fragment_3[i]);
@@ -509,6 +546,7 @@ static int elm_resume(struct device *dev)
 	elm_context_restore(info);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(elm_pm_ops, elm_suspend, elm_resume);
 

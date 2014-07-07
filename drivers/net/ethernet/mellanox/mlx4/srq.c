@@ -103,11 +103,11 @@ int __mlx4_srq_alloc_icm(struct mlx4_dev *dev, int *srqn)
 	if (*srqn == -1)
 		return -ENOMEM;
 
-	err = mlx4_table_get(dev, &srq_table->table, *srqn);
+	err = mlx4_table_get(dev, &srq_table->table, *srqn, GFP_KERNEL);
 	if (err)
 		goto err_out;
 
-	err = mlx4_table_get(dev, &srq_table->cmpt_table, *srqn);
+	err = mlx4_table_get(dev, &srq_table->cmpt_table, *srqn, GFP_KERNEL);
 	if (err)
 		goto err_put;
 	return 0;

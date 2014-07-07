@@ -1017,7 +1017,6 @@ static struct inet_protosw sctp_seqpacket_protosw = {
 	.protocol   = IPPROTO_SCTP,
 	.prot       = &sctp_prot,
 	.ops        = &inet_seqpacket_ops,
-	.no_check   = 0,
 	.flags      = SCTP_PROTOSW_FLAG
 };
 static struct inet_protosw sctp_stream_protosw = {
@@ -1025,7 +1024,6 @@ static struct inet_protosw sctp_stream_protosw = {
 	.protocol   = IPPROTO_SCTP,
 	.prot       = &sctp_prot,
 	.ops        = &inet_seqpacket_ops,
-	.no_check   = 0,
 	.flags      = SCTP_PROTOSW_FLAG
 };
 
@@ -1105,14 +1103,15 @@ int sctp_register_pf(struct sctp_pf *pf, sa_family_t family)
 
 static inline int init_sctp_mibs(struct net *net)
 {
-	return snmp_mib_init((void __percpu **)net->sctp.sctp_statistics,
-			     sizeof(struct sctp_mib),
-			     __alignof__(struct sctp_mib));
+	net->sctp.sctp_statistics = alloc_percpu(struct sctp_mib);
+	if (!net->sctp.sctp_statistics)
+		return -ENOMEM;
+	return 0;
 }
 
 static inline void cleanup_sctp_mibs(struct net *net)
 {
-	snmp_mib_free((void __percpu **)net->sctp.sctp_statistics);
+	free_percpu(net->sctp.sctp_statistics);
 }
 
 static void sctp_v4_pf_init(void)

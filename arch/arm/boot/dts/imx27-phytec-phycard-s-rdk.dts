@@ -15,6 +15,10 @@
 	model = "Phytec pca100 rapid development kit";
 	compatible = "phytec,imx27-pca100-rdk", "phytec,imx27-pca100", "fsl,imx27";
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	display: display {
 		model = "Primeview-PD050VL1";
 		native-mode = <&timing0>;

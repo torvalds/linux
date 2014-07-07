@@ -198,16 +198,6 @@ struct wmi_mac_addr {
 	} __packed;
 } __packed;
 
-/* macro to convert MAC address from WMI word format to char array */
-#define WMI_MAC_ADDR_TO_CHAR_ARRAY(pwmi_mac_addr, c_macaddr) do { \
-	(c_macaddr)[0] =  ((pwmi_mac_addr)->word0) & 0xff; \
-	(c_macaddr)[1] = (((pwmi_mac_addr)->word0) >> 8) & 0xff; \
-	(c_macaddr)[2] = (((pwmi_mac_addr)->word0) >> 16) & 0xff; \
-	(c_macaddr)[3] = (((pwmi_mac_addr)->word0) >> 24) & 0xff; \
-	(c_macaddr)[4] =  ((pwmi_mac_addr)->word1) & 0xff; \
-	(c_macaddr)[5] = (((pwmi_mac_addr)->word1) >> 8) & 0xff; \
-	} while (0)
-
 struct wmi_cmd_map {
 	u32 init_cmdid;
 	u32 start_scan_cmdid;
@@ -1265,7 +1255,7 @@ struct wmi_resource_config {
 	 */
 	__le32 rx_decap_mode;
 
-	/* what is the maximum scan requests than can be queued */
+	/* what is the maximum number of scan requests that can be queued */
 	__le32 scan_max_pending_reqs;
 
 	/* maximum VDEV that could use BMISS offload */
@@ -1450,7 +1440,7 @@ struct wmi_resource_config_10x {
 	 */
 	__le32 rx_decap_mode;
 
-	/* what is the maximum scan requests than can be queued */
+	/* what is the maximum number of scan requests that can be queued */
 	__le32 scan_max_pending_reqs;
 
 	/* maximum VDEV that could use BMISS offload */
@@ -2185,6 +2175,31 @@ struct wmi_pdev_set_regdomain_cmd {
 	__le32 conformance_test_limit_5G;
 } __packed;
 
+enum wmi_dfs_region {
+	/* Uninitialized dfs domain */
+	WMI_UNINIT_DFS_DOMAIN = 0,
+
+	/* FCC3 dfs domain */
+	WMI_FCC_DFS_DOMAIN = 1,
+
+	/* ETSI dfs domain */
+	WMI_ETSI_DFS_DOMAIN = 2,
+
+	/*Japan dfs domain */
+	WMI_MKK4_DFS_DOMAIN = 3,
+};
+
+struct wmi_pdev_set_regdomain_cmd_10x {
+	__le32 reg_domain;
+	__le32 reg_domain_2G;
+	__le32 reg_domain_5G;
+	__le32 conformance_test_limit_2G;
+	__le32 conformance_test_limit_5G;
+
+	/* dfs domain from wmi_dfs_region */
+	__le32 dfs_domain;
+} __packed;
+
 /* Command to set/unset chip in quiet mode */
 struct wmi_pdev_set_quiet_cmd {
 	/* period in TUs */
@@ -2209,6 +2224,19 @@ enum ath10k_protmode {
 	ATH10K_PROT_CTSONLY  = 1,    /* CTS to self */
 	ATH10K_PROT_RTSCTS   = 2,    /* RTS-CTS */
 };
+
+enum wmi_rtscts_profile {
+	WMI_RTSCTS_FOR_NO_RATESERIES = 0,
+	WMI_RTSCTS_FOR_SECOND_RATESERIES,
+	WMI_RTSCTS_ACROSS_SW_RETRIES
+};
+
+#define WMI_RTSCTS_ENABLED		1
+#define WMI_RTSCTS_SET_MASK		0x0f
+#define WMI_RTSCTS_SET_LSB		0
+
+#define WMI_RTSCTS_PROFILE_MASK		0xf0
+#define WMI_RTSCTS_PROFILE_LSB		4
 
 enum wmi_beacon_gen_mode {
 	WMI_BEACON_STAGGERED_MODE = 0,
@@ -2295,9 +2323,9 @@ struct wmi_pdev_param_map {
 #define WMI_PDEV_PARAM_UNSUPPORTED 0
 
 enum wmi_pdev_param {
-	/* TX chian mask */
+	/* TX chain mask */
 	WMI_PDEV_PARAM_TX_CHAIN_MASK = 0x1,
-	/* RX chian mask */
+	/* RX chain mask */
 	WMI_PDEV_PARAM_RX_CHAIN_MASK,
 	/* TX power limit for 2G Radio */
 	WMI_PDEV_PARAM_TXPOWER_LIMIT2G,
@@ -2682,6 +2710,9 @@ struct wal_dbg_tx_stats {
 	/* wal pdev resets  */
 	__le32 pdev_resets;
 
+	/* frames dropped due to non-availability of stateless TIDs */
+	__le32 stateless_tid_alloc_failure;
+
 	__le32 phy_underrun;
 
 	/* MPDU is more than txop limit */
@@ -2738,13 +2769,21 @@ enum wmi_stats_id {
 	WMI_REQUEST_AP_STAT	= 0x02
 };
 
+struct wlan_inst_rssi_args {
+	__le16 cfg_retry_count;
+	__le16 retry_count;
+};
+
 struct wmi_request_stats_cmd {
 	__le32 stats_id;
 
-	/*
-	 * Space to add parameters like
-	 * peer mac addr
-	 */
+	__le32 vdev_id;
+
+	/* peer MAC address */
+	struct wmi_mac_addr peer_macaddr;
+
+	/* Instantaneous RSSI arguments */
+	struct wlan_inst_rssi_args inst_rssi_args;
 } __packed;
 
 /* Suspend option */
@@ -2795,7 +2834,7 @@ struct wmi_stats_event {
  * PDEV statistics
  * TODO: add all PDEV stats here
  */
-struct wmi_pdev_stats {
+struct wmi_pdev_stats_old {
 	__le32 chan_nf;        /* Channel noise floor */
 	__le32 tx_frame_count; /* TX frame count */
 	__le32 rx_frame_count; /* RX frame count */
@@ -2804,6 +2843,23 @@ struct wmi_pdev_stats {
 	__le32 phy_err_count;  /* Phy error count */
 	__le32 chan_tx_pwr;    /* channel tx power */
 	struct wal_dbg_stats wal; /* WAL dbg stats */
+} __packed;
+
+struct wmi_pdev_stats_10x {
+	__le32 chan_nf;        /* Channel noise floor */
+	__le32 tx_frame_count; /* TX frame count */
+	__le32 rx_frame_count; /* RX frame count */
+	__le32 rx_clear_count; /* rx clear count */
+	__le32 cycle_count;    /* cycle count */
+	__le32 phy_err_count;  /* Phy error count */
+	__le32 chan_tx_pwr;    /* channel tx power */
+	struct wal_dbg_stats wal; /* WAL dbg stats */
+	__le32 ack_rx_bad;
+	__le32 rts_bad;
+	__le32 rts_good;
+	__le32 fcs_bad;
+	__le32 no_beacons;
+	__le32 mib_int_count;
 } __packed;
 
 /*
@@ -2818,10 +2874,17 @@ struct wmi_vdev_stats {
  * peer statistics.
  * TODO: add more stats
  */
-struct wmi_peer_stats {
+struct wmi_peer_stats_old {
 	struct wmi_mac_addr peer_macaddr;
 	__le32 peer_rssi;
 	__le32 peer_tx_rate;
+} __packed;
+
+struct wmi_peer_stats_10x {
+	struct wmi_mac_addr peer_macaddr;
+	__le32 peer_rssi;
+	__le32 peer_tx_rate;
+	__le32 peer_rx_rate;
 } __packed;
 
 struct wmi_vdev_create_cmd {
@@ -4196,13 +4259,14 @@ void ath10k_wmi_detach(struct ath10k *ar);
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar);
 int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar);
 
-int ath10k_wmi_connect_htc_service(struct ath10k *ar);
+int ath10k_wmi_connect(struct ath10k *ar);
 int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 				const struct wmi_channel_arg *);
 int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt);
 int ath10k_wmi_pdev_resume_target(struct ath10k *ar);
 int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
-				  u16 rd5g, u16 ctl2g, u16 ctl5g);
+				  u16 rd5g, u16 ctl2g, u16 ctl5g,
+				  enum wmi_dfs_region dfs_reg);
 int ath10k_wmi_pdev_set_param(struct ath10k *ar, u32 id, u32 value);
 int ath10k_wmi_cmd_init(struct ath10k *ar);
 int ath10k_wmi_start_scan(struct ath10k *ar, const struct wmi_start_scan_arg *);

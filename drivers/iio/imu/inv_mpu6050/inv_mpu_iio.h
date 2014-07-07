@@ -59,6 +59,7 @@ struct inv_mpu6050_reg_map {
 /*device enum */
 enum inv_devices {
 	INV_MPU6050,
+	INV_MPU6500,
 	INV_NUM_PARTS
 };
 

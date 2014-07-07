@@ -147,7 +147,7 @@ void odm_Init_RSSIForDM23a(struct dm_odm_t *pDM_Odm);
 void
 ODM_PhyStatusQuery23a(
 	struct dm_odm_t *pDM_Odm,
-	struct odm_phy_info *pPhyInfo,
+	struct phy_info *pPhyInfo,
 	u8 *						pPhyStatus,
 	struct odm_packet_info *pPktinfo
 	);
@@ -160,15 +160,13 @@ void ODM_MacStatusQuery23a(struct dm_odm_t *pDM_Odm,
 	bool bPacketBeacon
 );
 
-enum hal_status ODM_ConfigRFWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-	enum RF_RADIO_PATH	Content,
-	enum RF_RADIO_PATH	eRFPath
-);
+int ODM_ConfigRFWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
+				  enum RF_RADIO_PATH Content,
+				  enum RF_RADIO_PATH eRFPath);
 
-enum hal_status ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-	enum odm_bb_config_type		ConfigType
-);
+int ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
+				  enum odm_bb_config_type ConfigType);
 
-enum hal_status ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm);
+int ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm);
 
 #endif

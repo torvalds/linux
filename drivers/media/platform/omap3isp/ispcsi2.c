@@ -695,7 +695,7 @@ static void csi2_isr_buffer(struct isp_csi2_device *csi2)
 	if (buffer == NULL)
 		return;
 
-	csi2_set_outaddr(csi2, buffer->isp_addr);
+	csi2_set_outaddr(csi2, buffer->dma);
 	csi2_ctx_enable(isp, csi2, 0, 1);
 }
 
@@ -812,7 +812,7 @@ static int csi2_queue(struct isp_video *video, struct isp_buffer *buffer)
 	struct isp_device *isp = video->isp;
 	struct isp_csi2_device *csi2 = &isp->isp_csi2a;
 
-	csi2_set_outaddr(csi2, buffer->isp_addr);
+	csi2_set_outaddr(csi2, buffer->dma);
 
 	/*
 	 * If streaming was enabled before there was a buffer queued

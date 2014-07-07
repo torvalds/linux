@@ -948,7 +948,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     avoided as much as possible...
     
     MORE NOTES ON "azx_get_response timeout" PROBLEMS:
-    On some hardwares, you may need to add a proper probe_mask option
+    On some hardware, you may need to add a proper probe_mask option
     to avoid the "azx_get_response timeout" problem above, instead.
     This occurs when the access to non-existing or non-working codec slot
     (likely a modem one) causes a stall of the communication via HD-audio
@@ -1124,7 +1124,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     buggy_irq     - Enable workaround for buggy interrupts on some
                     motherboards (default yes on nForce chips,
 		    otherwise off)
-    buggy_semaphore - Enable workaround for hardwares with buggy
+    buggy_semaphore - Enable workaround for hardware with buggy
 		    semaphores (e.g. on some ASUS laptops)
 		    (default off)
     spdif_aclink  - Use S/PDIF over AC-link instead of direct connection

@@ -531,7 +531,7 @@ static void __init get_assabet_scr(void)
 }
 
 static void __init
-fixup_assabet(struct tag *tags, char **cmdline, struct meminfo *mi)
+fixup_assabet(struct tag *tags, char **cmdline)
 {
 	/* This must be done before any call to machine_has_neponset() */
 	map_sa1100_gpio_regs();

@@ -515,10 +515,13 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 
 		jz4740_mmc_send_command(host, req->stop);
 
-		timeout = jz4740_mmc_poll_irq(host, JZ_MMC_IRQ_PRG_DONE);
-		if (timeout) {
-			host->state = JZ4740_MMC_STATE_DONE;
-			break;
+		if (mmc_resp_type(req->stop) & MMC_RSP_BUSY) {
+			timeout = jz4740_mmc_poll_irq(host,
+						      JZ_MMC_IRQ_PRG_DONE);
+			if (timeout) {
+				host->state = JZ4740_MMC_STATE_DONE;
+				break;
+			}
 		}
 	case JZ4740_MMC_STATE_DONE:
 		break;

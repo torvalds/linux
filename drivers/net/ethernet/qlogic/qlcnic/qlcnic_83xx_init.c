@@ -1363,8 +1363,8 @@ static int qlcnic_83xx_copy_bootloader(struct qlcnic_adapter *adapter)
 		return ret;
 	}
 	/* 16 byte write to MS memory */
-	ret = qlcnic_83xx_ms_mem_write128(adapter, dest, (u32 *)p_cache,
-					  size / 16);
+	ret = qlcnic_ms_mem_write128(adapter, dest, (u32 *)p_cache,
+				     size / 16);
 	if (ret) {
 		vfree(p_cache);
 		return ret;
@@ -1389,8 +1389,8 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 	p_cache = (u32 *)fw->data;
 	addr = (u64)dest;
 
-	ret = qlcnic_83xx_ms_mem_write128(adapter, addr,
-					  p_cache, size / 16);
+	ret = qlcnic_ms_mem_write128(adapter, addr,
+				     p_cache, size / 16);
 	if (ret) {
 		dev_err(&adapter->pdev->dev, "MS memory write failed\n");
 		release_firmware(fw);
@@ -1405,8 +1405,8 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 			data[i] = fw->data[size + i];
 		for (; i < 16; i++)
 			data[i] = 0;
-		ret = qlcnic_83xx_ms_mem_write128(adapter, addr,
-						  (u32 *)data, 1);
+		ret = qlcnic_ms_mem_write128(adapter, addr,
+					     (u32 *)data, 1);
 		if (ret) {
 			dev_err(&adapter->pdev->dev,
 				"MS memory write failed\n");
@@ -2181,6 +2181,8 @@ int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 		max_sds_rings = QLCNIC_MAX_SDS_RINGS;
 		max_tx_rings = QLCNIC_MAX_TX_RINGS;
 	} else {
+		dev_err(&adapter->pdev->dev, "%s: Invalid opmode %d\n",
+			__func__, ret);
 		return -EIO;
 	}
 

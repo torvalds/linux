@@ -5,8 +5,6 @@
 #ifndef __LINUX_BLK_TYPES_H
 #define __LINUX_BLK_TYPES_H
 
-#ifdef CONFIG_BLOCK
-
 #include <linux/types.h>
 
 struct bio_set;
@@ -27,6 +25,8 @@ struct bio_vec {
 	unsigned int	bv_len;
 	unsigned int	bv_offset;
 };
+
+#ifdef CONFIG_BLOCK
 
 struct bvec_iter {
 	sector_t		bi_sector;	/* device address in 512 byte
@@ -190,6 +190,7 @@ enum rq_flag_bits {
 	__REQ_PM,		/* runtime pm request */
 	__REQ_END,		/* last of chain of requests */
 	__REQ_HASHED,		/* on IO scheduler merge hash */
+	__REQ_MQ_INFLIGHT,	/* track inflight for MQ */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -243,5 +244,6 @@ enum rq_flag_bits {
 #define REQ_PM			(1ULL << __REQ_PM)
 #define REQ_END			(1ULL << __REQ_END)
 #define REQ_HASHED		(1ULL << __REQ_HASHED)
+#define REQ_MQ_INFLIGHT		(1ULL << __REQ_MQ_INFLIGHT)
 
 #endif /* __LINUX_BLK_TYPES_H */

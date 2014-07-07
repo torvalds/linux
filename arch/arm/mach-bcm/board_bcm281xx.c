@@ -17,7 +17,7 @@
 
 #include <asm/mach/arch.h>
 
-#include "kona.h"
+#include "kona_l2_cache.h"
 
 #define SECWDOG_OFFSET			0x00000000
 #define SECWDOG_RESERVED_MASK		0xe2000000

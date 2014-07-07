@@ -113,10 +113,8 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 	 * We assume that if the condition is recovered then linux host
 	 * will have generated an error log event that we will pick
 	 * up and log later.
-	 * Don't release mce event now. In case if condition is not
-	 * recovered we do guest exit and go back to linux host machine
-	 * check handler. Hence we need make sure that current mce event
-	 * is available for linux host to consume.
+	 * Don't release mce event now. We will queue up the event so that
+	 * we can log the MCE event info on host console.
 	 */
 	if (!get_mce_event(&mce_evt, MCE_EVENT_DONTRELEASE))
 		goto out;
@@ -128,11 +126,12 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 
 out:
 	/*
-	 * If we have handled the error, then release the mce event because
-	 * we will be delivering machine check to guest.
+	 * We are now going enter guest either through machine check
+	 * interrupt (for unhandled errors) or will continue from
+	 * current HSRR0 (for handled errors) in guest. Hence
+	 * queue up the event so that we can log it from host console later.
 	 */
-	if (handled)
-		release_mce_event();
+	machine_check_queue_event();
 
 	return handled;
 }

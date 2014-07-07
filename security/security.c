@@ -1425,7 +1425,7 @@ void security_key_free(struct key *key)
 }
 
 int security_key_permission(key_ref_t key_ref,
-			    const struct cred *cred, key_perm_t perm)
+			    const struct cred *cred, unsigned perm)
 {
 	return security_ops->key_permission(key_ref, cred, perm);
 }

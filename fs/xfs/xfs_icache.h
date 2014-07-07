@@ -60,12 +60,10 @@ int xfs_icache_free_eofblocks(struct xfs_mount *, struct xfs_eofblocks *);
 void xfs_eofblocks_worker(struct work_struct *);
 
 int xfs_inode_ag_iterator(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
-		int flags, void *args),
+	int (*execute)(struct xfs_inode *ip, int flags, void *args),
 	int flags, void *args);
 int xfs_inode_ag_iterator_tag(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
-		int flags, void *args),
+	int (*execute)(struct xfs_inode *ip, int flags, void *args),
 	int flags, void *args, int tag);
 
 static inline int

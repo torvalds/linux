@@ -24,24 +24,6 @@
 #include "libsbew.h"
 #include "pmcc4.h"
 
-#if defined(CONFIG_SBE_HDLC_V7) || defined(CONFIG_SBE_WAN256T3_HDLC_V7) || \
-defined(CONFIG_SBE_HDLC_V7_MODULE) || \
-defined(CONFIG_SBE_WAN256T3_HDLC_V7_MODULE)
-#define _v7_hdlc_  1
-#else
-#define _v7_hdlc_  0
-#endif
-
-#if _v7_hdlc_
-#define V7(x) (x ## _v7)
-extern int  hdlc_netif_rx_v7(hdlc_device *, struct sk_buff *);
-extern int  register_hdlc_device_v7(hdlc_device *);
-extern int  unregister_hdlc_device_v7(hdlc_device *);
-
-#else
-#define V7(x) x
-#endif
-
 
 #ifndef USE_MAX_INT_DELAY
 static int  dummy = 0;

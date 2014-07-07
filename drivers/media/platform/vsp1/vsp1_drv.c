@@ -16,10 +16,12 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
 
 #include "vsp1.h"
+#include "vsp1_bru.h"
 #include "vsp1_hsit.h"
 #include "vsp1_lif.h"
 #include "vsp1_lut.h"
@@ -155,6 +157,14 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	/* Instantiate all the entities. */
+	vsp1->bru = vsp1_bru_create(vsp1);
+	if (IS_ERR(vsp1->bru)) {
+		ret = PTR_ERR(vsp1->bru);
+		goto done;
+	}
+
+	list_add_tail(&vsp1->bru->entity.list_dev, &vsp1->entities);
+
 	vsp1->hsi = vsp1_hsit_create(vsp1, true);
 	if (IS_ERR(vsp1->hsi)) {
 		ret = PTR_ERR(vsp1->hsi);
@@ -329,33 +339,6 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 	return 0;
 }
 
-static int vsp1_clocks_enable(struct vsp1_device *vsp1)
-{
-	int ret;
-
-	ret = clk_prepare_enable(vsp1->clock);
-	if (ret < 0)
-		return ret;
-
-	if (IS_ERR(vsp1->rt_clock))
-		return 0;
-
-	ret = clk_prepare_enable(vsp1->rt_clock);
-	if (ret < 0) {
-		clk_disable_unprepare(vsp1->clock);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void vsp1_clocks_disable(struct vsp1_device *vsp1)
-{
-	if (!IS_ERR(vsp1->rt_clock))
-		clk_disable_unprepare(vsp1->rt_clock);
-	clk_disable_unprepare(vsp1->clock);
-}
-
 /*
  * vsp1_device_get - Acquire the VSP1 device
  *
@@ -373,7 +356,7 @@ struct vsp1_device *vsp1_device_get(struct vsp1_device *vsp1)
 	if (vsp1->ref_count > 0)
 		goto done;
 
-	ret = vsp1_clocks_enable(vsp1);
+	ret = clk_prepare_enable(vsp1->clock);
 	if (ret < 0) {
 		__vsp1 = NULL;
 		goto done;
@@ -381,7 +364,7 @@ struct vsp1_device *vsp1_device_get(struct vsp1_device *vsp1)
 
 	ret = vsp1_device_init(vsp1);
 	if (ret < 0) {
-		vsp1_clocks_disable(vsp1);
+		clk_disable_unprepare(vsp1->clock);
 		__vsp1 = NULL;
 		goto done;
 	}
@@ -405,7 +388,7 @@ void vsp1_device_put(struct vsp1_device *vsp1)
 	mutex_lock(&vsp1->lock);
 
 	if (--vsp1->ref_count == 0)
-		vsp1_clocks_disable(vsp1);
+		clk_disable_unprepare(vsp1->clock);
 
 	mutex_unlock(&vsp1->lock);
 }
@@ -424,7 +407,7 @@ static int vsp1_pm_suspend(struct device *dev)
 	if (vsp1->ref_count == 0)
 		return 0;
 
-	vsp1_clocks_disable(vsp1);
+	clk_disable_unprepare(vsp1->clock);
 	return 0;
 }
 
@@ -437,7 +420,7 @@ static int vsp1_pm_resume(struct device *dev)
 	if (vsp1->ref_count)
 		return 0;
 
-	return vsp1_clocks_enable(vsp1);
+	return clk_prepare_enable(vsp1->clock);
 }
 #endif
 
@@ -449,33 +432,58 @@ static const struct dev_pm_ops vsp1_pm_ops = {
  * Platform Driver
  */
 
-static struct vsp1_platform_data *
-vsp1_get_platform_data(struct platform_device *pdev)
+static int vsp1_validate_platform_data(struct platform_device *pdev,
+				       struct vsp1_platform_data *pdata)
 {
-	struct vsp1_platform_data *pdata = pdev->dev.platform_data;
-
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		return NULL;
+		return -EINVAL;
 	}
 
 	if (pdata->rpf_count <= 0 || pdata->rpf_count > VPS1_MAX_RPF) {
 		dev_err(&pdev->dev, "invalid number of RPF (%u)\n",
 			pdata->rpf_count);
-		return NULL;
+		return -EINVAL;
 	}
 
 	if (pdata->uds_count <= 0 || pdata->uds_count > VPS1_MAX_UDS) {
 		dev_err(&pdev->dev, "invalid number of UDS (%u)\n",
 			pdata->uds_count);
-		return NULL;
+		return -EINVAL;
 	}
 
 	if (pdata->wpf_count <= 0 || pdata->wpf_count > VPS1_MAX_WPF) {
 		dev_err(&pdev->dev, "invalid number of WPF (%u)\n",
 			pdata->wpf_count);
-		return NULL;
+		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static struct vsp1_platform_data *
+vsp1_get_platform_data(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct vsp1_platform_data *pdata;
+
+	if (!IS_ENABLED(CONFIG_OF) || np == NULL)
+		return pdev->dev.platform_data;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (pdata == NULL)
+		return NULL;
+
+	if (of_property_read_bool(np, "renesas,has-lif"))
+		pdata->features |= VSP1_HAS_LIF;
+	if (of_property_read_bool(np, "renesas,has-lut"))
+		pdata->features |= VSP1_HAS_LUT;
+	if (of_property_read_bool(np, "renesas,has-sru"))
+		pdata->features |= VSP1_HAS_SRU;
+
+	of_property_read_u32(np, "renesas,#rpf", &pdata->rpf_count);
+	of_property_read_u32(np, "renesas,#uds", &pdata->uds_count);
+	of_property_read_u32(np, "renesas,#wpf", &pdata->wpf_count);
 
 	return pdata;
 }
@@ -499,6 +507,10 @@ static int vsp1_probe(struct platform_device *pdev)
 	if (vsp1->pdata == NULL)
 		return -ENODEV;
 
+	ret = vsp1_validate_platform_data(pdev, vsp1->pdata);
+	if (ret < 0)
+		return ret;
+
 	/* I/O, IRQ and clock resources */
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	vsp1->mmio = devm_ioremap_resource(&pdev->dev, io);
@@ -510,9 +522,6 @@ static int vsp1_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get clock\n");
 		return PTR_ERR(vsp1->clock);
 	}
-
-	/* The RT clock is optional */
-	vsp1->rt_clock = devm_clk_get(&pdev->dev, "rt");
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq) {
@@ -548,6 +557,11 @@ static int vsp1_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id vsp1_of_match[] = {
+	{ .compatible = "renesas,vsp1" },
+	{ },
+};
+
 static struct platform_driver vsp1_platform_driver = {
 	.probe		= vsp1_probe,
 	.remove		= vsp1_remove,
@@ -555,6 +569,7 @@ static struct platform_driver vsp1_platform_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "vsp1",
 		.pm	= &vsp1_pm_ops,
+		.of_match_table = vsp1_of_match,
 	},
 };
 

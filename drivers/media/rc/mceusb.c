@@ -747,11 +747,19 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 		}
 
 		/* outbound data */
-		pipe = usb_sndintpipe(ir->usbdev,
-				      ir->usb_ep_out->bEndpointAddress);
-		usb_fill_int_urb(async_urb, ir->usbdev, pipe,
-			async_buf, size, mce_async_callback,
-			ir, ir->usb_ep_out->bInterval);
+		if (usb_endpoint_xfer_int(ir->usb_ep_out)) {
+			pipe = usb_sndintpipe(ir->usbdev,
+					 ir->usb_ep_out->bEndpointAddress);
+			usb_fill_int_urb(async_urb, ir->usbdev, pipe, async_buf,
+					 size, mce_async_callback, ir,
+					 ir->usb_ep_out->bInterval);
+		} else {
+			pipe = usb_sndbulkpipe(ir->usbdev,
+					 ir->usb_ep_out->bEndpointAddress);
+			usb_fill_bulk_urb(async_urb, ir->usbdev, pipe,
+					 async_buf, size, mce_async_callback,
+					 ir);
+		}
 		memcpy(async_buf, data, size);
 
 	} else if (urb_type == MCEUSB_RX) {
@@ -1269,32 +1277,26 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 	for (i = 0; i < idesc->desc.bNumEndpoints; ++i) {
 		ep = &idesc->endpoint[i].desc;
 
-		if ((ep_in == NULL)
-			&& ((ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-			    == USB_DIR_IN)
-			&& (((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-			    == USB_ENDPOINT_XFER_BULK)
-			|| ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-			    == USB_ENDPOINT_XFER_INT))) {
-
-			ep_in = ep;
-			ep_in->bmAttributes = USB_ENDPOINT_XFER_INT;
-			ep_in->bInterval = 1;
-			dev_dbg(&intf->dev, "acceptable inbound endpoint found");
+		if (ep_in == NULL) {
+			if (usb_endpoint_is_bulk_in(ep)) {
+				ep_in = ep;
+				dev_dbg(&intf->dev, "acceptable bulk inbound endpoint found\n");
+			} else if (usb_endpoint_is_int_in(ep)) {
+				ep_in = ep;
+				ep_in->bInterval = 1;
+				dev_dbg(&intf->dev, "acceptable interrupt inbound endpoint found\n");
+			}
 		}
 
-		if ((ep_out == NULL)
-			&& ((ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-			    == USB_DIR_OUT)
-			&& (((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-			    == USB_ENDPOINT_XFER_BULK)
-			|| ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-			    == USB_ENDPOINT_XFER_INT))) {
-
-			ep_out = ep;
-			ep_out->bmAttributes = USB_ENDPOINT_XFER_INT;
-			ep_out->bInterval = 1;
-			dev_dbg(&intf->dev, "acceptable outbound endpoint found");
+		if (ep_out == NULL) {
+			if (usb_endpoint_is_bulk_out(ep)) {
+				ep_out = ep;
+				dev_dbg(&intf->dev, "acceptable bulk outbound endpoint found\n");
+			} else if (usb_endpoint_is_int_out(ep)) {
+				ep_out = ep;
+				ep_out->bInterval = 1;
+				dev_dbg(&intf->dev, "acceptable interrupt outbound endpoint found\n");
+			}
 		}
 	}
 	if (ep_in == NULL) {
@@ -1302,7 +1304,10 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	pipe = usb_rcvintpipe(dev, ep_in->bEndpointAddress);
+	if (usb_endpoint_xfer_int(ep_in))
+		pipe = usb_rcvintpipe(dev, ep_in->bEndpointAddress);
+	else
+		pipe = usb_rcvbulkpipe(dev, ep_in->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 
 	ir = kzalloc(sizeof(struct mceusb_dev), GFP_KERNEL);

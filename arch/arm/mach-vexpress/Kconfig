@@ -1,9 +1,10 @@
-config ARCH_VEXPRESS
+menuconfig ARCH_VEXPRESS
 	bool "ARM Ltd. Versatile Express family" if ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_AMBA
 	select ARM_GIC
+	select ARM_GLOBAL_TIMER
 	select ARM_TIMER_SP804
 	select COMMON_CLK_VERSATILE
 	select HAVE_ARM_SCU if SMP
@@ -18,6 +19,8 @@ config ARCH_VEXPRESS
 	select POWER_SUPPLY
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select VEXPRESS_CONFIG
+	select VEXPRESS_SYSCFG
+	select MFD_VEXPRESS_SYSREG
 	help
 	  This option enables support for systems using Cortex processor based
 	  ARM core and logic (FPGA) tiles on the Versatile Express motherboard,
@@ -34,14 +37,13 @@ config ARCH_VEXPRESS
 	  platforms. The traditional (ATAGs) boot method is not usable on
 	  these boards with this option.
 
-menu "Versatile Express platform type"
-	depends on ARCH_VEXPRESS
+if ARCH_VEXPRESS
 
 config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	bool "Enable A5 and A9 only errata work-arounds"
 	default y
 	select ARM_ERRATA_720789
-	select PL310_ERRATA_753970 if CACHE_PL310
+	select PL310_ERRATA_753970 if CACHE_L2X0
 	help
 	  Provides common dependencies for Versatile Express platforms
 	  based on Cortex-A5 and Cortex-A9 processors. In order to
@@ -62,7 +64,6 @@ config ARCH_VEXPRESS_DCSCB
 
 config ARCH_VEXPRESS_SPC
 	bool "Versatile Express Serial Power Controller (SPC)"
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select PM_OPP
 	help
@@ -80,4 +81,4 @@ config ARCH_VEXPRESS_TC2_PM
 	  Support for CPU and cluster power management on Versatile Express
 	  with a TC2 (A15x2 A7x3) big.LITTLE core tile.
 
-endmenu
+endif

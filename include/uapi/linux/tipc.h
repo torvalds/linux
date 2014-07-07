@@ -38,6 +38,7 @@
 #define _LINUX_TIPC_H_
 
 #include <linux/types.h>
+#include <linux/sockios.h>
 
 /*
  * TIPC addressing primitives
@@ -87,6 +88,7 @@ static inline unsigned int tipc_node(__u32 addr)
 
 #define TIPC_CFG_SRV		0	/* configuration service name type */
 #define TIPC_TOP_SRV		1	/* topology service name type */
+#define TIPC_LINK_STATE		2	/* link state name type */
 #define TIPC_RESERVED_TYPES	64	/* lowest user-publishable name type */
 
 /*
@@ -206,4 +208,25 @@ struct sockaddr_tipc {
 #define TIPC_NODE_RECVQ_DEPTH	131	/* Default: none (read only) */
 #define TIPC_SOCK_RECVQ_DEPTH	132	/* Default: none (read only) */
 
+/*
+ * Maximum sizes of TIPC bearer-related names (including terminating NULL)
+ * The string formatting for each name element is:
+ * media: media
+ * interface: media:interface name
+ * link: Z.C.N:interface-Z.C.N:interface
+ *
+ */
+
+#define TIPC_MAX_MEDIA_NAME	16
+#define TIPC_MAX_IF_NAME	16
+#define TIPC_MAX_BEARER_NAME	32
+#define TIPC_MAX_LINK_NAME	60
+
+#define SIOCGETLINKNAME		SIOCPROTOPRIVATE
+
+struct tipc_sioc_ln_req {
+	__u32 peer;
+	__u32 bearer_id;
+	char linkname[TIPC_MAX_LINK_NAME];
+};
 #endif

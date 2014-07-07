@@ -1,6 +1,6 @@
 / {
 	mbus {
-		pcie-controller {
+		pciec: pcie-controller {
 			compatible = "marvell,kirkwood-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -15,7 +15,7 @@
 				0x82000000 0x1 0     MBUS_ID(0x04, 0xe8) 0       1 0 /* Port 0.0 MEM */
 				0x81000000 0x1 0     MBUS_ID(0x04, 0xe0) 0       1 0 /* Port 0.0 IO  */>;
 
-			pcie@1,0 {
+			pcie0: pcie@1,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x00040000 0 0x2000>;
 				reg = <0x0800 0 0 0 0>;
@@ -35,16 +35,9 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			compatible = "marvell,88f6281-pinctrl";
-			reg = <0x10000 0x20>;
 
-			pmx_nand: pmx-nand {
-				marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3",
-					       "mpp4", "mpp5", "mpp18",
-					       "mpp19";
-				marvell,function = "nand";
-			};
 			pmx_sata0: pmx-sata0 {
 				marvell,pins = "mpp5", "mpp21", "mpp23";
 				marvell,function = "sata0";
@@ -53,22 +46,6 @@
 				marvell,pins = "mpp4", "mpp20", "mpp22";
 				marvell,function = "sata1";
 			};
-			pmx_spi: pmx-spi {
-				marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3";
-				marvell,function = "spi";
-			};
-			pmx_twsi0: pmx-twsi0 {
-				marvell,pins = "mpp8", "mpp9";
-				marvell,function = "twsi0";
-			};
-			pmx_uart0: pmx-uart0 {
-				marvell,pins = "mpp10", "mpp11";
-				marvell,function = "uart0";
-			};
-			pmx_uart1: pmx-uart1 {
-				marvell,pins = "mpp13", "mpp14";
-				marvell,function = "uart1";
-			};
 			pmx_sdio: pmx-sdio {
 				marvell,pins = "mpp12", "mpp13", "mpp14",
 					       "mpp15", "mpp16", "mpp17";
@@ -76,14 +53,14 @@
 			};
 		};
 
-		rtc@10300 {
+		rtc: rtc@10300 {
 			compatible = "marvell,kirkwood-rtc", "marvell,orion-rtc";
 			reg = <0x10300 0x20>;
 			interrupts = <53>;
 			clocks = <&gate_clk 7>;
 		};
 
-		sata@80000 {
+		sata: sata@80000 {
 			compatible = "marvell,orion-sata";
 			reg = <0x80000 0x5000>;
 			interrupts = <21>;
@@ -94,7 +71,7 @@
 			status = "disabled";
 		};
 
-		mvsdio@90000 {
+		sdio: mvsdio@90000 {
 			compatible = "marvell,orion-sdio";
 			reg = <0x90000 0x200>;
 			interrupts = <28>;

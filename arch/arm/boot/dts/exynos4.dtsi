@@ -20,6 +20,7 @@
  */
 
 #include <dt-bindings/clock/exynos4.h>
+#include <dt-bindings/clock/exynos-audss-clk.h>
 #include "skeleton.dtsi"
 
 / {
@@ -43,6 +44,23 @@
 		fimc1 = &fimc_1;
 		fimc2 = &fimc_2;
 		fimc3 = &fimc_3;
+	};
+
+	clock_audss: clock-controller@03810000 {
+		compatible = "samsung,exynos4210-audss-clock";
+		reg = <0x03810000 0x0C>;
+		#clock-cells = <1>;
+	};
+
+	i2s0: i2s@03830000 {
+		compatible = "samsung,s5pv210-i2s";
+		reg = <0x03830000 0x100>;
+		clocks = <&clock_audss EXYNOS_I2S_BUS>;
+		clock-names = "iis";
+		dmas = <&pdma0 12>, <&pdma0 11>, <&pdma0 10>;
+		dma-names = "tx", "rx", "tx-sec";
+		samsung,idma-addr = <0x03000000>;
+		status = "disabled";
 	};
 
 	chipid@10000000 {
@@ -95,7 +113,7 @@
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
-		reg = <0x10490000 0x1000>, <0x10480000 0x100>;
+		reg = <0x10490000 0x10000>, <0x10480000 0x10000>;
 	};
 
 	combiner: interrupt-controller@10440000 {
@@ -110,6 +128,11 @@
 		reg = <0x10010000 0x400>;
 	};
 
+	pmu_system_controller: system-controller@10020000 {
+		compatible = "samsung,exynos4210-pmu", "syscon";
+		reg = <0x10020000 0x4000>;
+	};
+
 	dsi_0: dsi@11C80000 {
 		compatible = "samsung,exynos4210-mipi-dsi";
 		reg = <0x11C80000 0x10000>;
@@ -117,7 +140,7 @@
 		samsung,power-domain = <&pd_lcd0>;
 		phys = <&mipi_phy 1>;
 		phy-names = "dsim";
-		clocks = <&clock 286>, <&clock 143>;
+		clocks = <&clock CLK_DSIM0>, <&clock CLK_SCLK_MIPI0>;
 		clock-names = "bus_clk", "pll_clk";
 		status = "disabled";
 		#address-cells = <1>;
@@ -129,11 +152,9 @@
 		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		#clock-cells = <1>;
+		clock-output-names = "cam_a_clkout", "cam_b_clkout";
 		ranges;
-
-		clock_cam: clock-controller {
-			 #clock-cells = <1>;
-		};
 
 		fimc_0: fimc@11800000 {
 			compatible = "samsung,exynos4210-fimc";
@@ -273,6 +294,27 @@
 		status = "disabled";
 	};
 
+	exynos_usbphy: exynos-usbphy@125B0000 {
+		compatible = "samsung,exynos4210-usb2-phy";
+		reg = <0x125B0000 0x100>;
+		samsung,pmureg-phandle = <&pmu_system_controller>;
+		clocks = <&clock CLK_USB_DEVICE>, <&clock CLK_XUSBXTI>;
+		clock-names = "phy", "ref";
+		#phy-cells = <1>;
+		status = "disabled";
+	};
+
+	hsotg@12480000 {
+		compatible = "samsung,s3c6400-hsotg";
+		reg = <0x12480000 0x20000>;
+		interrupts = <0 71 0>;
+		clocks = <&clock CLK_USB_DEVICE>;
+		clock-names = "otg";
+		phys = <&exynos_usbphy 0>;
+		phy-names = "usb2-phy";
+		status = "disabled";
+	};
+
 	ehci@12580000 {
 		compatible = "samsung,exynos4210-ehci";
 		reg = <0x12580000 0x100>;
@@ -288,6 +330,26 @@
 		interrupts = <0 70 0>;
 		clocks = <&clock CLK_USB_HOST>;
 		clock-names = "usbhost";
+		status = "disabled";
+	};
+
+	i2s1: i2s@13960000 {
+		compatible = "samsung,s5pv210-i2s";
+		reg = <0x13960000 0x100>;
+		clocks = <&clock CLK_I2S1>;
+		clock-names = "iis";
+		dmas = <&pdma1 12>, <&pdma1 11>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
+	i2s2: i2s@13970000 {
+		compatible = "samsung,s5pv210-i2s";
+		reg = <0x13970000 0x100>;
+		clocks = <&clock CLK_I2S2>;
+		clock-names = "iis";
+		dmas = <&pdma0 14>, <&pdma0 13>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -371,6 +433,8 @@
 		interrupts = <0 60 0>;
 		clocks = <&clock CLK_I2C2>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_bus>;
 		status = "disabled";
 	};
 
@@ -382,6 +446,8 @@
 		interrupts = <0 61 0>;
 		clocks = <&clock CLK_I2C3>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c3_bus>;
 		status = "disabled";
 	};
 
@@ -393,6 +459,8 @@
 		interrupts = <0 62 0>;
 		clocks = <&clock CLK_I2C4>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c4_bus>;
 		status = "disabled";
 	};
 
@@ -404,6 +472,8 @@
 		interrupts = <0 63 0>;
 		clocks = <&clock CLK_I2C5>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c5_bus>;
 		status = "disabled";
 	};
 
@@ -415,6 +485,8 @@
 		interrupts = <0 64 0>;
 		clocks = <&clock CLK_I2C6>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c6_bus>;
 		status = "disabled";
 	};
 
@@ -426,6 +498,8 @@
 		interrupts = <0 65 0>;
 		clocks = <&clock CLK_I2C7>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c7_bus>;
 		status = "disabled";
 	};
 

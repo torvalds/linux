@@ -25,10 +25,6 @@
  * 1+ (800) 334-5454
  */
 
-/*
- * $Log: generic_NCR5380.h,v $
- */
-
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
 
@@ -57,8 +53,6 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #ifndef CAN_QUEUE
 #define CAN_QUEUE 16
 #endif
-
-#ifndef HOSTS_C
 
 #define __STRVAL(x) #x
 #define STRVAL(x) __STRVAL(x)
@@ -131,7 +125,6 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #define BOARD_NCR53C400A 2
 #define BOARD_DTC3181E	3
 
-#endif /* else def HOSTS_C */
 #endif /* ndef ASM */
 #endif /* GENERIC_NCR5380_H */
 

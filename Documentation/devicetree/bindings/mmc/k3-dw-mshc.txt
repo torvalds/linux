@@ -12,7 +12,7 @@ extensions to the Synopsys Designware Mobile Storage Host Controller.
 Required Properties:
 
 * compatible: should be one of the following.
-  - "hisilicon,hi4511-dw-mshc": for controllers with hi4511 specific extentions.
+  - "hisilicon,hi4511-dw-mshc": for controllers with hi4511 specific extensions.
 
 Example:
 

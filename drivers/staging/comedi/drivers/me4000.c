@@ -598,67 +598,35 @@ static int me4000_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static int ai_check_chanlist(struct comedi_device *dev,
-			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
+static int me4000_ai_check_chanlist(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_cmd *cmd)
 {
-	const struct me4000_board *thisboard = comedi_board(dev);
-	int aref;
+	const struct me4000_board *board = comedi_board(dev);
+	unsigned int max_diff_chan = board->ai_diff_nchan;
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
 	int i;
 
-	/* Check whether a channel list is available */
-	if (!cmd->chanlist_len) {
-		dev_err(dev->class_dev, "No channel list available\n");
-		return -EINVAL;
-	}
-
-	/* Check the channel list size */
-	if (cmd->chanlist_len > ME4000_AI_CHANNEL_LIST_COUNT) {
-		dev_err(dev->class_dev, "Channel list is to large\n");
-		return -EINVAL;
-	}
-
-	/* Check the pointer */
-	if (!cmd->chanlist) {
-		dev_err(dev->class_dev, "NULL pointer to channel list\n");
-		return -EFAULT;
-	}
-
-	/* Check whether aref is equal for all entries */
-	aref = CR_AREF(cmd->chanlist[0]);
 	for (i = 0; i < cmd->chanlist_len; i++) {
-		if (CR_AREF(cmd->chanlist[i]) != aref) {
-			dev_err(dev->class_dev,
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
 				"Mode is not equal for all entries\n");
 			return -EINVAL;
 		}
-	}
 
-	/* Check whether channels are available for this ending */
-	if (aref == SDF_DIFF) {
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) >=
-			    thisboard->ai_diff_nchan) {
-				dev_err(dev->class_dev,
+		if (aref == SDF_DIFF) {
+			if (chan >= max_diff_chan) {
+				dev_dbg(dev->class_dev,
 					"Channel number to high\n");
 				return -EINVAL;
 			}
-		}
-	} else {
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) >= thisboard->ai_nchan) {
-				dev_err(dev->class_dev,
-					"Channel number to high\n");
-				return -EINVAL;
-			}
-		}
-	}
 
-	/* Check if bipolar is set for all entries when in differential mode */
-	if (aref == SDF_DIFF) {
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			if (CR_RANGE(cmd->chanlist[i]) != 1 &&
-			    CR_RANGE(cmd->chanlist[i]) != 2) {
-				dev_err(dev->class_dev,
+			if (!comedi_range_is_bipolar(s, range)) {
+				dev_dbg(dev->class_dev,
 				       "Bipolar is not selected in differential mode\n");
 				return -EINVAL;
 			}
@@ -934,21 +902,12 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		err |= -EINVAL;
 	}
 
-	if (cmd->stop_src == TRIG_NONE && cmd->scan_end_src == TRIG_NONE) {
-	} else if (cmd->stop_src == TRIG_COUNT &&
-		   cmd->scan_end_src == TRIG_NONE) {
-	} else if (cmd->stop_src == TRIG_NONE &&
-		   cmd->scan_end_src == TRIG_COUNT) {
-	} else if (cmd->stop_src == TRIG_COUNT &&
-		   cmd->scan_end_src == TRIG_COUNT) {
-	} else {
-		err |= -EINVAL;
-	}
-
 	if (err)
 		return 2;
 
 	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->chanlist_len < 1) {
 		cmd->chanlist_len = 1;
@@ -1091,10 +1050,11 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/*
-	 * Stage 5. Check the channel list.
-	 */
-	if (ai_check_chanlist(dev, s, cmd))
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= me4000_ai_check_chanlist(dev, s, cmd);
+
+	if (err)
 		return 5;
 
 	return 0;
@@ -1164,7 +1124,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s->async, lval)) {
+			if (!comedi_buf_put(s, lval)) {
 				/*
 				 * Buffer overflow, so stop conversion
 				 * and disable all interrupts
@@ -1209,7 +1169,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s->async, lval)) {
+			if (!comedi_buf_put(s, lval)) {
 				dev_err(dev->class_dev, "Buffer overflow\n");
 				s->async->events |= COMEDI_CB_OVERFLOW;
 				break;
@@ -1392,6 +1352,7 @@ static int me4000_cnt_insn_config(struct comedi_device *dev,
 				  unsigned int *data)
 {
 	struct me4000_info *info = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int err;
 
 	switch (data[0]) {
@@ -1399,16 +1360,17 @@ static int me4000_cnt_insn_config(struct comedi_device *dev,
 		if (insn->n != 1)
 			return -EINVAL;
 
-		err = i8254_load(info->timer_regbase, 0, insn->chanspec, 0,
-				I8254_MODE0 | I8254_BINARY);
+		err = i8254_set_mode(info->timer_regbase, 0, chan,
+				     I8254_MODE0 | I8254_BINARY);
 		if (err)
 			return err;
+		i8254_write(info->timer_regbase, 0, chan, 0);
 		break;
 	case GPCT_SET_OPERATION:
 		if (insn->n != 2)
 			return -EINVAL;
 
-		err = i8254_set_mode(info->timer_regbase, 0, insn->chanspec,
+		err = i8254_set_mode(info->timer_regbase, 0, chan,
 				(data[1] << 1) | I8254_BINARY);
 		if (err)
 			return err;

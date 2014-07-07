@@ -2008,7 +2008,10 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 
 	struct i915_gtt *gtt = container_of(vm, struct i915_gtt, base);
 
-	drm_mm_takedown(&vm->mm);
+	if (drm_mm_initialized(&vm->mm)) {
+		drm_mm_takedown(&vm->mm);
+		list_del(&vm->global_link);
+	}
 	iounmap(gtt->gsm);
 	teardown_scratch_page(vm->dev);
 }
@@ -2041,6 +2044,10 @@ static int i915_gmch_probe(struct drm_device *dev,
 
 static void i915_gmch_remove(struct i915_address_space *vm)
 {
+	if (drm_mm_initialized(&vm->mm)) {
+		drm_mm_takedown(&vm->mm);
+		list_del(&vm->global_link);
+	}
 	intel_gmch_remove();
 }
 

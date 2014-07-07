@@ -699,6 +699,7 @@ static void spinand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
 
 	struct spinand_state *state = mtd_to_state(mtd);
+
 	memcpy(state->buf + state->buf_ptr, buf, len);
 	state->buf_ptr += len;
 }
@@ -706,6 +707,7 @@ static void spinand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 static void spinand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	struct spinand_state *state = mtd_to_state(mtd);
+
 	memcpy(buf, state->buf + state->buf_ptr, len);
 	state->buf_ptr += len;
 }
@@ -924,6 +926,7 @@ static int spinand_remove(struct spi_device *spi)
 
 static const struct of_device_id spinand_dt[] = {
 	{ .compatible = "spinand,mt29f", },
+	{}
 };
 
 /*

@@ -53,10 +53,10 @@ objlayout_alloc_layout_hdr(struct inode *inode, gfp_t gfp_flags)
 	struct objlayout *objlay;
 
 	objlay = kzalloc(sizeof(struct objlayout), gfp_flags);
-	if (objlay) {
-		spin_lock_init(&objlay->lock);
-		INIT_LIST_HEAD(&objlay->err_list);
-	}
+	if (!objlay)
+		return NULL;
+	spin_lock_init(&objlay->lock);
+	INIT_LIST_HEAD(&objlay->err_list);
 	dprintk("%s: Return %p\n", __func__, objlay);
 	return &objlay->pnfs_layout;
 }
@@ -229,11 +229,11 @@ objlayout_io_set_result(struct objlayout_io_res *oir, unsigned index,
 static void _rpc_read_complete(struct work_struct *work)
 {
 	struct rpc_task *task;
-	struct nfs_read_data *rdata;
+	struct nfs_pgio_data *rdata;
 
 	dprintk("%s enter\n", __func__);
 	task = container_of(work, struct rpc_task, u.tk_work);
-	rdata = container_of(task, struct nfs_read_data, task);
+	rdata = container_of(task, struct nfs_pgio_data, task);
 
 	pnfs_ld_read_done(rdata);
 }
@@ -241,7 +241,7 @@ static void _rpc_read_complete(struct work_struct *work)
 void
 objlayout_read_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 {
-	struct nfs_read_data *rdata = oir->rpcdata;
+	struct nfs_pgio_data *rdata = oir->rpcdata;
 
 	oir->status = rdata->task.tk_status = status;
 	if (status >= 0)
@@ -266,7 +266,7 @@ objlayout_read_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
  * Perform sync or async reads.
  */
 enum pnfs_try_status
-objlayout_read_pagelist(struct nfs_read_data *rdata)
+objlayout_read_pagelist(struct nfs_pgio_data *rdata)
 {
 	struct nfs_pgio_header *hdr = rdata->header;
 	struct inode *inode = hdr->inode;
@@ -312,11 +312,11 @@ objlayout_read_pagelist(struct nfs_read_data *rdata)
 static void _rpc_write_complete(struct work_struct *work)
 {
 	struct rpc_task *task;
-	struct nfs_write_data *wdata;
+	struct nfs_pgio_data *wdata;
 
 	dprintk("%s enter\n", __func__);
 	task = container_of(work, struct rpc_task, u.tk_work);
-	wdata = container_of(task, struct nfs_write_data, task);
+	wdata = container_of(task, struct nfs_pgio_data, task);
 
 	pnfs_ld_write_done(wdata);
 }
@@ -324,7 +324,7 @@ static void _rpc_write_complete(struct work_struct *work)
 void
 objlayout_write_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 {
-	struct nfs_write_data *wdata = oir->rpcdata;
+	struct nfs_pgio_data *wdata = oir->rpcdata;
 
 	oir->status = wdata->task.tk_status = status;
 	if (status >= 0) {
@@ -351,7 +351,7 @@ objlayout_write_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
  * Perform sync or async writes.
  */
 enum pnfs_try_status
-objlayout_write_pagelist(struct nfs_write_data *wdata,
+objlayout_write_pagelist(struct nfs_pgio_data *wdata,
 			 int how)
 {
 	struct nfs_pgio_header *hdr = wdata->header;

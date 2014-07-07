@@ -29,7 +29,6 @@
 #include <sound/initval.h>
 #include <sound/pcm_params.h>
 #include <sound/pcm.h>
-#include <linux/i2c.h>
 #include <linux/regmap.h>
 
 #include "cs42l51.h"
@@ -55,7 +54,7 @@ struct cs42l51_private {
 static int cs42l51_get_chan_mix(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned long value = snd_soc_read(codec, CS42L51_PCM_MIXER)&3;
 
 	switch (value) {
@@ -83,7 +82,7 @@ static int cs42l51_get_chan_mix(struct snd_kcontrol *kcontrol,
 static int cs42l51_set_chan_mix(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned char val;
 
 	switch (ucontrol->value.integer.value[0]) {
@@ -483,7 +482,7 @@ static struct snd_soc_dai_driver cs42l51_dai = {
 	.ops = &cs42l51_dai_ops,
 };
 
-static int cs42l51_probe(struct snd_soc_codec *codec)
+static int cs42l51_codec_probe(struct snd_soc_codec *codec)
 {
 	int ret, reg;
 
@@ -504,7 +503,7 @@ static int cs42l51_probe(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_device_cs42l51 = {
-	.probe = cs42l51_probe,
+	.probe = cs42l51_codec_probe,
 
 	.controls = cs42l51_snd_controls,
 	.num_controls = ARRAY_SIZE(cs42l51_snd_controls),
@@ -514,91 +513,56 @@ static struct snd_soc_codec_driver soc_codec_device_cs42l51 = {
 	.num_dapm_routes = ARRAY_SIZE(cs42l51_routes),
 };
 
-static const struct regmap_config cs42l51_regmap = {
-	.reg_bits = 8,
-	.val_bits = 8,
-
+const struct regmap_config cs42l51_regmap = {
 	.max_register = CS42L51_CHARGE_FREQ,
 	.cache_type = REGCACHE_RBTREE,
 };
+EXPORT_SYMBOL_GPL(cs42l51_regmap);
 
-static int cs42l51_i2c_probe(struct i2c_client *i2c_client,
-	const struct i2c_device_id *id)
+int cs42l51_probe(struct device *dev, struct regmap *regmap)
 {
 	struct cs42l51_private *cs42l51;
-	struct regmap *regmap;
 	unsigned int val;
 	int ret;
 
-	regmap = devm_regmap_init_i2c(i2c_client, &cs42l51_regmap);
-	if (IS_ERR(regmap)) {
-		ret = PTR_ERR(regmap);
-		dev_err(&i2c_client->dev, "Failed to create regmap: %d\n",
-			ret);
-		return ret;
-	}
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	cs42l51 = devm_kzalloc(dev, sizeof(struct cs42l51_private),
+			       GFP_KERNEL);
+	if (!cs42l51)
+		return -ENOMEM;
+
+	dev_set_drvdata(dev, cs42l51);
 
 	/* Verify that we have a CS42L51 */
 	ret = regmap_read(regmap, CS42L51_CHIP_REV_ID, &val);
 	if (ret < 0) {
-		dev_err(&i2c_client->dev, "failed to read I2C\n");
+		dev_err(dev, "failed to read I2C\n");
 		goto error;
 	}
 
 	if ((val != CS42L51_MK_CHIP_REV(CS42L51_CHIP_ID, CS42L51_CHIP_REV_A)) &&
 	    (val != CS42L51_MK_CHIP_REV(CS42L51_CHIP_ID, CS42L51_CHIP_REV_B))) {
-		dev_err(&i2c_client->dev, "Invalid chip id: %x\n", val);
+		dev_err(dev, "Invalid chip id: %x\n", val);
 		ret = -ENODEV;
 		goto error;
 	}
+	dev_info(dev, "Cirrus Logic CS42L51, Revision: %02X\n",
+		 val & CS42L51_CHIP_REV_MASK);
 
-	dev_info(&i2c_client->dev, "found device cs42l51 rev %d\n",
-		 val & 7);
-
-	cs42l51 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l51_private),
-			       GFP_KERNEL);
-	if (!cs42l51)
-		return -ENOMEM;
-
-	i2c_set_clientdata(i2c_client, cs42l51);
-
-	ret =  snd_soc_register_codec(&i2c_client->dev,
+	ret =  snd_soc_register_codec(dev,
 			&soc_codec_device_cs42l51, &cs42l51_dai, 1);
 error:
 	return ret;
 }
-
-static int cs42l51_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
-}
-
-static const struct i2c_device_id cs42l51_id[] = {
-	{"cs42l51", 0},
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, cs42l51_id);
+EXPORT_SYMBOL_GPL(cs42l51_probe);
 
 static const struct of_device_id cs42l51_of_match[] = {
 	{ .compatible = "cirrus,cs42l51", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cs42l51_of_match);
-
-static struct i2c_driver cs42l51_i2c_driver = {
-	.driver = {
-		.name = "cs42l51-codec",
-		.owner = THIS_MODULE,
-		.of_match_table = cs42l51_of_match,
-	},
-	.id_table = cs42l51_id,
-	.probe = cs42l51_i2c_probe,
-	.remove = cs42l51_i2c_remove,
-};
-
-module_i2c_driver(cs42l51_i2c_driver);
-
 MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Cirrus Logic CS42L51 ALSA SoC Codec Driver");
 MODULE_LICENSE("GPL");

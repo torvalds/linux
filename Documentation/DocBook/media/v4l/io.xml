@@ -125,7 +125,7 @@ location of the buffers in device memory can be determined with the
 <structfield>m.offset</structfield> and <structfield>length</structfield>
 returned in a &v4l2-buffer; are passed as sixth and second parameter to the
 <function>mmap()</function> function. When using the multi-planar API,
-struct &v4l2-buffer; contains an array of &v4l2-plane; structures, each
+&v4l2-buffer; contains an array of &v4l2-plane; structures, each
 containing its own <structfield>m.offset</structfield> and
 <structfield>length</structfield>. When using the multi-planar API, every
 plane of every buffer has to be mapped separately, so the number of
@@ -699,7 +699,12 @@ linkend="v4l2-buf-type" /></entry>
 buffer. It depends on the negotiated data format and may change with
 each buffer for compressed variable size data like JPEG images.
 Drivers must set this field when <structfield>type</structfield>
-refers to an input stream, applications when it refers to an output stream.</entry>
+refers to an input stream, applications when it refers to an output stream.
+If the application sets this to 0 for an output stream, then
+<structfield>bytesused</structfield> will be set to the size of the
+buffer (see the <structfield>length</structfield> field of this struct) by
+the driver. For multiplanar formats this field is ignored and the
+<structfield>planes</structfield> pointer is used instead.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -861,7 +866,11 @@ should set this to 0.</entry>
 	    <entry></entry>
 	    <entry>The number of bytes occupied by data in the plane
 	      (its payload). Drivers must set this field when <structfield>type</structfield>
-	      refers to an input stream, applications when it refers to an output stream.</entry>
+	      refers to an input stream, applications when it refers to an output stream.
+	      If the application sets this to 0 for an output stream, then
+	      <structfield>bytesused</structfield> will be set to the size of the
+	      plane (see the <structfield>length</structfield> field of this struct)
+	      by the driver.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

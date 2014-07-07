@@ -137,10 +137,8 @@ struct pci9111_private_data {
 	unsigned long lcr_io_base;
 
 	int stop_counter;
-	int stop_is_none;
 
 	unsigned int scan_delay;
-	unsigned int chanlist_len;
 	unsigned int chunk_counter;
 	unsigned int chunk_num_samples;
 
@@ -314,148 +312,137 @@ static int pci9111_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
+static int pci9111_ai_check_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
+{
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (chan != i) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must be consecutive channels,counting upwards from 0\n");
+			return -EINVAL;
+		}
+
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same gain\n");
+			return -EINVAL;
+		}
+
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same reference\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_cmd *cmd)
 {
 	struct pci9111_private_data *dev_private = dev->private;
-	int tmp;
-	int error = 0;
-	int range, reference;
-	int i;
+	int err = 0;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	error |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	error |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT);
-	error |= cfc_check_trigger_src(&cmd->convert_src,
+	err |= cfc_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_EXT);
-	error |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	error |= cfc_check_trigger_src(&cmd->stop_src,
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src,
 					TRIG_COUNT | TRIG_NONE);
 
-	if (error)
+	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	error |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	error |= cfc_check_trigger_is_unique(cmd->convert_src);
-	error |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
-	if ((cmd->convert_src == TRIG_TIMER) &&
-	    !((cmd->scan_begin_src == TRIG_TIMER) ||
-	      (cmd->scan_begin_src == TRIG_FOLLOW)))
-		error |= -EINVAL;
-	if ((cmd->convert_src == TRIG_EXT) &&
-	    !((cmd->scan_begin_src == TRIG_EXT) ||
-	      (cmd->scan_begin_src == TRIG_FOLLOW)))
-		error |= -EINVAL;
+	if (cmd->scan_begin_src != TRIG_FOLLOW) {
+		if (cmd->scan_begin_src != cmd->convert_src)
+			err |= -EINVAL;
+	}
 
-	if (error)
+	if (err)
 		return 2;
 
 	/* Step 3: check if arguments are trivially valid */
 
-	error |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->convert_src == TRIG_TIMER)
-		error |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
 					PCI9111_AI_ACQUISITION_PERIOD_MIN_NS);
 	else	/* TRIG_EXT */
-		error |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER)
-		error |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 					PCI9111_AI_ACQUISITION_PERIOD_MIN_NS);
 	else	/* TRIG_FOLLOW || TRIG_EXT */
-		error |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	error |= cfc_check_trigger_arg_is(&cmd->scan_end_arg,
-					  cmd->chanlist_len);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		error |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		error |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
-	if (error)
+	if (err)
 		return 3;
 
-	/*  Step 4 : fix up any arguments */
+	/* Step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
 					  &dev_private->div1,
 					  &dev_private->div2,
-					  &cmd->convert_arg, cmd->flags);
-		if (tmp != cmd->convert_arg)
-			error++;
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
-	/*  There's only one timer on this card, so the scan_begin timer must */
-	/*  be a multiple of chanlist_len*convert_arg */
 
+	/*
+	 * There's only one timer on this card, so the scan_begin timer
+	 * must be a multiple of chanlist_len*convert_arg
+	 */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
+		arg = cmd->chanlist_len * cmd->convert_arg;
 
-		unsigned int scan_begin_min;
-		unsigned int scan_begin_arg;
-		unsigned int scan_factor;
+		if (arg < cmd->scan_begin_arg)
+			arg *= (cmd->scan_begin_arg / arg);
 
-		scan_begin_min = cmd->chanlist_len * cmd->convert_arg;
-
-		if (cmd->scan_begin_arg != scan_begin_min) {
-			if (scan_begin_min < cmd->scan_begin_arg) {
-				scan_factor =
-				    cmd->scan_begin_arg / scan_begin_min;
-				scan_begin_arg = scan_factor * scan_begin_min;
-				if (cmd->scan_begin_arg != scan_begin_arg) {
-					cmd->scan_begin_arg = scan_begin_arg;
-					error++;
-				}
-			} else {
-				cmd->scan_begin_arg = scan_begin_min;
-				error++;
-			}
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
-	if (error)
+	if (err)
 		return 4;
 
-	/*  Step 5 : check channel list */
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= pci9111_ai_check_chanlist(dev, s, cmd);
 
-	if (cmd->chanlist) {
-
-		range = CR_RANGE(cmd->chanlist[0]);
-		reference = CR_AREF(cmd->chanlist[0]);
-
-		if (cmd->chanlist_len > 1) {
-			for (i = 0; i < cmd->chanlist_len; i++) {
-				if (CR_CHAN(cmd->chanlist[i]) != i) {
-					comedi_error(dev,
-						     "entries in chanlist must be consecutive "
-						     "channels,counting upwards from 0\n");
-					error++;
-				}
-				if (CR_RANGE(cmd->chanlist[i]) != range) {
-					comedi_error(dev,
-						     "entries in chanlist must all have the same gain\n");
-					error++;
-				}
-				if (CR_AREF(cmd->chanlist[i]) != reference) {
-					comedi_error(dev,
-						     "entries in chanlist must all have the same reference\n");
-					error++;
-				}
-			}
-		}
-	}
-
-	if (error)
+	if (err)
 		return 5;
 
 	return 0;
@@ -466,18 +453,18 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pci9111_private_data *dev_private = dev->private;
-	struct comedi_cmd *async_cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/*  Set channel scan limit */
 	/*  PCI9111 allows only scanning from channel 0 to channel n */
 	/*  TODO: handle the case of an external multiplexer */
 
-	if (async_cmd->chanlist_len > 1) {
-		outb(async_cmd->chanlist_len - 1,
+	if (cmd->chanlist_len > 1) {
+		outb(cmd->chanlist_len - 1,
 			dev->iobase + PCI9111_AI_CHANNEL_REG);
 		pci9111_autoscan_set(dev, true);
 	} else {
-		outb(CR_CHAN(async_cmd->chanlist[0]),
+		outb(CR_CHAN(cmd->chanlist[0]),
 			dev->iobase + PCI9111_AI_CHANNEL_REG);
 		pci9111_autoscan_set(dev, false);
 	}
@@ -485,22 +472,18 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	/*  Set gain */
 	/*  This is the same gain on every channel */
 
-	outb(CR_RANGE(async_cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
+	outb(CR_RANGE(cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
 		dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
 	/* Set counter */
-	if (async_cmd->stop_src == TRIG_COUNT) {
-		dev_private->stop_counter =
-		    async_cmd->stop_arg * async_cmd->chanlist_len;
-		dev_private->stop_is_none = 0;
-	} else {	/* TRIG_NONE */
+	if (cmd->stop_src == TRIG_COUNT)
+		dev_private->stop_counter = cmd->stop_arg * cmd->chanlist_len;
+	else	/* TRIG_NONE */
 		dev_private->stop_counter = 0;
-		dev_private->stop_is_none = 1;
-	}
 
 	/*  Set timer pacer */
 	dev_private->scan_delay = 0;
-	if (async_cmd->convert_src == TRIG_TIMER) {
+	if (cmd->convert_src == TRIG_TIMER) {
 		pci9111_trigger_source_set(dev, software);
 		pci9111_timer_set(dev);
 		pci9111_fifo_reset(dev);
@@ -510,11 +493,9 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 		plx9050_interrupt_control(dev_private->lcr_io_base, true, true,
 					  false, true, true);
 
-		if (async_cmd->scan_begin_src == TRIG_TIMER) {
-			dev_private->scan_delay =
-				(async_cmd->scan_begin_arg /
-				 (async_cmd->convert_arg *
-				  async_cmd->chanlist_len)) - 1;
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			dev_private->scan_delay = (cmd->scan_begin_arg /
+				(cmd->convert_arg * cmd->chanlist_len)) - 1;
 		}
 	} else {	/* TRIG_EXT */
 		pci9111_trigger_source_set(dev, external);
@@ -527,10 +508,9 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	}
 
 	dev_private->stop_counter *= (1 + dev_private->scan_delay);
-	dev_private->chanlist_len = async_cmd->chanlist_len;
 	dev_private->chunk_counter = 0;
-	dev_private->chunk_num_samples =
-	    dev_private->chanlist_len * (1 + dev_private->scan_delay);
+	dev_private->chunk_num_samples = cmd->chanlist_len *
+					 (1 + dev_private->scan_delay);
 
 	return 0;
 }
@@ -551,12 +531,71 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 		array[i] = ((array[i] >> shift) & maxdata) ^ invert;
 }
 
+static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
+					  struct comedi_subdevice *s)
+{
+	struct pci9111_private_data *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int total = 0;
+	unsigned int samples;
+
+	if (cmd->stop_src == TRIG_COUNT &&
+	    PCI9111_FIFO_HALF_SIZE > devpriv->stop_counter)
+		samples = devpriv->stop_counter;
+	else
+		samples = PCI9111_FIFO_HALF_SIZE;
+
+	insw(dev->iobase + PCI9111_AI_FIFO_REG,
+	     devpriv->ai_bounce_buffer, samples);
+
+	if (devpriv->scan_delay < 1) {
+		total = cfc_write_array_to_buffer(s,
+						  devpriv->ai_bounce_buffer,
+						  samples * sizeof(short));
+	} else {
+		unsigned int pos = 0;
+		unsigned int to_read;
+
+		while (pos < samples) {
+			if (devpriv->chunk_counter < cmd->chanlist_len) {
+				to_read = cmd->chanlist_len -
+					  devpriv->chunk_counter;
+
+				if (to_read > samples - pos)
+					to_read = samples - pos;
+
+				total += cfc_write_array_to_buffer(s,
+						devpriv->ai_bounce_buffer + pos,
+						to_read * sizeof(short));
+			} else {
+				to_read = devpriv->chunk_num_samples -
+					  devpriv->chunk_counter;
+
+				if (to_read > samples - pos)
+					to_read = samples - pos;
+
+				total += to_read * sizeof(short);
+			}
+
+			pos += to_read;
+			devpriv->chunk_counter += to_read;
+
+			if (devpriv->chunk_counter >=
+			    devpriv->chunk_num_samples)
+				devpriv->chunk_counter = 0;
+		}
+	}
+
+	devpriv->stop_counter -= total / sizeof(short);
+}
+
 static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 {
 	struct comedi_device *dev = p_device;
 	struct pci9111_private_data *dev_private = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
+	struct comedi_cmd *cmd;
 	unsigned int status;
 	unsigned long irq_flags;
 	unsigned char intcsr;
@@ -568,6 +607,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	}
 
 	async = s->async;
+	cmd = &async->cmd;
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 
@@ -599,79 +639,11 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		}
 
 		/* '0' means FIFO is half-full */
-		if (!(status & PCI9111_AI_STAT_FF_HF)) {
-			unsigned int num_samples;
-			unsigned int bytes_written = 0;
-
-			num_samples =
-			    PCI9111_FIFO_HALF_SIZE >
-			    dev_private->stop_counter
-			    && !dev_private->
-			    stop_is_none ? dev_private->stop_counter :
-			    PCI9111_FIFO_HALF_SIZE;
-			insw(dev->iobase + PCI9111_AI_FIFO_REG,
-			     dev_private->ai_bounce_buffer, num_samples);
-
-			if (dev_private->scan_delay < 1) {
-				bytes_written =
-				    cfc_write_array_to_buffer(s,
-							      dev_private->
-							      ai_bounce_buffer,
-							      num_samples *
-							      sizeof(short));
-			} else {
-				int position = 0;
-				int to_read;
-
-				while (position < num_samples) {
-					if (dev_private->chunk_counter <
-					    dev_private->chanlist_len) {
-						to_read =
-						    dev_private->chanlist_len -
-						    dev_private->chunk_counter;
-
-						if (to_read >
-						    num_samples - position)
-							to_read =
-							    num_samples -
-							    position;
-
-						bytes_written +=
-						    cfc_write_array_to_buffer
-						    (s,
-						     dev_private->ai_bounce_buffer
-						     + position,
-						     to_read * sizeof(short));
-					} else {
-						to_read =
-						    dev_private->chunk_num_samples
-						    -
-						    dev_private->chunk_counter;
-						if (to_read >
-						    num_samples - position)
-							to_read =
-							    num_samples -
-							    position;
-
-						bytes_written +=
-						    sizeof(short) * to_read;
-					}
-
-					position += to_read;
-					dev_private->chunk_counter += to_read;
-
-					if (dev_private->chunk_counter >=
-					    dev_private->chunk_num_samples)
-						dev_private->chunk_counter = 0;
-				}
-			}
-
-			dev_private->stop_counter -=
-			    bytes_written / sizeof(short);
-		}
+		if (!(status & PCI9111_AI_STAT_FF_HF))
+			pci9111_handle_fifo_half_full(dev, s);
 	}
 
-	if (dev_private->stop_counter == 0 && !dev_private->stop_is_none)
+	if (cmd->stop_src == TRIG_COUNT && dev_private->stop_counter == 0)
 		async->events |= COMEDI_CB_EOA;
 
 	outb(0, dev->iobase + PCI9111_INT_CLR_REG);

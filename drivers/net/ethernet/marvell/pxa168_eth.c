@@ -1488,7 +1488,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	dev->netdev_ops = &pxa168_eth_netdev_ops;
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
-	SET_ETHTOOL_OPS(dev, &pxa168_ethtool_ops);
+	dev->ethtool_ops = &pxa168_ethtool_ops;
 
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 

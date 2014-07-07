@@ -229,7 +229,7 @@ static struct slave *tlb_get_least_loaded_slave(struct bonding *bond)
 
 	/* Find the slave with the largest gap */
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		if (SLAVE_IS_OK(slave)) {
+		if (bond_slave_can_tx(slave)) {
 			long long gap = compute_gap(slave);
 
 			if (max_gap < gap) {
@@ -384,7 +384,7 @@ static struct slave *rlb_next_rx_slave(struct bonding *bond)
 	bool found = false;
 
 	bond_for_each_slave(bond, slave, iter) {
-		if (!SLAVE_IS_OK(slave))
+		if (!bond_slave_can_tx(slave))
 			continue;
 		if (!found) {
 			if (!before || before->speed < slave->speed)
@@ -417,7 +417,7 @@ static struct slave *__rlb_next_rx_slave(struct bonding *bond)
 	bool found = false;
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		if (!SLAVE_IS_OK(slave))
+		if (!bond_slave_can_tx(slave))
 			continue;
 		if (!found) {
 			if (!before || before->speed < slave->speed)
@@ -755,7 +755,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 	/* Don't modify or load balance ARPs that do not originate locally
 	 * (e.g.,arrive via a bridge).
 	 */
-	if (!bond_slave_has_mac_rcu(bond, arp->mac_src))
+	if (!bond_slave_has_mac_rx(bond, arp->mac_src))
 		return NULL;
 
 	if (arp->op_code == htons(ARPOP_REPLY)) {
@@ -1039,11 +1039,14 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[],
 	struct bonding *bond = bond_get_bond_by_slave(slave);
 	struct net_device *upper;
 	struct list_head *iter;
+	struct bond_vlan_tag tags[BOND_MAX_VLAN_ENCAP];
 
 	/* send untagged */
 	alb_send_lp_vid(slave, mac_addr, 0, 0);
 
-	/* loop through vlans and send one packet for each */
+	/* loop through all devices and see if we need to send a packet
+	 * for that device.
+	 */
 	rcu_read_lock();
 	netdev_for_each_all_upper_dev_rcu(bond->dev, upper, iter) {
 		if (is_vlan_dev(upper) && vlan_get_encap_level(upper) == 0) {
@@ -1059,6 +1062,16 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[],
 						vlan_dev_vlan_id(upper));
 			}
 		}
+
+		/* If this is a macvlan device, then only send updates
+		 * when strict_match is turned off.
+		 */
+		if (netif_is_macvlan(upper) && !strict_match) {
+			memset(tags, 0, sizeof(tags));
+			bond_verify_device_path(bond->dev, upper, tags);
+			alb_send_lp_vid(slave, upper->dev_addr,
+					tags[0].vlan_proto, tags[0].vlan_id);
+		}
 	}
 	rcu_read_unlock();
 }
@@ -1068,7 +1081,7 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[])
 	struct net_device *dev = slave->dev;
 	struct sockaddr s_addr;
 
-	if (slave->bond->params.mode == BOND_MODE_TLB) {
+	if (BOND_MODE(slave->bond) == BOND_MODE_TLB) {
 		memcpy(dev->dev_addr, addr, dev->addr_len);
 		return 0;
 	}
@@ -1111,13 +1124,13 @@ static void alb_swap_mac_addr(struct slave *slave1, struct slave *slave2)
 static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
 				struct slave *slave2)
 {
-	int slaves_state_differ = (SLAVE_IS_OK(slave1) != SLAVE_IS_OK(slave2));
+	int slaves_state_differ = (bond_slave_can_tx(slave1) != bond_slave_can_tx(slave2));
 	struct slave *disabled_slave = NULL;
 
 	ASSERT_RTNL();
 
 	/* fasten the change in the switch */
-	if (SLAVE_IS_OK(slave1)) {
+	if (bond_slave_can_tx(slave1)) {
 		alb_send_learning_packets(slave1, slave1->dev->dev_addr, false);
 		if (bond->alb_info.rlb_enabled) {
 			/* inform the clients that the mac address
@@ -1129,7 +1142,7 @@ static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
 		disabled_slave = slave1;
 	}
 
-	if (SLAVE_IS_OK(slave2)) {
+	if (bond_slave_can_tx(slave2)) {
 		alb_send_learning_packets(slave2, slave2->dev->dev_addr, false);
 		if (bond->alb_info.rlb_enabled) {
 			/* inform the clients that the mac address
@@ -1358,6 +1371,77 @@ void bond_alb_deinitialize(struct bonding *bond)
 		rlb_deinitialize(bond);
 }
 
+static int bond_do_alb_xmit(struct sk_buff *skb, struct bonding *bond,
+		struct slave *tx_slave)
+{
+	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
+	struct ethhdr *eth_data = eth_hdr(skb);
+
+	if (!tx_slave) {
+		/* unbalanced or unassigned, send through primary */
+		tx_slave = rcu_dereference(bond->curr_active_slave);
+		if (bond->params.tlb_dynamic_lb)
+			bond_info->unbalanced_load += skb->len;
+	}
+
+	if (tx_slave && bond_slave_can_tx(tx_slave)) {
+		if (tx_slave != rcu_dereference(bond->curr_active_slave)) {
+			ether_addr_copy(eth_data->h_source,
+					tx_slave->dev->dev_addr);
+		}
+
+		bond_dev_queue_xmit(bond, skb, tx_slave->dev);
+		goto out;
+	}
+
+	if (tx_slave && bond->params.tlb_dynamic_lb) {
+		_lock_tx_hashtbl(bond);
+		__tlb_clear_slave(bond, tx_slave, 0);
+		_unlock_tx_hashtbl(bond);
+	}
+
+	/* no suitable interface, frame not sent */
+	dev_kfree_skb_any(skb);
+out:
+	return NETDEV_TX_OK;
+}
+
+int bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct ethhdr *eth_data;
+	struct slave *tx_slave = NULL;
+	u32 hash_index;
+
+	skb_reset_mac_header(skb);
+	eth_data = eth_hdr(skb);
+
+	/* Do not TX balance any multicast or broadcast */
+	if (!is_multicast_ether_addr(eth_data->h_dest)) {
+		switch (skb->protocol) {
+		case htons(ETH_P_IP):
+		case htons(ETH_P_IPX):
+		    /* In case of IPX, it will falback to L2 hash */
+		case htons(ETH_P_IPV6):
+			hash_index = bond_xmit_hash(bond, skb);
+			if (bond->params.tlb_dynamic_lb) {
+				tx_slave = tlb_choose_channel(bond,
+							      hash_index & 0xFF,
+							      skb->len);
+			} else {
+				struct list_head *iter;
+				int idx = hash_index % bond->slave_cnt;
+
+				bond_for_each_slave_rcu(bond, tx_slave, iter)
+					if (--idx < 0)
+						break;
+			}
+			break;
+		}
+	}
+	return bond_do_alb_xmit(skb, bond, tx_slave);
+}
+
 int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
@@ -1366,7 +1450,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	struct slave *tx_slave = NULL;
 	static const __be32 ip_bcast = htonl(0xffffffff);
 	int hash_size = 0;
-	int do_tx_balance = 1;
+	bool do_tx_balance = true;
 	u32 hash_index = 0;
 	const u8 *hash_start = NULL;
 	struct ipv6hdr *ip6hdr;
@@ -1381,7 +1465,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		if (ether_addr_equal_64bits(eth_data->h_dest, mac_bcast) ||
 		    (iph->daddr == ip_bcast) ||
 		    (iph->protocol == IPPROTO_IGMP)) {
-			do_tx_balance = 0;
+			do_tx_balance = false;
 			break;
 		}
 		hash_start = (char *)&(iph->daddr);
@@ -1393,7 +1477,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		 * that here just in case.
 		 */
 		if (ether_addr_equal_64bits(eth_data->h_dest, mac_bcast)) {
-			do_tx_balance = 0;
+			do_tx_balance = false;
 			break;
 		}
 
@@ -1401,7 +1485,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		 * broadcasts in IPv4.
 		 */
 		if (ether_addr_equal_64bits(eth_data->h_dest, mac_v6_allmcast)) {
-			do_tx_balance = 0;
+			do_tx_balance = false;
 			break;
 		}
 
@@ -1411,7 +1495,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		 */
 		ip6hdr = ipv6_hdr(skb);
 		if (ipv6_addr_any(&ip6hdr->saddr)) {
-			do_tx_balance = 0;
+			do_tx_balance = false;
 			break;
 		}
 
@@ -1421,7 +1505,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	case ETH_P_IPX:
 		if (ipx_hdr(skb)->ipx_checksum != IPX_NO_CHECKSUM) {
 			/* something is wrong with this packet */
-			do_tx_balance = 0;
+			do_tx_balance = false;
 			break;
 		}
 
@@ -1430,7 +1514,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			 * this family since it has an "ARP" like
 			 * mechanism
 			 */
-			do_tx_balance = 0;
+			do_tx_balance = false;
 			break;
 		}
 
@@ -1438,12 +1522,12 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		hash_size = ETH_ALEN;
 		break;
 	case ETH_P_ARP:
-		do_tx_balance = 0;
+		do_tx_balance = false;
 		if (bond_info->rlb_enabled)
 			tx_slave = rlb_arp_xmit(skb, bond);
 		break;
 	default:
-		do_tx_balance = 0;
+		do_tx_balance = false;
 		break;
 	}
 
@@ -1452,32 +1536,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		tx_slave = tlb_choose_channel(bond, hash_index, skb->len);
 	}
 
-	if (!tx_slave) {
-		/* unbalanced or unassigned, send through primary */
-		tx_slave = rcu_dereference(bond->curr_active_slave);
-		bond_info->unbalanced_load += skb->len;
-	}
-
-	if (tx_slave && SLAVE_IS_OK(tx_slave)) {
-		if (tx_slave != rcu_dereference(bond->curr_active_slave)) {
-			ether_addr_copy(eth_data->h_source,
-					tx_slave->dev->dev_addr);
-		}
-
-		bond_dev_queue_xmit(bond, skb, tx_slave->dev);
-		goto out;
-	}
-
-	if (tx_slave) {
-		_lock_tx_hashtbl(bond);
-		__tlb_clear_slave(bond, tx_slave, 0);
-		_unlock_tx_hashtbl(bond);
-	}
-
-	/* no suitable interface, frame not sent */
-	dev_kfree_skb_any(skb);
-out:
-	return NETDEV_TX_OK;
+	return bond_do_alb_xmit(skb, bond, tx_slave);
 }
 
 void bond_alb_monitor(struct work_struct *work)
@@ -1514,8 +1573,10 @@ void bond_alb_monitor(struct work_struct *work)
 			/* If updating current_active, use all currently
 			 * user mac addreses (!strict_match).  Otherwise, only
 			 * use mac of the slave device.
+			 * In RLB mode, we always use strict matches.
 			 */
-			strict_match = (slave != bond->curr_active_slave);
+			strict_match = (slave != bond->curr_active_slave ||
+					bond_info->rlb_enabled);
 			alb_send_learning_packets(slave, slave->dev->dev_addr,
 						  strict_match);
 		}
@@ -1719,7 +1780,7 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	/* in TLB mode, the slave might flip down/up with the old dev_addr,
 	 * and thus filter bond->dev_addr's packets, so force bond's mac
 	 */
-	if (bond->params.mode == BOND_MODE_TLB) {
+	if (BOND_MODE(bond) == BOND_MODE_TLB) {
 		struct sockaddr sa;
 		u8 tmp_addr[ETH_ALEN];
 

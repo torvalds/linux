@@ -11,9 +11,6 @@
  * Check with readelf after changing.
  */
 
-/* Disable profiling for userspace code: */
-#define DISABLE_BRANCH_PROFILING
-
 #include <uapi/linux/time.h>
 #include <asm/vgtod.h>
 #include <asm/hpet.h>
@@ -30,9 +27,12 @@ extern int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz);
 extern time_t __vdso_time(time_t *t);
 
 #ifdef CONFIG_HPET_TIMER
-static inline u32 read_hpet_counter(const volatile void *addr)
+extern u8 hpet_page
+	__attribute__((visibility("hidden")));
+
+static notrace cycle_t vread_hpet(void)
 {
-	return *(const volatile u32 *) (addr + HPET_COUNTER);
+	return *(const volatile u32 *)(&hpet_page + HPET_COUNTER);
 }
 #endif
 
@@ -42,11 +42,6 @@ static inline u32 read_hpet_counter(const volatile void *addr)
 #include <asm/vsyscall.h>
 #include <asm/fixmap.h>
 #include <asm/pvclock.h>
-
-static notrace cycle_t vread_hpet(void)
-{
-	return read_hpet_counter((const void *)fix_to_virt(VSYSCALL_HPET));
-}
 
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {
@@ -137,16 +132,6 @@ static notrace cycle_t vread_pvclock(int *mode)
 
 #else
 
-extern u8 hpet_page
-	__attribute__((visibility("hidden")));
-
-#ifdef CONFIG_HPET_TIMER
-static notrace cycle_t vread_hpet(void)
-{
-	return read_hpet_counter((const void *)(&hpet_page));
-}
-#endif
-
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {
 	long ret;
@@ -154,7 +139,7 @@ notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 	asm(
 		"mov %%ebx, %%edx \n"
 		"mov %2, %%ebx \n"
-		"call VDSO32_vsyscall \n"
+		"call __kernel_vsyscall \n"
 		"mov %%edx, %%ebx \n"
 		: "=a" (ret)
 		: "0" (__NR_clock_gettime), "g" (clock), "c" (ts)
@@ -169,7 +154,7 @@ notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
 	asm(
 		"mov %%ebx, %%edx \n"
 		"mov %2, %%ebx \n"
-		"call VDSO32_vsyscall \n"
+		"call __kernel_vsyscall \n"
 		"mov %%edx, %%ebx \n"
 		: "=a" (ret)
 		: "0" (__NR_gettimeofday), "g" (tv), "c" (tz)

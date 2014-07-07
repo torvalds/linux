@@ -127,7 +127,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 			pr_debug("     C%d: %s %d uS\n",
 				 cx->type, cx->desc, (u32)cx->latency);
 		}
-	} else if (ret != -EINVAL)
+	} else if ((ret != -EINVAL) && (ret != -ENOSYS))
 		/* EINVAL means the ACPI ID is incorrect - meaning the ACPI
 		 * table is referencing a non-existing CPU - which can happen
 		 * with broken ACPI tables. */
@@ -259,7 +259,7 @@ static int push_pxx_to_hypervisor(struct acpi_processor *_pr)
 			(u32) perf->states[i].power,
 			(u32) perf->states[i].transition_latency);
 		}
-	} else if (ret != -EINVAL)
+	} else if ((ret != -EINVAL) && (ret != -ENOSYS))
 		/* EINVAL means the ACPI ID is incorrect - meaning the ACPI
 		 * table is referencing a non-existing CPU - which can happen
 		 * with broken ACPI tables. */

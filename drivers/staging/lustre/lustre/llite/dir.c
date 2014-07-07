@@ -632,7 +632,7 @@ out:
 	return rc;
 }
 
-int ll_send_mgc_param(struct obd_export *mgc, char *string)
+static int ll_send_mgc_param(struct obd_export *mgc, char *string)
 {
 	struct mgs_send_param *msp;
 	int rc = 0;
@@ -795,7 +795,7 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 	int rc, lmmsize;
 	struct md_op_data *op_data;
 
-	rc = ll_get_max_mdsize(sbi, &lmmsize);
+	rc = ll_get_default_mdsize(sbi, &lmmsize);
 	if (rc)
 		return rc;
 
@@ -1804,6 +1804,11 @@ out_rmdir:
 		/* Compute the whole struct size */
 		totalsize = hur_len(hur);
 		OBD_FREE_PTR(hur);
+
+		/* Final size will be more than double totalsize */
+		if (totalsize >= MDS_MAXREQSIZE / 3)
+			return -E2BIG;
+
 		OBD_ALLOC_LARGE(hur, totalsize);
 		if (hur == NULL)
 			return -ENOMEM;
@@ -1959,17 +1964,17 @@ out:
 	return ret;
 }
 
-int ll_dir_open(struct inode *inode, struct file *file)
+static int ll_dir_open(struct inode *inode, struct file *file)
 {
 	return ll_file_open(inode, file);
 }
 
-int ll_dir_release(struct inode *inode, struct file *file)
+static int ll_dir_release(struct inode *inode, struct file *file)
 {
 	return ll_file_release(inode, file);
 }
 
-struct file_operations ll_dir_operations = {
+const struct file_operations ll_dir_operations = {
 	.llseek   = ll_dir_seek,
 	.open     = ll_dir_open,
 	.release  = ll_dir_release,

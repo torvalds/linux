@@ -865,4 +865,19 @@ bool virtqueue_is_broken(struct virtqueue *_vq)
 }
 EXPORT_SYMBOL_GPL(virtqueue_is_broken);
 
+/*
+ * This should prevent the device from being used, allowing drivers to
+ * recover.  You may need to grab appropriate locks to flush.
+ */
+void virtio_break_device(struct virtio_device *dev)
+{
+	struct virtqueue *_vq;
+
+	list_for_each_entry(_vq, &dev->vqs, list) {
+		struct vring_virtqueue *vq = to_vvq(_vq);
+		vq->broken = true;
+	}
+}
+EXPORT_SYMBOL_GPL(virtio_break_device);
+
 MODULE_LICENSE("GPL");

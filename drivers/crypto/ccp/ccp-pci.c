@@ -48,12 +48,11 @@ static int ccp_get_msix_irqs(struct ccp_device *ccp)
 	for (v = 0; v < ARRAY_SIZE(msix_entry); v++)
 		msix_entry[v].entry = v;
 
-	while ((ret = pci_enable_msix(pdev, msix_entry, v)) > 0)
-		v = ret;
-	if (ret)
+	ret = pci_enable_msix_range(pdev, msix_entry, 1, v);
+	if (ret < 0)
 		return ret;
 
-	ccp_pci->msix_count = v;
+	ccp_pci->msix_count = ret;
 	for (v = 0; v < ccp_pci->msix_count; v++) {
 		/* Set the interrupt names and request the irqs */
 		snprintf(ccp_pci->msix[v].name, name_len, "ccp-%u", v);

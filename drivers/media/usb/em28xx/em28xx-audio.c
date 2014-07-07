@@ -92,7 +92,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 
 	if (dev->disconnected) {
 		dprintk("device disconnected while streaming. URB status=%d.\n", urb->status);
-		atomic_set(&dev->stream_started, 0);
+		atomic_set(&dev->adev.stream_started, 0);
 		return;
 	}
 
@@ -109,7 +109,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 		break;
 	}
 
-	if (atomic_read(&dev->stream_started) == 0)
+	if (atomic_read(&dev->adev.stream_started) == 0)
 		return;
 
 	if (dev->adev.capture_pcm_substream) {
@@ -185,7 +185,7 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 			em28xx_errdev("submit of audio urb failed (error=%i)\n",
 				      errCode);
 			em28xx_deinit_isoc_audio(dev);
-			atomic_set(&dev->stream_started, 0);
+			atomic_set(&dev->adev.stream_started, 0);
 			return errCode;
 		}
 
@@ -332,9 +332,9 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 	dev->mute = 1;
 	mutex_lock(&dev->lock);
 	dev->adev.users--;
-	if (atomic_read(&dev->stream_started) > 0) {
-		atomic_set(&dev->stream_started, 0);
-		schedule_work(&dev->wq_trigger);
+	if (atomic_read(&dev->adev.stream_started) > 0) {
+		atomic_set(&dev->adev.stream_started, 0);
+		schedule_work(&dev->adev.wq_trigger);
 	}
 
 	em28xx_audio_analog_set(dev);
@@ -381,12 +381,13 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 static int snd_em28xx_hw_capture_free(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
+	struct em28xx_audio *adev = &dev->adev;
 
 	dprintk("Stop capture, if needed\n");
 
-	if (atomic_read(&dev->stream_started) > 0) {
-		atomic_set(&dev->stream_started, 0);
-		schedule_work(&dev->wq_trigger);
+	if (atomic_read(&adev->stream_started) > 0) {
+		atomic_set(&adev->stream_started, 0);
+		schedule_work(&adev->wq_trigger);
 	}
 
 	return 0;
@@ -407,9 +408,11 @@ static int snd_em28xx_prepare(struct snd_pcm_substream *substream)
 
 static void audio_trigger(struct work_struct *work)
 {
-	struct em28xx *dev = container_of(work, struct em28xx, wq_trigger);
+	struct em28xx_audio *adev =
+			    container_of(work, struct em28xx_audio, wq_trigger);
+	struct em28xx *dev = container_of(adev, struct em28xx, adev);
 
-	if (atomic_read(&dev->stream_started)) {
+	if (atomic_read(&adev->stream_started)) {
 		dprintk("starting capture");
 		em28xx_init_audio_isoc(dev);
 	} else {
@@ -431,17 +434,17 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE: /* fall through */
 	case SNDRV_PCM_TRIGGER_RESUME: /* fall through */
 	case SNDRV_PCM_TRIGGER_START:
-		atomic_set(&dev->stream_started, 1);
+		atomic_set(&dev->adev.stream_started, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH: /* fall through */
 	case SNDRV_PCM_TRIGGER_SUSPEND: /* fall through */
 	case SNDRV_PCM_TRIGGER_STOP:
-		atomic_set(&dev->stream_started, 0);
+		atomic_set(&dev->adev.stream_started, 0);
 		break;
 	default:
 		retval = -EINVAL;
 	}
-	schedule_work(&dev->wq_trigger);
+	schedule_work(&dev->adev.wq_trigger);
 	return retval;
 }
 
@@ -928,7 +931,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	strcpy(card->shortname, "Em28xx Audio");
 	strcpy(card->longname, "Empia Em28xx Audio");
 
-	INIT_WORK(&dev->wq_trigger, audio_trigger);
+	INIT_WORK(&adev->wq_trigger, audio_trigger);
 
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
 		em28xx_cvol_new(card, dev, "Video", AC97_VIDEO);
@@ -983,7 +986,7 @@ static int em28xx_audio_fini(struct em28xx *dev)
 
 	if (dev->adev.sndcard) {
 		snd_card_disconnect(dev->adev.sndcard);
-		flush_work(&dev->wq_trigger);
+		flush_work(&dev->adev.wq_trigger);
 
 		em28xx_audio_free_urb(dev);
 
@@ -1005,7 +1008,7 @@ static int em28xx_audio_suspend(struct em28xx *dev)
 
 	em28xx_info("Suspending audio extension");
 	em28xx_deinit_isoc_audio(dev);
-	atomic_set(&dev->stream_started, 0);
+	atomic_set(&dev->adev.stream_started, 0);
 	return 0;
 }
 
@@ -1019,7 +1022,7 @@ static int em28xx_audio_resume(struct em28xx *dev)
 
 	em28xx_info("Resuming audio extension");
 	/* Nothing to do other than schedule_work() ?? */
-	schedule_work(&dev->wq_trigger);
+	schedule_work(&dev->adev.wq_trigger);
 	return 0;
 }
 

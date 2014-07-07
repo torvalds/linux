@@ -937,7 +937,7 @@ static struct qcam *qcam_init(struct parport *port)
 		return NULL;
 
 	v4l2_dev = &qcam->v4l2_dev;
-	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "bw-qcam%d", num_cams);
+	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "bw-qcam%u", num_cams);
 
 	if (v4l2_device_register(port->dev, v4l2_dev) < 0) {
 		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");

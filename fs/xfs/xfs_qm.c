@@ -193,47 +193,6 @@ xfs_qm_dqpurge(
 }
 
 /*
- * Release the group or project dquot pointers the user dquots maybe carrying
- * around as a hint, and proceed to purge the user dquot cache if requested.
-*/
-STATIC int
-xfs_qm_dqpurge_hints(
-	struct xfs_dquot	*dqp,
-	void			*data)
-{
-	struct xfs_dquot	*gdqp = NULL;
-	struct xfs_dquot	*pdqp = NULL;
-	uint			flags = *((uint *)data);
-
-	xfs_dqlock(dqp);
-	if (dqp->dq_flags & XFS_DQ_FREEING) {
-		xfs_dqunlock(dqp);
-		return EAGAIN;
-	}
-
-	/* If this quota has a hint attached, prepare for releasing it now */
-	gdqp = dqp->q_gdquot;
-	if (gdqp)
-		dqp->q_gdquot = NULL;
-
-	pdqp = dqp->q_pdquot;
-	if (pdqp)
-		dqp->q_pdquot = NULL;
-
-	xfs_dqunlock(dqp);
-
-	if (gdqp)
-		xfs_qm_dqrele(gdqp);
-	if (pdqp)
-		xfs_qm_dqrele(pdqp);
-
-	if (flags & XFS_QMOPT_UQUOTA)
-		return xfs_qm_dqpurge(dqp, NULL);
-
-	return 0;
-}
-
-/*
  * Purge the dquot cache.
  */
 void
@@ -241,18 +200,8 @@ xfs_qm_dqpurge_all(
 	struct xfs_mount	*mp,
 	uint			flags)
 {
-	/*
-	 * We have to release group/project dquot hint(s) from the user dquot
-	 * at first if they are there, otherwise we would run into an infinite
-	 * loop while walking through radix tree to purge other type of dquots
-	 * since their refcount is not zero if the user dquot refers to them
-	 * as hint.
-	 *
-	 * Call the special xfs_qm_dqpurge_hints() will end up go through the
-	 * general xfs_qm_dqpurge() against user dquot cache if requested.
-	 */
-	xfs_qm_dquot_walk(mp, XFS_DQ_USER, xfs_qm_dqpurge_hints, &flags);
-
+	if (flags & XFS_QMOPT_UQUOTA)
+		xfs_qm_dquot_walk(mp, XFS_DQ_USER, xfs_qm_dqpurge, NULL);
 	if (flags & XFS_QMOPT_GQUOTA)
 		xfs_qm_dquot_walk(mp, XFS_DQ_GROUP, xfs_qm_dqpurge, NULL);
 	if (flags & XFS_QMOPT_PQUOTA)
@@ -409,7 +358,6 @@ xfs_qm_dqattach_one(
 	xfs_dqid_t	id,
 	uint		type,
 	uint		doalloc,
-	xfs_dquot_t	*udqhint, /* hint */
 	xfs_dquot_t	**IO_idqpp)
 {
 	xfs_dquot_t	*dqp;
@@ -419,9 +367,9 @@ xfs_qm_dqattach_one(
 	error = 0;
 
 	/*
-	 * See if we already have it in the inode itself. IO_idqpp is
-	 * &i_udquot or &i_gdquot. This made the code look weird, but
-	 * made the logic a lot simpler.
+	 * See if we already have it in the inode itself. IO_idqpp is &i_udquot
+	 * or &i_gdquot. This made the code look weird, but made the logic a lot
+	 * simpler.
 	 */
 	dqp = *IO_idqpp;
 	if (dqp) {
@@ -430,49 +378,10 @@ xfs_qm_dqattach_one(
 	}
 
 	/*
-	 * udqhint is the i_udquot field in inode, and is non-NULL only
-	 * when the type arg is group/project. Its purpose is to save a
-	 * lookup by dqid (xfs_qm_dqget) by caching a group dquot inside
-	 * the user dquot.
-	 */
-	if (udqhint) {
-		ASSERT(type == XFS_DQ_GROUP || type == XFS_DQ_PROJ);
-		xfs_dqlock(udqhint);
-
-		/*
-		 * No need to take dqlock to look at the id.
-		 *
-		 * The ID can't change until it gets reclaimed, and it won't
-		 * be reclaimed as long as we have a ref from inode and we
-		 * hold the ilock.
-		 */
-		if (type == XFS_DQ_GROUP)
-			dqp = udqhint->q_gdquot;
-		else
-			dqp = udqhint->q_pdquot;
-		if (dqp && be32_to_cpu(dqp->q_core.d_id) == id) {
-			ASSERT(*IO_idqpp == NULL);
-
-			*IO_idqpp = xfs_qm_dqhold(dqp);
-			xfs_dqunlock(udqhint);
-			return 0;
-		}
-
-		/*
-		 * We can't hold a dquot lock when we call the dqget code.
-		 * We'll deadlock in no time, because of (not conforming to)
-		 * lock ordering - the inodelock comes before any dquot lock,
-		 * and we may drop and reacquire the ilock in xfs_qm_dqget().
-		 */
-		xfs_dqunlock(udqhint);
-	}
-
-	/*
-	 * Find the dquot from somewhere. This bumps the
-	 * reference count of dquot and returns it locked.
-	 * This can return ENOENT if dquot didn't exist on
-	 * disk and we didn't ask it to allocate;
-	 * ESRCH if quotas got turned off suddenly.
+	 * Find the dquot from somewhere. This bumps the reference count of
+	 * dquot and returns it locked.  This can return ENOENT if dquot didn't
+	 * exist on disk and we didn't ask it to allocate; ESRCH if quotas got
+	 * turned off suddenly.
 	 */
 	error = xfs_qm_dqget(ip->i_mount, ip, id, type,
 			     doalloc | XFS_QMOPT_DOWARN, &dqp);
@@ -488,48 +397,6 @@ xfs_qm_dqattach_one(
 	*IO_idqpp = dqp;
 	xfs_dqunlock(dqp);
 	return 0;
-}
-
-
-/*
- * Given a udquot and group/project type, attach the group/project
- * dquot pointer to the udquot as a hint for future lookups.
- */
-STATIC void
-xfs_qm_dqattach_hint(
-	struct xfs_inode	*ip,
-	int			type)
-{
-	struct xfs_dquot **dqhintp;
-	struct xfs_dquot *dqp;
-	struct xfs_dquot *udq = ip->i_udquot;
-
-	ASSERT(type == XFS_DQ_GROUP || type == XFS_DQ_PROJ);
-
-	xfs_dqlock(udq);
-
-	if (type == XFS_DQ_GROUP) {
-		dqp = ip->i_gdquot;
-		dqhintp = &udq->q_gdquot;
-	} else {
-		dqp = ip->i_pdquot;
-		dqhintp = &udq->q_pdquot;
-	}
-
-	if (*dqhintp) {
-		struct xfs_dquot *tmp;
-
-		if (*dqhintp == dqp)
-			goto done;
-
-		tmp = *dqhintp;
-		*dqhintp = NULL;
-		xfs_qm_dqrele(tmp);
-	}
-
-	*dqhintp = xfs_qm_dqhold(dqp);
-done:
-	xfs_dqunlock(udq);
 }
 
 static bool
@@ -562,7 +429,6 @@ xfs_qm_dqattach_locked(
 	uint		flags)
 {
 	xfs_mount_t	*mp = ip->i_mount;
-	uint		nquotas = 0;
 	int		error = 0;
 
 	if (!xfs_qm_need_dqattach(ip))
@@ -570,77 +436,39 @@ xfs_qm_dqattach_locked(
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
-	if (XFS_IS_UQUOTA_ON(mp)) {
+	if (XFS_IS_UQUOTA_ON(mp) && !ip->i_udquot) {
 		error = xfs_qm_dqattach_one(ip, ip->i_d.di_uid, XFS_DQ_USER,
 						flags & XFS_QMOPT_DQALLOC,
-						NULL, &ip->i_udquot);
+						&ip->i_udquot);
 		if (error)
 			goto done;
-		nquotas++;
+		ASSERT(ip->i_udquot);
 	}
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	if (XFS_IS_GQUOTA_ON(mp)) {
+	if (XFS_IS_GQUOTA_ON(mp) && !ip->i_gdquot) {
 		error = xfs_qm_dqattach_one(ip, ip->i_d.di_gid, XFS_DQ_GROUP,
 						flags & XFS_QMOPT_DQALLOC,
-						ip->i_udquot, &ip->i_gdquot);
-		/*
-		 * Don't worry about the udquot that we may have
-		 * attached above. It'll get detached, if not already.
-		 */
+						&ip->i_gdquot);
 		if (error)
 			goto done;
-		nquotas++;
+		ASSERT(ip->i_gdquot);
 	}
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	if (XFS_IS_PQUOTA_ON(mp)) {
+	if (XFS_IS_PQUOTA_ON(mp) && !ip->i_pdquot) {
 		error = xfs_qm_dqattach_one(ip, xfs_get_projid(ip), XFS_DQ_PROJ,
 						flags & XFS_QMOPT_DQALLOC,
-						ip->i_udquot, &ip->i_pdquot);
-		/*
-		 * Don't worry about the udquot that we may have
-		 * attached above. It'll get detached, if not already.
-		 */
+						&ip->i_pdquot);
 		if (error)
 			goto done;
-		nquotas++;
+		ASSERT(ip->i_pdquot);
 	}
 
+done:
 	/*
-	 * Attach this group/project quota to the user quota as a hint.
-	 * This WON'T, in general, result in a thrash.
+	 * Don't worry about the dquots that we may have attached before any
+	 * error - they'll get detached later if it has not already been done.
 	 */
-	if (nquotas > 1 && ip->i_udquot) {
-		ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-		ASSERT(ip->i_gdquot || !XFS_IS_GQUOTA_ON(mp));
-		ASSERT(ip->i_pdquot || !XFS_IS_PQUOTA_ON(mp));
-
-		/*
-		 * We do not have i_udquot locked at this point, but this check
-		 * is OK since we don't depend on the i_gdquot to be accurate
-		 * 100% all the time. It is just a hint, and this will
-		 * succeed in general.
-		 */
-		if (ip->i_udquot->q_gdquot != ip->i_gdquot)
-			xfs_qm_dqattach_hint(ip, XFS_DQ_GROUP);
-
-		if (ip->i_udquot->q_pdquot != ip->i_pdquot)
-			xfs_qm_dqattach_hint(ip, XFS_DQ_PROJ);
-	}
-
- done:
-#ifdef DEBUG
-	if (!error) {
-		if (XFS_IS_UQUOTA_ON(mp))
-			ASSERT(ip->i_udquot);
-		if (XFS_IS_GQUOTA_ON(mp))
-			ASSERT(ip->i_gdquot);
-		if (XFS_IS_PQUOTA_ON(mp))
-			ASSERT(ip->i_pdquot);
-	}
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-#endif
 	return error;
 }
 
@@ -865,8 +693,7 @@ xfs_qm_init_quotainfo(
 
 	/* Precalc some constants */
 	qinf->qi_dqchunklen = XFS_FSB_TO_BB(mp, XFS_DQUOT_CLUSTER_SIZE_FSB);
-	qinf->qi_dqperchunk = xfs_calc_dquots_per_chunk(mp,
-							qinf->qi_dqchunklen);
+	qinf->qi_dqperchunk = xfs_calc_dquots_per_chunk(qinf->qi_dqchunklen);
 
 	mp->m_qflags |= (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_CHKD);
 

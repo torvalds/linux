@@ -414,7 +414,7 @@ static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		}
 		bucket->deficit = weight * q->quantum;
 	}
-	if (++sch->q.qlen < sch->limit)
+	if (++sch->q.qlen <= sch->limit)
 		return NET_XMIT_SUCCESS;
 
 	q->drop_overlimit++;
@@ -494,12 +494,7 @@ static void *hhf_zalloc(size_t sz)
 
 static void hhf_free(void *addr)
 {
-	if (addr) {
-		if (is_vmalloc_addr(addr))
-			vfree(addr);
-		else
-			kfree(addr);
-	}
+	kvfree(addr);
 }
 
 static void hhf_destroy(struct Qdisc *sch)

@@ -37,9 +37,9 @@
 #endif
 	.endm
 
-	.macro	alignment_trap, rtemp
+	.macro	alignment_trap, rtemp, label
 #ifdef CONFIG_ALIGNMENT_TRAP
-	ldr	\rtemp, .LCcralign
+	ldr	\rtemp, \label
 	ldr	\rtemp, [\rtemp]
 	mcr	p15, 0, \rtemp, c1, c0
 #endif

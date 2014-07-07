@@ -58,7 +58,7 @@
 
 #define WPA_CIPHER_NONE		BIT(0)
 #define WPA_CIPHER_WEP40	BIT(1)
-#define WPA_CIPHER_WEP104 BIT(2)
+#define WPA_CIPHER_WEP104	BIT(2)
 #define WPA_CIPHER_TKIP		BIT(3)
 #define WPA_CIPHER_CCMP		BIT(4)
 
@@ -105,41 +105,53 @@ enum ratr_table_mode {
 
 enum NETWORK_TYPE
 {
-    WIRELESS_INVALID = 0,
-    /* Sub-Element */
-    WIRELESS_11B = BIT(0), /*  tx: cck only , rx: cck only, hw: cck */
-    WIRELESS_11G = BIT(1), /*  tx: ofdm only, rx: ofdm & cck, hw: cck & ofdm */
-    WIRELESS_11A = BIT(2), /*  tx: ofdm only, rx: ofdm only, hw: ofdm only */
-    WIRELESS_11_24N = BIT(3), /*  tx: MCS only, rx: MCS & cck, hw: MCS & cck */
-    WIRELESS_11_5N = BIT(4), /*  tx: MCS only, rx: MCS & ofdm, hw: ofdm only */
+	WIRELESS_INVALID = 0,
+	/* Sub-Element */
+	/*  tx: cck only , rx: cck only, hw: cck */
+	WIRELESS_11B = BIT(0),
+	/*  tx: ofdm only, rx: ofdm & cck, hw: cck & ofdm */
+	WIRELESS_11G = BIT(1),
+	/*  tx: ofdm only, rx: ofdm only, hw: ofdm only */
+	WIRELESS_11A = BIT(2),
+	/*  tx: MCS only, rx: MCS & cck, hw: MCS & cck */
+	WIRELESS_11_24N = BIT(3),
+	/*  tx: MCS only, rx: MCS & ofdm, hw: ofdm only */
+	WIRELESS_11_5N = BIT(4),
 	/* WIRELESS_AUTO		= BIT(5), */
-	WIRELESS_AC		= BIT(6),
+	WIRELESS_AC = BIT(6),
 
-    /* Combination */
-    WIRELESS_11BG = (WIRELESS_11B|WIRELESS_11G), /*  tx: cck & ofdm, rx: cck & ofdm & MCS, hw: cck & ofdm */
-    WIRELESS_11G_24N = (WIRELESS_11G|WIRELESS_11_24N), /*  tx: ofdm & MCS, rx: ofdm & cck & MCS, hw: cck & ofdm */
-    WIRELESS_11A_5N = (WIRELESS_11A|WIRELESS_11_5N), /*  tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only */
-    WIRELESS_11BG_24N = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N), /*  tx: ofdm & cck & MCS, rx: ofdm & cck & MCS, hw: ofdm & cck */
-    WIRELESS_11AGN = (WIRELESS_11A|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N), /*  tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only */
-    WIRELESS_11ABGN = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N),
+	/* Combination */
+	 /*  tx: cck & ofdm, rx: cck & ofdm & MCS, hw: cck & ofdm */
+	WIRELESS_11BG = WIRELESS_11B|WIRELESS_11G,
+	/*  tx: ofdm & MCS, rx: ofdm & cck & MCS, hw: cck & ofdm */
+	WIRELESS_11G_24N = WIRELESS_11G | WIRELESS_11_24N,
+	/*  tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only */
+	WIRELESS_11A_5N = WIRELESS_11A | WIRELESS_11_5N,
+	/*  tx: ofdm & cck & MCS, rx: ofdm & cck & MCS, hw: ofdm & cck */
+	WIRELESS_11BG_24N = WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N,
+	/*  tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only */
+	WIRELESS_11AGN = WIRELESS_11A | WIRELESS_11G | WIRELESS_11_24N |
+				WIRELESS_11_5N,
+	WIRELESS_11ABGN = WIRELESS_11A | WIRELESS_11B | WIRELESS_11G |
+				WIRELESS_11_24N | WIRELESS_11_5N,
 };
 
 #define SUPPORTED_24G_NETTYPE_MSK (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N)
 #define SUPPORTED_5G_NETTYPE_MSK (WIRELESS_11A | WIRELESS_11_5N)
 
-#define IsSupported24G(NetType) ((NetType) & SUPPORTED_24G_NETTYPE_MSK ? true : false)
-#define IsSupported5G(NetType) ((NetType) & SUPPORTED_5G_NETTYPE_MSK ? true : false)
+#define IsSupported24G(NetType) (NetType & SUPPORTED_24G_NETTYPE_MSK ? true : false)
+#define IsSupported5G(NetType) (NetType & SUPPORTED_5G_NETTYPE_MSK ? true : false)
 
 #define IsEnableHWCCK(NetType) IsSupported24G(NetType)
-#define IsEnableHWOFDM(NetType) ((NetType) & (WIRELESS_11G|WIRELESS_11_24N|SUPPORTED_5G_NETTYPE_MSK) ? true : false)
+#define IsEnableHWOFDM(NetType) (NetType & (WIRELESS_11G|WIRELESS_11_24N|SUPPORTED_5G_NETTYPE_MSK) ? true : false)
 
 #define IsSupportedRxCCK(NetType) IsEnableHWCCK(NetType)
 #define IsSupportedRxOFDM(NetType) IsEnableHWOFDM(NetType)
 #define IsSupportedRxMCS(NetType) IsEnableHWOFDM(NetType)
 
-#define IsSupportedTxCCK(NetType) ((NetType) & (WIRELESS_11B) ? true : false)
-#define IsSupportedTxOFDM(NetType) ((NetType) & (WIRELESS_11G|WIRELESS_11A) ? true : false)
-#define IsSupportedTxMCS(NetType) ((NetType) & (WIRELESS_11_24N|WIRELESS_11_5N) ? true : false)
+#define IsSupportedTxCCK(NetType) (NetType & (WIRELESS_11B) ? true : false)
+#define IsSupportedTxOFDM(NetType) (NetType & (WIRELESS_11G|WIRELESS_11A) ? true : false)
+#define IsSupportedTxMCS(NetType) (NetType & (WIRELESS_11_24N|WIRELESS_11_5N) ? true : false)
 
 
 struct ieee_param {
@@ -192,7 +204,7 @@ struct ieee_param {
 /* QoS,QOS */
 #define NORMAL_ACK			0
 #define NO_ACK				1
-#define NON_EXPLICIT_ACK	2
+#define NON_EXPLICIT_ACK		2
 #define BLOCK_ACK			3
 
 /* IEEE 802.11 defines */
@@ -200,24 +212,22 @@ struct ieee_param {
 #define P80211_OUI_LEN 3
 
 struct ieee80211_snap_hdr {
-
         u8    dsap;   /* always 0xAA */
         u8    ssap;   /* always 0xAA */
         u8    ctrl;   /* always 0x03 */
         u8    oui[P80211_OUI_LEN];    /* organizational universal id */
-
 } __attribute__ ((packed));
 
 
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
 
-#define WLAN_FC_GET_TYPE(fc) ((fc) & IEEE80211_FCTL_FTYPE)
-#define WLAN_FC_GET_STYPE(fc) ((fc) & IEEE80211_FCTL_STYPE)
+#define WLAN_FC_GET_TYPE(fc)		(fc & IEEE80211_FCTL_FTYPE)
+#define WLAN_FC_GET_STYPE(fc)		(fc & IEEE80211_FCTL_STYPE)
 
-#define WLAN_QC_GET_TID(qc) ((qc) & 0x0f)
+#define WLAN_QC_GET_TID(qc)		(qc & 0x0f)
 
-#define WLAN_GET_SEQ_FRAG(seq) ((seq) & RTW_IEEE80211_SCTL_FRAG)
-#define WLAN_GET_SEQ_SEQ(seq)  ((seq) & RTW_IEEE80211_SCTL_SEQ)
+#define WLAN_GET_SEQ_FRAG(seq)		(seq & RTW_IEEE80211_SCTL_FRAG)
+#define WLAN_GET_SEQ_SEQ(seq)		(seq & RTW_IEEE80211_SCTL_SEQ)
 
 
 #define WLAN_REASON_JOIN_WRONG_CHANNEL       65534
@@ -298,67 +308,20 @@ struct ieee80211_snap_hdr {
 #define WEP_KEY_LEN 13
 
 
-
-/*
-
- 802.11 data frame from AP
-
-      ,-------------------------------------------------------------------.
-Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
-      |------|------|---------|---------|---------|------|---------|------|
-Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  frame  |  fcs |
-      |      | tion | (BSSID) |         |         | ence |  data   |      |
-      `-------------------------------------------------------------------'
-
-Total: 28-2340 bytes
-
-*/
-
-struct ieee80211_header_data {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
-	u16 seq_ctrl;
-};
-
-struct ieee80211_info_element_hdr {
-	u8 id;
-	u8 len;
-} __attribute__ ((packed));
-
-struct ieee80211_info_element {
-	u8 id;
-	u8 len;
-	u8 data[0];
-} __attribute__ ((packed));
-
-
-struct ieee80211_txb {
-	u8 nr_frags;
-	u8 encrypted;
-	u16 reserved;
-	u16 frag_size;
-	u16 payload_size;
-	struct sk_buff *fragments[0];
-};
-
-
 /* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
  * only use 8, and then use extended rates for the remaining supported
  * rates.  Other APs, however, stick all of their supported rates on the
  * main rates information element... */
-#define MAX_RATES_LENGTH                  ((u8)12)
-#define MAX_RATES_EX_LENGTH               ((u8)16)
-#define MAX_CHANNEL_NUMBER                 161
+#define MAX_RATES_LENGTH	12
+#define MAX_RATES_EX_LENGTH	16
+#define MAX_CHANNEL_NUMBER	161
 
-#define MAX_WPA_IE_LEN (256)
-#define MAX_WPS_IE_LEN (512)
-#define MAX_P2P_IE_LEN (256)
-#define MAX_WFD_IE_LEN (128)
+#define MAX_WPA_IE_LEN		256
+#define MAX_WPS_IE_LEN		512
+#define MAX_P2P_IE_LEN		256
+#define MAX_WFD_IE_LEN		128
 
-#define IW_ESSID_MAX_SIZE 32
+#define IW_ESSID_MAX_SIZE	32
 
 /*
 join_res:
@@ -367,23 +330,10 @@ join_res:
 > 0: TID
 */
 
-#define DEFAULT_MAX_SCAN_AGE (15 * HZ)
-#define DEFAULT_FTS 2346
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 
-#define CFG_IEEE80211_RESERVE_FCS (1<<0)
-#define CFG_IEEE80211_COMPUTE_FCS (1<<1)
-
 #define MAXTID	16
-
-#define IEEE_A            (1<<0)
-#define IEEE_B            (1<<1)
-#define IEEE_G            (1<<2)
-#define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
-
-/* Baron move to ieee80211.c */
-int ieee80211_is_empty_essid23a(const char *essid, int essid_len);
 
 enum _PUBLIC_ACTION{
 	ACT_PUBLIC_BSSCOEXIST = 0, /*  20/40 BSS Coexistence */
@@ -457,79 +407,17 @@ struct rtw_ieee80211_channel {
 	/*, (channel)->orig_mag*/ \
 	/*, (channel)->orig_mpwr*/ \
 
-/* Parsed Information Elements */
-struct rtw_ieee802_11_elems {
-	u8 *ssid;
-	u8 ssid_len;
-	u8 *supp_rates;
-	u8 supp_rates_len;
-	u8 *fh_params;
-	u8 fh_params_len;
-	u8 *ds_params;
-	u8 ds_params_len;
-	u8 *cf_params;
-	u8 cf_params_len;
-	u8 *tim;
-	u8 tim_len;
-	u8 *ibss_params;
-	u8 ibss_params_len;
-	u8 *challenge;
-	u8 challenge_len;
-	u8 *erp_info;
-	u8 erp_info_len;
-	u8 *ext_supp_rates;
-	u8 ext_supp_rates_len;
-	u8 *wpa_ie;
-	u8 wpa_ie_len;
-	u8 *rsn_ie;
-	u8 rsn_ie_len;
-	u8 *wme;
-	u8 wme_len;
-	u8 *wme_tspec;
-	u8 wme_tspec_len;
-	u8 *wps_ie;
-	u8 wps_ie_len;
-	u8 *power_cap;
-	u8 power_cap_len;
-	u8 *supp_channels;
-	u8 supp_channels_len;
-	u8 *mdie;
-	u8 mdie_len;
-	u8 *ftie;
-	u8 ftie_len;
-	u8 *timeout_int;
-	u8 timeout_int_len;
-	u8 *ht_capabilities;
-	u8 ht_capabilities_len;
-	u8 *ht_operation;
-	u8 ht_operation_len;
-	u8 *vendor_ht_cap;
-	u8 vendor_ht_cap_len;
-};
-
-enum parse_res {
-	ParseOK = 0,
-	ParseUnknown = 1,
-	ParseFailed = -1
-};
-
-enum parse_res rtw_ieee802_11_parse_elems23a(u8 *start, uint len,
-				struct rtw_ieee802_11_elems *elems,
-				int show_errors);
-
 u8 *rtw_set_fixed_ie23a(unsigned char *pbuf, unsigned int len, unsigned char *source, unsigned int *frlen);
-u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, u8 *source, uint *frlen);
+u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, const u8 *source, uint *frlen);
 
 enum secondary_ch_offset {
 	SCN = 0, /* no secondary channel */
 	SCA = 1, /* secondary channel above */
 	SCB = 3,  /* secondary channel below */
 };
-u8 secondary_ch_offset_to_hal_ch_offset23a(u8 ch_offset);
 u8 hal_ch_offset_to_secondary_ch_offset23a(u8 ch_offset);
 u8 *rtw_set_ie23a_ch_switch(u8 *buf, u32 *buf_len, u8 ch_switch_mode, u8 new_ch, u8 ch_switch_cnt);
 u8 *rtw_set_ie23a_secondary_ch_offset(u8 *buf, u32 *buf_len, u8 secondary_ch_offset);
-u8 *rtw_set_ie23a_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl, u8 flags, u16 reason, u16 precedence);
 
 u8 *rtw_get_ie23a(u8*pbuf, int index, int *len, int limit);
 u8 *rtw_get_ie23a_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, uint *ielen);
@@ -537,45 +425,16 @@ int rtw_ies_remove_ie23a(u8 *ies, uint *ies_len, uint offset, u8 eid, u8 *oui, u
 
 void rtw_set_supported_rate23a(u8* SupportedRates, uint mode) ;
 
-unsigned char *rtw_get_wpa_ie23a(unsigned char *pie, int *wpa_ie_len, int limit);
-unsigned char *rtw_get_wpa2_ie23a(unsigned char *pie, int *rsn_ie_len, int limit);
-int rtw_get_wpa_cipher_suite23a(u8 *s);
-int rtw_get_wpa2_cipher_suite23a(u8 *s);
-int rtw_parse_wpa_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
-int rtw_parse_wpa2_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
+int rtw_get_wpa_cipher_suite23a(const u8 *s);
+int rtw_get_wpa2_cipher_suite23a(const u8 *s);
+int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
+int rtw_parse_wpa2_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
 
 int rtw_get_sec_ie23a(u8 *in_ie,uint in_len,u8 *rsn_ie,u16 *rsn_len,u8 *wpa_ie,u16 *wpa_len);
 
-u8 rtw_is_wps_ie23a(u8 *ie_ptr, uint *wps_ielen);
 u8 *rtw_get_wps_ie23a(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen);
 u8 *rtw_get_wps_attr23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_attr, u32 *len_attr);
 u8 *rtw_get_wps_attr_content23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_content, uint *len_content);
-
-/**
- * for_each_ie - iterate over continuous IEs
- * @ie:
- * @buf:
- * @buf_len:
- */
-#define for_each_ie(ie, buf, buf_len) \
-	for (ie = (void*)buf; (((u8*)ie) - ((u8*)buf) + 1) < buf_len; ie = (void*)(((u8*)ie) + *(((u8*)ie)+1) + 2))
-
-void dump_ies23a(u8 *buf, u32 buf_len);
-void dump_wps_ie23a(u8 *ie, u32 ie_len);
-
-#ifdef CONFIG_8723AU_P2P
-void dump_p2p_ie23a(u8 *ie, u32 ie_len);
-u8 *rtw_get_p2p_ie23a(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen);
-u8 *rtw_get_p2p_attr23a(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_attr, u32 *len_attr);
-u8 *rtw_get_p2p_attr23a_content(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_content, uint *len_content);
-u32 rtw_set_p2p_attr_content23a(u8 *pbuf, u8 attr_id, u16 attr_len, u8 *pdata_attr);
-void rtw_wlan_bssid_ex_remove_p2p_attr23a(struct wlan_bssid_ex *bss_ex, u8 attr_id);
-#endif
-
-#ifdef CONFIG_8723AU_P2P
-int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen);
-int rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id ,u8 *attr_content, uint *attr_contentlen);
-#endif /*  CONFIG_8723AU_P2P */
 
 uint	rtw_get_rateset_len23a(u8	*rateset);
 
@@ -585,19 +444,12 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv);
 
 int rtw_get_bit_value_from_ieee_value23a(u8 val);
 
-uint rtw_is_cckrates_included23a(u8 *rate);
-
-uint rtw_is_cckratesonly_included23a(u8 *rate);
-
 int rtw_check_network_type23a(unsigned char *rate, int ratelen, int channel);
 
 void rtw_get_bcn_info23a(struct wlan_network *pnetwork);
 
-void rtw_macaddr_cfg23a(u8 *mac_addr);
-
 u16 rtw_mcs_rate23a(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40, unsigned char * MCS_rate);
 
-int rtw_action_frame_parse23a(const u8 *frame, u32 frame_len, u8* category, u8 *action);
 const char *action_public_str23a(u8 action);
 
 #endif /* IEEE80211_H */

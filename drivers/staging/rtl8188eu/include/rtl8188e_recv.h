@@ -56,7 +56,6 @@ enum rx_packet_type {
 };
 
 #define INTERRUPT_MSG_FORMAT_LEN 60
-void rtl8188eu_init_recvbuf(struct adapter *padapter, struct recv_buf *buf);
 s32 rtl8188eu_init_recv_priv(struct adapter *padapter);
 void rtl8188eu_free_recv_priv(struct adapter *padapter);
 void rtl8188eu_recv_hdl(struct adapter *padapter, struct recv_buf *precvbuf);

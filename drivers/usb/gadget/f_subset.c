@@ -276,7 +276,7 @@ static int geth_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	}
 
 	net = gether_connect(&geth->port);
-	return PTR_RET(net);
+	return PTR_ERR_OR_ZERO(net);
 }
 
 static void geth_disable(struct usb_function *f)

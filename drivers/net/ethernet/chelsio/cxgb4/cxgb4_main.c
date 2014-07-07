@@ -818,12 +818,17 @@ static void name_msix_vecs(struct adapter *adap)
 	for_each_rdmarxq(&adap->sge, i)
 		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-rdma%d",
 			 adap->port[0]->name, i);
+
+	for_each_rdmaciq(&adap->sge, i)
+		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-rdma-ciq%d",
+			 adap->port[0]->name, i);
 }
 
 static int request_msix_queue_irqs(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int err, ethqidx, ofldqidx = 0, rdmaqidx = 0, msi_index = 2;
+	int err, ethqidx, ofldqidx = 0, rdmaqidx = 0, rdmaciqqidx = 0;
+	int msi_index = 2;
 
 	err = request_irq(adap->msix_info[1].vec, t4_sge_intr_msix, 0,
 			  adap->msix_info[1].desc, &s->fw_evtq);
@@ -857,9 +862,21 @@ static int request_msix_queue_irqs(struct adapter *adap)
 			goto unwind;
 		msi_index++;
 	}
+	for_each_rdmaciq(s, rdmaciqqidx) {
+		err = request_irq(adap->msix_info[msi_index].vec,
+				  t4_sge_intr_msix, 0,
+				  adap->msix_info[msi_index].desc,
+				  &s->rdmaciq[rdmaciqqidx].rspq);
+		if (err)
+			goto unwind;
+		msi_index++;
+	}
 	return 0;
 
 unwind:
+	while (--rdmaciqqidx >= 0)
+		free_irq(adap->msix_info[--msi_index].vec,
+			 &s->rdmaciq[rdmaciqqidx].rspq);
 	while (--rdmaqidx >= 0)
 		free_irq(adap->msix_info[--msi_index].vec,
 			 &s->rdmarxq[rdmaqidx].rspq);
@@ -885,6 +902,8 @@ static void free_msix_queue_irqs(struct adapter *adap)
 		free_irq(adap->msix_info[msi_index++].vec, &s->ofldrxq[i].rspq);
 	for_each_rdmarxq(s, i)
 		free_irq(adap->msix_info[msi_index++].vec, &s->rdmarxq[i].rspq);
+	for_each_rdmaciq(s, i)
+		free_irq(adap->msix_info[msi_index++].vec, &s->rdmaciq[i].rspq);
 }
 
 /**
@@ -1047,7 +1066,8 @@ freeout:	t4_free_sge_resources(adap);
 		if (msi_idx > 0)
 			msi_idx++;
 		err = t4_sge_alloc_rxq(adap, &q->rspq, false, dev, msi_idx,
-				       &q->fl, uldrx_handler);
+				       q->fl.size ? &q->fl : NULL,
+				       uldrx_handler);
 		if (err)
 			goto freeout;
 		memset(&q->stats, 0, sizeof(q->stats));
@@ -1064,11 +1084,26 @@ freeout:	t4_free_sge_resources(adap);
 		if (msi_idx > 0)
 			msi_idx++;
 		err = t4_sge_alloc_rxq(adap, &q->rspq, false, adap->port[i],
-				       msi_idx, &q->fl, uldrx_handler);
+				       msi_idx, q->fl.size ? &q->fl : NULL,
+				       uldrx_handler);
 		if (err)
 			goto freeout;
 		memset(&q->stats, 0, sizeof(q->stats));
 		s->rdma_rxq[i] = q->rspq.abs_id;
+	}
+
+	for_each_rdmaciq(s, i) {
+		struct sge_ofld_rxq *q = &s->rdmaciq[i];
+
+		if (msi_idx > 0)
+			msi_idx++;
+		err = t4_sge_alloc_rxq(adap, &q->rspq, false, adap->port[i],
+				       msi_idx, q->fl.size ? &q->fl : NULL,
+				       uldrx_handler);
+		if (err)
+			goto freeout;
+		memset(&q->stats, 0, sizeof(q->stats));
+		s->rdma_ciq[i] = q->rspq.abs_id;
 	}
 
 	for_each_port(adap, i) {
@@ -2252,12 +2287,19 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	else if (p->port_type == FW_PORT_TYPE_FIBER_XFI ||
 		 p->port_type == FW_PORT_TYPE_FIBER_XAUI)
 		cmd->port = PORT_FIBRE;
-	else if (p->port_type == FW_PORT_TYPE_SFP) {
-		if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
-		    p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
+	else if (p->port_type == FW_PORT_TYPE_SFP ||
+		 p->port_type == FW_PORT_TYPE_QSFP_10G ||
+		 p->port_type == FW_PORT_TYPE_QSFP) {
+		if (p->mod_type == FW_PORT_MOD_TYPE_LR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_SR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_ER ||
+		    p->mod_type == FW_PORT_MOD_TYPE_LRM)
+			cmd->port = PORT_FIBRE;
+		else if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
+			 p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
 			cmd->port = PORT_DA;
 		else
-			cmd->port = PORT_FIBRE;
+			cmd->port = PORT_OTHER;
 	} else
 		cmd->port = PORT_OTHER;
 
@@ -2461,8 +2503,7 @@ static unsigned int qtimer_val(const struct adapter *adap,
 }
 
 /**
- *	set_rxq_intr_params - set a queue's interrupt holdoff parameters
- *	@adap: the adapter
+ *	set_rspq_intr_params - set a queue's interrupt holdoff parameters
  *	@q: the Rx queue
  *	@us: the hold-off time in us, or 0 to disable timer
  *	@cnt: the hold-off packet count, or 0 to disable counter
@@ -2470,9 +2511,11 @@ static unsigned int qtimer_val(const struct adapter *adap,
  *	Sets an Rx queue's interrupt hold-off time and packet count.  At least
  *	one of the two needs to be enabled for the queue to generate interrupts.
  */
-static int set_rxq_intr_params(struct adapter *adap, struct sge_rspq *q,
-			       unsigned int us, unsigned int cnt)
+static int set_rspq_intr_params(struct sge_rspq *q,
+				unsigned int us, unsigned int cnt)
 {
+	struct adapter *adap = q->adap;
+
 	if ((us | cnt) == 0)
 		cnt = 1;
 
@@ -2499,24 +2542,34 @@ static int set_rxq_intr_params(struct adapter *adap, struct sge_rspq *q,
 	return 0;
 }
 
+/**
+ * set_rx_intr_params - set a net devices's RX interrupt holdoff paramete!
+ * @dev: the network device
+ * @us: the hold-off time in us, or 0 to disable timer
+ * @cnt: the hold-off packet count, or 0 to disable counter
+ *
+ * Set the RX interrupt hold-off parameters for a network device.
+ */
+static int set_rx_intr_params(struct net_device *dev,
+			      unsigned int us, unsigned int cnt)
+{
+	int i, err;
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_rxq *q = &adap->sge.ethrxq[pi->first_qset];
+
+	for (i = 0; i < pi->nqsets; i++, q++) {
+		err = set_rspq_intr_params(&q->rspq, us, cnt);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
-	const struct port_info *pi = netdev_priv(dev);
-	struct adapter *adap = pi->adapter;
-	struct sge_rspq *q;
-	int i;
-	int r = 0;
-
-	for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++) {
-		q = &adap->sge.ethrxq[i].rspq;
-		r = set_rxq_intr_params(adap, q, c->rx_coalesce_usecs,
-			c->rx_max_coalesced_frames);
-		if (r) {
-			dev_err(&dev->dev, "failed to set coalesce %d\n", r);
-			break;
-		}
-	}
-	return r;
+	return set_rx_intr_params(dev, c->rx_coalesce_usecs,
+				  c->rx_max_coalesced_frames);
 }
 
 static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
@@ -2732,7 +2785,7 @@ static u32 get_rss_table_size(struct net_device *dev)
 	return pi->rss_size;
 }
 
-static int get_rss_table(struct net_device *dev, u32 *p)
+static int get_rss_table(struct net_device *dev, u32 *p, u8 *key)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	unsigned int n = pi->rss_size;
@@ -2742,7 +2795,7 @@ static int get_rss_table(struct net_device *dev, u32 *p)
 	return 0;
 }
 
-static int set_rss_table(struct net_device *dev, const u32 *p)
+static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key)
 {
 	unsigned int i;
 	struct port_info *pi = netdev_priv(dev);
@@ -2844,8 +2897,8 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.set_wol           = set_wol,
 	.get_rxnfc         = get_rxnfc,
 	.get_rxfh_indir_size = get_rss_table_size,
-	.get_rxfh_indir    = get_rss_table,
-	.set_rxfh_indir    = set_rss_table,
+	.get_rxfh	   = get_rss_table,
+	.set_rxfh	   = set_rss_table,
 	.flash_device      = set_flash,
 };
 
@@ -3386,6 +3439,77 @@ unsigned int cxgb4_best_mtu(const unsigned short *mtus, unsigned short mtu,
 EXPORT_SYMBOL(cxgb4_best_mtu);
 
 /**
+ *     cxgb4_best_aligned_mtu - find best MTU, [hopefully] data size aligned
+ *     @mtus: the HW MTU table
+ *     @header_size: Header Size
+ *     @data_size_max: maximum Data Segment Size
+ *     @data_size_align: desired Data Segment Size Alignment (2^N)
+ *     @mtu_idxp: HW MTU Table Index return value pointer (possibly NULL)
+ *
+ *     Similar to cxgb4_best_mtu() but instead of searching the Hardware
+ *     MTU Table based solely on a Maximum MTU parameter, we break that
+ *     parameter up into a Header Size and Maximum Data Segment Size, and
+ *     provide a desired Data Segment Size Alignment.  If we find an MTU in
+ *     the Hardware MTU Table which will result in a Data Segment Size with
+ *     the requested alignment _and_ that MTU isn't "too far" from the
+ *     closest MTU, then we'll return that rather than the closest MTU.
+ */
+unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
+				    unsigned short header_size,
+				    unsigned short data_size_max,
+				    unsigned short data_size_align,
+				    unsigned int *mtu_idxp)
+{
+	unsigned short max_mtu = header_size + data_size_max;
+	unsigned short data_size_align_mask = data_size_align - 1;
+	int mtu_idx, aligned_mtu_idx;
+
+	/* Scan the MTU Table till we find an MTU which is larger than our
+	 * Maximum MTU or we reach the end of the table.  Along the way,
+	 * record the last MTU found, if any, which will result in a Data
+	 * Segment Length matching the requested alignment.
+	 */
+	for (mtu_idx = 0, aligned_mtu_idx = -1; mtu_idx < NMTUS; mtu_idx++) {
+		unsigned short data_size = mtus[mtu_idx] - header_size;
+
+		/* If this MTU minus the Header Size would result in a
+		 * Data Segment Size of the desired alignment, remember it.
+		 */
+		if ((data_size & data_size_align_mask) == 0)
+			aligned_mtu_idx = mtu_idx;
+
+		/* If we're not at the end of the Hardware MTU Table and the
+		 * next element is larger than our Maximum MTU, drop out of
+		 * the loop.
+		 */
+		if (mtu_idx+1 < NMTUS && mtus[mtu_idx+1] > max_mtu)
+			break;
+	}
+
+	/* If we fell out of the loop because we ran to the end of the table,
+	 * then we just have to use the last [largest] entry.
+	 */
+	if (mtu_idx == NMTUS)
+		mtu_idx--;
+
+	/* If we found an MTU which resulted in the requested Data Segment
+	 * Length alignment and that's "not far" from the largest MTU which is
+	 * less than or equal to the maximum MTU, then use that.
+	 */
+	if (aligned_mtu_idx >= 0 &&
+	    mtu_idx - aligned_mtu_idx <= 1)
+		mtu_idx = aligned_mtu_idx;
+
+	/* If the caller has passed in an MTU Index pointer, pass the
+	 * MTU Index back.  Return the MTU value.
+	 */
+	if (mtu_idxp)
+		*mtu_idxp = mtu_idx;
+	return mtus[mtu_idx];
+}
+EXPORT_SYMBOL(cxgb4_best_aligned_mtu);
+
+/**
  *	cxgb4_port_chan - get the HW channel of a port
  *	@dev: the net device for the port
  *
@@ -3782,7 +3906,9 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.mtus = adap->params.mtus;
 	if (uld == CXGB4_ULD_RDMA) {
 		lli.rxq_ids = adap->sge.rdma_rxq;
+		lli.ciq_ids = adap->sge.rdma_ciq;
 		lli.nrxq = adap->sge.rdmaqs;
+		lli.nciq = adap->sge.rdmaciqs;
 	} else if (uld == CXGB4_ULD_ISCSI) {
 		lli.rxq_ids = adap->sge.ofld_rxq;
 		lli.nrxq = adap->sge.ofldqsets;
@@ -3931,22 +4057,19 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 EXPORT_SYMBOL(cxgb4_unregister_uld);
 
 /* Check if netdev on which event is occured belongs to us or not. Return
- * suceess (1) if it belongs otherwise failure (0).
+ * success (true) if it belongs otherwise failure (false).
+ * Called with rcu_read_lock() held.
  */
-static int cxgb4_netdev(struct net_device *netdev)
+static bool cxgb4_netdev(const struct net_device *netdev)
 {
 	struct adapter *adap;
 	int i;
 
-	spin_lock(&adap_rcu_lock);
 	list_for_each_entry_rcu(adap, &adap_rcu_list, rcu_node)
 		for (i = 0; i < MAX_NPORTS; i++)
-			if (adap->port[i] == netdev) {
-				spin_unlock(&adap_rcu_lock);
-				return 1;
-			}
-	spin_unlock(&adap_rcu_lock);
-	return 0;
+			if (adap->port[i] == netdev)
+				return true;
+	return false;
 }
 
 static int clip_add(struct net_device *event_dev, struct inet6_ifaddr *ifa,
@@ -4061,7 +4184,7 @@ static int update_root_dev_clip(struct net_device *dev)
 
 	/* Parse all bond and vlan devices layered on top of the physical dev */
 	for (i = 0; i < VLAN_N_VID; i++) {
-		root_dev = __vlan_find_dev_deep(dev, htons(ETH_P_8021Q), i);
+		root_dev = __vlan_find_dev_deep_rcu(dev, htons(ETH_P_8021Q), i);
 		if (!root_dev)
 			continue;
 
@@ -5528,13 +5651,41 @@ static int adap_init0(struct adapter *adap)
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV
 
-	/*
-	 * These are finalized by FW initialization, load their values now.
+	/* The MTU/MSS Table is initialized by now, so load their values.  If
+	 * we're initializing the adapter, then we'll make any modifications
+	 * we want to the MTU/MSS Table and also initialize the congestion
+	 * parameters.
 	 */
 	t4_read_mtu_tbl(adap, adap->params.mtus, NULL);
-	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
-		     adap->params.b_wnd);
+	if (state != DEV_STATE_INIT) {
+		int i;
 
+		/* The default MTU Table contains values 1492 and 1500.
+		 * However, for TCP, it's better to have two values which are
+		 * a multiple of 8 +/- 4 bytes apart near this popular MTU.
+		 * This allows us to have a TCP Data Payload which is a
+		 * multiple of 8 regardless of what combination of TCP Options
+		 * are in use (always a multiple of 4 bytes) which is
+		 * important for performance reasons.  For instance, if no
+		 * options are in use, then we have a 20-byte IP header and a
+		 * 20-byte TCP header.  In this case, a 1500-byte MSS would
+		 * result in a TCP Data Payload of 1500 - 40 == 1460 bytes
+		 * which is not a multiple of 8.  So using an MSS of 1488 in
+		 * this case results in a TCP Data Payload of 1448 bytes which
+		 * is a multiple of 8.  On the other hand, if 12-byte TCP Time
+		 * Stamps have been negotiated, then an MTU of 1500 bytes
+		 * results in a TCP Data Payload of 1448 bytes which, as
+		 * above, is a multiple of 8 bytes ...
+		 */
+		for (i = 0; i < NMTUS; i++)
+			if (adap->params.mtus[i] == 1492) {
+				adap->params.mtus[i] = 1488;
+				break;
+			}
+
+		t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
+			     adap->params.b_wnd);
+	}
 	t4_init_tp_params(adap);
 	adap->flags |= FW_OK;
 	return 0;
@@ -5669,12 +5820,12 @@ static inline bool is_x_10g_port(const struct link_config *lc)
 	       (lc->supported & FW_PORT_CAP_SPEED_40G) != 0;
 }
 
-static inline void init_rspq(struct sge_rspq *q, u8 timer_idx, u8 pkt_cnt_idx,
+static inline void init_rspq(struct adapter *adap, struct sge_rspq *q,
+			     unsigned int us, unsigned int cnt,
 			     unsigned int size, unsigned int iqe_size)
 {
-	q->intr_params = QINTR_TIMER_IDX(timer_idx) |
-			 (pkt_cnt_idx < SGE_NCOUNTERS ? QINTR_CNT_EN : 0);
-	q->pktcnt_idx = pkt_cnt_idx < SGE_NCOUNTERS ? pkt_cnt_idx : 0;
+	q->adap = adap;
+	set_rspq_intr_params(q, us, cnt);
 	q->iqe_len = iqe_size;
 	q->size = size;
 }
@@ -5688,6 +5839,7 @@ static void cfg_queues(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
 	int i, q10g = 0, n10g = 0, qidx = 0;
+	int ciq_size;
 
 	for_each_port(adap, i)
 		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
@@ -5726,12 +5878,13 @@ static void cfg_queues(struct adapter *adap)
 			s->ofldqsets = adap->params.nports;
 		/* For RDMA one Rx queue per channel suffices */
 		s->rdmaqs = adap->params.nports;
+		s->rdmaciqs = adap->params.nports;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
 		struct sge_eth_rxq *r = &s->ethrxq[i];
 
-		init_rspq(&r->rspq, 0, 0, 1024, 64);
+		init_rspq(adap, &r->rspq, 5, 10, 1024, 64);
 		r->fl.size = 72;
 	}
 
@@ -5747,7 +5900,7 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->ofldrxq); i++) {
 		struct sge_ofld_rxq *r = &s->ofldrxq[i];
 
-		init_rspq(&r->rspq, 0, 0, 1024, 64);
+		init_rspq(adap, &r->rspq, 5, 1, 1024, 64);
 		r->rspq.uld = CXGB4_ULD_ISCSI;
 		r->fl.size = 72;
 	}
@@ -5755,13 +5908,26 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->rdmarxq); i++) {
 		struct sge_ofld_rxq *r = &s->rdmarxq[i];
 
-		init_rspq(&r->rspq, 0, 0, 511, 64);
+		init_rspq(adap, &r->rspq, 5, 1, 511, 64);
 		r->rspq.uld = CXGB4_ULD_RDMA;
 		r->fl.size = 72;
 	}
 
-	init_rspq(&s->fw_evtq, 6, 0, 512, 64);
-	init_rspq(&s->intrq, 6, 0, 2 * MAX_INGQ, 64);
+	ciq_size = 64 + adap->vres.cq.size + adap->tids.nftids;
+	if (ciq_size > SGE_MAX_IQ_SIZE) {
+		CH_WARN(adap, "CIQ size too small for available IQs\n");
+		ciq_size = SGE_MAX_IQ_SIZE;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(s->rdmaciq); i++) {
+		struct sge_ofld_rxq *r = &s->rdmaciq[i];
+
+		init_rspq(adap, &r->rspq, 5, 1, ciq_size, 64);
+		r->rspq.uld = CXGB4_ULD_RDMA;
+	}
+
+	init_rspq(adap, &s->fw_evtq, 0, 1, 1024, 64);
+	init_rspq(adap, &s->intrq, 0, 1, 2 * MAX_INGQ, 64);
 }
 
 /*
@@ -5808,9 +5974,9 @@ static int enable_msix(struct adapter *adap)
 
 	want = s->max_ethqsets + EXTRA_VECS;
 	if (is_offload(adap)) {
-		want += s->rdmaqs + s->ofldqsets;
+		want += s->rdmaqs + s->rdmaciqs + s->ofldqsets;
 		/* need nchan for each possible ULD */
-		ofld_need = 2 * nchan;
+		ofld_need = 3 * nchan;
 	}
 	need = adap->params.nports + EXTRA_VECS + ofld_need;
 
@@ -6076,7 +6242,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		netdev->netdev_ops = &cxgb4_netdev_ops;
-		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
+		netdev->ethtool_ops = &cxgb_ethtool_ops;
 	}
 
 	pci_set_drvdata(pdev, adapter);
@@ -6227,6 +6393,7 @@ static void remove_one(struct pci_dev *pdev)
 			adapter->flags &= ~DEV_ENABLED;
 		}
 		pci_release_regions(pdev);
+		synchronize_rcu();
 		kfree(adapter);
 	} else
 		pci_release_regions(pdev);

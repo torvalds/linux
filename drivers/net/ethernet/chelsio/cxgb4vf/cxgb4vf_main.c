@@ -2664,7 +2664,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
-		SET_ETHTOOL_OPS(netdev, &cxgb4vf_ethtool_ops);
+		netdev->ethtool_ops = &cxgb4vf_ethtool_ops;
 
 		/*
 		 * Initialize the hardware/software state for the port.

@@ -217,6 +217,10 @@ static ssize_t qeth_dev_prioqing_show(struct device *dev,
 		return sprintf(buf, "%s\n", "by precedence");
 	case QETH_PRIO_Q_ING_TOS:
 		return sprintf(buf, "%s\n", "by type of service");
+	case QETH_PRIO_Q_ING_SKB:
+		return sprintf(buf, "%s\n", "by skb-priority");
+	case QETH_PRIO_Q_ING_VLAN:
+		return sprintf(buf, "%s\n", "by VLAN headers");
 	default:
 		return sprintf(buf, "always queue %i\n",
 			       card->qdio.default_out_queue);
@@ -250,11 +254,23 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 	}
 
 	tmp = strsep((char **) &buf, "\n");
-	if (!strcmp(tmp, "prio_queueing_prec"))
+	if (!strcmp(tmp, "prio_queueing_prec")) {
 		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_PREC;
-	else if (!strcmp(tmp, "prio_queueing_tos"))
+		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
+	} else if (!strcmp(tmp, "prio_queueing_skb")) {
+		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_SKB;
+		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
+	} else if (!strcmp(tmp, "prio_queueing_tos")) {
 		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_TOS;
-	else if (!strcmp(tmp, "no_prio_queueing:0")) {
+		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
+	} else if (!strcmp(tmp, "prio_queueing_vlan")) {
+		if (!card->options.layer2) {
+			rc = -ENOTSUPP;
+			goto out;
+		}
+		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_VLAN;
+		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
+	} else if (!strcmp(tmp, "no_prio_queueing:0")) {
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 0;
 	} else if (!strcmp(tmp, "no_prio_queueing:1")) {

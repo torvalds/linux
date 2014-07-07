@@ -865,7 +865,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	if (node == NULL)
 		return -EINVAL;
 
-	cf_port = kzalloc(sizeof(*cf_port), GFP_KERNEL);
+	cf_port = devm_kzalloc(&pdev->dev, sizeof(*cf_port), GFP_KERNEL);
 	if (!cf_port)
 		return -ENOMEM;
 
@@ -881,10 +881,9 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	n_size = of_n_size_cells(node);
 
 	reg_prop = of_find_property(node, "reg", &reg_len);
-	if (!reg_prop || reg_len < sizeof(__be32)) {
-		rv = -EINVAL;
-		goto free_cf_port;
-	}
+	if (!reg_prop || reg_len < sizeof(__be32))
+		return -EINVAL;
+
 	cs_num = reg_prop->value;
 	cf_port->cs0 = be32_to_cpup(cs_num);
 
@@ -901,16 +900,13 @@ static int octeon_cf_probe(struct platform_device *pdev)
 				res_dma = platform_get_resource(dma_dev, IORESOURCE_MEM, 0);
 				if (!res_dma) {
 					of_node_put(dma_node);
-					rv = -EINVAL;
-					goto free_cf_port;
+					return -EINVAL;
 				}
 				cf_port->dma_base = (u64)devm_ioremap_nocache(&pdev->dev, res_dma->start,
 									 resource_size(res_dma));
-
 				if (!cf_port->dma_base) {
 					of_node_put(dma_node);
-					rv = -EINVAL;
-					goto free_cf_port;
+					return -EINVAL;
 				}
 
 				irq_handler = octeon_cf_interrupt;
@@ -921,41 +917,34 @@ static int octeon_cf_probe(struct platform_device *pdev)
 			of_node_put(dma_node);
 		}
 		res_cs1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!res_cs1) {
-			rv = -EINVAL;
-			goto free_cf_port;
-		}
+		if (!res_cs1)
+			return -EINVAL;
+
 		cs1 = devm_ioremap_nocache(&pdev->dev, res_cs1->start,
 					   resource_size(res_cs1));
-
 		if (!cs1)
-			goto free_cf_port;
+			return rv;
 
-		if (reg_len < (n_addr + n_size + 1) * sizeof(__be32)) {
-			rv = -EINVAL;
-			goto free_cf_port;
-		}
+		if (reg_len < (n_addr + n_size + 1) * sizeof(__be32))
+			return -EINVAL;
+
 		cs_num += n_addr + n_size;
 		cf_port->cs1 = be32_to_cpup(cs_num);
 	}
 
 	res_cs0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	if (!res_cs0) {
-		rv = -EINVAL;
-		goto free_cf_port;
-	}
+	if (!res_cs0)
+		return -EINVAL;
 
 	cs0 = devm_ioremap_nocache(&pdev->dev, res_cs0->start,
 				   resource_size(res_cs0));
-
 	if (!cs0)
-		goto free_cf_port;
+		return rv;
 
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
-		goto free_cf_port;
+		return rv;
 
 	ap = host->ports[0];
 	ap->private_data = cf_port;
@@ -1020,17 +1009,12 @@ static int octeon_cf_probe(struct platform_device *pdev)
 
 	ata_port_desc(ap, "cmd %p ctl %p", base, ap->ioaddr.ctl_addr);
 
-
 	dev_info(&pdev->dev, "version " DRV_VERSION" %d bit%s.\n",
 		 is_16bit ? 16 : 8,
 		 cf_port->is_true_ide ? ", True IDE" : "");
 
 	return ata_host_activate(host, irq, irq_handler,
 				 IRQF_SHARED, &octeon_cf_sht);
-
-free_cf_port:
-	kfree(cf_port);
-	return rv;
 }
 
 static void octeon_cf_shutdown(struct device *dev)

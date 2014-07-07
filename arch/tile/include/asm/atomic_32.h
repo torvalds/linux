@@ -169,16 +169,6 @@ static inline void atomic64_set(atomic64_t *v, long long n)
 #define atomic64_dec_and_test(v)	(atomic64_dec_return((v)) == 0)
 #define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1LL, 0LL)
 
-/*
- * We need to barrier before modifying the word, since the _atomic_xxx()
- * routines just tns the lock and then read/modify/write of the word.
- * But after the word is updated, the routine issues an "mf" before returning,
- * and since it's a function call, we don't even need a compiler barrier.
- */
-#define smp_mb__before_atomic_dec()	smp_mb()
-#define smp_mb__before_atomic_inc()	smp_mb()
-#define smp_mb__after_atomic_dec()	do { } while (0)
-#define smp_mb__after_atomic_inc()	do { } while (0)
 
 #endif /* !__ASSEMBLY__ */
 

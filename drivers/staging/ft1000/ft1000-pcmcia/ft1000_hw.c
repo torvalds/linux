@@ -2249,7 +2249,7 @@ struct net_device *init_ft1000_card(struct pcmcia_device *link,
 
 	ft1000InitProc(dev);
 	ft1000_card_present = 1;
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 	printk(KERN_INFO "ft1000: %s: addr 0x%04lx irq %d, MAC addr %pM\n",
 			dev->name, dev->base_addr, dev->irq, dev->dev_addr);
 	return dev;

@@ -514,7 +514,7 @@ static int dib0700_rc_query_old_firmware(struct dvb_usb_device *d)
 
 	/* info("%d: %2X %2X %2X %2X",dvb_usb_dib0700_ir_proto,(int)key[3-2],(int)key[3-3],(int)key[3-1],(int)key[3]);  */
 
-	dib0700_rc_setup(d); /* reset ir sensor data to prevent false events */
+	dib0700_rc_setup(d, NULL); /* reset ir sensor data to prevent false events */
 
 	d->last_event = 0;
 	switch (d->props.rc.core.protocol) {

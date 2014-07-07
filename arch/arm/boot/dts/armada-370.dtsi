@@ -220,6 +220,11 @@
 				clocks = <&coreclk 2>;
 			};
 
+			cpurst@20800 {
+				compatible = "marvell,armada-370-cpu-reset";
+				reg = <0x20800 0x8>;
+			};
+
 			audio_controller: audio-controller@30000 {
 				compatible = "marvell,armada370-audio";
 				reg = <0x30000 0x4000>;

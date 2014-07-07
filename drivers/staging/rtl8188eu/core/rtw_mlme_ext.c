@@ -502,8 +502,6 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 		break;
 	default:
 		_mgt_dispatcher(padapter, ptable, precv_frame);
-		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
-			rtw_hostapd_mlme_rx(padapter, precv_frame);
 		break;
 	}
 #else
@@ -6553,7 +6551,6 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 	struct registry_priv	*pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	__le32 le32_tmp;
 
 	len = packet_len - sizeof(struct rtw_ieee80211_hdr_3addr);
 
@@ -6600,13 +6597,13 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 		return _FAIL;
 	}
 
-	if (*(p + 1)) {
+	if (len) {
 		if (len > NDIS_802_11_LENGTH_SSID) {
 			DBG_88E("%s()-%d: IE too long (%d) for survey event\n", __func__, __LINE__, len);
 			return _FAIL;
 		}
-		memcpy(bssid->Ssid.Ssid, (p + 2), *(p + 1));
-		bssid->Ssid.SsidLength = *(p + 1);
+		memcpy(bssid->Ssid.Ssid, (p + 2), len);
+		bssid->Ssid.SsidLength = len;
 	} else {
 		bssid->Ssid.SsidLength = 0;
 	}
@@ -6667,8 +6664,8 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 		return _SUCCESS;
 	}
 
-	memcpy(&le32_tmp, rtw_get_beacon_interval_from_ie(bssid->IEs), 2);
-	bssid->Configuration.BeaconPeriod = le32_to_cpu(le32_tmp);
+	bssid->Configuration.BeaconPeriod =
+		get_unaligned_le16(rtw_get_beacon_interval_from_ie(bssid->IEs));
 
 	val16 = rtw_get_capability((struct wlan_bssid_ex *)bssid);
 

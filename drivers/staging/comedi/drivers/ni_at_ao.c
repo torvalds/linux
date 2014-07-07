@@ -310,6 +310,7 @@ static int atao_calib_insn_read(struct comedi_device *dev,
 static void atao_reset(struct comedi_device *dev)
 {
 	struct atao_private *devpriv = dev->private;
+	unsigned long timer_base = dev->iobase + ATAO_82C53_BASE;
 
 	/* This is the reset sequence described in the manual */
 
@@ -317,10 +318,9 @@ static void atao_reset(struct comedi_device *dev)
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 
 	/* Put outputs of counter 1 and counter 2 in a high state */
-	i8254_load(dev->iobase + ATAO_82C53_BASE, 0,
-		   0, 0x0003, I8254_MODE4 | I8254_BINARY);
-	i8254_set_mode(dev->iobase + ATAO_82C53_BASE, 0,
-		   1, I8254_MODE4 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 0, I8254_MODE4 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE4 | I8254_BINARY);
+	i8254_write(timer_base, 0, 0, 0x0003);
 
 	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
 

@@ -404,7 +404,7 @@ static void iscsi_target_sk_data_ready(struct sock *sk)
 	}
 
 	rc = schedule_delayed_work(&conn->login_work, 0);
-	if (rc == false) {
+	if (!rc) {
 		pr_debug("iscsi_target_sk_data_ready, schedule_delayed_work"
 			 " got false\n");
 	}
@@ -513,7 +513,7 @@ static void iscsi_target_do_login_rx(struct work_struct *work)
 	state = (tpg->tpg_state == TPG_STATE_ACTIVE);
 	spin_unlock(&tpg->tpg_state_lock);
 
-	if (state == false) {
+	if (!state) {
 		pr_debug("iscsi_target_do_login_rx: tpg_state != TPG_STATE_ACTIVE\n");
 		iscsi_target_restore_sock_callbacks(conn);
 		iscsi_target_login_drop(conn, login);
@@ -528,7 +528,7 @@ static void iscsi_target_do_login_rx(struct work_struct *work)
 		state = iscsi_target_sk_state_check(sk);
 		read_unlock_bh(&sk->sk_callback_lock);
 
-		if (state == false) {
+		if (!state) {
 			pr_debug("iscsi_target_do_login_rx, TCP state CLOSE\n");
 			iscsi_target_restore_sock_callbacks(conn);
 			iscsi_target_login_drop(conn, login);
@@ -773,6 +773,12 @@ static int iscsi_target_handle_csg_zero(
 		}
 
 		goto do_auth;
+	} else if (!payload_length) {
+		pr_err("Initiator sent zero length security payload,"
+		       " login failed\n");
+		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
+				    ISCSI_LOGIN_STATUS_AUTH_FAILED);
+		return -1;
 	}
 
 	if (login->first_request)

@@ -435,7 +435,7 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 	return ret;
 }
 
-static uuid_le null_guid;
+static const uuid_le null_guid;
 
 static inline bool is_null_guid(const __u8 *guid)
 {
@@ -450,7 +450,7 @@ static inline bool is_null_guid(const __u8 *guid)
  */
 static const struct hv_vmbus_device_id *hv_vmbus_get_id(
 					const struct hv_vmbus_device_id *id,
-					__u8 *guid)
+					const __u8 *guid)
 {
 	for (; !is_null_guid(id->guid); id++)
 		if (!memcmp(&id->guid, guid, sizeof(uuid_le)))
@@ -779,9 +779,9 @@ EXPORT_SYMBOL_GPL(vmbus_driver_unregister);
  * vmbus_device_create - Creates and registers a new child device
  * on the vmbus.
  */
-struct hv_device *vmbus_device_create(uuid_le *type,
-					    uuid_le *instance,
-					    struct vmbus_channel *channel)
+struct hv_device *vmbus_device_create(const uuid_le *type,
+				      const uuid_le *instance,
+				      struct vmbus_channel *channel)
 {
 	struct hv_device *child_device_obj;
 

@@ -79,8 +79,8 @@
 #include "iwl-prph.h"
 #include "rs.h"
 #include "fw-api-scan.h"
-#include "fw-error-dump.h"
 #include "time-event.h"
+#include "iwl-fw-error-dump.h"
 
 /*
  * module name, copyright, version, etc.
@@ -220,7 +220,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, false),
 
 	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif, true),
-	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif, false),
+	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif, true),
 	RX_HANDLER(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics, true),
 	RX_HANDLER(ANTENNA_COUPLING_NOTIFICATION,
 		   iwl_mvm_rx_ant_coupling_notif, true),
@@ -402,6 +402,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->sf_state = SF_UNINIT;
 
 	mutex_init(&mvm->mutex);
+	mutex_init(&mvm->d0i3_suspend_mutex);
 	spin_lock_init(&mvm->async_handlers_lock);
 	INIT_LIST_HEAD(&mvm->time_event_list);
 	INIT_LIST_HEAD(&mvm->async_handlers_list);
@@ -465,13 +466,24 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	min_backoff = calc_min_backoff(trans, cfg);
 	iwl_mvm_tt_initialize(mvm, min_backoff);
+	/* set the nvm_file_name according to priority */
+	if (iwlwifi_mod_params.nvm_file)
+		mvm->nvm_file_name = iwlwifi_mod_params.nvm_file;
+	else
+		mvm->nvm_file_name = mvm->cfg->default_nvm_file;
+
+	if (WARN(cfg->no_power_up_nic_in_init && !mvm->nvm_file_name,
+		 "not allowing power-up and not having nvm_file\n"))
+		goto out_free;
 
 	/*
-	 * If the NVM exists in an external file,
-	 * there is no need to unnecessarily power up the NIC at driver load
+	 * Even if nvm exists in the nvm_file driver should read agin the nvm
+	 * from the nic because there might be entries that exist in the OTP
+	 * and not in the file.
+	 * for nics with no_power_up_nic_in_init: rely completley on nvm_file
 	 */
-	if (iwlwifi_mod_params.nvm_file) {
-		err = iwl_nvm_init(mvm);
+	if (cfg->no_power_up_nic_in_init && mvm->nvm_file_name) {
+		err = iwl_nvm_init(mvm, false);
 		if (err)
 			goto out_free;
 	} else {
@@ -518,7 +530,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  out_free:
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
-	if (!iwlwifi_mod_params.nvm_file)
+	if (!cfg->no_power_up_nic_in_init || !mvm->nvm_file_name)
 		iwl_trans_op_mode_leave(trans);
 	ieee80211_free_hw(mvm->hw);
 	return NULL;
@@ -538,6 +550,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	kfree(mvm->scan_cmd);
 	vfree(mvm->fw_error_dump);
 	kfree(mvm->fw_error_sram);
+	kfree(mvm->fw_error_rxf);
 	kfree(mvm->mcast_filter_cmd);
 	mvm->mcast_filter_cmd = NULL;
 
@@ -814,6 +827,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	u32 file_len;
+	u32 trans_len;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -821,8 +835,13 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		return;
 
 	file_len = mvm->fw_error_sram_len +
+		   mvm->fw_error_rxf_len +
 		   sizeof(*dump_file) +
-		   sizeof(*dump_data);
+		   sizeof(*dump_data) * 2;
+
+	trans_len = iwl_trans_dump_data(mvm->trans, NULL, 0);
+	if (trans_len)
+		file_len += trans_len;
 
 	dump_file = vmalloc(file_len);
 	if (!dump_file)
@@ -833,7 +852,12 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
 	dump_file->file_len = cpu_to_le32(file_len);
 	dump_data = (void *)dump_file->data;
-	dump_data->type = IWL_FW_ERROR_DUMP_SRAM;
+	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
+	dump_data->len = cpu_to_le32(mvm->fw_error_rxf_len);
+	memcpy(dump_data->data, mvm->fw_error_rxf, mvm->fw_error_rxf_len);
+
+	dump_data = iwl_mvm_fw_error_next_data(dump_data);
+	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_SRAM);
 	dump_data->len = cpu_to_le32(mvm->fw_error_sram_len);
 
 	/*
@@ -842,6 +866,23 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	 * mvm->fw_error_sram right now.
 	 */
 	memcpy(dump_data->data, mvm->fw_error_sram, mvm->fw_error_sram_len);
+
+	kfree(mvm->fw_error_rxf);
+	mvm->fw_error_rxf = NULL;
+	mvm->fw_error_rxf_len = 0;
+
+	kfree(mvm->fw_error_sram);
+	mvm->fw_error_sram = NULL;
+	mvm->fw_error_sram_len = 0;
+
+	if (trans_len) {
+		void *buf = iwl_mvm_fw_error_next_data(dump_data);
+		u32 real_trans_len = iwl_trans_dump_data(mvm->trans, buf,
+							 trans_len);
+		dump_data = (void *)((u8 *)buf + real_trans_len);
+		dump_file->file_len =
+			cpu_to_le32(file_len - trans_len + real_trans_len);
+	}
 }
 #endif
 
@@ -853,6 +894,7 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_fw_error_sram_dump(mvm);
+	iwl_mvm_fw_error_rxf_dump(mvm);
 #endif
 
 	iwl_mvm_nic_restart(mvm);
@@ -1126,9 +1168,9 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, d0i3_exit_work);
 	struct iwl_host_cmd get_status_cmd = {
 		.id = WOWLAN_GET_STATUSES,
-		.flags = CMD_SYNC | CMD_HIGH_PRIO | CMD_WANT_SKB,
+		.flags = CMD_HIGH_PRIO | CMD_WANT_SKB,
 	};
-	struct iwl_wowlan_status_v6 *status;
+	struct iwl_wowlan_status *status;
 	int ret;
 	u32 disconnection_reasons, wakeup_reasons;
 	__le16 *qos_seq = NULL;
@@ -1158,17 +1200,26 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	iwl_free_resp(&get_status_cmd);
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
+	iwl_mvm_unref(mvm, IWL_MVM_REF_EXIT_WORK);
 	mutex_unlock(&mvm->mutex);
 }
 
-static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
+int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE |
 		    CMD_WAKE_UP_TRANS;
 	int ret;
 
 	IWL_DEBUG_RPM(mvm, "MVM exiting D0i3\n");
+
+	mutex_lock(&mvm->d0i3_suspend_mutex);
+	if (test_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags)) {
+		IWL_DEBUG_RPM(mvm, "Deferring d0i3 exit until resume\n");
+		__set_bit(D0I3_PENDING_WAKEUP, &mvm->d0i3_suspend_flags);
+		mutex_unlock(&mvm->d0i3_suspend_mutex);
+		return 0;
+	}
+	mutex_unlock(&mvm->d0i3_suspend_mutex);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, flags, 0, NULL);
 	if (ret)
@@ -1181,6 +1232,25 @@ static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 out:
 	schedule_work(&mvm->d0i3_exit_work);
 	return ret;
+}
+
+static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	iwl_mvm_ref(mvm, IWL_MVM_REF_EXIT_WORK);
+	return _iwl_mvm_exit_d0i3(mvm);
+}
+
+static void iwl_mvm_napi_add(struct iwl_op_mode *op_mode,
+			     struct napi_struct *napi,
+			     struct net_device *napi_dev,
+			     int (*poll)(struct napi_struct *, int),
+			     int weight)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	ieee80211_napi_add(mvm->hw, napi, napi_dev, poll, weight);
 }
 
 static const struct iwl_op_mode_ops iwl_mvm_ops = {
@@ -1196,4 +1266,5 @@ static const struct iwl_op_mode_ops iwl_mvm_ops = {
 	.nic_config = iwl_mvm_nic_config,
 	.enter_d0i3 = iwl_mvm_enter_d0i3,
 	.exit_d0i3 = iwl_mvm_exit_d0i3,
+	.napi_add = iwl_mvm_napi_add,
 };

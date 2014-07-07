@@ -1248,7 +1248,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	clk_rate = clk_round_rate(bgp->div_clk,
 				  bgp->conf->sensors[0].ts_data->max_freq);
 	if (clk_rate < bgp->conf->sensors[0].ts_data->min_freq ||
-	    clk_rate == 0xffffffff) {
+	    clk_rate <= 0) {
 		ret = -ENODEV;
 		dev_err(&pdev->dev, "wrong clock rate (%d)\n", clk_rate);
 		goto put_clks;

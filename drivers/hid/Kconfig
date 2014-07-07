@@ -608,7 +608,10 @@ config HID_SAITEK
 	Support for Saitek devices that are not fully compliant with the
 	HID standard.
 
-	Currently only supports the PS1000 controller.
+	Supported devices:
+	- PS1000 Dual Analog Pad
+	- R.A.T.7 Gaming Mouse
+	- M.M.O.7 Gaming Mouse
 
 config HID_SAMSUNG
 	tristate "Samsung InfraRed remote control or keyboards"
@@ -656,6 +659,14 @@ config HID_SUNPLUS
 	depends on HID
 	---help---
 	Support for Sunplus wireless desktop.
+
+config HID_RMI
+	tristate "Synaptics RMI4 device support"
+	depends on HID
+	---help---
+	Support for Synaptics RMI4 touchpads.
+	Say Y here if you have a Synaptics RMI4 touchpads over i2c-hid or usbhid
+	and want support for its special functionalities.
 
 config HID_GREENASIA
 	tristate "GreenAsia (Product ID 0x12) game controller support"

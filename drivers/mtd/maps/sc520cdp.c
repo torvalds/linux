@@ -183,7 +183,7 @@ static const struct sc520_par_table par_table[NUM_FLASH_BANKS] =
 
 static void sc520cdp_setup_par(void)
 {
-	volatile unsigned long __iomem *mmcr;
+	unsigned long __iomem *mmcr;
 	unsigned long mmcr_val;
 	int i, j;
 
@@ -203,11 +203,11 @@ static void sc520cdp_setup_par(void)
 	*/
 	for(i = 0; i < NUM_FLASH_BANKS; i++) {		/* for each par_table entry  */
 		for(j = 0; j < NUM_SC520_PAR; j++) {	/* for each PAR register     */
-			mmcr_val = mmcr[SC520_PAR(j)];
+			mmcr_val = readl(&mmcr[SC520_PAR(j)]);
 			/* if target device field matches, reprogram the PAR */
 			if((mmcr_val & SC520_PAR_TRGDEV) == par_table[i].trgdev)
 			{
-				mmcr[SC520_PAR(j)] = par_table[i].new_par;
+				writel(par_table[i].new_par, &mmcr[SC520_PAR(j)]);
 				break;
 			}
 		}

@@ -1625,12 +1625,13 @@ out_delete_map:
 void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
 				bool full)
 {
-	int fd = perf_data_file__fd(session->file);
 	struct stat st;
-	int ret;
+	int fd, ret;
 
 	if (session == NULL || fp == NULL)
 		return;
+
+	fd = perf_data_file__fd(session->file);
 
 	ret = fstat(fd, &st);
 	if (ret == -1)

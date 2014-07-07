@@ -367,6 +367,7 @@ enum {
 #define HCI_ERROR_REMOTE_POWER_OFF	0x15
 #define HCI_ERROR_LOCAL_HOST_TERM	0x16
 #define HCI_ERROR_PAIRING_NOT_ALLOWED	0x18
+#define HCI_ERROR_ADVERTISING_TIMEOUT	0x3c
 
 /* Flow control modes */
 #define HCI_FLOW_CTL_MODE_PACKET_BASED	0x00
@@ -1053,6 +1054,17 @@ struct hci_cp_write_page_scan_activity {
 	__le16   window;
 } __packed;
 
+#define HCI_OP_READ_TX_POWER		0x0c2d
+struct hci_cp_read_tx_power {
+	__le16   handle;
+	__u8     type;
+} __packed;
+struct hci_rp_read_tx_power {
+	__u8     status;
+	__le16   handle;
+	__s8     tx_power;
+} __packed;
+
 #define HCI_OP_READ_PAGE_SCAN_TYPE	0x0c46
 struct hci_rp_read_page_scan_type {
 	__u8     status;
@@ -1062,6 +1074,16 @@ struct hci_rp_read_page_scan_type {
 #define HCI_OP_WRITE_PAGE_SCAN_TYPE	0x0c47
 	#define PAGE_SCAN_TYPE_STANDARD		0x00
 	#define PAGE_SCAN_TYPE_INTERLACED	0x01
+
+#define HCI_OP_READ_RSSI		0x1405
+struct hci_cp_read_rssi {
+	__le16   handle;
+} __packed;
+struct hci_rp_read_rssi {
+	__u8     status;
+	__le16   handle;
+	__s8     rssi;
+} __packed;
 
 #define HCI_OP_READ_LOCAL_AMP_INFO	0x1409
 struct hci_rp_read_local_amp_info {

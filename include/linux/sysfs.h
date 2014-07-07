@@ -437,7 +437,7 @@ static inline int __must_check sysfs_create_file(struct kobject *kobj,
 static inline void sysfs_remove_file(struct kobject *kobj,
 				     const struct attribute *attr)
 {
-	return sysfs_remove_file_ns(kobj, attr, NULL);
+	sysfs_remove_file_ns(kobj, attr, NULL);
 }
 
 static inline int sysfs_rename_link(struct kobject *kobj, struct kobject *target,

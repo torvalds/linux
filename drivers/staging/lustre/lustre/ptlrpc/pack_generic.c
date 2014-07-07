@@ -300,6 +300,7 @@ lustre_get_emerg_rs(struct ptlrpc_service_part *svcpt)
 	spin_unlock(&svcpt->scp_rep_lock);
 
 	memset(rs, 0, svcpt->scp_service->srv_max_reply_size);
+	rs->rs_size = svcpt->scp_service->srv_max_reply_size;
 	rs->rs_svcpt = svcpt;
 	rs->rs_prealloc = 1;
 out:

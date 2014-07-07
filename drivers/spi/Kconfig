@@ -91,8 +91,8 @@ config SPI_BFIN5XX
 	help
 	  This is the SPI controller master driver for Blackfin 5xx processor.
 
-config SPI_BFIN_V3
-	tristate "SPI controller v3 for Blackfin"
+config SPI_ADI_V3
+	tristate "SPI controller v3 for ADI"
 	depends on BF60x
 	help
 	  This is the SPI controller v3 master driver
@@ -147,6 +147,13 @@ config SPI_BUTTERFLY
 	  Butterfly <http://www.atmel.com/products/avr/butterfly>, an
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
+
+config SPI_CADENCE
+	tristate "Cadence SPI controller"
+	depends on ARM
+	help
+	  This selects the Cadence SPI controller master driver
+	  used by Xilinx Zynq.
 
 config SPI_CLPS711X
 	tristate "CLPS711X host SPI controller"
@@ -505,7 +512,7 @@ config SPI_TEGRA20_SLINK
 
 config SPI_TOPCLIFF_PCH
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) SPI"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	help
 	  SPI driver for the Topcliff PCH (Platform Controller Hub) SPI bus
 	  used in some x86 embedded processors.

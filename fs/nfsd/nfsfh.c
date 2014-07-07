@@ -88,9 +88,8 @@ static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 	/* Check if the request originated from a secure port. */
 	if (!rqstp->rq_secure && !(flags & NFSEXP_INSECURE_PORT)) {
 		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
-		dprintk(KERN_WARNING
-		       "nfsd: request from insecure port %s!\n",
-		       svc_print_addr(rqstp, buf, sizeof(buf)));
+		dprintk("nfsd: request from insecure port %s!\n",
+		        svc_print_addr(rqstp, buf, sizeof(buf)));
 		return nfserr_perm;
 	}
 
@@ -169,8 +168,8 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		data_left -= len;
 		if (data_left < 0)
 			return error;
-		exp = rqst_exp_find(rqstp, fh->fh_fsid_type, fh->fh_auth);
-		fid = (struct fid *)(fh->fh_auth + len);
+		exp = rqst_exp_find(rqstp, fh->fh_fsid_type, fh->fh_fsid);
+		fid = (struct fid *)(fh->fh_fsid + len);
 	} else {
 		__u32 tfh[2];
 		dev_t xdev;
@@ -385,7 +384,7 @@ static void _fh_update(struct svc_fh *fhp, struct svc_export *exp,
 {
 	if (dentry != exp->ex_path.dentry) {
 		struct fid *fid = (struct fid *)
-			(fhp->fh_handle.fh_auth + fhp->fh_handle.fh_size/4 - 1);
+			(fhp->fh_handle.fh_fsid + fhp->fh_handle.fh_size/4 - 1);
 		int maxsize = (fhp->fh_maxsize - fhp->fh_handle.fh_size)/4;
 		int subtreecheck = !(exp->ex_flags & NFSEXP_NOSUBTREECHECK);
 
@@ -513,7 +512,6 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	 */
 
 	struct inode * inode = dentry->d_inode;
-	__u32 *datap;
 	dev_t ex_dev = exp_sb(exp)->s_dev;
 
 	dprintk("nfsd: fh_compose(exp %02x:%02x/%ld %pd2, ino=%ld)\n",
@@ -557,16 +555,15 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 		if (inode)
 			_fh_update_old(dentry, exp, &fhp->fh_handle);
 	} else {
-		int len;
+		fhp->fh_handle.fh_size =
+			key_len(fhp->fh_handle.fh_fsid_type) + 4;
 		fhp->fh_handle.fh_auth_type = 0;
-		datap = fhp->fh_handle.fh_auth+0;
-		mk_fsid(fhp->fh_handle.fh_fsid_type, datap, ex_dev,
+
+		mk_fsid(fhp->fh_handle.fh_fsid_type,
+			fhp->fh_handle.fh_fsid,
+			ex_dev,
 			exp->ex_path.dentry->d_inode->i_ino,
 			exp->ex_fsid, exp->ex_uuid);
-
-		len = key_len(fhp->fh_handle.fh_fsid_type);
-		datap += len/4;
-		fhp->fh_handle.fh_size = 4 + len;
 
 		if (inode)
 			_fh_update(fhp, exp, dentry);

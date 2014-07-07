@@ -39,8 +39,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 57
-#define QLCNIC_LINUX_VERSIONID  "5.3.57"
+#define _QLCNIC_LINUX_SUBVERSION 60
+#define QLCNIC_LINUX_VERSIONID  "5.3.60"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -441,6 +441,8 @@ struct qlcnic_82xx_dump_template_hdr {
 	u32	rsvd1[0];
 };
 
+#define QLC_PEX_DMA_READ_SIZE	(PAGE_SIZE * 16)
+
 struct qlcnic_fw_dump {
 	u8	clr;	/* flag to indicate if dump is cleared */
 	bool	enable; /* enable/disable dump */
@@ -537,6 +539,7 @@ struct qlcnic_hardware_context {
 	u8 phys_port_id[ETH_ALEN];
 	u8 lb_mode;
 	u16 vxlan_port;
+	struct device *hwmon_dev;
 };
 
 struct qlcnic_adapter_stats {
@@ -1018,6 +1021,8 @@ struct qlcnic_ipaddr {
 #define QLCNIC_DEL_VXLAN_PORT		0x200000
 #endif
 
+#define QLCNIC_VLAN_FILTERING		0x800000
+
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 #define QLCNIC_IS_TSO_CAPABLE(adapter)  \
@@ -1316,6 +1321,7 @@ struct qlcnic_eswitch {
 #define QL_STATUS_INVALID_PARAM	-1
 
 #define MAX_BW			100	/* % of link speed */
+#define MIN_BW			1	/* % of link speed */
 #define MAX_VLAN_ID		4095
 #define MIN_VLAN_ID		2
 #define DEFAULT_MAC_LEARN	1
@@ -1692,7 +1698,7 @@ int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
 void qlcnic_set_netdev_features(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
-void qlcnic_sriov_vf_schedule_multi(struct net_device *);
+void qlcnic_sriov_vf_set_multi(struct net_device *);
 int qlcnic_is_valid_nic_func(struct qlcnic_adapter *, u8);
 int qlcnic_get_pci_func_type(struct qlcnic_adapter *, u16, u16 *, u16 *,
 			     u16 *);
@@ -2338,6 +2344,16 @@ static inline bool qlcnic_83xx_vf_check(struct qlcnic_adapter *adapter)
 	return (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X) ? true : false;
 }
 
+static inline bool qlcnic_sriov_check(struct qlcnic_adapter *adapter)
+{
+	bool status;
+
+	status = (qlcnic_sriov_pf_check(adapter) ||
+		  qlcnic_sriov_vf_check(adapter)) ? true : false;
+
+	return status;
+}
+
 static inline u32 qlcnic_get_vnic_func_count(struct qlcnic_adapter *adapter)
 {
 	if (qlcnic_84xx_check(adapter))
@@ -2345,4 +2361,18 @@ static inline u32 qlcnic_get_vnic_func_count(struct qlcnic_adapter *adapter)
 	else
 		return QLC_DEFAULT_VNIC_COUNT;
 }
+
+#ifdef CONFIG_QLCNIC_HWMON
+void qlcnic_register_hwmon_dev(struct qlcnic_adapter *);
+void qlcnic_unregister_hwmon_dev(struct qlcnic_adapter *);
+#else
+static inline void qlcnic_register_hwmon_dev(struct qlcnic_adapter *adapter)
+{
+	return;
+}
+static inline void qlcnic_unregister_hwmon_dev(struct qlcnic_adapter *adapter)
+{
+	return;
+}
+#endif
 #endif				/* __QLCNIC_H_ */

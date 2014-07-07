@@ -72,9 +72,9 @@ sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
 	_init_queue(&precvpriv->recv_pending_queue);
 	precvpriv->adapter = padapter;
 	precvpriv->free_recvframe_cnt = NR_RECVFRAME;
-	precvpriv->pallocated_frame_buf = _malloc(NR_RECVFRAME *
-					   sizeof(union recv_frame) +
-					   RXFRAME_ALIGN_SZ);
+	precvpriv->pallocated_frame_buf = kmalloc(NR_RECVFRAME *
+						  sizeof(union recv_frame) + RXFRAME_ALIGN_SZ,
+						  GFP_ATOMIC);
 	if (precvpriv->pallocated_frame_buf == NULL)
 		return _FAIL;
 	kmemleak_not_leak(precvpriv->pallocated_frame_buf);
@@ -605,8 +605,6 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	u8	bsnaphdr;
 	u8	*psnap_type;
 	struct ieee80211_snap_hdr *psnap;
-
-	sint ret = _SUCCESS;
 	struct _adapter	*adapter = precvframe->u.hdr.adapter;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
@@ -653,7 +651,7 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 		len = htons(len);
 		memcpy(ptr + 12, &len, 2);
 	}
-	return ret;
+	return _SUCCESS;
 }
 
 s32 r8712_recv_entry(union recv_frame *precvframe)

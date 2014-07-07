@@ -29,7 +29,7 @@ static int polling_pipe = 1;
 module_param(polling_pipe, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(polling_pipe, "polling pipe (0: ctl, 1: bulk)");
 
-static struct mfd_cell rtsx_usb_cells[] = {
+static const struct mfd_cell rtsx_usb_cells[] = {
 	[RTSX_USB_SD_CARD] = {
 		.name = "rtsx_usb_sdmmc",
 		.pdata_size = 0,
@@ -67,7 +67,7 @@ static int rtsx_usb_bulk_transfer_sglist(struct rtsx_ucr *ucr,
 	ucr->sg_timer.expires = jiffies + msecs_to_jiffies(timeout);
 	add_timer(&ucr->sg_timer);
 	usb_sg_wait(&ucr->current_sg);
-	del_timer(&ucr->sg_timer);
+	del_timer_sync(&ucr->sg_timer);
 
 	if (act_len)
 		*act_len = ucr->current_sg.bytes;
@@ -644,14 +644,14 @@ static int rtsx_usb_probe(struct usb_interface *intf,
 	if (ret)
 		goto out_init_fail;
 
+	/* initialize USB SG transfer timer */
+	setup_timer(&ucr->sg_timer, rtsx_usb_sg_timed_out, (unsigned long) ucr);
+
 	ret = mfd_add_devices(&intf->dev, usb_dev->devnum, rtsx_usb_cells,
 			ARRAY_SIZE(rtsx_usb_cells), NULL, 0, NULL);
 	if (ret)
 		goto out_init_fail;
 
-	/* initialize USB SG transfer timer */
-	init_timer(&ucr->sg_timer);
-	setup_timer(&ucr->sg_timer, rtsx_usb_sg_timed_out, (unsigned long) ucr);
 #ifdef CONFIG_PM
 	intf->needs_remote_wakeup = 1;
 	usb_enable_autosuspend(usb_dev);
@@ -687,9 +687,15 @@ static int rtsx_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	dev_dbg(&intf->dev, "%s called with pm message 0x%04u\n",
 			__func__, message.event);
 
+	/*
+	 * Call to make sure LED is off during suspend to save more power.
+	 * It is NOT a permanent state and could be turned on anytime later.
+	 * Thus no need to call turn_on when resunming.
+	 */
 	mutex_lock(&ucr->dev_mutex);
 	rtsx_usb_turn_off_led(ucr);
 	mutex_unlock(&ucr->dev_mutex);
+
 	return 0;
 }
 

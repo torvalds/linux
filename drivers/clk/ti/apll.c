@@ -221,3 +221,184 @@ cleanup:
 	kfree(init);
 }
 CLK_OF_DECLARE(dra7_apll_clock, "ti,dra7-apll-clock", of_dra7_apll_setup);
+
+#define OMAP2_EN_APLL_LOCKED	0x3
+#define OMAP2_EN_APLL_STOPPED	0x0
+
+static int omap2_apll_is_enabled(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	struct dpll_data *ad = clk->dpll_data;
+	u32 v;
+
+	v = ti_clk_ll_ops->clk_readl(ad->control_reg);
+	v &= ad->enable_mask;
+
+	v >>= __ffs(ad->enable_mask);
+
+	return v == OMAP2_EN_APLL_LOCKED ? 1 : 0;
+}
+
+static unsigned long omap2_apll_recalc(struct clk_hw *hw,
+				       unsigned long parent_rate)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+
+	if (omap2_apll_is_enabled(hw))
+		return clk->fixed_rate;
+
+	return 0;
+}
+
+static int omap2_apll_enable(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	struct dpll_data *ad = clk->dpll_data;
+	u32 v;
+	int i = 0;
+
+	v = ti_clk_ll_ops->clk_readl(ad->control_reg);
+	v &= ~ad->enable_mask;
+	v |= OMAP2_EN_APLL_LOCKED << __ffs(ad->enable_mask);
+	ti_clk_ll_ops->clk_writel(v, ad->control_reg);
+
+	while (1) {
+		v = ti_clk_ll_ops->clk_readl(ad->idlest_reg);
+		if (v & ad->idlest_mask)
+			break;
+		if (i > MAX_APLL_WAIT_TRIES)
+			break;
+		i++;
+		udelay(1);
+	}
+
+	if (i == MAX_APLL_WAIT_TRIES) {
+		pr_warn("%s failed to transition to locked\n",
+			__clk_get_name(clk->hw.clk));
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static void omap2_apll_disable(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	struct dpll_data *ad = clk->dpll_data;
+	u32 v;
+
+	v = ti_clk_ll_ops->clk_readl(ad->control_reg);
+	v &= ~ad->enable_mask;
+	v |= OMAP2_EN_APLL_STOPPED << __ffs(ad->enable_mask);
+	ti_clk_ll_ops->clk_writel(v, ad->control_reg);
+}
+
+static struct clk_ops omap2_apll_ops = {
+	.enable		= &omap2_apll_enable,
+	.disable	= &omap2_apll_disable,
+	.is_enabled	= &omap2_apll_is_enabled,
+	.recalc_rate	= &omap2_apll_recalc,
+};
+
+static void omap2_apll_set_autoidle(struct clk_hw_omap *clk, u32 val)
+{
+	struct dpll_data *ad = clk->dpll_data;
+	u32 v;
+
+	v = ti_clk_ll_ops->clk_readl(ad->autoidle_reg);
+	v &= ~ad->autoidle_mask;
+	v |= val << __ffs(ad->autoidle_mask);
+	ti_clk_ll_ops->clk_writel(v, ad->control_reg);
+}
+
+#define OMAP2_APLL_AUTOIDLE_LOW_POWER_STOP	0x3
+#define OMAP2_APLL_AUTOIDLE_DISABLE		0x0
+
+static void omap2_apll_allow_idle(struct clk_hw_omap *clk)
+{
+	omap2_apll_set_autoidle(clk, OMAP2_APLL_AUTOIDLE_LOW_POWER_STOP);
+}
+
+static void omap2_apll_deny_idle(struct clk_hw_omap *clk)
+{
+	omap2_apll_set_autoidle(clk, OMAP2_APLL_AUTOIDLE_DISABLE);
+}
+
+static struct clk_hw_omap_ops omap2_apll_hwops = {
+	.allow_idle	= &omap2_apll_allow_idle,
+	.deny_idle	= &omap2_apll_deny_idle,
+};
+
+static void __init of_omap2_apll_setup(struct device_node *node)
+{
+	struct dpll_data *ad = NULL;
+	struct clk_hw_omap *clk_hw = NULL;
+	struct clk_init_data *init = NULL;
+	struct clk *clk;
+	const char *parent_name;
+	u32 val;
+
+	ad = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
+	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
+	init = kzalloc(sizeof(*init), GFP_KERNEL);
+
+	if (!ad || !clk_hw || !init)
+		goto cleanup;
+
+	clk_hw->dpll_data = ad;
+	clk_hw->hw.init = init;
+	init->ops = &omap2_apll_ops;
+	init->name = node->name;
+	clk_hw->ops = &omap2_apll_hwops;
+
+	init->num_parents = of_clk_get_parent_count(node);
+	if (init->num_parents != 1) {
+		pr_err("%s must have one parent\n", node->name);
+		goto cleanup;
+	}
+
+	parent_name = of_clk_get_parent_name(node, 0);
+	init->parent_names = &parent_name;
+
+	if (of_property_read_u32(node, "ti,clock-frequency", &val)) {
+		pr_err("%s missing clock-frequency\n", node->name);
+		goto cleanup;
+	}
+	clk_hw->fixed_rate = val;
+
+	if (of_property_read_u32(node, "ti,bit-shift", &val)) {
+		pr_err("%s missing bit-shift\n", node->name);
+		goto cleanup;
+	}
+
+	clk_hw->enable_bit = val;
+	ad->enable_mask = 0x3 << val;
+	ad->autoidle_mask = 0x3 << val;
+
+	if (of_property_read_u32(node, "ti,idlest-shift", &val)) {
+		pr_err("%s missing idlest-shift\n", node->name);
+		goto cleanup;
+	}
+
+	ad->idlest_mask = 1 << val;
+
+	ad->control_reg = ti_clk_get_reg_addr(node, 0);
+	ad->autoidle_reg = ti_clk_get_reg_addr(node, 1);
+	ad->idlest_reg = ti_clk_get_reg_addr(node, 2);
+
+	if (!ad->control_reg || !ad->autoidle_reg || !ad->idlest_reg)
+		goto cleanup;
+
+	clk = clk_register(NULL, &clk_hw->hw);
+	if (!IS_ERR(clk)) {
+		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		kfree(init);
+		return;
+	}
+cleanup:
+	kfree(ad);
+	kfree(clk_hw);
+	kfree(init);
+}
+CLK_OF_DECLARE(omap2_apll_clock, "ti,omap2-apll-clock",
+	       of_omap2_apll_setup);

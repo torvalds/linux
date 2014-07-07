@@ -63,7 +63,7 @@
 
 #include "../llite/llite_internal.h"
 
-const struct cl_req_operations ccc_req_ops;
+static const struct cl_req_operations ccc_req_ops;
 
 /*
  * ccc_ prefix stands for "Common Client Code".
@@ -112,12 +112,11 @@ static struct lu_kmem_descr ccc_caches[] = {
  *
  */
 
-void *ccc_key_init(const struct lu_context *ctx,
-			  struct lu_context_key *key)
+void *ccc_key_init(const struct lu_context *ctx, struct lu_context_key *key)
 {
 	struct ccc_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, ccc_thread_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, ccc_thread_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -135,7 +134,7 @@ void *ccc_session_key_init(const struct lu_context *ctx,
 {
 	struct ccc_session *session;
 
-	OBD_SLAB_ALLOC_PTR_GFP(session, ccc_session_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(session, ccc_session_kmem, GFP_NOFS);
 	if (session == NULL)
 		session = ERR_PTR(-ENOMEM);
 	return session;
@@ -251,7 +250,7 @@ int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct ccc_req *vrq;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(vrq, ccc_req_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(vrq, ccc_req_kmem, GFP_NOFS);
 	if (vrq != NULL) {
 		cl_req_slice_add(req, &vrq->crq_cl, dev, &ccc_req_ops);
 		result = 0;
@@ -327,7 +326,7 @@ struct lu_object *ccc_object_alloc(const struct lu_env *env,
 	struct ccc_object *vob;
 	struct lu_object  *obj;
 
-	OBD_SLAB_ALLOC_PTR_GFP(vob, ccc_object_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(vob, ccc_object_kmem, GFP_NOFS);
 	if (vob != NULL) {
 		struct cl_object_header *hdr;
 
@@ -396,7 +395,7 @@ int ccc_lock_init(const struct lu_env *env,
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
 
-	OBD_SLAB_ALLOC_PTR_GFP(clk, ccc_lock_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(clk, ccc_lock_kmem, GFP_NOFS);
 	if (clk != NULL) {
 		cl_lock_slice_add(lock, &clk->clk_cl, obj, lkops);
 		result = 0;
@@ -721,31 +720,12 @@ int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 void ccc_io_update_iov(const struct lu_env *env,
 		       struct ccc_io *cio, struct cl_io *io)
 {
-	int i;
 	size_t size = io->u.ci_rw.crw_count;
 
-	cio->cui_iov_olen = 0;
-	if (!cl_is_normalio(env, io) || cio->cui_tot_nrsegs == 0)
+	if (!cl_is_normalio(env, io) || cio->cui_iter == NULL)
 		return;
 
-	for (i = 0; i < cio->cui_tot_nrsegs; i++) {
-		struct iovec *iv = &cio->cui_iov[i];
-
-		if (iv->iov_len < size)
-			size -= iv->iov_len;
-		else {
-			if (iv->iov_len > size) {
-				cio->cui_iov_olen = iv->iov_len;
-				iv->iov_len = size;
-			}
-			break;
-		}
-	}
-
-	cio->cui_nrsegs = i + 1;
-	LASSERTF(cio->cui_tot_nrsegs >= cio->cui_nrsegs,
-		 "tot_nrsegs: %lu, nrsegs: %lu\n",
-		 cio->cui_tot_nrsegs, cio->cui_nrsegs);
+	iov_iter_truncate(cio->cui_iter, size);
 }
 
 int ccc_io_one_lock(const struct lu_env *env, struct cl_io *io,
@@ -776,30 +756,7 @@ void ccc_io_advance(const struct lu_env *env,
 	if (!cl_is_normalio(env, io))
 		return;
 
-	LASSERT(cio->cui_tot_nrsegs >= cio->cui_nrsegs);
-	LASSERT(cio->cui_tot_count  >= nob);
-
-	cio->cui_iov	+= cio->cui_nrsegs;
-	cio->cui_tot_nrsegs -= cio->cui_nrsegs;
-	cio->cui_tot_count  -= nob;
-
-	/* update the iov */
-	if (cio->cui_iov_olen > 0) {
-		struct iovec *iv;
-
-		cio->cui_iov--;
-		cio->cui_tot_nrsegs++;
-		iv = &cio->cui_iov[0];
-		if (io->ci_continue) {
-			iv->iov_base += iv->iov_len;
-			LASSERT(cio->cui_iov_olen > iv->iov_len);
-			iv->iov_len = cio->cui_iov_olen - iv->iov_len;
-		} else {
-			/* restore the iov_len, in case of restart io. */
-			iv->iov_len = cio->cui_iov_olen;
-		}
-		cio->cui_iov_olen = 0;
-	}
+	iov_iter_reexpand(cio->cui_iter, cio->cui_tot_count  -= nob);
 }
 
 /**
@@ -963,7 +920,7 @@ void ccc_req_attr_set(const struct lu_env *env,
 	       JOBSTATS_JOBID_SIZE);
 }
 
-const struct cl_req_operations ccc_req_ops = {
+static const struct cl_req_operations ccc_req_ops = {
 	.cro_attr_set   = ccc_req_attr_set,
 	.cro_completion = ccc_req_completion
 };

@@ -60,7 +60,6 @@ config PCI_QUIRKS
 
 config S390
 	def_bool y
-	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -130,6 +129,7 @@ config S390
 	select HAVE_KVM if 64BIT
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
+	select HAVE_MEMBLOCK_PHYS_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
@@ -139,6 +139,7 @@ config S390
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select KTIME_SCALAR if 32BIT
 	select MODULES_USE_ELF_RELA
+	select NO_BOOTMEM
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
 	select SYSCTL_EXCEPTION_TRACE
@@ -592,21 +593,14 @@ config CRASH_DUMP
 	bool "kernel crash dumps"
 	depends on 64BIT && SMP
 	select KEXEC
-	select ZFCPDUMP
 	help
 	  Generate crash dump after being started by kexec.
 	  Crash dump kernels are loaded in the main kernel with kexec-tools
 	  into a specially reserved region and then later executed after
 	  a crash by kdump/kexec.
-	  For more details see Documentation/kdump/kdump.txt
-
-config ZFCPDUMP
-	def_bool n
-	prompt "zfcpdump support"
-	depends on 64BIT && SMP
-	help
-	  Select this option if you want to build an zfcpdump enabled kernel.
 	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
+	  This option also enables s390 zfcpdump.
+	  See also <file:Documentation/s390/zfcpdump.txt>
 
 endmenu
 

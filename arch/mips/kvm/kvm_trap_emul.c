@@ -32,9 +32,7 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 		gpa = KVM_INVALID_ADDR;
 	}
 
-#ifdef DEBUG
 	kvm_debug("%s: gva %#lx, gpa: %#llx\n", __func__, gva, gpa);
-#endif
 
 	return gpa;
 }
@@ -85,11 +83,9 @@ static int kvm_trap_emul_handle_tlb_mod(struct kvm_vcpu *vcpu)
 
 	if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 	    || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-#ifdef DEBUG
 		kvm_debug
 		    ("USER/KSEG23 ADDR TLB MOD fault: cause %#lx, PC: %p, BadVaddr: %#lx\n",
 		     cause, opc, badvaddr);
-#endif
 		er = kvm_mips_handle_tlbmod(cause, opc, run, vcpu);
 
 		if (er == EMULATE_DONE)
@@ -138,11 +134,9 @@ static int kvm_trap_emul_handle_tlb_st_miss(struct kvm_vcpu *vcpu)
 		}
 	} else if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 		   || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-#ifdef DEBUG
 		kvm_debug
 		    ("USER ADDR TLB LD fault: cause %#lx, PC: %p, BadVaddr: %#lx\n",
 		     cause, opc, badvaddr);
-#endif
 		er = kvm_mips_handle_tlbmiss(cause, opc, run, vcpu);
 		if (er == EMULATE_DONE)
 			ret = RESUME_GUEST;
@@ -188,10 +182,8 @@ static int kvm_trap_emul_handle_tlb_ld_miss(struct kvm_vcpu *vcpu)
 		}
 	} else if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 		   || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-#ifdef DEBUG
 		kvm_debug("USER ADDR TLB ST fault: PC: %#lx, BadVaddr: %#lx\n",
 			  vcpu->arch.pc, badvaddr);
-#endif
 
 		/* User Address (UA) fault, this could happen if
 		 * (1) TLB entry not present/valid in both Guest and shadow host TLBs, in this
@@ -236,9 +228,7 @@ static int kvm_trap_emul_handle_addr_err_st(struct kvm_vcpu *vcpu)
 
 	if (KVM_GUEST_KERNEL_MODE(vcpu)
 	    && (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1)) {
-#ifdef DEBUG
 		kvm_debug("Emulate Store to MMIO space\n");
-#endif
 		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
 		if (er == EMULATE_FAIL) {
 			printk("Emulate Store to MMIO space failed\n");
@@ -268,9 +258,7 @@ static int kvm_trap_emul_handle_addr_err_ld(struct kvm_vcpu *vcpu)
 	int ret = RESUME_GUEST;
 
 	if (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1) {
-#ifdef DEBUG
 		kvm_debug("Emulate Load from MMIO space @ %#lx\n", badvaddr);
-#endif
 		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
 		if (er == EMULATE_FAIL) {
 			printk("Emulate Load from MMIO space failed\n");
@@ -401,6 +389,78 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
+				     const struct kvm_one_reg *reg,
+				     s64 *v)
+{
+	switch (reg->id) {
+	case KVM_REG_MIPS_CP0_COUNT:
+		*v = kvm_mips_read_count(vcpu);
+		break;
+	case KVM_REG_MIPS_COUNT_CTL:
+		*v = vcpu->arch.count_ctl;
+		break;
+	case KVM_REG_MIPS_COUNT_RESUME:
+		*v = ktime_to_ns(vcpu->arch.count_resume);
+		break;
+	case KVM_REG_MIPS_COUNT_HZ:
+		*v = vcpu->arch.count_hz;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
+				     const struct kvm_one_reg *reg,
+				     s64 v)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	int ret = 0;
+
+	switch (reg->id) {
+	case KVM_REG_MIPS_CP0_COUNT:
+		kvm_mips_write_count(vcpu, v);
+		break;
+	case KVM_REG_MIPS_CP0_COMPARE:
+		kvm_mips_write_compare(vcpu, v);
+		break;
+	case KVM_REG_MIPS_CP0_CAUSE:
+		/*
+		 * If the timer is stopped or started (DC bit) it must look
+		 * atomic with changes to the interrupt pending bits (TI, IRQ5).
+		 * A timer interrupt should not happen in between.
+		 */
+		if ((kvm_read_c0_guest_cause(cop0) ^ v) & CAUSEF_DC) {
+			if (v & CAUSEF_DC) {
+				/* disable timer first */
+				kvm_mips_count_disable_cause(vcpu);
+				kvm_change_c0_guest_cause(cop0, ~CAUSEF_DC, v);
+			} else {
+				/* enable timer last */
+				kvm_change_c0_guest_cause(cop0, ~CAUSEF_DC, v);
+				kvm_mips_count_enable_cause(vcpu);
+			}
+		} else {
+			kvm_write_c0_guest_cause(cop0, v);
+		}
+		break;
+	case KVM_REG_MIPS_COUNT_CTL:
+		ret = kvm_mips_set_count_ctl(vcpu, v);
+		break;
+	case KVM_REG_MIPS_COUNT_RESUME:
+		ret = kvm_mips_set_count_resume(vcpu, v);
+		break;
+	case KVM_REG_MIPS_COUNT_HZ:
+		ret = kvm_mips_set_count_hz(vcpu, v);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return ret;
+}
+
 static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	/* exit handlers */
 	.handle_cop_unusable = kvm_trap_emul_handle_cop_unusable,
@@ -423,6 +483,8 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.dequeue_io_int = kvm_mips_dequeue_io_int_cb,
 	.irq_deliver = kvm_mips_irq_deliver_cb,
 	.irq_clear = kvm_mips_irq_clear_cb,
+	.get_one_reg = kvm_trap_emul_get_one_reg,
+	.set_one_reg = kvm_trap_emul_set_one_reg,
 };
 
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks)

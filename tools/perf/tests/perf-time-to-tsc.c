@@ -1,7 +1,6 @@
 #include <stdio.h>
-#include <sys/types.h>
 #include <unistd.h>
-#include <inttypes.h>
+#include <linux/types.h>
 #include <sys/prctl.h>
 
 #include "parse-events.h"

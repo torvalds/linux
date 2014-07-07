@@ -254,6 +254,50 @@ struct qla83xx_minidump_entry_pollrd {
 	uint32_t rsvd_1;
 };
 
+struct qla8044_minidump_entry_rddfe {
+	struct qla8xxx_minidump_entry_hdr h;
+	uint32_t addr_1;
+	uint32_t value;
+	uint8_t stride;
+	uint8_t stride2;
+	uint16_t count;
+	uint32_t poll;
+	uint32_t mask;
+	uint32_t modify_mask;
+	uint32_t data_size;
+	uint32_t rsvd;
+
+} __packed;
+
+struct qla8044_minidump_entry_rdmdio {
+	struct qla8xxx_minidump_entry_hdr h;
+
+	uint32_t addr_1;
+	uint32_t addr_2;
+	uint32_t value_1;
+	uint8_t stride_1;
+	uint8_t stride_2;
+	uint16_t count;
+	uint32_t poll;
+	uint32_t mask;
+	uint32_t value_2;
+	uint32_t data_size;
+
+} __packed;
+
+struct qla8044_minidump_entry_pollwr {
+	struct qla8xxx_minidump_entry_hdr h;
+	uint32_t addr_1;
+	uint32_t addr_2;
+	uint32_t value_1;
+	uint32_t value_2;
+	uint32_t poll;
+	uint32_t mask;
+	uint32_t data_size;
+	uint32_t rsvd;
+
+} __packed;
+
 /* RDMUX2 Entry */
 struct qla83xx_minidump_entry_rdmux2 {
 	struct qla8xxx_minidump_entry_hdr h;

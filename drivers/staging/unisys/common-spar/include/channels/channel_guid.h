@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,44 +21,44 @@
  * {414815ed-c58c-11da-95a9-00e08161165f}
  */
 #define ULTRA_VHBA_CHANNEL_PROTOCOL_GUID \
-	{ 0x414815ed, 0xc58c, 0x11da, \
-		{ 0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f } }
-static const GUID UltraVhbaChannelProtocolGuid =
+		UUID_LE(0x414815ed, 0xc58c, 0x11da, \
+				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+static const uuid_le UltraVhbaChannelProtocolGuid =
 	ULTRA_VHBA_CHANNEL_PROTOCOL_GUID;
 
 /* Used in IOChannel
  * {8cd5994d-c58e-11da-95a9-00e08161165f}
  */
 #define ULTRA_VNIC_CHANNEL_PROTOCOL_GUID \
-	{ 0x8cd5994d, 0xc58e, 0x11da, \
-		{ 0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f } }
-static const GUID UltraVnicChannelProtocolGuid =
+		UUID_LE(0x8cd5994d, 0xc58e, 0x11da, \
+				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+static const uuid_le UltraVnicChannelProtocolGuid =
 	ULTRA_VNIC_CHANNEL_PROTOCOL_GUID;
 
 /* Used in IOChannel
  * {72120008-4AAB-11DC-8530-444553544200}
  */
 #define ULTRA_SIOVM_GUID \
-	{ 0x72120008, 0x4AAB, 0x11DC,					\
-		{ 0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00 } }
-static const GUID UltraSIOVMGuid = ULTRA_SIOVM_GUID;
+		UUID_LE(0x72120008, 0x4AAB, 0x11DC, \
+				0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
+static const uuid_le UltraSIOVMGuid = ULTRA_SIOVM_GUID;
 
 
 /* Used in visornoop/visornoop_main.c
  * {5b52c5ac-e5f5-4d42-8dff-429eaecd221f}
  */
 #define ULTRA_CONTROLDIRECTOR_CHANNEL_PROTOCOL_GUID  \
-	{ 0x5b52c5ac, 0xe5f5, 0x4d42, \
-		{ 0x8d, 0xff, 0x42, 0x9e, 0xae, 0xcd, 0x22, 0x1f } }
+		UUID_LE(0x5b52c5ac, 0xe5f5, 0x4d42, \
+				0x8d, 0xff, 0x42, 0x9e, 0xae, 0xcd, 0x22, 0x1f)
 
-static const GUID UltraControlDirectorChannelProtocolGuid =
+static const uuid_le UltraControlDirectorChannelProtocolGuid =
 	ULTRA_CONTROLDIRECTOR_CHANNEL_PROTOCOL_GUID;
 
 /* Used in visorchipset/visorchipset_main.c
  * {B4E79625-AEDE-4EAA-9E11-D3EDDCD4504C}
  */
 #define ULTRA_DIAG_POOL_CHANNEL_PROTOCOL_GUID				\
-	{0xb4e79625, 0xaede, 0x4eaa,					\
-		{ 0x9e, 0x11, 0xd3, 0xed, 0xdc, 0xd4, 0x50, 0x4c } }
+		UUID_LE(0xb4e79625, 0xaede, 0x4eaa, \
+				0x9e, 0x11, 0xd3, 0xed, 0xdc, 0xd4, 0x50, 0x4c)
 
 

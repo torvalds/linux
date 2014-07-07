@@ -2491,7 +2491,7 @@ EXPORT_SYMBOL(ceph_osdc_sync);
  * Call all pending notify callbacks - for use after a watch is
  * unregistered, to make sure no more callbacks for it will be invoked
  */
-extern void ceph_osdc_flush_notifies(struct ceph_osd_client *osdc)
+void ceph_osdc_flush_notifies(struct ceph_osd_client *osdc)
 {
 	flush_workqueue(osdc->notify_wq);
 }

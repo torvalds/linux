@@ -39,6 +39,7 @@
 #include "generic.h"
 #include "gsia18s.h"
 #include "stamp9g20.h"
+#include "gpio.h"
 
 static void __init gsia18s_init_early(void)
 {

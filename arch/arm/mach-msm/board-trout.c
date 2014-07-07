@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/clkdev.h>
+#include <linux/memblock.h>
 
 #include <asm/system_info.h>
 #include <asm/mach-types.h>
@@ -55,12 +56,9 @@ static void __init trout_init_irq(void)
 	msm_init_irq();
 }
 
-static void __init trout_fixup(struct tag *tags, char **cmdline,
-			       struct meminfo *mi)
+static void __init trout_fixup(struct tag *tags, char **cmdline)
 {
-	mi->nr_banks = 1;
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].size = (101*1024*1024);
+	memblock_add(PHYS_OFFSET, 101*SZ_1M);
 }
 
 static void __init trout_init(void)
@@ -78,7 +76,7 @@ static void __init trout_init(void)
 
 static struct map_desc trout_io_desc[] __initdata = {
 	{
-		.virtual = TROUT_CPLD_BASE,
+		.virtual = (unsigned long)TROUT_CPLD_BASE,
 		.pfn     = __phys_to_pfn(TROUT_CPLD_START),
 		.length  = TROUT_CPLD_SIZE,
 		.type    = MT_DEVICE_NONSHARED

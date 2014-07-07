@@ -138,3 +138,32 @@
 		};
 	};
 };
+
+&i2c0 {
+	dtt@50 {
+		compatible = "at,24c1024";
+		reg = <0x50>;
+	};
+};
+
+&spi0 {
+	nor_flash: n25q128a11@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "Micron,n25q128a11";
+		spi-max-frequency = <54000000>;
+		m25p,fast-read;
+		reg = <0>;
+
+		partition@0 {
+			label = "u-boot-spl";
+			reg = <0x0 0x80000>;
+			read-only;
+		};
+
+		partition@1 {
+			label = "misc";
+			reg = <0x80000 0xf80000>;
+		};
+	};
+};

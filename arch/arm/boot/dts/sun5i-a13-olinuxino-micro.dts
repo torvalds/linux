@@ -21,6 +21,16 @@
 	compatible = "olimex,a13-olinuxino-micro", "allwinner,sun5i-a13";
 
 	soc@01c00000 {
+		mmc0: mmc@01c0f000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxinom>;
+			vmmc-supply = <&reg_vcc3v3>;
+			bus-width = <4>;
+			cd-gpios = <&pio 6 0 0>; /* PG0 */
+			cd-inverted;
+			status = "okay";
+		};
+
 		usbphy: phy@01c13400 {
 			usb1_vbus-supply = <&reg_usb1_vbus>;
 			status = "okay";
@@ -35,6 +45,13 @@
 		};
 
 		pinctrl@01c20800 {
+			mmc0_cd_pin_olinuxinom: mmc0_cd_pin@0 {
+				allwinner,pins = "PG0";
+				allwinner,function = "gpio_in";
+				allwinner,drive = <0>;
+				allwinner,pull = <1>;
+			};
+
 			led_pins_olinuxinom: led_pins@0 {
 				allwinner,pins = "PG9";
 				allwinner,function = "gpio_out";

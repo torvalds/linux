@@ -60,19 +60,6 @@
 #define DRIVER_DESC		"Igorplug USB remote driver for LIRC"
 #define DRIVER_NAME		"lirc_igorplugusb"
 
-/* debugging support */
-#ifdef CONFIG_USB_DEBUG
-static bool debug = true;
-#else
-static bool debug;
-#endif
-
-#define dprintk(fmt, args...)					\
-	do {							\
-		if (debug)					\
-			printk(KERN_DEBUG fmt, ## args);	\
-	} while (0)
-
 /* One mode2 pulse/space has 4 bytes. */
 #define CODE_LENGTH	     sizeof(int)
 
@@ -237,7 +224,7 @@ static int unregister_from_lirc(struct igorplug *ir)
 		return -EINVAL;
 	}
 
-	dprintk(DRIVER_NAME "[%d]: calling lirc_unregister_driver\n", devnum);
+	dev_dbg(&ir->usbdev->dev, "calling lirc_unregister_driver\n");
 	lirc_unregister_driver(d->minor);
 
 	return devnum;
@@ -252,7 +239,7 @@ static int set_use_inc(void *data)
 		return -EIO;
 	}
 
-	dprintk(DRIVER_NAME "[%d]: set use inc\n", ir->devnum);
+	dev_dbg(&ir->usbdev->dev, "set use inc\n");
 
 	if (!ir->usbdev)
 		return -ENODEV;
@@ -269,7 +256,7 @@ static void set_use_dec(void *data)
 		return;
 	}
 
-	dprintk(DRIVER_NAME "[%d]: set use dec\n", ir->devnum);
+	dev_dbg(&ir->usbdev->dev, "set use dec\n");
 }
 
 static void send_fragment(struct igorplug *ir, struct lirc_buffer *buf,
@@ -321,7 +308,7 @@ static int igorplugusb_remote_poll(void *data, struct lirc_buffer *buf)
 		if (ret < DEVICE_HEADERLEN)
 			return -ENODATA;
 
-		dprintk(DRIVER_NAME ": Got %d bytes. Header: %*ph\n",
+		dev_dbg(&ir->usbdev->dev, "Got %d bytes. Header: %*ph\n",
 			ret, 3, ir->buf_in);
 
 		do_gettimeofday(&now);
@@ -385,7 +372,7 @@ static int igorplugusb_remote_probe(struct usb_interface *intf,
 	char buf[63], name[128] = "";
 	int ret;
 
-	dprintk(DRIVER_NAME ": usb probe called.\n");
+	dev_dbg(&intf->dev, "%s: usb probe called.\n", __func__);
 
 	dev = interface_to_usbdev(intf);
 
@@ -405,8 +392,8 @@ static int igorplugusb_remote_probe(struct usb_interface *intf,
 	devnum = dev->devnum;
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 
-	dprintk(DRIVER_NAME "[%d]: bytes_in_key=%zu maxp=%d\n",
-		devnum, CODE_LENGTH, maxp);
+	dev_dbg(&intf->dev, "%s: bytes_in_key=%zu maxp=%d\n",
+		__func__, CODE_LENGTH, maxp);
 
 	ir = devm_kzalloc(&intf->dev, sizeof(*ir), GFP_KERNEL);
 	if (!ir)
@@ -525,6 +512,3 @@ MODULE_DEVICE_TABLE(usb, igorplugusb_remote_id_table);
 
 module_param(sample_rate, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(sample_rate, "Sampling rate in Hz (default: 100)");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

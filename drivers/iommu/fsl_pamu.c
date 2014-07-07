@@ -592,8 +592,7 @@ found_cpu_node:
 		/* advance to next node in cache hierarchy */
 		node = of_find_node_by_phandle(*prop);
 		if (!node) {
-			pr_debug("Invalid node for cache hierarchy %s\n",
-				node->full_name);
+			pr_debug("Invalid node for cache hierarchy\n");
 			return ~(u32)0;
 		}
 	}

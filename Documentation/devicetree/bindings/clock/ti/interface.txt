@@ -21,6 +21,8 @@ Required properties:
   "ti,omap3-dss-interface-clock" - interface clock with DSS specific HW handling
   "ti,omap3-ssi-interface-clock" - interface clock with SSI specific HW handling
   "ti,am35xx-interface-clock" - interface clock with AM35xx specific HW handling
+  "ti,omap2430-interface-clock" - interface clock with OMAP2430 specific HW
+				  handling
 - #clock-cells : from common clock binding; shall be set to 0
 - clocks : link to phandle of parent clock
 - reg : base address for the control register

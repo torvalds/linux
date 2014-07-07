@@ -217,7 +217,7 @@ static struct wl1271_if_operations sdio_ops = {
 static int wl1271_probe(struct sdio_func *func,
 				  const struct sdio_device_id *id)
 {
-	struct wlcore_platdev_data *pdev_data;
+	struct wlcore_platdev_data pdev_data;
 	struct wl12xx_sdio_glue *glue;
 	struct resource res[1];
 	mmc_pm_flag_t mmcflags;
@@ -228,16 +228,13 @@ static int wl1271_probe(struct sdio_func *func,
 	if (func->num != 0x02)
 		return -ENODEV;
 
-	pdev_data = kzalloc(sizeof(*pdev_data), GFP_KERNEL);
-	if (!pdev_data)
-		goto out;
-
-	pdev_data->if_ops = &sdio_ops;
+	memset(&pdev_data, 0x00, sizeof(pdev_data));
+	pdev_data.if_ops = &sdio_ops;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&func->dev, "can't allocate glue\n");
-		goto out_free_pdev_data;
+		goto out;
 	}
 
 	glue->dev = &func->dev;
@@ -248,9 +245,9 @@ static int wl1271_probe(struct sdio_func *func,
 	/* Use block mode for transferring over one block size of data */
 	func->card->quirks |= MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
 
-	pdev_data->pdata = wl12xx_get_platform_data();
-	if (IS_ERR(pdev_data->pdata)) {
-		ret = PTR_ERR(pdev_data->pdata);
+	pdev_data.pdata = wl12xx_get_platform_data();
+	if (IS_ERR(pdev_data.pdata)) {
+		ret = PTR_ERR(pdev_data.pdata);
 		dev_err(glue->dev, "missing wlan platform data: %d\n", ret);
 		goto out_free_glue;
 	}
@@ -260,7 +257,7 @@ static int wl1271_probe(struct sdio_func *func,
 	dev_dbg(glue->dev, "sdio PM caps = 0x%x\n", mmcflags);
 
 	if (mmcflags & MMC_PM_KEEP_POWER)
-		pdev_data->pdata->pwr_in_suspend = true;
+		pdev_data.pdata->pwr_in_suspend = true;
 
 	sdio_set_drvdata(func, glue);
 
@@ -289,7 +286,7 @@ static int wl1271_probe(struct sdio_func *func,
 
 	memset(res, 0x00, sizeof(res));
 
-	res[0].start = pdev_data->pdata->irq;
+	res[0].start = pdev_data.pdata->irq;
 	res[0].flags = IORESOURCE_IRQ;
 	res[0].name = "irq";
 
@@ -299,8 +296,8 @@ static int wl1271_probe(struct sdio_func *func,
 		goto out_dev_put;
 	}
 
-	ret = platform_device_add_data(glue->core, pdev_data,
-				       sizeof(*pdev_data));
+	ret = platform_device_add_data(glue->core, &pdev_data,
+				       sizeof(pdev_data));
 	if (ret) {
 		dev_err(glue->dev, "can't add platform data\n");
 		goto out_dev_put;
@@ -318,9 +315,6 @@ out_dev_put:
 
 out_free_glue:
 	kfree(glue);
-
-out_free_pdev_data:
-	kfree(pdev_data);
 
 out:
 	return ret;

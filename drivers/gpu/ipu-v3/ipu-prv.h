@@ -188,6 +188,9 @@ void ipu_srm_dp_sync_update(struct ipu_soc *ipu);
 int ipu_module_enable(struct ipu_soc *ipu, u32 mask);
 int ipu_module_disable(struct ipu_soc *ipu, u32 mask);
 
+bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chno);
+int ipu_wait_interrupt(struct ipu_soc *ipu, int irq, int ms);
+
 int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 		unsigned long base, u32 module, struct clk *ipu_clk);
 void ipu_di_exit(struct ipu_soc *ipu, int id);

@@ -1383,10 +1383,8 @@ static struct se_node_acl *usbg_alloc_fabric_acl(struct se_portal_group *se_tpg)
 	struct usbg_nacl *nacl;
 
 	nacl = kzalloc(sizeof(struct usbg_nacl), GFP_KERNEL);
-	if (!nacl) {
-		printk(KERN_ERR "Unable to allocate struct usbg_nacl\n");
+	if (!nacl)
 		return NULL;
-	}
 
 	return &nacl->se_node_acl;
 }
@@ -1561,10 +1559,8 @@ static struct se_portal_group *usbg_make_tpg(
 	}
 
 	tpg = kzalloc(sizeof(struct usbg_tpg), GFP_KERNEL);
-	if (!tpg) {
-		printk(KERN_ERR "Unable to allocate struct usbg_tpg");
+	if (!tpg)
 		return ERR_PTR(-ENOMEM);
-	}
 	mutex_init(&tpg->tpg_mutex);
 	atomic_set(&tpg->tpg_port_count, 0);
 	tpg->workqueue = alloc_workqueue("tcm_usb_gadget", 0, 1);
@@ -1613,10 +1609,8 @@ static struct se_wwn *usbg_make_tport(
 		return ERR_PTR(-EINVAL);
 
 	tport = kzalloc(sizeof(struct usbg_tport), GFP_KERNEL);
-	if (!(tport)) {
-		printk(KERN_ERR "Unable to allocate struct usbg_tport");
+	if (!(tport))
 		return ERR_PTR(-ENOMEM);
-	}
 	tport->tport_wwpn = wwpn;
 	snprintf(tport->tport_name, sizeof(tport->tport_name), "%s", wnn_name);
 	return &tport->tport_wwn;
@@ -1727,10 +1721,8 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 
 	ret = -ENOMEM;
 	tv_nexus = kzalloc(sizeof(*tv_nexus), GFP_KERNEL);
-	if (!tv_nexus) {
-		pr_err("Unable to allocate struct tcm_vhost_nexus\n");
+	if (!tv_nexus)
 		goto err_unlock;
-	}
 	tv_nexus->tvn_se_sess = transport_init_session(TARGET_PROT_NORMAL);
 	if (IS_ERR(tv_nexus->tvn_se_sess))
 		goto err_free;
@@ -1851,7 +1843,7 @@ static int usbg_port_link(struct se_portal_group *se_tpg, struct se_lun *lun)
 	struct usbg_tpg *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 
 	atomic_inc(&tpg->tpg_port_count);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 	return 0;
 }
 
@@ -1861,7 +1853,7 @@ static void usbg_port_unlink(struct se_portal_group *se_tpg,
 	struct usbg_tpg *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
 
 	atomic_dec(&tpg->tpg_port_count);
-	smp_mb__after_atomic_dec();
+	smp_mb__after_atomic();
 }
 
 static int usbg_check_stop_free(struct se_cmd *se_cmd)

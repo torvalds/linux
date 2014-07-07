@@ -50,11 +50,9 @@ struct  cs42l52_private {
 	u8 mclksel;
 	u32 mclk;
 	u8 flags;
-#if IS_ENABLED(CONFIG_INPUT)
 	struct input_dev *beep;
 	struct work_struct beep_work;
 	int beep_rate;
-#endif
 };
 
 static const struct reg_default cs42l52_reg_defaults[] = {
@@ -962,7 +960,6 @@ static int cs42l52_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_INPUT)
 static int beep_rates[] = {
 	261, 522, 585, 667, 706, 774, 889, 1000,
 	1043, 1200, 1333, 1412, 1600, 1714, 2000, 2182
@@ -1096,15 +1093,6 @@ static void cs42l52_free_beep(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, CS42L52_BEEP_TONE_CTL,
 			    CS42L52_BEEP_EN_MASK, 0);
 }
-#else
-static void cs42l52_init_beep(struct snd_soc_codec *codec)
-{
-}
-
-static void cs42l52_free_beep(struct snd_soc_codec *codec)
-{
-}
-#endif
 
 static int cs42l52_probe(struct snd_soc_codec *codec)
 {

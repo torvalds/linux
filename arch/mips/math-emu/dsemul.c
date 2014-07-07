@@ -1,29 +1,11 @@
-#include <linux/compiler.h>
-#include <linux/mm.h>
-#include <linux/signal.h>
-#include <linux/smp.h>
-
-#include <asm/asm.h>
-#include <asm/bootinfo.h>
-#include <asm/byteorder.h>
-#include <asm/cpu.h>
-#include <asm/inst.h>
-#include <asm/processor.h>
-#include <asm/uaccess.h>
 #include <asm/branch.h>
-#include <asm/mipsregs.h>
 #include <asm/cacheflush.h>
-
 #include <asm/fpu_emulator.h>
+#include <asm/inst.h>
+#include <asm/mipsregs.h>
+#include <asm/uaccess.h>
 
 #include "ieee754.h"
-
-/* Strap kernel emulator for full MIPS IV emulation */
-
-#ifdef __mips
-#undef __mips
-#endif
-#define __mips 4
 
 /*
  * Emulate the arbritrary instruction ir at xcp->cp0_epc.  Required when
@@ -59,13 +41,11 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 		(ir == 0)) {
 		/* NOP is easy */
 		regs->cp0_epc = cpc;
-		regs->cp0_cause &= ~CAUSEF_BD;
+		clear_delay_slot(regs);
 		return 0;
 	}
-#ifdef DSEMUL_TRACE
-	printk("dsemul %lx %lx\n", regs->cp0_epc, cpc);
 
-#endif
+	pr_debug("dsemul %lx %lx\n", regs->cp0_epc, cpc);
 
 	/*
 	 * The strategy is to push the instruction onto the user stack
@@ -167,9 +147,8 @@ int do_dsemulret(struct pt_regs *xcp)
 	 * emulating the branch delay instruction.
 	 */
 
-#ifdef DSEMUL_TRACE
-	printk("dsemulret\n");
-#endif
+	pr_debug("dsemulret\n");
+
 	if (__get_user(epc, &fr->epc)) {		/* Saved EPC */
 		/* This is not a good situation to be in */
 		force_sig(SIGBUS, current);

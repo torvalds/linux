@@ -23,7 +23,7 @@
  * - BUS:    bus glue code, bus abstraction layer
  *
  * Compile Options
- * - CONFIG_USB_GADGET_DEBUG_FILES: enable debug facilities
+ * - CONFIG_USB_CHIPIDEA_DEBUG: enable debug facilities
  * - STALL_IN:  non-empty bulk-in pipes cannot be halted
  *              if defined mass storage compliance succeeds but with warnings
  *              => case 4: Hi >  Dn
@@ -42,10 +42,6 @@
  * - Not Supported: 15 & 16 (ISO)
  *
  * TODO List
- * - OTG
- * - Interrupt Traffic
- * - GET_STATUS(device) - always reports 0
- * - Gadget API (majority of optional features)
  * - Suspend & Remote Wakeup
  */
 #include <linux/delay.h>
@@ -74,6 +70,7 @@
 #include "host.h"
 #include "debug.h"
 #include "otg.h"
+#include "otg_fsm.h"
 
 /* Controller register map */
 static const u8 ci_regs_nolpm[] = {
@@ -140,6 +137,26 @@ static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 }
 
 /**
+ * hw_read_intr_enable: returns interrupt enable register
+ *
+ * This function returns register data
+ */
+u32 hw_read_intr_enable(struct ci_hdrc *ci)
+{
+	return hw_read(ci, OP_USBINTR, ~0);
+}
+
+/**
+ * hw_read_intr_status: returns interrupt status register
+ *
+ * This function returns register data
+ */
+u32 hw_read_intr_status(struct ci_hdrc *ci)
+{
+	return hw_read(ci, OP_USBSTS, ~0);
+}
+
+/**
  * hw_port_test_set: writes port test mode (execute without interruption)
  * @mode: new value
  *
@@ -179,11 +196,10 @@ static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
 		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
 				0);
 		/* 
-		 * The controller needs at least 1ms to reflect
-		 * PHY's status, the PHY also needs some time (less
+		 * the PHY needs some time (less
 		 * than 1ms) to leave low power mode.
 		 */
-		usleep_range(1500, 2000);
+		usleep_range(1000, 1100);
 	}
 }
 
@@ -392,8 +408,14 @@ static irqreturn_t ci_irq(int irq, void *data)
 	irqreturn_t ret = IRQ_NONE;
 	u32 otgsc = 0;
 
-	if (ci->is_otg)
-		otgsc = hw_read(ci, OP_OTGSC, ~0);
+	if (ci->is_otg) {
+		otgsc = hw_read_otgsc(ci, ~0);
+		if (ci_otg_is_fsm_mode(ci)) {
+			ret = ci_otg_fsm_irq(ci);
+			if (ret == IRQ_HANDLED)
+				return ret;
+		}
+	}
 
 	/*
 	 * Handle id change interrupt, it indicates device/host function
@@ -401,9 +423,9 @@ static irqreturn_t ci_irq(int irq, void *data)
 	 */
 	if (ci->is_otg && (otgsc & OTGSC_IDIE) && (otgsc & OTGSC_IDIS)) {
 		ci->id_event = true;
-		ci_clear_otg_interrupt(ci, OTGSC_IDIS);
-		disable_irq_nosync(ci->irq);
-		queue_work(ci->wq, &ci->work);
+		/* Clear ID change irq status */
+		hw_write_otgsc(ci, OTGSC_IDIS, OTGSC_IDIS);
+		ci_otg_queue_work(ci);
 		return IRQ_HANDLED;
 	}
 
@@ -413,9 +435,9 @@ static irqreturn_t ci_irq(int irq, void *data)
 	 */
 	if (ci->is_otg && (otgsc & OTGSC_BSVIE) && (otgsc & OTGSC_BSVIS)) {
 		ci->b_sess_valid_event = true;
-		ci_clear_otg_interrupt(ci, OTGSC_BSVIS);
-		disable_irq_nosync(ci->irq);
-		queue_work(ci->wq, &ci->work);
+		/* Clear BSV irq */
+		hw_write_otgsc(ci, OTGSC_BSVIS, OTGSC_BSVIS);
+		ci_otg_queue_work(ci);
 		return IRQ_HANDLED;
 	}
 
@@ -533,11 +555,8 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 		ci->is_otg = (hw_read(ci, CAP_DCCPARAMS,
 				DCCPARAMS_DC | DCCPARAMS_HC)
 					== (DCCPARAMS_DC | DCCPARAMS_HC));
-	if (ci->is_otg) {
+	if (ci->is_otg)
 		dev_dbg(ci->dev, "It is OTG capable controller\n");
-		ci_disable_otg_interrupt(ci, OTGSC_INT_EN_BITS);
-		ci_clear_otg_interrupt(ci, OTGSC_INT_STATUS_BITS);
-	}
 }
 
 static int ci_hdrc_probe(struct platform_device *pdev)
@@ -599,6 +618,13 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "unable to init phy: %d\n", ret);
 		return ret;
+	} else {
+		/* 
+		 * The delay to sync PHY's status, the maximum delay is
+		 * 2ms since the otgsc uses 1ms timer to debounce the
+		 * PHY's input
+		 */
+		usleep_range(2000, 2500);
 	}
 
 	ci->hw_bank.phys = res->start;
@@ -633,6 +659,9 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	if (ci->is_otg) {
+		/* Disable and clear all OTG irq */
+		hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
+							OTGSC_INT_STATUS_BITS);
 		ret = ci_hdrc_otg_init(ci);
 		if (ret) {
 			dev_err(dev, "init otg fails, ret = %d\n", ret);
@@ -642,13 +671,9 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET]) {
 		if (ci->is_otg) {
-			/*
-			 * ID pin needs 1ms debouce time,
-			 * we delay 2ms for safe.
-			 */
-			mdelay(2);
 			ci->role = ci_otg_role(ci);
-			ci_enable_otg_interrupt(ci, OTGSC_IDIE);
+			/* Enable ID change irq */
+			hw_write_otgsc(ci, OTGSC_IDIE, OTGSC_IDIE);
 		} else {
 			/*
 			 * If the controller is not OTG capable, but support
@@ -667,10 +692,13 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ci->role == CI_ROLE_GADGET)
 		ci_handle_vbus_change(ci);
 
-	ret = ci_role_start(ci, ci->role);
-	if (ret) {
-		dev_err(dev, "can't start %s role\n", ci_role(ci)->name);
-		goto stop;
+	if (!ci_otg_is_fsm_mode(ci)) {
+		ret = ci_role_start(ci, ci->role);
+		if (ret) {
+			dev_err(dev, "can't start %s role\n",
+						ci_role(ci)->name);
+			goto stop;
+		}
 	}
 
 	platform_set_drvdata(pdev, ci);
@@ -678,6 +706,9 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 			  ci);
 	if (ret)
 		goto stop;
+
+	if (ci_otg_is_fsm_mode(ci))
+		ci_hdrc_otg_fsm_start(ci);
 
 	ret = dbg_create_files(ci);
 	if (!ret)
@@ -711,6 +742,7 @@ static struct platform_driver ci_hdrc_driver = {
 	.remove	= ci_hdrc_remove,
 	.driver	= {
 		.name	= "ci_hdrc",
+		.owner	= THIS_MODULE,
 	},
 };
 
