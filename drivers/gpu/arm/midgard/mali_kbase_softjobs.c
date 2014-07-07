@@ -256,6 +256,11 @@ static int kbase_fence_wait(kbase_jd_atom *katom)
 
 static void kbase_fence_cancel_wait(kbase_jd_atom *katom)
 {
+	if(!katom || !katom->fence)
+	{
+		pr_info("%s,katom or katom->fence NULL\n",__func__);
+		return;
+	}
 	if (sync_fence_cancel_async(katom->fence, &katom->sync_waiter) != 0)
 	{
 		/* The wait wasn't cancelled - leave the cleanup for kbase_fence_wait_callback */
@@ -389,8 +394,10 @@ void kbase_finish_soft_job(kbase_jd_atom *katom)
 		break;
 	case BASE_JD_REQ_SOFT_FENCE_WAIT:
 		/* Release the reference to the fence object */
-		sync_fence_put(katom->fence);
-		katom->fence = NULL;
+		if(katom->fence){
+			sync_fence_put(katom->fence);
+			katom->fence = NULL;
+		}
 		break;
 #endif				/* CONFIG_SYNC */
 	}

@@ -63,7 +63,7 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 	if (hdmi_drv->pwr_mode == mode)
 		return;
 
-	dev_printk(KERN_INFO, hdmi_drv->dev, "%s change pwr_mode %d --> %d\n",
+	hdmi_dbg(hdmi_drv->dev, "%s change pwr_mode %d --> %d\n",
 		   __func__, hdmi_drv->pwr_mode, mode);
 
 	switch (mode) {
@@ -1045,8 +1045,6 @@ static int rk3288_hdmi_video_csc(struct hdmi *hdmi_drv,
 int rk3288_hdmi_config_video(struct hdmi *hdmi_drv,
 			     struct hdmi_video_para *vpara)
 {
-	rk3288_hdmi_av_mute(hdmi_drv, 1);
-
 	if (rk3288_hdmi_video_forceOutput(hdmi_drv, 1) < 0)
 		return -1;
 	if (rk3288_hdmi_video_frameComposer(hdmi_drv, vpara) < 0)
@@ -1293,6 +1291,7 @@ void rk3288_hdmi_control_output(struct hdmi *hdmi_drv, int enable)
 	hdmi_dbg(hdmi_drv->dev, "[%s] %d\n", __func__, enable);
 	if (enable == 0) {
 		rk3288_hdmi_av_mute(hdmi_drv, 1);
+		rk3288_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR);
 	} else {
 		if (hdmi_drv->pwr_mode == LOWER_PWR)
 			rk3288_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
@@ -1318,7 +1317,7 @@ int rk3288_hdmi_insert(struct hdmi *hdmi_drv)
 
 int rk3288_hdmi_removed(struct hdmi *hdmi_drv)
 {
-	rk3288_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR);
+	rk3288_hdmi_control_output(hdmi_drv, 0);
 	dev_printk(KERN_INFO, hdmi_drv->dev, "Removed.\n");
 	return 0;
 }

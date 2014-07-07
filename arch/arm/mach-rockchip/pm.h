@@ -10,15 +10,22 @@
 // index data off in SLP_DATA_SAVE_BASE
 // it may be include in *.s ,so con't use enum type define
 
-#define RKPM_BOOTDATA_L2LTY_F             (0)  //save l2 latency val
-#define RKPM_BOOTDATA_L2LTY             (RKPM_BOOTDATA_L2LTY_F+1)
-#define RKPM_BOOTDATA_CPUSP            (RKPM_BOOTDATA_L2LTY+1)  //cpu sp addr
+
+
+#define RKPM_BOOTDATA_CPUSP            (0)  //cpu sp addr
 #define RKPM_BOOTDATA_CPUCODE       (RKPM_BOOTDATA_CPUSP+1)  //cpu resume fun,phy base
 #define RKPM_BOOTDATA_DDR_F            (RKPM_BOOTDATA_CPUCODE+1)  //ddr flag , 1 need to resume ddr ctr
 #define RKPM_BOOTDATA_DPLL_F          (RKPM_BOOTDATA_DDR_F+1) //ddr pll flag, 1  need to resume dpll
 #define RKPM_BOOTDATA_DDRCODE       (RKPM_BOOTDATA_DPLL_F+1) //ddr resume code ,phy base
 #define RKPM_BOOTDATA_DDRDATA       (RKPM_BOOTDATA_DDRCODE+1) //ddr resume data ,phy base
-#define RKPM_BOOTDATA_ARR_SIZE  (RKPM_BOOTDATA_DDRDATA+1)
+// for l2 resume
+#define RKPM_BOOTDATA_L2LTY_F             (RKPM_BOOTDATA_DDRDATA+1)  //save l2 latency val
+#define RKPM_BOOTDATA_L2LTY             (RKPM_BOOTDATA_L2LTY_F+1)
+// for arm errata 81835 resume
+#define RKPM_BOOTDATA_ARM_ERRATA_818325_F            (RKPM_BOOTDATA_L2LTY+1)  //save l2 latency val
+#define RKPM_BOOTDATA_ARM_ERRATA_818325             (RKPM_BOOTDATA_ARM_ERRATA_818325_F+1)
+
+#define RKPM_BOOTDATA_ARR_SIZE  (RKPM_BOOTDATA_ARM_ERRATA_818325+1)
 
 
 
@@ -173,9 +180,9 @@ extern void rkpm_set_sram_ops_pmic(rkpm_ops_void_callback pmic,rkpm_ops_void_cal
 extern void rkpm_set_sram_ops_ddr(rkpm_ops_void_callback ddr,rkpm_ops_void_callback re_ddr);
 extern void rkpm_set_sram_ops_printch(rkpm_ops_printch_callback printch);
 
-extern void inline rkpm_set_ctrbits(u32 bits);
-extern u32  inline rkpm_get_ctrbits(void);
-extern void inline rkpm_clr_ctrbits(u32 bits);//clear
+extern void rkpm_set_ctrbits(u32 bits);
+extern u32  rkpm_get_ctrbits(void);
+extern void rkpm_clr_ctrbits(u32 bits);//clear
 
 extern void rkpm_ddr_printch(char byte);
 extern void rkpm_ddr_printascii(const char *s);

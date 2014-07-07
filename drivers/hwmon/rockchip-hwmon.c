@@ -67,7 +67,7 @@ static void tsadc_monitor(struct work_struct *work)
 		if (data->max[i] < data->min[i])
 			continue;
 
-		temp = data->ops.read_sensor(data->tsadc_addr[i]);
+		temp = data->ops.read_sensor(i);
 		if (temp == 150) {
 			dev_err(&data->pdev->dev, "TSADC read failed\n");
 			continue;
@@ -140,9 +140,8 @@ static ssize_t show_input(struct device *dev,
 	int  temp;
 	struct rockchip_temp *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	u8 tsadc_addr = data->tsadc_addr[attr->index];
 
-	temp = data->ops.read_sensor(tsadc_addr);
+	temp = data->ops.read_sensor(attr->index);
 
 	return sprintf(buf, "%d\n", temp);
 }

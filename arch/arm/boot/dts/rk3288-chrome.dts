@@ -476,11 +476,12 @@
 	 display-timings = <&disp_timings>;
 };
 
-/*lcdc1 as PRMRY(LCD),lcdc0 as EXTEND(HDMI)*/
-&lcdc1 {
+/*lcdc0 as PRMRY(LCD),lcdc1 as EXTEND(HDMI)*/
+&lcdc0 {
 	status = "okay";
 	rockchip,mirror = <NO_MIRROR>;
 	rockchip,cabc_mode = <0>;
+	rockchip,iommu-enabled = <0>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
 		lcd_en:lcd_en {
@@ -504,8 +505,10 @@
 	};
 };
 
-&lcdc0 {
+&lcdc1 {
 	status = "okay";
+	rockchip,mirror = <NO_MIRROR>;
+	rockchip,iommu-enabled = <0>;
 };
 
 &hdmi {

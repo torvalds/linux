@@ -112,6 +112,7 @@ extern int rk_fb_poll_prmry_screen_vblank(void);
 extern u32 rk_fb_get_prmry_screen_ft(void);
 extern u32 rk_fb_get_prmry_screen_vbt(void);
 extern u64 rk_fb_get_prmry_screen_framedone_t(void);
+extern int rk_fb_set_prmry_screen_status(int status);
 extern bool rk_fb_poll_wait_frame_complete(void);
 
 /********************************************************************
@@ -242,6 +243,10 @@ typedef enum {
 	H_COS       	= 0x1
 } bcsh_hue_mode;
 
+typedef enum {
+	SCREEN_PREPARE_DDR_CHANGE = 0x0,
+	SCREEN_UNPREPARE_DDR_CHANGE,
+} screen_status;
 
 struct rk_fb_rgb {
 	struct fb_bitfield red;
@@ -385,6 +390,8 @@ struct rk_lcdc_driver;
 struct rk_fb_trsm_ops {
 	int (*enable)(void);
 	int (*disable)(void);
+	int (*dsp_pwr_on) (void);
+	int (*dsp_pwr_off) (void);
 };
 
 struct rk_lcdc_drv_ops {

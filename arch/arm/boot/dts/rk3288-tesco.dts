@@ -442,11 +442,12 @@
 	 display-timings = <&disp_timings>;
 };
 
-/*lcdc1 as PRMRY(LCD),lcdc0 as EXTEND(HDMI)*/
-&lcdc1 {
+/*lcdc0 as PRMRY(LCD),lcdc1 as EXTEND(HDMI)*/
+&lcdc0 {
 	status = "okay";
 	rockchip,mirror = <NO_MIRROR>;
 	rockchip,cabc_mode = <0>;
+	rockchip,iommu-enabled = <0>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
 
@@ -457,7 +458,7 @@
 		};
 		
 		lcd_cs:lcd_cs {
-rockchip,power_type = <GPIO>;
+			rockchip,power_type = <GPIO>;
 			gpios = <&gpio7 GPIO_A4 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <10>;
 		};
@@ -471,8 +472,10 @@ rockchip,power_type = <GPIO>;
 	};
 };
 
-&lcdc0 {
+&lcdc1 {
 	status = "okay";
+	rockchip,mirror = <NO_MIRROR>;
+	rockchip,iommu-enabled = <0>;
 };
 
 &hdmi {

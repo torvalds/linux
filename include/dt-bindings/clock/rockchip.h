@@ -81,5 +81,7 @@
 #define CLK_PD_VIO		13
 #define CLK_PD_VIRT		255
 
+/* reset flag */
+#define ROCKCHIP_RESET_HIWORD_MASK	BIT(0)
 
 #endif /* _DT_BINDINGS_CLOCK_ROCKCHIP_H */

@@ -111,6 +111,12 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			rx->size = skb->len - offset;
 		}
 
+		if (!rx->ax_skb) {
+			rx->size = 0;
+			netdev_err(dev->net, "asix_rx_fixup_internal Bad ax_skb buf.\n");
+			return 0;
+		}
+
 		data = skb_put(rx->ax_skb, rx->size);
 		memcpy(data, skb->data + offset, rx->size);
 		if (!remaining)

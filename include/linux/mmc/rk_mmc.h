@@ -157,7 +157,7 @@ struct dw_mci {
 
 #ifdef CONFIG_MMC_DW_EDMAC
         struct dw_mci_dma_slave *dms;
-        void                    *phy_regs;
+	void                    *phy_regs;
 #endif
 	u32			cmd_status;
 	u32			data_status;

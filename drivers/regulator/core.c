@@ -2728,6 +2728,20 @@ int regulator_get_current_limit(struct regulator *regulator)
 }
 EXPORT_SYMBOL_GPL(regulator_get_current_limit);
 
+int regulator_is_supported_mode(struct regulator *regulator, int *mode)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+	int ret;
+
+	mutex_lock(&rdev->mutex);
+
+	ret = regulator_mode_constrain(rdev, mode);
+
+	mutex_unlock(&rdev->mutex);
+
+	return ret;
+}
+
 /**
  * regulator_set_mode - set regulator operating mode
  * @regulator: regulator source

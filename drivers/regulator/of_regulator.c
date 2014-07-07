@@ -77,6 +77,9 @@ static void of_get_regulation_constraints(struct device_node *np,
 	
 	of_property_read_u32(np, "regulator-valid-modes-mask",
 					&constraints->valid_modes_mask);
+	if (constraints->valid_modes_mask)
+		constraints->valid_ops_mask |=  REGULATOR_CHANGE_MODE;
+
 	of_property_read_u32(np, "regulator-input-uv",
 					&constraints->input_uV);
 	of_property_read_u32(np, "regulator-initial-mode",

@@ -7,12 +7,18 @@
 static struct rk_screen *rk_screen;
 int  rk_fb_get_prmry_screen(struct rk_screen *screen)
 {
+	if (unlikely(!rk_screen) || unlikely(!screen))
+		return -1;
+
 	memcpy(screen, rk_screen, sizeof(struct rk_screen));
 	return 0;
 }
 
 int rk_fb_set_prmry_screen(struct rk_screen *screen)
 {
+	if (unlikely(!rk_screen) || unlikely(!screen))
+		return -1;
+
 	rk_screen->lcdc_id = screen->lcdc_id;
 	rk_screen->screen_id = screen->screen_id;
 	rk_screen->x_mirror = screen->x_mirror;
@@ -27,16 +33,22 @@ int rk_fb_set_prmry_screen(struct rk_screen *screen)
 size_t get_fb_size(void)
 {
 	size_t size = 0;
-	int xres = rk_screen->mode.xres;
-	int yres = rk_screen->mode.yres;
+	u32 xres = 0;
+	u32 yres = 0;
 
-	/*align as 64 bytes(16*4) in an odd number of times*/
+	if (unlikely(!rk_screen))
+		return 0;
+
+	xres = rk_screen->mode.xres;
+	yres = rk_screen->mode.yres;
+
+	/* align as 64 bytes(16*4) in an odd number of times */
 	xres = ALIGN_64BYTE_ODD_TIMES(xres, ALIGN_PIXEL_64BYTE_RGB8888);
 
 	#if defined(CONFIG_THREE_FB_BUFFER)
-		size = (xres * yres << 2) * 3; //three buffer
+		size = (xres * yres << 2) * 3;	/* three buffer */
 	#else
-		size = (xres * yres << 2) << 1; //two buffer
+		size = (xres * yres << 2) << 1; /* two buffer */
 	#endif
 	return ALIGN(size, SZ_1M);
 }

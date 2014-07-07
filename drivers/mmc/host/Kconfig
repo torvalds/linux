@@ -540,7 +540,6 @@ config MMC_DW_EDMAC
 	  This selects support for the external DMAC block outside the Synopsys
           Designware Mobile Storage IP block. This disables the internal DMA
           interface.
-
 config MMC_DW_PLTFM
 	tristate "Synopsys Designware MCI Support as platform device"
 	depends on MMC_DW

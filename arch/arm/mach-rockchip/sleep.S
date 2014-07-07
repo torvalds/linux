@@ -18,7 +18,8 @@ ldmfd	sp!, { r3 - r12, pc }
 
 ENDPROC(rkpm_slp_cpu_while_tst)
 
-
+.data
+.align
 //65 A   48 0  97 a
 ENTRY(rkpm_slp_cpu_resume)
 9:	mov r1,r1 
@@ -92,11 +93,21 @@ v7_invalidate_l1:
         ldr r5,8f     // resume data  offset ,from ram base
         add r5,r5,r1 // resume data addr
         
-        //l2
+        //l2 resume 
+        ldr r3 ,[r5,#(RKPM_BOOTDATA_L2LTY_F*4)] // l2 resume flags
+        cmp r3,#1
+        bne arm_errata__818325
         ldr r3 ,[r5,#(RKPM_BOOTDATA_L2LTY*4)]
-        mcr p15, 1, r3, c9, c0, 2
+        mcr p15, 1, r3, c9, c0, 2   
+        
+arm_errata__818325:
+        ldr r3 ,[r5,#(RKPM_BOOTDATA_ARM_ERRATA_818325_F*4)]
+        cmp r3,#1
+        bne sp_set
+        ldr r3 ,[r5,#(RKPM_BOOTDATA_ARM_ERRATA_818325*4)]
+        mcreq   p15, 0, r3, c15, c0, 1
 
-        //sp
+sp_set:        //sp
         ldr sp,[r5,#(RKPM_BOOTDATA_CPUSP*4)]   //sp      
         
 	ldr r3,[r5,#(RKPM_BOOTDATA_DDR_F*4)]   //get SLP_DDR_NEED_RES ,if it is 1 ,ddr need to reusme	

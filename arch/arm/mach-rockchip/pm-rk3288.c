@@ -28,8 +28,8 @@
 __weak void rk_usb_power_down(void);
 __weak void rk_usb_power_up(void);
 
-static void ddr_pin_set_pull(u8 port,u8 bank,u8 b_gpio,u8 fun);
-static void ddr_gpio_set_in_output(u8 port,u8 bank,u8 b_gpio,u8 type);
+//static void ddr_pin_set_pull(u8 port,u8 bank,u8 b_gpio,u8 fun);
+//static void ddr_gpio_set_in_output(u8 port,u8 bank,u8 b_gpio,u8 type);
 static void ddr_pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun);
 
 
@@ -810,8 +810,18 @@ static void gpio_ddr_dump_reg(int ports)
  {
      u32 l2ctlr;
      asm("mrc p15, 1, %0, c9, c0, 2" : "=r" (l2ctlr));
-         return l2ctlr;
+      return l2ctlr;
  }
+
+static inline u32 rkpm_armerrata_818325(void)
+{
+    u32 armerrata;
+    asm("mrc p15, 0, %0, c15, c0, 1" : "=r" (armerrata));
+    return armerrata;
+}
+
+
+
 /**************************************sleep func**************************/
 
 void ddr_reg_save(uint32_t *pArg);
@@ -983,7 +993,7 @@ static u32  rkpm_slp_mode_set(u32 ctrbits)
     else if(rkpm_chk_val_ctrbits(ctrbits,RKPM_CTR_ARMOFF_LOGDP_LPMD))
     {
     
-        rkpm_ddr_printascii("-armoff-logdp1-");        
+        rkpm_ddr_printascii("-armoff-logdp-");        
         
         mode_set|=BIT(pmu_scu_en)|BIT(pmu_bus_pd_en)
                             |BIT(pmu_chip_pd_en)
@@ -1060,11 +1070,23 @@ static void sram_code_data_save(u32 pwrmode)
         {   
             sleep_resume_data[RKPM_BOOTDATA_L2LTY_F]=1;
             sleep_resume_data[RKPM_BOOTDATA_L2LTY]=rkpm_l2_config();// in sys resume ,ddr is need resume	
-            sleep_resume_data[RKPM_BOOTDATA_CPUSP]=RKPM_BOOT_CPUSP_PHY;// in sys resume ,ddr is need resume	
-            sleep_resume_data[RKPM_BOOTDATA_CPUCODE]=virt_to_phys(cpu_resume);// in sys resume ,ddr is need resume    
+            
+            sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325_F]=1;
+            sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325]=rkpm_armerrata_818325();//
+        
+            sleep_resume_data[RKPM_BOOTDATA_CPUSP]=RKPM_BOOT_CPUSP_PHY;// in sys resume ,ddr is need resume	            
+            sleep_resume_data[RKPM_BOOTDATA_CPUCODE]=virt_to_phys(cpu_resume);// in sys resume ,ddr is need resume  
+            #if 0
+            rkpm_ddr_printascii("l2&arm_errata--");   
+            rkpm_ddr_printhex(rkpm_l2_config());             
+            rkpm_ddr_printhex(rkpm_armerrata_818325());
+            rkpm_ddr_printascii("\n");  
+            #endif
         }
         else
         {
+            sleep_resume_data[RKPM_BOOTDATA_L2LTY_F]=0;
+            sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325_F]=0;       
             sleep_resume_data[RKPM_BOOTDATA_CPUCODE]=0;
             return ;
         }
@@ -1131,7 +1153,7 @@ static void  rkpm_peri_save(u32 power_mode)
         ddr_pin_set_fun(7,0xc,0x7,0);
         #endif
         //slp_uart_save(2);
-    #if 0
+        #if 0
         ddr_pin_set_pull(0,0xb,0x7,RKPM_GPIO_PULL_UP);
         ddr_gpio_set_in_output(0,0xb,0x7,RKPM_GPIO_INPUT);
         ddr_pin_set_fun(0,0xb,0x7,0);
@@ -1247,25 +1269,39 @@ static void rkpm_save_setting_resume_first(void)
 
 static void rkpm_save_setting(u32 ctrbits)
 {
-        rk3288_powermode=rkpm_slp_mode_set(ctrbits);
-        if(rk3288_powermode&BIT(pmu_pwr_mode_en))
-       {
-                sram_code_data_save(rk3288_powermode);   
-                rkpm_peri_save(rk3288_powermode);                
-        }
-        else
-             return ;
+
+#if 0
+    rkpm_ddr_regs_dump(RK_DDR_VIRT,0,0x3fc);
+    rkpm_ddr_regs_dump(RK_DDR_VIRT+RK3288_DDR_PCTL_SIZE,0,0x294);
+
+    rkpm_ddr_regs_dump(RK_DDR_VIRT+RK3288_DDR_PCTL_SIZE+RK3288_DDR_PUBL_SIZE,0,0x3fc);
+    rkpm_ddr_regs_dump(RK_DDR_VIRT+RK3288_DDR_PCTL_SIZE*2+RK3288_DDR_PUBL_SIZE,0,0x294);
+#endif
+    rk3288_powermode=rkpm_slp_mode_set(ctrbits);
+    if(rk3288_powermode&BIT(pmu_pwr_mode_en))
+    {
+            sram_code_data_save(rk3288_powermode);   
+            rkpm_peri_save(rk3288_powermode);                
+    }
+    else
+         return ;
 
 }
 static void rkpm_save_setting_resume(void)
 {
+
+        #if 0
+        rkpm_ddr_printascii("l2&arm_errata--");   
+        rkpm_ddr_printhex(rkpm_l2_config());             
+        rkpm_ddr_printhex(rkpm_armerrata_818325());
+        rkpm_ddr_printascii("\n");            
+        #endif
                    
          if(rk3288_powermode&BIT(pmu_pwr_mode_en))
         {
             sram_code_data_resume(rk3288_powermode); 
             rkpm_peri_resume(rk3288_powermode);
-        }
-         
+        }         
          rkpm_slp_mode_set_resume();       
 
 }
@@ -1319,19 +1355,15 @@ extern void rk_last_log_text(char *text, size_t size);
 
 static void  ddr_printch(char byte)
 {
-        char last_char;
-        
 	uart_printch(byte);  
     
 #ifdef CONFIG_RK_LAST_LOG
-        last_char=byte;
-        rk_last_log_text(&last_char,1);
-        
-        if (byte == '\n') {
-            last_char='\r';
-            rk_last_log_text(&last_char,1);
-         }
-      
+	rk_last_log_text(&byte, 1);
+
+	if (byte == '\n') {
+		byte = '\r';
+		rk_last_log_text(&byte, 1);
+	}
 #endif
         pll_udelay(2);
 }
@@ -1343,7 +1375,7 @@ static void  ddr_printch(char byte)
 //pin=0x0a21  gpio0a2,port=0,bank=a,b_gpio=2,fun=1
 static inline void pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun)
 { 
-        u8 off_set;
+        u32 off_set;
         bank-=0xa;
     
         if(port==0)
@@ -1425,41 +1457,35 @@ static inline void pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun)
                
 }
 
-
+#if 0
 static inline u8 pin_get_funset(u8 port,u8 bank,u8 b_gpio)
 { 
-    u8 off_set;
-    bank-=0xa;
-
-    if(port==0)
-    { 
-      if(bank>2)
-            return 0;
-        off_set=RK3288_PMU_GPIO0_A_IOMUX+bank*4;
-        return (pmu_readl(off_set)>>(b_gpio*2))&0x3;
-    }
-    else
-    {    
-    
-        off_set=port*(4*4)+bank*4;
-        //form RK3288_GRF_GPIO1D_IOMUX
-         return (reg_readl(RK_GRF_VIRT+0+off_set)>>(b_gpio*2))&0x3;
-    }
+           
 }
-
+#endif
 static inline void pin_set_pull(u8 port,u8 bank,u8 b_gpio,u8 pull)
 { 
-    u8 off_set;
+    u32 off_set;
     
     bank-=0xa;
 
     if(port > 0)
     {
         //gpio1_d st
-        if(port==1&&bank<3)
-         return;   
+        //if(port==1&&bank<3)
+       //  return;   
         //gpio1_d==0x14c ,form gpio0_a to gpio1_d offset 1*16+3*4= 0x1c
-        off_set=0x14c-0x1c+port*(4*4)+bank*4;    
+        off_set=(0x14c-0x1c)+port*(4*4)+bank*4;    
+
+        #if 0
+        rkpm_ddr_printascii("gpio pull\n");
+        rkpm_ddr_printhex((u32)RK_GPIO_VIRT(port));
+        rkpm_ddr_printhex(b_gpio);
+        rkpm_ddr_printhex(pull);
+        rkpm_ddr_printhex(off_set);
+        rkpm_ddr_printhex(RKPM_W_MSK_SETBITS(pull,b_gpio*2,0x3));
+        #endif
+        
         reg_writel(RKPM_W_MSK_SETBITS(pull,b_gpio*2,0x3),RK_GRF_VIRT+off_set);
 
     }
@@ -1474,7 +1500,7 @@ static inline void pin_set_pull(u8 port,u8 bank,u8 b_gpio,u8 pull)
 
 static inline u8 pin_get_pullset(u8 port,u8 bank,u8 b_gpio)
 { 
-    u8 off_set;
+    u32 off_set;
     
     bank-=0xa;
 
@@ -1512,8 +1538,19 @@ static inline void gpio_set_in_output(u8 port,u8 bank,u8 b_gpio,u8 type)
         val|=(0x1<<b_gpio);
     else
         val&=~(0x1<<b_gpio);
-    
+    #if 0
+    rkpm_ddr_printascii("gpio out\n");
+    rkpm_ddr_printhex((u32)RK_GPIO_VIRT(port));
+    rkpm_ddr_printhex(b_gpio);
+
+    rkpm_ddr_printhex(type);
+    rkpm_ddr_printhex(val);
+    #endif
     reg_writel(val,RK_GPIO_VIRT(port)+GPIO_SWPORT_DDR);
+
+    //rkpm_ddr_printhex(reg_readl(RK_GPIO_VIRT(port)+GPIO_SWPORT_DDR));
+
+    
 }
 
 static inline u8 gpio_get_in_outputset(u8 port,u8 bank,u8 b_gpio)
@@ -1585,7 +1622,7 @@ static inline void gpio_set_inten(u8 port,u8 bank,u8 b_gpio,u8 en)
 
      
 }
-
+#if 0
 static void __sramfunc sram_pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun)
 { 
         pin_set_fun(port,bank,b_gpio,fun); 
@@ -1625,6 +1662,7 @@ static u8 __sramfunc sram_gpio_get_output_levelset(u8 port,u8 bank,u8 b_gpio)
 {
     return gpio_get_output_levelset(port,bank,b_gpio);
 }
+#endif
 #if 0
 static u8 __sramfunc sram_gpio_get_input_level(u8 port,u8 bank,u8 b_gpio)
 {
@@ -1636,91 +1674,65 @@ static void ddr_pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun)
 { 
         pin_set_fun(port,bank,b_gpio,fun); 
 }
+#if 0
 static u8 ddr_pin_get_funset(u8 port,u8 bank,u8 b_gpio)
 { 
     return pin_get_funset(port,bank,b_gpio); 
-}
-
-static void ddr_pin_set_pull(u8 port,u8 bank,u8 b_gpio,u8 fun)
-{ 
-        pin_set_pull(port,bank,b_gpio,fun); 
 }
 static u8 ddr_pin_get_pullset(u8 port,u8 bank,u8 b_gpio)
 { 
     return pin_get_pullset(port,bank,b_gpio); 
 }
-
-static void ddr_gpio_set_in_output(u8 port,u8 bank,u8 b_gpio,u8 type)
-{
-    gpio_set_in_output(port,bank,b_gpio,type);
-}
-
 static u8 ddr_gpio_get_in_outputset(u8 port,u8 bank,u8 b_gpio)
 {
     return gpio_get_in_outputset(port,bank,b_gpio);
-}
-
-static void ddr_gpio_set_output_level(u8 port,u8 bank,u8 b_gpio,u8 level)
-{   
-    gpio_set_output_level(port,bank,b_gpio,level);
 }
 
 static u8 ddr_gpio_get_output_levelset(u8 port,u8 bank,u8 b_gpio)
 {
     return gpio_get_output_levelset(port,bank,b_gpio);
 }
-#if 0
 static u8 ddr_gpio_get_input_level(u8 port,u8 bank,u8 b_gpio)
 {
     return gpio_get_input_level(port,bank,b_gpio);
 }
+
+
 #endif
 
 
-static  void __sramfunc rkpm_pin_gpio_config_sram(u32 pin_gpio_bits,u32 *save_bits)
-{
-    
-    u32 pins;
-    u8 port,bank,b_gpio,fun,in_out, level, pull;
-   
-    pins=RKPM_PINGPIO_BITS_PIN(pin_gpio_bits);      
-    in_out=RKPM_PINGPIO_BITS_INOUT(pin_gpio_bits);       
-    pull=RKPM_PINGPIO_BITS_PULL(pin_gpio_bits);          
-    level=RKPM_PINGPIO_BITS_LEVEL(pin_gpio_bits);     
-
-    port=RKPM_PINBITS_PORT(pins);
-    bank=RKPM_PINBITS_BANK(pins);
-    b_gpio=RKPM_PINBITS_BGPIO(pins);
-    fun=RKPM_PINBITS_FUN(pins);
-    
-    //save pins info
-    if(save_bits)
-    {
-        pins=RKPM_PINBITS_SET_FUN(pins,sram_pin_get_funset(port,bank,b_gpio));
-       *save_bits=RKPM_PINGPIO_BITS(pins,sram_pin_get_pullset(port,bank,b_gpio),sram_gpio_get_in_outputset(port,bank,b_gpio),
-                                                                                        sram_gpio_get_output_levelset(port,bank,b_gpio));
-    }
-    if(!fun&&(in_out==RKPM_GPIO_OUTPUT))
-   {
-        if(level==RKPM_GPIO_OUT_L)
-            pull=RKPM_GPIO_PULL_DN;
-        else
-            pull=RKPM_GPIO_PULL_UP;
-        
-        sram_gpio_set_output_level(port,bank,b_gpio,level);
-    }
-        
-    sram_pin_set_pull(port,bank,b_gpio,pull);                
-    sram_pin_set_fun(port,bank,b_gpio,fun);
-    
-    if(!fun)
-    {
-        sram_gpio_set_in_output(port,bank,b_gpio,in_out);
-    }      
-    
+static void ddr_pin_set_pull(u8 port,u8 bank,u8 b_gpio,u8 fun)
+{ 
+        pin_set_pull(port,bank,b_gpio,fun); 
 }
 
-static inline void rkpm_pin_gpio_config_ddr(u32 pin_gpio_bits,u32 *save_bits)
+static void ddr_gpio_set_in_output(u8 port,u8 bank,u8 b_gpio,u8 type)
+{
+    gpio_set_in_output(port,bank,b_gpio,type);
+}
+static void ddr_gpio_set_output_level(u8 port,u8 bank,u8 b_gpio,u8 level)
+{   
+    gpio_set_output_level(port,bank,b_gpio,level);
+}
+
+
+
+#define GPIO_DTS_NUM (20)
+static  u32 suspend_gpios[GPIO_DTS_NUM];
+static  u32 resume_gpios[GPIO_DTS_NUM];
+
+static int of_find_property_value_getsize(const struct device_node *np,const char *propname)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+
+	if (!prop)
+		return 0;
+	if (!prop->value)
+		return 0;
+	return prop->length;
+}
+
+static  void rkpm_pin_gpio_config(u32 pin_gpio_bits)
 {
     
     u32 pins;
@@ -1736,168 +1748,156 @@ static inline void rkpm_pin_gpio_config_ddr(u32 pin_gpio_bits,u32 *save_bits)
     b_gpio=RKPM_PINBITS_BGPIO(pins);
     fun=RKPM_PINBITS_FUN(pins);
     
-    //save pins info
-    if(save_bits)
-    {
-        pins=RKPM_PINBITS_SET_FUN(pins,ddr_pin_get_funset(port,bank,b_gpio));
-       *save_bits=RKPM_PINGPIO_BITS(pins,ddr_pin_get_pullset(port,bank,b_gpio),ddr_gpio_get_in_outputset(port,bank,b_gpio),
-                                                                                        ddr_gpio_get_output_levelset(port,bank,b_gpio));
-    }
-    if(!fun&&(in_out==RKPM_GPIO_OUTPUT))
+  
+    if(!fun)
    {
-        if(level==RKPM_GPIO_OUT_L)
-            pull=RKPM_GPIO_PULL_DN;
-        else
-            pull=RKPM_GPIO_PULL_UP;
-        
-        ddr_gpio_set_output_level(port,bank,b_gpio,level);
+        if(in_out==RKPM_GPIO_OUTPUT)
+        {
+            if(level==RKPM_GPIO_OUT_L)
+                pull=RKPM_GPIO_PULL_DN;
+            else
+                pull=RKPM_GPIO_PULL_UP;
+            
+            ddr_gpio_set_output_level(port,bank,b_gpio,level);       
+        }            
+        //rkpm_ddr_printhex(pins);
+
+        ddr_gpio_set_in_output(port,bank,b_gpio,in_out);
     }
-        
+
     ddr_pin_set_pull(port,bank,b_gpio,pull);                
     ddr_pin_set_fun(port,bank,b_gpio,fun);
     
-    if(!fun)
-    {
-        ddr_gpio_set_in_output(port,bank,b_gpio,in_out);
-    }      
+   
     
 }
 
+#define RKPM_PINGPIO_BITS_PINTOPORT(pin_gpio_bits) RKPM_PINBITS_PORT(RKPM_PINGPIO_BITS_PIN((pin_gpio_bits)))
+#define  rkpm_gpio_pclk_idx(port) ((port)==0) ? RK3288_CLKGATE_PCLK_GPIO0 : (RK3288_CLKGATE_PCLK_GPIO1+(port)-1)
 
-#define GPIO_DTS_NUM 10
-
-//static  u32 gpio_dts_save[GPIO_DTS_NUM];
-//static  u32 gpio_dts[GPIO_DTS_NUM];
-
-#define PMICGPIO_DTS_NUM 3
-
-
-u32 DEFINE_PIE_DATA(pmicgpio_dts[PMICGPIO_DTS_NUM]);
-//static u32 *p_pmicgpio_dts;
-static __sramdata u32 pmicgpio_dts_save[PMICGPIO_DTS_NUM];
-
-static void __sramfunc pmic_gpio_suspend(void)
+//rk3288_powermode
+static void rkpm_pins_setting(u32 *gpios,u32 cnt)
 {
-       int i;   
-       for(i=0;;i++)
-       {
-            if(DATA(pmicgpio_dts[i]))
-                rkpm_pin_gpio_config_sram(DATA(pmicgpio_dts[i]),& pmicgpio_dts_save[i]);
-            else
-            {
-                    pmicgpio_dts_save[i]=0; 
-                    break;
-             }
-       }
-    #if 0       
-         for(i=0;i<6;i++)
+       u32 i,clk_id; 
+       u32 gpio_clk_reg[9];
+       u8 port;
+       
+      // rkpm_ddr_printascii("\ngpios");
+       
+        for(i=0;i<9;i++)
         {
-            rkpm_sram_reg_dump(RK_GPIO_VIRT(i),0,0x4); 
+            gpio_clk_reg[i]=0xffff0000;
         }
-        //
-        rkpm_sram_reg_dump(RK_GRF_VIRT,0xc,0x84); 
-        rkpm_sram_reg_dump(RK_GRF_VIRT,0x14c,0x1b4);     
-        rkpm_sram_reg_dump(RK_PMU_VIRT,0x64,0x6c);   
-        rkpm_sram_reg_dump(RK_PMU_VIRT,0x84,0x9c); 
-    #endif
-
-}
-
-static void  __sramfunc pmic_gpio_resume(void)
-{
-       int i;   
-       for(i=0;;i++)
+       
+       for(i=0;i<cnt;i++)
        {
-            if(pmicgpio_dts_save[i])
-                rkpm_pin_gpio_config_sram(pmicgpio_dts_save[i],NULL);     
+            if(gpios[i]!=0)
+           {
+                port=RKPM_PINGPIO_BITS_PINTOPORT(gpios[i]);
+                if(gpio_clk_reg[port]==0xffff0000)
+                {
+                    clk_id=rkpm_gpio_pclk_idx(port);
+                    gpio_clk_reg[port]=cru_readl(RK3288_CRU_GATEID_CONS(clk_id))&0xffff;
+                    RK3288_CRU_UNGATING_OPS(clk_id);
+                }
+               // rkpm_ddr_printhex(gpios[i]);
+                rkpm_pin_gpio_config(gpios[i]);
+           }           
        }
-
+      // rkpm_ddr_printascii("\n");
+       
+ #if 0       
+        for(i=0;i<9;i++)
+       {
+           rkpm_ddr_regs_dump(RK_GPIO_VIRT(i),0,0x4); 
+       }
+       //
+       rkpm_ddr_regs_dump(RK_GRF_VIRT,0xc,0x84); 
+       rkpm_ddr_regs_dump(RK_GRF_VIRT,0x14c,0x1b4);     
+     //  rkpm_ddr_regs_dump(RK_PMU_VIRT,0x64,0x6c);   
+       //rkpm_ddr_regs_dump(RK_PMU_VIRT,0x84,0x9c); 
+   #endif
+   
+        for(i=0;i<9;i++)
+       {
+            if(gpio_clk_reg[i]!=0xffff0000)
+            {          
+                clk_id=rkpm_gpio_pclk_idx(i);           
+                cru_writel(gpio_clk_reg[i]|CRU_W_MSK(clk_id%16,0x1),RK3288_CRU_GATEID_CONS(clk_id));    
+            }
+       }
+       
 }
 
-void PIE_FUNC(pmic_suspend)(void)
-{
-    pmic_gpio_suspend();
-
-}
-
-void PIE_FUNC(pmic_resume)(void)
-{
-    pmic_gpio_resume();
-}
-
-#if 0
 static void  rkpm_gpio_suspend(void)
 {
-       int i;   
-       for(i=0;;i++)
-       {
-            if(DATA(pmicgpio_dts[i]))
-                rkpm_pin_gpio_config_ddr(DATA(pmicgpio_dts[i]),& pmicgpio_dts_save[i]);
-            else
-            {
-                    pmicgpio_dts_save[i]=0; 
-                    break;
-             }
-       }
-    #if 0       
-         for(i=0;i<6;i++)
-        {
-            rkpm_ddr_reg_dump(RK_GPIO_VIRT(i),0,0x4); 
-        }
-        //
-        rkpm_ddr_reg_dump(RK_GRF_VIRT,0xc,0x84); 
-        rkpm_ddr_reg_dump(RK_GRF_VIRT,0x14c,0x1b4);     
-        rkpm_ddr_reg_dump(RK_PMU_VIRT,0x64,0x6c);   
-        rkpm_ddr_reg_dump(RK_PMU_VIRT,0x84,0x9c); 
-    #endif
-
+    rkpm_pins_setting(&suspend_gpios[0],GPIO_DTS_NUM);
 }
+
+
 
 static void  rkpm_gpio_resume(void)
-{
-       int i;   
-       for(i=0;;i++)
-       {
-            if(pmicgpio_dts_save[i])
-                rkpm_pin_gpio_config_ddr(pmicgpio_dts_save[i],NULL);     
-       }
-
+{     
+     rkpm_pins_setting(&resume_gpios[0],GPIO_DTS_NUM);
 }
-#endif
-#if 0
+
+#if 1
 static void gpio_get_dts_info(struct device_node *parent)
 {
         int i;
-
-        for(i=0;i<PMICGPIO_DTS_NUM;i++)
-            p_pmicgpio_dts[i]=0;
+        size_t temp_len;
+    //return;
 
         for(i=0;i<GPIO_DTS_NUM;i++)
-            gpio_dts[i]=0;
-
-        
-        p_pmicgpio_dts= kern_to_pie(rockchip_pie_chunk, &DATA(pmicgpio_dts[0]));
-        
-       if(of_property_read_u32_array(parent,"rockchip,pmic-gpios",p_pmicgpio_dts,PMICGPIO_DTS_NUM))
-       {
-                p_pmicgpio_dts[0]=0;
-               PM_ERR("%s:get pm ctr error\n",__FUNCTION__);
-       }
-       
-       for(i=0;i<PMICGPIO_DTS_NUM;i++)
-            printk("%s:pmic gpio(%x)\n",__FUNCTION__,p_pmicgpio_dts[i]);
-
-        if(of_property_read_u32_array(parent,"rockchip,pm-gpios",gpio_dts,GPIO_DTS_NUM))
         {
-                 gpio_dts[0]=0;
-                PM_ERR("%s:get pm ctr error\n",__FUNCTION__);
+            suspend_gpios[i]=0;
+            resume_gpios[i]=0;
         }
-        for(i=0;i<GPIO_DTS_NUM;i++)
-         printk("%s:pmic gpio(%x)\n",__FUNCTION__,gpio_dts[i]);
+ 
+     #if 1   
+        temp_len=of_find_property_value_getsize(parent,"rockchip,pmic-suspend_gpios");
+        if(temp_len)
+        {
+            printk("%s suspend:%d\n",__FUNCTION__,temp_len);
+            if(temp_len)
+            {
+                if(of_property_read_u32_array(parent,"rockchip,pmic-suspend_gpios",&suspend_gpios[0],temp_len/4))
+                {
+                        suspend_gpios[0]=0;
+                       printk("%s:get pm ctr error\n",__FUNCTION__);
+                }
+            }
+        }
 
-    rkpm_set_ops_gpios(rkpm_gpio_suspend,rkpm_gpio_resume);
-    rkpm_set_sram_ops_gtclks(fn_to_pie(rockchip_pie_chunk, &FUNC(pmic_suspend)), 
-                  fn_to_pie(rockchip_pie_chunk, &FUNC(pmic_resume)));
+       temp_len=of_find_property_value_getsize(parent,"rockchip,pmic-resume_gpios");
+       if(temp_len)
+       {
+           printk("%s resume:%d\n",__FUNCTION__,temp_len);
+           if(of_property_read_u32_array(parent,"rockchip,pmic-resume_gpios",&resume_gpios[0],temp_len/4))
+           {
+                    resume_gpios[0]=0;
+                   printk("%s:get pm ctr error\n",__FUNCTION__);
+           }
+        }  
+     #endif
+     
+     printk("rockchip,pmic-suspend_gpios:");
+     for(i=0;i<GPIO_DTS_NUM;i++)
+     {
+         printk("%x ",suspend_gpios[i]);
+         if(i==(GPIO_DTS_NUM-1))
+             printk("\n");
+     }
+ 
+     printk("rockchip,pmic-resume_gpios:");
+     for(i=0;i<GPIO_DTS_NUM;i++)
+     {
+          printk("%x ",resume_gpios[i]);
+          if(i==(GPIO_DTS_NUM-1))
+              printk("\n");
+     }
+     
+   rkpm_set_ops_gpios(rkpm_gpio_suspend,rkpm_gpio_resume);
 
 }
 #endif
@@ -2479,6 +2479,7 @@ static void __init  rk3288_suspend_init(void)
     memset(&sleep_resume_data[0],0,sizeof(sleep_resume_data));
     rkpm_set_ctrbits(pm_ctrbits);
     
+    gpio_get_dts_info(parent);
     clks_gating_suspend_init();
 
     rkpm_set_ops_plls(pm_plls_suspend,pm_plls_resume);

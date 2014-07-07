@@ -29,10 +29,11 @@
 static uint32
 get_erom_ent(si_t *sih, uint32 **eromptr, uint32 mask, uint32 match)
 {
-	uint32 ent;
+	uint32 ent = 0;
 	uint inv = 0, nom = 0;
+	uint retry = 20;
 
-	while (TRUE) {
+	while (retry--) {
 		ent = R_REG(si_osh(sih), *eromptr);
 		(*eromptr)++;
 
@@ -52,6 +53,8 @@ get_erom_ent(si_t *sih, uint32 **eromptr, uint32 mask, uint32 match)
 
 		nom++;
 	}
+    if (!retry)
+        SI_ERROR(("%s: WiFi read register fail, retry = %d.\n", __FUNCTION__, retry));
 
 	SI_VMSG(("%s: Returning ent 0x%08x\n", __FUNCTION__, ent));
 	if (inv + nom) {

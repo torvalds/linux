@@ -255,6 +255,9 @@ static void __dma_free_buffer(struct page *page, size_t size)
 
 static void *__alloc_from_contiguous(struct device *dev, size_t size,
 				     pgprot_t prot, struct page **ret_page,
+#ifdef CONFIG_ARCH_ROCKCHIP
+				     struct dma_attrs *attrs,
+#endif
 				     const void *caller);
 
 static void *__alloc_remap_buffer(struct device *dev, size_t size, gfp_t gfp,
@@ -360,6 +363,9 @@ static int __init atomic_pool_init(void)
 
 	if (IS_ENABLED(CONFIG_DMA_CMA))
 		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
+#ifdef CONFIG_ARCH_ROCKCHIP
+					      NULL,
+#endif
 					      atomic_pool_init);
 	else
 		ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
@@ -557,6 +563,9 @@ static int __free_from_pool(void *start, size_t size)
 
 static void *__alloc_from_contiguous(struct device *dev, size_t size,
 				     pgprot_t prot, struct page **ret_page,
+#ifdef CONFIG_ARCH_ROCKCHIP
+				     struct dma_attrs *attrs,
+#endif
 				     const void *caller)
 {
 	unsigned long order = get_order(size);
@@ -569,6 +578,11 @@ static void *__alloc_from_contiguous(struct device *dev, size_t size,
 		return NULL;
 
 	__dma_clear_buffer(page, size);
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs))
+		return (*ret_page=page);
+#endif
 
 	if (PageHighMem(page)) {
 		ptr = __dma_alloc_remap(page, size, GFP_KERNEL, prot, caller);
@@ -584,6 +598,20 @@ static void *__alloc_from_contiguous(struct device *dev, size_t size,
 	return ptr;
 }
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+static void __free_from_contiguous(struct device *dev, struct page *page,
+				   void *cpu_addr, size_t size,
+				   struct dma_attrs *attrs)
+{
+	if (!dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs)) {
+		if (PageHighMem(page))
+			__dma_free_remap(cpu_addr, size);
+		else
+			__dma_remap(page, size, pgprot_kernel);
+	}
+	dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT);
+}
+#else
 static void __free_from_contiguous(struct device *dev, struct page *page,
 				   void *cpu_addr, size_t size)
 {
@@ -593,6 +621,7 @@ static void __free_from_contiguous(struct device *dev, struct page *page,
 		__dma_remap(page, size, pgprot_kernel);
 	dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT);
 }
+#endif
 
 static inline pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot)
 {
@@ -611,9 +640,17 @@ static inline pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot)
 #define __get_dma_pgprot(attrs, prot)	__pgprot(0)
 #define __alloc_remap_buffer(dev, size, gfp, prot, ret, c)	NULL
 #define __alloc_from_pool(size, ret_page)			NULL
+#ifdef CONFIG_ARCH_ROCKCHIP
+#define __alloc_from_contiguous(dev, size, prot, ret, attrs, c)	NULL
+#else
 #define __alloc_from_contiguous(dev, size, prot, ret, c)	NULL
+#endif
 #define __free_from_pool(cpu_addr, size)			0
+#ifdef CONFIG_ARCH_ROCKCHIP
+#define __free_from_contiguous(dev, page, cpu_addr, size, attrs) do { } while (0)
+#else
 #define __free_from_contiguous(dev, page, cpu_addr, size)	do { } while (0)
+#endif
 #define __dma_free_remap(cpu_addr, size)			do { } while (0)
 
 #endif	/* CONFIG_MMU */
@@ -633,7 +670,12 @@ static void *__alloc_simple_buffer(struct device *dev, size_t size, gfp_t gfp,
 
 
 static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+#ifdef CONFIG_ARCH_ROCKCHIP
+			 gfp_t gfp, pgprot_t prot, bool is_coherent,
+			 struct dma_attrs *attrs, const void *caller)
+#else
 			 gfp_t gfp, pgprot_t prot, bool is_coherent, const void *caller)
+#endif
 {
 	u64 mask = get_coherent_dma_mask(dev);
 	struct page *page = NULL;
@@ -673,7 +715,11 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 	else if (!IS_ENABLED(CONFIG_DMA_CMA))
 		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
 	else
+#ifdef CONFIG_ARCH_ROCKCHIP
+		addr = __alloc_from_contiguous(dev, size, prot, &page, attrs, caller);
+#else
 		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
+#endif
 
 	if (addr)
 		*handle = pfn_to_dma(dev, page_to_pfn(page));
@@ -695,6 +741,9 @@ void *arm_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		return memory;
 
 	return __dma_alloc(dev, size, handle, gfp, prot, false,
+#ifdef CONFIG_ARCH_ROCKCHIP
+			   attrs,
+#endif
 			   __builtin_return_address(0));
 }
 
@@ -708,6 +757,9 @@ static void *arm_coherent_dma_alloc(struct device *dev, size_t size,
 		return memory;
 
 	return __dma_alloc(dev, size, handle, gfp, prot, true,
+#ifdef CONFIG_ARCH_ROCKCHIP
+			   attrs,
+#endif
 			   __builtin_return_address(0));
 }
 
@@ -767,7 +819,11 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
 		 * Non-atomic allocations cannot be freed with IRQs disabled
 		 */
 		WARN_ON(irqs_disabled());
+#ifdef CONFIG_ARCH_ROCKCHIP
+		__free_from_contiguous(dev, page, cpu_addr, size, attrs);
+#else
 		__free_from_contiguous(dev, page, cpu_addr, size);
+#endif
 	}
 }
 

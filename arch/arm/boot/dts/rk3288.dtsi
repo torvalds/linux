@@ -239,6 +239,13 @@
 		};
 	};
 
+	reset: reset@ff7601b8{
+		compatible = "rockchip,reset";
+		reg = <0xff7601b8 0x30>;
+		rockchip,reset-flag = <ROCKCHIP_RESET_HIWORD_MASK>;
+		#reset-cells = <1>;
+	};
+
 	nandc0: nandc@0xff400000 {
 		compatible = "rockchip,rk-nandc";
 		reg = <0xff400000 0x4000>;
@@ -471,7 +478,7 @@
 		status = "disabled";
 	};
 
-	clocks-init{
+	rockchip_clocks_init: clocks-init{
 		compatible = "rockchip,clocks-init";
 		rockchip,clocks-init-parent =
 			<&clk_core &clk_apll>,	<&aclk_bus_src &clk_gpll>,
@@ -496,7 +503,7 @@
 			<&clk_isp_jpe 400000000>, <&clk_tsp 80000000>,
 			<&clk_tspout 80000000>, <&clk_mac 125000000>;
 		rockchip,clocks-uboot-has-init =
-			<&aclk_vio1>;
+			<&aclk_vio0>;
 	};
 
 	clocks-enable {
@@ -745,33 +752,30 @@
 		status = "disabled";
 	};
 
-	lcdc1: lcdc@ff940000 {
-		compatible = "rockchip,rk3288-lcdc";
-		rockchip,prop = <PRMRY>;
-		rochchip,pwr18 = <0>;
-		rockchip,iommu-enabled = <1>;
-		reg = <0xff940000 0x10000>;
-		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
-		pinctrl-names = "default", "gpio";
-		pinctrl-0 = <&lcdc0_lcdc>;
-		pinctrl-1 = <&lcdc0_gpio>;
-		status = "disabled";
-		clocks = <&clk_gates15 7>, <&dclk_lcdc1>, <&clk_gates15 8>, <&pd_vop1>;
-		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "pd_lcdc";
-	};
-
 	lcdc0: lcdc@ff930000 {
 		compatible = "rockchip,rk3288-lcdc";
-		rockchip,prop = <EXTEND>;
+		rockchip,prop = <PRMRY>;
 		rockchip,pwr18 = <0>;
 		rockchip,iommu-enabled = <1>;
 		reg = <0xff930000 0x10000>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-		//pinctrl-names = "default", "gpio";
-		//pinctrl-0 = <&lcdc0_lcdc>;
-		//pinctrl-1 = <&lcdc0_gpio>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&lcdc0_lcdc>;
+		pinctrl-1 = <&lcdc0_gpio>;
 		status = "disabled";
 		clocks = <&clk_gates15 5>, <&dclk_lcdc0>, <&clk_gates15 6>, <&pd_vop0>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "pd_lcdc";
+	};
+
+	lcdc1: lcdc@ff940000 {
+		compatible = "rockchip,rk3288-lcdc";
+		rockchip,prop = <EXTEND>;
+		rochchip,pwr18 = <0>;
+		rockchip,iommu-enabled = <1>;
+		reg = <0xff940000 0x10000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+		clocks = <&clk_gates15 7>, <&dclk_lcdc1>, <&clk_gates15 8>, <&pd_vop1>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "pd_lcdc";
 	};
 
@@ -918,9 +922,15 @@
 						>;
 					performance-temp-limit = <
 						/*temp    freq*/
-						110	816000
+						110     816000
 						>;
 					status = "okay";
+					regu-mode-table = <
+						/*freq     mode*/
+						1008000    4
+						0          3
+					>;
+					regu-mode-en = <0>;
 				};
 			};
 		};
@@ -964,6 +974,12 @@
 						400000 1200000
 						>;
 					status = "okay";
+					regu-mode-table = <
+						/*freq     mode*/
+						200000     4
+						0          3
+					>;
+					regu-mode-en = <0>;
 				};
 			};
 		};
@@ -974,7 +990,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		rockchip,ion-heap@1 { /* CMA HEAP */
+		ion_cma: rockchip,ion-heap@1 { /* CMA HEAP */
 			compatible = "rockchip,ion-reserve";
 			rockchip,ion_heap = <1>;
 			reg = <0x00000000 0x20000000>; /* 512MB */
@@ -1196,16 +1212,20 @@
 			 |RKPM_CTR_PWR_DMNS
 			 |RKPM_CTR_GTCLKS
 			 |RKPM_CTR_PLLS
+                 //      |RKPM_CTR_GPIOS
 		//	 |RKPM_CTR_SYSCLK_DIV
 		//	 |RKPM_CTR_IDLEAUTO_MD
 		//	 |RKPM_CTR_ARMOFF_LPMD
 			 |RKPM_CTR_ARMOFF_LOGDP_LPMD
 			)
 			>;
-		rockchip,pmic-gpios = <
-			RKPM_PINGPIO_BITS_OUTPUT(GPIO0_A0,RKPM_GPIO_OUT_L)
-			RKPM_PINGPIO_BITS_INTPUT(GPIO0_A1,RKPM_GPIO_PULL_UP)
+		rockchip,pmic-suspend_gpios = <
+			RKPM_PINGPIO_BITS_OUTPUT(GPIO7_A1,RKPM_GPIO_OUT_H)
 			>;
+                rockchip,pmic-resume_gpios = <
+			RKPM_PINGPIO_BITS_FUN(PWM1,RKPM_GPIO_PULL_DN)
+			>;
+        
 	};
 
 	isp: isp@ff910000{
@@ -1237,9 +1257,15 @@
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		#io-channel-cells = <1>;
 		io-channel-ranges;
-		clock-frequency = <50000>;
+		clock-frequency = <10000>;
 		clocks = <&clk_tsadc>, <&clk_gates7 2>;
 		clock-names = "tsadc", "pclk_tsadc";
+		pinctrl-names = "default", "tsadc_int";
+		pinctrl-0 = <&tsadc_gpio>;
+		pinctrl-1 = <&tsadc_int>;
+		tsadc-ht-temp = <120>;
+		tsadc-ht-reset-cru = <1>;
+		tsadc-ht-pull-gpio = <0>;
 		status = "okay";
 	};
 

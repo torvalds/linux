@@ -155,6 +155,10 @@
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 	};
+
+        chosen {
+                bootargs = "vmalloc=512M";
+        };
 };
 &pinctrl {
 	gpio0_gpio {
@@ -346,8 +350,8 @@
 			regulator-name = "vdd_gpu";
 			regulator-min-microvolt = <712500>;
 			regulator-max-microvolt = <1500000>;
-			regulator-always-on;
-  			regulator-boot-on;
+			//regulator-always-on;
+			//regulator-boot-on;
 			regulator-initial-mode = <0x2>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
@@ -505,11 +509,12 @@
 	 display-timings = <&disp_timings>;
 };
 
-/*lcdc1 as PRMRY(LCD),lcdc0 as EXTEND(HDMI)*/
-&lcdc1 {
+/*lcdc0 as PRMRY(LCD),lcdc1 as EXTEND(HDMI)*/
+&lcdc0 {
 	status = "okay";
 	rockchip,mirror = <NO_MIRROR>;
 	rockchip,cabc_mode = <0>;
+	rockchip,iommu-enabled = <0>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
 
@@ -533,8 +538,10 @@
 	};
 };
 
-&lcdc0 {
+&lcdc1 {
 	status = "okay";
+	rockchip,mirror = <NO_MIRROR>;
+	rockchip,iommu-enabled = <0>;
 };
 
 &hdmi {
@@ -643,7 +650,7 @@
 		/* KHz    uV */
 		200000 1000000
 		300000 1000000
-		400000 1050000
+		420000 1050000
 		533000 1100000
 		>;
 
@@ -656,7 +663,7 @@
 		SYS_STATUS_PERFORMANCE  528000
 		SYS_STATUS_DUALVIEW	400000
 		SYS_STATUS_BOOST	324000
-		SYS_STATUS_ISP		400000
+		SYS_STATUS_ISP		533000
 		>;
 	auto-freq-table = <
 		240000
@@ -925,4 +932,6 @@
 &sdmmc0_vdd_domain{
 	regulator-name = "vcc_sd";			
 	};
-	
+&ion_cma {
+	reg = <0x40000000 0x20000000>; /* 512MB */
+};

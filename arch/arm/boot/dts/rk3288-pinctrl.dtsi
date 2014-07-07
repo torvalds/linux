@@ -946,6 +946,10 @@
 				rockchip,pins = <TSADC_INT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 			};
+			tsadc_gpio: tsadc-gpio {
+				rockchip,pins = <GPIO0_B2>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+			};
 		};
 		//to add
 
