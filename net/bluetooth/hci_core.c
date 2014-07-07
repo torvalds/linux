@@ -5403,6 +5403,10 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	    test_bit(HCI_UNREGISTER, &hdev->dev_flags))
 		return;
 
+	/* No point in doing scanning if LE support hasn't been enabled */
+	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+		return;
+
 	/* If discovery is active don't interfere with it */
 	if (hdev->discovery.state != DISCOVERY_STOPPED)
 		return;

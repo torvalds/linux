@@ -2152,6 +2152,8 @@ static void le_enable_complete(struct hci_dev *hdev, u8 status)
 		update_scan_rsp_data(&req);
 		hci_req_run(&req, NULL);
 
+		hci_update_background_scan(hdev);
+
 		hci_dev_unlock(hdev);
 	}
 }
