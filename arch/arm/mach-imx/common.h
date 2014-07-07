@@ -19,6 +19,7 @@ struct pt_regs;
 struct clk;
 struct device_node;
 enum mxc_cpu_pwr_mode;
+struct of_device_id;
 
 void mx1_map_io(void);
 void mx21_map_io(void);
@@ -65,6 +66,7 @@ void mxc_arch_reset_init_dt(void);
 int mx51_revision(void);
 int mx53_revision(void);
 void imx_set_aips(void __iomem *);
+void imx_aips_allow_unprivileged_access(const char *compat);
 int mxc_device_init(void);
 void imx_set_soc_revision(unsigned int rev);
 unsigned int imx_get_soc_revision(void);
