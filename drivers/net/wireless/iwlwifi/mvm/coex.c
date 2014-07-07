@@ -768,13 +768,8 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 		break;
 	case NL80211_IFTYPE_AP:
-		/* default smps_mode for AP / GO is OFF */
-		smps_mode = IEEE80211_SMPS_OFF;
-		if (!mvmvif->ap_ibss_active) {
-			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
-					    smps_mode);
+		if (!mvmvif->ap_ibss_active)
 			return;
-		}
 		break;
 	default:
 		return;
@@ -785,10 +780,10 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	/* If channel context is invalid or not on 2.4GHz .. */
 	if ((!chanctx_conf ||
 	     chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ)) {
-		/* ... relax constraints and disable rssi events */
-		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
-				    smps_mode);
 		if (vif->type == NL80211_IFTYPE_STATION) {
+			/* ... relax constraints and disable rssi events */
+			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+					    smps_mode);
 			iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
 						    false);
 			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
@@ -800,9 +795,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (bt_activity_grading >= BT_HIGH_TRAFFIC)
 		smps_mode = IEEE80211_SMPS_STATIC;
 	else if (bt_activity_grading >= BT_LOW_TRAFFIC)
-		smps_mode = vif->type == NL80211_IFTYPE_AP ?
-				IEEE80211_SMPS_OFF :
-				IEEE80211_SMPS_DYNAMIC;
+		smps_mode = IEEE80211_SMPS_DYNAMIC;
 
 	/* relax SMPS contraints for next association */
 	if (!vif->bss_conf.assoc)
@@ -816,7 +809,9 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		       "mac %d: bt_activity_grading %d smps_req %d\n",
 		       mvmvif->id, bt_activity_grading, smps_mode);
 
-	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX, smps_mode);
+	if (vif->type == NL80211_IFTYPE_STATION)
+		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+				    smps_mode);
 
 	/* low latency is always primary */
 	if (iwl_mvm_vif_low_latency(mvmvif)) {
