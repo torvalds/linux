@@ -54,6 +54,7 @@ static struct reg_default rt286_index_def[] = {
 	{ 0x09, 0xd810 },
 	{ 0x0a, 0x0060 },
 	{ 0x0b, 0x0000 },
+	{ 0x0d, 0x2800 },
 	{ 0x0f, 0x0000 },
 	{ 0x19, 0x0a17 },
 	{ 0x20, 0x0020 },
@@ -62,6 +63,9 @@ static struct reg_default rt286_index_def[] = {
 	{ 0x4f, 0x50e9 },
 	{ 0x50, 0x2c00 },
 	{ 0x63, 0x2902 },
+	{ 0x67, 0x1111 },
+	{ 0x68, 0x1016 },
+	{ 0x69, 0x273f },
 };
 #define INDEX_CACHE_SIZE ARRAY_SIZE(rt286_index_def)
 
@@ -902,14 +906,23 @@ static int rt286_set_bias_level(struct snd_soc_codec *codec,
 {
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (SND_SOC_BIAS_STANDBY == codec->dapm.bias_level)
+		if (SND_SOC_BIAS_STANDBY == codec->dapm.bias_level) {
 			snd_soc_write(codec,
 				RT286_SET_AUDIO_POWER, AC_PWRST_D0);
+			snd_soc_update_bits(codec,
+				RT286_DC_GAIN, 0x200, 0x200);
+		}
+		break;
+
+	case SND_SOC_BIAS_ON:
+		mdelay(10);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
 		snd_soc_write(codec,
 			RT286_SET_AUDIO_POWER, AC_PWRST_D3);
+		snd_soc_update_bits(codec,
+			RT286_DC_GAIN, 0x200, 0x0);
 		break;
 
 	default:
@@ -1151,6 +1164,11 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 
 	/*Power down LDO2*/
 	regmap_update_bits(rt286->regmap, RT286_POWER_CTRL2, 0x8, 0x0);
+
+	/*Set depop parameter*/
+	regmap_update_bits(rt286->regmap, RT286_DEPOP_CTRL2, 0x403a, 0x401a);
+	regmap_update_bits(rt286->regmap, RT286_DEPOP_CTRL3, 0xf777, 0x4737);
+	regmap_update_bits(rt286->regmap, RT286_DEPOP_CTRL4, 0x00ff, 0x003f);
 
 	if (rt286->i2c->irq) {
 		regmap_update_bits(rt286->regmap,
