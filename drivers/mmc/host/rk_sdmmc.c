@@ -618,7 +618,7 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
         int ret = 0;
 
         /* Set external dma config: burst size, burst width*/
-        slave_config.dst_addr = (dma_addr_t)(host->regs + host->data_offset);
+        slave_config.dst_addr = (dma_addr_t)(host->phy_regs + host->data_offset);
         slave_config.src_addr = slave_config.dst_addr;
         slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
         slave_config.src_addr_width = slave_config.dst_addr_width;
@@ -678,6 +678,7 @@ static int dw_mci_edmac_init(struct dw_mci *host)
                                 (unsigned int)(rockchip_soc_id & ROCKCHIP_CPU_MASK), mmc_hostname(host->mmc));
 
         /* 1) request external dma channel, SHOULD decide chn in dts */
+        host->dms = (struct dw_mci_dma_slave *)kmalloc(sizeof(struct dw_mci_dma_slave),GFP_KERNEL);
         host->dms->ch = dma_request_slave_channel(host->dev, "dw_mci");
         if (!host->dms->ch){
                 dev_err(host->dev, "Failed to get external DMA channel: channel id = %d\n",
@@ -1493,7 +1494,6 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	else
 		present = (mci_readl(slot->host, CDETECT) & (1 << slot->id))
 			== 0 ? 1 : 0;
-
 	spin_lock_bh(&host->lock);
 	if (present) {
 		set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
