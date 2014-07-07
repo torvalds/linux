@@ -993,7 +993,6 @@ static int rt286_probe(struct snd_soc_codec *codec)
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 	rt286->codec = codec;
 
-	rt286->i2c->irq = 0;
 	if (rt286->i2c->irq) {
 		snd_soc_update_bits(codec,
 					RT286_IRQ_CTRL, 0x2, 0x2);
