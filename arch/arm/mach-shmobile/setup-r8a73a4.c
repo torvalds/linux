@@ -189,7 +189,6 @@ static struct resource cmt1_resources[] = {
 
 void __init r8a73a4_add_dt_devices(void)
 {
-	r8a73a4_register_cmt(1);
 }
 
 /* DMA */
@@ -282,7 +281,7 @@ static struct resource dma_resources[] = {
 
 void __init r8a73a4_add_standard_devices(void)
 {
-	r8a73a4_add_dt_devices();
+	r8a73a4_register_cmt(1);
 	r8a73a4_register_scif(0);
 	r8a73a4_register_scif(1);
 	r8a73a4_register_scif(2);
