@@ -690,6 +690,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("dsiphy_clk", "sh-mipi-dsi.0", &dsi0phy_clk),
 	CLKDEV_ICK_ID("dsiphy_clk", "sh-mipi-dsi.1", &dsi1phy_clk),
 	CLKDEV_ICK_ID("fck", "sh-cmt-48.1", &mstp_clks[MSTP329]), /* CMT1 */
+	CLKDEV_ICK_ID("fck", "e6138000.timer", &mstp_clks[MSTP329]), /* CMT1 */
 	CLKDEV_ICK_ID("fck", "sh-tmu.0", &mstp_clks[MSTP125]), /* TMU0 */
 };
 
