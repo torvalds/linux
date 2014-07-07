@@ -815,11 +815,21 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 	 * configure panel (24bpp, vsync-, hsync-, DP-A protocol, complete
 	 * raster, associate with display controller)
 	 */
-	value = SOR_STATE_ASY_VSYNCPOL |
-		SOR_STATE_ASY_HSYNCPOL |
-		SOR_STATE_ASY_PROTOCOL_DP_A |
+	value = SOR_STATE_ASY_PROTOCOL_DP_A |
 		SOR_STATE_ASY_CRC_MODE_COMPLETE |
 		SOR_STATE_ASY_OWNER(dc->pipe + 1);
+
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
+		value &= ~SOR_STATE_ASY_HSYNCPOL;
+
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		value |= SOR_STATE_ASY_HSYNCPOL;
+
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
+		value &= ~SOR_STATE_ASY_VSYNCPOL;
+
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		value |= SOR_STATE_ASY_VSYNCPOL;
 
 	switch (config.bits_per_pixel) {
 	case 24:
