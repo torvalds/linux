@@ -1903,16 +1903,20 @@ bool hci_discovery_active(struct hci_dev *hdev)
 
 void hci_discovery_set_state(struct hci_dev *hdev, int state)
 {
+	int old_state = hdev->discovery.state;
+
 	BT_DBG("%s state %u -> %u", hdev->name, hdev->discovery.state, state);
 
-	if (hdev->discovery.state == state)
+	if (old_state == state)
 		return;
+
+	hdev->discovery.state = state;
 
 	switch (state) {
 	case DISCOVERY_STOPPED:
 		hci_update_background_scan(hdev);
 
-		if (hdev->discovery.state != DISCOVERY_STARTING)
+		if (old_state != DISCOVERY_STARTING)
 			mgmt_discovering(hdev, 0);
 		break;
 	case DISCOVERY_STARTING:
@@ -1925,8 +1929,6 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 	case DISCOVERY_STOPPING:
 		break;
 	}
-
-	hdev->discovery.state = state;
 }
 
 void hci_inquiry_cache_flush(struct hci_dev *hdev)
