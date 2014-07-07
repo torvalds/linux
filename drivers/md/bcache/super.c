@@ -1084,12 +1084,8 @@ static void cached_dev_free(struct closure *cl)
 
 	mutex_unlock(&bch_register_lock);
 
-	if (!IS_ERR_OR_NULL(dc->bdev)) {
-		if (dc->bdev->bd_disk)
-			blk_sync_queue(bdev_get_queue(dc->bdev));
-
+	if (!IS_ERR_OR_NULL(dc->bdev))
 		blkdev_put(dc->bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
-	}
 
 	wake_up(&unregister_wait);
 
@@ -1817,10 +1813,8 @@ void bch_cache_release(struct kobject *kobj)
 	if (ca->sb_bio.bi_inline_vecs[0].bv_page)
 		put_page(ca->sb_bio.bi_io_vec[0].bv_page);
 
-	if (!IS_ERR_OR_NULL(ca->bdev)) {
-		blk_sync_queue(bdev_get_queue(ca->bdev));
+	if (!IS_ERR_OR_NULL(ca->bdev))
 		blkdev_put(ca->bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
-	}
 
 	kfree(ca);
 	module_put(THIS_MODULE);
