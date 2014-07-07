@@ -40,12 +40,18 @@ extern br_should_route_hook_t __rcu *br_should_route_hook;
 #if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING)
 int br_multicast_list_adjacent(struct net_device *dev,
 			       struct list_head *br_ip_list);
+bool br_multicast_has_querier_anywhere(struct net_device *dev, int proto);
 bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto);
 #else
 static inline int br_multicast_list_adjacent(struct net_device *dev,
 					     struct list_head *br_ip_list)
 {
 	return 0;
+}
+static inline bool br_multicast_has_querier_anywhere(struct net_device *dev,
+						     int proto)
+{
+	return false;
 }
 static inline bool br_multicast_has_querier_adjacent(struct net_device *dev,
 						     int proto)
