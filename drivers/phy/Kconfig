@@ -151,14 +151,14 @@ config PHY_EXYNOS4210_USB2
 	  phys are available - device, host, HSIC0 and HSIC1.
 
 config PHY_EXYNOS4X12_USB2
-	bool "Support for Exynos 4x12"
+	bool "Support for Exynos 3250/4x12"
 	depends on PHY_SAMSUNG_USB2
-	depends on (SOC_EXYNOS4212 || SOC_EXYNOS4412)
+	depends on (SOC_EXYNOS3250 || SOC_EXYNOS4212 || SOC_EXYNOS4412)
 	help
-	  Enable USB PHY support for Exynos 4x12. This option requires that
-	  Samsung USB 2.0 PHY driver is enabled and means that support for this
-	  particular SoC is compiled in the driver. In case of Exynos 4x12 four
-	  phys are available - device, host, HSIC0 and HSIC1.
+	  Enable USB PHY support for Exynos 3250/4x12. This option requires
+	  that Samsung USB 2.0 PHY driver is enabled and means that support for
+	  this particular SoC is compiled in the driver. In case of Exynos 4x12
+	  four phys are available - device, host, HSIC0 and HSIC1.
 
 config PHY_EXYNOS5250_USB2
 	bool "Support for Exynos 5250"

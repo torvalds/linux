@@ -67,6 +67,8 @@
 #define EXYNOS_4x12_UPHYCLK_PHYFSEL_24MHZ	(0x5 << 0)
 #define EXYNOS_4x12_UPHYCLK_PHYFSEL_50MHZ	(0x7 << 0)
 
+#define EXYNOS_3250_UPHYCLK_REFCLKSEL		(0x2 << 8)
+
 #define EXYNOS_4x12_UPHYCLK_PHY0_ID_PULLUP	BIT(3)
 #define EXYNOS_4x12_UPHYCLK_PHY0_COMMON_ON	BIT(4)
 #define EXYNOS_4x12_UPHYCLK_PHY1_COMMON_ON	BIT(7)
@@ -197,6 +199,10 @@ static void exynos4x12_setup_clk(struct samsung_usb2_phy_instance *inst)
 
 	clk = readl(drv->reg_phy + EXYNOS_4x12_UPHYCLK);
 	clk &= ~EXYNOS_4x12_UPHYCLK_PHYFSEL_MASK;
+
+	if (drv->cfg->has_refclk_sel)
+		clk = EXYNOS_3250_UPHYCLK_REFCLKSEL;
+
 	clk |= drv->ref_reg_val << EXYNOS_4x12_UPHYCLK_PHYFSEL_OFFSET;
 	clk |= EXYNOS_4x12_UPHYCLK_PHY1_COMMON_ON;
 	writel(clk, drv->reg_phy + EXYNOS_4x12_UPHYCLK);
@@ -278,7 +284,7 @@ static int exynos4x12_power_on(struct samsung_usb2_phy_instance *inst)
 		exynos4x12_power_on_int(&drv->instances[EXYNOS4x12_DEVICE]);
 	}
 
-	if (inst->cfg->id == EXYNOS4x12_DEVICE)
+	if (inst->cfg->id == EXYNOS4x12_DEVICE && drv->cfg->has_mode_switch)
 		regmap_update_bits(drv->reg_sys, EXYNOS_4x12_MODE_SWITCH_OFFSET,
 						EXYNOS_4x12_MODE_SWITCH_MASK,
 						EXYNOS_4x12_MODE_SWITCH_DEVICE);
@@ -310,7 +316,7 @@ static int exynos4x12_power_off(struct samsung_usb2_phy_instance *inst)
 	if (inst->ext_cnt-- > 1)
 		return 0;
 
-	if (inst->cfg->id == EXYNOS4x12_DEVICE)
+	if (inst->cfg->id == EXYNOS4x12_DEVICE && drv->cfg->has_mode_switch)
 		regmap_update_bits(drv->reg_sys, EXYNOS_4x12_MODE_SWITCH_OFFSET,
 						EXYNOS_4x12_MODE_SWITCH_MASK,
 						EXYNOS_4x12_MODE_SWITCH_HOST);
@@ -356,6 +362,13 @@ static const struct samsung_usb2_common_phy exynos4x12_phys[] = {
 		.power_off	= exynos4x12_power_off,
 	},
 	{},
+};
+
+const struct samsung_usb2_phy_config exynos3250_usb2_phy_config = {
+	.has_refclk_sel		= 1,
+	.num_phys		= 1,
+	.phys			= exynos4x12_phys,
+	.rate_to_clk		= exynos4x12_rate_to_clk,
 };
 
 const struct samsung_usb2_phy_config exynos4x12_usb2_phy_config = {
