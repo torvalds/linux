@@ -6717,7 +6717,6 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 {
 	char buf[512];
 	struct mgmt_ev_device_found *ev = (void *) buf;
-	struct smp_irk *irk;
 	size_t ev_size;
 
 	/* Don't send events for a non-kernel initiated discovery. With
@@ -6739,15 +6738,8 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	memset(buf, 0, sizeof(buf));
 
-	irk = hci_get_irk(hdev, bdaddr, addr_type);
-	if (irk) {
-		bacpy(&ev->addr.bdaddr, &irk->bdaddr);
-		ev->addr.type = link_to_bdaddr(link_type, irk->addr_type);
-	} else {
-		bacpy(&ev->addr.bdaddr, bdaddr);
-		ev->addr.type = link_to_bdaddr(link_type, addr_type);
-	}
-
+	bacpy(&ev->addr.bdaddr, bdaddr);
+	ev->addr.type = link_to_bdaddr(link_type, addr_type);
 	ev->rssi = rssi;
 	ev->flags = cpu_to_le32(flags);
 
