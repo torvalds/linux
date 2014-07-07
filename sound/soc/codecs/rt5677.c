@@ -3124,7 +3124,7 @@ static int rt5677_set_bias_level(struct snd_soc_codec *codec,
 		regmap_update_bits(rt5677->regmap, RT5677_DIG_MISC, 0x1, 0x0);
 		regmap_write(rt5677->regmap, RT5677_PWR_DIG1, 0x0000);
 		regmap_write(rt5677->regmap, RT5677_PWR_DIG2, 0x0000);
-		regmap_write(rt5677->regmap, RT5677_PWR_ANLG1, 0x0000);
+		regmap_write(rt5677->regmap, RT5677_PWR_ANLG1, 0x0022);
 		regmap_write(rt5677->regmap, RT5677_PWR_ANLG2, 0x0000);
 		regmap_update_bits(rt5677->regmap,
 			RT5677_PR_BASE + RT5677_BIAS_CUR4, 0x0f00, 0x0000);
