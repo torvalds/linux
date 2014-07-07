@@ -351,6 +351,7 @@
 	sound {
 		compatible = "google,snow-audio-max98095";
 
+		samsung,model = "Snow-I2S-MAX98095";
 		samsung,i2s-controller = <&i2s0>;
 		samsung,audio-codec = <&max98095>;
 	};

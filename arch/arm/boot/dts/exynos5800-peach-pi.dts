@@ -60,6 +60,7 @@
 	sound {
 		compatible = "google,snow-audio-max98091";
 
+		samsung,model = "Peach-Pi-I2S-MAX98091";
 		samsung,i2s-controller = <&i2s0>;
 		samsung,audio-codec = <&max98091>;
 	};
