@@ -1407,5 +1407,5 @@ MODULE_PARM_DESC(power_level,
 		 "default power save level (range from 1 - 5, default: 1)");
 
 module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, S_IRUGO);
-MODULE_PARM_DESC(dbgm,
+MODULE_PARM_DESC(fw_monitor,
 		 "firmware monitor - to debug FW (default: false - needs lots of memory)");

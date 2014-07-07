@@ -1787,7 +1787,7 @@ static u32 iwl_trans_pcie_dump_data(struct iwl_trans *trans,
 		cmdq->q.n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
 
 	if (trans_pcie->fw_mon_page)
-		len += sizeof(*data) + sizeof(struct iwl_fw_error_fw_mon) +
+		len += sizeof(*data) + sizeof(struct iwl_fw_error_dump_fw_mon) +
 			trans_pcie->fw_mon_size;
 
 	if (!buf)
@@ -1822,7 +1822,7 @@ static u32 iwl_trans_pcie_dump_data(struct iwl_trans *trans,
 	len += sizeof(*data);
 
 	if (trans_pcie->fw_mon_page) {
-		struct iwl_fw_error_fw_mon *fw_mon_data;
+		struct iwl_fw_error_dump_fw_mon *fw_mon_data;
 
 		data = iwl_fw_error_next_data(data);
 		data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_FW_MONITOR);

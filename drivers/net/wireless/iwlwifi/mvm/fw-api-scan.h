@@ -509,7 +509,7 @@ struct iwl_scan_offload_profile_cfg {
  * @full_scan_mul:	number of partial scans before each full scan
  */
 struct iwl_scan_offload_schedule {
-	u16 delay;
+	__le16 delay;
 	u8 iterations;
 	u8 full_scan_mul;
 } __packed;
@@ -581,5 +581,212 @@ struct iwl_sched_scan_results {
 	u8 client_bitmap;
 	u8 reserved;
 };
+
+/* Unified LMAC scan API */
+
+#define IWL_MVM_BASIC_PASSIVE_DWELL 110
+
+/**
+ * iwl_scan_req_tx_cmd - SCAN_REQ_TX_CMD_API_S
+ * @tx_flags: combination of TX_CMD_FLG_*
+ * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
+ *	cleared. Combination of RATE_MCS_*
+ * @sta_id: index of destination station in FW station table
+ * @reserved: for alignment and future use
+ */
+struct iwl_scan_req_tx_cmd {
+	__le32 tx_flags;
+	__le32 rate_n_flags;
+	u8 sta_id;
+	u8 reserved[3];
+} __packed;
+
+enum iwl_scan_channel_flags_lmac {
+	IWL_UNIFIED_SCAN_CHANNEL_FULL		= BIT(27),
+	IWL_UNIFIED_SCAN_CHANNEL_PARTIAL	= BIT(28),
+};
+
+/**
+ * iwl_scan_channel_cfg_lmac - SCAN_CHANNEL_CFG_S_VER2
+ * @flags:		bits 1-20: directed scan to i'th ssid
+ *			other bits &enum iwl_scan_channel_flags_lmac
+ * @channel_number:	channel number 1-13 etc
+ * @iter_count:		scan iteration on this channel
+ * @iter_interval:	interval in seconds between iterations on one channel
+ */
+struct iwl_scan_channel_cfg_lmac {
+	__le32 flags;
+	__le16 channel_num;
+	__le16 iter_count;
+	__le32 iter_interval;
+} __packed;
+
+/*
+ * iwl_scan_probe_segment - PROBE_SEGMENT_API_S_VER_1
+ * @offset: offset in the data block
+ * @len: length of the segment
+ */
+struct iwl_scan_probe_segment {
+	__le16 offset;
+	__le16 len;
+} __packed;
+
+/* iwl_scan_probe_req - PROBE_REQUEST_FRAME_API_S_VER_2
+ * @mac_header: first (and common) part of the probe
+ * @band_data: band specific data
+ * @common_data: last (and common) part of the probe
+ * @buf: raw data block
+ */
+struct iwl_scan_probe_req {
+	struct iwl_scan_probe_segment mac_header;
+	struct iwl_scan_probe_segment band_data[2];
+	struct iwl_scan_probe_segment common_data;
+	u8 buf[SCAN_OFFLOAD_PROBE_REQ_SIZE];
+} __packed;
+
+enum iwl_scan_channel_flags {
+	IWL_SCAN_CHANNEL_FLAG_EBS		= BIT(0),
+	IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE	= BIT(1),
+	IWL_SCAN_CHANNEL_FLAG_CACHE_ADD		= BIT(2),
+};
+
+/* iwl_scan_channel_opt - CHANNEL_OPTIMIZATION_API_S
+ * @flags: enum iwl_scan_channel_flgs
+ * @non_ebs_ratio: how many regular scan iteration before EBS
+ */
+struct iwl_scan_channel_opt {
+	__le16 flags;
+	__le16 non_ebs_ratio;
+} __packed;
+
+/**
+ * iwl_mvm_lmac_scan_flags
+ * @IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL: pass all beacons and probe responses
+ *	without filtering.
+ * @IWL_MVM_LMAC_SCAN_FLAG_PASSIVE: force passive scan on all channels
+ * @IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION: single channel scan
+ * @IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE: send iteration complete notification
+ * @IWL_MVM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS multiple SSID matching
+ * @IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED: all passive scans will be fragmented
+ */
+enum iwl_mvm_lmac_scan_flags {
+	IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL		= BIT(0),
+	IWL_MVM_LMAC_SCAN_FLAG_PASSIVE		= BIT(1),
+	IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION	= BIT(2),
+	IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE	= BIT(3),
+	IWL_MVM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS	= BIT(4),
+	IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED	= BIT(5),
+};
+
+enum iwl_scan_priority {
+	IWL_SCAN_PRIORITY_LOW,
+	IWL_SCAN_PRIORITY_MEDIUM,
+	IWL_SCAN_PRIORITY_HIGH,
+};
+
+/**
+ * iwl_scan_req_unified_lmac - SCAN_REQUEST_CMD_API_S_VER_1
+ * @reserved1: for alignment and future use
+ * @channel_num: num of channels to scan
+ * @active-dwell: dwell time for active channels
+ * @passive-dwell: dwell time for passive channels
+ * @fragmented-dwell: dwell time for fragmented passive scan
+ * @reserved2: for alignment and future use
+ * @rx_chain_selct: PHY_RX_CHAIN_* flags
+ * @scan_flags: &enum iwl_mvm_lmac_scan_flags
+ * @max_out_time: max time (in TU) to be out of associated channel
+ * @suspend_time: pause scan this long (TUs) when returning to service channel
+ * @flags: RXON flags
+ * @filter_flags: RXON filter
+ * @tx_cmd: tx command for active scan; for 2GHz and for 5GHz
+ * @direct_scan: list of SSIDs for directed active scan
+ * @scan_prio: enum iwl_scan_priority
+ * @iter_num: number of scan iterations
+ * @delay: delay in seconds before first iteration
+ * @schedule: two scheduling plans. The first one is finite, the second one can
+ *	be infinite.
+ * @channel_opt: channel optimization options, for full and partial scan
+ * @data: channel configuration and probe request packet.
+ */
+struct iwl_scan_req_unified_lmac {
+	/* SCAN_REQUEST_FIXED_PART_API_S_VER_7 */
+	__le32 reserved1;
+	u8 n_channels;
+	u8 active_dwell;
+	u8 passive_dwell;
+	u8 fragmented_dwell;
+	__le16 reserved2;
+	__le16 rx_chain_select;
+	__le32 scan_flags;
+	__le32 max_out_time;
+	__le32 suspend_time;
+	/* RX_ON_FLAGS_API_S_VER_1 */
+	__le32 flags;
+	__le32 filter_flags;
+	struct iwl_scan_req_tx_cmd tx_cmd[2];
+	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
+	__le32 scan_prio;
+	/* SCAN_REQ_PERIODIC_PARAMS_API_S */
+	__le32 iter_num;
+	__le32 delay;
+	struct iwl_scan_offload_schedule schedule[2];
+	struct iwl_scan_channel_opt channel_opt[2];
+	u8 data[];
+} __packed;
+
+/**
+ * struct iwl_lmac_scan_results_notif - scan results for one channel -
+ *	SCAN_RESULT_NTF_API_S_VER_3
+ * @channel: which channel the results are from
+ * @band: 0 for 5.2 GHz, 1 for 2.4 GHz
+ * @probe_status: SCAN_PROBE_STATUS_*, indicates success of probe request
+ * @num_probe_not_sent: # of request that weren't sent due to not enough time
+ * @duration: duration spent in channel, in usecs
+ */
+struct iwl_lmac_scan_results_notif {
+	u8 channel;
+	u8 band;
+	u8 probe_status;
+	u8 num_probe_not_sent;
+	__le32 duration;
+} __packed;
+
+/**
+ * struct iwl_lmac_scan_complete_notif - notifies end of scanning (all channels)
+ *	SCAN_COMPLETE_NTF_API_S_VER_3
+ * @scanned_channels: number of channels scanned (and number of valid results)
+ * @status: one of SCAN_COMP_STATUS_*
+ * @bt_status: BT on/off status
+ * @last_channel: last channel that was scanned
+ * @tsf_low: TSF timer (lower half) in usecs
+ * @tsf_high: TSF timer (higher half) in usecs
+ * @results: an array of scan results, only "scanned_channels" of them are valid
+ */
+struct iwl_lmac_scan_complete_notif {
+	u8 scanned_channels;
+	u8 status;
+	u8 bt_status;
+	u8 last_channel;
+	__le32 tsf_low;
+	__le32 tsf_high;
+	struct iwl_scan_results_notif results[];
+} __packed;
+
+/**
+ * iwl_scan_offload_complete - PERIODIC_SCAN_COMPLETE_NTF_API_S_VER_2
+ * @last_schedule_line: last schedule line executed (fast or regular)
+ * @last_schedule_iteration: last scan iteration executed before scan abort
+ * @status: enum iwl_scan_offload_complete_status
+ * @ebs_status: EBS success status &enum iwl_scan_ebs_status
+ * @time_after_last_iter; time in seconds elapsed after last iteration
+ */
+struct iwl_periodic_scan_complete {
+	u8 last_schedule_line;
+	u8 last_schedule_iteration;
+	u8 status;
+	u8 ebs_status;
+	__le32 time_after_last_iter;
+	__le32 reserved;
+} __packed;
 
 #endif

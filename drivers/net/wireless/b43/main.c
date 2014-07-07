@@ -4329,6 +4329,7 @@ static char *b43_phy_name(struct b43_wldev *dev, u8 phy_type)
 static int b43_phy_versioning(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
+	const u8 core_rev = dev->dev->core_rev;
 	u32 tmp;
 	u8 analog_type;
 	u8 phy_type;
@@ -4394,7 +4395,15 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		analog_type, phy_type, b43_phy_name(dev, phy_type), phy_rev);
 
 	/* Get RADIO versioning */
-	if (dev->dev->core_rev >= 24) {
+	if (core_rev == 40 || core_rev == 42) {
+		radio_manuf = 0x17F;
+
+		b43_write16(dev, B43_MMIO_RADIO24_CONTROL, 0);
+		radio_rev = b43_read16(dev, B43_MMIO_RADIO24_DATA);
+
+		b43_write16(dev, B43_MMIO_RADIO24_CONTROL, 1);
+		radio_ver = b43_read16(dev, B43_MMIO_RADIO24_DATA);
+	} else if (core_rev >= 24) {
 		u16 radio24[3];
 
 		for (tmp = 0; tmp < 3; tmp++) {

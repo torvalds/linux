@@ -138,6 +138,41 @@ static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
 	schedule_work(&mvm->roc_done_wk);
 }
 
+static void iwl_mvm_csa_noa_start(struct iwl_mvm *mvm)
+{
+	struct ieee80211_vif *csa_vif;
+
+	rcu_read_lock();
+
+	csa_vif = rcu_dereference(mvm->csa_vif);
+	if (!csa_vif || !csa_vif->csa_active)
+		goto out_unlock;
+
+	IWL_DEBUG_TE(mvm, "CSA NOA started\n");
+
+	/*
+	 * CSA NoA is started but we still have beacons to
+	 * transmit on the current channel.
+	 * So we just do nothing here and the switch
+	 * will be performed on the last TBTT.
+	 */
+	if (!ieee80211_csa_is_complete(csa_vif)) {
+		IWL_WARN(mvm, "CSA NOA started too early\n");
+		goto out_unlock;
+	}
+
+	ieee80211_csa_finish(csa_vif);
+
+	rcu_read_unlock();
+
+	RCU_INIT_POINTER(mvm->csa_vif, NULL);
+
+	return;
+
+out_unlock:
+	rcu_read_unlock();
+}
+
 static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
 					const char *errmsg)
@@ -213,6 +248,14 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
 			iwl_mvm_ref(mvm, IWL_MVM_REF_ROC);
 			ieee80211_ready_on_channel(mvm->hw);
+		} else if (te_data->vif->type == NL80211_IFTYPE_AP) {
+			if (le32_to_cpu(notif->status))
+				iwl_mvm_csa_noa_start(mvm);
+			else
+				IWL_DEBUG_TE(mvm, "CSA NOA failed to start\n");
+
+			/* we don't need it anymore */
+			iwl_mvm_te_clear_data(mvm, te_data);
 		}
 	} else {
 		IWL_WARN(mvm, "Got TE with unknown action\n");
@@ -537,4 +580,34 @@ void iwl_mvm_stop_p2p_roc(struct iwl_mvm *mvm)
 	iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
 
 	iwl_mvm_roc_finished(mvm);
+}
+
+int iwl_mvm_schedule_csa_noa(struct iwl_mvm *mvm,
+			      struct ieee80211_vif *vif,
+			      u32 duration, u32 apply_time)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
+	struct iwl_time_event_cmd time_cmd = {};
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (te_data->running) {
+		IWL_DEBUG_TE(mvm, "CS NOA is already scheduled\n");
+		return -EBUSY;
+	}
+
+	time_cmd.action = cpu_to_le32(FW_CTXT_ACTION_ADD);
+	time_cmd.id_and_color =
+		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
+	time_cmd.id = cpu_to_le32(TE_P2P_GO_CSA_NOA);
+	time_cmd.apply_time = cpu_to_le32(apply_time);
+	time_cmd.max_frags = TE_V2_FRAG_NONE;
+	time_cmd.duration = cpu_to_le32(duration);
+	time_cmd.repeat = 1;
+	time_cmd.interval = cpu_to_le32(1);
+	time_cmd.policy = cpu_to_le16(TE_V2_NOTIF_HOST_EVENT_START |
+				      TE_V2_ABSENCE);
+
+	return iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 }

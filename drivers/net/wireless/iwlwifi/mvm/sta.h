@@ -73,6 +73,7 @@
 #include "rs.h"
 
 struct iwl_mvm;
+struct iwl_mvm_vif;
 
 /**
  * DOC: station table - introduction
@@ -295,6 +296,7 @@ static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
  * @tid_data: per tid data. Look at %iwl_mvm_tid_data.
  * @tx_protection: reference counter for controlling the Tx protection.
  * @tt_tx_protection: is thermal throttling enable Tx protection?
+ * @disable_tx: is tx to this STA disabled?
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -317,6 +319,8 @@ struct iwl_mvm_sta {
 	/* Temporary, until the new TLC will control the Tx protection */
 	s8 tx_protection;
 	bool tt_tx_protection;
+
+	bool disable_tx;
 };
 
 static inline struct iwl_mvm_sta *
@@ -406,5 +410,11 @@ int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 		      bool drain);
 void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,
 				   struct iwl_mvm_sta *mvmsta, bool disable);
+void iwl_mvm_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
+				      struct ieee80211_sta *sta,
+				      bool disable);
+void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
+				       struct iwl_mvm_vif *mvmvif,
+				       bool disable);
 
 #endif /* __sta_h__ */

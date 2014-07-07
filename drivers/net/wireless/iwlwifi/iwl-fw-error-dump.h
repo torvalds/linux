@@ -92,8 +92,8 @@ enum iwl_fw_error_dump_type {
 /**
  * struct iwl_fw_error_dump_data - data for one type
  * @type: %enum iwl_fw_error_dump_type
- * @len: the length starting from %data - must be a multiplier of 4.
- * @data: the data itself padded to be a multiplier of 4.
+ * @len: the length starting from %data
+ * @data: the data itself
  */
 struct iwl_fw_error_dump_data {
 	__le32 type;
@@ -147,14 +147,14 @@ struct iwl_fw_error_dump_info {
 } __packed;
 
 /**
- * struct iwl_fw_error_fw_mon - FW monitor data
+ * struct iwl_fw_error_dump_fw_mon - FW monitor data
  * @fw_mon_wr_ptr: the position of the write pointer in the cyclic buffer
  * @fw_mon_base_ptr: base pointer of the data
  * @fw_mon_cycle_cnt: number of wrap arounds
  * @reserved: for future use
  * @data: captured data
  */
-struct iwl_fw_error_fw_mon {
+struct iwl_fw_error_dump_fw_mon {
 	__le32 fw_mon_wr_ptr;
 	__le32 fw_mon_base_ptr;
 	__le32 fw_mon_cycle_cnt;

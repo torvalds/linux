@@ -6,6 +6,7 @@
 
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
+#include <linux/bcma/bcma_driver_pcie2.h>
 #include <linux/bcma/bcma_driver_mips.h>
 #include <linux/bcma/bcma_driver_gmac_cmn.h>
 #include <linux/ssb/ssb.h> /* SPROM sharing */
@@ -333,6 +334,7 @@ struct bcma_bus {
 
 	struct bcma_drv_cc drv_cc;
 	struct bcma_drv_pci drv_pci[2];
+	struct bcma_drv_pcie2 drv_pcie2;
 	struct bcma_drv_mips drv_mips;
 	struct bcma_drv_gmac_cmn drv_gmac_cmn;
 
