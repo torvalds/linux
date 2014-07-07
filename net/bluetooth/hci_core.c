@@ -5403,6 +5403,10 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	    test_bit(HCI_UNREGISTER, &hdev->dev_flags))
 		return;
 
+	/* If discovery is active don't interfere with it */
+	if (hdev->discovery.state != DISCOVERY_STOPPED)
+		return;
+
 	hci_req_init(&req, hdev);
 
 	if (list_empty(&hdev->pend_le_conns) &&
