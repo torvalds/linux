@@ -1,5 +1,6 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
+#include <linux/sunrpc/addr.h>
 #include "internal.h"
 #include "nfs3_fs.h"
 
@@ -89,6 +90,12 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_client *mds_clp,
 	};
 	struct rpc_timeout ds_timeout;
 	struct nfs_client *clp;
+	char buf[INET6_ADDRSTRLEN + 1];
+
+	/* fake a hostname because lockd wants it */
+	if (rpc_ntop(ds_addr, buf, sizeof(buf)) <= 0)
+		return ERR_PTR(-EINVAL);
+	cl_init.hostname = buf;
 
 	/* Use the MDS nfs_client cl_ipaddr. */
 	nfs_init_timeout_values(&ds_timeout, ds_proto, ds_timeo, ds_retrans);
