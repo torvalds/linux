@@ -90,7 +90,7 @@ operations:
      to be cleared before proceeding:
 
 		wait_on_bit(&op->flags, FSCACHE_OP_WAITING,
-			    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+			    TASK_UNINTERRUPTIBLE);
 
 
  (2) The operation may be fast asynchronous (FSCACHE_OP_FAST), in which case it
