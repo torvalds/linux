@@ -187,10 +187,6 @@ static struct resource cmt1_resources[] = {
 					  &cmt##idx##_platform_data,	\
 					  sizeof(struct sh_timer_config))
 
-void __init r8a73a4_add_dt_devices(void)
-{
-}
-
 /* DMA */
 static const struct sh_dmae_slave_config dma_slaves[] = {
 	{
