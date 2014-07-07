@@ -39,7 +39,6 @@ config S3C_LOWLEVEL_UART_PORT
 
 config SAMSUNG_ATAGS
 	def_bool n
-	depends on !ARCH_MULTIPLATFORM
 	depends on ATAGS
 	help
 	   This option enables ATAGS based boot support code for
@@ -70,6 +69,7 @@ config S3C_GPIO_TRACK
 
 config S3C_ADC
 	bool "ADC common driver support"
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  Core support for the ADC block found in the Samsung SoC systems
 	  for drivers such as the touchscreen and hwmon to use to share
