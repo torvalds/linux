@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 /*
  * We provide a common class "devices" group which initially has no attributes.
