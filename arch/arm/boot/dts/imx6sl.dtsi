@@ -227,8 +227,7 @@
 
 				ssi1: ssi@02028000 {
 					compatible = "fsl,imx6sl-ssi",
-							"fsl,imx51-ssi",
-							"fsl,imx21-ssi";
+							"fsl,imx51-ssi";
 					reg = <0x02028000 0x4000>;
 					interrupts = <0 46 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SL_CLK_SSI1>;
@@ -241,8 +240,7 @@
 
 				ssi2: ssi@0202c000 {
 					compatible = "fsl,imx6sl-ssi",
-							"fsl,imx51-ssi",
-							"fsl,imx21-ssi";
+							"fsl,imx51-ssi";
 					reg = <0x0202c000 0x4000>;
 					interrupts = <0 47 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SL_CLK_SSI2>;
@@ -255,8 +253,7 @@
 
 				ssi3: ssi@02030000 {
 					compatible = "fsl,imx6sl-ssi",
-							"fsl,imx51-ssi",
-							"fsl,imx21-ssi";
+							"fsl,imx51-ssi";
 					reg = <0x02030000 0x4000>;
 					interrupts = <0 48 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SL_CLK_SSI3>;
