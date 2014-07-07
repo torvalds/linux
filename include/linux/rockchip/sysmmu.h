@@ -21,6 +21,8 @@
 #define VOPB_SYSMMU_COMPATIBLE_NAME "iommu,vopb_mmu"
 #define VOPL_SYSMMU_COMPATIBLE_NAME "iommu,vopl_mmu"
 
+#define VOP_SYSMMU_COMPATIBLE_NAME "iommu,vop_mmu"
+
 #define HEVC_SYSMMU_COMPATIBLE_NAME "iommu,hevc_mmu"
 #define VPU_SYSMMU_COMPATIBLE_NAME "iommu,vpu_mmu"
 
@@ -87,29 +89,11 @@ void rockchip_sysmmu_tlb_invalidate(struct device *owner);
  */
 void rockchip_sysmmu_set_fault_handler(struct device *dev,sysmmu_fault_handler_t handler);
 
-/** rockchip_sysmmu_set_prefbuf() - Initialize prefetch buffers of System MMU v3
- *	@owner: The device which need to set the prefetch buffers
- *	@base0: The start virtual address of the area of the @owner device that the
- *			first prefetch buffer loads translation descriptors
- *	@size0: The last virtual address of the area of the @owner device that the
- *			first prefetch buffer loads translation descriptors.
- *	@base1: The start virtual address of the area of the @owner device that the
- *			second prefetch buffer loads translation descriptors. This will be
- *			ignored if @size1 is 0 and this function assigns the 2 prefetch
- *			buffers with each half of the area specified by @base0 and @size0
- *	@size1: The last virtual address of the area of the @owner device that the
- *			prefetch buffer loads translation descriptors. This can be 0. See
- *			the description of @base1 for more information with @size1 = 0
- */
-void rockchip_sysmmu_set_prefbuf(struct device *owner,
-				unsigned long base0, unsigned long size0,
-				unsigned long base1, unsigned long size1);
 #else /* CONFIG_ROCKCHIP_IOMMU */
 #define rockchip_sysmmu_enable(owner, pgd) do { } while (0)
 #define rockchip_sysmmu_disable(owner) do { } while (0)
 #define rockchip_sysmmu_tlb_invalidate(owner) do { } while (0)
 #define rockchip_sysmmu_set_fault_handler(sysmmu, handler) do { } while (0)
-#define rockchip_sysmmu_set_prefbuf(owner, b0, s0, b1, s1) do { } while (0)
 #endif
 
 #ifdef CONFIG_IOMMU_API

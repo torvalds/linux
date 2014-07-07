@@ -433,5 +433,29 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
 		name = "hevc_service";
 		status = "disabled";
+	
+	vop_mmu {
+		dbgname = "vop";
+		compatible = "iommu,vop_mmu";
+		reg = <0x10118300 0x100>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vop_mmu";
+	};
+
+	hevc_mmu {
+		dbgname = "hevc";
+		compatible = "iommu,hevc_mmu";
+		reg = <0x1010c440 0x100>,
+		      <0x1010c480 0x100>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "hevc_mmu";
+	};
+
+	vpu_mmu {
+		dbgname = "vpu";
+		compatible = "iommu,vpu_mmu";
+		reg = <0x10108800 0x100>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
 	};
 };

@@ -68,8 +68,6 @@ dma_addr_t iovmm_map(struct device *dev,struct scatterlist *sg, off_t offset,siz
 		ret = -ENOMEM;
 		goto err_map_nomem;
 	}
-
-	//start = (dma_addr_t)gen_pool_alloc_aligned(vmm->vmm_pool, size, order);
 	
 	start = (dma_addr_t)gen_pool_alloc(vmm->vmm_pool, size);
 	if (!start) 
@@ -196,7 +194,7 @@ int iovmm_map_oto(struct device *dev, phys_addr_t phys, size_t size)
 
 	if (WARN_ON((phys + size) >= IOVA_START)) 
 	{
-		dev_err(dev,"Unable to create one to one mapping for %#x @ %#x\n",size, phys);
+		pr_err("Unable to create one to one mapping for %#x @ %#x\n",size, phys);
 		return -EINVAL;
 	}
 
@@ -258,7 +256,7 @@ void iovmm_unmap_oto(struct device *dev, phys_addr_t phys)
 	unmapped_size = iommu_unmap(vmm->domain, region->start, region->size);
 	rockchip_sysmmu_tlb_invalidate(dev);
 	WARN_ON(unmapped_size != region->size);
-	dev_dbg(dev, "IOVMM: Unmapped %#x bytes from %#x.\n",unmapped_size, region->start);
+	pr_err("IOVMM: Unmapped %#x bytes from %#x.\n",unmapped_size, region->start);
 
 	kfree(region);
 }
@@ -295,7 +293,7 @@ int rockchip_init_iovmm(struct device *sysmmu, struct rk_iovmm *vmm)
 err_setup_domain:
 	gen_pool_destroy(vmm->vmm_pool);
 err_setup_genalloc:
-	dev_dbg(sysmmu, "IOVMM: Failed to create IOVMM (%d)\n", ret);
+	pr_err("IOVMM: Failed to create IOVMM (%d)\n", ret);
 
 	return ret;
 }
@@ -317,14 +315,14 @@ struct device *rockchip_get_sysmmu_device_by_compatible(const char *compt)
 	dn = of_find_compatible_node(NULL,NULL,compt);
 	if(!dn)
 	{
-		printk("can't find device node %s \r\n",compt);
+		pr_err("can't find device node %s \r\n",compt);
 		return NULL;
 	}
 	
 	pd = of_find_device_by_node(dn);
 	if(!pd)
 	{	
-		printk("can't find platform device in device node %s \r\n",compt);
+		pr_err("can't find platform device in device node %s \r\n",compt);
 		return  NULL;
 	}
 	ret = &pd->dev;
