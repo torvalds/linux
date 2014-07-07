@@ -270,8 +270,7 @@ ENDPROC(stext)
  */
 ENTRY(el2_setup)
 	mrs	x0, CurrentEL
-	cmp	x0, #PSR_MODE_EL2t
-	ccmp	x0, #PSR_MODE_EL2h, #0x4, ne
+	cmp	x0, #CurrentEL_EL2
 	b.ne	1f
 	mrs	x0, sctlr_el2
 CPU_BE(	orr	x0, x0, #(1 << 25)	)	// Set the EE bit for EL2

@@ -943,15 +943,9 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
 F:	arch/arm/mach-imx/
+F:	arch/arm/mach-mxs/
 F:	arch/arm/boot/dts/imx*
 F:	arch/arm/configs/imx*_defconfig
-
-ARM/FREESCALE MXS ARM ARCHITECTURE
-M:	Shawn Guo <shawn.guo@linaro.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
-F:	arch/arm/mach-mxs/
 
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -1052,8 +1046,32 @@ M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-keystone/
-F:	drivers/clk/keystone/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
+
+ARM/TEXAS INSTRUMENT KEYSTONE CLOCK FRAMEWORK
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/clk/keystone/
+
+ARM/TEXAS INSTRUMENT KEYSTONE ClOCKSOURCE
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/clocksource/timer-keystone.c
+
+ARM/TEXAS INSTRUMENT KEYSTONE RESET DRIVER
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/power/reset/keystone-reset.c
+
+ARM/TEXAS INSTRUMENT AEMIF/EMIF DRIVERS
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/memory/*emif*
 
 ARM/LOGICPD PXA270 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -5512,10 +5530,11 @@ S:	Maintained
 F:	arch/arm/mach-lpc32xx/
 
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
-M:	Nagalakshmi Nandigama <Nagalakshmi.Nandigama@lsi.com>
-M:	Sreekanth Reddy <Sreekanth.Reddy@lsi.com>
-M:	support@lsi.com
-L:	DL-MPTFusionLinux@lsi.com
+M:	Nagalakshmi Nandigama <nagalakshmi.nandigama@avagotech.com>
+M:	Praveen Krishnamoorthy <praveen.krishnamoorthy@avagotech.com>
+M:	Sreekanth Reddy <sreekanth.reddy@avagotech.com>
+M:	Abhijit Mahajan <abhijit.mahajan@avagotech.com>
+L:	MPT-FusionLinux.pdl@avagotech.com
 L:	linux-scsi@vger.kernel.org
 W:	http://www.lsilogic.com/support
 S:	Supported
@@ -9396,12 +9415,6 @@ S:	Maintained
 F:	drivers/usb/host/isp116x*
 F:	include/linux/usb/isp116x.h
 
-USB KAWASAKI LSI DRIVER
-M:	Oliver Neukum <oliver@neukum.org>
-L:	linux-usb@vger.kernel.org
-S:	Maintained
-F:	drivers/usb/serial/kl5kusb105.*
-
 USB MASS STORAGE DRIVER
 M:	Matthew Dharm <mdharm-usb@one-eyed-alien.net>
 L:	linux-usb@vger.kernel.org
@@ -9428,12 +9441,6 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/ohci.txt
 F:	drivers/usb/host/ohci*
-
-USB OPTION-CARD DRIVER
-M:	Matthias Urlichs <smurf@smurf.noris.de>
-L:	linux-usb@vger.kernel.org
-S:	Maintained
-F:	drivers/usb/serial/option.c
 
 USB PEGASUS DRIVER
 M:	Petko Manolov <petkan@nucleusys.com>
@@ -9467,7 +9474,7 @@ S:	Maintained
 F:	drivers/net/usb/rtl8150.c
 
 USB SERIAL SUBSYSTEM
-M:	Johan Hovold <jhovold@gmail.com>
+M:	Johan Hovold <johan@kernel.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/usb-serial.txt
