@@ -256,7 +256,168 @@
 	.clksel1 = RK3288_CLK_L2RAM_DIV(l2_div) | RK3288_ATCLK_DIV(atclk_div) | RK3288_PCLK_DBG_DIV(pclk_dbg_div),\
 	.lpj = (CLK_LOOPS_JIFFY_REF*_mhz) / CLK_LOOPS_RATE_REF,\
 }
+/***************************RK3036 PLL**************************************/
+#define LPJ_24M	(CLK_LOOPS_JIFFY_REF * 24) / CLK_LOOPS_RATE_REF
+/*****cru reg offset*****/
+#define RK3036_CRU_CLKSEL_CON		0x44
+#define RK3036_CRU_CLKGATE_CON		0xd0
+#define RK3036_CRU_GLB_SRST_FST	0x100
+#define RK3036_CRU_GLB_SRST_SND	0x104
+#define RK3036_CRU_SOFTRST_CON		0x110
 
+#define RK3036_CRU_CLKSELS_CON_CNT	(35)
+#define RK3036_CRU_CLKSELS_CON(i)	(RK3036_CRU_CLKSEL_CON + ((i) * 4))
+
+#define RK3036_CRU_CLKGATES_CON_CNT	(10)
+#define RK3036_CRU_CLKGATES_CON(i)	(RK3036_CRU_CLKGATE_CON + ((i) * 4))
+
+#define RK3036_CRU_SOFTRSTS_CON_CNT	(9)
+#define RK3036_CRU_SOFTRSTS_CON(i)	(RK3036_CRU_SOFTRST_CON + ((i) * 4))
+
+/*PLL_CON 0,1,2*/
+#define RK3036_PLL_PWR_ON			(0)
+#define RK3036_PLL_PWR_DN			(1)
+#define RK3036_PLL_BYPASS			(1 << 15)
+#define RK3036_PLL_NO_BYPASS			(0 << 15)
+/*con0*/
+#define RK3036_PLL_BYPASS_SHIFT		(15)
+
+#define RK3036_PLL_POSTDIV1_MASK		(0x7)
+#define RK3036_PLL_POSTDIV1_SHIFT		(12)
+#define RK3036_PLL_FBDIV_MASK			(0xfff)
+#define RK3036_PLL_FBDIV_SHIFT			(0)
+
+/*con1*/
+#define RK3036_PLL_RSTMODE_SHIFT		(15)
+#define RK3036_PLL_RST_SHIFT			(14)
+#define RK3036_PLL_PWR_DN_SHIFT		(13)
+#define RK3036_PLL_DSMPD_SHIFT			(12)
+#define RK3036_PLL_LOCK_SHIFT			(10)
+
+#define RK3036_PLL_POSTDIV2_MASK		(0x7)
+#define RK3036_PLL_POSTDIV2_SHIFT		(6)
+#define RK3036_PLL_REFDIV_MASK			(0x3f)
+#define RK3036_PLL_REFDIV_SHIFT		(0)
+
+/*con2*/
+#define RK3036_PLL_FOUT4PHASE_PWR_DN_SHIFT	(27)
+#define RK3036_PLL_FOUTVCO_PWR_DN_SHIFT	(26)
+#define RK3036_PLL_FOUTPOSTDIV_PWR_DN_SHIFT	(25)
+#define RK3036_PLL_DAC_PWR_DN_SHIFT		(24)
+
+#define RK3036_PLL_FRAC_MASK			(0xffffff)
+#define RK3036_PLL_FRAC_SHIFT			(0)
+
+#define CRU_GET_REG_BIT_VAL(reg, bits_shift)		(((reg) >> (bits_shift)) & (0x1))
+#define CRU_GET_REG_BITS_VAL(reg, bits_shift, msk)	(((reg) >> (bits_shift)) & (msk))
+#define CRU_SET_BIT(val, bits_shift) 			(((val) & (0x1)) << (bits_shift))
+#define CRU_W_MSK(bits_shift, msk)			((msk) << ((bits_shift) + 16))
+
+#define CRU_W_MSK_SETBITS(val, bits_shift, msk) 	(CRU_W_MSK(bits_shift, msk)	\
+							| CRU_SET_BITS(val, bits_shift, msk))
+#define CRU_W_MSK_SETBIT(val, bits_shift) 		(CRU_W_MSK(bits_shift, 0x1)	\
+							| CRU_SET_BIT(val, bits_shift))
+
+#define RK3036_PLL_SET_REFDIV(val)				CRU_W_MSK_SETBITS(val, RK3036_PLL_REFDIV_SHIFT, RK3036_PLL_REFDIV_MASK)
+#define RK3036_PLL_SET_FBDIV(val)				CRU_W_MSK_SETBITS(val, RK3036_PLL_FBDIV_SHIFT, RK3036_PLL_FBDIV_MASK)
+#define RK3036_PLL_SET_POSTDIV1(val)				CRU_W_MSK_SETBITS(val, RK3036_PLL_POSTDIV1_SHIFT, RK3036_PLL_POSTDIV1_MASK)
+#define RK3036_PLL_SET_POSTDIV2(val)				CRU_W_MSK_SETBITS(val, RK3036_PLL_POSTDIV2_SHIFT, RK3036_PLL_POSTDIV2_MASK)
+#define RK3036_PLL_SET_FRAC(val)				CRU_SET_BITS(val, RK3036_PLL_FRAC_SHIFT, RK3036_PLL_FRAC_MASK)
+
+#define RK3036_PLL_GET_REFDIV(reg)				CRU_GET_REG_BITS_VAL(reg, RK3036_PLL_REFDIV_SHIFT, RK3036_PLL_REFDIV_MASK)
+#define RK3036_PLL_GET_FBDIV(reg)				CRU_GET_REG_BITS_VAL(reg, RK3036_PLL_FBDIV_SHIFT, RK3036_PLL_FBDIV_MASK)
+#define RK3036_PLL_GET_POSTDIV1(reg)				CRU_GET_REG_BITS_VAL(reg, RK3036_PLL_POSTDIV1_SHIFT, RK3036_PLL_POSTDIV1_MASK)
+#define RK3036_PLL_GET_POSTDIV2(reg)				CRU_GET_REG_BITS_VAL(reg, RK3036_PLL_POSTDIV2_SHIFT, RK3036_PLL_POSTDIV2_MASK)
+#define RK3036_PLL_GET_FRAC(reg)				CRU_GET_REG_BITS_VAL(reg, RK3036_PLL_FRAC_SHIFT, RK3036_PLL_FRAC_MASK)
+
+/*#define APLL_SET_BYPASS(val)				CRU_SET_BIT(val, PLL_BYPASS_SHIFT)*/
+#define RK3036_PLL_SET_DSMPD(val)				CRU_W_MSK_SETBIT(val, RK3036_PLL_DSMPD_SHIFT)
+#define RK3036_PLL_GET_DSMPD(reg)				CRU_GET_REG_BIT_VAL(reg, RK3036_PLL_DSMPD_SHIFT)
+
+/*******************CLKSEL0 BITS***************************/
+#define RK3036_CLK_SET_DIV_CON_SUB1(val, bits_shift, msk)	CRU_W_MSK_SETBITS((val - 1), bits_shift, msk)
+
+#define RK3036_CPU_CLK_PLL_SEL_SHIFT		(14)
+#define RK3036_CPU_CLK_PLL_SEL_MASK	(0x3)
+#define RK3036_CORE_CLK_PLL_SEL_SHIFT		(7)
+#define RK3036_SEL_APLL			(0)
+#define RK3036_SEL_GPLL			(1)
+#define RK3036_CPU_SEL_PLL(plls)		CRU_W_MSK_SETBITS(plls, RK3036_CPU_CLK_PLL_SEL_SHIFT, RK3036_CPU_CLK_PLL_SEL_MASK)
+#define RK3036_CORE_SEL_PLL(plls)		CRU_W_MSK_SETBIT(plls, RK3036_CORE_CLK_PLL_SEL_SHIFT)
+
+#define RK3036_ACLK_CPU_DIV_MASK		(0x1f)
+#define RK3036_ACLK_CPU_DIV_SHIFT		(8)
+#define RK3036_A9_CORE_DIV_MASK		(0x1f)
+#define RK3036_A9_CORE_DIV_SHIFT		(0)
+
+#define RATIO_11		(1)
+#define RATIO_21		(2)
+#define RATIO_41		(4)
+#define RATIO_81		(8)
+
+#define RK3036_ACLK_CPU_DIV(val)		RK3036_CLK_SET_DIV_CON_SUB1(val, RK3036_ACLK_CPU_DIV_SHIFT, RK3036_ACLK_CPU_DIV_MASK)
+#define RK3036_CLK_CORE_DIV(val)		RK3036_CLK_SET_DIV_CON_SUB1(val, RK3036_A9_CORE_DIV_SHIFT, RK3036_A9_CORE_DIV_MASK)
+/*******************CLKSEL1 BITS***************************/
+#define RK3036_PCLK_CPU_DIV_MASK		(0x7)
+#define RK3036_PCLK_CPU_DIV_SHIFT		(12)
+#define RK3036_HCLK_CPU_DIV_MASK		(0x3)
+#define RK3036_HCLK_CPU_DIV_SHIFT		(8)
+#define RK3036_ACLK_CORE_DIV_MASK		(0x7)
+#define RK3036_ACLK_CORE_DIV_SHIFT		(4)
+#define RK3036_CORE_PERIPH_DIV_MASK		(0xf)
+#define RK3036_CORE_PERIPH_DIV_SHIFT		(0)
+
+#define RK3036_PCLK_CPU_DIV(val)		RK3036_CLK_SET_DIV_CON_SUB1(val, RK3036_PCLK_CPU_DIV_SHIFT, RK3036_PCLK_CPU_DIV_MASK)
+#define RK3036_HCLK_CPU_DIV(val)		RK3036_CLK_SET_DIV_CON_SUB1(val, RK3036_HCLK_CPU_DIV_SHIFT, RK3036_HCLK_CPU_DIV_MASK)
+#define RK3036_ACLK_CORE_DIV(val)		RK3036_CLK_SET_DIV_CON_SUB1(val, RK3036_ACLK_CORE_DIV_SHIFT, RK3036_ACLK_CORE_DIV_MASK)
+#define RK3036_CLK_CORE_PERI_DIV(val)		RK3036_CLK_SET_DIV_CON_SUB1(val, RK3036_CORE_PERIPH_DIV_SHIFT, RK3036_CORE_PERIPH_DIV_MASK)
+
+/*******************clksel10***************************/
+#define RK3036_PERI_PLL_SEL_SHIFT	14
+#define RK3036_PERI_PLL_SEL_MASK	(0x3)
+#define RK3036_PERI_PCLK_DIV_MASK	(0x3)
+#define RK3036_PERI_PCLK_DIV_SHIFT	(12)
+#define RK3036_PERI_HCLK_DIV_MASK	(0x3)
+#define RK3036_PERI_HCLK_DIV_SHIFT	(8)
+#define RK3036_PERI_ACLK_DIV_MASK	(0x1f)
+#define RK3036_PERI_ACLK_DIV_SHIFT	(0)
+
+#define RK3036_SEL_3PLL_APLL		(0)
+#define RK3036_SEL_3PLL_DPLL		(1)
+#define RK3036_SEL_3PLL_GPLL		(2)
+
+
+#define RK3036_PERI_CLK_SEL_PLL(plls)	CRU_W_MSK_SETBITS(plls, RK3036_PERI_PLL_SEL_SHIFT, RK3036_PERI_PLL_SEL_MASK)
+#define RK3036_PERI_SET_ACLK_DIV(val)		RK3036_CLK_SET_DIV_CON_SUB1(val, RK3036_PERI_ACLK_DIV_SHIFT, RK3036_PERI_ACLK_DIV_MASK)
+
+/*******************gate BITS***************************/
+#define RK3036_CLK_GATE_CLKID_CONS(i)	RK3036_CRU_CLKGATES_CON((i) / 16)
+
+#define RK3036_CLK_GATE(i)		(1 << ((i)%16))
+#define RK3036_CLK_UN_GATE(i)		(0)
+
+#define RK3036_CLK_GATE_W_MSK(i)	(1 << (((i) % 16) + 16))
+#define RK3036_CLK_GATE_CLKID(i)	(16 * (i))
+
+#define _RK3036_APLL_SET_CLKS(_mhz, _refdiv, _fbdiv, _postdiv1, _postdiv2, _dsmpd, _frac, \
+		_periph_div, _aclk_core_div, _axi_div, _apb_div, _ahb_div) \
+{ \
+	.rate	= (_mhz) * MHZ,	\
+	.pllcon0 = RK3036_PLL_SET_POSTDIV1(_postdiv1) | RK3036_PLL_SET_FBDIV(_fbdiv),	\
+	.pllcon1 = RK3036_PLL_SET_DSMPD(_dsmpd) | RK3036_PLL_SET_POSTDIV2(_postdiv2) | RK3036_PLL_SET_REFDIV(_refdiv),	\
+	.pllcon2 = RK3036_PLL_SET_FRAC(_frac),	\
+	.clksel1 = RK3036_ACLK_CORE_DIV(RATIO_##_aclk_core_div) | RK3036_CLK_CORE_PERI_DIV(RATIO_##_periph_div),	\
+	.lpj	= (CLK_LOOPS_JIFFY_REF * _mhz) / CLK_LOOPS_RATE_REF,	\
+	.rst_dly = 0,\
+}
+
+#define _RK3036_PLL_SET_CLKS(_mhz, _refdiv, _fbdiv, _postdiv1, _postdiv2, _dsmpd, _frac) \
+{ \
+	.rate	= (_mhz) * KHZ, \
+	.pllcon0 = RK3036_PLL_SET_POSTDIV1(_postdiv1) | RK3036_PLL_SET_FBDIV(_fbdiv),	\
+	.pllcon1 = RK3036_PLL_SET_DSMPD(_dsmpd) | RK3036_PLL_SET_POSTDIV2(_postdiv2) | RK3036_PLL_SET_REFDIV(_refdiv),	\
+	.pllcon2 = RK3036_PLL_SET_FRAC(_frac),	\
+}
 
 struct pll_clk_set {
 	unsigned long	rate;

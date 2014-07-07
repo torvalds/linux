@@ -60,6 +60,13 @@
 				#clock-cells = <0>;
 			};
 
+			jtag_tck: jtag_tck {
+				compatible = "rockchip,rk-fixed-clock";
+				clock-output-names = "jtag_tck";
+				clock-frequency = <0>;
+				#clock-cells = <0>;
+			};
+
 			dummy: dummy {
 				compatible = "rockchip,rk-fixed-clock";
 				clock-output-names = "dummy";
@@ -192,7 +199,7 @@
 					aclk_cpu_pre: aclk_cpu_pre_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <14 2>;
-						clocks = <&clk_apll>, <&clk_gates10 8>,<&clk_gates0 1>;
+						clocks = <&clk_apll>, <&clk_dpll>,<&clk_gpll>;
 						clock-output-names = "aclk_cpu_pre";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
@@ -608,6 +615,7 @@
 						clocks = <&clk_apll>,<&clk_dpll>, <&clk_gpll>, <&usb_480m>;
 						clock-output-names = "clk_uart_pll";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* reg[15:12]: reserved */
@@ -792,6 +800,7 @@
 						clocks = <&clk_apll>, <&clk_dpll>, <&clk_gpll>;
 						clock-output-names = "clk_hevc_core";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					clk_hevc_core_div: clk_hevc_core_div {
@@ -855,6 +864,7 @@
 						clock-output-names = "clk_mac";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* reg[15:14]: reserved */
@@ -938,6 +948,7 @@
 						clocks = <&clk_apll>, <&clk_dpll>, <&clk_gpll>;
 						clock-output-names = "dclk_lcdc1";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* reg[7:2]: reserved */
@@ -950,8 +961,8 @@
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_RK3288_DCLK_LCDC0>;
-						rockchip,flags = <CLK_SET_RATE_PARENT>;
+							<CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 				};
 
@@ -1093,7 +1104,7 @@
 					clk_gpu_pre: clk_gpu_pre_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&clk_apll>, <&clk_dpll>, <&clk_gpll>;
+						clocks = <&dummy>, <&clk_dpll>, <&clk_gpll>;
 						clock-output-names = "clk_gpu_pre";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
@@ -1130,7 +1141,7 @@
 						<&clk_i2s>,		<&dummy>;
 
 					clock-output-names =
-						"clk_core_pre",			"reserved",	 /* do not use bit1 = "cpu_gpll" */
+						"pclk_dbg",			"reserved",	 /* do not use bit1 = "cpu_gpll" */
 						"reserved",		"aclk_cpu_pre",
 
 						"hclk_cpu_pre",		"pclk_cpu_pre",
@@ -1151,7 +1162,7 @@
 					reg = <0x00d4 0x4>;
 					clocks =
 						<&clk_timer0>,		<&clk_timer1>,
-						<&dummy>,		<&dummy>,
+						<&dummy>,		<&jtag_tck>,
 
 						<&aclk_vio_pre>,		<&xin12m>,
 						<&dummy>,		<&dummy>,
@@ -1441,7 +1452,7 @@
 						"reserved",		"reserved",
 
 						"reserved",		"g_hclk_usb_peri",
-						"g_hclk_peri_arbi",		"g_aclk_peri_niu";
+						"g_hclk_pe_arbi",		"g_aclk_peri_niu";
 
 					rockchip,suspend-clkgating-setting=<0x0 0x0>;
 
@@ -1466,7 +1477,7 @@
 
 					clock-output-names =
 						"g_clk_pvtm_core",		"g_clk_pvtm_gpu",
-						"g_clk_pvtm_video",		"reserved",
+						"g_pvtm_video",		"reserved",
 
 						"clk_nandc",		"clk_sfc",
 						"clk_hevc_core",		"reserved",

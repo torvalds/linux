@@ -170,6 +170,50 @@ static const struct apll_clk_set rk3288_apll_table[] = {
 	_RK3288_APLL_SET_CLKS(0,	1,	32,	16,	2,      2,      4,      4,      4),
 };
 
+static const struct apll_clk_set rk3036_apll_table[] = {
+	_RK3036_APLL_SET_CLKS(1608, 1, 67, 1, 1, 1, 0, 81, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1584, 1, 66, 1, 1, 1, 0, 81, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1560, 1, 65, 1, 1, 1, 0, 81, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1536, 1, 64, 1, 1, 1, 0, 81, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1512, 1, 63, 1, 1, 1, 0, 81, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1488, 1, 62, 1, 1, 1, 0, 81, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1464, 1, 61, 1, 1, 1, 0, 81, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1440, 1, 60, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1416, 1, 59, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1392, 1, 58, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1368, 1, 57, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1344, 1, 56, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1320, 1, 55, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1296, 1, 54, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1272, 1, 53, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1248, 1, 52, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1200, 1, 50, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1104, 1, 46, 1, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(1008, 1, 84, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(984, 1, 82, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(960, 1, 80, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(936, 1, 78, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(912, 1, 76, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(888, 1, 74, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(864, 1, 72, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(840, 1, 70, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(816, 1, 68, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(696, 1, 58, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(600, 1, 75, 3, 1, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(504, 1, 63, 3, 1, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(408, 1, 68, 2, 2, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(312, 1, 52, 2, 2, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(216, 1, 72, 4, 2, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(96, 1, 64, 4, 4, 1, 0, 21, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(0, 1, 0, 1, 1, 1, 0, 21, 21, 41, 21, 21),
+};
+
+static const struct pll_clk_set rk3036plus_pll_com_table[] = {
+	_RK3036_PLL_SET_CLKS(297000, 2, 99, 4, 1, 1, 0),
+	_RK3036_PLL_SET_CLKS(768000, 1, 32, 1, 1, 1, 0),
+
+};
+
 static void pll_wait_lock(struct clk_hw *hw)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
@@ -196,6 +240,33 @@ static void pll_wait_lock(struct clk_hw *hw)
 		while(1);
 	}
 }
+
+static void rk3036_pll_wait_lock(struct clk_hw *hw)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	int delay = 24000000;
+
+
+	while (delay > 0) {
+		if (cru_readl(pll->status_offset) & (1 << pll->status_shift))
+			break;
+		delay--;
+	}
+
+	if (delay == 0) {
+		clk_err("pll %s: can't lock! status_shift=%u\n"
+				"pll_con0=%08x\npll_con1=%08x\n"
+				"pll_con2=%08x\n",
+				__clk_get_name(hw->clk),
+				pll->status_shift,
+				cru_readl(pll->reg + RK3188_PLL_CON(0)),
+				cru_readl(pll->reg + RK3188_PLL_CON(1)),
+				cru_readl(pll->reg + RK3188_PLL_CON(2)));
+		while (1);
+
+	}
+}
+
 
 /* get rate that is most close to target */
 static const struct apll_clk_set *apll_get_best_set(unsigned long rate,
@@ -1340,7 +1411,292 @@ static const struct clk_ops clk_pll_ops_3288_apll = {
 	.set_rate = clk_pll_set_rate_3288_apll,
 };
 
+/* CLK_PLL_3036_APLL type ops */
+#define FRAC_MODE	0
+static unsigned long rk3036_pll_clk_recalc(struct clk_hw *hw,
+unsigned long parent_rate)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	unsigned long rate;
+	unsigned int dsmp = 0;
+	u64 rate64 = 0, frac_rate64 = 0;
 
+	dsmp = RK3036_PLL_GET_DSMPD(cru_readl(pll->reg + RK3188_PLL_CON(1)));
+
+	if (_RK3188_PLL_MODE_IS_NORM(pll->mode_offset, pll->mode_shift)) {
+		u32 pll_con0 = cru_readl(pll->reg + RK3188_PLL_CON(0));
+		u32 pll_con1 = cru_readl(pll->reg + RK3188_PLL_CON(1));
+		u32 pll_con2 = cru_readl(pll->reg + RK3188_PLL_CON(2));
+		/*integer mode*/
+		rate64 = (u64)parent_rate * RK3036_PLL_GET_FBDIV(pll_con0);
+		do_div(rate64, RK3036_PLL_GET_REFDIV(pll_con1));
+
+		if (FRAC_MODE == dsmp) {
+			/*fractional mode*/
+			frac_rate64 = (u64)parent_rate
+			* RK3036_PLL_GET_FRAC(pll_con2);
+			do_div(frac_rate64, RK3036_PLL_GET_REFDIV(pll_con1));
+			rate64 += frac_rate64 >> 24;
+			clk_debug("%s frac_rate=%llu(%08x/2^24) by pass mode\n",
+					__func__, frac_rate64 >> 24,
+					RK3036_PLL_GET_FRAC(pll_con2));
+		}
+		do_div(rate64, RK3036_PLL_GET_POSTDIV1(pll_con0));
+		do_div(rate64, RK3036_PLL_GET_POSTDIV2(pll_con1));
+
+		rate = rate64;
+		} else {
+		rate = parent_rate;
+		clk_debug("pll_clk_recalc rate=%lu by pass mode\n", rate);
+	}
+	return rate;
+}
+
+static unsigned long clk_pll_recalc_rate_3036_apll(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	return rk3036_pll_clk_recalc(hw, parent_rate);
+}
+
+static long clk_pll_round_rate_3036_apll(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	struct clk *parent = __clk_get_parent(hw->clk);
+
+	if (parent && (rate == __clk_get_rate(parent))) {
+		clk_debug("pll %s round rate=%lu equal to parent rate\n",
+				__clk_get_name(hw->clk), rate);
+		return rate;
+	}
+
+	return (apll_get_best_set(rate, rk3036_apll_table)->rate);
+}
+
+static  int rk3036_pll_clk_set_rate(struct pll_clk_set *clk_set,
+	struct clk_hw *hw)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+
+	/*enter slowmode*/
+	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
+	pll->mode_offset);
+
+	cru_writel(clk_set->pllcon0,  pll->reg + RK3188_PLL_CON(0));
+	cru_writel(clk_set->pllcon1,  pll->reg + RK3188_PLL_CON(1));
+	cru_writel(clk_set->pllcon2,  pll->reg + RK3188_PLL_CON(2));
+
+	clk_debug("pllcon0%08x\n", cru_readl(pll->reg + RK3188_PLL_CON(0)));
+	clk_debug("pllcon1%08x\n", cru_readl(pll->reg + RK3188_PLL_CON(1)));
+	clk_debug("pllcon2%08x\n", cru_readl(pll->reg + RK3188_PLL_CON(2)));
+	/*wating lock state*/
+	udelay(clk_set->rst_dly);
+	rk3036_pll_wait_lock(hw);
+
+	/*return form slow*/
+	cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift),
+	pll->mode_offset);
+
+	return 0;
+}
+
+#define MIN_FOUTVCO_FREQ	(400 * 1000 * 1000)
+#define MAX_FOUTVCO_FREQ	(1600 * 1000 * 1000)
+static int rk3036_pll_clk_set_postdiv(unsigned long fout_hz,
+u32 *postdiv1, u32 *postdiv2, u32 *foutvco)
+{
+	if (fout_hz < MIN_FOUTVCO_FREQ) {
+		for (*postdiv1 = 1; *postdiv1 <= 7; (*postdiv1)++)
+			for (*postdiv2 = 1; *postdiv2 <= 7; (*postdiv2)++) {
+				if (fout_hz * (*postdiv1) * (*postdiv2)
+					>= MIN_FOUTVCO_FREQ && fout_hz
+					* (*postdiv1) * (*postdiv2)
+					<= MAX_FOUTVCO_FREQ) {
+					*foutvco = fout_hz * (*postdiv1)
+						* (*postdiv2);
+					return 0;
+				}
+			}
+		clk_debug("CANNOT FINE postdiv1/2 to make fout in range from 400M to 1600M, fout = %lu\n",
+				fout_hz);
+	} else {
+		*postdiv1 = 1;
+		*postdiv2 = 1;
+	}
+	return 0;
+}
+
+static int rk3036_pll_clk_get_set(unsigned long fin_hz, unsigned long fout_hz,
+		u32 *refdiv, u32 *fbdiv, u32 *postdiv1,
+		u32 *postdiv2, u32 *frac)
+{
+	/* FIXME set postdiv1/2 always 1*/
+	u32 gcd, foutvco = fout_hz;
+	u64 fin_64, frac_64;
+	u32 f_frac;
+
+	if (!fin_hz || !fout_hz || fout_hz == fin_hz)
+		return -1;
+
+	rk3036_pll_clk_set_postdiv(fout_hz, postdiv1, postdiv2, &foutvco);
+	if (fin_hz / MHZ * MHZ == fin_hz && fout_hz / MHZ * MHZ == fout_hz) {
+		fin_hz /= MHZ;
+		foutvco /= MHZ;
+		gcd = clk_gcd(fin_hz, foutvco);
+		*refdiv = fin_hz / gcd;
+		*fbdiv = foutvco / gcd;
+
+		*frac = 0;
+
+		clk_debug("fin=%lu,fout=%lu,gcd=%u,refdiv=%u,fbdiv=%u,postdiv1=%u,postdiv2=%u,frac=%u\n",
+			fin_hz, fout_hz, gcd, *refdiv, *fbdiv, *postdiv1, *postdiv2, *frac);
+	} else {
+		clk_debug("******frac div running, fin_hz=%lu, fout_hz=%lu,fin_INT_mhz=%lu, fout_INT_mhz=%lu\n",
+			fin_hz, fout_hz, fin_hz / MHZ * MHZ, fout_hz / MHZ * MHZ);
+		clk_debug("******frac get postdiv1=%u, postdiv2=%u,foutvco=%u\n",
+			*postdiv1, *postdiv2, foutvco);
+		gcd = clk_gcd(fin_hz / MHZ, foutvco / MHZ);
+		*refdiv = fin_hz / MHZ / gcd;
+		*fbdiv = foutvco / MHZ / gcd;
+		clk_debug("******frac get refdiv=%u, fbdiv=%u\n", *refdiv, *fbdiv);
+
+		*frac = 0;
+
+		f_frac = (foutvco % MHZ);
+		fin_64 = fin_hz;
+		do_div(fin_64, (u64)*refdiv);
+		frac_64 = (u64)f_frac << 24;
+		do_div(frac_64, fin_64);
+		*frac = (u32) frac_64;
+		clk_debug("frac=%x\n", *frac);
+	}
+	return 0;
+}
+static int rk3036_pll_set_con(struct clk_hw *hw, u32 refdiv, u32 fbdiv, u32 postdiv1, u32 postdiv2, u32 frac)
+{
+	struct pll_clk_set temp_clk_set;
+	temp_clk_set.pllcon0 = RK3036_PLL_SET_FBDIV(fbdiv) | RK3036_PLL_SET_POSTDIV1(postdiv1);
+	temp_clk_set.pllcon1 = RK3036_PLL_SET_REFDIV(refdiv) | RK3036_PLL_SET_POSTDIV2(postdiv2);
+	if (frac != 0)
+		temp_clk_set.pllcon1 |= RK3036_PLL_SET_DSMPD(0);
+	else
+		temp_clk_set.pllcon1 |= RK3036_PLL_SET_DSMPD(1);
+
+	temp_clk_set.pllcon2 = RK3036_PLL_SET_FRAC(frac);
+	temp_clk_set.rst_dly = 0;
+	clk_debug("setting....\n");
+	return rk3036_pll_clk_set_rate(&temp_clk_set, hw);
+}
+
+static int clk_pll_set_rate_3036_apll(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	unsigned long flags;
+	u32 refdiv, fbdiv, postdiv1, postdiv2, frac;
+	struct apll_clk_set *ps = (struct apll_clk_set *)(rk3036_apll_table);
+
+	while (ps->rate) {
+		if (ps->rate == rate) {
+			break;
+		}
+		ps++;
+	}
+
+	clk_debug("%s %lu\n", __func__,  rate);
+	clk_debug("pllcon0 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(0)));
+	clk_debug("pllcon1 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(1)));
+	clk_debug("pllcon2 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(2)));
+	clk_debug("clksel0 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(0)));
+	clk_debug("clksel1 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(1)));
+	if (ps->rate == rate) {
+		printk("apll get a rate\n");
+
+		/*enter slowmode*/
+		local_irq_save(flags);
+		cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
+		loops_per_jiffy = LPJ_24M;
+
+		cru_writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
+		cru_writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
+		cru_writel(ps->pllcon2, pll->reg + RK3188_PLL_CON(2));
+		cru_writel(ps->clksel0, RK3036_CRU_CLKSELS_CON(0));
+		cru_writel(ps->clksel1, RK3036_CRU_CLKSELS_CON(1));
+
+		clk_debug("pllcon0 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(0)));
+		clk_debug("pllcon1 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(1)));
+		clk_debug("pllcon2 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(2)));
+		clk_debug("clksel0 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(0)));
+		clk_debug("clksel1 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(1)));
+
+		/*wating lock state*/
+		udelay(ps->rst_dly);
+		rk3036_pll_wait_lock(hw);
+
+		/*return form slow*/
+		cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift), pll->mode_offset);
+		loops_per_jiffy = ps->lpj;
+		local_irq_restore(flags);
+	} else {
+		/*FIXME*/
+		rk3036_pll_clk_get_set(parent_rate, rate, &refdiv, &fbdiv, &postdiv1, &postdiv2, &frac);
+		rk3036_pll_set_con(hw, refdiv, fbdiv, postdiv1, postdiv2, frac);
+	}
+	clk_debug("setting OK\n");
+
+	return 0;	
+}
+static const struct clk_ops clk_pll_ops_3036_apll = {
+	.recalc_rate = clk_pll_recalc_rate_3036_apll,
+	.round_rate = clk_pll_round_rate_3036_apll,
+	.set_rate = clk_pll_set_rate_3036_apll,
+};
+
+
+/* CLK_PLL_3036_plus_autotype ops */
+
+static long clk_pll_round_rate_3036plus_auto(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	struct clk *parent = __clk_get_parent(hw->clk);
+
+	if (parent && (rate == __clk_get_rate(parent))) {
+		clk_debug("pll %s round rate=%lu equal to parent rate\n",
+				__clk_get_name(hw->clk), rate);
+		return rate;
+	}
+
+	return (pll_com_get_best_set(rate, rk3036plus_pll_com_table)->rate);
+}
+
+static int clk_pll_set_rate_3036plus_auto(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct pll_clk_set *clk_set = (struct pll_clk_set *)(rk3036plus_pll_com_table);
+
+	clk_debug("******%s\n", __func__);
+	while (clk_set->rate) {
+		clk_debug("******%s clk_set->rate=%lu\n", __func__, clk_set->rate);
+		if (clk_set->rate == rate) {
+			break;
+		}
+		clk_set++;
+	}
+	if (clk_set->rate == rate) {
+		rk3036_pll_clk_set_rate(clk_set, hw);
+	} else {
+		clk_debug("gpll is no corresponding rate=%lu\n", rate);
+		return -1;
+	}
+	clk_debug("******%s end\n", __func__);
+
+	return 0;	
+}
+
+static const struct clk_ops clk_pll_ops_3036plus_auto = {
+	.recalc_rate = clk_pll_recalc_rate_3036_apll,
+	.round_rate = clk_pll_round_rate_3036plus_auto,
+	.set_rate = clk_pll_set_rate_3036plus_auto,
+};
 
 const struct clk_ops *rk_get_pll_ops(u32 pll_flags)
 {
@@ -1362,6 +1718,12 @@ const struct clk_ops *rk_get_pll_ops(u32 pll_flags)
 
 		case CLK_PLL_3188PLUS_AUTO:
 			return &clk_pll_ops_3188plus_auto;
+
+		case CLK_PLL_3036_APLL:
+			return &clk_pll_ops_3036_apll;
+
+		case CLK_PLL_3036PLUS_AUTO:
+			return &clk_pll_ops_3036plus_auto;
 
 		default:
 			clk_err("%s: unknown pll_flags!\n", __func__);
