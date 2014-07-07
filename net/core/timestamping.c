@@ -43,31 +43,22 @@ void skb_clone_tx_timestamp(struct sk_buff *skb)
 		return;
 
 	type = classify(skb);
+	if (type == PTP_CLASS_NONE)
+		return;
 
-	switch (type) {
-	case PTP_CLASS_V1_IPV4:
-	case PTP_CLASS_V1_IPV6:
-	case PTP_CLASS_V2_IPV4:
-	case PTP_CLASS_V2_IPV6:
-	case PTP_CLASS_V2_L2:
-	case PTP_CLASS_V2_VLAN:
-		phydev = skb->dev->phydev;
-		if (likely(phydev->drv->txtstamp)) {
-			if (!atomic_inc_not_zero(&sk->sk_refcnt))
-				return;
+	phydev = skb->dev->phydev;
+	if (likely(phydev->drv->txtstamp)) {
+		if (!atomic_inc_not_zero(&sk->sk_refcnt))
+			return;
 
-			clone = skb_clone(skb, GFP_ATOMIC);
-			if (!clone) {
-				sock_put(sk);
-				return;
-			}
-
-			clone->sk = sk;
-			phydev->drv->txtstamp(phydev, clone, type);
+		clone = skb_clone(skb, GFP_ATOMIC);
+		if (!clone) {
+			sock_put(sk);
+			return;
 		}
-		break;
-	default:
-		break;
+
+		clone->sk = sk;
+		phydev->drv->txtstamp(phydev, clone, type);
 	}
 }
 EXPORT_SYMBOL_GPL(skb_clone_tx_timestamp);
@@ -114,20 +105,12 @@ bool skb_defer_rx_timestamp(struct sk_buff *skb)
 
 	__skb_pull(skb, ETH_HLEN);
 
-	switch (type) {
-	case PTP_CLASS_V1_IPV4:
-	case PTP_CLASS_V1_IPV6:
-	case PTP_CLASS_V2_IPV4:
-	case PTP_CLASS_V2_IPV6:
-	case PTP_CLASS_V2_L2:
-	case PTP_CLASS_V2_VLAN:
-		phydev = skb->dev->phydev;
-		if (likely(phydev->drv->rxtstamp))
-			return phydev->drv->rxtstamp(phydev, skb, type);
-		break;
-	default:
-		break;
-	}
+	if (type == PTP_CLASS_NONE)
+		return false;
+
+	phydev = skb->dev->phydev;
+	if (likely(phydev->drv->rxtstamp))
+		return phydev->drv->rxtstamp(phydev, skb, type);
 
 	return false;
 }
