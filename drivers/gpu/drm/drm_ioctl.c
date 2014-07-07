@@ -342,8 +342,6 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		file_priv->stereo_allowed = req->value;
 		break;
 	case DRM_CLIENT_CAP_UNIVERSAL_PLANES:
-		if (!drm_universal_planes)
-			return -EINVAL;
 		if (req->value > 1)
 			return -EINVAL;
 		file_priv->universal_planes = req->value;
