@@ -29,6 +29,7 @@
 #include "common.h"
 #include "mfc.h"
 #include "regs-pmu.h"
+#include "regs-sys.h"
 
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{
