@@ -403,23 +403,24 @@ static inline int iommu_domain_set_attr(struct iommu_domain *domain,
 	return -EINVAL;
 }
 
-struct device *iommu_device_create(struct device *parent, void *drvdata,
-				   const struct attribute_group **groups,
-				   const char *fmt, ...)
+static inline struct device *iommu_device_create(struct device *parent,
+					void *drvdata,
+					const struct attribute_group **groups,
+					const char *fmt, ...)
 {
 	return ERR_PTR(-ENODEV);
 }
 
-void iommu_device_destroy(struct device *dev)
+static inline void iommu_device_destroy(struct device *dev)
 {
 }
 
-int iommu_device_link(struct device *dev, struct device *link)
+static inline int iommu_device_link(struct device *dev, struct device *link)
 {
 	return -EINVAL;
 }
 
-void iommu_device_unlink(struct device *dev, struct device *link)
+static inline void iommu_device_unlink(struct device *dev, struct device *link)
 {
 }
 
