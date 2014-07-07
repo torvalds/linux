@@ -922,9 +922,15 @@
 						>;
 					performance-temp-limit = <
 						/*temp    freq*/
-						110	816000
+						110     816000
 						>;
 					status = "okay";
+					regu-mode-table = <
+						/*freq     mode*/
+						1008000    4
+						0          3
+					>;
+					regu-mode-en = <0>;
 				};
 			};
 		};
@@ -968,6 +974,12 @@
 						400000 1200000
 						>;
 					status = "okay";
+					regu-mode-table = <
+						/*freq     mode*/
+						200000     4
+						0          3
+					>;
+					regu-mode-en = <0>;
 				};
 			};
 		};

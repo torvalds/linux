@@ -138,6 +138,287 @@ static struct notifier_block early_suspend_notifier = {
 		.notifier_call = early_suspend_notifier_call,
 };
 
+#define DVFS_REGULATOR_MODE_STANDBY	1
+#define DVFS_REGULATOR_MODE_IDLE	2
+#define DVFS_REGULATOR_MODE_NORMAL	3
+#define DVFS_REGULATOR_MODE_FAST	4
+
+static const char* dvfs_regu_mode_to_string(unsigned int mode)
+{
+	switch (mode) {
+	case DVFS_REGULATOR_MODE_FAST:
+		return "FAST";
+	case DVFS_REGULATOR_MODE_NORMAL:
+		return "NORMAL";
+	case DVFS_REGULATOR_MODE_IDLE:
+		return "IDLE";
+	case DVFS_REGULATOR_MODE_STANDBY:
+		return "STANDBY";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static int dvfs_regu_mode_convert(unsigned int mode)
+{
+	switch (mode) {
+        case DVFS_REGULATOR_MODE_FAST:
+                return REGULATOR_MODE_FAST;
+        case DVFS_REGULATOR_MODE_NORMAL:
+                return REGULATOR_MODE_NORMAL;
+        case DVFS_REGULATOR_MODE_IDLE:
+                return REGULATOR_MODE_IDLE;
+        case DVFS_REGULATOR_MODE_STANDBY:
+                return REGULATOR_MODE_STANDBY;
+        default:
+                return -EINVAL;
+        }
+}
+
+static int dvfs_regu_mode_deconvert(unsigned int mode)
+{
+	switch (mode) {
+        case REGULATOR_MODE_FAST:
+                return DVFS_REGULATOR_MODE_FAST;
+        case REGULATOR_MODE_NORMAL:
+                return DVFS_REGULATOR_MODE_NORMAL;
+        case REGULATOR_MODE_IDLE:
+                return DVFS_REGULATOR_MODE_IDLE;
+        case REGULATOR_MODE_STANDBY:
+                return DVFS_REGULATOR_MODE_STANDBY;
+        default:
+                return -EINVAL;
+        }
+}
+
+static struct cpufreq_frequency_table *of_get_regu_mode_table(struct device_node *dev_node)
+{
+	struct cpufreq_frequency_table *regu_mode_table = NULL;
+	const struct property *prop;
+	const __be32 *val;
+	int nr, i;
+
+	prop = of_find_property(dev_node, "regu-mode-table", NULL);
+	if (!prop)
+		return NULL;
+	if (!prop->value)
+		return NULL;
+
+	nr = prop->length / sizeof(u32);
+	if (nr % 2) {
+		pr_err("%s: Invalid freq list\n", __func__);
+		return NULL;
+	}
+
+	regu_mode_table = kzalloc(sizeof(struct cpufreq_frequency_table) *
+			     (nr/2+1), GFP_KERNEL);
+	if (!regu_mode_table) {
+		pr_err("%s: could not allocate regu_mode_table!\n", __func__);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	val = prop->value;
+
+	for (i=0; i<nr/2; i++){
+		regu_mode_table[i].frequency = be32_to_cpup(val++) * 1000;
+		regu_mode_table[i].index = be32_to_cpup(val++);
+	}
+
+	if (regu_mode_table[i-1].frequency != 0) {
+		pr_err("%s: Last freq of regu_mode_table is not 0!\n", __func__);
+		kfree(regu_mode_table);
+		return NULL;
+	}
+
+	regu_mode_table[i].index = 0;
+	regu_mode_table[i].frequency = CPUFREQ_TABLE_END;
+
+	return regu_mode_table;
+}
+
+static int dvfs_regu_mode_table_constrain(struct dvfs_node *clk_dvfs_node)
+{
+	int i, ret;
+	int mode, convert_mode, valid_mode;
+
+	if (!clk_dvfs_node)
+		return -EINVAL;
+
+	if (!clk_dvfs_node->regu_mode_table)
+		return -EINVAL;
+
+	if (!clk_dvfs_node->vd)
+		return -EINVAL;
+
+	if (IS_ERR_OR_NULL(clk_dvfs_node->vd->regulator))
+		return -EINVAL;
+
+	for (i = 0; (clk_dvfs_node->regu_mode_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+		mode = clk_dvfs_node->regu_mode_table[i].index;
+		convert_mode = dvfs_regu_mode_convert(mode);
+
+		ret = regulator_is_supported_mode(clk_dvfs_node->vd->regulator,
+						&convert_mode);
+		if (ret) {
+			DVFS_ERR("%s: find mode=%d unsupported\n", __func__,
+				mode);
+			kfree(clk_dvfs_node->regu_mode_table);
+			clk_dvfs_node->regu_mode_table = NULL;
+			return ret;
+		}
+
+		valid_mode = dvfs_regu_mode_deconvert(convert_mode);
+		if (valid_mode != mode) {
+			DVFS_ERR("%s: round mode=%d to valid mode=%d!\n",
+				__func__, mode, valid_mode);
+			clk_dvfs_node->regu_mode_table[i].index = valid_mode;
+		}
+
+	}
+
+	return 0;
+}
+
+static int clk_dvfs_node_get_regu_mode(struct dvfs_node *clk_dvfs_node,
+	unsigned long rate, unsigned int *mode)
+{
+	int i;
+
+
+	if ((!clk_dvfs_node) || (!clk_dvfs_node->regu_mode_table))
+		return -EINVAL;
+
+	for (i = 0; (clk_dvfs_node->regu_mode_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+		if (rate >= clk_dvfs_node->regu_mode_table[i].frequency) {
+			*mode = clk_dvfs_node->regu_mode_table[i].index;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int dvfs_pd_get_newmode_byclk(struct pd_node *pd, struct dvfs_node *clk_dvfs_node)
+{
+	unsigned int mode_max = 0;
+
+
+	if (clk_dvfs_node->regu_mode_en && (clk_dvfs_node->regu_mode >= pd->regu_mode)) {
+		return clk_dvfs_node->regu_mode;
+	}
+
+	list_for_each_entry(clk_dvfs_node, &pd->clk_list, node) {
+		if (clk_dvfs_node->regu_mode_en)
+			mode_max = max(mode_max, (clk_dvfs_node->regu_mode));
+	}
+
+	return mode_max;
+}
+
+static void dvfs_update_clk_pds_mode(struct dvfs_node *clk_dvfs_node)
+{
+	struct pd_node *pd;
+
+	if (!clk_dvfs_node)
+		return;
+
+	pd = clk_dvfs_node->pd;
+	if (!pd)
+		return;
+
+	pd->regu_mode = dvfs_pd_get_newmode_byclk(pd, clk_dvfs_node);
+}
+
+static int dvfs_vd_get_newmode_bypd(struct vd_node *vd)
+{
+	unsigned int mode_max_vd = 0;
+	struct pd_node *pd;
+
+	if (!vd)
+		return -EINVAL;
+
+	list_for_each_entry(pd, &vd->pd_list, node) {
+		mode_max_vd = max(mode_max_vd, pd->regu_mode);
+	}
+
+	return mode_max_vd;
+}
+
+static int dvfs_vd_get_newmode_byclk(struct dvfs_node *clk_dvfs_node)
+{
+	if (!clk_dvfs_node)
+		return -EINVAL;
+
+	dvfs_update_clk_pds_mode(clk_dvfs_node);
+
+	return  dvfs_vd_get_newmode_bypd(clk_dvfs_node->vd);
+}
+
+static int dvfs_regu_set_mode(struct vd_node *vd, unsigned int mode)
+{
+	int convert_mode;
+	int ret = 0;
+
+
+	if (IS_ERR_OR_NULL(vd)) {
+		DVFS_ERR("%s: vd_node error\n", __func__);
+		return -EINVAL;
+	}
+
+	DVFS_DBG("%s: mode=%d(old=%d)\n", __func__, mode, vd->regu_mode);
+
+	convert_mode = dvfs_regu_mode_convert(mode);
+	if (convert_mode < 0) {
+		DVFS_ERR("%s: mode %d convert error\n", __func__, mode);
+		return convert_mode;
+	}
+
+	if (!IS_ERR_OR_NULL(vd->regulator)) {
+		ret = dvfs_regulator_set_mode(vd->regulator, convert_mode);
+		if (ret < 0) {
+			DVFS_ERR("%s: %s set mode %d (was %d) error!\n", __func__,
+				vd->regulator_name, mode, vd->regu_mode);
+			return -EAGAIN;
+		}
+	} else {
+		DVFS_ERR("%s: invalid regulator\n", __func__);
+		return -EINVAL;
+	}
+
+	vd->regu_mode = mode;
+
+	return 0;
+}
+
+static int dvfs_regu_mode_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
+{
+	int ret;
+	int mode;
+
+
+	if (!clk_dvfs_node)
+		return -EINVAL;
+
+	if (!clk_dvfs_node->regu_mode_en)
+		return 0;
+
+	ret = clk_dvfs_node_get_regu_mode(clk_dvfs_node, rate, &mode);
+	if (ret) {
+		DVFS_ERR("%s: clk(%s) rate %luhz get mode fail\n",
+			__func__, clk_dvfs_node->name, rate);
+		return ret;
+	}
+	clk_dvfs_node->regu_mode = mode;
+
+	mode = dvfs_vd_get_newmode_byclk(clk_dvfs_node);
+	if (mode < 0)
+		return mode;
+
+	ret = dvfs_regu_set_mode(clk_dvfs_node->vd, mode);
+
+	return ret;
+}
+
 static void dvfs_volt_up_delay(struct vd_node *vd, int new_volt, int old_volt)
 {
 	int u_time;
@@ -546,6 +827,7 @@ static int dvfs_vd_get_newvolt_byclk(struct dvfs_node *clk_dvfs_node)
 	dvfs_update_clk_pds_volt(clk_dvfs_node);
 	return  dvfs_vd_get_newvolt_bypd(clk_dvfs_node->vd);
 }
+
 #if 0
 static void dvfs_temp_limit_work_func(struct work_struct *work)
 {
@@ -788,6 +1070,9 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 {
 	struct cpufreq_frequency_table clk_fv;
 	int volt_new;
+	unsigned int mode;
+	int ret;
+
 
 	if (!clk_dvfs_node)
 		return -EINVAL;
@@ -861,7 +1146,6 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 		}
 #endif
 		if(clk_dvfs_node->vd->cur_volt != volt_new) {
-			int ret;
 			ret = dvfs_regulator_set_voltage_readback(clk_dvfs_node->vd->regulator, volt_new, volt_new);
 			dvfs_volt_up_delay(clk_dvfs_node->vd,volt_new, clk_dvfs_node->vd->cur_volt);
 			if (ret < 0) {
@@ -879,6 +1163,28 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 		DVFS_DBG("%s: dvfs already enable clk enable = %d!\n",
 			__func__, clk_dvfs_node->enable_count);
 		clk_dvfs_node->enable_count++;
+	}
+
+	if (clk_dvfs_node->regu_mode_en) {
+		ret = dvfs_regu_mode_table_constrain(clk_dvfs_node);
+		if (ret) {
+			DVFS_ERR("%s: clk(%s) regu_mode_table is unvalid, set regu_mode_en=0!\n",
+					__func__, clk_dvfs_node->name);
+			clk_dvfs_node->regu_mode_en = 0;
+			mutex_unlock(&clk_dvfs_node->vd->mutex);
+			return ret;
+		}
+
+		ret = clk_dvfs_node_get_regu_mode(clk_dvfs_node, clk_dvfs_node->set_freq*1000, &mode);
+		if (ret < 0) {
+			DVFS_ERR("%s: clk(%s) rate %dKhz get regu_mode fail\n",
+					__func__, clk_dvfs_node->name, clk_dvfs_node->set_freq);
+			mutex_unlock(&clk_dvfs_node->vd->mutex);
+			return ret;
+		} else
+			clk_dvfs_node->regu_mode = mode;
+
+		dvfs_update_clk_pds_mode(clk_dvfs_node);
 	}
 
 	mutex_unlock(&clk_dvfs_node->vd->mutex);
@@ -992,8 +1298,14 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 	DVFS_DBG("%s:%s new rate=%lu(was=%lu),new volt=%lu,(was=%d)\n",
 		__func__, clk_dvfs_node->name, new_rate, old_rate, volt_new,clk_dvfs_node->vd->cur_volt);
 
+
 	/* if up the rate */
 	if (new_rate > old_rate) {
+		ret = dvfs_regu_mode_target(clk_dvfs_node, new_rate);
+		if (ret)
+			DVFS_ERR("%s: dvfs clk(%s) rate %luhz set mode err\n",
+				__func__, clk_dvfs_node->name, new_rate);
+
 		ret = dvfs_scale_volt_direct(clk_dvfs_node->vd, volt_new);
 		if (ret)
 			goto fail_roll_back;
@@ -1021,6 +1333,11 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 		ret = dvfs_scale_volt_direct(clk_dvfs_node->vd, volt_new);
 		if (ret)
 			goto out;
+
+		ret = dvfs_regu_mode_target(clk_dvfs_node, new_rate);
+		if (ret)
+			DVFS_ERR("%s:dvfs clk(%s) rate %luhz set mode err\n",
+			__func__, clk_dvfs_node->name, new_rate);
 	}
 
 	return 0;
@@ -1341,6 +1658,15 @@ int of_dvfs_init(void)
 				dvfs_node->name = clk_dev_node->name;
 				dvfs_node->pd = pd;
 				dvfs_node->vd = vd;
+
+				val = of_get_property(clk_dev_node, "regu-mode-en", NULL);
+				if (val)
+					dvfs_node->regu_mode_en = be32_to_cpup(val);
+				if (dvfs_node->regu_mode_en)
+					dvfs_node->regu_mode_table = of_get_regu_mode_table(clk_dev_node);
+				else
+					dvfs_node->regu_mode_table = NULL;
+
 				if (temp_limit_enable) {
 					val = of_get_property(clk_dev_node, "temp-channel", NULL);
 					if (val) {
@@ -1414,10 +1740,12 @@ static int dump_dbg_map(char *buf)
 		mutex_lock(&vd->mutex);
 		printk( "|\n|- voltage domain:%s\n", vd->name);
 		printk( "|- current voltage:%d\n", vd->cur_volt);
+		printk( "|- current regu_mode:%s\n", dvfs_regu_mode_to_string(vd->regu_mode));
 
 		list_for_each_entry(pd, &vd->pd_list, node) {
-			printk( "|  |\n|  |- power domain:%s, status = %s, current volt = %d\n",
-					pd->name, (pd->pd_status == 1) ? "ON" : "OFF", pd->cur_volt);
+			printk( "|  |\n|  |- power domain:%s, status = %s, current volt = %d, current regu_mode = %s\n",
+					pd->name, (pd->pd_status == 1) ? "ON" : "OFF", pd->cur_volt,
+					dvfs_regu_mode_to_string(pd->regu_mode));
 
 			list_for_each_entry(clk_dvfs_node, &pd->clk_list, node) {
 				printk( "|  |  |\n|  |  |- clock: %s current: rate %d, volt = %d,"
@@ -1428,12 +1756,23 @@ static int dump_dbg_map(char *buf)
 						clk_dvfs_node->freq_limit_en ? "enable" : "disable",
 						clk_dvfs_node->min_rate, clk_dvfs_node->max_rate,
 						clk_dvfs_node->last_set_rate/1000);
-
 				for (i = 0; (clk_dvfs_node->dvfs_table[i].frequency != CPUFREQ_TABLE_END); i++) {
 					printk( "|  |  |  |- freq = %d, volt = %d\n",
 							clk_dvfs_node->dvfs_table[i].frequency,
 							clk_dvfs_node->dvfs_table[i].index);
 
+				}
+				printk( "|  |  |- clock: %s current: rate %d, regu_mode = %s,"
+						" regu_mode_en = %d\n",
+						clk_dvfs_node->name, clk_dvfs_node->set_freq,
+						dvfs_regu_mode_to_string(clk_dvfs_node->regu_mode),
+						clk_dvfs_node->regu_mode_en);
+				if (clk_dvfs_node->regu_mode_table) {
+					for (i = 0; (clk_dvfs_node->regu_mode_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+						printk( "|  |  |  |- freq = %d, regu_mode = %s\n",
+								clk_dvfs_node->regu_mode_table[i].frequency/1000,
+								dvfs_regu_mode_to_string(clk_dvfs_node->regu_mode_table[i].index));
+					}
 				}
 			}
 		}
