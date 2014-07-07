@@ -439,8 +439,6 @@ __attribute__((constructor)) static void init_preload(void)
 	ll_pthread_rwlock_unlock = dlsym(RTLD_NEXT, "pthread_rwlock_unlock");
 #endif
 
-	printf("%p\n", ll_pthread_mutex_trylock);fflush(stdout);
-
 	lockdep_init();
 
 	__init_state = done;
