@@ -20,11 +20,11 @@
 
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
-#include <mach/clock.h>
-#include <mach/common.h>
 #include <mach/r7s72100.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include "clock.h"
+#include "common.h"
 
 /*
  * This is a really crude hack to provide clkdev support to platform

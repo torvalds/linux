@@ -31,15 +31,15 @@
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
 #include <linux/platform_data/sh_ipmmu.h>
-#include <mach/dma-register.h>
 #include <mach/r8a7740.h>
-#include <mach/pm-rmobile.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include "common.h"
+#include "dma-register.h"
+#include "irqs.h"
+#include "pm-rmobile.h"
 
 static struct map_desc r8a7740_io_desc[] __initdata = {
 	 /*

@@ -16,7 +16,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
 #include <asm/smp_plat.h>
-#include <mach/common.h>
+#include "common.h"
 
 static struct {
 	void __iomem *iomem;

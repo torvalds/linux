@@ -26,11 +26,12 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
-#include <mach/common.h>
-#include <mach/dma-register.h>
-#include <mach/irqs.h>
 #include <mach/r8a7790.h>
 #include <asm/mach/arch.h>
+#include "common.h"
+#include "dma-register.h"
+#include "irqs.h"
+#include "rcar-gen2.h"
 
 /* Audio-DMAC */
 #define AUDIO_DMAC_SLAVE(_id, _addr, t, r)			\

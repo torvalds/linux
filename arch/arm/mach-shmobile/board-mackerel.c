@@ -47,7 +47,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
-#include <linux/sh_intc.h>
+#include <linux/sh_clk.h>
 #include <linux/tca6416_keypad.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/dma-mapping.h>
@@ -58,14 +58,12 @@
 #include <media/soc_camera_platform.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
-
-#include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/sh7372.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
-
+#include "common.h"
+#include "irqs.h"
+#include "pm-rmobile.h"
 #include "sh-gpio.h"
 
 /*
