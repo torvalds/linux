@@ -483,7 +483,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 					struct net_device *net)
 {
 	struct eth_dev		*dev = netdev_priv(net);
-	int			length = skb->len;
+	int			length = 0;
 	int			retval;
 	struct usb_request	*req = NULL;
 	unsigned long		flags;
@@ -500,13 +500,13 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	}
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	if (!in) {
+	if (skb && !in) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
 	/* apply outgoing CDC or RNDIS filters */
-	if (!is_promisc(cdc_filter)) {
+	if (skb && !is_promisc(cdc_filter)) {
 		u8		*dest = skb->data;
 
 		if (is_multicast_ether_addr(dest)) {
@@ -557,11 +557,17 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		if (dev->port_usb)
 			skb = dev->wrap(dev->port_usb, skb);
 		spin_unlock_irqrestore(&dev->lock, flags);
-		if (!skb)
+		if (!skb) {
+			/* Multi frame CDC protocols may store the frame for
+			 * later which is not a dropped frame.
+			 */
+			if (dev->port_usb->supports_multi_frame)
+				goto multiframe;
 			goto drop;
-
-		length = skb->len;
+		}
 	}
+
+	length = skb->len;
 	req->buf = skb->data;
 	req->context = skb;
 	req->complete = tx_complete;
@@ -604,6 +610,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		dev_kfree_skb_any(skb);
 drop:
 		dev->net->stats.tx_dropped++;
+multiframe:
 		spin_lock_irqsave(&dev->req_lock, flags);
 		if (list_empty(&dev->tx_reqs))
 			netif_start_queue(net);

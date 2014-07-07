@@ -18,6 +18,7 @@
 #include <linux/if_ether.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/cdc.h>
+#include <linux/netdevice.h>
 
 #include "gadget_chips.h"
 
@@ -74,6 +75,7 @@ struct gether {
 	bool				is_fixed;
 	u32				fixed_out_len;
 	u32				fixed_in_len;
+	bool				supports_multi_frame;
 	struct sk_buff			*(*wrap)(struct gether *port,
 						struct sk_buff *skb);
 	int				(*unwrap)(struct gether *port,
