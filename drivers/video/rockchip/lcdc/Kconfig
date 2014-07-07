@@ -31,3 +31,9 @@ config LCDC_RK3288
         depends on DRM_ROCKCHIP || FB_ROCKCHIP 
         help
           Driver for rk3288 lcdc.There are two lcd controllers on rk3288
+
+config LCDC_RK3036
+	bool "rk3036 lcdc support"
+	depends on DRM_ROCKCHIP || FB_ROCKCHIP 
+        help
+          Driver for rk3036 lcdc.

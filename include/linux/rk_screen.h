@@ -74,6 +74,7 @@ struct rk_screen {
 	u16 x_mirror;
 	u16 y_mirror;
 	int interlace;
+	int pixelrepeat; //For 480i/576i format, pixel is repeated twice.
 	u16 width;
 	u16 height;
 	u8  ft;

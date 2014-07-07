@@ -2832,7 +2832,8 @@ int rk_fb_dpi_open(bool open)
 {
 	struct rk_lcdc_driver *dev_drv = NULL;
 	dev_drv = rk_get_prmry_lcdc_drv();
-	dev_drv->ops->dpi_open(dev_drv, open);
+	if(dev_drv->ops->dpi_open)
+		dev_drv->ops->dpi_open(dev_drv, open);
 
 	return 0;
 }
@@ -2841,18 +2842,20 @@ int rk_fb_dpi_win_sel(int win_id)
 {
 	struct rk_lcdc_driver *dev_drv = NULL;
 	dev_drv = rk_get_prmry_lcdc_drv();
-	dev_drv->ops->dpi_win_sel(dev_drv, win_id);
+	if(dev_drv->ops->dpi_win_sel)
+		dev_drv->ops->dpi_win_sel(dev_drv, win_id);
 
 	return 0;
 }
 
 int rk_fb_dpi_status(void)
 {
-	int ret;
+	int ret = 0;
 	struct rk_lcdc_driver *dev_drv = NULL;
 	dev_drv = rk_get_prmry_lcdc_drv();
-	ret = dev_drv->ops->dpi_status(dev_drv);
-
+	if(dev_drv->ops->dpi_status)
+		ret = dev_drv->ops->dpi_status(dev_drv);
+	
 	return ret;
 }
 

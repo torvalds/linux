@@ -1,6 +1,7 @@
 /dts-v1/;
-
+#include <dt-bindings/rkfb/rk_fb.h>
 #include "rk3036.dtsi"
+#include "lcd-box.dtsi"
 
 / {
 	compatible = "rockchip,rk3036";

@@ -400,7 +400,17 @@
 		clocks = <&clk_gates1 6>, <&clk_gates7 3>;
 		clock-names = "clk_usbphy1", "hclk_usb1";
 	};
-	  
+	
+	lcdc: lcdc@10118000 {
+		compatible = "rockchip,rk3036-lcdc";
+		reg = <0x10118000 0x4000>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+		clocks = <&clk_gates9 6>, <&dclk_lcdc1>, <&clk_gates9 5>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
+		rockchip,iommu-enabled = <1>;
+	};
+	
 	hdmi: hdmi@20034000 {
 		compatible = "rockchip,rk3036-hdmi";
 		reg = <0x20034000 0x4000>;
@@ -413,7 +423,7 @@
 		clock-names = "pclk_hdmi";	
 		status = "disabled";
 	};
-
+/*
         vpu: vpu_service@10108000 {
 		compatible = "vpu_service";
 		reg = <0x10108000 0x800>;
@@ -434,7 +444,7 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
 		name = "hevc_service";
 		status = "disabled";
-	
+*/	
 	vop_mmu {
 		dbgname = "vop";
 		compatible = "iommu,vop_mmu";
