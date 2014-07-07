@@ -355,20 +355,18 @@ static struct sk_buff *eem_wrap(struct gether *port, struct sk_buff *skb)
 	int		padlen = 0;
 	u16		len = skb->len;
 
-	if (!skb_cloned(skb)) {
-		int headroom = skb_headroom(skb);
-		int tailroom = skb_tailroom(skb);
+	int headroom = skb_headroom(skb);
+	int tailroom = skb_tailroom(skb);
 
-		/* When (len + EEM_HLEN + ETH_FCS_LEN) % in->maxpacket) is 0,
-		 * stick two bytes of zero-length EEM packet on the end.
-		 */
-		if (((len + EEM_HLEN + ETH_FCS_LEN) % in->maxpacket) == 0)
-			padlen += 2;
+	/* When (len + EEM_HLEN + ETH_FCS_LEN) % in->maxpacket) is 0,
+	 * stick two bytes of zero-length EEM packet on the end.
+	 */
+	if (((len + EEM_HLEN + ETH_FCS_LEN) % in->maxpacket) == 0)
+		padlen += 2;
 
-		if ((tailroom >= (ETH_FCS_LEN + padlen)) &&
-				(headroom >= EEM_HLEN))
-			goto done;
-	}
+	if ((tailroom >= (ETH_FCS_LEN + padlen)) &&
+			(headroom >= EEM_HLEN) && !skb_cloned(skb))
+		goto done;
 
 	skb2 = skb_copy_expand(skb, EEM_HLEN, ETH_FCS_LEN + padlen, GFP_ATOMIC);
 	dev_kfree_skb_any(skb);
