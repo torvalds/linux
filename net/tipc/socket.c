@@ -784,8 +784,9 @@ new_mtu:
 			break;
 
 		rc = tipc_wait_for_sndmsg(sock, &timeo);
+		if (rc)
+			kfree_skb_list(buf);
 	} while (!rc);
-
 exit:
 	if (iocb)
 		release_sock(sk);
@@ -898,6 +899,8 @@ next:
 				break;
 		}
 		rc = tipc_wait_for_sndpkt(sock, &timeo);
+		if (rc)
+			kfree_skb_list(buf);
 	} while (!rc);
 exit:
 	if (iocb)
