@@ -24,10 +24,10 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
-#include <mach/common.h>
 #include <mach/r8a7740.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
+#include "common.h"
 
 /*
  * CON1		Camera Module

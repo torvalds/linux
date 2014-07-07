@@ -12,8 +12,8 @@
 
 #include <linux/kernel.h>
 #include <asm/io.h>
-#include <mach/pm-rcar.h>
 #include <mach/r8a7790.h>
+#include "pm-rcar.h"
 
 /* SYSC */
 #define SYSCIER 0x0c

@@ -25,7 +25,7 @@
 #ifdef CONFIG_COMMON_CLK
 #include <linux/clk.h>
 #include <linux/clkdev.h>
-#include <mach/clock.h>
+#include "clock.h"
 
 void __init shmobile_clk_workaround(const struct clk_name *clks,
 				    int nr_clks, bool enable)
@@ -49,8 +49,8 @@ void __init shmobile_clk_workaround(const struct clk_name *clks,
 #else /* CONFIG_COMMON_CLK */
 #include <linux/sh_clk.h>
 #include <linux/export.h>
-#include <mach/clock.h>
-#include <mach/common.h>
+#include "clock.h"
+#include "common.h"
 
 unsigned long shmobile_fixed_ratio_clk_recalc(struct clk *clk)
 {

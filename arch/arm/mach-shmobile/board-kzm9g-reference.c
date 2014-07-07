@@ -26,10 +26,10 @@
 #include <linux/input.h>
 #include <linux/of_platform.h>
 #include <mach/sh73a0.h>
-#include <mach/common.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include "common.h"
 
 static void __init kzm_init(void)
 {

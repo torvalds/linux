@@ -45,8 +45,6 @@
 #include <linux/sh_eth.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/renesas_usbhs.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/r8a7790.h>
 #include <media/soc_camera.h>
 #include <asm/mach-types.h>
@@ -58,6 +56,9 @@
 #include <linux/spi/spi.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
+#include "common.h"
+#include "irqs.h"
+#include "rcar-gen2.h"
 
 /*
  * SSI-AK4643

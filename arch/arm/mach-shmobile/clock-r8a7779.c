@@ -23,8 +23,10 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
-#include <mach/clock.h>
-#include <mach/common.h>
+#include <linux/sh_timer.h>
+#include <mach/r8a7779.h>
+#include "clock.h"
+#include "common.h"
 
 /*
  *		MD1 = 1			MD1 = 0
@@ -51,9 +53,6 @@
 #define MSTPCR1		IOMEM(0xffc80034)
 #define MSTPCR3		IOMEM(0xffc8003c)
 #define MSTPSR1		IOMEM(0xffc80044)
-
-#define MODEMR		0xffcc0020
-
 
 /* ioremap() through clock mapping mandatory to avoid
  * collision with ARM coherent DMA virtual memory range.
@@ -207,13 +206,8 @@ static struct clk_lookup lookups[] = {
 
 void __init r8a7779_clock_init(void)
 {
-	void __iomem *modemr = ioremap_nocache(MODEMR, PAGE_SIZE);
-	u32 mode;
+	u32 mode = r8a7779_read_mode_pins();
 	int k, ret = 0;
-
-	BUG_ON(!modemr);
-	mode = ioread32(modemr);
-	iounmap(modemr);
 
 	if (mode & MD(1)) {
 		plla_clk.rate = 1500000000;
@@ -267,4 +261,14 @@ void __init r8a7779_clock_init(void)
 		shmobile_clk_init();
 	else
 		panic("failed to setup r8a7779 clocks\n");
+}
+
+/* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
+void __init __weak r8a7779_register_twd(void) { }
+
+void __init r8a7779_earlytimer_init(void)
+{
+	r8a7779_clock_init();
+	r8a7779_register_twd();
+	shmobile_earlytimer_init();
 }
