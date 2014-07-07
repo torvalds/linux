@@ -95,7 +95,7 @@ struct async_cmd_info {
  * commands and one for I/O commands).
  */
 struct nvme_queue {
-	struct rcu_head r_head;
+	struct llist_node node;
 	struct device *q_dmadev;
 	struct nvme_dev *dev;
 	char irqname[24];	/* nvme4294967295-65535\0 */
@@ -1192,10 +1192,8 @@ static void nvme_cancel_ios(struct nvme_queue *nvmeq, bool timeout)
 	}
 }
 
-static void nvme_free_queue(struct rcu_head *r)
+static void nvme_free_queue(struct nvme_queue *nvmeq)
 {
-	struct nvme_queue *nvmeq = container_of(r, struct nvme_queue, r_head);
-
 	spin_lock_irq(&nvmeq->q_lock);
 	while (bio_list_peek(&nvmeq->sq_cong)) {
 		struct bio *bio = bio_list_pop(&nvmeq->sq_cong);
@@ -1225,14 +1223,21 @@ static void nvme_free_queue(struct rcu_head *r)
 
 static void nvme_free_queues(struct nvme_dev *dev, int lowest)
 {
+	LLIST_HEAD(q_list);
+	struct nvme_queue *nvmeq, *next;
+	struct llist_node *entry;
 	int i;
 
 	for (i = dev->queue_count - 1; i >= lowest; i--) {
-		struct nvme_queue *nvmeq = raw_nvmeq(dev, i);
+		nvmeq = raw_nvmeq(dev, i);
 		rcu_assign_pointer(dev->queues[i], NULL);
-		call_rcu(&nvmeq->r_head, nvme_free_queue);
+		llist_add(&nvmeq->node, &q_list);
 		dev->queue_count--;
 	}
+	synchronize_rcu();
+	entry = llist_del_all(&q_list);
+	llist_for_each_entry_safe(nvmeq, next, entry, node)
+		nvme_free_queue(nvmeq);
 }
 
 /**
@@ -2929,7 +2934,6 @@ static void nvme_remove(struct pci_dev *pdev)
 	nvme_dev_remove(dev);
 	nvme_dev_shutdown(dev);
 	nvme_free_queues(dev, 0);
-	rcu_barrier();
 	nvme_release_instance(dev);
 	nvme_release_prp_pools(dev);
 	kref_put(&dev->kref, nvme_free_dev);
