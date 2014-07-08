@@ -26,114 +26,6 @@ static void __internal_irq_mask_64(unsigned int irq) __maybe_unused;
 static void __internal_irq_unmask_32(unsigned int irq) __maybe_unused;
 static void __internal_irq_unmask_64(unsigned int irq) __maybe_unused;
 
-#ifndef BCMCPU_RUNTIME_DETECT
-#ifdef CONFIG_BCM63XX_CPU_3368
-#define irq_stat_reg		PERF_IRQSTAT_3368_REG
-#define irq_mask_reg		PERF_IRQMASK_3368_REG
-#define irq_bits		32
-#define is_ext_irq_cascaded	0
-#define ext_irq_start		0
-#define ext_irq_end		0
-#define ext_irq_count		4
-#define ext_irq_cfg_reg1	PERF_EXTIRQ_CFG_REG_3368
-#define ext_irq_cfg_reg2	0
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6328
-#define irq_stat_reg		PERF_IRQSTAT_6328_REG
-#define irq_mask_reg		PERF_IRQMASK_6328_REG
-#define irq_bits		64
-#define is_ext_irq_cascaded	1
-#define ext_irq_start		(BCM_6328_EXT_IRQ0 - IRQ_INTERNAL_BASE)
-#define ext_irq_end		(BCM_6328_EXT_IRQ3 - IRQ_INTERNAL_BASE)
-#define ext_irq_count		4
-#define ext_irq_cfg_reg1	PERF_EXTIRQ_CFG_REG_6328
-#define ext_irq_cfg_reg2	0
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6338
-#define irq_stat_reg		PERF_IRQSTAT_6338_REG
-#define irq_mask_reg		PERF_IRQMASK_6338_REG
-#define irq_bits		32
-#define is_ext_irq_cascaded	0
-#define ext_irq_start		0
-#define ext_irq_end		0
-#define ext_irq_count		4
-#define ext_irq_cfg_reg1	PERF_EXTIRQ_CFG_REG_6338
-#define ext_irq_cfg_reg2	0
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6345
-#define irq_stat_reg		PERF_IRQSTAT_6345_REG
-#define irq_mask_reg		PERF_IRQMASK_6345_REG
-#define irq_bits		32
-#define is_ext_irq_cascaded	0
-#define ext_irq_start		0
-#define ext_irq_end		0
-#define ext_irq_count		4
-#define ext_irq_cfg_reg1	PERF_EXTIRQ_CFG_REG_6345
-#define ext_irq_cfg_reg2	0
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6348
-#define irq_stat_reg		PERF_IRQSTAT_6348_REG
-#define irq_mask_reg		PERF_IRQMASK_6348_REG
-#define irq_bits		32
-#define is_ext_irq_cascaded	0
-#define ext_irq_start		0
-#define ext_irq_end		0
-#define ext_irq_count		4
-#define ext_irq_cfg_reg1	PERF_EXTIRQ_CFG_REG_6348
-#define ext_irq_cfg_reg2	0
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6358
-#define irq_stat_reg		PERF_IRQSTAT_6358_REG
-#define irq_mask_reg		PERF_IRQMASK_6358_REG
-#define irq_bits		32
-#define is_ext_irq_cascaded	1
-#define ext_irq_start		(BCM_6358_EXT_IRQ0 - IRQ_INTERNAL_BASE)
-#define ext_irq_end		(BCM_6358_EXT_IRQ3 - IRQ_INTERNAL_BASE)
-#define ext_irq_count		4
-#define ext_irq_cfg_reg1	PERF_EXTIRQ_CFG_REG_6358
-#define ext_irq_cfg_reg2	0
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6362
-#define irq_stat_reg		PERF_IRQSTAT_6362_REG
-#define irq_mask_reg		PERF_IRQMASK_6362_REG
-#define irq_bits		64
-#define is_ext_irq_cascaded	1
-#define ext_irq_start		(BCM_6362_EXT_IRQ0 - IRQ_INTERNAL_BASE)
-#define ext_irq_end		(BCM_6362_EXT_IRQ3 - IRQ_INTERNAL_BASE)
-#define ext_irq_count		4
-#define ext_irq_cfg_reg1	PERF_EXTIRQ_CFG_REG_6362
-#define ext_irq_cfg_reg2	0
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6368
-#define irq_stat_reg		PERF_IRQSTAT_6368_REG
-#define irq_mask_reg		PERF_IRQMASK_6368_REG
-#define irq_bits		64
-#define is_ext_irq_cascaded	1
-#define ext_irq_start		(BCM_6368_EXT_IRQ0 - IRQ_INTERNAL_BASE)
-#define ext_irq_end		(BCM_6368_EXT_IRQ5 - IRQ_INTERNAL_BASE)
-#define ext_irq_count		6
-#define ext_irq_cfg_reg1	PERF_EXTIRQ_CFG_REG_6368
-#define ext_irq_cfg_reg2	PERF_EXTIRQ_CFG_REG2_6368
-#endif
-
-#if irq_bits == 32
-#define dispatch_internal			__dispatch_internal
-#define internal_irq_mask			__internal_irq_mask_32
-#define internal_irq_unmask			__internal_irq_unmask_32
-#else
-#define dispatch_internal			__dispatch_internal_64
-#define internal_irq_mask			__internal_irq_mask_64
-#define internal_irq_unmask			__internal_irq_unmask_64
-#endif
-
-#define irq_stat_addr	(bcm63xx_regset_address(RSET_PERF) + irq_stat_reg)
-#define irq_mask_addr	(bcm63xx_regset_address(RSET_PERF) + irq_mask_reg)
-
-static inline void bcm63xx_init_irq(void)
-{
-}
-#else /* ! BCMCPU_RUNTIME_DETECT */
-
 static u32 irq_stat_addr, irq_mask_addr;
 static void (*dispatch_internal)(void);
 static int is_ext_irq_cascaded;
@@ -234,7 +126,6 @@ static void bcm63xx_init_irq(void)
 		internal_irq_unmask = __internal_irq_unmask_64;
 	}
 }
-#endif /* ! BCMCPU_RUNTIME_DETECT */
 
 static inline u32 get_ext_irq_perf_reg(int irq)
 {
