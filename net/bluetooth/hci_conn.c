@@ -671,12 +671,12 @@ static void hci_req_directed_advertising(struct hci_request *req,
 	enable = 0x00;
 	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
 
-	/* Clear the HCI_ADVERTISING bit temporarily so that the
+	/* Clear the HCI_LE_ADV bit temporarily so that the
 	 * hci_update_random_address knows that it's safe to go ahead
 	 * and write a new random address. The flag will be set back on
 	 * as soon as the SET_ADV_ENABLE HCI command completes.
 	 */
-	clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+	clear_bit(HCI_LE_ADV, &hdev->dev_flags);
 
 	/* Set require_privacy to false so that the remote device has a
 	 * chance of identifying us.

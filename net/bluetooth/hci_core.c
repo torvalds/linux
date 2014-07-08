@@ -3746,7 +3746,7 @@ static void set_random_addr(struct hci_request *req, bdaddr_t *rpa)
 	 * In this kind of scenario skip the update and let the random
 	 * address be updated at the next cycle.
 	 */
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) ||
+	if (test_bit(HCI_LE_ADV, &hdev->dev_flags) ||
 	    hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT)) {
 		BT_DBG("Deferring random address update");
 		return;
