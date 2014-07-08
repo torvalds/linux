@@ -5268,14 +5268,16 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	b43_supported_bands(dev, &have_2ghz_phy, &have_5ghz_phy);
 
 	/* We don't support 5 GHz on some PHYs yet */
-	switch (dev->phy.type) {
-	case B43_PHYTYPE_A:
-	case B43_PHYTYPE_G:
-	case B43_PHYTYPE_N:
-	case B43_PHYTYPE_LP:
-	case B43_PHYTYPE_HT:
-		b43warn(wl, "5 GHz band is unsupported on this PHY\n");
-		have_5ghz_phy = false;
+	if (have_5ghz_phy) {
+		switch (dev->phy.type) {
+		case B43_PHYTYPE_A:
+		case B43_PHYTYPE_G:
+		case B43_PHYTYPE_N:
+		case B43_PHYTYPE_LP:
+		case B43_PHYTYPE_HT:
+			b43warn(wl, "5 GHz band is unsupported on this PHY\n");
+			have_5ghz_phy = false;
+		}
 	}
 
 	if (!have_2ghz_phy && !have_5ghz_phy) {
