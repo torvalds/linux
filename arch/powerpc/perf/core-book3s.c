@@ -1342,6 +1342,9 @@ static int can_go_on_limited_pmc(struct perf_event *event, u64 ev,
 	if (ppmu->limited_pmc_event(ev))
 		return 1;
 
+	if (ppmu->flags & PPMU_ARCH_207S)
+		mtspr(SPRN_MMCR2, 0);
+
 	/*
 	 * The requested event_id isn't on a limited PMC already;
 	 * see if any alternative code goes on a limited PMC.
