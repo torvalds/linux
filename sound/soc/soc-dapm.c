@@ -3214,27 +3214,15 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (source->driver->ops && source->driver->ops->hw_params) {
-			substream.stream = SNDRV_PCM_STREAM_CAPTURE;
-			ret = source->driver->ops->hw_params(&substream,
-							     params, source);
-			if (ret != 0) {
-				dev_err(source->dev,
-					"ASoC: hw_params() failed: %d\n", ret);
-				goto out;
-			}
-		}
+		substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+		ret = soc_dai_hw_params(&substream, params, source);
+		if (ret < 0)
+			goto out;
 
-		if (sink->driver->ops && sink->driver->ops->hw_params) {
-			substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
-			ret = sink->driver->ops->hw_params(&substream, params,
-							   sink);
-			if (ret != 0) {
-				dev_err(sink->dev,
-					"ASoC: hw_params() failed: %d\n", ret);
-				goto out;
-			}
-		}
+		substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+		ret = soc_dai_hw_params(&substream, params, sink);
+		if (ret < 0)
+			goto out;
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:

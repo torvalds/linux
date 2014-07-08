@@ -789,6 +789,24 @@ static void soc_pcm_codec_params_fixup(struct snd_pcm_hw_params *params,
 	interval->max = channels;
 }
 
+int soc_dai_hw_params(struct snd_pcm_substream *substream,
+		      struct snd_pcm_hw_params *params,
+		      struct snd_soc_dai *dai)
+{
+	int ret;
+
+	if (dai->driver->ops && dai->driver->ops->hw_params) {
+		ret = dai->driver->ops->hw_params(substream, params, dai);
+		if (ret < 0) {
+			dev_err(dai->dev, "ASoC: can't set %s hw params: %d\n",
+				dai->name, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * Called by ALSA when the hardware params are set by application. This
  * function can also be called multiple times and can allocate buffers
@@ -832,17 +850,9 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 			soc_pcm_codec_params_fixup(&codec_params,
 						   codec_dai->rx_mask);
 
-		if (codec_dai->driver->ops &&
-		    codec_dai->driver->ops->hw_params) {
-			ret = codec_dai->driver->ops->hw_params(substream,
-						&codec_params, codec_dai);
-			if (ret < 0) {
-				dev_err(codec_dai->dev,
-					"ASoC: can't set %s hw params: %d\n",
-					codec_dai->name, ret);
-				goto codec_err;
-			}
-		}
+		ret = soc_dai_hw_params(substream, &codec_params, codec_dai);
+		if(ret < 0)
+			goto codec_err;
 
 		codec_dai->rate = params_rate(&codec_params);
 		codec_dai->channels = params_channels(&codec_params);
@@ -850,14 +860,9 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 						params_format(&codec_params));
 	}
 
-	if (cpu_dai->driver->ops && cpu_dai->driver->ops->hw_params) {
-		ret = cpu_dai->driver->ops->hw_params(substream, params, cpu_dai);
-		if (ret < 0) {
-			dev_err(cpu_dai->dev, "ASoC: %s hw params failed: %d\n",
-				cpu_dai->name, ret);
-			goto interface_err;
-		}
-	}
+	ret = soc_dai_hw_params(substream, params, cpu_dai);
+	if (ret < 0)
+		goto interface_err;
 
 	if (platform->driver->ops && platform->driver->ops->hw_params) {
 		ret = platform->driver->ops->hw_params(substream, params);
