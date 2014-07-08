@@ -474,7 +474,8 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 	tegra_dsi_writel(dsi, value, DSI_HOST_CONTROL);
 
 	value = tegra_dsi_readl(dsi, DSI_CONTROL);
-	value |= DSI_CONTROL_HS_CLK_CTRL;
+	if (dsi->flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+		value |= DSI_CONTROL_HS_CLK_CTRL;
 	value &= ~DSI_CONTROL_TX_TRIG(3);
 	value &= ~DSI_CONTROL_DCS_ENABLE;
 	value |= DSI_CONTROL_VIDEO_ENABLE;
