@@ -501,6 +501,36 @@
                                         //rockchip,tristate = <VALUE_TRI_DEFAULT>;
                                 };
                 };
+		gpio0_pwm{
+
+                  	pwm0_pin:pwm0 {
+                                rockchip,pins = <PWM0>;
+                                rockchip,pull = <VALUE_PULL_DISABLE>;
+                                rockchip,drive = <VALUE_DRV_DEFAULT>;
+                                //rockchip,tristate = <VALUE_TRI_DEFAULT>;
+                        };
+
+                        pwm1_pin:pwm1 {
+                                rockchip,pins = <PWM1>;
+                                rockchip,pull = <VALUE_PULL_DISABLE>;
+                                rockchip,drive = <VALUE_DRV_DEFAULT>;
+                                //rockchip,tristate = <VALUE_TRI_DEFAULT>;
+                        };
+
+                        pwm2_pin:pwm2 {
+                                rockchip,pins = <PWM2>;
+                                rockchip,pull = <VALUE_PULL_DISABLE>;
+                                rockchip,drive = <VALUE_DRV_DEFAULT>;
+                                //rockchip,tristate = <VALUE_TRI_DEFAULT>;
+                        };
+                  	
+			pwm3_pin:pwm3 {
+                                rockchip,pins = <PWM3(IR)>;
+                                rockchip,pull = <VALUE_PULL_DISABLE>;
+                                rockchip,drive = <VALUE_DRV_DEFAULT>;
+                                //rockchip,tristate = <VALUE_TRI_DEFAULT>;
+                        };
+		};
 
 		vol_domain {
 			ap0_vcc:ap0-vcc {
