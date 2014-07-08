@@ -1150,7 +1150,7 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 	enum iwl_bt_coex_lut_type lut_type;
 
 	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
-		return iwl_mvm_coex_agg_time_limit_old(mvm, sta);
+		return iwl_mvm_bt_coex_is_mimo_allowed_old(mvm, sta);
 
 	if (IWL_COEX_IS_TTC_ON(mvm->last_bt_notif.ttc_rrc_status, phy_ctxt->id))
 		return true;
