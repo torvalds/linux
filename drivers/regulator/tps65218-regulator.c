@@ -49,7 +49,7 @@ enum tps65218_regulators { DCDC1, DCDC2, DCDC3, DCDC4, DCDC5, DCDC6, LDO1 };
 	}							\
 
 #define TPS65218_INFO(_id, _nm, _min, _max)	\
-	{						\
+	[_id] = {					\
 		.id		= _id,			\
 		.name		= _nm,			\
 		.min_uV		= _min,			\
@@ -72,13 +72,13 @@ static const struct regulator_linear_range dcdc4_ranges[] = {
 };
 
 static struct tps_info tps65218_pmic_regs[] = {
-	TPS65218_INFO(0, "DCDC1", 850000, 167500),
-	TPS65218_INFO(1, "DCDC2", 850000, 1675000),
-	TPS65218_INFO(2, "DCDC3", 900000, 3400000),
-	TPS65218_INFO(3, "DCDC4", 1175000, 3400000),
-	TPS65218_INFO(4, "DCDC5", 1000000, 1000000),
-	TPS65218_INFO(5, "DCDC6", 1800000, 1800000),
-	TPS65218_INFO(6, "LDO1", 900000, 3400000),
+	TPS65218_INFO(DCDC1, "DCDC1", 850000, 167500),
+	TPS65218_INFO(DCDC2, "DCDC2", 850000, 1675000),
+	TPS65218_INFO(DCDC3, "DCDC3", 900000, 3400000),
+	TPS65218_INFO(DCDC4, "DCDC4", 1175000, 3400000),
+	TPS65218_INFO(DCDC5, "DCDC5", 1000000, 1000000),
+	TPS65218_INFO(DCDC6, "DCDC6", 1800000, 1800000),
+	TPS65218_INFO(LDO1, "LDO1", 900000, 3400000),
 };
 
 #define TPS65218_OF_MATCH(comp, label) \
