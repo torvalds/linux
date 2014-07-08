@@ -49,6 +49,8 @@ config SOC_AT91SAM9
 	select GENERIC_CLOCKEVENTS
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
+	select MEMORY if USE_OF
+	select ATMEL_SDRAMC if USE_OF
 
 config SOC_SAMA5
 	bool
@@ -58,6 +60,8 @@ config SOC_SAMA5
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	select USE_OF
+	select MEMORY
+	select ATMEL_SDRAMC
 
 menu "Atmel AT91 System-on-Chip"
 
