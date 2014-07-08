@@ -1288,6 +1288,8 @@ destroy_client(struct nfs4_client *clp)
 	while (!list_empty(&clp->cl_delegations)) {
 		dp = list_entry(clp->cl_delegations.next, struct nfs4_delegation, dl_perclnt);
 		list_del_init(&dp->dl_perclnt);
+		/* Ensure that deleg break won't try to requeue it */
+		++dp->dl_time;
 		list_move(&dp->dl_recall_lru, &reaplist);
 	}
 	spin_unlock(&state_lock);
@@ -2935,10 +2937,14 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 	 * it's safe to take a reference: */
 	atomic_inc(&dp->dl_count);
 
-	list_add_tail(&dp->dl_recall_lru, &nn->del_recall_lru);
-
-	/* Only place dl_time is set; protected by i_lock: */
-	dp->dl_time = get_seconds();
+	/*
+	 * If the dl_time != 0, then we know that it has already been
+	 * queued for a lease break. Don't queue it again.
+	 */
+	if (dp->dl_time == 0) {
+		list_add_tail(&dp->dl_recall_lru, &nn->del_recall_lru);
+		dp->dl_time = get_seconds();
+	}
 
 	block_delegations(&dp->dl_fh);
 
@@ -5083,8 +5089,23 @@ static u64 nfsd_find_all_delegations(struct nfs4_client *clp, u64 max,
 
 	lockdep_assert_held(&state_lock);
 	list_for_each_entry_safe(dp, next, &clp->cl_delegations, dl_perclnt) {
-		if (victims)
+		if (victims) {
+			/*
+			 * It's not safe to mess with delegations that have a
+			 * non-zero dl_time. They might have already been broken
+			 * and could be processed by the laundromat outside of
+			 * the state_lock. Just leave them be.
+			 */
+			if (dp->dl_time != 0)
+				continue;
+
+			/*
+			 * Increment dl_time to ensure that delegation breaks
+			 * don't monkey with it now that we are.
+			 */
+			++dp->dl_time;
 			list_move(&dp->dl_recall_lru, victims);
+		}
 		if (++count == max)
 			break;
 	}
@@ -5109,14 +5130,19 @@ u64 nfsd_forget_client_delegations(struct nfs4_client *clp, u64 max)
 
 u64 nfsd_recall_client_delegations(struct nfs4_client *clp, u64 max)
 {
-	struct nfs4_delegation *dp, *next;
+	struct nfs4_delegation *dp;
 	LIST_HEAD(victims);
 	u64 count;
 
 	spin_lock(&state_lock);
 	count = nfsd_find_all_delegations(clp, max, &victims);
-	list_for_each_entry_safe(dp, next, &victims, dl_recall_lru)
+	while (!list_empty(&victims)) {
+		dp = list_first_entry(&victims, struct nfs4_delegation,
+					dl_recall_lru);
+		list_del_init(&dp->dl_recall_lru);
+		dp->dl_time = 0;
 		nfsd_break_one_deleg(dp);
+	}
 	spin_unlock(&state_lock);
 
 	return count;
