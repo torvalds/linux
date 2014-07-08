@@ -112,6 +112,7 @@ DUMP_OBJS = \
 	tbxfroot.o\
 	utbuffer.o\
 	utexcep.o\
+	utglobal.o\
 	utmath.o\
 	utstring.o\
 	utxferror.o\
