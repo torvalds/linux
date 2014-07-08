@@ -272,6 +272,10 @@ struct snd_soc_dai {
 	struct snd_soc_codec *codec;
 	struct snd_soc_component *component;
 
+	/* CODEC TDM slot masks and params (for fixup) */
+	unsigned int tx_mask;
+	unsigned int rx_mask;
+
 	struct snd_soc_card *card;
 
 	struct list_head list;
