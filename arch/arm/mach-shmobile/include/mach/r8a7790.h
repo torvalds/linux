@@ -1,8 +1,6 @@
 #ifndef __ASM_R8A7790_H__
 #define __ASM_R8A7790_H__
 
-#include <mach/rcar-gen2.h>
-
 /* DMA slave IDs */
 enum {
 	RCAR_DMA_SLAVE_INVALID,

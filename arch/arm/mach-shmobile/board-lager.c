@@ -45,8 +45,6 @@
 #include <linux/sh_eth.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/renesas_usbhs.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/r8a7790.h>
 #include <media/soc_camera.h>
 #include <asm/mach-types.h>
@@ -58,6 +56,9 @@
 #include <linux/spi/spi.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
+#include "common.h"
+#include "irqs.h"
+#include "rcar-gen2.h"
 
 /*
  * SSI-AK4643
@@ -890,5 +891,6 @@ DT_MACHINE_START(LAGER_DT, "lager")
 	.init_time	= rcar_gen2_timer_init,
 	.init_machine	= lager_init,
 	.init_late	= shmobile_init_late,
+	.reserve	= rcar_gen2_reserve,
 	.dt_compat	= lager_boards_compat_dt,
 MACHINE_END

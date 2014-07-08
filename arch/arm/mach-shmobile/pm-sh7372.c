@@ -25,9 +25,9 @@
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
-#include <mach/common.h>
 #include <mach/sh7372.h>
-#include <mach/pm-rmobile.h>
+#include "common.h"
+#include "pm-rmobile.h"
 
 /* DBG */
 #define DBGREG1 IOMEM(0xe6100020)

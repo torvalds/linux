@@ -25,11 +25,11 @@
 #include <linux/sh_eth.h>
 #include <linux/spi/rspi.h>
 #include <linux/spi/spi.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/r7s72100.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include "common.h"
+#include "irqs.h"
 
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
