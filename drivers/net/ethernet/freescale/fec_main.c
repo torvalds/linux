@@ -1020,31 +1020,25 @@ fec_timeout(struct net_device *ndev)
 
 	ndev->stats.tx_errors++;
 
-	fep->delay_work.timeout = true;
-	schedule_delayed_work(&(fep->delay_work.delay_work), 0);
+	schedule_work(&fep->tx_timeout_work);
 }
 
-static void fec_enet_work(struct work_struct *work)
+static void fec_enet_timeout_work(struct work_struct *work)
 {
 	struct fec_enet_private *fep =
-		container_of(work,
-			     struct fec_enet_private,
-			     delay_work.delay_work.work);
+		container_of(work, struct fec_enet_private, tx_timeout_work);
 	struct net_device *ndev = fep->netdev;
 
-	if (fep->delay_work.timeout) {
-		fep->delay_work.timeout = false;
-		rtnl_lock();
-		if (netif_device_present(ndev) || netif_running(ndev)) {
-			napi_disable(&fep->napi);
-			netif_tx_lock_bh(ndev);
-			fec_restart(ndev);
-			netif_wake_queue(ndev);
-			netif_tx_unlock_bh(ndev);
-			napi_enable(&fep->napi);
-		}
-		rtnl_unlock();
+	rtnl_lock();
+	if (netif_device_present(ndev) || netif_running(ndev)) {
+		napi_disable(&fep->napi);
+		netif_tx_lock_bh(ndev);
+		fec_restart(ndev);
+		netif_wake_queue(ndev);
+		netif_tx_unlock_bh(ndev);
+		napi_enable(&fep->napi);
 	}
+	rtnl_unlock();
 }
 
 static void
@@ -2642,7 +2636,7 @@ fec_probe(struct platform_device *pdev)
 	if (fep->bufdesc_ex && fep->ptp_clock)
 		netdev_info(ndev, "registered PHC device %d\n", fep->dev_id);
 
-	INIT_DELAYED_WORK(&(fep->delay_work.delay_work), fec_enet_work);
+	INIT_WORK(&fep->tx_timeout_work, fec_enet_timeout_work);
 	return 0;
 
 failed_register:
@@ -2667,7 +2661,7 @@ fec_drv_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	cancel_delayed_work_sync(&(fep->delay_work.delay_work));
+	cancel_work_sync(&fep->tx_timeout_work);
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
 	del_timer_sync(&fep->time_keep);
