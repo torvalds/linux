@@ -55,7 +55,7 @@ static struct cpuidle_driver armada_370_xp_idle_driver = {
 		.power_usage		= 50,
 		.target_residency	= 100,
 		.flags			= CPUIDLE_FLAG_TIME_VALID,
-		.name			= "MV CPU IDLE",
+		.name			= "Idle",
 		.desc			= "CPU power down",
 	},
 	.states[2]		= {
@@ -65,7 +65,7 @@ static struct cpuidle_driver armada_370_xp_idle_driver = {
 		.target_residency	= 1000,
 		.flags			= CPUIDLE_FLAG_TIME_VALID |
 						ARMADA_370_XP_FLAG_DEEP_IDLE,
-		.name			= "MV CPU DEEP IDLE",
+		.name			= "Deep idle",
 		.desc			= "CPU and L2 Fabric power down",
 	},
 	.state_count = ARMADA_370_XP_MAX_STATES,

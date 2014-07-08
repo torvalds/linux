@@ -49,7 +49,7 @@ hub_mmio_list_next:
 #ifdef INCLUDE_CODE
 // reports an exception to the host
 //
-// In: $r15 error code (see nvc0.fuc)
+// In: $r15 error code (see os.h)
 //
 error:
 	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(5), 0, $r15)
@@ -343,13 +343,25 @@ ih:
 	ih_no_ctxsw:
 	and $r11 $r10 NV_PGRAPH_FECS_INTR_FWMTHD
 	bra e #ih_no_fwmthd
-		// none we handle, ack, and fall-through to unhandled
+		// none we handle; report to host and ack
+		nv_rd32($r15, NV_PGRAPH_TRAPPED_DATA_LO)
+		nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(4), 0, $r15)
+		nv_rd32($r15, NV_PGRAPH_TRAPPED_ADDR)
+		nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(3), 0, $r15)
+		extr $r14 $r15 16:18
+		shl b32 $r14 $r14 2
+		imm32($r15, NV_PGRAPH_FE_OBJECT_TABLE(0))
+		add b32 $r14 $r15
+		call(nv_rd32)
+		nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(2), 0, $r15)
+		mov $r15 E_BAD_FWMTHD
+		call(error)
 		mov $r11 0x100
 		nv_wr32(0x400144, $r11)
 
 	// anything we didn't handle, bring it to the host's attention
 	ih_no_fwmthd:
-	mov $r11 0x104 // FIFO | CHSW
+	mov $r11 0x504 // FIFO | CHSW | FWMTHD
 	not b32 $r11
 	and $r11 $r10 $r11
 	bra e #ih_no_other

@@ -36,7 +36,7 @@ config B43_SSB
 choice
 	prompt "Supported bus types"
 	depends on B43
-	default B43_BCMA_AND_SSB
+	default B43_BUSES_BCMA_AND_SSB
 
 config B43_BUSES_BCMA_AND_SSB
 	bool "BCMA and SSB"

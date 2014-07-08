@@ -134,8 +134,4 @@ static inline void restore_access_regs(unsigned int *acrs)
 	prev = __switch_to(prev,next);					\
 } while (0)
 
-#define finish_arch_switch(prev) do {					     \
-	set_fs(current->thread.mm_segment);				     \
-} while (0)
-
 #endif /* __ASM_SWITCH_TO_H */

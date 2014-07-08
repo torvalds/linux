@@ -977,6 +977,8 @@ struct i915_power_well {
 	bool always_on;
 	/* power well enable/disable usage count */
 	int count;
+	/* cached hw enabled state */
+	bool hw_enabled;
 	unsigned long domains;
 	unsigned long data;
 	const struct i915_power_well_ops *ops;

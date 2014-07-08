@@ -124,7 +124,7 @@ extern void aes_sparc64_ctr_crypt_256(const u64 *key, const u64 *input,
 				      u64 *output, unsigned int len,
 				      u64 *iv);
 
-struct aes_ops aes128_ops = {
+static struct aes_ops aes128_ops = {
 	.encrypt		= aes_sparc64_encrypt_128,
 	.decrypt		= aes_sparc64_decrypt_128,
 	.load_encrypt_keys	= aes_sparc64_load_encrypt_keys_128,
@@ -136,7 +136,7 @@ struct aes_ops aes128_ops = {
 	.ctr_crypt		= aes_sparc64_ctr_crypt_128,
 };
 
-struct aes_ops aes192_ops = {
+static struct aes_ops aes192_ops = {
 	.encrypt		= aes_sparc64_encrypt_192,
 	.decrypt		= aes_sparc64_decrypt_192,
 	.load_encrypt_keys	= aes_sparc64_load_encrypt_keys_192,
@@ -148,7 +148,7 @@ struct aes_ops aes192_ops = {
 	.ctr_crypt		= aes_sparc64_ctr_crypt_192,
 };
 
-struct aes_ops aes256_ops = {
+static struct aes_ops aes256_ops = {
 	.encrypt		= aes_sparc64_encrypt_256,
 	.decrypt		= aes_sparc64_decrypt_256,
 	.load_encrypt_keys	= aes_sparc64_load_encrypt_keys_256,

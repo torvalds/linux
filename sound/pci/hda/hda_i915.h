@@ -17,11 +17,11 @@
 #define __SOUND_HDA_I915_H
 
 #ifdef CONFIG_SND_HDA_I915
-void hda_display_power(bool enable);
+int hda_display_power(bool enable);
 int hda_i915_init(void);
 int hda_i915_exit(void);
 #else
-static inline void hda_display_power(bool enable) {}
+static inline int hda_display_power(bool enable) { return 0; }
 static inline int hda_i915_init(void)
 {
 	return -ENODEV;

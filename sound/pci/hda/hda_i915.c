@@ -22,20 +22,20 @@
 #include <drm/i915_powerwell.h>
 #include "hda_i915.h"
 
-static void (*get_power)(void);
-static void (*put_power)(void);
+static int (*get_power)(void);
+static int (*put_power)(void);
 
-void hda_display_power(bool enable)
+int hda_display_power(bool enable)
 {
 	if (!get_power || !put_power)
-		return;
+		return -ENODEV;
 
 	pr_debug("HDA display power %s \n",
 			enable ? "Enable" : "Disable");
 	if (enable)
-		get_power();
+		return get_power();
 	else
-		put_power();
+		return put_power();
 }
 
 int hda_i915_init(void)

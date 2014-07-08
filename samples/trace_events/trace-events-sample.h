@@ -56,7 +56,8 @@
  * struct:  This defines the way the data will be stored in the ring buffer.
  *    There are currently two types of elements. __field and __array.
  *    a __field is broken up into (type, name). Where type can be any
- *    type but an array.
+ *    primitive type (integer, long or pointer). __field_struct() can
+ *    be any static complex data value (struct, union, but not an array).
  *    For an array. there are three fields. (type, name, size). The
  *    type of elements in the array, the name of the field and the size
  *    of the array.
