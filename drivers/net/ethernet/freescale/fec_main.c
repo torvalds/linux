@@ -342,22 +342,6 @@ fec_enet_clear_csum(struct sk_buff *skb, struct net_device *ndev)
 	return 0;
 }
 
-static void
-fec_enet_submit_work(struct bufdesc *bdp, struct fec_enet_private *fep)
-{
-	const struct platform_device_id *id_entry =
-				platform_get_device_id(fep->pdev);
-	struct bufdesc *bdp_pre;
-
-	bdp_pre = fec_enet_get_prevdesc(bdp, fep);
-	if ((id_entry->driver_data & FEC_QUIRK_ERR006358) &&
-	    !(bdp_pre->cbd_sc & BD_ENET_TX_READY)) {
-		fep->delay_work.trig_tx = true;
-		schedule_delayed_work(&(fep->delay_work.delay_work),
-					msecs_to_jiffies(1));
-	}
-}
-
 static int
 fec_enet_txq_submit_frag_skb(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -544,8 +528,6 @@ static int fec_enet_txq_submit_skb(struct sk_buff *skb, struct net_device *ndev)
 	 */
 	status |= (BD_ENET_TX_READY | BD_ENET_TX_TC);
 	bdp->cbd_sc = status;
-
-	fec_enet_submit_work(bdp, fep);
 
 	/* If this was the last BD in the ring, start at the beginning again. */
 	bdp = fec_enet_get_nextdesc(last_bdp, fep);
@@ -734,8 +716,6 @@ static int fec_enet_txq_submit_tso(struct sk_buff *skb, struct net_device *ndev)
 
 	/* Save skb pointer */
 	fep->tx_skbuff[index] = skb;
-
-	fec_enet_submit_work(bdp, fep);
 
 	skb_tx_timestamp(skb);
 	fep->cur_tx = bdp;
@@ -1065,11 +1045,6 @@ static void fec_enet_work(struct work_struct *work)
 		}
 		rtnl_unlock();
 	}
-
-	if (fep->delay_work.trig_tx) {
-		fep->delay_work.trig_tx = false;
-		writel(0, fep->hwp + FEC_X_DES_ACTIVE);
-	}
 }
 
 static void
@@ -1166,7 +1141,10 @@ fec_enet_tx(struct net_device *ndev)
 				netif_wake_queue(ndev);
 		}
 	}
-	return;
+
+	/* ERR006538: Keep the transmitter going */
+	if (bdp != fep->cur_tx && readl(fep->hwp + FEC_X_DES_ACTIVE) == 0)
+		writel(0, fep->hwp + FEC_X_DES_ACTIVE);
 }
 
 /* During a receive, the cur_rx points to the current incoming buffer.
