@@ -1051,14 +1051,26 @@ int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 
 	for (i = 0; i < MLX4_NUM_TC; i++) {
 		struct mlx4_port_scheduler_tc_cfg_be *tc = &context->tc[i];
-		u16 r = ratelimit && ratelimit[i] ? ratelimit[i] :
-			MLX4_RATELIMIT_DEFAULT;
+		u16 r;
+
+		if (ratelimit && ratelimit[i]) {
+			if (ratelimit[i] <= MLX4_MAX_100M_UNITS_VAL) {
+				r = ratelimit[i];
+				tc->max_bw_units =
+					htons(MLX4_RATELIMIT_100M_UNITS);
+			} else {
+				r = ratelimit[i]/10;
+				tc->max_bw_units =
+					htons(MLX4_RATELIMIT_1G_UNITS);
+			}
+			tc->max_bw_value = htons(r);
+		} else {
+			tc->max_bw_value = htons(MLX4_RATELIMIT_DEFAULT);
+			tc->max_bw_units = htons(MLX4_RATELIMIT_1G_UNITS);
+		}
 
 		tc->pg = htons(pg[i]);
 		tc->bw_precentage = htons(tc_tx_bw[i]);
-
-		tc->max_bw_units = htons(MLX4_RATELIMIT_UNITS);
-		tc->max_bw_value = htons(r);
 	}
 
 	in_mod = MLX4_SET_PORT_SCHEDULER << 8 | port;
