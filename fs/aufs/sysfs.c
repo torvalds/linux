@@ -61,19 +61,16 @@ static int sysaufs_si_br(struct seq_file *seq, struct super_block *sb,
 		path.mnt = au_br_mnt(br);
 		path.dentry = au_h_dptr(root, bindex);
 		au_seq_path(seq, &path);
-		di_read_unlock(root, !AuLock_IR);
 		au_optstr_br_perm(&perm, br->br_perm);
 		err = seq_printf(seq, "=%s\n", perm.a);
-		if (err == -1)
-			err = -E2BIG;
 		break;
 	case AuBrSysfs_BRID:
 		err = seq_printf(seq, "%d\n", br->br_id);
-		di_read_unlock(root, !AuLock_IR);
-		if (err == -1)
-			err = -E2BIG;
 		break;
 	}
+	di_read_unlock(root, !AuLock_IR);
+	if (err == -1)
+		err = -E2BIG;
 
 	return err;
 }
