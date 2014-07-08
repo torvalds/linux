@@ -219,6 +219,13 @@ the lower readonly branch to the upper writable branch when a user
 changes something about the file.
 "Move-down" is an opposite action of copy-up. Basically this action is
 ran manually instead of automatically and internally.
+For desgin and implementation, aufs has to consider these issues.
+- whiteout for the file may exist on the lower branch.
+- ancestor directories may not exist on the lower branch.
+- diropq for the ancestor directories may exist on the upper branch.
+- free space on the lower branch will reduce.
+- another access to the file may happen during moving-down, including
+  UDBA.
 
 Sometimes users want to move-down a file from the upper writable branch
 to the lower readonly or writable branch. For instance,
