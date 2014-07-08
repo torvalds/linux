@@ -33,7 +33,7 @@ config X509_CERTIFICATE_PARSER
 	select ASN1
 	select OID_REGISTRY
 	help
-	  This option procides support for parsing X.509 format blobs for key
+	  This option provides support for parsing X.509 format blobs for key
 	  data and provides the ability to instantiate a crypto key from a
 	  public key packet found inside the certificate.
 
