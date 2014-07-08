@@ -239,6 +239,17 @@ void acpi_ns_detach_object(struct acpi_namespace_node *node)
 		}
 	}
 
+	/*
+	 * Detach the object from any data objects (which are still held by
+	 * the namespace node)
+	 */
+
+	if (obj_desc->common.next_object &&
+	    ((obj_desc->common.next_object)->common.type ==
+	     ACPI_TYPE_LOCAL_DATA)) {
+		obj_desc->common.next_object = NULL;
+	}
+
 	/* Reset the node type to untyped */
 
 	node->type = ACPI_TYPE_ANY;
