@@ -107,7 +107,7 @@ ramfuc_nsec(struct ramfuc *ram, u32 nsec)
 
 #define ram_init(s,p)       ramfuc_init(&(s)->base, (p))
 #define ram_exec(s,e)       ramfuc_exec(&(s)->base, (e))
-#define ram_have(s,r)       ((s)->r_##r.addr != 0x000000)
+#define ram_have(s,r)       ((s)->r_##r.addr[0] != 0x000000)
 #define ram_rd32(s,r)       ramfuc_rd32(&(s)->base, &(s)->r_##r)
 #define ram_wr32(s,r,d)     ramfuc_wr32(&(s)->base, &(s)->r_##r, (d))
 #define ram_nuke(s,r)       ramfuc_nuke(&(s)->base, &(s)->r_##r)
