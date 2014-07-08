@@ -114,7 +114,7 @@ int ipoib_open(struct net_device *dev)
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags))
 		return 0;
 
-	if (ipoib_ib_dev_open(dev))
+	if (ipoib_ib_dev_open(dev, 1))
 		goto err_disable;
 
 	if (ipoib_ib_dev_up(dev))

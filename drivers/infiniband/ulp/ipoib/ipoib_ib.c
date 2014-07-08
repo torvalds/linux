@@ -664,7 +664,7 @@ static void ipoib_ib_tx_timer_func(unsigned long ctx)
 	drain_tx_cq((struct net_device *)ctx);
 }
 
-int ipoib_ib_dev_open(struct net_device *dev)
+int ipoib_ib_dev_open(struct net_device *dev, int flush)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
@@ -705,7 +705,7 @@ int ipoib_ib_dev_open(struct net_device *dev)
 dev_stop:
 	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 		napi_enable(&priv->napi);
-	ipoib_ib_dev_stop(dev, 1);
+	ipoib_ib_dev_stop(dev, flush);
 	return -1;
 }
 
@@ -916,7 +916,7 @@ int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		    (unsigned long) dev);
 
 	if (dev->flags & IFF_UP) {
-		if (ipoib_ib_dev_open(dev)) {
+		if (ipoib_ib_dev_open(dev, 1)) {
 			ipoib_transport_dev_cleanup(dev);
 			return -ENODEV;
 		}
@@ -1033,7 +1033,7 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 
 	if (level == IPOIB_FLUSH_HEAVY) {
 		ipoib_ib_dev_stop(dev, 0);
-		ipoib_ib_dev_open(dev);
+		ipoib_ib_dev_open(dev, 0);
 	}
 
 	/*
