@@ -3395,19 +3395,28 @@ EXPORT_SYMBOL(drm_property_create_enum);
 struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
 					 int flags, const char *name,
 					 const struct drm_prop_enum_list *props,
-					 int num_values)
+					 int num_props,
+					 uint64_t supported_bits)
 {
 	struct drm_property *property;
-	int i, ret;
+	int i, ret, index = 0;
+	int num_values = hweight64(supported_bits);
 
 	flags |= DRM_MODE_PROP_BITMASK;
 
 	property = drm_property_create(dev, flags, name, num_values);
 	if (!property)
 		return NULL;
+	for (i = 0; i < num_props; i++) {
+		if (!(supported_bits & (1ULL << props[i].type)))
+			continue;
 
-	for (i = 0; i < num_values; i++) {
-		ret = drm_property_add_enum(property, i,
+		if (WARN_ON(index >= num_values)) {
+			drm_property_destroy(dev, property);
+			return NULL;
+		}
+
+		ret = drm_property_add_enum(property, index++,
 				      props[i].type,
 				      props[i].name);
 		if (ret) {
