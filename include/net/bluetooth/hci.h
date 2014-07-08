@@ -175,7 +175,7 @@ enum {
 	HCI_UNCONFIGURED,
 	HCI_USER_CHANNEL,
 	HCI_EXT_CONFIGURED,
-
+	HCI_LE_ADV,
 	HCI_LE_SCAN,
 	HCI_SSP_ENABLED,
 	HCI_SC_ENABLED,
@@ -200,7 +200,7 @@ enum {
  * or the HCI device is closed.
  */
 #define HCI_PERSISTENT_MASK (BIT(HCI_LE_SCAN) | BIT(HCI_PERIODIC_INQ) | \
-			      BIT(HCI_FAST_CONNECTABLE))
+			      BIT(HCI_FAST_CONNECTABLE) | BIT(HCI_LE_ADV))
 
 /* HCI ioctl defines */
 #define HCIDEVUP	_IOW('H', 201, int)

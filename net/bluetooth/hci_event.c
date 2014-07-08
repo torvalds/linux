@@ -1069,11 +1069,15 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	if (*sent) {
 		struct hci_conn *conn;
 
+		set_bit(HCI_LE_ADV, &hdev->dev_flags);
+
 		conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
 		if (conn)
 			queue_delayed_work(hdev->workqueue,
 					   &conn->le_conn_timeout,
 					   conn->conn_timeout);
+	} else {
+		clear_bit(HCI_LE_ADV, &hdev->dev_flags);
 	}
 
 	mgmt_advertising(hdev, *sent);
