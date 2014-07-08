@@ -2216,6 +2216,43 @@ unlock:
 EXPORT_SYMBOL_GPL(br_multicast_list_adjacent);
 
 /**
+ * br_multicast_has_querier_anywhere - Checks for a querier on a bridge
+ * @dev: The bridge port providing the bridge on which to check for a querier
+ * @proto: The protocol family to check for: IGMP -> ETH_P_IP, MLD -> ETH_P_IPV6
+ *
+ * Checks whether the given interface has a bridge on top and if so returns
+ * true if a valid querier exists anywhere on the bridged link layer.
+ * Otherwise returns false.
+ */
+bool br_multicast_has_querier_anywhere(struct net_device *dev, int proto)
+{
+	struct net_bridge *br;
+	struct net_bridge_port *port;
+	struct ethhdr eth;
+	bool ret = false;
+
+	rcu_read_lock();
+	if (!br_port_exists(dev))
+		goto unlock;
+
+	port = br_port_get_rcu(dev);
+	if (!port || !port->br)
+		goto unlock;
+
+	br = port->br;
+
+	memset(&eth, 0, sizeof(eth));
+	eth.h_proto = htons(proto);
+
+	ret = br_multicast_querier_exists(br, &eth);
+
+unlock:
+	rcu_read_unlock();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(br_multicast_has_querier_anywhere);
+
+/**
  * br_multicast_has_querier_adjacent - Checks for a querier behind a bridge port
  * @dev: The bridge port adjacent to which to check for a querier
  * @proto: The protocol family to check for: IGMP -> ETH_P_IP, MLD -> ETH_P_IPV6
