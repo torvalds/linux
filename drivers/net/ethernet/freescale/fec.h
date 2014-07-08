@@ -308,7 +308,6 @@ struct fec_enet_private {
 
 	struct	platform_device *pdev;
 
-	int	opened;
 	int	dev_id;
 
 	/* Phylib and MDIO interface */
