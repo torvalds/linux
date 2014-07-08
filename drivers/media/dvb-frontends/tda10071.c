@@ -860,7 +860,7 @@ static int tda10071_get_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto error;
 
-	c->symbol_rate = (buf[0] << 16) | (buf[1] << 8) | (buf[2] << 0);
+	c->symbol_rate = ((buf[0] << 16) | (buf[1] << 8) | (buf[2] << 0)) * 1000;
 
 	return ret;
 error:
