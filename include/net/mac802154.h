@@ -80,6 +80,25 @@ struct ieee802154_dev {
 #define	IEEE802154_HW_OMIT_CKSUM	0x00000001
 /* Indicates that receiver will autorespond with ACK frames. */
 #define	IEEE802154_HW_AACK		0x00000002
+/* Indicates that transceiver will support transmit power setting. */
+#define	IEEE802154_HW_TXPOWER		0x00000004
+/* Indicates that transceiver will support listen before transmit. */
+#define	IEEE802154_HW_LBT		0x00000008
+/* Indicates that transceiver will support cca mode setting. */
+#define	IEEE802154_HW_CCA_MODE		0x00000010
+/* Indicates that transceiver will support cca ed level setting. */
+#define	IEEE802154_HW_CCA_ED_LEVEL	0x00000020
+/* Indicates that transceiver will support csma (max_be, min_be, csma retries)
+ * settings. */
+#define	IEEE802154_HW_CSMA_PARAMS	0x00000040
+/* Indicates that transceiver will support ARET frame retries setting. */
+#define	IEEE802154_HW_FRAME_RETRIES	0x00000080
+
+/* This groups the most common CSMA support fields into one. */
+#define IEEE802154_HW_CSMA		(IEEE802154_HW_CCA_MODE | \
+					 IEEE802154_HW_CCA_ED_LEVEL | \
+					 IEEE802154_HW_CSMA_PARAMS | \
+					 IEEE802154_HW_FRAME_RETRIES)
 
 /* struct ieee802154_ops - callbacks from mac802154 to the driver
  *
