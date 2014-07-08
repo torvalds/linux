@@ -40,10 +40,10 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20140325"
+#define VMWGFX_DRIVER_DATE "20140704"
 #define VMWGFX_DRIVER_MAJOR 2
 #define VMWGFX_DRIVER_MINOR 6
-#define VMWGFX_DRIVER_PATCHLEVEL 0
+#define VMWGFX_DRIVER_PATCHLEVEL 1
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
@@ -75,14 +75,11 @@
 #define VMW_RES_FENCE ttm_driver_type3
 #define VMW_RES_SHADER ttm_driver_type4
 
-struct vmw_compat_shader_manager;
-
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
 	struct list_head fence_events;
 	bool gb_aware;
-	struct vmw_compat_shader_manager *shman;
 };
 
 struct vmw_dma_buffer {
@@ -124,6 +121,10 @@ struct vmw_resource {
 	void (*hw_destroy) (struct vmw_resource *res);
 };
 
+
+/*
+ * Resources that are managed using ioctls.
+ */
 enum vmw_res_type {
 	vmw_res_context,
 	vmw_res_surface,
@@ -131,6 +132,15 @@ enum vmw_res_type {
 	vmw_res_shader,
 	vmw_res_max
 };
+
+/*
+ * Resources that are managed using command streams.
+ */
+enum vmw_cmdbuf_res_type {
+	vmw_cmdbuf_res_compat_shader
+};
+
+struct vmw_cmdbuf_res_manager;
 
 struct vmw_cursor_snooper {
 	struct drm_crtc *crtc;
@@ -341,7 +351,7 @@ struct vmw_sw_context{
 	bool needs_post_query_barrier;
 	struct vmw_resource *error_resource;
 	struct vmw_ctx_binding_state staged_bindings;
-	struct list_head staged_shaders;
+	struct list_head staged_cmd_res;
 };
 
 struct vmw_legacy_display;
@@ -974,7 +984,8 @@ extern void vmw_context_binding_res_list_kill(struct list_head *head);
 extern void vmw_context_binding_res_list_scrub(struct list_head *head);
 extern int vmw_context_rebind_all(struct vmw_resource *ctx);
 extern struct list_head *vmw_context_binding_list(struct vmw_resource *ctx);
-
+extern struct vmw_cmdbuf_res_manager *
+vmw_context_res_man(struct vmw_resource *ctx);
 /*
  * Surface management - vmwgfx_surface.c
  */
@@ -1008,27 +1019,42 @@ extern int vmw_shader_define_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
 extern int vmw_shader_destroy_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
-extern int vmw_compat_shader_lookup(struct vmw_compat_shader_manager *man,
-				    SVGA3dShaderType shader_type,
-				    u32 *user_key);
-extern void vmw_compat_shaders_commit(struct vmw_compat_shader_manager *man,
-				      struct list_head *list);
-extern void vmw_compat_shaders_revert(struct vmw_compat_shader_manager *man,
-				      struct list_head *list);
-extern int vmw_compat_shader_remove(struct vmw_compat_shader_manager *man,
-				    u32 user_key,
-				    SVGA3dShaderType shader_type,
-				    struct list_head *list);
-extern int vmw_compat_shader_add(struct vmw_compat_shader_manager *man,
+extern int vmw_compat_shader_add(struct vmw_private *dev_priv,
+				 struct vmw_cmdbuf_res_manager *man,
 				 u32 user_key, const void *bytecode,
 				 SVGA3dShaderType shader_type,
 				 size_t size,
-				 struct ttm_object_file *tfile,
 				 struct list_head *list);
-extern struct vmw_compat_shader_manager *
-vmw_compat_shader_man_create(struct vmw_private *dev_priv);
-extern void
-vmw_compat_shader_man_destroy(struct vmw_compat_shader_manager *man);
+extern int vmw_compat_shader_remove(struct vmw_cmdbuf_res_manager *man,
+				    u32 user_key, SVGA3dShaderType shader_type,
+				    struct list_head *list);
+extern struct vmw_resource *
+vmw_compat_shader_lookup(struct vmw_cmdbuf_res_manager *man,
+			 u32 user_key, SVGA3dShaderType shader_type);
+
+/*
+ * Command buffer managed resources - vmwgfx_cmdbuf_res.c
+ */
+
+extern struct vmw_cmdbuf_res_manager *
+vmw_cmdbuf_res_man_create(struct vmw_private *dev_priv);
+extern void vmw_cmdbuf_res_man_destroy(struct vmw_cmdbuf_res_manager *man);
+extern size_t vmw_cmdbuf_res_man_size(void);
+extern struct vmw_resource *
+vmw_cmdbuf_res_lookup(struct vmw_cmdbuf_res_manager *man,
+		      enum vmw_cmdbuf_res_type res_type,
+		      u32 user_key);
+extern void vmw_cmdbuf_res_revert(struct list_head *list);
+extern void vmw_cmdbuf_res_commit(struct list_head *list);
+extern int vmw_cmdbuf_res_add(struct vmw_cmdbuf_res_manager *man,
+			      enum vmw_cmdbuf_res_type res_type,
+			      u32 user_key,
+			      struct vmw_resource *res,
+			      struct list_head *list);
+extern int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
+				 enum vmw_cmdbuf_res_type res_type,
+				 u32 user_key,
+				 struct list_head *list);
 
 
 /**

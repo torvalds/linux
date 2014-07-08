@@ -946,7 +946,6 @@ static void vmw_postclose(struct drm_device *dev,
 		drm_master_put(&vmw_fp->locked_master);
 	}
 
-	vmw_compat_shader_man_destroy(vmw_fp->shman);
 	ttm_object_file_release(&vmw_fp->tfile);
 	kfree(vmw_fp);
 }
@@ -966,16 +965,10 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 	if (unlikely(vmw_fp->tfile == NULL))
 		goto out_no_tfile;
 
-	vmw_fp->shman = vmw_compat_shader_man_create(dev_priv);
-	if (IS_ERR(vmw_fp->shman))
-		goto out_no_shman;
-
 	file_priv->driver_priv = vmw_fp;
 
 	return 0;
 
-out_no_shman:
-	ttm_object_file_release(&vmw_fp->tfile);
 out_no_tfile:
 	kfree(vmw_fp);
 	return ret;
