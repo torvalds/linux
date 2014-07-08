@@ -186,7 +186,8 @@ static void cgroup_put(struct cgroup *cgrp);
 static int rebind_subsystems(struct cgroup_root *dst_root,
 			     unsigned int ss_mask);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
-static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss);
+static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss,
+		      bool visible);
 static void css_release(struct percpu_ref *ref);
 static void kill_css(struct cgroup_subsys_state *css);
 static int cgroup_addrm_files(struct cgroup *cgrp, struct cftype cfts[],
@@ -2577,6 +2578,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 					    loff_t off)
 {
 	unsigned int enable = 0, disable = 0;
+	unsigned int css_enable, css_disable, old_ctrl, new_ctrl;
 	struct cgroup *cgrp, *child;
 	struct cgroup_subsys *ss;
 	char *tok;
@@ -2630,6 +2632,13 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 			}
 
 			/*
+			 * @ss is already enabled through dependency and
+			 * we'll just make it visible.  Skip draining.
+			 */
+			if (cgrp->child_subsys_mask & (1 << ssid))
+				continue;
+
+			/*
 			 * Because css offlining is asynchronous, userland
 			 * might try to re-enable the same controller while
 			 * the previous instance is still around.  In such
@@ -2681,17 +2690,39 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 		goto out_unlock;
 	}
 
+	/*
+	 * Update subsys masks and calculate what needs to be done.  More
+	 * subsystems than specified may need to be enabled or disabled
+	 * depending on subsystem dependencies.
+	 */
 	cgrp->subtree_control |= enable;
 	cgrp->subtree_control &= ~disable;
-	cgroup_refresh_child_subsys_mask(cgrp);
 
-	/* create new csses */
+	old_ctrl = cgrp->child_subsys_mask;
+	cgroup_refresh_child_subsys_mask(cgrp);
+	new_ctrl = cgrp->child_subsys_mask;
+
+	css_enable = ~old_ctrl & new_ctrl;
+	css_disable = old_ctrl & ~new_ctrl;
+	enable |= css_enable;
+	disable |= css_disable;
+
+	/*
+	 * Create new csses or make the existing ones visible.  A css is
+	 * created invisible if it's being implicitly enabled through
+	 * dependency.  An invisible css is made visible when the userland
+	 * explicitly enables it.
+	 */
 	for_each_subsys(ss, ssid) {
 		if (!(enable & (1 << ssid)))
 			continue;
 
 		cgroup_for_each_live_child(child, cgrp) {
-			ret = create_css(child, ss);
+			if (css_enable & (1 << ssid))
+				ret = create_css(child, ss,
+					cgrp->subtree_control & (1 << ssid));
+			else
+				ret = cgroup_populate_dir(child, 1 << ssid);
 			if (ret)
 				goto err_undo_css;
 		}
@@ -2706,13 +2737,21 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	if (ret)
 		goto err_undo_css;
 
-	/* all tasks are now migrated away from the old csses, kill them */
+	/*
+	 * All tasks are migrated out of disabled csses.  Kill or hide
+	 * them.  A css is hidden when the userland requests it to be
+	 * disabled while other subsystems are still depending on it.
+	 */
 	for_each_subsys(ss, ssid) {
 		if (!(disable & (1 << ssid)))
 			continue;
 
-		cgroup_for_each_live_child(child, cgrp)
-			kill_css(cgroup_css(child, ss));
+		cgroup_for_each_live_child(child, cgrp) {
+			if (css_disable & (1 << ssid))
+				kill_css(cgroup_css(child, ss));
+			else
+				cgroup_clear_dir(child, 1 << ssid);
+		}
 	}
 
 	kernfs_activate(cgrp->kn);
@@ -2732,8 +2771,14 @@ err_undo_css:
 
 		cgroup_for_each_live_child(child, cgrp) {
 			struct cgroup_subsys_state *css = cgroup_css(child, ss);
-			if (css)
+
+			if (!css)
+				continue;
+
+			if (css_enable & (1 << ssid))
 				kill_css(css);
+			else
+				cgroup_clear_dir(child, 1 << ssid);
 		}
 	}
 	goto out_unlock;
@@ -4282,12 +4327,14 @@ static void offline_css(struct cgroup_subsys_state *css)
  * create_css - create a cgroup_subsys_state
  * @cgrp: the cgroup new css will be associated with
  * @ss: the subsys of new css
+ * @visible: whether to create control knobs for the new css or not
  *
  * Create a new css associated with @cgrp - @ss pair.  On success, the new
- * css is online and installed in @cgrp with all interface files created.
- * Returns 0 on success, -errno on failure.
+ * css is online and installed in @cgrp with all interface files created if
+ * @visible.  Returns 0 on success, -errno on failure.
  */
-static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss)
+static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss,
+		      bool visible)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
 	struct cgroup_subsys_state *parent_css = cgroup_css(parent, ss);
@@ -4311,9 +4358,11 @@ static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss)
 		goto err_free_percpu_ref;
 	css->id = err;
 
-	err = cgroup_populate_dir(cgrp, 1 << ss->id);
-	if (err)
-		goto err_free_id;
+	if (visible) {
+		err = cgroup_populate_dir(cgrp, 1 << ss->id);
+		if (err)
+			goto err_free_id;
+	}
 
 	/* @css is ready to be brought online now, make it visible */
 	list_add_tail_rcu(&css->sibling, &parent_css->children);
@@ -4430,7 +4479,8 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	/* let's create and online css's */
 	for_each_subsys(ss, ssid) {
 		if (parent->child_subsys_mask & (1 << ssid)) {
-			ret = create_css(cgrp, ss);
+			ret = create_css(cgrp, ss,
+					 parent->subtree_control & (1 << ssid));
 			if (ret)
 				goto out_destroy;
 		}

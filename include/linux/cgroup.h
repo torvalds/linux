@@ -208,6 +208,8 @@ struct cgroup {
 	 * ->subtree_control is the one configured through
 	 * "cgroup.subtree_control" while ->child_subsys_mask is the
 	 * effective one which may have more subsystems enabled.
+	 * Controller knobs are made available iff it's enabled in
+	 * ->subtree_control.
 	 */
 	unsigned int subtree_control;
 	unsigned int child_subsys_mask;
