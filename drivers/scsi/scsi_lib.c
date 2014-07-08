@@ -1092,6 +1092,27 @@ static int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 	return scsi_cmd_to_driver(cmd)->init_command(cmd);
 }
 
+static int scsi_setup_cmnd(struct scsi_device *sdev, struct request *req)
+{
+	struct scsi_cmnd *cmd = req->special;
+
+	if (!blk_rq_bytes(req))
+		cmd->sc_data_direction = DMA_NONE;
+	else if (rq_data_dir(req) == WRITE)
+		cmd->sc_data_direction = DMA_TO_DEVICE;
+	else
+		cmd->sc_data_direction = DMA_FROM_DEVICE;
+
+	switch (req->cmd_type) {
+	case REQ_TYPE_FS:
+		return scsi_setup_fs_cmnd(sdev, req);
+	case REQ_TYPE_BLOCK_PC:
+		return scsi_setup_blk_pc_cmnd(sdev, req);
+	default:
+		return BLKPREP_KILL;
+	}
+}
+
 static int
 scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 {
@@ -1195,24 +1216,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		goto out;
 	}
 
-	if (!blk_rq_bytes(req))
-		cmd->sc_data_direction = DMA_NONE;
-	else if (rq_data_dir(req) == WRITE)
-		cmd->sc_data_direction = DMA_TO_DEVICE;
-	else
-		cmd->sc_data_direction = DMA_FROM_DEVICE;
-
-	switch (req->cmd_type) {
-	case REQ_TYPE_FS:
-		ret = scsi_setup_fs_cmnd(sdev, req);
-		break;
-	case REQ_TYPE_BLOCK_PC:
-		ret = scsi_setup_blk_pc_cmnd(sdev, req);
-		break;
-	default:
-		ret = BLKPREP_KILL;
-	}
-
+	ret = scsi_setup_cmnd(sdev, req);
 out:
 	return scsi_prep_return(q, req, ret);
 }
