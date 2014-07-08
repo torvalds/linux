@@ -696,6 +696,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		pr_err(MOD "error allocating status page\n");
 		goto err4;
 	}
+	rdev->status_page->db_off = 0;
 	return 0;
 err4:
 	c4iw_rqtpool_destroy(rdev);
