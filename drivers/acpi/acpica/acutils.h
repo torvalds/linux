@@ -210,6 +210,8 @@ void acpi_ut_subsystem_shutdown(void);
 
 acpi_size acpi_ut_strlen(const char *string);
 
+char *acpi_ut_strchr(const char *string, int ch);
+
 char *acpi_ut_strcpy(char *dst_string, const char *src_string);
 
 char *acpi_ut_strncpy(char *dst_string,

@@ -1254,4 +1254,8 @@ struct acpi_memory_list {
 #define ACPI_FILE_BEGIN                 0x01
 #define ACPI_FILE_END                   0x02
 
+/* Definitions of getopt */
+
+#define ACPI_OPT_END                    -1
+
 #endif				/* __ACTYPES_H__ */

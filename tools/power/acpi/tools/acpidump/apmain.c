@@ -166,7 +166,8 @@ static int ap_do_options(int argc, char **argv)
 
 	/* Command line options */
 
-	while ((j = acpi_getopt(argc, argv, AP_SUPPORTED_OPTIONS)) != EOF)
+	while ((j =
+		acpi_getopt(argc, argv, AP_SUPPORTED_OPTIONS)) != ACPI_OPT_END)
 		switch (j) {
 			/*
 			 * Global options
