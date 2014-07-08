@@ -58,7 +58,13 @@ int mscode_note_content_type(void *context, size_t hdrlen,
 		return -EBADMSG;
 	}
 
-	if (oid != OID_msIndividualSPKeyPurpose) {
+	/*
+	 * pesign utility had a bug where it was putting
+	 * OID_msIndividualSPKeyPurpose instead of OID_msPeImageDataObjId
+	 * So allow both OIDs.
+	 */
+	if (oid != OID_msPeImageDataObjId &&
+	    oid != OID_msIndividualSPKeyPurpose) {
 		pr_err("Unexpected content type OID %u\n", oid);
 		return -EBADMSG;
 	}
