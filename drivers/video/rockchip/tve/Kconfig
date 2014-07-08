@@ -1,14 +1,13 @@
-config RK610_TVOUT
-	bool "RK610(Jetta) tvout support"
-	depends on MFD_RK610
-	default n
-	help
-		Support Jetta(RK610) to output YPbPr and CVBS.
-		
-config RK610_TVOUT_YPbPr
-	bool "support YPbPr output"
-	depends on RK610_TVOUT
+#
+# TV Encoder drivers configuration
+#
 
-config RK610_TVOUT_CVBS
-	bool "support CVBS output"
-	depends on RK610_TVOUT
+menuconfig RK_TVENCODER
+	bool "Rockchip TV Encoder support"
+   	depends on FB_ROCKCHIP
+	help
+		Support RockChip TV Encoder if you say y here.
+
+source "drivers/video/rockchip/tve/rk3036/Kconfig"
+source "drivers/video/rockchip/tve/rk610/Kconfig"
+

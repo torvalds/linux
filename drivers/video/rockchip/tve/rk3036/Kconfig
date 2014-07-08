@@ -1,0 +1,7 @@
+config RK3036_TV_ENCODER
+	bool "rk3036 tv encoder support"
+	depends on LCDC_RK3036
+	default n
+	help
+		Support RK3036 output CVBS.
+

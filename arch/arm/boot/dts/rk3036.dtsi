@@ -494,10 +494,19 @@
 		clock-names = "clk_usbphy1", "hclk_usb1";
 	};
 	
+	fb: fb{
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <NO_DUAL>;
+	};
+
+	rk_screen: rk_screen{
+		compatible = "rockchip,screen";
+	};
+	
 	lcdc: lcdc@10118000 {
 		compatible = "rockchip,rk3036-lcdc";
 		reg = <0x10118000 0x4000>;
-		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 		clocks = <&clk_gates9 6>, <&dclk_lcdc1>, <&clk_gates9 5>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
@@ -517,6 +526,12 @@
 		status = "disabled";
 	};
 
+	tve {
+		compatible = "rockchip,rk3036-tve";
+		reg = <0x10118200 0x100>;
+		status = "disabled";
+	};
+	
         vpu: vpu_service@10108000 {
 		compatible = "vpu_service";
 		reg = <0x10108000 0x800>;

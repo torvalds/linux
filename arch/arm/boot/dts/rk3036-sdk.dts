@@ -1,7 +1,8 @@
 /dts-v1/;
-
+#include <dt-bindings/rkfb/rk_fb.h>
 #include "rk3036.dtsi"
 #include "rk3036-pinctrl.dtsi"
+#include "lcd-box.dtsi"
 / {
 
 	fiq-debugger {
@@ -136,4 +137,13 @@
                 reg = <0x51>;
                 //irq_gpio = <&gpio0 GPIO_A4 IRQ_TYPE_EDGE_FALLING>;
         };
+};
+
+
+&rk_screen {
+	 display-timings = <&disp_timings>;
+};
+
+&lcdc {
+	status = "okay";
 };

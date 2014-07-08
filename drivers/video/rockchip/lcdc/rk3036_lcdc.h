@@ -252,6 +252,8 @@
 	#define v_VASP(x) 		(((x)&0xfff)<<16)
 
 #define DSP_VS_ST_END_F1	(0x7C)
+	#define v_VSYNC_END_F1(x) 		(((x)&0xfff)<<0)
+	#define v_VSYNC_ST_F1(x) 		(((x)&0xfff)<<16)
 #define DSP_VACT_ST_END_F1	(0x80)
 
 /*BCSH Registers*/
@@ -342,7 +344,7 @@
 #define REG_CFG_DONE		(0x90)
 
 /* TV Control Registers */
-#define TV_CTRL			(0x200)
+#define TV_CTRL			(0x200)	
 #define TV_SYNC_TIMING		(0x204)
 #define TV_ACT_TIMING		(0x208)
 #define TV_ADJ_TIMING		(0x20c)
@@ -484,7 +486,7 @@ struct lcdc_device{
 	struct clk		*aclk;				/*lcdc share memory frequency*/
 	u32 pixclock;	
 
-	u32 standby;						/*1:standby,0:wrok*/
+	u32 standby;						/*1:standby,0:work*/
 };
 
 static inline void lcdc_writel(struct lcdc_device *lcdc_dev,u32 offset,u32 v)

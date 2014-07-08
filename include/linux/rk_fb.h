@@ -342,6 +342,7 @@ struct rk_lcdc_win_area{
 struct rk_lcdc_win {
 	char name[5];
 	int id;
+	u32 logicalstate;
 	bool state;		/*on or off*/
 	bool last_state;		/*on or off*/
 	u32 pseudo_pal[16];
@@ -546,8 +547,11 @@ struct rk_lcdc_driver {
 	char fb1_win_id;
 	char fb2_win_id;
 	char fb3_win_id;
+	
 	char mmu_dts_name[40];
+	struct device *mmu_dev;
 	int iommu_enabled;
+	
 	struct rk_fb_reg_area_data reg_area_data;
 	struct mutex fb_win_id_mutex;
 
@@ -576,7 +580,7 @@ struct rk_lcdc_driver {
 #ifdef CONFIG_DRM_ROCKCHIP
 	void (*irq_call_back)(struct rk_lcdc_driver *driver);
 #endif
-
+	struct overscan overscan;
 };
 
 /*disp_mode: dual display mode
