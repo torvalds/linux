@@ -402,8 +402,10 @@
 			};
 
 			ramc0: ramc@ffffea00 {
-				compatible = "atmel,at91sam9g45-ddramc";
+				compatible = "atmel,sama5d3-ddramc";
 				reg = <0xffffea00 0x200>;
+				clocks = <&ddrck>, <&mpddr_clk>;
+				clock-names = "ddrck", "mpddr";
 			};
 
 			dbgu: serial@ffffee00 {
@@ -1169,6 +1171,11 @@
 					fuse_clk: fuse_clk {
 						#clock-cells = <0>;
 						reg = <48>;
+					};
+
+					mpddr_clk: mpddr_clk {
+						#clock-cells = <0>;
+						reg = <49>;
 					};
 				};
 			};
