@@ -118,8 +118,16 @@ static void __init thermal_quirk(void)
 {
 	struct device_node *np;
 	u32 dev, rev;
+	int res;
 
-	if (mvebu_get_soc_id(&dev, &rev) == 0 && rev > ARMADA_375_Z1_REV)
+	/*
+	 * The early SoC Z1 revision needs a quirk to be applied in order
+	 * for the thermal controller to work properly. This quirk breaks
+	 * the thermal support if applied on a SoC that doesn't need it,
+	 * so we enforce the SoC revision to be known.
+	 */
+	res = mvebu_get_soc_id(&dev, &rev);
+	if (res < 0 || (res == 0 && rev > ARMADA_375_Z1_REV))
 		return;
 
 	for_each_compatible_node(np, NULL, "marvell,armada375-thermal") {
@@ -153,7 +161,8 @@ static void __init thermal_quirk(void)
 
 		/*
 		 * The thermal controller needs some quirk too, so let's change
-		 * the compatible string to reflect this.
+		 * the compatible string to reflect this and allow the driver
+		 * the take the necessary action.
 		 */
 		prop = kzalloc(sizeof(*prop), GFP_KERNEL);
 		prop->name = kstrdup("compatible", GFP_KERNEL);

@@ -148,13 +148,13 @@ static void armada_370_xp_cpu_resume(void)
 }
 
 /* No locking is needed because we only access per-CPU registers */
-void armada_370_xp_pmsu_idle_prepare(bool deepidle)
+int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
 {
 	unsigned int hw_cpu = cpu_logical_map(smp_processor_id());
 	u32 reg;
 
 	if (pmsu_mp_base == NULL)
-		return;
+		return -EINVAL;
 
 	/*
 	 * Adjust the PMSU configuration to wait for WFI signal, enable
@@ -183,11 +183,6 @@ void armada_370_xp_pmsu_idle_prepare(bool deepidle)
 	reg = readl(pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
 	reg |= PMSU_CPU_POWER_DOWN_DIS_SNP_Q_SKIP;
 	writel(reg, pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
-}
-
-static noinline int do_armada_370_xp_cpu_suspend(unsigned long deepidle)
-{
-	armada_370_xp_pmsu_idle_prepare(deepidle);
 
 	v7_exit_coherency_flush(all);
 
@@ -220,11 +215,11 @@ static noinline int do_armada_370_xp_cpu_suspend(unsigned long deepidle)
 
 static int armada_370_xp_cpu_suspend(unsigned long deepidle)
 {
-	return cpu_suspend(deepidle, do_armada_370_xp_cpu_suspend);
+	return cpu_suspend(deepidle, armada_370_xp_pmsu_idle_enter);
 }
 
 /* No locking is needed because we only access per-CPU registers */
-static noinline void armada_370_xp_pmsu_idle_restore(void)
+void armada_370_xp_pmsu_idle_exit(void)
 {
 	unsigned int hw_cpu = cpu_logical_map(smp_processor_id());
 	u32 reg;
@@ -253,7 +248,7 @@ static int armada_370_xp_cpu_pm_notify(struct notifier_block *self,
 		unsigned int hw_cpu = cpu_logical_map(smp_processor_id());
 		mvebu_pmsu_set_cpu_boot_addr(hw_cpu, armada_370_xp_cpu_resume);
 	} else if (action == CPU_PM_EXIT) {
-		armada_370_xp_pmsu_idle_restore();
+		armada_370_xp_pmsu_idle_exit();
 	}
 
 	return NOTIFY_OK;
@@ -263,7 +258,7 @@ static struct notifier_block armada_370_xp_cpu_pm_notifier = {
 	.notifier_call = armada_370_xp_cpu_pm_notify,
 };
 
-int __init armada_370_xp_cpu_pm_init(void)
+static int __init armada_370_xp_cpu_pm_init(void)
 {
 	struct device_node *np;
 

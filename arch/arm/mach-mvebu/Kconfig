@@ -96,4 +96,11 @@ config MACH_KIRKWOOD
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Kirkwood device tree.
 
+config MACH_NETXBIG
+	bool "LaCie 2Big and 5Big Network v2"
+	depends on MACH_KIRKWOOD
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie 2Big and 5Big Network v2
+
 endif
