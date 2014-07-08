@@ -239,22 +239,39 @@ enum {
 #define AUFS_MVDOWN_ROUPPER_R	(1 << 6)	/* did on upper RO */
 #define AUFS_MVDOWN_BRID_UPPER	(1 << 7)	/* upper brid */
 #define AUFS_MVDOWN_BRID_LOWER	(1 << 8)	/* lower brid */
-/* will be added more */
+#define AUFS_MVDOWN_STFS	(1 << 9)	/* req. stfs */
+#define AUFS_MVDOWN_STFS_FAILED	(1 << 10)	/* output: stfs is unusable */
+#define AUFS_MVDOWN_BOTTOM	(1 << 11)	/* output: no more lowers */
 
+/* index for move-down */
 enum {
 	AUFS_MVDOWN_UPPER,
 	AUFS_MVDOWN_LOWER,
 	AUFS_MVDOWN_NARRAY
 };
 
+/*
+ * additional info of move-down
+ * number of free blocks and inodes.
+ * subset of struct kstatfs, but smaller and always 64bit.
+ */
+struct aufs_stfs {
+	uint64_t	f_blocks;
+	uint64_t	f_bavail;
+	uint64_t	f_files;
+	uint64_t	f_ffree;
+};
+
+struct aufs_stbr {
+	int16_t			brid;	/* optional input */
+	int16_t			bindex;	/* output */
+	struct aufs_stfs	stfs;	/* output when AUFS_MVDOWN_STFS set */
+} __aligned(8);
+
 struct aufs_mvdown {
-	uint32_t	flags;
-	struct {
-		int16_t		bindex;
-		int16_t		brid;
-	} a[AUFS_MVDOWN_NARRAY];
-	int8_t		au_errno;
-	/* will be added more */
+	uint32_t		flags;			/* input/output */
+	struct aufs_stbr	stbr[AUFS_MVDOWN_NARRAY]; /* input/output */
+	int8_t			au_errno;		/* output */
 } __aligned(8);
 
 /* ---------------------------------------------------------------------- */

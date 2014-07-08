@@ -28,7 +28,7 @@ PS. Al Viro seems have a plan to merge aufs as well as overlayfs and
     UnionMount, and he pointed out an issue around a directory mutex
     lock and aufs addressed it. But it is still unsure whether aufs will
     be merged (or any other union solution).
-<http://lkml.org/lkml/2013/3/12/637>
+<http://marc.info/?l=linux-kernel&m=136312705029295&w=1>
 
 
 1. Features
