@@ -487,7 +487,6 @@ EXPORT_SYMBOL_GPL(pci_restore_msi_state);
 static ssize_t msi_mode_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
 	struct msi_desc *entry;
 	unsigned long irq;
 	int retval;
@@ -496,12 +495,11 @@ static ssize_t msi_mode_show(struct device *dev, struct device_attribute *attr,
 	if (retval)
 		return retval;
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
-		if (entry->irq == irq) {
-			return sprintf(buf, "%s\n",
-				       entry->msi_attrib.is_msix ? "msix" : "msi");
-		}
-	}
+	entry = irq_get_msi_desc(irq);
+	if (entry)
+		return sprintf(buf, "%s\n",
+				entry->msi_attrib.is_msix ? "msix" : "msi");
+
 	return -ENODEV;
 }
 
