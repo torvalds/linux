@@ -56,7 +56,7 @@ acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length);
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_get_serial_access_bytes
+ * FUNCTION:    acpi_ex_get_serial_access_length
  *
  * PARAMETERS:  accessor_type   - The type of the protocol indicated by region
  *                                field access attributes
@@ -103,7 +103,7 @@ acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length)
 	case AML_FIELD_ATTRIB_BLOCK_CALL:
 	default:
 
-		length = ACPI_GSBUS_BUFFER_SIZE;
+		length = ACPI_GSBUS_BUFFER_SIZE - 2;
 		break;
 	}
 
