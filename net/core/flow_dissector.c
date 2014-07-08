@@ -80,6 +80,8 @@ ip:
 	case htons(ETH_P_IPV6): {
 		const struct ipv6hdr *iph;
 		struct ipv6hdr _iph;
+		__be32 flow_label;
+
 ipv6:
 		iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
 		if (!iph)
@@ -89,6 +91,21 @@ ipv6:
 		flow->src = (__force __be32)ipv6_addr_hash(&iph->saddr);
 		flow->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
 		nhoff += sizeof(struct ipv6hdr);
+
+		flow_label = ip6_flowlabel(iph);
+		if (flow_label) {
+			/* Awesome, IPv6 packet has a flow label so we can
+			 * use that to represent the ports without any
+			 * further dissection.
+			 */
+			flow->n_proto = proto;
+			flow->ip_proto = ip_proto;
+			flow->ports = flow_label;
+			flow->thoff = (u16)nhoff;
+
+			return true;
+		}
+
 		break;
 	}
 	case htons(ETH_P_8021AD):
@@ -196,11 +213,32 @@ static __always_inline u32 __flow_hash_3words(u32 a, u32 b, u32 c)
 	return jhash_3words(a, b, c, hashrnd);
 }
 
-static __always_inline u32 __flow_hash_1word(u32 a)
+static inline u32 __flow_hash_from_keys(struct flow_keys *keys)
 {
-	__flow_hash_secret_init();
-	return jhash_1word(a, hashrnd);
+	u32 hash;
+
+	/* get a consistent hash (same value on both flow directions) */
+	if (((__force u32)keys->dst < (__force u32)keys->src) ||
+	    (((__force u32)keys->dst == (__force u32)keys->src) &&
+	     ((__force u16)keys->port16[1] < (__force u16)keys->port16[0]))) {
+		swap(keys->dst, keys->src);
+		swap(keys->port16[0], keys->port16[1]);
+	}
+
+	hash = __flow_hash_3words((__force u32)keys->dst,
+				  (__force u32)keys->src,
+				  (__force u32)keys->ports);
+	if (!hash)
+		hash = 1;
+
+	return hash;
 }
+
+u32 flow_hash_from_keys(struct flow_keys *keys)
+{
+	return __flow_hash_from_keys(keys);
+}
+EXPORT_SYMBOL(flow_hash_from_keys);
 
 /*
  * __skb_get_hash: calculate a flow hash based on src/dst addresses
@@ -211,7 +249,6 @@ static __always_inline u32 __flow_hash_1word(u32 a)
 void __skb_get_hash(struct sk_buff *skb)
 {
 	struct flow_keys keys;
-	u32 hash;
 
 	if (!skb_flow_dissect(skb, &keys))
 		return;
@@ -219,21 +256,9 @@ void __skb_get_hash(struct sk_buff *skb)
 	if (keys.ports)
 		skb->l4_hash = 1;
 
-	/* get a consistent hash (same value on both flow directions) */
-	if (((__force u32)keys.dst < (__force u32)keys.src) ||
-	    (((__force u32)keys.dst == (__force u32)keys.src) &&
-	     ((__force u16)keys.port16[1] < (__force u16)keys.port16[0]))) {
-		swap(keys.dst, keys.src);
-		swap(keys.port16[0], keys.port16[1]);
-	}
+	skb->sw_hash = 1;
 
-	hash = __flow_hash_3words((__force u32)keys.dst,
-				  (__force u32)keys.src,
-				  (__force u32)keys.ports);
-	if (!hash)
-		hash = 1;
-
-	skb->hash = hash;
+	skb->hash = __flow_hash_from_keys(&keys);
 }
 EXPORT_SYMBOL(__skb_get_hash);
 
@@ -241,7 +266,7 @@ EXPORT_SYMBOL(__skb_get_hash);
  * Returns a Tx hash based on the given packet descriptor a Tx queues' number
  * to be used as a distribution range.
  */
-u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
+u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
 		  unsigned int num_tx_queues)
 {
 	u32 hash;
@@ -261,13 +286,7 @@ u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 		qcount = dev->tc_to_txq[tc].count;
 	}
 
-	if (skb->sk && skb->sk->sk_hash)
-		hash = skb->sk->sk_hash;
-	else
-		hash = (__force u16) skb->protocol;
-	hash = __flow_hash_1word(hash);
-
-	return (u16) (((u64) hash * qcount) >> 32) + qoffset;
+	return (u16) (((u64)skb_get_hash(skb) * qcount) >> 32) + qoffset;
 }
 EXPORT_SYMBOL(__skb_tx_hash);
 
@@ -339,17 +358,10 @@ static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 		if (map) {
 			if (map->len == 1)
 				queue_index = map->queues[0];
-			else {
-				u32 hash;
-				if (skb->sk && skb->sk->sk_hash)
-					hash = skb->sk->sk_hash;
-				else
-					hash = (__force u16) skb->protocol ^
-					    skb->hash;
-				hash = __flow_hash_1word(hash);
+			else
 				queue_index = map->queues[
-				    ((u64)hash * map->len) >> 32];
-			}
+				    ((u64)skb_get_hash(skb) * map->len) >> 32];
+
 			if (unlikely(queue_index >= dev->real_num_tx_queues))
 				queue_index = -1;
 		}

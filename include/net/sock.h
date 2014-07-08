@@ -273,6 +273,7 @@ struct cg_proto;
   *	@sk_rcvtimeo: %SO_RCVTIMEO setting
   *	@sk_sndtimeo: %SO_SNDTIMEO setting
   *	@sk_rxhash: flow hash received from netif layer
+  *	@sk_txhash: computed flow hash for use on transmit
   *	@sk_filter: socket filtering instructions
   *	@sk_protinfo: private area, net family specific, when not using slab
   *	@sk_timer: sock cleanup timer
@@ -347,6 +348,7 @@ struct sock {
 #ifdef CONFIG_RPS
 	__u32			sk_rxhash;
 #endif
+	__u32			sk_txhash;
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int		sk_napi_id;
 	unsigned int		sk_ll_usec;
@@ -1980,6 +1982,14 @@ static inline void sock_poll_wait(struct file *filp,
 	}
 }
 
+static inline void skb_set_hash_from_sk(struct sk_buff *skb, struct sock *sk)
+{
+	if (sk->sk_txhash) {
+		skb->l4_hash = 1;
+		skb->hash = sk->sk_txhash;
+	}
+}
+
 /*
  *	Queue a received datagram if it will fit. Stream and sequenced
  *	protocols can't normally use this as they need to fit buffers in
@@ -1994,6 +2004,7 @@ static inline void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 	skb_orphan(skb);
 	skb->sk = sk;
 	skb->destructor = sock_wfree;
+	skb_set_hash_from_sk(skb, sk);
 	/*
 	 * We used to take a refcount on sk, but following operation
 	 * is enough to guarantee sk_free() wont free this sock until

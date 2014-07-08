@@ -834,6 +834,10 @@ pref_skip_coa:
 		np->dontfrag = valbool;
 		retv = 0;
 		break;
+	case IPV6_AUTOFLOWLABEL:
+		np->autoflowlabel = valbool;
+		retv = 0;
+		break;
 	}
 
 	release_sock(sk);
@@ -1271,6 +1275,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_DONTFRAG:
 		val = np->dontfrag;
+		break;
+
+	case IPV6_AUTOFLOWLABEL:
+		val = np->autoflowlabel;
 		break;
 
 	default:
