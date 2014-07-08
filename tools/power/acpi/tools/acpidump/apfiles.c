@@ -130,11 +130,12 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	/* Handle multiple SSDts - create different filenames for each */
 
 	if (instance > 0) {
-		sprintf(instance_str, "%u", instance);
-		strcat(filename, instance_str);
+		acpi_ut_snprintf(instance_str, sizeof(instance_str), "%u",
+				 instance);
+		ACPI_STRCAT(filename, instance_str);
 	}
 
-	strcat(filename, ACPI_TABLE_FILE_SUFFIX);
+	ACPI_STRCAT(filename, ACPI_TABLE_FILE_SUFFIX);
 
 	if (gbl_verbose_mode) {
 		fprintf(stderr,
@@ -202,7 +203,7 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 
 	/* Allocate a buffer for the entire file */
 
-	buffer = calloc(1, file_size);
+	buffer = ACPI_ALLOCATE_ZEROED(file_size);
 	if (!buffer) {
 		fprintf(stderr,
 			"Could not allocate file buffer of size: %u\n",
@@ -215,7 +216,7 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 	actual = fread(buffer, 1, file_size, file);
 	if (actual != file_size) {
 		fprintf(stderr, "Could not read input file: %s\n", pathname);
-		free(buffer);
+		ACPI_FREE(buffer);
 		buffer = NULL;
 		goto cleanup;
 	}

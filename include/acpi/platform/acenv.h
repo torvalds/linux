@@ -126,6 +126,7 @@
 
 #ifdef ACPI_DUMP_APP
 #define ACPI_USE_NATIVE_MEMORY_MAPPING
+#define USE_NATIVE_ALLOCATE_ZEROED
 #endif
 
 /* acpi_names/Example configuration. Hardware disabled */

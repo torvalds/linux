@@ -252,7 +252,7 @@ int ap_dump_all_tables(void)
 		}
 
 		table_status = ap_dump_table_buffer(table, instance, address);
-		free(table);
+		ACPI_FREE(table);
 
 		if (table_status) {
 			break;
@@ -303,7 +303,7 @@ int ap_dump_table_by_address(char *ascii_address)
 	}
 
 	table_status = ap_dump_table_buffer(table, 0, address);
-	free(table);
+	ACPI_FREE(table);
 	return (table_status);
 }
 
@@ -329,7 +329,7 @@ int ap_dump_table_by_name(char *signature)
 	acpi_status status;
 	int table_status;
 
-	if (strlen(signature) != ACPI_NAME_SIZE) {
+	if (ACPI_STRLEN(signature) != ACPI_NAME_SIZE) {
 		fprintf(stderr,
 			"Invalid table signature [%s]: must be exactly 4 characters\n",
 			signature);
@@ -338,15 +338,15 @@ int ap_dump_table_by_name(char *signature)
 
 	/* Table signatures are expected to be uppercase */
 
-	strcpy(local_signature, signature);
+	ACPI_STRCPY(local_signature, signature);
 	acpi_ut_strupr(local_signature);
 
 	/* To be friendly, handle tables whose signatures do not match the name */
 
 	if (ACPI_COMPARE_NAME(local_signature, "FADT")) {
-		strcpy(local_signature, ACPI_SIG_FADT);
+		ACPI_STRCPY(local_signature, ACPI_SIG_FADT);
 	} else if (ACPI_COMPARE_NAME(local_signature, "MADT")) {
-		strcpy(local_signature, ACPI_SIG_MADT);
+		ACPI_STRCPY(local_signature, ACPI_SIG_MADT);
 	}
 
 	/* Dump all instances of this signature (to handle multiple SSDTs) */
@@ -369,7 +369,7 @@ int ap_dump_table_by_name(char *signature)
 		}
 
 		table_status = ap_dump_table_buffer(table, instance, address);
-		free(table);
+		ACPI_FREE(table);
 
 		if (table_status) {
 			break;
@@ -424,6 +424,6 @@ int ap_dump_table_from_file(char *pathname)
 	table_status = ap_dump_table_buffer(table, 0, 0);
 
 exit:
-	free(table);
+	ACPI_FREE(table);
 	return (table_status);
 }
