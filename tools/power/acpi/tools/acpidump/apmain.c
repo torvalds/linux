@@ -300,6 +300,7 @@ int ACPI_SYSTEM_XFACE main(int argc, char *argv[])
 
 	ACPI_DEBUG_INITIALIZE();	/* For debug version only */
 	acpi_os_initialize();
+	gbl_output_file = ACPI_FILE_OUT;
 
 	/* Process command line options */
 
@@ -348,7 +349,7 @@ int ACPI_SYSTEM_XFACE main(int argc, char *argv[])
 		}
 	}
 
-	if (gbl_output_file) {
+	if (gbl_output_filename) {
 		if (gbl_verbose_mode) {
 
 			/* Summary for the output file */

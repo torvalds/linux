@@ -353,6 +353,13 @@ acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id);
 
 void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 offset);
 
+#ifdef ACPI_APPLICATION
+void
+acpi_ut_dump_buffer_to_file(ACPI_FILE file,
+			    u8 *buffer,
+			    u32 count, u32 display, u32 base_offset);
+#endif
+
 void acpi_ut_report_error(char *module_name, u32 line_number);
 
 void acpi_ut_report_info(char *module_name, u32 line_number);

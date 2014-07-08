@@ -60,7 +60,7 @@
 int ap_open_output_file(char *pathname)
 {
 	struct stat stat_info;
-	FILE *file;
+	ACPI_FILE file;
 
 	/* If file exists, prompt for overwrite */
 
@@ -74,9 +74,9 @@ int ap_open_output_file(char *pathname)
 
 	/* Point stdout to the file */
 
-	file = freopen(pathname, "w", stdout);
+	file = acpi_os_open_file(pathname, ACPI_FILE_WRITING);
 	if (!file) {
-		perror("Could not open output file");
+		acpi_log_error("Could not open output file: %s\n", pathname);
 		return (-1);
 	}
 
