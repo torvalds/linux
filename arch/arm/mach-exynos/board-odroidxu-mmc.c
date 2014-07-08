@@ -156,7 +156,7 @@ static struct dw_mci_board smdk5410_dwmci0_pdata __initdata = {
 	.caps2			= 	MMC_CAP2_POWEROFF_NOTIFY | MMC_CAP2_NO_SLEEP_CMD |
 						MMC_CAP2_CACHE_CTRL | MMC_CAP2_BROKEN_VOLTAGE,
 #else
-	.caps2			= 	MMC_CAP2_HS200 | MMC_CAP2_HS200_DDR | MMC_CAP2_HS200_1_8V_SDR |
+	.caps2			= 	MMC_CAP2_HS200 | MMC_CAP2_HS200_1_8V_SDR |
 	                    MMC_CAP2_POWEROFF_NOTIFY | MMC_CAP2_NO_SLEEP_CMD |
 						MMC_CAP2_CACHE_CTRL | MMC_CAP2_BROKEN_VOLTAGE,
 #endif
