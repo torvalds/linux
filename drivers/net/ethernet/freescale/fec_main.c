@@ -818,9 +818,10 @@ static void fec_enet_bd_init(struct net_device *dev)
 	fep->dirty_tx = bdp;
 }
 
-/* This function is called to start or restart the FEC during a link
- * change.  This only happens when switching between half and full
- * duplex.
+/*
+ * This function is called to start or restart the FEC during a link
+ * change, transmit timeout, or to reconfigure the FEC.  The network
+ * packet processing for this device must be stopped before this call.
  */
 static void
 fec_restart(struct net_device *ndev, int duplex)
@@ -833,13 +834,6 @@ fec_restart(struct net_device *ndev, int duplex)
 	u32 temp_mac[2];
 	u32 rcntl = OPT_FRAME_SIZE | 0x04;
 	u32 ecntl = 0x2; /* ETHEREN */
-
-	if (netif_running(ndev)) {
-		netif_device_detach(ndev);
-		napi_disable(&fep->napi);
-		netif_tx_disable(ndev);
-		netif_tx_lock_bh(ndev);
-	}
 
 	/* Whack a reset.  We should wait for this. */
 	writel(1, fep->hwp + FEC_ECNTRL);
@@ -1009,13 +1003,6 @@ fec_restart(struct net_device *ndev, int duplex)
 
 	/* Enable interrupts we wish to service */
 	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
-
-	if (netif_running(ndev)) {
-		netif_tx_unlock_bh(ndev);
-		netif_wake_queue(ndev);
-		napi_enable(&fep->napi);
-		netif_device_attach(ndev);
-	}
 }
 
 static void
@@ -1071,8 +1058,15 @@ static void fec_enet_work(struct work_struct *work)
 		fep->delay_work.timeout = false;
 		rtnl_lock();
 		if (netif_device_present(ndev) || netif_running(ndev)) {
+			netif_device_detach(ndev);
+			napi_disable(&fep->napi);
+			netif_tx_disable(ndev);
+			netif_tx_lock_bh(ndev);
 			fec_restart(ndev, fep->full_duplex);
+			netif_tx_unlock_bh(ndev);
 			netif_wake_queue(ndev);
+			napi_enable(&fep->napi);
+			netif_device_attach(ndev);
 		}
 		rtnl_unlock();
 	}
@@ -1529,8 +1523,17 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 		}
 
 		/* if any of the above changed restart the FEC */
-		if (status_change)
+		if (status_change) {
+			netif_device_detach(ndev);
+			napi_disable(&fep->napi);
+			netif_tx_disable(ndev);
+			netif_tx_lock_bh(ndev);
 			fec_restart(ndev, phy_dev->duplex);
+			netif_tx_unlock_bh(ndev);
+			netif_wake_queue(ndev);
+			napi_enable(&fep->napi);
+			netif_device_attach(ndev);
+		}
 	} else {
 		if (fep->link) {
 			fec_stop(ndev);
@@ -1915,8 +1918,17 @@ static int fec_enet_set_pauseparam(struct net_device *ndev,
 			fec_stop(ndev);
 		phy_start_aneg(fep->phy_dev);
 	}
-	if (netif_running(ndev))
+	if (netif_running(ndev)) {
+		netif_device_detach(ndev);
+		napi_disable(&fep->napi);
+		netif_tx_disable(ndev);
+		netif_tx_lock_bh(ndev);
 		fec_restart(ndev, fep->full_duplex);
+		netif_tx_unlock_bh(ndev);
+		netif_wake_queue(ndev);
+		napi_enable(&fep->napi);
+		netif_device_attach(ndev);
+	}
 
 	return 0;
 }
@@ -2359,8 +2371,15 @@ static int fec_set_features(struct net_device *netdev,
 
 		if (netif_running(netdev)) {
 			fec_stop(netdev);
+			netif_device_detach(netdev);
+			napi_disable(&fep->napi);
+			netif_tx_disable(netdev);
+			netif_tx_lock_bh(netdev);
 			fec_restart(netdev, fep->phy_dev->duplex);
+			netif_tx_unlock_bh(netdev);
 			netif_wake_queue(netdev);
+			napi_enable(&fep->napi);
+			netif_device_attach(netdev);
 		}
 	}
 
@@ -2728,7 +2747,14 @@ fec_resume(struct device *dev)
 
 	rtnl_lock();
 	if (netif_running(ndev)) {
+		netif_device_detach(ndev);
+		napi_disable(&fep->napi);
+		netif_tx_disable(ndev);
+		netif_tx_lock_bh(ndev);
 		fec_restart(ndev, fep->full_duplex);
+		netif_tx_unlock_bh(ndev);
+		netif_wake_queue(ndev);
+		napi_enable(&fep->napi);
 		netif_device_attach(ndev);
 		phy_start(fep->phy_dev);
 	}
