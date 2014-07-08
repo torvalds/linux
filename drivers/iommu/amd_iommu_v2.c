@@ -612,6 +612,7 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 	fault->state     = pasid_state;
 	fault->tag       = tag;
 	fault->finish    = finish;
+	fault->pasid     = iommu_fault->pasid;
 	fault->flags     = iommu_fault->flags;
 	INIT_WORK(&fault->work, do_fault);
 
