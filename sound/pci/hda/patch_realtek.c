@@ -3529,7 +3529,7 @@ static void alc269_fixup_hp_cap_mic_mute_hook(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 	unsigned int pinval, enable, disable;
 
-	pinval = snd_hda_codec_get_pin_target(codec, spec->mute_led_nid);
+	pinval = snd_hda_codec_get_pin_target(codec, spec->cap_mute_led_nid);
 	pinval &= ~AC_PINCTL_VREFEN;
 	enable  = pinval | AC_PINCTL_VREF_80;
 	disable = pinval | AC_PINCTL_VREF_HIZ;
