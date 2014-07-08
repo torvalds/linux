@@ -1039,12 +1039,25 @@ static bool get_connectable(struct hci_dev *hdev)
 	return test_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 }
 
+static void disable_advertising(struct hci_request *req)
+{
+	u8 enable = 0x00;
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+}
+
 static void enable_advertising(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_adv_param cp;
 	u8 own_addr_type, enable = 0x01;
 	bool connectable;
+
+	if (hci_conn_num(hdev, LE_LINK) > 0)
+		return;
+
+	if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
+		disable_advertising(req);
 
 	/* Clear the HCI_LE_ADV bit temporarily so that the
 	 * hci_update_random_address knows that it's safe to go ahead
@@ -1070,13 +1083,6 @@ static void enable_advertising(struct hci_request *req)
 	cp.channel_map = hdev->le_adv_channel_map;
 
 	hci_req_add(req, HCI_OP_LE_SET_ADV_PARAM, sizeof(cp), &cp);
-
-	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
-}
-
-static void disable_advertising(struct hci_request *req)
-{
-	u8 enable = 0x00;
 
 	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
 }
@@ -1112,19 +1118,14 @@ static void rpa_expired(struct work_struct *work)
 
 	set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
 
-	if (!test_bit(HCI_ADVERTISING, &hdev->dev_flags) ||
-	    hci_conn_num(hdev, LE_LINK) > 0)
+	if (!test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 		return;
 
 	/* The generation of a new RPA and programming it into the
 	 * controller happens in the enable_advertising() function.
 	 */
-
 	hci_req_init(&req, hdev);
-
-	disable_advertising(&req);
 	enable_advertising(&req);
-
 	hci_req_run(&req, NULL);
 }
 
@@ -1864,10 +1865,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		write_fast_connectable(&req, false);
 
 	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) &&
-	    hci_conn_num(hdev, LE_LINK) == 0) {
-		disable_advertising(&req);
+	    !test_bit(HCI_LE_ADV, &hdev->dev_flags))
 		enable_advertising(&req);
-	}
 
 	err = hci_req_run(&req, set_connectable_complete);
 	if (err < 0) {
@@ -6809,32 +6808,16 @@ void mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 static void adv_enable_complete(struct hci_dev *hdev, u8 status)
 {
 	BT_DBG("%s status %u", hdev->name, status);
-
-	/* Clear the advertising mgmt setting if we failed to re-enable it */
-	if (status) {
-		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
-		new_settings(hdev, NULL);
-	}
 }
 
 void mgmt_reenable_advertising(struct hci_dev *hdev)
 {
 	struct hci_request req;
 
-	if (hci_conn_num(hdev, LE_LINK) > 0)
-		return;
-
 	if (!test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 		return;
 
 	hci_req_init(&req, hdev);
 	enable_advertising(&req);
-
-	/* If this fails we have no option but to let user space know
-	 * that we've disabled advertising.
-	 */
-	if (hci_req_run(&req, adv_enable_complete) < 0) {
-		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
-		new_settings(hdev, NULL);
-	}
+	hci_req_run(&req, adv_enable_complete);
 }
