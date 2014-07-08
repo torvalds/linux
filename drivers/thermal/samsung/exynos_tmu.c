@@ -759,9 +759,9 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 
-	exynos_tmu_control(pdev, false);
-
 	exynos_unregister_thermal(data->reg_conf);
+
+	exynos_tmu_control(pdev, false);
 
 	clk_unprepare(data->clk);
 	if (!IS_ERR(data->clk_sec))
