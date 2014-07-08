@@ -193,6 +193,11 @@ int main(int argc, char **argv)
 	int msg, pid, err;
 	struct msgque_data msgque;
 
+	if (getuid() != 0) {
+		printf("Please run the test as root - Exiting.\n");
+		exit(1);
+	}
+
 	msgque.key = ftok(argv[0], 822155650);
 	if (msgque.key == -1) {
 		printf("Can't make key\n");
