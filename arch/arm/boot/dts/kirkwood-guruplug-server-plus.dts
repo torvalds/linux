@@ -105,7 +105,6 @@
 		compatible = "ethernet-phy-id0141.0cb0",
 		             "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
-		phy-connection-type = "rgmii-id";
 	};
 
 	ethphy1: ethernet-phy@1 {
@@ -113,7 +112,6 @@
 		compatible = "ethernet-phy-id0141.0cb0",
 		             "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
-		phy-connection-type = "rgmii-id";
 	};
 };
 
@@ -121,6 +119,7 @@
 	status = "okay";
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
+		phy-connection-type = "rgmii-id";
 	};
 };
 
@@ -128,5 +127,6 @@
 	status = "okay";
 	ethernet1-port@0 {
 		phy-handle = <&ethphy1>;
+		phy-connection-type = "rgmii-id";
 	};
 };

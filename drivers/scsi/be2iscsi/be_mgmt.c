@@ -1008,10 +1008,8 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 		BE2_IPV6 : BE2_IPV4 ;
 
 	rc = mgmt_get_if_info(phba, ip_type, &if_info);
-	if (rc) {
-		kfree(if_info);
+	if (rc)
 		return rc;
-	}
 
 	if (boot_proto == ISCSI_BOOTPROTO_DHCP) {
 		if (if_info->dhcp_state) {

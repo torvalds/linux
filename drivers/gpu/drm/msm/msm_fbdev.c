@@ -59,7 +59,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb = NULL;
 	struct fb_info *fbi = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = {0};
-	dma_addr_t paddr;
+	uint32_t paddr;
 	int ret, size;
 
 	sizes->surface_bpp = 32;

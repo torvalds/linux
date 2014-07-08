@@ -1091,7 +1091,7 @@ struct be_cmd_resp_modify_eq_delay {
  * based on the skew/IPL.
  */
 #define RDMA_ENABLED				0x4
-#define FLEX10_MODE				0x400
+#define QNQ_MODE				0x400
 #define VNIC_MODE				0x20000
 #define UMC_ENABLED				0x1000000
 struct be_cmd_req_query_fw_cfg {

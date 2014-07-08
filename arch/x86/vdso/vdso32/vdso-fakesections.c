@@ -1,0 +1,1 @@
+#include "../vdso-fakesections.c"

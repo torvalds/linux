@@ -337,8 +337,19 @@ irqreturn_t do_IPI(int irq, void *dev_id)
  * API called by platform code to hookup arch-common ISR to their IPI IRQ
  */
 static DEFINE_PER_CPU(int, ipi_dev);
+
+static struct irqaction arc_ipi_irq = {
+        .name    = "IPI Interrupt",
+        .flags   = IRQF_PERCPU,
+        .handler = do_IPI,
+};
+
 int smp_ipi_irq_setup(int cpu, int irq)
 {
-	int *dev_id = &per_cpu(ipi_dev, smp_processor_id());
-	return request_percpu_irq(irq, do_IPI, "IPI Interrupt", dev_id);
+	if (!cpu)
+		return setup_irq(irq, &arc_ipi_irq);
+	else
+		arch_unmask_irq(irq);
+
+	return 0;
 }

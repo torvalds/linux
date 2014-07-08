@@ -2191,7 +2191,6 @@ static void tile_net_setup(struct net_device *dev)
 static void tile_net_dev_init(const char *name, const uint8_t *mac)
 {
 	int ret;
-	int i;
 	struct net_device *dev;
 	struct tile_net_priv *priv;
 

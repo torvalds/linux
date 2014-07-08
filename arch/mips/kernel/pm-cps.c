@@ -101,7 +101,7 @@ static void coupled_barrier(atomic_t *a, unsigned online)
 	if (!coupled_coherence)
 		return;
 
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_inc(a);
 
 	while (atomic_read(a) < online)
@@ -158,7 +158,7 @@ int cps_pm_enter_state(enum cps_pm_state state)
 
 	/* Indicate that this CPU might not be coherent */
 	cpumask_clear_cpu(cpu, &cpu_coherent_mask);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	/* Create a non-coherent mapping of the core ready_count */
 	core_ready_count = per_cpu(ready_count, core);
