@@ -1297,7 +1297,7 @@ static bool vgic_queue_sgi(struct kvm_vcpu *vcpu, int irq)
 
 	sources = *vgic_get_sgi_sources(dist, vcpu_id, irq);
 
-	for_each_set_bit(c, &sources, VGIC_MAX_CPUS) {
+	for_each_set_bit(c, &sources, dist->nr_cpus) {
 		if (vgic_queue_irq(vcpu, c, irq))
 			clear_bit(c, &sources);
 	}
@@ -1700,7 +1700,7 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	int i;
 
-	if (vcpu->vcpu_id >= VGIC_MAX_CPUS)
+	if (vcpu->vcpu_id >= dist->nr_cpus)
 		return -EBUSY;
 
 	for (i = 0; i < VGIC_NR_IRQS; i++) {
@@ -1767,7 +1767,7 @@ static int vgic_init_maps(struct kvm *kvm)
 	int nr_cpus, nr_irqs;
 	int ret, i;
 
-	nr_cpus = dist->nr_cpus = VGIC_MAX_CPUS;
+	nr_cpus = dist->nr_cpus = KVM_MAX_VCPUS;
 	nr_irqs = dist->nr_irqs = VGIC_NR_IRQS;
 
 	ret  = vgic_init_bitmap(&dist->irq_enabled, nr_cpus, nr_irqs);
