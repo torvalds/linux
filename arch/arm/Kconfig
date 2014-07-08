@@ -320,7 +320,6 @@ config ARCH_INTEGRATOR
 	select HAVE_TCM
 	select ICST
 	select MULTI_IRQ_HANDLER
-	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
 	select SPARSE_IRQ
 	select USE_OF
