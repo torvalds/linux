@@ -67,6 +67,11 @@ static char *acpi_ut_format_number(char *string,
 
 static char *acpi_ut_put_number(char *string, u64 number, u8 base, u8 upper);
 
+/* Module globals */
+
+static const char acpi_gbl_lower_hex_digits[] = "0123456789abcdef";
+static const char acpi_gbl_upper_hex_digits[] = "0123456789ABCDEF";
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_bound_string_length
@@ -74,7 +79,7 @@ static char *acpi_ut_put_number(char *string, u64 number, u8 base, u8 upper);
  * PARAMETERS:  string              - String with boundary
  *              count               - Boundary of the string
  *
- * RETURN:      Length of the string.
+ * RETURN:      Length of the string. Less than or equal to Count.
  *
  * DESCRIPTION: Calculate the length of a string with boundary.
  *
@@ -114,8 +119,8 @@ static char *acpi_ut_bound_string_output(char *string, const char *end, char c)
 	if (string < end) {
 		*string = c;
 	}
-	++string;
 
+	++string;
 	return (string);
 }
 
@@ -137,14 +142,12 @@ static char *acpi_ut_bound_string_output(char *string, const char *end, char c)
 
 static char *acpi_ut_put_number(char *string, u64 number, u8 base, u8 upper)
 {
-	const char lower_digits[] = "0123456789abcdef";
-	const char upper_digits[] = "0123456789ABCDEF";
 	const char *digits;
 	u64 digit_index;
 	char *pos;
 
 	pos = string;
-	digits = upper ? upper_digits : lower_digits;
+	digits = upper ? acpi_gbl_upper_hex_digits : acpi_gbl_lower_hex_digits;
 
 	if (number == 0) {
 		*(pos++) = '0';
@@ -155,8 +158,8 @@ static char *acpi_ut_put_number(char *string, u64 number, u8 base, u8 upper)
 			*(pos++) = digits[digit_index];
 		}
 	}
-	/* *(Pos++) = '0'; */
 
+	/* *(Pos++) = '0'; */
 	return (pos);
 }
 
@@ -181,8 +184,8 @@ const char *acpi_ut_scan_number(const char *string, u64 *number_ptr)
 		number *= 10;
 		number += *(string++) - '0';
 	}
-	*number_ptr = number;
 
+	*number_ptr = number;
 	return (string);
 }
 
@@ -211,8 +214,8 @@ const char *acpi_ut_print_number(char *string, u64 number)
 	while (pos1 != ascii_string) {
 		*(pos2++) = *(--pos1);
 	}
-	*pos2 = 0;
 
+	*pos2 = 0;
 	return (string);
 }
 
@@ -246,11 +249,12 @@ static char *acpi_ut_format_number(char *string,
 	s32 i;
 	char reversed_string[66];
 
-	/* Perform sanity checks */
+	/* Parameter validation */
 
 	if (base < 2 || base > 16) {
-		return NULL;
+		return (NULL);
 	}
+
 	if (type & ACPI_FORMAT_LEFT) {
 		type &= ~ACPI_FORMAT_ZERO;
 	}
@@ -294,6 +298,7 @@ static char *acpi_ut_format_number(char *string,
 	if (i > precision) {
 		precision = i;
 	}
+
 	width -= precision;
 
 	/* Output the string */
@@ -318,6 +323,7 @@ static char *acpi_ut_format_number(char *string,
 			string = acpi_ut_bound_string_output(string, end, zero);
 		}
 	}
+
 	while (i <= --precision) {
 		string = acpi_ut_bound_string_output(string, end, '0');
 	}
@@ -341,7 +347,7 @@ static char *acpi_ut_format_number(char *string,
  *              format              - Standard printf format
  *              args                - Argument list
  *
- * RETURN:      Size of successfully output bytes
+ * RETURN:      Number of bytes actually written.
  *
  * DESCRIPTION: Formatted output to a string using argument list pointer.
  *
@@ -428,6 +434,7 @@ acpi_ut_vsnprintf(char *string,
 		if (*format == 'h' || *format == 'l' || *format == 'L') {
 			qualifier = *format;
 			++format;
+
 			if (qualifier == 'l' && *format == 'l') {
 				qualifier = 'L';
 				++format;
@@ -450,8 +457,10 @@ acpi_ut_vsnprintf(char *string,
 									' ');
 				}
 			}
+
 			c = (char)va_arg(args, int);
 			pos = acpi_ut_bound_string_output(pos, end, c);
+
 			while (--width > 0) {
 				pos =
 				    acpi_ut_bound_string_output(pos, end, ' ');
@@ -512,10 +521,11 @@ acpi_ut_vsnprintf(char *string,
 				width = 2 * sizeof(void *);
 				type |= ACPI_FORMAT_ZERO;
 			}
+
 			p = va_arg(args, void *);
 			pos = acpi_ut_format_number(pos, end,
-						    ACPI_TO_INTEGER(p),
-						    16, width, precision, type);
+						    ACPI_TO_INTEGER(p), 16,
+						    width, precision, type);
 			continue;
 
 		default:
@@ -552,6 +562,7 @@ acpi_ut_vsnprintf(char *string,
 				number = (signed int)number;
 			}
 		}
+
 		pos = acpi_ut_format_number(pos, end, number, base,
 					    width, precision, type);
 	}
@@ -575,7 +586,7 @@ acpi_ut_vsnprintf(char *string,
  *              size                - Boundary of the string
  *              Format, ...         - Standard printf format
  *
- * RETURN:      Size of successfully output bytes
+ * RETURN:      Number of bytes actually written.
  *
  * DESCRIPTION: Formatted output to a string.
  *
@@ -602,7 +613,7 @@ int acpi_ut_snprintf(char *string, acpi_size size, const char *format, ...)
  *              format              - Standard printf format
  *              args                - Argument list
  *
- * RETURN:      Size of successfully output bytes
+ * RETURN:      Number of bytes actually written.
  *
  * DESCRIPTION: Formatted output to a file using argument list pointer.
  *
@@ -616,6 +627,7 @@ int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args)
 	flags = acpi_os_acquire_lock(acpi_gbl_print_lock);
 	length = acpi_ut_vsnprintf(acpi_gbl_print_buffer,
 				   sizeof(acpi_gbl_print_buffer), format, args);
+
 	(void)acpi_os_write_file(file, acpi_gbl_print_buffer, length, 1);
 	acpi_os_release_lock(acpi_gbl_print_lock, flags);
 
@@ -629,7 +641,7 @@ int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args)
  * PARAMETERS:  file                - File descriptor
  *              Format, ...         - Standard printf format
  *
- * RETURN:      Size of successfully output bytes
+ * RETURN:      Number of bytes actually written.
  *
  * DESCRIPTION: Formatted output to a file.
  *

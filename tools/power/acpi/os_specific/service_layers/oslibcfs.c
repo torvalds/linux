@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: oslibcfs - C library OSL for file IO
+ * Module Name: oslibcfs - C library OSL for file I/O
  *
  *****************************************************************************/
 
@@ -64,8 +64,8 @@ ACPI_MODULE_NAME("oslibcfs")
 ACPI_FILE acpi_os_open_file(const char *path, u8 modes)
 {
 	ACPI_FILE file;
-	char modes_str[4];
 	u32 i = 0;
+	char modes_str[4];
 
 	if (modes & ACPI_FILE_READING) {
 		modes_str[i++] = 'r';
@@ -76,6 +76,7 @@ ACPI_FILE acpi_os_open_file(const char *path, u8 modes)
 	if (modes & ACPI_FILE_BINARY) {
 		modes_str[i++] = 'b';
 	}
+
 	modes_str[i++] = '\0';
 
 	file = fopen(path, modes_str);
@@ -90,11 +91,11 @@ ACPI_FILE acpi_os_open_file(const char *path, u8 modes)
  *
  * FUNCTION:    acpi_os_close_file
  *
- * PARAMETERS:  file                - File descriptor
+ * PARAMETERS:  file                - An open file descriptor
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Close a file.
+ * DESCRIPTION: Close a file opened via acpi_os_open_file.
  *
  ******************************************************************************/
 
@@ -107,14 +108,14 @@ void acpi_os_close_file(ACPI_FILE file)
  *
  * FUNCTION:    acpi_os_read_file
  *
- * PARAMETERS:  file                - File descriptor
+ * PARAMETERS:  file                - An open file descriptor
  *              buffer              - Data buffer
  *              size                - Data block size
  *              count               - Number of data blocks
  *
- * RETURN:      Size of successfully read buffer.
+ * RETURN:      Number of bytes actually read.
  *
- * DESCRIPTION: Read a file.
+ * DESCRIPTION: Read from a file.
  *
  ******************************************************************************/
 
@@ -135,14 +136,14 @@ acpi_os_read_file(ACPI_FILE file, void *buffer, acpi_size size, acpi_size count)
  *
  * FUNCTION:    acpi_os_write_file
  *
- * PARAMETERS:  file                - File descriptor
+ * PARAMETERS:  file                - An open file descriptor
  *              buffer              - Data buffer
  *              size                - Data block size
  *              count               - Number of data blocks
  *
- * RETURN:      Size of successfully written buffer.
+ * RETURN:      Number of bytes actually written.
  *
- * DESCRIPTION: Write a file.
+ * DESCRIPTION: Write to a file.
  *
  ******************************************************************************/
 
@@ -164,9 +165,9 @@ acpi_os_write_file(ACPI_FILE file,
  *
  * FUNCTION:    acpi_os_get_file_offset
  *
- * PARAMETERS:  file                - File descriptor
+ * PARAMETERS:  file                - An open file descriptor
  *
- * RETURN:      Size of current position.
+ * RETURN:      Current file pointer position.
  *
  * DESCRIPTION: Get current file offset.
  *
@@ -177,7 +178,6 @@ long acpi_os_get_file_offset(ACPI_FILE file)
 	long offset;
 
 	offset = ftell(file);
-
 	return (offset);
 }
 
@@ -185,8 +185,8 @@ long acpi_os_get_file_offset(ACPI_FILE file)
  *
  * FUNCTION:    acpi_os_set_file_offset
  *
- * PARAMETERS:  file                - File descriptor
- *              offset              - File offset
+ * PARAMETERS:  file                - An open file descriptor
+ *              offset              - New file offset
  *              from                - From begin/end of file
  *
  * RETURN:      Status
