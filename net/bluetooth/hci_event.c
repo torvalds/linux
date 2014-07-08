@@ -4097,6 +4097,11 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
+	/* All controllers implicitly stop advertising in the event of a
+	 * connection, so ensure that the state bit is cleared.
+	 */
+	clear_bit(HCI_LE_ADV, &hdev->dev_flags);
+
 	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
 	if (!conn) {
 		conn = hci_conn_add(hdev, LE_LINK, &ev->bdaddr);
