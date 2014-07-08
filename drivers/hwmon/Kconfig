@@ -554,6 +554,17 @@ config SENSORS_IBMPEX
 	  This driver can also be built as a module.  If so, the module
 	  will be called ibmpex.
 
+config SENSORS_IBMPOWERNV
+	tristate "IBM POWERNV platform sensors"
+	depends on PPC_POWERNV
+	default y
+	help
+	  If you say yes here you get support for the temperature/fan/power
+	  sensors on your PowerNV platform.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ibmpowernv.
+
 config SENSORS_IIO_HWMON
 	tristate "Hwmon driver that uses channels specified via iio maps"
 	depends on IIO
