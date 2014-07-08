@@ -44,6 +44,27 @@
 #include "acpidump.h"
 #include "acapps.h"
 
+/* Local prototypes */
+
+static int ap_is_existing_file(char *pathname);
+
+static int ap_is_existing_file(char *pathname)
+{
+#ifndef _GNU_EFI
+	struct stat stat_info;
+
+	if (!stat(pathname, &stat_info)) {
+		acpi_log_error("Target path already exists, overwrite? [y|n] ");
+
+		if (getchar() != 'y') {
+			return (-1);
+		}
+	}
+#endif
+
+	return 0;
+}
+
 /******************************************************************************
  *
  * FUNCTION:    ap_open_output_file
@@ -59,17 +80,12 @@
 
 int ap_open_output_file(char *pathname)
 {
-	struct stat stat_info;
 	ACPI_FILE file;
 
 	/* If file exists, prompt for overwrite */
 
-	if (!stat(pathname, &stat_info)) {
-		acpi_log_error("Target path already exists, overwrite? [y|n] ");
-
-		if (getchar() != 'y') {
-			return (-1);
-		}
+	if (ap_is_existing_file(pathname) != 0) {
+		return (-1);
 	}
 
 	/* Point stdout to the file */

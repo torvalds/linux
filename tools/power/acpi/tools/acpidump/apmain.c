@@ -291,7 +291,11 @@ static int ap_do_options(int argc, char **argv)
  *
  ******************************************************************************/
 
+#ifndef _GNU_EFI
 int ACPI_SYSTEM_XFACE main(int argc, char *argv[])
+#else
+int ACPI_SYSTEM_XFACE acpi_main(int argc, char *argv[])
+#endif
 {
 	int status = 0;
 	struct ap_dump_action *action;
