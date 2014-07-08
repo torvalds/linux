@@ -203,7 +203,13 @@ struct cgroup {
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
 	struct kernfs_node *populated_kn; /* kn for "cgroup.subtree_populated" */
 
-	/* the bitmask of subsystems enabled on the child cgroups */
+	/*
+	 * The bitmask of subsystems enabled on the child cgroups.
+	 * ->subtree_control is the one configured through
+	 * "cgroup.subtree_control" while ->child_subsys_mask is the
+	 * effective one which may have more subsystems enabled.
+	 */
+	unsigned int subtree_control;
 	unsigned int child_subsys_mask;
 
 	/* Private pointers for each registered subsystem */
