@@ -99,7 +99,6 @@ static struct workqueue_struct *iommu_wq;
 static u64 *empty_page_table;
 
 static void free_pasid_states(struct device_state *dev_state);
-static void unbind_pasid(struct device_state *dev_state, int pasid);
 
 static u16 device_id(struct pci_dev *pdev)
 {
@@ -301,7 +300,7 @@ static void put_pasid_state_wait(struct pasid_state *pasid_state)
 	free_pasid_state(pasid_state);
 }
 
-static void __unbind_pasid(struct pasid_state *pasid_state)
+static void unbind_pasid(struct pasid_state *pasid_state)
 {
 	struct iommu_domain *domain;
 
@@ -312,18 +311,6 @@ static void __unbind_pasid(struct pasid_state *pasid_state)
 
 	/* Make sure no more pending faults are in the queue */
 	flush_workqueue(iommu_wq);
-}
-
-static void unbind_pasid(struct device_state *dev_state, int pasid)
-{
-	struct pasid_state *pasid_state;
-
-	pasid_state = get_pasid_state(dev_state, pasid);
-	if (pasid_state == NULL)
-		return;
-
-	__unbind_pasid(pasid_state);
-	put_pasid_state(pasid_state); /* Reference taken in this function */
 }
 
 static void free_pasid_states_level1(struct pasid_state **tbl)
@@ -480,7 +467,7 @@ static void mn_release(struct mmu_notifier *mn, struct mm_struct *mm)
 	if (pasid_state->device_state->inv_ctx_cb)
 		dev_state->inv_ctx_cb(dev_state->pdev, pasid_state->pasid);
 
-	unbind_pasid(dev_state, pasid_state->pasid);
+	unbind_pasid(pasid_state);
 }
 
 static struct mmu_notifier_ops iommu_mn = {
