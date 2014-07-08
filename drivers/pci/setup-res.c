@@ -248,31 +248,14 @@ static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 static int _pci_assign_resource(struct pci_dev *dev, int resno,
 				resource_size_t size, resource_size_t min_align)
 {
-	struct resource *res = dev->resource + resno;
 	struct pci_bus *bus;
 	int ret;
-	char *type;
 
 	bus = dev->bus;
 	while ((ret = __pci_assign_resource(bus, dev, resno, size, min_align))) {
 		if (!bus->parent || !bus->self->transparent)
 			break;
 		bus = bus->parent;
-	}
-
-	if (ret) {
-		if (res->flags & IORESOURCE_MEM)
-			if (res->flags & IORESOURCE_PREFETCH)
-				type = "mem pref";
-			else
-				type = "mem";
-		else if (res->flags & IORESOURCE_IO)
-			type = "io";
-		else
-			type = "unknown";
-		dev_info(&dev->dev,
-			 "BAR %d: can't assign %s (size %#llx)\n",
-			 resno, type, (unsigned long long) resource_size(res));
 	}
 
 	return ret;
@@ -300,11 +283,16 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	 * where firmware left it.  That at least has a chance of
 	 * working, which is better than just leaving it disabled.
 	 */
-	if (ret < 0)
+	if (ret < 0) {
+		dev_info(&dev->dev, "BAR %d: no space for %pR\n", resno, res);
 		ret = pci_revert_fw_address(res, dev, resno, size);
+	}
 
-	if (ret < 0)
+	if (ret < 0) {
+		dev_info(&dev->dev, "BAR %d: failed to assign %pR\n", resno,
+			 res);
 		return ret;
+	}
 
 	res->flags &= ~IORESOURCE_UNSET;
 	res->flags &= ~IORESOURCE_STARTALIGN;
@@ -344,7 +332,8 @@ int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsiz
 
 	res->flags &= ~IORESOURCE_UNSET;
 	res->flags &= ~IORESOURCE_STARTALIGN;
-	dev_info(&dev->dev, "BAR %d: reassigned %pR\n", resno, res);
+	dev_info(&dev->dev, "BAR %d: reassigned %pR (expanded by %#llx)\n",
+		 resno, res, (unsigned long long) addsize);
 	if (resno < PCI_BRIDGE_RESOURCES)
 		pci_update_resource(dev, resno);
 
