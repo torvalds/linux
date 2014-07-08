@@ -313,8 +313,6 @@ static void __unbind_pasid(struct pasid_state *pasid_state)
 	/* Make sure no more pending faults are in the queue */
 	flush_workqueue(iommu_wq);
 
-	mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
-
 	put_pasid_state(pasid_state); /* Reference taken in bind() function */
 }
 
