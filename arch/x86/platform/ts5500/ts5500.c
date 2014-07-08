@@ -147,45 +147,39 @@ cleanup:
 	return ret;
 }
 
-static ssize_t ts5500_show_id(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t id_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct ts5500_sbc *sbc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "0x%.2x\n", sbc->id);
 }
+static DEVICE_ATTR_RO(id);
 
-static ssize_t ts5500_show_jumpers(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+static ssize_t jumpers_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct ts5500_sbc *sbc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "0x%.2x\n", sbc->jumpers >> 1);
 }
+static DEVICE_ATTR_RO(jumpers);
 
-#define TS5500_SHOW(field)					\
-	static ssize_t ts5500_show_##field(struct device *dev,	\
-			struct device_attribute *attr,		\
-			char *buf)				\
-	{							\
-		struct ts5500_sbc *sbc = dev_get_drvdata(dev);	\
-		return sprintf(buf, "%d\n", sbc->field);	\
-	}
+#define TS5500_ATTR_BOOL(_field)					\
+	static ssize_t _field##_show(struct device *dev,		\
+			struct device_attribute *attr, char *buf)	\
+	{								\
+		struct ts5500_sbc *sbc = dev_get_drvdata(dev);		\
+									\
+		return sprintf(buf, "%d\n", sbc->_field);		\
+	}								\
+	static DEVICE_ATTR_RO(_field)
 
-TS5500_SHOW(sram)
-TS5500_SHOW(rs485)
-TS5500_SHOW(adc)
-TS5500_SHOW(ereset)
-TS5500_SHOW(itr)
-
-static DEVICE_ATTR(id, S_IRUGO, ts5500_show_id, NULL);
-static DEVICE_ATTR(jumpers, S_IRUGO, ts5500_show_jumpers, NULL);
-static DEVICE_ATTR(sram, S_IRUGO, ts5500_show_sram, NULL);
-static DEVICE_ATTR(rs485, S_IRUGO, ts5500_show_rs485, NULL);
-static DEVICE_ATTR(adc, S_IRUGO, ts5500_show_adc, NULL);
-static DEVICE_ATTR(ereset, S_IRUGO, ts5500_show_ereset, NULL);
-static DEVICE_ATTR(itr, S_IRUGO, ts5500_show_itr, NULL);
+TS5500_ATTR_BOOL(sram);
+TS5500_ATTR_BOOL(rs485);
+TS5500_ATTR_BOOL(adc);
+TS5500_ATTR_BOOL(ereset);
+TS5500_ATTR_BOOL(itr);
 
 static struct attribute *ts5500_attributes[] = {
 	&dev_attr_id.attr,
