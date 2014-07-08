@@ -44,6 +44,7 @@
 #include <xen/interface/grant_table.h>
 #include <xen/grant_table.h>
 #include <xen/xenbus.h>
+#include <linux/debugfs.h>
 
 typedef unsigned int pending_ring_idx_t;
 #define INVALID_PENDING_RING_IDX (~0U)
@@ -224,6 +225,10 @@ struct xenvif {
 	struct xenvif_queue *queues;
 	unsigned int num_queues; /* active queues, resource allocated */
 
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *xenvif_dbg_root;
+#endif
+
 	/* Miscellaneous private stuff. */
 	struct net_device *dev;
 };
@@ -297,10 +302,16 @@ static inline pending_ring_idx_t nr_pending_reqs(struct xenvif_queue *queue)
 /* Callback from stack when TX packet can be released */
 void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success);
 
+irqreturn_t xenvif_interrupt(int irq, void *dev_id);
+
 extern bool separate_tx_rx_irq;
 
 extern unsigned int rx_drain_timeout_msecs;
 extern unsigned int rx_drain_timeout_jiffies;
 extern unsigned int xenvif_max_queues;
+
+#ifdef CONFIG_DEBUG_FS
+extern struct dentry *xen_netback_dbg_root;
+#endif
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

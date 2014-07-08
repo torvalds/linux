@@ -1987,6 +1987,13 @@ static int __init netback_init(void)
 
 	rx_drain_timeout_jiffies = msecs_to_jiffies(rx_drain_timeout_msecs);
 
+#ifdef CONFIG_DEBUG_FS
+	xen_netback_dbg_root = debugfs_create_dir("xen-netback", NULL);
+	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
+		pr_warn("Init of debugfs returned %ld!\n",
+			PTR_ERR(xen_netback_dbg_root));
+#endif /* CONFIG_DEBUG_FS */
+
 	return 0;
 
 failed_init:
@@ -1997,6 +2004,10 @@ module_init(netback_init);
 
 static void __exit netback_fini(void)
 {
+#ifdef CONFIG_DEBUG_FS
+	if (!IS_ERR_OR_NULL(xen_netback_dbg_root))
+		debugfs_remove_recursive(xen_netback_dbg_root);
+#endif /* CONFIG_DEBUG_FS */
 	xenvif_xenbus_fini();
 }
 module_exit(netback_fini);
