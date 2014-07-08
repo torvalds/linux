@@ -591,7 +591,7 @@ static int init_volumes(struct ubi_device *ubi,
 
 		/* Static volumes only */
 		av = ubi_find_av(ai, i);
-		if (!av) {
+		if (!av || !av->leb_count) {
 			/*
 			 * No eraseblocks belonging to this volume found. We
 			 * don't actually know whether this static volume is
