@@ -97,9 +97,26 @@ change soon.
 All controllers which are not bound to other hierarchies are
 automatically bound to unified hierarchy and show up at the root of
 it.  Controllers which are enabled only in the root of unified
-hierarchy can be bound to other hierarchies at any time.  This allows
-mixing unified hierarchy with the traditional multiple hierarchies in
-a fully backward compatible way.
+hierarchy can be bound to other hierarchies.  This allows mixing
+unified hierarchy with the traditional multiple hierarchies in a fully
+backward compatible way.
+
+A controller can be moved across hierarchies only after the controller
+is no longer referenced in its current hierarchy.  Because per-cgroup
+controller states are destroyed asynchronously and controllers may
+have lingering references, a controller may not show up immediately on
+the unified hierarchy after the final umount of the previous
+hierarchy.  Similarly, a controller should be fully disabled to be
+moved out of the unified hierarchy and it may take some time for the
+disabled controller to become available for other hierarchies;
+furthermore, due to dependencies among controllers, other controllers
+may need to be disabled too.
+
+While useful for development and manual configurations, dynamically
+moving controllers between the unified and other hierarchies is
+strongly discouraged for production use.  It is recommended to decide
+the hierarchies and controller associations before starting using the
+controllers.
 
 
 2-2. cgroup.subtree_control

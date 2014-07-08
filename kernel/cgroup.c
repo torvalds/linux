@@ -1037,9 +1037,56 @@ static void cgroup_put(struct cgroup *cgrp)
 	css_put(&cgrp->self);
 }
 
+/**
+ * cgroup_refresh_child_subsys_mask - update child_subsys_mask
+ * @cgrp: the target cgroup
+ *
+ * On the default hierarchy, a subsystem may request other subsystems to be
+ * enabled together through its ->depends_on mask.  In such cases, more
+ * subsystems than specified in "cgroup.subtree_control" may be enabled.
+ *
+ * This function determines which subsystems need to be enabled given the
+ * current @cgrp->subtree_control and records it in
+ * @cgrp->child_subsys_mask.  The resulting mask is always a superset of
+ * @cgrp->subtree_control and follows the usual hierarchy rules.
+ */
 static void cgroup_refresh_child_subsys_mask(struct cgroup *cgrp)
 {
-	cgrp->child_subsys_mask = cgrp->subtree_control;
+	struct cgroup *parent = cgroup_parent(cgrp);
+	unsigned int cur_ss_mask = cgrp->subtree_control;
+	struct cgroup_subsys *ss;
+	int ssid;
+
+	lockdep_assert_held(&cgroup_mutex);
+
+	if (!cgroup_on_dfl(cgrp)) {
+		cgrp->child_subsys_mask = cur_ss_mask;
+		return;
+	}
+
+	while (true) {
+		unsigned int new_ss_mask = cur_ss_mask;
+
+		for_each_subsys(ss, ssid)
+			if (cur_ss_mask & (1 << ssid))
+				new_ss_mask |= ss->depends_on;
+
+		/*
+		 * Mask out subsystems which aren't available.  This can
+		 * happen only if some depended-upon subsystems were bound
+		 * to non-default hierarchies.
+		 */
+		if (parent)
+			new_ss_mask &= parent->child_subsys_mask;
+		else
+			new_ss_mask &= cgrp->root->subsys_mask;
+
+		if (new_ss_mask == cur_ss_mask)
+			break;
+		cur_ss_mask = new_ss_mask;
+	}
+
+	cgrp->child_subsys_mask = cur_ss_mask;
 }
 
 /**
