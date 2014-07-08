@@ -196,6 +196,8 @@ long au_ibusy_compat_ioctl(struct file *file, unsigned long arg);
 struct au_opt_mod;
 int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 	      int *do_refresh);
+struct aufs_stfs;
+int au_br_stfs(struct au_branch *br, struct aufs_stfs *stfs);
 
 /* xino.c */
 static const loff_t au_loff_max = LLONG_MAX;
