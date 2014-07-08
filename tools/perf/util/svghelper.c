@@ -30,6 +30,7 @@ static u64 turbo_frequency, max_freq;
 
 #define SLOT_MULT 30.0
 #define SLOT_HEIGHT 25.0
+#define SLOT_HALF (SLOT_HEIGHT / 2)
 
 int svg_page_width = 1000;
 u64 svg_highlight;
@@ -114,8 +115,14 @@ void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end)
 	fprintf(svgfile, "      rect          { stroke-width: 1; }\n");
 	fprintf(svgfile, "      rect.process  { fill:rgb(180,180,180); fill-opacity:0.9; stroke-width:1;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.process2 { fill:rgb(180,180,180); fill-opacity:0.9; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
+	fprintf(svgfile, "      rect.process3 { fill:rgb(180,180,180); fill-opacity:0.5; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.sample   { fill:rgb(  0,  0,255); fill-opacity:0.8; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.sample_hi{ fill:rgb(255,128,  0); fill-opacity:0.8; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
+	fprintf(svgfile, "      rect.error    { fill:rgb(255,  0,  0); fill-opacity:0.5; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
+	fprintf(svgfile, "      rect.net      { fill:rgb(  0,128,  0); fill-opacity:0.5; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
+	fprintf(svgfile, "      rect.disk     { fill:rgb(  0,  0,255); fill-opacity:0.5; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
+	fprintf(svgfile, "      rect.sync     { fill:rgb(128,128,  0); fill-opacity:0.5; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
+	fprintf(svgfile, "      rect.poll     { fill:rgb(  0,128,128); fill-opacity:0.2; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.blocked  { fill:rgb(255,  0,  0); fill-opacity:0.5; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.waiting  { fill:rgb(224,214,  0); fill-opacity:0.8; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.WAITING  { fill:rgb(255,214, 48); fill-opacity:0.6; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
@@ -130,6 +137,75 @@ void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end)
 	fprintf(svgfile, "      line.pstate   { stroke:rgb(255,255,  0); stroke-opacity:0.8; stroke-width:2; } \n");
 
 	fprintf(svgfile, "    ]]>\n   </style>\n</defs>\n");
+}
+
+static double normalize_height(double height)
+{
+	if (height < 0.25)
+		return 0.25;
+	else if (height < 0.50)
+		return 0.50;
+	else if (height < 0.75)
+		return 0.75;
+	else
+		return 0.100;
+}
+
+void svg_ubox(int Yslot, u64 start, u64 end, double height, const char *type, int fd, int err, int merges)
+{
+	double w = time2pixels(end) - time2pixels(start);
+	height = normalize_height(height);
+
+	if (!svgfile)
+		return;
+
+	fprintf(svgfile, "<g>\n");
+	fprintf(svgfile, "<title>fd=%d error=%d merges=%d</title>\n", fd, err, merges);
+	fprintf(svgfile, "<rect x=\"%.8f\" width=\"%.8f\" y=\"%.1f\" height=\"%.1f\" class=\"%s\"/>\n",
+		time2pixels(start),
+		w,
+		Yslot * SLOT_MULT,
+		SLOT_HALF * height,
+		type);
+	fprintf(svgfile, "</g>\n");
+}
+
+void svg_lbox(int Yslot, u64 start, u64 end, double height, const char *type, int fd, int err, int merges)
+{
+	double w = time2pixels(end) - time2pixels(start);
+	height = normalize_height(height);
+
+	if (!svgfile)
+		return;
+
+	fprintf(svgfile, "<g>\n");
+	fprintf(svgfile, "<title>fd=%d error=%d merges=%d</title>\n", fd, err, merges);
+	fprintf(svgfile, "<rect x=\"%.8f\" width=\"%.8f\" y=\"%.1f\" height=\"%.1f\" class=\"%s\"/>\n",
+		time2pixels(start),
+		w,
+		Yslot * SLOT_MULT + SLOT_HEIGHT - SLOT_HALF * height,
+		SLOT_HALF * height,
+		type);
+	fprintf(svgfile, "</g>\n");
+}
+
+void svg_fbox(int Yslot, u64 start, u64 end, double height, const char *type, int fd, int err, int merges)
+{
+	double w = time2pixels(end) - time2pixels(start);
+	height = normalize_height(height);
+
+	if (!svgfile)
+		return;
+
+	fprintf(svgfile, "<g>\n");
+	fprintf(svgfile, "<title>fd=%d error=%d merges=%d</title>\n", fd, err, merges);
+	fprintf(svgfile, "<rect x=\"%.8f\" width=\"%.8f\" y=\"%.1f\" height=\"%.1f\" class=\"%s\"/>\n",
+		time2pixels(start),
+		w,
+		Yslot * SLOT_MULT + SLOT_HEIGHT - SLOT_HEIGHT * height,
+		SLOT_HEIGHT * height,
+		type);
+	fprintf(svgfile, "</g>\n");
 }
 
 void svg_box(int Yslot, u64 start, u64 end, const char *type)
@@ -543,6 +619,20 @@ static void svg_legenda_box(int X, const char *text, const char *style)
 		X + boxsize + 5, boxsize, 0.8 * boxsize, text);
 }
 
+void svg_io_legenda(void)
+{
+	if (!svgfile)
+		return;
+
+	fprintf(svgfile, "<g>\n");
+	svg_legenda_box(0,	"Disk", "disk");
+	svg_legenda_box(100,	"Network", "net");
+	svg_legenda_box(200,	"Sync", "sync");
+	svg_legenda_box(300,	"Poll", "poll");
+	svg_legenda_box(400,	"Error", "error");
+	fprintf(svgfile, "</g>\n");
+}
+
 void svg_legenda(void)
 {
 	if (!svgfile)
@@ -559,7 +649,7 @@ void svg_legenda(void)
 	fprintf(svgfile, "</g>\n");
 }
 
-void svg_time_grid(void)
+void svg_time_grid(double min_thickness)
 {
 	u64 i;
 
@@ -579,8 +669,10 @@ void svg_time_grid(void)
 			color = 128;
 		}
 
-		fprintf(svgfile, "<line x1=\"%.8f\" y1=\"%.2f\" x2=\"%.8f\" y2=\"%" PRIu64 "\" style=\"stroke:rgb(%i,%i,%i);stroke-width:%.3f\"/>\n",
-			time2pixels(i), SLOT_MULT/2, time2pixels(i), total_height, color, color, color, thickness);
+		if (thickness >= min_thickness)
+			fprintf(svgfile, "<line x1=\"%.8f\" y1=\"%.2f\" x2=\"%.8f\" y2=\"%" PRIu64 "\" style=\"stroke:rgb(%i,%i,%i);stroke-width:%.3f\"/>\n",
+				time2pixels(i), SLOT_MULT/2, time2pixels(i),
+				total_height, color, color, color, thickness);
 
 		i += 10000000;
 	}

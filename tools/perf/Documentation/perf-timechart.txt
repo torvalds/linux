@@ -15,10 +15,20 @@ DESCRIPTION
 There are two variants of perf timechart:
 
   'perf timechart record <command>' to record the system level events
-  of an arbitrary workload.
+  of an arbitrary workload. By default timechart records only scheduler
+  and CPU events (task switches, running times, CPU power states, etc),
+  but it's possible to record IO (disk, network) activity using -I argument.
 
   'perf timechart' to turn a trace into a Scalable Vector Graphics file,
-  that can be viewed with popular SVG viewers such as 'Inkscape'.
+  that can be viewed with popular SVG viewers such as 'Inkscape'. Depending
+  on the events in the perf.data file, timechart will contain scheduler/cpu
+  events or IO events.
+
+  In IO mode, every bar has two charts: upper and lower.
+  Upper bar shows incoming events (disk reads, ingress network packets).
+  Lower bar shows outgoing events (disk writes, egress network packets).
+  There are also poll bars which show how much time application spent
+  in poll/epoll/select syscalls.
 
 TIMECHART OPTIONS
 -----------------
@@ -63,6 +73,9 @@ RECORD OPTIONS
 -T::
 --tasks-only::
         Record only tasks-related events
+-I::
+--io-only::
+        Record only io-related events
 -g::
 --callchain::
         Do call-graph (stack chain/backtrace) recording
@@ -86,6 +99,14 @@ Record system-wide timechart:
   then generate timechart and highlight 'gcc' tasks:
 
   $ perf timechart --highlight gcc
+
+Record system-wide IO events:
+
+  $ perf timechart record -I
+
+  then generate timechart:
+
+  $ perf timechart
 
 SEE ALSO
 --------
