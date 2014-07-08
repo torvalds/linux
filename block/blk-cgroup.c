@@ -925,6 +925,14 @@ struct cgroup_subsys blkio_cgrp_subsys = {
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,
 	.base_cftypes = blkcg_files,
+#ifdef CONFIG_MEMCG
+	/*
+	 * This ensures that, if available, memcg is automatically enabled
+	 * together on the default hierarchy so that the owner cgroup can
+	 * be retrieved from writeback pages.
+	 */
+	.depends_on = 1 << memory_cgrp_id,
+#endif
 };
 EXPORT_SYMBOL_GPL(blkio_cgrp_subsys);
 
