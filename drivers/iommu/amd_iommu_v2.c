@@ -312,8 +312,6 @@ static void __unbind_pasid(struct pasid_state *pasid_state)
 
 	/* Make sure no more pending faults are in the queue */
 	flush_workqueue(iommu_wq);
-
-	put_pasid_state(pasid_state); /* Reference taken in bind() function */
 }
 
 static void unbind_pasid(struct device_state *dev_state, int pasid)
@@ -325,7 +323,7 @@ static void unbind_pasid(struct device_state *dev_state, int pasid)
 		return;
 
 	__unbind_pasid(pasid_state);
-	put_pasid_state_wait(pasid_state); /* Reference taken in this function */
+	put_pasid_state(pasid_state); /* Reference taken in this function */
 }
 
 static void free_pasid_states_level1(struct pasid_state **tbl)
@@ -371,6 +369,9 @@ static void free_pasid_states(struct device_state *dev_state)
 		 * unbind the PASID
 		 */
 		mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
+
+		put_pasid_state_wait(pasid_state); /* Reference taken in
+						      amd_iommu_pasid_bind */
 	}
 
 	if (dev_state->pasid_levels == 2)
@@ -690,6 +691,7 @@ out_unregister:
 	mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
 
 out_free:
+	mmput(pasid_state->mm);
 	free_pasid_state(pasid_state);
 
 out:
@@ -730,6 +732,8 @@ void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid)
 	/* This will call the mn_release function and unbind the PASID */
 	mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
 
+	put_pasid_state_wait(pasid_state); /* Reference taken in
+					      amd_iommu_pasid_bind */
 out:
 	put_device_state(dev_state);
 }
