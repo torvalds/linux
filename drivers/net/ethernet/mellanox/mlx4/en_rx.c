@@ -922,7 +922,7 @@ static const int frag_sizes[] = {
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int eff_mtu = dev->mtu + ETH_HLEN + VLAN_HLEN + ETH_LLC_SNAP_SIZE;
+	int eff_mtu = dev->mtu + ETH_HLEN + VLAN_HLEN;
 	int buf_size = 0;
 	int i = 0;
 
