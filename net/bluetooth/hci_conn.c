@@ -668,9 +668,6 @@ static void hci_req_directed_advertising(struct hci_request *req,
 	u8 own_addr_type;
 	u8 enable;
 
-	enable = 0x00;
-	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
-
 	/* Clear the HCI_LE_ADV bit temporarily so that the
 	 * hci_update_random_address knows that it's safe to go ahead
 	 * and write a new random address. The flag will be set back on
@@ -760,6 +757,18 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	conn->conn_timeout = conn_timeout;
 
 	hci_req_init(&req, hdev);
+
+	/* Disable advertising if we're active. For master role
+	 * connections most controllers will refuse to connect if
+	 * advertising is enabled, and for slave role connections we
+	 * anyway have to disable it in order to start directed
+	 * advertising.
+	 */
+	if (test_bit(HCI_LE_ADV, &hdev->dev_flags)) {
+		u8 enable = 0x00;
+		hci_req_add(&req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable),
+			    &enable);
+	}
 
 	/* If requested to connect as slave use directed advertising */
 	if (!master) {
