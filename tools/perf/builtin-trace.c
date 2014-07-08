@@ -1788,12 +1788,12 @@ static void print_location(FILE *f, struct perf_sample *sample,
 		fprintf(f, "%s@", al->map->dso->long_name);
 
 	if ((verbose || print_sym) && al->sym)
-		fprintf(f, "%s+0x%lx", al->sym->name,
+		fprintf(f, "%s+0x%" PRIx64, al->sym->name,
 			al->addr - al->sym->start);
 	else if (al->map)
-		fprintf(f, "0x%lx", al->addr);
+		fprintf(f, "0x%" PRIx64, al->addr);
 	else
-		fprintf(f, "0x%lx", sample->addr);
+		fprintf(f, "0x%" PRIx64, sample->addr);
 }
 
 static int trace__pgfault(struct trace *trace,
