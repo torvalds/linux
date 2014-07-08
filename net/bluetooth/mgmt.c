@@ -1794,8 +1794,10 @@ static int set_connectable_update_settings(struct hci_dev *hdev,
 	if (err < 0)
 		return err;
 
-	if (changed)
+	if (changed) {
+		hci_update_background_scan(hdev);
 		return new_settings(hdev, sk);
+	}
 
 	return 0;
 }
