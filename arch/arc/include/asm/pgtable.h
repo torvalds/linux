@@ -83,11 +83,13 @@
 #define _PAGE_PRESENT       (1<<9)	/* TLB entry is valid (H) */
 
 #if (CONFIG_ARC_MMU_VER >= 4)
-#define _PAGE_SZ            (1<<10)	/* Page Size indicator (H) */
+#define _PAGE_HW_SZ         (1<<10)	/* Page Size indicator (H): 0 normal, 1 super */
 #endif
 
 #define _PAGE_SHARED_CODE   (1<<11)	/* Shared Code page with cmn vaddr
 					   usable for shared TLB entries (H) */
+
+#define _PAGE_UNUSED_BIT    (1<<12)
 #endif
 
 /* vmalloc permissions */
@@ -97,6 +99,10 @@
 #ifndef CONFIG_ARC_CACHE_PAGES
 #undef _PAGE_CACHEABLE
 #define _PAGE_CACHEABLE 0
+#endif
+
+#ifndef _PAGE_HW_SZ
+#define _PAGE_HW_SZ	0
 #endif
 
 /* Defaults for every user page */
@@ -125,7 +131,7 @@
 #define PAGE_KERNEL_NO_CACHE __pgprot(_K_PAGE_PERMS)
 
 /* Masks for actual TLB "PD"s */
-#define PTE_BITS_IN_PD0		(_PAGE_GLOBAL | _PAGE_PRESENT)
+#define PTE_BITS_IN_PD0		(_PAGE_GLOBAL | _PAGE_PRESENT | _PAGE_HW_SZ)
 #define PTE_BITS_RWX		(_PAGE_EXECUTE | _PAGE_WRITE | _PAGE_READ)
 #define PTE_BITS_NON_RWX_IN_PD1	(PAGE_MASK | _PAGE_CACHEABLE)
 
@@ -299,6 +305,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 #define PTE_BIT_FUNC(fn, op) \
 	static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
 
+PTE_BIT_FUNC(mknotpresent,	&= ~(_PAGE_PRESENT));
 PTE_BIT_FUNC(wrprotect,	&= ~(_PAGE_WRITE));
 PTE_BIT_FUNC(mkwrite,	|= (_PAGE_WRITE));
 PTE_BIT_FUNC(mkclean,	&= ~(_PAGE_DIRTY));
@@ -308,6 +315,7 @@ PTE_BIT_FUNC(mkyoung,	|= (_PAGE_ACCESSED));
 PTE_BIT_FUNC(exprotect,	&= ~(_PAGE_EXECUTE));
 PTE_BIT_FUNC(mkexec,	|= (_PAGE_EXECUTE));
 PTE_BIT_FUNC(mkspecial,	|= (_PAGE_SPECIAL));
+PTE_BIT_FUNC(mkhuge,	|= (_PAGE_HW_SZ));
 
 #define __HAVE_ARCH_PTE_SPECIAL
 
@@ -381,6 +389,10 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
  * remap a physical page `pfn' of size `size' with page protection `prot'
  * into virtual address `from'
  */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#include <asm/hugepage.h>
+#endif
+
 #include <asm-generic/pgtable.h>
 
 /* to cope with aliasing VIPT cache */

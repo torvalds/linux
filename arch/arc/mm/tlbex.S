@@ -205,10 +205,18 @@ ex_saved_reg1:
 #endif
 
 	lsr     r0, r2, PGDIR_SHIFT     ; Bits for indexing into PGD
-	ld.as   r1, [r1, r0]            ; PGD entry corresp to faulting addr
-	and.f   r1, r1, PAGE_MASK       ; Ignoring protection and other flags
-	;   contains Ptr to Page Table
-	bz.d    do_slow_path_pf         ; if no Page Table, do page fault
+	ld.as   r3, [r1, r0]            ; PGD entry corresp to faulting addr
+	tst	r3, r3
+	bz	do_slow_path_pf         ; if no Page Table, do page fault
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	and.f	0, r3, _PAGE_HW_SZ	; Is this Huge PMD (thp)
+	add2.nz	r1, r1, r0
+	bnz.d	2f		; YES: PGD == PMD has THP PTE: stop pgd walk
+	mov.nz	r0, r3
+
+#endif
+	and	r1, r3, PAGE_MASK
 
 	; Get the PTE entry: The idea is
 	; (1) x = addr >> PAGE_SHIFT 	-> masks page-off bits from @fault-addr
@@ -219,6 +227,9 @@ ex_saved_reg1:
 	lsr     r0, r2, (PAGE_SHIFT - 2)
 	and     r0, r0, ( (PTRS_PER_PTE - 1) << 2)
 	ld.aw   r0, [r1, r0]            ; get PTE and PTE ptr for fault addr
+
+2:
+
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	and.f 0, r0, _PAGE_PRESENT
 	bz   1f

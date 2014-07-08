@@ -76,6 +76,10 @@ config STACKTRACE_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	def_bool y
+	depends on ARC_MMU_V4
+
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 

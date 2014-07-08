@@ -256,6 +256,18 @@ noinline void local_flush_tlb_all(void)
 		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 	}
 
+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
+		const int stlb_idx = 0x800;
+
+		/* Blank sTLB entry */
+		write_aux_reg(ARC_REG_TLBPD0, _PAGE_HW_SZ);
+
+		for (entry = stlb_idx; entry < stlb_idx + 16; entry++) {
+			write_aux_reg(ARC_REG_TLBINDEX, entry);
+			write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+		}
+	}
+
 	utlb_invalidate();
 
 	local_irq_restore(flags);
@@ -579,6 +591,75 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		}
 	}
 }
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+
+/*
+ * MMUv4 in HS38x cores supports Super Pages which are basis for Linux THP
+ * support.
+ *
+ * Normal and Super pages can co-exist (ofcourse not overlap) in TLB with a
+ * new bit "SZ" in TLB page desciptor to distinguish between them.
+ * Super Page size is configurable in hardware (4K to 16M), but fixed once
+ * RTL builds.
+ *
+ * The exact THP size a Linx configuration will support is a function of:
+ *  - MMU page size (typical 8K, RTL fixed)
+ *  - software page walker address split between PGD:PTE:PFN (typical
+ *    11:8:13, but can be changed with 1 line)
+ * So for above default, THP size supported is 8K * (2^8) = 2M
+ *
+ * Default Page Walker is 2 levels, PGD:PTE:PFN, which in THP regime
+ * reduces to 1 level (as PTE is folded into PGD and canonically referred
+ * to as PMD).
+ * Thus THP PMD accessors are implemented in terms of PTE (just like sparc)
+ */
+
+void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
+				 pmd_t *pmd)
+{
+	pte_t pte = __pte(pmd_val(*pmd));
+	update_mmu_cache(vma, addr, &pte);
+}
+
+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+				pgtable_t pgtable)
+{
+	struct list_head *lh = (struct list_head *) pgtable;
+
+	assert_spin_locked(&mm->page_table_lock);
+
+	/* FIFO */
+	if (!pmd_huge_pte(mm, pmdp))
+		INIT_LIST_HEAD(lh);
+	else
+		list_add(lh, (struct list_head *) pmd_huge_pte(mm, pmdp));
+	pmd_huge_pte(mm, pmdp) = pgtable;
+}
+
+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
+{
+	struct list_head *lh;
+	pgtable_t pgtable;
+
+	assert_spin_locked(&mm->page_table_lock);
+
+	pgtable = pmd_huge_pte(mm, pmdp);
+	lh = (struct list_head *) pgtable;
+	if (list_empty(lh))
+		pmd_huge_pte(mm, pmdp) = NULL;
+	else {
+		pmd_huge_pte(mm, pmdp) = (pgtable_t) lh->next;
+		list_del(lh);
+	}
+
+	pte_val(pgtable[0]) = 0;
+	pte_val(pgtable[1]) = 0;
+
+	return pgtable;
+}
+
+#endif
 
 /* Read the Cache Build Confuration Registers, Decode them and save into
  * the cpuinfo structure for later use.
