@@ -15,8 +15,8 @@
  * state or available options. For further information about sysfs entries, see
  * Documentation/ABI/testing/sysfs-platform-ts5500.
  *
- * This code actually supports the TS-5500 platform, but it may be extended to
- * support similar Technologic Systems x86-based platforms, such as the TS-5600.
+ * This code may be extended to support similar x86-based platforms.
+ * Actually, the TS-5500 and TS-5400 are supported.
  */
 
 #include <linux/delay.h>
@@ -32,6 +32,7 @@
 /* Product code register */
 #define TS5500_PRODUCT_CODE_ADDR	0x74
 #define TS5500_PRODUCT_CODE		0x60	/* TS-5500 product code */
+#define TS5400_PRODUCT_CODE		0x40	/* TS-5400 product code */
 
 /* SRAM/RS-485/ADC options, and RS-485 RTS/Automatic RS-485 flags register */
 #define TS5500_SRAM_RS485_ADC_ADDR	0x75
@@ -127,6 +128,8 @@ static int __init ts5500_detect_config(struct ts5500_sbc *sbc)
 	sbc->id = inb(TS5500_PRODUCT_CODE_ADDR);
 	if (sbc->id == TS5500_PRODUCT_CODE) {
 		sbc->name = "TS-5500";
+	} else if (sbc->id == TS5400_PRODUCT_CODE) {
+		sbc->name = "TS-5400";
 	} else {
 		pr_err("ts5500: unknown product code 0x%x\n", sbc->id);
 		ret = -ENODEV;
@@ -318,12 +321,14 @@ static int __init ts5500_init(void)
 	if (err)
 		goto error;
 
-	ts5500_dio1_pdev.dev.parent = &pdev->dev;
-	if (platform_device_register(&ts5500_dio1_pdev))
-		dev_warn(&pdev->dev, "DIO1 block registration failed\n");
-	ts5500_dio2_pdev.dev.parent = &pdev->dev;
-	if (platform_device_register(&ts5500_dio2_pdev))
-		dev_warn(&pdev->dev, "DIO2 block registration failed\n");
+	if (sbc->id == TS5500_PRODUCT_CODE) {
+		ts5500_dio1_pdev.dev.parent = &pdev->dev;
+		if (platform_device_register(&ts5500_dio1_pdev))
+			dev_warn(&pdev->dev, "DIO1 block registration failed\n");
+		ts5500_dio2_pdev.dev.parent = &pdev->dev;
+		if (platform_device_register(&ts5500_dio2_pdev))
+			dev_warn(&pdev->dev, "DIO2 block registration failed\n");
+	}
 
 	if (led_classdev_register(&pdev->dev, &ts5500_led_cdev))
 		dev_warn(&pdev->dev, "LED registration failed\n");
