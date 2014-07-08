@@ -340,6 +340,13 @@ config GPIO_XILINX
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
+config GPIO_ZYNQ
+	tristate "Xilinx Zynq GPIO support"
+	depends on ARCH_ZYNQ
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Xilinx Zynq GPIO controller.
+
 config GPIO_XTENSA
 	bool "Xtensa GPIO32 support"
 	depends on XTENSA
