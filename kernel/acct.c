@@ -554,11 +554,10 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	/*
 	 * Accounting records are not subject to resource limits.
 	 */
-	flim = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 	file->f_op->write(file, (char *)&ac,
 			       sizeof(acct_t), &file->f_pos);
-	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = flim;
+	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
 	set_fs(fs);
 	file_end_write(file);
 out:
