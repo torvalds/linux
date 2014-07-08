@@ -20,6 +20,7 @@
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
+#include <linux/timex.h>
 
 #define WIL_NAME "wil6210"
 
@@ -251,7 +252,7 @@ struct vring {
  */
 struct vring_tx_data {
 	int enabled;
-
+	cycles_t idle, last_idle, begin;
 };
 
 enum { /* for wil6210_priv.status */
@@ -303,6 +304,7 @@ struct wil_tid_ampdu_rx {
 	u16 ssn;
 	u16 buf_size;
 	u16 timeout;
+	u16 ssn_last_drop;
 	u8 dialog_token;
 	bool first_time; /* is it 1-st time this buffer used? */
 };
@@ -410,6 +412,7 @@ struct wil6210_priv {
 	struct mutex mutex; /* for wil6210_priv access in wil_{up|down} */
 	/* statistics */
 	struct wil6210_stats stats;
+	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
 	struct dentry *debug;
 	struct debugfs_blob_wrapper fw_code_blob;
@@ -504,9 +507,14 @@ int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);
 void wil6210_disable_irq(struct wil6210_priv *wil);
 void wil6210_enable_irq(struct wil6210_priv *wil);
+int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+			 struct cfg80211_mgmt_tx_params *params,
+			 u64 *cookie);
 
 int wil6210_debugfs_init(struct wil6210_priv *wil);
 void wil6210_debugfs_remove(struct wil6210_priv *wil);
+int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
+		       struct station_info *sinfo);
 
 struct wireless_dev *wil_cfg80211_init(struct device *dev);
 void wil_wdev_free(struct wil6210_priv *wil);

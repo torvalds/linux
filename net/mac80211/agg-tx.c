@@ -170,10 +170,13 @@ ieee80211_stop_queue_agg(struct ieee80211_sub_if_data *sdata, int tid)
 {
 	int queue = sdata->vif.hw_queue[ieee80211_ac_from_tid(tid)];
 
+	/* we do refcounting here, so don't use the queue reason refcounting */
+
 	if (atomic_inc_return(&sdata->local->agg_queue_stop[queue]) == 1)
 		ieee80211_stop_queue_by_reason(
 			&sdata->local->hw, queue,
-			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+			IEEE80211_QUEUE_STOP_REASON_AGGREGATION,
+			false);
 	__acquire(agg_queue);
 }
 
@@ -185,7 +188,8 @@ ieee80211_wake_queue_agg(struct ieee80211_sub_if_data *sdata, int tid)
 	if (atomic_dec_return(&sdata->local->agg_queue_stop[queue]) == 0)
 		ieee80211_wake_queue_by_reason(
 			&sdata->local->hw, queue,
-			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+			IEEE80211_QUEUE_STOP_REASON_AGGREGATION,
+			false);
 	__release(agg_queue);
 }
 

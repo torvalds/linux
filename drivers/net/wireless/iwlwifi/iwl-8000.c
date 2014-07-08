@@ -67,7 +67,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL8000_UCODE_API_MAX	8
+#define IWL8000_UCODE_API_MAX	9
 
 /* Oldest version we won't warn about */
 #define IWL8000_UCODE_API_OK	8
@@ -119,10 +119,9 @@ const struct iwl_cfg iwl8260_2ac_cfg = {
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
-	.default_nvm_file = DEFAULT_NVM_FILE_FAMILY_8000,
 };
 
-const struct iwl_cfg iwl8260_n_cfg = {
+const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.name = "Intel(R) Dual Band Wireless-AC 8260",
 	.fw_name_pre = IWL8000_FW_PRE,
 	IWL_DEVICE_8000,

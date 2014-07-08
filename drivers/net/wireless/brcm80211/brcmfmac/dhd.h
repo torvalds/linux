@@ -49,16 +49,6 @@
  */
 #define BRCMF_DRIVER_FIRMWARE_VERSION_LEN	32
 
-/* Bus independent dongle command */
-struct brcmf_dcmd {
-	uint cmd;		/* common dongle cmd definition */
-	void *buf;		/* pointer to user buffer */
-	uint len;		/* length of user buffer */
-	u8 set;			/* get or set request (optional) */
-	uint used;		/* bytes read or written (optional) */
-	uint needed;		/* bytes needed (optional) */
-};
-
 /**
  * struct brcmf_ampdu_rx_reorder - AMPDU receive reorder info
  *

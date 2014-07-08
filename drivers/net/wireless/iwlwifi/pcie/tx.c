@@ -1438,6 +1438,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
 			trans_pcie->cmd_in_flight = false;
+			IWL_ERR(trans, "Failed to wake NIC for hcmd\n");
 			idx = -EIO;
 			goto out;
 		}

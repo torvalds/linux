@@ -63,6 +63,7 @@ enum ath_op_flags {
 	ATH_OP_PRIM_STA_VIF,
 	ATH_OP_HW_RESET,
 	ATH_OP_SCANNING,
+	ATH_OP_MULTI_CHANNEL,
 };
 
 enum ath_bus_type {

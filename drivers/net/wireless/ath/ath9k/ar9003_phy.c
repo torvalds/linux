@@ -1552,12 +1552,14 @@ static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 				      u8 *ini_reloaded)
 {
 	unsigned int regWrites = 0;
-	u32 modesIndex;
+	u32 modesIndex, txgain_index;
 
 	if (IS_CHAN_5GHZ(chan))
 		modesIndex = IS_CHAN_HT40(chan) ? 2 : 1;
 	else
 		modesIndex = IS_CHAN_HT40(chan) ? 3 : 4;
+
+	txgain_index = AR_SREV_9531(ah) ? 1 : modesIndex;
 
 	if (modesIndex == ah->modes_index) {
 		*ini_reloaded = false;
@@ -1573,7 +1575,7 @@ static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 		ar9003_hw_prog_ini(ah, &ah->ini_radio_post_sys2ant,
 				   modesIndex);
 
-	REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
+	REG_WRITE_ARRAY(&ah->iniModesTxGain, txgain_index, regWrites);
 
 	if (AR_SREV_9462_20_OR_LATER(ah)) {
 		/*

@@ -473,6 +473,8 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	/* Set the cached hw filter flags, this will later actually
 	 * be set in HW */
 	ah->filter_flags = rfilt;
+	/* Store current FIF filter flags */
+	ah->fif_filter_flags = *new_flags;
 
 	mutex_unlock(&ah->lock);
 }

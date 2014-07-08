@@ -122,6 +122,15 @@ config B43_PIO
 	select SSB_BLOCKIO
 	default y
 
+config B43_PHY_G
+	bool "Support for G-PHY (802.11g) devices"
+	depends on B43 && B43_SSB
+	default y
+	---help---
+	  This PHY type can be found in the following chipsets:
+	  PCI: BCM4306, BCM4311, BCM4318
+	  SoC: BCM4712, BCM5352E
+
 config B43_PHY_N
 	bool "Support for 802.11n (N-PHY) devices"
 	depends on B43

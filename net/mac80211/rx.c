@@ -1107,6 +1107,8 @@ static void sta_ps_end(struct sta_info *sta)
 		return;
 	}
 
+	set_sta_flag(sta, WLAN_STA_PS_DELIVER);
+	clear_sta_flag(sta, WLAN_STA_PS_STA);
 	ieee80211_sta_ps_deliver_wakeup(sta);
 }
 
