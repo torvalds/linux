@@ -139,6 +139,7 @@ config BCM63XX
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
+	select SYNC_R4K
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select SYS_SUPPORTS_32BIT_KERNEL
