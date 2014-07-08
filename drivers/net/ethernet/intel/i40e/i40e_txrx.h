@@ -131,6 +131,7 @@ enum i40e_dyn_idx_t {
 #define I40E_TX_FLAGS_FCCRC		(u32)(1 << 6)
 #define I40E_TX_FLAGS_FSO		(u32)(1 << 7)
 #define I40E_TX_FLAGS_TSYN		(u32)(1 << 8)
+#define I40E_TX_FLAGS_FD_SB		(u32)(1 << 9)
 #define I40E_TX_FLAGS_VLAN_MASK		0xffff0000
 #define I40E_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define I40E_TX_FLAGS_VLAN_PRIO_SHIFT	29
@@ -139,7 +140,10 @@ enum i40e_dyn_idx_t {
 struct i40e_tx_buffer {
 	struct i40e_tx_desc *next_to_watch;
 	unsigned long time_stamp;
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		void *raw_buf;
+	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
 	DEFINE_DMA_UNMAP_ADDR(dma);

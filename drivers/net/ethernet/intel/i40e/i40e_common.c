@@ -1037,6 +1037,164 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 /* Admin command wrappers */
 
 /**
+ * i40e_aq_get_phy_capabilities
+ * @hw: pointer to the hw struct
+ * @abilities: structure for PHY capabilities to be filled
+ * @qualified_modules: report Qualified Modules
+ * @report_init: report init capabilities (active are default)
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Returns the various PHY abilities supported on the Port.
+ **/
+i40e_status i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
+			bool qualified_modules, bool report_init,
+			struct i40e_aq_get_phy_abilities_resp *abilities,
+			struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	i40e_status status;
+	u16 abilities_size = sizeof(struct i40e_aq_get_phy_abilities_resp);
+
+	if (!abilities)
+		return I40E_ERR_PARAM;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_get_phy_abilities);
+
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
+	if (abilities_size > I40E_AQ_LARGE_BUF)
+		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
+
+	if (qualified_modules)
+		desc.params.external.param0 |=
+			cpu_to_le32(I40E_AQ_PHY_REPORT_QUALIFIED_MODULES);
+
+	if (report_init)
+		desc.params.external.param0 |=
+			cpu_to_le32(I40E_AQ_PHY_REPORT_INITIAL_VALUES);
+
+	status = i40e_asq_send_command(hw, &desc, abilities, abilities_size,
+				       cmd_details);
+
+	if (hw->aq.asq_last_status == I40E_AQ_RC_EIO)
+		status = I40E_ERR_UNKNOWN_PHY;
+
+	return status;
+}
+
+/**
+ * i40e_aq_set_phy_config
+ * @hw: pointer to the hw struct
+ * @config: structure with PHY configuration to be set
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Set the various PHY configuration parameters
+ * supported on the Port.One or more of the Set PHY config parameters may be
+ * ignored in an MFP mode as the PF may not have the privilege to set some
+ * of the PHY Config parameters. This status will be indicated by the
+ * command response.
+ **/
+enum i40e_status_code i40e_aq_set_phy_config(struct i40e_hw *hw,
+				struct i40e_aq_set_phy_config *config,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aq_set_phy_config *cmd =
+			(struct i40e_aq_set_phy_config *)&desc.params.raw;
+	enum i40e_status_code status;
+
+	if (!config)
+		return I40E_ERR_PARAM;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_phy_config);
+
+	*cmd = *config;
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
+ * i40e_set_fc
+ * @hw: pointer to the hw struct
+ *
+ * Set the requested flow control mode using set_phy_config.
+ **/
+enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
+				  bool atomic_restart)
+{
+	enum i40e_fc_mode fc_mode = hw->fc.requested_mode;
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	struct i40e_aq_set_phy_config config;
+	enum i40e_status_code status;
+	u8 pause_mask = 0x0;
+
+	*aq_failures = 0x0;
+
+	switch (fc_mode) {
+	case I40E_FC_FULL:
+		pause_mask |= I40E_AQ_PHY_FLAG_PAUSE_TX;
+		pause_mask |= I40E_AQ_PHY_FLAG_PAUSE_RX;
+		break;
+	case I40E_FC_RX_PAUSE:
+		pause_mask |= I40E_AQ_PHY_FLAG_PAUSE_RX;
+		break;
+	case I40E_FC_TX_PAUSE:
+		pause_mask |= I40E_AQ_PHY_FLAG_PAUSE_TX;
+		break;
+	default:
+		break;
+	}
+
+	/* Get the current phy config */
+	status = i40e_aq_get_phy_capabilities(hw, false, false, &abilities,
+					      NULL);
+	if (status) {
+		*aq_failures |= I40E_SET_FC_AQ_FAIL_GET;
+		return status;
+	}
+
+	memset(&config, 0, sizeof(struct i40e_aq_set_phy_config));
+	/* clear the old pause settings */
+	config.abilities = abilities.abilities & ~(I40E_AQ_PHY_FLAG_PAUSE_TX) &
+			   ~(I40E_AQ_PHY_FLAG_PAUSE_RX);
+	/* set the new abilities */
+	config.abilities |= pause_mask;
+	/* If the abilities have changed, then set the new config */
+	if (config.abilities != abilities.abilities) {
+		/* Auto restart link so settings take effect */
+		if (atomic_restart)
+			config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+		/* Copy over all the old settings */
+		config.phy_type = abilities.phy_type;
+		config.link_speed = abilities.link_speed;
+		config.eee_capability = abilities.eee_capability;
+		config.eeer = abilities.eeer_val;
+		config.low_power_ctrl = abilities.d3_lpan;
+		status = i40e_aq_set_phy_config(hw, &config, NULL);
+
+		if (status)
+			*aq_failures |= I40E_SET_FC_AQ_FAIL_SET;
+	}
+	/* Update the link info */
+	status = i40e_update_link_info(hw, true);
+	if (status) {
+		/* Wait a little bit (on 40G cards it sometimes takes a really
+		 * long time for link to come back from the atomic reset)
+		 * and try once more
+		 */
+		msleep(1000);
+		status = i40e_update_link_info(hw, true);
+	}
+	if (status)
+		*aq_failures |= I40E_SET_FC_AQ_FAIL_UPDATE;
+
+	return status;
+}
+
+/**
  * i40e_aq_clear_pxe_mode
  * @hw: pointer to the hw struct
  * @cmd_details: pointer to command details structure or NULL
@@ -1112,6 +1270,7 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 		(struct i40e_aqc_get_link_status *)&desc.params.raw;
 	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
 	i40e_status status;
+	bool tx_pause, rx_pause;
 	u16 command_flags;
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_get_link_status);
@@ -1141,6 +1300,18 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	hw_link_info->max_frame_size = le16_to_cpu(resp->max_frame_size);
 	hw_link_info->pacing = resp->config & I40E_AQ_CONFIG_PACING_MASK;
 
+	/* update fc info */
+	tx_pause = !!(resp->an_info & I40E_AQ_LINK_PAUSE_TX);
+	rx_pause = !!(resp->an_info & I40E_AQ_LINK_PAUSE_RX);
+	if (tx_pause & rx_pause)
+		hw->fc.current_mode = I40E_FC_FULL;
+	else if (tx_pause)
+		hw->fc.current_mode = I40E_FC_TX_PAUSE;
+	else if (rx_pause)
+		hw->fc.current_mode = I40E_FC_RX_PAUSE;
+	else
+		hw->fc.current_mode = I40E_FC_NONE;
+
 	if (resp->config & I40E_AQ_CONFIG_CRC_ENA)
 		hw_link_info->crc_enable = true;
 	else
@@ -1159,6 +1330,35 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	hw->phy.get_link_info = false;
 
 aq_get_link_info_exit:
+	return status;
+}
+
+/**
+ * i40e_update_link_info
+ * @hw: pointer to the hw struct
+ * @enable_lse: enable/disable LinkStatusEvent reporting
+ *
+ * Returns the link status of the adapter
+ **/
+i40e_status i40e_update_link_info(struct i40e_hw *hw, bool enable_lse)
+{
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	i40e_status status;
+
+	status = i40e_aq_get_link_info(hw, enable_lse, NULL, NULL);
+	if (status)
+		return status;
+
+	status = i40e_aq_get_phy_capabilities(hw, false, false,
+					      &abilities, NULL);
+	if (status)
+		return status;
+
+	if (abilities.abilities & I40E_AQ_PHY_AN_ENABLED)
+		hw->phy.link_info.an_enabled = true;
+	else
+		hw->phy.link_info.an_enabled = false;
+
 	return status;
 }
 

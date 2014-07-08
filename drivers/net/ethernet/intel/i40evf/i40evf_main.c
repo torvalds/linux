@@ -36,7 +36,7 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710/X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "0.9.38"
+#define DRV_VERSION "0.9.40"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2014 Intel Corporation.";
@@ -260,6 +260,12 @@ static void i40evf_fire_sw_int(struct i40evf_adapter *adapter,
 	int i;
 	uint32_t dyn_ctl;
 
+	if (mask & 1) {
+		dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTL01);
+		dyn_ctl |= I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK |
+			   I40E_VFINT_DYN_CTLN_CLEARPBA_MASK;
+		wr32(hw, I40E_VFINT_DYN_CTL01, dyn_ctl);
+	}
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
 		if (mask & (1 << i)) {
 			dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTLN1(i - 1));
@@ -278,6 +284,7 @@ void i40evf_irq_enable(struct i40evf_adapter *adapter, bool flush)
 {
 	struct i40e_hw *hw = &adapter->hw;
 
+	i40evf_misc_irq_enable(adapter);
 	i40evf_irq_enable_queues(adapter, ~0);
 
 	if (flush)

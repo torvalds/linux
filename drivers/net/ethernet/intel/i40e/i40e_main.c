@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 19
+#define DRV_VERSION_BUILD 21
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -2401,10 +2401,6 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 
 	rx_ctx.rxmax = min_t(u16, vsi->max_frame,
 				  (chain_len * ring->rx_buf_len));
-	rx_ctx.tphrdesc_ena = 1;
-	rx_ctx.tphwdesc_ena = 1;
-	rx_ctx.tphdata_ena = 1;
-	rx_ctx.tphhead_ena = 1;
 	if (hw->revision_id == 0)
 		rx_ctx.lrxqthresh = 0;
 	else
@@ -3087,16 +3083,33 @@ static bool i40e_clean_fdir_tx_irq(struct i40e_ring *tx_ring, int budget)
 		/* clear next_to_watch to prevent false hangs */
 		tx_buf->next_to_watch = NULL;
 
+		tx_desc->buffer_addr = 0;
+		tx_desc->cmd_type_offset_bsz = 0;
+		/* move past filter desc */
+		tx_buf++;
+		tx_desc++;
+		i++;
+		if (unlikely(!i)) {
+			i -= tx_ring->count;
+			tx_buf = tx_ring->tx_bi;
+			tx_desc = I40E_TX_DESC(tx_ring, 0);
+		}
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
 				 dma_unmap_addr(tx_buf, dma),
 				 dma_unmap_len(tx_buf, len),
 				 DMA_TO_DEVICE);
+		if (tx_buf->tx_flags & I40E_TX_FLAGS_FD_SB)
+			kfree(tx_buf->raw_buf);
 
+		tx_buf->raw_buf = NULL;
+		tx_buf->tx_flags = 0;
+		tx_buf->next_to_watch = NULL;
 		dma_unmap_len_set(tx_buf, len, 0);
+		tx_desc->buffer_addr = 0;
+		tx_desc->cmd_type_offset_bsz = 0;
 
-
-		/* move to the next desc and buffer to clean */
+		/* move us past the eop_desc for start of next FD desc */
 		tx_buf++;
 		tx_desc++;
 		i++;
@@ -4313,7 +4326,11 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 static int i40e_up_complete(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
+	u8 set_fc_aq_fail = 0;
 	int err;
+
+	/* force flow control off */
+	i40e_set_fc(&pf->hw, &set_fc_aq_fail, true);
 
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
 		i40e_vsi_configure_msix(vsi);
@@ -5279,7 +5296,7 @@ static void i40e_handle_link_event(struct i40e_pf *pf,
 	 * then see if the status changed while processing the
 	 * initial event.
 	 */
-	i40e_aq_get_link_info(&pf->hw, true, NULL, NULL);
+	i40e_update_link_info(&pf->hw, true);
 	i40e_link_event(pf);
 }
 
@@ -5296,9 +5313,6 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	u16 opcode;
 	u32 oldval;
 	u32 val;
-
-	if (!test_bit(__I40E_ADMINQ_EVENT_PENDING, &pf->state))
-		return;
 
 	/* check for error indications */
 	val = rd32(&pf->hw, pf->hw.aq.arq.len);
@@ -5343,10 +5357,9 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	do {
 		event.msg_size = I40E_MAX_AQ_BUF_SIZE; /* reinit each time */
 		ret = i40e_clean_arq_element(hw, &event, &pending);
-		if (ret == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
-			dev_info(&pf->pdev->dev, "No ARQ event found\n");
+		if (ret == I40E_ERR_ADMIN_QUEUE_NO_WORK)
 			break;
-		} else if (ret) {
+		else if (ret) {
 			dev_info(&pf->pdev->dev, "ARQ event error %d\n", ret);
 			break;
 		}
@@ -6872,9 +6885,11 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 			i40e_fdir_filter_exit(pf);
 		}
 		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
-		/* if ATR was disabled it can be re-enabled. */
-		if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
-			pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+		pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		/* if ATR was auto disabled it can be re-enabled. */
+		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 	}
 	return need_reset;
 }
@@ -8266,7 +8281,6 @@ int i40e_fetch_switch_configuration(struct i40e_pf *pf, bool printconfig)
  **/
 static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 {
-	u32 rxfc = 0, txfc = 0, rxfc_reg;
 	int ret;
 
 	/* find out what's out there already */
@@ -8326,68 +8340,13 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		i40e_config_rss(pf);
 
 	/* fill in link information and enable LSE reporting */
-	i40e_aq_get_link_info(&pf->hw, true, NULL, NULL);
+	i40e_update_link_info(&pf->hw, true);
 	i40e_link_event(pf);
 
 	/* Initialize user-specific link properties */
 	pf->fc_autoneg_status = ((pf->hw.phy.link_info.an_info &
 				  I40E_AQ_AN_COMPLETED) ? true : false);
-	/* requested_mode is set in probe or by ethtool */
-	if (!pf->fc_autoneg_status)
-		goto no_autoneg;
 
-	if ((pf->hw.phy.link_info.an_info & I40E_AQ_LINK_PAUSE_TX) &&
-	    (pf->hw.phy.link_info.an_info & I40E_AQ_LINK_PAUSE_RX))
-		pf->hw.fc.current_mode = I40E_FC_FULL;
-	else if (pf->hw.phy.link_info.an_info & I40E_AQ_LINK_PAUSE_TX)
-		pf->hw.fc.current_mode = I40E_FC_TX_PAUSE;
-	else if (pf->hw.phy.link_info.an_info & I40E_AQ_LINK_PAUSE_RX)
-		pf->hw.fc.current_mode = I40E_FC_RX_PAUSE;
-	else
-		pf->hw.fc.current_mode = I40E_FC_NONE;
-
-	/* sync the flow control settings with the auto-neg values */
-	switch (pf->hw.fc.current_mode) {
-	case I40E_FC_FULL:
-		txfc = 1;
-		rxfc = 1;
-		break;
-	case I40E_FC_TX_PAUSE:
-		txfc = 1;
-		rxfc = 0;
-		break;
-	case I40E_FC_RX_PAUSE:
-		txfc = 0;
-		rxfc = 1;
-		break;
-	case I40E_FC_NONE:
-	case I40E_FC_DEFAULT:
-		txfc = 0;
-		rxfc = 0;
-		break;
-	case I40E_FC_PFC:
-		/* TBD */
-		break;
-	/* no default case, we have to handle all possibilities here */
-	}
-
-	wr32(&pf->hw, I40E_PRTDCB_FCCFG, txfc << I40E_PRTDCB_FCCFG_TFCE_SHIFT);
-
-	rxfc_reg = rd32(&pf->hw, I40E_PRTDCB_MFLCN) &
-		   ~I40E_PRTDCB_MFLCN_RFCE_MASK;
-	rxfc_reg |= (rxfc << I40E_PRTDCB_MFLCN_RFCE_SHIFT);
-
-	wr32(&pf->hw, I40E_PRTDCB_MFLCN, rxfc_reg);
-
-	goto fc_complete;
-
-no_autoneg:
-	/* disable L2 flow control, user can turn it on if they wish */
-	wr32(&pf->hw, I40E_PRTDCB_FCCFG, 0);
-	wr32(&pf->hw, I40E_PRTDCB_MFLCN, rd32(&pf->hw, I40E_PRTDCB_MFLCN) &
-					 ~I40E_PRTDCB_MFLCN_RFCE_MASK);
-
-fc_complete:
 	i40e_ptp_init(pf);
 
 	return ret;
