@@ -146,17 +146,47 @@ static ssize_t iwl_dbgfs_fw_error_dump_read(struct file *file,
 					    char __user *user_buf,
 					    size_t count, loff_t *ppos)
 {
-	struct iwl_fw_error_dump_file *dump_file = file->private_data;
+	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
+	ssize_t bytes_read = 0;
+	ssize_t bytes_read_trans = 0;
 
-	return simple_read_from_buffer(user_buf, count, ppos,
-				       dump_file,
-				       le32_to_cpu(dump_file->file_len));
+	if (*ppos < dump_ptrs->op_mode_len)
+		bytes_read +=
+			simple_read_from_buffer(user_buf, count, ppos,
+						dump_ptrs->op_mode_ptr,
+						dump_ptrs->op_mode_len);
+
+	if (bytes_read < 0 || *ppos < dump_ptrs->op_mode_len)
+		return bytes_read;
+
+	if (dump_ptrs->trans_ptr) {
+		*ppos -= dump_ptrs->op_mode_len;
+		bytes_read_trans =
+			simple_read_from_buffer(user_buf + bytes_read,
+						count - bytes_read, ppos,
+						dump_ptrs->trans_ptr->data,
+						dump_ptrs->trans_ptr->len);
+		*ppos += dump_ptrs->op_mode_len;
+
+		if (bytes_read_trans >= 0)
+			bytes_read += bytes_read_trans;
+		else if (!bytes_read)
+			/* propagate the failure */
+			return bytes_read_trans;
+	}
+
+	return bytes_read;
+
 }
 
 static int iwl_dbgfs_fw_error_dump_release(struct inode *inode,
 					   struct file *file)
 {
-	vfree(file->private_data);
+	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
+
+	vfree(dump_ptrs->op_mode_ptr);
+	vfree(dump_ptrs->trans_ptr);
+	kfree(dump_ptrs);
 
 	return 0;
 }

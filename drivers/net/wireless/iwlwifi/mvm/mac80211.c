@@ -676,16 +676,20 @@ static void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
+	struct iwl_mvm_dump_ptrs *fw_error_dump;
 	const struct fw_img *img;
 	u32 sram_len, sram_ofs;
 	u32 file_len, rxf_len;
 	unsigned long flags;
-	u32 trans_len;
 	int reg_val;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (mvm->fw_error_dump)
+		return;
+
+	fw_error_dump = kzalloc(sizeof(*mvm->fw_error_dump), GFP_KERNEL);
+	if (!fw_error_dump)
 		return;
 
 	img = &mvm->fw->img[mvm->cur_ucode];
@@ -705,18 +709,15 @@ static void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		   rxf_len +
 		   sizeof(*dump_info);
 
-	trans_len = iwl_trans_dump_data(mvm->trans, NULL, 0);
-	if (trans_len)
-		file_len += trans_len;
-
 	dump_file = vzalloc(file_len);
-	if (!dump_file)
+	if (!dump_file) {
+		kfree(fw_error_dump);
 		return;
+	}
 
-	mvm->fw_error_dump = dump_file;
+	fw_error_dump->op_mode_ptr = dump_file;
 
 	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
-	dump_file->file_len = cpu_to_le32(file_len);
 	dump_data = (void *)dump_file->data;
 
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_DEV_FW_INFO);
@@ -757,14 +758,12 @@ static void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	iwl_trans_read_mem_bytes(mvm->trans, sram_ofs, dump_data->data,
 				 sram_len);
 
-	if (trans_len) {
-		void *buf = iwl_fw_error_next_data(dump_data);
-		u32 real_trans_len = iwl_trans_dump_data(mvm->trans, buf,
-							 trans_len);
-		dump_data = (void *)((u8 *)buf + real_trans_len);
-		dump_file->file_len =
-			cpu_to_le32(file_len - trans_len + real_trans_len);
-	}
+	fw_error_dump->trans_ptr = iwl_trans_dump_data(mvm->trans);
+	fw_error_dump->op_mode_len = file_len;
+	if (fw_error_dump->trans_ptr)
+		file_len += fw_error_dump->trans_ptr->len;
+	dump_file->file_len = cpu_to_le32(file_len);
+	mvm->fw_error_dump = fw_error_dump;
 }
 #endif
 

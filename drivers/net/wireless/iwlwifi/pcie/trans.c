@@ -67,6 +67,7 @@
 #include <linux/sched.h>
 #include <linux/bitops.h>
 #include <linux/gfp.h>
+#include <linux/vmalloc.h>
 
 #include "iwl-drv.h"
 #include "iwl-trans.h"
@@ -1773,28 +1774,30 @@ static u32 iwl_trans_pcie_get_cmdlen(struct iwl_tfd *tfd)
 	return cmdlen;
 }
 
-static u32 iwl_trans_pcie_dump_data(struct iwl_trans *trans,
-				    void *buf, u32 buflen)
+static
+struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_fw_error_dump_data *data;
 	struct iwl_txq *cmdq = &trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_fw_error_dump_txcmd *txcmd;
+	struct iwl_trans_dump_data *dump_data;
 	u32 len;
 	int i, ptr;
 
-	len = sizeof(*data) +
+	len = sizeof(*dump_data) + sizeof(*data) +
 		cmdq->q.n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
 
 	if (trans_pcie->fw_mon_page)
 		len += sizeof(*data) + sizeof(struct iwl_fw_error_dump_fw_mon) +
 			trans_pcie->fw_mon_size;
 
-	if (!buf)
-		return len;
+	dump_data = vzalloc(len);
+	if (!dump_data)
+		return NULL;
 
 	len = 0;
-	data = buf;
+	data = (void *)dump_data->data;
 	data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXCMD);
 	txcmd = (void *)data->data;
 	spin_lock_bh(&cmdq->lock);
@@ -1852,7 +1855,9 @@ static u32 iwl_trans_pcie_dump_data(struct iwl_trans *trans,
 			trans_pcie->fw_mon_size;
 	}
 
-	return len;
+	dump_data->len = len;
+
+	return dump_data;
 }
 #else
 static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,

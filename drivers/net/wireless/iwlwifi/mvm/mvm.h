@@ -128,6 +128,21 @@ struct iwl_mvm_mod_params {
 };
 extern struct iwl_mvm_mod_params iwlmvm_mod_params;
 
+/**
+ * struct iwl_mvm_dump_ptrs - set of pointers needed for the fw-error-dump
+ *
+ * @op_mode_ptr: pointer to the buffer coming from the mvm op_mode
+ * @trans_ptr: pointer to struct %iwl_trans_dump_data which contains the
+ *	transport's data.
+ * @trans_len: length of the valid data in trans_ptr
+ * @op_mode_len: length of the valid data in op_mode_ptr
+ */
+struct iwl_mvm_dump_ptrs {
+	struct iwl_trans_dump_data *trans_ptr;
+	void *op_mode_ptr;
+	u32 op_mode_len;
+};
+
 struct iwl_mvm_phy_ctxt {
 	u16 id;
 	u16 color;
@@ -626,7 +641,7 @@ struct iwl_mvm {
 
 	/* -1 for always, 0 for never, >0 for that many times */
 	s8 restart_fw;
-	void *fw_error_dump;
+	struct iwl_mvm_dump_ptrs *fw_error_dump;
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;

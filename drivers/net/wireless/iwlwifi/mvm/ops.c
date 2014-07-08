@@ -573,7 +573,11 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	ieee80211_unregister_hw(mvm->hw);
 
 	kfree(mvm->scan_cmd);
-	vfree(mvm->fw_error_dump);
+	if (mvm->fw_error_dump) {
+		vfree(mvm->fw_error_dump->op_mode_ptr);
+		vfree(mvm->fw_error_dump->trans_ptr);
+		kfree(mvm->fw_error_dump);
+	}
 	kfree(mvm->mcast_filter_cmd);
 	mvm->mcast_filter_cmd = NULL;
 
