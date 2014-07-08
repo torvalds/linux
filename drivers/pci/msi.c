@@ -235,7 +235,7 @@ static void msi_set_mask_bit(struct irq_data *data, u32 flag)
 		msix_mask_irq(desc, flag);
 		readl(desc->mask_base);		/* Flush write to device */
 	} else {
-		unsigned offset = data->irq - desc->dev->irq;
+		unsigned offset = data->irq - desc->irq;
 		msi_mask_irq(desc, 1 << offset, flag << offset);
 	}
 }
