@@ -1271,10 +1271,7 @@ static int asus_wmi_backlight_init(struct asus_wmi *asus)
 	int power;
 
 	max = read_brightness_max(asus);
-
-	if (max == -ENODEV)
-		max = 0;
-	else if (max < 0)
+	if (max < 0)
 		return max;
 
 	power = read_backlight_power(asus);
