@@ -83,7 +83,6 @@ static int ak8963_init(void *mlsl_handle,
 {
 	int result;
 	unsigned char serial_data[COMPASS_NUM_AXES];
-	printk("yemk:ak8963_init\n");
 	struct ak8963_private_data *private_data;
 	private_data = (struct ak8963_private_data *)
 	    kzalloc(sizeof(struct ak8963_private_data), GFP_KERNEL);

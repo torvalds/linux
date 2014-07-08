@@ -42,7 +42,7 @@ struct vd_node {
 	const char		*name;
 	const char		*regulator_name;
 	int			volt_time_flag;// =0 ,is no initing checking ,>0 ,support,<0 not support
-	int			mode_flag;// =0 ,is no initing checking ,>0 ,support,<0 not support
+	int			mode_flag;// =0 ,is no initing checking ,>0 ,support,<0 not support;
 	int			cur_volt;
 	int			volt_set_flag;
 	int			suspend_volt;
@@ -53,6 +53,7 @@ struct vd_node {
 	dvfs_set_rate_callback	vd_dvfs_target;
 	unsigned int 		n_voltages;
 	int volt_list[VD_VOL_LIST_CNT];
+	unsigned int		regu_mode;
 };
 
 /**
@@ -72,6 +73,7 @@ struct pd_node {
 	struct vd_node		*vd;
 	struct list_head	node;
 	struct list_head	clk_list;
+	unsigned int		regu_mode;
 };
 
 /**
@@ -108,6 +110,9 @@ struct dvfs_node {
 	struct cpufreq_frequency_table	*per_temp_limit_table;
 	struct cpufreq_frequency_table  *nor_temp_limit_table;
 	clk_set_rate_callback 	clk_dvfs_target;
+	struct cpufreq_frequency_table  *regu_mode_table;
+	int			regu_mode_en;
+	unsigned int		regu_mode;
 };
 
 

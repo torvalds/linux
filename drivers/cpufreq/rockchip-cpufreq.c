@@ -32,6 +32,7 @@
 #include <asm/cpu.h>
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
+#include <asm/system_misc.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
 
 extern void dvfs_disable_temp_limit(void);
@@ -174,11 +175,26 @@ static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate)
 static int cpufreq_init_cpu0(struct cpufreq_policy *policy)
 {
 	unsigned int i;
+	int ret;
+	struct regulator *vdd_gpu_regulator;
+
 	gpu_is_mali400 = cpu_is_rk3188();
 
 	clk_gpu_dvfs_node = clk_get_dvfs_node("clk_gpu");
 	if (clk_gpu_dvfs_node){
 		clk_enable_dvfs(clk_gpu_dvfs_node);
+		vdd_gpu_regulator = dvfs_get_regulator("vdd_gpu");
+		if (!IS_ERR_OR_NULL(vdd_gpu_regulator)) {
+			if (!regulator_is_enabled(vdd_gpu_regulator)) {
+				ret = regulator_enable(vdd_gpu_regulator);
+				arm_pm_restart('h', NULL);
+			}
+			/* make sure vdd_gpu_regulator is in use,
+			so it will not be disable by regulator_init_complete*/
+			ret = regulator_enable(vdd_gpu_regulator);
+			if (ret != 0)
+				arm_pm_restart('h', NULL);
+		}
 		if (gpu_is_mali400)
 			dvfs_clk_enable_limit(clk_gpu_dvfs_node, 133000000, 600000000);	
 	}

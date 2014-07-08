@@ -253,8 +253,6 @@ static int mpu6050_set_irq(void *mlsl_handle,
 			  struct mpu6050_config *config, long apply,
 			  long irq_type)
 {
-	int result;
-	unsigned char reg_int_cfg;
 
 	/* HACK, no need for interrupts for MPU6050 accel
 		- use of soft interrupt is required */

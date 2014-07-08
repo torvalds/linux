@@ -63,6 +63,7 @@ $(obj)/pie_stage2.o: $(obj)/pie_stage1.o $(obj)/libpie_stage2.o
 # Drop everything but the pie sections
 OBJCOPYFLAGS_pie_stage3.o += -j ".pie.*"
 OBJCOPYFLAGS_pie_stage3.o += -j ".pie.text"
+OBJCOPYFLAGS_pie_stage3.o += -j ".pie.rk3036.text" -j ".pie.rk3036.data"
 OBJCOPYFLAGS_pie_stage3.o += -j ".pie.rk3188.text" -j ".pie.rk3188.data"
 OBJCOPYFLAGS_pie_stage3.o += -j ".pie.rk3288.text" -j ".pie.rk3288.data"
 

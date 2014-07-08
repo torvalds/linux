@@ -17,6 +17,7 @@
 #include <linux/scatterlist.h>
 #include <linux/mmc/core.h>
 #include <linux/dmaengine.h>
+#include <linux/timer.h>
 
 #define MAX_MCI_SLOTS	2
 
@@ -36,13 +37,11 @@ enum {
 	EVENT_DATA_ERROR,
 	EVENT_XFER_ERROR
 };
-
 struct dw_mci_dma_slave {
 	struct dma_chan *ch;
 	enum dma_transfer_direction direction;
 	unsigned int dmach;
 };
-
 
 struct mmc_data;
 
@@ -157,7 +156,8 @@ struct dw_mci {
 #endif
 
 #ifdef CONFIG_MMC_DW_EDMAC
-        struct dw_mci_dma_slave	*dms;
+        struct dw_mci_dma_slave *dms;
+	void                    *phy_regs;
 #endif
 	u32			cmd_status;
 	u32			data_status;
@@ -187,8 +187,10 @@ struct dw_mci {
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
 	struct mmc_host		*mmc;
 	struct mmc_command	*pre_cmd;
-	unsigned int    hold_reg_flag;//to fix the hold_reg value
-
+        /* Fix the hold_reg value */
+        unsigned int    hold_reg_flag;
+        /* Timer for INT_DTO */
+        struct timer_list       dto_timer;
 	/* FIFO push and pull */
 	int			fifo_depth;
 	int			data_shift;

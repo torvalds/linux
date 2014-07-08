@@ -101,6 +101,8 @@ static int rk32_mipi_dsi_enable_hs_clk(void *arg, u32 enable);
 static int rk32_mipi_dsi_enable_video_mode(void *arg, u32 enable);
 static int rk32_mipi_dsi_enable_command_mode(void *arg, u32 enable);
 static int rk32_mipi_dsi_is_enable(void *arg, u32 enable);
+static int rk32_mipi_power_down_DDR();
+static int rk32_mipi_power_up_DDR();
 int rk_mipi_screen_standby(u8 enable);
 
 #ifdef CONFIG_RK_3288_DSI_UBOOT
@@ -1377,6 +1379,8 @@ static struct rk_fb_trsm_ops trsm_dsi_ops =
 {
 	.enable = rk32_dsi_enable,
 	.disable = rk32_dsi_disable,
+	.dsp_pwr_on = rk32_mipi_power_up_DDR,
+	.dsp_pwr_off = rk32_mipi_power_down_DDR,
 };
 #endif
 static void rk32_init_phy_mode(int lcdc_id)
@@ -1557,15 +1561,15 @@ int rk32_mipi_enable(vidinfo_t *vid)
 }
 #endif
 #ifdef CONFIG_MIPI_DSI_LINUX
-int rk32_mipi_power_down_DDR(void)
+static int rk32_mipi_power_down_DDR(void)
 {	
 	dsi_is_enable(0, 0);	
 	if (rk_mipi_get_dsi_num() ==2)	    
 		dsi_is_enable(1, 0);  		
 	return 0;   
 }
-EXPORT_SYMBOL(rk32_mipi_power_down_DDR);
-int rk32_mipi_power_up_DDR(void)
+
+static int rk32_mipi_power_up_DDR(void)
 {	
 	dsi_is_enable(0, 0);	
 	if (rk_mipi_get_dsi_num() ==2)	    
@@ -1577,7 +1581,6 @@ int rk32_mipi_power_up_DDR(void)
 		dsi_is_enable(1, 1);	
 	return 0;
 }
-EXPORT_SYMBOL(rk32_mipi_power_up_DDR);
 
 static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 {

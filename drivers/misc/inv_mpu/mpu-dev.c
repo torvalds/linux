@@ -464,7 +464,7 @@ static int slave_config(struct mldl_cfg *mldl_cfg,
 		return -EFAULT;
 
 	if (config.len && config.data) {
-		void *data;
+		void *data=NULL;
 		data = kmalloc(config.len, GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
@@ -556,9 +556,9 @@ static void mpu6050_put_cablic(const char *addr)
 
 	sys_close(fd);
 }
-static void mpu_get(struct work_struct *work)
+static void mpu_get(struct work_struct *mwork)
 {
-	struct mpu6050_in  *bat = container_of((work), \
+	struct mpu6050_in  *bat = container_of(container_of(mwork,struct delayed_work,work), \
 			struct mpu6050_in, delay_work);
 
 	if(mpu6050_get==1){
@@ -1313,7 +1313,6 @@ static int mpu_parse_dt(struct i2c_client *client,
 	struct property *prop;
 	int debug = 1;
 	int i;
-	char mAarray[20];
 	int orig_x,orig_y,orig_z;
 	enum of_gpio_flags irq_flags;
 	int irq_pin;
@@ -1439,7 +1438,6 @@ MODULE_DEVICE_TABLE(i2c, mpu_id);
 
 int mpu_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 {
-	struct mpu_platform_data *pdata;
 	struct mpu_private_data *mpu;
 	struct mldl_cfg *mldl_cfg;
 	int res = 0;
@@ -1657,14 +1655,16 @@ static struct i2c_driver mpu_driver = {
 	.resume = mpu_dev_resume,	/* optional */
 
 };
-static ssize_t gsensor_check_show(struct device *dev,
+
+static ssize_t show_gsensor_check(struct device *dev, \
 		struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%u\n", Is_cab);
 }
 
-static ssize_t gsensor_check_store(struct device *dev,
-		struct device_attribute *attr, char *buf,size_t count)
+
+static ssize_t gsensor_check_store(struct device *dev, \
+		struct device_attribute *attr, const char *buf,size_t count)
 {
 	switch (buf[0]) {
 	case '1':
@@ -1680,18 +1680,17 @@ static ssize_t gsensor_check_store(struct device *dev,
 	return count;
 
 }
+
 static ssize_t gsensor_clear_store(struct device *dev,
-		struct device_attribute *attr, char *buf,size_t count)
+		struct device_attribute *attr, const char *buf,size_t count)
 {
-//	char mtddevname[64];
-//	int  mtd_index;
 	memset(cablic_arry, 0x00, sizeof(cablic_arry));
 	gsensor_clear = 1;
 	return count;
 
 }
 
-static DEVICE_ATTR(gsensorcheck, 0666, gsensor_check_show, gsensor_check_store);
+static DEVICE_ATTR(gsensorcheck, 0666, show_gsensor_check, gsensor_check_store);
 static DEVICE_ATTR(gsensorclear, 0666, NULL, gsensor_clear_store);
 
 

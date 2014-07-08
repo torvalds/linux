@@ -1360,6 +1360,19 @@ config ARM_ERRATA_798181
 	  which sends an IPI to the CPUs that are running the same ASID
 	  as the one being invalidated.
 
+config ARM_ERRATA_818325
+	bool "ARM errata: Execution of an UNPREDICTABLE STR or STM instruction might deadlock"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 818325 Cortex-A12
+	  (r0p0..r0p1-00lac0-rc11) erratum. When a CPU executes a sequence of
+	  two conditional store instructions with opposite condition code and
+	  updating the same register, the system might enter a deadlock if the
+	  second conditional instruction is an UNPREDICTABLE STR or STM
+	  instruction. This workaround setting bit[12] of the Feature Register
+	  prevents the erratum. This bit disables an optimisation applied to a
+	  sequence of 2 instructions that use opposing condition codes.
+
 endmenu
 
 source "arch/arm/common/Kconfig"

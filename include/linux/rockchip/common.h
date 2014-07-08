@@ -58,4 +58,10 @@ extern int rockchip_set_system_status(unsigned long status);
 extern int rockchip_clear_system_status(unsigned long status);
 extern unsigned long rockchip_get_system_status(void);
 
+#if IS_ENABLED(CONFIG_SENSORS_ROCKCHIP_TSADC)
+extern int rockchip_tsadc_get_temp(int chn);
+#else
+static inline int rockchip_tsadc_get_temp(int chn) { return 0; }
+#endif
+
 #endif

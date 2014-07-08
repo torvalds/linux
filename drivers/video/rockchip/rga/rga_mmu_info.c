@@ -284,6 +284,13 @@ static int rga_MapUserMemory(struct page **pages,
         {
             struct vm_area_struct *vma;
 
+            if (result>0) {
+			    down_read(&current->mm->mmap_sem);
+			    for (i = 0; i < result; i++)
+				    put_page(pages[i]);
+			    up_read(&current->mm->mmap_sem);
+		    }
+
             for(i=0; i<pageCount; i++)
             {
                 vma = find_vma(current->mm, (Memory + i) << PAGE_SHIFT);
@@ -377,6 +384,11 @@ static int rga_MapUserMemory(struct page **pages,
             /* Get the physical address from page struct. */
             pageTable[i] = page_to_phys(pages[i]);
         }
+
+        down_read(&current->mm->mmap_sem);
+		for (i = 0; i < result; i++)
+			put_page(pages[i]);
+		up_read(&current->mm->mmap_sem);
 
         return 0;
     }

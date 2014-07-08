@@ -1,0 +1,116 @@
+/dts-v1/;
+
+#include "rk3288.dtsi"
+#include "lcd-b101ew05.dtsi"
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "initrd=0x04ff0000,0x2000000 init=/init console=ttyFIQ0 androidboot.console=ttyFIQ0 androidboot.hardware=rk30board rockchip_jtag loglevel=1";
+	};
+
+	fiq-debugger {
+		status = "okay";
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "vdd_arm";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+		};
+
+		regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "vdd_gpu";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+		};
+
+		regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "vdd_logic";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-always-on;
+		};
+	};
+
+        rockchip_ft_test {            
+            // firs rate is setting in rockchip_clocks_init,so it is set 0xfffffffff            
+            //rockchip,arm_rate =<0xffffffff 456000000 504000000 552000000>;     
+            rockchip,arm_rate =<0xffffffff (1728000000*1) (1752000000*1)  (1800000000*1)>;   
+            rockchip,l1_tst_cnt=<(5*10*2-10) (5*10*2-10) (5*10*2-10) (80-10+0) >;
+            rockchip,l2_cpy_cnt= <5 5 4 (4+0)>;
+            rockchip,ftt_tst_cnt= <1 1 1 (0+0)>;
+            rockchip,pi_tst_cnt= <12 12 10 (8+0)>;
+            rockchip,stp_task_num= <300 250 250 (80+0)>;
+            rockchip,ft_end_cnt= <(0x24)>;    
+                                               //ready_pin idle_pin
+           rockchip,ft_vol_gpios= <GPIO0_C2 GPIO0_A0>;   
+        };
+};
+
+&lcdc0 {
+	status = "okay";
+};
+
+ &rockchip_clocks_init {
+		       rockchip,clocks-init-rate =
+			<&clk_core 1704000000>,	<&clk_gpll 297000000>,
+			/*<&clk_cpll 47000000>,*/	<&clk_npll 1250000000>,
+			<&aclk_bus_src 300000000>,	<&aclk_bus 300000000>,
+			<&hclk_bus 150000000>,	<&pclk_bus 75000000>,
+			<&clk_crypto 150000000>,	<&aclk_peri 300000000>,
+			<&hclk_peri 150000000>,	<&pclk_peri 75000000>,
+			<&clk_gpu 200000000>,	<&aclk_vio0 300000000>,
+			<&aclk_vio1 300000000>,	<&hclk_vio 75000000>,
+			<&pclk_pd_alive 100000000>,	<&pclk_pd_pmu 100000000>,
+			<&aclk_hevc 400000000>,	<&hclk_hevc 200000000>,
+			<&clk_hevc_cabac 300000000>, <&clk_hevc_core 300000000>,
+			<&aclk_rga 300000000>, <&clk_rga 300000000>,
+			<&clk_vepu 300000000>, <&clk_vdpu 300000000>,
+			<&clk_edp 200000000>, <&clk_isp 200000000>,
+			<&clk_isp_jpe 400000000>, <&clk_tsp 80000000>,
+			<&clk_tspout 80000000>, <&clk_mac 125000000>;
+};
+
+&clk_core_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		126000 1000000
+		216000 1000000
+		312000 1000000
+		408000 1000000
+		600000 1000000
+		696000 1000000
+		816000 1000000
+		1008000 1000000
+		>;
+	status="okay";
+};
+
+&clk_gpu_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		100000 1000000
+		200000 1000000
+		300000 1000000
+		400000 1000000
+		>;
+	status="okay";
+};
