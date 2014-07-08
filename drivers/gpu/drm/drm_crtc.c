@@ -4842,6 +4842,36 @@ int drm_format_vert_chroma_subsampling(uint32_t format)
 EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
 
 /**
+ * drm_rotation_simplify() - Try to simplify the rotation
+ * @rotation: Rotation to be simplified
+ * @supported_rotations: Supported rotations
+ *
+ * Attempt to simplify the rotation to a form that is supported.
+ * Eg. if the hardware supports everything except DRM_REFLECT_X
+ * one could call this function like this:
+ *
+ * drm_rotation_simplify(rotation, BIT(DRM_ROTATE_0) |
+ *                       BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_180) |
+ *                       BIT(DRM_ROTATE_270) | BIT(DRM_REFLECT_Y));
+ *
+ * to eliminate the DRM_ROTATE_X flag. Depending on what kind of
+ * transforms the hardware supports, this function may not
+ * be able to produce a supported transform, so the caller should
+ * check the result afterwards.
+ */
+unsigned int drm_rotation_simplify(unsigned int rotation,
+				   unsigned int supported_rotations)
+{
+	if (rotation & ~supported_rotations) {
+		rotation ^= BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y);
+		rotation = (rotation & ~0xf) | BIT((ffs(rotation & 0xf) + 1) % 4);
+	}
+
+	return rotation;
+}
+EXPORT_SYMBOL(drm_rotation_simplify);
+
+/**
  * drm_mode_config_init - initialize DRM mode_configuration structure
  * @dev: DRM device
  *
