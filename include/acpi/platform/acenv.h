@@ -423,8 +423,12 @@ typedef char *va_list;
 #ifdef ACPI_APPLICATION
 #include <stdio.h>
 #define ACPI_FILE              FILE *
+#define ACPI_FILE_OUT          stdout
+#define ACPI_FILE_ERR          stderr
 #else
 #define ACPI_FILE              void *
+#define ACPI_FILE_OUT          NULL
+#define ACPI_FILE_ERR          NULL
 #endif				/* ACPI_APPLICATION */
 #endif				/* ACPI_FILE */
 
