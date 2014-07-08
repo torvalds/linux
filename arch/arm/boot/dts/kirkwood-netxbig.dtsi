@@ -104,26 +104,6 @@
 			regulator-boot-on;
 			gpio = <&gpio0 16 GPIO_ACTIVE_HIGH>;
 		};
-
-		regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "hdd1power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio0 17 GPIO_ACTIVE_HIGH>;
-		};
-
-		clocks {
-		       g762_clk: g762-oscillator {
-				 compatible = "fixed-clock";
-				 #clock-cells = <0>;
-				 clock-frequency = <32768>;
-		       };
-		};
 	};
 };
 
@@ -170,11 +150,5 @@
 		compatible = "atmel,24c04";
 		pagesize = <16>;
 		reg = <0x50>;
-	};
-
-	g762@3e {
-		compatible = "gmt,g762";
-		reg = <0x3e>;
-		clocks = <&g762_clk>;
 	};
 };
