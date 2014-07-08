@@ -9435,6 +9435,9 @@ static bool use_mmio_flip(struct intel_engine_cs *ring,
 	 * So using MMIO flips there would disrupt this mechanism.
 	 */
 
+	if (ring == NULL)
+		return true;
+
 	if (INTEL_INFO(ring->dev)->gen < 5)
 		return false;
 
@@ -9658,6 +9661,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (IS_VALLEYVIEW(dev)) {
 		ring = &dev_priv->ring[BCS];
+		if (obj->tiling_mode != work->old_fb_obj->tiling_mode)
+			/* vlv: DISPLAY_FLIP fails to change tiling */
+			ring = NULL;
 	} else if (IS_IVYBRIDGE(dev)) {
 		ring = &dev_priv->ring[BCS];
 	} else if (INTEL_INFO(dev)->gen >= 7) {
