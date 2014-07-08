@@ -746,10 +746,55 @@ static void b43_radio_2057_setup(struct b43_wldev *dev,
 			b43_radio_write(dev, R2057_RFPLL_LOOPFILTER_C2, 0x8);
 		}
 		break;
+	case 9: /* e.g. PHY rev 16 */
+		b43_radio_write(dev, R2057_LOGEN_PTAT_RESETS, 0x20);
+		b43_radio_write(dev, R2057_VCOBUF_IDACS, 0x18);
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) {
+			b43_radio_write(dev, R2057_LOGEN_PTAT_RESETS, 0x38);
+			b43_radio_write(dev, R2057_VCOBUF_IDACS, 0x0f);
+
+			if (b43_is_40mhz(dev)) {
+				/* TODO */
+			} else {
+				b43_radio_write(dev,
+						R2057_PAD_BIAS_FILTER_BWS_CORE0,
+						0x3c);
+				b43_radio_write(dev,
+						R2057_PAD_BIAS_FILTER_BWS_CORE1,
+						0x3c);
+			}
+		}
+		break;
 	/* TODO */
 	}
 
-	/* TODO */
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		u16 txmix2g_tune_boost_pu = 0;
+		u16 pad2g_tune_pus = 0;
+
+		if (b43_nphy_ipa(dev)) {
+			switch (phy->radio_rev) {
+			case 9:
+				txmix2g_tune_boost_pu = 0x0041;
+				/* TODO */
+				break;
+			}
+			/* TODO */
+		}
+
+		if (txmix2g_tune_boost_pu)
+			b43_radio_write(dev, R2057_TXMIX2G_TUNE_BOOST_PU_CORE0,
+					txmix2g_tune_boost_pu);
+		if (pad2g_tune_pus)
+			b43_radio_write(dev, R2057_PAD2G_TUNE_PUS_CORE0,
+					pad2g_tune_pus);
+		if (txmix2g_tune_boost_pu)
+			b43_radio_write(dev, R2057_TXMIX2G_TUNE_BOOST_PU_CORE1,
+					txmix2g_tune_boost_pu);
+		if (pad2g_tune_pus)
+			b43_radio_write(dev, R2057_PAD2G_TUNE_PUS_CORE1,
+					pad2g_tune_pus);
+	}
 
 	usleep_range(50, 100);
 
