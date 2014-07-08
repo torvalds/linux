@@ -2740,17 +2740,25 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	/*
 	 * All tasks are migrated out of disabled csses.  Kill or hide
 	 * them.  A css is hidden when the userland requests it to be
-	 * disabled while other subsystems are still depending on it.
+	 * disabled while other subsystems are still depending on it.  The
+	 * css must not actively control resources and be in the vanilla
+	 * state if it's made visible again later.  Controllers which may
+	 * be depended upon should provide ->css_reset() for this purpose.
 	 */
 	for_each_subsys(ss, ssid) {
 		if (!(disable & (1 << ssid)))
 			continue;
 
 		cgroup_for_each_live_child(child, cgrp) {
-			if (css_disable & (1 << ssid))
-				kill_css(cgroup_css(child, ss));
-			else
+			struct cgroup_subsys_state *css = cgroup_css(child, ss);
+
+			if (css_disable & (1 << ssid)) {
+				kill_css(css);
+			} else {
 				cgroup_clear_dir(child, 1 << ssid);
+				if (ss->css_reset)
+					ss->css_reset(css);
+			}
 		}
 	}
 
