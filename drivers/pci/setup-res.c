@@ -166,11 +166,10 @@ static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 {
 	struct resource *root, *conflict;
 	resource_size_t fw_addr, start, end;
-	int ret = 0;
 
 	fw_addr = pcibios_retrieve_fw_addr(dev, resno);
 	if (!fw_addr)
-		return 1;
+		return -ENOMEM;
 
 	start = res->start;
 	end = res->end;
@@ -189,14 +188,13 @@ static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 		 resno, res);
 	conflict = request_resource_conflict(root, res);
 	if (conflict) {
-		dev_info(&dev->dev,
-			 "BAR %d: %pR conflicts with %s %pR\n", resno,
-			 res, conflict->name, conflict);
+		dev_info(&dev->dev, "BAR %d: %pR conflicts with %s %pR\n",
+			 resno, res, conflict->name, conflict);
 		res->start = start;
 		res->end = end;
-		ret = 1;
+		return -EBUSY;
 	}
-	return ret;
+	return 0;
 }
 
 static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
@@ -305,7 +303,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	if (ret < 0)
 		ret = pci_revert_fw_address(res, dev, resno, size);
 
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	res->flags &= ~IORESOURCE_UNSET;
