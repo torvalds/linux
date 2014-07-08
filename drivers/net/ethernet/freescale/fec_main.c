@@ -2346,11 +2346,20 @@ static void fec_poll_controller(struct net_device *dev)
 }
 #endif
 
+#define FEATURES_NEED_QUIESCE NETIF_F_RXCSUM
+
 static int fec_set_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	struct fec_enet_private *fep = netdev_priv(netdev);
 	netdev_features_t changed = features ^ netdev->features;
+
+	/* Quiesce the device if necessary */
+	if (netif_running(netdev) && changed & FEATURES_NEED_QUIESCE) {
+		napi_disable(&fep->napi);
+		netif_tx_lock_bh(netdev);
+		fec_stop(netdev);
+	}
 
 	netdev->features = features;
 
@@ -2360,16 +2369,14 @@ static int fec_set_features(struct net_device *netdev,
 			fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
 		else
 			fep->csum_flags &= ~FLAG_RX_CSUM_ENABLED;
+	}
 
-		if (netif_running(netdev)) {
-			napi_disable(&fep->napi);
-			netif_tx_lock_bh(netdev);
-			fec_stop(netdev);
-			fec_restart(netdev, fep->phy_dev->duplex);
-			netif_wake_queue(netdev);
-			netif_tx_unlock_bh(netdev);
-			napi_enable(&fep->napi);
-		}
+	/* Resume the device after updates */
+	if (netif_running(netdev) && changed & FEATURES_NEED_QUIESCE) {
+		fec_restart(netdev, fep->phy_dev->duplex);
+		netif_wake_queue(netdev);
+		netif_tx_unlock_bh(netdev);
+		napi_enable(&fep->napi);
 	}
 
 	return 0;
