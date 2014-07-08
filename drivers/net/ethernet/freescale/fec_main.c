@@ -1065,6 +1065,21 @@ static void fec_enet_timeout_work(struct work_struct *work)
 }
 
 static void
+fec_enet_hwtstamp(struct fec_enet_private *fep, unsigned ts,
+	struct skb_shared_hwtstamps *hwtstamps)
+{
+	unsigned long flags;
+	u64 ns;
+
+	spin_lock_irqsave(&fep->tmreg_lock, flags);
+	ns = timecounter_cyc2time(&fep->tc, ts);
+	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
+
+	memset(hwtstamps, 0, sizeof(*hwtstamps));
+	hwtstamps->hwtstamp = ns_to_ktime(ns);
+}
+
+static void
 fec_enet_tx(struct net_device *ndev)
 {
 	struct	fec_enet_private *fep;
@@ -1122,14 +1137,9 @@ fec_enet_tx(struct net_device *ndev)
 		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS) &&
 			fep->bufdesc_ex) {
 			struct skb_shared_hwtstamps shhwtstamps;
-			unsigned long flags;
 			struct bufdesc_ex *ebdp = (struct bufdesc_ex *)bdp;
 
-			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-			spin_lock_irqsave(&fep->tmreg_lock, flags);
-			shhwtstamps.hwtstamp = ns_to_ktime(
-				timecounter_cyc2time(&fep->tc, ebdp->ts));
-			spin_unlock_irqrestore(&fep->tmreg_lock, flags);
+			fec_enet_hwtstamp(fep, ebdp->ts, &shhwtstamps);
 			skb_tstamp_tx(skb, &shhwtstamps);
 		}
 
@@ -1288,18 +1298,9 @@ fec_enet_rx(struct net_device *ndev, int budget)
 			skb->protocol = eth_type_trans(skb, ndev);
 
 			/* Get receive timestamp from the skb */
-			if (fep->hwts_rx_en && fep->bufdesc_ex) {
-				struct skb_shared_hwtstamps *shhwtstamps =
-							    skb_hwtstamps(skb);
-				unsigned long flags;
-
-				memset(shhwtstamps, 0, sizeof(*shhwtstamps));
-
-				spin_lock_irqsave(&fep->tmreg_lock, flags);
-				shhwtstamps->hwtstamp = ns_to_ktime(
-				    timecounter_cyc2time(&fep->tc, ebdp->ts));
-				spin_unlock_irqrestore(&fep->tmreg_lock, flags);
-			}
+			if (fep->hwts_rx_en && fep->bufdesc_ex)
+				fec_enet_hwtstamp(fep, ebdp->ts,
+						  skb_hwtstamps(skb));
 
 			if (fep->bufdesc_ex &&
 			    (fep->csum_flags & FLAG_RX_CSUM_ENABLED)) {
