@@ -5061,13 +5061,6 @@ S:	Maintained
 F:	Documentation/hwmon/k8temp
 F:	drivers/hwmon/k8temp.c
 
-KTAP
-M:	Jovi Zhangwei <jovi.zhangwei@gmail.com>
-W:	http://www.ktap.org
-L:	ktap@freelists.org
-S:	Maintained
-F:	drivers/staging/ktap/
-
 KCONFIG
 M:	"Yann E. MORIN" <yann.morin.1998@free.fr>
 L:	linux-kbuild@vger.kernel.org
@@ -8518,22 +8511,11 @@ L:	devel@driverdev.osuosl.org
 S:	Supported
 F:	drivers/staging/
 
-STAGING - ASUS OLED
-M:	Jakub Schmidtke <sjakub@gmail.com>
-S:	Odd Fixes
-F:	drivers/staging/asus_oled/
-
 STAGING - COMEDI
 M:	Ian Abbott <abbotti@mev.co.uk>
 M:	H Hartley Sweeten <hsweeten@visionengravers.com>
 S:	Odd Fixes
 F:	drivers/staging/comedi/
-
-STAGING - ECHO CANCELLER
-M:	Steve Underwood <steveu@coppice.org>
-M:	David Rowe <david@rowetel.com>
-S:	Odd Fixes
-F:	drivers/staging/echo/
 
 STAGING - ET131X NETWORK DRIVER
 M:	Mark Einon <mark.einon@gmail.com>
@@ -8605,11 +8587,6 @@ M:	Jes Sorensen <Jes.Sorensen@redhat.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/rtl8723au/
-
-STAGING - SILICON MOTION SM7XX FRAME BUFFER DRIVER
-M:	Teddy Wang <teddy.wang@siliconmotion.com.cn>
-S:	Odd Fixes
-F:	drivers/staging/sm7xxfb/
 
 STAGING - SLICOSS
 M:	Lior Dotan <liodot@gmail.com>
