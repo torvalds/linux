@@ -895,6 +895,7 @@ static bool handle_mmio_sgi_clear(struct kvm_vcpu *vcpu,
 struct mmio_range {
 	phys_addr_t base;
 	unsigned long len;
+	int bits_per_irq;
 	bool (*handle_mmio)(struct kvm_vcpu *vcpu, struct kvm_exit_mmio *mmio,
 			    phys_addr_t offset);
 };
@@ -903,56 +904,67 @@ static const struct mmio_range vgic_dist_ranges[] = {
 	{
 		.base		= GIC_DIST_CTRL,
 		.len		= 12,
+		.bits_per_irq	= 0,
 		.handle_mmio	= handle_mmio_misc,
 	},
 	{
 		.base		= GIC_DIST_IGROUP,
-		.len		= VGIC_NR_IRQS / 8,
+		.len		= VGIC_MAX_IRQS / 8,
+		.bits_per_irq	= 1,
 		.handle_mmio	= handle_mmio_raz_wi,
 	},
 	{
 		.base		= GIC_DIST_ENABLE_SET,
-		.len		= VGIC_NR_IRQS / 8,
+		.len		= VGIC_MAX_IRQS / 8,
+		.bits_per_irq	= 1,
 		.handle_mmio	= handle_mmio_set_enable_reg,
 	},
 	{
 		.base		= GIC_DIST_ENABLE_CLEAR,
-		.len		= VGIC_NR_IRQS / 8,
+		.len		= VGIC_MAX_IRQS / 8,
+		.bits_per_irq	= 1,
 		.handle_mmio	= handle_mmio_clear_enable_reg,
 	},
 	{
 		.base		= GIC_DIST_PENDING_SET,
-		.len		= VGIC_NR_IRQS / 8,
+		.len		= VGIC_MAX_IRQS / 8,
+		.bits_per_irq	= 1,
 		.handle_mmio	= handle_mmio_set_pending_reg,
 	},
 	{
 		.base		= GIC_DIST_PENDING_CLEAR,
-		.len		= VGIC_NR_IRQS / 8,
+		.len		= VGIC_MAX_IRQS / 8,
+		.bits_per_irq	= 1,
 		.handle_mmio	= handle_mmio_clear_pending_reg,
 	},
 	{
 		.base		= GIC_DIST_ACTIVE_SET,
-		.len		= VGIC_NR_IRQS / 8,
+		.len		= VGIC_MAX_IRQS / 8,
+		.bits_per_irq	= 1,
 		.handle_mmio	= handle_mmio_raz_wi,
 	},
 	{
 		.base		= GIC_DIST_ACTIVE_CLEAR,
-		.len		= VGIC_NR_IRQS / 8,
+		.len		= VGIC_MAX_IRQS / 8,
+		.bits_per_irq	= 1,
 		.handle_mmio	= handle_mmio_raz_wi,
 	},
 	{
 		.base		= GIC_DIST_PRI,
-		.len		= VGIC_NR_IRQS,
+		.len		= VGIC_MAX_IRQS,
+		.bits_per_irq	= 8,
 		.handle_mmio	= handle_mmio_priority_reg,
 	},
 	{
 		.base		= GIC_DIST_TARGET,
-		.len		= VGIC_NR_IRQS,
+		.len		= VGIC_MAX_IRQS,
+		.bits_per_irq	= 8,
 		.handle_mmio	= handle_mmio_target_reg,
 	},
 	{
 		.base		= GIC_DIST_CONFIG,
-		.len		= VGIC_NR_IRQS / 4,
+		.len		= VGIC_MAX_IRQS / 4,
+		.bits_per_irq	= 2,
 		.handle_mmio	= handle_mmio_cfg_reg,
 	},
 	{
@@ -988,6 +1000,22 @@ struct mmio_range *find_matching_range(const struct mmio_range *ranges,
 	}
 
 	return NULL;
+}
+
+static bool vgic_validate_access(const struct vgic_dist *dist,
+				 const struct mmio_range *range,
+				 unsigned long offset)
+{
+	int irq;
+
+	if (!range->bits_per_irq)
+		return true;	/* Not an irq-based access */
+
+	irq = offset * 8 / range->bits_per_irq;
+	if (irq >= dist->nr_irqs)
+		return false;
+
+	return true;
 }
 
 /**
@@ -1029,7 +1057,13 @@ bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 
 	spin_lock(&vcpu->kvm->arch.vgic.lock);
 	offset = mmio->phys_addr - range->base - base;
-	updated_state = range->handle_mmio(vcpu, mmio, offset);
+	if (vgic_validate_access(dist, range, offset)) {
+		updated_state = range->handle_mmio(vcpu, mmio, offset);
+	} else {
+		vgic_reg_access(mmio, NULL, offset,
+				ACCESS_READ_RAZ | ACCESS_WRITE_IGNORED);
+		updated_state = false;
+	}
 	spin_unlock(&vcpu->kvm->arch.vgic.lock);
 	kvm_prepare_mmio(run, mmio);
 	kvm_handle_mmio_return(vcpu, run);
