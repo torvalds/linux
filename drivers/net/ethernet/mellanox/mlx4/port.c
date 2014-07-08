@@ -244,10 +244,16 @@ EXPORT_SYMBOL_GPL(mlx4_get_base_qpn);
 
 void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
-	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
-	struct mlx4_mac_table *table = &info->mac_table;
+	struct mlx4_port_info *info;
+	struct mlx4_mac_table *table;
 	int index;
 
+	if (port < 1 || port > dev->caps.num_ports) {
+		mlx4_warn(dev, "invalid port number (%d), aborting...\n", port);
+		return;
+	}
+	info = &mlx4_priv(dev)->port[port];
+	table = &info->mac_table;
 	mutex_lock(&table->mutex);
 	index = find_index(dev, table, mac);
 
