@@ -93,6 +93,7 @@ dtb-$(CONFIG_ARCH_KEYSTONE) += k2hk-evm.dtb \
 kirkwood := \
 	kirkwood-b3.dtb \
 	kirkwood-cloudbox.dtb \
+	kirkwood-d2net.dtb \
 	kirkwood-db-88f6281.dtb \
 	kirkwood-db-88f6282.dtb \
 	kirkwood-dns320.dtb \
