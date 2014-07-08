@@ -104,7 +104,7 @@ static void ap_display_usage(void)
 	ACPI_OPTION("-v", "Display version information");
 	ACPI_OPTION("-z", "Verbose mode");
 
-	printf("\nTable Options:\n");
+	ACPI_USAGE_TEXT("\nTable Options:\n");
 
 	ACPI_OPTION("-a <Address>", "Get table via a physical address");
 	ACPI_OPTION("-f <BinaryFile>", "Get table via a binary file");
@@ -112,9 +112,9 @@ static void ap_display_usage(void)
 	ACPI_OPTION("-x", "Do not use but dump XSDT");
 	ACPI_OPTION("-x -x", "Do not use or dump XSDT");
 
-	printf("\n"
-	       "Invocation without parameters dumps all available tables\n"
-	       "Multiple mixed instances of -a, -f, and -n are supported\n\n");
+	ACPI_USAGE_TEXT("\n"
+			"Invocation without parameters dumps all available tables\n"
+			"Multiple mixed instances of -a, -f, and -n are supported\n\n");
 }
 
 /******************************************************************************
