@@ -482,8 +482,13 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 	struct nfs_net *nn = net_generic(cl_init->net, nfs_net_id);
 	const struct nfs_rpc_ops *rpc_ops = cl_init->nfs_mod->rpc_ops;
 
+	if (cl_init->hostname == NULL) {
+		WARN_ON(1);
+		return NULL;
+	}
+
 	dprintk("--> nfs_get_client(%s,v%u)\n",
-		cl_init->hostname ?: "", rpc_ops->version);
+		cl_init->hostname, rpc_ops->version);
 
 	/* see if the client already exists */
 	do {
@@ -510,7 +515,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 	} while (!IS_ERR(new));
 
 	dprintk("<-- nfs_get_client() Failed to find %s (%ld)\n",
-		cl_init->hostname ?: "", PTR_ERR(new));
+		cl_init->hostname, PTR_ERR(new));
 	return new;
 }
 EXPORT_SYMBOL_GPL(nfs_get_client);
