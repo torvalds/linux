@@ -394,6 +394,14 @@ acpi_ut_execute_power_methods(struct acpi_namespace_node *device_node,
 			      u8 method_count, u8 *out_values);
 
 /*
+ * utfileio - file operations
+ */
+#ifdef ACPI_APPLICATION
+acpi_status
+acpi_ut_read_table_from_file(char *filename, struct acpi_table_header **table);
+#endif
+
+/*
  * utids - device ID support
  */
 acpi_status
