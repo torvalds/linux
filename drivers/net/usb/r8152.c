@@ -3204,7 +3204,12 @@ static void rtl8152_get_ethtool_stats(struct net_device *dev,
 	struct r8152 *tp = netdev_priv(dev);
 	struct tally_counter tally;
 
+	if (usb_autopm_get_interface(tp->intf) < 0)
+		return;
+
 	generic_ocp_read(tp, PLA_TALLYCNT, sizeof(tally), &tally, MCU_TYPE_PLA);
+
+	usb_autopm_put_interface(tp->intf);
 
 	data[0] = le64_to_cpu(tally.tx_packets);
 	data[1] = le64_to_cpu(tally.rx_packets);
