@@ -165,9 +165,9 @@ static ssize_t xgbe_common_write(const char __user *buffer, size_t count,
 		return len;
 
 	workarea[len] = '\0';
-	ret = kstrtouint(workarea, 0, value);
+	ret = kstrtouint(workarea, 16, value);
 	if (ret)
-		return ret;
+		return -EIO;
 
 	return len;
 }

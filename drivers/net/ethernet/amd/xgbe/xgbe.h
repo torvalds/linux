@@ -143,10 +143,14 @@
 #define XGBE_MAX_DMA_CHANNELS	16
 
 /* DMA cache settings - Outer sharable, write-back, write-allocate */
-#define XGBE_DMA_ARDOMAIN	0x2
-#define XGBE_DMA_ARCACHE	0xb
-#define XGBE_DMA_AWDOMAIN	0x2
-#define XGBE_DMA_AWCACHE	0x7
+#define XGBE_DMA_OS_AXDOMAIN	0x2
+#define XGBE_DMA_OS_ARCACHE	0xb
+#define XGBE_DMA_OS_AWCACHE	0xf
+
+/* DMA cache settings - System, no caches used */
+#define XGBE_DMA_SYS_AXDOMAIN	0x3
+#define XGBE_DMA_SYS_ARCACHE	0x0
+#define XGBE_DMA_SYS_AWCACHE	0x0
 
 #define XGBE_DMA_INTERRUPT_MASK	0x31c7
 
@@ -181,12 +185,12 @@
 
 
 /* Default coalescing parameters */
-#define XGMAC_INIT_DMA_TX_USECS		100
-#define XGMAC_INIT_DMA_TX_FRAMES	16
+#define XGMAC_INIT_DMA_TX_USECS		50
+#define XGMAC_INIT_DMA_TX_FRAMES	25
 
 #define XGMAC_MAX_DMA_RIWT		0xff
-#define XGMAC_INIT_DMA_RX_USECS		100
-#define XGMAC_INIT_DMA_RX_FRAMES	16
+#define XGMAC_INIT_DMA_RX_USECS		30
+#define XGMAC_INIT_DMA_RX_FRAMES	25
 
 /* Flow control queue count */
 #define XGMAC_MAX_FLOW_CONTROL_QUEUES	8
@@ -307,13 +311,13 @@ struct xgbe_channel {
 } ____cacheline_aligned;
 
 enum xgbe_int {
-	XGMAC_INT_DMA_ISR_DC0IS,
 	XGMAC_INT_DMA_CH_SR_TI,
 	XGMAC_INT_DMA_CH_SR_TPS,
 	XGMAC_INT_DMA_CH_SR_TBU,
 	XGMAC_INT_DMA_CH_SR_RI,
 	XGMAC_INT_DMA_CH_SR_RBU,
 	XGMAC_INT_DMA_CH_SR_RPS,
+	XGMAC_INT_DMA_CH_SR_TI_RI,
 	XGMAC_INT_DMA_CH_SR_FBE,
 	XGMAC_INT_DMA_ALL,
 };
@@ -535,6 +539,11 @@ struct xgbe_prv_data {
 
 	struct xgbe_hw_if hw_if;
 	struct xgbe_desc_if desc_if;
+
+	/* AXI DMA settings */
+	unsigned int axdomain;
+	unsigned int arcache;
+	unsigned int awcache;
 
 	/* Rings for Tx/Rx on a DMA channel */
 	struct xgbe_channel *channel;
