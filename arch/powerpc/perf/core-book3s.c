@@ -1300,6 +1300,9 @@ static void power_pmu_enable(struct pmu *pmu)
 
 	write_mmcr0(cpuhw, mmcr0);
 
+	if (ppmu->flags & PPMU_ARCH_207S)
+		mtspr(SPRN_MMCR2, 0);
+
 	/*
 	 * Enable instruction sampling if necessary
 	 */
