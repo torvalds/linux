@@ -607,6 +607,10 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 	ret = NOTIFY_OK;
 
 out_drop_state:
+
+	if (ret != NOTIFY_OK && pasid_state)
+		put_pasid_state(pasid_state);
+
 	put_device_state(dev_state);
 
 out:
