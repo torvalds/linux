@@ -91,22 +91,8 @@
 
 &iomuxc {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog>;
 
 	imx6qdl-wandboard {
-		pinctrl_hog: hoggrp {
-			fsl,pins = <
-				MX6QDL_PAD_GPIO_0__CCM_CLKO1 	 0x130b0
-				MX6QDL_PAD_GPIO_2__GPIO1_IO02	 0x80000000
-				MX6QDL_PAD_EIM_DA9__GPIO3_IO09	 0x80000000
-				MX6QDL_PAD_EIM_EB1__GPIO2_IO29   0x80000000 /* WL_REF_ON */
-				MX6QDL_PAD_EIM_A25__GPIO5_IO02   0x80000000 /* WL_RST_N */
-				MX6QDL_PAD_ENET_RXD1__GPIO1_IO26 0x80000000 /* WL_REG_ON */
-				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x80000000 /* WL_HOST_WAKE */
-				MX6QDL_PAD_ENET_TXD0__GPIO1_IO30 0x80000000 /* WL_WAKE */
-				MX6QDL_PAD_EIM_D29__GPIO3_IO29   0x80000000
-			>;
-		};
 
 		pinctrl_audmux: audmuxgrp {
 			fsl,pins = <
@@ -265,13 +251,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	cd-gpios = <&gpio1 2 0>;
-	status = "okay";
-};
-
-&usdhc2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc2>;
-	non-removable;
 	status = "okay";
 };
 
