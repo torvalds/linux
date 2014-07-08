@@ -364,6 +364,11 @@ ACPI_GLOBAL(u32, acpi_gbl_num_objects);
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_output_file, NULL);
 
+/* Print buffer */
+
+ACPI_GLOBAL(acpi_spinlock, acpi_gbl_print_lock);	/* For print buffer */
+ACPI_GLOBAL(char, acpi_gbl_print_buffer[1024]);
+
 #endif				/* ACPI_APPLICATION */
 
 /*****************************************************************************

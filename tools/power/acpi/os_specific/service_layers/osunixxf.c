@@ -182,10 +182,17 @@ static void os_exit_line_edit_mode(void)
 
 acpi_status acpi_os_initialize(void)
 {
+	acpi_status status;
 
 	acpi_gbl_output_file = stdout;
 
 	os_enter_line_edit_mode();
+
+	status = acpi_os_create_lock(&acpi_gbl_print_lock);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
 	return (AE_OK);
 }
 
