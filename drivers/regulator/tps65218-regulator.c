@@ -68,7 +68,7 @@ static const struct regulator_linear_range ldo1_dcdc3_ranges[] = {
 
 static const struct regulator_linear_range dcdc4_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1175000, 0x0, 0xf, 25000),
-	REGULATOR_LINEAR_RANGE(1550000, 0x10, 0x34, 50000),
+	REGULATOR_LINEAR_RANGE(1600000, 0x10, 0x34, 50000),
 };
 
 static struct tps_info tps65218_pmic_regs[] = {
