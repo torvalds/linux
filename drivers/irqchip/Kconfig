@@ -53,6 +53,10 @@ config CLPS711X_IRQCHIP
 	select SPARSE_IRQ
 	default y
 
+config OR1K_PIC
+	bool
+	select IRQ_DOMAIN
+
 config ORION_IRQCHIP
 	bool
 	select IRQ_DOMAIN
