@@ -1301,7 +1301,7 @@ static int clean_up_hci_state(struct hci_dev *hdev)
 		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 	}
 
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+	if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
 		disable_advertising(&req);
 
 	hci_stop_discovery(&req);
@@ -2230,7 +2230,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		hci_cp.le = val;
 		hci_cp.simul = lmp_le_br_capable(hdev);
 	} else {
-		if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+		if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
 			disable_advertising(&req);
 	}
 
