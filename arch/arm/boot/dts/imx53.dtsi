@@ -108,7 +108,7 @@
 			clocks = <&clks IMX5_CLK_SATA_GATE>,
 				 <&clks IMX5_CLK_SATA_REF>,
 				 <&clks IMX5_CLK_AHB>;
-			clock-names = "sata_gate", "sata_ref", "ahb";
+			clock-names = "sata", "sata_ref", "ahb";
 			status = "disabled";
 		};
 
