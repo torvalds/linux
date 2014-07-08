@@ -685,6 +685,7 @@ static inline int ip6_sk_dst_hoplimit(struct ipv6_pinfo *np, struct flowi6 *fl6,
 	return hlimit;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static inline void ip6_set_txhash(struct sock *sk)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -718,6 +719,15 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 
 	return flowlabel;
 }
+#else
+static inline void ip6_set_txhash(struct sock *sk) { }
+static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
+					__be32 flowlabel, bool autolabel)
+{
+	return flowlabel;
+}
+#endif
+
 
 /*
  *	Header manipulation
