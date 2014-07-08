@@ -150,6 +150,7 @@ acpi_ut_read_table(FILE * fp,
 	acpi_status status;
 	u32 file_size;
 	u8 standard_header = TRUE;
+	s32 count;
 
 	/* Get the file size */
 
@@ -164,27 +165,21 @@ acpi_ut_read_table(FILE * fp,
 
 	/* Read the signature */
 
-	if (fread(&table_header, 1, 4, fp) != 4) {
-		acpi_os_printf("Could not read the table signature\n");
+	fseek(fp, 0, SEEK_SET);
+
+	count = fread(&table_header, 1, sizeof(struct acpi_table_header), fp);
+	if (count != sizeof(struct acpi_table_header)) {
+		acpi_os_printf("Could not read the table header\n");
 		return (AE_BAD_HEADER);
 	}
 
-	fseek(fp, 0, SEEK_SET);
-
 	/* The RSDP table does not have standard ACPI header */
 
-	if (ACPI_COMPARE_NAME(table_header.signature, "RSD ")) {
+	if (ACPI_VALIDATE_RSDP_SIG(table_header.signature)) {
 		*table_length = file_size;
 		standard_header = FALSE;
 	} else {
-		/* Read the table header */
 
-		if (fread
-		    (&table_header, 1, sizeof(struct acpi_table_header),
-		     fp) != sizeof(struct acpi_table_header)) {
-			acpi_os_printf("Could not read the table header\n");
-			return (AE_BAD_HEADER);
-		}
 #if 0
 		/* Validate the table header/length */
 
