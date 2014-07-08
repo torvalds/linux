@@ -4034,6 +4034,11 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status)
 		return;
 	}
 
+	if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
+		set_bit(HCI_ADVERTISING, &hdev->dev_flags);
+	else
+		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+
 	mgmt_pending_foreach(MGMT_OP_SET_ADVERTISING, hdev, settings_rsp,
 			     &match);
 
@@ -5976,18 +5981,6 @@ void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 
 	if (changed)
 		new_settings(hdev, NULL);
-}
-
-void mgmt_advertising(struct hci_dev *hdev, u8 advertising)
-{
-	/* Powering off may stop advertising - don't let that interfere */
-	if (!advertising && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
-		return;
-
-	if (advertising)
-		set_bit(HCI_ADVERTISING, &hdev->dev_flags);
-	else
-		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
 }
 
 void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)

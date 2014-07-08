@@ -1292,7 +1292,6 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered);
 void mgmt_discoverable_timeout(struct hci_dev *hdev);
 void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable);
 void mgmt_connectable(struct hci_dev *hdev, u8 connectable);
-void mgmt_advertising(struct hci_dev *hdev, u8 advertising);
 void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status);
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 		       bool persistent);

@@ -1080,8 +1080,6 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 		clear_bit(HCI_LE_ADV, &hdev->dev_flags);
 	}
 
-	mgmt_advertising(hdev, *sent);
-
 	hci_dev_unlock(hdev);
 }
 
