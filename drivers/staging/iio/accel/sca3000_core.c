@@ -714,6 +714,7 @@ static int sca3000_read_thresh(struct iio_dev *indio_dev,
 	int ret, i;
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int num = chan->channel2;
+
 	mutex_lock(&st->lock);
 	ret = sca3000_read_ctrl_reg(st, sca3000_addresses[num][1]);
 	mutex_unlock(&st->lock);
