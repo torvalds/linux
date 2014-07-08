@@ -598,55 +598,6 @@ enum bcm63xx_regs_set {
 
 extern const unsigned long *bcm63xx_regs_base;
 
-#define __GEN_RSET_BASE(__cpu, __rset)					\
-	case RSET_## __rset :						\
-		return BCM_## __cpu ##_## __rset ##_BASE;
-
-#define __GEN_RSET(__cpu)						\
-	switch (set) {							\
-	__GEN_RSET_BASE(__cpu, DSL_LMEM)				\
-	__GEN_RSET_BASE(__cpu, PERF)					\
-	__GEN_RSET_BASE(__cpu, TIMER)					\
-	__GEN_RSET_BASE(__cpu, WDT)					\
-	__GEN_RSET_BASE(__cpu, UART0)					\
-	__GEN_RSET_BASE(__cpu, UART1)					\
-	__GEN_RSET_BASE(__cpu, GPIO)					\
-	__GEN_RSET_BASE(__cpu, SPI)					\
-	__GEN_RSET_BASE(__cpu, HSSPI)					\
-	__GEN_RSET_BASE(__cpu, UDC0)					\
-	__GEN_RSET_BASE(__cpu, OHCI0)					\
-	__GEN_RSET_BASE(__cpu, OHCI_PRIV)				\
-	__GEN_RSET_BASE(__cpu, USBH_PRIV)				\
-	__GEN_RSET_BASE(__cpu, USBD)					\
-	__GEN_RSET_BASE(__cpu, USBDMA)					\
-	__GEN_RSET_BASE(__cpu, MPI)					\
-	__GEN_RSET_BASE(__cpu, PCMCIA)					\
-	__GEN_RSET_BASE(__cpu, PCIE)					\
-	__GEN_RSET_BASE(__cpu, DSL)					\
-	__GEN_RSET_BASE(__cpu, ENET0)					\
-	__GEN_RSET_BASE(__cpu, ENET1)					\
-	__GEN_RSET_BASE(__cpu, ENETDMA)					\
-	__GEN_RSET_BASE(__cpu, ENETDMAC)				\
-	__GEN_RSET_BASE(__cpu, ENETDMAS)				\
-	__GEN_RSET_BASE(__cpu, ENETSW)					\
-	__GEN_RSET_BASE(__cpu, EHCI0)					\
-	__GEN_RSET_BASE(__cpu, SDRAM)					\
-	__GEN_RSET_BASE(__cpu, MEMC)					\
-	__GEN_RSET_BASE(__cpu, DDR)					\
-	__GEN_RSET_BASE(__cpu, M2M)					\
-	__GEN_RSET_BASE(__cpu, ATM)					\
-	__GEN_RSET_BASE(__cpu, XTM)					\
-	__GEN_RSET_BASE(__cpu, XTMDMA)					\
-	__GEN_RSET_BASE(__cpu, XTMDMAC)					\
-	__GEN_RSET_BASE(__cpu, XTMDMAS)					\
-	__GEN_RSET_BASE(__cpu, PCM)					\
-	__GEN_RSET_BASE(__cpu, PCMDMA)					\
-	__GEN_RSET_BASE(__cpu, PCMDMAC)					\
-	__GEN_RSET_BASE(__cpu, PCMDMAS)					\
-	__GEN_RSET_BASE(__cpu, RNG)					\
-	__GEN_RSET_BASE(__cpu, MISC)					\
-	}
-
 #define __GEN_CPU_REGS_TABLE(__cpu)					\
 	[RSET_DSL_LMEM]		= BCM_## __cpu ##_DSL_LMEM_BASE,	\
 	[RSET_PERF]		= BCM_## __cpu ##_PERF_BASE,		\
@@ -693,36 +644,7 @@ extern const unsigned long *bcm63xx_regs_base;
 
 static inline unsigned long bcm63xx_regset_address(enum bcm63xx_regs_set set)
 {
-#ifdef BCMCPU_RUNTIME_DETECT
 	return bcm63xx_regs_base[set];
-#else
-#ifdef CONFIG_BCM63XX_CPU_3368
-	__GEN_RSET(3368)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6328
-	__GEN_RSET(6328)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6338
-	__GEN_RSET(6338)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6345
-	__GEN_RSET(6345)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6348
-	__GEN_RSET(6348)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6358
-	__GEN_RSET(6358)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6362
-	__GEN_RSET(6362)
-#endif
-#ifdef CONFIG_BCM63XX_CPU_6368
-	__GEN_RSET(6368)
-#endif
-#endif
-	/* unreached */
-	return 0;
 }
 
 /*
