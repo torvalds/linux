@@ -742,7 +742,7 @@ bool intel_dsi_init(struct drm_device *dev)
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	fixed_mode = dsi->dev_ops->get_modes(&intel_dsi->dev);
 	if (!fixed_mode) {

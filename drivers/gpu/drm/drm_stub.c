@@ -38,17 +38,13 @@ unsigned int drm_debug = 0;	/* 1 to enable debug output */
 EXPORT_SYMBOL(drm_debug);
 
 unsigned int drm_rnodes = 0;	/* 1 to enable experimental render nodes API */
-EXPORT_SYMBOL(drm_rnodes);
 
 /* 1 to allow user space to request universal planes (experimental) */
 unsigned int drm_universal_planes = 0;
-EXPORT_SYMBOL(drm_universal_planes);
 
 unsigned int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
-EXPORT_SYMBOL(drm_vblank_offdelay);
 
 unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
-EXPORT_SYMBOL(drm_timestamp_precision);
 
 /*
  * Default to use monotonic timestamps for wait-for-vblank and page-flip

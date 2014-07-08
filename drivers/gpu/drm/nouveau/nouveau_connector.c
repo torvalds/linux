@@ -104,7 +104,7 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	nouveau_event_ref(NULL, &nv_connector->hpd);
 	kfree(nv_connector->edid);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	if (nv_connector->aux.transfer)
 		drm_dp_aux_unregister(&nv_connector->aux);
@@ -1236,6 +1236,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 
 	INIT_WORK(&nv_connector->work, nouveau_connector_hotplug_work);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 	return connector;
 }

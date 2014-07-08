@@ -533,6 +533,7 @@ struct drm_connector {
 
 	/* forced on connector */
 	enum drm_connector_force force;
+	bool override_edid;
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
 	struct drm_encoder *encoder; /* currently active encoder */
 
@@ -545,6 +546,8 @@ struct drm_connector {
 	int audio_latency[2];
 	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
 	unsigned bad_edid_counter;
+
+	struct dentry *debugfs_entry;
 };
 
 /**
@@ -878,6 +881,8 @@ extern int drm_connector_init(struct drm_device *dev,
 			      struct drm_connector *connector,
 			      const struct drm_connector_funcs *funcs,
 			      int connector_type);
+int drm_connector_register(struct drm_connector *connector);
+void drm_connector_unregister(struct drm_connector *connector);
 
 extern void drm_connector_cleanup(struct drm_connector *connector);
 /* helper to unplug all connectors from sysfs for device */

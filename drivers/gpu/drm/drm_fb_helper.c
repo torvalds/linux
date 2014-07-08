@@ -199,9 +199,6 @@ int drm_fb_helper_debug_enter(struct fb_info *info)
 	struct drm_crtc_helper_funcs *funcs;
 	int i;
 
-	if (list_empty(&kernel_fb_helper_list))
-		return false;
-
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
 		for (i = 0; i < helper->crtc_count; i++) {
 			struct drm_mode_set *mode_set =
@@ -1056,7 +1053,6 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 	info->fix.ypanstep = 1; /* doing it in hw */
 	info->fix.ywrapstep = 0;
 	info->fix.accel = FB_ACCEL_NONE;
-	info->fix.type_aux = 0;
 
 	info->fix.line_length = pitch;
 	return;

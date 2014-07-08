@@ -12260,7 +12260,7 @@ void intel_connector_unregister(struct intel_connector *intel_connector)
 	struct drm_connector *connector = &intel_connector->base;
 
 	intel_panel_destroy_backlight(connector);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)

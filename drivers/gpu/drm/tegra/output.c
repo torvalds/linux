@@ -105,7 +105,7 @@ static void drm_connector_clear(struct drm_connector *connector)
 
 static void tegra_connector_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	drm_connector_clear(connector);
 }
@@ -318,7 +318,7 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	drm_encoder_helper_add(&output->encoder, &encoder_helper_funcs);
 
 	drm_mode_connector_attach_encoder(&output->connector, &output->encoder);
-	drm_sysfs_connector_add(&output->connector);
+	drm_connector_register(&output->connector);
 
 	output->encoder.possible_crtcs = 0x3;
 

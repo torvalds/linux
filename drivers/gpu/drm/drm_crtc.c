@@ -881,6 +881,8 @@ int drm_connector_init(struct drm_device *dev,
 	drm_object_attach_property(&connector->base,
 				      dev->mode_config.dpms_property, 0);
 
+	connector->debugfs_entry = NULL;
+
 out_put:
 	if (ret)
 		drm_mode_object_put(dev, &connector->base);
@@ -921,6 +923,47 @@ void drm_connector_cleanup(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_connector_cleanup);
 
 /**
+ * drm_connector_register - register a connector
+ * @connector: the connector to register
+ *
+ * Register userspace interfaces for a connector
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_connector_register(struct drm_connector *connector)
+{
+	int ret;
+
+	ret = drm_sysfs_connector_add(connector);
+	if (ret)
+		return ret;
+
+	ret = drm_debugfs_connector_add(connector);
+	if (ret) {
+		drm_sysfs_connector_remove(connector);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_register);
+
+/**
+ * drm_connector_unregister - unregister a connector
+ * @connector: the connector to unregister
+ *
+ * Unregister userspace interfaces for a connector
+ */
+void drm_connector_unregister(struct drm_connector *connector)
+{
+	drm_sysfs_connector_remove(connector);
+	drm_debugfs_connector_remove(connector);
+}
+EXPORT_SYMBOL(drm_connector_unregister);
+
+
+/**
  * drm_connector_unplug_all - unregister connector userspace interfaces
  * @dev: drm device
  *
@@ -934,7 +977,7 @@ void drm_connector_unplug_all(struct drm_device *dev)
 
 	/* taking the mode config mutex ends up in a clash with sysfs */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		drm_sysfs_connector_remove(connector);
+		drm_connector_unregister(connector);
 
 }
 EXPORT_SYMBOL(drm_connector_unplug_all);
@@ -3719,6 +3762,10 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	int ret, size;
+
+	/* ignore requests to set edid when overridden */
+	if (connector->override_edid)
+		return 0;
 
 	if (connector->edid_blob_ptr)
 		drm_property_destroy_blob(dev, connector->edid_blob_ptr);

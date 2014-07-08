@@ -185,7 +185,7 @@ static void exynos_drm_connector_destroy(struct drm_connector *connector)
 	struct exynos_drm_connector *exynos_connector =
 		to_exynos_connector(connector);
 
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(exynos_connector);
 }
@@ -230,7 +230,7 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 	drm_connector_init(dev, connector, &exynos_connector_funcs, type);
 	drm_connector_helper_add(connector, &exynos_connector_helper_funcs);
 
-	err = drm_sysfs_connector_add(connector);
+	err = drm_connector_register(connector);
 	if (err)
 		goto err_connector;
 
@@ -250,7 +250,7 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 	return connector;
 
 err_sysfs:
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 err_connector:
 	drm_connector_cleanup(connector);
 	kfree(exynos_connector);

@@ -438,7 +438,6 @@ err_out_files:
 out:
 	return ret;
 }
-EXPORT_SYMBOL(drm_sysfs_connector_add);
 
 /**
  * drm_sysfs_connector_remove - remove an connector device from sysfs
@@ -468,7 +467,6 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 	device_unregister(connector->kdev);
 	connector->kdev = NULL;
 }
-EXPORT_SYMBOL(drm_sysfs_connector_remove);
 
 /**
  * drm_sysfs_hotplug_event - generate a DRM uevent

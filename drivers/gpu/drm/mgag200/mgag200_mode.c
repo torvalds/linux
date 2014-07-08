@@ -1621,7 +1621,7 @@ static struct drm_connector *mga_vga_init(struct drm_device *dev)
 
 	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	mga_connector->i2c = mgag200_i2c_create(dev);
 	if (!mga_connector->i2c)
