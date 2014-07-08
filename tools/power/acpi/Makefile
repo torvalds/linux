@@ -108,6 +108,7 @@ DUMP_OBJS = \
 	apmain.o\
 	osunixdir.o\
 	osunixmap.o\
+	osunixxf.o\
 	tbprint.o\
 	tbxfroot.o\
 	utbuffer.o\

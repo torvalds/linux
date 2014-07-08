@@ -427,25 +427,3 @@ exit:
 	free(table);
 	return (table_status);
 }
-
-/******************************************************************************
- *
- * FUNCTION:    acpi_os* print functions
- *
- * DESCRIPTION: Used for linkage with ACPICA modules
- *
- ******************************************************************************/
-
-void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *fmt, ...)
-{
-	va_list args;
-
-	va_start(args, fmt);
-	vfprintf(stdout, fmt, args);
-	va_end(args);
-}
-
-void acpi_os_vprintf(const char *fmt, va_list args)
-{
-	vfprintf(stdout, fmt, args);
-}

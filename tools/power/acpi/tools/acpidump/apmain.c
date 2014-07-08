@@ -288,6 +288,7 @@ int ACPI_SYSTEM_XFACE main(int argc, char *argv[])
 	u32 i;
 
 	ACPI_DEBUG_INITIALIZE();	/* For debug version only */
+	acpi_os_initialize();
 
 	/* Process command line options */
 

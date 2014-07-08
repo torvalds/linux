@@ -297,7 +297,7 @@ ACPI_GLOBAL(u32, acpi_gbl_trace_dbg_layer);
  *
  ****************************************************************************/
 
-ACPI_GLOBAL(u8, acpi_gbl_db_output_flags);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_db_output_flags, ACPI_DB_CONSOLE_OUTPUT);
 
 #ifdef ACPI_DISASSEMBLER
 
@@ -362,6 +362,7 @@ ACPI_GLOBAL(u32, acpi_gbl_num_objects);
 #ifdef ACPI_APPLICATION
 
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
+ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_output_file, NULL);
 
 #endif				/* ACPI_APPLICATION */
 
