@@ -1040,12 +1040,8 @@ struct efivar_operations {
 struct efivars {
 	/*
 	 * ->lock protects two things:
-	 * 1) ->list - adds, removals, reads, writes
-	 * 2) ops.[gs]et_variable() calls.
-	 * It must not be held when creating sysfs entries or calling kmalloc.
-	 * ops.get_next_variable() is only called from register_efivars()
-	 * or efivar_update_sysfs_entries(),
-	 * which is protected by the BKL, so that path is safe.
+	 * 1) efivarfs_list and efivars_sysfs_list
+	 * 2) ->ops calls
 	 */
 	spinlock_t lock;
 	struct kset *kset;
