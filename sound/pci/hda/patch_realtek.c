@@ -3403,7 +3403,8 @@ static unsigned int led_power_filter(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (power_state != AC_PWRST_D3 || nid != spec->mute_led_nid)
+	if (power_state != AC_PWRST_D3 || nid == 0 ||
+	    (nid != spec->mute_led_nid && nid != spec->cap_mute_led_nid))
 		return power_state;
 
 	/* Set pin ctl again, it might have just been set to 0 */
@@ -3563,6 +3564,7 @@ static void alc269_fixup_hp_gpio_mic1_led(struct hda_codec *codec,
 		spec->gpio_led = 0;
 		spec->cap_mute_led_nid = 0x18;
 		snd_hda_add_verbs(codec, gpio_init);
+		codec->power_filter = led_power_filter;
 	}
 }
 
