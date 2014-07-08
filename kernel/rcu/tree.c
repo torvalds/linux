@@ -819,7 +819,7 @@ bool notrace __rcu_is_watching(void)
  */
 bool notrace rcu_is_watching(void)
 {
-	int ret;
+	bool ret;
 
 	preempt_disable();
 	ret = __rcu_is_watching();
