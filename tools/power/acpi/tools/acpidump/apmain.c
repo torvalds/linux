@@ -72,7 +72,7 @@ static void ap_display_usage(void);
 
 static int ap_do_options(int argc, char **argv);
 
-static void ap_insert_action(char *argument, u32 to_be_done);
+static int ap_insert_action(char *argument, u32 to_be_done);
 
 /* Table for deferred actions from command line options */
 
@@ -124,13 +124,13 @@ static void ap_display_usage(void)
  * PARAMETERS:  argument            - Pointer to the argument for this action
  *              to_be_done          - What to do to process this action
  *
- * RETURN:      None. Exits program if action table becomes full.
+ * RETURN:      Status
  *
  * DESCRIPTION: Add an action item to the action table
  *
  ******************************************************************************/
 
-static void ap_insert_action(char *argument, u32 to_be_done)
+static int ap_insert_action(char *argument, u32 to_be_done)
 {
 
 	/* Insert action and check for table overflow */
@@ -142,8 +142,10 @@ static void ap_insert_action(char *argument, u32 to_be_done)
 	if (current_action > AP_MAX_ACTIONS) {
 		fprintf(stderr, "Too many table options (max %u)\n",
 			AP_MAX_ACTIONS);
-		exit(-1);
+		return (-1);
 	}
+
+	return (0);
 }
 
 /******************************************************************************
@@ -186,12 +188,12 @@ static int ap_do_options(int argc, char **argv)
 		case '?':
 
 			ap_display_usage();
-			exit(0);
+			return (1);
 
 		case 'o':	/* Redirect output to a single file */
 
 			if (ap_open_output_file(acpi_gbl_optarg)) {
-				exit(-1);
+				return (-1);
 			}
 			continue;
 
@@ -204,7 +206,7 @@ static int ap_do_options(int argc, char **argv)
 				fprintf(stderr,
 					"%s: Could not convert to a physical address\n",
 					acpi_gbl_optarg);
-				exit(-1);
+				return (-1);
 			}
 			continue;
 
@@ -225,7 +227,7 @@ static int ap_do_options(int argc, char **argv)
 		case 'v':	/* Revision/version */
 
 			printf(ACPI_COMMON_SIGNON(AP_UTILITY_NAME));
-			exit(0);
+			return (1);
 
 		case 'z':	/* Verbose mode */
 
@@ -238,32 +240,40 @@ static int ap_do_options(int argc, char **argv)
 			 */
 		case 'a':	/* Get table by physical address */
 
-			ap_insert_action(acpi_gbl_optarg,
-					 AP_DUMP_TABLE_BY_ADDRESS);
+			if (ap_insert_action
+			    (acpi_gbl_optarg, AP_DUMP_TABLE_BY_ADDRESS)) {
+				return (-1);
+			}
 			break;
 
 		case 'f':	/* Get table from a file */
 
-			ap_insert_action(acpi_gbl_optarg,
-					 AP_DUMP_TABLE_BY_FILE);
+			if (ap_insert_action
+			    (acpi_gbl_optarg, AP_DUMP_TABLE_BY_FILE)) {
+				return (-1);
+			}
 			break;
 
 		case 'n':	/* Get table by input name (signature) */
 
-			ap_insert_action(acpi_gbl_optarg,
-					 AP_DUMP_TABLE_BY_NAME);
+			if (ap_insert_action
+			    (acpi_gbl_optarg, AP_DUMP_TABLE_BY_NAME)) {
+				return (-1);
+			}
 			break;
 
 		default:
 
 			ap_display_usage();
-			exit(-1);
+			return (-1);
 		}
 
 	/* If there are no actions, this means "get/dump all tables" */
 
 	if (current_action == 0) {
-		ap_insert_action(NULL, AP_DUMP_ALL_TABLES);
+		if (ap_insert_action(NULL, AP_DUMP_ALL_TABLES)) {
+			return (-1);
+		}
 	}
 
 	return (0);
@@ -293,8 +303,12 @@ int ACPI_SYSTEM_XFACE main(int argc, char *argv[])
 
 	/* Process command line options */
 
-	if (ap_do_options(argc, argv)) {
-		return (-1);
+	status = ap_do_options(argc, argv);
+	if (status > 0) {
+		return (0);
+	}
+	if (status < 0) {
+		return (status);
 	}
 
 	/* Get/dump ACPI table(s) as requested */
