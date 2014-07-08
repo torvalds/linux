@@ -2300,7 +2300,6 @@ struct dvb_frontend *r820t_attach(struct dvb_frontend *fe,
 	case 0:
 		/* memory allocation failure */
 		goto err_no_gate;
-		break;
 	case 1:
 		/* new tuner instance */
 		priv->cfg = cfg;
