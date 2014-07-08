@@ -19,118 +19,68 @@
 #define BCM6368_CPU_ID		0x6368
 
 void __init bcm63xx_cpu_init(void);
-u16 __bcm63xx_get_cpu_id(void);
 u8 bcm63xx_get_cpu_rev(void);
 unsigned int bcm63xx_get_cpu_freq(void);
 
+static inline u16 __pure __bcm63xx_get_cpu_id(const u16 cpu_id)
+{
+	switch (cpu_id) {
 #ifdef CONFIG_BCM63XX_CPU_3368
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM3368_CPU_ID
-# endif
-# define BCMCPU_IS_3368()	(bcm63xx_get_cpu_id() == BCM3368_CPU_ID)
-#else
-# define BCMCPU_IS_3368()	(0)
+		case BCM3368_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6328
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6328_CPU_ID
-# endif
-# define BCMCPU_IS_6328()	(bcm63xx_get_cpu_id() == BCM6328_CPU_ID)
-#else
-# define BCMCPU_IS_6328()	(0)
+		case BCM6328_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6338
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6338_CPU_ID
-# endif
-# define BCMCPU_IS_6338()	(bcm63xx_get_cpu_id() == BCM6338_CPU_ID)
-#else
-# define BCMCPU_IS_6338()	(0)
+		case BCM6338_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6345
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6345_CPU_ID
-# endif
-# define BCMCPU_IS_6345()	(bcm63xx_get_cpu_id() == BCM6345_CPU_ID)
-#else
-# define BCMCPU_IS_6345()	(0)
+		case BCM6345_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6348
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6348_CPU_ID
-# endif
-# define BCMCPU_IS_6348()	(bcm63xx_get_cpu_id() == BCM6348_CPU_ID)
-#else
-# define BCMCPU_IS_6348()	(0)
+		case BCM6348_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6358
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6358_CPU_ID
-# endif
-# define BCMCPU_IS_6358()	(bcm63xx_get_cpu_id() == BCM6358_CPU_ID)
-#else
-# define BCMCPU_IS_6358()	(0)
+		case BCM6358_CPU_ID:
 #endif
 
 #ifdef CONFIG_BCM63XX_CPU_6362
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6362_CPU_ID
-# endif
-# define BCMCPU_IS_6362()	(bcm63xx_get_cpu_id() == BCM6362_CPU_ID)
-#else
-# define BCMCPU_IS_6362()	(0)
+		case BCM6362_CPU_ID:
 #endif
-
 
 #ifdef CONFIG_BCM63XX_CPU_6368
-# ifdef bcm63xx_get_cpu_id
-#  undef bcm63xx_get_cpu_id
-#  define bcm63xx_get_cpu_id()	__bcm63xx_get_cpu_id()
-#  define BCMCPU_RUNTIME_DETECT
-# else
-#  define bcm63xx_get_cpu_id()	BCM6368_CPU_ID
-# endif
-# define BCMCPU_IS_6368()	(bcm63xx_get_cpu_id() == BCM6368_CPU_ID)
-#else
-# define BCMCPU_IS_6368()	(0)
+		case BCM6368_CPU_ID:
 #endif
+		break;
+	default:
+		unreachable();
+	}
 
-#ifndef bcm63xx_get_cpu_id
-#error "No CPU support configured"
-#endif
+	return cpu_id;
+}
+
+extern u16 bcm63xx_cpu_id;
+
+static inline u16 __pure bcm63xx_get_cpu_id(void)
+{
+	const u16 cpu_id = bcm63xx_cpu_id;
+
+	return __bcm63xx_get_cpu_id(cpu_id);
+}
+
+#define BCMCPU_IS_3368()	(bcm63xx_get_cpu_id() == BCM3368_CPU_ID)
+#define BCMCPU_IS_6328()	(bcm63xx_get_cpu_id() == BCM6328_CPU_ID)
+#define BCMCPU_IS_6338()	(bcm63xx_get_cpu_id() == BCM6338_CPU_ID)
+#define BCMCPU_IS_6345()	(bcm63xx_get_cpu_id() == BCM6345_CPU_ID)
+#define BCMCPU_IS_6348()	(bcm63xx_get_cpu_id() == BCM6348_CPU_ID)
+#define BCMCPU_IS_6358()	(bcm63xx_get_cpu_id() == BCM6358_CPU_ID)
+#define BCMCPU_IS_6362()	(bcm63xx_get_cpu_id() == BCM6362_CPU_ID)
+#define BCMCPU_IS_6368()	(bcm63xx_get_cpu_id() == BCM6368_CPU_ID)
 
 /*
  * While registers sets are (mostly) the same across 63xx CPU, base
