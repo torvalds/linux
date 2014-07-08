@@ -1121,6 +1121,9 @@ static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
 		solo_enc->gop = ctrl->val;
 		return 0;
+	case V4L2_CID_MPEG_VIDEO_H264_MIN_QP:
+		solo_enc->qp = ctrl->val;
+		return 0;
 	case V4L2_CID_DETECT_MD_GLOBAL_THRESHOLD:
 		solo_enc->motion_thresh = ctrl->val << 8;
 		if (!solo_enc->motion_global || !solo_enc->motion_enabled)
@@ -1271,6 +1274,8 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 			V4L2_CID_SHARPNESS, 0, 15, 1, 0);
 	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_GOP_SIZE, 1, 255, 1, solo_dev->fps);
+	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_H264_MIN_QP, 0, 31, 1, SOLO_DEFAULT_QP);
 	v4l2_ctrl_new_std_menu(hdl, &solo_ctrl_ops,
 			V4L2_CID_DETECT_MD_MODE,
 			V4L2_DETECT_MD_MODE_THRESHOLD_GRID, 0,
