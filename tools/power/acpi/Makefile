@@ -112,11 +112,14 @@ DUMP_OBJS = \
 	tbprint.o\
 	tbxfroot.o\
 	utbuffer.o\
+	utdebug.o\
 	utexcep.o\
 	utglobal.o\
 	utmath.o\
+	utprint.o\
 	utstring.o\
 	utxferror.o\
+	oslibcfs.o\
 	oslinuxtbl.o\
 	cmfsize.o\
 	getopt.o

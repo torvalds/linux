@@ -105,7 +105,7 @@ extern char *acpi_gbl_optarg;
 /*
  * cmfsize - Common get file size function
  */
-u32 cm_get_file_size(FILE * file);
+u32 cm_get_file_size(ACPI_FILE file);
 
 #ifndef ACPI_DUMP_APP
 /*
