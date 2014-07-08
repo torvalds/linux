@@ -2211,10 +2211,11 @@ fec_enet_close(struct net_device *ndev)
 
 	phy_stop(fep->phy_dev);
 
-	napi_disable(&fep->napi);
-	netif_tx_disable(ndev);
-	if (netif_device_present(ndev))
+	if (netif_device_present(ndev)) {
+		napi_disable(&fep->napi);
+		netif_tx_disable(ndev);
 		fec_stop(ndev);
+	}
 
 	phy_disconnect(fep->phy_dev);
 	fep->phy_dev = NULL;
@@ -2701,8 +2702,11 @@ fec_suspend(struct device *dev)
 	rtnl_lock();
 	if (netif_running(ndev)) {
 		phy_stop(fep->phy_dev);
-		fec_stop(ndev);
+		napi_disable(&fep->napi);
+		netif_tx_lock_bh(ndev);
 		netif_device_detach(ndev);
+		netif_tx_unlock_bh(ndev);
+		fec_stop(ndev);
 	}
 	rtnl_unlock();
 
@@ -2735,12 +2739,10 @@ fec_resume(struct device *dev)
 
 	rtnl_lock();
 	if (netif_running(ndev)) {
-		napi_disable(&fep->napi);
-		netif_tx_lock_bh(ndev);
 		fec_restart(ndev, fep->full_duplex);
+		netif_tx_lock_bh(ndev);
 		netif_device_attach(ndev);
 		netif_tx_unlock_bh(ndev);
-		netif_device_attach(ndev);
 		napi_enable(&fep->napi);
 		phy_start(fep->phy_dev);
 	}
