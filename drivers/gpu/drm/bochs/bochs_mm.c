@@ -387,7 +387,7 @@ int bochs_gem_create(struct drm_device *dev, u32 size, bool iskernel,
 
 	*obj = NULL;
 
-	size = ALIGN(size, PAGE_SIZE);
+	size = PAGE_ALIGN(size);
 	if (size == 0)
 		return -EINVAL;
 
