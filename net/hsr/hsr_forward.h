@@ -9,17 +9,12 @@
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
  */
 
-#ifndef __HSR_DEVICE_H
-#define __HSR_DEVICE_H
+#ifndef __HSR_FORWARD_H
+#define __HSR_FORWARD_H
 
 #include <linux/netdevice.h>
 #include "hsr_main.h"
 
-void hsr_dev_setup(struct net_device *dev);
-int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
-		     unsigned char multicast_spec);
-void hsr_check_carrier_and_operstate(struct hsr_priv *hsr);
-bool is_hsr_master(struct net_device *dev);
-int hsr_get_max_mtu(struct hsr_priv *hsr);
+void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port);
 
-#endif /* __HSR_DEVICE_H */
+#endif /* __HSR_FORWARD_H */
