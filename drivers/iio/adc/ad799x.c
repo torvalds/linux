@@ -426,9 +426,12 @@ static int ad799x_write_event_value(struct iio_dev *indio_dev,
 	int ret;
 	struct ad799x_state *st = iio_priv(indio_dev);
 
+	if (val < 0 || val > RES_MASK(chan->scan_type.realbits))
+		return -EINVAL;
+
 	mutex_lock(&indio_dev->mlock);
 	ret = ad799x_i2c_write16(st, ad799x_threshold_reg(chan, dir, info),
-		val);
+		val << chan->scan_type.shift);
 	mutex_unlock(&indio_dev->mlock);
 
 	return ret;
@@ -451,7 +454,8 @@ static int ad799x_read_event_value(struct iio_dev *indio_dev,
 	mutex_unlock(&indio_dev->mlock);
 	if (ret < 0)
 		return ret;
-	*val = valin;
+	*val = (valin >> chan->scan_type.shift) &
+		RES_MASK(chan->scan_type.realbits);
 
 	return IIO_VAL_INT;
 }

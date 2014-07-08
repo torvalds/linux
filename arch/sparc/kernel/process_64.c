@@ -239,7 +239,7 @@ static void __global_reg_poll(struct global_reg_snapshot *gp)
 	}
 }
 
-void arch_trigger_all_cpu_backtrace(void)
+void arch_trigger_all_cpu_backtrace(bool include_self)
 {
 	struct thread_info *tp = current_thread_info();
 	struct pt_regs *regs = get_irq_regs();
@@ -251,16 +251,22 @@ void arch_trigger_all_cpu_backtrace(void)
 
 	spin_lock_irqsave(&global_cpu_snapshot_lock, flags);
 
-	memset(global_cpu_snapshot, 0, sizeof(global_cpu_snapshot));
-
 	this_cpu = raw_smp_processor_id();
 
-	__global_reg_self(tp, regs, this_cpu);
+	memset(global_cpu_snapshot, 0, sizeof(global_cpu_snapshot));
+
+	if (include_self)
+		__global_reg_self(tp, regs, this_cpu);
 
 	smp_fetch_global_regs();
 
 	for_each_online_cpu(cpu) {
-		struct global_reg_snapshot *gp = &global_cpu_snapshot[cpu].reg;
+		struct global_reg_snapshot *gp;
+
+		if (!include_self && cpu == this_cpu)
+			continue;
+
+		gp = &global_cpu_snapshot[cpu].reg;
 
 		__global_reg_poll(gp);
 
@@ -292,7 +298,7 @@ void arch_trigger_all_cpu_backtrace(void)
 
 static void sysrq_handle_globreg(int key)
 {
-	arch_trigger_all_cpu_backtrace();
+	arch_trigger_all_cpu_backtrace(true);
 }
 
 static struct sysrq_key_op sparc_globalreg_op = {

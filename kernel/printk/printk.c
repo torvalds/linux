@@ -1416,9 +1416,10 @@ static int have_callable_console(void)
 /*
  * Can we actually use the console at this time on this cpu?
  *
- * Console drivers may assume that per-cpu resources have been allocated. So
- * unless they're explicitly marked as being able to cope (CON_ANYTIME) don't
- * call them until this CPU is officially up.
+ * Console drivers may assume that per-cpu resources have
+ * been allocated. So unless they're explicitly marked as
+ * being able to cope (CON_ANYTIME) don't call them until
+ * this CPU is officially up.
  */
 static inline int can_use_console(unsigned int cpu)
 {
@@ -1431,10 +1432,8 @@ static inline int can_use_console(unsigned int cpu)
  * console_lock held, and 'console_locked' set) if it
  * is successful, false otherwise.
  */
-static int console_trylock_for_printk(void)
+static int console_trylock_for_printk(unsigned int cpu)
 {
-	unsigned int cpu = smp_processor_id();
-
 	if (!console_trylock())
 		return 0;
 	/*
@@ -1609,8 +1608,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		 */
 		if (!oops_in_progress && !lockdep_recursing(current)) {
 			recursion_bug = 1;
-			local_irq_restore(flags);
-			return 0;
+			goto out_restore_irqs;
 		}
 		zap_locks();
 	}
@@ -1718,27 +1716,21 @@ asmlinkage int vprintk_emit(int facility, int level,
 
 	logbuf_cpu = UINT_MAX;
 	raw_spin_unlock(&logbuf_lock);
-	lockdep_on();
-	local_irq_restore(flags);
 
 	/* If called from the scheduler, we can not call up(). */
-	if (in_sched)
-		return printed_len;
+	if (!in_sched) {
+		/*
+		 * Try to acquire and then immediately release the console
+		 * semaphore.  The release will print out buffers and wake up
+		 * /dev/kmsg and syslog() users.
+		 */
+		if (console_trylock_for_printk(this_cpu))
+			console_unlock();
+	}
 
-	/*
-	 * Disable preemption to avoid being preempted while holding
-	 * console_sem which would prevent anyone from printing to console
-	 */
-	preempt_disable();
-	/*
-	 * Try to acquire and then immediately release the console semaphore.
-	 * The release will print out buffers and wake up /dev/kmsg and syslog()
-	 * users.
-	 */
-	if (console_trylock_for_printk())
-		console_unlock();
-	preempt_enable();
-
+	lockdep_on();
+out_restore_irqs:
+	local_irq_restore(flags);
 	return printed_len;
 }
 EXPORT_SYMBOL(vprintk_emit);

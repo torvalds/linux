@@ -199,6 +199,9 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 		}
 	}
 
+	if ((radeon_deep_color == 0) && (bpc > 8))
+		bpc = 8;
+
 	DRM_DEBUG("%s: Display bpc=%d, returned bpc=%d\n",
 			  connector->name, connector->display_info.bpc, bpc);
 

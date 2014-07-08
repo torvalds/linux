@@ -66,4 +66,8 @@ char *btrfs_printable_features(enum btrfs_feature_set set, u64 flags);
 extern const char * const btrfs_feature_set_names[3];
 extern struct kobj_type space_info_ktype;
 extern struct kobj_type btrfs_raid_ktype;
+int btrfs_kobj_add_device(struct btrfs_fs_info *fs_info,
+		struct btrfs_device *one_device);
+int btrfs_kobj_rm_device(struct btrfs_fs_info *fs_info,
+                struct btrfs_device *one_device);
 #endif /* _BTRFS_SYSFS_H_ */

@@ -119,6 +119,10 @@ static const unsigned int ldo_c_table[] = {
 	2900000, 3000000, 3300000,
 };
 
+static const unsigned int ldo_vbus[] = {
+	5000000,
+};
+
 /* DCDC group CSR: supported voltages in microvolts */
 static const struct regulator_linear_range dcdc_csr_ranges[] = {
 	REGULATOR_LINEAR_RANGE(860000, 2, 50, 10000),
@@ -192,6 +196,7 @@ static struct bcm590xx_info bcm590xx_regs[] = {
 	BCM590XX_REG_TABLE(gpldo4, ldo_a_table),
 	BCM590XX_REG_TABLE(gpldo5, ldo_a_table),
 	BCM590XX_REG_TABLE(gpldo6, ldo_a_table),
+	BCM590XX_REG_TABLE(vbus, ldo_vbus),
 };
 
 struct bcm590xx_reg {

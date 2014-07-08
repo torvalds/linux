@@ -1137,6 +1137,8 @@ static int at86rf230_probe(struct spi_device *spi)
 	dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK;
 
 	irq_type = irq_get_trigger_type(spi->irq);
+	if (!irq_type)
+		irq_type = IRQF_TRIGGER_RISING;
 	if (irq_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
 		irq_worker = at86rf230_irqwork;
 		irq_handler = at86rf230_isr;
@@ -1168,7 +1170,8 @@ static int at86rf230_probe(struct spi_device *spi)
 	if (rc)
 		goto err_hw_init;
 
-	rc = devm_request_irq(&spi->dev, spi->irq, irq_handler, IRQF_SHARED,
+	rc = devm_request_irq(&spi->dev, spi->irq, irq_handler,
+			      IRQF_SHARED | irq_type,
 			      dev_name(&spi->dev), lp);
 	if (rc)
 		goto err_hw_init;
