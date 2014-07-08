@@ -2197,10 +2197,10 @@ fec_enet_close(struct net_device *ndev)
 
 	phy_stop(fep->phy_dev);
 
-	/* Don't know what to do yet. */
 	napi_disable(&fep->napi);
 	netif_tx_disable(ndev);
-	fec_stop(ndev);
+	if (netif_device_present(ndev))
+		fec_stop(ndev);
 
 	phy_disconnect(fep->phy_dev);
 	fep->phy_dev = NULL;
