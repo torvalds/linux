@@ -1014,24 +1014,6 @@ void pci_disable_msix(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_disable_msix);
 
-/**
- * msi_remove_pci_irq_vectors - reclaim MSI(X) irqs to unused state
- * @dev: pointer to the pci_dev data structure of MSI(X) device function
- *
- * Being called during hotplug remove, from which the device function
- * is hot-removed. All previous assigned MSI/MSI-X irqs, if
- * allocated for this device function, are reclaimed to unused state,
- * which may be used later on.
- **/
-void msi_remove_pci_irq_vectors(struct pci_dev *dev)
-{
-	if (!pci_msi_enable || !dev)
-		return;
-
-	if (dev->msi_enabled || dev->msix_enabled)
-		free_msi_irqs(dev);
-}
-
 void pci_no_msi(void)
 {
 	pci_msi_enable = 0;
