@@ -882,8 +882,6 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)
 	memcpy(dev->dev_addr, gdm_wimax_macaddr, sizeof(gdm_wimax_macaddr));
 
 	nic = netdev_priv(dev);
-	memset(nic, 0, sizeof(*nic));
-
 	nic->netdev = dev;
 	nic->phy_dev = phy_dev;
 	phy_dev->netdev = dev;
