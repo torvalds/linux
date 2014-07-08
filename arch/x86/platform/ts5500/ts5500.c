@@ -1,7 +1,7 @@
 /*
  * Technologic Systems TS-5500 Single Board Computer support
  *
- * Copyright (C) 2013 Savoir-faire Linux Inc.
+ * Copyright (C) 2013-2014 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -66,6 +66,7 @@
 
 /**
  * struct ts5500_sbc - TS-5500 board description
+ * @name:	Board model name.
  * @id:		Board product ID.
  * @sram:	Flag for SRAM option.
  * @rs485:	Flag for RS-485 option.
@@ -75,6 +76,7 @@
  * @jumpers:	Bitfield for jumpers' state.
  */
 struct ts5500_sbc {
+	const char *name;
 	int	id;
 	bool	sram;
 	bool	rs485;
@@ -122,13 +124,14 @@ static int __init ts5500_detect_config(struct ts5500_sbc *sbc)
 	if (!request_region(TS5500_PRODUCT_CODE_ADDR, 4, "ts5500"))
 		return -EBUSY;
 
-	tmp = inb(TS5500_PRODUCT_CODE_ADDR);
-	if (tmp != TS5500_PRODUCT_CODE) {
-		pr_err("This platform is not a TS-5500 (found ID 0x%x)\n", tmp);
+	sbc->id = inb(TS5500_PRODUCT_CODE_ADDR);
+	if (sbc->id == TS5500_PRODUCT_CODE) {
+		sbc->name = "TS-5500";
+	} else {
+		pr_err("ts5500: unknown product code 0x%x\n", sbc->id);
 		ret = -ENODEV;
 		goto cleanup;
 	}
-	sbc->id = tmp;
 
 	tmp = inb(TS5500_SRAM_RS485_ADC_ADDR);
 	sbc->sram = tmp & TS5500_SRAM;
@@ -146,6 +149,15 @@ cleanup:
 	release_region(TS5500_PRODUCT_CODE_ADDR, 4);
 	return ret;
 }
+
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct ts5500_sbc *sbc = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", sbc->name);
+}
+static DEVICE_ATTR_RO(name);
 
 static ssize_t id_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -183,6 +195,7 @@ TS5500_ATTR_BOOL(itr);
 
 static struct attribute *ts5500_attributes[] = {
 	&dev_attr_id.attr,
+	&dev_attr_name.attr,
 	&dev_attr_jumpers.attr,
 	&dev_attr_sram.attr,
 	&dev_attr_rs485.attr,
