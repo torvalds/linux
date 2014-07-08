@@ -772,6 +772,16 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 
 	/* If requested to connect as slave use directed advertising */
 	if (!master) {
+		/* If we're active scanning most controllers are unable
+		 * to initiate advertising. Simply reject the attempt.
+		 */
+		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags) &&
+		    hdev->le_scan_type == LE_SCAN_ACTIVE) {
+			skb_queue_purge(&req.cmd_q);
+			hci_conn_del(conn);
+			return ERR_PTR(-EBUSY);
+		}
+
 		hci_req_directed_advertising(&req, conn);
 		goto create_conn;
 	}

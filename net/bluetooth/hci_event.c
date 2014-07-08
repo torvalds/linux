@@ -1176,13 +1176,21 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		cancel_delayed_work(&hdev->le_scan_disable);
 
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
+
 		/* The HCI_LE_SCAN_INTERRUPTED flag indicates that we
 		 * interrupted scanning due to a connect request. Mark
-		 * therefore discovery as stopped.
+		 * therefore discovery as stopped. If this was not
+		 * because of a connect request advertising might have
+		 * been disabled because of active scanning, so
+		 * re-enable it again if necessary.
 		 */
 		if (test_and_clear_bit(HCI_LE_SCAN_INTERRUPTED,
 				       &hdev->dev_flags))
 			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		else if (!test_bit(HCI_LE_ADV, &hdev->dev_flags) &&
+			 hdev->discovery.state != DISCOVERY_STARTING)
+			mgmt_reenable_advertising(hdev);
+
 		break;
 
 	default:

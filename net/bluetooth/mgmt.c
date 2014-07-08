@@ -3726,11 +3726,21 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 			goto failed;
 		}
 
-		if (test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
-			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
-					 MGMT_STATUS_REJECTED);
-			mgmt_pending_remove(cmd);
-			goto failed;
+		if (test_bit(HCI_LE_ADV, &hdev->dev_flags)) {
+			/* Don't let discovery abort an outgoing
+			 * connection attempt that's using directed
+			 * advertising.
+			 */
+			if (hci_conn_hash_lookup_state(hdev, LE_LINK,
+						       BT_CONNECT)) {
+				err = cmd_status(sk, hdev->id,
+						 MGMT_OP_START_DISCOVERY,
+						 MGMT_STATUS_REJECTED);
+				mgmt_pending_remove(cmd);
+				goto failed;
+			}
+
+			disable_advertising(&req);
 		}
 
 		/* If controller is scanning, it means the background scanning
@@ -4078,7 +4088,9 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 	 * necessary).
 	 */
 	if (!hdev_is_powered(hdev) || val == enabled ||
-	    hci_conn_num(hdev, LE_LINK) > 0) {
+	    hci_conn_num(hdev, LE_LINK) > 0 ||
+	    (test_bit(HCI_LE_SCAN, &hdev->dev_flags) &&
+	     hdev->le_scan_type == LE_SCAN_ACTIVE)) {
 		bool changed = false;
 
 		if (val != test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
