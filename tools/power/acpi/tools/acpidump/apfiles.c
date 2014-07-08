@@ -65,8 +65,7 @@ int ap_open_output_file(char *pathname)
 	/* If file exists, prompt for overwrite */
 
 	if (!stat(pathname, &stat_info)) {
-		fprintf(stderr,
-			"Target path already exists, overwrite? [y|n] ");
+		acpi_log_error("Target path already exists, overwrite? [y|n] ");
 
 		if (getchar() != 'y') {
 			return (-1);
@@ -106,7 +105,7 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 {
 	char filename[ACPI_NAME_SIZE + 16];
 	char instance_str[16];
-	FILE *file;
+	ACPI_FILE file;
 	size_t actual;
 	u32 table_length;
 
@@ -138,28 +137,29 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	ACPI_STRCAT(filename, ACPI_TABLE_FILE_SUFFIX);
 
 	if (gbl_verbose_mode) {
-		fprintf(stderr,
-			"Writing [%4.4s] to binary file: %s 0x%X (%u) bytes\n",
-			table->signature, filename, table->length,
-			table->length);
+		acpi_log_error
+		    ("Writing [%4.4s] to binary file: %s 0x%X (%u) bytes\n",
+		     table->signature, filename, table->length, table->length);
 	}
 
 	/* Open the file and dump the entire table in binary mode */
 
-	file = fopen(filename, "wb");
+	file = acpi_os_open_file(filename,
+				 ACPI_FILE_WRITING | ACPI_FILE_BINARY);
 	if (!file) {
-		perror("Could not open output file");
+		acpi_log_error("Could not open output file: %s\n", filename);
 		return (-1);
 	}
 
-	actual = fwrite(table, 1, table_length, file);
+	actual = acpi_os_write_file(file, table, 1, table_length);
 	if (actual != table_length) {
-		perror("Error writing binary output file");
-		fclose(file);
+		acpi_log_error("Error writing binary output file: %s\n",
+			       filename);
+		acpi_os_close_file(file);
 		return (-1);
 	}
 
-	fclose(file);
+	acpi_os_close_file(file);
 	return (0);
 }
 
@@ -180,15 +180,16 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 						 u32 *out_file_size)
 {
 	struct acpi_table_header *buffer = NULL;
-	FILE *file;
+	ACPI_FILE file;
 	u32 file_size;
 	size_t actual;
 
 	/* Must use binary mode */
 
-	file = fopen(pathname, "rb");
+	file =
+	    acpi_os_open_file(pathname, ACPI_FILE_READING | ACPI_FILE_BINARY);
 	if (!file) {
-		perror("Could not open input file");
+		acpi_log_error("Could not open input file: %s\n", pathname);
 		return (NULL);
 	}
 
@@ -196,8 +197,7 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 
 	file_size = cm_get_file_size(file);
 	if (file_size == ACPI_UINT32_MAX) {
-		fprintf(stderr,
-			"Could not get input file size: %s\n", pathname);
+		acpi_log_error("Could not get input file size: %s\n", pathname);
 		goto cleanup;
 	}
 
@@ -205,17 +205,16 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 
 	buffer = ACPI_ALLOCATE_ZEROED(file_size);
 	if (!buffer) {
-		fprintf(stderr,
-			"Could not allocate file buffer of size: %u\n",
-			file_size);
+		acpi_log_error("Could not allocate file buffer of size: %u\n",
+			       file_size);
 		goto cleanup;
 	}
 
 	/* Read the entire file */
 
-	actual = fread(buffer, 1, file_size, file);
+	actual = acpi_os_read_file(file, buffer, 1, file_size);
 	if (actual != file_size) {
-		fprintf(stderr, "Could not read input file: %s\n", pathname);
+		acpi_log_error("Could not read input file: %s\n", pathname);
 		ACPI_FREE(buffer);
 		buffer = NULL;
 		goto cleanup;
@@ -224,6 +223,6 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 	*out_file_size = file_size;
 
 cleanup:
-	fclose(file);
+	acpi_os_close_file(file);
 	return (buffer);
 }
