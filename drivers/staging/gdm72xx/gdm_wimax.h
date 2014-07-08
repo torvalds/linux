@@ -36,7 +36,6 @@ struct phy_dev {
 struct nic {
 	struct net_device	*netdev;
 	struct phy_dev		*phy_dev;
-	struct net_device_stats	stats;
 	struct data_s		sdk_data[SIOC_DATA_MAX];
 #if defined(CONFIG_WIMAX_GDM72XX_QOS)
 	struct qos_cb_s		qos;

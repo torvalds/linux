@@ -360,8 +360,8 @@ int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev)
 		return ret;
 	}
 
-	nic->stats.tx_packets++;
-	nic->stats.tx_bytes += skb->len - HCI_HEADER_SIZE;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len - HCI_HEADER_SIZE;
 	kfree_skb(skb);
 	return ret;
 }
@@ -431,13 +431,6 @@ static int gdm_wimax_set_mac_addr(struct net_device *dev, void *p)
 	__gdm_wimax_set_mac_addr(dev, addr->sa_data);
 
 	return 0;
-}
-
-static struct net_device_stats *gdm_wimax_stats(struct net_device *dev)
-{
-	struct nic *nic = netdev_priv(dev);
-
-	return &nic->stats;
 }
 
 static int gdm_wimax_open(struct net_device *dev)
@@ -696,7 +689,6 @@ static int gdm_wimax_get_prepared_info(struct net_device *dev, char *buf,
 
 static void gdm_wimax_netif_rx(struct net_device *dev, char *buf, int len)
 {
-	struct nic *nic = netdev_priv(dev);
 	struct sk_buff *skb;
 	int ret;
 
@@ -709,8 +701,8 @@ static void gdm_wimax_netif_rx(struct net_device *dev, char *buf, int len)
 	}
 	skb_reserve(skb, 2);
 
-	nic->stats.rx_packets++;
-	nic->stats.rx_bytes += len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += len;
 
 	memcpy(skb_put(skb, len), buf, len);
 
@@ -866,7 +858,6 @@ static struct net_device_ops gdm_netdev_ops = {
 	.ndo_stop		= gdm_wimax_close,
 	.ndo_set_config		= gdm_wimax_set_config,
 	.ndo_start_xmit		= gdm_wimax_tx,
-	.ndo_get_stats		= gdm_wimax_stats,
 	.ndo_set_mac_address	= gdm_wimax_set_mac_addr,
 	.ndo_do_ioctl		= gdm_wimax_ioctl,
 };
