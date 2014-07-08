@@ -1848,7 +1848,7 @@ void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status)
 {
 	pr_debug("Tx Complete, status=0x%04x\n", status);
 	/* update linux network stats */
-	wlandev->linux_stats.tx_packets++;
+	wlandev->netdev->stats.tx_packets++;
 }
 
 /*----------------------------------------------------------------
