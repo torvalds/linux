@@ -1470,7 +1470,8 @@ static int edma_setup_from_hw(struct device *dev, struct edma_soc_info *pdata,
 	queue_priority_map[i][1] = -1;
 
 	pdata->queue_priority_mapping = queue_priority_map;
-	pdata->default_queue = 0;
+	/* Default queue has the lowest priority */
+	pdata->default_queue = i - 1;
 
 	return 0;
 }
