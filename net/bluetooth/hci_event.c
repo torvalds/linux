@@ -1188,7 +1188,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 				       &hdev->dev_flags))
 			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 		else if (!test_bit(HCI_LE_ADV, &hdev->dev_flags) &&
-			 hdev->discovery.state != DISCOVERY_STARTING)
+			 hdev->discovery.state == DISCOVERY_FINDING)
 			mgmt_reenable_advertising(hdev);
 
 		break;
