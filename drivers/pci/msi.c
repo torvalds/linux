@@ -463,7 +463,6 @@ static void __pci_restore_msix_state(struct pci_dev *dev)
 	if (!dev->msix_enabled)
 		return;
 	BUG_ON(list_empty(&dev->msi_list));
-	entry = list_first_entry(&dev->msi_list, struct msi_desc, list);
 
 	/* route the table */
 	pci_intx_for_msi(dev, 0);
