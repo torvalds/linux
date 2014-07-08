@@ -53,6 +53,7 @@ struct pasid_state {
 	struct pri_queue pri[PRI_QUEUE_SIZE];	/* PRI tag states */
 	struct device_state *device_state;	/* Link to our device_state */
 	int pasid;				/* PASID index */
+	bool invalid;				/* Used during teardown */
 	spinlock_t lock;			/* Protect pri_queues and
 						   mmu_notifer_count */
 	wait_queue_head_t wq;			/* To wait for count == 0 */
@@ -306,8 +307,17 @@ static void unbind_pasid(struct pasid_state *pasid_state)
 
 	domain = pasid_state->device_state->domain;
 
+	/*
+	 * Mark pasid_state as invalid, no more faults will we added to the
+	 * work queue after this is visible everywhere.
+	 */
+	pasid_state->invalid = true;
+
+	/* Make sure this is visible */
+	smp_wmb();
+
+	/* After this the device/pasid can't access the mm anymore */
 	amd_iommu_domain_clear_gcr3(domain, pasid_state->pasid);
-	clear_pasid_state(pasid_state->device_state, pasid_state->pasid);
 
 	/* Make sure no more pending faults are in the queue */
 	flush_workqueue(iommu_wq);
@@ -573,7 +583,7 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 		goto out;
 
 	pasid_state = get_pasid_state(dev_state, iommu_fault->pasid);
-	if (pasid_state == NULL) {
+	if (pasid_state == NULL || pasid_state->invalid) {
 		/* We know the device but not the PASID -> send INVALID */
 		amd_iommu_complete_ppr(dev_state->pdev, iommu_fault->pasid,
 				       PPR_INVALID, tag);
@@ -657,6 +667,7 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 	pasid_state->mm           = get_task_mm(task);
 	pasid_state->device_state = dev_state;
 	pasid_state->pasid        = pasid;
+	pasid_state->invalid      = false;
 	pasid_state->mn.ops       = &iommu_mn;
 
 	if (pasid_state->mm == NULL)
@@ -719,6 +730,9 @@ void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid)
 	 * the reference taken in the amd_iommu_bind_pasid function.
 	 */
 	put_pasid_state(pasid_state);
+
+	/* Clear the pasid state so that the pasid can be re-used */
+	clear_pasid_state(dev_state, pasid_state->pasid);
 
 	/* This will call the mn_release function and unbind the PASID */
 	mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
