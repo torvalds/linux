@@ -2356,7 +2356,7 @@ static void intel_find_plane_obj(struct intel_crtc *intel_crtc,
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_crtc *c;
 	struct intel_crtc *i;
-	struct intel_framebuffer *fb;
+	struct drm_i915_gem_object *obj;
 
 	if (!intel_crtc->base.primary->fb)
 		return;
@@ -2377,14 +2377,17 @@ static void intel_find_plane_obj(struct intel_crtc *intel_crtc,
 		if (c == &intel_crtc->base)
 			continue;
 
-		if (!i->active || !c->primary->fb)
+		if (!i->active)
 			continue;
 
-		fb = to_intel_framebuffer(c->primary->fb);
-		if (i915_gem_obj_ggtt_offset(fb->obj) == plane_config->base) {
+		obj = intel_fb_obj(c->primary->fb);
+		if (obj == NULL)
+			continue;
+
+		if (i915_gem_obj_ggtt_offset(obj) == plane_config->base) {
 			drm_framebuffer_reference(c->primary->fb);
 			intel_crtc->base.primary->fb = c->primary->fb;
-			fb->obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
+			obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 			break;
 		}
 	}
@@ -2397,15 +2400,11 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_framebuffer *intel_fb;
-	struct drm_i915_gem_object *obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
 	u32 dspcntr;
 	u32 reg;
-
-	intel_fb = to_intel_framebuffer(fb);
-	obj = intel_fb->obj;
 
 	reg = DSPCNTR(plane);
 	dspcntr = I915_READ(reg);
@@ -2487,15 +2486,11 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_framebuffer *intel_fb;
-	struct drm_i915_gem_object *obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int plane = intel_crtc->plane;
 	unsigned long linear_offset;
 	u32 dspcntr;
 	u32 reg;
-
-	intel_fb = to_intel_framebuffer(fb);
-	obj = intel_fb->obj;
 
 	reg = DSPCNTR(plane);
 	dspcntr = I915_READ(reg);
@@ -2627,7 +2622,7 @@ void intel_display_handle_reset(struct drm_device *dev)
 static int
 intel_finish_fb(struct drm_framebuffer *old_fb)
 {
-	struct drm_i915_gem_object *obj = to_intel_framebuffer(old_fb)->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(old_fb);
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	bool was_interruptible = dev_priv->mm.interruptible;
 	int ret;
@@ -2674,9 +2669,9 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
-	struct drm_framebuffer *old_fb;
-	struct drm_i915_gem_object *obj = to_intel_framebuffer(fb)->obj;
-	struct drm_i915_gem_object *old_obj;
+	struct drm_framebuffer *old_fb = crtc->primary->fb;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_fb);
 	int ret;
 
 	if (intel_crtc_has_pending_flip(crtc)) {
@@ -2696,9 +2691,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 			  INTEL_INFO(dev)->num_pipes);
 		return -EINVAL;
 	}
-
-	old_fb = crtc->primary->fb;
-	old_obj = old_fb ? to_intel_framebuffer(old_fb)->obj : NULL;
 
 	mutex_lock(&dev->struct_mutex);
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
@@ -2755,7 +2747,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		if (intel_crtc->active && old_fb != fb)
 			intel_wait_for_vblank(dev, intel_crtc->pipe);
 		mutex_lock(&dev->struct_mutex);
-		intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
+		intel_unpin_fb_obj(old_obj);
 		mutex_unlock(&dev->struct_mutex);
 	}
 
@@ -4929,7 +4921,7 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_connector *connector;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *old_obj;
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(crtc->primary->fb);
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 
 	/* crtc should still be enabled when we disable it. */
@@ -4944,7 +4936,6 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	assert_pipe_disabled(dev->dev_private, pipe);
 
 	if (crtc->primary->fb) {
-		old_obj = to_intel_framebuffer(crtc->primary->fb)->obj;
 		mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(old_obj);
 		i915_gem_track_fb(old_obj, NULL,
@@ -9586,13 +9577,21 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	struct drm_i915_gem_object *obj = to_intel_framebuffer(fb)->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	struct intel_unpin_work *work;
 	struct intel_engine_cs *ring;
 	unsigned long flags;
 	int ret;
+
+	/*
+	 * drm_mode_page_flip_ioctl() should already catch this, but double
+	 * check to be safe.  In the future we may enable pageflipping from
+	 * a disabled primary plane.
+	 */
+	if (WARN_ON(intel_fb_obj(old_fb) == NULL))
+		return -EBUSY;
 
 	/* Can't change pixel format via MI display flips. */
 	if (fb->pixel_format != crtc->primary->fb->pixel_format)
@@ -9616,7 +9615,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->event = event;
 	work->crtc = crtc;
-	work->old_fb_obj = to_intel_framebuffer(old_fb)->obj;
+	work->old_fb_obj = intel_fb_obj(old_fb);
 	INIT_WORK(&work->work, intel_unpin_work_fn);
 
 	ret = drm_crtc_vblank_get(crtc);
@@ -10758,10 +10757,9 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * on the DPLL.
 	 */
 	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
-		struct drm_framebuffer *old_fb;
-		struct drm_i915_gem_object *old_obj = NULL;
-		struct drm_i915_gem_object *obj =
-			to_intel_framebuffer(fb)->obj;
+		struct drm_framebuffer *old_fb = crtc->primary->fb;
+		struct drm_i915_gem_object *old_obj = intel_fb_obj(old_fb);
+		struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 
 		mutex_lock(&dev->struct_mutex);
 		ret = intel_pin_and_fence_fb_obj(dev,
@@ -10772,11 +10770,8 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 			mutex_unlock(&dev->struct_mutex);
 			goto done;
 		}
-		old_fb = crtc->primary->fb;
-		if (old_fb) {
-			old_obj = to_intel_framebuffer(old_fb)->obj;
+		if (old_fb)
 			intel_unpin_fb_obj(old_obj);
-		}
 		i915_gem_track_fb(old_obj, obj,
 				  INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe));
 		mutex_unlock(&dev->struct_mutex);
@@ -11394,9 +11389,9 @@ intel_primary_plane_disable(struct drm_plane *plane)
 	intel_disable_primary_hw_plane(dev_priv, intel_plane->plane,
 				       intel_plane->pipe);
 disable_unpin:
-	i915_gem_track_fb(to_intel_framebuffer(plane->fb)->obj, NULL,
+	i915_gem_track_fb(intel_fb_obj(plane->fb), NULL,
 			  INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe));
-	intel_unpin_fb_obj(to_intel_framebuffer(plane->fb)->obj);
+	intel_unpin_fb_obj(intel_fb_obj(plane->fb));
 	plane->fb = NULL;
 
 	return 0;
@@ -11413,7 +11408,8 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct drm_i915_gem_object *obj, *old_obj = NULL;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
 	struct drm_rect dest = {
 		/* integer pixels */
 		.x1 = crtc_x,
@@ -11444,10 +11440,6 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (ret)
 		return ret;
-
-	if (plane->fb)
-		old_obj = to_intel_framebuffer(plane->fb)->obj;
-	obj = to_intel_framebuffer(fb)->obj;
 
 	/*
 	 * If the CRTC isn't enabled, we're just pinning the framebuffer,
@@ -12945,7 +12937,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 void intel_modeset_gem_init(struct drm_device *dev)
 {
 	struct drm_crtc *c;
-	struct intel_framebuffer *fb;
+	struct drm_i915_gem_object *obj;
 
 	mutex_lock(&dev->struct_mutex);
 	intel_init_gt_powersave(dev);
@@ -12962,11 +12954,11 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	 */
 	mutex_lock(&dev->struct_mutex);
 	for_each_crtc(dev, c) {
-		if (!c->primary->fb)
+		obj = intel_fb_obj(c->primary->fb);
+		if (obj == NULL)
 			continue;
 
-		fb = to_intel_framebuffer(c->primary->fb);
-		if (intel_pin_and_fence_fb_obj(dev, fb->obj, NULL)) {
+		if (intel_pin_and_fence_fb_obj(dev, obj, NULL)) {
 			DRM_ERROR("failed to pin boot fb on pipe %d\n",
 				  to_intel_crtc(c)->pipe);
 			drm_framebuffer_unreference(c->primary->fb);

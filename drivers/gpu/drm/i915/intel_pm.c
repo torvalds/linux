@@ -93,8 +93,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int cfb_pitch;
 	int i;
@@ -150,8 +149,7 @@ static void g4x_enable_fbc(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
 
@@ -222,8 +220,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
 
@@ -289,8 +286,7 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 dpfc_ctl;
 
@@ -485,7 +481,6 @@ void intel_update_fbc(struct drm_device *dev)
 	struct drm_crtc *crtc = NULL, *tmp_crtc;
 	struct intel_crtc *intel_crtc;
 	struct drm_framebuffer *fb;
-	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
 	const struct drm_display_mode *adjusted_mode;
 	unsigned int max_width, max_height;
@@ -530,8 +525,7 @@ void intel_update_fbc(struct drm_device *dev)
 
 	intel_crtc = to_intel_crtc(crtc);
 	fb = crtc->primary->fb;
-	intel_fb = to_intel_framebuffer(fb);
-	obj = intel_fb->obj;
+	obj = intel_fb_obj(fb);
 	adjusted_mode = &intel_crtc->config.adjusted_mode;
 
 	if (i915.enable_fbc < 0) {
@@ -589,7 +583,7 @@ void intel_update_fbc(struct drm_device *dev)
 	if (in_dbg_master())
 		goto out_disable;
 
-	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size,
+	if (i915_gem_stolen_setup_compression(dev, obj->base.size,
 					      drm_format_plane_cpp(fb->pixel_format, 0))) {
 		if (set_no_fbc_reason(dev_priv, FBC_STOLEN_TOO_SMALL))
 			DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
@@ -1599,12 +1593,12 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	DRM_DEBUG_KMS("FIFO watermarks - A: %d, B: %d\n", planea_wm, planeb_wm);
 
 	if (IS_I915GM(dev) && enabled) {
-		struct intel_framebuffer *fb;
+		struct drm_i915_gem_object *obj;
 
-		fb = to_intel_framebuffer(enabled->primary->fb);
+		obj = intel_fb_obj(enabled->primary->fb);
 
 		/* self-refresh seems busted with untiled */
-		if (fb->obj->tiling_mode == I915_TILING_NONE)
+		if (obj->tiling_mode == I915_TILING_NONE)
 			enabled = NULL;
 	}
 
