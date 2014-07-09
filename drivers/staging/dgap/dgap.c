@@ -1363,9 +1363,6 @@ static int dgap_tty_init(struct board_t *brd)
 	struct cm_t __iomem *cm;
 	int ret;
 
-	if (!brd)
-		return -EIO;
-
 	/*
 	 * Initialize board structure elements.
 	 */
