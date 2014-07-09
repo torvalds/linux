@@ -889,11 +889,9 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;
 	}
 
-	if (le16_to_cpu(desc->datalen) == buff_size) {
-		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
-			   "AQTX: desc and buffer writeback:\n");
-		i40e_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff);
-	}
+	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+		   "AQTX: desc and buffer writeback:\n");
+	i40e_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff);
 
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&

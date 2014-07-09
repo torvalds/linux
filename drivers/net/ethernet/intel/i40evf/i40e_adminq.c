@@ -840,11 +840,9 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 	if (i40e_is_nvm_update_op(desc))
 		hw->aq.nvm_busy = true;
 
-	if (le16_to_cpu(desc->datalen) == buff_size) {
-		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
-			   "AQTX: desc and buffer writeback:\n");
-		i40evf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff);
-	}
+	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+		   "AQTX: desc and buffer writeback:\n");
+	i40evf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff);
 
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&
