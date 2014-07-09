@@ -5189,6 +5189,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 		wr32(&pf->hw, I40E_PFQF_CTL_1,
 		     I40E_PFQF_CTL_1_CLEARFDTABLE_MASK);
 		i40e_flush(&pf->hw);
+		pf->fd_flush_cnt++;
 		pf->fd_add_err = 0;
 		do {
 			/* Check FD flush status every 5-6msec */

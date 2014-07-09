@@ -252,6 +252,7 @@ struct i40e_pf {
 	u16 fd_sb_cnt_idx;
 	u16 fd_atr_cnt_idx;
 	unsigned long fd_flush_timestamp;
+	u32 fd_flush_cnt;
 	u32 fd_add_err;
 	u32 fd_atr_cnt;
 	u32 fd_tcp_rule;
