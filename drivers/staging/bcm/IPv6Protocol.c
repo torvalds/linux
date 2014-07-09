@@ -45,6 +45,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 	case IPV6HDR_TYPE_ROUTING:
 		{
 			struct bcm_ipv6_routing_hdr *pstIpv6RoutingHeader;
+
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL, "\nIPv6 Routing Header");
 			pstIpv6RoutingHeader = (struct bcm_ipv6_routing_hdr *)pucPayloadPtr;
@@ -66,6 +67,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 		{
 			struct bcm_ipv6_dest_options_hdr *pstIpv6DestOptsHdr = (struct bcm_ipv6_dest_options_hdr *)pucPayloadPtr;
 			int nTotalOptions = pstIpv6DestOptsHdr->ucHdrExtLen;
+
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL,
 					"\nIPv6 DestOpts Header Header");
@@ -78,6 +80,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 		{
 			struct bcm_ipv6_authentication_hdr *pstIpv6AuthHdr = (struct bcm_ipv6_authentication_hdr *)pucPayloadPtr;
 			int nHdrLen = pstIpv6AuthHdr->ucLength;
+
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL,
 					"\nIPv6 Authentication Header");
@@ -275,6 +278,7 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 
 	if (bClassificationSucceed == TRUE) {
 		INT iMatchedSFQueueIndex = 0;
+
 		iMatchedSFQueueIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
 		if (iMatchedSFQueueIndex >= NO_OF_QUEUES) {
 			bClassificationSucceed = false;
@@ -407,6 +411,7 @@ VOID DumpIpv6Address(ULONG *puIpv6Address)
 	UINT uiIpv6AddrNoLongWords = 4;
 	UINT uiIpv6AddIndex = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+
 	for (uiIpv6AddIndex = 0; uiIpv6AddIndex < uiIpv6AddrNoLongWords; uiIpv6AddIndex++) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG, DBG_LVL_ALL,
 				":%lx", puIpv6Address[uiIpv6AddIndex]);
@@ -419,6 +424,7 @@ static VOID DumpIpv6Header(struct bcm_ipv6_hdr *pstIpv6Header)
 	UCHAR ucVersion;
 	UCHAR ucPrio;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG, DBG_LVL_ALL,
 			"----Ipv6 Header---");
 	ucVersion = pstIpv6Header->ucVersionPrio & 0xf0;

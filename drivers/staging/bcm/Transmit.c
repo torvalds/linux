@@ -148,6 +148,7 @@ int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USH
 				status);
 	} else {
 		struct net_device_stats *netstats = &Adapter->dev->stats;
+
 		Adapter->PackInfo[QueueIndex].uiTotalTxBytes += Leader.PLength;
 
 		netstats->tx_bytes += Leader.PLength;

@@ -287,6 +287,7 @@ int phs_init(struct bcm_phs_extension *pPhsdeviceExtension, struct bcm_mini_adap
 	pstServiceFlowTable = pPhsdeviceExtension->pstServiceFlowPhsRulesTable;
 	for (i = 0; i < MAX_SERVICEFLOWS; i++) {
 		struct bcm_phs_entry sServiceFlow = pstServiceFlowTable->stSFList[i];
+
 		sServiceFlow.pstClassifierTable = kzalloc(sizeof(struct bcm_phs_classifier_table), GFP_KERNEL);
 		if (!sServiceFlow.pstClassifierTable) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "\nAllocation failed");

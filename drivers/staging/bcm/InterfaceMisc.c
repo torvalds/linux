@@ -236,6 +236,7 @@ void putUsbSuspend(struct work_struct *work)
 {
 	struct bcm_interface_adapter *psIntfAdapter = NULL;
 	struct usb_interface *intf = NULL;
+
 	psIntfAdapter = container_of(work, struct bcm_interface_adapter,
 				     usbSuspendWork);
 	intf = psIntfAdapter->interface;

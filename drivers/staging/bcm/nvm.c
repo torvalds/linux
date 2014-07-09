@@ -361,6 +361,7 @@ int BeceemEEPROMBulkRead(struct bcm_mini_adapter *Adapter,
 		} else {
 			/* Handle the reads less than 4 bytes... */
 			PUCHAR pCharBuff = (PUCHAR)pBuffer;
+
 			pCharBuff += uiIndex;
 			if (ReadBeceemEEPROM(Adapter, uiOffset, &uiData[0]) == 0) {
 				memcpy(pCharBuff, &uiData[0], uiBytesRemaining); /* copy only bytes requested. */
@@ -914,6 +915,7 @@ static int flashWriteStatus(struct bcm_mini_adapter *Adapter,
 static VOID BcmRestoreBlockProtectStatus(struct bcm_mini_adapter *Adapter, ULONG ulWriteStatus)
 {
 	unsigned int value;
+
 	value = (FLASH_CMD_WRITE_ENABLE << 24);
 	wrmalt(Adapter, FLASH_SPI_CMDQ_REG, &value, sizeof(value));
 
@@ -1154,6 +1156,7 @@ static int BeceemFlashBulkWrite(struct bcm_mini_adapter *Adapter,
 			if (STATUS_SUCCESS == BeceemFlashBulkRead(Adapter, (PUINT)ucReadBk, uiOffsetFromSectStart + uiIndex, MAX_RW_SIZE)) {
 				if (Adapter->ulFlashWriteSize == 1) {
 					unsigned int uiReadIndex = 0;
+
 					for (uiReadIndex = 0; uiReadIndex < 16; uiReadIndex++) {
 						if (ucReadBk[uiReadIndex] != pTempBuff[uiIndex + uiReadIndex]) {
 							if (STATUS_SUCCESS != (*Adapter->fpFlashWriteWithStatusCheck)(Adapter, uiPartOffset + uiIndex + uiReadIndex, &pTempBuff[uiIndex+uiReadIndex])) {
@@ -1868,6 +1871,7 @@ int BeceemNVMWrite(struct bcm_mini_adapter *Adapter,
 			if ((uiOffset + uiNumBytes) > EEPROM_CALPARAM_START) {
 				ULONG ulBytesTobeSkipped = 0;
 				PUCHAR pcBuffer = (PUCHAR)pBuffer; /* char pointer to take care of odd byte cases. */
+
 				uiNumBytes -= (EEPROM_CALPARAM_START - uiOffset);
 				ulBytesTobeSkipped += (EEPROM_CALPARAM_START - uiOffset);
 				uiOffset += (EEPROM_CALPARAM_START - uiOffset);
@@ -2455,6 +2459,7 @@ static int BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter)
 	#endif
 
 	unsigned int uiFlashLayoutMajorVersion;
+
 	Adapter->uiFlashLayoutMinorVersion = 0;
 	Adapter->uiFlashLayoutMajorVersion = 0;
 	Adapter->ulFlashControlSectionStart = FLASH_CS_INFO_START_ADDR;
@@ -4319,6 +4324,7 @@ static int ReadISOSignature(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_s
 static int ReadISOPriority(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val iso)
 {
 	unsigned int ISOPri = STATUS_FAILURE;
+
 	if (IsSectionWritable(Adapter, iso)) {
 		if (ReadISOSignature(Adapter, iso) == ISO_IMAGE_MAGIC_NUMBER) {
 			BcmFlash2xBulkRead(Adapter,

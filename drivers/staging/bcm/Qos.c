@@ -94,8 +94,8 @@ static bool MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, UL
 **************************************************************************/
 static bool MatchTos(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucTypeOfService)
 {
-
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+
 	if (3 != pstClassifierRule->ucIPTypeOfServiceLength)
 		return TRUE;
 
@@ -121,6 +121,7 @@ bool MatchProtocol(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucProtoc
 {
 	UCHAR ucLoopIndex = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+
 	if (0 == pstClassifierRule->ucProtocolLength)
 		return TRUE;
 	for (ucLoopIndex = 0; ucLoopIndex < pstClassifierRule->ucProtocolLength; ucLoopIndex++) {
@@ -269,6 +270,7 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 
 	if (TRUE == bClassificationSucceed) {
 		INT iMatchedSFQueueIndex = 0;
+
 		iMatchedSFQueueIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
 		if (iMatchedSFQueueIndex >= NO_OF_QUEUES)
 			bClassificationSucceed = false;
@@ -580,6 +582,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 			 * Create Frag CLS Entry
 			 */
 			struct bcm_fragmented_packet_info stFragPktInfo;
+
 			stFragPktInfo.bUsed = TRUE;
 			stFragPktInfo.ulSrcIpAddress = pIpHeader->saddr;
 			stFragPktInfo.usIpIdentification = pIpHeader->id;
@@ -601,6 +604,7 @@ static bool EthCSMatchSrcMACAddress(struct bcm_classifier_rule *pstClassifierRul
 {
 	UINT i = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+
 	if (pstClassifierRule->ucEthCSSrcMACLen == 0)
 		return TRUE;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "%s\n", __func__);
@@ -617,6 +621,7 @@ static bool EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifierRu
 {
 	UINT i = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+
 	if (pstClassifierRule->ucEthCSDestMACLen == 0)
 		return TRUE;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "%s\n", __func__);
@@ -632,6 +637,7 @@ static bool EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifierRu
 static bool EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule, struct sk_buff *skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+
 	if ((pstClassifierRule->ucEtherTypeLen == 0) ||
 		(pstClassifierRule->au8EthCSEtherType[0] == 0))
 		return TRUE;
@@ -719,6 +725,7 @@ static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter, struct sk_buff *s
 				B_UINT8 EthCSCupport)
 {
 	bool bClassificationSucceed = false;
+
 	bClassificationSucceed = EthCSMatchSrcMACAddress(pstClassifierRule, ((struct bcm_eth_header *)(skb->data))->au8SourceAddress);
 	if (!bClassificationSucceed)
 		return false;

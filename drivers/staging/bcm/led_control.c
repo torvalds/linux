@@ -6,6 +6,7 @@
 static B_UINT16 CFG_CalculateChecksum(B_UINT8 *pu8Buffer, B_UINT32 u32Size)
 {
 	B_UINT16 u16CheckSum = 0;
+
 	while (u32Size--) {
 		u16CheckSum += (B_UINT8)~(*pu8Buffer);
 		pu8Buffer++;
@@ -16,6 +17,7 @@ static B_UINT16 CFG_CalculateChecksum(B_UINT8 *pu8Buffer, B_UINT32 u32Size)
 bool IsReqGpioIsLedInNVM(struct bcm_mini_adapter *Adapter, UINT gpios)
 {
 	INT Status;
+
 	Status = (Adapter->gpioBitMap & gpios) ^ gpios;
 	if (Status)
 		return false;
@@ -489,6 +491,7 @@ static int ReadConfigFileStructure(struct bcm_mini_adapter *Adapter,
 	PUCHAR puCFGData	= NULL;
 	UCHAR bData = 0;
 	struct bcm_led_state_info *curr_led_state;
+
 	memset(GPIO_Array, DISABLE_GPIO_NUM, NUM_OF_LEDS+1);
 
 	if (!Adapter->pstargetparams || IS_ERR(Adapter->pstargetparams)) {
@@ -715,6 +718,7 @@ static void handle_adapter_driver_state(struct bcm_mini_adapter *ad,
 			UCHAR GPIO_num_rx = DISABLE_GPIO_NUM;
 			UCHAR uiLEDTx = 0;
 			UCHAR uiLEDRx = 0;
+
 			currdriverstate = NORMAL_OPERATION;
 			ad->LEDInfo.bIdle_led_off = false;
 
