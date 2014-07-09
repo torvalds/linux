@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"06.803.01.00-rc1"
-#define MEGASAS_RELDATE				"Mar. 10, 2014"
-#define MEGASAS_EXT_VERSION			"Mon. Mar. 10 17:00:00 PDT 2014"
+#define MEGASAS_VERSION				"06.803.02.00-rc1"
+#define MEGASAS_RELDATE				"Jun. 19, 2014"
+#define MEGASAS_EXT_VERSION			"Thu. Jun. 19 17:00:00 PDT 2014"
 
 /*
  * Device IDs
