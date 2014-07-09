@@ -2080,26 +2080,27 @@ static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
 	}
 }
 
-static void hotplug_update_tasks_legacy(struct cpuset *cs,
-					struct cpumask *off_cpus,
-					nodemask_t *off_mems)
+static void
+hotplug_update_tasks_legacy(struct cpuset *cs,
+			    struct cpumask *new_cpus, nodemask_t *new_mems,
+			    bool cpus_updated, bool mems_updated)
 {
 	bool is_empty;
 
 	mutex_lock(&callback_mutex);
-	cpumask_andnot(cs->cpus_allowed, cs->cpus_allowed, off_cpus);
-	cpumask_andnot(cs->effective_cpus, cs->effective_cpus, off_cpus);
-	nodes_andnot(cs->mems_allowed, cs->mems_allowed, *off_mems);
-	nodes_andnot(cs->effective_mems, cs->effective_mems, *off_mems);
+	cpumask_copy(cs->cpus_allowed, new_cpus);
+	cpumask_copy(cs->effective_cpus, new_cpus);
+	cs->mems_allowed = *new_mems;
+	cs->effective_mems = *new_mems;
 	mutex_unlock(&callback_mutex);
 
 	/*
 	 * Don't call update_tasks_cpumask() if the cpuset becomes empty,
 	 * as the tasks will be migratecd to an ancestor.
 	 */
-	if (!cpumask_empty(off_cpus) && !cpumask_empty(cs->cpus_allowed))
+	if (cpus_updated && !cpumask_empty(cs->cpus_allowed))
 		update_tasks_cpumask(cs);
-	if (!nodes_empty(*off_mems) && !nodes_empty(cs->mems_allowed))
+	if (mems_updated && !nodes_empty(cs->mems_allowed))
 		update_tasks_nodemask(cs);
 
 	is_empty = cpumask_empty(cs->cpus_allowed) ||
@@ -2118,24 +2119,24 @@ static void hotplug_update_tasks_legacy(struct cpuset *cs,
 	mutex_lock(&cpuset_mutex);
 }
 
-static void hotplug_update_tasks(struct cpuset *cs,
-				 struct cpumask *off_cpus,
-				 nodemask_t *off_mems)
+static void
+hotplug_update_tasks(struct cpuset *cs,
+		     struct cpumask *new_cpus, nodemask_t *new_mems,
+		     bool cpus_updated, bool mems_updated)
 {
-	mutex_lock(&callback_mutex);
-	cpumask_andnot(cs->effective_cpus, cs->effective_cpus, off_cpus);
-	if (cpumask_empty(cs->effective_cpus))
-		cpumask_copy(cs->effective_cpus,
-			     parent_cs(cs)->effective_cpus);
+	if (cpumask_empty(new_cpus))
+		cpumask_copy(new_cpus, parent_cs(cs)->effective_cpus);
+	if (nodes_empty(*new_mems))
+		*new_mems = parent_cs(cs)->effective_mems;
 
-	nodes_andnot(cs->effective_mems, cs->effective_mems, *off_mems);
-	if (nodes_empty(cs->effective_mems))
-		cs->effective_mems = parent_cs(cs)->effective_mems;
+	mutex_lock(&callback_mutex);
+	cpumask_copy(cs->effective_cpus, new_cpus);
+	cs->effective_mems = *new_mems;
 	mutex_unlock(&callback_mutex);
 
-	if (!cpumask_empty(off_cpus))
+	if (cpus_updated)
 		update_tasks_cpumask(cs);
-	if (!nodes_empty(*off_mems))
+	if (mems_updated)
 		update_tasks_nodemask(cs);
 }
 
@@ -2149,8 +2150,10 @@ static void hotplug_update_tasks(struct cpuset *cs,
  */
 static void cpuset_hotplug_update_tasks(struct cpuset *cs)
 {
-	static cpumask_t off_cpus;
-	static nodemask_t off_mems;
+	static cpumask_t new_cpus;
+	static nodemask_t new_mems;
+	bool cpus_updated;
+	bool mems_updated;
 retry:
 	wait_event(cpuset_attach_wq, cs->attach_in_progress == 0);
 
@@ -2165,14 +2168,18 @@ retry:
 		goto retry;
 	}
 
-	cpumask_andnot(&off_cpus, cs->effective_cpus,
-		       top_cpuset.effective_cpus);
-	nodes_andnot(off_mems, cs->effective_mems, top_cpuset.effective_mems);
+	cpumask_and(&new_cpus, cs->cpus_allowed, parent_cs(cs)->effective_cpus);
+	nodes_and(new_mems, cs->mems_allowed, parent_cs(cs)->effective_mems);
+
+	cpus_updated = !cpumask_equal(&new_cpus, cs->effective_cpus);
+	mems_updated = !nodes_equal(new_mems, cs->effective_mems);
 
 	if (cgroup_on_dfl(cs->css.cgroup))
-		hotplug_update_tasks(cs, &off_cpus, &off_mems);
+		hotplug_update_tasks(cs, &new_cpus, &new_mems,
+				     cpus_updated, mems_updated);
 	else
-		hotplug_update_tasks_legacy(cs, &off_cpus, &off_mems);
+		hotplug_update_tasks_legacy(cs, &new_cpus, &new_mems,
+					    cpus_updated, mems_updated);
 
 	mutex_unlock(&cpuset_mutex);
 }
