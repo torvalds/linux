@@ -1582,26 +1582,6 @@ out:
 	return ret;
 }
 
-static int i915_gfxec(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
-
-	seq_printf(m, "GFXEC: %ld\n", (unsigned long)I915_READ(0x112f4));
-	intel_runtime_pm_put(dev_priv);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
 static int i915_opregion(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
@@ -3900,7 +3880,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_drpc_info", i915_drpc_info, 0},
 	{"i915_emon_status", i915_emon_status, 0},
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},
-	{"i915_gfxec", i915_gfxec, 0},
 	{"i915_fbc_status", i915_fbc_status, 0},
 	{"i915_ips_status", i915_ips_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
