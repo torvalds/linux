@@ -121,8 +121,8 @@ static int __init vdso_init(void)
 	}
 
 	vdso_pages = (&vdso_end - &vdso_start) >> PAGE_SHIFT;
-	pr_info("vdso: %ld pages (%ld code, %ld data) at base %p\n",
-		vdso_pages + 1, vdso_pages, 1L, &vdso_start);
+	pr_info("vdso: %ld pages (%ld code @ %p, %ld data @ %p)\n",
+		vdso_pages + 1, vdso_pages, &vdso_start, 1L, vdso_data);
 
 	/* Allocate the vDSO pagelist, plus a page for the data. */
 	vdso_pagelist = kcalloc(vdso_pages + 1, sizeof(struct page *),
@@ -130,22 +130,22 @@ static int __init vdso_init(void)
 	if (vdso_pagelist == NULL)
 		return -ENOMEM;
 
+	/* Grab the vDSO data page. */
+	vdso_pagelist[0] = virt_to_page(vdso_data);
+
 	/* Grab the vDSO code pages. */
 	for (i = 0; i < vdso_pages; i++)
-		vdso_pagelist[i] = virt_to_page(&vdso_start + i * PAGE_SIZE);
-
-	/* Grab the vDSO data page. */
-	vdso_pagelist[i] = virt_to_page(vdso_data);
+		vdso_pagelist[i + 1] = virt_to_page(&vdso_start + i * PAGE_SIZE);
 
 	/* Populate the special mapping structures */
 	vdso_spec[0] = (struct vm_special_mapping) {
-		.name	= "[vdso]",
+		.name	= "[vvar]",
 		.pages	= vdso_pagelist,
 	};
 
 	vdso_spec[1] = (struct vm_special_mapping) {
-		.name	= "[vvar]",
-		.pages	= vdso_pagelist + vdso_pages,
+		.name	= "[vdso]",
+		.pages	= &vdso_pagelist[1],
 	};
 
 	return 0;
@@ -169,21 +169,21 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 		ret = ERR_PTR(vdso_base);
 		goto up_fail;
 	}
-	mm->context.vdso = (void *)vdso_base;
-
-	ret = _install_special_mapping(mm, vdso_base, vdso_text_len,
-				       VM_READ|VM_EXEC|
-				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+	ret = _install_special_mapping(mm, vdso_base, PAGE_SIZE,
+				       VM_READ|VM_MAYREAD,
 				       &vdso_spec[0]);
 	if (IS_ERR(ret))
 		goto up_fail;
 
-	vdso_base += vdso_text_len;
-	ret = _install_special_mapping(mm, vdso_base, PAGE_SIZE,
-				       VM_READ|VM_MAYREAD,
+	vdso_base += PAGE_SIZE;
+	mm->context.vdso = (void *)vdso_base;
+	ret = _install_special_mapping(mm, vdso_base, vdso_text_len,
+				       VM_READ|VM_EXEC|
+				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				       &vdso_spec[1]);
 	if (IS_ERR(ret))
 		goto up_fail;
+
 
 	up_write(&mm->mmap_sem);
 	return 0;
