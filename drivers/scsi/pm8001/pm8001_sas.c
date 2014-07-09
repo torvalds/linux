@@ -58,25 +58,14 @@ static int pm8001_find_tag(struct sas_task *task, u32 *tag)
 }
 
 /**
-  * pm8001_tag_clear - clear the tags bitmap
+  * pm8001_tag_free - free the no more needed tag
   * @pm8001_ha: our hba struct
   * @tag: the found tag associated with the task
   */
-static void pm8001_tag_clear(struct pm8001_hba_info *pm8001_ha, u32 tag)
+void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
 {
 	void *bitmap = pm8001_ha->tags;
 	clear_bit(tag, bitmap);
-}
-
-void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
-{
-	pm8001_tag_clear(pm8001_ha, tag);
-}
-
-static void pm8001_tag_set(struct pm8001_hba_info *pm8001_ha, u32 tag)
-{
-	void *bitmap = pm8001_ha->tags;
-	set_bit(tag, bitmap);
 }
 
 /**
@@ -86,14 +75,13 @@ static void pm8001_tag_set(struct pm8001_hba_info *pm8001_ha, u32 tag)
   */
 inline int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out)
 {
-	unsigned int index, tag;
+	unsigned int tag;
 	void *bitmap = pm8001_ha->tags;
 
-	index = find_first_zero_bit(bitmap, pm8001_ha->tags_num);
-	tag = index;
+	tag = find_first_zero_bit(bitmap, pm8001_ha->tags_num);
 	if (tag >= pm8001_ha->tags_num)
 		return -SAS_QUEUE_FULL;
-	pm8001_tag_set(pm8001_ha, tag);
+	set_bit(tag, bitmap);
 	*tag_out = tag;
 	return 0;
 }
@@ -102,7 +90,7 @@ void pm8001_tag_init(struct pm8001_hba_info *pm8001_ha)
 {
 	int i;
 	for (i = 0; i < pm8001_ha->tags_num; ++i)
-		pm8001_tag_clear(pm8001_ha, i);
+		pm8001_tag_free(pm8001_ha, i);
 }
 
  /**
@@ -501,11 +489,6 @@ int pm8001_queue_command(struct sas_task *task, const int num,
 	return pm8001_task_exec(task, num, gfp_flags, 0, NULL);
 }
 
-void pm8001_ccb_free(struct pm8001_hba_info *pm8001_ha, u32 ccb_idx)
-{
-	pm8001_tag_clear(pm8001_ha, ccb_idx);
-}
-
 /**
   * pm8001_ccb_task_free - free the sg for ssp and smp command, free the ccb.
   * @pm8001_ha: our hba card information
@@ -542,7 +525,7 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	ccb->task = NULL;
 	ccb->ccb_tag = 0xFFFFFFFF;
 	ccb->open_retry = 0;
-	pm8001_ccb_free(pm8001_ha, ccb_idx);
+	pm8001_tag_free(pm8001_ha, ccb_idx);
 }
 
  /**
