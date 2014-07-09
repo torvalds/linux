@@ -1337,8 +1337,11 @@ int drbd_submit_peer_request(struct drbd_device *device,
 		return 0;
 	}
 
+	/* Discards don't have any payload.
+	 * But the scsi layer still expects a bio_vec it can use internally,
+	 * see sd_setup_discard_cmnd() and blk_add_request_payload(). */
 	if (peer_req->flags & EE_IS_TRIM)
-		nr_pages = 0; /* discards don't have any payload. */
+		nr_pages = 1;
 
 	/* In most cases, we will only need one bio.  But in case the lower
 	 * level restrictions happen to be different at this offset on this

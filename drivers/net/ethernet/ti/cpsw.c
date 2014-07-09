@@ -1212,7 +1212,12 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	for_each_slave(priv, cpsw_slave_open, priv);
 
 	/* Add default VLAN */
-	cpsw_add_default_vlan(priv);
+	if (!priv->data.dual_emac)
+		cpsw_add_default_vlan(priv);
+	else
+		cpsw_ale_add_vlan(priv->ale, priv->data.default_vlan,
+				  ALE_ALL_PORTS << priv->host_port,
+				  ALE_ALL_PORTS << priv->host_port, 0, 0);
 
 	if (!cpsw_common_res_usage_state(priv)) {
 		/* setup tx dma to fixed prio and zero offset */

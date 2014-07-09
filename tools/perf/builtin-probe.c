@@ -288,6 +288,13 @@ static void cleanup_params(void)
 	memset(&params, 0, sizeof(params));
 }
 
+static void pr_err_with_code(const char *msg, int err)
+{
+	pr_err("%s", msg);
+	pr_debug(" Reason: %s (Code: %d)", strerror(-err), err);
+	pr_err("\n");
+}
+
 static int
 __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -379,7 +386,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 		ret = parse_probe_event_argv(argc, argv);
 		if (ret < 0) {
-			pr_err("  Error: Parse Error.  (%d)\n", ret);
+			pr_err_with_code("  Error: Command Parse Error.", ret);
 			return ret;
 		}
 	}
@@ -419,8 +426,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 		ret = show_perf_probe_events();
 		if (ret < 0)
-			pr_err("  Error: Failed to show event list. (%d)\n",
-			       ret);
+			pr_err_with_code("  Error: Failed to show event list.", ret);
 		return ret;
 	}
 	if (params.show_funcs) {
@@ -445,8 +451,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		strfilter__delete(params.filter);
 		params.filter = NULL;
 		if (ret < 0)
-			pr_err("  Error: Failed to show functions."
-			       " (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to show functions.", ret);
 		return ret;
 	}
 
@@ -464,7 +469,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 
 		ret = show_line_range(&params.line_range, params.target);
 		if (ret < 0)
-			pr_err("  Error: Failed to show lines. (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to show lines.", ret);
 		return ret;
 	}
 	if (params.show_vars) {
@@ -485,7 +490,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		strfilter__delete(params.filter);
 		params.filter = NULL;
 		if (ret < 0)
-			pr_err("  Error: Failed to show vars. (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to show vars.", ret);
 		return ret;
 	}
 #endif
@@ -493,7 +498,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (params.dellist) {
 		ret = del_perf_probe_events(params.dellist);
 		if (ret < 0) {
-			pr_err("  Error: Failed to delete events. (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to delete events.", ret);
 			return ret;
 		}
 	}
@@ -504,7 +509,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 					    params.target,
 					    params.force_add);
 		if (ret < 0) {
-			pr_err("  Error: Failed to add events. (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to add events.", ret);
 			return ret;
 		}
 	}

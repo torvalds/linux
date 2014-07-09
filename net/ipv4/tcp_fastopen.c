@@ -131,7 +131,7 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 				      struct dst_entry *dst,
 				      struct request_sock *req)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
+	struct tcp_sock *tp;
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 	struct sock *child;
 

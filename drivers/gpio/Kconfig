@@ -450,6 +450,19 @@ config GPIO_ARIZONA
 	help
 	  Support for GPIOs on Wolfson Arizona class devices.
 
+config GPIO_CRYSTAL_COVE
+	tristate "GPIO support for Crystal Cove PMIC"
+	depends on INTEL_SOC_PMIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Support for GPIO pins on Crystal Cove PMIC.
+
+	  Say Yes if you have a Intel SoC based tablet with Crystal Cove PMIC
+	  inside.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-crystalcove.
+
 config GPIO_LP3943
 	tristate "TI/National Semiconductor LP3943 GPIO expander"
 	depends on MFD_LP3943

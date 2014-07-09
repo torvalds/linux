@@ -32,6 +32,7 @@
 #include <linux/jiffies.h>
 #include <linux/async.h>
 #include <linux/dmi.h>
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <asm/unaligned.h>
@@ -70,6 +71,7 @@ MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
 
 static int battery_bix_broken_package;
+static int battery_notification_delay_ms;
 static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
@@ -930,7 +932,10 @@ static ssize_t acpi_battery_write_alarm(struct file *file,
 		goto end;
 	}
 	alarm_string[count] = '\0';
-	battery->alarm = simple_strtol(alarm_string, NULL, 0);
+	if (kstrtoint(alarm_string, 0, &battery->alarm)) {
+		result = -EINVAL;
+		goto end;
+	}
 	result = acpi_battery_set_alarm(battery);
       end:
 	if (!result)
@@ -1062,6 +1067,14 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 	if (!battery)
 		return;
 	old = battery->bat.dev;
+	/*
+	* On Acer Aspire V5-573G notifications are sometimes triggered too
+	* early. For example, when AC is unplugged and notification is
+	* triggered, battery state is still reported as "Full", and changes to
+	* "Discharging" only after short delay, without any notification.
+	*/
+	if (battery_notification_delay_ms > 0)
+		msleep(battery_notification_delay_ms);
 	if (event == ACPI_BATTERY_NOTIFY_INFO)
 		acpi_battery_refresh(battery);
 	acpi_battery_update(battery, false);
@@ -1106,12 +1119,33 @@ static int battery_notify(struct notifier_block *nb,
 	return 0;
 }
 
+static int battery_bix_broken_package_quirk(const struct dmi_system_id *d)
+{
+	battery_bix_broken_package = 1;
+	return 0;
+}
+
+static int battery_notification_delay_quirk(const struct dmi_system_id *d)
+{
+	battery_notification_delay_ms = 1000;
+	return 0;
+}
+
 static struct dmi_system_id bat_dmi_table[] = {
 	{
+		.callback = battery_bix_broken_package_quirk,
 		.ident = "NEC LZ750/LS",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PC-LZ750LS"),
+		},
+	},
+	{
+		.callback = battery_notification_delay_quirk,
+		.ident = "Acer Aspire V5-573G",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire V5-573G"),
 		},
 	},
 	{},
@@ -1227,8 +1261,7 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 	if (acpi_disabled)
 		return;
 
-	if (dmi_check_system(bat_dmi_table))
-		battery_bix_broken_package = 1;
+	dmi_check_system(bat_dmi_table);
 	
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_dir = acpi_lock_battery_dir();

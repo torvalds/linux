@@ -11,7 +11,6 @@ VDSO32-$(CONFIG_COMPAT)		:= y
 
 # files to link into the vdso
 vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o vdso-fakesections.o
-vobjs-nox32 := vdso-fakesections.o
 
 # files to link into kernel
 obj-y				+= vma.o
@@ -67,7 +66,8 @@ $(obj)/vdso-image-%.c: $(obj)/vdso%.so.dbg $(obj)/vdso2c FORCE
 #
 CFL := $(PROFILING) -mcmodel=small -fPIC -O2 -fasynchronous-unwind-tables -m64 \
        $(filter -g%,$(KBUILD_CFLAGS)) $(call cc-option, -fno-stack-protector) \
-       -fno-omit-frame-pointer -foptimize-sibling-calls
+       -fno-omit-frame-pointer -foptimize-sibling-calls \
+       -DDISABLE_BRANCH_PROFILING
 
 $(vobjs): KBUILD_CFLAGS += $(CFL)
 
@@ -134,7 +134,7 @@ override obj-dirs = $(dir $(obj)) $(obj)/vdso32/
 
 targets += vdso32/vdso32.lds
 targets += vdso32/note.o vdso32/vclock_gettime.o $(vdso32.so-y:%=vdso32/%.o)
-targets += vdso32/vclock_gettime.o
+targets += vdso32/vclock_gettime.o vdso32/vdso-fakesections.o
 
 $(obj)/vdso32.o: $(vdso32-images:%=$(obj)/%)
 
@@ -150,11 +150,13 @@ KBUILD_CFLAGS_32 += -m32 -msoft-float -mregparm=0 -fpic
 KBUILD_CFLAGS_32 += $(call cc-option, -fno-stack-protector)
 KBUILD_CFLAGS_32 += $(call cc-option, -foptimize-sibling-calls)
 KBUILD_CFLAGS_32 += -fno-omit-frame-pointer
+KBUILD_CFLAGS_32 += -DDISABLE_BRANCH_PROFILING
 $(vdso32-images:%=$(obj)/%.dbg): KBUILD_CFLAGS = $(KBUILD_CFLAGS_32)
 
 $(vdso32-images:%=$(obj)/%.dbg): $(obj)/vdso32-%.so.dbg: FORCE \
 				 $(obj)/vdso32/vdso32.lds \
 				 $(obj)/vdso32/vclock_gettime.o \
+				 $(obj)/vdso32/vdso-fakesections.o \
 				 $(obj)/vdso32/note.o \
 				 $(obj)/vdso32/%.o
 	$(call if_changed,vdso)
@@ -169,14 +171,24 @@ quiet_cmd_vdso = VDSO    $@
 		 sh $(srctree)/$(src)/checkundef.sh '$(NM)' '$@'
 
 VDSO_LDFLAGS = -fPIC -shared $(call cc-ldoption, -Wl$(comma)--hash-style=sysv) \
-	-Wl,-Bsymbolic $(LTO_CFLAGS)
+	$(call cc-ldoption, -Wl$(comma)--build-id) -Wl,-Bsymbolic $(LTO_CFLAGS)
 GCOV_PROFILE := n
 
 #
-# Install the unstripped copies of vdso*.so.
+# Install the unstripped copies of vdso*.so.  If our toolchain supports
+# build-id, install .build-id links as well.
 #
 quiet_cmd_vdso_install = INSTALL $(@:install_%=%)
-      cmd_vdso_install = cp $< $(MODLIB)/vdso/$(@:install_%=%)
+define cmd_vdso_install
+	cp $< "$(MODLIB)/vdso/$(@:install_%=%)"; \
+	if readelf -n $< |grep -q 'Build ID'; then \
+	  buildid=`readelf -n $< |grep 'Build ID' |sed -e 's/^.*Build ID: \(.*\)$$/\1/'`; \
+	  first=`echo $$buildid | cut -b-2`; \
+	  last=`echo $$buildid | cut -b3-`; \
+	  mkdir -p "$(MODLIB)/vdso/.build-id/$$first"; \
+	  ln -sf "../../$(@:install_%=%)" "$(MODLIB)/vdso/.build-id/$$first/$$last.debug"; \
+	fi
+endef
 
 vdso_img_insttargets := $(vdso_img_sodbg:%.dbg=install_%)
 

@@ -117,7 +117,7 @@ config S3C24XX_SETUP_TS
 	  Compile in platform device definition for Samsung TouchScreen.
 
 config S3C24XX_DMA
-	bool "S3C2410 DMA support"
+	bool "S3C2410 DMA support (deprecated)"
 	select S3C_DMA
 	help
 	  S3C2410 DMA support. This is needed for drivers like sound which

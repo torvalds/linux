@@ -24,6 +24,7 @@
 #include <linux/highmem.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/workqueue.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
@@ -36,7 +37,10 @@ struct realtek_pci_sdmmc {
 	struct rtsx_pcr		*pcr;
 	struct mmc_host		*mmc;
 	struct mmc_request	*mrq;
+	struct workqueue_struct *workq;
+#define SDMMC_WORKQ_NAME	"rtsx_pci_sdmmc_workq"
 
+	struct work_struct	work;
 	struct mutex		host_mutex;
 
 	u8			ssc_depth;
@@ -48,6 +52,11 @@ struct realtek_pci_sdmmc {
 	int			power_state;
 #define SDMMC_POWER_ON		1
 #define SDMMC_POWER_OFF		0
+
+	unsigned int		sg_count;
+	s32			cookie;
+	unsigned int		cookie_sg_count;
+	bool			using_cookie;
 };
 
 static inline struct device *sdmmc_dev(struct realtek_pci_sdmmc *host)
@@ -85,6 +94,77 @@ static void sd_print_debug_regs(struct realtek_pci_sdmmc *host)
 #else
 #define sd_print_debug_regs(host)
 #endif /* DEBUG */
+
+/*
+ * sd_pre_dma_transfer - do dma_map_sg() or using cookie
+ *
+ * @pre: if called in pre_req()
+ * return:
+ *	0 - do dma_map_sg()
+ *	1 - using cookie
+ */
+static int sd_pre_dma_transfer(struct realtek_pci_sdmmc *host,
+		struct mmc_data *data, bool pre)
+{
+	struct rtsx_pcr *pcr = host->pcr;
+	int read = data->flags & MMC_DATA_READ;
+	int count = 0;
+	int using_cookie = 0;
+
+	if (!pre && data->host_cookie && data->host_cookie != host->cookie) {
+		dev_err(sdmmc_dev(host),
+			"error: data->host_cookie = %d, host->cookie = %d\n",
+			data->host_cookie, host->cookie);
+		data->host_cookie = 0;
+	}
+
+	if (pre || data->host_cookie != host->cookie) {
+		count = rtsx_pci_dma_map_sg(pcr, data->sg, data->sg_len, read);
+	} else {
+		count = host->cookie_sg_count;
+		using_cookie = 1;
+	}
+
+	if (pre) {
+		host->cookie_sg_count = count;
+		if (++host->cookie < 0)
+			host->cookie = 1;
+		data->host_cookie = host->cookie;
+	} else {
+		host->sg_count = count;
+	}
+
+	return using_cookie;
+}
+
+static void sdmmc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq,
+		bool is_first_req)
+{
+	struct realtek_pci_sdmmc *host = mmc_priv(mmc);
+	struct mmc_data *data = mrq->data;
+
+	if (data->host_cookie) {
+		dev_err(sdmmc_dev(host),
+			"error: reset data->host_cookie = %d\n",
+			data->host_cookie);
+		data->host_cookie = 0;
+	}
+
+	sd_pre_dma_transfer(host, data, true);
+	dev_dbg(sdmmc_dev(host), "pre dma sg: %d\n", host->cookie_sg_count);
+}
+
+static void sdmmc_post_req(struct mmc_host *mmc, struct mmc_request *mrq,
+		int err)
+{
+	struct realtek_pci_sdmmc *host = mmc_priv(mmc);
+	struct rtsx_pcr *pcr = host->pcr;
+	struct mmc_data *data = mrq->data;
+	int read = data->flags & MMC_DATA_READ;
+
+	rtsx_pci_dma_unmap_sg(pcr, data->sg, data->sg_len, read);
+	data->host_cookie = 0;
+}
 
 static int sd_read_data(struct realtek_pci_sdmmc *host, u8 *cmd, u16 byte_cnt,
 		u8 *buf, int buf_len, int timeout)
@@ -415,7 +495,7 @@ static int sd_rw_multi(struct realtek_pci_sdmmc *host, struct mmc_request *mrq)
 
 	rtsx_pci_send_cmd_no_wait(pcr);
 
-	err = rtsx_pci_transfer_data(pcr, data->sg, data->sg_len, read, 10000);
+	err = rtsx_pci_dma_transfer(pcr, data->sg, host->sg_count, read, 10000);
 	if (err < 0) {
 		sd_clear_error(host);
 		return err;
@@ -640,12 +720,24 @@ static int sd_tuning_rx(struct realtek_pci_sdmmc *host, u8 opcode)
 	return 0;
 }
 
-static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
+static inline int sd_rw_cmd(struct mmc_command *cmd)
 {
-	struct realtek_pci_sdmmc *host = mmc_priv(mmc);
+	return mmc_op_multi(cmd->opcode) ||
+		(cmd->opcode == MMC_READ_SINGLE_BLOCK) ||
+		(cmd->opcode == MMC_WRITE_BLOCK);
+}
+
+static void sd_request(struct work_struct *work)
+{
+	struct realtek_pci_sdmmc *host = container_of(work,
+			struct realtek_pci_sdmmc, work);
 	struct rtsx_pcr *pcr = host->pcr;
+
+	struct mmc_host *mmc = host->mmc;
+	struct mmc_request *mrq = host->mrq;
 	struct mmc_command *cmd = mrq->cmd;
 	struct mmc_data *data = mrq->data;
+
 	unsigned int data_size = 0;
 	int err;
 
@@ -677,13 +769,13 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (mrq->data)
 		data_size = data->blocks * data->blksz;
 
-	if (!data_size || mmc_op_multi(cmd->opcode) ||
-			(cmd->opcode == MMC_READ_SINGLE_BLOCK) ||
-			(cmd->opcode == MMC_WRITE_BLOCK)) {
+	if (!data_size || sd_rw_cmd(cmd)) {
 		sd_send_cmd_get_rsp(host, cmd);
 
 		if (!cmd->error && data_size) {
 			sd_rw_multi(host, mrq);
+			if (!host->using_cookie)
+				sdmmc_post_req(host->mmc, host->mrq, 0);
 
 			if (mmc_op_multi(cmd->opcode) && mrq->stop)
 				sd_send_cmd_get_rsp(host, mrq->stop);
@@ -710,6 +802,21 @@ finish:
 	mutex_unlock(&host->host_mutex);
 
 	mmc_request_done(mmc, mrq);
+}
+
+static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	struct realtek_pci_sdmmc *host = mmc_priv(mmc);
+	struct mmc_data *data = mrq->data;
+
+	mutex_lock(&host->host_mutex);
+	host->mrq = mrq;
+	mutex_unlock(&host->host_mutex);
+
+	if (sd_rw_cmd(mrq->cmd))
+		host->using_cookie = sd_pre_dma_transfer(host, data, false);
+
+	queue_work(host->workq, &host->work);
 }
 
 static int sd_set_bus_width(struct realtek_pci_sdmmc *host,
@@ -1146,6 +1253,8 @@ out:
 }
 
 static const struct mmc_host_ops realtek_pci_sdmmc_ops = {
+	.pre_req = sdmmc_pre_req,
+	.post_req = sdmmc_post_req,
 	.request = sdmmc_request,
 	.set_ios = sdmmc_set_ios,
 	.get_ro = sdmmc_get_ro,
@@ -1224,10 +1333,16 @@ static int rtsx_pci_sdmmc_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	host = mmc_priv(mmc);
+	host->workq = create_singlethread_workqueue(SDMMC_WORKQ_NAME);
+	if (!host->workq) {
+		mmc_free_host(mmc);
+		return -ENOMEM;
+	}
 	host->pcr = pcr;
 	host->mmc = mmc;
 	host->pdev = pdev;
 	host->power_state = SDMMC_POWER_OFF;
+	INIT_WORK(&host->work, sd_request);
 	platform_set_drvdata(pdev, host);
 	pcr->slots[RTSX_SD_CARD].p_dev = pdev;
 	pcr->slots[RTSX_SD_CARD].card_event = rtsx_pci_sdmmc_card_event;
@@ -1255,6 +1370,8 @@ static int rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 	pcr->slots[RTSX_SD_CARD].card_event = NULL;
 	mmc = host->mmc;
 
+	cancel_work_sync(&host->work);
+
 	mutex_lock(&host->host_mutex);
 	if (host->mrq) {
 		dev_dbg(&(pdev->dev),
@@ -1272,6 +1389,10 @@ static int rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 
 	mmc_remove_host(mmc);
 	host->eject = true;
+
+	flush_workqueue(host->workq);
+	destroy_workqueue(host->workq);
+	host->workq = NULL;
 
 	mmc_free_host(mmc);
 

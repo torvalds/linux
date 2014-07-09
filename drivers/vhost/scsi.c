@@ -1503,14 +1503,6 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 	return 0;
 }
 
-static void vhost_scsi_free(struct vhost_scsi *vs)
-{
-	if (is_vmalloc_addr(vs))
-		vfree(vs);
-	else
-		kfree(vs);
-}
-
 static int vhost_scsi_open(struct inode *inode, struct file *f)
 {
 	struct vhost_scsi *vs;
@@ -1550,7 +1542,7 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	return 0;
 
 err_vqs:
-	vhost_scsi_free(vs);
+	kvfree(vs);
 err_vs:
 	return r;
 }
@@ -1569,7 +1561,7 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 	/* Jobs can re-queue themselves in evt kick handler. Do extra flush. */
 	vhost_scsi_flush(vs);
 	kfree(vs->dev.vqs);
-	vhost_scsi_free(vs);
+	kvfree(vs);
 	return 0;
 }
 

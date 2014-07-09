@@ -62,7 +62,7 @@ extern enum ultra_tlb_layout tlb_type;
 extern int sun4v_chip_type;
 
 extern int cheetah_pcache_forced_on;
-extern void cheetah_enable_pcache(void);
+void cheetah_enable_pcache(void);
 
 #define sparc64_highest_locked_tlbent()	\
 	(tlb_type == spitfire ? \

@@ -527,9 +527,7 @@ static void connect(struct backend_info *be)
 	/* Use the number of queues requested by the frontend */
 	be->vif->queues = vzalloc(requested_num_queues *
 				  sizeof(struct xenvif_queue));
-	rtnl_lock();
-	netif_set_real_num_tx_queues(be->vif->dev, requested_num_queues);
-	rtnl_unlock();
+	be->vif->num_queues = requested_num_queues;
 
 	for (queue_index = 0; queue_index < requested_num_queues; ++queue_index) {
 		queue = &be->vif->queues[queue_index];
@@ -546,9 +544,7 @@ static void connect(struct backend_info *be)
 			 * earlier queues can be destroyed using the regular
 			 * disconnect logic.
 			 */
-			rtnl_lock();
-			netif_set_real_num_tx_queues(be->vif->dev, queue_index);
-			rtnl_unlock();
+			be->vif->num_queues = queue_index;
 			goto err;
 		}
 
@@ -561,12 +557,18 @@ static void connect(struct backend_info *be)
 			 * and also clean up any previously initialised queues.
 			 */
 			xenvif_deinit_queue(queue);
-			rtnl_lock();
-			netif_set_real_num_tx_queues(be->vif->dev, queue_index);
-			rtnl_unlock();
+			be->vif->num_queues = queue_index;
 			goto err;
 		}
 	}
+
+	/* Initialisation completed, tell core driver the number of
+	 * active queues.
+	 */
+	rtnl_lock();
+	netif_set_real_num_tx_queues(be->vif->dev, requested_num_queues);
+	netif_set_real_num_rx_queues(be->vif->dev, requested_num_queues);
+	rtnl_unlock();
 
 	xenvif_carrier_on(be->vif);
 
@@ -582,13 +584,11 @@ static void connect(struct backend_info *be)
 	return;
 
 err:
-	if (be->vif->dev->real_num_tx_queues > 0)
+	if (be->vif->num_queues > 0)
 		xenvif_disconnect(be->vif); /* Clean up existing queues */
 	vfree(be->vif->queues);
 	be->vif->queues = NULL;
-	rtnl_lock();
-	netif_set_real_num_tx_queues(be->vif->dev, 0);
-	rtnl_unlock();
+	be->vif->num_queues = 0;
 	return;
 }
 
@@ -596,7 +596,7 @@ err:
 static int connect_rings(struct backend_info *be, struct xenvif_queue *queue)
 {
 	struct xenbus_device *dev = be->dev;
-	unsigned int num_queues = queue->vif->dev->real_num_tx_queues;
+	unsigned int num_queues = queue->vif->num_queues;
 	unsigned long tx_ring_ref, rx_ring_ref;
 	unsigned int tx_evtchn, rx_evtchn;
 	int err;

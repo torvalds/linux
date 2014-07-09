@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/hardirq.h>
 #include <linux/export.h>
+#include <linux/kprobes.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/context_tracking.h>
@@ -104,6 +105,7 @@ void context_tracking_user_enter(void)
 	}
 	local_irq_restore(flags);
 }
+NOKPROBE_SYMBOL(context_tracking_user_enter);
 
 #ifdef CONFIG_PREEMPT
 /**
@@ -181,6 +183,7 @@ void context_tracking_user_exit(void)
 	}
 	local_irq_restore(flags);
 }
+NOKPROBE_SYMBOL(context_tracking_user_exit);
 
 /**
  * __context_tracking_task_switch - context switch the syscall callbacks
