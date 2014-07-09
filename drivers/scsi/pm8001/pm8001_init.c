@@ -964,6 +964,7 @@ static int pm8001_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	int  i, j;
 	u32 device_state;
 	pm8001_ha = sha->lldd_ha;
+	sas_suspend_ha(sha);
 	flush_workqueue(pm8001_wq);
 	scsi_block_requests(pm8001_ha->shost);
 	if (!pdev->pm_cap) {
@@ -1013,6 +1014,7 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 	int rc;
 	u8 i = 0, j;
 	u32 device_state;
+	DECLARE_COMPLETION_ONSTACK(completion);
 	pm8001_ha = sha->lldd_ha;
 	device_state = pdev->current_state;
 
@@ -1033,7 +1035,7 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 	rc = pci_go_44(pdev);
 	if (rc)
 		goto err_out_disable;
-
+	sas_prep_resume_ha(sha);
 	/* chip soft rst only for spc */
 	if (pm8001_ha->chip_id == chip_8001) {
 		PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
@@ -1065,7 +1067,13 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 		for (i = 1; i < pm8001_ha->number_of_intr; i++)
 			PM8001_CHIP_DISP->interrupt_enable(pm8001_ha, i);
 	}
-	scsi_unblock_requests(pm8001_ha->shost);
+	pm8001_ha->flags = PM8001F_RUN_TIME;
+	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
+		pm8001_ha->phy[i].enable_completion = &completion;
+		PM8001_CHIP_DISP->phy_start_req(pm8001_ha, i);
+		wait_for_completion(&completion);
+	}
+	sas_resume_ha(sha);
 	return 0;
 
 err_out_disable:
