@@ -5198,6 +5198,27 @@ unlock:
 	return err;
 }
 
+/* Helper for Add/Remove Device commands */
+static void update_page_scan(struct hci_dev *hdev, u8 scan)
+{
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+		return;
+
+	if (!hdev_is_powered(hdev))
+		return;
+
+	/* If HCI_CONNECTABLE is set then Add/Remove Device should not
+	 * make any changes to page scanning.
+	 */
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+		return;
+
+	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+		scan |= SCAN_INQUIRY;
+
+	hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+}
+
 static void device_added(struct sock *sk, struct hci_dev *hdev,
 			 bdaddr_t *bdaddr, u8 type, u8 action)
 {
@@ -5233,6 +5254,8 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (cp->addr.type == BDADDR_BREDR) {
+		bool update_scan;
+
 		/* Only "connect" action supported for now */
 		if (cp->action != 0x01) {
 			err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
@@ -5241,10 +5264,16 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 			goto unlock;
 		}
 
+		update_scan = list_empty(&hdev->whitelist);
+
 		err = hci_bdaddr_list_add(&hdev->whitelist, &cp->addr.bdaddr,
 					  cp->addr.type);
 		if (err)
 			goto unlock;
+
+		if (update_scan)
+			update_page_scan(hdev, SCAN_PAGE);
+
 		goto added;
 	}
 
@@ -5324,6 +5353,9 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 				goto unlock;
 			}
 
+			if (list_empty(&hdev->whitelist))
+				update_page_scan(hdev, SCAN_DISABLED);
+
 			device_removed(sk, hdev, &cp->addr.bdaddr,
 				       cp->addr.type);
 			goto complete;
@@ -5372,6 +5404,8 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			list_del(&b->list);
 			kfree(b);
 		}
+
+		update_page_scan(hdev, SCAN_DISABLED);
 
 		list_for_each_entry_safe(p, tmp, &hdev->le_conn_params, list) {
 			if (p->auto_connect == HCI_AUTO_CONN_DISABLED)
