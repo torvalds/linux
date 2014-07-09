@@ -2281,7 +2281,7 @@ enum punit_power_well {
 /* Same as Haswell, but 72064 bytes now. */
 #define GEN8_CXT_TOTAL_SIZE		(18 * PAGE_SIZE)
 
-
+#define CHV_CLK_CTL1			0x101100
 #define VLV_CLK_CTL2			0x101104
 #define   CLK_CTL2_CZCOUNT_30NS_SHIFT	28
 
