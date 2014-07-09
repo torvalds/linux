@@ -1633,8 +1633,6 @@ struct megasas_instance {
 	struct timer_list sriov_heartbeat_timer;
 	char skip_heartbeat_timer_del;
 	u8 requestorId;
-	u64 initiator_sas_address;
-	u64 ld_sas_address[64];
 	char PlasmaFW111;
 	char mpio;
 	int throttlequeuedepth;
