@@ -257,16 +257,15 @@
 };
 
 &i2c0 {
-        status = "okay";
-        pinctrl-names = "default";
-        pinctrl-0 = <&i2c0_pins>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
 };
 
 &i2c1 {
-        status = "okay";
-        pinctrl-names = "default";
-        pinctrl-0 = <&i2c1_pins>;
-
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
 	pixcir_ts@5c {
 		compatible = "pixcir,pixcir_tangoc";
 		pinctrl-names = "default";
