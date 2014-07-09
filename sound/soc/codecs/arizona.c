@@ -1500,6 +1500,12 @@ static int arizona_validate_fll(struct arizona_fll *fll,
 {
 	unsigned int Fvco_min;
 
+	if (fll->fout && Fout != fll->fout) {
+		arizona_fll_err(fll,
+				"Can't change output on active FLL\n");
+		return -EINVAL;
+	}
+
 	if (Fref / ARIZONA_FLL_MAX_REFDIV > ARIZONA_FLL_MAX_FREF) {
 		arizona_fll_err(fll,
 				"Can't scale %dMHz in to <=13.5MHz\n",
@@ -1743,6 +1749,15 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	if (already_enabled < 0)
 		return already_enabled;
 
+	if (already_enabled) {
+		/* Facilitate smooth refclk across the transition */
+		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x7,
+					 ARIZONA_FLL1_GAIN_MASK, 0);
+		regmap_update_bits_async(fll->arizona->regmap, fll->base + 1,
+					 ARIZONA_FLL1_FREERUN,
+					 ARIZONA_FLL1_FREERUN);
+	}
+
 	/*
 	 * If we have both REFCLK and SYNCCLK then enable both,
 	 * otherwise apply the SYNCCLK settings to REFCLK.
@@ -1797,6 +1812,10 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		regmap_update_bits_async(arizona->regmap, fll->base + 0x11,
 					 ARIZONA_FLL1_SYNC_ENA,
 					 ARIZONA_FLL1_SYNC_ENA);
+
+	if (already_enabled)
+		regmap_update_bits_async(arizona->regmap, fll->base + 1,
+					 ARIZONA_FLL1_FREERUN, 0);
 
 	ret = wait_for_completion_timeout(&fll->ok,
 					  msecs_to_jiffies(250));
