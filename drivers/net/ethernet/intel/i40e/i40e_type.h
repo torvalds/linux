@@ -269,6 +269,61 @@ struct i40e_nvm_info {
 	u32 eetrack;              /* NVM data version */
 };
 
+/* definitions used in NVM update support */
+
+enum i40e_nvmupd_cmd {
+	I40E_NVMUPD_INVALID,
+	I40E_NVMUPD_READ_CON,
+	I40E_NVMUPD_READ_SNT,
+	I40E_NVMUPD_READ_LCB,
+	I40E_NVMUPD_READ_SA,
+	I40E_NVMUPD_WRITE_ERA,
+	I40E_NVMUPD_WRITE_CON,
+	I40E_NVMUPD_WRITE_SNT,
+	I40E_NVMUPD_WRITE_LCB,
+	I40E_NVMUPD_WRITE_SA,
+	I40E_NVMUPD_CSUM_CON,
+	I40E_NVMUPD_CSUM_SA,
+	I40E_NVMUPD_CSUM_LCB,
+};
+
+enum i40e_nvmupd_state {
+	I40E_NVMUPD_STATE_INIT,
+	I40E_NVMUPD_STATE_READING,
+	I40E_NVMUPD_STATE_WRITING
+};
+
+/* nvm_access definition and its masks/shifts need to be accessible to
+ * application, core driver, and shared code.  Where is the right file?
+ */
+#define I40E_NVM_READ	0xB
+#define I40E_NVM_WRITE	0xC
+
+#define I40E_NVM_MOD_PNT_MASK 0xFF
+
+#define I40E_NVM_TRANS_SHIFT	8
+#define I40E_NVM_TRANS_MASK	(0xf << I40E_NVM_TRANS_SHIFT)
+#define I40E_NVM_CON		0x0
+#define I40E_NVM_SNT		0x1
+#define I40E_NVM_LCB		0x2
+#define I40E_NVM_SA		(I40E_NVM_SNT | I40E_NVM_LCB)
+#define I40E_NVM_ERA		0x4
+#define I40E_NVM_CSUM		0x8
+
+#define I40E_NVM_ADAPT_SHIFT	16
+#define I40E_NVM_ADAPT_MASK	(0xffff << I40E_NVM_ADAPT_SHIFT)
+
+#define I40E_NVMUPD_MAX_DATA	4096
+#define I40E_NVMUPD_IFACE_TIMEOUT 2 /* seconds */
+
+struct i40e_nvm_access {
+	u32 command;
+	u32 config;
+	u32 offset;	/* in bytes */
+	u32 data_size;	/* in bytes */
+	u8 data[1];
+};
+
 /* PCI bus types */
 enum i40e_bus_type {
 	i40e_bus_type_unknown = 0,
@@ -403,6 +458,9 @@ struct i40e_hw {
 
 	/* Admin Queue info */
 	struct i40e_adminq_info aq;
+
+	/* state of nvm update process */
+	enum i40e_nvmupd_state nvmupd_state;
 
 	/* HMC info */
 	struct i40e_hmc_info hmc; /* HMC info struct */

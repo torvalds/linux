@@ -759,10 +759,33 @@ static int i40e_get_eeprom(struct net_device *netdev,
 	u8 *eeprom_buff;
 	u16 i, sectors;
 	bool last;
+	u32 magic;
+
 #define I40E_NVM_SECTOR_SIZE  4096
 	if (eeprom->len == 0)
 		return -EINVAL;
 
+	/* check for NVMUpdate access method */
+	magic = hw->vendor_id | (hw->device_id << 16);
+	if (eeprom->magic && eeprom->magic != magic) {
+		int errno;
+
+		/* make sure it is the right magic for NVMUpdate */
+		if ((eeprom->magic >> 16) != hw->device_id)
+			return -EINVAL;
+
+		ret_val = i40e_nvmupd_command(hw,
+					      (struct i40e_nvm_access *)eeprom,
+					      bytes, &errno);
+		if (ret_val)
+			dev_info(&pf->pdev->dev,
+				 "NVMUpdate read failed err=%d status=0x%x\n",
+				 ret_val, hw->aq.asq_last_status);
+
+		return errno;
+	}
+
+	/* normal ethtool get_eeprom support */
 	eeprom->magic = hw->vendor_id | (hw->device_id << 16);
 
 	eeprom_buff = kzalloc(eeprom->len, GFP_KERNEL);
@@ -789,7 +812,7 @@ static int i40e_get_eeprom(struct net_device *netdev,
 		ret_val = i40e_aq_read_nvm(hw, 0x0,
 				eeprom->offset + (I40E_NVM_SECTOR_SIZE * i),
 				len,
-				eeprom_buff + (I40E_NVM_SECTOR_SIZE * i),
+				(u8 *)eeprom_buff + (I40E_NVM_SECTOR_SIZE * i),
 				last, NULL);
 		if (ret_val) {
 			dev_info(&pf->pdev->dev,
@@ -801,7 +824,7 @@ static int i40e_get_eeprom(struct net_device *netdev,
 
 release_nvm:
 	i40e_release_nvm(hw);
-	memcpy(bytes, eeprom_buff, eeprom->len);
+	memcpy(bytes, (u8 *)eeprom_buff, eeprom->len);
 free_buff:
 	kfree(eeprom_buff);
 	return ret_val;
@@ -819,6 +842,39 @@ static int i40e_get_eeprom_len(struct net_device *netdev)
 	/* register returns value in power of 2, 64Kbyte chunks. */
 	val = (64 * 1024) * (1 << val);
 	return val;
+}
+
+static int i40e_set_eeprom(struct net_device *netdev,
+			   struct ethtool_eeprom *eeprom, u8 *bytes)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_hw *hw = &np->vsi->back->hw;
+	struct i40e_pf *pf = np->vsi->back;
+	int ret_val = 0;
+	int errno;
+	u32 magic;
+
+	/* normal ethtool set_eeprom is not supported */
+	magic = hw->vendor_id | (hw->device_id << 16);
+	if (eeprom->magic == magic)
+		return -EOPNOTSUPP;
+
+	/* check for NVMUpdate access method */
+	if (!eeprom->magic || (eeprom->magic >> 16) != hw->device_id)
+		return -EINVAL;
+
+	if (test_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state) ||
+	    test_bit(__I40E_RESET_INTR_RECEIVED, &pf->state))
+		return -EBUSY;
+
+	ret_val = i40e_nvmupd_command(hw, (struct i40e_nvm_access *)eeprom,
+				      bytes, &errno);
+	if (ret_val)
+		dev_info(&pf->pdev->dev,
+			 "NVMUpdate write failed err=%d status=0x%x\n",
+			 ret_val, hw->aq.asq_last_status);
+
+	return errno;
 }
 
 static void i40e_get_drvinfo(struct net_device *netdev,
@@ -2094,6 +2150,7 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_wol		= i40e_get_wol,
 	.set_wol		= i40e_set_wol,
+	.set_eeprom		= i40e_set_eeprom,
 	.get_eeprom_len		= i40e_get_eeprom_len,
 	.get_eeprom		= i40e_get_eeprom,
 	.get_ringparam		= i40e_get_ringparam,

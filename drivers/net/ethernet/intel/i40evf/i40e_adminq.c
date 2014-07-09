@@ -708,12 +708,6 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 		goto asq_send_command_exit;
 	}
 
-	if (i40e_is_nvm_update_op(desc) && hw->aq.nvm_busy) {
-		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQTX: NVM busy.\n");
-		status = I40E_ERR_NVM;
-		goto asq_send_command_exit;
-	}
-
 	details = I40E_ADMINQ_DETAILS(hw->aq.asq, hw->aq.asq.next_to_use);
 	if (cmd_details) {
 		*details = *cmd_details;

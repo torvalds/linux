@@ -2121,6 +2121,47 @@ i40e_aq_read_nvm_exit:
 	return status;
 }
 
+/**
+ * i40e_aq_erase_nvm
+ * @hw: pointer to the hw struct
+ * @module_pointer: module pointer location in words from the NVM beginning
+ * @offset: offset in the module (expressed in 4 KB from module's beginning)
+ * @length: length of the section to be erased (expressed in 4 KB)
+ * @last_command: tells if this is the last command in a series
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Erase the NVM sector using the admin queue commands
+ **/
+i40e_status i40e_aq_erase_nvm(struct i40e_hw *hw, u8 module_pointer,
+			      u32 offset, u16 length, bool last_command,
+			      struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_nvm_update *cmd =
+		(struct i40e_aqc_nvm_update *)&desc.params.raw;
+	i40e_status status;
+
+	/* In offset the highest byte must be zeroed. */
+	if (offset & 0xFF000000) {
+		status = I40E_ERR_PARAM;
+		goto i40e_aq_erase_nvm_exit;
+	}
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_nvm_erase);
+
+	/* If this is the last command in a series, set the proper flag. */
+	if (last_command)
+		cmd->command_flags |= I40E_AQ_NVM_LAST_CMD;
+	cmd->module_pointer = module_pointer;
+	cmd->offset = cpu_to_le32(offset);
+	cmd->length = cpu_to_le16(length);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+i40e_aq_erase_nvm_exit:
+	return status;
+}
+
 #define I40E_DEV_FUNC_CAP_SWITCH_MODE	0x01
 #define I40E_DEV_FUNC_CAP_MGMT_MODE	0x02
 #define I40E_DEV_FUNC_CAP_NPAR		0x03
@@ -2347,6 +2388,53 @@ i40e_status i40e_aq_discover_capabilities(struct i40e_hw *hw,
 					 list_type_opc);
 
 exit:
+	return status;
+}
+
+/**
+ * i40e_aq_update_nvm
+ * @hw: pointer to the hw struct
+ * @module_pointer: module pointer location in words from the NVM beginning
+ * @offset: byte offset from the module beginning
+ * @length: length of the section to be written (in bytes from the offset)
+ * @data: command buffer (size [bytes] = length)
+ * @last_command: tells if this is the last command in a series
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Update the NVM using the admin queue commands
+ **/
+i40e_status i40e_aq_update_nvm(struct i40e_hw *hw, u8 module_pointer,
+			       u32 offset, u16 length, void *data,
+			       bool last_command,
+			       struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_nvm_update *cmd =
+		(struct i40e_aqc_nvm_update *)&desc.params.raw;
+	i40e_status status;
+
+	/* In offset the highest byte must be zeroed. */
+	if (offset & 0xFF000000) {
+		status = I40E_ERR_PARAM;
+		goto i40e_aq_update_nvm_exit;
+	}
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_nvm_update);
+
+	/* If this is the last command in a series, set the proper flag. */
+	if (last_command)
+		cmd->command_flags |= I40E_AQ_NVM_LAST_CMD;
+	cmd->module_pointer = module_pointer;
+	cmd->offset = cpu_to_le32(offset);
+	cmd->length = cpu_to_le16(length);
+
+	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
+	if (length > I40E_AQ_LARGE_BUF)
+		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
+
+	status = i40e_asq_send_command(hw, &desc, data, length, cmd_details);
+
+i40e_aq_update_nvm_exit:
 	return status;
 }
 
