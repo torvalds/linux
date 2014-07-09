@@ -81,11 +81,6 @@ static inline void _cancel_timer(struct timer_list *ptimer, u8 *bcancelled)
 	*bcancelled = true; /*true ==1; false==0*/
 }
 
-static inline void _set_workitem(_workitem *pwork)
-{
-	schedule_work(pwork);
-}
-
 #ifndef BIT
 	#define BIT(x)	(1 << (x))
 #endif

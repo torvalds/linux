@@ -827,7 +827,7 @@ static void BlinkTimerCallback(unsigned long data)
 	if ((pLed->padapter->bSurpriseRemoved == true) ||
 	    (pLed->padapter->bDriverStopped == true))
 		return;
-	_set_workitem(&(pLed->BlinkWorkItem));
+	schedule_work(&pLed->BlinkWorkItem);
 }
 
 /*	Description:

@@ -83,7 +83,7 @@ void r8712_set_ps_mode(struct _adapter *padapter, uint ps_mode, uint smart_ps)
 			pwrpriv->bSleep = false;
 		pwrpriv->pwr_mode = ps_mode;
 		pwrpriv->smart_ps = smart_ps;
-		_set_workitem(&(pwrpriv->SetPSModeWorkItem));
+		schedule_work(&pwrpriv->SetPSModeWorkItem);
 	}
 }
 
@@ -133,7 +133,7 @@ static void _rpwm_check_handler (struct _adapter *padapter)
 	    padapter->bSurpriseRemoved == true)
 		return;
 	if (pwrpriv->cpwm != pwrpriv->rpwm)
-		_set_workitem(&(pwrpriv->rpwm_workitem));
+		schedule_work(&pwrpriv->rpwm_workitem);
 }
 
 static void SetPSModeWorkItemCallback(struct work_struct *work)
