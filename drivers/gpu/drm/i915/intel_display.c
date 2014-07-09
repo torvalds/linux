@@ -2196,6 +2196,8 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	u32 alignment;
 	int ret;
 
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	switch (obj->tiling_mode) {
 	case I915_TILING_NONE:
 		if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
@@ -2252,6 +2254,8 @@ err_interruptible:
 
 void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
 {
+	WARN_ON(!mutex_is_locked(&obj->base.dev->struct_mutex));
+
 	i915_gem_object_unpin_fence(obj);
 	i915_gem_object_unpin_from_display_plane(obj);
 }
