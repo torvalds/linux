@@ -298,33 +298,6 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 }
 
 /**
- * radeon_gart_restore - bind all pages in the gart page table
- *
- * @rdev: radeon_device pointer
- *
- * Binds all pages in the gart page table (all asics).
- * Used to rebuild the gart table on device startup or resume.
- */
-void radeon_gart_restore(struct radeon_device *rdev)
-{
-	int i, j, t;
-	u64 page_base;
-
-	if (!rdev->gart.ptr) {
-		return;
-	}
-	for (i = 0, t = 0; i < rdev->gart.num_cpu_pages; i++) {
-		page_base = rdev->gart.pages_addr[i];
-		for (j = 0; j < (PAGE_SIZE / RADEON_GPU_PAGE_SIZE); j++, t++) {
-			radeon_gart_set_page(rdev, t, page_base);
-			page_base += RADEON_GPU_PAGE_SIZE;
-		}
-	}
-	mb();
-	radeon_gart_tlb_flush(rdev);
-}
-
-/**
  * radeon_gart_init - init the driver info for managing the gart
  *
  * @rdev: radeon_device pointer
