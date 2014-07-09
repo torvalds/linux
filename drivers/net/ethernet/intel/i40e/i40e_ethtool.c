@@ -630,7 +630,7 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	bool link_up = hw_link_info->link_info & I40E_AQ_LINK_UP;
 	i40e_status status;
 	u8 aq_failures;
-	int err;
+	int err = 0;
 
 	if (vsi != pf->vsi[pf->lan_vsi])
 		return -EOPNOTSUPP;
@@ -683,8 +683,12 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 		err = -EAGAIN;
 	}
 
-	if (!test_bit(__I40E_DOWN, &pf->state))
-		return i40e_nway_reset(netdev);
+	if (!test_bit(__I40E_DOWN, &pf->state)) {
+		/* Give it a little more time to try to come back */
+		msleep(75);
+		if (!test_bit(__I40E_DOWN, &pf->state))
+			return i40e_nway_reset(netdev);
+	}
 
 	return err;
 }
