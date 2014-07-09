@@ -21,6 +21,7 @@
 
 #include "xhci.h"
 #include "xhci-mvebu.h"
+#include "xhci-rcar.h"
 
 static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
@@ -35,11 +36,27 @@ static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 /* called during probe() after chip reset completes */
 static int xhci_plat_setup(struct usb_hcd *hcd)
 {
+	struct device_node *of_node = hcd->self.controller->of_node;
+	int ret;
+
+	if (of_device_is_compatible(of_node, "renesas,xhci-r8a7790") ||
+	    of_device_is_compatible(of_node, "renesas,xhci-r8a7791")) {
+		ret = xhci_rcar_init_quirk(hcd);
+		if (ret)
+			return ret;
+	}
+
 	return xhci_gen_setup(hcd, xhci_plat_quirks);
 }
 
 static int xhci_plat_start(struct usb_hcd *hcd)
 {
+	struct device_node *of_node = hcd->self.controller->of_node;
+
+	if (of_device_is_compatible(of_node, "renesas,xhci-r8a7790") ||
+	    of_device_is_compatible(of_node, "renesas,xhci-r8a7791"))
+		xhci_rcar_start(hcd);
+
 	return xhci_run(hcd);
 }
 
@@ -263,6 +280,8 @@ static const struct of_device_id usb_xhci_of_match[] = {
 	{ .compatible = "xhci-platform" },
 	{ .compatible = "marvell,armada-375-xhci"},
 	{ .compatible = "marvell,armada-380-xhci"},
+	{ .compatible = "renesas,xhci-r8a7790"},
+	{ .compatible = "renesas,xhci-r8a7791"},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
