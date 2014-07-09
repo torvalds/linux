@@ -1461,7 +1461,7 @@
 					regulator-max-microamp = <3500000>;
 					regulator-always-on;
 					regulator-boot-on;
-					ams,external-control = <2>;
+					ams,ext-control = <2>;
 				};
 
 				sd1 {
@@ -1472,7 +1472,7 @@
 					regulator-max-microamp = <2500000>;
 					regulator-always-on;
 					regulator-boot-on;
-					ams,external-control = <1>;
+					ams,ext-control = <1>;
 				};
 
 				vdd_1v35_lp0: sd2 {
@@ -1521,7 +1521,7 @@
 					regulator-max-microvolt = <1050000>;
 					regulator-boot-on;
 					regulator-always-on;
-					ams,external-control = <1>;
+					ams,ext-control = <1>;
 				};
 
 				ldo1 {
