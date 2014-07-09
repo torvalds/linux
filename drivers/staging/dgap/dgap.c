@@ -7322,11 +7322,9 @@ static struct cnode *dgap_newnode(int t)
 {
 	struct cnode *n;
 
-	n = kmalloc(sizeof(struct cnode), GFP_KERNEL);
-	if (n) {
-		memset((char *)n, 0, sizeof(struct cnode));
+	n = kzalloc(sizeof(struct cnode), GFP_KERNEL);
+	if (n)
 		n->type = t;
-	}
 	return n;
 }
 
