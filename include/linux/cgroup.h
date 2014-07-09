@@ -320,9 +320,6 @@ enum {
 
 	CGRP_ROOT_NOPREFIX	= (1 << 1), /* mounted subsystems have no named prefix */
 	CGRP_ROOT_XATTR		= (1 << 2), /* supports extended attributes */
-
-	/* mount options live below bit 16 */
-	CGRP_ROOT_OPTION_MASK	= (1 << 16) - 1,
 };
 
 /*
