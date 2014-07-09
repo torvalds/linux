@@ -6076,6 +6076,14 @@ void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 	if (!connectable && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
 		return;
 
+	/* If something else than mgmt changed the page scan state we
+	 * can't differentiate this from a change triggered by adding
+	 * the first element to the whitelist. Therefore, avoid
+	 * incorrectly setting HCI_CONNECTABLE.
+	 */
+	if (connectable && !list_empty(&hdev->whitelist))
+		return;
+
 	if (connectable)
 		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 	else
