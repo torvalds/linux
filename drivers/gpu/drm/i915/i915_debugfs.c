@@ -2314,6 +2314,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
+	intel_runtime_pm_get(dev_priv);
 
 	if (IS_BROADWELL(dev)) {
 		struct page *page;
@@ -2363,6 +2364,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	}
 	seq_putc(m, '\n');
 
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
