@@ -171,6 +171,21 @@ enum stream_type {
 	SST_STREAM_TYPE_MUSIC = 1,
 };
 
+enum sst_error_codes {
+	/* Error code,response to msgId: Description */
+	/* Common error codes */
+	SST_SUCCESS = 0,        /* Success */
+	SST_ERR_INVALID_STREAM_ID = 1,
+	SST_ERR_INVALID_MSG_ID = 2,
+	SST_ERR_INVALID_STREAM_OP = 3,
+	SST_ERR_INVALID_PARAMS = 4,
+	SST_ERR_INVALID_CODEC = 5,
+	SST_ERR_INVALID_MEDIA_TYPE = 6,
+	SST_ERR_STREAM_ERR = 7,
+
+	SST_ERR_STREAM_IN_USE = 15,
+};
+
 struct ipc_dsp_hdr {
 	u16 mod_index_id:8;		/*!< DSP Command ID specific to tasks */
 	u16 pipe_id:8;	/*!< instance of the module in the pipeline */
