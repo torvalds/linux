@@ -952,7 +952,7 @@ static int
 pm80xx_get_encrypt_info(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 scratch3_value;
-	int ret;
+	int ret = -1;
 
 	/* Read encryption status from SCRATCH PAD 3 */
 	scratch3_value = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_3);
@@ -986,7 +986,7 @@ pm80xx_get_encrypt_info(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->encrypt_info.status = 0xFFFFFFFF;
 		pm8001_ha->encrypt_info.cipher_mode = 0;
 		pm8001_ha->encrypt_info.sec_mode = 0;
-		return 0;
+		ret = 0;
 	} else if ((scratch3_value & SCRATCH_PAD3_ENC_MASK) ==
 				SCRATCH_PAD3_ENC_DIS_ERR) {
 		pm8001_ha->encrypt_info.status =
@@ -1008,7 +1008,6 @@ pm80xx_get_encrypt_info(struct pm8001_hba_info *pm8001_ha)
 			scratch3_value, pm8001_ha->encrypt_info.cipher_mode,
 			pm8001_ha->encrypt_info.sec_mode,
 			pm8001_ha->encrypt_info.status));
-		ret = -1;
 	} else if ((scratch3_value & SCRATCH_PAD3_ENC_MASK) ==
 				 SCRATCH_PAD3_ENC_ENA_ERR) {
 
@@ -1032,7 +1031,6 @@ pm80xx_get_encrypt_info(struct pm8001_hba_info *pm8001_ha)
 			scratch3_value, pm8001_ha->encrypt_info.cipher_mode,
 			pm8001_ha->encrypt_info.sec_mode,
 			pm8001_ha->encrypt_info.status));
-		ret = -1;
 	}
 	return ret;
 }
