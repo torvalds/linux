@@ -327,9 +327,12 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 	} else if ((hw->mac.type == e1000_82574) ||
 		   (hw->mac.type == e1000_82583)) {
 		u16 data;
+		s32 ret_val;
 
 		factps = er32(FACTPS);
-		e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &data);
+		ret_val = e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &data);
+		if (ret_val)
+			return false;
 
 		if (!(factps & E1000_FACTPS_MNGCG) &&
 		    ((data & E1000_NVM_INIT_CTRL2_MNGM) ==
