@@ -863,7 +863,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 			/* ugh! delay while spin_lock */
 			udelay(delay_len);
 			total_delay += delay_len;
-		} while (total_delay <  hw->aq.asq_cmd_timeout);
+		} while (total_delay < hw->aq.asq_cmd_timeout);
 	}
 
 	/* if ready, copy the desc back to temp */
