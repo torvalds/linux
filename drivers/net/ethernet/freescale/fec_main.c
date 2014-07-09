@@ -818,12 +818,13 @@ static void fec_enet_bd_init(struct net_device *dev)
 	fep->dirty_tx = bdp;
 }
 
-/* This function is called to start or restart the FEC during a link
- * change.  This only happens when switching between half and full
- * duplex.
+/*
+ * This function is called to start or restart the FEC during a link
+ * change, transmit timeout, or to reconfigure the FEC.  The network
+ * packet processing for this device must be stopped before this call.
  */
 static void
-fec_restart(struct net_device *ndev, int duplex)
+fec_restart(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	const struct platform_device_id *id_entry =
@@ -833,13 +834,6 @@ fec_restart(struct net_device *ndev, int duplex)
 	u32 temp_mac[2];
 	u32 rcntl = OPT_FRAME_SIZE | 0x04;
 	u32 ecntl = 0x2; /* ETHEREN */
-
-	if (netif_running(ndev)) {
-		netif_device_detach(ndev);
-		napi_disable(&fep->napi);
-		netif_tx_disable(ndev);
-		netif_tx_lock_bh(ndev);
-	}
 
 	/* Whack a reset.  We should wait for this. */
 	writel(1, fep->hwp + FEC_ECNTRL);
@@ -881,7 +875,7 @@ fec_restart(struct net_device *ndev, int duplex)
 	}
 
 	/* Enable MII mode */
-	if (duplex) {
+	if (fep->full_duplex == DUPLEX_FULL) {
 		/* FD enable */
 		writel(0x04, fep->hwp + FEC_X_CNTRL);
 	} else {
@@ -889,8 +883,6 @@ fec_restart(struct net_device *ndev, int duplex)
 		rcntl |= 0x02;
 		writel(0x0, fep->hwp + FEC_X_CNTRL);
 	}
-
-	fep->full_duplex = duplex;
 
 	/* Set MII speed */
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
@@ -1009,13 +1001,6 @@ fec_restart(struct net_device *ndev, int duplex)
 
 	/* Enable interrupts we wish to service */
 	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
-
-	if (netif_running(ndev)) {
-		netif_tx_unlock_bh(ndev);
-		netif_wake_queue(ndev);
-		napi_enable(&fep->napi);
-		netif_device_attach(ndev);
-	}
 }
 
 static void
@@ -1065,11 +1050,20 @@ static void fec_enet_work(struct work_struct *work)
 		container_of(work,
 			     struct fec_enet_private,
 			     delay_work.delay_work.work);
+	struct net_device *ndev = fep->netdev;
 
 	if (fep->delay_work.timeout) {
 		fep->delay_work.timeout = false;
-		fec_restart(fep->netdev, fep->full_duplex);
-		netif_wake_queue(fep->netdev);
+		rtnl_lock();
+		if (netif_device_present(ndev) || netif_running(ndev)) {
+			napi_disable(&fep->napi);
+			netif_tx_lock_bh(ndev);
+			fec_restart(ndev);
+			netif_wake_queue(ndev);
+			netif_tx_unlock_bh(ndev);
+			napi_enable(&fep->napi);
+		}
+		rtnl_unlock();
 	}
 
 	if (fep->delay_work.trig_tx) {
@@ -1502,14 +1496,23 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 		return;
 	}
 
-	if (phy_dev->link) {
+	/*
+	 * If the netdev is down, or is going down, we're not interested
+	 * in link state events, so just mark our idea of the link as down
+	 * and ignore the event.
+	 */
+	if (!netif_running(ndev) || !netif_device_present(ndev)) {
+		fep->link = 0;
+	} else if (phy_dev->link) {
 		if (!fep->link) {
 			fep->link = phy_dev->link;
 			status_change = 1;
 		}
 
-		if (fep->full_duplex != phy_dev->duplex)
+		if (fep->full_duplex != phy_dev->duplex) {
+			fep->full_duplex = phy_dev->duplex;
 			status_change = 1;
+		}
 
 		if (phy_dev->speed != fep->speed) {
 			fep->speed = phy_dev->speed;
@@ -1517,11 +1520,21 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 		}
 
 		/* if any of the above changed restart the FEC */
-		if (status_change)
-			fec_restart(ndev, phy_dev->duplex);
+		if (status_change) {
+			napi_disable(&fep->napi);
+			netif_tx_lock_bh(ndev);
+			fec_restart(ndev);
+			netif_wake_queue(ndev);
+			netif_tx_unlock_bh(ndev);
+			napi_enable(&fep->napi);
+		}
 	} else {
 		if (fep->link) {
+			napi_disable(&fep->napi);
+			netif_tx_lock_bh(ndev);
 			fec_stop(ndev);
+			netif_tx_unlock_bh(ndev);
+			napi_enable(&fep->napi);
 			fep->link = phy_dev->link;
 			status_change = 1;
 		}
@@ -1903,8 +1916,14 @@ static int fec_enet_set_pauseparam(struct net_device *ndev,
 			fec_stop(ndev);
 		phy_start_aneg(fep->phy_dev);
 	}
-	if (netif_running(ndev))
-		fec_restart(ndev, fep->full_duplex);
+	if (netif_running(ndev)) {
+		napi_disable(&fep->napi);
+		netif_tx_lock_bh(ndev);
+		fec_restart(ndev);
+		netif_wake_queue(ndev);
+		netif_tx_unlock_bh(ndev);
+		napi_enable(&fep->napi);
+	}
 
 	return 0;
 }
@@ -2182,6 +2201,7 @@ fec_enet_open(struct net_device *ndev)
 		return ret;
 	}
 
+	fec_restart(ndev);
 	napi_enable(&fep->napi);
 	phy_start(fep->phy_dev);
 	netif_start_queue(ndev);
@@ -2195,10 +2215,11 @@ fec_enet_close(struct net_device *ndev)
 
 	phy_stop(fep->phy_dev);
 
-	/* Don't know what to do yet. */
-	napi_disable(&fep->napi);
-	netif_tx_disable(ndev);
-	fec_stop(ndev);
+	if (netif_device_present(ndev)) {
+		napi_disable(&fep->napi);
+		netif_tx_disable(ndev);
+		fec_stop(ndev);
+	}
 
 	phy_disconnect(fep->phy_dev);
 	fep->phy_dev = NULL;
@@ -2329,11 +2350,20 @@ static void fec_poll_controller(struct net_device *dev)
 }
 #endif
 
+#define FEATURES_NEED_QUIESCE NETIF_F_RXCSUM
+
 static int fec_set_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	struct fec_enet_private *fep = netdev_priv(netdev);
 	netdev_features_t changed = features ^ netdev->features;
+
+	/* Quiesce the device if necessary */
+	if (netif_running(netdev) && changed & FEATURES_NEED_QUIESCE) {
+		napi_disable(&fep->napi);
+		netif_tx_lock_bh(netdev);
+		fec_stop(netdev);
+	}
 
 	netdev->features = features;
 
@@ -2343,14 +2373,14 @@ static int fec_set_features(struct net_device *netdev,
 			fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
 		else
 			fep->csum_flags &= ~FLAG_RX_CSUM_ENABLED;
+	}
 
-		if (netif_running(netdev)) {
-			fec_stop(netdev);
-			fec_restart(netdev, fep->phy_dev->duplex);
-			netif_wake_queue(netdev);
-		} else {
-			fec_restart(netdev, fep->phy_dev->duplex);
-		}
+	/* Resume the device after updates */
+	if (netif_running(netdev) && changed & FEATURES_NEED_QUIESCE) {
+		fec_restart(netdev);
+		netif_wake_queue(netdev);
+		netif_tx_unlock_bh(netdev);
+		napi_enable(&fep->napi);
 	}
 
 	return 0;
@@ -2451,7 +2481,7 @@ static int fec_enet_init(struct net_device *ndev)
 
 	ndev->hw_features = ndev->features;
 
-	fec_restart(ndev, 0);
+	fec_restart(ndev);
 
 	return 0;
 }
@@ -2680,11 +2710,17 @@ fec_suspend(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
+	rtnl_lock();
 	if (netif_running(ndev)) {
 		phy_stop(fep->phy_dev);
-		fec_stop(ndev);
+		napi_disable(&fep->napi);
+		netif_tx_lock_bh(ndev);
 		netif_device_detach(ndev);
+		netif_tx_unlock_bh(ndev);
+		fec_stop(ndev);
 	}
+	rtnl_unlock();
+
 	fec_enet_clk_enable(ndev, false);
 	pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 
@@ -2712,11 +2748,16 @@ fec_resume(struct device *dev)
 	if (ret)
 		goto failed_clk;
 
+	rtnl_lock();
 	if (netif_running(ndev)) {
-		fec_restart(ndev, fep->full_duplex);
+		fec_restart(ndev);
+		netif_tx_lock_bh(ndev);
 		netif_device_attach(ndev);
+		netif_tx_unlock_bh(ndev);
+		napi_enable(&fep->napi);
 		phy_start(fep->phy_dev);
 	}
+	rtnl_unlock();
 
 	return 0;
 
