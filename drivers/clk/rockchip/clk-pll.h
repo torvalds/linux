@@ -258,22 +258,6 @@
 }
 /***************************RK3036 PLL**************************************/
 #define LPJ_24M	(CLK_LOOPS_JIFFY_REF * 24) / CLK_LOOPS_RATE_REF
-/*****cru reg offset*****/
-#define RK3036_CRU_CLKSEL_CON		0x44
-#define RK3036_CRU_CLKGATE_CON		0xd0
-#define RK3036_CRU_GLB_SRST_FST	0x100
-#define RK3036_CRU_GLB_SRST_SND	0x104
-#define RK3036_CRU_SOFTRST_CON		0x110
-
-#define RK3036_CRU_CLKSELS_CON_CNT	(35)
-#define RK3036_CRU_CLKSELS_CON(i)	(RK3036_CRU_CLKSEL_CON + ((i) * 4))
-
-#define RK3036_CRU_CLKGATES_CON_CNT	(10)
-#define RK3036_CRU_CLKGATES_CON(i)	(RK3036_CRU_CLKGATE_CON + ((i) * 4))
-
-#define RK3036_CRU_SOFTRSTS_CON_CNT	(9)
-#define RK3036_CRU_SOFTRSTS_CON(i)	(RK3036_CRU_SOFTRST_CON + ((i) * 4))
-
 /*PLL_CON 0,1,2*/
 #define RK3036_PLL_PWR_ON			(0)
 #define RK3036_PLL_PWR_DN			(1)

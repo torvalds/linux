@@ -185,13 +185,13 @@
 	clocks-init{
 		compatible = "rockchip,clocks-init";
 		rockchip,clocks-init-parent =
-			<&clk_core_pre &clk_apll>, <&aclk_cpu_pre &clk_gpll>,
+			<&clk_core &clk_apll>, <&aclk_cpu_pre &clk_gpll>,
 			<&aclk_peri_pre &clk_gpll>, <&clk_uart_pll &clk_gpll>,  
 			<&clk_i2s_pll &clk_gpll>, <&clk_spdif_pll &clk_gpll>,
 			<&aclk_vcodec_pre &clk_gpll>, <&clk_hevc_core &clk_gpll>,
 			<&clk_mac_pll &clk_apll>;
 		rockchip,clocks-init-rate =
-			<&clk_core_pre 816000000>, <&clk_gpll 594000000>,
+			<&clk_core 816000000>, <&clk_gpll 594000000>,
 			<&aclk_cpu_pre 150000000>, <&hclk_cpu_pre 75000000>,	
 			<&pclk_cpu_pre 75000000>,	 <&aclk_peri_pre 150000000>,
 			<&hclk_peri_pre 75000000>, <&pclk_peri_pre 75000000>,

@@ -138,7 +138,7 @@
 					status-reg = <0x0014 10>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_dpll";
-					rockchip,pll-type = <CLK_PLL_3188PLUS>;
+					rockchip,pll-type = <CLK_PLL_3036PLUS_AUTO>;
 					#clock-cells = <0>;
 				};
 
@@ -169,11 +169,11 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					clk_core_pre_div: clk_core_pre_div {
+					clk_core_div: clk_core_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
-						clocks = <&clk_core_pre>;
-						clock-output-names = "clk_core_pre";
+						clocks = <&clk_core>;
+						clock-output-names = "clk_core";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx = <CLKOPS_RATE_CORE>;
@@ -183,11 +183,11 @@
 
 					/* reg[6:5]: reserved */
 
-					clk_core_pre: clk_core_pre_mux {
+					clk_core: clk_core_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <7 1>;
 						clocks = <&clk_apll>, <&clk_gates0 6>;
-						clock-output-names = "clk_core_pre";
+						clock-output-names = "clk_core";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
@@ -226,7 +226,7 @@
 					pclk_dbg_div:  pclk_dbg_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 4>;
-						clocks = <&clk_core_pre>;
+						clocks = <&clk_core>;
 						clock-output-names = "pclk_dbg";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
@@ -236,7 +236,7 @@
 					aclk_core_pre: aclk_core_pre_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <4 3>;
-						clocks = <&clk_core_pre>;
+						clocks = <&clk_core>;
 						clock-output-names = "aclk_core_pre";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
@@ -1139,11 +1139,11 @@
 					compatible = "rockchip,rk3188-gate-clk";
 					reg = <0x00d0 0x4>;
 					clocks =
-						<&clk_core_pre>,		<&clk_gpll>,
+						<&clk_core>,		<&clk_gpll>,
 						<&clk_dpll>,	<&aclk_cpu_pre>,
 
 						<&aclk_cpu_pre>,	<&aclk_cpu_pre>,
-						<&clk_gpll>,		<&clk_core_pre>,
+						<&clk_gpll>,		<&clk_core>,
 
 						<&clk_gpll>,	<&clk_i2s_pll>,
 						<&i2s_frac>,	<&hclk_vio_pre>,

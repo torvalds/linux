@@ -149,5 +149,16 @@ static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
 #define RK3036_CRU_RST_ST 0x00160
 #define RK3036_CRU_PLL_MASK_CON 0x001f0
 
+#define RK3036_CRU_CLKSEL_CON		0x44
+#define RK3036_CRU_CLKGATE_CON		0xd0
+
+#define RK3036_CRU_CLKSELS_CON_CNT	(35)
+#define RK3036_CRU_CLKSELS_CON(i)	(RK3036_CRU_CLKSEL_CON + ((i) * 4))
+
+#define RK3036_CRU_CLKGATES_CON_CNT	(10)
+#define RK3036_CRU_CLKGATES_CON(i)	(RK3036_CRU_CLKGATE_CON + ((i) * 4))
+
+#define RK3036_CRU_SOFTRSTS_CON_CNT	(9)
+#define RK3036_CRU_SOFTRSTS_CON(i)	(RK3036_CRU_SOFTRST_CON + ((i) * 4))
 
 #endif
