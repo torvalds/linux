@@ -11400,9 +11400,11 @@ intel_primary_plane_disable(struct drm_plane *plane)
 	intel_disable_primary_hw_plane(dev_priv, intel_plane->plane,
 				       intel_plane->pipe);
 disable_unpin:
+	mutex_lock(&dev->struct_mutex);
 	i915_gem_track_fb(intel_fb_obj(plane->fb), NULL,
 			  INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe));
 	intel_unpin_fb_obj(intel_fb_obj(plane->fb));
+	mutex_unlock(&dev->struct_mutex);
 	plane->fb = NULL;
 
 	return 0;
@@ -11459,6 +11461,8 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * turn on the display with all planes setup as desired.
 	 */
 	if (!crtc->enabled) {
+		mutex_lock(&dev->struct_mutex);
+
 		/*
 		 * If we already called setplane while the crtc was disabled,
 		 * we may have an fb pinned; unpin it.
@@ -11470,7 +11474,10 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 				  INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe));
 
 		/* Pin and return without programming hardware */
-		return intel_pin_and_fence_fb_obj(dev, obj, NULL);
+		ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
+		mutex_unlock(&dev->struct_mutex);
+
+		return ret;
 	}
 
 	intel_crtc_wait_for_pending_flips(crtc);
@@ -11482,14 +11489,18 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * because plane->fb still gets set and pinned.
 	 */
 	if (!visible) {
+		mutex_lock(&dev->struct_mutex);
+
 		/*
 		 * Try to pin the new fb first so that we can bail out if we
 		 * fail.
 		 */
 		if (plane->fb != fb) {
 			ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
-			if (ret)
+			if (ret) {
+				mutex_unlock(&dev->struct_mutex);
 				return ret;
+			}
 		}
 
 		i915_gem_track_fb(old_obj, obj,
@@ -11504,6 +11515,8 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 		if (plane->fb != fb)
 			if (plane->fb)
 				intel_unpin_fb_obj(old_obj);
+
+		mutex_unlock(&dev->struct_mutex);
 
 		return 0;
 	}
