@@ -927,14 +927,14 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQRX: Event received with error 0x%X.\n",
 			   hw->aq.arq_last_status);
-	} else {
-		e->desc = *desc;
-		datalen = le16_to_cpu(desc->datalen);
-		e->msg_size = min(datalen, e->msg_size);
-		if (e->msg_buf != NULL && (e->msg_size != 0))
-			memcpy(e->msg_buf, hw->aq.arq.r.arq_bi[desc_idx].va,
-			       e->msg_size);
 	}
+
+	e->desc = *desc;
+	datalen = le16_to_cpu(desc->datalen);
+	e->msg_size = min(datalen, e->msg_size);
+	if (e->msg_buf != NULL && (e->msg_size != 0))
+		memcpy(e->msg_buf, hw->aq.arq.r.arq_bi[desc_idx].va,
+		       e->msg_size);
 
 	if (i40e_is_nvm_update_op(&e->desc))
 		hw->aq.nvm_busy = false;
