@@ -1213,9 +1213,17 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		dvb->fe[0] = dvb_attach(lgdt3305_attach,
 					   &em2870_lgdt3304_dev,
 					   &dev->i2c_adap[dev->def_i2c_bus]);
-		if (dvb->fe[0] != NULL)
-			dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
-				   &dev->i2c_adap[dev->def_i2c_bus], &kworld_a340_config);
+		if (!dvb->fe[0]) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		if (!dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
+			&dev->i2c_adap[dev->def_i2c_bus],
+			&kworld_a340_config)) {
+				dvb_frontend_detach(dvb->fe[0]);
+				result = -EINVAL;
+				goto out_free;
+		}
 		break;
 	case EM28174_BOARD_PCTV_290E:
 		/* set default GPIO0 for LNA, used if GPIOLIB is undefined */
