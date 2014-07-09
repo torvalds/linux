@@ -217,8 +217,12 @@ int rk616_hdmi_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 	disable_irq(hdmi_drv->irq);
 
 	/* Enable edid interrupt */
+#ifdef SOC_CONFIG_RK3036
+	hdmi_writel(hdmi_dev, INTERRUPT_MASK1, m_INT_EDID_READY);
+#else
 	hdmi_writel(hdmi_dev, INTERRUPT_MASK1,
 		    m_INT_HOTPLUG | m_INT_EDID_READY);
+#endif
 
 	for (trytime = 0; trytime < 10; trytime++) {
 		hdmi_writel(hdmi_dev, INTERRUPT_STATUS1, 0x04);
@@ -588,20 +592,22 @@ void rk616_hdmi_work(struct hdmi *hdmi_drv)
 	if(interrupt){
 		hdmi_writel(hdmi_dev, HDMI_STATUS, interrupt);
 	}
+	if (interrupt & m_INT_HOTPLUG)
 #else
 	hdmi_readl(hdmi_dev, INTERRUPT_STATUS1,&interrupt);
 	if(interrupt){
 		hdmi_writel(hdmi_dev, INTERRUPT_STATUS1, interrupt);
 	}
+	if (interrupt & m_HOTPLUG)
 #endif
-	if (interrupt & m_HOTPLUG) {
+	{
 		if (hdmi_drv->state == HDMI_SLEEP)
 			hdmi_drv->state = WAIT_HOTPLUG;
 
 		queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work,
 				   msecs_to_jiffies(40));
 
-	}
+	}//plug out?
 
 	if (hdmi_drv->hdcp_irq_cb)
 		hdmi_drv->hdcp_irq_cb(0);
@@ -654,6 +660,7 @@ int rk616_hdmi_initial(struct hdmi *hdmi_drv)
 	rk3028_hdmi_reset_pclk();
 	rk616_hdmi_reset(hdmi_drv);
 #elif defined(SOC_CONFIG_RK3036)
+	rk3028_hdmi_reset_pclk();
 	rk616_hdmi_reset(hdmi_drv);
 #else
 	hdmi_drv->set_vif = rk616_hdmi_set_vif;

@@ -2,7 +2,7 @@
 #define _RK616_HDMI_HW_H
 
 #define SOC_CONFIG_RK3036
-
+#include <linux/rockchip/iomap.h>
 #define RK616_HDMI_BASE 0x400
 enum PWR_MODE {
 	NORMAL,
@@ -356,12 +356,12 @@ static inline int hdmi_msk_reg(struct rk_hdmi_device *hdmi_dev, u16 offset,
 	writel_relaxed(temp | ((val) & (msk)), hdmi_dev->regbase + (offset) * 0x04);
 	return ret;
 }
-#if defined(CONFIG_ARCH_RK3026)
+#if defined(CONFIG_ARCH_RK3026) || defined(SOC_CONFIG_RK3036)
 static inline void rk3028_hdmi_reset_pclk(void)
 {
-	writel_relaxed(0x00010001, RK2928_CRU_BASE + 0x128);
+	writel_relaxed(0x00010001, RK_CRU_VIRT+ 0x128);
 	msleep(100);
-	writel_relaxed(0x00010000, RK2928_CRU_BASE + 0x128);
+	writel_relaxed(0x00010000, RK_CRU_VIRT + 0x128);
 }
 #endif
 #endif
