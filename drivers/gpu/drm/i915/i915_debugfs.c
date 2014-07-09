@@ -1158,35 +1158,6 @@ out:
 	return ret;
 }
 
-static inline int MAP_TO_MV(int map)
-{
-	return 1250 - (map * 25);
-}
-
-static int i915_inttoext_table(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 inttoext;
-	int ret, i;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
-
-	for (i = 1; i <= 32; i++) {
-		inttoext = I915_READ(INTTOEXT_BASE_ILK + i * 4);
-		seq_printf(m, "INTTOEXT%02d: 0x%08x\n", i, inttoext);
-	}
-
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
 static int ironlake_drpc_info(struct seq_file *m)
 {
 	struct drm_info_node *node = m->private;
@@ -3926,7 +3897,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_hws_vebox", i915_hws_info, 0, (void *)VECS},
 	{"i915_rstdby_delays", i915_rstdby_delays, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
-	{"i915_inttoext_table", i915_inttoext_table, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
 	{"i915_emon_status", i915_emon_status, 0},
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},
