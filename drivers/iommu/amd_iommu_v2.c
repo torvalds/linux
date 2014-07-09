@@ -47,7 +47,6 @@ struct pasid_state {
 	atomic_t count;				/* Reference count */
 	unsigned mmu_notifier_count;		/* Counting nested mmu_notifier
 						   calls */
-	struct task_struct *task;		/* Task bound to this PASID */
 	struct mm_struct *mm;			/* mm_struct for the faults */
 	struct mmu_notifier mn;                 /* mmu_notifier handle */
 	struct pri_queue pri[PRI_QUEUE_SIZE];	/* PRI tag states */
@@ -531,7 +530,7 @@ static void do_fault(struct work_struct *work)
 	write = !!(fault->flags & PPR_FAULT_WRITE);
 
 	down_read(&fault->state->mm->mmap_sem);
-	npages = get_user_pages(fault->state->task, fault->state->mm,
+	npages = get_user_pages(NULL, fault->state->mm,
 				fault->address, 1, write, 0, &page, NULL);
 	up_read(&fault->state->mm->mmap_sem);
 
@@ -672,7 +671,6 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 	spin_lock_init(&pasid_state->lock);
 
 	mm                        = get_task_mm(task);
-	pasid_state->task         = task;
 	pasid_state->mm           = mm;
 	pasid_state->device_state = dev_state;
 	pasid_state->pasid        = pasid;
