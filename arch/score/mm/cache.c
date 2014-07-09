@@ -278,3 +278,4 @@ void flush_icache_range(unsigned long start, unsigned long end)
 		start += L1_CACHE_BYTES;
 	}
 }
+EXPORT_SYMBOL(flush_icache_range);
