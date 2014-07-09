@@ -1460,6 +1460,7 @@ static struct l2cap_chan *l2cap_global_chan_by_scid(int state, u16 cid,
 static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 {
 	struct hci_conn *hcon = conn->hcon;
+	struct hci_dev *hdev = hcon->hdev;
 	struct l2cap_chan *chan, *pchan;
 	u8 dst_type;
 
@@ -1478,7 +1479,7 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	dst_type = bdaddr_type(hcon, hcon->dst_type);
 
 	/* If device is blocked, do not create a channel for it */
-	if (hci_blacklist_lookup(hcon->hdev, &hcon->dst, dst_type))
+	if (hci_bdaddr_list_lookup(&hdev->blacklist, &hcon->dst, dst_type))
 		return;
 
 	/* For LE slave connections, make sure the connection interval
@@ -6918,8 +6919,8 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 	 * at least ensure that we ignore incoming data from them.
 	 */
 	if (hcon->type == LE_LINK &&
-	    hci_blacklist_lookup(hcon->hdev, &hcon->dst,
-				 bdaddr_type(hcon, hcon->dst_type))) {
+	    hci_bdaddr_list_lookup(&hcon->hdev->blacklist, &hcon->dst,
+				   bdaddr_type(hcon, hcon->dst_type))) {
 		kfree_skb(skb);
 		return;
 	}

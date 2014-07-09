@@ -1222,7 +1222,7 @@ static void hci_cc_le_clear_white_list(struct hci_dev *hdev,
 	if (status)
 		return;
 
-	hci_white_list_clear(hdev);
+	hci_bdaddr_list_clear(&hdev->le_white_list);
 }
 
 static void hci_cc_le_add_to_white_list(struct hci_dev *hdev,
@@ -1240,7 +1240,8 @@ static void hci_cc_le_add_to_white_list(struct hci_dev *hdev,
 	if (!sent)
 		return;
 
-	hci_white_list_add(hdev, &sent->bdaddr, sent->bdaddr_type);
+	hci_bdaddr_list_add(&hdev->le_white_list, &sent->bdaddr,
+			   sent->bdaddr_type);
 }
 
 static void hci_cc_le_del_from_white_list(struct hci_dev *hdev,
@@ -1258,7 +1259,8 @@ static void hci_cc_le_del_from_white_list(struct hci_dev *hdev,
 	if (!sent)
 		return;
 
-	hci_white_list_del(hdev, &sent->bdaddr, sent->bdaddr_type);
+	hci_bdaddr_list_del(&hdev->le_white_list, &sent->bdaddr,
+			    sent->bdaddr_type);
 }
 
 static void hci_cc_le_read_supported_states(struct hci_dev *hdev,
@@ -2132,7 +2134,8 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 				      &flags);
 
 	if ((mask & HCI_LM_ACCEPT) &&
-	    !hci_blacklist_lookup(hdev, &ev->bdaddr, BDADDR_BREDR)) {
+	    !hci_bdaddr_list_lookup(&hdev->blacklist, &ev->bdaddr,
+				    BDADDR_BREDR)) {
 		/* Connection accepted */
 		struct inquiry_entry *ie;
 		struct hci_conn *conn;
@@ -4184,7 +4187,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		addr_type = BDADDR_LE_RANDOM;
 
 	/* Drop the connection if he device is blocked */
-	if (hci_blacklist_lookup(hdev, &conn->dst, addr_type)) {
+	if (hci_bdaddr_list_lookup(&hdev->blacklist, &conn->dst, addr_type)) {
 		hci_conn_drop(conn);
 		goto unlock;
 	}
@@ -4253,7 +4256,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		return;
 
 	/* Ignore if the device is blocked */
-	if (hci_blacklist_lookup(hdev, addr, addr_type))
+	if (hci_bdaddr_list_lookup(&hdev->blacklist, addr, addr_type))
 		return;
 
 	/* If we're connectable, always connect any ADV_DIRECT_IND event */

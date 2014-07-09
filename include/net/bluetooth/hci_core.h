@@ -849,16 +849,11 @@ int hci_get_conn_info(struct hci_dev *hdev, void __user *arg);
 int hci_get_auth_info(struct hci_dev *hdev, void __user *arg);
 int hci_inquiry(void __user *arg);
 
-struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
-					 bdaddr_t *bdaddr, u8 type);
-int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
-int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
-
-struct bdaddr_list *hci_white_list_lookup(struct hci_dev *hdev,
-					  bdaddr_t *bdaddr, u8 type);
-void hci_white_list_clear(struct hci_dev *hdev);
-int hci_white_list_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
-int hci_white_list_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
+struct bdaddr_list *hci_bdaddr_list_lookup(struct list_head *list,
+					   bdaddr_t *bdaddr, u8 type);
+int hci_bdaddr_list_add(struct list_head *list, bdaddr_t *bdaddr, u8 type);
+int hci_bdaddr_list_del(struct list_head *list, bdaddr_t *bdaddr, u8 type);
+void hci_bdaddr_list_clear(struct list_head *list);
 
 struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
 					       bdaddr_t *addr, u8 addr_type);
