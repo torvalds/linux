@@ -115,7 +115,7 @@ struct proc_cpuinfo_notifier_args {
 #ifdef CONFIG_MIPS_MT_SMP
 # define cpu_vpe_id(cpuinfo)	((cpuinfo)->vpe_id)
 #else
-# define cpu_vpe_id(cpuinfo)	0
+# define cpu_vpe_id(cpuinfo)	({ (void)cpuinfo; 0; })
 #endif
 
 #endif /* __ASM_CPU_INFO_H */
