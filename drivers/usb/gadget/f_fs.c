@@ -1649,8 +1649,9 @@ typedef int (*ffs_entity_callback)(enum ffs_entity_type entity,
 				   struct usb_descriptor_header *desc,
 				   void *priv);
 
-static int __must_check ffs_do_desc(char *data, unsigned len,
-				    ffs_entity_callback entity, void *priv)
+static int __must_check ffs_do_single_desc(char *data, unsigned len,
+					   ffs_entity_callback entity,
+					   void *priv)
 {
 	struct usb_descriptor_header *_ds = (void *)data;
 	u8 length;
@@ -1802,7 +1803,7 @@ static int __must_check ffs_do_descs(unsigned count, char *data, unsigned len,
 		if (!data)
 			return _len - len;
 
-		ret = ffs_do_desc(data, len, entity, priv);
+		ret = ffs_do_single_desc(data, len, entity, priv);
 		if (unlikely(ret < 0)) {
 			pr_debug("%s returns %d\n", __func__, ret);
 			return ret;
