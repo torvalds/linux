@@ -228,9 +228,14 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 			 fd_data->pctype, fd_data->fd_id, ret);
 		err = true;
 	} else {
-		dev_info(&pf->pdev->dev,
-			 "PCTYPE:%d, Filter send OK for fd_id:%d\n",
-			 fd_data->pctype, fd_data->fd_id);
+		if (add)
+			dev_info(&pf->pdev->dev,
+				 "Filter OK for PCTYPE %d loc = %d\n",
+				 fd_data->pctype, fd_data->fd_id);
+		else
+			dev_info(&pf->pdev->dev,
+				 "Filter deleted for PCTYPE %d loc = %d\n",
+				 fd_data->pctype, fd_data->fd_id);
 	}
 	return err ? -EOPNOTSUPP : 0;
 }
@@ -290,9 +295,13 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 			 fd_data->pctype, fd_data->fd_id, ret);
 		err = true;
 	} else {
-		dev_info(&pf->pdev->dev,
-			 "PCTYPE:%d, Filter send OK for fd_id:%d\n",
-			 fd_data->pctype, fd_data->fd_id);
+		if (add)
+			dev_info(&pf->pdev->dev, "Filter OK for PCTYPE %d loc = %d)\n",
+				 fd_data->pctype, fd_data->fd_id);
+		else
+			dev_info(&pf->pdev->dev,
+				 "Filter deleted for PCTYPE %d loc = %d\n",
+				 fd_data->pctype, fd_data->fd_id);
 	}
 
 	return err ? -EOPNOTSUPP : 0;
@@ -359,9 +368,14 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 				 fd_data->pctype, fd_data->fd_id, ret);
 			err = true;
 		} else {
-			dev_info(&pf->pdev->dev,
-				 "PCTYPE:%d, Filter send OK for fd_id:%d\n",
-				 fd_data->pctype, fd_data->fd_id);
+			if (add)
+				dev_info(&pf->pdev->dev,
+					 "Filter OK for PCTYPE %d loc = %d\n",
+					 fd_data->pctype, fd_data->fd_id);
+			else
+				dev_info(&pf->pdev->dev,
+					 "Filter deleted for PCTYPE %d loc = %d\n",
+					 fd_data->pctype, fd_data->fd_id);
 		}
 	}
 
@@ -443,6 +457,10 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		I40E_RX_PROG_STATUS_DESC_QW1_ERROR_SHIFT;
 
 	if (error == (0x1 << I40E_RX_PROG_STATUS_DESC_FD_TBL_FULL_SHIFT)) {
+		if ((rx_desc->wb.qword0.hi_dword.fd_id != 0) ||
+		    (I40E_DEBUG_FD & pf->hw.debug_mask))
+			dev_warn(&pdev->dev, "ntuple filter loc = %d, could not be added\n",
+				 rx_desc->wb.qword0.hi_dword.fd_id);
 
 		/* filter programming failed most likely due to table full */
 		fcnt_prog = i40e_get_cur_guaranteed_fd_count(pf);
@@ -470,7 +488,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 			}
 		} else {
 			dev_info(&pdev->dev,
-				 "FD filter programming failed due to incorrect filter parameters\n");
+				"FD filter programming failed due to incorrect filter parameters\n");
 		}
 	} else if (error ==
 			  (0x1 << I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
