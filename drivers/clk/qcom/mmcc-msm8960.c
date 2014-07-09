@@ -38,6 +38,8 @@
 #define P_PLL2	2
 #define P_PLL3	3
 
+#define F_MN(f, s, _m, _n) { .freq = f, .src = s, .m = _m, .n = _n }
+
 static u8 mmcc_pxo_pll8_pll2_map[] = {
 	[P_PXO]		= 0,
 	[P_PLL8]	= 2,
@@ -59,8 +61,8 @@ static u8 mmcc_pxo_pll8_pll2_pll3_map[] = {
 
 static const char *mmcc_pxo_pll8_pll2_pll3[] = {
 	"pxo",
-	"pll2",
 	"pll8_vote",
+	"pll2",
 	"pll3",
 };
 
@@ -710,18 +712,18 @@ static struct clk_branch csiphy2_timer_clk = {
 };
 
 static struct freq_tbl clk_tbl_gfx2d[] = {
-	{  27000000, P_PXO,  1,  0 },
-	{  48000000, P_PLL8, 1,  8 },
-	{  54857000, P_PLL8, 1,  7 },
-	{  64000000, P_PLL8, 1,  6 },
-	{  76800000, P_PLL8, 1,  5 },
-	{  96000000, P_PLL8, 1,  4 },
-	{ 128000000, P_PLL8, 1,  3 },
-	{ 145455000, P_PLL2, 2, 11 },
-	{ 160000000, P_PLL2, 1,  5 },
-	{ 177778000, P_PLL2, 2,  9 },
-	{ 200000000, P_PLL2, 1,  4 },
-	{ 228571000, P_PLL2, 2,  7 },
+	F_MN( 27000000, P_PXO,  1,  0),
+	F_MN( 48000000, P_PLL8, 1,  8),
+	F_MN( 54857000, P_PLL8, 1,  7),
+	F_MN( 64000000, P_PLL8, 1,  6),
+	F_MN( 76800000, P_PLL8, 1,  5),
+	F_MN( 96000000, P_PLL8, 1,  4),
+	F_MN(128000000, P_PLL8, 1,  3),
+	F_MN(145455000, P_PLL2, 2, 11),
+	F_MN(160000000, P_PLL2, 1,  5),
+	F_MN(177778000, P_PLL2, 2,  9),
+	F_MN(200000000, P_PLL2, 1,  4),
+	F_MN(228571000, P_PLL2, 2,  7),
 	{ }
 };
 
@@ -842,22 +844,22 @@ static struct clk_branch gfx2d1_clk = {
 };
 
 static struct freq_tbl clk_tbl_gfx3d[] = {
-	{  27000000, P_PXO,  1,  0 },
-	{  48000000, P_PLL8, 1,  8 },
-	{  54857000, P_PLL8, 1,  7 },
-	{  64000000, P_PLL8, 1,  6 },
-	{  76800000, P_PLL8, 1,  5 },
-	{  96000000, P_PLL8, 1,  4 },
-	{ 128000000, P_PLL8, 1,  3 },
-	{ 145455000, P_PLL2, 2, 11 },
-	{ 160000000, P_PLL2, 1,  5 },
-	{ 177778000, P_PLL2, 2,  9 },
-	{ 200000000, P_PLL2, 1,  4 },
-	{ 228571000, P_PLL2, 2,  7 },
-	{ 266667000, P_PLL2, 1,  3 },
-	{ 300000000, P_PLL3, 1,  4 },
-	{ 320000000, P_PLL2, 2,  5 },
-	{ 400000000, P_PLL2, 1,  2 },
+	F_MN( 27000000, P_PXO,  1,  0),
+	F_MN( 48000000, P_PLL8, 1,  8),
+	F_MN( 54857000, P_PLL8, 1,  7),
+	F_MN( 64000000, P_PLL8, 1,  6),
+	F_MN( 76800000, P_PLL8, 1,  5),
+	F_MN( 96000000, P_PLL8, 1,  4),
+	F_MN(128000000, P_PLL8, 1,  3),
+	F_MN(145455000, P_PLL2, 2, 11),
+	F_MN(160000000, P_PLL2, 1,  5),
+	F_MN(177778000, P_PLL2, 2,  9),
+	F_MN(200000000, P_PLL2, 1,  4),
+	F_MN(228571000, P_PLL2, 2,  7),
+	F_MN(266667000, P_PLL2, 1,  3),
+	F_MN(300000000, P_PLL3, 1,  4),
+	F_MN(320000000, P_PLL2, 2,  5),
+	F_MN(400000000, P_PLL2, 1,  2),
 	{ }
 };
 
@@ -897,7 +899,7 @@ static struct clk_dyn_rcg gfx3d_src = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gfx3d_src",
 			.parent_names = mmcc_pxo_pll8_pll2_pll3,
-			.num_parents = 3,
+			.num_parents = 4,
 			.ops = &clk_dyn_rcg_ops,
 		},
 	},
@@ -995,7 +997,7 @@ static struct clk_rcg jpegd_src = {
 	.ns_reg = 0x00ac,
 	.p = {
 		.pre_div_shift = 12,
-		.pre_div_width = 2,
+		.pre_div_width = 4,
 	},
 	.s = {
 		.src_sel_shift = 0,
@@ -1337,15 +1339,15 @@ static struct clk_branch hdmi_app_clk = {
 };
 
 static struct freq_tbl clk_tbl_vcodec[] = {
-	{  27000000, P_PXO,  1,  0 },
-	{  32000000, P_PLL8, 1, 12 },
-	{  48000000, P_PLL8, 1,  8 },
-	{  54860000, P_PLL8, 1,  7 },
-	{  96000000, P_PLL8, 1,  4 },
-	{ 133330000, P_PLL2, 1,  6 },
-	{ 200000000, P_PLL2, 1,  4 },
-	{ 228570000, P_PLL2, 2,  7 },
-	{ 266670000, P_PLL2, 1,  3 },
+	F_MN( 27000000, P_PXO,  1,  0),
+	F_MN( 32000000, P_PLL8, 1, 12),
+	F_MN( 48000000, P_PLL8, 1,  8),
+	F_MN( 54860000, P_PLL8, 1,  7),
+	F_MN( 96000000, P_PLL8, 1,  4),
+	F_MN(133330000, P_PLL2, 1,  6),
+	F_MN(200000000, P_PLL2, 1,  4),
+	F_MN(228570000, P_PLL2, 2,  7),
+	F_MN(266670000, P_PLL2, 1,  3),
 	{ }
 };
 
