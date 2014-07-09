@@ -59,10 +59,9 @@
 #define KERN_TO_HYP(kva)	((unsigned long)kva - PAGE_OFFSET + HYP_PAGE_OFFSET)
 
 /*
- * Align KVM with the kernel's view of physical memory. Should be
- * 40bit IPA, with PGD being 8kB aligned in the 4KB page configuration.
+ * We currently only support a 40bit IPA.
  */
-#define KVM_PHYS_SHIFT	PHYS_MASK_SHIFT
+#define KVM_PHYS_SHIFT	(40)
 #define KVM_PHYS_SIZE	(1UL << KVM_PHYS_SHIFT)
 #define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1UL)
 
