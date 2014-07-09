@@ -1668,7 +1668,7 @@ static int rcu_gp_fqs(struct rcu_state *rsp, int fqs_state_in)
 	if (fqs_state == RCU_SAVE_DYNTICK) {
 		/* Collect dyntick-idle snapshots. */
 		if (is_sysidle_rcu_state(rsp)) {
-			isidle = 1;
+			isidle = true;
 			maxj = jiffies - ULONG_MAX / 4;
 		}
 		force_qs_rnp(rsp, dyntick_save_progress_counter,
@@ -1677,7 +1677,7 @@ static int rcu_gp_fqs(struct rcu_state *rsp, int fqs_state_in)
 		fqs_state = RCU_FORCE_QS;
 	} else {
 		/* Handle dyntick-idle and offline CPUs. */
-		isidle = 0;
+		isidle = false;
 		force_qs_rnp(rsp, rcu_implicit_dynticks_qs, &isidle, &maxj);
 	}
 	/* Clear flag to prevent immediate re-entry. */
@@ -2450,7 +2450,7 @@ static void force_qs_rnp(struct rcu_state *rsp,
 		for (; cpu <= rnp->grphi; cpu++, bit <<= 1) {
 			if ((rnp->qsmask & bit) != 0) {
 				if ((rnp->qsmaskinit & bit) != 0)
-					*isidle = 0;
+					*isidle = false;
 				if (f(per_cpu_ptr(rsp->rda, cpu), isidle, maxj))
 					mask |= bit;
 			}
