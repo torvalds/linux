@@ -396,8 +396,16 @@ static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
 /***********************************************************
  * Machine specific helper for per line I-Cache invalidate.
  */
-static void __ic_line_inv_vaddr_local(unsigned long paddr, unsigned long vaddr,
-				unsigned long sz)
+
+static inline void __ic_entire_inv(void)
+{
+	write_aux_reg(ARC_REG_IC_IVIC, 1);
+	read_aux_reg(ARC_REG_IC_CTRL);	/* blocks */
+}
+
+static inline void
+__ic_line_inv_vaddr_local(unsigned long paddr, unsigned long vaddr,
+			  unsigned long sz)
 {
 	unsigned long flags;
 
@@ -406,30 +414,39 @@ static void __ic_line_inv_vaddr_local(unsigned long paddr, unsigned long vaddr,
 	local_irq_restore(flags);
 }
 
-static inline void __ic_entire_inv(void)
-{
-	write_aux_reg(ARC_REG_IC_IVIC, 1);
-	read_aux_reg(ARC_REG_IC_CTRL);	/* blocks */
-}
+#ifndef CONFIG_SMP
 
-struct ic_line_inv_vaddr_ipi {
+#define __ic_line_inv_vaddr(p, v, s)	__ic_line_inv_vaddr_local(p, v, s)
+
+#else
+
+struct ic_inv_args {
 	unsigned long paddr, vaddr;
 	int sz;
 };
 
 static void __ic_line_inv_vaddr_helper(void *info)
 {
-        struct ic_line_inv_vaddr_ipi *ic_inv = (struct ic_line_inv_vaddr_ipi*) info;
+        struct ic_inv *ic_inv_args = (struct ic_inv_args *) info;
+
         __ic_line_inv_vaddr_local(ic_inv->paddr, ic_inv->vaddr, ic_inv->sz);
 }
 
 static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
 				unsigned long sz)
 {
-	struct ic_line_inv_vaddr_ipi ic_inv = { paddr, vaddr , sz};
+	struct ic_inv_args ic_inv = {
+		.paddr = paddr,
+		.vaddr = vaddr,
+		.sz    = sz
+	};
+
 	on_each_cpu(__ic_line_inv_vaddr_helper, &ic_inv, 1);
 }
-#else
+
+#endif	/* CONFIG_SMP */
+
+#else	/* !CONFIG_ARC_HAS_ICACHE */
 
 #define __ic_entire_inv()
 #define __ic_line_inv_vaddr(pstart, vstart, sz)
