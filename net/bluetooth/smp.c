@@ -391,10 +391,12 @@ static const u8 gen_method[5][5] = {
 
 static u8 get_auth_method(struct smp_chan *smp, u8 local_io, u8 remote_io)
 {
-	/* If either side has unknown io_caps, use JUST WORKS */
+	/* If either side has unknown io_caps, use JUST_CFM (which gets
+	 * converted later to JUST_WORKS if we're initiators.
+	 */
 	if (local_io > SMP_IO_KEYBOARD_DISPLAY ||
 	    remote_io > SMP_IO_KEYBOARD_DISPLAY)
-		return JUST_WORKS;
+		return JUST_CFM;
 
 	return gen_method[remote_io][local_io];
 }
@@ -414,10 +416,14 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 
 	BT_DBG("tk_request: auth:%d lcl:%d rem:%d", auth, local_io, remote_io);
 
-	/* If neither side wants MITM, use JUST WORKS */
-	/* Otherwise, look up method from the table */
+	/* If neither side wants MITM, either "just" confirm an incoming
+	 * request or use just-works for outgoing ones. The JUST_CFM
+	 * will be converted to JUST_WORKS if necessary later in this
+	 * function. If either side has MITM look up the method from the
+	 * table.
+	 */
 	if (!(auth & SMP_AUTH_MITM))
-		method = JUST_WORKS;
+		method = JUST_CFM;
 	else
 		method = get_auth_method(smp, local_io, remote_io);
 
