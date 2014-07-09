@@ -339,6 +339,13 @@ not_bound:
 	}
 }
 
+static inline bool iwl_mvm_rrm_scan_needed(struct iwl_mvm *mvm)
+{
+	/* require rrm scan whenever the fw supports it */
+	return mvm->fw->ucode_capa.capa[0] &
+	       IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT;
+}
+
 int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 			 struct ieee80211_vif *vif,
 			 struct cfg80211_scan_request *req)
@@ -1153,6 +1160,10 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
 	}
+
+	if (iwl_mvm_rrm_scan_needed(mvm))
+		cmd->scan_flags |=
+			cpu_to_le32(IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
 }
 
 int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
@@ -1208,7 +1219,7 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 	if (req->req.n_ssids == 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
 
-	cmd->scan_flags = cpu_to_le32(flags);
+	cmd->scan_flags |= cpu_to_le32(flags);
 
 	cmd->flags = iwl_mvm_scan_rxon_flags(req->req.channels[0]->band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
@@ -1305,7 +1316,7 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 	if (req->n_ssids == 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
 
-	cmd->scan_flags = cpu_to_le32(flags);
+	cmd->scan_flags |= cpu_to_le32(flags);
 
 	cmd->flags = iwl_mvm_scan_rxon_flags(req->channels[0]->band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
