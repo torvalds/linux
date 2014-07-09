@@ -105,7 +105,6 @@ struct buffer_state {
 /**
  * struct arc_emac_priv - Storage of EMAC's private information.
  * @dev:	Pointer to the current device.
- * @ndev:	Pointer to the current network device.
  * @phy_dev:	Pointer to attached PHY device.
  * @bus:	Pointer to the current MII bus.
  * @regs:	Base address of EMAC memory-mapped control registers.
@@ -126,7 +125,6 @@ struct buffer_state {
 struct arc_emac_priv {
 	/* Devices */
 	struct device *dev;
-	struct net_device *ndev;
 	struct phy_device *phy_dev;
 	struct mii_bus *bus;
 

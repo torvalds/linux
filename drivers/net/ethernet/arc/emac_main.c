@@ -720,7 +720,6 @@ static int arc_emac_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 	priv->dev = &pdev->dev;
-	priv->ndev = ndev;
 
 	priv->regs = devm_ioremap_resource(&pdev->dev, &res_regs);
 	if (IS_ERR(priv->regs)) {
