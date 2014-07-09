@@ -768,7 +768,7 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
 				&adapter->crit_section))
-		mdelay(1);
+		udelay(1);
 
 	f = i40evf_find_filter(adapter, macaddr);
 	if (NULL == f) {
@@ -840,7 +840,7 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
 				&adapter->crit_section))
-		mdelay(1);
+		udelay(1);
 	/* remove filter if not in netdev list */
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
 		bool found = false;
