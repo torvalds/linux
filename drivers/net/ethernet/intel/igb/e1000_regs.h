@@ -355,6 +355,7 @@
 #define E1000_UTA       0x0A000 /* Unicast Table Array - RW */
 #define E1000_IOVTCL    0x05BBC /* IOV Control Register */
 #define E1000_TXSWC     0x05ACC /* Tx Switch Control */
+#define E1000_LVMMC	0x03548 /* Last VM Misbehavior cause */
 /* These act per VF so an array friendly macro is used */
 #define E1000_P2VMAILBOX(_n)   (0x00C00 + (4 * (_n)))
 #define E1000_VMBMEM(_n)       (0x00800 + (64 * (_n)))
