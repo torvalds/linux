@@ -555,7 +555,7 @@ static int asus_wmi_led_init(struct asus_wmi *asus)
 			goto error;
 	}
 
-	if (wlan_led_presence(asus) && (asus->driver->quirks->wapf == 4)) {
+	if (wlan_led_presence(asus) && (asus->driver->quirks->wapf > 0)) {
 		INIT_WORK(&asus->wlan_led_work, wlan_led_update);
 
 		asus->wlan_led.name = "asus::wlan";
@@ -885,7 +885,7 @@ static int asus_new_rfkill(struct asus_wmi *asus,
 		return -EINVAL;
 
 	if ((dev_id == ASUS_WMI_DEVID_WLAN) &&
-			(asus->driver->quirks->wapf == 4))
+			(asus->driver->quirks->wapf > 0))
 		rfkill_set_led_trigger_name(*rfkill, "asus-wlan");
 
 	rfkill_init_sw_state(*rfkill, !result);
