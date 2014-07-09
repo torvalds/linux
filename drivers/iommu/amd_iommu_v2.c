@@ -52,7 +52,8 @@ struct pasid_state {
 	struct pri_queue pri[PRI_QUEUE_SIZE];	/* PRI tag states */
 	struct device_state *device_state;	/* Link to our device_state */
 	int pasid;				/* PASID index */
-	bool invalid;				/* Used during teardown */
+	bool invalid;				/* Used during setup and
+						   teardown of the pasid */
 	spinlock_t lock;			/* Protect pri_queues and
 						   mmu_notifer_count */
 	wait_queue_head_t wq;			/* To wait for count == 0 */
@@ -473,13 +474,15 @@ static void mn_release(struct mmu_notifier *mn, struct mm_struct *mm)
 {
 	struct pasid_state *pasid_state;
 	struct device_state *dev_state;
+	bool run_inv_ctx_cb;
 
 	might_sleep();
 
-	pasid_state = mn_to_state(mn);
-	dev_state   = pasid_state->device_state;
+	pasid_state    = mn_to_state(mn);
+	dev_state      = pasid_state->device_state;
+	run_inv_ctx_cb = !pasid_state->invalid;
 
-	if (pasid_state->device_state->inv_ctx_cb)
+	if (run_inv_ctx_cb && pasid_state->device_state->inv_ctx_cb)
 		dev_state->inv_ctx_cb(dev_state->pdev, pasid_state->pasid);
 
 	unbind_pasid(pasid_state);
@@ -674,7 +677,8 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 	pasid_state->mm           = mm;
 	pasid_state->device_state = dev_state;
 	pasid_state->pasid        = pasid;
-	pasid_state->invalid      = false;
+	pasid_state->invalid      = true; /* Mark as valid only if we are
+					     done with setting up the pasid */
 	pasid_state->mn.ops       = &iommu_mn;
 
 	if (pasid_state->mm == NULL)
@@ -690,6 +694,9 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 					__pa(pasid_state->mm->pgd));
 	if (ret)
 		goto out_clear_state;
+
+	/* Now we are ready to handle faults */
+	pasid_state->invalid = false;
 
 	/*
 	 * Drop the reference to the mm_struct here. We rely on the
