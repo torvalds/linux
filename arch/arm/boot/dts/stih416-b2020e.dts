@@ -31,5 +31,11 @@
 		ethernet1: dwmac@fef08000 {
 			snps,reset-gpio = <&pio0 7>;
 		};
+
+		mmc1: sdhci@fe81f000 {
+			status       = "okay";
+			bus-width    = <8>;
+			non-removable;
+		};
 	};
 };
