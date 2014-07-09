@@ -994,29 +994,6 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_next_seqno_fops,
 			i915_next_seqno_get, i915_next_seqno_set,
 			"0x%llx\n");
 
-static int i915_rstdby_delays(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u16 crstanddelay;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
-
-	crstanddelay = I915_READ16(CRSTANDVID);
-
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
-
-	seq_printf(m, "w/ctx: %d, w/o ctx: %d\n", (crstanddelay >> 8) & 0x3f, (crstanddelay & 0x3f));
-
-	return 0;
-}
-
 static int i915_frequency_info(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
@@ -3875,7 +3852,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_hws_blt", i915_hws_info, 0, (void *)BCS},
 	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)VCS},
 	{"i915_gem_hws_vebox", i915_hws_info, 0, (void *)VECS},
-	{"i915_rstdby_delays", i915_rstdby_delays, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
 	{"i915_emon_status", i915_emon_status, 0},
