@@ -1251,9 +1251,7 @@ int genwqe_setup_service_layer(struct genwqe_dev *cd)
 	}
 
 	rc = genwqe_set_interrupt_capability(cd, GENWQE_MSI_IRQS);
-	if (rc > 0)
-		rc = genwqe_set_interrupt_capability(cd, rc);
-	if (rc != 0) {
+	if (rc) {
 		rc = -ENODEV;
 		goto stop_kthread;
 	}
