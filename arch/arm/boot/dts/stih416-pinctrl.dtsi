@@ -467,6 +467,45 @@
 					};
 				};
 			};
+
+			mmc0 {
+				pinctrl_mmc0: mmc0 {
+					st,pins {
+						mmcclk  = <&pio13 4 ALT4 BIDIR_PU NICLK 0 CLK_B>;
+						data0   = <&pio14 4 ALT4 BIDIR_PU BYPASS 0>;
+						data1   = <&pio14 5 ALT4 BIDIR_PU BYPASS 0>;
+						data2   = <&pio14 6 ALT4 BIDIR_PU BYPASS 0>;
+						data3   = <&pio14 7 ALT4 BIDIR_PU BYPASS 0>;
+						cmd     = <&pio15 1 ALT4 BIDIR_PU BYPASS 0>;
+						wp      = <&pio15 3 ALT4 IN>;
+						data4   = <&pio16 4 ALT4 BIDIR_PU BYPASS 0>;
+						data5   = <&pio16 5 ALT4 BIDIR_PU BYPASS 0>;
+						data6   = <&pio16 6 ALT4 BIDIR_PU BYPASS 0>;
+						data7   = <&pio16 7 ALT4 BIDIR_PU BYPASS 0>;
+						pwr     = <&pio17 1 ALT4 OUT>;
+						cd      = <&pio17 2 ALT4 IN>;
+						led     = <&pio17 3 ALT4 OUT>;
+					};
+				};
+			};
+			mmc1 {
+				pinctrl_mmc1: mmc1 {
+					st,pins {
+						mmcclk  = <&pio15 0 ALT3 BIDIR_PU NICLK 0 CLK_B>;
+						data0   = <&pio13 7 ALT3 BIDIR_PU BYPASS 0>;
+						data1   = <&pio14 1 ALT3 BIDIR_PU BYPASS 0>;
+						data2   = <&pio14 2 ALT3 BIDIR_PU BYPASS 0>;
+						data3   = <&pio14 3 ALT3 BIDIR_PU BYPASS 0>;
+						cmd     = <&pio15 4 ALT3 BIDIR_PU BYPASS 0>;
+						data4   = <&pio15 6 ALT3 BIDIR_PU BYPASS 0>;
+						data5   = <&pio15 7 ALT3 BIDIR_PU BYPASS 0>;
+						data6   = <&pio16 0 ALT3 BIDIR_PU BYPASS 0>;
+						data7   = <&pio16 1 ALT3 BIDIR_PU BYPASS 0>;
+						pwr     = <&pio16 2 ALT3 OUT>;
+						nreset  = <&pio13 6 ALT3 OUT>;
+					};
+				};
+			};
 		};
 
 		pin-controller-fvdp-fe {
