@@ -702,6 +702,7 @@ config MMC_WMT
 
 config MMC_USDHI6ROL0
 	tristate "Renesas USDHI6ROL0 SD/SDIO Host Controller support"
+	depends on HAS_DMA
 	help
 	  This selects support for the Renesas USDHI6ROL0 SD/SDIO
 	  Host Controller
