@@ -53,6 +53,10 @@
 #define SST_CSR2		0x80
 #define SST_LTRC		0xE0
 #define SST_HDMC		0xE8
+
+#define SST_SHIM_BEGIN		SST_CSR
+#define SST_SHIM_END		SST_HDMC
+
 #define SST_DBGO		0xF0
 
 #define SST_SHIM_SIZE		0x100
