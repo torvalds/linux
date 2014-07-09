@@ -644,13 +644,20 @@ static int nft_dump_stats(struct sk_buff *skb, struct nft_stats __percpu *stats)
 {
 	struct nft_stats *cpu_stats, total;
 	struct nlattr *nest;
+	unsigned int seq;
+	u64 pkts, bytes;
 	int cpu;
 
 	memset(&total, 0, sizeof(total));
 	for_each_possible_cpu(cpu) {
 		cpu_stats = per_cpu_ptr(stats, cpu);
-		total.pkts += cpu_stats->pkts;
-		total.bytes += cpu_stats->bytes;
+		do {
+			seq = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
+			pkts = cpu_stats->pkts;
+			bytes = cpu_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, seq));
+		total.pkts += pkts;
+		total.bytes += bytes;
 	}
 	nest = nla_nest_start(skb, NFTA_CHAIN_COUNTERS);
 	if (nest == NULL)
@@ -875,7 +882,7 @@ static struct nft_stats __percpu *nft_stats_alloc(const struct nlattr *attr)
 	if (!tb[NFTA_COUNTER_BYTES] || !tb[NFTA_COUNTER_PACKETS])
 		return ERR_PTR(-EINVAL);
 
-	newstats = alloc_percpu(struct nft_stats);
+	newstats = netdev_alloc_pcpu_stats(struct nft_stats);
 	if (newstats == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -1091,7 +1098,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			}
 			basechain->stats = stats;
 		} else {
-			stats = alloc_percpu(struct nft_stats);
+			stats = netdev_alloc_pcpu_stats(struct nft_stats);
 			if (IS_ERR(stats)) {
 				module_put(type->owner);
 				kfree(basechain);
