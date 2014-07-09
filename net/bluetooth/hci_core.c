@@ -1569,7 +1569,7 @@ static void hci_set_event_mask_page_2(struct hci_request *req)
 	}
 
 	/* Enable Authenticated Payload Timeout Expired event if supported */
-	if (lmp_ping_capable(hdev))
+	if (lmp_ping_capable(hdev) || hdev->le_features[0] & HCI_LE_PING)
 		events[2] |= 0x80;
 
 	hci_req_add(req, HCI_OP_SET_EVENT_MASK_PAGE_2, sizeof(events), events);
