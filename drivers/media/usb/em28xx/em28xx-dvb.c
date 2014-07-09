@@ -1713,7 +1713,6 @@ static int em28xx_dvb_resume(struct em28xx *dev)
 	em28xx_info("Resuming DVB extension");
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
-		struct i2c_client *client = dvb->i2c_client_tuner;
 
 		if (dvb->fe[0]) {
 			ret = dvb_frontend_resume(dvb->fe[0]);
@@ -1724,22 +1723,6 @@ static int em28xx_dvb_resume(struct em28xx *dev)
 			ret = dvb_frontend_resume(dvb->fe[1]);
 			em28xx_info("fe1 resume %d", ret);
 		}
-		/* remove I2C tuner */
-		if (client) {
-			module_put(client->dev.driver->owner);
-			i2c_unregister_device(client);
-		}
-
-		/* remove I2C demod */
-		client = dvb->i2c_client_demod;
-		if (client) {
-			module_put(client->dev.driver->owner);
-			i2c_unregister_device(client);
-		}
-
-		em28xx_unregister_dvb(dvb);
-		kfree(dvb);
-		dev->dvb = NULL;
 	}
 
 	return 0;
