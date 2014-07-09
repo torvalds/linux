@@ -141,6 +141,15 @@ static int si2168_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	s->fe_status = *status;
 
+	if (*status & FE_HAS_LOCK) {
+		c->cnr.len = 1;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		c->cnr.stat[0].svalue = cmd.args[3] * 1000 / 4;
+	} else {
+		c->cnr.len = 1;
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
 	dev_dbg(&s->client->dev, "%s: status=%02x args=%*ph\n",
 			__func__, *status, cmd.rlen, cmd.args);
 
