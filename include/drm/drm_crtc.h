@@ -331,6 +331,10 @@ struct drm_crtc {
 	struct drm_plane *primary;
 	struct drm_plane *cursor;
 
+	/* position of cursor plane on crtc */
+	int cursor_x;
+	int cursor_y;
+
 	/* Temporary tracking of the old fb while a modeset is ongoing. Used
 	 * by drm_mode_set_config_internal to implement correct refcounting. */
 	struct drm_framebuffer *old_fb;
@@ -858,7 +862,7 @@ struct drm_prop_enum_list {
 extern int drm_crtc_init_with_planes(struct drm_device *dev,
 				     struct drm_crtc *crtc,
 				     struct drm_plane *primary,
-				     void *cursor,
+				     struct drm_plane *cursor,
 				     const struct drm_crtc_funcs *funcs);
 extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,

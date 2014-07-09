@@ -28,6 +28,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/acpi.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -46,8 +47,6 @@ static struct drm_driver driver;
 			  PIPE_C_OFFSET, PIPE_EDP_OFFSET }, \
 	.trans_offsets = { TRANSCODER_A_OFFSET, TRANSCODER_B_OFFSET, \
 			   TRANSCODER_C_OFFSET, TRANSCODER_EDP_OFFSET }, \
-	.dpll_offsets = { DPLL_A_OFFSET, DPLL_B_OFFSET }, \
-	.dpll_md_offsets = { DPLL_A_MD_OFFSET, DPLL_B_MD_OFFSET }, \
 	.palette_offsets = { PALETTE_A_OFFSET, PALETTE_B_OFFSET }
 
 #define GEN_CHV_PIPEOFFSETS \
@@ -55,10 +54,6 @@ static struct drm_driver driver;
 			  CHV_PIPE_C_OFFSET }, \
 	.trans_offsets = { TRANSCODER_A_OFFSET, TRANSCODER_B_OFFSET, \
 			   CHV_TRANSCODER_C_OFFSET, }, \
-	.dpll_offsets = { DPLL_A_OFFSET, DPLL_B_OFFSET, \
-			  CHV_DPLL_C_OFFSET }, \
-	.dpll_md_offsets = { DPLL_A_MD_OFFSET, DPLL_B_MD_OFFSET, \
-			     CHV_DPLL_C_MD_OFFSET }, \
 	.palette_offsets = { PALETTE_A_OFFSET, PALETTE_B_OFFSET, \
 			     CHV_PALETTE_C_OFFSET }
 
@@ -499,8 +494,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
-
-	intel_runtime_pm_get(dev_priv);
+	pci_power_t opregion_target_state;
 
 	/* ignore lid events during suspend */
 	mutex_lock(&dev_priv->modeset_restore_lock);
@@ -526,9 +520,9 @@ static int i915_drm_freeze(struct drm_device *dev)
 			return error;
 		}
 
-		drm_irq_uninstall(dev);
+		intel_runtime_pm_disable_interrupts(dev);
 
-		intel_disable_gt_powersave(dev);
+		intel_suspend_gt_powersave(dev);
 
 		/*
 		 * Disable CRTCs directly since we want to preserve sw state
@@ -547,14 +541,22 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	i915_save_state(dev);
 
+	if (acpi_target_system_state() >= ACPI_STATE_S3)
+		opregion_target_state = PCI_D3cold;
+	else
+		opregion_target_state = PCI_D1;
+	intel_opregion_notify_adapter(dev, opregion_target_state);
+
+	intel_uncore_forcewake_reset(dev, false);
 	intel_opregion_fini(dev);
-	intel_uncore_fini(dev);
 
 	console_lock();
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED);
 	console_unlock();
 
 	dev_priv->suspend_count++;
+
+	intel_display_set_init_power(dev_priv, false);
 
 	return 0;
 }
@@ -605,7 +607,10 @@ static int i915_drm_thaw_early(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	intel_uncore_early_sanitize(dev);
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		hsw_disable_pc8(dev_priv);
+
+	intel_uncore_early_sanitize(dev, true);
 	intel_uncore_sanitize(dev);
 	intel_power_domains_init_hw(dev_priv);
 
@@ -638,8 +643,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		}
 		mutex_unlock(&dev->struct_mutex);
 
-		/* We need working interrupts for modeset enabling ... */
-		drm_irq_install(dev, dev->pdev->irq);
+		intel_runtime_pm_restore_interrupts(dev);
 
 		intel_modeset_init_hw(dev);
 
@@ -676,7 +680,8 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	dev_priv->modeset_restore = MODESET_DONE;
 	mutex_unlock(&dev_priv->modeset_restore_lock);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_opregion_notify_adapter(dev, PCI_D0);
+
 	return 0;
 }
 
@@ -885,6 +890,7 @@ static int i915_pm_suspend_late(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_i915_private *dev_priv = drm_dev->dev_private;
 
 	/*
 	 * We have a suspedn ordering issue with the snd-hda driver also
@@ -897,6 +903,9 @@ static int i915_pm_suspend_late(struct device *dev)
 	 */
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
+
+	if (IS_HASWELL(drm_dev) || IS_BROADWELL(drm_dev))
+		hsw_enable_pc8(dev_priv);
 
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);

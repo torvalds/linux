@@ -53,7 +53,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20080730"
+#define DRIVER_DATE		"20140620"
 
 enum pipe {
 	INVALID_PIPE = -1,
@@ -552,8 +552,6 @@ struct intel_device_info {
 	/* Register offsets for the various display pipes and transcoders */
 	int pipe_offsets[I915_MAX_TRANSCODERS];
 	int trans_offsets[I915_MAX_TRANSCODERS];
-	int dpll_offsets[I915_MAX_PIPES];
-	int dpll_md_offsets[I915_MAX_PIPES];
 	int palette_offsets[I915_MAX_PIPES];
 	int cursor_offsets[I915_MAX_PIPES];
 };
@@ -593,7 +591,6 @@ struct intel_context {
 	bool is_initialized;
 	uint8_t remap_slice;
 	struct drm_i915_file_private *file_priv;
-	struct intel_engine_cs *last_ring;
 	struct drm_i915_gem_object *obj;
 	struct i915_ctx_hang_stats hang_stats;
 	struct i915_address_space *vm;
@@ -638,6 +635,10 @@ struct i915_drrs {
 struct i915_psr {
 	bool sink_support;
 	bool source_ok;
+	bool setup_done;
+	bool enabled;
+	bool active;
+	struct delayed_work work;
 };
 
 enum intel_pch {
@@ -1331,6 +1332,17 @@ struct intel_pipe_crc {
 	wait_queue_head_t wq;
 };
 
+struct i915_frontbuffer_tracking {
+	struct mutex lock;
+
+	/*
+	 * Tracking bits for delayed frontbuffer flushing du to gpu activity or
+	 * scheduled flips.
+	 */
+	unsigned busy_bits;
+	unsigned flip_bits;
+};
+
 struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -1369,6 +1381,9 @@ struct drm_i915_private {
 
 	/* protects the irq masks */
 	spinlock_t irq_lock;
+
+	/* protects the mmio flip data */
+	spinlock_t mmio_flip_lock;
 
 	bool display_irqs_enabled;
 
@@ -1473,6 +1488,9 @@ struct drm_i915_private {
 	bool lvds_downclock_avail;
 	/* indicates the reduced downclock for LVDS*/
 	int lvds_downclock;
+
+	struct i915_frontbuffer_tracking fb_tracking;
+
 	u16 orig_clock;
 
 	bool mchbar_need_disable;
@@ -1590,6 +1608,28 @@ struct drm_i915_gem_object_ops {
 	void (*release)(struct drm_i915_gem_object *);
 };
 
+/*
+ * Frontbuffer tracking bits. Set in obj->frontbuffer_bits while a gem bo is
+ * considered to be the frontbuffer for the given plane interface-vise. This
+ * doesn't mean that the hw necessarily already scans it out, but that any
+ * rendering (by the cpu or gpu) will land in the frontbuffer eventually.
+ *
+ * We have one bit per pipe and per scanout plane type.
+ */
+#define INTEL_FRONTBUFFER_BITS_PER_PIPE 4
+#define INTEL_FRONTBUFFER_BITS \
+	(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES)
+#define INTEL_FRONTBUFFER_PRIMARY(pipe) \
+	(1 << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+#define INTEL_FRONTBUFFER_CURSOR(pipe) \
+	(1 << (1 +(INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+#define INTEL_FRONTBUFFER_SPRITE(pipe) \
+	(1 << (2 +(INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+#define INTEL_FRONTBUFFER_OVERLAY(pipe) \
+	(1 << (3 +(INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+#define INTEL_FRONTBUFFER_ALL_MASK(pipe) \
+	(0xf << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+
 struct drm_i915_gem_object {
 	struct drm_gem_object base;
 
@@ -1660,6 +1700,12 @@ struct drm_i915_gem_object {
 	unsigned int pin_display:1;
 
 	/*
+	 * Is the object to be mapped as read-only to the GPU
+	 * Only honoured if hardware has relevant pte bit
+	 */
+	unsigned long gt_ro:1;
+
+	/*
 	 * Is the GPU currently using a fence to access this buffer,
 	 */
 	unsigned int pending_fenced_gpu_access:1;
@@ -1670,6 +1716,8 @@ struct drm_i915_gem_object {
 	unsigned int has_aliasing_ppgtt_mapping:1;
 	unsigned int has_global_gtt_mapping:1;
 	unsigned int has_dma_mapping:1;
+
+	unsigned int frontbuffer_bits:INTEL_FRONTBUFFER_BITS;
 
 	struct sg_table *pages;
 	int pages_pin_count;
@@ -1716,6 +1764,10 @@ struct drm_i915_gem_object {
 	};
 };
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
+
+void i915_gem_track_fb(struct drm_i915_gem_object *old,
+		       struct drm_i915_gem_object *new,
+		       unsigned frontbuffer_bits);
 
 /**
  * Request queue structure.
@@ -1938,10 +1990,8 @@ struct drm_i915_cmd_table {
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
-#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6 && \
-				 (!IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)))
-#define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 \
-				 && !IS_GEN8(dev))
+#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6)
+#define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 && !IS_GEN8(dev))
 #define USES_PPGTT(dev)		intel_enable_ppgtt(dev, false)
 #define USES_FULL_PPGTT(dev)	intel_enable_ppgtt(dev, true)
 
@@ -2038,6 +2088,7 @@ struct i915_params {
 	bool reset;
 	bool disable_display;
 	bool disable_vtd_wa;
+	int use_mmio_flip;
 };
 extern struct i915_params i915 __read_mostly;
 
@@ -2082,10 +2133,12 @@ extern void intel_irq_init(struct drm_device *dev);
 extern void intel_hpd_init(struct drm_device *dev);
 
 extern void intel_uncore_sanitize(struct drm_device *dev);
-extern void intel_uncore_early_sanitize(struct drm_device *dev);
+extern void intel_uncore_early_sanitize(struct drm_device *dev,
+					bool restore_forcewake);
 extern void intel_uncore_init(struct drm_device *dev);
 extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
+extern void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore);
 
 void
 i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
@@ -2233,6 +2286,8 @@ bool i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_retire_requests_ring(struct intel_engine_cs *ring);
 int __must_check i915_gem_check_wedge(struct i915_gpu_error *error,
 				      bool interruptible);
+int __must_check i915_gem_check_olr(struct intel_engine_cs *ring, u32 seqno);
+
 static inline bool i915_reset_in_progress(struct i915_gpu_error *error)
 {
 	return unlikely(atomic_read(&error->reset_counter)
@@ -2443,7 +2498,6 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 					       u32 stolen_offset,
 					       u32 gtt_offset,
 					       u32 size);
-void i915_gem_object_release_stolen(struct drm_i915_gem_object *obj);
 
 /* i915_gem_tiling.c */
 static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
@@ -2602,6 +2656,8 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 int i915_get_reset_stats_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file);
+
+void intel_notify_mmio_flip(struct intel_engine_cs *ring);
 
 /* overlay */
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);

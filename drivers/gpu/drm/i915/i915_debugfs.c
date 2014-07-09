@@ -170,6 +170,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	}
 	if (obj->ring != NULL)
 		seq_printf(m, " (%s)", obj->ring->name);
+	if (obj->frontbuffer_bits)
+		seq_printf(m, " (frontbuffer: 0x%03x)", obj->frontbuffer_bits);
 }
 
 static void describe_ctx(struct seq_file *m, struct intel_context *ctx)
@@ -515,6 +517,11 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	unsigned long flags;
 	struct intel_crtc *crtc;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	for_each_intel_crtc(dev, crtc) {
 		const char pipe = pipe_name(crtc->pipe);
@@ -555,6 +562,8 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 		}
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
+
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -1029,7 +1038,8 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   MEMSTAT_VID_SHIFT);
 		seq_printf(m, "Current P-state: %d\n",
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
-	} else if ((IS_GEN6(dev) || IS_GEN7(dev)) && !IS_VALLEYVIEW(dev)) {
+	} else if (IS_GEN6(dev) || (IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) ||
+		   IS_BROADWELL(dev)) {
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
@@ -1048,7 +1058,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 		reqf = I915_READ(GEN6_RPNSWREQ);
 		reqf &= ~GEN6_TURBO_DISABLE;
-		if (IS_HASWELL(dev))
+		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 			reqf >>= 24;
 		else
 			reqf >>= 25;
@@ -1065,7 +1075,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI);
 		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN);
 		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN);
-		if (IS_HASWELL(dev))
+		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 			cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
 		else
 			cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
@@ -1677,9 +1687,6 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 
 #ifdef CONFIG_DRM_I915_FBDEV
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = mutex_lock_interruptible(&dev->mode_config.mutex);
-	if (ret)
-		return ret;
 
 	ifbdev = dev_priv->fbdev;
 	fb = to_intel_framebuffer(ifbdev->helper.fb);
@@ -1692,7 +1699,6 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		   atomic_read(&fb->base.refcount.refcount));
 	describe_obj(m, fb->obj);
 	seq_putc(m, '\n');
-	mutex_unlock(&dev->mode_config.mutex);
 #endif
 
 	mutex_lock(&dev->mode_config.fb_lock);
@@ -1723,7 +1729,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct intel_context *ctx;
 	int ret, i;
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -1753,7 +1759,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		seq_putc(m, '\n');
 	}
 
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -1978,10 +1984,12 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	seq_printf(m, "Sink_Support: %s\n", yesno(dev_priv->psr.sink_support));
 	seq_printf(m, "Source_OK: %s\n", yesno(dev_priv->psr.source_ok));
+	seq_printf(m, "Enabled: %s\n", yesno(dev_priv->psr.enabled));
+	seq_printf(m, "Active: %s\n", yesno(dev_priv->psr.active));
 
 	enabled = HAS_PSR(dev) &&
 		I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
-	seq_printf(m, "Enabled: %s\n", yesno(enabled));
+	seq_printf(m, "HW Enabled & Active bit: %s\n", yesno(enabled));
 
 	if (HAS_PSR(dev))
 		psrperf = I915_READ(EDP_PSR_PERF_CNT(dev)) &
@@ -2223,9 +2231,12 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct intel_encoder *intel_encoder;
 
-	seq_printf(m, "\tfb: %d, pos: %dx%d, size: %dx%d\n",
-		   crtc->primary->fb->base.id, crtc->x, crtc->y,
-		   crtc->primary->fb->width, crtc->primary->fb->height);
+	if (crtc->primary->fb)
+		seq_printf(m, "\tfb: %d, pos: %dx%d, size: %dx%d\n",
+			   crtc->primary->fb->base.id, crtc->x, crtc->y,
+			   crtc->primary->fb->width, crtc->primary->fb->height);
+	else
+		seq_puts(m, "\tprimary plane disabled\n");
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
 		intel_encoder_info(m, intel_crtc, intel_encoder);
 }
@@ -2929,11 +2940,16 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	/* real source -> none transition */
 	if (source == INTEL_PIPE_CRC_SOURCE_NONE) {
 		struct intel_pipe_crc_entry *entries;
+		struct intel_crtc *crtc =
+			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
 		DRM_DEBUG_DRIVER("stopping CRCs for pipe %c\n",
 				 pipe_name(pipe));
 
-		intel_wait_for_vblank(dev, pipe);
+		drm_modeset_lock(&crtc->base.mutex, NULL);
+		if (crtc->active)
+			intel_wait_for_vblank(dev, pipe);
+		drm_modeset_unlock(&crtc->base.mutex);
 
 		spin_lock_irq(&pipe_crc->lock);
 		entries = pipe_crc->entries;
@@ -3506,7 +3522,7 @@ i915_max_freq_get(void *data, u64 *val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
@@ -3532,7 +3548,7 @@ i915_max_freq_set(void *data, u64 val)
 	u32 rp_state_cap, hw_max, hw_min;
 	int ret;
 
-	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
@@ -3587,7 +3603,7 @@ i915_min_freq_get(void *data, u64 *val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
@@ -3613,7 +3629,7 @@ i915_min_freq_set(void *data, u64 val)
 	u32 rp_state_cap, hw_max, hw_min;
 	int ret;
 
-	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);

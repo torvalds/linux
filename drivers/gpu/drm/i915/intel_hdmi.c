@@ -1229,6 +1229,70 @@ static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
+static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(encoder->base.crtc);
+	enum dpio_channel ch = vlv_dport_to_channel(dport);
+	enum pipe pipe = intel_crtc->pipe;
+	u32 val;
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	/* program left/right clock distribution */
+	if (pipe != PIPE_B) {
+		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW5_CH0);
+		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
+		if (ch == DPIO_CH0)
+			val |= CHV_BUFLEFTENA1_FORCE;
+		if (ch == DPIO_CH1)
+			val |= CHV_BUFRIGHTENA1_FORCE;
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW5_CH0, val);
+	} else {
+		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW1_CH1);
+		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
+		if (ch == DPIO_CH0)
+			val |= CHV_BUFLEFTENA2_FORCE;
+		if (ch == DPIO_CH1)
+			val |= CHV_BUFRIGHTENA2_FORCE;
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW1_CH1, val);
+	}
+
+	/* program clock channel usage */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(ch));
+	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
+	if (pipe != PIPE_B)
+		val &= ~CHV_PCS_USEDCLKCHANNEL;
+	else
+		val |= CHV_PCS_USEDCLKCHANNEL;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW8(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW8(ch));
+	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
+	if (pipe != PIPE_B)
+		val &= ~CHV_PCS_USEDCLKCHANNEL;
+	else
+		val |= CHV_PCS_USEDCLKCHANNEL;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW8(ch), val);
+
+	/*
+	 * This a a bit weird since generally CL
+	 * matches the pipe, but here we need to
+	 * pick the CL based on the port.
+	 */
+	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW19(ch));
+	if (pipe != PIPE_B)
+		val &= ~CHV_CMN_USEDCLKCHANNEL;
+	else
+		val |= CHV_CMN_USEDCLKCHANNEL;
+	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW19(ch), val);
+
+	mutex_unlock(&dev_priv->dpio_lock);
+}
+
 static void vlv_hdmi_post_disable(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
@@ -1528,6 +1592,7 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 	intel_encoder->get_config = intel_hdmi_get_config;
 	if (IS_CHERRYVIEW(dev)) {
+		intel_encoder->pre_pll_enable = chv_hdmi_pre_pll_enable;
 		intel_encoder->pre_enable = chv_hdmi_pre_enable;
 		intel_encoder->enable = vlv_enable_hdmi;
 		intel_encoder->post_disable = chv_hdmi_post_disable;

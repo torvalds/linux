@@ -292,9 +292,20 @@ static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj)
 	kfree(obj->pages);
 }
 
+
+static void
+i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
+{
+	if (obj->stolen) {
+		drm_mm_remove_node(obj->stolen);
+		kfree(obj->stolen);
+		obj->stolen = NULL;
+	}
+}
 static const struct drm_i915_gem_object_ops i915_gem_object_stolen_ops = {
 	.get_pages = i915_gem_object_get_pages_stolen,
 	.put_pages = i915_gem_object_put_pages_stolen,
+	.release = i915_gem_object_release_stolen,
 };
 
 static struct drm_i915_gem_object *
@@ -451,14 +462,4 @@ err_out:
 	kfree(stolen);
 	drm_gem_object_unreference(&obj->base);
 	return NULL;
-}
-
-void
-i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
-{
-	if (obj->stolen) {
-		drm_mm_remove_node(obj->stolen);
-		kfree(obj->stolen);
-		obj->stolen = NULL;
-	}
 }

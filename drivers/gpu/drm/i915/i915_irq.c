@@ -1214,6 +1214,9 @@ static void notify_ring(struct drm_device *dev,
 
 	trace_i915_gem_request_complete(ring);
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		intel_notify_mmio_flip(ring);
+
 	wake_up_all(&ring->irq_queue);
 	i915_queue_hangcheck(dev);
 }
@@ -1248,8 +1251,10 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
 		if (adj > 0)
 			adj *= 2;
-		else
-			adj = 1;
+		else {
+			/* CHV needs even encode values */
+			adj = IS_CHERRYVIEW(dev_priv->dev) ? 2 : 1;
+		}
 		new_delay = dev_priv->rps.cur_freq + adj;
 
 		/*
@@ -1267,8 +1272,10 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
 		if (adj < 0)
 			adj *= 2;
-		else
-			adj = -1;
+		else {
+			/* CHV needs even encode values */
+			adj = IS_CHERRYVIEW(dev_priv->dev) ? -2 : -1;
+		}
 		new_delay = dev_priv->rps.cur_freq + adj;
 	} else { /* unknown event */
 		new_delay = dev_priv->rps.cur_freq;
@@ -1454,6 +1461,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
 		tmp = I915_READ(GEN8_GT_IIR(0));
 		if (tmp) {
+			I915_WRITE(GEN8_GT_IIR(0), tmp);
 			ret = IRQ_HANDLED;
 			rcs = tmp >> GEN8_RCS_IRQ_SHIFT;
 			bcs = tmp >> GEN8_BCS_IRQ_SHIFT;
@@ -1461,7 +1469,6 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 				notify_ring(dev, &dev_priv->ring[RCS]);
 			if (bcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, &dev_priv->ring[BCS]);
-			I915_WRITE(GEN8_GT_IIR(0), tmp);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT0)!\n");
 	}
@@ -1469,6 +1476,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
 		tmp = I915_READ(GEN8_GT_IIR(1));
 		if (tmp) {
+			I915_WRITE(GEN8_GT_IIR(1), tmp);
 			ret = IRQ_HANDLED;
 			vcs = tmp >> GEN8_VCS1_IRQ_SHIFT;
 			if (vcs & GT_RENDER_USER_INTERRUPT)
@@ -1476,7 +1484,6 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 			vcs = tmp >> GEN8_VCS2_IRQ_SHIFT;
 			if (vcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, &dev_priv->ring[VCS2]);
-			I915_WRITE(GEN8_GT_IIR(1), tmp);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT1)!\n");
 	}
@@ -1484,10 +1491,10 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 	if (master_ctl & GEN8_GT_PM_IRQ) {
 		tmp = I915_READ(GEN8_GT_IIR(2));
 		if (tmp & dev_priv->pm_rps_events) {
-			ret = IRQ_HANDLED;
-			gen8_rps_irq_handler(dev_priv, tmp);
 			I915_WRITE(GEN8_GT_IIR(2),
 				   tmp & dev_priv->pm_rps_events);
+			ret = IRQ_HANDLED;
+			gen8_rps_irq_handler(dev_priv, tmp);
 		} else
 			DRM_ERROR("The master control interrupt lied (PM)!\n");
 	}
@@ -1495,11 +1502,11 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 	if (master_ctl & GEN8_GT_VECS_IRQ) {
 		tmp = I915_READ(GEN8_GT_IIR(3));
 		if (tmp) {
+			I915_WRITE(GEN8_GT_IIR(3), tmp);
 			ret = IRQ_HANDLED;
 			vcs = tmp >> GEN8_VECS_IRQ_SHIFT;
 			if (vcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, &dev_priv->ring[VECS]);
-			I915_WRITE(GEN8_GT_IIR(3), tmp);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT3)!\n");
 	}
@@ -1805,26 +1812,28 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
 
-	if (IS_G4X(dev)) {
-		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
+	if (hotplug_status) {
+		I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
+		/*
+		 * Make sure hotplug status is cleared before we clear IIR, or else we
+		 * may miss hotplug events.
+		 */
+		POSTING_READ(PORT_HOTPLUG_STAT);
 
-		intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_g4x);
-	} else {
-		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
+		if (IS_G4X(dev)) {
+			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
 
-		intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
+			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_g4x);
+		} else {
+			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
+
+			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
+		}
+
+		if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) &&
+		    hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
+			dp_aux_irq_handler(dev);
 	}
-
-	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) &&
-	    hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
-		dp_aux_irq_handler(dev);
-
-	I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
-	/*
-	 * Make sure hotplug status is cleared before we clear IIR, or else we
-	 * may miss hotplug events.
-	 */
-	POSTING_READ(PORT_HOTPLUG_STAT);
 }
 
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
@@ -1835,29 +1844,36 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 	irqreturn_t ret = IRQ_NONE;
 
 	while (true) {
-		iir = I915_READ(VLV_IIR);
+		/* Find, clear, then process each source of interrupt */
+
 		gt_iir = I915_READ(GTIIR);
+		if (gt_iir)
+			I915_WRITE(GTIIR, gt_iir);
+
 		pm_iir = I915_READ(GEN6_PMIIR);
+		if (pm_iir)
+			I915_WRITE(GEN6_PMIIR, pm_iir);
+
+		iir = I915_READ(VLV_IIR);
+		if (iir) {
+			/* Consume port before clearing IIR or we'll miss events */
+			if (iir & I915_DISPLAY_PORT_INTERRUPT)
+				i9xx_hpd_irq_handler(dev);
+			I915_WRITE(VLV_IIR, iir);
+		}
 
 		if (gt_iir == 0 && pm_iir == 0 && iir == 0)
 			goto out;
 
 		ret = IRQ_HANDLED;
 
-		snb_gt_irq_handler(dev, dev_priv, gt_iir);
-
-		valleyview_pipestat_irq_handler(dev, iir);
-
-		/* Consume port.  Then clear IIR or we'll miss events */
-		if (iir & I915_DISPLAY_PORT_INTERRUPT)
-			i9xx_hpd_irq_handler(dev);
-
+		if (gt_iir)
+			snb_gt_irq_handler(dev, dev_priv, gt_iir);
 		if (pm_iir)
 			gen6_rps_irq_handler(dev_priv, pm_iir);
-
-		I915_WRITE(GTIIR, gt_iir);
-		I915_WRITE(GEN6_PMIIR, pm_iir);
-		I915_WRITE(VLV_IIR, iir);
+		/* Call regardless, as some status bits might not be
+		 * signalled in iir */
+		valleyview_pipestat_irq_handler(dev, iir);
 	}
 
 out:
@@ -1878,21 +1894,27 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		if (master_ctl == 0 && iir == 0)
 			break;
 
+		ret = IRQ_HANDLED;
+
 		I915_WRITE(GEN8_MASTER_IRQ, 0);
+
+		/* Find, clear, then process each source of interrupt */
+
+		if (iir) {
+			/* Consume port before clearing IIR or we'll miss events */
+			if (iir & I915_DISPLAY_PORT_INTERRUPT)
+				i9xx_hpd_irq_handler(dev);
+			I915_WRITE(VLV_IIR, iir);
+		}
 
 		gen8_gt_irq_handler(dev, dev_priv, master_ctl);
 
+		/* Call regardless, as some status bits might not be
+		 * signalled in iir */
 		valleyview_pipestat_irq_handler(dev, iir);
-
-		/* Consume port.  Then clear IIR or we'll miss events */
-		i9xx_hpd_irq_handler(dev);
-
-		I915_WRITE(VLV_IIR, iir);
 
 		I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
-
-		ret = IRQ_HANDLED;
 	}
 
 	return ret;
@@ -2128,6 +2150,14 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	}
 }
 
+/*
+ * To handle irqs with the minimum potential races with fresh interrupts, we:
+ * 1 - Disable Master Interrupt Control.
+ * 2 - Find the source(s) of the interrupt.
+ * 3 - Clear the Interrupt Identity bits (IIR).
+ * 4 - Process the interrupt(s) that had bits set in the IIRs.
+ * 5 - Re-enable Master Interrupt Control.
+ */
 static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
@@ -2155,32 +2185,34 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		POSTING_READ(SDEIER);
 	}
 
+	/* Find, clear, then process each source of interrupt */
+
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
+		I915_WRITE(GTIIR, gt_iir);
+		ret = IRQ_HANDLED;
 		if (INTEL_INFO(dev)->gen >= 6)
 			snb_gt_irq_handler(dev, dev_priv, gt_iir);
 		else
 			ilk_gt_irq_handler(dev, dev_priv, gt_iir);
-		I915_WRITE(GTIIR, gt_iir);
-		ret = IRQ_HANDLED;
 	}
 
 	de_iir = I915_READ(DEIIR);
 	if (de_iir) {
+		I915_WRITE(DEIIR, de_iir);
+		ret = IRQ_HANDLED;
 		if (INTEL_INFO(dev)->gen >= 7)
 			ivb_display_irq_handler(dev, de_iir);
 		else
 			ilk_display_irq_handler(dev, de_iir);
-		I915_WRITE(DEIIR, de_iir);
-		ret = IRQ_HANDLED;
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		u32 pm_iir = I915_READ(GEN6_PMIIR);
 		if (pm_iir) {
-			gen6_rps_irq_handler(dev_priv, pm_iir);
 			I915_WRITE(GEN6_PMIIR, pm_iir);
 			ret = IRQ_HANDLED;
+			gen6_rps_irq_handler(dev_priv, pm_iir);
 		}
 	}
 
@@ -2211,36 +2243,36 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
+	/* Find, clear, then process each source of interrupt */
+
 	ret = gen8_gt_irq_handler(dev, dev_priv, master_ctl);
 
 	if (master_ctl & GEN8_DE_MISC_IRQ) {
 		tmp = I915_READ(GEN8_DE_MISC_IIR);
-		if (tmp & GEN8_DE_MISC_GSE)
-			intel_opregion_asle_intr(dev);
-		else if (tmp)
-			DRM_ERROR("Unexpected DE Misc interrupt\n");
-		else
-			DRM_ERROR("The master control interrupt lied (DE MISC)!\n");
-
 		if (tmp) {
 			I915_WRITE(GEN8_DE_MISC_IIR, tmp);
 			ret = IRQ_HANDLED;
+			if (tmp & GEN8_DE_MISC_GSE)
+				intel_opregion_asle_intr(dev);
+			else
+				DRM_ERROR("Unexpected DE Misc interrupt\n");
 		}
+		else
+			DRM_ERROR("The master control interrupt lied (DE MISC)!\n");
 	}
 
 	if (master_ctl & GEN8_DE_PORT_IRQ) {
 		tmp = I915_READ(GEN8_DE_PORT_IIR);
-		if (tmp & GEN8_AUX_CHANNEL_A)
-			dp_aux_irq_handler(dev);
-		else if (tmp)
-			DRM_ERROR("Unexpected DE Port interrupt\n");
-		else
-			DRM_ERROR("The master control interrupt lied (DE PORT)!\n");
-
 		if (tmp) {
 			I915_WRITE(GEN8_DE_PORT_IIR, tmp);
 			ret = IRQ_HANDLED;
+			if (tmp & GEN8_AUX_CHANNEL_A)
+				dp_aux_irq_handler(dev);
+			else
+				DRM_ERROR("Unexpected DE Port interrupt\n");
 		}
+		else
+			DRM_ERROR("The master control interrupt lied (DE PORT)!\n");
 	}
 
 	for_each_pipe(pipe) {
@@ -2250,33 +2282,32 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 			continue;
 
 		pipe_iir = I915_READ(GEN8_DE_PIPE_IIR(pipe));
-		if (pipe_iir & GEN8_PIPE_VBLANK)
-			intel_pipe_handle_vblank(dev, pipe);
-
-		if (pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE) {
-			intel_prepare_page_flip(dev, pipe);
-			intel_finish_page_flip_plane(dev, pipe);
-		}
-
-		if (pipe_iir & GEN8_PIPE_CDCLK_CRC_DONE)
-			hsw_pipe_crc_irq_handler(dev, pipe);
-
-		if (pipe_iir & GEN8_PIPE_FIFO_UNDERRUN) {
-			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe,
-								  false))
-				DRM_ERROR("Pipe %c FIFO underrun\n",
-					  pipe_name(pipe));
-		}
-
-		if (pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS) {
-			DRM_ERROR("Fault errors on pipe %c\n: 0x%08x",
-				  pipe_name(pipe),
-				  pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS);
-		}
-
 		if (pipe_iir) {
 			ret = IRQ_HANDLED;
 			I915_WRITE(GEN8_DE_PIPE_IIR(pipe), pipe_iir);
+			if (pipe_iir & GEN8_PIPE_VBLANK)
+				intel_pipe_handle_vblank(dev, pipe);
+
+			if (pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE) {
+				intel_prepare_page_flip(dev, pipe);
+				intel_finish_page_flip_plane(dev, pipe);
+			}
+
+			if (pipe_iir & GEN8_PIPE_CDCLK_CRC_DONE)
+				hsw_pipe_crc_irq_handler(dev, pipe);
+
+			if (pipe_iir & GEN8_PIPE_FIFO_UNDERRUN) {
+				if (intel_set_cpu_fifo_underrun_reporting(dev, pipe,
+									  false))
+					DRM_ERROR("Pipe %c FIFO underrun\n",
+						  pipe_name(pipe));
+			}
+
+			if (pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS) {
+				DRM_ERROR("Fault errors on pipe %c\n: 0x%08x",
+					  pipe_name(pipe),
+					  pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS);
+			}
 		} else
 			DRM_ERROR("The master control interrupt lied (DE PIPE)!\n");
 	}
@@ -2288,13 +2319,13 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		 * on older pch-split platforms. But this needs testing.
 		 */
 		u32 pch_iir = I915_READ(SDEIIR);
-
-		cpt_irq_handler(dev, pch_iir);
-
 		if (pch_iir) {
 			I915_WRITE(SDEIIR, pch_iir);
 			ret = IRQ_HANDLED;
-		}
+			cpt_irq_handler(dev, pch_iir);
+		} else
+			DRM_ERROR("The master control interrupt lied (SDE)!\n");
+
 	}
 
 	I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);

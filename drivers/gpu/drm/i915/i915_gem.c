@@ -1095,7 +1095,7 @@ i915_gem_check_wedge(struct i915_gpu_error *error,
  * Compare seqno against outstanding lazy request. Emit a request if they are
  * equal.
  */
-static int
+int
 i915_gem_check_olr(struct intel_engine_cs *ring, u32 seqno)
 {
 	int ret;
@@ -1561,14 +1561,29 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (ret)
 		goto unpin;
 
-	obj->fault_mappable = true;
-
+	/* Finally, remap it using the new GTT offset */
 	pfn = dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj);
 	pfn >>= PAGE_SHIFT;
-	pfn += page_offset;
 
-	/* Finally, remap it using the new GTT offset */
-	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
+	if (!obj->fault_mappable) {
+		unsigned long size = min_t(unsigned long,
+					   vma->vm_end - vma->vm_start,
+					   obj->base.size);
+		int i;
+
+		for (i = 0; i < size >> PAGE_SHIFT; i++) {
+			ret = vm_insert_pfn(vma,
+					    (unsigned long)vma->vm_start + i * PAGE_SIZE,
+					    pfn + i);
+			if (ret)
+				break;
+		}
+
+		obj->fault_mappable = true;
+	} else
+		ret = vm_insert_pfn(vma,
+				    (unsigned long)vmf->virtual_address,
+				    pfn + page_offset);
 unpin:
 	i915_gem_object_ggtt_unpin(obj);
 unlock:
@@ -1616,22 +1631,6 @@ out:
 	return ret;
 }
 
-void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv)
-{
-	struct i915_vma *vma;
-
-	/*
-	 * Only the global gtt is relevant for gtt memory mappings, so restrict
-	 * list traversal to objects bound into the global address space. Note
-	 * that the active list should be empty, but better safe than sorry.
-	 */
-	WARN_ON(!list_empty(&dev_priv->gtt.base.active_list));
-	list_for_each_entry(vma, &dev_priv->gtt.base.active_list, mm_list)
-		i915_gem_release_mmap(vma->obj);
-	list_for_each_entry(vma, &dev_priv->gtt.base.inactive_list, mm_list)
-		i915_gem_release_mmap(vma->obj);
-}
-
 /**
  * i915_gem_release_mmap - remove physical page mappings
  * @obj: obj in question
@@ -1655,6 +1654,15 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	drm_vma_node_unmap(&obj->base.vma_node,
 			   obj->base.dev->anon_inode->i_mapping);
 	obj->fault_mappable = false;
+}
+
+void
+i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv)
+{
+	struct drm_i915_gem_object *obj;
+
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
+		i915_gem_release_mmap(obj);
 }
 
 uint32_t
@@ -2210,6 +2218,8 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 		if (vma && !list_empty(&vma->mm_list))
 			list_move_tail(&vma->mm_list, &vm->inactive_list);
 	}
+
+	intel_fb_obj_flush(obj, true);
 
 	list_del_init(&obj->ring_list);
 	obj->ring = NULL;
@@ -3540,6 +3550,8 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
 
+	intel_fb_obj_flush(obj, false);
+
 	trace_i915_gem_object_change_domain(obj,
 					    obj->base.read_domains,
 					    old_write_domain);
@@ -3560,6 +3572,8 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj,
 
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
+
+	intel_fb_obj_flush(obj, false);
 
 	trace_i915_gem_object_change_domain(obj,
 					    obj->base.read_domains,
@@ -3613,6 +3627,9 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 		obj->base.write_domain = I915_GEM_DOMAIN_GTT;
 		obj->dirty = 1;
 	}
+
+	if (write)
+		intel_fb_obj_invalidate(obj, NULL);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -3949,6 +3966,9 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	}
+
+	if (write)
+		intel_fb_obj_invalidate(obj, NULL);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -4438,13 +4458,14 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	if (obj->stolen)
 		i915_gem_object_unpin_pages(obj);
 
+	WARN_ON(obj->frontbuffer_bits);
+
 	if (WARN_ON(obj->pages_pin_count))
 		obj->pages_pin_count = 0;
 	if (discard_backing_storage(obj))
 		obj->madv = I915_MADV_DONTNEED;
 	i915_gem_object_put_pages(obj);
 	i915_gem_object_free_mmap_offset(obj);
-	i915_gem_object_release_stolen(obj);
 
 	BUG_ON(obj->pages);
 
@@ -4922,6 +4943,8 @@ i915_gem_load(struct drm_device *dev)
 
 	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
 	register_oom_notifier(&dev_priv->mm.oom_notifier);
+
+	mutex_init(&dev_priv->fb_tracking.lock);
 }
 
 void i915_gem_release(struct drm_device *dev, struct drm_file *file)
@@ -4981,6 +5004,23 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 		kfree(file_priv);
 
 	return ret;
+}
+
+void i915_gem_track_fb(struct drm_i915_gem_object *old,
+		       struct drm_i915_gem_object *new,
+		       unsigned frontbuffer_bits)
+{
+	if (old) {
+		WARN_ON(!mutex_is_locked(&old->base.dev->struct_mutex));
+		WARN_ON(!(old->frontbuffer_bits & frontbuffer_bits));
+		old->frontbuffer_bits &= ~frontbuffer_bits;
+	}
+
+	if (new) {
+		WARN_ON(!mutex_is_locked(&new->base.dev->struct_mutex));
+		WARN_ON(new->frontbuffer_bits & frontbuffer_bits);
+		new->frontbuffer_bits |= frontbuffer_bits;
+	}
 }
 
 static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
@@ -5065,12 +5105,13 @@ unsigned long i915_gem_obj_offset(struct drm_i915_gem_object *o,
 	    vm == &dev_priv->mm.aliasing_ppgtt->base)
 		vm = &dev_priv->gtt.base;
 
-	BUG_ON(list_empty(&o->vma_list));
 	list_for_each_entry(vma, &o->vma_list, vma_link) {
 		if (vma->vm == vm)
 			return vma->node.start;
 
 	}
+	WARN(1, "%s vma for this object not found.\n",
+	     i915_is_ggtt(vm) ? "global" : "ppgtt");
 	return -1;
 }
 

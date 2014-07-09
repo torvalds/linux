@@ -606,7 +606,7 @@ static int do_switch(struct intel_engine_cs *ring,
 		BUG_ON(!i915_gem_obj_is_pinned(from->obj));
 	}
 
-	if (from == to && from->last_ring == ring && !to->remap_slice)
+	if (from == to && !to->remap_slice)
 		return 0;
 
 	/* Trying to pin first makes error handling easier. */
@@ -703,7 +703,6 @@ static int do_switch(struct intel_engine_cs *ring,
 done:
 	i915_gem_context_reference(to);
 	ring->last_context = to;
-	to->last_ring = ring;
 
 	if (uninitialized) {
 		ret = i915_gem_render_state_init(ring);

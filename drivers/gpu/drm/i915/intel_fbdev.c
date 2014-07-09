@@ -43,10 +43,36 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+static int intel_fbdev_set_par(struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct intel_fbdev *ifbdev =
+		container_of(fb_helper, struct intel_fbdev, helper);
+	int ret;
+
+	ret = drm_fb_helper_set_par(info);
+
+	if (ret == 0) {
+		/*
+		 * FIXME: fbdev presumes that all callbacks also work from
+		 * atomic contexts and relies on that for emergency oops
+		 * printing. KMS totally doesn't do that and the locking here is
+		 * by far not the only place this goes wrong.  Ignore this for
+		 * now until we solve this for real.
+		 */
+		mutex_lock(&fb_helper->dev->struct_mutex);
+		ret = i915_gem_object_set_to_gtt_domain(ifbdev->fb->obj,
+							true);
+		mutex_unlock(&fb_helper->dev->struct_mutex);
+	}
+
+	return ret;
+}
+
 static struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
+	.fb_set_par = intel_fbdev_set_par,
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
@@ -417,7 +443,7 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 		}
 		crtcs[i] = new_crtc;
 
-		DRM_DEBUG_KMS("connector %s on pipe %d [CRTC:%d]: %dx%d%s\n",
+		DRM_DEBUG_KMS("connector %s on pipe %c [CRTC:%d]: %dx%d%s\n",
 			      connector->name,
 			      pipe_name(to_intel_crtc(encoder->crtc)->pipe),
 			      encoder->crtc->base.id,

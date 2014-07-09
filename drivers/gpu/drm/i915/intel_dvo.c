@@ -112,7 +112,15 @@ static struct intel_dvo *intel_attached_dvo(struct drm_connector *connector)
 
 static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
 {
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dvo *intel_dvo = intel_attached_dvo(&connector->base);
+	u32 tmp;
+
+	tmp = I915_READ(intel_dvo->dev.dvo_reg);
+
+	if (!(tmp & DVO_ENABLE))
+		return false;
 
 	return intel_dvo->dev.dev_ops->get_hw_state(&intel_dvo->dev);
 }

@@ -604,6 +604,8 @@ static int init_render_ring(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = init_ring_common(ring);
+	if (ret)
+		return ret;
 
 	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
 	if (INTEL_INFO(dev)->gen >= 4 && INTEL_INFO(dev)->gen < 7)
@@ -1397,6 +1399,9 @@ static int allocate_ring_buffer(struct intel_engine_cs *ring)
 	if (obj == NULL)
 		return -ENOMEM;
 
+	/* mark ring buffers as read-only from GPU side by default */
+	obj->gt_ro = 1;
+
 	ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
 	if (ret)
 		goto err_unref;
@@ -1746,14 +1751,15 @@ int intel_ring_cacheline_align(struct intel_engine_cs *ring)
 
 void intel_ring_init_seqno(struct intel_engine_cs *ring, u32 seqno)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	BUG_ON(ring->outstanding_lazy_seqno);
 
-	if (INTEL_INFO(ring->dev)->gen >= 6) {
+	if (INTEL_INFO(dev)->gen == 6 || INTEL_INFO(dev)->gen == 7) {
 		I915_WRITE(RING_SYNC_0(ring->mmio_base), 0);
 		I915_WRITE(RING_SYNC_1(ring->mmio_base), 0);
-		if (HAS_VEBOX(ring->dev))
+		if (HAS_VEBOX(dev))
 			I915_WRITE(RING_SYNC_2(ring->mmio_base), 0);
 	}
 

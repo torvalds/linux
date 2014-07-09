@@ -415,6 +415,10 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	}
 
 	intel_overlay_release_old_vid_tail(overlay);
+
+
+	i915_gem_track_fb(overlay->old_vid_bo, NULL,
+			  INTEL_FRONTBUFFER_OVERLAY(overlay->crtc->pipe));
 	return 0;
 }
 
@@ -686,6 +690,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	bool scale_changed = false;
 	struct drm_device *dev = overlay->dev;
 	u32 swidth, swidthsw, sheight, ostride;
+	enum pipe pipe = overlay->crtc->pipe;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 	BUG_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
@@ -713,7 +718,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 		oconfig = OCONF_CC_OUT_8BIT;
 		if (IS_GEN4(overlay->dev))
 			oconfig |= OCONF_CSC_MODE_BT709;
-		oconfig |= overlay->crtc->pipe == 0 ?
+		oconfig |= pipe == 0 ?
 			OCONF_PIPE_A : OCONF_PIPE_B;
 		iowrite32(oconfig, &regs->OCONFIG);
 		intel_overlay_unmap_regs(overlay, regs);
@@ -776,8 +781,14 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret)
 		goto out_unpin;
 
+	i915_gem_track_fb(overlay->vid_bo, new_bo,
+			  INTEL_FRONTBUFFER_OVERLAY(pipe));
+
 	overlay->old_vid_bo = overlay->vid_bo;
 	overlay->vid_bo = new_bo;
+
+	intel_frontbuffer_flip(dev,
+			       INTEL_FRONTBUFFER_OVERLAY(pipe));
 
 	return 0;
 

@@ -529,7 +529,10 @@ void intel_update_fbc(struct drm_device *dev)
 		goto out_disable;
 	}
 
-	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+	if (INTEL_INFO(dev)->gen >= 8 || IS_HASWELL(dev)) {
+		max_width = 4096;
+		max_height = 4096;
+	} else if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
 		max_width = 4096;
 		max_height = 2048;
 	} else {
@@ -864,95 +867,95 @@ static int i845_get_fifo_size(struct drm_device *dev, int plane)
 
 /* Pineview has different values for various configs */
 static const struct intel_watermark_params pineview_display_wm = {
-	PINEVIEW_DISPLAY_FIFO,
-	PINEVIEW_MAX_WM,
-	PINEVIEW_DFT_WM,
-	PINEVIEW_GUARD_WM,
-	PINEVIEW_FIFO_LINE_SIZE
+	.fifo_size = PINEVIEW_DISPLAY_FIFO,
+	.max_wm = PINEVIEW_MAX_WM,
+	.default_wm = PINEVIEW_DFT_WM,
+	.guard_size = PINEVIEW_GUARD_WM,
+	.cacheline_size = PINEVIEW_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params pineview_display_hplloff_wm = {
-	PINEVIEW_DISPLAY_FIFO,
-	PINEVIEW_MAX_WM,
-	PINEVIEW_DFT_HPLLOFF_WM,
-	PINEVIEW_GUARD_WM,
-	PINEVIEW_FIFO_LINE_SIZE
+	.fifo_size = PINEVIEW_DISPLAY_FIFO,
+	.max_wm = PINEVIEW_MAX_WM,
+	.default_wm = PINEVIEW_DFT_HPLLOFF_WM,
+	.guard_size = PINEVIEW_GUARD_WM,
+	.cacheline_size = PINEVIEW_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params pineview_cursor_wm = {
-	PINEVIEW_CURSOR_FIFO,
-	PINEVIEW_CURSOR_MAX_WM,
-	PINEVIEW_CURSOR_DFT_WM,
-	PINEVIEW_CURSOR_GUARD_WM,
-	PINEVIEW_FIFO_LINE_SIZE,
+	.fifo_size = PINEVIEW_CURSOR_FIFO,
+	.max_wm = PINEVIEW_CURSOR_MAX_WM,
+	.default_wm = PINEVIEW_CURSOR_DFT_WM,
+	.guard_size = PINEVIEW_CURSOR_GUARD_WM,
+	.cacheline_size = PINEVIEW_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params pineview_cursor_hplloff_wm = {
-	PINEVIEW_CURSOR_FIFO,
-	PINEVIEW_CURSOR_MAX_WM,
-	PINEVIEW_CURSOR_DFT_WM,
-	PINEVIEW_CURSOR_GUARD_WM,
-	PINEVIEW_FIFO_LINE_SIZE
+	.fifo_size = PINEVIEW_CURSOR_FIFO,
+	.max_wm = PINEVIEW_CURSOR_MAX_WM,
+	.default_wm = PINEVIEW_CURSOR_DFT_WM,
+	.guard_size = PINEVIEW_CURSOR_GUARD_WM,
+	.cacheline_size = PINEVIEW_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params g4x_wm_info = {
-	G4X_FIFO_SIZE,
-	G4X_MAX_WM,
-	G4X_MAX_WM,
-	2,
-	G4X_FIFO_LINE_SIZE,
+	.fifo_size = G4X_FIFO_SIZE,
+	.max_wm = G4X_MAX_WM,
+	.default_wm = G4X_MAX_WM,
+	.guard_size = 2,
+	.cacheline_size = G4X_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params g4x_cursor_wm_info = {
-	I965_CURSOR_FIFO,
-	I965_CURSOR_MAX_WM,
-	I965_CURSOR_DFT_WM,
-	2,
-	G4X_FIFO_LINE_SIZE,
+	.fifo_size = I965_CURSOR_FIFO,
+	.max_wm = I965_CURSOR_MAX_WM,
+	.default_wm = I965_CURSOR_DFT_WM,
+	.guard_size = 2,
+	.cacheline_size = G4X_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params valleyview_wm_info = {
-	VALLEYVIEW_FIFO_SIZE,
-	VALLEYVIEW_MAX_WM,
-	VALLEYVIEW_MAX_WM,
-	2,
-	G4X_FIFO_LINE_SIZE,
+	.fifo_size = VALLEYVIEW_FIFO_SIZE,
+	.max_wm = VALLEYVIEW_MAX_WM,
+	.default_wm = VALLEYVIEW_MAX_WM,
+	.guard_size = 2,
+	.cacheline_size = G4X_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params valleyview_cursor_wm_info = {
-	I965_CURSOR_FIFO,
-	VALLEYVIEW_CURSOR_MAX_WM,
-	I965_CURSOR_DFT_WM,
-	2,
-	G4X_FIFO_LINE_SIZE,
+	.fifo_size = I965_CURSOR_FIFO,
+	.max_wm = VALLEYVIEW_CURSOR_MAX_WM,
+	.default_wm = I965_CURSOR_DFT_WM,
+	.guard_size = 2,
+	.cacheline_size = G4X_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params i965_cursor_wm_info = {
-	I965_CURSOR_FIFO,
-	I965_CURSOR_MAX_WM,
-	I965_CURSOR_DFT_WM,
-	2,
-	I915_FIFO_LINE_SIZE,
+	.fifo_size = I965_CURSOR_FIFO,
+	.max_wm = I965_CURSOR_MAX_WM,
+	.default_wm = I965_CURSOR_DFT_WM,
+	.guard_size = 2,
+	.cacheline_size = I915_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params i945_wm_info = {
-	I945_FIFO_SIZE,
-	I915_MAX_WM,
-	1,
-	2,
-	I915_FIFO_LINE_SIZE
+	.fifo_size = I945_FIFO_SIZE,
+	.max_wm = I915_MAX_WM,
+	.default_wm = 1,
+	.guard_size = 2,
+	.cacheline_size = I915_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params i915_wm_info = {
-	I915_FIFO_SIZE,
-	I915_MAX_WM,
-	1,
-	2,
-	I915_FIFO_LINE_SIZE
+	.fifo_size = I915_FIFO_SIZE,
+	.max_wm = I915_MAX_WM,
+	.default_wm = 1,
+	.guard_size = 2,
+	.cacheline_size = I915_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params i830_wm_info = {
-	I855GM_FIFO_SIZE,
-	I915_MAX_WM,
-	1,
-	2,
-	I830_FIFO_LINE_SIZE
+	.fifo_size = I855GM_FIFO_SIZE,
+	.max_wm = I915_MAX_WM,
+	.default_wm = 1,
+	.guard_size = 2,
+	.cacheline_size = I830_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params i845_wm_info = {
-	I830_FIFO_SIZE,
-	I915_MAX_WM,
-	1,
-	2,
-	I830_FIFO_LINE_SIZE
+	.fifo_size = I830_FIFO_SIZE,
+	.max_wm = I915_MAX_WM,
+	.default_wm = 1,
+	.guard_size = 2,
+	.cacheline_size = I830_FIFO_LINE_SIZE,
 };
 
 /**
@@ -3348,6 +3351,13 @@ static void gen6_disable_rps(struct drm_device *dev)
 		gen6_disable_rps_interrupts(dev);
 }
 
+static void cherryview_disable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(GEN6_RC_CONTROL, 0);
+}
+
 static void valleyview_disable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3727,6 +3737,35 @@ void gen6_update_ring_freq(struct drm_device *dev)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
+int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
+{
+	u32 val, rp0;
+
+	val = vlv_punit_read(dev_priv, PUNIT_GPU_STATUS_REG);
+	rp0 = (val >> PUNIT_GPU_STATUS_MAX_FREQ_SHIFT) & PUNIT_GPU_STATUS_MAX_FREQ_MASK;
+
+	return rp0;
+}
+
+static int cherryview_rps_rpe_freq(struct drm_i915_private *dev_priv)
+{
+	u32 val, rpe;
+
+	val = vlv_punit_read(dev_priv, PUNIT_GPU_DUTYCYCLE_REG);
+	rpe = (val >> PUNIT_GPU_DUTYCYCLE_RPE_FREQ_SHIFT) & PUNIT_GPU_DUTYCYCLE_RPE_FREQ_MASK;
+
+	return rpe;
+}
+
+int cherryview_rps_min_freq(struct drm_i915_private *dev_priv)
+{
+	u32 val, rpn;
+
+	val = vlv_punit_read(dev_priv, PUNIT_GPU_STATUS_REG);
+	rpn = (val >> PUNIT_GPU_STATIS_GFX_MIN_FREQ_SHIFT) & PUNIT_GPU_STATUS_GFX_MIN_FREQ_MASK;
+	return rpn;
+}
+
 int valleyview_rps_max_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rp0;
@@ -3764,6 +3803,35 @@ static void valleyview_check_pctx(struct drm_i915_private *dev_priv)
 
 	WARN_ON(pctx_addr != dev_priv->mm.stolen_base +
 			     dev_priv->vlv_pctx->stolen->start);
+}
+
+
+/* Check that the pcbr address is not empty. */
+static void cherryview_check_pctx(struct drm_i915_private *dev_priv)
+{
+	unsigned long pctx_addr = I915_READ(VLV_PCBR) & ~4095;
+
+	WARN_ON((pctx_addr >> VLV_PCBR_ADDR_SHIFT) == 0);
+}
+
+static void cherryview_setup_pctx(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long pctx_paddr, paddr;
+	struct i915_gtt *gtt = &dev_priv->gtt;
+	u32 pcbr;
+	int pctx_size = 32*1024;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	pcbr = I915_READ(VLV_PCBR);
+	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
+		paddr = (dev_priv->mm.stolen_base +
+			 (gtt->stolen_size - pctx_size));
+
+		pctx_paddr = (paddr & (~4095));
+		I915_WRITE(VLV_PCBR, pctx_paddr);
+	}
 }
 
 static void valleyview_setup_pctx(struct drm_device *dev)
@@ -3855,9 +3923,133 @@ static void valleyview_init_gt_powersave(struct drm_device *dev)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
+static void cherryview_init_gt_powersave(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	cherryview_setup_pctx(dev);
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	dev_priv->rps.max_freq = cherryview_rps_max_freq(dev_priv);
+	dev_priv->rps.rp0_freq = dev_priv->rps.max_freq;
+	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq),
+			 dev_priv->rps.max_freq);
+
+	dev_priv->rps.efficient_freq = cherryview_rps_rpe_freq(dev_priv);
+	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
+			 dev_priv->rps.efficient_freq);
+
+	dev_priv->rps.min_freq = cherryview_rps_min_freq(dev_priv);
+	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq),
+			 dev_priv->rps.min_freq);
+
+	/* Preserve min/max settings in case of re-init */
+	if (dev_priv->rps.max_freq_softlimit == 0)
+		dev_priv->rps.max_freq_softlimit = dev_priv->rps.max_freq;
+
+	if (dev_priv->rps.min_freq_softlimit == 0)
+		dev_priv->rps.min_freq_softlimit = dev_priv->rps.min_freq;
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
 static void valleyview_cleanup_gt_powersave(struct drm_device *dev)
 {
 	valleyview_cleanup_pctx(dev);
+}
+
+static void cherryview_enable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
+	u32 gtfifodbg, val, rc6_mode = 0, pcbr;
+	int i;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+
+	gtfifodbg = I915_READ(GTFIFODBG);
+	if (gtfifodbg) {
+		DRM_DEBUG_DRIVER("GT fifo had a previous error %x\n",
+				 gtfifodbg);
+		I915_WRITE(GTFIFODBG, gtfifodbg);
+	}
+
+	cherryview_check_pctx(dev_priv);
+
+	/* 1a & 1b: Get forcewake during program sequence. Although the driver
+	 * hasn't enabled a state yet where we need forcewake, BIOS may have.*/
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+
+	/* 2a: Program RC6 thresholds.*/
+	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 40 << 16);
+	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
+	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
+
+	for_each_ring(ring, dev_priv, i)
+		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
+	I915_WRITE(GEN6_RC_SLEEP, 0);
+
+	I915_WRITE(GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
+
+	/* allows RC6 residency counter to work */
+	I915_WRITE(VLV_COUNTER_CONTROL,
+		   _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH |
+				      VLV_MEDIA_RC6_COUNT_EN |
+				      VLV_RENDER_RC6_COUNT_EN));
+
+	/* For now we assume BIOS is allocating and populating the PCBR  */
+	pcbr = I915_READ(VLV_PCBR);
+
+	DRM_DEBUG_DRIVER("PCBR offset : 0x%x\n", pcbr);
+
+	/* 3: Enable RC6 */
+	if ((intel_enable_rc6(dev) & INTEL_RC6_ENABLE) &&
+						(pcbr >> VLV_PCBR_ADDR_SHIFT))
+		rc6_mode = GEN6_RC_CTL_EI_MODE(1);
+
+	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
+
+	/* 4 Program defaults and thresholds for RPS*/
+	I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
+	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 245000);
+	I915_WRITE(GEN6_RP_UP_EI, 66000);
+	I915_WRITE(GEN6_RP_DOWN_EI, 350000);
+
+	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
+
+	/* WaDisablePwrmtrEvent:chv (pre-production hw) */
+	I915_WRITE(0xA80C, I915_READ(0xA80C) & 0x00ffffff);
+	I915_WRITE(0xA810, I915_READ(0xA810) & 0xffffff00);
+
+	/* 5: Enable RPS */
+	I915_WRITE(GEN6_RP_CONTROL,
+		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
+		   GEN6_RP_MEDIA_IS_GFX | /* WaSetMaskForGfxBusyness:chv (pre-production hw ?) */
+		   GEN6_RP_ENABLE |
+		   GEN6_RP_UP_BUSY_AVG |
+		   GEN6_RP_DOWN_IDLE_AVG);
+
+	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+
+	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", val & 0x10 ? "yes" : "no");
+	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
+
+	dev_priv->rps.cur_freq = (val >> 8) & 0xff;
+	DRM_DEBUG_DRIVER("current GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
+			 dev_priv->rps.cur_freq);
+
+	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
+			 dev_priv->rps.efficient_freq);
+
+	valleyview_set_rps(dev_priv->dev, dev_priv->rps.efficient_freq);
+
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
 
 static void valleyview_enable_rps(struct drm_device *dev)
@@ -4668,14 +4860,38 @@ void intel_init_gt_powersave(struct drm_device *dev)
 {
 	i915.enable_rc6 = sanitize_rc6_option(dev, i915.enable_rc6);
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_CHERRYVIEW(dev))
+		cherryview_init_gt_powersave(dev);
+	else if (IS_VALLEYVIEW(dev))
 		valleyview_init_gt_powersave(dev);
 }
 
 void intel_cleanup_gt_powersave(struct drm_device *dev)
 {
-	if (IS_VALLEYVIEW(dev))
+	if (IS_CHERRYVIEW(dev))
+		return;
+	else if (IS_VALLEYVIEW(dev))
 		valleyview_cleanup_gt_powersave(dev);
+}
+
+/**
+ * intel_suspend_gt_powersave - suspend PM work and helper threads
+ * @dev: drm device
+ *
+ * We don't want to disable RC6 or other features here, we just want
+ * to make sure any work we've queued has finished and won't bother
+ * us while we're suspended.
+ */
+void intel_suspend_gt_powersave(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Interrupts should be disabled already to avoid re-arming. */
+	WARN_ON(dev->irq_enabled && !dev_priv->pm.irqs_disabled);
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
+	cancel_work_sync(&dev_priv->rps.work);
 }
 
 void intel_disable_gt_powersave(struct drm_device *dev)
@@ -4683,18 +4899,18 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* Interrupts should be disabled already to avoid re-arming. */
-	WARN_ON(dev->irq_enabled);
+	WARN_ON(dev->irq_enabled && !dev_priv->pm.irqs_disabled);
 
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_disable_drps(dev);
 		ironlake_disable_rc6(dev);
-	} else if (IS_GEN6(dev) || IS_GEN7(dev) || IS_BROADWELL(dev)) {
-		if (cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work))
-			intel_runtime_pm_put(dev_priv);
+	} else if (INTEL_INFO(dev)->gen >= 6) {
+		intel_suspend_gt_powersave(dev);
 
-		cancel_work_sync(&dev_priv->rps.work);
 		mutex_lock(&dev_priv->rps.hw_lock);
-		if (IS_VALLEYVIEW(dev))
+		if (IS_CHERRYVIEW(dev))
+			cherryview_disable_rps(dev);
+		else if (IS_VALLEYVIEW(dev))
 			valleyview_disable_rps(dev);
 		else
 			gen6_disable_rps(dev);
@@ -4712,7 +4928,9 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev)) {
+		cherryview_enable_rps(dev);
+	} else if (IS_VALLEYVIEW(dev)) {
 		valleyview_enable_rps(dev);
 	} else if (IS_BROADWELL(dev)) {
 		gen8_enable_rps(dev);
@@ -4737,7 +4955,7 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 		ironlake_enable_rc6(dev);
 		intel_init_emon(dev);
 		mutex_unlock(&dev->struct_mutex);
-	} else if (IS_GEN6(dev) || IS_GEN7(dev) || IS_BROADWELL(dev)) {
+	} else if (INTEL_INFO(dev)->gen >= 6) {
 		/*
 		 * PCU communication is slow and this doesn't need to be
 		 * done at any specific time, so do this out of our fast path
