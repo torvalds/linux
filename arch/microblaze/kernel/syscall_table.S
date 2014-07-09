@@ -383,3 +383,4 @@ ENTRY(sys_call_table)
 	.long sys_finit_module		/* 380 */
 	.long sys_sched_setattr
 	.long sys_sched_getattr
+	.long sys_renameat2
