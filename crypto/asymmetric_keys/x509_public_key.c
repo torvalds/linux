@@ -48,11 +48,10 @@ __setup("ca_keys=", ca_keys_setup);
  */
 static struct key *x509_request_asymmetric_key(struct key *keyring,
 					       const char *signer,
-					       size_t signer_len,
-					       const char *authority,
-					       size_t auth_len)
+					       const char *authority)
 {
 	key_ref_t key;
+	size_t signer_len = strlen(signer), auth_len = strlen(authority);
 	char *id;
 
 	/* Construct an identifier. */
@@ -193,9 +192,7 @@ static int x509_validate_trust(struct x509_certificate *cert,
 		return -EPERM;
 
 	key = x509_request_asymmetric_key(trust_keyring,
-					  cert->issuer, strlen(cert->issuer),
-					  cert->authority,
-					  strlen(cert->authority));
+					  cert->issuer, cert->authority);
 	if (!IS_ERR(key))  {
 		if (!use_builtin_keys
 		    || test_bit(KEY_FLAG_BUILTIN, &key->flags))
