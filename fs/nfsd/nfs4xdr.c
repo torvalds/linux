@@ -3072,11 +3072,8 @@ static __be32 nfsd4_encode_splice_read(
 	__be32 nfserr;
 	__be32 *p = xdr->p - 2;
 
-	/*
-	 * Don't inline pages unless we know there's room for eof,
-	 * count, and possible padding:
-	 */
-	if (xdr->end - xdr->p < 3)
+	/* Make sure there will be room for padding if needed */
+	if (xdr->end - xdr->p < 1)
 		return nfserr_resource;
 
 	nfserr = nfsd_splice_read(read->rd_rqstp, file,
