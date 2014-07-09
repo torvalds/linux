@@ -390,20 +390,7 @@ static __refdata struct usb_composite_driver webcam_driver = {
 	.unbind		= webcam_unbind,
 };
 
-static int __init
-webcam_init(void)
-{
-	return usb_composite_probe(&webcam_driver);
-}
-
-static void __exit
-webcam_cleanup(void)
-{
-	usb_composite_unregister(&webcam_driver);
-}
-
-module_init(webcam_init);
-module_exit(webcam_cleanup);
+module_usb_composite_driver(webcam_driver);
 
 MODULE_AUTHOR("Laurent Pinchart");
 MODULE_DESCRIPTION("Webcam Video Gadget");

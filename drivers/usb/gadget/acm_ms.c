@@ -267,18 +267,8 @@ static __refdata struct usb_composite_driver acm_ms_driver = {
 	.unbind		= __exit_p(acm_ms_unbind),
 };
 
+module_usb_composite_driver(acm_ms_driver);
+
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Klaus Schwarzkopf <schwarzkopf@sensortherm.de>");
 MODULE_LICENSE("GPL v2");
-
-static int __init init(void)
-{
-	return usb_composite_probe(&acm_ms_driver);
-}
-module_init(init);
-
-static void __exit cleanup(void)
-{
-	usb_composite_unregister(&acm_ms_driver);
-}
-module_exit(cleanup);

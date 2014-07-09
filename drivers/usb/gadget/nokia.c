@@ -347,14 +347,4 @@ static __refdata struct usb_composite_driver nokia_driver = {
 	.unbind		= __exit_p(nokia_unbind),
 };
 
-static int __init nokia_init(void)
-{
-	return usb_composite_probe(&nokia_driver);
-}
-module_init(nokia_init);
-
-static void __exit nokia_cleanup(void)
-{
-	usb_composite_unregister(&nokia_driver);
-}
-module_exit(nokia_cleanup);
+module_usb_composite_driver(nokia_driver);

@@ -231,18 +231,8 @@ static __refdata struct usb_composite_driver cdc_driver = {
 	.unbind		= __exit_p(cdc_unbind),
 };
 
+module_usb_composite_driver(cdc_driver);
+
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("David Brownell");
 MODULE_LICENSE("GPL");
-
-static int __init init(void)
-{
-	return usb_composite_probe(&cdc_driver);
-}
-module_init(init);
-
-static void __exit cleanup(void)
-{
-	usb_composite_unregister(&cdc_driver);
-}
-module_exit(cleanup);

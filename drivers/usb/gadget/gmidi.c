@@ -163,15 +163,4 @@ static __refdata struct usb_composite_driver midi_driver = {
 	.unbind		= __exit_p(midi_unbind),
 };
 
-static int __init midi_init(void)
-{
-	return usb_composite_probe(&midi_driver);
-}
-module_init(midi_init);
-
-static void __exit midi_cleanup(void)
-{
-	usb_composite_unregister(&midi_driver);
-}
-module_exit(midi_cleanup);
-
+module_usb_composite_driver(midi_driver);

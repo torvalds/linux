@@ -411,17 +411,7 @@ static __refdata struct usb_composite_driver zero_driver = {
 	.resume		= zero_resume,
 };
 
+module_usb_composite_driver(zero_driver);
+
 MODULE_AUTHOR("David Brownell");
 MODULE_LICENSE("GPL");
-
-static int __init init(void)
-{
-	return usb_composite_probe(&zero_driver);
-}
-module_init(init);
-
-static void __exit cleanup(void)
-{
-	usb_composite_unregister(&zero_driver);
-}
-module_exit(cleanup);

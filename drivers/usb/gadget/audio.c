@@ -172,17 +172,7 @@ static __refdata struct usb_composite_driver audio_driver = {
 	.unbind		= __exit_p(audio_unbind),
 };
 
-static int __init init(void)
-{
-	return usb_composite_probe(&audio_driver);
-}
-module_init(init);
-
-static void __exit cleanup(void)
-{
-	usb_composite_unregister(&audio_driver);
-}
-module_exit(cleanup);
+module_usb_composite_driver(audio_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Bryan Wu <cooloney@kernel.org>");

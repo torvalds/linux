@@ -507,15 +507,4 @@ static __refdata struct usb_composite_driver multi_driver = {
 	.needs_serial	= 1,
 };
 
-
-static int __init multi_init(void)
-{
-	return usb_composite_probe(&multi_driver);
-}
-module_init(multi_init);
-
-static void __exit multi_exit(void)
-{
-	usb_composite_unregister(&multi_driver);
-}
-module_exit(multi_exit);
+module_usb_composite_driver(multi_driver);

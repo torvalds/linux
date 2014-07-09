@@ -204,18 +204,8 @@ static __refdata struct usb_composite_driver ncm_driver = {
 	.unbind		= __exit_p(gncm_unbind),
 };
 
+module_usb_composite_driver(ncm_driver);
+
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Yauheni Kaliuta");
 MODULE_LICENSE("GPL");
-
-static int __init init(void)
-{
-	return usb_composite_probe(&ncm_driver);
-}
-module_init(init);
-
-static void __exit cleanup(void)
-{
-	usb_composite_unregister(&ncm_driver);
-}
-module_exit(cleanup);
