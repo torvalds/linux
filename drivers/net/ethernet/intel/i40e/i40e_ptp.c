@@ -447,8 +447,12 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	/* Confirm that 1588 is supported on this PF. */
 	pf_id = (rd32(hw, I40E_PRTTSYN_CTL0) & I40E_PRTTSYN_CTL0_PF_ID_MASK) >>
 		I40E_PRTTSYN_CTL0_PF_ID_SHIFT;
-	if (hw->pf_id != pf_id)
-		return -EINVAL;
+	if (hw->pf_id != pf_id) {
+		dev_err(&pf->pdev->dev,
+			"PF %d attempted to control timestamp mode on port %d, which is owned by PF %d\n",
+			hw->pf_id, hw->port, pf_id);
+		return -EPERM;
+	}
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
