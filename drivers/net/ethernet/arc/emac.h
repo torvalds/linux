@@ -110,7 +110,6 @@ struct buffer_state {
  * @bus:	Pointer to the current MII bus.
  * @regs:	Base address of EMAC memory-mapped control registers.
  * @napi:	Structure for NAPI.
- * @stats:	Network device statistics.
  * @rxbd:	Pointer to Rx BD ring.
  * @txbd:	Pointer to Tx BD ring.
  * @rxbd_dma:	DMA handle for Rx BD ring.
@@ -135,7 +134,6 @@ struct arc_emac_priv {
 	struct clk *clk;
 
 	struct napi_struct napi;
-	struct net_device_stats stats;
 
 	struct arc_emac_bd *rxbd;
 	struct arc_emac_bd *txbd;

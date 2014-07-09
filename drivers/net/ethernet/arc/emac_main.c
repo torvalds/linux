@@ -140,7 +140,7 @@ static const struct ethtool_ops arc_emac_ethtool_ops = {
 static void arc_emac_tx_clean(struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &ndev->stats;
 	unsigned int i;
 
 	for (i = 0; i < TX_BD_NUM; i++) {
@@ -202,7 +202,7 @@ static int arc_emac_rx(struct net_device *ndev, int budget)
 
 	for (work_done = 0; work_done < budget; work_done++) {
 		unsigned int *last_rx_bd = &priv->last_rx_bd;
-		struct net_device_stats *stats = &priv->stats;
+		struct net_device_stats *stats = &ndev->stats;
 		struct buffer_state *rx_buff = &priv->rx_buff[*last_rx_bd];
 		struct arc_emac_bd *rxbd = &priv->rxbd[*last_rx_bd];
 		unsigned int pktlen, info = le32_to_cpu(rxbd->info);
@@ -318,7 +318,7 @@ static irqreturn_t arc_emac_intr(int irq, void *dev_instance)
 {
 	struct net_device *ndev = dev_instance;
 	struct arc_emac_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &ndev->stats;
 	unsigned int status;
 
 	status = arc_reg_get(priv, R_STATUS);
@@ -529,7 +529,7 @@ static int arc_emac_stop(struct net_device *ndev)
 static struct net_device_stats *arc_emac_stats(struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &ndev->stats;
 	unsigned long miss, rxerr;
 	u8 rxcrc, rxfram, rxoflow;
 
@@ -565,7 +565,7 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
 	unsigned int len, *txbd_curr = &priv->txbd_curr;
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &ndev->stats;
 	__le32 *info = &priv->txbd[*txbd_curr].info;
 	dma_addr_t addr;
 
