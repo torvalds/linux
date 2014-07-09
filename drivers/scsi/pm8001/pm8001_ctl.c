@@ -397,7 +397,10 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 	payload.func_specific = kzalloc(4096, GFP_KERNEL);
 	if (!payload.func_specific)
 		return -ENOMEM;
-	PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload);
+	if (PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload)) {
+		kfree(payload.func_specific);
+		return -ENOMEM;
+	}
 	wait_for_completion(&completion);
 	virt_addr = pm8001_ha->memoryMap.region[NVMD].virt_ptr;
 	for (bios_index = BIOSOFFSET; bios_index < BIOS_OFFSET_LIMIT;
