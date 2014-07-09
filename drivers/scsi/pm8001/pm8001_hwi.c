@@ -4409,7 +4409,7 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 
 	/* Check for read log for failed drive and return */
 	if (sata_cmd.sata_fis.command == 0x2f) {
-		if (pm8001_ha_dev && ((pm8001_ha_dev->id & NCQ_READ_LOG_FLAG) ||
+		if (((pm8001_ha_dev->id & NCQ_READ_LOG_FLAG) ||
 			(pm8001_ha_dev->id & NCQ_ABORT_ALL_FLAG) ||
 			(pm8001_ha_dev->id & NCQ_2ND_RLE_FLAG))) {
 			struct task_status_struct *ts;
