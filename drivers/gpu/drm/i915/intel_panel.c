@@ -361,15 +361,15 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 		pfit_control |= ((intel_crtc->pipe << PFIT_PIPE_SHIFT) |
 				 PFIT_FILTER_FUZZY);
 
-	/* Make sure pre-965 set dither correctly for 18bpp panels. */
-	if (INTEL_INFO(dev)->gen < 4 && pipe_config->pipe_bpp == 18)
-		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
-
 out:
 	if ((pfit_control & PFIT_ENABLE) == 0) {
 		pfit_control = 0;
 		pfit_pgm_ratios = 0;
 	}
+
+	/* Make sure pre-965 set dither correctly for 18bpp panels. */
+	if (INTEL_INFO(dev)->gen < 4 && pipe_config->pipe_bpp == 18)
+		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
 	pipe_config->gmch_pfit.control = pfit_control;
 	pipe_config->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
