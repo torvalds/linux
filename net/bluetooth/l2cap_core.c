@@ -3234,6 +3234,9 @@ done:
 
 	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
+		if (disable_ertm)
+			break;
+
 		if (!(chan->conn->feat_mask & L2CAP_FEAT_ERTM) &&
 		    !(chan->conn->feat_mask & L2CAP_FEAT_STREAMING))
 			break;
