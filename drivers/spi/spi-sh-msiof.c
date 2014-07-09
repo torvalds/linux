@@ -636,12 +636,6 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	dma_cookie_t cookie;
 	int ret;
 
-	/* 1 stage FIFO watermarks for DMA */
-	sh_msiof_write(p, FCTR, FCTR_TFWM_1 | FCTR_RFWM_1);
-
-	/* setup msiof transfer mode registers (32-bit words) */
-	sh_msiof_spi_set_mode_regs(p, tx, rx, 32, len / 4);
-
 	if (tx) {
 		ier_bits |= IER_TDREQE | IER_TDMAE;
 		dma_sync_single_for_device(&p->pdev->dev, p->tx_dma_addr, len,
@@ -650,7 +644,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 					p->tx_dma_addr, len, DMA_TO_DEVICE,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_tx)
-			return -EIO;
+			return -EAGAIN;
 	}
 
 	if (rx) {
@@ -659,8 +653,15 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 					p->rx_dma_addr, len, DMA_FROM_DEVICE,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_rx)
-			return -EIO;
+			return -EAGAIN;
 	}
+
+	/* 1 stage FIFO watermarks for DMA */
+	sh_msiof_write(p, FCTR, FCTR_TFWM_1 | FCTR_RFWM_1);
+
+	/* setup msiof transfer mode registers (32-bit words) */
+	sh_msiof_spi_set_mode_regs(p, tx, rx, 32, len / 4);
+
 	sh_msiof_write(p, IER, ier_bits);
 
 	reinit_completion(&p->done);
@@ -822,6 +823,12 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 			copy32(p->tx_dma_page, tx_buf, l / 4);
 
 		ret = sh_msiof_dma_once(p, tx_buf, rx_buf, l);
+		if (ret == -EAGAIN) {
+			pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
+				     dev_driver_string(&p->pdev->dev),
+				     dev_name(&p->pdev->dev));
+			break;
+		}
 		if (ret)
 			return ret;
 
