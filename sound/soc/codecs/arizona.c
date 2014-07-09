@@ -1585,7 +1585,7 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 			}
 		}
 
-		for (ratio = init_ratio - 1; ratio >= 0; ratio--) {
+		for (ratio = init_ratio - 1; ratio > 0; ratio--) {
 			if (ARIZONA_FLL_VCO_CORNER / (fll->vco_mult * ratio) <
 			    Fref)
 				break;
