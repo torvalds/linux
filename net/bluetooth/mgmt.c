@@ -4357,7 +4357,8 @@ static void set_bredr_scan(struct hci_request *req)
 	 */
 	write_fast_connectable(req, false);
 
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
+	    !list_empty(&hdev->whitelist))
 		scan |= SCAN_PAGE;
 	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
 		scan |= SCAN_INQUIRY;
@@ -4471,7 +4472,8 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_req_init(&req, hdev);
 
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
+	    !list_empty(&hdev->whitelist))
 		set_bredr_scan(&req);
 
 	/* Since only the advertising data flags will change, there
