@@ -700,16 +700,6 @@ config I2C_S3C2410
 	  Say Y here to include support for I2C controller in the
 	  Samsung SoCs.
 
-config I2C_S6000
-	tristate "S6000 I2C support"
-	depends on XTENSA_VARIANT_S6000
-	help
-	  This driver supports the on chip I2C device on the
-	  S6000 xtensa processor family.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called i2c-s6000.
-
 config I2C_SH7760
 	tristate "Renesas SH7760 I2C Controller"
 	depends on CPU_SUBTYPE_SH7760
