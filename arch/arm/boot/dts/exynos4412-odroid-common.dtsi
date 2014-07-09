@@ -510,8 +510,8 @@
 				buck4_reg: buck@4 {
 					regulator-compatible = "BUCK4";
 					regulator-name = "vdd_g3d";
-					regulator-min-microvolt = <850000>;
-					regulator-max-microvolt = <1200000>;
+					regulator-min-microvolt = <950000>;
+					regulator-max-microvolt = <1150000>;
 					regulator-microvolt-offset = <50000>;
 					BUCK4-supply = <&reg_sysvdd>;
 				};
@@ -654,6 +654,42 @@
 		status = "okay";
 		memory-region = <&mfc_left>, <&mfc_right>;
 		memory-region-names = "left", "right";
+	};
+
+	mali@13000000 {
+		compatible = "arm,mali400-mp4";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		shared-memory-size = <0x10000000>;
+
+		/* mali dvfs */
+		utilization-interval = <1000>;
+
+		samsung,power-domain = <&pd_g3d>;
+		status = "okay";
+
+		/* Propagate VPLL output clock to SCLK_G3D and ensure that the DIV_G3D
+		 * divider is 1. */
+		assigned-clocks = <&clock CLK_MOUT_G3D1>, <&clock CLK_MOUT_G3D>, <&clock CLK_FOUT_VPLL>, <&clock CLK_SCLK_G3D>;
+		assigned-clock-parents = <&clock CLK_SCLK_VPLL>, <&clock CLK_MOUT_G3D1>;
+		assigned-clock-rates = <0>, <0>, <533000000>, <533000000>;
+
+		clocks = <&clock CLK_SCLK_G3D>;
+		clock-names = "sclk_g3d";
+
+		reg = <0x13001000 0x200>, <0x13000000 0x100>, <0x13003000 0x100>,
+			<0x13008000 0x1100>, <0x13004000 0x100>, <0x1300A000 0x1100>,
+			<0x13005000 0x100>, <0x1300C000 0x1100>, <0x13006000 0x100>,
+			<0x1300E000 0x1100>, <0x13007000 0x100>, <0x13012000 0x100>;
+		reg-names = "l2", "gp", "gp_mmu", "pp_0", "pp_mmu_0", "pp_1", "pp_mmu_1",
+			"pp_2", "pp_mmu_2", "pp_3", "pp_mmu_3", "dma";
+
+		interrupts = <0 127 0>, <0 122 0>, <0 123 0>, <0 118 0>, <0 124 0>,
+			<0 119 0>, <0 125 0>, <0 120 0>, <0 126 0>, <0 121 0>;
+		interrupt-names = "gp", "gp_mmu", "pp_0", "pp_mmu_0", "pp_1", "pp_mmu_1",
+			"pp_2", "pp_mmu_2", "pp_3", "pp_mmu_3";
+
 	};
 };
 
