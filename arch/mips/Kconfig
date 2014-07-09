@@ -2059,6 +2059,7 @@ config MIPS_CPS
 	  support is unavailable.
 
 config MIPS_CPS_PM
+	select MIPS_CPC
 	bool
 
 config MIPS_GIC_IPI
