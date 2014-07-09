@@ -216,8 +216,9 @@ static const struct apll_clk_set rk3036_apll_table[] = {
 };
 
 static const struct pll_clk_set rk3036plus_pll_com_table[] = {
-	_RK3036_PLL_SET_CLKS(297000, 2, 99, 4, 1, 1, 0),
-	_RK3036_PLL_SET_CLKS(768000, 1, 32, 1, 1, 1, 0),
+//	_RK3036_PLL_SET_CLKS(297000, 2, 99, 4, 1, 1, 0),
+	_RK3036_PLL_SET_CLKS(594000, 2, 99, 2, 1, 1, 0),
+	_RK3036_PLL_SET_CLKS(1188000, 2, 99, 1, 1, 1, 0),
 
 };
 

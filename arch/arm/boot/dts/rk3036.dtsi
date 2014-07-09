@@ -187,15 +187,17 @@
 		rockchip,clocks-init-parent =
 			<&clk_core_pre &clk_apll>, <&aclk_cpu_pre &clk_gpll>,
 			<&aclk_peri_pre &clk_gpll>, <&clk_uart_pll &clk_gpll>,  
-			<&clk_i2s_pll &clk_gpll>, <&clk_spdif_pll &clk_gpll>;
+			<&clk_i2s_pll &clk_gpll>, <&clk_spdif_pll &clk_gpll>,
+			<&aclk_vcodec_pre &clk_gpll>, <&clk_hevc_core &clk_gpll>,
+			<&clk_mac_pll &clk_apll>;
 		rockchip,clocks-init-rate =
-			<&clk_core_pre 1464000000>, <&clk_gpll 297000000>,
-			<&aclk_cpu_pre 300000000>, <&hclk_cpu_pre 150000000>,	
-			<&pclk_cpu_pre 75000000>,	 <&aclk_peri_pre 300000000>,
-			<&hclk_peri_pre 150000000>, <&pclk_peri_pre 75000000>,
-			<&clk_gpu_pre 200000000>,	 <&aclk_vio_pre 300000000>,
-			<&hclk_vio_pre 150000000>,	 <&aclk_vcodec_pre 400000000>,
-			<&clk_hevc_core 300000000>,  <&clk_mac_ref_div 125000000>;
+			<&clk_core_pre 816000000>, <&clk_gpll 594000000>,
+			<&aclk_cpu_pre 150000000>, <&hclk_cpu_pre 75000000>,	
+			<&pclk_cpu_pre 75000000>,	 <&aclk_peri_pre 150000000>,
+			<&hclk_peri_pre 75000000>, <&pclk_peri_pre 75000000>,
+			<&clk_gpu_pre 300000000>,	 <&aclk_vio_pre 300000000>,
+			<&hclk_vio_pre 150000000>, <&aclk_vcodec_pre 300000000>,
+			<&clk_hevc_core 300000000>, <&clk_mac_ref_div 50000000>;
 	/*	rockchip,clocks-uboot-has-init =
 			<&aclk_vio1>;*/
 	};

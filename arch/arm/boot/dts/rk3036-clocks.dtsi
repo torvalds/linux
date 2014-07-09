@@ -94,6 +94,16 @@
 				clock-mult = <20>;
 				#clock-cells = <0>;
 			};
+
+			hclk_vcodec: hclk_vcodec {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&aclk_vcodec_pre>;
+				clock-output-names = "hclk_vcodec";
+				clock-div = <4>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
+
 		};
 
 		clock_regs {
@@ -830,6 +840,7 @@
 						clocks = <&clk_apll>, <&clk_dpll>, <&clk_gpll>;
 						clock-output-names = "clk_mac_pll";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* reg[2]: reserved */
