@@ -328,8 +328,7 @@ static void __iomem *ie31200_map_mchbar(struct pci_dev *pdev)
 
 static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 {
-	int rc;
-	int i, j;
+	int i, j, ret;
 	struct mem_ctl_info *mci = NULL;
 	struct edac_mc_layer layers[2];
 	struct dimm_data dimm_info[IE31200_CHANNELS][IE31200_DIMMS_PER_CHANNEL];
@@ -344,9 +343,37 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENODEV;
 	}
 
+	nr_channels = how_many_channels(pdev);
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = IE31200_DIMMS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = nr_channels;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
+			    sizeof(struct ie31200_priv));
+	if (!mci)
+		return -ENOMEM;
+
 	window = ie31200_map_mchbar(pdev);
-	if (!window)
-		return -ENODEV;
+	if (!window) {
+		ret = -ENODEV;
+		goto fail_free;
+	}
+
+	edac_dbg(3, "MC: init mci\n");
+	mci->pdev = &pdev->dev;
+	mci->mtype_cap = MEM_FLAG_DDR3;
+	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
+	mci->edac_cap = EDAC_FLAG_SECDED;
+	mci->mod_name = EDAC_MOD_STR;
+	mci->mod_ver = IE31200_REVISION;
+	mci->ctl_name = ie31200_devs[dev_idx].ctl_name;
+	mci->dev_name = pci_name(pdev);
+	mci->edac_check = ie31200_check;
+	mci->ctl_page_to_phys = NULL;
+	priv = mci->pvt_info;
+	priv->window = window;
 
 	/* populate DIMM info */
 	for (i = 0; i < IE31200_CHANNELS; i++) {
@@ -366,38 +393,6 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 				 dimm_info[i][j].x16_width);
 		}
 	}
-
-	nr_channels = how_many_channels(pdev);
-
-	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
-	layers[0].size = IE31200_DIMMS;
-	layers[0].is_virt_csrow = true;
-	layers[1].type = EDAC_MC_LAYER_CHANNEL;
-	layers[1].size = nr_channels;
-	layers[1].is_virt_csrow = false;
-	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
-			    sizeof(struct ie31200_priv));
-
-	rc = -ENOMEM;
-	if (!mci)
-		goto fail_unmap;
-
-	edac_dbg(3, "MC: init mci\n");
-
-	mci->pdev = &pdev->dev;
-	mci->mtype_cap = MEM_FLAG_DDR3;
-
-	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
-	mci->edac_cap = EDAC_FLAG_SECDED;
-
-	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = IE31200_REVISION;
-	mci->ctl_name = ie31200_devs[dev_idx].ctl_name;
-	mci->dev_name = pci_name(pdev);
-	mci->edac_check = ie31200_check;
-	mci->ctl_page_to_phys = NULL;
-	priv = mci->pvt_info;
-	priv->window = window;
 
 	/*
 	 * The dram rank boundary (DRB) reg values are boundary addresses
@@ -439,23 +434,23 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 
 	ie31200_clear_error_info(mci);
 
-	rc = -ENODEV;
 	if (edac_mc_add_mc(mci)) {
 		edac_dbg(3, "MC: failed edac_mc_add_mc()\n");
-		goto fail_free;
+		ret = -ENODEV;
+		goto fail_unmap;
 	}
 
 	/* get this far and it's successful */
 	edac_dbg(3, "MC: success\n");
 	return 0;
 
-fail_free:
-	if (mci)
-		edac_mc_free(mci);
 fail_unmap:
 	iounmap(window);
 
-	return rc;
+fail_free:
+	edac_mc_free(mci);
+
+	return ret;
 }
 
 static int ie31200_init_one(struct pci_dev *pdev,
