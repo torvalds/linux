@@ -182,3 +182,6 @@
 &i2c2 {
 	compatible = "ti,omap2420-i2c";
 };
+
+/include/ "omap24xx-clocks.dtsi"
+/include/ "omap2420-clocks.dtsi"

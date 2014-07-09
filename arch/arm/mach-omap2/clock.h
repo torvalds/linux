@@ -178,9 +178,6 @@ struct clksel {
 	const struct clksel_rate *rates;
 };
 
-unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
-					unsigned long parent_rate);
-
 /* CM_CLKSEL2_PLL.CORE_CLK_SRC bits (2XXX) */
 #define CORE_CLK_SRC_32K		0x0
 #define CORE_CLK_SRC_DPLL		0x1
