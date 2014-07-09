@@ -1661,6 +1661,7 @@ struct MR_LD_VF_AFFILIATION {
 /* Plasma 1.11 FW backward compatibility structures */
 #define IOV_111_OFFSET 0x7CE
 #define MAX_VIRTUAL_FUNCTIONS 8
+#define MR_LD_ACCESS_HIDDEN 15
 
 struct IOV_111 {
 	u8 maxVFsSupported;
