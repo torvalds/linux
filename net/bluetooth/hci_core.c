@@ -2715,6 +2715,23 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 	case HCISETSCAN:
 		err = hci_req_sync(hdev, hci_scan_req, dr.dev_opt,
 				   HCI_INIT_TIMEOUT);
+
+		/* Ensure that the connectable state gets correctly
+		 * notified if the whitelist is in use.
+		 */
+		if (!err && !list_empty(&hdev->whitelist)) {
+			bool changed;
+
+			if ((dr.dev_opt & SCAN_PAGE))
+				changed = !test_and_set_bit(HCI_CONNECTABLE,
+							    &hdev->dev_flags);
+			else
+				changed = test_and_set_bit(HCI_CONNECTABLE,
+							   &hdev->dev_flags);
+
+			if (changed)
+				mgmt_new_settings(hdev);
+		}
 		break;
 
 	case HCISETLINKPOL:

@@ -1427,6 +1427,11 @@ static int new_settings(struct hci_dev *hdev, struct sock *skip)
 	return mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), skip);
 }
 
+int mgmt_new_settings(struct hci_dev *hdev)
+{
+	return new_settings(hdev, NULL);
+}
+
 struct cmd_lookup {
 	struct sock *sk;
 	struct hci_dev *hdev;
