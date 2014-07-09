@@ -1792,8 +1792,6 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	try_wait_for_completion(&fll->ok);
 
 	regmap_update_bits_async(arizona->regmap, fll->base + 1,
-				 ARIZONA_FLL1_FREERUN, 0);
-	regmap_update_bits_async(arizona->regmap, fll->base + 1,
 				 ARIZONA_FLL1_ENA, ARIZONA_FLL1_ENA);
 	if (use_sync)
 		regmap_update_bits_async(arizona->regmap, fll->base + 0x11,
@@ -1819,6 +1817,8 @@ static void arizona_disable_fll(struct arizona_fll *fll)
 				 ARIZONA_FLL1_ENA, 0, &change);
 	regmap_update_bits(arizona->regmap, fll->base + 0x11,
 			   ARIZONA_FLL1_SYNC_ENA, 0);
+	regmap_update_bits_async(arizona->regmap, fll->base + 1,
+				 ARIZONA_FLL1_FREERUN, 0);
 
 	if (change)
 		pm_runtime_put_autosuspend(arizona->dev);
