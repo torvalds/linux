@@ -16,6 +16,7 @@
 #include <linux/fs.h>       /* file system operations */
 #include <linux/cdev.h>     /* character device definitions */
 #include <linux/mm.h>       /* memory manager definitions */
+#include <linux/of.h>
 #include <linux/mali/mali_utgard_ioctl.h>
 #include <linux/version.h>
 #include <linux/device.h>
@@ -27,6 +28,7 @@
 #include "mali_session.h"
 #include "mali_kernel_core.h"
 #include "mali_osk.h"
+#include "mali_osk_mali.h"
 #include "mali_kernel_linux.h"
 #include "mali_ukk.h"
 #include "mali_ukk_wrappers.h"
@@ -117,6 +119,7 @@ static char mali_dev_name[] = "mali"; /* should be const, but the functions we c
 
 /* This driver only supports one Mali device, and this variable stores this single platform device */
 struct platform_device *mali_platform_device = NULL;
+struct _mali_osk_device_data *mali_platform_data = NULL;
 
 /* This driver only supports one Mali device, and this variable stores the exposed misc device (/dev/mali) */
 static struct miscdevice mali_miscdevice = { 0, };
@@ -163,6 +166,13 @@ static const struct dev_pm_ops mali_dev_pm_ops = {
 	.poweroff = mali_driver_suspend_scheduler,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id arm_mali_match[] = {
+	{ .compatible = "arm,mali400-mp4" },
+	{},
+};
+#endif
+
 /* The Mali device driver struct */
 static struct platform_driver mali_platform_driver = {
 	.probe  = mali_probe,
@@ -173,6 +183,7 @@ static struct platform_driver mali_platform_driver = {
 		.owner  = THIS_MODULE,
 		.bus = &platform_bus_type,
 		.pm = &mali_dev_pm_ops,
+		.of_match_table = of_match_ptr(arm_mali_match),
 	},
 };
 
@@ -376,6 +387,140 @@ void mali_module_exit(void)
 	MALI_PRINT(("Mali device driver unloaded\n"));
 }
 
+#ifdef CONFIG_OF
+static struct _mali_osk_device_data *mali_parse_dt(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	u32 tmp_interval, tmp_size;
+	struct _mali_osk_device_data* os_data = (struct _mali_osk_device_data*)mali_platform_data;
+	struct resource *res_mem;
+	enum mali_resource_index index;
+
+	if (NULL != os_data)
+		return os_data;
+
+	os_data = devm_kzalloc(&pdev->dev, sizeof(struct _mali_osk_device_data), GFP_KERNEL);
+	if (!os_data)
+		return NULL;
+
+	mali_platform_data = os_data;
+
+	if (of_property_read_u32(np, "utilization-interval", &tmp_interval))
+		goto error_parse_dt;
+	if (of_property_read_u32(np, "shared-memory-size", &tmp_size))
+		goto error_parse_dt;
+
+	os_data->shared_mem_size = tmp_size;
+	//os_data->utilization_interval = tmp_interval;
+	//os_data->utilization_callback = mali_gpu_utilization_callback;
+
+	index = MALI_RESOURCE_INDEX_L2;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "l2");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+	}
+
+	index = MALI_RESOURCE_INDEX_GP;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "gp");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "gp");
+	}
+
+	index = MALI_RESOURCE_INDEX_GP_MMU;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "gp_mmu");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "gp_mmu");
+	}
+
+	index = MALI_RESOURCE_INDEX_PP_0;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "pp_0");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "pp_0");
+	}
+
+	index = MALI_RESOURCE_INDEX_PP_1;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "pp_1");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "pp_1");
+	}
+
+	index = MALI_RESOURCE_INDEX_PP_2;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "pp_2");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "pp_2");
+	}
+
+	index = MALI_RESOURCE_INDEX_PP_3;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "pp_3");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "pp_3");
+	}
+
+	index = MALI_RESOURCE_INDEX_PP_MMU_0;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "pp_mmu_0");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "pp_mmu_0");
+	}
+
+	index = MALI_RESOURCE_INDEX_PP_MMU_1;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "pp_mmu_1");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "pp_mmu_1");
+	}
+
+	index = MALI_RESOURCE_INDEX_PP_MMU_2;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "pp_mmu_2");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "pp_mmu_2");
+	}
+
+	index = MALI_RESOURCE_INDEX_PP_MMU_3;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "pp_mmu_3");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+		os_data->resource[index].irq = platform_get_irq_byname(pdev, "pp_mmu_3");
+	}
+
+	index = MALI_RESOURCE_INDEX_DMA;
+	res_mem = platform_get_resource_byname (pdev, IORESOURCE_MEM, "dma");
+	if (res_mem) {
+		os_data->resource[index].description = res_mem->name ?: dev_name(&pdev->dev);
+		os_data->resource[index].base = res_mem->start;
+	}
+
+	return os_data;
+
+error_parse_dt:
+	dev_err(&pdev->dev, "Parsing device tree data error.\n");
+	return NULL;
+}
+#else
+static struct _mali_osk_device_data mali_parse_dt (struct platform_device *pdev)
+{
+	return NULL;
+}
+#endif
+
 static int mali_probe(struct platform_device *pdev)
 {
 	int err;
@@ -388,6 +533,8 @@ static int mali_probe(struct platform_device *pdev)
 		return -EEXIST;
 	}
 
+	if (pdev->dev.of_node)
+		mali_parse_dt(pdev);
 	mali_platform_device = pdev;
 
 	if (_MALI_OSK_ERR_OK == _mali_osk_wq_init()) {

@@ -340,6 +340,46 @@ struct mali_gpu_utilization_data {
 #endif
 };
 
+struct mali_resource
+{
+        const char * description;       /**< short description of the resource */
+        u32 base;                       /**< Physical base address of the resource, as seen by Mali resources. */
+        u32 irq;                        /**< IRQ number delivered to the CPU, or -1 to tell the driver to probe for it (if possible) */
+};
+
+enum mali_resource_index {
+	MALI_RESOURCE_INDEX_L2,
+	MALI_RESOURCE_INDEX_L2_GP,
+	MALI_RESOURCE_INDEX_L2_PP_GRP0,
+	MALI_RESOURCE_INDEX_L2_PP_GRP1,
+	MALI_RESOURCE_INDEX_GP,
+	MALI_RESOURCE_INDEX_GP_MMU,
+	MALI_RESOURCE_INDEX_PP_0,
+	MALI_RESOURCE_INDEX_PP_MMU_0,
+	MALI_RESOURCE_INDEX_PP_1,
+	MALI_RESOURCE_INDEX_PP_MMU_1,
+	MALI_RESOURCE_INDEX_PP_2,
+	MALI_RESOURCE_INDEX_PP_MMU_2,
+	MALI_RESOURCE_INDEX_PP_3,
+	MALI_RESOURCE_INDEX_PP_MMU_3,
+	MALI_RESOURCE_INDEX_PP_4,
+	MALI_RESOURCE_INDEX_PP_MMU_4,
+	MALI_RESOURCE_INDEX_PP_5,
+	MALI_RESOURCE_INDEX_PP_MMU_5,
+	MALI_RESOURCE_INDEX_PP_6,
+	MALI_RESOURCE_INDEX_PP_MMU_6,
+	MALI_RESOURCE_INDEX_PP_7,
+	MALI_RESOURCE_INDEX_PP_MMU_7,
+	MALI_RESOURCE_INDEX_PMU,
+	MALI_RESOURCE_INDEX_BCAST,
+	MALI_RESOURCE_INDEX_DLBU,
+	MALI_RESOURCE_INDEX_PP_BCAST,
+	MALI_RESOURCE_INDEX_PP_MMU_BCAST,
+	MALI_RESOURCE_INDEX_DMA,
+
+	MALI_RESOURCE_INDEX_LAST,
+};
+
 struct mali_gpu_device_data {
 	/* Dedicated GPU memory range (physical). */
 	unsigned long dedicated_mem_start;

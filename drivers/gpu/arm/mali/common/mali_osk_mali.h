@@ -65,6 +65,8 @@ struct _mali_osk_device_data {
 
 	/* Fuction that platform callback for freq tunning, needed when MALI400_POWER_PERFORMANCE_POLICY enabled */
 	int (*set_freq_callback)(unsigned int mhz);
+
+	struct mali_resource resource[MALI_RESOURCE_INDEX_LAST];
 };
 
 /** @brief Find Mali GPU HW resource
@@ -74,6 +76,8 @@ struct _mali_osk_device_data {
  * @return _MALI_OSK_ERR_OK on success, _MALI_OSK_ERR_ITEM_NOT_FOUND if resource is not found
  */
 _mali_osk_errcode_t _mali_osk_resource_find(u32 addr, _mali_osk_resource_t *res);
+_mali_osk_errcode_t _mali_osk_resource_find_by_id(enum mali_resource_index, _mali_osk_resource_t *res);
+
 
 
 /** @brief Find Mali GPU HW base address
