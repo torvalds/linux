@@ -16,6 +16,7 @@
 /* #define VERBOSE_DEBUG */
 
 #include <linux/device.h>
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -40,7 +41,6 @@
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
-#include <asm/gpio.h>
 #include <asm/mach-types.h>
 #include <asm/unaligned.h>
 
