@@ -74,6 +74,10 @@ static struct quirk_entry quirk_asus_x401u = {
 	.wapf = 4,
 };
 
+static struct quirk_entry quirk_asus_x200ca = {
+	.wapf = 2,
+};
+
 static int dmi_matched(const struct dmi_system_id *dmi)
 {
 	quirks = dmi->driver_data;
@@ -215,6 +219,15 @@ static struct dmi_system_id asus_quirks[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "1015U"),
 		},
 		.driver_data = &quirk_asus_x401u,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "ASUSTeK COMPUTER INC. X200CA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X200CA"),
+		},
+		.driver_data = &quirk_asus_x200ca,
 	},
 	{},
 };
