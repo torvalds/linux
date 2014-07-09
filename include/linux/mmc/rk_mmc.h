@@ -292,5 +292,8 @@ struct dw_mci_board {
 	struct dma_pdata *data;
 	struct block_settings *blk_settings;
 };
+#define grf_writel(v, offset)   do \
+        { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } \
+                while (0)
 
 #endif /* LINUX_MMC_DW_MMC_H */
