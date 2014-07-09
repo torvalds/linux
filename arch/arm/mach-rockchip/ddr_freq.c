@@ -46,7 +46,6 @@ static DECLARE_COMPLETION(vop_req_completion);
 #endif
 
 static struct dvfs_node *clk_cpu_dvfs_node = NULL;
-static int reboot_config_done = 0;
 static int ddr_boost = 0;
 static int print=0;
 static int watch=0;
@@ -406,7 +405,6 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	if (ddr.reboot_rate && (s & SYS_STATUS_REBOOT)) {
 		ddrfreq_mode(false, ddr.reboot_rate, "shutdown/reboot");
 		rockchip_cpufreq_reboot_limit_freq();
-		reboot_config_done = 1;
 
 		return timeout;
 	}
@@ -548,7 +546,7 @@ static int ddrfreq_task(void *data)
 		}
 		wait_event_freezable_timeout(ddr.wait, vop_bandwidth_update_flag || (status != ddr.sys_status) || kthread_should_stop(), timeout);
 		old_status = status;
-	} while (!kthread_should_stop() && !reboot_config_done);
+	} while (!kthread_should_stop());
 
 	return 0;
 }
@@ -883,14 +881,8 @@ CLK_NOTIFIER(pd_vop1, LCDC1)
 
 static int ddrfreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	u32 timeout = 1000; // 10s
 	rockchip_set_system_status(SYS_STATUS_REBOOT);
-	while (!reboot_config_done && --timeout) {
-		msleep(10);
-	}
-	if (!timeout) {
-		pr_err("failed to set ddr clk from %luMHz to %luMHz when shutdown/reboot\n", dvfs_clk_get_rate(ddr.clk_dvfs_node) / MHZ, ddr.reboot_rate / MHZ);
-	}
+
 	return NOTIFY_OK;
 }
 
