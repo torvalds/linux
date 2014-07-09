@@ -34,6 +34,7 @@
 
 #include "u_fs.h"
 #include "u_f.h"
+#include "u_os_desc.h"
 #include "configfs.h"
 
 #define FUNCTIONFS_MAGIC	0xa647361 /* Chosen by a honest dice roll ;) */
@@ -1644,10 +1645,18 @@ enum ffs_entity_type {
 	FFS_DESCRIPTOR, FFS_INTERFACE, FFS_STRING, FFS_ENDPOINT
 };
 
+enum ffs_os_desc_type {
+	FFS_OS_DESC, FFS_OS_DESC_EXT_COMPAT, FFS_OS_DESC_EXT_PROP
+};
+
 typedef int (*ffs_entity_callback)(enum ffs_entity_type entity,
 				   u8 *valuep,
 				   struct usb_descriptor_header *desc,
 				   void *priv);
+
+typedef int (*ffs_os_desc_callback)(enum ffs_os_desc_type entity,
+				    struct usb_os_desc_header *h, void *data,
+				    unsigned len, void *priv);
 
 static int __must_check ffs_do_single_desc(char *data, unsigned len,
 					   ffs_entity_callback entity,
@@ -1856,11 +1865,191 @@ static int __ffs_data_do_entity(enum ffs_entity_type type,
 	return 0;
 }
 
+static int __ffs_do_os_desc_header(enum ffs_os_desc_type *next_type,
+				   struct usb_os_desc_header *desc)
+{
+	u16 bcd_version = le16_to_cpu(desc->bcdVersion);
+	u16 w_index = le16_to_cpu(desc->wIndex);
+
+	if (bcd_version != 1) {
+		pr_vdebug("unsupported os descriptors version: %d",
+			  bcd_version);
+		return -EINVAL;
+	}
+	switch (w_index) {
+	case 0x4:
+		*next_type = FFS_OS_DESC_EXT_COMPAT;
+		break;
+	case 0x5:
+		*next_type = FFS_OS_DESC_EXT_PROP;
+		break;
+	default:
+		pr_vdebug("unsupported os descriptor type: %d", w_index);
+		return -EINVAL;
+	}
+
+	return sizeof(*desc);
+}
+
+/*
+ * Process all extended compatibility/extended property descriptors
+ * of a feature descriptor
+ */
+static int __must_check ffs_do_single_os_desc(char *data, unsigned len,
+					      enum ffs_os_desc_type type,
+					      u16 feature_count,
+					      ffs_os_desc_callback entity,
+					      void *priv,
+					      struct usb_os_desc_header *h)
+{
+	int ret;
+	const unsigned _len = len;
+
+	ENTER();
+
+	/* loop over all ext compat/ext prop descriptors */
+	while (feature_count--) {
+		ret = entity(type, h, data, len, priv);
+		if (unlikely(ret < 0)) {
+			pr_debug("bad OS descriptor, type: %d\n", type);
+			return ret;
+		}
+		data += ret;
+		len -= ret;
+	}
+	return _len - len;
+}
+
+/* Process a number of complete Feature Descriptors (Ext Compat or Ext Prop) */
+static int __must_check ffs_do_os_descs(unsigned count,
+					char *data, unsigned len,
+					ffs_os_desc_callback entity, void *priv)
+{
+	const unsigned _len = len;
+	unsigned long num = 0;
+
+	ENTER();
+
+	for (num = 0; num < count; ++num) {
+		int ret;
+		enum ffs_os_desc_type type;
+		u16 feature_count;
+		struct usb_os_desc_header *desc = (void *)data;
+
+		if (len < sizeof(*desc))
+			return -EINVAL;
+
+		/*
+		 * Record "descriptor" entity.
+		 * Process dwLength, bcdVersion, wIndex, get b/wCount.
+		 * Move the data pointer to the beginning of extended
+		 * compatibilities proper or extended properties proper
+		 * portions of the data
+		 */
+		if (le32_to_cpu(desc->dwLength) > len)
+			return -EINVAL;
+
+		ret = __ffs_do_os_desc_header(&type, desc);
+		if (unlikely(ret < 0)) {
+			pr_debug("entity OS_DESCRIPTOR(%02lx); ret = %d\n",
+				 num, ret);
+			return ret;
+		}
+		/*
+		 * 16-bit hex "?? 00" Little Endian looks like 8-bit hex "??"
+		 */
+		feature_count = le16_to_cpu(desc->wCount);
+		if (type == FFS_OS_DESC_EXT_COMPAT &&
+		    (feature_count > 255 || desc->Reserved))
+				return -EINVAL;
+		len -= ret;
+		data += ret;
+
+		/*
+		 * Process all function/property descriptors
+		 * of this Feature Descriptor
+		 */
+		ret = ffs_do_single_os_desc(data, len, type,
+					    feature_count, entity, priv, desc);
+		if (unlikely(ret < 0)) {
+			pr_debug("%s returns %d\n", __func__, ret);
+			return ret;
+		}
+
+		len -= ret;
+		data += ret;
+	}
+	return _len - len;
+}
+
+/**
+ * Validate contents of the buffer from userspace related to OS descriptors.
+ */
+static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
+				 struct usb_os_desc_header *h, void *data,
+				 unsigned len, void *priv)
+{
+	struct ffs_data *ffs = priv;
+	u8 length;
+
+	ENTER();
+
+	switch (type) {
+	case FFS_OS_DESC_EXT_COMPAT: {
+		struct usb_ext_compat_desc *d = data;
+		int i;
+
+		if (len < sizeof(*d) ||
+		    d->bFirstInterfaceNumber >= ffs->interfaces_count ||
+		    d->Reserved1)
+			return -EINVAL;
+		for (i = 0; i < ARRAY_SIZE(d->Reserved2); ++i)
+			if (d->Reserved2[i])
+				return -EINVAL;
+
+		length = sizeof(struct usb_ext_compat_desc);
+	}
+		break;
+	case FFS_OS_DESC_EXT_PROP: {
+		struct usb_ext_prop_desc *d = data;
+		u32 type, pdl;
+		u16 pnl;
+
+		if (len < sizeof(*d) || h->interface >= ffs->interfaces_count)
+			return -EINVAL;
+		length = le32_to_cpu(d->dwSize);
+		type = le32_to_cpu(d->dwPropertyDataType);
+		if (type < USB_EXT_PROP_UNICODE ||
+		    type > USB_EXT_PROP_UNICODE_MULTI) {
+			pr_vdebug("unsupported os descriptor property type: %d",
+				  type);
+			return -EINVAL;
+		}
+		pnl = le16_to_cpu(d->wPropertyNameLength);
+		pdl = le32_to_cpu(*(u32 *)((u8 *)data + 10 + pnl));
+		if (length != 14 + pnl + pdl) {
+			pr_vdebug("invalid os descriptor length: %d pnl:%d pdl:%d (descriptor %d)\n",
+				  length, pnl, pdl, type);
+			return -EINVAL;
+		}
+		++ffs->ms_os_descs_ext_prop_count;
+		/* property name reported to the host as "WCHAR"s */
+		ffs->ms_os_descs_ext_prop_name_len += pnl * 2;
+		ffs->ms_os_descs_ext_prop_data_len += pdl;
+	}
+		break;
+	default:
+		pr_vdebug("unknown descriptor: %d\n", type);
+		return -EINVAL;
+	}
+	return length;
+}
+
 static int __ffs_data_got_descs(struct ffs_data *ffs,
 				char *const _data, size_t len)
 {
 	char *data = _data, *raw_descs;
-	unsigned counts[3], flags;
+	unsigned os_descs_count = 0, counts[3], flags;
 	int ret = -EINVAL, i;
 
 	ENTER();
@@ -1878,7 +2067,8 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 		flags = get_unaligned_le32(data + 8);
 		if (flags & ~(FUNCTIONFS_HAS_FS_DESC |
 			      FUNCTIONFS_HAS_HS_DESC |
-			      FUNCTIONFS_HAS_SS_DESC)) {
+			      FUNCTIONFS_HAS_SS_DESC |
+			      FUNCTIONFS_HAS_MS_OS_DESC)) {
 			ret = -ENOSYS;
 			goto error;
 		}
@@ -1901,6 +2091,11 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 			len  -= 4;
 		}
 	}
+	if (flags & (1 << i)) {
+		os_descs_count = get_unaligned_le32(data);
+		data += 4;
+		len -= 4;
+	};
 
 	/* Read descriptors */
 	raw_descs = data;
@@ -1914,6 +2109,14 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 		data += ret;
 		len  -= ret;
 	}
+	if (os_descs_count) {
+		ret = ffs_do_os_descs(os_descs_count, data, len,
+				      __ffs_data_do_os_desc, ffs);
+		if (ret < 0)
+			goto error;
+		data += ret;
+		len -= ret;
+	}
 
 	if (raw_descs == data || len) {
 		ret = -EINVAL;
@@ -1926,6 +2129,7 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 	ffs->fs_descs_count	= counts[0];
 	ffs->hs_descs_count	= counts[1];
 	ffs->ss_descs_count	= counts[2];
+	ffs->ms_os_descs_count	= os_descs_count;
 
 	return 0;
 
@@ -2267,6 +2471,85 @@ static int __ffs_func_bind_do_nums(enum ffs_entity_type type, u8 *valuep,
 	return 0;
 }
 
+static int __ffs_func_bind_do_os_desc(enum ffs_os_desc_type type,
+				      struct usb_os_desc_header *h, void *data,
+				      unsigned len, void *priv)
+{
+	struct ffs_function *func = priv;
+	u8 length = 0;
+
+	switch (type) {
+	case FFS_OS_DESC_EXT_COMPAT: {
+		struct usb_ext_compat_desc *desc = data;
+		struct usb_os_desc_table *t;
+
+		t = &func->function.os_desc_table[desc->bFirstInterfaceNumber];
+		t->if_id = func->interfaces_nums[desc->bFirstInterfaceNumber];
+		memcpy(t->os_desc->ext_compat_id, &desc->CompatibleID,
+		       ARRAY_SIZE(desc->CompatibleID) +
+		       ARRAY_SIZE(desc->SubCompatibleID));
+		length = sizeof(*desc);
+	}
+		break;
+	case FFS_OS_DESC_EXT_PROP: {
+		struct usb_ext_prop_desc *desc = data;
+		struct usb_os_desc_table *t;
+		struct usb_os_desc_ext_prop *ext_prop;
+		char *ext_prop_name;
+		char *ext_prop_data;
+
+		t = &func->function.os_desc_table[h->interface];
+		t->if_id = func->interfaces_nums[h->interface];
+
+		ext_prop = func->ffs->ms_os_descs_ext_prop_avail;
+		func->ffs->ms_os_descs_ext_prop_avail += sizeof(*ext_prop);
+
+		ext_prop->type = le32_to_cpu(desc->dwPropertyDataType);
+		ext_prop->name_len = le16_to_cpu(desc->wPropertyNameLength);
+		ext_prop->data_len = le32_to_cpu(*(u32 *)
+			usb_ext_prop_data_len_ptr(data, ext_prop->name_len));
+		length = ext_prop->name_len + ext_prop->data_len + 14;
+
+		ext_prop_name = func->ffs->ms_os_descs_ext_prop_name_avail;
+		func->ffs->ms_os_descs_ext_prop_name_avail +=
+			ext_prop->name_len;
+
+		ext_prop_data = func->ffs->ms_os_descs_ext_prop_data_avail;
+		func->ffs->ms_os_descs_ext_prop_data_avail +=
+			ext_prop->data_len;
+		memcpy(ext_prop_data,
+		       usb_ext_prop_data_ptr(data, ext_prop->name_len),
+		       ext_prop->data_len);
+		/* unicode data reported to the host as "WCHAR"s */
+		switch (ext_prop->type) {
+		case USB_EXT_PROP_UNICODE:
+		case USB_EXT_PROP_UNICODE_ENV:
+		case USB_EXT_PROP_UNICODE_LINK:
+		case USB_EXT_PROP_UNICODE_MULTI:
+			ext_prop->data_len *= 2;
+			break;
+		}
+		ext_prop->data = ext_prop_data;
+
+		memcpy(ext_prop_name, usb_ext_prop_name_ptr(data),
+		       ext_prop->name_len);
+		/* property name reported to the host as "WCHAR"s */
+		ext_prop->name_len *= 2;
+		ext_prop->name = ext_prop_name;
+
+		t->os_desc->ext_prop_len +=
+			ext_prop->name_len + ext_prop->data_len + 14;
+		++t->os_desc->ext_prop_count;
+		list_add_tail(&ext_prop->entry, &t->os_desc->ext_prop);
+	}
+		break;
+	default:
+		pr_vdebug("unknown descriptor: %d\n", type);
+	}
+
+	return length;
+}
+
 static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 						struct usb_configuration *c)
 {
@@ -2328,7 +2611,7 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	const int super = gadget_is_superspeed(func->gadget) &&
 		func->ffs->ss_descs_count;
 
-	int fs_len, hs_len, ret;
+	int fs_len, hs_len, ss_len, ret, i;
 
 	/* Make it a single chunk, less management later on */
 	vla_group(d);
@@ -2340,6 +2623,18 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	vla_item_with_sz(d, struct usb_descriptor_header *, ss_descs,
 		super ? ffs->ss_descs_count + 1 : 0);
 	vla_item_with_sz(d, short, inums, ffs->interfaces_count);
+	vla_item_with_sz(d, struct usb_os_desc_table, os_desc_table,
+			 c->cdev->use_os_string ? ffs->interfaces_count : 0);
+	vla_item_with_sz(d, char[16], ext_compat,
+			 c->cdev->use_os_string ? ffs->interfaces_count : 0);
+	vla_item_with_sz(d, struct usb_os_desc, os_desc,
+			 c->cdev->use_os_string ? ffs->interfaces_count : 0);
+	vla_item_with_sz(d, struct usb_os_desc_ext_prop, ext_prop,
+			 ffs->ms_os_descs_ext_prop_count);
+	vla_item_with_sz(d, char, ext_prop_name,
+			 ffs->ms_os_descs_ext_prop_name_len);
+	vla_item_with_sz(d, char, ext_prop_data,
+			 ffs->ms_os_descs_ext_prop_data_len);
 	vla_item_with_sz(d, char, raw_descs, ffs->raw_descs_length);
 	char *vlabuf;
 
@@ -2350,12 +2645,16 @@ static int _ffs_func_bind(struct usb_configuration *c,
 		return -ENOTSUPP;
 
 	/* Allocate a single chunk, less management later on */
-	vlabuf = kmalloc(vla_group_size(d), GFP_KERNEL);
+	vlabuf = kzalloc(vla_group_size(d), GFP_KERNEL);
 	if (unlikely(!vlabuf))
 		return -ENOMEM;
 
-	/* Zero */
-	memset(vla_ptr(vlabuf, d, eps), 0, d_eps__sz);
+	ffs->ms_os_descs_ext_prop_avail = vla_ptr(vlabuf, d, ext_prop);
+	ffs->ms_os_descs_ext_prop_name_avail =
+		vla_ptr(vlabuf, d, ext_prop_name);
+	ffs->ms_os_descs_ext_prop_data_avail =
+		vla_ptr(vlabuf, d, ext_prop_data);
+
 	/* Copy descriptors  */
 	memcpy(vla_ptr(vlabuf, d, raw_descs), ffs->raw_descs,
 	       ffs->raw_descs_length);
@@ -2409,12 +2708,16 @@ static int _ffs_func_bind(struct usb_configuration *c,
 
 	if (likely(super)) {
 		func->function.ss_descriptors = vla_ptr(vlabuf, d, ss_descs);
-		ret = ffs_do_descs(ffs->ss_descs_count,
+		ss_len = ffs_do_descs(ffs->ss_descs_count,
 				vla_ptr(vlabuf, d, raw_descs) + fs_len + hs_len,
 				d_raw_descs__sz - fs_len - hs_len,
 				__ffs_func_bind_do_descs, func);
-		if (unlikely(ret < 0))
+		if (unlikely(ss_len < 0)) {
+			ret = ss_len;
 			goto error;
+		}
+	} else {
+		ss_len = 0;
 	}
 
 	/*
@@ -2429,6 +2732,28 @@ static int _ffs_func_bind(struct usb_configuration *c,
 			   __ffs_func_bind_do_nums, func);
 	if (unlikely(ret < 0))
 		goto error;
+
+	func->function.os_desc_table = vla_ptr(vlabuf, d, os_desc_table);
+	if (c->cdev->use_os_string)
+		for (i = 0; i < ffs->interfaces_count; ++i) {
+			struct usb_os_desc *desc;
+
+			desc = func->function.os_desc_table[i].os_desc =
+				vla_ptr(vlabuf, d, os_desc) +
+				i * sizeof(struct usb_os_desc);
+			desc->ext_compat_id =
+				vla_ptr(vlabuf, d, ext_compat) + i * 16;
+			INIT_LIST_HEAD(&desc->ext_prop);
+		}
+	ret = ffs_do_os_descs(ffs->ms_os_descs_count,
+			      vla_ptr(vlabuf, d, raw_descs) +
+			      fs_len + hs_len + ss_len,
+			      d_raw_descs__sz - fs_len - hs_len - ss_len,
+			      __ffs_func_bind_do_os_desc, func);
+	if (unlikely(ret < 0))
+		goto error;
+	func->function.os_desc_n =
+		c->cdev->use_os_string ? ffs->interfaces_count : 0;
 
 	/* And we're done */
 	ffs_event_add(ffs, FUNCTIONFS_BIND);

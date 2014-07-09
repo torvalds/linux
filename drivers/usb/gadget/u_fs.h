@@ -216,6 +216,13 @@ struct ffs_data {
 	unsigned			fs_descs_count;
 	unsigned			hs_descs_count;
 	unsigned			ss_descs_count;
+	unsigned			ms_os_descs_count;
+	unsigned			ms_os_descs_ext_prop_count;
+	unsigned			ms_os_descs_ext_prop_name_len;
+	unsigned			ms_os_descs_ext_prop_data_len;
+	void				*ms_os_descs_ext_prop_avail;
+	void				*ms_os_descs_ext_prop_name_avail;
+	void				*ms_os_descs_ext_prop_data_avail;
 
 	unsigned short			strings_count;
 	unsigned short			interfaces_count;
