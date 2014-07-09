@@ -305,6 +305,7 @@ struct hci_dev {
 
 	struct list_head	mgmt_pending;
 	struct list_head	blacklist;
+	struct list_head	whitelist;
 	struct list_head	uuids;
 	struct list_head	link_keys;
 	struct list_head	long_term_keys;

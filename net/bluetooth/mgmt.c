@@ -5219,7 +5219,7 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 
 	BT_DBG("%s", hdev->name);
 
-	if (!bdaddr_type_is_le(cp->addr.type) ||
+	if (!bdaddr_type_is_valid(cp->addr.type) ||
 	    !bacmp(&cp->addr.bdaddr, BDADDR_ANY))
 		return cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
 				    MGMT_STATUS_INVALID_PARAMS,
@@ -5231,6 +5231,22 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 				    &cp->addr, sizeof(cp->addr));
 
 	hci_dev_lock(hdev);
+
+	if (cp->addr.type == BDADDR_BREDR) {
+		/* Only "connect" action supported for now */
+		if (cp->action != 0x01) {
+			err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
+					   MGMT_STATUS_INVALID_PARAMS,
+					   &cp->addr, sizeof(cp->addr));
+			goto unlock;
+		}
+
+		err = hci_bdaddr_list_add(&hdev->whitelist, &cp->addr.bdaddr,
+					  cp->addr.type);
+		if (err)
+			goto unlock;
+		goto added;
+	}
 
 	if (cp->addr.type == BDADDR_LE_PUBLIC)
 		addr_type = ADDR_LE_DEV_PUBLIC;
@@ -5253,6 +5269,7 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
+added:
 	device_added(sk, hdev, &cp->addr.bdaddr, cp->addr.type, cp->action);
 
 	err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
@@ -5288,11 +5305,28 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 		struct hci_conn_params *params;
 		u8 addr_type;
 
-		if (!bdaddr_type_is_le(cp->addr.type)) {
+		if (!bdaddr_type_is_valid(cp->addr.type)) {
 			err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,
 					   MGMT_STATUS_INVALID_PARAMS,
 					   &cp->addr, sizeof(cp->addr));
 			goto unlock;
+		}
+
+		if (cp->addr.type == BDADDR_BREDR) {
+			err = hci_bdaddr_list_del(&hdev->whitelist,
+						  &cp->addr.bdaddr,
+						  cp->addr.type);
+			if (err) {
+				err = cmd_complete(sk, hdev->id,
+						   MGMT_OP_REMOVE_DEVICE,
+						   MGMT_STATUS_INVALID_PARAMS,
+						   &cp->addr, sizeof(cp->addr));
+				goto unlock;
+			}
+
+			device_removed(sk, hdev, &cp->addr.bdaddr,
+				       cp->addr.type);
+			goto complete;
 		}
 
 		if (cp->addr.type == BDADDR_LE_PUBLIC)
@@ -5324,12 +5358,19 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 		device_removed(sk, hdev, &cp->addr.bdaddr, cp->addr.type);
 	} else {
 		struct hci_conn_params *p, *tmp;
+		struct bdaddr_list *b, *btmp;
 
 		if (cp->addr.type) {
 			err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,
 					   MGMT_STATUS_INVALID_PARAMS,
 					   &cp->addr, sizeof(cp->addr));
 			goto unlock;
+		}
+
+		list_for_each_entry_safe(b, btmp, &hdev->whitelist, list) {
+			device_removed(sk, hdev, &b->bdaddr, b->bdaddr_type);
+			list_del(&b->list);
+			kfree(b);
 		}
 
 		list_for_each_entry_safe(p, tmp, &hdev->le_conn_params, list) {
@@ -5346,6 +5387,7 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 		hci_update_background_scan(hdev);
 	}
 
+complete:
 	err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,
 			   MGMT_STATUS_SUCCESS, &cp->addr, sizeof(cp->addr));
 
