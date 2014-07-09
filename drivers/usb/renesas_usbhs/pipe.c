@@ -710,6 +710,7 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 	usbhsp_pipe_select(pipe);
 	usbhsp_pipe_cfg_set(pipe, 0xFFFF, pipecfg);
 	usbhsp_pipe_buf_set(pipe, 0xFFFF, pipebuf);
+	usbhs_pipe_clear(pipe);
 
 	usbhs_pipe_sequence_data0(pipe);
 
