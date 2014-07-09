@@ -320,6 +320,27 @@ static void *swap_buffer(void *bufaddr, int len)
 	return bufaddr;
 }
 
+static void fec_dump(struct net_device *ndev)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct bufdesc *bdp = fep->tx_bd_base;
+	unsigned int index = 0;
+
+	netdev_info(ndev, "TX ring dump\n");
+	pr_info("Nr     SC     addr       len  SKB\n");
+
+	do {
+		pr_info("%3u %c%c 0x%04x 0x%08lx %4u %p\n",
+			index,
+			bdp == fep->cur_tx ? 'S' : ' ',
+			bdp == fep->dirty_tx ? 'H' : ' ',
+			bdp->cbd_sc, bdp->cbd_bufaddr, bdp->cbd_datlen,
+			fep->tx_skbuff[index]);
+		bdp = fec_enet_get_nextdesc(bdp, fep);
+		index++;
+	} while (bdp != fep->tx_bd_base);
+}
+
 static inline bool is_ipv4_pkt(struct sk_buff *skb)
 {
 	return skb->protocol == htons(ETH_P_IP) && ip_hdr(skb)->version == 4;
@@ -340,22 +361,6 @@ fec_enet_clear_csum(struct sk_buff *skb, struct net_device *ndev)
 	*(__sum16 *)(skb->head + skb->csum_start + skb->csum_offset) = 0;
 
 	return 0;
-}
-
-static void
-fec_enet_submit_work(struct bufdesc *bdp, struct fec_enet_private *fep)
-{
-	const struct platform_device_id *id_entry =
-				platform_get_device_id(fep->pdev);
-	struct bufdesc *bdp_pre;
-
-	bdp_pre = fec_enet_get_prevdesc(bdp, fep);
-	if ((id_entry->driver_data & FEC_QUIRK_ERR006358) &&
-	    !(bdp_pre->cbd_sc & BD_ENET_TX_READY)) {
-		fep->delay_work.trig_tx = true;
-		schedule_delayed_work(&(fep->delay_work.delay_work),
-					msecs_to_jiffies(1));
-	}
 }
 
 static int
@@ -545,8 +550,6 @@ static int fec_enet_txq_submit_skb(struct sk_buff *skb, struct net_device *ndev)
 	status |= (BD_ENET_TX_READY | BD_ENET_TX_TC);
 	bdp->cbd_sc = status;
 
-	fec_enet_submit_work(bdp, fep);
-
 	/* If this was the last BD in the ring, start at the beginning again. */
 	bdp = fec_enet_get_nextdesc(last_bdp, fep);
 
@@ -734,8 +737,6 @@ static int fec_enet_txq_submit_tso(struct sk_buff *skb, struct net_device *ndev)
 
 	/* Save skb pointer */
 	fep->tx_skbuff[index] = skb;
-
-	fec_enet_submit_work(bdp, fep);
 
 	skb_tx_timestamp(skb);
 	fep->cur_tx = bdp;
@@ -1038,38 +1039,44 @@ fec_timeout(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
+	fec_dump(ndev);
+
 	ndev->stats.tx_errors++;
 
-	fep->delay_work.timeout = true;
-	schedule_delayed_work(&(fep->delay_work.delay_work), 0);
+	schedule_work(&fep->tx_timeout_work);
 }
 
-static void fec_enet_work(struct work_struct *work)
+static void fec_enet_timeout_work(struct work_struct *work)
 {
 	struct fec_enet_private *fep =
-		container_of(work,
-			     struct fec_enet_private,
-			     delay_work.delay_work.work);
+		container_of(work, struct fec_enet_private, tx_timeout_work);
 	struct net_device *ndev = fep->netdev;
 
-	if (fep->delay_work.timeout) {
-		fep->delay_work.timeout = false;
-		rtnl_lock();
-		if (netif_device_present(ndev) || netif_running(ndev)) {
-			napi_disable(&fep->napi);
-			netif_tx_lock_bh(ndev);
-			fec_restart(ndev);
-			netif_wake_queue(ndev);
-			netif_tx_unlock_bh(ndev);
-			napi_enable(&fep->napi);
-		}
-		rtnl_unlock();
+	rtnl_lock();
+	if (netif_device_present(ndev) || netif_running(ndev)) {
+		napi_disable(&fep->napi);
+		netif_tx_lock_bh(ndev);
+		fec_restart(ndev);
+		netif_wake_queue(ndev);
+		netif_tx_unlock_bh(ndev);
+		napi_enable(&fep->napi);
 	}
+	rtnl_unlock();
+}
 
-	if (fep->delay_work.trig_tx) {
-		fep->delay_work.trig_tx = false;
-		writel(0, fep->hwp + FEC_X_DES_ACTIVE);
-	}
+static void
+fec_enet_hwtstamp(struct fec_enet_private *fep, unsigned ts,
+	struct skb_shared_hwtstamps *hwtstamps)
+{
+	unsigned long flags;
+	u64 ns;
+
+	spin_lock_irqsave(&fep->tmreg_lock, flags);
+	ns = timecounter_cyc2time(&fep->tc, ts);
+	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
+
+	memset(hwtstamps, 0, sizeof(*hwtstamps));
+	hwtstamps->hwtstamp = ns_to_ktime(ns);
 }
 
 static void
@@ -1130,19 +1137,11 @@ fec_enet_tx(struct net_device *ndev)
 		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS) &&
 			fep->bufdesc_ex) {
 			struct skb_shared_hwtstamps shhwtstamps;
-			unsigned long flags;
 			struct bufdesc_ex *ebdp = (struct bufdesc_ex *)bdp;
 
-			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-			spin_lock_irqsave(&fep->tmreg_lock, flags);
-			shhwtstamps.hwtstamp = ns_to_ktime(
-				timecounter_cyc2time(&fep->tc, ebdp->ts));
-			spin_unlock_irqrestore(&fep->tmreg_lock, flags);
+			fec_enet_hwtstamp(fep, ebdp->ts, &shhwtstamps);
 			skb_tstamp_tx(skb, &shhwtstamps);
 		}
-
-		if (status & BD_ENET_TX_READY)
-			netdev_err(ndev, "HEY! Enet xmit interrupt and TX_READY\n");
 
 		/* Deferred means some collisions occurred during transmit,
 		 * but we eventually sent the packet OK.
@@ -1166,7 +1165,10 @@ fec_enet_tx(struct net_device *ndev)
 				netif_wake_queue(ndev);
 		}
 	}
-	return;
+
+	/* ERR006538: Keep the transmitter going */
+	if (bdp != fep->cur_tx && readl(fep->hwp + FEC_X_DES_ACTIVE) == 0)
+		writel(0, fep->hwp + FEC_X_DES_ACTIVE);
 }
 
 /* During a receive, the cur_rx points to the current incoming buffer.
@@ -1211,6 +1213,8 @@ fec_enet_rx(struct net_device *ndev, int budget)
 		 */
 		if ((status & BD_ENET_RX_LAST) == 0)
 			netdev_err(ndev, "rcv is not +last\n");
+
+		writel(FEC_ENET_RXF, fep->hwp + FEC_IEVENT);
 
 		/* Check for errors. */
 		if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_NO |
@@ -1294,18 +1298,9 @@ fec_enet_rx(struct net_device *ndev, int budget)
 			skb->protocol = eth_type_trans(skb, ndev);
 
 			/* Get receive timestamp from the skb */
-			if (fep->hwts_rx_en && fep->bufdesc_ex) {
-				struct skb_shared_hwtstamps *shhwtstamps =
-							    skb_hwtstamps(skb);
-				unsigned long flags;
-
-				memset(shhwtstamps, 0, sizeof(*shhwtstamps));
-
-				spin_lock_irqsave(&fep->tmreg_lock, flags);
-				shhwtstamps->hwtstamp = ns_to_ktime(
-				    timecounter_cyc2time(&fep->tc, ebdp->ts));
-				spin_unlock_irqrestore(&fep->tmreg_lock, flags);
-			}
+			if (fep->hwts_rx_en && fep->bufdesc_ex)
+				fec_enet_hwtstamp(fep, ebdp->ts,
+						  skb_hwtstamps(skb));
 
 			if (fep->bufdesc_ex &&
 			    (fep->csum_flags & FLAG_RX_CSUM_ENABLED)) {
@@ -2040,21 +2035,19 @@ static int fec_enet_nway_reset(struct net_device *dev)
 }
 
 static const struct ethtool_ops fec_enet_ethtool_ops = {
-#if !defined(CONFIG_M5272)
-	.get_pauseparam		= fec_enet_get_pauseparam,
-	.set_pauseparam		= fec_enet_set_pauseparam,
-#endif
 	.get_settings		= fec_enet_get_settings,
 	.set_settings		= fec_enet_set_settings,
 	.get_drvinfo		= fec_enet_get_drvinfo,
-	.get_link		= ethtool_op_get_link,
-	.get_ts_info		= fec_enet_get_ts_info,
 	.nway_reset		= fec_enet_nway_reset,
+	.get_link		= ethtool_op_get_link,
 #ifndef CONFIG_M5272
-	.get_ethtool_stats	= fec_enet_get_ethtool_stats,
+	.get_pauseparam		= fec_enet_get_pauseparam,
+	.set_pauseparam		= fec_enet_set_pauseparam,
 	.get_strings		= fec_enet_get_strings,
+	.get_ethtool_stats	= fec_enet_get_ethtool_stats,
 	.get_sset_count		= fec_enet_get_sset_count,
 #endif
+	.get_ts_info		= fec_enet_get_ts_info,
 };
 
 static int fec_enet_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
@@ -2664,7 +2657,7 @@ fec_probe(struct platform_device *pdev)
 	if (fep->bufdesc_ex && fep->ptp_clock)
 		netdev_info(ndev, "registered PHC device %d\n", fep->dev_id);
 
-	INIT_DELAYED_WORK(&(fep->delay_work.delay_work), fec_enet_work);
+	INIT_WORK(&fep->tx_timeout_work, fec_enet_timeout_work);
 	return 0;
 
 failed_register:
@@ -2689,7 +2682,7 @@ fec_drv_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	cancel_delayed_work_sync(&(fep->delay_work.delay_work));
+	cancel_work_sync(&fep->tx_timeout_work);
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
 	del_timer_sync(&fep->time_keep);
