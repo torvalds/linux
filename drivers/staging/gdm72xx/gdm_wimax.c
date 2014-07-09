@@ -591,11 +591,6 @@ static void gdm_wimax_prepare_device(struct net_device *dev)
 	u32 val = 0;
 	__be32 val_be32;
 
-	#define BIT_MULTI_CS	0
-	#define BIT_WIMAX		1
-	#define BIT_QOS			2
-	#define BIT_AGGREGATION	3
-
 	/* GetInformation mac address */
 	len = 0;
 	hci->cmd_evt = cpu_to_be16(WIMAX_GET_INFO);
@@ -603,12 +598,12 @@ static void gdm_wimax_prepare_device(struct net_device *dev)
 	hci->length = cpu_to_be16(len);
 	gdm_wimax_send(nic, hci, HCI_HEADER_SIZE+len);
 
-	val = (1<<BIT_WIMAX) | (1<<BIT_MULTI_CS);
+	val = T_CAPABILITY_WIMAX | T_CAPABILITY_MULTI_CS;
 	#if defined(CONFIG_WIMAX_GDM72XX_QOS)
-	val |= (1<<BIT_QOS);
+	val |= T_CAPABILITY_QOS;
 	#endif
 	#if defined(CONFIG_WIMAX_GDM72XX_WIMAX2)
-	val |= (1<<BIT_AGGREGATION);
+	val |= T_CAPABILITY_AGGREGATION;
 	#endif
 
 	/* Set capability */

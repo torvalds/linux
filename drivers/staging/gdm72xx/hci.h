@@ -198,6 +198,12 @@
 #define T_FFTSIZE			(0xda	| (4 << 16))
 #define T_DUPLEX_MODE			(0xdb	| (4 << 16))
 
+/* T_CAPABILITY */
+#define T_CAPABILITY_MULTI_CS		(1 << 0)
+#define T_CAPABILITY_WIMAX		(1 << 1)
+#define T_CAPABILITY_QOS		(1 << 2)
+#define T_CAPABILITY_AGGREGATION	(1 << 3)
+
 struct hci_s {
 	__be16	cmd_evt;
 	__be16	length;
