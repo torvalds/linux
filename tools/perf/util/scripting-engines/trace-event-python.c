@@ -50,10 +50,14 @@ static int zero_flag_atom;
 
 static PyObject *main_module, *main_dict;
 
+static void handler_call_die(const char *handler_name) NORETURN;
 static void handler_call_die(const char *handler_name)
 {
 	PyErr_Print();
 	Py_FatalError("problem in Python trace event handler");
+	// Py_FatalError does not return
+	// but we have to make the compiler happy
+	abort();
 }
 
 /*
@@ -97,6 +101,7 @@ static void define_value(enum print_arg_type field_type,
 		retval = PyObject_CallObject(handler, t);
 		if (retval == NULL)
 			handler_call_die(handler_name);
+		Py_DECREF(retval);
 	}
 
 	Py_DECREF(t);
@@ -143,6 +148,7 @@ static void define_field(enum print_arg_type field_type,
 		retval = PyObject_CallObject(handler, t);
 		if (retval == NULL)
 			handler_call_die(handler_name);
+		Py_DECREF(retval);
 	}
 
 	Py_DECREF(t);
@@ -361,6 +367,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 		retval = PyObject_CallObject(handler, t);
 		if (retval == NULL)
 			handler_call_die(handler_name);
+		Py_DECREF(retval);
 	} else {
 		handler = PyDict_GetItemString(main_dict, "trace_unhandled");
 		if (handler && PyCallable_Check(handler)) {
@@ -368,6 +375,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 			retval = PyObject_CallObject(handler, t);
 			if (retval == NULL)
 				handler_call_die("trace_unhandled");
+			Py_DECREF(retval);
 		}
 		Py_DECREF(dict);
 	}
@@ -427,6 +435,7 @@ static void python_process_general_event(struct perf_sample *sample,
 	retval = PyObject_CallObject(handler, t);
 	if (retval == NULL)
 		handler_call_die(handler_name);
+	Py_DECREF(retval);
 exit:
 	Py_DECREF(dict);
 	Py_DECREF(t);
@@ -548,8 +557,7 @@ static int python_stop_script(void)
 	retval = PyObject_CallObject(handler, NULL);
 	if (retval == NULL)
 		handler_call_die("trace_end");
-	else
-		Py_DECREF(retval);
+	Py_DECREF(retval);
 out:
 	Py_XDECREF(main_dict);
 	Py_XDECREF(main_module);
