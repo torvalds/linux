@@ -326,7 +326,7 @@ int r8712_cmd_thread(void *context)
 	struct _adapter *padapter = (struct _adapter *)context;
 	struct	cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
 
-	thread_enter(padapter);
+	allow_signal(SIGTERM);
 	while (1) {
 		if ((_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL)
 			break;
