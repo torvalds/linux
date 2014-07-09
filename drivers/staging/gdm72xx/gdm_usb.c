@@ -49,9 +49,6 @@ static int k_mode_stop;
 
 #endif /* CONFIG_WIMAX_GDM72XX_K_MODE */
 
-static int init_usb(struct usbwm_dev *udev);
-static void release_usb(struct usbwm_dev *udev);
-
 static struct usb_tx *alloc_tx_struct(struct tx_cxt *tx)
 {
 	struct usb_tx *t = kzalloc(sizeof(*t), GFP_ATOMIC);
@@ -160,6 +157,48 @@ static void put_rx_struct(struct rx_cxt *rx, struct usb_rx *r)
 	list_move(&r->list, &rx->free_list);
 }
 
+static void release_usb(struct usbwm_dev *udev)
+{
+	struct tx_cxt *tx = &udev->tx;
+	struct rx_cxt *rx = &udev->rx;
+	struct usb_tx *t, *t_next;
+	struct usb_rx *r, *r_next;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tx->lock, flags);
+
+	list_for_each_entry_safe(t, t_next, &tx->sdu_list, list) {
+		list_del(&t->list);
+		free_tx_struct(t);
+	}
+
+	list_for_each_entry_safe(t, t_next, &tx->hci_list, list) {
+		list_del(&t->list);
+		free_tx_struct(t);
+	}
+
+	list_for_each_entry_safe(t, t_next, &tx->free_list, list) {
+		list_del(&t->list);
+		free_tx_struct(t);
+	}
+
+	spin_unlock_irqrestore(&tx->lock, flags);
+
+	spin_lock_irqsave(&rx->lock, flags);
+
+	list_for_each_entry_safe(r, r_next, &rx->free_list, list) {
+		list_del(&r->list);
+		free_rx_struct(r);
+	}
+
+	list_for_each_entry_safe(r, r_next, &rx->used_list, list) {
+		list_del(&r->list);
+		free_rx_struct(r);
+	}
+
+	spin_unlock_irqrestore(&rx->lock, flags);
+}
+
 static int init_usb(struct usbwm_dev *udev)
 {
 	int ret = 0, i;
@@ -208,48 +247,6 @@ static int init_usb(struct usbwm_dev *udev)
 fail:
 	release_usb(udev);
 	return ret;
-}
-
-static void release_usb(struct usbwm_dev *udev)
-{
-	struct tx_cxt *tx = &udev->tx;
-	struct rx_cxt *rx = &udev->rx;
-	struct usb_tx *t, *t_next;
-	struct usb_rx *r, *r_next;
-	unsigned long flags;
-
-	spin_lock_irqsave(&tx->lock, flags);
-
-	list_for_each_entry_safe(t, t_next, &tx->sdu_list, list) {
-		list_del(&t->list);
-		free_tx_struct(t);
-	}
-
-	list_for_each_entry_safe(t, t_next, &tx->hci_list, list) {
-		list_del(&t->list);
-		free_tx_struct(t);
-	}
-
-	list_for_each_entry_safe(t, t_next, &tx->free_list, list) {
-		list_del(&t->list);
-		free_tx_struct(t);
-	}
-
-	spin_unlock_irqrestore(&tx->lock, flags);
-
-	spin_lock_irqsave(&rx->lock, flags);
-
-	list_for_each_entry_safe(r, r_next, &rx->free_list, list) {
-		list_del(&r->list);
-		free_rx_struct(r);
-	}
-
-	list_for_each_entry_safe(r, r_next, &rx->used_list, list) {
-		list_del(&r->list);
-		free_rx_struct(r);
-	}
-
-	spin_unlock_irqrestore(&rx->lock, flags);
 }
 
 static void __gdm_usb_send_complete(struct urb *urb)
