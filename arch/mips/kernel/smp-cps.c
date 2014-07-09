@@ -360,7 +360,7 @@ void play_dead(void)
 static void wait_for_sibling_halt(void *ptr_cpu)
 {
 	unsigned cpu = (unsigned)ptr_cpu;
-	unsigned vpe_id = cpu_data[cpu].vpe_id;
+	unsigned vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	unsigned halted;
 	unsigned long flags;
 

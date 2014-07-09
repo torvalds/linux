@@ -154,7 +154,7 @@ int cps_pm_enter_state(enum cps_pm_state state)
 			return -EINVAL;
 
 		core_cfg = &mips_cps_core_bootcfg[core];
-		vpe_cfg = &core_cfg->vpe_config[current_cpu_data.vpe_id];
+		vpe_cfg = &core_cfg->vpe_config[cpu_vpe_id(&current_cpu_data)];
 		vpe_cfg->pc = (unsigned long)mips_cps_pm_restore;
 		vpe_cfg->gp = (unsigned long)current_thread_info();
 		vpe_cfg->sp = 0;
