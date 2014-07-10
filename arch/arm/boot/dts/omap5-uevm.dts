@@ -100,14 +100,33 @@
 			};
 		};
 	};
+
+	sound: sound {
+		compatible = "ti,abe-twl6040";
+		ti,model = "omap5-uevm";
+
+		ti,mclk-freq = <19200000>;
+
+		ti,mcpdm = <&mcpdm>;
+
+		ti,twl6040 = <&twl6040>;
+
+		/* Audio routing */
+		ti,audio-routing =
+			"Headset Stereophone", "HSOL",
+			"Headset Stereophone", "HSOR",
+			"Line Out", "AUXL",
+			"Line Out", "AUXR",
+			"HSMIC", "Headset Mic",
+			"Headset Mic", "Headset Mic Bias",
+			"AFML", "Line In",
+			"AFMR", "Line In";
+	};
 };
 
 &omap5_pmx_core {
 	pinctrl-names = "default";
 	pinctrl-0 = <
-			&mcpdm_pins
-			&mcbsp1_pins
-			&mcbsp2_pins
 			&usbhost_pins
 			&led_gpio_pins
 	>;
@@ -528,8 +547,22 @@
 	};
 };
 
-&mcbsp3 {
-	status = "disabled";
+&mcpdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
+};
+
+&mcbsp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp1_pins>;
+	status = "okay";
+};
+
+&mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
+	status = "okay";
 };
 
 &usbhshost {
