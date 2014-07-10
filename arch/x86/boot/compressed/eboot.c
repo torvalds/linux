@@ -1376,7 +1376,10 @@ struct boot_params *efi_main(struct efi_config *c,
 
 	setup_graphics(boot_params);
 
-	setup_efi_pci(boot_params);
+	status = setup_efi_pci(boot_params);
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table, "setup_efi_pci() failed!\n");
+	}
 
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
 				sizeof(*gdt), (void **)&gdt);
@@ -1403,16 +1406,20 @@ struct boot_params *efi_main(struct efi_config *c,
 					     hdr->init_size, hdr->init_size,
 					     hdr->pref_address,
 					     hdr->kernel_alignment);
-		if (status != EFI_SUCCESS)
+		if (status != EFI_SUCCESS) {
+			efi_printk(sys_table, "efi_relocate_kernel() failed!\n");
 			goto fail;
+		}
 
 		hdr->pref_address = hdr->code32_start;
 		hdr->code32_start = bzimage_addr;
 	}
 
 	status = exit_boot(boot_params, handle, is64);
-	if (status != EFI_SUCCESS)
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table, "exit_boot() failed!\n");
 		goto fail;
+	}
 
 	memset((char *)gdt->address, 0x0, gdt->size);
 	desc = (struct desc_struct *)gdt->address;
@@ -1472,5 +1479,6 @@ struct boot_params *efi_main(struct efi_config *c,
 
 	return boot_params;
 fail:
+	efi_printk(sys_table, "efi_main() failed!\n");
 	return NULL;
 }
