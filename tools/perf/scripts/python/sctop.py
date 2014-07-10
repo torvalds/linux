@@ -44,7 +44,7 @@ def trace_begin():
 
 def raw_syscalls__sys_enter(event_name, context, common_cpu,
 	common_secs, common_nsecs, common_pid, common_comm,
-	id, args):
+	common_callchain, id, args):
 	if for_comm is not None:
 		if common_comm != for_comm:
 			return
