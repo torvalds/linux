@@ -32,39 +32,18 @@ No irqsave is necessary.
 
 int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
-	int res = _SUCCESS;
-
-
 	sema_init(&(pcmdpriv->cmd_queue_sema), 0);
-	/* sema_init(&(pcmdpriv->cmd_done_sema), 0); */
 	sema_init(&(pcmdpriv->terminate_cmdthread_sema), 0);
-
 
 	_rtw_init_queue(&(pcmdpriv->cmd_queue));
 
-	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
-
 	pcmdpriv->cmd_seq = 1;
-
-	pcmdpriv->cmd_allocated_buf = kzalloc(MAX_CMDSZ + CMDBUFF_ALIGN_SZ, GFP_KERNEL);
-
-	if (pcmdpriv->cmd_allocated_buf == NULL) {
-		res = _FAIL;
-		goto exit;
-	}
-
-	pcmdpriv->cmd_buf = pcmdpriv->cmd_allocated_buf  +  CMDBUFF_ALIGN_SZ - ((size_t)(pcmdpriv->cmd_allocated_buf) & (CMDBUFF_ALIGN_SZ-1));
-
-exit:
-	return res;
+	return _SUCCESS;
 }
 
 void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 
-	if (pcmdpriv) {
-		kfree(pcmdpriv->cmd_allocated_buf);
-	}
 }
 
 /*
@@ -192,15 +171,12 @@ int rtw_cmd_thread(void *context)
 {
 	u8 ret;
 	struct cmd_obj *pcmd;
-	u8 *pcmdbuf;
 	u8 (*cmd_hdl)(struct adapter *padapter, u8 *pbuf);
 	void (*pcmd_callback)(struct adapter *dev, struct cmd_obj *pcmd);
 	struct adapter *padapter = (struct adapter *)context;
 	struct cmd_priv *pcmdpriv = &(padapter->cmdpriv);
 
 	allow_signal(SIGTERM);
-
-	pcmdbuf = pcmdpriv->cmd_buf;
 
 	pcmdpriv->cmdthd_running = true;
 	up(&pcmdpriv->terminate_cmdthread_sema);
@@ -234,15 +210,11 @@ _next:
 			goto post_process;
 		}
 
-		pcmd->cmdsz = round_up(pcmd->cmdsz, 4);
-
-		memcpy(pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
-
 		if (pcmd->cmdcode < ARRAY_SIZE(wlancmds)) {
 			cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
 
 			if (cmd_hdl) {
-				ret = cmd_hdl(pcmd->padapter, pcmdbuf);
+				ret = cmd_hdl(pcmd->padapter, pcmd->parmbuf);
 				pcmd->res = ret;
 			}
 

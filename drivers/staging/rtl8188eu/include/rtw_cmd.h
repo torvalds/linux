@@ -48,8 +48,6 @@ struct cmd_priv {
 	struct semaphore terminate_cmdthread_sema;
 	struct __queue cmd_queue;
 	u8	cmd_seq;
-	u8	*cmd_buf;	/* shall be non-paged, and 4 bytes aligned */
-	u8	*cmd_allocated_buf;
 	u8 cmdthd_running;
 	struct adapter *padapter;
 };
