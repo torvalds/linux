@@ -334,7 +334,7 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	memcpy(cmd.args, "\x14\x00\x01\x10\x00\x00", 6);
+	memcpy(cmd.args, "\x14\x00\x01\x10\x16\x00", 6);
 	cmd.wlen = 6;
 	cmd.rlen = 1;
 	ret = si2168_cmd_execute(s, &cmd);
@@ -398,13 +398,6 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 		goto err;
 
 	memcpy(cmd.args, "\x14\x00\x01\x03\x0c\x40", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x01\x10\x16\x00", 6);
 	cmd.wlen = 6;
 	cmd.rlen = 1;
 	ret = si2168_cmd_execute(s, &cmd);
