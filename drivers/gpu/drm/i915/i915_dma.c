@@ -1596,7 +1596,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (dev_priv == NULL)
 		return -ENOMEM;
 
-	dev->dev_private = (void *)dev_priv;
+	dev->dev_private = dev_priv;
 	dev_priv->dev = dev;
 
 	/* copy initial configuration to dev_priv->info */
