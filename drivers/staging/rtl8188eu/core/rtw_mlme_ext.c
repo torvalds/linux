@@ -5600,8 +5600,3 @@ u8 led_blink_hdl(struct adapter *padapter, unsigned char *pbuf)
 		return H2C_PARAMETERS_ERROR;
 	return	H2C_SUCCESS;
 }
-
-u8 set_csa_hdl(struct adapter *padapter, unsigned char *pbuf)
-{
-	return	H2C_REJECTED;
-}

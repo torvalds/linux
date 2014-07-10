@@ -416,7 +416,6 @@ enum rtw_h2c_cmd {
 	GEN_CMD_CODE(_Set_H2C_MSG),
 	GEN_CMD_CODE(_SetChannelPlan),
 	GEN_CMD_CODE(_LedBlink),
-	GEN_CMD_CODE(_SetChannelSwitch),
 
 	MAX_H2CCMD
 };
@@ -440,7 +439,6 @@ static struct _cmd_callback	rtw_cmd_callback[] = {
 	{GEN_CMD_CODE(_Set_H2C_MSG), NULL},
 	{GEN_CMD_CODE(_SetChannelPlan), NULL},
 	{GEN_CMD_CODE(_LedBlink), NULL},
-	{GEN_CMD_CODE(_SetChannelSwitch), NULL},
 };
 #endif
 

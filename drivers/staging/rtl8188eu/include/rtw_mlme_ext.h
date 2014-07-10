@@ -725,7 +725,6 @@ static struct cmd_hdl wlancmds[] = {
 	GEN_MLME_EXT_HANDLER(0, h2c_msg_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof(struct SetChannelPlan_param), set_chplan_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof(struct LedBlink_param), led_blink_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof(struct SetChannelSwitch_param), set_csa_hdl)
 };
 
 #endif
