@@ -50,8 +50,6 @@ struct cmd_priv {
 	u8	cmd_seq;
 	u8	*cmd_buf;	/* shall be non-paged, and 4 bytes aligned */
 	u8	*cmd_allocated_buf;
-	u8	*rsp_buf;	/* shall be non-paged, and 4 bytes aligned */
-	u8	*rsp_allocated_buf;
 	u8 cmdthd_running;
 	struct adapter *padapter;
 };
