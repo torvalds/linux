@@ -471,10 +471,10 @@ int ced_get_char(struct ced_data *ced)
 ** returns the count of characters (including the terminator, or 0 if none
 ** or a negative error code.
 ****************************************************************************/
-int ced_get_string(struct ced_data *ced, char __user *pUser, int n)
+int ced_get_string(struct ced_data *ced, char __user *user, int n)
 {
-	int nAvailable;		/*  character in the buffer */
-	int iReturn = U14ERR_NOIN;
+	int available;		/*  character in the buffer */
+	int ret = U14ERR_NOIN;
 	if (n <= 0)
 		return -ENOMEM;
 
@@ -483,49 +483,49 @@ int ced_get_string(struct ced_data *ced, char __user *pUser, int n)
 	ced_send_chars(ced);		/*  and send any buffered chars */
 
 	spin_lock_irq(&ced->char_in_lock);
-	nAvailable = ced->num_input;	/*  characters available now */
-	if (nAvailable > n)	/*  read max of space in pUser... */
-		nAvailable = n;	/*  ...or input characters */
+	available = ced->num_input;	/*  characters available now */
+	if (available > n)	/*  read max of space in user... */
+		available = n;	/*  ...or input characters */
 
-	if (nAvailable > 0) {	/*  worth looking? */
-		char buffer[INBUF_SZ + 1];	/*  space for a linear copy of data */
-		int nGot = 0;
-		int nCopyToUser;	/*  number to copy to user */
-		char cData;
+	if (available > 0) {	/*  worth looking? */
+		char buffer[INBUF_SZ + 1]; /* space for a linear copy of data */
+		int got = 0;
+		int n_copy_to_user;	/*  number to copy to user */
+		char data;
 		do {
-			cData = ced->input_buffer[ced->in_buff_get++];
-			if (cData == CR_CHAR)	/*  replace CR with zero */
-				cData = (char)0;
+			data = ced->input_buffer[ced->in_buff_get++];
+			if (data == CR_CHAR)	/*  replace CR with zero */
+				data = (char)0;
 
 			if (ced->in_buff_get >= INBUF_SZ)
-				ced->in_buff_get = 0;	/*  wrap buffer pointer */
+				ced->in_buff_get = 0; /* wrap buffer pointer */
 
-			buffer[nGot++] = cData;	/*  save the output */
-		} while ((nGot < nAvailable) && cData);
+			buffer[got++] = data;	/*  save the output */
+		} while ((got < available) && data);
 
-		nCopyToUser = nGot;	/*  what to copy... */
-		if (cData) {	/*  do we need null */
-			buffer[nGot] = (char)0;	/*  make it tidy */
-			if (nGot < n)	/*  if space in user buffer... */
-				++nCopyToUser;	/*  ...copy the 0 as well. */
+		n_copy_to_user = got;	/*  what to copy... */
+		if (data) {	/*  do we need null */
+			buffer[got] = (char)0;	/*  make it tidy */
+			if (got < n)	/*  if space in user buffer... */
+				++n_copy_to_user;	/*  ...copy the 0 as well. */
 		}
 
-		ced->num_input -= nGot;
+		ced->num_input -= got;
 		spin_unlock_irq(&ced->char_in_lock);
 
 		dev_dbg(&ced->interface->dev, "%s: read %d characters >%s<\n",
-			__func__, nGot, buffer);
-		if (copy_to_user(pUser, buffer, nCopyToUser))
-			iReturn = -EFAULT;
+			__func__, got, buffer);
+		if (copy_to_user(user, buffer, n_copy_to_user))
+			ret = -EFAULT;
 		else
-			iReturn = nGot;		/*  report characters read */
+			ret = got;		/*  report characters read */
 	} else
 		spin_unlock_irq(&ced->char_in_lock);
 
 	ced_allowi(ced);	/*  Make sure char reads are running */
 	mutex_unlock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
 
-	return iReturn;
+	return ret;
 }
 
 /*******************************************************************************
