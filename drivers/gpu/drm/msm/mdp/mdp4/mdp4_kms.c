@@ -361,7 +361,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->iommu) {
-		mmu = msm_iommu_new(dev, config->iommu);
+		mmu = msm_iommu_new(&pdev->dev, config->iommu);
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
 			goto fail;

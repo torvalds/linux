@@ -91,8 +91,16 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 int adreno_hw_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int ret;
 
 	DBG("%s", gpu->name);
+
+	ret = msm_gem_get_iova_locked(gpu->rb->bo, gpu->id, &gpu->rb_iova);
+	if (ret) {
+		gpu->rb_iova = 0;
+		dev_err(gpu->dev->dev, "could not map ringbuffer: %d\n", ret);
+		return ret;
+	}
 
 	/* Setup REG_CP_RB_CNTL: */
 	gpu_write(gpu, REG_AXXX_CP_RB_CNTL,
