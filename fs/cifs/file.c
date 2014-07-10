@@ -2840,7 +2840,7 @@ cifs_uncached_readdata_release(struct kref *refcount)
 static int
 cifs_readdata_to_iov(struct cifs_readdata *rdata, struct iov_iter *iter)
 {
-	size_t remaining = rdata->bytes;
+	size_t remaining = rdata->got_bytes;
 	unsigned int i;
 
 	for (i = 0; i < rdata->nr_pages; i++) {

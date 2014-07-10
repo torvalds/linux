@@ -1059,6 +1059,7 @@ struct cifs_readdata {
 	struct address_space		*mapping;
 	__u64				offset;
 	unsigned int			bytes;
+	unsigned int			got_bytes;
 	pid_t				pid;
 	int				result;
 	struct work_struct		work;

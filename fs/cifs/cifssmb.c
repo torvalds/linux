@@ -1513,7 +1513,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		return length;
 
 	server->total_read += length;
-	rdata->bytes = length;
+	rdata->got_bytes = length;
 
 	cifs_dbg(FYI, "total_read=%u buflen=%u remaining=%u\n",
 		 server->total_read, buflen, data_len);
@@ -1556,8 +1556,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 					 rc);
 		}
 		/* FIXME: should this be counted toward the initiating task? */
-		task_io_account_read(rdata->bytes);
-		cifs_stats_bytes_read(tcon, rdata->bytes);
+		task_io_account_read(rdata->got_bytes);
+		cifs_stats_bytes_read(tcon, rdata->got_bytes);
 		break;
 	case MID_REQUEST_SUBMITTED:
 	case MID_RETRY_NEEDED:
