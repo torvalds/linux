@@ -310,45 +310,51 @@ static int ced_in_self_test(struct ced_data *ced, unsigned int *stat)
 ****************************************************************************/
 static bool ced_is_1401(struct ced_data *ced)
 {
-	int iReturn;
+	int ret;
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
 	ced_draw_down(ced);	/*  wait for, then kill outstanding Urbs */
 	ced_flush_in_buff(ced);	/*  Clear out input buffer & pipe */
 	ced_flush_out_buff(ced);	/*  Clear output buffer & pipe */
 
-	/*  The next call returns 0 if OK, but has returned 1 in the past, meaning that */
-	/*  usb_unlock_device() is needed... now it always is */
-	iReturn = usb_lock_device_for_reset(ced->udev, ced->interface);
+	/* The next call returns 0 if OK, but has returned 1 in the past, */
+	/* meaning that usb_unlock_device() is needed... now it always is */
+	ret = usb_lock_device_for_reset(ced->udev, ced->interface);
 
-	/*  release the io_mutex because if we don't, we will deadlock due to system */
-	/*  calls back into the driver. */
-	mutex_unlock(&ced->io_mutex);	/*  locked, so we will not get system calls */
-	if (iReturn >= 0) {	/*  if we failed */
-		iReturn = usb_reset_device(ced->udev);	/*  try to do the reset */
-		usb_unlock_device(ced->udev);	/*  undo the lock */
+	/*  release the io_mutex because if we don't, we will deadlock due to */
+	/* system calls back into the driver.				      */
+	mutex_unlock(&ced->io_mutex); /* locked, so we will not get */
+				      /* system calls		    */
+	if (ret >= 0) {	/*  if we failed */
+		ret = usb_reset_device(ced->udev); /* try to do the reset */
+		usb_unlock_device(ced->udev);	/* undo the lock */
 	}
 
 	mutex_lock(&ced->io_mutex);	/*  hold stuff off while we wait */
 	ced->dma_flag = MODE_CHAR;	/*  Clear DMA mode flag regardless! */
-	if (iReturn == 0) {	/*  if all is OK still */
+	if (ret == 0) {	/*  if all is OK still */
 		unsigned int state;
-		iReturn = ced_in_self_test(ced, &state);	/*  see if likely in self test */
-		if (iReturn > 0) {	/*  do we need to wait for self-test? */
-			unsigned long ulTimeOut = jiffies + 30 * HZ;	/*  when to give up */
-			while ((iReturn > 0) && time_before(jiffies, ulTimeOut)) {
+		ret = ced_in_self_test(ced, &state); /* see if likely in */
+						     /* self test 	 */
+		if (ret > 0) {	/*  do we need to wait for self-test? */
+			/* when to give up */
+			unsigned long timeout = jiffies + 30 * HZ;
+			while ((ret > 0) && time_before(jiffies, timeout)) {
 				schedule();	/*  let other stuff run */
-				iReturn = ced_in_self_test(ced, &state);	/*  see if done yet */
+
+				/* see if done yet */
+				ret = ced_in_self_test(ced, &state);
 			}
 		}
 
-		if (iReturn == 0)	/*  if all is OK... */
-			iReturn = state == 0;	/*  then success is that the state is 0 */
+		if (ret == 0)	/*  if all is OK... */
+			/* then success is that the state is 0 */
+			ret = state == 0;
 	} else
-		iReturn = 0;	/*  we failed */
+		ret = 0;	/*  we failed */
 	ced->force_reset = false;	/*  Clear forced reset flag now */
 
-	return iReturn > 0;
+	return ret > 0;
 }
 
 /****************************************************************************
