@@ -136,65 +136,67 @@ struct dmadesc {
 	bool           outward;       /* true when data is going TO 1401      */
 };
 
-#define INBUF_SZ         256            /* input buffer size */
-#define OUTBUF_SZ        256            /* output buffer size */
-#define STAGED_SZ 0x10000               /*  size of coherent buffer for staged transfers */
+#define INBUF_SZ  256         /* input buffer size */
+#define OUTBUF_SZ 256         /* output buffer size */
+#define STAGED_SZ 0x10000     /* size of coherent buffer for staged transfers */
 
-/*  Structure to hold all of our device specific stuff. We are making this as similar as we */
-/*  can to the Windows driver to help in our understanding of what is going on. */
+/* Structure to hold all of our device specific stuff. We are making this as  */
+/* similar as we can to the Windows driver to help in our understanding of    */
+/* what is going on.                                                          */
 struct ced_data {
-	char inputBuffer[INBUF_SZ];         /* The two buffers */
-	char outputBuffer[OUTBUF_SZ];       /* accessed by the host functions */
-	volatile unsigned int dwNumInput;   /* num of chars in input buffer   */
-	volatile unsigned int dwInBuffGet;  /* where to get from input buffer */
-	volatile unsigned int dwInBuffPut;  /* where to put into input buffer */
-	volatile unsigned int dwNumOutput;  /* num of chars in output buffer  */
-	volatile unsigned int dwOutBuffGet; /* where to get from output buffer*/
-	volatile unsigned int dwOutBuffPut; /* where to put into output buffer*/
+	char input_buffer[INBUF_SZ];        /* The two buffers */
+	char output_buffer[OUTBUF_SZ];      /* accessed by the host functions */
+	volatile unsigned int num_input;    /* num of chars in input buffer   */
+	volatile unsigned int in_buff_get;  /* where to get from input buffer */
+	volatile unsigned int in_buff_put;  /* where to put into input buffer */
+	volatile unsigned int num_output;   /* num of chars in output buffer  */
+	volatile unsigned int out_buff_get; /* where to get from output buffer*/
+	volatile unsigned int out_buff_put; /* where to put into output buffer*/
 
-	volatile bool bSendCharsPending;    /* Flag to indicate sendchar active */
-	volatile bool bReadCharsPending;    /* Flag to indicate a read is primed */
-	char *pCoherCharOut;                /* special aligned buffer for chars to 1401 */
-	struct urb *pUrbCharOut;            /* urb used for chars to 1401 */
-	char *pCoherCharIn;                 /* special aligned buffer for chars to host */
-	struct urb *pUrbCharIn;             /* urb used for chars to host */
+	volatile bool send_chars_pending; /* Flag to indicate sendchar active */
+	volatile bool read_chars_pending; /* Flag to indicate a read is primed*/
+	char *coher_char_out;     /* special aligned buffer for chars to 1401 */
+	struct urb *urb_char_out;           /* urb used for chars to 1401 */
+	char *coher_char_in;      /* special aligned buffer for chars to host */
+	struct urb *urb_char_in;            /* urb used for chars to host */
 
-	spinlock_t charOutLock;             /* to protect the outputBuffer and outputting */
-	spinlock_t charInLock;              /* to protect the inputBuffer and char reads */
-	__u8 bInterval;                     /* Interrupt end point interval */
+	spinlock_t char_out_lock; /* protect the output_buffer and outputting */
+	spinlock_t char_in_lock;  /* protect the input_buffer and char reads  */
+	__u8 interval;                     /* Interrupt end point interval */
 
-	volatile unsigned int dwDMAFlag;    /* state of DMA */
-	struct transarea rTransDef[MAX_TRANSAREAS];  /* transfer area info */
-	volatile struct dmadesc rDMAInfo;   /*  info on current DMA transfer */
-	volatile bool bXFerWaiting;         /*  Flag set if DMA transfer stalled */
-	volatile bool bInDrawDown;          /*  Flag that we want to halt transfers */
+	volatile unsigned int dma_flag;     /* state of DMA */
+	struct transarea trans_def[MAX_TRANSAREAS];  /* transfer area info */
+	volatile struct dmadesc dma_info;   /*  info on current DMA transfer */
+	volatile bool xfer_waiting;      /*  Flag set if DMA transfer stalled */
+	volatile bool in_draw_down;   /*  Flag that we want to halt transfers */
 
-	/*  Parameters relating to a block read\write that is in progress. Some of these values */
-	/*   are equivalent to values in rDMAInfo. The values here are those in use, while those */
-	/*   in rDMAInfo are those received from the 1401 via an escape sequence. If another */
-	/*   escape sequence arrives before the previous xfer ends, rDMAInfo values are updated while these */
-	/*   are used to finish off the current transfer. */
-	volatile short StagedId;            /*  The transfer area id for this transfer */
-	volatile bool StagedRead;           /*  Flag TRUE for read from 1401, FALSE for write */
-	volatile unsigned int StagedLength; /*  Total length of this transfer */
-	volatile unsigned int StagedOffset; /*  Offset within memory area for transfer start */
-	volatile unsigned int StagedDone;   /*  Bytes transferred so far */
-	volatile bool bStagedUrbPending;    /*  Flag to indicate active */
-	char *pCoherStagedIO;               /*  buffer used for block transfers */
-	struct urb *pStagedUrb;             /*  The URB to use */
-	spinlock_t stagedLock;              /*  protects ReadWriteMem() and circular buffer stuff */
+	/* Parameters relating to a block read\write that is in progress. Some of these values */
+	/* are equivalent to values in dma_info. The values here are those in use, while those */
+	/* in dma_info are those received from the 1401 via an escape sequence. If another */
+	/* escape sequence arrives before the previous xfer ends, dma_info values are updated while these */
+	/* are used to finish off the current transfer. */
+	volatile short staged_id;  /*  The transfer area id for this transfer */
+	volatile bool staged_read; /*  Flag TRUE for read from 1401, FALSE for write */
+	volatile unsigned int staged_length; /* Total length of this transfer */
+	volatile unsigned int staged_offset; /*  Offset within memory area for transfer start */
+	volatile unsigned int staged_done;   /*  Bytes transferred so far */
+	volatile bool staged_urb_pending;    /*  Flag to indicate active */
+	char *coher_staged_io;            /*  buffer used for block transfers */
+	struct urb *staged_urb;             /*  The URB to use */
+	spinlock_t staged_lock;             /* protects ReadWriteMem() and    */
+					    /* circular buffer stuff          */
 
-	short s1401Type;                    /*  type of 1401 attached */
-	short sCurrentState;                /*  current error state */
-	bool bIsUSB2;                       /*  type of the interface we connect to */
-	bool bForceReset;                   /*  Flag to make sure we get a real reset */
-	__u32 statBuf[2];                   /*  buffer for 1401 state info */
+	short type;                         /*  type of 1401 attached */
+	short current_state;                /*  current error state */
+	bool is_usb2;                 /*  type of the interface we connect to */
+	bool force_reset;           /*  Flag to make sure we get a real reset */
+	__u32 stat_buf[2];                  /*  buffer for 1401 state info */
 
-	unsigned long ulSelfTestTime;       /*  used to timeout self test */
+	unsigned long self_test_time;       /*  used to timeout self test */
 
-	int nPipes;                         /*  Should be 3 or 4 depending on 1401 usb chip */
-	int bPipeError[4];                  /*  set non-zero if an error on one of the pipe */
-	__u8 epAddr[4];                     /*  addresses of the 3/4 end points */
+	int n_pipes;           /* Should be 3 or 4 depending on 1401 usb chip */
+	int pipe_error[4];     /* set non-zero if an error on one of the pipe */
+	__u8 ep_addr[4];                   /* addresses of the 3/4 end points */
 
 	struct usb_device *udev;            /*  the usb device for this device */
 	struct usb_interface *interface;    /*  the interface for this device, NULL if removed */
