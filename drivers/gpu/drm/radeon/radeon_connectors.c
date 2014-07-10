@@ -1037,18 +1037,6 @@ static const struct drm_connector_funcs radeon_tv_connector_funcs = {
 	.set_property = radeon_connector_set_property,
 };
 
-static int radeon_dvi_get_modes(struct drm_connector *connector)
-{
-	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	int ret;
-
-	ret = radeon_ddc_get_modes(radeon_connector);
-
-	radeon_get_native_mode(connector);
-
-	return ret;
-}
-
 static bool radeon_check_hpd_status_unchanged(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -1339,7 +1327,7 @@ static int radeon_dvi_mode_valid(struct drm_connector *connector,
 }
 
 static const struct drm_connector_helper_funcs radeon_dvi_connector_helper_funcs = {
-	.get_modes = radeon_dvi_get_modes,
+	.get_modes = radeon_vga_get_modes,
 	.mode_valid = radeon_dvi_mode_valid,
 	.best_encoder = radeon_dvi_encoder,
 };
