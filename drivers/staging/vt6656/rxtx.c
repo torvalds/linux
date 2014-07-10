@@ -545,7 +545,7 @@ static u16 s_vFillRTSHead(struct vnt_usb_send_context *tx_context, u8 byPktType,
 	switch (byPktType) {
 	case PK_TYPE_11GB:
 	case PK_TYPE_11GA:
-		if (byFBOption == AUTO_FB_NONE)
+		if (!tx_context->fb_option)
 			return vnt_rxtx_rts_g_head(tx_context, &head->rts_g,
 				byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
@@ -556,7 +556,7 @@ static u16 s_vFillRTSHead(struct vnt_usb_send_context *tx_context, u8 byPktType,
 				byFBOption);
 		break;
 	case PK_TYPE_11A:
-		if (byFBOption) {
+		if (tx_context->fb_option) {
 			return vnt_rxtx_rts_a_fb_head(tx_context,
 				&head->rts_a_fb, byPktType,
 				cbFrameLength, bNeedAck, wCurrentRate,
@@ -582,7 +582,7 @@ static u16 s_vFillCTSHead(struct vnt_usb_send_context *tx_context,
 	if (!head)
 		return 0;
 
-	if (byFBOption != AUTO_FB_NONE) {
+	if (tx_context->fb_option) {
 		/* Auto Fall back */
 		struct vnt_cts_fb *pBuf = &head->cts_g_fb;
 		/* Get SignalField,ServiceField,Length */
