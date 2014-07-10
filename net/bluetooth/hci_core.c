@@ -2717,9 +2717,9 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 				   HCI_INIT_TIMEOUT);
 
 		/* Ensure that the connectable state gets correctly
-		 * notified if the whitelist is in use.
+		 * modified as this was a non-mgmt change.
 		 */
-		if (!err && !list_empty(&hdev->whitelist)) {
+		if (!err) {
 			bool changed;
 
 			if ((dr.dev_opt & SCAN_PAGE))
@@ -2729,7 +2729,7 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 				changed = test_and_clear_bit(HCI_CONNECTABLE,
 							     &hdev->dev_flags);
 
-			if (changed)
+			if (changed && test_bit(HCI_MGMT, &hdev->dev_flags))
 				mgmt_new_settings(hdev);
 		}
 		break;

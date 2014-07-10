@@ -6068,38 +6068,6 @@ void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 	}
 }
 
-void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
-{
-	bool changed;
-
-	/* Nothing needed here if there's a pending command since that
-	 * commands request completion callback takes care of everything
-	 * necessary.
-	 */
-	if (mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev))
-		return;
-
-	/* Powering off may clear the scan mode - don't let that interfere */
-	if (!connectable && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
-		return;
-
-	/* If something else than mgmt changed the page scan state we
-	 * can't differentiate this from a change triggered by adding
-	 * the first element to the whitelist. Therefore, avoid
-	 * incorrectly setting HCI_CONNECTABLE.
-	 */
-	if (connectable && !list_empty(&hdev->whitelist))
-		return;
-
-	if (connectable)
-		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
-	else
-		changed = test_and_clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
-
-	if (changed)
-		new_settings(hdev, NULL);
-}
-
 void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
 {
 	u8 mgmt_err = mgmt_status(status);

@@ -330,12 +330,8 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	} else if (old_iscan)
 		mgmt_discoverable(hdev, 0);
 
-	if (param & SCAN_PAGE) {
+	if (param & SCAN_PAGE)
 		set_bit(HCI_PSCAN, &hdev->flags);
-		if (!old_pscan)
-			mgmt_connectable(hdev, 1);
-	} else if (old_pscan)
-		mgmt_connectable(hdev, 0);
 
 done:
 	hci_dev_unlock(hdev);
