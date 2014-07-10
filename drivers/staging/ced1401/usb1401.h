@@ -245,8 +245,8 @@ extern int ced_check_self_test(struct ced_data *ced,
 			       TGET_SELFTEST __user *ugst);
 extern int ced_type_of_1401(struct ced_data *ced);
 extern int ced_transfer_flags(struct ced_data *ced);
-extern int ced_dbg_peek(struct ced_data *ced, TDBGBLOCK __user *pDB);
-extern int ced_dbg_poke(struct ced_data *ced, TDBGBLOCK __user *pDB);
+extern int ced_dbg_peek(struct ced_data *ced, TDBGBLOCK __user *udb);
+extern int ced_dbg_poke(struct ced_data *ced, TDBGBLOCK __user *udb);
 extern int ced_dbg_ramp_data(struct ced_data *ced, TDBGBLOCK __user *pDB);
 extern int ced_dbg_ramp_addr(struct ced_data *ced, TDBGBLOCK __user *pDB);
 extern int ced_dbg_get_data(struct ced_data *ced, TDBGBLOCK __user *pDB);

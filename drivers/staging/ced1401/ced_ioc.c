@@ -1198,27 +1198,27 @@ static int ced_dbg_cmd(struct ced_data *ced, unsigned char cmd,
 **
 ** Execute the diagnostic peek operation. Uses address, width and repeats.
 ****************************************************************************/
-int ced_dbg_peek(struct ced_data *ced, TDBGBLOCK __user *pDB)
+int ced_dbg_peek(struct ced_data *ced, TDBGBLOCK __user *udb)
 {
-	int iReturn;
+	int ret;
 	TDBGBLOCK db;
 
-	if (copy_from_user(&db, pDB, sizeof(db)))
+	if (copy_from_user(&db, udb, sizeof(db)))
 		return -EFAULT;
 
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s: @ %08x\n", __func__, db.iAddr);
 
-	iReturn = ced_dbg_cmd(ced, DB_SETADD, db.iAddr);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_WIDTH, db.iWidth);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_REPEATS, db.iRepeats);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_PEEK, 0);
+	ret = ced_dbg_cmd(ced, DB_SETADD, db.iAddr);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_WIDTH, db.iWidth);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_REPEATS, db.iRepeats);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_PEEK, 0);
 	mutex_unlock(&ced->io_mutex);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
@@ -1227,27 +1227,27 @@ int ced_dbg_peek(struct ced_data *ced, TDBGBLOCK __user *pDB)
 ** Execute the diagnostic poke operation. Parameters are in the CSBLOCK struct
 ** in order address, size, repeats and value to poke.
 ****************************************************************************/
-int ced_dbg_poke(struct ced_data *ced, TDBGBLOCK __user *pDB)
+int ced_dbg_poke(struct ced_data *ced, TDBGBLOCK __user *udb)
 {
-	int iReturn;
+	int ret;
 	TDBGBLOCK db;
 
-	if (copy_from_user(&db, pDB, sizeof(db)))
+	if (copy_from_user(&db, udb, sizeof(db)))
 		return -EFAULT;
 
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s: @ %08x\n", __func__, db.iAddr);
 
-	iReturn = ced_dbg_cmd(ced, DB_SETADD, db.iAddr);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_WIDTH, db.iWidth);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_REPEATS, db.iRepeats);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_POKE, db.iData);
+	ret = ced_dbg_cmd(ced, DB_SETADD, db.iAddr);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_WIDTH, db.iWidth);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_REPEATS, db.iRepeats);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_POKE, db.iData);
 	mutex_unlock(&ced->io_mutex);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
