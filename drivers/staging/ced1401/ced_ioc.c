@@ -78,7 +78,7 @@ static void ced_flush_in_buff(struct ced_data *ced)
 ** ced_put_chars
 **
 ** Utility routine to copy chars into the output buffer and fire them off.
-** called from user mode, holds charOutLock.
+** called from user mode, holds char_out_lock.
 ****************************************************************************/
 static int ced_put_chars(struct ced_data *ced, const char *pCh,
 		    unsigned int uCount)
