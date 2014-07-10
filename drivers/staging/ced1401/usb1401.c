@@ -260,24 +260,24 @@ static bool can_accept_io_requests(struct ced_data *ced)
 ** Callback routine to complete writes. This may need to fire off another
 ** urb to complete the transfer.
 ****************************************************************************/
-static void ced_writechar_callback(struct urb *pUrb)
+static void ced_writechar_callback(struct urb *urb)
 {
-	struct ced_data *ced = pUrb->context;
-	int nGot = pUrb->actual_length;	/*  what we transferred */
+	struct ced_data *ced = urb->context;
+	int got = urb->actual_length;	/*  what we transferred */
 
-	if (pUrb->status) {	/*  sync/async unlink faults aren't errors */
+	if (urb->status) {	/*  sync/async unlink faults aren't errors */
 		if (!
-		    (pUrb->status == -ENOENT || pUrb->status == -ECONNRESET
-		     || pUrb->status == -ESHUTDOWN)) {
+		    (urb->status == -ENOENT || urb->status == -ECONNRESET
+		     || urb->status == -ESHUTDOWN)) {
 			dev_err(&ced->interface->dev,
 				"%s: nonzero write bulk status received: %d\n",
-				__func__, pUrb->status);
+				__func__, urb->status);
 		}
 
 		spin_lock(&ced->err_lock);
-		ced->errors = pUrb->status;
+		ced->errors = urb->status;
 		spin_unlock(&ced->err_lock);
-		nGot = 0;	/*   and tidy up again if so */
+		got = 0;	/*   and tidy up again if so */
 
 		spin_lock(&ced->char_out_lock);	/* already at irq level */
 		ced->out_buff_get = 0;	/*  Reset the output buffer */
@@ -290,16 +290,16 @@ static void ced_writechar_callback(struct urb *pUrb)
 			"%s: char out done, 0 chars sent\n", __func__);
 	} else {
 		dev_dbg(&ced->interface->dev,
-			"%s: char out done, %d chars sent\n", __func__, nGot);
+			"%s: char out done, %d chars sent\n", __func__, got);
 		spin_lock(&ced->char_out_lock);	/*  already at irq level */
-		ced->num_output -= nGot;	/*  Now adjust the char send buffer */
-		ced->out_buff_get += nGot;	/*  to match what we did */
+		ced->num_output -= got;	/*  Now adjust the char send buffer */
+		ced->out_buff_get += got;	/*  to match what we did */
 		if (ced->out_buff_get >= OUTBUF_SZ)	/*  Can't do this any earlier as data could be overwritten */
 			ced->out_buff_get = 0;
 
 		if (ced->num_output > 0) {	/*  if more to be done... */
-			int nPipe = 0;	/*  The pipe number to use */
-			int iReturn;
+			int pipe = 0;	/*  The pipe number to use */
+			int ret;
 			char *pDat = &ced->output_buffer[ced->out_buff_get];
 			unsigned int dwCount = ced->num_output;	/*  maximum to send */
 			if ((ced->out_buff_get + dwCount) > OUTBUF_SZ)	/*  does it cross buffer end? */
@@ -317,17 +317,17 @@ static void ced_writechar_callback(struct urb *pUrb)
 			ced->urb_char_out->transfer_flags |=
 			    URB_NO_TRANSFER_DMA_MAP;
 			usb_anchor_urb(ced->urb_char_out, &ced->submitted);	/*  in case we need to kill it */
-			iReturn = usb_submit_urb(ced->urb_char_out, GFP_ATOMIC);
+			ret = usb_submit_urb(ced->urb_char_out, GFP_ATOMIC);
 			dev_dbg(&ced->interface->dev, "%s: n=%d>%s<\n",
 				__func__, dwCount, pDat);
 			spin_lock(&ced->char_out_lock);	/*  grab lock for errors */
-			if (iReturn) {
-				ced->pipe_error[nPipe] = 1;	/*  Flag an error to be handled later */
+			if (ret) {
+				ced->pipe_error[pipe] = 1;	/*  Flag an error to be handled later */
 				ced->send_chars_pending = false;	/*  Allow other threads again */
 				usb_unanchor_urb(ced->urb_char_out);
 				dev_err(&ced->interface->dev,
 					"%s: usb_submit_urb() returned %d\n",
-					__func__, iReturn);
+					__func__, ret);
 			}
 		} else
 			/* Allow other threads again */
