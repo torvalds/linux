@@ -279,6 +279,8 @@ static int aufs_show_options(struct seq_file *m, struct dentry *dentry)
 	AuUInt(RDBLK, rdblk, sbinfo->si_rdblk);
 	AuUInt(RDHASH, rdhash, sbinfo->si_rdhash);
 
+	au_fhsm_show(m, sbinfo);
+
 	AuBool(SUM, sum);
 	/* AuBool(SUM_W, wsum); */
 	AuBool(WARN_PERM, warn_perm);

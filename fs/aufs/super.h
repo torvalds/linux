@@ -75,6 +75,14 @@ static inline int au_plink_hash(ino_t ino)
 	return ino % AuPlink_NHASH;
 }
 
+/* File-based Hierarchical Storage Management */
+struct au_fhsm {
+#ifdef CONFIG_AUFS_FHSM
+	/* will be added more */
+	unsigned long		fhsm_expire;
+#endif
+};
+
 struct au_branch;
 struct au_sbinfo {
 	/* nowait tasks in the system-wide workqueue */
@@ -122,6 +130,9 @@ struct au_sbinfo {
 
 	/* most free space */
 	struct au_wbr_mfs	si_wbr_mfs;
+
+	/* File-based Hierarchical Storage Management */
+	struct au_fhsm		si_fhsm;
 
 	/* mount flags */
 	/* include/asm-ia64/siginfo.h defines a macro named si_flags */
@@ -292,6 +303,17 @@ int au_wbr_do_copyup_bu(struct dentry *dentry, aufs_bindex_t bstart);
 
 /* mvdown.c */
 int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *arg);
+
+#ifdef CONFIG_AUFS_FHSM
+/* fhsm.c */
+void au_fhsm_init(struct au_sbinfo *sbinfo);
+void au_fhsm_set(struct au_sbinfo *sbinfo, unsigned int sec);
+void au_fhsm_show(struct seq_file *seq, struct au_sbinfo *sbinfo);
+#else
+AuStubVoid(au_fhsm_init, struct au_sbinfo *sbinfo)
+AuStubVoid(au_fhsm_set, struct au_sbinfo *sbinfo, unsigned int sec)
+AuStubVoid(au_fhsm_show, struct seq_file *seq, struct au_sbinfo *sbinfo)
+#endif
 
 /* ---------------------------------------------------------------------- */
 
