@@ -607,75 +607,85 @@ int ced_get_out_buf_space(struct ced_data *ced)
 ** Clears up a transfer area. This is always called in the context of a user
 ** request, never from a call-back.
 ****************************************************************************/
-int ced_clear_area(struct ced_data *ced, int nArea)
+int ced_clear_area(struct ced_data *ced, int area)
 {
-	int iReturn = U14ERR_NOERROR;
+	int ret = U14ERR_NOERROR;
 
-	if ((nArea < 0) || (nArea >= MAX_TRANSAREAS)) {
-		iReturn = U14ERR_BADAREA;
+	if ((area < 0) || (area >= MAX_TRANSAREAS)) {
+		ret = U14ERR_BADAREA;
 		dev_err(&ced->interface->dev, "%s: Attempt to clear area %d\n",
-			__func__, nArea);
+			__func__, area);
 	} else {
 		/* to save typing */
-		struct transarea *pTA = &ced->trans_def[nArea];
-		if (!pTA->used)	/*  if not used... */
-			iReturn = U14ERR_NOTSET;	/*  ...nothing to be done */
+		struct transarea *ta = &ced->trans_def[area];
+		if (!ta->used)	/*  if not used... */
+			ret = U14ERR_NOTSET;	/*  ...nothing to be done */
 		else {
-			/*  We must save the memory we return as we shouldn't mess with memory while */
-			/*  holding a spin lock. */
-			struct page **pPages = NULL; /*save page address list*/
-			int nPages = 0;	/*  and number of pages */
+			/*  We must save the memory we return as we shouldn't */
+			/* mess with memory while holding a spin lock. */
+			struct page **pages = NULL; /*save page address list*/
+			int n_pages = 0;	/*  and number of pages */
 			int np;
 
 			dev_dbg(&ced->interface->dev, "%s: area %d\n",
-				__func__, nArea);
+				__func__, area);
 			spin_lock_irq(&ced->staged_lock);
-			if ((ced->staged_id == nArea)
+			if ((ced->staged_id == area)
 			    && (ced->dma_flag > MODE_CHAR)) {
-				iReturn = U14ERR_UNLOCKFAIL;	/*  cannot delete as in use */
+				/* cannot delete as in use */
+				ret = U14ERR_UNLOCKFAIL;
 				dev_err(&ced->interface->dev,
 					"%s: call on area %d while active\n",
-					__func__, nArea);
+					__func__, area);
 			} else {
-				pPages = pTA->pages;	/*  save page address list */
-				nPages = pTA->n_pages;	/*  and page count */
-				if (pTA->event_sz)	/*  if events flagging in use */
-					wake_up_interruptible(&pTA->event);	/*  release anything that was waiting */
+				pages = ta->pages; /* save page address list */
+				n_pages = ta->n_pages;	/* and page count */
+				if (ta->event_sz)/* if events flagging in use */
+					/* release anything that was waiting */
+					wake_up_interruptible(&ta->event);
 
 				if (ced->xfer_waiting
-				    && (ced->dma_info.ident == nArea))
-					ced->xfer_waiting = false; /* Cannot have pending xfer if area cleared */
+				    && (ced->dma_info.ident == area))
+					/* Cannot have pending xfer if */
+					/* area cleared		       */
+					ced->xfer_waiting = false;
 
-				/*  Clean out the struct transarea except for the wait queue, which is at the end */
-				/*  This sets used to false and event_sz to 0 to say area not used and no events. */
-				memset(pTA, 0,
+				/* Clean out the struct transarea except for */
+				/* the wait queue, which is at the end. This */
+				/* sets used to false and event_sz to 0 to   */
+				/* say area not used and no events.          */
+				memset(ta, 0,
 				       sizeof(struct transarea) -
 				       sizeof(wait_queue_head_t));
 			}
 			spin_unlock_irq(&ced->staged_lock);
 
-			if (pPages) {	/*  if we decided to release the memory */
-				/*  Now we must undo the pinning down of the pages. We will assume the worst and mark */
-				/*  all the pages as dirty. Don't be tempted to move this up above as you must not be */
-				/*  holding a spin lock to do this stuff as it is not atomic. */
-				dev_dbg(&ced->interface->dev, "%s: nPages=%d\n",
-					__func__, nPages);
+			if (pages) { /*  if we decided to release the memory */
+				/* Now we must undo the pinning down of the  */
+				/* pages. We will assume the worst and mark  */
+				/* all the pages as dirty. Don't be tempted  */
+				/* to move this up above as you must not be  */
+				/* holding a spin lock to do this stuff as   */
+				/* it is not atomic.                         */
+				dev_dbg(&ced->interface->dev,
+					"%s: n_pages=%d\n",
+					__func__, n_pages);
 
-				for (np = 0; np < nPages; ++np) {
-					if (pPages[np]) {
-						SetPageDirty(pPages[np]);
-						page_cache_release(pPages[np]);
+				for (np = 0; np < n_pages; ++np) {
+					if (pages[np]) {
+						SetPageDirty(pages[np]);
+						page_cache_release(pages[np]);
 					}
 				}
 
-				kfree(pPages);
+				kfree(pages);
 				dev_dbg(&ced->interface->dev,
-					"%s: kfree(pPages) done\n", __func__);
+					"%s: kfree(pages) done\n", __func__);
 			}
 		}
 	}
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************

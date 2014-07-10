@@ -221,7 +221,7 @@ extern int ced_read_write_mem(struct ced_data *ced, bool read,
 			      unsigned int len);
 
 /*  in ced_ioc.c */
-extern int ced_clear_area(struct ced_data *ced, int nArea);
+extern int ced_clear_area(struct ced_data *ced, int area);
 extern int ced_send_string(struct ced_data *ced, const char __user *data, unsigned int n);
 extern int ced_send_char(struct ced_data *ced, char c);
 extern int ced_get_state(struct ced_data *ced, __u32 *state, __u32 *error);
