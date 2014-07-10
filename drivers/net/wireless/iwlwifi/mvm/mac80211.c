@@ -1166,8 +1166,12 @@ static void iwl_mvm_bcast_filter_iterator(void *_data, u8 *mac,
 
 	bcast_mac = &cmd->macs[mvmvif->id];
 
-	/* enable filtering only for associated stations */
-	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc)
+	/*
+	 * enable filtering only for associated stations, but not for P2P
+	 * Clients
+	 */
+	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p ||
+	    !vif->bss_conf.assoc)
 		return;
 
 	bcast_mac->default_discard = 1;
@@ -1242,10 +1246,6 @@ static int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm,
 	struct iwl_bcast_filter_cmd cmd;
 
 	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING))
-		return 0;
-
-	/* bcast filtering isn't supported for P2P client */
-	if (vif->p2p)
 		return 0;
 
 	if (!iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
