@@ -3281,24 +3281,29 @@ int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 static void
 cifs_readv_complete(struct work_struct *work)
 {
-	unsigned int i;
+	unsigned int i, got_bytes;
 	struct cifs_readdata *rdata = container_of(work,
 						struct cifs_readdata, work);
 
+	got_bytes = rdata->got_bytes;
 	for (i = 0; i < rdata->nr_pages; i++) {
 		struct page *page = rdata->pages[i];
 
 		lru_cache_add_file(page);
 
-		if (rdata->result == 0) {
+		if (rdata->result == 0 ||
+		    (rdata->result == -EAGAIN && got_bytes)) {
 			flush_dcache_page(page);
 			SetPageUptodate(page);
 		}
 
 		unlock_page(page);
 
-		if (rdata->result == 0)
+		if (rdata->result == 0 ||
+		    (rdata->result == -EAGAIN && got_bytes))
 			cifs_readpage_to_fscache(rdata->mapping->host, page);
+
+		got_bytes -= min_t(unsigned int, PAGE_CACHE_SIZE, got_bytes);
 
 		page_cache_release(page);
 		rdata->pages[i] = NULL;
