@@ -280,9 +280,17 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	tcp->source = fd_data->src_port;
 
 	if (add) {
+		pf->fd_tcp_rule++;
 		if (pf->flags & I40E_FLAG_FD_ATR_ENABLED) {
 			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
 			pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+		}
+	} else {
+		pf->fd_tcp_rule = (pf->fd_tcp_rule > 0) ?
+				  (pf->fd_tcp_rule - 1) : 0;
+		if (pf->fd_tcp_rule == 0) {
+			pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+			dev_info(&pf->pdev->dev, "ATR re-enabled due to no sideband TCP/IPv4 rules\n");
 		}
 	}
 
@@ -462,6 +470,10 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 			dev_warn(&pdev->dev, "ntuple filter loc = %d, could not be added\n",
 				 rx_desc->wb.qword0.hi_dword.fd_id);
 
+		pf->fd_add_err++;
+		/* store the current atr filter count */
+		pf->fd_atr_cnt = i40e_get_current_atr_cnt(pf);
+
 		/* filter programming failed most likely due to table full */
 		fcnt_prog = i40e_get_cur_guaranteed_fd_count(pf);
 		fcnt_avail = pf->fdir_pf_filter_count;
@@ -470,21 +482,12 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		 * FD ATR/SB and then re-enable it when there is room.
 		 */
 		if (fcnt_prog >= (fcnt_avail - I40E_FDIR_BUFFER_FULL_MARGIN)) {
-			/* Turn off ATR first */
-			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+			if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
 			    !(pf->auto_disable_flags &
-			      I40E_FLAG_FD_ATR_ENABLED)) {
-				dev_warn(&pdev->dev, "FD filter space full, ATR for further flows will be turned off\n");
-				pf->auto_disable_flags |=
-						       I40E_FLAG_FD_ATR_ENABLED;
-				pf->flags |= I40E_FLAG_FDIR_REQUIRES_REINIT;
-			} else if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
-				   !(pf->auto_disable_flags &
 				     I40E_FLAG_FD_SB_ENABLED)) {
 				dev_warn(&pdev->dev, "FD filter space full, new ntuple rules will not be added\n");
 				pf->auto_disable_flags |=
 							I40E_FLAG_FD_SB_ENABLED;
-				pf->flags |= I40E_FLAG_FDIR_REQUIRES_REINIT;
 			}
 		} else {
 			dev_info(&pdev->dev,

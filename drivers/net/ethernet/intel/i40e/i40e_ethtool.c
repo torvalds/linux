@@ -1977,6 +1977,9 @@ static int i40e_del_fdir_entry(struct i40e_vsi *vsi,
 	struct i40e_pf *pf = vsi->back;
 	int ret = 0;
 
+	if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
+		return -EBUSY;
+
 	ret = i40e_update_ethtool_fdir_entry(vsi, NULL, fsp->location, cmd);
 
 	i40e_fdir_check_and_reenable(pf);
@@ -2009,6 +2012,9 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 
 	if (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)
 		return -ENOSPC;
+
+	if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
+		return -EBUSY;
 
 	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
 

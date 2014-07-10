@@ -4483,8 +4483,16 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 	}
 
 	/* replay FDIR SB filters */
-	if (vsi->type == I40E_VSI_FDIR)
+	if (vsi->type == I40E_VSI_FDIR) {
+		/* reset fd counters */
+		pf->fd_add_err = pf->fd_atr_cnt = 0;
+		if (pf->fd_tcp_rule > 0) {
+			pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 exist\n");
+			pf->fd_tcp_rule = 0;
+		}
 		i40e_fdir_filter_restore(vsi);
+	}
 	i40e_service_event_schedule(pf);
 
 	return 0;
@@ -5125,6 +5133,7 @@ int i40e_get_current_fd_count(struct i40e_pf *pf)
 		      I40E_PFQF_FDSTAT_BEST_CNT_SHIFT);
 	return fcnt_prog;
 }
+
 /**
  * i40e_fdir_check_and_reenable - Function to reenabe FD ATR or SB if disabled
  * @pf: board private structure
@@ -5133,15 +5142,17 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 {
 	u32 fcnt_prog, fcnt_avail;
 
+	if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
+		return;
+
 	/* Check if, FD SB or ATR was auto disabled and if there is enough room
 	 * to re-enable
 	 */
-	if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
-		return;
 	fcnt_prog = i40e_get_cur_guaranteed_fd_count(pf);
 	fcnt_avail = pf->fdir_pf_filter_count;
-	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) {
+	if ((fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) ||
+	    (pf->fd_add_err == 0) ||
+	    (i40e_get_current_atr_cnt(pf) < pf->fd_atr_cnt)) {
 		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
 		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {
 			pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
@@ -5158,23 +5169,83 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 	}
 }
 
+#define I40E_MIN_FD_FLUSH_INTERVAL 10
+/**
+ * i40e_fdir_flush_and_replay - Function to flush all FD filters and replay SB
+ * @pf: board private structure
+ **/
+static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
+{
+	int flush_wait_retry = 50;
+	int reg;
+
+	if (time_after(jiffies, pf->fd_flush_timestamp +
+				(I40E_MIN_FD_FLUSH_INTERVAL * HZ))) {
+		set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
+		pf->fd_flush_timestamp = jiffies;
+		pf->auto_disable_flags |= I40E_FLAG_FD_SB_ENABLED;
+		pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+		/* flush all filters */
+		wr32(&pf->hw, I40E_PFQF_CTL_1,
+		     I40E_PFQF_CTL_1_CLEARFDTABLE_MASK);
+		i40e_flush(&pf->hw);
+		pf->fd_add_err = 0;
+		do {
+			/* Check FD flush status every 5-6msec */
+			usleep_range(5000, 6000);
+			reg = rd32(&pf->hw, I40E_PFQF_CTL_1);
+			if (!(reg & I40E_PFQF_CTL_1_CLEARFDTABLE_MASK))
+				break;
+		} while (flush_wait_retry--);
+		if (reg & I40E_PFQF_CTL_1_CLEARFDTABLE_MASK) {
+			dev_warn(&pf->pdev->dev, "FD table did not flush, needs more time\n");
+		} else {
+			/* replay sideband filters */
+			i40e_fdir_filter_restore(pf->vsi[pf->lan_vsi]);
+
+			pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+			clear_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
+			dev_info(&pf->pdev->dev, "FD Filter table flushed and FD-SB replayed.\n");
+		}
+	}
+}
+
+/**
+ * i40e_get_current_atr_count - Get the count of total FD ATR filters programmed
+ * @pf: board private structure
+ **/
+int i40e_get_current_atr_cnt(struct i40e_pf *pf)
+{
+	return i40e_get_current_fd_count(pf) - pf->fdir_pf_active_filters;
+}
+
+/* We can see up to 256 filter programming desc in transit if the filters are
+ * being applied really fast; before we see the first
+ * filter miss error on Rx queue 0. Accumulating enough error messages before
+ * reacting will make sure we don't cause flush too often.
+ */
+#define I40E_MAX_FD_PROGRAM_ERROR 256
+
 /**
  * i40e_fdir_reinit_subtask - Worker thread to reinit FDIR filter table
  * @pf: board private structure
  **/
 static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
 {
-	if (!(pf->flags & I40E_FLAG_FDIR_REQUIRES_REINIT))
-		return;
 
 	/* if interface is down do nothing */
 	if (test_bit(__I40E_DOWN, &pf->state))
 		return;
+
+	if ((pf->fd_add_err >= I40E_MAX_FD_PROGRAM_ERROR) &&
+	    (i40e_get_current_atr_cnt(pf) >= pf->fd_atr_cnt) &&
+	    (i40e_get_current_atr_cnt(pf) > pf->fdir_pf_filter_count))
+		i40e_fdir_flush_and_replay(pf);
+
 	i40e_fdir_check_and_reenable(pf);
 
-	if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
-		pf->flags &= ~I40E_FLAG_FDIR_REQUIRES_REINIT;
 }
 
 /**
@@ -7086,6 +7157,11 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 		}
 		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
 		pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		/* reset fd counters */
+		pf->fd_add_err = pf->fd_atr_cnt = pf->fd_tcp_rule = 0;
+		pf->fdir_pf_active_filters = 0;
+		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+		dev_info(&pf->pdev->dev, "ATR re-enabled.\n");
 		/* if ATR was auto disabled it can be re-enabled. */
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
