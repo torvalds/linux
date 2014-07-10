@@ -11,6 +11,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -30,6 +31,7 @@
 
 
 unsigned long (*mach_random_get_entropy)(void);
+EXPORT_SYMBOL_GPL(mach_random_get_entropy);
 
 
 /*
