@@ -982,58 +982,9 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
 	}
 }
 
-static u8 efuse_read8(struct adapter *padapter, u16 address, u8 *value)
-{
-	return efuse_OneByteRead(padapter, address, value);
-}
-
-static u8 efuse_write8(struct adapter *padapter, u16 address, u8 *value)
-{
-	return efuse_OneByteWrite(padapter, address, *value);
-}
-
 /*
  * read/wirte raw efuse data
  */
-u8 rtw_efuse_access(struct adapter *padapter, u8 write, u16 start_addr, u16 cnts, u8 *data)
-{
-	int i = 0;
-	u16 real_content_len = 0, max_available_size = 0;
-	u8 res = _FAIL;
-	u8 (*rw8)(struct adapter *, u16, u8*);
-
-	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_REAL_CONTENT_LEN, (void *)&real_content_len);
-	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, (void *)&max_available_size);
-
-	if (start_addr > real_content_len)
-		return _FAIL;
-
-	if (write) {
-		if ((start_addr + cnts) > max_available_size)
-			return _FAIL;
-		rw8 = &efuse_write8;
-	} else {
-		rw8 = &efuse_read8;
-	}
-
-	Efuse_PowerSwitch(padapter, write, true);
-
-	/*  e-fuse one byte read / write */
-	for (i = 0; i < cnts; i++) {
-		if (start_addr >= real_content_len) {
-			res = _FAIL;
-			break;
-		}
-
-		res = rw8(padapter, start_addr++, data++);
-		if (_FAIL == res)
-			break;
-	}
-
-	Efuse_PowerSwitch(padapter, write, false);
-
-	return res;
-}
 
 u8 rtw_efuse_map_read(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 {
