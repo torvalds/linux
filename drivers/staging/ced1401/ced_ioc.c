@@ -821,33 +821,40 @@ int ced_unset_transfer(struct ced_data *ced, int area)
 ** pretend that whatever the user asked for was achieved, so we return 1 if
 ** try to create one, and 0 if they ask to remove (assuming all else was OK).
 ****************************************************************************/
-int ced_set_event(struct ced_data *ced, struct transfer_event __user *pTE)
+int ced_set_event(struct ced_data *ced, struct transfer_event __user *ute)
 {
-	int iReturn = U14ERR_NOERROR;
+	int ret = U14ERR_NOERROR;
 	struct transfer_event te;
 
 	/*  get a local copy of the data */
-	if (copy_from_user(&te, pTE, sizeof(te)))
+	if (copy_from_user(&te, ute, sizeof(te)))
 		return -EFAULT;
 
 	if (te.wAreaNum >= MAX_TRANSAREAS)	/*  the area must exist */
 		return U14ERR_BADAREA;
 	else {
-		struct transarea *pTA = &ced->trans_def[te.wAreaNum];
-		mutex_lock(&ced->io_mutex);	/*  make sure we have no competitor */
+		struct transarea *ta = &ced->trans_def[te.wAreaNum];
+
+		/* make sure we have no competitor */
+		mutex_lock(&ced->io_mutex);
 		spin_lock_irq(&ced->staged_lock);
-		if (pTA->used) {	/*  area must be in use */
-			pTA->event_st = te.dwStart;	/*  set area regions */
-			pTA->event_sz = te.dwLength;	/*  set size (0 cancels it) */
-			pTA->event_to_host = te.wFlags & 1;	/*  set the direction */
-			pTA->wake_up = 0;	/*  zero the wake up count */
+
+		if (ta->used) {	/* area must be in use */
+			ta->event_st = te.dwStart; /*  set area regions */
+
+			 /* set size (0 cancels it) */
+			ta->event_sz = te.dwLength;
+
+			 /*  set the direction */
+			ta->event_to_host = te.wFlags & 1;
+			ta->wake_up = 0;	/*  zero the wake up count */
 		} else
-			iReturn = U14ERR_NOTSET;
+			ret = U14ERR_NOTSET;
 		spin_unlock_irq(&ced->staged_lock);
 		mutex_unlock(&ced->io_mutex);
 	}
-	return iReturn ==
-	    U14ERR_NOERROR ? (te.iSetEvent ? 1 : U14ERR_NOERROR) : iReturn;
+	return ret ==
+	    U14ERR_NOERROR ? (te.iSetEvent ? 1 : U14ERR_NOERROR) : ret;
 }
 
 /****************************************************************************
