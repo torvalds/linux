@@ -468,8 +468,6 @@ u8 rtw_disassoc_cmd(struct adapter *padapter, u32 deauth_timeout_ms,
 		    bool enqueue);
 u8 rtw_setopmode_cmd(struct adapter *padapter,
 		     enum ndis_802_11_network_infra networktype);
-u8 rtw_setdatarate_cmd(struct adapter *padapter, u8 *rateset);
-
 u8 rtw_addbareq_cmd(struct adapter *padapter, u8 tid, u8 *addr);
 
 u8 rtw_dynamic_chk_wk_cmd(struct adapter *adapter);
