@@ -43,12 +43,6 @@
  *
  * IRQ is assigned but not used.
  *
- * Version 0.1	Original DIO only driver
- * Version 0.2	DIO and basic AI analog input support on 16 se channels
- * Version 0.3	Add SE or DIFF mode and range switching +-10,+-5,+-2.5
- *		Clear the FIFO of data before the conversion to handle card
- *		mode switching glitches.
- *
  * Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
  *		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
  */
@@ -295,5 +289,4 @@ module_comedi_pcmcia_driver(daq700_driver, daq700_cs_driver);
 MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
 MODULE_DESCRIPTION(
 	"Comedi driver for National Instruments PCMCIA DAQCard-700 DIO/AI");
-MODULE_VERSION("0.3.00");
 MODULE_LICENSE("GPL");
