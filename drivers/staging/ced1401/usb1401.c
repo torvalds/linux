@@ -944,8 +944,9 @@ static bool ced_read_huff(volatile unsigned int *pDWord, char *pBuf,
 **  we start handling the data at offset zero.
 **
 *****************************************************************************/
-static bool ced_read_dma_info(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
-			char *pBuf, unsigned int dwCount)
+static bool ced_read_dma_info(volatile struct dmadesc *pDmaDesc,
+			      DEVICE_EXTENSION *pdx,
+			      char *pBuf, unsigned int dwCount)
 {
 	bool bResult = false;	/*  assume we won't succeed */
 	unsigned char ucData;

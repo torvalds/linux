@@ -120,13 +120,13 @@ struct transarea {
 
 /*  The DMADESC structure is used to hold information on the transfer in progress. It */
 /*  is set up by ReadDMAInfo, using information sent by the 1401 in an escape sequence. */
-typedef struct dmadesc {
+struct dmadesc {
 	unsigned short wTransType;          /* transfer type as TM_xxx above        */
 	unsigned short wIdent;              /* identifier word                      */
 	unsigned int   dwSize;              /* bytes to transfer                    */
 	unsigned int   dwOffset;            /* offset into transfer area for trans  */
 	bool           bOutWard;            /* true when data is going TO 1401      */
-} DMADESC;
+};
 
 #define INBUF_SZ         256            /* input buffer size */
 #define OUTBUF_SZ        256            /* output buffer size */
@@ -157,7 +157,7 @@ typedef struct _DEVICE_EXTENSION {
 
 	volatile unsigned int dwDMAFlag;    /* state of DMA */
 	struct transarea rTransDef[MAX_TRANSAREAS];  /* transfer area info */
-	volatile DMADESC rDMAInfo;          /*  info on current DMA transfer */
+	volatile struct dmadesc rDMAInfo;   /*  info on current DMA transfer */
 	volatile bool bXFerWaiting;         /*  Flag set if DMA transfer stalled */
 	volatile bool bInDrawDown;          /*  Flag that we want to halt transfers */
 
