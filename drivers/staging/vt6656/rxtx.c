@@ -651,10 +651,12 @@ static u16 vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
 
 static u16 vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
 	union vnt_tx_head *tx_head, u8 pkt_type, u32 frame_size,
-	int need_ack, u16 current_rate)
+	int need_ack, u16 current_rate, bool need_mic)
 {
 	struct vnt_private *priv = tx_context->priv;
 	struct vnt_rrv_time_cts *buf = &tx_head->tx_cts.cts;
+	union vnt_tx_data_head *head = &tx_head->tx_cts.tx.head;
+
 
 	buf->rrv_time_a = vnt_rxtx_rsvtime_le16(priv, pkt_type,
 					frame_size, current_rate, need_ack);
@@ -664,7 +666,12 @@ static u16 vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
 	buf->cts_rrv_time_ba = s_uGetRTSCTSRsvTime(priv, 3,
 			pkt_type, frame_size, current_rate);
 
-	return 0;
+	if (need_mic)
+		head = &tx_head->tx_cts.tx.mic.head;
+
+	/* Fill CTS */
+	return s_vFillCTSHead(tx_context, pkt_type, head, frame_size,
+							need_ack, current_rate);
 }
 
 static u16 vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
@@ -728,20 +735,13 @@ static u16 s_vGenerateTxParameter(struct vnt_usb_send_context *tx_context,
 					byPktType, cbFrameSize, bNeedACK,
 						wCurrentRate, need_mic);
 		} else {
-			vnt_rxtx_cts(tx_context, &tx_buffer->tx_head,
-				byPktType, cbFrameSize, bNeedACK, wCurrentRate);
-
-			if (need_mic) {
+			if (need_mic)
 				*mic_hdr = &tx_buffer->
 						tx_head.tx_cts.tx.mic.hdr;
-				head = &tx_buffer->tx_head.tx_cts.tx.mic.head;
-			} else {
-				head = &tx_buffer->tx_head.tx_cts.tx.head;
-			}
 
-			/* Fill CTS */
-			return s_vFillCTSHead(tx_context, byPktType,
-				head, cbFrameSize, bNeedACK, wCurrentRate);
+			return vnt_rxtx_cts(tx_context, &tx_buffer->tx_head,
+					byPktType, cbFrameSize, bNeedACK,
+						wCurrentRate, need_mic);
 		}
 	} else if (byPktType == PK_TYPE_11A) {
 		if (need_mic) {
