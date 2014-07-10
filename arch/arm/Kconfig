@@ -536,22 +536,6 @@ config ARCH_DOVE
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
-config ARCH_KIRKWOOD
-	bool "Marvell Kirkwood"
-	select ARCH_HAS_CPUFREQ
-	select ARCH_REQUIRE_GPIOLIB
-	select CPU_FEROCEON
-	select GENERIC_CLOCKEVENTS
-	select MVEBU_MBUS
-	select PCI
-	select PCI_QUIRKS
-	select PINCTRL
-	select PINCTRL_KIRKWOOD
-	select PLAT_ORION_LEGACY
-	help
-	  Support for the following Marvell Kirkwood series SoCs:
-	  88F6180, 88F6192 and 88F6281.
-
 config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	select ARCH_REQUIRE_GPIOLIB
@@ -965,8 +949,6 @@ source "arch/arm/mach-iop13xx/Kconfig"
 source "arch/arm/mach-ixp4xx/Kconfig"
 
 source "arch/arm/mach-keystone/Kconfig"
-
-source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
 
