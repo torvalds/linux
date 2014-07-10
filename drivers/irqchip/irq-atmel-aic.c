@@ -211,6 +211,19 @@ static const struct irq_domain_ops aic_irq_ops = {
 	.xlate	= aic_irq_domain_xlate,
 };
 
+static void __init at91sam9_aic_irq_fixup(struct device_node *root)
+{
+	aic_common_rtc_irq_fixup(root);
+}
+
+static const struct of_device_id __initdata aic_irq_fixups[] = {
+	{ .compatible = "atmel,at91sam9g45", .data = at91sam9_aic_irq_fixup },
+	{ .compatible = "atmel,at91sam9n12", .data = at91sam9_aic_irq_fixup },
+	{ .compatible = "atmel,at91sam9rl", .data = at91sam9_aic_irq_fixup },
+	{ .compatible = "atmel,at91sam9x5", .data = at91sam9_aic_irq_fixup },
+	{ /* sentinel */ },
+};
+
 static int __init aic_of_init(struct device_node *node,
 			      struct device_node *parent)
 {
@@ -224,6 +237,8 @@ static int __init aic_of_init(struct device_node *node,
 				    NR_AIC_IRQS);
 	if (IS_ERR(domain))
 		return PTR_ERR(domain);
+
+	aic_common_irq_fixup(aic_irq_fixups);
 
 	aic_domain = domain;
 	gc = irq_get_domain_generic_chip(domain, 0);
