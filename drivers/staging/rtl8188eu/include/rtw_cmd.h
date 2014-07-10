@@ -353,10 +353,6 @@ struct	getphy_parm {
 
 };
 
-struct Tx_Beacon_param {
-	struct wlan_bssid_ex network;
-};
-
 /*
 	Notes: This command is used for H2C/C2H loopback testing
 
