@@ -1882,8 +1882,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (cp->val || test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
 		write_fast_connectable(&req, false);
 
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) &&
-	    !test_bit(HCI_LE_ADV, &hdev->dev_flags))
+	/* Update the advertising parameters if necessary */
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 		enable_advertising(&req);
 
 	err = hci_req_run(&req, set_connectable_complete);
