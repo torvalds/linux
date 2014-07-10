@@ -657,10 +657,7 @@ static u16 s_vGenerateTxParameter(struct vnt_usb_send_context *tx_context,
 	int bNeedACK, bool need_rts)
 {
 	struct vnt_private *pDevice = tx_context->priv;
-	struct vnt_tx_fifo_head *pFifoHead = &tx_buffer->fifo_head;
 	union vnt_tx_data_head *head = NULL;
-
-	pFifoHead->current_rate = cpu_to_le16(wCurrentRate);
 
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
 		if (need_rts) {
@@ -981,6 +978,8 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		}
 		frame_size += tx_key->icv_len;
 	}
+
+	tx_buffer_head->current_rate = cpu_to_le16(current_rate);
 
 	/* legacy rates TODO use ieee80211_tx_rate */
 	if (current_rate >= RATE_18M && ieee80211_is_data(hdr->frame_control)) {
