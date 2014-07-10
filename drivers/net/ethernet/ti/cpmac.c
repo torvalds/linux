@@ -1187,9 +1187,11 @@ static int cpmac_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver cpmac_driver = {
-	.driver.name = "cpmac",
-	.driver.owner = THIS_MODULE,
-	.probe = cpmac_probe,
+	.driver = {
+		.name 	= "cpmac",
+		.owner 	= THIS_MODULE,
+	},
+	.probe 	= cpmac_probe,
 	.remove = cpmac_remove,
 };
 
