@@ -601,13 +601,6 @@ struct getratable_parm {
 	uint rsvd;
 };
 
-struct getratable_rsp {
-	u8 ss_ForceUp[NumRates];
-	u8 ss_ULevel[NumRates];
-	u8 ss_DLevel[NumRates];
-	u8 count_judge[NumRates];
-};
-
 /* to get TX,RX retry count */
 
 struct gettxretrycnt_parm {
@@ -758,7 +751,6 @@ u8 rtw_getrfreg_cmd(struct adapter *padapter, u8 offset, u8 *pval);
 u8 rtw_setrfintfs_cmd(struct adapter *padapter, u8 mode);
 u8 rtw_setrttbl_cmd(struct adapter *padapter,
 		    struct setratable_parm *prate_table);
-u8 rtw_getrttbl_cmd(struct adapter *padapter, struct getratable_rsp *pval);
 
 u8 rtw_gettssi_cmd(struct adapter *padapter, u8 offset, u8 *pval);
 u8 rtw_setfwdig_cmd(struct adapter *padapter, u8 type);
