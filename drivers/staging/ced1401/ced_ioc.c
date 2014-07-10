@@ -1178,18 +1178,19 @@ int ced_transfer_flags(struct ced_data *ced)
 static int ced_dbg_cmd(struct ced_data *ced, unsigned char cmd,
 		      unsigned int data)
 {
-	int iReturn;
+	int ret;
+
 	dev_dbg(&ced->interface->dev, "%s: entry\n", __func__);
-	iReturn = usb_control_msg(ced->udev, usb_sndctrlpipe(ced->udev, 0), cmd,
+	ret = usb_control_msg(ced->udev, usb_sndctrlpipe(ced->udev, 0), cmd,
 				  (H_TO_D | VENDOR | DEVREQ),
 				  (unsigned short)data,
 				  (unsigned short)(data >> 16), NULL, 0, HZ);
 						/* allow 1 second timeout */
-	if (iReturn < 0)
+	if (ret < 0)
 		dev_err(&ced->interface->dev, "%s: fail code=%d\n",
-			__func__, iReturn);
+			__func__, ret);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
