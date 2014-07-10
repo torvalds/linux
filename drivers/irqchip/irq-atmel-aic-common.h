@@ -32,6 +32,8 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 					     const struct irq_domain_ops *ops,
 					     const char *name, int nirqs);
 
+void __init aic_common_rtc_irq_fixup(struct device_node *root);
+
 void __init aic_common_irq_fixup(const struct of_device_id *matches);
 
 #endif /* __IRQ_ATMEL_AIC_COMMON_H */

@@ -139,6 +139,34 @@ static void __init aic_common_ext_irq_of_init(struct irq_domain *domain)
 	}
 }
 
+#define AT91_RTC_IDR           0x24
+#define AT91_RTC_IMR           0x28
+#define AT91_RTC_IRQ_MASK      0x1f
+
+void __init aic_common_rtc_irq_fixup(struct device_node *root)
+{
+	struct device_node *np;
+	void __iomem *regs;
+
+	np = of_find_compatible_node(root, NULL, "atmel,at91rm9200-rtc");
+	if (!np)
+		np = of_find_compatible_node(root, NULL,
+					     "atmel,at91sam9x5-rtc");
+
+	if (!np)
+		return;
+
+	regs = of_iomap(np, 0);
+	of_node_put(np);
+
+	if (!regs)
+		return;
+
+	writel(AT91_RTC_IRQ_MASK, regs + AT91_RTC_IDR);
+
+	iounmap(regs);
+}
+
 void __init aic_common_irq_fixup(const struct of_device_id *matches)
 {
 	struct device_node *root = of_find_node_by_path("/");
