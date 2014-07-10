@@ -436,7 +436,7 @@ int ced_reset(struct ced_data *ced)
 ****************************************************************************/
 int ced_get_char(struct ced_data *ced)
 {
-	int iReturn = U14ERR_NOIN;	/*  assume we will get  nothing */
+	int ret = U14ERR_NOIN;	/*  assume we will get  nothing */
 	mutex_lock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
 
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
@@ -446,18 +446,18 @@ int ced_get_char(struct ced_data *ced)
 
 	spin_lock_irq(&ced->char_in_lock);
 	if (ced->num_input > 0) {	/*  worth looking */
-		iReturn = ced->input_buffer[ced->in_buff_get++];
+		ret = ced->input_buffer[ced->in_buff_get++];
 		if (ced->in_buff_get >= INBUF_SZ)
 			ced->in_buff_get = 0;
 		ced->num_input--;
 	} else
-		iReturn = U14ERR_NOIN;	/*  no input data to read */
+		ret = U14ERR_NOIN;	/*  no input data to read */
 	spin_unlock_irq(&ced->char_in_lock);
 
 	ced_allowi(ced);	/*  Make sure char reads are running */
 
 	mutex_unlock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
