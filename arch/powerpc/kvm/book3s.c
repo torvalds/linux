@@ -418,11 +418,13 @@ int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 	      bool data)
 {
 	struct kvmppc_pte pte;
+	int r;
 
 	vcpu->stat.st++;
 
-	if (kvmppc_xlate(vcpu, *eaddr, data, true, &pte))
-		return -ENOENT;
+	r = kvmppc_xlate(vcpu, *eaddr, data, true, &pte);
+	if (r < 0)
+		return r;
 
 	*eaddr = pte.raddr;
 
