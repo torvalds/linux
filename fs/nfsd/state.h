@@ -398,32 +398,6 @@ struct nfs4_file {
 	bool			fi_had_conflict;
 };
 
-/* XXX: for first cut may fall back on returning file that doesn't work
- * at all? */
-static inline struct file *find_writeable_file(struct nfs4_file *f)
-{
-	if (f->fi_fds[O_WRONLY])
-		return f->fi_fds[O_WRONLY];
-	return f->fi_fds[O_RDWR];
-}
-
-static inline struct file *find_readable_file(struct nfs4_file *f)
-{
-	if (f->fi_fds[O_RDONLY])
-		return f->fi_fds[O_RDONLY];
-	return f->fi_fds[O_RDWR];
-}
-
-static inline struct file *find_any_file(struct nfs4_file *f)
-{
-	if (f->fi_fds[O_RDWR])
-		return f->fi_fds[O_RDWR];
-	else if (f->fi_fds[O_WRONLY])
-		return f->fi_fds[O_WRONLY];
-	else
-		return f->fi_fds[O_RDONLY];
-}
-
 /* "ol" stands for "Open or Lock".  Better suggestions welcome. */
 struct nfs4_ol_stateid {
 	struct nfs4_stid    st_stid; /* must be first field */
