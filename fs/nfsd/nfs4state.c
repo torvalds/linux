@@ -3300,7 +3300,8 @@ nfsd4_truncate(struct svc_rqst *rqstp, struct svc_fh *fh,
 }
 
 static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
-		struct svc_fh *cur_fh, struct nfsd4_open *open)
+		struct svc_fh *cur_fh, struct nfs4_ol_stateid *stp,
+		struct nfsd4_open *open)
 {
 	struct file *filp = NULL;
 	__be32 status;
@@ -3330,6 +3331,9 @@ static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
 	if (status)
 		goto out_put_access;
 
+	/* Set access and deny bits in stateid */
+	set_access(open->op_share_access, stp);
+	set_deny(open->op_share_deny, stp);
 	return nfs_ok;
 
 out_put_access:
@@ -3341,20 +3345,15 @@ out:
 static __be32
 nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *cur_fh, struct nfs4_ol_stateid *stp, struct nfsd4_open *open)
 {
-	u32 op_share_access = open->op_share_access;
 	__be32 status;
 
-	if (!test_access(op_share_access, stp))
-		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, open);
+	if (!test_access(open->op_share_access, stp))
+		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, stp, open);
 	else
 		status = nfsd4_truncate(rqstp, cur_fh, open);
 
 	if (status)
 		return status;
-
-	/* remember the open */
-	set_access(op_share_access, stp);
-	set_deny(open->op_share_deny, stp);
 	return nfs_ok;
 }
 
@@ -3602,12 +3601,14 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		if (status)
 			goto out;
 	} else {
-		status = nfs4_get_vfs_file(rqstp, fp, current_fh, open);
-		if (status)
-			goto out;
 		stp = open->op_stp;
 		open->op_stp = NULL;
 		init_open_stateid(stp, fp, open);
+		status = nfs4_get_vfs_file(rqstp, fp, current_fh, stp, open);
+		if (status) {
+			release_open_stateid(stp);
+			goto out;
+		}
 	}
 	update_stateid(&stp->st_stid.sc_stateid);
 	memcpy(&open->op_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
