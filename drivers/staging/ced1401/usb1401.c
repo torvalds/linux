@@ -757,16 +757,19 @@ static void staged_callback(struct urb *urb)
 ** Generates the next chunk of data making up a staged transfer.
 **
 ** The calling code must have acquired the staging spinlock before calling
-**  this function, and is responsible for releasing it. We are at callback level.
+** this function, and is responsible for releasing it. We are at callback level.
 ****************************************************************************/
 static int ced_stage_chunk(struct ced_data *ced)
 {
-	int iReturn = U14ERR_NOERROR;
-	unsigned int ChunkSize;
-	int nPipe = ced->staged_read ? 3 : 2;	/*  The pipe number to use for reads or writes */
+	int retval = U14ERR_NOERROR;
+	unsigned int chunk_size;
+	int pipe = ced->staged_read ? 3 : 2; /* The pipe number to use for */
+					     /* reads or writes            */
+
 	if (ced->n_pipes == 3)
-		nPipe--;	/*  Adjust for the 3-pipe case */
-	if (nPipe < 0)		/*  and trap case that should never happen */
+		pipe--;	/* Adjust for the 3-pipe case */
+
+	if (pipe < 0)   /* and trap case that should never happen */
 		return U14ERR_FAIL;
 
 	if (!can_accept_io_requests(ced)) {	/*  got sudden remove? */
@@ -775,34 +778,40 @@ static int ced_stage_chunk(struct ced_data *ced)
 		return U14ERR_FAIL;	/*  could do with a better error */
 	}
 
-	ChunkSize = (ced->staged_length - ced->staged_done);	/*  transfer length remaining */
-	if (ChunkSize > STAGED_SZ)	/*  make sure to keep legal */
-		ChunkSize = STAGED_SZ;	/*   limit to max allowed */
+	/* transfer length remaining */
+	chunk_size = (ced->staged_length - ced->staged_done);
+	if (chunk_size > STAGED_SZ)	/*  make sure to keep legal */
+		chunk_size = STAGED_SZ;	/*   limit to max allowed */
 
 	if (!ced->staged_read)	/*  if writing... */
-		ced_copy_user_space(ced, ChunkSize);	/*  ...copy data into the buffer */
+		/* ...copy data into the buffer */
+		ced_copy_user_space(ced, chunk_size);
 
 	usb_fill_bulk_urb(ced->staged_urb, ced->udev,
 			  ced->staged_read ? usb_rcvbulkpipe(ced->udev,
 							    ced->
-							    ep_addr[nPipe]) :
-			  usb_sndbulkpipe(ced->udev, ced->ep_addr[nPipe]),
-					  ced->coher_staged_io, ChunkSize,
+							    ep_addr[pipe]) :
+			  usb_sndbulkpipe(ced->udev, ced->ep_addr[pipe]),
+					  ced->coher_staged_io, chunk_size,
 					  staged_callback, ced);
 	ced->staged_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	usb_anchor_urb(ced->staged_urb, &ced->submitted);	/*  in case we need to kill it */
-	iReturn = usb_submit_urb(ced->staged_urb, GFP_ATOMIC);
-	if (iReturn) {
+	/* in case we need to kill it */
+	usb_anchor_urb(ced->staged_urb, &ced->submitted);
+	retval = usb_submit_urb(ced->staged_urb, GFP_ATOMIC);
+	if (retval) {
 		usb_unanchor_urb(ced->staged_urb);	/*  kill it */
-		ced->pipe_error[nPipe] = 1;	/*  Flag an error to be handled later */
-		dev_err(&ced->interface->dev, "%s: submit urb failed, code %d\n",
-			__func__, iReturn);
+		ced->pipe_error[pipe] = 1; /* Flag an error to be */
+					   /* handled later       */
+		dev_err(&ced->interface->dev,
+		        "%s: submit urb failed, code %d\n",
+			__func__, retval);
 	} else
-		ced->staged_urb_pending = true;	/*  Set the flag for staged URB pending */
+		/* Set the flag for staged URB pending */
+		ced->staged_urb_pending = true;
 	dev_dbg(&ced->interface->dev, "%s: done so far:%d, this size:%d\n",
-		__func__, ced->staged_done, ChunkSize);
+		__func__, ced->staged_done, chunk_size);
 
-	return iReturn;
+	return retval;
 }
 
 /***************************************************************************
