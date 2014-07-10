@@ -3183,6 +3183,9 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
 	if (val < dev_priv->rps.max_freq_softlimit)
 		mask |= GEN6_PM_RP_UP_THRESHOLD;
 
+	mask |= dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED);
+	mask &= dev_priv->pm_rps_events;
+
 	/* IVB and SNB hard hangs on looping batchbuffer
 	 * if GEN6_PM_UP_EI_EXPIRED is masked.
 	 */
@@ -3276,11 +3279,8 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 
 	vlv_force_gfx_clock(dev_priv, false);
 
-	if (dev_priv->pm_rps_events & GEN6_PM_RP_UP_EI_EXPIRED)
-		I915_WRITE(GEN6_PMINTRMSK, ~dev_priv->pm_rps_events);
-	else 
-		I915_WRITE(GEN6_PMINTRMSK,
-			   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
+	I915_WRITE(GEN6_PMINTRMSK,
+		   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
 }
 
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
