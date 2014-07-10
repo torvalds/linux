@@ -262,7 +262,6 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	otg->phy		= &phy->phy;
 
 	platform_set_drvdata(pdev, phy);
-	pm_runtime_enable(phy->dev);
 
 	generic_phy = devm_phy_create(phy->dev, &ops, NULL);
 	if (IS_ERR(generic_phy))
@@ -270,10 +269,13 @@ static int omap_usb2_probe(struct platform_device *pdev)
 
 	phy_set_drvdata(generic_phy, phy);
 
+	pm_runtime_enable(phy->dev);
 	phy_provider = devm_of_phy_provider_register(phy->dev,
 			of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
+	if (IS_ERR(phy_provider)) {
+		pm_runtime_disable(phy->dev);
 		return PTR_ERR(phy_provider);
+	}
 
 	phy->wkupclk = devm_clk_get(phy->dev, "wkupclk");
 	if (IS_ERR(phy->wkupclk)) {
@@ -317,6 +319,7 @@ static int omap_usb2_remove(struct platform_device *pdev)
 	if (!IS_ERR(phy->optclk))
 		clk_unprepare(phy->optclk);
 	usb_remove_phy(&phy->phy);
+	pm_runtime_disable(phy->dev);
 
 	return 0;
 }
