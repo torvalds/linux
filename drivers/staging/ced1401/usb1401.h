@@ -231,7 +231,7 @@ extern int ced_get_char(struct ced_data *ced);
 extern int ced_get_string(struct ced_data *ced, char __user *user, int n);
 extern int ced_set_transfer(struct ced_data *ced,
 			    struct transfer_area_desc __user *utd);
-extern int ced_unset_transfer(struct ced_data *ced, int nArea);
+extern int ced_unset_transfer(struct ced_data *ced, int area);
 extern int ced_set_event(struct ced_data *ced, struct transfer_event __user *pTE);
 extern int ced_stat_1401(struct ced_data *ced);
 extern int ced_line_count(struct ced_data *ced);

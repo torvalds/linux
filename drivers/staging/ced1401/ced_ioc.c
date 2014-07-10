@@ -801,16 +801,16 @@ int ced_set_transfer(struct ced_data *ced,
 }
 
 /****************************************************************************
-** UnSetTransfer
+** ced_unset_transfer
 ** Erases a transfer area record
 ****************************************************************************/
-int ced_unset_transfer(struct ced_data *ced, int nArea)
+int ced_unset_transfer(struct ced_data *ced, int area)
 {
-	int iReturn;
+	int ret;
 	mutex_lock(&ced->io_mutex);
-	iReturn = ced_clear_area(ced, nArea);
+	ret = ced_clear_area(ced, area);
 	mutex_unlock(&ced->io_mutex);
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
