@@ -80,26 +80,26 @@ static void ced_flush_in_buff(struct ced_data *ced)
 ** Utility routine to copy chars into the output buffer and fire them off.
 ** called from user mode, holds char_out_lock.
 ****************************************************************************/
-static int ced_put_chars(struct ced_data *ced, const char *pCh,
-		    unsigned int uCount)
+static int ced_put_chars(struct ced_data *ced, const char *ch,
+		    unsigned int count)
 {
-	int iReturn;
+	int ret;
 	spin_lock_irq(&ced->char_out_lock);	/*  get the output spin lock */
-	if ((OUTBUF_SZ - ced->num_output) >= uCount) {
+	if ((OUTBUF_SZ - ced->num_output) >= count) {
 		unsigned int u;
-		for (u = 0; u < uCount; u++) {
-			ced->output_buffer[ced->out_buff_put++] = pCh[u];
+		for (u = 0; u < count; u++) {
+			ced->output_buffer[ced->out_buff_put++] = ch[u];
 			if (ced->out_buff_put >= OUTBUF_SZ)
 				ced->out_buff_put = 0;
 		}
-		ced->num_output += uCount;
+		ced->num_output += count;
 		spin_unlock_irq(&ced->char_out_lock);
-		iReturn = ced_send_chars(ced);	/*  ...give a chance to transmit data */
+		ret = ced_send_chars(ced);	/*  ...give a chance to transmit data */
 	} else {
-		iReturn = U14ERR_NOOUT;	/*  no room at the out (ha-ha) */
+		ret = U14ERR_NOOUT;	/*  no room at the out (ha-ha) */
 		spin_unlock_irq(&ced->char_out_lock);
 	}
-	return iReturn;
+	return ret;
 }
 
 /*****************************************************************************
