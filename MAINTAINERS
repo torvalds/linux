@@ -7791,6 +7791,11 @@ S:	Maintained
 F:	include/linux/mmc/dw_mmc.h
 F:	drivers/mmc/host/dw_mmc*
 
+THUNDERBOLT DRIVER
+M:	Andreas Noever <andreas.noever@gmail.com>
+S:	Maintained
+F:	drivers/thunderbolt/
+
 TIMEKEEPING, CLOCKSOURCE CORE, NTP
 M:	John Stultz <john.stultz@linaro.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
