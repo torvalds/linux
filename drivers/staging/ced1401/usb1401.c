@@ -1189,57 +1189,68 @@ static int ced_handle_esc(struct ced_data *ced, char *ch,
 /****************************************************************************
 ** Callback for the character read complete or error
 ****************************************************************************/
-static void ced_readchar_callback(struct urb *pUrb)
+static void ced_readchar_callback(struct urb *urb)
 {
-	struct ced_data *ced = pUrb->context;
-	int nGot = pUrb->actual_length;	/*  what we transferred */
+	struct ced_data *ced = urb->context;
+	int got = urb->actual_length;	/*  what we transferred */
 
-	if (pUrb->status) {	/*  Do we have a problem to handle? */
-		int nPipe = ced->n_pipes == 4 ? 1 : 0;	/*  The pipe number to use for error */
-		/*  sync/async unlink faults aren't errors... just saying device removed or stopped */
+	if (urb->status) {	/*  Do we have a problem to handle? */
+		/* The pipe number to use for error */
+		int pipe = ced->n_pipes == 4 ? 1 : 0;
+		/* sync/async unlink faults aren't errors... */
+		/* just saying device removed or stopped     */
 		if (!
-		    (pUrb->status == -ENOENT || pUrb->status == -ECONNRESET
-		     || pUrb->status == -ESHUTDOWN)) {
+		    (urb->status == -ENOENT || urb->status == -ECONNRESET
+		     || urb->status == -ESHUTDOWN)) {
 			dev_err(&ced->interface->dev,
 				"%s: nonzero write bulk status received: %d\n",
-				__func__, pUrb->status);
+				__func__, urb->status);
 		} else
 			dev_dbg(&ced->interface->dev,
-				"%s: 0 chars pUrb->status=%d (shutdown?)\n",
-				__func__, pUrb->status);
+				"%s: 0 chars urb->status=%d (shutdown?)\n",
+				__func__, urb->status);
 
 		spin_lock(&ced->err_lock);
-		ced->errors = pUrb->status;
+		ced->errors = urb->status;
 		spin_unlock(&ced->err_lock);
-		nGot = 0;	/*   and tidy up again if so */
+		got = 0;	/*   and tidy up again if so */
 
 		spin_lock(&ced->char_in_lock);	/*  already at irq level */
-		ced->pipe_error[nPipe] = 1;	/*  Flag an error for later */
+		ced->pipe_error[pipe] = 1;	/*  Flag an error for later */
 	} else {
-		if ((nGot > 1) && ((ced->coher_char_in[0] & 0x7f) == 0x1b)) {	/*  Esc sequence? */
-			ced_handle_esc(ced, &ced->coher_char_in[1], nGot - 1);	/*  handle it */
-			spin_lock(&ced->char_in_lock);	/* already at irq level */
+		/* Esc sequence? */
+		if ((got > 1) && ((ced->coher_char_in[0] & 0x7f) == 0x1b)) {
+			/* handle it */
+			ced_handle_esc(ced, &ced->coher_char_in[1], got - 1);
+
+			/* already at irq level */
+			spin_lock(&ced->char_in_lock);
 		} else {
-			spin_lock(&ced->char_in_lock); /* already at irq level */
-			if (nGot > 0) {
+			/* already at irq level */
+			spin_lock(&ced->char_in_lock);
+
+			if (got > 0) {
 				unsigned int i;
-				if (nGot < INBUF_SZ) {
-					ced->coher_char_in[nGot] = 0;	/*  tidy the string */
+				if (got < INBUF_SZ) {
+					/* tidy the string */
+					ced->coher_char_in[got] = 0;
 					dev_dbg(&ced->interface->dev,
 						"%s: got %d chars >%s<\n",
-						__func__, nGot,
+						__func__, got,
 						ced->coher_char_in);
 				}
-				/*  We know that whatever we read must fit in the input buffer */
-				for (i = 0; i < nGot; i++) {
+				/* We know that whatever we read must fit */
+				/* in the input buffer                    */
+				for (i = 0; i < got; i++) {
 					ced->input_buffer[ced->in_buff_put++] =
 					    ced->coher_char_in[i] & 0x7F;
 					if (ced->in_buff_put >= INBUF_SZ)
 						ced->in_buff_put = 0;
 				}
 
-				if ((ced->num_input + nGot) <= INBUF_SZ)
-					ced->num_input += nGot;	/*  Adjust the buffer count accordingly */
+				if ((ced->num_input + got) <= INBUF_SZ)
+				       /* Adjust the buffer count accordingly */
+					ced->num_input += got;
 			} else
 				dev_dbg(&ced->interface->dev, "%s: read ZLP\n",
 					__func__);
