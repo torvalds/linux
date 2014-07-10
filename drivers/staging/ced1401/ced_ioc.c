@@ -620,7 +620,7 @@ int ced_clear_area(struct ced_data *ced, int nArea)
 					wake_up_interruptible(&pTA->event);	/*  release anything that was waiting */
 
 				if (ced->bXFerWaiting
-				    && (ced->rDMAInfo.wIdent == nArea))
+				    && (ced->rDMAInfo.ident == nArea))
 					ced->bXFerWaiting = false;	/*  Cannot have pending xfer if area cleared */
 
 				/*  Clean out the struct transarea except for the wait queue, which is at the end */
@@ -1461,10 +1461,11 @@ int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
 			/*  If we have one, kick off pending transfer */
 			if (bWaiting) {	/*  Got a block xfer waiting? */
 				int RWMStat =
-				    ced_read_write_mem(ced, !ced->rDMAInfo.bOutWard,
-						 ced->rDMAInfo.wIdent,
-						 ced->rDMAInfo.dwOffset,
-						 ced->rDMAInfo.dwSize);
+				    ced_read_write_mem(ced,
+						       !ced->rDMAInfo.outward,
+						       ced->rDMAInfo.ident,
+						       ced->rDMAInfo.offset,
+						       ced->rDMAInfo.size);
 				if (RWMStat != U14ERR_NOERROR)
 					dev_err(&ced->interface->dev,
 						"%s: rw setup failed %d\n",

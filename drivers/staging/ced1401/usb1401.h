@@ -125,14 +125,15 @@ struct transarea {
 				 /* area MUST BE LAST */
 };
 
-/*  The DMADESC structure is used to hold information on the transfer in progress. It */
-/*  is set up by ReadDMAInfo, using information sent by the 1401 in an escape sequence. */
+/* The dmadesc structure is used to hold information on the transfer in       */
+/* progress. It is set up by ReadDMAInfo, using information sent by the 1401  */
+/* in an escape sequence.                                                     */
 struct dmadesc {
-	unsigned short wTransType;          /* transfer type as TM_xxx above        */
-	unsigned short wIdent;              /* identifier word                      */
-	unsigned int   dwSize;              /* bytes to transfer                    */
-	unsigned int   dwOffset;            /* offset into transfer area for trans  */
-	bool           bOutWard;            /* true when data is going TO 1401      */
+	unsigned short trans_type;    /* transfer type as TM_xxx above        */
+	unsigned short ident;         /* identifier word                      */
+	unsigned int   size;          /* bytes to transfer                    */
+	unsigned int   offset;        /* offset into transfer area for trans  */
+	bool           outward;       /* true when data is going TO 1401      */
 };
 
 #define INBUF_SZ         256            /* input buffer size */

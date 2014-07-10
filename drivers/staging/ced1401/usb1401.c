@@ -662,10 +662,10 @@ static void staged_callback(struct urb *pUrb)
 				dev_info(&ced->interface->dev,
 					 "*** RWM_Complete *** pending transfer will now be set up!!!\n");
 				iReturn =
-				    ced_read_write_mem(ced, !ced->rDMAInfo.bOutWard,
-						 ced->rDMAInfo.wIdent,
-						 ced->rDMAInfo.dwOffset,
-						 ced->rDMAInfo.dwSize);
+				    ced_read_write_mem(ced, !ced->rDMAInfo.outward,
+						 ced->rDMAInfo.ident,
+						 ced->rDMAInfo.offset,
+						 ced->rDMAInfo.size);
 
 				if (iReturn)
 					dev_err(&ced->interface->dev,
@@ -962,36 +962,36 @@ static bool ced_read_dma_info(volatile struct dmadesc *pDmaDesc,
 		unsigned short wIdent = ((ucData >> 4) & 0x07);	/*  and area identifier */
 
 		/*  fill in the structure we were given */
-		pDmaDesc->wTransType = ucTransCode;	/*  type of transfer */
-		pDmaDesc->wIdent = wIdent;	/*  area to use */
-		pDmaDesc->dwSize = 0;	/*  initialise other bits */
-		pDmaDesc->dwOffset = 0;
+		pDmaDesc->trans_type = ucTransCode;	/*  type of transfer */
+		pDmaDesc->ident = wIdent;	/*  area to use */
+		pDmaDesc->size = 0;	/*  initialise other bits */
+		pDmaDesc->offset = 0;
 
 		dev_dbg(&ced->interface->dev, "%s: type: %d ident: %d\n",
-			__func__, pDmaDesc->wTransType, pDmaDesc->wIdent);
+			__func__, pDmaDesc->trans_type, pDmaDesc->ident);
 
-		pDmaDesc->bOutWard = (ucTransCode != TM_EXTTOHOST);	/*  set transfer direction */
+		pDmaDesc->outward = (ucTransCode != TM_EXTTOHOST);	/*  set transfer direction */
 
 		switch (ucTransCode) {
 		case TM_EXTTOHOST:	/*  Extended linear transfer modes (the only ones!) */
 		case TM_EXTTO1401:
 			{
 				bResult =
-				    ced_read_huff(&(pDmaDesc->dwOffset), pBuf,
+				    ced_read_huff(&(pDmaDesc->offset), pBuf,
 					     &dDone, dwCount)
-				    && ced_read_huff(&(pDmaDesc->dwSize), pBuf,
+				    && ced_read_huff(&(pDmaDesc->size), pBuf,
 						&dDone, dwCount);
 				if (bResult) {
 					dev_dbg(&ced->interface->dev,
 						"%s: xfer offset & size %d %d\n",
-						__func__, pDmaDesc->dwOffset,
-						pDmaDesc->dwSize);
+						__func__, pDmaDesc->offset,
+						pDmaDesc->size);
 
 					if ((wIdent >= MAX_TRANSAREAS) ||	/*  Illegal area number, or... */
 					    (!ced->rTransDef[wIdent].used) ||	/*  area not set up, or... */
-					    (pDmaDesc->dwOffset > ced->rTransDef[wIdent].length) ||	/*  range/size */
-					    ((pDmaDesc->dwOffset +
-					      pDmaDesc->dwSize) >
+					    (pDmaDesc->offset > ced->rTransDef[wIdent].length) ||	/*  range/size */
+					    ((pDmaDesc->offset +
+					      pDmaDesc->size) >
 					     (ced->rTransDef[wIdent].
 					      length))) {
 						bResult = false;	/*  bad parameter(s) */
@@ -1000,8 +1000,8 @@ static bool ced_read_dma_info(volatile struct dmadesc *pDmaDesc,
 							__func__, wIdent,
 							ced->rTransDef[wIdent].
 							used,
-							pDmaDesc->dwOffset,
-							pDmaDesc->dwSize,
+							pDmaDesc->offset,
+							pDmaDesc->size,
 							ced->rTransDef[wIdent].
 							length);
 					}
@@ -1049,13 +1049,13 @@ static int ced_handle_esc(struct ced_data *ced, char *pCh,
 		spin_lock(&ced->stagedLock);	/*  Lock others out */
 
 		if (ced_read_dma_info(&ced->rDMAInfo, ced, pCh, dwCount)) {	/*  Get DMA parameters */
-			unsigned short wTransType = ced->rDMAInfo.wTransType;	/*  check transfer type */
+			unsigned short wTransType = ced->rDMAInfo.trans_type;	/*  check transfer type */
 
 			dev_dbg(&ced->interface->dev,
 				"%s: xfer to %s, offset %d, length %d\n",
 				__func__,
-				ced->rDMAInfo.bOutWard ? "1401" : "host",
-				ced->rDMAInfo.dwOffset, ced->rDMAInfo.dwSize);
+				ced->rDMAInfo.outward ? "1401" : "host",
+				ced->rDMAInfo.offset, ced->rDMAInfo.size);
 
 			if (ced->bXFerWaiting) { /*  Check here for badly out of kilter... */
 				/*  This can never happen, really */
@@ -1066,11 +1066,10 @@ static int ced_handle_esc(struct ced_data *ced, char *pCh,
 				    || (wTransType == TM_EXTTO1401)) {
 					iReturn =
 					    ced_read_write_mem(ced,
-							 !ced->rDMAInfo.
-							 bOutWard,
-							 ced->rDMAInfo.wIdent,
-							 ced->rDMAInfo.dwOffset,
-							 ced->rDMAInfo.dwSize);
+							 !ced->rDMAInfo.outward,
+							 ced->rDMAInfo.ident,
+							 ced->rDMAInfo.offset,
+							 ced->rDMAInfo.size);
 					if (iReturn != U14ERR_NOERROR)
 						dev_err(&ced->interface->dev,
 							"%s: ced_read_write_mem() failed %d\n",
