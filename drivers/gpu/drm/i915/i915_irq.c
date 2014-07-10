@@ -1273,7 +1273,7 @@ static void notify_ring(struct drm_device *dev,
 }
 
 static u32 vlv_c0_residency(struct drm_i915_private *dev_priv,
-				struct  intel_rps_ei_calc *rps_ei)
+			    struct intel_rps_ei *rps_ei)
 {
 	u32 cz_ts, cz_freq_khz;
 	u32 render_count, media_count;
@@ -1286,22 +1286,22 @@ static u32 vlv_c0_residency(struct drm_i915_private *dev_priv,
 	render_count = I915_READ(VLV_RENDER_C0_COUNT_REG);
 	media_count = I915_READ(VLV_MEDIA_C0_COUNT_REG);
 
-	if (rps_ei->cz_ts_ei == 0) {
-		rps_ei->cz_ts_ei = cz_ts;
-		rps_ei->render_ei_c0 = render_count;
-		rps_ei->media_ei_c0 = media_count;
+	if (rps_ei->cz_clock == 0) {
+		rps_ei->cz_clock = cz_ts;
+		rps_ei->render_c0 = render_count;
+		rps_ei->media_c0 = media_count;
 
 		return dev_priv->rps.cur_freq;
 	}
 
-	elapsed_time = cz_ts - rps_ei->cz_ts_ei;
-	rps_ei->cz_ts_ei = cz_ts;
+	elapsed_time = cz_ts - rps_ei->cz_clock;
+	rps_ei->cz_clock = cz_ts;
 
-	elapsed_render = render_count - rps_ei->render_ei_c0;
-	rps_ei->render_ei_c0 = render_count;
+	elapsed_render = render_count - rps_ei->render_c0;
+	rps_ei->render_c0 = render_count;
 
-	elapsed_media = media_count - rps_ei->media_ei_c0;
-	rps_ei->media_ei_c0 = media_count;
+	elapsed_media = media_count - rps_ei->media_c0;
+	rps_ei->media_c0 = media_count;
 
 	/* Convert all the counters into common unit of milli sec */
 	elapsed_time /= VLV_CZ_CLOCK_TO_MILLI_SEC;
@@ -1337,9 +1337,9 @@ static u32 vlv_calc_delay_from_C0_counters(struct drm_i915_private *dev_priv)
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 
-	if (dev_priv->rps_up_ei.cz_ts_ei == 0) {
-		vlv_c0_residency(dev_priv, &dev_priv->rps_up_ei);
-		vlv_c0_residency(dev_priv, &dev_priv->rps_down_ei);
+	if (dev_priv->rps.up_ei.cz_clock == 0) {
+		vlv_c0_residency(dev_priv, &dev_priv->rps.up_ei);
+		vlv_c0_residency(dev_priv, &dev_priv->rps.down_ei);
 		return dev_priv->rps.cur_freq;
 	}
 
@@ -1354,10 +1354,10 @@ static u32 vlv_calc_delay_from_C0_counters(struct drm_i915_private *dev_priv)
 		dev_priv->rps.ei_interrupt_count = 0;
 
 		residency_C0_down = vlv_c0_residency(dev_priv,
-						&dev_priv->rps_down_ei);
+						     &dev_priv->rps.down_ei);
 	} else {
 		residency_C0_up = vlv_c0_residency(dev_priv,
-						&dev_priv->rps_up_ei);
+						   &dev_priv->rps.up_ei);
 	}
 
 	new_delay = dev_priv->rps.cur_freq;

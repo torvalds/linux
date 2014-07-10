@@ -902,10 +902,10 @@ struct vlv_s0ix_state {
 	u32 clock_gate_dis2;
 };
 
-struct intel_rps_ei_calc {
-	u32 cz_ts_ei;
-	u32 render_ei_c0;
-	u32 media_ei_c0;
+struct intel_rps_ei {
+	u32 cz_clock;
+	u32 render_c0;
+	u32 media_c0;
 };
 
 struct intel_gen6_power_mgmt {
@@ -939,6 +939,9 @@ struct intel_gen6_power_mgmt {
 
 	bool enabled;
 	struct delayed_work delayed_resume_work;
+
+	/* manual wa residency calculations */
+	struct intel_rps_ei up_ei, down_ei;
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
@@ -1533,13 +1536,6 @@ struct drm_i915_private {
 
 	/* gen6+ rps state */
 	struct intel_gen6_power_mgmt rps;
-
-	/* rps wa up ei calculation */
-	struct intel_rps_ei_calc rps_up_ei;
-
-	/* rps wa down ei calculation */
-	struct intel_rps_ei_calc rps_down_ei;
-
 
 	/* ilk-only ips/rps state. Everything in here is protected by the global
 	 * mchdev_lock in intel_pm.c */
