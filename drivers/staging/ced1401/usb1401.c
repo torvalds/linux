@@ -511,202 +511,242 @@ static void ced_copy_user_space(struct ced_data *ced, int n)
 
 /*  Forward declarations for stuff used circularly */
 static int ced_stage_chunk(struct ced_data *ced);
+
 /***************************************************************************
 ** ReadWrite_Complete
 **
 **  Completion routine for our staged read/write Irps
 */
-static void staged_callback(struct urb *pUrb)
+static void staged_callback(struct urb *urb)
 {
-	struct ced_data *ced = pUrb->context;
-	unsigned int nGot = pUrb->actual_length;	/*  what we transferred */
-	bool bCancel = false;
-	bool bRestartCharInput;	/*  used at the end */
+	struct ced_data *ced = urb->context;
+	unsigned int got = urb->actual_length;	/*  what we transferred */
+	bool cancel = false;
+	bool restart_char_input;	/*  used at the end */
 
 	spin_lock(&ced->staged_lock); /* stop ced_read_write_mem() action */
 				      /* while this routine is running    */
-	ced->staged_urb_pending = false; /*  clear the flag for staged IRP pending */
 
-	if (pUrb->status) {	/*  sync/async unlink faults aren't errors */
+	 /* clear the flag for staged IRP pending */
+	ced->staged_urb_pending = false;
+
+	if (urb->status) {	/*  sync/async unlink faults aren't errors */
 		if (!
-		    (pUrb->status == -ENOENT || pUrb->status == -ECONNRESET
-		     || pUrb->status == -ESHUTDOWN)) {
+		    (urb->status == -ENOENT || urb->status == -ECONNRESET
+		     || urb->status == -ESHUTDOWN)) {
 			dev_err(&ced->interface->dev,
 				"%s: nonzero write bulk status received: %d\n",
-				__func__, pUrb->status);
+				__func__, urb->status);
 		} else
 			dev_info(&ced->interface->dev,
 				 "%s: staged xfer cancelled\n", __func__);
 
 		spin_lock(&ced->err_lock);
-		ced->errors = pUrb->status;
+		ced->errors = urb->status;
 		spin_unlock(&ced->err_lock);
-		nGot = 0;	/*   and tidy up again if so */
-		bCancel = true;
+		got = 0;	/*   and tidy up again if so */
+		cancel = true;
 	} else {
 		dev_dbg(&ced->interface->dev, "%s: %d chars xferred\n",
-			__func__, nGot);
-		if (ced->staged_read)	/*  if reading, save to user space */
-			ced_copy_user_space(ced, nGot);	/*  copy from buffer to user */
-		if (nGot == 0)
+			__func__, got);
+		if (ced->staged_read)	/* if reading, save to user space */
+			/* copy from buffer to user */
+			ced_copy_user_space(ced, got);
+		if (got == 0)
 			dev_dbg(&ced->interface->dev, "%s: ZLP\n", __func__);
 	}
 
-	/*  Update the transfer length based on the TransferBufferLength value in the URB */
-	ced->staged_done += nGot;
+	/* Update the transfer length based on the TransferBufferLength value */
+	/* in the URB                                                         */
+	ced->staged_done += got;
 
 	dev_dbg(&ced->interface->dev, "%s: done %d bytes of %d\n",
 		__func__, ced->staged_done, ced->staged_length);
 
-	if ((ced->staged_done == ced->staged_length) ||	/*  If no more to do */
-	    (bCancel)) {		/*  or this IRP was cancelled */
+	if ((ced->staged_done == ced->staged_length) ||	/* If no more to do */
+	    (cancel)) {		/*  or this IRP was cancelled */
 		/*  Transfer area info */
-		struct transarea *pArea = &ced->trans_def[ced->staged_id];
+		struct transarea *ta = &ced->trans_def[ced->staged_id];
+
 		dev_dbg(&ced->interface->dev,
 			"%s: transfer done, bytes %d, cancel %d\n",
-			__func__, ced->staged_done, bCancel);
+			__func__, ced->staged_done, cancel);
 
-		/*  Here is where we sort out what to do with this transfer if using a circular buffer. We have */
-		/*   a completed transfer that can be assumed to fit into the transfer area. We should be able to */
-		/*   add this to the end of a growing block or to use it to start a new block unless the code */
-		/*   that calculates the offset to use (in ced_read_write_mem) is totally duff. */
-		if ((pArea->circular) && (pArea->circ_to_host) && (!bCancel) &&	/*  Time to sort out circular buffer info? */
+		/* Here is where we sort out what to do with this transfer if */
+		/* using a circular buffer. We have a completed transfer that */
+		/* can be assumed to fit into the transfer area. We should be */
+		/* able to add this to the end of a growing block or to use   */
+		/* it to start a new block unless the code that calculates    */
+		/* the offset to use (in ced_read_write_mem) is totally duff. */
+		if ((ta->circular) &&
+		    (ta->circ_to_host) &&
+		    (!cancel) && /* Time to sort out circular buffer info? */
 		    (ced->staged_read)) {/* Only for tohost transfers for now */
-			if (pArea->blocks[1].size > 0) {	/*  If block 1 is in use we must append to it */
+			/* If block 1 is in use we must append to it */
+			if (ta->blocks[1].size > 0) {
 				if (ced->staged_offset ==
-				    (pArea->blocks[1].offset +
-				     pArea->blocks[1].size)) {
-					pArea->blocks[1].size +=
+				    (ta->blocks[1].offset +
+				     ta->blocks[1].size)) {
+					ta->blocks[1].size +=
 					    ced->staged_length;
 					dev_dbg(&ced->interface->dev,
-						"RWM_Complete, circ block 1 now %d bytes at %d\n",
-						pArea->blocks[1].size,
-						pArea->blocks[1].offset);
+						"RWM_Complete, circ block 1 "
+						"now %d bytes at %d\n",
+						ta->blocks[1].size,
+						ta->blocks[1].offset);
 				} else {
-					/*  Here things have gone very, very, wrong, but I cannot see how this can actually be achieved */
-					pArea->blocks[1].offset =
+					/* Here things have gone very, very */
+					/* wrong, but I cannot see how this */
+					/* can actually be achieved         */
+					ta->blocks[1].offset =
 					    ced->staged_offset;
-					pArea->blocks[1].size =
+					ta->blocks[1].size =
 					    ced->staged_length;
 					dev_err(&ced->interface->dev,
-						"%s: ERROR, circ block 1 re-started %d bytes at %d\n",
+						"%s: ERROR, circ block 1 "
+						"re-started %d bytes at %d\n",
 						__func__,
-						pArea->blocks[1].size,
-						pArea->blocks[1].offset);
+						ta->blocks[1].size,
+						ta->blocks[1].offset);
 				}
-			} else {	/*  If block 1 is not used, we try to add to block 0 */
-				if (pArea->blocks[0].size > 0) {	/*  Got stored block 0 information? */
-					/*  Must append onto the existing block 0 */
+			} else { /* If block 1 is not used, we try to add */
+			         /*to block 0                             */
+
+			        /* Got stored block 0 information? */
+				if (ta->blocks[0].size > 0) {
+					/*  Must append onto the */
+					/*existing block 0       */
 					if (ced->staged_offset ==
-					    (pArea->blocks[0].offset +
-					     pArea->blocks[0].size)) {
-						pArea->blocks[0].size += ced->staged_length;	/*  Just add this transfer in */
+					    (ta->blocks[0].offset +
+					     ta->blocks[0].size)) {
+						/* Just add this transfer in */
+						ta->blocks[0].size +=
+							ced->staged_length;
 						dev_dbg(&ced->interface->dev,
-							"RWM_Complete, circ block 0 now %d bytes at %d\n",
-							pArea->blocks[0].
-							size,
-							pArea->blocks[0].
-							offset);
-					} else {	/*  If it doesn't append, put into new block 1 */
-						pArea->blocks[1].offset =
+							"RWM_Complete, circ "
+							"block 0 now %d bytes "
+							"at %d\n",
+							ta->blocks[0].size,
+							ta->blocks[0].offset);
+
+					} else { /* If it doesn't append, put */
+						 /* into new block 1          */
+						ta->blocks[1].offset =
 						    ced->staged_offset;
-						pArea->blocks[1].size =
+						ta->blocks[1].size =
 						    ced->staged_length;
 						dev_dbg(&ced->interface->dev,
-							"RWM_Complete, circ block 1 started %d bytes at %d\n",
-							pArea->blocks[1].
-							size,
-							pArea->blocks[1].
-							offset);
+							"RWM_Complete, circ "
+							"block 1 started %d "
+							"bytes at %d\n",
+							ta->blocks[1].size,
+							ta->blocks[1].offset);
 					}
-				} else	{ /*  No info stored yet, just save in block 0 */
-					pArea->blocks[0].offset =
+				} else	{ /* No info stored yet, just save */
+					  /* in block 0                    */
+					ta->blocks[0].offset =
 					    ced->staged_offset;
-					pArea->blocks[0].size =
+					ta->blocks[0].size =
 					    ced->staged_length;
 					dev_dbg(&ced->interface->dev,
-						"RWM_Complete, circ block 0 started %d bytes at %d\n",
-						pArea->blocks[0].size,
-						pArea->blocks[0].offset);
+						"RWM_Complete, circ block 0 "
+						"started %d bytes at %d\n",
+						ta->blocks[0].size,
+						ta->blocks[0].offset);
 				}
 			}
 		}
 
-		if (!bCancel) { /*  Don't generate an event if cancelled */
+		if (!cancel) { /*  Don't generate an event if cancelled */
 			dev_dbg(&ced->interface->dev,
-				"RWM_Complete,  bCircular %d, bToHost %d, eStart %d, eSize %d\n",
-				pArea->circular, pArea->event_to_host,
-				pArea->event_st, pArea->event_sz);
-			if ((pArea->event_sz) &&	/*  Set a user-mode event... */
-			    (ced->staged_read == pArea->event_to_host)) {	/*  ...on transfers in this direction? */
-				int iWakeUp = 0; /*  assume */
+				"RWM_Complete,  bCircular %d, bToHost %d, "
+				"eStart %d, eSize %d\n",
+				ta->circular, ta->event_to_host,
+				ta->event_st, ta->event_sz);
+			/* Set a user-mode event...           */
+			/* ...on transfers in this direction? */
+			if ((ta->event_sz) &&
+			    (ced->staged_read == ta->event_to_host)) {
+				int wakeup = 0; /* assume */
 
 				/* If we have completed the right sort of DMA */
 				/* transfer then set the event to notify the  */
 				/* user code to wake up anyone that is        */
 				/* waiting. */
-				if ((pArea->circular) &&	/*  Circular areas use a simpler test */
-				    (pArea->circ_to_host)) {	/*  only in supported direction */
-					/*  Is total data waiting up to size limit? */
+				if ((ta->circular) && /* Circular areas use a simpler test */
+				    (ta->circ_to_host)) {	/*  only in supported direction */
+					/* Is total data waiting up */
+					/* to size limit? */
 					unsigned int dwTotal =
-					    pArea->blocks[0].size +
-					    pArea->blocks[1].size;
-					iWakeUp = (dwTotal >= pArea->event_sz);
+					    ta->blocks[0].size +
+					    ta->blocks[1].size;
+					wakeup = (dwTotal >= ta->event_sz);
 				} else {
 					unsigned int transEnd =
 					    ced->staged_offset +
 					    ced->staged_length;
 					unsigned int eventEnd =
-					    pArea->event_st + pArea->event_sz;
-					iWakeUp = (ced->staged_offset < eventEnd)
-					    && (transEnd > pArea->event_st);
+					    ta->event_st + ta->event_sz;
+					wakeup = (ced->staged_offset < eventEnd)
+					    && (transEnd > ta->event_st);
 				}
 
-				if (iWakeUp) {
+				if (wakeup) {
 					dev_dbg(&ced->interface->dev,
-						"About to set event to notify app\n");
-					wake_up_interruptible(&pArea->event);	/*  wake up waiting processes */
-					++pArea->wake_up;	/*  increment wakeup count */
+					  "About to set event to notify app\n");
+
+					/*  wake up waiting processes */
+					wake_up_interruptible(&ta->event);
+					/* increment wakeup count */
+					++ta->wake_up;
 				}
 			}
 		}
 
-		ced->dma_flag = MODE_CHAR;	/*  Switch back to char mode before ced_read_write_mem call */
+		/* Switch back to char mode before ced_read_write_mem call */
+		ced->dma_flag = MODE_CHAR;
 
-		if (!bCancel) {	/*  Don't look for waiting transfer if cancelled */
+		 /* Don't look for waiting transfer if cancelled */
+		if (!cancel) {
 			/*  If we have a transfer waiting, kick it off */
 			if (ced->xfer_waiting) {/*  Got a block xfer waiting? */
-				int iReturn;
+				int retval;
 				dev_info(&ced->interface->dev,
-					 "*** RWM_Complete *** pending transfer will now be set up!!!\n");
-				iReturn =
-				    ced_read_write_mem(ced, !ced->dma_info.outward,
-						 ced->dma_info.ident,
-						 ced->dma_info.offset,
-						 ced->dma_info.size);
+					 "*** RWM_Complete *** pending transfer"
+					 " will now be set up!!!\n");
+				retval =
+				    ced_read_write_mem(ced,
+						       !ced->dma_info.outward,
+						       ced->dma_info.ident,
+						       ced->dma_info.offset,
+						       ced->dma_info.size);
 
-				if (iReturn)
+				if (retval)
 					dev_err(&ced->interface->dev,
 						"RWM_Complete rw setup failed %d\n",
-						iReturn);
+						retval);
 			}
 		}
 
 	} else			/*  Here for more to do */
 		ced_stage_chunk(ced);	/*  fire off the next bit */
 
-	/*  While we hold the staged_lock, see if we should reallow character input ints */
-	/*  Don't allow if cancelled, or if a new block has started or if there is a waiting block. */
-	/*  This feels wrong as we should ask which spin lock protects dma_flag. */
-	bRestartCharInput = !bCancel && (ced->dma_flag == MODE_CHAR) &&
+	/* While we hold the staged_lock, see if we should reallow character */
+	/* input ints                                                        */
+	/* Don't allow if cancelled, or if a new block has started or if     */
+	/* there is a waiting block.                                         */
+	/* This feels wrong as we should ask which spin lock protects        */
+	/* dma_flag. */
+	restart_char_input = !cancel && (ced->dma_flag == MODE_CHAR) &&
 	                    !ced->xfer_waiting;
 
 	spin_unlock(&ced->staged_lock);	/*  Finally release the lock again */
 
-	/*  This is not correct as dma_flag is protected by the staged lock, but it is treated */
-	/*  in ced_allowi as if it were protected by the char lock. In any case, most systems will */
-	/*  not be upset by char input during DMA... sigh. Needs sorting out. */
-	if (bRestartCharInput)	/*  may be out of date, but... */
+	/* This is not correct as dma_flag is protected by the staged lock, */
+	/* but it is treated in ced_allowi as if it were protected by the   */
+	/* char lock. In any case, most systems will not be upset by char   */
+	/* input during DMA... sigh. Needs sorting out.                     */
+	if (restart_char_input)	/*  may be out of date, but... */
 		ced_allowi(ced);	/*  ...ced_allowi tests a lock too. */
 	dev_dbg(&ced->interface->dev, "%s: done\n", __func__);
 }
