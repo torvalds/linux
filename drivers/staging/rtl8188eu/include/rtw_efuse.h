@@ -116,6 +116,4 @@ u8 Efuse_WordEnableDataWrite(struct adapter *adapter, u16 efuse_addr,
 			     u8 word_en, u8 *data);
 
 void EFUSE_ShadowMapUpdate(struct adapter *adapter, u8 efusetype);
-void EFUSE_ShadowRead(struct adapter *adapt, u8 type, u16 offset, u32 *val);
-
 #endif
