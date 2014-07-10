@@ -3030,13 +3030,30 @@ again:
 			else if (rdata->result == -EAGAIN) {
 				/* resend call if it's a retryable error */
 				struct list_head tmp_list;
+				unsigned int got_bytes = rdata->got_bytes;
 
 				list_del_init(&rdata->list);
 				INIT_LIST_HEAD(&tmp_list);
 
-				rc = cifs_send_async_read(rdata->offset,
-						rdata->bytes, rdata->cfile,
-						cifs_sb, &tmp_list);
+				/*
+				 * Got a part of data and then reconnect has
+				 * happened -- fill the buffer and continue
+				 * reading.
+				 */
+				if (got_bytes && got_bytes < rdata->bytes) {
+					rc = cifs_readdata_to_iov(rdata, to);
+					if (rc) {
+						kref_put(&rdata->refcount,
+						cifs_uncached_readdata_release);
+						continue;
+					}
+				}
+
+				rc = cifs_send_async_read(
+						rdata->offset + got_bytes,
+						rdata->bytes - got_bytes,
+						rdata->cfile, cifs_sb,
+						&tmp_list);
 
 				list_splice(&tmp_list, &rdata_list);
 

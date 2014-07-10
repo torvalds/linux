@@ -1561,6 +1561,12 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	case MID_REQUEST_SUBMITTED:
 	case MID_RETRY_NEEDED:
 		rdata->result = -EAGAIN;
+		if (server->sign && rdata->got_bytes)
+			/* reset bytes number since we can not check a sign */
+			rdata->got_bytes = 0;
+		/* FIXME: should this be counted toward the initiating task? */
+		task_io_account_read(rdata->got_bytes);
+		cifs_stats_bytes_read(tcon, rdata->got_bytes);
 		break;
 	default:
 		rdata->result = -EIO;
