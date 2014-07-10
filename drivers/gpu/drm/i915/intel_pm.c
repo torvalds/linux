@@ -5700,6 +5700,35 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 static void cherryview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+	val = vlv_punit_read(dev_priv, CCK_FUSE_REG);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+	switch ((val >> 2) & 0x7) {
+	case 0:
+	case 1:
+			dev_priv->rps.cz_freq = CHV_CZ_CLOCK_FREQ_MODE_200;
+			dev_priv->mem_freq = 1600;
+			break;
+	case 2:
+			dev_priv->rps.cz_freq = CHV_CZ_CLOCK_FREQ_MODE_267;
+			dev_priv->mem_freq = 1600;
+			break;
+	case 3:
+			dev_priv->rps.cz_freq = CHV_CZ_CLOCK_FREQ_MODE_333;
+			dev_priv->mem_freq = 2000;
+			break;
+	case 4:
+			dev_priv->rps.cz_freq = CHV_CZ_CLOCK_FREQ_MODE_320;
+			dev_priv->mem_freq = 1600;
+			break;
+	case 5:
+			dev_priv->rps.cz_freq = CHV_CZ_CLOCK_FREQ_MODE_400;
+			dev_priv->mem_freq = 1600;
+			break;
+	}
+	DRM_DEBUG_DRIVER("DDR speed: %d MHz", dev_priv->mem_freq);
 
 	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
 
