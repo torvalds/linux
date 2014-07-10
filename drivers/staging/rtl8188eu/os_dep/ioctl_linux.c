@@ -105,44 +105,6 @@ static const char * const iw_operation_mode[] = {
 	"Secondary", "Monitor"
 };
 
-static int hex2num_i(char c)
-{
-	if (c >= '0' && c <= '9')
-		return c - '0';
-	if (c >= 'a' && c <= 'f')
-		return c - 'a' + 10;
-	if (c >= 'A' && c <= 'F')
-		return c - 'A' + 10;
-	return -1;
-}
-
-/**
- * hwaddr_aton - Convert ASCII string to MAC address
- * @txt: MAC address as a string (e.g., "00:11:22:33:44:55")
- * @addr: Buffer for the MAC address (ETH_ALEN = 6 bytes)
- * Returns: 0 on success, -1 on failure (e.g., string not a MAC address)
- */
-static int hwaddr_aton_i(const char *txt, u8 *addr)
-{
-	int i;
-
-	for (i = 0; i < 6; i++) {
-		int a, b;
-
-		a = hex2num_i(*txt++);
-		if (a < 0)
-			return -1;
-		b = hex2num_i(*txt++);
-		if (b < 0)
-			return -1;
-		*addr++ = (a << 4) | b;
-		if (i < 5 && *txt++ != ':')
-			return -1;
-	}
-
-	return 0;
-}
-
 void indicate_wx_scan_complete_event(struct adapter *padapter)
 {
 	union iwreq_data wrqu;
@@ -2553,7 +2515,7 @@ static int rtw_get_ap_info(struct net_device *dev,
 	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 
-		if (hwaddr_aton_i(data, bssid)) {
+		if (!mac_pton(data, bssid)) {
 			DBG_88E("Invalid BSSID '%s'.\n", (u8 *)data);
 			spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 			return -EINVAL;
@@ -2837,12 +2799,11 @@ static int rtw_p2p_profilefound(struct net_device *dev,
 			if (pwdinfo->profileindex >= P2P_MAX_PERSISTENT_GROUP_NUM) {
 				ret = -1;
 			} else {
-				int jj, kk;
-
 				/*	Add this profile information into pwdinfo->profileinfo */
 				/*	Ex:  1XX:XX:XX:XX:XX:XXYYSSID */
-				for (jj = 0, kk = 1; jj < ETH_ALEN; jj++, kk += 3)
-					pwdinfo->profileinfo[pwdinfo->profileindex].peermac[jj] = key_2char2num(extra[kk], extra[kk + 1]);
+				if (!mac_pton(extra + 1,
+					      pwdinfo->profileinfo[pwdinfo->profileindex].peermac))
+					return -EINVAL;
 
 				pwdinfo->profileinfo[pwdinfo->profileindex].ssidlen = (extra[18] - '0') * 10 + (extra[19] - '0');
 				memcpy(pwdinfo->profileinfo[pwdinfo->profileindex].ssid, &extra[20], pwdinfo->profileinfo[pwdinfo->profileindex].ssidlen);
@@ -3021,8 +2982,7 @@ static int rtw_p2p_get_wps_configmethod(struct net_device *dev,
 	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	u8 peerMAC[ETH_ALEN] = {0x00};
-	int jj, kk;
-	u8 peerMACStr[17] = {0x00};
+	u8 peerMACStr[18] = {0x00};
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
@@ -3042,8 +3002,8 @@ static int rtw_p2p_get_wps_configmethod(struct net_device *dev,
 	if (copy_from_user(peerMACStr, wrqu->data.pointer + 6, 17))
 		return -EFAULT;
 
-	for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-		peerMAC[jj] = key_2char2num(peerMACStr[kk], peerMACStr[kk + 1]);
+	if (!mac_pton(peerMACStr, peerMAC))
+		return -EINVAL;
 
 	spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 
@@ -3089,8 +3049,7 @@ static int rtw_p2p_get_go_device_address(struct net_device *dev,
 	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	u8 peerMAC[ETH_ALEN] = {0x00};
-	int jj, kk;
-	u8 peerMACStr[17] = {0x00};
+	u8 peerMACStr[18] = {0x00};
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
@@ -3109,8 +3068,8 @@ static int rtw_p2p_get_go_device_address(struct net_device *dev,
 	if (copy_from_user(peerMACStr, wrqu->data.pointer + 10, 17))
 		return -EFAULT;
 
-	for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-		peerMAC[jj] = key_2char2num(peerMACStr[kk], peerMACStr[kk + 1]);
+	if (!mac_pton(peerMACStr, peerMAC))
+		return -EINVAL;
 
 	spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 
@@ -3170,8 +3129,7 @@ static int rtw_p2p_get_device_type(struct net_device *dev,
 	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	u8 peerMAC[ETH_ALEN] = {0x00};
-	int jj, kk;
-	u8 peerMACStr[17] = {0x00};
+	u8 peerMACStr[18] = {0x00};
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
@@ -3190,8 +3148,8 @@ static int rtw_p2p_get_device_type(struct net_device *dev,
 	if (copy_from_user(peerMACStr, wrqu->data.pointer + 9, 17))
 		return -EFAULT;
 
-	for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-		peerMAC[jj] = key_2char2num(peerMACStr[kk], peerMACStr[kk + 1]);
+	if (!mac_pton(peerMACStr, peerMAC))
+		return -EINVAL;
 
 	spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 
@@ -3246,8 +3204,7 @@ static int rtw_p2p_get_device_name(struct net_device *dev,
 	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	u8 peerMAC[ETH_ALEN] = {0x00};
-	int jj, kk;
-	u8 peerMACStr[17] = {0x00};
+	u8 peerMACStr[18] = {0x00};
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
@@ -3266,8 +3223,8 @@ static int rtw_p2p_get_device_name(struct net_device *dev,
 	if (copy_from_user(peerMACStr, wrqu->data.pointer + 5, 17))
 		return -EFAULT;
 
-	for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-		peerMAC[jj] = key_2char2num(peerMACStr[kk], peerMACStr[kk + 1]);
+	if (!mac_pton(peerMACStr, peerMAC))
+		return -EINVAL;
 
 	spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 
@@ -3312,8 +3269,7 @@ static int rtw_p2p_get_invitation_procedure(struct net_device *dev,
 	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	u8 peerMAC[ETH_ALEN] = {0x00};
-	int jj, kk;
-	u8 peerMACStr[17] = {0x00};
+	u8 peerMACStr[18] = {0x00};
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
@@ -3334,8 +3290,8 @@ static int rtw_p2p_get_invitation_procedure(struct net_device *dev,
 	if (copy_from_user(peerMACStr, wrqu->data.pointer + 8, 17))
 		return -EFAULT;
 
-	for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-		peerMAC[jj] = key_2char2num(peerMACStr[kk], peerMACStr[kk + 1]);
+	if (!mac_pton(peerMACStr, peerMAC))
+		return -EINVAL;
 
 	spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 
@@ -3389,7 +3345,6 @@ static int rtw_p2p_connect(struct net_device *dev,
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
 	u8 peerMAC[ETH_ALEN] = {0x00};
-	int jj, kk;
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
@@ -3413,8 +3368,8 @@ static int rtw_p2p_connect(struct net_device *dev,
 	if (pwdinfo->ui_got_wps_info == P2P_NO_WPSINFO)
 		return -1;
 
-	for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-		peerMAC[jj] = key_2char2num(extra[kk], extra[kk + 1]);
+	if (!mac_pton(extra, peerMAC))
+		return -EINVAL;
 
 	spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 
@@ -3467,7 +3422,6 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
-	int jj, kk;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
@@ -3505,8 +3459,8 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 		pinvite_req_info->token = 3;
 	}
 
-	for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-		pinvite_req_info->peer_macaddr[jj] = key_2char2num(extra[kk], extra[kk + 1]);
+	if (!mac_pton(extra, pinvite_req_info->peer_macaddr))
+		return -EINVAL;
 
 	spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 
@@ -3546,8 +3500,8 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 
 	if (uintPeerChannel) {
 		/*	Store the GO's bssid */
-		for (jj = 0, kk = 18; jj < ETH_ALEN; jj++, kk += 3)
-			pinvite_req_info->go_bssid[jj] = key_2char2num(extra[kk], extra[kk + 1]);
+		if (!mac_pton(extra + 18, pinvite_req_info->go_bssid))
+			return -EINVAL;
 
 		/*	Store the GO's ssid */
 		pinvite_req_info->ssidlen = wrqu->data.length - 36;
@@ -3606,7 +3560,6 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
 	u8 peerMAC[ETH_ALEN] = {0x00};
-	int jj, kk;
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
@@ -3639,8 +3592,8 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 		pwdinfo->tx_prov_disc_info.benable = false;
 	}
 
-	for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-		peerMAC[jj] = key_2char2num(extra[kk], extra[kk + 1]);
+	if (!mac_pton(extra, peerMAC))
+		return -EINVAL;
 
 	if (!memcmp(&extra[18], "display", 7)) {
 		pwdinfo->tx_prov_disc_info.wps_config_method_request = WPS_CM_DISPLYA;

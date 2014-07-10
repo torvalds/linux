@@ -1092,16 +1092,15 @@ u8 key_2char2num(u8 hch, u8 lch)
 void rtw_macaddr_cfg(u8 *mac_addr)
 {
 	u8 mac[ETH_ALEN];
+
 	if (mac_addr == NULL)
 		return;
 
-	if (rtw_initmac) {	/* Users specify the mac address */
-		int jj, kk;
-
-		for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk + 1]);
+	if (rtw_initmac && mac_pton(rtw_initmac, mac)) {
+		/* Users specify the mac address */
 		memcpy(mac_addr, mac, ETH_ALEN);
-	} else {	/* Use the mac address stored in the Efuse */
+	} else {
+		/* Use the mac address stored in the Efuse */
 		memcpy(mac, mac_addr, ETH_ALEN);
 	}
 
