@@ -1272,32 +1272,35 @@ static void ced_readchar_callback(struct urb *urb)
 ****************************************************************************/
 int ced_allowi(struct ced_data *ced)
 {
-	int iReturn = U14ERR_NOERROR;
+	int retval = U14ERR_NOERROR;
 	unsigned long flags;
 
 	/* can be called in multiple contexts */
 	spin_lock_irqsave(&ced->char_in_lock, flags);
 
-	/*  We don't want char input running while DMA is in progress as we know that this */
-	/*   can cause sequencing problems for the 2270. So don't. It will also allow the */
-	/*   ERR response to get back to the host code too early on some PCs, even if there */
-	/*   is no actual driver failure, so we don't allow this at all. */
-	if (!ced->in_draw_down &&	/*  stop input if */
-	    !ced->read_chars_pending &&	/*  If no read request outstanding */
-	    (ced->num_input < (INBUF_SZ / 2)) &&	/*   and there is some space */
+	/* We don't want char input running while DMA is in progress as we    */
+	/* know that this can cause sequencing problems for the 2270. So      */
+	/* don't. It will also allow the ERR response to get back to the host */
+	/* code too early on some PCs, even if there is no actual driver      */
+	/* failure, so we don't allow this at all. */
+	if (!ced->in_draw_down &&	/* stop input if */
+	    !ced->read_chars_pending &&	/* If no read request outstanding */
+	    (ced->num_input < (INBUF_SZ / 2)) && /*  and there is some space */
 	    (ced->dma_flag == MODE_CHAR) &&	/*   not doing any DMA */
 	    (!ced->xfer_waiting) &&               /* no xfer waiting to start */
-	    (can_accept_io_requests(ced)))	{ /*   and activity is generally OK */
+	    (can_accept_io_requests(ced))) { /* and activity is generally OK */
 				/*   then off we go */
-		unsigned int nMax = INBUF_SZ - ced->num_input; /*  max we could read */
-		int nPipe = ced->n_pipes == 4 ? 1 : 0;	/*  The pipe number to use */
+		/* max we could read */
+		unsigned int max = INBUF_SZ - ced->num_input;
+		/* The pipe number to use */
+		int pipe = ced->n_pipes == 4 ? 1 : 0;
 
 		dev_dbg(&ced->interface->dev, "%s: %d chars in input buffer\n",
 			__func__, ced->num_input);
 
 		usb_fill_int_urb(ced->urb_char_in, ced->udev,
-				 usb_rcvintpipe(ced->udev, ced->ep_addr[nPipe]),
-				 ced->coher_char_in, nMax, ced_readchar_callback,
+				 usb_rcvintpipe(ced->udev, ced->ep_addr[pipe]),
+				 ced->coher_char_in, max, ced_readchar_callback,
 				 ced, ced->interval);
 
 		/* short xfers are OK by default */
@@ -1306,21 +1309,23 @@ int ced_allowi(struct ced_data *ced)
 		/* in case we need to kill it */
 		usb_anchor_urb(ced->urb_char_in, &ced->submitted);
 
-		iReturn = usb_submit_urb(ced->urb_char_in, GFP_ATOMIC);
-		if (iReturn) {
-			usb_unanchor_urb(ced->urb_char_in);	/*  remove from list of active Urbs */
-			ced->pipe_error[nPipe] = 1;	/*  Flag an error to be handled later */
+		retval = usb_submit_urb(ced->urb_char_in, GFP_ATOMIC);
+		if (retval) {
+			/* remove from list of active Urbs */
+			usb_unanchor_urb(ced->urb_char_in);
+			/* Flag an error to be handled later */
+			ced->pipe_error[pipe] = 1;
 			dev_err(&ced->interface->dev,
 				"%s: submit urb failed: %d\n",
-				__func__, iReturn);
+				__func__, retval);
 		} else
-			ced->read_chars_pending = true;	/*  Flag that we are active here */
+			/* Flag that we are active here */
+			ced->read_chars_pending = true;
 	}
 
 	spin_unlock_irqrestore(&ced->char_in_lock, flags);
 
-	return iReturn;
-
+	return retval;
 }
 
 /*****************************************************************************
