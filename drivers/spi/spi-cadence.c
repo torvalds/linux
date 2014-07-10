@@ -382,6 +382,12 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 
 	return status;
 }
+static int cdns_prepare_message(struct spi_master *master,
+				struct spi_message *msg)
+{
+	cdns_spi_config_clock_mode(msg->spi);
+	return 0;
+}
 
 /**
  * cdns_transfer_one - Initiates the SPI transfer
@@ -427,8 +433,6 @@ static int cdns_transfer_one(struct spi_master *master,
 static int cdns_prepare_transfer_hardware(struct spi_master *master)
 {
 	struct cdns_spi *xspi = spi_master_get_devdata(master);
-
-	cdns_spi_config_clock_mode(master->cur_msg->spi);
 
 	cdns_spi_write(xspi, CDNS_SPI_ER_OFFSET,
 		       CDNS_SPI_ER_ENABLE_MASK);
@@ -544,6 +548,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		xspi->is_decoded_cs = 0;
 
 	master->prepare_transfer_hardware = cdns_prepare_transfer_hardware;
+	master->prepare_message = cdns_prepare_message;
 	master->transfer_one = cdns_transfer_one;
 	master->unprepare_transfer_hardware = cdns_unprepare_transfer_hardware;
 	master->set_cs = cdns_spi_chipselect;
