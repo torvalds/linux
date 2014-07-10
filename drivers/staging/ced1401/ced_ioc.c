@@ -1406,49 +1406,49 @@ int ced_set_circular(struct ced_data *ced,
 **
 ** Return the next available block of circularly-transferred data.
 ****************************************************************************/
-int ced_get_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
+int ced_get_circ_block(struct ced_data *ced, TCIRCBLOCK __user *ucb)
 {
-	int iReturn = U14ERR_NOERROR;
-	unsigned int nArea;
+	int ret = U14ERR_NOERROR;
+	unsigned int area;
 	TCIRCBLOCK cb;
 
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
-	if (copy_from_user(&cb, pCB, sizeof(cb)))
+	if (copy_from_user(&cb, ucb, sizeof(cb)))
 		return -EFAULT;
 
 	mutex_lock(&ced->io_mutex);
 
-	nArea = cb.nArea;	/*  Retrieve parameters first */
+	area = cb.nArea;	/*  Retrieve parameters first */
 	cb.dwOffset = 0;	/*  set default result (nothing) */
 	cb.dwSize = 0;
 
-	if (nArea < MAX_TRANSAREAS) {	/*  The area number must be OK */
+	if (area < MAX_TRANSAREAS) {	/*  The area number must be OK */
 		/* Pointer to relevant info */
-		struct transarea *pArea = &ced->trans_def[nArea];
+		struct transarea *ta = &ced->trans_def[area];
 		spin_lock_irq(&ced->staged_lock);	/*  Lock others out */
 
-		if ((pArea->used) && (pArea->circular) &&	/*  Must be circular area */
-		    (pArea->circ_to_host)) {	/*  For now at least must be to host */
-			if (pArea->blocks[0].size > 0) {	/*  Got anything? */
-				cb.dwOffset = pArea->blocks[0].offset;
-				cb.dwSize = pArea->blocks[0].size;
+		if ((ta->used) && (ta->circular) && /* Must be circular area */
+		    (ta->circ_to_host)) { /* For now at least must be to host */
+			if (ta->blocks[0].size > 0) {	/*  Got anything? */
+				cb.dwOffset = ta->blocks[0].offset;
+				cb.dwSize = ta->blocks[0].size;
 				dev_dbg(&ced->interface->dev,
 					"%s: return block 0: %d bytes at %d\n",
 					__func__, cb.dwSize, cb.dwOffset);
 			}
 		} else
-			iReturn = U14ERR_NOTSET;
+			ret = U14ERR_NOTSET;
 
 		spin_unlock_irq(&ced->staged_lock);
 	} else
-		iReturn = U14ERR_BADAREA;
+		ret = U14ERR_BADAREA;
 
-	if (copy_to_user(pCB, &cb, sizeof(cb)))
-		iReturn = -EFAULT;
+	if (copy_to_user(ucb, &cb, sizeof(cb)))
+		ret = -EFAULT;
 
 	mutex_unlock(&ced->io_mutex);
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
