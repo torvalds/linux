@@ -551,7 +551,7 @@ int ced_stat_1401(struct ced_data *ced)
 ****************************************************************************/
 int ced_line_count(struct ced_data *ced)
 {
-	int iReturn = 0;	/*  will be count of line ends */
+	int ret = 0;	/*  will be count of line ends */
 
 	mutex_lock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
 	ced_allowi(ced);		/*  Make sure char reads are running */
@@ -559,21 +559,23 @@ int ced_line_count(struct ced_data *ced)
 	spin_lock_irq(&ced->char_in_lock);	/*  Get protection */
 
 	if (ced->num_input > 0) {	/*  worth looking? */
-		unsigned int dwIndex = ced->in_buff_get; /* start at first available */
-		unsigned int dwEnd = ced->in_buff_put;	/* Position for search end */
+		/* start at first available */
+		unsigned int index = ced->in_buff_get;
+		/* Position for search end */
+		unsigned int end = ced->in_buff_put;
 		do {
-			if (ced->input_buffer[dwIndex++] == CR_CHAR)
-				++iReturn;	/*  inc count if CR */
+			if (ced->input_buffer[index++] == CR_CHAR)
+				++ret;	/*  inc count if CR */
 
-			if (dwIndex >= INBUF_SZ)	/*  see if we fall off buff */
-				dwIndex = 0;
-		} while (dwIndex != dwEnd);	/*  go to last available */
+			if (index >= INBUF_SZ) /*  see if we fall off buff */
+				index = 0;
+		} while (index != end);	/*  go to last available */
 	}
 
 	spin_unlock_irq(&ced->char_in_lock);
-	dev_dbg(&ced->interface->dev, "%s: returned %d\n", __func__, iReturn);
+	dev_dbg(&ced->interface->dev, "%s: returned %d\n", __func__, ret);
 	mutex_unlock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
