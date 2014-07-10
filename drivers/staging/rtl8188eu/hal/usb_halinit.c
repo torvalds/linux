@@ -27,7 +27,6 @@
 #include <rtl8188e_led.h>
 #include <rtw_iol.h>
 #include <usb_hal.h>
-#include <usb_osintf.h>
 
 #define		HAL_MAC_ENABLE	1
 #define		HAL_BB_ENABLE		1

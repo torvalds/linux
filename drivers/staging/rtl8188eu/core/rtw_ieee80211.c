@@ -20,11 +20,11 @@
 #define _IEEE80211_C
 
 #include <drv_types.h>
+#include <osdep_intf.h>
 #include <ieee80211.h>
 #include <wifi.h>
 #include <osdep_service.h>
 #include <wlan_bssdef.h>
-#include <usb_osintf.h>
 
 u8 RTW_WPA_OUI_TYPE[] = { 0x00, 0x50, 0xf2, 1 };
 u16 RTW_WPA_VERSION = 1;

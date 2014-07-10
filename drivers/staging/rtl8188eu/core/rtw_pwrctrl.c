@@ -24,7 +24,6 @@
 #include <osdep_intf.h>
 #include <usb_ops_linux.h>
 #include <linux/usb.h>
-#include <usb_osintf.h>
 
 static int rtw_hw_suspend(struct adapter *padapter)
 {

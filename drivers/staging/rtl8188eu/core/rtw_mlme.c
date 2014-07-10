@@ -30,7 +30,6 @@
 #include <wifi.h>
 #include <wlan_bssdef.h>
 #include <rtw_ioctl_set.h>
-#include <usb_osintf.h>
 #include <linux/vmalloc.h>
 
 extern unsigned char	MCS_rate_2R[16];

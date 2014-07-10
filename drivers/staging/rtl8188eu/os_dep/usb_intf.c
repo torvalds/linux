@@ -29,7 +29,6 @@
 #include <osdep_intf.h>
 
 #include <usb_ops_linux.h>
-#include <usb_osintf.h>
 #include <usb_hal.h>
 #include <rtw_ioctl.h>
 
@@ -302,15 +301,7 @@ exit:
 	return ret;
 }
 
-static int rtw_resume(struct usb_interface *pusb_intf)
-{
-	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
-	struct adapter *padapter = dvobj->if1;
-
-	return rtw_resume_process(padapter);
-}
-
-int rtw_resume_process(struct adapter *padapter)
+static int rtw_resume_process(struct adapter *padapter)
 {
 	struct net_device *pnetdev;
 	struct pwrctrl_priv *pwrpriv = NULL;
@@ -355,6 +346,14 @@ exit:
 
 
 	return ret;
+}
+
+static int rtw_resume(struct usb_interface *pusb_intf)
+{
+	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
+	struct adapter *padapter = dvobj->if1;
+
+	return rtw_resume_process(padapter);
 }
 
 /*
