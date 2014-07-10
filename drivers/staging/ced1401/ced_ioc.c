@@ -139,13 +139,13 @@ int ced_send_string(struct ced_data *ced, const char __user *data,
 ****************************************************************************/
 int ced_send_char(struct ced_data *ced, char c)
 {
-	int iReturn;
+	int ret;
 	mutex_lock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
-	iReturn = ced_put_chars(ced, &c, 1);
+	ret = ced_put_chars(ced, &c, 1);
 	dev_dbg(&ced->interface->dev, "ced_send_char >%c< (0x%02x)\n", c, c);
 	ced_allowi(ced);	/*  Make sure char reads are running */
 	mutex_unlock(&ced->io_mutex);
-	return iReturn;
+	return ret;
 }
 
 /***************************************************************************
