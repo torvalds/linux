@@ -461,11 +461,20 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 	mutex_unlock(&dev->struct_mutex);
 
 	if (attr == &dev_attr_gt_RP0_freq_mhz) {
-		val = ((rp_state_cap & 0x0000ff) >> 0) * GT_FREQUENCY_MULTIPLIER;
+		if (IS_VALLEYVIEW(dev))
+			val = vlv_gpu_freq(dev_priv, dev_priv->rps.rp0_freq);
+		else
+			val = ((rp_state_cap & 0x0000ff) >> 0) * GT_FREQUENCY_MULTIPLIER;
 	} else if (attr == &dev_attr_gt_RP1_freq_mhz) {
-		val = ((rp_state_cap & 0x00ff00) >> 8) * GT_FREQUENCY_MULTIPLIER;
+		if (IS_VALLEYVIEW(dev))
+			val = vlv_gpu_freq(dev_priv, dev_priv->rps.rp1_freq);
+		else
+			val = ((rp_state_cap & 0x00ff00) >> 8) * GT_FREQUENCY_MULTIPLIER;
 	} else if (attr == &dev_attr_gt_RPn_freq_mhz) {
-		val = ((rp_state_cap & 0xff0000) >> 16) * GT_FREQUENCY_MULTIPLIER;
+		if (IS_VALLEYVIEW(dev))
+			val = vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq);
+		else
+			val = ((rp_state_cap & 0xff0000) >> 16) * GT_FREQUENCY_MULTIPLIER;
 	} else {
 		BUG();
 	}
@@ -486,6 +495,9 @@ static const struct attribute *vlv_attrs[] = {
 	&dev_attr_gt_cur_freq_mhz.attr,
 	&dev_attr_gt_max_freq_mhz.attr,
 	&dev_attr_gt_min_freq_mhz.attr,
+	&dev_attr_gt_RP0_freq_mhz.attr,
+	&dev_attr_gt_RP1_freq_mhz.attr,
+	&dev_attr_gt_RPn_freq_mhz.attr,
 	&dev_attr_vlv_rpe_freq_mhz.attr,
 	NULL,
 };
