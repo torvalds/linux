@@ -694,73 +694,78 @@ int ced_clear_area(struct ced_data *ced, int area)
 ** Sets up a transfer area - the functional part. Called by both
 ** ced_set_transfer and ced_set_circular.
 ****************************************************************************/
-static int ced_set_area(struct ced_data *ced, int nArea, char __user *puBuf,
-		   unsigned int dwLength, bool bCircular, bool bCircToHost)
+static int ced_set_area(struct ced_data *ced, int area, char __user *buf,
+		   unsigned int length, bool circular, bool circ_to_host)
 {
-	/*  Start by working out the page aligned start of the area and the size */
-	/*  of the area in pages, allowing for the start not being aligned and the */
-	/*  end needing to be rounded up to a page boundary. */
-	unsigned long ulStart = ((unsigned long)puBuf) & PAGE_MASK;
-	unsigned int ulOffset = ((unsigned long)puBuf) & (PAGE_SIZE - 1);
-	int len = (dwLength + ulOffset + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	/* Start by working out the page aligned start of the area and the  */
+	/* size of the area in pages, allowing for the start not being      */
+	/* aligned and the end needing to be rounded up to a page boundary. */
+	unsigned long start = ((unsigned long)buf) & PAGE_MASK;
+	unsigned int offset = ((unsigned long)buf) & (PAGE_SIZE - 1);
+	int len = (length + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	struct transarea *pTA = &ced->trans_def[nArea];	/*  to save typing */
-	struct page **pPages = NULL;	/*  space for page tables */
-	int nPages = 0;		/*  and number of pages */
+	struct transarea *ta = &ced->trans_def[area];	/*  to save typing */
+	struct page **pages = NULL;	/*  space for page tables */
+	int n_pages = 0;		/*  and number of pages */
 
-	int iReturn = ced_clear_area(ced, nArea);	/*  see if OK to use this area */
-	if ((iReturn != U14ERR_NOTSET) &&	/*  if not area unused and... */
-	    (iReturn != U14ERR_NOERROR))	/*  ...not all OK, then... */
-		return iReturn;	/*  ...we cannot use this area */
+	int ret = ced_clear_area(ced, area); /*  see if OK to use this area */
+	if ((ret != U14ERR_NOTSET) &&	/*  if not area unused and... */
+	    (ret != U14ERR_NOERROR))	/*  ...not all OK, then... */
+		return ret;	/*  ...we cannot use this area */
 
-	if (!access_ok(VERIFY_WRITE, puBuf, dwLength))	/*  if we cannot access the memory... */
+	/* if we cannot access the memory... */
+	if (!access_ok(VERIFY_WRITE, buf, length))
 		return -EFAULT;	/*  ...then we are done */
 
-	/*  Now allocate space to hold the page pointer and virtual address pointer tables */
-	pPages = kmalloc(len * sizeof(struct page *), GFP_KERNEL);
-	if (!pPages) {
-		iReturn = U14ERR_NOMEMORY;
+	/*  Now allocate space to hold the page pointer and */
+	/* virtual address pointer tables		    */
+	pages = kmalloc(len * sizeof(struct page *), GFP_KERNEL);
+	if (!pages) {
+		ret = U14ERR_NOMEMORY;
 		goto error;
 	}
 	dev_dbg(&ced->interface->dev, "%s: %p, length=%06x, circular %d\n",
-		__func__, puBuf, dwLength, bCircular);
+		__func__, buf, length, circular);
 
-	/*  To pin down user pages we must first acquire the mapping semaphore. */
-	nPages = get_user_pages_fast(ulStart, len, 1, pPages);
-	dev_dbg(&ced->interface->dev, "%s: nPages = %d\n", __func__, nPages);
+	/* To pin down user pages we must first */
+	/* acquire the mapping semaphore.	*/
+	n_pages = get_user_pages_fast(start, len, 1, pages);
+	dev_dbg(&ced->interface->dev, "%s: n_pages = %d\n", __func__, n_pages);
 
-	if (nPages > 0) {		/*  if we succeeded */
-		/*  If you are tempted to use page_address (form LDD3), forget it. You MUST use */
-		/*  kmap() or kmap_atomic() to get a virtual address. page_address will give you */
-		/*  (null) or at least it does in this context with an x86 machine. */
+	if (n_pages > 0) { /* if we succeeded */
+		/* If you are tempted to use page_address (form LDD3), forget */
+		/* it. You MUST use kmap() or kmap_atomic() to get a virtual  */
+		/* address. page_address will give you (null) or at least it  */
+		/* does in this context with an x86 machine.                  */
 		spin_lock_irq(&ced->staged_lock);
-		pTA->buff = puBuf;	/*  keep start of region (user address) */
-		pTA->base_offset = ulOffset;	/*  save offset in first page to start of xfer */
-		pTA->length = dwLength;	/*  Size if the region in bytes */
-		pTA->pages = pPages;	/*  list of pages that are used by buffer */
-		pTA->n_pages = nPages;	/*  number of pages */
+		ta->buff = buf;	/*  keep start of region (user address) */
+		ta->base_offset = offset; /* save offset in first page */
+					  /* to start of xfer          */
+		ta->length = length;	/*  Size if the region in bytes */
+		ta->pages = pages; /* list of pages that are used by buffer */
+		ta->n_pages = n_pages;	/*  number of pages */
 
-		pTA->circular = bCircular;
-		pTA->circ_to_host = bCircToHost;
+		ta->circular = circular;
+		ta->circ_to_host = circ_to_host;
 
-		pTA->blocks[0].offset = 0;
-		pTA->blocks[0].size = 0;
-		pTA->blocks[1].offset = 0;
-		pTA->blocks[1].size = 0;
-		pTA->used = true;	/*  This is now a used block */
+		ta->blocks[0].offset = 0;
+		ta->blocks[0].size = 0;
+		ta->blocks[1].offset = 0;
+		ta->blocks[1].size = 0;
+		ta->used = true;	/*  This is now a used block */
 
 		spin_unlock_irq(&ced->staged_lock);
-		iReturn = U14ERR_NOERROR;	/*  say all was well */
+		ret = U14ERR_NOERROR;	/*  say all was well */
 	} else {
-		iReturn = U14ERR_LOCKFAIL;
+		ret = U14ERR_LOCKFAIL;
 		goto error;
 	}
 
-	return iReturn;
+	return ret;
 
 error:
-	kfree(pPages);
-	return iReturn;
+	kfree(pages);
+	return ret;
 }
 
 /****************************************************************************
