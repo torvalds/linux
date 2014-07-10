@@ -35,6 +35,7 @@ struct m88ds3103_priv {
 	struct dvb_frontend fe;
 	fe_delivery_system_t delivery_system;
 	fe_status_t fe_status;
+	u32 ber;
 	bool warm; /* FW running */
 	struct i2c_adapter *i2c_adapter;
 };
