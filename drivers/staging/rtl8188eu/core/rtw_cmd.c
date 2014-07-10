@@ -64,7 +64,6 @@ int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 
 	pcmdpriv->rsp_buf = pcmdpriv->rsp_allocated_buf  +  4 - ((size_t)(pcmdpriv->rsp_allocated_buf) & 3);
 
-	pcmdpriv->cmd_done_cnt = 0;
 exit:
 	return res;
 }
