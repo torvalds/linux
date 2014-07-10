@@ -47,14 +47,17 @@ unsigned long functionality:
 	value 0x1f0000 would only enable the quick, byte and byte data
 	commands.
 
+u8 bank_reg[10]
+u8 bank_mask[10]
+u8 bank_start[10]
+u8 bank_end[10]:
+	Optional bank settings. They tell which bits in which register
+	select the active bank, as well as the range of banked registers.
+
 CAVEATS:
 
 If your target driver polls some byte or word waiting for it to change, the
 stub could lock it up.  Use i2cset to unlock it.
-
-If the hardware for your driver has banked registers (e.g. Winbond sensors
-chips) this module will not work well - although it could be extended to
-support that pretty easily.
 
 If you spam it hard enough, printk can be lossy.  This module really wants
 something like relayfs.
