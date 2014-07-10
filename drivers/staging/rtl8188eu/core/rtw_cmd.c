@@ -110,7 +110,7 @@ exit:
 	return _SUCCESS;
 }
 
-struct	cmd_obj	*_rtw_dequeue_cmd(struct __queue *queue)
+struct	cmd_obj	* rtw_dequeue_cmd(struct __queue *queue)
 {
 	unsigned long irqL;
 	struct cmd_obj *obj;
@@ -181,16 +181,6 @@ exit:
 	return res;
 }
 
-struct cmd_obj	*rtw_dequeue_cmd(struct cmd_priv *pcmdpriv)
-{
-	struct cmd_obj *cmd_obj;
-
-
-	cmd_obj = _rtw_dequeue_cmd(&pcmdpriv->cmd_queue);
-
-	return cmd_obj;
-}
-
 void rtw_free_cmd_obj(struct cmd_obj *pcmd)
 {
 
@@ -248,7 +238,7 @@ _next:
 			break;
 		}
 
-		pcmd = rtw_dequeue_cmd(pcmdpriv);
+		pcmd = rtw_dequeue_cmd(&pcmdpriv->cmd_queue);
 		if (!pcmd)
 			continue;
 
@@ -304,7 +294,7 @@ post_process:
 
 	/*  free all cmd_obj resources */
 	do {
-		pcmd = rtw_dequeue_cmd(pcmdpriv);
+		pcmd = rtw_dequeue_cmd(&pcmdpriv->cmd_queue);
 		if (pcmd == NULL)
 			break;
 

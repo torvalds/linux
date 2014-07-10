@@ -70,7 +70,7 @@ do {\
 } while (0)
 
 u32 rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
-struct cmd_obj *rtw_dequeue_cmd(struct cmd_priv *pcmdpriv);
+struct cmd_obj *rtw_dequeue_cmd(struct __queue *queue);
 void rtw_free_cmd_obj(struct cmd_obj *pcmd);
 
 int rtw_cmd_thread(void *context);
