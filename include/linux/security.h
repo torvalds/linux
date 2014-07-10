@@ -987,7 +987,10 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Retrieve the LSM-specific secid for the sock to enable caching of network
  *	authorizations.
  * @sock_graft:
- *	Sets the socket's isec sid to the sock's sid.
+ *	This hook is called in response to a newly created sock struct being
+ *	grafted onto an existing socket and allows the security module to
+ *	perform whatever security attribute management is necessary for both
+ *	the sock and socket.
  * @inet_conn_request:
  *	Sets the openreq's sid to socket's sid with MLS portion taken from peer sid.
  * @inet_csk_clone:
