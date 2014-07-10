@@ -49,9 +49,7 @@
 #include <linux/regulator/rockchip_io_vol_domain.h>
 #include "../../clk/rockchip/clk-ops.h"
 
-#define grf_writel(v, offset)   do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
-
-#define RK_SDMMC_DRIVER_VERSION "Ver 1.11 2014-06-05" 
+#define RK_SDMMC_DRIVER_VERSION "Ver 1.12 2014-07-08"
 
 /* Common flag combinations */
 #define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | \

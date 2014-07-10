@@ -43,16 +43,26 @@ static void usb20otg_phy_suspend(void *pdata, int suspend)
 	}
 }
 
-static void usb20otg_soft_reset(void)
+static void usb20otg_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTG_H, true);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTGPHY, true);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTGC, true);
-	udelay(5);
+	struct dwc_otg_platform_data *usbpdata = pdata;
+	struct reset_control *rst_otg_h, *rst_otg_p, *rst_otg_c;
 
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTG_H, false);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTGPHY, false);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTGC, false);
+	rst_otg_h = devm_reset_control_get(usbpdata->dev, "otg_ahb");
+	rst_otg_p = devm_reset_control_get(usbpdata->dev, "otg_phy");
+	rst_otg_c = devm_reset_control_get(usbpdata->dev, "otg_controller");
+	if (IS_ERR(rst_otg_h) || IS_ERR(rst_otg_p) || IS_ERR(rst_otg_c)) {
+		dev_err(usbpdata->dev, "Fail to get reset control from dts\n");
+		return;
+	}
+
+	reset_control_assert(rst_otg_h);
+	reset_control_assert(rst_otg_p);
+	reset_control_assert(rst_otg_c);
+	udelay(5);
+	reset_control_deassert(rst_otg_h);
+	reset_control_deassert(rst_otg_p);
+	reset_control_deassert(rst_otg_c);
 	mdelay(2);
 }
 
@@ -206,16 +216,26 @@ static void usb20host_phy_suspend(void *pdata, int suspend)
 	}
 }
 
-static void usb20host_soft_reset(void)
+static void usb20host_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1_H, true);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1PHY, true);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1C, true);
-	udelay(5);
+	struct dwc_otg_platform_data *usbpdata = pdata;
+	struct reset_control *rst_host1_h, *rst_host1_p, *rst_host1_c;
 
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1_H, false);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1PHY, false);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1C, false);
+	rst_host1_h = devm_reset_control_get(usbpdata->dev, "host1_ahb");
+	rst_host1_p = devm_reset_control_get(usbpdata->dev, "host1_phy");
+	rst_host1_c = devm_reset_control_get(usbpdata->dev, "host1_controller");
+	if (IS_ERR(rst_host1_h) || IS_ERR(rst_host1_p) || IS_ERR(rst_host1_c)) {
+		dev_err(usbpdata->dev, "Fail to get reset control from dts\n");
+		return;
+	}
+
+	reset_control_assert(rst_host1_h);
+	reset_control_assert(rst_host1_p);
+	reset_control_assert(rst_host1_c);
+	udelay(5);
+	reset_control_deassert(rst_host1_h);
+	reset_control_deassert(rst_host1_p);
+	reset_control_deassert(rst_host1_c);
 	mdelay(2);
 }
 
@@ -392,16 +412,22 @@ static void rk_hsic_clock_enable(void *pdata, int enable)
 	}
 }
 
-static void rk_hsic_soft_reset(void)
+static void rk_hsic_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSIC, true);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSIC_AUX, true);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSICPHY, true);
-	udelay(5);
+	struct rkehci_platform_data *usbpdata = pdata;
+	struct reset_control *rst_hsic_h, rst_hsic_a, rst_hsic_p;
 
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSIC, false);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSIC_AUX, false);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSICPHY, false);
+	rst_hsic_h = devm_reset_control_get(usbpdata->dev, "hsic_ahb");
+	rst_hsic_a = devm_reset_control_get(usbpdata->dev, "hsic_aux");
+	rst_hsic_p = devm_reset_control_get(usbpdata->dev, "hsic_phy");
+
+	reset_control_assert(rst_hsic_h);
+	reset_control_assert(rst_hsic_a);
+	reset_control_assert(rst_hsic_p);
+	udelay(5);
+	reset_control_deassert(rst_hsic_h);
+	reset_control_deassert(rst_hsic_a);
+	reset_control_deassert(rst_hsic_p);
 	mdelay(2);
 
 	/* HSIC per-port reset */
@@ -491,18 +517,31 @@ static void rk_ehci_clock_enable(void *pdata, int enable)
 	}
 }
 
-static void rk_ehci_soft_reset(void)
+static void rk_ehci_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0_H, true);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0PHY, true);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0C, true);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USB_HOST0, true);
-	udelay(5);
+	struct rkehci_platform_data *usbpdata = pdata;
+	struct reset_control *rst_host0_h, *rst_host0_p,
+			     *rst_host0_c , *rst_host0;
 
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0_H, false);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0PHY, false);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0C, false);
-	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USB_HOST0, false);
+	rst_host0_h = devm_reset_control_get(usbpdata->dev, "ehci_ahb");
+	rst_host0_p = devm_reset_control_get(usbpdata->dev, "ehci_phy");
+	rst_host0_c = devm_reset_control_get(usbpdata->dev, "ehci_controller");
+	rst_host0 = devm_reset_control_get(usbpdata->dev, "ehci");
+	if (IS_ERR(rst_host0_h) || IS_ERR(rst_host0_p) ||
+	    IS_ERR(rst_host0_c) || IS_ERR(rst_host0)) {
+		dev_err(usbpdata->dev, "Fail to get reset control from dts\n");
+		return;
+	}
+
+	reset_control_assert(rst_host0_h);
+	reset_control_assert(rst_host0_p);
+	reset_control_assert(rst_host0_c);
+	reset_control_assert(rst_host0);
+	udelay(5);
+	reset_control_deassert(rst_host0_h);
+	reset_control_deassert(rst_host0_p);
+	reset_control_deassert(rst_host0_c);
+	reset_control_deassert(rst_host0);
 	mdelay(2);
 }
 
@@ -595,7 +634,7 @@ static void rk_ohci_clock_enable(void *pdata, int enable)
 	}
 }
 
-static void rk_ohci_soft_reset(void)
+static void rk_ohci_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
 }
 
@@ -725,34 +764,29 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 
 	/*register otg_bvalid irq */
 	irq = platform_get_irq_byname(pdev, "otg_bvalid");
-	if (irq > 0) {
-		ret =
-		    request_irq(irq, bvalid_irq_handler, 0, "otg_bvalid", NULL);
+	if ((irq > 0) && control_usb->usb_irq_wakeup) {
+		ret = request_irq(irq, bvalid_irq_handler,
+				  0, "otg_bvalid", NULL);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
-			return ret;
 		} else {
 			/* enable bvalid irq  */
 			control_usb->grf_uoc0_base->CON4 = 0x000c000c;
-			if (control_usb->usb_irq_wakeup)
-				enable_irq_wake(irq);
 		}
 	}
 
 	/*register otg_id irq */
 	irq = platform_get_irq_byname(pdev, "otg_id");
-	if (irq > 0) {
+	if ((irq > 0) && control_usb->usb_irq_wakeup) {
 		ret = request_irq(irq, id_irq_handler, 0, "otg_id", NULL);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
-			return ret;
 		} else {
+			/* enable otg_id irq */
 			control_usb->grf_uoc0_base->CON4 = 0x00f000f0;
-			if (control_usb->usb_irq_wakeup)
-				enable_irq_wake(irq);
 		}
 	}
-#ifdef USB_LINESTATE_IRQ
+#if 0
 	/*register otg_linestate irq */
 	irq = platform_get_irq_byname(pdev, "otg_linestate");
 	if (irq > 0) {

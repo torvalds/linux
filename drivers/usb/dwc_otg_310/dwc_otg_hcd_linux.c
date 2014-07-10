@@ -376,7 +376,7 @@ static void dwc_otg_hcd_enable(struct work_struct *work)
 			_core_if->hcd_cb->disconnect(_core_if->hcd_cb->p);
 		}
 #endif
-		pldata->soft_reset();
+		pldata->soft_reset(pldata, RST_RECNT);
 		dwc_otg_disable_host_interrupts(core_if);
 		if (pldata->phy_suspend)
 			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);

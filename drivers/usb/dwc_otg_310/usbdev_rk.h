@@ -18,6 +18,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/reset.h>
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/cpu.h>
@@ -44,6 +45,13 @@
 #define UOC_HIWORD_UPDATE(val, mask, shift) \
 		((val) << (shift) | (mask) << ((shift) + 16))
 
+enum rkusb_rst_flag {
+	RST_POR = 0, /* Reset power-on */
+	RST_RECNT,	/* Reset re-connect */
+	RST_CHN_HALT, /* Reset a channel halt has been detected */
+	RST_OTHER,
+};
+
 extern int rk_usb_charger_status;
 extern void rk_send_wakeup_key(void);
 /* rk3188 platform data */
@@ -68,16 +76,15 @@ struct dwc_otg_platform_data {
 	struct clk *busclk;
 	struct clk *phyclk_480m;
 	int phy_status;
-
-	void (*hw_init)(void);
-	void (*phy_suspend)(void *pdata, int suspend);
-	void (*soft_reset)(void);
-	void (*clock_init)(void *pdata);
-	void (*clock_enable)(void *pdata, int enable);
-	void (*power_enable)(int enable);
-	void (*dwc_otg_uart_mode)(void *pdata, int enter_usb_uart_mode);
-	void (*bc_detect_cb)(int bc_type);
-	int (*get_status)(int id);
+	void (*hw_init) (void);
+	void (*phy_suspend) (void *pdata, int suspend);
+	void (*soft_reset) (void *pdata, enum rkusb_rst_flag rst_type);
+	void (*clock_init) (void *pdata);
+	void (*clock_enable) (void *pdata, int enable);
+	void (*power_enable) (int enable);
+	void (*dwc_otg_uart_mode) (void *pdata, int enter_usb_uart_mode);
+	void (*bc_detect_cb) (int bc_type);
+	int (*get_status) (int id);
 };
 
 struct rkehci_platform_data {
@@ -87,13 +94,12 @@ struct rkehci_platform_data {
 	struct clk *hsic_phy_12m;
 	struct clk *phyclk;
 	struct clk *ahbclk;
-
-	void (*hw_init)(void);
-	void (*clock_init)(void *pdata);
-	void (*clock_enable)(void *pdata, int enable);
-	void (*phy_suspend)(void *pdata, int suspend);
-	void (*soft_reset)(void);
-	int (*get_status)(int id);
+	void (*hw_init) (void);
+	void (*clock_init) (void *pdata);
+	void (*clock_enable) (void *pdata, int enable);
+	void (*phy_suspend) (void *pdata, int suspend);
+	void (*soft_reset) (void *pdata, enum rkusb_rst_flag rst_type);
+	int (*get_status) (int id);
 	int clk_status;
 	int phy_status;
 };

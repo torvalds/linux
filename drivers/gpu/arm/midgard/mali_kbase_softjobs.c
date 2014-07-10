@@ -256,24 +256,37 @@ static int kbase_fence_wait(kbase_jd_atom *katom)
 
 static void kbase_fence_cancel_wait(kbase_jd_atom *katom)
 {
-	if(!katom || !katom->fence)
+	if(!katom)
 	{
-		pr_info("%s,katom or katom->fence NULL\n",__func__);
+		pr_err("katom null.forbiden return\n");
 		return;
+	}
+	if(!katom->fence)
+	{
+		pr_info("katom->fence null.may release out of order.so continue unfinished step\n");
+		/*
+		if return here,may result in  infinite loop?
+		we need to delete dep_item[0] from kctx->waiting_soft_jobs?
+		jd_done_nolock function move the dep_item[0] to complete job list and then delete?
+		*/
+		goto finish_softjob;
 	}
 	if (sync_fence_cancel_async(katom->fence, &katom->sync_waiter) != 0)
 	{
 		/* The wait wasn't cancelled - leave the cleanup for kbase_fence_wait_callback */
 		return;
 	}
-
+	
 	/* Wait was cancelled - zap the atoms */
+finish_softjob:
 	katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
 
 	kbase_finish_soft_job(katom);
 
 	if (jd_done_nolock(katom))
 		kbasep_js_try_schedule_head_ctx(katom->kctx->kbdev);
+	return;
+
 }
 #endif /* CONFIG_SYNC */
 

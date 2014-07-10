@@ -67,6 +67,18 @@ enum{
         USE_CLK_AFTER_PHASE_AND_DELAY_LINE = 1,
 };
 
+enum{
+        IO_DRV_2MA  = 0x0,
+        IO_DRV_4MA  = 0x1,
+        IO_DRV_8MA  = 0x2,
+        IO_DRV_12MA = 0x3,
+};
+
+enum{
+        SLEW_RATE_SLOW = 0,
+        SLEW_RATE_FAST = 1,
+};
+
 /* Variations in Rockchip specific dw-mshc controller */
 enum dw_mci_rockchip_type {
 	DW_MCI_TYPE_RK3188,
@@ -218,8 +230,44 @@ static inline u8 dw_mci_rockchip_move_next_clksmpl(struct dw_mci *host, u8 con_i
 	return val;
 }
 
+static void dw_mci_rockchip_load_signal_integrity(struct dw_mci *host, u32 sr, u32 drv)
+{
+        if (unlikely((drv > IO_DRV_12MA) || (sr > SLEW_RATE_FAST))) {
+                MMC_DBG_ERR_FUNC(host->mmc,"wrong signal integrity setting: drv = %d, sr = %d ![%s]",
+                        drv, sr, mmc_hostname(host->mmc));
+                return;
+        }
+
+        if(cpu_is_rk3288()){
+                /*Note 00: 2ma 01:4ma 10:8ma 11:12ma
+                For consider line loading and IP's slew rate,
+                we should match these by every board depends for signal integrity.
+                slew rate >= 2*pi*f*Vpeak = max(|d'(Vpeak)/dt|)
+                */
+                if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) {
+                        grf_writel(0xff005500 | (drv << 14) | (drv << 12) |
+                                                 (drv << 10) | (drv << 8), 0x01f8); /* GPIO4C4-C7 */
+                        grf_writel(0x000f0000 | (drv << 0) | (drv << 2), 0x01fc); /* GPIO4D0-D1 */
+                        grf_writel(0x03f00000 | (sr << 4) | (sr << 5) | (sr << 6) |
+                                                (sr << 7) | (sr << 8) | (sr << 9) , 0x011c); /* slew rate*/
+                }else if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
+                        grf_writel(0x3fff0000 | (drv << 0) | (drv << 2) | (drv << 4) |
+                                                 (drv << 6) | (drv << 8) | (drv << 10) |
+                                                 (drv << 12), 0x0218); /* GPIO6C0-C6 */
+                        grf_writel(0x003f0000 | (sr << 0) | (sr << 1) | (sr << 2) |
+                                                (sr << 3) | (sr << 4) | (sr << 5), 0x012c); /* slew rate */
+                }else if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC) {
+                        /* emmc hardware relative addr match requirement, assume 4ma not slow slew rate */
+                        grf_writel(0xffff5555, 0x01e0); /* GPIO3A0-A7 */
+                        grf_writel(0x000c0006, 0x01e4); /* GPIO3B1 */
+                        grf_writel(0x003f0015, 0x01e8); /* GPIO3C2-C0 */
+                }
+        }
+
+}
 static void dw_mci_rockchip_load_tuning_base(void)
 {
+        /* load tuning base */
         if(cpu_is_rk3288())
                 cru_tuning_base =  RK3288_CRU_SDMMC_CON0;
 
@@ -279,6 +327,7 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	u8 step;
 	u8 candidates_delayline[MAX_DELAY_LINE] = {0};
 	u8 candidates_degree[SDMMC_SHIFT_DEGREE_INVALID] = {4,4,4,4};
+	u8 default_drv = IO_DRV_4MA;
 	u8 index = 0;
 	u8 start_degree = 0;
 	u32 start_delayline = 0;
@@ -291,7 +340,7 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	MMC_DBG_INFO_FUNC(host->mmc,"execute tuning:  [%s]", mmc_hostname(host->mmc));
 
 	dw_mci_rockchip_load_tuning_base();
-       
+
 	blk_test = kmalloc(blksz, GFP_KERNEL);
 	if (!blk_test)
 	{
@@ -335,7 +384,10 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
                                 "execute tuning: SOC is UNKNOWN, step = %d[%s]",
                                 step, mmc_hostname(host->mmc));
         }
-          
+
+re_phase:
+        /* calcute slew rate & drv strength in timing tuning */
+        dw_mci_rockchip_load_signal_integrity(host, SLEW_RATE_SLOW, default_drv);
         /* Loop degree from 0 ~ 270 */
         for(start_degree = SDMMC_SHIFT_DEGREE_0; start_degree < SDMMC_SHIFT_DEGREE_270; start_degree++){
 
@@ -433,8 +485,8 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
                 #else              
                 dw_mci_rockchip_set_delaynum(host, tuning_data->con_id, tuning_data->tuning_type, step);
                 ret = 0;
-		goto done;  
-                #endif                            
+		goto done;
+                #endif
         }else if((candidates_degree[0] == SDMMC_SHIFT_DEGREE_180) 
                 && (candidates_degree[1] == SDMMC_SHIFT_DEGREE_INVALID)){
 
@@ -444,11 +496,13 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
                 
                 dw_mci_rockchip_set_degree(host, tuning_data->con_id, tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_90);
                 #if PRECISE_ADJUST
-                goto delayline; 
+                goto delayline;
                 #else
-                dw_mci_rockchip_set_delaynum(host, tuning_data->con_id, tuning_data->tuning_type, step);
-                ret = 0;
-		goto done;  
+                default_drv++;
+                goto re_phase;
+                //dw_mci_rockchip_set_delaynum(host, tuning_data->con_id, tuning_data->tuning_type, step);
+                //ret = 0;
+		//goto done;
                 #endif
         }else if((candidates_degree[0] == SDMMC_SHIFT_DEGREE_90) 
                 && (candidates_degree[1] == SDMMC_SHIFT_DEGREE_INVALID)){
@@ -461,9 +515,11 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
                 #if PRECISE_ADJUST
                 goto delayline; 
                 #else
-                dw_mci_rockchip_set_delaynum(host, tuning_data->con_id, tuning_data->tuning_type, step);
-                ret = 0;
-		goto done;  
+                default_drv++;
+                goto re_phase;
+                //dw_mci_rockchip_set_delaynum(host, tuning_data->con_id, tuning_data->tuning_type, step);
+                //ret = 0;
+		//goto done;
                 #endif
         }else if((candidates_degree[0] == SDMMC_SHIFT_DEGREE_270)){
 
@@ -473,18 +529,22 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 
                 /*FixME: so urgly signal indicator, HW engineer help!*/
 
-                dw_mci_rockchip_set_degree(host, tuning_data->con_id, tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_180);             
+                //dw_mci_rockchip_set_degree(host, tuning_data->con_id, tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_180);
                 #if PRECISE_ADJUST
                 goto delayline; 
                 #else
-                dw_mci_rockchip_set_delaynum(host, tuning_data->con_id, tuning_data->tuning_type, step);
-                ret = 0;
-		goto done;  
+                default_drv++;
+                goto re_phase;
+                //dw_mci_rockchip_set_delaynum(host, tuning_data->con_id, tuning_data->tuning_type, step);
+                //ret = 0;
+		//goto done;
                 #endif            
         }else{
                 MMC_DBG_ERR_FUNC(host->mmc,
                                 "execute tuning: candidates_degree beyong limited case! [%s]",
                                 mmc_hostname(host->mmc));
+                default_drv++;
+                goto re_phase;
                 if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
                         BUG();
                 return -EAGAIN;
@@ -505,8 +565,11 @@ delayline:
                         }                    
                 }
                 if((index < 2) && (index != 0)) {
+                        /* setup 400ps, consider line loading, at least 600ps wc.
+                           for 150M, 15 steps =900ps ,too larger scale, should step smaller in principle
+                         */
                         MMC_DBG_INFO_FUNC(host->mmc,
-                                "execute tuning: candidates_delayline failed for only one element [%s]",
+                                "execute tuning: candidates_delayline failed for no enough elements [%s]",
                                 mmc_hostname(host->mmc));
 
                         /* Make step smaller, and re-calculate */

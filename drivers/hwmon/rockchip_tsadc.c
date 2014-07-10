@@ -468,9 +468,6 @@ int rockchip_hwmon_init(struct rockchip_temp *data)
 	g_dev = rockchip_tsadc_data;
 	data->plat_data = rockchip_tsadc_data;
 
-	ret = tsadc_readl(TSADC_AUTO_CON);
-	tsadc_writel(ret | (1 << 8) , TSADC_AUTO_CON);/*gpio0_b2 = 0 shutdown*/
-
 	if (of_property_read_u32(np, "tsadc-ht-temp",
 		&tsadc_ht_temp)) {
 		dev_err(&data->pdev->dev, "Missing  tsadc_ht_temp in the DT.\n");
@@ -487,15 +484,22 @@ int rockchip_hwmon_init(struct rockchip_temp *data)
 		return -EPERM;
 	}
 
-	uap = devm_kzalloc(&data->pdev->dev, sizeof(struct tsadc_port),
-			   GFP_KERNEL);
-	if (uap == NULL)
-		dev_err(&data->pdev->dev,
-		"uap is not set %s,line=%d\n", __func__, __LINE__);
-	uap->pctl = devm_pinctrl_get(&data->pdev->dev);
-	uap->pins_default = pinctrl_lookup_state(uap->pctl, "default");
-	uap->pins_tsadc_int = pinctrl_lookup_state(uap->pctl, "tsadc_int");
-	pinctrl_select_state(uap->pctl, uap->pins_tsadc_int);
+	if (tsadc_ht_pull_gpio){
+		/*bit8=1 gpio0_b2 = 1 shutdown else gpio0_b2 =1 shutdown*/
+		/*
+		ret = tsadc_readl(TSADC_AUTO_CON);
+		tsadc_writel(ret | (1 << 8) , TSADC_AUTO_CON);
+		*/
+		uap = devm_kzalloc(&data->pdev->dev, sizeof(struct tsadc_port),
+		GFP_KERNEL);
+		if (uap == NULL)
+			dev_err(&data->pdev->dev,
+			"uap is not set %s,line=%d\n", __func__, __LINE__);
+		uap->pctl = devm_pinctrl_get(&data->pdev->dev);
+		uap->pins_default = pinctrl_lookup_state(uap->pctl, "default");
+		uap->pins_tsadc_int = pinctrl_lookup_state(uap->pctl, "tsadc_int");
+		pinctrl_select_state(uap->pctl, uap->pins_tsadc_int);
+	}
 
 	rockchip_tsadc_set_auto_temp(1);
 
