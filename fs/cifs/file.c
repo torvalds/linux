@@ -3027,28 +3027,27 @@ again:
 			rc = wait_for_completion_killable(&rdata->done);
 			if (rc)
 				rc = -EINTR;
-			else if (rdata->result) {
-				rc = rdata->result;
+			else if (rdata->result == -EAGAIN) {
 				/* resend call if it's a retryable error */
-				if (rc == -EAGAIN) {
-					struct list_head tmp_list;
+				struct list_head tmp_list;
 
-					list_del_init(&rdata->list);
-					INIT_LIST_HEAD(&tmp_list);
+				list_del_init(&rdata->list);
+				INIT_LIST_HEAD(&tmp_list);
 
-					rc = cifs_send_async_read(rdata->offset,
+				rc = cifs_send_async_read(rdata->offset,
 						rdata->bytes, rdata->cfile,
 						cifs_sb, &tmp_list);
 
-					list_splice(&tmp_list, &rdata_list);
+				list_splice(&tmp_list, &rdata_list);
 
-					kref_put(&rdata->refcount,
-						cifs_uncached_readdata_release);
-					goto again;
-				}
-			} else {
+				kref_put(&rdata->refcount,
+					 cifs_uncached_readdata_release);
+				goto again;
+			} else if (rdata->result)
+				rc = rdata->result;
+			else
 				rc = cifs_readdata_to_iov(rdata, to);
-			}
+
 			/* if there was a short read -- discard anything left */
 			if (rdata->got_bytes && rdata->got_bytes < rdata->bytes)
 				rc = -ENODATA;
