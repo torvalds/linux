@@ -15,20 +15,3 @@ config SND_KIRKWOOD_SOC_ARMADA370_DB
 	  Say Y if you want to add support for SoC audio on
 	  the Armada 370 Development Board.
 
-config SND_KIRKWOOD_SOC_OPENRD
-	tristate "SoC Audio support for Kirkwood Openrd Client"
-	depends on SND_KIRKWOOD_SOC && (MACH_OPENRD_CLIENT || MACH_OPENRD_ULTIMATE || COMPILE_TEST)
-	depends on I2C
-	select SND_SOC_CS42L51
-	help
-	  Say Y if you want to add support for SoC audio on
-	  Openrd Client.
-
-config SND_KIRKWOOD_SOC_T5325
-	tristate "SoC Audio support for HP t5325"
-	depends on SND_KIRKWOOD_SOC && (MACH_T5325 || COMPILE_TEST) && I2C
-	select SND_SOC_ALC5623
-	help
-	  Say Y if you want to add support for SoC audio on
-	  the HP t5325 thin client.
-
