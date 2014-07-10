@@ -501,6 +501,8 @@ static int kdump_mem_notifier(struct notifier_block *nb,
 {
 	struct memory_notify *arg = data;
 
+	if (action != MEM_GOING_OFFLINE)
+		return NOTIFY_OK;
 	if (arg->start_pfn < PFN_DOWN(resource_size(&crashk_res)))
 		return NOTIFY_BAD;
 	if (arg->start_pfn > PFN_DOWN(crashk_res.end))
