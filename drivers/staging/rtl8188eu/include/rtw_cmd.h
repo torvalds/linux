@@ -113,27 +113,6 @@ enum RFINTFS {
 };
 
 /*
-Caller Mode: Infra, Ad-HoC(C)
-
-Notes: To enter USB suspend mode
-
-Command Mode
-
-*/
-struct usb_suspend_parm {
-	u32 action;/*  1: sleep, 0:resume */
-};
-
-/*
-Caller Mode: Infra, Ad-HoC
-
-Notes: To join a known BSS.
-
-Command-Event Mode
-
-*/
-
-/*
 Caller Mode: Infra, Ad-Hoc
 
 Notes: To join the specified bss
@@ -321,10 +300,6 @@ struct getbasicrate_parm {
 	u32 rsvd;
 };
 
-struct getbasicrate_rsp {
-	u8 basicrates[NumRates];
-};
-
 /*
 Caller Mode: Any
 
@@ -376,11 +351,6 @@ struct	getphyinfo_parm {
 	u32 rsvd;
 };
 
-struct	getphyinfo_rsp {
-	struct regulatory_class class_sets[NUM_REGULATORYS];
-	u8	status;
-};
-
 /*
 Caller Mode: Any
 
@@ -406,45 +376,6 @@ Command-Rsp Mode
 struct	getphy_parm {
 	u32 rsvd;
 
-};
-struct	getphy_rsp {
-	u8	rfchannel;
-	u8	modem;
-};
-
-struct readBB_parm {
-	u8	offset;
-};
-struct readBB_rsp {
-	u8	value;
-};
-
-struct readTSSI_parm {
-	u8	offset;
-};
-struct readTSSI_rsp {
-	u8	value;
-};
-
-struct writeBB_parm {
-	u8	offset;
-	u8	value;
-};
-
-struct readRF_parm {
-	u8	offset;
-};
-struct readRF_rsp {
-	u32	value;
-};
-
-struct writeRF_parm {
-	u32	offset;
-	u32	value;
-};
-
-struct getrfintfs_parm {
-	u8	rfintfs;
 };
 
 struct Tx_Beacon_param {
@@ -507,153 +438,6 @@ struct drvextra_cmd_parm {
 	int ec_id; /* extra cmd id */
 	int type_size; /*  Can use this field as the type id or command size */
 	unsigned char *pbuf;
-};
-
-/*------------------- Below are used for RF/BB tunning ---------------------*/
-
-struct	setantenna_parm {
-	u8	tx_antset;
-	u8	rx_antset;
-	u8	tx_antenna;
-	u8	rx_antenna;
-};
-
-struct	enrateadaptive_parm {
-	u32	en;
-};
-
-struct settxagctbl_parm {
-	u32	txagc[MAX_RATES_LENGTH];
-};
-
-struct gettxagctbl_parm {
-	u32 rsvd;
-};
-struct gettxagctbl_rsp {
-	u32	txagc[MAX_RATES_LENGTH];
-};
-
-struct setagcctrl_parm {
-	u32	agcctrl;		/*  0: pure hw, 1: fw */
-};
-
-struct setssup_parm	{
-	u32	ss_ForceUp[MAX_RATES_LENGTH];
-};
-
-struct getssup_parm	{
-	u32 rsvd;
-};
-
-struct getssup_rsp	{
-	u8	ss_ForceUp[MAX_RATES_LENGTH];
-};
-
-struct setssdlevel_parm	{
-	u8	ss_DLevel[MAX_RATES_LENGTH];
-};
-
-struct getssdlevel_parm	{
-	u32 rsvd;
-};
-
-struct getssdlevel_rsp	{
-	u8	ss_DLevel[MAX_RATES_LENGTH];
-};
-
-struct setssulevel_parm	{
-	u8	ss_ULevel[MAX_RATES_LENGTH];
-};
-
-struct getssulevel_parm	{
-	u32 rsvd;
-};
-
-struct getssulevel_rsp	{
-	u8	ss_ULevel[MAX_RATES_LENGTH];
-};
-
-struct	setcountjudge_parm {
-	u8	count_judge[MAX_RATES_LENGTH];
-};
-
-struct	getcountjudge_parm {
-	u32 rsvd;
-};
-
-struct	getcountjudge_rsp {
-	u8	count_judge[MAX_RATES_LENGTH];
-};
-
-struct getratable_parm {
-	uint rsvd;
-};
-
-/* to get TX,RX retry count */
-
-struct gettxretrycnt_parm {
-	unsigned int rsvd;
-};
-
-struct gettxretrycnt_rsp {
-	unsigned long tx_retrycnt;
-};
-
-struct getrxretrycnt_parm {
-	unsigned int rsvd;
-};
-
-struct getrxretrycnt_rsp {
-	unsigned long rx_retrycnt;
-};
-
-/* to get BCNOK,BCNERR count */
-struct getbcnokcnt_parm {
-	unsigned int rsvd;
-};
-
-struct getbcnokcnt_rsp {
-	unsigned long  bcnokcnt;
-};
-
-struct getbcnerrcnt_parm {
-	unsigned int rsvd;
-};
-
-struct getbcnerrcnt_rsp {
-	unsigned long bcnerrcnt;
-};
-
-/*  to get current TX power level */
-struct getcurtxpwrlevel_parm {
-	unsigned int rsvd;
-};
-struct getcurtxpwrlevel_rspi {
-	unsigned short tx_power;
-};
-
-struct setprobereqextraie_parm {
-	unsigned char e_id;
-	unsigned char ie_len;
-	unsigned char ie[0];
-};
-
-struct setassocreqextraie_parm {
-	unsigned char e_id;
-	unsigned char ie_len;
-	unsigned char ie[0];
-};
-
-struct setproberspextraie_parm {
-	unsigned char e_id;
-	unsigned char ie_len;
-	unsigned char ie[0];
-};
-
-struct setassocrspextraie_parm {
-	unsigned char e_id;
-	unsigned char ie_len;
-	unsigned char ie[0];
 };
 
 struct addBaReq_parm {
