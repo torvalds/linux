@@ -593,7 +593,8 @@ int ced_clear_area(DEVICE_EXTENSION *pdx, int nArea)
 		dev_err(&pdx->interface->dev, "%s: Attempt to clear area %d\n",
 			__func__, nArea);
 	} else {
-		TRANSAREA *pTA = &pdx->rTransDef[nArea];	/*  to save typing */
+		/* to save typing */
+		struct transarea *pTA = &pdx->rTransDef[nArea];
 		if (!pTA->bUsed)	/*  if not used... */
 			iReturn = U14ERR_NOTSET;	/*  ...nothing to be done */
 		else {
@@ -622,10 +623,10 @@ int ced_clear_area(DEVICE_EXTENSION *pdx, int nArea)
 				    && (pdx->rDMAInfo.wIdent == nArea))
 					pdx->bXFerWaiting = false;	/*  Cannot have pending xfer if area cleared */
 
-				/*  Clean out the TRANSAREA except for the wait queue, which is at the end */
+				/*  Clean out the struct transarea except for the wait queue, which is at the end */
 				/*  This sets bUsed to false and dwEventSz to 0 to say area not used and no events. */
 				memset(pTA, 0,
-				       sizeof(TRANSAREA) -
+				       sizeof(struct transarea) -
 				       sizeof(wait_queue_head_t));
 			}
 			spin_unlock_irq(&pdx->stagedLock);
@@ -670,7 +671,7 @@ static int ced_set_area(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 	unsigned int ulOffset = ((unsigned long)puBuf) & (PAGE_SIZE - 1);
 	int len = (dwLength + ulOffset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	TRANSAREA *pTA = &pdx->rTransDef[nArea];	/*  to save typing */
+	struct transarea *pTA = &pdx->rTransDef[nArea];	/*  to save typing */
 	struct page **pPages = NULL;	/*  space for page tables */
 	int nPages = 0;		/*  and number of pages */
 
@@ -791,7 +792,7 @@ int ced_set_event(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE)
 	if (te.wAreaNum >= MAX_TRANSAREAS)	/*  the area must exist */
 		return U14ERR_BADAREA;
 	else {
-		TRANSAREA *pTA = &pdx->rTransDef[te.wAreaNum];
+		struct transarea *pTA = &pdx->rTransDef[te.wAreaNum];
 		mutex_lock(&pdx->io_mutex);	/*  make sure we have no competitor */
 		spin_lock_irq(&pdx->stagedLock);
 		if (pTA->bUsed) {	/*  area must be in use */
@@ -821,7 +822,7 @@ int ced_wait_event(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut)
 		return U14ERR_BADAREA;
 	else {
 		int iWait;
-		TRANSAREA *pTA = &pdx->rTransDef[nArea];
+		struct transarea *pTA = &pdx->rTransDef[nArea];
 		msTimeOut = (msTimeOut * HZ + 999) / 1000;	/*  convert timeout to jiffies */
 
 		/*  We cannot wait holding the mutex, but we check the flags while holding */
@@ -867,7 +868,7 @@ int ced_test_event(DEVICE_EXTENSION *pdx, int nArea)
 	if ((unsigned)nArea >= MAX_TRANSAREAS)
 		iReturn = U14ERR_BADAREA;
 	else {
-		TRANSAREA *pTA = &pdx->rTransDef[nArea];
+		struct transarea *pTA = &pdx->rTransDef[nArea];
 		mutex_lock(&pdx->io_mutex);	/*  make sure we have no competitor */
 		spin_lock_irq(&pdx->stagedLock);
 		iReturn = pTA->iWakeUp;	/*  get wakeup count since last call */
@@ -1354,7 +1355,8 @@ int ced_get_circ_block(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 	cb.dwSize = 0;
 
 	if (nArea < MAX_TRANSAREAS) {	/*  The area number must be OK */
-		TRANSAREA *pArea = &pdx->rTransDef[nArea];	/*  Pointer to relevant info */
+		/* Pointer to relevant info */
+		struct transarea *pArea = &pdx->rTransDef[nArea];
 		spin_lock_irq(&pdx->stagedLock);	/*  Lock others out */
 
 		if ((pArea->bUsed) && (pArea->bCircular) &&	/*  Must be circular area */
@@ -1405,7 +1407,8 @@ int ced_free_circ_block(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 	cb.dwSize = 0;
 
 	if (nArea < MAX_TRANSAREAS) {	/*  The area number must be OK */
-		TRANSAREA *pArea = &pdx->rTransDef[nArea];	/*  Pointer to relevant info */
+		/* Pointer to relevant info */
+		struct transarea *pArea = &pdx->rTransDef[nArea];
 		spin_lock_irq(&pdx->stagedLock);	/*  Lock others out */
 
 		if ((pArea->bUsed) && (pArea->bCircular) &&	/*  Must be circular area */

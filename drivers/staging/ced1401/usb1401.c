@@ -441,7 +441,8 @@ static void ced_copy_user_space(DEVICE_EXTENSION *pdx, int n)
 {
 	unsigned int nArea = pdx->StagedId;
 	if (nArea < MAX_TRANSAREAS) {
-		TRANSAREA *pArea = &pdx->rTransDef[nArea];	/*  area to be used */
+		/*  area to be used */
+		struct transarea *pArea = &pdx->rTransDef[nArea];
 		unsigned int dwOffset =
 		    pdx->StagedDone + pdx->StagedOffset + pArea->dwBaseOffset;
 		char *pCoherBuf = pdx->pCoherStagedIO;	/*  coherent buffer */
@@ -541,7 +542,8 @@ static void staged_callback(struct urb *pUrb)
 
 	if ((pdx->StagedDone == pdx->StagedLength) ||	/*  If no more to do */
 	    (bCancel)) {		/*  or this IRP was cancelled */
-		TRANSAREA *pArea = &pdx->rTransDef[pdx->StagedId];	/*  Transfer area info */
+		/*  Transfer area info */
+		struct transarea *pArea = &pdx->rTransDef[pdx->StagedId];
 		dev_dbg(&pdx->interface->dev,
 			"%s: transfer done, bytes %d, cancel %d\n",
 			__func__, pdx->StagedDone, bCancel);
@@ -761,7 +763,8 @@ static int ced_stage_chunk(DEVICE_EXTENSION *pdx)
 int ced_read_write_mem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 		 unsigned int dwOffs, unsigned int dwLen)
 {
-	TRANSAREA *pArea = &pdx->rTransDef[wIdent];	/*  Transfer area info */
+	/* Transfer area info */
+	struct transarea *pArea = &pdx->rTransDef[wIdent];
 
 	if (!can_accept_io_requests(pdx)) {	/*  Are we in a state to accept new requests? */
 		dev_err(&pdx->interface->dev, "%s: can't accept requests\n",

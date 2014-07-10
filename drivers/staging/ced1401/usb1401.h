@@ -101,7 +101,7 @@ struct circ_blk {
 
 /*  A structure holding all of the information about a transfer area - an area of */
 /*   memory set up for use either as a source or destination in DMA transfers. */
-typedef struct transarea {
+struct transarea {
 	void __user *lpvBuff;                /*  User address of xfer area saved for completeness */
 	UINT        dwBaseOffset;           /*  offset to start of xfer area in first page */
 	UINT        dwLength;               /*  Length of xfer area, in bytes */
@@ -116,7 +116,7 @@ typedef struct transarea {
 	UINT        dwEventSz;              /*  ...notification by the event SZ is 0 if unset */
 	struct circ_blk aBlocks[2];         /*  Info on a pair of circular blocks */
 	wait_queue_head_t wqEvent;          /*  The wait queue for events in this area MUST BE LAST */
-} TRANSAREA;
+};
 
 /*  The DMADESC structure is used to hold information on the transfer in progress. It */
 /*  is set up by ReadDMAInfo, using information sent by the 1401 in an escape sequence. */
@@ -156,7 +156,7 @@ typedef struct _DEVICE_EXTENSION {
 	__u8 bInterval;                     /* Interrupt end point interval */
 
 	volatile unsigned int dwDMAFlag;    /* state of DMA */
-	TRANSAREA rTransDef[MAX_TRANSAREAS];/* transfer area info */
+	struct transarea rTransDef[MAX_TRANSAREAS];  /* transfer area info */
 	volatile DMADESC rDMAInfo;          /*  info on current DMA transfer */
 	volatile bool bXFerWaiting;         /*  Flag set if DMA transfer stalled */
 	volatile bool bInDrawDown;          /*  Flag that we want to halt transfers */
