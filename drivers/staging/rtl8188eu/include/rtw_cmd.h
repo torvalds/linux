@@ -590,13 +590,6 @@ struct	getcountjudge_rsp {
 	u8	count_judge[MAX_RATES_LENGTH];
 };
 
-struct setratable_parm {
-	u8 ss_ForceUp[NumRates];
-	u8 ss_ULevel[NumRates];
-	u8 ss_DLevel[NumRates];
-	u8 count_judge[NumRates];
-};
-
 struct getratable_parm {
 	uint rsvd;
 };
@@ -743,8 +736,6 @@ u8 rtw_setopmode_cmd(struct adapter *padapter,
 		     enum ndis_802_11_network_infra networktype);
 u8 rtw_setdatarate_cmd(struct adapter *padapter, u8 *rateset);
 u8 rtw_setrfintfs_cmd(struct adapter *padapter, u8 mode);
-u8 rtw_setrttbl_cmd(struct adapter *padapter,
-		    struct setratable_parm *prate_table);
 
 u8 rtw_gettssi_cmd(struct adapter *padapter, u8 offset, u8 *pval);
 u8 rtw_setfwdig_cmd(struct adapter *padapter, u8 type);
