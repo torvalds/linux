@@ -77,11 +77,6 @@ void	_rtw_init_queue(struct __queue *pqueue)
 	spin_lock_init(&(pqueue->lock));
 }
 
-inline u32 rtw_ms_to_systime(u32 ms)
-{
-	return ms * HZ / 1000;
-}
-
 /*  the input parameter start must be in jiffies */
 inline s32 rtw_get_passing_time_ms(u32 start)
 {

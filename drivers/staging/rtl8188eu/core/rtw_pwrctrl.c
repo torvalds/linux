@@ -551,7 +551,7 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 inline void rtw_set_ips_deny(struct adapter *padapter, u32 ms)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ms);
+	pwrpriv->ips_deny_time = jiffies + msecs_to_jiffies(ms);
 }
 
 /*
@@ -568,9 +568,9 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	unsigned long expires;
 	int ret = _SUCCESS;
 
-	expires = jiffies + rtw_ms_to_systime(ips_deffer_ms);
+	expires = jiffies + msecs_to_jiffies(ips_deffer_ms);
 	if (time_before(pwrpriv->ips_deny_time, expires))
-		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
+		pwrpriv->ips_deny_time = jiffies + msecs_to_jiffies(ips_deffer_ms);
 
 {
 	u32 start = jiffies;
@@ -624,9 +624,9 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	}
 
 exit:
-	expires = jiffies + rtw_ms_to_systime(ips_deffer_ms);
+	expires = jiffies + msecs_to_jiffies(ips_deffer_ms);
 	if (time_before(pwrpriv->ips_deny_time, expires))
-		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
+		pwrpriv->ips_deny_time = jiffies + msecs_to_jiffies(ips_deffer_ms);
 	return ret;
 }
 
