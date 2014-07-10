@@ -1332,28 +1332,34 @@ int ced_allowi(struct ced_data *ced)
 ** The ioctl entry point to the driver that is used by us to talk to it.
 ** inode    The device node (no longer in 3.0.0 kernels)
 ** file     The file that is open, which holds our ced pointer
-** ulArg    The argument passed in. Note that long is 64-bits in 64-bit system, i.e. it is big
-**          enough for a 64-bit pointer.
+** arg    The argument passed in. Note that long is 64-bits in 64-bit system,
+**        i.e. it is big enough for a 64-bit pointer.
 *****************************************************************************/
-static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
+static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
 	struct ced_data *ced = file->private_data;
 	if (!can_accept_io_requests(ced))	/*  check we still exist */
 		return -ENODEV;
 
-	/*  Check that access is allowed, where is is needed. Anything that would have an indeterminate */
-	/*  size will be checked by the specific command. */
-	if (_IOC_DIR(cmd) & _IOC_READ)	/*  read from point of view of user... */
-		err = !access_ok(VERIFY_WRITE, (void __user *)ulArg, _IOC_SIZE(cmd));	/*  is kernel write */
-	else if (_IOC_DIR(cmd) & _IOC_WRITE)	/*  and write from point of view of user... */
-		err = !access_ok(VERIFY_READ, (void __user *)ulArg, _IOC_SIZE(cmd));	/*  is kernel read */
+	/* Check that access is allowed, where is is needed. Anything that */
+	/* would have an indeterminate size will be checked by the         */
+	/* specific command.						   */
+	if (_IOC_DIR(cmd) & _IOC_READ) /* read from point of view of user... */
+		/* is kernel write */
+		err = !access_ok(VERIFY_WRITE,
+				 (void __user *)arg, _IOC_SIZE(cmd));
+	else if (_IOC_DIR(cmd) & _IOC_WRITE) /* and write from point of */
+					     /* view of user...         */
+		/* is kernel read */
+		err = !access_ok(VERIFY_READ,
+				 (void __user *)arg, _IOC_SIZE(cmd));
 	if (err)
 		return -EFAULT;
 
 	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(IOCTL_CED_SENDSTRING(0)):
-		return ced_send_string(ced, (const char __user *)ulArg,
+		return ced_send_string(ced, (const char __user *)arg,
 				  _IOC_SIZE(cmd));
 
 	case _IOC_NR(IOCTL_CED_RESET1401):
@@ -1363,7 +1369,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_get_char(ced);
 
 	case _IOC_NR(IOCTL_CED_SENDCHAR):
-		return ced_send_char(ced, (char)ulArg);
+		return ced_send_char(ced, (char)arg);
 
 	case _IOC_NR(IOCTL_CED_STAT1401):
 		return ced_stat_1401(ced);
@@ -1372,16 +1378,18 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_line_count(ced);
 
 	case _IOC_NR(IOCTL_CED_GETSTRING(0)):
-		return ced_get_string(ced, (char __user *)ulArg, _IOC_SIZE(cmd));
+		return ced_get_string(ced, (char __user *)arg, _IOC_SIZE(cmd));
 
 	case _IOC_NR(IOCTL_CED_SETTRANSFER):
-		return ced_set_transfer(ced, (struct transfer_area_desc __user *) ulArg);
+		return ced_set_transfer(ced,
+				(struct transfer_area_desc __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_UNSETTRANSFER):
-		return ced_unset_transfer(ced, (int)ulArg);
+		return ced_unset_transfer(ced, (int)arg);
 
 	case _IOC_NR(IOCTL_CED_SETEVENT):
-		return ced_set_event(ced, (struct transfer_event __user *) ulArg);
+		return ced_set_event(ced,
+				     (struct transfer_event __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_GETOUTBUFSPACE):
 		return ced_get_out_buf_space(ced);
@@ -1390,10 +1398,11 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return -1;
 
 	case _IOC_NR(IOCTL_CED_GETDRIVERREVISION):
-		return (2 << 24) | (DRIVERMAJREV << 16) | DRIVERMINREV;	/*  USB | MAJOR | MINOR */
+		/* USB | MAJOR | MINOR */
+		return (2 << 24) | (DRIVERMAJREV << 16) | DRIVERMINREV;
 
 	case _IOC_NR(IOCTL_CED_GETTRANSFER):
-		return ced_get_transfer(ced, (TGET_TX_BLOCK __user *) ulArg);
+		return ced_get_transfer(ced, (TGET_TX_BLOCK __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_KILLIO1401):
 		return ced_kill_io(ced);
@@ -1409,7 +1418,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_start_self_test(ced);
 
 	case _IOC_NR(IOCTL_CED_CHECKSELFTEST):
-		return ced_check_self_test(ced, (TGET_SELFTEST __user *) ulArg);
+		return ced_check_self_test(ced, (TGET_SELFTEST __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_TYPEOF1401):
 		return ced_type_of_1401(ced);
@@ -1418,19 +1427,19 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_transfer_flags(ced);
 
 	case _IOC_NR(IOCTL_CED_DBGPEEK):
-		return ced_dbg_peek(ced, (TDBGBLOCK __user *) ulArg);
+		return ced_dbg_peek(ced, (TDBGBLOCK __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_DBGPOKE):
-		return ced_dbg_poke(ced, (TDBGBLOCK __user *) ulArg);
+		return ced_dbg_poke(ced, (TDBGBLOCK __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_DBGRAMPDATA):
-		return ced_dbg_ramp_data(ced, (TDBGBLOCK __user *) ulArg);
+		return ced_dbg_ramp_data(ced, (TDBGBLOCK __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_DBGRAMPADDR):
-		return ced_dbg_ramp_addr(ced, (TDBGBLOCK __user *) ulArg);
+		return ced_dbg_ramp_addr(ced, (TDBGBLOCK __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_DBGGETDATA):
-		return ced_dbg_get_data(ced, (TDBGBLOCK __user *) ulArg);
+		return ced_dbg_get_data(ced, (TDBGBLOCK __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_DBGSTOPLOOP):
 		return ced_dbg_stop_loop(ced);
@@ -1440,19 +1449,20 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		break;
 
 	case _IOC_NR(IOCTL_CED_SETCIRCULAR):
-		return ced_set_circular(ced, (struct transfer_area_desc __user *) ulArg);
+		return ced_set_circular(ced,
+				      (struct transfer_area_desc __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_GETCIRCBLOCK):
-		return ced_get_circ_block(ced, (TCIRCBLOCK __user *) ulArg);
+		return ced_get_circ_block(ced, (TCIRCBLOCK __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_FREECIRCBLOCK):
-		return ced_free_circ_block(ced, (TCIRCBLOCK __user *) ulArg);
+		return ced_free_circ_block(ced, (TCIRCBLOCK __user *) arg);
 
 	case _IOC_NR(IOCTL_CED_WAITEVENT):
-		return ced_wait_event(ced, (int)(ulArg & 0xff), (int)(ulArg >> 8));
+		return ced_wait_event(ced, (int)(arg & 0xff), (int)(arg >> 8));
 
 	case _IOC_NR(IOCTL_CED_TESTEVENT):
-		return ced_test_event(ced, (int)ulArg);
+		return ced_test_event(ced, (int)arg);
 
 	default:
 		return U14ERR_NO_SUCH_FN;
