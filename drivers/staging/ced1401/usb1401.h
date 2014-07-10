@@ -237,7 +237,7 @@ extern int ced_set_event(struct ced_data *ced,
 extern int ced_stat_1401(struct ced_data *ced);
 extern int ced_line_count(struct ced_data *ced);
 extern int ced_get_out_buf_space(struct ced_data *ced);
-extern int ced_get_transfer(struct ced_data *ced, TGET_TX_BLOCK __user *pGTB);
+extern int ced_get_transfer(struct ced_data *ced, TGET_TX_BLOCK __user *utx);
 extern int ced_kill_io(struct ced_data *ced);
 extern int ced_state_of_1401(struct ced_data *ced);
 extern int ced_start_self_test(struct ced_data *ced);

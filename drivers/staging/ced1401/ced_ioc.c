@@ -939,17 +939,18 @@ int ced_test_event(struct ced_data *ced, int area)
 ** ced_get_transferInfo
 ** Puts the current state of the 1401 in a TGET_TX_BLOCK.
 *****************************************************************************/
-int ced_get_transfer(struct ced_data *ced, TGET_TX_BLOCK __user *pTX)
+int ced_get_transfer(struct ced_data *ced, TGET_TX_BLOCK __user *utx)
 {
-	int iReturn = U14ERR_NOERROR;
+	int ret = U14ERR_NOERROR;
 	unsigned int dwIdent;
 
 	mutex_lock(&ced->io_mutex);
 	dwIdent = ced->staged_id;	/*  area ident for last xfer */
 	if (dwIdent >= MAX_TRANSAREAS)
-		iReturn = U14ERR_BADAREA;
+		ret = U14ERR_BADAREA;
 	else {
-		/*  Return the best information we have - we don't have physical addresses */
+		/* Return the best information we have - we */
+		/* don't have physical addresses	    */
 		TGET_TX_BLOCK *tx;
 
 		tx = kzalloc(sizeof(*tx), GFP_KERNEL);
@@ -959,18 +960,19 @@ int ced_get_transfer(struct ced_data *ced, TGET_TX_BLOCK __user *pTX)
 		}
 		tx->size = ced->trans_def[dwIdent].length;
 		tx->linear = (long long)((long)ced->trans_def[dwIdent].buff);
-		tx->avail = GET_TX_MAXENTRIES;	/*  how many blocks we could return */
+		/* how many blocks we could return */
+		tx->avail = GET_TX_MAXENTRIES;
 		tx->used = 1;	/*  number we actually return */
 		tx->entries[0].physical =
 		    (long long)(tx->linear + ced->staged_offset);
 		tx->entries[0].size = tx->size;
 
-		if (copy_to_user(pTX, tx, sizeof(*tx)))
-			iReturn = -EFAULT;
+		if (copy_to_user(utx, tx, sizeof(*tx)))
+			ret = -EFAULT;
 		kfree(tx);
 	}
 	mutex_unlock(&ced->io_mutex);
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
