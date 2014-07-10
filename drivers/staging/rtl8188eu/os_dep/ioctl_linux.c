@@ -28,7 +28,6 @@
 #include <rtw_mlme_ext.h>
 #include <rtw_ioctl.h>
 #include <rtw_ioctl_set.h>
-#include <rtw_mp_ioctl.h>
 #include <rtl8188e_hal.h>
 
 #include <rtw_mp.h>

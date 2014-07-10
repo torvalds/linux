@@ -10,7 +10,6 @@ r8188eu-y :=				\
 		core/rtw_mlme.o		\
 		core/rtw_mlme_ext.o	\
 		core/rtw_mp.o		\
-		core/rtw_mp_ioctl.o	\
 		core/rtw_pwrctrl.o	\
 		core/rtw_p2p.o		\
 		core/rtw_recv.o		\
