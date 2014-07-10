@@ -1017,7 +1017,7 @@ int ced_state_of_1401(struct ced_data *ced)
 *****************************************************************************/
 int ced_start_self_test(struct ced_data *ced)
 {
-	int nGot;
+	int got;
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
@@ -1028,15 +1028,16 @@ int ced_start_self_test(struct ced_data *ced)
 	/* ced_read_write_cancel(pDeviceObject); */
 	ced->dma_flag = MODE_CHAR;	/* Clear DMA mode flags here */
 
-	nGot = usb_control_msg(ced->udev, usb_rcvctrlpipe(ced->udev, 0),
+	got = usb_control_msg(ced->udev, usb_rcvctrlpipe(ced->udev, 0),
 			       DB_SELFTEST, (H_TO_D | VENDOR | DEVREQ),
 			       0, 0, NULL, 0, HZ); /* allow 1 second timeout */
-	ced->self_test_time = jiffies + HZ * 30;	/*  30 seconds into the future */
+	ced->self_test_time = jiffies + HZ * 30;   /* 30 seconds into the    */
+						   /* future                 */
 
 	mutex_unlock(&ced->io_mutex);
-	if (nGot < 0)
-		dev_err(&ced->interface->dev, "%s: err=%d\n", __func__, nGot);
-	return nGot < 0 ? U14ERR_FAIL : U14ERR_NOERROR;
+	if (got < 0)
+		dev_err(&ced->interface->dev, "%s: err=%d\n", __func__, got);
+	return got < 0 ? U14ERR_FAIL : U14ERR_NOERROR;
 }
 
 /****************************************************************************
