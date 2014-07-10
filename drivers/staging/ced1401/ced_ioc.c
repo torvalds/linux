@@ -916,21 +916,23 @@ int ced_wait_event(struct ced_data *ced, int area, int time_out)
 ** number of times a block completed since the last call, or 0 if none or a
 ** negative error.
 ****************************************************************************/
-int ced_test_event(struct ced_data *ced, int nArea)
+int ced_test_event(struct ced_data *ced, int area)
 {
-	int iReturn;
-	if ((unsigned)nArea >= MAX_TRANSAREAS)
-		iReturn = U14ERR_BADAREA;
+	int ret;
+	if ((unsigned)area >= MAX_TRANSAREAS)
+		ret = U14ERR_BADAREA;
 	else {
-		struct transarea *pTA = &ced->trans_def[nArea];
-		mutex_lock(&ced->io_mutex);	/*  make sure we have no competitor */
+		struct transarea *ta = &ced->trans_def[area];
+
+		 /* make sure we have no competitor */
+		mutex_lock(&ced->io_mutex);
 		spin_lock_irq(&ced->staged_lock);
-		iReturn = pTA->wake_up;	/*  get wakeup count since last call */
-		pTA->wake_up = 0;	/*  clear the count */
+		ret = ta->wake_up;	/*  get wakeup count since last call */
+		ta->wake_up = 0;	/*  clear the count */
 		spin_unlock_irq(&ced->staged_lock);
 		mutex_unlock(&ced->io_mutex);
 	}
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
