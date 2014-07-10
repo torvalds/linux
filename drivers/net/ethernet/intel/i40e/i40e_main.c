@@ -4480,6 +4480,13 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 		netif_carrier_on(vsi->netdev);
 	} else if (vsi->netdev) {
 		i40e_print_link_message(vsi, false);
+		/* need to check for qualified module here*/
+		if ((pf->hw.phy.link_info.link_info &
+			I40E_AQ_MEDIA_AVAILABLE) &&
+		    (!(pf->hw.phy.link_info.an_info &
+			I40E_AQ_QUALIFIED_MODULE)))
+			netdev_err(vsi->netdev,
+				   "the driver failed to link because an unqualified module was detected.");
 	}
 
 	/* replay FDIR SB filters */
@@ -5491,6 +5498,13 @@ static void i40e_handle_link_event(struct i40e_pf *pf,
 	/* save off old link status information */
 	memcpy(&pf->hw.phy.link_info_old, hw_link_info,
 	       sizeof(pf->hw.phy.link_info_old));
+
+	/* check for unqualified module, if link is down */
+	if ((status->link_info & I40E_AQ_MEDIA_AVAILABLE) &&
+	    (!(status->an_info & I40E_AQ_QUALIFIED_MODULE)) &&
+	    (!(status->link_info & I40E_AQ_LINK_UP)))
+		dev_err(&pf->pdev->dev,
+			"The driver failed to link because an unqualified module was detected.\n");
 
 	/* update link status */
 	hw_link_info->phy_type = (enum i40e_aq_phy_type)status->phy_type;
