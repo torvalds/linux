@@ -5855,7 +5855,7 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 	struct efuse_hal *pEfuseHal;
 
 	u8 ips_mode = 0, lps_mode = 0;
-	u32 i, jj, kk;
+	u32 i;
 	u8 *setdata = NULL;
 	u8 *ShadowMapBT = NULL;
 	u8 *ShadowMapWiFi = NULL;
@@ -5933,8 +5933,11 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 		DBG_88E("%s: cnts =%d\n", __func__, cnts);
 		DBG_88E("%s: map data =%s\n", __func__, tmp[2]);
 
-		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
-			setdata[jj] = key_2char2num(tmp[2][kk], tmp[2][kk + 1]);
+		if (hex2bin(setdata, tmp[2], cnts) < 0) {
+			err = -EINVAL;
+			goto exit;
+		}
+
 		/* Change to check TYPE_EFUSE_MAP_LEN, because 8188E raw 256, logic map over 256. */
 		EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&max_available_size);
 		if ((addr+cnts) > max_available_size) {
@@ -5972,8 +5975,10 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 		DBG_88E("%s: cnts =%d\n", __func__, cnts);
 		DBG_88E("%s: raw data =%s\n", __func__, tmp[2]);
 
-		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
-			setrawdata[jj] = key_2char2num(tmp[2][kk], tmp[2][kk + 1]);
+		if (hex2bin(setrawdata, tmp[2], cnts) < 0) {
+			err = -EINVAL;
+			goto exit;
+		}
 
 		if (rtw_efuse_access(padapter, true, addr, cnts, setrawdata) == _FAIL) {
 			DBG_88E("%s: rtw_efuse_access error!!\n", __func__);
@@ -6008,8 +6013,11 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 		DBG_88E("%s: cnts =%d\n", __func__, cnts);
 		DBG_88E("%s: MAC address =%s\n", __func__, tmp[1]);
 
-		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
-			setdata[jj] = key_2char2num(tmp[1][kk], tmp[1][kk + 1]);
+		if (hex2bin(setdata, tmp[1], cnts) < 0) {
+			err = -EINVAL;
+			goto exit;
+		}
+
 		/* Change to check TYPE_EFUSE_MAP_LEN, because 8188E raw 256, logic map over 256. */
 		EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&max_available_size);
 		if ((addr+cnts) > max_available_size) {
@@ -6046,8 +6054,10 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 		DBG_88E("%s: cnts =%d\n", __func__, cnts);
 		DBG_88E("%s: VID/PID =%s\n", __func__, tmp[1]);
 
-		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
-			setdata[jj] = key_2char2num(tmp[1][kk], tmp[1][kk + 1]);
+		if (hex2bin(setdata, tmp[1], cnts) < 0) {
+			err = -EINVAL;
+			goto exit;
+		}
 
 		EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, (void *)&max_available_size);
 		if ((addr+cnts) > max_available_size) {
@@ -6085,8 +6095,10 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 		DBG_88E("%s: cnts =%d\n", __func__, cnts);
 		DBG_88E("%s: BT data =%s\n", __func__, tmp[2]);
 
-		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
-			setdata[jj] = key_2char2num(tmp[2][kk], tmp[2][kk + 1]);
+		if (hex2bin(setdata, tmp[2], cnts) < 0) {
+			err = -EINVAL;
+			goto exit;
+		}
 
 		EFUSE_GetEfuseDefinition(padapter, EFUSE_BT, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, (void *)&max_available_size);
 		if ((addr+cnts) > max_available_size) {
@@ -6119,8 +6131,10 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 		DBG_88E("%s: cnts =%d\n", __func__, cnts);
 		DBG_88E("%s: BT tmp data =%s\n", __func__, tmp[2]);
 
-		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
-			pEfuseHal->fakeBTEfuseModifiedMap[addr+jj] = key_2char2num(tmp[2][kk], tmp[2][kk + 1]);
+		if (hex2bin(pEfuseHal->fakeBTEfuseModifiedMap + addr, tmp[2], cnts) < 0) {
+			err = -EINVAL;
+			goto exit;
+		}
 	} else if (strcmp(tmp[0], "wldumpfake") == 0) {
 		if (rtw_efuse_map_read(padapter, 0, EFUSE_BT_MAX_MAP_LEN,  pEfuseHal->fakeEfuseModifiedMap) == _SUCCESS) {
 			DBG_88E("%s: BT read all map success\n", __func__);
@@ -6173,8 +6187,10 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 		DBG_88E("%s: cnts =%d\n", __func__, cnts);
 		DBG_88E("%s: map tmp data =%s\n", __func__, tmp[2]);
 
-		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
-			pEfuseHal->fakeEfuseModifiedMap[addr+jj] = key_2char2num(tmp[2][kk], tmp[2][kk + 1]);
+		if (hex2bin(pEfuseHal->fakeEfuseModifiedMap + addr, tmp[2], cnts) < 0) {
+			err = -EINVAL;
+			goto exit;
+		}
 	}
 
 exit:
