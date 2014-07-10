@@ -54,7 +54,6 @@ struct cmd_priv {
 	u8	*rsp_allocated_buf;
 	u32	cmd_issued_cnt;
 	u32	cmd_done_cnt;
-	u32	rsp_cnt;
 	u8 cmdthd_running;
 	struct adapter *padapter;
 };
