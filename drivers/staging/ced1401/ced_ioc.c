@@ -1318,31 +1318,32 @@ int ced_dbg_ramp_addr(struct ced_data *ced, TDBGBLOCK __user *udb)
 **
 ** Retrieve the data resulting from the last debug Peek operation
 ****************************************************************************/
-int ced_dbg_get_data(struct ced_data *ced, TDBGBLOCK __user *pDB)
+int ced_dbg_get_data(struct ced_data *ced, TDBGBLOCK __user *udb)
 {
-	int iReturn;
+	int ret;
 	TDBGBLOCK db;
+
 	memset(&db, 0, sizeof(db));	/*  fill returned block with 0s */
 
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
 	/*  Read back the last peeked value from the 1401. */
-	iReturn = usb_control_msg(ced->udev, usb_rcvctrlpipe(ced->udev, 0),
+	ret = usb_control_msg(ced->udev, usb_rcvctrlpipe(ced->udev, 0),
 				  DB_DATA, (D_TO_H | VENDOR | DEVREQ), 0, 0,
 				  &db.iData, sizeof(db.iData), HZ);
-	if (iReturn == sizeof(db.iData)) {
-		if (copy_to_user(pDB, &db, sizeof(db)))
-			iReturn = -EFAULT;
+	if (ret == sizeof(db.iData)) {
+		if (copy_to_user(udb, &db, sizeof(db)))
+			ret = -EFAULT;
 		else
-			iReturn = U14ERR_NOERROR;
+			ret = U14ERR_NOERROR;
 	} else
 		dev_err(&ced->interface->dev, "%s: failed, code %d\n",
-			__func__, iReturn);
+			__func__, ret);
 
 	mutex_unlock(&ced->io_mutex);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
