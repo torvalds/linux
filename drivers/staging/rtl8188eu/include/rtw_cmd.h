@@ -74,15 +74,6 @@ do {\
 	pcmd->rspsz = 0;\
 } while (0)
 
-struct c2h_evt_hdr {
-	u8 id:4;
-	u8 plen:4;
-	u8 seq;
-	u8 payload[0];
-};
-
-#define c2h_evt_exist(c2h_evt) ((c2h_evt)->id || (c2h_evt)->plen)
-
 u32 rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
 struct cmd_obj *rtw_dequeue_cmd(struct cmd_priv *pcmdpriv);
 void rtw_free_cmd_obj(struct cmd_obj *pcmd);
