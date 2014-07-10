@@ -722,8 +722,6 @@ u8 rtw_sitesurvey_cmd(struct adapter *padapter, struct ndis_802_11_ssid *ssid,
 		      int ssid_num, struct rtw_ieee80211_channel *ch,
 		      int ch_num);
 u8 rtw_createbss_cmd(struct adapter *padapter);
-u8 rtw_createbss_cmd_ex(struct adapter *padapter, unsigned char *pbss,
-			unsigned int sz);
 u8 rtw_setstakey_cmd(struct adapter *padapter, u8 *psta, u8 unicast_key);
 u8 rtw_clearstakey_cmd(struct adapter *padapter, u8 *psta, u8 entry,
 		       u8 enqueue);
