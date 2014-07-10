@@ -2726,8 +2726,8 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 				changed = !test_and_set_bit(HCI_CONNECTABLE,
 							    &hdev->dev_flags);
 			else
-				changed = test_and_set_bit(HCI_CONNECTABLE,
-							   &hdev->dev_flags);
+				changed = test_and_clear_bit(HCI_CONNECTABLE,
+							     &hdev->dev_flags);
 
 			if (changed)
 				mgmt_new_settings(hdev);
