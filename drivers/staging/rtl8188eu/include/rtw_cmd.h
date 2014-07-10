@@ -319,22 +319,6 @@ struct SetChannelPlan_param {
 	u8 channel_plan;
 };
 
-/*H2C Handler index: 60 */
-struct LedBlink_param {
-	struct LED_871x *pLed;
-};
-
-/*H2C Handler index: 61 */
-struct SetChannelSwitch_param {
-	u8 new_ch_no;
-};
-
-/*H2C Handler index: 62 */
-struct TDLSoption_param {
-	u8 addr[ETH_ALEN];
-	u8 option;
-};
-
 #define GEN_CMD_CODE(cmd)	cmd ## _CMD_
 
 /*
