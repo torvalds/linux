@@ -53,10 +53,8 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 bool i40evf_asq_done(struct i40e_hw *hw);
 
 /* debug function for adminq */
-void i40evf_debug_aq(struct i40e_hw *hw,
-		   enum i40e_debug_mask mask,
-		   void *desc,
-		   void *buffer);
+void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask,
+		     void *desc, void *buffer, u16 buf_len);
 
 void i40e_idle_aq(struct i40e_hw *hw);
 void i40evf_resume_aq(struct i40e_hw *hw);
