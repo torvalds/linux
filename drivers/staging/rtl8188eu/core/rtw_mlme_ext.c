@@ -4959,11 +4959,11 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)(&(pmlmeinfo->network));
-	struct joinbss_parm *pparm = (struct joinbss_parm *)pbuf;
+	struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 	/* u32	initialgain; */
 
 
-	if (pparm->network.InfrastructureMode == Ndis802_11APMode) {
+	if (pparm->InfrastructureMode == Ndis802_11APMode) {
 #ifdef CONFIG_88EU_AP_MODE
 
 		if (pmlmeinfo->state == WIFI_FW_AP_STATE) {
@@ -4974,7 +4974,7 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 	}
 
 	/* below is for ad-hoc master */
-	if (pparm->network.InfrastructureMode == Ndis802_11IBSS) {
+	if (pparm->InfrastructureMode == Ndis802_11IBSS) {
 		rtw_joinbss_reset(padapter);
 
 		pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_20;
@@ -5023,7 +5023,7 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)(&(pmlmeinfo->network));
-	struct joinbss_parm	*pparm = (struct joinbss_parm *)pbuf;
+	struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 	u32 i;
 
 	/* check already connecting to AP or not */
@@ -5045,7 +5045,7 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		rtw_hal_set_hwreg(padapter, HW_VAR_MLME_DISCONNECT, NULL);
 	}
 
-	rtw_antenna_select_cmd(padapter, pparm->network.PhyInfo.Optimum_antenna, false);
+	rtw_antenna_select_cmd(padapter, pparm->PhyInfo.Optimum_antenna, false);
 
 	rtw_joinbss_reset(padapter);
 

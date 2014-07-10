@@ -111,18 +111,6 @@ enum RFINTFS {
 };
 
 /*
-Caller Mode: Infra, Ad-Hoc
-
-Notes: To join the specified bss
-
-Command Event Mode
-
-*/
-struct joinbss_parm {
-	struct wlan_bssid_ex network;
-};
-
-/*
 Caller Mode: Infra, Ad-HoC(C)
 
 Notes: To disconnect the current associated BSS
@@ -132,17 +120,6 @@ Command Mode
 */
 struct disconnect_parm {
 	u32 deauth_timeout_ms;
-};
-
-/*
-Caller Mode: AP, Ad-HoC(M)
-
-Notes: To create a BSS
-
-Command Mode
-*/
-struct createbss_parm {
-	struct wlan_bssid_ex network;
 };
 
 struct	setopmode_parm {

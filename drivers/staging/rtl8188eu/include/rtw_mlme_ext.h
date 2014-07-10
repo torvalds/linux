@@ -722,9 +722,9 @@ static struct cmd_hdl wlancmds[] = {
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct joinbss_parm), join_cmd_hdl) /*14*/
+	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), join_cmd_hdl) /*14*/
 	GEN_MLME_EXT_HANDLER(sizeof (struct disconnect_parm), disconnect_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct createbss_parm), createbss_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), createbss_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof (struct setopmode_parm), setopmode_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof (struct sitesurvey_parm),
 			     sitesurvey_cmd_hdl) /*18*/
