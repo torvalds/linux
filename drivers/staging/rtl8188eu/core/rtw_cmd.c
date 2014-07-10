@@ -36,8 +36,6 @@ int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 	sema_init(&(pcmdpriv->terminate_cmdthread_sema), 0);
 
 	_rtw_init_queue(&(pcmdpriv->cmd_queue));
-
-	pcmdpriv->cmd_seq = 1;
 	return _SUCCESS;
 }
 
@@ -217,8 +215,6 @@ _next:
 				ret = cmd_hdl(pcmd->padapter, pcmd->parmbuf);
 				pcmd->res = ret;
 			}
-
-			pcmdpriv->cmd_seq++;
 		} else {
 			pcmd->res = H2C_PARAMETERS_ERROR;
 		}
