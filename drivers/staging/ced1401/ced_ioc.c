@@ -997,16 +997,16 @@ int ced_kill_io(struct ced_data *ced)
 *****************************************************************************/
 int ced_state_of_1401(struct ced_data *ced)
 {
-	int iReturn;
+	int ret;
 	mutex_lock(&ced->io_mutex);
 
-	ced_quick_check(ced, false, false);	/*  get state up to date, no reset */
-	iReturn = ced->current_state;
+	ced_quick_check(ced, false, false); /* get state up to date, no reset */
+	ret = ced->current_state;
 
 	mutex_unlock(&ced->io_mutex);
-	dev_dbg(&ced->interface->dev, "%s: %d\n", __func__, iReturn);
+	dev_dbg(&ced->interface->dev, "%s: %d\n", __func__, ret);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
