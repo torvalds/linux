@@ -125,11 +125,11 @@ static struct usb_tx_sdu *alloc_tx_sdu_struct(void)
 {
 	struct usb_tx_sdu *t_sdu;
 
-	t_sdu = kzalloc(sizeof(struct usb_tx_sdu), GFP_ATOMIC);
+	t_sdu = kzalloc(sizeof(struct usb_tx_sdu), GFP_KERNEL);
 	if (!t_sdu)
 		return NULL;
 
-	t_sdu->buf = kmalloc(SDU_BUF_SIZE, GFP_ATOMIC);
+	t_sdu->buf = kmalloc(SDU_BUF_SIZE, GFP_KERNEL);
 	if (!t_sdu->buf) {
 		kfree(t_sdu);
 		return NULL;
@@ -183,14 +183,14 @@ static struct usb_rx *alloc_rx_struct(void)
 	struct usb_rx *r = NULL;
 	int ret = 0;
 
-	r = kmalloc(sizeof(struct usb_rx), GFP_ATOMIC);
+	r = kmalloc(sizeof(struct usb_rx), GFP_KERNEL);
 	if (!r) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	r->urb = usb_alloc_urb(0, GFP_ATOMIC);
-	r->buf = kmalloc(RX_BUF_SIZE, GFP_ATOMIC);
+	r->urb = usb_alloc_urb(0, GFP_KERNEL);
+	r->buf = kmalloc(RX_BUF_SIZE, GFP_KERNEL);
 	if (!r->urb || !r->buf) {
 		ret = -ENOMEM;
 		goto out;
@@ -366,6 +366,7 @@ static int init_usb(struct lte_udev *udev)
 	INIT_DELAYED_WORK(&udev->work_rx, do_rx);
 	return 0;
 fail:
+	release_usb(udev);
 	return ret;
 }
 
