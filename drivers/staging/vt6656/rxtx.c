@@ -651,6 +651,24 @@ static u16 vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
 	return 0;
 }
 
+static u16 vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
+	union vnt_tx_head *tx_head, u8 pkt_type, u32 frame_size,
+	int need_ack, u16 current_rate)
+{
+	struct vnt_private *priv = tx_context->priv;
+	struct vnt_rrv_time_cts *buf = &tx_head->tx_cts.cts;
+
+	buf->rrv_time_a = vnt_rxtx_rsvtime_le16(priv, pkt_type,
+					frame_size, current_rate, need_ack);
+	buf->rrv_time_b = vnt_rxtx_rsvtime_le16(priv, PK_TYPE_11B,
+				frame_size, priv->byTopCCKBasicRate, need_ack);
+
+	buf->cts_rrv_time_ba = s_uGetRTSCTSRsvTime(priv, 3,
+			pkt_type, frame_size, current_rate);
+
+	return 0;
+}
+
 /*+
  *
  * Description:
@@ -700,17 +718,8 @@ static u16 s_vGenerateTxParameter(struct vnt_usb_send_context *tx_context,
 						wCurrentRate);
 
 		} else {
-			struct vnt_rrv_time_cts *pBuf = &tx_buffer->
-							tx_head.tx_cts.cts;
-
-			pBuf->rrv_time_a = vnt_rxtx_rsvtime_le16(pDevice,
-				byPktType, cbFrameSize, wCurrentRate, bNeedACK);
-			pBuf->rrv_time_b = vnt_rxtx_rsvtime_le16(pDevice,
-				PK_TYPE_11B, cbFrameSize,
-					pDevice->byTopCCKBasicRate, bNeedACK);
-
-			pBuf->cts_rrv_time_ba = s_uGetRTSCTSRsvTime(pDevice, 3,
-					byPktType, cbFrameSize, wCurrentRate);
+			vnt_rxtx_cts(tx_context, &tx_buffer->tx_head,
+				byPktType, cbFrameSize, bNeedACK, wCurrentRate);
 
 			if (need_mic) {
 				*mic_hdr = &tx_buffer->
