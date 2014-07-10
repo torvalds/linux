@@ -2657,7 +2657,7 @@ done:
 
 static void hci_update_scan_state(struct hci_dev *hdev, u8 scan)
 {
-	bool conn_changed;
+	bool conn_changed, discov_changed;
 
 	BT_DBG("%s scan 0x%02x", hdev->name, scan);
 
@@ -2668,11 +2668,27 @@ static void hci_update_scan_state(struct hci_dev *hdev, u8 scan)
 		conn_changed = test_and_clear_bit(HCI_CONNECTABLE,
 						  &hdev->dev_flags);
 
+	if ((scan & SCAN_INQUIRY)) {
+		discov_changed = !test_and_set_bit(HCI_DISCOVERABLE,
+						   &hdev->dev_flags);
+	} else {
+		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
+		discov_changed = test_and_clear_bit(HCI_DISCOVERABLE,
+						    &hdev->dev_flags);
+	}
+
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		return;
 
-	if (conn_changed)
+	if (conn_changed || discov_changed) {
+		/* In case this was disabled through mgmt */
+		set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+
+		if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+			mgmt_update_adv_data(hdev);
+
 		mgmt_new_settings(hdev);
+	}
 }
 
 int hci_dev_cmd(unsigned int cmd, void __user *arg)
@@ -2736,8 +2752,8 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 		err = hci_req_sync(hdev, hci_scan_req, dr.dev_opt,
 				   HCI_INIT_TIMEOUT);
 
-		/* Ensure that the connectable state gets correctly
-		 * modified as this was a non-mgmt change.
+		/* Ensure that the connectable and discoverable states
+		 * get correctly modified as this was a non-mgmt change.
 		 */
 		if (!err)
 			hci_update_scan_state(hdev, dr.dev_opt);

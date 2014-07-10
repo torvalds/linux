@@ -906,6 +906,16 @@ static void update_adv_data(struct hci_request *req)
 	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
 }
 
+int mgmt_update_adv_data(struct hci_dev *hdev)
+{
+	struct hci_request req;
+
+	hci_req_init(&req, hdev);
+	update_adv_data(&req);
+
+	return hci_req_run(&req, NULL);
+}
+
 static void create_eir(struct hci_dev *hdev, u8 *data)
 {
 	u8 *ptr = data;
@@ -1743,7 +1753,7 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct pending_cmd *cmd;
 	struct mgmt_mode *cp;
-	bool changed;
+	bool conn_changed, discov_changed;
 
 	BT_DBG("status 0x%02x", status);
 
@@ -1760,15 +1770,23 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 	}
 
 	cp = cmd->param;
-	if (cp->val)
-		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
-	else
-		changed = test_and_clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+	if (cp->val) {
+		conn_changed = !test_and_set_bit(HCI_CONNECTABLE,
+						 &hdev->dev_flags);
+		discov_changed = false;
+	} else {
+		conn_changed = test_and_clear_bit(HCI_CONNECTABLE,
+						  &hdev->dev_flags);
+		discov_changed = test_and_clear_bit(HCI_DISCOVERABLE,
+						    &hdev->dev_flags);
+	}
 
 	send_settings_rsp(cmd->sk, MGMT_OP_SET_CONNECTABLE, hdev);
 
-	if (changed) {
+	if (conn_changed || discov_changed) {
 		new_settings(hdev, cmd->sk);
+		if (discov_changed)
+			mgmt_update_adv_data(hdev);
 		hci_update_background_scan(hdev);
 	}
 
@@ -6029,43 +6047,6 @@ void mgmt_discoverable_timeout(struct hci_dev *hdev)
 	new_settings(hdev, NULL);
 
 	hci_dev_unlock(hdev);
-}
-
-void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
-{
-	bool changed;
-
-	/* Nothing needed here if there's a pending command since that
-	 * commands request completion callback takes care of everything
-	 * necessary.
-	 */
-	if (mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, hdev))
-		return;
-
-	/* Powering off may clear the scan mode - don't let that interfere */
-	if (!discoverable && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
-		return;
-
-	if (discoverable) {
-		changed = !test_and_set_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
-	} else {
-		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
-		changed = test_and_clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
-	}
-
-	if (changed) {
-		struct hci_request req;
-
-		/* In case this change in discoverable was triggered by
-		 * a disabling of connectable there could be a need to
-		 * update the advertising flags.
-		 */
-		hci_req_init(&req, hdev);
-		update_adv_data(&req);
-		hci_req_run(&req, NULL);
-
-		new_settings(hdev, NULL);
-	}
 }
 
 void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)

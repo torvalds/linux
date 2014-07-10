@@ -296,7 +296,6 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
 	__u8 param;
-	int old_pscan, old_iscan;
 	void *sent;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
@@ -315,23 +314,15 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 		goto done;
 	}
 
-	/* We need to ensure that we set this back on if someone changed
-	 * the scan mode through a raw HCI socket.
-	 */
-	set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
-
-	old_pscan = test_and_clear_bit(HCI_PSCAN, &hdev->flags);
-	old_iscan = test_and_clear_bit(HCI_ISCAN, &hdev->flags);
-
-	if (param & SCAN_INQUIRY) {
+	if (param & SCAN_INQUIRY)
 		set_bit(HCI_ISCAN, &hdev->flags);
-		if (!old_iscan)
-			mgmt_discoverable(hdev, 1);
-	} else if (old_iscan)
-		mgmt_discoverable(hdev, 0);
+	else
+		clear_bit(HCI_ISCAN, &hdev->flags);
 
 	if (param & SCAN_PAGE)
 		set_bit(HCI_PSCAN, &hdev->flags);
+	else
+		clear_bit(HCI_ISCAN, &hdev->flags);
 
 done:
 	hci_dev_unlock(hdev);
