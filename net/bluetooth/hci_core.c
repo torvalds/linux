@@ -2435,6 +2435,16 @@ int hci_dev_open(__u16 dev)
 	 */
 	flush_workqueue(hdev->req_workqueue);
 
+	/* For controllers not using the management interface and that
+	 * are brought up using legacy ioctl, set the HCI_PAIRABLE bit
+	 * so that pairing works for them. Once the management interface
+	 * is in use this bit will be cleared again and userspace has
+	 * to explicitly enable it.
+	 */
+	if (!test_bit(HCI_USER_CHANNEL, &hdev->dev_flags) &&
+	    !test_bit(HCI_MGMT, &hdev->dev_flags))
+		set_bit(HCI_PAIRABLE, &hdev->dev_flags);
+
 	err = hci_dev_do_open(hdev);
 
 done:
@@ -2826,9 +2836,6 @@ int hci_get_dev_list(void __user *arg)
 		if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
 			flags &= ~BIT(HCI_UP);
 
-		if (!test_bit(HCI_MGMT, &hdev->dev_flags))
-			set_bit(HCI_PAIRABLE, &hdev->dev_flags);
-
 		(dr + n)->dev_id  = hdev->id;
 		(dr + n)->dev_opt = flags;
 
@@ -2868,9 +2875,6 @@ int hci_get_dev_info(void __user *arg)
 		flags = hdev->flags & ~BIT(HCI_UP);
 	else
 		flags = hdev->flags;
-
-	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
-		set_bit(HCI_PAIRABLE, &hdev->dev_flags);
 
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;
