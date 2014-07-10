@@ -825,19 +825,20 @@ static int ced_stage_chunk(struct ced_data *ced)
 **
 ** Arguments:
 **    DeviceObject - pointer to our FDO (Functional Device Object)
-**    Read - TRUE for read, FALSE for write. This is from POV of the driver
-**    wIdent - the transfer area number - defines memory area and more.
-**    dwOffs - the start offset within the transfer area of the start of this
+**    read - TRUE for read, FALSE for write. This is from POV of the driver
+**    ident - the transfer area number - defines memory area and more.
+**    offs - the start offset within the transfer area of the start of this
 **             transfer.
-**    dwLen - the number of bytes to transfer.
+**    len - the number of bytes to transfer.
 */
-int ced_read_write_mem(struct ced_data *ced, bool Read, unsigned short wIdent,
-		 unsigned int dwOffs, unsigned int dwLen)
+int ced_read_write_mem(struct ced_data *ced, bool read, unsigned short ident,
+		 unsigned int offs, unsigned int len)
 {
 	/* Transfer area info */
-	struct transarea *pArea = &ced->trans_def[wIdent];
+	struct transarea *ta = &ced->trans_def[ident];
 
-	if (!can_accept_io_requests(ced)) {	/*  Are we in a state to accept new requests? */
+	/*  Are we in a state to accept new requests? */
+	if (!can_accept_io_requests(ced)) {
 		dev_err(&ced->interface->dev, "%s: can't accept requests\n",
 			__func__);
 		return U14ERR_FAIL;
@@ -845,10 +846,11 @@ int ced_read_write_mem(struct ced_data *ced, bool Read, unsigned short wIdent,
 
 	dev_dbg(&ced->interface->dev,
 		"%s: xfer %d bytes to %s, offset %d, area %d\n",
-		__func__, dwLen, Read ? "host" : "1401", dwOffs, wIdent);
+		__func__, len, read ? "host" : "1401", offs, ident);
 
-	/*  Amazingly, we can get an escape sequence back before the current staged Urb is done, so we */
-	/*   have to check for this situation and, if so, wait until all is OK. */
+	/* Amazingly, we can get an escape sequence back before the current   */
+	/* staged Urb is done, so we have to check for this situation and, if */
+	/* so, wait until all is OK. */
 	if (ced->staged_urb_pending) {
 		ced->xfer_waiting = true;	/*  Flag we are waiting */
 		dev_info(&ced->interface->dev,
@@ -857,36 +859,46 @@ int ced_read_write_mem(struct ced_data *ced, bool Read, unsigned short wIdent,
 		return U14ERR_NOERROR;
 	}
 
-	if (dwLen == 0) {		/*  allow 0-len read or write; just return success */
+	if (len == 0) {	/* allow 0-len read or write; just return success */
 		dev_dbg(&ced->interface->dev,
 			"%s: OK; zero-len read/write request\n", __func__);
 		return U14ERR_NOERROR;
 	}
 
-	if ((pArea->circular) &&	/*  Circular transfer? */
-	    (pArea->circ_to_host) && (Read)) {	/*  In a supported direction */
+	if ((ta->circular) &&	/*  Circular transfer? */
+	    (ta->circ_to_host) && (read)) {	/*  In a supported direction */
 				/*  If so, we sort out offset ourself */
 		bool bWait = false;	/*  Flag for transfer having to wait */
 
 		dev_dbg(&ced->interface->dev,
 			"Circular buffers are %d at %d and %d at %d\n",
-			pArea->blocks[0].size, pArea->blocks[0].offset,
-			pArea->blocks[1].size, pArea->blocks[1].offset);
-		if (pArea->blocks[1].size > 0) {	/*  Using the second block already? */
-			dwOffs = pArea->blocks[1].offset + pArea->blocks[1].size;	/*  take offset from that */
-			bWait = (dwOffs + dwLen) > pArea->blocks[0].offset;	/*  Wait if will overwrite block 0? */
-			bWait |= (dwOffs + dwLen) > pArea->length;	/*  or if it overflows the buffer */
-		} else {		/*  Area 1 not in use, try to use area 0 */
-			if (pArea->blocks[0].size == 0)	/*  Reset block 0 if not in use */
-				pArea->blocks[0].offset = 0;
-			dwOffs =
-			    pArea->blocks[0].offset +
-			    pArea->blocks[0].size;
-			if ((dwOffs + dwLen) > pArea->length) {	/*  Off the end of the buffer? */
-				pArea->blocks[1].offset = 0;	/*  Set up to use second block */
-				dwOffs = 0;
-				bWait = (dwOffs + dwLen) > pArea->blocks[0].offset;	/*  Wait if will overwrite block 0? */
-				bWait |= (dwOffs + dwLen) > pArea->length;	/*  or if it overflows the buffer */
+			ta->blocks[0].size, ta->blocks[0].offset,
+			ta->blocks[1].size, ta->blocks[1].offset);
+
+		/* Using the second block already? */
+		if (ta->blocks[1].size > 0) {
+			/* take offset from that */
+			offs = ta->blocks[1].offset + ta->blocks[1].size;
+			/* Wait if will overwrite block 0? */
+			bWait = (offs + len) > ta->blocks[0].offset;
+			/* or if it overflows the buffer */
+			bWait |= (offs + len) > ta->length;
+		} else {	/*  Area 1 not in use, try to use area 0 */
+			/* Reset block 0 if not in use */
+			if (ta->blocks[0].size == 0)
+				ta->blocks[0].offset = 0;
+			offs =
+			    ta->blocks[0].offset +
+			    ta->blocks[0].size;
+			 /* Off the end of the buffer? */
+			if ((offs + len) > ta->length) {
+				/* Set up to use second block */
+				ta->blocks[1].offset = 0;
+				offs = 0;
+				/* Wait if will overwrite block 0? */
+				bWait = (offs + len) > ta->blocks[0].offset;
+				/* or if it overflows the buffer */
+				bWait |= (offs + len) > ta->length;
 			}
 		}
 
@@ -900,18 +912,18 @@ int ced_read_write_mem(struct ced_data *ced, bool Read, unsigned short wIdent,
 
 		dev_dbg(&ced->interface->dev,
 			"%s: circular xfer, %d bytes starting at %d\n",
-			__func__, dwLen, dwOffs);
+			__func__, len, offs);
 	}
 	/*  Save the parameters for the read\write transfer */
-	ced->staged_read = Read;	/*  Save the parameters for this read */
-	ced->staged_id = wIdent;	/*  ID allows us to get transfer area info */
-	ced->staged_offset = dwOffs;	/*  The area within the transfer area */
-	ced->staged_length = dwLen;
+	ced->staged_read = read;	/*  Save the parameters for this read */
+	ced->staged_id = ident;	/*  ID allows us to get transfer area info */
+	ced->staged_offset = offs;	/*  The area within the transfer area */
+	ced->staged_length = len;
 	ced->staged_done = 0;	/*  Initialise the byte count */
 	ced->dma_flag = MODE_LINEAR;	/*  Set DMA mode flag at this point */
 	ced->xfer_waiting = false;      /* Clearly not a transfer waiting now */
 
-/*     KeClearEvent(&ced->StagingDoneEvent);           // Clear the transfer done event */
+/*     KeClearEvent(&ced->StagingDoneEvent); // Clear the transfer done event */
 	ced_stage_chunk(ced);	/*  fire off the first chunk */
 
 	return U14ERR_NOERROR;

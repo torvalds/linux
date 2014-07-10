@@ -216,8 +216,9 @@ struct ced_data {
 extern int ced_allowi(struct ced_data * ced);
 extern int ced_send_chars(struct ced_data *ced);
 extern void ced_draw_down(struct ced_data *ced);
-extern int ced_read_write_mem(struct ced_data *ced, bool Read, unsigned short wIdent,
-				unsigned int dwOffs, unsigned int dwLen);
+extern int ced_read_write_mem(struct ced_data *ced, bool read,
+			      unsigned short ident, unsigned int offs,
+			      unsigned int len);
 
 /*  in ced_ioc.c */
 extern int ced_clear_area(struct ced_data *ced, int nArea);
