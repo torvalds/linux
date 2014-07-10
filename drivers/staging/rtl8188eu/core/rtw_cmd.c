@@ -71,7 +71,7 @@ exit:
 	return res;
 }
 
-void _rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
+void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 
 	if (pcmdpriv) {
@@ -128,12 +128,6 @@ struct	cmd_obj	*_rtw_dequeue_cmd(struct __queue *queue)
 
 
 	return obj;
-}
-
-void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
-{
-	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("rtw_free_cmd_priv\n"));
-	_rtw_free_cmd_priv(pcmdpriv);
 }
 
 static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
