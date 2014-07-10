@@ -267,9 +267,6 @@ extern const char *powerpc_base_platform;
 #define CPU_FTR_MAYBE_CAN_NAP	0
 #endif
 
-#define CLASSIC_PPC (!defined(CONFIG_8xx) && !defined(CONFIG_4xx) && \
-		     !defined(CONFIG_BOOKE))
-
 #define CPU_FTRS_PPC601	(CPU_FTR_COMMON | CPU_FTR_601 | \
 	CPU_FTR_COHERENT_ICACHE | CPU_FTR_UNIFIED_ID_CACHE)
 #define CPU_FTRS_603	(CPU_FTR_COMMON | \
@@ -467,7 +464,7 @@ extern const char *powerpc_base_platform;
 #else
 enum {
 	CPU_FTRS_POSSIBLE =
-#if CLASSIC_PPC
+#ifdef CONFIG_PPC_BOOK3S_32
 	    CPU_FTRS_PPC601 | CPU_FTRS_603 | CPU_FTRS_604 | CPU_FTRS_740_NOTAU |
 	    CPU_FTRS_740 | CPU_FTRS_750 | CPU_FTRS_750FX1 |
 	    CPU_FTRS_750FX2 | CPU_FTRS_750FX | CPU_FTRS_750GX |
@@ -517,7 +514,7 @@ enum {
 #else
 enum {
 	CPU_FTRS_ALWAYS =
-#if CLASSIC_PPC
+#ifdef CONFIG_PPC_BOOK3S_32
 	    CPU_FTRS_PPC601 & CPU_FTRS_603 & CPU_FTRS_604 & CPU_FTRS_740_NOTAU &
 	    CPU_FTRS_740 & CPU_FTRS_750 & CPU_FTRS_750FX1 &
 	    CPU_FTRS_750FX2 & CPU_FTRS_750FX & CPU_FTRS_750GX &
