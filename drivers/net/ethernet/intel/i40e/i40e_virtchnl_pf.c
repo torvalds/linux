@@ -1003,10 +1003,18 @@ int i40e_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 				  u32 v_retval, u8 *msg, u16 msglen)
 {
-	struct i40e_pf *pf = vf->pf;
-	struct i40e_hw *hw = &pf->hw;
-	int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
+	struct i40e_pf *pf;
+	struct i40e_hw *hw;
+	int abs_vf_id;
 	i40e_status aq_ret;
+
+	/* validate the request */
+	if (!vf || vf->vf_id >= vf->pf->num_alloc_vfs)
+		return -EINVAL;
+
+	pf = vf->pf;
+	hw = &pf->hw;
+	abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 
 	/* single place to detect unsuccessful return values */
 	if (v_retval) {
@@ -1928,10 +1936,10 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 {
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vf *vf = pf->vf;
-	int abs_vf_id;
 	int i;
 
-	for (i = 0; i < pf->num_alloc_vfs; i++) {
+	for (i = 0; i < pf->num_alloc_vfs; i++, vf++) {
+		int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 		/* Not all vfs are enabled so skip the ones that are not */
 		if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states) &&
 		    !test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
@@ -1940,10 +1948,8 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 		/* Ignore return value on purpose - a given VF may fail, but
 		 * we need to keep going and send to all of them
 		 */
-		abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 		i40e_aq_send_msg_to_vf(hw, abs_vf_id, v_opcode, v_retval,
 				       msg, msglen, NULL);
-		vf++;
 	}
 }
 
@@ -1959,12 +1965,12 @@ void i40e_vc_notify_link_state(struct i40e_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vf *vf = pf->vf;
 	struct i40e_link_status *ls = &pf->hw.phy.link_info;
-	int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 	int i;
 
 	pfe.event = I40E_VIRTCHNL_EVENT_LINK_CHANGE;
 	pfe.severity = I40E_PF_EVENT_SEVERITY_INFO;
-	for (i = 0; i < pf->num_alloc_vfs; i++) {
+	for (i = 0; i < pf->num_alloc_vfs; i++, vf++) {
+		int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 		if (vf->link_forced) {
 			pfe.event_data.link_event.link_status = vf->link_up;
 			pfe.event_data.link_event.link_speed =
@@ -1977,8 +1983,6 @@ void i40e_vc_notify_link_state(struct i40e_pf *pf)
 		i40e_aq_send_msg_to_vf(hw, abs_vf_id, I40E_VIRTCHNL_OP_EVENT,
 				       0, (u8 *)&pfe, sizeof(pfe),
 				       NULL);
-		vf++;
-		abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 	}
 }
 
@@ -2008,6 +2012,10 @@ void i40e_vc_notify_vf_reset(struct i40e_vf *vf)
 {
 	struct i40e_virtchnl_pf_event pfe;
 	int abs_vf_id;
+
+	/* validate the request */
+	if (!vf || vf->vf_id >= vf->pf->num_alloc_vfs)
+		return;
 
 	/* verify if the VF is in either init or active before proceeding */
 	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states) &&
