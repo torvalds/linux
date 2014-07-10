@@ -879,7 +879,7 @@ static int m88ds3103_read_snr(struct dvb_frontend *fe, u16 *snr)
 		/* SNR(X) dB = 10 * ln(X) / ln(10) dB */
 		tmp = DIV_ROUND_CLOSEST(tmp, 8 * M88DS3103_SNR_ITERATIONS);
 		if (tmp)
-			*snr = 100ul * intlog2(tmp) / intlog2(10);
+			*snr = div_u64((u64) 100 * intlog2(tmp), intlog2(10));
 		else
 			*snr = 0;
 		break;
@@ -908,7 +908,7 @@ static int m88ds3103_read_snr(struct dvb_frontend *fe, u16 *snr)
 		/* SNR(X) dB = 10 * log10(X) dB */
 		if (signal > noise) {
 			tmp = signal / noise;
-			*snr = 100ul * intlog10(tmp) / (1 << 24);
+			*snr = div_u64((u64) 100 * intlog10(tmp), (1 << 24));
 		} else {
 			*snr = 0;
 		}
