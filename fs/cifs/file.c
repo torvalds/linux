@@ -3049,7 +3049,9 @@ again:
 			} else {
 				rc = cifs_readdata_to_iov(rdata, to);
 			}
-
+			/* if there was a short read -- discard anything left */
+			if (rdata->got_bytes && rdata->got_bytes < rdata->bytes)
+				rc = -ENODATA;
 		}
 		list_del_init(&rdata->list);
 		kref_put(&rdata->refcount, cifs_uncached_readdata_release);
