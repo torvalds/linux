@@ -140,10 +140,6 @@ config 6xx
 	depends on PPC32 && PPC_BOOK3S
 	select PPC_HAVE_PMU_SUPPORT
 
-config POWER4
-	depends on PPC64 && PPC_BOOK3S
-	def_bool y
-
 config TUNE_CELL
 	bool "Optimize for Cell Broadband Engine"
 	depends on PPC64 && PPC_BOOK3S
@@ -240,7 +236,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on 6xx || POWER4 || (PPC_E500MC && PPC64)
+	depends on 6xx || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -256,7 +252,7 @@ config ALTIVEC
 
 config VSX
 	bool "VSX Support"
-	depends on POWER4 && ALTIVEC && PPC_FPU
+	depends on PPC_BOOK3S_64 && ALTIVEC && PPC_FPU
 	---help---
 
 	  This option enables kernel support for the Vector Scaler extensions
@@ -272,7 +268,7 @@ config VSX
 
 config PPC_ICSWX
 	bool "Support for PowerPC icswx coprocessor instruction"
-	depends on POWER4
+	depends on PPC_BOOK3S_64
 	default n
 	---help---
 
@@ -290,7 +286,7 @@ config PPC_ICSWX
 
 config PPC_ICSWX_PID
 	bool "icswx requires direct PID management"
-	depends on PPC_ICSWX && POWER4
+	depends on PPC_ICSWX
 	default y
 	---help---
 	  The PID register in server is used explicitly for ICSWX.  In
