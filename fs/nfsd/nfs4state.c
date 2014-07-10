@@ -4266,10 +4266,11 @@ static inline void nfs4_stateid_downgrade(struct nfs4_ol_stateid *stp, u32 to_ac
 }
 
 static void
-reset_union_bmap_deny(unsigned long deny, struct nfs4_ol_stateid *stp)
+reset_union_bmap_deny(u32 deny, struct nfs4_ol_stateid *stp)
 {
 	int i;
-	for (i = 0; i < 4; i++) {
+
+	for (i = 1; i < 4; i++) {
 		if ((i & deny) != i)
 			clear_deny(i, stp);
 	}
