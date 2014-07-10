@@ -2507,22 +2507,9 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
  * returns the new bytes_available.  This only affects printer
  * output.
  */
-static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
+static int dgap_maxcps_room(struct channel_t *ch, struct un_t *un,
+			    int bytes_available)
 {
-	struct channel_t *ch;
-	struct un_t *un;
-
-	if (!tty)
-		return bytes_available;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return bytes_available;
-
-	ch = un->un_ch;
-	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return bytes_available;
-
 	/*
 	 * If its not the Transparent print device, return
 	 * the full data amount.
@@ -2624,7 +2611,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 		ret += ch->ch_tsize;
 
 	/* Limit printer to maxcps */
-	ret = dgap_maxcps_room(tty, ret);
+	ret = dgap_maxcps_room(ch, un, ret);
 
 	/*
 	 * If we are printer device, leave space for
@@ -2729,7 +2716,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	 * Limit printer output to maxcps overall, with bursts allowed
 	 * up to bufsize characters.
 	 */
-	bufcount = dgap_maxcps_room(tty, bufcount);
+	bufcount = dgap_maxcps_room(ch, un, bufcount);
 
 	/*
 	 * Take minimum of what the user wants to send, and the
