@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/ccp.h>
+#include <linux/of.h>
 
 #include "ccp-dev.h"
 
@@ -111,6 +112,11 @@ static int ccp_platform_probe(struct platform_device *pdev)
 		dev->dma_mask = &dev->coherent_dma_mask;
 	*(dev->dma_mask) = DMA_BIT_MASK(48);
 	dev->coherent_dma_mask = DMA_BIT_MASK(48);
+
+	if (of_property_read_bool(dev->of_node, "dma-coherent"))
+		ccp->axcache = CACHE_WB_NO_ALLOC;
+	else
+		ccp->axcache = CACHE_NONE;
 
 	dev_set_drvdata(dev, ccp);
 

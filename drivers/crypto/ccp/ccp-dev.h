@@ -30,6 +30,7 @@
 
 #define TRNG_RETRIES			10
 
+#define CACHE_NONE			0x00
 #define CACHE_WB_NO_ALLOC		0xb7
 
 
@@ -255,6 +256,9 @@ struct ccp_device {
 	/* Suspend support */
 	unsigned int suspending;
 	wait_queue_head_t suspend_queue;
+
+	/* DMA caching attribute support */
+	unsigned int axcache;
 };
 
 

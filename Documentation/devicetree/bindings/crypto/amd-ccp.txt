@@ -7,6 +7,9 @@ Required properties:
   that services interrupts for this device
 - interrupts: Should contain the CCP interrupt
 
+Optional properties:
+- dma-coherent: Present if dma operations are coherent
+
 Example:
 	ccp@e0100000 {
 		compatible = "amd,ccp-seattle-v1a";

@@ -364,7 +364,7 @@ int ccp_init(struct ccp_device *ccp)
 
 #ifdef CONFIG_ARM64
 		/* For arm64 set the recommended queue cache settings */
-		iowrite32(CACHE_WB_NO_ALLOC, ccp->io_regs + CMD_Q_CACHE_BASE +
+		iowrite32(ccp->axcache, ccp->io_regs + CMD_Q_CACHE_BASE +
 			  (CMD_Q_CACHE_INC * i));
 #endif
 
