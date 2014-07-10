@@ -760,7 +760,7 @@ static u16 s_vGenerateTxParameter(struct vnt_usb_send_context *tx_context,
 							tx_head.tx_ab.ab;
 
 			pBuf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice,
-				PK_TYPE_11A, cbFrameSize,
+				byPktType, cbFrameSize,
 					wCurrentRate, bNeedACK);
 
 			return vnt_rxtx_datahead_a_fb(tx_context, byPktType,
@@ -783,7 +783,7 @@ static u16 s_vGenerateTxParameter(struct vnt_usb_send_context *tx_context,
 				byPktType, cbFrameSize, wCurrentRate);
 
 			pBuf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice,
-				PK_TYPE_11B, cbFrameSize, wCurrentRate,
+				byPktType, cbFrameSize, wCurrentRate,
 								bNeedACK);
 
 			/* Fill RTS */
@@ -795,7 +795,7 @@ static u16 s_vGenerateTxParameter(struct vnt_usb_send_context *tx_context,
 							tx_head.tx_ab.ab;
 
 			pBuf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice,
-				PK_TYPE_11B, cbFrameSize,
+				byPktType, cbFrameSize,
 					wCurrentRate, bNeedACK);
 
 			return vnt_rxtx_datahead_ab(tx_context, byPktType,
