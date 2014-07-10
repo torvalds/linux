@@ -607,6 +607,7 @@ static u32 i40e_get_tx_pending(struct i40e_ring *ring)
 static bool i40e_check_tx_hang(struct i40e_ring *tx_ring)
 {
 	u32 tx_pending = i40e_get_tx_pending(tx_ring);
+	struct i40e_pf *pf = tx_ring->vsi->back;
 	bool ret = false;
 
 	clear_check_for_tx_hang(tx_ring);
@@ -623,10 +624,17 @@ static bool i40e_check_tx_hang(struct i40e_ring *tx_ring)
 	 * pending but without time to complete it yet.
 	 */
 	if ((tx_ring->tx_stats.tx_done_old == tx_ring->stats.packets) &&
-	    tx_pending) {
+	    (tx_pending >= I40E_MIN_DESC_PENDING)) {
 		/* make sure it is true for two checks in a row */
 		ret = test_and_set_bit(__I40E_HANG_CHECK_ARMED,
 				       &tx_ring->state);
+	} else if ((tx_ring->tx_stats.tx_done_old == tx_ring->stats.packets) &&
+		   (tx_pending < I40E_MIN_DESC_PENDING) &&
+		   (tx_pending > 0)) {
+		if (I40E_DEBUG_FLOW & pf->hw.debug_mask)
+			dev_info(tx_ring->dev, "HW needs some more descs to do a cacheline flush. tx_pending %d, queue %d",
+				 tx_pending, tx_ring->queue_index);
+		pf->tx_sluggish_count++;
 	} else {
 		/* update completed stats and disarm the hang check */
 		tx_ring->tx_stats.tx_done_old = tx_ring->stats.packets;
