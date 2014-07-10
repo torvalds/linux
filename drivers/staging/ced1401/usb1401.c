@@ -344,33 +344,33 @@ static void ced_writechar_callback(struct urb *urb)
 ****************************************************************************/
 int ced_send_chars(struct ced_data *ced)
 {
-	int iReturn = U14ERR_NOERROR;
+	int retval = U14ERR_NOERROR;
 
 	spin_lock_irq(&ced->char_out_lock);	/*  Protect ourselves */
 
 	if ((!ced->send_chars_pending) &&	/*  Not currently sending */
 	    (ced->num_output > 0) &&	/*   has characters to output */
 	    (can_accept_io_requests(ced)))	{ /*   and current activity is OK */
-		unsigned int dwCount = ced->num_output;	/* Get a copy of the */
+		unsigned int count = ced->num_output;	/* Get a copy of the */
 							/* character count   */
 		ced->send_chars_pending = true;	/*  Set flag to lock out other threads */
 
 		dev_dbg(&ced->interface->dev,
 			"Send %d chars to 1401, EP0 flag %d\n",
-			dwCount, ced->n_pipes == 3);
+			count, ced->n_pipes == 3);
 		/*  If we have only 3 end points we must send the characters to the 1401 using EP0. */
 		if (ced->n_pipes == 3) {
 			/*  For EP0 character transmissions to the 1401, we have to hang about until they */
 			/*  are gone, as otherwise without more character IO activity they will never go. */
-			unsigned int count = dwCount;	/*  Local char counter */
+			unsigned int i = count;	/*  Local char counter */
 			unsigned int index = 0;	/*  The index into the char buffer */
 
 			spin_unlock_irq(&ced->char_out_lock);	/*  Free spinlock as we call USBD */
 
-			while ((count > 0) && (iReturn == U14ERR_NOERROR)) {
+			while ((i > 0) && (retval == U14ERR_NOERROR)) {
 				/*  We have to break the transfer up into 64-byte chunks because of a 2270 problem */
-				int n = count > 64 ? 64 : count;	/*  Chars for this xfer, max of 64 */
-				int nSent = usb_control_msg(ced->udev,
+				int n = i > 64 ? 64 : i;	/*  Chars for this xfer, max of 64 */
+				int sent = usb_control_msg(ced->udev,
 							    usb_sndctrlpipe(ced->udev, 0),	/*  use end point 0 */
 							    DB_CHARS,	/*  bRequest */
 							    (H_TO_D | VENDOR | DEVREQ),	/*  to the device, vendor request to the device */
@@ -378,16 +378,16 @@ int ced_send_chars(struct ced_data *ced)
 							    &ced->output_buffer[index],	/*  where to send from */
 							    n,	/*  how much to send */
 							    1000);	/*  timeout in jiffies */
-				if (nSent <= 0) {
-					iReturn = nSent ? nSent : -ETIMEDOUT;	/*  if 0 chars says we timed out */
+				if (sent <= 0) {
+					retval = sent ? sent : -ETIMEDOUT;	/*  if 0 chars says we timed out */
 					dev_err(&ced->interface->dev,
 						"Send %d chars by EP0 failed: %d\n",
-						n, iReturn);
+						n, retval);
 				} else {
 					dev_dbg(&ced->interface->dev,
 						"Sent %d chars by EP0\n", n);
-					count -= nSent;
-					index += nSent;
+					i -= sent;
+					index += sent;
 				}
 			}
 
@@ -397,28 +397,28 @@ int ced_send_chars(struct ced_data *ced)
 			ced->num_output = 0;	/*  and clear the buffer count */
 			ced->send_chars_pending = false;	/*  Allow other threads again */
 		} else {	/*  Here for sending chars normally - we hold the spin lock */
-			int nPipe = 0;	/*  The pipe number to use */
+			int pipe = 0;	/*  The pipe number to use */
 			char *pDat = &ced->output_buffer[ced->out_buff_get];
 
-			if ((ced->out_buff_get + dwCount) > OUTBUF_SZ)	/*  does it cross buffer end? */
-				dwCount = OUTBUF_SZ - ced->out_buff_get;
+			if ((ced->out_buff_get + count) > OUTBUF_SZ)	/*  does it cross buffer end? */
+				count = OUTBUF_SZ - ced->out_buff_get;
 			spin_unlock_irq(&ced->char_out_lock);	/*  we are done with stuff that changes */
-			memcpy(ced->coher_char_out, pDat, dwCount);	/*  copy output data to the buffer */
+			memcpy(ced->coher_char_out, pDat, count);	/*  copy output data to the buffer */
 			usb_fill_bulk_urb(ced->urb_char_out, ced->udev,
 					  usb_sndbulkpipe(ced->udev,
 							  ced->ep_addr[0]),
-					  ced->coher_char_out, dwCount,
+					  ced->coher_char_out, count,
 					  ced_writechar_callback, ced);
 			ced->urb_char_out->transfer_flags |=
 			    URB_NO_TRANSFER_DMA_MAP;
 			usb_anchor_urb(ced->urb_char_out, &ced->submitted);
-			iReturn = usb_submit_urb(ced->urb_char_out, GFP_KERNEL);
+			retval = usb_submit_urb(ced->urb_char_out, GFP_KERNEL);
 
 			 /* grab lock for errors */
 			spin_lock_irq(&ced->char_out_lock);
 
-			if (iReturn) {
-				ced->pipe_error[nPipe] = 1;	/*  Flag an error to be handled later */
+			if (retval) {
+				ced->pipe_error[pipe] = 1;	/*  Flag an error to be handled later */
 				ced->send_chars_pending = false;	/*  Allow other threads again */
 				usb_unanchor_urb(ced->urb_char_out);	/*  remove from list of active urbs */
 			}
@@ -427,9 +427,9 @@ int ced_send_chars(struct ced_data *ced)
 		dev_dbg(&ced->interface->dev,
 			"%s: send_chars_pending:true\n", __func__);
 
-	dev_dbg(&ced->interface->dev, "%s: exit code: %d\n", __func__, iReturn);
+	dev_dbg(&ced->interface->dev, "%s: exit code: %d\n", __func__, retval);
 	spin_unlock_irq(&ced->char_out_lock); /* Now let go of the spinlock */
-	return iReturn;
+	return retval;
 }
 
 /***************************************************************************
