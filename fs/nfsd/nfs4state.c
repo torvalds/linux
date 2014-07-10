@@ -377,6 +377,8 @@ static struct hlist_head file_hashtbl[FILE_HASH_SIZE];
 static void
 __nfs4_file_get_access(struct nfs4_file *fp, u32 access)
 {
+	lockdep_assert_held(&fp->fi_lock);
+
 	if (access & NFS4_SHARE_ACCESS_WRITE)
 		atomic_inc(&fp->fi_access[O_WRONLY]);
 	if (access & NFS4_SHARE_ACCESS_READ)
@@ -386,6 +388,8 @@ __nfs4_file_get_access(struct nfs4_file *fp, u32 access)
 static __be32
 nfs4_file_get_access(struct nfs4_file *fp, u32 access)
 {
+	lockdep_assert_held(&fp->fi_lock);
+
 	/* Does this access mode make sense? */
 	if (access & ~NFS4_SHARE_ACCESS_BOTH)
 		return nfserr_inval;
@@ -4572,6 +4576,8 @@ static void get_lock_access(struct nfs4_ol_stateid *lock_stp, u32 access)
 {
 	struct nfs4_file *fp = lock_stp->st_file;
 
+	lockdep_assert_held(&fp->fi_lock);
+
 	if (test_access(access, lock_stp))
 		return;
 	__nfs4_file_get_access(fp, access);
@@ -4623,6 +4629,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfs4_openowner *open_sop = NULL;
 	struct nfs4_lockowner *lock_sop = NULL;
 	struct nfs4_ol_stateid *lock_stp;
+	struct nfs4_file *fp;
 	struct file *filp = NULL;
 	struct file_lock *file_lock = NULL;
 	struct file_lock *conflock = NULL;
@@ -4703,20 +4710,25 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 	}
 
+	fp = lock_stp->st_file;
 	locks_init_lock(file_lock);
 	switch (lock->lk_type) {
 		case NFS4_READ_LT:
 		case NFS4_READW_LT:
-			filp = find_readable_file(lock_stp->st_file);
+			spin_lock(&fp->fi_lock);
+			filp = find_readable_file_locked(fp);
 			if (filp)
 				get_lock_access(lock_stp, NFS4_SHARE_ACCESS_READ);
+			spin_unlock(&fp->fi_lock);
 			file_lock->fl_type = F_RDLCK;
 			break;
 		case NFS4_WRITE_LT:
 		case NFS4_WRITEW_LT:
-			filp = find_writeable_file(lock_stp->st_file);
+			spin_lock(&fp->fi_lock);
+			filp = find_writeable_file_locked(fp);
 			if (filp)
 				get_lock_access(lock_stp, NFS4_SHARE_ACCESS_WRITE);
+			spin_unlock(&fp->fi_lock);
 			file_lock->fl_type = F_WRLCK;
 			break;
 		default:
