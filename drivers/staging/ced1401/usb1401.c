@@ -959,15 +959,16 @@ static bool ced_read_char(unsigned char *character, char *buf,
 **
 ** ced_read_word
 **
-** Reads a word from the 1401, just uses ced_read_char twice; passes on any error
+** Reads a word from the 1401, just uses ced_read_char twice;
+** passes on any error
 **
 *****************************************************************************/
-static bool ced_read_word(unsigned short *pWord, char *pBuf, unsigned int *pdDone,
-		     unsigned int dGot)
+static bool ced_read_word(unsigned short *word, char *buf, unsigned int *n_done,
+		     unsigned int got)
 {
-	if (ced_read_char((unsigned char *)pWord, pBuf, pdDone, dGot))
-		return ced_read_char(((unsigned char *)pWord) + 1, pBuf, pdDone,
-				dGot);
+	if (ced_read_char((unsigned char *)word, buf, n_done, got))
+		return ced_read_char(((unsigned char *)word) + 1, buf, n_done,
+				got);
 	else
 		return false;
 }
