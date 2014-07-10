@@ -166,7 +166,7 @@
 	#define m_WIN1_PREMUL_SCALE	(1<<3)
 	#define m_WIN0_ALPHA_VAL	(0xff<<4)
 	#define m_WIN1_ALPHA_VAL	(0xff<<12)
-	#define m_HWC_ALPAH_VAL		(0x0f<<20)
+	#define m_HWC_ALPAH_VAL		(0xff<<20)
 	
 	#define v_WIN0_ALPHA_EN(x)	(((x)&1)<<0)
 	#define v_WIN1_ALPHA_EN(x)	(((x)&1)<<1)
@@ -174,7 +174,7 @@
 	#define v_WIN1_PREMUL_SCALE(x)	(((x)&1)<<3)
 	#define v_WIN0_ALPHA_VAL(x)	(((x)&0xff)<<4)
 	#define v_WIN1_ALPHA_VAL(x)	(((x)&0xff)<<12)
-	#define v_HWC_ALPAH_VAL(x)	(((x)&0x0f)<<20)
+	#define v_HWC_ALPAH_VAL(x)	(((x)&0xff)<<20)
 
 #define WIN0_COLOR_KEY		(0x18)
 #define WIN1_COLOR_KEY		(0x1C)
@@ -257,35 +257,39 @@
 #define DSP_VACT_ST_END_F1	(0x80)
 
 /*BCSH Registers*/
-#define BCSH_COLOR_BAR 			(0xD0)
-	#define v_BCSH_EN(x)			(((x)&1)<<0)
-	#define v_BCSH_COLOR_BAR_Y(x)		(((x)&0x3ff)<<2)
-	#define v_BCSH_COLOR_BAR_U(x)		(((x)&0x3ff)<<12)
-	#define v_BCSH_COLOR_BAR_V(x)		(((x)&0x3ff)<<22)
-
-	#define m_BCSH_EN			(1<<0)
-	#define m_BCSH_COLOR_BAR_Y		(0x3ff<<2)
-	#define m_BCSH_COLOR_BAR_U		(0x3ff<<12)
-	#define m_BCSH_COLOR_BAR_V		((u32)0x3ff<<22)
-
-#define BCSH_BCS 			(0xD4)
-	#define v_BCSH_BRIGHTNESS(x)		(((x)&0xff)<<0)	
-	#define v_BCSH_CONTRAST(x)		(((x)&0x1ff)<<8)	
-	#define v_BCSH_SAT_CON(x)		(((x)&0x3ff)<<20)	
-	#define v_BCSH_OUT_MODE(x)		(((x)&0x3)<<30)	
+#define BCSH_CTRL			(0xD0)
+	#define m_BCSH_EN		(1 << 0)
+	#define m_BCSH_OUT_MODE		(3 << 2)
+	#define m_BCSH_CSC_MODE		(3 << 4)
 	
-	#define m_BCSH_BRIGHTNESS		(0xff<<0)	
-	#define m_BCSH_CONTRAST			(0x1ff<<8)
-	#define m_BCSH_SAT_CON			(0x3ff<<20)	
-	#define m_BCSH_OUT_MODE			((u32)0x3<<30)	
+	#define v_BCSH_EN(x)		( (1 & x) << 0)
+	#define v_BCSH_OUT_MODE(x)	( (3 & x) << 2)
+	#define v_BCSH_CSC_MODE(x)	( (3 & x) << 4)
 
+#define BCSH_COLOR_BAR 			(0xD4)
+	#define v_BCSH_COLOR_BAR_Y(x)		(((x)&0xf) << 0)
+	#define v_BCSH_COLOR_BAR_U(x)		(((x)&0xf) << 8)
+	#define v_BCSH_COLOR_BAR_V(x)		(((x)&0xf) << 16)
 
-#define BCSH_H 				(0xD8)
-	#define v_BCSH_SIN_HUE(x)		(((x)&0x1ff)<<0)
-	#define v_BCSH_COS_HUE(x)		(((x)&0x1ff)<<16)
+	#define m_BCSH_COLOR_BAR_Y		(0xf << 0)
+	#define m_BCSH_COLOR_BAR_U		(0xf << 8)
+	#define m_BCSH_COLOR_BAR_V		(0xf << 16)
+
+#define BCSH_BCS 			(0xD8)
+	#define v_BCSH_BRIGHTNESS(x)		(((x)&0x1f) << 0)	
+	#define v_BCSH_CONTRAST(x)		(((x)&0xf) << 8)	
+	#define v_BCSH_SAT_CON(x)		(((x)&0xf) << 16)	
 	
-	#define m_BCSH_SIN_HUE			(0x1ff<<0)
-	#define m_BCSH_COS_HUE			(0x1ff<<16)
+	#define m_BCSH_BRIGHTNESS		(0x1f << 0)	
+	#define m_BCSH_CONTRAST			(0xf << 8)
+	#define m_BCSH_SAT_CON			(0xf << 16)		
+
+#define BCSH_H 				(0xDC)
+	#define v_BCSH_SIN_HUE(x)		(((x)&0xf) << 0)
+	#define v_BCSH_COS_HUE(x)		(((x)&0xf) << 16)
+	
+	#define m_BCSH_SIN_HUE			(0xf << 0)
+	#define m_BCSH_COS_HUE			(0xf << 16)
 
 /* Bus Register */
 #define AXI_BUS_CTRL		(0x2C)

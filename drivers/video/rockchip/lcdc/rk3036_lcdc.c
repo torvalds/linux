@@ -1033,13 +1033,13 @@ static int rk3036_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
 		if (open) {
-			lcdc_writel(lcdc_dev,BCSH_COLOR_BAR,0x1);
+			lcdc_writel(lcdc_dev,BCSH_CTRL,0x1);
 			lcdc_writel(lcdc_dev,BCSH_BCS,0xd0010000);
 			lcdc_writel(lcdc_dev,BCSH_H,0x01000000);
 		} else {
 			mask = m_BCSH_EN;
 			val = v_BCSH_EN(0);
-			lcdc_msk_reg(lcdc_dev, BCSH_COLOR_BAR, mask, val);
+			lcdc_msk_reg(lcdc_dev, BCSH_CTRL, mask, val);
 		}
 		lcdc_cfg_done(lcdc_dev);
 	}

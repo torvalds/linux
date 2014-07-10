@@ -518,7 +518,7 @@
 		status = "disabled";
 		clocks = <&clk_gates9 6>, <&dclk_lcdc1>, <&clk_gates9 5>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
-		rockchip,iommu-enabled = <1>;
+		rockchip,iommu-enabled = <0>;
 	};
 	
 	hdmi: hdmi@20034000 {
