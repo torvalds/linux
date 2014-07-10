@@ -1079,25 +1079,6 @@ void Hal_ReadThermalMeter_88E(struct adapter *Adapter, u8 *PROMContent, bool Aut
 	DBG_88E("ThermalMeter = 0x%x\n", pHalData->EEPROMThermalMeter);
 }
 
-bool HalDetectPwrDownMode88E(struct adapter *Adapter)
-{
-	u8 tmpvalue = 0;
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
-	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
-
-	EFUSE_ShadowRead(Adapter, 1, EEPROM_RF_FEATURE_OPTION_88E, (u32 *)&tmpvalue);
-
-	/*  2010/08/25 MH INF priority > PDN Efuse value. */
-	if (tmpvalue & BIT(4) && pwrctrlpriv->reg_pdnmode)
-		pHalData->pwrdown = true;
-	else
-		pHalData->pwrdown = false;
-
-	DBG_88E("HalDetectPwrDownMode(): PDN =%d\n", pHalData->pwrdown);
-
-	return pHalData->pwrdown;
-}	/*  HalDetectPwrDownMode */
-
 /*  This function is used only for 92C to set REG_BCN_CTRL(0x550) register. */
 /*  We just reserve the value of the register in variable pHalData->RegBcnCtrlVal and then operate */
 /*  the value of the register via atomic operation. */
