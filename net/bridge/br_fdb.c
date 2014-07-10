@@ -692,9 +692,18 @@ int br_fdb_dump(struct sk_buff *skb,
 			if (idx < cb->args[0])
 				goto skip;
 
-			if (filter_dev && (!f->dst || !f->dst->dev ||
-					   f->dst->dev != filter_dev))
-				goto skip;
+			if (filter_dev &&
+			    (!f->dst || f->dst->dev != filter_dev)) {
+				if (filter_dev != dev)
+					goto skip;
+				/* !f->dst is a speacial case for bridge
+				 * It means the MAC belongs to the bridge
+				 * Therefore need a little more filtering
+				 * we only want to dump the !f->dst case
+				 */
+				if (f->dst)
+					goto skip;
+			}
 
 			if (fdb_fill_info(skb, br, f,
 					  NETLINK_CB(cb->skb).portid,
