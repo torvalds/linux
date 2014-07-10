@@ -394,7 +394,30 @@ nfs4_file_get_access(struct nfs4_file *fp, u32 access)
 	if (access & ~NFS4_SHARE_ACCESS_BOTH)
 		return nfserr_inval;
 
+	/* Does it conflict with a deny mode already set? */
+	if ((access & fp->fi_share_deny) != 0)
+		return nfserr_share_denied;
+
 	__nfs4_file_get_access(fp, access);
+	return nfs_ok;
+}
+
+static __be32 nfs4_file_check_deny(struct nfs4_file *fp, u32 deny)
+{
+	/* Common case is that there is no deny mode. */
+	if (deny) {
+		/* Does this deny mode make sense? */
+		if (deny & ~NFS4_SHARE_DENY_BOTH)
+			return nfserr_inval;
+
+		if ((deny & NFS4_SHARE_DENY_READ) &&
+		    atomic_read(&fp->fi_access[O_RDONLY]))
+			return nfserr_share_denied;
+
+		if ((deny & NFS4_SHARE_DENY_WRITE) &&
+		    atomic_read(&fp->fi_access[O_WRONLY]))
+			return nfserr_share_denied;
+	}
 	return nfs_ok;
 }
 
@@ -710,17 +733,6 @@ bmap_to_share_mode(unsigned long bmap) {
 	return access;
 }
 
-static bool
-test_share(struct nfs4_ol_stateid *stp, struct nfsd4_open *open) {
-	unsigned int access, deny;
-
-	access = bmap_to_share_mode(stp->st_access_bmap);
-	deny = bmap_to_share_mode(stp->st_deny_bmap);
-	if ((access & open->op_share_deny) || (deny & open->op_share_access))
-		return false;
-	return true;
-}
-
 /* set share access for a given stateid */
 static inline void
 set_access(u32 access, struct nfs4_ol_stateid *stp)
@@ -793,11 +805,49 @@ static int nfs4_access_to_omode(u32 access)
 	return O_RDONLY;
 }
 
+/*
+ * A stateid that had a deny mode associated with it is being released
+ * or downgraded. Recalculate the deny mode on the file.
+ */
+static void
+recalculate_deny_mode(struct nfs4_file *fp)
+{
+	struct nfs4_ol_stateid *stp;
+
+	spin_lock(&fp->fi_lock);
+	fp->fi_share_deny = 0;
+	list_for_each_entry(stp, &fp->fi_stateids, st_perfile)
+		fp->fi_share_deny |= bmap_to_share_mode(stp->st_deny_bmap);
+	spin_unlock(&fp->fi_lock);
+}
+
+static void
+reset_union_bmap_deny(u32 deny, struct nfs4_ol_stateid *stp)
+{
+	int i;
+	bool change = false;
+
+	for (i = 1; i < 4; i++) {
+		if ((i & deny) != i) {
+			change = true;
+			clear_deny(i, stp);
+		}
+	}
+
+	/* Recalculate per-file deny mode if there was a change */
+	if (change)
+		recalculate_deny_mode(stp->st_file);
+}
+
 /* release all access and file references for a given stateid */
 static void
 release_all_access(struct nfs4_ol_stateid *stp)
 {
 	int i;
+	struct nfs4_file *fp = stp->st_file;
+
+	if (fp && stp->st_deny_bmap != 0)
+		recalculate_deny_mode(fp);
 
 	for (i = 1; i < 4; i++) {
 		if (test_access(i, stp))
@@ -2787,6 +2837,7 @@ static void nfsd4_init_file(struct nfs4_file *fp, struct inode *ino)
 	fp->fi_inode = ino;
 	fp->fi_had_conflict = false;
 	fp->fi_lease = NULL;
+	fp->fi_share_deny = 0;
 	memset(fp->fi_fds, 0, sizeof(fp->fi_fds));
 	memset(fp->fi_access, 0, sizeof(fp->fi_access));
 	hlist_add_head(&fp->fi_hash, &file_hashtbl[hashval]);
@@ -3014,22 +3065,15 @@ nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 {
 	struct inode *ino = current_fh->fh_dentry->d_inode;
 	struct nfs4_file *fp;
-	struct nfs4_ol_stateid *stp;
-	__be32 ret;
+	__be32 ret = nfs_ok;
 
 	fp = find_file(ino);
 	if (!fp)
-		return nfs_ok;
-	ret = nfserr_locked;
-	/* Search for conflicting share reservations */
+		return ret;
+	/* Check for conflicting share reservations */
 	spin_lock(&fp->fi_lock);
-	list_for_each_entry(stp, &fp->fi_stateids, st_perfile) {
-		if (test_deny(deny_type, stp) ||
-		    test_deny(NFS4_SHARE_DENY_BOTH, stp))
-			goto out;
-	}
-	ret = nfs_ok;
-out:
+	if (fp->fi_share_deny & deny_type)
+		ret = nfserr_locked;
 	spin_unlock(&fp->fi_lock);
 	put_nfs4_file(fp);
 	return ret;
@@ -3265,12 +3309,9 @@ nfs4_check_open(struct nfs4_file *fp, struct nfsd4_open *open, struct nfs4_ol_st
 		if (local->st_stateowner->so_is_open_owner == 0)
 			continue;
 		/* remember if we have seen this open owner */
-		if (local->st_stateowner == &oo->oo_owner)
+		if (local->st_stateowner == &oo->oo_owner) {
 			*stpp = local;
-		/* check for conflicting share reservations */
-		if (!test_share(local, open)) {
-			spin_unlock(&fp->fi_lock);
-			return nfserr_share_denied;
+			break;
 		}
 	}
 	spin_unlock(&fp->fi_lock);
@@ -3311,56 +3352,91 @@ static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
 	__be32 status;
 	int oflag = nfs4_access_to_omode(open->op_share_access);
 	int access = nfs4_access_to_access(open->op_share_access);
+	unsigned char old_access_bmap, old_deny_bmap;
 
 	spin_lock(&fp->fi_lock);
+
+	/*
+	 * Are we trying to set a deny mode that would conflict with
+	 * current access?
+	 */
+	status = nfs4_file_check_deny(fp, open->op_share_deny);
+	if (status != nfs_ok) {
+		spin_unlock(&fp->fi_lock);
+		goto out;
+	}
+
+	/* set access to the file */
+	status = nfs4_file_get_access(fp, open->op_share_access);
+	if (status != nfs_ok) {
+		spin_unlock(&fp->fi_lock);
+		goto out;
+	}
+
+	/* Set access bits in stateid */
+	old_access_bmap = stp->st_access_bmap;
+	set_access(open->op_share_access, stp);
+
+	/* Set new deny mask */
+	old_deny_bmap = stp->st_deny_bmap;
+	set_deny(open->op_share_deny, stp);
+	fp->fi_share_deny |= (open->op_share_deny & NFS4_SHARE_DENY_BOTH);
+
 	if (!fp->fi_fds[oflag]) {
 		spin_unlock(&fp->fi_lock);
 		status = nfsd_open(rqstp, cur_fh, S_IFREG, access, &filp);
 		if (status)
-			goto out;
+			goto out_put_access;
 		spin_lock(&fp->fi_lock);
 		if (!fp->fi_fds[oflag]) {
 			fp->fi_fds[oflag] = filp;
 			filp = NULL;
 		}
 	}
-	status = nfs4_file_get_access(fp, open->op_share_access);
 	spin_unlock(&fp->fi_lock);
 	if (filp)
 		fput(filp);
-	if (status)
-		goto out_put_access;
 
 	status = nfsd4_truncate(rqstp, cur_fh, open);
 	if (status)
 		goto out_put_access;
-
-	/* Set access and deny bits in stateid */
-	set_access(open->op_share_access, stp);
-	set_deny(open->op_share_deny, stp);
-	return nfs_ok;
-
-out_put_access:
-	nfs4_file_put_access(fp, open->op_share_access);
 out:
 	return status;
+out_put_access:
+	stp->st_access_bmap = old_access_bmap;
+	nfs4_file_put_access(fp, open->op_share_access);
+	reset_union_bmap_deny(bmap_to_share_mode(old_deny_bmap), stp);
+	goto out;
 }
 
 static __be32
 nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *cur_fh, struct nfs4_ol_stateid *stp, struct nfsd4_open *open)
 {
 	__be32 status;
+	unsigned char old_deny_bmap;
 
 	if (!test_access(open->op_share_access, stp))
-		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, stp, open);
-	else
-		status = nfsd4_truncate(rqstp, cur_fh, open);
+		return nfs4_get_vfs_file(rqstp, fp, cur_fh, stp, open);
 
-	if (status)
+	/* test and set deny mode */
+	spin_lock(&fp->fi_lock);
+	status = nfs4_file_check_deny(fp, open->op_share_deny);
+	if (status == nfs_ok) {
+		old_deny_bmap = stp->st_deny_bmap;
+		set_deny(open->op_share_deny, stp);
+		fp->fi_share_deny |=
+				(open->op_share_deny & NFS4_SHARE_DENY_BOTH);
+	}
+	spin_unlock(&fp->fi_lock);
+
+	if (status != nfs_ok)
 		return status;
-	return nfs_ok;
-}
 
+	status = nfsd4_truncate(rqstp, cur_fh, open);
+	if (status != nfs_ok)
+		reset_union_bmap_deny(old_deny_bmap, stp);
+	return status;
+}
 
 static void
 nfs4_set_claim_prev(struct nfsd4_open *open, bool has_session)
@@ -3582,7 +3658,8 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	 */
 	fp = find_or_add_file(ino, open->op_file);
 	if (fp != open->op_file) {
-		if ((status = nfs4_check_open(fp, open, &stp)))
+		status = nfs4_check_open(fp, open, &stp);
+		if (status)
 			goto out;
 		status = nfs4_check_deleg(cl, open, &dp);
 		if (status)
@@ -4266,17 +4343,6 @@ static inline void nfs4_stateid_downgrade(struct nfs4_ol_stateid *stp, u32 to_ac
 		break;
 	default:
 		WARN_ON_ONCE(1);
-	}
-}
-
-static void
-reset_union_bmap_deny(u32 deny, struct nfs4_ol_stateid *stp)
-{
-	int i;
-
-	for (i = 1; i < 4; i++) {
-		if ((i & deny) != i)
-			clear_deny(i, stp);
 	}
 }
 
