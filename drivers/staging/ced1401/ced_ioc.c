@@ -103,18 +103,19 @@ static int ced_put_chars(struct ced_data *ced, const char *ch,
 }
 
 /*****************************************************************************
-** Add the data in pData (local pointer) of length n to the output buffer, and
+** Add the data in "data" local pointer of length n to the output buffer, and
 ** trigger an output transfer if this is appropriate. User mode.
 ** Holds the io_mutex
 *****************************************************************************/
-int ced_send_string(struct ced_data *ced, const char __user *pData,
+int ced_send_string(struct ced_data *ced, const char __user *data,
 	       unsigned int n)
 {
-	int iReturn = U14ERR_NOERROR;	/*  assume all will be well */
-	char buffer[OUTBUF_SZ + 1];	/*  space in our address space for characters */
+	int ret = U14ERR_NOERROR;	/* assume all will be well */
+	char buffer[OUTBUF_SZ + 1];	/* space in our address space */
+					/* for characters             */
 	if (n > OUTBUF_SZ)	/*  check space in local buffer... */
 		return U14ERR_NOOUT;	/*  ...too many characters */
-	if (copy_from_user(buffer, pData, n))
+	if (copy_from_user(buffer, data, n))
 		return -EFAULT;
 	buffer[n] = 0;		/*  terminate for debug purposes */
 
@@ -122,13 +123,13 @@ int ced_send_string(struct ced_data *ced, const char __user *pData,
 	if (n > 0) {		/*  do nothing if nowt to do! */
 		dev_dbg(&ced->interface->dev, "%s: n=%d>%s<\n",
 			__func__, n, buffer);
-		iReturn = ced_put_chars(ced, buffer, n);
+		ret = ced_put_chars(ced, buffer, n);
 	}
 
 	ced_allowi(ced);		/*  make sure we have input int */
 	mutex_unlock(&ced->io_mutex);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
