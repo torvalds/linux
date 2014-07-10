@@ -139,6 +139,25 @@ static void __init aic_common_ext_irq_of_init(struct irq_domain *domain)
 	}
 }
 
+void __init aic_common_irq_fixup(const struct of_device_id *matches)
+{
+	struct device_node *root = of_find_node_by_path("/");
+	const struct of_device_id *match;
+
+	if (!root)
+		return;
+
+	match = of_match_node(matches, root);
+	of_node_put(root);
+
+	if (match) {
+		void (*fixup)(struct device_node *) = match->data;
+		fixup(root);
+	}
+
+	of_node_put(root);
+}
+
 struct irq_domain *__init aic_common_of_init(struct device_node *node,
 					     const struct irq_domain_ops *ops,
 					     const char *name, int nirqs)
