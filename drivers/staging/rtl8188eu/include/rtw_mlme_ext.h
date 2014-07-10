@@ -722,7 +722,6 @@ static struct cmd_hdl wlancmds[] = {
 	GEN_MLME_EXT_HANDLER(sizeof(struct wlan_bssid_ex), tx_beacon_hdl)
 	GEN_MLME_EXT_HANDLER(0, mlme_evt_hdl)
 	GEN_MLME_EXT_HANDLER(0, rtw_drvextra_cmd_hdl)
-	GEN_MLME_EXT_HANDLER(0, h2c_msg_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof(struct SetChannelPlan_param), set_chplan_hdl)
 };
 

@@ -5493,14 +5493,6 @@ _abort_event_:
 	return H2C_SUCCESS;
 }
 
-u8 h2c_msg_hdl(struct adapter *padapter, unsigned char *pbuf)
-{
-	if (!pbuf)
-		return H2C_PARAMETERS_ERROR;
-
-	return H2C_SUCCESS;
-}
-
 u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf)
 {
 	if (send_beacon(padapter) == _FAIL) {
