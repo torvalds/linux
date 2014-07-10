@@ -105,7 +105,7 @@ static struct usb20host_pdata_id usb20host_pdata[] = {
 	 .pdata = &usb20host_pdata_rk3288,
 	 },
 	{
-	 .name = "rk3288-usb20host",
+	 .name = "rk3036-usb20host",
 	 .pdata = &usb20host_pdata_rk3036,
 	 },
 	{},

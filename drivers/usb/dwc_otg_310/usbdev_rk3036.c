@@ -31,71 +31,45 @@ static void usb20otg_phy_suspend(void *pdata, int suspend)
 	}
 }
 
-static void usb20otg_soft_reset(void)
+static void usb20otg_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
-	writel(UOC_HIWORD_UPDATE(0x1, 0x3, 0),
-	       RK_GRF_VIRT + RK3036_GRF_UOC0_CON5);
-	writel(UOC_HIWORD_UPDATE(0x1, 0x3, 0),
-	       RK_GRF_VIRT + RK3036_GRF_UOC1_CON5);
-	/* cru_set_soft_reset(SOFT_RST_USBPOR, true); */
-	writel(UOC_HIWORD_UPDATE(0x1, 0x1, 9),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST6_CON);
-	/* cru_set_soft_reset(SOFT_RST_UTMI0, true); */
-	writel(UOC_HIWORD_UPDATE(0x1, 0x1, 7),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST6_CON);
-	/* cru_set_soft_reset(SOFT_RST_UTMI1, true); */
-	writel(UOC_HIWORD_UPDATE(0x1, 0x1, 8),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST6_CON);
+	struct dwc_otg_platform_data *usbpdata = pdata;
+	struct reset_control *rst_otg_h, *rst_otg_p, *rst_otg_c;
 
-	udelay(15);
+	rst_otg_h = devm_reset_control_get(usbpdata->dev, "otg_ahb");
+	rst_otg_p = devm_reset_control_get(usbpdata->dev, "otg_phy");
+	rst_otg_c = devm_reset_control_get(usbpdata->dev, "otg_controller");
+	if (IS_ERR(rst_otg_h) || IS_ERR(rst_otg_p) || IS_ERR(rst_otg_c)) {
+		dev_err(usbpdata->dev, "Fail to get reset control from dts\n");
+		return;
+	}
 
-	writel(UOC_HIWORD_UPDATE(0x2, 0x3, 0),
-	       RK_GRF_VIRT + RK3036_GRF_UOC0_CON5);
-	writel(UOC_HIWORD_UPDATE(0x2, 0x3, 0),
-	       RK_GRF_VIRT + RK3036_GRF_UOC1_CON5);
+	switch(rst_type) {
+	case RST_POR:
+		/* PHY reset */
+		writel(UOC_HIWORD_UPDATE(0x1, 0x3, 0),
+			   RK_GRF_VIRT + RK3036_GRF_UOC0_CON5);
+		reset_control_assert(rst_otg_p);
+		udelay(15);
+		writel(UOC_HIWORD_UPDATE(0x2, 0x3, 0),
+			   RK_GRF_VIRT + RK3036_GRF_UOC0_CON5);
+		udelay(1500);
+		reset_control_deassert(rst_otg_p);
+		udelay(2);
 
-	udelay(1500);
-	/* cru_set_soft_reset(SOFT_RST_USBPOR, false); */
-	writel(UOC_HIWORD_UPDATE(0x0, 0x1, 9),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST6_CON);
-	udelay(2);
-	/* cru_set_soft_reset(SOFT_RST_UTMI0, false); */
-	writel(UOC_HIWORD_UPDATE(0x0, 0x1, 7),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST6_CON);
-	/* cru_set_soft_reset(SOFT_RST_UTMI1, false); */
-	writel(UOC_HIWORD_UPDATE(0x0, 0x1, 8),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST6_CON);
+		/* Controller reset */
+		reset_control_assert(rst_otg_c);
+		reset_control_assert(rst_otg_h);
 
-	/* ctrler reset */
-	/* cru_set_soft_reset(SOFT_RST_OTGC0, true); */
-	writel(UOC_HIWORD_UPDATE(0x1, 0x1, 7),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST4_CON);
-	/* cru_set_soft_reset(SOFT_RST_OTGC1, true); */
-	writel(UOC_HIWORD_UPDATE(0x1, 0x1, 10),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST4_CON);
-	udelay(2);
+		udelay(2);
 
-	/* cru_set_soft_reset(SOFT_RST_USBOTG0, true); */
-	writel(UOC_HIWORD_UPDATE(0x1, 0x1, 5),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST4_CON);
-	/* cru_set_soft_reset(SOFT_RST_USBOTG1, true); */
-	writel(UOC_HIWORD_UPDATE(0x1, 0x1, 8),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST4_CON);
-	udelay(2);
-	/*
-	   cru_set_soft_reset(SOFT_RST_OTGC0,false);
-	   cru_set_soft_reset(SOFT_RST_OTGC1,false);
-	   ru_set_soft_reset(SOFT_RST_USBOTG0,false);
-	   cru_set_soft_reset(SOFT_RST_USBOTG1,false);
-	 */
-	writel(UOC_HIWORD_UPDATE(0x0, 0x1, 7),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST4_CON);
-	writel(UOC_HIWORD_UPDATE(0x0, 0x1, 10),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST4_CON);
-	writel(UOC_HIWORD_UPDATE(0x0, 0x1, 5),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST4_CON);
-	writel(UOC_HIWORD_UPDATE(0x0, 0x1, 8),
-	       RK_CRU_VIRT + RK3036_CRU_SOFTRST4_CON);
+		reset_control_deassert(rst_otg_c);
+		reset_control_deassert(rst_otg_h);
+		break;
+
+	default:
+		break;
+	}
 }
 
 static void usb20otg_clock_init(void *pdata)
@@ -240,9 +214,45 @@ static void usb20host_phy_suspend(void *pdata, int suspend)
 	}
 }
 
-static void usb20host_soft_reset(void)
+static void usb20host_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
-	;
+	struct dwc_otg_platform_data *usbpdata = pdata;
+	struct reset_control *rst_host_h, *rst_host_p, *rst_host_c;
+
+	rst_host_h = devm_reset_control_get(usbpdata->dev, "host_ahb");
+	rst_host_p = devm_reset_control_get(usbpdata->dev, "host_phy");
+	rst_host_c = devm_reset_control_get(usbpdata->dev, "host_controller");
+	if (IS_ERR(rst_host_h) || IS_ERR(rst_host_p) || IS_ERR(rst_host_c)) {
+		dev_err(usbpdata->dev, "Fail to get reset control from dts\n");
+		return;
+	}
+
+	switch(rst_type) {
+	case RST_POR:
+		/* PHY reset */
+		writel(UOC_HIWORD_UPDATE(0x1, 0x3, 0),
+			   RK_GRF_VIRT + RK3036_GRF_UOC1_CON5);
+		reset_control_assert(rst_host_p);
+		udelay(15);
+		writel(UOC_HIWORD_UPDATE(0x2, 0x3, 0),
+			   RK_GRF_VIRT + RK3036_GRF_UOC1_CON5);
+
+		udelay(1500);
+		reset_control_deassert(rst_host_p);
+
+		/* Controller reset */
+		reset_control_assert(rst_host_c);
+		reset_control_assert(rst_host_h);
+
+		udelay(5);
+
+		reset_control_deassert(rst_host_c);
+		reset_control_deassert(rst_host_h);
+		break;
+
+	default:
+		break;
+	}
 }
 
 static void usb20host_clock_init(void *pdata)

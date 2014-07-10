@@ -74,6 +74,14 @@
         status = "okay";
 
     };
+	usb_control {
+		compatible = "rockchip,rk3036-usb-control";
+		host_drv_gpio = <&gpio2 GPIO_C7 GPIO_ACTIVE_LOW>;
+		otg_drv_gpio = <&gpio0 GPIO_D2 GPIO_ACTIVE_LOW>;
+
+		rockchip,remote_wakeup;
+		rockchip,usb_irq_wakeup;
+	};
 };
 
 &nandc {

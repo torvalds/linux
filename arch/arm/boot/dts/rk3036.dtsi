@@ -458,15 +458,15 @@
 						  "Mali_PP0_MMU_IRQ";
 	  };
 	dwc_control_usb: dwc-control-usb@20008000 {
-		compatible = "rockchip,rk3188-dwc-control-usb";
+		compatible = "rockchip,rk3036-dwc-control-usb";
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "otg_bvalid";
-		//gpios = <&gpio0 GPIO_C0 GPIO_ACTIVE_LOW>, <&gpio3 GPIO_D5 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates9 13>;
 		clock-names = "hclk_usb_peri";
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
-
+		resets = <&reset RK3036_RST_USBPOR>;
+		reset-names = "usbphy_por";
 		usb_bc{
 			compatible = "rockchip,ctrl";
 			rk_usb,bvalid   = <0x14c 8 1>;
@@ -475,25 +475,31 @@
 			rk_usb,softctrl = <0x17c 0 1>;
 			rk_usb,opmode   = <0x17c 2 2>;
 			rk_usb,xcvrsel  = <0x17c 4 2>;
-			rk_usb,termsel  = <0x118 6 1>; 
+			rk_usb,termsel  = <0x17c 6 1>;
 		};
 	};
 	usb0: usb@10180000 {
-		compatible = "rockchip,rk3188_usb20_otg";
+		compatible = "rockchip,rk3036_usb20_otg";
 		reg = <0x10180000 0x40000>;
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates1 5>, <&clk_gates5 13>;
 		clock-names = "clk_usbphy0", "hclk_usb0";
+		resets = <&reset RK3036_RST_USBOTG0>, <&reset RK3036_RST_UTMI0>,
+				<&reset RK3036_RST_OTGC0>;
+		reset-names = "otg_ahb", "otg_phy", "otg_controller";
 		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
 		rockchip,usb-mode = <0>;
 	};
 
 	usb1: usb@101c0000 {
-		compatible = "rockchip,rk3188_usb20_host";
+		compatible = "rockchip,rk3036_usb20_host";
 		reg = <0x101c0000 0x40000>;
 		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates1 6>, <&clk_gates7 3>;
 		clock-names = "clk_usbphy1", "hclk_usb1";
+		resets = <&reset RK3036_RST_USBOTG1>, <&reset RK3036_RST_UTMI1>,
+				<&reset RK3036_RST_OTGC1>;
+		reset-names = "host_ahb", "host_phy", "host_controller";
 	};
 	
 	fb: fb{
