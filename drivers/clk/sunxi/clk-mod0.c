@@ -80,3 +80,15 @@ static void __init sun4i_a10_mod0_setup(struct device_node *node)
 	sunxi_factors_register(node, &sun4i_a10_mod0_data, &sun4i_a10_mod0_lock);
 }
 CLK_OF_DECLARE(sun4i_a10_mod0, "allwinner,sun4i-a10-mod0-clk", sun4i_a10_mod0_setup);
+
+static DEFINE_SPINLOCK(sun5i_a13_mbus_lock);
+
+static void __init sun5i_a13_mbus_setup(struct device_node *node)
+{
+	struct clk *mbus = sunxi_factors_register(node, &sun4i_a10_mod0_data, &sun5i_a13_mbus_lock);
+
+	/* The MBUS clocks needs to be always enabled */
+	__clk_get(mbus);
+	clk_prepare_enable(mbus);
+}
+CLK_OF_DECLARE(sun5i_a13_mbus, "allwinner,sun5i-a13-mbus-clk", sun5i_a13_mbus_setup);
