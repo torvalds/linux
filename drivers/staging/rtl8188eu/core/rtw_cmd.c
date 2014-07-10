@@ -205,12 +205,6 @@ struct cmd_obj	*rtw_dequeue_cmd(struct cmd_priv *pcmdpriv)
 	return cmd_obj;
 }
 
-void rtw_cmd_clr_isr(struct cmd_priv *pcmdpriv)
-{
-	pcmdpriv->cmd_done_cnt++;
-	/* up(&(pcmdpriv->cmd_done_sema)); */
-}
-
 void rtw_free_cmd_obj(struct cmd_obj *pcmd)
 {
 

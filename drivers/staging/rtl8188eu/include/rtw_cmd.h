@@ -78,8 +78,6 @@ int rtw_cmd_thread(void *context);
 u32 rtw_init_cmd_priv(struct cmd_priv *pcmdpriv);
 void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv);
 
-void rtw_cmd_clr_isr(struct cmd_priv *pcmdpriv);
-
 enum rtw_drvextra_cmd_id {
 	NONE_WK_CID,
 	DYNAMIC_CHK_WK_CID,
