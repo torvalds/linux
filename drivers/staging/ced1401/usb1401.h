@@ -95,8 +95,8 @@
 /* A structure holding information about a block */
 /* of memory for use in circular transfers       */
 struct circ_blk {
-	volatile UINT dwOffset;   /* Offset within area of block start */
-	volatile UINT dwSize;     /* Size of the block, in bytes (0 = unused) */
+	volatile UINT offset;   /* Offset within area of block start */
+	volatile UINT size;     /* Size of the block, in bytes (0 = unused) */
 };
 
 /*  A structure holding all of the information about a transfer area - an area of */

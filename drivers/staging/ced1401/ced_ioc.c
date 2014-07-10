@@ -710,10 +710,10 @@ static int ced_set_area(struct ced_data *ced, int nArea, char __user *puBuf,
 		pTA->bCircular = bCircular;
 		pTA->bCircToHost = bCircToHost;
 
-		pTA->aBlocks[0].dwOffset = 0;
-		pTA->aBlocks[0].dwSize = 0;
-		pTA->aBlocks[1].dwOffset = 0;
-		pTA->aBlocks[1].dwSize = 0;
+		pTA->aBlocks[0].offset = 0;
+		pTA->aBlocks[0].size = 0;
+		pTA->aBlocks[1].offset = 0;
+		pTA->aBlocks[1].size = 0;
 		pTA->bUsed = true;	/*  This is now a used block */
 
 		spin_unlock_irq(&ced->stagedLock);
@@ -1361,9 +1361,9 @@ int ced_get_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
 
 		if ((pArea->bUsed) && (pArea->bCircular) &&	/*  Must be circular area */
 		    (pArea->bCircToHost)) {	/*  For now at least must be to host */
-			if (pArea->aBlocks[0].dwSize > 0) {	/*  Got anything? */
-				cb.dwOffset = pArea->aBlocks[0].dwOffset;
-				cb.dwSize = pArea->aBlocks[0].dwSize;
+			if (pArea->aBlocks[0].size > 0) {	/*  Got anything? */
+				cb.dwOffset = pArea->aBlocks[0].offset;
+				cb.dwSize = pArea->aBlocks[0].size;
 				dev_dbg(&ced->interface->dev,
 					"%s: return block 0: %d bytes at %d\n",
 					__func__, cb.dwSize, cb.dwOffset);
@@ -1415,31 +1415,31 @@ int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
 		    (pArea->bCircToHost)) {	/*  For now at least must be to host */
 			bool bWaiting = false;
 
-			if ((pArea->aBlocks[0].dwSize >= uSize) &&	/*  Got anything? */
-			    (pArea->aBlocks[0].dwOffset == uStart)) {	/*  Must be legal data */
-				pArea->aBlocks[0].dwSize -= uSize;
-				pArea->aBlocks[0].dwOffset += uSize;
-				if (pArea->aBlocks[0].dwSize == 0) {	/*  Have we emptied this block? */
-					if (pArea->aBlocks[1].dwSize) {	/*  Is there a second block? */
+			if ((pArea->aBlocks[0].size >= uSize) &&	/*  Got anything? */
+			    (pArea->aBlocks[0].offset == uStart)) {	/*  Must be legal data */
+				pArea->aBlocks[0].size -= uSize;
+				pArea->aBlocks[0].offset += uSize;
+				if (pArea->aBlocks[0].size == 0) {	/*  Have we emptied this block? */
+					if (pArea->aBlocks[1].size) {	/*  Is there a second block? */
 						pArea->aBlocks[0] = pArea->aBlocks[1];	/*  Copy down block 2 data */
-						pArea->aBlocks[1].dwSize = 0;	/*  and mark the second block as unused */
-						pArea->aBlocks[1].dwOffset = 0;
+						pArea->aBlocks[1].size = 0;	/*  and mark the second block as unused */
+						pArea->aBlocks[1].offset = 0;
 					} else
-						pArea->aBlocks[0].dwOffset = 0;
+						pArea->aBlocks[0].offset = 0;
 				}
 
 				dev_dbg(&ced->interface->dev,
 					"%s: free %d bytes at %d, return %d bytes at %d, wait=%d\n",
 					__func__, uSize, uStart,
-					pArea->aBlocks[0].dwSize,
-					pArea->aBlocks[0].dwOffset,
+					pArea->aBlocks[0].size,
+					pArea->aBlocks[0].offset,
 					ced->bXFerWaiting);
 
 				/*  Return the next available block of memory as well */
-				if (pArea->aBlocks[0].dwSize > 0) {	/*  Got anything? */
+				if (pArea->aBlocks[0].size > 0) {	/*  Got anything? */
 					cb.dwOffset =
-					    pArea->aBlocks[0].dwOffset;
-					cb.dwSize = pArea->aBlocks[0].dwSize;
+					    pArea->aBlocks[0].offset;
+					cb.dwSize = pArea->aBlocks[0].size;
 				}
 
 				bWaiting = ced->bXFerWaiting;
@@ -1453,8 +1453,8 @@ int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
 				dev_err(&ced->interface->dev,
 					"%s: ERROR: freeing %d bytes at %d, block 0 is %d bytes at %d\n",
 					__func__, uSize, uStart,
-					pArea->aBlocks[0].dwSize,
-					pArea->aBlocks[0].dwOffset);
+					pArea->aBlocks[0].size,
+					pArea->aBlocks[0].offset);
 				iReturn = U14ERR_NOMEMORY;
 			}
 
