@@ -33,7 +33,7 @@
  *      s_uGetRTSCTSDuration- get rtx/cts required duration
  *      s_uGetRTSCTSRsvTime- get rts/cts reserved time
  *      s_uGetTxRsvTime- get frame reserved time
- *      s_vFillCTSHead- fulfill CTS ctl header
+ *      vnt_fill_cts_head- fulfill CTS ctl header
  *      s_vFillFragParameter- Set fragment ctl parameter.
  *      s_vFillRTSHead- fulfill RTS ctl header
  *      vDMA0_tx_80211- tx 802.11 frame via dma0
@@ -88,10 +88,6 @@ static unsigned int s_uGetTxRsvTime(struct vnt_private *pDevice, u8 byPktType,
 
 static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
 	u8 rsv_type, u8 pkt_type, u32 frame_length, u16 current_rate);
-
-static u16 s_vFillCTSHead(struct vnt_usb_send_context *tx_context,
-	u8 byPktType, union vnt_tx_data_head *head, u32 cbFrameLength,
-	int bNeedAck, u16 wCurrentRate);
 
 static __le16 s_uGetDataDuration(struct vnt_private *pDevice,
 	u8 byPktType, int bNeedAck);
@@ -519,7 +515,7 @@ static u16 vnt_rxtx_rts_a_fb_head(struct vnt_usb_send_context *tx_context,
 			&buf->data_head, frame_len, need_ack);
 }
 
-static u16 s_vFillCTSHead(struct vnt_usb_send_context *tx_context,
+static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 	u8 pkt_type, union vnt_tx_data_head *head, u32 frame_len,
 	int need_ack, u16 current_rate)
 {
@@ -631,7 +627,7 @@ static u16 vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
 		head = &tx_head->tx_cts.tx.mic.head;
 
 	/* Fill CTS */
-	return s_vFillCTSHead(tx_context, pkt_type, head, frame_size,
+	return vnt_fill_cts_head(tx_context, pkt_type, head, frame_size,
 							need_ack, current_rate);
 }
 
