@@ -3297,10 +3297,10 @@ out:
 	return nfs_ok;
 }
 
-static __be32
-nfs4_check_open(struct nfs4_file *fp, struct nfsd4_open *open, struct nfs4_ol_stateid **stpp)
+static struct nfs4_ol_stateid *
+nfsd4_find_existing_open(struct nfs4_file *fp, struct nfsd4_open *open)
 {
-	struct nfs4_ol_stateid *local;
+	struct nfs4_ol_stateid *local, *ret = NULL;
 	struct nfs4_openowner *oo = open->op_openowner;
 
 	spin_lock(&fp->fi_lock);
@@ -3308,14 +3308,13 @@ nfs4_check_open(struct nfs4_file *fp, struct nfsd4_open *open, struct nfs4_ol_st
 		/* ignore lock owners */
 		if (local->st_stateowner->so_is_open_owner == 0)
 			continue;
-		/* remember if we have seen this open owner */
 		if (local->st_stateowner == &oo->oo_owner) {
-			*stpp = local;
+			ret = local;
 			break;
 		}
 	}
 	spin_unlock(&fp->fi_lock);
-	return nfs_ok;
+	return ret;
 }
 
 static inline int nfs4_access_to_access(u32 nfs4_access)
@@ -3658,12 +3657,10 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	 */
 	fp = find_or_add_file(ino, open->op_file);
 	if (fp != open->op_file) {
-		status = nfs4_check_open(fp, open, &stp);
-		if (status)
-			goto out;
 		status = nfs4_check_deleg(cl, open, &dp);
 		if (status)
 			goto out;
+		stp = nfsd4_find_existing_open(fp, open);
 	} else {
 		open->op_file = NULL;
 		status = nfserr_bad_stateid;
