@@ -1157,15 +1157,17 @@ int ced_type_of_1401(struct ced_data *ced)
 ****************************************************************************/
 int ced_transfer_flags(struct ced_data *ced)
 {
-	int iReturn = U14TF_MULTIA | U14TF_DIAG |	/*  we always have multiple DMA area */
-	    U14TF_NOTIFY | U14TF_CIRCTH;	/*  diagnostics, notify and circular */
+	 /* we always have multiple DMA area diagnostics, notify and circular */
+	int ret = U14TF_MULTIA | U14TF_DIAG |
+	    U14TF_NOTIFY | U14TF_CIRCTH;
+
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 	mutex_lock(&ced->io_mutex);
 	if (ced->is_usb2)	/*  Set flag for USB2 if appropriate */
-		iReturn |= U14TF_USB2;
+		ret |= U14TF_USB2;
 	mutex_unlock(&ced->io_mutex);
 
-	return iReturn;
+	return ret;
 }
 
 /***************************************************************************
