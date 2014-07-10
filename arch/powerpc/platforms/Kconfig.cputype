@@ -61,7 +61,7 @@ choice
 	help
 	  There are two families of 64 bit PowerPC chips supported.
 	  The most common ones are the desktop and server CPUs
-	  (POWER3, RS64, POWER4, POWER5, POWER5+, POWER6, ...)
+	  (POWER4, POWER5, 970, POWER5+, POWER6, POWER7, POWER8 ...)
 
 	  The other are the "embedded" processors compliant with the
 	  "Book 3E" variant of the architecture
