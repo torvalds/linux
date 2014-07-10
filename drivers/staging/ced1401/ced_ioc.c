@@ -1456,79 +1456,90 @@ int ced_get_circ_block(struct ced_data *ced, TCIRCBLOCK __user *ucb)
 **
 ** Frees a block of circularly-transferred data and returns the next one.
 ****************************************************************************/
-int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
+int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *ucb)
 {
-	int iReturn = U14ERR_NOERROR;
-	unsigned int nArea, uStart, uSize;
+	int ret = U14ERR_NOERROR;
+	unsigned int area, start, size;
 	TCIRCBLOCK cb;
 
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
-	if (copy_from_user(&cb, pCB, sizeof(cb)))
+	if (copy_from_user(&cb, ucb, sizeof(cb)))
 		return -EFAULT;
 
 	mutex_lock(&ced->io_mutex);
 
-	nArea = cb.nArea;	/*  Retrieve parameters first */
-	uStart = cb.dwOffset;
-	uSize = cb.dwSize;
+	area = cb.nArea;	/*  Retrieve parameters first */
+	start = cb.dwOffset;
+	size = cb.dwSize;
 	cb.dwOffset = 0;	/*  then set default result (nothing) */
 	cb.dwSize = 0;
 
-	if (nArea < MAX_TRANSAREAS) {	/*  The area number must be OK */
+	if (area < MAX_TRANSAREAS) {	/*  The area number must be OK */
 		/* Pointer to relevant info */
-		struct transarea *pArea = &ced->trans_def[nArea];
+		struct transarea *ta = &ced->trans_def[area];
+
 		spin_lock_irq(&ced->staged_lock);	/*  Lock others out */
 
-		if ((pArea->used) && (pArea->circular) &&	/*  Must be circular area */
-		    (pArea->circ_to_host)) {	/*  For now at least must be to host */
-			bool bWaiting = false;
+		if ((ta->used) && (ta->circular) && /*  Must be circular area */
+		    (ta->circ_to_host)) { /* For now at least must be to host */
+			bool waiting = false;
 
-			if ((pArea->blocks[0].size >= uSize) &&	/*  Got anything? */
-			    (pArea->blocks[0].offset == uStart)) {	/*  Must be legal data */
-				pArea->blocks[0].size -= uSize;
-				pArea->blocks[0].offset += uSize;
-				if (pArea->blocks[0].size == 0) {	/*  Have we emptied this block? */
-					if (pArea->blocks[1].size) {	/*  Is there a second block? */
-						pArea->blocks[0] = pArea->blocks[1];	/*  Copy down block 2 data */
-						pArea->blocks[1].size = 0;	/*  and mark the second block as unused */
-						pArea->blocks[1].offset = 0;
+			if ((ta->blocks[0].size >= size) && /* Got anything? */
+			    (ta->blocks[0].offset == start)) { /* Must be legal data */
+				ta->blocks[0].size -= size;
+				ta->blocks[0].offset += size;
+
+				 /* Have we emptied this block? */
+				if (ta->blocks[0].size == 0) {
+					/* Is there a second block? */
+					if (ta->blocks[1].size) {
+						/* Copy down block 2 data */
+						ta->blocks[0] = ta->blocks[1];
+						/* and mark the second */
+						/* block as unused     */
+						ta->blocks[1].size = 0;
+						ta->blocks[1].offset = 0;
 					} else
-						pArea->blocks[0].offset = 0;
+						ta->blocks[0].offset = 0;
 				}
 
 				dev_dbg(&ced->interface->dev,
-					"%s: free %d bytes at %d, return %d bytes at %d, wait=%d\n",
-					__func__, uSize, uStart,
-					pArea->blocks[0].size,
-					pArea->blocks[0].offset,
+					"%s: free %d bytes at %d, "
+					"return %d bytes at %d, wait=%d\n",
+					__func__, size, start,
+					ta->blocks[0].size,
+					ta->blocks[0].offset,
 					ced->xfer_waiting);
 
-				/*  Return the next available block of memory as well */
-				if (pArea->blocks[0].size > 0) {	/*  Got anything? */
+				/* Return the next available block of */
+				/* memory as well		      */
+				if (ta->blocks[0].size > 0) {/* Got anything? */
 					cb.dwOffset =
-					    pArea->blocks[0].offset;
-					cb.dwSize = pArea->blocks[0].size;
+					    ta->blocks[0].offset;
+					cb.dwSize = ta->blocks[0].size;
 				}
 
-				bWaiting = ced->xfer_waiting;
-				if (bWaiting && ced->staged_urb_pending) {
+				waiting = ced->xfer_waiting;
+				if (waiting && ced->staged_urb_pending) {
 					dev_err(&ced->interface->dev,
-						"%s: ERROR: waiting xfer and staged Urb pending!\n",
+						"%s: ERROR: waiting xfer and "
+						"staged Urb pending!\n",
 						__func__);
-					bWaiting = false;
+					waiting = false;
 				}
 			} else {
 				dev_err(&ced->interface->dev,
-					"%s: ERROR: freeing %d bytes at %d, block 0 is %d bytes at %d\n",
-					__func__, uSize, uStart,
-					pArea->blocks[0].size,
-					pArea->blocks[0].offset);
-				iReturn = U14ERR_NOMEMORY;
+					"%s: ERROR: freeing %d bytes at %d, "
+					"block 0 is %d bytes at %d\n",
+					__func__, size, start,
+					ta->blocks[0].size,
+					ta->blocks[0].offset);
+				ret = U14ERR_NOMEMORY;
 			}
 
 			/*  If we have one, kick off pending transfer */
-			if (bWaiting) {	/*  Got a block xfer waiting? */
+			if (waiting) {	/*  Got a block xfer waiting? */
 				int RWMStat =
 				    ced_read_write_mem(ced,
 						       !ced->dma_info.outward,
@@ -1541,15 +1552,15 @@ int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
 						__func__, RWMStat);
 			}
 		} else
-			iReturn = U14ERR_NOTSET;
+			ret = U14ERR_NOTSET;
 
 		spin_unlock_irq(&ced->staged_lock);
 	} else
-		iReturn = U14ERR_BADAREA;
+		ret = U14ERR_BADAREA;
 
-	if (copy_to_user(pCB, &cb, sizeof(cb)))
-		iReturn = -EFAULT;
+	if (copy_to_user(ucb, &cb, sizeof(cb)))
+		ret = -EFAULT;
 
 	mutex_unlock(&ced->io_mutex);
-	return iReturn;
+	return ret;
 }

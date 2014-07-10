@@ -254,7 +254,7 @@ extern int ced_dbg_stop_loop(struct ced_data *ced);
 extern int ced_set_circular(struct ced_data *ced,
 			    struct transfer_area_desc __user *utd);
 extern int ced_get_circ_block(struct ced_data *ced, TCIRCBLOCK __user *ucb);
-extern int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB);
+extern int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *ucb);
 extern int ced_wait_event(struct ced_data *ced, int area, int time_out);
 extern int ced_test_event(struct ced_data *ced, int area);
 #endif
