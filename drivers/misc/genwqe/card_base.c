@@ -38,7 +38,6 @@
 #include <linux/notifier.h>
 #include <linux/device.h>
 #include <linux/log2.h>
-#include <linux/genwqe/genwqe_card.h>
 
 #include "card_base.h"
 #include "card_ddcb.h"
