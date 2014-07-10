@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
-#include "core.h"
+#include "../core.h"
 
 /* EXYNOS5440 GPIO and Pinctrl register offsets */
 #define GPIO_MUX		0x00

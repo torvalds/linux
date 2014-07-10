@@ -30,7 +30,7 @@
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 
-#include "core.h"
+#include "../core.h"
 #include "pinctrl-samsung.h"
 
 #define GROUP_SUFFIX		"-grp"

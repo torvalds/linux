@@ -332,22 +332,6 @@ config PINCTRL_COH901
 	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
 	  ports of 8 GPIO pins each.
 
-config PINCTRL_SAMSUNG
-	bool
-	select PINMUX
-	select PINCONF
-
-config PINCTRL_EXYNOS
-	bool "Pinctrl driver data for Samsung EXYNOS SoCs other than 5440"
-	depends on OF && GPIOLIB && (ARCH_EXYNOS || ARCH_S5PV210)
-	select PINCTRL_SAMSUNG
-
-config PINCTRL_EXYNOS5440
-	bool "Samsung EXYNOS5440 SoC pinctrl driver"
-	depends on SOC_EXYNOS5440
-	select PINMUX
-	select PINCONF
-
 config PINCTRL_PALMAS
 	bool "Pinctrl driver for the PALMAS Series MFD devices"
 	depends on OF && MFD_PALMAS
@@ -359,19 +343,10 @@ config PINCTRL_PALMAS
 	  open drain configuration for the Palmas series devices like
 	  TPS65913, TPS80036 etc.
 
-config PINCTRL_S3C24XX
-	bool "Samsung S3C24XX SoC pinctrl driver"
-	depends on ARCH_S3C24XX
-	select PINCTRL_SAMSUNG
-
-config PINCTRL_S3C64XX
-	bool "Samsung S3C64XX SoC pinctrl driver"
-	depends on ARCH_S3C64XX
-	select PINCTRL_SAMSUNG
-
 source "drivers/pinctrl/berlin/Kconfig"
 source "drivers/pinctrl/mvebu/Kconfig"
 source "drivers/pinctrl/qcom/Kconfig"
+source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"
