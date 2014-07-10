@@ -48,7 +48,6 @@
 #include <rtw_event.h>
 #include <rtw_led.h>
 #include <rtw_mlme_ext.h>
-#include <rtw_p2p.h>
 #include <rtw_ap.h>
 
 #define SPEC_DEV_ID_NONE		BIT(0)
@@ -241,11 +240,6 @@ struct adapter {
 	/* The driver will show up the desired channel number
 	 * when this flag is 1. */
 	u8 bNotifyChannelChange;
-#ifdef CONFIG_88EU_P2P
-	/* The driver will show the current P2P status when the
-	 * upper application reads it. */
-	u8 bShowGetP2PState;
-#endif
 
 	struct mutex hw_init_mutex;
 

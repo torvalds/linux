@@ -1735,14 +1735,6 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			rtl8188e_set_FwJoinBssReport_cmd(Adapter, mstatus);
 		}
 		break;
-#ifdef CONFIG_88EU_P2P
-	case HW_VAR_H2C_FW_P2P_PS_OFFLOAD:
-		{
-			u8 p2p_ps_state = (*(u8 *)val);
-			rtl8188e_set_p2p_ps_offload_cmd(Adapter, p2p_ps_state);
-		}
-		break;
-#endif
 	case HW_VAR_INITIAL_GAIN:
 		{
 			struct rtw_dig *pDigTable = &podmpriv->DM_DigTable;

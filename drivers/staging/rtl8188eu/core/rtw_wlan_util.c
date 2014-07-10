@@ -1357,15 +1357,6 @@ void set_sta_rate(struct adapter *padapter, struct sta_info *psta)
 void update_tx_basic_rate(struct adapter *padapter, u8 wirelessmode)
 {
 	unsigned char supported_rates[NDIS_802_11_LENGTH_RATES_EX];
-#ifdef CONFIG_88EU_P2P
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	/*	Added by Albert 2011/03/22 */
-	/*	In the P2P mode, the driver should not support the b mode. */
-	/*	So, the Tx packet shouldn't use the CCK rate */
-	if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
-		return;
-#endif /* CONFIG_88EU_P2P */
 	memset(supported_rates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
 	if ((wirelessmode & WIRELESS_11B) && (wirelessmode == WIRELESS_11B))

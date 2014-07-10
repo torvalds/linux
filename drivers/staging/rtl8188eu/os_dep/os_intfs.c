@@ -804,9 +804,6 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 	padapter->bWritePortCancel = false;
 	padapter->bRxRSSIDisplay = 0;
 	padapter->bNotifyChannelChange = 0;
-#ifdef CONFIG_88EU_P2P
-	padapter->bShowGetP2PState = 1;
-#endif
 	return ret;
 }
 
@@ -866,12 +863,6 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 		ret8 = _FAIL;
 		goto exit;
 	}
-
-#ifdef CONFIG_88EU_P2P
-	rtw_init_wifidirect_timers(padapter);
-	init_wifidirect_info(padapter, P2P_ROLE_DISABLE);
-	reset_global_wifidirect_info(padapter);
-#endif /* CONFIG_88EU_P2P */
 
 	if (init_mlme_ext_priv(padapter) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init mlme_ext_priv\n"));
@@ -944,21 +935,6 @@ void rtw_cancel_all_timer(struct adapter *padapter)
 u8 rtw_free_drv_sw(struct adapter *padapter)
 {
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("==>rtw_free_drv_sw"));
-
-	/* we can call rtw_p2p_enable here, but: */
-	/*  1. rtw_p2p_enable may have IO operation */
-	/*  2. rtw_p2p_enable is bundled with wext interface */
-	#ifdef CONFIG_88EU_P2P
-	{
-		struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-		if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
-			del_timer_sync(&pwdinfo->find_phase_timer);
-			del_timer_sync(&pwdinfo->restore_p2p_state_timer);
-			del_timer_sync(&pwdinfo->pre_tx_scan_timer);
-			rtw_p2p_set_state(pwdinfo, P2P_STATE_NONE);
-		}
-	}
-	#endif
 
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
@@ -1189,10 +1165,6 @@ int netdev_close(struct net_device *pnetdev)
 		/*  Close LED */
 		rtw_led_control(padapter, LED_CTL_POWER_OFF);
 	}
-
-#ifdef CONFIG_88EU_P2P
-	rtw_p2p_enable(padapter, P2P_ROLE_DISABLE);
-#endif /* CONFIG_88EU_P2P */
 
 	kfree(dvobj->firmware.szFwBuffer);
 	dvobj->firmware.szFwBuffer = NULL;

@@ -565,18 +565,6 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter,
 s32 dump_mgntframe_and_wait_ack(struct adapter *padapter,
 				struct xmit_frame *pmgntframe);
 
-#ifdef CONFIG_88EU_P2P
-void issue_probersp_p2p(struct adapter *padapter, unsigned char *da);
-void issue_p2p_provision_request(struct adapter *padapter, u8 *pssid,
-				 u8 ussidlen, u8 *pdev_raddr);
-void issue_p2p_GO_request(struct adapter *padapter, u8 *raddr);
-void issue_probereq_p2p(struct adapter *padapter, u8 *da);
-int issue_probereq_p2p_ex(struct adapter *adapter, u8 *da, int try_cnt,
-			  int wait_ms);
-void issue_p2p_invitation_response(struct adapter *padapter, u8 *raddr,
-				   u8 dialogToken, u8 success);
-void issue_p2p_invitation_request(struct adapter *padapter, u8 *raddr);
-#endif /* CONFIG_88EU_P2P */
 void issue_beacon(struct adapter *padapter, int timeout_ms);
 void issue_probersp(struct adapter *padapter, unsigned char *da,
 		    u8 is_valid_p2p_probereq);

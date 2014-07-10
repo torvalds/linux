@@ -114,35 +114,6 @@ static char *translate_scan(struct adapter *padapter,
 	u8 bw_40MHz = 0, short_GI = 0;
 	u16 mcs_rate = 0;
 	u8 ss, sq;
-#ifdef CONFIG_88EU_P2P
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
-		u32	blnGotP2PIE = false;
-
-		/*	User is doing the P2P device discovery */
-		/*	The prefix of SSID should be "DIRECT-" and the IE should contains the P2P IE. */
-		/*	If not, the driver should ignore this AP and go to the next AP. */
-
-		/*	Verifying the SSID */
-		if (!memcmp(pnetwork->network.Ssid.Ssid, pwdinfo->p2p_wildcard_ssid, P2P_WILDCARD_SSID_LEN)) {
-			u32	p2pielen = 0;
-
-			if (pnetwork->network.Reserved[0] == 2) {/*  Probe Request */
-				/*	Verifying the P2P IE */
-				if (rtw_get_p2p_ie(pnetwork->network.IEs, pnetwork->network.IELength, NULL, &p2pielen))
-					blnGotP2PIE = true;
-			} else {/*  Beacon or Probe Respones */
-				/*	Verifying the P2P IE */
-				if (rtw_get_p2p_ie(&pnetwork->network.IEs[12], pnetwork->network.IELength - 12, NULL, &p2pielen))
-					blnGotP2PIE = true;
-			}
-		}
-
-		if (!blnGotP2PIE)
-			return start;
-	}
-#endif /* CONFIG_88EU_P2P */
 
 	/*  AP MAC address  */
 	iwe.cmd = SIOCGIWAP;
@@ -385,9 +356,6 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-#ifdef CONFIG_88EU_P2P
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-#endif /* CONFIG_88EU_P2P */
 
 	param->u.crypt.err = 0;
 	param->u.crypt.alg[IEEE_CRYPT_ALG_NAME_LEN - 1] = '\0';
@@ -505,10 +473,6 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 					padapter->securitypriv.dot118021XGrpKeyid = param->u.crypt.idx;
 
 					rtw_set_key(padapter, &padapter->securitypriv, param->u.crypt.idx, 1);
-#ifdef CONFIG_88EU_P2P
-					if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_PROVISIONING_ING))
-						rtw_p2p_set_state(pwdinfo, P2P_STATE_PROVISIONING_DONE);
-#endif /* CONFIG_88EU_P2P */
 				}
 			}
 			pbcmc_sta = rtw_get_bcmc_stainfo(padapter);
@@ -537,9 +501,6 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 	u8 *buf = NULL;
 	int group_cipher = 0, pairwise_cipher = 0;
 	int ret = 0;
-#ifdef CONFIG_88EU_P2P
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-#endif /* CONFIG_88EU_P2P */
 
 	if ((ielen > MAX_WPA_IE_LEN) || (pie == NULL)) {
 		_clr_fwstate_(&padapter->mlmepriv, WIFI_UNDER_WPS);
@@ -645,10 +606,6 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 					memcpy(padapter->securitypriv.wps_ie, &buf[cnt], padapter->securitypriv.wps_ie_len);
 
 					set_fwstate(&padapter->mlmepriv, WIFI_UNDER_WPS);
-#ifdef CONFIG_88EU_P2P
-					if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_GONEGO_OK))
-						rtw_p2p_set_state(pwdinfo, P2P_STATE_PROVISIONING_ING);
-#endif /* CONFIG_88EU_P2P */
 					cnt += buf[cnt+1]+2;
 					break;
 				} else {
@@ -1126,9 +1083,6 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ndis_802_11_ssid ssid[RTW_SSID_SCAN_AMOUNT];
-#ifdef CONFIG_88EU_P2P
-	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
-#endif /* CONFIG_88EU_P2P */
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_wx_set_scan\n"));
 
 	if (padapter->registrypriv.mp_mode == 1) {
@@ -1174,15 +1128,6 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 /*	For the DMP WiFi Display project, the driver won't to scan because */
 /*	the pmlmepriv->scan_interval is always equal to 3. */
 /*	So, the wpa_supplicant won't find out the WPS SoftAP. */
-
-#ifdef CONFIG_88EU_P2P
-	if (pwdinfo->p2p_state != P2P_STATE_NONE) {
-		rtw_p2p_set_pre_state(pwdinfo, rtw_p2p_state(pwdinfo));
-		rtw_p2p_set_state(pwdinfo, P2P_STATE_FIND_PHASE_SEARCH);
-		rtw_p2p_findphase_ex_set(pwdinfo, P2P_FINDPHASE_EX_FULL);
-		rtw_free_network_queue(padapter, true);
-	}
-#endif /* CONFIG_88EU_P2P */
 
 	memset(ssid, 0, sizeof(struct ndis_802_11_ssid)*RTW_SSID_SCAN_AMOUNT);
 
@@ -1278,9 +1223,6 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	u32 cnt = 0;
 	u32 wait_for_surveydone;
 	int wait_status;
-#ifdef CONFIG_88EU_P2P
-	struct	wifidirect_info *pwdinfo = &padapter->wdinfo;
-#endif /* CONFIG_88EU_P2P */
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_wx_get_scan\n"));
 	RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_info_, (" Start of Query SIOCGIWSCAN .\n"));
 
@@ -1289,19 +1231,7 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 		goto exit;
 	}
 
-#ifdef CONFIG_88EU_P2P
-	if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
-		/*	P2P is enabled */
-		wait_for_surveydone = 200;
-	} else {
-		/*	P2P is disabled */
-		wait_for_surveydone = 100;
-	}
-#else
-	{
-		wait_for_surveydone = 100;
-	}
-#endif /* CONFIG_88EU_P2P */
+	wait_for_surveydone = 100;
 
 	wait_status = _FW_UNDER_SURVEY | _FW_UNDER_LINKING;
 
