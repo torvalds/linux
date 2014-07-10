@@ -224,6 +224,7 @@ static void cpmac_dump_regs(struct net_device *dev)
 {
 	int i;
 	struct cpmac_priv *priv = netdev_priv(dev);
+
 	for (i = 0; i < CPMAC_REG_END; i += 4) {
 		if (i % 16 == 0) {
 			if (i)
@@ -238,6 +239,7 @@ static void cpmac_dump_regs(struct net_device *dev)
 static void cpmac_dump_desc(struct net_device *dev, struct cpmac_desc *desc)
 {
 	int i;
+
 	netdev_dbg(dev, "desc[%p]:", desc);
 	for (i = 0; i < sizeof(*desc) / 4; i++)
 		pr_debug(" %08x", ((u32 *)desc)[i]);
@@ -248,6 +250,7 @@ static void cpmac_dump_all_desc(struct net_device *dev)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 	struct cpmac_desc *dump = priv->rx_head;
+
 	do {
 		cpmac_dump_desc(dev, dump);
 		dump = dump->next;
@@ -257,6 +260,7 @@ static void cpmac_dump_all_desc(struct net_device *dev)
 static void cpmac_dump_skb(struct net_device *dev, struct sk_buff *skb)
 {
 	int i;
+
 	netdev_dbg(dev, "skb 0x%p, len=%d\n", skb, skb->len);
 	for (i = 0; i < skb->len; i++) {
 		if (i % 16 == 0) {
@@ -681,6 +685,7 @@ static void cpmac_clear_rx(struct net_device *dev)
 	struct cpmac_priv *priv = netdev_priv(dev);
 	struct cpmac_desc *desc;
 	int i;
+
 	if (unlikely(!priv->rx_head))
 		return;
 	desc = priv->rx_head;
@@ -703,6 +708,7 @@ static void cpmac_clear_tx(struct net_device *dev)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 	int i;
+
 	if (unlikely(!priv->desc_ring))
 		return;
 	for (i = 0; i < CPMAC_QUEUES; i++) {
@@ -821,6 +827,7 @@ static void cpmac_tx_timeout(struct net_device *dev)
 static int cpmac_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
+
 	if (!(netif_running(dev)))
 		return -EINVAL;
 	if (!priv->phy)
@@ -1181,6 +1188,7 @@ fail:
 static int cpmac_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
+
 	unregister_netdev(dev);
 	free_netdev(dev);
 	return 0;
