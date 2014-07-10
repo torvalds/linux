@@ -131,8 +131,10 @@ int crypto_hash_walk_first(struct ahash_request *req,
 {
 	walk->total = req->nbytes;
 
-	if (!walk->total)
+	if (!walk->total) {
+		walk->entrylen = 0;
 		return 0;
+	}
 
 	walk->alignmask = crypto_ahash_alignmask(crypto_ahash_reqtfm(req));
 	walk->sg = req->src;
@@ -147,8 +149,10 @@ int crypto_ahash_walk_first(struct ahash_request *req,
 {
 	walk->total = req->nbytes;
 
-	if (!walk->total)
+	if (!walk->total) {
+		walk->entrylen = 0;
 		return 0;
+	}
 
 	walk->alignmask = crypto_ahash_alignmask(crypto_ahash_reqtfm(req));
 	walk->sg = req->src;
@@ -167,8 +171,10 @@ int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
 {
 	walk->total = len;
 
-	if (!walk->total)
+	if (!walk->total) {
+		walk->entrylen = 0;
 		return 0;
+	}
 
 	walk->alignmask = crypto_hash_alignmask(hdesc->tfm);
 	walk->sg = sg;
