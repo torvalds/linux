@@ -1928,17 +1928,22 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 {
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vf *vf = pf->vf;
-	int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
+	int abs_vf_id;
 	int i;
 
 	for (i = 0; i < pf->num_alloc_vfs; i++) {
+		/* Not all vfs are enabled so skip the ones that are not */
+		if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states) &&
+		    !test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
+			continue;
+
 		/* Ignore return value on purpose - a given VF may fail, but
 		 * we need to keep going and send to all of them
 		 */
+		abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 		i40e_aq_send_msg_to_vf(hw, abs_vf_id, v_opcode, v_retval,
 				       msg, msglen, NULL);
 		vf++;
-		abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 	}
 }
 
@@ -2002,7 +2007,14 @@ void i40e_vc_notify_reset(struct i40e_pf *pf)
 void i40e_vc_notify_vf_reset(struct i40e_vf *vf)
 {
 	struct i40e_virtchnl_pf_event pfe;
-	int abs_vf_id = vf->vf_id + vf->pf->hw.func_caps.vf_base_id;
+	int abs_vf_id;
+
+	/* verify if the VF is in either init or active before proceeding */
+	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states) &&
+	    !test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
+		return;
+
+	abs_vf_id = vf->vf_id + vf->pf->hw.func_caps.vf_base_id;
 
 	pfe.event = I40E_VIRTCHNL_EVENT_RESET_IMPENDING;
 	pfe.severity = I40E_PF_EVENT_SEVERITY_CERTAIN_DOOM;
