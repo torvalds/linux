@@ -984,35 +984,38 @@ static bool ced_read_word(unsigned short *word, char *buf, unsigned int *n_done,
 ** to indicate three byte total.
 **
 *****************************************************************************/
-static bool ced_read_huff(volatile unsigned int *pDWord, char *pBuf,
-		     unsigned int *pdDone, unsigned int dGot)
+static bool ced_read_huff(volatile unsigned int *word, char *buf,
+		     unsigned int *n_done, unsigned int got)
 {
-	unsigned char ucData;	/* for each read to ced_read_char */
-	bool bReturn = true;	/* assume we will succeed */
-	unsigned int dwData = 0;	/* Accumulator for the data */
+	unsigned char c;	/* for each read to ced_read_char */
+	bool retval = true;	/* assume we will succeed */
+	unsigned int data = 0;	/* Accumulator for the data */
 
-	if (ced_read_char(&ucData, pBuf, pdDone, dGot)) {
-		dwData = ucData;	/* copy the data */
-		if ((dwData & 0x00000080) != 0) {	/* Bit set for more data ? */
-			dwData &= 0x0000007F;	/* Clear the relevant bit */
-			if (ced_read_char(&ucData, pBuf, pdDone, dGot)) {
-				dwData = (dwData << 8) | ucData;
-				if ((dwData & 0x00004000) != 0) {	/* three byte sequence ? */
-					dwData &= 0x00003FFF;	/* Clear the relevant bit */
+	if (ced_read_char(&c, buf, n_done, got)) {
+		data = c;	/* copy the data */
+		if ((data & 0x00000080) != 0) {	/* Bit set for more data ? */
+			data &= 0x0000007F;	/* Clear the relevant bit */
+			if (ced_read_char(&c, buf, n_done, got)) {
+				data = (data << 8) | c;
+
+				/* three byte sequence ? */
+				if ((data & 0x00004000) != 0) {
+					/* Clear the relevant bit */
+					data &= 0x00003FFF;
 					if (ced_read_char
-					    (&ucData, pBuf, pdDone, dGot))
-						dwData = (dwData << 8) | ucData;
+					    (&c, buf, n_done, got))
+						data = (data << 8) | c;
 					else
-						bReturn = false;
+						retval = false;
 				}
 			} else
-				bReturn = false;	/* couldn't read data */
+				retval = false;	/* couldn't read data */
 		}
 	} else
-		bReturn = false;
+		retval = false;
 
-	*pDWord = dwData;	/* return the data */
-	return bReturn;
+	*word = data;	/* return the data */
+	return retval;
 }
 
 /***************************************************************************
