@@ -585,13 +585,19 @@ int ced_line_count(struct ced_data *ced)
 *****************************************************************************/
 int ced_get_out_buf_space(struct ced_data *ced)
 {
-	int iReturn;
+	int ret;
+
 	mutex_lock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
+
 	ced_send_chars(ced);		/*  send any buffered chars */
-	iReturn = (int)(OUTBUF_SZ - ced->num_output); /* no lock needed for single read */
-	dev_dbg(&ced->interface->dev, "%s: %d\n", __func__, iReturn);
+
+	 /* no lock needed for single read */
+	ret = (int)(OUTBUF_SZ - ced->num_output);
+
+	dev_dbg(&ced->interface->dev, "%s: %d\n", __func__, ret);
+
 	mutex_unlock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
