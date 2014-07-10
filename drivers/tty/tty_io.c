@@ -157,20 +157,6 @@ static void __proc_set_tty(struct task_struct *tsk, struct tty_struct *tty);
 static void proc_set_tty(struct task_struct *tsk, struct tty_struct *tty);
 
 /**
- *	alloc_tty_struct	-	allocate a tty object
- *
- *	Return a new empty tty structure. The data fields have not
- *	been initialized in any way but has been zeroed
- *
- *	Locking: none
- */
-
-struct tty_struct *alloc_tty_struct(void)
-{
-	return kzalloc(sizeof(struct tty_struct), GFP_KERNEL);
-}
-
-/**
  *	free_tty_struct		-	free a disused tty
  *	@tty: tty struct to free
  *
@@ -1455,12 +1441,11 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
 	if (!try_module_get(driver->owner))
 		return ERR_PTR(-ENODEV);
 
-	tty = alloc_tty_struct();
+	tty = alloc_tty_struct(driver, idx);
 	if (!tty) {
 		retval = -ENOMEM;
 		goto err_module_put;
 	}
-	initialize_tty_struct(tty, driver, idx);
 
 	tty_lock(tty);
 	retval = tty_driver_install_tty(driver, tty);
@@ -3003,19 +2988,21 @@ static struct device *tty_get_device(struct tty_struct *tty)
 
 
 /**
- *	initialize_tty_struct
- *	@tty: tty to initialize
+ *	alloc_tty_struct
  *
- *	This subroutine initializes a tty structure that has been newly
- *	allocated.
+ *	This subroutine allocates and initializes a tty structure.
  *
- *	Locking: none - tty in question must not be exposed at this point
+ *	Locking: none - tty in question is not exposed at this point
  */
 
-void initialize_tty_struct(struct tty_struct *tty,
-		struct tty_driver *driver, int idx)
+struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
 {
-	memset(tty, 0, sizeof(struct tty_struct));
+	struct tty_struct *tty;
+
+	tty = kzalloc(sizeof(*tty), GFP_KERNEL);
+	if (!tty)
+		return NULL;
+
 	kref_init(&tty->kref);
 	tty->magic = TTY_MAGIC;
 	tty_ldisc_init(tty);
@@ -3039,6 +3026,8 @@ void initialize_tty_struct(struct tty_struct *tty,
 	tty->index = idx;
 	tty_line_name(driver, idx, tty->name);
 	tty->dev = tty_get_device(tty);
+
+	return tty;
 }
 
 /**
