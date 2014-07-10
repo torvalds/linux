@@ -228,24 +228,3 @@ void *rtw_cbuf_pop(struct rtw_cbuf *cbuf)
 
 	return buf;
 }
-
-/**
- * rtw_cbuf_alloc - allocate a rtw_cbuf with given size and do initialization
- * @size: size of pointer
- *
- * Returns: pointer of srtuct rtw_cbuf, NULL for allocation failure
- */
-struct rtw_cbuf *rtw_cbuf_alloc(u32 size)
-{
-	struct rtw_cbuf *cbuf;
-
-	cbuf = (struct rtw_cbuf *)rtw_malloc(sizeof(*cbuf) +
-	       sizeof(void *)*size);
-
-	if (cbuf) {
-		cbuf->write = 0;
-		cbuf->read = 0;
-		cbuf->size = size;
-	}
-	return cbuf;
-}
