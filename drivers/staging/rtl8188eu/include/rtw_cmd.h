@@ -731,11 +731,6 @@ u8 rtw_disassoc_cmd(struct adapter *padapter, u32 deauth_timeout_ms,
 u8 rtw_setopmode_cmd(struct adapter *padapter,
 		     enum ndis_802_11_network_infra networktype);
 u8 rtw_setdatarate_cmd(struct adapter *padapter, u8 *rateset);
-u8 rtw_setrfintfs_cmd(struct adapter *padapter, u8 mode);
-
-u8 rtw_gettssi_cmd(struct adapter *padapter, u8 offset, u8 *pval);
-u8 rtw_setfwdig_cmd(struct adapter *padapter, u8 type);
-u8 rtw_setfwra_cmd(struct adapter *padapter, u8 type);
 
 u8 rtw_addbareq_cmd(struct adapter *padapter, u8 tid, u8 *addr);
 
@@ -752,7 +747,6 @@ u8 rtw_chk_hi_queue_cmd(struct adapter *padapter);
 #endif
 
 u8 rtw_set_chplan_cmd(struct adapter *padapter, u8 chplan, u8 enqueue);
-
 u8 rtw_drvextra_cmd_hdl(struct adapter *padapter, unsigned char *pbuf);
 
 void rtw_survey_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd);
