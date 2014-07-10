@@ -776,8 +776,6 @@ u8 rtw_set_chplan_cmd(struct adapter *padapter, u8 chplan, u8 enqueue);
 u8 rtw_set_csa_cmd(struct adapter *padapter, u8 new_ch_no);
 u8 rtw_tdls_cmd(struct adapter *padapter, u8 *addr, u8 option);
 
-u8 rtw_c2h_wk_cmd(struct adapter *padapter, u8 *c2h_evt);
-
 u8 rtw_drvextra_cmd_hdl(struct adapter *padapter, unsigned char *pbuf);
 
 void rtw_survey_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd);
