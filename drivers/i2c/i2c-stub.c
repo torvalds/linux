@@ -68,6 +68,7 @@ struct stub_chip {
 };
 
 static struct stub_chip *stub_chips;
+static int stub_chips_nr;
 
 static struct smbus_block_data *stub_find_block(struct device *dev,
 						struct stub_chip *chip,
@@ -101,7 +102,7 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	struct smbus_block_data *b;
 
 	/* Search for the right chip */
-	for (i = 0; i < MAX_CHIPS && chip_addr[i]; i++) {
+	for (i = 0; i < stub_chips_nr; i++) {
 		if (addr == chip_addr[i]) {
 			chip = stub_chips + i;
 			break;
@@ -281,12 +282,14 @@ static int __init i2c_stub_init(void)
 	}
 
 	/* Allocate memory for all chips at once */
-	stub_chips = kzalloc(i * sizeof(struct stub_chip), GFP_KERNEL);
+	stub_chips_nr = i;
+	stub_chips = kcalloc(stub_chips_nr, sizeof(struct stub_chip),
+			     GFP_KERNEL);
 	if (!stub_chips) {
 		pr_err("i2c-stub: Out of memory\n");
 		return -ENOMEM;
 	}
-	for (i--; i >= 0; i--)
+	for (i = 0; i < stub_chips_nr; i++)
 		INIT_LIST_HEAD(&stub_chips[i].smbus_blocks);
 
 	ret = i2c_add_adapter(&stub_adapter);
