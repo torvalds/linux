@@ -673,9 +673,6 @@ void __init setup_arch(char **cmdline_p)
 	exc_lvl_early_init();
 	emergency_stack_init();
 
-#ifdef CONFIG_PPC_STD_MMU_64
-	stabs_alloc();
-#endif
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
 	sparse_init();

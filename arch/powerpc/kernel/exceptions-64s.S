@@ -188,10 +188,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 data_access_pSeries:
 	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
-BEGIN_FTR_SECTION
-	b	data_access_check_stab
-data_access_not_stab:
-END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common, EXC_STD,
 				 KVMTEST, 0x300)
 
@@ -514,34 +510,6 @@ machine_check_pSeries_0:
 	EXCEPTION_PROLOG_1(PACA_EXMC, KVMTEST, 0x200)
 	EXCEPTION_PROLOG_PSERIES_1(machine_check_common, EXC_STD)
 	KVM_HANDLER_SKIP(PACA_EXMC, EXC_STD, 0x200)
-
-	/* moved from 0x300 */
-data_access_check_stab:
-	GET_PACA(r13)
-	std	r9,PACA_EXSLB+EX_R9(r13)
-	std	r10,PACA_EXSLB+EX_R10(r13)
-	mfspr	r10,SPRN_DAR
-	mfspr	r9,SPRN_DSISR
-	srdi	r10,r10,60
-	rlwimi	r10,r9,16,0x20
-#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
-	lbz	r9,HSTATE_IN_GUEST(r13)
-	rlwimi	r10,r9,8,0x300
-#endif
-	mfcr	r9
-	cmpwi	r10,0x2c
-	beq	do_stab_bolted_pSeries
-	mtcrf	0x80,r9
-	ld	r9,PACA_EXSLB+EX_R9(r13)
-	ld	r10,PACA_EXSLB+EX_R10(r13)
-	b	data_access_not_stab
-do_stab_bolted_pSeries:
-	std	r11,PACA_EXSLB+EX_R11(r13)
-	std	r12,PACA_EXSLB+EX_R12(r13)
-	GET_SCRATCH0(r10)
-	std	r10,PACA_EXSLB+EX_R13(r13)
-	EXCEPTION_PROLOG_PSERIES_1(do_stab_bolted, EXC_STD)
-
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_STD, 0x300)
 	KVM_HANDLER_SKIP(PACA_EXSLB, EXC_STD, 0x380)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x400)
@@ -1338,12 +1306,6 @@ fwnmi_data_area:
 	. = 0x8000
 #endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
 
-/* Space for CPU0's segment table */
-	.balign 4096
-	.globl initial_stab
-initial_stab:
-	.space	4096
-
 #ifdef CONFIG_PPC_POWERNV
 _GLOBAL(opal_mc_secondary_handler)
 	HMT_MEDIUM_PPR_DISCARD
@@ -1594,12 +1556,6 @@ do_hash_page:
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
 	andis.  r0,r4,DSISR_DABRMATCH@h
 	bne-    handle_dabr_fault
-
-BEGIN_FTR_SECTION
-	andis.	r0,r4,0x0020		/* Is it a segment table fault? */
-	bne-	do_ste_alloc		/* If so handle it */
-END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
-
 	CURRENT_THREAD_INFO(r11, r1)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
 	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
@@ -1680,114 +1636,3 @@ handle_dabr_fault:
 	li	r5,SIGSEGV
 	bl	bad_page_fault
 	b	ret_from_except
-
-	/* here we have a segment miss */
-do_ste_alloc:
-	bl	ste_allocate		/* try to insert stab entry */
-	cmpdi	r3,0
-	bne-	handle_page_fault
-	b	fast_exception_return
-
-/*
- * r13 points to the PACA, r9 contains the saved CR,
- * r11 and r12 contain the saved SRR0 and SRR1.
- * r9 - r13 are saved in paca->exslb.
- * We assume we aren't going to take any exceptions during this procedure.
- * We assume (DAR >> 60) == 0xc.
- */
-	.align	7
-do_stab_bolted:
-	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
-	std	r11,PACA_EXSLB+EX_SRR0(r13)	/* save SRR0 in exc. frame */
-	mfspr	r11,SPRN_DAR			/* ea */
-
-	/*
-	 * check for bad kernel/user address
-	 * (ea & ~REGION_MASK) >= PGTABLE_RANGE
-	 */
-	rldicr. r9,r11,4,(63 - 46 - 4)
-	li	r9,0	/* VSID = 0 for bad address */
-	bne-	0f
-
-	/*
-	 * Calculate VSID:
-	 * This is the kernel vsid, we take the top for context from
-	 * the range. context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1
-	 * Here we know that (ea >> 60) == 0xc
-	 */
-	lis	r9,(MAX_USER_CONTEXT + 1)@ha
-	addi	r9,r9,(MAX_USER_CONTEXT + 1)@l
-
-	srdi	r10,r11,SID_SHIFT
-	rldimi  r10,r9,ESID_BITS,0 /* proto vsid */
-	ASM_VSID_SCRAMBLE(r10, r9, 256M)
-	rldic	r9,r10,12,16	/* r9 = vsid << 12 */
-
-0:
-	/* Hash to the primary group */
-	ld	r10,PACASTABVIRT(r13)
-	srdi	r11,r11,SID_SHIFT
-	rldimi	r10,r11,7,52	/* r10 = first ste of the group */
-
-	/* Search the primary group for a free entry */
-1:	ld	r11,0(r10)	/* Test valid bit of the current ste	*/
-	andi.	r11,r11,0x80
-	beq	2f
-	addi	r10,r10,16
-	andi.	r11,r10,0x70
-	bne	1b
-
-	/* Stick for only searching the primary group for now.		*/
-	/* At least for now, we use a very simple random castout scheme */
-	/* Use the TB as a random number ;  OR in 1 to avoid entry 0	*/
-	mftb	r11
-	rldic	r11,r11,4,57	/* r11 = (r11 << 4) & 0x70 */
-	ori	r11,r11,0x10
-
-	/* r10 currently points to an ste one past the group of interest */
-	/* make it point to the randomly selected entry			*/
-	subi	r10,r10,128
-	or 	r10,r10,r11	/* r10 is the entry to invalidate	*/
-
-	isync			/* mark the entry invalid		*/
-	ld	r11,0(r10)
-	rldicl	r11,r11,56,1	/* clear the valid bit */
-	rotldi	r11,r11,8
-	std	r11,0(r10)
-	sync
-
-	clrrdi	r11,r11,28	/* Get the esid part of the ste		*/
-	slbie	r11
-
-2:	std	r9,8(r10)	/* Store the vsid part of the ste	*/
-	eieio
-
-	mfspr	r11,SPRN_DAR		/* Get the new esid			*/
-	clrrdi	r11,r11,28	/* Permits a full 32b of ESID		*/
-	ori	r11,r11,0x90	/* Turn on valid and kp			*/
-	std	r11,0(r10)	/* Put new entry back into the stab	*/
-
-	sync
-
-	/* All done -- return from exception. */
-	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
-	ld	r11,PACA_EXSLB+EX_SRR0(r13)	/* get saved SRR0 */
-
-	andi.	r10,r12,MSR_RI
-	beq-	unrecov_slb
-
-	mtcrf	0x80,r9			/* restore CR */
-
-	mfmsr	r10
-	clrrdi	r10,r10,2
-	mtmsrd	r10,1
-
-	mtspr	SPRN_SRR0,r11
-	mtspr	SPRN_SRR1,r12
-	ld	r9,PACA_EXSLB+EX_R9(r13)
-	ld	r10,PACA_EXSLB+EX_R10(r13)
-	ld	r11,PACA_EXSLB+EX_R11(r13)
-	ld	r12,PACA_EXSLB+EX_R12(r13)
-	ld	r13,PACA_EXSLB+EX_R13(r13)
-	rfid
-	b	.	/* prevent speculative execution */

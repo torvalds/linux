@@ -618,7 +618,7 @@ __secondary_start:
 	addi	r14,r14,THREAD_SIZE-STACK_FRAME_OVERHEAD
 	std	r14,PACAKSAVE(r13)
 
-	/* Do early setup for that CPU (stab, slb, hash table pointer) */
+	/* Do early setup for that CPU (SLB and hash table pointer) */
 	bl	early_setup_secondary
 
 	/*
@@ -771,8 +771,10 @@ start_here_multiplatform:
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 
-	/* Do very early kernel initializations, including initial hash table,
-	 * stab and slb setup before we turn on relocation.	*/
+	/*
+	 * Do very early kernel initializations, including initial hash table
+	 * and SLB setup before we turn on relocation.
+	 */
 
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
