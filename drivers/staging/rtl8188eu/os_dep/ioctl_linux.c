@@ -2697,7 +2697,7 @@ static int rtw_p2p_set_intent(struct net_device *dev,
 		intent = extra[0] - '0';
 		break;
 	case 2:
-		intent = str_2char2num(extra[0], extra[1]);
+		intent = hex_to_bin(extra[0]) * 10 + hex_to_bin(extra[1]);
 		break;
 	}
 	if (intent <= 15)
@@ -2722,7 +2722,7 @@ static int rtw_p2p_set_listen_ch(struct net_device *dev,
 		listen_ch = extra[0] - '0';
 		break;
 	case 2:
-		listen_ch = str_2char2num(extra[0], extra[1]);
+		listen_ch = hex_to_bin(extra[0]) * 10 + hex_to_bin(extra[1]);
 		break;
 	}
 
@@ -2755,7 +2755,7 @@ static int rtw_p2p_set_op_ch(struct net_device *dev,
 		op_ch = extra[0] - '0';
 		break;
 	case 2:
-		op_ch = str_2char2num(extra[0], extra[1]);
+		op_ch = hex_to_bin(extra[0]) * 10 + hex_to_bin(extra[1]);
 		break;
 	}
 

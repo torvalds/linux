@@ -340,7 +340,4 @@ struct ndis_802_11_cap {
 	struct ndis_802_11_auth_encrypt AuthenticationEncryptionSupported[1];
 };
 
-u8 key_char2num(u8 ch);
-u8 str_2char2num(u8 hch, u8 lch);
-
 #endif /* ifndef WLAN_BSSDEF_H_ */

@@ -1067,23 +1067,6 @@ enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,
 	return unknown ? ParseUnknown : ParseOK;
 }
 
-u8 key_char2num(u8 ch)
-{
-	if ((ch >= '0') && (ch <= '9'))
-		return ch - '0';
-	else if ((ch >= 'a') && (ch <= 'f'))
-		return ch - 'a' + 10;
-	else if ((ch >= 'A') && (ch <= 'F'))
-		return ch - 'A' + 10;
-	else
-		return 0xff;
-}
-
-u8 str_2char2num(u8 hch, u8 lch)
-{
-    return (key_char2num(hch) * 10) + key_char2num(lch);
-}
-
 void rtw_macaddr_cfg(u8 *mac_addr)
 {
 	u8 mac[ETH_ALEN];
