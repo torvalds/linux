@@ -2517,6 +2517,7 @@ skip:
 int ndo_dflt_fdb_dump(struct sk_buff *skb,
 		      struct netlink_callback *cb,
 		      struct net_device *dev,
+		      struct net_device *filter_dev,
 		      int idx)
 {
 	int err;
@@ -2547,13 +2548,15 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			br_dev = netdev_master_upper_dev_get(dev);
 			ops = br_dev->netdev_ops;
 			if (ops->ndo_fdb_dump)
-				idx = ops->ndo_fdb_dump(skb, cb, dev, idx);
+				idx = ops->ndo_fdb_dump(skb, cb, dev, NULL,
+							idx);
 		}
 
 		if (dev->netdev_ops->ndo_fdb_dump)
-			idx = dev->netdev_ops->ndo_fdb_dump(skb, cb, dev, idx);
+			idx = dev->netdev_ops->ndo_fdb_dump(skb, cb, dev, NULL,
+							    idx);
 		else
-			idx = ndo_dflt_fdb_dump(skb, cb, dev, idx);
+			idx = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
 	}
 	rcu_read_unlock();
 

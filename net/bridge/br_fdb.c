@@ -676,6 +676,7 @@ errout:
 int br_fdb_dump(struct sk_buff *skb,
 		struct netlink_callback *cb,
 		struct net_device *dev,
+		struct net_device *filter_dev,
 		int idx)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -689,6 +690,10 @@ int br_fdb_dump(struct sk_buff *skb,
 
 		hlist_for_each_entry_rcu(f, &br->hash[i], hlist) {
 			if (idx < cb->args[0])
+				goto skip;
+
+			if (filter_dev && (!f->dst || !f->dst->dev ||
+					   f->dst->dev != filter_dev))
 				goto skip;
 
 			if (fdb_fill_info(skb, br, f,

@@ -7095,13 +7095,14 @@ static int i40e_ndo_fdb_del(struct ndmsg *ndm,
 static int i40e_ndo_fdb_dump(struct sk_buff *skb,
 			     struct netlink_callback *cb,
 			     struct net_device *dev,
+			     struct net_device *filter_dev,
 			     int idx)
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_pf *pf = np->vsi->back;
 
 	if (pf->flags & I40E_FLAG_SRIOV_ENABLED)
-		idx = ndo_dflt_fdb_dump(skb, cb, dev, idx);
+		idx = ndo_dflt_fdb_dump(skb, cb, dev, filter_dev, idx);
 
 	return idx;
 }
