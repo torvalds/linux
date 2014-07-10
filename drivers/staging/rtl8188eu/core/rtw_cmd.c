@@ -64,7 +64,6 @@ int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 
 	pcmdpriv->rsp_buf = pcmdpriv->rsp_allocated_buf  +  4 - ((size_t)(pcmdpriv->rsp_allocated_buf) & 3);
 
-	pcmdpriv->cmd_issued_cnt = 0;
 	pcmdpriv->cmd_done_cnt = 0;
 exit:
 	return res;
@@ -245,8 +244,6 @@ _next:
 			pcmd->res = H2C_DROPPED;
 			goto post_process;
 		}
-
-		pcmdpriv->cmd_issued_cnt++;
 
 		pcmd->cmdsz = round_up(pcmd->cmdsz, 4);
 
