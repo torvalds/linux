@@ -319,14 +319,3 @@ void hal_init_macaddr(struct adapter *adapter)
 	rtw_hal_set_hwreg(adapter, HW_VAR_MAC_ADDR,
 			  adapter->eeprompriv.mac_addr);
 }
-
-/*
-* C2H event format:
-* Field	 TRIGGER		CONTENT	   CMD_SEQ	CMD_LEN		 CMD_ID
-* BITS	 [127:120]	[119:16]      [15:8]		  [7:4]		   [3:0]
-*/
-
-void c2h_evt_clear(struct adapter *adapter)
-{
-	usb_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
-}
