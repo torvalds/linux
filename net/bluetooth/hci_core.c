@@ -2655,6 +2655,26 @@ done:
 	return ret;
 }
 
+static void hci_update_scan_state(struct hci_dev *hdev, u8 scan)
+{
+	bool conn_changed;
+
+	BT_DBG("%s scan 0x%02x", hdev->name, scan);
+
+	if ((scan & SCAN_PAGE))
+		conn_changed = !test_and_set_bit(HCI_CONNECTABLE,
+						 &hdev->dev_flags);
+	else
+		conn_changed = test_and_clear_bit(HCI_CONNECTABLE,
+						  &hdev->dev_flags);
+
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
+		return;
+
+	if (conn_changed)
+		mgmt_new_settings(hdev);
+}
+
 int hci_dev_cmd(unsigned int cmd, void __user *arg)
 {
 	struct hci_dev *hdev;
@@ -2719,19 +2739,8 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 		/* Ensure that the connectable state gets correctly
 		 * modified as this was a non-mgmt change.
 		 */
-		if (!err) {
-			bool changed;
-
-			if ((dr.dev_opt & SCAN_PAGE))
-				changed = !test_and_set_bit(HCI_CONNECTABLE,
-							    &hdev->dev_flags);
-			else
-				changed = test_and_clear_bit(HCI_CONNECTABLE,
-							     &hdev->dev_flags);
-
-			if (changed && test_bit(HCI_MGMT, &hdev->dev_flags))
-				mgmt_new_settings(hdev);
-		}
+		if (!err)
+			hci_update_scan_state(hdev, dr.dev_opt);
 		break;
 
 	case HCISETLINKPOL:
