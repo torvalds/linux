@@ -205,18 +205,30 @@ static void cdns_spi_chipselect(struct spi_device *spi, bool is_high)
 static void cdns_spi_config_clock_mode(struct spi_device *spi)
 {
 	struct cdns_spi *xspi = spi_master_get_devdata(spi->master);
-	u32 ctrl_reg;
+	u32 ctrl_reg, new_ctrl_reg;
 
-	ctrl_reg = cdns_spi_read(xspi, CDNS_SPI_CR_OFFSET);
+	new_ctrl_reg = ctrl_reg = cdns_spi_read(xspi, CDNS_SPI_CR_OFFSET);
 
 	/* Set the SPI clock phase and clock polarity */
-	ctrl_reg &= ~(CDNS_SPI_CR_CPHA_MASK | CDNS_SPI_CR_CPOL_MASK);
+	new_ctrl_reg &= ~(CDNS_SPI_CR_CPHA_MASK | CDNS_SPI_CR_CPOL_MASK);
 	if (spi->mode & SPI_CPHA)
-		ctrl_reg |= CDNS_SPI_CR_CPHA_MASK;
+		new_ctrl_reg |= CDNS_SPI_CR_CPHA_MASK;
 	if (spi->mode & SPI_CPOL)
-		ctrl_reg |= CDNS_SPI_CR_CPOL_MASK;
+		new_ctrl_reg |= CDNS_SPI_CR_CPOL_MASK;
 
-	cdns_spi_write(xspi, CDNS_SPI_CR_OFFSET, ctrl_reg);
+	if (new_ctrl_reg != ctrl_reg) {
+		/*
+		 * Just writing the CR register does not seem to apply the clock
+		 * setting changes. This is problematic when changing the clock
+		 * polarity as it will cause the SPI slave to see spurious clock
+		 * transitions. To workaround the issue toggle the ER register.
+		 */
+		cdns_spi_write(xspi, CDNS_SPI_ER_OFFSET,
+				   CDNS_SPI_ER_DISABLE_MASK);
+		cdns_spi_write(xspi, CDNS_SPI_CR_OFFSET, new_ctrl_reg);
+		cdns_spi_write(xspi, CDNS_SPI_ER_OFFSET,
+				   CDNS_SPI_ER_ENABLE_MASK);
+	}
 }
 
 /**
