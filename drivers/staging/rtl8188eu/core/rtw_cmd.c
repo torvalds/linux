@@ -375,14 +375,6 @@ exit:
 	return res;
 }
 
-void rtw_getbbrfreg_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
-{
-
-	kfree(pcmd->parmbuf);
-	kfree(pcmd);
-
-}
-
 void rtw_readtssi_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
 {
 

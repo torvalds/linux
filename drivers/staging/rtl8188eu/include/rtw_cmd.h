@@ -491,7 +491,6 @@ void rtw_survey_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd);
 void rtw_disassoc_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd);
 void rtw_joinbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd);
 void rtw_createbss_cmd_callback(struct adapter *adapt, struct cmd_obj *pcmd);
-void rtw_getbbrfreg_cmdrsp_callback(struct adapter *adapt, struct cmd_obj *cmd);
 void rtw_readtssi_cmdrsp_callback(struct adapter *adapt, struct cmd_obj *cmd);
 
 void rtw_setstaKey_cmdrsp_callback(struct adapter *adapt, struct cmd_obj *cmd);
@@ -583,9 +582,9 @@ enum rtw_h2c_cmd {
 static struct _cmd_callback	rtw_cmd_callback[] = {
 	{GEN_CMD_CODE(_Read_MACREG), NULL}, /*0*/
 	{GEN_CMD_CODE(_Write_MACREG), NULL},
-	{GEN_CMD_CODE(_Read_BBREG), &rtw_getbbrfreg_cmdrsp_callback},
+	{GEN_CMD_CODE(_Read_BBREG), NULL},
 	{GEN_CMD_CODE(_Write_BBREG), NULL},
-	{GEN_CMD_CODE(_Read_RFREG), &rtw_getbbrfreg_cmdrsp_callback},
+	{GEN_CMD_CODE(_Read_RFREG), NULL},
 	{GEN_CMD_CODE(_Write_RFREG), NULL}, /*5*/
 	{GEN_CMD_CODE(_Read_EEPROM), NULL},
 	{GEN_CMD_CODE(_Write_EEPROM), NULL},
