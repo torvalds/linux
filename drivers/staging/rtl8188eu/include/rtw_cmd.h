@@ -24,16 +24,11 @@
 #include <rtw_rf.h>
 #include <rtw_led.h>
 
-#define C2H_MEM_SZ (16*1024)
-
 #include <osdep_service.h>
 #include <ieee80211.h> /*  <ieee80211/ieee80211.h> */
 
-#define FREE_CMDOBJ_SZ	128
-
 #define MAX_CMDSZ	1024
 #define MAX_RSPSZ	512
-#define MAX_EVTSZ	1024
 
 #define CMDBUFF_ALIGN_SZ 512
 
@@ -707,16 +702,11 @@ Result:
 
 */
 
-#define H2C_RSP_OFFSET		512
-
 #define H2C_SUCCESS		0x00
 #define H2C_SUCCESS_RSP		0x01
-#define H2C_DUPLICATED		0x02
 #define H2C_DROPPED		0x03
 #define H2C_PARAMETERS_ERROR	0x04
 #define H2C_REJECTED		0x05
-#define H2C_CMD_OVERFLOW	0x06
-#define H2C_RESERVED		0x07
 
 u8 rtw_sitesurvey_cmd(struct adapter *padapter, struct ndis_802_11_ssid *ssid,
 		      int ssid_num, struct rtw_ieee80211_channel *ch,
@@ -840,11 +830,6 @@ enum rtw_h2c_cmd {
 
 	MAX_H2CCMD
 };
-
-#define _GetBBReg_CMD_		_Read_BBREG_CMD_
-#define _SetBBReg_CMD_		_Write_BBREG_CMD_
-#define _GetRFReg_CMD_		_Read_RFREG_CMD_
-#define _SetRFReg_CMD_		_Write_RFREG_CMD_
 
 #ifdef _RTW_CMD_C_
 static struct _cmd_callback	rtw_cmd_callback[] = {
