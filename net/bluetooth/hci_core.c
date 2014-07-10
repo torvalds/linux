@@ -2817,14 +2817,20 @@ int hci_get_dev_list(void __user *arg)
 
 	read_lock(&hci_dev_list_lock);
 	list_for_each_entry(hdev, &hci_dev_list, list) {
-		if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-			cancel_delayed_work(&hdev->power_off);
+		unsigned long flags = hdev->flags;
+
+		/* When the auto-off is configured it means the transport
+		 * is running, but in that case still indicate that the
+		 * device is actually down.
+		 */
+		if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+			flags &= ~BIT(HCI_UP);
 
 		if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 			set_bit(HCI_PAIRABLE, &hdev->dev_flags);
 
 		(dr + n)->dev_id  = hdev->id;
-		(dr + n)->dev_opt = hdev->flags;
+		(dr + n)->dev_opt = flags;
 
 		if (++n >= dev_num)
 			break;
@@ -2844,6 +2850,7 @@ int hci_get_dev_info(void __user *arg)
 {
 	struct hci_dev *hdev;
 	struct hci_dev_info di;
+	unsigned long flags;
 	int err = 0;
 
 	if (copy_from_user(&di, arg, sizeof(di)))
@@ -2853,8 +2860,14 @@ int hci_get_dev_info(void __user *arg)
 	if (!hdev)
 		return -ENODEV;
 
-	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-		cancel_delayed_work_sync(&hdev->power_off);
+	/* When the auto-off is configured it means the transport
+	 * is running, but in that case still indicate that the
+	 * device is actually down.
+	 */
+	if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+		flags = hdev->flags & ~BIT(HCI_UP);
+	else
+		flags = hdev->flags;
 
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		set_bit(HCI_PAIRABLE, &hdev->dev_flags);
@@ -2862,7 +2875,7 @@ int hci_get_dev_info(void __user *arg)
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;
 	di.type     = (hdev->bus & 0x0f) | ((hdev->dev_type & 0x03) << 4);
-	di.flags    = hdev->flags;
+	di.flags    = flags;
 	di.pkt_type = hdev->pkt_type;
 	if (lmp_bredr_capable(hdev)) {
 		di.acl_mtu  = hdev->acl_mtu;
