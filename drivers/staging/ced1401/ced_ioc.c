@@ -533,13 +533,13 @@ int ced_get_string(struct ced_data *ced, char __user *user, int n)
 *******************************************************************************/
 int ced_stat_1401(struct ced_data *ced)
 {
-	int iReturn;
+	int ret;
 	mutex_lock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
 	ced_allowi(ced);		/*  make sure we allow pending chars */
 	ced_send_chars(ced);		/*  in both directions */
-	iReturn = ced->num_input;	/*  no lock as single read */
+	ret = ced->num_input;		/*  no lock as single read */
 	mutex_unlock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
