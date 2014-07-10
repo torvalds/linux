@@ -241,7 +241,8 @@ extern int ced_get_transfer(struct ced_data *ced, TGET_TX_BLOCK __user *utx);
 extern int ced_kill_io(struct ced_data *ced);
 extern int ced_state_of_1401(struct ced_data *ced);
 extern int ced_start_self_test(struct ced_data *ced);
-extern int ced_check_self_test(struct ced_data *ced, TGET_SELFTEST __user *pGST);
+extern int ced_check_self_test(struct ced_data *ced,
+			       TGET_SELFTEST __user *ugst);
 extern int ced_type_of_1401(struct ced_data *ced);
 extern int ced_transfer_flags(struct ced_data *ced);
 extern int ced_dbg_peek(struct ced_data *ced, TDBGBLOCK __user *pDB);

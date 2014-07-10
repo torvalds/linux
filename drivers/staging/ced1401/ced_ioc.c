@@ -1045,31 +1045,31 @@ int ced_start_self_test(struct ced_data *ced)
 **
 ** Check progress of a self-test cycle
 ****************************************************************************/
-int ced_check_self_test(struct ced_data *ced, TGET_SELFTEST __user *pGST)
+int ced_check_self_test(struct ced_data *ced, TGET_SELFTEST __user *ugst)
 {
 	unsigned int state, error;
-	int iReturn;
+	int ret;
 	TGET_SELFTEST gst;	/*  local work space */
 	memset(&gst, 0, sizeof(gst));	/*  clear out the space (sets code 0) */
 
 	mutex_lock(&ced->io_mutex);
 
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
-	iReturn = ced_get_state(ced, &state, &error);
-	if (iReturn == U14ERR_NOERROR)	/*  Only accept zero if it happens twice */
-		iReturn = ced_get_state(ced, &state, &error);
+	ret = ced_get_state(ced, &state, &error);
+	if (ret == U14ERR_NOERROR) /* Only accept zero if it happens twice */
+		ret = ced_get_state(ced, &state, &error);
 
-	if (iReturn != U14ERR_NOERROR) {	/*  Self-test can cause comms errors */
+	if (ret != U14ERR_NOERROR) {	/*  Self-test can cause comms errors */
 				/*  so we assume still testing */
 		dev_err(&ced->interface->dev,
 			"%s: ced_get_state=%d, assuming still testing\n",
-			__func__, iReturn);
+			__func__, ret);
 		state = 0x80;	/*  Force still-testing, no error */
 		error = 0;
-		iReturn = U14ERR_NOERROR;
+		ret = U14ERR_NOERROR;
 	}
 
-	if ((state == -1) && (error == -1)) {	/*  If ced_get_state had problems */
+	if ((state == -1) && (error == -1)) {/* If ced_get_state had problems */
 		dev_err(&ced->interface->dev,
 			"%s: ced_get_state failed, assuming still testing\n",
 			__func__);
@@ -1079,14 +1079,15 @@ int ced_check_self_test(struct ced_data *ced, TGET_SELFTEST __user *pGST)
 
 	if ((state & 0xFF) == 0x80) {	/*  If we are still in self-test */
 		if (state & 0x00FF0000)	{ /*  Have we got an error? */
-			gst.code = (state & 0x00FF0000) >> 16;	/*  read the error code */
-			gst.x = error & 0x0000FFFF;	/*  Error data X */
-			gst.y = (error & 0xFFFF0000) >> 16;	/*  and data Y */
+			/* read the error code */
+			gst.code = (state & 0x00FF0000) >> 16;
+			gst.x = error & 0x0000FFFF;	    /* Error data X */
+			gst.y = (error & 0xFFFF0000) >> 16; /* and data Y   */
 			dev_dbg(&ced->interface->dev,
 				"Self-test error code %d\n", gst.code);
 		} else {		/*  No error, check for timeout */
-			unsigned long ulNow = jiffies;	/*  get current time */
-			if (time_after(ulNow, ced->self_test_time)) {
+			unsigned long now = jiffies;	/*  get current time */
+			if (time_after(now, ced->self_test_time)) {
 				gst.code = -2;	/*  Flag the timeout */
 				dev_dbg(&ced->interface->dev,
 					"Self-test timed-out\n");
@@ -1099,19 +1100,20 @@ int ced_check_self_test(struct ced_data *ced, TGET_SELFTEST __user *pGST)
 		dev_dbg(&ced->interface->dev, "Self-test done\n");
 	}
 
-	if (gst.code < 0) {	/*  If we have a problem or finished */
-				/*  If using the 2890 we should reset properly */
+	if (gst.code < 0) { /* If we have a problem or finished */
+			    /* If using the 2890 we should reset properly */
 		if ((ced->n_pipes == 4) && (ced->type <= TYPEPOWER))
 			ced_is_1401(ced);	/*  Get 1401 reset and OK */
 		else
-			ced_quick_check(ced, true, true);	/*  Otherwise check without reset unless problems */
+			/* Otherwise check without reset unless problems */
+			ced_quick_check(ced, true, true);
 	}
 	mutex_unlock(&ced->io_mutex);
 
-	if (copy_to_user(pGST, &gst, sizeof(gst)))
+	if (copy_to_user(ugst, &gst, sizeof(gst)))
 		return -EFAULT;
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
