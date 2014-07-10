@@ -50,7 +50,6 @@
 #include <rtw_mlme_ext.h>
 #include <rtw_p2p.h>
 #include <rtw_ap.h>
-#include <rtw_mp.h>
 
 #define SPEC_DEV_ID_NONE		BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT		BIT(1)
@@ -200,7 +199,6 @@ struct adapter {
 	struct	pwrctrl_priv	pwrctrlpriv;
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
-	struct	mp_priv	mppriv;
 
 #ifdef CONFIG_88EU_AP_MODE
 	struct	hostapd_priv	*phostapdpriv;

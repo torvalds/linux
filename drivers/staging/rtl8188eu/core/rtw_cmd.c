@@ -738,8 +738,6 @@ void rtw_getbbrfreg_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *p
 	kfree(pcmd->parmbuf);
 	kfree(pcmd);
 
-	if (padapter->registrypriv.mp_mode == 1)
-		padapter->mppriv.workparam.bcompleted = true;
 }
 
 void rtw_readtssi_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
@@ -747,9 +745,6 @@ void rtw_readtssi_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pcm
 
 	kfree(pcmd->parmbuf);
 	kfree(pcmd);
-
-	if (padapter->registrypriv.mp_mode == 1)
-		padapter->mppriv.workparam.bcompleted = true;
 }
 
 u8 rtw_createbss_cmd(struct adapter  *padapter)

@@ -1258,7 +1258,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	struct mpt_context *pMptCtx = &(adapt->mppriv.MptCtx);
 	s32 result[4][8];	/* last is final result */
 	u8 i, final_candidate, Indexforchannel;
 	bool pathaok, pathbok;
@@ -1277,11 +1276,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
-
-	if (*(dm_odm->mp_mode) == 1) {
-		singletone = pMptCtx->bSingleTone;
-		carrier_sup = pMptCtx->bCarrierSuppression;
-	}
 
 	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
 	if (singletone || carrier_sup)
@@ -1410,12 +1404,7 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 	u32 timeout = 2000, timecount = 0;
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	struct mpt_context *pMptCtx = &(adapt->mppriv.MptCtx);
 
-	if (*(dm_odm->mp_mode) == 1) {
-		singletone = pMptCtx->bSingleTone;
-		carrier_sup = pMptCtx->bCarrierSuppression;
-	}
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
 	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */

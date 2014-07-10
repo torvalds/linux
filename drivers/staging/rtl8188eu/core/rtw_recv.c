@@ -789,10 +789,6 @@ int sta2sta_data_frame(struct adapter *adapter, struct recv_frame *precv_frame,
 
 	if (*psta == NULL) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("can't get psta under sta2sta_data_frame ; drop pkt\n"));
-		if (adapter->registrypriv.mp_mode == 1) {
-			if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)
-			adapter->mppriv.rx_pktloss++;
-		}
 		ret = _FAIL;
 		goto exit;
 	}
@@ -2012,25 +2008,7 @@ static int recv_func_prehandle(struct adapter *padapter,
 			       struct recv_frame *rframe)
 {
 	int ret = _SUCCESS;
-	struct rx_pkt_attrib *pattrib = &rframe->attrib;
 	struct __queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
-	if (padapter->registrypriv.mp_mode == 1) {
-		if ((check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)) { /* padapter->mppriv.check_mp_pkt == 0)) */
-			if (pattrib->crc_err == 1)
-				padapter->mppriv.rx_crcerrpktcount++;
-			else
-				padapter->mppriv.rx_pktcount++;
-
-			if (check_fwstate(pmlmepriv, WIFI_MP_LPBK_STATE) == false) {
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_alert_, ("MP - Not in loopback mode , drop pkt\n"));
-				ret = _FAIL;
-				rtw_free_recvframe(rframe, pfree_recv_queue);/* free this recv_frame */
-				goto exit;
-			}
-		}
-	}
 
 	/* check the frame crtl field and decache */
 	ret = validate_recv_frame(padapter, rframe);
@@ -2151,11 +2129,6 @@ s32 rtw_recv_entry(struct recv_frame *precvframe)
 	return ret;
 
 _recv_entry_drop:
-
-	if (padapter->registrypriv.mp_mode == 1)
-		padapter->mppriv.rx_pktloss = precvpriv->rx_drop;
-
-
 	return ret;
 }
 

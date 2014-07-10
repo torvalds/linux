@@ -306,9 +306,6 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 		ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate(pmlmeext->tx_rate));
 	} else if ((pxmitframe->frame_tag&0x0f) == TXAGG_FRAMETAG) {
 		DBG_88E("pxmitframe->frame_tag == TXAGG_FRAMETAG\n");
-	} else if (((pxmitframe->frame_tag&0x0f) == MP_FRAMETAG) &&
-		   (adapt->registrypriv.mp_mode == 1)) {
-		fill_txdesc_for_mp(adapt, ptxdesc);
 	} else {
 		DBG_88E("pxmitframe->frame_tag = %d\n", pxmitframe->frame_tag);
 

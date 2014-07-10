@@ -9,7 +9,6 @@ r8188eu-y :=				\
 		core/rtw_led.o		\
 		core/rtw_mlme.o		\
 		core/rtw_mlme_ext.o	\
-		core/rtw_mp.o		\
 		core/rtw_pwrctrl.o	\
 		core/rtw_p2p.o		\
 		core/rtw_recv.o		\
@@ -36,7 +35,6 @@ r8188eu-y :=				\
 		hal/rtl8188e_cmd.o	\
 		hal/rtl8188e_dm.o	\
 		hal/rtl8188e_hal_init.o	\
-		hal/rtl8188e_mp.o	\
 		hal/rtl8188e_phycfg.o	\
 		hal/rtl8188e_rf6052.o	\
 		hal/rtl8188e_rxdesc.o	\
