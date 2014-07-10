@@ -5605,21 +5605,3 @@ u8 set_csa_hdl(struct adapter *padapter, unsigned char *pbuf)
 {
 	return	H2C_REJECTED;
 }
-
-/*  TDLS_WRCR		: write RCR DATA BIT */
-/*  TDLS_SD_PTI		: issue peer traffic indication */
-/*  TDLS_CS_OFF		: go back to the channel linked with AP, terminating channel switch procedure */
-/*  TDLS_INIT_CH_SEN	: init channel sensing, receive all data and mgnt frame */
-/*  TDLS_DONE_CH_SEN: channel sensing and report candidate channel */
-/*  TDLS_OFF_CH		: first time set channel to off channel */
-/*  TDLS_BASE_CH		: go back tp the channel linked with AP when set base channel as target channel */
-/*  TDLS_P_OFF_CH	: periodically go to off channel */
-/*  TDLS_P_BASE_CH	: periodically go back to base channel */
-/*  TDLS_RS_RCR		: restore RCR */
-/*  TDLS_CKALV_PH1	: check alive timer phase1 */
-/*  TDLS_CKALV_PH2	: check alive timer phase2 */
-/*  TDLS_FREE_STA	: free tdls sta */
-u8 tdls_hdl(struct adapter *padapter, unsigned char *pbuf)
-{
-	return H2C_REJECTED;
-}
