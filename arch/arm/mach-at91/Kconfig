@@ -50,12 +50,14 @@ config HAVE_AT91_SMD
 config SOC_AT91SAM9
 	bool
 	select AT91_SAM9_TIME
+	select ATMEL_AIC_IRQ if !OLD_IRQ_AT91
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 
 config SOC_SAMA5
 	bool
 	select AT91_SAM9_TIME
+	select ATMEL_AIC5_IRQ
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select USE_OF
@@ -108,6 +110,7 @@ endif
 if SOC_SAM_V4_V5
 config SOC_AT91RM9200
 	bool "AT91RM9200"
+	select ATMEL_AIC_IRQ if !OLD_IRQ_AT91
 	select CPU_ARM920T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_DBGU0
@@ -193,7 +196,6 @@ comment "Generic Board Type"
 config MACH_AT91RM9200_DT
 	bool "Atmel AT91RM9200 Evaluation Kits with device-tree support"
 	depends on SOC_AT91RM9200
-	select OLD_IRQ_AT91
 	select USE_OF
 	help
 	  Select this if you want to experiment device-tree with
@@ -202,7 +204,6 @@ config MACH_AT91RM9200_DT
 config MACH_AT91SAM9_DT
 	bool "Atmel AT91SAM Evaluation Kits with device-tree support"
 	depends on SOC_AT91SAM9
-	select OLD_IRQ_AT91
 	select USE_OF
 	help
 	  Select this if you want to experiment device-tree with
@@ -211,7 +212,6 @@ config MACH_AT91SAM9_DT
 config MACH_SAMA5_DT
 	bool "Atmel SAMA5 Evaluation Kits with device-tree support"
 	depends on SOC_SAMA5
-	select OLD_IRQ_AT91
 	select USE_OF
 	select PHYLIB if NETDEVICES
 	help
