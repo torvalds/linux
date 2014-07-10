@@ -25,7 +25,7 @@ struct ddrtest {
 static struct ddrtest ddrtest;
 
 static ssize_t ddr_proc_read(struct file *file, char __user *buffer,
-               unsigned long len, void *data)
+			     size_t len, loff_t *data)
 {
     char version[]={"V100"};
     u32 i;
@@ -39,7 +39,7 @@ static ssize_t ddr_proc_read(struct file *file, char __user *buffer,
 }
 
 static ssize_t ddr_proc_write(struct file *file, const char __user *buffer,
-			   unsigned long len, void *data)
+			      size_t len, loff_t *data)
 {
     char *cookie_pot;
     char *p;
