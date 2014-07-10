@@ -1028,66 +1028,71 @@ static bool ced_read_huff(volatile unsigned int *word, char *buf,
 ** the transfer request. Returns FALSE if 1401 fails to respond or obselete
 ** code from 1401 or bad parameters.
 **
-** The pBuf char pointer does not include the initial escape character, so
+** The buf char pointer does not include the initial escape character, so
 **  we start handling the data at offset zero.
 **
 *****************************************************************************/
-static bool ced_read_dma_info(volatile struct dmadesc *pDmaDesc,
+static bool ced_read_dma_info(volatile struct dmadesc *dma_desc,
 			      struct ced_data *ced,
-			      char *pBuf, unsigned int dwCount)
+			      char *buf, unsigned int count)
 {
-	bool bResult = false;	/*  assume we won't succeed */
-	unsigned char ucData;
-	unsigned int dDone = 0;	/*  We haven't parsed anything so far */
+	bool retval = false;	/*  assume we won't succeed */
+	unsigned char c;
+	unsigned int n_done = 0;	/*  We haven't parsed anything so far */
 
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
-	if (ced_read_char(&ucData, pBuf, &dDone, dwCount)) {
-		unsigned char ucTransCode = (ucData & 0x0F);	/*  get code for transfer type */
-		unsigned short wIdent = ((ucData >> 4) & 0x07);	/*  and area identifier */
+	if (ced_read_char(&c, buf, &n_done, count)) {
+		/* get code for transfer type */
+		unsigned char trans_code = (c & 0x0F);
+		/* and area identifier */
+		unsigned short ident = ((c >> 4) & 0x07);
 
 		/*  fill in the structure we were given */
-		pDmaDesc->trans_type = ucTransCode;	/*  type of transfer */
-		pDmaDesc->ident = wIdent;	/*  area to use */
-		pDmaDesc->size = 0;	/*  initialise other bits */
-		pDmaDesc->offset = 0;
+		dma_desc->trans_type = trans_code;	/*  type of transfer */
+		dma_desc->ident = ident;	/*  area to use */
+		dma_desc->size = 0;	/*  initialise other bits */
+		dma_desc->offset = 0;
 
 		dev_dbg(&ced->interface->dev, "%s: type: %d ident: %d\n",
-			__func__, pDmaDesc->trans_type, pDmaDesc->ident);
+			__func__, dma_desc->trans_type, dma_desc->ident);
 
-		pDmaDesc->outward = (ucTransCode != TM_EXTTOHOST);	/*  set transfer direction */
+		/* set transfer direction */
+		dma_desc->outward = (trans_code != TM_EXTTOHOST);
 
-		switch (ucTransCode) {
-		case TM_EXTTOHOST:	/*  Extended linear transfer modes (the only ones!) */
+		switch (trans_code) {
+
+		/* Extended linear transfer modes (the only ones!) */
+		case TM_EXTTOHOST:
 		case TM_EXTTO1401:
 			{
-				bResult =
-				    ced_read_huff(&(pDmaDesc->offset), pBuf,
-					     &dDone, dwCount)
-				    && ced_read_huff(&(pDmaDesc->size), pBuf,
-						&dDone, dwCount);
-				if (bResult) {
+				retval =
+				    ced_read_huff(&(dma_desc->offset), buf,
+					     &n_done, count)
+				    && ced_read_huff(&(dma_desc->size), buf,
+						&n_done, count);
+				if (retval) {
 					dev_dbg(&ced->interface->dev,
 						"%s: xfer offset & size %d %d\n",
-						__func__, pDmaDesc->offset,
-						pDmaDesc->size);
+						__func__, dma_desc->offset,
+						dma_desc->size);
 
-					if ((wIdent >= MAX_TRANSAREAS) ||	/*  Illegal area number, or... */
-					    (!ced->trans_def[wIdent].used) ||	/*  area not set up, or... */
-					    (pDmaDesc->offset > ced->trans_def[wIdent].length) ||	/*  range/size */
-					    ((pDmaDesc->offset +
-					      pDmaDesc->size) >
-					     (ced->trans_def[wIdent].
+					if ((ident >= MAX_TRANSAREAS) ||	/*  Illegal area number, or... */
+					    (!ced->trans_def[ident].used) ||	/*  area not set up, or... */
+					    (dma_desc->offset > ced->trans_def[ident].length) ||	/*  range/size */
+					    ((dma_desc->offset +
+					      dma_desc->size) >
+					     (ced->trans_def[ident].
 					      length))) {
-						bResult = false;	/*  bad parameter(s) */
+						retval = false;	/*  bad parameter(s) */
 						dev_dbg(&ced->interface->dev,
 							"%s: bad param - id %d, bUsed %d, offset %d, size %d, area length %d\n",
-							__func__, wIdent,
-							ced->trans_def[wIdent].
+							__func__, ident,
+							ced->trans_def[ident].
 							used,
-							pDmaDesc->offset,
-							pDmaDesc->size,
-							ced->trans_def[wIdent].
+							dma_desc->offset,
+							dma_desc->size,
+							ced->trans_def[ident].
 							length);
 					}
 				}
@@ -1097,13 +1102,14 @@ static bool ced_read_dma_info(volatile struct dmadesc *pDmaDesc,
 			break;
 		}
 	} else
-		bResult = false;
+		retval = false;
 
-	if (!bResult)		/*  now check parameters for validity */
-		dev_err(&ced->interface->dev, "%s: error reading Esc sequence\n",
+	if (!retval)		/*  now check parameters for validity */
+		dev_err(&ced->interface->dev,
+			"%s: error reading Esc sequence\n",
 			__func__);
 
-	return bResult;
+	return retval;
 }
 
 /****************************************************************************
