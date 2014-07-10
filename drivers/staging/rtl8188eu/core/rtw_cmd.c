@@ -1808,31 +1808,6 @@ exit:
 	return res;
 }
 
-static s32 c2h_evt_hdl(struct adapter *adapter, struct c2h_evt_hdr *c2h_evt, c2h_id_filter filter)
-{
-	s32 ret = _FAIL;
-	u8 buf[16];
-
-	if (!c2h_evt) {
-		/* No c2h event in cmd_obj, read c2h event before handling*/
-		if (c2h_evt_read(adapter, buf) == _SUCCESS) {
-			c2h_evt = (struct c2h_evt_hdr *)buf;
-
-			if (filter && filter(c2h_evt->id) == false)
-				goto exit;
-
-			ret = rtw_hal_c2h_handler(adapter, c2h_evt);
-		}
-	} else {
-		if (filter && filter(c2h_evt->id) == false)
-			goto exit;
-
-		ret = rtw_hal_c2h_handler(adapter, c2h_evt);
-	}
-exit:
-	return ret;
-}
-
 u8 rtw_drvextra_cmd_hdl(struct adapter *padapter, unsigned char *pbuf)
 {
 	struct drvextra_cmd_parm *pdrvextra_cmd;
@@ -1863,9 +1838,6 @@ u8 rtw_drvextra_cmd_hdl(struct adapter *padapter, unsigned char *pbuf)
 		rtw_chk_hi_queue_hdl(padapter);
 		break;
 #endif /* CONFIG_88EU_AP_MODE */
-	case C2H_WK_CID:
-		c2h_evt_hdl(padapter, (struct c2h_evt_hdr *)pdrvextra_cmd->pbuf, NULL);
-		break;
 	default:
 		break;
 	}
