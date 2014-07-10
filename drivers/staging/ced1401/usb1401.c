@@ -1628,8 +1628,8 @@ static void ced_disconnect(struct usb_interface *interface)
 	mutex_lock(&ced->io_mutex);	/*  stop more I/O starting while... */
 	ced_draw_down(ced);	/*  ...wait for then kill any io */
 	for (i = 0; i < MAX_TRANSAREAS; ++i) {
-		int iErr = ced_clear_area(ced, i);	/*  ...release any used memory */
-		if (iErr == U14ERR_UNLOCKFAIL)
+		int err = ced_clear_area(ced, i);	/*  ...release any used memory */
+		if (err == U14ERR_UNLOCKFAIL)
 			dev_err(&ced->interface->dev, "%s: Area %d was in used\n",
 				__func__, i);
 	}
