@@ -775,26 +775,29 @@ error:
 ** unset it. Unsetting will fail if the area is booked, and a transfer to that
 ** area is in progress. Otherwise, we will release the area and re-assign it.
 ****************************************************************************/
-int ced_set_transfer(struct ced_data *ced, struct transfer_area_desc __user *pTD)
+int ced_set_transfer(struct ced_data *ced,
+		     struct transfer_area_desc __user *utd)
 {
-	int iReturn;
+	int ret;
 	struct transfer_area_desc td;
 
-	if (copy_from_user(&td, pTD, sizeof(td)))
+	if (copy_from_user(&td, utd, sizeof(td)))
 		return -EFAULT;
 
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s: area:%d, size:%08x\n",
 		__func__, td.wAreaNum, td.dwLength);
-	/*  The strange cast is done so that we don't get warnings in 32-bit linux about the size of the */
-	/*  pointer. The pointer is always passed as a 64-bit object so that we don't have problems using */
-	/*  a 32-bit program on a 64-bit system. unsigned long is 64-bits on a 64-bit system. */
-	iReturn =
+	/* The strange cast is done so that we don't get warnings in 32-bit  */
+	/* linux about the size of the pointer. The pointer is always passed */
+	/* as a 64-bit object so that we don't have problems using a 32-bit  */
+	/* program on a 64-bit system. unsigned long is 64-bits on a 64-bit  */
+	/* system.							     */
+	ret =
 	    ced_set_area(ced, td.wAreaNum,
 		    (char __user *)((unsigned long)td.lpvBuff), td.dwLength,
 		    false, false);
 	mutex_unlock(&ced->io_mutex);
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
