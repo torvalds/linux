@@ -366,50 +366,52 @@ static bool ced_is_1401(struct ced_data *ced)
 **  all is OK.
 **
 ** If any of the above conditions are not met, or if the state or type of the
-**  1401 has changed since the previous test, the full ced_is_1401 test is done, but
-**  only if bCanReset is also TRUE.
+**  1401 has changed since the previous test, the full ced_is_1401 test is done,
+** but only if can_reset is also TRUE.
 **
 ** The return value is TRUE if a useable 1401 is found, FALSE if not
 */
-static bool ced_quick_check(struct ced_data *ced, bool bTestBuff, bool bCanReset)
+static bool ced_quick_check(struct ced_data *ced, bool test_buff,
+			    bool can_reset)
 {
-	bool bRet = false;	/*  assume it will fail and we will reset */
-	bool bShortTest;
+	bool ret = false;	/*  assume it will fail and we will reset */
+	bool short_test;
 
-	bShortTest = ((ced->dma_flag == MODE_CHAR) &&	/*  no DMA running */
-		      (!ced->force_reset) &&	/*  Not had a real reset forced */
-		      (ced->current_state >= U14ERR_STD));	/*  No 1401 errors stored */
+	short_test = ((ced->dma_flag == MODE_CHAR) &&	/*  no DMA running */
+		      (!ced->force_reset) && /* Not had a real reset forced */
+		      (ced->current_state >= U14ERR_STD)); /* No 1401 errors stored */
 
 	dev_dbg(&ced->interface->dev,
 		"%s: DMAFlag:%d, state:%d, force:%d, testBuff:%d, short:%d\n",
 		__func__, ced->dma_flag, ced->current_state, ced->force_reset,
-		bTestBuff, bShortTest);
+		test_buff, short_test);
 
-	if ((bTestBuff) &&	/*  Buffer check requested, and... */
+	if ((test_buff) &&	/*  Buffer check requested, and... */
 	    (ced->num_input || ced->num_output)) {	/*  ...characters were in the buffer? */
-		bShortTest = false;	/*  Then do the full test */
+		short_test = false;	/*  Then do the full test */
 		dev_dbg(&ced->interface->dev,
 			"%s: will reset as buffers not empty\n", __func__);
 	}
 
-	if (bShortTest || !bCanReset) {	/*  Still OK to try the short test? */
+	if (short_test || !can_reset) {	/*  Still OK to try the short test? */
 				/*  Always test if no reset - we want state update */
 		unsigned int state, error;
 		dev_dbg(&ced->interface->dev, "%s: ced_get_state\n", __func__);
 		if (ced_get_state(ced, &state, &error) == U14ERR_NOERROR) {	/*  Check on the 1401 state */
 			if ((state & 0xFF) == 0)	/*  If call worked, check the status value */
-				bRet = true;	/*  If that was zero, all is OK, no reset needed */
+				ret = true; /* If that was zero, all is OK, */
+					    /* no reset needed		    */
 		}
 	}
 
-	if (!bRet && bCanReset)	{ /*  If all not OK, then */
+	if (!ret && can_reset)	{ /*  If all not OK, then */
 		dev_info(&ced->interface->dev, "%s: ced_is_1401 %d %d %d %d\n",
-			 __func__, bShortTest, ced->current_state, bTestBuff,
+			 __func__, short_test, ced->current_state, test_buff,
 			 ced->force_reset);
-		bRet = ced_is_1401(ced);	/*   do full test */
+		ret = ced_is_1401(ced);	/*   do full test */
 	}
 
-	return bRet;
+	return ret;
 }
 
 /****************************************************************************
