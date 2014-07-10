@@ -1150,11 +1150,12 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	int err;
 
 	/* 24 + 6 = header + auth_algo + auth_transaction + status_code */
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24 + 6 + extra_len);
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + IEEE80211_WEP_IV_LEN +
+			    24 + 6 + extra_len + IEEE80211_WEP_ICV_LEN);
 	if (!skb)
 		return;
 
-	skb_reserve(skb, local->hw.extra_tx_headroom);
+	skb_reserve(skb, local->hw.extra_tx_headroom + IEEE80211_WEP_IV_LEN);
 
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24 + 6);
 	memset(mgmt, 0, 24 + 6);

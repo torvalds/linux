@@ -289,10 +289,20 @@ static void hci_conn_timeout(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn,
 					     disc_work.work);
+	int refcnt = atomic_read(&conn->refcnt);
 
 	BT_DBG("hcon %p state %s", conn, state_to_string(conn->state));
 
-	if (atomic_read(&conn->refcnt))
+	WARN_ON(refcnt < 0);
+
+	/* FIXME: It was observed that in pairing failed scenario, refcnt
+	 * drops below 0. Probably this is because l2cap_conn_del calls
+	 * l2cap_chan_del for each channel, and inside l2cap_chan_del conn is
+	 * dropped. After that loop hci_chan_del is called which also drops
+	 * conn. For now make sure that ACL is alive if refcnt is higher then 0,
+	 * otherwise drop it.
+	 */
+	if (refcnt > 0)
 		return;
 
 	switch (conn->state) {
@@ -610,11 +620,6 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	if (hci_update_random_address(req, false, &own_addr_type))
 		return;
 
-	/* Save the address type used for this connnection attempt so we able
-	 * to retrieve this information if we need it.
-	 */
-	conn->src_type = own_addr_type;
-
 	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
 	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
 	bacpy(&cp.peer_addr, &conn->dst);
@@ -894,7 +899,7 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		/* If we're already encrypted set the REAUTH_PEND flag,
 		 * otherwise set the ENCRYPT_PEND.
 		 */
-		if (conn->key_type != 0xff)
+		if (conn->link_mode & HCI_LM_ENCRYPT)
 			set_bit(HCI_CONN_REAUTH_PEND, &conn->flags);
 		else
 			set_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
