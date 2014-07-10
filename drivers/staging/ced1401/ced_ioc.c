@@ -276,18 +276,18 @@ int ced_read_write_cancel(struct ced_data *ced)
 }
 
 /***************************************************************************
-** ced_in_self_test - utility to check in self test. Return 1 for ST, 0 for not or
-** a -ve error code if we failed for some reason.
+** ced_in_self_test - utility to check in self test. Return 1 for ST, 0 for not
+** or a -ve error code if we failed for some reason.
 ***************************************************************************/
-static int ced_in_self_test(struct ced_data *ced, unsigned int *pState)
+static int ced_in_self_test(struct ced_data *ced, unsigned int *stat)
 {
 	unsigned int state, error;
-	int iReturn = ced_get_state(ced, &state, &error);	/*  see if in self-test */
-	if (iReturn == U14ERR_NOERROR)	/*  if all still OK */
-		iReturn = (state == (unsigned int)-1) ||	/*  TX problem or... */
+	int ret = ced_get_state(ced, &state, &error); /* see if in self-test */
+	if (ret == U14ERR_NOERROR)	/*  if all still OK */
+		ret = (state == (unsigned int)-1) ||	/*  TX problem or... */
 		    ((state & 0xff) == 0x80);	/*  ...self test */
-	*pState = state;	/*  return actual state */
-	return iReturn;
+	*stat = state;	/*  return actual state */
+	return ret;
 }
 
 /***************************************************************************
