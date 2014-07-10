@@ -1256,31 +1256,31 @@ int ced_dbg_poke(struct ced_data *ced, TDBGBLOCK __user *udb)
 ** Execute the diagnostic ramp data operation. Parameters are in the CSBLOCK struct
 ** in order address, default, enable mask, size and repeats.
 ****************************************************************************/
-int ced_dbg_ramp_data(struct ced_data *ced, TDBGBLOCK __user *pDB)
+int ced_dbg_ramp_data(struct ced_data *ced, TDBGBLOCK __user *udb)
 {
-	int iReturn;
+	int ret;
 	TDBGBLOCK db;
 
-	if (copy_from_user(&db, pDB, sizeof(db)))
+	if (copy_from_user(&db, udb, sizeof(db)))
 		return -EFAULT;
 
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s: @ %08x\n", __func__, db.iAddr);
 
-	iReturn = ced_dbg_cmd(ced, DB_SETADD, db.iAddr);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_SETDEF, db.iDefault);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_SETMASK, db.iMask);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_WIDTH, db.iWidth);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_REPEATS, db.iRepeats);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_RAMPD, 0);
+	ret = ced_dbg_cmd(ced, DB_SETADD, db.iAddr);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_SETDEF, db.iDefault);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_SETMASK, db.iMask);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_WIDTH, db.iWidth);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_REPEATS, db.iRepeats);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_RAMPD, 0);
 	mutex_unlock(&ced->io_mutex);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
@@ -1288,29 +1288,29 @@ int ced_dbg_ramp_data(struct ced_data *ced, TDBGBLOCK __user *pDB)
 **
 ** Execute the diagnostic ramp address operation
 ****************************************************************************/
-int ced_dbg_ramp_addr(struct ced_data *ced, TDBGBLOCK __user *pDB)
+int ced_dbg_ramp_addr(struct ced_data *ced, TDBGBLOCK __user *udb)
 {
-	int iReturn;
+	int ret;
 	TDBGBLOCK db;
 
-	if (copy_from_user(&db, pDB, sizeof(db)))
+	if (copy_from_user(&db, udb, sizeof(db)))
 		return -EFAULT;
 
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
-	iReturn = ced_dbg_cmd(ced, DB_SETDEF, db.iDefault);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_SETMASK, db.iMask);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_WIDTH, db.iWidth);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_REPEATS, db.iRepeats);
-	if (iReturn == U14ERR_NOERROR)
-		iReturn = ced_dbg_cmd(ced, DB_RAMPA, 0);
+	ret = ced_dbg_cmd(ced, DB_SETDEF, db.iDefault);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_SETMASK, db.iMask);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_WIDTH, db.iWidth);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_REPEATS, db.iRepeats);
+	if (ret == U14ERR_NOERROR)
+		ret = ced_dbg_cmd(ced, DB_RAMPA, 0);
 	mutex_unlock(&ced->io_mutex);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
