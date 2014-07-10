@@ -463,54 +463,33 @@
 
 &i2c1 {
 	status = "okay";
-	rtc@51 {
-		compatible = "nxp,pcf8563";
-		reg = <0x51>;
+	 	
+	mpu6050:mpu@68{
+		compatible = "mpu6050";
+		reg = <0x68>;
+		mpu-int_config = <0x10>;
+		mpu-level_shifter = <0>;
+		mpu-orientation = <0 1 0 1 0 0 0 0 1>;	
+		orientation-x= <0>;
+		orientation-y= <1>;
+		orientation-z= <1>;
+		irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;			
+		mpu-debug = <0>;
 	};
 	
-	sensor@1d {
-		compatible = "gs_mma8452";
-		reg = <0x1d>;
-		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_EDGE_FALLING>;
-		irq_enable = <1>;
-		poll_delay_ms = <30>;
-		layout = <1>;
-	};
-		sensor@19 {
-		compatible = "gs_lis3dh";
-		reg = <0x19>;
-		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio0 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;
-		irq_enable = <1>;
-		poll_delay_ms = <30>;
-		layout = <1>;
-	};
 
 	ak8963:compass@0d{
-	compatible = "ak8963";
-	reg = <0x0d>;
-	compass-bus = <0>;
-	compass-adapt_num = <0>;
-	compass-orientation = <1 0 0 0 1 0 0 0 1>;
-	orientation-x= <0>;
-	orientation-y= <0>;
-	orientation-z= <1>;	
-	compass-debug = <1>;
-	status = "disabled";
-	};
-
-	ak8975:compass@0d{
-	compatible = "ak8975";
-	reg = <0x0d>;
-	compass-bus = <0>;
-	compass-adapt_num = <0>;
-	compass-orientation = <0 1 0 1 0 0 0 0 1>;
-	orientation-x= <0>;
-	orientation-y= <0>;
-	orientation-z= <0>;	
-	compass-debug = <0>;
-	};
+		compatible = "mpu_ak8963";
+		reg = <0x0d>;
+		compass-bus = <0>;
+		compass-adapt_num = <0>;
+		compass-orientation = <1 0 0 0 1 0 0 0 1>;
+		orientation-x= <0>;
+		orientation-y= <0>;
+		orientation-z= <1>;	
+		compass-debug = <1>;
+		status = "okay";
+	};	
 
 };
 
@@ -727,9 +706,9 @@
 &clk_ddr_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
-		200000 1000000
-		300000 1000000
-		400000 1050000
+		200000 1050000
+		300000 1050000
+		400000 1100000
 		533000 1150000
 		>;
 
