@@ -20,49 +20,51 @@
 static int si2157_cmd_execute(struct si2157 *s, struct si2157_cmd *cmd)
 {
 	int ret;
-	u8 buf[1];
 	unsigned long timeout;
 
 	mutex_lock(&s->i2c_mutex);
 
-	if (cmd->len) {
+	if (cmd->wlen) {
 		/* write cmd and args for firmware */
-		ret = i2c_master_send(s->client, cmd->args, cmd->len);
+		ret = i2c_master_send(s->client, cmd->args, cmd->wlen);
 		if (ret < 0) {
 			goto err_mutex_unlock;
-		} else if (ret != cmd->len) {
+		} else if (ret != cmd->wlen) {
 			ret = -EREMOTEIO;
 			goto err_mutex_unlock;
 		}
 	}
 
-	/* wait cmd execution terminate */
-	#define TIMEOUT 80
-	timeout = jiffies + msecs_to_jiffies(TIMEOUT);
-	while (!time_after(jiffies, timeout)) {
-		ret = i2c_master_recv(s->client, buf, 1);
-		if (ret < 0) {
-			goto err_mutex_unlock;
-		} else if (ret != 1) {
-			ret = -EREMOTEIO;
-			goto err_mutex_unlock;
+	if (cmd->rlen) {
+		/* wait cmd execution terminate */
+		#define TIMEOUT 80
+		timeout = jiffies + msecs_to_jiffies(TIMEOUT);
+		while (!time_after(jiffies, timeout)) {
+			ret = i2c_master_recv(s->client, cmd->args, cmd->rlen);
+			if (ret < 0) {
+				goto err_mutex_unlock;
+			} else if (ret != cmd->rlen) {
+				ret = -EREMOTEIO;
+				goto err_mutex_unlock;
+			}
+
+			/* firmware ready? */
+			if ((cmd->args[0] >> 7) & 0x01)
+				break;
 		}
 
-		/* firmware ready? */
-		if ((buf[0] >> 7) & 0x01)
-			break;
+		dev_dbg(&s->client->dev, "%s: cmd execution took %d ms\n",
+				__func__,
+				jiffies_to_msecs(jiffies) -
+				(jiffies_to_msecs(timeout) - TIMEOUT));
+
+		if (!((cmd->args[0] >> 7) & 0x01)) {
+			ret = -ETIMEDOUT;
+			goto err_mutex_unlock;
+		}
 	}
 
-	dev_dbg(&s->client->dev, "%s: cmd execution took %d ms\n", __func__,
-			jiffies_to_msecs(jiffies) -
-			(jiffies_to_msecs(timeout) - TIMEOUT));
-
-	if (!(buf[0] >> 7) & 0x01) {
-		ret = -ETIMEDOUT;
-		goto err_mutex_unlock;
-	} else {
-		ret = 0;
-	}
+	ret = 0;
 
 err_mutex_unlock:
 	mutex_unlock(&s->i2c_mutex);
@@ -97,7 +99,8 @@ static int si2157_sleep(struct dvb_frontend *fe)
 	s->active = false;
 
 	memcpy(cmd.args, "\x13", 1);
-	cmd.len = 1;
+	cmd.wlen = 1;
+	cmd.rlen = 0;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
@@ -141,20 +144,23 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	cmd.args[12] = 0x00;
 	cmd.args[13] = 0x00;
 	cmd.args[14] = 0x01;
-	cmd.len = 15;
+	cmd.wlen = 15;
+	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
 
 	cmd.args[0] = 0x02;
-	cmd.len = 1;
+	cmd.wlen = 1;
+	cmd.rlen = 13;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
 
 	cmd.args[0] = 0x01;
 	cmd.args[1] = 0x01;
-	cmd.len = 2;
+	cmd.wlen = 2;
+	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
@@ -168,7 +174,8 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	cmd.args[5] = (c->frequency >>  8) & 0xff;
 	cmd.args[6] = (c->frequency >> 16) & 0xff;
 	cmd.args[7] = (c->frequency >> 24) & 0xff;
-	cmd.len = 8;
+	cmd.wlen = 8;
+	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
@@ -212,7 +219,8 @@ static int si2157_probe(struct i2c_client *client,
 	mutex_init(&s->i2c_mutex);
 
 	/* check if the tuner is there */
-	cmd.len = 0;
+	cmd.wlen = 0;
+	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;

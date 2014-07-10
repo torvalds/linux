@@ -31,7 +31,8 @@ struct si2157 {
 #define SI2157_ARGLEN      30
 struct si2157_cmd {
 	u8 args[SI2157_ARGLEN];
-	unsigned len;
+	unsigned wlen;
+	unsigned rlen;
 };
 
 #endif
