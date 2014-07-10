@@ -68,6 +68,12 @@ static void add_early_randomness(struct hwrng *rng)
 	unsigned char bytes[16];
 	int bytes_read;
 
+	/*
+	 * Currently only virtio-rng cannot return data during device
+	 * probe, and that's handled in virtio-rng.c itself.  If there
+	 * are more such devices, this call to rng_get_data can be
+	 * made conditional here instead of doing it per-device.
+	 */
 	bytes_read = rng_get_data(rng, bytes, sizeof(bytes), 1);
 	if (bytes_read > 0)
 		add_device_randomness(bytes, bytes_read);
