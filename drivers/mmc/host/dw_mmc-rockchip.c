@@ -327,7 +327,7 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	u8 step;
 	u8 candidates_delayline[MAX_DELAY_LINE] = {0};
 	u8 candidates_degree[SDMMC_SHIFT_DEGREE_INVALID] = {4,4,4,4};
-	u8 default_drv = IO_DRV_4MA;
+	u8 default_drv = IO_DRV_8MA;
 	u8 index = 0;
 	u8 start_degree = 0;
 	u32 start_delayline = 0;
