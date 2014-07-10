@@ -1952,6 +1952,14 @@ static int _nfs4_recover_proc_open(struct nfs4_opendata *data)
 	return status;
 }
 
+/*
+ * Additional permission checks in order to distinguish between an
+ * open for read, and an open for execute. This works around the
+ * fact that NFSv4 OPEN treats read and execute permissions as being
+ * the same.
+ * Note that in the non-execute case, we want to turn off permission
+ * checking if we just created a new file (POSIX open() semantics).
+ */
 static int nfs4_opendata_access(struct rpc_cred *cred,
 				struct nfs4_opendata *opendata,
 				struct nfs4_state *state, fmode_t fmode,
@@ -1966,14 +1974,14 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 		return 0;
 
 	mask = 0;
-	/* don't check MAY_WRITE - a newly created file may not have
-	 * write mode bits, but POSIX allows the creating process to write.
-	 * use openflags to check for exec, because fmode won't
-	 * always have FMODE_EXEC set when file open for exec. */
+	/*
+	 * Use openflags to check for exec, because fmode won't
+	 * always have FMODE_EXEC set when file open for exec.
+	 */
 	if (openflags & __FMODE_EXEC) {
 		/* ONLY check for exec rights */
 		mask = MAY_EXEC;
-	} else if (fmode & FMODE_READ)
+	} else if ((fmode & FMODE_READ) && !opendata->file_created)
 		mask = MAY_READ;
 
 	cache.cred = cred;
