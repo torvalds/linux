@@ -149,8 +149,6 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 
 	case USB3503_MODE_STANDBY:
 		usb3503_reset(hub, 0);
-
-		hub->mode = mode;
 		dev_info(dev, "switched to STANDBY mode\n");
 		break;
 
@@ -347,6 +345,37 @@ static int usb3503_platform_probe(struct platform_device *pdev)
 	return usb3503_probe(hub);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int usb3503_i2c_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct usb3503 *hub = i2c_get_clientdata(client);
+
+	usb3503_switch_mode(hub, USB3503_MODE_STANDBY);
+
+	if (hub->clk)
+		clk_disable_unprepare(hub->clk);
+
+	return 0;
+}
+
+static int usb3503_i2c_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct usb3503 *hub = i2c_get_clientdata(client);
+
+	if (hub->clk)
+		clk_prepare_enable(hub->clk);
+
+	usb3503_switch_mode(hub, hub->mode);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(usb3503_i2c_pm_ops, usb3503_i2c_suspend,
+		usb3503_i2c_resume);
+
 static const struct i2c_device_id usb3503_id[] = {
 	{ USB3503_I2C_NAME, 0 },
 	{ }
@@ -365,6 +394,7 @@ MODULE_DEVICE_TABLE(of, usb3503_of_match);
 static struct i2c_driver usb3503_i2c_driver = {
 	.driver = {
 		.name = USB3503_I2C_NAME,
+		.pm = &usb3503_i2c_pm_ops,
 		.of_match_table = of_match_ptr(usb3503_of_match),
 	},
 	.probe		= usb3503_i2c_probe,
