@@ -99,23 +99,30 @@ struct circ_blk {
 	volatile UINT size;     /* Size of the block, in bytes (0 = unused) */
 };
 
-/*  A structure holding all of the information about a transfer area - an area of */
-/*   memory set up for use either as a source or destination in DMA transfers. */
+/* A structure holding all of the information about a transfer area - an area */
+/* of memory set up for use either as a source or destination in DMA          */
+/* transfers.                                                                 */
 struct transarea {
-	void __user *lpvBuff;                /*  User address of xfer area saved for completeness */
-	UINT        dwBaseOffset;           /*  offset to start of xfer area in first page */
-	UINT        dwLength;               /*  Length of xfer area, in bytes */
-	struct page **pPages;               /*  Points at array of locked down pages */
-	int         nPages;                 /*  number of pages that are locked down */
-	bool        bUsed;                  /*  Is this structure in use? */
-	bool        bCircular;              /*  Is this area for circular transfers? */
-	bool        bCircToHost;            /*  Flag for direction of circular transfer */
-	bool        bEventToHost;           /*  Set event on transfer to host? */
-	int         iWakeUp;                /*  Set 1 on event, cleared by TestEvent() */
-	UINT        dwEventSt;              /*  Defines section within xfer area for... */
-	UINT        dwEventSz;              /*  ...notification by the event SZ is 0 if unset */
-	struct circ_blk aBlocks[2];         /*  Info on a pair of circular blocks */
-	wait_queue_head_t wqEvent;          /*  The wait queue for events in this area MUST BE LAST */
+	/* User address of xfer area saved for completeness */
+	void __user *buff;
+
+	/* offset to start of xfer area in first page */
+	UINT        base_offset;
+
+	UINT        length;        /* Length of xfer area, in bytes */
+	struct page **pages;       /* Points at array of locked down pages */
+	int         n_pages;       /* number of pages that are locked down */
+	bool        used;          /* Is this structure in use? */
+	bool        circular;      /* Is this area for circular transfers? */
+	bool        circ_to_host;  /* Flag for direction of circular transfer */
+	bool        event_to_host; /*  Set event on transfer to host? */
+	int         wake_up;       /* Set 1 on event, cleared by TestEvent() */
+	UINT        event_st;      /* Defines section within xfer area for... */
+	UINT        event_sz;   /* notification by the event SZ is 0 if unset */
+	struct circ_blk blocks[2]; /* Info on a pair of circular blocks */
+
+	wait_queue_head_t event; /* The wait queue for events in this */
+				 /* area MUST BE LAST */
 };
 
 /*  The DMADESC structure is used to hold information on the transfer in progress. It */

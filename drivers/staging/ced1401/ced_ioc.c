@@ -595,7 +595,7 @@ int ced_clear_area(struct ced_data *ced, int nArea)
 	} else {
 		/* to save typing */
 		struct transarea *pTA = &ced->rTransDef[nArea];
-		if (!pTA->bUsed)	/*  if not used... */
+		if (!pTA->used)	/*  if not used... */
 			iReturn = U14ERR_NOTSET;	/*  ...nothing to be done */
 		else {
 			/*  We must save the memory we return as we shouldn't mess with memory while */
@@ -614,17 +614,17 @@ int ced_clear_area(struct ced_data *ced, int nArea)
 					"%s: call on area %d while active\n",
 					__func__, nArea);
 			} else {
-				pPages = pTA->pPages;	/*  save page address list */
-				nPages = pTA->nPages;	/*  and page count */
-				if (pTA->dwEventSz)	/*  if events flagging in use */
-					wake_up_interruptible(&pTA->wqEvent);	/*  release anything that was waiting */
+				pPages = pTA->pages;	/*  save page address list */
+				nPages = pTA->n_pages;	/*  and page count */
+				if (pTA->event_sz)	/*  if events flagging in use */
+					wake_up_interruptible(&pTA->event);	/*  release anything that was waiting */
 
 				if (ced->bXFerWaiting
 				    && (ced->rDMAInfo.wIdent == nArea))
 					ced->bXFerWaiting = false;	/*  Cannot have pending xfer if area cleared */
 
 				/*  Clean out the struct transarea except for the wait queue, which is at the end */
-				/*  This sets bUsed to false and dwEventSz to 0 to say area not used and no events. */
+				/*  This sets used to false and event_sz to 0 to say area not used and no events. */
 				memset(pTA, 0,
 				       sizeof(struct transarea) -
 				       sizeof(wait_queue_head_t));
@@ -701,20 +701,20 @@ static int ced_set_area(struct ced_data *ced, int nArea, char __user *puBuf,
 		/*  kmap() or kmap_atomic() to get a virtual address. page_address will give you */
 		/*  (null) or at least it does in this context with an x86 machine. */
 		spin_lock_irq(&ced->stagedLock);
-		pTA->lpvBuff = puBuf;	/*  keep start of region (user address) */
-		pTA->dwBaseOffset = ulOffset;	/*  save offset in first page to start of xfer */
-		pTA->dwLength = dwLength;	/*  Size if the region in bytes */
-		pTA->pPages = pPages;	/*  list of pages that are used by buffer */
-		pTA->nPages = nPages;	/*  number of pages */
+		pTA->buff = puBuf;	/*  keep start of region (user address) */
+		pTA->base_offset = ulOffset;	/*  save offset in first page to start of xfer */
+		pTA->length = dwLength;	/*  Size if the region in bytes */
+		pTA->pages = pPages;	/*  list of pages that are used by buffer */
+		pTA->n_pages = nPages;	/*  number of pages */
 
-		pTA->bCircular = bCircular;
-		pTA->bCircToHost = bCircToHost;
+		pTA->circular = bCircular;
+		pTA->circ_to_host = bCircToHost;
 
-		pTA->aBlocks[0].offset = 0;
-		pTA->aBlocks[0].size = 0;
-		pTA->aBlocks[1].offset = 0;
-		pTA->aBlocks[1].size = 0;
-		pTA->bUsed = true;	/*  This is now a used block */
+		pTA->blocks[0].offset = 0;
+		pTA->blocks[0].size = 0;
+		pTA->blocks[1].offset = 0;
+		pTA->blocks[1].size = 0;
+		pTA->used = true;	/*  This is now a used block */
 
 		spin_unlock_irq(&ced->stagedLock);
 		iReturn = U14ERR_NOERROR;	/*  say all was well */
@@ -795,11 +795,11 @@ int ced_set_event(struct ced_data *ced, struct transfer_event __user *pTE)
 		struct transarea *pTA = &ced->rTransDef[te.wAreaNum];
 		mutex_lock(&ced->io_mutex);	/*  make sure we have no competitor */
 		spin_lock_irq(&ced->stagedLock);
-		if (pTA->bUsed) {	/*  area must be in use */
-			pTA->dwEventSt = te.dwStart;	/*  set area regions */
-			pTA->dwEventSz = te.dwLength;	/*  set size (0 cancels it) */
-			pTA->bEventToHost = te.wFlags & 1;	/*  set the direction */
-			pTA->iWakeUp = 0;	/*  zero the wake up count */
+		if (pTA->used) {	/*  area must be in use */
+			pTA->event_st = te.dwStart;	/*  set area regions */
+			pTA->event_sz = te.dwLength;	/*  set size (0 cancels it) */
+			pTA->event_to_host = te.wFlags & 1;	/*  set the direction */
+			pTA->wake_up = 0;	/*  zero the wake up count */
 		} else
 			iReturn = U14ERR_NOTSET;
 		spin_unlock_irq(&ced->stagedLock);
@@ -830,27 +830,27 @@ int ced_wait_event(struct ced_data *ced, int nArea, int msTimeOut)
 		/*  releasing it and the wait call. However, this would have to clear the */
 		/*  iWakeUp flag. However, the !pTA-bUsed may help us in this case. */
 		mutex_lock(&ced->io_mutex);	/*  make sure we have no competitor */
-		if (!pTA->bUsed || !pTA->dwEventSz)	/*  check something to wait for... */
+		if (!pTA->used || !pTA->event_sz)	/*  check something to wait for... */
 			return U14ERR_NOTSET;	/*  ...else we do nothing */
 		mutex_unlock(&ced->io_mutex);
 
 		if (msTimeOut)
 			iWait =
-			    wait_event_interruptible_timeout(pTA->wqEvent,
-							     pTA->iWakeUp
-							     || !pTA->bUsed,
+			    wait_event_interruptible_timeout(pTA->event,
+							     pTA->wake_up
+							     || !pTA->used,
 							     msTimeOut);
 		else
 			iWait =
-			    wait_event_interruptible(pTA->wqEvent, pTA->iWakeUp
-						     || !pTA->bUsed);
+			    wait_event_interruptible(pTA->event, pTA->wake_up
+						     || !pTA->used);
 		if (iWait)
 			iReturn = -ERESTARTSYS;	/*  oops - we have had a SIGNAL */
 		else
-			iReturn = pTA->iWakeUp;	/*  else the wakeup count */
+			iReturn = pTA->wake_up;	/*  else the wakeup count */
 
 		spin_lock_irq(&ced->stagedLock);
-		pTA->iWakeUp = 0;	/*  clear the flag */
+		pTA->wake_up = 0;	/*  clear the flag */
 		spin_unlock_irq(&ced->stagedLock);
 	}
 	return iReturn;
@@ -871,8 +871,8 @@ int ced_test_event(struct ced_data *ced, int nArea)
 		struct transarea *pTA = &ced->rTransDef[nArea];
 		mutex_lock(&ced->io_mutex);	/*  make sure we have no competitor */
 		spin_lock_irq(&ced->stagedLock);
-		iReturn = pTA->iWakeUp;	/*  get wakeup count since last call */
-		pTA->iWakeUp = 0;	/*  clear the count */
+		iReturn = pTA->wake_up;	/*  get wakeup count since last call */
+		pTA->wake_up = 0;	/*  clear the count */
 		spin_unlock_irq(&ced->stagedLock);
 		mutex_unlock(&ced->io_mutex);
 	}
@@ -901,8 +901,8 @@ int ced_get_transfer(struct ced_data *ced, TGET_TX_BLOCK __user *pTX)
 			mutex_unlock(&ced->io_mutex);
 			return -ENOMEM;
 		}
-		tx->size = ced->rTransDef[dwIdent].dwLength;
-		tx->linear = (long long)((long)ced->rTransDef[dwIdent].lpvBuff);
+		tx->size = ced->rTransDef[dwIdent].length;
+		tx->linear = (long long)((long)ced->rTransDef[dwIdent].buff);
 		tx->avail = GET_TX_MAXENTRIES;	/*  how many blocks we could return */
 		tx->used = 1;	/*  number we actually return */
 		tx->entries[0].physical =
@@ -1359,11 +1359,11 @@ int ced_get_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
 		struct transarea *pArea = &ced->rTransDef[nArea];
 		spin_lock_irq(&ced->stagedLock);	/*  Lock others out */
 
-		if ((pArea->bUsed) && (pArea->bCircular) &&	/*  Must be circular area */
-		    (pArea->bCircToHost)) {	/*  For now at least must be to host */
-			if (pArea->aBlocks[0].size > 0) {	/*  Got anything? */
-				cb.dwOffset = pArea->aBlocks[0].offset;
-				cb.dwSize = pArea->aBlocks[0].size;
+		if ((pArea->used) && (pArea->circular) &&	/*  Must be circular area */
+		    (pArea->circ_to_host)) {	/*  For now at least must be to host */
+			if (pArea->blocks[0].size > 0) {	/*  Got anything? */
+				cb.dwOffset = pArea->blocks[0].offset;
+				cb.dwSize = pArea->blocks[0].size;
 				dev_dbg(&ced->interface->dev,
 					"%s: return block 0: %d bytes at %d\n",
 					__func__, cb.dwSize, cb.dwOffset);
@@ -1411,35 +1411,35 @@ int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
 		struct transarea *pArea = &ced->rTransDef[nArea];
 		spin_lock_irq(&ced->stagedLock);	/*  Lock others out */
 
-		if ((pArea->bUsed) && (pArea->bCircular) &&	/*  Must be circular area */
-		    (pArea->bCircToHost)) {	/*  For now at least must be to host */
+		if ((pArea->used) && (pArea->circular) &&	/*  Must be circular area */
+		    (pArea->circ_to_host)) {	/*  For now at least must be to host */
 			bool bWaiting = false;
 
-			if ((pArea->aBlocks[0].size >= uSize) &&	/*  Got anything? */
-			    (pArea->aBlocks[0].offset == uStart)) {	/*  Must be legal data */
-				pArea->aBlocks[0].size -= uSize;
-				pArea->aBlocks[0].offset += uSize;
-				if (pArea->aBlocks[0].size == 0) {	/*  Have we emptied this block? */
-					if (pArea->aBlocks[1].size) {	/*  Is there a second block? */
-						pArea->aBlocks[0] = pArea->aBlocks[1];	/*  Copy down block 2 data */
-						pArea->aBlocks[1].size = 0;	/*  and mark the second block as unused */
-						pArea->aBlocks[1].offset = 0;
+			if ((pArea->blocks[0].size >= uSize) &&	/*  Got anything? */
+			    (pArea->blocks[0].offset == uStart)) {	/*  Must be legal data */
+				pArea->blocks[0].size -= uSize;
+				pArea->blocks[0].offset += uSize;
+				if (pArea->blocks[0].size == 0) {	/*  Have we emptied this block? */
+					if (pArea->blocks[1].size) {	/*  Is there a second block? */
+						pArea->blocks[0] = pArea->blocks[1];	/*  Copy down block 2 data */
+						pArea->blocks[1].size = 0;	/*  and mark the second block as unused */
+						pArea->blocks[1].offset = 0;
 					} else
-						pArea->aBlocks[0].offset = 0;
+						pArea->blocks[0].offset = 0;
 				}
 
 				dev_dbg(&ced->interface->dev,
 					"%s: free %d bytes at %d, return %d bytes at %d, wait=%d\n",
 					__func__, uSize, uStart,
-					pArea->aBlocks[0].size,
-					pArea->aBlocks[0].offset,
+					pArea->blocks[0].size,
+					pArea->blocks[0].offset,
 					ced->bXFerWaiting);
 
 				/*  Return the next available block of memory as well */
-				if (pArea->aBlocks[0].size > 0) {	/*  Got anything? */
+				if (pArea->blocks[0].size > 0) {	/*  Got anything? */
 					cb.dwOffset =
-					    pArea->aBlocks[0].offset;
-					cb.dwSize = pArea->aBlocks[0].size;
+					    pArea->blocks[0].offset;
+					cb.dwSize = pArea->blocks[0].size;
 				}
 
 				bWaiting = ced->bXFerWaiting;
@@ -1453,8 +1453,8 @@ int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB)
 				dev_err(&ced->interface->dev,
 					"%s: ERROR: freeing %d bytes at %d, block 0 is %d bytes at %d\n",
 					__func__, uSize, uStart,
-					pArea->aBlocks[0].size,
-					pArea->aBlocks[0].offset);
+					pArea->blocks[0].size,
+					pArea->blocks[0].offset);
 				iReturn = U14ERR_NOMEMORY;
 			}
 

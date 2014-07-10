@@ -444,9 +444,9 @@ static void ced_copy_user_space(struct ced_data *ced, int n)
 		/*  area to be used */
 		struct transarea *pArea = &ced->rTransDef[nArea];
 		unsigned int dwOffset =
-		    ced->StagedDone + ced->StagedOffset + pArea->dwBaseOffset;
+		    ced->StagedDone + ced->StagedOffset + pArea->base_offset;
 		char *pCoherBuf = ced->pCoherStagedIO;	/*  coherent buffer */
-		if (!pArea->bUsed) {
+		if (!pArea->used) {
 			dev_err(&ced->interface->dev, "%s: area %d unused\n",
 				__func__, nArea);
 			return;
@@ -454,9 +454,9 @@ static void ced_copy_user_space(struct ced_data *ced, int n)
 
 		while (n) {
 			int nPage = dwOffset >> PAGE_SHIFT;	/*  page number in table */
-			if (nPage < pArea->nPages) {
+			if (nPage < pArea->n_pages) {
 				char *pvAddress =
-				    (char *)kmap_atomic(pArea->pPages[nPage]);
+				    (char *)kmap_atomic(pArea->pages[nPage]);
 				if (pvAddress) {
 					unsigned int uiPageOff = dwOffset & (PAGE_SIZE - 1);	/*  offset into the page */
 					size_t uiXfer = PAGE_SIZE - uiPageOff;	/*  max to transfer on this page */
@@ -552,64 +552,64 @@ static void staged_callback(struct urb *pUrb)
 		/*   a completed transfer that can be assumed to fit into the transfer area. We should be able to */
 		/*   add this to the end of a growing block or to use it to start a new block unless the code */
 		/*   that calculates the offset to use (in ced_read_write_mem) is totally duff. */
-		if ((pArea->bCircular) && (pArea->bCircToHost) && (!bCancel) &&	/*  Time to sort out circular buffer info? */
+		if ((pArea->circular) && (pArea->circ_to_host) && (!bCancel) &&	/*  Time to sort out circular buffer info? */
 		    (ced->StagedRead)) {	/*  Only for tohost transfers for now */
-			if (pArea->aBlocks[1].size > 0) {	/*  If block 1 is in use we must append to it */
+			if (pArea->blocks[1].size > 0) {	/*  If block 1 is in use we must append to it */
 				if (ced->StagedOffset ==
-				    (pArea->aBlocks[1].offset +
-				     pArea->aBlocks[1].size)) {
-					pArea->aBlocks[1].size +=
+				    (pArea->blocks[1].offset +
+				     pArea->blocks[1].size)) {
+					pArea->blocks[1].size +=
 					    ced->StagedLength;
 					dev_dbg(&ced->interface->dev,
 						"RWM_Complete, circ block 1 now %d bytes at %d\n",
-						pArea->aBlocks[1].size,
-						pArea->aBlocks[1].offset);
+						pArea->blocks[1].size,
+						pArea->blocks[1].offset);
 				} else {
 					/*  Here things have gone very, very, wrong, but I cannot see how this can actually be achieved */
-					pArea->aBlocks[1].offset =
+					pArea->blocks[1].offset =
 					    ced->StagedOffset;
-					pArea->aBlocks[1].size =
+					pArea->blocks[1].size =
 					    ced->StagedLength;
 					dev_err(&ced->interface->dev,
 						"%s: ERROR, circ block 1 re-started %d bytes at %d\n",
 						__func__,
-						pArea->aBlocks[1].size,
-						pArea->aBlocks[1].offset);
+						pArea->blocks[1].size,
+						pArea->blocks[1].offset);
 				}
 			} else {	/*  If block 1 is not used, we try to add to block 0 */
-				if (pArea->aBlocks[0].size > 0) {	/*  Got stored block 0 information? */
+				if (pArea->blocks[0].size > 0) {	/*  Got stored block 0 information? */
 					/*  Must append onto the existing block 0 */
 					if (ced->StagedOffset ==
-					    (pArea->aBlocks[0].offset +
-					     pArea->aBlocks[0].size)) {
-						pArea->aBlocks[0].size += ced->StagedLength;	/*  Just add this transfer in */
+					    (pArea->blocks[0].offset +
+					     pArea->blocks[0].size)) {
+						pArea->blocks[0].size += ced->StagedLength;	/*  Just add this transfer in */
 						dev_dbg(&ced->interface->dev,
 							"RWM_Complete, circ block 0 now %d bytes at %d\n",
-							pArea->aBlocks[0].
+							pArea->blocks[0].
 							size,
-							pArea->aBlocks[0].
+							pArea->blocks[0].
 							offset);
 					} else {	/*  If it doesn't append, put into new block 1 */
-						pArea->aBlocks[1].offset =
+						pArea->blocks[1].offset =
 						    ced->StagedOffset;
-						pArea->aBlocks[1].size =
+						pArea->blocks[1].size =
 						    ced->StagedLength;
 						dev_dbg(&ced->interface->dev,
 							"RWM_Complete, circ block 1 started %d bytes at %d\n",
-							pArea->aBlocks[1].
+							pArea->blocks[1].
 							size,
-							pArea->aBlocks[1].
+							pArea->blocks[1].
 							offset);
 					}
 				} else	{ /*  No info stored yet, just save in block 0 */
-					pArea->aBlocks[0].offset =
+					pArea->blocks[0].offset =
 					    ced->StagedOffset;
-					pArea->aBlocks[0].size =
+					pArea->blocks[0].size =
 					    ced->StagedLength;
 					dev_dbg(&ced->interface->dev,
 						"RWM_Complete, circ block 0 started %d bytes at %d\n",
-						pArea->aBlocks[0].size,
-						pArea->aBlocks[0].offset);
+						pArea->blocks[0].size,
+						pArea->blocks[0].offset);
 				}
 			}
 		}
@@ -617,35 +617,38 @@ static void staged_callback(struct urb *pUrb)
 		if (!bCancel) { /*  Don't generate an event if cancelled */
 			dev_dbg(&ced->interface->dev,
 				"RWM_Complete,  bCircular %d, bToHost %d, eStart %d, eSize %d\n",
-				pArea->bCircular, pArea->bEventToHost,
-				pArea->dwEventSt, pArea->dwEventSz);
-			if ((pArea->dwEventSz) &&	/*  Set a user-mode event... */
-			    (ced->StagedRead == pArea->bEventToHost)) {	/*  ...on transfers in this direction? */
-				int iWakeUp = 0;	/*  assume */
-				/*  If we have completed the right sort of DMA transfer then set the event to notify */
-				/*    the user code to wake up anyone that is waiting. */
-				if ((pArea->bCircular) &&	/*  Circular areas use a simpler test */
-				    (pArea->bCircToHost)) {	/*  only in supported direction */
+				pArea->circular, pArea->event_to_host,
+				pArea->event_st, pArea->event_sz);
+			if ((pArea->event_sz) &&	/*  Set a user-mode event... */
+			    (ced->StagedRead == pArea->event_to_host)) {	/*  ...on transfers in this direction? */
+				int iWakeUp = 0; /*  assume */
+
+				/* If we have completed the right sort of DMA */
+				/* transfer then set the event to notify the  */
+				/* user code to wake up anyone that is        */
+				/* waiting. */
+				if ((pArea->circular) &&	/*  Circular areas use a simpler test */
+				    (pArea->circ_to_host)) {	/*  only in supported direction */
 					/*  Is total data waiting up to size limit? */
 					unsigned int dwTotal =
-					    pArea->aBlocks[0].size +
-					    pArea->aBlocks[1].size;
-					iWakeUp = (dwTotal >= pArea->dwEventSz);
+					    pArea->blocks[0].size +
+					    pArea->blocks[1].size;
+					iWakeUp = (dwTotal >= pArea->event_sz);
 				} else {
 					unsigned int transEnd =
 					    ced->StagedOffset +
 					    ced->StagedLength;
 					unsigned int eventEnd =
-					    pArea->dwEventSt + pArea->dwEventSz;
+					    pArea->event_st + pArea->event_sz;
 					iWakeUp = (ced->StagedOffset < eventEnd)
-					    && (transEnd > pArea->dwEventSt);
+					    && (transEnd > pArea->event_st);
 				}
 
 				if (iWakeUp) {
 					dev_dbg(&ced->interface->dev,
 						"About to set event to notify app\n");
-					wake_up_interruptible(&pArea->wqEvent);	/*  wake up waiting processes */
-					++pArea->iWakeUp;	/*  increment wakeup count */
+					wake_up_interruptible(&pArea->event);	/*  wake up waiting processes */
+					++pArea->wake_up;	/*  increment wakeup count */
 				}
 			}
 		}
@@ -792,30 +795,30 @@ int ced_read_write_mem(struct ced_data *ced, bool Read, unsigned short wIdent,
 		return U14ERR_NOERROR;
 	}
 
-	if ((pArea->bCircular) &&	/*  Circular transfer? */
-	    (pArea->bCircToHost) && (Read)) {	/*  In a supported direction */
+	if ((pArea->circular) &&	/*  Circular transfer? */
+	    (pArea->circ_to_host) && (Read)) {	/*  In a supported direction */
 				/*  If so, we sort out offset ourself */
 		bool bWait = false;	/*  Flag for transfer having to wait */
 
 		dev_dbg(&ced->interface->dev,
 			"Circular buffers are %d at %d and %d at %d\n",
-			pArea->aBlocks[0].size, pArea->aBlocks[0].offset,
-			pArea->aBlocks[1].size, pArea->aBlocks[1].offset);
-		if (pArea->aBlocks[1].size > 0) {	/*  Using the second block already? */
-			dwOffs = pArea->aBlocks[1].offset + pArea->aBlocks[1].size;	/*  take offset from that */
-			bWait = (dwOffs + dwLen) > pArea->aBlocks[0].offset;	/*  Wait if will overwrite block 0? */
-			bWait |= (dwOffs + dwLen) > pArea->dwLength;	/*  or if it overflows the buffer */
+			pArea->blocks[0].size, pArea->blocks[0].offset,
+			pArea->blocks[1].size, pArea->blocks[1].offset);
+		if (pArea->blocks[1].size > 0) {	/*  Using the second block already? */
+			dwOffs = pArea->blocks[1].offset + pArea->blocks[1].size;	/*  take offset from that */
+			bWait = (dwOffs + dwLen) > pArea->blocks[0].offset;	/*  Wait if will overwrite block 0? */
+			bWait |= (dwOffs + dwLen) > pArea->length;	/*  or if it overflows the buffer */
 		} else {		/*  Area 1 not in use, try to use area 0 */
-			if (pArea->aBlocks[0].size == 0)	/*  Reset block 0 if not in use */
-				pArea->aBlocks[0].offset = 0;
+			if (pArea->blocks[0].size == 0)	/*  Reset block 0 if not in use */
+				pArea->blocks[0].offset = 0;
 			dwOffs =
-			    pArea->aBlocks[0].offset +
-			    pArea->aBlocks[0].size;
-			if ((dwOffs + dwLen) > pArea->dwLength) {	/*  Off the end of the buffer? */
-				pArea->aBlocks[1].offset = 0;	/*  Set up to use second block */
+			    pArea->blocks[0].offset +
+			    pArea->blocks[0].size;
+			if ((dwOffs + dwLen) > pArea->length) {	/*  Off the end of the buffer? */
+				pArea->blocks[1].offset = 0;	/*  Set up to use second block */
 				dwOffs = 0;
-				bWait = (dwOffs + dwLen) > pArea->aBlocks[0].offset;	/*  Wait if will overwrite block 0? */
-				bWait |= (dwOffs + dwLen) > pArea->dwLength;	/*  or if it overflows the buffer */
+				bWait = (dwOffs + dwLen) > pArea->blocks[0].offset;	/*  Wait if will overwrite block 0? */
+				bWait |= (dwOffs + dwLen) > pArea->length;	/*  or if it overflows the buffer */
 			}
 		}
 
@@ -985,22 +988,22 @@ static bool ced_read_dma_info(volatile struct dmadesc *pDmaDesc,
 						pDmaDesc->dwSize);
 
 					if ((wIdent >= MAX_TRANSAREAS) ||	/*  Illegal area number, or... */
-					    (!ced->rTransDef[wIdent].bUsed) ||	/*  area not set up, or... */
-					    (pDmaDesc->dwOffset > ced->rTransDef[wIdent].dwLength) ||	/*  range/size */
+					    (!ced->rTransDef[wIdent].used) ||	/*  area not set up, or... */
+					    (pDmaDesc->dwOffset > ced->rTransDef[wIdent].length) ||	/*  range/size */
 					    ((pDmaDesc->dwOffset +
 					      pDmaDesc->dwSize) >
 					     (ced->rTransDef[wIdent].
-					      dwLength))) {
+					      length))) {
 						bResult = false;	/*  bad parameter(s) */
 						dev_dbg(&ced->interface->dev,
 							"%s: bad param - id %d, bUsed %d, offset %d, size %d, area length %d\n",
 							__func__, wIdent,
 							ced->rTransDef[wIdent].
-							bUsed,
+							used,
 							pDmaDesc->dwOffset,
 							pDmaDesc->dwSize,
 							ced->rTransDef[wIdent].
-							dwLength);
+							length);
 					}
 				}
 				break;
@@ -1376,7 +1379,7 @@ static int ced_probe(struct usb_interface *interface,
 		goto error;
 
 	for (i = 0; i < MAX_TRANSAREAS; ++i) {	/*  Initialise the wait queues */
-		init_waitqueue_head(&ced->rTransDef[i].wqEvent);
+		init_waitqueue_head(&ced->rTransDef[i].event);
 	}
 
 	/*  Put initialises for our stuff here. Note that all of *ced is zero, so */
