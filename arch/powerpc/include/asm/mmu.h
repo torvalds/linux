@@ -64,9 +64,9 @@
  */
 #define MMU_FTR_USE_PAIRED_MAS		ASM_CONST(0x01000000)
 
-/* MMU is SLB-based
+/* Doesn't support the B bit (1T segment) in SLBIE
  */
-#define MMU_FTR_SLB			ASM_CONST(0x02000000)
+#define MMU_FTR_NO_SLBIE_B		ASM_CONST(0x02000000)
 
 /* Support 16M large pages
  */
@@ -87,10 +87,6 @@
 /* 1T segments available
  */
 #define MMU_FTR_1T_SEGMENT		ASM_CONST(0x40000000)
-
-/* Doesn't support the B bit (1T segment) in SLBIE
- */
-#define MMU_FTR_NO_SLBIE_B		ASM_CONST(0x80000000)
 
 /* MMU feature bit sets for various CPUs */
 #define MMU_FTRS_DEFAULT_HPTE_ARCH_V2	\

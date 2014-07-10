@@ -155,7 +155,6 @@ static struct ibm_pa_feature {
 } ibm_pa_features[] __initdata = {
 	{0, 0, PPC_FEATURE_HAS_MMU,	0, 0, 0},
 	{0, 0, PPC_FEATURE_HAS_FPU,	0, 1, 0},
-	{0, MMU_FTR_SLB, 0,		0, 2, 0},
 	{CPU_FTR_CTRL, 0, 0,		0, 3, 0},
 	{CPU_FTR_NOEXECUTE, 0, 0,	0, 6, 0},
 	{CPU_FTR_NODSISRALIGN, 0, 0,	1, 1, 1},

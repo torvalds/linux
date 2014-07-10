@@ -2690,7 +2690,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
-static void dump_slb(void)
+void dump_segments(void)
 {
 	int i;
 	unsigned long esid,vsid,valid;
@@ -2721,12 +2721,6 @@ static void dump_slb(void)
 				printf("\n");
 		}
 	}
-}
-
-void dump_segments(void)
-{
-	if (mmu_has_feature(MMU_FTR_SLB))
-		dump_slb();
 }
 #endif
 

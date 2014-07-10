@@ -76,8 +76,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 * sub architectures.
 	 */
 #ifdef CONFIG_PPC_STD_MMU_64
-	if (mmu_has_feature(MMU_FTR_SLB))
-		switch_slb(tsk, next);
+	switch_slb(tsk, next);
 #else
 	/* Out of line for now */
 	switch_mmu_context(prev, next);

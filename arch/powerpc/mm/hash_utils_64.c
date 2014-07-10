@@ -828,8 +828,7 @@ void __init early_init_mmu(void)
 	htab_initialize();
 
 	/* Initialize SLB management */
-	if (mmu_has_feature(MMU_FTR_SLB))
-		slb_initialize();
+	slb_initialize();
 }
 
 #ifdef CONFIG_SMP
@@ -840,8 +839,7 @@ void early_init_mmu_secondary(void)
 		mtspr(SPRN_SDR1, _SDR1);
 
 	/* Initialize SLB */
-	if (mmu_has_feature(MMU_FTR_SLB))
-		slb_initialize();
+	slb_initialize();
 }
 #endif /* CONFIG_SMP */
 
