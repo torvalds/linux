@@ -1095,7 +1095,7 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 		return -ENOMEM;
 	}
 
-	ring->cbs = kzalloc(sizeof(struct bcm_sysport_cb) * size, GFP_KERNEL);
+	ring->cbs = kcalloc(size, sizeof(struct bcm_sysport_cb), GFP_KERNEL);
 	if (!ring->cbs) {
 		netif_err(priv, hw, priv->netdev, "CB allocation failed\n");
 		return -ENOMEM;
@@ -1238,8 +1238,8 @@ static int bcm_sysport_init_rx_ring(struct bcm_sysport_priv *priv)
 	priv->rx_bd_assign_index = 0;
 	priv->rx_c_index = 0;
 	priv->rx_read_ptr = 0;
-	priv->rx_cbs = kzalloc(priv->num_rx_bds *
-				sizeof(struct bcm_sysport_cb), GFP_KERNEL);
+	priv->rx_cbs = kcalloc(priv->num_rx_bds, sizeof(struct bcm_sysport_cb),
+				GFP_KERNEL);
 	if (!priv->rx_cbs) {
 		netif_err(priv, hw, priv->netdev, "CB allocation failed\n");
 		return -ENOMEM;
