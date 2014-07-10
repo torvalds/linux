@@ -121,6 +121,13 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 			*max_slots = max_len;
 			max_len = 0;
 		}
+
+		/*
+		 * For the most part, it should be a bug when name_len is zero.
+		 * We stop here for figuring out where the bugs are occurred.
+		 */
+		f2fs_bug_on(!de->name_len);
+
 		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
 	}
 
