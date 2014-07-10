@@ -863,45 +863,51 @@ int ced_set_event(struct ced_data *ced, struct transfer_event __user *ute)
 ** of times that a block met the event condition since we last cleared it or
 ** 0 if timed out, or -ve error (bad area or not set, or signal).
 ****************************************************************************/
-int ced_wait_event(struct ced_data *ced, int nArea, int msTimeOut)
+int ced_wait_event(struct ced_data *ced, int area, int time_out)
 {
-	int iReturn;
-	if ((unsigned)nArea >= MAX_TRANSAREAS)
+	int ret;
+	if ((unsigned)area >= MAX_TRANSAREAS)
 		return U14ERR_BADAREA;
 	else {
-		int iWait;
-		struct transarea *pTA = &ced->trans_def[nArea];
-		msTimeOut = (msTimeOut * HZ + 999) / 1000;	/*  convert timeout to jiffies */
+		int wait;
+		struct transarea *ta = &ced->trans_def[area];
 
-		/*  We cannot wait holding the mutex, but we check the flags while holding */
-		/*  it. This may well be pointless as another thread could get in between */
-		/*  releasing it and the wait call. However, this would have to clear the */
-		/*  iWakeUp flag. However, the !pTA-bUsed may help us in this case. */
-		mutex_lock(&ced->io_mutex);	/*  make sure we have no competitor */
-		if (!pTA->used || !pTA->event_sz)	/*  check something to wait for... */
+		 /* convert timeout to jiffies */
+		time_out = (time_out * HZ + 999) / 1000;
+
+		/* We cannot wait holding the mutex, but we check the flags  */
+		/* while holding it. This may well be pointless as another   */
+		/* thread could get in between releasing it and the wait     */
+		/* call. However, this would have to clear the wake_up flag. */
+		/* However, the !ta->used may help us in this case.	     */
+
+		/* make sure we have no competitor */
+		mutex_lock(&ced->io_mutex);
+		if (!ta->used || !ta->event_sz) /* check something to */
+						  /* wait for...        */
 			return U14ERR_NOTSET;	/*  ...else we do nothing */
 		mutex_unlock(&ced->io_mutex);
 
-		if (msTimeOut)
-			iWait =
-			    wait_event_interruptible_timeout(pTA->event,
-							     pTA->wake_up
-							     || !pTA->used,
-							     msTimeOut);
+		if (time_out)
+			wait = wait_event_interruptible_timeout(ta->event,
+								ta->wake_up ||
+								!ta->used,
+								time_out);
 		else
-			iWait =
-			    wait_event_interruptible(pTA->event, pTA->wake_up
-						     || !pTA->used);
-		if (iWait)
-			iReturn = -ERESTARTSYS;	/*  oops - we have had a SIGNAL */
+			wait = wait_event_interruptible(ta->event,
+							ta->wake_up ||
+							!ta->used);
+
+		if (wait)
+			ret = -ERESTARTSYS; /* oops - we have had a SIGNAL */
 		else
-			iReturn = pTA->wake_up;	/*  else the wakeup count */
+			ret = ta->wake_up; /* else the wakeup count */
 
 		spin_lock_irq(&ced->staged_lock);
-		pTA->wake_up = 0;	/*  clear the flag */
+		ta->wake_up = 0;	/*  clear the flag */
 		spin_unlock_irq(&ced->staged_lock);
 	}
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
