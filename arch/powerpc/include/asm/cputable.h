@@ -268,8 +268,7 @@ extern const char *powerpc_base_platform;
 #endif
 
 #define CLASSIC_PPC (!defined(CONFIG_8xx) && !defined(CONFIG_4xx) && \
-		     !defined(CONFIG_POWER3) && !defined(CONFIG_POWER4) && \
-		     !defined(CONFIG_BOOKE))
+		     !defined(CONFIG_POWER4) && !defined(CONFIG_BOOKE))
 
 #define CPU_FTRS_PPC601	(CPU_FTR_COMMON | CPU_FTR_601 | \
 	CPU_FTR_COHERENT_ICACHE | CPU_FTR_UNIFIED_ID_CACHE)

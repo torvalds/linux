@@ -140,10 +140,6 @@ config 6xx
 	depends on PPC32 && PPC_BOOK3S
 	select PPC_HAVE_PMU_SUPPORT
 
-config POWER3
-	depends on PPC64 && PPC_BOOK3S
-	def_bool y
-
 config POWER4
 	depends on PPC64 && PPC_BOOK3S
 	def_bool y
