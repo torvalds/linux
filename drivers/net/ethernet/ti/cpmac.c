@@ -228,22 +228,22 @@ static void cpmac_dump_regs(struct net_device *dev)
 	for (i = 0; i < CPMAC_REG_END; i += 4) {
 		if (i % 16 == 0) {
 			if (i)
-				pr_cont("\n");
-			netdev_dbg(dev, "reg[%p]:", priv->regs + i);
+				printk("\n");
+			printk("%s: reg[%p]:", dev->name, priv->regs + i);
 		}
-		pr_debug(" %08x", cpmac_read(priv->regs, i));
+		printk(" %08x", cpmac_read(priv->regs, i));
 	}
-	pr_debug("\n");
+	printk("\n");
 }
 
 static void cpmac_dump_desc(struct net_device *dev, struct cpmac_desc *desc)
 {
 	int i;
 
-	netdev_dbg(dev, "desc[%p]:", desc);
+	printk("%s: desc[%p]:", dev->name, desc);
 	for (i = 0; i < sizeof(*desc) / 4; i++)
-		pr_debug(" %08x", ((u32 *)desc)[i]);
-	pr_debug("\n");
+		printk(" %08x", ((u32 *)desc)[i]);
+	printk("\n");
 }
 
 static void cpmac_dump_all_desc(struct net_device *dev)
@@ -261,16 +261,16 @@ static void cpmac_dump_skb(struct net_device *dev, struct sk_buff *skb)
 {
 	int i;
 
-	netdev_dbg(dev, "skb 0x%p, len=%d\n", skb, skb->len);
+	printk("%s: skb 0x%p, len=%d\n", dev->name, skb, skb->len);
 	for (i = 0; i < skb->len; i++) {
 		if (i % 16 == 0) {
 			if (i)
-				pr_cont("\n");
-			netdev_dbg(dev, "data[%p]:", skb->data + i);
+				printk("\n");
+			printk("%s: data[%p]:", dev->name, skb->data + i);
 		}
-		pr_debug(" %02x", ((u8 *)skb->data)[i]);
+		printk(" %02x", ((u8 *)skb->data)[i]);
 	}
-	pr_debug("\n");
+	printk("\n");
 }
 
 static int cpmac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
