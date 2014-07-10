@@ -1122,25 +1122,28 @@ static bool ced_read_dma_info(volatile struct dmadesc *dma_desc,
 **
 ** Parameters are
 **
-** dwCount - the number of characters in the device extension char in buffer,
+** count - the number of characters in the device extension char in buffer,
 **           this is known to be at least 2 or we will not be called.
 **
 ****************************************************************************/
-static int ced_handle_esc(struct ced_data *ced, char *pCh,
-			 unsigned int dwCount)
+static int ced_handle_esc(struct ced_data *ced, char *ch,
+			 unsigned int count)
 {
-	int iReturn = U14ERR_FAIL;
+	int retval = U14ERR_FAIL;
 
-	/*  I have no idea what this next test is about. '?' is 0x3f, which is area 3, code */
-	/*  15. At the moment, this is not used, so it does no harm, but unless someone can */
-	/*  tell me what this is for, it should be removed from this and the Windows driver. */
-	if (pCh[0] == '?') {	/*  Is this an information response */
+	/* I have no idea what this next test is about. '?' is 0x3f, which is */
+	/* area 3, code 15. At the moment, this is not used, so it does no    */
+	/* harm, but unless someone can tell me what this is for, it should   */
+	/* be removed from this and the Windows driver. */
+	if (ch[0] == '?') {	/*  Is this an information response */
 				/*  Parse and save the information */
 	} else {
 		spin_lock(&ced->staged_lock);	/*  Lock others out */
 
-		if (ced_read_dma_info(&ced->dma_info, ced, pCh, dwCount)) {	/*  Get DMA parameters */
-			unsigned short wTransType = ced->dma_info.trans_type;	/*  check transfer type */
+		/* Get DMA parameters */
+		if (ced_read_dma_info(&ced->dma_info, ced, ch, count)) {
+			/* check transfer type */
+			unsigned short trans_type = ced->dma_info.trans_type;
 
 			dev_dbg(&ced->interface->dev,
 				"%s: xfer to %s, offset %d, length %d\n",
@@ -1154,22 +1157,22 @@ static int ced_handle_esc(struct ced_data *ced, char *pCh,
 				dev_err(&ced->interface->dev,
 					"ERROR: DMA setup while transfer still waiting\n");
 			} else {
-				if ((wTransType == TM_EXTTOHOST)
-				    || (wTransType == TM_EXTTO1401)) {
-					iReturn =
+				if ((trans_type == TM_EXTTOHOST)
+				    || (trans_type == TM_EXTTO1401)) {
+					retval =
 					    ced_read_write_mem(ced,
 							 !ced->dma_info.outward,
 							 ced->dma_info.ident,
 							 ced->dma_info.offset,
 							 ced->dma_info.size);
-					if (iReturn != U14ERR_NOERROR)
+					if (retval != U14ERR_NOERROR)
 						dev_err(&ced->interface->dev,
 							"%s: ced_read_write_mem() failed %d\n",
-							__func__, iReturn);
-				} else	/*  This covers non-linear transfer setup */
+							__func__, retval);
+				} else	/* This covers non-linear transfer setup */
 					dev_err(&ced->interface->dev,
 						"%s: Unknown block xfer type %d\n",
-						__func__, wTransType);
+						__func__, trans_type);
 			}
 		} else		/*  Failed to read parameters */
 			dev_err(&ced->interface->dev, "%s: ced_read_dma_info() fail\n",
@@ -1178,9 +1181,9 @@ static int ced_handle_esc(struct ced_data *ced, char *pCh,
 		spin_unlock(&ced->staged_lock);	/*  OK here */
 	}
 
-	dev_dbg(&ced->interface->dev, "%s: returns %d\n", __func__, iReturn);
+	dev_dbg(&ced->interface->dev, "%s: returns %d\n", __func__, retval);
 
-	return iReturn;
+	return retval;
 }
 
 /****************************************************************************
