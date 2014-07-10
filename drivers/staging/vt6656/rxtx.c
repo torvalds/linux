@@ -717,25 +717,20 @@ static u16 s_vGenerateTxParameter(struct vnt_usb_send_context *tx_context,
 			return vnt_rxtx_rts(tx_context, &tx_buffer->tx_head,
 					byPktType, cbFrameSize, bNeedACK,
 						wCurrentRate, need_mic);
-		} else {
-			if (need_mic)
-				*mic_hdr = &tx_buffer->
-						tx_head.tx_cts.tx.mic.hdr;
-
-			return vnt_rxtx_cts(tx_context, &tx_buffer->tx_head,
-					byPktType, cbFrameSize, bNeedACK,
-						wCurrentRate, need_mic);
 		}
-	} else {
-		if (need_mic)
-			*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
 
-		return vnt_rxtx_ab(tx_context, &tx_buffer->tx_head,
-					byPktType, cbFrameSize, bNeedACK,
-					wCurrentRate, need_rts, need_mic);
+		if (need_mic)
+			*mic_hdr = &tx_buffer->tx_head.tx_cts.tx.mic.hdr;
+
+		return vnt_rxtx_cts(tx_context, &tx_buffer->tx_head, byPktType,
+				cbFrameSize, bNeedACK, wCurrentRate, need_mic);
 	}
 
-	return 0;
+	if (need_mic)
+		*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
+
+	return vnt_rxtx_ab(tx_context, &tx_buffer->tx_head, byPktType,
+		cbFrameSize, bNeedACK, wCurrentRate, need_rts, need_mic);
 }
 
 static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
