@@ -619,6 +619,8 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 	}
 
 	ret = dma_map_sg(dev, sgt->sgl, sgt->nents, dir);
+	if (!ret)
+		ret = -ENOMEM;
 	if (ret < 0) {
 		sg_free_table(sgt);
 		return ret;
