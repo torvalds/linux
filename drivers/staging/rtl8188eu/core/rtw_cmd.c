@@ -39,11 +39,6 @@ int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 	return _SUCCESS;
 }
 
-void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
-{
-
-}
-
 /*
 Calling Context:
 

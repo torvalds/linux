@@ -932,8 +932,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
-	rtw_free_cmd_priv(&padapter->cmdpriv);
-
 	rtw_free_mlme_priv(&padapter->mlmepriv);
 	_rtw_free_xmit_priv(&padapter->xmitpriv);
 
