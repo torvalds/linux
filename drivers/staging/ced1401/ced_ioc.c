@@ -1123,30 +1123,31 @@ int ced_check_self_test(struct ced_data *ced, TGET_SELFTEST __user *ugst)
 ****************************************************************************/
 int ced_type_of_1401(struct ced_data *ced)
 {
-	int iReturn = TYPEUNKNOWN;
+	int ret = TYPEUNKNOWN;
+
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
 	switch (ced->type) {
 	case TYPE1401:
-		iReturn = U14ERR_STD;
+		ret = U14ERR_STD;
 		break;		/*  Handle these types directly */
 	case TYPEPLUS:
-		iReturn = U14ERR_PLUS;
+		ret = U14ERR_PLUS;
 		break;
 	case TYPEU1401:
-		iReturn = U14ERR_U1401;
+		ret = U14ERR_U1401;
 		break;
 	default:
 		if ((ced->type >= TYPEPOWER) && (ced->type <= 25))
-			iReturn = ced->type + 4;	/*  We can calculate types */
+			ret = ced->type + 4;	/*  We can calculate types */
 		else		/*   for up-coming 1401 designs */
-			iReturn = TYPEUNKNOWN;	/*  Don't know or not there */
+			ret = TYPEUNKNOWN;	/*  Don't know or not there */
 	}
-	dev_dbg(&ced->interface->dev, "%s %d\n", __func__, iReturn);
+	dev_dbg(&ced->interface->dev, "%s %d\n", __func__, ret);
 	mutex_unlock(&ced->io_mutex);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
