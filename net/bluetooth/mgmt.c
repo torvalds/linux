@@ -6049,19 +6049,6 @@ void mgmt_discoverable_timeout(struct hci_dev *hdev)
 	hci_dev_unlock(hdev);
 }
 
-void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
-{
-	u8 mgmt_err = mgmt_status(status);
-
-	if (scan & SCAN_PAGE)
-		mgmt_pending_foreach(MGMT_OP_SET_CONNECTABLE, hdev,
-				     cmd_status_rsp, &mgmt_err);
-
-	if (scan & SCAN_INQUIRY)
-		mgmt_pending_foreach(MGMT_OP_SET_DISCOVERABLE, hdev,
-				     cmd_status_rsp, &mgmt_err);
-}
-
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 		       bool persistent)
 {

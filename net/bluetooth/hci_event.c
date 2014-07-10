@@ -309,7 +309,6 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	if (status) {
-		mgmt_write_scan_failed(hdev, param, status);
 		hdev->discov_timeout = 0;
 		goto done;
 	}
