@@ -2868,11 +2868,12 @@ static int
 cifs_uncached_read_into_pages(struct TCP_Server_Info *server,
 			struct cifs_readdata *rdata, unsigned int len)
 {
-	int total_read = 0, result = 0;
+	int result = 0;
 	unsigned int i;
 	unsigned int nr_pages = rdata->nr_pages;
 	struct kvec iov;
 
+	rdata->got_bytes = 0;
 	rdata->tailsz = PAGE_SIZE;
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page = rdata->pages[i];
@@ -2906,10 +2907,11 @@ cifs_uncached_read_into_pages(struct TCP_Server_Info *server,
 		if (result < 0)
 			break;
 
-		total_read += result;
+		rdata->got_bytes += result;
 	}
 
-	return total_read > 0 && result != -ECONNABORTED ? total_read : result;
+	return rdata->got_bytes > 0 && result != -ECONNABORTED ?
+						rdata->got_bytes : result;
 }
 
 static int
@@ -3290,7 +3292,7 @@ static int
 cifs_readpages_read_into_pages(struct TCP_Server_Info *server,
 			struct cifs_readdata *rdata, unsigned int len)
 {
-	int total_read = 0, result = 0;
+	int result = 0;
 	unsigned int i;
 	u64 eof;
 	pgoff_t eof_index;
@@ -3302,6 +3304,7 @@ cifs_readpages_read_into_pages(struct TCP_Server_Info *server,
 	eof_index = eof ? (eof - 1) >> PAGE_CACHE_SHIFT : 0;
 	cifs_dbg(FYI, "eof=%llu eof_index=%lu\n", eof, eof_index);
 
+	rdata->got_bytes = 0;
 	rdata->tailsz = PAGE_CACHE_SIZE;
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page = rdata->pages[i];
@@ -3356,10 +3359,11 @@ cifs_readpages_read_into_pages(struct TCP_Server_Info *server,
 		if (result < 0)
 			break;
 
-		total_read += result;
+		rdata->got_bytes += result;
 	}
 
-	return total_read > 0 && result != -ECONNABORTED ? total_read : result;
+	return rdata->got_bytes > 0 && result != -ECONNABORTED ?
+						rdata->got_bytes : result;
 }
 
 static int
