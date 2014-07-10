@@ -937,20 +937,21 @@ int ced_read_write_mem(struct ced_data *ced, bool read, unsigned short ident,
 **  data we return FALSE. Used as part of decoding a DMA request.
 **
 ****************************************************************************/
-static bool ced_read_char(unsigned char *pChar, char *pBuf, unsigned int *pdDone,
-		     unsigned int dGot)
+static bool ced_read_char(unsigned char *character, char *buf,
+			  unsigned int *n_done, unsigned int got)
 {
-	bool bRead = false;
-	unsigned int dDone = *pdDone;
+	bool read = false;
+	unsigned int done = *n_done;
 
-	if (dDone < dGot) {	/*  If there is more data */
-		*pChar = (unsigned char)pBuf[dDone];	/*  Extract the next char */
-		dDone++;	/*  Increment the done count */
-		*pdDone = dDone;
-		bRead = true;	/*  and flag success */
+	if (done < got) {	/* If there is more data */
+		/* Extract the next char */
+		*character = (unsigned char)buf[done];
+		done++;	/* Increment the done count */
+		*n_done = done;
+		read = true;	/* and flag success */
 	}
 
-	return bRead;
+	return read;
 }
 
 #ifdef NOTUSED
