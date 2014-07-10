@@ -676,6 +676,7 @@ int smp_user_confirm_reply(struct hci_conn *hcon, u16 mgmt_op, __le32 passkey)
 static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_pairing rsp, *req = (void *) skb->data;
+	struct hci_dev *hdev = conn->hcon->hdev;
 	struct smp_chan *smp;
 	u8 key_size, auth, sec_level;
 	int ret;
@@ -695,6 +696,10 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (!smp)
 		return SMP_UNSPECIFIED;
+
+	if (!test_bit(HCI_PAIRABLE, &hdev->dev_flags) &&
+	    (req->auth_req & SMP_AUTH_BONDING))
+		return SMP_PAIRING_NOTSUPP;
 
 	smp->preq[0] = SMP_CMD_PAIRING_REQ;
 	memcpy(&smp->preq[1], req, sizeof(*req));
@@ -910,6 +915,10 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))
 		return 0;
+
+	if (!test_bit(HCI_PAIRABLE, &hcon->hdev->dev_flags) &&
+	    (rp->auth_req & SMP_AUTH_BONDING))
+		return SMP_PAIRING_NOTSUPP;
 
 	smp = smp_chan_create(conn);
 	if (!smp)
