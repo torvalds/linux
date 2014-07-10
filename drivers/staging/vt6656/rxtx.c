@@ -703,34 +703,34 @@ static u16 vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
 -*/
 
 static u16 s_vGenerateTxParameter(struct vnt_usb_send_context *tx_context,
-	u8 byPktType, u16 wCurrentRate,	struct vnt_tx_buffer *tx_buffer,
-	struct vnt_mic_hdr **mic_hdr, u32 need_mic, u32 cbFrameSize,
-	int bNeedACK, bool need_rts)
+	u8 pkt_type, u16 current_rate, struct vnt_tx_buffer *tx_buffer,
+	struct vnt_mic_hdr **mic_hdr, u32 need_mic, u32 frame_size,
+	int need_ack, bool need_rts)
 {
 
-	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
+	if (pkt_type == PK_TYPE_11GB || pkt_type == PK_TYPE_11GA) {
 		if (need_rts) {
 			if (need_mic)
 				*mic_hdr = &tx_buffer->
 						tx_head.tx_rts.tx.mic.hdr;
 
 			return vnt_rxtx_rts(tx_context, &tx_buffer->tx_head,
-					byPktType, cbFrameSize, bNeedACK,
-						wCurrentRate, need_mic);
+					pkt_type, frame_size, need_ack,
+						current_rate, need_mic);
 		}
 
 		if (need_mic)
 			*mic_hdr = &tx_buffer->tx_head.tx_cts.tx.mic.hdr;
 
-		return vnt_rxtx_cts(tx_context, &tx_buffer->tx_head, byPktType,
-				cbFrameSize, bNeedACK, wCurrentRate, need_mic);
+		return vnt_rxtx_cts(tx_context, &tx_buffer->tx_head, pkt_type,
+				frame_size, need_ack, current_rate, need_mic);
 	}
 
 	if (need_mic)
 		*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
 
-	return vnt_rxtx_ab(tx_context, &tx_buffer->tx_head, byPktType,
-		cbFrameSize, bNeedACK, wCurrentRate, need_rts, need_mic);
+	return vnt_rxtx_ab(tx_context, &tx_buffer->tx_head, pkt_type,
+		frame_size, need_ack, current_rate, need_rts, need_mic);
 }
 
 static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
