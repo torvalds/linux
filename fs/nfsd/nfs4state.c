@@ -374,19 +374,24 @@ static unsigned int file_hashval(struct inode *ino)
 
 static struct hlist_head file_hashtbl[FILE_HASH_SIZE];
 
-static void __nfs4_file_get_access(struct nfs4_file *fp, int oflag)
+static void
+__nfs4_file_get_access(struct nfs4_file *fp, u32 access)
 {
-	WARN_ON_ONCE(!(fp->fi_fds[oflag] || fp->fi_fds[O_RDWR]));
-	atomic_inc(&fp->fi_access[oflag]);
+	if (access & NFS4_SHARE_ACCESS_WRITE)
+		atomic_inc(&fp->fi_access[O_WRONLY]);
+	if (access & NFS4_SHARE_ACCESS_READ)
+		atomic_inc(&fp->fi_access[O_RDONLY]);
 }
 
-static void nfs4_file_get_access(struct nfs4_file *fp, int oflag)
+static __be32
+nfs4_file_get_access(struct nfs4_file *fp, u32 access)
 {
-	if (oflag == O_RDWR) {
-		__nfs4_file_get_access(fp, O_RDONLY);
-		__nfs4_file_get_access(fp, O_WRONLY);
-	} else
-		__nfs4_file_get_access(fp, oflag);
+	/* Does this access mode make sense? */
+	if (access & ~NFS4_SHARE_ACCESS_BOTH)
+		return nfserr_inval;
+
+	__nfs4_file_get_access(fp, access);
+	return nfs_ok;
 }
 
 static struct file *nfs4_file_put_fd(struct nfs4_file *fp, int oflag)
@@ -417,13 +422,14 @@ static void __nfs4_file_put_access(struct nfs4_file *fp, int oflag)
 	}
 }
 
-static void nfs4_file_put_access(struct nfs4_file *fp, int oflag)
+static void nfs4_file_put_access(struct nfs4_file *fp, u32 access)
 {
-	if (oflag == O_RDWR) {
-		__nfs4_file_put_access(fp, O_RDONLY);
+	WARN_ON_ONCE(access & ~NFS4_SHARE_ACCESS_BOTH);
+
+	if (access & NFS4_SHARE_ACCESS_WRITE)
 		__nfs4_file_put_access(fp, O_WRONLY);
-	} else
-		__nfs4_file_put_access(fp, oflag);
+	if (access & NFS4_SHARE_ACCESS_READ)
+		__nfs4_file_put_access(fp, O_RDONLY);
 }
 
 static struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl, struct
@@ -784,8 +790,7 @@ release_all_access(struct nfs4_ol_stateid *stp)
 
 	for (i = 1; i < 4; i++) {
 		if (test_access(i, stp))
-			nfs4_file_put_access(stp->st_file,
-					     nfs4_access_to_omode(i));
+			nfs4_file_put_access(stp->st_file, i);
 		clear_access(i, stp);
 	}
 }
@@ -3307,10 +3312,12 @@ static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
 			filp = NULL;
 		}
 	}
-	nfs4_file_get_access(fp, oflag);
+	status = nfs4_file_get_access(fp, open->op_share_access);
 	spin_unlock(&fp->fi_lock);
 	if (filp)
 		fput(filp);
+	if (status)
+		goto out_put_access;
 
 	status = nfsd4_truncate(rqstp, cur_fh, open);
 	if (status)
@@ -3319,7 +3326,7 @@ static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
 	return nfs_ok;
 
 out_put_access:
-	nfs4_file_put_access(fp, oflag);
+	nfs4_file_put_access(fp, open->op_share_access);
 out:
 	return status;
 }
@@ -4228,7 +4235,7 @@ static inline void nfs4_stateid_downgrade_bit(struct nfs4_ol_stateid *stp, u32 a
 {
 	if (!test_access(access, stp))
 		return;
-	nfs4_file_put_access(stp->st_file, nfs4_access_to_omode(access));
+	nfs4_file_put_access(stp->st_file, access);
 	clear_access(access, stp);
 }
 
@@ -4555,11 +4562,10 @@ check_lock_length(u64 offset, u64 length)
 static void get_lock_access(struct nfs4_ol_stateid *lock_stp, u32 access)
 {
 	struct nfs4_file *fp = lock_stp->st_file;
-	int oflag = nfs4_access_to_omode(access);
 
 	if (test_access(access, lock_stp))
 		return;
-	nfs4_file_get_access(fp, oflag);
+	__nfs4_file_get_access(fp, access);
 	set_access(access, lock_stp);
 }
 
