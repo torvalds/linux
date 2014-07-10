@@ -852,12 +852,6 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 	padapter->cmdpriv.padapter = padapter;
 
-	if ((rtw_init_evt_priv(&padapter->evtpriv)) == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init evt_priv\n"));
-		ret8 = _FAIL;
-		goto exit;
-	}
-
 	if (rtw_init_mlme_priv(padapter) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init mlme_priv\n"));
 		ret8 = _FAIL;
@@ -939,8 +933,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
 	rtw_free_cmd_priv(&padapter->cmdpriv);
-
-	rtw_free_evt_priv(&padapter->evtpriv);
 
 	rtw_free_mlme_priv(&padapter->mlmepriv);
 	_rtw_free_xmit_priv(&padapter->xmitpriv);

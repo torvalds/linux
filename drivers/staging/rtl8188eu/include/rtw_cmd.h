@@ -64,17 +64,6 @@ struct cmd_priv {
 	struct adapter *padapter;
 };
 
-struct	evt_priv {
-	struct work_struct c2h_wk;
-	bool c2h_wk_alive;
-	struct rtw_cbuf *c2h_queue;
-	#define C2H_QUEUE_MAX_LEN 10
-	atomic_t event_seq;
-	u8	*evt_buf;	/* shall be non-paged, and 4 bytes aligned */
-	u8	*evt_allocated_buf;
-	u32	evt_done_cnt;
-};
-
 #define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
 do {\
 	INIT_LIST_HEAD(&pcmd->list);\
@@ -103,10 +92,7 @@ int rtw_cmd_thread(void *context);
 u32 rtw_init_cmd_priv(struct cmd_priv *pcmdpriv);
 void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv);
 
-u32 rtw_init_evt_priv(struct evt_priv *pevtpriv);
-void rtw_free_evt_priv(struct evt_priv *pevtpriv);
 void rtw_cmd_clr_isr(struct cmd_priv *pcmdpriv);
-void rtw_evt_notify_isr(struct evt_priv *pevtpriv);
 
 enum rtw_drvextra_cmd_id {
 	NONE_WK_CID,

@@ -189,7 +189,6 @@ struct adapter {
 	struct	mlme_priv mlmepriv;
 	struct	mlme_ext_priv mlmeextpriv;
 	struct	cmd_priv	cmdpriv;
-	struct	evt_priv	evtpriv;
 	struct	xmit_priv	xmitpriv;
 	struct	recv_priv	recvpriv;
 	struct	sta_priv	stapriv;

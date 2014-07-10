@@ -5461,7 +5461,6 @@ u8 mlme_evt_hdl(struct adapter *padapter, unsigned char *pbuf)
 	u16 evt_sz;
 	uint	*peventbuf;
 	void (*event_callback)(struct adapter *dev, u8 *pbuf);
-	struct evt_priv *pevt_priv = &(padapter->evtpriv);
 
 	peventbuf = (uint *)pbuf;
 	evt_sz = (u16)(*peventbuf&0xffff);
@@ -5482,15 +5481,12 @@ u8 mlme_evt_hdl(struct adapter *padapter, unsigned char *pbuf)
 		goto _abort_event_;
 	}
 
-	atomic_inc(&pevt_priv->event_seq);
-
 	peventbuf += 2;
 
 	if (peventbuf) {
 		event_callback = wlanevents[evt_code].event_callback;
 		event_callback(padapter, (u8 *)peventbuf);
 
-		pevt_priv->evt_done_cnt++;
 	}
 
 _abort_event_:
