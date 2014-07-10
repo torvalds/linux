@@ -1722,7 +1722,7 @@ static int fuse_writepage_locked(struct page *page)
 	error = -EIO;
 	req->ff = fuse_write_file_get(fc, fi);
 	if (!req->ff)
-		goto err_free;
+		goto err_nofile;
 
 	fuse_write_fill(req, req->ff, page_offset(page), 0);
 
@@ -1750,6 +1750,8 @@ static int fuse_writepage_locked(struct page *page)
 
 	return 0;
 
+err_nofile:
+	__free_page(tmp_page);
 err_free:
 	fuse_request_free(req);
 err:
