@@ -1354,15 +1354,15 @@ int ced_dbg_get_data(struct ced_data *ced, TDBGBLOCK __user *udb)
 ****************************************************************************/
 int ced_dbg_stop_loop(struct ced_data *ced)
 {
-	int iReturn;
+	int ret;
 	unsigned int uState, uErr;
 
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
-	iReturn = ced_get_state(ced, &uState, &uErr);
+	ret = ced_get_state(ced, &uState, &uErr);
 	mutex_unlock(&ced->io_mutex);
 
-	return iReturn;
+	return ret;
 }
 
 /****************************************************************************
