@@ -134,7 +134,7 @@ struct dmadesc {
 
 /*  Structure to hold all of our device specific stuff. We are making this as similar as we */
 /*  can to the Windows driver to help in our understanding of what is going on. */
-typedef struct _DEVICE_EXTENSION {
+struct ced_data {
 	char inputBuffer[INBUF_SZ];         /* The two buffers */
 	char outputBuffer[OUTBUF_SZ];       /* accessed by the host functions */
 	volatile unsigned int dwNumInput;   /* num of chars in input buffer   */
@@ -197,48 +197,49 @@ typedef struct _DEVICE_EXTENSION {
 	int    open_count;                  /*  count the number of openers */
 	spinlock_t err_lock;                /*  lock for errors */
 	struct kref kref;
-} DEVICE_EXTENSION, *PDEVICE_EXTENSION;
-#define to_DEVICE_EXTENSION(d) container_of(d, DEVICE_EXTENSION, kref)
+};
+
+#define to_ced_data(d) container_of(d, struct ced_data, kref)
 
 /*  Definitions of routimes used between compilation object files */
 /*  in usb1401.c */
-extern int ced_allowi(DEVICE_EXTENSION *pdx);
-extern int ced_send_chars(DEVICE_EXTENSION *pdx);
-extern void ced_draw_down(DEVICE_EXTENSION *pdx);
-extern int ced_read_write_mem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
+extern int ced_allowi(struct ced_data * ced);
+extern int ced_send_chars(struct ced_data *ced);
+extern void ced_draw_down(struct ced_data *ced);
+extern int ced_read_write_mem(struct ced_data *ced, bool Read, unsigned short wIdent,
 				unsigned int dwOffs, unsigned int dwLen);
 
 /*  in ced_ioc.c */
-extern int ced_clear_area(DEVICE_EXTENSION *pdx, int nArea);
-extern int ced_send_string(DEVICE_EXTENSION *pdx, const char __user *pData, unsigned int n);
-extern int ced_send_char(DEVICE_EXTENSION *pdx, char c);
-extern int ced_get_state(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error);
-extern int ced_read_write_cancel(DEVICE_EXTENSION *pdx);
-extern int ced_reset(DEVICE_EXTENSION *pdx);
-extern int ced_get_char(DEVICE_EXTENSION *pdx);
-extern int ced_get_string(DEVICE_EXTENSION *pdx, char __user *pUser, int n);
-extern int ced_set_transfer(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD);
-extern int ced_unset_transfer(DEVICE_EXTENSION *pdx, int nArea);
-extern int ced_set_event(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE);
-extern int ced_stat_1401(DEVICE_EXTENSION *pdx);
-extern int ced_line_count(DEVICE_EXTENSION *pdx);
-extern int ced_get_out_buf_space(DEVICE_EXTENSION *pdx);
-extern int ced_get_transfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pGTB);
-extern int ced_kill_io(DEVICE_EXTENSION *pdx);
-extern int ced_state_of_1401(DEVICE_EXTENSION *pdx);
-extern int ced_start_self_test(DEVICE_EXTENSION *pdx);
-extern int ced_check_self_test(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST);
-extern int ced_type_of_1401(DEVICE_EXTENSION *pdx);
-extern int ced_transfer_flags(DEVICE_EXTENSION *pdx);
-extern int ced_dbg_peek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
-extern int ced_dbg_poke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
-extern int ced_dbg_ramp_data(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
-extern int ced_dbg_ramp_addr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
-extern int ced_dbg_get_data(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
-extern int ced_dbg_stop_loop(DEVICE_EXTENSION *pdx);
-extern int ced_set_circular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD);
-extern int ced_get_circ_block(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
-extern int ced_free_circ_block(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
-extern int ced_wait_event(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut);
-extern int ced_test_event(DEVICE_EXTENSION *pdx, int nArea);
+extern int ced_clear_area(struct ced_data *ced, int nArea);
+extern int ced_send_string(struct ced_data *ced, const char __user *pData, unsigned int n);
+extern int ced_send_char(struct ced_data *ced, char c);
+extern int ced_get_state(struct ced_data *ced, __u32 *state, __u32 *error);
+extern int ced_read_write_cancel(struct ced_data *ced);
+extern int ced_reset(struct ced_data *ced);
+extern int ced_get_char(struct ced_data *ced);
+extern int ced_get_string(struct ced_data *ced, char __user *pUser, int n);
+extern int ced_set_transfer(struct ced_data *ced, struct transfer_area_desc __user *pTD);
+extern int ced_unset_transfer(struct ced_data *ced, int nArea);
+extern int ced_set_event(struct ced_data *ced, struct transfer_event __user *pTE);
+extern int ced_stat_1401(struct ced_data *ced);
+extern int ced_line_count(struct ced_data *ced);
+extern int ced_get_out_buf_space(struct ced_data *ced);
+extern int ced_get_transfer(struct ced_data *ced, TGET_TX_BLOCK __user *pGTB);
+extern int ced_kill_io(struct ced_data *ced);
+extern int ced_state_of_1401(struct ced_data *ced);
+extern int ced_start_self_test(struct ced_data *ced);
+extern int ced_check_self_test(struct ced_data *ced, TGET_SELFTEST __user *pGST);
+extern int ced_type_of_1401(struct ced_data *ced);
+extern int ced_transfer_flags(struct ced_data *ced);
+extern int ced_dbg_peek(struct ced_data *ced, TDBGBLOCK __user *pDB);
+extern int ced_dbg_poke(struct ced_data *ced, TDBGBLOCK __user *pDB);
+extern int ced_dbg_ramp_data(struct ced_data *ced, TDBGBLOCK __user *pDB);
+extern int ced_dbg_ramp_addr(struct ced_data *ced, TDBGBLOCK __user *pDB);
+extern int ced_dbg_get_data(struct ced_data *ced, TDBGBLOCK __user *pDB);
+extern int ced_dbg_stop_loop(struct ced_data *ced);
+extern int ced_set_circular(struct ced_data *ced, struct transfer_area_desc __user *pTD);
+extern int ced_get_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB);
+extern int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *pCB);
+extern int ced_wait_event(struct ced_data *ced, int nArea, int msTimeOut);
+extern int ced_test_event(struct ced_data *ced, int nArea);
 #endif
