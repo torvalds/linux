@@ -111,29 +111,6 @@ RETURN:
 	return pnetdev;
 }
 
-struct net_device *rtw_alloc_etherdev(int sizeof_priv)
-{
-	struct net_device *pnetdev;
-	struct rtw_netdev_priv_indicator *pnpi;
-
-	pnetdev = alloc_etherdev_mq(sizeof(struct rtw_netdev_priv_indicator), 4);
-	if (!pnetdev)
-		goto RETURN;
-
-	pnpi = netdev_priv(pnetdev);
-
-	pnpi->priv = vzalloc(sizeof_priv);
-	if (!pnpi->priv) {
-		free_netdev(pnetdev);
-		pnetdev = NULL;
-		goto RETURN;
-	}
-
-	pnpi->sizeof_priv = sizeof_priv;
-RETURN:
-	return pnetdev;
-}
-
 void rtw_free_netdev(struct net_device *netdev)
 {
 	struct rtw_netdev_priv_indicator *pnpi;

@@ -707,14 +707,12 @@ static const struct device_type wlan_type = {
 struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 {
 	struct adapter *padapter;
-	struct net_device *pnetdev;
+	struct net_device *pnetdev = NULL;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+init_net_dev\n"));
 
 	if (old_padapter != NULL)
 		pnetdev = rtw_alloc_etherdev_with_old_priv(sizeof(struct adapter), (void *)old_padapter);
-	else
-		pnetdev = rtw_alloc_etherdev(sizeof(struct adapter));
 
 	if (!pnetdev)
 		return NULL;
