@@ -73,7 +73,7 @@ static inline bool i40e_vc_isvalid_queue_id(struct i40e_vf *vf, u8 vsi_id,
 {
 	struct i40e_pf *pf = vf->pf;
 
-	return qid < pf->vsi[vsi_id]->num_queue_pairs;
+	return qid < pf->vsi[vsi_id]->alloc_queue_pairs;
 }
 
 /**
@@ -469,7 +469,7 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 	wr32(hw, I40E_VPLAN_MAPENA(vf->vf_id), reg);
 
 	/* map PF queues to VF queues */
-	for (j = 0; j < pf->vsi[vf->lan_vsi_index]->num_queue_pairs; j++) {
+	for (j = 0; j < pf->vsi[vf->lan_vsi_index]->alloc_queue_pairs; j++) {
 		u16 qid = i40e_vc_get_pf_queue_id(vf, vf->lan_vsi_index, j);
 		reg = (qid & I40E_VPLAN_QTABLE_QINDEX_MASK);
 		wr32(hw, I40E_VPLAN_QTABLE(total_queue_pairs, vf->vf_id), reg);
@@ -478,7 +478,7 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 
 	/* map PF queues to VSI */
 	for (j = 0; j < 7; j++) {
-		if (j * 2 >= pf->vsi[vf->lan_vsi_index]->num_queue_pairs) {
+		if (j * 2 >= pf->vsi[vf->lan_vsi_index]->alloc_queue_pairs) {
 			reg = 0x07FF07FF;	/* unused */
 		} else {
 			u16 qid = i40e_vc_get_pf_queue_id(vf, vf->lan_vsi_index,
@@ -585,7 +585,7 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 	ret = i40e_alloc_vsi_res(vf, I40E_VSI_SRIOV);
 	if (ret)
 		goto error_alloc;
-	total_queue_pairs += pf->vsi[vf->lan_vsi_index]->num_queue_pairs;
+	total_queue_pairs += pf->vsi[vf->lan_vsi_index]->alloc_queue_pairs;
 	set_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps);
 
 	/* store the total qps number for the runtime
@@ -1124,7 +1124,7 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf)
 		vfres->vsi_res[i].vsi_id = vf->lan_vsi_index;
 		vfres->vsi_res[i].vsi_type = I40E_VSI_SRIOV;
 		vfres->vsi_res[i].num_queue_pairs =
-		    pf->vsi[vf->lan_vsi_index]->num_queue_pairs;
+		    pf->vsi[vf->lan_vsi_index]->alloc_queue_pairs;
 		memcpy(vfres->vsi_res[i].default_mac_addr,
 		       vf->default_lan_addr.addr, ETH_ALEN);
 		i++;
@@ -1210,6 +1210,7 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	struct i40e_virtchnl_vsi_queue_config_info *qci =
 	    (struct i40e_virtchnl_vsi_queue_config_info *)msg;
 	struct i40e_virtchnl_queue_pair_info *qpi;
+	struct i40e_pf *pf = vf->pf;
 	u16 vsi_id, vsi_queue_id;
 	i40e_status aq_ret = 0;
 	int i;
@@ -1243,6 +1244,8 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 			goto error_param;
 		}
 	}
+	/* set vsi num_queue_pairs in use to num configured by vf */
+	pf->vsi[vf->lan_vsi_index]->num_queue_pairs = qci->num_queue_pairs;
 
 error_param:
 	/* send the response to the vf */
