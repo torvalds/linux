@@ -30,7 +30,7 @@ Caller and the rtw_cmd_thread can protect cmd_q by spin_lock.
 No irqsave is necessary.
 */
 
-int _rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
+int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	int res = _SUCCESS;
 
@@ -128,13 +128,6 @@ struct	cmd_obj	*_rtw_dequeue_cmd(struct __queue *queue)
 
 
 	return obj;
-}
-
-u32 rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
-{
-	u32	res;
-	res = _rtw_init_cmd_priv(pcmdpriv);
-	return res;
 }
 
 void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
