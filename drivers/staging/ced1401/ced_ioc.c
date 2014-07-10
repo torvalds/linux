@@ -176,37 +176,41 @@ int ced_send_char(struct ced_data *ced, char c)
 */
 int ced_get_state(struct ced_data *ced, __u32 *state, __u32 *error)
 {
-	int nGot;
+	int got;
 	dev_dbg(&ced->interface->dev, "%s: entry\n", __func__);
 
 	*state = 0xFFFFFFFF;	/*  Start off with invalid state */
-	nGot = usb_control_msg(ced->udev, usb_rcvctrlpipe(ced->udev, 0),
+	got = usb_control_msg(ced->udev, usb_rcvctrlpipe(ced->udev, 0),
 			       GET_STATUS, (D_TO_H | VENDOR | DEVREQ), 0, 0,
 			       ced->stat_buf, sizeof(ced->stat_buf), HZ);
-	if (nGot != sizeof(ced->stat_buf)) {
+	if (got != sizeof(ced->stat_buf)) {
 		dev_err(&ced->interface->dev,
-			"%s: FAILED, return code %d\n", __func__, nGot);
-		ced->current_state = U14ERR_TIME;	/*  Indicate that things are very wrong indeed */
+			"%s: FAILED, return code %d\n", __func__, got);
+		/* Indicate that things are very wrong indeed */
+		ced->current_state = U14ERR_TIME;
 		*state = 0;	/*  Force status values to a known state */
 		*error = 0;
 	} else {
-		int nDevice;
+		int device;
 		dev_dbg(&ced->interface->dev,
 			"%s: Success, state: 0x%x, 0x%x\n",
 			__func__, ced->stat_buf[0], ced->stat_buf[1]);
 
-		*state = ced->stat_buf[0];	/*  Return the state values to the calling code */
+		/* Return the state values to the calling code */
+		*state = ced->stat_buf[0];
+
 		*error = ced->stat_buf[1];
 
-		nDevice = ced->udev->descriptor.bcdDevice >> 8;	/*  1401 type code value */
-		switch (nDevice) {	/*  so we can clean up current state */
+		/* 1401 type code value */
+		device = ced->udev->descriptor.bcdDevice >> 8;
+		switch (device) {	/*  so we can clean up current state */
 		case 0:
 			ced->current_state = U14ERR_U1401;
 			break;
 
-		default:	/*  allow lots of device codes for future 1401s */
-			if ((nDevice >= 1) && (nDevice <= 23))
-				ced->current_state = (short)(nDevice + 6);
+		default: /* allow lots of device codes for future 1401s */
+			if ((device >= 1) && (device <= 23))
+				ced->current_state = (short)(device + 6);
 			else
 				ced->current_state = U14ERR_ILL;
 			break;
