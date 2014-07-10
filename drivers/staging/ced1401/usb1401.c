@@ -448,57 +448,65 @@ int ced_send_chars(struct ced_data *ced)
 ***************************************************************************/
 static void ced_copy_user_space(struct ced_data *ced, int n)
 {
-	unsigned int nArea = ced->staged_id;
-	if (nArea < MAX_TRANSAREAS) {
+	unsigned int area = ced->staged_id;
+	if (area < MAX_TRANSAREAS) {
 		/*  area to be used */
-		struct transarea *pArea = &ced->trans_def[nArea];
-		unsigned int dwOffset =
-		    ced->staged_done + ced->staged_offset + pArea->base_offset;
-		char *pCoherBuf = ced->coher_staged_io;	/*  coherent buffer */
-		if (!pArea->used) {
+		struct transarea *ta = &ced->trans_def[area];
+		unsigned int offset =
+		    ced->staged_done + ced->staged_offset + ta->base_offset;
+		char *coher_buf = ced->coher_staged_io;	/*  coherent buffer */
+		if (!ta->used) {
 			dev_err(&ced->interface->dev, "%s: area %d unused\n",
-				__func__, nArea);
+				__func__, area);
 			return;
 		}
 
 		while (n) {
-			int nPage = dwOffset >> PAGE_SHIFT;	/*  page number in table */
-			if (nPage < pArea->n_pages) {
-				char *pvAddress =
-				    (char *)kmap_atomic(pArea->pages[nPage]);
-				if (pvAddress) {
-					unsigned int uiPageOff = dwOffset & (PAGE_SIZE - 1);	/*  offset into the page */
-					size_t uiXfer = PAGE_SIZE - uiPageOff;	/*  max to transfer on this page */
-					if (uiXfer > n)	/*  limit byte count if too much */
-						uiXfer = n;	/*  for the page */
+			/*  page number in table */
+			int page = offset >> PAGE_SHIFT;
+
+			if (page < ta->n_pages) {
+				char *address =
+				    (char *)kmap_atomic(ta->pages[page]);
+				if (address) {
+					/* offset into the page */
+					unsigned int page_off =
+						offset & (PAGE_SIZE - 1);
+					/* max to transfer on this page */
+					size_t xfer = PAGE_SIZE - page_off;
+
+					/* limit byte count if too much */
+					/* for the page                 */
+					if (xfer > n)
+						xfer = n;
 					if (ced->staged_read)
-						memcpy(pvAddress + uiPageOff,
-						       pCoherBuf, uiXfer);
+						memcpy(address + page_off,
+						       coher_buf, xfer);
 					else
-						memcpy(pCoherBuf,
-						       pvAddress + uiPageOff,
-						       uiXfer);
-					kunmap_atomic(pvAddress);
-					dwOffset += uiXfer;
-					pCoherBuf += uiXfer;
-					n -= uiXfer;
+						memcpy(coher_buf,
+						       address + page_off,
+						       xfer);
+					kunmap_atomic(address);
+					offset += xfer;
+					coher_buf += xfer;
+					n -= xfer;
 				} else {
 					dev_err(&ced->interface->dev,
 						"%s: did not map page %d\n",
-						__func__, nPage);
+						__func__, page);
 					return;
 				}
 
 			} else {
 				dev_err(&ced->interface->dev,
 					"%s: exceeded pages %d\n",
-					__func__, nPage);
+					__func__, page);
 				return;
 			}
 		}
 	} else
 		dev_err(&ced->interface->dev, "%s: bad area %d\n",
-			__func__, nArea);
+			__func__, area);
 }
 
 /*  Forward declarations for stuff used circularly */
