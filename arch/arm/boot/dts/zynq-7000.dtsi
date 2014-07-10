@@ -71,6 +71,16 @@
 			interrupts = <0 7 4>;
 			interrupt-parent = <&intc>;
 			clocks = <&clkc 12>;
+		}; 
+
+		gpio0: gpio@e000a000 {
+			compatible = "xlnx,zynq-gpio-1.0";
+			#gpio-cells = <2>;
+			clocks = <&clkc 42>;
+			gpio-controller;
+			interrupt-parent = <&intc>;
+			interrupts = <0 20 4>;
+			reg = <0xe000a000 0x1000>;
 		};
 
 		i2c0: i2c@e0004000 {
