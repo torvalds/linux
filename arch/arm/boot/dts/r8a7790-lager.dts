@@ -205,14 +205,14 @@
 		renesas,function = "msiof1";
 	};
 
-	i2c1_pins: i2c1 {
-		renesas,groups = "i2c1";
-		renesas,function = "i2c1";
+	iic1_pins: iic1 {
+		renesas,groups = "iic1";
+		renesas,function = "iic1";
 	};
 
-	i2c2_pins: i2c2 {
-		renesas,groups = "i2c2";
-		renesas,function = "i2c2";
+	iic2_pins: iic2 {
+		renesas,groups = "iic2";
+		renesas,function = "iic2";
 	};
 
 	iic3_pins: iic3 {
@@ -352,19 +352,19 @@
 	cpu0-supply = <&vdd_dvfs>;
 };
 
-&i2c0	{
+&iic0	{
 	status = "ok";
 };
 
-&i2c1	{
+&iic1	{
 	status = "ok";
-	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-0 = <&iic1_pins>;
 	pinctrl-names = "default";
 };
 
-&i2c2	{
+&iic2	{
 	status = "ok";
-	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-0 = <&iic2_pins>;
 	pinctrl-names = "default";
 };
 
