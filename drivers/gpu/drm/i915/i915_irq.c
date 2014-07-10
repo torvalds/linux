@@ -1407,7 +1407,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	spin_lock_irq(&dev_priv->irq_lock);
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
-	if (IS_BROADWELL(dev_priv->dev))
+	if (IS_BROADWELL(dev_priv->dev) || IS_CHERRYVIEW(dev_priv->dev))
 		bdw_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	else {
 		/* Make sure not to corrupt PMIMR state used by ringbuffer */
