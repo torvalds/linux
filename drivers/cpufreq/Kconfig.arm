@@ -104,6 +104,14 @@ config ARM_OMAP2PLUS_CPUFREQ
 	default ARCH_OMAP2PLUS
 	select CPU_FREQ_TABLE
 
+config ARM_ROCKCHIP_CPUFREQ
+	bool "CPUfreq driver for Rockchip CPUs"
+	depends on ARCH_ROCKCHIP
+	default y
+	help
+	  This enables the CPUfreq driver for Rockchips CPUs.
+	  If in doubt, say Y.
+
 config ARM_S3C2416_CPUFREQ
 	bool "S3C2416 CPU Frequency scaling support"
 	depends on CPU_S3C2416
