@@ -171,6 +171,7 @@
 
 			i2c1_gpio: i2c1-gpio {
 				rockchip,pins = <FUNC_TO_GPIO(I2C1_SDA)>, <FUNC_TO_GPIO(I2C1_SCL)>;
+                                rockchip,pull = <VALUE_PULL_DEFAULT>;
 				
 			};
 		};
