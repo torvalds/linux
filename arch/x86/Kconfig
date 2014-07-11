@@ -1578,6 +1578,7 @@ config EFI
 config EFI_STUB
        bool "EFI stub support"
        depends on EFI
+       select RELOCATABLE
        ---help---
           This kernel feature allows a bzImage to be loaded directly
 	  by EFI firmware without the use of a bootloader.
