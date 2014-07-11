@@ -377,7 +377,7 @@ static int rmi_input_event(struct hid_device *hdev, u8 *data, int size)
 	irq_mask |= hdata->f30.irq_mask;
 
 	if (data[1] & ~irq_mask)
-		hid_warn(hdev, "unknown intr source:%02lx %s:%d\n",
+		hid_dbg(hdev, "unknown intr source:%02lx %s:%d\n",
 			data[1] & ~irq_mask, __FILE__, __LINE__);
 
 	if (hdata->f11.interrupt_base < hdata->f30.interrupt_base) {
@@ -400,7 +400,7 @@ static int rmi_read_data_event(struct hid_device *hdev, u8 *data, int size)
 	struct rmi_data *hdata = hid_get_drvdata(hdev);
 
 	if (!test_bit(RMI_READ_REQUEST_PENDING, &hdata->flags)) {
-		hid_err(hdev, "no read request pending\n");
+		hid_dbg(hdev, "no read request pending\n");
 		return 0;
 	}
 
