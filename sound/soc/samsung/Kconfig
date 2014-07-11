@@ -49,7 +49,7 @@ config SND_SOC_SAMSUNG_NEO1973_WM8753
 
 config SND_SOC_SAMSUNG_JIVE_WM8750
 	tristate "SoC I2S Audio support for Jive"
-	depends on SND_SOC_SAMSUNG && MACH_JIVE
+	depends on SND_SOC_SAMSUNG && MACH_JIVE && I2C
 	select SND_SOC_WM8750
 	select SND_S3C2412_SOC_I2S
 	help
@@ -148,7 +148,7 @@ config SND_SOC_SAMSUNG_SMDK_WM9713
 
 config SND_SOC_SMARTQ
 	tristate "SoC I2S Audio support for SmartQ board"
-	depends on SND_SOC_SAMSUNG && MACH_SMARTQ
+	depends on SND_SOC_SAMSUNG && MACH_SMARTQ && I2C
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8750
 
@@ -200,7 +200,7 @@ config SND_SOC_SPEYSIDE
 
 config SND_SOC_TOBERMORY
 	tristate "Audio support for Wolfson Tobermory"
-	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410 && INPUT
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410 && INPUT && I2C
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8962
 
@@ -216,7 +216,7 @@ config SND_SOC_BELLS
 
 config SND_SOC_LOWLAND
 	tristate "Audio support for Wolfson Lowland"
-	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410 && I2C
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM5100
 	select SND_SOC_WM9081
