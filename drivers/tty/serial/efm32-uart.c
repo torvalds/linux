@@ -665,10 +665,16 @@ static int efm32_uart_probe_dt(struct platform_device *pdev,
 	if (!np)
 		return 1;
 
-	ret = of_property_read_u32(np, "efm32,location", &location);
+	ret = of_property_read_u32(np, "energymicro,location", &location);
+
+	if (ret)
+		/* fall back to wrongly namespaced property */
+		ret = of_property_read_u32(np, "efm32,location", &location);
+
 	if (ret)
 		/* fall back to old and (wrongly) generic property "location" */
 		ret = of_property_read_u32(np, "location", &location);
+
 	if (!ret) {
 		if (location > 5) {
 			dev_err(&pdev->dev, "invalid location\n");
