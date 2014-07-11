@@ -477,6 +477,21 @@ static int hci_uart_set_proto(struct hci_uart *hu, int id)
 	return 0;
 }
 
+static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
+{
+	unsigned long valid_flags = BIT(HCI_UART_RAW_DEVICE) |
+				    BIT(HCI_UART_RESET_ON_INIT) |
+				    BIT(HCI_UART_CREATE_AMP) |
+				    BIT(HCI_UART_INIT_PENDING);
+
+	if ((flags & ~valid_flags))
+		return -EINVAL;
+
+	hu->hdev_flags = flags;
+
+	return 0;
+}
+
 /* hci_uart_tty_ioctl()
  *
  *    Process IOCTL system call for the tty device.
@@ -527,7 +542,9 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 	case HCIUARTSETFLAGS:
 		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
 			return -EBUSY;
-		hu->hdev_flags = arg;
+		err = hci_uart_set_flags(hu, arg);
+		if (err)
+			return err;
 		break;
 
 	case HCIUARTGETFLAGS:
