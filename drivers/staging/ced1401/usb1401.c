@@ -610,9 +610,9 @@ static void staged_callback(struct urb *urb)
 						ta->blocks[1].offset);
 				}
 			} else { /* If block 1 is not used, we try to add */
-			         /*to block 0                             */
+				 /*to block 0                             */
 
-			        /* Got stored block 0 information? */
+				/* Got stored block 0 information? */
 				if (ta->blocks[0].size > 0) {
 					/*  Must append onto the */
 					/*existing block 0       */
@@ -738,7 +738,7 @@ static void staged_callback(struct urb *urb)
 	/* This feels wrong as we should ask which spin lock protects        */
 	/* dma_flag. */
 	restart_char_input = !cancel && (ced->dma_flag == MODE_CHAR) &&
-	                    !ced->xfer_waiting;
+			     !ced->xfer_waiting;
 
 	spin_unlock(&ced->staged_lock);	/*  Finally release the lock again */
 
@@ -803,7 +803,7 @@ static int ced_stage_chunk(struct ced_data *ced)
 		ced->pipe_error[pipe] = 1; /* Flag an error to be */
 					   /* handled later       */
 		dev_err(&ced->interface->dev,
-		        "%s: submit urb failed, code %d\n",
+			"%s: submit urb failed, code %d\n",
 			__func__, retval);
 	} else
 		/* Set the flag for staged URB pending */
