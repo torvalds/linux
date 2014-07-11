@@ -1349,17 +1349,6 @@ void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
 void mgmt_reenable_advertising(struct hci_dev *hdev);
 void mgmt_smp_complete(struct hci_conn *conn, bool complete);
 
-/* HCI info for socket */
-#define hci_pi(sk) ((struct hci_pinfo *) sk)
-
-struct hci_pinfo {
-	struct bt_sock    bt;
-	struct hci_dev    *hdev;
-	struct hci_filter filter;
-	__u32             cmsg_mask;
-	unsigned short   channel;
-};
-
 /* ----- HCI requests ----- */
 #define HCI_REQ_DONE	  0
 #define HCI_REQ_PEND	  1
