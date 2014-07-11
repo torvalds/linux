@@ -148,6 +148,47 @@ void mic_card_unmap(struct mic_device *mdev, void __iomem *addr)
 	iounmap(addr);
 }
 
+static inline struct mic_driver *mbdev_to_mdrv(struct mbus_device *mbdev)
+{
+	return dev_get_drvdata(mbdev->dev.parent);
+}
+
+static struct mic_irq *
+_mic_request_threaded_irq(struct mbus_device *mbdev,
+			  irq_handler_t handler, irq_handler_t thread_fn,
+			  const char *name, void *data, int intr_src)
+{
+	int rc = 0;
+	unsigned int irq = intr_src;
+	unsigned long cookie = irq;
+
+	rc  = request_threaded_irq(irq, handler, thread_fn, 0, name, data);
+	if (rc) {
+		dev_err(mbdev_to_mdrv(mbdev)->dev,
+			"request_threaded_irq failed rc = %d\n", rc);
+		return ERR_PTR(rc);
+	}
+	return (struct mic_irq *)cookie;
+}
+
+static void _mic_free_irq(struct mbus_device *mbdev,
+			  struct mic_irq *cookie, void *data)
+{
+	unsigned long irq = (unsigned long)cookie;
+	free_irq(irq, data);
+}
+
+static void _mic_ack_interrupt(struct mbus_device *mbdev, int num)
+{
+	mic_ack_interrupt(&mbdev_to_mdrv(mbdev)->mdev);
+}
+
+static struct mbus_hw_ops mbus_hw_ops = {
+	.request_threaded_irq = _mic_request_threaded_irq,
+	.free_irq = _mic_free_irq,
+	.ack_interrupt = _mic_ack_interrupt,
+};
+
 static int __init mic_probe(struct platform_device *pdev)
 {
 	struct mic_driver *mdrv = &g_drv;
@@ -166,13 +207,24 @@ static int __init mic_probe(struct platform_device *pdev)
 		goto done;
 	}
 	mic_hw_intr_init(mdrv);
+	platform_set_drvdata(pdev, mdrv);
+	mdrv->dma_mbdev = mbus_register_device(mdrv->dev, MBUS_DEV_DMA_MIC,
+					       NULL, &mbus_hw_ops,
+					       mdrv->mdev.mmio.va);
+	if (IS_ERR(mdrv->dma_mbdev)) {
+		rc = PTR_ERR(mdrv->dma_mbdev);
+		dev_err(&pdev->dev, "mbus_add_device failed rc %d\n", rc);
+		goto iounmap;
+	}
 	rc = mic_driver_init(mdrv);
 	if (rc) {
 		dev_err(&pdev->dev, "mic_driver_init failed rc %d\n", rc);
-		goto iounmap;
+		goto remove_dma;
 	}
 done:
 	return rc;
+remove_dma:
+	mbus_unregister_device(mdrv->dma_mbdev);
 iounmap:
 	iounmap(mdev->mmio.va);
 	return rc;
@@ -184,6 +236,7 @@ static int mic_remove(struct platform_device *pdev)
 	struct mic_device *mdev = &mdrv->mdev;
 
 	mic_driver_uninit(mdrv);
+	mbus_unregister_device(mdrv->dma_mbdev);
 	iounmap(mdev->mmio.va);
 	return 0;
 }
