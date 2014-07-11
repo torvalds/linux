@@ -1,11 +1,12 @@
-/***********************************************************************************
- CED1401 usb driver. This basic loading is based on the usb-skeleton.c code that is:
+/*******************************************************************************
+ CED1401 usb driver. This basic loading is based on the usb-skeleton.c code that
+ is:
  Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
  Copyright (C) 2012 Alois Schloegl <alois.schloegl@ist.ac.at>
  There is not a great deal of the skeleton left.
 
- All the remainder dealing specifically with the CED1401 is based on drivers written
- by CED for other systems (mainly Windows) and is:
+ All the remainder dealing specifically with the CED1401 is based on drivers
+ written by CED for other systems (mainly Windows) and is:
  Copyright (C) 2010 Cambridge Electronic Design Ltd
  Author Greg P Smith (greg@ced.co.uk)
 
@@ -125,8 +126,9 @@ static void ced_delete(struct kref *kref)
 {
 	struct ced_data *ced = to_ced_data(kref);
 
-	/*  Free up the output buffer, then free the output urb. Note that the interface member */
-	/*  of ced will probably be NULL, so cannot be used to get to dev. */
+	/* Free up the output buffer, then free the output urb. Note that the */
+	/* interface member of ced will probably be NULL, so cannot be used   */
+	/* to get to dev. */
 	usb_free_coherent(ced->udev, OUTBUF_SZ, ced->coher_char_out,
 			  ced->urb_char_out->transfer_dma);
 	usb_free_urb(ced->urb_char_out);
@@ -183,7 +185,7 @@ static int ced_open(struct inode *inode, struct file *file)
 			kref_put(&ced->kref, ced_delete);
 			goto exit;
 		}
-	} else {		/* uncomment this block if you want exclusive open */
+	} else { /* uncomment this block if you want exclusive open */
 		dev_err(&interface->dev, "%s: fail: already open\n", __func__);
 		retval = -EBUSY;
 		ced->open_count--;
@@ -214,7 +216,8 @@ static int ced_release(struct inode *inode, struct file *file)
 		usb_autopm_put_interface(ced->interface);
 	mutex_unlock(&ced->io_mutex);
 
-	kref_put(&ced->kref, ced_delete);	/*  decrement the count on our device */
+	/* decrement the count on our device */
+	kref_put(&ced->kref, ced_delete);
 	return 0;
 }
 
@@ -296,7 +299,9 @@ static void ced_writechar_callback(struct urb *urb)
 		spin_lock(&ced->char_out_lock);	/*  already at irq level */
 		ced->num_output -= got;	/*  Now adjust the char send buffer */
 		ced->out_buff_get += got;	/*  to match what we did */
-		if (ced->out_buff_get >= OUTBUF_SZ)	/*  Can't do this any earlier as data could be overwritten */
+
+		/* Can't do this any earlier as data could be overwritten */
+		if (ced->out_buff_get >= OUTBUF_SZ)
 			ced->out_buff_get = 0;
 
 		if (ced->num_output > 0) {	/*  if more to be done... */
@@ -306,13 +311,15 @@ static void ced_writechar_callback(struct urb *urb)
 			/* maximum to send */
 			unsigned int count = ced->num_output;
 
-			if ((ced->out_buff_get + count) > OUTBUF_SZ)	/*  does it cross buffer end? */
+			/* does it cross buffer end? */
+			if ((ced->out_buff_get + count) > OUTBUF_SZ)
 				count = OUTBUF_SZ - ced->out_buff_get;
 
 			/* we are done with stuff that changes */
 			spin_unlock(&ced->char_out_lock);
 
-			memcpy(ced->coher_char_out, pDat, count);	/*  copy output data to the buffer */
+			/* copy output data to the buffer */
+			memcpy(ced->coher_char_out, pDat, count);
 			usb_fill_bulk_urb(ced->urb_char_out, ced->udev,
 					  usb_sndbulkpipe(ced->udev,
 							  ced->ep_addr[0]),
@@ -320,14 +327,21 @@ static void ced_writechar_callback(struct urb *urb)
 					  ced_writechar_callback, ced);
 			ced->urb_char_out->transfer_flags |=
 			    URB_NO_TRANSFER_DMA_MAP;
-			usb_anchor_urb(ced->urb_char_out, &ced->submitted);	/*  in case we need to kill it */
+
+			/*  in case we need to kill it */
+			usb_anchor_urb(ced->urb_char_out, &ced->submitted);
 			ret = usb_submit_urb(ced->urb_char_out, GFP_ATOMIC);
 			dev_dbg(&ced->interface->dev, "%s: n=%d>%s<\n",
 				__func__, count, pDat);
-			spin_lock(&ced->char_out_lock);	/*  grab lock for errors */
+
+			/* grab lock for errors */
+			spin_lock(&ced->char_out_lock);
+
 			if (ret) {
-				ced->pipe_error[pipe] = 1;	/*  Flag an error to be handled later */
-				ced->send_chars_pending = false;	/*  Allow other threads again */
+				/* Flag an error to be handled later */
+				ced->pipe_error[pipe] = 1;
+				/* Allow other threads again */
+				ced->send_chars_pending = false;
 				usb_unanchor_urb(ced->urb_char_out);
 				dev_err(&ced->interface->dev,
 					"%s: usb_submit_urb() returned %d\n",
@@ -352,27 +366,34 @@ int ced_send_chars(struct ced_data *ced)
 
 	spin_lock_irq(&ced->char_out_lock);	/*  Protect ourselves */
 
-	if ((!ced->send_chars_pending) &&	/*  Not currently sending */
-	    (ced->num_output > 0) &&	/*   has characters to output */
-	    (can_accept_io_requests(ced)))	{ /*   and current activity is OK */
+	if ((!ced->send_chars_pending) && /* Not currently sending */
+	    (ced->num_output > 0) &&	  /* has characters to output */
+	    (can_accept_io_requests(ced))) { /* and current activity is OK */
 		unsigned int count = ced->num_output;	/* Get a copy of the */
 							/* character count   */
-		ced->send_chars_pending = true;	/*  Set flag to lock out other threads */
+
+		/* Set flag to lock out other threads */
+		ced->send_chars_pending = true;
 
 		dev_dbg(&ced->interface->dev,
 			"Send %d chars to 1401, EP0 flag %d\n",
 			count, ced->n_pipes == 3);
-		/*  If we have only 3 end points we must send the characters to the 1401 using EP0. */
+		/* If we have only 3 end points we must send the characters */
+		/* to the 1401 using EP0.				    */
 		if (ced->n_pipes == 3) {
-			/*  For EP0 character transmissions to the 1401, we have to hang about until they */
-			/*  are gone, as otherwise without more character IO activity they will never go. */
-			unsigned int i = count;	/*  Local char counter */
-			unsigned int index = 0;	/*  The index into the char buffer */
+			/* For EP0 character transmissions to the 1401, we */
+			/* have to hang about until they are gone, as	   */
+			/* otherwise without more character IO activity    */
+			/* they will never go.				   */
+			unsigned int i = count;	/* Local char counter */
+			unsigned int index = 0;	/* The index into the */
+						/* char buffer        */
 
-			spin_unlock_irq(&ced->char_out_lock);	/*  Free spinlock as we call USBD */
+			/* Free spinlock as we call USBD */
+			spin_unlock_irq(&ced->char_out_lock);
 
 			while ((i > 0) && (retval == U14ERR_NOERROR)) {
-				/*  We have to break the transfer up into 64-byte chunks because of a 2270 problem */
+				/* We have to break the transfer up into 64-byte chunks because of a 2270 problem */
 				int n = i > 64 ? 64 : i;	/*  Chars for this xfer, max of 64 */
 				int sent = usb_control_msg(ced->udev,
 							    usb_sndctrlpipe(ced->udev, 0),	/*  use end point 0 */
@@ -383,7 +404,8 @@ int ced_send_chars(struct ced_data *ced)
 							    n,	/*  how much to send */
 							    1000);	/*  timeout in jiffies */
 				if (sent <= 0) {
-					retval = sent ? sent : -ETIMEDOUT;	/*  if 0 chars says we timed out */
+					/* if 0 chars says we timed out */
+					retval = sent ? sent : -ETIMEDOUT;
 					dev_err(&ced->interface->dev,
 						"Send %d chars by EP0 failed: %d\n",
 						n, retval);
@@ -395,19 +417,25 @@ int ced_send_chars(struct ced_data *ced)
 				}
 			}
 
-			spin_lock_irq(&ced->char_out_lock);	/*  Protect ced changes, released by general code */
-			ced->out_buff_get = 0;	/*  so reset the output buffer */
+			/* Protect ced changes, released by general code */
+			spin_lock_irq(&ced->char_out_lock);
+			ced->out_buff_get = 0; /* so reset the output buffer */
 			ced->out_buff_put = 0;
-			ced->num_output = 0;	/*  and clear the buffer count */
-			ced->send_chars_pending = false;	/*  Allow other threads again */
-		} else {	/*  Here for sending chars normally - we hold the spin lock */
+			ced->num_output = 0;   /* and clear the buffer count */
+			/* Allow other threads again */
+			ced->send_chars_pending = false;
+		} else { /* Here for sending chars normally - we hold the */
+			 /* spin lock */
 			int pipe = 0;	/*  The pipe number to use */
 			char *pDat = &ced->output_buffer[ced->out_buff_get];
 
-			if ((ced->out_buff_get + count) > OUTBUF_SZ)	/*  does it cross buffer end? */
+			/* does it cross buffer end? */
+			if ((ced->out_buff_get + count) > OUTBUF_SZ)
 				count = OUTBUF_SZ - ced->out_buff_get;
-			spin_unlock_irq(&ced->char_out_lock);	/*  we are done with stuff that changes */
-			memcpy(ced->coher_char_out, pDat, count);	/*  copy output data to the buffer */
+			/* we are done with stuff that changes */
+			spin_unlock_irq(&ced->char_out_lock);
+			/* copy output data to the buffer */
+			memcpy(ced->coher_char_out, pDat, count);
 			usb_fill_bulk_urb(ced->urb_char_out, ced->udev,
 					  usb_sndbulkpipe(ced->udev,
 							  ced->ep_addr[0]),
@@ -422,9 +450,12 @@ int ced_send_chars(struct ced_data *ced)
 			spin_lock_irq(&ced->char_out_lock);
 
 			if (retval) {
-				ced->pipe_error[pipe] = 1;	/*  Flag an error to be handled later */
-				ced->send_chars_pending = false;	/*  Allow other threads again */
-				usb_unanchor_urb(ced->urb_char_out);	/*  remove from list of active urbs */
+				/* Flag an error to be handled later */
+				ced->pipe_error[pipe] = 1;
+				/* Allow other threads again */
+				ced->send_chars_pending = false;
+				/* remove from list of active urbs */
+				usb_unanchor_urb(ced->urb_char_out);
 			}
 		}
 	} else if (ced->send_chars_pending && (ced->num_output > 0))
@@ -679,8 +710,10 @@ static void staged_callback(struct urb *urb)
 				/* transfer then set the event to notify the  */
 				/* user code to wake up anyone that is        */
 				/* waiting. */
-				if ((ta->circular) && /* Circular areas use a simpler test */
-				    (ta->circ_to_host)) {	/*  only in supported direction */
+				if ((ta->circular) && /* Circular areas use a
+							 simpler test */
+				    (ta->circ_to_host)) { /* only in supported
+							     direction */
 					/* Is total data waiting up */
 					/* to size limit? */
 					unsigned int dwTotal =
@@ -1089,9 +1122,9 @@ static bool ced_read_dma_info(volatile struct dmadesc *dma_desc,
 					    (dma_desc->offset > ced->trans_def[ident].length) ||	/*  range/size */
 					    ((dma_desc->offset +
 					      dma_desc->size) >
-					     (ced->trans_def[ident].
-					      length))) {
-						retval = false;	/*  bad parameter(s) */
+					     (ced->trans_def[ident].length))) {
+						/* bad parameter(s) */
+						retval = false;
 						dev_dbg(&ced->interface->dev,
 							"%s: bad param - id %d, bUsed %d, offset %d, size %d, area length %d\n",
 							__func__, ident,
@@ -1176,7 +1209,8 @@ static int ced_handle_esc(struct ced_data *ced, char *ch,
 						dev_err(&ced->interface->dev,
 							"%s: ced_read_write_mem() failed %d\n",
 							__func__, retval);
-				} else	/* This covers non-linear transfer setup */
+				} else	/* This covers non-linear
+					   transfer setup */
 					dev_err(&ced->interface->dev,
 						"%s: Unknown block xfer type %d\n",
 						__func__, trans_type);
@@ -1499,8 +1533,8 @@ static struct usb_class_driver ced_class = {
 	.minor_base = USB_CED_MINOR_BASE,
 };
 
-/*  Check that the device that matches a 1401 vendor and product ID is OK to use and */
-/*  initialise our struct ced_data. */
+/* Check that the device that matches a 1401 vendor and product ID is OK to */
+/* use and initialise our struct ced_data.				    */
 static int ced_probe(struct usb_interface *interface,
 		     const struct usb_device_id *id)
 {
@@ -1515,12 +1549,12 @@ static int ced_probe(struct usb_interface *interface,
 	if (!ced)
 		goto error;
 
-	for (i = 0; i < MAX_TRANSAREAS; ++i) {	/*  Initialise the wait queues */
+	for (i = 0; i < MAX_TRANSAREAS; ++i) {	/* Initialise the wait queues */
 		init_waitqueue_head(&ced->trans_def[i].event);
 	}
 
-	/*  Put initialises for our stuff here. Note that all of *ced is zero, so */
-	/*  no need to explicitly zero it. */
+	/* Put initialises for our stuff here. Note that all of *ced is
+	 * zero, so no need to explicitly zero it. */
 	spin_lock_init(&ced->char_out_lock);
 	spin_lock_init(&ced->char_in_lock);
 	spin_lock_init(&ced->staged_lock);
@@ -1546,8 +1580,8 @@ static int ced_probe(struct usb_interface *interface,
 			__func__, bcdDevice);
 		goto error;
 	}
-	/*  set up the endpoint information. We only care about the number of EP as */
-	/*  we know that we are dealing with a 1401 device. */
+	/* set up the endpoint information. We only care about the number of */
+	/* EP as we know that we are dealing with a 1401 device.	     */
 	iface_desc = interface->cur_altsetting;
 	ced->n_pipes = iface_desc->desc.bNumEndpoints;
 	dev_info(&interface->dev, "1401Type=%d with %d End Points\n",
@@ -1556,9 +1590,11 @@ static int ced_probe(struct usb_interface *interface,
 		goto error;
 
 	/*  Allocate the URBs we hold for performing transfers */
-	ced->urb_char_out = usb_alloc_urb(0, GFP_KERNEL);	/*  character output URB */
-	ced->urb_char_in = usb_alloc_urb(0, GFP_KERNEL);	/*  character input URB */
-	ced->staged_urb = usb_alloc_urb(0, GFP_KERNEL);	/*  block transfer URB */
+	ced->urb_char_out = usb_alloc_urb(0, GFP_KERNEL);/* character output
+							    URB */
+	ced->urb_char_in = usb_alloc_urb(0, GFP_KERNEL); /* character input
+							    URB */
+	ced->staged_urb = usb_alloc_urb(0, GFP_KERNEL);	/* block transfer URB */
 	if (!ced->urb_char_out || !ced->urb_char_in || !ced->staged_urb) {
 		dev_err(&interface->dev, "%s: URB alloc failed\n", __func__);
 		goto error;
@@ -1585,7 +1621,9 @@ static int ced_probe(struct usb_interface *interface,
 		ced->ep_addr[i] = endpoint->bEndpointAddress;
 		dev_info(&interface->dev, "Pipe %d, ep address %02x\n",
 			 i, ced->ep_addr[i]);
-		if (((ced->n_pipes == 3) && (i == 0)) ||	/*  if char input end point */
+
+		/* if char input end point */
+		if (((ced->n_pipes == 3) && (i == 0)) ||
 		    ((ced->n_pipes == 4) && (i == 1))) {
 			/* save the endpoint interrupt interval */
 			ced->interval = endpoint->bInterval;
@@ -1593,7 +1631,7 @@ static int ced_probe(struct usb_interface *interface,
 				 i, ced->interval);
 		}
 		/*  Detect USB2 by checking last ep size (64 if USB1) */
-		if (i == ced->n_pipes - 1) {	/*  if this is the last ep (bulk) */
+		if (i == ced->n_pipes - 1) { /* if this is the last ep (bulk) */
 			ced->is_usb2 =
 			    le16_to_cpu(endpoint->wMaxPacketSize) > 64;
 			dev_info(&ced->interface->dev, "USB%d\n",
@@ -1622,7 +1660,7 @@ static int ced_probe(struct usb_interface *interface,
 
 error:
 	if (ced)
-		kref_put(&ced->kref, ced_delete);	/*  frees allocated memory */
+		kref_put(&ced->kref, ced_delete); /* frees allocated memory */
 	return retval;
 }
 
@@ -1632,19 +1670,23 @@ static void ced_disconnect(struct usb_interface *interface)
 	int minor = interface->minor;
 	int i;
 
-	usb_set_intfdata(interface, NULL);	/*  remove the ced from the interface */
-	usb_deregister_dev(interface, &ced_class);	/*  give back our minor device number */
+	/* remove the ced from the interface */
+	usb_set_intfdata(interface, NULL);
+	/* give back our minor device number */
+	usb_deregister_dev(interface, &ced_class);
 
-	mutex_lock(&ced->io_mutex);	/*  stop more I/O starting while... */
+	mutex_lock(&ced->io_mutex);	/* stop more I/O starting while... */
 	ced_draw_down(ced);	/*  ...wait for then kill any io */
 	for (i = 0; i < MAX_TRANSAREAS; ++i) {
-		int err = ced_clear_area(ced, i);	/*  ...release any used memory */
+		/* ...release any used memory */
+		int err = ced_clear_area(ced, i);
 
 		if (err == U14ERR_UNLOCKFAIL)
-			dev_err(&ced->interface->dev, "%s: Area %d was in used\n",
+			dev_err(&ced->interface->dev,
+				"%s: Area %d was in used\n",
 				__func__, i);
 	}
-	ced->interface = NULL;	/*  ...we kill off link to interface */
+	ced->interface = NULL; /* ...we kill off link to interface */
 	mutex_unlock(&ced->io_mutex);
 
 	usb_kill_anchored_urbs(&ced->submitted);
