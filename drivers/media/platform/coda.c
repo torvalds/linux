@@ -209,6 +209,7 @@ struct coda_ctx {
 	struct coda_aux_buf		psbuf;
 	struct coda_aux_buf		slicebuf;
 	struct coda_aux_buf		internal_frames[CODA_MAX_FRAMEBUFFERS];
+	u32				frame_types[CODA_MAX_FRAMEBUFFERS];
 	struct coda_aux_buf		workbuf;
 	int				num_internal_frames;
 	int				idx;
@@ -2691,15 +2692,6 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
-	val = coda_read(dev, CODA_RET_DEC_PIC_TYPE);
-	if ((val & 0x7) == 0) {
-		dst_buf->v4l2_buf.flags |= V4L2_BUF_FLAG_KEYFRAME;
-		dst_buf->v4l2_buf.flags &= ~V4L2_BUF_FLAG_PFRAME;
-	} else {
-		dst_buf->v4l2_buf.flags |= V4L2_BUF_FLAG_PFRAME;
-		dst_buf->v4l2_buf.flags &= ~V4L2_BUF_FLAG_KEYFRAME;
-	}
-
 	val = coda_read(dev, CODA_RET_DEC_PIC_ERR_MB);
 	if (val > 0)
 		v4l2_err(&dev->v4l2_dev,
@@ -2746,6 +2738,14 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	} else if (decoded_idx < 0 || decoded_idx >= ctx->num_internal_frames) {
 		v4l2_err(&dev->v4l2_dev,
 			 "decoded frame index out of range: %d\n", decoded_idx);
+	} else {
+		val = coda_read(dev, CODA_RET_DEC_PIC_TYPE) & 0x7;
+		if (val == 0)
+			ctx->frame_types[decoded_idx] = V4L2_BUF_FLAG_KEYFRAME;
+		else if (val == 1)
+			ctx->frame_types[decoded_idx] = V4L2_BUF_FLAG_PFRAME;
+		else
+			ctx->frame_types[decoded_idx] = V4L2_BUF_FLAG_BFRAME;
 	}
 
 	if (display_idx == -1) {
@@ -2767,6 +2767,11 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	    ctx->display_idx < ctx->num_internal_frames) {
 		dst_buf = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 		dst_buf->v4l2_buf.sequence = ctx->osequence++;
+
+		dst_buf->v4l2_buf.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
+					     V4L2_BUF_FLAG_PFRAME |
+					     V4L2_BUF_FLAG_BFRAME);
+		dst_buf->v4l2_buf.flags |= ctx->frame_types[ctx->display_idx];
 
 		vb2_set_plane_payload(dst_buf, 0, width * height * 3 / 2);
 
