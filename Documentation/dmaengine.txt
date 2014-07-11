@@ -100,8 +100,10 @@ The slave DMA usage consists of following steps:
    The peripheral driver is expected to have mapped the scatterlist for
    the DMA operation prior to calling device_prep_slave_sg, and must
    keep the scatterlist mapped until the DMA operation has completed.
-   The scatterlist must be mapped using the DMA struct device.  So,
-   normal setup should look like this:
+   The scatterlist must be mapped using the DMA struct device.
+   If a mapping needs to be synchronized later, dma_sync_*_for_*() must be
+   called using the DMA struct device, too.
+   So, normal setup should look like this:
 
 	nr_sg = dma_map_sg(chan->device->dev, sgl, sg_len);
 	if (nr_sg == 0)
