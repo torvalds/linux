@@ -549,10 +549,12 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	u8 buf[20];
 	int ret;
 	bool has_query9;
-	bool has_query10;
+	bool has_query10 = false;
 	bool has_query11;
 	bool has_query12;
 	bool has_physical_props;
+	bool has_gestures;
+	bool has_rel;
 	unsigned x_size, y_size;
 	u16 query12_offset;
 
@@ -589,19 +591,32 @@ static int rmi_populate_f11(struct hid_device *hdev)
 		return -ENODEV;
 	}
 
-	/* query 8 to find out if query 10 exists */
-	ret = rmi_read(hdev, data->f11.query_base_addr + 8, buf);
-	if (ret) {
-		hid_err(hdev, "can not read gesture information: %d.\n", ret);
-		return ret;
+	has_rel = !!(buf[0] & BIT(3));
+	has_gestures = !!(buf[0] & BIT(5));
+
+	if (has_gestures) {
+		/* query 8 to find out if query 10 exists */
+		ret = rmi_read(hdev, data->f11.query_base_addr + 8, buf);
+		if (ret) {
+			hid_err(hdev, "can not read gesture information: %d.\n",
+				ret);
+			return ret;
+		}
+		has_query10 = !!(buf[0] & BIT(2));
 	}
-	has_query10 = !!(buf[0] & BIT(2));
 
 	/*
-	 * At least 8 queries are guaranteed to be present in F11
-	 * +1 for query12.
+	 * At least 4 queries are guaranteed to be present in F11
+	 * +1 for query 5 which is present since absolute events are
+	 * reported and +1 for query 12.
 	 */
-	query12_offset = 9;
+	query12_offset = 6;
+
+	if (has_rel)
+		++query12_offset; /* query 6 is present */
+
+	if (has_gestures)
+		query12_offset += 2; /* query 7 and 8 are present */
 
 	if (has_query9)
 		++query12_offset;
