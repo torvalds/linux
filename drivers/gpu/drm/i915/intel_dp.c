@@ -1767,6 +1767,11 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 	struct drm_i915_gem_object *obj = intel_fb_obj(crtc->primary->fb);
 	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
 
+	lockdep_assert_held(&dev_priv->psr.lock);
+	lockdep_assert_held(&dev->struct_mutex);
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
+
 	dev_priv->psr.source_ok = false;
 
 	if (!HAS_PSR(dev)) {
@@ -1836,6 +1841,7 @@ static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
 
 	WARN_ON(I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE);
 	WARN_ON(dev_priv->psr.active);
+	lockdep_assert_held(&dev_priv->psr.lock);
 
 	/* Enable PSR on the panel */
 	intel_edp_psr_enable_sink(intel_dp);
@@ -1862,8 +1868,10 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 		return;
 	}
 
+	mutex_lock(&dev_priv->psr.lock);
 	if (dev_priv->psr.enabled) {
 		DRM_DEBUG_KMS("PSR already in use\n");
+		mutex_unlock(&dev_priv->psr.lock);
 		return;
 	}
 
@@ -1872,6 +1880,7 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 
 	if (intel_edp_psr_match_conditions(intel_dp))
 		intel_edp_psr_do_enable(intel_dp);
+	mutex_unlock(&dev_priv->psr.lock);
 }
 
 void intel_edp_psr_disable(struct intel_dp *intel_dp)
@@ -1879,8 +1888,14 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!dev_priv->psr.enabled)
+	if (!HAS_PSR(dev))
 		return;
+
+	mutex_lock(&dev_priv->psr.lock);
+	if (!dev_priv->psr.enabled) {
+		mutex_unlock(&dev_priv->psr.lock);
+		return;
+	}
 
 	if (dev_priv->psr.active) {
 		I915_WRITE(EDP_PSR_CTL(dev),
@@ -1897,19 +1912,30 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp)
 	}
 
 	dev_priv->psr.enabled = NULL;
+	mutex_unlock(&dev_priv->psr.lock);
 }
 
 static void intel_edp_psr_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), psr.work.work);
+	struct drm_device *dev = dev_priv->dev;
 	struct intel_dp *intel_dp = dev_priv->psr.enabled;
 
+	drm_modeset_lock_all(dev);
+	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev_priv->psr.lock);
+	intel_dp = dev_priv->psr.enabled;
+
 	if (!intel_dp)
-		return;
+		goto unlock;
 
 	if (intel_edp_psr_match_conditions(intel_dp))
 		intel_edp_psr_do_enable(intel_dp);
+unlock:
+	mutex_unlock(&dev_priv->psr.lock);
+	mutex_unlock(&dev->struct_mutex);
+	drm_modeset_unlock_all(dev);
 }
 
 void intel_edp_psr_exit(struct drm_device *dev)
@@ -1922,8 +1948,7 @@ void intel_edp_psr_exit(struct drm_device *dev)
 	if (!dev_priv->psr.enabled)
 		return;
 
-	cancel_delayed_work_sync(&dev_priv->psr.work);
-
+	mutex_lock(&dev_priv->psr.lock);
 	if (dev_priv->psr.active) {
 		u32 val = I915_READ(EDP_PSR_CTL(dev));
 
@@ -1936,16 +1961,15 @@ void intel_edp_psr_exit(struct drm_device *dev)
 
 	schedule_delayed_work(&dev_priv->psr.work,
 			      msecs_to_jiffies(100));
+	mutex_unlock(&dev_priv->psr.lock);
 }
 
 void intel_edp_psr_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!HAS_PSR(dev))
-		return;
-
 	INIT_DELAYED_WORK(&dev_priv->psr.work, intel_edp_psr_work);
+	mutex_init(&dev_priv->psr.lock);
 }
 
 static void intel_disable_dp(struct intel_encoder *encoder)
