@@ -84,7 +84,9 @@ static void __init rk3036_boot_mode_init(void)
 
 static void usb_uart_init(void)
 {
+#ifdef CONFIG_RK_USB_UART
     u32 soc_status0 = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_STATUS0);
+#endif
     writel_relaxed(0x34000000, RK_GRF_VIRT + RK3036_GRF_UOC1_CON4);
 #ifdef CONFIG_RK_USB_UART
     if (!(soc_status0 & (1 << 14)) && (soc_status0 & (1 << 17))) {
