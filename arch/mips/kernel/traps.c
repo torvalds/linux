@@ -1093,6 +1093,7 @@ static int enable_restore_fp_context(int msa)
 
 	if (!used_math()) {
 		/* First time FP context user. */
+		preempt_disable();
 		err = init_fpu();
 		if (msa && !err) {
 			enable_msa();
@@ -1100,6 +1101,7 @@ static int enable_restore_fp_context(int msa)
 			set_thread_flag(TIF_USEDMSA);
 			set_thread_flag(TIF_MSA_CTX_LIVE);
 		}
+		preempt_enable();
 		if (!err)
 			set_used_math();
 		return err;
@@ -1139,10 +1141,11 @@ static int enable_restore_fp_context(int msa)
 	 * This task is using or has previously used MSA. Thus we require
 	 * that Status.FR == 1.
 	 */
+	preempt_disable();
 	was_fpu_owner = is_fpu_owner();
-	err = own_fpu(0);
+	err = own_fpu_inatomic(0);
 	if (err)
-		return err;
+		goto out;
 
 	enable_msa();
 	write_msa_csr(current->thread.fpu.msacsr);
@@ -1158,7 +1161,8 @@ static int enable_restore_fp_context(int msa)
 	prior_msa = test_and_set_thread_flag(TIF_MSA_CTX_LIVE);
 	if (!prior_msa && was_fpu_owner) {
 		_init_msa_upper();
-		return 0;
+
+		goto out;
 	}
 
 	if (!prior_msa) {
@@ -1182,6 +1186,10 @@ static int enable_restore_fp_context(int msa)
 		if (!was_fpu_owner)
 			asm volatile("ctc1 %0, $31" : : "r"(current->thread.fpu.fcr31));
 	}
+
+out:
+	preempt_enable();
+
 	return 0;
 }
 
