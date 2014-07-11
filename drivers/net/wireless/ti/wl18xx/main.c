@@ -1687,6 +1687,9 @@ static struct wlcore_ops wl18xx_ops = {
 	.convert_hwaddr = wl18xx_convert_hwaddr,
 	.lnk_high_prio	= wl18xx_lnk_high_prio,
 	.lnk_low_prio	= wl18xx_lnk_low_prio,
+	.smart_config_start = wl18xx_cmd_smart_config_start,
+	.smart_config_stop  = wl18xx_cmd_smart_config_stop,
+	.smart_config_set_group_key = wl18xx_cmd_smart_config_set_group_key,
 };
 
 /* HT cap appropriate for wide channels in 2Ghz */

@@ -117,6 +117,10 @@ struct wlcore_ops {
 			      struct wl1271_link *lnk);
 	bool (*lnk_low_prio)(struct wl1271 *wl, u8 hlid,
 			     struct wl1271_link *lnk);
+	int (*smart_config_start)(struct wl1271 *wl, u32 group_bitmap);
+	int (*smart_config_stop)(struct wl1271 *wl);
+	int (*smart_config_set_group_key)(struct wl1271 *wl, u16 group_id,
+					  u8 key_len, u8 *key);
 };
 
 enum wlcore_partitions {
