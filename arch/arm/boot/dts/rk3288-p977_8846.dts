@@ -503,6 +503,7 @@
 
 &fb {
 	rockchip,disp-mode = <DUAL>;
+	rockchip,uboot-logo-on = <0>;
 };
 
 &rk_screen {

@@ -552,6 +552,7 @@
 
 &fb {
 	rockchip,disp-mode = <DUAL>;
+	rockchip,uboot-logo-on = <1>;
 };
 
 &rk_screen {
