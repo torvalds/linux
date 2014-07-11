@@ -237,7 +237,7 @@ struct coda_ctx {
 	struct kfifo			bitstream_fifo;
 	struct mutex			bitstream_mutex;
 	struct coda_aux_buf		bitstream;
-	bool				prescan_failed;
+	bool				hold;
 	struct coda_aux_buf		parabuf;
 	struct coda_aux_buf		psbuf;
 	struct coda_aux_buf		slicebuf;
@@ -918,7 +918,7 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 		/* If this context is currently running, update the hardware flag */
 		coda_write(dev, ctx->bit_stream_param, CODA_REG_BIT_BIT_STREAM_PARAM);
 	}
-	ctx->prescan_failed = false;
+	ctx->hold = false;
 	v4l2_m2m_try_schedule(ctx->fh.m2m_ctx);
 
 	return 0;
@@ -1050,7 +1050,7 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 	if (ctx == v4l2_m2m_get_curr_priv(ctx->dev->m2m_dev))
 		coda_kfifo_sync_to_device_write(ctx);
 
-	ctx->prescan_failed = false;
+	ctx->hold = false;
 
 	return true;
 }
@@ -1421,6 +1421,8 @@ static void coda_pic_run_work(struct work_struct *work)
 
 	if (!wait_for_completion_timeout(&ctx->completion, msecs_to_jiffies(1000))) {
 		dev_err(&dev->plat_dev->dev, "CODA PIC_RUN timeout\n");
+
+		ctx->hold = true;
 	} else if (!ctx->aborting) {
 		if (ctx->inst_type == CODA_INST_DECODER)
 			coda_finish_decode(ctx);
@@ -1459,7 +1461,7 @@ static int coda_job_ready(void *m2m_priv)
 		return 0;
 	}
 
-	if (ctx->prescan_failed ||
+	if (ctx->hold ||
 	    ((ctx->inst_type == CODA_INST_DECODER) &&
 	     (coda_get_bitstream_payload(ctx) < 512) &&
 	     !(ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG))) {
@@ -3100,7 +3102,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 			/* not enough bitstream data */
 			v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
 				 "prescan failed: %d\n", val);
-			ctx->prescan_failed = true;
+			ctx->hold = true;
 			return;
 		}
 	}
@@ -3131,7 +3133,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		if (display_idx >= 0 && display_idx < ctx->num_internal_frames)
 			ctx->sequence_offset++;
 		else if (ctx->display_idx < 0)
-			ctx->prescan_failed = true;
+			ctx->hold = true;
 	} else if (decoded_idx == -2) {
 		/* no frame was decoded, we still return the remaining buffers */
 	} else if (decoded_idx < 0 || decoded_idx >= ctx->num_internal_frames) {
@@ -3167,7 +3169,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		 * no more frames to be decoded, but there could still
 		 * be rotator output to dequeue
 		 */
-		ctx->prescan_failed = true;
+		ctx->hold = true;
 	} else if (display_idx == -3) {
 		/* possibly prescan failure */
 	} else if (display_idx < 0 || display_idx >= ctx->num_internal_frames) {
