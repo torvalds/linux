@@ -86,8 +86,8 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 				struct channel_t *ch);
 static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 				unsigned long arg);
-static int dgap_tty_digigeta(struct tty_struct *tty,
-				struct digi_t __user *retinfo);
+static int dgap_tty_digigeta(struct channel_t *ch, struct un_t *un,
+			     struct digi_t __user *retinfo);
 static int dgap_tty_digiseta(struct channel_t *ch, struct board_t *bd,
 			     struct un_t *un, struct digi_t __user *new_info);
 static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo);
@@ -3189,26 +3189,13 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command,
  *
  *
  */
-static int dgap_tty_digigeta(struct tty_struct *tty,
-				struct digi_t __user *retinfo)
+static int dgap_tty_digigeta(struct channel_t *ch, struct un_t *un,
+			     struct digi_t __user *retinfo)
 {
-	struct channel_t *ch;
-	struct un_t *un;
 	struct digi_t tmp;
 	ulong lock_flags;
 
 	if (!retinfo)
-		return -EFAULT;
-
-	if (!tty || tty->magic != TTY_MAGIC)
-		return -EFAULT;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return -EFAULT;
-
-	ch = un->un_ch;
-	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
@@ -4060,7 +4047,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		/* get information for ditty */
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-		return dgap_tty_digigeta(tty, uarg);
+		return dgap_tty_digigeta(ch, un, uarg);
 
 	case DIGI_SETAW:
 	case DIGI_SETAF:
