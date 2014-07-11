@@ -1179,7 +1179,7 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 
 	/*
 	 * We enable the End of Frame interrupt, which will free a tx-descriptor,
-	 * which we will need for the next device_prep_slave_sg(). The
+	 * which we will need for the next dmaengine_prep_slave_sg(). The
 	 * IRQ-handler will disable the IRQ again.
 	 */
 	init_completion(&mx3_fbi->flip_cmpl);
