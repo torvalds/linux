@@ -9,6 +9,8 @@
 #include "stih41x.dtsi"
 #include "stih416-clock.dtsi"
 #include "stih416-pinctrl.dtsi"
+
+#include <dt-bindings/phy/phy-miphy365x.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset-controller/stih416-resets.h>
 / {
@@ -277,6 +279,26 @@
 			pinctrl-0	= <&pinctrl_mmc1>;
 			clock-names	= "mmc";
 			clocks		= <&clk_s_a1_ls 8>;
+		};
+
+		miphy365x_phy: miphy365x@fe382000 {
+			compatible      = "st,miphy365x-phy";
+			st,syscfg  	= <&syscfg_rear>;
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			ranges;
+
+			phy_port0: port@fe382000 {
+				#phy-cells = <1>;
+				reg = <0xfe382000 0x100>, <0xfe394000 0x100>, <0x824 0x4>;
+				reg-names = "sata", "pcie", "syscfg";
+			};
+
+			phy_port1: port@fe38a000 {
+				#phy-cells = <1>;
+				reg = <0xfe38a000 0x100>, <0xfe804000 0x100>, <0x828 0x4>;
+				reg-names = "sata", "pcie", "syscfg";
+			};
 		};
 	};
 };
