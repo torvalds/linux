@@ -57,10 +57,11 @@ static const u16 vnt_time_stampoff[2][MAX_RATE] = {
 	{384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23},/* Short Preamble */
 };
 
-static const u16 wFB_Opt0[2][5] = {
-        {RATE_12M, RATE_18M, RATE_24M, RATE_36M, RATE_48M}, // fallback_rate0
-        {RATE_12M, RATE_12M, RATE_18M, RATE_24M, RATE_36M}, // fallback_rate1
-    };
+static const u16 vnt_fb_opt0[2][5] = {
+	{RATE_12M, RATE_18M, RATE_24M, RATE_36M, RATE_48M}, /* fallback_rate0 */
+	{RATE_12M, RATE_12M, RATE_18M, RATE_24M, RATE_36M}, /* fallback_rate1 */
+};
+
 static const u16 wFB_Opt1[2][5] = {
         {RATE_12M, RATE_18M, RATE_24M, RATE_24M, RATE_36M}, // fallback_rate0
         {RATE_6M , RATE_6M,  RATE_12M, RATE_12M, RATE_18M}, // fallback_rate1
@@ -923,9 +924,9 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 			tx_buffer_head->wFIFOCtl |= FIFOCTL_AUTO_FB_0;
 
 			priv->tx_rate_fb0 =
-				wFB_Opt0[FB_RATE0][current_rate - RATE_18M];
+				vnt_fb_opt0[FB_RATE0][current_rate - RATE_18M];
 			priv->tx_rate_fb1 =
-				wFB_Opt0[FB_RATE1][current_rate - RATE_18M];
+				vnt_fb_opt0[FB_RATE1][current_rate - RATE_18M];
 
 			fb_option = AUTO_FB_0;
 		} else if (priv->byAutoFBCtrl == AUTO_FB_1) {
