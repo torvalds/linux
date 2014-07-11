@@ -11,27 +11,27 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/init.h>
-#include <linux/errno.h>
+
+#include <linux/clk/tegra.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/smp.h>
-#include <linux/io.h>
-#include <linux/clk/tegra.h>
 
 #include <asm/cacheflush.h>
 #include <asm/mach-types.h>
-#include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
-
-#include "fuse.h"
-#include "flowctrl.h"
-#include "reset.h"
-#include "pmc.h"
+#include <asm/smp_scu.h>
 
 #include "common.h"
+#include "flowctrl.h"
+#include "fuse.h"
 #include "iomap.h"
+#include "pmc.h"
+#include "reset.h"
 
 static cpumask_t tegra_cpu_init_mask;
 

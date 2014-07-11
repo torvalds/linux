@@ -7,9 +7,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#include <linux/clk/tegra.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>
-#include <linux/clk/tegra.h>
 
 #include <asm/smp_plat.h>
 

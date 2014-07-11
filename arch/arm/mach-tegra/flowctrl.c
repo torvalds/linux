@@ -18,10 +18,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/io.h>
 #include <linux/cpumask.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 
 #include "flowctrl.h"
 #include "iomap.h"

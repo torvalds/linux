@@ -14,8 +14,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/kernel.h>
 #include <linux/bug.h>
+#include <linux/kernel.h>
 
 #include "fuse.h"
 

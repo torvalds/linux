@@ -17,18 +17,18 @@
  *
  */
 
-#include <linux/kernel.h>
 #include <linux/clk.h>
+#include <linux/clk/tegra.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/reset.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
-#include <linux/clk/tegra.h>
 
 #include <soc/tegra/powergate.h>
 

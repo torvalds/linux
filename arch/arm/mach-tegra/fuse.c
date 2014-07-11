@@ -18,17 +18,17 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/io.h>
-#include <linux/export.h>
-#include <linux/random.h>
 #include <linux/clk.h>
+#include <linux/export.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/random.h>
 
 #include <soc/tegra/fuse.h>
 
+#include "apbio.h"
 #include "fuse.h"
 #include "iomap.h"
-#include "apbio.h"
 
 /* Tegra20 only */
 #define FUSE_UID_LOW		0x108

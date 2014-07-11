@@ -16,30 +16,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/kernel.h>
-#include <linux/spinlock.h>
-#include <linux/io.h>
-#include <linux/cpumask.h>
-#include <linux/delay.h>
-#include <linux/cpu_pm.h>
-#include <linux/suspend.h>
-#include <linux/err.h>
-#include <linux/slab.h>
 #include <linux/clk/tegra.h>
+#include <linux/cpumask.h>
+#include <linux/cpu_pm.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/suspend.h>
 
-#include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
-#include <asm/suspend.h>
 #include <asm/idmap.h>
 #include <asm/proc-fns.h>
+#include <asm/smp_plat.h>
+#include <asm/suspend.h>
 #include <asm/tlbflush.h>
 
-#include "iomap.h"
-#include "reset.h"
 #include "flowctrl.h"
 #include "fuse.h"
-#include "pm.h"
+#include "iomap.h"
 #include "pmc.h"
+#include "pm.h"
+#include "reset.h"
 #include "sleep.h"
 
 #ifdef CONFIG_PM_SLEEP

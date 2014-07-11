@@ -14,20 +14,20 @@
  *
  */
 
+#include <linux/bitops.h>
+#include <linux/cpumask.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/cpumask.h>
-#include <linux/bitops.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware/cache-l2x0.h>
 #include <asm/firmware.h>
+#include <asm/hardware/cache-l2x0.h>
 
+#include "fuse.h"
 #include "iomap.h"
 #include "irammap.h"
 #include "reset.h"
 #include "sleep.h"
-#include "fuse.h"
 
 #define TEGRA_IRAM_RESET_BASE (TEGRA_IRAM_BASE + \
 				TEGRA_IRAM_RESET_HANDLER_OFFSET)
