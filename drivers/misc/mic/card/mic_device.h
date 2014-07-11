@@ -30,6 +30,7 @@
 #include <linux/workqueue.h>
 #include <linux/io.h>
 #include <linux/irqreturn.h>
+#include <linux/interrupt.h>
 
 /**
  * struct mic_intr_info - Contains h/w specific interrupt sources info
@@ -116,8 +117,8 @@ mic_mmio_write(struct mic_mw *mw, u32 val, u32 offset)
 int mic_driver_init(struct mic_driver *mdrv);
 void mic_driver_uninit(struct mic_driver *mdrv);
 int mic_next_card_db(void);
-struct mic_irq *mic_request_card_irq(irqreturn_t (*func)(int irq, void *data),
-	const char *name, void *data, int intr_src);
+struct mic_irq *mic_request_card_irq(irq_handler_t handler,
+	irq_handler_t thread_fn, const char *name, void *data, int intr_src);
 void mic_free_card_irq(struct mic_irq *cookie, void *data);
 u32 mic_read_spad(struct mic_device *mdev, unsigned int idx);
 void mic_send_intr(struct mic_device *mdev, int doorbell);
