@@ -344,7 +344,7 @@ static bool ced_is_1401(struct ced_data *ced)
 		unsigned int state;
 
 		ret = ced_in_self_test(ced, &state); /* see if likely in */
-						     /* self test 	 */
+						     /* self test	 */
 		if (ret > 0) {	/*  do we need to wait for self-test? */
 			/* when to give up */
 			unsigned long timeout = jiffies + 30 * HZ;
