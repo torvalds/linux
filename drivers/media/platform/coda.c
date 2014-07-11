@@ -159,6 +159,8 @@ struct coda_params {
 	u8			rot_mode;
 	u8			h264_intra_qp;
 	u8			h264_inter_qp;
+	u8			h264_min_qp;
+	u8			h264_max_qp;
 	u8			mpeg4_intra_qp;
 	u8			mpeg4_inter_qp;
 	u8			gop_size;
@@ -2379,7 +2381,16 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		coda_write(dev, (gamma & CODA_GAMMA_MASK) << CODA_GAMMA_OFFSET,
 			   CODA_CMD_ENC_SEQ_RC_GAMMA);
 	}
+
+	if (ctx->params.h264_min_qp || ctx->params.h264_max_qp) {
+		coda_write(dev,
+			   ctx->params.h264_min_qp << CODA_QPMIN_OFFSET |
+			   ctx->params.h264_max_qp << CODA_QPMAX_OFFSET,
+			   CODA_CMD_ENC_SEQ_RC_QP_MIN_MAX);
+	}
 	if (dev->devtype->product == CODA_960) {
+		if (ctx->params.h264_max_qp)
+			value |= 1 << CODA9_OPTION_RCQPMAX_OFFSET;
 		if (CODA_DEFAULT_GAMMA > 0)
 			value |= 1 << CODA9_OPTION_GAMMA_OFFSET;
 	} else {
@@ -2389,6 +2400,10 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 			else
 				value |= 1 << CODA7_OPTION_GAMMA_OFFSET;
 		}
+		if (ctx->params.h264_min_qp)
+			value |= 1 << CODA7_OPTION_RCQPMIN_OFFSET;
+		if (ctx->params.h264_max_qp)
+			value |= 1 << CODA7_OPTION_RCQPMAX_OFFSET;
 	}
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_OPTION);
 
@@ -2617,6 +2632,12 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP:
 		ctx->params.h264_inter_qp = ctrl->val;
 		break;
+	case V4L2_CID_MPEG_VIDEO_H264_MIN_QP:
+		ctx->params.h264_min_qp = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_MAX_QP:
+		ctx->params.h264_max_qp = ctrl->val;
+		break;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP:
 		ctx->params.mpeg4_intra_qp = ctrl->val;
 		break;
@@ -2664,6 +2685,12 @@ static int coda_ctrls_setup(struct coda_ctx *ctx)
 		V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP, 0, 51, 1, 25);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP, 0, 51, 1, 25);
+	if (ctx->dev->devtype->product != CODA_960) {
+		v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_H264_MIN_QP, 0, 51, 1, 12);
+	}
+	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_H264_MAX_QP, 0, 51, 1, 51);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP, 1, 31, 1, 2);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
