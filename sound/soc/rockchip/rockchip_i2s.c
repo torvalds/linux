@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/of_gpio.h>
 #include <linux/clk.h>
