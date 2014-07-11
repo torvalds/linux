@@ -45,6 +45,9 @@
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
 #define WL1271_TX_SQN_POST_RECOVERY_PADDING 0xff
+/* Use smaller padding for GEM, as some  APs have issues when it's too big */
+#define WL1271_TX_SQN_POST_RECOVERY_PADDING_GEM 0x20
+
 
 #define WL1271_CIPHER_SUITE_GEM 0x00147201
 

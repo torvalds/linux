@@ -902,6 +902,7 @@ static void wlcore_save_freed_pkts(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				   u8 hlid, struct ieee80211_sta *sta)
 {
 	struct wl1271_station *wl_sta;
+	u32 sqn_recovery_padding = WL1271_TX_SQN_POST_RECOVERY_PADDING;
 
 	wl_sta = (void *)sta->drv_priv;
 	wl_sta->total_freed_pkts = wl->links[hlid].total_freed_pkts;
@@ -910,9 +911,11 @@ static void wlcore_save_freed_pkts(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	 * increment the initial seq number on recovery to account for
 	 * transmitted packets that we haven't yet got in the FW status
 	 */
+	if (wlvif->encryption_type == KEY_GEM)
+		sqn_recovery_padding = WL1271_TX_SQN_POST_RECOVERY_PADDING_GEM;
+
 	if (test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags))
-		wl_sta->total_freed_pkts +=
-				WL1271_TX_SQN_POST_RECOVERY_PADDING;
+		wl_sta->total_freed_pkts += sqn_recovery_padding;
 }
 
 static void wlcore_save_freed_pkts_addr(struct wl1271 *wl,

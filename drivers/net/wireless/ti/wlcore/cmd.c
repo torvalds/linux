@@ -374,6 +374,7 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS &&
 	    *hlid == wlvif->ap.bcast_hlid) {
+		u32 sqn_padding = WL1271_TX_SQN_POST_RECOVERY_PADDING;
 		/*
 		 * save the total freed packets in the wlvif, in case this is
 		 * recovery or suspend
@@ -384,9 +385,11 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 		 * increment the initial seq number on recovery to account for
 		 * transmitted packets that we haven't yet got in the FW status
 		 */
+		if (wlvif->encryption_type == KEY_GEM)
+			sqn_padding = WL1271_TX_SQN_POST_RECOVERY_PADDING_GEM;
+
 		if (test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags))
-			wlvif->total_freed_pkts +=
-					WL1271_TX_SQN_POST_RECOVERY_PADDING;
+			wlvif->total_freed_pkts += sqn_padding;
 	}
 
 	wl->links[*hlid].total_freed_pkts = 0;
