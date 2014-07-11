@@ -388,10 +388,10 @@ struct wl1271 {
 	int active_link_count;
 
 	/* Fast/slow links bitmap according to FW */
-	u32 fw_fast_lnk_map;
+	unsigned long fw_fast_lnk_map;
 
 	/* AP-mode - a bitmap of links currently in PS mode according to FW */
-	u32 ap_fw_ps_map;
+	unsigned long ap_fw_ps_map;
 
 	/* AP-mode - a bitmap of links currently in PS mode in mac80211 */
 	unsigned long ap_ps_map;
