@@ -755,6 +755,9 @@ static int decode_evnt(struct dp83640_private *dp83640,
 	event.type = PTP_CLOCK_EXTTS;
 	event.timestamp = phy2txts(&dp83640->edata);
 
+	/* Compensate for input path and synchronization delays */
+	event.timestamp -= 35;
+
 	for (i = 0; i < N_EXT_TS; i++) {
 		if (ext_status & exts_chan_to_edata(i)) {
 			event.index = i;
