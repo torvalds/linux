@@ -612,8 +612,11 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	}
 	gpu->id = msm_register_mmu(drm, gpu->mmu);
 
+
 	/* Create ringbuffer: */
+	mutex_lock(&drm->struct_mutex);
 	gpu->rb = msm_ringbuffer_new(gpu, ringsz);
+	mutex_unlock(&drm->struct_mutex);
 	if (IS_ERR(gpu->rb)) {
 		ret = PTR_ERR(gpu->rb);
 		gpu->rb = NULL;

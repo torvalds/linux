@@ -181,7 +181,6 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	struct msm_kms *kms;
 	int ret;
 
-
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(dev->dev, "failed to allocate private data\n");
@@ -314,13 +313,15 @@ fail:
 
 static void load_gpu(struct drm_device *dev)
 {
+	static DEFINE_MUTEX(init_lock);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gpu *gpu;
 
-	if (priv->gpu)
-		return;
+	mutex_lock(&init_lock);
 
-	mutex_lock(&dev->struct_mutex);
+	if (priv->gpu)
+		goto out;
+
 	gpu = a3xx_gpu_init(dev);
 	if (IS_ERR(gpu)) {
 		dev_warn(dev->dev, "failed to load a3xx gpu\n");
@@ -330,7 +331,9 @@ static void load_gpu(struct drm_device *dev)
 
 	if (gpu) {
 		int ret;
+		mutex_lock(&dev->struct_mutex);
 		gpu->funcs->pm_resume(gpu);
+		mutex_unlock(&dev->struct_mutex);
 		ret = gpu->funcs->hw_init(gpu);
 		if (ret) {
 			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
@@ -340,12 +343,12 @@ static void load_gpu(struct drm_device *dev)
 			/* give inactive pm a chance to kick in: */
 			msm_gpu_retire(gpu);
 		}
-
 	}
 
 	priv->gpu = gpu;
 
-	mutex_unlock(&dev->struct_mutex);
+out:
+	mutex_unlock(&init_lock);
 }
 
 static int msm_open(struct drm_device *dev, struct drm_file *file)
