@@ -335,12 +335,9 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 	} else if (cmd->convert_arg < 655360000) {
 		base_clock = CLOCK_100_KHZ;
 		timer = cmd->convert_arg / 10000;
-	} else if (cmd->convert_arg <= 0xffffffff /* 6553600000 */) {
+	} else /* cmd->convert_arg < 6553600000 */ {
 		base_clock = CLOCK_10_KHZ;
 		timer = cmd->convert_arg / 100000;
-	} else if (cmd->convert_arg <= 0xffffffff /* 65536000000 */) {
-		base_clock = CLOCK_1_KHZ;
-		timer = cmd->convert_arg / 1000000;
 	}
 	outw(0xFF03, dev->iobase + AM9513A_COM_REG);
 	outw(base_clock, dev->iobase + AM9513A_DATA_REG);
@@ -403,12 +400,9 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 		} else if (cmd->scan_begin_arg < 655360000) {
 			base_clock = CLOCK_100_KHZ;
 			timer = cmd->scan_begin_arg / 10000;
-		} else if (cmd->scan_begin_arg < 0xffffffff /* 6553600000 */) {
+		} else /* cmd->scan_begin_arg < 6553600000 */ {
 			base_clock = CLOCK_10_KHZ;
 			timer = cmd->scan_begin_arg / 100000;
-		} else if (cmd->scan_begin_arg < 0xffffffff /* 65536000000 */) {
-			base_clock = CLOCK_1_KHZ;
-			timer = cmd->scan_begin_arg / 1000000;
 		}
 		outw(0xFF02, dev->iobase + AM9513A_COM_REG);
 		outw(base_clock, dev->iobase + AM9513A_DATA_REG);
