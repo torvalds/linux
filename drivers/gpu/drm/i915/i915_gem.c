@@ -2927,8 +2927,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	vma->unbind_vma(vma);
 
-	i915_gem_gtt_finish_object(obj);
-
 	list_del_init(&vma->mm_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
 	if (i915_is_ggtt(vma->vm))
@@ -2939,8 +2937,10 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	/* Since the unbound list is global, only move to that list if
 	 * no more VMAs exist. */
-	if (list_empty(&obj->vma_list))
+	if (list_empty(&obj->vma_list)) {
+		i915_gem_gtt_finish_object(obj);
 		list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
+	}
 
 	/* And finally now the object is completely decoupled from this vma,
 	 * we can drop its hold on the backing storage and allow it to be
