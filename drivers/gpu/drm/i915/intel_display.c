@@ -11673,6 +11673,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Toshiba CB35 Chromebook (Celeron 2955U) */
 	{ 0x0a06, 0x1179, 0x0a88, quirk_backlight_present },
+
+	/* HP Chromebook 14 (Celeron 2955U) */
+	{ 0x0a06, 0x103c, 0x21ed, quirk_backlight_present },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
