@@ -62,6 +62,35 @@ static void kvmppc_giveup_fac(struct kvm_vcpu *vcpu, ulong fac);
 #define HW_PAGE_SIZE PAGE_SIZE
 #endif
 
+static bool kvmppc_is_split_real(struct kvm_vcpu *vcpu)
+{
+	ulong msr = kvmppc_get_msr(vcpu);
+	return (msr & (MSR_IR|MSR_DR)) == MSR_DR;
+}
+
+static void kvmppc_fixup_split_real(struct kvm_vcpu *vcpu)
+{
+	ulong msr = kvmppc_get_msr(vcpu);
+	ulong pc = kvmppc_get_pc(vcpu);
+
+	/* We are in DR only split real mode */
+	if ((msr & (MSR_IR|MSR_DR)) != MSR_DR)
+		return;
+
+	/* We have not fixed up the guest already */
+	if (vcpu->arch.hflags & BOOK3S_HFLAG_SPLIT_HACK)
+		return;
+
+	/* The code is in fixupable address space */
+	if (pc & SPLIT_HACK_MASK)
+		return;
+
+	vcpu->arch.hflags |= BOOK3S_HFLAG_SPLIT_HACK;
+	kvmppc_set_pc(vcpu, pc | SPLIT_HACK_OFFS);
+}
+
+void kvmppc_unfixup_split_real(struct kvm_vcpu *vcpu);
+
 static void kvmppc_core_vcpu_load_pr(struct kvm_vcpu *vcpu, int cpu)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -81,6 +110,9 @@ static void kvmppc_core_vcpu_load_pr(struct kvm_vcpu *vcpu, int cpu)
 #ifdef CONFIG_PPC_BOOK3S_32
 	current->thread.kvm_shadow_vcpu = vcpu->arch.shadow_vcpu;
 #endif
+
+	if (kvmppc_is_split_real(vcpu))
+		kvmppc_fixup_split_real(vcpu);
 }
 
 static void kvmppc_core_vcpu_put_pr(struct kvm_vcpu *vcpu)
@@ -94,6 +126,9 @@ static void kvmppc_core_vcpu_put_pr(struct kvm_vcpu *vcpu)
 	to_book3s(vcpu)->slb_shadow_max = svcpu->slb_max;
 	svcpu_put(svcpu);
 #endif
+
+	if (kvmppc_is_split_real(vcpu))
+		kvmppc_unfixup_split_real(vcpu);
 
 	kvmppc_giveup_ext(vcpu, MSR_FP | MSR_VEC | MSR_VSX);
 	kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);
@@ -322,6 +357,11 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 		}
 	}
 
+	if (kvmppc_is_split_real(vcpu))
+		kvmppc_fixup_split_real(vcpu);
+	else
+		kvmppc_unfixup_split_real(vcpu);
+
 	if ((kvmppc_get_msr(vcpu) & (MSR_PR|MSR_IR|MSR_DR)) !=
 		   (old_msr & (MSR_PR|MSR_IR|MSR_DR))) {
 		kvmppc_mmu_flush_segments(vcpu);
@@ -522,6 +562,11 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		pte.vpage |= ((u64)VSID_REAL << (SID_SHIFT - 12));
 		break;
 	case MSR_DR:
+		if (!data &&
+		    (vcpu->arch.hflags & BOOK3S_HFLAG_SPLIT_HACK) &&
+		    ((pte.raddr & SPLIT_HACK_MASK) == SPLIT_HACK_OFFS))
+			pte.raddr &= ~SPLIT_HACK_MASK;
+		/* fall through */
 	case MSR_IR:
 		vcpu->arch.mmu.esid_to_vsid(vcpu, eaddr >> SID_SHIFT, &vsid);
 
@@ -885,6 +930,9 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	{
 		ulong shadow_srr1 = vcpu->arch.shadow_srr1;
 		vcpu->stat.pf_instruc++;
+
+		if (kvmppc_is_split_real(vcpu))
+			kvmppc_fixup_split_real(vcpu);
 
 #ifdef CONFIG_PPC_BOOK3S_32
 		/* We set segments as unused segments when invalidating them. So

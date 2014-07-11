@@ -324,4 +324,7 @@ static inline bool is_kvmppc_resume_guest(int r)
 /* LPIDs we support with this build -- runtime limit may be lower */
 #define KVMPPC_NR_LPIDS			(LPID_RSVD + 1)
 
+#define SPLIT_HACK_MASK			0xff000000
+#define SPLIT_HACK_OFFS			0xfb000000
+
 #endif /* __ASM_KVM_BOOK3S_H__ */

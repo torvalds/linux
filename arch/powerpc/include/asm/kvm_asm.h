@@ -131,6 +131,7 @@
 #define BOOK3S_HFLAG_NATIVE_PS			0x8
 #define BOOK3S_HFLAG_MULTI_PGSIZE		0x10
 #define BOOK3S_HFLAG_NEW_TLBIE			0x20
+#define BOOK3S_HFLAG_SPLIT_HACK			0x40
 
 #define RESUME_FLAG_NV          (1<<0)  /* Reload guest nonvolatile state? */
 #define RESUME_FLAG_HOST        (1<<1)  /* Resume host? */

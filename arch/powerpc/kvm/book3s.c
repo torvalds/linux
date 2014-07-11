@@ -72,6 +72,17 @@ void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
 {
 }
 
+void kvmppc_unfixup_split_real(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.hflags & BOOK3S_HFLAG_SPLIT_HACK) {
+		ulong pc = kvmppc_get_pc(vcpu);
+		if ((pc & SPLIT_HACK_MASK) == SPLIT_HACK_OFFS)
+			kvmppc_set_pc(vcpu, pc & ~SPLIT_HACK_MASK);
+		vcpu->arch.hflags &= ~BOOK3S_HFLAG_SPLIT_HACK;
+	}
+}
+EXPORT_SYMBOL_GPL(kvmppc_unfixup_split_real);
+
 static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
 {
 	if (!is_kvmppc_hv_enabled(vcpu->kvm))
@@ -118,6 +129,7 @@ static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
 
 void kvmppc_inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 flags)
 {
+	kvmppc_unfixup_split_real(vcpu);
 	kvmppc_set_srr0(vcpu, kvmppc_get_pc(vcpu));
 	kvmppc_set_srr1(vcpu, kvmppc_get_msr(vcpu) | flags);
 	kvmppc_set_pc(vcpu, kvmppc_interrupt_offset(vcpu) + vec);
@@ -384,6 +396,13 @@ static int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, bool data,
 		pte->may_write = true;
 		pte->may_execute = true;
 		r = 0;
+
+		if ((kvmppc_get_msr(vcpu) & (MSR_IR | MSR_DR)) == MSR_DR &&
+		    !data) {
+			if ((vcpu->arch.hflags & BOOK3S_HFLAG_SPLIT_HACK) &&
+			    ((eaddr & SPLIT_HACK_MASK) == SPLIT_HACK_OFFS))
+			pte->raddr &= ~SPLIT_HACK_MASK;
+		}
 	}
 
 	return r;
