@@ -1154,6 +1154,11 @@ static int enable_restore_fp_context(int msa)
 
 	/* We need to restore the vector context. */
 	restore_msa(current);
+
+	/* Restore the scalar FP control & status register */
+	if (!was_fpu_owner)
+		asm volatile("ctc1 %0, $31" : : "r"(current->thread.fpu.fcr31));
+
 	return 0;
 }
 
