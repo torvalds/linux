@@ -1609,9 +1609,14 @@ static bool wl18xx_lnk_high_prio(struct wl1271 *wl, u8 hlid,
 	u8 thold;
 	struct wl18xx_fw_status_priv *status_priv =
 		(struct wl18xx_fw_status_priv *)wl->fw_status->priv;
-	u32 suspend_bitmap = le32_to_cpu(status_priv->link_suspend_bitmap);
+	u32 suspend_bitmap;
+
+	/* if we don't have the link map yet, assume they all low prio */
+	if (!status_priv)
+		return false;
 
 	/* suspended links are never high priority */
+	suspend_bitmap = le32_to_cpu(status_priv->link_suspend_bitmap);
 	if (test_bit(hlid, (unsigned long *)&suspend_bitmap))
 		return false;
 
@@ -1631,8 +1636,13 @@ static bool wl18xx_lnk_low_prio(struct wl1271 *wl, u8 hlid,
 	u8 thold;
 	struct wl18xx_fw_status_priv *status_priv =
 		(struct wl18xx_fw_status_priv *)wl->fw_status->priv;
-	u32 suspend_bitmap = le32_to_cpu(status_priv->link_suspend_bitmap);
+	u32 suspend_bitmap;
 
+	/* if we don't have the link map yet, assume they all low prio */
+	if (!status_priv)
+		return true;
+
+	suspend_bitmap = le32_to_cpu(status_priv->link_suspend_bitmap);
 	if (test_bit(hlid, (unsigned long *)&suspend_bitmap))
 		thold = status_priv->tx_suspend_threshold;
 	else if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map) &&
