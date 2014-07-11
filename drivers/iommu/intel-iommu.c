@@ -425,6 +425,8 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 				       struct device *dev);
 static void iommu_detach_dependent_devices(struct intel_iommu *iommu,
 					   struct device *dev);
+static int domain_detach_iommu(struct dmar_domain *domain,
+			       struct intel_iommu *iommu);
 
 #ifdef CONFIG_INTEL_IOMMU_DEFAULT_ON
 int dmar_disabled = 0;
@@ -1465,8 +1467,7 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 static void free_dmar_iommu(struct intel_iommu *iommu)
 {
 	struct dmar_domain *domain;
-	int i, count;
-	unsigned long flags;
+	int i;
 
 	if ((iommu->domains) && (iommu->domain_ids)) {
 		for_each_set_bit(i, iommu->domain_ids, cap_ndoms(iommu->cap)) {
@@ -1479,11 +1480,7 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 
 			domain = iommu->domains[i];
 			clear_bit(i, iommu->domain_ids);
-
-			spin_lock_irqsave(&domain->iommu_lock, flags);
-			count = --domain->iommu_count;
-			spin_unlock_irqrestore(&domain->iommu_lock, flags);
-			if (count == 0)
+			if (domain_detach_iommu(domain, iommu) == 0)
 				domain_exit(domain);
 		}
 	}
