@@ -633,50 +633,56 @@ static void domain_update_iommu_coherency(struct dmar_domain *domain)
 	rcu_read_unlock();
 }
 
-static void domain_update_iommu_snooping(struct dmar_domain *domain)
-{
-	int i;
-
-	domain->iommu_snooping = 1;
-
-	for_each_set_bit(i, domain->iommu_bmp, g_num_of_iommus) {
-		if (!ecap_sc_support(g_iommus[i]->ecap)) {
-			domain->iommu_snooping = 0;
-			break;
-		}
-	}
-}
-
-static void domain_update_iommu_superpage(struct dmar_domain *domain)
+static int domain_update_iommu_snooping(struct intel_iommu *skip)
 {
 	struct dmar_drhd_unit *drhd;
-	struct intel_iommu *iommu = NULL;
+	struct intel_iommu *iommu;
+	int ret = 1;
+
+	rcu_read_lock();
+	for_each_active_iommu(iommu, drhd) {
+		if (iommu != skip) {
+			if (!ecap_sc_support(iommu->ecap)) {
+				ret = 0;
+				break;
+			}
+		}
+	}
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static int domain_update_iommu_superpage(struct intel_iommu *skip)
+{
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 	int mask = 0xf;
 
 	if (!intel_iommu_superpage) {
-		domain->iommu_superpage = 0;
-		return;
+		return 0;
 	}
 
 	/* set iommu_superpage to the smallest common denominator */
 	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd) {
-		mask &= cap_super_page_val(iommu->cap);
-		if (!mask) {
-			break;
+		if (iommu != skip) {
+			mask &= cap_super_page_val(iommu->cap);
+			if (!mask)
+				break;
 		}
 	}
 	rcu_read_unlock();
 
-	domain->iommu_superpage = fls(mask);
+	return fls(mask);
 }
 
 /* Some capabilities may be different across iommus */
 static void domain_update_iommu_cap(struct dmar_domain *domain)
 {
 	domain_update_iommu_coherency(domain);
-	domain_update_iommu_snooping(domain);
-	domain_update_iommu_superpage(domain);
+	domain->iommu_snooping = domain_update_iommu_snooping(NULL);
+	domain->iommu_superpage = domain_update_iommu_superpage(NULL);
 }
 
 static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devfn)
