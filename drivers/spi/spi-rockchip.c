@@ -295,11 +295,6 @@ static int rockchip_spi_prepare_message(struct spi_master *master,
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
 	struct spi_device *spi = msg->spi;
 
-	if (spi->mode & SPI_CS_HIGH) {
-		dev_err(rs->dev, "spi_cs_hign: not support\n");
-		return -EINVAL;
-	}
-
 	rs->mode = spi->mode;
 
 	return 0;
@@ -657,7 +652,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 	master->auto_runtime_pm = true;
 	master->bus_num = pdev->id;
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP;
 	master->num_chipselect = 2;
 	master->dev.of_node = pdev->dev.of_node;
 	master->bits_per_word_mask = SPI_BPW_MASK(16) | SPI_BPW_MASK(8);
