@@ -40,6 +40,19 @@ static struct bt_sock_list sco_sk_list = {
 	.lock = __RW_LOCK_UNLOCKED(sco_sk_list.lock)
 };
 
+/* ---- SCO connections ---- */
+struct sco_conn {
+	struct hci_conn	*hcon;
+
+	spinlock_t	lock;
+	struct sock	*sk;
+
+	unsigned int    mtu;
+};
+
+#define sco_conn_lock(c)	spin_lock(&c->lock);
+#define sco_conn_unlock(c)	spin_unlock(&c->lock);
+
 static void __sco_chan_add(struct sco_conn *conn, struct sock *sk, struct sock *parent);
 static void sco_chan_del(struct sock *sk, int err);
 

@@ -51,17 +51,4 @@ struct sco_conninfo {
 	__u8  dev_class[3];
 };
 
-/* ---- SCO connections ---- */
-struct sco_conn {
-	struct hci_conn	*hcon;
-
-	spinlock_t	lock;
-	struct sock	*sk;
-
-	unsigned int    mtu;
-};
-
-#define sco_conn_lock(c)	spin_lock(&c->lock);
-#define sco_conn_unlock(c)	spin_unlock(&c->lock);
-
 #endif /* __SCO_H */
