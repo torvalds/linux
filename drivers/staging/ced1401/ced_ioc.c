@@ -844,6 +844,7 @@ int ced_set_event(struct ced_data *ced, struct transfer_event __user *ute)
 {
 	int ret = U14ERR_NOERROR;
 	struct transfer_event te;
+	struct transarea *ta;
 
 	/*  get a local copy of the data */
 	if (copy_from_user(&te, ute, sizeof(te)))
@@ -851,27 +852,28 @@ int ced_set_event(struct ced_data *ced, struct transfer_event __user *ute)
 
 	if (te.wAreaNum >= MAX_TRANSAREAS)	/*  the area must exist */
 		return U14ERR_BADAREA;
-	else {
-		struct transarea *ta = &ced->trans_def[te.wAreaNum];
 
-		/* make sure we have no competitor */
-		mutex_lock(&ced->io_mutex);
-		spin_lock_irq(&ced->staged_lock);
+	ta = &ced->trans_def[te.wAreaNum];
 
-		if (ta->used) {	/* area must be in use */
-			ta->event_st = te.dwStart; /*  set area regions */
+	/* make sure we have no competitor */
+	mutex_lock(&ced->io_mutex);
+	spin_lock_irq(&ced->staged_lock);
 
-			 /* set size (0 cancels it) */
-			ta->event_sz = te.dwLength;
+	if (ta->used) {	/* area must be in use */
+		ta->event_st = te.dwStart; /*  set area regions */
 
-			 /*  set the direction */
-			ta->event_to_host = te.wFlags & 1;
-			ta->wake_up = 0;	/*  zero the wake up count */
-		} else
-			ret = U14ERR_NOTSET;
-		spin_unlock_irq(&ced->staged_lock);
-		mutex_unlock(&ced->io_mutex);
-	}
+		 /* set size (0 cancels it) */
+		ta->event_sz = te.dwLength;
+
+		 /*  set the direction */
+		ta->event_to_host = te.wFlags & 1;
+		ta->wake_up = 0;	/*  zero the wake up count */
+	} else
+		ret = U14ERR_NOTSET;
+
+	spin_unlock_irq(&ced->staged_lock);
+	mutex_unlock(&ced->io_mutex);
+
 	return ret ==
 	    U14ERR_NOERROR ? (te.iSetEvent ? 1 : U14ERR_NOERROR) : ret;
 }
