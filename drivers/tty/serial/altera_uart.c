@@ -430,7 +430,7 @@ static struct altera_uart altera_uart_ports[CONFIG_SERIAL_ALTERA_UART_MAXPORTS];
 
 #if defined(CONFIG_SERIAL_ALTERA_UART_CONSOLE)
 
-static void altera_uart_console_putc(struct uart_port *port, const char c)
+static void altera_uart_console_putc(struct uart_port *port, int c)
 {
 	while (!(altera_uart_readl(port, ALTERA_UART_STATUS_REG) &
 		 ALTERA_UART_STATUS_TRDY_MSK))
@@ -444,11 +444,7 @@ static void altera_uart_console_write(struct console *co, const char *s,
 {
 	struct uart_port *port = &(altera_uart_ports + co->index)->port;
 
-	for (; count; count--, s++) {
-		altera_uart_console_putc(port, *s);
-		if (*s == '\n')
-			altera_uart_console_putc(port, '\r');
-	}
+	uart_console_write(port, s, count, altera_uart_console_putc);
 }
 
 static int __init altera_uart_console_setup(struct console *co, char *options)
