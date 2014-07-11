@@ -597,21 +597,15 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 		goto err_exit;
 
 	/* Send both scatterlists */
-	rxdesc = rxchan->device->device_prep_slave_sg(rxchan,
-					&as->dma.sgrx,
-					1,
-					DMA_FROM_DEVICE,
-					DMA_PREP_INTERRUPT | DMA_CTRL_ACK,
-					NULL);
+	rxdesc = dmaengine_prep_slave_sg(rxchan, &as->dma.sgrx, 1,
+					 DMA_FROM_DEVICE,
+					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
 		goto err_dma;
 
-	txdesc = txchan->device->device_prep_slave_sg(txchan,
-					&as->dma.sgtx,
-					1,
-					DMA_TO_DEVICE,
-					DMA_PREP_INTERRUPT | DMA_CTRL_ACK,
-					NULL);
+	txdesc = dmaengine_prep_slave_sg(txchan, &as->dma.sgtx, 1,
+					 DMA_TO_DEVICE,
+					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
 		goto err_dma;
 
