@@ -3691,6 +3691,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Disables the ticketlock slowpath using Xen PV
 			optimizations.
 
+	xen_nopv	[X86]
+			Disables the PV optimizations forcing the HVM guest to
+			run as generic HVM guest with no PV drivers.
+
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
