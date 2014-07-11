@@ -12,6 +12,8 @@
 
 #include <asm/mipsregs.h>
 
+#ifndef __ASSEMBLY__
+
 extern void _save_msa(struct task_struct *);
 extern void _restore_msa(struct task_struct *);
 
@@ -133,15 +135,6 @@ static inline void write_msa_##name(unsigned int val)		\
 
 #endif /* !TOOLCHAIN_SUPPORTS_MSA */
 
-#define MSA_IR		0
-#define MSA_CSR		1
-#define MSA_ACCESS	2
-#define MSA_SAVE	3
-#define MSA_MODIFY	4
-#define MSA_REQUEST	5
-#define MSA_MAP		6
-#define MSA_UNMAP	7
-
 __BUILD_MSA_CTL_REG(ir, 0)
 __BUILD_MSA_CTL_REG(csr, 1)
 __BUILD_MSA_CTL_REG(access, 2)
@@ -150,6 +143,17 @@ __BUILD_MSA_CTL_REG(modify, 4)
 __BUILD_MSA_CTL_REG(request, 5)
 __BUILD_MSA_CTL_REG(map, 6)
 __BUILD_MSA_CTL_REG(unmap, 7)
+
+#endif /* !__ASSEMBLY__ */
+
+#define MSA_IR		0
+#define MSA_CSR		1
+#define MSA_ACCESS	2
+#define MSA_SAVE	3
+#define MSA_MODIFY	4
+#define MSA_REQUEST	5
+#define MSA_MAP		6
+#define MSA_UNMAP	7
 
 /* MSA Implementation Register (MSAIR) */
 #define MSA_IR_REVB		0
