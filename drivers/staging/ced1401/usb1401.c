@@ -303,26 +303,27 @@ static void ced_writechar_callback(struct urb *urb)
 			int pipe = 0;	/*  The pipe number to use */
 			int ret;
 			char *pDat = &ced->output_buffer[ced->out_buff_get];
-			unsigned int dwCount = ced->num_output;	/*  maximum to send */
+			/* maximum to send */
+			unsigned int count = ced->num_output;
 
-			if ((ced->out_buff_get + dwCount) > OUTBUF_SZ)	/*  does it cross buffer end? */
-				dwCount = OUTBUF_SZ - ced->out_buff_get;
+			if ((ced->out_buff_get + count) > OUTBUF_SZ)	/*  does it cross buffer end? */
+				count = OUTBUF_SZ - ced->out_buff_get;
 
 			/* we are done with stuff that changes */
 			spin_unlock(&ced->char_out_lock);
 
-			memcpy(ced->coher_char_out, pDat, dwCount);	/*  copy output data to the buffer */
+			memcpy(ced->coher_char_out, pDat, count);	/*  copy output data to the buffer */
 			usb_fill_bulk_urb(ced->urb_char_out, ced->udev,
 					  usb_sndbulkpipe(ced->udev,
 							  ced->ep_addr[0]),
-					  ced->coher_char_out, dwCount,
+					  ced->coher_char_out, count,
 					  ced_writechar_callback, ced);
 			ced->urb_char_out->transfer_flags |=
 			    URB_NO_TRANSFER_DMA_MAP;
 			usb_anchor_urb(ced->urb_char_out, &ced->submitted);	/*  in case we need to kill it */
 			ret = usb_submit_urb(ced->urb_char_out, GFP_ATOMIC);
 			dev_dbg(&ced->interface->dev, "%s: n=%d>%s<\n",
-				__func__, dwCount, pDat);
+				__func__, count, pDat);
 			spin_lock(&ced->char_out_lock);	/*  grab lock for errors */
 			if (ret) {
 				ced->pipe_error[pipe] = 1;	/*  Flag an error to be handled later */
