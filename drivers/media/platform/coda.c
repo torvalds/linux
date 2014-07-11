@@ -685,8 +685,8 @@ static int coda_try_fmt(struct coda_ctx *ctx, struct coda_codec *codec,
 	switch (f->fmt.pix.pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
-		/* Frame stride must be multiple of 8 */
-		f->fmt.pix.bytesperline = round_up(f->fmt.pix.width, 8);
+		/* Frame stride must be multiple of 8, but 16 for h.264 */
+		f->fmt.pix.bytesperline = round_up(f->fmt.pix.width, 16);
 		f->fmt.pix.sizeimage = f->fmt.pix.bytesperline *
 					f->fmt.pix.height * 3 / 2;
 		break;
