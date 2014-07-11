@@ -1195,18 +1195,20 @@ static int gnttab_expand(unsigned int req_entries)
 int gnttab_init(void)
 {
 	int i;
+	unsigned long max_nr_grant_frames;
 	unsigned int max_nr_glist_frames, nr_glist_frames;
 	unsigned int nr_init_grefs;
 	int ret;
 
 	gnttab_request_version();
+	max_nr_grant_frames = gnttab_max_grant_frames();
 	nr_grant_frames = 1;
 
 	/* Determine the maximum number of frames required for the
 	 * grant reference free list on the current hypervisor.
 	 */
 	BUG_ON(grefs_per_grant_frame == 0);
-	max_nr_glist_frames = (gnttab_max_grant_frames() *
+	max_nr_glist_frames = (max_nr_grant_frames *
 			       grefs_per_grant_frame / RPP);
 
 	gnttab_list = kmalloc(max_nr_glist_frames * sizeof(grant_ref_t *),
@@ -1222,6 +1224,11 @@ int gnttab_init(void)
 			goto ini_nomem;
 		}
 	}
+
+	ret = arch_gnttab_init(max_nr_grant_frames,
+			       nr_status_frames(max_nr_grant_frames));
+	if (ret < 0)
+		goto ini_nomem;
 
 	if (gnttab_setup() < 0) {
 		ret = -ENODEV;
