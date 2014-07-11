@@ -453,6 +453,16 @@ void ftrace_modify_all_code(int command);
 #endif
 #endif
 
+/*
+ * If an arch would like functions that are only traced
+ * by the function graph tracer to jump directly to its own
+ * trampoline, then they can define FTRACE_GRAPH_TRAMP_ADDR
+ * to be that address to jump to.
+ */
+#ifndef FTRACE_GRAPH_TRAMP_ADDR
+#define FTRACE_GRAPH_TRAMP_ADDR ((unsigned long) 0)
+#endif
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 extern void ftrace_graph_caller(void);
 extern int ftrace_enable_ftrace_graph_caller(void);

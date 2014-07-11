@@ -5366,7 +5366,8 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	/* Optimize function graph calling (if implemented by arch) */
-	global_ops.trampoline = FTRACE_GRAPH_ADDR;
+	if (FTRACE_GRAPH_TRAMP_ADDR != 0)
+		global_ops.trampoline = FTRACE_GRAPH_TRAMP_ADDR;
 #endif
 
 	ret = ftrace_startup(&global_ops, FTRACE_START_FUNC_RET);
@@ -5390,7 +5391,8 @@ void unregister_ftrace_graph(void)
 	ftrace_shutdown(&global_ops, FTRACE_STOP_FUNC_RET);
 	global_ops.flags &= ~FTRACE_OPS_FL_STUB;
 #ifdef CONFIG_DYNAMIC_FTRACE
-	global_ops.trampoline = 0;
+	if (FTRACE_GRAPH_TRAMP_ADDR != 0)
+		global_ops.trampoline = 0;
 #endif
 	unregister_pm_notifier(&ftrace_suspend_notifier);
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
