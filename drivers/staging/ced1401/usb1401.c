@@ -627,8 +627,7 @@ static void staged_callback(struct urb *urb)
 					ta->blocks[1].size +=
 					    ced->staged_length;
 					dev_dbg(&ced->interface->dev,
-						"RWM_Complete, circ block 1 "
-						"now %d bytes at %d\n",
+						"RWM_Complete, circ block 1 now %d bytes at %d\n",
 						ta->blocks[1].size,
 						ta->blocks[1].offset);
 				} else {
@@ -640,8 +639,7 @@ static void staged_callback(struct urb *urb)
 					ta->blocks[1].size =
 					    ced->staged_length;
 					dev_err(&ced->interface->dev,
-						"%s: ERROR, circ block 1 "
-						"re-started %d bytes at %d\n",
+						"%s: ERROR, circ block 1 re-started %d bytes at %d\n",
 						__func__,
 						ta->blocks[1].size,
 						ta->blocks[1].offset);
@@ -660,9 +658,7 @@ static void staged_callback(struct urb *urb)
 						ta->blocks[0].size +=
 							ced->staged_length;
 						dev_dbg(&ced->interface->dev,
-							"RWM_Complete, circ "
-							"block 0 now %d bytes "
-							"at %d\n",
+							"RWM_Complete, circ block 0 now %d bytes at %d\n",
 							ta->blocks[0].size,
 							ta->blocks[0].offset);
 
@@ -673,9 +669,7 @@ static void staged_callback(struct urb *urb)
 						ta->blocks[1].size =
 						    ced->staged_length;
 						dev_dbg(&ced->interface->dev,
-							"RWM_Complete, circ "
-							"block 1 started %d "
-							"bytes at %d\n",
+							"RWM_Complete, circ block 1 started %d bytes at %d\n",
 							ta->blocks[1].size,
 							ta->blocks[1].offset);
 					}
@@ -686,8 +680,7 @@ static void staged_callback(struct urb *urb)
 					ta->blocks[0].size =
 					    ced->staged_length;
 					dev_dbg(&ced->interface->dev,
-						"RWM_Complete, circ block 0 "
-						"started %d bytes at %d\n",
+						"RWM_Complete, circ block 0 started %d bytes at %d\n",
 						ta->blocks[0].size,
 						ta->blocks[0].offset);
 				}
@@ -696,8 +689,7 @@ static void staged_callback(struct urb *urb)
 
 		if (!cancel) { /*  Don't generate an event if cancelled */
 			dev_dbg(&ced->interface->dev,
-				"RWM_Complete,  bCircular %d, bToHost %d, "
-				"eStart %d, eSize %d\n",
+				"RWM_Complete,  bCircular %d, bToHost %d, eStart %d, eSize %d\n",
 				ta->circular, ta->event_to_host,
 				ta->event_st, ta->event_sz);
 			/* Set a user-mode event...           */
@@ -752,8 +744,7 @@ static void staged_callback(struct urb *urb)
 				int retval;
 
 				dev_info(&ced->interface->dev,
-					 "*** RWM_Complete *** pending transfer"
-					 " will now be set up!!!\n");
+					 "*** RWM_Complete *** pending transfer will now be set up!!!\n");
 				retval =
 				    ced_read_write_mem(ced,
 						       !ced->dma_info.outward,
