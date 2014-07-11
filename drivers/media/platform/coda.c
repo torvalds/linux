@@ -243,6 +243,7 @@ struct coda_ctx {
 	struct coda_aux_buf		internal_frames[CODA_MAX_FRAMEBUFFERS];
 	u32				frame_types[CODA_MAX_FRAMEBUFFERS];
 	struct coda_timestamp		frame_timestamps[CODA_MAX_FRAMEBUFFERS];
+	u32				frame_errors[CODA_MAX_FRAMEBUFFERS];
 	struct list_head		timestamp_list;
 	struct coda_aux_buf		workbuf;
 	int				num_internal_frames;
@@ -3016,6 +3017,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	int display_idx;
 	u32 src_fourcc;
 	int success;
+	u32 err_mb;
 	u32 val;
 
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -3085,10 +3087,10 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		/* no cropping */
 	}
 
-	val = coda_read(dev, CODA_RET_DEC_PIC_ERR_MB);
-	if (val > 0)
+	err_mb = coda_read(dev, CODA_RET_DEC_PIC_ERR_MB);
+	if (err_mb > 0)
 		v4l2_err(&dev->v4l2_dev,
-			 "errors in %d macroblocks\n", val);
+			 "errors in %d macroblocks\n", err_mb);
 
 	if (dev->devtype->product == CODA_7541) {
 		val = coda_read(dev, CODA_RET_DEC_PIC_OPTION);
@@ -3151,6 +3153,8 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 			ctx->frame_types[decoded_idx] = V4L2_BUF_FLAG_PFRAME;
 		else
 			ctx->frame_types[decoded_idx] = V4L2_BUF_FLAG_BFRAME;
+
+		ctx->frame_errors[decoded_idx] = err_mb;
 	}
 
 	if (display_idx == -1) {
@@ -3183,8 +3187,8 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 
 		vb2_set_plane_payload(dst_buf, 0, width * height * 3 / 2);
 
-		v4l2_m2m_buf_done(dst_buf, success ? VB2_BUF_STATE_DONE :
-						     VB2_BUF_STATE_ERROR);
+		v4l2_m2m_buf_done(dst_buf, ctx->frame_errors[display_idx] ?
+				  VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 
 		v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
 			"job finished: decoding frame (%d) (%s)\n",
