@@ -1,11 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Check the console output from an rcutorture run for oopses.
 # The "file" is a pathname on the local system, and "title" is
 # a text string for error-message purposes.
 #
 # Usage:
-#	sh parse-console.sh file title
+#	bash parse-console.sh file title
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
