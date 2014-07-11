@@ -46,6 +46,18 @@ static void sco_chan_del(struct sock *sk, int err);
 static void sco_sock_close(struct sock *sk);
 static void sco_sock_kill(struct sock *sk);
 
+/* ----- SCO socket info ----- */
+#define sco_pi(sk) ((struct sco_pinfo *) sk)
+
+struct sco_pinfo {
+	struct bt_sock	bt;
+	bdaddr_t	src;
+	bdaddr_t	dst;
+	__u32		flags;
+	__u16		setting;
+	struct sco_conn	*conn;
+};
+
 /* ---- SCO timers ---- */
 static void sco_sock_timeout(unsigned long arg)
 {

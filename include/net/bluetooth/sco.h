@@ -64,16 +64,4 @@ struct sco_conn {
 #define sco_conn_lock(c)	spin_lock(&c->lock);
 #define sco_conn_unlock(c)	spin_unlock(&c->lock);
 
-/* ----- SCO socket info ----- */
-#define sco_pi(sk) ((struct sco_pinfo *) sk)
-
-struct sco_pinfo {
-	struct bt_sock	bt;
-	bdaddr_t	src;
-	bdaddr_t	dst;
-	__u32		flags;
-	__u16		setting;
-	struct sco_conn	*conn;
-};
-
 #endif /* __SCO_H */
