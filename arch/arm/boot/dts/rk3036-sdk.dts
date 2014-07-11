@@ -103,7 +103,7 @@
 	keep-power-in-suspend;
 	
 	//poll-hw-reset 
-	status = "okay";
+	status = "disabled";
 };
     
 &sdmmc {
@@ -118,7 +118,7 @@
         	keep-power-in-suspend;
 	
         	//vmmc-supply = <&rk808_ldo5_reg>;
-		status = "okay";
+		status = "disabled";
 };
 		
 &sdio {
@@ -129,7 +129,7 @@
 		ignore-pm-notify;
 		keep-power-in-suspend;
 		//cap-sdio-irq;
-		status = "okay";
+		status = "disabled";
 };
 
 &uart0 {
