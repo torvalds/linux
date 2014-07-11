@@ -1525,10 +1525,10 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx, struct coda_q_data *q_d
 	for (i = 0; i < ctx->num_internal_frames; i++) {
 		size_t size;
 
-		size = q_data->sizeimage;
+		size = ysize + ysize / 2;
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
 		    dev->devtype->product != CODA_DX6)
-			ctx->internal_frames[i].size += ysize/4;
+			size += ysize / 4;
 		ret = coda_alloc_context_buf(ctx, &ctx->internal_frames[i], size);
 		if (ret < 0) {
 			coda_free_framebuffers(ctx);
