@@ -26,6 +26,7 @@
 #define __HCI_CORE_H
 
 #include <net/bluetooth/hci.h>
+#include <net/bluetooth/hci_sock.h>
 
 /* HCI priority */
 #define HCI_PRIO_MAX	7
