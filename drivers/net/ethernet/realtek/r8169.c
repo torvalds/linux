@@ -27,6 +27,8 @@
 #include <linux/firmware.h>
 #include <linux/pci-aspm.h>
 #include <linux/prefetch.h>
+#include <linux/ipv6.h>
+#include <net/ip6_checksum.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -626,37 +628,20 @@ enum rtl_tx_desc_bit_0 {
 
 /* 8102e, 8168c and beyond. */
 enum rtl_tx_desc_bit_1 {
+	/* First doubleword. */
+	TD1_GTSENV4	= (1 << 26),		/* Giant Send for IPv4 */
+	TD1_GTSENV6	= (1 << 25),		/* Giant Send for IPv6 */
+#define GTTCPHO_SHIFT			18
+#define GTTCPHO_MAX			0x7fU
+
 	/* Second doubleword. */
+#define TCPHO_SHIFT			18
+#define TCPHO_MAX			0x3ffU
 #define TD1_MSS_SHIFT			18	/* MSS position (11 bits) */
-	TD1_IP_CS	= (1 << 29),		/* Calculate IP checksum */
+	TD1_IPv6_CS	= (1 << 28),		/* Calculate IPv6 checksum */
+	TD1_IPv4_CS	= (1 << 29),		/* Calculate IPv4 checksum */
 	TD1_TCP_CS	= (1 << 30),		/* Calculate TCP/IP checksum */
 	TD1_UDP_CS	= (1 << 31),		/* Calculate UDP/IP checksum */
-};
-
-static const struct rtl_tx_desc_info {
-	struct {
-		u32 udp;
-		u32 tcp;
-	} checksum;
-	u16 mss_shift;
-	u16 opts_offset;
-} tx_desc_info [] = {
-	[RTL_TD_0] = {
-		.checksum = {
-			.udp	= TD0_IP_CS | TD0_UDP_CS,
-			.tcp	= TD0_IP_CS | TD0_TCP_CS
-		},
-		.mss_shift	= TD0_MSS_SHIFT,
-		.opts_offset	= 0
-	},
-	[RTL_TD_1] = {
-		.checksum = {
-			.udp	= TD1_IP_CS | TD1_UDP_CS,
-			.tcp	= TD1_IP_CS | TD1_TCP_CS
-		},
-		.mss_shift	= TD1_MSS_SHIFT,
-		.opts_offset	= 1
-	}
 };
 
 enum rtl_rx_desc_bit {
@@ -782,6 +767,7 @@ struct rtl8169_private {
 	unsigned int (*phy_reset_pending)(struct rtl8169_private *tp);
 	unsigned int (*link_ok)(void __iomem *);
 	int (*do_ioctl)(struct rtl8169_private *tp, struct mii_ioctl_data *data, int cmd);
+	bool (*tso_csum)(struct rtl8169_private *, struct sk_buff *, u32 *);
 
 	struct {
 		DECLARE_BITMAP(flags, RTL_FLAG_MAX);
@@ -5941,32 +5927,179 @@ static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp, struct sk_buff *skb)
 	return skb->len < ETH_ZLEN && tp->mac_version == RTL_GIGA_MAC_VER_34;
 }
 
-static inline bool rtl8169_tso_csum(struct rtl8169_private *tp,
-				    struct sk_buff *skb, u32 *opts)
+static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
+				      struct net_device *dev);
+/* r8169_csum_workaround()
+ * The hw limites the value the transport offset. When the offset is out of the
+ * range, calculate the checksum by sw.
+ */
+static void r8169_csum_workaround(struct rtl8169_private *tp,
+				  struct sk_buff *skb)
 {
-	const struct rtl_tx_desc_info *info = tx_desc_info + tp->txd_version;
+	if (skb_shinfo(skb)->gso_size) {
+		netdev_features_t features = tp->dev->features;
+		struct sk_buff *segs, *nskb;
+
+		features &= ~(NETIF_F_SG | NETIF_F_IPV6_CSUM | NETIF_F_TSO6);
+		segs = skb_gso_segment(skb, features);
+		if (IS_ERR(segs) || !segs)
+			goto drop;
+
+		do {
+			nskb = segs;
+			segs = segs->next;
+			nskb->next = NULL;
+			rtl8169_start_xmit(nskb, tp->dev);
+		} while (segs);
+
+		dev_kfree_skb(skb);
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (skb_checksum_help(skb) < 0)
+			goto drop;
+
+		rtl8169_start_xmit(skb, tp->dev);
+	} else {
+		struct net_device_stats *stats;
+
+drop:
+		stats = &tp->dev->stats;
+		stats->tx_dropped++;
+		dev_kfree_skb(skb);
+	}
+}
+
+/* msdn_giant_send_check()
+ * According to the document of microsoft, the TCP Pseudo Header excludes the
+ * packet length for IPv6 TCP large packets.
+ */
+static int msdn_giant_send_check(struct sk_buff *skb)
+{
+	const struct ipv6hdr *ipv6h;
+	struct tcphdr *th;
+	int ret;
+
+	ret = skb_cow_head(skb, 0);
+	if (ret)
+		return ret;
+
+	ipv6h = ipv6_hdr(skb);
+	th = tcp_hdr(skb);
+
+	th->check = 0;
+	th->check = ~tcp_v6_check(0, &ipv6h->saddr, &ipv6h->daddr, 0);
+
+	return ret;
+}
+
+static inline __be16 get_protocol(struct sk_buff *skb)
+{
+	__be16 protocol;
+
+	if (skb->protocol == htons(ETH_P_8021Q))
+		protocol = vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
+	else
+		protocol = skb->protocol;
+
+	return protocol;
+}
+
+static bool rtl8169_tso_csum_v1(struct rtl8169_private *tp,
+				struct sk_buff *skb, u32 *opts)
+{
 	u32 mss = skb_shinfo(skb)->gso_size;
-	int offset = info->opts_offset;
 
 	if (mss) {
 		opts[0] |= TD_LSO;
-		opts[offset] |= min(mss, TD_MSS_MAX) << info->mss_shift;
+		opts[0] |= min(mss, TD_MSS_MAX) << TD0_MSS_SHIFT;
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const struct iphdr *ip = ip_hdr(skb);
+
+		if (ip->protocol == IPPROTO_TCP)
+			opts[0] |= TD0_IP_CS | TD0_TCP_CS;
+		else if (ip->protocol == IPPROTO_UDP)
+			opts[0] |= TD0_IP_CS | TD0_UDP_CS;
+		else
+			WARN_ON_ONCE(1);
+	}
+
+	return true;
+}
+
+static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
+				struct sk_buff *skb, u32 *opts)
+{
+	u32 transport_offset = (u32)skb_transport_offset(skb);
+	u32 mss = skb_shinfo(skb)->gso_size;
+
+	if (mss) {
+		if (transport_offset > GTTCPHO_MAX) {
+			netif_warn(tp, tx_err, tp->dev,
+				   "Invalid transport offset 0x%x for TSO\n",
+				   transport_offset);
+			return false;
+		}
+
+		switch (get_protocol(skb)) {
+		case htons(ETH_P_IP):
+			opts[0] |= TD1_GTSENV4;
+			break;
+
+		case htons(ETH_P_IPV6):
+			if (msdn_giant_send_check(skb))
+				return false;
+
+			opts[0] |= TD1_GTSENV6;
+			break;
+
+		default:
+			WARN_ON_ONCE(1);
+			break;
+		}
+
+		opts[0] |= transport_offset << GTTCPHO_SHIFT;
+		opts[1] |= min(mss, TD_MSS_MAX) << TD1_MSS_SHIFT;
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		u8 ip_protocol;
 
 		if (unlikely(rtl_test_hw_pad_bug(tp, skb)))
 			return skb_checksum_help(skb) == 0 && rtl_skb_pad(skb);
 
-		if (ip->protocol == IPPROTO_TCP)
-			opts[offset] |= info->checksum.tcp;
-		else if (ip->protocol == IPPROTO_UDP)
-			opts[offset] |= info->checksum.udp;
+		if (transport_offset > TCPHO_MAX) {
+			netif_warn(tp, tx_err, tp->dev,
+				   "Invalid transport offset 0x%x\n",
+				   transport_offset);
+			return false;
+		}
+
+		switch (get_protocol(skb)) {
+		case htons(ETH_P_IP):
+			opts[1] |= TD1_IPv4_CS;
+			ip_protocol = ip_hdr(skb)->protocol;
+			break;
+
+		case htons(ETH_P_IPV6):
+			opts[1] |= TD1_IPv6_CS;
+			ip_protocol = ipv6_hdr(skb)->nexthdr;
+			break;
+
+		default:
+			ip_protocol = IPPROTO_RAW;
+			break;
+		}
+
+		if (ip_protocol == IPPROTO_TCP)
+			opts[1] |= TD1_TCP_CS;
+		else if (ip_protocol == IPPROTO_UDP)
+			opts[1] |= TD1_UDP_CS;
 		else
 			WARN_ON_ONCE(1);
+
+		opts[1] |= transport_offset << TCPHO_SHIFT;
 	} else {
 		if (unlikely(rtl_test_hw_pad_bug(tp, skb)))
 			return rtl_skb_pad(skb);
 	}
+
 	return true;
 }
 
@@ -5994,8 +6127,10 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	opts[1] = cpu_to_le32(rtl8169_tx_vlan_tag(skb));
 	opts[0] = DescOwn;
 
-	if (!rtl8169_tso_csum(tp, skb, opts))
-		goto err_update_stats;
+	if (!tp->tso_csum(tp, skb, opts)) {
+		r8169_csum_workaround(tp, skb);
+		return NETDEV_TX_OK;
+	}
 
 	len = skb_headlen(skb);
 	mapping = dma_map_single(d, skb->data, len, DMA_TO_DEVICE);
@@ -6060,7 +6195,6 @@ err_dma_1:
 	rtl8169_unmap_tx_skb(d, tp->tx_skb + entry, txd);
 err_dma_0:
 	dev_kfree_skb_any(skb);
-err_update_stats:
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;
 
@@ -7144,6 +7278,14 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
 		/* 8110SCd requires hardware Rx VLAN - disallow toggling */
 		dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+
+	if (tp->txd_version == RTL_TD_0)
+		tp->tso_csum = rtl8169_tso_csum_v1;
+	else if (tp->txd_version == RTL_TD_1) {
+		tp->tso_csum = rtl8169_tso_csum_v2;
+		dev->hw_features |= NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
+	} else
+		WARN_ON_ONCE(1);
 
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
