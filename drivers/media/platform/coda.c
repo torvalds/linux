@@ -907,6 +907,8 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 		/* If this context is currently running, update the hardware flag */
 		coda_write(dev, ctx->bit_stream_param, CODA_REG_BIT_BIT_STREAM_PARAM);
 	}
+	ctx->prescan_failed = false;
+	v4l2_m2m_try_schedule(ctx->fh.m2m_ctx);
 
 	return 0;
 }
