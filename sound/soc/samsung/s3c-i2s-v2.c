@@ -22,8 +22,6 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <mach/dma.h>
-
 #include "regs-i2s-v2.h"
 #include "s3c-i2s-v2.h"
 #include "dma.h"
