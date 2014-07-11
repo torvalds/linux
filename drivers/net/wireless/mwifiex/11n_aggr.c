@@ -185,6 +185,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	skb_reserve(skb_aggr, headroom + sizeof(struct txpd));
 	tx_info_aggr =  MWIFIEX_SKB_TXCB(skb_aggr);
 
+	memset(tx_info_aggr, 0, sizeof(*tx_info_aggr));
 	tx_info_aggr->bss_type = tx_info_src->bss_type;
 	tx_info_aggr->bss_num = tx_info_src->bss_num;
 

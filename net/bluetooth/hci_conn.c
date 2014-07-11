@@ -67,7 +67,7 @@ static void hci_acl_create_connection(struct hci_conn *conn)
 	conn->state = BT_CONNECT;
 	conn->out = true;
 
-	conn->link_mode = HCI_LM_MASTER;
+	set_bit(HCI_CONN_MASTER, &conn->flags);
 
 	conn->attempt++;
 
@@ -136,7 +136,7 @@ void hci_disconnect(struct hci_conn *conn, __u8 reason)
 	hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
 }
 
-static void hci_amp_disconn(struct hci_conn *conn, __u8 reason)
+static void hci_amp_disconn(struct hci_conn *conn)
 {
 	struct hci_cp_disconn_phy_link cp;
 
@@ -145,7 +145,7 @@ static void hci_amp_disconn(struct hci_conn *conn, __u8 reason)
 	conn->state = BT_DISCONN;
 
 	cp.phy_handle = HCI_PHY_HANDLE(conn->handle);
-	cp.reason = reason;
+	cp.reason = hci_proto_disconn_ind(conn);
 	hci_send_cmd(conn->hdev, HCI_OP_DISCONN_PHY_LINK,
 		     sizeof(cp), &cp);
 }
@@ -213,14 +213,26 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 	return true;
 }
 
-void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
-			u16 latency, u16 to_multiplier)
+u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
+		      u16 to_multiplier)
 {
-	struct hci_cp_le_conn_update cp;
 	struct hci_dev *hdev = conn->hdev;
+	struct hci_conn_params *params;
+	struct hci_cp_le_conn_update cp;
+
+	hci_dev_lock(hdev);
+
+	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	if (params) {
+		params->conn_min_interval = min;
+		params->conn_max_interval = max;
+		params->conn_latency = latency;
+		params->supervision_timeout = to_multiplier;
+	}
+
+	hci_dev_unlock(hdev);
 
 	memset(&cp, 0, sizeof(cp));
-
 	cp.handle		= cpu_to_le16(conn->handle);
 	cp.conn_interval_min	= cpu_to_le16(min);
 	cp.conn_interval_max	= cpu_to_le16(max);
@@ -230,6 +242,11 @@ void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 	cp.max_ce_len		= cpu_to_le16(0x0000);
 
 	hci_send_cmd(hdev, HCI_OP_LE_CONN_UPDATE, sizeof(cp), &cp);
+
+	if (params)
+		return 0x01;
+
+	return 0x00;
 }
 
 void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __le64 rand,
@@ -271,28 +288,24 @@ void hci_sco_setup(struct hci_conn *conn, __u8 status)
 	}
 }
 
-static void hci_conn_disconnect(struct hci_conn *conn)
-{
-	__u8 reason = hci_proto_disconn_ind(conn);
-
-	switch (conn->type) {
-	case AMP_LINK:
-		hci_amp_disconn(conn, reason);
-		break;
-	default:
-		hci_disconnect(conn, reason);
-		break;
-	}
-}
-
 static void hci_conn_timeout(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn,
 					     disc_work.work);
+	int refcnt = atomic_read(&conn->refcnt);
 
 	BT_DBG("hcon %p state %s", conn, state_to_string(conn->state));
 
-	if (atomic_read(&conn->refcnt))
+	WARN_ON(refcnt < 0);
+
+	/* FIXME: It was observed that in pairing failed scenario, refcnt
+	 * drops below 0. Probably this is because l2cap_conn_del calls
+	 * l2cap_chan_del for each channel, and inside l2cap_chan_del conn is
+	 * dropped. After that loop hci_chan_del is called which also drops
+	 * conn. For now make sure that ACL is alive if refcnt is higher then 0,
+	 * otherwise drop it.
+	 */
+	if (refcnt > 0)
 		return;
 
 	switch (conn->state) {
@@ -309,7 +322,31 @@ static void hci_conn_timeout(struct work_struct *work)
 		break;
 	case BT_CONFIG:
 	case BT_CONNECTED:
-		hci_conn_disconnect(conn);
+		if (conn->type == AMP_LINK) {
+			hci_amp_disconn(conn);
+		} else {
+			__u8 reason = hci_proto_disconn_ind(conn);
+
+			/* When we are master of an established connection
+			 * and it enters the disconnect timeout, then go
+			 * ahead and try to read the current clock offset.
+			 *
+			 * Processing of the result is done within the
+			 * event handling and hci_clock_offset_evt function.
+			 */
+			if (conn->type == ACL_LINK &&
+			    test_bit(HCI_CONN_MASTER, &conn->flags)) {
+				struct hci_dev *hdev = conn->hdev;
+				struct hci_cp_read_clock_offset cp;
+
+				cp.handle = cpu_to_le16(conn->handle);
+
+				hci_send_cmd(hdev, HCI_OP_READ_CLOCK_OFFSET,
+					     sizeof(cp), &cp);
+			}
+
+			hci_disconnect(conn, reason);
+		}
 		break;
 	default:
 		conn->state = BT_CLOSED;
@@ -325,9 +362,6 @@ static void hci_conn_idle(struct work_struct *work)
 	struct hci_dev *hdev = conn->hdev;
 
 	BT_DBG("hcon %p mode %d", conn, conn->mode);
-
-	if (test_bit(HCI_RAW, &hdev->flags))
-		return;
 
 	if (!lmp_sniff_capable(hdev) || !lmp_sniff_capable(conn))
 		return;
@@ -519,7 +553,6 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (!test_bit(HCI_UP, &d->flags) ||
-		    test_bit(HCI_RAW, &d->flags) ||
 		    test_bit(HCI_USER_CHANNEL, &d->dev_flags) ||
 		    d->dev_type != HCI_BREDR)
 			continue;
@@ -617,7 +650,8 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	cp.own_address_type = own_addr_type;
 	cp.conn_interval_min = cpu_to_le16(conn->le_conn_min_interval);
 	cp.conn_interval_max = cpu_to_le16(conn->le_conn_max_interval);
-	cp.supervision_timeout = cpu_to_le16(0x002a);
+	cp.conn_latency = cpu_to_le16(conn->le_conn_latency);
+	cp.supervision_timeout = cpu_to_le16(conn->le_supv_timeout);
 	cp.min_ce_len = cpu_to_le16(0x0000);
 	cp.max_ce_len = cpu_to_le16(0x0000);
 
@@ -634,15 +668,12 @@ static void hci_req_directed_advertising(struct hci_request *req,
 	u8 own_addr_type;
 	u8 enable;
 
-	enable = 0x00;
-	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
-
-	/* Clear the HCI_ADVERTISING bit temporarily so that the
+	/* Clear the HCI_LE_ADV bit temporarily so that the
 	 * hci_update_random_address knows that it's safe to go ahead
 	 * and write a new random address. The flag will be set back on
 	 * as soon as the SET_ADV_ENABLE HCI command completes.
 	 */
-	clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+	clear_bit(HCI_LE_ADV, &hdev->dev_flags);
 
 	/* Set require_privacy to false so that the remote device has a
 	 * chance of identifying us.
@@ -666,7 +697,8 @@ static void hci_req_directed_advertising(struct hci_request *req,
 }
 
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
-				u8 dst_type, u8 sec_level, u8 auth_type)
+				u8 dst_type, u8 sec_level, u16 conn_timeout,
+				bool master)
 {
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
@@ -686,7 +718,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
 	if (conn) {
 		conn->pending_sec_level = sec_level;
-		conn->auth_type = auth_type;
 		goto done;
 	}
 
@@ -723,25 +754,52 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	conn->dst_type = dst_type;
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->pending_sec_level = sec_level;
-	conn->auth_type = auth_type;
+	conn->conn_timeout = conn_timeout;
 
 	hci_req_init(&req, hdev);
 
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
+	/* Disable advertising if we're active. For master role
+	 * connections most controllers will refuse to connect if
+	 * advertising is enabled, and for slave role connections we
+	 * anyway have to disable it in order to start directed
+	 * advertising.
+	 */
+	if (test_bit(HCI_LE_ADV, &hdev->dev_flags)) {
+		u8 enable = 0x00;
+		hci_req_add(&req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable),
+			    &enable);
+	}
+
+	/* If requested to connect as slave use directed advertising */
+	if (!master) {
+		/* If we're active scanning most controllers are unable
+		 * to initiate advertising. Simply reject the attempt.
+		 */
+		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags) &&
+		    hdev->le_scan_type == LE_SCAN_ACTIVE) {
+			skb_queue_purge(&req.cmd_q);
+			hci_conn_del(conn);
+			return ERR_PTR(-EBUSY);
+		}
+
 		hci_req_directed_advertising(&req, conn);
 		goto create_conn;
 	}
 
 	conn->out = true;
-	conn->link_mode |= HCI_LM_MASTER;
+	set_bit(HCI_CONN_MASTER, &conn->flags);
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
 	if (params) {
 		conn->le_conn_min_interval = params->conn_min_interval;
 		conn->le_conn_max_interval = params->conn_max_interval;
+		conn->le_conn_latency = params->conn_latency;
+		conn->le_supv_timeout = params->supervision_timeout;
 	} else {
 		conn->le_conn_min_interval = hdev->le_conn_min_interval;
 		conn->le_conn_max_interval = hdev->le_conn_max_interval;
+		conn->le_conn_latency = hdev->le_conn_latency;
+		conn->le_supv_timeout = hdev->le_supv_timeout;
 	}
 
 	/* If controller is scanning, we stop it since some controllers are
@@ -855,7 +913,8 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 			return 0;
 	}
 
-	if (hci_conn_ssp_enabled(conn) && !(conn->link_mode & HCI_LM_ENCRYPT))
+	if (hci_conn_ssp_enabled(conn) &&
+	    !test_bit(HCI_CONN_ENCRYPT, &conn->flags))
 		return 0;
 
 	return 1;
@@ -871,7 +930,7 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 
 	if (sec_level > conn->sec_level)
 		conn->pending_sec_level = sec_level;
-	else if (conn->link_mode & HCI_LM_AUTH)
+	else if (test_bit(HCI_CONN_AUTH, &conn->flags))
 		return 1;
 
 	/* Make sure we preserve an existing MITM requirement*/
@@ -889,7 +948,7 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		/* If we're already encrypted set the REAUTH_PEND flag,
 		 * otherwise set the ENCRYPT_PEND.
 		 */
-		if (conn->link_mode & HCI_LM_ENCRYPT)
+		if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
 			set_bit(HCI_CONN_REAUTH_PEND, &conn->flags);
 		else
 			set_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
@@ -930,7 +989,7 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		return 1;
 
 	/* For other security levels we need the link key. */
-	if (!(conn->link_mode & HCI_LM_AUTH))
+	if (!test_bit(HCI_CONN_AUTH, &conn->flags))
 		goto auth;
 
 	/* An authenticated FIPS approved combination key has sufficient
@@ -970,7 +1029,7 @@ auth:
 		return 0;
 
 encrypt:
-	if (conn->link_mode & HCI_LM_ENCRYPT)
+	if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
 		return 1;
 
 	hci_conn_encrypt(conn);
@@ -1017,7 +1076,7 @@ int hci_conn_switch_role(struct hci_conn *conn, __u8 role)
 {
 	BT_DBG("hcon %p", conn);
 
-	if (!role && conn->link_mode & HCI_LM_MASTER)
+	if (!role && test_bit(HCI_CONN_MASTER, &conn->flags))
 		return 1;
 
 	if (!test_and_set_bit(HCI_CONN_RSWITCH_PEND, &conn->flags)) {
@@ -1037,9 +1096,6 @@ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active)
 	struct hci_dev *hdev = conn->hdev;
 
 	BT_DBG("hcon %p mode %d", conn, conn->mode);
-
-	if (test_bit(HCI_RAW, &hdev->flags))
-		return;
 
 	if (conn->mode != HCI_CM_SNIFF)
 		goto timer;
@@ -1091,6 +1147,28 @@ void hci_conn_check_pending(struct hci_dev *hdev)
 	hci_dev_unlock(hdev);
 }
 
+static u32 get_link_mode(struct hci_conn *conn)
+{
+	u32 link_mode = 0;
+
+	if (test_bit(HCI_CONN_MASTER, &conn->flags))
+		link_mode |= HCI_LM_MASTER;
+
+	if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
+		link_mode |= HCI_LM_ENCRYPT;
+
+	if (test_bit(HCI_CONN_AUTH, &conn->flags))
+		link_mode |= HCI_LM_AUTH;
+
+	if (test_bit(HCI_CONN_SECURE, &conn->flags))
+		link_mode |= HCI_LM_SECURE;
+
+	if (test_bit(HCI_CONN_FIPS, &conn->flags))
+		link_mode |= HCI_LM_FIPS;
+
+	return link_mode;
+}
+
 int hci_get_conn_list(void __user *arg)
 {
 	struct hci_conn *c;
@@ -1126,7 +1204,7 @@ int hci_get_conn_list(void __user *arg)
 		(ci + n)->type  = c->type;
 		(ci + n)->out   = c->out;
 		(ci + n)->state = c->state;
-		(ci + n)->link_mode = c->link_mode;
+		(ci + n)->link_mode = get_link_mode(c);
 		if (++n >= req.conn_num)
 			break;
 	}
@@ -1162,7 +1240,7 @@ int hci_get_conn_info(struct hci_dev *hdev, void __user *arg)
 		ci.type  = conn->type;
 		ci.out   = conn->out;
 		ci.state = conn->state;
-		ci.link_mode = conn->link_mode;
+		ci.link_mode = get_link_mode(conn);
 	}
 	hci_dev_unlock(hdev);
 
