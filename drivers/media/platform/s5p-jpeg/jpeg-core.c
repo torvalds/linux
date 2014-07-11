@@ -1317,12 +1317,16 @@ static int exynos4_jpeg_get_output_buffer_size(struct s5p_jpeg_ctx *ctx,
 	return w * h * fmt_depth >> 3;
 }
 
+static int exynos3250_jpeg_try_downscale(struct s5p_jpeg_ctx *ctx,
+				   struct v4l2_rect *r);
+
 static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 {
 	struct vb2_queue *vq;
 	struct s5p_jpeg_q_data *q_data = NULL;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_ctrl *ctrl_subs;
+	struct v4l2_rect scale_rect;
 	unsigned int f_type;
 
 	vq = v4l2_m2m_get_vq(ct->fh.m2m_ctx, f->type);
@@ -1382,6 +1386,20 @@ static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 		ct->crop_rect.width = pix->width;
 		ct->crop_rect.height = pix->height;
 	}
+
+	/*
+	 * Prevent downscaling to YUV420 format by more than 2
+	 * for Exynos3250 SoC as it produces broken raw image
+	 * in such cases.
+	 */
+	if (ct->mode == S5P_JPEG_DECODE &&
+	    f_type == FMT_TYPE_CAPTURE &&
+	    ct->jpeg->variant->version == SJPEG_EXYNOS3250 &&
+	    pix->pixelformat == V4L2_PIX_FMT_YUV420 &&
+	    ct->scale_factor > 2) {
+		scale_rect.width = ct->out_q.w / 2;
+		scale_rect.height = ct->out_q.h / 2;
+		exynos3250_jpeg_try_downscale(ct, &scale_rect);
 	}
 
 	return 0;
