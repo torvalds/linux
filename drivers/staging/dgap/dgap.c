@@ -88,8 +88,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 				unsigned long arg);
 static int dgap_tty_digigeta(struct tty_struct *tty,
 				struct digi_t __user *retinfo);
-static int dgap_tty_digiseta(struct tty_struct *tty,
-				struct digi_t __user *new_info);
+static int dgap_tty_digiseta(struct channel_t *ch, struct board_t *bd,
+			     struct un_t *un, struct digi_t __user *new_info);
 static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo);
 static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info);
 static int dgap_tty_write_room(struct tty_struct *tty);
@@ -3231,30 +3231,12 @@ static int dgap_tty_digigeta(struct tty_struct *tty,
  *
  *
  */
-static int dgap_tty_digiseta(struct tty_struct *tty,
-				struct digi_t __user *new_info)
+static int dgap_tty_digiseta(struct channel_t *ch, struct board_t *bd,
+			     struct un_t *un, struct digi_t __user *new_info)
 {
-	struct board_t *bd;
-	struct channel_t *ch;
-	struct un_t *un;
 	struct digi_t new_digi;
 	ulong lock_flags = 0;
 	unsigned long lock_flags2;
-
-	if (!tty || tty->magic != TTY_MAGIC)
-		return -EFAULT;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return -EFAULT;
-
-	ch = un->un_ch;
-	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return -EFAULT;
-
-	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return -EFAULT;
 
 	if (copy_from_user(&new_digi, new_info, sizeof(struct digi_t)))
 		return -EFAULT;
@@ -4100,7 +4082,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	case DIGI_SETA:
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-		return dgap_tty_digiseta(tty, uarg);
+		return dgap_tty_digiseta(ch, bd, un, uarg);
 
 	case DIGI_GEDELAY:
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
