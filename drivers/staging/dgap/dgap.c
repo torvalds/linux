@@ -5068,7 +5068,6 @@ static void dgap_firmware_reset_port(struct channel_t *ch)
  *=======================================================================*/
 static int dgap_param(struct tty_struct *tty)
 {
-	struct ktermios *ts;
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct bs_t __iomem *bs;
@@ -5097,8 +5096,6 @@ static int dgap_param(struct tty_struct *tty)
 	bs = ch->ch_bs;
 	if (!bs)
 		return -EIO;
-
-	ts = &tty->termios;
 
 	/*
 	 * If baud rate is zero, flush queues, and set mval to drop DTR.
