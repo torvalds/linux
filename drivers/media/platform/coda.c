@@ -778,36 +778,12 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 	return ret;
 }
 
-static int coda_reqbufs(struct file *file, void *priv,
-			struct v4l2_requestbuffers *reqbufs)
-{
-	struct coda_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
-}
-
-static int coda_querybuf(struct file *file, void *priv,
-			 struct v4l2_buffer *buf)
-{
-	struct coda_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_querybuf(file, ctx->m2m_ctx, buf);
-}
-
 static int coda_qbuf(struct file *file, void *priv,
 		     struct v4l2_buffer *buf)
 {
 	struct coda_ctx *ctx = fh_to_ctx(priv);
 
 	return v4l2_m2m_qbuf(file, ctx->m2m_ctx, buf);
-}
-
-static int coda_expbuf(struct file *file, void *priv,
-		       struct v4l2_exportbuffer *eb)
-{
-	struct coda_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_expbuf(file, ctx->m2m_ctx, eb);
 }
 
 static bool coda_buf_is_end_of_stream(struct coda_ctx *ctx,
@@ -838,40 +814,6 @@ static int coda_dqbuf(struct file *file, void *priv,
 
 		v4l2_event_queue_fh(&ctx->fh, &eos_event);
 	}
-
-	return ret;
-}
-
-static int coda_create_bufs(struct file *file, void *priv,
-			    struct v4l2_create_buffers *create)
-{
-	struct coda_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_create_bufs(file, ctx->m2m_ctx, create);
-}
-
-static int coda_streamon(struct file *file, void *priv,
-			 enum v4l2_buf_type type)
-{
-	struct coda_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_streamon(file, ctx->m2m_ctx, type);
-}
-
-static int coda_streamoff(struct file *file, void *priv,
-			  enum v4l2_buf_type type)
-{
-	struct coda_ctx *ctx = fh_to_ctx(priv);
-	int ret;
-
-	/*
-	 * This indirectly calls __vb2_queue_cancel, which dequeues all buffers.
-	 * We therefore have to lock it against running hardware in this context,
-	 * which still needs the buffers.
-	 */
-	mutex_lock(&ctx->buffer_mutex);
-	ret = v4l2_m2m_streamoff(file, ctx->m2m_ctx, type);
-	mutex_unlock(&ctx->buffer_mutex);
 
 	return ret;
 }
@@ -987,16 +929,16 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 	.vidioc_try_fmt_vid_out	= coda_try_fmt_vid_out,
 	.vidioc_s_fmt_vid_out	= coda_s_fmt_vid_out,
 
-	.vidioc_reqbufs		= coda_reqbufs,
-	.vidioc_querybuf	= coda_querybuf,
+	.vidioc_reqbufs		= v4l2_m2m_ioctl_reqbufs,
+	.vidioc_querybuf	= v4l2_m2m_ioctl_querybuf,
 
 	.vidioc_qbuf		= coda_qbuf,
-	.vidioc_expbuf		= coda_expbuf,
+	.vidioc_expbuf		= v4l2_m2m_ioctl_expbuf,
 	.vidioc_dqbuf		= coda_dqbuf,
-	.vidioc_create_bufs	= coda_create_bufs,
+	.vidioc_create_bufs	= v4l2_m2m_ioctl_create_bufs,
 
-	.vidioc_streamon	= coda_streamon,
-	.vidioc_streamoff	= coda_streamoff,
+	.vidioc_streamon	= v4l2_m2m_ioctl_streamon,
+	.vidioc_streamoff	= v4l2_m2m_ioctl_streamoff,
 
 	.vidioc_g_selection	= coda_g_selection,
 
@@ -1673,18 +1615,6 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 	} else {
 		v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
 	}
-}
-
-static void coda_wait_prepare(struct vb2_queue *q)
-{
-	struct coda_ctx *ctx = vb2_get_drv_priv(q);
-	coda_unlock(ctx);
-}
-
-static void coda_wait_finish(struct vb2_queue *q)
-{
-	struct coda_ctx *ctx = vb2_get_drv_priv(q);
-	coda_lock(ctx);
 }
 
 static void coda_parabuf_write(struct coda_ctx *ctx, int index, u32 value)
@@ -2648,10 +2578,10 @@ static struct vb2_ops coda_qops = {
 	.queue_setup		= coda_queue_setup,
 	.buf_prepare		= coda_buf_prepare,
 	.buf_queue		= coda_buf_queue,
-	.wait_prepare		= coda_wait_prepare,
-	.wait_finish		= coda_wait_finish,
 	.start_streaming	= coda_start_streaming,
 	.stop_streaming		= coda_stop_streaming,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -2774,6 +2704,7 @@ static int coda_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &coda_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->lock = &ctx->dev->dev_mutex;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -2786,6 +2717,7 @@ static int coda_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &coda_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->lock = &ctx->dev->dev_mutex;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -2854,6 +2786,8 @@ static int coda_open(struct file *file)
 			 __func__, ret);
 		goto err_ctx_init;
 	}
+	ctx->fh.m2m_ctx = ctx->m2m_ctx;
+
 	ret = coda_ctrls_setup(ctx);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "failed to setup coda controls\n");
@@ -2953,32 +2887,13 @@ static int coda_release(struct file *file)
 	return 0;
 }
 
-static unsigned int coda_poll(struct file *file,
-				 struct poll_table_struct *wait)
-{
-	struct coda_ctx *ctx = fh_to_ctx(file->private_data);
-	int ret;
-
-	coda_lock(ctx);
-	ret = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
-	coda_unlock(ctx);
-	return ret;
-}
-
-static int coda_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct coda_ctx *ctx = fh_to_ctx(file->private_data);
-
-	return v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
-}
-
 static const struct v4l2_file_operations coda_fops = {
 	.owner		= THIS_MODULE,
 	.open		= coda_open,
 	.release	= coda_release,
-	.poll		= coda_poll,
+	.poll		= v4l2_m2m_fop_poll,
 	.unlocked_ioctl	= video_ioctl2,
-	.mmap		= coda_mmap,
+	.mmap		= v4l2_m2m_fop_mmap,
 };
 
 static void coda_finish_decode(struct coda_ctx *ctx)
