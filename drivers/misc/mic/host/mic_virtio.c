@@ -594,8 +594,10 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 	snprintf(irqname, sizeof(irqname), "mic%dvirtio%d", mdev->id,
 		 mvdev->virtio_id);
 	mvdev->virtio_db = mic_next_db(mdev);
-	mvdev->virtio_cookie = mic_request_irq(mdev, mic_virtio_intr_handler,
-			irqname, mvdev, mvdev->virtio_db, MIC_INTR_DB);
+	mvdev->virtio_cookie = mic_request_threaded_irq(mdev,
+					       mic_virtio_intr_handler,
+					       NULL, irqname, mvdev,
+					       mvdev->virtio_db, MIC_INTR_DB);
 	if (IS_ERR(mvdev->virtio_cookie)) {
 		ret = PTR_ERR(mvdev->virtio_cookie);
 		dev_dbg(mdev->sdev->parent, "request irq failed\n");

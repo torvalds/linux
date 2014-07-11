@@ -389,8 +389,9 @@ static int mic_probe(struct pci_dev *pdev,
 	mutex_lock(&mdev->mic_mutex);
 
 	mdev->shutdown_db = mic_next_db(mdev);
-	mdev->shutdown_cookie = mic_request_irq(mdev, mic_shutdown_db,
-		"shutdown-interrupt", mdev, mdev->shutdown_db, MIC_INTR_DB);
+	mdev->shutdown_cookie = mic_request_threaded_irq(mdev, mic_shutdown_db,
+					NULL, "shutdown-interrupt", mdev,
+					mdev->shutdown_db, MIC_INTR_DB);
 	if (IS_ERR(mdev->shutdown_cookie)) {
 		rc = PTR_ERR(mdev->shutdown_cookie);
 		mutex_unlock(&mdev->mic_mutex);
