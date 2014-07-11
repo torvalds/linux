@@ -859,6 +859,7 @@ interface only.</para>
 
     &sub-sdr-cu08;
     &sub-sdr-cu16le;
+    &sub-sdr-cs08;
     &sub-sdr-ru12le;
 
   </section>
