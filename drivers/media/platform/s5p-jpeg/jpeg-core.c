@@ -1133,7 +1133,8 @@ static struct s5p_jpeg_fmt *s5p_jpeg_find_format(struct s5p_jpeg_ctx *ctx,
 	return NULL;
 }
 
-static void jpeg_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
+static void jpeg_bound_align_image(struct s5p_jpeg_ctx *ctx,
+				   u32 *w, unsigned int wmin, unsigned int wmax,
 				   unsigned int walign,
 				   u32 *h, unsigned int hmin, unsigned int hmax,
 				   unsigned int halign)
@@ -1145,13 +1146,27 @@ static void jpeg_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
 
 	w_step = 1 << walign;
 	h_step = 1 << halign;
+
+	if (ctx->jpeg->variant->version == SJPEG_EXYNOS3250) {
+		/*
+		 * Rightmost and bottommost pixels are cropped by the
+		 * Exynos3250 JPEG IP for RGB formats, for the specific
+		 * width and height values respectively. This assignment
+		 * will result in v4l_bound_align_image returning dimensions
+		 * reduced by 1 for the aforementioned cases.
+		 */
+		if (w_step == 4 && ((width & 3) == 1)) {
+			wmax = width;
+			hmax = height;
+		}
+	}
+
 	v4l_bound_align_image(w, wmin, wmax, walign, h, hmin, hmax, halign, 0);
 
 	if (*w < width && (*w + w_step) < wmax)
 		*w += w_step;
 	if (*h < height && (*h + h_step) < hmax)
 		*h += h_step;
-
 }
 
 static int vidioc_try_fmt(struct v4l2_format *f, struct s5p_jpeg_fmt *fmt,
@@ -1167,12 +1182,12 @@ static int vidioc_try_fmt(struct v4l2_format *f, struct s5p_jpeg_fmt *fmt,
 	/* V4L2 specification suggests the driver corrects the format struct
 	 * if any of the dimensions is unsupported */
 	if (q_type == FMT_TYPE_OUTPUT)
-		jpeg_bound_align_image(&pix->width, S5P_JPEG_MIN_WIDTH,
+		jpeg_bound_align_image(ctx, &pix->width, S5P_JPEG_MIN_WIDTH,
 				       S5P_JPEG_MAX_WIDTH, 0,
 				       &pix->height, S5P_JPEG_MIN_HEIGHT,
 				       S5P_JPEG_MAX_HEIGHT, 0);
 	else
-		jpeg_bound_align_image(&pix->width, S5P_JPEG_MIN_WIDTH,
+		jpeg_bound_align_image(ctx, &pix->width, S5P_JPEG_MIN_WIDTH,
 				       S5P_JPEG_MAX_WIDTH, fmt->h_align,
 				       &pix->height, S5P_JPEG_MIN_HEIGHT,
 				       S5P_JPEG_MAX_HEIGHT, fmt->v_align);
@@ -1294,7 +1309,7 @@ static int exynos4_jpeg_get_output_buffer_size(struct s5p_jpeg_ctx *ctx,
 	else
 		wh_align = 1;
 
-	jpeg_bound_align_image(&w, S5P_JPEG_MIN_WIDTH,
+	jpeg_bound_align_image(ctx, &w, S5P_JPEG_MIN_WIDTH,
 			       S5P_JPEG_MAX_WIDTH, wh_align,
 			       &h, S5P_JPEG_MIN_HEIGHT,
 			       S5P_JPEG_MAX_HEIGHT, wh_align);
