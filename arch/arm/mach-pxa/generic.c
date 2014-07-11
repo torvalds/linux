@@ -79,14 +79,14 @@ EXPORT_SYMBOL(get_clk_frequency_khz);
  */
 static struct map_desc common_io_desc[] __initdata = {
   	{	/* Devs */
-		.virtual	=  0xf2000000,
-		.pfn		= __phys_to_pfn(0x40000000),
-		.length		= 0x02000000,
+		.virtual	= (unsigned long)PERIPH_VIRT,
+		.pfn		= __phys_to_pfn(PERIPH_PHYS),
+		.length		= PERIPH_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* UNCACHED_PHYS_0 */
-		.virtual	= 0xff000000,
+		.virtual	= UNCACHED_PHYS_0,
 		.pfn		= __phys_to_pfn(0x00000000),
-		.length		= 0x00100000,
+		.length		= UNCACHED_PHYS_0_SIZE,
 		.type		= MT_DEVICE
 	}
 };

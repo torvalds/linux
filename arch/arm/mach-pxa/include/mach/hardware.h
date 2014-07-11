@@ -20,7 +20,7 @@
  * The mapping is set in mach-pxa/generic.c.
  */
 #define UNCACHED_PHYS_0		0xff000000
-#define UNCACHED_ADDR		UNCACHED_PHYS_0
+#define UNCACHED_PHYS_0_SIZE	0x00100000
 
 /*
  * Intel PXA2xx internal register mapping:
