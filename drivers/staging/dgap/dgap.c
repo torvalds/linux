@@ -3061,9 +3061,6 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	ulong lock_flags;
 	int rc;
 
-	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return -EIO;
-
 	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
 	mstat = readb(&(ch->ch_bs->m_stat));
