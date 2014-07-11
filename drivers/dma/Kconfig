@@ -33,6 +33,25 @@ if DMADEVICES
 
 comment "DMA Devices"
 
+config INTEL_MIC_X100_DMA
+	tristate "Intel MIC X100 DMA Driver"
+	depends on 64BIT && X86 && INTEL_MIC_BUS
+	select DMAENGINE
+	default N
+	help
+	  This enables DMA support for the Intel Many Integrated Core
+	  (MIC) family of PCIe form factor coprocessor X100 devices that
+	  run a 64 bit Linux OS. This driver will be used by both MIC
+	  host and card drivers.
+
+	  If you are building host kernel with a MIC device or a card
+	  kernel for a MIC device, then say M (recommended) or Y, else
+	  say N. If unsure say N.
+
+	  More information about the Intel MIC family as well as the Linux
+	  OS and tools for MIC to use with this driver are available from
+	  <http://software.intel.com/en-us/mic-developer>.
+
 config INTEL_MID_DMAC
 	tristate "Intel MID DMA support for Peripheral DMA controllers"
 	depends on PCI && X86
