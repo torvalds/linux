@@ -1,9 +1,15 @@
 #include <linux/list.h>
+#include <linux/compiler.h>
 #include "ordered-events.h"
 #include "evlist.h"
 #include "session.h"
 #include "asm/bug.h"
 #include "debug.h"
+
+#define pr_N(n, fmt, ...) \
+	eprintf(n, debug_ordered_events, fmt, ##__VA_ARGS__)
+
+#define pr(fmt, ...) pr_N(1, pr_fmt(fmt), ##__VA_ARGS__)
 
 static void queue_event(struct ordered_events *oe, struct ordered_event *new)
 {
@@ -13,6 +19,8 @@ static void queue_event(struct ordered_events *oe, struct ordered_event *new)
 
 	++oe->nr_events;
 	oe->last = new;
+
+	pr_oe_time2(timestamp, "queue_event nr_events %u\n", oe->nr_events);
 
 	if (!last) {
 		list_add(&new->list, &oe->events);
@@ -69,12 +77,17 @@ static struct ordered_event *alloc_event(struct ordered_events *oe)
 		if (!oe->buffer)
 			return NULL;
 
+		pr("alloc size %" PRIu64 "B (+%zu), max %" PRIu64 "B\n",
+		   oe->cur_alloc_size, size, oe->max_alloc_size);
+
 		oe->cur_alloc_size += size;
 		list_add(&oe->buffer->list, &oe->to_free);
 
 		/* First entry is abused to maintain the to_free list. */
 		oe->buffer_idx = 2;
 		new = oe->buffer + 1;
+	} else {
+		pr("allocation limit reached %" PRIu64 "B\n", oe->max_alloc_size);
 	}
 
 	return new;
@@ -155,6 +168,11 @@ int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 			  enum oe_flush how)
 {
 	struct ordered_events *oe = &s->ordered_events;
+	static const char * const str[] = {
+		"FINAL",
+		"ROUND",
+		"HALF ",
+	};
 	int err;
 
 	switch (how) {
@@ -184,12 +202,20 @@ int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 		break;
 	};
 
+	pr_oe_time(oe->next_flush, "next_flush - ordered_events__flush PRE  %s, nr_events %u\n",
+		   str[how], oe->nr_events);
+	pr_oe_time(oe->max_timestamp, "max_timestamp\n");
+
 	err = __ordered_events__flush(s, tool);
 
 	if (!err) {
 		if (how == OE_FLUSH__ROUND)
 			oe->next_flush = oe->max_timestamp;
 	}
+
+	pr_oe_time(oe->next_flush, "next_flush - ordered_events__flush POST %s, nr_events %u\n",
+		   str[how], oe->nr_events);
+	pr_oe_time(oe->last_flush, "last_flush\n");
 
 	return err;
 }

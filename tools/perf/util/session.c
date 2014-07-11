@@ -499,8 +499,10 @@ int perf_session_queue_event(struct perf_session *s, union perf_event *event,
 	if (!timestamp || timestamp == ~0ULL)
 		return -ETIME;
 
-	if (timestamp < s->ordered_events.last_flush) {
+	if (timestamp < oe->last_flush) {
 		printf("Warning: Timestamp below last timeslice flush\n");
+		pr_oe_time(timestamp,      "out of order event");
+		pr_oe_time(oe->last_flush, "last flush");
 		return -EINVAL;
 	}
 
