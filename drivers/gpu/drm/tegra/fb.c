@@ -194,6 +194,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 			     struct drm_fb_helper_surface_size *sizes)
 {
 	struct tegra_fbdev *fbdev = to_tegra_fbdev(helper);
+	struct tegra_drm *tegra = helper->dev->dev_private;
 	struct drm_device *drm = helper->dev;
 	struct drm_mode_fb_cmd2 cmd = { 0 };
 	unsigned int bytes_per_pixel;
@@ -208,7 +209,8 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 
 	cmd.width = sizes->surface_width;
 	cmd.height = sizes->surface_height;
-	cmd.pitches[0] = sizes->surface_width * bytes_per_pixel;
+	cmd.pitches[0] = round_up(sizes->surface_width * bytes_per_pixel,
+				  tegra->pitch_align);
 	cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 						     sizes->surface_depth);
 

@@ -45,6 +45,8 @@ struct tegra_drm {
 #ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_fbdev *fbdev;
 #endif
+
+	unsigned int pitch_align;
 };
 
 struct tegra_drm_client;

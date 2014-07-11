@@ -16,6 +16,7 @@
 #include <linux/dma-buf.h>
 #include <drm/tegra_drm.h>
 
+#include "drm.h"
 #include "gem.h"
 
 static inline struct tegra_bo *host1x_to_tegra_bo(struct host1x_bo *bo)
@@ -259,8 +260,10 @@ int tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm,
 			 struct drm_mode_create_dumb *args)
 {
 	int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_bo *bo;
 
+	min_pitch = round_up(min_pitch, tegra->pitch_align);
 	if (args->pitch < min_pitch)
 		args->pitch = min_pitch;
 
