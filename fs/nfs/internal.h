@@ -244,6 +244,7 @@ void nfs_pgio_data_release(struct nfs_pgio_data *);
 int nfs_generic_pgio(struct nfs_pageio_descriptor *, struct nfs_pgio_header *);
 int nfs_initiate_pgio(struct rpc_clnt *, struct nfs_pgio_data *,
 		      const struct rpc_call_ops *, int, int);
+void nfs_free_request(struct nfs_page *req);
 
 static inline void nfs_iocounter_init(struct nfs_io_counter *c)
 {

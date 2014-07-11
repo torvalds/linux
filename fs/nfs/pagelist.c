@@ -29,8 +29,6 @@
 static struct kmem_cache *nfs_page_cachep;
 static const struct rpc_call_ops nfs_pgio_common_ops;
 
-static void nfs_free_request(struct nfs_page *);
-
 static bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount)
 {
 	p->npages = pagecount;
@@ -406,7 +404,7 @@ static void nfs_clear_request(struct nfs_page *req)
  *
  * Note: Should never be called with the spinlock held!
  */
-static void nfs_free_request(struct nfs_page *req)
+void nfs_free_request(struct nfs_page *req)
 {
 	WARN_ON_ONCE(req->wb_this_page != req);
 
