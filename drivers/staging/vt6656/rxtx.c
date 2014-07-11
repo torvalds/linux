@@ -82,21 +82,6 @@ static const u16 vnt_fb_opt1[2][5] = {
 #define DATADUR_A_F0    12
 #define DATADUR_A_F1    13
 
-static struct vnt_usb_send_context *vnt_get_free_context(struct vnt_private *);
-
-static unsigned int vnt_get_rsvtime(struct vnt_private *pDevice, u8 byPktType,
-	u32 cbFrameLength, u16 wRate, int bNeedAck);
-
-static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv,
-	u8 rsv_type, u8 pkt_type, u32 frame_length, u16 current_rate);
-
-static __le16 vnt_get_duration_le(struct vnt_private *pDevice,
-	u8 byPktType, int bNeedAck);
-
-static __le16 vnt_get_rtscts_duration_le(struct vnt_private *priv,
-	u8 dur_type, u32 frame_length, u8 pkt_type, u16 rate,
-	int need_ack);
-
 static struct vnt_usb_send_context
 	*vnt_get_free_context(struct vnt_private *priv)
 {
