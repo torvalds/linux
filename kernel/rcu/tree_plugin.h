@@ -2479,6 +2479,7 @@ void __init rcu_init_nohz(void)
 				     rdp->nxttail[RCU_NEXT_TAIL] != NULL);
 			init_nocb_callback_list(rdp);
 		}
+		rcu_organize_nocb_kthreads(rsp);
 	}
 }
 
@@ -2490,15 +2491,85 @@ static void __init rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp)
 	rdp->nocb_follower_tail = &rdp->nocb_follower_head;
 }
 
+/*
+ * If the specified CPU is a no-CBs CPU that does not already have its
+ * rcuo kthread for the specified RCU flavor, spawn it.  If the CPUs are
+ * brought online out of order, this can require re-organizing the
+ * leader-follower relationships.
+ */
+static void rcu_spawn_one_nocb_kthread(struct rcu_state *rsp, int cpu)
+{
+	struct rcu_data *rdp;
+	struct rcu_data *rdp_last;
+	struct rcu_data *rdp_old_leader;
+	struct rcu_data *rdp_spawn = per_cpu_ptr(rsp->rda, cpu);
+	struct task_struct *t;
+
+	/*
+	 * If this isn't a no-CBs CPU or if it already has an rcuo kthread,
+	 * then nothing to do.
+	 */
+	if (!rcu_is_nocb_cpu(cpu) || rdp_spawn->nocb_kthread)
+		return;
+
+	/* If we didn't spawn the leader first, reorganize! */
+	rdp_old_leader = rdp_spawn->nocb_leader;
+	if (rdp_old_leader != rdp_spawn && !rdp_old_leader->nocb_kthread) {
+		rdp_last = NULL;
+		rdp = rdp_old_leader;
+		do {
+			rdp->nocb_leader = rdp_spawn;
+			if (rdp_last && rdp != rdp_spawn)
+				rdp_last->nocb_next_follower = rdp;
+			rdp_last = rdp;
+			rdp = rdp->nocb_next_follower;
+			rdp_last->nocb_next_follower = NULL;
+		} while (rdp);
+		rdp_spawn->nocb_next_follower = rdp_old_leader;
+	}
+
+	/* Spawn the kthread for this CPU and RCU flavor. */
+	t = kthread_run(rcu_nocb_kthread, rdp_spawn,
+			"rcuo%c/%d", rsp->abbr, cpu);
+	BUG_ON(IS_ERR(t));
+	ACCESS_ONCE(rdp_spawn->nocb_kthread) = t;
+}
+
+/*
+ * If the specified CPU is a no-CBs CPU that does not already have its
+ * rcuo kthreads, spawn them.
+ */
+static void rcu_spawn_all_nocb_kthreads(int cpu)
+{
+	struct rcu_state *rsp;
+
+	if (rcu_scheduler_fully_active)
+		for_each_rcu_flavor(rsp)
+			rcu_spawn_one_nocb_kthread(rsp, cpu);
+}
+
+/*
+ * Once the scheduler is running, spawn rcuo kthreads for all online
+ * no-CBs CPUs.  This assumes that the early_initcall()s happen before
+ * non-boot CPUs come online -- if this changes, we will need to add
+ * some mutual exclusion.
+ */
+static void __init rcu_spawn_nocb_kthreads(void)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		rcu_spawn_all_nocb_kthreads(cpu);
+}
+
 /* How many follower CPU IDs per leader?  Default of -1 for sqrt(nr_cpu_ids). */
 static int rcu_nocb_leader_stride = -1;
 module_param(rcu_nocb_leader_stride, int, 0444);
 
 /*
- * Create a kthread for each RCU flavor for each no-CBs CPU.
- * Also initialize leader-follower relationships.
+ * Initialize leader-follower relationships for all no-CBs CPU.
  */
-static void __init rcu_spawn_nocb_kthreads(struct rcu_state *rsp)
+static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp)
 {
 	int cpu;
 	int ls = rcu_nocb_leader_stride;
@@ -2506,7 +2577,6 @@ static void __init rcu_spawn_nocb_kthreads(struct rcu_state *rsp)
 	struct rcu_data *rdp;
 	struct rcu_data *rdp_leader = NULL;  /* Suppress misguided gcc warn. */
 	struct rcu_data *rdp_prev = NULL;
-	struct task_struct *t;
 
 	if (rcu_nocb_mask == NULL)
 		return;
@@ -2532,12 +2602,6 @@ static void __init rcu_spawn_nocb_kthreads(struct rcu_state *rsp)
 			rdp_prev->nocb_next_follower = rdp;
 		}
 		rdp_prev = rdp;
-
-		/* Spawn the kthread for this CPU. */
-		t = kthread_run(rcu_nocb_kthread, rdp,
-				"rcuo%c/%d", rsp->abbr, cpu);
-		BUG_ON(IS_ERR(t));
-		ACCESS_ONCE(rdp->nocb_kthread) = t;
 	}
 }
 
@@ -2591,7 +2655,11 @@ static void do_nocb_deferred_wakeup(struct rcu_data *rdp)
 {
 }
 
-static void __init rcu_spawn_nocb_kthreads(struct rcu_state *rsp)
+static void rcu_spawn_all_nocb_kthreads(int cpu)
+{
+}
+
+static void __init rcu_spawn_nocb_kthreads(void)
 {
 }
 
