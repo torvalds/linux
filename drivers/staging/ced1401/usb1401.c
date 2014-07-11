@@ -204,6 +204,7 @@ exit:
 static int ced_release(struct inode *inode, struct file *file)
 {
 	struct ced_data *ced = file->private_data;
+
 	if (ced == NULL)
 		return -ENODEV;
 
@@ -221,6 +222,7 @@ static int ced_flush(struct file *file, fl_owner_t id)
 {
 	int res;
 	struct ced_data *ced = file->private_data;
+
 	if (ced == NULL)
 		return -ENODEV;
 
@@ -302,6 +304,7 @@ static void ced_writechar_callback(struct urb *urb)
 			int ret;
 			char *pDat = &ced->output_buffer[ced->out_buff_get];
 			unsigned int dwCount = ced->num_output;	/*  maximum to send */
+
 			if ((ced->out_buff_get + dwCount) > OUTBUF_SZ)	/*  does it cross buffer end? */
 				dwCount = OUTBUF_SZ - ced->out_buff_get;
 
@@ -449,12 +452,14 @@ int ced_send_chars(struct ced_data *ced)
 static void ced_copy_user_space(struct ced_data *ced, int n)
 {
 	unsigned int area = ced->staged_id;
+
 	if (area < MAX_TRANSAREAS) {
 		/*  area to be used */
 		struct transarea *ta = &ced->trans_def[area];
 		unsigned int offset =
 		    ced->staged_done + ced->staged_offset + ta->base_offset;
 		char *coher_buf = ced->coher_staged_io;	/*  coherent buffer */
+
 		if (!ta->used) {
 			dev_err(&ced->interface->dev, "%s: area %d unused\n",
 				__func__, area);
@@ -711,6 +716,7 @@ static void staged_callback(struct urb *urb)
 			/*  If we have a transfer waiting, kick it off */
 			if (ced->xfer_waiting) {/*  Got a block xfer waiting? */
 				int retval;
+
 				dev_info(&ced->interface->dev,
 					 "*** RWM_Complete *** pending transfer"
 					 " will now be set up!!!\n");
@@ -1231,6 +1237,7 @@ static void ced_readchar_callback(struct urb *urb)
 
 			if (got > 0) {
 				unsigned int i;
+
 				if (got < INBUF_SZ) {
 					/* tidy the string */
 					ced->coher_char_in[got] = 0;
@@ -1339,6 +1346,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
 	struct ced_data *ced = file->private_data;
+
 	if (!can_accept_io_requests(ced))	/*  check we still exist */
 		return -ENODEV;
 
@@ -1629,6 +1637,7 @@ static void ced_disconnect(struct usb_interface *interface)
 	ced_draw_down(ced);	/*  ...wait for then kill any io */
 	for (i = 0; i < MAX_TRANSAREAS; ++i) {
 		int err = ced_clear_area(ced, i);	/*  ...release any used memory */
+
 		if (err == U14ERR_UNLOCKFAIL)
 			dev_err(&ced->interface->dev, "%s: Area %d was in used\n",
 				__func__, i);
@@ -1650,6 +1659,7 @@ static void ced_disconnect(struct usb_interface *interface)
 void ced_draw_down(struct ced_data *ced)
 {
 	int time;
+
 	dev_dbg(&ced->interface->dev, "%s: called\n", __func__);
 
 	ced->in_draw_down = true;
@@ -1664,6 +1674,7 @@ void ced_draw_down(struct ced_data *ced)
 static int ced_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct ced_data *ced = usb_get_intfdata(intf);
+
 	if (!ced)
 		return 0;
 	ced_draw_down(ced);
@@ -1675,6 +1686,7 @@ static int ced_suspend(struct usb_interface *intf, pm_message_t message)
 static int ced_resume(struct usb_interface *intf)
 {
 	struct ced_data *ced = usb_get_intfdata(intf);
+
 	if (!ced)
 		return 0;
 	dev_dbg(&ced->interface->dev, "%s: called\n", __func__);
@@ -1684,6 +1696,7 @@ static int ced_resume(struct usb_interface *intf)
 static int ced_pre_reset(struct usb_interface *intf)
 {
 	struct ced_data *ced = usb_get_intfdata(intf);
+
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 	mutex_lock(&ced->io_mutex);
 	ced_draw_down(ced);
@@ -1693,6 +1706,7 @@ static int ced_pre_reset(struct usb_interface *intf)
 static int ced_post_reset(struct usb_interface *intf)
 {
 	struct ced_data *ced = usb_get_intfdata(intf);
+
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
 	/* we are sure no URBs are active - no locking needed */
