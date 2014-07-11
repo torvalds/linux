@@ -18,14 +18,11 @@ Required SoC Specific Properties:
 - interrupts: The interrupt number to the cpu. The interrupt specifier format
   depends on the interrupt controller.
 
-[PRELIMINARY: the dma channel allocation will change once there are
-official DMA bindings]
+- dmas : Two or more DMA channel specifiers following the convention outlined
+  in bindings/dma/dma.txt
 
-- tx-dma-channel: The dma channel specifier for tx operations. The format of
-  the dma specifier depends on the dma controller.
-
-- rx-dma-channel: The dma channel specifier for rx operations. The format of
-  the dma specifier depends on the dma controller.
+- dma-names: Names for the dma channels. There must be at least one channel
+  named "tx" for transmit and named "rx" for receive.
 
 Required Board Specific Properties:
 
@@ -74,8 +71,11 @@ Example:
 		compatible = "samsung,exynos4210-spi";
 		reg = <0x12d20000 0x100>;
 		interrupts = <0 66 0>;
-		tx-dma-channel = <&pdma0 5>;
-		rx-dma-channel = <&pdma0 4>;
+		dmas = <&pdma0 5
+			&pdma0 4>;
+		dma-names = "tx", "rx";
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 
 - Board Specific Portion:
