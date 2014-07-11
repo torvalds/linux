@@ -2115,10 +2115,9 @@ config CPU_MICROMIPS
 	  microMIPS ISA
 
 config CPU_HAS_MSA
-	bool "Support for the MIPS SIMD Architecture"
+	bool "Support for the MIPS SIMD Architecture (EXPERIMENTAL)"
 	depends on CPU_SUPPORTS_MSA
 	depends on 64BIT || MIPS_O32_FP64_SUPPORT
-	default y
 	help
 	  MIPS SIMD Architecture (MSA) introduces 128 bit wide vector registers
 	  and a set of SIMD instructions to operate on them. When this option
