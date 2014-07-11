@@ -72,6 +72,9 @@ struct sco_pinfo {
 };
 
 /* ---- SCO timers ---- */
+#define SCO_CONN_TIMEOUT	(HZ * 40)
+#define SCO_DISCONN_TIMEOUT	(HZ * 2)
+
 static void sco_sock_timeout(unsigned long arg)
 {
 	struct sock *sk = (struct sock *) arg;
