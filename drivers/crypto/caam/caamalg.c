@@ -97,6 +97,13 @@ static inline void append_dec_op1(u32 *desc, u32 type)
 {
 	u32 *jump_cmd, *uncond_jump_cmd;
 
+	/* DK bit is valid only for AES */
+	if ((type & OP_ALG_ALGSEL_MASK) != OP_ALG_ALGSEL_AES) {
+		append_operation(desc, type | OP_ALG_AS_INITFINAL |
+				 OP_ALG_DECRYPT);
+		return;
+	}
+
 	jump_cmd = append_jump(desc, JUMP_TEST_ALL | JUMP_COND_SHRD);
 	append_operation(desc, type | OP_ALG_AS_INITFINAL |
 			 OP_ALG_DECRYPT);
