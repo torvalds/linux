@@ -98,8 +98,9 @@ static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
 	case  VNT_KEY_PAIRWISE:
 		key_mode |= mode;
 		key_inx = 4;
-		/* Don't save entry for pairwise key */
-		clear_bit(entry, &priv->key_entry_inuse);
+		/* Don't save entry for pairwise key for station mode */
+		if (priv->op_mode == NL80211_IFTYPE_STATION)
+			clear_bit(entry, &priv->key_entry_inuse);
 		break;
 	default:
 		return -EINVAL;
