@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2010 Google, Inc
+ * Copyright (c) 2014 NVIDIA Corporation
  *
  * Author:
  *	Colin Cross <ccross@google.com>
@@ -15,11 +16,33 @@
  *
  */
 
-#ifndef __SOC_TEGRA_POWERGATE_H__
-#define __SOC_TEGRA_POWERGATE_H__
+#ifndef __SOC_TEGRA_PMC_H__
+#define __SOC_TEGRA_PMC_H__
+
+#include <linux/reboot.h>
+
+#include <soc/tegra/pm.h>
 
 struct clk;
 struct reset_control;
+
+void tegra_pmc_restart(enum reboot_mode mode, const char *cmd);
+
+#ifdef CONFIG_PM_SLEEP
+enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void);
+void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode);
+void tegra_pmc_enter_suspend_mode(enum tegra_suspend_mode mode);
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_SMP
+bool tegra_pmc_cpu_is_powered(int cpuid);
+int tegra_pmc_cpu_power_on(int cpuid);
+int tegra_pmc_cpu_remove_clamping(int cpuid);
+#endif /* CONFIG_SMP */
+
+/*
+ * powergate and I/O rail APIs
+ */
 
 #define TEGRA_POWERGATE_CPU	0
 #define TEGRA_POWERGATE_3D	1
@@ -129,6 +152,6 @@ static inline int tegra_io_rail_power_off(int id)
 {
 	return -ENOSYS;
 }
-#endif
+#endif /* CONFIG_ARCH_TEGRA */
 
-#endif /* __SOC_TEGRA_POWERGATE_H__ */
+#endif /* __SOC_TEGRA_PMC_H__ */

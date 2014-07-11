@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
-#include <soc/tegra/powergate.h>
+#include <soc/tegra/pmc.h>
 
 #include "drm.h"
 #include "gem.h"

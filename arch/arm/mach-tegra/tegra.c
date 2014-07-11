@@ -36,6 +36,7 @@
 #include <linux/usb/tegra_usb_phy.h>
 
 #include <soc/tegra/fuse.h>
+#include <soc/tegra/pmc.h>
 
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
@@ -49,7 +50,6 @@
 #include "cpuidle.h"
 #include "iomap.h"
 #include "irq.h"
-#include "pmc.h"
 #include "pm.h"
 #include "reset.h"
 #include "sleep.h"
@@ -74,12 +74,10 @@ static void __init tegra_init_early(void)
 {
 	of_register_trusted_foundations();
 	tegra_cpu_reset_handler_init();
-	tegra_powergate_init();
 }
 
 static void __init tegra_dt_init_irq(void)
 {
-	tegra_pmc_init_irq();
 	tegra_init_irq();
 	irqchip_init();
 	tegra_legacy_irq_syscore_init();
@@ -90,8 +88,6 @@ static void __init tegra_dt_init(void)
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
 	struct device *parent = NULL;
-
-	tegra_pmc_init();
 
 	tegra_clocks_apply_init_table();
 
@@ -142,7 +138,6 @@ static void __init tegra_dt_init_late(void)
 
 	tegra_init_suspend();
 	tegra_cpuidle_init();
-	tegra_powergate_debugfs_init();
 
 	for (i = 0; i < ARRAY_SIZE(board_init_funcs); i++) {
 		if (of_machine_is_compatible(board_init_funcs[i].machine)) {

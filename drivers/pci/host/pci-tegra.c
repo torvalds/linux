@@ -45,7 +45,7 @@
 #include <linux/regulator/consumer.h>
 
 #include <soc/tegra/cpuidle.h>
-#include <soc/tegra/powergate.h>
+#include <soc/tegra/pmc.h>
 
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
