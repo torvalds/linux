@@ -259,7 +259,7 @@
 		ignore-pm-notify;
         	keep-power-in-suspend;
 	
-        	vmmc-supply = <&rk808_ldo5_reg>;
+        	vmmc-supply = <&ldo1_reg>;
 		status = "okay";
 };
 		
