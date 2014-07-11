@@ -51,7 +51,6 @@
 int tegra_sku_id;
 int tegra_cpu_process_id;
 int tegra_core_process_id;
-int tegra_chip_id;
 int tegra_cpu_speedo_id;		/* only exist in Tegra30 and later */
 int tegra_soc_speedo_id;
 enum tegra_revision tegra_revision;
@@ -124,7 +123,7 @@ static enum tegra_revision tegra_get_revision(u32 id)
 	case 2:
 		return TEGRA_REVISION_A02;
 	case 3:
-		if (tegra_chip_id == TEGRA20 &&
+		if (tegra_get_chip_id() == TEGRA20 &&
 			(tegra_spare_fuse(18) || tegra_spare_fuse(19)))
 			return TEGRA_REVISION_A03p;
 		else
@@ -153,6 +152,13 @@ static void tegra_get_process_id(void)
 u32 tegra_read_chipid(void)
 {
 	return readl_relaxed(IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804);
+}
+
+u8 tegra_get_chip_id(void)
+{
+	u32 id = tegra_read_chipid();
+
+	return (id >> 8) & 0xff;
 }
 
 static void __init tegra20_fuse_init_randomness(void)
@@ -185,6 +191,7 @@ void __init tegra_init_fuse(void)
 {
 	u32 id;
 	u32 randomness[5];
+	u8 chip_id;
 
 	u32 reg = readl(IO_ADDRESS(TEGRA_CLK_RESET_BASE + 0x48));
 	reg |= 1 << 28;
@@ -209,9 +216,9 @@ void __init tegra_init_fuse(void)
 
 	id = tegra_read_chipid();
 	randomness[2] = id;
-	tegra_chip_id = (id >> 8) & 0xff;
+	chip_id = (id >> 8) & 0xff;
 
-	switch (tegra_chip_id) {
+	switch (chip_id) {
 	case TEGRA20:
 		tegra_fuse_spare_bit = TEGRA20_FUSE_SPARE_BIT;
 		tegra_init_speedo_data = &tegra20_init_speedo_data;
@@ -224,7 +231,7 @@ void __init tegra_init_fuse(void)
 		tegra_init_speedo_data = &tegra114_init_speedo_data;
 		break;
 	default:
-		pr_warn("Tegra: unknown chip id %d\n", tegra_chip_id);
+		pr_warn("Tegra: unknown chip id %d\n", chip_id);
 		tegra_fuse_spare_bit = TEGRA20_FUSE_SPARE_BIT;
 		tegra_init_speedo_data = &tegra_get_process_id;
 	}
@@ -235,7 +242,7 @@ void __init tegra_init_fuse(void)
 	randomness[4] = (tegra_cpu_speedo_id << 16) | tegra_soc_speedo_id;
 
 	add_device_randomness(randomness, sizeof(randomness));
-	switch (tegra_chip_id) {
+	switch (chip_id) {
 	case TEGRA20:
 		tegra20_fuse_init_randomness();
 		break;

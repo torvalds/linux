@@ -16,12 +16,13 @@
 
 #include <linux/linkage.h>
 
+#include <soc/tegra/fuse.h>
+
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>
 #include <asm/cache.h>
 
 #include "flowctrl.h"
-#include "fuse.h"
 #include "irammap.h"
 #include "sleep.h"
 

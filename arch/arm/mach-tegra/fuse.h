@@ -26,11 +26,6 @@
 #define SKU_ID_AP25E	27
 #define SKU_ID_T25E	28
 
-#define TEGRA20		0x20
-#define TEGRA30		0x30
-#define TEGRA114	0x35
-#define TEGRA124	0x40
-
 #ifndef __ASSEMBLY__
 enum tegra_revision {
 	TEGRA_REVISION_UNKNOWN = 0,
@@ -45,7 +40,6 @@ enum tegra_revision {
 extern int tegra_sku_id;
 extern int tegra_cpu_process_id;
 extern int tegra_core_process_id;
-extern int tegra_chip_id;
 extern int tegra_cpu_speedo_id;		/* only exist in Tegra30 and later */
 extern int tegra_soc_speedo_id;
 extern enum tegra_revision tegra_revision;

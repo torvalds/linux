@@ -12,9 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/smp.h>
 
+#include <soc/tegra/fuse.h>
+
 #include <asm/smp_plat.h>
 
-#include "fuse.h"
 #include "sleep.h"
 
 static void (*tegra_hotplug_shutdown)(void);
@@ -52,12 +53,12 @@ void __init tegra_hotplug_init(void)
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
 		return;
 
-	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC) && tegra_chip_id == TEGRA20)
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC) && tegra_get_chip_id() == TEGRA20)
 		tegra_hotplug_shutdown = tegra20_hotplug_shutdown;
-	if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) && tegra_chip_id == TEGRA30)
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) && tegra_get_chip_id() == TEGRA30)
 		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
-	if (IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC) && tegra_chip_id == TEGRA114)
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC) && tegra_get_chip_id() == TEGRA114)
 		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
-	if (IS_ENABLED(CONFIG_ARCH_TEGRA_124_SOC) && tegra_chip_id == TEGRA124)
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_124_SOC) && tegra_get_chip_id() == TEGRA124)
 		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
 }

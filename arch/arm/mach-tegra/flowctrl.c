@@ -23,9 +23,10 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 
+#include <soc/tegra/fuse.h>
+
 #include "flowctrl.h"
 #include "iomap.h"
-#include "fuse.h"
 
 static u8 flowctrl_offset_halt_cpu[] = {
 	FLOW_CTRL_HALT_CPU0_EVENTS,
@@ -76,7 +77,7 @@ void flowctrl_cpu_suspend_enter(unsigned int cpuid)
 	int i;
 
 	reg = flowctrl_read_cpu_csr(cpuid);
-	switch (tegra_chip_id) {
+	switch (tegra_get_chip_id()) {
 	case TEGRA20:
 		/* clear wfe bitmap */
 		reg &= ~TEGRA20_FLOW_CTRL_CSR_WFE_BITMAP;
@@ -117,7 +118,7 @@ void flowctrl_cpu_suspend_exit(unsigned int cpuid)
 
 	/* Disable powergating via flow controller for CPU0 */
 	reg = flowctrl_read_cpu_csr(cpuid);
-	switch (tegra_chip_id) {
+	switch (tegra_get_chip_id()) {
 	case TEGRA20:
 		/* clear wfe bitmap */
 		reg &= ~TEGRA20_FLOW_CTRL_CSR_WFE_BITMAP;

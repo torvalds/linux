@@ -35,6 +35,8 @@
 #include <linux/sys_soc.h>
 #include <linux/usb/tegra_usb_phy.h>
 
+#include <soc/tegra/fuse.h>
+
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -104,7 +106,7 @@ static void __init tegra_dt_init(void)
 
 	soc_dev_attr->family = kasprintf(GFP_KERNEL, "Tegra");
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%d", tegra_revision);
-	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "%d", tegra_chip_id);
+	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "%u", tegra_get_chip_id());
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
