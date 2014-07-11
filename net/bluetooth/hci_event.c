@@ -3664,18 +3664,14 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		/* If we are initiators, there is no remote information yet */
 		if (conn->remote_auth == 0xff) {
-			cp.authentication = conn->auth_type;
-
 			/* Request MITM protection if our IO caps allow it
 			 * except for the no-bonding case.
-			 * conn->auth_type is not updated here since
-			 * that might cause the user confirmation to be
-			 * rejected in case the remote doesn't have the
-			 * IO capabilities for MITM.
 			 */
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
 			    cp.authentication != HCI_AT_NO_BONDING)
-				cp.authentication |= 0x01;
+				conn->auth_type |= 0x01;
+
+			cp.authentication = conn->auth_type;
 		} else {
 			conn->auth_type = hci_get_auth_req(conn);
 			cp.authentication = conn->auth_type;
@@ -3747,9 +3743,12 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	rem_mitm = (conn->remote_auth & 0x01);
 
 	/* If we require MITM but the remote device can't provide that
-	 * (it has NoInputNoOutput) then reject the confirmation request
+	 * (it has NoInputNoOutput) then reject the confirmation
+	 * request. We check the security level here since it doesn't
+	 * necessarily match conn->auth_type.
 	 */
-	if (loc_mitm && conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) {
+	if (conn->pending_sec_level > BT_SECURITY_MEDIUM &&
+	    conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) {
 		BT_DBG("Rejecting request: remote device can't provide MITM");
 		hci_send_cmd(hdev, HCI_OP_USER_CONFIRM_NEG_REPLY,
 			     sizeof(ev->bdaddr), &ev->bdaddr);
