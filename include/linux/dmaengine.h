@@ -37,7 +37,6 @@
  */
 typedef s32 dma_cookie_t;
 #define DMA_MIN_COOKIE	1
-#define DMA_MAX_COOKIE	INT_MAX
 
 static inline int dma_submit_error(dma_cookie_t cookie)
 {
