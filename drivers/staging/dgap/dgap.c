@@ -86,8 +86,7 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 				struct channel_t *ch);
 static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 				unsigned long arg);
-static int dgap_tty_digigeta(struct channel_t *ch, struct un_t *un,
-			     struct digi_t __user *retinfo);
+static int dgap_tty_digigeta(struct channel_t *ch, struct digi_t __user *retinfo);
 static int dgap_tty_digiseta(struct channel_t *ch, struct board_t *bd,
 			     struct un_t *un, struct digi_t __user *new_info);
 static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo);
@@ -102,8 +101,8 @@ static void dgap_tty_flush_chars(struct tty_struct *tty);
 static void dgap_tty_flush_buffer(struct tty_struct *tty);
 static void dgap_tty_hangup(struct tty_struct *tty);
 static int dgap_wait_for_drain(struct tty_struct *tty);
-static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command,
-				unsigned int __user *value);
+static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd, struct un_t *un,
+			       unsigned int command, unsigned int __user *value);
 static int dgap_get_modem_info(struct channel_t *ch,
 				unsigned int __user *value);
 static int dgap_tty_digisetcustombaud(struct tty_struct *tty,
@@ -3094,31 +3093,13 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
  *
  * Set modem signals, called by ld.
  */
-static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command,
-				unsigned int __user *value)
+static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd, struct un_t *un,
+			       unsigned int command, unsigned int __user *value)
 {
-	struct board_t *bd;
-	struct channel_t *ch;
-	struct un_t *un;
 	int ret;
 	unsigned int arg;
 	ulong lock_flags;
 	ulong lock_flags2;
-
-	if (!tty || tty->magic != TTY_MAGIC)
-		return -EIO;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return -EIO;
-
-	ch = un->un_ch;
-	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return -EIO;
-
-	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return -EIO;
 
 	ret = get_user(arg, value);
 	if (ret)
@@ -3189,8 +3170,7 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command,
  *
  *
  */
-static int dgap_tty_digigeta(struct channel_t *ch, struct un_t *un,
-			     struct digi_t __user *retinfo)
+static int dgap_tty_digigeta(struct channel_t *ch, struct digi_t __user *retinfo)
 {
 	struct digi_t tmp;
 	ulong lock_flags;
@@ -3899,7 +3879,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	case TIOCMSET:
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-		return dgap_set_modem_info(tty, cmd, uarg);
+		return dgap_set_modem_info(ch, bd, un, cmd, uarg);
 
 		/*
 		 * Here are any additional ioctl's that we want to implement
@@ -4047,7 +4027,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		/* get information for ditty */
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-		return dgap_tty_digigeta(ch, un, uarg);
+		return dgap_tty_digigeta(ch, uarg);
 
 	case DIGI_SETAW:
 	case DIGI_SETAF:
