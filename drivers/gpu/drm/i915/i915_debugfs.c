@@ -1892,10 +1892,15 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	intel_runtime_pm_get(dev_priv);
 
+	mutex_lock(&dev_priv->psr.lock);
 	seq_printf(m, "Sink_Support: %s\n", yesno(dev_priv->psr.sink_support));
 	seq_printf(m, "Source_OK: %s\n", yesno(dev_priv->psr.source_ok));
 	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
 	seq_printf(m, "Active: %s\n", yesno(dev_priv->psr.active));
+	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
+		   dev_priv->psr.busy_frontbuffer_bits);
+	seq_printf(m, "Re-enable work scheduled: %s\n",
+		   yesno(work_busy(&dev_priv->psr.work.work)));
 
 	enabled = HAS_PSR(dev) &&
 		I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
@@ -1905,6 +1910,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		psrperf = I915_READ(EDP_PSR_PERF_CNT(dev)) &
 			EDP_PSR_PERF_CNT_MASK;
 	seq_printf(m, "Performance_Counter: %u\n", psrperf);
+	mutex_unlock(&dev_priv->psr.lock);
 
 	intel_runtime_pm_put(dev_priv);
 	return 0;
