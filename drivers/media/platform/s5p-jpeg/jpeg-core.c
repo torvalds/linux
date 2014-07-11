@@ -1505,21 +1505,23 @@ static int s5p_jpeg_g_selection(struct file *file, void *priv,
 	case V4L2_SEL_TGT_CROP:
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
 		s->r.width = ctx->out_q.w;
 		s->r.height = ctx->out_q.h;
+		s->r.left = 0;
+		s->r.top = 0;
 		break;
+	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 	case V4L2_SEL_TGT_COMPOSE_PADDED:
-		s->r.width = ctx->cap_q.w;
-		s->r.height = ctx->cap_q.h;
+		s->r.width = ctx->crop_rect.width;
+		s->r.height =  ctx->crop_rect.height;
+		s->r.left = ctx->crop_rect.left;
+		s->r.top = ctx->crop_rect.top;
 		break;
 	default:
 		return -EINVAL;
 	}
-	s->r.left = 0;
-	s->r.top = 0;
 	return 0;
 }
 
