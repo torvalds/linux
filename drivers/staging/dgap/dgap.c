@@ -90,7 +90,8 @@ static int dgap_tty_digigeta(struct channel_t *ch, struct digi_t __user *retinfo
 static int dgap_tty_digiseta(struct channel_t *ch, struct board_t *bd,
 			     struct un_t *un, struct digi_t __user *new_info);
 static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo);
-static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info);
+static int dgap_tty_digisetedelay(struct channel_t *ch, struct board_t *bd,
+				  struct un_t *un, int __user *new_info);
 static int dgap_tty_write_room(struct tty_struct *tty);
 static int dgap_tty_chars_in_buffer(struct tty_struct *tty);
 static void dgap_tty_start(struct tty_struct *tty);
@@ -3289,29 +3290,12 @@ static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo)
  * Ioctl to set the EDELAY setting
  *
  */
-static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info)
+static int dgap_tty_digisetedelay(struct channel_t *ch, struct board_t *bd,
+				  struct un_t *un, int __user *new_info)
 {
-	struct board_t *bd;
-	struct channel_t *ch;
-	struct un_t *un;
 	int new_digi;
 	ulong lock_flags;
 	ulong lock_flags2;
-
-	if (!tty || tty->magic != TTY_MAGIC)
-		return -EFAULT;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return -EFAULT;
-
-	ch = un->un_ch;
-	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return -EFAULT;
-
-	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return -EFAULT;
 
 	if (copy_from_user(&new_digi, new_info, sizeof(int)))
 		return -EFAULT;
@@ -4059,7 +4043,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	case DIGI_SEDELAY:
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-		return dgap_tty_digisetedelay(tty, uarg);
+		return dgap_tty_digisetedelay(ch, bd, un, uarg);
 
 	case DIGI_GETCUSTOMBAUD:
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
