@@ -1850,6 +1850,7 @@ static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
 void intel_edp_psr_enable(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (!HAS_PSR(dev)) {
 		DRM_DEBUG_KMS("PSR not supported on this platform\n");
@@ -1858,6 +1859,11 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 
 	if (!is_edp_psr(intel_dp)) {
 		DRM_DEBUG_KMS("PSR not supported by this panel\n");
+		return;
+	}
+
+	if (dev_priv->psr.enabled) {
+		DRM_DEBUG_KMS("PSR already in use\n");
 		return;
 	}
 
