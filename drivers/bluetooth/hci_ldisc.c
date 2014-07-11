@@ -431,6 +431,9 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	if (test_bit(HCI_UART_RAW_DEVICE, &hu->hdev_flags))
 		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
 
+	if (test_bit(HCI_UART_EXT_CONFIG, &hu->hdev_flags))
+		set_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks);
+
 	if (!test_bit(HCI_UART_RESET_ON_INIT, &hu->hdev_flags))
 		set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
@@ -482,7 +485,8 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
 	unsigned long valid_flags = BIT(HCI_UART_RAW_DEVICE) |
 				    BIT(HCI_UART_RESET_ON_INIT) |
 				    BIT(HCI_UART_CREATE_AMP) |
-				    BIT(HCI_UART_INIT_PENDING);
+				    BIT(HCI_UART_INIT_PENDING) |
+				    BIT(HCI_UART_EXT_CONFIG);
 
 	if ((flags & ~valid_flags))
 		return -EINVAL;
