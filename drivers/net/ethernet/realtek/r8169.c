@@ -626,6 +626,10 @@ enum rtl_tx_desc_bit_0 {
 
 /* 8102e, 8168c and beyond. */
 enum rtl_tx_desc_bit_1 {
+	/* First doubleword. */
+	TD1_GTSENV4	= (1 << 26),		/* Giant Send for IPv4 */
+#define GTTCPHO_SHIFT			18
+
 	/* Second doubleword. */
 #define TD1_MSS_SHIFT			18	/* MSS position (11 bits) */
 	TD1_IP_CS	= (1 << 29),		/* Calculate IP checksum */
@@ -5941,10 +5945,12 @@ static bool rtl8169_tso_csum_v1(struct rtl8169_private *tp,
 static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 				struct sk_buff *skb, u32 *opts)
 {
+	u32 transport_offset = (u32)skb_transport_offset(skb);
 	u32 mss = skb_shinfo(skb)->gso_size;
 
 	if (mss) {
-		opts[0] |= TD_LSO;
+		opts[0] |= TD1_GTSENV4;
+		opts[0] |= transport_offset << GTTCPHO_SHIFT;
 		opts[1] |= min(mss, TD_MSS_MAX) << TD1_MSS_SHIFT;
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const struct iphdr *ip = ip_hdr(skb);
