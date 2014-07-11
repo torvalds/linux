@@ -600,19 +600,18 @@ static inline struct sock *udp_v4_mcast_next(struct net *net, struct sock *sk,
 					     int dif)
 {
 	struct hlist_nulls_node *node;
-	struct sock *s = sk;
 	unsigned short hnum = ntohs(loc_port);
 
-	sk_nulls_for_each_from(s, node) {
-		if (__udp_is_mcast_sock(net, s,
+	sk_nulls_for_each_from(sk, node) {
+		if (__udp_is_mcast_sock(net, sk,
 					loc_port, loc_addr,
 					rmt_port, rmt_addr,
 					dif, hnum))
 			goto found;
 	}
-	s = NULL;
+	sk = NULL;
 found:
-	return s;
+	return sk;
 }
 
 /*
