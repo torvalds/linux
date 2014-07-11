@@ -499,10 +499,10 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 			       digestsize, 1);
 #endif
 	}
-	*keylen = digestsize;
-
 	dma_unmap_single(jrdev, src_dma, *keylen, DMA_TO_DEVICE);
 	dma_unmap_single(jrdev, dst_dma, digestsize, DMA_FROM_DEVICE);
+
+	*keylen = digestsize;
 
 	kfree(desc);
 
