@@ -1744,15 +1744,21 @@ static void coda_free_framebuffers(struct coda_ctx *ctx)
 static int coda_alloc_framebuffers(struct coda_ctx *ctx, struct coda_q_data *q_data, u32 fourcc)
 {
 	struct coda_dev *dev = ctx->dev;
-	int height = q_data->height;
+	int width, height;
 	dma_addr_t paddr;
 	int ysize;
 	int ret;
 	int i;
 
-	if (ctx->codec && ctx->codec->src_fourcc == V4L2_PIX_FMT_H264)
-		height = round_up(height, 16);
-	ysize = round_up(q_data->width, 8) * height;
+	if (ctx->codec && (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
+	     ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264)) {
+		width = round_up(q_data->width, 16);
+		height = round_up(q_data->height, 16);
+	} else {
+		width = round_up(q_data->width, 8);
+		height = q_data->height;
+	}
+	ysize = width * height;
 
 	/* Allocate frame buffers */
 	for (i = 0; i < ctx->num_internal_frames; i++) {
@@ -2377,7 +2383,16 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		value = (q_data_src->width & CODADX6_PICWIDTH_MASK) << CODADX6_PICWIDTH_OFFSET;
 		value |= (q_data_src->height & CODADX6_PICHEIGHT_MASK) << CODA_PICHEIGHT_OFFSET;
 		break;
-	default:
+	case CODA_7541:
+		if (dst_fourcc == V4L2_PIX_FMT_H264) {
+			value = (round_up(q_data_src->width, 16) &
+				 CODA7_PICWIDTH_MASK) << CODA7_PICWIDTH_OFFSET;
+			value |= (round_up(q_data_src->height, 16) &
+				  CODA7_PICHEIGHT_MASK) << CODA_PICHEIGHT_OFFSET;
+			break;
+		}
+		/* fallthrough */
+	case CODA_960:
 		value = (q_data_src->width & CODA7_PICWIDTH_MASK) << CODA7_PICWIDTH_OFFSET;
 		value |= (q_data_src->height & CODA7_PICHEIGHT_MASK) << CODA_PICHEIGHT_OFFSET;
 	}
