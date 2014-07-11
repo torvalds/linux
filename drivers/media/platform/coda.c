@@ -12,6 +12,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/genalloc.h>
@@ -129,6 +130,8 @@ struct coda_aux_buf {
 	void			*vaddr;
 	dma_addr_t		paddr;
 	u32			size;
+	struct debugfs_blob_wrapper blob;
+	struct dentry		*dentry;
 };
 
 struct coda_dev {
@@ -156,6 +159,7 @@ struct coda_dev {
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct list_head	instances;
 	unsigned long		instance_mask;
+	struct dentry		*debugfs_root;
 };
 
 struct coda_params {
@@ -259,6 +263,7 @@ struct coda_ctx {
 	u32				frm_dis_flg;
 	u32				frame_mem_ctrl;
 	int				display_idx;
+	struct dentry			*debugfs_entry;
 };
 
 static const u8 coda_filler_nal[14] = { 0x00, 0x00, 0x00, 0x01, 0x0c, 0xff,
@@ -1704,7 +1709,8 @@ static void coda_parabuf_write(struct coda_ctx *ctx, int index, u32 value)
 }
 
 static int coda_alloc_aux_buf(struct coda_dev *dev,
-			      struct coda_aux_buf *buf, size_t size)
+			      struct coda_aux_buf *buf, size_t size,
+			      const char *name, struct dentry *parent)
 {
 	buf->vaddr = dma_alloc_coherent(&dev->plat_dev->dev, size, &buf->paddr,
 					GFP_KERNEL);
@@ -1713,13 +1719,23 @@ static int coda_alloc_aux_buf(struct coda_dev *dev,
 
 	buf->size = size;
 
+	if (name && parent) {
+		buf->blob.data = buf->vaddr;
+		buf->blob.size = size;
+		buf->dentry = debugfs_create_blob(name, 0644, parent, &buf->blob);
+		if (!buf->dentry)
+			dev_warn(&dev->plat_dev->dev,
+				 "failed to create debugfs entry %s\n", name);
+	}
+
 	return 0;
 }
 
 static inline int coda_alloc_context_buf(struct coda_ctx *ctx,
-					 struct coda_aux_buf *buf, size_t size)
+					 struct coda_aux_buf *buf, size_t size,
+					 const char *name)
 {
-	return coda_alloc_aux_buf(ctx->dev, buf, size);
+	return coda_alloc_aux_buf(ctx->dev, buf, size, name, ctx->debugfs_entry);
 }
 
 static void coda_free_aux_buf(struct coda_dev *dev,
@@ -1731,6 +1747,7 @@ static void coda_free_aux_buf(struct coda_dev *dev,
 		buf->vaddr = NULL;
 		buf->size = 0;
 	}
+	debugfs_remove(buf->dentry);
 }
 
 static void coda_free_framebuffers(struct coda_ctx *ctx)
@@ -1763,12 +1780,16 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx, struct coda_q_data *q_d
 	/* Allocate frame buffers */
 	for (i = 0; i < ctx->num_internal_frames; i++) {
 		size_t size;
+		char *name;
 
 		size = ysize + ysize / 2;
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
 		    dev->devtype->product != CODA_DX6)
 			size += ysize / 4;
-		ret = coda_alloc_context_buf(ctx, &ctx->internal_frames[i], size);
+		name = kasprintf(GFP_KERNEL, "fb%d", i);
+		ret = coda_alloc_context_buf(ctx, &ctx->internal_frames[i],
+					     size, name);
+		kfree(name);
 		if (ret < 0) {
 			coda_free_framebuffers(ctx);
 			return ret;
@@ -1992,7 +2013,7 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 		/* worst case slice size */
 		size = (DIV_ROUND_UP(q_data->width, 16) *
 			DIV_ROUND_UP(q_data->height, 16)) * 3200 / 8 + 512;
-		ret = coda_alloc_context_buf(ctx, &ctx->slicebuf, size);
+		ret = coda_alloc_context_buf(ctx, &ctx->slicebuf, size, "slicebuf");
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev, "failed to allocate %d byte slice buffer",
 				 ctx->slicebuf.size);
@@ -2001,14 +2022,14 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 	}
 
 	if (dev->devtype->product == CODA_7541) {
-		ret = coda_alloc_context_buf(ctx, &ctx->psbuf, CODA7_PS_BUF_SIZE);
+		ret = coda_alloc_context_buf(ctx, &ctx->psbuf, CODA7_PS_BUF_SIZE, "psbuf");
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev, "failed to allocate psmem buffer");
 			goto err;
 		}
 	}
 
-	ret = coda_alloc_context_buf(ctx, &ctx->workbuf, size);
+	ret = coda_alloc_context_buf(ctx, &ctx->workbuf, size, "workbuf");
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "failed to allocate %d byte context buffer",
 			 ctx->workbuf.size);
@@ -2897,6 +2918,7 @@ static int coda_open(struct file *file)
 {
 	struct coda_dev *dev = video_drvdata(file);
 	struct coda_ctx *ctx = NULL;
+	char *name;
 	int ret;
 	int idx;
 
@@ -2910,6 +2932,10 @@ static int coda_open(struct file *file)
 		goto err_coda_max;
 	}
 	set_bit(idx, &dev->instance_mask);
+
+	name = kasprintf(GFP_KERNEL, "context%d", idx);
+	ctx->debugfs_entry = debugfs_create_dir(name, dev->debugfs_root);
+	kfree(name);
 
 	init_completion(&ctx->completion);
 	INIT_WORK(&ctx->pic_run_work, coda_pic_run_work);
@@ -2962,7 +2988,8 @@ static int coda_open(struct file *file)
 
 	ctx->fh.ctrl_handler = &ctx->ctrls;
 
-	ret = coda_alloc_context_buf(ctx, &ctx->parabuf, CODA_PARA_BUF_SIZE);
+	ret = coda_alloc_context_buf(ctx, &ctx->parabuf, CODA_PARA_BUF_SIZE,
+				     "parabuf");
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "failed to allocate parabuf");
 		goto err_dma_alloc;
@@ -3022,6 +3049,8 @@ static int coda_release(struct file *file)
 
 	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "Releasing instance %p\n",
 		 ctx);
+
+	debugfs_remove_recursive(ctx->debugfs_entry);
 
 	/* If this instance is running, call .job_abort and wait for it to end */
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
@@ -3554,7 +3583,8 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 	}
 
 	/* allocate auxiliary per-device code buffer for the BIT processor */
-	ret = coda_alloc_aux_buf(dev, &dev->codebuf, fw->size);
+	ret = coda_alloc_aux_buf(dev, &dev->codebuf, fw->size, "codebuf",
+				 dev->debugfs_root);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to allocate code buffer\n");
 		return;
@@ -3790,11 +3820,16 @@ static int coda_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	dev->debugfs_root = debugfs_create_dir("coda", NULL);
+	if (!dev->debugfs_root)
+		dev_warn(&pdev->dev, "failed to create debugfs root\n");
+
 	/* allocate auxiliary per-device buffers for the BIT processor */
 	switch (dev->devtype->product) {
 	case CODA_DX6:
 		ret = coda_alloc_aux_buf(dev, &dev->workbuf,
-					 CODADX6_WORK_BUF_SIZE);
+					 CODADX6_WORK_BUF_SIZE, "workbuf",
+					 dev->debugfs_root);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to allocate work buffer\n");
 			v4l2_device_unregister(&dev->v4l2_dev);
@@ -3810,7 +3845,8 @@ static int coda_probe(struct platform_device *pdev)
 	}
 	if (dev->tempbuf.size) {
 		ret = coda_alloc_aux_buf(dev, &dev->tempbuf,
-					 dev->tempbuf.size);
+					 dev->tempbuf.size, "tempbuf",
+					 dev->debugfs_root);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to allocate temp buffer\n");
 			v4l2_device_unregister(&dev->v4l2_dev);
@@ -3834,6 +3870,11 @@ static int coda_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to alloc iram\n");
 		return -ENOMEM;
 	}
+
+	dev->iram.blob.data = dev->iram.vaddr;
+	dev->iram.blob.size = dev->iram.size;
+	dev->iram.dentry = debugfs_create_blob("iram", 0644, dev->debugfs_root,
+					       &dev->iram.blob);
 
 	dev->workqueue = alloc_workqueue("coda", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 	if (!dev->workqueue) {
@@ -3866,6 +3907,7 @@ static int coda_remove(struct platform_device *pdev)
 	coda_free_aux_buf(dev, &dev->codebuf);
 	coda_free_aux_buf(dev, &dev->tempbuf);
 	coda_free_aux_buf(dev, &dev->workbuf);
+	debugfs_remove_recursive(dev->debugfs_root);
 	return 0;
 }
 
