@@ -44,8 +44,6 @@
 
 #define CODADX6_MAX_INSTANCES	4
 
-#define CODA7_TEMP_BUF_SIZE	(304 * 1024)
-#define CODA9_TEMP_BUF_SIZE	(204 * 1024)
 #define CODA_PARA_BUF_SIZE	(10 * 1024)
 #define CODA_ISRAM_SIZE	(2048 * 2)
 #define CODADX6_IRAM_SIZE	0xb000
@@ -110,6 +108,7 @@ struct coda_devtype {
 	struct coda_codec	*codecs;
 	unsigned int		num_codecs;
 	size_t			workbuf_size;
+	size_t			tempbuf_size;
 };
 
 /* Per-queue, driver-specific private data */
@@ -3686,6 +3685,7 @@ static const struct coda_devtype coda_devdata[] = {
 		.codecs       = coda7_codecs,
 		.num_codecs   = ARRAY_SIZE(coda7_codecs),
 		.workbuf_size = 128 * 1024,
+		.tempbuf_size = 304 * 1024,
 	},
 	[CODA_IMX6Q] = {
 		.firmware     = "v4l-coda960-imx6q.bin",
@@ -3693,6 +3693,7 @@ static const struct coda_devtype coda_devdata[] = {
 		.codecs       = coda9_codecs,
 		.num_codecs   = ARRAY_SIZE(coda9_codecs),
 		.workbuf_size = 80 * 1024,
+		.tempbuf_size = 204 * 1024,
 	},
 	[CODA_IMX6DL] = {
 		.firmware     = "v4l-coda960-imx6dl.bin",
@@ -3700,6 +3701,7 @@ static const struct coda_devtype coda_devdata[] = {
 		.codecs       = coda9_codecs,
 		.num_codecs   = ARRAY_SIZE(coda9_codecs),
 		.workbuf_size = 80 * 1024,
+		.tempbuf_size = 204 * 1024,
 	},
 };
 
@@ -3819,8 +3821,7 @@ static int coda_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "failed to create debugfs root\n");
 
 	/* allocate auxiliary per-device buffers for the BIT processor */
-	switch (dev->devtype->product) {
-	case CODA_DX6:
+	if (dev->devtype->product == CODA_DX6) {
 		ret = coda_alloc_aux_buf(dev, &dev->workbuf,
 					 dev->devtype->workbuf_size, "workbuf",
 					 dev->debugfs_root);
@@ -3829,17 +3830,11 @@ static int coda_probe(struct platform_device *pdev)
 			v4l2_device_unregister(&dev->v4l2_dev);
 			return ret;
 		}
-		break;
-	case CODA_7541:
-		dev->tempbuf.size = CODA7_TEMP_BUF_SIZE;
-		break;
-	case CODA_960:
-		dev->tempbuf.size = CODA9_TEMP_BUF_SIZE;
-		break;
 	}
-	if (dev->tempbuf.size) {
+
+	if (dev->devtype->tempbuf_size) {
 		ret = coda_alloc_aux_buf(dev, &dev->tempbuf,
-					 dev->tempbuf.size, "tempbuf",
+					 dev->devtype->tempbuf_size, "tempbuf",
 					 dev->debugfs_root);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to allocate temp buffer\n");
