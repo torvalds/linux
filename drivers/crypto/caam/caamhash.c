@@ -718,7 +718,7 @@ static void ahash_done_ctx_src(struct device *jrdev, u32 *desc, u32 err,
 	if (err)
 		caam_jr_strstatus(jrdev, err);
 
-	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_FROM_DEVICE);
+	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_TO_DEVICE);
 	kfree(edesc);
 
 #ifdef DEBUG
