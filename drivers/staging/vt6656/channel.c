@@ -148,6 +148,7 @@ void vnt_init_bands(struct vnt_private *priv)
 	switch (priv->byRFType) {
 	case RF_AIROHA7230:
 	case RF_VT3342A0:
+	default:
 		ch = vnt_channels_5ghz;
 
 		for (i = 0; i < ARRAY_SIZE(vnt_channels_5ghz); i++) {
