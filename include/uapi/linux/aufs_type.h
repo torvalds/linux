@@ -182,14 +182,10 @@ enum {
 	AuCtl_RDU,
 	AuCtl_RDU_INO,
 
-	/* pathconf wrapper */
-	AuCtl_WBR_FD,
-
-	/* busy inode */
-	AuCtl_IBUSY,
-
-	/* move-down */
-	AuCtl_MVDOWN
+	AuCtl_WBR_FD,	/* pathconf wrapper */
+	AuCtl_IBUSY,	/* busy inode */
+	AuCtl_MVDOWN,	/* move-down */
+	AuCtl_BR	/* info about branches */
 };
 
 /* borrowed from linux/include/linux/kernel.h */
@@ -340,6 +336,18 @@ struct aufs_mvdown {
 
 /* ---------------------------------------------------------------------- */
 
+union aufs_brinfo {
+	/* PATH_MAX may differ between kernel-space and user-space */
+	char	_spacer[4096];
+	struct {
+		int16_t	id;
+		int	perm;
+		char	path[0];
+	};
+} __aligned(8);
+
+/* ---------------------------------------------------------------------- */
+
 #define AuCtlType		'A'
 #define AUFS_CTL_RDU		_IOWR(AuCtlType, AuCtl_RDU, struct aufs_rdu)
 #define AUFS_CTL_RDU_INO	_IOWR(AuCtlType, AuCtl_RDU_INO, struct aufs_rdu)
@@ -348,5 +356,6 @@ struct aufs_mvdown {
 #define AUFS_CTL_IBUSY		_IOWR(AuCtlType, AuCtl_IBUSY, struct aufs_ibusy)
 #define AUFS_CTL_MVDOWN		_IOWR(AuCtlType, AuCtl_MVDOWN, \
 				      struct aufs_mvdown)
+#define AUFS_CTL_BRINFO		_IOW(AuCtlType, AuCtl_BR, union aufs_brinfo)
 
 #endif /* __AUFS_TYPE_H__ */
