@@ -1256,7 +1256,8 @@ static void ced_readchar_callback(struct urb *urb)
 				}
 
 				if ((ced->num_input + got) <= INBUF_SZ)
-				       /* Adjust the buffer count accordingly */
+					/* Adjust the buffer count */
+					/* accordingly		   */
 					ced->num_input += got;
 			} else
 				dev_dbg(&ced->interface->dev, "%s: read ZLP\n",
