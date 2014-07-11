@@ -41,6 +41,14 @@ static inline int hci_test_bit(int nr, void *addr)
 }
 
 /* Security filter */
+#define HCI_SFLT_MAX_OGF  5
+
+struct hci_sec_filter {
+	__u32 type_mask;
+	__u32 event_mask[2];
+	__u32 ocf_mask[HCI_SFLT_MAX_OGF + 1][4];
+};
+
 static struct hci_sec_filter hci_sec_filter = {
 	/* Packet types */
 	0x10,

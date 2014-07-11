@@ -1360,15 +1360,6 @@ struct hci_pinfo {
 	unsigned short   channel;
 };
 
-/* HCI security filter */
-#define HCI_SFLT_MAX_OGF  5
-
-struct hci_sec_filter {
-	__u32 type_mask;
-	__u32 event_mask[2];
-	__u32 ocf_mask[HCI_SFLT_MAX_OGF + 1][4];
-};
-
 /* ----- HCI requests ----- */
 #define HCI_REQ_DONE	  0
 #define HCI_REQ_PEND	  1
