@@ -239,14 +239,20 @@ nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
 	WARN_ON_ONCE(prev == req);
 
 	if (!prev) {
+		/* a head request */
 		req->wb_head = req;
 		req->wb_this_page = req;
 	} else {
+		/* a subrequest */
 		WARN_ON_ONCE(prev->wb_this_page != prev->wb_head);
 		WARN_ON_ONCE(!test_bit(PG_HEADLOCK, &prev->wb_head->wb_flags));
 		req->wb_head = prev->wb_head;
 		req->wb_this_page = prev->wb_this_page;
 		prev->wb_this_page = req;
+
+		/* All subrequests take a ref on the head request until
+		 * nfs_page_group_destroy is called */
+		kref_get(&req->wb_head->wb_kref);
 
 		/* grab extra ref if head request has extra ref from
 		 * the write/commit path to handle handoff between write
@@ -270,6 +276,10 @@ nfs_page_group_destroy(struct kref *kref)
 {
 	struct nfs_page *req = container_of(kref, struct nfs_page, wb_kref);
 	struct nfs_page *tmp, *next;
+
+	/* subrequests must release the ref on the head request */
+	if (req->wb_head != req)
+		nfs_release_request(req->wb_head);
 
 	if (!nfs_page_group_sync_on_bit(req, PG_TEARDOWN))
 		return;
