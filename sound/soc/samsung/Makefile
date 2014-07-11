@@ -9,7 +9,7 @@ snd-soc-samsung-spdif-objs := spdif.o
 snd-soc-pcm-objs := pcm.o
 snd-soc-i2s-objs := i2s.o
 
-obj-$(CONFIG_SND_S3C_DMA) += snd-soc-s3c-dma.o
+obj-$(CONFIG_SND_SOC_SAMSUNG) += snd-soc-s3c-dma.o
 obj-$(CONFIG_SND_S3C24XX_I2S) += snd-soc-s3c24xx-i2s.o
 obj-$(CONFIG_SND_SAMSUNG_AC97) += snd-soc-ac97.o
 obj-$(CONFIG_SND_S3C2412_SOC_I2S) += snd-soc-s3c2412-i2s.o
