@@ -177,8 +177,21 @@ static const struct wiphy_vendor_command wlcore_vendor_commands[] = {
 	},
 };
 
+static const struct nl80211_vendor_cmd_info wlcore_vendor_events[] = {
+	{
+		.vendor_id = TI_OUI,
+		.subcmd = WLCORE_VENDOR_EVENT_SC_SYNC,
+	},
+	{
+		.vendor_id = TI_OUI,
+		.subcmd = WLCORE_VENDOR_EVENT_SC_DECODE,
+	},
+};
+
 void wlcore_set_vendor_commands(struct wiphy *wiphy)
 {
 	wiphy->vendor_commands = wlcore_vendor_commands;
 	wiphy->n_vendor_commands = ARRAY_SIZE(wlcore_vendor_commands);
+	wiphy->vendor_events = wlcore_vendor_events;
+	wiphy->n_vendor_events = ARRAY_SIZE(wlcore_vendor_events);
 }

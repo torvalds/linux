@@ -11,6 +11,10 @@
 #ifndef __WLCORE_VENDOR_H__
 #define __WLCORE_VENDOR_H__
 
+#ifdef __KERNEL__
+void wlcore_set_vendor_commands(struct wiphy *wiphy);
+#endif
+
 #define TI_OUI	0x080028
 
 enum wlcore_vendor_commands {
@@ -31,6 +35,11 @@ enum wlcore_vendor_attributes {
 
 	NUM_WLCORE_VENDOR_ATTR,
 	MAX_WLCORE_VENDOR_ATTR = NUM_WLCORE_VENDOR_ATTR - 1
+};
+
+enum wlcore_vendor_events {
+	WLCORE_VENDOR_EVENT_SC_SYNC,
+	WLCORE_VENDOR_EVENT_SC_DECODE,
 };
 
 #endif /* __WLCORE_VENDOR_H__ */
