@@ -453,11 +453,11 @@ static int caam_probe(struct platform_device *pdev)
 
 	if (sizeof(dma_addr_t) == sizeof(u64))
 		if (of_device_is_compatible(nprop, "fsl,sec-v5.0"))
-			dma_set_mask(dev, DMA_BIT_MASK(40));
+			dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
 		else
-			dma_set_mask(dev, DMA_BIT_MASK(36));
+			dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
 	else
-		dma_set_mask(dev, DMA_BIT_MASK(32));
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 
 	/*
 	 * Detect and enable JobRs
