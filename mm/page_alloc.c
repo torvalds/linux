@@ -1050,6 +1050,15 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
 
 			page = list_entry(area->free_list[migratetype].next,
 					struct page, lru);
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+			if (is_migrate_cma(migratetype)){
+				int mt = get_pageblock_migratetype(page);
+				if (unlikely(is_migrate_isolate(mt)))
+					continue;
+			}
+#endif
+
 			area->nr_free--;
 
 			/*
