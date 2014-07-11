@@ -41,8 +41,7 @@ menuconfig BT
 
 config BT_6LOWPAN
 	tristate "Bluetooth 6LoWPAN support"
-	depends on BT && IPV6
-	select 6LOWPAN_IPHC if BT_6LOWPAN
+	depends on BT && 6LOWPAN
 	help
 	  IPv6 compression over Bluetooth Low Energy.
 
