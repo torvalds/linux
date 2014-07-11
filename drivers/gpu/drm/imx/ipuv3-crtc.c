@@ -202,7 +202,8 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 	return ipu_plane_mode_set(ipu_crtc->plane[0], crtc, mode,
 				  crtc->primary->fb,
 				  0, 0, mode->hdisplay, mode->vdisplay,
-				  x, y, mode->hdisplay, mode->vdisplay);
+				  x, y, mode->hdisplay, mode->vdisplay,
+				  mode->flags & DRM_MODE_FLAG_INTERLACE);
 }
 
 static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
