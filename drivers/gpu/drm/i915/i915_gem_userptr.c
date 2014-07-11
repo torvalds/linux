@@ -150,7 +150,7 @@ i915_mmu_notifier_get(struct drm_device *dev, struct mm_struct *mm)
 	mmu->mm = mm;
 	mmu->objects = RB_ROOT;
 	mmu->count = 0;
-	mmu->serial = 0;
+	mmu->serial = 1;
 
 	/* Protected by mmap_sem (write-lock) */
 	ret = __mmu_notifier_register(&mmu->mn, mm);
