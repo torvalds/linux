@@ -30,7 +30,7 @@
  *      csMgmt_xmit - management tx function
  *      s_uGetDataDuration - get tx data required duration
  *      s_uFillDataHead- fulfill tx data duration header
- *      s_uGetRTSCTSDuration- get rtx/cts required duration
+ *      vnt_get_rtscts_duration_le- get rtx/cts required duration
  *      s_uGetRTSCTSRsvTime- get rts/cts reserved time
  *      s_uGetTxRsvTime- get frame reserved time
  *      vnt_fill_cts_head- fulfill CTS ctl header
@@ -92,7 +92,7 @@ static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
 static __le16 s_uGetDataDuration(struct vnt_private *pDevice,
 	u8 byPktType, int bNeedAck);
 
-static __le16 s_uGetRTSCTSDuration(struct vnt_private *priv,
+static __le16 vnt_get_rtscts_duration_le(struct vnt_private *priv,
 	u8 dur_type, u32 frame_length, u8 pkt_type, u16 rate,
 	int need_ack);
 
@@ -229,7 +229,7 @@ static __le16 s_uGetDataDuration(struct vnt_private *pDevice,
 }
 
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
-static __le16 s_uGetRTSCTSDuration(struct vnt_private *priv, u8 dur_type,
+static __le16 vnt_get_rtscts_duration_le(struct vnt_private *priv, u8 dur_type,
 	u32 frame_length, u8 pkt_type, u16 rate, int need_ack)
 {
 	u32 cts_time = 0, dur_time = 0;
@@ -422,12 +422,12 @@ static u16 vnt_rxtx_rts_g_head(struct vnt_usb_send_context *tx_context,
 	vnt_get_phy_field(priv, rts_frame_len,
 		priv->byTopOFDMBasicRate, pkt_type, &buf->a);
 
-	buf->duration_bb = s_uGetRTSCTSDuration(priv, RTSDUR_BB, frame_len,
-		PK_TYPE_11B, priv->byTopCCKBasicRate, need_ack);
-	buf->duration_aa = s_uGetRTSCTSDuration(priv, RTSDUR_AA, frame_len,
-		pkt_type, current_rate, need_ack);
-	buf->duration_ba = s_uGetRTSCTSDuration(priv, RTSDUR_BA, frame_len,
-		pkt_type, current_rate, need_ack);
+	buf->duration_bb = vnt_get_rtscts_duration_le(priv, RTSDUR_BB,
+		frame_len, PK_TYPE_11B, priv->byTopCCKBasicRate, need_ack);
+	buf->duration_aa = vnt_get_rtscts_duration_le(priv, RTSDUR_AA,
+		frame_len, pkt_type, current_rate, need_ack);
+	buf->duration_ba = vnt_get_rtscts_duration_le(priv, RTSDUR_BA,
+		frame_len, pkt_type, current_rate, need_ack);
 
 	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration_aa);
 
@@ -448,21 +448,21 @@ static u16 vnt_rxtx_rts_g_fb_head(struct vnt_usb_send_context *tx_context,
 		priv->byTopOFDMBasicRate, pkt_type, &buf->a);
 
 
-	buf->duration_bb = s_uGetRTSCTSDuration(priv, RTSDUR_BB, frame_len,
-		PK_TYPE_11B, priv->byTopCCKBasicRate, need_ack);
-	buf->duration_aa = s_uGetRTSCTSDuration(priv, RTSDUR_AA, frame_len,
-		pkt_type, current_rate, need_ack);
-	buf->duration_ba = s_uGetRTSCTSDuration(priv, RTSDUR_BA, frame_len,
-		pkt_type, current_rate, need_ack);
+	buf->duration_bb = vnt_get_rtscts_duration_le(priv, RTSDUR_BB,
+		frame_len, PK_TYPE_11B, priv->byTopCCKBasicRate, need_ack);
+	buf->duration_aa = vnt_get_rtscts_duration_le(priv, RTSDUR_AA,
+		frame_len, pkt_type, current_rate, need_ack);
+	buf->duration_ba = vnt_get_rtscts_duration_le(priv, RTSDUR_BA,
+		frame_len, pkt_type, current_rate, need_ack);
 
 
-	buf->rts_duration_ba_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_BA_F0,
+	buf->rts_duration_ba_f0 = vnt_get_rtscts_duration_le(priv, RTSDUR_BA_F0,
 		frame_len, pkt_type, priv->tx_rate_fb0, need_ack);
-	buf->rts_duration_aa_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F0,
+	buf->rts_duration_aa_f0 = vnt_get_rtscts_duration_le(priv, RTSDUR_AA_F0,
 		frame_len, pkt_type, priv->tx_rate_fb0, need_ack);
-	buf->rts_duration_ba_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_BA_F1,
+	buf->rts_duration_ba_f1 = vnt_get_rtscts_duration_le(priv, RTSDUR_BA_F1,
 		frame_len, pkt_type, priv->tx_rate_fb1, need_ack);
-	buf->rts_duration_aa_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F1,
+	buf->rts_duration_aa_f1 = vnt_get_rtscts_duration_le(priv, RTSDUR_AA_F1,
 		frame_len, pkt_type, priv->tx_rate_fb1, need_ack);
 
 	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration_aa);
@@ -481,7 +481,7 @@ static u16 vnt_rxtx_rts_ab_head(struct vnt_usb_send_context *tx_context,
 	vnt_get_phy_field(priv, rts_frame_len,
 		priv->byTopOFDMBasicRate, pkt_type, &buf->ab);
 
-	buf->duration = s_uGetRTSCTSDuration(priv, RTSDUR_AA, frame_len,
+	buf->duration = vnt_get_rtscts_duration_le(priv, RTSDUR_AA, frame_len,
 		pkt_type, current_rate, need_ack);
 
 	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration);
@@ -500,13 +500,13 @@ static u16 vnt_rxtx_rts_a_fb_head(struct vnt_usb_send_context *tx_context,
 	vnt_get_phy_field(priv, rts_frame_len,
 		priv->byTopOFDMBasicRate, pkt_type, &buf->a);
 
-	buf->duration = s_uGetRTSCTSDuration(priv, RTSDUR_AA, frame_len,
+	buf->duration = vnt_get_rtscts_duration_le(priv, RTSDUR_AA, frame_len,
 		pkt_type, current_rate, need_ack);
 
-	buf->rts_duration_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F0,
+	buf->rts_duration_f0 = vnt_get_rtscts_duration_le(priv, RTSDUR_AA_F0,
 		frame_len, pkt_type, priv->tx_rate_fb0, need_ack);
 
-	buf->rts_duration_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F1,
+	buf->rts_duration_f1 = vnt_get_rtscts_duration_le(priv, RTSDUR_AA_F1,
 		frame_len, pkt_type, priv->tx_rate_fb1, need_ack);
 
 	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration);
@@ -531,15 +531,15 @@ static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 		/* Get SignalField,ServiceField,Length */
 		vnt_get_phy_field(priv, cts_frame_len,
 			priv->byTopCCKBasicRate, PK_TYPE_11B, &buf->b);
-		buf->duration_ba = s_uGetRTSCTSDuration(priv, CTSDUR_BA,
+		buf->duration_ba = vnt_get_rtscts_duration_le(priv, CTSDUR_BA,
 			frame_len, pkt_type,
 			current_rate, need_ack);
 		/* Get CTSDuration_ba_f0 */
-		buf->cts_duration_ba_f0 = s_uGetRTSCTSDuration(priv,
+		buf->cts_duration_ba_f0 = vnt_get_rtscts_duration_le(priv,
 			CTSDUR_BA_F0, frame_len, pkt_type,
 			priv->tx_rate_fb0, need_ack);
 		/* Get CTSDuration_ba_f1 */
-		buf->cts_duration_ba_f1 = s_uGetRTSCTSDuration(priv,
+		buf->cts_duration_ba_f1 = vnt_get_rtscts_duration_le(priv,
 			CTSDUR_BA_F1, frame_len, pkt_type,
 			priv->tx_rate_fb1, need_ack);
 		/* Get CTS Frame body */
@@ -558,7 +558,7 @@ static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 		vnt_get_phy_field(priv, cts_frame_len,
 			priv->byTopCCKBasicRate, PK_TYPE_11B, &buf->b);
 		/* Get CTSDuration_ba */
-		buf->duration_ba = s_uGetRTSCTSDuration(priv,
+		buf->duration_ba = vnt_get_rtscts_duration_le(priv,
 			CTSDUR_BA, frame_len, pkt_type,
 			current_rate, need_ack);
 		/*Get CTS Frame body*/
