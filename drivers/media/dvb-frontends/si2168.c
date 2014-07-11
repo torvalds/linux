@@ -249,27 +249,6 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	memcpy(cmd.args, "\x14\x00\x01\x04\x00\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x03\x10\x17\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x02\x10\x15\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
 	memcpy(cmd.args, "\x14\x00\x0c\x10\x12\x00", 6);
 	cmd.wlen = 6;
 	cmd.rlen = 1;
@@ -278,13 +257,6 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 		goto err;
 
 	memcpy(cmd.args, "\x14\x00\x06\x10\x24\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x0b\x10\x88\x13", 6);
 	cmd.wlen = 6;
 	cmd.rlen = 1;
 	ret = si2168_cmd_execute(s, &cmd);
@@ -306,28 +278,7 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	memcpy(cmd.args, "\x14\x00\x04\x10\x15\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x05\x10\xa1\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
 	memcpy(cmd.args, "\x14\x00\x0f\x10\x10\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x0d\x10\xd0\x02", 6);
 	cmd.wlen = 6;
 	cmd.rlen = 1;
 	ret = si2168_cmd_execute(s, &cmd);
@@ -349,55 +300,6 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 		goto err;
 
 	memcpy(cmd.args, "\x14\x00\x08\x10\xd7\x15", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x04\x03\x00\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x03\x03\x00\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x08\x03\x00\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x07\x03\x01\x02", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x06\x03\x00\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x05\x03\x00\x00", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x01\x03\x0c\x40", 6);
 	cmd.wlen = 6;
 	cmd.rlen = 1;
 	ret = si2168_cmd_execute(s, &cmd);
