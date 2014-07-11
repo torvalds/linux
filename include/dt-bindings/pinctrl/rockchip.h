@@ -89,6 +89,12 @@
 #define VALUE_PULL_DOWN		2
 #define VALUE_PULL_KEEP		3
 #define VALUE_PULL_DISABLE	4 //don't set and keep pull default
+#define VALUE_PULL_DEFAULT	4 //don't set and keep pull default
+
+
+//for rk2928,rk3036
+#define VALUE_PULL_UPDOWN_DISABLE		0
+#define VALUE_PULL_UPDOWN_ENABLE		1
 
 #define VALUE_VOL_DEFAULT	0
 #define VALUE_VOL_3V3		0

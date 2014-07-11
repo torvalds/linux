@@ -1305,6 +1305,8 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 		data = BIT(bit + 16);
 		if (pull == PIN_CONFIG_BIAS_DISABLE)
 			data |= BIT(bit);
+		
+		if(pull != PIN_CONFIG_BIAS_PULL_PIN_DEFAULT)
 		writel(data, reg);
 
 		spin_unlock_irqrestore(&bank->slock, flags);
@@ -1708,7 +1710,34 @@ static int _rockchip_pinconf_set(struct rockchip_pin_bank *bank,
 		break;
 
 		case RK3036:
-		//to do
+
+		switch(config_type)
+		{			
+			case TYPE_DRV_REG:
+
+				if((bank->bank_num == 1) && (pin_num >= 0) && (pin_num <= 3))
+				{
+					bit = pin_num*2 + 4;
+					reg = info->reg_drv;
+					spin_lock_irqsave(&bank->slock, flags);
+
+					data = arg << bit;
+					data &= (3<<bit);
+					data |= (3<<(bit+16));
+					
+					writel_relaxed(data, reg);
+					spin_unlock_irqrestore(&bank->slock, flags);
+				}
+				else
+				{
+					printk("%s:RK3036 GPIO%d-%d could not support driver setting\n",__func__, bank->bank_num, pin_num);
+				}
+				break;
+			default:
+				break;
+
+		}
+
 		break;
 
 		default:
@@ -2033,6 +2062,8 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 				pull = PIN_CONFIG_BIAS_PULL_DOWN;
 			else if (val == 3)
 				pull = PIN_CONFIG_BIAS_BUS_HOLD;
+			else if (val == 4)
+				pull = PIN_CONFIG_BIAS_PULL_PIN_DEFAULT;
 			
 			pinconfig[j++] = pinconf_to_config_packed(pull, val);
 		}
