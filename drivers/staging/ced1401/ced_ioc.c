@@ -84,9 +84,11 @@ static int ced_put_chars(struct ced_data *ced, const char *ch,
 		    unsigned int count)
 {
 	int ret;
+
 	spin_lock_irq(&ced->char_out_lock);	/*  get the output spin lock */
 	if ((OUTBUF_SZ - ced->num_output) >= count) {
 		unsigned int u;
+
 		for (u = 0; u < count; u++) {
 			ced->output_buffer[ced->out_buff_put++] = ch[u];
 			if (ced->out_buff_put >= OUTBUF_SZ)
@@ -140,6 +142,7 @@ int ced_send_string(struct ced_data *ced, const char __user *data,
 int ced_send_char(struct ced_data *ced, char c)
 {
 	int ret;
+
 	mutex_lock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
 	ret = ced_put_chars(ced, &c, 1);
 	dev_dbg(&ced->interface->dev, "ced_send_char >%c< (0x%02x)\n", c, c);
@@ -177,6 +180,7 @@ int ced_send_char(struct ced_data *ced, char c)
 int ced_get_state(struct ced_data *ced, __u32 *state, __u32 *error)
 {
 	int got;
+
 	dev_dbg(&ced->interface->dev, "%s: entry\n", __func__);
 
 	*state = 0xFFFFFFFF;	/*  Start off with invalid state */
@@ -192,6 +196,7 @@ int ced_get_state(struct ced_data *ced, __u32 *state, __u32 *error)
 		*error = 0;
 	} else {
 		int device;
+
 		dev_dbg(&ced->interface->dev,
 			"%s: Success, state: 0x%x, 0x%x\n",
 			__func__, ced->stat_buf[0], ced->stat_buf[1]);
@@ -249,6 +254,7 @@ int ced_read_write_cancel(struct ced_data *ced)
 		bResult = IoCancelIrp(ced->pStagedIrp);	/*  Actually do the cancel */
 		if (bResult) {
 			LARGE_INTEGER timeout;
+
 			timeout.QuadPart = -10000000;	/*  Use a timeout of 1 second */
 			dev_info(&ced->interface - dev,
 				 "%s: about to wait till done\n", __func__);
@@ -283,6 +289,7 @@ static int ced_in_self_test(struct ced_data *ced, unsigned int *stat)
 {
 	unsigned int state, error;
 	int ret = ced_get_state(ced, &state, &error); /* see if in self-test */
+
 	if (ret == U14ERR_NOERROR)	/*  if all still OK */
 		ret = (state == (unsigned int)-1) ||	/*  TX problem or... */
 		    ((state & 0xff) == 0x80);	/*  ...self test */
@@ -311,6 +318,7 @@ static int ced_in_self_test(struct ced_data *ced, unsigned int *stat)
 static bool ced_is_1401(struct ced_data *ced)
 {
 	int ret;
+
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
 	ced_draw_down(ced);	/*  wait for, then kill outstanding Urbs */
@@ -334,11 +342,13 @@ static bool ced_is_1401(struct ced_data *ced)
 	ced->dma_flag = MODE_CHAR;	/*  Clear DMA mode flag regardless! */
 	if (ret == 0) {	/*  if all is OK still */
 		unsigned int state;
+
 		ret = ced_in_self_test(ced, &state); /* see if likely in */
 						     /* self test 	 */
 		if (ret > 0) {	/*  do we need to wait for self-test? */
 			/* when to give up */
 			unsigned long timeout = jiffies + 30 * HZ;
+
 			while ((ret > 0) && time_before(jiffies, timeout)) {
 				schedule();	/*  let other stuff run */
 
@@ -396,6 +406,7 @@ static bool ced_quick_check(struct ced_data *ced, bool test_buff,
 	if (short_test || !can_reset) {	/*  Still OK to try the short test? */
 				/*  Always test if no reset - we want state update */
 		unsigned int state, error;
+
 		dev_dbg(&ced->interface->dev, "%s: ced_get_state\n", __func__);
 		if (ced_get_state(ced, &state, &error) == U14ERR_NOERROR) {	/*  Check on the 1401 state */
 			if ((state & 0xFF) == 0)	/*  If call worked, check the status value */
@@ -437,6 +448,7 @@ int ced_reset(struct ced_data *ced)
 int ced_get_char(struct ced_data *ced)
 {
 	int ret = U14ERR_NOIN;	/*  assume we will get  nothing */
+
 	mutex_lock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
 
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
@@ -475,6 +487,7 @@ int ced_get_string(struct ced_data *ced, char __user *user, int n)
 {
 	int available;		/*  character in the buffer */
 	int ret = U14ERR_NOIN;
+
 	if (n <= 0)
 		return -ENOMEM;
 
@@ -492,6 +505,7 @@ int ced_get_string(struct ced_data *ced, char __user *user, int n)
 		int got = 0;
 		int n_copy_to_user;	/*  number to copy to user */
 		char data;
+
 		do {
 			data = ced->input_buffer[ced->in_buff_get++];
 			if (data == CR_CHAR)	/*  replace CR with zero */
@@ -534,6 +548,7 @@ int ced_get_string(struct ced_data *ced, char __user *user, int n)
 int ced_stat_1401(struct ced_data *ced)
 {
 	int ret;
+
 	mutex_lock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
 	ced_allowi(ced);		/*  make sure we allow pending chars */
 	ced_send_chars(ced);		/*  in both directions */
@@ -563,6 +578,7 @@ int ced_line_count(struct ced_data *ced)
 		unsigned int index = ced->in_buff_get;
 		/* Position for search end */
 		unsigned int end = ced->in_buff_put;
+
 		do {
 			if (ced->input_buffer[index++] == CR_CHAR)
 				++ret;	/*  inc count if CR */
@@ -618,6 +634,7 @@ int ced_clear_area(struct ced_data *ced, int area)
 	} else {
 		/* to save typing */
 		struct transarea *ta = &ced->trans_def[area];
+
 		if (!ta->used)	/*  if not used... */
 			ret = U14ERR_NOTSET;	/*  ...nothing to be done */
 		else {
@@ -709,6 +726,7 @@ static int ced_set_area(struct ced_data *ced, int area, char __user *buf,
 	int n_pages = 0;		/*  and number of pages */
 
 	int ret = ced_clear_area(ced, area); /*  see if OK to use this area */
+
 	if ((ret != U14ERR_NOTSET) &&	/*  if not area unused and... */
 	    (ret != U14ERR_NOERROR))	/*  ...not all OK, then... */
 		return ret;	/*  ...we cannot use this area */
@@ -807,6 +825,7 @@ int ced_set_transfer(struct ced_data *ced,
 int ced_unset_transfer(struct ced_data *ced, int area)
 {
 	int ret;
+
 	mutex_lock(&ced->io_mutex);
 	ret = ced_clear_area(ced, area);
 	mutex_unlock(&ced->io_mutex);
@@ -866,6 +885,7 @@ int ced_set_event(struct ced_data *ced, struct transfer_event __user *ute)
 int ced_wait_event(struct ced_data *ced, int area, int time_out)
 {
 	int ret;
+
 	if ((unsigned)area >= MAX_TRANSAREAS)
 		return U14ERR_BADAREA;
 	else {
@@ -919,6 +939,7 @@ int ced_wait_event(struct ced_data *ced, int area, int time_out)
 int ced_test_event(struct ced_data *ced, int area)
 {
 	int ret;
+
 	if ((unsigned)area >= MAX_TRANSAREAS)
 		ret = U14ERR_BADAREA;
 	else {
@@ -998,6 +1019,7 @@ int ced_kill_io(struct ced_data *ced)
 int ced_state_of_1401(struct ced_data *ced)
 {
 	int ret;
+
 	mutex_lock(&ced->io_mutex);
 
 	ced_quick_check(ced, false, false); /* get state up to date, no reset */
@@ -1018,6 +1040,7 @@ int ced_state_of_1401(struct ced_data *ced)
 int ced_start_self_test(struct ced_data *ced)
 {
 	int got;
+
 	mutex_lock(&ced->io_mutex);
 	dev_dbg(&ced->interface->dev, "%s\n", __func__);
 
@@ -1050,6 +1073,7 @@ int ced_check_self_test(struct ced_data *ced, TGET_SELFTEST __user *ugst)
 	unsigned int state, error;
 	int ret;
 	TGET_SELFTEST gst;	/*  local work space */
+
 	memset(&gst, 0, sizeof(gst));	/*  clear out the space (sets code 0) */
 
 	mutex_lock(&ced->io_mutex);
@@ -1087,6 +1111,7 @@ int ced_check_self_test(struct ced_data *ced, TGET_SELFTEST __user *ugst)
 				"Self-test error code %d\n", gst.code);
 		} else {		/*  No error, check for timeout */
 			unsigned long now = jiffies;	/*  get current time */
+
 			if (time_after(now, ced->self_test_time)) {
 				gst.code = -2;	/*  Flag the timeout */
 				dev_dbg(&ced->interface->dev,
@@ -1426,6 +1451,7 @@ int ced_get_circ_block(struct ced_data *ced, TCIRCBLOCK __user *ucb)
 	if (area < MAX_TRANSAREAS) {	/*  The area number must be OK */
 		/* Pointer to relevant info */
 		struct transarea *ta = &ced->trans_def[area];
+
 		spin_lock_irq(&ced->staged_lock);	/*  Lock others out */
 
 		if ((ta->used) && (ta->circular) && /* Must be circular area */
