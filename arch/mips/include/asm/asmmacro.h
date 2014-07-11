@@ -10,6 +10,7 @@
 
 #include <asm/hazards.h>
 #include <asm/asm-offsets.h>
+#include <asm/msa.h>
 
 #ifdef CONFIG_32BIT
 #include <asm/asmmacro-32.h>
@@ -378,9 +379,19 @@
 	st_d	29, THREAD_FPR29, \thread
 	st_d	30, THREAD_FPR30, \thread
 	st_d	31, THREAD_FPR31, \thread
+	.set	push
+	.set	noat
+	cfcmsa	$1, MSA_CSR
+	sw	$1, THREAD_MSA_CSR(\thread)
+	.set	pop
 	.endm
 
 	.macro	msa_restore_all	thread
+	.set	push
+	.set	noat
+	lw	$1, THREAD_MSA_CSR(\thread)
+	ctcmsa	MSA_CSR, $1
+	.set	pop
 	ld_d	0, THREAD_FPR0, \thread
 	ld_d	1, THREAD_FPR1, \thread
 	ld_d	2, THREAD_FPR2, \thread
