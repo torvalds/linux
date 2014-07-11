@@ -161,13 +161,15 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 		__func__, encoder_types);
 
 	/*
-	 * If we have DAC, TVDAC or LDB, then we need the IPU DI clock
-	 * to be the same as the LDB DI clock.
+	 * If we have DAC or LDB, then we need the IPU DI clock to be
+	 * the same as the LDB DI clock. For TVDAC, derive the IPU DI
+	 * clock from 27 MHz TVE_DI clock, but allow to divide it.
 	 */
 	if (encoder_types & (BIT(DRM_MODE_ENCODER_DAC) |
-			     BIT(DRM_MODE_ENCODER_TVDAC) |
 			     BIT(DRM_MODE_ENCODER_LVDS)))
 		sig_cfg.clkflags = IPU_DI_CLKMODE_SYNC | IPU_DI_CLKMODE_EXT;
+	else if (encoder_types & BIT(DRM_MODE_ENCODER_TVDAC))
+		sig_cfg.clkflags = IPU_DI_CLKMODE_EXT;
 	else
 		sig_cfg.clkflags = 0;
 
