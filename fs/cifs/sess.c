@@ -1366,7 +1366,7 @@ out:
 	sess_data->result = rc;
 }
 
-int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
+static int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
 {
 	int type;
 
