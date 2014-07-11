@@ -5194,8 +5194,11 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	bool was_interruptible;
 	bool unlock;
 
-	while (!i915_gem_shrinker_lock(dev, &unlock) && --timeout)
+	while (!i915_gem_shrinker_lock(dev, &unlock) && --timeout) {
 		schedule_timeout_killable(1);
+		if (fatal_signal_pending(current))
+			return NOTIFY_DONE;
+	}
 	if (timeout == 0) {
 		pr_err("Unable to purge GPU memory due lock contention.\n");
 		return NOTIFY_DONE;
