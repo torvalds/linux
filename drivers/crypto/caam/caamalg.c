@@ -786,7 +786,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
+	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
