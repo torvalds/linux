@@ -633,32 +633,6 @@ enum rtl_tx_desc_bit_1 {
 	TD1_UDP_CS	= (1 << 31),		/* Calculate UDP/IP checksum */
 };
 
-static const struct rtl_tx_desc_info {
-	struct {
-		u32 udp;
-		u32 tcp;
-	} checksum;
-	u16 mss_shift;
-	u16 opts_offset;
-} tx_desc_info [] = {
-	[RTL_TD_0] = {
-		.checksum = {
-			.udp	= TD0_IP_CS | TD0_UDP_CS,
-			.tcp	= TD0_IP_CS | TD0_TCP_CS
-		},
-		.mss_shift	= TD0_MSS_SHIFT,
-		.opts_offset	= 0
-	},
-	[RTL_TD_1] = {
-		.checksum = {
-			.udp	= TD1_IP_CS | TD1_UDP_CS,
-			.tcp	= TD1_IP_CS | TD1_TCP_CS
-		},
-		.mss_shift	= TD1_MSS_SHIFT,
-		.opts_offset	= 1
-	}
-};
-
 enum rtl_rx_desc_bit {
 	/* Rx private */
 	PID1		= (1 << 18), /* Protocol ID bit 1/2 */
@@ -782,6 +756,7 @@ struct rtl8169_private {
 	unsigned int (*phy_reset_pending)(struct rtl8169_private *tp);
 	unsigned int (*link_ok)(void __iomem *);
 	int (*do_ioctl)(struct rtl8169_private *tp, struct mii_ioctl_data *data, int cmd);
+	bool (*tso_csum)(struct rtl8169_private *, struct sk_buff *, u32 *);
 
 	struct {
 		DECLARE_BITMAP(flags, RTL_FLAG_MAX);
@@ -5941,16 +5916,36 @@ static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp, struct sk_buff *skb)
 	return skb->len < ETH_ZLEN && tp->mac_version == RTL_GIGA_MAC_VER_34;
 }
 
-static inline bool rtl8169_tso_csum(struct rtl8169_private *tp,
-				    struct sk_buff *skb, u32 *opts)
+static bool rtl8169_tso_csum_v1(struct rtl8169_private *tp,
+				struct sk_buff *skb, u32 *opts)
 {
-	const struct rtl_tx_desc_info *info = tx_desc_info + tp->txd_version;
 	u32 mss = skb_shinfo(skb)->gso_size;
-	int offset = info->opts_offset;
 
 	if (mss) {
 		opts[0] |= TD_LSO;
-		opts[offset] |= min(mss, TD_MSS_MAX) << info->mss_shift;
+		opts[0] |= min(mss, TD_MSS_MAX) << TD0_MSS_SHIFT;
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		const struct iphdr *ip = ip_hdr(skb);
+
+		if (ip->protocol == IPPROTO_TCP)
+			opts[0] |= TD0_IP_CS | TD0_TCP_CS;
+		else if (ip->protocol == IPPROTO_UDP)
+			opts[0] |= TD0_IP_CS | TD0_UDP_CS;
+		else
+			WARN_ON_ONCE(1);
+	}
+
+	return true;
+}
+
+static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
+				struct sk_buff *skb, u32 *opts)
+{
+	u32 mss = skb_shinfo(skb)->gso_size;
+
+	if (mss) {
+		opts[0] |= TD_LSO;
+		opts[1] |= min(mss, TD_MSS_MAX) << TD1_MSS_SHIFT;
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const struct iphdr *ip = ip_hdr(skb);
 
@@ -5958,15 +5953,16 @@ static inline bool rtl8169_tso_csum(struct rtl8169_private *tp,
 			return skb_checksum_help(skb) == 0 && rtl_skb_pad(skb);
 
 		if (ip->protocol == IPPROTO_TCP)
-			opts[offset] |= info->checksum.tcp;
+			opts[1] |= TD1_IP_CS | TD1_TCP_CS;
 		else if (ip->protocol == IPPROTO_UDP)
-			opts[offset] |= info->checksum.udp;
+			opts[1] |= TD1_IP_CS | TD1_UDP_CS;
 		else
 			WARN_ON_ONCE(1);
 	} else {
 		if (unlikely(rtl_test_hw_pad_bug(tp, skb)))
 			return rtl_skb_pad(skb);
 	}
+
 	return true;
 }
 
@@ -5994,7 +5990,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	opts[1] = cpu_to_le32(rtl8169_tx_vlan_tag(skb));
 	opts[0] = DescOwn;
 
-	if (!rtl8169_tso_csum(tp, skb, opts))
+	if (!tp->tso_csum(tp, skb, opts))
 		goto err_update_stats;
 
 	len = skb_headlen(skb);
@@ -7144,6 +7140,13 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
 		/* 8110SCd requires hardware Rx VLAN - disallow toggling */
 		dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+
+	if (tp->txd_version == RTL_TD_0)
+		tp->tso_csum = rtl8169_tso_csum_v1;
+	else if (tp->txd_version == RTL_TD_1)
+		tp->tso_csum = rtl8169_tso_csum_v2;
+	else
+		WARN_ON_ONCE(1);
 
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
