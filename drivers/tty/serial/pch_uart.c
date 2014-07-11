@@ -1047,7 +1047,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 					priv->sg_tx_p, nent, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		dev_err(priv->port.dev, "%s:device_prep_slave_sg Failed\n",
+		dev_err(priv->port.dev, "%s:dmaengine_prep_slave_sg Failed\n",
 			__func__);
 		return 0;
 	}
