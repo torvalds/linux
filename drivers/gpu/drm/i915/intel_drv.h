@@ -868,7 +868,10 @@ void intel_edp_panel_off(struct intel_dp *intel_dp);
 void intel_edp_psr_enable(struct intel_dp *intel_dp);
 void intel_edp_psr_disable(struct intel_dp *intel_dp);
 void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate);
-void intel_edp_psr_exit(struct drm_device *dev);
+void intel_edp_psr_invalidate(struct drm_device *dev,
+			      unsigned frontbuffer_bits);
+void intel_edp_psr_flush(struct drm_device *dev,
+			 unsigned frontbuffer_bits);
 void intel_edp_psr_init(struct drm_device *dev);
 
 /* intel_dsi.c */

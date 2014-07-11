@@ -666,6 +666,7 @@ struct i915_psr {
 	struct intel_dp *enabled;
 	bool active;
 	struct delayed_work work;
+	unsigned busy_frontbuffer_bits;
 };
 
 enum intel_pch {
