@@ -43,8 +43,6 @@
 #include "rf.h"
 #include "usbpipe.h"
 
-static int          msglevel                = MSG_LEVEL_INFO;
-
 static const u16 vnt_time_stampoff[2][MAX_RATE] = {
 	{384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23},/* Long Preamble */
 	{384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23},/* Short Preamble */
@@ -81,7 +79,7 @@ static struct vnt_usb_send_context
 	struct vnt_usb_send_context *context = NULL;
 	int ii;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GetFreeContext()\n");
+	dev_dbg(&priv->usb->dev, "%s\n", __func__);
 
 	for (ii = 0; ii < priv->cbTD; ii++) {
 		if (!priv->apTD[ii])
@@ -100,7 +98,7 @@ static struct vnt_usb_send_context
 	}
 
 	if (ii == priv->cbTD)
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No Free Tx Context\n");
+		dev_dbg(&priv->usb->dev, "%s No Free Tx Context\n", __func__);
 
 	return NULL;
 }
