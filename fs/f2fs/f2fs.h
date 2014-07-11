@@ -1298,7 +1298,6 @@ bool space_for_roll_forward(struct f2fs_sb_info *);
 struct f2fs_stat_info {
 	struct list_head stat_list;
 	struct f2fs_sb_info *sbi;
-	struct mutex stat_lock;
 	int all_area_segs, sit_area_segs, nat_area_segs, ssa_area_segs;
 	int main_area_segs, main_area_sections, main_area_zones;
 	int hit_ext, total_ext;
