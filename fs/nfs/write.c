@@ -91,8 +91,15 @@ static void nfs_context_set_write_error(struct nfs_open_context *ctx, int error)
 	set_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
 }
 
+/*
+ * nfs_page_find_head_request_locked - find head request associated with @page
+ *
+ * must be called while holding the inode lock.
+ *
+ * returns matching head request with reference held, or NULL if not found.
+ */
 static struct nfs_page *
-nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *page)
+nfs_page_find_head_request_locked(struct nfs_inode *nfsi, struct page *page)
 {
 	struct nfs_page *req = NULL;
 
@@ -104,25 +111,33 @@ nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *page)
 		/* Linearly search the commit list for the correct req */
 		list_for_each_entry_safe(freq, t, &nfsi->commit_info.list, wb_list) {
 			if (freq->wb_page == page) {
-				req = freq;
+				req = freq->wb_head;
 				break;
 			}
 		}
 	}
 
-	if (req)
+	if (req) {
+		WARN_ON_ONCE(req->wb_head != req);
+
 		kref_get(&req->wb_kref);
+	}
 
 	return req;
 }
 
-static struct nfs_page *nfs_page_find_request(struct page *page)
+/*
+ * nfs_page_find_head_request - find head request associated with @page
+ *
+ * returns matching head request with reference held, or NULL if not found.
+ */
+static struct nfs_page *nfs_page_find_head_request(struct page *page)
 {
 	struct inode *inode = page_file_mapping(page)->host;
 	struct nfs_page *req = NULL;
 
 	spin_lock(&inode->i_lock);
-	req = nfs_page_find_request_locked(NFS_I(inode), page);
+	req = nfs_page_find_head_request_locked(NFS_I(inode), page);
 	spin_unlock(&inode->i_lock);
 	return req;
 }
@@ -282,7 +297,7 @@ static struct nfs_page *nfs_find_and_lock_request(struct page *page, bool nonblo
 
 	spin_lock(&inode->i_lock);
 	for (;;) {
-		req = nfs_page_find_request_locked(NFS_I(inode), page);
+		req = nfs_page_find_head_request_locked(NFS_I(inode), page);
 		if (req == NULL)
 			break;
 		if (nfs_lock_request(req))
@@ -773,7 +788,7 @@ static struct nfs_page *nfs_try_to_update_request(struct inode *inode,
 	spin_lock(&inode->i_lock);
 
 	for (;;) {
-		req = nfs_page_find_request_locked(NFS_I(inode), page);
+		req = nfs_page_find_head_request_locked(NFS_I(inode), page);
 		if (req == NULL)
 			goto out_unlock;
 
@@ -881,7 +896,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 	 * dropped page.
 	 */
 	do {
-		req = nfs_page_find_request(page);
+		req = nfs_page_find_head_request(page);
 		if (req == NULL)
 			return 0;
 		l_ctx = req->wb_lock_context;
@@ -1575,7 +1590,7 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
 
 	for (;;) {
 		wait_on_page_writeback(page);
-		req = nfs_page_find_request(page);
+		req = nfs_page_find_head_request(page);
 		if (req == NULL)
 			break;
 		if (nfs_lock_request(req)) {
