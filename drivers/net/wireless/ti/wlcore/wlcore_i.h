@@ -324,6 +324,7 @@ struct wl1271_station {
 	 * total freed FW packets on the link to the STA - used for tracking the
 	 * AES/TKIP PN across recoveries. Re-initialized each time from the
 	 * wl1271_station structure.
+	 * Used in both AP and STA mode.
 	 */
 	u64 total_freed_pkts;
 };
@@ -460,21 +461,19 @@ struct wl12xx_vif {
 	struct delayed_work pending_auth_complete_work;
 
 	/*
+	 * total freed FW packets on the link.
+	 * For STA this holds the PN of the link to the AP.
+	 * For AP this holds the PN of the broadcast link.
+	 */
+	u64 total_freed_pkts;
+
+	/*
 	 * This struct must be last!
 	 * data that has to be saved acrossed reconfigs (e.g. recovery)
 	 * should be declared in this struct.
 	 */
 	struct {
 		u8 persistent[0];
-
-		/*
-		 * total freed FW packets on the link - used for
-		 * storing the AES/TKIP PN during recovery, as this
-		 * structure is not zeroed out.
-		 * For STA this holds the PN of the link to the AP.
-		 * For AP this holds the PN of the broadcast link.
-		 */
-		u64 total_freed_pkts;
 	};
 };
 

@@ -898,6 +898,41 @@ out:
 	wlcore_set_partition(wl, &old_part);
 }
 
+static void wlcore_save_freed_pkts(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				   u8 hlid, struct ieee80211_sta *sta)
+{
+	struct wl1271_station *wl_sta;
+
+	wl_sta = (void *)sta->drv_priv;
+	wl_sta->total_freed_pkts = wl->links[hlid].total_freed_pkts;
+
+	/*
+	 * increment the initial seq number on recovery to account for
+	 * transmitted packets that we haven't yet got in the FW status
+	 */
+	if (test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags))
+		wl_sta->total_freed_pkts +=
+				WL1271_TX_SQN_POST_RECOVERY_PADDING;
+}
+
+static void wlcore_save_freed_pkts_addr(struct wl1271 *wl,
+					struct wl12xx_vif *wlvif,
+					u8 hlid, const u8 *addr)
+{
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+
+	if (WARN_ON(hlid == WL12XX_INVALID_LINK_ID ||
+		    is_zero_ether_addr(addr)))
+		return;
+
+	rcu_read_lock();
+	sta = ieee80211_find_sta(vif, addr);
+	if (sta)
+		wlcore_save_freed_pkts(wl, wlvif, hlid, sta);
+	rcu_read_unlock();
+}
+
 static void wlcore_print_recovery(struct wl1271 *wl)
 {
 	u32 pc = 0;
@@ -961,6 +996,13 @@ static void wl1271_recovery_work(struct work_struct *work)
 		wlvif = list_first_entry(&wl->wlvif_list,
 				       struct wl12xx_vif, list);
 		vif = wl12xx_wlvif_to_vif(wlvif);
+
+		if (wlvif->bss_type == BSS_TYPE_STA_BSS &&
+		    test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) {
+			wlcore_save_freed_pkts_addr(wl, wlvif, wlvif->sta.hlid,
+						    vif->bss_conf.bssid);
+		}
+
 		__wl1271_op_remove_interface(wl, vif, false);
 	}
 
@@ -4703,10 +4745,6 @@ static int wl1271_allocate_sta(struct wl1271 *wl,
 
 void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid)
 {
-	struct wl1271_station *wl_sta;
-	struct ieee80211_sta *sta;
-	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
-
 	if (!test_bit(hlid, wlvif->ap.sta_hlid_map))
 		return;
 
@@ -4718,21 +4756,7 @@ void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid)
 	 * save the last used PN in the private part of iee80211_sta,
 	 * in case of recovery/suspend
 	 */
-	rcu_read_lock();
-	sta = ieee80211_find_sta(vif, wl->links[hlid].addr);
-	if (sta) {
-		wl_sta = (void *)sta->drv_priv;
-		wl_sta->total_freed_pkts = wl->links[hlid].total_freed_pkts;
-
-		/*
-		 * increment the initial seq number on recovery to account for
-		 * transmitted packets that we haven't yet got in the FW status
-		 */
-		if (test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags))
-			wl_sta->total_freed_pkts +=
-					WL1271_TX_SQN_POST_RECOVERY_PADDING;
-	}
-	rcu_read_unlock();
+	wlcore_save_freed_pkts_addr(wl, wlvif, hlid, wl->links[hlid].addr);
 
 	wl12xx_free_link(wl, wlvif, &hlid);
 	wl->active_sta_count--;
@@ -4913,6 +4937,21 @@ static int wl12xx_update_sta_state(struct wl1271 *wl,
 	    new_state == IEEE80211_STA_ASSOC) {
 		clear_bit(WLVIF_FLAG_STA_AUTHORIZED, &wlvif->flags);
 		clear_bit(WLVIF_FLAG_STA_STATE_SENT, &wlvif->flags);
+	}
+
+	/* save seq number on disassoc (suspend) */
+	if (is_sta &&
+	    old_state == IEEE80211_STA_ASSOC &&
+	    new_state == IEEE80211_STA_AUTH) {
+		wlcore_save_freed_pkts(wl, wlvif, wlvif->sta.hlid, sta);
+		wlvif->total_freed_pkts = 0;
+	}
+
+	/* restore seq number on assoc (resume) */
+	if (is_sta &&
+	    old_state == IEEE80211_STA_AUTH &&
+	    new_state == IEEE80211_STA_ASSOC) {
+		wlvif->total_freed_pkts = wl_sta->total_freed_pkts;
 	}
 
 	/* clear ROCs on failure or authorization */
