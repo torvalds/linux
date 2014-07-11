@@ -52,10 +52,10 @@
 
 static int          msglevel                = MSG_LEVEL_INFO;
 
-static const u16 wTimeStampOff[2][MAX_RATE] = {
-        {384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23}, // Long Preamble
-        {384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23}, // Short Preamble
-    };
+static const u16 vnt_time_stampoff[2][MAX_RATE] = {
+	{384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23},/* Long Preamble */
+	{384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23},/* Short Preamble */
+};
 
 static const u16 wFB_Opt0[2][5] = {
         {RATE_12M, RATE_18M, RATE_24M, RATE_36M, RATE_48M}, // fallback_rate0
@@ -128,7 +128,7 @@ static struct vnt_usb_send_context
 
 static __le16 vnt_time_stamp_off(struct vnt_private *priv, u16 rate)
 {
-	return cpu_to_le16(wTimeStampOff[priv->byPreambleType % 2]
+	return cpu_to_le16(vnt_time_stampoff[priv->byPreambleType % 2]
 							[rate % MAX_RATE]);
 }
 
