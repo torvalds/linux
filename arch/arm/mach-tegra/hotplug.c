@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/smp.h>
 
+#include <soc/tegra/common.h>
 #include <soc/tegra/fuse.h>
 
 #include <asm/smp_plat.h>
@@ -38,6 +39,11 @@ int tegra_cpu_kill(unsigned cpu)
  */
 void __ref tegra_cpu_die(unsigned int cpu)
 {
+	if (!tegra_hotplug_shutdown) {
+		WARN(1, "hotplug is not yet initialized\n");
+		return;
+	}
+
 	/* Clean L1 data cache */
 	tegra_disable_clean_inv_dcache(TEGRA_FLUSH_CACHE_LOUIS);
 
@@ -48,10 +54,13 @@ void __ref tegra_cpu_die(unsigned int cpu)
 	BUG();
 }
 
-void __init tegra_hotplug_init(void)
+static int __init tegra_hotplug_init(void)
 {
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
-		return;
+		return 0;
+
+	if (!soc_is_tegra())
+		return 0;
 
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC) && tegra_get_chip_id() == TEGRA20)
 		tegra_hotplug_shutdown = tegra20_hotplug_shutdown;
@@ -61,4 +70,7 @@ void __init tegra_hotplug_init(void)
 		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_124_SOC) && tegra_get_chip_id() == TEGRA124)
 		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
+
+	return 0;
 }
+pure_initcall(tegra_hotplug_init);
