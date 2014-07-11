@@ -1896,9 +1896,7 @@ static void intel_edp_psr_work(struct work_struct *work)
 	if (!intel_dp)
 		return;
 
-	if (!intel_edp_psr_match_conditions(intel_dp))
-		intel_edp_psr_disable(intel_dp);
-	else
+	if (intel_edp_psr_match_conditions(intel_dp))
 		intel_edp_psr_do_enable(intel_dp);
 }
 
