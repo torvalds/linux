@@ -222,6 +222,7 @@ struct coda_ctx {
 	u32				isequence;
 	u32				qsequence;
 	u32				osequence;
+	u32				sequence_offset;
 	struct coda_q_data		q_data[2];
 	enum coda_inst_type		inst_type;
 	struct coda_codec		*codec;
@@ -2621,6 +2622,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 		ctx->streamon_cap = 0;
 
 		ctx->osequence = 0;
+		ctx->sequence_offset = 0;
 	}
 
 	if (!ctx->streamon_out && !ctx->streamon_cap) {
@@ -3126,7 +3128,9 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 
 	if (decoded_idx == -1) {
 		/* no frame was decoded, but we might have a display frame */
-		if (display_idx < 0 && ctx->display_idx < 0)
+		if (display_idx >= 0 && display_idx < ctx->num_internal_frames)
+			ctx->sequence_offset++;
+		else if (ctx->display_idx < 0)
 			ctx->prescan_failed = true;
 	} else if (decoded_idx == -2) {
 		/* no frame was decoded, we still return the remaining buffers */
@@ -3138,10 +3142,11 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 				      struct coda_timestamp, list);
 		list_del(&ts->list);
 		val = coda_read(dev, CODA_RET_DEC_PIC_FRAME_NUM) - 1;
-		if (val != ts->sequence) {
+		val -= ctx->sequence_offset;
+		if (val != (ts->sequence & 0xffff)) {
 			v4l2_err(&dev->v4l2_dev,
-				 "sequence number mismatch (%d != %d)\n",
-				 val, ts->sequence);
+				 "sequence number mismatch (%d(%d) != %d)\n",
+				 val, ctx->sequence_offset, ts->sequence);
 		}
 		ctx->frame_timestamps[decoded_idx] = *ts;
 		kfree(ts);
