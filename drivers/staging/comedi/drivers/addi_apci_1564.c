@@ -433,14 +433,10 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 
 static void apci1564_detach(struct comedi_device *dev)
 {
-	struct apci1564_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (dev->iobase)
-			apci1564_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-	}
+	if (dev->iobase)
+		apci1564_reset(dev);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 	comedi_pci_disable(dev);
 }
 
