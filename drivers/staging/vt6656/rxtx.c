@@ -82,7 +82,7 @@ static const u16 vnt_fb_opt1[2][5] = {
 #define DATADUR_A_F0    12
 #define DATADUR_A_F1    13
 
-static struct vnt_usb_send_context *s_vGetFreeContext(struct vnt_private *);
+static struct vnt_usb_send_context *vnt_get_free_context(struct vnt_private *);
 
 static unsigned int vnt_get_rsvtime(struct vnt_private *pDevice, u8 byPktType,
 	u32 cbFrameLength, u16 wRate, int bNeedAck);
@@ -98,7 +98,7 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_private *priv,
 	int need_ack);
 
 static struct vnt_usb_send_context
-	*s_vGetFreeContext(struct vnt_private *priv)
+	*vnt_get_free_context(struct vnt_private *priv)
 {
 	struct vnt_usb_send_context *context = NULL;
 	int ii;
@@ -831,7 +831,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	tx_context = s_vGetFreeContext(priv);
+	tx_context = vnt_get_free_context(priv);
 	if (!tx_context) {
 		dev_dbg(&priv->usb->dev, "%s No free context\n", __func__);
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -1006,7 +1006,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	context = s_vGetFreeContext(priv);
+	context = vnt_get_free_context(priv);
 	if (!context) {
 		dev_dbg(&priv->usb->dev, "%s No free context!\n", __func__);
 		spin_unlock_irqrestore(&priv->lock, flags);
