@@ -44,10 +44,6 @@
 
 #define CODADX6_MAX_INSTANCES	4
 
-#define CODA_FMO_BUF_SIZE	32
-#define CODADX6_WORK_BUF_SIZE	(288 * 1024 + CODA_FMO_BUF_SIZE * 8 * 1024)
-#define CODA7_WORK_BUF_SIZE	(128 * 1024)
-#define CODA9_WORK_BUF_SIZE	(80 * 1024)
 #define CODA7_TEMP_BUF_SIZE	(304 * 1024)
 #define CODA9_TEMP_BUF_SIZE	(204 * 1024)
 #define CODA_PARA_BUF_SIZE	(10 * 1024)
@@ -1982,18 +1978,8 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 	size_t size;
 	int ret;
 
-	switch (dev->devtype->product) {
-	case CODA_7541:
-		size = CODA7_WORK_BUF_SIZE;
-		break;
-	case CODA_960:
-		size = CODA9_WORK_BUF_SIZE;
-		if (q_data->fourcc == V4L2_PIX_FMT_H264)
-			size += CODA9_PS_SAVE_SIZE;
-		break;
-	default:
+	if (dev->devtype->product == CODA_DX6)
 		return 0;
-	}
 
 	if (ctx->psbuf.vaddr) {
 		v4l2_err(&dev->v4l2_dev, "psmembuf still allocated\n");
@@ -2029,6 +2015,10 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 		}
 	}
 
+	size = dev->devtype->workbuf_size;
+	if (dev->devtype->product == CODA_960 &&
+	    q_data->fourcc == V4L2_PIX_FMT_H264)
+		size += CODA9_PS_SAVE_SIZE;
 	ret = coda_alloc_context_buf(ctx, &ctx->workbuf, size, "workbuf");
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "failed to allocate %d byte context buffer",
@@ -3684,28 +3674,32 @@ enum coda_platform {
 
 static const struct coda_devtype coda_devdata[] = {
 	[CODA_IMX27] = {
-		.firmware   = "v4l-codadx6-imx27.bin",
-		.product    = CODA_DX6,
-		.codecs     = codadx6_codecs,
-		.num_codecs = ARRAY_SIZE(codadx6_codecs),
+		.firmware     = "v4l-codadx6-imx27.bin",
+		.product      = CODA_DX6,
+		.codecs       = codadx6_codecs,
+		.num_codecs   = ARRAY_SIZE(codadx6_codecs),
+		.workbuf_size = 288 * 1024 + FMO_SLICE_SAVE_BUF_SIZE * 8 * 1024,
 	},
 	[CODA_IMX53] = {
-		.firmware   = "v4l-coda7541-imx53.bin",
-		.product    = CODA_7541,
-		.codecs     = coda7_codecs,
-		.num_codecs = ARRAY_SIZE(coda7_codecs),
+		.firmware     = "v4l-coda7541-imx53.bin",
+		.product      = CODA_7541,
+		.codecs       = coda7_codecs,
+		.num_codecs   = ARRAY_SIZE(coda7_codecs),
+		.workbuf_size = 128 * 1024,
 	},
 	[CODA_IMX6Q] = {
-		.firmware   = "v4l-coda960-imx6q.bin",
-		.product    = CODA_960,
-		.codecs     = coda9_codecs,
-		.num_codecs = ARRAY_SIZE(coda9_codecs),
+		.firmware     = "v4l-coda960-imx6q.bin",
+		.product      = CODA_960,
+		.codecs       = coda9_codecs,
+		.num_codecs   = ARRAY_SIZE(coda9_codecs),
+		.workbuf_size = 80 * 1024,
 	},
 	[CODA_IMX6DL] = {
-		.firmware   = "v4l-coda960-imx6dl.bin",
-		.product    = CODA_960,
-		.codecs     = coda9_codecs,
-		.num_codecs = ARRAY_SIZE(coda9_codecs),
+		.firmware     = "v4l-coda960-imx6dl.bin",
+		.product      = CODA_960,
+		.codecs       = coda9_codecs,
+		.num_codecs   = ARRAY_SIZE(coda9_codecs),
+		.workbuf_size = 80 * 1024,
 	},
 };
 
@@ -3828,7 +3822,7 @@ static int coda_probe(struct platform_device *pdev)
 	switch (dev->devtype->product) {
 	case CODA_DX6:
 		ret = coda_alloc_aux_buf(dev, &dev->workbuf,
-					 CODADX6_WORK_BUF_SIZE, "workbuf",
+					 dev->devtype->workbuf_size, "workbuf",
 					 dev->debugfs_root);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to allocate work buffer\n");
