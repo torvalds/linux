@@ -54,6 +54,15 @@ DEFINE_RWLOCK(hci_cb_list_lock);
 /* HCI ID Numbering */
 static DEFINE_IDA(hci_index_ida);
 
+/* ----- HCI requests ----- */
+
+#define HCI_REQ_DONE	  0
+#define HCI_REQ_PEND	  1
+#define HCI_REQ_CANCELED  2
+
+#define hci_req_lock(d)		mutex_lock(&d->req_lock)
+#define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
+
 /* ---- HCI notifications ---- */
 
 static void hci_notify(struct hci_dev *hdev, int event)
@@ -4430,6 +4439,11 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 	queue_work(hdev->workqueue, &hdev->cmd_work);
 
 	return 0;
+}
+
+bool hci_req_pending(struct hci_dev *hdev)
+{
+	return (hdev->req_status == HCI_REQ_PEND);
 }
 
 static struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode,
