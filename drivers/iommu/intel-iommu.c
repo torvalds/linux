@@ -1523,32 +1523,39 @@ static struct dmar_domain *alloc_domain(int flags)
 	return domain;
 }
 
+static int __iommu_attach_domain(struct dmar_domain *domain,
+				 struct intel_iommu *iommu)
+{
+	int num;
+	unsigned long ndomains;
+
+	ndomains = cap_ndoms(iommu->cap);
+	num = find_first_zero_bit(iommu->domain_ids, ndomains);
+	if (num < ndomains) {
+		set_bit(num, iommu->domain_ids);
+		iommu->domains[num] = domain;
+	} else {
+		num = -ENOSPC;
+	}
+
+	return num;
+}
+
 static int iommu_attach_domain(struct dmar_domain *domain,
 			       struct intel_iommu *iommu)
 {
 	int num;
-	unsigned long ndomains;
 	unsigned long flags;
 
-	ndomains = cap_ndoms(iommu->cap);
-
 	spin_lock_irqsave(&iommu->lock, flags);
-
-	num = find_first_zero_bit(iommu->domain_ids, ndomains);
-	if (num >= ndomains) {
-		spin_unlock_irqrestore(&iommu->lock, flags);
-		printk(KERN_ERR "IOMMU: no free domain ids\n");
-		return -ENOMEM;
-	}
-
-	domain->id = num;
-	domain->iommu_count++;
-	set_bit(num, iommu->domain_ids);
-	set_bit(iommu->seq_id, domain->iommu_bmp);
-	iommu->domains[num] = domain;
+	num = __iommu_attach_domain(domain, iommu);
+	if (num < 0)
+		pr_err("IOMMU: no free domain ids\n");
+	else
+		domain->id = num;
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
-	return 0;
+	return num;
 }
 
 static void iommu_detach_domain(struct dmar_domain *domain,
@@ -1558,15 +1565,51 @@ static void iommu_detach_domain(struct dmar_domain *domain,
 	int num, ndomains;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	ndomains = cap_ndoms(iommu->cap);
-	for_each_set_bit(num, iommu->domain_ids, ndomains) {
-		if (iommu->domains[num] == domain) {
-			clear_bit(num, iommu->domain_ids);
-			iommu->domains[num] = NULL;
-			break;
+	if (domain_type_is_vm_or_si(domain)) {
+		ndomains = cap_ndoms(iommu->cap);
+		for_each_set_bit(num, iommu->domain_ids, ndomains) {
+			if (iommu->domains[num] == domain) {
+				clear_bit(num, iommu->domain_ids);
+				iommu->domains[num] = NULL;
+				break;
+			}
 		}
+	} else {
+		clear_bit(domain->id, iommu->domain_ids);
+		iommu->domains[domain->id] = NULL;
 	}
 	spin_unlock_irqrestore(&iommu->lock, flags);
+}
+
+static void domain_attach_iommu(struct dmar_domain *domain,
+			       struct intel_iommu *iommu)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&domain->iommu_lock, flags);
+	if (!test_and_set_bit(iommu->seq_id, domain->iommu_bmp)) {
+		domain->iommu_count++;
+		if (domain->iommu_count == 1)
+			domain->nid = iommu->node;
+		domain_update_iommu_cap(domain);
+	}
+	spin_unlock_irqrestore(&domain->iommu_lock, flags);
+}
+
+static int domain_detach_iommu(struct dmar_domain *domain,
+			       struct intel_iommu *iommu)
+{
+	unsigned long flags;
+	int count = INT_MAX;
+
+	spin_lock_irqsave(&domain->iommu_lock, flags);
+	if (test_and_clear_bit(iommu->seq_id, domain->iommu_bmp)) {
+		count = --domain->iommu_count;
+		domain_update_iommu_cap(domain);
+	}
+	spin_unlock_irqrestore(&domain->iommu_lock, flags);
+
+	return count;
 }
 
 static struct iova_domain reserved_iova_list;
@@ -1706,9 +1749,7 @@ static void domain_exit(struct dmar_domain *domain)
 	/* clear attached or cached domains */
 	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd)
-		if (domain_type_is_vm(domain) ||
-		    test_bit(iommu->seq_id, domain->iommu_bmp))
-			iommu_detach_domain(domain, iommu);
+		iommu_detach_domain(domain, iommu);
 	rcu_read_unlock();
 
 	dma_free_pagelist(freelist);
@@ -1762,16 +1803,12 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		}
 
 		if (found == 0) {
-			num = find_first_zero_bit(iommu->domain_ids, ndomains);
-			if (num >= ndomains) {
+			id = __iommu_attach_domain(domain, iommu);
+			if (id < 0) {
 				spin_unlock_irqrestore(&iommu->lock, flags);
-				printk(KERN_ERR "IOMMU: no free domain ids\n");
+				pr_err("IOMMU: no free domain ids\n");
 				return -EFAULT;
 			}
-
-			set_bit(num, iommu->domain_ids);
-			iommu->domains[num] = domain;
-			id = num;
 		}
 
 		/* Skip top levels of page tables for
@@ -1830,14 +1867,8 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	iommu_enable_dev_iotlb(info);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
-	spin_lock_irqsave(&domain->iommu_lock, flags);
-	if (!test_and_set_bit(iommu->seq_id, domain->iommu_bmp)) {
-		domain->iommu_count++;
-		if (domain->iommu_count == 1)
-			domain->nid = iommu->node;
-		domain_update_iommu_cap(domain);
-	}
-	spin_unlock_irqrestore(&domain->iommu_lock, flags);
+	domain_attach_iommu(domain, iommu);
+
 	return 0;
 }
 
@@ -2085,7 +2116,7 @@ static inline void unlink_domain_info(struct device_domain_info *info)
 static void domain_remove_dev_info(struct dmar_domain *domain)
 {
 	struct device_domain_info *info, *tmp;
-	unsigned long flags, flags2;
+	unsigned long flags;
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry_safe(info, tmp, &domain->devices, link) {
@@ -2097,16 +2128,7 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
 
 		if (domain_type_is_vm(domain)) {
 			iommu_detach_dependent_devices(info->iommu, info->dev);
-			/* clear this iommu in iommu_bmp, update iommu count
-			 * and capabilities
-			 */
-			spin_lock_irqsave(&domain->iommu_lock, flags2);
-			if (test_and_clear_bit(info->iommu->seq_id,
-					       domain->iommu_bmp)) {
-				domain->iommu_count--;
-				domain_update_iommu_cap(domain);
-			}
-			spin_unlock_irqrestore(&domain->iommu_lock, flags2);
+			domain_detach_iommu(domain, info->iommu);
 		}
 
 		free_devinfo_mem(info);
@@ -2236,11 +2258,11 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 	if (!domain)
 		return NULL;
 
-	if (iommu_attach_domain(domain, iommu)) {
+	if (iommu_attach_domain(domain, iommu) < 0) {
 		free_domain_mem(domain);
 		return NULL;
 	}
-
+	domain_attach_iommu(domain, iommu);
 	if (domain_init(domain, gaw)) {
 		domain_exit(domain);
 		return NULL;
@@ -2413,10 +2435,11 @@ static int __init si_domain_init(int hw)
 
 	for_each_active_iommu(iommu, drhd) {
 		ret = iommu_attach_domain(si_domain, iommu);
-		if (ret) {
+		if (ret < 0) {
 			domain_exit(si_domain);
 			return -EFAULT;
 		}
+		domain_attach_iommu(si_domain, iommu);
 	}
 
 	if (md_domain_init(si_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
@@ -4155,19 +4178,9 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
 	if (found == 0) {
-		unsigned long tmp_flags;
-		spin_lock_irqsave(&domain->iommu_lock, tmp_flags);
-		clear_bit(iommu->seq_id, domain->iommu_bmp);
-		domain->iommu_count--;
-		domain_update_iommu_cap(domain);
-		spin_unlock_irqrestore(&domain->iommu_lock, tmp_flags);
-
-		if (!domain_type_is_vm_or_si(domain)) {
-			spin_lock_irqsave(&iommu->lock, tmp_flags);
-			clear_bit(domain->id, iommu->domain_ids);
-			iommu->domains[domain->id] = NULL;
-			spin_unlock_irqrestore(&iommu->lock, tmp_flags);
-		}
+		domain_detach_iommu(domain, iommu);
+		if (!domain_type_is_vm_or_si(domain))
+			iommu_detach_domain(domain, iommu);
 	}
 }
 
