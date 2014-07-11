@@ -1480,7 +1480,8 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 
 			domain = iommu->domains[i];
 			clear_bit(i, iommu->domain_ids);
-			if (domain_detach_iommu(domain, iommu) == 0)
+			if (domain_detach_iommu(domain, iommu) == 0 &&
+			    !domain_type_is_vm(domain))
 				domain_exit(domain);
 		}
 	}
