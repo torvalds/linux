@@ -1834,8 +1834,8 @@ static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (intel_edp_is_psr_enabled(dev))
-		return;
+	WARN_ON(I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE);
+	WARN_ON(dev_priv->psr.active);
 
 	/* Enable PSR on the panel */
 	intel_edp_psr_enable_sink(intel_dp);
@@ -1876,13 +1876,19 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp)
 	if (!dev_priv->psr.enabled)
 		return;
 
-	I915_WRITE(EDP_PSR_CTL(dev),
-		   I915_READ(EDP_PSR_CTL(dev)) & ~EDP_PSR_ENABLE);
+	if (dev_priv->psr.active) {
+		I915_WRITE(EDP_PSR_CTL(dev),
+			   I915_READ(EDP_PSR_CTL(dev)) & ~EDP_PSR_ENABLE);
 
-	/* Wait till PSR is idle */
-	if (_wait_for((I915_READ(EDP_PSR_STATUS_CTL(dev)) &
-		       EDP_PSR_STATUS_STATE_MASK) == 0, 2000, 10))
-		DRM_ERROR("Timed out waiting for PSR Idle State\n");
+		/* Wait till PSR is idle */
+		if (_wait_for((I915_READ(EDP_PSR_STATUS_CTL(dev)) &
+			       EDP_PSR_STATUS_STATE_MASK) == 0, 2000, 10))
+			DRM_ERROR("Timed out waiting for PSR Idle State\n");
+
+		dev_priv->psr.active = false;
+	} else {
+		WARN_ON(I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE);
+	}
 
 	dev_priv->psr.enabled = NULL;
 }
@@ -1900,16 +1906,6 @@ static void intel_edp_psr_work(struct work_struct *work)
 		intel_edp_psr_do_enable(intel_dp);
 }
 
-static void intel_edp_psr_inactivate(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	dev_priv->psr.active = false;
-
-	I915_WRITE(EDP_PSR_CTL(dev), I915_READ(EDP_PSR_CTL(dev))
-		   & ~EDP_PSR_ENABLE);
-}
-
 void intel_edp_psr_exit(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1922,8 +1918,15 @@ void intel_edp_psr_exit(struct drm_device *dev)
 
 	cancel_delayed_work_sync(&dev_priv->psr.work);
 
-	if (dev_priv->psr.active)
-		intel_edp_psr_inactivate(dev);
+	if (dev_priv->psr.active) {
+		u32 val = I915_READ(EDP_PSR_CTL(dev));
+
+		WARN_ON(!(val & EDP_PSR_ENABLE));
+
+		I915_WRITE(EDP_PSR_CTL(dev), val & ~EDP_PSR_ENABLE);
+
+		dev_priv->psr.active = false;
+	}
 
 	schedule_delayed_work(&dev_priv->psr.work,
 			      msecs_to_jiffies(100));
