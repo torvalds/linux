@@ -326,9 +326,8 @@ static struct coda_q_data *get_q_data(struct coda_ctx *ctx,
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		return &(ctx->q_data[V4L2_M2M_DST]);
 	default:
-		BUG();
+		return NULL;
 	}
-	return NULL;
 }
 
 /*
@@ -571,15 +570,12 @@ static int coda_enum_fmt_vid_out(struct file *file, void *priv,
 static int coda_g_fmt(struct file *file, void *priv,
 		      struct v4l2_format *f)
 {
-	struct vb2_queue *vq;
 	struct coda_q_data *q_data;
 	struct coda_ctx *ctx = fh_to_ctx(priv);
 
-	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
-
 	q_data = get_q_data(ctx, f->type);
+	if (!q_data)
+		return -EINVAL;
 
 	f->fmt.pix.field	= V4L2_FIELD_NONE;
 	f->fmt.pix.pixelformat	= q_data->fourcc;
@@ -628,6 +624,8 @@ static int coda_try_fmt(struct coda_ctx *ctx, struct coda_codec *codec,
 		break;
 	default:
 		q_data = get_q_data(ctx, f->type);
+		if (!q_data)
+			return -EINVAL;
 		f->fmt.pix.pixelformat = q_data->fourcc;
 	}
 
