@@ -290,10 +290,6 @@ void hsr_addr_subst_dest(struct hsr_node *node_src, struct sk_buff *skb,
 	}
 	if (port->type != node_dst->AddrB_port)
 		return;
-	if (!node_dst->MacAddressB) {
-		WARN_ONCE(1, "%s: No MacAddressB\n", __func__);
-		return;
-	}
 
 	ether_addr_copy(eth_hdr(skb)->h_dest, node_dst->MacAddressB);
 }
