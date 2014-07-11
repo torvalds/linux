@@ -115,10 +115,10 @@ static inline unsigned int read_msa_##name(void)		\
 	"	.set	push\n"					\
 	"	.set	noat\n"					\
 	"	.insn\n"					\
-	"	.word	#CFC_MSA_INSN | (" #cs " << 11)\n"	\
+	"	.word	%1 | (" #cs " << 11)\n"			\
 	"	move	%0, $1\n"				\
 	"	.set	pop\n"					\
-	: "=r"(reg));						\
+	: "=r"(reg) : "i"(CFC_MSA_INSN));			\
 	return reg;						\
 }								\
 								\
@@ -129,9 +129,9 @@ static inline void write_msa_##name(unsigned int val)		\
 	"	.set	noat\n"					\
 	"	move	$1, %0\n"				\
 	"	.insn\n"					\
-	"	.word	#CTC_MSA_INSN | (" #cs " << 6)\n"	\
+	"	.word	%1 | (" #cs " << 6)\n"			\
 	"	.set	pop\n"					\
-	: : "r"(val));						\
+	: : "r"(val), "i"(CTC_MSA_INSN));			\
 }
 
 #endif /* !TOOLCHAIN_SUPPORTS_MSA */
