@@ -63,8 +63,10 @@ static void ced_flush_in_buff(struct ced_data *ced)
 {
 	dev_dbg(&ced->interface->dev, "%s: current_state=%d\n",
 		__func__, ced->current_state);
-	if (ced->current_state == U14ERR_TIME)	/* Do nothing if hardware in trouble */
-		return;
+
+	if (ced->current_state == U14ERR_TIME)
+		return;	/* Do nothing if hardware in trouble */
+
 	/* Kill off any pending I/O */
 	/*     CharRead_Cancel(pDevObject);  */
 	spin_lock_irq(&ced->char_in_lock);
@@ -96,7 +98,9 @@ static int ced_put_chars(struct ced_data *ced, const char *ch,
 		}
 		ced->num_output += count;
 		spin_unlock_irq(&ced->char_out_lock);
-		ret = ced_send_chars(ced);	/*  ...give a chance to transmit data */
+
+		/* ...give a chance to transmit data */
+		ret = ced_send_chars(ced);
 	} else {
 		ret = U14ERR_NOOUT;	/*  no room at the out (ha-ha) */
 		spin_unlock_irq(&ced->char_out_lock);
@@ -238,24 +242,31 @@ int ced_read_write_cancel(struct ced_data *ced)
 	int ntStatus = STATUS_SUCCESS;
 	bool bResult = false;
 	unsigned int i;
-	/*  We can fill this in when we know how we will implement the staged transfer stuff */
+
+	/* We can fill this in when we know how we will implement the staged */
+	/* transfer stuff						     */
 	spin_lock_irq(&ced->staged_lock);
 
-	if (ced->staged_urb_pending) {	/*  anything to be cancelled? May need more... */
+	if (ced->staged_urb_pending) {/* anything to be cancelled? */
+				      /* May need more... */
 		dev_info(&ced->interface - dev,
 			 "ced_read_write_cancel about to cancel Urb\n");
 		/* Clear the staging done flag */
 		/* KeClearEvent(&ced->StagingDoneEvent); */
 		USB_ASSERT(ced->pStagedIrp != NULL);
 
-		/*  Release the spinlock first otherwise the completion routine may hang */
-		/*   on the spinlock while this function hands waiting for the event. */
+		/* Release the spinlock first otherwise the completion  */
+		/* routine may hang on the spinlock while this function */
+		/* hands waiting for the event.				*/
 		spin_unlock_irq(&ced->staged_lock);
-		bResult = IoCancelIrp(ced->pStagedIrp);	/*  Actually do the cancel */
+
+		/* Actually do the cancel */
+		bResult = IoCancelIrp(ced->pStagedIrp);
 		if (bResult) {
 			LARGE_INTEGER timeout;
 
-			timeout.QuadPart = -10000000;	/*  Use a timeout of 1 second */
+			/* Use a timeout of 1 second */
+			timeout.QuadPart = -10000000;
 			dev_info(&ced->interface - dev,
 				 "%s: about to wait till done\n", __func__);
 			ntStatus =
@@ -268,8 +279,8 @@ int ced_read_write_cancel(struct ced_data *ced)
 			ntStatus = U14ERR_FAIL;
 		}
 		USB_KdPrint(DBGLVL_DEFAULT,
-			    ("ced_read_write_cancel ntStatus = 0x%x decimal %d\n",
-			     ntStatus, ntStatus));
+			("ced_read_write_cancel ntStatus = 0x%x decimal %d\n",
+			ntStatus, ntStatus));
 	} else
 		spin_unlock_irq(&ced->staged_lock);
 
@@ -389,7 +400,8 @@ static bool ced_quick_check(struct ced_data *ced, bool test_buff,
 
 	short_test = ((ced->dma_flag == MODE_CHAR) &&	/*  no DMA running */
 		      (!ced->force_reset) && /* Not had a real reset forced */
-		      (ced->current_state >= U14ERR_STD)); /* No 1401 errors stored */
+		       /* No 1401 errors stored */
+		      (ced->current_state >= U14ERR_STD));
 
 	dev_dbg(&ced->interface->dev,
 		"%s: DMAFlag:%d, state:%d, force:%d, testBuff:%d, short:%d\n",
@@ -397,19 +409,24 @@ static bool ced_quick_check(struct ced_data *ced, bool test_buff,
 		test_buff, short_test);
 
 	if ((test_buff) &&	/*  Buffer check requested, and... */
-	    (ced->num_input || ced->num_output)) {	/*  ...characters were in the buffer? */
+	    (ced->num_input || ced->num_output)) {/* ...characters were in */
+						  /* the buffer?	   */
 		short_test = false;	/*  Then do the full test */
 		dev_dbg(&ced->interface->dev,
 			"%s: will reset as buffers not empty\n", __func__);
 	}
 
-	if (short_test || !can_reset) {	/*  Still OK to try the short test? */
-				/*  Always test if no reset - we want state update */
+	if (short_test || !can_reset) {	/* Still OK to try the short test? */
+					/* Always test if no reset - we    */
+					/* want state update		   */
 		unsigned int state, error;
 
 		dev_dbg(&ced->interface->dev, "%s: ced_get_state\n", __func__);
-		if (ced_get_state(ced, &state, &error) == U14ERR_NOERROR) {	/*  Check on the 1401 state */
-			if ((state & 0xFF) == 0)	/*  If call worked, check the status value */
+
+		/* Check on the 1401 state */
+		if (ced_get_state(ced, &state, &error) == U14ERR_NOERROR) {
+			/* If call worked, check the status value */
+			if ((state & 0xFF) == 0)
 				ret = true; /* If that was zero, all is OK, */
 					    /* no reset needed		    */
 		}
@@ -435,7 +452,7 @@ int ced_reset(struct ced_data *ced)
 	mutex_lock(&ced->io_mutex);	/*  Protect disconnect from new i/o */
 	dev_dbg(&ced->interface->dev, "%s: About to call ced_quick_check\n",
 		__func__);
-	ced_quick_check(ced, true, true);	/*  Check 1401, reset if not OK */
+	ced_quick_check(ced, true, true); /* Check 1401, reset if not OK */
 	mutex_unlock(&ced->io_mutex);
 	return U14ERR_NOERROR;
 }
@@ -521,7 +538,7 @@ int ced_get_string(struct ced_data *ced, char __user *user, int n)
 		if (data) {	/*  do we need null */
 			buffer[got] = (char)0;	/*  make it tidy */
 			if (got < n)	/*  if space in user buffer... */
-				++n_copy_to_user;	/*  ...copy the 0 as well. */
+				++n_copy_to_user; /* ...copy the 0 as well. */
 		}
 
 		ced->num_input -= got;
@@ -935,8 +952,8 @@ int ced_wait_event(struct ced_data *ced, int area, int time_out)
 
 /****************************************************************************
 ** ced_test_event
-** Test the event to see if a ced_wait_event would return immediately. Returns the
-** number of times a block completed since the last call, or 0 if none or a
+** Test the event to see if a ced_wait_event would return immediately. Returns
+** the number of times a block completed since the last call, or 0 if none or a
 ** negative error.
 ****************************************************************************/
 int ced_test_event(struct ced_data *ced, int area)
@@ -1281,8 +1298,8 @@ int ced_dbg_poke(struct ced_data *ced, TDBGBLOCK __user *udb)
 /****************************************************************************
 ** ced_dbg_ramp_data
 **
-** Execute the diagnostic ramp data operation. Parameters are in the CSBLOCK struct
-** in order address, default, enable mask, size and repeats.
+** Execute the diagnostic ramp data operation. Parameters are in the CSBLOCK
+** struct in order address, default, enable mask, size and repeats.
 ****************************************************************************/
 int ced_dbg_ramp_data(struct ced_data *ced, TDBGBLOCK __user *udb)
 {
@@ -1515,7 +1532,8 @@ int ced_free_circ_block(struct ced_data *ced, TCIRCBLOCK __user *ucb)
 			bool waiting = false;
 
 			if ((ta->blocks[0].size >= size) && /* Got anything? */
-			    (ta->blocks[0].offset == start)) { /* Must be legal data */
+			    /* Must be legal data */
+			    (ta->blocks[0].offset == start)) {
 				ta->blocks[0].size -= size;
 				ta->blocks[0].offset += size;
 
