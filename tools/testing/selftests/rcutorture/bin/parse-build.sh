@@ -6,8 +6,7 @@
 #
 # The file must contain kernel build output.
 #
-# Usage:
-#	bash parse-build.sh file title
+# Usage: parse-build.sh file title
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

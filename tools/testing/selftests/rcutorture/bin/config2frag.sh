@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: bash config2frag.sh < .config > configfrag
+# Usage: config2frag.sh < .config > configfrag
 #
 # Converts the "# CONFIG_XXX is not set" to "CONFIG_XXX=n" so that the
 # resulting file becomes a legitimate Kconfig fragment.

@@ -4,8 +4,7 @@
 # The "file" is a pathname on the local system, and "title" is
 # a text string for error-message purposes.
 #
-# Usage:
-#	bash parse-console.sh file title
+# Usage: parse-console.sh file title
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

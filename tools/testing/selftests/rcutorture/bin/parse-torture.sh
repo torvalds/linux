@@ -7,8 +7,7 @@
 # The file must contain torture output, but can be interspersed
 # with other dmesg text, as in console-log output.
 #
-# Usage:
-#	bash parse-torture.sh file title
+# Usage: parse-torture.sh file title
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
