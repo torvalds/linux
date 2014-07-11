@@ -1843,7 +1843,7 @@ static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
 	/* Enable PSR on the host */
 	intel_edp_psr_enable_source(intel_dp);
 
-	dev_priv->psr.enabled = true;
+	dev_priv->psr.enabled = intel_dp;
 	dev_priv->psr.active = true;
 }
 
@@ -1884,26 +1884,22 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp)
 		       EDP_PSR_STATUS_STATE_MASK) == 0, 2000, 10))
 		DRM_ERROR("Timed out waiting for PSR Idle State\n");
 
-	dev_priv->psr.enabled = false;
+	dev_priv->psr.enabled = NULL;
 }
 
 static void intel_edp_psr_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), psr.work.work);
-	struct drm_device *dev = dev_priv->dev;
-	struct intel_encoder *encoder;
-	struct intel_dp *intel_dp = NULL;
+	struct intel_dp *intel_dp = dev_priv->psr.enabled;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head)
-		if (encoder->type == INTEL_OUTPUT_EDP) {
-			intel_dp = enc_to_intel_dp(&encoder->base);
+	if (!intel_dp)
+		return;
 
-			if (!intel_edp_psr_match_conditions(intel_dp))
-				intel_edp_psr_disable(intel_dp);
-			else
-				intel_edp_psr_do_enable(intel_dp);
-		}
+	if (!intel_edp_psr_match_conditions(intel_dp))
+		intel_edp_psr_disable(intel_dp);
+	else
+		intel_edp_psr_do_enable(intel_dp);
 }
 
 static void intel_edp_psr_inactivate(struct drm_device *dev)

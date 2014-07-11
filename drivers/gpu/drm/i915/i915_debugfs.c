@@ -1894,7 +1894,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	seq_printf(m, "Sink_Support: %s\n", yesno(dev_priv->psr.sink_support));
 	seq_printf(m, "Source_OK: %s\n", yesno(dev_priv->psr.source_ok));
-	seq_printf(m, "Enabled: %s\n", yesno(dev_priv->psr.enabled));
+	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
 	seq_printf(m, "Active: %s\n", yesno(dev_priv->psr.active));
 
 	enabled = HAS_PSR(dev) &&

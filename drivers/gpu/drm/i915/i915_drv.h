@@ -658,10 +658,11 @@ struct i915_drrs {
 	struct intel_connector *connector;
 };
 
+struct intel_dp;
 struct i915_psr {
 	bool sink_support;
 	bool source_ok;
-	bool enabled;
+	struct intel_dp *enabled;
 	bool active;
 	struct delayed_work work;
 };
