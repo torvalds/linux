@@ -661,7 +661,6 @@ struct i915_drrs {
 struct i915_psr {
 	bool sink_support;
 	bool source_ok;
-	bool setup_done;
 	bool enabled;
 	bool active;
 	struct delayed_work work;

@@ -1681,9 +1681,6 @@ static void intel_edp_psr_setup(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edp_vsc_psr psr_vsc;
 
-	if (dev_priv->psr.setup_done)
-		return;
-
 	/* Prepare VSC packet as per EDP 1.3 spec, Table 3.10 */
 	memset(&psr_vsc, 0, sizeof(psr_vsc));
 	psr_vsc.sdp_header.HB0 = 0;
@@ -1695,8 +1692,6 @@ static void intel_edp_psr_setup(struct intel_dp *intel_dp)
 	/* Avoid continuous PSR exit by masking memup and hpd */
 	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
 		   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
-
-	dev_priv->psr.setup_done = true;
 }
 
 static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
@@ -1928,7 +1923,7 @@ void intel_edp_psr_exit(struct drm_device *dev)
 	if (!HAS_PSR(dev))
 		return;
 
-	if (!dev_priv->psr.setup_done)
+	if (!dev_priv->psr.enabled)
 		return;
 
 	cancel_delayed_work_sync(&dev_priv->psr.work);
