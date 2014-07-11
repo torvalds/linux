@@ -62,10 +62,10 @@ static const u16 vnt_fb_opt0[2][5] = {
 	{RATE_12M, RATE_12M, RATE_18M, RATE_24M, RATE_36M}, /* fallback_rate1 */
 };
 
-static const u16 wFB_Opt1[2][5] = {
-        {RATE_12M, RATE_18M, RATE_24M, RATE_24M, RATE_36M}, // fallback_rate0
-        {RATE_6M , RATE_6M,  RATE_12M, RATE_12M, RATE_18M}, // fallback_rate1
-    };
+static const u16 vnt_fb_opt1[2][5] = {
+	{RATE_12M, RATE_18M, RATE_24M, RATE_24M, RATE_36M}, /* fallback_rate0 */
+	{RATE_6M , RATE_6M,  RATE_12M, RATE_12M, RATE_18M}, /* fallback_rate1 */
+};
 
 #define RTSDUR_BB       0
 #define RTSDUR_BA       1
@@ -933,9 +933,9 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 			tx_buffer_head->wFIFOCtl |= FIFOCTL_AUTO_FB_1;
 
 			priv->tx_rate_fb0 =
-				wFB_Opt1[FB_RATE0][current_rate - RATE_18M];
+				vnt_fb_opt1[FB_RATE0][current_rate - RATE_18M];
 			priv->tx_rate_fb1 =
-				wFB_Opt1[FB_RATE1][current_rate - RATE_18M];
+				vnt_fb_opt1[FB_RATE1][current_rate - RATE_18M];
 
 			fb_option = AUTO_FB_1;
 		}
