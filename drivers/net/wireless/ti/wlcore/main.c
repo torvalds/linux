@@ -37,6 +37,7 @@
 #include "init.h"
 #include "debugfs.h"
 #include "testmode.h"
+#include "vendor_cmd.h"
 #include "scan.h"
 #include "hw_ops.h"
 #include "sysfs.h"
@@ -5874,6 +5875,9 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	/* allowed interface combinations */
 	wl->hw->wiphy->iface_combinations = wl->iface_combinations;
 	wl->hw->wiphy->n_iface_combinations = wl->n_iface_combinations;
+
+	/* register vendor commands */
+	wlcore_set_vendor_commands(wl->hw->wiphy);
 
 	SET_IEEE80211_DEV(wl->hw, wl->dev);
 
