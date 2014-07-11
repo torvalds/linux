@@ -1367,6 +1367,21 @@ static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 					V4L2_CID_JPEG_CHROMA_SUBSAMPLING);
 		if (ctrl_subs)
 			v4l2_ctrl_s_ctrl(ctrl_subs, q_data->fmt->subsampling);
+		ct->crop_altered = false;
+	}
+
+	/*
+	 * For decoding init crop_rect with capture buffer dimmensions which
+	 * contain aligned dimensions of the input JPEG image and do it only
+	 * if crop rectangle hasn't been altered by the user space e.g. with
+	 * S_SELECTION ioctl. For encoding assign output buffer dimensions.
+	 */
+	if (!ct->crop_altered &&
+	    ((ct->mode == S5P_JPEG_DECODE && f_type == FMT_TYPE_CAPTURE) ||
+	     (ct->mode == S5P_JPEG_ENCODE && f_type == FMT_TYPE_OUTPUT))) {
+		ct->crop_rect.width = pix->width;
+		ct->crop_rect.height = pix->height;
+	}
 	}
 
 	return 0;
