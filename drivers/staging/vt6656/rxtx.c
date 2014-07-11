@@ -92,9 +92,9 @@ static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
 static __le16 s_uGetDataDuration(struct vnt_private *pDevice,
 	u8 byPktType, int bNeedAck);
 
-static __le16 s_uGetRTSCTSDuration(struct vnt_private *pDevice,
-	u8 byDurType, u32 cbFrameLength, u8 byPktType, u16 wRate,
-	int bNeedAck);
+static __le16 s_uGetRTSCTSDuration(struct vnt_private *priv,
+	u8 dur_type, u32 frame_length, u8 pkt_type, u16 rate,
+	int need_ack);
 
 static struct vnt_usb_send_context
 	*s_vGetFreeContext(struct vnt_private *priv)
@@ -229,45 +229,45 @@ static __le16 s_uGetDataDuration(struct vnt_private *pDevice,
 }
 
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
-static __le16 s_uGetRTSCTSDuration(struct vnt_private *pDevice, u8 byDurType,
-	u32 cbFrameLength, u8 byPktType, u16 wRate, int bNeedAck)
+static __le16 s_uGetRTSCTSDuration(struct vnt_private *priv, u8 dur_type,
+	u32 frame_length, u8 pkt_type, u16 rate, int need_ack)
 {
-	u32 uCTSTime = 0, uDurTime = 0;
+	u32 cts_time = 0, dur_time = 0;
 
-	switch (byDurType) {
+	switch (dur_type) {
 	case RTSDUR_BB:
 	case RTSDUR_BA:
 	case RTSDUR_BA_F0:
 	case RTSDUR_BA_F1:
-		uCTSTime = vnt_get_frame_time(pDevice->byPreambleType,
-				byPktType, 14, pDevice->byTopCCKBasicRate);
-		uDurTime = uCTSTime + 2 * pDevice->uSIFS +
-			s_uGetTxRsvTime(pDevice, byPktType,
-						cbFrameLength, wRate, bNeedAck);
+		cts_time = vnt_get_frame_time(priv->byPreambleType,
+				pkt_type, 14, priv->byTopCCKBasicRate);
+		dur_time = cts_time + 2 * priv->uSIFS +
+			s_uGetTxRsvTime(priv, pkt_type,
+						frame_length, rate, need_ack);
 		break;
 
 	case RTSDUR_AA:
 	case RTSDUR_AA_F0:
 	case RTSDUR_AA_F1:
-		uCTSTime = vnt_get_frame_time(pDevice->byPreambleType,
-				byPktType, 14, pDevice->byTopOFDMBasicRate);
-		uDurTime = uCTSTime + 2 * pDevice->uSIFS +
-			s_uGetTxRsvTime(pDevice, byPktType,
-						cbFrameLength, wRate, bNeedAck);
+		cts_time = vnt_get_frame_time(priv->byPreambleType,
+				pkt_type, 14, priv->byTopOFDMBasicRate);
+		dur_time = cts_time + 2 * priv->uSIFS +
+			s_uGetTxRsvTime(priv, pkt_type,
+						frame_length, rate, need_ack);
 		break;
 
 	case CTSDUR_BA:
 	case CTSDUR_BA_F0:
 	case CTSDUR_BA_F1:
-		uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
-				byPktType, cbFrameLength, wRate, bNeedAck);
+		dur_time = priv->uSIFS + s_uGetTxRsvTime(priv,
+				pkt_type, frame_length, rate, need_ack);
 		break;
 
 	default:
 		break;
 	}
 
-	return cpu_to_le16((u16)uDurTime);
+	return cpu_to_le16((u16)dur_time);
 }
 
 static u16 vnt_mac_hdr_pos(struct vnt_usb_send_context *tx_context,
