@@ -451,7 +451,8 @@ config MPILIB
 
 config SIGNATURE
 	tristate
-	depends on KEYS && CRYPTO
+	depends on KEYS
+	select CRYPTO
 	select CRYPTO_SHA1
 	select MPILIB
 	help
