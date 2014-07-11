@@ -27,8 +27,9 @@
  * The minimum number of msix vectors required for normal operation.
  * 3 for virtio network, console and block devices.
  * 1 for card shutdown notifications.
+ * 4 for host owned DMA channels.
  */
-#define MIC_MIN_MSIX 4
+#define MIC_MIN_MSIX 8
 #define MIC_NUM_OFFSETS 32
 
 /**
