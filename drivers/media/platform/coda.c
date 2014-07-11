@@ -167,6 +167,7 @@ struct coda_params {
 	u8			mpeg4_intra_qp;
 	u8			mpeg4_inter_qp;
 	u8			gop_size;
+	int			intra_refresh;
 	int			codec_mode;
 	int			codec_mode_aux;
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
@@ -2379,7 +2380,8 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_RC_PARA);
 
 	coda_write(dev, 0, CODA_CMD_ENC_SEQ_RC_BUF_SIZE);
-	coda_write(dev, 0, CODA_CMD_ENC_SEQ_INTRA_REFRESH);
+	coda_write(dev, ctx->params.intra_refresh,
+		   CODA_CMD_ENC_SEQ_INTRA_REFRESH);
 
 	coda_write(dev, bitstream_buf, CODA_CMD_ENC_SEQ_BB_START);
 	coda_write(dev, bitstream_size / 1024, CODA_CMD_ENC_SEQ_BB_SIZE);
@@ -2678,6 +2680,9 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEADER_MODE:
 		break;
+	case V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB:
+		ctx->params.intra_refresh = ctrl->val;
+		break;
 	default:
 		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 			"Invalid control, id=%d, val=%d\n",
@@ -2739,6 +2744,8 @@ static int coda_ctrls_setup(struct coda_ctx *ctx)
 		V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME,
 		(1 << V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE),
 		V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
+	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB, 0, 1920 * 1088 / 256, 1, 0);
 
 	if (ctx->ctrls.error) {
 		v4l2_err(&ctx->dev->v4l2_dev, "control initialization error (%d)",
