@@ -210,19 +210,20 @@ static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
 }
 
 //byFreqType 0: 5GHz, 1:2.4Ghz
-static __le16 s_uGetDataDuration(struct vnt_private *pDevice,
-					u8 byPktType, int bNeedAck)
+static __le16 s_uGetDataDuration(struct vnt_private *piv,
+					u8 pkt_type, int need_ack)
 {
-	u32 uAckTime = 0;
+	u32 ack_time = 0;
 
-	if (bNeedAck) {
-		if (byPktType == PK_TYPE_11B)
-			uAckTime = vnt_get_frame_time(pDevice->byPreambleType,
-				byPktType, 14, pDevice->byTopCCKBasicRate);
+	if (need_ack) {
+		if (pkt_type == PK_TYPE_11B)
+			ack_time = vnt_get_frame_time(piv->byPreambleType,
+				pkt_type, 14, piv->byTopCCKBasicRate);
 		else
-			uAckTime = vnt_get_frame_time(pDevice->byPreambleType,
-				byPktType, 14, pDevice->byTopOFDMBasicRate);
-		return cpu_to_le16((u16)(pDevice->uSIFS + uAckTime));
+			ack_time = vnt_get_frame_time(piv->byPreambleType,
+				pkt_type, 14, piv->byTopOFDMBasicRate);
+
+		return cpu_to_le16((u16)(piv->uSIFS + ack_time));
 	}
 
 	return 0;
