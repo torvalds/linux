@@ -26,29 +26,6 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
-config PINCTRL_ABX500
-	bool "ST-Ericsson ABx500 family Mixed Signal Circuit gpio functions"
-	depends on AB8500_CORE
-	select GENERIC_PINCONF
-	help
-	  Select this to enable the ABx500 family IC GPIO driver
-
-config PINCTRL_AB8500
-	bool "AB8500 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
-
-config PINCTRL_AB8540
-	bool "AB8540 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
-
-config PINCTRL_AB9540
-	bool "AB9540 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
-
-config PINCTRL_AB8505
-	bool "AB8505 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
-
 config PINCTRL_ADI2
 	bool "ADI pin controller driver"
 	depends on BLACKFIN
@@ -233,27 +210,6 @@ config PINCTRL_IMX28
 	bool
 	select PINCTRL_MXS
 
-config PINCTRL_NOMADIK
-	bool "Nomadik pin controller driver"
-	depends on ARCH_U8500 || ARCH_NOMADIK
-	select PINMUX
-	select PINCONF
-	select GPIOLIB
-	select OF_GPIO
-	select GPIOLIB_IRQCHIP
-
-config PINCTRL_STN8815
-	bool "STN8815 pin controller driver"
-	depends on PINCTRL_NOMADIK && ARCH_NOMADIK
-
-config PINCTRL_DB8500
-	bool "DB8500 pin controller driver"
-	depends on PINCTRL_NOMADIK && ARCH_U8500
-
-config PINCTRL_DB8540
-	bool "DB8540 pin controller driver"
-	depends on PINCTRL_NOMADIK && ARCH_U8500
-
 config PINCTRL_ROCKCHIP
 	bool
 	select PINMUX
@@ -345,6 +301,7 @@ config PINCTRL_PALMAS
 
 source "drivers/pinctrl/berlin/Kconfig"
 source "drivers/pinctrl/mvebu/Kconfig"
+source "drivers/pinctrl/nomadik/Kconfig"
 source "drivers/pinctrl/qcom/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"

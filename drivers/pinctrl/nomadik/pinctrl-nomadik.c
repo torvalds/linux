@@ -31,7 +31,7 @@
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
 #include "pinctrl-nomadik.h"
-#include "core.h"
+#include "../core.h"
 
 /*
  * The GPIO module in the Nomadik family of Systems-on-Chip is an

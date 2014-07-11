@@ -32,8 +32,8 @@
 #include <linux/pinctrl/machine.h>
 
 #include "pinctrl-abx500.h"
-#include "core.h"
-#include "pinconf.h"
+#include "../core.h"
+#include "../pinconf.h"
 
 /*
  * The AB9540 and AB8540 GPIO support are extended versions

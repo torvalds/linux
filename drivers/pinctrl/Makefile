@@ -9,11 +9,6 @@ ifeq ($(CONFIG_OF),y)
 obj-$(CONFIG_PINCTRL)		+= devicetree.o
 endif
 obj-$(CONFIG_GENERIC_PINCONF)	+= pinconf-generic.o
-obj-$(CONFIG_PINCTRL_ABX500)	+= pinctrl-abx500.o
-obj-$(CONFIG_PINCTRL_AB8500)	+= pinctrl-ab8500.o
-obj-$(CONFIG_PINCTRL_AB8540)	+= pinctrl-ab8540.o
-obj-$(CONFIG_PINCTRL_AB9540)	+= pinctrl-ab9540.o
-obj-$(CONFIG_PINCTRL_AB8505)	+= pinctrl-ab8505.o
 obj-$(CONFIG_PINCTRL_ADI2)	+= pinctrl-adi2.o
 obj-$(CONFIG_PINCTRL_AS3722)	+= pinctrl-as3722.o
 obj-$(CONFIG_PINCTRL_BF54x)	+= pinctrl-adi2-bf54x.o
@@ -39,10 +34,6 @@ obj-$(CONFIG_PINCTRL_MXS)	+= pinctrl-mxs.o
 obj-$(CONFIG_PINCTRL_IMX23)	+= pinctrl-imx23.o
 obj-$(CONFIG_PINCTRL_IMX25)	+= pinctrl-imx25.o
 obj-$(CONFIG_PINCTRL_IMX28)	+= pinctrl-imx28.o
-obj-$(CONFIG_PINCTRL_NOMADIK)	+= pinctrl-nomadik.o
-obj-$(CONFIG_PINCTRL_STN8815)	+= pinctrl-nomadik-stn8815.o
-obj-$(CONFIG_PINCTRL_DB8500)	+= pinctrl-nomadik-db8500.o
-obj-$(CONFIG_PINCTRL_DB8540)	+= pinctrl-nomadik-db8540.o
 obj-$(CONFIG_PINCTRL_PALMAS)	+= pinctrl-palmas.o
 obj-$(CONFIG_PINCTRL_ROCKCHIP)	+= pinctrl-rockchip.o
 obj-$(CONFIG_PINCTRL_SINGLE)	+= pinctrl-single.o
@@ -64,6 +55,7 @@ obj-$(CONFIG_PINCTRL_VF610)	+= pinctrl-vf610.o
 
 obj-$(CONFIG_ARCH_BERLIN)	+= berlin/
 obj-$(CONFIG_PLAT_ORION)        += mvebu/
+obj-y				+= nomadik/
 obj-$(CONFIG_ARCH_QCOM)		+= qcom/
 obj-$(CONFIG_PLAT_SAMSUNG)	+= samsung/
 obj-$(CONFIG_ARCH_SHMOBILE)	+= sh-pfc/
