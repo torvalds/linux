@@ -213,7 +213,7 @@ struct ced_data {
 
 /*  Definitions of routimes used between compilation object files */
 /*  in usb1401.c */
-extern int ced_allowi(struct ced_data * ced);
+extern int ced_allowi(struct ced_data *ced);
 extern int ced_send_chars(struct ced_data *ced);
 extern void ced_draw_down(struct ced_data *ced);
 extern int ced_read_write_mem(struct ced_data *ced, bool read,
