@@ -251,8 +251,10 @@ nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
 		/* grab extra ref if head request has extra ref from
 		 * the write/commit path to handle handoff between write
 		 * and commit lists */
-		if (test_bit(PG_INODE_REF, &prev->wb_head->wb_flags))
+		if (test_bit(PG_INODE_REF, &prev->wb_head->wb_flags)) {
+			set_bit(PG_INODE_REF, &req->wb_flags);
 			kref_get(&req->wb_kref);
+		}
 	}
 }
 

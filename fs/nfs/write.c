@@ -448,7 +448,9 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 		set_page_private(req->wb_page, (unsigned long)req);
 	}
 	nfsi->npages++;
-	set_bit(PG_INODE_REF, &req->wb_flags);
+	/* this a head request for a page group - mark it as having an
+	 * extra reference so sub groups can follow suit */
+	WARN_ON(test_and_set_bit(PG_INODE_REF, &req->wb_flags));
 	kref_get(&req->wb_kref);
 	spin_unlock(&inode->i_lock);
 }
@@ -474,7 +476,9 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 		nfsi->npages--;
 		spin_unlock(&inode->i_lock);
 	}
-	nfs_release_request(req);
+
+	if (test_and_clear_bit(PG_INODE_REF, &req->wb_flags))
+		nfs_release_request(req);
 }
 
 static void
