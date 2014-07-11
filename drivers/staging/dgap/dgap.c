@@ -106,8 +106,8 @@ static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd, struct 
 			       unsigned int command, unsigned int __user *value);
 static int dgap_get_modem_info(struct channel_t *ch,
 				unsigned int __user *value);
-static int dgap_tty_digisetcustombaud(struct tty_struct *tty,
-				int __user *new_info);
+static int dgap_tty_digisetcustombaud(struct channel_t *ch, struct board_t *bd,
+				      struct un_t *un, int __user *new_info);
 static int dgap_tty_digigetcustombaud(struct channel_t *ch, struct un_t *un,
 				      int __user *retinfo);
 static int dgap_tty_tiocmget(struct tty_struct *tty);
@@ -3344,31 +3344,12 @@ static int dgap_tty_digigetcustombaud(struct channel_t *ch, struct un_t *un,
  *
  * Ioctl to set the custom baud rate setting
  */
-static int dgap_tty_digisetcustombaud(struct tty_struct *tty,
-					int __user *new_info)
+static int dgap_tty_digisetcustombaud(struct channel_t *ch, struct board_t *bd,
+				      struct un_t *un, int __user *new_info)
 {
-	struct board_t *bd;
-	struct channel_t *ch;
-	struct un_t *un;
 	uint new_rate;
 	ulong lock_flags;
 	ulong lock_flags2;
-
-	if (!tty || tty->magic != TTY_MAGIC)
-		return -EFAULT;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return -EFAULT;
-
-	ch = un->un_ch;
-	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return -EFAULT;
-
-	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return -EFAULT;
-
 
 	if (copy_from_user(&new_rate, new_info, sizeof(unsigned int)))
 		return -EFAULT;
@@ -4040,7 +4021,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	case DIGI_SETCUSTOMBAUD:
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-		return dgap_tty_digisetcustombaud(tty, uarg);
+		return dgap_tty_digisetcustombaud(ch, bd, un, uarg);
 
 	case DIGI_RESET_PORT:
 		dgap_firmware_reset_port(ch);
