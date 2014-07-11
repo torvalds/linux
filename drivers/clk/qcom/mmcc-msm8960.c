@@ -1218,12 +1218,7 @@ static const char *mmcc_pxo_hdmi[] = {
 };
 
 static struct freq_tbl clk_tbl_tv[] = {
-	{  25200000, P_HDMI_PLL, 1, 0, 0 },
-	{  27000000, P_HDMI_PLL, 1, 0, 0 },
-	{  27030000, P_HDMI_PLL, 1, 0, 0 },
-	{  74250000, P_HDMI_PLL, 1, 0, 0 },
-	{ 108000000, P_HDMI_PLL, 1, 0, 0 },
-	{ 148500000, P_HDMI_PLL, 1, 0, 0 },
+	{  .src = P_HDMI_PLL, .pre_div = 1 },
 	{ }
 };
 
@@ -1254,7 +1249,7 @@ static struct clk_rcg tv_src = {
 			.name = "tv_src",
 			.parent_names = mmcc_pxo_hdmi,
 			.num_parents = 2,
-			.ops = &clk_rcg_ops,
+			.ops = &clk_rcg_bypass_ops,
 			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
