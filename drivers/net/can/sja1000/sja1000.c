@@ -141,6 +141,7 @@ static void set_normal_mode(struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
 	unsigned char status = priv->read_reg(priv, SJA1000_MOD);
+	u8 mod_reg_val = 0x00;
 	int i;
 
 	for (i = 0; i < 100; i++) {
@@ -158,9 +159,10 @@ static void set_normal_mode(struct net_device *dev)
 
 		/* set chip to normal mode */
 		if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
-			priv->write_reg(priv, SJA1000_MOD, MOD_LOM);
-		else
-			priv->write_reg(priv, SJA1000_MOD, 0x00);
+			mod_reg_val |= MOD_LOM;
+		if (priv->can.ctrlmode & CAN_CTRLMODE_PRESUME_ACK)
+			mod_reg_val |= MOD_STM;
+		priv->write_reg(priv, SJA1000_MOD, mod_reg_val);
 
 		udelay(10);
 
@@ -632,7 +634,8 @@ struct net_device *alloc_sja1000dev(int sizeof_priv)
 				       CAN_CTRLMODE_LISTENONLY |
 				       CAN_CTRLMODE_3_SAMPLES |
 				       CAN_CTRLMODE_ONE_SHOT |
-				       CAN_CTRLMODE_BERR_REPORTING;
+				       CAN_CTRLMODE_BERR_REPORTING |
+				       CAN_CTRLMODE_PRESUME_ACK;
 
 	spin_lock_init(&priv->cmdreg_lock);
 
