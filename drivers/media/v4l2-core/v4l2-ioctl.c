@@ -2042,8 +2042,11 @@ static int v4l_enum_freq_bands(const struct v4l2_ioctl_ops *ops,
 		if (type != p->type)
 			return -EINVAL;
 	}
-	if (ops->vidioc_enum_freq_bands)
-		return ops->vidioc_enum_freq_bands(file, fh, p);
+	if (ops->vidioc_enum_freq_bands) {
+		err = ops->vidioc_enum_freq_bands(file, fh, p);
+		if (err != -ENOTTY)
+			return err;
+	}
 	if (is_valid_ioctl(vfd, VIDIOC_G_TUNER)) {
 		struct v4l2_tuner t = {
 			.index = p->tuner,
