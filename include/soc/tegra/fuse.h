@@ -56,7 +56,6 @@ struct tegra_sku_info {
 
 u32 tegra_read_straps(void);
 u32 tegra_read_chipid(void);
-void tegra_init_fuse(void);
 int tegra_fuse_readl(unsigned long offset, u32 *value);
 
 extern struct tegra_sku_info tegra_sku_info;

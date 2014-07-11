@@ -38,9 +38,12 @@ u32 tegra_read_chipid(void)
 
 u8 tegra_get_chip_id(void)
 {
-	u32 id = tegra_read_chipid();
+	if (!apbmisc_base) {
+		WARN(1, "Tegra Chip ID not yet available\n");
+		return 0;
+	}
 
-	return (id >> 8) & 0xff;
+	return (tegra_read_chipid() >> 8) & 0xff;
 }
 
 u32 tegra_read_straps(void)

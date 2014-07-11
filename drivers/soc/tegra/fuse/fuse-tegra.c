@@ -23,6 +23,7 @@
 #include <linux/of_address.h>
 #include <linux/io.h>
 
+#include <soc/tegra/common.h>
 #include <soc/tegra/fuse.h>
 
 #include "fuse.h"
@@ -125,10 +126,13 @@ int tegra_fuse_create_sysfs(struct device *dev, int size,
 	return device_create_bin_file(dev, &fuse_bin_attr);
 }
 
-void __init tegra_init_fuse(void)
+static int __init tegra_init_fuse(void)
 {
 	struct device_node *np;
 	void __iomem *car_base;
+
+	if (!soc_is_tegra())
+		return 0;
 
 	tegra_init_apbmisc();
 
@@ -139,7 +143,7 @@ void __init tegra_init_fuse(void)
 		iounmap(car_base);
 	} else {
 		pr_err("Could not enable fuse clk. ioremap tegra car failed.\n");
-		return;
+		return -ENXIO;
 	}
 
 	if (tegra_get_chip_id() == TEGRA20)
@@ -153,4 +157,7 @@ void __init tegra_init_fuse(void)
 		tegra_sku_info.core_process_id);
 	pr_debug("Tegra CPU Speedo ID %d, Soc Speedo ID %d\n",
 		tegra_sku_info.cpu_speedo_id, tegra_sku_info.soc_speedo_id);
+
+	return 0;
 }
+early_initcall(tegra_init_fuse);
