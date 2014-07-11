@@ -49,7 +49,7 @@ struct hci_sec_filter {
 	__u32 ocf_mask[HCI_SFLT_MAX_OGF + 1][4];
 };
 
-static struct hci_sec_filter hci_sec_filter = {
+static const struct hci_sec_filter hci_sec_filter = {
 	/* Packet types */
 	0x10,
 	/* Events */
