@@ -46,9 +46,6 @@
 
 #define CODA_PARA_BUF_SIZE	(10 * 1024)
 #define CODA_ISRAM_SIZE	(2048 * 2)
-#define CODADX6_IRAM_SIZE	0xb000
-#define CODA7_IRAM_SIZE		0x14000
-#define CODA9_IRAM_SIZE		0x21000
 
 #define CODA7_PS_BUF_SIZE	0x28000
 #define CODA9_PS_SAVE_SIZE	(512 * 1024)
@@ -109,6 +106,7 @@ struct coda_devtype {
 	unsigned int		num_codecs;
 	size_t			workbuf_size;
 	size_t			tempbuf_size;
+	size_t			iram_size;
 };
 
 /* Per-queue, driver-specific private data */
@@ -3678,6 +3676,7 @@ static const struct coda_devtype coda_devdata[] = {
 		.codecs       = codadx6_codecs,
 		.num_codecs   = ARRAY_SIZE(codadx6_codecs),
 		.workbuf_size = 288 * 1024 + FMO_SLICE_SAVE_BUF_SIZE * 8 * 1024,
+		.iram_size    = 0xb000,
 	},
 	[CODA_IMX53] = {
 		.firmware     = "v4l-coda7541-imx53.bin",
@@ -3686,6 +3685,7 @@ static const struct coda_devtype coda_devdata[] = {
 		.num_codecs   = ARRAY_SIZE(coda7_codecs),
 		.workbuf_size = 128 * 1024,
 		.tempbuf_size = 304 * 1024,
+		.iram_size    = 0x14000,
 	},
 	[CODA_IMX6Q] = {
 		.firmware     = "v4l-coda960-imx6q.bin",
@@ -3694,6 +3694,7 @@ static const struct coda_devtype coda_devdata[] = {
 		.num_codecs   = ARRAY_SIZE(coda9_codecs),
 		.workbuf_size = 80 * 1024,
 		.tempbuf_size = 204 * 1024,
+		.iram_size    = 0x21000,
 	},
 	[CODA_IMX6DL] = {
 		.firmware     = "v4l-coda960-imx6dl.bin",
@@ -3702,6 +3703,7 @@ static const struct coda_devtype coda_devdata[] = {
 		.num_codecs   = ARRAY_SIZE(coda9_codecs),
 		.workbuf_size = 80 * 1024,
 		.tempbuf_size = 204 * 1024,
+		.iram_size    = 0x20000,
 	},
 };
 
@@ -3843,16 +3845,7 @@ static int coda_probe(struct platform_device *pdev)
 		}
 	}
 
-	switch (dev->devtype->product) {
-	case CODA_DX6:
-		dev->iram.size = CODADX6_IRAM_SIZE;
-		break;
-	case CODA_7541:
-		dev->iram.size = CODA7_IRAM_SIZE;
-		break;
-	case CODA_960:
-		dev->iram.size = CODA9_IRAM_SIZE;
-	}
+	dev->iram.size = dev->devtype->iram_size;
 	dev->iram.vaddr = gen_pool_dma_alloc(dev->iram_pool, dev->iram.size,
 					     &dev->iram.paddr);
 	if (!dev->iram.vaddr) {
