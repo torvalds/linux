@@ -27,6 +27,7 @@
 #include <linux/videodev2.h>
 #include <linux/of.h>
 #include <linux/platform_data/coda.h>
+#include <linux/reset.h>
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -138,6 +139,7 @@ struct coda_dev {
 	void __iomem		*regs_base;
 	struct clk		*clk_per;
 	struct clk		*clk_ahb;
+	struct reset_control	*rstc;
 
 	struct coda_aux_buf	codebuf;
 	struct coda_aux_buf	tempbuf;
@@ -335,6 +337,39 @@ static int coda_command_sync(struct coda_ctx *ctx, int cmd)
 
 	coda_command_async(ctx, cmd);
 	return coda_wait_timeout(dev);
+}
+
+static int coda_hw_reset(struct coda_ctx *ctx)
+{
+	struct coda_dev *dev = ctx->dev;
+	unsigned long timeout;
+	unsigned int idx;
+	int ret;
+
+	if (!dev->rstc)
+		return -ENOENT;
+
+	idx = coda_read(dev, CODA_REG_BIT_RUN_INDEX);
+
+	timeout = jiffies + msecs_to_jiffies(100);
+	coda_write(dev, 0x11, CODA9_GDI_BUS_CTRL);
+	while (coda_read(dev, CODA9_GDI_BUS_STATUS) != 0x77) {
+		if (time_after(jiffies, timeout))
+			return -ETIME;
+		cpu_relax();
+	}
+
+	ret = reset_control_reset(dev->rstc);
+	if (ret < 0)
+		return ret;
+
+	coda_write(dev, 0x00, CODA9_GDI_BUS_CTRL);
+	coda_write(dev, CODA_REG_BIT_BUSY_FLAG, CODA_REG_BIT_BUSY);
+	coda_write(dev, CODA_REG_RUN_ENABLE, CODA_REG_BIT_CODE_RUN);
+	ret = coda_wait_timeout(dev);
+	coda_write(dev, idx, CODA_REG_BIT_RUN_INDEX);
+
+	return ret;
 }
 
 static struct coda_q_data *get_q_data(struct coda_ctx *ctx,
@@ -1423,6 +1458,8 @@ static void coda_pic_run_work(struct work_struct *work)
 		dev_err(&dev->plat_dev->dev, "CODA PIC_RUN timeout\n");
 
 		ctx->hold = true;
+
+		coda_hw_reset(ctx);
 	} else if (!ctx->aborting) {
 		if (ctx->inst_type == CODA_INST_DECODER)
 			coda_finish_decode(ctx);
@@ -3333,6 +3370,9 @@ static int coda_hw_init(struct coda_dev *dev)
 	if (ret)
 		goto err_clk_ahb;
 
+	if (dev->rstc)
+		reset_control_reset(dev->rstc);
+
 	/*
 	 * Copy the first CODA_ISRAM_SIZE in the internal SRAM.
 	 * The 16-bit chars in the code buffer are in memory access
@@ -3689,6 +3729,17 @@ static int coda_probe(struct platform_device *pdev)
 		IRQF_ONESHOT, dev_name(&pdev->dev), dev) < 0) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return -ENOENT;
+	}
+
+	dev->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(dev->rstc)) {
+		ret = PTR_ERR(dev->rstc);
+		if (ret == -ENOENT) {
+			dev->rstc = NULL;
+		} else {
+			dev_err(&pdev->dev, "failed get reset control: %d\n", ret);
+			return ret;
+		}
 	}
 
 	/* Get IRAM pool from device tree or platform data */
