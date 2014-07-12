@@ -58,8 +58,8 @@
 
 #if  defined(LLOG_LVFS)
 
-static int llog_lvfs_pad(struct obd_device *obd, struct l_file *file,
-				int len, int index)
+static int llog_lvfs_pad(struct obd_device *obd, struct file *file, int len,
+			 int index)
 {
 	struct llog_rec_hdr rec = { 0 };
 	struct llog_rec_tail tail;
@@ -88,7 +88,7 @@ static int llog_lvfs_pad(struct obd_device *obd, struct l_file *file,
 	return rc;
 }
 
-static int llog_lvfs_write_blob(struct obd_device *obd, struct l_file *file,
+static int llog_lvfs_write_blob(struct obd_device *obd, struct file *file,
 				struct llog_rec_hdr *rec, void *buf, loff_t off)
 {
 	int rc;
@@ -140,7 +140,7 @@ static int llog_lvfs_write_blob(struct obd_device *obd, struct l_file *file,
 	return rc;
 }
 
-static int llog_lvfs_read_blob(struct obd_device *obd, struct l_file *file,
+static int llog_lvfs_read_blob(struct obd_device *obd, struct file *file,
 				void *buf, int size, loff_t off)
 {
 	loff_t offset = off;
