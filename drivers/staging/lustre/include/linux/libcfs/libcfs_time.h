@@ -48,7 +48,7 @@ static inline unsigned long cfs_time_add(unsigned long t, long d)
 	return (unsigned long)(t + d);
 }
 
-static inline long cfs_time_sub(unsigned long t1, unsigned long t2)
+static inline unsigned long cfs_time_sub(unsigned long t1, unsigned long t2)
 {
 	return (unsigned long)(t1 - t2);
 }
