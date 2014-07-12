@@ -110,7 +110,7 @@ static void __init rk3036_dt_map_io(void)
 
     iotable_init(rk3036_io_desc, ARRAY_SIZE(rk3036_io_desc));
     debug_ll_io_init();
-    //usb_uart_init();
+    usb_uart_init();
 
     /* enable timer5 for core */
     writel_relaxed(0, RK3036_TIMER5_VIRT + 0x10);
