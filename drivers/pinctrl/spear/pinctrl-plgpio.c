@@ -606,8 +606,7 @@ static int plgpio_probe(struct platform_device *pdev)
 
 remove_gpiochip:
 	dev_info(&pdev->dev, "Remove gpiochip\n");
-	if (gpiochip_remove(&plgpio->chip))
-		dev_err(&pdev->dev, "unable to remove gpiochip\n");
+	gpiochip_remove(&plgpio->chip);
 unprepare_clk:
 	if (!IS_ERR(plgpio->clk))
 		clk_unprepare(plgpio->clk);

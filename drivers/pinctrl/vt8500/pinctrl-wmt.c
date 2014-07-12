@@ -615,8 +615,7 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 
 fail_range:
-	if (gpiochip_remove(&data->gpio_chip))
-		dev_err(&pdev->dev, "failed to remove gpio chip\n");
+	gpiochip_remove(&data->gpio_chip);
 fail_gpio:
 	pinctrl_unregister(data->pctl_dev);
 	return err;
@@ -625,12 +624,8 @@ fail_gpio:
 int wmt_pinctrl_remove(struct platform_device *pdev)
 {
 	struct wmt_pinctrl_data *data = platform_get_drvdata(pdev);
-	int err;
 
-	err = gpiochip_remove(&data->gpio_chip);
-	if (err)
-		dev_err(&pdev->dev, "failed to remove gpio chip\n");
-
+	gpiochip_remove(&data->gpio_chip);
 	pinctrl_unregister(data->pctl_dev);
 
 	return 0;

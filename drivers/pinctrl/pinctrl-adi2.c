@@ -949,7 +949,7 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	struct gpio_port *port;
 	char pinctrl_devname[DEVNAME_SIZE];
 	static int gpio;
-	int ret = 0, ret1;
+	int ret = 0;
 
 	pdata = dev->platform_data;
 	if (!pdata)
@@ -1027,7 +1027,7 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 out_remove_gpiochip:
-	ret1 = gpiochip_remove(&port->chip);
+	gpiochip_remove(&port->chip);
 out_remove_domain:
 	if (port->pint)
 		irq_domain_remove(port->domain);
@@ -1038,12 +1038,11 @@ out_remove_domain:
 static int adi_gpio_remove(struct platform_device *pdev)
 {
 	struct gpio_port *port = platform_get_drvdata(pdev);
-	int ret;
 	u8 offset;
 
 	list_del(&port->node);
 	gpiochip_remove_pin_ranges(&port->chip);
-	ret = gpiochip_remove(&port->chip);
+	gpiochip_remove(&port->chip);
 	if (port->pint) {
 		for (offset = 0; offset < port->width; offset++)
 			irq_dispose_mapping(irq_find_mapping(port->domain,
@@ -1051,7 +1050,7 @@ static int adi_gpio_remove(struct platform_device *pdev)
 		irq_domain_remove(port->domain);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int adi_pinctrl_probe(struct platform_device *pdev)

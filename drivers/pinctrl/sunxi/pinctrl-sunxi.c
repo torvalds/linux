@@ -983,8 +983,7 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 clk_error:
 	clk_disable_unprepare(clk);
 gpiochip_error:
-	if (gpiochip_remove(pctl->chip))
-		dev_err(&pdev->dev, "failed to remove gpio chip\n");
+	gpiochip_remove(pctl->chip);
 pinctrl_error:
 	pinctrl_unregister(pctl->pctl_dev);
 	return ret;

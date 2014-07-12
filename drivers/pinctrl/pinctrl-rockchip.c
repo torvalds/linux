@@ -1492,10 +1492,7 @@ fail:
 	for (--i, --bank; i >= 0; --i, --bank) {
 		if (!bank->valid)
 			continue;
-
-		if (gpiochip_remove(&bank->gpio_chip))
-			dev_err(&pdev->dev, "gpio chip %s remove failed\n",
-							bank->gpio_chip.label);
+		gpiochip_remove(&bank->gpio_chip);
 	}
 	return ret;
 }
@@ -1505,20 +1502,15 @@ static int rockchip_gpiolib_unregister(struct platform_device *pdev,
 {
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct rockchip_pin_bank *bank = ctrl->pin_banks;
-	int ret = 0;
 	int i;
 
-	for (i = 0; !ret && i < ctrl->nr_banks; ++i, ++bank) {
+	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
 		if (!bank->valid)
 			continue;
-
-		ret = gpiochip_remove(&bank->gpio_chip);
+		gpiochip_remove(&bank->gpio_chip);
 	}
 
-	if (ret)
-		dev_err(&pdev->dev, "gpio chip remove failed\n");
-
-	return ret;
+	return 0;
 }
 
 static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,

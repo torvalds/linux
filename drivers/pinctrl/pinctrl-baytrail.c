@@ -638,12 +638,9 @@ MODULE_DEVICE_TABLE(acpi, byt_gpio_acpi_match);
 static int byt_gpio_remove(struct platform_device *pdev)
 {
 	struct byt_gpio *vg = platform_get_drvdata(pdev);
-	int err;
 
 	pm_runtime_disable(&pdev->dev);
-	err = gpiochip_remove(&vg->chip);
-	if (err)
-		dev_warn(&pdev->dev, "failed to remove gpio_chip.\n");
+	gpiochip_remove(&vg->chip);
 
 	return 0;
 }
