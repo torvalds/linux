@@ -141,8 +141,6 @@ void vRunCommand(struct work_struct *work)
 
 static int s_bCommandComplete(struct vnt_private *pDevice)
 {
-	int bRadioCmd = false;
-	int bForceSCAN = true;
 
 	pDevice->eCommandState = WLAN_CMD_IDLE;
 	if (pDevice->cbFreeCmdQueue == CMD_Q_SIZE) {
@@ -151,8 +149,7 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
 		return true;
 	} else {
 		pDevice->eCommand = pDevice->eCmdQueue[pDevice->uCmdDequeueIdx].eCmd;
-		bRadioCmd = pDevice->eCmdQueue[pDevice->uCmdDequeueIdx].bRadioCmd;
-		bForceSCAN = pDevice->eCmdQueue[pDevice->uCmdDequeueIdx].bForceSCAN;
+
 		ADD_ONE_WITH_WRAP_AROUND(pDevice->uCmdDequeueIdx, CMD_Q_SIZE);
 		pDevice->cbFreeCmdQueue++;
 		pDevice->bCmdRunning = true;
@@ -197,7 +194,6 @@ int bScheduleCommand(struct vnt_private *pDevice,
 	if (pDevice->cbFreeCmdQueue == 0)
 		return false;
 	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].eCmd = eCommand;
-	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bForceSCAN = true;
 
 	ADD_ONE_WITH_WRAP_AROUND(pDevice->uCmdEnqueueIdx, CMD_Q_SIZE);
 	pDevice->cbFreeCmdQueue--;

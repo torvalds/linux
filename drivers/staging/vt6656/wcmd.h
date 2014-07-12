@@ -58,10 +58,6 @@ typedef enum tagCMD_STATUS {
 
 typedef struct tagCMD_ITEM {
     CMD_CODE eCmd;
-    bool     bNeedRadioOFF;
-    bool     bRadioCmd;
-    bool     bForceSCAN;
-    u16     wDeAuthenReason;
 } CMD_ITEM, *PCMD_ITEM;
 
 // Command state
