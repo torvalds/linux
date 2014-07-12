@@ -49,9 +49,6 @@
 #include "rf.h"
 #include "channel.h"
 
-static int msglevel = MSG_LEVEL_INFO;
-//static int msglevel = MSG_LEVEL_DEBUG;
-
 static int s_bCommandComplete(struct vnt_private *);
 
 static void vCommandTimerWait(struct vnt_private *priv, unsigned long msecs)
@@ -108,8 +105,8 @@ void vRunCommand(struct work_struct *work)
 		break;
 
 	case WLAN_CMD_CHANGE_ANTENNA_START:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"Change from Antenna%d to", (int)priv->dwRxAntennaSel);
+		dev_dbg(&priv->usb->dev, "Change from Antenna%d to",
+							priv->dwRxAntennaSel);
 
 		if (priv->dwRxAntennaSel == 0) {
 			priv->dwRxAntennaSel = 1;
