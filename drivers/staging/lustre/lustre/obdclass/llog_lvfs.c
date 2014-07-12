@@ -567,7 +567,7 @@ static struct file *llog_filp_open(char *dir, char *name, int flags, int mode)
 	if (len >= PATH_MAX - 1) {
 		filp = ERR_PTR(-ENAMETOOLONG);
 	} else {
-		filp = l_filp_open(logname, flags, mode);
+		filp = filp_open(logname, flags, mode);
 		if (IS_ERR(filp) && PTR_ERR(filp) != -ENOENT)
 			CERROR("logfile creation %s: %ld\n", logname,
 			       PTR_ERR(filp));

@@ -43,8 +43,6 @@
 
 #include "../lvfs.h"
 
-#define l_filp_open filp_open
-
 struct lvfs_run_ctxt;
 struct file *l_dentry_open(struct lvfs_run_ctxt *, struct dentry *,
 			     int flags);
