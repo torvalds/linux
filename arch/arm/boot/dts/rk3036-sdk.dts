@@ -85,7 +85,7 @@
 };
 
 &nandc {
-	status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
+	status = "okay"; // used nand set "disabled" ,used emmc set "okay"
 };  
 
 &emmc {
