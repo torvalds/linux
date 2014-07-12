@@ -152,6 +152,8 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 		if (intel_dsi->dev.dev_ops->enable)
 			intel_dsi->dev.dev_ops->enable(&intel_dsi->dev);
 
+		wait_for_dsi_fifo_empty(intel_dsi);
+
 		/* assert ip_tg_enable signal */
 		temp = I915_READ(MIPI_PORT_CTRL(pipe)) & ~LANE_CONFIGURATION_MASK;
 		temp = temp | intel_dsi->port_bits;
@@ -191,6 +193,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	if (intel_dsi->dev.dev_ops->send_otp_cmds)
 		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
+
+	wait_for_dsi_fifo_empty(intel_dsi);
 
 	/* Enable port in pre-enable phase itself because as per hw team
 	 * recommendation, port should be enabled befor plane & pipe */
@@ -232,6 +236,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 
 	if (is_vid_mode(intel_dsi)) {
+		wait_for_dsi_fifo_empty(intel_dsi);
+
 		/* de-assert ip_tg_enable signal */
 		temp = I915_READ(MIPI_PORT_CTRL(pipe));
 		I915_WRITE(MIPI_PORT_CTRL(pipe), temp & ~DPI_ENABLE);
@@ -261,6 +267,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	 * some next enable sequence send turn on packet error is observed */
 	if (intel_dsi->dev.dev_ops->disable)
 		intel_dsi->dev.dev_ops->disable(&intel_dsi->dev);
+
+	wait_for_dsi_fifo_empty(intel_dsi);
 }
 
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
