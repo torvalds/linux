@@ -23,6 +23,8 @@
 
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
+#include <linux/rockchip/cpu.h>
+
 static int num_cores_total;
 static int num_cores_enabled;
 static void mali_platform_device_release(struct device *device);
@@ -71,6 +73,8 @@ static struct mali_gpu_device_data mali_gpu_data =
 };
 static void mali_platform_device_add_config(struct platform_device *pdev)
 {
+	if (cpu_is_rk3036())
+		mali_gpu_device_device_type.pm = NULL;
 	pdev->dev.id = 0;
 	pdev->dev.release = mali_platform_device_release;
 	pdev->dev.type = &mali_gpu_device_device_type;

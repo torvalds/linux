@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/cpufreq.h>
 
+#include <linux/rockchip/cpu.h>
 #include <linux/rockchip/dvfs.h>
 
 /*author@xxm*/
@@ -409,6 +410,9 @@ static struct early_suspend mali_dev_early_suspend = {
 
 _mali_osk_errcode_t mali_platform_init(void)
 {
+	if (cpu_is_rk3036())
+		MALI_SUCCESS;
+
 	MALI_CHECK(init_mali_clock(), _MALI_OSK_ERR_FAULT);
 	
 	clockSetlock = _mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED,_MALI_OSK_LOCK_ORDER_UTILIZATION);
@@ -439,6 +443,9 @@ _mali_osk_errcode_t mali_platform_init(void)
 
 _mali_osk_errcode_t mali_platform_deinit(void)
 {
+	if (cpu_is_rk3036())
+		MALI_SUCCESS;
+
 	deinit_mali_clock();
 	_mali_osk_mutex_term(clockSetlock);
 
@@ -446,6 +453,9 @@ _mali_osk_errcode_t mali_platform_deinit(void)
 }
 _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 {
+	if (cpu_is_rk3036())
+		MALI_SUCCESS;
+
 	if (!bpower_off)
 	{
 		if(!gpu_power_state)
@@ -497,6 +507,9 @@ _mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
 
 void mali_gpu_utilization_handler(struct mali_gpu_utilization_data *data)
 {
+	if (cpu_is_rk3036())
+		return;
+
 	if(data->utilization_pp > 256)
 		return;
 	utilization_global = data->utilization_pp;
