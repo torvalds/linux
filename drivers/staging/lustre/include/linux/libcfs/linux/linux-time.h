@@ -70,14 +70,10 @@
  *
  *  time_t	 cfs_duration_sec (cfs_duration_t);
  *  void	   cfs_duration_usec(cfs_duration_t, struct timeval *);
- *  void	   cfs_duration_nsec(cfs_duration_t, struct timespec *);
  *
  *  void	   cfs_fs_time_current(struct timespec *);
  *  time_t	 cfs_fs_time_sec    (struct timespec *);
  *  void	   cfs_fs_time_usec   (struct timespec *, struct timeval *);
- *  void	   cfs_fs_time_nsec   (struct timespec *, struct timespec *);
- *  int	    cfs_fs_time_before (struct timespec *, struct timespec *);
- *  int	    cfs_fs_time_beforeq(struct timespec *, struct timespec *);
  *
  *  CFS_TIME_FORMAT
  *  CFS_DURATION_FORMAT
@@ -107,26 +103,12 @@ static inline void cfs_fs_time_usec(struct timespec *t, struct timeval *v)
 	v->tv_usec = t->tv_nsec / 1000;
 }
 
-static inline void cfs_fs_time_nsec(struct timespec *t, struct timespec *s)
-{
-	*s = *t;
-}
-
-/*
- * internal helper function used by cfs_fs_time_before*()
- */
-static inline unsigned long long __cfs_fs_time_flat(struct timespec *t)
-{
-	return (unsigned long long)t->tv_sec * ONE_BILLION + t->tv_nsec;
-}
-
 /*
  * Generic kernel stuff
  */
 
 typedef unsigned long cfs_time_t;      /* jiffies */
 typedef long cfs_duration_t;
-typedef cycles_t cfs_cycles_t;
 
 static inline int cfs_time_before(cfs_time_t t1, cfs_time_t t2)
 {
@@ -158,33 +140,6 @@ static inline time_t cfs_fs_time_sec(struct timespec *t)
 	return t->tv_sec;
 }
 
-static inline int cfs_fs_time_before(struct timespec *t1, struct timespec *t2)
-{
-	return __cfs_fs_time_flat(t1) <  __cfs_fs_time_flat(t2);
-}
-
-static inline int cfs_fs_time_beforeq(struct timespec *t1, struct timespec *t2)
-{
-	return __cfs_fs_time_flat(t1) <= __cfs_fs_time_flat(t2);
-}
-
-#if 0
-static inline cfs_duration_t cfs_duration_build(int64_t nano)
-{
-#if (BITS_PER_LONG == 32)
-	/* We cannot use do_div(t, ONE_BILLION), do_div can only process
-	 * 64 bits n and 32 bits base */
-	int64_t  t = nano * HZ;
-
-	do_div(t, 1000);
-	do_div(t, 1000000);
-	return (cfs_duration_t)t;
-#else
-	return (nano * HZ / ONE_BILLION);
-#endif
-}
-#endif
-
 static inline cfs_duration_t cfs_time_seconds(int seconds)
 {
 	return ((cfs_duration_t)seconds) * HZ;
@@ -208,21 +163,6 @@ static inline void cfs_duration_usec(cfs_duration_t d, struct timeval *s)
 	s->tv_sec = d / HZ;
 	s->tv_usec = ((d - (cfs_duration_t)s->tv_sec * HZ) * \
 		ONE_MILLION) / HZ;
-#endif
-}
-
-static inline void cfs_duration_nsec(cfs_duration_t d, struct timespec *s)
-{
-#if (BITS_PER_LONG == 32)
-	__u64 t;
-
-	s->tv_sec = d / HZ;
-	t = (d - s->tv_sec * HZ) * ONE_BILLION;
-	do_div(t, HZ);
-	s->tv_nsec = t;
-#else
-	s->tv_sec = d / HZ;
-	s->tv_nsec = ((d - s->tv_sec * HZ) * ONE_BILLION) / HZ;
 #endif
 }
 
@@ -258,12 +198,3 @@ static inline int cfs_time_beforeq_64(__u64 t1, __u64 t2)
 #define CFS_DURATION_T	  "%ld"
 
 #endif /* __LIBCFS_LINUX_LINUX_TIME_H__ */
-/*
- * Local variables:
- * c-indentation-style: "K&R"
- * c-basic-offset: 8
- * tab-width: 8
- * fill-column: 80
- * scroll-step: 1
- * End:
- */
