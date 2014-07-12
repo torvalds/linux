@@ -5957,7 +5957,7 @@ W:	http://palosaari.fi/linux/
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
-F:	drivers/staging/media/msi3101/msi001*
+F:	drivers/media/tuners/msi001*
 
 MSI3101 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
