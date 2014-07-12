@@ -2898,16 +2898,13 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 }
 
 #ifdef DEBUG
-static int brcmf_sdio_dump_console(struct brcmf_sdio *bus,
-				   struct sdpcm_shared *sh, char __user *data,
-				   size_t count)
+static int brcmf_sdio_dump_console(struct seq_file *seq, struct brcmf_sdio *bus,
+				   struct sdpcm_shared *sh)
 {
 	u32 addr, console_ptr, console_size, console_index;
 	char *conbuf = NULL;
 	__le32 sh_val;
 	int rv;
-	loff_t pos = 0;
-	int nbytes = 0;
 
 	/* obtain console information from device memory */
 	addr = sh->console_addr + offsetof(struct rte_console, log_le);
@@ -2945,33 +2942,24 @@ static int brcmf_sdio_dump_console(struct brcmf_sdio *bus,
 	if (rv < 0)
 		goto done;
 
-	rv = simple_read_from_buffer(data, count, &pos,
-				     conbuf + console_index,
-				     console_size - console_index);
+	rv = seq_write(seq, conbuf + console_index,
+		       console_size - console_index);
 	if (rv < 0)
 		goto done;
 
-	nbytes = rv;
-	if (console_index > 0) {
-		pos = 0;
-		rv = simple_read_from_buffer(data+nbytes, count, &pos,
-					     conbuf, console_index - 1);
-		if (rv < 0)
-			goto done;
-		rv += nbytes;
-	}
+	if (console_index > 0)
+		rv = seq_write(seq, conbuf, console_index - 1);
+
 done:
 	vfree(conbuf);
 	return rv;
 }
 
-static int brcmf_sdio_trap_info(struct brcmf_sdio *bus, struct sdpcm_shared *sh,
-				char __user *data, size_t count)
+static int brcmf_sdio_trap_info(struct seq_file *seq, struct brcmf_sdio *bus,
+				struct sdpcm_shared *sh)
 {
-	int error, res;
-	char buf[350];
+	int error;
 	struct brcmf_trap_info tr;
-	loff_t pos = 0;
 
 	if ((sh->flags & SDPCM_SHARED_TRAP) == 0) {
 		brcmf_dbg(INFO, "no trap in firmware\n");
@@ -2983,34 +2971,30 @@ static int brcmf_sdio_trap_info(struct brcmf_sdio *bus, struct sdpcm_shared *sh,
 	if (error < 0)
 		return error;
 
-	res = scnprintf(buf, sizeof(buf),
-			"dongle trap info: type 0x%x @ epc 0x%08x\n"
-			"  cpsr 0x%08x spsr 0x%08x sp 0x%08x\n"
-			"  lr   0x%08x pc   0x%08x offset 0x%x\n"
-			"  r0   0x%08x r1   0x%08x r2 0x%08x r3 0x%08x\n"
-			"  r4   0x%08x r5   0x%08x r6 0x%08x r7 0x%08x\n",
-			le32_to_cpu(tr.type), le32_to_cpu(tr.epc),
-			le32_to_cpu(tr.cpsr), le32_to_cpu(tr.spsr),
-			le32_to_cpu(tr.r13), le32_to_cpu(tr.r14),
-			le32_to_cpu(tr.pc), sh->trap_addr,
-			le32_to_cpu(tr.r0), le32_to_cpu(tr.r1),
-			le32_to_cpu(tr.r2), le32_to_cpu(tr.r3),
-			le32_to_cpu(tr.r4), le32_to_cpu(tr.r5),
-			le32_to_cpu(tr.r6), le32_to_cpu(tr.r7));
+	seq_printf(seq,
+		   "dongle trap info: type 0x%x @ epc 0x%08x\n"
+		   "  cpsr 0x%08x spsr 0x%08x sp 0x%08x\n"
+		   "  lr   0x%08x pc   0x%08x offset 0x%x\n"
+		   "  r0   0x%08x r1   0x%08x r2 0x%08x r3 0x%08x\n"
+		   "  r4   0x%08x r5   0x%08x r6 0x%08x r7 0x%08x\n",
+		   le32_to_cpu(tr.type), le32_to_cpu(tr.epc),
+		   le32_to_cpu(tr.cpsr), le32_to_cpu(tr.spsr),
+		   le32_to_cpu(tr.r13), le32_to_cpu(tr.r14),
+		   le32_to_cpu(tr.pc), sh->trap_addr,
+		   le32_to_cpu(tr.r0), le32_to_cpu(tr.r1),
+		   le32_to_cpu(tr.r2), le32_to_cpu(tr.r3),
+		   le32_to_cpu(tr.r4), le32_to_cpu(tr.r5),
+		   le32_to_cpu(tr.r6), le32_to_cpu(tr.r7));
 
-	return simple_read_from_buffer(data, count, &pos, buf, res);
+	return 0;
 }
 
-static int brcmf_sdio_assert_info(struct brcmf_sdio *bus,
-				  struct sdpcm_shared *sh, char __user *data,
-				  size_t count)
+static int brcmf_sdio_assert_info(struct seq_file *seq, struct brcmf_sdio *bus,
+				  struct sdpcm_shared *sh)
 {
 	int error = 0;
-	char buf[200];
 	char file[80] = "?";
 	char expr[80] = "<???>";
-	int res;
-	loff_t pos = 0;
 
 	if ((sh->flags & SDPCM_SHARED_ASSERT_BUILT) == 0) {
 		brcmf_dbg(INFO, "firmware not built with -assert\n");
@@ -3035,10 +3019,9 @@ static int brcmf_sdio_assert_info(struct brcmf_sdio *bus,
 	}
 	sdio_release_host(bus->sdiodev->func[1]);
 
-	res = scnprintf(buf, sizeof(buf),
-			"dongle assert: %s:%d: assert(%s)\n",
-			file, sh->assert_line, expr);
-	return simple_read_from_buffer(data, count, &pos, buf, res);
+	seq_printf(seq, "dongle assert: %s:%d: assert(%s)\n",
+		   file, sh->assert_line, expr);
+	return 0;
 }
 
 static int brcmf_sdio_checkdied(struct brcmf_sdio *bus)
@@ -3062,58 +3045,47 @@ static int brcmf_sdio_checkdied(struct brcmf_sdio *bus)
 	return 0;
 }
 
-static int brcmf_sdio_died_dump(struct brcmf_sdio *bus, char __user *data,
-				size_t count, loff_t *ppos)
+static int brcmf_sdio_died_dump(struct seq_file *seq, struct brcmf_sdio *bus)
 {
 	int error = 0;
 	struct sdpcm_shared sh;
-	int nbytes = 0;
-	loff_t pos = *ppos;
-
-	if (pos != 0)
-		return 0;
 
 	error = brcmf_sdio_readshared(bus, &sh);
 	if (error < 0)
 		goto done;
 
-	error = brcmf_sdio_assert_info(bus, &sh, data, count);
+	error = brcmf_sdio_assert_info(seq, bus, &sh);
 	if (error < 0)
 		goto done;
-	nbytes = error;
 
-	error = brcmf_sdio_trap_info(bus, &sh, data+nbytes, count);
+	error = brcmf_sdio_trap_info(seq, bus, &sh);
 	if (error < 0)
 		goto done;
-	nbytes += error;
 
-	error = brcmf_sdio_dump_console(bus, &sh, data+nbytes, count);
-	if (error < 0)
-		goto done;
-	nbytes += error;
+	error = brcmf_sdio_dump_console(seq, bus, &sh);
 
-	error = nbytes;
-	*ppos += nbytes;
 done:
 	return error;
 }
 
-static ssize_t brcmf_sdio_forensic_read(struct file *f, char __user *data,
-					size_t count, loff_t *ppos)
+static int brcmf_sdio_forensic_read(struct seq_file *seq, void *data)
 {
-	struct brcmf_sdio *bus = f->private_data;
-	int res;
+	struct brcmf_sdio *bus = seq->private;
 
-	res = brcmf_sdio_died_dump(bus, data, count, ppos);
-	if (res > 0)
-		*ppos += res;
-	return (ssize_t)res;
+	return brcmf_sdio_died_dump(seq, bus);
+}
+
+static int brcmf_sdio_forensic_open(struct inode *inode, struct file *f)
+{
+	return single_open(f, brcmf_sdio_forensic_read, inode->i_private);
 }
 
 static const struct file_operations brcmf_sdio_forensic_ops = {
 	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = brcmf_sdio_forensic_read
+	.open = brcmf_sdio_forensic_open,
+	.release = single_release,
+	.read = seq_read,
+	.llseek = seq_lseek
 };
 
 static void brcmf_sdio_debugfs_create(struct brcmf_sdio *bus)
