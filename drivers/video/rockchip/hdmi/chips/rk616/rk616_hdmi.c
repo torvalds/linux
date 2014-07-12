@@ -249,7 +249,6 @@ static void __maybe_unused rk616_irq_work_func(struct work_struct *work)
 	dev_info(hdmi_drv->dev, "func: %s, enable_irq\n", __func__);
 	enable_irq(hdmi_drv->irq);
 }
-#if 0
 static irqreturn_t rk616_hdmi_irq(int irq, void *dev_id)
 {
 	struct work_struct *rk616_irq_work_struct;
@@ -271,7 +270,7 @@ static irqreturn_t rk616_hdmi_irq(int irq, void *dev_id)
 	}
 	return IRQ_HANDLED;
 }
-#endif
+
 static int rk616_hdmi_drv_init(struct hdmi *hdmi_drv)
 {
 	int ret = 0;
@@ -398,7 +397,6 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 		hdmi_drv->irq = 0;
 	} else {
 		/* request the IRQ */
-		#if 0
 		ret = devm_request_irq(hdmi_drv->dev, hdmi_drv->irq,
 				       rk616_hdmi_irq, 0,
 				       dev_name(hdmi_drv->dev), hdmi_drv);
@@ -407,7 +405,6 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 				ret);
 			goto err2;
 		}
-		#endif
 	}
 #else
 	if (gpio_is_valid(hdmi_dev->rk616_drv->pdata->hdmi_irq)) {

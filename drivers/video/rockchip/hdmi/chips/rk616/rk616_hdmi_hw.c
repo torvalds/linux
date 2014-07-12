@@ -631,7 +631,7 @@ static void rk616_hdmi_reset(struct hdmi *hdmi_drv)
 #ifdef SOC_CONFIG_RK3036
 	hdmi_readl(hdmi_dev, HDMI_STATUS,&val);//enable hpg
 	val |= m_MASK_INT_HOTPLUG;
-	hdmi_writel(hdmi_dev, HDMI_STATUS,val);
+	//hdmi_writel(hdmi_dev, HDMI_STATUS,val);
 #else
 	hdmi_writel(hdmi_dev, INTERRUPT_MASK1, m_INT_HOTPLUG);	
 #endif
