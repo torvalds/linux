@@ -89,7 +89,7 @@ static void rockchip_snd_txctrl(struct rk_i2s_dev *i2s, int on)
 		i2s->tx_start = false;
 
 		regmap_update_bits(i2s->regmap, I2S_DMACR,
-				   I2S_DMACR_TDE_ENABLE, I2S_DMACR_TDE_ENABLE);
+				   I2S_DMACR_TDE_ENABLE, I2S_DMACR_TDE_DISABLE);
 
 		if (!i2s->rx_start) {
 			regmap_update_bits(i2s->regmap, I2S_XFER,
@@ -99,8 +99,8 @@ static void rockchip_snd_txctrl(struct rk_i2s_dev *i2s, int on)
 					   I2S_XFER_RXS_STOP);
 
 			regmap_update_bits(i2s->regmap, I2S_CLR,
-					   I2S_CLR_TXC | I2S_CLR_TXC,
-					   I2S_CLR_TXC | I2S_CLR_TXC);
+					   I2S_CLR_TXC | I2S_CLR_RXC,
+					   I2S_CLR_TXC | I2S_CLR_RXC);
 
 			regmap_read(i2s->regmap, I2S_CLR, &val);
 
@@ -143,8 +143,8 @@ static void rockchip_snd_rxctrl(struct rk_i2s_dev *i2s, int on)
 					   I2S_XFER_RXS_STOP);
 
 			regmap_update_bits(i2s->regmap, I2S_CLR,
-					   I2S_CLR_TXC | I2S_CLR_TXC,
-					   I2S_CLR_TXC | I2S_CLR_TXC);
+					   I2S_CLR_TXC | I2S_CLR_RXC,
+					   I2S_CLR_TXC | I2S_CLR_RXC);
 
 			regmap_read(i2s->regmap, I2S_CLR, &val);
 
