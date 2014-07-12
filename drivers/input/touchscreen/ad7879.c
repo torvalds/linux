@@ -470,14 +470,10 @@ static int ad7879_gpio_add(struct ad7879 *ts,
 static void ad7879_gpio_remove(struct ad7879 *ts)
 {
 	const struct ad7879_platform_data *pdata = dev_get_platdata(ts->dev);
-	int ret;
 
-	if (pdata->gpio_export) {
-		ret = gpiochip_remove(&ts->gc);
-		if (ret)
-			dev_err(ts->dev, "failed to remove gpio %d\n",
-				ts->gc.base);
-	}
+	if (pdata->gpio_export)
+		gpiochip_remove(&ts->gc);
+
 }
 #else
 static inline int ad7879_gpio_add(struct ad7879 *ts,

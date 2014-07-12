@@ -671,8 +671,7 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 err_rm_gpiochip:
-	if (gpiochip_remove(chip))
-		dev_err(&pdev->dev, "Failed to remove gpio chip\n");
+	gpiochip_remove(chip);
 err_disable_clk:
 	clk_disable_unprepare(gpio->clk);
 

@@ -481,15 +481,9 @@ static int htcpld_register_chip_gpio(
 
 	ret = gpiochip_add(&(chip->chip_in));
 	if (ret) {
-		int error;
-
 		dev_warn(dev, "Unable to register input GPIOs for 0x%x: %d\n",
 			 plat_chip_data->addr, ret);
-
-		error = gpiochip_remove(&(chip->chip_out));
-		if (error)
-			dev_warn(dev, "Error while trying to unregister gpio chip: %d\n", error);
-
+		gpiochip_remove(&(chip->chip_out));
 		return ret;
 	}
 

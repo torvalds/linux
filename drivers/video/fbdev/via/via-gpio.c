@@ -270,7 +270,7 @@ static int viafb_gpio_probe(struct platform_device *platdev)
 static int viafb_gpio_remove(struct platform_device *platdev)
 {
 	unsigned long flags;
-	int ret = 0, i;
+	int i;
 
 #ifdef CONFIG_PM
 	viafb_pm_unregister(&viafb_gpio_pm_hooks);
@@ -280,11 +280,7 @@ static int viafb_gpio_remove(struct platform_device *platdev)
 	 * Get unregistered.
 	 */
 	if (viafb_gpio_config.gpio_chip.ngpio > 0) {
-		ret = gpiochip_remove(&viafb_gpio_config.gpio_chip);
-		if (ret) { /* Somebody still using it? */
-			printk(KERN_ERR "Viafb: GPIO remove failed\n");
-			return ret;
-		}
+		gpiochip_remove(&viafb_gpio_config.gpio_chip);
 	}
 	/*
 	 * Disable the ports.
@@ -294,7 +290,7 @@ static int viafb_gpio_remove(struct platform_device *platdev)
 		viafb_gpio_disable(viafb_gpio_config.active_gpios[i]);
 	viafb_gpio_config.gpio_chip.ngpio = 0;
 	spin_unlock_irqrestore(&viafb_gpio_config.vdev->reg_lock, flags);
-	return ret;
+	return 0;
 }
 
 static struct platform_driver via_gpio_driver = {

@@ -243,18 +243,12 @@ err_ioremap:
 static int scoop_remove(struct platform_device *pdev)
 {
 	struct scoop_dev *sdev = platform_get_drvdata(pdev);
-	int ret;
 
 	if (!sdev)
 		return -EINVAL;
 
-	if (sdev->gpio.base != -1) {
-		ret = gpiochip_remove(&sdev->gpio);
-		if (ret) {
-			dev_err(&pdev->dev, "Can't remove gpio chip: %d\n", ret);
-			return ret;
-		}
-	}
+	if (sdev->gpio.base != -1)
+		gpiochip_remove(&sdev->gpio);
 
 	platform_set_drvdata(pdev, NULL);
 	iounmap(sdev->base);
