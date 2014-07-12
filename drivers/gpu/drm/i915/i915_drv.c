@@ -525,12 +525,11 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 		/*
 		 * Disable CRTCs directly since we want to preserve sw state
-		 * for _thaw.
+		 * for _thaw. Also, power gate the CRTC power wells.
 		 */
 		drm_modeset_lock_all(dev);
-		for_each_crtc(dev, crtc) {
-			dev_priv->display.crtc_disable(crtc);
-		}
+		for_each_crtc(dev, crtc)
+			intel_crtc_control(crtc, false);
 		drm_modeset_unlock_all(dev);
 
 		intel_modeset_suspend_hw(dev);

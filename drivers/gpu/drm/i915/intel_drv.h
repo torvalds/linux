@@ -753,6 +753,7 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
+void intel_crtc_control(struct drm_crtc *crtc, bool enable);
 void intel_crtc_update_dpms(struct drm_crtc *crtc);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 void intel_connector_dpms(struct drm_connector *, int mode);

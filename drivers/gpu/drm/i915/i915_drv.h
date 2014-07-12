@@ -179,6 +179,10 @@ enum hpd_pin {
 	list_for_each_entry((intel_connector), &(dev)->mode_config.connector_list, base.head) \
 		if ((intel_connector)->base.encoder == (__encoder))
 
+#define for_each_power_domain(domain, mask)				\
+	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
+		if ((1 << (domain)) & (mask))
+
 struct drm_i915_private;
 struct i915_mmu_object;
 
