@@ -200,7 +200,7 @@ static int tx_pending(struct bcm_mini_adapter *Adapter)
  * @ingroup tx_functions
  * Transmit thread
  */
-int tx_pkt_handler(struct bcm_mini_adapter *Adapter /**< pointer to adapter object*/)
+int tx_pkt_handler(struct bcm_mini_adapter *Adapter)
 {
 	int status = 0;
 
