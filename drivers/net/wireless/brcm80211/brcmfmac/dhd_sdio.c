@@ -620,16 +620,16 @@ enum brcmf_firmware_type {
 	name ## _FIRMWARE_NAME, name ## _NVRAM_NAME
 
 static const struct brcmf_firmware_names brcmf_fwname_data[] = {
-	{ BCM43143_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43143) },
-	{ BCM43241_CHIP_ID, 0x0000001F, BRCMF_FIRMWARE_NVRAM(BCM43241B0) },
-	{ BCM43241_CHIP_ID, 0xFFFFFFE0, BRCMF_FIRMWARE_NVRAM(BCM43241B4) },
-	{ BCM4329_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4329) },
-	{ BCM4330_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4330) },
-	{ BCM4334_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4334) },
-	{ BCM4335_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4335) },
-	{ BCM43362_CHIP_ID, 0xFFFFFFFE, BRCMF_FIRMWARE_NVRAM(BCM43362) },
-	{ BCM4339_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4339) },
-	{ BCM4354_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4354) }
+	{ BRCM_CC_43143_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43143) },
+	{ BRCM_CC_43241_CHIP_ID, 0x0000001F, BRCMF_FIRMWARE_NVRAM(BCM43241B0) },
+	{ BRCM_CC_43241_CHIP_ID, 0xFFFFFFE0, BRCMF_FIRMWARE_NVRAM(BCM43241B4) },
+	{ BRCM_CC_4329_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4329) },
+	{ BRCM_CC_4330_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4330) },
+	{ BRCM_CC_4334_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4334) },
+	{ BRCM_CC_4335_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4335) },
+	{ BRCM_CC_43362_CHIP_ID, 0xFFFFFFFE, BRCMF_FIRMWARE_NVRAM(BCM43362) },
+	{ BRCM_CC_4339_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4339) },
+	{ BRCM_CC_4354_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4354) }
 };
 
 static const char *brcmf_sdio_get_fwname(struct brcmf_chip *ci,
@@ -3598,17 +3598,17 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 		return;
 
 	switch (SDIOD_DRVSTR_KEY(ci->chip, ci->pmurev)) {
-	case SDIOD_DRVSTR_KEY(BCM4330_CHIP_ID, 12):
+	case SDIOD_DRVSTR_KEY(BRCM_CC_4330_CHIP_ID, 12):
 		str_tab = sdiod_drvstr_tab1_1v8;
 		str_mask = 0x00003800;
 		str_shift = 11;
 		break;
-	case SDIOD_DRVSTR_KEY(BCM4334_CHIP_ID, 17):
+	case SDIOD_DRVSTR_KEY(BRCM_CC_4334_CHIP_ID, 17):
 		str_tab = sdiod_drvstr_tab6_1v8;
 		str_mask = 0x00001800;
 		str_shift = 11;
 		break;
-	case SDIOD_DRVSTR_KEY(BCM43143_CHIP_ID, 17):
+	case SDIOD_DRVSTR_KEY(BRCM_CC_43143_CHIP_ID, 17):
 		/* note: 43143 does not support tristate */
 		i = ARRAY_SIZE(sdiod_drvstr_tab2_3v3) - 1;
 		if (drivestrength >= sdiod_drvstr_tab2_3v3[i].strength) {
@@ -3619,7 +3619,7 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 			brcmf_err("Invalid SDIO Drive strength for chip %s, strength=%d\n",
 				  ci->name, drivestrength);
 		break;
-	case SDIOD_DRVSTR_KEY(BCM43362_CHIP_ID, 13):
+	case SDIOD_DRVSTR_KEY(BRCM_CC_43362_CHIP_ID, 13):
 		str_tab = sdiod_drive_strength_tab5_1v8;
 		str_mask = 0x00003800;
 		str_shift = 11;
@@ -3720,12 +3720,12 @@ static u32 brcmf_sdio_buscore_read32(void *ctx, u32 addr)
 	u32 val, rev;
 
 	val = brcmf_sdiod_regrl(sdiodev, addr, NULL);
-	if (sdiodev->func[0]->device == SDIO_DEVICE_ID_BROADCOM_4335_4339 &&
+	if (sdiodev->func[0]->device == BRCM_SDIO_4335_4339_DEVICE_ID &&
 	    addr == CORE_CC_REG(SI_ENUM_BASE, chipid)) {
 		rev = (val & CID_REV_MASK) >> CID_REV_SHIFT;
 		if (rev >= 2) {
 			val &= ~CID_ID_MASK;
-			val |= BCM4339_CHIP_ID;
+			val |= BRCM_CC_4339_CHIP_ID;
 		}
 	}
 	return val;
