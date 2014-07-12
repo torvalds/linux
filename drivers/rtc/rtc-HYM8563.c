@@ -592,7 +592,7 @@ static int  hym8563_probe(struct i2c_client *client, const struct i2c_device_id 
 	}	
 	
 	client->irq = of_get_named_gpio_flags(np, "irq_gpio", 0,(enum of_gpio_flags *)&irq_flags);
-        if(client->irq < 0)
+	if(client->irq >= 0)
         {
 	        hym8563->irq = gpio_to_irq(client->irq);
 	        result = devm_request_threaded_irq(&client->dev, hym8563->irq, NULL, hym8563_wakeup_irq, irq_flags | IRQF_ONESHOT, client->dev.driver->name,hym8563 );
