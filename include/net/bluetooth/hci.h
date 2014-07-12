@@ -329,6 +329,7 @@ enum {
 #define LMP_HOST_SC		0x08
 
 /* LE features */
+#define HCI_LE_ENCRYPTION		0x01
 #define HCI_LE_CONN_PARAM_REQ_PROC	0x02
 #define HCI_LE_PING			0x10
 

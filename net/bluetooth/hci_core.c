@@ -1422,14 +1422,17 @@ static void hci_setup_event_mask(struct hci_request *req)
 		/* Use a different default for LE-only devices */
 		memset(events, 0, sizeof(events));
 		events[0] |= 0x10; /* Disconnection Complete */
-		events[0] |= 0x80; /* Encryption Change */
 		events[1] |= 0x08; /* Read Remote Version Information Complete */
 		events[1] |= 0x20; /* Command Complete */
 		events[1] |= 0x40; /* Command Status */
 		events[1] |= 0x80; /* Hardware Error */
 		events[2] |= 0x04; /* Number of Completed Packets */
 		events[3] |= 0x02; /* Data Buffer Overflow */
-		events[5] |= 0x80; /* Encryption Key Refresh Complete */
+
+		if (hdev->le_features[0] & HCI_LE_ENCRYPTION) {
+			events[0] |= 0x80; /* Encryption Change */
+			events[5] |= 0x80; /* Encryption Key Refresh Complete */
+		}
 	}
 
 	if (lmp_inq_rssi_capable(hdev))
@@ -1481,8 +1484,6 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 
 	if (lmp_le_capable(hdev))
 		le_setup(req);
-
-	hci_setup_event_mask(req);
 
 	/* AVM Berlin (31), aka "BlueFRITZ!", doesn't support the read
 	 * local supported commands HCI command.
@@ -1610,6 +1611,8 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
 	u8 p;
+
+	hci_setup_event_mask(req);
 
 	/* Some Broadcom based Bluetooth controllers do not support the
 	 * Delete Stored Link Key command. They are clearly indicating its
