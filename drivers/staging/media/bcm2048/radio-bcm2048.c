@@ -369,13 +369,12 @@ static int bcm2048_send_command(struct bcm2048_device *bdev, unsigned int reg,
 	data[0] = reg & 0xff;
 	data[1] = value & 0xff;
 
-	if (i2c_master_send(client, data, 2) == 2) {
+	if (i2c_master_send(client, data, 2) == 2)
 		return 0;
-	} else {
-		dev_err(&bdev->client->dev, "BCM I2C error!\n");
-		dev_err(&bdev->client->dev, "Is Bluetooth up and running?\n");
-		return -EIO;
-	}
+
+	dev_err(&bdev->client->dev, "BCM I2C error!\n");
+	dev_err(&bdev->client->dev, "Is Bluetooth up and running?\n");
+	return -EIO;
 }
 
 static int bcm2048_recv_command(struct bcm2048_device *bdev, unsigned int reg,
@@ -725,8 +724,8 @@ static int bcm2048_get_fm_deemphasis(struct bcm2048_device *bdev)
 	if (!err) {
 		if (value & BCM2048_DE_EMPHASIS_SELECT)
 			return BCM2048_DE_EMPHASIS_75us;
-		else
-			return BCM2048_DE_EMPHASIS_50us;
+
+		return BCM2048_DE_EMPHASIS_50us;
 	}
 
 	return err;
@@ -1971,7 +1970,8 @@ static ssize_t bcm2048_##prop##_write(struct device *dev,		\
 	if (!bdev)							\
 		return -ENODEV;						\
 									\
-	sscanf(buf, mask, &value);					\
+	if (sscanf(buf, mask, &value) != 1)				\
+		return -EINVAL;						\
 									\
 	if (check)							\
 		return -EDOM;						\
@@ -2242,6 +2242,7 @@ static ssize_t bcm2048_fops_read(struct file *file, char __user *buf,
 	i = 0;
 	while (i < count) {
 		unsigned char tmpbuf[3];
+
 		tmpbuf[i] = bdev->rds_info.radio_text[bdev->rd_index+i+2];
 		tmpbuf[i+1] = bdev->rds_info.radio_text[bdev->rd_index+i+1];
 		tmpbuf[i+2] = ((bdev->rds_info.radio_text[bdev->rd_index+i]
@@ -2598,7 +2599,6 @@ static int bcm2048_i2c_driver_probe(struct i2c_client *client,
 
 	bdev = kzalloc(sizeof(*bdev), GFP_KERNEL);
 	if (!bdev) {
-		dev_dbg(&client->dev, "Failed to alloc video device.\n");
 		err = -ENOMEM;
 		goto exit;
 	}
