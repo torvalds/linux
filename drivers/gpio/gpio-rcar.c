@@ -471,11 +471,8 @@ err0:
 static int gpio_rcar_remove(struct platform_device *pdev)
 {
 	struct gpio_rcar_priv *p = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&p->gpio_chip);
-	if (ret)
-		return ret;
+	gpiochip_remove(&p->gpio_chip);
 
 	irq_domain_remove(p->irq_domain);
 	pm_runtime_put(&pdev->dev);

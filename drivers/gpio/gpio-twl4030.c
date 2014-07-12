@@ -583,9 +583,7 @@ static int gpio_twl4030_remove(struct platform_device *pdev)
 		}
 	}
 
-	status = gpiochip_remove(&priv->gpio_chip);
-	if (status < 0)
-		return status;
+	gpiochip_remove(&priv->gpio_chip);
 
 	if (is_module())
 		return 0;

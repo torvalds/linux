@@ -89,7 +89,7 @@ static int ucb1400_gpio_remove(struct platform_device *dev)
 			return err;
 	}
 
-	err = gpiochip_remove(&ucb->gc);
+	gpiochip_remove(&ucb->gc);
 	return err;
 }
 

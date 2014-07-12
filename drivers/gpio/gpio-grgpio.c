@@ -468,9 +468,7 @@ static int grgpio_remove(struct platform_device *ofdev)
 		}
 	}
 
-	ret = gpiochip_remove(&priv->bgc.gc);
-	if (ret)
-		goto out;
+	gpiochip_remove(&priv->bgc.gc);
 
 	if (priv->domain)
 		irq_domain_remove(priv->domain);

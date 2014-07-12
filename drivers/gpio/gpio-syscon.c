@@ -172,7 +172,8 @@ static int syscon_gpio_remove(struct platform_device *pdev)
 {
 	struct syscon_gpio_priv *priv = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&priv->chip);
+	gpiochip_remove(&priv->chip);
+	return 0;
 }
 
 static struct platform_driver syscon_gpio_driver = {

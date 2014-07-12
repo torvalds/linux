@@ -497,8 +497,7 @@ err_irq_alloc_descs:
 err_gpiochip_add:
 	while (--i >= 0) {
 		chip--;
-		if (gpiochip_remove(&chip->gpio))
-			dev_err(&pdev->dev, "Failed gpiochip_remove(%d)\n", i);
+		gpiochip_remove(&chip->gpio);
 	}
 	kfree(chip_save);
 
@@ -519,7 +518,6 @@ err_pci_enable:
 
 static void ioh_gpio_remove(struct pci_dev *pdev)
 {
-	int err;
 	int i;
 	struct ioh_gpio *chip = pci_get_drvdata(pdev);
 	void *chip_save;
@@ -530,9 +528,7 @@ static void ioh_gpio_remove(struct pci_dev *pdev)
 
 	for (i = 0; i < 8; i++, chip++) {
 		irq_free_descs(chip->irq_base, num_ports[i]);
-		err = gpiochip_remove(&chip->gpio);
-		if (err)
-			dev_err(&pdev->dev, "Failed gpiochip_remove\n");
+		gpiochip_remove(&chip->gpio);
 	}
 
 	chip = chip_save;

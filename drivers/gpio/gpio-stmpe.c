@@ -353,17 +353,11 @@ static int stmpe_gpio_remove(struct platform_device *pdev)
 	struct stmpe_gpio *stmpe_gpio = platform_get_drvdata(pdev);
 	struct stmpe *stmpe = stmpe_gpio->stmpe;
 	struct stmpe_gpio_platform_data *pdata = stmpe->pdata->gpio;
-	int ret;
 
 	if (pdata && pdata->remove)
 		pdata->remove(stmpe, stmpe_gpio->chip.base);
 
-	ret = gpiochip_remove(&stmpe_gpio->chip);
-	if (ret < 0) {
-		dev_err(stmpe_gpio->dev,
-			"unable to remove gpiochip: %d\n", ret);
-		return ret;
-	}
+	gpiochip_remove(&stmpe_gpio->chip);
 
 	stmpe_disable(stmpe, STMPE_BLOCK_GPIO);
 

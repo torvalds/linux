@@ -409,11 +409,8 @@ err0:
 static int em_gio_remove(struct platform_device *pdev)
 {
 	struct em_gio_priv *p = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&p->gpio_chip);
-	if (ret)
-		return ret;
+	gpiochip_remove(&p->gpio_chip);
 
 	irq_domain_remove(p->irq_domain);
 	return 0;
