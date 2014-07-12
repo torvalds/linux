@@ -230,7 +230,7 @@ static const unsigned int sdc3_data_pins[] = { 95 };
 		.pins = gpio##id##_pins,		\
 		.npins = ARRAY_SIZE(gpio##id##_pins),	\
 		.funcs = (int[]){			\
-			APQ_MUX_NA, /* gpio mode */	\
+			APQ_MUX_gpio,			\
 			APQ_MUX_##f1,			\
 			APQ_MUX_##f2,			\
 			APQ_MUX_##f3,			\
@@ -293,6 +293,7 @@ enum apq8064_functions {
 	APQ_MUX_cam_mclk,
 	APQ_MUX_codec_mic_i2s,
 	APQ_MUX_codec_spkr_i2s,
+	APQ_MUX_gpio,
 	APQ_MUX_gsbi1,
 	APQ_MUX_gsbi2,
 	APQ_MUX_gsbi3,
@@ -334,6 +335,21 @@ static const char * const codec_mic_i2s_groups[] = {
 };
 static const char * const codec_spkr_i2s_groups[] = {
 	"gpio39", "gpio40", "gpio41", "gpio42"
+};
+static const char * const gpio_groups[] = {
+	"gpio0", "gpio1", "gpio2", "gpio3", "gpio4", "gpio5", "gpio6", "gpio7",
+	"gpio8", "gpio9", "gpio10", "gpio11", "gpio12", "gpio13", "gpio14",
+	"gpio15", "gpio16", "gpio17", "gpio18", "gpio19", "gpio20", "gpio21",
+	"gpio22", "gpio23", "gpio24", "gpio25", "gpio26", "gpio27", "gpio28",
+	"gpio29", "gpio30", "gpio31", "gpio32", "gpio33", "gpio34", "gpio35",
+	"gpio36", "gpio37", "gpio38", "gpio39", "gpio40", "gpio41", "gpio42",
+	"gpio43", "gpio44", "gpio45", "gpio46", "gpio47", "gpio48", "gpio49",
+	"gpio50", "gpio51", "gpio52", "gpio53", "gpio54", "gpio55", "gpio56",
+	"gpio57", "gpio58", "gpio59", "gpio60", "gpio61", "gpio62", "gpio63",
+	"gpio64", "gpio65", "gpio66", "gpio67", "gpio68", "gpio69", "gpio70",
+	"gpio71", "gpio72", "gpio73", "gpio74", "gpio75", "gpio76", "gpio77",
+	"gpio78", "gpio79", "gpio80", "gpio81", "gpio82", "gpio83", "gpio84",
+	"gpio85", "gpio86", "gpio87", "gpio88", "gpio89"
 };
 static const char * const gsbi1_groups[] = {
 	"gpio18", "gpio19", "gpio20", "gpio21"
@@ -430,6 +446,7 @@ static const struct msm_function apq8064_functions[] = {
 	FUNCTION(cam_mclk),
 	FUNCTION(codec_mic_i2s),
 	FUNCTION(codec_spkr_i2s),
+	FUNCTION(gpio),
 	FUNCTION(gsbi1),
 	FUNCTION(gsbi2),
 	FUNCTION(gsbi3),

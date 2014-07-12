@@ -83,7 +83,7 @@ to specify in a pin configuration subnode:
 		    sdc3_data
 
 - function:
-	Usage: optional
+	Usage: required
 	Value type: <string>
 	Definition: Specify the alternative function to be configured for the
 		    specified pins. Functions are only valid for gpio pins.
@@ -92,7 +92,7 @@ to specify in a pin configuration subnode:
 		    codec_mic_i2s, codec_spkr_i2s, ext_gps, fm, gps_blanking,
 		    gps_pps_in, gps_pps_out, gp_clk_0a, gp_clk_0b, gp_clk_1a,
 		    gp_clk_1b, gp_clk_2a, gp_clk_2b, gp_mn, gp_pdm_0a,
-		    gp_pdm_0b, gp_pdm_1a, gp_pdm_1b, gp_pdm_2a, gp_pdm_2b,
+		    gp_pdm_0b, gp_pdm_1a, gp_pdm_1b, gp_pdm_2a, gp_pdm_2b, gpio,
 		    gsbi1, gsbi1_spi_cs1_n, gsbi1_spi_cs2a_n, gsbi1_spi_cs2b_n,
 		    gsbi1_spi_cs3_n, gsbi2, gsbi2_spi_cs1_n, gsbi2_spi_cs2_n,
 		    gsbi2_spi_cs3_n, gsbi3, gsbi4, gsbi4_3d_cam_i2c_l,
