@@ -6926,7 +6926,7 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 	return 0;
 }
 
-int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val)
+int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
 	int div;
 
@@ -6948,7 +6948,7 @@ int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 	return DIV_ROUND_CLOSEST(dev_priv->mem_freq * (val + 6 - 0xbd), 4 * div);
 }
 
-int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val)
+int byt_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	int mul;
 
@@ -6968,6 +6968,80 @@ int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 	}
 
 	return DIV_ROUND_CLOSEST(4 * mul * val, dev_priv->mem_freq) + 0xbd - 6;
+}
+
+int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
+{
+	int div, freq;
+
+	switch (dev_priv->rps.cz_freq) {
+	case 200:
+		div = 5;
+		break;
+	case 267:
+		div = 6;
+		break;
+	case 320:
+	case 333:
+	case 400:
+		div = 8;
+		break;
+	default:
+		return -1;
+	}
+
+	freq = (DIV_ROUND_CLOSEST((dev_priv->rps.cz_freq * val), 2 * div) / 2);
+
+	return freq;
+}
+
+int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
+{
+	int mul, opcode;
+
+	switch (dev_priv->rps.cz_freq) {
+	case 200:
+		mul = 5;
+		break;
+	case 267:
+		mul = 6;
+		break;
+	case 320:
+	case 333:
+	case 400:
+		mul = 8;
+		break;
+	default:
+		return -1;
+	}
+
+	opcode = (DIV_ROUND_CLOSEST((val * 2 * mul), dev_priv->rps.cz_freq) * 2);
+
+	return opcode;
+}
+
+int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val)
+{
+	int ret = -1;
+
+	if (IS_CHERRYVIEW(dev_priv->dev))
+		ret = chv_gpu_freq(dev_priv, val);
+	else if (IS_VALLEYVIEW(dev_priv->dev))
+		ret = byt_gpu_freq(dev_priv, val);
+
+	return ret;
+}
+
+int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val)
+{
+	int ret = -1;
+
+	if (IS_CHERRYVIEW(dev_priv->dev))
+		ret = chv_freq_opcode(dev_priv, val);
+	else if (IS_VALLEYVIEW(dev_priv->dev))
+		ret = byt_freq_opcode(dev_priv, val);
+
+	return ret;
 }
 
 void intel_pm_setup(struct drm_device *dev)
