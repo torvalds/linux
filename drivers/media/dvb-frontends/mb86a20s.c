@@ -556,7 +556,7 @@ static u32 isdbt_rate[3][5][4] = {
 
 static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 				   u32 modulation, u32 forward_error_correction,
-				   u32 interleaving,
+				   u32 guard_interval,
 				   u32 segment)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
@@ -564,7 +564,7 @@ static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 	int mod, fec, guard;
 
 	/*
-	 * If modulation/fec/interleaving is not detected, the default is
+	 * If modulation/fec/guard is not detected, the default is
 	 * to consider the lowest bit rate, to avoid taking too long time
 	 * to get BER.
 	 */
@@ -602,7 +602,7 @@ static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 		break;
 	}
 
-	switch (interleaving) {
+	switch (guard_interval) {
 	default:
 	case GUARD_INTERVAL_1_4:
 		guard = 0;
@@ -693,7 +693,7 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 		c->layer[layer].interleaving = rc;
 		mb86a20s_layer_bitrate(fe, layer, c->layer[layer].modulation,
 				       c->layer[layer].fec,
-				       c->layer[layer].interleaving,
+				       c->guard_interval,
 				       c->layer[layer].segment_count);
 	}
 
