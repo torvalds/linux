@@ -365,7 +365,7 @@ typedef struct lnet_lnd {
 	void (*lnd_query)(struct lnet_ni *ni, lnet_nid_t peer, cfs_time_t *when);
 
 	/* accept a new connection */
-	int (*lnd_accept)(struct lnet_ni *ni, socket_t *sock);
+	int (*lnd_accept)(struct lnet_ni *ni, struct socket *sock);
 
 } lnd_t;
 

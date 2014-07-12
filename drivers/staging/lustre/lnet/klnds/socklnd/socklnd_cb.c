@@ -1699,7 +1699,7 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 	 *	EALREADY   lost connection race
 	 *	EPROTO     protocol version mismatch
 	 */
-	socket_t	*sock = conn->ksnc_sock;
+	struct socket	*sock = conn->ksnc_sock;
 	int		  active = (conn->ksnc_proto != NULL);
 	int		  timeout;
 	int		  proto_match;
@@ -1844,7 +1844,7 @@ ksocknal_connect (ksock_route_t *route)
 	ksock_peer_t     *peer = route->ksnr_peer;
 	int	       type;
 	int	       wanted;
-	socket_t     *sock;
+	struct socket     *sock;
 	cfs_time_t	deadline;
 	int	       retry_later = 0;
 	int	       rc = 0;

@@ -47,8 +47,6 @@
 
 #include <net/sock.h>
 
-typedef struct socket   socket_t;
-
 #define SOCK_SNDBUF(so)	 ((so)->sk->sk_sndbuf)
 #define SOCK_TEST_NOSPACE(so)   test_bit(SOCK_NOSPACE, &(so)->flags)
 

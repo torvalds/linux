@@ -89,18 +89,18 @@ static inline int __is_po2(unsigned long long val)
 int libcfs_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask);
 int libcfs_ipif_enumerate(char ***names);
 void libcfs_ipif_free_enumeration(char **names, int n);
-int libcfs_sock_listen(socket_t **sockp, __u32 ip, int port, int backlog);
-int libcfs_sock_accept(socket_t **newsockp, socket_t *sock);
-void libcfs_sock_abort_accept(socket_t *sock);
-int libcfs_sock_connect(socket_t **sockp, int *fatal,
+int libcfs_sock_listen(struct socket **sockp, __u32 ip, int port, int backlog);
+int libcfs_sock_accept(struct socket **newsockp, struct socket *sock);
+void libcfs_sock_abort_accept(struct socket *sock);
+int libcfs_sock_connect(struct socket **sockp, int *fatal,
 			__u32 local_ip, int local_port,
 			__u32 peer_ip, int peer_port);
-int libcfs_sock_setbuf(socket_t *socket, int txbufsize, int rxbufsize);
-int libcfs_sock_getbuf(socket_t *socket, int *txbufsize, int *rxbufsize);
-int libcfs_sock_getaddr(socket_t *socket, int remote, __u32 *ip, int *port);
-int libcfs_sock_write(socket_t *sock, void *buffer, int nob, int timeout);
-int libcfs_sock_read(socket_t *sock, void *buffer, int nob, int timeout);
-void libcfs_sock_release(socket_t *sock);
+int libcfs_sock_setbuf(struct socket *socket, int txbufsize, int rxbufsize);
+int libcfs_sock_getbuf(struct socket *socket, int *txbufsize, int *rxbufsize);
+int libcfs_sock_getaddr(struct socket *socket, int remote, __u32 *ip, int *port);
+int libcfs_sock_write(struct socket *sock, void *buffer, int nob, int timeout);
+int libcfs_sock_read(struct socket *sock, void *buffer, int nob, int timeout);
+void libcfs_sock_release(struct socket *sock);
 
 /* need both kernel and user-land acceptor */
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
