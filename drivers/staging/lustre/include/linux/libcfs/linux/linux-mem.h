@@ -54,7 +54,7 @@
 
 #ifndef HAVE_LIBCFS_CPT
 /* Need this for cfs_cpt_table */
-#include <linux/libcfs/libcfs_cpu.h>
+#include "../libcfs_cpu.h"
 #endif
 
 #define CFS_PAGE_MASK		   (~((__u64)PAGE_CACHE_SIZE-1))
