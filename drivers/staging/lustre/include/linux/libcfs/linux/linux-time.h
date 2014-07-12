@@ -119,11 +119,6 @@ static inline unsigned long cfs_time_current(void)
 	return jiffies;
 }
 
-static inline time_t cfs_time_current_sec(void)
-{
-	return get_seconds();
-}
-
 static inline void cfs_fs_time_current(struct timespec *t)
 {
 	*t = CURRENT_TIME;

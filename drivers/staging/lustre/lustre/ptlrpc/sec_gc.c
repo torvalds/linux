@@ -67,7 +67,7 @@ void sptlrpc_gc_add_sec(struct ptlrpc_sec *sec)
 	LASSERT(sec->ps_gc_interval > 0);
 	LASSERT(list_empty(&sec->ps_gc_list));
 
-	sec->ps_gc_next = cfs_time_current_sec() + sec->ps_gc_interval;
+	sec->ps_gc_next = get_seconds() + sec->ps_gc_interval;
 
 	spin_lock(&sec_gc_list_lock);
 	list_add_tail(&sec_gc_list, &sec->ps_gc_list);
@@ -152,11 +152,11 @@ static void sec_do_gc(struct ptlrpc_sec *sec)
 
 	CDEBUG(D_SEC, "check on sec %p(%s)\n", sec, sec->ps_policy->sp_name);
 
-	if (cfs_time_after(sec->ps_gc_next, cfs_time_current_sec()))
+	if (cfs_time_after(sec->ps_gc_next, get_seconds()))
 		return;
 
 	sec->ps_policy->sp_cops->gc_ctx(sec);
-	sec->ps_gc_next = cfs_time_current_sec() + sec->ps_gc_interval;
+	sec->ps_gc_next = get_seconds() + sec->ps_gc_interval;
 }
 
 static int sec_gc_main(void *arg)

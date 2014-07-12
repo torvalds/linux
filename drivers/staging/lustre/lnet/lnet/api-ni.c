@@ -1452,7 +1452,7 @@ LNetCtl(unsigned int cmd, void *arg)
 	case IOC_LIBCFS_NOTIFY_ROUTER:
 		return lnet_notify(NULL, data->ioc_nid, data->ioc_flags,
 				   cfs_time_current() -
-				   cfs_time_seconds(cfs_time_current_sec() -
+				   cfs_time_seconds(get_seconds() -
 						    (time_t)data->ioc_u64[0]));
 
 	case IOC_LIBCFS_PORTALS_COMPATIBILITY:

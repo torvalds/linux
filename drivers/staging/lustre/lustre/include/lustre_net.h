@@ -2594,7 +2594,7 @@ static inline int ptlrpc_client_bulk_active(struct ptlrpc_request *req)
 	desc = req->rq_bulk;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK) &&
-	    req->rq_bulk_deadline > cfs_time_current_sec())
+	    req->rq_bulk_deadline > get_seconds())
 		return 1;
 
 	if (!desc)
@@ -3002,7 +3002,7 @@ static inline int
 ptlrpc_client_early(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 0;
 	return req->rq_early;
 }
@@ -3014,7 +3014,7 @@ static inline int
 ptlrpc_client_replied(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 0;
 	return req->rq_replied;
 }
@@ -3024,7 +3024,7 @@ static inline int
 ptlrpc_client_recv(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 1;
 	return req->rq_receiving_reply;
 }
@@ -3036,7 +3036,7 @@ ptlrpc_client_recv_or_unlink(struct ptlrpc_request *req)
 
 	spin_lock(&req->rq_lock);
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec()) {
+	    req->rq_reply_deadline > get_seconds()) {
 		spin_unlock(&req->rq_lock);
 		return 1;
 	}

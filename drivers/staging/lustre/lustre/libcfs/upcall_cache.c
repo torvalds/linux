@@ -406,7 +406,7 @@ void upcall_cache_flush_one(struct upcall_cache *cache, __u64 key, void *args)
 		      "cur %lu, ex %ld/%ld\n",
 		      cache->uc_name, entry, entry->ue_key,
 		      atomic_read(&entry->ue_refcount), entry->ue_flags,
-		      cfs_time_current_sec(), entry->ue_acquire_expire,
+		      get_seconds(), entry->ue_acquire_expire,
 		      entry->ue_expire);
 		UC_CACHE_SET_EXPIRED(entry);
 		if (!atomic_read(&entry->ue_refcount))

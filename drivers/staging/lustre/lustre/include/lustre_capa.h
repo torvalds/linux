@@ -267,14 +267,14 @@ static inline __u64 capa_open_opc(int mode)
 static inline void set_capa_expiry(struct obd_capa *ocapa)
 {
 	unsigned long expiry = cfs_time_sub((unsigned long)ocapa->c_capa.lc_expiry,
-					 cfs_time_current_sec());
+					 get_seconds());
 	ocapa->c_expiry = cfs_time_add(cfs_time_current(),
 				       cfs_time_seconds(expiry));
 }
 
 static inline int capa_is_expired_sec(struct lustre_capa *capa)
 {
-	return (capa->lc_expiry - cfs_time_current_sec() <= 0);
+	return (capa->lc_expiry - get_seconds() <= 0);
 }
 
 static inline int capa_is_expired(struct obd_capa *ocapa)

@@ -868,7 +868,7 @@ int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 	LPROCFS_CLIMP_CHECK(obd);
 	imp = obd->u.cli.cl_import;
 
-	now = cfs_time_current_sec();
+	now = get_seconds();
 
 	/* Some network health info for kicks */
 	s2dhms(&ts, now - imp->imp_last_reply_time);

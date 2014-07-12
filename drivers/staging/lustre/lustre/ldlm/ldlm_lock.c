@@ -1594,7 +1594,7 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 	ldlm_error_t rc = ELDLM_OK;
 	struct ldlm_interval *node = NULL;
 
-	lock->l_last_activity = cfs_time_current_sec();
+	lock->l_last_activity = get_seconds();
 	/* policies are not executed on the client or during replay */
 	if ((*flags & (LDLM_FL_HAS_INTENT|LDLM_FL_REPLAY)) == LDLM_FL_HAS_INTENT
 	    && !local && ns->ns_policy) {

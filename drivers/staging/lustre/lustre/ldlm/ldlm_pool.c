@@ -334,12 +334,12 @@ static int ldlm_srv_pool_recalc(struct ldlm_pool *pl)
 {
 	time_t recalc_interval_sec;
 
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period)
 		return 0;
 
 	spin_lock(&pl->pl_lock);
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period) {
 		spin_unlock(&pl->pl_lock);
 		return 0;
@@ -360,7 +360,7 @@ static int ldlm_srv_pool_recalc(struct ldlm_pool *pl)
 	 */
 	ldlm_pool_recalc_grant_plan(pl);
 
-	pl->pl_recalc_time = cfs_time_current_sec();
+	pl->pl_recalc_time = get_seconds();
 	lprocfs_counter_add(pl->pl_stats, LDLM_POOL_TIMING_STAT,
 			    recalc_interval_sec);
 	spin_unlock(&pl->pl_lock);
@@ -471,7 +471,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 {
 	time_t recalc_interval_sec;
 
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period)
 		return 0;
 
@@ -479,7 +479,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	/*
 	 * Check if we need to recalc lists now.
 	 */
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period) {
 		spin_unlock(&pl->pl_lock);
 		return 0;
@@ -490,7 +490,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	 */
 	ldlm_cli_pool_pop_slv(pl);
 
-	pl->pl_recalc_time = cfs_time_current_sec();
+	pl->pl_recalc_time = get_seconds();
 	lprocfs_counter_add(pl->pl_stats, LDLM_POOL_TIMING_STAT,
 			    recalc_interval_sec);
 	spin_unlock(&pl->pl_lock);
@@ -564,7 +564,7 @@ int ldlm_pool_recalc(struct ldlm_pool *pl)
 	time_t recalc_interval_sec;
 	int count;
 
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec <= 0)
 		goto recalc;
 
@@ -589,7 +589,7 @@ int ldlm_pool_recalc(struct ldlm_pool *pl)
 		lprocfs_counter_add(pl->pl_stats, LDLM_POOL_RECALC_STAT,
 				    count);
 	}
-	recalc_interval_sec = pl->pl_recalc_time - cfs_time_current_sec() +
+	recalc_interval_sec = pl->pl_recalc_time - get_seconds() +
 			      pl->pl_recalc_period;
 
 	return recalc_interval_sec;
@@ -837,7 +837,7 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 
 	spin_lock_init(&pl->pl_lock);
 	atomic_set(&pl->pl_granted, 0);
-	pl->pl_recalc_time = cfs_time_current_sec();
+	pl->pl_recalc_time = get_seconds();
 	atomic_set(&pl->pl_lock_volume_factor, 1);
 
 	atomic_set(&pl->pl_grant_rate, 0);

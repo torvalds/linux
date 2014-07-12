@@ -66,7 +66,7 @@ static void __import_set_state(struct obd_import *imp,
 	imp->imp_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_time =
-		cfs_time_current_sec();
+		get_seconds();
 	imp->imp_state_hist_idx = (imp->imp_state_hist_idx + 1) %
 		IMP_STATE_HIST_LEN;
 }
@@ -242,7 +242,7 @@ ptlrpc_inflight_deadline(struct ptlrpc_request *req, time_t now)
 
 static unsigned int ptlrpc_inflight_timeout(struct obd_import *imp)
 {
-	time_t now = cfs_time_current_sec();
+	time_t now = get_seconds();
 	struct list_head *tmp, *n;
 	struct ptlrpc_request *req;
 	unsigned int timeout = 0;
@@ -1537,7 +1537,7 @@ extern unsigned int at_min, at_max, at_history;
 int at_measured(struct adaptive_timeout *at, unsigned int val)
 {
 	unsigned int old = at->at_current;
-	time_t now = cfs_time_current_sec();
+	time_t now = get_seconds();
 	time_t binlimit = max_t(time_t, at_history / AT_BINS, 1);
 
 	LASSERT(at);

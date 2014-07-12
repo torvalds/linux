@@ -171,7 +171,7 @@ sfw_add_session_timer (void)
 
 	sn->sn_timer_active = 1;
 	timer->stt_expires = cfs_time_add(sn->sn_timeout,
-					  cfs_time_current_sec());
+					  get_seconds());
 	stt_add_timer(timer);
 	return;
 }

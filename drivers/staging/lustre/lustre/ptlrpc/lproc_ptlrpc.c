@@ -991,7 +991,7 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 		cur	= at_get(&svcpt->scp_at_estimate);
 		worst	= svcpt->scp_at_estimate.at_worst_ever;
 		worstt	= svcpt->scp_at_estimate.at_worst_time;
-		s2dhms(&ts, cfs_time_current_sec() - worstt);
+		s2dhms(&ts, get_seconds() - worstt);
 
 		seq_printf(m, "%10s : cur %3u  worst %3u (at %ld, "
 			      DHMS_FMT" ago) ", "service",

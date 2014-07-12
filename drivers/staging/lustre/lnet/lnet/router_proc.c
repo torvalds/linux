@@ -675,7 +675,7 @@ int LL_PROC_PROTO(proc_lnet_nis)
 		if (ni != NULL) {
 			struct lnet_tx_queue	*tq;
 			char	*stat;
-			long	now = cfs_time_current_sec();
+			long	now = get_seconds();
 			int	last_alive = -1;
 			int	i;
 			int	j;

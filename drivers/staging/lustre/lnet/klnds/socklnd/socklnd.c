@@ -2445,7 +2445,7 @@ ksocknal_base_startup(void)
 
 	ksocknal_data.ksnd_connd_starting	 = 0;
 	ksocknal_data.ksnd_connd_failed_stamp     = 0;
-	ksocknal_data.ksnd_connd_starting_stamp   = cfs_time_current_sec();
+	ksocknal_data.ksnd_connd_starting_stamp   = get_seconds();
 	/* must have at least 2 connds to remain responsive to accepts while
 	 * connecting */
 	if (*ksocknal_tunables.ksnd_nconnds < SOCKNAL_CONND_RESV + 1)

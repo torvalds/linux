@@ -298,7 +298,7 @@ static inline int exp_expired(struct obd_export *exp, cfs_duration_t age)
 {
 	LASSERT(exp->exp_delayed);
 	return cfs_time_before(cfs_time_add(exp->exp_last_request_time, age),
-			       cfs_time_current_sec());
+			       get_seconds());
 }
 
 static inline int exp_connect_cancelset(struct obd_export *exp)

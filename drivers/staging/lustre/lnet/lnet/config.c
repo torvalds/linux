@@ -166,7 +166,7 @@ lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist)
 
 	/* LND will fill in the address part of the NID */
 	ni->ni_nid = LNET_MKNID(net, 0);
-	ni->ni_last_alive = cfs_time_current_sec();
+	ni->ni_last_alive = get_seconds();
 	list_add_tail(&ni->ni_list, nilist);
 	return ni;
  failed:

@@ -78,7 +78,7 @@ stt_add_timer(stt_timer_t *timer)
 	LASSERT(!stt_data.stt_shuttingdown);
 	LASSERT(timer->stt_func != NULL);
 	LASSERT(list_empty(&timer->stt_list));
-	LASSERT(cfs_time_after(timer->stt_expires, cfs_time_current_sec()));
+	LASSERT(cfs_time_after(timer->stt_expires, get_seconds()));
 
 	/* a simple insertion sort */
 	list_for_each_prev(pos, STTIMER_SLOT(timer->stt_expires)) {
@@ -152,7 +152,7 @@ stt_check_timers(unsigned long *last)
 	unsigned long now;
 	unsigned long this_slot;
 
-	now = cfs_time_current_sec();
+	now = get_seconds();
 	this_slot = now & STTIMER_SLOTTIMEMASK;
 
 	spin_lock(&stt_data.stt_lock);
@@ -212,7 +212,7 @@ stt_startup(void)
 	int i;
 
 	stt_data.stt_shuttingdown = 0;
-	stt_data.stt_prev_slot = cfs_time_current_sec() & STTIMER_SLOTTIMEMASK;
+	stt_data.stt_prev_slot = get_seconds() & STTIMER_SLOTTIMEMASK;
 
 	spin_lock_init(&stt_data.stt_lock);
 	for (i = 0; i < STTIMER_NSLOTS; i++)

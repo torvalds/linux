@@ -2006,7 +2006,7 @@ lstcon_console_init(void)
 	console_session.ses_expired	    = 0;
 	console_session.ses_feats_updated   = 0;
 	console_session.ses_features	    = LST_FEATS_MASK;
-	console_session.ses_laststamp	    = cfs_time_current_sec();
+	console_session.ses_laststamp	    = get_seconds();
 
 	mutex_init(&console_session.ses_mutex);
 

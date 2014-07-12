@@ -1639,7 +1639,7 @@ restart_bulk:
 	if (resends) {
 		req->rq_generation_set = 1;
 		req->rq_import_generation = generation;
-		req->rq_sent = cfs_time_current_sec() + resends;
+		req->rq_sent = get_seconds() + resends;
 	}
 
 	rc = ptlrpc_queue_wait(req);
@@ -1722,9 +1722,9 @@ static int osc_brw_redo_request(struct ptlrpc_request *request,
 	/* cap resend delay to the current request timeout, this is similar to
 	 * what ptlrpc does (see after_reply()) */
 	if (aa->aa_resends > new_req->rq_timeout)
-		new_req->rq_sent = cfs_time_current_sec() + new_req->rq_timeout;
+		new_req->rq_sent = get_seconds() + new_req->rq_timeout;
 	else
-		new_req->rq_sent = cfs_time_current_sec() + aa->aa_resends;
+		new_req->rq_sent = get_seconds() + aa->aa_resends;
 	new_req->rq_generation_set = 1;
 	new_req->rq_import_generation = request->rq_import_generation;
 

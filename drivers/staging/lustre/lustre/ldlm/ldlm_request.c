@@ -100,13 +100,13 @@ int ldlm_expired_completion_wait(void *data)
 		LCONSOLE_WARN("lock timed out (enqueued at "CFS_TIME_T", "
 			      CFS_DURATION_T"s ago)\n",
 			      lock->l_last_activity,
-			      cfs_time_sub(cfs_time_current_sec(),
+			      cfs_time_sub(get_seconds(),
 					   lock->l_last_activity));
 		LDLM_DEBUG(lock, "lock timed out (enqueued at "CFS_TIME_T", "
 			   CFS_DURATION_T"s ago); not entering recovery in "
 			   "server code, just going back to sleep",
 			   lock->l_last_activity,
-			   cfs_time_sub(cfs_time_current_sec(),
+			   cfs_time_sub(get_seconds(),
 					lock->l_last_activity));
 		if (cfs_time_after(cfs_time_current(), next_dump)) {
 			last_dump = next_dump;
@@ -125,7 +125,7 @@ int ldlm_expired_completion_wait(void *data)
 	LDLM_ERROR(lock, "lock timed out (enqueued at "CFS_TIME_T", "
 		  CFS_DURATION_T"s ago), entering recovery for %s@%s",
 		  lock->l_last_activity,
-		  cfs_time_sub(cfs_time_current_sec(), lock->l_last_activity),
+		  cfs_time_sub(get_seconds(), lock->l_last_activity),
 		  obd2cli_tgt(obd), imp->imp_connection->c_remote_uuid.uuid);
 
 	return 0;
@@ -160,7 +160,7 @@ static int ldlm_completion_tail(struct ldlm_lock *lock)
 		LDLM_DEBUG(lock, "client-side enqueue: destroyed");
 		result = -EIO;
 	} else {
-		delay = cfs_time_sub(cfs_time_current_sec(),
+		delay = cfs_time_sub(get_seconds(),
 				     lock->l_last_activity);
 		LDLM_DEBUG(lock, "client-side enqueue: granted after "
 			   CFS_DURATION_T"s", delay);

@@ -64,7 +64,7 @@ void request_out_callback(lnet_event_t *ev)
 
 	sptlrpc_request_out_callback(req);
 	spin_lock(&req->rq_lock);
-	req->rq_real_sent = cfs_time_current_sec();
+	req->rq_real_sent = get_seconds();
 	if (ev->unlinked)
 		req->rq_req_unlink = 0;
 
@@ -158,7 +158,7 @@ void reply_in_callback(lnet_event_t *ev)
 			  ev->mlength, ev->offset, req->rq_replen);
 	}
 
-	req->rq_import->imp_last_reply_time = cfs_time_current_sec();
+	req->rq_import->imp_last_reply_time = get_seconds();
 
 out_wake:
 	/* NB don't unlock till after wakeup; req can disappear under us

@@ -104,7 +104,7 @@ static int sptlrpc_info_lprocfs_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "gc internal    %ld\n", sec->ps_gc_interval);
 	seq_printf(seq, "gc next	%ld\n",
 		   sec->ps_gc_interval ?
-		   sec->ps_gc_next - cfs_time_current_sec() : 0);
+		   sec->ps_gc_next - get_seconds() : 0);
 
 	sptlrpc_sec_put(sec);
 out:

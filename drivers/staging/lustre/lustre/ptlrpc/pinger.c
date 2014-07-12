@@ -606,7 +606,7 @@ static int ping_evictor_main(void *arg)
 				     obd_evict_list);
 		spin_unlock(&pet_lock);
 
-		expire_time = cfs_time_current_sec() - PING_EVICT_TIMEOUT;
+		expire_time = get_seconds() - PING_EVICT_TIMEOUT;
 
 		CDEBUG(D_HA, "evicting all exports of obd %s older than %ld\n",
 		       obd->obd_name, expire_time);
@@ -631,9 +631,9 @@ static int ping_evictor_main(void *arg)
 					      obd->obd_name,
 					      obd_uuid2str(&exp->exp_client_uuid),
 					      obd_export_nid2str(exp),
-					      (long)(cfs_time_current_sec() -
+					      (long)(get_seconds() -
 						     exp->exp_last_request_time),
-					      exp, (long)cfs_time_current_sec(),
+					      exp, (long)get_seconds(),
 					      (long)expire_time,
 					      (long)exp->exp_last_request_time);
 				CDEBUG(D_HA, "Last request was at %ld\n",

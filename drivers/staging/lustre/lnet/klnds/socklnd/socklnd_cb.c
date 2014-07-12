@@ -2059,7 +2059,7 @@ ksocknal_connd_check_start(long sec, long *timeout)
 	/* we tried ... */
 	LASSERT(ksocknal_data.ksnd_connd_starting > 0);
 	ksocknal_data.ksnd_connd_starting--;
-	ksocknal_data.ksnd_connd_failed_stamp = cfs_time_current_sec();
+	ksocknal_data.ksnd_connd_failed_stamp = get_seconds();
 
 	return 1;
 }
@@ -2152,7 +2152,7 @@ ksocknal_connd (void *arg)
 
 	while (!ksocknal_data.ksnd_shuttingdown) {
 		ksock_route_t *route = NULL;
-		long sec = cfs_time_current_sec();
+		long sec = get_seconds();
 		long timeout = MAX_SCHEDULE_TIMEOUT;
 		int  dropped_lock = 0;
 
