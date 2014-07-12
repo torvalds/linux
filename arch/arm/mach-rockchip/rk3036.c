@@ -82,7 +82,6 @@ static void __init rk3036_boot_mode_init(void)
     rockchip_boot_mode_init(flag, mode);
 }
 
-#if 0
 static void usb_uart_init(void)
 {
 #ifdef CONFIG_RK_USB_UART
@@ -106,7 +105,6 @@ static void usb_uart_init(void)
     writel_relaxed(0x03, RK_DEBUG_UART_VIRT + 0x0c);
 #endif //end of DEBUG_UART_BASE
 }
-#endif
 
 static void __init rk3036_dt_map_io(void)
 {
@@ -114,7 +112,7 @@ static void __init rk3036_dt_map_io(void)
 
     iotable_init(rk3036_io_desc, ARRAY_SIZE(rk3036_io_desc));
     debug_ll_io_init();
-    //usb_uart_init();
+    usb_uart_init();
 
     /* enable timer5 for core */
     writel_relaxed(0, RK3036_TIMER5_VIRT + 0x10);
