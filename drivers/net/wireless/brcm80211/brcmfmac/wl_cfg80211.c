@@ -33,6 +33,7 @@
 #include "p2p.h"
 #include "btcoex.h"
 #include "wl_cfg80211.h"
+#include "feature.h"
 #include "fwil.h"
 #include "vendor.h"
 
@@ -592,7 +593,7 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 
 static void brcmf_scan_config_mpc(struct brcmf_if *ifp, int mpc)
 {
-	if ((brcmf_get_chip_info(ifp) >> 4) == 0x4329)
+	if (brcmf_feat_is_quirk_enabled(ifp, BRCMF_FEAT_QUIRK_NEED_MPC))
 		brcmf_set_mpc(ifp, mpc);
 }
 
@@ -1619,17 +1620,10 @@ static
 enum nl80211_auth_type brcmf_war_auth_type(struct brcmf_if *ifp,
 					   enum nl80211_auth_type type)
 {
-	u32 ci;
-	if (type == NL80211_AUTHTYPE_AUTOMATIC) {
-		/* shift to ignore chip revision */
-		ci = brcmf_get_chip_info(ifp) >> 4;
-		switch (ci) {
-		case 43236:
-			brcmf_dbg(CONN, "43236 WAR: use OPEN instead of AUTO\n");
-			return NL80211_AUTHTYPE_OPEN_SYSTEM;
-		default:
-			break;
-		}
+	if (type == NL80211_AUTHTYPE_AUTOMATIC &&
+	    brcmf_feat_is_quirk_enabled(ifp, BRCMF_FEAT_QUIRK_AUTO_AUTH)) {
+		brcmf_dbg(CONN, "WAR: use OPEN instead of AUTO\n");
+		type = NL80211_AUTHTYPE_OPEN_SYSTEM;
 	}
 	return type;
 }
@@ -4310,10 +4304,10 @@ static const struct ieee80211_iface_limit brcmf_iface_limits[] = {
 		.types = BIT(NL80211_IFTYPE_P2P_DEVICE)
 	}
 };
-static const struct ieee80211_iface_combination brcmf_iface_combos[] = {
+static struct ieee80211_iface_combination brcmf_iface_combos[] = {
 	{
 		 .max_interfaces = BRCMF_IFACE_MAX_CNT,
-		 .num_different_channels = 2,
+		 .num_different_channels = 1,
 		 .n_limits = ARRAY_SIZE(brcmf_iface_limits),
 		 .limits = brcmf_iface_limits
 	}
@@ -4348,7 +4342,8 @@ brcmf_txrx_stypes[NUM_NL80211_IFTYPES] = {
 	}
 };
 
-static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
+static
+struct wiphy *brcmf_setup_wiphy(struct brcmf_if *ifp, struct device *phydev)
 {
 	struct wiphy *wiphy;
 	s32 err = 0;
@@ -4368,6 +4363,9 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				 BIT(NL80211_IFTYPE_P2P_GO) |
 				 BIT(NL80211_IFTYPE_P2P_DEVICE);
+	/* need VSDB firmware feature for concurrent channels */
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MCHAN))
+		brcmf_iface_combos[0].num_different_channels = 2;
 	wiphy->iface_combinations = brcmf_iface_combos;
 	wiphy->n_iface_combinations = ARRAY_SIZE(brcmf_iface_combos);
 	wiphy->bands[IEEE80211_BAND_2GHZ] = &__wl_band_2ghz;
@@ -5567,7 +5565,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	}
 
 	ifp = netdev_priv(ndev);
-	wiphy = brcmf_setup_wiphy(busdev);
+	wiphy = brcmf_setup_wiphy(ifp, busdev);
 	if (IS_ERR(wiphy))
 		return NULL;
 
