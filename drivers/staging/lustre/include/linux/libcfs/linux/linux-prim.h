@@ -57,10 +57,10 @@
 #include <linux/random.h>
 
 #include <linux/miscdevice.h>
-#include <linux/libcfs/linux/portals_compat25.h>
+#include "portals_compat25.h"
 #include <asm/div64.h>
 
-#include <linux/libcfs/linux/linux-time.h>
+#include "linux-time.h"
 
 /*
  * Sysctl register

@@ -40,7 +40,7 @@
 #include <linux/fs_struct.h>
 #include <linux/sched.h>
 
-#include <linux/libcfs/libcfs.h>
+#include "../../../include/linux/libcfs/libcfs.h"
 
 #if defined(CONFIG_KGDB)
 #include <asm/kgdb.h>

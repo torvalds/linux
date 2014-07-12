@@ -42,7 +42,7 @@
 # include <asm/page.h>
 # include <linux/string.h>
 # include <asm/io.h>
-# include <linux/libcfs/libcfs.h>
+#include "../../libcfs/libcfs.h"
 
 static inline __u64
 lnet_page2phys (struct page *p)

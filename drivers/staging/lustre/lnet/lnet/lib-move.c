@@ -40,7 +40,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 static int local_nid_dist_zero = 1;
 module_param(local_nid_dist_zero, int, 0444);

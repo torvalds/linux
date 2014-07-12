@@ -55,7 +55,7 @@
  */
 #include <lu_object.h>
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 struct seq_file;
 struct proc_dir_entry;

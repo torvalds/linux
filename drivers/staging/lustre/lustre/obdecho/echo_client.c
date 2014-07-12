@@ -35,7 +35,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_ECHO
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 #include <obd.h>
 #include <obd_support.h>

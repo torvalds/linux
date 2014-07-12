@@ -44,7 +44,7 @@
 #include <obd_class.h>
 #include <lustre_net.h>
 #include <lprocfs_status.h>
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include "ptlrpc_internal.h"
 
 /* XXX: This is just for liblustre. Remove the #if defined directive when the

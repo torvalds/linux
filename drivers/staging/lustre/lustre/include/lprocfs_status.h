@@ -44,7 +44,7 @@
 
 #include <linux/lprocfs_status.h>
 #include <lustre/lustre_idl.h>
-#include <linux/libcfs/params_tree.h>
+#include "../../include/linux/libcfs/params_tree.h"
 
 struct lprocfs_vars {
 	const char		*name;

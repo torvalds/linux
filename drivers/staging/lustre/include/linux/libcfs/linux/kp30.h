@@ -67,7 +67,7 @@
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
 
-#include <linux/libcfs/linux/portals_compat25.h>
+#include "portals_compat25.h"
 
 /* this is a bit chunky */
 

@@ -39,7 +39,7 @@
  */
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/lucache.h>
+#include "../../include/linux/libcfs/lucache.h"
 
 static struct upcall_cache_entry *alloc_entry(struct upcall_cache *cache,
 					      __u64 key, void *args)

@@ -42,11 +42,11 @@
 #ifndef __LNET_LIB_TYPES_H__
 #define __LNET_LIB_TYPES_H__
 
-#include <linux/lnet/linux/lib-types.h>
+#include "linux/lib-types.h"
 
-#include <linux/libcfs/libcfs.h>
+#include "../libcfs/libcfs.h"
 #include <linux/list.h>
-#include <linux/lnet/types.h>
+#include "types.h"
 
 #define WIRE_ATTR       __attribute__((packed))
 

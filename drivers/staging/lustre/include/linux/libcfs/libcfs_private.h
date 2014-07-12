@@ -43,7 +43,7 @@
 #define __LIBCFS_PRIVATE_H__
 
 /* XXX this layering violation is for nidstrings */
-#include <linux/lnet/types.h>
+#include "../lnet/types.h"
 
 #ifndef DEBUG_SUBSYSTEM
 # define DEBUG_SUBSYSTEM S_UNDEFINED

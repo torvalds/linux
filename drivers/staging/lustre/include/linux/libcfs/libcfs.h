@@ -41,7 +41,7 @@
 #define __attribute__(x)
 #endif
 
-#include <linux/libcfs/linux/libcfs.h>
+#include "linux/libcfs.h"
 #include <linux/gfp.h>
 
 #include "curproc.h"
@@ -155,20 +155,20 @@ unsigned int cfs_rand(void);
 void cfs_srand(unsigned int, unsigned int);
 void cfs_get_random_bytes(void *buf, int size);
 
-#include <linux/libcfs/libcfs_debug.h>
-#include <linux/libcfs/libcfs_cpu.h>
-#include <linux/libcfs/libcfs_private.h>
-#include <linux/libcfs/libcfs_ioctl.h>
-#include <linux/libcfs/libcfs_prim.h>
-#include <linux/libcfs/libcfs_time.h>
-#include <linux/libcfs/libcfs_string.h>
-#include <linux/libcfs/libcfs_kernelcomm.h>
-#include <linux/libcfs/libcfs_workitem.h>
-#include <linux/libcfs/libcfs_hash.h>
-#include <linux/libcfs/libcfs_heap.h>
-#include <linux/libcfs/libcfs_fail.h>
-#include <linux/libcfs/params_tree.h>
-#include <linux/libcfs/libcfs_crypto.h>
+#include "libcfs_debug.h"
+#include "libcfs_cpu.h"
+#include "libcfs_private.h"
+#include "libcfs_ioctl.h"
+#include "libcfs_prim.h"
+#include "libcfs_time.h"
+#include "libcfs_string.h"
+#include "libcfs_kernelcomm.h"
+#include "libcfs_workitem.h"
+#include "libcfs_hash.h"
+#include "libcfs_heap.h"
+#include "libcfs_fail.h"
+#include "params_tree.h"
+#include "libcfs_crypto.h"
 
 /* container_of depends on "likely" which is defined in libcfs_private.h */
 static inline void *__container_of(void *ptr, unsigned long shift)

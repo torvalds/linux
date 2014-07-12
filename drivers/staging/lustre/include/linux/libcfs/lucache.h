@@ -37,7 +37,7 @@
 #ifndef _LUCACHE_H
 #define _LUCACHE_H
 
-#include <linux/libcfs/libcfs.h>
+#include "libcfs.h"
 
 /** \defgroup ucache ucache
  *

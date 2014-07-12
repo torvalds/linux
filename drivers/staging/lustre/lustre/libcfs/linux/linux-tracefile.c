@@ -37,7 +37,7 @@
 #define DEBUG_SUBSYSTEM S_LNET
 #define LUSTRE_TRACEFILE_PRIVATE
 
-#include <linux/libcfs/libcfs.h>
+#include "../../../include/linux/libcfs/libcfs.h"
 #include "tracefile.h"
 
 /* percents to share the total debug memory for each type */

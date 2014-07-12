@@ -42,7 +42,7 @@
 
 #define DEBUG_SUBSYSTEM S_FLD
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 # include <linux/module.h>
 # include <asm/div64.h>
 

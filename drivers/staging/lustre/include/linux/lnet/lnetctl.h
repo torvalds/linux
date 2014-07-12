@@ -19,8 +19,8 @@
 #ifndef _PTLCTL_H_
 #define _PTLCTL_H_
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/types.h>
+#include "../libcfs/libcfs.h"
+#include "types.h"
 
 #define LNET_DEV_ID 0
 #define LNET_DEV_PATH "/dev/lnet"

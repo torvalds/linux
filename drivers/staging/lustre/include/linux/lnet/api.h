@@ -47,7 +47,7 @@
  * @{
  */
 
-#include <linux/lnet/types.h>
+#include "../lnet/types.h"
 
 /** \defgroup lnet_init_fini Initialization and cleanup
  * The LNet must be properly initialized before any LNet calls can be made.

@@ -38,7 +38,7 @@
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <lustre_fsfilt.h>
 
 LIST_HEAD(fsfilt_types);

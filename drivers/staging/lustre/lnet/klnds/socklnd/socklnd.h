@@ -30,11 +30,11 @@
 
 #include "socklnd_lib-linux.h"
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
-#include <linux/lnet/lib-lnet.h>
-#include <linux/lnet/socklnd.h>
-#include <linux/lnet/lnet-sysctl.h>
+#include "../../../include/linux/libcfs/libcfs.h"
+#include "../../../include/linux/lnet/lnet.h"
+#include "../../../include/linux/lnet/lib-lnet.h"
+#include "../../../include/linux/lnet/socklnd.h"
+#include "../../../include/linux/lnet/lnet-sysctl.h"
 
 #define SOCKNAL_PEER_HASH_SIZE  101	     /* # peer lists */
 #define SOCKNAL_RESCHED	 100	     /* # scheduler loops before reschedule */

@@ -44,7 +44,7 @@
 #include <lustre/lustre_idl.h>
 #include <dt_object.h>
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <lustre_req_layout.h>
 #include <lustre_fld.h>
 

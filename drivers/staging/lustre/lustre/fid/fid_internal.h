@@ -41,7 +41,7 @@
 #define __FID_INTERNAL_H
 
 #include <lustre/lustre_idl.h>
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 /* Functions used internally in module. */
 int seq_client_alloc_super(struct lu_client_seq *seq,

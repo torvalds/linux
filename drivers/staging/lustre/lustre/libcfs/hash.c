@@ -107,7 +107,7 @@
  *   table. Also, user can break the iteration by return 1 in callback.
  */
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/seq_file.h>
 
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1

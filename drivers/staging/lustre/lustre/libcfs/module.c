@@ -36,10 +36,10 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/libcfs/libcfs_crypto.h>
-#include <linux/lnet/lib-lnet.h>
-#include <linux/lnet/lnet.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/libcfs/libcfs_crypto.h"
+#include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lnet.h"
 #include "tracefile.h"
 
 void

@@ -52,7 +52,7 @@
 #include <linux/swap.h>
 #include <linux/lustre_compat25.h>
 #include <linux/lustre_common.h>
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <lustre/lustre_idl.h>
 
 

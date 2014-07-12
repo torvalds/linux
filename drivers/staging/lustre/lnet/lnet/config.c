@@ -35,7 +35,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 typedef struct {			    /* tmp struct for parsing routes */
 	struct list_head	 ltb_list;	/* stash on lists */

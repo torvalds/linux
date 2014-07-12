@@ -40,7 +40,7 @@
 /** \addtogroup lnet
  * @{ */
 
-#include <linux/libcfs/libcfs.h>
+#include "../libcfs/libcfs.h"
 
 /** \addtogroup lnet_addr
  * @{ */

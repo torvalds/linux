@@ -44,7 +44,7 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <obd_support.h>
 #include <lu_object.h>
 #include <md_object.h>

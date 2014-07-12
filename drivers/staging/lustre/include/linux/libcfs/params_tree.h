@@ -40,7 +40,7 @@
 #ifndef __PARAMS_TREE_H__
 #define __PARAMS_TREE_H__
 
-#include <linux/libcfs/libcfs.h>
+#include "libcfs.h"
 
 #undef LPROCFS
 #if  defined(CONFIG_PROC_FS)

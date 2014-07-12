@@ -36,7 +36,7 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 #include <obd_class.h>
 #include "lov_internal.h"

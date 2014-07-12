@@ -46,7 +46,7 @@
  * @{
  */
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <lustre/lustre_idl.h>
 #include <lustre_ver.h>
 #include <lustre_cfg.h>

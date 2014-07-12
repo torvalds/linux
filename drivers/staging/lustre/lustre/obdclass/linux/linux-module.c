@@ -65,10 +65,10 @@
 #include <linux/miscdevice.h>
 #include <linux/seq_file.h>
 
-#include <linux/libcfs/libcfs.h>
+#include "../../../include/linux/libcfs/libcfs.h"
+#include "../../../include/linux/lnet/lnetctl.h"
 #include <obd_support.h>
 #include <obd_class.h>
-#include <linux/lnet/lnetctl.h>
 #include <lprocfs_status.h>
 #include <lustre_ver.h>
 #include <lustre/lustre_build_version.h>

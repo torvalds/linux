@@ -92,7 +92,7 @@
 #define _LUSTRE_IDL_H_
 
 #if !defined(LPU64)
-#include <linux/libcfs/libcfs.h> /* for LPUX64, etc */
+#include "../../include/linux/libcfs/libcfs.h"	/* for LPUX64, etc */
 #endif
 
 /* Defn's shared with user-space. */

@@ -44,15 +44,15 @@
 
 
 #include <stdarg.h>
-#include <linux/libcfs/linux/linux-cpu.h>
-#include <linux/libcfs/linux/linux-time.h>
-#include <linux/libcfs/linux/linux-mem.h>
-#include <linux/libcfs/linux/linux-prim.h>
-#include <linux/libcfs/linux/linux-lock.h>
-#include <linux/libcfs/linux/linux-tcpip.h>
-#include <linux/libcfs/linux/linux-bitops.h>
-#include <linux/libcfs/linux/linux-types.h>
-#include <linux/libcfs/linux/kp30.h>
+#include "linux-cpu.h"
+#include "linux-time.h"
+#include "linux-mem.h"
+#include "linux-prim.h"
+#include "linux-lock.h"
+#include "linux-tcpip.h"
+#include "linux-bitops.h"
+#include "linux-types.h"
+#include "kp30.h"
 
 #include <asm/types.h>
 #include <linux/types.h>

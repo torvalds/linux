@@ -49,7 +49,7 @@
 #define DEBUG_SUBSYSTEM S_RPC
 #include <obd_support.h>
 #include <obd_class.h>
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include "ptlrpc_internal.h"
 
 /**

@@ -39,7 +39,7 @@
 
 #include <obd_support.h>
 #include <obd_class.h>
-#include <linux/lnet/lnetctl.h>
+#include "../../include/linux/lnet/lnetctl.h"
 #include <lustre_debug.h>
 #include <lprocfs_status.h>
 #include <lustre/lustre_build_version.h>

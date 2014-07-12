@@ -40,7 +40,7 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <obd_class.h>
 #include <obd_support.h>
 #include <linux/list.h>

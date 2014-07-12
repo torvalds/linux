@@ -45,8 +45,8 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
-#include <linux/libcfs/libcfs.h>
 #include <linux/module.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/lustre_compat25.h>
 #include <lvfs.h>
 

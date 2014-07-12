@@ -44,7 +44,7 @@
 
 #include <linux/lustre_handles.h>
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 
 struct portals_handle_ops {
