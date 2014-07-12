@@ -116,7 +116,7 @@ SECTIONS
 
 	_edata = .;
 
-	BSS_SECTION(0, 0, 0)
+	BSS_SECTION(4, 4, 4)
 
 #ifdef CONFIG_ARC_DW2_UNWIND
 	. = ALIGN(PAGE_SIZE);

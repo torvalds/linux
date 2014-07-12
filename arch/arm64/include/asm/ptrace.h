@@ -21,6 +21,10 @@
 
 #include <uapi/asm/ptrace.h>
 
+/* Current Exception Level values, as contained in CurrentEL */
+#define CurrentEL_EL1		(1 << 2)
+#define CurrentEL_EL2		(2 << 2)
+
 /* AArch32-specific ptrace requests */
 #define COMPAT_PTRACE_GETREGS		12
 #define COMPAT_PTRACE_SETREGS		13

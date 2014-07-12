@@ -1227,10 +1227,18 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 			rdev->clock.default_dispclk =
 				le32_to_cpu(firmware_info->info_21.ulDefaultDispEngineClkFreq);
 			if (rdev->clock.default_dispclk == 0) {
-				if (ASIC_IS_DCE5(rdev))
+				if (ASIC_IS_DCE6(rdev))
+					rdev->clock.default_dispclk = 60000; /* 600 Mhz */
+				else if (ASIC_IS_DCE5(rdev))
 					rdev->clock.default_dispclk = 54000; /* 540 Mhz */
 				else
 					rdev->clock.default_dispclk = 60000; /* 600 Mhz */
+			}
+			/* set a reasonable default for DP */
+			if (ASIC_IS_DCE6(rdev) && (rdev->clock.default_dispclk < 53900)) {
+				DRM_INFO("Changing default dispclk from %dMhz to 600Mhz\n",
+					 rdev->clock.default_dispclk / 100);
+				rdev->clock.default_dispclk = 60000;
 			}
 			rdev->clock.dp_extclk =
 				le16_to_cpu(firmware_info->info_21.usUniphyDPModeExtClkFreq);

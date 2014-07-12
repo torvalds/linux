@@ -325,6 +325,10 @@ static int palmas_set_mode_smps(struct regulator_dev *dev, unsigned int mode)
 	if (rail_enable)
 		palmas_smps_write(pmic->palmas,
 			palmas_regs_info[id].ctrl_addr, reg);
+
+	/* Switch the enable value to ensure this is used for enable */
+	pmic->desc[id].enable_val = pmic->current_reg_mode[id];
+
 	return 0;
 }
 
@@ -964,6 +968,14 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 				return ret;
 			pmic->current_reg_mode[id] = reg &
 					PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
+
+			pmic->desc[id].enable_reg =
+					PALMAS_BASE_TO_REG(PALMAS_SMPS_BASE,
+						palmas_regs_info[id].ctrl_addr);
+			pmic->desc[id].enable_mask =
+					PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
+			/* set_mode overrides this value */
+			pmic->desc[id].enable_val = SMPS_CTRL_MODE_ON;
 		}
 
 		pmic->desc[id].type = REGULATOR_VOLTAGE;

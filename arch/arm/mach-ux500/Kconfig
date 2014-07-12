@@ -15,7 +15,7 @@ menuconfig ARCH_U8500
 	select PINCTRL
 	select PINCTRL_ABX500
 	select PINCTRL_NOMADIK
-	select PL310_ERRATA_753970 if CACHE_PL310
+	select PL310_ERRATA_753970 if CACHE_L2X0
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
