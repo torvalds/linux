@@ -1654,10 +1654,14 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	if (dev->disconnected) {
 		/* We cannot tell the device to sleep
 		 * once it has been unplugged. */
-		if (dvb->fe[0])
+		if (dvb->fe[0]) {
 			prevent_sleep(&dvb->fe[0]->ops);
-		if (dvb->fe[1])
+			dvb->fe[0]->exit = DVB_FE_DEVICE_REMOVED;
+		}
+		if (dvb->fe[1]) {
 			prevent_sleep(&dvb->fe[1]->ops);
+			dvb->fe[1]->exit = DVB_FE_DEVICE_REMOVED;
+		}
 	}
 
 	/* remove I2C tuner */
