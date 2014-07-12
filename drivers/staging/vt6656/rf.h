@@ -55,8 +55,6 @@
 
 #define VNT_RF_MAX_POWER    0x3f
 
-extern const u8 RFaby11aChannelIndex[200];
-
 int vnt_rf_write_embedded(struct vnt_private *, u32);
 int vnt_rf_setpower(struct vnt_private *, u32, u32);
 int vnt_rf_set_txpower(struct vnt_private *, u8, u32);
