@@ -439,9 +439,6 @@ static void exit_libcfs_module(void)
 		printk(KERN_ERR "LustreError: libcfs_debug_cleanup: %d\n",
 		       rc);
 
-	fini_rwsem(&ioctl_list_sem);
-	fini_rwsem(&cfs_tracefile_sem);
-
 	libcfs_arch_cleanup();
 }
 

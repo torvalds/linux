@@ -112,8 +112,6 @@ void cfs_tracefile_fini_arch(void)
 		kfree(cfs_trace_data[i]);
 		cfs_trace_data[i] = NULL;
 	}
-
-	fini_rwsem(&cfs_tracefile_sem);
 }
 
 void cfs_tracefile_read_lock(void)
