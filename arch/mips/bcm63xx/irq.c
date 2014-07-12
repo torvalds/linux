@@ -51,47 +51,65 @@ static inline void handle_internal(int intbit)
  * will resume the loop where it ended the last time we left this
  * function.
  */
-static void __dispatch_internal_32(void)
-{
-	u32 pending;
-	static int i;
 
-	pending = bcm_readl(irq_stat_addr) & bcm_readl(irq_mask_addr);
-
-	if (!pending)
-		return ;
-
-	while (1) {
-		int to_call = i;
-
-		i = (i + 1) & 0x1f;
-		if (pending & (1 << to_call)) {
-			handle_internal(to_call);
-			break;
-		}
-	}
+#define BUILD_IPIC_INTERNAL(width)					\
+void __dispatch_internal_##width(void)					\
+{									\
+	u32 pending[width / 32];					\
+	unsigned int src, tgt;						\
+	bool irqs_pending = false;					\
+	static unsigned int i;						\
+									\
+	/* read registers in reverse order */				\
+	for (src = 0, tgt = (width / 32); src < (width / 32); src++) {	\
+		u32 val;						\
+									\
+		val = bcm_readl(irq_stat_addr + src * sizeof(u32));	\
+		val &= bcm_readl(irq_mask_addr + src * sizeof(u32));	\
+		pending[--tgt] = val;					\
+									\
+		if (val)						\
+			irqs_pending = true;				\
+	}								\
+									\
+	if (!irqs_pending)						\
+		return;							\
+									\
+	while (1) {							\
+		unsigned int to_call = i;				\
+									\
+		i = (i + 1) & (width - 1);				\
+		if (pending[to_call / 32] & (1 << (to_call & 0x1f))) {	\
+			handle_internal(to_call);			\
+			break;						\
+		}							\
+	}								\
+}									\
+									\
+static void __internal_irq_mask_##width(unsigned int irq)		\
+{									\
+	u32 val;							\
+	unsigned reg = (irq / 32) ^ (width/32 - 1);			\
+	unsigned bit = irq & 0x1f;					\
+									\
+	val = bcm_readl(irq_mask_addr + reg * sizeof(u32));		\
+	val &= ~(1 << bit);						\
+	bcm_writel(val, irq_mask_addr + reg * sizeof(u32));		\
+}									\
+									\
+static void __internal_irq_unmask_##width(unsigned int irq)		\
+{									\
+	u32 val;							\
+	unsigned reg = (irq / 32) ^ (width/32 - 1);			\
+	unsigned bit = irq & 0x1f;					\
+									\
+	val = bcm_readl(irq_mask_addr + reg * sizeof(u32));		\
+	val |= (1 << bit);						\
+	bcm_writel(val, irq_mask_addr + reg * sizeof(u32));		\
 }
 
-static void __dispatch_internal_64(void)
-{
-	u64 pending;
-	static int i;
-
-	pending = bcm_readq(irq_stat_addr) & bcm_readq(irq_mask_addr);
-
-	if (!pending)
-		return ;
-
-	while (1) {
-		int to_call = i;
-
-		i = (i + 1) & 0x3f;
-		if (pending & (1ull << to_call)) {
-			handle_internal(to_call);
-			break;
-		}
-	}
-}
+BUILD_IPIC_INTERNAL(32);
+BUILD_IPIC_INTERNAL(64);
 
 asmlinkage void plat_irq_dispatch(void)
 {
@@ -128,42 +146,6 @@ asmlinkage void plat_irq_dispatch(void)
  * internal IRQs operations: only mask/unmask on PERF irq mask
  * register.
  */
-static void __internal_irq_mask_32(unsigned int irq)
-{
-	u32 mask;
-
-	mask = bcm_readl(irq_mask_addr);
-	mask &= ~(1 << irq);
-	bcm_writel(mask, irq_mask_addr);
-}
-
-static void __internal_irq_mask_64(unsigned int irq)
-{
-	u64 mask;
-
-	mask = bcm_readq(irq_mask_addr);
-	mask &= ~(1ull << irq);
-	bcm_writeq(mask, irq_mask_addr);
-}
-
-static void __internal_irq_unmask_32(unsigned int irq)
-{
-	u32 mask;
-
-	mask = bcm_readl(irq_mask_addr);
-	mask |= (1 << irq);
-	bcm_writel(mask, irq_mask_addr);
-}
-
-static void __internal_irq_unmask_64(unsigned int irq)
-{
-	u64 mask;
-
-	mask = bcm_readq(irq_mask_addr);
-	mask |= (1ull << irq);
-	bcm_writeq(mask, irq_mask_addr);
-}
-
 static void bcm63xx_internal_irq_mask(struct irq_data *d)
 {
 	internal_irq_mask(d->irq - IRQ_INTERNAL_BASE);
