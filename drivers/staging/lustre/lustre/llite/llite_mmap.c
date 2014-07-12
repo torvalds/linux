@@ -47,9 +47,9 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
-#include <linux/lustre_compat25.h>
+#include "../include/linux/lustre_compat25.h"
 
 static const struct vm_operations_struct ll_file_vm_ops;
 

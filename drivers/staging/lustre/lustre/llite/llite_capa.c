@@ -45,7 +45,7 @@
 #include <linux/file.h>
 #include <linux/kmod.h>
 
-#include <lustre_lite.h>
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 
 /* for obd_capa.c_list, client capa might stay in three places:

@@ -41,8 +41,8 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 
-#include <obd.h>
-#include <lustre_lite.h>
+#include "../include/obd.h"
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 #include "vvp_internal.h"
 

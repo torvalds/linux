@@ -54,10 +54,10 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
-#include <obd_cksum.h>
+#include "../include/lustre_lite.h"
+#include "../include/obd_cksum.h"
 #include "llite_internal.h"
-#include <linux/lustre_compat25.h>
+#include "../include/linux/lustre_compat25.h"
 
 /**
  * Finalizes cl-data before exiting typical address_space operation. Dual to

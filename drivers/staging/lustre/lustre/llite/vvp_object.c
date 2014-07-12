@@ -43,8 +43,8 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd.h>
-#include <lustre_lite.h>
+#include "../include/obd.h"
+#include "../include/lustre_lite.h"
 
 #include "vvp_internal.h"
 

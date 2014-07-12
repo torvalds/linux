@@ -37,13 +37,13 @@
  * future).
  *
  */
-#include <obd_class.h>
-#include <obd_support.h>
-#include <obd.h>
-#include <cl_object.h>
-#include <lclient.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/obd.h"
+#include "../include/cl_object.h"
+#include "../include/lclient.h"
 
-#include <lustre_lite.h>
+#include "../include/lustre_lite.h"
 
 
 /* Initialize the default and maximum LOV EA and cookie sizes.  This allows

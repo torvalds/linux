@@ -50,16 +50,16 @@
 # include <linux/pagemap.h>
 # include <linux/rbtree.h>
 
-#include <obd.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
-#include <lustre_lite.h>
-#include <lustre_dlm.h>
-#include <lustre_ver.h>
-#include <lustre_mdc.h>
-#include <cl_object.h>
+#include "../include/obd.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_ver.h"
+#include "../include/lustre_mdc.h"
+#include "../include/cl_object.h"
 
-#include <lclient.h>
+#include "../include/lclient.h"
 
 #include "../llite/llite_internal.h"
 

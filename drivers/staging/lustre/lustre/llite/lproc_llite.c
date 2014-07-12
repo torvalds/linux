@@ -35,10 +35,10 @@
  */
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
-#include <lprocfs_status.h>
+#include "../include/lustre_lite.h"
+#include "../include/lprocfs_status.h"
 #include <linux/seq_file.h>
-#include <obd_support.h>
+#include "../include/obd_support.h"
 
 #include "llite_internal.h"
 #include "vvp_internal.h"

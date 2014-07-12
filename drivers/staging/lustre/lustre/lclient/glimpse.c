@@ -41,19 +41,19 @@
  */
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include <obd_class.h>
-#include <obd_support.h>
-#include <obd.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/obd.h"
 
-# include <lustre_dlm.h>
-# include <lustre_lite.h>
-# include <lustre_mdc.h>
-# include <linux/pagemap.h>
-# include <linux/file.h>
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_mdc.h"
+#include <linux/pagemap.h>
+#include <linux/file.h>
 
-#include "cl_object.h"
-#include "lclient.h"
-# include "../llite/llite_internal.h"
+#include "../include/cl_object.h"
+#include "../include/lclient.h"
+#include "../llite/llite_internal.h"
 
 static const struct cl_lock_descr whole_file = {
 	.cld_start = 0,

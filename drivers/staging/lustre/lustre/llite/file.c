@@ -41,14 +41,14 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LLITE
-#include <lustre_dlm.h>
-#include <lustre_lite.h>
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_lite.h"
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include "llite_internal.h"
-#include <lustre/ll_fiemap.h>
+#include "../include/lustre/ll_fiemap.h"
 
-#include "cl_object.h"
+#include "../include/cl_object.h"
 
 static int
 ll_put_grouplock(struct inode *inode, struct file *file, unsigned long arg);

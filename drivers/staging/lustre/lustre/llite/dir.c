@@ -48,13 +48,13 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_lite.h>
-#include <lustre_dlm.h>
-#include <lustre_fid.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_fid.h"
 #include "llite_internal.h"
 
 /*

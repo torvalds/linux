@@ -44,15 +44,15 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 
-#include <lustre_lite.h>
-#include <lustre_ha.h>
-#include <lustre_dlm.h>
-#include <lprocfs_status.h>
-#include <lustre_disk.h>
-#include <lustre_param.h>
-#include <lustre_log.h>
-#include <cl_object.h>
-#include <obd_cksum.h>
+#include "../include/lustre_lite.h"
+#include "../include/lustre_ha.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_param.h"
+#include "../include/lustre_log.h"
+#include "../include/cl_object.h"
+#include "../include/obd_cksum.h"
 #include "llite_internal.h"
 
 struct kmem_cache *ll_file_data_slab;
