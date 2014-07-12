@@ -45,7 +45,6 @@
 #error Do not #include this file directly. #include <linux/libcfs/libcfs.h> instead
 #endif
 
-
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
@@ -81,7 +80,7 @@
 
 #define DECL_MMSPACE		mm_segment_t __oldfs
 #define MMSPACE_OPEN \
-	do { __oldfs = get_fs(); set_fs(get_ds());} while(0)
+	do { __oldfs = get_fs(); set_fs(get_ds()); } while (0)
 #define MMSPACE_CLOSE	       set_fs(__oldfs)
 
 #endif /* __LINUX_CFS_MEM_H__ */

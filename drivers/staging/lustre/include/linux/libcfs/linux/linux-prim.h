@@ -45,7 +45,6 @@
 #error Do not #include this file directly. #include <linux/libcfs/libcfs.h> instead
 #endif
 
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>

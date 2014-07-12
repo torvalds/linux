@@ -37,14 +37,14 @@
 #ifndef __LIBCFS_LINUX_PORTALS_COMPAT_H__
 #define __LIBCFS_LINUX_PORTALS_COMPAT_H__
 
-// XXX BUG 1511 -- remove this stanza and all callers when bug 1511 is resolved
+/* XXX BUG 1511 -- remove this stanza and all callers when bug 1511 is resolved */
 #if defined(SPINLOCK_DEBUG) && SPINLOCK_DEBUG
 #  define SIGNAL_MASK_ASSERT() \
    LASSERT(current->sighand->siglock.magic == SPINLOCK_MAGIC)
 #else
 # define SIGNAL_MASK_ASSERT()
 #endif
-// XXX BUG 1511 -- remove this stanza and all callers when bug 1511 is resolved
+/* XXX BUG 1511 -- remove this stanza and all callers when bug 1511 is resolved */
 
 #define SIGNAL_MASK_LOCK(task, flags)				  \
 	spin_lock_irqsave(&task->sighand->siglock, flags)

@@ -45,7 +45,6 @@
 #error Do not #include this file directly. #include <linux/libcfs/libcfs.h> instead
 #endif
 
-
 #include <linux/mutex.h>
 
 /*
@@ -81,8 +80,6 @@
  */
 
 
-
-
 /*
  * rw_semaphore "implementation" (use Linux kernel's primitives)
  *
@@ -94,9 +91,7 @@
  * - up_write(x)
  */
 
-
 #define fini_rwsem(s)		do {} while (0)
-
 
 /*
  * rwlock_t "implementation" (use Linux kernel's primitives)
@@ -111,7 +106,6 @@
  *
  * - RW_LOCK_UNLOCKED
  */
-
 
 #ifndef DEFINE_RWLOCK
 #define DEFINE_RWLOCK(lock)	rwlock_t lock = __RW_LOCK_UNLOCKED(lock)
@@ -170,7 +164,6 @@ struct lock_class_key {
 /* This has to be a macro, so that `subclass' can be undefined in kernels
  * that do not support lockdep. */
 
-
 static inline void lockdep_off(void)
 {
 }
@@ -199,6 +192,5 @@ static inline void lockdep_on(void)
 #define down_write_nested(lock, subclass) down_write(lock)
 #endif
 #endif /* CONFIG_DEBUG_LOCK_ALLOC */
-
 
 #endif /* __LIBCFS_LINUX_CFS_LOCK_H__ */

@@ -42,7 +42,6 @@
 #error Do not #include this file directly. #include <linux/libcfs/libcfs.h> instead
 #endif
 
-
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/topology.h>

@@ -47,15 +47,15 @@
 #include "curproc.h"
 
 #ifndef offsetof
-# define offsetof(typ,memb) ((long)(long_ptr_t)((char *)&(((typ *)0)->memb)))
+# define offsetof(typ, memb) ((long)(long_ptr_t)((char *)&(((typ *)0)->memb)))
 #endif
 
 #ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) ((sizeof (a)) / (sizeof ((a)[0])))
+#define ARRAY_SIZE(a) ((sizeof(a)) / (sizeof((a)[0])))
 #endif
 
 #if !defined(swap)
-#define swap(x,y) do { typeof(x) z = x; x = y; y = z; } while (0)
+#define swap(x, y) do { typeof(x) z = x; x = y; y = z; } while (0)
 #endif
 
 #if !defined(container_of)

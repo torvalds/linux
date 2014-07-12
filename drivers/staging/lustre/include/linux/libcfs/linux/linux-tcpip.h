@@ -45,7 +45,6 @@
 #error Do not #include this file directly. #include <linux/libcfs/libcfs.h> instead
 #endif
 
-
 #include <net/sock.h>
 
 typedef struct socket   socket_t;

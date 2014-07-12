@@ -104,17 +104,17 @@ struct upcall_cache;
 struct upcall_cache_ops {
 	void	    (*init_entry)(struct upcall_cache_entry *, void *args);
 	void	    (*free_entry)(struct upcall_cache *,
-				      struct upcall_cache_entry *);
+				  struct upcall_cache_entry *);
 	int	     (*upcall_compare)(struct upcall_cache *,
-					  struct upcall_cache_entry *,
+				       struct upcall_cache_entry *,
 					  __u64 key, void *args);
 	int	     (*downcall_compare)(struct upcall_cache *,
-					    struct upcall_cache_entry *,
+					 struct upcall_cache_entry *,
 					    __u64 key, void *args);
 	int	     (*do_upcall)(struct upcall_cache *,
-				     struct upcall_cache_entry *);
+				  struct upcall_cache_entry *);
 	int	     (*parse_downcall)(struct upcall_cache *,
-					  struct upcall_cache_entry *, void *);
+				       struct upcall_cache_entry *, void *);
 };
 
 struct upcall_cache {

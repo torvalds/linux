@@ -42,7 +42,6 @@
 #endif
 
 
-
 #include <stdarg.h>
 #include "linux-cpu.h"
 #include "linux-time.h"
@@ -63,7 +62,7 @@
 #define LUSTRE_TRACE_SIZE (THREAD_SIZE >> 5)
 
 #if !defined(__x86_64__)
-# ifdef  __ia64__
+# ifdef __ia64__
 #  define CDEBUG_STACK() (THREAD_SIZE -				 \
 			  ((unsigned long)__builtin_dwarf_cfa() &       \
 			   (THREAD_SIZE - 1)))
@@ -89,7 +88,7 @@ do {								    \
 } while (0)
 #define CFS_CHECK_STACK(msgdata, mask, cdls)  __CHECK_STACK(msgdata, mask, cdls)
 #else /* __x86_64__ */
-#define CFS_CHECK_STACK(msgdata, mask, cdls) do {} while(0)
+#define CFS_CHECK_STACK(msgdata, mask, cdls) do {} while (0)
 #define CDEBUG_STACK() (0L)
 #endif /* __x86_64__ */
 
@@ -103,7 +102,7 @@ do {								    \
  *
  * Implementation is in linux-curproc.c
  */
-#define CFS_CURPROC_COMM_MAX (sizeof ((struct task_struct *)0)->comm)
+#define CFS_CURPROC_COMM_MAX (sizeof((struct task_struct *)0)->comm)
 
 #include <linux/capability.h>
 
@@ -114,8 +113,6 @@ typedef long long_ptr_t;
 #ifndef WITH_WATCHDOG
 #define WITH_WATCHDOG
 #endif
-
-
 
 
 #endif /* _LINUX_LIBCFS_H */

@@ -108,21 +108,21 @@ typedef struct cfs_seq_file {
 } cfs_seq_file_t;
 
 typedef struct cfs_seq_operations {
-	void *(*start) (cfs_seq_file_t *m, loff_t *pos);
-	void  (*stop) (cfs_seq_file_t *m, void *v);
-	void *(*next) (cfs_seq_file_t *m, void *v, loff_t *pos);
-	int   (*show) (cfs_seq_file_t *m, void *v);
+	void *(*start)(cfs_seq_file_t *m, loff_t *pos);
+	void  (*stop)(cfs_seq_file_t *m, void *v);
+	void *(*next)(cfs_seq_file_t *m, void *v, loff_t *pos);
+	int   (*show)(cfs_seq_file_t *m, void *v);
 } cfs_seq_ops_t;
 
 typedef void *cfs_poll_table_t;
 
 typedef struct cfs_param_file_ops {
 	struct module *owner;
-	int (*open) (cfs_inode_t *, struct file *);
+	int (*open)(cfs_inode_t *, struct file *);
 	loff_t (*llseek)(struct file *, loff_t, int);
-	int (*release) (cfs_inode_t *, cfs_param_file_t *);
-	unsigned int (*poll) (struct file *, cfs_poll_table_t *);
-	ssize_t (*write) (struct file *, const char *, size_t, loff_t *);
+	int (*release)(cfs_inode_t *, cfs_param_file_t *);
+	unsigned int (*poll)(struct file *, cfs_poll_table_t *);
+	ssize_t (*write)(struct file *, const char *, size_t, loff_t *);
 	ssize_t (*read)(struct file *, char *, size_t, loff_t *);
 } cfs_param_file_ops_t;
 typedef cfs_param_file_ops_t *cfs_lproc_filep_t;
@@ -140,7 +140,7 @@ static inline cfs_proc_inode_t *FAKE_PROC_I(const cfs_inode_t *inode)
 #define cfs_seq_read_common		     NULL
 #define cfs_seq_lseek_common		    NULL
 #define cfs_seq_private(seq)		    (seq->private)
-#define cfs_seq_read(file, buf, count, ppos, rc) do {} while(0)
+#define cfs_seq_read(file, buf, count, ppos, rc) do {} while (0)
 #define cfs_seq_open(file, ops, rc)		     \
 do {						    \
 	 cfs_seq_file_t *p = cfs_file_private(file);    \
@@ -155,7 +155,7 @@ do {						    \
 	memset(p, 0, sizeof(*p));		       \
 	p->op = ops;				    \
 	rc = 0;					 \
-} while(0)
+} while (0)
 
 #endif /* LPROCFS */
 

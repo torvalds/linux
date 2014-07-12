@@ -45,7 +45,6 @@
 #error Do not #include this file directly. #include <linux/libcfs/libcfs.h> instead
 #endif
 
-
 /* Portable time API */
 
 /*
@@ -88,7 +87,6 @@
 #define ONE_BILLION ((u_int64_t)1000000000)
 #define ONE_MILLION 1000000
 
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
@@ -122,7 +120,6 @@ static inline unsigned long long __cfs_fs_time_flat(cfs_fs_time_t *t)
 {
 	return (unsigned long long)t->tv_sec * ONE_BILLION + t->tv_nsec;
 }
-
 
 /*
  * Generic kernel stuff
@@ -179,6 +176,7 @@ static inline cfs_duration_t cfs_duration_build(int64_t nano)
 	/* We cannot use do_div(t, ONE_BILLION), do_div can only process
 	 * 64 bits n and 32 bits base */
 	int64_t  t = nano * HZ;
+
 	do_div(t, 1000);
 	do_div(t, 1000000);
 	return (cfs_duration_t)t;
@@ -252,7 +250,6 @@ static inline int cfs_time_beforeq_64(__u64 t1, __u64 t2)
 	return (__s64)t2 - (__s64)t1 >= 0;
 }
 
-
 /*
  * One jiffy
  */
@@ -260,7 +257,6 @@ static inline int cfs_time_beforeq_64(__u64 t1, __u64 t2)
 
 #define CFS_TIME_T	      "%lu"
 #define CFS_DURATION_T	  "%ld"
-
 
 #endif /* __LIBCFS_LINUX_LINUX_TIME_H__ */
 /*

@@ -63,7 +63,6 @@ static inline int cfs_time_aftereq(cfs_time_t t1, cfs_time_t t2)
 	return cfs_time_beforeq(t2, t1);
 }
 
-
 static inline cfs_time_t cfs_time_shift(int seconds)
 {
 	return cfs_time_add(cfs_time_current(), cfs_time_seconds(seconds));
@@ -72,7 +71,7 @@ static inline cfs_time_t cfs_time_shift(int seconds)
 static inline long cfs_timeval_sub(struct timeval *large, struct timeval *small,
 				   struct timeval *result)
 {
-	long r = (long) (
+	long r = (long)(
 		(large->tv_sec - small->tv_sec) * ONE_MILLION +
 		(large->tv_usec - small->tv_usec));
 	if (result != NULL) {
@@ -87,7 +86,7 @@ static inline void cfs_slow_warning(cfs_time_t now, int seconds, char *msg)
 	if (cfs_time_after(cfs_time_current(),
 			   cfs_time_add(now, cfs_time_seconds(15))))
 		CERROR("slow %s "CFS_TIME_T" sec\n", msg,
-		       cfs_duration_sec(cfs_time_sub(cfs_time_current(),now)));
+		       cfs_duration_sec(cfs_time_sub(cfs_time_current(), now)));
 }
 
 #define CFS_RATELIMIT(seconds)				  \
