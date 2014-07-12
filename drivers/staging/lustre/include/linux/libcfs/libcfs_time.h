@@ -111,7 +111,7 @@ static inline void cfs_slow_warning(cfs_time_t now, int seconds, char *msg)
  */
 static inline void cfs_fs_timeval(struct timeval *tv)
 {
-	cfs_fs_time_t time;
+	struct timespec time;
 
 	cfs_fs_time_current(&time);
 	cfs_fs_time_usec(&time, tv);

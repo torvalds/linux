@@ -57,7 +57,7 @@
  *  cfs_duration_t    represents time interval with resolution of internal
  *		    platform clock
  *
- *  cfs_fs_time_t     represents instance in world-visible time. This is
+ *  struct timespec     represents instance in world-visible time. This is
  *		    used in file-system time-stamps
  *
  *  cfs_time_t     cfs_time_current(void);
@@ -72,12 +72,12 @@
  *  void	   cfs_duration_usec(cfs_duration_t, struct timeval *);
  *  void	   cfs_duration_nsec(cfs_duration_t, struct timespec *);
  *
- *  void	   cfs_fs_time_current(cfs_fs_time_t *);
- *  time_t	 cfs_fs_time_sec    (cfs_fs_time_t *);
- *  void	   cfs_fs_time_usec   (cfs_fs_time_t *, struct timeval *);
- *  void	   cfs_fs_time_nsec   (cfs_fs_time_t *, struct timespec *);
- *  int	    cfs_fs_time_before (cfs_fs_time_t *, cfs_fs_time_t *);
- *  int	    cfs_fs_time_beforeq(cfs_fs_time_t *, cfs_fs_time_t *);
+ *  void	   cfs_fs_time_current(struct timespec *);
+ *  time_t	 cfs_fs_time_sec    (struct timespec *);
+ *  void	   cfs_fs_time_usec   (struct timespec *, struct timeval *);
+ *  void	   cfs_fs_time_nsec   (struct timespec *, struct timespec *);
+ *  int	    cfs_fs_time_before (struct timespec *, struct timespec *);
+ *  int	    cfs_fs_time_beforeq(struct timespec *, struct timespec *);
  *
  *  CFS_TIME_FORMAT
  *  CFS_DURATION_FORMAT
@@ -100,15 +100,14 @@
 
 #include <linux/jiffies.h>
 
-typedef struct timespec cfs_fs_time_t;
 
-static inline void cfs_fs_time_usec(cfs_fs_time_t *t, struct timeval *v)
+static inline void cfs_fs_time_usec(struct timespec *t, struct timeval *v)
 {
 	v->tv_sec  = t->tv_sec;
 	v->tv_usec = t->tv_nsec / 1000;
 }
 
-static inline void cfs_fs_time_nsec(cfs_fs_time_t *t, struct timespec *s)
+static inline void cfs_fs_time_nsec(struct timespec *t, struct timespec *s)
 {
 	*s = *t;
 }
@@ -116,7 +115,7 @@ static inline void cfs_fs_time_nsec(cfs_fs_time_t *t, struct timespec *s)
 /*
  * internal helper function used by cfs_fs_time_before*()
  */
-static inline unsigned long long __cfs_fs_time_flat(cfs_fs_time_t *t)
+static inline unsigned long long __cfs_fs_time_flat(struct timespec *t)
 {
 	return (unsigned long long)t->tv_sec * ONE_BILLION + t->tv_nsec;
 }
@@ -149,22 +148,22 @@ static inline time_t cfs_time_current_sec(void)
 	return get_seconds();
 }
 
-static inline void cfs_fs_time_current(cfs_fs_time_t *t)
+static inline void cfs_fs_time_current(struct timespec *t)
 {
 	*t = CURRENT_TIME;
 }
 
-static inline time_t cfs_fs_time_sec(cfs_fs_time_t *t)
+static inline time_t cfs_fs_time_sec(struct timespec *t)
 {
 	return t->tv_sec;
 }
 
-static inline int cfs_fs_time_before(cfs_fs_time_t *t1, cfs_fs_time_t *t2)
+static inline int cfs_fs_time_before(struct timespec *t1, struct timespec *t2)
 {
 	return __cfs_fs_time_flat(t1) <  __cfs_fs_time_flat(t2);
 }
 
-static inline int cfs_fs_time_beforeq(cfs_fs_time_t *t1, cfs_fs_time_t *t2)
+static inline int cfs_fs_time_beforeq(struct timespec *t1, struct timespec *t2)
 {
 	return __cfs_fs_time_flat(t1) <= __cfs_fs_time_flat(t2);
 }
