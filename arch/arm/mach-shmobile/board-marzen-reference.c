@@ -22,12 +22,14 @@
 #include <linux/clk/shmobile.h>
 #include <linux/clocksource.h>
 #include <linux/of_platform.h>
-#include <mach/r8a7779.h>
+
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
+
 #include "clock.h"
 #include "common.h"
 #include "irqs.h"
+#include "r8a7779.h"
 
 static void __init marzen_init_timer(void)
 {
