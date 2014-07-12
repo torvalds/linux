@@ -40,7 +40,7 @@
 #include "rf.h"
 #include "usbpipe.h"
 
-static u8 abyVT3184_AGC[] = {
+static u8 vnt_vt3184_agc[] = {
 	0x00, 0x00, 0x02, 0x02, 0x04, 0x04, 0x06, 0x06,
 	0x08, 0x08, 0x0a, 0x0a, 0x0c, 0x0c, 0x0e, 0x0e, /* 0x0f */
 	0x10, 0x10, 0x12, 0x12, 0x14, 0x14, 0x16, 0x16,
@@ -405,8 +405,8 @@ int BBbVT3184Init(struct vnt_private *priv)
 		priv->byBBRxConf = abyVT3184_AL2230[10];
 		length = sizeof(abyVT3184_AL2230);
 		addr = abyVT3184_AL2230;
-		agc = abyVT3184_AGC;
-		length_agc = sizeof(abyVT3184_AGC);
+		agc = vnt_vt3184_agc;
+		length_agc = sizeof(vnt_vt3184_agc);
 
 		priv->abyBBVGA[0] = 0x1C;
 		priv->abyBBVGA[1] = 0x10;
@@ -420,8 +420,8 @@ int BBbVT3184Init(struct vnt_private *priv)
 		priv->byBBRxConf = abyVT3184_AL2230[10];
 		length = sizeof(abyVT3184_AL2230);
 		addr = abyVT3184_AL2230;
-		agc = abyVT3184_AGC;
-		length_agc = sizeof(abyVT3184_AGC);
+		agc = vnt_vt3184_agc;
+		length_agc = sizeof(vnt_vt3184_agc);
 
 		addr[0xd7] = 0x06;
 
@@ -438,8 +438,8 @@ int BBbVT3184Init(struct vnt_private *priv)
 		priv->byBBRxConf = abyVT3184_VT3226D0[10];
 		length = sizeof(abyVT3184_VT3226D0);
 		addr = abyVT3184_VT3226D0;
-		agc = abyVT3184_AGC;
-		length_agc = sizeof(abyVT3184_AGC);
+		agc = vnt_vt3184_agc;
+		length_agc = sizeof(vnt_vt3184_agc);
 
 		priv->abyBBVGA[0] = 0x20;
 		priv->abyBBVGA[1] = 0x10;
@@ -455,8 +455,8 @@ int BBbVT3184Init(struct vnt_private *priv)
 		priv->byBBRxConf = abyVT3184_VT3226D0[10];
 		length = sizeof(abyVT3184_VT3226D0);
 		addr = abyVT3184_VT3226D0;
-		agc = abyVT3184_AGC;
-		length_agc = sizeof(abyVT3184_AGC);
+		agc = vnt_vt3184_agc;
+		length_agc = sizeof(vnt_vt3184_agc);
 
 		priv->abyBBVGA[0] = 0x20;
 		priv->abyBBVGA[1] = 0x10;
