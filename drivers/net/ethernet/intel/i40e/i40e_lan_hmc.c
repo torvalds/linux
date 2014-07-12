@@ -417,7 +417,6 @@ static i40e_status i40e_create_lan_hmc_object(struct i40e_hw *hw,
 			default:
 				ret_code = I40E_ERR_INVALID_SD_TYPE;
 				goto exit;
-				break;
 			}
 		}
 	}
@@ -502,7 +501,6 @@ try_type_paged:
 		hw_dbg(hw, "i40e_configure_lan_hmc: Unknown SD type: %d\n",
 			  ret_code);
 		goto configure_lan_hmc_out;
-		break;
 	}
 
 	/* Configure and program the FPM registers so objects can be created */
