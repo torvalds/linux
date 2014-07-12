@@ -1894,7 +1894,7 @@ int ptlrpc_expire_one_request(struct ptlrpc_request *req, int async_unlink)
 		  "/real "CFS_DURATION_T"]",
 		  req->rq_net_err ? "failed due to network error" :
 		     ((req->rq_real_sent == 0 ||
-		       cfs_time_before(req->rq_real_sent, req->rq_sent) ||
+		       time_before((unsigned long)req->rq_real_sent, (unsigned long)req->rq_sent) ||
 		       cfs_time_aftereq(req->rq_real_sent, req->rq_deadline)) ?
 		      "timed out for sent delay" : "timed out for slow reply"),
 		  req->rq_sent, req->rq_real_sent);

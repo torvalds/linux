@@ -1606,7 +1606,7 @@ kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
 
 	}
 
-	if (cfs_time_before(cfs_time_current(), fps->fps_next_retry)) {
+	if (time_before(cfs_time_current(), fps->fps_next_retry)) {
 		/* someone failed recently */
 		spin_unlock(&fps->fps_lock);
 		return -EAGAIN;
@@ -1808,7 +1808,7 @@ kiblnd_pool_alloc_node(kib_poolset_t *ps)
 		goto again;
 	}
 
-	if (cfs_time_before(cfs_time_current(), ps->ps_next_retry)) {
+	if (time_before(cfs_time_current(), ps->ps_next_retry)) {
 		/* someone failed recently */
 		spin_unlock(&ps->ps_lock);
 		return NULL;

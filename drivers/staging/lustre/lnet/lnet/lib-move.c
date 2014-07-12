@@ -751,7 +751,7 @@ lnet_peer_alive_locked(lnet_peer_t *lp)
 			   cfs_time_add(lp->lp_last_query,
 					cfs_time_seconds(lnet_queryinterval));
 
-		if (cfs_time_before(now, next_query)) {
+		if (time_before(now, next_query)) {
 			if (lp->lp_alive)
 				CWARN("Unexpected aliveness of peer %s: "
 				      "%d < %d (%d/%d)\n",

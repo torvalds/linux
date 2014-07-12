@@ -297,8 +297,8 @@ static inline int exp_connect_multibulk(struct obd_export *exp)
 static inline int exp_expired(struct obd_export *exp, long age)
 {
 	LASSERT(exp->exp_delayed);
-	return cfs_time_before(cfs_time_add(exp->exp_last_request_time, age),
-			       get_seconds());
+	return time_before(cfs_time_add(exp->exp_last_request_time, age),
+			   get_seconds());
 }
 
 static inline int exp_connect_cancelset(struct obd_export *exp)

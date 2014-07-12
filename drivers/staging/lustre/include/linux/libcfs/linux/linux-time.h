@@ -45,31 +45,6 @@
 #error Do not #include this file directly. #include <linux/libcfs/libcfs.h> instead
 #endif
 
-/* Portable time API */
-
-/*
- * Platform provides three opaque data-types:
- *
- *  unsigned long     cfs_time_current(void);
- *  unsigned long     cfs_time_add    (unsigned long, long);
- *  long cfs_time_sub    (unsigned long, unsigned long);
- *  int	    cfs_impl_time_before (unsigned long, unsigned long);
- *  int	    cfs_impl_time_before_eq(unsigned long, unsigned long);
- *
- *  long cfs_duration_build(int64_t);
- *
- *  time_t	 cfs_duration_sec (long);
- *  void	   cfs_duration_usec(long, struct timeval *);
- *
- *  void	   cfs_fs_time_current(struct timespec *);
- *  time_t	 cfs_fs_time_sec    (struct timespec *);
- *  void	   cfs_fs_time_usec   (struct timespec *, struct timeval *);
- *
- *  CFS_TIME_FORMAT
- *  CFS_DURATION_FORMAT
- *
- */
-
 #define ONE_BILLION ((u_int64_t)1000000000)
 #define ONE_MILLION 1000000
 
@@ -96,11 +71,6 @@ static inline void cfs_fs_time_usec(struct timespec *t, struct timeval *v)
 /*
  * Generic kernel stuff
  */
-
-static inline int cfs_time_before(unsigned long t1, unsigned long t2)
-{
-	return time_before(t1, t2);
-}
 
 static inline unsigned long cfs_time_current(void)
 {

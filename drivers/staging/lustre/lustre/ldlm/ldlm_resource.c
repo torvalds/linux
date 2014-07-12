@@ -1369,7 +1369,7 @@ void ldlm_namespace_dump(int level, struct ldlm_namespace *ns)
 	       ldlm_ns_name(ns), atomic_read(&ns->ns_bref),
 	       ns_is_client(ns) ? "client" : "server");
 
-	if (cfs_time_before(cfs_time_current(), ns->ns_next_dump))
+	if (time_before(cfs_time_current(), ns->ns_next_dump))
 		return;
 
 	cfs_hash_for_each_nolock(ns->ns_rs_hash,

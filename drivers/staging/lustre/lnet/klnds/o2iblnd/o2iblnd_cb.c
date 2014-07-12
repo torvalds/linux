@@ -3465,8 +3465,8 @@ kiblnd_failover_thread(void *arg)
 
 		list_for_each_entry(dev, &kiblnd_data.kib_failed_devs,
 				    ibd_fail_list) {
-			if (cfs_time_before(cfs_time_current(),
-					    dev->ibd_next_failover))
+			if (time_before(cfs_time_current(),
+					dev->ibd_next_failover))
 				continue;
 			do_failover = 1;
 			break;

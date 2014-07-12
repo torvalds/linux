@@ -143,9 +143,9 @@ static inline int capa_hashfn(struct lu_fid *fid)
  * client renew right after obtaining it. */
 static inline int capa_is_to_expire(struct obd_capa *oc)
 {
-	return cfs_time_before(cfs_time_sub(oc->c_expiry,
-				   cfs_time_seconds(oc->c_capa.lc_timeout)*2/3),
-			       cfs_time_current());
+	return time_before(cfs_time_sub(oc->c_expiry,
+					cfs_time_seconds(oc->c_capa.lc_timeout)*2/3),
+			   cfs_time_current());
 }
 
 static struct obd_capa *find_capa(struct lustre_capa *capa,

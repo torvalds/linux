@@ -72,7 +72,7 @@ static int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa);
 
 static inline void update_capa_timer(struct obd_capa *ocapa, unsigned long expiry)
 {
-	if (cfs_time_before(expiry, ll_capa_timer.expires) ||
+	if (time_before(expiry, ll_capa_timer.expires) ||
 	    !timer_pending(&ll_capa_timer)) {
 		mod_timer(&ll_capa_timer, expiry);
 		DEBUG_CAPA(D_SEC, &ocapa->c_capa,

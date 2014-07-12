@@ -1508,9 +1508,8 @@ static ldlm_policy_res_t ldlm_cancel_aged_policy(struct ldlm_namespace *ns,
 {
 	/* Stop LRU processing if young lock is found and we reach past count */
 	return ((added >= count) &&
-		cfs_time_before(cfs_time_current(),
-				cfs_time_add(lock->l_last_used,
-					     ns->ns_max_age))) ?
+		time_before(cfs_time_current(),
+			    cfs_time_add(lock->l_last_used, ns->ns_max_age))) ?
 		LDLM_POLICY_KEEP_LOCK : LDLM_POLICY_CANCEL_LOCK;
 }
 

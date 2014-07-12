@@ -587,7 +587,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	 *    affect the performance.
 	 */
 	if (lli->lli_glimpse_time != 0 &&
-	    cfs_time_before(cfs_time_shift(-1), lli->lli_glimpse_time)) {
+	    time_before(cfs_time_shift(-1), lli->lli_glimpse_time)) {
 		up_write(&lli->lli_glimpse_sem);
 		lli->lli_agl_index = 0;
 		iput(inode);

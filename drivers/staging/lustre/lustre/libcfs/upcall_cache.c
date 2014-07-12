@@ -117,13 +117,12 @@ static int check_unlink_entry(struct upcall_cache *cache,
 			      struct upcall_cache_entry *entry)
 {
 	if (UC_CACHE_IS_VALID(entry) &&
-	    cfs_time_before(cfs_time_current(), entry->ue_expire))
+	    time_before(cfs_time_current(), entry->ue_expire))
 		return 0;
 
 	if (UC_CACHE_IS_ACQUIRING(entry)) {
 		if (entry->ue_acquire_expire == 0 ||
-		    cfs_time_before(cfs_time_current(),
-				    entry->ue_acquire_expire))
+		    time_before(cfs_time_current(), entry->ue_acquire_expire))
 			return 0;
 
 		UC_CACHE_SET_EXPIRED(entry);

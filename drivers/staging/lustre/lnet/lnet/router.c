@@ -109,7 +109,7 @@ lnet_peers_start_down(void)
 void
 lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, unsigned long when)
 {
-	if (cfs_time_before(when, lp->lp_timestamp)) { /* out of date information */
+	if (time_before(when, lp->lp_timestamp)) { /* out of date information */
 		CDEBUG(D_NET, "Out of date\n");
 		return;
 	}
