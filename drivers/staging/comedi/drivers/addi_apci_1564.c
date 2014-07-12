@@ -373,7 +373,7 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	ret = comedi_alloc_subdevices(dev, 4);
+	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
 		return ret;
 
@@ -397,20 +397,8 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	s->insn_bits = apci1564_do_insn_bits;
 	s->insn_read = apci1564_do_read;
 
-	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 1;
-	s->maxdata = 0;
-	s->len_chanlist = 1;
-	s->range_table = &range_digital;
-	s->insn_write = apci1564_timer_write;
-	s->insn_read = apci1564_timer_read;
-	s->insn_config = apci1564_timer_config;
-
 	/* Change-Of-State (COS) interrupt subdevice */
-	s = &dev->subdevices[3];
+	s = &dev->subdevices[2];
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_DI;
@@ -427,6 +415,24 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
+
+	/*  Allocate and Initialise Timer Subdevice Structures */
+	s = &dev->subdevices[3];
+	s->type = COMEDI_SUBD_TIMER;
+	s->subdev_flags = SDF_WRITEABLE;
+	s->n_chan = 1;
+	s->maxdata = 0;
+	s->len_chanlist = 1;
+	s->range_table = &range_digital;
+	s->insn_write = apci1564_timer_write;
+	s->insn_read = apci1564_timer_read;
+	s->insn_config = apci1564_timer_config;
+
+	/* Initialize the watchdog subdevice */
+	s = &dev->subdevices[4];
+	ret = addi_watchdog_init(s, devpriv->amcc_iobase + APCI1564_WDOG_REG);
+	if (ret)
+		return ret;
 
 	return 0;
 }
