@@ -388,7 +388,7 @@ err_deinit_tty:
 	deinitialize_tty_struct(o_tty);
 	free_tty_struct(o_tty);
 err_put_module:
-	module_put(o_tty->driver->owner);
+	module_put(driver->other->owner);
 err:
 	kfree(ports[0]);
 	kfree(ports[1]);
