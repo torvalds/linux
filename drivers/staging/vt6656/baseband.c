@@ -87,7 +87,7 @@ static u8 vnt_vt3184_al2230[] = {
 };
 
 //{{RobertYu:20060515, new BB setting for VT3226D0
-static u8 abyVT3184_VT3226D0[] = {
+static u8 vnt_vt3184_vt3226d0[] = {
 	0x31, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00,
 	0x70, 0x45, 0x2a, 0x76, 0x00, 0x00, 0x80, 0x00, /* 0x0f */
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -435,9 +435,9 @@ int BBbVT3184Init(struct vnt_private *priv)
 		priv->ldBmThreshold[3] = 0;
 	} else if ((priv->byRFType == RF_VT3226) ||
 			(priv->byRFType == RF_VT3226D0)) {
-		priv->byBBRxConf = abyVT3184_VT3226D0[10];
-		length = sizeof(abyVT3184_VT3226D0);
-		addr = abyVT3184_VT3226D0;
+		priv->byBBRxConf = vnt_vt3184_vt3226d0[10];
+		length = sizeof(vnt_vt3184_vt3226d0);
+		addr = vnt_vt3184_vt3226d0;
 		agc = vnt_vt3184_agc;
 		length_agc = sizeof(vnt_vt3184_agc);
 
@@ -452,9 +452,9 @@ int BBbVT3184Init(struct vnt_private *priv)
 		/* Fix VT3226 DFC system timing issue */
 		vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL2, SOFTPWRCTL_RFLEOPT);
 	} else if ((priv->byRFType == RF_VT3342A0)) {
-		priv->byBBRxConf = abyVT3184_VT3226D0[10];
-		length = sizeof(abyVT3184_VT3226D0);
-		addr = abyVT3184_VT3226D0;
+		priv->byBBRxConf = vnt_vt3184_vt3226d0[10];
+		length = sizeof(vnt_vt3184_vt3226d0);
+		addr = vnt_vt3184_vt3226d0;
 		agc = vnt_vt3184_agc;
 		length_agc = sizeof(vnt_vt3184_agc);
 
