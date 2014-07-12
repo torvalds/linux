@@ -21,11 +21,18 @@
 #include <linux/rockchip/iomap.h>
 #include "rk3036_tve.h"
 
+#define DEBUG
+#ifdef DEBUG
+#define TVEDBG(format, ...) \
+		printk(KERN_INFO "RK3036 TVE: " format "\n", ## __VA_ARGS__)
+#else
+#define TVEDBG(format, ...)
+#endif
 
 static const struct fb_videomode rk3036_cvbs_mode [] = {
 	/*	name		refresh	xres	yres	pixclock	h_bp	h_fp	v_bp	v_fp	h_pw	v_pw	polariry	PorI		flag*/
-	{	"NTSC",		60,	720,	480,	27000000,	69,	12,	19,	2,	63,	3,	0,	FB_VMODE_INTERLACED,	0},
-	{	"PAL",		50,	720,	576,	27000000,	57,	19,	19,	0,	62,	3,	0,	FB_VMODE_INTERLACED,	0},
+	{	"NTSC",		60,	720,	576,	27000000,	57,	19,	19,	0,	62,	3,	0,	FB_VMODE_INTERLACED,	0},
+	{	"PAL",		50,	720,	480,	27000000,	69,	12,	19,	2,	63,	3,	0,	FB_VMODE_INTERLACED,	0},
 };
 
 static struct rk3036_tve *rk3036_tve = NULL;
@@ -36,6 +43,9 @@ static struct rk3036_tve *rk3036_tve = NULL;
 static void dac_enable(bool enable)
 {
 	u32 mask, val;
+	
+	TVEDBG("%s enable %d\n", __FUNCTION__, enable);
+	
 	if(enable) {
 		mask = m_VBG_EN | m_DAC_EN;
 		val = mask;
@@ -48,6 +58,8 @@ static void dac_enable(bool enable)
 
 static void tve_set_mode (int mode)
 {
+	TVEDBG("%s mode %d\n", __FUNCTION__, mode);
+	
 	tve_writel(TV_RESET, v_RESET(1));
 	udelay(100);
 	tve_writel(TV_RESET, v_RESET(0));
@@ -145,6 +157,7 @@ static int tve_switch_fb(const struct fb_videomode *modedb, int enable)
 
 static int cvbs_set_enable(struct rk_display_device *device, int enable)
 {
+	TVEDBG("%s enable %d\n", __FUNCTION__, enable);
 	if(rk3036_tve->enable != enable)
 	{
 		rk3036_tve->enable = enable;
@@ -165,16 +178,19 @@ static int cvbs_set_enable(struct rk_display_device *device, int enable)
 
 static int cvbs_get_enable(struct rk_display_device *device)
 {
+	TVEDBG("%s enable %d\n", __FUNCTION__, rk3036_tve->enable);
 	return rk3036_tve->enable;
 }
 
 static int cvbs_get_status(struct rk_display_device *device)
 {
+	TVEDBG("%s \n", __FUNCTION__);
 	return 1;
 }
 
 static int cvbs_get_modelist(struct rk_display_device *device, struct list_head **modelist)
 {
+	TVEDBG("%s \n", __FUNCTION__);
 	*modelist = &(rk3036_tve->modelist);
 	return 0;
 }
@@ -182,7 +198,7 @@ static int cvbs_get_modelist(struct rk_display_device *device, struct list_head 
 static int cvbs_set_mode(struct rk_display_device *device, struct fb_videomode *mode)
 {
 	int i;
-
+	TVEDBG("%s \n", __FUNCTION__);
 	for(i = 0; i < ARRAY_SIZE(rk3036_cvbs_mode); i++)
 	{
 		if(fb_mode_is_equal(&rk3036_cvbs_mode[i], mode))
@@ -256,7 +272,7 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&(rk3036_tve->modelist));
 	for(i = 0; i < ARRAY_SIZE(rk3036_cvbs_mode); i++)
 		fb_add_videomode(&rk3036_cvbs_mode[i], &(rk3036_tve->modelist));
-
+	rk3036_tve->mode = (struct fb_videomode*)&rk3036_cvbs_mode[1];
 	rk3036_tve->ddev = rk_display_device_register(&display_cvbs, &pdev->dev, NULL);
 	rk_display_device_enable(rk3036_tve->ddev);
 	

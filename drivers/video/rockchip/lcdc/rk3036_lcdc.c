@@ -1209,9 +1209,8 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 
 static int rk3036_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 {
-	struct device_node *np = lcdc_dev->dev->of_node;
-
 #if defined(CONFIG_ROCKCHIP_IOMMU)
+	struct device_node *np = lcdc_dev->dev->of_node;
 	int val;
 	if (of_property_read_u32(np, "rockchip,iommu-enabled", &val))
 		lcdc_dev->driver.iommu_enabled = 0;
@@ -1230,7 +1229,7 @@ static int rk3036_lcdc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int ret;
-	
+
 	lcdc_dev = devm_kzalloc(dev,
 				sizeof(struct lcdc_device), GFP_KERNEL);
 	if (!lcdc_dev) {
@@ -1255,7 +1254,7 @@ static int rk3036_lcdc_probe(struct platform_device *pdev)
 	dev_set_name(lcdc_dev->dev, "lcdc%d", lcdc_dev->id);
 	dev_drv = &lcdc_dev->driver;
 	dev_drv->dev = dev;
-	dev_drv->prop = 0;
+	dev_drv->prop = PRMRY;
 	dev_drv->id = lcdc_dev->id;
 	dev_drv->ops = &lcdc_drv_ops;
 	dev_drv->lcdc_win_num = ARRAY_SIZE(lcdc_win);

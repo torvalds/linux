@@ -224,12 +224,12 @@ static int display_resume(struct device *dev)
 
 void rk_display_device_enable(struct rk_display_device *ddev)
 {
-#ifndef CONFIG_DISPLAY_AUTO_SWITCH	
-	return;
-#else
+//#ifndef CONFIG_DISPLAY_AUTO_SWITCH	
+//	return;
+//#else
 	struct list_head *pos, *head = &display_device_list;
 	struct rk_display_device *dev = NULL, *dev_enabled = NULL, *dev_enable = NULL;
-	int enable = 0,connect, has_connect = 0;
+	int enable = 0,connect;
 	
 	list_for_each(pos, head) {
 		dev = list_entry(pos, struct rk_display_device, list);
@@ -257,7 +257,7 @@ void rk_display_device_enable(struct rk_display_device *ddev)
 	}
 		
 
-#endif
+//#endif
 }
 EXPORT_SYMBOL(rk_display_device_enable);
 
