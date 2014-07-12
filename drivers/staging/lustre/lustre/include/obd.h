@@ -50,7 +50,6 @@
 
 #include "lustre/lustre_idl.h"
 #include "lustre_lib.h"
-#include "../../include/linux/libcfs/bitmap.h"
 #include "lu_ref.h"
 #include "lustre_export.h"
 #include "lustre_fid.h"
