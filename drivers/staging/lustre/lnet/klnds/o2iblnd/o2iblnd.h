@@ -62,10 +62,10 @@
 
 #define DEBUG_SUBSYSTEM S_LND
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
-#include <linux/lnet/lib-lnet.h>
-#include <linux/lnet/lnet-sysctl.h>
+#include "../../../include/linux/libcfs/libcfs.h"
+#include "../../../include/linux/lnet/lnet.h"
+#include "../../../include/linux/lnet/lib-lnet.h"
+#include "../../../include/linux/lnet/lnet-sysctl.h"
 
 #include <rdma/rdma_cm.h>
 #include <rdma/ib_cm.h>
