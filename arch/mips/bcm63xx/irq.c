@@ -32,7 +32,7 @@ static unsigned int ext_irq_count;
 static unsigned int ext_irq_start, ext_irq_end;
 static unsigned int ext_irq_cfg_reg1, ext_irq_cfg_reg2;
 static void (*internal_irq_mask)(struct irq_data *d);
-static void (*internal_irq_unmask)(struct irq_data *d);
+static void (*internal_irq_unmask)(struct irq_data *d, const struct cpumask *m);
 
 
 static inline u32 get_ext_irq_perf_reg(int irq)
@@ -49,6 +49,20 @@ static inline void handle_internal(int intbit)
 		do_IRQ(intbit - ext_irq_start + IRQ_EXTERNAL_BASE);
 	else
 		do_IRQ(intbit + IRQ_INTERNAL_BASE);
+}
+
+static inline int enable_irq_for_cpu(int cpu, struct irq_data *d,
+				     const struct cpumask *m)
+{
+	bool enable = cpu_online(cpu);
+
+#ifdef CONFIG_SMP
+	if (m)
+		enable &= cpu_isset(cpu, *m);
+	else if (irqd_affinity_was_set(d))
+		enable &= cpu_isset(cpu, *d->affinity);
+#endif
+	return enable;
 }
 
 /*
@@ -117,7 +131,8 @@ static void __internal_irq_mask_##width(struct irq_data *d)		\
 	spin_unlock_irqrestore(&ipic_lock, flags);			\
 }									\
 									\
-static void __internal_irq_unmask_##width(struct irq_data *d)		\
+static void __internal_irq_unmask_##width(struct irq_data *d,		\
+					  const struct cpumask *m)	\
 {									\
 	u32 val;							\
 	unsigned irq = d->irq - IRQ_INTERNAL_BASE;			\
@@ -132,7 +147,7 @@ static void __internal_irq_unmask_##width(struct irq_data *d)		\
 			break;						\
 									\
 		val = bcm_readl(irq_mask_addr[cpu] + reg * sizeof(u32));\
-		if (cpu_online(cpu))					\
+		if (enable_irq_for_cpu(cpu, d, m))			\
 			val |= (1 << bit);				\
 		else							\
 			val &= ~(1 << bit);				\
@@ -189,7 +204,7 @@ static void bcm63xx_internal_irq_mask(struct irq_data *d)
 
 static void bcm63xx_internal_irq_unmask(struct irq_data *d)
 {
-	internal_irq_unmask(d);
+	internal_irq_unmask(d, NULL);
 }
 
 /*
@@ -237,7 +252,8 @@ static void bcm63xx_external_irq_unmask(struct irq_data *d)
 	spin_unlock_irqrestore(&epic_lock, flags);
 
 	if (is_ext_irq_cascaded)
-		internal_irq_unmask(irq_get_irq_data(irq + ext_irq_start));
+		internal_irq_unmask(irq_get_irq_data(irq + ext_irq_start),
+				    NULL);
 }
 
 static void bcm63xx_external_irq_clear(struct irq_data *d)
@@ -355,6 +371,18 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
+
+#ifdef CONFIG_SMP
+static int bcm63xx_internal_set_affinity(struct irq_data *data,
+					 const struct cpumask *dest,
+					 bool force)
+{
+	if (!irqd_irq_disabled(data))
+		internal_irq_unmask(data, dest);
+
+	return 0;
+}
+#endif
 
 static struct irq_chip bcm63xx_internal_irq_chip = {
 	.name		= "bcm63xx_ipic",
@@ -523,7 +551,13 @@ void __init arch_init_irq(void)
 
 	setup_irq(MIPS_CPU_IRQ_BASE + 2, &cpu_ip2_cascade_action);
 #ifdef CONFIG_SMP
-	if (is_ext_irq_cascaded)
+	if (is_ext_irq_cascaded) {
 		setup_irq(MIPS_CPU_IRQ_BASE + 3, &cpu_ip3_cascade_action);
+		bcm63xx_internal_irq_chip.irq_set_affinity =
+			bcm63xx_internal_set_affinity;
+
+		cpumask_clear(irq_default_affinity);
+		cpumask_set_cpu(smp_processor_id(), irq_default_affinity);
+	}
 #endif
 }
