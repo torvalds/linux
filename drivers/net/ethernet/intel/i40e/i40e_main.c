@@ -6148,9 +6148,9 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 				I40E_GL_MDET_TX_EVENT_SHIFT;
 		u8 queue = (reg & I40E_GL_MDET_TX_QUEUE_MASK) >>
 				I40E_GL_MDET_TX_QUEUE_SHIFT;
-		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection event 0x%02x on TX queue %d pf number 0x%02x vf number 0x%02x\n",
-			 event, queue, pf_num, vf_num);
+		if (netif_msg_tx_err(pf))
+			dev_info(&pf->pdev->dev, "Malicious Driver Detection event 0x%02x on TX queue %d pf number 0x%02x vf number 0x%02x\n",
+				 event, queue, pf_num, vf_num);
 		wr32(hw, I40E_GL_MDET_TX, 0xffffffff);
 		mdd_detected = true;
 	}
@@ -6162,9 +6162,9 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 				I40E_GL_MDET_RX_EVENT_SHIFT;
 		u8 queue = (reg & I40E_GL_MDET_RX_QUEUE_MASK) >>
 				I40E_GL_MDET_RX_QUEUE_SHIFT;
-		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
-			 event, queue, func);
+		if (netif_msg_rx_err(pf))
+			dev_info(&pf->pdev->dev, "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
+				 event, queue, func);
 		wr32(hw, I40E_GL_MDET_RX, 0xffffffff);
 		mdd_detected = true;
 	}
@@ -6173,17 +6173,13 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		reg = rd32(hw, I40E_PF_MDET_TX);
 		if (reg & I40E_PF_MDET_TX_VALID_MASK) {
 			wr32(hw, I40E_PF_MDET_TX, 0xFFFF);
-			dev_info(&pf->pdev->dev,
-				 "MDD TX event is for this function 0x%08x, requesting PF reset.\n",
-				 reg);
+			dev_info(&pf->pdev->dev, "TX driver issue detected, PF reset issued\n");
 			pf_mdd_detected = true;
 		}
 		reg = rd32(hw, I40E_PF_MDET_RX);
 		if (reg & I40E_PF_MDET_RX_VALID_MASK) {
 			wr32(hw, I40E_PF_MDET_RX, 0xFFFF);
-			dev_info(&pf->pdev->dev,
-				 "MDD RX event is for this function 0x%08x, requesting PF reset.\n",
-				 reg);
+			dev_info(&pf->pdev->dev, "RX driver issue detected, PF reset issued\n");
 			pf_mdd_detected = true;
 		}
 		/* Queue belongs to the PF, initiate a reset */
@@ -6200,14 +6196,16 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		if (reg & I40E_VP_MDET_TX_VALID_MASK) {
 			wr32(hw, I40E_VP_MDET_TX(i), 0xFFFF);
 			vf->num_mdd_events++;
-			dev_info(&pf->pdev->dev, "MDD TX event on VF %d\n", i);
+			dev_info(&pf->pdev->dev, "TX driver issue detected on VF %d\n",
+				 i);
 		}
 
 		reg = rd32(hw, I40E_VP_MDET_RX(i));
 		if (reg & I40E_VP_MDET_RX_VALID_MASK) {
 			wr32(hw, I40E_VP_MDET_RX(i), 0xFFFF);
 			vf->num_mdd_events++;
-			dev_info(&pf->pdev->dev, "MDD RX event on VF %d\n", i);
+			dev_info(&pf->pdev->dev, "RX driver issue detected on VF %d\n",
+				 i);
 		}
 
 		if (vf->num_mdd_events > I40E_DEFAULT_NUM_MDD_EVENTS_ALLOWED) {
