@@ -36,9 +36,9 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <asm/statfs.h>
-#include <obd_cksum.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
+#include "../include/obd_cksum.h"
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
 #include <linux/seq_file.h>
 #include "osc_internal.h"
 

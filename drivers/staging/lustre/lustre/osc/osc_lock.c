@@ -42,7 +42,7 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 /* fid_build_reg_res_name() */
-#include <lustre_fid.h>
+#include "../include/lustre_fid.h"
 
 #include "osc_cl_internal.h"
 

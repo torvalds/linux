@@ -39,18 +39,18 @@
 #include "../../include/linux/libcfs/libcfs.h"
 
 
-#include <lustre_dlm.h>
-#include <lustre_net.h>
-#include <lustre/lustre_user.h>
-#include <obd_cksum.h>
-#include <obd_ost.h>
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre/lustre_user.h"
+#include "../include/obd_cksum.h"
+#include "../include/obd_ost.h"
 
-#include <lustre_ha.h>
-#include <lprocfs_status.h>
-#include <lustre_log.h>
-#include <lustre_debug.h>
-#include <lustre_param.h>
-#include <lustre_fid.h>
+#include "../include/lustre_ha.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_debug.h"
+#include "../include/lustre_param.h"
+#include "../include/lustre_fid.h"
 #include "osc_internal.h"
 #include "osc_cl_internal.h"
 

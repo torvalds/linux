@@ -97,7 +97,7 @@ void osc_update_next_shrink(struct client_obd *cli);
 /*
  * cl integration.
  */
-#include <cl_object.h>
+#include "../include/cl_object.h"
 
 extern struct ptlrpc_request_set *PTLRPCD_SET;
 
