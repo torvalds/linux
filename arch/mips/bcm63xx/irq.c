@@ -19,7 +19,7 @@
 #include <bcm63xx_io.h>
 #include <bcm63xx_irq.h>
 
-static void __dispatch_internal(void) __maybe_unused;
+static void __dispatch_internal_32(void) __maybe_unused;
 static void __dispatch_internal_64(void) __maybe_unused;
 static void __internal_irq_mask_32(unsigned int irq) __maybe_unused;
 static void __internal_irq_mask_64(unsigned int irq) __maybe_unused;
@@ -117,7 +117,7 @@ static void bcm63xx_init_irq(void)
 	}
 
 	if (irq_bits == 32) {
-		dispatch_internal = __dispatch_internal;
+		dispatch_internal = __dispatch_internal_32;
 		internal_irq_mask = __internal_irq_mask_32;
 		internal_irq_unmask = __internal_irq_unmask_32;
 	} else {
@@ -149,7 +149,7 @@ static inline void handle_internal(int intbit)
  * will resume the loop where it ended the last time we left this
  * function.
  */
-static void __dispatch_internal(void)
+static void __dispatch_internal_32(void)
 {
 	u32 pending;
 	static int i;
