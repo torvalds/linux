@@ -153,7 +153,7 @@
  */
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include <lustre/lustre_idl.h>
+#include "lustre/lustre_idl.h"
 
 struct lu_env;
 struct lu_site;

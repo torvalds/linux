@@ -42,8 +42,8 @@
 #ifndef _LPROCFS_SNMP_H
 #define _LPROCFS_SNMP_H
 
-#include <linux/lprocfs_status.h>
-#include <lustre/lustre_idl.h>
+#include "linux/lprocfs_status.h"
+#include "lustre/lustre_idl.h"
 #include "../../include/linux/libcfs/params_tree.h"
 
 struct lprocfs_vars {

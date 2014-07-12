@@ -50,7 +50,7 @@
  * capability
  */
 #include <linux/crypto.h>
-#include <lustre/lustre_idl.h>
+#include "lustre/lustre_idl.h"
 
 #define CAPA_TIMEOUT 1800		/* sec, == 30 min */
 #define CAPA_KEY_TIMEOUT (24 * 60 * 60)  /* sec, == 1 days */

@@ -46,9 +46,9 @@
  * @{
  */
 
-#include <lprocfs_status.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_dlm.h>
+#include "lprocfs_status.h"
+#include "lustre/lustre_idl.h"
+#include "lustre_dlm.h"
 
 struct mds_client_data;
 struct mdt_client_data;

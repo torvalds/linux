@@ -37,7 +37,7 @@
 #ifndef __OBD_H
 #define __OBD_H
 
-#include <linux/obd.h>
+#include "linux/obd.h"
 
 #define IOC_OSC_TYPE	 'h'
 #define IOC_OSC_MIN_NR       20
@@ -48,14 +48,14 @@
 #define IOC_MDC_MIN_NR       20
 #define IOC_MDC_MAX_NR       50
 
-#include <lustre/lustre_idl.h>
-#include <lustre_lib.h>
+#include "lustre/lustre_idl.h"
+#include "lustre_lib.h"
 #include "../../include/linux/libcfs/bitmap.h"
-#include <lu_ref.h>
-#include <lustre_export.h>
-#include <lustre_fid.h>
-#include <lustre_fld.h>
-#include <lustre_capa.h>
+#include "lu_ref.h"
+#include "lustre_export.h"
+#include "lustre_fid.h"
+#include "lustre_fld.h"
+#include "lustre_capa.h"
 
 #define MAX_OBD_DEVICES 8192
 

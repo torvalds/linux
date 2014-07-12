@@ -46,8 +46,8 @@
 #endif
 
 
-#include <obd.h>
-#include <obd_class.h>
+#include "../obd.h"
+#include "../obd_class.h"
 
 typedef void (*fsfilt_cb_t)(struct obd_device *obd, __u64 last_rcvd,
 			    void *data, int error);

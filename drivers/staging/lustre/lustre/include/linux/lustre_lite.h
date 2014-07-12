@@ -46,9 +46,9 @@
 #include <linux/dcache.h>
 #include <linux/proc_fs.h>
 
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lustre_ha.h>
+#include "../obd_class.h"
+#include "../lustre_net.h"
+#include "../lustre_ha.h"
 
 #include <linux/rbtree.h>
 #include <linux/lustre_compat25.h>

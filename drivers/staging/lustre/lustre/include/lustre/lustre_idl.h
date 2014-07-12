@@ -96,9 +96,8 @@
 #endif
 
 /* Defn's shared with user-space. */
-#include <lustre/lustre_user.h>
-
-#include <lustre/lustre_errno.h>
+#include "lustre_user.h"
+#include "lustre_errno.h"
 
 /*
  *  GENERAL STUFF

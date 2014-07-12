@@ -50,7 +50,7 @@
 #include <linux/seq_file.h>
 #include <linux/smp.h>
 #include <linux/rwsem.h>
-#include "../../include/linux/libcfs/libcfs.h"
+#include "../../../include/linux/libcfs/libcfs.h"
 #include <linux/statfs.h>
 
 

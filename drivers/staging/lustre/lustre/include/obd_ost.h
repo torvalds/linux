@@ -43,7 +43,7 @@
 #ifndef _LUSTRE_OST_H
 #define _LUSTRE_OST_H
 
-#include <obd_class.h>
+#include "obd_class.h"
 
 struct osc_brw_async_args {
 	struct obdo       *aa_oa;

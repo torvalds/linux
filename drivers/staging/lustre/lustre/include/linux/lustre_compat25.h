@@ -41,7 +41,7 @@
 #include <linux/namei.h>
 #include "../../../include/linux/libcfs/linux/portals_compat25.h"
 
-#include <linux/lustre_patchless_compat.h>
+#include "lustre_patchless_compat.h"
 
 # define LOCK_FS_STRUCT(fs)	spin_lock(&(fs)->lock)
 # define UNLOCK_FS_STRUCT(fs)	spin_unlock(&(fs)->lock)

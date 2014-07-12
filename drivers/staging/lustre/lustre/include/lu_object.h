@@ -39,8 +39,8 @@
 
 #include <stdarg.h>
 #include "../../include/linux/libcfs/libcfs.h"
-#include <lustre/lustre_idl.h>
-#include <lu_ref.h>
+#include "lustre/lustre_idl.h"
+#include "lu_ref.h"
 
 struct seq_file;
 struct proc_dir_entry;

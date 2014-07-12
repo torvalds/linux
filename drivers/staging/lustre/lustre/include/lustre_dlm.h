@@ -48,14 +48,14 @@
 #ifndef _LUSTRE_DLM_H__
 #define _LUSTRE_DLM_H__
 
-#include <linux/lustre_dlm.h>
+#include "linux/lustre_dlm.h"
 
-#include <lustre_lib.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_handles.h>
-#include <interval_tree.h> /* for interval_node{}, ldlm_extent */
-#include <lu_ref.h>
+#include "lustre_lib.h"
+#include "lustre_net.h"
+#include "lustre_import.h"
+#include "lustre_handles.h"
+#include "interval_tree.h"	/* for interval_node{}, ldlm_extent */
+#include "lu_ref.h"
 
 #include "lustre_dlm_flags.h"
 

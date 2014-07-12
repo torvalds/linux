@@ -42,7 +42,7 @@
  * @{
  */
 
-#include <linux/lustre_handles.h>
+#include "linux/lustre_handles.h"
 
 #include "../../include/linux/libcfs/libcfs.h"
 

@@ -53,7 +53,7 @@
 /*
  * super-class definitions.
  */
-#include <lu_object.h>
+#include "lu_object.h"
 
 #include "../../include/linux/libcfs/libcfs.h"
 

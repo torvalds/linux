@@ -38,10 +38,9 @@
 #define _OBD_SUPPORT
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include <lvfs.h>
-#include <lprocfs_status.h>
-
-#include <linux/obd_support.h>
+#include "lvfs.h"
+#include "lprocfs_status.h"
+#include "linux/obd_support.h"
 
 /* global variables */
 extern struct lprocfs_stats *obd_memory;

@@ -47,19 +47,19 @@
  */
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include <lustre/lustre_idl.h>
-#include <lustre_ver.h>
-#include <lustre_cfg.h>
-#include <linux/lustre_lib.h>
+#include "lustre/lustre_idl.h"
+#include "lustre_ver.h"
+#include "lustre_cfg.h"
+#include "linux/lustre_lib.h"
 
 /* target.c */
 struct ptlrpc_request;
 struct obd_export;
 struct lu_target;
 struct l_wait_info;
-#include <lustre_ha.h>
-#include <lustre_net.h>
-#include <lvfs.h>
+#include "lustre_ha.h"
+#include "lustre_net.h"
+#include "lvfs.h"
 
 
 int target_pack_pool_reply(struct ptlrpc_request *req);
@@ -241,7 +241,7 @@ static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 }
 
 
-#include <obd_support.h>
+#include "obd_support.h"
 
 /* function defined in lustre/obdclass/<platform>/<platform>-module.c */
 int obd_ioctl_getdata(char **buf, int *len, void *arg);

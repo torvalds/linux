@@ -47,8 +47,8 @@
  * @{
  */
 
-#include <lustre_handles.h>
-#include <lustre/lustre_idl.h>
+#include "lustre_handles.h"
+#include "lustre/lustre_idl.h"
 
 
 /**

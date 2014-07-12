@@ -46,8 +46,8 @@
  * @{
  */
 
-#include <lustre/ll_fiemap.h>
-#include <linux/lustre_user.h>
+#include "ll_fiemap.h"
+#include "../linux/lustre_user.h"
 
 /* for statfs() */
 #define LL_SUPER_MAGIC 0x0BD00BD0

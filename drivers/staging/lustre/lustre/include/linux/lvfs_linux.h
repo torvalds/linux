@@ -41,7 +41,7 @@
 #include <linux/namei.h>
 #include <linux/sched.h>
 
-#include <lvfs.h>
+#include "../lvfs.h"
 
 #define l_file file
 #define l_dentry dentry

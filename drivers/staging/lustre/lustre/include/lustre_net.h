@@ -55,21 +55,21 @@
  * @{
  */
 
-#include <linux/lustre_net.h>
+#include "linux/lustre_net.h"
 
 #include "../../include/linux/libcfs/libcfs.h"
 // #include <obd.h>
 #include "../../include/linux/lnet/lnet.h"
-#include <lustre/lustre_idl.h>
-#include <lustre_ha.h>
-#include <lustre_sec.h>
-#include <lustre_import.h>
-#include <lprocfs_status.h>
-#include <lu_object.h>
-#include <lustre_req_layout.h>
+#include "lustre/lustre_idl.h"
+#include "lustre_ha.h"
+#include "lustre_sec.h"
+#include "lustre_import.h"
+#include "lprocfs_status.h"
+#include "lu_object.h"
+#include "lustre_req_layout.h"
 
-#include <obd_support.h>
-#include <lustre_ver.h>
+#include "obd_support.h"
+#include "lustre_ver.h"
 
 /* MD flags we _always_ use */
 #define PTLRPC_MD_OPTIONS  0
