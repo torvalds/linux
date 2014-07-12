@@ -107,6 +107,11 @@
 		clocks = <&clk_nandc>, <&clk_gates5 9>, <&clk_gates10 4>;
 		clock-names = "clk_nandc", "g_clk_nandc", "hclk_nandc";
 	};
+	
+	nandc0reg: nandc0@10500000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0x10500000 0x4000>;
+	};
 
 	spi0: spi@20074000 {
 		compatible = "rockchip,rockchip-spi";
