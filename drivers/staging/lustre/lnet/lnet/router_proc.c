@@ -151,8 +151,6 @@ int LL_PROC_PROTO(proc_lnet_routes)
 	int		ver;
 	int		off;
 
-	DECLARE_LL_PROC_PPOS_DECL;
-
 	CLASSERT(sizeof(loff_t) >= 4);
 
 	off = LNET_PROC_HOFF_GET(*ppos);
@@ -277,8 +275,6 @@ int LL_PROC_PROTO(proc_lnet_routers)
 	int	len;
 	int	ver;
 	int	off;
-
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	off = LNET_PROC_HOFF_GET(*ppos);
 	ver = LNET_PROC_VER_GET(*ppos);
@@ -637,8 +633,6 @@ int LL_PROC_PROTO(proc_lnet_nis)
 	char      *tmpstr;
 	char      *s;
 	int	len;
-
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	LASSERT(!write);
 

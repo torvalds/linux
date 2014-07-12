@@ -71,8 +71,6 @@ typedef struct ctl_table_header		ctl_table_header_t;
 static int					      \
 LL_PROC_PROTO(name)				     \
 {						       \
-	DECLARE_LL_PROC_PPOS_DECL;		      \
-							\
 	return proc_call_handler(table->data, write,    \
 				 ppos, buffer, lenp,    \
 				 __##name);	     \

@@ -88,7 +88,6 @@
 #define LL_PROC_PROTO(name)					     \
 	name(ctl_table_t *table, int write,		      \
 	     void __user *buffer, size_t *lenp, loff_t *ppos)
-#define DECLARE_LL_PROC_PPOS_DECL
 
 /* helper for sysctl handlers */
 int proc_call_handler(void *data, int write,

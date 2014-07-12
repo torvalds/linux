@@ -93,7 +93,6 @@ int LL_PROC_PROTO(proc_memory_alloc)
 {
 	char buf[22];
 	int len;
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	if (!*lenp || (*ppos && !write)) {
 		*lenp = 0;
@@ -117,7 +116,6 @@ int LL_PROC_PROTO(proc_pages_alloc)
 {
 	char buf[22];
 	int len;
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	if (!*lenp || (*ppos && !write)) {
 		*lenp = 0;
@@ -141,7 +139,6 @@ int LL_PROC_PROTO(proc_mem_max)
 {
 	char buf[22];
 	int len;
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	if (!*lenp || (*ppos && !write)) {
 		*lenp = 0;
@@ -165,7 +162,6 @@ int LL_PROC_PROTO(proc_pages_max)
 {
 	char buf[22];
 	int len;
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	if (!*lenp || (*ppos && !write)) {
 		*lenp = 0;
@@ -188,7 +184,6 @@ int LL_PROC_PROTO(proc_pages_max)
 int LL_PROC_PROTO(proc_max_dirty_pages_in_mb)
 {
 	int rc = 0;
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	if (!table->data || !table->maxlen || !*lenp || (*ppos && !write)) {
 		*lenp = 0;
@@ -230,7 +225,6 @@ int LL_PROC_PROTO(proc_max_dirty_pages_in_mb)
 int LL_PROC_PROTO(proc_alloc_fail_rate)
 {
 	int rc	  = 0;
-	DECLARE_LL_PROC_PPOS_DECL;
 
 	if (!table->data || !table->maxlen || !*lenp || (*ppos && !write)) {
 		*lenp = 0;
