@@ -2770,19 +2770,22 @@ static int sctp_setsockopt_default_send_param(struct sock *sk,
 					      char __user *optval,
 					      unsigned int optlen)
 {
-	struct sctp_sndrcvinfo info;
-	struct sctp_association *asoc;
 	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_association *asoc;
+	struct sctp_sndrcvinfo info;
 
-	if (optlen != sizeof(struct sctp_sndrcvinfo))
+	if (optlen != sizeof(info))
 		return -EINVAL;
 	if (copy_from_user(&info, optval, optlen))
 		return -EFAULT;
+	if (info.sinfo_flags &
+	    ~(SCTP_UNORDERED | SCTP_ADDR_OVER |
+	      SCTP_ABORT | SCTP_EOF))
+		return -EINVAL;
 
 	asoc = sctp_id2assoc(sk, info.sinfo_assoc_id);
 	if (!asoc && info.sinfo_assoc_id && sctp_style(sk, UDP))
 		return -EINVAL;
-
 	if (asoc) {
 		asoc->default_stream = info.sinfo_stream;
 		asoc->default_flags = info.sinfo_flags;
@@ -2795,6 +2798,44 @@ static int sctp_setsockopt_default_send_param(struct sock *sk,
 		sp->default_ppid = info.sinfo_ppid;
 		sp->default_context = info.sinfo_context;
 		sp->default_timetolive = info.sinfo_timetolive;
+	}
+
+	return 0;
+}
+
+/* RFC6458, Section 8.1.31. Set/get Default Send Parameters
+ * (SCTP_DEFAULT_SNDINFO)
+ */
+static int sctp_setsockopt_default_sndinfo(struct sock *sk,
+					   char __user *optval,
+					   unsigned int optlen)
+{
+	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_association *asoc;
+	struct sctp_sndinfo info;
+
+	if (optlen != sizeof(info))
+		return -EINVAL;
+	if (copy_from_user(&info, optval, optlen))
+		return -EFAULT;
+	if (info.snd_flags &
+	    ~(SCTP_UNORDERED | SCTP_ADDR_OVER |
+	      SCTP_ABORT | SCTP_EOF))
+		return -EINVAL;
+
+	asoc = sctp_id2assoc(sk, info.snd_assoc_id);
+	if (!asoc && info.snd_assoc_id && sctp_style(sk, UDP))
+		return -EINVAL;
+	if (asoc) {
+		asoc->default_stream = info.snd_sid;
+		asoc->default_flags = info.snd_flags;
+		asoc->default_ppid = info.snd_ppid;
+		asoc->default_context = info.snd_context;
+	} else {
+		sp->default_stream = info.snd_sid;
+		sp->default_flags = info.snd_flags;
+		sp->default_ppid = info.snd_ppid;
+		sp->default_context = info.snd_context;
 	}
 
 	return 0;
@@ -3724,6 +3765,9 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 	case SCTP_DEFAULT_SEND_PARAM:
 		retval = sctp_setsockopt_default_send_param(sk, optval,
 							    optlen);
+		break;
+	case SCTP_DEFAULT_SNDINFO:
+		retval = sctp_setsockopt_default_sndinfo(sk, optval, optlen);
 		break;
 	case SCTP_PRIMARY_ADDR:
 		retval = sctp_setsockopt_primary_addr(sk, optval, optlen);
@@ -5027,14 +5071,14 @@ static int sctp_getsockopt_default_send_param(struct sock *sk,
 					int len, char __user *optval,
 					int __user *optlen)
 {
-	struct sctp_sndrcvinfo info;
-	struct sctp_association *asoc;
 	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_association *asoc;
+	struct sctp_sndrcvinfo info;
 
-	if (len < sizeof(struct sctp_sndrcvinfo))
+	if (len < sizeof(info))
 		return -EINVAL;
 
-	len = sizeof(struct sctp_sndrcvinfo);
+	len = sizeof(info);
 
 	if (copy_from_user(&info, optval, len))
 		return -EFAULT;
@@ -5042,7 +5086,6 @@ static int sctp_getsockopt_default_send_param(struct sock *sk,
 	asoc = sctp_id2assoc(sk, info.sinfo_assoc_id);
 	if (!asoc && info.sinfo_assoc_id && sctp_style(sk, UDP))
 		return -EINVAL;
-
 	if (asoc) {
 		info.sinfo_stream = asoc->default_stream;
 		info.sinfo_flags = asoc->default_flags;
@@ -5055,6 +5098,48 @@ static int sctp_getsockopt_default_send_param(struct sock *sk,
 		info.sinfo_ppid = sp->default_ppid;
 		info.sinfo_context = sp->default_context;
 		info.sinfo_timetolive = sp->default_timetolive;
+	}
+
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &info, len))
+		return -EFAULT;
+
+	return 0;
+}
+
+/* RFC6458, Section 8.1.31. Set/get Default Send Parameters
+ * (SCTP_DEFAULT_SNDINFO)
+ */
+static int sctp_getsockopt_default_sndinfo(struct sock *sk, int len,
+					   char __user *optval,
+					   int __user *optlen)
+{
+	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_association *asoc;
+	struct sctp_sndinfo info;
+
+	if (len < sizeof(info))
+		return -EINVAL;
+
+	len = sizeof(info);
+
+	if (copy_from_user(&info, optval, len))
+		return -EFAULT;
+
+	asoc = sctp_id2assoc(sk, info.snd_assoc_id);
+	if (!asoc && info.snd_assoc_id && sctp_style(sk, UDP))
+		return -EINVAL;
+	if (asoc) {
+		info.snd_sid = asoc->default_stream;
+		info.snd_flags = asoc->default_flags;
+		info.snd_ppid = asoc->default_ppid;
+		info.snd_context = asoc->default_context;
+	} else {
+		info.snd_sid = sp->default_stream;
+		info.snd_flags = sp->default_flags;
+		info.snd_ppid = sp->default_ppid;
+		info.snd_context = sp->default_context;
 	}
 
 	if (put_user(len, optlen))
@@ -5923,6 +6008,10 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 	case SCTP_DEFAULT_SEND_PARAM:
 		retval = sctp_getsockopt_default_send_param(sk, len,
 							    optval, optlen);
+		break;
+	case SCTP_DEFAULT_SNDINFO:
+		retval = sctp_getsockopt_default_sndinfo(sk, len,
+							 optval, optlen);
 		break;
 	case SCTP_PRIMARY_ADDR:
 		retval = sctp_getsockopt_primary_addr(sk, len, optval, optlen);

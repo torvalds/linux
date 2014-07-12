@@ -97,6 +97,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_PEER_ADDR_THLDS	31
 #define SCTP_RECVRCVINFO	32
 #define SCTP_RECVNXTINFO	33
+#define SCTP_DEFAULT_SNDINFO	34
 
 /* Internal Socket Options. Some of the sctp library functions are
  * implemented using these socket options.
