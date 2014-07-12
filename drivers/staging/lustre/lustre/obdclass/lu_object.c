@@ -50,12 +50,12 @@
 
 /* hash_long() */
 #include "../../include/linux/libcfs/libcfs_hash.h"
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_disk.h>
-#include <lustre_fid.h>
-#include <lu_object.h>
-#include <lu_ref.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_fid.h"
+#include "../include/lu_object.h"
+#include "../include/lu_ref.h"
 #include <linux/list.h>
 
 static void lu_object_free(const struct lu_env *env, struct lu_object *o);

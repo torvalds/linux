@@ -46,14 +46,14 @@
 #define DEBUG_SUBSYSTEM S_LOG
 
 
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_log.h>
-#include <obd_ost.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_log.h"
+#include "../include/obd_ost.h"
 #include <linux/list.h>
-#include <lvfs.h>
-#include <lustre_fsfilt.h>
-#include <lustre_disk.h>
+#include "../include/lvfs.h"
+#include "../include/lustre_fsfilt.h"
+#include "../include/lustre_disk.h"
 #include "llog_internal.h"
 
 #if  defined(LLOG_LVFS)

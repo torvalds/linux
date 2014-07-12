@@ -43,13 +43,13 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd.h>
-#include <dt_object.h>
+#include "../include/obd.h"
+#include "../include/dt_object.h"
 #include <linux/list.h>
 /* fid_be_to_cpu() */
-#include <lustre_fid.h>
+#include "../include/lustre_fid.h"
 
-#include <lustre_quota.h>
+#include "../include/lustre_quota.h"
 
 /* context key constructor/destructor: dt_global_key_init, dt_global_key_fini */
 LU_KEY_INIT(dt_global, struct dt_thread_info);

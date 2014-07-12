@@ -44,9 +44,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include <obd_class.h>
-#include <lustre_fid.h>
-#include <lustre_log.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_fid.h"
+#include "../include/lustre_log.h"
 
 /* This is slightly more than the number of records that can fit into a
  * single llog file, because the llog_log_header takes up some of the

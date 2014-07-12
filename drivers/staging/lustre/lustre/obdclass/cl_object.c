@@ -53,12 +53,12 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 /* class_put_type() */
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
 #include <linux/list.h>
 #include "../../include/linux/libcfs/libcfs_hash.h"	/* for cfs_hash stuff */
-#include <cl_object.h>
+#include "../include/cl_object.h"
 #include "cl_internal.h"
 
 static struct kmem_cache *cl_env_kmem;

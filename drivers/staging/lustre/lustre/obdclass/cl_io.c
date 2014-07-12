@@ -40,11 +40,11 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
 #include <linux/list.h>
-#include <cl_object.h>
+#include "../include/cl_object.h"
 #include "cl_internal.h"
 
 /*****************************************************************************

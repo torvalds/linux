@@ -41,10 +41,10 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_fid.h>
-#include <dt_object.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_fid.h"
+#include "../include/dt_object.h"
 
 #include "llog_internal.h"
 #include "local_storage.h"

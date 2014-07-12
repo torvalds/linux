@@ -48,8 +48,8 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd_support.h>
-#include <lprocfs_status.h>
+#include "../../include/obd_support.h"
+#include "../../include/lprocfs_status.h"
 
 #ifdef CONFIG_SYSCTL
 ctl_table_header_t *obd_table_header = NULL;

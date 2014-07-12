@@ -42,8 +42,8 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd_class.h>
-#include <lustre/lustre_idl.h>
+#include "../include/obd_class.h"
+#include "../include/lustre/lustre_idl.h"
 
 void obdo_set_parent_fid(struct obdo *dst, const struct lu_fid *parent)
 {

@@ -43,8 +43,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/module.h>
-#include <obd_class.h>
-#include <lustre/lustre_idl.h>
+#include "../../include/obd_class.h"
+#include "../../include/lustre/lustre_idl.h"
 
 #include <linux/fs.h>
 #include <linux/pagemap.h> /* for PAGE_CACHE_SIZE */

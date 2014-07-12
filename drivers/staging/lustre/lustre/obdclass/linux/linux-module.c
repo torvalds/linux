@@ -67,11 +67,11 @@
 
 #include "../../../include/linux/libcfs/libcfs.h"
 #include "../../../include/linux/lnet/lnetctl.h"
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
-#include <lustre_ver.h>
-#include <lustre/lustre_build_version.h>
+#include "../../include/obd_support.h"
+#include "../../include/obd_class.h"
+#include "../../include/lprocfs_status.h"
+#include "../../include/lustre_ver.h"
+#include "../../include/lustre/lustre_build_version.h"
 
 int proc_version;
 

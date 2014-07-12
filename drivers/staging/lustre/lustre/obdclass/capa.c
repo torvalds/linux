@@ -48,12 +48,12 @@
 #include <linux/module.h>
 #include <linux/crypto.h>
 
-#include <obd_class.h>
-#include <lustre_debug.h>
-#include <lustre/lustre_idl.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_debug.h"
+#include "../include/lustre/lustre_idl.h"
 
 #include <linux/list.h>
-#include <lustre_capa.h>
+#include "../include/lustre_capa.h"
 
 #define NR_CAPAHASH 32
 #define CAPA_HASH_SIZE 3000	      /* for MDS & OSS */

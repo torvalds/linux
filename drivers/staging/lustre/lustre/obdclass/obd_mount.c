@@ -45,13 +45,13 @@
 #define D_MOUNT (D_SUPER|D_CONFIG/*|D_WARNING */)
 #define PRINT_CMD CDEBUG
 
-#include <obd.h>
-#include <lvfs.h>
-#include <obd_class.h>
-#include <lustre/lustre_user.h>
-#include <lustre_log.h>
-#include <lustre_disk.h>
-#include <lustre_param.h>
+#include "../include/obd.h"
+#include "../include/lvfs.h"
+#include "../include/obd_class.h"
+#include "../include/lustre/lustre_user.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_param.h"
 
 static int (*client_fill_super)(struct super_block *sb,
 				struct vfsmount *mnt);

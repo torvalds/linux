@@ -41,10 +41,10 @@
 #define DEBUG_SUBSYSTEM D_OTHER
 
 
-#include <obd_ost.h>
-#include <obd_support.h>
-#include <lustre_debug.h>
-#include <lustre_net.h>
+#include "../include/obd_ost.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_debug.h"
+#include "../include/lustre_net.h"
 
 void dump_lniobuf(struct niobuf_local *nb)
 {

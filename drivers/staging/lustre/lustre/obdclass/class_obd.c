@@ -37,14 +37,14 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 # include <asm/atomic.h>
 
-#include <obd_support.h>
-#include <obd_class.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
 #include "../../include/linux/lnet/lnetctl.h"
-#include <lustre_debug.h>
-#include <lprocfs_status.h>
-#include <lustre/lustre_build_version.h>
+#include "../include/lustre_debug.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre/lustre_build_version.h"
 #include <linux/list.h>
-#include <cl_object.h>
+#include "../include/cl_object.h"
 #include "llog_internal.h"
 
 

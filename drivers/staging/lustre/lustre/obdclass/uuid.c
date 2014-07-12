@@ -40,8 +40,8 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_support.h>
-#include <obd_class.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
 
 
 static inline __u32 consume(int nob, __u8 **ptr)
