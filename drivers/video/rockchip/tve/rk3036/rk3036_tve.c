@@ -58,7 +58,6 @@ static void dac_enable(bool enable)
 
 static void tve_set_mode (int mode)
 {
-	int i;
 	TVEDBG("%s mode %d\n", __FUNCTION__, mode);
 	
 	tve_writel(TV_RESET, v_RESET(1));
@@ -100,15 +99,6 @@ static void tve_set_mode (int mode)
 		tve_writel(TV_ACT_ST,	0x001500F6);
 		tve_writel(TV_ACT_TIMING, 0x2694011D);
 	}
-	
-	#ifdef DEBUG
-		for(i = 0; i < (0x100/4); i++) {
-			printk("0x%08x ", tve_readl(i * 4));
-			if( (i + 1) % 4 == 0)
-				printk("\n");
-		}
-		
-	#endif
 }
 
 static int tve_switch_fb(const struct fb_videomode *modedb, int enable)
