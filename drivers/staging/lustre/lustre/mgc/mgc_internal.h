@@ -38,11 +38,11 @@
 #define _MGC_INTERNAL_H
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include <lustre/lustre_idl.h>
-#include <lustre_lib.h>
-#include <lustre_dlm.h>
-#include <lustre_log.h>
-#include <lustre_export.h>
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_export.h"
 
 #ifdef LPROCFS
 void lprocfs_mgc_init_vars(struct lprocfs_static_vars *lvars);

@@ -42,12 +42,12 @@
 #define D_MGC D_CONFIG /*|D_WARNING*/
 
 #include <linux/module.h>
-#include <obd_class.h>
-#include <lustre_dlm.h>
-#include <lprocfs_status.h>
-#include <lustre_log.h>
-#include <lustre_disk.h>
-#include <dt_object.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_disk.h"
+#include "../include/dt_object.h"
 
 #include "mgc_internal.h"
 
