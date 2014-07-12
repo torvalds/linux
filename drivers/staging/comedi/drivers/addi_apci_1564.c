@@ -1,12 +1,12 @@
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
+#include <linux/sched.h>
 
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 #include "addi_watchdog.h"
-
-#include "addi-data/addi_common.h"
 
 struct apci1564_private {
 	unsigned int amcc_iobase;	/* base of AMCC I/O registers */
