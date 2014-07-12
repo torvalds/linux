@@ -110,7 +110,7 @@ static inline void LNetInvalidateHandle(lnet_handle_any_t *h)
  *
  * \return 1 if handles are equal, 0 if otherwise.
  */
-static inline int LNetHandleIsEqual (lnet_handle_any_t h1, lnet_handle_any_t h2)
+static inline int LNetHandleIsEqual(lnet_handle_any_t h1, lnet_handle_any_t h2)
 {
 	return h1.cookie == h2.cookie;
 }
