@@ -1085,7 +1085,7 @@ err:
  * a cell if not previously written, and we check all branches to be sure
  * a malicious user doesn't try to abuse us.
  */
-static int check_load_and_stores(struct sock_filter *filter, int flen)
+static int check_load_and_stores(const struct sock_filter *filter, int flen)
 {
 	u16 *masks, memvalid = 0; /* One bit per cell, 16 cells */
 	int pc, ret = 0;
@@ -1218,7 +1218,7 @@ static bool chk_code_allowed(u16 code_to_probe)
  *
  * Returns 0 if the rule set is legal or -EINVAL if not.
  */
-int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
+int sk_chk_filter(const struct sock_filter *filter, unsigned int flen)
 {
 	bool anc_found;
 	int pc;
@@ -1228,7 +1228,7 @@ int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
 
 	/* Check the filter code now */
 	for (pc = 0; pc < flen; pc++) {
-		struct sock_filter *ftest = &filter[pc];
+		const struct sock_filter *ftest = &filter[pc];
 
 		/* May we actually operate on this code? */
 		if (!chk_code_allowed(ftest->code))
