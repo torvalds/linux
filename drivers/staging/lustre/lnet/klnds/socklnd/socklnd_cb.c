@@ -212,7 +212,7 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 			rc = ksocknal_send_kiov (conn, tx);
 		}
 
-		bufnob = cfs_sock_wmem_queued(conn->ksnc_sock);
+		bufnob = conn->ksnc_sock->sk->sk_wmem_queued;
 		if (rc > 0)		     /* sent something? */
 			conn->ksnc_tx_bufnob += rc; /* account it */
 
@@ -630,7 +630,7 @@ ksocknal_find_conn_locked(ksock_peer_t *peer, ksock_tx_t *tx, int nonblk)
 	list_for_each (tmp, &peer->ksnp_conns) {
 		ksock_conn_t *c  = list_entry(tmp, ksock_conn_t, ksnc_list);
 		int	   nob = atomic_read(&c->ksnc_tx_nob) +
-				    cfs_sock_wmem_queued(c->ksnc_sock);
+				    c->ksnc_sock->sk->sk_wmem_queued;
 		int	   rc;
 
 		LASSERT (!c->ksnc_closing);
@@ -726,7 +726,7 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 	 * FIXME: SOCK_WMEM_QUEUED and SOCK_ERROR could block in __DARWIN8__
 	 * but they're used inside spinlocks a lot.
 	 */
-	bufnob = cfs_sock_wmem_queued(conn->ksnc_sock);
+	bufnob = conn->ksnc_sock->sk->sk_wmem_queued;
 	spin_lock_bh(&sched->kss_lock);
 
 	if (list_empty(&conn->ksnc_tx_queue) && bufnob == 0) {
@@ -2260,7 +2260,7 @@ ksocknal_find_timed_out_conn (ksock_peer_t *peer)
 
 		/* SOCK_ERROR will reset error code of socket in
 		 * some platform (like Darwin8.x) */
-		error = cfs_sock_error(conn->ksnc_sock);
+		error = conn->ksnc_sock->sk->sk_err;
 		if (error != 0) {
 			ksocknal_conn_addref(conn);
 
@@ -2311,7 +2311,7 @@ ksocknal_find_timed_out_conn (ksock_peer_t *peer)
 		}
 
 		if ((!list_empty(&conn->ksnc_tx_queue) ||
-		     cfs_sock_wmem_queued(conn->ksnc_sock) != 0) &&
+		     conn->ksnc_sock->sk->sk_wmem_queued != 0) &&
 		    cfs_time_aftereq(cfs_time_current(),
 				     conn->ksnc_tx_deadline)) {
 			/* Timed out messages queued for sending or
@@ -2508,7 +2508,7 @@ ksocknal_check_peer_timeouts (int idx)
 		       "resid: %d, wmem: %d\n",
 		       n, libcfs_nid2str(peer->ksnp_id.nid), tx,
 		       cfs_duration_sec(cfs_time_current() - deadline),
-		       resid, cfs_sock_wmem_queued(conn->ksnc_sock));
+		       resid, conn->ksnc_sock->sk->sk_wmem_queued);
 
 		ksocknal_close_conn_and_siblings (conn, -ETIMEDOUT);
 		ksocknal_conn_decref(conn);
