@@ -473,8 +473,8 @@ static int rk3036_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			lcdc_writel(lcdc_dev,DSP_VACT_ST_END_F1,v_VAEP(2 * (screen->mode.vsync_len + upper_margin) + y_res + lower_margin + 1)|
 				    v_VASP(2 * (screen->mode.vsync_len + upper_margin) + y_res/2 + lower_margin + 1));
 				    
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_INTERLACE_DSP_EN | m_WIN1_INTERLACE_EN | m_WIN0_YRGB_DEFLICK_EN | m_WIN0_CBR_DEFLICK_EN, 
-				v_INTERLACE_DSP_EN(1) | v_WIN1_INTERLACE_EN(1) | v_WIN0_YRGB_DEFLICK_EN(1) | v_WIN0_CBR_DEFLICK_EN(1) );
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_INTERLACE_DSP_EN | m_WIN1_DIFF_DCLK_EN | m_WIN0_YRGB_DEFLICK_EN | m_WIN0_CBR_DEFLICK_EN, 
+				v_INTERLACE_DSP_EN(1) | v_WIN1_DIFF_DCLK_EN(1) | v_WIN0_YRGB_DEFLICK_EN(1) | v_WIN0_CBR_DEFLICK_EN(1) );
 		} else {
 			val = v_VSYNC(screen->mode.vsync_len) | 
 			      v_VERPRD(screen->mode.vsync_len + upper_margin + 
@@ -485,8 +485,8 @@ static int rk3036_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			    v_VASP(screen->mode.vsync_len + screen->mode.upper_margin);
 			lcdc_writel(lcdc_dev, DSP_VACT_ST_END, val);
 			
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_INTERLACE_DSP_EN | m_WIN1_INTERLACE_EN | m_WIN0_YRGB_DEFLICK_EN | m_WIN0_CBR_DEFLICK_EN, 
-				v_INTERLACE_DSP_EN(0) | v_WIN1_INTERLACE_EN(0) | v_WIN0_YRGB_DEFLICK_EN(0) | v_WIN0_CBR_DEFLICK_EN(0) );
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_INTERLACE_DSP_EN | m_WIN1_DIFF_DCLK_EN | m_WIN0_YRGB_DEFLICK_EN | m_WIN0_CBR_DEFLICK_EN, 
+				v_INTERLACE_DSP_EN(0) | v_WIN1_DIFF_DCLK_EN(0) | v_WIN0_YRGB_DEFLICK_EN(0) | v_WIN0_CBR_DEFLICK_EN(0) );
 		}		
 		
 	}

@@ -21,7 +21,7 @@
 #include <linux/rockchip/iomap.h>
 #include "rk3036_tve.h"
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 #define TVEDBG(format, ...) \
 		printk(KERN_INFO "RK3036 TVE: " format "\n", ## __VA_ARGS__)
@@ -31,14 +31,14 @@
 
 static const struct fb_videomode rk3036_cvbs_mode [] = {
 	/*	name		refresh	xres	yres	pixclock	h_bp	h_fp	v_bp	v_fp	h_pw	v_pw	polariry	PorI		flag*/
-	{	"NTSC",		60,	720,	576,	27000000,	57,	19,	19,	0,	62,	3,	0,	FB_VMODE_INTERLACED,	0},
-	{	"PAL",		50,	720,	480,	27000000,	69,	12,	19,	2,	63,	3,	0,	FB_VMODE_INTERLACED,	0},
+	{	"NTSC",		60,	720,	480,	27000000,	57,	19,	19,	0,	62,	3,	0,	FB_VMODE_INTERLACED,	0},
+	{	"PAL",		50,	720,	576,	27000000,	69,	12,	19,	2,	63,	3,	0,	FB_VMODE_INTERLACED,	0},
 };
 
 static struct rk3036_tve *rk3036_tve = NULL;
 
-#define tve_writel(offset, v)	writel_relaxed(v, rk3036_tve->regbase + offset);
-#define tve_readl(offset, v)	readl_relaxed(v, rk3036_tve->regbase + offset);
+#define tve_writel(offset, v)	writel_relaxed(v, rk3036_tve->regbase + offset)
+#define tve_readl(offset)	readl_relaxed(rk3036_tve->regbase + offset)
 
 static void dac_enable(bool enable)
 {
@@ -58,6 +58,7 @@ static void dac_enable(bool enable)
 
 static void tve_set_mode (int mode)
 {
+	int i;
 	TVEDBG("%s mode %d\n", __FUNCTION__, mode);
 	
 	tve_writel(TV_RESET, v_RESET(1));
@@ -66,7 +67,7 @@ static void tve_set_mode (int mode)
 	
 	tve_writel(TV_CTRL, v_CVBS_MODE(mode) | v_CLK_UPSTREAM_EN(2) | 
 			v_TIMING_EN(2) | v_LUMA_FILTER_GAIN(0) | 
-			v_LUMA_FILTER_UPSAMPLE(1) | v_CSC_PATH(0) );
+			v_LUMA_FILTER_UPSAMPLE(0) | v_CSC_PATH(0) );
 	tve_writel(TV_LUMA_FILTER0, 0x02ff0000);
 	tve_writel(TV_LUMA_FILTER1, 0xF40202fd);
 	tve_writel(TV_LUMA_FILTER2, 0xF332d919);
@@ -99,6 +100,15 @@ static void tve_set_mode (int mode)
 		tve_writel(TV_ACT_ST,	0x001500F6);
 		tve_writel(TV_ACT_TIMING, 0x2694011D);
 	}
+	
+	#ifdef DEBUG
+		for(i = 0; i < (0x100/4); i++) {
+			printk("0x%08x ", tve_readl(i * 4));
+			if( (i + 1) % 4 == 0)
+				printk("\n");
+		}
+		
+	#endif
 }
 
 static int tve_switch_fb(const struct fb_videomode *modedb, int enable)
@@ -119,17 +129,17 @@ static int tve_switch_fb(const struct fb_videomode *modedb, int enable)
 	screen->mode = *modedb;
 	
 	/* Pin polarity */
-	if(FB_SYNC_HOR_HIGH_ACT & modedb->sync)
+//	if(FB_SYNC_HOR_HIGH_ACT & modedb->sync)
 		screen->pin_hsync = 1;
-	else
-		screen->pin_hsync = 0;
-	if(FB_SYNC_VERT_HIGH_ACT & modedb->sync)
+//	else
+//		screen->pin_hsync = 0;
+//	if(FB_SYNC_VERT_HIGH_ACT & modedb->sync)
 		screen->pin_vsync = 1;
-	else
-		screen->pin_vsync = 0;
+//	else
+//		screen->pin_vsync = 0;
 		
 	screen->pin_den = 0;
-	screen->pin_dclk = 1;
+	screen->pin_dclk = 0;
 	screen->pixelrepeat = 1;
 	
 	/* Swap rule */
