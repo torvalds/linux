@@ -74,10 +74,11 @@ static const char *sync_status_str(int status)
 {
 	if (status == 0)
 		return "signaled";
-	else if (status > 0)
+
+	if (status > 0)
 		return "active";
-	else
-		return "error";
+
+	return "error";
 }
 
 static void sync_print_pt(struct seq_file *s, struct sync_pt *pt, bool fence)
@@ -95,12 +96,14 @@ static void sync_print_pt(struct seq_file *s, struct sync_pt *pt, bool fence)
 
 	if (status <= 0) {
 		struct timeval tv = ktime_to_timeval(pt->base.timestamp);
+
 		seq_printf(s, "@%ld.%06ld", tv.tv_sec, tv.tv_usec);
 	}
 
 	if (parent->ops->timeline_value_str &&
 	    parent->ops->pt_value_str) {
 		char value[64];
+
 		parent->ops->pt_value_str(pt, value, sizeof(value));
 		seq_printf(s, ": %s", value);
 		if (fence) {
@@ -122,6 +125,7 @@ static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
 
 	if (obj->ops->timeline_value_str) {
 		char value[64];
+
 		obj->ops->timeline_value_str(obj, value, sizeof(value));
 		seq_printf(s, ": %s", value);
 	}
@@ -234,6 +238,7 @@ void sync_dump(void)
 	for (i = 0; i < s.count; i += DUMP_CHUNK) {
 		if ((s.count - i) > DUMP_CHUNK) {
 			char c = s.buf[i + DUMP_CHUNK];
+
 			s.buf[i + DUMP_CHUNK] = 0;
 			pr_cont("%s", s.buf + i);
 			s.buf[i + DUMP_CHUNK] = c;
