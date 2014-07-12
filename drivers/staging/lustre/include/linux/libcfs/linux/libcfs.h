@@ -42,6 +42,7 @@
 #endif
 
 
+#include <linux/bitops.h>
 #include <stdarg.h>
 #include "linux-cpu.h"
 #include "linux-time.h"
@@ -49,7 +50,6 @@
 #include "linux-prim.h"
 #include "linux-lock.h"
 #include "linux-tcpip.h"
-#include "linux-bitops.h"
 #include "linux-types.h"
 #include "kp30.h"
 
