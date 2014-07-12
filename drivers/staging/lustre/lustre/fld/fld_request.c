@@ -43,20 +43,20 @@
 #define DEBUG_SUBSYSTEM S_FLD
 
 #include "../../include/linux/libcfs/libcfs.h"
-# include <linux/module.h>
-# include <asm/div64.h>
+#include <linux/module.h>
+#include <asm/div64.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_ver.h>
-#include <obd_support.h>
-#include <lprocfs_status.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_ver.h"
+#include "../include/obd_support.h"
+#include "../include/lprocfs_status.h"
 
-#include <dt_object.h>
-#include <md_object.h>
-#include <lustre_req_layout.h>
-#include <lustre_fld.h>
-#include <lustre_mdc.h>
+#include "../include/dt_object.h"
+#include "../include/md_object.h"
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_fld.h"
+#include "../include/lustre_mdc.h"
 #include "fld_internal.h"
 
 /* TODO: these 3 functions are copies of flow-control code from mdc_lib.c
