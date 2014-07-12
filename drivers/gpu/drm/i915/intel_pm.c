@@ -3803,6 +3803,16 @@ static int cherryview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 	return rpe;
 }
 
+static int cherryview_rps_guar_freq(struct drm_i915_private *dev_priv)
+{
+	u32 val, rp1;
+
+	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+	rp1 = (val >> PUNIT_GPU_STATUS_MAX_FREQ_SHIFT) & PUNIT_GPU_STATUS_MAX_FREQ_MASK;
+
+	return rp1;
+}
+
 static int cherryview_rps_min_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rpn;
@@ -4003,6 +4013,11 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
 			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
 			 dev_priv->rps.efficient_freq);
+
+	dev_priv->rps.rp1_freq = cherryview_rps_guar_freq(dev_priv);
+	DRM_DEBUG_DRIVER("RP1(Guar) GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.rp1_freq),
+			 dev_priv->rps.rp1_freq);
 
 	dev_priv->rps.min_freq = cherryview_rps_min_freq(dev_priv);
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
