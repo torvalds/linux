@@ -147,42 +147,44 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
 		//Command Queue Empty
 		pDevice->bCmdRunning = false;
 		return true;
-	} else {
-		pDevice->eCommand = pDevice->eCmdQueue[pDevice->uCmdDequeueIdx].eCmd;
-
-		ADD_ONE_WITH_WRAP_AROUND(pDevice->uCmdDequeueIdx, CMD_Q_SIZE);
-		pDevice->cbFreeCmdQueue++;
-		pDevice->bCmdRunning = true;
-		switch (pDevice->eCommand) {
-		case WLAN_CMD_INIT_MAC80211:
-			pDevice->eCommandState = WLAN_CMD_INIT_MAC80211_START;
-			break;
-
-		case WLAN_CMD_TBTT_WAKEUP:
-			pDevice->eCommandState = WLAN_CMD_TBTT_WAKEUP_START;
-			break;
-
-		case WLAN_CMD_BECON_SEND:
-			pDevice->eCommandState = WLAN_CMD_BECON_SEND_START;
-			break;
-
-		case WLAN_CMD_SETPOWER:
-			pDevice->eCommandState = WLAN_CMD_SETPOWER_START;
-			break;
-
-		case WLAN_CMD_CHANGE_ANTENNA:
-			pDevice->eCommandState = WLAN_CMD_CHANGE_ANTENNA_START;
-			break;
-
-		case WLAN_CMD_11H_CHSW:
-			pDevice->eCommandState = WLAN_CMD_11H_CHSW_START;
-			break;
-
-		default:
-			break;
-		}
-		vCommandTimerWait(pDevice, 0);
 	}
+
+	pDevice->eCommand = pDevice->eCmdQueue[pDevice->uCmdDequeueIdx].eCmd;
+
+	ADD_ONE_WITH_WRAP_AROUND(pDevice->uCmdDequeueIdx, CMD_Q_SIZE);
+	pDevice->cbFreeCmdQueue++;
+	pDevice->bCmdRunning = true;
+
+	switch (pDevice->eCommand) {
+	case WLAN_CMD_INIT_MAC80211:
+		pDevice->eCommandState = WLAN_CMD_INIT_MAC80211_START;
+		break;
+
+	case WLAN_CMD_TBTT_WAKEUP:
+		pDevice->eCommandState = WLAN_CMD_TBTT_WAKEUP_START;
+		break;
+
+	case WLAN_CMD_BECON_SEND:
+		pDevice->eCommandState = WLAN_CMD_BECON_SEND_START;
+		break;
+
+	case WLAN_CMD_SETPOWER:
+		pDevice->eCommandState = WLAN_CMD_SETPOWER_START;
+		break;
+
+	case WLAN_CMD_CHANGE_ANTENNA:
+		pDevice->eCommandState = WLAN_CMD_CHANGE_ANTENNA_START;
+		break;
+
+	case WLAN_CMD_11H_CHSW:
+		pDevice->eCommandState = WLAN_CMD_11H_CHSW_START;
+		break;
+
+	default:
+		break;
+	}
+
+	vCommandTimerWait(pDevice, 0);
 
 	return true;
 }
