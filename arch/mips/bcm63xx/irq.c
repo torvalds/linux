@@ -19,9 +19,10 @@
 #include <bcm63xx_io.h>
 #include <bcm63xx_irq.h>
 
+
 static u32 irq_stat_addr[2];
 static u32 irq_mask_addr[2];
-static void (*dispatch_internal)(void);
+static void (*dispatch_internal)(int cpu);
 static int is_ext_irq_cascaded;
 static unsigned int ext_irq_count;
 static unsigned int ext_irq_start, ext_irq_end;
@@ -54,19 +55,20 @@ static inline void handle_internal(int intbit)
  */
 
 #define BUILD_IPIC_INTERNAL(width)					\
-void __dispatch_internal_##width(void)					\
+void __dispatch_internal_##width(int cpu)				\
 {									\
 	u32 pending[width / 32];					\
 	unsigned int src, tgt;						\
 	bool irqs_pending = false;					\
-	static unsigned int i;						\
+	static unsigned int i[2];					\
+	unsigned int *next = &i[cpu];					\
 									\
 	/* read registers in reverse order */				\
 	for (src = 0, tgt = (width / 32); src < (width / 32); src++) {	\
 		u32 val;						\
 									\
-		val = bcm_readl(irq_stat_addr[0] + src * sizeof(u32));	\
-		val &= bcm_readl(irq_mask_addr[0] + src * sizeof(u32));	\
+		val = bcm_readl(irq_stat_addr[cpu] + src * sizeof(u32)); \
+		val &= bcm_readl(irq_mask_addr[cpu] + src * sizeof(u32)); \
 		pending[--tgt] = val;					\
 									\
 		if (val)						\
@@ -77,9 +79,9 @@ void __dispatch_internal_##width(void)					\
 		return;							\
 									\
 	while (1) {							\
-		unsigned int to_call = i;				\
+		unsigned int to_call = *next;				\
 									\
-		i = (i + 1) & (width - 1);				\
+		*next = (*next + 1) & (width - 1);			\
 		if (pending[to_call / 32] & (1 << (to_call & 0x1f))) {	\
 			handle_internal(to_call);			\
 			break;						\
@@ -129,7 +131,7 @@ asmlinkage void plat_irq_dispatch(void)
 		if (cause & CAUSEF_IP1)
 			do_IRQ(1);
 		if (cause & CAUSEF_IP2)
-			dispatch_internal();
+			dispatch_internal(0);
 		if (!is_ext_irq_cascaded) {
 			if (cause & CAUSEF_IP3)
 				do_IRQ(IRQ_EXT_0);
