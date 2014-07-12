@@ -104,6 +104,14 @@ static inline void __init xen_init_apic(void)
 }
 #endif
 
+#ifdef CONFIG_XEN_EFI
+extern void xen_efi_init(void);
+#else
+static inline void __init xen_efi_init(void)
+{
+}
+#endif
+
 /* Declare an asm function, along with symbols needed to make it
    inlineable */
 #define DECL_ASM(ret, name, ...)		\
