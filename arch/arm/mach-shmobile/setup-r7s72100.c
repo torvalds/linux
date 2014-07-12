@@ -22,10 +22,12 @@
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/sh_timer.h>
-#include <mach/r7s72100.h>
+
 #include <asm/mach/arch.h>
+
 #include "common.h"
 #include "irqs.h"
+#include "r7s72100.h"
 
 static struct resource mtu2_resources[] __initdata = {
 	DEFINE_RES_MEM(0xfcff0000, 0x400),
