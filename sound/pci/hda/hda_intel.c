@@ -1656,8 +1656,13 @@ static int azx_probe_continue(struct azx *chip)
 				"Error request power-well from i915\n");
 			goto out_free;
 		}
+		err = hda_display_power(true);
+		if (err < 0) {
+			dev_err(chip->card->dev,
+				"Cannot turn on display power on i915\n");
+			goto out_free;
+		}
 #endif
-		hda_display_power(true);
 	}
 
 	err = azx_first_init(chip);

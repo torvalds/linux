@@ -1,4 +1,4 @@
-config ARCH_MVEBU
+menuconfig ARCH_MVEBU
 	bool "Marvell Engineering Business Unit (MVEBU) SoCs" if (ARCH_MULTI_V7 || ARCH_MULTI_V5)
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_MMIO
@@ -12,8 +12,6 @@ config ARCH_MVEBU
 	select PCI_QUIRKS if PCI
 
 if ARCH_MVEBU
-
-menu "Marvell EBU SoC variants"
 
 config MACH_MVEBU_V7
 	bool
@@ -84,7 +82,6 @@ config MACH_DOVE
 
 config MACH_KIRKWOOD
 	bool "Marvell Kirkwood boards" if ARCH_MULTI_V5
-	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
 	select KIRKWOOD_CLK
@@ -96,7 +93,5 @@ config MACH_KIRKWOOD
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Kirkwood device tree.
-
-endmenu
 
 endif

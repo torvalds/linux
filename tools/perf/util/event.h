@@ -7,6 +7,7 @@
 #include "../perf.h"
 #include "map.h"
 #include "build-id.h"
+#include "perf_regs.h"
 
 struct mmap_event {
 	struct perf_event_header header;
@@ -27,6 +28,8 @@ struct mmap2_event {
 	u32 min;
 	u64 ino;
 	u64 ino_generation;
+	u32 prot;
+	u32 flags;
 	char filename[PATH_MAX];
 };
 
@@ -87,6 +90,10 @@ struct regs_dump {
 	u64 abi;
 	u64 mask;
 	u64 *regs;
+
+	/* Cached values/mask filled by first register access. */
+	u64 cache_regs[PERF_REGS_MAX];
+	u64 cache_mask;
 };
 
 struct stack_dump {

@@ -920,7 +920,7 @@ static inline unsigned int blk_max_size_offset(struct request_queue *q,
 					       sector_t offset)
 {
 	if (!q->limits.chunk_sectors)
-		return q->limits.max_hw_sectors;
+		return q->limits.max_sectors;
 
 	return q->limits.chunk_sectors -
 			(offset & (q->limits.chunk_sectors - 1));

@@ -30,7 +30,7 @@
 #define _I915_POWERWELL_H_
 
 /* For use by hda_i915 driver */
-extern void i915_request_power_well(void);
-extern void i915_release_power_well(void);
+extern int i915_request_power_well(void);
+extern int i915_release_power_well(void);
 
 #endif				/* _I915_POWERWELL_H_ */

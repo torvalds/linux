@@ -37,12 +37,14 @@ struct regs_info {
 };
 
 static const struct regulator_linear_range smps_low_ranges[] = {
+	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(500000, 0x1, 0x6, 0),
 	REGULATOR_LINEAR_RANGE(510000, 0x7, 0x79, 10000),
 	REGULATOR_LINEAR_RANGE(1650000, 0x7A, 0x7f, 0),
 };
 
 static const struct regulator_linear_range smps_high_ranges[] = {
+	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(1000000, 0x1, 0x6, 0),
 	REGULATOR_LINEAR_RANGE(1020000, 0x7, 0x79, 20000),
 	REGULATOR_LINEAR_RANGE(3300000, 0x7A, 0x7f, 0),

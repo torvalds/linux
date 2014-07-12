@@ -9,16 +9,18 @@ if ARCH_S5P64X0
 
 config CPU_S5P6440
 	bool
+	select ARM_AMBA
+	select PL330_DMA if DMADEVICES
 	select S5P_SLEEP if PM
-	select SAMSUNG_DMADEV
 	select SAMSUNG_WAKEMASK if PM
 	help
 	  Enable S5P6440 CPU support
 
 config CPU_S5P6450
 	bool
+	select ARM_AMBA
+	select PL330_DMA if DMADEVICES
 	select S5P_SLEEP if PM
-	select SAMSUNG_DMADEV
 	select SAMSUNG_WAKEMASK if PM
 	help
 	  Enable S5P6450 CPU support

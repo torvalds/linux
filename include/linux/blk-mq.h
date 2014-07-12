@@ -42,7 +42,7 @@ struct blk_mq_hw_ctx {
 	unsigned int		nr_ctx;
 	struct blk_mq_ctx	**ctxs;
 
-	unsigned int		wait_index;
+	atomic_t		wait_index;
 
 	struct blk_mq_tags	*tags;
 

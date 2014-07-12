@@ -97,7 +97,6 @@ void timed_output_dev_unregister(struct timed_output_dev *tdev)
 {
 	tdev->enable(tdev, 0);
 	device_destroy(timed_output_class, MKDEV(0, tdev->index));
-	dev_set_drvdata(tdev->dev, NULL);
 }
 EXPORT_SYMBOL_GPL(timed_output_dev_unregister);
 

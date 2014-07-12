@@ -645,6 +645,7 @@ int twl4030_get_madc_conversion(int channel_no)
 	req.channels = (1 << channel_no);
 	req.method = TWL4030_MADC_SW2;
 	req.active = 0;
+	req.raw = 0;
 	req.func_cb = NULL;
 	ret = twl4030_madc_conversion(&req);
 	if (ret < 0)
