@@ -218,6 +218,7 @@ struct sctp_sock {
 	__u32 adaptation_ind;
 	__u32 pd_point;
 	__u8 recvrcvinfo;
+	__u8 recvnxtinfo;
 
 	atomic_t pd_mode;
 	/* Receive to here while partial delivery is in effect. */

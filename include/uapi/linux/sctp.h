@@ -96,6 +96,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_AUTO_ASCONF       30
 #define SCTP_PEER_ADDR_THLDS	31
 #define SCTP_RECVRCVINFO	32
+#define SCTP_RECVNXTINFO	33
 
 /* Internal Socket Options. Some of the sctp library functions are
  * implemented using these socket options.
@@ -110,6 +111,13 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_SOCKOPT_CONNECTX	110		/* CONNECTX requests. */
 #define SCTP_SOCKOPT_CONNECTX3	111	/* CONNECTX requests (updated) */
 #define SCTP_GET_ASSOC_STATS	112	/* Read only */
+
+/* These are bit fields for msghdr->msg_flags.  See section 5.1.  */
+/* On user space Linux, these live in <bits/socket.h> as an enum.  */
+enum sctp_msg_flags {
+	MSG_NOTIFICATION = 0x8000,
+#define MSG_NOTIFICATION MSG_NOTIFICATION
+};
 
 /* 5.3.1 SCTP Initiation Structure (SCTP_INIT)
  *
@@ -187,6 +195,25 @@ struct sctp_rcvinfo {
 	sctp_assoc_t rcv_assoc_id;
 };
 
+/* 5.3.6 SCTP Next Receive Information Structure (SCTP_NXTINFO)
+ *
+ *   This cmsghdr structure describes SCTP receive information
+ *   of the next message that will be delivered through recvmsg()
+ *   if this information is already available when delivering
+ *   the current message.
+ *
+ *   cmsg_level    cmsg_type      cmsg_data[]
+ *   ------------  ------------   -------------------
+ *   IPPROTO_SCTP  SCTP_NXTINFO   struct sctp_nxtinfo
+ */
+struct sctp_nxtinfo {
+	__u16 nxt_sid;
+	__u16 nxt_flags;
+	__u32 nxt_ppid;
+	__u32 nxt_length;
+	sctp_assoc_t nxt_assoc_id;
+};
+
 /*
  *  sinfo_flags: 16 bits (unsigned integer)
  *
@@ -194,11 +221,12 @@ struct sctp_rcvinfo {
  *   a bitwise OR of these values.
  */
 enum sctp_sinfo_flags {
-	SCTP_UNORDERED = 1,  /* Send/receive message unordered. */
-	SCTP_ADDR_OVER = 2,  /* Override the primary destination. */
-	SCTP_ABORT=4,        /* Send an ABORT message to the peer. */
-	SCTP_SACK_IMMEDIATELY = 8,	/* SACK should be sent without delay */
-	SCTP_EOF=MSG_FIN,    /* Initiate graceful shutdown process. */
+	SCTP_UNORDERED		= (1 << 0), /* Send/receive message unordered. */
+	SCTP_ADDR_OVER		= (1 << 1), /* Override the primary destination. */
+	SCTP_ABORT		= (1 << 2), /* Send an ABORT message to the peer. */
+	SCTP_SACK_IMMEDIATELY	= (1 << 3), /* SACK should be sent without delay. */
+	SCTP_NOTIFICATION	= MSG_NOTIFICATION, /* Next message is not user msg but notification. */
+	SCTP_EOF		= MSG_FIN,  /* Initiate graceful shutdown process. */
 };
 
 typedef union {
@@ -217,6 +245,8 @@ typedef enum sctp_cmsg_type {
 #define SCTP_SNDINFO	SCTP_SNDINFO
 	SCTP_RCVINFO,		/* 5.3.5 SCTP Receive Information Structure */
 #define SCTP_RCVINFO	SCTP_RCVINFO
+	SCTP_NXTINFO,		/* 5.3.6 SCTP Next Receive Information Structure */
+#define SCTP_NXTINFO	SCTP_NXTINFO
 } sctp_cmsg_t;
 
 /*
@@ -842,13 +872,6 @@ struct sctp_assoc_stats {
 	__u64		sas_iodchunks;	 /* Ordered data chunks received */
 	__u64		sas_octrlchunks; /* Control chunks sent */
 	__u64		sas_ictrlchunks; /* Control chunks received */
-};
-
-/* These are bit fields for msghdr->msg_flags.  See section 5.1.  */
-/* On user space Linux, these live in <bits/socket.h> as an enum.  */
-enum sctp_msg_flags {
-	MSG_NOTIFICATION = 0x8000,
-#define MSG_NOTIFICATION MSG_NOTIFICATION
 };
 
 /*

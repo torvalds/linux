@@ -2060,8 +2060,6 @@ static int sctp_skb_pull(struct sk_buff *skb, int len)
  *  flags   - flags sent or received with the user message, see Section
  *            5 for complete description of the flags.
  */
-static struct sk_buff *sctp_skb_recv_datagram(struct sock *, int, int, int *);
-
 static int sctp_recvmsg(struct kiocb *iocb, struct sock *sk,
 			struct msghdr *msg, size_t len, int noblock,
 			int flags, int *addr_len)
@@ -2112,6 +2110,9 @@ static int sctp_recvmsg(struct kiocb *iocb, struct sock *sk,
 		sp->pf->skb_msgname(skb, msg->msg_name, addr_len);
 	}
 
+	/* Check if we allow SCTP_NXTINFO. */
+	if (sp->recvnxtinfo)
+		sctp_ulpevent_read_nxtinfo(event, msg, sk);
 	/* Check if we allow SCTP_RCVINFO. */
 	if (sp->recvrcvinfo)
 		sctp_ulpevent_read_rcvinfo(event, msg);
@@ -3611,6 +3612,22 @@ static int sctp_setsockopt_recvrcvinfo(struct sock *sk,
 	return 0;
 }
 
+static int sctp_setsockopt_recvnxtinfo(struct sock *sk,
+				       char __user *optval,
+				       unsigned int optlen)
+{
+	int val;
+
+	if (optlen < sizeof(int))
+		return -EINVAL;
+	if (get_user(val, (int __user *) optval))
+		return -EFAULT;
+
+	sctp_sk(sk)->recvnxtinfo = (val == 0) ? 0 : 1;
+
+	return 0;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -3764,6 +3781,9 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_RECVRCVINFO:
 		retval = sctp_setsockopt_recvrcvinfo(sk, optval, optlen);
+		break;
+	case SCTP_RECVNXTINFO:
+		retval = sctp_setsockopt_recvnxtinfo(sk, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
@@ -4012,6 +4032,7 @@ static int sctp_init_sock(struct sock *sk)
 	sp->nodelay           = 0;
 
 	sp->recvrcvinfo = 0;
+	sp->recvnxtinfo = 0;
 
 	/* Enable by default. */
 	sp->v4mapped          = 1;
@@ -5814,6 +5835,26 @@ static int sctp_getsockopt_recvrcvinfo(struct sock *sk,	int len,
 	return 0;
 }
 
+static int sctp_getsockopt_recvnxtinfo(struct sock *sk,	int len,
+				       char __user *optval,
+				       int __user *optlen)
+{
+	int val = 0;
+
+	if (len < sizeof(int))
+		return -EINVAL;
+
+	len = sizeof(int);
+	if (sctp_sk(sk)->recvnxtinfo)
+		val = 1;
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int sctp_getsockopt(struct sock *sk, int level, int optname,
 			   char __user *optval, int __user *optlen)
 {
@@ -5959,6 +6000,9 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_RECVRCVINFO:
 		retval = sctp_getsockopt_recvrcvinfo(sk, len, optval, optlen);
+		break;
+	case SCTP_RECVNXTINFO:
+		retval = sctp_getsockopt_recvnxtinfo(sk, len, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
@@ -6602,8 +6646,8 @@ out:
  * Note: This is pretty much the same routine as in core/datagram.c
  * with a few changes to make lksctp work.
  */
-static struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
-					      int noblock, int *err)
+struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
+				       int noblock, int *err)
 {
 	int error;
 	struct sk_buff *skb;
