@@ -89,6 +89,8 @@ int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USH
 	bool	bHeaderSupressionEnabled = false;
 	B_UINT16 uiClassifierRuleID;
 	u16	QueueIndex = skb_get_queue_mapping(Packet);
+	struct bcm_packet_info *curr_packet_info =
+		&Adapter->PackInfo[QueueIndex];
 	struct bcm_leader Leader = {0};
 
 	if (Packet->len > MAX_DEVICE_DESC_SIZE) {
@@ -99,7 +101,7 @@ int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USH
 	/* Get the Classifier Rule ID */
 	uiClassifierRuleID = *((UINT32 *) (Packet->cb) + SKB_CB_CLASSIFICATION_OFFSET);
 
-	bHeaderSupressionEnabled = Adapter->PackInfo[QueueIndex].bHeaderSuppressionEnabled
+	bHeaderSupressionEnabled = curr_packet_info->bHeaderSuppressionEnabled
 		& Adapter->bPHSEnabled;
 
 	if (Adapter->device_removed) {
@@ -108,7 +110,7 @@ int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USH
 	}
 
 	status = PHSTransmit(Adapter, &Packet, Vcid, uiClassifierRuleID, bHeaderSupressionEnabled,
-			(UINT *)&Packet->len, Adapter->PackInfo[QueueIndex].bEthCSSupport);
+			(UINT *)&Packet->len, curr_packet_info->bEthCSSupport);
 
 	if (status != STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL,
@@ -123,7 +125,7 @@ int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USH
 	else
 		Leader.Status = LEADER_STATUS;
 
-	if (Adapter->PackInfo[QueueIndex].bEthCSSupport) {
+	if (curr_packet_info->bEthCSSupport) {
 		Leader.PLength = Packet->len;
 		if (skb_headroom(Packet) < LEADER_SIZE) {
 			status = skb_cow(Packet, LEADER_SIZE);
@@ -149,18 +151,18 @@ int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USH
 	} else {
 		struct net_device_stats *netstats = &Adapter->dev->stats;
 
-		Adapter->PackInfo[QueueIndex].uiTotalTxBytes += Leader.PLength;
+		curr_packet_info->uiTotalTxBytes += Leader.PLength;
 
 		netstats->tx_bytes += Leader.PLength;
 		++netstats->tx_packets;
 
-		Adapter->PackInfo[QueueIndex].uiCurrentTokenCount -= Leader.PLength << 3;
-		Adapter->PackInfo[QueueIndex].uiSentBytes += (Packet->len);
-		Adapter->PackInfo[QueueIndex].uiSentPackets++;
-		Adapter->PackInfo[QueueIndex].NumOfPacketsSent++;
+		curr_packet_info->uiCurrentTokenCount -= Leader.PLength << 3;
+		curr_packet_info->uiSentBytes += (Packet->len);
+		curr_packet_info->uiSentPackets++;
+		curr_packet_info->NumOfPacketsSent++;
 
-		atomic_dec(&Adapter->PackInfo[QueueIndex].uiPerSFTxResourceCount);
-		Adapter->PackInfo[QueueIndex].uiThisPeriodSentBytes += Leader.PLength;
+		atomic_dec(&curr_packet_info->uiPerSFTxResourceCount);
+		curr_packet_info->uiThisPeriodSentBytes += Leader.PLength;
 	}
 
 	atomic_dec(&Adapter->CurrNumFreeTxDesc);
