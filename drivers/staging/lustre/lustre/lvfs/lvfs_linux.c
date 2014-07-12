@@ -233,7 +233,7 @@ put_old:
 EXPORT_SYMBOL(lustre_rename);
 
 /* Note: dput(dchild) will *not* be called if there is an error */
-struct l_file *l_dentry_open(struct lvfs_run_ctxt *ctxt, struct l_dentry *de,
+struct l_file *l_dentry_open(struct lvfs_run_ctxt *ctxt, struct dentry *de,
 			     int flags)
 {
 	struct path path = {

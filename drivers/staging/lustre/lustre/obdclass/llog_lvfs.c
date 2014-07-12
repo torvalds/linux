@@ -581,7 +581,7 @@ static int llog_lvfs_open(const struct lu_env *env,  struct llog_handle *handle,
 			  enum llog_open_param open_param)
 {
 	struct llog_ctxt	*ctxt = handle->lgh_ctxt;
-	struct l_dentry		*dchild = NULL;
+	struct dentry		*dchild = NULL;
 	struct obd_device	*obd;
 	int			 rc = 0;
 
@@ -672,7 +672,7 @@ static int llog_lvfs_create(const struct lu_env *env,
 {
 	struct llog_ctxt	*ctxt = handle->lgh_ctxt;
 	struct obd_device	*obd;
-	struct l_dentry		*dchild = NULL;
+	struct dentry		*dchild = NULL;
 	struct file		*file;
 	struct obdo		*oa = NULL;
 	int			 rc = 0;
