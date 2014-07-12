@@ -2097,7 +2097,7 @@ static void iscsi_check_transport_timeouts(unsigned long data)
 				  conn->ping_timeout, conn->recv_timeout,
 				  last_recv, conn->last_ping, jiffies);
 		spin_unlock(&session->frwd_lock);
-		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+		iscsi_conn_failure(conn, ISCSI_ERR_NOP_TIMEDOUT);
 		return;
 	}
 
