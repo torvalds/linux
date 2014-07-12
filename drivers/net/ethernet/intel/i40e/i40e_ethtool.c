@@ -313,7 +313,10 @@ static int i40e_get_settings(struct net_device *netdev,
 		break;
 	case I40E_PHY_TYPE_10GBASE_SR:
 	case I40E_PHY_TYPE_10GBASE_LR:
+	case I40E_PHY_TYPE_1000BASE_SX:
+	case I40E_PHY_TYPE_1000BASE_LX:
 		ecmd->supported = SUPPORTED_10000baseT_Full;
+		ecmd->supported |= SUPPORTED_1000baseT_Full;
 		break;
 	case I40E_PHY_TYPE_10GBASE_CR1_CU:
 	case I40E_PHY_TYPE_10GBASE_CR1:
@@ -352,7 +355,8 @@ static int i40e_get_settings(struct net_device *netdev,
 		break;
 	default:
 		/* if we got here and link is up something bad is afoot */
-		WARN_ON(link_up);
+		netdev_info(netdev, "WARNING: Link is up but PHY type 0x%x is not recognized.\n",
+			    hw_link_info->phy_type);
 	}
 
 no_valid_phy_type:
@@ -493,11 +497,10 @@ static int i40e_set_settings(struct net_device *netdev,
 	if (status)
 		return -EAGAIN;
 
-	/* Copy link_speed and abilities to config in case they are not
+	/* Copy abilities to config in case autoneg is not
 	 * set below
 	 */
 	memset(&config, 0, sizeof(struct i40e_aq_set_phy_config));
-	config.link_speed = abilities.link_speed;
 	config.abilities = abilities.abilities;
 
 	/* Check autoneg */
@@ -534,33 +537,21 @@ static int i40e_set_settings(struct net_device *netdev,
 		return -EINVAL;
 
 	if (advertise & ADVERTISED_100baseT_Full)
-		if (!(abilities.link_speed & I40E_LINK_SPEED_100MB)) {
-			config.link_speed |= I40E_LINK_SPEED_100MB;
-			change = true;
-		}
+		config.link_speed |= I40E_LINK_SPEED_100MB;
 	if (advertise & ADVERTISED_1000baseT_Full ||
 	    advertise & ADVERTISED_1000baseKX_Full)
-		if (!(abilities.link_speed & I40E_LINK_SPEED_1GB)) {
-			config.link_speed |= I40E_LINK_SPEED_1GB;
-			change = true;
-		}
+		config.link_speed |= I40E_LINK_SPEED_1GB;
 	if (advertise & ADVERTISED_10000baseT_Full ||
 	    advertise & ADVERTISED_10000baseKX4_Full ||
 	    advertise & ADVERTISED_10000baseKR_Full)
-		if (!(abilities.link_speed & I40E_LINK_SPEED_10GB)) {
-			config.link_speed |= I40E_LINK_SPEED_10GB;
-			change = true;
-		}
+		config.link_speed |= I40E_LINK_SPEED_10GB;
 	if (advertise & ADVERTISED_40000baseKR4_Full ||
 	    advertise & ADVERTISED_40000baseCR4_Full ||
 	    advertise & ADVERTISED_40000baseSR4_Full ||
 	    advertise & ADVERTISED_40000baseLR4_Full)
-		if (!(abilities.link_speed & I40E_LINK_SPEED_40GB)) {
-			config.link_speed |= I40E_LINK_SPEED_40GB;
-			change = true;
-		}
+		config.link_speed |= I40E_LINK_SPEED_40GB;
 
-	if (change) {
+	if (change || (abilities.link_speed != config.link_speed)) {
 		/* copy over the rest of the abilities */
 		config.phy_type = abilities.phy_type;
 		config.eee_capability = abilities.eee_capability;
