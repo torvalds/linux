@@ -19,8 +19,9 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
-#include <mach/r7s72100.h>
+
 #include "common.h"
+#include "r7s72100.h"
 
 /* Frequency Control Registers */
 #define FRQCR		0xfcfe0010

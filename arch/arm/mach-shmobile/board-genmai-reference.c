@@ -20,11 +20,13 @@
 
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
-#include <mach/r7s72100.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
 #include "clock.h"
 #include "common.h"
+#include "r7s72100.h"
 
 /*
  * This is a really crude hack to provide clkdev support to platform
@@ -47,7 +49,7 @@ static const char * const genmai_boards_compat_dt[] __initconst = {
 };
 
 DT_MACHINE_START(GENMAI_DT, "genmai")
-	.init_early	= r7s72100_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_machine	= genmai_add_standard_devices,
 	.dt_compat	= genmai_boards_compat_dt,
 MACHINE_END

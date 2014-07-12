@@ -22,9 +22,10 @@
 #include <linux/kernel.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
-#include <mach/r8a7790.h>
+
 #include "clock.h"
 #include "common.h"
+#include "r8a7790.h"
 #include "rcar-gen2.h"
 
 /*

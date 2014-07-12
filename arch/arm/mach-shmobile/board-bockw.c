@@ -34,13 +34,15 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/usb/renesas_usbhs.h>
+
 #include <media/soc_camera.h>
-#include <mach/r8a7778.h>
 #include <asm/mach/arch.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
+
 #include "common.h"
 #include "irqs.h"
+#include "r8a7778.h"
 
 #define FPGA	0x18200000
 #define IRQ0MR	0x30
