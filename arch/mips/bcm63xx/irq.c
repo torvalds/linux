@@ -19,13 +19,6 @@
 #include <bcm63xx_io.h>
 #include <bcm63xx_irq.h>
 
-static void __dispatch_internal_32(void) __maybe_unused;
-static void __dispatch_internal_64(void) __maybe_unused;
-static void __internal_irq_mask_32(unsigned int irq) __maybe_unused;
-static void __internal_irq_mask_64(unsigned int irq) __maybe_unused;
-static void __internal_irq_unmask_32(unsigned int irq) __maybe_unused;
-static void __internal_irq_unmask_64(unsigned int irq) __maybe_unused;
-
 static u32 irq_stat_addr, irq_mask_addr;
 static void (*dispatch_internal)(void);
 static int is_ext_irq_cascaded;
@@ -35,97 +28,6 @@ static unsigned int ext_irq_cfg_reg1, ext_irq_cfg_reg2;
 static void (*internal_irq_mask)(unsigned int irq);
 static void (*internal_irq_unmask)(unsigned int irq);
 
-static void bcm63xx_init_irq(void)
-{
-	int irq_bits;
-
-	irq_stat_addr = bcm63xx_regset_address(RSET_PERF);
-	irq_mask_addr = bcm63xx_regset_address(RSET_PERF);
-
-	switch (bcm63xx_get_cpu_id()) {
-	case BCM3368_CPU_ID:
-		irq_stat_addr += PERF_IRQSTAT_3368_REG;
-		irq_mask_addr += PERF_IRQMASK_3368_REG;
-		irq_bits = 32;
-		ext_irq_count = 4;
-		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_3368;
-		break;
-	case BCM6328_CPU_ID:
-		irq_stat_addr += PERF_IRQSTAT_6328_REG;
-		irq_mask_addr += PERF_IRQMASK_6328_REG;
-		irq_bits = 64;
-		ext_irq_count = 4;
-		is_ext_irq_cascaded = 1;
-		ext_irq_start = BCM_6328_EXT_IRQ0 - IRQ_INTERNAL_BASE;
-		ext_irq_end = BCM_6328_EXT_IRQ3 - IRQ_INTERNAL_BASE;
-		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6328;
-		break;
-	case BCM6338_CPU_ID:
-		irq_stat_addr += PERF_IRQSTAT_6338_REG;
-		irq_mask_addr += PERF_IRQMASK_6338_REG;
-		irq_bits = 32;
-		ext_irq_count = 4;
-		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6338;
-		break;
-	case BCM6345_CPU_ID:
-		irq_stat_addr += PERF_IRQSTAT_6345_REG;
-		irq_mask_addr += PERF_IRQMASK_6345_REG;
-		irq_bits = 32;
-		ext_irq_count = 4;
-		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6345;
-		break;
-	case BCM6348_CPU_ID:
-		irq_stat_addr += PERF_IRQSTAT_6348_REG;
-		irq_mask_addr += PERF_IRQMASK_6348_REG;
-		irq_bits = 32;
-		ext_irq_count = 4;
-		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6348;
-		break;
-	case BCM6358_CPU_ID:
-		irq_stat_addr += PERF_IRQSTAT_6358_REG;
-		irq_mask_addr += PERF_IRQMASK_6358_REG;
-		irq_bits = 32;
-		ext_irq_count = 4;
-		is_ext_irq_cascaded = 1;
-		ext_irq_start = BCM_6358_EXT_IRQ0 - IRQ_INTERNAL_BASE;
-		ext_irq_end = BCM_6358_EXT_IRQ3 - IRQ_INTERNAL_BASE;
-		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6358;
-		break;
-	case BCM6362_CPU_ID:
-		irq_stat_addr += PERF_IRQSTAT_6362_REG;
-		irq_mask_addr += PERF_IRQMASK_6362_REG;
-		irq_bits = 64;
-		ext_irq_count = 4;
-		is_ext_irq_cascaded = 1;
-		ext_irq_start = BCM_6362_EXT_IRQ0 - IRQ_INTERNAL_BASE;
-		ext_irq_end = BCM_6362_EXT_IRQ3 - IRQ_INTERNAL_BASE;
-		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6362;
-		break;
-	case BCM6368_CPU_ID:
-		irq_stat_addr += PERF_IRQSTAT_6368_REG;
-		irq_mask_addr += PERF_IRQMASK_6368_REG;
-		irq_bits = 64;
-		ext_irq_count = 6;
-		is_ext_irq_cascaded = 1;
-		ext_irq_start = BCM_6368_EXT_IRQ0 - IRQ_INTERNAL_BASE;
-		ext_irq_end = BCM_6368_EXT_IRQ5 - IRQ_INTERNAL_BASE;
-		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6368;
-		ext_irq_cfg_reg2 = PERF_EXTIRQ_CFG_REG2_6368;
-		break;
-	default:
-		BUG();
-	}
-
-	if (irq_bits == 32) {
-		dispatch_internal = __dispatch_internal_32;
-		internal_irq_mask = __internal_irq_mask_32;
-		internal_irq_unmask = __internal_irq_unmask_32;
-	} else {
-		dispatch_internal = __dispatch_internal_64;
-		internal_irq_mask = __internal_irq_mask_64;
-		internal_irq_unmask = __internal_irq_unmask_64;
-	}
-}
 
 static inline u32 get_ext_irq_perf_reg(int irq)
 {
@@ -450,6 +352,98 @@ static struct irqaction cpu_ext_cascade_action = {
 	.name		= "cascade_extirq",
 	.flags		= IRQF_NO_THREAD,
 };
+
+static void bcm63xx_init_irq(void)
+{
+	int irq_bits;
+
+	irq_stat_addr = bcm63xx_regset_address(RSET_PERF);
+	irq_mask_addr = bcm63xx_regset_address(RSET_PERF);
+
+	switch (bcm63xx_get_cpu_id()) {
+	case BCM3368_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_3368_REG;
+		irq_mask_addr += PERF_IRQMASK_3368_REG;
+		irq_bits = 32;
+		ext_irq_count = 4;
+		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_3368;
+		break;
+	case BCM6328_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6328_REG;
+		irq_mask_addr += PERF_IRQMASK_6328_REG;
+		irq_bits = 64;
+		ext_irq_count = 4;
+		is_ext_irq_cascaded = 1;
+		ext_irq_start = BCM_6328_EXT_IRQ0 - IRQ_INTERNAL_BASE;
+		ext_irq_end = BCM_6328_EXT_IRQ3 - IRQ_INTERNAL_BASE;
+		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6328;
+		break;
+	case BCM6338_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6338_REG;
+		irq_mask_addr += PERF_IRQMASK_6338_REG;
+		irq_bits = 32;
+		ext_irq_count = 4;
+		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6338;
+		break;
+	case BCM6345_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6345_REG;
+		irq_mask_addr += PERF_IRQMASK_6345_REG;
+		irq_bits = 32;
+		ext_irq_count = 4;
+		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6345;
+		break;
+	case BCM6348_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6348_REG;
+		irq_mask_addr += PERF_IRQMASK_6348_REG;
+		irq_bits = 32;
+		ext_irq_count = 4;
+		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6348;
+		break;
+	case BCM6358_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6358_REG;
+		irq_mask_addr += PERF_IRQMASK_6358_REG;
+		irq_bits = 32;
+		ext_irq_count = 4;
+		is_ext_irq_cascaded = 1;
+		ext_irq_start = BCM_6358_EXT_IRQ0 - IRQ_INTERNAL_BASE;
+		ext_irq_end = BCM_6358_EXT_IRQ3 - IRQ_INTERNAL_BASE;
+		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6358;
+		break;
+	case BCM6362_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6362_REG;
+		irq_mask_addr += PERF_IRQMASK_6362_REG;
+		irq_bits = 64;
+		ext_irq_count = 4;
+		is_ext_irq_cascaded = 1;
+		ext_irq_start = BCM_6362_EXT_IRQ0 - IRQ_INTERNAL_BASE;
+		ext_irq_end = BCM_6362_EXT_IRQ3 - IRQ_INTERNAL_BASE;
+		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6362;
+		break;
+	case BCM6368_CPU_ID:
+		irq_stat_addr += PERF_IRQSTAT_6368_REG;
+		irq_mask_addr += PERF_IRQMASK_6368_REG;
+		irq_bits = 64;
+		ext_irq_count = 6;
+		is_ext_irq_cascaded = 1;
+		ext_irq_start = BCM_6368_EXT_IRQ0 - IRQ_INTERNAL_BASE;
+		ext_irq_end = BCM_6368_EXT_IRQ5 - IRQ_INTERNAL_BASE;
+		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_6368;
+		ext_irq_cfg_reg2 = PERF_EXTIRQ_CFG_REG2_6368;
+		break;
+	default:
+		BUG();
+	}
+
+	if (irq_bits == 32) {
+		dispatch_internal = __dispatch_internal_32;
+		internal_irq_mask = __internal_irq_mask_32;
+		internal_irq_unmask = __internal_irq_unmask_32;
+	} else {
+		dispatch_internal = __dispatch_internal_64;
+		internal_irq_mask = __internal_irq_mask_64;
+		internal_irq_unmask = __internal_irq_unmask_64;
+	}
+}
 
 void __init arch_init_irq(void)
 {
