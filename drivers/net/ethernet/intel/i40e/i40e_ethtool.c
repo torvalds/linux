@@ -466,7 +466,8 @@ static int i40e_set_settings(struct net_device *netdev,
 
 	if (hw->phy.media_type != I40E_MEDIA_TYPE_BASET &&
 	    hw->phy.media_type != I40E_MEDIA_TYPE_FIBER &&
-	    hw->phy.media_type != I40E_MEDIA_TYPE_BACKPLANE)
+	    hw->phy.media_type != I40E_MEDIA_TYPE_BACKPLANE &&
+	    hw->phy.link_info.link_info & I40E_AQ_LINK_UP)
 		return -EOPNOTSUPP;
 
 	/* get our own copy of the bits to check against */
