@@ -20,6 +20,3 @@ ptlrpc-$(CONFIG_PROC_FS) += sec_lproc.o
 ptlrpc-$(CONFIG_LUSTRE_TRANSLATE_ERRNOS) += errno.o
 
 obj-$(CONFIG_PTLRPC_GSS) += gss/
-
-
-ccflags-y := -I$(src)/../include

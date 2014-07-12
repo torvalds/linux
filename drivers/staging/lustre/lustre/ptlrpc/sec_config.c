@@ -40,16 +40,16 @@
 #include <linux/crypto.h>
 #include <linux/key.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_log.h>
-#include <lustre_disk.h>
-#include <lustre_dlm.h>
-#include <lustre_param.h>
-#include <lustre_sec.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_import.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_param.h"
+#include "../include/lustre_sec.h"
 
 #include "ptlrpc_internal.h"
 

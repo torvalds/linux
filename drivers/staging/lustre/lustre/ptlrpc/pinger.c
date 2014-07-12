@@ -40,8 +40,8 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include <obd_support.h>
-#include <obd_class.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
 #include "ptlrpc_internal.h"
 
 static int suppress_pings;

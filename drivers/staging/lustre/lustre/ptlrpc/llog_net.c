@@ -48,11 +48,11 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_class.h>
-#include <lustre_log.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_log.h"
 #include <linux/list.h>
-#include <lvfs.h>
-#include <lustre_fsfilt.h>
+#include "../include/lvfs.h"
+#include "../include/lustre_fsfilt.h"
 
 int llog_initiator_connect(struct llog_ctxt *ctxt)
 {

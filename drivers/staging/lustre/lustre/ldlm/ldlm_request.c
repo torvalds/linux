@@ -61,9 +61,9 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include <lustre_dlm.h>
-#include <obd_class.h>
-#include <obd.h>
+#include "../include/lustre_dlm.h"
+#include "../include/obd_class.h"
+#include "../include/obd.h"
 
 #include "ldlm_internal.h"
 

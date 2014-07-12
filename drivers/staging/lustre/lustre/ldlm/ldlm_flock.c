@@ -56,12 +56,11 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include <lustre_dlm.h>
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
+#include "../include/lustre_dlm.h"
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
 #include <linux/list.h>
-
 #include "ldlm_internal.h"
 
 int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,

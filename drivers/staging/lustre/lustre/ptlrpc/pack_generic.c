@@ -46,11 +46,11 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <obd_cksum.h>
-#include <lustre/ll_fiemap.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/obd_cksum.h"
+#include "../include/lustre/ll_fiemap.h"
 
 static inline int lustre_msg_hdr_size_v2(int count)
 {

@@ -41,9 +41,9 @@
 #  include <linux/kernel.h>
 # endif
 
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lustre_sec.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_sec.h"
 #include "ptlrpc_internal.h"
 
 lnet_handle_eq_t   ptlrpc_eq_h;

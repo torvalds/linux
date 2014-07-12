@@ -44,11 +44,11 @@
 #define DEBUG_SUBSYSTEM S_LDLM
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_dlm.h>
-#include <lustre_net.h>
-#include <lustre_sec.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_sec.h"
 #include "ldlm_internal.h"
 
 /* @priority: If non-zero, move the selected connection to the list head.

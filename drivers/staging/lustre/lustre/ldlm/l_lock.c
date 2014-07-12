@@ -37,8 +37,8 @@
 #define DEBUG_SUBSYSTEM S_LDLM
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include <lustre_dlm.h>
-#include <lustre_lib.h>
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_lib.h"
 
 /**
  * Lock a lock and its resource.

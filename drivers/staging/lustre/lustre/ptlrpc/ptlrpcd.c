@@ -57,14 +57,13 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include <lustre_net.h>
-# include <lustre_lib.h>
-
-#include <lustre_ha.h>
-#include <obd_class.h>   /* for obd_zombie */
-#include <obd_support.h> /* for OBD_FAIL_CHECK */
-#include <cl_object.h> /* cl_env_{get,put}() */
-#include <lprocfs_status.h>
+#include "../include/lustre_net.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_ha.h"
+#include "../include/obd_class.h"	/* for obd_zombie */
+#include "../include/obd_support.h"	/* for OBD_FAIL_CHECK */
+#include "../include/cl_object.h"	/* cl_env_{get,put}() */
+#include "../include/lprocfs_status.h"
 
 #include "ptlrpc_internal.h"
 

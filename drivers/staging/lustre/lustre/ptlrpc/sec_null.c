@@ -41,11 +41,11 @@
 #define DEBUG_SUBSYSTEM S_SEC
 
 
-#include <obd_support.h>
-#include <obd_cksum.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lustre_sec.h>
+#include "../include/obd_support.h"
+#include "../include/obd_cksum.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_sec.h"
 
 static struct ptlrpc_sec_policy null_policy;
 static struct ptlrpc_sec	null_sec;
