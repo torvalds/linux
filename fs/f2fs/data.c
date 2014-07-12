@@ -626,8 +626,10 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 	if (check_extent_cache(inode, pgofs, bh_result))
 		goto out;
 
-	if (create)
+	if (create) {
+		f2fs_balance_fs(sbi);
 		f2fs_lock_op(sbi);
+	}
 
 	/* When reading holes, we need its node page */
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
