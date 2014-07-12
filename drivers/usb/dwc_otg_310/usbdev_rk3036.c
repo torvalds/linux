@@ -111,7 +111,7 @@ static void usb20otg_clock_enable(void *pdata, int enable)
 static int usb20otg_get_status(int id)
 {
 	int ret = -1;
-	u32 soc_status0 = readl(RK_GRF_VIRT + RK3036_GRF_CPU_STATUS0);
+	u32 soc_status0 = readl(RK_GRF_VIRT + RK3036_GRF_SOC_STATUS0);
 
 	switch (id) {
 	case USB_STATUS_BVABLID:
@@ -292,7 +292,7 @@ static void usb20host_clock_enable(void *pdata, int enable)
 static int usb20host_get_status(int id)
 {
 	int ret = -1;
-	u32 soc_status0 = readl(RK_GRF_VIRT + RK3036_GRF_CPU_STATUS0);
+	u32 soc_status0 = readl(RK_GRF_VIRT + RK3036_GRF_SOC_STATUS0);
 
 	switch (id) {
 	case USB_STATUS_BVABLID:

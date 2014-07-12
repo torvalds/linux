@@ -466,6 +466,7 @@
 	  };
 	dwc_control_usb: dwc-control-usb@20008000 {
 		compatible = "rockchip,rk3036-dwc-control-usb";
+		reg = <0x20008000 0x4>;
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "otg_bvalid";
 		clocks = <&clk_gates9 13>;
