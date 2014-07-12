@@ -45,13 +45,13 @@
 #include "../../include/linux/libcfs/libcfs.h"
 #include <linux/module.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <dt_object.h>
-#include <md_object.h>
-#include <obd_support.h>
-#include <lustre_req_layout.h>
-#include <lustre_fid.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/dt_object.h"
+#include "../include/md_object.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_fid.h"
 #include "fid_internal.h"
 
 /* Format: [0x64BIT_INT - 0x64BIT_INT] + 32 bytes just in case */

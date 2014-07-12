@@ -45,8 +45,8 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include <linux/module.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_fid.h>
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_fid.h"
 
 /**
  * A cluster-wide range from which fid-sequences are granted to servers and
