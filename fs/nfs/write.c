@@ -868,7 +868,6 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 {
 	struct nfs_commit_info cinfo;
 	unsigned long bytes = 0;
-	bool do_destroy;
 
 	if (test_bit(NFS_IOHDR_REDO, &hdr->flags))
 		goto out;
@@ -898,7 +897,6 @@ remove_req:
 next:
 		nfs_unlock_request(req);
 		nfs_end_page_writeback(req);
-		do_destroy = !test_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags);
 		nfs_release_request(req);
 	}
 out:
