@@ -118,7 +118,7 @@ static void rk616_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 	case NORMAL:
 		hdmi_dbg(hdmi_drv->dev,
 			 "%s change pwr_mode NORMAL pwr_mode = %d, mode = %d\n",
-			 __func__, hdmi->pwr_mode, mode);
+			 __func__, hdmi_drv->pwr_mode, mode);
 		rk616_hdmi_sys_power(hdmi_drv, false);
 		if (!(hdmi_drv->set_vif)
 		    && (hdmi_drv->vic == HDMI_1920x1080p_60Hz
@@ -149,7 +149,7 @@ static void rk616_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 	case LOWER_PWR:
 		hdmi_dbg(hdmi_drv->dev,
 			 "%s change pwr_mode LOWER_PWR pwr_mode = %d, mode = %d\n",
-			 __func__, hdmi->pwr_mode, mode);
+			 __func__, hdmi_drv->pwr_mode, mode);
 		rk616_hdmi_av_mute(hdmi_drv, 0);
 		rk616_hdmi_sys_power(hdmi_drv, false);
 		hdmi_writel(hdmi_dev, PHY_DRIVER, 0x00);
@@ -419,9 +419,9 @@ static int rk616_hdmi_config_video(struct hdmi *hdmi_drv,
 	if (vpara->output_mode == OUTPUT_HDMI) {
 		rk616_hdmi_config_avi(hdmi_drv, vpara->vic,
 				      vpara->output_color);
-		hdmi_dbg(hdmi->dev, "[%s] sucess output HDMI.\n", __func__);
+		hdmi_dbg(hdmi_drv->dev, "[%s] sucess output HDMI.\n", __func__);
 	} else {
-		hdmi_dbg(hdmi->dev, "[%s] sucess output DVI.\n", __func__);
+		hdmi_dbg(hdmi_drv->dev, "[%s] sucess output DVI.\n", __func__);
 	}
 
 	if (hdmi_drv->set_vif) {
@@ -635,7 +635,7 @@ static void rk616_hdmi_reset(struct hdmi *hdmi_drv)
 #else
 	hdmi_writel(hdmi_dev, INTERRUPT_MASK1, m_INT_HOTPLUG);	
 #endif
-	rk616_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR);
+	//rk616_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR); // hjc delete for audis
 }
 
 int rk616_hdmi_initial(struct hdmi *hdmi_drv)

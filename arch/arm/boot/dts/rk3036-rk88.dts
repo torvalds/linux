@@ -128,3 +128,20 @@
         dma-names = "!tx", "!rx";
         //pinctrl-0 = <&uart0_xfer &uart0_cts>;
 };
+
+&rk_screen {
+	 display-timings = <&disp_timings>;
+};
+
+&lcdc {
+	status = "okay";
+};
+
+&tve {
+	status = "disabled";
+};
+
+&hdmi {
+	status = "okay";
+	//rockchips,hdmi_audio_source = <0>;
+};

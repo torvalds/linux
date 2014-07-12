@@ -161,5 +161,10 @@
 };
 
 &tve {
+	status = "disabled";
+};
+
+&hdmi {
 	status = "okay";
+	//rockchips,hdmi_audio_source = <0>;
 };

@@ -249,7 +249,7 @@ static void __maybe_unused rk616_irq_work_func(struct work_struct *work)
 	dev_info(hdmi_drv->dev, "func: %s, enable_irq\n", __func__);
 	enable_irq(hdmi_drv->irq);
 }
-
+#if 0
 static irqreturn_t rk616_hdmi_irq(int irq, void *dev_id)
 {
 	struct work_struct *rk616_irq_work_struct;
@@ -271,7 +271,7 @@ static irqreturn_t rk616_hdmi_irq(int irq, void *dev_id)
 	}
 	return IRQ_HANDLED;
 }
-
+#endif
 static int rk616_hdmi_drv_init(struct hdmi *hdmi_drv)
 {
 	int ret = 0;
@@ -288,10 +288,12 @@ static int rk616_hdmi_drv_init(struct hdmi *hdmi_drv)
 	grf_writel(HDMI_SEL_LCDC(lcdc_id), RK3036_GRF_SOC_CON6);
 #endif
 	*/
+	lcdc_id = 0;
 	if (lcdc_id == 0)
 		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc0");
 	else
 		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc1");
+
 	if (IS_ERR(hdmi_drv->lcdc)) {
 		dev_err(hdmi_drv->dev,
 			"can not connect to video source lcdc\n");
@@ -350,9 +352,6 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 	}
 #endif
 
-	if (rk616_hdmi_drv_init(hdmi_drv))
-		goto err0;
-
 #ifdef CONFIG_SWITCH
 	hdmi_drv->switch_hdmi.name = "hdmi";
 	switch_dev_register(&(hdmi_drv->switch_hdmi));
@@ -399,6 +398,7 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 		hdmi_drv->irq = 0;
 	} else {
 		/* request the IRQ */
+		#if 0
 		ret = devm_request_irq(hdmi_drv->dev, hdmi_drv->irq,
 				       rk616_hdmi_irq, 0,
 				       dev_name(hdmi_drv->dev), hdmi_drv);
@@ -407,6 +407,7 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 				ret);
 			goto err2;
 		}
+		#endif
 	}
 #else
 	if (gpio_is_valid(hdmi_dev->rk616_drv->pdata->hdmi_irq)) {
@@ -445,6 +446,10 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 	}
 
 #endif
+	if (rk616_hdmi_drv_init(hdmi_drv))
+		goto err0;
+
+	//rk616_hdmi_work(hdmi_drv);
 
 #if defined(CONFIG_DEBUG_FS)
 	if (hdmi_dev->rk616_drv && hdmi_dev->rk616_drv->debugfs_dir) {
@@ -467,6 +472,7 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 	queue_delayed_work(hdmi_drv->workqueue, &hdmi_dev->rk616_delay_work,
 			   msecs_to_jiffies(0));
 	dev_info(hdmi_drv->dev, "rk616 hdmi probe success.\n");
+
 	return 0;
 
 #if defined(CONFIG_ARCH_RK3026) || defined(SOC_CONFIG_RK3036)
