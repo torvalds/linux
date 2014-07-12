@@ -41,11 +41,11 @@
 
 #define DEBUG_SUBSYSTEM S_ECHO
 
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_debug.h>
-#include <lustre_dlm.h>
-#include <lprocfs_status.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_debug.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lprocfs_status.h"
 
 #include "echo_internal.h"
 

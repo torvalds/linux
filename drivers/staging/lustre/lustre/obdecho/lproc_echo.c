@@ -33,8 +33,8 @@
  */
 #define DEBUG_SUBSYSTEM S_ECHO
 
-#include <lprocfs_status.h>
-#include <obd_class.h>
+#include "../include/lprocfs_status.h"
+#include "../include/obd_class.h"
 
 #ifdef LPROCFS
 LPROC_SEQ_FOPS_RO_TYPE(echo, uuid);
