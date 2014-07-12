@@ -145,6 +145,7 @@ enum i40e_state_t {
 	__I40E_BAD_EEPROM,
 	__I40E_DOWN_REQUESTED,
 	__I40E_FD_FLUSH_REQUESTED,
+	__I40E_RESET_FAILED,
 };
 
 enum i40e_interrupt_policy {

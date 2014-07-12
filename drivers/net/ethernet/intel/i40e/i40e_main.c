@@ -5568,6 +5568,10 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	u32 oldval;
 	u32 val;
 
+	/* Do not run clean AQ when PF reset fails */
+	if (test_bit(__I40E_RESET_FAILED, &pf->state))
+		return;
+
 	/* check for error indications */
 	val = rd32(&pf->hw, pf->hw.aq.arq.len);
 	oldval = val;
@@ -5973,19 +5977,20 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	ret = i40e_pf_reset(hw);
 	if (ret) {
 		dev_info(&pf->pdev->dev, "PF reset failed, %d\n", ret);
-		goto end_core_reset;
+		set_bit(__I40E_RESET_FAILED, &pf->state);
+		goto clear_recovery;
 	}
 	pf->pfr_count++;
 
 	if (test_bit(__I40E_DOWN, &pf->state))
-		goto end_core_reset;
+		goto clear_recovery;
 	dev_dbg(&pf->pdev->dev, "Rebuilding internal switch\n");
 
 	/* rebuild the basics for the AdminQ, HMC, and initial HW switch */
 	ret = i40e_init_adminq(&pf->hw);
 	if (ret) {
 		dev_info(&pf->pdev->dev, "Rebuild AdminQ failed, %d\n", ret);
-		goto end_core_reset;
+		goto clear_recovery;
 	}
 
 	/* re-verify the eeprom if we just had an EMP reset */
@@ -6103,6 +6108,8 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	i40e_send_version(pf);
 
 end_core_reset:
+	clear_bit(__I40E_RESET_FAILED, &pf->state);
+clear_recovery:
 	clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
 }
 
