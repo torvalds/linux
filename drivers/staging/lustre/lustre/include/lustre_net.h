@@ -1713,7 +1713,7 @@ struct ptlrpc_request {
 	lnet_handle_md_t     rq_req_md_h;
 	struct ptlrpc_cb_id  rq_req_cbid;
 	/** optional time limit for send attempts */
-	cfs_duration_t       rq_delay_limit;
+	long       rq_delay_limit;
 	/** time request was first queued */
 	unsigned long	   rq_queued_time;
 
@@ -2356,7 +2356,7 @@ struct ptlrpc_service_part {
 	/** incoming reqs */
 	struct list_head			scp_req_incoming;
 	/** timeout before re-posting reqs, in tick */
-	cfs_duration_t			scp_rqbd_timeout;
+	long			scp_rqbd_timeout;
 	/**
 	 * all threads sleep on this. This wait-queue is signalled when new
 	 * incoming request arrives and when difficult reply has to be handled.

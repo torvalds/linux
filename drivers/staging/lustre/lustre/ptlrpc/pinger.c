@@ -141,7 +141,7 @@ static inline int ptlrpc_next_reconnect(struct obd_import *imp)
 		return cfs_time_shift(obd_timeout);
 }
 
-cfs_duration_t pinger_check_timeout(unsigned long time)
+long pinger_check_timeout(unsigned long time)
 {
 	struct timeout_item *item;
 	unsigned long timeout = PING_INTERVAL;
@@ -246,7 +246,7 @@ static int ptlrpc_pinger_main(void *arg)
 	while (1) {
 		unsigned long this_ping = cfs_time_current();
 		struct l_wait_info lwi;
-		cfs_duration_t time_to_next_wake;
+		long time_to_next_wake;
 		struct timeout_item *item;
 		struct list_head *iter;
 
@@ -283,8 +283,7 @@ static int ptlrpc_pinger_main(void *arg)
 		       CFS_TIME_T")\n", time_to_next_wake,
 		       cfs_time_add(this_ping,cfs_time_seconds(PING_INTERVAL)));
 		if (time_to_next_wake > 0) {
-			lwi = LWI_TIMEOUT(max_t(cfs_duration_t,
-						time_to_next_wake,
+			lwi = LWI_TIMEOUT(max_t(long, time_to_next_wake,
 						cfs_time_seconds(1)),
 					  NULL, NULL);
 			l_wait_event(thread->t_ctl_waitq,

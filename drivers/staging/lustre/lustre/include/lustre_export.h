@@ -294,7 +294,7 @@ static inline int exp_connect_multibulk(struct obd_export *exp)
 	return exp_max_brw_size(exp) > ONE_MB_BRW_SIZE;
 }
 
-static inline int exp_expired(struct obd_export *exp, cfs_duration_t age)
+static inline int exp_expired(struct obd_export *exp, long age)
 {
 	LASSERT(exp->exp_delayed);
 	return cfs_time_before(cfs_time_add(exp->exp_last_request_time, age),

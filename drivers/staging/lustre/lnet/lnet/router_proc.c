@@ -512,7 +512,7 @@ int LL_PROC_PROTO(proc_lnet_peers)
 
 			if (lnet_peer_aliveness_enabled(peer)) {
 				unsigned long     now = cfs_time_current();
-				cfs_duration_t delta;
+				long delta;
 
 				delta = cfs_time_sub(now, peer->lp_last_alive);
 				lastalive = cfs_duration_sec(delta);

@@ -50,26 +50,16 @@
 /*
  * Platform provides three opaque data-types:
  *
- *  unsigned long	represents point in time. This is internal kernel
- *		    time rather than "wall clock". This time bears no
- *		    relation to gettimeofday().
- *
- *  cfs_duration_t    represents time interval with resolution of internal
- *		    platform clock
- *
- *  struct timespec     represents instance in world-visible time. This is
- *		    used in file-system time-stamps
- *
  *  unsigned long     cfs_time_current(void);
- *  unsigned long     cfs_time_add    (unsigned long, cfs_duration_t);
- *  cfs_duration_t cfs_time_sub    (unsigned long, unsigned long);
+ *  unsigned long     cfs_time_add    (unsigned long, long);
+ *  long cfs_time_sub    (unsigned long, unsigned long);
  *  int	    cfs_impl_time_before (unsigned long, unsigned long);
  *  int	    cfs_impl_time_before_eq(unsigned long, unsigned long);
  *
- *  cfs_duration_t cfs_duration_build(int64_t);
+ *  long cfs_duration_build(int64_t);
  *
- *  time_t	 cfs_duration_sec (cfs_duration_t);
- *  void	   cfs_duration_usec(cfs_duration_t, struct timeval *);
+ *  time_t	 cfs_duration_sec (long);
+ *  void	   cfs_duration_usec(long, struct timeval *);
  *
  *  void	   cfs_fs_time_current(struct timespec *);
  *  time_t	 cfs_fs_time_sec    (struct timespec *);
@@ -107,8 +97,6 @@ static inline void cfs_fs_time_usec(struct timespec *t, struct timeval *v)
  * Generic kernel stuff
  */
 
-typedef long cfs_duration_t;
-
 static inline int cfs_time_before(unsigned long t1, unsigned long t2)
 {
 	return time_before(t1, t2);
@@ -129,28 +117,28 @@ static inline time_t cfs_fs_time_sec(struct timespec *t)
 	return t->tv_sec;
 }
 
-static inline cfs_duration_t cfs_time_seconds(int seconds)
+static inline long cfs_time_seconds(int seconds)
 {
-	return ((cfs_duration_t)seconds) * HZ;
+	return ((long)seconds) * HZ;
 }
 
-static inline time_t cfs_duration_sec(cfs_duration_t d)
+static inline time_t cfs_duration_sec(long d)
 {
 	return d / HZ;
 }
 
-static inline void cfs_duration_usec(cfs_duration_t d, struct timeval *s)
+static inline void cfs_duration_usec(long d, struct timeval *s)
 {
 #if (BITS_PER_LONG == 32) && (HZ > 4096)
 	__u64 t;
 
 	s->tv_sec = d / HZ;
-	t = (d - (cfs_duration_t)s->tv_sec * HZ) * ONE_MILLION;
+	t = (d - (long)s->tv_sec * HZ) * ONE_MILLION;
 	do_div(t, HZ);
 	s->tv_usec = t;
 #else
 	s->tv_sec = d / HZ;
-	s->tv_usec = ((d - (cfs_duration_t)s->tv_sec * HZ) * \
+	s->tv_usec = ((d - (long)s->tv_sec * HZ) * \
 		ONE_MILLION) / HZ;
 #endif
 }

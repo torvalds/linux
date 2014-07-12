@@ -1454,7 +1454,7 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 
 	if (ptlrpc_import_in_recovery(imp)) {
 		struct l_wait_info lwi;
-		cfs_duration_t timeout;
+		long timeout;
 
 		if (AT_OFF) {
 			if (imp->imp_server_timeout)

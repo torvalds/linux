@@ -218,7 +218,7 @@ int LL_PROC_PROTO(proc_console_max_delay_cs)
 {
 	int rc, max_delay_cs;
 	struct ctl_table dummy = *table;
-	cfs_duration_t d;
+	long d;
 
 	dummy.data = &max_delay_cs;
 	dummy.proc_handler = &proc_dointvec;
@@ -249,7 +249,7 @@ int LL_PROC_PROTO(proc_console_min_delay_cs)
 {
 	int rc, min_delay_cs;
 	struct ctl_table dummy = *table;
-	cfs_duration_t d;
+	long d;
 
 	dummy.data = &min_delay_cs;
 	dummy.proc_handler = &proc_dointvec;

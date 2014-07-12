@@ -43,12 +43,12 @@
  * generic time manipulation functions.
  */
 
-static inline unsigned long cfs_time_add(unsigned long t, cfs_duration_t d)
+static inline unsigned long cfs_time_add(unsigned long t, long d)
 {
 	return (unsigned long)(t + d);
 }
 
-static inline cfs_duration_t cfs_time_sub(unsigned long t1, unsigned long t2)
+static inline long cfs_time_sub(unsigned long t1, unsigned long t2)
 {
 	return (unsigned long)(t1 - t2);
 }
@@ -121,7 +121,7 @@ static inline void cfs_fs_timeval(struct timeval *tv)
  * return valid time-out based on user supplied one. Currently we only check
  * that time-out is not shorted than allowed.
  */
-static inline cfs_duration_t cfs_timeout_cap(cfs_duration_t timeout)
+static inline long cfs_timeout_cap(long timeout)
 {
 	if (timeout < CFS_TICK)
 		timeout = CFS_TICK;

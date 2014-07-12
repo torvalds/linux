@@ -2526,7 +2526,7 @@ ksocknal_reaper (void *arg)
 	ksock_sched_t     *sched;
 	struct list_head	 enomem_conns;
 	int		nenomem_conns;
-	cfs_duration_t     timeout;
+	long     timeout;
 	int		i;
 	int		peer_index = 0;
 	unsigned long	 deadline = cfs_time_current();

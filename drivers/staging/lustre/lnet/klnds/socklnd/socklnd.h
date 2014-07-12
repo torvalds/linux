@@ -320,7 +320,7 @@ typedef struct ksock_route
 	struct ksock_peer    *ksnr_peer;	/* owning peer */
 	atomic_t	  ksnr_refcount;    /* # users */
 	unsigned long	    ksnr_timeout;     /* when (in jiffies) reconnection can happen next */
-	cfs_duration_t	ksnr_retry_interval; /* how long between retries */
+	long	ksnr_retry_interval; /* how long between retries */
 	__u32		 ksnr_myipaddr;    /* my IP */
 	__u32		 ksnr_ipaddr;      /* IP address to connect to */
 	int		   ksnr_port;	/* port to connect to */

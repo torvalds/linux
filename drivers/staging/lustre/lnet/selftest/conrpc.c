@@ -477,7 +477,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 	lstcon_rpc_t	 *crpc;
 	srpc_msg_t	   *msg;
 	lstcon_node_t	*nd;
-	cfs_duration_t	dur;
+	long	dur;
 	struct timeval	tv;
 	int		   error;
 
@@ -503,7 +503,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 
 		nd = crpc->crp_node;
 
-		dur = (cfs_duration_t)cfs_time_sub(crpc->crp_stamp,
+		dur = (long)cfs_time_sub(crpc->crp_stamp,
 		      (unsigned long)console_session.ses_id.ses_stamp);
 		cfs_duration_usec(dur, &tv);
 

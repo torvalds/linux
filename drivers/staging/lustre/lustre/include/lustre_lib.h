@@ -459,8 +459,8 @@ static inline int back_to_sleep(void *arg)
 #define LWI_ON_SIGNAL_NOOP ((void (*)(void *))(-1))
 
 struct l_wait_info {
-	cfs_duration_t lwi_timeout;
-	cfs_duration_t lwi_interval;
+	long lwi_timeout;
+	long lwi_interval;
 	int	    lwi_allow_intr;
 	int  (*lwi_on_timeout)(void *);
 	void (*lwi_on_signal)(void *);
@@ -516,7 +516,7 @@ struct l_wait_info {
 #define __l_wait_event(wq, condition, info, ret, l_add_wait)		   \
 do {									   \
 	wait_queue_t __wait;						 \
-	cfs_duration_t __timeout = info->lwi_timeout;			  \
+	long __timeout = info->lwi_timeout;			  \
 	sigset_t   __blocked;					      \
 	int   __allow_intr = info->lwi_allow_intr;			     \
 									       \
@@ -548,11 +548,11 @@ do {									   \
 		if (__timeout == 0) {					  \
 			schedule();						\
 		} else {						       \
-			cfs_duration_t interval = info->lwi_interval?	  \
-					     min_t(cfs_duration_t,	     \
+			long interval = info->lwi_interval?	  \
+					     min_t(long,	     \
 						 info->lwi_interval,__timeout):\
 					     __timeout;			\
-			cfs_duration_t remaining = schedule_timeout(interval);\
+			long remaining = schedule_timeout(interval);\
 			__timeout = cfs_time_sub(__timeout,		    \
 					    cfs_time_sub(interval, remaining));\
 			if (__timeout == 0) {				  \

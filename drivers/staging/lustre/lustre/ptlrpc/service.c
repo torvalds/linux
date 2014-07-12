@@ -1243,7 +1243,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	struct ptlrpc_service_part *svcpt = req->rq_rqbd->rqbd_svcpt;
 	struct ptlrpc_request *reqcopy;
 	struct lustre_msg *reqmsg;
-	cfs_duration_t olddl = req->rq_deadline - get_seconds();
+	long olddl = req->rq_deadline - get_seconds();
 	time_t newdl;
 	int rc;
 
@@ -1382,7 +1382,7 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	__u32  index, count;
 	time_t deadline;
 	time_t now = get_seconds();
-	cfs_duration_t delay;
+	long delay;
 	int first, counter = 0;
 
 	spin_lock(&svcpt->scp_at_lock);
