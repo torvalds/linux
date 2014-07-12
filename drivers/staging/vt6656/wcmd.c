@@ -63,7 +63,6 @@ void vRunCommand(struct work_struct *work)
 {
 	struct vnt_private *pDevice =
 		container_of(work, struct vnt_private, run_command_work.work);
-	u8 byData;
 
 	if (pDevice->Flags & fMP_DISCONNECTED)
 		return;
@@ -85,15 +84,6 @@ void vRunCommand(struct work_struct *work)
 			return;
 		}
 
-		break;
-
-	case WLAN_CMD_CHANGE_BBSENSITIVITY_START:
-
-		pDevice->bStopDataPkt = true;
-		pDevice->byBBVGACurrent = pDevice->byBBVGANew;
-		BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Change sensitivity pDevice->byBBVGACurrent = %x\n", pDevice->byBBVGACurrent);
-		pDevice->bStopDataPkt = false;
 		break;
 
 	case WLAN_CMD_TBTT_WAKEUP_START:
@@ -134,26 +124,10 @@ void vRunCommand(struct work_struct *work)
 		}
 		break;
 
-	case WLAN_CMD_MAC_DISPOWERSAVING_START:
-		vnt_control_in_u8(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
-		if ((byData & PSCTL_PS) != 0) {
-			// disable power saving hw function
-			vnt_control_out(pDevice,
-					MESSAGE_TYPE_DISABLE_PS,
-					0,
-					0,
-					0,
-					NULL
-					);
-		}
-		break;
-
 	case WLAN_CMD_11H_CHSW_START:
 		vnt_set_channel(pDevice, pDevice->hw->conf.chandef.chan->hw_value);
 		break;
 
-	case WLAN_CMD_CONFIGURE_FILTER_START:
-		break;
 	default:
 		break;
 	} //switch
@@ -185,10 +159,6 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
 			pDevice->eCommandState = WLAN_CMD_INIT_MAC80211_START;
 			break;
 
-		case WLAN_CMD_CHANGE_BBSENSITIVITY:
-			pDevice->eCommandState = WLAN_CMD_CHANGE_BBSENSITIVITY_START;
-			break;
-
 		case WLAN_CMD_TBTT_WAKEUP:
 			pDevice->eCommandState = WLAN_CMD_TBTT_WAKEUP_START;
 			break;
@@ -203,10 +173,6 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
 
 		case WLAN_CMD_CHANGE_ANTENNA:
 			pDevice->eCommandState = WLAN_CMD_CHANGE_ANTENNA_START;
-			break;
-
-		case WLAN_CMD_MAC_DISPOWERSAVING:
-			pDevice->eCommandState = WLAN_CMD_MAC_DISPOWERSAVING_START;
 			break;
 
 		case WLAN_CMD_11H_CHSW:
