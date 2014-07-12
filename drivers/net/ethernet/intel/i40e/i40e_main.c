@@ -7469,7 +7469,7 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_set_vf_rate	= i40e_ndo_set_vf_bw,
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
 	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
-	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofck,
+	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofchk,
 #ifdef CONFIG_I40E_VXLAN
 	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
