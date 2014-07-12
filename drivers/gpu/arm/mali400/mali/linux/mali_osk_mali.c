@@ -22,6 +22,23 @@
 #include "mali_osk.h"           /* kernel side OS functions */
 #include "mali_kernel_linux.h"
 
+static u32 _mali_osk_resource_irq(_mali_osk_resource_t *res)
+{
+	int i;
+	char name[32];
+	struct resource *resource;
+
+	snprintf(name, sizeof(name), "%s_IRQ", res->description);
+	for (i = 0; i < mali_platform_device->num_resources; i++) {
+		resource = &mali_platform_device->resource[i];
+		if (IORESOURCE_IRQ == resource_type(resource) &&
+		    !strncmp(name, resource->name, sizeof(name)))
+			return resource->start;
+	}
+
+	return -1;
+}
+
 _mali_osk_errcode_t _mali_osk_resource_find(u32 addr, _mali_osk_resource_t *res)
 {
 	int i;
@@ -38,6 +55,8 @@ _mali_osk_errcode_t _mali_osk_resource_find(u32 addr, _mali_osk_resource_t *res)
 				res->base = addr;
 				res->description = mali_platform_device->resource[i].name;
 
+				res->irq = _mali_osk_resource_irq(res);
+#if 0
 				/* Any (optional) IRQ resource belonging to this resource will follow */
 				if ((i + 1) < mali_platform_device->num_resources &&
 				    IORESOURCE_IRQ == resource_type(&(mali_platform_device->resource[i+1]))) {
@@ -45,6 +64,7 @@ _mali_osk_errcode_t _mali_osk_resource_find(u32 addr, _mali_osk_resource_t *res)
 				} else {
 					res->irq = -1;
 				}
+#endif
 			}
 			return _MALI_OSK_ERR_OK;
 		}
