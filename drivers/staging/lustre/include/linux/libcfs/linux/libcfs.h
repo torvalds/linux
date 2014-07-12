@@ -44,13 +44,13 @@
 
 #include <linux/bitops.h>
 #include <linux/mutex.h>
+#include <linux/types.h>
 #include <stdarg.h>
 #include "linux-cpu.h"
 #include "linux-time.h"
 #include "linux-mem.h"
 #include "linux-prim.h"
 #include "linux-tcpip.h"
-#include "linux-types.h"
 #include "kp30.h"
 
 #include <asm/types.h>
