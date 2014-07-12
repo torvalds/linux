@@ -1348,9 +1348,6 @@ static void le_setup(struct hci_request *req)
 	/* Read LE Supported States */
 	hci_req_add(req, HCI_OP_LE_READ_SUPPORTED_STATES, 0, NULL);
 
-	/* Read LE Advertising Channel TX Power */
-	hci_req_add(req, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
-
 	/* Read LE White List Size */
 	hci_req_add(req, HCI_OP_LE_READ_WHITE_LIST_SIZE, 0, NULL);
 
@@ -1656,6 +1653,11 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
+
+		if (hdev->commands[25] & 0x40) {
+			/* Read LE Advertising Channel TX Power */
+			hci_req_add(req, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
+		}
 
 		hci_set_le_support(req);
 	}
