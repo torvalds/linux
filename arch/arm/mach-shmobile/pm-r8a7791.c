@@ -10,10 +10,17 @@
  * for more details.
  */
 
-#include <asm/io.h>
 #include <linux/kernel.h>
-#include <mach/r8a7791.h>
+#include <linux/smp.h>
+#include <asm/io.h>
+#include "common.h"
 #include "pm-rcar.h"
+#include "r8a7791.h"
+
+#define RST		0xe6160000
+#define CA15BAR		0x0020
+#define CA15RESCNT	0x0040
+#define RAM		0xe6300000
 
 /* SYSC */
 #define SYSCIER 0x0c
@@ -38,10 +45,29 @@ static inline void r8a7791_sysc_init(void) {}
 
 void __init r8a7791_pm_init(void)
 {
+	void __iomem *p;
+	u32 bar;
 	static int once;
 
 	if (once++)
 		return;
 
+	/* RAM for jump stub, because BAR requires 256KB aligned address */
+	p = ioremap_nocache(RAM, shmobile_boot_size);
+	memcpy_toio(p, shmobile_boot_vector, shmobile_boot_size);
+	iounmap(p);
+
+	/* setup reset vectors */
+	p = ioremap_nocache(RST, 0x63);
+	bar = (RAM >> 8) & 0xfffffc00;
+	writel_relaxed(bar, p + CA15BAR);
+	writel_relaxed(bar | 0x10, p + CA15BAR);
+
+	/* enable clocks to all CPUs */
+	writel_relaxed((readl_relaxed(p + CA15RESCNT) & ~0x0f) | 0xa5a50000,
+		       p + CA15RESCNT);
+	iounmap(p);
+
 	r8a7791_sysc_init();
+	shmobile_smp_apmu_suspend_init();
 }

@@ -10,14 +10,17 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/linkage.h>
+#include <linux/threads.h>
 #include <asm/memory.h>
 
+#ifdef CONFIG_SMP
 ENTRY(shmobile_invalidate_start)
 	bl	v7_invalidate_l1
 	b	secondary_startup
 ENDPROC(shmobile_invalidate_start)
+#endif
 
 /*
  * Reset vector for secondary CPUs.
@@ -68,7 +71,7 @@ shmobile_smp_boot_find_mpidr:
 
 shmobile_smp_boot_next:
 	add	r1, r1, #1
-	cmp	r1, #CONFIG_NR_CPUS
+	cmp	r1, #NR_CPUS
 	blo	shmobile_smp_boot_find_mpidr
 
 	b	shmobile_smp_sleep
@@ -85,10 +88,10 @@ ENDPROC(shmobile_smp_sleep)
 
 	.globl	shmobile_smp_mpidr
 shmobile_smp_mpidr:
-1:	.space	CONFIG_NR_CPUS * 4
+1:	.space	NR_CPUS * 4
 	.globl	shmobile_smp_fn
 shmobile_smp_fn:
-2:	.space	CONFIG_NR_CPUS * 4
+2:	.space	NR_CPUS * 4
 	.globl	shmobile_smp_arg
 shmobile_smp_arg:
-3:	.space	CONFIG_NR_CPUS * 4
+3:	.space	NR_CPUS * 4

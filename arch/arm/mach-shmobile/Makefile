@@ -34,16 +34,18 @@ obj-$(CONFIG_ARCH_R8A7791)	+= clock-r8a7791.o
 obj-$(CONFIG_ARCH_R7S72100)	+= clock-r7s72100.o
 endif
 
+# CPU reset vector handling objects
+cpu-y				:= platsmp.o headsmp.o
+cpu-$(CONFIG_ARCH_R8A7790)	+= platsmp-apmu.o
+cpu-$(CONFIG_ARCH_R8A7791)	+= platsmp-apmu.o
+
 # SMP objects
-smp-y				:= platsmp.o headsmp.o
+smp-y				:= $(cpu-y)
 smp-$(CONFIG_ARCH_SH73A0)	+= smp-sh73a0.o headsmp-scu.o platsmp-scu.o
 smp-$(CONFIG_ARCH_R8A7779)	+= smp-r8a7779.o headsmp-scu.o platsmp-scu.o
-smp-$(CONFIG_ARCH_R8A7790)	+= smp-r8a7790.o platsmp-apmu.o
-smp-$(CONFIG_ARCH_R8A7791)	+= smp-r8a7791.o platsmp-apmu.o
+smp-$(CONFIG_ARCH_R8A7790)	+= smp-r8a7790.o
+smp-$(CONFIG_ARCH_R8A7791)	+= smp-r8a7791.o
 smp-$(CONFIG_ARCH_EMEV2)	+= smp-emev2.o headsmp-scu.o platsmp-scu.o
-
-# IRQ objects
-obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
 
 # PM objects
 obj-$(CONFIG_SUSPEND)		+= suspend.o
@@ -53,8 +55,11 @@ obj-$(CONFIG_ARCH_SH7372)	+= pm-sh7372.o sleep-sh7372.o pm-rmobile.o
 obj-$(CONFIG_ARCH_SH73A0)	+= pm-sh73a0.o
 obj-$(CONFIG_ARCH_R8A7740)	+= pm-r8a7740.o pm-rmobile.o
 obj-$(CONFIG_ARCH_R8A7779)	+= pm-r8a7779.o pm-rcar.o
-obj-$(CONFIG_ARCH_R8A7790)	+= pm-r8a7790.o pm-rcar.o
-obj-$(CONFIG_ARCH_R8A7791)	+= pm-r8a7791.o pm-rcar.o
+obj-$(CONFIG_ARCH_R8A7790)	+= pm-r8a7790.o pm-rcar.o $(cpu-y)
+obj-$(CONFIG_ARCH_R8A7791)	+= pm-r8a7791.o pm-rcar.o $(cpu-y)
+
+# IRQ objects
+obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
 
 # Board objects
 ifdef CONFIG_ARCH_SHMOBILE_MULTI
