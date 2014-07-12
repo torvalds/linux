@@ -12238,7 +12238,9 @@ static void drx39xxj_release(struct dvb_frontend *fe)
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	struct drx_demod_instance *demod = state->demod;
 
-	drxj_close(demod);
+	/* if device is removed don't access it */
+	if (fe->exit != DVB_FE_DEVICE_REMOVED)
+		drxj_close(demod);
 
 	kfree(demod->my_ext_attr);
 	kfree(demod->my_common_attr);
