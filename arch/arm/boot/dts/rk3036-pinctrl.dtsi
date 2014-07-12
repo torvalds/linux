@@ -415,6 +415,53 @@
 
 		};
 
+		gpio1_nandc {
+			nandc_ale:nandc-ale {
+				rockchip,pins = <NAND_ALE>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_cle:nandc-cle {
+				rockchip,pins = <NAND_CLE>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_wrn:nandc-wrn {
+				rockchip,pins = <NAND_WRN>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_rdn:nandc-rdn {
+				rockchip,pins = <NAND_RDN>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_rdy:nandc-rdy {
+				rockchip,pins = <NAND_RDY>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+			nandc_cs0:nandc-cs0 {
+				rockchip,pins = <NAND_CS0>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;
+			};
+
+
+			nandc_data: nandc-data {
+				rockchip,pins = <NAND_D0>,
+						<NAND_D1>,
+						<NAND_D2>,
+						<NAND_D3>,
+						<NAND_D4>,
+						<NAND_D5>,
+						<NAND_D6>,
+						<NAND_D7>;
+				rockchip,pull = <VALUE_PULL_DEFAULT>;	
+
+			};
+
+		};
+
 		gpio0_sdio0 {
 			sdio0_clk: sdio0_clk {
 				rockchip,pins = <MMC1_CLKOUT>;
