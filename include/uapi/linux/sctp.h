@@ -95,6 +95,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_GET_ASSOC_ID_LIST	29	/* Read only */
 #define SCTP_AUTO_ASCONF       30
 #define SCTP_PEER_ADDR_THLDS	31
+#define SCTP_RECVRCVINFO	32
 
 /* Internal Socket Options. Some of the sctp library functions are
  * implemented using these socket options.
@@ -110,8 +111,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_SOCKOPT_CONNECTX3	111	/* CONNECTX requests (updated) */
 #define SCTP_GET_ASSOC_STATS	112	/* Read only */
 
-/*
- * 5.2.1 SCTP Initiation Structure (SCTP_INIT)
+/* 5.3.1 SCTP Initiation Structure (SCTP_INIT)
  *
  *   This cmsghdr structure provides information for initializing new
  *   SCTP associations with sendmsg().  The SCTP_INITMSG socket option
@@ -121,7 +121,6 @@ typedef __s32 sctp_assoc_t;
  *   cmsg_level    cmsg_type      cmsg_data[]
  *   ------------  ------------   ----------------------
  *   IPPROTO_SCTP  SCTP_INIT      struct sctp_initmsg
- *
  */
 struct sctp_initmsg {
 	__u16 sinit_num_ostreams;
@@ -130,8 +129,7 @@ struct sctp_initmsg {
 	__u16 sinit_max_init_timeo;
 };
 
-/*
- * 5.2.2 SCTP Header Information Structure (SCTP_SNDRCV)
+/* 5.3.2 SCTP Header Information Structure (SCTP_SNDRCV)
  *
  *   This cmsghdr structure specifies SCTP options for sendmsg() and
  *   describes SCTP header information about a received message through
@@ -140,7 +138,6 @@ struct sctp_initmsg {
  *   cmsg_level    cmsg_type      cmsg_data[]
  *   ------------  ------------   ----------------------
  *   IPPROTO_SCTP  SCTP_SNDRCV    struct sctp_sndrcvinfo
- *
  */
 struct sctp_sndrcvinfo {
 	__u16 sinfo_stream;
@@ -170,13 +167,32 @@ struct sctp_sndinfo {
 	sctp_assoc_t snd_assoc_id;
 };
 
+/* 5.3.5 SCTP Receive Information Structure (SCTP_RCVINFO)
+ *
+ *   This cmsghdr structure describes SCTP receive information
+ *   about a received message through recvmsg().
+ *
+ *   cmsg_level    cmsg_type      cmsg_data[]
+ *   ------------  ------------   -------------------
+ *   IPPROTO_SCTP  SCTP_RCVINFO   struct sctp_rcvinfo
+ */
+struct sctp_rcvinfo {
+	__u16 rcv_sid;
+	__u16 rcv_ssn;
+	__u16 rcv_flags;
+	__u32 rcv_ppid;
+	__u32 rcv_tsn;
+	__u32 rcv_cumtsn;
+	__u32 rcv_context;
+	sctp_assoc_t rcv_assoc_id;
+};
+
 /*
  *  sinfo_flags: 16 bits (unsigned integer)
  *
  *   This field may contain any of the following flags and is composed of
  *   a bitwise OR of these values.
  */
-
 enum sctp_sinfo_flags {
 	SCTP_UNORDERED = 1,  /* Send/receive message unordered. */
 	SCTP_ADDR_OVER = 2,  /* Override the primary destination. */
@@ -199,6 +215,8 @@ typedef enum sctp_cmsg_type {
 #define SCTP_SNDRCV	SCTP_SNDRCV
 	SCTP_SNDINFO,		/* 5.3.4 SCTP Send Information Structure */
 #define SCTP_SNDINFO	SCTP_SNDINFO
+	SCTP_RCVINFO,		/* 5.3.5 SCTP Receive Information Structure */
+#define SCTP_RCVINFO	SCTP_RCVINFO
 } sctp_cmsg_t;
 
 /*
