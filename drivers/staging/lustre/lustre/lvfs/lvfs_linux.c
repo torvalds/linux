@@ -47,11 +47,11 @@
 #include <linux/quotaops.h>
 #include <linux/module.h>
 #include "../../include/linux/libcfs/libcfs.h"
-#include <linux/lustre_compat25.h>
-#include <lvfs.h>
+#include "../include/linux/lustre_compat25.h"
+#include "../include/lvfs.h"
 
-#include <obd.h>
-#include <lustre_lib.h>
+#include "../include/obd.h"
+#include "../include/lustre_lib.h"
 
 struct lprocfs_stats *obd_memory = NULL;
 EXPORT_SYMBOL(obd_memory);
