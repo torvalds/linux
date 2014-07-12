@@ -908,7 +908,7 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 		break;
 	default:
 		dev_err(priv->adapter->dev,
-			"Unknown TDLS command action respnse %d", action);
+			"Unknown TDLS command action response %d", action);
 		return -1;
 	}
 
