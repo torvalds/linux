@@ -189,19 +189,19 @@ static int s_bCommandComplete(struct vnt_private *priv)
 	return true;
 }
 
-int bScheduleCommand(struct vnt_private *pDevice,
-		CMD_CODE eCommand, u8 *pbyItem0)
+int bScheduleCommand(struct vnt_private *priv, CMD_CODE command, u8 *item0)
 {
 
-	if (pDevice->cbFreeCmdQueue == 0)
+	if (priv->cbFreeCmdQueue == 0)
 		return false;
-	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].eCmd = eCommand;
 
-	ADD_ONE_WITH_WRAP_AROUND(pDevice->uCmdEnqueueIdx, CMD_Q_SIZE);
-	pDevice->cbFreeCmdQueue--;
+	priv->eCmdQueue[priv->uCmdEnqueueIdx].eCmd = command;
 
-	if (pDevice->bCmdRunning == false)
-		s_bCommandComplete(pDevice);
+	ADD_ONE_WITH_WRAP_AROUND(priv->uCmdEnqueueIdx, CMD_Q_SIZE);
+	priv->cbFreeCmdQueue--;
+
+	if (priv->bCmdRunning == false)
+		s_bCommandComplete(priv);
 
 	return true;
 
