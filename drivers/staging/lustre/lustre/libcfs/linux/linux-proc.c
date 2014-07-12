@@ -63,7 +63,7 @@
 
 #include "../../../include/linux/libcfs/libcfs.h"
 #include <asm/div64.h>
-#include "tracefile.h"
+#include "../tracefile.h"
 
 static ctl_table_header_t *lnet_table_header = NULL;
 extern char lnet_upcall[1024];
