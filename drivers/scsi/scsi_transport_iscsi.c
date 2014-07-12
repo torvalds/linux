@@ -3429,7 +3429,7 @@ iscsi_get_host_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 	char *buf;
 
 	if (!transport->get_host_stats)
-		return -EINVAL;
+		return -ENOSYS;
 
 	priv = iscsi_if_transport_lookup(transport);
 	if (!priv)
