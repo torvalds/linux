@@ -526,14 +526,22 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 	}
 
 	/* Extract the antenna gain values. */
-	SPEX(antenna_gain.a0, SSB_SPROM4_AGAIN01,
-	     SSB_SPROM4_AGAIN0, SSB_SPROM4_AGAIN0_SHIFT);
-	SPEX(antenna_gain.a1, SSB_SPROM4_AGAIN01,
-	     SSB_SPROM4_AGAIN1, SSB_SPROM4_AGAIN1_SHIFT);
-	SPEX(antenna_gain.a2, SSB_SPROM4_AGAIN23,
-	     SSB_SPROM4_AGAIN2, SSB_SPROM4_AGAIN2_SHIFT);
-	SPEX(antenna_gain.a3, SSB_SPROM4_AGAIN23,
-	     SSB_SPROM4_AGAIN3, SSB_SPROM4_AGAIN3_SHIFT);
+	out->antenna_gain.a0 = sprom_extract_antgain(out->revision, in,
+						     SSB_SPROM4_AGAIN01,
+						     SSB_SPROM4_AGAIN0,
+						     SSB_SPROM4_AGAIN0_SHIFT);
+	out->antenna_gain.a1 = sprom_extract_antgain(out->revision, in,
+						     SSB_SPROM4_AGAIN01,
+						     SSB_SPROM4_AGAIN1,
+						     SSB_SPROM4_AGAIN1_SHIFT);
+	out->antenna_gain.a2 = sprom_extract_antgain(out->revision, in,
+						     SSB_SPROM4_AGAIN23,
+						     SSB_SPROM4_AGAIN2,
+						     SSB_SPROM4_AGAIN2_SHIFT);
+	out->antenna_gain.a3 = sprom_extract_antgain(out->revision, in,
+						     SSB_SPROM4_AGAIN23,
+						     SSB_SPROM4_AGAIN3,
+						     SSB_SPROM4_AGAIN3_SHIFT);
 
 	sprom_extract_r458(out, in);
 
@@ -623,14 +631,22 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 	SPEX32(ofdm5ghpo, SSB_SPROM8_OFDM5GHPO, 0xFFFFFFFF, 0);
 
 	/* Extract the antenna gain values. */
-	SPEX(antenna_gain.a0, SSB_SPROM8_AGAIN01,
-	     SSB_SPROM8_AGAIN0, SSB_SPROM8_AGAIN0_SHIFT);
-	SPEX(antenna_gain.a1, SSB_SPROM8_AGAIN01,
-	     SSB_SPROM8_AGAIN1, SSB_SPROM8_AGAIN1_SHIFT);
-	SPEX(antenna_gain.a2, SSB_SPROM8_AGAIN23,
-	     SSB_SPROM8_AGAIN2, SSB_SPROM8_AGAIN2_SHIFT);
-	SPEX(antenna_gain.a3, SSB_SPROM8_AGAIN23,
-	     SSB_SPROM8_AGAIN3, SSB_SPROM8_AGAIN3_SHIFT);
+	out->antenna_gain.a0 = sprom_extract_antgain(out->revision, in,
+						     SSB_SPROM8_AGAIN01,
+						     SSB_SPROM8_AGAIN0,
+						     SSB_SPROM8_AGAIN0_SHIFT);
+	out->antenna_gain.a1 = sprom_extract_antgain(out->revision, in,
+						     SSB_SPROM8_AGAIN01,
+						     SSB_SPROM8_AGAIN1,
+						     SSB_SPROM8_AGAIN1_SHIFT);
+	out->antenna_gain.a2 = sprom_extract_antgain(out->revision, in,
+						     SSB_SPROM8_AGAIN23,
+						     SSB_SPROM8_AGAIN2,
+						     SSB_SPROM8_AGAIN2_SHIFT);
+	out->antenna_gain.a3 = sprom_extract_antgain(out->revision, in,
+						     SSB_SPROM8_AGAIN23,
+						     SSB_SPROM8_AGAIN3,
+						     SSB_SPROM8_AGAIN3_SHIFT);
 
 	/* Extract cores power info info */
 	for (i = 0; i < ARRAY_SIZE(pwr_info_offset); i++) {
