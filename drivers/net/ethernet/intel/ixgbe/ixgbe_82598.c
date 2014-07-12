@@ -430,7 +430,6 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 		hw_dbg(hw, "Flow control param set incorrectly\n");
 		ret_val = IXGBE_ERR_CONFIG;
 		goto out;
-		break;
 	}
 
 	/* Set 802.3x based flow control settings. */
