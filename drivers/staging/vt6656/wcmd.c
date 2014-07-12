@@ -185,10 +185,6 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
 			pDevice->eCommandState = WLAN_CMD_INIT_MAC80211_START;
 			break;
 
-		case WLAN_CMD_RADIO:
-			pDevice->eCommandState = WLAN_CMD_RADIO_START;
-			pDevice->bRadioCmd = bRadioCmd;
-			break;
 		case WLAN_CMD_CHANGE_BBSENSITIVITY:
 			pDevice->eCommandState = WLAN_CMD_CHANGE_BBSENSITIVITY_START;
 			break;
@@ -234,16 +230,6 @@ int bScheduleCommand(struct vnt_private *pDevice,
 		return false;
 	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].eCmd = eCommand;
 	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bForceSCAN = true;
-	if (pbyItem0 != NULL) {
-		switch (eCommand) {
-		case WLAN_CMD_RADIO:
-			pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bRadioCmd = *((int *)pbyItem0);
-			break;
-
-		default:
-			break;
-		}
-	}
 
 	ADD_ONE_WITH_WRAP_AROUND(pDevice->uCmdEnqueueIdx, CMD_Q_SIZE);
 	pDevice->cbFreeCmdQueue--;

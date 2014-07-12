@@ -197,12 +197,6 @@ void INTnsProcessData(struct vnt_private *priv)
 		low_stats->dot11FCSErrorCount += int_data->fcs_err;
 	}
 
-	if (int_data->isr1 != 0)
-		if (int_data->isr1 & ISR_GPIO3)
-			bScheduleCommand((void *) priv,
-					WLAN_CMD_RADIO,
-					NULL);
-
 	priv->int_buf.in_use = false;
 
 	stats->tx_errors = priv->wstats.discard.retries;
