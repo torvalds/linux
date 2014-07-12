@@ -103,9 +103,16 @@
 		compatible = "rockchip,rk-nandc";
 		reg = <0x10500000 0x4000>;
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&nandc_ale &nandc_cle &nandc_wrn &nandc_rdn &nandc_rdy &nandc_cs0 &nandc_data>;
 		nandc_id = <0>;
 		clocks = <&clk_nandc>, <&clk_gates5 9>, <&clk_gates10 4>;
 		clock-names = "clk_nandc", "g_clk_nandc", "hclk_nandc";
+	};
+	
+	nandc0reg: nandc0@10500000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0x10500000 0x4000>;
 	};
 
 	spi0: spi@20074000 {
