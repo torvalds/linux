@@ -103,7 +103,7 @@ typedef struct {
 } kptl_msg_t;
 
 /* kptl_msg_t::ptlm_credits is only a __u8 */
-#define PTLLND_MSG_MAX_CREDITS ((typeof(((kptl_msg_t*) 0)->ptlm_credits)) - 1)
+#define PTLLND_MSG_MAX_CREDITS ((typeof(((kptl_msg_t *)0)->ptlm_credits)) - 1)
 
 #define PTLLND_MSG_MAGIC		LNET_PROTO_PTL_MAGIC
 #define PTLLND_MSG_VERSION	      0x04
