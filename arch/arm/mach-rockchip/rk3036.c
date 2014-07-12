@@ -82,7 +82,6 @@ static void __init rk3036_boot_mode_init(void)
     rockchip_boot_mode_init(flag, mode);
 }
 
-#if 0
 static void usb_uart_init(void)
 {
 #ifdef CONFIG_RK_USB_UART
@@ -96,17 +95,14 @@ static void usb_uart_init(void)
             writel_relaxed(0x34003000, RK_GRF_VIRT + RK3036_GRF_UOC1_CON4);
     }
 #endif
-#ifdef RK_DEBUG_UART_VIRT
-    writel_relaxed(0x07, RK_DEBUG_UART_VIRT + 0x88);
+
     writel_relaxed(0x07, RK_DEBUG_UART_VIRT + 0x88);
     writel_relaxed(0x00, RK_DEBUG_UART_VIRT + 0x04);
     writel_relaxed(0x83, RK_DEBUG_UART_VIRT + 0x0c);
     writel_relaxed(0x0d, RK_DEBUG_UART_VIRT + 0x00);
     writel_relaxed(0x00, RK_DEBUG_UART_VIRT + 0x04);
     writel_relaxed(0x03, RK_DEBUG_UART_VIRT + 0x0c);
-#endif //end of DEBUG_UART_BASE
 }
-#endif
 
 static void __init rk3036_dt_map_io(void)
 {
