@@ -60,7 +60,7 @@ static inline int cfs_time_after(unsigned long t1, unsigned long t2)
 
 static inline int cfs_time_aftereq(unsigned long t1, unsigned long t2)
 {
-	return cfs_time_beforeq(t2, t1);
+	return time_before_eq(t2, t1);
 }
 
 static inline unsigned long cfs_time_shift(int seconds)

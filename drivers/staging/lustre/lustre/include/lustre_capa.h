@@ -279,7 +279,7 @@ static inline int capa_is_expired_sec(struct lustre_capa *capa)
 
 static inline int capa_is_expired(struct obd_capa *ocapa)
 {
-	return cfs_time_beforeq(ocapa->c_expiry, cfs_time_current());
+	return time_before_eq(ocapa->c_expiry, cfs_time_current());
 }
 
 static inline int capa_opc_supported(struct lustre_capa *capa, __u64 opc)

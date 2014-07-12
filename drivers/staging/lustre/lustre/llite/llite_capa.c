@@ -88,7 +88,7 @@ static inline unsigned long capa_renewal_time(struct obd_capa *ocapa)
 
 static inline int capa_is_to_expire(struct obd_capa *ocapa)
 {
-	return cfs_time_beforeq(capa_renewal_time(ocapa), cfs_time_current());
+	return time_before_eq(capa_renewal_time(ocapa), cfs_time_current());
 }
 
 static inline int have_expired_capa(void)

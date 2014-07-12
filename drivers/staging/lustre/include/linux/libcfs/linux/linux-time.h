@@ -114,11 +114,6 @@ static inline int cfs_time_before(unsigned long t1, unsigned long t2)
 	return time_before(t1, t2);
 }
 
-static inline int cfs_time_beforeq(unsigned long t1, unsigned long t2)
-{
-	return time_before_eq(t1, t2);
-}
-
 static inline unsigned long cfs_time_current(void)
 {
 	return jiffies;
