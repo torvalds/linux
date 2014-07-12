@@ -40,7 +40,7 @@ bool xen_running_on_version_or_later(unsigned int major, unsigned int minor);
 #ifdef CONFIG_XEN_EFI
 extern efi_system_table_t *xen_efi_probe(void);
 #else
-static efi_system_table_t __init *xen_efi_probe(void)
+static inline efi_system_table_t __init *xen_efi_probe(void)
 {
 	return NULL;
 }
