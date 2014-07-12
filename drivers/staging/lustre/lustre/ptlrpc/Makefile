@@ -18,5 +18,3 @@ ptlrpc_objs += sec_null.o sec_plain.o nrs.o nrs_fifo.o
 ptlrpc-y := $(ldlm_objs) $(ptlrpc_objs)
 ptlrpc-$(CONFIG_PROC_FS) += sec_lproc.o
 ptlrpc-$(CONFIG_LUSTRE_TRANSLATE_ERRNOS) += errno.o
-
-obj-$(CONFIG_PTLRPC_GSS) += gss/
