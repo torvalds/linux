@@ -54,11 +54,9 @@ static int msglevel = MSG_LEVEL_INFO;
 
 static int s_bCommandComplete(struct vnt_private *);
 
-static void
-vCommandTimerWait(struct vnt_private *pDevice, unsigned long MSecond)
+static void vCommandTimerWait(struct vnt_private *priv, unsigned long msecs)
 {
-	schedule_delayed_work(&pDevice->run_command_work,
-						msecs_to_jiffies(MSecond));
+	schedule_delayed_work(&priv->run_command_work, msecs_to_jiffies(msecs));
 }
 
 void vRunCommand(struct work_struct *work)
