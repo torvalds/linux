@@ -666,28 +666,34 @@ static const struct brcmf_firmware_names brcmf_fwname_data[] = {
 	{ BRCM_CC_4354_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4354) }
 };
 
-static const char *brcmf_sdio_get_fwname(struct brcmf_chip *ci,
-					 enum brcmf_firmware_type type)
+static int brcmf_sdio_get_fwnames(struct brcmf_chip *ci,
+				  struct brcmf_sdio_dev *sdiodev)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(brcmf_fwname_data); i++) {
 		if (brcmf_fwname_data[i].chipid == ci->chip &&
-		    brcmf_fwname_data[i].revmsk & BIT(ci->chiprev)) {
-			switch (type) {
-			case BRCMF_FIRMWARE_BIN:
-				return brcmf_fwname_data[i].bin;
-			case BRCMF_FIRMWARE_NVRAM:
-				return brcmf_fwname_data[i].nv;
-			default:
-				brcmf_err("invalid firmware type (%d)\n", type);
-				return NULL;
-			}
-		}
+		    brcmf_fwname_data[i].revmsk & BIT(ci->chiprev))
+			break;
 	}
-	brcmf_err("Unknown chipid %d [%d]\n",
-		  ci->chip, ci->chiprev);
-	return NULL;
+
+	if (i == ARRAY_SIZE(brcmf_fwname_data)) {
+		brcmf_err("Unknown chipid %d [%d]\n", ci->chip, ci->chiprev);
+		return -ENODEV;
+	}
+
+	/* check if firmware path is provided by module parameter */
+	if (brcmf_firmware_path[0] != '\0') {
+		if (brcmf_firmware_path[strlen(brcmf_firmware_path) - 1] != '/')
+			strcat(brcmf_firmware_path, "/");
+
+		strcpy(sdiodev->fw_name, brcmf_firmware_path);
+		strcpy(sdiodev->nvram_name, brcmf_firmware_path);
+	}
+	strcat(sdiodev->fw_name, brcmf_fwname_data[i].bin);
+	strcat(sdiodev->nvram_name, brcmf_fwname_data[i].nv);
+
+	return 0;
 }
 
 static void pkt_align(struct sk_buff *p, int len, int align)
@@ -4160,11 +4166,12 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	brcmf_sdio_debugfs_create(bus);
 	brcmf_dbg(INFO, "completed!!\n");
 
+	ret = brcmf_sdio_get_fwnames(bus->ci, sdiodev);
+	if (ret)
+		goto fail;
+
 	ret = brcmf_fw_get_firmwares(sdiodev->dev, BRCMF_FW_REQUEST_NVRAM,
-				     brcmf_sdio_get_fwname(bus->ci,
-							   BRCMF_FIRMWARE_BIN),
-				     brcmf_sdio_get_fwname(bus->ci,
-							   BRCMF_FIRMWARE_NVRAM),
+				     sdiodev->fw_name, sdiodev->nvram_name,
 				     brcmf_sdio_firmware_callback);
 	if (ret != 0) {
 		brcmf_err("async firmware request failed: %d\n", ret);
