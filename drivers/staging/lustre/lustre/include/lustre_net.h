@@ -1715,7 +1715,7 @@ struct ptlrpc_request {
 	/** optional time limit for send attempts */
 	cfs_duration_t       rq_delay_limit;
 	/** time request was first queued */
-	cfs_time_t	   rq_queued_time;
+	unsigned long	   rq_queued_time;
 
 	/* server-side... */
 	/** request arrival time */
@@ -2407,7 +2407,7 @@ struct ptlrpc_service_part {
 	/** early reply timer */
 	struct timer_list		scp_at_timer;
 	/** debug */
-	cfs_time_t			scp_at_checktime;
+	unsigned long			scp_at_checktime;
 	/** check early replies */
 	unsigned			scp_at_check;
 	/** @} */

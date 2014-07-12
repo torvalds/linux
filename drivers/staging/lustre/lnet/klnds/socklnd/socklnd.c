@@ -1483,7 +1483,7 @@ void
 ksocknal_peer_failed (ksock_peer_t *peer)
 {
 	int	notify = 0;
-	cfs_time_t last_alive = 0;
+	unsigned long last_alive = 0;
 
 	/* There has been a connection failure or comms error; but I'll only
 	 * tell LNET I think the peer is dead if it's to another kernel and
@@ -1620,7 +1620,7 @@ ksocknal_queue_zombie_conn (ksock_conn_t *conn)
 void
 ksocknal_destroy_conn (ksock_conn_t *conn)
 {
-	cfs_time_t      last_rcv;
+	unsigned long      last_rcv;
 
 	/* Final coup-de-grace of the reaper */
 	CDEBUG (D_NET, "connection %p\n", conn);
@@ -1789,11 +1789,11 @@ ksocknal_notify (lnet_ni_t *ni, lnet_nid_t gw_nid, int alive)
 }
 
 void
-ksocknal_query (lnet_ni_t *ni, lnet_nid_t nid, cfs_time_t *when)
+ksocknal_query (lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
 {
 	int		connect = 1;
-	cfs_time_t	 last_alive = 0;
-	cfs_time_t	 now = cfs_time_current();
+	unsigned long	 last_alive = 0;
+	unsigned long	 now = cfs_time_current();
 	ksock_peer_t      *peer = NULL;
 	rwlock_t		*glock = &ksocknal_data.ksnd_global_lock;
 	lnet_process_id_t  id = {.nid = nid, .pid = LUSTRE_SRV_LNET_PID};

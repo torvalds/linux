@@ -682,7 +682,7 @@ lnet_ni_eager_recv(lnet_ni_t *ni, lnet_msg_t *msg)
 void
 lnet_ni_query_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 {
-	cfs_time_t last_alive = 0;
+	unsigned long last_alive = 0;
 
 	LASSERT(lnet_peer_aliveness_enabled(lp));
 	LASSERT(ni->ni_lnd->lnd_query != NULL);
@@ -699,10 +699,10 @@ lnet_ni_query_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 
 /* NB: always called with lnet_net_lock held */
 static inline int
-lnet_peer_is_alive(lnet_peer_t *lp, cfs_time_t now)
+lnet_peer_is_alive(lnet_peer_t *lp, unsigned long now)
 {
 	int	alive;
-	cfs_time_t deadline;
+	unsigned long deadline;
 
 	LASSERT(lnet_peer_aliveness_enabled(lp));
 
@@ -734,7 +734,7 @@ lnet_peer_is_alive(lnet_peer_t *lp, cfs_time_t now)
 int
 lnet_peer_alive_locked(lnet_peer_t *lp)
 {
-	cfs_time_t now = cfs_time_current();
+	unsigned long now = cfs_time_current();
 
 	if (!lnet_peer_aliveness_enabled(lp))
 		return -ENODEV;
@@ -747,7 +747,7 @@ lnet_peer_alive_locked(lnet_peer_t *lp)
 	if (lp->lp_last_query != 0) {
 		static const int lnet_queryinterval = 1;
 
-		cfs_time_t next_query =
+		unsigned long next_query =
 			   cfs_time_add(lp->lp_last_query,
 					cfs_time_seconds(lnet_queryinterval));
 

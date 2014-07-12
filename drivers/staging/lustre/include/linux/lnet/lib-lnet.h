@@ -643,8 +643,8 @@ lnet_ni_t *lnet_nid2ni_locked(lnet_nid_t nid, int cpt);
 lnet_ni_t *lnet_net2ni_locked(__u32 net, int cpt);
 lnet_ni_t *lnet_net2ni(__u32 net);
 
-int lnet_notify(lnet_ni_t *ni, lnet_nid_t peer, int alive, cfs_time_t when);
-void lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, cfs_time_t when);
+int lnet_notify(lnet_ni_t *ni, lnet_nid_t peer, int alive, unsigned long when);
+void lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, unsigned long when);
 int lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway_nid,
 		   unsigned int priority);
 int lnet_check_routes(void);

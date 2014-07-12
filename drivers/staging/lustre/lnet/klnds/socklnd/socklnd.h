@@ -164,7 +164,7 @@ typedef struct
 	struct list_head	ksnd_zombie_conns;   /* conns to free: reaper_lock */
 	struct list_head	ksnd_enomem_conns;   /* conns to retry: reaper_lock*/
 	wait_queue_head_t       ksnd_reaper_waitq;   /* reaper sleeps here */
-	cfs_time_t	ksnd_reaper_waketime;/* when reaper will wake */
+	unsigned long	ksnd_reaper_waketime;/* when reaper will wake */
 	spinlock_t	  ksnd_reaper_lock;	/* serialise */
 
 	int	       ksnd_enomem_tx;      /* test ENOMEM sender */
@@ -225,7 +225,7 @@ typedef struct				  /* transmit packet */
 	lnet_kiov_t   *tx_kiov;	/* packet page frags */
 	struct ksock_conn  *tx_conn;	/* owning conn */
 	lnet_msg_t    *tx_lnetmsg;     /* lnet message for lnet_finalize() */
-	cfs_time_t     tx_deadline;    /* when (in jiffies) tx times out */
+	unsigned long     tx_deadline;    /* when (in jiffies) tx times out */
 	ksock_msg_t    tx_msg;	 /* socklnd message buffer */
 	int	    tx_desc_size;   /* size of this descriptor */
 	union {
@@ -280,7 +280,7 @@ typedef struct ksock_conn
 
 	/* reader */
 	struct list_head  ksnc_rx_list;     /* where I enq waiting input or a forwarding descriptor */
-	cfs_time_t	    ksnc_rx_deadline; /* when (in jiffies) receive times out */
+	unsigned long	    ksnc_rx_deadline; /* when (in jiffies) receive times out */
 	__u8		  ksnc_rx_started;  /* started receiving a message */
 	__u8		  ksnc_rx_ready;    /* data ready to read */
 	__u8		  ksnc_rx_scheduled;/* being progressed */
@@ -305,12 +305,12 @@ typedef struct ksock_conn
 	struct list_head	    ksnc_tx_list;     /* where I enq waiting for output space */
 	struct list_head	    ksnc_tx_queue;    /* packets waiting to be sent */
 	ksock_tx_t	   *ksnc_tx_carrier;  /* next TX that can carry a LNet message or ZC-ACK */
-	cfs_time_t	    ksnc_tx_deadline; /* when (in jiffies) tx times out */
+	unsigned long	    ksnc_tx_deadline; /* when (in jiffies) tx times out */
 	int		   ksnc_tx_bufnob;     /* send buffer marker */
 	atomic_t	  ksnc_tx_nob;	/* # bytes queued */
 	int		   ksnc_tx_ready;      /* write space */
 	int		   ksnc_tx_scheduled;  /* being progressed */
-	cfs_time_t	    ksnc_tx_last_post;  /* time stamp of the last posted TX */
+	unsigned long	    ksnc_tx_last_post;  /* time stamp of the last posted TX */
 } ksock_conn_t;
 
 typedef struct ksock_route
@@ -319,7 +319,7 @@ typedef struct ksock_route
 	struct list_head	    ksnr_connd_list;  /* chain on ksnr_connd_routes */
 	struct ksock_peer    *ksnr_peer;	/* owning peer */
 	atomic_t	  ksnr_refcount;    /* # users */
-	cfs_time_t	    ksnr_timeout;     /* when (in jiffies) reconnection can happen next */
+	unsigned long	    ksnr_timeout;     /* when (in jiffies) reconnection can happen next */
 	cfs_duration_t	ksnr_retry_interval; /* how long between retries */
 	__u32		 ksnr_myipaddr;    /* my IP */
 	__u32		 ksnr_ipaddr;      /* IP address to connect to */
@@ -337,7 +337,7 @@ typedef struct ksock_route
 typedef struct ksock_peer
 {
 	struct list_head	    ksnp_list;	/* stash on global peer list */
-	cfs_time_t	    ksnp_last_alive;  /* when (in jiffies) I was last alive */
+	unsigned long	    ksnp_last_alive;  /* when (in jiffies) I was last alive */
 	lnet_process_id_t     ksnp_id;       /* who's on the other end(s) */
 	atomic_t	  ksnp_refcount; /* # users */
 	int		   ksnp_sharecount;  /* lconf usage counter */
@@ -352,7 +352,7 @@ typedef struct ksock_peer
 	struct list_head	    ksnp_tx_queue; /* waiting packets */
 	spinlock_t	      ksnp_lock;	/* serialize, g_lock unsafe */
 	struct list_head	    ksnp_zc_req_list;   /* zero copy requests wait for ACK  */
-	cfs_time_t	    ksnp_send_keepalive; /* time to send keepalive */
+	unsigned long	    ksnp_send_keepalive; /* time to send keepalive */
 	lnet_ni_t	    *ksnp_ni;       /* which network */
 	int		   ksnp_n_passive_ips; /* # of... */
 	__u32		 ksnp_passive_ips[LNET_MAX_INTERFACES]; /* preferred local interfaces */
@@ -555,7 +555,7 @@ extern void ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn);
 extern void ksocknal_txlist_done (lnet_ni_t *ni, struct list_head *txlist,
 				  int error);
 extern void ksocknal_notify (lnet_ni_t *ni, lnet_nid_t gw_nid, int alive);
-extern void ksocknal_query (struct lnet_ni *ni, lnet_nid_t nid, cfs_time_t *when);
+extern void ksocknal_query (struct lnet_ni *ni, lnet_nid_t nid, unsigned long *when);
 extern int ksocknal_thread_start(int (*fn)(void *arg), void *arg, char *name);
 extern void ksocknal_thread_fini (void);
 extern void ksocknal_launch_all_connections_locked (ksock_peer_t *peer);

@@ -165,7 +165,7 @@ struct ptldebug_header {
 #define CDEBUG_DEFAULT_MIN_DELAY ((cfs_time_seconds(1) + 1) / 2) /* jiffies */
 #define CDEBUG_DEFAULT_BACKOFF   2
 struct cfs_debug_limit_state {
-	cfs_time_t   cdls_next;
+	unsigned long   cdls_next;
 	unsigned int cdls_delay;
 	int	     cdls_count;
 };

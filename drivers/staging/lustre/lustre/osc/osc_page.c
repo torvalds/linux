@@ -352,7 +352,7 @@ static const char *osc_list(struct list_head *head)
 	return list_empty(head) ? "-" : "+";
 }
 
-static inline cfs_time_t osc_submit_duration(struct osc_page *opg)
+static inline unsigned long osc_submit_duration(struct osc_page *opg)
 {
 	if (opg->ops_submit_time == 0)
 		return 0;

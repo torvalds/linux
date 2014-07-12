@@ -281,7 +281,7 @@ enum llog_ctxt_id {
 
 struct timeout_item {
 	enum timeout_event ti_event;
-	cfs_time_t	 ti_timeout;
+	unsigned long	 ti_timeout;
 	timeout_cb_t       ti_cb;
 	void	      *ti_cb_data;
 	struct list_head	 ti_obd_list;
@@ -337,7 +337,7 @@ struct client_obd {
 	 * See osc_{reserve|unreserve}_grant for details. */
 	long		 cl_reserved_grant;
 	struct list_head	   cl_cache_waiters; /* waiting for cache/grant */
-	cfs_time_t	   cl_next_shrink_grant;   /* jiffies */
+	unsigned long	   cl_next_shrink_grant;   /* jiffies */
 	struct list_head	   cl_grant_shrink_list;  /* Timeout event list */
 	int		  cl_grant_shrink_interval; /* seconds */
 

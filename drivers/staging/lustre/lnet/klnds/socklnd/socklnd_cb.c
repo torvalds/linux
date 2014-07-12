@@ -780,7 +780,7 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 ksock_route_t *
 ksocknal_find_connectable_route_locked (ksock_peer_t *peer)
 {
-	cfs_time_t     now = cfs_time_current();
+	unsigned long     now = cfs_time_current();
 	struct list_head    *tmp;
 	ksock_route_t *route;
 
@@ -1845,7 +1845,7 @@ ksocknal_connect (ksock_route_t *route)
 	int	       type;
 	int	       wanted;
 	struct socket     *sock;
-	cfs_time_t	deadline;
+	unsigned long	deadline;
 	int	       retry_later = 0;
 	int	       rc = 0;
 
@@ -2111,7 +2111,7 @@ static ksock_route_t *
 ksocknal_connd_get_route_locked(signed long *timeout_p)
 {
 	ksock_route_t *route;
-	cfs_time_t     now;
+	unsigned long     now;
 
 	now = cfs_time_current();
 
@@ -2431,7 +2431,7 @@ ksocknal_check_peer_timeouts (int idx)
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
 	list_for_each_entry(peer, peers, ksnp_list) {
-		cfs_time_t  deadline = 0;
+		unsigned long  deadline = 0;
 		int	 resid = 0;
 		int	 n     = 0;
 
@@ -2529,7 +2529,7 @@ ksocknal_reaper (void *arg)
 	cfs_duration_t     timeout;
 	int		i;
 	int		peer_index = 0;
-	cfs_time_t	 deadline = cfs_time_current();
+	unsigned long	 deadline = cfs_time_current();
 
 	cfs_block_allsigs ();
 

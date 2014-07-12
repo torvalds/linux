@@ -43,27 +43,27 @@
  * generic time manipulation functions.
  */
 
-static inline cfs_time_t cfs_time_add(cfs_time_t t, cfs_duration_t d)
+static inline unsigned long cfs_time_add(unsigned long t, cfs_duration_t d)
 {
-	return (cfs_time_t)(t + d);
+	return (unsigned long)(t + d);
 }
 
-static inline cfs_duration_t cfs_time_sub(cfs_time_t t1, cfs_time_t t2)
+static inline cfs_duration_t cfs_time_sub(unsigned long t1, unsigned long t2)
 {
-	return (cfs_time_t)(t1 - t2);
+	return (unsigned long)(t1 - t2);
 }
 
-static inline int cfs_time_after(cfs_time_t t1, cfs_time_t t2)
+static inline int cfs_time_after(unsigned long t1, unsigned long t2)
 {
 	return cfs_time_before(t2, t1);
 }
 
-static inline int cfs_time_aftereq(cfs_time_t t1, cfs_time_t t2)
+static inline int cfs_time_aftereq(unsigned long t1, unsigned long t2)
 {
 	return cfs_time_beforeq(t2, t1);
 }
 
-static inline cfs_time_t cfs_time_shift(int seconds)
+static inline unsigned long cfs_time_shift(int seconds)
 {
 	return cfs_time_add(cfs_time_current(), cfs_time_seconds(seconds));
 }
@@ -81,7 +81,7 @@ static inline long cfs_timeval_sub(struct timeval *large, struct timeval *small,
 	return r;
 }
 
-static inline void cfs_slow_warning(cfs_time_t now, int seconds, char *msg)
+static inline void cfs_slow_warning(unsigned long now, int seconds, char *msg)
 {
 	if (cfs_time_after(cfs_time_current(),
 			   cfs_time_add(now, cfs_time_seconds(15))))

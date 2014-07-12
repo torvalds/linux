@@ -362,7 +362,7 @@ typedef struct lnet_lnd {
 	void (*lnd_notify)(struct lnet_ni *ni, lnet_nid_t peer, int alive);
 
 	/* query of peer aliveness */
-	void (*lnd_query)(struct lnet_ni *ni, lnet_nid_t peer, cfs_time_t *when);
+	void (*lnd_query)(struct lnet_ni *ni, lnet_nid_t peer, unsigned long *when);
 
 	/* accept a new connection */
 	int (*lnd_accept)(struct lnet_ni *ni, struct socket *sock);
@@ -457,11 +457,11 @@ typedef struct lnet_peer {
 	unsigned int      lp_ping_notsent;      /* SEND event outstanding from ping */
 	int	       lp_alive_count;       /* # times router went dead<->alive */
 	long	      lp_txqnob;	    /* bytes queued for sending */
-	cfs_time_t	lp_timestamp;	 /* time of last aliveness news */
-	cfs_time_t	lp_ping_timestamp;    /* time of last ping attempt */
-	cfs_time_t	lp_ping_deadline;     /* != 0 if ping reply expected */
-	cfs_time_t	lp_last_alive;	/* when I was last alive */
-	cfs_time_t	lp_last_query;	/* when lp_ni was queried last time */
+	unsigned long	lp_timestamp;	 /* time of last aliveness news */
+	unsigned long	lp_ping_timestamp;    /* time of last ping attempt */
+	unsigned long	lp_ping_deadline;     /* != 0 if ping reply expected */
+	unsigned long	lp_last_alive;	/* when I was last alive */
+	unsigned long	lp_last_query;	/* when lp_ni was queried last time */
 	lnet_ni_t	*lp_ni;		/* interface peer is on */
 	lnet_nid_t	lp_nid;	       /* peer's NID */
 	int	       lp_refcount;	  /* # refs */

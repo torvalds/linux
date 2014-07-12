@@ -50,7 +50,7 @@
 /*
  * Platform provides three opaque data-types:
  *
- *  cfs_time_t	represents point in time. This is internal kernel
+ *  unsigned long	represents point in time. This is internal kernel
  *		    time rather than "wall clock". This time bears no
  *		    relation to gettimeofday().
  *
@@ -60,11 +60,11 @@
  *  struct timespec     represents instance in world-visible time. This is
  *		    used in file-system time-stamps
  *
- *  cfs_time_t     cfs_time_current(void);
- *  cfs_time_t     cfs_time_add    (cfs_time_t, cfs_duration_t);
- *  cfs_duration_t cfs_time_sub    (cfs_time_t, cfs_time_t);
- *  int	    cfs_impl_time_before (cfs_time_t, cfs_time_t);
- *  int	    cfs_impl_time_before_eq(cfs_time_t, cfs_time_t);
+ *  unsigned long     cfs_time_current(void);
+ *  unsigned long     cfs_time_add    (unsigned long, cfs_duration_t);
+ *  cfs_duration_t cfs_time_sub    (unsigned long, unsigned long);
+ *  int	    cfs_impl_time_before (unsigned long, unsigned long);
+ *  int	    cfs_impl_time_before_eq(unsigned long, unsigned long);
  *
  *  cfs_duration_t cfs_duration_build(int64_t);
  *
@@ -107,20 +107,19 @@ static inline void cfs_fs_time_usec(struct timespec *t, struct timeval *v)
  * Generic kernel stuff
  */
 
-typedef unsigned long cfs_time_t;      /* jiffies */
 typedef long cfs_duration_t;
 
-static inline int cfs_time_before(cfs_time_t t1, cfs_time_t t2)
+static inline int cfs_time_before(unsigned long t1, unsigned long t2)
 {
 	return time_before(t1, t2);
 }
 
-static inline int cfs_time_beforeq(cfs_time_t t1, cfs_time_t t2)
+static inline int cfs_time_beforeq(unsigned long t1, unsigned long t2)
 {
 	return time_before_eq(t1, t2);
 }
 
-static inline cfs_time_t cfs_time_current(void)
+static inline unsigned long cfs_time_current(void)
 {
 	return jiffies;
 }

@@ -441,7 +441,7 @@ struct ldlm_namespace {
 	 * \see ldlm_namespace_dump. Increased by 10 seconds every time
 	 * it is called.
 	 */
-	cfs_time_t		ns_next_dump;
+	unsigned long		ns_next_dump;
 
 	/** "policy" function that does actual lock conflict determination */
 	ldlm_res_policy		ns_policy;
@@ -783,13 +783,13 @@ struct ldlm_lock {
 	 * Seconds. It will be updated if there is any activity related to
 	 * the lock, e.g. enqueue the lock or send blocking AST.
 	 */
-	cfs_time_t		l_last_activity;
+	unsigned long		l_last_activity;
 
 	/**
 	 * Time last used by e.g. being matched by lock match.
 	 * Jiffies. Should be converted to time if needed.
 	 */
-	cfs_time_t		l_last_used;
+	unsigned long		l_last_used;
 
 	/** Originally requested extent for the extent lock. */
 	struct ldlm_extent	l_req_extent;
@@ -837,7 +837,7 @@ struct ldlm_lock {
 	 * under this lock.
 	 * \see ost_rw_prolong_locks
 	 */
-	cfs_time_t		l_callback_timeout;
+	unsigned long		l_callback_timeout;
 
 	/** Local PID of process which created this lock. */
 	__u32			l_pid;
@@ -951,7 +951,7 @@ struct ldlm_resource {
 	void			*lr_lvb_data;
 
 	/** When the resource was considered as contended. */
-	cfs_time_t		lr_contention_time;
+	unsigned long		lr_contention_time;
 	/** List of references to this resource. For debugging. */
 	struct lu_ref		lr_reference;
 

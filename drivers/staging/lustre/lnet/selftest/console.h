@@ -56,7 +56,7 @@ typedef struct lstcon_node {
 	int		  nd_ref;	 /* reference count */
 	int		  nd_state;       /* state of the node */
 	int		  nd_timeout;     /* session timeout */
-	cfs_time_t	   nd_stamp;       /* timestamp of last replied RPC */
+	unsigned long	   nd_stamp;       /* timestamp of last replied RPC */
 	struct lstcon_rpc    nd_ping;	/* ping rpc */
 } lstcon_node_t;				/*** node descriptor */
 

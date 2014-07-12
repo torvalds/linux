@@ -333,8 +333,8 @@ int LL_PROC_PROTO(proc_lnet_routers)
 
 		if (peer != NULL) {
 			lnet_nid_t nid = peer->lp_nid;
-			cfs_time_t now = cfs_time_current();
-			cfs_time_t deadline = peer->lp_ping_deadline;
+			unsigned long now = cfs_time_current();
+			unsigned long deadline = peer->lp_ping_deadline;
 			int nrefs     = peer->lp_refcount;
 			int nrtrrefs  = peer->lp_rtr_refcount;
 			int alive_cnt = peer->lp_alive_count;
@@ -511,7 +511,7 @@ int LL_PROC_PROTO(proc_lnet_peers)
 				aliveness = peer->lp_alive ? "up" : "down";
 
 			if (lnet_peer_aliveness_enabled(peer)) {
-				cfs_time_t     now = cfs_time_current();
+				unsigned long     now = cfs_time_current();
 				cfs_duration_t delta;
 
 				delta = cfs_time_sub(now, peer->lp_last_alive);

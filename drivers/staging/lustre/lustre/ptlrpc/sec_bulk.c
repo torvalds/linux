@@ -113,7 +113,7 @@ static struct ptlrpc_enc_page_pool {
 	unsigned long    epp_st_missings;       /* # of cache missing */
 	unsigned long    epp_st_lowfree;	/* lowest free pages reached */
 	unsigned int     epp_st_max_wqlen;      /* highest waitqueue length */
-	cfs_time_t       epp_st_max_wait;       /* in jiffies */
+	unsigned long       epp_st_max_wait;       /* in jiffies */
 	/*
 	 * pointers to pools
 	 */
@@ -498,7 +498,7 @@ int sptlrpc_enc_pool_get_pages(struct ptlrpc_bulk_desc *desc)
 {
 	wait_queue_t  waitlink;
 	unsigned long   this_idle = -1;
-	cfs_time_t      tick = 0;
+	unsigned long      tick = 0;
 	long	    now;
 	int	     p_idx, g_idx;
 	int	     i;

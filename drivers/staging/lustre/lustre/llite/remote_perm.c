@@ -249,7 +249,7 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 	struct ptlrpc_request *req = NULL;
 	struct mdt_remote_perm *perm;
 	struct obd_capa *oc;
-	cfs_time_t save;
+	unsigned long save;
 	int i = 0, rc;
 
 	do {

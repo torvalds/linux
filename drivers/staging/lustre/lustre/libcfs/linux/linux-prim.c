@@ -90,7 +90,7 @@ void cfs_timer_done(struct timer_list *t)
 }
 EXPORT_SYMBOL(cfs_timer_done);
 
-void cfs_timer_arm(struct timer_list *t, cfs_time_t deadline)
+void cfs_timer_arm(struct timer_list *t, unsigned long deadline)
 {
 	mod_timer(t, deadline);
 }
@@ -108,7 +108,7 @@ int  cfs_timer_is_armed(struct timer_list *t)
 }
 EXPORT_SYMBOL(cfs_timer_is_armed);
 
-cfs_time_t cfs_timer_deadline(struct timer_list *t)
+unsigned long cfs_timer_deadline(struct timer_list *t)
 {
 	return t->expires;
 }

@@ -334,7 +334,7 @@ typedef struct {
 	atomic_t      sn_refcount;
 	atomic_t      sn_brw_errors;
 	atomic_t      sn_ping_errors;
-	cfs_time_t	sn_started;
+	unsigned long	sn_started;
 } sfw_session_t;
 
 #define sfw_sid_equal(sid0, sid1)     ((sid0).ses_nid == (sid1).ses_nid && \

@@ -107,7 +107,7 @@ lnet_peers_start_down(void)
 }
 
 void
-lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, cfs_time_t when)
+lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, unsigned long when)
 {
 	if (cfs_time_before(when, lp->lp_timestamp)) { /* out of date information */
 		CDEBUG(D_NET, "Out of date\n");
@@ -931,7 +931,7 @@ static void
 lnet_ping_router_locked (lnet_peer_t *rtr)
 {
 	lnet_rc_data_t *rcd = NULL;
-	cfs_time_t      now = cfs_time_current();
+	unsigned long      now = cfs_time_current();
 	int	     secs;
 
 	lnet_peer_addref_locked(rtr);
@@ -1497,10 +1497,10 @@ lnet_rtrpools_alloc(int im_a_router)
 }
 
 int
-lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, cfs_time_t when)
+lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 {
 	struct lnet_peer	*lp = NULL;
-	cfs_time_t		now = cfs_time_current();
+	unsigned long		now = cfs_time_current();
 	int			cpt = lnet_cpt_of_nid(nid);
 
 	LASSERT (!in_interrupt ());
@@ -1576,7 +1576,7 @@ lnet_get_tunables (void)
 #else
 
 int
-lnet_notify (lnet_ni_t *ni, lnet_nid_t nid, int alive, cfs_time_t when)
+lnet_notify (lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 {
 	return -EOPNOTSUPP;
 }

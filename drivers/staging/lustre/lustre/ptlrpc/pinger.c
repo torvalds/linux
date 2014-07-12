@@ -141,10 +141,10 @@ static inline int ptlrpc_next_reconnect(struct obd_import *imp)
 		return cfs_time_shift(obd_timeout);
 }
 
-cfs_duration_t pinger_check_timeout(cfs_time_t time)
+cfs_duration_t pinger_check_timeout(unsigned long time)
 {
 	struct timeout_item *item;
-	cfs_time_t timeout = PING_INTERVAL;
+	unsigned long timeout = PING_INTERVAL;
 
 	/* The timeout list is a increase order sorted list */
 	mutex_lock(&pinger_mutex);
@@ -244,7 +244,7 @@ static int ptlrpc_pinger_main(void *arg)
 
 	/* And now, loop forever, pinging as needed. */
 	while (1) {
-		cfs_time_t this_ping = cfs_time_current();
+		unsigned long this_ping = cfs_time_current();
 		struct l_wait_info lwi;
 		cfs_duration_t time_to_next_wake;
 		struct timeout_item *item;

@@ -213,8 +213,8 @@ int osc_object_is_contended(struct osc_object *obj)
 {
 	struct osc_device *dev  = lu2osc_dev(obj->oo_cl.co_lu.lo_dev);
 	int osc_contention_time = dev->od_contention_time;
-	cfs_time_t cur_time     = cfs_time_current();
-	cfs_time_t retry_time;
+	unsigned long cur_time     = cfs_time_current();
+	unsigned long retry_time;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_OBJECT_CONTENTION))
 		return 1;

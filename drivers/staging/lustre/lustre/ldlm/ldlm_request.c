@@ -95,7 +95,7 @@ int ldlm_expired_completion_wait(void *data)
 	struct obd_device *obd;
 
 	if (lock->l_conn_export == NULL) {
-		static cfs_time_t next_dump = 0, last_dump = 0;
+		static unsigned long next_dump = 0, last_dump = 0;
 
 		LCONSOLE_WARN("lock timed out (enqueued at "CFS_TIME_T", "
 			      CFS_DURATION_T"s ago)\n",
@@ -1447,10 +1447,10 @@ static ldlm_policy_res_t ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 						 int unused, int added,
 						 int count)
 {
-	cfs_time_t cur = cfs_time_current();
+	unsigned long cur = cfs_time_current();
 	struct ldlm_pool *pl = &ns->ns_pool;
 	__u64 slv, lvf, lv;
-	cfs_time_t la;
+	unsigned long la;
 
 	/* Stop LRU processing when we reach past @count or have checked all
 	 * locks in LRU. */

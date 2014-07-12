@@ -1830,7 +1830,7 @@ static void
 kiblnd_peer_notify (kib_peer_t *peer)
 {
 	int	   error = 0;
-	cfs_time_t    last_alive = 0;
+	unsigned long    last_alive = 0;
 	unsigned long flags;
 
 	read_lock_irqsave(&kiblnd_data.kib_global_lock, flags);

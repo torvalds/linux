@@ -70,7 +70,7 @@ static unsigned long long ll_capa_renewal_retries;
 
 static int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa);
 
-static inline void update_capa_timer(struct obd_capa *ocapa, cfs_time_t expiry)
+static inline void update_capa_timer(struct obd_capa *ocapa, unsigned long expiry)
 {
 	if (cfs_time_before(expiry, ll_capa_timer.expires) ||
 	    !timer_pending(&ll_capa_timer)) {
@@ -80,7 +80,7 @@ static inline void update_capa_timer(struct obd_capa *ocapa, cfs_time_t expiry)
 	}
 }
 
-static inline cfs_time_t capa_renewal_time(struct obd_capa *ocapa)
+static inline unsigned long capa_renewal_time(struct obd_capa *ocapa)
 {
 	return cfs_time_sub(ocapa->c_expiry,
 			    cfs_time_seconds(ocapa->c_capa.lc_timeout) / 2);
@@ -511,7 +511,7 @@ struct obd_capa *ll_add_capa(struct inode *inode, struct obd_capa *ocapa)
 	return ocapa;
 }
 
-static inline void delay_capa_renew(struct obd_capa *oc, cfs_time_t delay)
+static inline void delay_capa_renew(struct obd_capa *oc, unsigned long delay)
 {
 	/* NB: set a fake expiry for this capa to prevent it renew too soon */
 	oc->c_expiry = cfs_time_add(oc->c_expiry, cfs_time_seconds(delay));

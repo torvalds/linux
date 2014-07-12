@@ -510,7 +510,7 @@ struct ptlrpc_cli_ctx {
 	atomic_t	    cc_refcount;
 	struct ptlrpc_sec      *cc_sec;
 	struct ptlrpc_ctx_ops  *cc_ops;
-	cfs_time_t	      cc_expire;     /* in seconds */
+	unsigned long	      cc_expire;     /* in seconds */
 	unsigned int	    cc_early_expire:1;
 	unsigned long	   cc_flags;
 	struct vfs_cred	 cc_vcred;
@@ -835,8 +835,8 @@ struct ptlrpc_sec {
 	 * garbage collection
 	 */
 	struct list_head		      ps_gc_list;
-	cfs_time_t		      ps_gc_interval; /* in seconds */
-	cfs_time_t		      ps_gc_next;     /* in seconds */
+	unsigned long		      ps_gc_interval; /* in seconds */
+	unsigned long		      ps_gc_next;     /* in seconds */
 };
 
 static inline int sec_is_reverse(struct ptlrpc_sec *sec)
