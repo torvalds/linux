@@ -1644,7 +1644,10 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		u8 events[8];
 
 		memset(events, 0, sizeof(events));
-		events[0] = 0x1f;
+		events[0] = 0x0f;
+
+		if (hdev->le_features[0] & HCI_LE_ENCRYPTION)
+			events[0] |= 0x10;	/* LE Long Term Key Request */
 
 		/* If controller supports the Connection Parameters Request
 		 * Link Layer Procedure, enable the corresponding event.
