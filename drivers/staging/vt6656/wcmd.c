@@ -207,12 +207,12 @@ int bScheduleCommand(struct vnt_private *priv, CMD_CODE command, u8 *item0)
 
 }
 
-void vResetCommandTimer(struct vnt_private *pDevice)
+void vResetCommandTimer(struct vnt_private *priv)
 {
-	pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
-	pDevice->uCmdDequeueIdx = 0;
-	pDevice->uCmdEnqueueIdx = 0;
-	pDevice->eCommandState = WLAN_CMD_IDLE;
-	pDevice->bCmdRunning = false;
-	pDevice->bCmdClear = false;
+	priv->cbFreeCmdQueue = CMD_Q_SIZE;
+	priv->uCmdDequeueIdx = 0;
+	priv->uCmdEnqueueIdx = 0;
+	priv->eCommandState = WLAN_CMD_IDLE;
+	priv->bCmdRunning = false;
+	priv->bCmdClear = false;
 }
