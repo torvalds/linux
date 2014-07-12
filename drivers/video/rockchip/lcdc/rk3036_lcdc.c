@@ -1168,14 +1168,14 @@ static int rk3036_lcdc_reg_dump(struct rk_lcdc_driver *dev_drv)
 	int i, j;
 
 	printk("back up reg:\n");
-	for (i = 0; i <= (0x90 >> 4); i++) {
+	for (i = 0; i <= (0xDC >> 4); i++) {
 		for (j = 0; j < 4; j++)
 			printk("%08x  ", *(regsbak + i * 4 + j));
 		printk("\n");
 	}
 
 	printk("lcdc reg:\n");
-	for (i = 0; i <= (0x90 >> 4); i++) {
+	for (i = 0; i <= (0xDC >> 4); i++) {
 		for (j = 0; j < 4; j++)
 			printk("%08x  ", readl_relaxed(cbase + i * 4 + j));
 		printk("\n");

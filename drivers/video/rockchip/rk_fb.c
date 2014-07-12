@@ -2917,7 +2917,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	struct fb_info *info = NULL;
 	struct rk_lcdc_driver *dev_drv = NULL;
 	char name[6];
-	int i, win_id;
+	int i, win_id, load_screen = 0;
 	
 	if(screen == NULL)
 		return -ENODEV;
@@ -2991,8 +2991,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			printk("%s win id %d state %d\n", info->fix.id, win_id, dev_drv->win[win_id]->logicalstate);
 			if( dev_drv->win[win_id]->logicalstate ) {
 				dev_drv->ops->open(dev_drv, win_id, 1);
-				if(win_id == 1) {
+				if(!load_screen) {
 					dev_drv->ops->load_screen(dev_drv, 1);
+					load_screen = 1;
 				}
 				info->var.activate |= FB_ACTIVATE_FORCE;
 				info->fbops->fb_set_par(info);

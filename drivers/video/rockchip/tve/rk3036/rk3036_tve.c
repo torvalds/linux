@@ -30,9 +30,9 @@
 #endif
 
 static const struct fb_videomode rk3036_cvbs_mode [] = {
-	/*	name		refresh	xres	yres	pixclock	h_bp	h_fp	v_bp	v_fp	h_pw	v_pw	polariry	PorI		flag*/
-	{	"NTSC",		60,	720,	480,	27000000,	57,	19,	19,	0,	62,	3,	0,	FB_VMODE_INTERLACED,	0},
-	{	"PAL",		50,	720,	576,	27000000,	69,	12,	19,	2,	63,	3,	0,	FB_VMODE_INTERLACED,	0},
+	/*name	refresh	xres	yres	pixclock	h_bp	h_fp	v_bp	v_fp	h_pw	v_pw			polariry				PorI		flag*/
+	{"NTSC",60,	720,	480,	27000000,	57,	19,	19,	0,	62,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	FB_VMODE_INTERLACED,	0},
+	{"PAL",	50,	720,	576,	27000000,	69,	12,	19,	2,	63,	3,	FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,	FB_VMODE_INTERLACED,	0},
 };
 
 static struct rk3036_tve *rk3036_tve = NULL;
@@ -72,7 +72,7 @@ static void tve_set_mode (int mode)
 	tve_writel(TV_LUMA_FILTER2, 0xF332d919);
 	
 	if(mode == TVOUT_CVBS_NTSC) {
-		tve_writel(TV_ROUTING, v_DAC_SENSE_EN(0) | v_Y_IRE_7_5(0) | 
+		tve_writel(TV_ROUTING, v_DAC_SENSE_EN(0) | v_Y_IRE_7_5(1) | 
 			v_Y_AGC_PULSE_ON(1) | v_Y_VIDEO_ON(1) | 
 			v_Y_SYNC_ON(1) | v_PIC_MODE(mode));
 		tve_writel(TV_BW_CTRL, v_CHROMA_BW(BP_FILTER_NTSC) | v_COLOR_DIFF_BW(COLOR_DIFF_FILTER_BW_1_3));
@@ -86,7 +86,7 @@ static void tve_set_mode (int mode)
 		tve_writel(TV_ACT_TIMING, 0x169800FC);
 
 	} else if (mode == TVOUT_CVBS_PAL) {
-		tve_writel(TV_ROUTING, v_DAC_SENSE_EN(0) | v_Y_IRE_7_5(1) | 
+		tve_writel(TV_ROUTING, v_DAC_SENSE_EN(0) | v_Y_IRE_7_5(0) | 
 			v_Y_AGC_PULSE_ON(1) | v_Y_VIDEO_ON(1) | 
 			v_Y_SYNC_ON(1) | v_CVBS_MODE(mode));
 		tve_writel(TV_BW_CTRL, v_CHROMA_BW(BP_FILTER_PAL) | v_COLOR_DIFF_BW(COLOR_DIFF_FILTER_BW_1_3));
@@ -119,14 +119,14 @@ static int tve_switch_fb(const struct fb_videomode *modedb, int enable)
 	screen->mode = *modedb;
 	
 	/* Pin polarity */
-//	if(FB_SYNC_HOR_HIGH_ACT & modedb->sync)
+	if(FB_SYNC_HOR_HIGH_ACT & modedb->sync)
 		screen->pin_hsync = 1;
-//	else
-//		screen->pin_hsync = 0;
-//	if(FB_SYNC_VERT_HIGH_ACT & modedb->sync)
+	else
+		screen->pin_hsync = 0;
+	if(FB_SYNC_VERT_HIGH_ACT & modedb->sync)
 		screen->pin_vsync = 1;
-//	else
-//		screen->pin_vsync = 0;
+	else
+		screen->pin_vsync = 0;
 		
 	screen->pin_den = 0;
 	screen->pin_dclk = 0;
