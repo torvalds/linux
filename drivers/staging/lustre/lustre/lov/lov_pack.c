@@ -42,11 +42,11 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include <lustre_net.h>
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre/lustre_user.h>
+#include "../include/lustre_net.h"
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre/lustre_user.h"
 
 #include "lov_internal.h"
 

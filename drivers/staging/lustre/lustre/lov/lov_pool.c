@@ -46,7 +46,7 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd.h>
+#include "../include/obd.h"
 #include "lov_internal.h"
 
 #define pool_tgt(_p, _i) \

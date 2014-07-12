@@ -41,7 +41,7 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 /* class_name2obd() */
-#include <obd_class.h>
+#include "../include/obd_class.h"
 
 #include "lov_cl_internal.h"
 #include "lov_internal.h"

@@ -38,9 +38,9 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_class.h>
-#include <obd_ost.h>
-#include <lustre/lustre_idl.h>
+#include "../include/obd_class.h"
+#include "../include/obd_ost.h"
+#include "../include/lustre/lustre_idl.h"
 #include "lov_internal.h"
 
 static void lov_init_set(struct lov_request_set *set)

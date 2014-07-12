@@ -36,8 +36,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <asm/statfs.h>
-#include <lprocfs_status.h>
-#include <obd_class.h>
+#include "../include/lprocfs_status.h"
+#include "../include/obd_class.h"
 #include <linux/seq_file.h>
 #include "lov_internal.h"
 

@@ -37,8 +37,8 @@
 #ifndef LOV_INTERNAL_H
 #define LOV_INTERNAL_H
 
-#include <obd_class.h>
-#include <lustre/lustre_user.h>
+#include "../include/obd_class.h"
+#include "../include/lustre/lustre_user.h"
 
 /* lov_do_div64(a, b) returns a % b, and a = a / b.
  * The 32-bit code is LOV-specific due to knowing about stripe limits in
