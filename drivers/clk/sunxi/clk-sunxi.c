@@ -563,43 +563,6 @@ static void sun7i_a20_get_out_factors(u32 *freq, u32 parent_rate,
 }
 
 /**
- * clk_sunxi_mmc_phase_control() - configures MMC clock phase control
- */
-
-void clk_sunxi_mmc_phase_control(struct clk *clk, u8 sample, u8 output)
-{
-	#define to_clk_composite(_hw) container_of(_hw, struct clk_composite, hw)
-	#define to_clk_factors(_hw) container_of(_hw, struct clk_factors, hw)
-
-	struct clk_hw *hw = __clk_get_hw(clk);
-	struct clk_composite *composite = to_clk_composite(hw);
-	struct clk_hw *rate_hw = composite->rate_hw;
-	struct clk_factors *factors = to_clk_factors(rate_hw);
-	unsigned long flags = 0;
-	u32 reg;
-
-	if (factors->lock)
-		spin_lock_irqsave(factors->lock, flags);
-
-	reg = readl(factors->reg);
-
-	/* set sample clock phase control */
-	reg &= ~(0x7 << 20);
-	reg |= ((sample & 0x7) << 20);
-
-	/* set output clock phase control */
-	reg &= ~(0x7 << 8);
-	reg |= ((output & 0x7) << 8);
-
-	writel(reg, factors->reg);
-
-	if (factors->lock)
-		spin_unlock_irqrestore(factors->lock, flags);
-}
-EXPORT_SYMBOL(clk_sunxi_mmc_phase_control);
-
-
-/**
  * sunxi_factors_clk_setup() - Setup function for factor clocks
  */
 
