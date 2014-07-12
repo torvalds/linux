@@ -41,14 +41,14 @@
 #include <asm/div64.h>
 #include <linux/seq_file.h>
 
-#include <obd_support.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_fid.h>
-#include <lustre_lib.h>
-#include <lustre_net.h>
-#include <lustre_dlm.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
+#include "../include/obd_support.h"
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_fid.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_dlm.h"
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
 #include "lmv_internal.h"
 
 int lmv_fld_lookup(struct lmv_obd *lmv,

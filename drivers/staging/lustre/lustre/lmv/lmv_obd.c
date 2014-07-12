@@ -45,14 +45,14 @@
 #include <linux/namei.h>
 #include <asm/uaccess.h>
 
-#include <lustre/lustre_idl.h>
-#include <obd_support.h>
-#include <lustre_lib.h>
-#include <lustre_net.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
-#include <lustre_lite.h>
-#include <lustre_fid.h>
+#include "../include/lustre/lustre_idl.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_net.h"
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_fid.h"
 #include "lmv_internal.h"
 
 static void lmv_activate_target(struct lmv_obd *lmv,
