@@ -51,7 +51,7 @@ static u8 vnt_vt3184_agc[] = {
 	0x38, 0x38, 0x3a, 0x3a, 0x3c, 0x3c, 0x3e, 0x3e  /* 0x3f */
 };
 
-static u8 abyVT3184_AL2230[] = {
+static u8 vnt_vt3184_al2230[] = {
 	0x31, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00,
 	0x70, 0x45, 0x2a, 0x76, 0x00, 0x00, 0x80, 0x00, /* 0x0f */
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -402,9 +402,9 @@ int BBbVT3184Init(struct vnt_private *priv)
 
 	if ((priv->byRFType == RF_AL2230) ||
 				(priv->byRFType == RF_AL2230S)) {
-		priv->byBBRxConf = abyVT3184_AL2230[10];
-		length = sizeof(abyVT3184_AL2230);
-		addr = abyVT3184_AL2230;
+		priv->byBBRxConf = vnt_vt3184_al2230[10];
+		length = sizeof(vnt_vt3184_al2230);
+		addr = vnt_vt3184_al2230;
 		agc = vnt_vt3184_agc;
 		length_agc = sizeof(vnt_vt3184_agc);
 
@@ -417,9 +417,9 @@ int BBbVT3184Init(struct vnt_private *priv)
 		priv->ldBmThreshold[2] = 0;
 		priv->ldBmThreshold[3] = 0;
 	} else if (priv->byRFType == RF_AIROHA7230) {
-		priv->byBBRxConf = abyVT3184_AL2230[10];
-		length = sizeof(abyVT3184_AL2230);
-		addr = abyVT3184_AL2230;
+		priv->byBBRxConf = vnt_vt3184_al2230[10];
+		length = sizeof(vnt_vt3184_al2230);
+		addr = vnt_vt3184_al2230;
 		agc = vnt_vt3184_agc;
 		length_agc = sizeof(vnt_vt3184_agc);
 
