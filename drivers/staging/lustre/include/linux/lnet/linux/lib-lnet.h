@@ -45,7 +45,7 @@
 #include "../../libcfs/libcfs.h"
 
 static inline __u64
-lnet_page2phys (struct page *p)
+lnet_page2phys(struct page *p)
 {
 	/* compiler optimizer will elide unused branches */
 
@@ -65,7 +65,6 @@ lnet_page2phys (struct page *p)
 		return 0;
 	}
 }
-
 
 #define LNET_ROUTER
 

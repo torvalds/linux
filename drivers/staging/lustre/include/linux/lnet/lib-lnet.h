@@ -166,7 +166,6 @@ lnet_net_lock_current(void)
 #define LNET_LOCK()		lnet_net_lock(LNET_LOCK_EX)
 #define LNET_UNLOCK()		lnet_net_unlock(LNET_LOCK_EX)
 
-
 #define lnet_ptl_lock(ptl)	spin_lock(&(ptl)->ptl_lock)
 #define lnet_ptl_unlock(ptl)	spin_unlock(&(ptl)->ptl_lock)
 #define lnet_eq_wait_lock()	spin_lock(&the_lnet.ln_eq_wait_lock)
@@ -175,7 +174,6 @@ lnet_net_lock_current(void)
 #define lnet_ni_unlock(ni)	spin_unlock(&(ni)->ni_lock)
 #define LNET_MUTEX_LOCK(m)	mutex_lock(m)
 #define LNET_MUTEX_UNLOCK(m)	mutex_unlock(m)
-
 
 #define MAX_PORTALS     64
 
@@ -213,7 +211,6 @@ lnet_freelist_free(lnet_freelist_t *fl, void *obj)
 
 	list_add(&o->fo_list, &fl->fl_list);
 }
-
 
 static inline lnet_eq_t *
 lnet_eq_alloc(void)
@@ -640,7 +637,6 @@ lnet_net2rnethash(__u32 net)
 
 extern lnd_t the_lolnd;
 
-
 int lnet_cpt_of_nid_locked(lnet_nid_t nid);
 int lnet_cpt_of_nid(lnet_nid_t nid);
 lnet_ni_t *lnet_nid2ni_locked(lnet_nid_t nid, int cpt);
@@ -809,6 +805,7 @@ lnet_copy_flat2iov(unsigned int ndiov, struct iovec *diov, unsigned int doffset,
 		   int slen, void *src, unsigned int soffset, unsigned int nob)
 {
 	struct iovec siov = {/*.iov_base = */ src, /*.iov_len = */slen};
+
 	lnet_copy_iov2iov(ndiov, diov, doffset,
 			  1, &siov, soffset, nob);
 }
@@ -818,6 +815,7 @@ lnet_copy_flat2kiov(unsigned int ndiov, lnet_kiov_t *dkiov, unsigned int doffset
 		    int slen, void *src, unsigned int soffset, unsigned int nob)
 {
 	struct iovec siov = {/* .iov_base = */ src, /* .iov_len = */ slen};
+
 	lnet_copy_iov2kiov(ndiov, dkiov, doffset,
 			   1, &siov, soffset, nob);
 }
@@ -869,6 +867,5 @@ void lnet_peer_tables_cleanup(void);
 void lnet_peer_tables_destroy(void);
 int lnet_peer_tables_create(void);
 void lnet_debug_peer(lnet_nid_t nid);
-
 
 #endif

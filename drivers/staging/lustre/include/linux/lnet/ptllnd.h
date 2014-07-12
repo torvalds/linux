@@ -46,7 +46,6 @@
  */
 #define LUSTRE_PORTALS_UNLINK_SEMANTICS
 
-
 #ifdef _USING_LUSTRE_PORTALS_
 
 /* NIDs are 64-bits on Lustre Portals */

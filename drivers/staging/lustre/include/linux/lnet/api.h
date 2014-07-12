@@ -84,7 +84,6 @@ void LNetSnprintHandle(char *str, int str_len, lnet_handle_any_t handle);
 
 /** @} lnet_addr */
 
-
 /** \defgroup lnet_me Match entries
  *
  * A match entry (abbreviated as ME) describes a set of criteria to accept
@@ -171,7 +170,6 @@ int LNetEQFree(lnet_handle_eq_t eventq_in);
 int LNetEQGet(lnet_handle_eq_t  eventq_in,
 	      lnet_event_t     *event_out);
 
-
 int LNetEQWait(lnet_handle_eq_t  eventq_in,
 	       lnet_event_t     *event_out);
 
@@ -203,7 +201,6 @@ int LNetGet(lnet_nid_t	self,
 	    __u64	     match_bits_in,
 	    unsigned int      offset_in);
 /** @} lnet_data */
-
 
 /** \defgroup lnet_misc Miscellaneous operations.
  * Miscellaneous operations.

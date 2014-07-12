@@ -156,7 +156,6 @@ typedef struct {
  * "stub" reply using their current protocol */
 #define LNET_PROTO_MAGIC		    0x45726963 /* ! */
 
-
 #define LNET_PROTO_TCP_VERSION_MAJOR	1
 #define LNET_PROTO_TCP_VERSION_MINOR	0
 
@@ -224,7 +223,6 @@ typedef struct lnet_msg {
 	lnet_event_t	  msg_ev;
 	lnet_hdr_t	    msg_hdr;
 } lnet_msg_t;
-
 
 typedef struct lnet_libhandle {
 	struct list_head	    lh_hash_chain;

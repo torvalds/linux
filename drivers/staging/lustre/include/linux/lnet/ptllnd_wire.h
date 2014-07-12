@@ -54,7 +54,6 @@
  * enough to avoid RDMA for anything sent while control is not in liblustre */
 #define PTLLND_MAX_ULND_MSG_SIZE 512
 
-
 /************************************************************************
  * Portals LND Wire message format.
  * These are sent in sender's byte order (i.e. receiver flips).
