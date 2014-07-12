@@ -539,7 +539,7 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 		return -EUNATCH;
 
 	case HCIUARTGETDEVICE:
-		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
+		if (test_bit(HCI_UART_REGISTERED, &hu->flags))
 			return hu->hdev->id;
 		return -EUNATCH;
 
