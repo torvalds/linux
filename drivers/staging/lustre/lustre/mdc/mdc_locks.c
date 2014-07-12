@@ -38,14 +38,14 @@
 
 # include <linux/module.h>
 
-#include <linux/lustre_intent.h>
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_dlm.h>
-#include <lustre_fid.h> /* fid_res_name_eq() */
-#include <lustre_mdc.h>
-#include <lustre_net.h>
-#include <lustre_req_layout.h>
+#include "../include/linux/lustre_intent.h"
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_fid.h"	/* fid_res_name_eq() */
+#include "../include/lustre_mdc.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_req_layout.h"
 #include "mdc_internal.h"
 
 struct mdc_getattr_args {

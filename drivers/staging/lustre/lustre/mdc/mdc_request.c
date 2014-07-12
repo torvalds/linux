@@ -42,12 +42,12 @@
 # include <linux/init.h>
 # include <linux/utsname.h>
 
-#include <lustre_acl.h>
-#include <obd_class.h>
-#include <lustre_fid.h>
-#include <lprocfs_status.h>
-#include <lustre_param.h>
-#include <lustre_log.h>
+#include "../include/lustre_acl.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_fid.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_param.h"
+#include "../include/lustre_log.h"
 
 #include "mdc_internal.h"
 
