@@ -136,13 +136,13 @@ void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
 			tmp = VIDEO_LIPSYNC(connector->video_latency[1]) |
 				AUDIO_LIPSYNC(connector->audio_latency[1]);
 		else
-			tmp = VIDEO_LIPSYNC(255) | AUDIO_LIPSYNC(255);
+			tmp = VIDEO_LIPSYNC(0) | AUDIO_LIPSYNC(0);
 	} else {
 		if (connector->latency_present[0])
 			tmp = VIDEO_LIPSYNC(connector->video_latency[0]) |
 				AUDIO_LIPSYNC(connector->audio_latency[0]);
 		else
-			tmp = VIDEO_LIPSYNC(255) | AUDIO_LIPSYNC(255);
+			tmp = VIDEO_LIPSYNC(0) | AUDIO_LIPSYNC(0);
 	}
 	WREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_RESPONSE_LIPSYNC, tmp);
 }
