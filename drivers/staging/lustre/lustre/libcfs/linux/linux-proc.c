@@ -65,7 +65,7 @@
 #include <asm/div64.h>
 #include "../tracefile.h"
 
-static ctl_table_header_t *lnet_table_header = NULL;
+static struct ctl_table_header *lnet_table_header = NULL;
 extern char lnet_upcall[1024];
 /**
  * The path of debug log dump upcall script.
@@ -217,7 +217,7 @@ DECLARE_PROC_HANDLER(proc_debug_mb)
 int LL_PROC_PROTO(proc_console_max_delay_cs)
 {
 	int rc, max_delay_cs;
-	ctl_table_t dummy = *table;
+	struct ctl_table dummy = *table;
 	cfs_duration_t d;
 
 	dummy.data = &max_delay_cs;
@@ -248,7 +248,7 @@ int LL_PROC_PROTO(proc_console_max_delay_cs)
 int LL_PROC_PROTO(proc_console_min_delay_cs)
 {
 	int rc, min_delay_cs;
-	ctl_table_t dummy = *table;
+	struct ctl_table dummy = *table;
 	cfs_duration_t d;
 
 	dummy.data = &min_delay_cs;
@@ -279,7 +279,7 @@ int LL_PROC_PROTO(proc_console_min_delay_cs)
 int LL_PROC_PROTO(proc_console_backoff)
 {
 	int rc, backoff;
-	ctl_table_t dummy = *table;
+	struct ctl_table dummy = *table;
 
 	dummy.data = &backoff;
 	dummy.proc_handler = &proc_dointvec;
@@ -363,7 +363,7 @@ static int __proc_cpt_table(void *data, int write,
 }
 DECLARE_PROC_HANDLER(proc_cpt_table)
 
-static ctl_table_t lnet_table[] = {
+static struct ctl_table lnet_table[] = {
 	/*
 	 * NB No .strategy entries have been provided since sysctl(8) prefers
 	 * to go via /proc for portability.
@@ -516,7 +516,7 @@ static ctl_table_t lnet_table[] = {
 	}
 };
 
-static ctl_table_t top_table[] = {
+static struct ctl_table top_table[] = {
 	{
 		.procname = "lnet",
 		.mode     = 0555,

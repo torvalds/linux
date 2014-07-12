@@ -86,7 +86,7 @@
 #define ll_proc_dostring(table, write, filp, buffer, lenp, ppos)	\
 	proc_dostring(table, write, buffer, lenp, ppos);
 #define LL_PROC_PROTO(name)					     \
-	name(ctl_table_t *table, int write,		      \
+	name(struct ctl_table *table, int write,		      \
 	     void __user *buffer, size_t *lenp, loff_t *ppos)
 
 /* helper for sysctl handlers */

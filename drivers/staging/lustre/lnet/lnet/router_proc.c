@@ -30,7 +30,7 @@
 /* This is really lnet_proc.c. You might need to update sanity test 215
  * if any file format is changed. */
 
-static ctl_table_header_t *lnet_table_header;
+static struct ctl_table_header *lnet_table_header;
 
 #define CTL_LNET	 (0x100)
 enum {
@@ -845,7 +845,7 @@ out:
 }
 DECLARE_PROC_HANDLER(proc_lnet_portal_rotor);
 
-static ctl_table_t lnet_table[] = {
+static struct ctl_table lnet_table[] = {
 	/*
 	 * NB No .strategy entries have been provided since sysctl(8) prefers
 	 * to go via /proc for portability.
@@ -889,7 +889,7 @@ static ctl_table_t lnet_table[] = {
 	}
 };
 
-static ctl_table_t top_table[] = {
+static struct ctl_table top_table[] = {
 	{
 		.procname = "lnet",
 		.mode     = 0555,

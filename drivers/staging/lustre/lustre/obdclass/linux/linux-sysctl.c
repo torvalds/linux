@@ -52,7 +52,7 @@
 #include "../../include/lprocfs_status.h"
 
 #ifdef CONFIG_SYSCTL
-ctl_table_header_t *obd_table_header = NULL;
+struct ctl_table_header *obd_table_header = NULL;
 #endif
 
 
@@ -274,7 +274,7 @@ int LL_PROC_PROTO(proc_at_history)
 }
 
 #ifdef CONFIG_SYSCTL
-static ctl_table_t obd_table[] = {
+static struct ctl_table obd_table[] = {
 	{
 		.procname = "timeout",
 		.data     = &obd_timeout,
@@ -390,7 +390,7 @@ static ctl_table_t obd_table[] = {
 	{}
 };
 
-static ctl_table_t parent_table[] = {
+static struct ctl_table parent_table[] = {
 	{
 		.procname = "lustre",
 		.data     = NULL,
