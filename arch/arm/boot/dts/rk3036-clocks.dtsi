@@ -85,7 +85,7 @@
 
 		fixed_factor_cons {
 			compatible = "rockchip,rk-fixed-factor-cons";
-
+/*
 			otgphy0_12m: otgphy0_12m {
 				compatible = "rockchip,rk-fixed-factor-clock";
 				clocks = <&clk_gates1 5>;
@@ -94,7 +94,7 @@
 				clock-mult = <20>;
 				#clock-cells = <0>;
 			};
-
+*/
 			hclk_vcodec: hclk_vcodec {
 				compatible = "rockchip,rk-fixed-factor-clock";
 				clocks = <&aclk_vcodec_pre>;
@@ -822,6 +822,7 @@
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
 					/* reg[31:7]: reserved */
@@ -939,7 +940,7 @@
 					clk_ddr: ddr_clk_pll_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 1>;
-						clocks = <&clk_gates0 2>, <&clk_gates0 8>;
+						clocks = <&clk_dpll>, <&dummy>;
 						clock-output-names = "clk_ddr";
 						#clock-cells = <0>;
 					};
@@ -1078,6 +1079,7 @@
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
 					/* reg[13]: reserved */
@@ -1115,7 +1117,7 @@
 					clk_gpu_pre: clk_gpu_pre_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 2>;
-						clocks = <&dummy>, <&clk_dpll>, <&clk_gpll>;
+						clocks = <&dummy>, <&dummy>, <&clk_gpll>;
 						clock-output-names = "clk_gpu_pre";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
