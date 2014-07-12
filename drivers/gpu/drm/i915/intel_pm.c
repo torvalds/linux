@@ -6945,7 +6945,7 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 	return 0;
 }
 
-int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
+static int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
 	int div;
 
@@ -6967,7 +6967,7 @@ int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
 	return DIV_ROUND_CLOSEST(dev_priv->mem_freq * (val + 6 - 0xbd), 4 * div);
 }
 
-int byt_freq_opcode(struct drm_i915_private *dev_priv, int val)
+static int byt_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	int mul;
 
@@ -6989,7 +6989,7 @@ int byt_freq_opcode(struct drm_i915_private *dev_priv, int val)
 	return DIV_ROUND_CLOSEST(4 * mul * val, dev_priv->mem_freq) + 0xbd - 6;
 }
 
-int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
+static int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
 	int div, freq;
 
@@ -7014,7 +7014,7 @@ int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 	return freq;
 }
 
-int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
+static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	int mul, opcode;
 
