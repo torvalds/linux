@@ -1098,32 +1098,34 @@ static int v4l_enum_fmt(const struct v4l2_ioctl_ops *ops,
 {
 	struct v4l2_fmtdesc *p = arg;
 	struct video_device *vfd = video_devdata(file);
+	bool is_vid = vfd->vfl_type == VFL_TYPE_GRABBER;
+	bool is_sdr = vfd->vfl_type == VFL_TYPE_SDR;
 	bool is_rx = vfd->vfl_dir != VFL_DIR_TX;
 	bool is_tx = vfd->vfl_dir != VFL_DIR_RX;
 
 	switch (p->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		if (unlikely(!is_rx || !ops->vidioc_enum_fmt_vid_cap))
+		if (unlikely(!is_rx || !is_vid || !ops->vidioc_enum_fmt_vid_cap))
 			break;
 		return ops->vidioc_enum_fmt_vid_cap(file, fh, arg);
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
-		if (unlikely(!is_rx || !ops->vidioc_enum_fmt_vid_cap_mplane))
+		if (unlikely(!is_rx || !is_vid || !ops->vidioc_enum_fmt_vid_cap_mplane))
 			break;
 		return ops->vidioc_enum_fmt_vid_cap_mplane(file, fh, arg);
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-		if (unlikely(!is_rx || !ops->vidioc_enum_fmt_vid_overlay))
+		if (unlikely(!is_rx || !is_vid || !ops->vidioc_enum_fmt_vid_overlay))
 			break;
 		return ops->vidioc_enum_fmt_vid_overlay(file, fh, arg);
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		if (unlikely(!is_tx || !ops->vidioc_enum_fmt_vid_out))
+		if (unlikely(!is_tx || !is_vid || !ops->vidioc_enum_fmt_vid_out))
 			break;
 		return ops->vidioc_enum_fmt_vid_out(file, fh, arg);
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-		if (unlikely(!is_tx || !ops->vidioc_enum_fmt_vid_out_mplane))
+		if (unlikely(!is_tx || !is_vid || !ops->vidioc_enum_fmt_vid_out_mplane))
 			break;
 		return ops->vidioc_enum_fmt_vid_out_mplane(file, fh, arg);
 	case V4L2_BUF_TYPE_SDR_CAPTURE:
-		if (unlikely(!is_rx || !ops->vidioc_enum_fmt_sdr_cap))
+		if (unlikely(!is_rx || !is_sdr || !ops->vidioc_enum_fmt_sdr_cap))
 			break;
 		return ops->vidioc_enum_fmt_sdr_cap(file, fh, arg);
 	}
