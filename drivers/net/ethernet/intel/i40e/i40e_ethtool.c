@@ -559,9 +559,17 @@ static int i40e_set_settings(struct net_device *netdev,
 		config.eeer = abilities.eeer_val;
 		config.low_power_ctrl = abilities.d3_lpan;
 
-		/* If link is up set link and an so changes take effect */
-		if (hw->phy.link_info.link_info & I40E_AQ_LINK_UP)
-			config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+		/* set link and auto negotiation so changes take effect */
+		config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+		/* If link is up put link down */
+		if (hw->phy.link_info.link_info & I40E_AQ_LINK_UP) {
+			/* Tell the OS link is going down, the link will go
+			 * back up when fw says it is ready asynchronously
+			 */
+			netdev_info(netdev, "PHY settings change requested, NIC Link is going down.\n");
+			netif_carrier_off(netdev);
+			netif_tx_stop_all_queues(netdev);
+		}
 
 		/* make the aq call */
 		status = i40e_aq_set_phy_config(hw, &config, NULL);
@@ -677,6 +685,13 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 		hw->fc.requested_mode = I40E_FC_NONE;
 	else
 		 return -EINVAL;
+
+	/* Tell the OS link is going down, the link will go back up when fw
+	 * says it is ready asynchronously
+	 */
+	netdev_info(netdev, "Flow control settings change requested, NIC Link is going down.\n");
+	netif_carrier_off(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	/* Set the fc mode and only restart an if link is up*/
 	status = i40e_set_fc(hw, &aq_failures, link_up);
