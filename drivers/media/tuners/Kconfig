@@ -71,6 +71,12 @@ config MEDIA_TUNER_TEA5767
 	help
 	  Say Y here to include support for the Philips TEA5767 radio tuner.
 
+config MEDIA_TUNER_MSI001
+	tristate "Mirics MSi001"
+	depends on MEDIA_SUPPORT && SPI && VIDEO_V4L2
+	help
+	  Mirics MSi001 silicon tuner driver.
+
 config MEDIA_TUNER_MT20XX
 	tristate "Microtune 2032 / 2050 tuners"
 	depends on MEDIA_SUPPORT && I2C

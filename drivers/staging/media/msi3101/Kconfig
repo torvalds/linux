@@ -5,6 +5,3 @@ config USB_MSI3101
 	select VIDEOBUF2_VMALLOC
 	select MEDIA_TUNER_MSI001
 
-config MEDIA_TUNER_MSI001
-	tristate "Mirics MSi001"
-	depends on VIDEO_V4L2 && SPI
