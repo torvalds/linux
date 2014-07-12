@@ -31,8 +31,8 @@ static int is_ext_irq_cascaded;
 static unsigned int ext_irq_count;
 static unsigned int ext_irq_start, ext_irq_end;
 static unsigned int ext_irq_cfg_reg1, ext_irq_cfg_reg2;
-static void (*internal_irq_mask)(unsigned int irq);
-static void (*internal_irq_unmask)(unsigned int irq);
+static void (*internal_irq_mask)(struct irq_data *d);
+static void (*internal_irq_unmask)(struct irq_data *d);
 
 
 static inline u32 get_ext_irq_perf_reg(int irq)
@@ -96,9 +96,10 @@ void __dispatch_internal_##width(int cpu)				\
 	}								\
 }									\
 									\
-static void __internal_irq_mask_##width(unsigned int irq)		\
+static void __internal_irq_mask_##width(struct irq_data *d)		\
 {									\
 	u32 val;							\
+	unsigned irq = d->irq - IRQ_INTERNAL_BASE;			\
 	unsigned reg = (irq / 32) ^ (width/32 - 1);			\
 	unsigned bit = irq & 0x1f;					\
 	unsigned long flags;						\
@@ -116,9 +117,10 @@ static void __internal_irq_mask_##width(unsigned int irq)		\
 	spin_unlock_irqrestore(&ipic_lock, flags);			\
 }									\
 									\
-static void __internal_irq_unmask_##width(unsigned int irq)		\
+static void __internal_irq_unmask_##width(struct irq_data *d)		\
 {									\
 	u32 val;							\
+	unsigned irq = d->irq - IRQ_INTERNAL_BASE;			\
 	unsigned reg = (irq / 32) ^ (width/32 - 1);			\
 	unsigned bit = irq & 0x1f;					\
 	unsigned long flags;						\
@@ -182,12 +184,12 @@ asmlinkage void plat_irq_dispatch(void)
  */
 static void bcm63xx_internal_irq_mask(struct irq_data *d)
 {
-	internal_irq_mask(d->irq - IRQ_INTERNAL_BASE);
+	internal_irq_mask(d);
 }
 
 static void bcm63xx_internal_irq_unmask(struct irq_data *d)
 {
-	internal_irq_unmask(d->irq - IRQ_INTERNAL_BASE);
+	internal_irq_unmask(d);
 }
 
 /*
@@ -213,7 +215,7 @@ static void bcm63xx_external_irq_mask(struct irq_data *d)
 	spin_unlock_irqrestore(&epic_lock, flags);
 
 	if (is_ext_irq_cascaded)
-		internal_irq_mask(irq + ext_irq_start);
+		internal_irq_mask(irq_get_irq_data(irq + ext_irq_start));
 }
 
 static void bcm63xx_external_irq_unmask(struct irq_data *d)
@@ -235,7 +237,7 @@ static void bcm63xx_external_irq_unmask(struct irq_data *d)
 	spin_unlock_irqrestore(&epic_lock, flags);
 
 	if (is_ext_irq_cascaded)
-		internal_irq_unmask(irq + ext_irq_start);
+		internal_irq_unmask(irq_get_irq_data(irq + ext_irq_start));
 }
 
 static void bcm63xx_external_irq_clear(struct irq_data *d)
