@@ -459,6 +459,9 @@ static int mb86a20s_get_interleaving(struct mb86a20s_state *state,
 				     unsigned layer)
 {
 	int rc;
+	int interleaving[] = {
+		0, 1, 2, 4, 8
+	};
 
 	static unsigned char reg[] = {
 		[0] = 0x88,	/* Layer A */
@@ -475,20 +478,7 @@ static int mb86a20s_get_interleaving(struct mb86a20s_state *state,
 	if (rc < 0)
 		return rc;
 
-	switch ((rc >> 4) & 0x07) {
-	case 1:
-		return GUARD_INTERVAL_1_4;
-	case 2:
-		return GUARD_INTERVAL_1_8;
-	case 3:
-		return GUARD_INTERVAL_1_16;
-	case 4:
-		return GUARD_INTERVAL_1_32;
-
-	default:
-	case 0:
-		return GUARD_INTERVAL_AUTO;
-	}
+	return interleaving[(rc >> 4) & 0x07];
 }
 
 static int mb86a20s_get_segment_count(struct mb86a20s_state *state,
