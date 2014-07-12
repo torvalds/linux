@@ -3467,6 +3467,10 @@ iscsi_get_host_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 		memset(buf, 0, host_stats_size);
 
 		err = transport->get_host_stats(shost, buf, host_stats_size);
+		if (err) {
+			kfree(skbhost_stats);
+			goto exit_host_stats;
+		}
 
 		actual_size = nlmsg_total_size(sizeof(*ev) + host_stats_size);
 		skb_trim(skbhost_stats, NLMSG_ALIGN(actual_size));
