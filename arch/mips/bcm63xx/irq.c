@@ -102,11 +102,17 @@ static void __internal_irq_mask_##width(unsigned int irq)		\
 	unsigned reg = (irq / 32) ^ (width/32 - 1);			\
 	unsigned bit = irq & 0x1f;					\
 	unsigned long flags;						\
+	int cpu;							\
 									\
 	spin_lock_irqsave(&ipic_lock, flags);				\
-	val = bcm_readl(irq_mask_addr[0] + reg * sizeof(u32));		\
-	val &= ~(1 << bit);						\
-	bcm_writel(val, irq_mask_addr[0] + reg * sizeof(u32));		\
+	for_each_present_cpu(cpu) {					\
+		if (!irq_mask_addr[cpu])				\
+			break;						\
+									\
+		val = bcm_readl(irq_mask_addr[cpu] + reg * sizeof(u32));\
+		val &= ~(1 << bit);					\
+		bcm_writel(val, irq_mask_addr[cpu] + reg * sizeof(u32));\
+	}								\
 	spin_unlock_irqrestore(&ipic_lock, flags);			\
 }									\
 									\
@@ -116,11 +122,20 @@ static void __internal_irq_unmask_##width(unsigned int irq)		\
 	unsigned reg = (irq / 32) ^ (width/32 - 1);			\
 	unsigned bit = irq & 0x1f;					\
 	unsigned long flags;						\
+	int cpu;							\
 									\
 	spin_lock_irqsave(&ipic_lock, flags);				\
-	val = bcm_readl(irq_mask_addr[0] + reg * sizeof(u32));		\
-	val |= (1 << bit);						\
-	bcm_writel(val, irq_mask_addr[0] + reg * sizeof(u32));		\
+	for_each_present_cpu(cpu) {					\
+		if (!irq_mask_addr[cpu])				\
+			break;						\
+									\
+		val = bcm_readl(irq_mask_addr[cpu] + reg * sizeof(u32));\
+		if (cpu_online(cpu))					\
+			val |= (1 << bit);				\
+		else							\
+			val &= ~(1 << bit);				\
+		bcm_writel(val, irq_mask_addr[cpu] + reg * sizeof(u32));\
+	}								\
 	spin_unlock_irqrestore(&ipic_lock, flags);			\
 }
 
@@ -145,7 +160,10 @@ asmlinkage void plat_irq_dispatch(void)
 			do_IRQ(1);
 		if (cause & CAUSEF_IP2)
 			dispatch_internal(0);
-		if (!is_ext_irq_cascaded) {
+		if (is_ext_irq_cascaded) {
+			if (cause & CAUSEF_IP3)
+				dispatch_internal(1);
+		} else {
 			if (cause & CAUSEF_IP3)
 				do_IRQ(IRQ_EXT_0);
 			if (cause & CAUSEF_IP4)
@@ -358,6 +376,14 @@ static struct irqaction cpu_ip2_cascade_action = {
 	.flags		= IRQF_NO_THREAD,
 };
 
+#ifdef CONFIG_SMP
+static struct irqaction cpu_ip3_cascade_action = {
+	.handler	= no_action,
+	.name		= "cascade_ip3",
+	.flags		= IRQF_NO_THREAD,
+};
+#endif
+
 static struct irqaction cpu_ext_cascade_action = {
 	.handler	= no_action,
 	.name		= "cascade_extirq",
@@ -494,4 +520,8 @@ void __init arch_init_irq(void)
 	}
 
 	setup_irq(MIPS_CPU_IRQ_BASE + 2, &cpu_ip2_cascade_action);
+#ifdef CONFIG_SMP
+	if (is_ext_irq_cascaded)
+		setup_irq(MIPS_CPU_IRQ_BASE + 3, &cpu_ip3_cascade_action);
+#endif
 }
