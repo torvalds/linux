@@ -715,7 +715,7 @@ lnet_ptl_unsetopt(lnet_portal_t *ptl, int opt)
 
 /* match-table functions */
 struct list_head *lnet_mt_match_head(struct lnet_match_table *mtable,
-			       lnet_process_id_t id, __u64 mbits);
+				     lnet_process_id_t id, __u64 mbits);
 struct lnet_match_table *lnet_mt_of_attach(unsigned int index,
 					   lnet_process_id_t id, __u64 mbits,
 					   __u64 ignore_bits,
@@ -735,7 +735,7 @@ void lnet_portals_destroy(void);
 
 /* message functions */
 int lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr,
-		lnet_nid_t fromnid, void *private, int rdma_req);
+	       lnet_nid_t fromnid, void *private, int rdma_req);
 void lnet_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 	       unsigned int offset, unsigned int mlen, unsigned int rlen);
 lnet_msg_t *lnet_create_reply_msg(lnet_ni_t *ni, lnet_msg_t *get_msg);
@@ -758,7 +758,7 @@ void lnet_counters_reset(void);
 
 unsigned int lnet_iov_nob(unsigned int niov, struct iovec *iov);
 int lnet_extract_iov(int dst_niov, struct iovec *dst,
-		      int src_niov, struct iovec *src,
+		     int src_niov, struct iovec *src,
 		      unsigned int offset, unsigned int len);
 
 unsigned int lnet_kiov_nob(unsigned int niov, lnet_kiov_t *iov);
@@ -767,19 +767,19 @@ int lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 		      unsigned int offset, unsigned int len);
 
 void lnet_copy_iov2iov(unsigned int ndiov, struct iovec *diov,
-			unsigned int doffset,
+		       unsigned int doffset,
 			unsigned int nsiov, struct iovec *siov,
 			unsigned int soffset, unsigned int nob);
 void lnet_copy_kiov2iov(unsigned int niov, struct iovec *iov,
-			 unsigned int iovoffset,
+			unsigned int iovoffset,
 			 unsigned int nkiov, lnet_kiov_t *kiov,
 			 unsigned int kiovoffset, unsigned int nob);
 void lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
-			 unsigned int kiovoffset,
+			unsigned int kiovoffset,
 			 unsigned int niov, struct iovec *iov,
 			 unsigned int iovoffset, unsigned int nob);
 void lnet_copy_kiov2kiov(unsigned int ndkiov, lnet_kiov_t *dkiov,
-			  unsigned int doffset,
+			 unsigned int doffset,
 			  unsigned int nskiov, lnet_kiov_t *skiov,
 			  unsigned int soffset, unsigned int nob);
 
