@@ -8,8 +8,6 @@ Required properties:
 - compatible: value should be one of the following
 		"samsung,s3c2443-fimd"; /* for S3C24XX SoCs */
 		"samsung,s3c6400-fimd"; /* for S3C64XX SoCs */
-		"samsung,s5p6440-fimd"; /* for S5P64X0 SoCs */
-		"samsung,s5pc100-fimd"; /* for S5PC100 SoC  */
 		"samsung,s5pv210-fimd"; /* for S5PV210 SoC */
 		"samsung,exynos4210-fimd"; /* for Exynos4 SoCs */
 		"samsung,exynos5250-fimd"; /* for Exynos5 SoCs */
