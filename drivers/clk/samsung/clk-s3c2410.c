@@ -152,6 +152,11 @@ struct samsung_clock_alias s3c2410_common_aliases[] __initdata = {
 	ALIAS(HCLK, NULL, "hclk"),
 	ALIAS(MPLL, NULL, "mpll"),
 	ALIAS(FCLK, NULL, "fclk"),
+	ALIAS(PCLK, NULL, "watchdog"),
+	ALIAS(PCLK_SDI, NULL, "sdi"),
+	ALIAS(HCLK_NAND, NULL, "nand"),
+	ALIAS(PCLK_I2S, NULL, "iis"),
+	ALIAS(PCLK_I2C, NULL, "i2c"),
 };
 
 /* S3C2410 specific clocks */
@@ -378,7 +383,7 @@ void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
 	if (!np)
 		s3c2410_common_clk_register_fixed_ext(ctx, xti_f);
 
-	if (current_soc == 2410) {
+	if (current_soc == S3C2410) {
 		if (_get_rate("xti") == 12 * MHZ) {
 			s3c2410_plls[mpll].rate_table = pll_s3c2410_12mhz_tbl;
 			s3c2410_plls[upll].rate_table = pll_s3c2410_12mhz_tbl;
@@ -432,7 +437,7 @@ void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
 		samsung_clk_register_fixed_factor(ctx, s3c2410_ffactor,
 				ARRAY_SIZE(s3c2410_ffactor));
 		samsung_clk_register_alias(ctx, s3c2410_aliases,
-			ARRAY_SIZE(s3c2410_common_aliases));
+			ARRAY_SIZE(s3c2410_aliases));
 		break;
 	case S3C2440:
 		samsung_clk_register_mux(ctx, s3c2440_muxes,

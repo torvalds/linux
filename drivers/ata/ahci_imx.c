@@ -58,6 +58,8 @@ enum ahci_imx_type {
 struct imx_ahci_priv {
 	struct platform_device *ahci_pdev;
 	enum ahci_imx_type type;
+	struct clk *sata_clk;
+	struct clk *sata_ref_clk;
 	struct clk *ahb_clk;
 	struct regmap *gpr;
 	bool no_device;
@@ -224,7 +226,7 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 			return ret;
 	}
 
-	ret = ahci_platform_enable_clks(hpriv);
+	ret = clk_prepare_enable(imxpriv->sata_ref_clk);
 	if (ret < 0)
 		goto disable_regulator;
 
@@ -291,7 +293,7 @@ static void imx_sata_disable(struct ahci_host_priv *hpriv)
 				   !IMX6Q_GPR13_SATA_MPLL_CLK_EN);
 	}
 
-	ahci_platform_disable_clks(hpriv);
+	clk_disable_unprepare(imxpriv->sata_ref_clk);
 
 	if (hpriv->target_pwr)
 		regulator_disable(hpriv->target_pwr);
@@ -324,6 +326,9 @@ static void ahci_imx_error_handler(struct ata_port *ap)
 	writel(reg_val | IMX_P0PHYCR_TEST_PDDQ, mmio + IMX_P0PHYCR);
 	imx_sata_disable(hpriv);
 	imxpriv->no_device = true;
+
+	dev_info(ap->dev, "no device found, disabling link.\n");
+	dev_info(ap->dev, "pass " MODULE_PARAM_PREFIX ".hotplug=1 to enable hotplug\n");
 }
 
 static int ahci_imx_softreset(struct ata_link *link, unsigned int *class,
@@ -385,6 +390,19 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	imxpriv->no_device = false;
 	imxpriv->first_time = true;
 	imxpriv->type = (enum ahci_imx_type)of_id->data;
+
+	imxpriv->sata_clk = devm_clk_get(dev, "sata");
+	if (IS_ERR(imxpriv->sata_clk)) {
+		dev_err(dev, "can't get sata clock.\n");
+		return PTR_ERR(imxpriv->sata_clk);
+	}
+
+	imxpriv->sata_ref_clk = devm_clk_get(dev, "sata_ref");
+	if (IS_ERR(imxpriv->sata_ref_clk)) {
+		dev_err(dev, "can't get sata_ref clock.\n");
+		return PTR_ERR(imxpriv->sata_ref_clk);
+	}
+
 	imxpriv->ahb_clk = devm_clk_get(dev, "ahb");
 	if (IS_ERR(imxpriv->ahb_clk)) {
 		dev_err(dev, "can't get ahb clock.\n");
@@ -407,9 +425,13 @@ static int imx_ahci_probe(struct platform_device *pdev)
 
 	hpriv->plat_data = imxpriv;
 
-	ret = imx_sata_enable(hpriv);
+	ret = clk_prepare_enable(imxpriv->sata_clk);
 	if (ret)
 		return ret;
+
+	ret = imx_sata_enable(hpriv);
+	if (ret)
+		goto disable_clk;
 
 	/*
 	 * Configure the HWINIT bits of the HOST_CAP and HOST_PORTS_IMPL,
@@ -435,16 +457,24 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	ret = ahci_platform_init_host(pdev, hpriv, &ahci_imx_port_info,
 				      0, 0, 0);
 	if (ret)
-		imx_sata_disable(hpriv);
+		goto disable_sata;
 
+	return 0;
+
+disable_sata:
+	imx_sata_disable(hpriv);
+disable_clk:
+	clk_disable_unprepare(imxpriv->sata_clk);
 	return ret;
 }
 
 static void ahci_imx_host_stop(struct ata_host *host)
 {
 	struct ahci_host_priv *hpriv = host->private_data;
+	struct imx_ahci_priv *imxpriv = hpriv->plat_data;
 
 	imx_sata_disable(hpriv);
+	clk_disable_unprepare(imxpriv->sata_clk);
 }
 
 #ifdef CONFIG_PM_SLEEP
