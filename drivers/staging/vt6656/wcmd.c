@@ -104,7 +104,7 @@ static int vnt_cmd_complete(struct vnt_private *priv)
 	return true;
 }
 
-void vRunCommand(struct work_struct *work)
+void vnt_run_command(struct work_struct *work)
 {
 	struct vnt_private *priv =
 		container_of(work, struct vnt_private, run_command_work.work);

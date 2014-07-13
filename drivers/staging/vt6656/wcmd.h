@@ -63,6 +63,6 @@ void vResetCommandTimer(struct vnt_private *);
 
 int bScheduleCommand(struct vnt_private *, enum vnt_cmd, u8 *);
 
-void vRunCommand(struct work_struct *work);
+void vnt_run_command(struct work_struct *work);
 
 #endif /* __WCMD_H__ */

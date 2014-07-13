@@ -1111,7 +1111,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	spin_lock_init(&priv->lock);
 	mutex_init(&priv->usb_lock);
 
-	INIT_DELAYED_WORK(&priv->run_command_work, vRunCommand);
+	INIT_DELAYED_WORK(&priv->run_command_work, vnt_run_command);
 
 	usb_set_intfdata(intf, priv);
 
