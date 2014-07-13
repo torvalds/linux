@@ -52,5 +52,9 @@ if (MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
 source "drivers/media/usb/em28xx/Kconfig"
 endif
 
+if MEDIA_SDR_SUPPORT
+	comment "Software defined radio USB devices"
+endif
+
 endif #MEDIA_USB_SUPPORT
 endif #USB
