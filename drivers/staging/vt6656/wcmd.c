@@ -64,7 +64,7 @@ void vRunCommand(struct work_struct *work)
 	if (priv->Flags & fMP_DISCONNECTED)
 		return;
 
-	if (priv->bCmdRunning != true)
+	if (priv->cmd_running != true)
 		return;
 
 	switch (priv->command_state) {
@@ -140,17 +140,17 @@ static int s_bCommandComplete(struct vnt_private *priv)
 {
 
 	priv->command_state = WLAN_CMD_IDLE;
-	if (priv->cbFreeCmdQueue == CMD_Q_SIZE) {
+	if (priv->free_cmd_queue == CMD_Q_SIZE) {
 		/* Command Queue Empty */
-		priv->bCmdRunning = false;
+		priv->cmd_running = false;
 		return true;
 	}
 
-	priv->command = priv->cmd_queue[priv->uCmdDequeueIdx];
+	priv->command = priv->cmd_queue[priv->cmd_dequeue_idx];
 
-	ADD_ONE_WITH_WRAP_AROUND(priv->uCmdDequeueIdx, CMD_Q_SIZE);
-	priv->cbFreeCmdQueue++;
-	priv->bCmdRunning = true;
+	ADD_ONE_WITH_WRAP_AROUND(priv->cmd_dequeue_idx, CMD_Q_SIZE);
+	priv->free_cmd_queue++;
+	priv->cmd_running = true;
 
 	switch (priv->command) {
 	case WLAN_CMD_INIT_MAC80211:
@@ -189,15 +189,15 @@ static int s_bCommandComplete(struct vnt_private *priv)
 int bScheduleCommand(struct vnt_private *priv, enum vnt_cmd command, u8 *item0)
 {
 
-	if (priv->cbFreeCmdQueue == 0)
+	if (priv->free_cmd_queue == 0)
 		return false;
 
-	priv->cmd_queue[priv->uCmdEnqueueIdx] = command;
+	priv->cmd_queue[priv->cmd_enqueue_idx] = command;
 
-	ADD_ONE_WITH_WRAP_AROUND(priv->uCmdEnqueueIdx, CMD_Q_SIZE);
-	priv->cbFreeCmdQueue--;
+	ADD_ONE_WITH_WRAP_AROUND(priv->cmd_enqueue_idx, CMD_Q_SIZE);
+	priv->free_cmd_queue--;
 
-	if (priv->bCmdRunning == false)
+	if (priv->cmd_running == false)
 		s_bCommandComplete(priv);
 
 	return true;
@@ -206,9 +206,9 @@ int bScheduleCommand(struct vnt_private *priv, enum vnt_cmd command, u8 *item0)
 
 void vResetCommandTimer(struct vnt_private *priv)
 {
-	priv->cbFreeCmdQueue = CMD_Q_SIZE;
-	priv->uCmdDequeueIdx = 0;
-	priv->uCmdEnqueueIdx = 0;
+	priv->free_cmd_queue = CMD_Q_SIZE;
+	priv->cmd_dequeue_idx = 0;
+	priv->cmd_enqueue_idx = 0;
 	priv->command_state = WLAN_CMD_IDLE;
-	priv->bCmdRunning = false;
+	priv->cmd_running = false;
 }

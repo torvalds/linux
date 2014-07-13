@@ -708,7 +708,7 @@ static void vnt_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&priv->run_command_work);
 
-	priv->bCmdRunning = false;
+	priv->cmd_running = false;
 
 	priv->flags &= ~DEVICE_FLAGS_OPENED;
 
