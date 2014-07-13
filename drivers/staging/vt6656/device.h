@@ -398,7 +398,7 @@ struct vnt_private {
 	/* Beacon releated */
 	u16 wSeqCounter;
 
-	CMD_STATE eCommandState;
+	enum vnt_cmd_state command_state;
 
 	enum vnt_cmd command;
 

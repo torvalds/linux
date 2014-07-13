@@ -67,7 +67,7 @@ void vRunCommand(struct work_struct *work)
 	if (priv->bCmdRunning != true)
 		return;
 
-	switch (priv->eCommandState) {
+	switch (priv->command_state) {
 	case WLAN_CMD_INIT_MAC80211_START:
 		if (priv->mac_hw)
 			break;
@@ -139,7 +139,7 @@ void vRunCommand(struct work_struct *work)
 static int s_bCommandComplete(struct vnt_private *priv)
 {
 
-	priv->eCommandState = WLAN_CMD_IDLE;
+	priv->command_state = WLAN_CMD_IDLE;
 	if (priv->cbFreeCmdQueue == CMD_Q_SIZE) {
 		/* Command Queue Empty */
 		priv->bCmdRunning = false;
@@ -154,27 +154,27 @@ static int s_bCommandComplete(struct vnt_private *priv)
 
 	switch (priv->command) {
 	case WLAN_CMD_INIT_MAC80211:
-		priv->eCommandState = WLAN_CMD_INIT_MAC80211_START;
+		priv->command_state = WLAN_CMD_INIT_MAC80211_START;
 		break;
 
 	case WLAN_CMD_TBTT_WAKEUP:
-		priv->eCommandState = WLAN_CMD_TBTT_WAKEUP_START;
+		priv->command_state = WLAN_CMD_TBTT_WAKEUP_START;
 		break;
 
 	case WLAN_CMD_BECON_SEND:
-		priv->eCommandState = WLAN_CMD_BECON_SEND_START;
+		priv->command_state = WLAN_CMD_BECON_SEND_START;
 		break;
 
 	case WLAN_CMD_SETPOWER:
-		priv->eCommandState = WLAN_CMD_SETPOWER_START;
+		priv->command_state = WLAN_CMD_SETPOWER_START;
 		break;
 
 	case WLAN_CMD_CHANGE_ANTENNA:
-		priv->eCommandState = WLAN_CMD_CHANGE_ANTENNA_START;
+		priv->command_state = WLAN_CMD_CHANGE_ANTENNA_START;
 		break;
 
 	case WLAN_CMD_11H_CHSW:
-		priv->eCommandState = WLAN_CMD_11H_CHSW_START;
+		priv->command_state = WLAN_CMD_11H_CHSW_START;
 		break;
 
 	default:
@@ -209,7 +209,7 @@ void vResetCommandTimer(struct vnt_private *priv)
 	priv->cbFreeCmdQueue = CMD_Q_SIZE;
 	priv->uCmdDequeueIdx = 0;
 	priv->uCmdEnqueueIdx = 0;
-	priv->eCommandState = WLAN_CMD_IDLE;
+	priv->command_state = WLAN_CMD_IDLE;
 	priv->bCmdRunning = false;
 	priv->bCmdClear = false;
 }
