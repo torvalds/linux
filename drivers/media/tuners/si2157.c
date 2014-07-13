@@ -1,5 +1,5 @@
 /*
- * Silicon Labs Si2157 silicon tuner driver
+ * Silicon Labs Si2157/2158 silicon tuner driver
  *
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
  *
@@ -15,6 +15,8 @@
  */
 
 #include "si2157_priv.h"
+
+static const struct dvb_tuner_ops si2157_ops;
 
 /* execute firmware command */
 static int si2157_cmd_execute(struct si2157 *s, struct si2157_cmd *cmd)
@@ -80,8 +82,11 @@ err:
 static int si2157_init(struct dvb_frontend *fe)
 {
 	struct si2157 *s = fe->tuner_priv;
-	int ret;
+	int ret, remaining;
 	struct si2157_cmd cmd;
+	u8 chip, len = 0;
+	const struct firmware *fw = NULL;
+	u8 *fw_file;
 
 	dev_dbg(&s->client->dev, "%s:\n", __func__);
 
@@ -100,6 +105,64 @@ static int si2157_init(struct dvb_frontend *fe)
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
+
+	chip = cmd.args[2]; /* 57 for Si2157, 58 for Si2158 */
+
+	/* Si2158 requires firmware download */
+	if (chip == 58) {
+		if (((cmd.args[1] & 0x0f) == 1) && (cmd.args[3] == '2') &&
+				(cmd.args[4] == '0'))
+			fw_file = SI2158_A20_FIRMWARE;
+		else {
+			dev_err(&s->client->dev,
+					"%s: no firmware file for Si%d-%c%c defined\n",
+					KBUILD_MODNAME, chip, cmd.args[3], cmd.args[4]);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		/* cold state - try to download firmware */
+		dev_info(&s->client->dev, "%s: found a '%s' in cold state\n",
+				KBUILD_MODNAME, si2157_ops.info.name);
+
+		/* request the firmware, this will block and timeout */
+		ret = request_firmware(&fw, fw_file, &s->client->dev);
+		if (ret) {
+			dev_err(&s->client->dev, "%s: firmware file '%s' not found\n",
+					KBUILD_MODNAME, fw_file);
+			goto err;
+		}
+
+		dev_info(&s->client->dev, "%s: downloading firmware from file '%s'\n",
+				KBUILD_MODNAME, fw_file);
+
+		/* firmware should be n chunks of 17 bytes */
+		if (fw->size % 17 != 0) {
+			dev_err(&s->client->dev, "%s: firmware file '%s' is invalid\n",
+					KBUILD_MODNAME, fw_file);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		for (remaining = fw->size; remaining > 0; remaining -= 17) {
+			memcpy(&len, &fw->data[fw->size - remaining], 1);
+			memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1],
+					len);
+			cmd.wlen = len;
+			cmd.rlen = 1;
+			ret = si2157_cmd_execute(s, &cmd);
+			if (ret) {
+				dev_err(&s->client->dev,
+						"%s: firmware download failed=%d\n",
+						KBUILD_MODNAME, ret);
+				goto err;
+			}
+		}
+
+		release_firmware(fw);
+		fw = NULL;
+
+	}
 
 	/* reboot the tuner with new firmware? */
 	memcpy(cmd.args, "\x01\x01", 2);
@@ -177,7 +240,7 @@ err:
 
 static const struct dvb_tuner_ops si2157_tuner_ops = {
 	.info = {
-		.name           = "Silicon Labs Si2157",
+		.name           = "Silicon Labs Si2157/Si2158",
 		.frequency_min  = 110000000,
 		.frequency_max  = 862000000,
 	},
@@ -221,7 +284,7 @@ static int si2157_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, s);
 
 	dev_info(&s->client->dev,
-			"%s: Silicon Labs Si2157 successfully attached\n",
+			"%s: Silicon Labs Si2157/Si2158 successfully attached\n",
 			KBUILD_MODNAME);
 	return 0;
 err:
@@ -263,6 +326,6 @@ static struct i2c_driver si2157_driver = {
 
 module_i2c_driver(si2157_driver);
 
-MODULE_DESCRIPTION("Silicon Labs Si2157 silicon tuner driver");
+MODULE_DESCRIPTION("Silicon Labs Si2157/Si2158 silicon tuner driver");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_LICENSE("GPL");
