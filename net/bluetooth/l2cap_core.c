@@ -798,14 +798,14 @@ static u8 l2cap_get_ident(struct l2cap_conn *conn)
 	 *  200 - 254 are used by utilities like l2ping, etc.
 	 */
 
-	spin_lock(&conn->lock);
+	mutex_lock(&conn->ident_lock);
 
 	if (++conn->tx_ident > 128)
 		conn->tx_ident = 1;
 
 	id = conn->tx_ident;
 
-	spin_unlock(&conn->lock);
+	mutex_unlock(&conn->ident_lock);
 
 	return id;
 }
@@ -7016,7 +7016,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 		conn->hs_enabled = test_bit(HCI_HS_ENABLED,
 					    &hcon->hdev->dev_flags);
 
-	spin_lock_init(&conn->lock);
+	mutex_init(&conn->ident_lock);
 	mutex_init(&conn->chan_lock);
 
 	INIT_LIST_HEAD(&conn->chan_l);

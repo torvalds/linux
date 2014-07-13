@@ -625,11 +625,10 @@ struct l2cap_conn {
 
 	struct delayed_work	info_timer;
 
-	spinlock_t		lock;
-
 	struct sk_buff		*rx_skb;
 	__u32			rx_len;
 	__u8			tx_ident;
+	struct mutex		ident_lock;
 
 	struct sk_buff_head	pending_rx;
 	struct work_struct	pending_rx_work;
