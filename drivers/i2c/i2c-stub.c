@@ -226,6 +226,8 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 		 * We ignore banks here, because banked chips don't use I2C
 		 * block transfers
 		 */
+		if (data->block[0] > 256 - command)	/* Avoid overrun */
+			data->block[0] = 256 - command;
 		len = data->block[0];
 		if (read_write == I2C_SMBUS_WRITE) {
 			for (i = 0; i < len; i++) {
