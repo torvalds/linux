@@ -238,7 +238,6 @@ void hci_le_ltk_reply(struct hci_conn *conn, u8 ltk[16])
 
 	hci_send_cmd(hdev, HCI_OP_LE_LTK_REPLY, sizeof(cp), &cp);
 }
-EXPORT_SYMBOL(hci_le_ltk_reply);
 
 void hci_le_ltk_neg_reply(struct hci_conn *conn)
 {
