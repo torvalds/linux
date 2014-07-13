@@ -53,7 +53,6 @@ struct sco_conn {
 #define sco_conn_lock(c)	spin_lock(&c->lock);
 #define sco_conn_unlock(c)	spin_unlock(&c->lock);
 
-static void __sco_chan_add(struct sco_conn *conn, struct sock *sk, struct sock *parent);
 static void sco_chan_del(struct sock *sk, int err);
 
 static void sco_sock_close(struct sock *sk);
@@ -162,6 +161,17 @@ static int sco_conn_del(struct hci_conn *hcon, int err)
 	hcon->sco_data = NULL;
 	kfree(conn);
 	return 0;
+}
+
+static void __sco_chan_add(struct sco_conn *conn, struct sock *sk, struct sock *parent)
+{
+	BT_DBG("conn %p", conn);
+
+	sco_pi(sk)->conn = conn;
+	conn->sk = sk;
+
+	if (parent)
+		bt_accept_enqueue(parent, sk);
 }
 
 static int sco_chan_add(struct sco_conn *conn, struct sock *sk,
@@ -966,17 +976,6 @@ static int sco_sock_release(struct socket *sock)
 	sock_orphan(sk);
 	sco_sock_kill(sk);
 	return err;
-}
-
-static void __sco_chan_add(struct sco_conn *conn, struct sock *sk, struct sock *parent)
-{
-	BT_DBG("conn %p", conn);
-
-	sco_pi(sk)->conn = conn;
-	conn->sk = sk;
-
-	if (parent)
-		bt_accept_enqueue(parent, sk);
 }
 
 /* Delete channel.
