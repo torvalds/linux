@@ -56,10 +56,6 @@ typedef enum tagCMD_STATUS {
 
 } CMD_STATUS, *PCMD_STATUS;
 
-typedef struct tagCMD_ITEM {
-	enum vnt_cmd cmd;
-} CMD_ITEM, *PCMD_ITEM;
-
 /* Command state */
 enum vnt_cmd_state {
 	WLAN_CMD_INIT_MAC80211_START,

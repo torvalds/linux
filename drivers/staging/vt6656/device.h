@@ -406,7 +406,7 @@ struct vnt_private {
 
 	/* 802.11 counter */
 
-	CMD_ITEM eCmdQueue[CMD_Q_SIZE];
+	enum vnt_cmd cmd_queue[CMD_Q_SIZE];
 	u32 uCmdDequeueIdx;
 	u32 uCmdEnqueueIdx;
 	u32 cbFreeCmdQueue;
