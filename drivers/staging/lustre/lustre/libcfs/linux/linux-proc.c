@@ -243,13 +243,13 @@ int proc_console_max_delay_cs(struct ctl_table *table, int write,
 
 	if (!write) { /* read */
 		max_delay_cs = cfs_duration_sec(libcfs_console_max_delay * 100);
-		rc = ll_proc_dointvec(&dummy, write, filp, buffer, lenp, ppos);
+		rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
 		return rc;
 	}
 
 	/* write */
 	max_delay_cs = 0;
-	rc = ll_proc_dointvec(&dummy, write, filp, buffer, lenp, ppos);
+	rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
 	if (rc < 0)
 		return rc;
 	if (max_delay_cs <= 0)
@@ -275,13 +275,13 @@ int proc_console_min_delay_cs(struct ctl_table *table, int write,
 
 	if (!write) { /* read */
 		min_delay_cs = cfs_duration_sec(libcfs_console_min_delay * 100);
-		rc = ll_proc_dointvec(&dummy, write, filp, buffer, lenp, ppos);
+		rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
 		return rc;
 	}
 
 	/* write */
 	min_delay_cs = 0;
-	rc = ll_proc_dointvec(&dummy, write, filp, buffer, lenp, ppos);
+	rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
 	if (rc < 0)
 		return rc;
 	if (min_delay_cs <= 0)
@@ -306,13 +306,13 @@ int proc_console_backoff(struct ctl_table *table, int write,
 
 	if (!write) { /* read */
 		backoff= libcfs_console_backoff;
-		rc = ll_proc_dointvec(&dummy, write, filp, buffer, lenp, ppos);
+		rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
 		return rc;
 	}
 
 	/* write */
 	backoff = 0;
-	rc = ll_proc_dointvec(&dummy, write, filp, buffer, lenp, ppos);
+	rc = proc_dointvec(&dummy, write, buffer, lenp, ppos);
 	if (rc < 0)
 		return rc;
 	if (backoff <= 0)
@@ -337,7 +337,7 @@ int proc_fail_loc(struct ctl_table *table, int write, void __user *buffer,
 	int rc;
 	long old_fail_loc = cfs_fail_loc;
 
-	rc = ll_proc_dolongvec(table, write, filp, buffer, lenp, ppos);
+	rc = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 	if (old_fail_loc != cfs_fail_loc)
 		wake_up(&cfs_race_waitq);
 	return rc;

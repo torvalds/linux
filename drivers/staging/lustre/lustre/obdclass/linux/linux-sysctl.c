@@ -84,7 +84,7 @@ int proc_set_timeout(struct ctl_table *table, int write, void __user *buffer,
 {
 	int rc;
 
-	rc = ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
+	rc = proc_dointvec(table, write, buffer, lenp, ppos);
 	if (ldlm_timeout >= obd_timeout)
 		ldlm_timeout = max(obd_timeout / 3, 1U);
 	return rc;
@@ -259,36 +259,6 @@ int proc_alloc_fail_rate(struct ctl_table *table, int write,
 	return rc;
 }
 
-int proc_at_min(struct ctl_table *table, int write, void __user *buffer,
-		size_t *lenp, loff_t *ppos)
-{
-	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
-}
-
-int proc_at_max(struct ctl_table *table, int write, void __user *buffer,
-		size_t *lenp, loff_t *ppos)
-{
-	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
-}
-
-int proc_at_extra(struct ctl_table *table, int write, void __user *buffer,
-		  size_t *lenp, loff_t *ppos)
-{
-	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
-}
-
-int proc_at_early_margin(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
-}
-
-int proc_at_history(struct ctl_table *table, int write, void __user *buffer,
-		    size_t *lenp, loff_t *ppos)
-{
-	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
-}
-
 #ifdef CONFIG_SYSCTL
 static struct ctl_table obd_table[] = {
 	{
@@ -373,35 +343,35 @@ static struct ctl_table obd_table[] = {
 		.data     = &at_min,
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
-		.proc_handler = &proc_at_min
+		.proc_handler = &proc_dointvec,
 	},
 	{
 		.procname = "at_max",
 		.data     = &at_max,
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
-		.proc_handler = &proc_at_max
+		.proc_handler = &proc_dointvec,
 	},
 	{
 		.procname = "at_extra",
 		.data     = &at_extra,
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
-		.proc_handler = &proc_at_extra
+		.proc_handler = &proc_dointvec,
 	},
 	{
 		.procname = "at_early_margin",
 		.data     = &at_early_margin,
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
-		.proc_handler = &proc_at_early_margin
+		.proc_handler = &proc_dointvec,
 	},
 	{
 		.procname = "at_history",
 		.data     = &at_history,
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
-		.proc_handler = &proc_at_history
+		.proc_handler = &proc_dointvec,
 	},
 	{}
 };

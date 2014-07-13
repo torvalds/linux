@@ -78,10 +78,4 @@
 #define __cfs_fls __fls
 #endif
 
-#define ll_proc_dointvec(table, write, filp, buffer, lenp, ppos)	\
-	proc_dointvec(table, write, buffer, lenp, ppos);
-
-#define ll_proc_dolongvec(table, write, filp, buffer, lenp, ppos)	\
-	proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
-
 #endif /* _PORTALS_COMPAT_H */
