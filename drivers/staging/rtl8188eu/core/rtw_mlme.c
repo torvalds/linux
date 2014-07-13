@@ -35,7 +35,7 @@
 extern unsigned char	MCS_rate_2R[16];
 extern unsigned char	MCS_rate_1R[16];
 
-int _rtw_init_mlme_priv(struct adapter *padapter)
+int rtw_init_mlme_priv(struct adapter *padapter)
 {
 	int	i;
 	u8	*pbuf;
@@ -300,13 +300,6 @@ u16 rtw_get_capability(struct wlan_bssid_ex *bss)
 u8 *rtw_get_beacon_interval_from_ie(u8 *ie)
 {
 	return ie + 8;
-}
-
-int rtw_init_mlme_priv(struct adapter *padapter)
-{
-	int	res;
-	res = _rtw_init_mlme_priv(padapter);/*  (pmlmepriv); */
-	return res;
 }
 
 static struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
