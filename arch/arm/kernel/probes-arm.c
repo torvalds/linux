@@ -341,12 +341,12 @@ static const union decode_item arm_cccc_000x_table[] = {
 	/* CMP (reg-shift reg)	cccc 0001 0101 xxxx xxxx xxxx 0xx1 xxxx */
 	/* CMN (reg-shift reg)	cccc 0001 0111 xxxx xxxx xxxx 0xx1 xxxx */
 	DECODE_EMULATEX	(0x0f900090, 0x01100010, PROBES_DATA_PROCESSING_REG,
-						 REGS(ANY, 0, NOPC, 0, ANY)),
+						 REGS(NOPC, 0, NOPC, 0, NOPC)),
 
 	/* MOV (reg-shift reg)	cccc 0001 101x xxxx xxxx xxxx 0xx1 xxxx */
 	/* MVN (reg-shift reg)	cccc 0001 111x xxxx xxxx xxxx 0xx1 xxxx */
 	DECODE_EMULATEX	(0x0fa00090, 0x01a00010, PROBES_DATA_PROCESSING_REG,
-						 REGS(0, ANY, NOPC, 0, ANY)),
+						 REGS(0, NOPC, NOPC, 0, NOPC)),
 
 	/* AND (reg-shift reg)	cccc 0000 000x xxxx xxxx xxxx 0xx1 xxxx */
 	/* EOR (reg-shift reg)	cccc 0000 001x xxxx xxxx xxxx 0xx1 xxxx */
@@ -359,7 +359,7 @@ static const union decode_item arm_cccc_000x_table[] = {
 	/* ORR (reg-shift reg)	cccc 0001 100x xxxx xxxx xxxx 0xx1 xxxx */
 	/* BIC (reg-shift reg)	cccc 0001 110x xxxx xxxx xxxx 0xx1 xxxx */
 	DECODE_EMULATEX	(0x0e000090, 0x00000010, PROBES_DATA_PROCESSING_REG,
-						 REGS(ANY, ANY, NOPC, 0, ANY)),
+						 REGS(NOPC, NOPC, NOPC, 0, NOPC)),
 
 	DECODE_END
 };
