@@ -1458,6 +1458,7 @@ static inline void transport_generic_prepare_cdb(
 	case VERIFY_16: /* SBC - VRProtect */
 	case WRITE_VERIFY: /* SBC - VRProtect */
 	case WRITE_VERIFY_12: /* SBC - VRProtect */
+	case MAINTENANCE_IN: /* SPC - Parameter Data Format for SA RTPG */
 		break;
 	default:
 		cdb[1] &= 0x1f; /* clear logical unit number */
@@ -2813,7 +2814,7 @@ static int transport_generic_cmd_sequencer(
 			/*
 			 * Check for emulated MI_REPORT_TARGET_PGS.
 			 */
-			if (cdb[1] == MI_REPORT_TARGET_PGS &&
+			if ((cdb[1] & 0x1f) == MI_REPORT_TARGET_PGS &&
 			    su_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
 				cmd->execute_task =
 					target_emulate_report_target_port_groups;
@@ -4701,7 +4702,7 @@ int transport_send_check_condition_and_sense(
 		/* ILLEGAL REQUEST */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
 		/* LOGICAL UNIT COMMUNICATION FAILURE */
-		buffer[offset+SPC_ASC_KEY_OFFSET] = 0x80;
+		buffer[offset+SPC_ASC_KEY_OFFSET] = 0x08;
 		break;
 	}
 	/*
