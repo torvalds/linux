@@ -209,6 +209,7 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	struct si2157_cmd cmd;
+	u8 bandwidth, delivery_system;
 
 	dev_dbg(&s->client->dev,
 			"%s: delivery_system=%d frequency=%u bandwidth_hz=%u\n",
@@ -219,6 +220,36 @@ static int si2157_set_params(struct dvb_frontend *fe)
 		ret = -EAGAIN;
 		goto err;
 	}
+
+	if (c->bandwidth_hz <= 6000000)
+		bandwidth = 0x06;
+	else if (c->bandwidth_hz <= 7000000)
+		bandwidth = 0x07;
+	else if (c->bandwidth_hz <= 8000000)
+		bandwidth = 0x08;
+	else
+		bandwidth = 0x0f;
+
+	switch (c->delivery_system) {
+	case SYS_DVBT:
+	case SYS_DVBT2: /* it seems DVB-T and DVB-T2 both are 0x20 here */
+			delivery_system = 0x20;
+			break;
+	case SYS_DVBC_ANNEX_A:
+			delivery_system = 0x30;
+			break;
+	default:
+			ret = -EINVAL;
+			goto err;
+	}
+
+	memcpy(cmd.args, "\x14\x00\x03\x07\x00\x00", 6);
+	cmd.args[4] = delivery_system | bandwidth;
+	cmd.wlen = 6;
+	cmd.rlen = 1;
+	ret = si2157_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
 
 	/* set frequency */
 	memcpy(cmd.args, "\x41\x00\x00\x00\x00\x00\x00\x00", 8);
