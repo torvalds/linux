@@ -423,21 +423,6 @@ void ODM_MacStatusQuery23a(struct dm_odm_t *pDM_Odm, u8 *pMacStatus, u8 MacID,
 
 }
 
-int ODM_ConfigRFWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-				  enum RF_RADIO_PATH Content,
-				  enum RF_RADIO_PATH eRFPath)
-{
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-		     ("===>ODM_ConfigRFWithHeaderFile23a\n"));
-	if (pDM_Odm->SupportICType == ODM_RTL8723A) {
-		if (eRFPath == RF_PATH_A)
-			ODM_ReadAndConfig_RadioA_1T_8723A(pDM_Odm);
-	}
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE,
-		     ("ODM_ConfigRFWithHeaderFile23a: Radio No %x\n", eRFPath));
-	return _SUCCESS;
-}
-
 int ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
 				  enum odm_bb_config_type ConfigType)
 {

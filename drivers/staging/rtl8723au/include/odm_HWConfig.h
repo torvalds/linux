@@ -160,10 +160,6 @@ void ODM_MacStatusQuery23a(struct dm_odm_t *pDM_Odm,
 	bool bPacketBeacon
 );
 
-int ODM_ConfigRFWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-				  enum RF_RADIO_PATH Content,
-				  enum RF_RADIO_PATH eRFPath);
-
 int ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
 				  enum odm_bb_config_type ConfigType);
 

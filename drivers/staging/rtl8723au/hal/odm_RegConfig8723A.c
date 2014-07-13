@@ -54,8 +54,7 @@ void odm_ConfigRF_RadioA_8723A(struct dm_odm_t *pDM_Odm,
 	odm_ConfigRFReg_8723A(pDM_Odm, Addr, Data, RF_PATH_A,
 			      Addr|maskforPhySet);
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-		     ("===> ODM_ConfigRFWithHeaderFile23a: [RadioA] %08X %08X\n",
-		     Addr, Data));
+		     ("===> %s: [RadioA] %08X %08X\n", __func__, Addr, Data));
 }
 
 void odm_ConfigRF_RadioB_8723A(struct dm_odm_t *pDM_Odm,
@@ -69,8 +68,7 @@ void odm_ConfigRF_RadioB_8723A(struct dm_odm_t *pDM_Odm,
 	odm_ConfigRFReg_8723A(pDM_Odm, Addr, Data, RF_PATH_B,
 			      Addr|maskforPhySet);
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-		     ("===> ODM_ConfigRFWithHeaderFile23a: [RadioB] %08X %08X\n",
-		     Addr, Data));
+		     ("===> %s: [RadioB] %08X %08X\n", __func__, Addr, Data));
 }
 
 void odm_ConfigMAC_8723A(struct dm_odm_t *pDM_Odm,
