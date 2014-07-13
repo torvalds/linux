@@ -151,7 +151,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 
 	frame = get_sigframe(ksig, sizeof(*frame));
 
-	err |= __put_user(sig->sig, &frame->sig);
+	err |= __put_user(ksig->sig, &frame->sig);
 
 	err |= __put_user(&frame->info, &frame->pinfo);
 	err |= __put_user(&frame->uc, &frame->puc);
