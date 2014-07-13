@@ -75,11 +75,4 @@
 # define LPX64 "%#llx"
 # define LPX64i "%llx"
 
-/*
- * long_ptr_t & ulong_ptr_t, same to "long" for gcc
- */
-# define LPLU "%lu"
-# define LPLD "%ld"
-# define LPLX "%#lx"
-
 #endif
