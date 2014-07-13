@@ -359,7 +359,7 @@ struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc)
 		ocapa = NULL;
 
 		if (atomic_read(&ll_capa_debug)) {
-			CERROR("no capability for "DFID" opc "LPX64"\n",
+			CERROR("no capability for "DFID" opc %#llx\n",
 			       PFID(&lli->lli_fid), opc);
 			atomic_set(&ll_capa_debug, 0);
 		}

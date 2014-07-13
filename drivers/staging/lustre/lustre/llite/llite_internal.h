@@ -1432,7 +1432,7 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		if (it->d.lustre.it_remote_lock_mode) {
 			handle.cookie = it->d.lustre.it_remote_lock_handle;
 			CDEBUG(D_DLMTRACE, "setting l_data to inode %p"
-			       "(%lu/%u) for remote lock "LPX64"\n", inode,
+			       "(%lu/%u) for remote lock %#llx\n", inode,
 			       inode->i_ino, inode->i_generation,
 			       handle.cookie);
 			md_set_lock_data(exp, &handle.cookie, inode, NULL);
@@ -1441,7 +1441,7 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		handle.cookie = it->d.lustre.it_lock_handle;
 
 		CDEBUG(D_DLMTRACE, "setting l_data to inode %p (%lu/%u)"
-		       " for lock "LPX64"\n", inode, inode->i_ino,
+		       " for lock %#llx\n", inode, inode->i_ino,
 		       inode->i_generation, handle.cookie);
 
 		md_set_lock_data(exp, &handle.cookie, inode,

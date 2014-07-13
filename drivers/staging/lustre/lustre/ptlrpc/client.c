@@ -1181,7 +1181,7 @@ static void ptlrpc_save_versions(struct ptlrpc_request *req)
 
 	LASSERT(versions);
 	lustre_msg_set_versions(reqmsg, versions);
-	CDEBUG(D_INFO, "Client save versions ["LPX64"/"LPX64"]\n",
+	CDEBUG(D_INFO, "Client save versions [%#llx/%#llx]\n",
 	       versions[0], versions[1]);
 }
 
@@ -2723,7 +2723,7 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 		LASSERTF(lustre_msg_get_transno(req->rq_reqmsg) ==
 			 lustre_msg_get_transno(req->rq_repmsg) ||
 			 lustre_msg_get_transno(req->rq_repmsg) == 0,
-			 LPX64"/"LPX64"\n",
+			 "%#llx/%#llx\n",
 			 lustre_msg_get_transno(req->rq_reqmsg),
 			 lustre_msg_get_transno(req->rq_repmsg));
 	}

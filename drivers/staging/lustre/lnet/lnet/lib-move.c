@@ -1518,8 +1518,7 @@ lnet_parse_reply(lnet_ni_t *ni, lnet_msg_t *msg)
 	/* NB handles only looked up by creator (no flips) */
 	md = lnet_wire_handle2md(&hdr->msg.reply.dst_wmd);
 	if (md == NULL || md->md_threshold == 0 || md->md_me != NULL) {
-		CNETERR("%s: Dropping REPLY from %s for %s "
-			"MD "LPX64"."LPX64"\n",
+		CNETERR("%s: Dropping REPLY from %s for %s MD %#llx.%#llx\n",
 			libcfs_nid2str(ni->ni_nid), libcfs_id2str(src),
 			(md == NULL) ? "invalid" : "inactive",
 			hdr->msg.reply.dst_wmd.wh_interface_cookie,
@@ -1539,8 +1538,7 @@ lnet_parse_reply(lnet_ni_t *ni, lnet_msg_t *msg)
 
 	if (mlength < rlength &&
 	    (md->md_options & LNET_MD_TRUNCATE) == 0) {
-		CNETERR("%s: Dropping REPLY from %s length %d "
-			"for MD "LPX64" would overflow (%d)\n",
+		CNETERR("%s: Dropping REPLY from %s length %d for MD %#llx would overflow (%d)\n",
 			libcfs_nid2str(ni->ni_nid), libcfs_id2str(src),
 			rlength, hdr->msg.reply.dst_wmd.wh_object_cookie,
 			mlength);
@@ -1548,7 +1546,7 @@ lnet_parse_reply(lnet_ni_t *ni, lnet_msg_t *msg)
 		return ENOENT;	  /* +ve: OK but no match */
 	}
 
-	CDEBUG(D_NET, "%s: Reply from %s of length %d/%d into md "LPX64"\n",
+	CDEBUG(D_NET, "%s: Reply from %s of length %d/%d into md %#llx\n",
 	       libcfs_nid2str(ni->ni_nid), libcfs_id2str(src),
 	       mlength, rlength, hdr->msg.reply.dst_wmd.wh_object_cookie);
 
@@ -1588,7 +1586,7 @@ lnet_parse_ack(lnet_ni_t *ni, lnet_msg_t *msg)
 	if (md == NULL || md->md_threshold == 0 || md->md_me != NULL) {
 		/* Don't moan; this is expected */
 		CDEBUG(D_NET,
-		       "%s: Dropping ACK from %s to %s MD "LPX64"."LPX64"\n",
+		       "%s: Dropping ACK from %s to %s MD %#llx.%#llx\n",
 		       libcfs_nid2str(ni->ni_nid), libcfs_id2str(src),
 		       (md == NULL) ? "invalid" : "inactive",
 		       hdr->msg.ack.dst_wmd.wh_interface_cookie,
@@ -1601,7 +1599,7 @@ lnet_parse_ack(lnet_ni_t *ni, lnet_msg_t *msg)
 		return ENOENT;		  /* +ve! */
 	}
 
-	CDEBUG(D_NET, "%s: ACK from %s into md "LPX64"\n",
+	CDEBUG(D_NET, "%s: ACK from %s into md %#llx\n",
 	       libcfs_nid2str(ni->ni_nid), libcfs_id2str(src),
 	       hdr->msg.ack.dst_wmd.wh_object_cookie);
 
@@ -1678,19 +1676,19 @@ lnet_print_hdr(lnet_hdr_t *hdr)
 		break;
 
 	case LNET_MSG_PUT:
-		CWARN("    Ptl index %d, ack md "LPX64"."LPX64", "
+		CWARN("    Ptl index %d, ack md %#llx.%#llx, "
 		      "match bits %llu\n",
 		      hdr->msg.put.ptl_index,
 		      hdr->msg.put.ack_wmd.wh_interface_cookie,
 		      hdr->msg.put.ack_wmd.wh_object_cookie,
 		      hdr->msg.put.match_bits);
-		CWARN("    Length %d, offset %d, hdr data "LPX64"\n",
+		CWARN("    Length %d, offset %d, hdr data %#llx\n",
 		      hdr->payload_length, hdr->msg.put.offset,
 		      hdr->msg.put.hdr_data);
 		break;
 
 	case LNET_MSG_GET:
-		CWARN("    Ptl index %d, return md "LPX64"."LPX64", "
+		CWARN("    Ptl index %d, return md %#llx.%#llx, "
 		      "match bits %llu\n", hdr->msg.get.ptl_index,
 		      hdr->msg.get.return_wmd.wh_interface_cookie,
 		      hdr->msg.get.return_wmd.wh_object_cookie,
@@ -1701,7 +1699,7 @@ lnet_print_hdr(lnet_hdr_t *hdr)
 		break;
 
 	case LNET_MSG_ACK:
-		CWARN("    dst md "LPX64"."LPX64", "
+		CWARN("    dst md %#llx.%#llx, "
 		      "manipulated length %d\n",
 		      hdr->msg.ack.dst_wmd.wh_interface_cookie,
 		      hdr->msg.ack.dst_wmd.wh_object_cookie,
@@ -1709,7 +1707,7 @@ lnet_print_hdr(lnet_hdr_t *hdr)
 		break;
 
 	case LNET_MSG_REPLY:
-		CWARN("    dst md "LPX64"."LPX64", "
+		CWARN("    dst md %#llx.%#llx, "
 		      "length %d\n",
 		      hdr->msg.reply.dst_wmd.wh_interface_cookie,
 		      hdr->msg.reply.dst_wmd.wh_object_cookie,

@@ -216,7 +216,7 @@ brw_check_page(struct page *pg, int pattern, __u64 magic)
 	LBUG();
 
 bad_data:
-	CERROR("Bad data in page %p: "LPX64", "LPX64" expected\n",
+	CERROR("Bad data in page %p: %#llx, %#llx expected\n",
 		pg, data, magic);
 	return 1;
 }

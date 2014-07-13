@@ -959,7 +959,7 @@ kiblnd_close_stale_conns_locked (kib_peer_t *peer,
 			continue;
 
 		CDEBUG(D_NET, "Closing stale conn -> %s version: %x, "
-			      "incarnation:"LPX64"(%x, "LPX64")\n",
+			      "incarnation:%#llx(%x, %#llx)\n",
 		       libcfs_nid2str(peer->ibp_nid),
 		       conn->ibc_version, conn->ibc_incarnation,
 		       version, incarnation);
@@ -1202,7 +1202,7 @@ kiblnd_map_rx_descs(kib_conn_t *conn)
 						   rx->rx_msgaddr));
 		KIBLND_UNMAP_ADDR_SET(rx, rx_msgunmap, rx->rx_msgaddr);
 
-		CDEBUG(D_NET,"rx %d: %p "LPX64"("LPX64")\n",
+		CDEBUG(D_NET,"rx %d: %p %#llx(%#llx)\n",
 		       i, rx->rx_msg, rx->rx_msgaddr,
 		       lnet_page2phys(pg) + pg_off);
 
@@ -2336,7 +2336,7 @@ kiblnd_hdev_get_attr(kib_hca_dev_t *hdev)
 			return 0;
 	}
 
-	CERROR("Invalid mr size: "LPX64"\n", hdev->ibh_mr_size);
+	CERROR("Invalid mr size: %#llx\n", hdev->ibh_mr_size);
 	return -EINVAL;
 }
 
@@ -2418,8 +2418,8 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 
 	if (hdev->ibh_mr_shift < 32 || hdev->ibh_nmrs > 1024) {
 		/* it's 4T..., assume we will re-code at that time */
-		CERROR("Can't support memory size: x"LPX64
-		       " with MR size: x"LPX64"\n", mm_size, mr_size);
+		CERROR("Can't support memory size: x%#llx with MR size: x%#llx\n",
+		       mm_size, mr_size);
 		return -EINVAL;
 	}
 
@@ -2440,8 +2440,7 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 
 		mr = ib_reg_phys_mr(hdev->ibh_pd, &ipb, 1, acflags, &iova);
 		if (IS_ERR(mr)) {
-			CERROR("Failed ib_reg_phys_mr addr "LPX64
-			       " size "LPX64" : %ld\n",
+			CERROR("Failed ib_reg_phys_mr addr %#llx size %#llx : %ld\n",
 			       ipb.addr, ipb.size, PTR_ERR(mr));
 			kiblnd_hdev_cleanup_mrs(hdev);
 			return PTR_ERR(mr);
@@ -2454,8 +2453,7 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 
 out:
 	if (hdev->ibh_mr_size != ~0ULL || hdev->ibh_nmrs != 1)
-		LCONSOLE_INFO("Register global MR array, MR size: "
-			      LPX64", array size: %d\n",
+		LCONSOLE_INFO("Register global MR array, MR size: %#llx, array size: %d\n",
 			      hdev->ibh_mr_size, hdev->ibh_nmrs);
 	return 0;
 }

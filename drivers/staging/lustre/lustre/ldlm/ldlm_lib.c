@@ -517,7 +517,7 @@ int client_connect_import(const struct lu_env *env,
 
 	if (data) {
 		LASSERTF((ocd->ocd_connect_flags & data->ocd_connect_flags) ==
-			 ocd->ocd_connect_flags, "old "LPX64", new "LPX64"\n",
+			 ocd->ocd_connect_flags, "old %#llx, new %#llx\n",
 			 data->ocd_connect_flags, ocd->ocd_connect_flags);
 		data->ocd_connect_flags = ocd->ocd_connect_flags;
 	}
@@ -545,7 +545,7 @@ int client_disconnect_export(struct obd_export *exp)
 	int rc = 0, err;
 
 	if (!obd) {
-		CERROR("invalid export for disconnect: exp %p cookie "LPX64"\n",
+		CERROR("invalid export for disconnect: exp %p cookie %#llx\n",
 		       exp, exp ? exp->exp_handle.h_cookie : -1);
 		return -EINVAL;
 	}

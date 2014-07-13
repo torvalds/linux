@@ -302,8 +302,8 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 				*start = le64_to_cpu(dp->ldp_hash_start);
 				*end   = le64_to_cpu(dp->ldp_hash_end);
 			}
-			LASSERTF(*start <= *hash, "start = "LPX64",end = "
-				 LPX64",hash = "LPX64"\n", *start, *end, *hash);
+			LASSERTF(*start <= *hash, "start = %#llx,end = %#llx,hash = %#llx\n",
+				 *start, *end, *hash);
 			CDEBUG(D_VFSTRACE, "page %lu [%llu %llu], hash %llu\n",
 			       offset, *start, *end, *hash);
 			if (*hash > *end) {
@@ -925,8 +925,7 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 		iput(inode);
 		if (rc != 0) {
 			CDEBUG(D_HSM, "Could not read file data version of "
-				      DFID" (rc = %d). Archive request ("
-				      LPX64") could not be done.\n",
+				      DFID" (rc = %d). Archive request (%#llx) could not be done.\n",
 				      PFID(&copy->hc_hai.hai_fid), rc,
 				      copy->hc_hai.hai_cookie);
 			hpk.hpk_flags |= HP_FLAG_RETRY;
@@ -1022,7 +1021,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 		    (copy->hc_data_version != data_version)) {
 			CDEBUG(D_HSM, "File data version mismatched. "
 			      "File content was changed during archiving. "
-			       DFID", start:"LPX64" current:"LPX64"\n",
+			       DFID", start:%#llx current:%#llx\n",
 			       PFID(&copy->hc_hai.hai_fid),
 			       copy->hc_data_version, data_version);
 			/* File was changed, send error to cdt. Do not ask for

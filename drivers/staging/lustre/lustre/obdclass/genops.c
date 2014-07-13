@@ -699,7 +699,7 @@ struct obd_export *class_conn2export(struct lustre_handle *conn)
 		return NULL;
 	}
 
-	CDEBUG(D_INFO, "looking for export cookie "LPX64"\n", conn->cookie);
+	CDEBUG(D_INFO, "looking for export cookie %#llx\n", conn->cookie);
 	export = class_handle2object(conn->cookie);
 	return export;
 }
@@ -1113,7 +1113,7 @@ int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 	conn->cookie = export->exp_handle.h_cookie;
 	class_export_put(export);
 
-	CDEBUG(D_IOCTL, "connect: client %s, cookie "LPX64"\n",
+	CDEBUG(D_IOCTL, "connect: client %s, cookie %#llx\n",
 	       cluuid->uuid, conn->cookie);
 	return 0;
 }
@@ -1190,7 +1190,7 @@ int class_disconnect(struct obd_export *export)
 		GOTO(no_disconn, already_disconnected);
 	}
 
-	CDEBUG(D_IOCTL, "disconnect: cookie "LPX64"\n",
+	CDEBUG(D_IOCTL, "disconnect: cookie %#llx\n",
 	       export->exp_handle.h_cookie);
 
 	if (!hlist_unhashed(&export->exp_nid_hash))

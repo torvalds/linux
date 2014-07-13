@@ -1575,7 +1575,7 @@ EXPORT_SYMBOL(LNetGetId);
 void
 LNetSnprintHandle(char *str, int len, lnet_handle_any_t h)
 {
-	snprintf(str, len, LPX64, h.cookie);
+	snprintf(str, len, "%#llx", h.cookie);
 }
 EXPORT_SYMBOL(LNetSnprintHandle);
 

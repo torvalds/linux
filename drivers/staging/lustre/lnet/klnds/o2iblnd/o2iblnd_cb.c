@@ -247,7 +247,7 @@ kiblnd_handle_completion(kib_conn_t *conn, int txtype, int status, __u64 cookie)
 	if (tx == NULL) {
 		spin_unlock(&conn->ibc_lock);
 
-		CWARN("Unmatched completion type %x cookie "LPX64" from %s\n",
+		CWARN("Unmatched completion type %x cookie %#llx from %s\n",
 		      txtype, cookie, libcfs_nid2str(conn->ibc_peer->ibp_nid));
 		kiblnd_close_conn(conn, -EPROTO);
 		return;
@@ -1005,8 +1005,7 @@ kiblnd_tx_complete (kib_tx_t *tx, int status)
 
 	if (failed) {
 		if (conn->ibc_state == IBLND_CONN_ESTABLISHED)
-			CNETERR("Tx -> %s cookie "LPX64
-				" sending %d waiting %d: failed %d\n",
+			CNETERR("Tx -> %s cookie %#llx sending %d waiting %d: failed %d\n",
 				libcfs_nid2str(conn->ibc_peer->ibp_nid),
 				tx->tx_cookie, tx->tx_sending, tx->tx_waiting,
 				status);

@@ -1399,7 +1399,7 @@ static int osc_lock_print(const struct lu_env *env, void *cookie,
 	/*
 	 * XXX print ldlm lock and einfo properly.
 	 */
-	(*p)(env, cookie, "%p %#16llx "LPX64" %d %p ",
+	(*p)(env, cookie, "%p %#16llx %#llx %d %p ",
 	     lock->ols_lock, lock->ols_flags, lock->ols_handle.cookie,
 	     lock->ols_state, lock->ols_owner);
 	osc_lvb_print(env, cookie, p, &lock->ols_lvb);

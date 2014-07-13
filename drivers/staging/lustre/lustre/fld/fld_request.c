@@ -138,7 +138,7 @@ fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
 			return target;
 	}
 
-	CERROR("%s: Can't find target by hash %d (seq "LPX64"). Targets (%d):\n",
+	CERROR("%s: Can't find target by hash %d (seq %#llx). Targets (%d):\n",
 		fld->lcf_name, hash, seq, fld->lcf_count);
 
 	list_for_each_entry(target, &fld->lcf_targets, ft_chain) {
@@ -184,7 +184,7 @@ fld_client_get_target(struct lu_client_fld *fld, seqno_t seq)
 	spin_unlock(&fld->lcf_lock);
 
 	if (target != NULL) {
-		CDEBUG(D_INFO, "%s: Found target (idx %llu) by seq "LPX64"\n",
+		CDEBUG(D_INFO, "%s: Found target (idx %llu) by seq %#llx\n",
 		       fld->lcf_name, target->ft_idx, seq);
 	}
 
@@ -472,7 +472,7 @@ int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
 	target = fld_client_get_target(fld, seq);
 	LASSERT(target != NULL);
 
-	CDEBUG(D_INFO, "%s: Lookup fld entry (seq: "LPX64") on target %s (idx %llu)\n",
+	CDEBUG(D_INFO, "%s: Lookup fld entry (seq: %#llx) on target %s (idx %llu)\n",
 			fld->lcf_name, seq, fld_target_name(target), target->ft_idx);
 
 	res.lsr_start = seq;

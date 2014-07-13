@@ -116,7 +116,7 @@ int obd_connect_flags2str(char *page, int count, __u64 flags, char *sep)
 	}
 	if (flags & ~(mask - 1))
 		ret += snprintf(page + ret, count - ret,
-				"%sunknown flags "LPX64,
+				"%sunknown flags %#llx",
 				ret ? sep : "", flags & ~(mask - 1));
 	return ret;
 }
@@ -667,7 +667,7 @@ static void obd_connect_seq_flags2str(struct seq_file *m, __u64 flags, char *sep
 		}
 	}
 	if (flags & ~(mask - 1))
-		seq_printf(m, "%sunknown flags "LPX64,
+		seq_printf(m, "%sunknown flags %#llx",
 				first ? sep : "", flags & ~(mask - 1));
 }
 
@@ -908,7 +908,7 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data)
 
 	LPROCFS_CLIMP_CHECK(obd);
 	flags = obd->u.cli.cl_import->imp_connect_data.ocd_connect_flags;
-	seq_printf(m, "flags="LPX64"\n", flags);
+	seq_printf(m, "flags=%#llx\n", flags);
 	obd_connect_seq_flags2str(m, flags, "\n");
 	seq_printf(m, "\n");
 	LPROCFS_CLIMP_EXIT(obd);

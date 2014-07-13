@@ -68,8 +68,4 @@
 
 #include "portals_compat25.h"
 
-/* this is a bit chunky */
-
-# define LPX64 "%#llx"
-
 #endif

@@ -211,7 +211,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 	*seqnr = seq->lcs_space.lsr_start;
 	seq->lcs_space.lsr_start += 1;
 
-	CDEBUG(D_INFO, "%s: Allocated sequence ["LPX64"]\n", seq->lcs_name,
+	CDEBUG(D_INFO, "%s: Allocated sequence [%#llx]\n", seq->lcs_name,
 	       *seqnr);
 
 	return rc;

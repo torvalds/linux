@@ -2305,7 +2305,7 @@ void dump_obdo(struct obdo *oa)
 	if (valid & OBD_MD_FLID)
 		CDEBUG(D_RPCTRACE, "obdo: id = "DOSTID"\n", POSTID(&oa->o_oi));
 	if (valid & OBD_MD_FLFID)
-		CDEBUG(D_RPCTRACE, "obdo: o_parent_seq = "LPX64"\n",
+		CDEBUG(D_RPCTRACE, "obdo: o_parent_seq = %#llx\n",
 		       oa->o_parent_seq);
 	if (valid & OBD_MD_FLSIZE)
 		CDEBUG(D_RPCTRACE, "obdo: o_size = %lld\n", oa->o_size);

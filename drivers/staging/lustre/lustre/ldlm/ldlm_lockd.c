@@ -525,7 +525,7 @@ static inline void ldlm_callback_errmsg(struct ptlrpc_request *req,
 					struct lustre_handle *handle)
 {
 	DEBUG_REQ((req->rq_no_reply || rc) ? D_WARNING : D_DLMTRACE, req,
-		  "%s: [nid %s] [rc %d] [lock "LPX64"]",
+		  "%s: [nid %s] [rc %d] [lock %#llx]",
 		  msg, libcfs_id2str(req->rq_peer), rc,
 		  handle ? handle->cookie : 0);
 	if (req->rq_no_reply)
@@ -635,7 +635,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 
 	lock = ldlm_handle2lock_long(&dlm_req->lock_handle[0], 0);
 	if (!lock) {
-		CDEBUG(D_DLMTRACE, "callback on lock "LPX64" - lock "
+		CDEBUG(D_DLMTRACE, "callback on lock %#llx - lock "
 		       "disappeared\n", dlm_req->lock_handle[0].cookie);
 		rc = ldlm_callback_reply(req, -EINVAL);
 		ldlm_callback_errmsg(req, "Operate with invalid parameter", rc,
@@ -660,7 +660,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		    (lock->l_flags & LDLM_FL_BL_DONE)) ||
 		    (lock->l_flags & LDLM_FL_FAILED)) {
 			LDLM_DEBUG(lock, "callback on lock "
-				   LPX64" - lock disappeared\n",
+				   "%#llx - lock disappeared\n",
 				   dlm_req->lock_handle[0].cookie);
 			unlock_res_and_lock(lock);
 			LDLM_LOCK_RELEASE(lock);

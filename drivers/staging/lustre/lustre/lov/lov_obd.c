@@ -382,7 +382,7 @@ static int lov_set_osc_active(struct obd_device *obd, struct obd_uuid *uuid,
 		if (!tgt->ltd_exp)
 			continue;
 
-		CDEBUG(D_INFO, "lov idx %d is %s conn "LPX64"\n",
+		CDEBUG(D_INFO, "lov idx %d is %s conn %#llx\n",
 		       index, obd_uuid2str(&tgt->ltd_uuid),
 		       tgt->ltd_exp->exp_handle.h_cookie);
 		if (obd_uuid_equals(uuid, &tgt->ltd_uuid))
@@ -1462,7 +1462,7 @@ static int lov_sync(const struct lu_env *env, struct obd_export *exp,
 	if (rc)
 		return rc;
 
-	CDEBUG(D_INFO, "fsync objid "DOSTID" ["LPX64", "LPX64"]\n",
+	CDEBUG(D_INFO, "fsync objid "DOSTID" [%#llx, %#llx]\n",
 	       POSTID(&set->set_oi->oi_oa->o_oi), start, end);
 
 	list_for_each(pos, &set->set_list) {

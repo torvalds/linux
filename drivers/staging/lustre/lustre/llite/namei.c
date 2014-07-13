@@ -105,7 +105,7 @@ static int ll_set_inode(struct inode *inode, void *opaque)
 	lli->lli_fid = body->fid1;
 	if (unlikely(!(body->valid & OBD_MD_FLTYPE))) {
 		CERROR("Can not initialize inode "DFID" without object type: "
-		       "valid = "LPX64"\n", PFID(&lli->lli_fid), body->valid);
+		       "valid = %#llx\n", PFID(&lli->lli_fid), body->valid);
 		return -EINVAL;
 	}
 

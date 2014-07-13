@@ -83,7 +83,7 @@ static int mgc_name2resid(char *name, int len, struct ldlm_res_id *res_id,
 		LBUG();
 	}
 	res_id->name[1] = cpu_to_le64(resname);
-	CDEBUG(D_MGC, "log %s to resid "LPX64"/"LPX64" (%.8s)\n", name,
+	CDEBUG(D_MGC, "log %s to resid %#llx/%#llx (%.8s)\n", name,
 	       res_id->name[0], res_id->name[1], (char *)&res_id->name[0]);
 	return 0;
 }
@@ -1011,7 +1011,7 @@ static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
 	int short_limit = cld_is_sptlrpc(cld);
 	int rc;
 
-	CDEBUG(D_MGC, "Enqueue for %s (res "LPX64")\n", cld->cld_logname,
+	CDEBUG(D_MGC, "Enqueue for %s (res %#llx)\n", cld->cld_logname,
 	       cld->cld_resid.name[0]);
 
 	/* We need a callback for every lockholder, so don't try to

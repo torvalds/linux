@@ -140,7 +140,7 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		 * XXX: in case of LMV, is this correct to access
 		 * ->exp_handle?
 		 */
-		CERROR("Invalid MDC connection handle "LPX64"\n",
+		CERROR("Invalid MDC connection handle %#llx\n",
 		       ll_i2mdexp(inode)->exp_handle.h_cookie);
 		GOTO(out, rc = 0);
 	}

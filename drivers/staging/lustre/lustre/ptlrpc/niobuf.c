@@ -225,7 +225,7 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	spin_unlock(&desc->bd_lock);
 
 	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, "
-	       "xid x"LPX64"-"LPX64", portal %u\n", desc->bd_md_count,
+	       "xid x%#llx-%#llx, portal %u\n", desc->bd_md_count,
 	       desc->bd_type == BULK_GET_SOURCE ? "get-source" : "put-sink",
 	       desc->bd_iov_count, desc->bd_nob,
 	       desc->bd_last_xid, req->rq_xid, desc->bd_portal);

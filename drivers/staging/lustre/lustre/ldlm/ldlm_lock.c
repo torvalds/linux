@@ -897,7 +897,7 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 void ldlm_lock_decref(struct lustre_handle *lockh, __u32 mode)
 {
 	struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
-	LASSERTF(lock != NULL, "Non-existing lock: "LPX64"\n", lockh->cookie);
+	LASSERTF(lock != NULL, "Non-existing lock: %#llx\n", lockh->cookie);
 	ldlm_lock_decref_internal(lock, mode);
 	LDLM_LOCK_PUT(lock);
 }
@@ -2255,9 +2255,9 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 
 	if (resource == NULL) {
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-		       " ns: \?\? lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
-		       "res: \?\? rrc=\?\? type: \?\?\? flags: "LPX64" nid: %s "
-		       "remote: "LPX64" expref: %d pid: %u timeout: %lu "
+		       " ns: \?\? lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
+		       "res: \?\? rrc=\?\? type: \?\?\? flags: %#llx nid: %s "
+		       "remote: %#llx expref: %d pid: %u timeout: %lu "
 		       "lvb_type: %d\n",
 		       lock,
 		       lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
@@ -2274,10 +2274,10 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 	switch (resource->lr_type) {
 	case LDLM_EXTENT:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+			" ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
 			"res: "DLDLMRES" rrc: %d type: %s [%llu->%llu] "
-			"(req %llu->%llu) flags: "LPX64" nid: %s remote: "
-			LPX64" expref: %d pid: %u timeout: %lu lvb_type: %d\n",
+			"(req %llu->%llu) flags: %#llx nid: %s remote: "
+			"%#llx expref: %d pid: %u timeout: %lu lvb_type: %d\n",
 			ldlm_lock_to_ns_name(lock), lock,
 			lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
 			lock->l_readers, lock->l_writers,
@@ -2297,10 +2297,10 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 
 	case LDLM_FLOCK:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+			" ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
 			"res: "DLDLMRES" rrc: %d type: %s pid: %d "
-			"[%llu->%llu] flags: "LPX64" nid: %s "
-			"remote: "LPX64" expref: %d pid: %u timeout: %lu\n",
+			"[%llu->%llu] flags: %#llx nid: %s "
+			"remote: %#llx expref: %d pid: %u timeout: %lu\n",
 			ldlm_lock_to_ns_name(lock), lock,
 			lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
 			lock->l_readers, lock->l_writers,
@@ -2319,9 +2319,9 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 
 	case LDLM_IBITS:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
-			"res: "DLDLMRES" bits "LPX64" rrc: %d type: %s "
-			"flags: "LPX64" nid: %s remote: "LPX64" expref: %d "
+			" ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
+			"res: "DLDLMRES" bits %#llx rrc: %d type: %s "
+			"flags: %#llx nid: %s remote: %#llx expref: %d "
 			"pid: %u timeout: %lu lvb_type: %d\n",
 			ldlm_lock_to_ns_name(lock),
 			lock, lock->l_handle.h_cookie,
@@ -2341,9 +2341,9 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 
 	default:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
-			"res: "DLDLMRES" rrc: %d type: %s flags: "LPX64" "
-			"nid: %s remote: "LPX64" expref: %d pid: %u "
+			" ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
+			"res: "DLDLMRES" rrc: %d type: %s flags: %#llx "
+			"nid: %s remote: %#llx expref: %d pid: %u "
 			"timeout: %lu lvb_type: %d\n",
 			ldlm_lock_to_ns_name(lock),
 			lock, lock->l_handle.h_cookie,

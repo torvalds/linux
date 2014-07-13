@@ -179,7 +179,7 @@ struct ost_id {
 	};
 };
 
-#define DOSTID LPX64":%llu"
+#define DOSTID "%#llx:%llu"
 #define POSTID(oi) ostid_seq(oi), ostid_id(oi)
 
 /*
@@ -475,7 +475,7 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
    e.g. printf("file FID is "DFID"\n", PFID(fid)); */
 #define FID_NOBRACE_LEN 40
 #define FID_LEN (FID_NOBRACE_LEN + 2)
-#define DFID_NOBRACE LPX64":0x%x:0x%x"
+#define DFID_NOBRACE "%#llx:0x%x:0x%x"
 #define DFID "["DFID_NOBRACE"]"
 #define PFID(fid)     \
 	(fid)->f_seq, \

@@ -670,7 +670,7 @@ void mdc_replay_open(struct ptlrpc_request *req)
 		LASSERT(och->och_magic == OBD_CLIENT_HANDLE_MAGIC);
 
 		file_fh = &och->och_fh;
-		CDEBUG(D_HA, "updating handle from "LPX64" to "LPX64"\n",
+		CDEBUG(D_HA, "updating handle from %#llx to %#llx\n",
 		       file_fh->cookie, body->handle.cookie);
 		old = *file_fh;
 		*file_fh = body->handle;

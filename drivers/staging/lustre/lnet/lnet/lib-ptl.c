@@ -193,7 +193,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 
 	/* Commit to this ME/MD */
 	CDEBUG(D_NET, "Incoming %s index %x from %s of "
-	       "length %d/%d into md "LPX64" [%d] + %d\n",
+	       "length %d/%d into md %#llx [%d] + %d\n",
 	       (info->mi_opc == LNET_MD_OP_PUT) ? "put" : "get",
 	       info->mi_portal, libcfs_id2str(info->mi_id), mlength,
 	       info->mi_rlength, md->md_lh.lh_cookie, md->md_niov, offset);
@@ -540,9 +540,9 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 	struct lnet_portal	*ptl;
 	int			rc;
 
-	CDEBUG(D_NET, "Request from %s of length %d into portal %d "
-	       "MB="LPX64"\n", libcfs_id2str(info->mi_id),
-	       info->mi_rlength, info->mi_portal, info->mi_mbits);
+	CDEBUG(D_NET, "Request from %s of length %d into portal %d MB=%#llx\n",
+	       libcfs_id2str(info->mi_id), info->mi_rlength, info->mi_portal,
+	       info->mi_mbits);
 
 	if (info->mi_portal >= the_lnet.ln_nportals) {
 		CERROR("Invalid portal %d not in [0-%d]\n",
@@ -596,7 +596,7 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 
 	if (msg->msg_rx_delayed) {
 		CDEBUG(D_NET,
-		       "Delaying %s from %s ptl %d MB "LPX64" off %d len %d\n",
+		       "Delaying %s from %s ptl %d MB %#llx off %d len %d\n",
 		       info->mi_opc == LNET_MD_OP_PUT ? "PUT" : "GET",
 		       libcfs_id2str(info->mi_id), info->mi_portal,
 		       info->mi_mbits, info->mi_roffset, info->mi_rlength);

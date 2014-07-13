@@ -1492,7 +1492,7 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 	    body->oa.o_valid & (OBD_MD_FLUSRQUOTA | OBD_MD_FLGRPQUOTA)) {
 		unsigned int qid[MAXQUOTAS] = { body->oa.o_uid, body->oa.o_gid };
 
-		CDEBUG(D_QUOTA, "setdq for [%u %u] with valid "LPX64", flags %x\n",
+		CDEBUG(D_QUOTA, "setdq for [%u %u] with valid %#llx, flags %x\n",
 		       body->oa.o_uid, body->oa.o_gid, body->oa.o_valid,
 		       body->oa.o_flags);
 		osc_quota_setdq(cli, qid, body->oa.o_valid, body->oa.o_flags);
@@ -3260,7 +3260,7 @@ static int osc_reconnect(const struct lu_env *env,
 		cli->cl_lost_grant = 0;
 		client_obd_list_unlock(&cli->cl_loi_list_lock);
 
-		CDEBUG(D_RPCTRACE, "ocd_connect_flags: "LPX64" ocd_version: %d"
+		CDEBUG(D_RPCTRACE, "ocd_connect_flags: %#llx ocd_version: %d"
 		       " ocd_grant: %d, lost: %ld.\n", data->ocd_connect_flags,
 		       data->ocd_version, data->ocd_grant, lost_grant);
 	}

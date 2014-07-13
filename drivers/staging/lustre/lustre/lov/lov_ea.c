@@ -348,7 +348,7 @@ const struct lsm_operations lsm_v3_ops = {
 
 void dump_lsm(unsigned int level, const struct lov_stripe_md *lsm)
 {
-	CDEBUG(level, "lsm %p, objid "DOSTID", maxbytes "LPX64", magic 0x%08X,"
+	CDEBUG(level, "lsm %p, objid "DOSTID", maxbytes %#llx, magic 0x%08X,"
 	       " stripe_size %u, stripe_count %u, refc: %d,"
 	       " layout_gen %u, pool ["LOV_POOLNAMEF"]\n", lsm,
 	       POSTID(&lsm->lsm_oi), lsm->lsm_maxbytes, lsm->lsm_magic,

@@ -592,7 +592,7 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 					      LDLM_FL_NO_TIMEOUT);
 	unlock_res_and_lock(lock);
 
-	CDEBUG(D_INFO, "local: %p, remote cookie: "LPX64", flags: 0x%llx\n",
+	CDEBUG(D_INFO, "local: %p, remote cookie: %#llx, flags: 0x%llx\n",
 	       lock, reply->lock_handle.cookie, *flags);
 
 	/* If enqueue returned a blocked lock but the completion handler has
@@ -2103,8 +2103,8 @@ static int replay_lock_interpret(const struct lu_env *env,
 
 	lock = ldlm_handle2lock(&aa->lock_handle);
 	if (!lock) {
-		CERROR("received replay ack for unknown local cookie "LPX64
-		       " remote cookie "LPX64 " from server %s id %s\n",
+		CERROR("received replay ack for unknown local cookie %#llx"
+		       " remote cookie %#llx from server %s id %s\n",
 		       aa->lock_handle.cookie, reply->lock_handle.cookie,
 		       req->rq_export->exp_client_uuid.uuid,
 		       libcfs_id2str(req->rq_peer));

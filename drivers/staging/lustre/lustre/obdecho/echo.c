@@ -120,7 +120,7 @@ static int echo_create(const struct lu_env *env, struct obd_export *exp,
 	struct obd_device *obd = class_exp2obd(exp);
 
 	if (!obd) {
-		CERROR("invalid client cookie "LPX64"\n",
+		CERROR("invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}
@@ -131,7 +131,7 @@ static int echo_create(const struct lu_env *env, struct obd_export *exp,
 	}
 
 	if (!(oa->o_valid & OBD_MD_FLTYPE)) {
-		CERROR("invalid o_valid "LPX64"\n", oa->o_valid);
+		CERROR("invalid o_valid %#llx\n", oa->o_valid);
 		return -EINVAL;
 	}
 
@@ -150,13 +150,13 @@ static int echo_destroy(const struct lu_env *env, struct obd_export *exp,
 	struct obd_device *obd = class_exp2obd(exp);
 
 	if (!obd) {
-		CERROR("invalid client cookie "LPX64"\n",
+		CERROR("invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}
 
 	if (!(oa->o_valid & OBD_MD_FLID)) {
-		CERROR("obdo missing FLID valid flag: "LPX64"\n", oa->o_valid);
+		CERROR("obdo missing FLID valid flag: %#llx\n", oa->o_valid);
 		return -EINVAL;
 	}
 
@@ -176,13 +176,13 @@ static int echo_getattr(const struct lu_env *env, struct obd_export *exp,
 	obd_id id = ostid_id(&oinfo->oi_oa->o_oi);
 
 	if (!obd) {
-		CERROR("invalid client cookie "LPX64"\n",
+		CERROR("invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}
 
 	if (!(oinfo->oi_oa->o_valid & OBD_MD_FLID)) {
-		CERROR("obdo missing FLID valid flag: "LPX64"\n",
+		CERROR("obdo missing FLID valid flag: %#llx\n",
 		       oinfo->oi_oa->o_valid);
 		return -EINVAL;
 	}
@@ -200,13 +200,13 @@ static int echo_setattr(const struct lu_env *env, struct obd_export *exp,
 	struct obd_device *obd = class_exp2obd(exp);
 
 	if (!obd) {
-		CERROR("invalid client cookie "LPX64"\n",
+		CERROR("invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}
 
 	if (!(oinfo->oi_oa->o_valid & OBD_MD_FLID)) {
-		CERROR("obdo missing FLID valid flag: "LPX64"\n",
+		CERROR("obdo missing FLID valid flag: %#llx\n",
 		       oinfo->oi_oa->o_valid);
 		return -EINVAL;
 	}

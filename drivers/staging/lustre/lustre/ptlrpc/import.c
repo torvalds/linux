@@ -842,8 +842,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	/* check that server granted subset of flags we asked for. */
 	if ((ocd->ocd_connect_flags & imp->imp_connect_flags_orig) !=
 	    ocd->ocd_connect_flags) {
-		CERROR("%s: Server didn't granted asked subset of flags: "
-		       "asked="LPX64" grranted="LPX64"\n",
+		CERROR("%s: Server didn't granted asked subset of flags: asked=%#llx grranted=%#llx\n",
 		       imp->imp_obd->obd_name,imp->imp_connect_flags_orig,
 		       ocd->ocd_connect_flags);
 		GOTO(out, rc = -EPROTO);
@@ -901,8 +900,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 		memset(&old_hdl, 0, sizeof(old_hdl));
 		if (!memcmp(&old_hdl, lustre_msg_get_handle(request->rq_repmsg),
 			    sizeof(old_hdl))) {
-			LCONSOLE_WARN("Reconnect to %s (at @%s) failed due "
-				      "bad handle "LPX64"\n",
+			LCONSOLE_WARN("Reconnect to %s (at @%s) failed due bad handle %#llx\n",
 				      obd2cli_tgt(imp->imp_obd),
 				      imp->imp_connection->c_remote_uuid.uuid,
 				      imp->imp_dlm_handle.cookie);
@@ -923,9 +921,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			 * participate since we can reestablish all of our state
 			 * with server again */
 			if ((MSG_CONNECT_RECOVERING & msg_flags)) {
-				CDEBUG(level,"%s@%s changed server handle from "
-				       LPX64" to "LPX64
-				       " but is still in recovery\n",
+				CDEBUG(level,"%s@%s changed server handle from %#llx to %#llx but is still in recovery\n",
 				       obd2cli_tgt(imp->imp_obd),
 				       imp->imp_connection->c_remote_uuid.uuid,
 				       imp->imp_remote_handle.cookie,
@@ -933,8 +929,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 				       request->rq_repmsg)->cookie);
 			} else {
 				LCONSOLE_WARN("Evicted from %s (at %s) "
-					      "after server handle changed from "
-					      LPX64" to "LPX64"\n",
+					      "after server handle changed from %#llx to %#llx\n",
 					      obd2cli_tgt(imp->imp_obd),
 					      imp->imp_connection-> \
 					      c_remote_uuid.uuid,
@@ -1117,9 +1112,8 @@ finish:
 		 * disable lru_resize, etc. */
 		if (old_connect_flags != exp_connect_flags(exp) ||
 		    aa->pcaa_initial_connect) {
-			CDEBUG(D_HA, "%s: Resetting ns_connect_flags to server "
-			       "flags: "LPX64"\n", imp->imp_obd->obd_name,
-			      ocd->ocd_connect_flags);
+			CDEBUG(D_HA, "%s: Resetting ns_connect_flags to server flags: %#llx\n",
+			       imp->imp_obd->obd_name, ocd->ocd_connect_flags);
 			imp->imp_obd->obd_namespace->ns_connect_flags =
 				ocd->ocd_connect_flags;
 			imp->imp_obd->obd_namespace->ns_orig_connect_flags =

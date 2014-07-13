@@ -426,7 +426,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
 		data->ocd_connect_flags |= OBD_CONNECT_RMT_CLIENT_FORCE;
 
-	CDEBUG(D_RPCTRACE, "ocd_connect_flags: "LPX64" ocd_version: %d "
+	CDEBUG(D_RPCTRACE, "ocd_connect_flags: %#llx ocd_version: %d "
 	       "ocd_grant: %d\n", data->ocd_connect_flags,
 	       data->ocd_version, data->ocd_grant);
 
@@ -1999,7 +1999,7 @@ void ll_umount_begin(struct super_block *sb)
 
 	obd = class_exp2obd(sbi->ll_md_exp);
 	if (obd == NULL) {
-		CERROR("Invalid MDC connection handle "LPX64"\n",
+		CERROR("Invalid MDC connection handle %#llx\n",
 		       sbi->ll_md_exp->exp_handle.h_cookie);
 		return;
 	}
@@ -2007,7 +2007,7 @@ void ll_umount_begin(struct super_block *sb)
 
 	obd = class_exp2obd(sbi->ll_dt_exp);
 	if (obd == NULL) {
-		CERROR("Invalid LOV connection handle "LPX64"\n",
+		CERROR("Invalid LOV connection handle %#llx\n",
 		       sbi->ll_dt_exp->exp_handle.h_cookie);
 		return;
 	}
