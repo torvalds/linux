@@ -1,3 +1,4 @@
+#include <sys/mman.h>
 #include "sort.h"
 #include "hist.h"
 #include "comm.h"
@@ -784,6 +785,104 @@ static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
+static inline  u64 cl_address(u64 address)
+{
+	/* return the cacheline of the address */
+	return (address & ~(cacheline_size - 1));
+}
+
+static int64_t
+sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	u64 l, r;
+	struct map *l_map, *r_map;
+
+	if (!left->mem_info)  return -1;
+	if (!right->mem_info) return 1;
+
+	/* group event types together */
+	if (left->cpumode > right->cpumode) return -1;
+	if (left->cpumode < right->cpumode) return 1;
+
+	l_map = left->mem_info->daddr.map;
+	r_map = right->mem_info->daddr.map;
+
+	/* if both are NULL, jump to sort on al_addr instead */
+	if (!l_map && !r_map)
+		goto addr;
+
+	if (!l_map) return -1;
+	if (!r_map) return 1;
+
+	if (l_map->maj > r_map->maj) return -1;
+	if (l_map->maj < r_map->maj) return 1;
+
+	if (l_map->min > r_map->min) return -1;
+	if (l_map->min < r_map->min) return 1;
+
+	if (l_map->ino > r_map->ino) return -1;
+	if (l_map->ino < r_map->ino) return 1;
+
+	if (l_map->ino_generation > r_map->ino_generation) return -1;
+	if (l_map->ino_generation < r_map->ino_generation) return 1;
+
+	/*
+	 * Addresses with no major/minor numbers are assumed to be
+	 * anonymous in userspace.  Sort those on pid then address.
+	 *
+	 * The kernel and non-zero major/minor mapped areas are
+	 * assumed to be unity mapped.  Sort those on address.
+	 */
+
+	if ((left->cpumode != PERF_RECORD_MISC_KERNEL) &&
+	    (!(l_map->flags & MAP_SHARED)) &&
+	    !l_map->maj && !l_map->min && !l_map->ino &&
+	    !l_map->ino_generation) {
+		/* userspace anonymous */
+
+		if (left->thread->pid_ > right->thread->pid_) return -1;
+		if (left->thread->pid_ < right->thread->pid_) return 1;
+	}
+
+addr:
+	/* al_addr does all the right addr - start + offset calculations */
+	l = cl_address(left->mem_info->daddr.al_addr);
+	r = cl_address(right->mem_info->daddr.al_addr);
+
+	if (l > r) return -1;
+	if (l < r) return 1;
+
+	return 0;
+}
+
+static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
+					  size_t size, unsigned int width)
+{
+
+	uint64_t addr = 0;
+	struct map *map = NULL;
+	struct symbol *sym = NULL;
+	char level = he->level;
+
+	if (he->mem_info) {
+		addr = cl_address(he->mem_info->daddr.al_addr);
+		map = he->mem_info->daddr.map;
+		sym = he->mem_info->daddr.sym;
+
+		/* print [s] for shared data mmaps */
+		if ((he->cpumode != PERF_RECORD_MISC_KERNEL) &&
+		     map && (map->type == MAP__VARIABLE) &&
+		    (map->flags & MAP_SHARED) &&
+		    (map->maj || map->min || map->ino ||
+		     map->ino_generation))
+			level = 's';
+		else if (!map)
+			level = 'X';
+	}
+	return _hist_entry__sym_snprintf(map, sym, addr, level, bf, size,
+					 width);
+}
+
 struct sort_entry sort_mispredict = {
 	.se_header	= "Branch Mispredicted",
 	.se_cmp		= sort__mispredict_cmp,
@@ -874,6 +973,13 @@ struct sort_entry sort_mem_snoop = {
 	.se_cmp		= sort__snoop_cmp,
 	.se_snprintf	= hist_entry__snoop_snprintf,
 	.se_width_idx	= HISTC_MEM_SNOOP,
+};
+
+struct sort_entry sort_mem_dcacheline = {
+	.se_header	= "Data Cacheline",
+	.se_cmp		= sort__dcacheline_cmp,
+	.se_snprintf	= hist_entry__dcacheline_snprintf,
+	.se_width_idx	= HISTC_MEM_DCACHELINE,
 };
 
 static int64_t
@@ -1043,6 +1149,7 @@ static struct sort_dimension memory_sort_dimensions[] = {
 	DIM(SORT_MEM_TLB, "tlb", sort_mem_tlb),
 	DIM(SORT_MEM_LVL, "mem", sort_mem_lvl),
 	DIM(SORT_MEM_SNOOP, "snoop", sort_mem_snoop),
+	DIM(SORT_MEM_DCACHELINE, "dcacheline", sort_mem_dcacheline),
 };
 
 #undef DIM

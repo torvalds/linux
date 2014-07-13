@@ -91,15 +91,6 @@ extern boot_infos_t *boot_infos;
 #define AVIVO_DC_LUTB_WHITE_OFFSET_GREEN        0x6cd4
 #define AVIVO_DC_LUTB_WHITE_OFFSET_RED          0x6cd8
 
-#define FB_RIGHT_POS(p, bpp)         (fb_be_math(p) ? 0 : (32 - (bpp)))
-
-static inline u32 offb_cmap_byteswap(struct fb_info *info, u32 value)
-{
-	u32 bpp = info->var.bits_per_pixel;
-
-	return cpu_to_be32(value) >> FB_RIGHT_POS(info, bpp);
-}
-
     /*
      *  Set a single color register. The values supplied are already
      *  rounded down to the hardware's capabilities (according to the
@@ -129,7 +120,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			mask <<= info->var.transp.offset;
 			value |= mask;
 		}
-		pal[regno] = offb_cmap_byteswap(info, value);
+		pal[regno] = value;
 		return 0;
 	}
 

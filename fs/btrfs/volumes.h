@@ -190,11 +190,14 @@ struct btrfs_bio_stripe {
 struct btrfs_bio;
 typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
 
+#define BTRFS_BIO_ORIG_BIO_SUBMITTED	0x1
+
 struct btrfs_bio {
 	atomic_t stripes_pending;
 	struct btrfs_fs_info *fs_info;
 	bio_end_io_t *end_io;
 	struct bio *orig_bio;
+	unsigned long flags;
 	void *private;
 	atomic_t error;
 	int max_errors;

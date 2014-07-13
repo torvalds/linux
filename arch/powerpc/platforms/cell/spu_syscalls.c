@@ -111,6 +111,7 @@ asmlinkage long sys_spu_run(int fd, __u32 __user *unpc, __u32 __user *ustatus)
 	return ret;
 }
 
+#ifdef CONFIG_COREDUMP
 int elf_coredump_extra_notes_size(void)
 {
 	struct spufs_calls *calls;
@@ -142,6 +143,7 @@ int elf_coredump_extra_notes_write(struct coredump_params *cprm)
 
 	return ret;
 }
+#endif
 
 void notify_spus_active(void)
 {

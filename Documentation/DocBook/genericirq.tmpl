@@ -182,7 +182,7 @@
 	<para>
 	Each interrupt is described by an interrupt descriptor structure
 	irq_desc. The interrupt is referenced by an 'unsigned int' numeric
-	value which selects the corresponding interrupt decription structure
+	value which selects the corresponding interrupt description structure
 	in the descriptor structures array.
 	The descriptor structure contains status information and pointers
 	to the interrupt flow method and the interrupt chip structure
@@ -470,7 +470,7 @@ if (desc->irq_data.chip->irq_eoi)
      <para>
        To avoid copies of identical implementations of IRQ chips the
        core provides a configurable generic interrupt chip
-       implementation. Developers should check carefuly whether the
+       implementation. Developers should check carefully whether the
        generic chip fits their needs before implementing the same
        functionality slightly differently themselves.
      </para>

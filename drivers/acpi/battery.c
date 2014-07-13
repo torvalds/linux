@@ -32,8 +32,10 @@
 #include <linux/jiffies.h>
 #include <linux/async.h>
 #include <linux/dmi.h>
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
+#include <linux/delay.h>
 #include <asm/unaligned.h>
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
@@ -70,6 +72,7 @@ MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
 
 static int battery_bix_broken_package;
+static int battery_notification_delay_ms;
 static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
@@ -532,6 +535,20 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 			" invalid.\n");
 	}
 
+	/*
+	 * When fully charged, some batteries wrongly report
+	 * capacity_now = design_capacity instead of = full_charge_capacity
+	 */
+	if (battery->capacity_now > battery->full_charge_capacity
+	    && battery->full_charge_capacity != ACPI_BATTERY_VALUE_UNKNOWN) {
+		battery->capacity_now = battery->full_charge_capacity;
+		if (battery->capacity_now != battery->design_capacity)
+			printk_once(KERN_WARNING FW_BUG
+				"battery: reported current charge level (%d) "
+				"is higher than reported maximum charge level (%d).\n",
+				battery->capacity_now, battery->full_charge_capacity);
+	}
+
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags)
 	    && battery->capacity_now >= 0 && battery->capacity_now <= 100)
 		battery->capacity_now = (battery->capacity_now *
@@ -930,7 +947,10 @@ static ssize_t acpi_battery_write_alarm(struct file *file,
 		goto end;
 	}
 	alarm_string[count] = '\0';
-	battery->alarm = simple_strtol(alarm_string, NULL, 0);
+	if (kstrtoint(alarm_string, 0, &battery->alarm)) {
+		result = -EINVAL;
+		goto end;
+	}
 	result = acpi_battery_set_alarm(battery);
       end:
 	if (!result)
@@ -1062,6 +1082,14 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 	if (!battery)
 		return;
 	old = battery->bat.dev;
+	/*
+	* On Acer Aspire V5-573G notifications are sometimes triggered too
+	* early. For example, when AC is unplugged and notification is
+	* triggered, battery state is still reported as "Full", and changes to
+	* "Discharging" only after short delay, without any notification.
+	*/
+	if (battery_notification_delay_ms > 0)
+		msleep(battery_notification_delay_ms);
 	if (event == ACPI_BATTERY_NOTIFY_INFO)
 		acpi_battery_refresh(battery);
 	acpi_battery_update(battery, false);
@@ -1106,16 +1134,59 @@ static int battery_notify(struct notifier_block *nb,
 	return 0;
 }
 
+static int battery_bix_broken_package_quirk(const struct dmi_system_id *d)
+{
+	battery_bix_broken_package = 1;
+	return 0;
+}
+
+static int battery_notification_delay_quirk(const struct dmi_system_id *d)
+{
+	battery_notification_delay_ms = 1000;
+	return 0;
+}
+
 static struct dmi_system_id bat_dmi_table[] = {
 	{
+		.callback = battery_bix_broken_package_quirk,
 		.ident = "NEC LZ750/LS",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PC-LZ750LS"),
 		},
 	},
+	{
+		.callback = battery_notification_delay_quirk,
+		.ident = "Acer Aspire V5-573G",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire V5-573G"),
+		},
+	},
 	{},
 };
+
+/*
+ * Some machines'(E,G Lenovo Z480) ECs are not stable
+ * during boot up and this causes battery driver fails to be
+ * probed due to failure of getting battery information
+ * from EC sometimes. After several retries, the operation
+ * may work. So add retry code here and 20ms sleep between
+ * every retries.
+ */
+static int acpi_battery_update_retry(struct acpi_battery *battery)
+{
+	int retry, ret;
+
+	for (retry = 5; retry; retry--) {
+		ret = acpi_battery_update(battery, false);
+		if (!ret)
+			break;
+
+		msleep(20);
+	}
+	return ret;
+}
 
 static int acpi_battery_add(struct acpi_device *device)
 {
@@ -1135,9 +1206,11 @@ static int acpi_battery_add(struct acpi_device *device)
 	mutex_init(&battery->sysfs_lock);
 	if (acpi_has_method(battery->device->handle, "_BIX"))
 		set_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags);
-	result = acpi_battery_update(battery, false);
+
+	result = acpi_battery_update_retry(battery);
 	if (result)
 		goto fail;
+
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	result = acpi_battery_add_fs(device);
 #endif
@@ -1227,8 +1300,7 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 	if (acpi_disabled)
 		return;
 
-	if (dmi_check_system(bat_dmi_table))
-		battery_bix_broken_package = 1;
+	dmi_check_system(bat_dmi_table);
 	
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_dir = acpi_lock_battery_dir();
