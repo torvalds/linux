@@ -575,9 +575,6 @@ struct wlan_network *_rtw_dequeue_network(struct __queue *queue);
 
 struct wlan_network *_rtw_alloc_network(struct mlme_priv *pmlmepriv);
 
-
-void _rtw_free_network(struct mlme_priv *pmlmepriv,
-		       struct wlan_network *pnetwork, u8 isfreeall);
 void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
 			      struct wlan_network *pnetwork);
 
