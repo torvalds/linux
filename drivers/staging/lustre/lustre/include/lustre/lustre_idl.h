@@ -2747,7 +2747,7 @@ struct ldlm_res_id {
 	__u64 name[RES_NAME_SIZE];
 };
 
-#define DLDLMRES	"["LPX64":"LPX64":"LPX64"]."LPX64i
+#define DLDLMRES	"["LPX64":"LPX64":"LPX64"].%llx"
 #define PLDLMRES(res)	(res)->lr_name.name[0], (res)->lr_name.name[1], \
 			(res)->lr_name.name[2], (res)->lr_name.name[3]
 

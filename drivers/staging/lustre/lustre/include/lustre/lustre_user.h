@@ -484,11 +484,7 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 
 /* scanf input parse format -- strip '[' first.
    e.g. sscanf(fidstr, SFID, RFID(&fid)); */
-/* #define SFID "0x"LPX64i":0x"LPSZX":0x"LPSZX""
-liblustreapi.c:2893: warning: format '%lx' expects type 'long unsigned int *', but argument 4 has type 'unsigned int *'
-liblustreapi.c:2893: warning: format '%lx' expects type 'long unsigned int *', but argument 5 has type 'unsigned int *'
-*/
-#define SFID "0x"LPX64i":0x%x:0x%x"
+#define SFID "0x%llx:0x%x:0x%x"
 #define RFID(fid)     \
 	&((fid)->f_seq), \
 	&((fid)->f_oid), \

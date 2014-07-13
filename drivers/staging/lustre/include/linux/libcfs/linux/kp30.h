@@ -73,6 +73,5 @@
 # define LPU64 "%llu"
 # define LPD64 "%lld"
 # define LPX64 "%#llx"
-# define LPX64i "%llx"
 
 #endif
