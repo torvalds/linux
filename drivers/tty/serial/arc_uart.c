@@ -171,7 +171,7 @@ static void arc_serial_tx_chars(struct uart_port *port)
 		port->icount.tx++;
 		port->x_char = 0;
 		sent = 1;
-	} else if (xmit->tail != xmit->head) {	/* TODO: uart_circ_empty */
+	} else if (!uart_circ_empty(xmit)) {
 		ch = xmit->buf[xmit->tail];
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;

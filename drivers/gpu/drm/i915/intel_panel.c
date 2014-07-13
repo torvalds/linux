@@ -1118,8 +1118,12 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	int ret;
 
 	if (!dev_priv->vbt.backlight.present) {
-		DRM_DEBUG_KMS("native backlight control not available per VBT\n");
-		return 0;
+		if (dev_priv->quirks & QUIRK_BACKLIGHT_PRESENT) {
+			DRM_DEBUG_KMS("no backlight present per VBT, but present per quirk\n");
+		} else {
+			DRM_DEBUG_KMS("no backlight present per VBT\n");
+			return 0;
+		}
 	}
 
 	/* set level and max in panel struct */
