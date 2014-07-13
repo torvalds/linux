@@ -19,11 +19,6 @@
 
 #include "odm_precomp.h"
 
-#define READ_AND_CONFIG     READ_AND_CONFIG_MP
-
-#define READ_AND_CONFIG_MP(ic, txt) (ODM_ReadAndConfig##txt##ic(pDM_Odm))
-#define READ_AND_CONFIG_TC(ic, txt) (ODM_ReadAndConfig_TC##txt##ic(pDM_Odm))
-
 static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 {
 	if ((AntPower <= -100) || (AntPower >= 20))
@@ -436,12 +431,7 @@ int ODM_ConfigRFWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
 		     ("===>ODM_ConfigRFWithHeaderFile23a\n"));
 	if (pDM_Odm->SupportICType == ODM_RTL8723A) {
 		if (eRFPath == RF_PATH_A)
-			READ_AND_CONFIG_MP(8723A, _RadioA_1T_);
-
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-			     (" ===> ODM_ConfigRFWithHeaderFile23a() Radio_A:Rtl8723RadioA_1TArray\n"));
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-			     (" ===> ODM_ConfigRFWithHeaderFile23a() Radio_B:Rtl8723RadioB_1TArray\n"));
+			ODM_ReadAndConfig_RadioA_1T_8723A(pDM_Odm);
 	}
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE,
 		     ("ODM_ConfigRFWithHeaderFile23a: Radio No %x\n", eRFPath));
@@ -453,9 +443,9 @@ int ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
 {
 	if (pDM_Odm->SupportICType == ODM_RTL8723A) {
 		if (ConfigType == CONFIG_BB_PHY_REG)
-			READ_AND_CONFIG_MP(8723A, _PHY_REG_1T_);
+			ODM_ReadAndConfig_PHY_REG_1T_8723A(pDM_Odm);
 		else if (ConfigType == CONFIG_BB_AGC_TAB)
-			READ_AND_CONFIG_MP(8723A, _AGC_TAB_1T_);
+			ODM_ReadAndConfig_AGC_TAB_1T_8723A(pDM_Odm);
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
 			     (" ===> phy_ConfigBBWithHeaderFile() phy:Rtl8723AGCTAB_1TArray\n"));
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
@@ -467,6 +457,6 @@ int ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
 int ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm)
 {
 	if (pDM_Odm->SupportICType == ODM_RTL8723A)
-		READ_AND_CONFIG_MP(8723A, _MAC_REG_);
+		ODM_ReadAndConfig_MAC_REG_8723A(pDM_Odm);
 	return _SUCCESS;
 }
