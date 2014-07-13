@@ -749,14 +749,12 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 	spin_unlock(&dreq->lock);
 
 	while (!list_empty(&hdr->pages)) {
-		bool do_destroy = true;
 
 		req = nfs_list_entry(hdr->pages.next);
 		nfs_list_remove_request(req);
 		if (request_commit) {
 			kref_get(&req->wb_kref);
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
-			do_destroy = false;
 		}
 		nfs_unlock_and_release_request(req);
 	}
