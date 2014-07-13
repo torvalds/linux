@@ -90,6 +90,24 @@ enum {
 
 #define LNET_PROC_VERSION(v)	((unsigned int)((v) & LNET_PROC_VER_MASK))
 
+static int proc_call_handler(void *data, int write, loff_t *ppos, void *buffer,
+			     size_t *lenp, int (*handler)(void *data, int write,
+			     loff_t pos, void *buffer, int len))
+{
+	int rc = handler(data, write, *ppos, buffer, *lenp);
+
+	if (rc < 0)
+		return rc;
+
+	if (write) {
+		*ppos += *lenp;
+	} else {
+		*lenp = rc;
+		*ppos += rc;
+	}
+	return 0;
+}
+
 static int __proc_lnet_stats(void *data, int write,
 			     loff_t pos, void *buffer, int nob)
 {
@@ -139,7 +157,12 @@ static int __proc_lnet_stats(void *data, int write,
 	return rc;
 }
 
-DECLARE_PROC_HANDLER(proc_lnet_stats);
+static int proc_lnet_stats(struct ctl_table *table, int write,
+			   void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_lnet_stats);
+}
 
 int proc_lnet_routes(struct ctl_table *table, int write, void __user *buffer,
 		     size_t *lenp, loff_t *ppos)
@@ -627,7 +650,12 @@ static int __proc_lnet_buffers(void *data, int write,
 	return rc;
 }
 
-DECLARE_PROC_HANDLER(proc_lnet_buffers);
+static int proc_lnet_buffers(struct ctl_table *table, int write,
+			     void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_lnet_buffers);
+}
 
 int proc_lnet_nis(struct ctl_table *table, int write, void __user *buffer,
 		  size_t *lenp, loff_t *ppos)
@@ -847,7 +875,14 @@ out:
 	LIBCFS_FREE(buf, buf_len);
 	return rc;
 }
-DECLARE_PROC_HANDLER(proc_lnet_portal_rotor);
+
+static int proc_lnet_portal_rotor(struct ctl_table *table, int write,
+				  void __user *buffer, size_t *lenp,
+				  loff_t *ppos)
+{
+	return proc_call_handler(table->data, write, ppos, buffer, lenp,
+				 __proc_lnet_portal_rotor);
+}
 
 static struct ctl_table lnet_table[] = {
 	/*
