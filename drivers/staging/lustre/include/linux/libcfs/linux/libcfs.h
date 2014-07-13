@@ -43,29 +43,51 @@
 
 
 #include <linux/bitops.h>
+#include <linux/compiler.h>
+#include <linux/ctype.h>
+#include <linux/errno.h>
+#include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/highmem.h>
+#include <linux/interrupt.h>
+#include <linux/kallsyms.h>
 #include <linux/kernel.h>
+#include <linux/kmod.h>
 #include <linux/kthread.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
+#include <linux/mm_inline.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/mutex.h>
+#include <linux/notifier.h>
 #include <linux/proc_fs.h>
 #include <linux/random.h>
 #include <linux/rbtree.h>
+#include <linux/rwsem.h>
+#include <linux/scatterlist.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
+#include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/stat.h>
+#include <linux/string.h>
+#include <linux/time.h>
 #include <linux/timer.h>
 #include <linux/types.h>
+#include <linux/unistd.h>
+#include <linux/vmalloc.h>
 #include <net/sock.h>
+#include <asm/atomic.h>
 #include <asm/div64.h>
 #include <asm/timex.h>
+#include <asm/uaccess.h>
 #include <stdarg.h>
 #include "linux-cpu.h"
 #include "linux-time.h"
 #include "linux-mem.h"
 #include "portals_compat25.h"
 
-#include "kp30.h"
 
 #define LUSTRE_TRACE_SIZE (THREAD_SIZE >> 5)
 
