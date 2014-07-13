@@ -43,21 +43,29 @@
 
 
 #include <linux/bitops.h>
+#include <linux/kernel.h>
+#include <linux/kthread.h>
+#include <linux/miscdevice.h>
+#include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/proc_fs.h>
+#include <linux/random.h>
+#include <linux/rbtree.h>
+#include <linux/sched.h>
+#include <linux/signal.h>
+#include <linux/timer.h>
 #include <linux/types.h>
 #include <net/sock.h>
+#include <asm/div64.h>
+#include <asm/timex.h>
 #include <stdarg.h>
 #include "linux-cpu.h"
 #include "linux-time.h"
 #include "linux-mem.h"
-#include "linux-prim.h"
-#include "kp30.h"
+#include "portals_compat25.h"
 
-#include <asm/types.h>
-#include <linux/types.h>
-#include <asm/timex.h>
-#include <linux/sched.h> /* THREAD_SIZE */
-#include <linux/rbtree.h>
+#include "kp30.h"
 
 #define LUSTRE_TRACE_SIZE (THREAD_SIZE >> 5)
 
