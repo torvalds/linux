@@ -214,7 +214,8 @@ static int __proc_debug_mb(void *data, int write,
 
 DECLARE_PROC_HANDLER(proc_debug_mb)
 
-int LL_PROC_PROTO(proc_console_max_delay_cs)
+int proc_console_max_delay_cs(struct ctl_table *table, int write,
+			      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int rc, max_delay_cs;
 	struct ctl_table dummy = *table;
@@ -245,7 +246,8 @@ int LL_PROC_PROTO(proc_console_max_delay_cs)
 	return rc;
 }
 
-int LL_PROC_PROTO(proc_console_min_delay_cs)
+int proc_console_min_delay_cs(struct ctl_table *table, int write,
+			      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int rc, min_delay_cs;
 	struct ctl_table dummy = *table;
@@ -276,7 +278,8 @@ int LL_PROC_PROTO(proc_console_min_delay_cs)
 	return rc;
 }
 
-int LL_PROC_PROTO(proc_console_backoff)
+int proc_console_backoff(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int rc, backoff;
 	struct ctl_table dummy = *table;
@@ -303,14 +306,16 @@ int LL_PROC_PROTO(proc_console_backoff)
 	return rc;
 }
 
-int LL_PROC_PROTO(libcfs_force_lbug)
+int libcfs_force_lbug(struct ctl_table *table, int write, void __user *buffer,
+		      size_t *lenp, loff_t *ppos)
 {
 	if (write)
 		LBUG();
 	return 0;
 }
 
-int LL_PROC_PROTO(proc_fail_loc)
+int proc_fail_loc(struct ctl_table *table, int write, void __user *buffer,
+		  size_t *lenp, loff_t *ppos)
 {
 	int rc;
 	long old_fail_loc = cfs_fail_loc;

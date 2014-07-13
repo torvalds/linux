@@ -64,13 +64,13 @@
 /*
  * Sysctl register
  */
-#define DECLARE_PROC_HANDLER(name)		      \
-static int					      \
-LL_PROC_PROTO(name)				     \
-{						       \
-	return proc_call_handler(table->data, write,    \
-				 ppos, buffer, lenp,    \
-				 __##name);	     \
+#define DECLARE_PROC_HANDLER(name)					\
+static int name(struct ctl_table *table, int write,			\
+		void __user *buffer, size_t *lenp, loff_t *ppos)	\
+{									\
+	return proc_call_handler(table->data, write,			\
+				 ppos, buffer, lenp,			\
+				 __##name);				\
 }
 
 #endif

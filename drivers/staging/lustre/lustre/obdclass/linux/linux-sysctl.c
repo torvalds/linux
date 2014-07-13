@@ -79,7 +79,8 @@ enum {
 };
 
 
-int LL_PROC_PROTO(proc_set_timeout)
+int proc_set_timeout(struct ctl_table *table, int write, void __user *buffer,
+		     size_t *lenp, loff_t *ppos)
 {
 	int rc;
 
@@ -89,7 +90,8 @@ int LL_PROC_PROTO(proc_set_timeout)
 	return rc;
 }
 
-int LL_PROC_PROTO(proc_memory_alloc)
+int proc_memory_alloc(struct ctl_table *table, int write, void __user *buffer,
+		      size_t *lenp, loff_t *ppos)
 {
 	char buf[22];
 	int len;
@@ -112,7 +114,8 @@ int LL_PROC_PROTO(proc_memory_alloc)
 	return 0;
 }
 
-int LL_PROC_PROTO(proc_pages_alloc)
+int proc_pages_alloc(struct ctl_table *table, int write, void __user *buffer,
+		     size_t *lenp, loff_t *ppos)
 {
 	char buf[22];
 	int len;
@@ -135,7 +138,8 @@ int LL_PROC_PROTO(proc_pages_alloc)
 	return 0;
 }
 
-int LL_PROC_PROTO(proc_mem_max)
+int proc_mem_max(struct ctl_table *table, int write, void __user *buffer,
+		 size_t *lenp, loff_t *ppos)
 {
 	char buf[22];
 	int len;
@@ -158,7 +162,8 @@ int LL_PROC_PROTO(proc_mem_max)
 	return 0;
 }
 
-int LL_PROC_PROTO(proc_pages_max)
+int proc_pages_max(struct ctl_table *table, int write, void __user *buffer,
+		   size_t *lenp, loff_t *ppos)
 {
 	char buf[22];
 	int len;
@@ -181,7 +186,8 @@ int LL_PROC_PROTO(proc_pages_max)
 	return 0;
 }
 
-int LL_PROC_PROTO(proc_max_dirty_pages_in_mb)
+int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
+			       void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int rc = 0;
 
@@ -222,7 +228,8 @@ int LL_PROC_PROTO(proc_max_dirty_pages_in_mb)
 	return rc;
 }
 
-int LL_PROC_PROTO(proc_alloc_fail_rate)
+int proc_alloc_fail_rate(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int rc	  = 0;
 
@@ -252,23 +259,32 @@ int LL_PROC_PROTO(proc_alloc_fail_rate)
 	return rc;
 }
 
-int LL_PROC_PROTO(proc_at_min)
+int proc_at_min(struct ctl_table *table, int write, void __user *buffer,
+		size_t *lenp, loff_t *ppos)
 {
 	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
 }
-int LL_PROC_PROTO(proc_at_max)
+
+int proc_at_max(struct ctl_table *table, int write, void __user *buffer,
+		size_t *lenp, loff_t *ppos)
 {
 	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
 }
-int LL_PROC_PROTO(proc_at_extra)
+
+int proc_at_extra(struct ctl_table *table, int write, void __user *buffer,
+		  size_t *lenp, loff_t *ppos)
 {
 	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
 }
-int LL_PROC_PROTO(proc_at_early_margin)
+
+int proc_at_early_margin(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
 }
-int LL_PROC_PROTO(proc_at_history)
+
+int proc_at_history(struct ctl_table *table, int write, void __user *buffer,
+		    size_t *lenp, loff_t *ppos)
 {
 	return ll_proc_dointvec(table, write, filp, buffer, lenp, ppos);
 }
