@@ -158,7 +158,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 {
 	struct rt_sigframe __user *frame;
 	int err = 0, sig = ksig->sig;
-	unsigned long signal;
 	unsigned long address = 0;
 #ifdef CONFIG_MMU
 	pmd_t *pmdp;
@@ -169,12 +168,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
-
-	signal = current_thread_info()->exec_domain
-		&& current_thread_info()->exec_domain->signal_invmap
-		&& sig < 32
-		? current_thread_info()->exec_domain->signal_invmap[sig]
-		: (unsigned long)sig;
 
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
 		err |= copy_siginfo_to_user(&frame->info, &ksig->info);
@@ -230,7 +223,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->r1 = (unsigned long) frame;
 
 	/* Signal handler args: */
-	regs->r5 = signal; /* arg 0: signum */
+	regs->r5 = sig; /* arg 0: signum */
 	regs->r6 = (unsigned long) &frame->info; /* arg 1: siginfo */
 	regs->r7 = (unsigned long) &frame->uc; /* arg2: ucontext */
 	/* Offset to handle microblaze rtid r14, 0 */
