@@ -400,7 +400,7 @@ struct vnt_private {
 
 	CMD_STATE eCommandState;
 
-	CMD_CODE eCommand;
+	enum vnt_cmd command;
 
 	int bStopDataPkt;
 

@@ -146,13 +146,13 @@ static int s_bCommandComplete(struct vnt_private *priv)
 		return true;
 	}
 
-	priv->eCommand = priv->eCmdQueue[priv->uCmdDequeueIdx].eCmd;
+	priv->command = priv->eCmdQueue[priv->uCmdDequeueIdx].cmd;
 
 	ADD_ONE_WITH_WRAP_AROUND(priv->uCmdDequeueIdx, CMD_Q_SIZE);
 	priv->cbFreeCmdQueue++;
 	priv->bCmdRunning = true;
 
-	switch (priv->eCommand) {
+	switch (priv->command) {
 	case WLAN_CMD_INIT_MAC80211:
 		priv->eCommandState = WLAN_CMD_INIT_MAC80211_START;
 		break;
@@ -186,13 +186,13 @@ static int s_bCommandComplete(struct vnt_private *priv)
 	return true;
 }
 
-int bScheduleCommand(struct vnt_private *priv, CMD_CODE command, u8 *item0)
+int bScheduleCommand(struct vnt_private *priv, enum vnt_cmd command, u8 *item0)
 {
 
 	if (priv->cbFreeCmdQueue == 0)
 		return false;
 
-	priv->eCmdQueue[priv->uCmdEnqueueIdx].eCmd = command;
+	priv->eCmdQueue[priv->uCmdEnqueueIdx].cmd = command;
 
 	ADD_ONE_WITH_WRAP_AROUND(priv->uCmdEnqueueIdx, CMD_Q_SIZE);
 	priv->cbFreeCmdQueue--;

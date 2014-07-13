@@ -34,15 +34,15 @@
 #define AUTHENTICATE_TIMEOUT   1000 //ms
 #define ASSOCIATE_TIMEOUT      1000 //ms
 
-// Command code
-typedef enum tagCMD_CODE {
-    WLAN_CMD_INIT_MAC80211,
-    WLAN_CMD_SETPOWER,
-    WLAN_CMD_TBTT_WAKEUP,
-    WLAN_CMD_BECON_SEND,
-    WLAN_CMD_CHANGE_ANTENNA,
-    WLAN_CMD_11H_CHSW,
-} CMD_CODE, *PCMD_CODE;
+/* Command code */
+enum vnt_cmd {
+	WLAN_CMD_INIT_MAC80211,
+	WLAN_CMD_SETPOWER,
+	WLAN_CMD_TBTT_WAKEUP,
+	WLAN_CMD_BECON_SEND,
+	WLAN_CMD_CHANGE_ANTENNA,
+	WLAN_CMD_11H_CHSW,
+};
 
 #define CMD_Q_SIZE              32
 
@@ -57,7 +57,7 @@ typedef enum tagCMD_STATUS {
 } CMD_STATUS, *PCMD_STATUS;
 
 typedef struct tagCMD_ITEM {
-    CMD_CODE eCmd;
+	enum vnt_cmd cmd;
 } CMD_ITEM, *PCMD_ITEM;
 
 // Command state
@@ -75,7 +75,7 @@ struct vnt_private;
 
 void vResetCommandTimer(struct vnt_private *);
 
-int bScheduleCommand(struct vnt_private *, CMD_CODE eCommand, u8 *pbyItem0);
+int bScheduleCommand(struct vnt_private *, enum vnt_cmd, u8 *);
 
 void vRunCommand(struct work_struct *work);
 
