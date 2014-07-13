@@ -172,20 +172,18 @@ void INTnsProcessData(struct vnt_private *priv)
 	if (int_data->isr0 != 0) {
 		if (int_data->isr0 & ISR_BNTX &&
 				priv->op_mode == NL80211_IFTYPE_AP)
-			bScheduleCommand(priv, WLAN_CMD_BECON_SEND, NULL);
+			vnt_schedule_command(priv, WLAN_CMD_BECON_SEND);
 
 		if (int_data->isr0 & ISR_TBTT) {
 			if (priv->hw->conf.flags & IEEE80211_CONF_PS)
-				bScheduleCommand((void *) priv,
-						WLAN_CMD_TBTT_WAKEUP,
-						NULL);
+				vnt_schedule_command(priv,
+							WLAN_CMD_TBTT_WAKEUP);
 #if 0 /* TODO channel switch */
 			if (priv->bChannelSwitch) {
 				priv->byChannelSwitchCount--;
 				if (priv->byChannelSwitchCount == 0)
-					bScheduleCommand((void *) priv,
-							WLAN_CMD_11H_CHSW,
-							NULL);
+					vnt_schedule_command(priv,
+							WLAN_CMD_11H_CHSW);
 			}
 #endif
 		}

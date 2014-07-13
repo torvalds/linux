@@ -767,7 +767,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	if (priv->wCurrentRate != current_rate &&
 			!(priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
 		priv->wCurrentRate = current_rate;
-		bScheduleCommand(priv, WLAN_CMD_SETPOWER, NULL);
+		vnt_schedule_command(priv, WLAN_CMD_SETPOWER);
 	}
 
 	if (current_rate > RATE_11M)

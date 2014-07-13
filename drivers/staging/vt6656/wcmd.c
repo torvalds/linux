@@ -29,7 +29,7 @@
  *      s_MgrMakeProbeRequest - Make ProbeRequest packet
  *      CommandTimer - Timer function to handle command
  *	vnt_cmd_complete - Command Complete function
- *      bScheduleCommand - Push Command and wait Command Scheduler to do
+ *      vnt_schedule_command - Push Command and wait Command Scheduler to do
  *      vCommandTimer- Command call back functions
  *	vnt_cmd_timer_wait- Call back timer
  *      s_bClearBSSID_SCAN- Clear BSSID_SCAN cmd in CMD Queue
@@ -184,7 +184,7 @@ void vnt_run_command(struct work_struct *work)
 	return;
 }
 
-int bScheduleCommand(struct vnt_private *priv, enum vnt_cmd command, u8 *item0)
+int vnt_schedule_command(struct vnt_private *priv, enum vnt_cmd command)
 {
 
 	if (priv->free_cmd_queue == 0)
