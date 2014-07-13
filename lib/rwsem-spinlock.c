@@ -9,15 +9,12 @@
 #include <linux/sched.h>
 #include <linux/export.h>
 
-enum rwsem_waiter_type {
-	RWSEM_WAITING_FOR_WRITE,
-	RWSEM_WAITING_FOR_READ
-};
-
 struct rwsem_waiter {
 	struct list_head list;
 	struct task_struct *task;
-	enum rwsem_waiter_type type;
+	unsigned int flags;
+#define RWSEM_WAITING_FOR_READ	0x00000001
+#define RWSEM_WAITING_FOR_WRITE	0x00000002
 };
 
 int rwsem_is_locked(struct rw_semaphore *sem)
@@ -70,17 +67,33 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wakewrite)
 
 	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
 
-	if (waiter->type == RWSEM_WAITING_FOR_WRITE) {
-		if (wakewrite)
-			/* Wake up a writer. Note that we do not grant it the
-			 * lock - it will have to acquire it when it runs. */
-			wake_up_process(waiter->task);
+	if (!wakewrite) {
+		if (waiter->flags & RWSEM_WAITING_FOR_WRITE)
+			goto out;
+		goto dont_wake_writers;
+	}
+
+	/* if we are allowed to wake writers try to grant a single write lock
+	 * if there's a writer at the front of the queue
+	 * - we leave the 'waiting count' incremented to signify potential
+	 *   contention
+	 */
+	if (waiter->flags & RWSEM_WAITING_FOR_WRITE) {
+		sem->activity = -1;
+		list_del(&waiter->list);
+		tsk = waiter->task;
+		/* Don't touch waiter after ->task has been NULLed */
+		smp_mb();
+		waiter->task = NULL;
+		wake_up_process(tsk);
+		put_task_struct(tsk);
 		goto out;
 	}
 
 	/* grant an infinite number of read locks to the front of the queue */
+ dont_wake_writers:
 	woken = 0;
-	do {
+	while (waiter->flags & RWSEM_WAITING_FOR_READ) {
 		struct list_head *next = waiter->list.next;
 
 		list_del(&waiter->list);
@@ -90,10 +103,10 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wakewrite)
 		wake_up_process(tsk);
 		put_task_struct(tsk);
 		woken++;
-		if (next == &sem->wait_list)
+		if (list_empty(&sem->wait_list))
 			break;
 		waiter = list_entry(next, struct rwsem_waiter, list);
-	} while (waiter->type != RWSEM_WAITING_FOR_WRITE);
+	}
 
 	sem->activity += woken;
 
@@ -108,10 +121,18 @@ static inline struct rw_semaphore *
 __rwsem_wake_one_writer(struct rw_semaphore *sem)
 {
 	struct rwsem_waiter *waiter;
+	struct task_struct *tsk;
+
+	sem->activity = -1;
 
 	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
-	wake_up_process(waiter->task);
+	list_del(&waiter->list);
 
+	tsk = waiter->task;
+	smp_mb();
+	waiter->task = NULL;
+	wake_up_process(tsk);
+	put_task_struct(tsk);
 	return sem;
 }
 
@@ -138,7 +159,7 @@ void __sched __down_read(struct rw_semaphore *sem)
 
 	/* set up my own style of waitqueue */
 	waiter.task = tsk;
-	waiter.type = RWSEM_WAITING_FOR_READ;
+	waiter.flags = RWSEM_WAITING_FOR_READ;
 	get_task_struct(tsk);
 
 	list_add_tail(&waiter.list, &sem->wait_list);
@@ -183,6 +204,7 @@ int __down_read_trylock(struct rw_semaphore *sem)
 
 /*
  * get a write lock on the semaphore
+ * - we increment the waiting count anyway to indicate an exclusive lock
  */
 void __sched __down_write_nested(struct rw_semaphore *sem, int subclass)
 {
@@ -192,32 +214,37 @@ void __sched __down_write_nested(struct rw_semaphore *sem, int subclass)
 
 	raw_spin_lock_irqsave(&sem->wait_lock, flags);
 
-	/* set up my own style of waitqueue */
+	if (sem->activity == 0 && list_empty(&sem->wait_list)) {
+		/* granted */
+		sem->activity = -1;
+		raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
+		goto out;
+	}
+
 	tsk = current;
+	set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+
+	/* set up my own style of waitqueue */
 	waiter.task = tsk;
-	waiter.type = RWSEM_WAITING_FOR_WRITE;
+	waiter.flags = RWSEM_WAITING_FOR_WRITE;
+	get_task_struct(tsk);
+
 	list_add_tail(&waiter.list, &sem->wait_list);
 
-	/* wait for someone to release the lock */
-	for (;;) {
-		/*
-		 * That is the key to support write lock stealing: allows the
-		 * task already on CPU to get the lock soon rather than put
-		 * itself into sleep and waiting for system woke it or someone
-		 * else in the head of the wait list up.
-		 */
-		if (sem->activity == 0)
-			break;
-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
-		raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
-		schedule();
-		raw_spin_lock_irqsave(&sem->wait_lock, flags);
-	}
-	/* got the lock */
-	sem->activity = -1;
-	list_del(&waiter.list);
-
+	/* we don't need to touch the semaphore struct anymore */
 	raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
+
+	/* wait to be given the lock */
+	for (;;) {
+		if (!waiter.task)
+			break;
+		schedule();
+		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+	}
+
+	tsk->state = TASK_RUNNING;
+ out:
+	;
 }
 
 void __sched __down_write(struct rw_semaphore *sem)
@@ -235,8 +262,8 @@ int __down_write_trylock(struct rw_semaphore *sem)
 
 	raw_spin_lock_irqsave(&sem->wait_lock, flags);
 
-	if (sem->activity == 0) {
-		/* got the lock */
+	if (sem->activity == 0 && list_empty(&sem->wait_list)) {
+		/* granted */
 		sem->activity = -1;
 		ret = 1;
 	}
