@@ -310,7 +310,7 @@ void request_in_callback(lnet_event_t *ev)
 			/* We moaned above already... */
 			return;
 		}
-		req = ptlrpc_request_cache_alloc(ALLOC_ATOMIC_TRY);
+		req = ptlrpc_request_cache_alloc(GFP_ATOMIC);
 		if (req == NULL) {
 			CERROR("Can't allocate incoming request descriptor: "
 			       "Dropping %s RPC from %s\n",

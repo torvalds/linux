@@ -72,12 +72,6 @@
 #define NUM_CACHEPAGES totalram_pages
 #endif
 
-/*
- * In Linux there is no way to determine whether current execution context is
- * blockable.
- */
-#define ALLOC_ATOMIC_TRY   GFP_ATOMIC
-
 #define DECL_MMSPACE		mm_segment_t __oldfs
 #define MMSPACE_OPEN \
 	do { __oldfs = get_fs(); set_fs(get_ds()); } while (0)
