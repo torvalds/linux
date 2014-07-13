@@ -566,31 +566,6 @@ exit:
 	return ret;
 }
 
-u8 rtw_set_802_11_remove_wep(struct adapter *padapter, u32 keyindex)
-{
-	u8 ret = _SUCCESS;
-
-	if (keyindex >= 0x80000000 || padapter == NULL) {
-		ret = false;
-		goto exit;
-	} else {
-		int res;
-		struct security_priv *psecuritypriv = &(padapter->securitypriv);
-		if (keyindex < 4) {
-			memset(&psecuritypriv->dot11DefKey[keyindex], 0, 16);
-			res = rtw_set_key(padapter, psecuritypriv, keyindex, 0);
-			psecuritypriv->dot11DefKeylen[keyindex] = 0;
-			if (res == _FAIL)
-				ret = _FAIL;
-		} else {
-			ret = _FAIL;
-		}
-	}
-exit:
-
-	return ret;
-}
-
 /*
 * rtw_get_cur_max_rate -
 * @adapter: pointer to struct adapter structure
