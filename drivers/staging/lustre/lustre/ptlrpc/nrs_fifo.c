@@ -174,9 +174,9 @@ struct ptlrpc_nrs_request * nrs_fifo_req_get(struct ptlrpc_nrs_policy *policy,
 
 		list_del_init(&nrq->nr_u.fifo.fr_list);
 
-		CDEBUG(D_RPCTRACE, "NRS start %s request from %s, seq: "LPU64
-		       "\n", policy->pol_desc->pd_name,
-		       libcfs_id2str(req->rq_peer), nrq->nr_u.fifo.fr_sequence);
+		CDEBUG(D_RPCTRACE, "NRS start %s request from %s, seq: %llu\n",
+		       policy->pol_desc->pd_name, libcfs_id2str(req->rq_peer),
+		       nrq->nr_u.fifo.fr_sequence);
 	}
 
 	return nrq;
@@ -236,7 +236,7 @@ static void nrs_fifo_req_stop(struct ptlrpc_nrs_policy *policy,
 	struct ptlrpc_request *req = container_of(nrq, struct ptlrpc_request,
 						  rq_nrq);
 
-	CDEBUG(D_RPCTRACE, "NRS stop %s request from %s, seq: "LPU64"\n",
+	CDEBUG(D_RPCTRACE, "NRS stop %s request from %s, seq: %llu\n",
 	       policy->pol_desc->pd_name, libcfs_id2str(req->rq_peer),
 	       nrq->nr_u.fifo.fr_sequence);
 }

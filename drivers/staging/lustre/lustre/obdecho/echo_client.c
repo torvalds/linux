@@ -1430,7 +1430,7 @@ echo_copyin_lsm (struct echo_device *ed, struct lov_stripe_md *lsm,
 static inline void echo_md_build_name(struct lu_name *lname, char *name,
 				      __u64 id)
 {
-	sprintf(name, LPU64, id);
+	sprintf(name, "%llu", id);
 	lname->ln_name = name;
 	lname->ln_namelen = strlen(name);
 }

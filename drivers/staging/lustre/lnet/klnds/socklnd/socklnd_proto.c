@@ -192,7 +192,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 
 	if (cookie == tx->tx_msg.ksm_zc_cookies[0] ||
 	    cookie == tx->tx_msg.ksm_zc_cookies[1]) {
-		CWARN("%s: duplicated ZC cookie: "LPU64"\n",
+		CWARN("%s: duplicated ZC cookie: %llu\n",
 		      libcfs_id2str(conn->ksnc_peer->ksnp_id), cookie);
 		return 1; /* XXX return error in the future */
 	}
@@ -244,7 +244,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 		/* ksm_zc_cookies[0] < ksm_zc_cookies[1], it is range of cookies */
 		if (cookie >= tx->tx_msg.ksm_zc_cookies[0] &&
 		    cookie <= tx->tx_msg.ksm_zc_cookies[1]) {
-			CWARN("%s: duplicated ZC cookie: "LPU64"\n",
+			CWARN("%s: duplicated ZC cookie: %llu\n",
 			      libcfs_id2str(conn->ksnc_peer->ksnp_id), cookie);
 			return 1; /* XXX: return error in the future */
 		}

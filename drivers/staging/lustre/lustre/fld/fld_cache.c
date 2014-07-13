@@ -113,9 +113,9 @@ void fld_cache_fini(struct fld_cache *cache)
 	}
 
 	CDEBUG(D_INFO, "FLD cache statistics (%s):\n", cache->fci_name);
-	CDEBUG(D_INFO, "  Total reqs: "LPU64"\n", cache->fci_stat.fst_count);
-	CDEBUG(D_INFO, "  Cache reqs: "LPU64"\n", cache->fci_stat.fst_cache);
-	CDEBUG(D_INFO, "  Cache hits: "LPU64"%%\n", pct);
+	CDEBUG(D_INFO, "  Total reqs: %llu\n", cache->fci_stat.fst_count);
+	CDEBUG(D_INFO, "  Cache reqs: %llu\n", cache->fci_stat.fst_cache);
+	CDEBUG(D_INFO, "  Cache hits: %llu%%\n", pct);
 
 	OBD_FREE_PTR(cache);
 }

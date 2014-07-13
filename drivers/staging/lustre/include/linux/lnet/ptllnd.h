@@ -49,7 +49,7 @@
 #ifdef _USING_LUSTRE_PORTALS_
 
 /* NIDs are 64-bits on Lustre Portals */
-#define FMT_NID LPU64
+#define FMT_NID "%llu"
 #define FMT_PID "%d"
 
 /* When using Lustre Portals Lustre completion semantics are imlicit*/

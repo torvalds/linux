@@ -85,7 +85,7 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	last_transno = imp->imp_last_replay_transno;
 	spin_unlock(&imp->imp_lock);
 
-	CDEBUG(D_HA, "import %p from %s committed "LPU64" last "LPU64"\n",
+	CDEBUG(D_HA, "import %p from %s committed %llu last %llu\n",
 	       imp, obd2cli_tgt(imp->imp_obd),
 	       imp->imp_peer_committed_transno, last_transno);
 
@@ -164,8 +164,8 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	if (req != NULL) {
 		rc = ptlrpc_replay_req(req);
 		if (rc) {
-			CERROR("recovery replay error %d for req "
-			       LPU64"\n", rc, req->rq_xid);
+			CERROR("recovery replay error %d for req %llu\n",
+			       rc, req->rq_xid);
 			return rc;
 		}
 		*inflight = 1;

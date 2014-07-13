@@ -601,7 +601,7 @@ stride_pg_count(pgoff_t st_off, unsigned long st_len, unsigned long st_pgs,
 	if (end_left > st_pgs)
 		end_left = st_pgs;
 
-	CDEBUG(D_READA, "start "LPU64", end "LPU64" start_left %lu end_left %lu \n",
+	CDEBUG(D_READA, "start %llu, end %llu start_left %lu end_left %lu \n",
 	       start, end, start_left, end_left);
 
 	if (start == end)
@@ -1013,7 +1013,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 		kms_pages = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
 			    PAGE_CACHE_SHIFT;
 
-		CDEBUG(D_READA, "kmsp "LPU64" mwp %lu mp %lu\n", kms_pages,
+		CDEBUG(D_READA, "kmsp %llu mwp %lu mp %lu\n", kms_pages,
 		       ra->ra_max_read_ahead_whole_pages, ra->ra_max_pages_per_file);
 
 		if (kms_pages &&

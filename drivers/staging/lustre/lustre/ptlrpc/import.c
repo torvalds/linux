@@ -494,7 +494,7 @@ static int import_select_connection(struct obd_import *imp)
 	}
 
 	list_for_each_entry(conn, &imp->imp_conn_list, oic_item) {
-		CDEBUG(D_HA, "%s: connect to NID %s last attempt "LPU64"\n",
+		CDEBUG(D_HA, "%s: connect to NID %s last attempt %llu\n",
 		       imp->imp_obd->obd_name,
 		       libcfs_nid2str(conn->oic_conn->c_peer.nid),
 		       conn->oic_last_attempt);

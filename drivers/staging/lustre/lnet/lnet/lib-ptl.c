@@ -184,8 +184,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 		mlength = info->mi_rlength;
 	} else if ((md->md_options & LNET_MD_TRUNCATE) == 0) {
 		/* this packet _really_ is too big */
-		CERROR("Matching packet from %s, match "LPU64
-		       " length %d too big: %d left, %d allowed\n",
+		CERROR("Matching packet from %s, match %llu length %d too big: %d left, %d allowed\n",
 		       libcfs_id2str(info->mi_id), info->mi_mbits,
 		       info->mi_rlength, md->md_length - offset, mlength);
 
@@ -687,8 +686,7 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 		if ((rc & LNET_MATCHMD_OK) != 0) {
 			list_add_tail(&msg->msg_list, matches);
 
-			CDEBUG(D_NET, "Resuming delayed PUT from %s portal %d "
-			       "match "LPU64" offset %d length %d.\n",
+			CDEBUG(D_NET, "Resuming delayed PUT from %s portal %d match %llu offset %d length %d.\n",
 			       libcfs_id2str(info.mi_id),
 			       info.mi_portal, info.mi_mbits,
 			       info.mi_roffset, info.mi_rlength);

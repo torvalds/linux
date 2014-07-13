@@ -697,7 +697,7 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	rs->rs_opc       = lustre_msg_get_opc(req->rq_reqmsg);
 
 	spin_lock(&exp->exp_uncommitted_replies_lock);
-	CDEBUG(D_NET, "rs transno = "LPU64", last committed = "LPU64"\n",
+	CDEBUG(D_NET, "rs transno = %llu, last committed = %llu\n",
 	       rs->rs_transno, exp->exp_last_committed);
 	if (rs->rs_transno > exp->exp_last_committed) {
 		/* not committed already */

@@ -735,7 +735,7 @@ repeat_fid2path:
 		*ptr = '/';
 	}
 
-	CDEBUG(D_INFO, "%s: get path %s "DFID" rec: "LPU64" ln: %u\n",
+	CDEBUG(D_INFO, "%s: get path %s "DFID" rec: %llu ln: %u\n",
 	       tgt->ltd_exp->exp_obd->obd_name,
 	       gf->gf_path, PFID(&gf->gf_fid), gf->gf_recno,
 	       gf->gf_linkno);

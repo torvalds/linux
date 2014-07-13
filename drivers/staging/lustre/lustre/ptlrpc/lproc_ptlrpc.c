@@ -726,12 +726,12 @@ ptlrpc_lprocfs_svc_req_history_seek(struct ptlrpc_service_part *svcpt,
 		 * be near the head), we shouldn't have to do long
 		 * re-scans */
 		LASSERTF(srhi->srhi_seq == srhi->srhi_req->rq_history_seq,
-			 "%s:%d: seek seq "LPU64", request seq "LPU64"\n",
+			 "%s:%d: seek seq %llu, request seq %llu\n",
 			 svcpt->scp_service->srv_name, svcpt->scp_cpt,
 			 srhi->srhi_seq, srhi->srhi_req->rq_history_seq);
 		LASSERTF(!list_empty(&svcpt->scp_hist_reqs),
-			 "%s:%d: seek offset "LPU64", request seq "LPU64", "
-			 "last culled "LPU64"\n",
+			 "%s:%d: seek offset %llu, request seq %llu, "
+			 "last culled %llu\n",
 			 svcpt->scp_service->srv_name, svcpt->scp_cpt,
 			 seq, srhi->srhi_seq, svcpt->scp_hist_seq_culled);
 		e = &srhi->srhi_req->rq_history_list;
@@ -932,7 +932,7 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 		 * must be just as careful as the service's request
 		 * parser. Currently I only print stuff here I know is OK
 		 * to look at coz it was set up in request_in_callback()!!! */
-		seq_printf(s, "%lld:%s:%s:x"LPU64":%d:%s:%ld:%lds(%+lds) ",
+		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%ld:%lds(%+lds) ",
 			   req->rq_history_seq, libcfs_nid2str(req->rq_self),
 			   libcfs_id2str(req->rq_peer), req->rq_xid,
 			   req->rq_reqlen, ptlrpc_rqphase2str(req),

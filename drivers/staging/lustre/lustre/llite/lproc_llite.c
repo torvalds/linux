@@ -82,7 +82,7 @@ static int ll_kbytestotal_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -105,7 +105,7 @@ static int ll_kbytesfree_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -128,7 +128,7 @@ static int ll_kbytesavail_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -145,7 +145,7 @@ static int ll_filestotal_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, LPU64"\n", osfs.os_files);
+		 rc = seq_printf(m, "%llu\n", osfs.os_files);
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filestotal);
@@ -161,7 +161,7 @@ static int ll_filesfree_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, LPU64"\n", osfs.os_ffree);
+		 rc = seq_printf(m, "%llu\n", osfs.os_ffree);
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filesfree);

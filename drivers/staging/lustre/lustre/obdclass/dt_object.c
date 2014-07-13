@@ -963,7 +963,7 @@ int lprocfs_dt_rd_kbytestotal(char *page, char **start, off_t off,
 			result <<= 1;
 
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", result);
+		rc = snprintf(page, count, "%llu\n", result);
 	}
 
 	return rc;
@@ -985,7 +985,7 @@ int lprocfs_dt_rd_kbytesfree(char *page, char **start, off_t off,
 			result <<= 1;
 
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", result);
+		rc = snprintf(page, count, "%llu\n", result);
 	}
 
 	return rc;
@@ -1007,7 +1007,7 @@ int lprocfs_dt_rd_kbytesavail(char *page, char **start, off_t off,
 			result <<= 1;
 
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", result);
+		rc = snprintf(page, count, "%llu\n", result);
 	}
 
 	return rc;
@@ -1023,7 +1023,7 @@ int lprocfs_dt_rd_filestotal(char *page, char **start, off_t off,
 	int rc = dt_statfs(NULL, dt, &osfs);
 	if (rc == 0) {
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", osfs.os_files);
+		rc = snprintf(page, count, "%llu\n", osfs.os_files);
 	}
 
 	return rc;
@@ -1039,7 +1039,7 @@ int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 	int rc = dt_statfs(NULL, dt, &osfs);
 	if (rc == 0) {
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", osfs.os_ffree);
+		rc = snprintf(page, count, "%llu\n", osfs.os_ffree);
 	}
 
 	return rc;

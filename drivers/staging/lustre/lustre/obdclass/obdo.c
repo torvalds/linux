@@ -252,7 +252,7 @@ void iattr_from_obdo(struct iattr *attr, struct obdo *oa, obd_flag valid)
 	valid &= oa->o_valid;
 
 	if (valid & (OBD_MD_FLCTIME | OBD_MD_FLMTIME))
-		CDEBUG(D_INODE, "valid "LPX64", new time "LPU64"/"LPU64"\n",
+		CDEBUG(D_INODE, "valid "LPX64", new time %llu/%llu\n",
 		       oa->o_valid, oa->o_mtime, oa->o_ctime);
 
 	attr->ia_valid = 0;

@@ -115,7 +115,7 @@ static int __proc_lnet_stats(void *data, int write,
 	lnet_counters_t *ctrs;
 	int	      len;
 	char	    *tmpstr;
-	const int	tmpsiz = 256; /* 7 %u and 4 LPU64 */
+	const int	tmpsiz = 256; /* 7 %u and 4 %llu */
 
 	if (write) {
 		lnet_counters_reset();
@@ -137,8 +137,7 @@ static int __proc_lnet_stats(void *data, int write,
 	lnet_counters_get(ctrs);
 
 	len = snprintf(tmpstr, tmpsiz,
-		       "%u %u %u %u %u %u %u "LPU64" "LPU64" "
-		       LPU64" "LPU64,
+		       "%u %u %u %u %u %u %u %llu %llu %llu %llu",
 		       ctrs->msgs_alloc, ctrs->msgs_max,
 		       ctrs->errors,
 		       ctrs->send_count, ctrs->recv_count,

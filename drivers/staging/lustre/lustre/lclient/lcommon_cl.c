@@ -843,7 +843,7 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 			if (cl_isize_read(inode) < kms) {
 				cl_isize_write_nolock(inode, kms);
 				CDEBUG(D_VFSTRACE,
-				       DFID" updating i_size "LPU64"\n",
+				       DFID" updating i_size %llu\n",
 				       PFID(lu_object_fid(&obj->co_lu)),
 				       (__u64)cl_isize_read(inode));
 

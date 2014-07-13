@@ -327,7 +327,7 @@ static int echo_map_nb_to_lb(struct obdo *oa, struct obd_ioobj *obj,
 			}
 		}
 
-		CDEBUG(D_PAGE, "$$$$ get page %p @ "LPU64" for %d\n",
+		CDEBUG(D_PAGE, "$$$$ get page %p @ %llu for %d\n",
 		       res->page, res->lnb_file_offset, res->len);
 
 		if (cmd & OBD_BRW_READ)
@@ -365,7 +365,7 @@ static int echo_finalize_lb(struct obdo *oa, struct obd_ioobj *obj,
 		void       *addr;
 
 		if (page == NULL) {
-			CERROR("null page objid "LPU64":%p, buf %d/%d\n",
+			CERROR("null page objid %llu:%p, buf %d/%d\n",
 			       ostid_id(&obj->ioo_oid), page, i,
 			       obj->ioo_bufcnt);
 			return -EFAULT;
@@ -373,7 +373,7 @@ static int echo_finalize_lb(struct obdo *oa, struct obd_ioobj *obj,
 
 		addr = kmap(page);
 
-		CDEBUG(D_PAGE, "$$$$ use page %p, addr %p@"LPU64"\n",
+		CDEBUG(D_PAGE, "$$$$ use page %p, addr %p@%llu\n",
 		       res->page, addr, res->lnb_file_offset);
 
 		if (verify) {

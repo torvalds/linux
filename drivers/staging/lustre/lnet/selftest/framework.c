@@ -248,7 +248,7 @@ sfw_session_expired (void *data)
 	LASSERT (sn->sn_timer_active);
 	LASSERT (sn == sfw_data.fw_session);
 
-	CWARN ("Session expired! sid: %s-"LPU64", name: %s\n",
+	CWARN ("Session expired! sid: %s-%llu, name: %s\n",
 	       libcfs_nid2str(sn->sn_id.ses_nid),
 	       sn->sn_id.ses_stamp, &sn->sn_name[0]);
 
@@ -741,7 +741,7 @@ sfw_add_test_instance (sfw_batch_t *tsb, srpc_server_rpc_t *rpc)
 
 	LIBCFS_ALLOC(tsi, sizeof(*tsi));
 	if (tsi == NULL) {
-		CERROR ("Can't allocate test instance for batch: "LPU64"\n",
+		CERROR ("Can't allocate test instance for batch: %llu\n",
 			tsb->bat_id.bat_id);
 		return -ENOMEM;
 	}
@@ -1002,7 +1002,7 @@ sfw_run_batch (sfw_batch_t *tsb)
 	sfw_test_instance_t *tsi;
 
 	if (sfw_batch_active(tsb)) {
-		CDEBUG(D_NET, "Batch already active: "LPU64" (%d)\n",
+		CDEBUG(D_NET, "Batch already active: %llu (%d)\n",
 		       tsb->bat_id.bat_id, atomic_read(&tsb->bat_nactive));
 		return 0;
 	}
@@ -1037,7 +1037,7 @@ sfw_stop_batch (sfw_batch_t *tsb, int force)
 	srpc_client_rpc_t   *rpc;
 
 	if (!sfw_batch_active(tsb)) {
-		CDEBUG(D_NET, "Batch "LPU64" inactive\n", tsb->bat_id.bat_id);
+		CDEBUG(D_NET, "Batch %llu inactive\n", tsb->bat_id.bat_id);
 		return 0;
 	}
 

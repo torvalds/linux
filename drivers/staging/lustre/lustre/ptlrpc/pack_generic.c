@@ -2140,8 +2140,8 @@ static void print_lum(struct lov_user_md *lum)
 	CDEBUG(D_OTHER, "lov_user_md %p:\n", lum);
 	CDEBUG(D_OTHER, "\tlmm_magic: %#x\n", lum->lmm_magic);
 	CDEBUG(D_OTHER, "\tlmm_pattern: %#x\n", lum->lmm_pattern);
-	CDEBUG(D_OTHER, "\tlmm_object_id: "LPU64"\n", lmm_oi_id(&lum->lmm_oi));
-	CDEBUG(D_OTHER, "\tlmm_object_gr: "LPU64"\n", lmm_oi_seq(&lum->lmm_oi));
+	CDEBUG(D_OTHER, "\tlmm_object_id: %llu\n", lmm_oi_id(&lum->lmm_oi));
+	CDEBUG(D_OTHER, "\tlmm_object_gr: %llu\n", lmm_oi_seq(&lum->lmm_oi));
 	CDEBUG(D_OTHER, "\tlmm_stripe_size: %#x\n", lum->lmm_stripe_size);
 	CDEBUG(D_OTHER, "\tlmm_stripe_count: %#x\n", lum->lmm_stripe_count);
 	CDEBUG(D_OTHER, "\tlmm_stripe_offset/lmm_layout_gen: %#x\n",
@@ -2292,7 +2292,7 @@ EXPORT_SYMBOL(dump_ioo);
 
 void dump_rniobuf(struct niobuf_remote *nb)
 {
-	CDEBUG(D_RPCTRACE, "niobuf_remote: offset="LPU64", len=%d, flags=%x\n",
+	CDEBUG(D_RPCTRACE, "niobuf_remote: offset=%llu, len=%d, flags=%x\n",
 	       nb->offset, nb->len, nb->flags);
 }
 EXPORT_SYMBOL(dump_rniobuf);
@@ -2421,7 +2421,7 @@ void _debug_req(struct ptlrpc_request *req,
 
 	va_start(args, fmt);
 	libcfs_debug_vmsg2(msgdata, fmt, args,
-			   " req@%p x"LPU64"/t%lld(%lld) o%d->%s@%s:%d/%d"
+			   " req@%p x%llu/t%lld(%lld) o%d->%s@%s:%d/%d"
 			   " lens %d/%d e %d to %d dl "CFS_TIME_T" ref %d "
 			   "fl "REQ_FLAGS_FMT"/%x/%x rc %d/%d\n",
 			   req, req->rq_xid, req->rq_transno,

@@ -167,7 +167,7 @@ do {									   \
 
 #define DEBUG_CAPA_KEY(level, k, fmt, args...)				 \
 do {									   \
-CDEBUG(level, fmt " capability key@%p seq "LPU64" keyid %u\n",		 \
+CDEBUG(level, fmt " capability key@%p seq %llu keyid %u\n",		 \
        ##args, k, capa_key_seq(k), capa_key_keyid(k));			 \
 } while (0)
 

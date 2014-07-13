@@ -471,7 +471,7 @@ void ll_ioepoch_open(struct ll_inode_info *lli, __u64 ioepoch)
 {
 	if (ioepoch && lli->lli_ioepoch != ioepoch) {
 		lli->lli_ioepoch = ioepoch;
-		CDEBUG(D_INODE, "Epoch "LPU64" opened on "DFID"\n",
+		CDEBUG(D_INODE, "Epoch %llu opened on "DFID"\n",
 		       ioepoch, PFID(&lli->lli_fid));
 	}
 }
@@ -1008,7 +1008,7 @@ int ll_merge_lvb(const struct lu_env *env, struct inode *inode)
 		if (lvb.lvb_mtime < attr->cat_mtime)
 			lvb.lvb_mtime = attr->cat_mtime;
 
-		CDEBUG(D_VFSTRACE, DFID" updating i_size "LPU64"\n",
+		CDEBUG(D_VFSTRACE, DFID" updating i_size %llu\n",
 				PFID(&lli->lli_fid), attr->cat_size);
 		cl_isize_write_nolock(inode, attr->cat_size);
 
@@ -2708,9 +2708,9 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	CDEBUG(D_DLMTRACE, "inode=%lu, pid=%u, flags=%#llx, mode=%u, "
-	       "start="LPU64", end="LPU64"\n", inode->i_ino, flock.l_flock.pid,
-	       flags, einfo.ei_mode, flock.l_flock.start, flock.l_flock.end);
+	CDEBUG(D_DLMTRACE, "inode=%lu, pid=%u, flags=%#llx, mode=%u, start=%llu, end=%llu\n",
+	       inode->i_ino, flock.l_flock.pid, flags, einfo.ei_mode,
+	       flock.l_flock.start, flock.l_flock.end);
 
 	rc = md_enqueue(sbi->ll_md_exp, &einfo, NULL,
 			op_data, &lockh, &flock, 0, NULL /* req */, flags);

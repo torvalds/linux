@@ -837,7 +837,7 @@ out_trans:
 		rc = dt_record_read(env, o, &dti->dti_lb, &dti->dti_off);
 		dt_read_unlock(env, o);
 		if (rc == 0 && le64_to_cpu(lastid) > OBIF_MAX_OID) {
-			CERROR("%s: bad oid "LPU64" is read from LAST_ID\n",
+			CERROR("%s: bad oid %llu is read from LAST_ID\n",
 			       o->do_lu.lo_dev->ld_obd->obd_name,
 			       le64_to_cpu(lastid));
 			rc = -EINVAL;

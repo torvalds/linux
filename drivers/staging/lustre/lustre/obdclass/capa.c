@@ -411,8 +411,8 @@ void _debug_capa(struct lustre_capa *c,
 	va_list args;
 	va_start(args, fmt);
 	libcfs_debug_vmsg2(msgdata, fmt, args,
-			   " capability@%p fid "DFID" opc "LPX64" uid "LPU64
-			   " gid "LPU64" flags %u alg %d keyid %u timeout %u "
+			   " capability@%p fid "DFID" opc "LPX64" uid %llu"
+			   " gid %llu flags %u alg %d keyid %u timeout %u "
 			   "expiry %u\n", c, PFID(capa_fid(c)), capa_opc(c),
 			   capa_uid(c), capa_gid(c), capa_flags(c),
 			   capa_alg(c), capa_keyid(c), capa_timeout(c),

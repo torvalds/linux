@@ -159,7 +159,7 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	LASSERTF(!(desc->bd_registered &&
 		   req->rq_send_state != LUSTRE_IMP_REPLAY) ||
 		 xid != desc->bd_last_xid,
-		 "registered: %d  rq_xid: "LPU64" bd_last_xid: "LPU64"\n",
+		 "registered: %d  rq_xid: %llu bd_last_xid: %llu\n",
 		 desc->bd_registered, xid, desc->bd_last_xid);
 
 	total_md = (desc->bd_iov_count + LNET_MAX_IOV - 1) / LNET_MAX_IOV;
@@ -179,7 +179,7 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 		rc = LNetMEAttach(desc->bd_portal, peer, xid, 0,
 				  LNET_UNLINK, LNET_INS_AFTER, &me_h);
 		if (rc != 0) {
-			CERROR("%s: LNetMEAttach failed x"LPU64"/%d: rc = %d\n",
+			CERROR("%s: LNetMEAttach failed x%llu/%d: rc = %d\n",
 			       desc->bd_import->imp_obd->obd_name, xid,
 			       posted_md, rc);
 			break;
@@ -189,7 +189,7 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 		rc = LNetMDAttach(me_h, md, LNET_UNLINK,
 				  &desc->bd_mds[posted_md]);
 		if (rc != 0) {
-			CERROR("%s: LNetMDAttach failed x"LPU64"/%d: rc = %d\n",
+			CERROR("%s: LNetMDAttach failed x%llu/%d: rc = %d\n",
 			       desc->bd_import->imp_obd->obd_name, xid,
 			       posted_md, rc);
 			rc2 = LNetMEUnlink(me_h);
@@ -213,7 +213,7 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	 * infer the number of bulks that were prepared */
 	req->rq_xid = --xid;
 	LASSERTF(desc->bd_last_xid == (req->rq_xid & PTLRPC_BULK_OPS_MASK),
-		 "bd_last_xid = x"LPU64", rq_xid = x"LPU64"\n",
+		 "bd_last_xid = x%llu, rq_xid = x%llu\n",
 		 desc->bd_last_xid, req->rq_xid);
 
 	spin_lock(&desc->bd_lock);
@@ -619,8 +619,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 			GOTO(cleanup_me, rc = -ENOMEM);
 		}
 
-		CDEBUG(D_NET, "Setup reply buffer: %u bytes, xid "LPU64
-		       ", portal %u\n",
+		CDEBUG(D_NET, "Setup reply buffer: %u bytes, xid %llu, portal %u\n",
 		       request->rq_repbuf_len, request->rq_xid,
 		       request->rq_reply_portal);
 	}

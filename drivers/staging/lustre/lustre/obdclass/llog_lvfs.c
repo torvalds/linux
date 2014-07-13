@@ -389,7 +389,7 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 	if (len == 0 || len & (LLOG_CHUNK_SIZE - 1))
 		return -EINVAL;
 
-	CDEBUG(D_OTHER, "looking for log index %u (cur idx %u off "LPU64")\n",
+	CDEBUG(D_OTHER, "looking for log index %u (cur idx %u off %llu)\n",
 	       next_idx, *cur_idx, *cur_offset);
 
 	while (*cur_offset < i_size_read(loghandle->lgh_file->f_dentry->d_inode)) {
@@ -408,7 +408,7 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 					cur_offset);
 		if (rc < 0) {
 			CERROR("Cant read llog block at log id "DOSTID
-			       "/%u offset "LPU64"\n",
+			       "/%u offset %llu\n",
 			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen,
 			       *cur_offset);
@@ -426,8 +426,8 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 			return 0;
 
 		if (rc < sizeof(*tail)) {
-			CERROR("Invalid llog block at log id "DOSTID"/%u offset"
-			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
+			CERROR("Invalid llog block at log id "DOSTID"/%u offset%llu\n",
+			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, *cur_offset);
 			return -EINVAL;
 		}
@@ -451,8 +451,8 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 
 		/* this shouldn't happen */
 		if (tail->lrt_index == 0) {
-			CERROR("Invalid llog tail at log id "DOSTID"/%u offset "
-			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
+			CERROR("Invalid llog tail at log id "DOSTID"/%u offset %llu\n",
+			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, *cur_offset);
 			return -EINVAL;
 		}
@@ -496,7 +496,7 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 					&cur_offset);
 		if (rc < 0) {
 			CERROR("Cant read llog block at log id "DOSTID
-			       "/%u offset "LPU64"\n",
+			       "/%u offset %llu\n",
 			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen,
 			       cur_offset);
@@ -510,8 +510,8 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 			return 0;
 
 		if (rc < sizeof(*tail)) {
-			CERROR("Invalid llog block at log id "DOSTID"/%u offset"
-			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
+			CERROR("Invalid llog block at log id "DOSTID"/%u offset%llu\n",
+			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, cur_offset);
 			return -EINVAL;
 		}
@@ -533,8 +533,8 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 
 		/* this shouldn't happen */
 		if (tail->lrt_index == 0) {
-			CERROR("Invalid llog tail at log id "DOSTID"/%u offset"
-			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
+			CERROR("Invalid llog tail at log id "DOSTID"/%u offset%llu\n",
+			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, cur_offset);
 			return -EINVAL;
 		}

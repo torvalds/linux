@@ -90,7 +90,7 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 		if (lck->l_policy_data.l_extent.end + 1 > kms)
 			kms = lck->l_policy_data.l_extent.end + 1;
 	}
-	LASSERTF(kms <= old_kms, "kms "LPU64" old_kms "LPU64"\n", kms, old_kms);
+	LASSERTF(kms <= old_kms, "kms %llu old_kms %llu\n", kms, old_kms);
 
 	return kms;
 }

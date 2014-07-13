@@ -179,7 +179,7 @@ struct ost_id {
 	};
 };
 
-#define DOSTID LPX64":"LPU64
+#define DOSTID LPX64":%llu"
 #define POSTID(oi) ostid_seq(oi), ostid_id(oi)
 
 /*

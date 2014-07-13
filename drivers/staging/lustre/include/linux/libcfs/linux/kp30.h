@@ -70,7 +70,6 @@
 
 /* this is a bit chunky */
 
-# define LPU64 "%llu"
 # define LPX64 "%#llx"
 
 #endif

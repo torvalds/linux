@@ -1426,8 +1426,7 @@ lnet_parse_put(lnet_ni_t *ni, lnet_msg_t *msg)
 		/* fall through */
 
 	case LNET_MATCHMD_DROP:
-		CNETERR("Dropping PUT from %s portal %d match "LPU64
-			" offset %d length %d: %d\n",
+		CNETERR("Dropping PUT from %s portal %d match %llu offset %d length %d: %d\n",
 			libcfs_id2str(info.mi_id), info.mi_portal,
 			info.mi_mbits, info.mi_roffset, info.mi_rlength, rc);
 
@@ -1459,8 +1458,7 @@ lnet_parse_get(lnet_ni_t *ni, lnet_msg_t *msg, int rdma_get)
 
 	rc = lnet_ptl_match_md(&info, msg);
 	if (rc == LNET_MATCHMD_DROP) {
-		CNETERR("Dropping GET from %s portal %d match "LPU64
-			" offset %d length %d\n",
+		CNETERR("Dropping GET from %s portal %d match %llu offset %d length %d\n",
 			libcfs_id2str(info.mi_id), info.mi_portal,
 			info.mi_mbits, info.mi_roffset, info.mi_rlength);
 		return ENOENT;	/* +ve: OK but no match */
@@ -1681,7 +1679,7 @@ lnet_print_hdr(lnet_hdr_t *hdr)
 
 	case LNET_MSG_PUT:
 		CWARN("    Ptl index %d, ack md "LPX64"."LPX64", "
-		      "match bits "LPU64"\n",
+		      "match bits %llu\n",
 		      hdr->msg.put.ptl_index,
 		      hdr->msg.put.ack_wmd.wh_interface_cookie,
 		      hdr->msg.put.ack_wmd.wh_object_cookie,
@@ -1693,7 +1691,7 @@ lnet_print_hdr(lnet_hdr_t *hdr)
 
 	case LNET_MSG_GET:
 		CWARN("    Ptl index %d, return md "LPX64"."LPX64", "
-		      "match bits "LPU64"\n", hdr->msg.get.ptl_index,
+		      "match bits %llu\n", hdr->msg.get.ptl_index,
 		      hdr->msg.get.return_wmd.wh_interface_cookie,
 		      hdr->msg.get.return_wmd.wh_object_cookie,
 		      hdr->msg.get.match_bits);
@@ -1963,8 +1961,7 @@ lnet_drop_delayed_msg_list(struct list_head *head, char *reason)
 		LASSERT(msg->msg_rxpeer != NULL);
 		LASSERT(msg->msg_hdr.type == LNET_MSG_PUT);
 
-		CWARN("Dropping delayed PUT from %s portal %d match "LPU64
-		      " offset %d length %d: %s\n",
+		CWARN("Dropping delayed PUT from %s portal %d match %llu offset %d length %d: %s\n",
 		      libcfs_id2str(id),
 		      msg->msg_hdr.msg.put.ptl_index,
 		      msg->msg_hdr.msg.put.match_bits,
@@ -2009,7 +2006,7 @@ lnet_recv_delayed_msg_list(struct list_head *head)
 		LASSERT(msg->msg_hdr.type == LNET_MSG_PUT);
 
 		CDEBUG(D_NET, "Resuming delayed PUT from %s portal %d "
-		       "match "LPU64" offset %d length %d.\n",
+		       "match %llu offset %d length %d.\n",
 			libcfs_id2str(id), msg->msg_hdr.msg.put.ptl_index,
 			msg->msg_hdr.msg.put.match_bits,
 			msg->msg_hdr.msg.put.offset,
@@ -2097,7 +2094,7 @@ LNetPut(lnet_nid_t self, lnet_handle_md_t mdh, lnet_ack_req_t ack,
 
 	md = lnet_handle2md(&mdh);
 	if (md == NULL || md->md_threshold == 0 || md->md_me != NULL) {
-		CERROR("Dropping PUT ("LPU64":%d:%s): MD (%d) invalid\n",
+		CERROR("Dropping PUT (%llu:%d:%s): MD (%d) invalid\n",
 		       match_bits, portal, libcfs_id2str(target),
 		       md == NULL ? -1 : md->md_threshold);
 		if (md != NULL && md->md_me != NULL)
@@ -2296,7 +2293,7 @@ LNetGet(lnet_nid_t self, lnet_handle_md_t mdh,
 
 	md = lnet_handle2md(&mdh);
 	if (md == NULL || md->md_threshold == 0 || md->md_me != NULL) {
-		CERROR("Dropping GET ("LPU64":%d:%s): MD (%d) invalid\n",
+		CERROR("Dropping GET (%llu:%d:%s): MD (%d) invalid\n",
 		       match_bits, portal, libcfs_id2str(target),
 		       md == NULL ? -1 : md->md_threshold);
 		if (md != NULL && md->md_me != NULL)

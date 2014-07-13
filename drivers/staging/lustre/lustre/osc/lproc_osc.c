@@ -693,11 +693,11 @@ static int osc_stats_seq_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
 		   now.tv_sec, (unsigned long)now.tv_usec);
-	seq_printf(seq, "lockless_write_bytes\t\t"LPU64"\n",
+	seq_printf(seq, "lockless_write_bytes\t\t%llu\n",
 		   stats->os_lockless_writes);
-	seq_printf(seq, "lockless_read_bytes\t\t"LPU64"\n",
+	seq_printf(seq, "lockless_read_bytes\t\t%llu\n",
 		   stats->os_lockless_reads);
-	seq_printf(seq, "lockless_truncate\t\t"LPU64"\n",
+	seq_printf(seq, "lockless_truncate\t\t%llu\n",
 		   stats->os_lockless_truncates);
 	return 0;
 }

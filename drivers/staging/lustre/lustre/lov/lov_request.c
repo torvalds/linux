@@ -1076,7 +1076,7 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 			if (off < 0 && req->rq_oi.oi_oa->o_size)
 				req->rq_oi.oi_oa->o_size--;
 
-			CDEBUG(D_INODE, "stripe %d has size "LPU64"/"LPU64"\n",
+			CDEBUG(D_INODE, "stripe %d has size %llu/%llu\n",
 			       i, req->rq_oi.oi_oa->o_size,
 			       oinfo->oi_oa->o_size);
 		}

@@ -295,8 +295,7 @@ int cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 		}
 	}
 	LU_OBJECT_HEADER(D_DLMTRACE, env, lu_object_top(top),
-			 "size: "LPU64" mtime: "LPU64" atime: "LPU64" "
-			 "ctime: "LPU64" blocks: "LPU64"\n",
+			 "size: %llu mtime: %llu atime: %llu ctime: %llu blocks: %llu\n",
 			 lvb->lvb_size, lvb->lvb_mtime, lvb->lvb_atime,
 			 lvb->lvb_ctime, lvb->lvb_blocks);
 	return result;

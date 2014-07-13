@@ -1128,8 +1128,7 @@ static int ptlrpc_check_req(struct ptlrpc_request *req)
 			rc = -ENODEV;
 	} else if (lustre_msg_get_transno(req->rq_reqmsg) != 0 &&
 		   !obd->obd_recovering) {
-			DEBUG_REQ(D_ERROR, req, "Invalid req with transno "
-				  LPU64" without recovery",
+			DEBUG_REQ(D_ERROR, req, "Invalid req with transno %llu without recovery",
 				  lustre_msg_get_transno(req->rq_reqmsg));
 			class_fail_export(req->rq_export);
 			rc = -ENODEV;
@@ -1766,24 +1765,24 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	if (SPTLRPC_FLVR_POLICY(req->rq_flvr.sf_rpc) != SPTLRPC_POLICY_NULL) {
 		rc = ptlrpc_unpack_req_msg(req, req->rq_reqlen);
 		if (rc != 0) {
-			CERROR("error unpacking request: ptl %d from %s "
-			       "x"LPU64"\n", svc->srv_req_portal,
-			       libcfs_id2str(req->rq_peer), req->rq_xid);
+			CERROR("error unpacking request: ptl %d from %s x%llu\n",
+			       svc->srv_req_portal, libcfs_id2str(req->rq_peer),
+			       req->rq_xid);
 			goto err_req;
 		}
 	}
 
 	rc = lustre_unpack_req_ptlrpc_body(req, MSG_PTLRPC_BODY_OFF);
 	if (rc) {
-		CERROR("error unpacking ptlrpc body: ptl %d from %s x"
-		       LPU64"\n", svc->srv_req_portal,
-		       libcfs_id2str(req->rq_peer), req->rq_xid);
+		CERROR("error unpacking ptlrpc body: ptl %d from %s x%llu\n",
+		       svc->srv_req_portal, libcfs_id2str(req->rq_peer),
+		       req->rq_xid);
 		goto err_req;
 	}
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DROP_REQ_OPC) &&
 	    lustre_msg_get_opc(req->rq_reqmsg) == cfs_fail_val) {
-		CERROR("drop incoming rpc opc %u, x"LPU64"\n",
+		CERROR("drop incoming rpc opc %u, x%llu\n",
 		       cfs_fail_val, req->rq_xid);
 		goto err_req;
 	}
@@ -1808,7 +1807,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 		break;
 	}
 
-	CDEBUG(D_RPCTRACE, "got req x"LPU64"\n", req->rq_xid);
+	CDEBUG(D_RPCTRACE, "got req x%llu\n", req->rq_xid);
 
 	req->rq_export = class_conn2export(
 		lustre_msg_get_handle(req->rq_reqmsg));
@@ -1918,7 +1917,7 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	request->rq_session.lc_cookie = 0x5;
 	lu_context_enter(&request->rq_session);
 
-	CDEBUG(D_NET, "got req "LPU64"\n", request->rq_xid);
+	CDEBUG(D_NET, "got req %llu\n", request->rq_xid);
 
 	request->rq_svc_thread = thread;
 	if (thread)
@@ -1944,7 +1943,7 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	}
 
 	CDEBUG(D_RPCTRACE, "Handling RPC pname:cluuid+ref:pid:xid:nid:opc "
-	       "%s:%s+%d:%d:x"LPU64":%s:%d\n", current_comm(),
+	       "%s:%s+%d:%d:x%llu:%s:%d\n", current_comm(),
 	       (request->rq_export ?
 		(char *)request->rq_export->exp_client_uuid.uuid : "0"),
 	       (request->rq_export ?
@@ -1978,8 +1977,8 @@ put_conn:
 	do_gettimeofday(&work_end);
 	timediff = cfs_timeval_sub(&work_end, &work_start, NULL);
 	CDEBUG(D_RPCTRACE, "Handled RPC pname:cluuid+ref:pid:xid:nid:opc "
-	       "%s:%s+%d:%d:x"LPU64":%s:%d Request processed in "
-	       "%ldus (%ldus total) trans "LPU64" rc %d/%d\n",
+	       "%s:%s+%d:%d:x%llu:%s:%d Request processed in "
+	       "%ldus (%ldus total) trans %llu rc %d/%d\n",
 		current_comm(),
 		(request->rq_export ?
 		 (char *)request->rq_export->exp_client_uuid.uuid : "0"),

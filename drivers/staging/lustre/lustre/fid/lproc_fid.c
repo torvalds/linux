@@ -157,7 +157,7 @@ static ssize_t lprocfs_fid_width_seq_write(struct file *file,
 		seq->lcs_width = val;
 
 		if (rc == 0) {
-			CDEBUG(D_INFO, "%s: Sequence size: "LPU64"\n",
+			CDEBUG(D_INFO, "%s: Sequence size: %llu\n",
 			       seq->lcs_name, seq->lcs_width);
 		}
 	}
@@ -176,7 +176,7 @@ lprocfs_fid_width_seq_show(struct seq_file *m, void *unused)
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = seq_printf(m, LPU64"\n", seq->lcs_width);
+	rc = seq_printf(m, "%llu\n", seq->lcs_width);
 	mutex_unlock(&seq->lcs_mutex);
 
 	return rc;

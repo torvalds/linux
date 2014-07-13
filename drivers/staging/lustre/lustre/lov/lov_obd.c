@@ -727,8 +727,7 @@ void lov_fix_desc_stripe_size(__u64 *val)
 		*val = LOV_DESC_STRIPE_SIZE_DEFAULT;
 	} else if (*val & (LOV_MIN_STRIPE_SIZE - 1)) {
 		*val &= ~(LOV_MIN_STRIPE_SIZE - 1);
-		LCONSOLE_WARN("Changing default stripe size to "LPU64" (a "
-			      "multiple of %u)\n",
+		LCONSOLE_WARN("Changing default stripe size to %llu (a multiple of %u)\n",
 			      *val, LOV_MIN_STRIPE_SIZE);
 	}
 }
@@ -2636,9 +2635,8 @@ static int lov_extent_calc(struct obd_export *exp, struct lov_stripe_md *lsm,
 	lov_do_div64(start, ssize);
 	start = start * ssize;
 
-	CDEBUG(D_DLMTRACE, "offset "LPU64", stripe %u, start "LPU64
-			   ", end "LPU64"\n", *offset, ssize, start,
-			   start + ssize - 1);
+	CDEBUG(D_DLMTRACE, "offset %llu, stripe %u, start %llu, end %llu\n",
+	       *offset, ssize, start, start + ssize - 1);
 	if (cmd == OBD_CALC_STRIPE_END) {
 		*offset = start + ssize - 1;
 	} else if (cmd == OBD_CALC_STRIPE_START) {

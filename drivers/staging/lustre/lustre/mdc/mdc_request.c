@@ -136,7 +136,7 @@ static int send_getstatus(struct obd_import *imp, struct lu_fid *rootfid,
 
 	*rootfid = body->fid1;
 	CDEBUG(D_NET,
-	       "root fid="DFID", last_committed="LPU64"\n",
+	       "root fid="DFID", last_committed=%llu\n",
 	       PFID(rootfid),
 	       lustre_msg_get_last_committed(req->rq_repmsg));
 out:
@@ -1182,7 +1182,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 	memcpy(key, KEY_FID2PATH, sizeof(KEY_FID2PATH));
 	memcpy(key + cfs_size_round(sizeof(KEY_FID2PATH)), gf, sizeof(*gf));
 
-	CDEBUG(D_IOCTL, "path get "DFID" from "LPU64" #%d\n",
+	CDEBUG(D_IOCTL, "path get "DFID" from %llu #%d\n",
 	       PFID(&gf->gf_fid), gf->gf_recno, gf->gf_linkno);
 
 	if (!fid_is_sane(&gf->gf_fid))
@@ -1200,7 +1200,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 	else if (vallen > sizeof(*gf) + gf->gf_pathlen)
 		GOTO(out, rc = -EOVERFLOW);
 
-	CDEBUG(D_IOCTL, "path get "DFID" from "LPU64" #%d\n%s\n",
+	CDEBUG(D_IOCTL, "path get "DFID" from %llu #%d\n%s\n",
 	       PFID(&gf->gf_fid), gf->gf_recno, gf->gf_linkno, gf->gf_path);
 
 out:
@@ -1515,12 +1515,12 @@ static int changelog_kkuc_cb(const struct lu_env *env, struct llog_handle *llh,
 
 	if (rec->cr.cr_index < cs->cs_startrec) {
 		/* Skip entries earlier than what we are interested in */
-		CDEBUG(D_CHANGELOG, "rec="LPU64" start="LPU64"\n",
+		CDEBUG(D_CHANGELOG, "rec=%llu start=%llu\n",
 		       rec->cr.cr_index, cs->cs_startrec);
 		return 0;
 	}
 
-	CDEBUG(D_CHANGELOG, LPU64" %02d%-5s "LPU64" 0x%x t="DFID" p="DFID
+	CDEBUG(D_CHANGELOG, "%llu %02d%-5s %llu 0x%x t="DFID" p="DFID
 		" %.*s\n", rec->cr.cr_index, rec->cr.cr_type,
 		changelog_type2str(rec->cr.cr_type), rec->cr.cr_time,
 		rec->cr.cr_flags & CLF_FLAGMASK,
@@ -1547,7 +1547,7 @@ static int mdc_changelog_send_thread(void *csdata)
 	struct kuc_hdr *kuch;
 	int rc;
 
-	CDEBUG(D_CHANGELOG, "changelog to fp=%p start "LPU64"\n",
+	CDEBUG(D_CHANGELOG, "changelog to fp=%p start %llu\n",
 	       cs->cs_fp, cs->cs_startrec);
 
 	OBD_ALLOC(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);

@@ -148,7 +148,7 @@ fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
 			(char *)target->ft_exp->exp_obd->obd_uuid.uuid :
 			"<null>";
 
-		CERROR("  exp: 0x%p (%s), srv: 0x%p (%s), idx: "LPU64"\n",
+		CERROR("  exp: 0x%p (%s), srv: 0x%p (%s), idx: %llu\n",
 		       target->ft_exp, exp_name, target->ft_srv,
 		       srv_name, target->ft_idx);
 	}
@@ -184,9 +184,8 @@ fld_client_get_target(struct lu_client_fld *fld, seqno_t seq)
 	spin_unlock(&fld->lcf_lock);
 
 	if (target != NULL) {
-		CDEBUG(D_INFO, "%s: Found target (idx "LPU64
-		       ") by seq "LPX64"\n", fld->lcf_name,
-		       target->ft_idx, seq);
+		CDEBUG(D_INFO, "%s: Found target (idx %llu) by seq "LPX64"\n",
+		       fld->lcf_name, target->ft_idx, seq);
 	}
 
 	return target;
@@ -208,12 +207,12 @@ int fld_client_add_target(struct lu_client_fld *fld,
 	LASSERT(tar->ft_srv != NULL || tar->ft_exp != NULL);
 
 	if (fld->lcf_flags != LUSTRE_FLD_INIT) {
-		CERROR("%s: Attempt to add target %s (idx "LPU64") on fly - skip it\n",
+		CERROR("%s: Attempt to add target %s (idx %llu) on fly - skip it\n",
 			fld->lcf_name, name, tar->ft_idx);
 		return 0;
 	} else {
-		CDEBUG(D_INFO, "%s: Adding target %s (idx "
-		       LPU64")\n", fld->lcf_name, name, tar->ft_idx);
+		CDEBUG(D_INFO, "%s: Adding target %s (idx %llu)\n",
+		       fld->lcf_name, name, tar->ft_idx);
 	}
 
 	OBD_ALLOC_PTR(target);
@@ -225,7 +224,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 		if (tmp->ft_idx == tar->ft_idx) {
 			spin_unlock(&fld->lcf_lock);
 			OBD_FREE_PTR(target);
-			CERROR("Target %s exists in FLD and known as %s:#"LPU64"\n",
+			CERROR("Target %s exists in FLD and known as %s:#%llu\n",
 			       name, fld_target_name(tmp), tmp->ft_idx);
 			return -EEXIST;
 		}
@@ -473,7 +472,7 @@ int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
 	target = fld_client_get_target(fld, seq);
 	LASSERT(target != NULL);
 
-	CDEBUG(D_INFO, "%s: Lookup fld entry (seq: "LPX64") on target %s (idx "LPU64")\n",
+	CDEBUG(D_INFO, "%s: Lookup fld entry (seq: "LPX64") on target %s (idx %llu)\n",
 			fld->lcf_name, seq, fld_target_name(target), target->ft_idx);
 
 	res.lsr_start = seq;

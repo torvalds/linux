@@ -758,7 +758,7 @@ static void ll_update_times(struct ptlrpc_request *request,
 	LASSERT(body);
 	if (body->valid & OBD_MD_FLMTIME &&
 	    body->mtime > LTIME_S(inode->i_mtime)) {
-		CDEBUG(D_INODE, "setting ino %lu mtime from %lu to "LPU64"\n",
+		CDEBUG(D_INODE, "setting ino %lu mtime from %lu to %llu\n",
 		       inode->i_ino, LTIME_S(inode->i_mtime), body->mtime);
 		LTIME_S(inode->i_mtime) = body->mtime;
 	}

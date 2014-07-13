@@ -1493,7 +1493,7 @@ static void print_export_data(struct obd_export *exp, const char *status,
 	}
 	spin_unlock(&exp->exp_lock);
 
-	CDEBUG(D_HA, "%s: %s %p %s %s %d (%d %d %d) %d %d %d %d: %p %s "LPU64"\n",
+	CDEBUG(D_HA, "%s: %s %p %s %s %d (%d %d %d) %d %d %d %d: %p %s %llu\n",
 	       exp->exp_obd->obd_name, status, exp, exp->exp_client_uuid.uuid,
 	       obd_export_nid2str(exp), atomic_read(&exp->exp_refcount),
 	       atomic_read(&exp->exp_rpc_count),

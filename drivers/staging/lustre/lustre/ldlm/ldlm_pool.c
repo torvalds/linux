@@ -659,8 +659,8 @@ static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 	spin_unlock(&pl->pl_lock);
 
 	seq_printf(m, "LDLM pool state (%s):\n"
-		      "  SLV: "LPU64"\n"
-		      "  CLV: "LPU64"\n"
+		      "  SLV: %llu\n"
+		      "  CLV: %llu\n"
 		      "  LVF: %d\n",
 		      pl->pl_name, slv, clv, lvf);
 

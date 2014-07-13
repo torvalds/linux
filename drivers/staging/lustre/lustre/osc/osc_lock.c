@@ -369,20 +369,19 @@ static void osc_lock_lvb_update(const struct lu_env *env, struct osc_lock *olck,
 		if (size > dlmlock->l_policy_data.l_extent.end)
 			size = dlmlock->l_policy_data.l_extent.end + 1;
 		if (size >= oinfo->loi_kms) {
-			LDLM_DEBUG(dlmlock, "lock acquired, setting rss="LPU64
-				   ", kms="LPU64, lvb->lvb_size, size);
+			LDLM_DEBUG(dlmlock, "lock acquired, setting rss=%llu, kms=%llu",
+				   lvb->lvb_size, size);
 			valid |= CAT_KMS;
 			attr->cat_kms = size;
 		} else {
-			LDLM_DEBUG(dlmlock, "lock acquired, setting rss="
-				   LPU64"; leaving kms="LPU64", end="LPU64,
+			LDLM_DEBUG(dlmlock, "lock acquired, setting rss=%llu; leaving kms=%llu, end=%llu",
 				   lvb->lvb_size, oinfo->loi_kms,
 				   dlmlock->l_policy_data.l_extent.end);
 		}
 		ldlm_lock_allow_match_locked(dlmlock);
 	} else if (rc == -ENAVAIL && olck->ols_glimpse) {
-		CDEBUG(D_INODE, "glimpsed, setting rss="LPU64"; leaving"
-		       " kms="LPU64"\n", lvb->lvb_size, oinfo->loi_kms);
+		CDEBUG(D_INODE, "glimpsed, setting rss=%llu; leaving kms=%llu\n",
+		       lvb->lvb_size, oinfo->loi_kms);
 	} else
 		valid = 0;
 

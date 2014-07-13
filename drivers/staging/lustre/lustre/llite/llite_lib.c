@@ -1296,7 +1296,7 @@ static int ll_setattr_done_writing(struct inode *inode,
 	if (!S_ISREG(inode->i_mode))
 		return 0;
 
-	CDEBUG(D_INODE, "Epoch "LPU64" closed on "DFID" for truncate\n",
+	CDEBUG(D_INODE, "Epoch %llu closed on "DFID" for truncate\n",
 	       op_data->op_ioepoch, PFID(&lli->lli_fid));
 
 	op_data->op_flags = MF_EPOCH_CLOSE;
@@ -1377,7 +1377,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 * OST maximum object size and number of stripes.  This
 		 * needs another check in addition to the VFS check above. */
 		if (attr->ia_size > ll_file_maxbytes(inode)) {
-			CDEBUG(D_INODE,"file "DFID" too large %llu > "LPU64"\n",
+			CDEBUG(D_INODE,"file "DFID" too large %llu > %llu\n",
 			       PFID(&lli->lli_fid), attr->ia_size,
 			       ll_file_maxbytes(inode));
 			return -EFBIG;
@@ -1567,7 +1567,7 @@ int ll_statfs_internal(struct super_block *sb, struct obd_statfs *osfs,
 
 	osfs->os_type = sb->s_magic;
 
-	CDEBUG(D_SUPER, "MDC blocks "LPU64"/"LPU64" objects "LPU64"/"LPU64"\n",
+	CDEBUG(D_SUPER, "MDC blocks %llu/%llu objects %llu/%llu\n",
 	       osfs->os_bavail, osfs->os_blocks, osfs->os_ffree,osfs->os_files);
 
 	if (sbi->ll_flags & LL_SBI_LAZYSTATFS)
@@ -1579,7 +1579,7 @@ int ll_statfs_internal(struct super_block *sb, struct obd_statfs *osfs,
 		return rc;
 	}
 
-	CDEBUG(D_SUPER, "OSC blocks "LPU64"/"LPU64" objects "LPU64"/"LPU64"\n",
+	CDEBUG(D_SUPER, "OSC blocks %llu/%llu objects %llu/%llu\n",
 	       obd_osfs.os_bavail, obd_osfs.os_blocks, obd_osfs.os_ffree,
 	       obd_osfs.os_files);
 
@@ -1606,7 +1606,7 @@ int ll_statfs(struct dentry *de, struct kstatfs *sfs)
 	struct obd_statfs osfs;
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op: at "LPU64" jiffies\n", get_jiffies_64());
+	CDEBUG(D_VFSTRACE, "VFS Op: at %llu jiffies\n", get_jiffies_64());
 	ll_stats_ops_tally(ll_s2sbi(sb), LPROC_LL_STAFS, 1);
 
 	/* Some amount of caching on the client is allowed */
@@ -1699,9 +1699,9 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 	}
 	if (body->valid & OBD_MD_FLMTIME) {
 		if (body->mtime > LTIME_S(inode->i_mtime)) {
-			CDEBUG(D_INODE, "setting ino %lu mtime from %lu "
-			       "to "LPU64"\n", inode->i_ino,
-			       LTIME_S(inode->i_mtime), body->mtime);
+			CDEBUG(D_INODE, "setting ino %lu mtime from %lu to %llu\n",
+			       inode->i_ino, LTIME_S(inode->i_mtime),
+			       body->mtime);
 			LTIME_S(inode->i_mtime) = body->mtime;
 		}
 		lli->lli_lvb.lvb_mtime = body->mtime;

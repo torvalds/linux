@@ -1199,7 +1199,7 @@ ksocknal_process_receive (ksock_conn_t *conn)
 					       conn->ksnc_msg.ksm_zc_cookies[1]);
 
 			if (rc != 0) {
-				CERROR("%s: Unknown ZC-ACK cookie: "LPU64", "LPU64"\n",
+				CERROR("%s: Unknown ZC-ACK cookie: %llu, %llu\n",
 				       libcfs_id2str(conn->ksnc_peer->ksnp_id),
 				       cookie, conn->ksnc_msg.ksm_zc_cookies[1]);
 				ksocknal_new_packet(conn, 0);

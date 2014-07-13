@@ -141,11 +141,11 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 {
 	if (ptr == NULL ||
 	    (cfs_rand() & OBD_ALLOC_FAIL_MASK) < obd_alloc_fail_rate) {
-		CERROR("%s%salloc of %s ("LPU64" bytes) failed at %s:%d\n",
+		CERROR("%s%salloc of %s (%llu bytes) failed at %s:%d\n",
 		       ptr ? "force " :"", type, name, (__u64)size, file,
 		       line);
-		CERROR(LPU64" total bytes and "LPU64" total pages "
-		       "("LPU64" bytes) allocated by Lustre, "
+		CERROR("%llu total bytes and %llu total pages "
+		       "(%llu bytes) allocated by Lustre, "
 		       "%d total bytes by LNET\n",
 		       obd_memory_sum(),
 		       obd_pages_sum() << PAGE_CACHE_SHIFT,
@@ -420,7 +420,7 @@ int obd_init_checks(void)
 	char buf[64];
 	int len, ret = 0;
 
-	CDEBUG(D_INFO, "LPU64=%s, LPD64=%s, LPX64=%s\n", LPU64, "%lld", LPX64);
+	CDEBUG(D_INFO, "LPU64=%s, LPD64=%s, LPX64=%s\n", "%llu", "%lld", LPX64);
 
 	CDEBUG(D_INFO, "OBD_OBJECT_EOF = "LPX64"\n", (__u64)OBD_OBJECT_EOF);
 
@@ -450,11 +450,11 @@ int obd_init_checks(void)
 		return -EOVERFLOW;
 	}
 	if (do_div(div64val, 256) != (u64val & 255)) {
-		CERROR("do_div("LPX64",256) != "LPU64"\n", u64val, u64val &255);
+		CERROR("do_div("LPX64",256) != %llu\n", u64val, u64val &255);
 		return -EOVERFLOW;
 	}
 	if (u64val >> 8 != div64val) {
-		CERROR("do_div("LPX64",256) "LPU64" != "LPU64"\n",
+		CERROR("do_div("LPX64",256) %llu != %llu\n",
 		       u64val, div64val, u64val >> 8);
 		return -EOVERFLOW;
 	}
@@ -463,7 +463,7 @@ int obd_init_checks(void)
 		CWARN("LPX64 wrong length! strlen(%s)=%d != 18\n", buf, len);
 		ret = -EINVAL;
 	}
-	len = snprintf(buf, sizeof(buf), LPU64, u64val);
+	len = snprintf(buf, sizeof(buf), "%llu", u64val);
 	if (len != 20) {
 		CWARN("LPU64 wrong length! strlen(%s)=%d != 20\n", buf, len);
 		ret = -EINVAL;
@@ -474,7 +474,7 @@ int obd_init_checks(void)
 		ret = -EINVAL;
 	}
 	if ((u64val & ~CFS_PAGE_MASK) >= PAGE_CACHE_SIZE) {
-		CWARN("mask failed: u64val "LPU64" >= "LPU64"\n", u64val,
+		CWARN("mask failed: u64val %llu >= %llu\n", u64val,
 		      (__u64)PAGE_CACHE_SIZE);
 		ret = -EINVAL;
 	}
@@ -662,10 +662,10 @@ static void cleanup_obdclass(void)
 
 	lprocfs_free_stats(&obd_memory);
 	CDEBUG((memory_leaked) ? D_ERROR : D_INFO,
-	       "obd_memory max: "LPU64", leaked: "LPU64"\n",
+	       "obd_memory max: %llu, leaked: %llu\n",
 	       memory_max, memory_leaked);
 	CDEBUG((pages_leaked) ? D_ERROR : D_INFO,
-	       "obd_memory_pages max: "LPU64", leaked: "LPU64"\n",
+	       "obd_memory_pages max: %llu, leaked: %llu\n",
 	       pages_max, pages_leaked);
 }
 

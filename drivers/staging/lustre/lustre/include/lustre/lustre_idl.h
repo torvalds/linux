@@ -91,7 +91,7 @@
 #ifndef _LUSTRE_IDL_H_
 #define _LUSTRE_IDL_H_
 
-#if !defined(LPU64)
+#if !defined(LPX64)
 #include "../../../include/linux/libcfs/libcfs.h"	/* for LPUX64, etc */
 #endif
 
@@ -681,14 +681,14 @@ static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 {
 	if (fid_seq_is_mdt0(ostid_seq(oi))) {
 		if (oid >= IDIF_MAX_OID) {
-			CERROR("Bad "LPU64" to set "DOSTID"\n",
+			CERROR("Bad %llu to set "DOSTID"\n",
 				oid, POSTID(oi));
 			return;
 		}
 		oi->oi.oi_id = oid;
 	} else {
 		if (oid > OBIF_MAX_OID) {
-			CERROR("Bad "LPU64" to set "DOSTID"\n",
+			CERROR("Bad %llu to set "DOSTID"\n",
 				oid, POSTID(oi));
 			return;
 		}

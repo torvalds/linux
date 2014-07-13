@@ -170,7 +170,7 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 			GOTO(out, 0);
 		}
 	}
-	CDEBUG(D_INODE, "Epoch "LPU64" closed on "DFID"\n",
+	CDEBUG(D_INODE, "Epoch %llu closed on "DFID"\n",
 	       ll_i2info(inode)->lli_ioepoch, PFID(&lli->lli_fid));
 	op_data->op_flags |= MF_EPOCH_CLOSE;
 

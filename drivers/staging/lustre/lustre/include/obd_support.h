@@ -662,7 +662,7 @@ do {									      \
 	if (unlikely((ptr) == NULL)) {					\
 		CERROR("vmalloc of '" #ptr "' (%d bytes) failed\n",	   \
 		       (int)(size));					  \
-		CERROR(LPU64" total bytes allocated by Lustre, %d by LNET\n", \
+		CERROR("%llu total bytes allocated by Lustre, %d by LNET\n", \
 		       obd_memory_sum(), atomic_read(&libcfs_kmemory));   \
 	} else {							      \
 		OBD_ALLOC_POST(ptr, size, "vmalloced");		       \
@@ -822,11 +822,11 @@ do {									      \
 		alloc_page(gfp_mask) :				      \
 		alloc_pages_node(cfs_cpt_spread_node(cptab, cpt), gfp_mask, 0);\
 	if (unlikely((ptr) == NULL)) {					\
-		CERROR("alloc_pages of '" #ptr "' %d page(s) / "LPU64" bytes "\
+		CERROR("alloc_pages of '" #ptr "' %d page(s) / %llu bytes "\
 		       "failed\n", (int)1,				    \
 		       (__u64)(1 << PAGE_CACHE_SHIFT));			 \
-		CERROR(LPU64" total bytes and "LPU64" total pages "	   \
-		       "("LPU64" bytes) allocated by Lustre, "		\
+		CERROR("%llu total bytes and %llu total pages "	   \
+		       "(%llu bytes) allocated by Lustre, "		\
 		       "%d total bytes by LNET\n",			    \
 		       obd_memory_sum(),				      \
 		       obd_pages_sum() << PAGE_CACHE_SHIFT,		     \
@@ -835,7 +835,7 @@ do {									      \
 	} else {							      \
 		obd_pages_add(0);					     \
 		CDEBUG(D_MALLOC, "alloc_pages '" #ptr "': %d page(s) / "      \
-		       LPU64" bytes at %p.\n",				\
+		       "%llu bytes at %p.\n",				\
 		       (int)1,						\
 		       (__u64)(1 << PAGE_CACHE_SHIFT), ptr);		    \
 	}								     \
@@ -850,7 +850,7 @@ do {									      \
 do {									  \
 	LASSERT(ptr);							 \
 	obd_pages_sub(0);						     \
-	CDEBUG(D_MALLOC, "free_pages '" #ptr "': %d page(s) / "LPU64" bytes " \
+	CDEBUG(D_MALLOC, "free_pages '" #ptr "': %d page(s) / %llu bytes " \
 	       "at %p.\n",						    \
 	       (int)1, (__u64)(1 << PAGE_CACHE_SHIFT),			  \
 	       ptr);							  \

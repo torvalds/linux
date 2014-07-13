@@ -1160,13 +1160,12 @@ static inline int obd_statfs_async(struct obd_export *exp,
 	OBD_CHECK_DT_OP(obd, statfs, -EOPNOTSUPP);
 	OBD_COUNTER_INCREMENT(obd, statfs);
 
-	CDEBUG(D_SUPER, "%s: osfs %p age "LPU64", max_age "LPU64"\n",
+	CDEBUG(D_SUPER, "%s: osfs %p age %llu, max_age %llu\n",
 	       obd->obd_name, &obd->obd_osfs, obd->obd_osfs_age, max_age);
 	if (cfs_time_before_64(obd->obd_osfs_age, max_age)) {
 		rc = OBP(obd, statfs_async)(exp, oinfo, max_age, rqset);
 	} else {
-		CDEBUG(D_SUPER,"%s: use %p cache blocks "LPU64"/"LPU64
-		       " objects "LPU64"/"LPU64"\n",
+		CDEBUG(D_SUPER,"%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
 		       obd->obd_name, &obd->obd_osfs,
 		       obd->obd_osfs.os_bavail, obd->obd_osfs.os_blocks,
 		       obd->obd_osfs.os_ffree, obd->obd_osfs.os_files);
@@ -1217,7 +1216,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 	OBD_CHECK_DT_OP(obd, statfs, -EOPNOTSUPP);
 	OBD_COUNTER_INCREMENT(obd, statfs);
 
-	CDEBUG(D_SUPER, "osfs "LPU64", max_age "LPU64"\n",
+	CDEBUG(D_SUPER, "osfs %llu, max_age %llu\n",
 	       obd->obd_osfs_age, max_age);
 	if (cfs_time_before_64(obd->obd_osfs_age, max_age)) {
 		rc = OBP(obd, statfs)(env, exp, osfs, max_age, flags);
@@ -1228,8 +1227,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 			spin_unlock(&obd->obd_osfs_lock);
 		}
 	} else {
-		CDEBUG(D_SUPER, "%s: use %p cache blocks "LPU64"/"LPU64
-		       " objects "LPU64"/"LPU64"\n",
+		CDEBUG(D_SUPER, "%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
 		       obd->obd_name, &obd->obd_osfs,
 		       obd->obd_osfs.os_bavail, obd->obd_osfs.os_blocks,
 		       obd->obd_osfs.os_ffree, obd->obd_osfs.os_files);

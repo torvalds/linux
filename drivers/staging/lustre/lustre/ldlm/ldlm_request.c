@@ -1276,8 +1276,7 @@ int ldlm_cli_update_pool(struct ptlrpc_request *req)
 	 * server-side namespace is not possible. */
 	if (lustre_msg_get_slv(req->rq_repmsg) == 0 ||
 	    lustre_msg_get_limit(req->rq_repmsg) == 0) {
-		DEBUG_REQ(D_HA, req, "Zero SLV or Limit found "
-			  "(SLV: "LPU64", Limit: %u)",
+		DEBUG_REQ(D_HA, req, "Zero SLV or Limit found (SLV: %llu, Limit: %u)",
 			  lustre_msg_get_slv(req->rq_repmsg),
 			  lustre_msg_get_limit(req->rq_repmsg));
 		return 0;
@@ -1893,7 +1892,7 @@ int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 	res = ldlm_resource_get(ns, NULL, res_id, 0, 0);
 	if (res == NULL) {
 		/* This is not a problem. */
-		CDEBUG(D_INFO, "No resource "LPU64"\n", res_id->name[0]);
+		CDEBUG(D_INFO, "No resource %llu\n", res_id->name[0]);
 		return 0;
 	}
 
