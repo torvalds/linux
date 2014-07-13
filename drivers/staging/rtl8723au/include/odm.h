@@ -855,14 +855,6 @@ enum odm_rf_content {
 	odm_radiod_txt = 0x1003
 };
 
-enum odm_bb_config_type {
-    CONFIG_BB_PHY_REG,
-    CONFIG_BB_AGC_TAB,
-    CONFIG_BB_AGC_TAB_2G,
-    CONFIG_BB_AGC_TAB_5G,
-    CONFIG_BB_PHY_REG_PG,
-};
-
 /*  Status code */
 enum rt_status {
 	RT_STATUS_SUCCESS,

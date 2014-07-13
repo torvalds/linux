@@ -423,22 +423,6 @@ void ODM_MacStatusQuery23a(struct dm_odm_t *pDM_Odm, u8 *pMacStatus, u8 MacID,
 
 }
 
-int ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-				  enum odm_bb_config_type ConfigType)
-{
-	if (pDM_Odm->SupportICType == ODM_RTL8723A) {
-		if (ConfigType == CONFIG_BB_PHY_REG)
-			ODM_ReadAndConfig_PHY_REG_1T_8723A(pDM_Odm);
-		else if (ConfigType == CONFIG_BB_AGC_TAB)
-			ODM_ReadAndConfig_AGC_TAB_1T_8723A(pDM_Odm);
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-			     (" ===> phy_ConfigBBWithHeaderFile() phy:Rtl8723AGCTAB_1TArray\n"));
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-			     (" ===> phy_ConfigBBWithHeaderFile() agc:Rtl8723PHY_REG_1TArray\n"));
-	}
-	return _SUCCESS;
-}
-
 int ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm)
 {
 	if (pDM_Odm->SupportICType == ODM_RTL8723A)

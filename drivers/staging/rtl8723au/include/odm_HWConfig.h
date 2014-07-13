@@ -160,9 +160,6 @@ void ODM_MacStatusQuery23a(struct dm_odm_t *pDM_Odm,
 	bool bPacketBeacon
 );
 
-int ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-				  enum odm_bb_config_type ConfigType);
-
 int ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm);
 
 #endif

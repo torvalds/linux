@@ -753,11 +753,7 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  We will seperate as 88C / 92C according to chip version */
 	/*  */
-	if (ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
-					  CONFIG_BB_PHY_REG) == _FAIL)
-		rtStatus = _FAIL;
-	if (rtStatus != _SUCCESS)
-		goto phy_BB8190_Config_ParaFile_Fail;
+	ODM_ReadAndConfig_PHY_REG_1T_8723A(&pHalData->odmpriv);
 
 	/*  */
 	/*  20100318 Joseph: Config 2T2R to 1T2R if necessary. */
@@ -784,9 +780,7 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	/*  */
 	/*  3. BB AGC table Initialization */
 	/*  */
-	if (ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
-					  CONFIG_BB_AGC_TAB) == _FAIL)
-		rtStatus = _FAIL;
+	ODM_ReadAndConfig_AGC_TAB_1T_8723A(&pHalData->odmpriv);
 
 phy_BB8190_Config_ParaFile_Fail:
 
