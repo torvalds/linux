@@ -53,8 +53,6 @@ struct sco_conn {
 #define sco_conn_lock(c)	spin_lock(&c->lock);
 #define sco_conn_unlock(c)	spin_unlock(&c->lock);
 
-static void sco_chan_del(struct sock *sk, int err);
-
 static void sco_sock_close(struct sock *sk);
 static void sco_sock_kill(struct sock *sk);
 
@@ -136,6 +134,33 @@ static struct sock *sco_chan_get(struct sco_conn *conn)
 	sk = conn->sk;
 	sco_conn_unlock(conn);
 	return sk;
+}
+
+/* Delete channel.
+ * Must be called on the locked socket. */
+static void sco_chan_del(struct sock *sk, int err)
+{
+	struct sco_conn *conn;
+
+	conn = sco_pi(sk)->conn;
+
+	BT_DBG("sk %p, conn %p, err %d", sk, conn, err);
+
+	if (conn) {
+		sco_conn_lock(conn);
+		conn->sk = NULL;
+		sco_pi(sk)->conn = NULL;
+		sco_conn_unlock(conn);
+
+		if (conn->hcon)
+			hci_conn_drop(conn->hcon);
+	}
+
+	sk->sk_state = BT_CLOSED;
+	sk->sk_err   = err;
+	sk->sk_state_change(sk);
+
+	sock_set_flag(sk, SOCK_ZAPPED);
 }
 
 static int sco_conn_del(struct hci_conn *hcon, int err)
@@ -976,33 +1001,6 @@ static int sco_sock_release(struct socket *sock)
 	sock_orphan(sk);
 	sco_sock_kill(sk);
 	return err;
-}
-
-/* Delete channel.
- * Must be called on the locked socket. */
-static void sco_chan_del(struct sock *sk, int err)
-{
-	struct sco_conn *conn;
-
-	conn = sco_pi(sk)->conn;
-
-	BT_DBG("sk %p, conn %p, err %d", sk, conn, err);
-
-	if (conn) {
-		sco_conn_lock(conn);
-		conn->sk = NULL;
-		sco_pi(sk)->conn = NULL;
-		sco_conn_unlock(conn);
-
-		if (conn->hcon)
-			hci_conn_drop(conn->hcon);
-	}
-
-	sk->sk_state = BT_CLOSED;
-	sk->sk_err   = err;
-	sk->sk_state_change(sk);
-
-	sock_set_flag(sk, SOCK_ZAPPED);
 }
 
 static void sco_conn_ready(struct sco_conn *conn)
