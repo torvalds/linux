@@ -21,14 +21,6 @@
 		reg = <0x20000000 0x8000000>;
 	};
 
-	slow_xtal {
-		clock-frequency = <32768>;
-	};
-
-	main_xtal {
-		clock-frequency = <16000000>;
-	};
-
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -36,6 +28,14 @@
 
 		main_clock: clock@0 {
 			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <16000000>;
+		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
 			clock-frequency = <16000000>;
 		};
 	};
@@ -56,6 +56,8 @@
 				wm8904: codec@1a {
 					compatible = "wm8904";
 					reg = <0x1a>;
+					clocks = <&pck0>;
+					clock-names = "mclk";
 				};
 
 				qt1070: keyboard@1b {
