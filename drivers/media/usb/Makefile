@@ -9,6 +9,7 @@ obj-y += zr364xx/ stkwebcam/ s2255/
 obj-$(CONFIG_USB_VIDEO_CLASS)	+= uvc/
 obj-$(CONFIG_USB_GSPCA)         += gspca/
 obj-$(CONFIG_USB_PWC)           += pwc/
+obj-$(CONFIG_USB_MSI2500)       += msi2500/
 obj-$(CONFIG_USB_AIRSPY)        += airspy/
 obj-$(CONFIG_VIDEO_CPIA2) += cpia2/
 obj-$(CONFIG_VIDEO_AU0828) += au0828/
