@@ -1075,23 +1075,6 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 }
 
 /*
-* rtw_set_scan_mode -
-* @adapter: pointer to struct adapter structure
-* @scan_mode:
-*
-* Return _SUCCESS or _FAIL
-*/
-int rtw_set_scan_mode(struct adapter *adapter, enum rt_scan_type scan_mode)
-{
-	if (scan_mode != SCAN_ACTIVE && scan_mode != SCAN_PASSIVE)
-		return _FAIL;
-
-	adapter->mlmepriv.scan_mode = scan_mode;
-
-	return _SUCCESS;
-}
-
-/*
 * rtw_set_country -
 * @adapter: pointer to struct adapter structure
 * @country_code: string of country code
