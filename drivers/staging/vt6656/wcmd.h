@@ -46,16 +46,6 @@ enum vnt_cmd {
 
 #define CMD_Q_SIZE              32
 
-typedef enum tagCMD_STATUS {
-
-    CMD_STATUS_SUCCESS = 0,
-    CMD_STATUS_FAILURE,
-    CMD_STATUS_RESOURCES,
-    CMD_STATUS_TIMEOUT,
-    CMD_STATUS_PENDING
-
-} CMD_STATUS, *PCMD_STATUS;
-
 /* Command state */
 enum vnt_cmd_state {
 	WLAN_CMD_INIT_MAC80211_START,
