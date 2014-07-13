@@ -935,7 +935,6 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			nfs_pageio_doio(desc);
 			if (desc->pg_error < 0)
 				return 0;
-			desc->pg_moreio = 0;
 			if (desc->pg_recoalesce)
 				return 0;
 			/* retry add_request for this subreq */
@@ -982,6 +981,7 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 		desc->pg_count = 0;
 		desc->pg_base = 0;
 		desc->pg_recoalesce = 0;
+		desc->pg_moreio = 0;
 
 		while (!list_empty(&head)) {
 			struct nfs_page *req;
