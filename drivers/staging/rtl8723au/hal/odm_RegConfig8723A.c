@@ -72,34 +72,6 @@ odm_ConfigBB_AGC_8723A(
 }
 
 void
-odm_ConfigBB_PHY_REG_PG_8723A(
-	struct dm_odm_t *pDM_Odm,
-	u32		Addr,
-	u32		Bitmask,
-	u32		Data
-  )
-{
-	if (Addr == 0xfe)
-		msleep(50);
-	else if (Addr == 0xfd)
-		mdelay(5);
-	else if (Addr == 0xfc)
-		mdelay(1);
-	else if (Addr == 0xfb)
-		udelay(50);
-	else if (Addr == 0xfa)
-		udelay(5);
-	else if (Addr == 0xf9)
-		udelay(1);
-    /*  TODO: ODM_StorePwrIndexDiffRateOffset(...) */
-	/*  storePwrIndexDiffRateOffset(Adapter, Addr, Bitmask, Data); */
-
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-		     ("===> ODM_ConfigBBWithHeaderFile23a: [PHY_REG] %08X %08X %08X\n",
-		     Addr, Bitmask, Data));
-}
-
-void
 odm_ConfigBB_PHY_8723A(
 	struct dm_odm_t *pDM_Odm,
 	u32		Addr,
