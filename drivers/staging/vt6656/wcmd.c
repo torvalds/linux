@@ -31,7 +31,7 @@
  *	vnt_cmd_complete - Command Complete function
  *      bScheduleCommand - Push Command and wait Command Scheduler to do
  *      vCommandTimer- Command call back functions
- *      vCommandTimerWait- Call back timer
+ *	vnt_cmd_timer_wait- Call back timer
  *      s_bClearBSSID_SCAN- Clear BSSID_SCAN cmd in CMD Queue
  *
  * Revision History:
@@ -49,7 +49,7 @@
 #include "rf.h"
 #include "channel.h"
 
-static void vCommandTimerWait(struct vnt_private *priv, unsigned long msecs)
+static void vnt_cmd_timer_wait(struct vnt_private *priv, unsigned long msecs)
 {
 	schedule_delayed_work(&priv->run_command_work, msecs_to_jiffies(msecs));
 }
@@ -99,7 +99,7 @@ static int vnt_cmd_complete(struct vnt_private *priv)
 		break;
 	}
 
-	vCommandTimerWait(priv, 0);
+	vnt_cmd_timer_wait(priv, 0);
 
 	return true;
 }
