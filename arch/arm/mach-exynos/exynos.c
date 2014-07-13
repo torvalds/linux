@@ -173,10 +173,8 @@ static struct platform_device exynos_cpuidle = {
 
 void __init exynos_cpuidle_init(void)
 {
-	if (soc_is_exynos5440())
-		return;
-
-	platform_device_register(&exynos_cpuidle);
+	if (soc_is_exynos4210() || soc_is_exynos5250())
+		platform_device_register(&exynos_cpuidle);
 }
 
 void __init exynos_cpufreq_init(void)
@@ -297,7 +295,7 @@ static void __init exynos_dt_machine_init(void)
 	 * This is called from smp_prepare_cpus if we've built for SMP, but
 	 * we still need to set it up for PM and firmware ops if not.
 	 */
-	if (!IS_ENABLED(SMP))
+	if (!IS_ENABLED(CONFIG_SMP))
 		exynos_sysram_init();
 
 	exynos_cpuidle_init();
