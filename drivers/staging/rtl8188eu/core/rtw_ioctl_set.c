@@ -1092,19 +1092,6 @@ int rtw_set_scan_mode(struct adapter *adapter, enum rt_scan_type scan_mode)
 }
 
 /*
-* rtw_set_channel_plan -
-* @adapter: pointer to struct adapter structure
-* @channel_plan:
-*
-* Return _SUCCESS or _FAIL
-*/
-int rtw_set_channel_plan(struct adapter *adapter, u8 channel_plan)
-{
-	/* handle by cmd_thread to sync with scan operation */
-	return rtw_set_chplan_cmd(adapter, channel_plan, 1);
-}
-
-/*
 * rtw_set_country -
 * @adapter: pointer to struct adapter structure
 * @country_code: string of country code
@@ -1130,5 +1117,5 @@ int rtw_set_country(struct adapter *adapter, const char *country_code)
 	else
 		DBG_88E("%s unknown country_code:%s\n", __func__, country_code);
 
-	return rtw_set_channel_plan(adapter, channel_plan);
+	return rtw_set_chplan_cmd(adapter, channel_plan, 1);
 }
