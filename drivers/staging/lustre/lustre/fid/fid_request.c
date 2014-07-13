@@ -273,7 +273,7 @@ int seq_client_get_seq(const struct lu_env *env,
 		return rc;
 	}
 
-	CDEBUG(D_INFO, "%s: allocate sequence [0x%16.16"LPF64"x]\n",
+	CDEBUG(D_INFO, "%s: allocate sequence [0x%16.16Lx]\n",
 	       seq->lcs_name, *seqnr);
 
 	/* Since the caller require the whole seq,
@@ -336,7 +336,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 			return rc;
 		}
 
-		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16"LPF64"x]\n",
+		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16Lx]\n",
 		       seq->lcs_name, seqnr);
 
 		seq->lcs_fid.f_oid = LUSTRE_FID_INIT_OID;

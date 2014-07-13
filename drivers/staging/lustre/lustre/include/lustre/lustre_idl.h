@@ -301,7 +301,7 @@ static inline int range_compare_loc(const struct lu_seq_range *r1,
 	       r1->lsr_flags != r2->lsr_flags;
 }
 
-#define DRANGE "[%#16.16"LPF64"x-%#16.16"LPF64"x):%x:%s"
+#define DRANGE "[%#16.16Lx-%#16.16Lx):%x:%s"
 
 #define PRANGE(range)		\
 	(range)->lsr_start,	\
