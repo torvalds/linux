@@ -354,18 +354,18 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_prepare_to_enter);
 
-pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn, bool writing,
+pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa, bool writing,
 			bool *writable)
 {
-	ulong mp_pa = vcpu->arch.magic_page_pa;
+	ulong mp_pa = vcpu->arch.magic_page_pa & KVM_PAM;
+	gfn_t gfn = gpa >> PAGE_SHIFT;
 
 	if (!(kvmppc_get_msr(vcpu) & MSR_SF))
 		mp_pa = (uint32_t)mp_pa;
 
 	/* Magic page override */
-	if (unlikely(mp_pa) &&
-	    unlikely(((gfn << PAGE_SHIFT) & KVM_PAM) ==
-		     ((mp_pa & PAGE_MASK) & KVM_PAM))) {
+	gpa &= ~0xFFFULL;
+	if (unlikely(mp_pa) && unlikely((gpa & KVM_PAM) == mp_pa)) {
 		ulong shared_page = ((ulong)vcpu->arch.shared) & PAGE_MASK;
 		pfn_t pfn;
 
@@ -378,7 +378,7 @@ pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn, bool writing,
 
 	return gfn_to_pfn_prot(vcpu->kvm, gfn, writing, writable);
 }
-EXPORT_SYMBOL_GPL(kvmppc_gfn_to_pfn);
+EXPORT_SYMBOL_GPL(kvmppc_gpa_to_pfn);
 
 static int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, bool data,
 			bool iswrite, struct kvmppc_pte *pte)

@@ -511,19 +511,19 @@ static void kvmppc_patch_dcbz(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 	put_page(hpage);
 }
 
-static int kvmppc_visible_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
+static int kvmppc_visible_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 {
 	ulong mp_pa = vcpu->arch.magic_page_pa;
 
 	if (!(kvmppc_get_msr(vcpu) & MSR_SF))
 		mp_pa = (uint32_t)mp_pa;
 
-	if (unlikely(mp_pa) &&
-	    unlikely((mp_pa & KVM_PAM) >> PAGE_SHIFT == gfn)) {
+	gpa &= ~0xFFFULL;
+	if (unlikely(mp_pa) && unlikely((mp_pa & KVM_PAM) == (gpa & KVM_PAM))) {
 		return 1;
 	}
 
-	return kvm_is_visible_gfn(vcpu->kvm, gfn);
+	return kvm_is_visible_gfn(vcpu->kvm, gpa >> PAGE_SHIFT);
 }
 
 int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -614,7 +614,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
 		kvmppc_book3s_queue_irqprio(vcpu, vec + 0x80);
 	} else if (!is_mmio &&
-		   kvmppc_visible_gfn(vcpu, pte.raddr >> PAGE_SHIFT)) {
+		   kvmppc_visible_gpa(vcpu, pte.raddr)) {
 		if (data && !(vcpu->arch.fault_dsisr & DSISR_NOHPTE)) {
 			/*
 			 * There is already a host HPTE there, presumably
@@ -1387,8 +1387,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_pr(struct kvm *kvm,
 	p = __get_free_page(GFP_KERNEL|__GFP_ZERO);
 	if (!p)
 		goto uninit_vcpu;
-	/* the real shared page fills the last 4k of our page */
-	vcpu->arch.shared = (void *)(p + PAGE_SIZE - 4096);
+	vcpu->arch.shared = (void *)p;
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* Always start the shared struct in native endian mode */
 #ifdef __BIG_ENDIAN__

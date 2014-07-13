@@ -190,6 +190,25 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 		vcpu->arch.magic_page_pa = param1 & ~0xfffULL;
 		vcpu->arch.magic_page_ea = param2 & ~0xfffULL;
 
+#ifdef CONFIG_PPC_64K_PAGES
+		/*
+		 * Make sure our 4k magic page is in the same window of a 64k
+		 * page within the guest and within the host's page.
+		 */
+		if ((vcpu->arch.magic_page_pa & 0xf000) !=
+		    ((ulong)vcpu->arch.shared & 0xf000)) {
+			void *old_shared = vcpu->arch.shared;
+			ulong shared = (ulong)vcpu->arch.shared;
+			void *new_shared;
+
+			shared &= PAGE_MASK;
+			shared |= vcpu->arch.magic_page_pa & 0xf000;
+			new_shared = (void*)shared;
+			memcpy(new_shared, old_shared, 0x1000);
+			vcpu->arch.shared = new_shared;
+		}
+#endif
+
 		r2 = KVM_MAGIC_FEAT_SR | KVM_MAGIC_FEAT_MAS0_TO_SPRG7;
 
 		r = EV_SUCCESS;
