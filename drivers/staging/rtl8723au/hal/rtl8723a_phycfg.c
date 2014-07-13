@@ -839,18 +839,6 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 	return rtStatus;
 }
 
-int
-PHY_RFConfig8723A(struct rtw_adapter *Adapter)
-{
-	int rtStatus = _SUCCESS;
-
-	/*  */
-	/*  RF config */
-	/*  */
-	rtStatus = PHY_RF6052_Config8723A(Adapter);
-	return rtStatus;
-}
-
 static void getTxPowerIndex(struct rtw_adapter *Adapter,
 			    u8 channel,	u8 *cckPowerLevel,  u8 *ofdmPowerLevel)
 {
