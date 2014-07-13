@@ -59,7 +59,7 @@ enum vnt_cmd_state {
 
 struct vnt_private;
 
-void vResetCommandTimer(struct vnt_private *);
+void vnt_reset_command_timer(struct vnt_private *);
 
 int vnt_schedule_command(struct vnt_private *, enum vnt_cmd);
 

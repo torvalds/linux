@@ -1135,7 +1135,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	usb_device_reset(priv);
 
 	MP_CLEAR_FLAG(priv, fMP_DISCONNECTED);
-	vResetCommandTimer(priv);
+	vnt_reset_command_timer(priv);
 
 	vnt_schedule_command(priv, WLAN_CMD_INIT_MAC80211);
 

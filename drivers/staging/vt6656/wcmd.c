@@ -202,7 +202,7 @@ int vnt_schedule_command(struct vnt_private *priv, enum vnt_cmd command)
 
 }
 
-void vResetCommandTimer(struct vnt_private *priv)
+void vnt_reset_command_timer(struct vnt_private *priv)
 {
 	priv->free_cmd_queue = CMD_Q_SIZE;
 	priv->cmd_dequeue_idx = 0;
