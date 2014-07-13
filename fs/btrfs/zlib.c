@@ -136,7 +136,7 @@ static int zlib_compress_pages(struct list_head *ws,
 		if (workspace->def_strm.total_in > 8192 &&
 		    workspace->def_strm.total_in <
 		    workspace->def_strm.total_out) {
-			ret = -EIO;
+			ret = -E2BIG;
 			goto out;
 		}
 		/* we need another page for writing out.  Test this

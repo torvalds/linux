@@ -4198,6 +4198,8 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 		kfree(phba->ep_array);
 		phba->ep_array = NULL;
 		ret = -ENOMEM;
+
+		goto free_memory;
 	}
 
 	for (i = 0; i < phba->params.cxns_per_ctrl; i++) {
