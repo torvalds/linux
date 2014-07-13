@@ -384,6 +384,7 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 
 	kfree(vcpu->arch.guest_ebase);
 	kfree(vcpu->arch.kseg0_commpage);
+	kfree(vcpu);
 }
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
