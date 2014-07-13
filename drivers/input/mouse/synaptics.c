@@ -53,14 +53,19 @@
 #define ABS_POS_BITS 13
 
 /*
- * Any position values from the hardware above the following limits are
- * treated as "wrapped around negative" values that have been truncated to
- * the 13-bit reporting range of the hardware. These are just reasonable
- * guesses and can be adjusted if hardware is found that operates outside
- * of these parameters.
+ * These values should represent the absolute maximum value that will
+ * be reported for a positive position value. Some Synaptics firmware
+ * uses this value to indicate a finger near the edge of the touchpad
+ * whose precise position cannot be determined.
+ *
+ * At least one touchpad is known to report positions in excess of this
+ * value which are actually negative values truncated to the 13-bit
+ * reporting range. These values have never been observed to be lower
+ * than 8184 (i.e. -8), so we treat all values greater than 8176 as
+ * negative and any other value as positive.
  */
-#define X_MAX_POSITIVE (((1 << ABS_POS_BITS) + XMAX) / 2)
-#define Y_MAX_POSITIVE (((1 << ABS_POS_BITS) + YMAX) / 2)
+#define X_MAX_POSITIVE 8176
+#define Y_MAX_POSITIVE 8176
 
 /*
  * Synaptics touchpads report the y coordinate from bottom to top, which is
@@ -583,11 +588,21 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 		hw->right = (buf[0] & 0x02) ? 1 : 0;
 	}
 
-	/* Convert wrap-around values to negative */
+	/*
+	 * Convert wrap-around values to negative. (X|Y)_MAX_POSITIVE
+	 * is used by some firmware to indicate a finger at the edge of
+	 * the touchpad whose precise position cannot be determined, so
+	 * convert these values to the maximum axis value.
+	 */
 	if (hw->x > X_MAX_POSITIVE)
 		hw->x -= 1 << ABS_POS_BITS;
+	else if (hw->x == X_MAX_POSITIVE)
+		hw->x = XMAX;
+
 	if (hw->y > Y_MAX_POSITIVE)
 		hw->y -= 1 << ABS_POS_BITS;
+	else if (hw->y == Y_MAX_POSITIVE)
+		hw->y = YMAX;
 
 	return 0;
 }

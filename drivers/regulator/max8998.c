@@ -492,7 +492,7 @@ buck2_exit:
 
 	difference = desc->min + desc->step*i - previous_vol/1000;
 	if (difference > 0)
-		udelay(difference / ((val & 0x0f) + 1));
+		udelay(DIV_ROUND_UP(difference, (val & 0x0f) + 1));
 
 	return ret;
 }

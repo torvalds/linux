@@ -535,6 +535,7 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 
 	mutex_lock(&dev->mode_config.mutex);
 	drm_helper_resume_force_mode(dev);
+	i915_redisable_vga(dev);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return NOTIFY_OK;
@@ -551,8 +552,6 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	intel_panel_destroy_backlight(dev);
 
 	if (dev_priv->lid_notifier.notifier_call)
 		acpi_lid_notifier_unregister(&dev_priv->lid_notifier);
