@@ -377,8 +377,5 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 
 	/* Set initial power mode */
 	imx6q_set_lpm(WAIT_CLOCKED);
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6sl-gpt");
-	mxc_timer_init_dt(np);
 }
 CLK_OF_DECLARE(imx6sl, "fsl,imx6sl-ccm", imx6sl_clocks_init);

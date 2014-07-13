@@ -337,10 +337,13 @@ void __init mxc_timer_init(void __iomem *base, int irq)
 	_mxc_timer_init(irq, clk_per, clk_ipg);
 }
 
-void __init mxc_timer_init_dt(struct device_node *np)
+static void __init mxc_timer_init_dt(struct device_node *np)
 {
 	struct clk *clk_per, *clk_ipg;
 	int irq;
+
+	if (timer_base)
+		return;
 
 	timer_base = of_iomap(np, 0);
 	WARN_ON(!timer_base);
@@ -351,3 +354,11 @@ void __init mxc_timer_init_dt(struct device_node *np)
 
 	_mxc_timer_init(irq, clk_per, clk_ipg);
 }
+CLOCKSOURCE_OF_DECLARE(mx1_timer, "fsl,imx1-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx25_timer, "fsl,imx25-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx50_timer, "fsl,imx50-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx51_timer, "fsl,imx51-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx53_timer, "fsl,imx53-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx6q_timer, "fsl,imx6q-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx6sl_timer, "fsl,imx6sl-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx6sx_timer, "fsl,imx6sx-gpt", mxc_timer_init_dt);
