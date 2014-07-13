@@ -117,7 +117,7 @@ void rtw_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv)
 }
 #endif
 
-void _rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
+void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
 {
 	rtw_free_mlme_priv_ie_data(pmlmepriv);
 
@@ -307,12 +307,6 @@ int rtw_init_mlme_priv(struct adapter *padapter)
 	int	res;
 	res = _rtw_init_mlme_priv(padapter);/*  (pmlmepriv); */
 	return res;
-}
-
-void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
-{
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("rtw_free_mlme_priv\n"));
-	_rtw_free_mlme_priv(pmlmepriv);
 }
 
 static struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
