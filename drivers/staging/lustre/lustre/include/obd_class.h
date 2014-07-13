@@ -141,7 +141,7 @@ int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg);
 int class_add_uuid(const char *uuid, __u64 nid);
 
 /*obdecho*/
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 extern void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars)
@@ -347,7 +347,7 @@ do {							    \
 } while (0)
 
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 #define OBD_COUNTER_OFFSET(op)				  \
 	((offsetof(struct obd_ops, o_ ## op) -		  \
 	  offsetof(struct obd_ops, o_iocontrol))		\

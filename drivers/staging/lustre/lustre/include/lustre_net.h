@@ -3229,7 +3229,7 @@ void ptlrpcd_decref(void);
  * @{
  */
 const char* ll_opcode2str(__u32 opcode);
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 void ptlrpc_lprocfs_register_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes);

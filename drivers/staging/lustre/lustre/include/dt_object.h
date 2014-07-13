@@ -1481,7 +1481,7 @@ static inline struct dt_thread_info *dt_info(const struct lu_env *env)
 int dt_global_init(void);
 void dt_global_fini(void);
 
-# ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 int lprocfs_dt_rd_blksize(char *page, char **start, off_t off,
 			  int count, int *eof, void *data);
 int lprocfs_dt_rd_kbytestotal(char *page, char **start, off_t off,
@@ -1494,6 +1494,6 @@ int lprocfs_dt_rd_filestotal(char *page, char **start, off_t off,
 			     int count, int *eof, void *data);
 int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 			    int count, int *eof, void *data);
-# endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */
 
 #endif /* __LUSTRE_DT_OBJECT_H */

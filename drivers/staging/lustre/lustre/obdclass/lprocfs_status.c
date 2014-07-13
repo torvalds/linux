@@ -220,7 +220,7 @@ int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
 }
 EXPORT_SYMBOL(lprocfs_write_frac_helper);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 
 static int lprocfs_no_percpu_stats = 0;
 module_param(lprocfs_no_percpu_stats, int, 0644);

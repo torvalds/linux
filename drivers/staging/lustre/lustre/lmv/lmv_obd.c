@@ -1339,7 +1339,7 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	lprocfs_lmv_init_vars(&lvars);
 
 	lprocfs_obd_setup(obd, lvars.obd_vars);
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 	{
 		rc = lprocfs_seq_create(obd->obd_proc_entry, "target_obd",
 					0444, &lmv_proc_target_fops, obd);

@@ -939,7 +939,7 @@ cleanup_ctxt:
 	return rc;
 }
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 static struct lprocfs_vars lprocfs_llog_test_obd_vars[] = { {0} };
 static struct lprocfs_vars lprocfs_llog_test_module_vars[] = { {0} };
 static void lprocfs_llog_test_init_vars(struct lprocfs_static_vars *lvars)

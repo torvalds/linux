@@ -146,7 +146,7 @@ struct lmv_tgt_desc
 *lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 		struct lu_fid *fid);
 /* lproc_lmv.c */
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars)

@@ -71,7 +71,7 @@ extern unsigned int ldlm_cancel_unused_locks_before_replay;
  * DDOS. */
 unsigned int ldlm_dump_granted_max = 256;
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 static ssize_t lprocfs_wr_dump_ns(struct file *file, const char *buffer,
 				  size_t count, loff_t *off)
 {
@@ -382,12 +382,12 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 	return 0;
 }
 #undef MAX_STRING_SIZE
-#else /* LPROCFS */
+#else /* CONFIG_PROC_FS */
 
 #define ldlm_namespace_proc_unregister(ns)      ({;})
 #define ldlm_namespace_proc_register(ns)	({0;})
 
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */
 
 static unsigned ldlm_res_hop_hash(struct cfs_hash *hs,
 				  const void *key, unsigned mask)

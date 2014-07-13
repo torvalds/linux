@@ -180,7 +180,7 @@ const char* ll_eopcode2str(__u32 opcode)
 	LASSERT(ll_eopcode_table[opcode].opcode == opcode);
 	return ll_eopcode_table[opcode].opname;
 }
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 			     char *name, struct proc_dir_entry **procroot_ret,
 			     struct lprocfs_stats **stats_ret)
@@ -1339,4 +1339,4 @@ int lprocfs_wr_pinger_recov(struct file *file, const char *buffer,
 }
 EXPORT_SYMBOL(lprocfs_wr_pinger_recov);
 
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */

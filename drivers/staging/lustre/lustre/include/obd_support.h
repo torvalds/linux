@@ -508,7 +508,7 @@ extern atomic_t libcfs_kmemory;
 
 extern void obd_update_maxusage(void);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 #define obd_memory_add(size)						  \
 	lprocfs_counter_add(obd_memory, OBD_MEMORY_STAT, (long)(size))
 #define obd_memory_sub(size)						  \

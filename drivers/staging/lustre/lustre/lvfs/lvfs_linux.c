@@ -244,7 +244,7 @@ struct file *l_dentry_open(struct lvfs_run_ctxt *ctxt, struct dentry *de,
 }
 EXPORT_SYMBOL(l_dentry_open);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 			  struct lprocfs_counter_header *header,
 			  enum lprocfs_stats_flags flags,
@@ -286,7 +286,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 	return ret;
 }
 EXPORT_SYMBOL(lprocfs_read_helper);
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS*/
 
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre VFS Filesystem Helper v0.1");

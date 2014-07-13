@@ -44,7 +44,6 @@
 
 #include "linux/lprocfs_status.h"
 #include "lustre/lustre_idl.h"
-#include "../../include/linux/libcfs/params_tree.h"
 
 struct lprocfs_vars {
 	const char		*name;
@@ -375,7 +374,7 @@ extern int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
 				     int *val, int mult);
 extern int lprocfs_read_frac_helper(char *buffer, unsigned long count,
 				    long val, int mult);
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 
 extern int lprocfs_stats_alloc_one(struct lprocfs_stats *stats,
 				   unsigned int cpuid);
@@ -806,7 +805,7 @@ extern int lprocfs_quota_wr_qs_factor(struct file *file,
 				      const char *buffer,
 				      unsigned long count, void *data);
 #else
-/* LPROCFS is not defined */
+/* CONFIG_PROC_FS is not defined */
 
 #define proc_lustre_root NULL
 
@@ -1000,6 +999,6 @@ __u64 lprocfs_stats_collector(struct lprocfs_stats *stats, int idx,
 /* lproc_ptlrpc.c */
 #define target_print_req NULL
 
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */
 
 #endif /* LPROCFS_SNMP_H */

@@ -929,7 +929,7 @@ out:
 }
 EXPORT_SYMBOL(dt_index_read);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 
 int lprocfs_dt_rd_blksize(char *page, char **start, off_t off,
 			  int count, int *eof, void *data)
@@ -1046,4 +1046,4 @@ int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 }
 EXPORT_SYMBOL(lprocfs_dt_rd_filesfree);
 
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */

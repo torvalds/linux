@@ -636,7 +636,7 @@ int ldlm_pool_setup(struct ldlm_pool *pl, int limit)
 }
 EXPORT_SYMBOL(ldlm_pool_setup);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 {
 	int granted, grant_rate, cancel_rate, grant_step;
@@ -821,14 +821,14 @@ static void ldlm_pool_proc_fini(struct ldlm_pool *pl)
 		pl->pl_proc_dir = NULL;
 	}
 }
-#else /* !LPROCFS */
+#else /* !CONFIG_PROC_FS */
 static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 {
 	return 0;
 }
 
 static void ldlm_pool_proc_fini(struct ldlm_pool *pl) {}
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */
 
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 		   int idx, ldlm_side_t client)

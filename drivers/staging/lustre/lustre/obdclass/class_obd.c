@@ -483,7 +483,7 @@ int obd_init_checks(void)
 }
 
 extern spinlock_t obd_types_lock;
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 extern int class_procfs_init(void);
 extern int class_procfs_clean(void);
 #else
@@ -594,7 +594,7 @@ void obd_update_maxusage(void)
 }
 EXPORT_SYMBOL(obd_update_maxusage);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 __u64 obd_memory_max(void)
 {
 	__u64 ret;

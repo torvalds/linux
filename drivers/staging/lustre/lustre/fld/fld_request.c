@@ -273,7 +273,7 @@ EXPORT_SYMBOL(fld_client_del_target);
 
 struct proc_dir_entry *fld_type_proc_dir = NULL;
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 static int fld_client_proc_init(struct lu_client_fld *fld)
 {
 	int rc;
