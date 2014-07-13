@@ -87,7 +87,7 @@ config LPC32XX_ADC
 
 config MXS_LRADC
 	tristate "Freescale i.MX23/i.MX28 LRADC"
-	depends on ARCH_MXS || COMPILE_TEST
+	depends on (ARCH_MXS || COMPILE_TEST) && HAS_IOMEM
 	depends on INPUT
 	select STMP_DEVICE
 	select IIO_BUFFER
