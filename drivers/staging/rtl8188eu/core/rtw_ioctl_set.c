@@ -591,44 +591,6 @@ exit:
 	return ret;
 }
 
-u8 rtw_set_802_11_remove_key(struct adapter *padapter, struct ndis_802_11_remove_key *key)
-{
-	u8 *pbssid;
-	struct sta_info *stainfo;
-	u8	bgroup = (key->KeyIndex & 0x4000000) > 0 ? false : true;
-	u8	keyIndex = (u8)key->KeyIndex & 0x03;
-	u8	ret = _SUCCESS;
-
-
-	if ((key->KeyIndex & 0xbffffffc) > 0) {
-		ret = _FAIL;
-		goto exit;
-	}
-
-	if (bgroup) {
-		/*  clear group key by index */
-
-		memset(&padapter->securitypriv.dot118021XGrpKey[keyIndex], 0, 16);
-
-		/*  \todo Send a H2C Command to Firmware for removing this Key in CAM Entry. */
-	} else {
-		pbssid = get_bssid(&padapter->mlmepriv);
-		stainfo = rtw_get_stainfo(&padapter->stapriv, pbssid);
-		if (stainfo) {
-			/*  clear key by BSSID */
-			memset(&stainfo->dot118021x_UncstKey, 0, 16);
-
-			/*  \todo Send a H2C Command to Firmware for disable this Key in CAM Entry. */
-		} else {
-			ret = _FAIL;
-			goto exit;
-		}
-	}
-exit:
-
-	return ret;
-}
-
 /*
 * rtw_get_cur_max_rate -
 * @adapter: pointer to struct adapter structure
