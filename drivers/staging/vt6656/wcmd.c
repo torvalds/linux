@@ -40,14 +40,11 @@
 
 #include "device.h"
 #include "mac.h"
-#include "card.h"
 #include "wcmd.h"
 #include "power.h"
-#include "baseband.h"
 #include "usbpipe.h"
 #include "rxtx.h"
 #include "rf.h"
-#include "channel.h"
 
 static void vnt_cmd_timer_wait(struct vnt_private *priv, unsigned long msecs)
 {
