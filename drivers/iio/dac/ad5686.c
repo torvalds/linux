@@ -313,7 +313,7 @@ static int ad5686_probe(struct spi_device *spi)
 {
 	struct ad5686_state *st;
 	struct iio_dev *indio_dev;
-	int ret, regdone = 0, voltage_uv = 0;
+	int ret, voltage_uv = 0;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
@@ -355,7 +355,6 @@ static int ad5686_probe(struct spi_device *spi)
 	indio_dev->channels = st->chip_info->channel;
 	indio_dev->num_channels = AD5686_DAC_CHANNELS;
 
-	regdone = 1;
 	ret = ad5686_spi_write(st, AD5686_CMD_INTERNAL_REFER_SETUP, 0,
 				!!voltage_uv, 0);
 	if (ret)

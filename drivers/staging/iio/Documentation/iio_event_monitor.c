@@ -122,8 +122,6 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MOD_LIGHT_IR:
 	case IIO_MOD_ROOT_SUM_SQUARED_X_Y:
 	case IIO_MOD_SUM_SQUARED_X_Y_Z:
-	case IIO_MOD_LIGHT_BOTH:
-	case IIO_MOD_LIGHT_IR:
 	case IIO_MOD_LIGHT_CLEAR:
 	case IIO_MOD_LIGHT_RED:
 	case IIO_MOD_LIGHT_GREEN:

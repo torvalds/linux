@@ -6,22 +6,22 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
+#include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regulator/consumer.h>
-#include <linux/err.h>
+#include <linux/slab.h>
+#include <linux/sysfs.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 
-#include "ad7291.h"
+#include <linux/platform_data/ad7291.h>
 
 /*
  * Simplified handling
@@ -31,7 +31,6 @@
  * is in the read mask.
  *
  * The noise-delayed bit as per datasheet suggestion is always enabled.
- *
  */
 
 /*
@@ -47,33 +46,38 @@
 #define AD7291_VOLTAGE_ALERT_STATUS	0x1F
 #define AD7291_T_ALERT_STATUS		0x20
 
+#define AD7291_BITS			12
 #define AD7291_VOLTAGE_LIMIT_COUNT	8
 
 
 /*
  * AD7291 command
  */
-#define AD7291_AUTOCYCLE		(1 << 0)
-#define AD7291_RESET			(1 << 1)
-#define AD7291_ALERT_CLEAR		(1 << 2)
-#define AD7291_ALERT_POLARITY		(1 << 3)
-#define AD7291_EXT_REF			(1 << 4)
-#define AD7291_NOISE_DELAY		(1 << 5)
-#define AD7291_T_SENSE_MASK		(1 << 7)
-#define AD7291_VOLTAGE_MASK		0xFF00
-#define AD7291_VOLTAGE_OFFSET		0x8
+#define AD7291_AUTOCYCLE		BIT(0)
+#define AD7291_RESET			BIT(1)
+#define AD7291_ALERT_CLEAR		BIT(2)
+#define AD7291_ALERT_POLARITY		BIT(3)
+#define AD7291_EXT_REF			BIT(4)
+#define AD7291_NOISE_DELAY		BIT(5)
+#define AD7291_T_SENSE_MASK		BIT(7)
+#define AD7291_VOLTAGE_MASK		GENMASK(15, 8)
+#define AD7291_VOLTAGE_OFFSET		8
 
 /*
  * AD7291 value masks
  */
-#define AD7291_CHANNEL_MASK		0xF000
-#define AD7291_BITS			12
-#define AD7291_VALUE_MASK		0xFFF
-#define AD7291_T_VALUE_SIGN		0x400
-#define AD7291_T_VALUE_FLOAT_OFFSET	2
-#define AD7291_T_VALUE_FLOAT_MASK	0x2
+#define AD7291_VALUE_MASK		GENMASK(11, 0)
 
-#define AD7291_BITS			12
+/*
+ * AD7291 alert register bits
+ */
+#define AD7291_T_LOW			BIT(0)
+#define AD7291_T_HIGH			BIT(1)
+#define AD7291_T_AVG_LOW		BIT(2)
+#define AD7291_T_AVG_HIGH		BIT(3)
+#define AD7291_V_LOW(x)			BIT((x) * 2)
+#define AD7291_V_HIGH(x)		BIT((x) * 2 + 1)
+
 
 struct ad7291_chip_info {
 	struct i2c_client	*client;
@@ -129,14 +133,14 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 	ad7291_i2c_write(chip, AD7291_COMMAND, command);
 
 	/* For now treat t_sense and t_sense_average the same */
-	if ((t_status & (1 << 0)) || (t_status & (1 << 2)))
+	if ((t_status & AD7291_T_LOW) || (t_status & AD7291_T_AVG_LOW))
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 						    0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_FALLING),
 			       timestamp);
-	if ((t_status & (1 << 1)) || (t_status & (1 << 3)))
+	if ((t_status & AD7291_T_HIGH) || (t_status & AD7291_T_AVG_HIGH))
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
 						    0,
@@ -144,18 +148,18 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 						    IIO_EV_DIR_RISING),
 			       timestamp);
 
-	for (i = 0; i < AD7291_VOLTAGE_LIMIT_COUNT*2; i += 2) {
-		if (v_status & (1 << i))
+	for (i = 0; i < AD7291_VOLTAGE_LIMIT_COUNT; i++) {
+		if (v_status & AD7291_V_LOW(i))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE,
-							    i/2,
+							    i,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_FALLING),
 				       timestamp);
-		if (v_status & (1 << (i + 1)))
+		if (v_status & AD7291_V_HIGH(i))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE,
-							    i/2,
+							    i,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_RISING),
 				       timestamp);
@@ -165,7 +169,8 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 }
 
 static unsigned int ad7291_threshold_reg(const struct iio_chan_spec *chan,
-	enum iio_event_direction dir, enum iio_event_info info)
+					 enum iio_event_direction dir,
+					 enum iio_event_info info)
 {
 	unsigned int offset;
 
@@ -174,7 +179,7 @@ static unsigned int ad7291_threshold_reg(const struct iio_chan_spec *chan,
 		offset = chan->channel;
 		break;
 	case IIO_TEMP:
-		offset = 8;
+		offset = AD7291_VOLTAGE_OFFSET;
 		break;
 	default:
 	    return 0;
@@ -182,14 +187,14 @@ static unsigned int ad7291_threshold_reg(const struct iio_chan_spec *chan,
 
 	switch (info) {
 	case IIO_EV_INFO_VALUE:
-			if (dir == IIO_EV_DIR_FALLING)
-					return AD7291_DATA_HIGH(offset);
-			else
-					return AD7291_DATA_LOW(offset);
+		if (dir == IIO_EV_DIR_FALLING)
+			return AD7291_DATA_HIGH(offset);
+		else
+			return AD7291_DATA_LOW(offset);
 	case IIO_EV_INFO_HYSTERESIS:
-			return AD7291_HYST(offset);
+		return AD7291_HYST(offset);
 	default:
-			break;
+		break;
 	}
 	return 0;
 }
@@ -206,7 +211,7 @@ static int ad7291_read_event_value(struct iio_dev *indio_dev,
 	u16 uval;
 
 	ret = ad7291_i2c_read(chip, ad7291_threshold_reg(chan, dir, info),
-		&uval);
+			      &uval);
 	if (ret < 0)
 		return ret;
 
@@ -237,7 +242,7 @@ static int ad7291_write_event_value(struct iio_dev *indio_dev,
 	}
 
 	return ad7291_i2c_write(chip, ad7291_threshold_reg(chan, dir, info),
-		val);
+				val);
 }
 
 static int ad7291_read_event_config(struct iio_dev *indio_dev,
@@ -246,15 +251,14 @@ static int ad7291_read_event_config(struct iio_dev *indio_dev,
 				    enum iio_event_direction dir)
 {
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
-	/* To be enabled the channel must simply be on. If any are enabled
-	   we are in continuous sampling mode */
+	/*
+	 * To be enabled the channel must simply be on. If any are enabled
+	 * we are in continuous sampling mode
+	 */
 
 	switch (chan->type) {
 	case IIO_VOLTAGE:
-		if (chip->c_mask & (1 << (15 - chan->channel)))
-			return 1;
-		else
-			return 0;
+		return !!(chip->c_mask & BIT(15 - chan->channel));
 	case IIO_TEMP:
 		/* always on */
 		return 1;
@@ -336,7 +340,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 			}
 			/* Enable this channel alone */
 			regval = chip->command & (~AD7291_VOLTAGE_MASK);
-			regval |= 1 << (15 - chan->channel);
+			regval |= BIT(15 - chan->channel);
 			ret = ad7291_i2c_write(chip, AD7291_COMMAND, regval);
 			if (ret < 0) {
 				mutex_unlock(&chip->state_lock);
@@ -344,7 +348,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 			}
 			/* Read voltage */
 			ret = i2c_smbus_read_word_swapped(chip->client,
-						       AD7291_VOLTAGE);
+							  AD7291_VOLTAGE);
 			if (ret < 0) {
 				mutex_unlock(&chip->state_lock);
 				return ret;
@@ -355,7 +359,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 		case IIO_TEMP:
 			/* Assumes tsense bit of command register always set */
 			ret = i2c_smbus_read_word_swapped(chip->client,
-						       AD7291_T_SENSE);
+							  AD7291_T_SENSE);
 			if (ret < 0)
 				return ret;
 			*val = sign_extend32(ret, 11);
@@ -365,7 +369,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 		}
 	case IIO_CHAN_INFO_AVERAGE_RAW:
 		ret = i2c_smbus_read_word_swapped(chip->client,
-					       AD7291_T_AVERAGE);
+						  AD7291_T_AVERAGE);
 			if (ret < 0)
 				return ret;
 			*val = sign_extend32(ret, 11);
@@ -375,6 +379,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 		case IIO_VOLTAGE:
 			if (chip->reg) {
 				int vref;
+
 				vref = regulator_get_voltage(chip->reg);
 				if (vref < 0)
 					return vref;
@@ -460,7 +465,7 @@ static const struct iio_info ad7291_info = {
 };
 
 static int ad7291_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			const struct i2c_device_id *id)
 {
 	struct ad7291_platform_data *pdata = client->dev.platform_data;
 	struct ad7291_chip_info *chip;

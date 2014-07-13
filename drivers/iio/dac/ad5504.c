@@ -125,7 +125,6 @@ static int ad5504_write_raw(struct iio_dev *indio_dev,
 			       long mask)
 {
 	struct ad5504_state *st = iio_priv(indio_dev);
-	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -134,10 +133,8 @@ static int ad5504_write_raw(struct iio_dev *indio_dev,
 
 		return ad5504_spi_write(st, chan->address, val);
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-
-	return -EINVAL;
 }
 
 static const char * const ad5504_powerdown_modes[] = {

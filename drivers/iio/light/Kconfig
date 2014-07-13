@@ -62,6 +62,18 @@ config GP2AP020A00F
 	  To compile this driver as a module, choose M here: the
 	  module will be called gp2ap020a00f.
 
+config ISL29125
+	tristate "Intersil ISL29125 digital color light sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build a driver for the Intersil ISL29125
+	  RGB light sensor for I2C.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called isl29125.
+
 config HID_SENSOR_ALS
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
@@ -115,6 +127,18 @@ config LTR501
 
 	 This driver can also be built as a module.  If so, the module
          will be called ltr501.
+
+config TCS3414
+	tristate "TAOS TCS3414 digital color sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	 If you say yes here you get support for the TAOS TCS3414
+	 family of digital color sensors.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called tcs3414.
 
 config TCS3472
 	tristate "TAOS TCS3472 color light-to-digital converter"
