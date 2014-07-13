@@ -25,14 +25,9 @@
  * Date: May 8, 2003
  *
  * Functions:
- *      s_vProbeChannel - Active scan channel
- *      s_MgrMakeProbeRequest - Make ProbeRequest packet
- *      CommandTimer - Timer function to handle command
  *	vnt_cmd_complete - Command Complete function
- *      vnt_schedule_command - Push Command and wait Command Scheduler to do
- *      vCommandTimer- Command call back functions
+ *	vnt_schedule_command - Push Command and wait Command Scheduler to do
  *	vnt_cmd_timer_wait- Call back timer
- *      s_bClearBSSID_SCAN- Clear BSSID_SCAN cmd in CMD Queue
  *
  * Revision History:
  *
@@ -174,7 +169,7 @@ void vnt_run_command(struct work_struct *work)
 
 	default:
 		break;
-	} //switch
+	}
 
 	vnt_cmd_complete(priv);
 
