@@ -360,3 +360,4 @@ module_i2c_driver(si2157_driver);
 MODULE_DESCRIPTION("Silicon Labs Si2157/Si2158 silicon tuner driver");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(SI2158_A20_FIRMWARE);
