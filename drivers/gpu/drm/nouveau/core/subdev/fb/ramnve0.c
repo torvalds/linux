@@ -200,6 +200,7 @@ r1373f4_init(struct nve0_ramfuc *fuc)
 	/* (re)program mempll, if required */
 	if (ram->mode == 2) {
 		ram_mask(fuc, 0x1373f4, 0x00010000, 0x00000000);
+		ram_mask(fuc, 0x132000, 0x80000000, 0x80000000);
 		ram_mask(fuc, 0x132000, 0x00000001, 0x00000000);
 		ram_mask(fuc, 0x132004, 0x103fffff, mcoef);
 		ram_mask(fuc, 0x132000, 0x00000001, 0x00000001);
