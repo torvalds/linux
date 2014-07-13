@@ -662,8 +662,8 @@ unsigned long lprocfs_oh_sum(struct obd_histogram *oh);
 void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 			   struct lprocfs_counter *cnt);
 
-extern int lprocfs_single_release(cfs_inode_t *, struct file *);
-extern int lprocfs_seq_release(cfs_inode_t *, struct file *);
+extern int lprocfs_single_release(struct inode *, struct file *);
+extern int lprocfs_seq_release(struct inode *, struct file *);
 
 /* You must use these macros when you want to refer to
  * the import in a client obd_device for a lprocfs entry */
@@ -684,7 +684,7 @@ extern int lprocfs_seq_release(cfs_inode_t *, struct file *);
   a read-write proc entry, and then call LPROC_SEQ_SEQ instead. Finally,
   call lprocfs_obd_seq_create(obd, filename, 0444, &name#_fops, data); */
 #define __LPROC_SEQ_FOPS(name, custom_seq_write)			\
-static int name##_single_open(cfs_inode_t *inode, struct file *file)	\
+static int name##_single_open(struct inode *inode, struct file *file)	\
 {									\
 	return single_open(file, name##_seq_show, PDE_DATA(inode));	\
 }									\
@@ -727,7 +727,7 @@ static struct file_operations name##_fops = {				\
 	{								\
 		return lprocfs_wr_##type(file, buffer, count, off);	\
 	}								\
-	static int name##_##type##_open(cfs_inode_t *inode, struct file *file) \
+	static int name##_##type##_open(struct inode *inode, struct file *file) \
 	{								\
 		return single_open(file, NULL, PDE_DATA(inode));	\
 	}								\
