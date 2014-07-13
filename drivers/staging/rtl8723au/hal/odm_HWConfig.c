@@ -414,15 +414,6 @@ void ODM_PhyStatusQuery23a(struct dm_odm_t *pDM_Odm, struct phy_info *pPhyInfo,
 	ODM_PhyStatusQuery23a_92CSeries(pDM_Odm, pPhyInfo, pPhyStatus, pPktinfo);
 }
 
-/*  For future use. */
-void ODM_MacStatusQuery23a(struct dm_odm_t *pDM_Odm, u8 *pMacStatus, u8 MacID,
-			bool bPacketMatchBSSID, bool bPacketToSelf,
-			bool bPacketBeacon)
-{
-	/*  2011/10/19 Driver team will handle in the future. */
-
-}
-
 int ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm)
 {
 	if (pDM_Odm->SupportICType == ODM_RTL8723A)
