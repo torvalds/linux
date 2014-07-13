@@ -555,7 +555,7 @@ int lov_setea(struct obd_export *exp, struct lov_stripe_md **lsmp,
 			return rc;
 		if (ostid_id(&lmm_objects[i].l_ost_oi) > last_id) {
 			CERROR("Setting EA for object > than last id on"
-			       " ost idx %d "DOSTID" > "LPD64" \n",
+			       " ost idx %d "DOSTID" > %lld \n",
 			       lmm_objects[i].l_ost_idx,
 			       POSTID(&lmm_objects[i].l_ost_oi), last_id);
 			return -EINVAL;

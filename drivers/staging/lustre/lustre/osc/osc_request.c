@@ -483,7 +483,7 @@ int osc_real_create(struct obd_export *exp, struct obdo *oa,
 		}
 	}
 
-	CDEBUG(D_HA, "transno: "LPD64"\n",
+	CDEBUG(D_HA, "transno: %lld\n",
 	       lustre_msg_get_transno(req->rq_repmsg));
 out_req:
 	ptlrpc_req_finished(req);

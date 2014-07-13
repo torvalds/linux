@@ -71,7 +71,6 @@
 /* this is a bit chunky */
 
 # define LPU64 "%llu"
-# define LPD64 "%lld"
 # define LPX64 "%#llx"
 
 #endif

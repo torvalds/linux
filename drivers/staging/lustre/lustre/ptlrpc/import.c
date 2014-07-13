@@ -998,8 +998,8 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	if (lustre_msg_get_last_committed(request->rq_repmsg) > 0 &&
 	    lustre_msg_get_last_committed(request->rq_repmsg) <
 	    aa->pcaa_peer_committed) {
-		CERROR("%s went back in time (transno "LPD64
-		       " was previously committed, server now claims "LPD64
+		CERROR("%s went back in time (transno %lld"
+		       " was previously committed, server now claims %lld"
 		       ")!  See https://bugzilla.lustre.org/show_bug.cgi?"
 		       "id=9646\n",
 		       obd2cli_tgt(imp->imp_obd), aa->pcaa_peer_committed,

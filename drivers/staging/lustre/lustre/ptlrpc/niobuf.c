@@ -79,7 +79,7 @@ static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
 		return -ENOMEM;
 	}
 
-	CDEBUG(D_NET, "Sending %d bytes to portal %d, xid "LPD64", offset %u\n",
+	CDEBUG(D_NET, "Sending %d bytes to portal %d, xid %lld, offset %u\n",
 	       len, portal, xid, offset);
 
 	rc = LNetPut(conn->c_self, *mdh, ack,
@@ -89,7 +89,7 @@ static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
 		/* We're going to get an UNLINK event when I unlink below,
 		 * which will complete just like any other failed send, so
 		 * I fall through and return success here! */
-		CERROR("LNetPut(%s, %d, "LPD64") failed: %d\n",
+		CERROR("LNetPut(%s, %d, %lld) failed: %d\n",
 		       libcfs_id2str(conn->c_peer), portal, xid, rc);
 		rc2 = LNetMDUnlink(*mdh);
 		LASSERTF(rc2 == 0, "rc2 = %d\n", rc2);

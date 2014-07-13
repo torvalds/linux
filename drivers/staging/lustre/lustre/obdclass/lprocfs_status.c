@@ -1175,19 +1175,19 @@ static int lprocfs_stats_seq_show(struct seq_file *p, void *v)
 	if (ctr.lc_count == 0)
 		goto out;
 
-	rc = seq_printf(p, "%-25s "LPD64" samples [%s]", hdr->lc_name,
+	rc = seq_printf(p, "%-25s %lld samples [%s]", hdr->lc_name,
 			ctr.lc_count, hdr->lc_units);
 
 	if (rc < 0)
 		goto out;
 
 	if ((hdr->lc_config & LPROCFS_CNTR_AVGMINMAX) && (ctr.lc_count > 0)) {
-		rc = seq_printf(p, " "LPD64" "LPD64" "LPD64,
+		rc = seq_printf(p, " %lld %lld %lld",
 				ctr.lc_min, ctr.lc_max, ctr.lc_sum);
 		if (rc < 0)
 			goto out;
 		if (hdr->lc_config & LPROCFS_CNTR_STDDEV)
-			rc = seq_printf(p, " "LPD64, ctr.lc_sumsquare);
+			rc = seq_printf(p, " %lld", ctr.lc_sumsquare);
 		if (rc < 0)
 			goto out;
 	}

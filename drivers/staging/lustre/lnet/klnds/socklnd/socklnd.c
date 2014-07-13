@@ -1289,7 +1289,7 @@ ksocknal_create_conn (lnet_ni_t *ni, ksock_route_t *route,
 	 */
 
 	CDEBUG(D_NET, "New conn %s p %d.x %pI4h -> %pI4h/%d"
-	       " incarnation:"LPD64" sched[%d:%d]\n",
+	       " incarnation:%lld sched[%d:%d]\n",
 	       libcfs_id2str(peerid), conn->ksnc_proto->pro_version,
 	       &conn->ksnc_myipaddr, &conn->ksnc_ipaddr,
 	       conn->ksnc_port, incarnation, cpt,

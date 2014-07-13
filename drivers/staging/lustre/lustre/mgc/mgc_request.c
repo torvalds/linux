@@ -1457,7 +1457,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 			break;
 		}
 
-		CDEBUG(D_INFO, "ir apply logs "LPD64"/"LPD64" for %s -> %s\n",
+		CDEBUG(D_INFO, "ir apply logs %lld/%lld for %s -> %s\n",
 		       prev_version, max_version, obdname, params);
 
 		rc = class_process_config(lcfg);
@@ -1560,7 +1560,7 @@ again:
 	cfg->cfg_last_idx = res->mcr_offset;
 	eof = res->mcr_offset == res->mcr_size;
 
-	CDEBUG(D_INFO, "Latest version "LPD64", more %d.\n",
+	CDEBUG(D_INFO, "Latest version %lld, more %d.\n",
 	       res->mcr_offset, eof == false);
 
 	ealen = sptlrpc_cli_unwrap_bulk_read(req, req->rq_bulk, 0);

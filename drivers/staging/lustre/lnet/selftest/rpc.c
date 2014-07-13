@@ -426,7 +426,7 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 	}
 
 	if (rc != 0) {
-		CERROR ("LNet%s(%s, %d, "LPD64") failed: %d\n",
+		CERROR ("LNet%s(%s, %d, %lld) failed: %d\n",
 			((options & LNET_MD_OP_PUT) != 0) ? "Put" : "Get",
 			libcfs_id2str(peer), portal, matchbits, rc);
 

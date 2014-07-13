@@ -420,7 +420,7 @@ int obd_init_checks(void)
 	char buf[64];
 	int len, ret = 0;
 
-	CDEBUG(D_INFO, "LPU64=%s, LPD64=%s, LPX64=%s\n", LPU64, LPD64, LPX64);
+	CDEBUG(D_INFO, "LPU64=%s, LPD64=%s, LPX64=%s\n", LPU64, "%lld", LPX64);
 
 	CDEBUG(D_INFO, "OBD_OBJECT_EOF = "LPX64"\n", (__u64)OBD_OBJECT_EOF);
 
@@ -468,7 +468,7 @@ int obd_init_checks(void)
 		CWARN("LPU64 wrong length! strlen(%s)=%d != 20\n", buf, len);
 		ret = -EINVAL;
 	}
-	len = snprintf(buf, sizeof(buf), LPD64, u64val);
+	len = snprintf(buf, sizeof(buf), "%lld", u64val);
 	if (len != 2) {
 		CWARN("LPD64 wrong length! strlen(%s)=%d != 2\n", buf, len);
 		ret = -EINVAL;
