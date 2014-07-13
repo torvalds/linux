@@ -590,7 +590,6 @@ int rtw_if_up(struct adapter *padapter);
 
 
 u8 *rtw_get_capability_from_ie(u8 *ie);
-u8 *rtw_get_timestampe_from_ie(u8 *ie);
 u8 *rtw_get_beacon_interval_from_ie(u8 *ie);
 
 
