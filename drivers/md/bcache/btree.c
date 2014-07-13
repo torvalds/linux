@@ -1409,6 +1409,7 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 	BUG_ON(btree_bset_first(new_nodes[0])->keys);
 	btree_node_free(new_nodes[0]);
 	rw_unlock(true, new_nodes[0]);
+	new_nodes[0] = NULL;
 
 	for (i = 0; i < nodes; i++) {
 		if (__bch_keylist_realloc(&keylist, bkey_u64s(&r[i].b->key)))
