@@ -411,8 +411,6 @@ struct vnt_private {
 	u32 uCmdEnqueueIdx;
 	u32 cbFreeCmdQueue;
 	int bCmdRunning;
-	int bCmdClear;
-	int bNeedRadioOFF;
 
 	unsigned long key_entry_inuse;
 

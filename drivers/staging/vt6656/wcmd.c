@@ -211,5 +211,4 @@ void vResetCommandTimer(struct vnt_private *priv)
 	priv->uCmdEnqueueIdx = 0;
 	priv->command_state = WLAN_CMD_IDLE;
 	priv->bCmdRunning = false;
-	priv->bCmdClear = false;
 }
