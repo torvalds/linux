@@ -244,6 +244,4 @@ void __init shmobile_smp_apmu_suspend_init(void)
 {
 	shmobile_suspend_ops.enter = shmobile_smp_apmu_enter_suspend;
 }
-#else
-void shmobile_smp_apmu_suspend_init(void) {}
 #endif
