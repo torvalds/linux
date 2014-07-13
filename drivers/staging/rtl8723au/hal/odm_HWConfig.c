@@ -413,10 +413,3 @@ void ODM_PhyStatusQuery23a(struct dm_odm_t *pDM_Odm, struct phy_info *pPhyInfo,
 {
 	ODM_PhyStatusQuery23a_92CSeries(pDM_Odm, pPhyInfo, pPhyStatus, pPktinfo);
 }
-
-int ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm)
-{
-	if (pDM_Odm->SupportICType == ODM_RTL8723A)
-		ODM_ReadAndConfig_MAC_REG_8723A(pDM_Odm);
-	return _SUCCESS;
-}

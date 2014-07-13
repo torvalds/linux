@@ -425,8 +425,7 @@ int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 	/*  */
 	/*  Config MAC */
 	/*  */
-	if (ODM_ConfigMACWithHeaderFile23a(&pHalData->odmpriv) == _FAIL)
-		rtStatus = _FAIL;
+	ODM_ReadAndConfig_MAC_REG_8723A(&pHalData->odmpriv);
 
 	/*  2010.07.13 AMPDU aggregation number 9 */
 	/* rtw_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM); */

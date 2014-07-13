@@ -152,6 +152,4 @@ ODM_PhyStatusQuery23a(
 	struct odm_packet_info *pPktinfo
 	);
 
-int ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm);
-
 #endif
