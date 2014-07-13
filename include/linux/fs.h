@@ -833,7 +833,7 @@ static inline struct file *get_file(struct file *f)
  *
  * Lockd stuffs a "host" pointer into this.
  */
-typedef struct files_struct *fl_owner_t;
+typedef void *fl_owner_t;
 
 struct file_lock_operations {
 	void (*fl_copy_lock)(struct file_lock *, struct file_lock *);
