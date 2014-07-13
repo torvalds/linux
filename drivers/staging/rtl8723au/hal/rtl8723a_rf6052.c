@@ -455,13 +455,6 @@ static int phy_RF6052_Config_ParaFile(struct rtw_adapter *Adapter)
 		/*----Initialize RF fom connfiguration file----*/
 		switch (eRFPath) {
 		case RF_PATH_A:
-			if (ODM_ConfigRFWithHeaderFile23a(&pHalData->odmpriv,
-							  (enum RF_RADIO_PATH)
-							  eRFPath,
-							  (enum RF_RADIO_PATH)
-							  eRFPath) == _FAIL)
-				rtStatus = _FAIL;
-			break;
 		case RF_PATH_B:
 			if (ODM_ConfigRFWithHeaderFile23a(&pHalData->odmpriv,
 							  (enum RF_RADIO_PATH)
