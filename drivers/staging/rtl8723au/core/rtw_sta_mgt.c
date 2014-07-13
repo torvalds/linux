@@ -24,7 +24,7 @@
 
 static void _rtw_init_stainfo(struct sta_info *psta)
 {
-	memset((u8 *)psta, 0, sizeof (struct sta_info));
+	memset((u8 *)psta, 0, sizeof(struct sta_info));
 	spin_lock_init(&psta->lock);
 	INIT_LIST_HEAD(&psta->list);
 	INIT_LIST_HEAD(&psta->hash_list);
@@ -69,8 +69,10 @@ int _rtw_init_sta_priv23a(struct sta_priv *pstapriv)
 	pstapriv->auth_list_cnt = 0;
 	pstapriv->auth_to = 3; /*  3*2 = 6 sec */
 	pstapriv->assoc_to = 3;
-	/* pstapriv->expire_to = 900;  900*2 = 1800 sec = 30 min, expire after no any traffic. */
-	/* pstapriv->expire_to = 30;  30*2 = 60 sec = 1 min, expire after no any traffic. */
+	/* pstapriv->expire_to = 900;  900*2 = 1800 sec = 30 min,
+	    expire after no any traffic. */
+	/* pstapriv->expire_to = 30;  30*2 = 60 sec = 1 min,
+	    expire after no any traffic. */
 	pstapriv->expire_to = 3; /*  3*2 = 6 sec */
 	pstapriv->max_num_sta = NUM_STA;
 #endif
@@ -92,6 +94,7 @@ int _rtw_free_sta_priv23a(struct sta_priv *pstapriv)
 
 			list_for_each_safe(plist, ptmp, phead) {
 				int i;
+
 				psta = container_of(plist, struct sta_info,
 						    hash_list);
 				for (i = 0; i < 16 ; i++) {
@@ -142,14 +145,17 @@ rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr, gfp_t gfp)
 
 	list_add_tail(&psta->hash_list, phash_list);
 
-	pstapriv->asoc_sta_count ++ ;
+	pstapriv->asoc_sta_count++;
 
-/*  For the SMC router, the sequence number of first packet of WPS handshake will be 0. */
-/*  In this case, this packet will be dropped by recv_decache function if we use the 0x00 as the default value for tid_rxseq variable. */
+/*  For the SMC router, the sequence number of first packet of WPS
+     handshake will be 0. */
+/*  In this case, this packet will be dropped by recv_decache function
+    if we use the 0x00 as the default value for tid_rxseq variable. */
 /*  So, we initialize the tid_rxseq variable as the 0xffff. */
 
 	for (i = 0; i < 16; i++)
-		memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i], &wRxSeqInitialValue, 2);
+		memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i],
+			&wRxSeqInitialValue, 2);
 
 	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_,
 		 ("alloc number_%d stainfo  with hwaddr = %pM\n",
@@ -240,8 +246,12 @@ int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	spin_unlock_bh(&pxmitpriv->lock);
 
 	list_del_init(&psta->hash_list);
-	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_, ("\n free number_%d stainfo  with hwaddr = 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x \n", pstapriv->asoc_sta_count, psta->hwaddr[0], psta->hwaddr[1], psta->hwaddr[2], psta->hwaddr[3], psta->hwaddr[4], psta->hwaddr[5]));
-	pstapriv->asoc_sta_count --;
+	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
+		("\n free number_%d stainfo  with hwaddr = 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
+			pstapriv->asoc_sta_count, psta->hwaddr[0],
+			psta->hwaddr[1], psta->hwaddr[2], psta->hwaddr[3],
+			psta->hwaddr[4], psta->hwaddr[5]));
+	pstapriv->asoc_sta_count-;
 
 	/*  re-init sta_info; 20061114  will be init in alloc_stainfo */
 	/* _rtw_init_sta_xmit_priv23a(&psta->sta_xmitpriv); */
@@ -249,7 +259,8 @@ int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 
 	del_timer_sync(&psta->addba_retry_timer);
 
-	/* for A-MPDU Rx reordering buffer control, cancel reordering_ctrl_timer */
+	/* for A-MPDU Rx reordering buffer control,
+	   cancel reordering_ctrl_timer */
 	for (i = 0; i < 16; i++) {
 		struct list_head	*phead, *plist;
 		struct recv_frame *prframe;
@@ -259,7 +270,8 @@ int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 
 		del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
 
-		ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
+		ppending_recvframe_queue =
+			&preorder_ctrl->pending_recvframe_queue;
 
 		spin_lock_bh(&ppending_recvframe_queue->lock);
 		phead =		get_list_head(ppending_recvframe_queue);
@@ -299,7 +311,7 @@ int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	pstapriv->sta_dz_bitmap &= ~CHKBIT(psta->aid);
 	pstapriv->tim_bitmap &= ~CHKBIT(psta->aid);
 
-	if ((psta->aid >0) && (pstapriv->sta_aid[psta->aid - 1] == psta)) {
+	if ((psta->aid > 0) && (pstapriv->sta_aid[psta->aid - 1] == psta)) {
 		pstapriv->sta_aid[psta->aid - 1] = NULL;
 		psta->aid = 0;
 	}
@@ -316,7 +328,7 @@ void rtw_free_all_stainfo23a(struct rtw_adapter *padapter)
 	struct list_head *plist, *phead, *ptmp;
 	struct sta_info *psta;
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct sta_info* pbcmc_stainfo = rtw_get_bcmc_stainfo23a(padapter);
+	struct sta_info *pbcmc_stainfo = rtw_get_bcmc_stainfo23a(padapter);
 	s32 index;
 
 	if (pstapriv->asoc_sta_count == 1)
@@ -330,7 +342,7 @@ void rtw_free_all_stainfo23a(struct rtw_adapter *padapter)
 		list_for_each_safe(plist, ptmp, phead) {
 			psta = container_of(plist, struct sta_info, hash_list);
 
-			if (pbcmc_stainfo!= psta)
+			if (pbcmc_stainfo != psta)
 				rtw_free_stainfo23a(padapter, psta);
 		}
 	}
@@ -373,7 +385,7 @@ struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 	return psta;
 }
 
-int rtw_init_bcmc_stainfo23a(struct rtw_adapter* padapter)
+int rtw_init_bcmc_stainfo23a(struct rtw_adapter *padapter)
 {
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info		*psta;
