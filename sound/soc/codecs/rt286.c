@@ -1206,7 +1206,7 @@ static int rt286_i2c_remove(struct i2c_client *i2c)
 }
 
 
-struct i2c_driver rt286_i2c_driver = {
+static struct i2c_driver rt286_i2c_driver = {
 	.driver = {
 		   .name = "rt286",
 		   .owner = THIS_MODULE,
