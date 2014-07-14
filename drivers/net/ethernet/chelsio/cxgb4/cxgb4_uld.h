@@ -296,5 +296,6 @@ int cxgb4_sync_txq_pidx(struct net_device *dev, u16 qid, u16 pidx, u16 size);
 int cxgb4_flush_eq_cache(struct net_device *dev);
 void cxgb4_disable_db_coalescing(struct net_device *dev);
 void cxgb4_enable_db_coalescing(struct net_device *dev);
+int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte);
 
 #endif  /* !__CXGB4_OFLD_H */

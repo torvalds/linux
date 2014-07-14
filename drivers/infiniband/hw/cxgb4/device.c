@@ -241,12 +241,32 @@ static int dump_stag(int id, void *p, void *data)
 	struct c4iw_debugfs_data *stagd = data;
 	int space;
 	int cc;
+	struct fw_ri_tpte tpte;
+	int ret;
 
 	space = stagd->bufsize - stagd->pos - 1;
 	if (space == 0)
 		return 1;
 
-	cc = snprintf(stagd->buf + stagd->pos, space, "0x%x\n", id<<8);
+	ret = cxgb4_read_tpte(stagd->devp->rdev.lldi.ports[0], (u32)id<<8,
+			      (__be32 *)&tpte);
+	if (ret) {
+		dev_err(&stagd->devp->rdev.lldi.pdev->dev,
+			"%s cxgb4_read_tpte err %d\n", __func__, ret);
+		return ret;
+	}
+	cc = snprintf(stagd->buf + stagd->pos, space,
+		      "stag: idx 0x%x valid %d key 0x%x state %d pdid %d "
+		      "perm 0x%x ps %d len 0x%llx va 0x%llx\n",
+		      (u32)id<<8,
+		      G_FW_RI_TPTE_VALID(ntohl(tpte.valid_to_pdid)),
+		      G_FW_RI_TPTE_STAGKEY(ntohl(tpte.valid_to_pdid)),
+		      G_FW_RI_TPTE_STAGSTATE(ntohl(tpte.valid_to_pdid)),
+		      G_FW_RI_TPTE_PDID(ntohl(tpte.valid_to_pdid)),
+		      G_FW_RI_TPTE_PERM(ntohl(tpte.locread_to_qpid)),
+		      G_FW_RI_TPTE_PS(ntohl(tpte.locread_to_qpid)),
+		      ((u64)ntohl(tpte.len_hi) << 32) | ntohl(tpte.len_lo),
+		      ((u64)ntohl(tpte.va_hi) << 32) | ntohl(tpte.va_lo_fbo));
 	if (cc < space)
 		stagd->pos += cc;
 	return 0;
@@ -259,7 +279,7 @@ static int stag_release(struct inode *inode, struct file *file)
 		printk(KERN_INFO "%s null stagd?\n", __func__);
 		return 0;
 	}
-	kfree(stagd->buf);
+	vfree(stagd->buf);
 	kfree(stagd);
 	return 0;
 }
@@ -282,8 +302,8 @@ static int stag_open(struct inode *inode, struct file *file)
 	idr_for_each(&stagd->devp->mmidr, count_idrs, &count);
 	spin_unlock_irq(&stagd->devp->lock);
 
-	stagd->bufsize = count * sizeof("0x12345678\n");
-	stagd->buf = kmalloc(stagd->bufsize, GFP_KERNEL);
+	stagd->bufsize = count * 256;
+	stagd->buf = vmalloc(stagd->bufsize);
 	if (!stagd->buf) {
 		ret = -ENOMEM;
 		goto err1;

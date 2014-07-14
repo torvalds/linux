@@ -236,8 +236,8 @@ struct t4_cqe {
 #define CQE_WRID_SQ_IDX(x)	((x)->u.scqe.cidx)
 
 /* generic accessor macros */
-#define CQE_WRID_HI(x)		((x)->u.gen.wrid_hi)
-#define CQE_WRID_LOW(x)		((x)->u.gen.wrid_low)
+#define CQE_WRID_HI(x)		(be32_to_cpu((x)->u.gen.wrid_hi))
+#define CQE_WRID_LOW(x)		(be32_to_cpu((x)->u.gen.wrid_low))
 
 /* macros for flit 3 of the cqe */
 #define S_CQE_GENBIT	63
