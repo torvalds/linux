@@ -271,8 +271,6 @@ static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board
 
 struct ni_65xx_private {
 	void __iomem *mmio;
-	unsigned int filter_interval;
-	unsigned short filter_enable[NI_65XX_MAX_NUM_PORTS];
 	unsigned short output_bits[NI_65XX_MAX_NUM_PORTS];
 	unsigned short dio_direction[NI_65XX_MAX_NUM_PORTS];
 };
@@ -287,60 +285,46 @@ static inline struct ni_65xx_subdevice_private *sprivate(struct comedi_subdevice
 	return subdev->private;
 }
 
-static int ni_65xx_config_filter(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_65xx_private *devpriv = dev->private;
-	const unsigned chan = CR_CHAN(insn->chanspec);
-	const unsigned port =
-	    sprivate(s)->base_port + ni_65xx_port_by_channel(chan);
-
-	if (data[0] != INSN_CONFIG_FILTER)
-		return -EINVAL;
-	if (data[1]) {
-		static const unsigned filter_resolution_ns = 200;
-		static const unsigned max_filter_interval = 0xfffff;
-		unsigned interval =
-		    (data[1] +
-		     (filter_resolution_ns / 2)) / filter_resolution_ns;
-		if (interval > max_filter_interval)
-			interval = max_filter_interval;
-		data[1] = interval * filter_resolution_ns;
-
-		if (interval != devpriv->filter_interval) {
-			writel(interval, devpriv->mmio + NI_65XX_FILTER_REG);
-			devpriv->filter_interval = interval;
-		}
-
-		devpriv->filter_enable[port] |=
-		    1 << (chan % ni_65xx_channels_per_port);
-	} else {
-		devpriv->filter_enable[port] &=
-		    ~(1 << (chan % ni_65xx_channels_per_port));
-	}
-
-	writeb(devpriv->filter_enable[port],
-	       devpriv->mmio + NI_65XX_FILTER_ENA(port));
-
-	return 2;
-}
-
 static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct ni_65xx_private *devpriv = dev->private;
-	unsigned port;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan_mask = 1 << (chan % ni_65xx_channels_per_port);
+	unsigned port = sprivate(s)->base_port + ni_65xx_port_by_channel(chan);
+	unsigned int interval;
+	unsigned int val;
 
-	if (insn->n < 1)
-		return -EINVAL;
-	port = sprivate(s)->base_port +
-	    ni_65xx_port_by_channel(CR_CHAN(insn->chanspec));
 	switch (data[0]) {
 	case INSN_CONFIG_FILTER:
-		return ni_65xx_config_filter(dev, s, insn, data);
-		break;
+		/*
+		 * The deglitch filter interval is specified in nanoseconds.
+		 * The hardware supports intervals in 200ns increments. Round
+		 * the user values up and return the actual interval.
+		 */
+		interval = (data[1] + 100) / 200;
+		if (interval > 0xfffff)
+			interval = 0xfffff;
+		data[1] = interval * 200;
+
+		/*
+		 * Enable/disable the channel for deglitch filtering. Note
+		 * that the filter interval is never set to '0'. This is done
+		 * because other channels might still be enabled for filtering.
+		 */
+		val = readb(devpriv->mmio + NI_65XX_FILTER_ENA(port));
+		if (interval) {
+			writel(interval, devpriv->mmio + NI_65XX_FILTER_REG);
+			val |= chan_mask;
+		} else {
+			val &= ~chan_mask;
+		}
+		writeb(val, devpriv->mmio + NI_65XX_FILTER_ENA(port));
+
+		return insn->n;
+
 	case INSN_CONFIG_DIO_OUTPUT:
 		if (s->type != COMEDI_SUBD_DIO)
 			return -EINVAL;
