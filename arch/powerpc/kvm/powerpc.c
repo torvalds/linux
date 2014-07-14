@@ -394,10 +394,16 @@ void kvm_arch_sync_events(struct kvm *kvm)
 int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	int r;
-	/* FIXME!!
-	 * Should some of this be vm ioctl ? is it possible now ?
-	 */
+	/* Assume we're using HV mode when the HV module is loaded */
 	int hv_enabled = kvmppc_hv_ops ? 1 : 0;
+
+	if (kvm) {
+		/*
+		 * Hooray - we know which VM type we're running on. Depend on
+		 * that rather than the guess above.
+		 */
+		hv_enabled = is_kvmppc_hv_enabled(kvm);
+	}
 
 	switch (ext) {
 #ifdef CONFIG_BOOKE
