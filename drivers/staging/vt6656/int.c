@@ -150,7 +150,6 @@ static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 void INTnsProcessData(struct vnt_private *priv)
 {
 	struct vnt_interrupt_data *int_data;
-	struct net_device_stats *stats = &priv->stats;
 	struct ieee80211_low_level_stats *low_stats = &priv->low_stats;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
@@ -196,7 +195,4 @@ void INTnsProcessData(struct vnt_private *priv)
 	}
 
 	priv->int_buf.in_use = false;
-
-	stats->tx_errors = priv->wstats.discard.retries;
-	stats->tx_dropped = priv->wstats.discard.retries;
 }

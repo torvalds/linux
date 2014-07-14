@@ -289,7 +289,6 @@ struct vnt_private {
 	u8 mac_hw;
 	/* netdev */
 	struct usb_device *usb;
-	struct net_device_stats stats;
 
 	u64 tsf_time;
 	u8 rx_rate;
@@ -437,7 +436,6 @@ struct vnt_private {
 	u8 byNewChannel;
 	u8 byChannelSwitchCount;
 
-	struct iw_statistics wstats; /* wireless stats */
 	struct ieee80211_low_level_stats low_stats;
 };
 
