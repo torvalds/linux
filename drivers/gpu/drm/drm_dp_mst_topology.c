@@ -1644,7 +1644,7 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_dp_mst_port *port;
 	int i;
-	int ret;
+	int ret = 0;
 	mutex_lock(&mgr->payload_lock);
 	for (i = 0; i < mgr->max_payloads; i++) {
 
