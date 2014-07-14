@@ -278,15 +278,28 @@ static const struct ni_65xx_board ni_65xx_boards[] = {
 	},
 };
 
-static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board
-					       *board)
-{
-	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
-}
-
 struct ni_65xx_private {
 	void __iomem *mmio;
 };
+
+static void ni_65xx_disable_input_filters(struct comedi_device *dev)
+{
+	const struct ni_65xx_board *board = comedi_board(dev);
+	struct ni_65xx_private *devpriv = dev->private;
+	unsigned num_ports;
+	int i;
+
+	num_ports = board->num_dio_ports +
+		    board->num_di_ports +
+		    board->num_do_ports;
+
+	/* disable input filtering on all ports */
+	for (i = 0; i < num_ports; ++i)
+		writeb(0x00, devpriv->mmio + NI_65XX_FILTER_ENA(i));
+
+	/* set filter interval to 0 (32bit reg) */
+	writel(0x00000000, devpriv->mmio + NI_65XX_FILTER_REG);
+}
 
 static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
@@ -709,11 +722,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->cancel	= ni_65xx_intr_cancel;
 	}
 
-	for (i = 0; i < ni_65xx_total_num_ports(board); ++i)
-		writeb(0x00, devpriv->mmio + NI_65XX_FILTER_ENA(i));
-
-	/* Set filter interval to 0  (32bit reg) */
-	writel(0x00000000, devpriv->mmio + NI_65XX_FILTER_REG);
+	ni_65xx_disable_input_filters(dev);
 
 	return 0;
 }
