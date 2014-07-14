@@ -87,10 +87,15 @@ static struct phy *phy_lookup(struct device *device, const char *port)
 static struct phy_provider *of_phy_provider_lookup(struct device_node *node)
 {
 	struct phy_provider *phy_provider;
+	struct device_node *child;
 
 	list_for_each_entry(phy_provider, &phy_provider_list, list) {
 		if (phy_provider->dev->of_node == node)
 			return phy_provider;
+
+		for_each_child_of_node(phy_provider->dev->of_node, child)
+			if (child == node)
+				return phy_provider;
 	}
 
 	return ERR_PTR(-EPROBE_DEFER);
