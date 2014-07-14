@@ -211,18 +211,16 @@ EXPORT_SYMBOL_GPL(torture_onoff_cleanup);
 /*
  * Print online/offline testing statistics.
  */
-char *torture_onoff_stats(char *page)
+void torture_onoff_stats(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	page += sprintf(page,
-		       "onoff: %ld/%ld:%ld/%ld %d,%d:%d,%d %lu:%lu (HZ=%d) ",
-		       n_online_successes, n_online_attempts,
-		       n_offline_successes, n_offline_attempts,
-		       min_online, max_online,
-		       min_offline, max_offline,
-		       sum_online, sum_offline, HZ);
+	pr_cont("onoff: %ld/%ld:%ld/%ld %d,%d:%d,%d %lu:%lu (HZ=%d) ",
+		n_online_successes, n_online_attempts,
+		n_offline_successes, n_offline_attempts,
+		min_online, max_online,
+		min_offline, max_offline,
+		sum_online, sum_offline, HZ);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
-	return page;
 }
 EXPORT_SYMBOL_GPL(torture_onoff_stats);
 
