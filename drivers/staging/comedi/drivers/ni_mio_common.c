@@ -5665,17 +5665,17 @@ static int ni_E_init(struct comedi_device *dev,
 		caldac_setup(dev, s);
 	}
 
-	/* EEPROM */
+	/* EEPROM subdevice */
 	s = &dev->subdevices[NI_EEPROM_SUBDEV];
-	s->type = COMEDI_SUBD_MEMORY;
-	s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-	s->maxdata = 0xff;
+	s->type		= COMEDI_SUBD_MEMORY;
+	s->subdev_flags	= SDF_READABLE | SDF_INTERNAL;
+	s->maxdata	= 0xff;
 	if (devpriv->is_m_series) {
-		s->n_chan = M_SERIES_EEPROM_SIZE;
-		s->insn_read = &ni_m_series_eeprom_insn_read;
+		s->n_chan	= M_SERIES_EEPROM_SIZE;
+		s->insn_read	= ni_m_series_eeprom_insn_read;
 	} else {
-		s->n_chan = 512;
-		s->insn_read = &ni_eeprom_insn_read;
+		s->n_chan	= 512;
+		s->insn_read	= ni_eeprom_insn_read;
 	}
 
 	/* PFI */
