@@ -855,7 +855,7 @@ xfs_mountfs(
 	     !mp->m_sb.sb_inprogress) {
 		error = xfs_initialize_perag_data(mp, sbp->sb_agcount);
 		if (error)
-			goto out_fail_wait;
+			goto out_log_dealloc;;
 	}
 
 	/*
@@ -927,7 +927,7 @@ xfs_mountfs(
 			xfs_notice(mp, "resetting quota flags");
 			error = xfs_mount_reset_sbqflags(mp);
 			if (error)
-				return error;
+				goto out_rtunmount;
 		}
 	}
 
