@@ -1701,18 +1701,6 @@ static int amd8111e_resume(struct pci_dev *pci_dev)
 	return 0;
 }
 
-
-static void amd8111e_remove_one(struct pci_dev *pdev)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-	if (dev) {
-		unregister_netdev(dev);
-		iounmap(((struct amd8111e_priv *)netdev_priv(dev))->mmio);
-		free_netdev(dev);
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
-	}
-}
 static void amd8111e_config_ipg(struct net_device* dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
@@ -1968,6 +1956,19 @@ err_disable_pdev:
 	pci_disable_device(pdev);
 	return err;
 
+}
+
+static void amd8111e_remove_one(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	if (dev) {
+		unregister_netdev(dev);
+		iounmap(((struct amd8111e_priv *)netdev_priv(dev))->mmio);
+		free_netdev(dev);
+		pci_release_regions(pdev);
+		pci_disable_device(pdev);
+	}
 }
 
 static struct pci_driver amd8111e_driver = {
