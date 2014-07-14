@@ -233,6 +233,16 @@ config PWM_SPEAR
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-spear.
 
+config PWM_STI
+	tristate "STiH4xx PWM support"
+	depends on ARCH_STI
+	depends on OF
+	help
+	  Generic PWM framework driver for STiH4xx SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-sti.
+
 config PWM_TEGRA
 	tristate "NVIDIA Tegra PWM support"
 	depends on ARCH_TEGRA
