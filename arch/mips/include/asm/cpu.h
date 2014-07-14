@@ -365,6 +365,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_TLBINV		0x02000000ull /* CPU supports TLBINV/F */
 #define MIPS_CPU_SEGMENTS	0x04000000ull /* CPU supports Segmentation Control registers */
 #define MIPS_CPU_EVA		0x80000000ull /* CPU supports Enhanced Virtual Addressing */
+#define MIPS_CPU_HTW		0x100000000ull /* CPU support Hardware Page Table Walker */
 
 /*
  * CPU ASE encodings
