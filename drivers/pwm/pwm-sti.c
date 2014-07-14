@@ -25,10 +25,13 @@
 #define STI_DS_REG(ch)	(4 * (ch))	/* Channel's Duty Cycle register */
 #define STI_PWMCR	0x50		/* Control/Config register */
 #define STI_INTEN	0x54		/* Interrupt Enable/Disable register */
+#define PWM_PRESCALE_LOW_MASK		0x0f
+#define PWM_PRESCALE_HIGH_MASK		0xf0
 
 /* Regfield IDs */
 enum {
-	PWMCLK_PRESCALE,
+	PWMCLK_PRESCALE_LOW,
+	PWMCLK_PRESCALE_HIGH,
 	PWM_EN,
 	PWM_INT_EN,
 
@@ -49,7 +52,8 @@ struct sti_pwm_chip {
 	unsigned long clk_rate;
 	struct regmap *regmap;
 	struct sti_pwm_compat_data *cdata;
-	struct regmap_field *prescale;
+	struct regmap_field *prescale_low;
+	struct regmap_field *prescale_high;
 	struct regmap_field *pwm_en;
 	struct regmap_field *pwm_int_en;
 	unsigned long *pwm_periods;
@@ -58,7 +62,8 @@ struct sti_pwm_chip {
 };
 
 static const struct reg_field sti_pwm_regfields[MAX_REGFIELDS] = {
-	[PWMCLK_PRESCALE]	= REG_FIELD(STI_PWMCR, 0, 3),
+	[PWMCLK_PRESCALE_LOW]	= REG_FIELD(STI_PWMCR, 0, 3),
+	[PWMCLK_PRESCALE_HIGH]	= REG_FIELD(STI_PWMCR, 11, 14),
 	[PWM_EN]		= REG_FIELD(STI_PWMCR, 9, 9),
 	[PWM_INT_EN]		= REG_FIELD(STI_INTEN, 0, 0),
 };
@@ -109,10 +114,10 @@ static int sti_pwm_cmp_periods(const void *key, const void *elt)
  * For STiH4xx PWM IP, the PWM period is fixed to 256 local clock cycles.
  * The only way to change the period (apart from changing the PWM input clock)
  * is to change the PWM clock prescaler.
- * The prescaler is of 4 bits, so only 16 prescaler values and hence only
- * 16 possible period values are supported (for a particular clock rate).
+ * The prescaler is of 8 bits, so 256 prescaler values and hence
+ * 256 possible period values are supported (for a particular clock rate).
  * The requested period will be applied only if it matches one of these
- * 16 values.
+ * 256 values.
  */
 static int sti_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			 int duty_ns, int period_ns)
@@ -154,7 +159,13 @@ static int sti_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (ret)
 		return ret;
 
-	ret = regmap_field_write(pc->prescale, prescale);
+	ret = regmap_field_write(pc->prescale_low,
+				 prescale & PWM_PRESCALE_LOW_MASK);
+	if (ret)
+		goto clk_dis;
+
+	ret = regmap_field_write(pc->prescale_high,
+				 (prescale & PWM_PRESCALE_HIGH_MASK) >> 4);
 	if (ret)
 		goto clk_dis;
 
@@ -222,10 +233,15 @@ static int sti_pwm_probe_dt(struct sti_pwm_chip *pc)
 
 	reg_fields = cdata->reg_fields;
 
-	pc->prescale = devm_regmap_field_alloc(dev, pc->regmap,
-					       reg_fields[PWMCLK_PRESCALE]);
-	if (IS_ERR(pc->prescale))
-		return PTR_ERR(pc->prescale);
+	pc->prescale_low = devm_regmap_field_alloc(dev, pc->regmap,
+					reg_fields[PWMCLK_PRESCALE_LOW]);
+	if (IS_ERR(pc->prescale_low))
+		return PTR_ERR(pc->prescale_low);
+
+	pc->prescale_high = devm_regmap_field_alloc(dev, pc->regmap,
+					reg_fields[PWMCLK_PRESCALE_HIGH]);
+	if (IS_ERR(pc->prescale_high))
+		return PTR_ERR(pc->prescale_high);
 
 	pc->pwm_en = devm_regmap_field_alloc(dev, pc->regmap,
 					     reg_fields[PWM_EN]);
