@@ -5559,11 +5559,11 @@ static int ni_E_init(struct comedi_device *dev,
 			s->subdev_flags |= SDF_CMD_WRITE;
 			s->do_cmd = &ni_ao_cmd;
 			s->do_cmdtest = &ni_ao_cmdtest;
+			s->cancel = &ni_ao_reset;
 			s->len_chanlist = board->n_aochan;
 			if (!devpriv->is_m_series)
 				s->munge = ni_ao_munge;
 		}
-		s->cancel = &ni_ao_reset;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
