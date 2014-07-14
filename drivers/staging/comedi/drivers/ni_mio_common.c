@@ -2939,14 +2939,18 @@ static int ni_ao_config_chanlist(struct comedi_device *dev,
 }
 
 static int ni_ao_insn_read(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao[chan];
 
-	return 1;
+	return insn->n;
 }
 
 static int ni_ao_insn_write(struct comedi_device *dev,
