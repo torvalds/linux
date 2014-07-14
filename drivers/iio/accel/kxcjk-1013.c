@@ -453,7 +453,7 @@ static const struct attribute_group kxcjk1013_attrs_group = {
 		.realbits = 12,						\
 		.storagebits = 16,					\
 		.shift = 4,						\
-		.endianness = IIO_LE,					\
+		.endianness = IIO_CPU,					\
 	},								\
 }
 
