@@ -2194,6 +2194,94 @@ static void flush_tlb_handlers(void)
 			   (unsigned long)tlbmiss_handler_setup_pgd_end);
 }
 
+static void print_htw_config(void)
+{
+	unsigned long config;
+	unsigned int pwctl;
+	const int field = 2 * sizeof(unsigned long);
+
+	config = read_c0_pwfield();
+	pr_debug("PWField (0x%0*lx): GDI: 0x%02lx  UDI: 0x%02lx  MDI: 0x%02lx  PTI: 0x%02lx  PTEI: 0x%02lx\n",
+		field, config,
+		(config & MIPS_PWFIELD_GDI_MASK) >> MIPS_PWFIELD_GDI_SHIFT,
+		(config & MIPS_PWFIELD_UDI_MASK) >> MIPS_PWFIELD_UDI_SHIFT,
+		(config & MIPS_PWFIELD_MDI_MASK) >> MIPS_PWFIELD_MDI_SHIFT,
+		(config & MIPS_PWFIELD_PTI_MASK) >> MIPS_PWFIELD_PTI_SHIFT,
+		(config & MIPS_PWFIELD_PTEI_MASK) >> MIPS_PWFIELD_PTEI_SHIFT);
+
+	config = read_c0_pwsize();
+	pr_debug("PWSize  (0x%0*lx): GDW: 0x%02lx  UDW: 0x%02lx  MDW: 0x%02lx  PTW: 0x%02lx  PTEW: 0x%02lx\n",
+		field, config,
+		(config & MIPS_PWSIZE_GDW_MASK) >> MIPS_PWSIZE_GDW_SHIFT,
+		(config & MIPS_PWSIZE_UDW_MASK) >> MIPS_PWSIZE_UDW_SHIFT,
+		(config & MIPS_PWSIZE_MDW_MASK) >> MIPS_PWSIZE_MDW_SHIFT,
+		(config & MIPS_PWSIZE_PTW_MASK) >> MIPS_PWSIZE_PTW_SHIFT,
+		(config & MIPS_PWSIZE_PTEW_MASK) >> MIPS_PWSIZE_PTEW_SHIFT);
+
+	pwctl = read_c0_pwctl();
+	pr_debug("PWCtl   (0x%x): PWEn: 0x%x  DPH: 0x%x  HugePg: 0x%x  Psn: 0x%x\n",
+		pwctl,
+		(pwctl & MIPS_PWCTL_PWEN_MASK) >> MIPS_PWCTL_PWEN_SHIFT,
+		(pwctl & MIPS_PWCTL_DPH_MASK) >> MIPS_PWCTL_DPH_SHIFT,
+		(pwctl & MIPS_PWCTL_HUGEPG_MASK) >> MIPS_PWCTL_HUGEPG_SHIFT,
+		(pwctl & MIPS_PWCTL_PSN_MASK) >> MIPS_PWCTL_PSN_SHIFT);
+}
+
+static void config_htw_params(void)
+{
+	unsigned long pwfield, pwsize, ptei;
+	unsigned int config;
+
+	/*
+	 * We are using 2-level page tables, so we only need to
+	 * setup GDW and PTW appropriately. UDW and MDW will remain 0.
+	 * The default value of GDI/UDI/MDI/PTI is 0xc. It is illegal to
+	 * write values less than 0xc in these fields because the entire
+	 * write will be dropped. As a result of which, we must preserve
+	 * the original reset values and overwrite only what we really want.
+	 */
+
+	pwfield = read_c0_pwfield();
+	/* re-initialize the GDI field */
+	pwfield &= ~MIPS_PWFIELD_GDI_MASK;
+	pwfield |= PGDIR_SHIFT << MIPS_PWFIELD_GDI_SHIFT;
+	/* re-initialize the PTI field including the even/odd bit */
+	pwfield &= ~MIPS_PWFIELD_PTI_MASK;
+	pwfield |= PAGE_SHIFT << MIPS_PWFIELD_PTI_SHIFT;
+	/* Set the PTEI right shift */
+	ptei = _PAGE_GLOBAL_SHIFT << MIPS_PWFIELD_PTEI_SHIFT;
+	pwfield |= ptei;
+	write_c0_pwfield(pwfield);
+	/* Check whether the PTEI value is supported */
+	back_to_back_c0_hazard();
+	pwfield = read_c0_pwfield();
+	if (((pwfield & MIPS_PWFIELD_PTEI_MASK) << MIPS_PWFIELD_PTEI_SHIFT)
+		!= ptei) {
+		pr_warn("Unsupported PTEI field value: 0x%lx. HTW will not be enabled",
+			ptei);
+		/*
+		 * Drop option to avoid HTW being enabled via another path
+		 * (eg htw_reset())
+		 */
+		current_cpu_data.options &= ~MIPS_CPU_HTW;
+		return;
+	}
+
+	pwsize = ilog2(PTRS_PER_PGD) << MIPS_PWSIZE_GDW_SHIFT;
+	pwsize |= ilog2(PTRS_PER_PTE) << MIPS_PWSIZE_PTW_SHIFT;
+	write_c0_pwsize(pwsize);
+
+	/* Make sure everything is set before we enable the HTW */
+	back_to_back_c0_hazard();
+
+	/* Enable HTW and disable the rest of the pwctl fields */
+	config = 1 << MIPS_PWCTL_PWEN_SHIFT;
+	write_c0_pwctl(config);
+	pr_info("Hardware Page Table Walker enabled\n");
+
+	print_htw_config();
+}
+
 void build_tlb_refill_handler(void)
 {
 	/*
@@ -2258,5 +2346,8 @@ void build_tlb_refill_handler(void)
 		}
 		if (cpu_has_local_ebase)
 			build_r4000_tlb_refill_handler();
+		if (cpu_has_htw)
+			config_htw_params();
+
 	}
 }
