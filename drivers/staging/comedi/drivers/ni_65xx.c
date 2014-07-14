@@ -50,7 +50,6 @@ except maybe the 6514.
 #include "../comedidev.h"
 
 #include "comedi_fc.h"
-#include "mite.h"
 
 #define NI6514_DIO_SIZE 4096
 #define NI6514_MITE_SIZE 4096
@@ -261,7 +260,7 @@ static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board
 }
 
 struct ni_65xx_private {
-	struct mite_struct *mite;
+	void __iomem *mmio;
 	unsigned int filter_interval;
 	unsigned short filter_enable[NI_65XX_MAX_NUM_PORTS];
 	unsigned short output_bits[NI_65XX_MAX_NUM_PORTS];
@@ -300,9 +299,7 @@ static int ni_65xx_config_filter(struct comedi_device *dev,
 		data[1] = interval * filter_resolution_ns;
 
 		if (interval != devpriv->filter_interval) {
-			writeb(interval,
-			       devpriv->mite->daq_io_addr +
-			       Filter_Interval);
+			writeb(interval, devpriv->mmio + Filter_Interval);
 			devpriv->filter_interval = interval;
 		}
 
@@ -314,7 +311,7 @@ static int ni_65xx_config_filter(struct comedi_device *dev,
 	}
 
 	writeb(devpriv->filter_enable[port],
-	       devpriv->mite->daq_io_addr + Filter_Enable(port));
+	       devpriv->mmio + Filter_Enable(port));
 
 	return 2;
 }
@@ -338,14 +335,14 @@ static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 		if (s->type != COMEDI_SUBD_DIO)
 			return -EINVAL;
 		devpriv->dio_direction[port] = COMEDI_OUTPUT;
-		writeb(0, devpriv->mite->daq_io_addr + Port_Select(port));
+		writeb(0, devpriv->mmio + Port_Select(port));
 		return 1;
 		break;
 	case INSN_CONFIG_DIO_INPUT:
 		if (s->type != COMEDI_SUBD_DIO)
 			return -EINVAL;
 		devpriv->dio_direction[port] = COMEDI_INPUT;
-		writeb(1, devpriv->mite->daq_io_addr + Port_Select(port));
+		writeb(1, devpriv->mmio + Port_Select(port));
 		return 1;
 		break;
 	case INSN_CONFIG_DIO_QUERY:
@@ -400,12 +397,9 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 			bits = devpriv->output_bits[port];
 			if (board->invert_outputs)
 				bits = ~bits;
-			writeb(bits,
-			       devpriv->mite->daq_io_addr +
-			       Port_Data(port));
+			writeb(bits, devpriv->mmio + Port_Data(port));
 		}
-		port_read_bits =
-		    readb(devpriv->mite->daq_io_addr + Port_Data(port));
+		port_read_bits = readb(devpriv->mmio + Port_Data(port));
 		if (s->type == COMEDI_SUBD_DO && board->invert_outputs) {
 			/* Outputs inverted, so invert value read back from
 			 * DO subdevice.  (Does not apply to boards with DIO
@@ -430,14 +424,13 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int status;
 
-	status = readb(devpriv->mite->daq_io_addr + Change_Status);
+	status = readb(devpriv->mmio + Change_Status);
 	if ((status & MasterInterruptStatus) == 0)
 		return IRQ_NONE;
 	if ((status & EdgeStatus) == 0)
 		return IRQ_NONE;
 
-	writeb(ClrEdge | ClrOverflow,
-	       devpriv->mite->daq_io_addr + Clear_Register);
+	writeb(ClrEdge | ClrOverflow, devpriv->mmio + Clear_Register);
 
 	comedi_buf_put(s, 0);
 	s->async->events |= COMEDI_CB_EOS;
@@ -492,11 +485,10 @@ static int ni_65xx_intr_cmd(struct comedi_device *dev,
 {
 	struct ni_65xx_private *devpriv = dev->private;
 
-	writeb(ClrEdge | ClrOverflow,
-	       devpriv->mite->daq_io_addr + Clear_Register);
+	writeb(ClrEdge | ClrOverflow, devpriv->mmio + Clear_Register);
 	writeb(FallingEdgeIntEnable | RisingEdgeIntEnable |
 	       MasterInterruptEnable | EdgeIntEnable,
-	       devpriv->mite->daq_io_addr + Master_Interrupt_Control);
+	       devpriv->mmio + Master_Interrupt_Control);
 
 	return 0;
 }
@@ -506,7 +498,7 @@ static int ni_65xx_intr_cancel(struct comedi_device *dev,
 {
 	struct ni_65xx_private *devpriv = dev->private;
 
-	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
+	writeb(0x00, devpriv->mmio + Master_Interrupt_Control);
 
 	return 0;
 }
@@ -531,33 +523,46 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 	if (data[0] != INSN_CONFIG_CHANGE_NOTIFY)
 		return -EINVAL;
 
-	writeb(data[1],
-	       devpriv->mite->daq_io_addr +
-	       Rising_Edge_Detection_Enable(0));
+	writeb(data[1], devpriv->mmio + Rising_Edge_Detection_Enable(0));
 	writeb(data[1] >> 8,
-	       devpriv->mite->daq_io_addr +
-	       Rising_Edge_Detection_Enable(0x10));
+	       devpriv->mmio + Rising_Edge_Detection_Enable(0x10));
 	writeb(data[1] >> 16,
-	       devpriv->mite->daq_io_addr +
-	       Rising_Edge_Detection_Enable(0x20));
+	       devpriv->mmio + Rising_Edge_Detection_Enable(0x20));
 	writeb(data[1] >> 24,
-	       devpriv->mite->daq_io_addr +
-	       Rising_Edge_Detection_Enable(0x30));
+	       devpriv->mmio + Rising_Edge_Detection_Enable(0x30));
 
-	writeb(data[2],
-	       devpriv->mite->daq_io_addr +
-	       Falling_Edge_Detection_Enable(0));
+	writeb(data[2], devpriv->mmio + Falling_Edge_Detection_Enable(0));
 	writeb(data[2] >> 8,
-	       devpriv->mite->daq_io_addr +
-	       Falling_Edge_Detection_Enable(0x10));
+	       devpriv->mmio + Falling_Edge_Detection_Enable(0x10));
 	writeb(data[2] >> 16,
-	       devpriv->mite->daq_io_addr +
-	       Falling_Edge_Detection_Enable(0x20));
+	       devpriv->mmio + Falling_Edge_Detection_Enable(0x20));
 	writeb(data[2] >> 24,
-	       devpriv->mite->daq_io_addr +
-	       Falling_Edge_Detection_Enable(0x30));
+	       devpriv->mmio + Falling_Edge_Detection_Enable(0x30));
 
 	return 2;
+}
+
+/* ripped from mite.h and mite_setup2() to avoid mite dependancy */
+#define MITE_IODWBSR	0xc0	 /* IO Device Window Base Size Register */
+#define WENAB		(1 << 7) /* window enable */
+
+static int ni_65xx_mite_init(struct pci_dev *pcidev)
+{
+	void __iomem *mite_base;
+	u32 main_phys_addr;
+
+	/* ioremap the MITE registers (BAR 0) temporarily */
+	mite_base = pci_ioremap_bar(pcidev, 0);
+	if (!mite_base)
+		return -ENOMEM;
+
+	/* set data window to main registers (BAR 1) */
+	main_phys_addr = pci_resource_start(pcidev, 1);
+	writel(main_phys_addr | WENAB, mite_base + MITE_IODWBSR);
+
+	/* finished with MITE registers */
+	iounmap(mite_base);
+	return 0;
 }
 
 static int ni_65xx_auto_attach(struct comedi_device *dev,
@@ -586,19 +591,17 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	devpriv->mite = mite_alloc(pcidev);
-	if (!devpriv->mite)
-		return -ENOMEM;
-
-	ret = mite_setup(devpriv->mite);
-	if (ret < 0) {
-		dev_warn(dev->class_dev, "error setting up mite\n");
+	ret = ni_65xx_mite_init(pcidev);
+	if (ret)
 		return ret;
-	}
+
+	devpriv->mmio = pci_ioremap_bar(pcidev, 1);
+	if (!devpriv->mmio)
+		return -ENOMEM;
 
 	dev->irq = pcidev->irq;
 	dev_info(dev->class_dev, "board: %s, ID=0x%02x", dev->board_name,
-	       readb(devpriv->mite->daq_io_addr + ID_Register));
+	       readb(devpriv->mmio + ID_Register));
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -655,9 +658,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		spriv->base_port = 0;
 		for (i = 0; i < board->num_dio_ports; ++i) {
 			/*  configure all ports for input */
-			writeb(0x1,
-			       devpriv->mite->daq_io_addr +
-			       Port_Select(i));
+			writeb(0x1, devpriv->mmio + Port_Select(i));
 		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -678,22 +679,17 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	s->insn_config = ni_65xx_intr_insn_config;
 
 	for (i = 0; i < ni_65xx_total_num_ports(board); ++i) {
-		writeb(0x00,
-		       devpriv->mite->daq_io_addr + Filter_Enable(i));
+		writeb(0x00, devpriv->mmio + Filter_Enable(i));
 		if (board->invert_outputs)
-			writeb(0x01,
-			       devpriv->mite->daq_io_addr + Port_Data(i));
+			writeb(0x01, devpriv->mmio + Port_Data(i));
 		else
-			writeb(0x00,
-			       devpriv->mite->daq_io_addr + Port_Data(i));
+			writeb(0x00, devpriv->mmio + Port_Data(i));
 	}
-	writeb(ClrEdge | ClrOverflow,
-	       devpriv->mite->daq_io_addr + Clear_Register);
-	writeb(0x00,
-	       devpriv->mite->daq_io_addr + Master_Interrupt_Control);
+	writeb(ClrEdge | ClrOverflow, devpriv->mmio + Clear_Register);
+	writeb(0x00, devpriv->mmio + Master_Interrupt_Control);
 
 	/* Set filter interval to 0  (32bit reg) */
-	writeb(0x00000000, devpriv->mite->daq_io_addr + Filter_Interval);
+	writeb(0x00000000, devpriv->mmio + Filter_Interval);
 
 	ret = request_irq(dev->irq, ni_65xx_interrupt, IRQF_SHARED,
 			  "ni_65xx", dev);
@@ -709,15 +705,12 @@ static void ni_65xx_detach(struct comedi_device *dev)
 {
 	struct ni_65xx_private *devpriv = dev->private;
 
-	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr) {
-		writeb(0x00,
-		       devpriv->mite->daq_io_addr +
-		       Master_Interrupt_Control);
+	if (devpriv && devpriv->mmio) {
+		writeb(0x00, devpriv->mmio + Master_Interrupt_Control);
+		iounmap(devpriv->mmio);
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (devpriv)
-		mite_detach(devpriv->mite);
 	comedi_pci_disable(dev);
 }
 

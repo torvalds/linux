@@ -1014,8 +1014,6 @@ config COMEDI_NI_6527
 
 config COMEDI_NI_65XX
 	tristate "NI 65xx static dio PCI card support"
-	depends on HAS_DMA
-	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments 65xx static dio boards.
 	  Supported devices: National Instruments PCI-6509 (ni_65xx),
