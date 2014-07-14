@@ -144,6 +144,14 @@ struct RGF_ICR {
 #define ISR_MISC_FW_ERROR	BIT_DMA_EP_MISC_ICR_FW_INT(3)
 
 /* Hardware definitions end */
+struct fw_map {
+	u32 from; /* linker address - from, inclusive */
+	u32 to;   /* linker address - to, exclusive */
+	u32 host; /* PCI/Host address - BAR0 + 0x880000 */
+	const char *name; /* for debugfs */
+};
+/* array size should be in sync with actual definition in the wmi.c */
+extern const struct fw_map fw_mapping[6];
 
 /**
  * mk_cidxtid - construct @cidxtid field
@@ -425,12 +433,7 @@ struct wil6210_priv {
 	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
 	struct dentry *debug;
-	struct debugfs_blob_wrapper fw_code_blob;
-	struct debugfs_blob_wrapper fw_data_blob;
-	struct debugfs_blob_wrapper fw_peri_blob;
-	struct debugfs_blob_wrapper uc_code_blob;
-	struct debugfs_blob_wrapper uc_data_blob;
-	struct debugfs_blob_wrapper rgf_blob;
+	struct debugfs_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)

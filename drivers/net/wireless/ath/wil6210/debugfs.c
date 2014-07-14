@@ -965,6 +965,26 @@ static const struct file_operations fops_sta = {
 };
 
 /*----------------*/
+static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
+				       struct dentry *dbg)
+{
+	int i;
+	char name[32];
+
+	for (i = 0; i < ARRAY_SIZE(fw_mapping); i++) {
+		struct debugfs_blob_wrapper *blob = &wil->blobs[i];
+		const struct fw_map *map = &fw_mapping[i];
+
+		if (!map->name)
+			continue;
+
+		blob->data = (void * __force)wil->csr + HOSTADDR(map->host);
+		blob->size = map->to - map->from;
+		snprintf(name, sizeof(name), "blob_%s", map->name);
+		wil_debugfs_create_ioblob(name, S_IRUGO, dbg, blob);
+	}
+}
+
 int wil6210_debugfs_init(struct wil6210_priv *wil)
 {
 	struct dentry *dbg = wil->debug = debugfs_create_dir(WIL_NAME,
@@ -1014,34 +1034,7 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	debugfs_create_file("link", S_IRUGO, dbg, wil, &fops_link);
 	debugfs_create_file("info", S_IRUGO, dbg, wil, &fops_info);
 
-	wil->rgf_blob.data = (void * __force)wil->csr + 0;
-	wil->rgf_blob.size = 0xa000;
-	wil_debugfs_create_ioblob("blob_rgf", S_IRUGO, dbg, &wil->rgf_blob);
-
-	wil->fw_code_blob.data = (void * __force)wil->csr + 0x40000;
-	wil->fw_code_blob.size = 0x40000;
-	wil_debugfs_create_ioblob("blob_fw_code", S_IRUGO, dbg,
-				  &wil->fw_code_blob);
-
-	wil->fw_data_blob.data = (void * __force)wil->csr + 0x80000;
-	wil->fw_data_blob.size = 0x8000;
-	wil_debugfs_create_ioblob("blob_fw_data", S_IRUGO, dbg,
-				  &wil->fw_data_blob);
-
-	wil->fw_peri_blob.data = (void * __force)wil->csr + 0x88000;
-	wil->fw_peri_blob.size = 0x18000;
-	wil_debugfs_create_ioblob("blob_fw_peri", S_IRUGO, dbg,
-				  &wil->fw_peri_blob);
-
-	wil->uc_code_blob.data = (void * __force)wil->csr + 0xa0000;
-	wil->uc_code_blob.size = 0x10000;
-	wil_debugfs_create_ioblob("blob_uc_code", S_IRUGO, dbg,
-				  &wil->uc_code_blob);
-
-	wil->uc_data_blob.data = (void * __force)wil->csr + 0xb0000;
-	wil->uc_data_blob.size = 0x4000;
-	wil_debugfs_create_ioblob("blob_uc_data", S_IRUGO, dbg,
-				  &wil->uc_data_blob);
+	wil6210_debugfs_init_blobs(wil, dbg);
 
 	return 0;
 }

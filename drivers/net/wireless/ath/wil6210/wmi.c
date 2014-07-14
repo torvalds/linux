@@ -65,18 +65,16 @@
 
 /**
  * @fw_mapping provides memory remapping table
+ *
+ * array size should be in sync with the declaration in the wil6210.h
  */
-static const struct {
-	u32 from; /* linker address - from, inclusive */
-	u32 to;   /* linker address - to, exclusive */
-	u32 host; /* PCI/Host address - BAR0 + 0x880000 */
-} fw_mapping[] = {
-	{0x000000, 0x040000, 0x8c0000}, /* FW code RAM 256k */
-	{0x800000, 0x808000, 0x900000}, /* FW data RAM 32k */
-	{0x840000, 0x860000, 0x908000}, /* peripheral data RAM 128k/96k used */
-	{0x880000, 0x88a000, 0x880000}, /* various RGF */
-	{0x88b000, 0x88c000, 0x88b000}, /* Pcie_ext_rgf */
-	{0x8c0000, 0x949000, 0x8c0000}, /* trivial mapping for upper area */
+const struct fw_map fw_mapping[] = {
+	{0x000000, 0x040000, 0x8c0000, "fw_code"}, /* FW code RAM      256k */
+	{0x800000, 0x808000, 0x900000, "fw_data"}, /* FW data RAM       32k */
+	{0x840000, 0x860000, 0x908000, "fw_peri"}, /* periph. data RAM 128k */
+	{0x880000, 0x88a000, 0x880000, "rgf"},     /* various RGF       40k */
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext"}, /* Pcie_ext_rgf       4k */
+	{0x8c0000, 0x949000, 0x8c0000, "upper"},   /* upper area       548k */
 	/*
 	 * 920000..930000 ucode code RAM
 	 * 930000..932000 ucode data RAM
