@@ -36,7 +36,6 @@ struct labpc_boardinfo {
 };
 
 struct labpc_private {
-	struct mite_struct *mite;	/*  for mite chip on pci-1200 */
 	/*  number of data points left to be taken */
 	unsigned long long count;
 	/*  software copy of analog output values */

@@ -1049,9 +1049,7 @@ config COMEDI_NI_670X
 
 config COMEDI_NI_LABPC_PCI
 	tristate "NI Lab-PC PCI-1200 support"
-	depends on HAS_DMA
 	select COMEDI_NI_LABPC
-	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments Lab-PC PCI-1200.
 
