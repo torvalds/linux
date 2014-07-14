@@ -1866,7 +1866,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	spin_lock_init(&lp->lock);
 
-	lp->mmio = ioremap(reg_addr, reg_len);
+	lp->mmio = devm_ioremap(&pdev->dev, reg_addr, reg_len);
 	if (!lp->mmio) {
 		printk(KERN_ERR "amd8111e: Cannot map device registers, "
 		       "exiting\n");
@@ -1913,7 +1913,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	if (err) {
 		printk(KERN_ERR "amd8111e: Cannot register net device, "
 		       "exiting.\n");
-		goto err_iounmap;
+		goto err_free_dev;
 	}
 
 	pci_set_drvdata(pdev, dev);
@@ -1943,8 +1943,6 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 		printk(KERN_INFO "%s: Couldn't detect MII PHY, assuming address 0x01\n",
 		       dev->name);
     	return 0;
-err_iounmap:
-	iounmap(lp->mmio);
 
 err_free_dev:
 	free_netdev(dev);
@@ -1964,7 +1962,6 @@ static void amd8111e_remove_one(struct pci_dev *pdev)
 
 	if (dev) {
 		unregister_netdev(dev);
-		iounmap(((struct amd8111e_priv *)netdev_priv(dev))->mmio);
 		free_netdev(dev);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
