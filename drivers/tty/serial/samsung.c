@@ -1542,8 +1542,8 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 		case S3C2410_LCON_CS7:
 			*bits = 7;
 			break;
-		default:
 		case S3C2410_LCON_CS8:
+		default:
 			*bits = 8;
 			break;
 		}
