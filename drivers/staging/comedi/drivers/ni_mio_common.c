@@ -5490,7 +5490,6 @@ static int ni_E_init(struct comedi_device *dev,
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
-	enum ni_gpct_variant counter_variant;
 	int ret;
 	int i;
 
@@ -5735,44 +5734,47 @@ static int ni_E_init(struct comedi_device *dev,
 	s->insn_config = ni_rtsi_insn_config;
 	ni_rtsi_init(dev);
 
-	if (devpriv->is_m_series)
-		counter_variant = ni_gpct_variant_m_series;
-	else
-		counter_variant = ni_gpct_variant_e_series;
+	/* allocate and initialize the gpct counter device */
 	devpriv->counter_dev = ni_gpct_device_construct(dev,
-							&ni_gpct_write_register,
-							&ni_gpct_read_register,
-							counter_variant,
-							NUM_GPCT);
+					ni_gpct_write_register,
+					ni_gpct_read_register,
+					(devpriv->is_m_series)
+						? ni_gpct_variant_m_series
+						: ni_gpct_variant_e_series,
+					NUM_GPCT);
 	if (!devpriv->counter_dev)
 		return -ENOMEM;
 
-	/* General purpose counters */
+	/* Counter (gpct) subdevices */
 	for (i = 0; i < NUM_GPCT; ++i) {
-		s = &dev->subdevices[NI_GPCT_SUBDEV(i)];
-		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
-		s->n_chan = 3;
-		if (devpriv->is_m_series)
-			s->maxdata = 0xffffffff;
-		else
-			s->maxdata = 0xffffff;
-		s->insn_read = ni_tio_insn_read;
-		s->insn_write = ni_tio_insn_read;
-		s->insn_config = ni_tio_insn_config;
-#ifdef PCIDMA
-		s->subdev_flags |= SDF_CMD_READ /* | SDF_CMD_WRITE */;
-		s->do_cmd = &ni_gpct_cmd;
-		s->len_chanlist = 1;
-		s->do_cmdtest = ni_tio_cmdtest;
-		s->cancel = &ni_gpct_cancel;
-		s->async_dma_dir = DMA_BIDIRECTIONAL;
-#endif
-		s->private = &devpriv->counter_dev->counters[i];
+		struct ni_gpct *gpct = &devpriv->counter_dev->counters[i];
 
-		devpriv->counter_dev->counters[i].chip_index = 0;
-		devpriv->counter_dev->counters[i].counter_index = i;
-		ni_tio_init_counter(&devpriv->counter_dev->counters[i]);
+		/* setup and initialize the counter */
+		gpct->chip_index = 0;
+		gpct->counter_index = i;
+		ni_tio_init_counter(gpct);
+
+		s = &dev->subdevices[NI_GPCT_SUBDEV(i)];
+		s->type		= COMEDI_SUBD_COUNTER;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
+		s->n_chan	= 3;
+		s->maxdata	= (devpriv->is_m_series) ? 0xffffffff
+							 : 0x00ffffff;
+		s->insn_read	= ni_tio_insn_read;
+		s->insn_write	= ni_tio_insn_read;
+		s->insn_config	= ni_tio_insn_config;
+#ifdef PCIDMA
+		if (dev->irq && devpriv->mite) {
+			s->subdev_flags	|= SDF_CMD_READ /* | SDF_CMD_WRITE */;
+			s->len_chanlist	= 1;
+			s->do_cmdtest	= ni_tio_cmdtest;
+			s->do_cmd	= ni_gpct_cmd;
+			s->cancel	= ni_gpct_cancel;
+
+			s->async_dma_dir = DMA_BIDIRECTIONAL;
+		}
+#endif
+		s->private	= gpct;
 	}
 
 	/* Frequency output */
