@@ -1295,9 +1295,15 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 			dev_get_platdata(&pdev->dev) :
 			ourport->drv_data->def_cfg;
 
-	ourport->port.fifosize = (ourport->info->fifosize) ?
-		ourport->info->fifosize :
-		ourport->drv_data->fifosize[index];
+	if (pdev->dev.of_node)
+		of_property_read_u32(pdev->dev.of_node,
+			"samsung,uart-fifosize", &ourport->port.fifosize);
+
+	if (!ourport->port.fifosize) {
+		ourport->port.fifosize = (ourport->info->fifosize) ?
+			ourport->info->fifosize :
+			ourport->drv_data->fifosize[index];
+	}
 
 	probe_index++;
 

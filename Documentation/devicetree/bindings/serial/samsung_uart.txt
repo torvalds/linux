@@ -29,6 +29,9 @@ Required properties:
 [1] Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 [2] Documentation/devicetree/bindings/clock/clock-bindings.txt
 
+Optional properties:
+- samsung,uart-fifosize: The fifo size supported by the UART channel
+
 Note: Each Samsung UART should have an alias correctly numbered in the
 "aliases" node, according to serialN format, where N is the port number
 (non-negative decimal integer) as specified by User's Manual of respective
@@ -51,4 +54,5 @@ Example:
 				"clk_uart_baud3";
 		clocks = <&clocks PCLK_UART1>, <&clocks PCLK_UART1>,
 				<&clocks SCLK_UART>;
+		samsung,uart-fifosize = <16>;
 	};
