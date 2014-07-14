@@ -84,6 +84,7 @@ struct perf_evsel {
 	bool 			supported;
 	bool 			needs_swap;
 	bool			no_aux_samples;
+	bool			immediate;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
