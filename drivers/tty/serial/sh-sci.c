@@ -1791,8 +1791,7 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
 			/* integerized formulas from HSCIF documentation */
 			br = DIV_ROUND_CLOSEST(freq, (sr *
 					      (1 << (2 * c + 1)) * bps)) - 1;
-			if (br < 0 || br > 255)
-				continue;
+			br = clamp(br, 0, 255);
 			err = DIV_ROUND_CLOSEST(freq, ((br + 1) * bps * sr *
 					       (1 << (2 * c + 1)) / 1000)) -
 					       1000;
