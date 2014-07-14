@@ -5536,40 +5536,43 @@ static int ni_E_init(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	/* analog output subdevice */
-
+	/* Analog Output subdevice */
 	s = &dev->subdevices[NI_AO_SUBDEV];
 	if (board->n_aochan) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE | SDF_DEGLITCH | SDF_GROUND;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE | SDF_DEGLITCH | SDF_GROUND;
 		if (devpriv->is_m_series)
-			s->subdev_flags |= SDF_SOFT_CALIBRATED;
-		s->n_chan = board->n_aochan;
-		s->maxdata = board->ao_maxdata;
-		s->range_table = board->ao_range_table;
-		s->insn_read = &ni_ao_insn_read;
-		s->insn_write = &ni_ao_insn_write;
-		s->insn_config = &ni_ao_insn_config;
-#ifdef PCIDMA
-		if (board->n_aochan) {
-			s->async_dma_dir = DMA_TO_DEVICE;
-#else
-		if (board->ao_fifo_depth) {
-#endif
+			s->subdev_flags	|= SDF_SOFT_CALIBRATED;
+		s->n_chan	= board->n_aochan;
+		s->maxdata	= board->ao_maxdata;
+		s->range_table	= board->ao_range_table;
+		s->insn_read	= ni_ao_insn_read;
+		s->insn_write	= ni_ao_insn_write;
+		s->insn_config	= ni_ao_insn_config;
+
+		/*
+		 * Along with the IRQ we need either a FIFO or DMA for
+		 * async command support.
+		 */
+		if (dev->irq && (board->ao_fifo_depth || devpriv->mite)) {
 			dev->write_subdev = s;
-			s->subdev_flags |= SDF_CMD_WRITE;
-			s->do_cmd = &ni_ao_cmd;
-			s->do_cmdtest = &ni_ao_cmdtest;
-			s->cancel = &ni_ao_reset;
-			s->len_chanlist = board->n_aochan;
+			s->subdev_flags	|= SDF_CMD_WRITE;
+			s->len_chanlist	= s->n_chan;
+			s->do_cmdtest	= ni_ao_cmdtest;
+			s->do_cmd	= ni_ao_cmd;
+			s->cancel	= ni_ao_reset;
 			if (!devpriv->is_m_series)
-				s->munge = ni_ao_munge;
+				s->munge	= ni_ao_munge;
+
+			if (devpriv->mite)
+				s->async_dma_dir = DMA_TO_DEVICE;
 		}
+
+		if (devpriv->is_67xx)
+			init_ao_67xx(dev, s);
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
-	if (devpriv->is_67xx)
-		init_ao_67xx(dev, s);
 
 	/* digital i/o subdevice */
 
