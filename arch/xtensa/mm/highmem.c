@@ -28,9 +28,9 @@ void *kmap_atomic(struct page *page)
 	idx = type + KM_TYPE_NR * smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte - idx)));
+	BUG_ON(!pte_none(*(kmap_pte + idx)));
 #endif
-	set_pte(kmap_pte - idx, mk_pte(page, PAGE_KERNEL_EXEC));
+	set_pte(kmap_pte + idx, mk_pte(page, PAGE_KERNEL_EXEC));
 
 	return (void *)vaddr;
 }
@@ -51,7 +51,7 @@ void __kunmap_atomic(void *kvaddr)
 		 * is a bad idea also, in case the page changes cacheability
 		 * attributes or becomes a protected page in a hypervisor.
 		 */
-		pte_clear(&init_mm, kvaddr, kmap_pte - idx);
+		pte_clear(&init_mm, kvaddr, kmap_pte + idx);
 		local_flush_tlb_kernel_range((unsigned long)kvaddr,
 					     (unsigned long)kvaddr + PAGE_SIZE);
 
