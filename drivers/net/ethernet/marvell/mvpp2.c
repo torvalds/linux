@@ -6390,4 +6390,4 @@ module_platform_driver(mvpp2_driver);
 
 MODULE_DESCRIPTION("Marvell PPv2 Ethernet Driver - www.marvell.com");
 MODULE_AUTHOR("Marcin Wojtas <mw@semihalf.com>");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
