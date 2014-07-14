@@ -5503,36 +5503,37 @@ static int ni_E_init(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* analog input subdevice */
-
+	/* Analog Input subdevice */
 	s = &dev->subdevices[NI_AI_SUBDEV];
-	dev->read_subdev = s;
 	if (board->n_adchan) {
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags =
-		    SDF_READABLE | SDF_DIFF | SDF_DITHER | SDF_CMD_READ;
+		s->type		= COMEDI_SUBD_AI;
+		s->subdev_flags	= SDF_READABLE | SDF_DIFF | SDF_DITHER;
 		if (!devpriv->is_611x)
-			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
+			s->subdev_flags	|= SDF_GROUND | SDF_COMMON | SDF_OTHER;
 		if (board->ai_maxdata > 0xffff)
-			s->subdev_flags |= SDF_LSAMPL;
+			s->subdev_flags	|= SDF_LSAMPL;
 		if (devpriv->is_m_series)
-			s->subdev_flags |= SDF_SOFT_CALIBRATED;
-		s->n_chan = board->n_adchan;
-		s->len_chanlist = 512;
-		s->maxdata = board->ai_maxdata;
-		s->range_table = ni_range_lkup[board->gainlkup];
-		s->insn_read = &ni_ai_insn_read;
-		s->insn_config = &ni_ai_insn_config;
-		s->do_cmdtest = &ni_ai_cmdtest;
-		s->do_cmd = &ni_ai_cmd;
-		s->cancel = &ni_ai_reset;
-		s->poll = &ni_ai_poll;
-		s->munge = &ni_ai_munge;
-#ifdef PCIDMA
-		s->async_dma_dir = DMA_FROM_DEVICE;
-#endif
+			s->subdev_flags	|= SDF_SOFT_CALIBRATED;
+		s->n_chan	= board->n_adchan;
+		s->maxdata	= board->ai_maxdata;
+		s->range_table	= ni_range_lkup[board->gainlkup];
+		s->insn_read	= ni_ai_insn_read;
+		s->insn_config	= ni_ai_insn_config;
+		if (dev->irq) {
+			dev->read_subdev = s;
+			s->subdev_flags	|= SDF_CMD_READ;
+			s->len_chanlist	= 512;
+			s->do_cmdtest	= ni_ai_cmdtest;
+			s->do_cmd	= ni_ai_cmd;
+			s->cancel	= ni_ai_reset;
+			s->poll		= ni_ai_poll;
+			s->munge	= ni_ai_munge;
+
+			if (devpriv->mite)
+				s->async_dma_dir = DMA_FROM_DEVICE;
+		}
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/* analog output subdevice */
