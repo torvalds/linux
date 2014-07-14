@@ -2316,6 +2316,10 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 	if (status == 0)
 		goto out_cached;
 
+	status = -ECHILD;
+	if (mask & MAY_NOT_BLOCK)
+		goto out;
+
 	/* Be clever: ask server to check for all possible rights */
 	cache.mask = MAY_EXEC | MAY_WRITE | MAY_READ;
 	cache.cred = cred;
@@ -2392,15 +2396,23 @@ force_lookup:
 	if (!NFS_PROTO(inode)->access)
 		goto out_notsup;
 
-	if (mask & MAY_NOT_BLOCK)
-		return -ECHILD;
-
-	cred = rpc_lookup_cred();
-	if (!IS_ERR(cred)) {
-		res = nfs_do_access(inode, cred, mask);
-		put_rpccred(cred);
-	} else
+	/* Always try fast lookups first */
+	rcu_read_lock();
+	cred = rpc_lookup_cred_nonblock();
+	if (!IS_ERR(cred))
+		res = nfs_do_access(inode, cred, mask|MAY_NOT_BLOCK);
+	else
 		res = PTR_ERR(cred);
+	rcu_read_unlock();
+	if (res == -ECHILD && !(mask & MAY_NOT_BLOCK)) {
+		/* Fast lookup failed, try the slow way */
+		cred = rpc_lookup_cred();
+		if (!IS_ERR(cred)) {
+			res = nfs_do_access(inode, cred, mask);
+			put_rpccred(cred);
+		} else
+			res = PTR_ERR(cred);
+	}
 out:
 	if (!res && (mask & MAY_EXEC) && !execute_ok(inode))
 		res = -EACCES;
