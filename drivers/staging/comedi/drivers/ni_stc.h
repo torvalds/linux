@@ -1409,7 +1409,6 @@ struct ni_board_struct {
 	unsigned num_p0_dio_channels;
 
 	int reg_type;
-	unsigned int ao_unipolar:1;
 	unsigned int has_8255:1;
 	unsigned int has_analog_trig:1;
 

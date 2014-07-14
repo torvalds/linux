@@ -2925,7 +2925,8 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	for (i = 0; i < length; i++) {
 		range = CR_RANGE(cmd->chanlist[chan_index]);
-		if (board->ao_unipolar == 0 || (range & 1) == 0)
+
+		if (comedi_range_is_bipolar(s, range))
 			array[i] -= offset;
 #ifdef PCIDMA
 		array[i] = cpu_to_le16(array[i]);
@@ -3028,19 +3029,14 @@ static int ni_old_ao_config_chanlist(struct comedi_device *dev,
 		range = CR_RANGE(chanspec[i]);
 		conf = AO_Channel(chan);
 
-		if (board->ao_unipolar) {
-			if ((range & 1) == 0) {
-				conf |= AO_Bipolar;
-				invert = (1 << (board->aobits - 1));
-			} else {
-				invert = 0;
-			}
-			if (range & 2)
-				conf |= AO_Ext_Ref;
-		} else {
+		if (comedi_range_is_bipolar(s, range)) {
 			conf |= AO_Bipolar;
 			invert = (1 << (board->aobits - 1));
+		} else {
+			invert = 0;
 		}
+		if (comedi_range_is_external(s, range))
+			conf |= AO_Ext_Ref;
 
 		/* not all boards can deglitch, but this shouldn't hurt */
 		if (chanspec[i] & CR_DEGLITCH)
