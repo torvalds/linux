@@ -988,9 +988,13 @@ EXPORT_SYMBOL_GPL(nfs_force_lookup_revalidate);
  * A check for whether or not the parent directory has changed.
  * In the case it has, we assume that the dentries are untrustworthy
  * and may need to be looked up again.
+ * If rcu_walk prevents us from performing a full check, return 0.
  */
-static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
+static int nfs_check_verifier(struct inode *dir, struct dentry *dentry,
+			      int rcu_walk)
 {
+	int ret;
+
 	if (IS_ROOT(dentry))
 		return 1;
 	if (NFS_SERVER(dir)->flags & NFS_MOUNT_LOOKUP_CACHE_NONE)
@@ -998,7 +1002,11 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 	if (!nfs_verify_change_attribute(dir, dentry->d_time))
 		return 0;
 	/* Revalidate nfsi->cache_change_attribute before we declare a match */
-	if (nfs_revalidate_inode(NFS_SERVER(dir), dir) < 0)
+	if (rcu_walk)
+		ret = nfs_revalidate_inode_rcu(NFS_SERVER(dir), dir);
+	else
+		ret = nfs_revalidate_inode(NFS_SERVER(dir), dir);
+	if (ret < 0)
 		return 0;
 	if (!nfs_verify_change_attribute(dir, dentry->d_time))
 		return 0;
@@ -1054,6 +1062,9 @@ out_force:
  *
  * If parent mtime has changed, we revalidate, else we wait for a
  * period corresponding to the parent's attribute cache timeout value.
+ *
+ * If LOOKUP_RCU prevents us from performing a full check, return 1
+ * suggesting a reval is needed.
  */
 static inline
 int nfs_neg_need_reval(struct inode *dir, struct dentry *dentry,
@@ -1064,7 +1075,7 @@ int nfs_neg_need_reval(struct inode *dir, struct dentry *dentry,
 		return 0;
 	if (NFS_SERVER(dir)->flags & NFS_MOUNT_LOOKUP_CACHE_NONEG)
 		return 1;
-	return !nfs_check_verifier(dir, dentry);
+	return !nfs_check_verifier(dir, dentry, flags & LOOKUP_RCU);
 }
 
 /*
@@ -1101,11 +1112,11 @@ static int nfs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 	inode = dentry->d_inode;
 
 	if (!inode) {
-		if (flags & LOOKUP_RCU)
-			return -ECHILD;
-
-		if (nfs_neg_need_reval(dir, dentry, flags))
+		if (nfs_neg_need_reval(dir, dentry, flags)) {
+			if (flags & LOOKUP_RCU)
+				return -ECHILD;
 			goto out_bad;
+		}
 		goto out_valid_noent;
 	}
 
@@ -1120,15 +1131,20 @@ static int nfs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 	if (NFS_PROTO(dir)->have_delegation(inode, FMODE_READ))
 		goto out_set_verifier;
 
-	if (flags & LOOKUP_RCU)
-		return -ECHILD;
-
 	/* Force a full look up iff the parent directory has changed */
-	if (!nfs_is_exclusive_create(dir, flags) && nfs_check_verifier(dir, dentry)) {
+	if (!nfs_is_exclusive_create(dir, flags) &&
+	    nfs_check_verifier(dir, dentry, flags & LOOKUP_RCU)) {
+
+		if (flags & LOOKUP_RCU)
+			return -ECHILD;
+
 		if (nfs_lookup_verify_inode(inode, flags))
 			goto out_zap_parent;
 		goto out_valid;
 	}
+
+	if (flags & LOOKUP_RCU)
+		return -ECHILD;
 
 	if (NFS_STALE(inode))
 		goto out_bad;
@@ -1566,14 +1582,23 @@ static int nfs4_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 		struct dentry *parent;
 		struct inode *dir;
 
-		if (flags & LOOKUP_RCU)
-			return -ECHILD;
-
-		parent = dget_parent(dentry);
-		dir = parent->d_inode;
+		if (flags & LOOKUP_RCU) {
+			parent = rcu_dereference(dentry);
+			dir = ACCESS_ONCE(parent->d_inode);
+			if (!dir)
+				return -ECHILD;
+		} else {
+			parent = dget_parent(dentry);
+			dir = parent->d_inode;
+		}
 		if (!nfs_neg_need_reval(dir, dentry, flags))
 			ret = 1;
-		dput(parent);
+		else if (flags & LOOKUP_RCU)
+			ret = -ECHILD;
+		if (!(flags & LOOKUP_RCU))
+			dput(parent);
+		else if (parent != rcu_dereference(dentry))
+			return -ECHILD;
 		goto out;
 	}
 
