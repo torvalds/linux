@@ -292,7 +292,7 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 #define pmd_sect(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
 				 PMD_TYPE_SECT)
 
-#ifdef ARM64_64K_PAGES
+#ifdef CONFIG_ARM64_64K_PAGES
 #define pud_sect(pud)		(0)
 #else
 #define pud_sect(pud)		((pud_val(pud) & PUD_TYPE_MASK) == \

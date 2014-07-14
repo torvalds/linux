@@ -3254,9 +3254,9 @@ err:
 
 static u8 be_convert_mc_type(u32 function_mode)
 {
-	if (function_mode & VNIC_MODE && function_mode & FLEX10_MODE)
+	if (function_mode & VNIC_MODE && function_mode & QNQ_MODE)
 		return vNIC1;
-	else if (function_mode & FLEX10_MODE)
+	else if (function_mode & QNQ_MODE)
 		return FLEX10;
 	else if (function_mode & VNIC_MODE)
 		return vNIC2;

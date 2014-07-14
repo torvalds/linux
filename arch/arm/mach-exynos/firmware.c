@@ -57,8 +57,13 @@ static int exynos_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
 
 	boot_reg = sysram_ns_base_addr + 0x1c;
 
-	if (!soc_is_exynos4212() && !soc_is_exynos3250())
-		boot_reg += 4*cpu;
+	/*
+	 * Almost all Exynos-series of SoCs that run in secure mode don't need
+	 * additional offset for every CPU, with Exynos4412 being the only
+	 * exception.
+	 */
+	if (soc_is_exynos4412())
+		boot_reg += 4 * cpu;
 
 	__raw_writel(boot_addr, boot_reg);
 	return 0;

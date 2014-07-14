@@ -45,6 +45,7 @@ comment "Platform Glue Driver Support"
 config USB_DWC3_OMAP
 	tristate "Texas Instruments OMAP5 and similar Platforms"
 	depends on EXTCON && (ARCH_OMAP2PLUS || COMPILE_TEST)
+	depends on OF
 	default USB_DWC3
 	help
 	  Some platforms from Texas Instruments like OMAP5, DRA7xxx and
