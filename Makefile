@@ -1,7 +1,7 @@
 VERSION = 3
 PATCHLEVEL = 16
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc4
 NAME = Shuffling Zombie Juror
 
 # *DOCUMENTATION*
@@ -126,7 +126,10 @@ PHONY += $(MAKECMDGOALS) sub-make
 $(filter-out _all sub-make $(CURDIR)/Makefile, $(MAKECMDGOALS)) _all: sub-make
 	@:
 
+# Fake the "Entering directory" message once, so that IDEs/editors are
+# able to understand relative filenames.
 sub-make: FORCE
+	@echo "make[1]: Entering directory \`$(KBUILD_OUTPUT)'"
 	$(if $(KBUILD_VERBOSE:1=),@)$(MAKE) -C $(KBUILD_OUTPUT) \
 	KBUILD_SRC=$(CURDIR) \
 	KBUILD_EXTMOD="$(KBUILD_EXTMOD)" -f $(CURDIR)/Makefile \

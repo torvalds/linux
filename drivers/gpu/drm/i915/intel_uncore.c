@@ -320,7 +320,8 @@ static void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
-	del_timer_sync(&dev_priv->uncore.force_wake_timer);
+	if (del_timer_sync(&dev_priv->uncore.force_wake_timer))
+		gen6_force_wake_timer((unsigned long)dev_priv);
 
 	/* Hold uncore.lock across reset to prevent any register access
 	 * with forcewake not set correctly

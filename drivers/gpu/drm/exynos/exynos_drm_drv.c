@@ -765,24 +765,24 @@ static int exynos_drm_init(void)
 
 	return 0;
 
-err_unregister_pd:
-	platform_device_unregister(exynos_drm_pdev);
-
 err_remove_vidi:
 #ifdef CONFIG_DRM_EXYNOS_VIDI
 	exynos_drm_remove_vidi();
+
+err_unregister_pd:
 #endif
+	platform_device_unregister(exynos_drm_pdev);
 
 	return ret;
 }
 
 static void exynos_drm_exit(void)
 {
+	platform_driver_unregister(&exynos_drm_platform_driver);
 #ifdef CONFIG_DRM_EXYNOS_VIDI
 	exynos_drm_remove_vidi();
 #endif
 	platform_device_unregister(exynos_drm_pdev);
-	platform_driver_unregister(&exynos_drm_platform_driver);
 }
 
 module_init(exynos_drm_init);

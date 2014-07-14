@@ -95,6 +95,23 @@ nve0_ibus_intr(struct nouveau_subdev *subdev)
 }
 
 static int
+nve0_ibus_init(struct nouveau_object *object)
+{
+	struct nve0_ibus_priv *priv = (void *)object;
+	int ret = nouveau_ibus_init(&priv->base);
+	if (ret == 0) {
+		nv_mask(priv, 0x122318, 0x0003ffff, 0x00001000);
+		nv_mask(priv, 0x12231c, 0x0003ffff, 0x00000200);
+		nv_mask(priv, 0x122310, 0x0003ffff, 0x00000800);
+		nv_mask(priv, 0x122348, 0x0003ffff, 0x00000100);
+		nv_mask(priv, 0x1223b0, 0x0003ffff, 0x00000fff);
+		nv_mask(priv, 0x122348, 0x0003ffff, 0x00000200);
+		nv_mask(priv, 0x122358, 0x0003ffff, 0x00002880);
+	}
+	return ret;
+}
+
+static int
 nve0_ibus_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
@@ -117,7 +134,7 @@ nve0_ibus_oclass = {
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nve0_ibus_ctor,
 		.dtor = _nouveau_ibus_dtor,
-		.init = _nouveau_ibus_init,
+		.init = nve0_ibus_init,
 		.fini = _nouveau_ibus_fini,
 	},
 };

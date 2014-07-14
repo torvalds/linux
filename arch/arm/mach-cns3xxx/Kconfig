@@ -1,12 +1,11 @@
-config ARCH_CNS3XXX
+menuconfig ARCH_CNS3XXX
 	bool "Cavium Networks CNS3XXX family" if ARCH_MULTI_V6
 	select ARM_GIC
 	select PCI_DOMAINS if PCI
 	help
 	  Support for Cavium Networks CNS3XXX platform.
 
-menu "CNS3XXX platform type"
-	depends on ARCH_CNS3XXX
+if ARCH_CNS3XXX
 
 config MACH_CNS3420VB
 	bool "Support for CNS3420 Validation Board"
@@ -17,4 +16,4 @@ config MACH_CNS3420VB
 	  This is a platform with an on-board ARM11 MPCore and has support
 	  for USB, USB-OTG, MMC/SD/SDIO, SATA, PCI-E, etc.
 
-endmenu
+endif

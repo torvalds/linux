@@ -234,7 +234,7 @@
 	};
 
 	pmic: ltc3676@3c {
-		compatible = "ltc,ltc3676";
+		compatible = "lltc,ltc3676";
 		reg = <0x3c>;
 
 		regulators {

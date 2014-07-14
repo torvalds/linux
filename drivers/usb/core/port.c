@@ -21,6 +21,8 @@
 
 #include "hub.h"
 
+static int usb_port_block_power_off;
+
 static const struct attribute_group *port_dev_group[];
 
 static ssize_t connect_type_show(struct device *dev,
@@ -66,6 +68,7 @@ static void usb_port_device_release(struct device *dev)
 {
 	struct usb_port *port_dev = to_usb_port(dev);
 
+	kfree(port_dev->req);
 	kfree(port_dev);
 }
 
@@ -142,6 +145,9 @@ static int usb_port_runtime_suspend(struct device *dev)
 			== PM_QOS_FLAGS_ALL)
 		return -EAGAIN;
 
+	if (usb_port_block_power_off)
+		return -EBUSY;
+
 	usb_autopm_get_interface(intf);
 	retval = usb_hub_set_port_power(hdev, hub, port1, false);
 	usb_clear_port_feature(hdev, port1, USB_PORT_FEAT_C_CONNECTION);
@@ -190,11 +196,19 @@ static int link_peers(struct usb_port *left, struct usb_port *right)
 	if (left->peer || right->peer) {
 		struct usb_port *lpeer = left->peer;
 		struct usb_port *rpeer = right->peer;
+		char *method;
 
-		WARN(1, "failed to peer %s and %s (%s -> %p) (%s -> %p)\n",
-			dev_name(&left->dev), dev_name(&right->dev),
-			dev_name(&left->dev), lpeer,
-			dev_name(&right->dev), rpeer);
+		if (left->location && left->location == right->location)
+			method = "location";
+		else
+			method = "default";
+
+		pr_warn("usb: failed to peer %s and %s by %s (%s:%s) (%s:%s)\n",
+			dev_name(&left->dev), dev_name(&right->dev), method,
+			dev_name(&left->dev),
+			lpeer ? dev_name(&lpeer->dev) : "none",
+			dev_name(&right->dev),
+			rpeer ? dev_name(&rpeer->dev) : "none");
 		return -EBUSY;
 	}
 
@@ -251,6 +265,7 @@ static void link_peers_report(struct usb_port *left, struct usb_port *right)
 		dev_warn(&left->dev, "failed to peer to %s (%d)\n",
 				dev_name(&right->dev), rc);
 		pr_warn_once("usb: port power management may be unreliable\n");
+		usb_port_block_power_off = 1;
 	}
 }
 
@@ -386,9 +401,13 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	int retval;
 
 	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
-	if (!port_dev) {
-		retval = -ENOMEM;
-		goto exit;
+	if (!port_dev)
+		return -ENOMEM;
+
+	port_dev->req = kzalloc(sizeof(*(port_dev->req)), GFP_KERNEL);
+	if (!port_dev->req) {
+		kfree(port_dev);
+		return -ENOMEM;
 	}
 
 	hub->ports[port1 - 1] = port_dev;
@@ -404,31 +423,53 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 			port1);
 	mutex_init(&port_dev->status_lock);
 	retval = device_register(&port_dev->dev);
-	if (retval)
-		goto error_register;
+	if (retval) {
+		put_device(&port_dev->dev);
+		return retval;
+	}
+
+	/* Set default policy of port-poweroff disabled. */
+	retval = dev_pm_qos_add_request(&port_dev->dev, port_dev->req,
+			DEV_PM_QOS_FLAGS, PM_QOS_FLAG_NO_POWER_OFF);
+	if (retval < 0) {
+		device_unregister(&port_dev->dev);
+		return retval;
+	}
 
 	find_and_link_peer(hub, port1);
 
+	/*
+	 * Enable runtime pm and hold a refernce that hub_configure()
+	 * will drop once the PM_QOS_NO_POWER_OFF flag state has been set
+	 * and the hub has been fully registered (hdev->maxchild set).
+	 */
 	pm_runtime_set_active(&port_dev->dev);
+	pm_runtime_get_noresume(&port_dev->dev);
+	pm_runtime_enable(&port_dev->dev);
+	device_enable_async_suspend(&port_dev->dev);
 
 	/*
-	 * Do not enable port runtime pm if the hub does not support
-	 * power switching.  Also, userspace must have final say of
-	 * whether a port is permitted to power-off.  Do not enable
-	 * runtime pm if we fail to expose pm_qos_no_power_off.
+	 * Keep hidden the ability to enable port-poweroff if the hub
+	 * does not support power switching.
 	 */
-	if (hub_is_port_power_switchable(hub)
-			&& dev_pm_qos_expose_flags(&port_dev->dev,
-			PM_QOS_FLAG_NO_POWER_OFF) == 0)
-		pm_runtime_enable(&port_dev->dev);
+	if (!hub_is_port_power_switchable(hub))
+		return 0;
 
-	device_enable_async_suspend(&port_dev->dev);
+	/* Attempt to let userspace take over the policy. */
+	retval = dev_pm_qos_expose_flags(&port_dev->dev,
+			PM_QOS_FLAG_NO_POWER_OFF);
+	if (retval < 0) {
+		dev_warn(&port_dev->dev, "failed to expose pm_qos_no_poweroff\n");
+		return 0;
+	}
+
+	/* Userspace owns the policy, drop the kernel 'no_poweroff' request. */
+	retval = dev_pm_qos_remove_request(port_dev->req);
+	if (retval >= 0) {
+		kfree(port_dev->req);
+		port_dev->req = NULL;
+	}
 	return 0;
-
-error_register:
-	put_device(&port_dev->dev);
-exit:
-	return retval;
 }
 
 void usb_hub_remove_port_device(struct usb_hub *hub, int port1)
