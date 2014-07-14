@@ -300,7 +300,7 @@ void kvm_arch_sync_events(struct kvm *kvm)
 {
 }
 
-int kvm_dev_ioctl_check_extension(long ext)
+int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	int r;
 

@@ -2564,7 +2564,7 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	return r;
 }
 
-static long kvm_dev_ioctl_check_extension_generic(long arg)
+static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 {
 	switch (arg) {
 	case KVM_CAP_USER_MEMORY:
@@ -2588,7 +2588,7 @@ static long kvm_dev_ioctl_check_extension_generic(long arg)
 	default:
 		break;
 	}
-	return kvm_dev_ioctl_check_extension(arg);
+	return kvm_vm_ioctl_check_extension(kvm, arg);
 }
 
 static long kvm_dev_ioctl(struct file *filp,
@@ -2607,7 +2607,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = kvm_dev_ioctl_create_vm(arg);
 		break;
 	case KVM_CHECK_EXTENSION:
-		r = kvm_dev_ioctl_check_extension_generic(arg);
+		r = kvm_vm_ioctl_check_extension_generic(NULL, arg);
 		break;
 	case KVM_GET_VCPU_MMAP_SIZE:
 		r = -EINVAL;
