@@ -72,8 +72,8 @@ static struct map_desc rk3036_io_desc[] __initdata = {
 
 static void __init rk3036_boot_mode_init(void)
 {
-	u32 flag = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_OS_REG0);
-	u32 mode = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_OS_REG1);
+	u32 flag = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_OS_REG4);
+	u32 mode = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_OS_REG5);
 	u32 rst_st = readl_relaxed(RK_CRU_VIRT + RK3036_CRU_RST_ST);
 
 	if (flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER))
@@ -189,8 +189,8 @@ static void rk3036_restart(char mode, const char *cmd)
 
 	rockchip_restart_get_boot_mode(cmd, &boot_flag, &boot_mode);
 
-	writel_relaxed(boot_flag, RK_GRF_VIRT + RK3036_GRF_OS_REG0);	// for loader
-	writel_relaxed(boot_mode, RK_GRF_VIRT + RK3036_GRF_OS_REG1);	// for linux
+	writel_relaxed(boot_flag, RK_GRF_VIRT + RK3036_GRF_OS_REG4);	// for loader
+	writel_relaxed(boot_mode, RK_GRF_VIRT + RK3036_GRF_OS_REG5);	// for linux
 	dsb();
 
 	/* pll enter slow mode */
