@@ -362,7 +362,7 @@
 
 			esdhc1: esdhc@400b2000 {
 				compatible = "fsl,imx53-esdhc";
-				reg = <0x400b2000 0x4000>;
+				reg = <0x400b2000 0x1000>;
 				interrupts = <0 28 0x04>;
 				clocks = <&clks VF610_CLK_IPG_BUS>,
 					<&clks VF610_CLK_PLATFORM_BUS>,
