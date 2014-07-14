@@ -305,8 +305,8 @@ EXPORT_SYMBOL(sptlrpc_cli_ctx_put);
  */
 void sptlrpc_cli_ctx_expire(struct ptlrpc_cli_ctx *ctx)
 {
-	LASSERT(ctx->cc_ops->die);
-	ctx->cc_ops->die(ctx, 0);
+	LASSERT(ctx->cc_ops->force_die);
+	ctx->cc_ops->force_die(ctx, 0);
 }
 EXPORT_SYMBOL(sptlrpc_cli_ctx_expire);
 
@@ -591,7 +591,7 @@ int ctx_refresh_timeout(void *data)
 	 * later than the context refresh expire time.
 	 */
 	if (rc == 0)
-		req->rq_cli_ctx->cc_ops->die(req->rq_cli_ctx, 0);
+		req->rq_cli_ctx->cc_ops->force_die(req->rq_cli_ctx, 0);
 	return rc;
 }
 

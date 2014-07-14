@@ -387,7 +387,7 @@ struct ptlrpc_ctx_ops {
 	/**
 	 * Force the \a ctx to die.
 	 */
-	void    (*die)	 (struct ptlrpc_cli_ctx *ctx,
+	void    (*force_die)   (struct ptlrpc_cli_ctx *ctx,
 				int grace);
 	int     (*display)     (struct ptlrpc_cli_ctx *ctx,
 				char *buf, int bufsize);
