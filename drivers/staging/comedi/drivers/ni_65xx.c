@@ -299,7 +299,7 @@ static int ni_65xx_config_filter(struct comedi_device *dev,
 		data[1] = interval * filter_resolution_ns;
 
 		if (interval != devpriv->filter_interval) {
-			writeb(interval, devpriv->mmio + Filter_Interval);
+			writel(interval, devpriv->mmio + Filter_Interval);
 			devpriv->filter_interval = interval;
 		}
 
@@ -689,7 +689,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	writeb(0x00, devpriv->mmio + Master_Interrupt_Control);
 
 	/* Set filter interval to 0  (32bit reg) */
-	writeb(0x00000000, devpriv->mmio + Filter_Interval);
+	writel(0x00000000, devpriv->mmio + Filter_Interval);
 
 	ret = request_irq(dev->irq, ni_65xx_interrupt, IRQF_SHARED,
 			  "ni_65xx", dev);
