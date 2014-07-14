@@ -68,7 +68,7 @@ MODULE_AUTHOR("Bruno Ducrot");
 MODULE_DESCRIPTION("ACPI Video Driver");
 MODULE_LICENSE("GPL");
 
-static bool brightness_switch_enabled;
+static bool brightness_switch_enabled = 1;
 module_param(brightness_switch_enabled, bool, 0644);
 
 /*
