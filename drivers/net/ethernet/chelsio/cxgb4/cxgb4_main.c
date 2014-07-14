@@ -4109,6 +4109,8 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.db_reg = adap->regs + MYPF_REG(SGE_PF_KDOORBELL);
 	lli.fw_vers = adap->params.fw_vers;
 	lli.dbfifo_int_thresh = dbfifo_int_thresh;
+	lli.sge_ingpadboundary = adap->sge.fl_align;
+	lli.sge_egrstatuspagesize = adap->sge.stat_len;
 	lli.sge_pktshift = adap->sge.pktshift;
 	lli.enable_fw_ofld_conn = adap->flags & FW_OFLD_CONN;
 	lli.ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;

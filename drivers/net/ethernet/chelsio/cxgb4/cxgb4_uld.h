@@ -251,6 +251,8 @@ struct cxgb4_lld_info {
 	void __iomem *gts_reg;               /* address of GTS register */
 	void __iomem *db_reg;                /* address of kernel doorbell */
 	int dbfifo_int_thresh;		     /* doorbell fifo int threshold */
+	unsigned int sge_ingpadboundary;     /* SGE ingress padding boundary */
+	unsigned int sge_egrstatuspagesize;  /* SGE egress status page size */
 	unsigned int sge_pktshift;           /* Padding between CPL and */
 					     /*	packet data */
 	unsigned int pf;		     /* Physical Function we're using */

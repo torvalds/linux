@@ -39,19 +39,11 @@
 #define T4_MAX_NUM_QP 65536
 #define T4_MAX_NUM_CQ 65536
 #define T4_MAX_NUM_PD 65536
-#define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
-#define T4_MAX_EQ_SIZE (65520 - T4_EQ_STATUS_ENTRIES)
-#define T4_MAX_IQ_SIZE (65520 - 1)
-#define T4_MAX_RQ_SIZE (8192 - T4_EQ_STATUS_ENTRIES)
-#define T4_MAX_SQ_SIZE (T4_MAX_EQ_SIZE - 1)
-#define T4_MAX_QP_DEPTH (T4_MAX_RQ_SIZE - 1)
-#define T4_MAX_CQ_DEPTH (T4_MAX_IQ_SIZE - 1)
 #define T4_MAX_NUM_STAG (1<<15)
 #define T4_MAX_MR_SIZE (~0ULL)
 #define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
-#define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
 #define A_PCIE_MA_SYNC 0x30b4
 
 struct t4_status_page {

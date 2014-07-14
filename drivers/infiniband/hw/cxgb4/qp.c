@@ -258,7 +258,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	/*
 	 * eqsize is the number of 64B entries plus the status page size.
 	 */
-	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS + T4_EQ_STATUS_ENTRIES;
+	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS +
+		rdev->hw_queue.t4_eq_status_entries;
 
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
@@ -283,7 +284,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	/*
 	 * eqsize is the number of 64B entries plus the status page size.
 	 */
-	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS + T4_EQ_STATUS_ENTRIES;
+	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS +
+		rdev->hw_queue.t4_eq_status_entries;
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
 		V_FW_RI_RES_WR_CPRIO(0) |	/* don't keep in chip cache */
@@ -1570,11 +1572,11 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		return ERR_PTR(-EINVAL);
 
 	rqsize = roundup(attrs->cap.max_recv_wr + 1, 16);
-	if (rqsize > T4_MAX_RQ_SIZE)
+	if (rqsize > rhp->rdev.hw_queue.t4_max_rq_size)
 		return ERR_PTR(-E2BIG);
 
 	sqsize = roundup(attrs->cap.max_send_wr + 1, 16);
-	if (sqsize > T4_MAX_SQ_SIZE)
+	if (sqsize > rhp->rdev.hw_queue.t4_max_sq_size)
 		return ERR_PTR(-E2BIG);
 
 	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;

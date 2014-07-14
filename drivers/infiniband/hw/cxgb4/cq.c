@@ -895,7 +895,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	/*
 	 * Make actual HW queue 2x to avoid cdix_inc overflows.
 	 */
-	hwentries = min(entries * 2, T4_MAX_IQ_SIZE);
+	hwentries = min(entries * 2, rhp->rdev.hw_queue.t4_max_iq_size);
 
 	/*
 	 * Make HW queue at least 64 entries so GTS updates aren't too
@@ -912,7 +912,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	if (ucontext) {
 		memsize = roundup(memsize, PAGE_SIZE);
 		hwentries = memsize / sizeof *chp->cq.queue;
-		while (hwentries > T4_MAX_IQ_SIZE) {
+		while (hwentries > rhp->rdev.hw_queue.t4_max_iq_size) {
 			memsize -= PAGE_SIZE;
 			hwentries = memsize / sizeof *chp->cq.queue;
 		}

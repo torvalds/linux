@@ -139,6 +139,17 @@ struct c4iw_stats {
 	u64  pas_ofld_conn_fails;
 };
 
+struct c4iw_hw_queue {
+	int t4_eq_status_entries;
+	int t4_max_eq_size;
+	int t4_max_iq_size;
+	int t4_max_rq_size;
+	int t4_max_sq_size;
+	int t4_max_qp_depth;
+	int t4_max_cq_depth;
+	int t4_stat_len;
+};
+
 struct c4iw_rdev {
 	struct c4iw_resource resource;
 	unsigned long qpshift;
@@ -156,6 +167,7 @@ struct c4iw_rdev {
 	unsigned long oc_mw_pa;
 	void __iomem *oc_mw_kva;
 	struct c4iw_stats stats;
+	struct c4iw_hw_queue hw_queue;
 	struct t4_dev_status_page *status_page;
 };
 
