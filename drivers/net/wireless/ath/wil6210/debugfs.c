@@ -986,6 +986,8 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 			   &wil->secure_pcp);
 	wil_debugfs_create_ulong("status", S_IRUGO | S_IWUSR, dbg,
 				 &wil->status);
+	debugfs_create_u32("fw_version", S_IRUGO, dbg, &wil->fw_version);
+	debugfs_create_x32("hw_version", S_IRUGO, dbg, &wil->hw_version);
 
 	wil6210_debugfs_create_ISR(wil, "USER_ICR", dbg,
 				   HOSTADDR(RGF_USER_USER_ICR));
