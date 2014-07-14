@@ -439,8 +439,7 @@ static int exar_handle_irq(struct uart_port *port);
 
 static void set_io_from_upio(struct uart_port *p)
 {
-	struct uart_8250_port *up =
-		container_of(p, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(p);
 
 	up->dl_read = default_serial_dl_read;
 	up->dl_write = default_serial_dl_write;
@@ -1277,8 +1276,7 @@ static inline void __stop_tx(struct uart_8250_port *p)
 
 static void serial8250_stop_tx(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 
 	__stop_tx(up);
 
@@ -1293,8 +1291,7 @@ static void serial8250_stop_tx(struct uart_port *port)
 
 static void serial8250_start_tx(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 
 	if (up->dma && !serial8250_tx_dma(up)) {
 		return;
@@ -1322,8 +1319,7 @@ static void serial8250_start_tx(struct uart_port *port)
 
 static void serial8250_stop_rx(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 
 	up->ier &= ~UART_IER_RLSI;
 	up->port.read_status_mask &= ~UART_LSR_DR;
@@ -1332,8 +1328,7 @@ static void serial8250_stop_rx(struct uart_port *port)
 
 static void serial8250_enable_ms(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 
 	/* no MSR capabilities */
 	if (up->bugs & UART_BUG_NOMSR)
@@ -1499,8 +1494,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 {
 	unsigned char status;
 	unsigned long flags;
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	int dma_err = 0;
 
 	if (iir & UART_IIR_NO_INT)
@@ -1785,8 +1779,7 @@ static void serial8250_backup_timeout(unsigned long data)
 
 static unsigned int serial8250_tx_empty(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
 	unsigned int lsr;
 
@@ -1800,8 +1793,7 @@ static unsigned int serial8250_tx_empty(struct uart_port *port)
 
 static unsigned int serial8250_get_mctrl(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned int status;
 	unsigned int ret;
 
@@ -1821,8 +1813,7 @@ static unsigned int serial8250_get_mctrl(struct uart_port *port)
 
 static void serial8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned char mcr = 0;
 
 	if (mctrl & TIOCM_RTS)
@@ -1843,8 +1834,7 @@ static void serial8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 static void serial8250_break_ctl(struct uart_port *port, int break_state)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -1911,8 +1901,7 @@ static void serial8250_put_poll_char(struct uart_port *port,
 			 unsigned char c)
 {
 	unsigned int ier;
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 
 	/*
 	 *	First save the IER then disable the interrupts
@@ -1941,8 +1930,7 @@ static void serial8250_put_poll_char(struct uart_port *port,
 
 static int serial8250_startup(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
 	unsigned char lsr, iir;
 	int retval;
@@ -2194,8 +2182,7 @@ dont_test_tx_en:
 
 static void serial8250_shutdown(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
 
 	/*
@@ -2268,8 +2255,7 @@ void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          struct ktermios *old)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned char cval, fcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
@@ -2498,8 +2484,7 @@ serial8250_set_ldisc(struct uart_port *port, int new)
 void serial8250_do_pm(struct uart_port *port, unsigned int state,
 		      unsigned int oldstate)
 {
-	struct uart_8250_port *p =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *p = up_to_u8250p(port);
 
 	serial8250_set_sleep(p, state != 0);
 }
@@ -2630,8 +2615,7 @@ static void serial8250_release_rsa_resource(struct uart_8250_port *up)
 
 static void serial8250_release_port(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 
 	serial8250_release_std_resource(up);
 	if (port->type == PORT_RSA)
@@ -2640,8 +2624,7 @@ static void serial8250_release_port(struct uart_port *port)
 
 static int serial8250_request_port(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	int ret;
 
 	if (port->type == PORT_8250_CIR)
@@ -2659,8 +2642,7 @@ static int serial8250_request_port(struct uart_port *port)
 
 static void serial8250_config_port(struct uart_port *port, int flags)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	int probeflags = PROBE_ANY;
 	int ret;
 
@@ -2859,8 +2841,7 @@ serial8250_register_ports(struct uart_driver *drv, struct device *dev)
 
 static void serial8250_console_putchar(struct uart_port *port, int ch)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 
 	wait_for_xmitr(up, UART_LSR_THRE);
 	serial_port_out(port, UART_TX, ch);

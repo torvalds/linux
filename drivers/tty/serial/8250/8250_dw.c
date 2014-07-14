@@ -84,8 +84,9 @@ static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 
 static void dw8250_force_idle(struct uart_port *p)
 {
-	serial8250_clear_and_reinit_fifos(container_of
-					  (p, struct uart_8250_port, port));
+	struct uart_8250_port *up = up_to_u8250p(p);
+
+	serial8250_clear_and_reinit_fifos(up);
 	(void)p->serial_in(p, UART_RX);
 }
 
@@ -255,6 +256,7 @@ static int dw8250_probe_of(struct uart_port *p,
 			   struct dw8250_data *data)
 {
 	struct device_node	*np = p->dev->of_node;
+	struct uart_8250_port *up = up_to_u8250p(p);
 	u32			val;
 	bool has_ucv = true;
 
@@ -287,7 +289,7 @@ static int dw8250_probe_of(struct uart_port *p,
 		}
 	}
 	if (has_ucv)
-		dw8250_setup_port(container_of(p, struct uart_8250_port, port));
+		dw8250_setup_port(up);
 
 	if (!of_property_read_u32(np, "reg-shift", &val))
 		p->regshift = val;
