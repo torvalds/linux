@@ -1165,7 +1165,7 @@
 		reg = <0x021c>, <0x0220>;
 	};
 
-	optfclk_pciephy_32khz: optfclk_pciephy_32khz@4a0093b0 {
+	optfclk_pciephy1_32khz: optfclk_pciephy1_32khz@4a0093b0 {
 		compatible = "ti,gate-clock";
 		clocks = <&sys_32k_ck>;
 		#clock-cells = <0>;
@@ -1183,7 +1183,7 @@
 		ti,max-div = <2>;
 	};
 
-	optfclk_pciephy_clk: optfclk_pciephy_clk@4a0093b0 {
+	optfclk_pciephy1_clk: optfclk_pciephy1_clk@4a0093b0 {
 		compatible = "ti,gate-clock";
 		clocks = <&apll_pcie_ck>;
 		#clock-cells = <0>;
@@ -1191,7 +1191,7 @@
 		ti,bit-shift = <9>;
 	};
 
-	optfclk_pciephy_div_clk: optfclk_pciephy_div_clk@4a0093b0 {
+	optfclk_pciephy1_div_clk: optfclk_pciephy1_div_clk@4a0093b0 {
 		compatible = "ti,gate-clock";
 		clocks = <&optfclk_pciephy_div>;
 		#clock-cells = <0>;
