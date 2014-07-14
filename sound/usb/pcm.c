@@ -1420,7 +1420,8 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 	 * on two reads of a counter updated every ms.
 	 */
 	if (abs(est_delay - subs->last_delay) * 1000 > runtime->rate * 2)
-		snd_printk(KERN_DEBUG "delay: estimated %d, actual %d\n",
+		dev_dbg_ratelimited(&subs->dev->dev,
+			"delay: estimated %d, actual %d\n",
 			est_delay, subs->last_delay);
 
 	if (!subs->running) {
