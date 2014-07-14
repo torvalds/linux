@@ -13,10 +13,9 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-
 #include <linux/atomic.h>
+#include <linux/osq_lock.h>
 
-struct optimistic_spin_node;
 struct rw_semaphore;
 
 #ifdef CONFIG_RWSEM_GENERIC_SPINLOCK
@@ -33,7 +32,7 @@ struct rw_semaphore {
 	 * if the owner is running on the cpu.
 	 */
 	struct task_struct *owner;
-	struct optimistic_spin_node *osq; /* spinner MCS lock */
+	struct optimistic_spin_queue osq; /* spinner MCS lock */
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
@@ -70,7 +69,7 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
 	  __RAW_SPIN_LOCK_UNLOCKED(name.wait_lock),	\
 	  LIST_HEAD_INIT((name).wait_list),		\
 	  NULL, /* owner */				\
-	  NULL /* mcs lock */                           \
+	  { ATOMIC_INIT(OSQ_UNLOCKED_VAL) } /* osq */   \
 	  __RWSEM_DEP_MAP_INIT(name) }
 #else
 #define __RWSEM_INITIALIZER(name)			\

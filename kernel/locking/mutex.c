@@ -60,7 +60,7 @@ __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 	INIT_LIST_HEAD(&lock->wait_list);
 	mutex_clear_owner(lock);
 #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
-	lock->osq = NULL;
+	atomic_set(&lock->osq.tail, OSQ_UNLOCKED_VAL);
 #endif
 
 	debug_mutex_init(lock, name, key);

@@ -84,7 +84,7 @@ void __init_rwsem(struct rw_semaphore *sem, const char *name,
 	INIT_LIST_HEAD(&sem->wait_list);
 #ifdef CONFIG_SMP
 	sem->owner = NULL;
-	sem->osq = NULL;
+	atomic_set(&sem->osq.tail, OSQ_UNLOCKED_VAL);
 #endif
 }
 

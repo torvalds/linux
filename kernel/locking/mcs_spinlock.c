@@ -17,18 +17,44 @@
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct optimistic_spin_node, osq_node);
 
 /*
+ * We use the value 0 to represent "no CPU", thus the encoded value
+ * will be the CPU number incremented by 1.
+ */
+static inline int encode_cpu(int cpu_nr)
+{
+	return cpu_nr + 1;
+}
+
+static inline struct optimistic_spin_node *decode_cpu(int encoded_cpu_val)
+{
+	int cpu_nr = encoded_cpu_val - 1;
+
+	return per_cpu_ptr(&osq_node, cpu_nr);
+}
+
+/*
  * Get a stable @node->next pointer, either for unlock() or unqueue() purposes.
  * Can return NULL in case we were the last queued and we updated @lock instead.
  */
 static inline struct optimistic_spin_node *
-osq_wait_next(struct optimistic_spin_node **lock,
+osq_wait_next(struct optimistic_spin_queue *lock,
 	      struct optimistic_spin_node *node,
 	      struct optimistic_spin_node *prev)
 {
 	struct optimistic_spin_node *next = NULL;
+	int curr = encode_cpu(smp_processor_id());
+	int old;
+
+	/*
+	 * If there is a prev node in queue, then the 'old' value will be
+	 * the prev node's CPU #, else it's set to OSQ_UNLOCKED_VAL since if
+	 * we're currently last in queue, then the queue will then become empty.
+	 */
+	old = prev ? prev->cpu : OSQ_UNLOCKED_VAL;
 
 	for (;;) {
-		if (*lock == node && cmpxchg(lock, node, prev) == node) {
+		if (atomic_read(&lock->tail) == curr &&
+		    atomic_cmpxchg(&lock->tail, curr, old) == curr) {
 			/*
 			 * We were the last queued, we moved @lock back. @prev
 			 * will now observe @lock and will complete its
@@ -59,18 +85,23 @@ osq_wait_next(struct optimistic_spin_node **lock,
 	return next;
 }
 
-bool osq_lock(struct optimistic_spin_node **lock)
+bool osq_lock(struct optimistic_spin_queue *lock)
 {
 	struct optimistic_spin_node *node = this_cpu_ptr(&osq_node);
 	struct optimistic_spin_node *prev, *next;
+	int curr = encode_cpu(smp_processor_id());
+	int old;
 
 	node->locked = 0;
 	node->next = NULL;
+	node->cpu = curr;
 
-	node->prev = prev = xchg(lock, node);
-	if (likely(prev == NULL))
+	old = atomic_xchg(&lock->tail, curr);
+	if (old == OSQ_UNLOCKED_VAL)
 		return true;
 
+	prev = decode_cpu(old);
+	node->prev = prev;
 	ACCESS_ONCE(prev->next) = node;
 
 	/*
@@ -149,15 +180,16 @@ unqueue:
 	return false;
 }
 
-void osq_unlock(struct optimistic_spin_node **lock)
+void osq_unlock(struct optimistic_spin_queue *lock)
 {
 	struct optimistic_spin_node *node = this_cpu_ptr(&osq_node);
 	struct optimistic_spin_node *next;
+	int curr = encode_cpu(smp_processor_id());
 
 	/*
 	 * Fast path for the uncontended case.
 	 */
-	if (likely(cmpxchg(lock, node, NULL) == node))
+	if (likely(atomic_cmpxchg(&lock->tail, curr, OSQ_UNLOCKED_VAL) == curr))
 		return;
 
 	/*
