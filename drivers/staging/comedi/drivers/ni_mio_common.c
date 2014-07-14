@@ -5544,6 +5544,9 @@ static int ni_E_init(struct comedi_device *dev,
 			if (devpriv->mite)
 				s->async_dma_dir = DMA_FROM_DEVICE;
 		}
+
+		/* reset the analog input configuration */
+		ni_ai_reset(dev, s);
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
@@ -5582,6 +5585,9 @@ static int ni_E_init(struct comedi_device *dev,
 
 		if (devpriv->is_67xx)
 			init_ao_67xx(dev, s);
+
+		/* reset the analog output configuration */
+		ni_ao_reset(dev, s);
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
@@ -5778,14 +5784,6 @@ static int ni_E_init(struct comedi_device *dev,
 	s->insn_read = &ni_freq_out_insn_read;
 	s->insn_write = &ni_freq_out_insn_write;
 	s->insn_config = &ni_freq_out_insn_config;
-
-	/* ai configuration */
-	s = &dev->subdevices[NI_AI_SUBDEV];
-	ni_ai_reset(dev, s);
-
-	/* analog output configuration */
-	s = &dev->subdevices[NI_AO_SUBDEV];
-	ni_ao_reset(dev, s);
 
 	if (dev->irq) {
 		ni_stc_writew(dev,
