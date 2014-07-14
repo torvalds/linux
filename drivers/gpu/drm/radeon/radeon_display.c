@@ -390,20 +390,22 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	int r;
 
         down_read(&rdev->exclusive_lock);
-	while (work->fence) {
+	if (work->fence) {
 		r = radeon_fence_wait(work->fence, false);
 		if (r == -EDEADLK) {
 			up_read(&rdev->exclusive_lock);
 			r = radeon_gpu_reset(rdev);
 			down_read(&rdev->exclusive_lock);
 		}
+		if (r)
+			DRM_ERROR("failed to wait on page flip fence (%d)!\n", r);
 
-		if (r) {
-			DRM_ERROR("failed to wait on page flip fence (%d)!\n",
-				  r);
-			goto cleanup;
-		} else
-			radeon_fence_unref(&work->fence);
+		/* We continue with the page flip even if we failed to wait on
+		 * the fence, otherwise the DRM core and userspace will be
+		 * confused about which BO the CRTC is scanning out
+		 */
+
+		radeon_fence_unref(&work->fence);
 	}
 
 	/* do the flip (mmio) */
@@ -417,14 +419,6 @@ static void radeon_flip_work_func(struct work_struct *__work)
 
 	radeon_crtc->flip_status = RADEON_FLIP_SUBMITTED;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	up_read(&rdev->exclusive_lock);
-
-	return;
-
-cleanup:
-	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
-	radeon_fence_unref(&work->fence);
-	kfree(work);
 	up_read(&rdev->exclusive_lock);
 }
 
