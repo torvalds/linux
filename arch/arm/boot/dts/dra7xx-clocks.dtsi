@@ -1173,6 +1173,14 @@
 		ti,bit-shift = <8>;
 	};
 
+	optfclk_pciephy2_32khz: optfclk_pciephy2_32khz@4a0093b8 {
+		compatible = "ti,gate-clock";
+		clocks = <&sys_32k_ck>;
+		#clock-cells = <0>;
+		reg = <0x13b8>;
+		ti,bit-shift = <8>;
+	};
+
 	optfclk_pciephy_div: optfclk_pciephy_div@4a00821c {
 		compatible = "ti,divider-clock";
 		clocks = <&apll_pcie_ck>;
@@ -1191,11 +1199,27 @@
 		ti,bit-shift = <9>;
 	};
 
+	optfclk_pciephy2_clk: optfclk_pciephy2_clk@4a0093b8 {
+		compatible = "ti,gate-clock";
+		clocks = <&apll_pcie_ck>;
+		#clock-cells = <0>;
+		reg = <0x13b8>;
+		ti,bit-shift = <9>;
+	};
+
 	optfclk_pciephy1_div_clk: optfclk_pciephy1_div_clk@4a0093b0 {
 		compatible = "ti,gate-clock";
 		clocks = <&optfclk_pciephy_div>;
 		#clock-cells = <0>;
 		reg = <0x13b0>;
+		ti,bit-shift = <10>;
+	};
+
+	optfclk_pciephy2_div_clk: optfclk_pciephy2_div_clk@4a0093b8 {
+		compatible = "ti,gate-clock";
+		clocks = <&optfclk_pciephy_div>;
+		#clock-cells = <0>;
+		reg = <0x13b8>;
 		ti,bit-shift = <10>;
 	};
 
