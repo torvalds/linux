@@ -110,8 +110,10 @@ except maybe the 6514.
 #define NI_65XX_WDOG_HI_LO_REG(x)	(0x48 + NI_65XX_PORT(x))
 #define NI_65XX_RTSI_ENA(x)		(0x49 + NI_65XX_PORT(x))
 
-#define NI_65XX_MAX_NUM_PORTS 12
-static const unsigned ni_65xx_channels_per_port = 8;
+#define NI_65XX_MAX_NUM_PORTS		12
+#define NI_65XX_PORT_TO_CHAN(x)		((x) * 8)
+#define NI_65XX_CHAN_TO_PORT(x)		((x) / 8)
+#define NI_65XX_CHAN_TO_MASK(x)		(1 << ((x) % 8))
 
 enum ni_65xx_boardid {
 	BOARD_PCI6509,
@@ -258,11 +260,6 @@ static const struct ni_65xx_board ni_65xx_boards[] = {
 	},
 };
 
-static inline unsigned ni_65xx_port_by_channel(unsigned channel)
-{
-	return channel / ni_65xx_channels_per_port;
-}
-
 static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board
 					       *board)
 {
@@ -282,8 +279,8 @@ static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 	struct ni_65xx_private *devpriv = dev->private;
 	unsigned long base_port = (unsigned long)s->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int chan_mask = 1 << (chan % ni_65xx_channels_per_port);
-	unsigned port = base_port + ni_65xx_port_by_channel(chan);
+	unsigned int chan_mask = NI_65XX_CHAN_TO_MASK(chan);
+	unsigned port = base_port + NI_65XX_CHAN_TO_PORT(chan);
 	unsigned int interval;
 	unsigned int val;
 
@@ -345,23 +342,23 @@ static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 
 static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	const struct ni_65xx_board *board = comedi_board(dev);
-	unsigned long base_port = (unsigned long)s->private;
 	struct ni_65xx_private *devpriv = dev->private;
-	int base_bitfield_channel;
+	unsigned long base_port = (unsigned long)s->private;
+	unsigned int base_chan = CR_CHAN(insn->chanspec);
+	int last_port_offset = NI_65XX_CHAN_TO_PORT(s->n_chan - 1);
 	unsigned read_bits = 0;
-	int last_port_offset = ni_65xx_port_by_channel(s->n_chan - 1);
 	int port_offset;
 
-	base_bitfield_channel = CR_CHAN(insn->chanspec);
-	for (port_offset = ni_65xx_port_by_channel(base_bitfield_channel);
+	for (port_offset = NI_65XX_CHAN_TO_PORT(base_chan);
 	     port_offset <= last_port_offset; port_offset++) {
 		unsigned port = base_port + port_offset;
-		int base_port_channel = port_offset * ni_65xx_channels_per_port;
+		int base_port_channel = NI_65XX_PORT_TO_CHAN(port_offset);
 		unsigned port_mask, port_data, port_read_bits;
-		int bitshift = base_port_channel - base_bitfield_channel;
+		int bitshift = base_port_channel - base_chan;
 
 		if (bitshift >= 32)
 			break;
@@ -623,8 +620,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	if (board->num_di_ports) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
-		s->n_chan =
-		    board->num_di_ports * ni_65xx_channels_per_port;
+		s->n_chan = NI_65XX_PORT_TO_CHAN(board->num_di_ports);
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
@@ -640,8 +636,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	if (board->num_do_ports) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan =
-		    board->num_do_ports * ni_65xx_channels_per_port;
+		s->n_chan = NI_65XX_PORT_TO_CHAN(board->num_do_ports);
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_bits = ni_65xx_dio_insn_bits;
@@ -656,8 +651,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	if (board->num_dio_ports) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan =
-		    board->num_dio_ports * ni_65xx_channels_per_port;
+		s->n_chan = NI_65XX_PORT_TO_CHAN(board->num_dio_ports);
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
