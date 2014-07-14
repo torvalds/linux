@@ -371,6 +371,9 @@ static int device_init_registers(struct vnt_private *pDevice)
 		}
 	}
 
+	/* Set initial antenna mode */
+	BBvSetAntennaMode(pDevice, pDevice->byRxAntennaMode);
+
 	/* get Auto Fall Back type */
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
 
