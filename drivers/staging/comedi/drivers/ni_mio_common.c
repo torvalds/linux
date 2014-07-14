@@ -1899,13 +1899,11 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	unsigned int chan, range, aref;
 	unsigned int i;
-	unsigned offset;
 	unsigned int dither;
 	unsigned range_code;
 
 	ni_stc_writew(dev, 1, Configuration_Memory_Clear);
 
-/* offset = 1 << (board->adbits - 1); */
 	if ((list[0] & CR_ALT_SOURCE)) {
 		unsigned bypass_bits;
 		chan = CR_CHAN(list[0]);
@@ -1929,7 +1927,6 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 	} else {
 		ni_writel(dev, 0, M_Offset_AI_Config_FIFO_Bypass);
 	}
-	offset = 0;
 	for (i = 0; i < n_chan; i++) {
 		unsigned config_bits = 0;
 		chan = CR_CHAN(list[i]);
@@ -1938,7 +1935,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 		dither = ((list[i] & CR_ALT_FILTER) != 0);
 
 		range_code = ni_gainlkup[board->gainlkup][range];
-		devpriv->ai_offset[i] = offset;
+		devpriv->ai_offset[i] = 0;
 		switch (aref) {
 		case AREF_DIFF:
 			config_bits |=
@@ -2000,14 +1997,15 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
  *       valid channels are 0-3
  */
 static void ni_load_channelgain_list(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
 				     unsigned int n_chan, unsigned int *list)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
+	unsigned int offset = (s->maxdata + 1) >> 1;
 	unsigned int chan, range, aref;
 	unsigned int i;
 	unsigned int hi, lo;
-	unsigned offset;
 	unsigned int dither;
 
 	if (devpriv->is_m_series) {
@@ -2053,7 +2051,6 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		}
 	}
 
-	offset = 1 << (board->adbits - 1);
 	for (i = 0; i < n_chan; i++) {
 		if (!devpriv->is_6143 && (list[i] & CR_ALT_SOURCE)) {
 			chan = devpriv->ai_calib_source;
@@ -2120,15 +2117,14 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
+	unsigned int mask = (s->maxdata + 1) >> 1;
 	int i, n;
-	const unsigned int mask = (1 << board->adbits) - 1;
 	unsigned signbits;
 	unsigned short d;
 	unsigned long dl;
 
-	ni_load_channelgain_list(dev, 1, &insn->chanspec);
+	ni_load_channelgain_list(dev, s, 1, &insn->chanspec);
 
 	ni_clear_ai_fifo(dev);
 
@@ -2447,7 +2443,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	ni_clear_ai_fifo(dev);
 
-	ni_load_channelgain_list(dev, cmd->chanlist_len, cmd->chanlist);
+	ni_load_channelgain_list(dev, s, cmd->chanlist_len, cmd->chanlist);
 
 	/* start configuration */
 	ni_stc_writew(dev, AI_Configuration_Start, Joint_Reset_Register);
