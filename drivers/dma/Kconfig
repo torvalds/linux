@@ -36,8 +36,7 @@ comment "DMA Devices"
 config INTEL_MIC_X100_DMA
 	tristate "Intel MIC X100 DMA Driver"
 	depends on 64BIT && X86 && INTEL_MIC_BUS
-	select DMAENGINE
-	default N
+	select DMA_ENGINE
 	help
 	  This enables DMA support for the Intel Many Integrated Core
 	  (MIC) family of PCIe form factor coprocessor X100 devices that
