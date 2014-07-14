@@ -58,6 +58,31 @@ static int max_fr_immd = T4_MAX_FR_IMMD;
 module_param(max_fr_immd, int, 0644);
 MODULE_PARM_DESC(max_fr_immd, "fastreg threshold for using DSGL instead of immedate");
 
+static int alloc_ird(struct c4iw_dev *dev, u32 ird)
+{
+	int ret = 0;
+
+	spin_lock_irq(&dev->lock);
+	if (ird <= dev->avail_ird)
+		dev->avail_ird -= ird;
+	else
+		ret = -ENOMEM;
+	spin_unlock_irq(&dev->lock);
+
+	if (ret)
+		dev_warn(&dev->rdev.lldi.pdev->dev,
+			 "device IRD resources exhausted\n");
+
+	return ret;
+}
+
+static void free_ird(struct c4iw_dev *dev, int ird)
+{
+	spin_lock_irq(&dev->lock);
+	dev->avail_ird += ird;
+	spin_unlock_irq(&dev->lock);
+}
+
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
 {
 	unsigned long flag;
@@ -1204,12 +1229,20 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	int ret;
 	struct sk_buff *skb;
 
-	PDBG("%s qhp %p qid 0x%x tid %u\n", __func__, qhp, qhp->wq.sq.qid,
-	     qhp->ep->hwtid);
+	PDBG("%s qhp %p qid 0x%x tid %u ird %u ord %u\n", __func__, qhp,
+	     qhp->wq.sq.qid, qhp->ep->hwtid, qhp->ep->ird, qhp->ep->ord);
 
 	skb = alloc_skb(sizeof *wqe, GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
+	if (!skb) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	ret = alloc_ird(rhp, qhp->attr.max_ird);
+	if (ret) {
+		qhp->attr.max_ird = 0;
+		kfree_skb(skb);
+		goto out;
+	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, qhp->ep->txq_idx);
 
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
@@ -1260,10 +1293,14 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 
 	ret = c4iw_ofld_send(&rhp->rdev, skb);
 	if (ret)
-		goto out;
+		goto err1;
 
 	ret = c4iw_wait_for_reply(&rhp->rdev, &qhp->ep->com.wr_wait,
 				  qhp->ep->hwtid, qhp->wq.sq.qid, __func__);
+	if (!ret)
+		goto out;
+err1:
+	free_ird(rhp, qhp->attr.max_ird);
 out:
 	PDBG("%s ret %d\n", __func__, ret);
 	return ret;
@@ -1308,7 +1345,7 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			newattr.max_ord = attrs->max_ord;
 		}
 		if (mask & C4IW_QP_ATTR_MAX_IRD) {
-			if (attrs->max_ird > c4iw_max_read_depth) {
+			if (attrs->max_ird > cur_max_read_depth(rhp)) {
 				ret = -EINVAL;
 				goto out;
 			}
@@ -1531,6 +1568,7 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 	if (!list_empty(&qhp->db_fc_entry))
 		list_del_init(&qhp->db_fc_entry);
 	spin_unlock_irq(&rhp->lock);
+	free_ird(rhp, qhp->attr.max_ird);
 
 	ucontext = ib_qp->uobject ?
 		   to_c4iw_ucontext(ib_qp->uobject->context) : NULL;
@@ -1621,8 +1659,8 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->attr.enable_rdma_read = 1;
 	qhp->attr.enable_rdma_write = 1;
 	qhp->attr.enable_bind = 1;
-	qhp->attr.max_ord = 1;
-	qhp->attr.max_ird = 1;
+	qhp->attr.max_ord = 0;
+	qhp->attr.max_ird = 0;
 	qhp->sq_sig_all = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 	spin_lock_init(&qhp->lock);
 	mutex_init(&qhp->mutex);

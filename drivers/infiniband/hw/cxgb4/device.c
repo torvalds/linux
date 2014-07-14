@@ -348,6 +348,7 @@ static int stats_show(struct seq_file *seq, void *v)
 		   dev->rdev.stats.act_ofld_conn_fails);
 	seq_printf(seq, "PAS_OFLD_CONN_FAILS: %10llu\n",
 		   dev->rdev.stats.pas_ofld_conn_fails);
+	seq_printf(seq, "AVAILABLE IRD: %10u\n", dev->avail_ird);
 	return 0;
 }
 
@@ -839,6 +840,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	mutex_init(&devp->rdev.stats.lock);
 	mutex_init(&devp->db_mutex);
 	INIT_LIST_HEAD(&devp->db_fc_list);
+	devp->avail_ird = devp->rdev.lldi.max_ird_adapter;
 
 	if (c4iw_debugfs_root) {
 		devp->debugfs_root = debugfs_create_dir(

@@ -258,6 +258,8 @@ struct cxgb4_lld_info {
 	unsigned int pf;		     /* Physical Function we're using */
 	bool enable_fw_ofld_conn;            /* Enable connection through fw */
 					     /* WR */
+	unsigned int max_ordird_qp;          /* Max ORD/IRD depth per RDMA QP */
+	unsigned int max_ird_adapter;        /* Max IRD memory per adapter */
 	bool ulptx_memwrite_dsgl;            /* use of T5 DSGL allowed */
 };
 

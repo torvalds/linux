@@ -249,6 +249,7 @@ struct c4iw_dev {
 	struct idr atid_idr;
 	struct idr stid_idr;
 	struct list_head db_fc_list;
+	u32 avail_ird;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -328,6 +329,13 @@ static inline void remove_handle_nolock(struct c4iw_dev *rhp,
 					 struct idr *idr, u32 id)
 {
 	_remove_handle(rhp, idr, id, 0);
+}
+
+extern uint c4iw_max_read_depth;
+
+static inline int cur_max_read_depth(struct c4iw_dev *dev)
+{
+	return min(dev->rdev.lldi.max_ordird_qp, c4iw_max_read_depth);
 }
 
 struct c4iw_pd {
@@ -1003,7 +1011,6 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
 
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
-extern int c4iw_max_read_depth;
 extern int db_fc_threshold;
 extern int db_coalescing_threshold;
 extern int use_dsgl;
