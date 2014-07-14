@@ -116,6 +116,13 @@ struct smp_cmd_security_req {
 #define SMP_MIN_ENC_KEY_SIZE		7
 #define SMP_MAX_ENC_KEY_SIZE		16
 
+/* LTK types used in internal storage (struct smp_ltk) */
+enum {
+	SMP_STK,
+	SMP_LTK,
+	SMP_LTK_SLAVE,
+};
+
 /* SMP Commands */
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);

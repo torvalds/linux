@@ -1183,8 +1183,6 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	bus->bus_priv.usb = bus_pub;
 	dev_set_drvdata(dev, bus);
 	bus->ops = &brcmf_usb_bus_ops;
-	bus->chip = bus_pub->devid;
-	bus->chiprev = bus_pub->chiprev;
 	bus->proto_type = BRCMF_PROTO_BCDC;
 	bus->always_use_fws_queue = true;
 
@@ -1193,6 +1191,9 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 		if (ret)
 			goto fail;
 	}
+	bus->chip = bus_pub->devid;
+	bus->chiprev = bus_pub->chiprev;
+
 	/* request firmware here */
 	brcmf_fw_get_firmwares(dev, 0, brcmf_usb_get_fwname(devinfo), NULL,
 			       brcmf_usb_probe_phase2);
