@@ -5490,9 +5490,9 @@ static int ni_E_init(struct comedi_device *dev,
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
-	unsigned j;
 	enum ni_gpct_variant counter_variant;
 	int ret;
+	int i;
 
 	if (board->n_aochan > MAX_N_AO_CHAN) {
 		printk("bug! n_aochan > MAX_N_AO_CHAN\n");
@@ -5678,25 +5678,25 @@ static int ni_E_init(struct comedi_device *dev,
 		s->insn_read	= ni_eeprom_insn_read;
 	}
 
-	/* PFI */
+	/* Digital I/O (PFI) subdevice */
 	s = &dev->subdevices[NI_PFI_DIO_SUBDEV];
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->maxdata	= 1;
 	if (devpriv->is_m_series) {
-		unsigned i;
-		s->n_chan = 16;
+		s->n_chan	= 16;
+		s->insn_bits	= ni_pfi_insn_bits;
+
 		ni_writew(dev, s->state, M_Offset_PFI_DO);
 		for (i = 0; i < NUM_PFI_OUTPUT_SELECT_REGS; ++i) {
 			ni_writew(dev, devpriv->pfi_output_select_reg[i],
 				  M_Offset_PFI_Output_Select(i + 1));
 		}
 	} else {
-		s->n_chan = 10;
+		s->n_chan	= 10;
 	}
-	s->maxdata = 1;
-	if (devpriv->is_m_series)
-		s->insn_bits = &ni_pfi_insn_bits;
-	s->insn_config = &ni_pfi_insn_config;
+	s->insn_config	= ni_pfi_insn_config;
+
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
 
 	/* cs5529 calibration adc */
@@ -5748,8 +5748,8 @@ static int ni_E_init(struct comedi_device *dev,
 		return -ENOMEM;
 
 	/* General purpose counters */
-	for (j = 0; j < NUM_GPCT; ++j) {
-		s = &dev->subdevices[NI_GPCT_SUBDEV(j)];
+	for (i = 0; i < NUM_GPCT; ++i) {
+		s = &dev->subdevices[NI_GPCT_SUBDEV(i)];
 		s->type = COMEDI_SUBD_COUNTER;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
 		s->n_chan = 3;
@@ -5768,11 +5768,11 @@ static int ni_E_init(struct comedi_device *dev,
 		s->cancel = &ni_gpct_cancel;
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
 #endif
-		s->private = &devpriv->counter_dev->counters[j];
+		s->private = &devpriv->counter_dev->counters[i];
 
-		devpriv->counter_dev->counters[j].chip_index = 0;
-		devpriv->counter_dev->counters[j].counter_index = j;
-		ni_tio_init_counter(&devpriv->counter_dev->counters[j]);
+		devpriv->counter_dev->counters[i].chip_index = 0;
+		devpriv->counter_dev->counters[i].counter_index = i;
+		ni_tio_init_counter(&devpriv->counter_dev->counters[i]);
 	}
 
 	/* Frequency output */
