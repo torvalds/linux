@@ -1022,6 +1022,9 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	wil6210_debugfs_create_pseudo_ISR(wil, dbg);
 	wil6210_debugfs_create_ITR_CNT(wil, dbg);
 
+	wil_debugfs_create_iomem_x32("RGF_USER_USAGE_1", S_IRUGO, dbg,
+				     wil->csr +
+				     HOSTADDR(RGF_USER_USAGE_1));
 	debugfs_create_u32("mem_addr", S_IRUGO | S_IWUSR, dbg, &mem_addr);
 	debugfs_create_file("mem_val", S_IRUGO, dbg, wil, &fops_memread);
 

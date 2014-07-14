@@ -85,6 +85,7 @@ struct RGF_ICR {
 } __packed;
 
 /* registers - FW addresses */
+#define RGF_USER_USAGE_1		(0x880004)
 #define RGF_USER_HW_MACHINE_STATE	(0x8801dc)
 	#define HW_MACHINE_BOOT_DONE	(0x3fffffd)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
