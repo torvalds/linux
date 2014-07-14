@@ -16,7 +16,7 @@
 
 #include <linux/atomic.h>
 
-struct optimistic_spin_queue;
+struct optimistic_spin_node;
 struct rw_semaphore;
 
 #ifdef CONFIG_RWSEM_GENERIC_SPINLOCK
@@ -33,7 +33,7 @@ struct rw_semaphore {
 	 * if the owner is running on the cpu.
 	 */
 	struct task_struct *owner;
-	struct optimistic_spin_queue *osq; /* spinner MCS lock */
+	struct optimistic_spin_node *osq; /* spinner MCS lock */
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;

@@ -14,18 +14,18 @@
  * called from interrupt context and we have preemption disabled while
  * spinning.
  */
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct optimistic_spin_queue, osq_node);
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct optimistic_spin_node, osq_node);
 
 /*
  * Get a stable @node->next pointer, either for unlock() or unqueue() purposes.
  * Can return NULL in case we were the last queued and we updated @lock instead.
  */
-static inline struct optimistic_spin_queue *
-osq_wait_next(struct optimistic_spin_queue **lock,
-	      struct optimistic_spin_queue *node,
-	      struct optimistic_spin_queue *prev)
+static inline struct optimistic_spin_node *
+osq_wait_next(struct optimistic_spin_node **lock,
+	      struct optimistic_spin_node *node,
+	      struct optimistic_spin_node *prev)
 {
-	struct optimistic_spin_queue *next = NULL;
+	struct optimistic_spin_node *next = NULL;
 
 	for (;;) {
 		if (*lock == node && cmpxchg(lock, node, prev) == node) {
@@ -59,10 +59,10 @@ osq_wait_next(struct optimistic_spin_queue **lock,
 	return next;
 }
 
-bool osq_lock(struct optimistic_spin_queue **lock)
+bool osq_lock(struct optimistic_spin_node **lock)
 {
-	struct optimistic_spin_queue *node = this_cpu_ptr(&osq_node);
-	struct optimistic_spin_queue *prev, *next;
+	struct optimistic_spin_node *node = this_cpu_ptr(&osq_node);
+	struct optimistic_spin_node *prev, *next;
 
 	node->locked = 0;
 	node->next = NULL;
@@ -149,10 +149,10 @@ unqueue:
 	return false;
 }
 
-void osq_unlock(struct optimistic_spin_queue **lock)
+void osq_unlock(struct optimistic_spin_node **lock)
 {
-	struct optimistic_spin_queue *node = this_cpu_ptr(&osq_node);
-	struct optimistic_spin_queue *next;
+	struct optimistic_spin_node *node = this_cpu_ptr(&osq_node);
+	struct optimistic_spin_node *next;
 
 	/*
 	 * Fast path for the uncontended case.
