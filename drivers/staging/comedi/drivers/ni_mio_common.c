@@ -3079,23 +3079,43 @@ static int ni_ao_insn_read(struct comedi_device *dev,
 
 static int ni_ao_insn_write(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int invert;
+	unsigned int range = CR_RANGE(insn->chanspec);
+	int reg;
+	int i;
 
-	invert = ni_ao_config_chanlist(dev, s, &insn->chanspec, 1, 0);
+	if (devpriv->is_m_series)
+		reg = M_Offset_DAC_Direct_Data(chan);
+	else
+		reg = (chan) ? DAC1_Direct_Data : DAC0_Direct_Data;
 
-	devpriv->ao[chan] = data[0];
+	ni_ao_config_chanlist(dev, s, &insn->chanspec, 1, 0);
 
-	if (devpriv->is_m_series) {
-		ni_writew(dev, data[0], M_Offset_DAC_Direct_Data(chan));
-	} else
-		ni_writew(dev, data[0] ^ invert,
-			  (chan) ? DAC1_Direct_Data : DAC0_Direct_Data);
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val = data[i];
 
-	return 1;
+		devpriv->ao[chan] = val;
+
+		if (devpriv->is_m_series) {
+			/* M-series board always use offset binary values */
+			ni_writew(dev, val, reg);
+		} else {
+			/*
+			 * Non-M series boards need two's complement values
+			 * for bipolar ranges.
+			 */
+			if (comedi_range_is_bipolar(s, range))
+				val = comedi_offset_munge(s, val);
+
+			ni_writew(dev, val, reg);
+		}
+	}
+
+	return insn->n;
 }
 
 static int ni_ao_insn_write_671x(struct comedi_device *dev,
