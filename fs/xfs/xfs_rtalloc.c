@@ -863,7 +863,7 @@ xfs_growfs_rt_alloc(
 					XFS_BMAPI_METADATA, &firstblock,
 					resblks, &map, &nmap, &flist);
 		if (!error && nmap < 1)
-			error = XFS_ERROR(ENOSPC);
+			error = -ENOSPC;
 		if (error)
 			goto error_cancel;
 		/*
@@ -903,7 +903,7 @@ xfs_growfs_rt_alloc(
 			bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
 				mp->m_bsize, 0);
 			if (bp == NULL) {
-				error = XFS_ERROR(EIO);
+				error = -EIO;
 error_cancel:
 				xfs_trans_cancel(tp, cancelflags);
 				goto error;
@@ -962,11 +962,11 @@ xfs_growfs_rt(
 	 * Initial error checking.
 	 */
 	if (!capable(CAP_SYS_ADMIN))
-		return XFS_ERROR(EPERM);
+		return -EPERM;
 	if (mp->m_rtdev_targp == NULL || mp->m_rbmip == NULL ||
 	    (nrblocks = in->newblocks) <= sbp->sb_rblocks ||
 	    (sbp->sb_rblocks && (in->extsize != sbp->sb_rextsize)))
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 	if ((error = xfs_sb_validate_fsb_count(sbp, nrblocks)))
 		return error;
 	/*
@@ -976,7 +976,7 @@ xfs_growfs_rt(
 				XFS_FSB_TO_BB(mp, nrblocks - 1),
 				XFS_FSB_TO_BB(mp, 1), 0, NULL);
 	if (!bp)
-		return EIO;
+		return -EIO;
 	if (bp->b_error) {
 		error = bp->b_error;
 		xfs_buf_relse(bp);
@@ -1001,7 +1001,7 @@ xfs_growfs_rt(
 	 * since we'll log basically the whole summary file at once.
 	 */
 	if (nrsumblocks > (mp->m_sb.sb_logblocks >> 1))
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 	/*
 	 * Get the old block counts for bitmap and summary inodes.
 	 * These can't change since other growfs callers are locked out.
@@ -1208,7 +1208,7 @@ xfs_rtallocate_extent(
 				len, &sumbp, &sb, prod, &r);
 		break;
 	default:
-		error = EIO;
+		error = -EIO;
 		ASSERT(0);
 	}
 	if (error)
@@ -1247,7 +1247,7 @@ xfs_rtmount_init(
 	if (mp->m_rtdev_targp == NULL) {
 		xfs_warn(mp,
 	"Filesystem has a realtime volume, use rtdev=device option");
-		return XFS_ERROR(ENODEV);
+		return -ENODEV;
 	}
 	mp->m_rsumlevels = sbp->sb_rextslog + 1;
 	mp->m_rsumsize =
@@ -1263,7 +1263,7 @@ xfs_rtmount_init(
 		xfs_warn(mp, "realtime mount -- %llu != %llu",
 			(unsigned long long) XFS_BB_TO_FSB(mp, d),
 			(unsigned long long) mp->m_sb.sb_rblocks);
-		return XFS_ERROR(EFBIG);
+		return -EFBIG;
 	}
 	bp = xfs_buf_read_uncached(mp->m_rtdev_targp,
 					d - XFS_FSB_TO_BB(mp, 1),
@@ -1272,7 +1272,7 @@ xfs_rtmount_init(
 		xfs_warn(mp, "realtime device size check failed");
 		if (bp)
 			xfs_buf_relse(bp);
-		return EIO;
+		return -EIO;
 	}
 	xfs_buf_relse(bp);
 	return 0;

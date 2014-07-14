@@ -634,7 +634,7 @@ out_abort_free_ticket:
 	xfs_log_ticket_put(tic);
 out_abort:
 	xlog_cil_committed(ctx, XFS_LI_ABORTED);
-	return XFS_ERROR(EIO);
+	return -EIO;
 }
 
 static void
@@ -928,12 +928,12 @@ xlog_cil_init(
 
 	cil = kmem_zalloc(sizeof(*cil), KM_SLEEP|KM_MAYFAIL);
 	if (!cil)
-		return ENOMEM;
+		return -ENOMEM;
 
 	ctx = kmem_zalloc(sizeof(*ctx), KM_SLEEP|KM_MAYFAIL);
 	if (!ctx) {
 		kmem_free(cil);
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	INIT_WORK(&cil->xc_push_work, xlog_cil_push_work);

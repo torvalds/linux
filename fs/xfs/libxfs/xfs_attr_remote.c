@@ -138,11 +138,11 @@ xfs_attr3_rmt_read_verify(
 
 	while (len > 0) {
 		if (!xfs_verify_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF)) {
-			xfs_buf_ioerror(bp, EFSBADCRC);
+			xfs_buf_ioerror(bp, -EFSBADCRC);
 			break;
 		}
 		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_buf_ioerror(bp, EFSCORRUPTED);
+			xfs_buf_ioerror(bp, -EFSCORRUPTED);
 			break;
 		}
 		len -= blksize;
@@ -178,7 +178,7 @@ xfs_attr3_rmt_write_verify(
 
 	while (len > 0) {
 		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_buf_ioerror(bp, EFSCORRUPTED);
+			xfs_buf_ioerror(bp, -EFSCORRUPTED);
 			xfs_verifier_error(bp);
 			return;
 		}
@@ -257,7 +257,7 @@ xfs_attr_rmtval_copyout(
 				xfs_alert(mp,
 "remote attribute header mismatch bno/off/len/owner (0x%llx/0x%x/Ox%x/0x%llx)",
 					bno, *offset, byte_cnt, ino);
-				return EFSCORRUPTED;
+				return -EFSCORRUPTED;
 			}
 			hdr_size = sizeof(struct xfs_attr3_rmt_hdr);
 		}
@@ -452,7 +452,7 @@ xfs_attr_rmtval_set(
 			ASSERT(committed);
 			args->trans = NULL;
 			xfs_bmap_cancel(args->flist);
-			return(error);
+			return error;
 		}
 
 		/*
@@ -473,7 +473,7 @@ xfs_attr_rmtval_set(
 		 */
 		error = xfs_trans_roll(&args->trans, dp);
 		if (error)
-			return (error);
+			return error;
 	}
 
 	/*
@@ -498,7 +498,7 @@ xfs_attr_rmtval_set(
 				       blkcnt, &map, &nmap,
 				       XFS_BMAPI_ATTRFORK);
 		if (error)
-			return(error);
+			return error;
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
 		       (map.br_startblock != HOLESTARTBLOCK));
@@ -508,7 +508,7 @@ xfs_attr_rmtval_set(
 
 		bp = xfs_buf_get(mp->m_ddev_targp, dblkno, dblkcnt, 0);
 		if (!bp)
-			return ENOMEM;
+			return -ENOMEM;
 		bp->b_ops = &xfs_attr3_rmt_buf_ops;
 
 		xfs_attr_rmtval_copyin(mp, bp, args->dp->i_ino, &offset,
@@ -563,7 +563,7 @@ xfs_attr_rmtval_remove(
 		error = xfs_bmapi_read(args->dp, (xfs_fileoff_t)lblkno,
 				       blkcnt, &map, &nmap, XFS_BMAPI_ATTRFORK);
 		if (error)
-			return(error);
+			return error;
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
 		       (map.br_startblock != HOLESTARTBLOCK));
@@ -622,7 +622,7 @@ xfs_attr_rmtval_remove(
 		 */
 		error = xfs_trans_roll(&args->trans, args->dp);
 		if (error)
-			return (error);
+			return error;
 	}
-	return(0);
+	return 0;
 }

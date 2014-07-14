@@ -98,18 +98,18 @@ restart:
 			next_index = be32_to_cpu(dqp->q_core.d_id) + 1;
 
 			error = execute(batch[i], data);
-			if (error == EAGAIN) {
+			if (error == -EAGAIN) {
 				skipped++;
 				continue;
 			}
-			if (error && last_error != EFSCORRUPTED)
+			if (error && last_error != -EFSCORRUPTED)
 				last_error = error;
 		}
 
 		mutex_unlock(&qi->qi_tree_lock);
 
 		/* bail out if the filesystem is corrupted.  */
-		if (last_error == EFSCORRUPTED) {
+		if (last_error == -EFSCORRUPTED) {
 			skipped = 0;
 			break;
 		}
@@ -138,7 +138,7 @@ xfs_qm_dqpurge(
 	xfs_dqlock(dqp);
 	if ((dqp->dq_flags & XFS_DQ_FREEING) || dqp->q_nrefs != 0) {
 		xfs_dqunlock(dqp);
-		return EAGAIN;
+		return -EAGAIN;
 	}
 
 	dqp->dq_flags |= XFS_DQ_FREEING;
@@ -671,7 +671,7 @@ xfs_qm_init_quotainfo(
 
 	qinf = mp->m_quotainfo = kmem_zalloc(sizeof(xfs_quotainfo_t), KM_SLEEP);
 
-	error = -list_lru_init(&qinf->qi_lru);
+	error = list_lru_init(&qinf->qi_lru);
 	if (error)
 		goto out_free_qinf;
 
@@ -995,7 +995,7 @@ xfs_qm_dqiter_bufs(
 		 * will leave a trace in the log indicating corruption has
 		 * been detected.
 		 */
-		if (error == EFSCORRUPTED) {
+		if (error == -EFSCORRUPTED) {
 			error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
 				      XFS_FSB_TO_DADDR(mp, bno),
 				      mp->m_quotainfo->qi_dqchunklen, 0, &bp,
@@ -1138,8 +1138,8 @@ xfs_qm_quotacheck_dqadjust(
 		/*
 		 * Shouldn't be able to turn off quotas here.
 		 */
-		ASSERT(error != ESRCH);
-		ASSERT(error != ENOENT);
+		ASSERT(error != -ESRCH);
+		ASSERT(error != -ENOENT);
 		return error;
 	}
 
@@ -1226,7 +1226,7 @@ xfs_qm_dqusage_adjust(
 	 */
 	if (xfs_is_quota_inode(&mp->m_sb, ino)) {
 		*res = BULKSTAT_RV_NOTHING;
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 	}
 
 	/*
@@ -1463,7 +1463,7 @@ xfs_qm_quotacheck(
 		}
 	} else
 		xfs_notice(mp, "Quotacheck: Done.");
-	return (error);
+	return error;
 }
 
 /*
@@ -1493,7 +1493,7 @@ xfs_qm_init_quotainos(
 			error = xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
 					     0, 0, &uip);
 			if (error)
-				return XFS_ERROR(error);
+				return error;
 		}
 		if (XFS_IS_GQUOTA_ON(mp) &&
 		    mp->m_sb.sb_gquotino != NULLFSINO) {
@@ -1563,7 +1563,7 @@ error_rele:
 		IRELE(gip);
 	if (pip)
 		IRELE(pip);
-	return XFS_ERROR(error);
+	return error;
 }
 
 STATIC void
@@ -1679,7 +1679,7 @@ xfs_qm_vop_dqalloc(
 						 XFS_QMOPT_DOWARN,
 						 &uq);
 			if (error) {
-				ASSERT(error != ENOENT);
+				ASSERT(error != -ENOENT);
 				return error;
 			}
 			/*
@@ -1706,7 +1706,7 @@ xfs_qm_vop_dqalloc(
 						 XFS_QMOPT_DOWARN,
 						 &gq);
 			if (error) {
-				ASSERT(error != ENOENT);
+				ASSERT(error != -ENOENT);
 				goto error_rele;
 			}
 			xfs_dqunlock(gq);
@@ -1726,7 +1726,7 @@ xfs_qm_vop_dqalloc(
 						 XFS_QMOPT_DOWARN,
 						 &pq);
 			if (error) {
-				ASSERT(error != ENOENT);
+				ASSERT(error != -ENOENT);
 				goto error_rele;
 			}
 			xfs_dqunlock(pq);
@@ -1895,7 +1895,7 @@ xfs_qm_vop_chown_reserve(
 				-((xfs_qcnt_t)delblks), 0, blkflags);
 	}
 
-	return (0);
+	return 0;
 }
 
 int

@@ -183,9 +183,9 @@ __read_verify(
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	     !xfs_buf_verify_cksum(bp, XFS_DIR3_LEAF_CRC_OFF))
-		xfs_buf_ioerror(bp, EFSBADCRC);
+		xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (!xfs_dir3_leaf_verify(bp, magic))
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
 		xfs_verifier_error(bp);
@@ -201,7 +201,7 @@ __write_verify(
 	struct xfs_dir3_leaf_hdr *hdr3 = bp->b_addr;
 
 	if (!xfs_dir3_leaf_verify(bp, magic)) {
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 		xfs_verifier_error(bp);
 		return;
 	}
@@ -731,7 +731,7 @@ xfs_dir2_leaf_addname(
 		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) ||
 							args->total == 0) {
 			xfs_trans_brelse(tp, lbp);
-			return XFS_ERROR(ENOSPC);
+			return -ENOSPC;
 		}
 		/*
 		 * Convert to node form.
@@ -755,7 +755,7 @@ xfs_dir2_leaf_addname(
 	 */
 	if (args->op_flags & XFS_DA_OP_JUSTCHECK) {
 		xfs_trans_brelse(tp, lbp);
-		return use_block == -1 ? XFS_ERROR(ENOSPC) : 0;
+		return use_block == -1 ? -ENOSPC : 0;
 	}
 	/*
 	 * If no allocations are allowed, return now before we've
@@ -763,7 +763,7 @@ xfs_dir2_leaf_addname(
 	 */
 	if (args->total == 0 && use_block == -1) {
 		xfs_trans_brelse(tp, lbp);
-		return XFS_ERROR(ENOSPC);
+		return -ENOSPC;
 	}
 	/*
 	 * Need to compact the leaf entries, removing stale ones.
@@ -1198,7 +1198,7 @@ xfs_dir2_leaf_lookup(
 	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_trans_brelse(tp, dbp);
 	xfs_trans_brelse(tp, lbp);
-	return XFS_ERROR(error);
+	return error;
 }
 
 /*
@@ -1327,13 +1327,13 @@ xfs_dir2_leaf_lookup_int(
 		return 0;
 	}
 	/*
-	 * No match found, return ENOENT.
+	 * No match found, return -ENOENT.
 	 */
 	ASSERT(cidb == -1);
 	if (dbp)
 		xfs_trans_brelse(tp, dbp);
 	xfs_trans_brelse(tp, lbp);
-	return XFS_ERROR(ENOENT);
+	return -ENOENT;
 }
 
 /*
@@ -1440,7 +1440,7 @@ xfs_dir2_leaf_removename(
 			 * Just go on, returning success, leaving the
 			 * empty block in place.
 			 */
-			if (error == ENOSPC && args->total == 0)
+			if (error == -ENOSPC && args->total == 0)
 				error = 0;
 			xfs_dir3_leaf_check(dp, lbp);
 			return error;
@@ -1641,7 +1641,7 @@ xfs_dir2_leaf_trim_data(
 	 * Get rid of the data block.
 	 */
 	if ((error = xfs_dir2_shrink_inode(args, db, dbp))) {
-		ASSERT(error != ENOSPC);
+		ASSERT(error != -ENOSPC);
 		xfs_trans_brelse(tp, dbp);
 		return error;
 	}
@@ -1815,7 +1815,7 @@ xfs_dir2_node_to_leaf(
 		 * punching out the middle of an extent, and this is an
 		 * isolated block.
 		 */
-		ASSERT(error != ENOSPC);
+		ASSERT(error != -ENOSPC);
 		return error;
 	}
 	fbp = NULL;

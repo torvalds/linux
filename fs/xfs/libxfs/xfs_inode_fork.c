@@ -102,7 +102,7 @@ xfs_iformat_fork(
 				be64_to_cpu(dip->di_nblocks));
 		XFS_CORRUPTION_ERROR("xfs_iformat(1)", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 
 	if (unlikely(dip->di_forkoff > ip->i_mount->m_sb.sb_inodesize)) {
@@ -111,7 +111,7 @@ xfs_iformat_fork(
 			dip->di_forkoff);
 		XFS_CORRUPTION_ERROR("xfs_iformat(2)", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 
 	if (unlikely((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) &&
@@ -121,7 +121,7 @@ xfs_iformat_fork(
 			ip->i_ino);
 		XFS_CORRUPTION_ERROR("xfs_iformat(realtime)",
 				     XFS_ERRLEVEL_LOW, ip->i_mount, dip);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 
 	switch (ip->i_d.di_mode & S_IFMT) {
@@ -132,7 +132,7 @@ xfs_iformat_fork(
 		if (unlikely(dip->di_format != XFS_DINODE_FMT_DEV)) {
 			XFS_CORRUPTION_ERROR("xfs_iformat(3)", XFS_ERRLEVEL_LOW,
 					      ip->i_mount, dip);
-			return XFS_ERROR(EFSCORRUPTED);
+			return -EFSCORRUPTED;
 		}
 		ip->i_d.di_size = 0;
 		ip->i_df.if_u2.if_rdev = xfs_dinode_get_rdev(dip);
@@ -153,7 +153,7 @@ xfs_iformat_fork(
 				XFS_CORRUPTION_ERROR("xfs_iformat(4)",
 						     XFS_ERRLEVEL_LOW,
 						     ip->i_mount, dip);
-				return XFS_ERROR(EFSCORRUPTED);
+				return -EFSCORRUPTED;
 			}
 
 			di_size = be64_to_cpu(dip->di_size);
@@ -166,7 +166,7 @@ xfs_iformat_fork(
 				XFS_CORRUPTION_ERROR("xfs_iformat(5)",
 						     XFS_ERRLEVEL_LOW,
 						     ip->i_mount, dip);
-				return XFS_ERROR(EFSCORRUPTED);
+				return -EFSCORRUPTED;
 			}
 
 			size = (int)di_size;
@@ -181,13 +181,13 @@ xfs_iformat_fork(
 		default:
 			XFS_ERROR_REPORT("xfs_iformat(6)", XFS_ERRLEVEL_LOW,
 					 ip->i_mount);
-			return XFS_ERROR(EFSCORRUPTED);
+			return -EFSCORRUPTED;
 		}
 		break;
 
 	default:
 		XFS_ERROR_REPORT("xfs_iformat(7)", XFS_ERRLEVEL_LOW, ip->i_mount);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 	if (error) {
 		return error;
@@ -211,7 +211,7 @@ xfs_iformat_fork(
 			XFS_CORRUPTION_ERROR("xfs_iformat(8)",
 					     XFS_ERRLEVEL_LOW,
 					     ip->i_mount, dip);
-			return XFS_ERROR(EFSCORRUPTED);
+			return -EFSCORRUPTED;
 		}
 
 		error = xfs_iformat_local(ip, dip, XFS_ATTR_FORK, size);
@@ -223,7 +223,7 @@ xfs_iformat_fork(
 		error = xfs_iformat_btree(ip, dip, XFS_ATTR_FORK);
 		break;
 	default:
-		error = XFS_ERROR(EFSCORRUPTED);
+		error = -EFSCORRUPTED;
 		break;
 	}
 	if (error) {
@@ -266,7 +266,7 @@ xfs_iformat_local(
 			XFS_DFORK_SIZE(dip, ip->i_mount, whichfork));
 		XFS_CORRUPTION_ERROR("xfs_iformat_local", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	real_size = 0;
@@ -322,7 +322,7 @@ xfs_iformat_extents(
 			(unsigned long long) ip->i_ino, nex);
 		XFS_CORRUPTION_ERROR("xfs_iformat_extents(1)", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 
 	ifp->if_real_bytes = 0;
@@ -350,7 +350,7 @@ xfs_iformat_extents(
 					XFS_ERROR_REPORT("xfs_iformat_extents(2)",
 							 XFS_ERRLEVEL_LOW,
 							 ip->i_mount);
-					return XFS_ERROR(EFSCORRUPTED);
+					return -EFSCORRUPTED;
 				}
 	}
 	ifp->if_flags |= XFS_IFEXTENTS;
@@ -399,7 +399,7 @@ xfs_iformat_btree(
 					(unsigned long long) ip->i_ino);
 		XFS_CORRUPTION_ERROR("xfs_iformat_btree", XFS_ERRLEVEL_LOW,
 					 mp, dip);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 
 	ifp->if_broot_bytes = size;
@@ -436,7 +436,7 @@ xfs_iread_extents(
 	if (unlikely(XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE)) {
 		XFS_ERROR_REPORT("xfs_iread_extents", XFS_ERRLEVEL_LOW,
 				 ip->i_mount);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 	nextents = XFS_IFORK_NEXTENTS(ip, whichfork);
 	ifp = XFS_IFORK_PTR(ip, whichfork);
@@ -1692,7 +1692,7 @@ xfs_iext_idx_to_irec(
 	}
 	*idxp = page_idx;
 	*erp_idxp = erp_idx;
-	return(erp);
+	return erp;
 }
 
 /*

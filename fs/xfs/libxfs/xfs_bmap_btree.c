@@ -554,7 +554,7 @@ xfs_bmbt_alloc_block(
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = cur->bc_private.b.flags & XFS_BTCUR_BPRV_WASDEL;
 	if (!args.wasdel && xfs_trans_get_block_res(args.tp) == 0) {
-		error = XFS_ERROR(ENOSPC);
+		error = -ENOSPC;
 		goto error0;
 	}
 	error = xfs_alloc_vextent(&args);
@@ -779,9 +779,9 @@ xfs_bmbt_read_verify(
 	struct xfs_buf	*bp)
 {
 	if (!xfs_btree_lblock_verify_crc(bp))
-		xfs_buf_ioerror(bp, EFSBADCRC);
+		xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (!xfs_bmbt_verify(bp))
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
@@ -795,7 +795,7 @@ xfs_bmbt_write_verify(
 {
 	if (!xfs_bmbt_verify(bp)) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 		xfs_verifier_error(bp);
 		return;
 	}
@@ -959,7 +959,7 @@ xfs_bmbt_change_owner(
 
 	cur = xfs_bmbt_init_cursor(ip->i_mount, tp, ip, whichfork);
 	if (!cur)
-		return ENOMEM;
+		return -ENOMEM;
 
 	error = xfs_btree_change_owner(cur, new_owner, buffer_list);
 	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);

@@ -117,9 +117,9 @@ xfs_dir3_free_read_verify(
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    !xfs_buf_verify_cksum(bp, XFS_DIR3_FREE_CRC_OFF))
-		xfs_buf_ioerror(bp, EFSBADCRC);
+		xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (!xfs_dir3_free_verify(bp))
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
 		xfs_verifier_error(bp);
@@ -134,7 +134,7 @@ xfs_dir3_free_write_verify(
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
 	if (!xfs_dir3_free_verify(bp)) {
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 		xfs_verifier_error(bp);
 		return;
 	}
@@ -406,7 +406,7 @@ xfs_dir2_leafn_add(
 	 * into other peoples memory
 	 */
 	if (index < 0)
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 
 	/*
 	 * If there are already the maximum number of leaf entries in
@@ -417,7 +417,7 @@ xfs_dir2_leafn_add(
 
 	if (leafhdr.count == dp->d_ops->leaf_max_ents(args->geo)) {
 		if (!leafhdr.stale)
-			return XFS_ERROR(ENOSPC);
+			return -ENOSPC;
 		compact = leafhdr.stale > 1;
 	} else
 		compact = 0;
@@ -629,7 +629,7 @@ xfs_dir2_leafn_lookup_for_addname(
 							XFS_ERRLEVEL_LOW, mp);
 				if (curfdb != newfdb)
 					xfs_trans_brelse(tp, curbp);
-				return XFS_ERROR(EFSCORRUPTED);
+				return -EFSCORRUPTED;
 			}
 			curfdb = newfdb;
 			if (be16_to_cpu(bests[fi]) >= length)
@@ -660,7 +660,7 @@ out:
 	 * Return the index, that will be the insertion point.
 	 */
 	*indexp = index;
-	return XFS_ERROR(ENOENT);
+	return -ENOENT;
 }
 
 /*
@@ -789,7 +789,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			curbp->b_ops = &xfs_dir3_data_buf_ops;
 			xfs_trans_buf_set_type(tp, curbp, XFS_BLFT_DIR_DATA_BUF);
 			if (cmp == XFS_CMP_EXACT)
-				return XFS_ERROR(EEXIST);
+				return -EEXIST;
 		}
 	}
 	ASSERT(index == leafhdr.count || (args->op_flags & XFS_DA_OP_OKNOENT));
@@ -812,7 +812,7 @@ xfs_dir2_leafn_lookup_for_entry(
 		state->extravalid = 0;
 	}
 	*indexp = index;
-	return XFS_ERROR(ENOENT);
+	return -ENOENT;
 }
 
 /*
@@ -1133,7 +1133,7 @@ xfs_dir3_data_block_free(
 		if (error == 0) {
 			fbp = NULL;
 			logfree = 0;
-		} else if (error != ENOSPC || args->total != 0)
+		} else if (error != -ENOSPC || args->total != 0)
 			return error;
 		/*
 		 * It's possible to get ENOSPC if there is no
@@ -1287,7 +1287,7 @@ xfs_dir2_leafn_remove(
 			 * In this case just drop the buffer and some one else
 			 * will eventually get rid of the empty block.
 			 */
-			else if (!(error == ENOSPC && args->total == 0))
+			else if (!(error == -ENOSPC && args->total == 0))
 				return error;
 		}
 		/*
@@ -1599,7 +1599,7 @@ xfs_dir2_node_addname(
 	error = xfs_da3_node_lookup_int(state, &rval);
 	if (error)
 		rval = error;
-	if (rval != ENOENT) {
+	if (rval != -ENOENT) {
 		goto done;
 	}
 	/*
@@ -1628,7 +1628,7 @@ xfs_dir2_node_addname(
 		 * It didn't work, we need to split the leaf block.
 		 */
 		if (args->total == 0) {
-			ASSERT(rval == ENOSPC);
+			ASSERT(rval == -ENOSPC);
 			goto done;
 		}
 		/*
@@ -1815,7 +1815,7 @@ xfs_dir2_node_addname_int(
 		 * Not allowed to allocate, return failure.
 		 */
 		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) || args->total == 0)
-			return XFS_ERROR(ENOSPC);
+			return -ENOSPC;
 
 		/*
 		 * Allocate and initialize the new data block.
@@ -1876,7 +1876,7 @@ xfs_dir2_node_addname_int(
 				}
 				XFS_ERROR_REPORT("xfs_dir2_node_addname_int",
 						 XFS_ERRLEVEL_LOW, mp);
-				return XFS_ERROR(EFSCORRUPTED);
+				return -EFSCORRUPTED;
 			}
 
 			/*
@@ -2042,8 +2042,8 @@ xfs_dir2_node_lookup(
 	error = xfs_da3_node_lookup_int(state, &rval);
 	if (error)
 		rval = error;
-	else if (rval == ENOENT && args->cmpresult == XFS_CMP_CASE) {
-		/* If a CI match, dup the actual name and return EEXIST */
+	else if (rval == -ENOENT && args->cmpresult == XFS_CMP_CASE) {
+		/* If a CI match, dup the actual name and return -EEXIST */
 		xfs_dir2_data_entry_t	*dep;
 
 		dep = (xfs_dir2_data_entry_t *)
@@ -2096,7 +2096,7 @@ xfs_dir2_node_removename(
 		goto out_free;
 
 	/* Didn't find it, upper layer screwed up. */
-	if (rval != EEXIST) {
+	if (rval != -EEXIST) {
 		error = rval;
 		goto out_free;
 	}
@@ -2169,7 +2169,7 @@ xfs_dir2_node_replace(
 	 * It should be found, since the vnodeops layer has looked it up
 	 * and locked it.  But paranoia is good.
 	 */
-	if (rval == EEXIST) {
+	if (rval == -EEXIST) {
 		struct xfs_dir2_leaf_entry *ents;
 		/*
 		 * Find the leaf entry.
@@ -2272,7 +2272,7 @@ xfs_dir2_node_trim_free(
 		 * space reservation, when breaking up an extent into two
 		 * pieces.  This is the last block of an extent.
 		 */
-		ASSERT(error != ENOSPC);
+		ASSERT(error != -ENOSPC);
 		xfs_trans_brelse(tp, bp);
 		return error;
 	}

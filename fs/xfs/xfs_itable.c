@@ -67,11 +67,11 @@ xfs_bulkstat_one_int(
 	*stat = BULKSTAT_RV_NOTHING;
 
 	if (!buffer || xfs_internal_inum(mp, ino))
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	buf = kmem_alloc(sizeof(*buf), KM_SLEEP | KM_MAYFAIL);
 	if (!buf)
-		return XFS_ERROR(ENOMEM);
+		return -ENOMEM;
 
 	error = xfs_iget(mp, NULL, ino,
 			 (XFS_IGET_DONTCACHE | XFS_IGET_UNTRUSTED),
@@ -154,9 +154,9 @@ xfs_bulkstat_one_fmt(
 	const xfs_bstat_t	*buffer)
 {
 	if (ubsize < sizeof(*buffer))
-		return XFS_ERROR(ENOMEM);
+		return -ENOMEM;
 	if (copy_to_user(ubuffer, buffer, sizeof(*buffer)))
-		return XFS_ERROR(EFAULT);
+		return -EFAULT;
 	if (ubused)
 		*ubused = sizeof(*buffer);
 	return 0;
@@ -234,7 +234,7 @@ xfs_bulkstat(
 		return 0;
 	}
 	if (!ubcountp || *ubcountp <= 0) {
-		return EINVAL;
+		return -EINVAL;
 	}
 	ubcount = *ubcountp; /* statstruct's */
 	ubleft = ubcount * statstruct_size; /* bytes */
@@ -246,7 +246,7 @@ xfs_bulkstat(
 	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
 	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4);
 	if (!irbuf)
-		return ENOMEM;
+		return -ENOMEM;
 
 	nirbuf = irbsize / sizeof(*irbuf);
 
@@ -452,8 +452,8 @@ xfs_bulkstat(
 				error = formatter(mp, ino, ubufp, ubleft,
 						  &ubused, &fmterror);
 				if (fmterror == BULKSTAT_RV_NOTHING) {
-					if (error && error != ENOENT &&
-						error != EINVAL) {
+					if (error && error != -ENOENT &&
+						error != -EINVAL) {
 						ubleft = 0;
 						rval = error;
 						break;
@@ -551,8 +551,8 @@ xfs_bulkstat_single(
 				sizeof(xfs_bstat_t), buffer, done))
 			return error;
 		if (count == 0 || (xfs_ino_t)*lastinop != ino)
-			return error == EFSCORRUPTED ?
-				XFS_ERROR(EINVAL) : error;
+			return error == -EFSCORRUPTED ?
+				EINVAL : error;
 		else
 			return 0;
 	}
@@ -661,7 +661,7 @@ xfs_inumbers(
 		if (bufidx == bcount) {
 			long written;
 			if (formatter(ubuffer, buffer, bufidx, &written)) {
-				error = XFS_ERROR(EFAULT);
+				error = -EFAULT;
 				break;
 			}
 			ubuffer += written;
@@ -688,7 +688,7 @@ xfs_inumbers(
 		if (bufidx) {
 			long written;
 			if (formatter(ubuffer, buffer, bufidx, &written))
-				error = XFS_ERROR(EFAULT);
+				error = -EFAULT;
 			else
 				*count += bufidx;
 		}

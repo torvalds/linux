@@ -207,7 +207,7 @@ xfs_open_by_handle(
 	struct path		path;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -XFS_ERROR(EPERM);
+		return -EPERM;
 
 	dentry = xfs_handlereq_to_dentry(parfilp, hreq);
 	if (IS_ERR(dentry))
@@ -216,7 +216,7 @@ xfs_open_by_handle(
 
 	/* Restrict xfs_open_by_handle to directories & regular files. */
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode))) {
-		error = -XFS_ERROR(EPERM);
+		error = -EPERM;
 		goto out_dput;
 	}
 
@@ -228,18 +228,18 @@ xfs_open_by_handle(
 	fmode = OPEN_FMODE(permflag);
 	if ((!(permflag & O_APPEND) || (permflag & O_TRUNC)) &&
 	    (fmode & FMODE_WRITE) && IS_APPEND(inode)) {
-		error = -XFS_ERROR(EPERM);
+		error = -EPERM;
 		goto out_dput;
 	}
 
 	if ((fmode & FMODE_WRITE) && IS_IMMUTABLE(inode)) {
-		error = -XFS_ERROR(EACCES);
+		error = -EACCES;
 		goto out_dput;
 	}
 
 	/* Can't write directories. */
 	if (S_ISDIR(inode->i_mode) && (fmode & FMODE_WRITE)) {
-		error = -XFS_ERROR(EISDIR);
+		error = -EISDIR;
 		goto out_dput;
 	}
 
@@ -282,7 +282,7 @@ xfs_readlink_by_handle(
 	int			error;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -XFS_ERROR(EPERM);
+		return -EPERM;
 
 	dentry = xfs_handlereq_to_dentry(parfilp, hreq);
 	if (IS_ERR(dentry))
@@ -290,22 +290,22 @@ xfs_readlink_by_handle(
 
 	/* Restrict this handle operation to symlinks only. */
 	if (!S_ISLNK(dentry->d_inode->i_mode)) {
-		error = -XFS_ERROR(EINVAL);
+		error = -EINVAL;
 		goto out_dput;
 	}
 
 	if (copy_from_user(&olen, hreq->ohandlen, sizeof(__u32))) {
-		error = -XFS_ERROR(EFAULT);
+		error = -EFAULT;
 		goto out_dput;
 	}
 
 	link = kmalloc(MAXPATHLEN+1, GFP_KERNEL);
 	if (!link) {
-		error = -XFS_ERROR(ENOMEM);
+		error = -ENOMEM;
 		goto out_dput;
 	}
 
-	error = -xfs_readlink(XFS_I(dentry->d_inode), link);
+	error = xfs_readlink(XFS_I(dentry->d_inode), link);
 	if (error)
 		goto out_kfree;
 	error = readlink_copy(hreq->ohandle, olen, link);
@@ -330,10 +330,10 @@ xfs_set_dmattrs(
 	int		error;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return XFS_ERROR(EPERM);
+		return -EPERM;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return -EIO;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SET_DMATTRS);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
@@ -364,9 +364,9 @@ xfs_fssetdm_by_handle(
 	struct dentry		*dentry;
 
 	if (!capable(CAP_MKNOD))
-		return -XFS_ERROR(EPERM);
+		return -EPERM;
 	if (copy_from_user(&dmhreq, arg, sizeof(xfs_fsop_setdm_handlereq_t)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	error = mnt_want_write_file(parfilp);
 	if (error)
@@ -379,16 +379,16 @@ xfs_fssetdm_by_handle(
 	}
 
 	if (IS_IMMUTABLE(dentry->d_inode) || IS_APPEND(dentry->d_inode)) {
-		error = -XFS_ERROR(EPERM);
+		error = -EPERM;
 		goto out;
 	}
 
 	if (copy_from_user(&fsd, dmhreq.data, sizeof(fsd))) {
-		error = -XFS_ERROR(EFAULT);
+		error = -EFAULT;
 		goto out;
 	}
 
-	error = -xfs_set_dmattrs(XFS_I(dentry->d_inode), fsd.fsd_dmevmask,
+	error = xfs_set_dmattrs(XFS_I(dentry->d_inode), fsd.fsd_dmevmask,
 				 fsd.fsd_dmstate);
 
  out:
@@ -409,18 +409,18 @@ xfs_attrlist_by_handle(
 	char			*kbuf;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -XFS_ERROR(EPERM);
+		return -EPERM;
 	if (copy_from_user(&al_hreq, arg, sizeof(xfs_fsop_attrlist_handlereq_t)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 	if (al_hreq.buflen < sizeof(struct attrlist) ||
 	    al_hreq.buflen > XATTR_LIST_MAX)
-		return -XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	/*
 	 * Reject flags, only allow namespaces.
 	 */
 	if (al_hreq.flags & ~(ATTR_ROOT | ATTR_SECURE))
-		return -XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	dentry = xfs_handlereq_to_dentry(parfilp, &al_hreq.hreq);
 	if (IS_ERR(dentry))
@@ -431,7 +431,7 @@ xfs_attrlist_by_handle(
 		goto out_dput;
 
 	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
-	error = -xfs_attr_list(XFS_I(dentry->d_inode), kbuf, al_hreq.buflen,
+	error = xfs_attr_list(XFS_I(dentry->d_inode), kbuf, al_hreq.buflen,
 					al_hreq.flags, cursor);
 	if (error)
 		goto out_kfree;
@@ -455,20 +455,20 @@ xfs_attrmulti_attr_get(
 	__uint32_t		flags)
 {
 	unsigned char		*kbuf;
-	int			error = EFAULT;
+	int			error = -EFAULT;
 
 	if (*len > XATTR_SIZE_MAX)
-		return EINVAL;
+		return -EINVAL;
 	kbuf = kmem_zalloc_large(*len, KM_SLEEP);
 	if (!kbuf)
-		return ENOMEM;
+		return -ENOMEM;
 
 	error = xfs_attr_get(XFS_I(inode), name, kbuf, (int *)len, flags);
 	if (error)
 		goto out_kfree;
 
 	if (copy_to_user(ubuf, kbuf, *len))
-		error = EFAULT;
+		error = -EFAULT;
 
 out_kfree:
 	kmem_free(kbuf);
@@ -484,20 +484,17 @@ xfs_attrmulti_attr_set(
 	__uint32_t		flags)
 {
 	unsigned char		*kbuf;
-	int			error = EFAULT;
 
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		return EPERM;
+		return -EPERM;
 	if (len > XATTR_SIZE_MAX)
-		return EINVAL;
+		return -EINVAL;
 
 	kbuf = memdup_user(ubuf, len);
 	if (IS_ERR(kbuf))
 		return PTR_ERR(kbuf);
 
-	error = xfs_attr_set(XFS_I(inode), name, kbuf, len, flags);
-
-	return error;
+	return xfs_attr_set(XFS_I(inode), name, kbuf, len, flags);
 }
 
 int
@@ -507,7 +504,7 @@ xfs_attrmulti_attr_remove(
 	__uint32_t		flags)
 {
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		return EPERM;
+		return -EPERM;
 	return xfs_attr_remove(XFS_I(inode), name, flags);
 }
 
@@ -524,9 +521,9 @@ xfs_attrmulti_by_handle(
 	unsigned char		*attr_name;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -XFS_ERROR(EPERM);
+		return -EPERM;
 	if (copy_from_user(&am_hreq, arg, sizeof(xfs_fsop_attrmulti_handlereq_t)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	/* overflow check */
 	if (am_hreq.opcount >= INT_MAX / sizeof(xfs_attr_multiop_t))
@@ -536,18 +533,18 @@ xfs_attrmulti_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	error = E2BIG;
+	error = -E2BIG;
 	size = am_hreq.opcount * sizeof(xfs_attr_multiop_t);
 	if (!size || size > 16 * PAGE_SIZE)
 		goto out_dput;
 
 	ops = memdup_user(am_hreq.ops, size);
 	if (IS_ERR(ops)) {
-		error = -PTR_ERR(ops);
+		error = PTR_ERR(ops);
 		goto out_dput;
 	}
 
-	error = ENOMEM;
+	error = -ENOMEM;
 	attr_name = kmalloc(MAXNAMELEN, GFP_KERNEL);
 	if (!attr_name)
 		goto out_kfree_ops;
@@ -557,7 +554,7 @@ xfs_attrmulti_by_handle(
 		ops[i].am_error = strncpy_from_user((char *)attr_name,
 				ops[i].am_attrname, MAXNAMELEN);
 		if (ops[i].am_error == 0 || ops[i].am_error == MAXNAMELEN)
-			error = ERANGE;
+			error = -ERANGE;
 		if (ops[i].am_error < 0)
 			break;
 
@@ -588,19 +585,19 @@ xfs_attrmulti_by_handle(
 			mnt_drop_write_file(parfilp);
 			break;
 		default:
-			ops[i].am_error = EINVAL;
+			ops[i].am_error = -EINVAL;
 		}
 	}
 
 	if (copy_to_user(am_hreq.ops, ops, size))
-		error = XFS_ERROR(EFAULT);
+		error = -EFAULT;
 
 	kfree(attr_name);
  out_kfree_ops:
 	kfree(ops);
  out_dput:
 	dput(dentry);
-	return -error;
+	return error;
 }
 
 int
@@ -625,16 +622,16 @@ xfs_ioc_space(
 	 */
 	if (!xfs_sb_version_hasextflgbit(&ip->i_mount->m_sb) &&
 	    !capable(CAP_SYS_ADMIN))
-		return -XFS_ERROR(EPERM);
+		return -EPERM;
 
 	if (inode->i_flags & (S_IMMUTABLE|S_APPEND))
-		return -XFS_ERROR(EPERM);
+		return -EPERM;
 
 	if (!(filp->f_mode & FMODE_WRITE))
-		return -XFS_ERROR(EBADF);
+		return -EBADF;
 
 	if (!S_ISREG(inode->i_mode))
-		return -XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	error = mnt_want_write_file(filp);
 	if (error)
@@ -652,7 +649,7 @@ xfs_ioc_space(
 		bf->l_start += XFS_ISIZE(ip);
 		break;
 	default:
-		error = XFS_ERROR(EINVAL);
+		error = -EINVAL;
 		goto out_unlock;
 	}
 
@@ -669,7 +666,7 @@ xfs_ioc_space(
 	case XFS_IOC_UNRESVSP:
 	case XFS_IOC_UNRESVSP64:
 		if (bf->l_len <= 0) {
-			error = XFS_ERROR(EINVAL);
+			error = -EINVAL;
 			goto out_unlock;
 		}
 		break;
@@ -682,7 +679,7 @@ xfs_ioc_space(
 	    bf->l_start > mp->m_super->s_maxbytes ||
 	    bf->l_start + bf->l_len < 0 ||
 	    bf->l_start + bf->l_len >= mp->m_super->s_maxbytes) {
-		error = XFS_ERROR(EINVAL);
+		error = -EINVAL;
 		goto out_unlock;
 	}
 
@@ -723,7 +720,7 @@ xfs_ioc_space(
 		break;
 	default:
 		ASSERT(0);
-		error = XFS_ERROR(EINVAL);
+		error = -EINVAL;
 	}
 
 	if (error)
@@ -759,7 +756,7 @@ xfs_ioc_space(
 out_unlock:
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 	mnt_drop_write_file(filp);
-	return -error;
+	return error;
 }
 
 STATIC int
@@ -781,19 +778,19 @@ xfs_ioc_bulkstat(
 		return -EPERM;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return -XFS_ERROR(EIO);
+		return -EIO;
 
 	if (copy_from_user(&bulkreq, arg, sizeof(xfs_fsop_bulkreq_t)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	if (copy_from_user(&inlast, bulkreq.lastip, sizeof(__s64)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	if ((count = bulkreq.icount) <= 0)
-		return -XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	if (bulkreq.ubuffer == NULL)
-		return -XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	if (cmd == XFS_IOC_FSINUMBERS)
 		error = xfs_inumbers(mp, &inlast, &count,
@@ -807,15 +804,15 @@ xfs_ioc_bulkstat(
 				     &done);
 
 	if (error)
-		return -error;
+		return error;
 
 	if (bulkreq.ocount != NULL) {
 		if (copy_to_user(bulkreq.lastip, &inlast,
 						sizeof(xfs_ino_t)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
 		if (copy_to_user(bulkreq.ocount, &count, sizeof(count)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 	}
 
 	return 0;
@@ -831,7 +828,7 @@ xfs_ioc_fsgeometry_v1(
 
 	error = xfs_fs_geometry(mp, &fsgeo, 3);
 	if (error)
-		return -error;
+		return error;
 
 	/*
 	 * Caller should have passed an argument of type
@@ -839,7 +836,7 @@ xfs_ioc_fsgeometry_v1(
 	 * xfs_fsop_geom_t that xfs_fs_geometry() fills in.
 	 */
 	if (copy_to_user(arg, &fsgeo, sizeof(xfs_fsop_geom_v1_t)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 	return 0;
 }
 
@@ -853,10 +850,10 @@ xfs_ioc_fsgeometry(
 
 	error = xfs_fs_geometry(mp, &fsgeo, 4);
 	if (error)
-		return -error;
+		return error;
 
 	if (copy_to_user(arg, &fsgeo, sizeof(fsgeo)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 	return 0;
 }
 
@@ -1041,16 +1038,16 @@ xfs_ioctl_setattr(
 	trace_xfs_ioctl_setattr(ip);
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
-		return XFS_ERROR(EROFS);
+		return -EROFS;
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return -EIO;
 
 	/*
 	 * Disallow 32bit project ids when projid32bit feature is not enabled.
 	 */
 	if ((mask & FSX_PROJID) && (fa->fsx_projid > (__uint16_t)-1) &&
 			!xfs_sb_version_hasprojid32bit(&ip->i_mount->m_sb))
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	/*
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,
@@ -1088,7 +1085,7 @@ xfs_ioctl_setattr(
 	 * CAP_FSETID capability is applicable.
 	 */
 	if (!inode_owner_or_capable(VFS_I(ip))) {
-		code = XFS_ERROR(EPERM);
+		code = -EPERM;
 		goto error_return;
 	}
 
@@ -1099,7 +1096,7 @@ xfs_ioctl_setattr(
 	 */
 	if (mask & FSX_PROJID) {
 		if (current_user_ns() != &init_user_ns) {
-			code = XFS_ERROR(EINVAL);
+			code = -EINVAL;
 			goto error_return;
 		}
 
@@ -1122,7 +1119,7 @@ xfs_ioctl_setattr(
 		if (ip->i_d.di_nextents &&
 		    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) !=
 		     fa->fsx_extsize)) {
-			code = XFS_ERROR(EINVAL);	/* EFBIG? */
+			code = -EINVAL;	/* EFBIG? */
 			goto error_return;
 		}
 
@@ -1141,7 +1138,7 @@ xfs_ioctl_setattr(
 
 			extsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_extsize);
 			if (extsize_fsb > MAXEXTLEN) {
-				code = XFS_ERROR(EINVAL);
+				code = -EINVAL;
 				goto error_return;
 			}
 
@@ -1153,13 +1150,13 @@ xfs_ioctl_setattr(
 			} else {
 				size = mp->m_sb.sb_blocksize;
 				if (extsize_fsb > mp->m_sb.sb_agblocks / 2) {
-					code = XFS_ERROR(EINVAL);
+					code = -EINVAL;
 					goto error_return;
 				}
 			}
 
 			if (fa->fsx_extsize % size) {
-				code = XFS_ERROR(EINVAL);
+				code = -EINVAL;
 				goto error_return;
 			}
 		}
@@ -1173,7 +1170,7 @@ xfs_ioctl_setattr(
 		if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
 		    (XFS_IS_REALTIME_INODE(ip)) !=
 		    (fa->fsx_xflags & XFS_XFLAG_REALTIME)) {
-			code = XFS_ERROR(EINVAL);	/* EFBIG? */
+			code = -EINVAL;	/* EFBIG? */
 			goto error_return;
 		}
 
@@ -1184,7 +1181,7 @@ xfs_ioctl_setattr(
 			if ((mp->m_sb.sb_rblocks == 0) ||
 			    (mp->m_sb.sb_rextsize == 0) ||
 			    (ip->i_d.di_extsize % mp->m_sb.sb_rextsize)) {
-				code = XFS_ERROR(EINVAL);
+				code = -EINVAL;
 				goto error_return;
 			}
 		}
@@ -1198,7 +1195,7 @@ xfs_ioctl_setattr(
 		     (fa->fsx_xflags &
 				(XFS_XFLAG_IMMUTABLE | XFS_XFLAG_APPEND))) &&
 		    !capable(CAP_LINUX_IMMUTABLE)) {
-			code = XFS_ERROR(EPERM);
+			code = -EPERM;
 			goto error_return;
 		}
 	}
@@ -1301,7 +1298,7 @@ xfs_ioc_fssetxattr(
 		return error;
 	error = xfs_ioctl_setattr(ip, &fa, mask);
 	mnt_drop_write_file(filp);
-	return -error;
+	return error;
 }
 
 STATIC int
@@ -1346,7 +1343,7 @@ xfs_ioc_setxflags(
 		return error;
 	error = xfs_ioctl_setattr(ip, &fa, mask);
 	mnt_drop_write_file(filp);
-	return -error;
+	return error;
 }
 
 STATIC int
@@ -1356,7 +1353,7 @@ xfs_getbmap_format(void **ap, struct getbmapx *bmv, int *full)
 
 	/* copy only getbmap portion (not getbmapx) */
 	if (copy_to_user(base, bmv, sizeof(struct getbmap)))
-		return XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	*ap += sizeof(struct getbmap);
 	return 0;
@@ -1373,10 +1370,10 @@ xfs_ioc_getbmap(
 	int			error;
 
 	if (copy_from_user(&bmx, arg, sizeof(struct getbmapx)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	if (bmx.bmv_count < 2)
-		return -XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	bmx.bmv_iflags = (cmd == XFS_IOC_GETBMAPA ? BMV_IF_ATTRFORK : 0);
 	if (ioflags & IO_INVIS)
@@ -1385,11 +1382,11 @@ xfs_ioc_getbmap(
 	error = xfs_getbmap(ip, &bmx, xfs_getbmap_format,
 			    (struct getbmap *)arg+1);
 	if (error)
-		return -error;
+		return error;
 
 	/* copy back header - only size of getbmap */
 	if (copy_to_user(arg, &bmx, sizeof(struct getbmap)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 	return 0;
 }
 
@@ -1399,7 +1396,7 @@ xfs_getbmapx_format(void **ap, struct getbmapx *bmv, int *full)
 	struct getbmapx __user	*base = *ap;
 
 	if (copy_to_user(base, bmv, sizeof(struct getbmapx)))
-		return XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	*ap += sizeof(struct getbmapx);
 	return 0;
@@ -1414,22 +1411,22 @@ xfs_ioc_getbmapx(
 	int			error;
 
 	if (copy_from_user(&bmx, arg, sizeof(bmx)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	if (bmx.bmv_count < 2)
-		return -XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	if (bmx.bmv_iflags & (~BMV_IF_VALID))
-		return -XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	error = xfs_getbmap(ip, &bmx, xfs_getbmapx_format,
 			    (struct getbmapx *)arg+1);
 	if (error)
-		return -error;
+		return error;
 
 	/* copy back header */
 	if (copy_to_user(arg, &bmx, sizeof(struct getbmapx)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	return 0;
 }
@@ -1445,33 +1442,33 @@ xfs_ioc_swapext(
 	/* Pull information for the target fd */
 	f = fdget((int)sxp->sx_fdtarget);
 	if (!f.file) {
-		error = XFS_ERROR(EINVAL);
+		error = -EINVAL;
 		goto out;
 	}
 
 	if (!(f.file->f_mode & FMODE_WRITE) ||
 	    !(f.file->f_mode & FMODE_READ) ||
 	    (f.file->f_flags & O_APPEND)) {
-		error = XFS_ERROR(EBADF);
+		error = -EBADF;
 		goto out_put_file;
 	}
 
 	tmp = fdget((int)sxp->sx_fdtmp);
 	if (!tmp.file) {
-		error = XFS_ERROR(EINVAL);
+		error = -EINVAL;
 		goto out_put_file;
 	}
 
 	if (!(tmp.file->f_mode & FMODE_WRITE) ||
 	    !(tmp.file->f_mode & FMODE_READ) ||
 	    (tmp.file->f_flags & O_APPEND)) {
-		error = XFS_ERROR(EBADF);
+		error = -EBADF;
 		goto out_put_tmp_file;
 	}
 
 	if (IS_SWAPFILE(file_inode(f.file)) ||
 	    IS_SWAPFILE(file_inode(tmp.file))) {
-		error = XFS_ERROR(EINVAL);
+		error = -EINVAL;
 		goto out_put_tmp_file;
 	}
 
@@ -1479,17 +1476,17 @@ xfs_ioc_swapext(
 	tip = XFS_I(file_inode(tmp.file));
 
 	if (ip->i_mount != tip->i_mount) {
-		error = XFS_ERROR(EINVAL);
+		error = -EINVAL;
 		goto out_put_tmp_file;
 	}
 
 	if (ip->i_ino == tip->i_ino) {
-		error = XFS_ERROR(EINVAL);
+		error = -EINVAL;
 		goto out_put_tmp_file;
 	}
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-		error = XFS_ERROR(EIO);
+		error = -EIO;
 		goto out_put_tmp_file;
 	}
 
@@ -1542,7 +1539,7 @@ xfs_file_ioctl(
 		xfs_flock64_t		bf;
 
 		if (copy_from_user(&bf, arg, sizeof(bf)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 		return xfs_ioc_space(ip, inode, filp, ioflags, cmd, &bf);
 	}
 	case XFS_IOC_DIOINFO: {
@@ -1555,7 +1552,7 @@ xfs_file_ioctl(
 		da.d_maxiosz = INT_MAX & ~(da.d_miniosz - 1);
 
 		if (copy_to_user(arg, &da, sizeof(da)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 		return 0;
 	}
 
@@ -1588,7 +1585,7 @@ xfs_file_ioctl(
 		struct fsdmidata	dmi;
 
 		if (copy_from_user(&dmi, arg, sizeof(dmi)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
 		error = mnt_want_write_file(filp);
 		if (error)
@@ -1597,7 +1594,7 @@ xfs_file_ioctl(
 		error = xfs_set_dmattrs(ip, dmi.fsd_dmevmask,
 				dmi.fsd_dmstate);
 		mnt_drop_write_file(filp);
-		return -error;
+		return error;
 	}
 
 	case XFS_IOC_GETBMAP:
@@ -1613,14 +1610,14 @@ xfs_file_ioctl(
 		xfs_fsop_handlereq_t	hreq;
 
 		if (copy_from_user(&hreq, arg, sizeof(hreq)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 		return xfs_find_handle(cmd, &hreq);
 	}
 	case XFS_IOC_OPEN_BY_HANDLE: {
 		xfs_fsop_handlereq_t	hreq;
 
 		if (copy_from_user(&hreq, arg, sizeof(xfs_fsop_handlereq_t)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 		return xfs_open_by_handle(filp, &hreq);
 	}
 	case XFS_IOC_FSSETDM_BY_HANDLE:
@@ -1630,7 +1627,7 @@ xfs_file_ioctl(
 		xfs_fsop_handlereq_t	hreq;
 
 		if (copy_from_user(&hreq, arg, sizeof(xfs_fsop_handlereq_t)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 		return xfs_readlink_by_handle(filp, &hreq);
 	}
 	case XFS_IOC_ATTRLIST_BY_HANDLE:
@@ -1643,13 +1640,13 @@ xfs_file_ioctl(
 		struct xfs_swapext	sxp;
 
 		if (copy_from_user(&sxp, arg, sizeof(xfs_swapext_t)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
 		error = xfs_ioc_swapext(&sxp);
 		mnt_drop_write_file(filp);
-		return -error;
+		return error;
 	}
 
 	case XFS_IOC_FSCOUNTS: {
@@ -1657,10 +1654,10 @@ xfs_file_ioctl(
 
 		error = xfs_fs_counts(mp, &out);
 		if (error)
-			return -error;
+			return error;
 
 		if (copy_to_user(arg, &out, sizeof(out)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 		return 0;
 	}
 
@@ -1672,10 +1669,10 @@ xfs_file_ioctl(
 			return -EPERM;
 
 		if (mp->m_flags & XFS_MOUNT_RDONLY)
-			return -XFS_ERROR(EROFS);
+			return -EROFS;
 
 		if (copy_from_user(&inout, arg, sizeof(inout)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
 		error = mnt_want_write_file(filp);
 		if (error)
@@ -1686,10 +1683,10 @@ xfs_file_ioctl(
 		error = xfs_reserve_blocks(mp, &in, &inout);
 		mnt_drop_write_file(filp);
 		if (error)
-			return -error;
+			return error;
 
 		if (copy_to_user(arg, &inout, sizeof(inout)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 		return 0;
 	}
 
@@ -1701,10 +1698,10 @@ xfs_file_ioctl(
 
 		error = xfs_reserve_blocks(mp, NULL, &out);
 		if (error)
-			return -error;
+			return error;
 
 		if (copy_to_user(arg, &out, sizeof(out)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
 		return 0;
 	}
@@ -1713,42 +1710,42 @@ xfs_file_ioctl(
 		xfs_growfs_data_t in;
 
 		if (copy_from_user(&in, arg, sizeof(in)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
 		error = xfs_growfs_data(mp, &in);
 		mnt_drop_write_file(filp);
-		return -error;
+		return error;
 	}
 
 	case XFS_IOC_FSGROWFSLOG: {
 		xfs_growfs_log_t in;
 
 		if (copy_from_user(&in, arg, sizeof(in)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
 		error = xfs_growfs_log(mp, &in);
 		mnt_drop_write_file(filp);
-		return -error;
+		return error;
 	}
 
 	case XFS_IOC_FSGROWFSRT: {
 		xfs_growfs_rt_t in;
 
 		if (copy_from_user(&in, arg, sizeof(in)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
 		error = xfs_growfs_rt(mp, &in);
 		mnt_drop_write_file(filp);
-		return -error;
+		return error;
 	}
 
 	case XFS_IOC_GOINGDOWN: {
@@ -1758,10 +1755,9 @@ xfs_file_ioctl(
 			return -EPERM;
 
 		if (get_user(in, (__uint32_t __user *)arg))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
-		error = xfs_fs_goingdown(mp, in);
-		return -error;
+		return xfs_fs_goingdown(mp, in);
 	}
 
 	case XFS_IOC_ERROR_INJECTION: {
@@ -1771,18 +1767,16 @@ xfs_file_ioctl(
 			return -EPERM;
 
 		if (copy_from_user(&in, arg, sizeof(in)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
-		error = xfs_errortag_add(in.errtag, mp);
-		return -error;
+		return xfs_errortag_add(in.errtag, mp);
 	}
 
 	case XFS_IOC_ERROR_CLEARALL:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		error = xfs_errortag_clearall(mp, 1);
-		return -error;
+		return xfs_errortag_clearall(mp, 1);
 
 	case XFS_IOC_FREE_EOFBLOCKS: {
 		struct xfs_fs_eofblocks eofb;
@@ -1792,16 +1786,16 @@ xfs_file_ioctl(
 			return -EPERM;
 
 		if (mp->m_flags & XFS_MOUNT_RDONLY)
-			return -XFS_ERROR(EROFS);
+			return -EROFS;
 
 		if (copy_from_user(&eofb, arg, sizeof(eofb)))
-			return -XFS_ERROR(EFAULT);
+			return -EFAULT;
 
 		error = xfs_fs_eofblocks_from_user(&eofb, &keofb);
 		if (error)
-			return -error;
+			return error;
 
-		return -xfs_icache_free_eofblocks(mp, &keofb);
+		return xfs_icache_free_eofblocks(mp, &keofb);
 	}
 
 	default:
