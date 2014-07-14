@@ -1269,12 +1269,13 @@ static inline struct s3c24xx_serial_drv_data *s3c24xx_get_driver_data(
 
 static int s3c24xx_serial_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct s3c24xx_uart_port *ourport;
 	int index = probe_index;
 	int ret;
 
-	if (pdev->dev.of_node) {
-		ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (np) {
+		ret = of_alias_get_id(np, "serial");
 		if (ret >= 0)
 			index = ret;
 	}
@@ -1295,8 +1296,8 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 			dev_get_platdata(&pdev->dev) :
 			ourport->drv_data->def_cfg;
 
-	if (pdev->dev.of_node)
-		of_property_read_u32(pdev->dev.of_node,
+	if (np)
+		of_property_read_u32(np,
 			"samsung,uart-fifosize", &ourport->port.fifosize);
 
 	if (!ourport->port.fifosize) {
