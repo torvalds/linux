@@ -96,34 +96,22 @@ except maybe the 6514.
 #define NI_65XX_WDOG_STATUS_EXP		(1 << 0)
 #define NI_65XX_WDOG_INTERVAL_REG	0x18 /* 32-bit */
 
+/* Recurring port registers (8-bit) */
+#define NI_65XX_PORT(x)			((x) * 0x10)
+#define NI_65XX_IO_DATA_REG(x)		(0x40 + NI_65XX_PORT(x))
+#define NI_65XX_IO_SEL_REG(x)		(0x41 + NI_65XX_PORT(x))
+#define NI_65XX_IO_SEL_OUTPUT		(0 << 0)
+#define NI_65XX_IO_SEL_INPUT		(1 << 0)
+#define NI_65XX_RISE_EDGE_ENA_REG(x)	(0x42 + NI_65XX_PORT(x))
+#define NI_65XX_FALL_EDGE_ENA_REG(x)	(0x43 + NI_65XX_PORT(x))
+#define NI_65XX_FILTER_ENA(x)		(0x44 + NI_65XX_PORT(x))
+#define NI_65XX_WDOG_HIZ_REG(x)		(0x46 + NI_65XX_PORT(x))
+#define NI_65XX_WDOG_ENA(x)		(0x47 + NI_65XX_PORT(x))
+#define NI_65XX_WDOG_HI_LO_REG(x)	(0x48 + NI_65XX_PORT(x))
+#define NI_65XX_RTSI_ENA(x)		(0x49 + NI_65XX_PORT(x))
+
 #define NI_65XX_MAX_NUM_PORTS 12
 static const unsigned ni_65xx_channels_per_port = 8;
-static const unsigned ni_65xx_port_offset = 0x10;
-
-static inline unsigned Port_Data(unsigned port)
-{
-	return 0x40 + port * ni_65xx_port_offset;
-}
-
-static inline unsigned Port_Select(unsigned port)
-{
-	return 0x41 + port * ni_65xx_port_offset;
-}
-
-static inline unsigned Rising_Edge_Detection_Enable(unsigned port)
-{
-	return 0x42 + port * ni_65xx_port_offset;
-}
-
-static inline unsigned Falling_Edge_Detection_Enable(unsigned port)
-{
-	return 0x43 + port * ni_65xx_port_offset;
-}
-
-static inline unsigned Filter_Enable(unsigned port)
-{
-	return 0x44 + port * ni_65xx_port_offset;
-}
 
 enum ni_65xx_boardid {
 	BOARD_PCI6509,
@@ -333,7 +321,7 @@ static int ni_65xx_config_filter(struct comedi_device *dev,
 	}
 
 	writeb(devpriv->filter_enable[port],
-	       devpriv->mmio + Filter_Enable(port));
+	       devpriv->mmio + NI_65XX_FILTER_ENA(port));
 
 	return 2;
 }
@@ -357,14 +345,16 @@ static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 		if (s->type != COMEDI_SUBD_DIO)
 			return -EINVAL;
 		devpriv->dio_direction[port] = COMEDI_OUTPUT;
-		writeb(0, devpriv->mmio + Port_Select(port));
+		writeb(NI_65XX_IO_SEL_OUTPUT,
+		       devpriv->mmio + NI_65XX_IO_SEL_REG(port));
 		return 1;
 		break;
 	case INSN_CONFIG_DIO_INPUT:
 		if (s->type != COMEDI_SUBD_DIO)
 			return -EINVAL;
 		devpriv->dio_direction[port] = COMEDI_INPUT;
-		writeb(1, devpriv->mmio + Port_Select(port));
+		writeb(NI_65XX_IO_SEL_INPUT,
+		       devpriv->mmio + NI_65XX_IO_SEL_REG(port));
 		return 1;
 		break;
 	case INSN_CONFIG_DIO_QUERY:
@@ -419,9 +409,10 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 			bits = devpriv->output_bits[port];
 			if (board->invert_outputs)
 				bits = ~bits;
-			writeb(bits, devpriv->mmio + Port_Data(port));
+			writeb(bits, devpriv->mmio + NI_65XX_IO_DATA_REG(port));
 		}
-		port_read_bits = readb(devpriv->mmio + Port_Data(port));
+		port_read_bits = readb(devpriv->mmio +
+				       NI_65XX_IO_DATA_REG(port));
 		if (s->type == COMEDI_SUBD_DO && board->invert_outputs) {
 			/* Outputs inverted, so invert value read back from
 			 * DO subdevice.  (Does not apply to boards with DIO
@@ -547,21 +538,15 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 	if (data[0] != INSN_CONFIG_CHANGE_NOTIFY)
 		return -EINVAL;
 
-	writeb(data[1], devpriv->mmio + Rising_Edge_Detection_Enable(0));
-	writeb(data[1] >> 8,
-	       devpriv->mmio + Rising_Edge_Detection_Enable(0x10));
-	writeb(data[1] >> 16,
-	       devpriv->mmio + Rising_Edge_Detection_Enable(0x20));
-	writeb(data[1] >> 24,
-	       devpriv->mmio + Rising_Edge_Detection_Enable(0x30));
+	writeb(data[1], devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0));
+	writeb(data[1] >> 8, devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0x10));
+	writeb(data[1] >> 16, devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0x20));
+	writeb(data[1] >> 24, devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0x30));
 
-	writeb(data[2], devpriv->mmio + Falling_Edge_Detection_Enable(0));
-	writeb(data[2] >> 8,
-	       devpriv->mmio + Falling_Edge_Detection_Enable(0x10));
-	writeb(data[2] >> 16,
-	       devpriv->mmio + Falling_Edge_Detection_Enable(0x20));
-	writeb(data[2] >> 24,
-	       devpriv->mmio + Falling_Edge_Detection_Enable(0x30));
+	writeb(data[2], devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0));
+	writeb(data[2] >> 8, devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0x10));
+	writeb(data[2] >> 16, devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0x20));
+	writeb(data[2] >> 24, devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0x30));
 
 	return 2;
 }
@@ -680,9 +665,10 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		if (!spriv)
 			return -ENOMEM;
 		spriv->base_port = 0;
+		/* configure all ports for input */
 		for (i = 0; i < board->num_dio_ports; ++i) {
-			/*  configure all ports for input */
-			writeb(0x1, devpriv->mmio + Port_Select(i));
+			writeb(NI_65XX_IO_SEL_INPUT,
+			       devpriv->mmio + NI_65XX_IO_SEL_REG(i));
 		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -703,11 +689,11 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	s->insn_config = ni_65xx_intr_insn_config;
 
 	for (i = 0; i < ni_65xx_total_num_ports(board); ++i) {
-		writeb(0x00, devpriv->mmio + Filter_Enable(i));
+		writeb(0x00, devpriv->mmio + NI_65XX_FILTER_ENA(i));
 		if (board->invert_outputs)
-			writeb(0x01, devpriv->mmio + Port_Data(i));
+			writeb(0x01, devpriv->mmio + NI_65XX_IO_DATA_REG(i));
 		else
-			writeb(0x00, devpriv->mmio + Port_Data(i));
+			writeb(0x00, devpriv->mmio + NI_65XX_IO_DATA_REG(i));
 	}
 	writeb(NI_65XX_CLR_EDGE_INT | NI_65XX_CLR_OVERFLOW_INT,
 	       devpriv->mmio + NI_65XX_CLR_REG);
