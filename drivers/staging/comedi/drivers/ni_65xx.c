@@ -1,46 +1,65 @@
 /*
-    comedi/drivers/ni_6514.c
-    driver for National Instruments PCI-6514
-
-    Copyright (C) 2006 Jon Grierson <jd@renko.co.uk>
-    Copyright (C) 2006 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1999,2002,2003 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
-/*
-Driver: ni_65xx
-Description: National Instruments 65xx static dio boards
-Author: Jon Grierson <jd@renko.co.uk>,
-	Frank Mori Hess <fmhess@users.sourceforge.net>
-Status: testing
-Devices: [National Instruments] PCI-6509 (ni_65xx), PXI-6509, PCI-6510,
-  PCI-6511, PXI-6511, PCI-6512, PXI-6512, PCI-6513, PXI-6513, PCI-6514,
-  PXI-6514, PCI-6515, PXI-6515, PCI-6516, PCI-6517, PCI-6518, PCI-6519,
-  PCI-6520, PCI-6521, PXI-6521, PCI-6528, PXI-6528
-Updated: Wed Oct 18 08:59:11 EDT 2006
-
-Based on the PCI-6527 driver by ds.
-The interrupt subdevice (subdevice 3) is probably broken for all boards
-except maybe the 6514.
-
-*/
+ * ni_65xx.c
+ * Comedi driver for National Instruments PCI-65xx static dio boards
+ *
+ * Copyright (C) 2006 Jon Grierson <jd@renko.co.uk>
+ * Copyright (C) 2006 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999,2002,2003 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-   Manuals (available from ftp://ftp.natinst.com/support/manuals)
+ * Driver: ni_65xx
+ * Description: National Instruments 65xx static dio boards
+ * Author: Jon Grierson <jd@renko.co.uk>,
+ *	   Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Status: testing
+ * Devices: (National Instruments) PCI-6509 [ni_65xx]
+ *	    (National Instruments) PXI-6509 [ni_65xx]
+ *	    (National Instruments) PCI-6510 [ni_65xx]
+ *	    (National Instruments) PCI-6511 [ni_65xx]
+ *	    (National Instruments) PXI-6511 [ni_65xx]
+ *	    (National Instruments) PCI-6512 [ni_65xx]
+ *	    (National Instruments) PXI-6512 [ni_65xx]
+ *	    (National Instruments) PCI-6513 [ni_65xx]
+ *	    (National Instruments) PXI-6513 [ni_65xx]
+ *	    (National Instruments) PCI-6514 [ni_65xx]
+ *	    (National Instruments) PXI-6514 [ni_65xx]
+ *	    (National Instruments) PCI-6515 [ni_65xx]
+ *	    (National Instruments) PXI-6515 [ni_65xx]
+ *	    (National Instruments) PCI-6516 [ni_65xx]
+ *	    (National Instruments) PCI-6517 [ni_65xx]
+ *	    (National Instruments) PCI-6518 [ni_65xx]
+ *	    (National Instruments) PCI-6519 [ni_65xx]
+ *	    (National Instruments) PCI-6520 [ni_65xx]
+ *	    (National Instruments) PCI-6521 [ni_65xx]
+ *	    (National Instruments) PXI-6521 [ni_65xx]
+ *	    (National Instruments) PCI-6528 [ni_65xx]
+ *	    (National Instruments) PXI-6528 [ni_65xx]
+ * Updated: Wed Oct 18 08:59:11 EDT 2006
+ *
+ * Configuration Options: not applicable, uses PCI auto config
+ *
+ * Based on the PCI-6527 driver by ds.
+ * The interrupt subdevice (subdevice 3) is probably broken for all
+ * boards except maybe the 6514.
+ */
 
-	370106b.pdf	6514 Register Level Programmer Manual
-
+/*
+ * Manuals (available from ftp://ftp.natinst.com/support/manuals)
+ *
+ *	370106b.pdf	6514 Register Level Programmer Manual
  */
 
 #include <linux/module.h>
