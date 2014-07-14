@@ -1491,7 +1491,17 @@ struct ni_private {
 	struct mite_dma_descriptor_ring *cdo_mite_ring;
 	struct mite_dma_descriptor_ring *gpct_mite_ring[NUM_GPCT];
 
+	/* ni_pcimio board type flags (based on the boardinfo reg_type) */
 	unsigned int is_m_series:1;
+	unsigned int is_6xxx:1;
+	unsigned int is_611x:1;
+	unsigned int is_6143:1;
+	unsigned int is_622x:1;
+	unsigned int is_625x:1;
+	unsigned int is_628x:1;
+	unsigned int is_67xx:1;
+	unsigned int is_6711:1;
+	unsigned int is_6713:1;
 };
 
 #endif /* _COMEDI_NI_STC_H */

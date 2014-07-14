@@ -1209,6 +1209,24 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 
 	if (board->reg_type & ni_reg_m_series_mask)
 		devpriv->is_m_series = 1;
+	if (board->reg_type & ni_reg_6xxx_mask)
+		devpriv->is_6xxx = 1;
+	if (board->reg_type == ni_reg_611x)
+		devpriv->is_611x = 1;
+	if (board->reg_type == ni_reg_6143)
+		devpriv->is_6143 = 1;
+	if (board->reg_type == ni_reg_622x)
+		devpriv->is_622x = 1;
+	if (board->reg_type == ni_reg_625x)
+		devpriv->is_625x = 1;
+	if (board->reg_type == ni_reg_628x)
+		devpriv->is_628x = 1;
+	if (board->reg_type & ni_reg_67xx_mask)
+		devpriv->is_67xx = 1;
+	if (board->reg_type == ni_reg_6711)
+		devpriv->is_6711 = 1;
+	if (board->reg_type == ni_reg_6713)
+		devpriv->is_6713 = 1;
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
@@ -1234,7 +1252,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 
 	if (devpriv->is_m_series)
 		m_series_init_eeprom_buffer(dev);
-	if (board->reg_type == ni_reg_6143)
+	if (devpriv->is_6143)
 		init_6143(dev);
 
 	irq = pcidev->irq;

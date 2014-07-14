@@ -958,11 +958,11 @@ static void ni_e_series_enable_second_irq(struct comedi_device *dev,
 
 static void ni_clear_ai_fifo(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 	static const int timeout = 10000;
 	int i;
 
-	if (board->reg_type == ni_reg_6143) {
+	if (devpriv->is_6143) {
 		/*  Flush the 6143 data FIFO */
 		ni_writel(dev, 0x10, AIFIFO_Control_6143);
 		ni_writel(dev, 0x00, AIFIFO_Control_6143);
@@ -977,7 +977,7 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 		}
 	} else {
 		ni_stc_writew(dev, 1, ADC_FIFO_Clear);
-		if (board->reg_type == ni_reg_625x) {
+		if (devpriv->is_625x) {
 			ni_writeb(dev, 0, M_Offset_Static_AI_Control(0));
 			ni_writeb(dev, 1, M_Offset_Static_AI_Control(0));
 #if 0
@@ -1140,7 +1140,7 @@ static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 static void ni_ao_fifo_load(struct comedi_device *dev,
 			    struct comedi_subdevice *s, int n)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	int chan;
@@ -1158,10 +1158,10 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 
 		range = CR_RANGE(cmd->chanlist[chan]);
 
-		if (board->reg_type & ni_reg_6xxx_mask) {
+		if (devpriv->is_6xxx) {
 			packed_data = d & 0xffff;
 			/* 6711 only has 16 bit wide ao fifo */
-			if (board->reg_type != ni_reg_6711) {
+			if (!devpriv->is_6711) {
 				err &= comedi_buf_get(s, &d);
 				if (err == 0)
 					break;
@@ -1224,11 +1224,12 @@ static int ni_ao_prep_fifo(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 	int n;
 
 	/* reset fifo */
 	ni_stc_writew(dev, 1, DAC_FIFO_Clear);
-	if (board->reg_type & ni_reg_6xxx_mask)
+	if (devpriv->is_6xxx)
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 
 	/* load some data */
@@ -1248,12 +1249,11 @@ static int ni_ao_prep_fifo(struct comedi_device *dev,
 static void ni_ai_fifo_read(struct comedi_device *dev,
 			    struct comedi_subdevice *s, int n)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	int i;
 
-	if (board->reg_type == ni_reg_611x) {
+	if (devpriv->is_611x) {
 		unsigned short data[2];
 		u32 dl;
 
@@ -1270,7 +1270,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 			data[0] = dl & 0xffff;
 			cfc_write_to_buffer(s, data[0]);
 		}
-	} else if (board->reg_type == ni_reg_6143) {
+	} else if (devpriv->is_6143) {
 		unsigned short data[2];
 		u32 dl;
 
@@ -1324,7 +1324,6 @@ static void ni_handle_fifo_half_full(struct comedi_device *dev)
 */
 static void ni_handle_fifo_dregs(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data[2];
@@ -1332,7 +1331,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 	unsigned short fifo_empty;
 	int i;
 
-	if (board->reg_type == ni_reg_611x) {
+	if (devpriv->is_611x) {
 		while ((ni_stc_readw(dev, AI_Status_1_Register) &
 			AI_FIFO_Empty_St) == 0) {
 			dl = ni_readl(dev, ADC_FIFO_Data_611x);
@@ -1342,7 +1341,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 			data[1] = (dl & 0xffff);
 			cfc_write_array_to_buffer(s, data, sizeof(data));
 		}
-	} else if (board->reg_type == ni_reg_6143) {
+	} else if (devpriv->is_6143) {
 		i = 0;
 		while (ni_readl(dev, AIFIFO_Status_6143) & 0x04) {
 			dl = ni_readl(dev, AIFIFO_Data_6143);
@@ -1388,12 +1387,12 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 
 static void get_last_sample_611x(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data;
 	u32 dl;
 
-	if (board->reg_type != ni_reg_611x)
+	if (!devpriv->is_611x)
 		return;
 
 	/* Check if there's a single sample stuck in the FIFO */
@@ -1406,12 +1405,12 @@ static void get_last_sample_611x(struct comedi_device *dev)
 
 static void get_last_sample_6143(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data;
 	u32 dl;
 
-	if (board->reg_type != ni_reg_6143)
+	if (!devpriv->is_6143)
 		return;
 
 	/* Check if there's a single sample stuck in the FIFO */
@@ -1685,7 +1684,6 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	int retval;
@@ -1705,18 +1703,13 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 		return -EIO;
 	}
 
-	switch (board->reg_type) {
-	case ni_reg_611x:
-	case ni_reg_6143:
+	if (devpriv->is_611x || devpriv->is_6143)
 		mite_prep_dma(devpriv->ai_mite_chan, 32, 16);
-		break;
-	case ni_reg_628x:
+	else if (devpriv->is_628x)
 		mite_prep_dma(devpriv->ai_mite_chan, 32, 32);
-		break;
-	default:
+	else
 		mite_prep_dma(devpriv->ai_mite_chan, 16, 16);
-		break;
-	}
+
 	/*start the MITE */
 	mite_dma_arm(devpriv->ai_mite_chan);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -1726,7 +1719,6 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 
 static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->write_subdev;
 	int retval;
@@ -1741,7 +1733,7 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ao_mite_chan) {
-		if (board->reg_type & (ni_reg_611x | ni_reg_6713)) {
+		if (devpriv->is_611x || devpriv->is_6713) {
 			mite_prep_dma(devpriv->ao_mite_chan, 32, 32);
 		} else {
 			/* doing 32 instead of 16 bit wide transfers from memory
@@ -1766,7 +1758,7 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 
 static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 
 	ni_release_ai_mite_channel(dev);
 	/* ai configuration */
@@ -1781,7 +1773,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	ni_clear_ai_fifo(dev);
 
-	if (board->reg_type != ni_reg_6143)
+	if (!devpriv->is_6143)
 		ni_writeb(dev, 0, Misc_Command);
 
 	ni_stc_writew(dev, AI_Disarm, AI_Command_1_Register); /* reset pulses */
@@ -1791,7 +1783,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, 0x0000, AI_Mode_2_Register);
 	/* generate FIFO interrupts on non-empty */
 	ni_stc_writew(dev, (0 << 6) | 0x0000, AI_Mode_3_Register);
-	if (board->reg_type == ni_reg_611x) {
+	if (devpriv->is_611x) {
 		ni_stc_writew(dev,
 			      AI_SHIFTIN_Pulse_Width |
 			      AI_SOC_Polarity |
@@ -1805,7 +1797,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 			      AI_CONVERT_Output_Select
 			      (AI_CONVERT_Output_Enable_High),
 			      AI_Output_Control_Register);
-	} else if (board->reg_type == ni_reg_6143) {
+	} else if (devpriv->is_6143) {
 		ni_stc_writew(dev, AI_SHIFTIN_Pulse_Width |
 				   AI_SOC_Polarity |
 				   AI_LOCALMUX_CLK_Pulse_Width,
@@ -1831,7 +1823,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 		    AI_EXTMUX_CLK_Output_Select(0) |
 		    AI_LOCALMUX_CLK_Output_Select(2) |
 		    AI_SC_TC_Output_Select(3);
-		if (board->reg_type == ni_reg_622x)
+		if (devpriv->is_622x)
 			ai_output_control_bits |=
 			    AI_CONVERT_Output_Select
 			    (AI_CONVERT_Output_Enable_High);
@@ -2022,8 +2014,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		ni_m_series_load_channelgain_list(dev, n_chan, list);
 		return;
 	}
-	if (n_chan == 1 && (board->reg_type != ni_reg_611x)
-	    && (board->reg_type != ni_reg_6143)) {
+	if (n_chan == 1 && !devpriv->is_611x && !devpriv->is_6143) {
 		if (devpriv->changain_state
 		    && devpriv->changain_spec == list[0]) {
 			/*  ready to go. */
@@ -2038,7 +2029,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 	ni_stc_writew(dev, 1, Configuration_Memory_Clear);
 
 	/*  Set up Calibration mode if required */
-	if (board->reg_type == ni_reg_6143) {
+	if (devpriv->is_6143) {
 		if ((list[0] & CR_ALT_SOURCE)
 		    && !devpriv->ai_calib_source_enabled) {
 			/*  Strobe Relay enable bit */
@@ -2064,8 +2055,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 
 	offset = 1 << (board->adbits - 1);
 	for (i = 0; i < n_chan; i++) {
-		if ((board->reg_type != ni_reg_6143)
-		    && (list[i] & CR_ALT_SOURCE)) {
+		if (!devpriv->is_6143 && (list[i] & CR_ALT_SOURCE)) {
 			chan = devpriv->ai_calib_source;
 		} else {
 			chan = CR_CHAN(list[i]);
@@ -2076,20 +2066,20 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 
 		/* fix the external/internal range differences */
 		range = ni_gainlkup[board->gainlkup][range];
-		if (board->reg_type == ni_reg_611x)
+		if (devpriv->is_611x)
 			devpriv->ai_offset[i] = offset;
 		else
 			devpriv->ai_offset[i] = (range & 0x100) ? 0 : offset;
 
 		hi = 0;
 		if ((list[i] & CR_ALT_SOURCE)) {
-			if (board->reg_type == ni_reg_611x)
+			if (devpriv->is_611x)
 				ni_writew(dev, CR_CHAN(list[i]) & 0x0003,
 					  Calibration_Channel_Select_611x);
 		} else {
-			if (board->reg_type == ni_reg_611x)
+			if (devpriv->is_611x)
 				aref = AREF_DIFF;
-			else if (board->reg_type == ni_reg_6143)
+			else if (devpriv->is_6143)
 				aref = AREF_OTHER;
 			switch (aref) {
 			case AREF_DIFF:
@@ -2109,7 +2099,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 
 		ni_writew(dev, hi, Configuration_Memory_High);
 
-		if (board->reg_type != ni_reg_6143) {
+		if (!devpriv->is_6143) {
 			lo = range;
 			if (i == n_chan - 1)
 				lo |= AI_LAST_CHANNEL;
@@ -2121,10 +2111,8 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 	}
 
 	/* prime the channel/gain list */
-	if ((board->reg_type != ni_reg_611x)
-	    && (board->reg_type != ni_reg_6143)) {
+	if (!devpriv->is_611x && !devpriv->is_6143)
 		ni_prime_channelgain_list(dev);
-	}
 }
 
 static int ni_ai_insn_read(struct comedi_device *dev,
@@ -2145,7 +2133,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 	ni_clear_ai_fifo(dev);
 
 	signbits = devpriv->ai_offset[0];
-	if (board->reg_type == ni_reg_611x) {
+	if (devpriv->is_611x) {
 		for (n = 0; n < num_adc_stages_611x; n++) {
 			ni_stc_writew(dev, AI_CONVERT_Pulse,
 				      AI_Command_1_Register);
@@ -2178,7 +2166,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			d += signbits;
 			data[n] = d;
 		}
-	} else if (board->reg_type == ni_reg_6143) {
+	} else if (devpriv->is_6143) {
 		for (n = 0; n < insn->n; n++) {
 			ni_stc_writew(dev, AI_CONVERT_Pulse,
 				      AI_Command_1_Register);
@@ -2261,17 +2249,13 @@ static unsigned ni_min_ai_scan_period_ns(struct comedi_device *dev,
 					 unsigned num_channels)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 
-	switch (board->reg_type) {
-	case ni_reg_611x:
-	case ni_reg_6143:
-		/*  simultaneously-sampled inputs */
+	/* simultaneously-sampled inputs */
+	if (devpriv->is_611x || devpriv->is_6143)
 		return board->ai_speed;
-		break;
-	default:
-		/*  multiplexed inputs */
-		break;
-	}
+
+	/* multiplexed inputs */
 	return board->ai_speed * num_channels;
 }
 
@@ -2295,8 +2279,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 					TRIG_TIMER | TRIG_EXT);
 
 	sources = TRIG_TIMER | TRIG_EXT;
-	if (board->reg_type == ni_reg_611x ||
-	    board->reg_type == ni_reg_6143)
+	if (devpriv->is_611x || devpriv->is_6143)
 		sources |= TRIG_NOW;
 	err |= cfc_check_trigger_src(&cmd->convert_src, sources);
 
@@ -2353,8 +2336,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if ((board->reg_type == ni_reg_611x)
-		    || (board->reg_type == ni_reg_6143)) {
+		if (devpriv->is_611x || devpriv->is_6143) {
 			err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 		} else {
 			err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
@@ -2379,7 +2361,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (cmd->stop_src == TRIG_COUNT) {
 		unsigned int max_count = 0x01000000;
 
-		if (board->reg_type == ni_reg_611x)
+		if (devpriv->is_611x)
 			max_count -= num_adc_stages_611x;
 		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, max_count);
 		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
@@ -2405,8 +2387,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			err++;
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		if ((board->reg_type != ni_reg_611x)
-		    && (board->reg_type != ni_reg_6143)) {
+		if (!devpriv->is_611x && !devpriv->is_6143) {
 			tmp = cmd->convert_arg;
 			cmd->convert_arg =
 			    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
@@ -2451,7 +2432,6 @@ static int ni_ai_inttrig(struct comedi_device *dev,
 
 static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	const struct comedi_cmd *cmd = &s->async->cmd;
 	int timer;
@@ -2507,8 +2487,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	mode2 &= ~AI_SC_Reload_Mode;
 	ni_stc_writew(dev, mode2, AI_Mode_2_Register);
 
-	if (cmd->chanlist_len == 1 || (board->reg_type == ni_reg_611x)
-	    || (board->reg_type == ni_reg_6143)) {
+	if (cmd->chanlist_len == 1 || devpriv->is_611x || devpriv->is_6143) {
 		start_stop_select |= AI_STOP_Polarity;
 		start_stop_select |= AI_STOP_Select(31);	/*  logic low */
 		start_stop_select |= AI_STOP_Sync;
@@ -2522,7 +2501,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	case TRIG_COUNT:
 		stop_count = cmd->stop_arg - 1;
 
-		if (board->reg_type == ni_reg_611x) {
+		if (devpriv->is_611x) {
 			/*  have to take 3 stage adc pipeline into account */
 			stop_count += num_adc_stages_611x;
 		}
@@ -2857,7 +2836,6 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 
 	if (insn->n < 1)
@@ -2875,7 +2853,7 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 				return -EINVAL;
 			}
 			devpriv->ai_calib_source = data[1];
-		} else if (board->reg_type == ni_reg_6143) {
+		} else if (devpriv->is_6143) {
 			unsigned int calib_source;
 
 			calib_source = data[1] & 0xf;
@@ -2895,7 +2873,7 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 			if (calib_source >= 8)
 				return -EINVAL;
 			devpriv->ai_calib_source = calib_source;
-			if (board->reg_type == ni_reg_611x) {
+			if (devpriv->is_611x) {
 				ni_writeb(dev, calib_source_adjust,
 					  Cal_Gain_Select_611x);
 			}
@@ -3182,7 +3160,6 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 unsigned int trig_num)
 {
-	const struct ni_board_struct *board __maybe_unused = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
@@ -3203,7 +3180,7 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	interrupt_b_bits = AO_Error_Interrupt_Enable;
 #ifdef PCIDMA
 	ni_stc_writew(dev, 1, DAC_FIFO_Clear);
-	if (board->reg_type & ni_reg_6xxx_mask)
+	if (devpriv->is_6xxx)
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 	ret = ni_ao_setup_MITE_dma(dev);
 	if (ret)
@@ -3271,7 +3248,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	ni_stc_writew(dev, AO_Disarm, AO_Command_1_Register);
 
-	if (board->reg_type & ni_reg_6xxx_mask) {
+	if (devpriv->is_6xxx) {
 		ni_ao_win_outw(dev, CLEAR_WG, AO_Misc_611x);
 
 		bits = 0;
@@ -3397,8 +3374,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		unsigned bits;
 		devpriv->ao_mode1 &= ~AO_Multiple_Channels;
 		bits = AO_UPDATE_Output_Select(AO_Update_Output_High_Z);
-		if (devpriv->is_m_series ||
-		    board->reg_type & ni_reg_6xxx_mask) {
+		if (devpriv->is_m_series || devpriv->is_6xxx) {
 			bits |= AO_Number_Of_Channels(0);
 		} else {
 			bits |=
@@ -3541,7 +3517,6 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 
 	ni_release_ao_mite_channel(dev);
@@ -3571,7 +3546,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ao_trigger_select = 0;
 	ni_stc_writew(dev, devpriv->ao_trigger_select,
 		      AO_Trigger_Select_Register);
-	if (board->reg_type & ni_reg_6xxx_mask) {
+	if (devpriv->is_6xxx) {
 		unsigned immediate_bits = 0;
 		unsigned i;
 		for (i = 0; i < s->n_chan; ++i)
@@ -5656,7 +5631,7 @@ static int ni_E_init(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags =
 		    SDF_READABLE | SDF_DIFF | SDF_DITHER | SDF_CMD_READ;
-		if (board->reg_type != ni_reg_611x)
+		if (!devpriv->is_611x)
 			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
 		if (board->adbits > 16)
 			s->subdev_flags |= SDF_LSAMPL;
@@ -5692,7 +5667,7 @@ static int ni_E_init(struct comedi_device *dev,
 		s->maxdata = (1 << board->aobits) - 1;
 		s->range_table = board->ao_range_table;
 		s->insn_read = &ni_ao_insn_read;
-		if (board->reg_type & ni_reg_6xxx_mask)
+		if (devpriv->is_6xxx)
 			s->insn_write = &ni_ao_insn_write_671x;
 		else
 			s->insn_write = &ni_ao_insn_write;
@@ -5715,7 +5690,7 @@ static int ni_E_init(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	if ((board->reg_type & ni_reg_67xx_mask))
+	if (devpriv->is_67xx)
 		init_ao_67xx(dev, s);
 
 	/* digital i/o subdevice */
@@ -5773,7 +5748,7 @@ static int ni_E_init(struct comedi_device *dev,
 		s->n_chan = 1;
 		s->maxdata = 0;
 		ni_writel(dev, 0x0, M_Offset_Cal_PWM);
-	} else if (board->reg_type == ni_reg_6143) {
+	} else if (devpriv->is_6143) {
 		/*  internal PWM analog output used for AI nonlinearity calibration */
 		s->subdev_flags = SDF_INTERNAL;
 		s->insn_config = &ni_6143_pwm_config;
@@ -5822,7 +5797,7 @@ static int ni_E_init(struct comedi_device *dev,
 
 	/* cs5529 calibration adc */
 	s = &dev->subdevices[NI_CS5529_CALIBRATION_SUBDEV];
-	if (board->reg_type & ni_reg_67xx_mask) {
+	if (devpriv->is_67xx) {
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_INTERNAL;
 		/*  one channel for each analog output channel */
@@ -5909,7 +5884,7 @@ static int ni_E_init(struct comedi_device *dev,
 	/* ai configuration */
 	s = &dev->subdevices[NI_AI_SUBDEV];
 	ni_ai_reset(dev, s);
-	if ((board->reg_type & ni_reg_6xxx_mask) == 0) {
+	if (!devpriv->is_6xxx) {
 		/*  BEAM is this needed for PCI-6143 ?? */
 		devpriv->clock_and_fout =
 		    Slow_Internal_Time_Divide_By_2 |
@@ -5943,7 +5918,7 @@ static int ni_E_init(struct comedi_device *dev,
 	ni_writeb(dev, devpriv->ai_ao_select_reg, AI_AO_Select);
 	ni_writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
 
-	if (board->reg_type & ni_reg_6xxx_mask) {
+	if (devpriv->is_6xxx) {
 		ni_writeb(dev, 0, Magic_611x);
 	} else if (devpriv->is_m_series) {
 		int channel;
