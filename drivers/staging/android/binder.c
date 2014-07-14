@@ -1185,6 +1185,7 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 				     uint32_t error_code)
 {
 	struct binder_thread *target_thread;
+	struct binder_transaction *next;
 
 	BUG_ON(t->flags & TF_ONE_WAY);
 	while (1) {
@@ -1212,24 +1213,23 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 					target_thread->return_error);
 			}
 			return;
-		} else {
-			struct binder_transaction *next = t->from_parent;
-
-			binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
-				     "send failed reply for transaction %d, target dead\n",
-				     t->debug_id);
-
-			binder_pop_transaction(target_thread, t);
-			if (next == NULL) {
-				binder_debug(BINDER_DEBUG_DEAD_BINDER,
-					     "reply failed, no target thread at root\n");
-				return;
-			}
-			t = next;
-			binder_debug(BINDER_DEBUG_DEAD_BINDER,
-				     "reply failed, no target thread -- retry %d\n",
-				      t->debug_id);
 		}
+		next = t->from_parent;
+
+		binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
+			     "send failed reply for transaction %d, target dead\n",
+			     t->debug_id);
+
+		binder_pop_transaction(target_thread, t);
+		if (next == NULL) {
+			binder_debug(BINDER_DEBUG_DEAD_BINDER,
+				     "reply failed, no target thread at root\n");
+			return;
+		}
+		t = next;
+		binder_debug(BINDER_DEBUG_DEAD_BINDER,
+			     "reply failed, no target thread -- retry %d\n",
+			      t->debug_id);
 	}
 }
 
