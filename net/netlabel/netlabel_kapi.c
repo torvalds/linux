@@ -170,7 +170,6 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 #endif /* IPv6 */
 		default:
 			goto cfg_unlbl_map_add_failure;
-			break;
 		}
 
 		entry->def.addrsel = addrmap;
