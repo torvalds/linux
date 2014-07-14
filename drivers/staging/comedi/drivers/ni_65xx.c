@@ -129,7 +129,6 @@
 #define NI_65XX_WDOG_HI_LO_REG(x)	(0x48 + NI_65XX_PORT(x))
 #define NI_65XX_RTSI_ENA(x)		(0x49 + NI_65XX_PORT(x))
 
-#define NI_65XX_MAX_NUM_PORTS		12
 #define NI_65XX_PORT_TO_CHAN(x)		((x) * 8)
 #define NI_65XX_CHAN_TO_PORT(x)		((x) / 8)
 #define NI_65XX_CHAN_TO_MASK(x)		(1 << ((x) % 8))
@@ -287,7 +286,6 @@ static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board
 
 struct ni_65xx_private {
 	void __iomem *mmio;
-	unsigned short output_bits[NI_65XX_MAX_NUM_PORTS];
 };
 
 static int ni_65xx_dio_insn_config(struct comedi_device *dev,
@@ -369,14 +367,19 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 	unsigned long base_port = (unsigned long)s->private;
 	unsigned int base_chan = CR_CHAN(insn->chanspec);
 	int last_port_offset = NI_65XX_CHAN_TO_PORT(s->n_chan - 1);
+	unsigned invert = 0x00;
 	unsigned read_bits = 0;
 	int port_offset;
+
+	/* handle inverted outputs if necessary */
+	if (s->type == COMEDI_SUBD_DO && board->invert_outputs)
+		invert = 0xff;
 
 	for (port_offset = NI_65XX_CHAN_TO_PORT(base_chan);
 	     port_offset <= last_port_offset; port_offset++) {
 		unsigned port = base_port + port_offset;
 		int base_port_channel = NI_65XX_PORT_TO_CHAN(port_offset);
-		unsigned port_mask, port_data, port_read_bits;
+		unsigned port_mask, port_data, bits;
 		int bitshift = base_port_channel - base_chan;
 
 		if (bitshift >= 32)
@@ -392,30 +395,26 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 		}
 		port_mask &= 0xff;
 		port_data &= 0xff;
+
+		/* update the outputs */
 		if (port_mask) {
-			unsigned bits;
-			devpriv->output_bits[port] &= ~port_mask;
-			devpriv->output_bits[port] |=
-			    port_data & port_mask;
-			bits = devpriv->output_bits[port];
-			if (board->invert_outputs)
-				bits = ~bits;
+			bits = readb(devpriv->mmio + NI_65XX_IO_DATA_REG(port));
+			bits ^= invert;
+			bits &= ~port_mask;
+			bits |= (port_data & port_mask);
+			bits ^= invert;
 			writeb(bits, devpriv->mmio + NI_65XX_IO_DATA_REG(port));
 		}
-		port_read_bits = readb(devpriv->mmio +
-				       NI_65XX_IO_DATA_REG(port));
-		if (s->type == COMEDI_SUBD_DO && board->invert_outputs) {
-			/* Outputs inverted, so invert value read back from
-			 * DO subdevice.  (Does not apply to boards with DIO
-			 * subdevice.) */
-			port_read_bits ^= 0xFF;
-		}
-		if (bitshift > 0)
-			port_read_bits <<= bitshift;
-		else
-			port_read_bits >>= -bitshift;
 
-		read_bits |= port_read_bits;
+		/* read back the actual state */
+		bits = readb(devpriv->mmio + NI_65XX_IO_DATA_REG(port));
+		bits ^= invert;
+		if (bitshift > 0)
+			bits <<= bitshift;
+		else
+			bits >>= -bitshift;
+
+		read_bits |= bits;
 	}
 	data[1] = read_bits;
 	return insn->n;
