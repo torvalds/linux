@@ -58,3 +58,15 @@ config SND_SOC_INTEL_BYT_MAX98090_MACH
 	help
 	  This adds audio driver for Intel Baytrail platform based boards
 	  with the MAX98090 audio codec.
+
+config SND_SOC_INTEL_BROADWELL_MACH
+	tristate "ASoC Audio DSP support for Intel Broadwell Wildcatpoint"
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS
+	select SND_SOC_INTEL_HASWELL
+	select SND_COMPRESS_OFFLOAD
+	select SND_SOC_RT286
+	help
+	  This adds support for the Wilcatpoint Audio DSP on Intel(R) Broadwell
+	  Ultrabook platforms.
+	  Say Y if you have such a device
+	  If unsure select "N".
