@@ -94,12 +94,18 @@ ENTRY(iwmmxt_task_enable)
 
 	mrc	p15, 0, r2, c2, c0, 0
 	mov	r2, r2				@ cpwait
+	bl	concan_save
 
-	teq	r1, #0				@ test for last ownership
-	mov	lr, r9				@ normal exit from exception
-	beq	concan_load			@ no owner, skip save
+#ifdef CONFIG_PREEMPT_COUNT
+	get_thread_info r10
+#endif
+4:	dec_preempt_count r10, r3
+	mov	pc, r9				@ normal exit from exception
 
 concan_save:
+
+	teq	r1, #0				@ test for last ownership
+	beq	concan_load			@ no owner, skip save
 
 	tmrc	r2, wCon
 
@@ -138,7 +144,7 @@ concan_dump:
 	wstrd	wR15, [r1, #MMX_WR15]
 
 2:	teq	r0, #0				@ anything to load?
-	beq	3f
+	moveq	pc, lr				@ if not, return
 
 concan_load:
 
@@ -171,14 +177,9 @@ concan_load:
 	@ clear CUP/MUP (only if r1 != 0)
 	teq	r1, #0
 	mov 	r2, #0
-	beq	3f
-	tmcr	wCon, r2
+	moveq	pc, lr
 
-3:
-#ifdef CONFIG_PREEMPT_COUNT
-	get_thread_info r10
-#endif
-4:	dec_preempt_count r10, r3
+	tmcr	wCon, r2
 	mov	pc, lr
 
 /*
