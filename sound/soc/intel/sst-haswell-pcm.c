@@ -80,7 +80,7 @@ static const struct snd_pcm_hardware hsw_pcm_hardware = {
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME |
 				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FORMAT_S24_LE |
+	.formats		= SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= PAGE_SIZE,
 	.period_bytes_max	= (HSW_PCM_PERIODS_MAX / HSW_PCM_PERIODS_MIN) * PAGE_SIZE,
@@ -400,7 +400,15 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		sst_hsw_stream_set_valid(hsw, pcm_data->stream, 16);
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		bits = SST_HSW_DEPTH_24BIT;
+		bits = SST_HSW_DEPTH_32BIT;
+		sst_hsw_stream_set_valid(hsw, pcm_data->stream, 24);
+		break;
+	case SNDRV_PCM_FORMAT_S8:
+		bits = SST_HSW_DEPTH_8BIT;
+		sst_hsw_stream_set_valid(hsw, pcm_data->stream, 8);
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		bits = SST_HSW_DEPTH_32BIT;
 		sst_hsw_stream_set_valid(hsw, pcm_data->stream, 32);
 		break;
 	default:
@@ -685,8 +693,9 @@ static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 }
 
 #define HSW_FORMATS \
-	(SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S16_LE |\
-	 SNDRV_PCM_FMTBIT_S32_LE)
+	(SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S24_LE | \
+	SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S16_LE |\
+	SNDRV_PCM_FMTBIT_S8)
 
 static struct snd_soc_dai_driver hsw_dais[] = {
 	{
@@ -696,7 +705,7 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 			.channels_min = 2,
 			.channels_max = 2,
 			.rates = SNDRV_PCM_RATE_48000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
 	},
 	{
@@ -727,8 +736,8 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 			.stream_name = "Loopback Capture",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_192000,
-			.formats = HSW_FORMATS,
+			.rates = SNDRV_PCM_RATE_48000,
+			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
 	},
 	{
@@ -737,8 +746,8 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 			.stream_name = "Analog Capture",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_192000,
-			.formats = HSW_FORMATS,
+			.rates = SNDRV_PCM_RATE_48000,
+			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
 	},
 };
