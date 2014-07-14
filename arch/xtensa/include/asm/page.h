@@ -78,7 +78,9 @@
 # define DCACHE_ALIAS_EQ(a,b)	((((a) ^ (b)) & DCACHE_ALIAS_MASK) == 0)
 #else
 # define DCACHE_ALIAS_ORDER	0
+# define DCACHE_ALIAS(a)	((void)(a), 0)
 #endif
+#define DCACHE_N_COLORS		(1 << DCACHE_ALIAS_ORDER)
 
 #if ICACHE_WAY_SIZE > PAGE_SIZE
 # define ICACHE_ALIAS_ORDER	(ICACHE_WAY_SHIFT - PAGE_SHIFT)

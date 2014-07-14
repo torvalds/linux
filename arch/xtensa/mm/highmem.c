@@ -14,18 +14,23 @@
 
 static pte_t *kmap_pte;
 
+static inline enum fixed_addresses kmap_idx(int type, unsigned long color)
+{
+	return (type + KM_TYPE_NR * smp_processor_id()) * DCACHE_N_COLORS +
+		color;
+}
+
 void *kmap_atomic(struct page *page)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr;
-	int type;
 
 	pagefault_disable();
 	if (!PageHighMem(page))
 		return page_address(page);
 
-	type = kmap_atomic_idx_push();
-	idx = type + KM_TYPE_NR * smp_processor_id();
+	idx = kmap_idx(kmap_atomic_idx_push(),
+		       DCACHE_ALIAS(page_to_phys(page)));
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
 	BUG_ON(!pte_none(*(kmap_pte + idx)));
@@ -38,12 +43,10 @@ EXPORT_SYMBOL(kmap_atomic);
 
 void __kunmap_atomic(void *kvaddr)
 {
-	int idx, type;
-
 	if (kvaddr >= (void *)FIXADDR_START &&
 	    kvaddr < (void *)FIXADDR_TOP) {
-		type = kmap_atomic_idx();
-		idx = type + KM_TYPE_NR * smp_processor_id();
+		int idx = kmap_idx(kmap_atomic_idx(),
+				   DCACHE_ALIAS((unsigned long)kvaddr));
 
 		/*
 		 * Force other mappings to Oops if they'll try to access this
