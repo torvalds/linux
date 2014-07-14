@@ -1196,6 +1196,28 @@ static struct samsung_gate_clock exynos5x_gate_clks[] __initdata = {
 	GATE(CLK_G3D, "g3d", "mout_user_aclk_g3d", GATE_IP_G3D, 9, 0, 0),
 };
 
+static const struct samsung_pll_rate_table exynos5420_pll2550x_24mhz_tbl[] = {
+	PLL_35XX_RATE(2000000000, 250, 3, 0),
+	PLL_35XX_RATE(1900000000, 475, 6, 0),
+	PLL_35XX_RATE(1800000000, 225, 3, 0),
+	PLL_35XX_RATE(1700000000, 425, 6, 0),
+	PLL_35XX_RATE(1600000000, 200, 3, 0),
+	PLL_35XX_RATE(1500000000, 250, 4, 0),
+	PLL_35XX_RATE(1400000000, 175, 3, 0),
+	PLL_35XX_RATE(1300000000, 325, 6, 0),
+	PLL_35XX_RATE(1200000000, 200, 2, 1),
+	PLL_35XX_RATE(1100000000, 275, 3, 1),
+	PLL_35XX_RATE(1000000000, 250, 3, 1),
+	PLL_35XX_RATE(900000000,  150, 2, 1),
+	PLL_35XX_RATE(800000000,  200, 3, 1),
+	PLL_35XX_RATE(700000000,  175, 3, 1),
+	PLL_35XX_RATE(600000000,  200, 2, 2),
+	PLL_35XX_RATE(500000000,  250, 3, 2),
+	PLL_35XX_RATE(400000000,  200, 3, 2),
+	PLL_35XX_RATE(300000000,  200, 2, 3),
+	PLL_35XX_RATE(200000000,  200, 3, 3),
+};
+
 static struct samsung_pll_clock exynos5x_plls[nr_plls] __initdata = {
 	[apll] = PLL(pll_2550, CLK_FOUT_APLL, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, NULL),
@@ -1249,6 +1271,12 @@ static void __init exynos5x_clk_init(struct device_node *np,
 	samsung_clk_of_register_fixed_ext(ctx, exynos5x_fixed_rate_ext_clks,
 			ARRAY_SIZE(exynos5x_fixed_rate_ext_clks),
 			ext_clk_match);
+
+	if (_get_rate("fin_pll") == 24 * MHZ) {
+		exynos5x_plls[apll].rate_table = exynos5420_pll2550x_24mhz_tbl;
+		exynos5x_plls[kpll].rate_table = exynos5420_pll2550x_24mhz_tbl;
+	}
+
 	samsung_clk_register_pll(ctx, exynos5x_plls, ARRAY_SIZE(exynos5x_plls),
 					reg_base);
 	samsung_clk_register_fixed_rate(ctx, exynos5x_fixed_rate_clks,
