@@ -4298,8 +4298,8 @@ xfs_bmapi_delay(
 }
 
 
-int
-__xfs_bmapi_allocate(
+static int
+xfs_bmapi_allocate(
 	struct xfs_bmalloca	*bma)
 {
 	struct xfs_mount	*mp = bma->ip->i_mount;
@@ -4577,9 +4577,6 @@ xfs_bmapi_write(
 	bma.userdata = 0;
 	bma.flist = flist;
 	bma.firstblock = firstblock;
-
-	if (flags & XFS_BMAPI_STACK_SWITCH)
-		bma.stack_switch = 1;
 
 	while (bno < end && n < *nmap) {
 		inhole = eof || bma.got.br_startoff > bno;
