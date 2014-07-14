@@ -4547,6 +4547,7 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 	struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
 	struct usb_port *port_dev = hub->ports[port1 - 1];
 	struct usb_device *udev = port_dev->child;
+	static int unreliable_port = -1;
 
 	/* Disconnect any existing devices under this port */
 	if (udev) {
@@ -4567,10 +4568,14 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 				USB_PORT_STAT_C_ENABLE)) {
 		status = hub_port_debounce_be_stable(hub, port1);
 		if (status < 0) {
-			if (status != -ENODEV && printk_ratelimit())
-				dev_err(&port_dev->dev,
-						"connect-debounce failed\n");
+			if (status != -ENODEV &&
+				port1 != unreliable_port &&
+				printk_ratelimit())
+				dev_err(&udev->dev, "connect-debounce failed, port %d disabled\n",
+					port1);
+
 			portstatus &= ~USB_PORT_STAT_CONNECTION;
+			unreliable_port = port1;
 		} else {
 			portstatus = status;
 		}
