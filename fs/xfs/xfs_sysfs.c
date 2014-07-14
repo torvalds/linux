@@ -53,7 +53,71 @@ struct kobj_type xfs_mp_ktype = {
 
 /* xlog */
 
+STATIC ssize_t
+log_head_lsn_show(
+	char	*buf,
+	void	*data)
+{
+	struct xlog *log = data;
+	int cycle;
+	int block;
+
+	spin_lock(&log->l_icloglock);
+	cycle = log->l_curr_cycle;
+	block = log->l_curr_block;
+	spin_unlock(&log->l_icloglock);
+
+	return snprintf(buf, PAGE_SIZE, "%d:%d\n", cycle, block);
+}
+XFS_SYSFS_ATTR_RO(log_head_lsn);
+
+STATIC ssize_t
+log_tail_lsn_show(
+	char	*buf,
+	void	*data)
+{
+	struct xlog *log = data;
+	int cycle;
+	int block;
+
+	xlog_crack_atomic_lsn(&log->l_tail_lsn, &cycle, &block);
+	return snprintf(buf, PAGE_SIZE, "%d:%d\n", cycle, block);
+}
+XFS_SYSFS_ATTR_RO(log_tail_lsn);
+
+STATIC ssize_t
+reserve_grant_head_show(
+	char	*buf,
+	void	*data)
+{
+	struct xlog *log = data;
+	int cycle;
+	int bytes;
+
+	xlog_crack_grant_head(&log->l_reserve_head.grant, &cycle, &bytes);
+	return snprintf(buf, PAGE_SIZE, "%d:%d\n", cycle, bytes);
+}
+XFS_SYSFS_ATTR_RO(reserve_grant_head);
+
+STATIC ssize_t
+write_grant_head_show(
+	char	*buf,
+	void	*data)
+{
+	struct xlog *log = data;
+	int cycle;
+	int bytes;
+
+	xlog_crack_grant_head(&log->l_write_head.grant, &cycle, &bytes);
+	return snprintf(buf, PAGE_SIZE, "%d:%d\n", cycle, bytes);
+}
+XFS_SYSFS_ATTR_RO(write_grant_head);
+
 static struct attribute *xfs_log_attrs[] = {
+	ATTR_LIST(log_head_lsn),
+	ATTR_LIST(log_tail_lsn),
+	ATTR_LIST(reserve_grant_head),
+	ATTR_LIST(write_grant_head),
 	NULL,
 };
 
