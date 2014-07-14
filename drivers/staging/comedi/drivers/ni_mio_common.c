@@ -2818,7 +2818,6 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 					  unsigned int chanspec[],
 					  unsigned int n_chans, int timed)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	unsigned int range;
 	unsigned int chan;
@@ -2827,7 +2826,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 	int invert = 0;
 
 	if (timed) {
-		for (i = 0; i < board->n_aochan; ++i) {
+		for (i = 0; i < s->n_chan; ++i) {
 			devpriv->ao_conf[i] &= ~MSeries_AO_Update_Timed_Bit;
 			ni_writeb(dev, devpriv->ao_conf[i],
 				  M_Offset_AO_Config_Bank(i));
@@ -2893,7 +2892,6 @@ static int ni_old_ao_config_chanlist(struct comedi_device *dev,
 				     unsigned int chanspec[],
 				     unsigned int n_chans)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	unsigned int range;
 	unsigned int chan;
@@ -2908,7 +2906,7 @@ static int ni_old_ao_config_chanlist(struct comedi_device *dev,
 
 		if (comedi_range_is_bipolar(s, range)) {
 			conf |= AO_Bipolar;
-			invert = (1 << (board->aobits - 1));
+			invert = (s->maxdata + 1) >> 1;
 		} else {
 			invert = 0;
 		}
