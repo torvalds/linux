@@ -363,6 +363,12 @@ static inline bool comedi_range_is_unipolar(struct comedi_subdevice *s,
 	return s->range_table->range[range].min >= 0;
 }
 
+static inline bool comedi_range_is_external(struct comedi_subdevice *s,
+					    unsigned int range)
+{
+	return !!(s->range_table->range[range].flags & RF_EXTERNAL);
+}
+
 static inline bool comedi_chan_range_is_bipolar(struct comedi_subdevice *s,
 						unsigned int chan,
 						unsigned int range)
@@ -375,6 +381,13 @@ static inline bool comedi_chan_range_is_unipolar(struct comedi_subdevice *s,
 						 unsigned int range)
 {
 	return s->range_table_list[chan]->range[range].min >= 0;
+}
+
+static inline bool comedi_chan_range_is_external(struct comedi_subdevice *s,
+						 unsigned int chan,
+						 unsigned int range)
+{
+	return !!(s->range_table_list[chan]->range[range].flags & RF_EXTERNAL);
 }
 
 /* munge between offset binary and two's complement values */
