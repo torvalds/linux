@@ -618,44 +618,44 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 	if (board->num_di_ports) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE;
-		s->n_chan = NI_65XX_PORT_TO_CHAN(board->num_di_ports);
-		s->range_table = &range_digital;
-		s->maxdata = 1;
-		s->insn_config = ni_65xx_dio_insn_config;
-		s->insn_bits = ni_65xx_dio_insn_bits;
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= NI_65XX_PORT_TO_CHAN(board->num_di_ports);
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= ni_65xx_dio_insn_bits;
+		s->insn_config	= ni_65xx_dio_insn_config;
 
 		/* the input ports always start at port 0 */
 		s->private = (void *)0;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	s = &dev->subdevices[1];
 	if (board->num_do_ports) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = NI_65XX_PORT_TO_CHAN(board->num_do_ports);
-		s->range_table = &range_digital;
-		s->maxdata = 1;
-		s->insn_bits = ni_65xx_dio_insn_bits;
+		s->type		= COMEDI_SUBD_DO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= NI_65XX_PORT_TO_CHAN(board->num_do_ports);
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= ni_65xx_dio_insn_bits;
 
 		/* the output ports always start after the input ports */
 		s->private = (void *)(unsigned long)board->num_di_ports;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	s = &dev->subdevices[2];
 	if (board->num_dio_ports) {
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = NI_65XX_PORT_TO_CHAN(board->num_dio_ports);
-		s->range_table = &range_digital;
-		s->maxdata = 1;
-		s->insn_config = ni_65xx_dio_insn_config;
-		s->insn_bits = ni_65xx_dio_insn_bits;
+		s->type		= COMEDI_SUBD_DIO;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+		s->n_chan	= NI_65XX_PORT_TO_CHAN(board->num_dio_ports);
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= ni_65xx_dio_insn_bits;
+		s->insn_config	= ni_65xx_dio_insn_config;
 
 		/* the input/output ports always start at port 0 */
 		s->private = (void *)0;
@@ -666,7 +666,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 			       devpriv->mmio + NI_65XX_IO_SEL_REG(i));
 		}
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	s = &dev->subdevices[3];
