@@ -274,25 +274,16 @@ struct ni_65xx_private {
 	unsigned short output_bits[NI_65XX_MAX_NUM_PORTS];
 };
 
-struct ni_65xx_subdevice_private {
-	unsigned base_port;
-};
-
-static inline struct ni_65xx_subdevice_private *sprivate(struct comedi_subdevice
-							 *subdev)
-{
-	return subdev->private;
-}
-
 static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
 	struct ni_65xx_private *devpriv = dev->private;
+	unsigned long base_port = (unsigned long)s->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int chan_mask = 1 << (chan % ni_65xx_channels_per_port);
-	unsigned port = sprivate(s)->base_port + ni_65xx_port_by_channel(chan);
+	unsigned port = base_port + ni_65xx_port_by_channel(chan);
 	unsigned int interval;
 	unsigned int val;
 
@@ -357,6 +348,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 	const struct ni_65xx_board *board = comedi_board(dev);
+	unsigned long base_port = (unsigned long)s->private;
 	struct ni_65xx_private *devpriv = dev->private;
 	int base_bitfield_channel;
 	unsigned read_bits = 0;
@@ -366,7 +358,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 	base_bitfield_channel = CR_CHAN(insn->chanspec);
 	for (port_offset = ni_65xx_port_by_channel(base_bitfield_channel);
 	     port_offset <= last_port_offset; port_offset++) {
-		unsigned port = sprivate(s)->base_port + port_offset;
+		unsigned port = base_port + port_offset;
 		int base_port_channel = port_offset * ni_65xx_channels_per_port;
 		unsigned port_mask, port_data, port_read_bits;
 		int bitshift = base_port_channel - base_bitfield_channel;
@@ -563,7 +555,6 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct ni_65xx_board *board = NULL;
 	struct ni_65xx_private *devpriv;
-	struct ni_65xx_subdevice_private *spriv;
 	struct comedi_subdevice *s;
 	unsigned i;
 	int ret;
@@ -609,10 +600,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
 		s->insn_bits = ni_65xx_dio_insn_bits;
-		spriv = comedi_alloc_spriv(s, sizeof(*spriv));
-		if (!spriv)
-			return -ENOMEM;
-		spriv->base_port = 0;
+
+		/* the input ports always start at port 0 */
+		s->private = (void *)0;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -626,10 +616,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_bits = ni_65xx_dio_insn_bits;
-		spriv = comedi_alloc_spriv(s, sizeof(*spriv));
-		if (!spriv)
-			return -ENOMEM;
-		spriv->base_port = board->num_di_ports;
+
+		/* the output ports always start after the input ports */
+		s->private = (void *)(unsigned long)board->num_di_ports;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -644,10 +633,10 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
 		s->insn_bits = ni_65xx_dio_insn_bits;
-		spriv = comedi_alloc_spriv(s, sizeof(*spriv));
-		if (!spriv)
-			return -ENOMEM;
-		spriv->base_port = 0;
+
+		/* the input/output ports always start at port 0 */
+		s->private = (void *)0;
+
 		/* configure all ports for input */
 		for (i = 0; i < board->num_dio_ports; ++i) {
 			writeb(NI_65XX_IO_SEL_INPUT,
