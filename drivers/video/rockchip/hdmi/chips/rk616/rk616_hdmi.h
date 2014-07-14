@@ -35,6 +35,7 @@ struct rk_hdmi_device {
 	struct work_struct rk616_irq_work_struct;
 	struct mfd_rk616 *rk616_drv;
 	struct dentry *debugfs_dir;
+	unsigned int hclk_rate;
 };
 
 #endif /* __RK616_HDMI_H__ */

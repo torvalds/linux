@@ -371,7 +371,7 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 		goto err1;
 	}
 	rk616_hdmi_clk_enable(hdmi_dev);	/* enable clk may move to irq func */
-
+	hdmi_dev->hclk_rate = clk_get_rate(hdmi_dev->hclk);
 	/* request and remap iomem */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
