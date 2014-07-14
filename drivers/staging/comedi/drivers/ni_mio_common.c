@@ -5574,32 +5574,37 @@ static int ni_E_init(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	/* digital i/o subdevice */
-
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[NI_DIO_SUBDEV];
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->maxdata = 1;
-	s->io_bits = 0;		/* all bits input */
-	s->range_table = &range_digital;
-	s->n_chan = board->has_32dio_chan ? 32 : 8;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->n_chan	= board->has_32dio_chan ? 32 : 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
 	if (devpriv->is_m_series) {
-		s->subdev_flags |=
-		    SDF_LSAMPL | SDF_CMD_WRITE /* | SDF_CMD_READ */;
-		s->insn_bits = &ni_m_series_dio_insn_bits;
-		s->insn_config = &ni_m_series_dio_insn_config;
-		s->do_cmd = &ni_cdio_cmd;
-		s->do_cmdtest = &ni_cdio_cmdtest;
-		s->cancel = &ni_cdio_cancel;
-		s->async_dma_dir = DMA_BIDIRECTIONAL;
-		s->len_chanlist = s->n_chan;
+		s->subdev_flags	|= SDF_LSAMPL;
+		s->insn_bits	= ni_m_series_dio_insn_bits;
+		s->insn_config	= ni_m_series_dio_insn_config;
+		if (dev->irq) {
+			s->subdev_flags	|= SDF_CMD_WRITE /* | SDF_CMD_READ */;
+			s->len_chanlist	= s->n_chan;
+			s->do_cmdtest	= ni_cdio_cmdtest;
+			s->do_cmd	= ni_cdio_cmd;
+			s->cancel	= ni_cdio_cancel;
 
+			/* M-series boards use DMA */
+			s->async_dma_dir = DMA_BIDIRECTIONAL;
+		}
+
+		/* reset DIO and set all channels to inputs */
 		ni_writel(dev, CDO_Reset_Bit | CDI_Reset_Bit,
 			  M_Offset_CDIO_Command);
 		ni_writel(dev, s->io_bits, M_Offset_DIO_Direction);
 	} else {
-		s->insn_bits = &ni_dio_insn_bits;
-		s->insn_config = &ni_dio_insn_config;
+		s->insn_bits	= ni_dio_insn_bits;
+		s->insn_config	= ni_dio_insn_config;
+
+		/* set all channels to inputs */
 		devpriv->dio_control = DIO_Pins_Dir(s->io_bits);
 		ni_writew(dev, devpriv->dio_control, DIO_Control_Register);
 	}
