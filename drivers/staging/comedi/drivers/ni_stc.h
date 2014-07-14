@@ -1410,7 +1410,6 @@ struct ni_board_struct {
 
 	int reg_type;
 	unsigned int has_8255:1;
-	unsigned int has_analog_trig:1;
 
 	enum caldac_enum caldac[3];
 };
@@ -1470,10 +1469,6 @@ struct ni_private {
 
 	unsigned clock_ns;
 	unsigned clock_source;
-
-	unsigned short atrig_mode;
-	unsigned short atrig_high;
-	unsigned short atrig_low;
 
 	unsigned short pwm_up_count;
 	unsigned short pwm_down_count;
