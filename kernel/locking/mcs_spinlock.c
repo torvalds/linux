@@ -182,8 +182,7 @@ unqueue:
 
 void osq_unlock(struct optimistic_spin_queue *lock)
 {
-	struct optimistic_spin_node *node = this_cpu_ptr(&osq_node);
-	struct optimistic_spin_node *next;
+	struct optimistic_spin_node *node, *next;
 	int curr = encode_cpu(smp_processor_id());
 
 	/*
@@ -195,6 +194,7 @@ void osq_unlock(struct optimistic_spin_queue *lock)
 	/*
 	 * Second most likely case.
 	 */
+	node = this_cpu_ptr(&osq_node);
 	next = xchg(&node->next, NULL);
 	if (next) {
 		ACCESS_ONCE(next->locked) = 1;
