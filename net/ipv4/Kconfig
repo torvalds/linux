@@ -307,6 +307,10 @@ config NET_IPVTI
 	  the notion of a secure tunnel for IPSEC and then use routing protocol
 	  on top.
 
+config NET_UDP_TUNNEL
+	tristate
+	default n
+
 config INET_AH
 	tristate "IP: AH transformation"
 	select XFRM_ALGO
