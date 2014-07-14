@@ -272,7 +272,6 @@ static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board
 struct ni_65xx_private {
 	void __iomem *mmio;
 	unsigned short output_bits[NI_65XX_MAX_NUM_PORTS];
-	unsigned short dio_direction[NI_65XX_MAX_NUM_PORTS];
 };
 
 struct ni_65xx_subdevice_private {
@@ -322,35 +321,35 @@ static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 			val &= ~chan_mask;
 		}
 		writeb(val, devpriv->mmio + NI_65XX_FILTER_ENA(port));
-
-		return insn->n;
+		break;
 
 	case INSN_CONFIG_DIO_OUTPUT:
 		if (s->type != COMEDI_SUBD_DIO)
 			return -EINVAL;
-		devpriv->dio_direction[port] = COMEDI_OUTPUT;
 		writeb(NI_65XX_IO_SEL_OUTPUT,
 		       devpriv->mmio + NI_65XX_IO_SEL_REG(port));
-		return 1;
 		break;
+
 	case INSN_CONFIG_DIO_INPUT:
 		if (s->type != COMEDI_SUBD_DIO)
 			return -EINVAL;
-		devpriv->dio_direction[port] = COMEDI_INPUT;
 		writeb(NI_65XX_IO_SEL_INPUT,
 		       devpriv->mmio + NI_65XX_IO_SEL_REG(port));
-		return 1;
 		break;
+
 	case INSN_CONFIG_DIO_QUERY:
 		if (s->type != COMEDI_SUBD_DIO)
 			return -EINVAL;
-		data[1] = devpriv->dio_direction[port];
-		return insn->n;
+		val = readb(devpriv->mmio + NI_65XX_IO_SEL_REG(port));
+		data[1] = (val == NI_65XX_IO_SEL_INPUT) ? COMEDI_INPUT
+							: COMEDI_OUTPUT;
 		break;
+
 	default:
-		break;
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	return insn->n;
 }
 
 static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
