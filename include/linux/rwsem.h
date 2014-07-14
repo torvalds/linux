@@ -24,15 +24,15 @@ struct rw_semaphore;
 /* All arch specific implementations share the same struct */
 struct rw_semaphore {
 	long count;
-	raw_spinlock_t wait_lock;
 	struct list_head wait_list;
+	raw_spinlock_t wait_lock;
 #ifdef CONFIG_SMP
+	struct optimistic_spin_queue osq; /* spinner MCS lock */
 	/*
 	 * Write owner. Used as a speculative check to see
 	 * if the owner is running on the cpu.
 	 */
 	struct task_struct *owner;
-	struct optimistic_spin_queue osq; /* spinner MCS lock */
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
@@ -64,20 +64,17 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
 #endif
 
 #if defined(CONFIG_SMP) && !defined(CONFIG_RWSEM_GENERIC_SPINLOCK)
-#define __RWSEM_INITIALIZER(name)			\
-	{ RWSEM_UNLOCKED_VALUE,				\
-	  __RAW_SPIN_LOCK_UNLOCKED(name.wait_lock),	\
-	  LIST_HEAD_INIT((name).wait_list),		\
-	  NULL, /* owner */				\
-	  OSQ_LOCK_UNLOCKED /* osq */			\
-	  __RWSEM_DEP_MAP_INIT(name) }
+#define __RWSEM_OPT_INIT(lockname) , .osq = OSQ_LOCK_UNLOCKED, .owner = NULL
 #else
-#define __RWSEM_INITIALIZER(name)			\
-	{ RWSEM_UNLOCKED_VALUE,				\
-	  __RAW_SPIN_LOCK_UNLOCKED(name.wait_lock),	\
-	  LIST_HEAD_INIT((name).wait_list)		\
-	  __RWSEM_DEP_MAP_INIT(name) }
+#define __RWSEM_OPT_INIT(lockname)
 #endif
+
+#define __RWSEM_INITIALIZER(name)				\
+	{ .count = RWSEM_UNLOCKED_VALUE,			\
+	  .wait_list = LIST_HEAD_INIT((name).wait_list),	\
+	  .wait_lock = __RAW_SPIN_LOCK_UNLOCKED(name.wait_lock)	\
+	  __RWSEM_OPT_INIT(name)				\
+	  __RWSEM_DEP_MAP_INIT(name) }
 
 #define DECLARE_RWSEM(name) \
 	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
