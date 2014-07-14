@@ -375,10 +375,6 @@ int xgbe_mdio_register(struct xgbe_prv_data *pdata)
 
 	phydev->autoneg = pdata->default_autoneg;
 	if (phydev->autoneg == AUTONEG_DISABLE) {
-		/* Add settings needed to force speed */
-		phydev->supported |= SUPPORTED_1000baseT_Full;
-		phydev->supported |= SUPPORTED_10000baseT_Full;
-
 		phydev->speed = pdata->default_speed;
 		phydev->duplex = DUPLEX_FULL;
 
