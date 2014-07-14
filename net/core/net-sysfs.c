@@ -112,6 +112,25 @@ NETDEVICE_SHOW_RO(ifindex, fmt_dec);
 NETDEVICE_SHOW_RO(type, fmt_dec);
 NETDEVICE_SHOW_RO(link_mode, fmt_dec);
 
+static ssize_t format_name_assign_type(const struct net_device *net, char *buf)
+{
+	return sprintf(buf, fmt_dec, net->name_assign_type);
+}
+
+static ssize_t name_assign_type_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct net_device *net = to_net_dev(dev);
+	ssize_t ret = -EINVAL;
+
+	if (net->name_assign_type != NET_NAME_UNKNOWN)
+		ret = netdev_show(dev, attr, buf, format_name_assign_type);
+
+	return ret;
+}
+static DEVICE_ATTR_RO(name_assign_type);
+
 /* use same locking rules as GIFHWADDR ioctl's */
 static ssize_t address_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -387,6 +406,7 @@ static struct attribute *net_class_attrs[] = {
 	&dev_attr_dev_port.attr,
 	&dev_attr_iflink.attr,
 	&dev_attr_ifindex.attr,
+	&dev_attr_name_assign_type.attr,
 	&dev_attr_addr_assign_type.attr,
 	&dev_attr_addr_len.attr,
 	&dev_attr_link_mode.attr,
