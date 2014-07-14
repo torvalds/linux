@@ -1303,9 +1303,6 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_RS780:
 	case CHIP_RS880:
 	case CHIP_RV770:
-	case CHIP_BARTS:
-	case CHIP_TURKS:
-	case CHIP_CAICOS:
 		/* DPM requires the RLC, RV770+ dGPU requires SMC */
 		if (!rdev->rlc_fw)
 			rdev->pm.pm_method = PM_METHOD_PROFILE;
@@ -1329,6 +1326,9 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_PALM:
 	case CHIP_SUMO:
 	case CHIP_SUMO2:
+	case CHIP_BARTS:
+	case CHIP_TURKS:
+	case CHIP_CAICOS:
 	case CHIP_CAYMAN:
 	case CHIP_ARUBA:
 	case CHIP_TAHITI:
