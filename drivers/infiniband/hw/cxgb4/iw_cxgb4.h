@@ -150,6 +150,18 @@ struct c4iw_hw_queue {
 	int t4_stat_len;
 };
 
+struct wr_log_entry {
+	struct timespec post_host_ts;
+	struct timespec poll_host_ts;
+	u64 post_sge_ts;
+	u64 cqe_sge_ts;
+	u64 poll_sge_ts;
+	u16 qid;
+	u16 wr_id;
+	u8 opcode;
+	u8 valid;
+};
+
 struct c4iw_rdev {
 	struct c4iw_resource resource;
 	unsigned long qpshift;
@@ -169,6 +181,9 @@ struct c4iw_rdev {
 	struct c4iw_stats stats;
 	struct c4iw_hw_queue hw_queue;
 	struct t4_dev_status_page *status_page;
+	atomic_t wr_log_idx;
+	struct wr_log_entry *wr_log;
+	int wr_log_size;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
@@ -1011,6 +1026,8 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
 
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
+extern void c4iw_log_wr_stats(struct t4_wq *wq, struct t4_cqe *cqe);
+extern int c4iw_wr_log;
 extern int db_fc_threshold;
 extern int db_coalescing_threshold;
 extern int use_dsgl;

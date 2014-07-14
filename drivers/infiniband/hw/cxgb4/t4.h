@@ -269,6 +269,8 @@ struct t4_swsqe {
 	int			signaled;
 	u16			idx;
 	int                     flushed;
+	struct timespec         host_ts;
+	u64                     sge_ts;
 };
 
 static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
@@ -306,6 +308,8 @@ struct t4_sq {
 
 struct t4_swrqe {
 	u64 wr_id;
+	struct timespec host_ts;
+	u64 sge_ts;
 };
 
 struct t4_rq {

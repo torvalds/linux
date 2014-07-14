@@ -3898,6 +3898,19 @@ err:
 }
 EXPORT_SYMBOL(cxgb4_read_tpte);
 
+u64 cxgb4_read_sge_timestamp(struct net_device *dev)
+{
+	u32 hi, lo;
+	struct adapter *adap;
+
+	adap = netdev2adap(dev);
+	lo = t4_read_reg(adap, SGE_TIMESTAMP_LO);
+	hi = GET_TSVAL(t4_read_reg(adap, SGE_TIMESTAMP_HI));
+
+	return ((u64)hi << 32) | (u64)lo;
+}
+EXPORT_SYMBOL(cxgb4_read_sge_timestamp);
+
 static struct pci_driver cxgb4_driver;
 
 static void check_neigh_update(struct neighbour *neigh)
@@ -4161,6 +4174,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.wr_cred = adap->params.ofldq_wr_cred;
 	lli.adapter_type = adap->params.chip;
 	lli.iscsi_iolen = MAXRXDATA_GET(t4_read_reg(adap, TP_PARA_REG2));
+	lli.cclk_ps = 1000000000 / adap->params.vpd.cclk;
 	lli.udb_density = 1 << QUEUESPERPAGEPF0_GET(
 			t4_read_reg(adap, SGE_EGRESS_QUEUES_PER_PAGE_PF) >>
 			(adap->fn * 4));

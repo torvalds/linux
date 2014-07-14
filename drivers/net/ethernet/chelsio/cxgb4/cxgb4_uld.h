@@ -243,6 +243,7 @@ struct cxgb4_lld_info {
 	unsigned char fw_api_ver;            /* FW API version */
 	unsigned int fw_vers;                /* FW version */
 	unsigned int iscsi_iolen;            /* iSCSI max I/O length */
+	unsigned int cclk_ps;                /* Core clock period in psec */
 	unsigned short udb_density;          /* # of user DB/page */
 	unsigned short ucq_density;          /* # of user CQs/page */
 	unsigned short filt_mode;            /* filter optional components */
@@ -297,5 +298,6 @@ int cxgb4_flush_eq_cache(struct net_device *dev);
 void cxgb4_disable_db_coalescing(struct net_device *dev);
 void cxgb4_enable_db_coalescing(struct net_device *dev);
 int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte);
+u64 cxgb4_read_sge_timestamp(struct net_device *dev);
 
 #endif  /* !__CXGB4_OFLD_H */

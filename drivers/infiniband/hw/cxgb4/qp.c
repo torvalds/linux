@@ -823,6 +823,11 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				  qhp->sq_sig_all;
 		swsqe->flushed = 0;
 		swsqe->wr_id = wr->wr_id;
+		if (c4iw_wr_log) {
+			swsqe->sge_ts = cxgb4_read_sge_timestamp(
+					qhp->rhp->rdev.lldi.ports[0]);
+			getnstimeofday(&swsqe->host_ts);
+		}
 
 		init_wr_hdr(wqe, qhp->wq.sq.pidx, fw_opcode, fw_flags, len16);
 
@@ -886,6 +891,13 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		}
 
 		qhp->wq.rq.sw_rq[qhp->wq.rq.pidx].wr_id = wr->wr_id;
+		if (c4iw_wr_log) {
+			qhp->wq.rq.sw_rq[qhp->wq.rq.pidx].sge_ts =
+				cxgb4_read_sge_timestamp(
+						qhp->rhp->rdev.lldi.ports[0]);
+			getnstimeofday(
+				&qhp->wq.rq.sw_rq[qhp->wq.rq.pidx].host_ts);
+		}
 
 		wqe->recv.opcode = FW_RI_RECV_WR;
 		wqe->recv.r1 = 0;

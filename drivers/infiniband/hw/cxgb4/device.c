@@ -55,6 +55,15 @@ module_param(allow_db_coalescing_on_t5, int, 0644);
 MODULE_PARM_DESC(allow_db_coalescing_on_t5,
 		 "Allow DB Coalescing on T5 (default = 0)");
 
+int c4iw_wr_log = 0;
+module_param(c4iw_wr_log, int, 0444);
+MODULE_PARM_DESC(c4iw_wr_log, "Enables logging of work request timing data.");
+
+int c4iw_wr_log_size_order = 12;
+module_param(c4iw_wr_log_size_order, int, 0444);
+MODULE_PARM_DESC(c4iw_wr_log_size_order,
+		 "Number of entries (log2) in the work request timing log.");
+
 struct uld_ctx {
 	struct list_head entry;
 	struct cxgb4_lld_info lldi;
@@ -102,6 +111,117 @@ static ssize_t debugfs_read(struct file *file, char __user *buf, size_t count,
 
 	return simple_read_from_buffer(buf, count, ppos, d->buf, d->pos);
 }
+
+void c4iw_log_wr_stats(struct t4_wq *wq, struct t4_cqe *cqe)
+{
+	struct wr_log_entry le;
+	int idx;
+
+	if (!wq->rdev->wr_log)
+		return;
+
+	idx = (atomic_inc_return(&wq->rdev->wr_log_idx) - 1) &
+		(wq->rdev->wr_log_size - 1);
+	le.poll_sge_ts = cxgb4_read_sge_timestamp(wq->rdev->lldi.ports[0]);
+	getnstimeofday(&le.poll_host_ts);
+	le.valid = 1;
+	le.cqe_sge_ts = CQE_TS(cqe);
+	if (SQ_TYPE(cqe)) {
+		le.qid = wq->sq.qid;
+		le.opcode = CQE_OPCODE(cqe);
+		le.post_host_ts = wq->sq.sw_sq[wq->sq.cidx].host_ts;
+		le.post_sge_ts = wq->sq.sw_sq[wq->sq.cidx].sge_ts;
+		le.wr_id = CQE_WRID_SQ_IDX(cqe);
+	} else {
+		le.qid = wq->rq.qid;
+		le.opcode = FW_RI_RECEIVE;
+		le.post_host_ts = wq->rq.sw_rq[wq->rq.cidx].host_ts;
+		le.post_sge_ts = wq->rq.sw_rq[wq->rq.cidx].sge_ts;
+		le.wr_id = CQE_WRID_MSN(cqe);
+	}
+	wq->rdev->wr_log[idx] = le;
+}
+
+static int wr_log_show(struct seq_file *seq, void *v)
+{
+	struct c4iw_dev *dev = seq->private;
+	struct timespec prev_ts = {0, 0};
+	struct wr_log_entry *lep;
+	int prev_ts_set = 0;
+	int idx, end;
+
+#define ts2ns(ts) ((ts) * dev->rdev.lldi.cclk_ps / 1000)
+
+	idx = atomic_read(&dev->rdev.wr_log_idx) &
+		(dev->rdev.wr_log_size - 1);
+	end = idx - 1;
+	if (end < 0)
+		end = dev->rdev.wr_log_size - 1;
+	lep = &dev->rdev.wr_log[idx];
+	while (idx != end) {
+		if (lep->valid) {
+			if (!prev_ts_set) {
+				prev_ts_set = 1;
+				prev_ts = lep->poll_host_ts;
+			}
+			seq_printf(seq, "%04u: sec %lu nsec %lu qid %u opcode "
+				   "%u %s 0x%x host_wr_delta sec %lu nsec %lu "
+				   "post_sge_ts 0x%llx cqe_sge_ts 0x%llx "
+				   "poll_sge_ts 0x%llx post_poll_delta_ns %llu "
+				   "cqe_poll_delta_ns %llu\n",
+				   idx,
+				   timespec_sub(lep->poll_host_ts,
+						prev_ts).tv_sec,
+				   timespec_sub(lep->poll_host_ts,
+						prev_ts).tv_nsec,
+				   lep->qid, lep->opcode,
+				   lep->opcode == FW_RI_RECEIVE ?
+							"msn" : "wrid",
+				   lep->wr_id,
+				   timespec_sub(lep->poll_host_ts,
+						lep->post_host_ts).tv_sec,
+				   timespec_sub(lep->poll_host_ts,
+						lep->post_host_ts).tv_nsec,
+				   lep->post_sge_ts, lep->cqe_sge_ts,
+				   lep->poll_sge_ts,
+				   ts2ns(lep->poll_sge_ts - lep->post_sge_ts),
+				   ts2ns(lep->poll_sge_ts - lep->cqe_sge_ts));
+			prev_ts = lep->poll_host_ts;
+		}
+		idx++;
+		if (idx > (dev->rdev.wr_log_size - 1))
+			idx = 0;
+		lep = &dev->rdev.wr_log[idx];
+	}
+#undef ts2ns
+	return 0;
+}
+
+static int wr_log_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wr_log_show, inode->i_private);
+}
+
+static ssize_t wr_log_clear(struct file *file, const char __user *buf,
+			    size_t count, loff_t *pos)
+{
+	struct c4iw_dev *dev = ((struct seq_file *)file->private_data)->private;
+	int i;
+
+	if (dev->rdev.wr_log)
+		for (i = 0; i < dev->rdev.wr_log_size; i++)
+			dev->rdev.wr_log[i].valid = 0;
+	return count;
+}
+
+static const struct file_operations wr_log_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = wr_log_open,
+	.release = single_release,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.write   = wr_log_clear,
+};
 
 static int dump_qp(int id, void *p, void *data)
 {
@@ -604,6 +724,12 @@ static int setup_debugfs(struct c4iw_dev *devp)
 	if (de && de->d_inode)
 		de->d_inode->i_size = 4096;
 
+	if (c4iw_wr_log) {
+		de = debugfs_create_file("wr_log", S_IWUSR, devp->debugfs_root,
+					 (void *)devp, &wr_log_debugfs_fops);
+		if (de && de->d_inode)
+			de->d_inode->i_size = 4096;
+	}
 	return 0;
 }
 
@@ -717,6 +843,16 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		pr_err(MOD "error allocating status page\n");
 		goto err4;
 	}
+	if (c4iw_wr_log) {
+		rdev->wr_log = kzalloc((1 << c4iw_wr_log_size_order) *
+				       sizeof(*rdev->wr_log), GFP_KERNEL);
+		if (rdev->wr_log) {
+			rdev->wr_log_size = 1 << c4iw_wr_log_size_order;
+			atomic_set(&rdev->wr_log_idx, 0);
+		} else {
+			pr_err(MOD "error allocating wr_log. Logging disabled\n");
+		}
+	}
 	return 0;
 err4:
 	c4iw_rqtpool_destroy(rdev);
@@ -730,6 +866,7 @@ err1:
 
 static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 {
+	kfree(rdev->wr_log);
 	free_page((unsigned long)rdev->status_page);
 	c4iw_pblpool_destroy(rdev);
 	c4iw_rqtpool_destroy(rdev);

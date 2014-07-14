@@ -633,11 +633,15 @@ proc_cqe:
 		wq->sq.cidx = (uint16_t)idx;
 		PDBG("%s completing sq idx %u\n", __func__, wq->sq.cidx);
 		*cookie = wq->sq.sw_sq[wq->sq.cidx].wr_id;
+		if (c4iw_wr_log)
+			c4iw_log_wr_stats(wq, hw_cqe);
 		t4_sq_consume(wq);
 	} else {
 		PDBG("%s completing rq idx %u\n", __func__, wq->rq.cidx);
 		*cookie = wq->rq.sw_rq[wq->rq.cidx].wr_id;
 		BUG_ON(t4_rq_empty(wq));
+		if (c4iw_wr_log)
+			c4iw_log_wr_stats(wq, hw_cqe);
 		t4_rq_consume(wq);
 		goto skip_cqe;
 	}
