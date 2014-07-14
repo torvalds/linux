@@ -582,7 +582,17 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	if (!devpriv->mmio)
 		return -ENOMEM;
 
-	dev->irq = pcidev->irq;
+	writeb(NI_65XX_CLR_EDGE_INT | NI_65XX_CLR_OVERFLOW_INT,
+	       devpriv->mmio + NI_65XX_CLR_REG);
+	writeb(0x00, devpriv->mmio + NI_65XX_CTRL_REG);
+
+	if (pcidev->irq) {
+		ret = request_irq(pcidev->irq, ni_65xx_interrupt, IRQF_SHARED,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = pcidev->irq;
+	}
+
 	dev_info(dev->class_dev, "board: %s, ID=0x%02x", dev->board_name,
 	       readb(devpriv->mmio + NI_65XX_ID_REG));
 
@@ -647,18 +657,21 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	}
 
 	s = &dev->subdevices[3];
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
-	s->n_chan = 1;
-	s->range_table = &range_unknown;
-	s->maxdata = 1;
-	s->len_chanlist	= 1;
-	s->do_cmdtest = ni_65xx_intr_cmdtest;
-	s->do_cmd = ni_65xx_intr_cmd;
-	s->cancel = ni_65xx_intr_cancel;
-	s->insn_bits = ni_65xx_intr_insn_bits;
-	s->insn_config = ni_65xx_intr_insn_config;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 1;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= ni_65xx_intr_insn_bits;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= 1;
+		s->insn_config	= ni_65xx_intr_insn_config;
+		s->do_cmdtest	= ni_65xx_intr_cmdtest;
+		s->do_cmd	= ni_65xx_intr_cmd;
+		s->cancel	= ni_65xx_intr_cancel;
+	}
 
 	for (i = 0; i < ni_65xx_total_num_ports(board); ++i) {
 		writeb(0x00, devpriv->mmio + NI_65XX_FILTER_ENA(i));
@@ -667,19 +680,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		else
 			writeb(0x00, devpriv->mmio + NI_65XX_IO_DATA_REG(i));
 	}
-	writeb(NI_65XX_CLR_EDGE_INT | NI_65XX_CLR_OVERFLOW_INT,
-	       devpriv->mmio + NI_65XX_CLR_REG);
-	writeb(0x00, devpriv->mmio + NI_65XX_CTRL_REG);
 
 	/* Set filter interval to 0  (32bit reg) */
 	writel(0x00000000, devpriv->mmio + NI_65XX_FILTER_REG);
-
-	ret = request_irq(dev->irq, ni_65xx_interrupt, IRQF_SHARED,
-			  "ni_65xx", dev);
-	if (ret < 0) {
-		dev->irq = 0;
-		dev_warn(dev->class_dev, "irq not available\n");
-	}
 
 	return 0;
 }
