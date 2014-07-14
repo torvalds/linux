@@ -5499,6 +5499,18 @@ static int ni_E_init(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
+	/* initialize clock dividers */
+	devpriv->clock_and_fout = Slow_Internal_Time_Divide_By_2 |
+				  Slow_Internal_Timebase |
+				  Clock_To_Board_Divide_By_2 |
+				  Clock_To_Board;
+	if (!devpriv->is_6xxx) {
+		/* BEAM is this needed for PCI-6143 ?? */
+		devpriv->clock_and_fout |= (AI_Output_Divide_By_2 |
+					    AO_Output_Divide_By_2);
+	}
+	ni_stc_writew(dev, devpriv->clock_and_fout, Clock_and_FOUT_Register);
+
 	ret = comedi_alloc_subdevices(dev, NI_NUM_SUBDEVICES);
 	if (ret)
 		return ret;
@@ -5770,21 +5782,6 @@ static int ni_E_init(struct comedi_device *dev,
 	/* ai configuration */
 	s = &dev->subdevices[NI_AI_SUBDEV];
 	ni_ai_reset(dev, s);
-	if (!devpriv->is_6xxx) {
-		/*  BEAM is this needed for PCI-6143 ?? */
-		devpriv->clock_and_fout =
-		    Slow_Internal_Time_Divide_By_2 |
-		    Slow_Internal_Timebase |
-		    Clock_To_Board_Divide_By_2 |
-		    Clock_To_Board |
-		    AI_Output_Divide_By_2 | AO_Output_Divide_By_2;
-	} else {
-		devpriv->clock_and_fout =
-		    Slow_Internal_Time_Divide_By_2 |
-		    Slow_Internal_Timebase |
-		    Clock_To_Board_Divide_By_2 | Clock_To_Board;
-	}
-	ni_stc_writew(dev, devpriv->clock_and_fout, Clock_and_FOUT_Register);
 
 	/* analog output configuration */
 	s = &dev->subdevices[NI_AO_SUBDEV];
