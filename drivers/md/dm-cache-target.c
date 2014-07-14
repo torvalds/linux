@@ -2840,7 +2840,7 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		residency = policy_residency(cache->policy);
 
 		DMEMIT("%u %llu/%llu %u %llu/%llu %u %u %u %u %u %u %lu ",
-		       (unsigned)(DM_CACHE_METADATA_BLOCK_SIZE >> SECTOR_SHIFT),
+		       (unsigned)DM_CACHE_METADATA_BLOCK_SIZE,
 		       (unsigned long long)(nr_blocks_metadata - nr_free_blocks_metadata),
 		       (unsigned long long)nr_blocks_metadata,
 		       cache->sectors_per_block,
