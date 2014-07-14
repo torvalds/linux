@@ -16,11 +16,11 @@
 int verbose;
 bool dump_trace = false, quiet = false;
 
-static int _eprintf(int level, const char *fmt, va_list args)
+static int _eprintf(int level, int var, const char *fmt, va_list args)
 {
 	int ret = 0;
 
-	if (verbose >= level) {
+	if (var >= level) {
 		if (use_browser >= 1)
 			ui_helpline__vshow(fmt, args);
 		else
@@ -30,13 +30,13 @@ static int _eprintf(int level, const char *fmt, va_list args)
 	return ret;
 }
 
-int eprintf(int level, const char *fmt, ...)
+int eprintf(int level, int var, const char *fmt, ...)
 {
 	va_list args;
 	int ret;
 
 	va_start(args, fmt);
-	ret = _eprintf(level, fmt, args);
+	ret = _eprintf(level, var, fmt, args);
 	va_end(args);
 
 	return ret;
@@ -51,9 +51,9 @@ void pr_stat(const char *fmt, ...)
 	va_list args;
 
 	va_start(args, fmt);
-	_eprintf(1, fmt, args);
+	_eprintf(1, verbose, fmt, args);
 	va_end(args);
-	eprintf(1, "\n");
+	eprintf(1, verbose, "\n");
 }
 
 int dump_printf(const char *fmt, ...)
