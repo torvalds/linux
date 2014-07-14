@@ -59,6 +59,8 @@ struct sti_pwm_chip {
 	unsigned long *pwm_periods;
 	struct pwm_chip chip;
 	struct pwm_device *cur;
+	unsigned int en_count;
+	struct mutex sti_pwm_lock; /* To sync between enable/disable calls */
 	void __iomem *mmio;
 };
 
@@ -236,32 +238,44 @@ static int sti_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct sti_pwm_chip *pc = to_sti_pwmchip(chip);
 	struct device *dev = pc->dev;
-	int ret;
+	int ret = 0;
 
-	ret = clk_enable(pc->clk);
-	if (ret)
-		return ret;
+	/*
+	 * Since we have a common enable for all PWM channels,
+	 * do not enable if already enabled.
+	 */
+	mutex_lock(&pc->sti_pwm_lock);
+	if (!pc->en_count) {
+		ret = clk_enable(pc->clk);
+		if (ret)
+			goto out;
 
-	ret = regmap_field_write(pc->pwm_en, 1);
-	if (ret)
-		dev_err(dev, "%s,pwm_en write failed\n", __func__);
-
+		ret = regmap_field_write(pc->pwm_en, 1);
+		if (ret) {
+			dev_err(dev, "failed to enable PWM device:%d\n",
+				pwm->hwpwm);
+			goto out;
+		}
+	}
+	pc->en_count++;
+out:
+	mutex_unlock(&pc->sti_pwm_lock);
 	return ret;
 }
 
 static void sti_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct sti_pwm_chip *pc = to_sti_pwmchip(chip);
-	struct device *dev = pc->dev;
-	unsigned int val;
 
+	mutex_lock(&pc->sti_pwm_lock);
+	if (--pc->en_count) {
+		mutex_unlock(&pc->sti_pwm_lock);
+		return;
+	}
 	regmap_field_write(pc->pwm_en, 0);
 
-	regmap_read(pc->regmap, STI_CNT, &val);
-
-	dev_dbg(dev, "pwm counter :%u\n", val);
-
 	clk_disable(pc->clk);
+	mutex_unlock(&pc->sti_pwm_lock);
 }
 
 static const struct pwm_ops sti_pwm_ops = {
@@ -352,6 +366,8 @@ static int sti_pwm_probe(struct platform_device *pdev)
 
 	pc->cdata = cdata;
 	pc->dev = dev;
+	pc->en_count = 0;
+	mutex_init(&pc->sti_pwm_lock);
 
 	ret = sti_pwm_probe_dt(pc);
 	if (ret)
