@@ -2886,28 +2886,30 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 	return -EINVAL;
 }
 
-/* munge data from unsigned to 2's complement for analog output bipolar modes */
 static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 			void *data, unsigned int num_bytes,
 			unsigned int chan_index)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int length = num_bytes / sizeof(short);
-	unsigned int offset = 1 << (board->aobits - 1);
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int length = num_bytes / bytes_per_sample(s);
 	unsigned short *array = data;
-	unsigned int range;
 	unsigned int i;
 
 	for (i = 0; i < length; i++) {
-		range = CR_RANGE(cmd->chanlist[chan_index]);
+		unsigned int range = CR_RANGE(cmd->chanlist[chan_index]);
+		unsigned short val = array[i];
 
+		/*
+		 * Munge data from unsigned to two's complement for
+		 * bipolar ranges.
+		 */
 		if (comedi_range_is_bipolar(s, range))
-			array[i] -= offset;
+			val = comedi_offset_munge(s, val);
 #ifdef PCIDMA
-		array[i] = cpu_to_le16(array[i]);
+		val = cpu_to_le16(val);
 #endif
+		array[i] = val;
+
 		chan_index++;
 		chan_index %= cmd->chanlist_len;
 	}
