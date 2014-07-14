@@ -148,9 +148,9 @@ of banks, as set via the KVM_X86_SETUP_MCE ioctl.
 
 4.4 KVM_CHECK_EXTENSION
 
-Capability: basic
+Capability: basic, KVM_CAP_CHECK_EXTENSION_VM for vm ioctl
 Architectures: all
-Type: system ioctl
+Type: system ioctl, vm ioctl
 Parameters: extension identifier (KVM_CAP_*)
 Returns: 0 if unsupported; 1 (or some other positive integer) if supported
 
@@ -160,6 +160,9 @@ receives an integer that describes the extension availability.
 Generally 0 means no and 1 means yes, but some extensions may report
 additional information in the integer return value.
 
+Based on their initialization different VMs may have different capabilities.
+It is thus encouraged to use the vm ioctl to query for capabilities (available
+with KVM_CAP_CHECK_EXTENSION_VM on the vm fd)
 
 4.5 KVM_GET_VCPU_MMAP_SIZE
 
