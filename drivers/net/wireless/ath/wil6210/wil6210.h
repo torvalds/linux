@@ -152,7 +152,7 @@ struct fw_map {
 	const char *name; /* for debugfs */
 };
 /* array size should be in sync with actual definition in the wmi.c */
-extern const struct fw_map fw_mapping[6];
+extern const struct fw_map fw_mapping[7];
 
 /**
  * mk_cidxtid - construct @cidxtid field
