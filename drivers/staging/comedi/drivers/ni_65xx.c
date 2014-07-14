@@ -362,18 +362,12 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	const struct ni_65xx_board *board = comedi_board(dev);
 	struct ni_65xx_private *devpriv = dev->private;
 	unsigned long base_port = (unsigned long)s->private;
 	unsigned int base_chan = CR_CHAN(insn->chanspec);
 	int last_port_offset = NI_65XX_CHAN_TO_PORT(s->n_chan - 1);
-	unsigned invert = 0x00;
 	unsigned read_bits = 0;
 	int port_offset;
-
-	/* handle inverted outputs if necessary */
-	if (s->type == COMEDI_SUBD_DO && board->invert_outputs)
-		invert = 0xff;
 
 	for (port_offset = NI_65XX_CHAN_TO_PORT(base_chan);
 	     port_offset <= last_port_offset; port_offset++) {
@@ -399,16 +393,16 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 		/* update the outputs */
 		if (port_mask) {
 			bits = readb(devpriv->mmio + NI_65XX_IO_DATA_REG(port));
-			bits ^= invert;
+			bits ^= s->io_bits;	/* invert if necessary */
 			bits &= ~port_mask;
 			bits |= (port_data & port_mask);
-			bits ^= invert;
+			bits ^= s->io_bits;	/* invert back */
 			writeb(bits, devpriv->mmio + NI_65XX_IO_DATA_REG(port));
 		}
 
 		/* read back the actual state */
 		bits = readb(devpriv->mmio + NI_65XX_IO_DATA_REG(port));
-		bits ^= invert;
+		bits ^= s->io_bits;	/* invert if necessary */
 		if (bitshift > 0)
 			bits <<= bitshift;
 		else
@@ -662,6 +656,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 
 		/* the output ports always start after the input ports */
 		s->private = (void *)(unsigned long)board->num_di_ports;
+
+		/* use the io_bits to handle the inverted outputs */
+		s->io_bits	= (board->invert_outputs) ? 0xff : 0x00;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
