@@ -2964,10 +2964,15 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 	int reg;
 	int i;
 
-	if (devpriv->is_m_series)
+	if (devpriv->is_6xxx) {
+		ni_ao_win_outw(dev, 1 << chan, AO_Immediate_671x);
+
+		reg = DACx_Direct_Data_671x(chan);
+	} else if (devpriv->is_m_series) {
 		reg = M_Offset_DAC_Direct_Data(chan);
-	else
+	} else {
 		reg = (chan) ? DAC1_Direct_Data : DAC0_Direct_Data;
+	}
 
 	ni_ao_config_chanlist(dev, s, &insn->chanspec, 1, 0);
 
@@ -2976,8 +2981,19 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 
 		devpriv->ao[chan] = val;
 
-		if (devpriv->is_m_series) {
-			/* M-series board always use offset binary values */
+		if (devpriv->is_6xxx) {
+			/*
+			 * 6xxx boards have bipolar outputs, munge the
+			 * unsigned comedi values to 2's complement
+			 */
+			val = comedi_offset_munge(s, val);
+
+			ni_ao_win_outw(dev, val, reg);
+		} else if (devpriv->is_m_series) {
+			/*
+			 * M-series boards use offset binary values for
+			 * bipolar and uinpolar outputs
+			 */
 			ni_writew(dev, val, reg);
 		} else {
 			/*
@@ -2989,36 +3005,6 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 
 			ni_writew(dev, val, reg);
 		}
-	}
-
-	return insn->n;
-}
-
-static int ni_ao_insn_write_671x(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	ni_ao_win_outw(dev, 1 << chan, AO_Immediate_671x);
-
-	ni_ao_config_chanlist(dev, s, &insn->chanspec, 1, 0);
-
-	for (i = 0; i < insn->n; i++) {
-		unsigned int val = data[i];
-
-		devpriv->ao[chan] = val;
-
-		/*
-		 * 671x boards have +/-10V outputs
-		 * munge the unsigned comedi values to 2's complement
-		 */
-		val = comedi_offset_munge(s, val);
-
-		ni_ao_win_outw(dev, val, DACx_Direct_Data_671x(chan));
 	}
 
 	return insn->n;
@@ -5565,10 +5551,7 @@ static int ni_E_init(struct comedi_device *dev,
 		s->maxdata = (1 << board->aobits) - 1;
 		s->range_table = board->ao_range_table;
 		s->insn_read = &ni_ao_insn_read;
-		if (devpriv->is_6xxx)
-			s->insn_write = &ni_ao_insn_write_671x;
-		else
-			s->insn_write = &ni_ao_insn_write;
+		s->insn_write = &ni_ao_insn_write;
 		s->insn_config = &ni_ao_insn_config;
 #ifdef PCIDMA
 		if (board->n_aochan) {
