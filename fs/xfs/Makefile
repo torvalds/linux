@@ -86,6 +86,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_mru_cache.o \
 				   xfs_super.o \
 				   xfs_symlink.o \
+				   xfs_sysfs.o \
 				   xfs_trans.o \
 				   xfs_xattr.o \
 				   kmem.o \

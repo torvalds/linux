@@ -42,6 +42,7 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_dinode.h"
+#include "xfs_sysfs.h"
 
 
 #ifdef HAVE_PERCPU_SB
@@ -59,6 +60,8 @@ STATIC void	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
 static int xfs_uuid_table_size;
 static uuid_t *xfs_uuid_table;
+
+extern struct kset *xfs_kset;
 
 /*
  * See if the UUID is unique among mounted XFS filesystems.
@@ -731,9 +734,14 @@ xfs_mountfs(
 
 	xfs_set_maxicount(mp);
 
-	error = xfs_uuid_mount(mp);
+	mp->m_kobj.kobject.kset = xfs_kset;
+	error = xfs_sysfs_init(&mp->m_kobj, &xfs_mp_ktype, NULL, mp->m_fsname);
 	if (error)
 		goto out;
+
+	error = xfs_uuid_mount(mp);
+	if (error)
+		goto out_remove_sysfs;
 
 	/*
 	 * Set the minimum read and write sizes
@@ -989,6 +997,8 @@ xfs_mountfs(
 	xfs_da_unmount(mp);
  out_remove_uuid:
 	xfs_uuid_unmount(mp);
+ out_remove_sysfs:
+	xfs_sysfs_del(&mp->m_kobj);
  out:
 	return error;
 }
@@ -1071,6 +1081,8 @@ xfs_unmountfs(
 	xfs_errortag_clearall(mp, 0);
 #endif
 	xfs_free_perag(mp);
+
+	xfs_sysfs_del(&mp->m_kobj);
 }
 
 int
