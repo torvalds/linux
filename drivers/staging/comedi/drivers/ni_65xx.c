@@ -51,8 +51,50 @@ except maybe the 6514.
 
 #include "comedi_fc.h"
 
-#define NI6514_DIO_SIZE 4096
-#define NI6514_MITE_SIZE 4096
+/*
+ * PCI BAR1 Register Map
+ */
+
+/* Non-recurring Registers (8-bit except where noted) */
+#define NI_65XX_ID_REG			0x00
+#define NI_65XX_CLR_REG			0x01
+#define NI_65XX_CLR_WDOG_INT		(1 << 6)
+#define NI_65XX_CLR_WDOG_PING		(1 << 5)
+#define NI_65XX_CLR_WDOG_EXP		(1 << 4)
+#define NI_65XX_CLR_EDGE_INT		(1 << 3)
+#define NI_65XX_CLR_OVERFLOW_INT	(1 << 2)
+#define NI_65XX_STATUS_REG		0x02
+#define NI_65XX_STATUS_WDOG_INT		(1 << 5)
+#define NI_65XX_STATUS_FALL_EDGE	(1 << 4)
+#define NI_65XX_STATUS_RISE_EDGE	(1 << 3)
+#define NI_65XX_STATUS_INT		(1 << 2)
+#define NI_65XX_STATUS_OVERFLOW_INT	(1 << 1)
+#define NI_65XX_STATUS_EDGE_INT		(1 << 0)
+#define NI_65XX_CTRL_REG		0x03
+#define NI_65XX_CTRL_WDOG_ENA		(1 << 5)
+#define NI_65XX_CTRL_FALL_EDGE_ENA	(1 << 4)
+#define NI_65XX_CTRL_RISE_EDGE_ENA	(1 << 3)
+#define NI_65XX_CTRL_INT_ENA		(1 << 2)
+#define NI_65XX_CTRL_OVERFLOW_ENA	(1 << 1)
+#define NI_65XX_CTRL_EDGE_ENA		(1 << 0)
+#define NI_65XX_REV_REG			0x04 /* 32-bit */
+#define NI_65XX_FILTER_REG		0x08 /* 32-bit */
+#define NI_65XX_RTSI_ROUTE_REG		0x0c /* 16-bit */
+#define NI_65XX_RTSI_EDGE_REG		0x0e /* 16-bit */
+#define NI_65XX_RTSI_WDOG_REG		0x10 /* 16-bit */
+#define NI_65XX_RTSI_TRIG_REG		0x12 /* 16-bit */
+#define NI_65XX_AUTO_CLK_SEL_REG	0x14 /* PXI-6528 only */
+#define NI_65XX_AUTO_CLK_SEL_STATUS	(1 << 1)
+#define NI_65XX_AUTO_CLK_SEL_DISABLE	(1 << 0)
+#define NI_65XX_WDOG_CTRL_REG		0x15
+#define NI_65XX_WDOG_CTRL_ENA		(1 << 0)
+#define NI_65XX_RTSI_CFG_REG		0x16
+#define NI_65XX_RTSI_CFG_RISE_SENSE	(1 << 2)
+#define NI_65XX_RTSI_CFG_FALL_SENSE	(1 << 1)
+#define NI_65XX_RTSI_CFG_SYNC_DETECT	(1 << 0)
+#define NI_65XX_WDOG_STATUS_REG		0x17
+#define NI_65XX_WDOG_STATUS_EXP		(1 << 0)
+#define NI_65XX_WDOG_INTERVAL_REG	0x18 /* 32-bit */
 
 #define NI_65XX_MAX_NUM_PORTS 12
 static const unsigned ni_65xx_channels_per_port = 8;
@@ -82,26 +124,6 @@ static inline unsigned Filter_Enable(unsigned port)
 {
 	return 0x44 + port * ni_65xx_port_offset;
 }
-
-#define ID_Register				0x00
-
-#define Clear_Register				0x01
-#define ClrEdge				0x08
-#define ClrOverflow			0x04
-
-#define Filter_Interval			0x08
-
-#define Change_Status				0x02
-#define MasterInterruptStatus		0x04
-#define Overflow			0x02
-#define EdgeStatus			0x01
-
-#define Master_Interrupt_Control		0x03
-#define FallingEdgeIntEnable		0x10
-#define RisingEdgeIntEnable		0x08
-#define MasterInterruptEnable		0x04
-#define OverflowIntEnable		0x02
-#define EdgeIntEnable			0x01
 
 enum ni_65xx_boardid {
 	BOARD_PCI6509,
@@ -299,7 +321,7 @@ static int ni_65xx_config_filter(struct comedi_device *dev,
 		data[1] = interval * filter_resolution_ns;
 
 		if (interval != devpriv->filter_interval) {
-			writel(interval, devpriv->mmio + Filter_Interval);
+			writel(interval, devpriv->mmio + NI_65XX_FILTER_REG);
 			devpriv->filter_interval = interval;
 		}
 
@@ -424,13 +446,14 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int status;
 
-	status = readb(devpriv->mmio + Change_Status);
-	if ((status & MasterInterruptStatus) == 0)
+	status = readb(devpriv->mmio + NI_65XX_STATUS_REG);
+	if ((status & NI_65XX_STATUS_INT) == 0)
 		return IRQ_NONE;
-	if ((status & EdgeStatus) == 0)
+	if ((status & NI_65XX_STATUS_EDGE_INT) == 0)
 		return IRQ_NONE;
 
-	writeb(ClrEdge | ClrOverflow, devpriv->mmio + Clear_Register);
+	writeb(NI_65XX_CLR_EDGE_INT | NI_65XX_CLR_OVERFLOW_INT,
+	       devpriv->mmio + NI_65XX_CLR_REG);
 
 	comedi_buf_put(s, 0);
 	s->async->events |= COMEDI_CB_EOS;
@@ -485,10 +508,11 @@ static int ni_65xx_intr_cmd(struct comedi_device *dev,
 {
 	struct ni_65xx_private *devpriv = dev->private;
 
-	writeb(ClrEdge | ClrOverflow, devpriv->mmio + Clear_Register);
-	writeb(FallingEdgeIntEnable | RisingEdgeIntEnable |
-	       MasterInterruptEnable | EdgeIntEnable,
-	       devpriv->mmio + Master_Interrupt_Control);
+	writeb(NI_65XX_CLR_EDGE_INT | NI_65XX_CLR_OVERFLOW_INT,
+	       devpriv->mmio + NI_65XX_CLR_REG);
+	writeb(NI_65XX_CTRL_FALL_EDGE_ENA | NI_65XX_CTRL_RISE_EDGE_ENA |
+	       NI_65XX_CTRL_INT_ENA | NI_65XX_CTRL_EDGE_ENA,
+	       devpriv->mmio + NI_65XX_CTRL_REG);
 
 	return 0;
 }
@@ -498,7 +522,7 @@ static int ni_65xx_intr_cancel(struct comedi_device *dev,
 {
 	struct ni_65xx_private *devpriv = dev->private;
 
-	writeb(0x00, devpriv->mmio + Master_Interrupt_Control);
+	writeb(0x00, devpriv->mmio + NI_65XX_CTRL_REG);
 
 	return 0;
 }
@@ -601,7 +625,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 
 	dev->irq = pcidev->irq;
 	dev_info(dev->class_dev, "board: %s, ID=0x%02x", dev->board_name,
-	       readb(devpriv->mmio + ID_Register));
+	       readb(devpriv->mmio + NI_65XX_ID_REG));
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -685,11 +709,12 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		else
 			writeb(0x00, devpriv->mmio + Port_Data(i));
 	}
-	writeb(ClrEdge | ClrOverflow, devpriv->mmio + Clear_Register);
-	writeb(0x00, devpriv->mmio + Master_Interrupt_Control);
+	writeb(NI_65XX_CLR_EDGE_INT | NI_65XX_CLR_OVERFLOW_INT,
+	       devpriv->mmio + NI_65XX_CLR_REG);
+	writeb(0x00, devpriv->mmio + NI_65XX_CTRL_REG);
 
 	/* Set filter interval to 0  (32bit reg) */
-	writel(0x00000000, devpriv->mmio + Filter_Interval);
+	writel(0x00000000, devpriv->mmio + NI_65XX_FILTER_REG);
 
 	ret = request_irq(dev->irq, ni_65xx_interrupt, IRQF_SHARED,
 			  "ni_65xx", dev);
@@ -706,7 +731,7 @@ static void ni_65xx_detach(struct comedi_device *dev)
 	struct ni_65xx_private *devpriv = dev->private;
 
 	if (devpriv && devpriv->mmio) {
-		writeb(0x00, devpriv->mmio + Master_Interrupt_Control);
+		writeb(0x00, devpriv->mmio + NI_65XX_CTRL_REG);
 		iounmap(devpriv->mmio);
 	}
 	if (dev->irq)
