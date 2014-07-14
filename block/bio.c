@@ -744,7 +744,6 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 				}
 			}
 
-			bio->bi_iter.bi_size += len;
 			goto done;
 		}
 
@@ -761,6 +760,20 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 		return 0;
 
 	/*
+	 * we might lose a segment or two here, but rather that than
+	 * make this too complex.
+	 */
+
+	while (bio->bi_phys_segments >= queue_max_segments(q)) {
+
+		if (retried_segments)
+			return 0;
+
+		retried_segments = 1;
+		blk_recount_segments(q, bio);
+	}
+
+	/*
 	 * setup the new entry, we might clear it again later if we
 	 * cannot add the page
 	 */
@@ -768,23 +781,6 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 	bvec->bv_page = page;
 	bvec->bv_len = len;
 	bvec->bv_offset = offset;
-	bio->bi_vcnt++;
-	bio->bi_phys_segments++;
-	bio->bi_iter.bi_size += len;
-
-	/*
-	 * Perform a recount if the number of segments is greater
-	 * than queue_max_segments(q).
-	 */
-
-	while (bio->bi_phys_segments > queue_max_segments(q)) {
-
-		if (retried_segments)
-			goto failed;
-
-		retried_segments = 1;
-		blk_recount_segments(q, bio);
-	}
 
 	/*
 	 * if queue has other restrictions (eg varying max sector size
@@ -803,25 +799,23 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 		 * merge_bvec_fn() returns number of bytes it can accept
 		 * at this offset
 		 */
-		if (q->merge_bvec_fn(q, &bvm, bvec) < bvec->bv_len)
-			goto failed;
+		if (q->merge_bvec_fn(q, &bvm, bvec) < bvec->bv_len) {
+			bvec->bv_page = NULL;
+			bvec->bv_len = 0;
+			bvec->bv_offset = 0;
+			return 0;
+		}
 	}
 
 	/* If we may be able to merge these biovecs, force a recount */
-	if (bio->bi_vcnt > 1 && (BIOVEC_PHYS_MERGEABLE(bvec-1, bvec)))
+	if (bio->bi_vcnt && (BIOVEC_PHYS_MERGEABLE(bvec-1, bvec)))
 		bio->bi_flags &= ~(1 << BIO_SEG_VALID);
 
+	bio->bi_vcnt++;
+	bio->bi_phys_segments++;
  done:
+	bio->bi_iter.bi_size += len;
 	return len;
-
- failed:
-	bvec->bv_page = NULL;
-	bvec->bv_len = 0;
-	bvec->bv_offset = 0;
-	bio->bi_vcnt--;
-	bio->bi_iter.bi_size -= len;
-	blk_recount_segments(q, bio);
-	return 0;
 }
 
 /**
