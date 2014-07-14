@@ -5642,26 +5642,26 @@ static int ni_E_init(struct comedi_device *dev,
 	s = &dev->subdevices[NI_UNUSED_SUBDEV];
 	s->type = COMEDI_SUBD_UNUSED;
 
-	/* calibration subdevice -- ai and ao */
+	/* Calibration subdevice */
 	s = &dev->subdevices[NI_CALIBRATION_SUBDEV];
-	s->type = COMEDI_SUBD_CALIB;
+	s->type		= COMEDI_SUBD_CALIB;
+	s->subdev_flags	= SDF_INTERNAL;
+	s->n_chan	= 1;
+	s->maxdata	= 0;
 	if (devpriv->is_m_series) {
-		/*  internal PWM analog output used for AI nonlinearity calibration */
-		s->subdev_flags = SDF_INTERNAL;
-		s->insn_config = &ni_m_series_pwm_config;
-		s->n_chan = 1;
-		s->maxdata = 0;
+		/* internal PWM output used for AI nonlinearity calibration */
+		s->insn_config	= ni_m_series_pwm_config;
+
 		ni_writel(dev, 0x0, M_Offset_Cal_PWM);
 	} else if (devpriv->is_6143) {
-		/*  internal PWM analog output used for AI nonlinearity calibration */
-		s->subdev_flags = SDF_INTERNAL;
-		s->insn_config = &ni_6143_pwm_config;
-		s->n_chan = 1;
-		s->maxdata = 0;
+		/* internal PWM output used for AI nonlinearity calibration */
+		s->insn_config	= ni_6143_pwm_config;
 	} else {
-		s->subdev_flags = SDF_WRITABLE | SDF_INTERNAL;
-		s->insn_read = &ni_calib_insn_read;
-		s->insn_write = &ni_calib_insn_write;
+		s->subdev_flags	|= SDF_WRITABLE;
+		s->insn_read	= ni_calib_insn_read;
+		s->insn_write	= ni_calib_insn_write;
+
+		/* setup the caldacs and find the real n_chan and maxdata */
 		caldac_setup(dev, s);
 	}
 
