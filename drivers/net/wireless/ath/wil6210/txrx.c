@@ -1108,8 +1108,10 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		while (vring->swtail != new_swtail) {
 			struct vring_tx_desc dd, *d = &dd;
 			u16 dmalen;
-			struct wil_ctx *ctx = &vring->ctx[vring->swtail];
-			struct sk_buff *skb = ctx->skb;
+			struct sk_buff *skb;
+
+			ctx = &vring->ctx[vring->swtail];
+			skb = ctx->skb;
 			_d = &vring->va[vring->swtail].tx;
 
 			*d = *_d;
