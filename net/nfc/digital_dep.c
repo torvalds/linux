@@ -457,12 +457,10 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 		pr_err("Received a ACK/NACK PDU\n");
 		rc = -EINVAL;
 		goto exit;
-		break;
 	case DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU:
 		pr_err("Received a SUPERVISOR PDU\n");
 		rc = -EINVAL;
 		goto exit;
-		break;
 	}
 
 	skb_pull(resp, size);
