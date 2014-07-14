@@ -337,20 +337,39 @@ static int hsw_acpi_resource_map(struct sst_dsp *sst, struct sst_pdata *pdata)
 	return 0;
 }
 
+struct sst_sram_shift {
+	u32 dev_id;	/* SST Device IDs  */
+	u32 iram_shift;
+	u32 dram_shift;
+};
+
+static const struct sst_sram_shift sram_shift[] = {
+	{SST_DEV_ID_LYNX_POINT, 6, 16}, /* lp */
+	{SST_DEV_ID_WILDCAT_POINT, 2, 12}, /* wpt */
+};
 static u32 hsw_block_get_bit(struct sst_mem_block *block)
 {
-	u32 bit = 0, shift = 0;
+	u32 bit = 0, shift = 0, index;
+	struct sst_dsp *sst = block->dsp;
 
-	switch (block->type) {
-	case SST_MEM_DRAM:
-		shift = 16;
-		break;
-	case SST_MEM_IRAM:
-		shift = 6;
-		break;
-	default:
-		return 0;
+	for (index = 0; index < ARRAY_SIZE(sram_shift); index++) {
+		if (sram_shift[index].dev_id == sst->id)
+			break;
 	}
+
+	if (index < ARRAY_SIZE(sram_shift)) {
+		switch (block->type) {
+		case SST_MEM_DRAM:
+			shift = sram_shift[index].dram_shift;
+			break;
+		case SST_MEM_IRAM:
+			shift = sram_shift[index].iram_shift;
+			break;
+		default:
+			shift = 0;
+		}
+	} else
+		shift = 0;
 
 	bit = 1 << (block->index + shift);
 
