@@ -335,6 +335,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	struct veth_priv *priv;
 	char ifname[IFNAMSIZ];
 	struct nlattr *peer_tb[IFLA_MAX + 1], **tbp;
+	unsigned char name_assign_type;
 	struct ifinfomsg *ifmp;
 	struct net *net;
 
@@ -362,16 +363,20 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		tbp = tb;
 	}
 
-	if (tbp[IFLA_IFNAME])
+	if (tbp[IFLA_IFNAME]) {
 		nla_strlcpy(ifname, tbp[IFLA_IFNAME], IFNAMSIZ);
-	else
+		name_assign_type = NET_NAME_USER;
+	} else {
 		snprintf(ifname, IFNAMSIZ, DRV_NAME "%%d");
+		name_assign_type = NET_NAME_ENUM;
+	}
 
 	net = rtnl_link_get_net(src_net, tbp);
 	if (IS_ERR(net))
 		return PTR_ERR(net);
 
-	peer = rtnl_create_link(net, ifname, &veth_link_ops, tbp);
+	peer = rtnl_create_link(net, ifname, name_assign_type,
+				&veth_link_ops, tbp);
 	if (IS_ERR(peer)) {
 		put_net(net);
 		return PTR_ERR(peer);

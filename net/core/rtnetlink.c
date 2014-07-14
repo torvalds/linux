@@ -1810,7 +1810,8 @@ int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm)
 EXPORT_SYMBOL(rtnl_configure_link);
 
 struct net_device *rtnl_create_link(struct net *net,
-	char *ifname, const struct rtnl_link_ops *ops, struct nlattr *tb[])
+	char *ifname, unsigned char name_assign_type,
+	const struct rtnl_link_ops *ops, struct nlattr *tb[])
 {
 	int err;
 	struct net_device *dev;
@@ -1828,7 +1829,7 @@ struct net_device *rtnl_create_link(struct net *net,
 		num_rx_queues = ops->get_num_rx_queues();
 
 	err = -ENOMEM;
-	dev = alloc_netdev_mqs(ops->priv_size, ifname, NET_NAME_UNKNOWN,
+	dev = alloc_netdev_mqs(ops->priv_size, ifname, name_assign_type,
 			       ops->setup, num_tx_queues, num_rx_queues);
 	if (!dev)
 		goto err;
@@ -1894,6 +1895,7 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh)
 	char ifname[IFNAMSIZ];
 	struct nlattr *tb[IFLA_MAX+1];
 	struct nlattr *linkinfo[IFLA_INFO_MAX+1];
+	unsigned char name_assign_type = NET_NAME_USER;
 	int err;
 
 #ifdef CONFIG_MODULES
@@ -2046,14 +2048,16 @@ replay:
 		if (!ops->setup)
 			return -EOPNOTSUPP;
 
-		if (!ifname[0])
+		if (!ifname[0]) {
 			snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
+			name_assign_type = NET_NAME_ENUM;
+		}
 
 		dest_net = rtnl_link_get_net(net, tb);
 		if (IS_ERR(dest_net))
 			return PTR_ERR(dest_net);
 
-		dev = rtnl_create_link(dest_net, ifname, ops, tb);
+		dev = rtnl_create_link(dest_net, ifname, name_assign_type, ops, tb);
 		if (IS_ERR(dev)) {
 			err = PTR_ERR(dev);
 			goto out;
