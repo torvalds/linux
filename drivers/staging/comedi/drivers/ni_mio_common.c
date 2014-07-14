@@ -5777,15 +5777,15 @@ static int ni_E_init(struct comedi_device *dev,
 		s->private	= gpct;
 	}
 
-	/* Frequency output */
+	/* Frequency output subdevice */
 	s = &dev->subdevices[NI_FREQ_OUT_SUBDEV];
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 1;
-	s->maxdata = 0xf;
-	s->insn_read = &ni_freq_out_insn_read;
-	s->insn_write = &ni_freq_out_insn_write;
-	s->insn_config = &ni_freq_out_insn_config;
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 1;
+	s->maxdata	= 0xf;
+	s->insn_read	= ni_freq_out_insn_read;
+	s->insn_write	= ni_freq_out_insn_write;
+	s->insn_config	= ni_freq_out_insn_config;
 
 	if (dev->irq) {
 		ni_stc_writew(dev,
