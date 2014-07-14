@@ -136,7 +136,7 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 	spin_lock_init(&state->slock);
 
 	for (i = 0; i < EXYNOS_MIPI_PHYS_NUM; i++) {
-		struct phy *phy = devm_phy_create(dev,
+		struct phy *phy = devm_phy_create(dev, NULL,
 					&exynos_mipi_video_phy_ops, NULL);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create PHY %d\n", i);

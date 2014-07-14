@@ -415,13 +415,20 @@ struct phy *of_phy_simple_xlate(struct device *dev, struct of_phandle_args
 	struct phy *phy;
 	struct class_dev_iter iter;
 	struct device_node *node = dev->of_node;
+	struct device_node *child;
 
 	class_dev_iter_init(&iter, phy_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		phy = to_phy(dev);
-		if (node != phy->dev.of_node)
+		if (node != phy->dev.of_node) {
+			for_each_child_of_node(node, child) {
+				if (child == phy->dev.of_node)
+					goto phy_found;
+			}
 			continue;
+		}
 
+phy_found:
 		class_dev_iter_exit(&iter);
 		return phy;
 	}
@@ -579,13 +586,15 @@ EXPORT_SYMBOL_GPL(devm_of_phy_get);
 /**
  * phy_create() - create a new phy
  * @dev: device that is creating the new phy
+ * @node: device node of the phy
  * @ops: function pointers for performing phy operations
  * @init_data: contains the list of PHY consumers or NULL
  *
  * Called to create a phy using phy framework.
  */
-struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
-	struct phy_init_data *init_data)
+struct phy *phy_create(struct device *dev, struct device_node *node,
+		       const struct phy_ops *ops,
+		       struct phy_init_data *init_data)
 {
 	int ret;
 	int id;
@@ -620,7 +629,7 @@ struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
 
 	phy->dev.class = phy_class;
 	phy->dev.parent = dev;
-	phy->dev.of_node = dev->of_node;
+	phy->dev.of_node = node ?: dev->of_node;
 	phy->id = id;
 	phy->ops = ops;
 	phy->init_data = init_data;
@@ -656,6 +665,7 @@ EXPORT_SYMBOL_GPL(phy_create);
 /**
  * devm_phy_create() - create a new phy
  * @dev: device that is creating the new phy
+ * @node: device node of the phy
  * @ops: function pointers for performing phy operations
  * @init_data: contains the list of PHY consumers or NULL
  *
@@ -664,8 +674,9 @@ EXPORT_SYMBOL_GPL(phy_create);
  * On driver detach, release function is invoked on the devres data,
  * then, devres data is freed.
  */
-struct phy *devm_phy_create(struct device *dev, const struct phy_ops *ops,
-	struct phy_init_data *init_data)
+struct phy *devm_phy_create(struct device *dev, struct device_node *node,
+			    const struct phy_ops *ops,
+			    struct phy_init_data *init_data)
 {
 	struct phy **ptr, *phy;
 
@@ -673,7 +684,7 @@ struct phy *devm_phy_create(struct device *dev, const struct phy_ops *ops,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	phy = phy_create(dev, ops, init_data);
+	phy = phy_create(dev, node, ops, init_data);
 	if (!IS_ERR(phy)) {
 		*ptr = phy;
 		devres_add(dev, ptr);

@@ -635,7 +635,8 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	dev_vdbg(dev, "Creating usbdrd_phy phy\n");
 
 	for (i = 0; i < EXYNOS5_DRDPHYS_NUM; i++) {
-		struct phy *phy = devm_phy_create(dev, &exynos5_usbdrd_phy_ops,
+		struct phy *phy = devm_phy_create(dev, NULL,
+						  &exynos5_usbdrd_phy_ops,
 						  NULL);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "Failed to create usbdrd_phy phy\n");
