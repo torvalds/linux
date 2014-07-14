@@ -16,4 +16,12 @@ struct optimistic_spin_queue {
 	atomic_t tail;
 };
 
+/* Init macro and function. */
+#define OSQ_LOCK_UNLOCKED { ATOMIC_INIT(OSQ_UNLOCKED_VAL) }
+
+static inline void osq_lock_init(struct optimistic_spin_queue *lock)
+{
+	atomic_set(&lock->tail, OSQ_UNLOCKED_VAL);
+}
+
 #endif
