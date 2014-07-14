@@ -448,8 +448,10 @@ static ssize_t wil_write_file_rxon(struct file *file, const char __user *buf,
 	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
 	if (!kbuf)
 		return -ENOMEM;
-	if (copy_from_user(kbuf, buf, len))
+	if (copy_from_user(kbuf, buf, len)) {
+		kfree(kbuf);
 		return -EIO;
+	}
 
 	kbuf[len] = '\0';
 	rc = kstrtol(kbuf, 0, &channel);
