@@ -1406,10 +1406,9 @@ struct ni_board_struct {
 	const struct comedi_lrange *ao_range_table;
 	unsigned ao_speed;
 
-	unsigned num_p0_dio_channels;
-
 	int reg_type;
 	unsigned int has_8255:1;
+	unsigned int has_32dio_chan:1;
 
 	enum caldac_enum caldac[3];
 };

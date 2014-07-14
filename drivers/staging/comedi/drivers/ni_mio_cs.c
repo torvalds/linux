@@ -60,7 +60,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_fifo_depth	= 1024,
 		.gainlkup	= ai_gain_8,
 		.ai_speed	= 5000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { dac8800, dac8043 },
 	}, {
 		.name		= "DAQCard-ai-16e-4",
@@ -70,7 +69,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_fifo_depth	= 1024,
 		.gainlkup	= ai_gain_16,
 		.ai_speed	= 4000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { mb88341 },		/* verified */
 	}, {
 		.name		= "DAQCard-6062E",
@@ -85,7 +83,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1176,
-		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },	/* verified */
 	 }, {
 		/* specs incorrect! */
@@ -100,7 +97,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },
 	}, {
 		/* specs incorrect! */
@@ -116,7 +112,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0xffff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },
 	 },
 #if 0
@@ -126,7 +121,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.n_aochan	= 8,
 		.ao_maxdata	= 0x0fff,
 		.ao_671x	= 8192,
-		.num_p0_dio_channels = 8,
 		.caldac		= { mb88341, mb88341 },
 	},
 #endif

@@ -117,7 +117,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 1000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { mb88341 },
 	}, {
 		.name		= "at-mio-16e-2",
@@ -133,7 +132,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 1000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { mb88341 },
 	}, {
 		.name		= "at-mio-16e-10",
@@ -148,7 +146,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 10000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },
 	}, {
 		.name		= "at-mio-16de-10",
@@ -163,7 +160,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 10000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },
 		.has_8255	= 1,
 	}, {
@@ -180,7 +176,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 1000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },
 	}, {
 		.name		= "at-mio-16xe-50",
@@ -196,7 +191,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 50000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { dac8800, dac8043 },
 	}, {
 		.name		= "at-mio-16xe-10",
@@ -213,7 +207,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 1000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { dac8800, dac8043, ad8522 },
 	}, {
 		.name		= "at-ai-16xe-10",
@@ -225,7 +218,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.alwaysdither	= 1,	/* unknown */
 		.gainlkup	= ai_gain_14,
 		.ai_speed	= 10000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { dac8800, dac8043, ad8522 },
 	},
 };

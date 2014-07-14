@@ -5582,7 +5582,7 @@ static int ni_E_init(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->io_bits = 0;		/* all bits input */
 	s->range_table = &range_digital;
-	s->n_chan = board->num_p0_dio_channels;
+	s->n_chan = board->has_32dio_chan ? 32 : 8;
 	if (devpriv->is_m_series) {
 		s->subdev_flags |=
 		    SDF_LSAMPL | SDF_CMD_WRITE /* | SDF_CMD_READ */;
