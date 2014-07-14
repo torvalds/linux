@@ -505,8 +505,9 @@ static int hsw_init(struct sst_dsp *sst, struct sst_pdata *pdata)
 		}
 	}
 
-	/* set default power gating mask */
-	writel(0x0, sst->addr.pci_cfg + SST_VDRTCTL0);
+	/* set default power gating control, enable power gating control for all blocks. that is,
+	can't be accessed, please enable each block before accessing. */
+	writel(0xffffffff, sst->addr.pci_cfg + SST_VDRTCTL0);
 
 	return 0;
 }
