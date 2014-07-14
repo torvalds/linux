@@ -200,7 +200,8 @@ static int __init mic_probe(struct platform_device *pdev)
 
 	mdev->mmio.pa = MIC_X100_MMIO_BASE;
 	mdev->mmio.len = MIC_X100_MMIO_LEN;
-	mdev->mmio.va = ioremap(MIC_X100_MMIO_BASE, MIC_X100_MMIO_LEN);
+	mdev->mmio.va = devm_ioremap(&pdev->dev, MIC_X100_MMIO_BASE,
+				     MIC_X100_MMIO_LEN);
 	if (!mdev->mmio.va) {
 		dev_err(&pdev->dev, "Cannot remap MMIO BAR\n");
 		rc = -EIO;
@@ -214,7 +215,7 @@ static int __init mic_probe(struct platform_device *pdev)
 	if (IS_ERR(mdrv->dma_mbdev)) {
 		rc = PTR_ERR(mdrv->dma_mbdev);
 		dev_err(&pdev->dev, "mbus_add_device failed rc %d\n", rc);
-		goto iounmap;
+		goto done;
 	}
 	rc = mic_driver_init(mdrv);
 	if (rc) {
@@ -225,19 +226,15 @@ done:
 	return rc;
 remove_dma:
 	mbus_unregister_device(mdrv->dma_mbdev);
-iounmap:
-	iounmap(mdev->mmio.va);
 	return rc;
 }
 
 static int mic_remove(struct platform_device *pdev)
 {
 	struct mic_driver *mdrv = &g_drv;
-	struct mic_device *mdev = &mdrv->mdev;
 
 	mic_driver_uninit(mdrv);
 	mbus_unregister_device(mdrv->dma_mbdev);
-	iounmap(mdev->mmio.va);
 	return 0;
 }
 
