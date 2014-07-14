@@ -990,7 +990,9 @@ err_unregister_mac:
 err_release_fw:
 	ath10k_core_free_firmware_files(ar);
 err:
-	device_release_driver(ar->dev);
+	/* TODO: It's probably a good idea to release device from the driver
+	 * but calling device_release_driver() here will cause a deadlock.
+	 */
 	return;
 }
 
