@@ -3688,8 +3688,8 @@ static const struct gprefix pfx_0f_6f_0f_7f = {
 	I(Mmx, em_mov), I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
 };
 
-static const struct gprefix pfx_vmovntpx = {
-	I(0, em_mov), N, N, N,
+static const struct gprefix pfx_0f_2b = {
+	I(0, em_mov), I(0, em_mov), N, N,
 };
 
 static const struct gprefix pfx_0f_28_0f_29 = {
@@ -3906,7 +3906,7 @@ static const struct opcode twobyte_table[256] = {
 	N, N, N, N,
 	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_28_0f_29),
 	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_28_0f_29),
-	N, GP(ModRM | DstMem | SrcReg | Sse | Mov | Aligned, &pfx_vmovntpx),
+	N, GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_2b),
 	N, N, N, N,
 	/* 0x30 - 0x3F */
 	II(ImplicitOps | Priv, em_wrmsr, wrmsr),
