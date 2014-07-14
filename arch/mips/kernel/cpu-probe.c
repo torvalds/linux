@@ -54,6 +54,20 @@ static int __init dsp_disable(char *s)
 
 __setup("nodsp", dsp_disable);
 
+static int mips_htw_disabled;
+
+static int __init htw_disable(char *s)
+{
+	mips_htw_disabled = 1;
+	cpu_data[0].options &= ~MIPS_CPU_HTW;
+	write_c0_pwctl(read_c0_pwctl() &
+		       ~(1 << MIPS_PWCTL_PWEN_SHIFT));
+
+	return 1;
+}
+
+__setup("nohtw", htw_disable);
+
 static inline void check_errata(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -321,6 +335,9 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_SEGMENTS;
 	if (config3 & MIPS_CONF3_MSA)
 		c->ases |= MIPS_ASE_MSA;
+	/* Only tested on 32-bit cores */
+	if ((config3 & MIPS_CONF3_PW) && config_enabled(CONFIG_32BIT))
+		c->options |= MIPS_CPU_HTW;
 
 	return config3 & MIPS_CONF_M;
 }
@@ -1192,6 +1209,12 @@ void cpu_probe(void)
 
 	if (mips_dsp_disabled)
 		c->ases &= ~(MIPS_ASE_DSP | MIPS_ASE_DSP2P);
+
+	if (mips_htw_disabled) {
+		c->options &= ~MIPS_CPU_HTW;
+		write_c0_pwctl(read_c0_pwctl() &
+			       ~(1 << MIPS_PWCTL_PWEN_SHIFT));
+	}
 
 	if (c->options & MIPS_CPU_FPU) {
 		c->fpu_id = cpu_get_fpu_id();
