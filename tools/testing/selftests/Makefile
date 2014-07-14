@@ -11,6 +11,7 @@ TARGETS += vm
 TARGETS += powerpc
 TARGETS += user
 TARGETS += sysctl
+TARGETS += firmware
 
 all:
 	for TARGET in $(TARGETS); do \
