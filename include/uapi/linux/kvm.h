@@ -679,6 +679,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_ARM_EL1_32BIT 93
 #define KVM_CAP_EXT_EMUL_CPUID 95
 #define KVM_CAP_ARM_PSCI_0_2 102
+#define KVM_CAP_CHECK_EXTENSION_VM 105
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
