@@ -40,7 +40,7 @@ the set bits correspond to data that is available, then the control
 message will not be generated:
 
 SOF_TIMESTAMPING_SOFTWARE:     report systime if available
-SOF_TIMESTAMPING_SYS_HARDWARE: report hwtimetrans if available
+SOF_TIMESTAMPING_SYS_HARDWARE: report hwtimetrans if available (deprecated)
 SOF_TIMESTAMPING_RAW_HARDWARE: report hwtimeraw if available
 
 It is worth noting that timestamps may be collected for reasons other
@@ -94,7 +94,13 @@ not perfect; as a consequence, sorting packets received via different
 NICs by their hwtimetrans may differ from the order in which they were
 received. hwtimetrans may be non-monotonic even for the same NIC.
 Filled in if SOF_TIMESTAMPING_SYS_HARDWARE is set. Requires support
-by the network device and will be empty without that support.
+by the network device and will be empty without that support. This
+field is DEPRECATED. Only one driver computes this value. New device
+drivers must leave this zero. Instead, they can expose the hardware
+clock device on the NIC directly as a HW PTP clock source, to allow
+time conversion in userspace and optionally synchronize system time
+with a userspace PTP stack such as linuxptp. For the PTP clock API,
+see Documentation/ptp/ptp.txt.
 
 
 SIOCSHWTSTAMP, SIOCGHWTSTAMP:
