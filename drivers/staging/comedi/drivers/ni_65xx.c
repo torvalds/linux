@@ -508,22 +508,41 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 {
 	struct ni_65xx_private *devpriv = dev->private;
 
-	if (insn->n < 1)
+	switch (data[0]) {
+	case INSN_CONFIG_CHANGE_NOTIFY:
+		/* add instruction to check_insn_config_length() */
+		if (insn->n != 3)
+			return -EINVAL;
+
+		/*
+		 * This only works for the first 4 ports (32 channels)!
+		 */
+
+		/* set the channels to monitor for rising edges */
+		writeb(data[1] & 0xff,
+		       devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0));
+		writeb((data[1] >> 8) & 0xff,
+		       devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(1));
+		writeb((data[1] >> 16) & 0xff,
+		       devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(2));
+		writeb((data[1] >> 24) & 0xff,
+		       devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(3));
+
+		/* set the channels to monitor for falling edges */
+		writeb(data[2] & 0xff,
+		       devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0));
+		writeb((data[2] >> 8) & 0xff,
+		       devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(1));
+		writeb((data[2] >> 16) & 0xff,
+		       devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(2));
+		writeb((data[2] >> 24) & 0xff,
+		       devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(3));
+		break;
+	default:
 		return -EINVAL;
-	if (data[0] != INSN_CONFIG_CHANGE_NOTIFY)
-		return -EINVAL;
+	}
 
-	writeb(data[1], devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0));
-	writeb(data[1] >> 8, devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0x10));
-	writeb(data[1] >> 16, devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0x20));
-	writeb(data[1] >> 24, devpriv->mmio + NI_65XX_RISE_EDGE_ENA_REG(0x30));
-
-	writeb(data[2], devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0));
-	writeb(data[2] >> 8, devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0x10));
-	writeb(data[2] >> 16, devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0x20));
-	writeb(data[2] >> 24, devpriv->mmio + NI_65XX_FALL_EDGE_ENA_REG(0x30));
-
-	return 2;
+	return insn->n;
 }
 
 /* ripped from mite.h and mite_setup2() to avoid mite dependancy */
