@@ -432,7 +432,6 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	default:
 		status = IXGBE_ERR_LINK_SETUP;
 		goto out;
-		break;
 	}
 
 	if (hw->phy.multispeed_fiber) {
@@ -2035,7 +2034,6 @@ static u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 		else if (pma_pmd_10g_parallel == IXGBE_AUTOC_10G_XAUI)
 			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_XAUI;
 		goto out;
-		break;
 	case IXGBE_AUTOC_LMS_10G_SERIAL:
 		if (pma_pmd_10g_serial == IXGBE_AUTOC2_10G_KR) {
 			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KR;
@@ -2052,10 +2050,8 @@ static u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 		if (autoc & IXGBE_AUTOC_KR_SUPP)
 			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_KR;
 		goto out;
-		break;
 	default:
 		goto out;
-		break;
 	}
 
 sfp_check:

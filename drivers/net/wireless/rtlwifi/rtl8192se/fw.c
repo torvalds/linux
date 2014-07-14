@@ -438,7 +438,6 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 				 "Unexpected Download step!!\n");
 			goto fail;
-			break;
 		}
 
 		/* <2> Download image file */
