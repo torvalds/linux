@@ -20,6 +20,7 @@
 #define __XFS_SYSFS_H__
 
 extern struct kobj_type xfs_mp_ktype;	/* xfs_mount */
+extern struct kobj_type xfs_log_ktype;	/* xlog */
 
 static inline struct xfs_kobj *
 to_kobj(struct kobject *kobject)

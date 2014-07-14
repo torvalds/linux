@@ -34,6 +34,7 @@
 #include "xfs_trace.h"
 #include "xfs_fsops.h"
 #include "xfs_cksum.h"
+#include "xfs_sysfs.h"
 
 kmem_zone_t	*xfs_log_ticket_zone;
 
@@ -707,6 +708,11 @@ xfs_log_mount(
 		}
 	}
 
+	error = xfs_sysfs_init(&mp->m_log->l_kobj, &xfs_log_ktype, &mp->m_kobj,
+			       "log");
+	if (error)
+		goto out_destroy_ail;
+
 	/* Normal transactions can now occur */
 	mp->m_log->l_flags &= ~XLOG_ACTIVE_RECOVERY;
 
@@ -947,6 +953,9 @@ xfs_log_unmount(
 	xfs_log_quiesce(mp);
 
 	xfs_trans_ail_destroy(mp);
+
+	xfs_sysfs_del(&mp->m_log->l_kobj);
+
 	xlog_dealloc_log(mp->m_log);
 }
 

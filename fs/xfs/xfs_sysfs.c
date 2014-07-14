@@ -18,6 +18,9 @@
 
 #include "xfs.h"
 #include "xfs_sysfs.h"
+#include "xfs_log_format.h"
+#include "xfs_log.h"
+#include "xfs_log_priv.h"
 
 struct xfs_sysfs_attr {
 	struct attribute attr;
@@ -46,4 +49,53 @@ to_attr(struct attribute *attr)
 
 struct kobj_type xfs_mp_ktype = {
 	.release = xfs_sysfs_release,
+};
+
+/* xlog */
+
+static struct attribute *xfs_log_attrs[] = {
+	NULL,
+};
+
+static inline struct xlog *
+to_xlog(struct kobject *kobject)
+{
+	struct xfs_kobj *kobj = to_kobj(kobject);
+	return container_of(kobj, struct xlog, l_kobj);
+}
+
+STATIC ssize_t
+xfs_log_show(
+	struct kobject		*kobject,
+	struct attribute	*attr,
+	char			*buf)
+{
+	struct xlog *log = to_xlog(kobject);
+	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
+
+	return xfs_attr->show ? xfs_attr->show(buf, log) : 0;
+}
+
+STATIC ssize_t
+xfs_log_store(
+	struct kobject		*kobject,
+	struct attribute	*attr,
+	const char		*buf,
+	size_t			count)
+{
+	struct xlog *log = to_xlog(kobject);
+	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
+
+	return xfs_attr->store ? xfs_attr->store(buf, count, log) : 0;
+}
+
+static struct sysfs_ops xfs_log_ops = {
+	.show = xfs_log_show,
+	.store = xfs_log_store,
+};
+
+struct kobj_type xfs_log_ktype = {
+	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_log_ops,
+	.default_attrs = xfs_log_attrs,
 };
