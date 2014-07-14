@@ -659,6 +659,13 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 
 		/* use the io_bits to handle the inverted outputs */
 		s->io_bits	= (board->invert_outputs) ? 0xff : 0x00;
+
+		/* reset all output ports to comedi '0' */
+		for (i = 0; i < board->num_do_ports; ++i) {
+			writeb(s->io_bits,	/* inverted if necessary */
+			       devpriv->mmio +
+			       NI_65XX_IO_DATA_REG(board->num_di_ports + i));
+		}
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
@@ -702,13 +709,8 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->cancel	= ni_65xx_intr_cancel;
 	}
 
-	for (i = 0; i < ni_65xx_total_num_ports(board); ++i) {
+	for (i = 0; i < ni_65xx_total_num_ports(board); ++i)
 		writeb(0x00, devpriv->mmio + NI_65XX_FILTER_ENA(i));
-		if (board->invert_outputs)
-			writeb(0x01, devpriv->mmio + NI_65XX_IO_DATA_REG(i));
-		else
-			writeb(0x00, devpriv->mmio + NI_65XX_IO_DATA_REG(i));
-	}
 
 	/* Set filter interval to 0  (32bit reg) */
 	writel(0x00000000, devpriv->mmio + NI_65XX_FILTER_REG);
