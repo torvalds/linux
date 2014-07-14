@@ -808,7 +808,7 @@
 
 		ldo1_reg: regulator@4 {
 			regulator-name= "vccio_sd";
-			regulator-min-microvolt = <3300000>;
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3300000>;
 			
 		};
