@@ -266,7 +266,7 @@ mpt3sas_base_stop_watchdog(struct MPT3SAS_ADAPTER *ioc)
 	ioc->fault_reset_work_q = NULL;
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 	if (wq) {
-		if (!cancel_delayed_work(&ioc->fault_reset_work))
+		if (!cancel_delayed_work_sync(&ioc->fault_reset_work))
 			flush_workqueue(wq);
 		destroy_workqueue(wq);
 	}
