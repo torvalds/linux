@@ -34,6 +34,7 @@
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-io.h"
+#include "iwl-scd.h"
 #include "iwl-op-mode.h"
 #include "internal.h"
 /* FIXME: need to abstract out TX command (once we know what it looks like) */
@@ -644,17 +645,6 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 	memset(txq, 0, sizeof(*txq));
 }
 
-/*
- * Activate/Deactivate Tx DMA/FIFO channels according tx fifos mask
- */
-static void iwl_pcie_txq_set_sched(struct iwl_trans *trans, u32 mask)
-{
-	struct iwl_trans_pcie __maybe_unused *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	iwl_write_prph(trans, SCD_TXFACT, mask);
-}
-
 void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -692,7 +682,7 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 				trans_pcie->cmd_fifo);
 
 	/* Activate all Tx DMA/FIFO channels */
-	iwl_pcie_txq_set_sched(trans, IWL_MASK(0, 7));
+	iwl_scd_activate_fifos(trans);
 
 	/* Enable DMA channel */
 	for (chan = 0; chan < FH_TCSR_CHNL_NUM; chan++)
@@ -745,7 +735,7 @@ int iwl_pcie_tx_stop(struct iwl_trans *trans)
 	/* Turn off all Tx DMA fifos */
 	spin_lock(&trans_pcie->irq_lock);
 
-	iwl_pcie_txq_set_sched(trans, 0);
+	iwl_scd_deactivate_fifos(trans);
 
 	/* Stop each Tx DMA channel, and wait for it to be idle */
 	for (ch = 0; ch < FH_TCSR_CHNL_NUM; ch++) {
@@ -886,7 +876,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	spin_lock(&trans_pcie->irq_lock);
 
 	/* Turn off all Tx DMA fifos */
-	iwl_write_prph(trans, SCD_TXFACT, 0);
+	iwl_scd_deactivate_fifos(trans);
 
 	/* Tell NIC where to find the "keep warm" buffer */
 	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
@@ -1072,17 +1062,6 @@ static int iwl_pcie_txq_set_ratid_map(struct iwl_trans *trans, u16 ra_tid,
 	return 0;
 }
 
-static inline void iwl_pcie_txq_set_inactive(struct iwl_trans *trans,
-					     u16 txq_id)
-{
-	/* Simply stop the queue, but don't change any configuration;
-	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
-	iwl_write_prph(trans,
-		SCD_QUEUE_STATUS_BITS(txq_id),
-		(0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
-		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
-}
-
 /* Receiver address (actually, Rx station's index into station table),
  * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */
 #define BUILD_RAxTID(sta_id, tid)	(((sta_id) << 4) + (tid))
@@ -1096,11 +1075,11 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		WARN_ONCE(1, "queue %d already used - expect issues", txq_id);
 
 	/* Stop this Tx queue before configuring it */
-	iwl_pcie_txq_set_inactive(trans, txq_id);
+	iwl_scd_txq_set_inactive(trans, txq_id);
 
 	/* Set this queue as a chain-building queue unless it is CMD queue */
 	if (txq_id != trans_pcie->cmd_queue)
-		iwl_set_bits_prph(trans, SCD_QUEUECHAIN_SEL, BIT(txq_id));
+		iwl_scd_txq_set_chain(trans, txq_id);
 
 	/* If this queue is mapped to a certain station: it is an AGG queue */
 	if (sta_id >= 0) {
@@ -1110,7 +1089,7 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		iwl_pcie_txq_set_ratid_map(trans, ra_tid, txq_id);
 
 		/* enable aggregations for the queue */
-		iwl_set_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+		iwl_scd_txq_enable_agg(trans, txq_id);
 		trans_pcie->txq[txq_id].ampdu = true;
 	} else {
 		/*
@@ -1118,7 +1097,7 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		 * ra_tid mapping configuration irrelevant since it is now a
 		 * non-AGG queue.
 		 */
-		iwl_clear_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+		iwl_scd_txq_disable_agg(trans, txq_id);
 
 		ssn = trans_pcie->txq[txq_id].q.read_ptr;
 	}
@@ -1172,7 +1151,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 		return;
 	}
 
-	iwl_pcie_txq_set_inactive(trans, txq_id);
+	iwl_scd_txq_set_inactive(trans, txq_id);
 
 	iwl_trans_write_mem(trans, stts_addr, (void *)zero_val,
 			    ARRAY_SIZE(zero_val));
