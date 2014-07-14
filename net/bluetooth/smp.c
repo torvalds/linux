@@ -876,9 +876,12 @@ bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
 	/* If we're encrypted with an STK always claim insufficient
 	 * security. This way we allow the connection to be re-encrypted
 	 * with an LTK, even if the LTK provides the same level of
-	 * security.
+	 * security. Only exception is if we don't have an LTK (e.g.
+	 * because of key distribution bits).
 	 */
-	if (test_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags))
+	if (test_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags) &&
+	    hci_find_ltk_by_addr(hcon->hdev, &hcon->dst, hcon->dst_type,
+				 hcon->out))
 		return false;
 
 	if (hcon->sec_level >= sec_level)
