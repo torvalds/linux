@@ -5544,7 +5544,7 @@ static int ni_E_init(struct comedi_device *dev,
 		if (devpriv->is_m_series)
 			s->subdev_flags |= SDF_SOFT_CALIBRATED;
 		s->n_chan = board->n_aochan;
-		s->maxdata = (1 << board->aobits) - 1;
+		s->maxdata = board->ao_maxdata;
 		s->range_table = board->ao_range_table;
 		s->insn_read = &ni_ao_insn_read;
 		s->insn_write = &ni_ao_insn_write;

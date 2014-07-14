@@ -1401,7 +1401,7 @@ struct ni_board_struct {
 	int ai_speed;
 
 	int n_aochan;
-	int aobits;
+	unsigned int ao_maxdata;
 	int ao_fifo_depth;
 	const struct comedi_lrange *ao_range_table;
 	unsigned ao_speed;
