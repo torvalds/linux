@@ -3101,22 +3101,32 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 
 static int ni_ao_insn_write_671x(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int invert;
+	int i;
 
 	ao_win_out(1 << chan, AO_Immediate_671x);
-	invert = 1 << (board->aobits - 1);
 
 	ni_ao_config_chanlist(dev, s, &insn->chanspec, 1, 0);
 
-	devpriv->ao[chan] = data[0];
-	ao_win_out(data[0] ^ invert, DACx_Direct_Data_671x(chan));
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val = data[i];
 
-	return 1;
+		devpriv->ao[chan] = val;
+
+		/*
+		 * 671x boards have +/-10V outputs
+		 * munge the unsigned comedi values to 2's complement
+		 */
+		val = comedi_offset_munge(s, val);
+
+		ao_win_out(val, DACx_Direct_Data_671x(chan));
+	}
+
+	return insn->n;
 }
 
 static int ni_ao_insn_config(struct comedi_device *dev,
