@@ -1393,7 +1393,7 @@ struct ni_board_struct {
 	int isapnp_id;
 
 	int n_adchan;
-	int adbits;
+	unsigned int ai_maxdata;
 
 	int ai_fifo_depth;
 	unsigned int alwaysdither:1;

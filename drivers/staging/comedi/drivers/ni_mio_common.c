@@ -5513,13 +5513,13 @@ static int ni_E_init(struct comedi_device *dev,
 		    SDF_READABLE | SDF_DIFF | SDF_DITHER | SDF_CMD_READ;
 		if (!devpriv->is_611x)
 			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
-		if (board->adbits > 16)
+		if (board->ai_maxdata > 0xffff)
 			s->subdev_flags |= SDF_LSAMPL;
 		if (devpriv->is_m_series)
 			s->subdev_flags |= SDF_SOFT_CALIBRATED;
 		s->n_chan = board->n_adchan;
 		s->len_chanlist = 512;
-		s->maxdata = (1 << board->adbits) - 1;
+		s->maxdata = board->ai_maxdata;
 		s->range_table = ni_range_lkup[board->gainlkup];
 		s->insn_read = &ni_ai_insn_read;
 		s->insn_config = &ni_ai_insn_config;
