@@ -1422,7 +1422,6 @@ struct ni_private {
 	unsigned short dio_output;
 	unsigned short dio_control;
 	int aimode;
-	int ai_continuous;
 	unsigned int ai_calib_source;
 	unsigned int ai_calib_source_enabled;
 	spinlock_t window_lock;

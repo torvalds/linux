@@ -1499,8 +1499,8 @@ static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status)
 static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			       unsigned ai_mite_status)
 {
-	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/* 67xx boards don't have ai subdevice, but their gpct0 might generate an a interrupt */
 	if (s->type == COMEDI_SUBD_UNUSED)
@@ -1551,7 +1551,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			return;
 		}
 		if (status & AI_SC_TC_St) {
-			if (!devpriv->ai_continuous)
+			if (cmd->stop_src == TRIG_COUNT)
 				shutdown_ai_command(dev);
 		}
 	}
@@ -2513,7 +2513,6 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* load SC (Scan Count) */
 		ni_stc_writew(dev, AI_SC_Load, AI_Command_1_Register);
 
-		devpriv->ai_continuous = 0;
 		if (stop_count == 0) {
 			devpriv->ai_cmd2 |= AI_End_On_End_Of_Scan;
 			interrupt_a_enable |= AI_STOP_Interrupt_Enable;
@@ -2532,9 +2531,6 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		/* load SC (Scan Count) */
 		ni_stc_writew(dev, AI_SC_Load, AI_Command_1_Register);
-
-		devpriv->ai_continuous = 1;
-
 		break;
 	}
 
