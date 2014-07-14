@@ -511,7 +511,8 @@ static int ni_65xx_intr_cancel(struct comedi_device *dev,
 
 static int ni_65xx_intr_insn_bits(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	data[1] = 0;
 	return insn->n;
