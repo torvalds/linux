@@ -6144,7 +6144,7 @@ static int brightness_set(unsigned int value)
 {
 	int res;
 
-	if (value > bright_maxlvl || value < 0)
+	if (value > bright_maxlvl)
 		return -EINVAL;
 
 	vdbg_printk(TPACPI_DBG_BRGHT,
