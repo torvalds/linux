@@ -38,6 +38,12 @@ struct rpc_cred *rpc_lookup_cred(void)
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_cred);
 
+struct rpc_cred *rpc_lookup_cred_nonblock(void)
+{
+	return rpcauth_lookupcred(&generic_auth, RPCAUTH_LOOKUP_RCU);
+}
+EXPORT_SYMBOL_GPL(rpc_lookup_cred_nonblock);
+
 /*
  * Public call interface for looking up machine creds.
  */
