@@ -327,7 +327,7 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	u8 step;
 	u8 candidates_delayline[MAX_DELAY_LINE] = {0};
 	u8 candidates_degree[SDMMC_SHIFT_DEGREE_INVALID] = {4,4,4,4};
-	u8 default_drv = IO_DRV_8MA;
+	u8 default_drv;
 	u8 index = 0;
 	u8 start_degree = 0;
 	u32 start_delayline = 0;
@@ -387,6 +387,11 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 
 re_phase:
         /* calcute slew rate & drv strength in timing tuning */
+        if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)
+                default_drv = IO_DRV_4MA;
+        else
+                default_drv = IO_DRV_8MA;
+
         dw_mci_rockchip_load_signal_integrity(host, SLEW_RATE_SLOW, default_drv);
         /* Loop degree from 0 ~ 270 */
         for(start_degree = SDMMC_SHIFT_DEGREE_0; start_degree < SDMMC_SHIFT_DEGREE_270; start_degree++){
