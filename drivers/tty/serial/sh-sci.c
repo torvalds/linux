@@ -1789,11 +1789,13 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
 	for (sr = 8; sr <= 32; sr++) {
 		for (c = 0; c <= 3; c++) {
 			/* integerized formulas from HSCIF documentation */
-			br = freq / (sr * (1 << (2 * c + 1)) * bps) - 1;
+			br = DIV_ROUND_CLOSEST(freq, (sr *
+					      (1 << (2 * c + 1)) * bps)) - 1;
 			if (br < 0 || br > 255)
 				continue;
-			err = freq / ((br + 1) * bps * sr *
-			      (1 << (2 * c + 1)) / 1000) - 1000;
+			err = DIV_ROUND_CLOSEST(freq, ((br + 1) * bps * sr *
+					       (1 << (2 * c + 1)) / 1000)) -
+					       1000;
 			if (min_err > err) {
 				min_err = err;
 				*brr = br;
