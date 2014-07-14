@@ -962,10 +962,6 @@ alloc_new_skb:
 							   sk->sk_allocation);
 				if (unlikely(skb == NULL))
 					err = -ENOBUFS;
-				else
-					/* only the initial fragment is
-					   time stamped */
-					cork->tx_flags = 0;
 			}
 			if (skb == NULL)
 				goto error;
@@ -976,7 +972,10 @@ alloc_new_skb:
 			skb->ip_summed = csummode;
 			skb->csum = 0;
 			skb_reserve(skb, hh_len);
+
+			/* only the initial fragment is time stamped */
 			skb_shinfo(skb)->tx_flags = cork->tx_flags;
+			cork->tx_flags = 0;
 
 			/*
 			 *	Find where to start putting bytes.

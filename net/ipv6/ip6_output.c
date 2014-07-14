@@ -1271,7 +1271,7 @@ emsgsize:
 	}
 
 	/* For UDP, check if TX timestamp is enabled */
-	if (sk->sk_type == SOCK_DGRAM)
+	if (sk->sk_type == SOCK_DGRAM || sk->sk_type == SOCK_RAW)
 		sock_tx_timestamp(sk, &tx_flags);
 
 	/*
@@ -1380,12 +1380,6 @@ alloc_new_skb:
 							   sk->sk_allocation);
 				if (unlikely(skb == NULL))
 					err = -ENOBUFS;
-				else {
-					/* Only the initial fragment
-					 * is time stamped.
-					 */
-					tx_flags = 0;
-				}
 			}
 			if (skb == NULL)
 				goto error;
@@ -1399,8 +1393,9 @@ alloc_new_skb:
 			skb_reserve(skb, hh_len + sizeof(struct frag_hdr) +
 				    dst_exthdrlen);
 
-			if (sk->sk_type == SOCK_DGRAM)
-				skb_shinfo(skb)->tx_flags = tx_flags;
+			/* Only the initial fragment is time stamped */
+			skb_shinfo(skb)->tx_flags = tx_flags;
+			tx_flags = 0;
 
 			/*
 			 *	Find where to start putting bytes
