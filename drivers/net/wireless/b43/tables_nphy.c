@@ -2146,7 +2146,196 @@ static const u16 b43_ntab_antswctl_r3[4][32] = {
 	}
 };
 
-/* TX gain tables */
+/* static tables, PHY revision >= 7 */
+
+/* Copied from brcmsmac (5.75.11) */
+static const u32 b43_ntab_tmap_r7[] = {
+	0x8a88aa80, 0x8aaaaa8a, 0x8a8a8aa8, 0x00000888,
+	0x88000000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0xf1111110, 0x11111111, 0x11f11111, 0x00000111,
+	0x11000000, 0x1111f111, 0x11111111, 0x111111f1,
+	0x8a88aa80, 0x8aaaaa8a, 0x8a8a8aa8, 0x000aa888,
+	0x88880000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0xa1111110, 0x11111111, 0x11c11111, 0x00000111,
+	0x11000000, 0x1111a111, 0x11111111, 0x111111a1,
+	0xa2222220, 0x22222222, 0x22c22222, 0x00000222,
+	0x22000000, 0x2222a222, 0x22222222, 0x222222a2,
+	0xf1111110, 0x11111111, 0x11f11111, 0x00011111,
+	0x11110000, 0x1111f111, 0x11111111, 0x111111f1,
+	0xa8aa88a0, 0xa88888a8, 0xa8a8a88a, 0x00088aaa,
+	0xaaaa0000, 0xa8a8aa88, 0xa88aaaaa, 0xaaaa8a8a,
+	0xaaa8aaa0, 0x8aaa8aaa, 0xaa8a8a8a, 0x000aaa88,
+	0x8aaa0000, 0xaaa8a888, 0x8aa88a8a, 0x8a88a888,
+	0x08080a00, 0x0a08080a, 0x080a0a08, 0x00080808,
+	0x080a0000, 0x080a0808, 0x080a0808, 0x0a0a0a08,
+	0xa0a0a0a0, 0x80a0a080, 0x8080a0a0, 0x00008080,
+	0x80a00000, 0x80a080a0, 0xa080a0a0, 0x8080a0a0,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x99999000, 0x9b9b99bb, 0x9bb99999, 0x9999b9b9,
+	0x9b99bb90, 0x9bbbbb9b, 0x9b9b9bb9, 0x00000999,
+	0x88000000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa80, 0x8aaaaa8a, 0x8a8a8aa8, 0x00aaa888,
+	0x22000000, 0x2222b222, 0x22222222, 0x222222b2,
+	0xb2222220, 0x22222222, 0x22d22222, 0x00000222,
+	0x11000000, 0x1111a111, 0x11111111, 0x111111a1,
+	0xa1111110, 0x11111111, 0x11c11111, 0x00000111,
+	0x33000000, 0x3333b333, 0x33333333, 0x333333b3,
+	0xb3333330, 0x33333333, 0x33d33333, 0x00000333,
+	0x22000000, 0x2222a222, 0x22222222, 0x222222a2,
+	0xa2222220, 0x22222222, 0x22c22222, 0x00000222,
+	0x99b99b00, 0x9b9b99bb, 0x9bb99999, 0x9999b9b9,
+	0x9b99bb99, 0x9bbbbb9b, 0x9b9b9bb9, 0x00000999,
+	0x88000000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa88, 0x8aaaaa8a, 0x8a8a8aa8, 0x08aaa888,
+	0x22222200, 0x2222f222, 0x22222222, 0x222222f2,
+	0x22222222, 0x22222222, 0x22f22222, 0x00000222,
+	0x11000000, 0x1111f111, 0x11111111, 0x11111111,
+	0xf1111111, 0x11111111, 0x11f11111, 0x01111111,
+	0xbb9bb900, 0xb9b9bb99, 0xb99bbbbb, 0xbbbb9b9b,
+	0xb9bb99bb, 0xb99999b9, 0xb9b9b99b, 0x00000bbb,
+	0xaa000000, 0xa8a8aa88, 0xa88aaaaa, 0xaaaa8a8a,
+	0xa8aa88aa, 0xa88888a8, 0xa8a8a88a, 0x0a888aaa,
+	0xaa000000, 0xa8a8aa88, 0xa88aaaaa, 0xaaaa8a8a,
+	0xa8aa88a0, 0xa88888a8, 0xa8a8a88a, 0x00000aaa,
+	0x88000000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa80, 0x8aaaaa8a, 0x8a8a8aa8, 0x00000888,
+	0xbbbbbb00, 0x999bbbbb, 0x9bb99b9b, 0xb9b9b9bb,
+	0xb9b99bbb, 0xb9b9b9bb, 0xb9bb9b99, 0x00000999,
+	0x8a000000, 0xaa88a888, 0xa88888aa, 0xa88a8a88,
+	0xa88aa88a, 0x88a8aaaa, 0xa8aa8aaa, 0x0888a88a,
+	0x0b0b0b00, 0x090b0b0b, 0x0b090b0b, 0x0909090b,
+	0x09090b0b, 0x09090b0b, 0x09090b09, 0x00000909,
+	0x0a000000, 0x0a080808, 0x080a080a, 0x080a0a08,
+	0x080a080a, 0x0808080a, 0x0a0a0a08, 0x0808080a,
+	0xb0b0b000, 0x9090b0b0, 0x90b09090, 0xb0b0b090,
+	0xb0b090b0, 0x90b0b0b0, 0xb0b09090, 0x00000090,
+	0x80000000, 0xa080a080, 0xa08080a0, 0xa0808080,
+	0xa080a080, 0x80a0a0a0, 0xa0a080a0, 0x00a0a0a0,
+	0x22000000, 0x2222f222, 0x22222222, 0x222222f2,
+	0xf2222220, 0x22222222, 0x22f22222, 0x00000222,
+	0x11000000, 0x1111f111, 0x11111111, 0x111111f1,
+	0xf1111110, 0x11111111, 0x11f11111, 0x00000111,
+	0x33000000, 0x3333f333, 0x33333333, 0x333333f3,
+	0xf3333330, 0x33333333, 0x33f33333, 0x00000333,
+	0x22000000, 0x2222f222, 0x22222222, 0x222222f2,
+	0xf2222220, 0x22222222, 0x22f22222, 0x00000222,
+	0x99000000, 0x9b9b99bb, 0x9bb99999, 0x9999b9b9,
+	0x9b99bb90, 0x9bbbbb9b, 0x9b9b9bb9, 0x00000999,
+	0x88000000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa80, 0x8aaaaa8a, 0x8a8a8aa8, 0x00000888,
+	0x88888000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa80, 0x8aaaaa8a, 0x8a8a8aa8, 0x00000888,
+	0x88000000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa80, 0x8aaaaa8a, 0x8a8a8aa8, 0x00aaa888,
+	0x88a88a00, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa88, 0x8aaaaa8a, 0x8a8a8aa8, 0x000aa888,
+	0x88880000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa88, 0x8aaaaa8a, 0x8a8a8aa8, 0x08aaa888,
+	0x11000000, 0x1111a111, 0x11111111, 0x111111a1,
+	0xa1111110, 0x11111111, 0x11c11111, 0x00000111,
+	0x11000000, 0x1111a111, 0x11111111, 0x111111a1,
+	0xa1111110, 0x11111111, 0x11c11111, 0x00000111,
+	0x88000000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa80, 0x8aaaaa8a, 0x8a8a8aa8, 0x00000888,
+	0x88000000, 0x8a8a88aa, 0x8aa88888, 0x8888a8a8,
+	0x8a88aa80, 0x8aaaaa8a, 0x8a8a8aa8, 0x00000888,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+};
+
+/* Extracted from MMIO dump of 6.30.223.141 */
+static const u32 b43_ntab_noisevar_r7[] = {
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
+};
+
+/**************************************************
+ * TX gain tables
+ **************************************************/
+
 static const u32 b43_ntab_tx_gain_rev0_1_2[] = {
 	0x03cc2b44, 0x03cc2b42, 0x03cc2a44, 0x03cc2a42,
 	0x03cc2944, 0x03c82b44, 0x03c82b42, 0x03c82a44,
@@ -2182,7 +2371,9 @@ static const u32 b43_ntab_tx_gain_rev0_1_2[] = {
 	0x03801442, 0x03801344, 0x03801342, 0x00002b00,
 };
 
-static const u32 b43_ntab_tx_gain_rev3plus_2ghz[] = {
+/* EPA 2 GHz */
+
+static const u32 b43_ntab_tx_gain_epa_rev3_2g[] = {
 	0x1f410044, 0x1f410042, 0x1f410040, 0x1f41003e,
 	0x1f41003c, 0x1f41003b, 0x1f410039, 0x1f410037,
 	0x1e410044, 0x1e410042, 0x1e410040, 0x1e41003e,
@@ -2217,7 +2408,9 @@ static const u32 b43_ntab_tx_gain_rev3plus_2ghz[] = {
 	0x1041003c, 0x1041003b, 0x10410039, 0x10410037,
 };
 
-static const u32 b43_ntab_tx_gain_rev3_5ghz[] = {
+/* EPA 5 GHz */
+
+static const u32 b43_ntab_tx_gain_epa_rev3_5g[] = {
 	0xcff70044, 0xcff70042, 0xcff70040, 0xcff7003e,
 	0xcff7003c, 0xcff7003b, 0xcff70039, 0xcff70037,
 	0xcef70044, 0xcef70042, 0xcef70040, 0xcef7003e,
@@ -2252,7 +2445,7 @@ static const u32 b43_ntab_tx_gain_rev3_5ghz[] = {
 	0xc0f7003c, 0xc0f7003b, 0xc0f70039, 0xc0f70037,
 };
 
-static const u32 b43_ntab_tx_gain_rev4_5ghz[] = {
+static const u32 b43_ntab_tx_gain_epa_rev4_5g[] = {
 	0x2ff20044, 0x2ff20042, 0x2ff20040, 0x2ff2003e,
 	0x2ff2003c, 0x2ff2003b, 0x2ff20039, 0x2ff20037,
 	0x2ef20044, 0x2ef20042, 0x2ef20040, 0x2ef2003e,
@@ -2287,7 +2480,7 @@ static const u32 b43_ntab_tx_gain_rev4_5ghz[] = {
 	0x20d2003a, 0x20d20038, 0x20d20036, 0x20d20034,
 };
 
-static const u32 b43_ntab_tx_gain_rev5plus_5ghz[] = {
+static const u32 b43_ntab_tx_gain_epa_rev5_5g[] = {
 	0x0f62004a, 0x0f620048, 0x0f620046, 0x0f620044,
 	0x0f620042, 0x0f620040, 0x0f62003e, 0x0f62003c,
 	0x0e620044, 0x0e620042, 0x0e620040, 0x0e62003e,
@@ -2322,7 +2515,9 @@ static const u32 b43_ntab_tx_gain_rev5plus_5ghz[] = {
 	0x0062003b, 0x00620039, 0x00620037, 0x00620035,
 };
 
-static const u32 txpwrctrl_tx_gain_ipa[] = {
+/* IPA 2 GHz */
+
+static const u32 b43_ntab_tx_gain_ipa_rev3_2g[] = {
 	0x5ff7002d, 0x5ff7002b, 0x5ff7002a, 0x5ff70029,
 	0x5ff70028, 0x5ff70027, 0x5ff70026, 0x5ff70025,
 	0x5ef7002d, 0x5ef7002b, 0x5ef7002a, 0x5ef70029,
@@ -2357,7 +2552,7 @@ static const u32 txpwrctrl_tx_gain_ipa[] = {
 	0x50f70028, 0x50f70027, 0x50f70026, 0x50f70025,
 };
 
-static const u32 txpwrctrl_tx_gain_ipa_rev5[] = {
+static const u32 b43_ntab_tx_gain_ipa_rev5_2g[] = {
 	0x1ff7002d, 0x1ff7002b, 0x1ff7002a, 0x1ff70029,
 	0x1ff70028, 0x1ff70027, 0x1ff70026, 0x1ff70025,
 	0x1ef7002d, 0x1ef7002b, 0x1ef7002a, 0x1ef70029,
@@ -2392,7 +2587,7 @@ static const u32 txpwrctrl_tx_gain_ipa_rev5[] = {
 	0x10f70028, 0x10f70027, 0x10f70026, 0x10f70025,
 };
 
-static const u32 txpwrctrl_tx_gain_ipa_rev6[] = {
+static const u32 b43_ntab_tx_gain_ipa_rev6_2g[] = {
 	0x0ff7002d, 0x0ff7002b, 0x0ff7002a, 0x0ff70029,
 	0x0ff70028, 0x0ff70027, 0x0ff70026, 0x0ff70025,
 	0x0ef7002d, 0x0ef7002b, 0x0ef7002a, 0x0ef70029,
@@ -2427,7 +2622,45 @@ static const u32 txpwrctrl_tx_gain_ipa_rev6[] = {
 	0x00f70028, 0x00f70027, 0x00f70026, 0x00f70025,
 };
 
-static const u32 txpwrctrl_tx_gain_ipa_5g[] = {
+/* Extracted from MMIO dump of 6.30.223.141 */
+static const u32 b43_ntab_tx_gain_ipa_2057_rev9_2g[] = {
+	0x60ff0031, 0x60e7002c, 0x60cf002a, 0x60c70029,
+	0x60b70029, 0x60a70029, 0x609f002a, 0x6097002b,
+	0x6087002e, 0x60770031, 0x606f0032, 0x60670034,
+	0x60670031, 0x605f0033, 0x605f0031, 0x60570033,
+	0x60570030, 0x6057002d, 0x6057002b, 0x604f002d,
+	0x604f002b, 0x604f0029, 0x604f0026, 0x60470029,
+	0x60470027, 0x603f0029, 0x603f0027, 0x603f0025,
+	0x60370029, 0x60370027, 0x60370024, 0x602f002a,
+	0x602f0028, 0x602f0026, 0x602f0024, 0x6027002a,
+	0x60270028, 0x60270026, 0x60270024, 0x60270022,
+	0x601f002b, 0x601f0029, 0x601f0027, 0x601f0024,
+	0x601f0022, 0x601f0020, 0x601f001f, 0x601f001d,
+	0x60170029, 0x60170027, 0x60170025, 0x60170023,
+	0x60170021, 0x6017001f, 0x6017001d, 0x6017001c,
+	0x6017001a, 0x60170018, 0x60170018, 0x60170016,
+	0x60170015, 0x600f0029, 0x600f0027, 0x600f0025,
+	0x600f0023, 0x600f0021, 0x600f001f, 0x600f001d,
+	0x600f001c, 0x600f001a, 0x600f0019, 0x600f0018,
+	0x600f0016, 0x600f0015, 0x600f0115, 0x600f0215,
+	0x600f0315, 0x600f0415, 0x600f0515, 0x600f0615,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+	0x600f0715, 0x600f0715, 0x600f0715, 0x600f0715,
+};
+
+/* IPA 2 5Hz */
+
+static const u32 b43_ntab_tx_gain_ipa_rev3_5g[] = {
 	0x7ff70035, 0x7ff70033, 0x7ff70032, 0x7ff70031,
 	0x7ff7002f, 0x7ff7002e, 0x7ff7002d, 0x7ff7002b,
 	0x7ff7002a, 0x7ff70029, 0x7ff70028, 0x7ff70027,
@@ -2460,6 +2693,42 @@ static const u32 txpwrctrl_tx_gain_ipa_5g[] = {
 	0x71f70024, 0x71f70023, 0x70f70028, 0x70f70027,
 	0x70f70026, 0x70f70024, 0x70f70023, 0x70f70022,
 	0x70f70021, 0x70f70020, 0x70f70020, 0x70f7001f,
+};
+
+/* Extracted from MMIO dump of 6.30.223.141 */
+static const u32 b43_ntab_tx_gain_ipa_2057_rev9_5g[] = {
+	0x7f7f0053, 0x7f7f004b, 0x7f7f0044, 0x7f7f003f,
+	0x7f7f0039, 0x7f7f0035, 0x7f7f0032, 0x7f7f0030,
+	0x7f7f002d, 0x7e7f0030, 0x7e7f002d, 0x7d7f0032,
+	0x7d7f002f, 0x7d7f002c, 0x7c7f0032, 0x7c7f0030,
+	0x7c7f002d, 0x7b7f0030, 0x7b7f002e, 0x7b7f002b,
+	0x7a7f0032, 0x7a7f0030, 0x7a7f002d, 0x7a7f002b,
+	0x797f0030, 0x797f002e, 0x797f002b, 0x797f0029,
+	0x787f0030, 0x787f002d, 0x787f002b, 0x777f0032,
+	0x777f0030, 0x777f002d, 0x777f002b, 0x767f0031,
+	0x767f002f, 0x767f002c, 0x767f002a, 0x757f0031,
+	0x757f002f, 0x757f002c, 0x757f002a, 0x747f0030,
+	0x747f002d, 0x747f002b, 0x737f0032, 0x737f002f,
+	0x737f002c, 0x737f002a, 0x727f0030, 0x727f002d,
+	0x727f002b, 0x727f0029, 0x717f0030, 0x717f002d,
+	0x717f002b, 0x707f0031, 0x707f002f, 0x707f002c,
+	0x707f002a, 0x707f0027, 0x707f0025, 0x707f0023,
+	0x707f0021, 0x707f001f, 0x707f001d, 0x707f001c,
+	0x707f001a, 0x707f0019, 0x707f0017, 0x707f0016,
+	0x707f0015, 0x707f0014, 0x707f0012, 0x707f0012,
+	0x707f0011, 0x707f0010, 0x707f000f, 0x707f000e,
+	0x707f000d, 0x707f000d, 0x707f000c, 0x707f000b,
+	0x707f000a, 0x707f000a, 0x707f0009, 0x707f0008,
+	0x707f0008, 0x707f0008, 0x707f0008, 0x707f0007,
+	0x707f0007, 0x707f0006, 0x707f0006, 0x707f0006,
+	0x707f0005, 0x707f0005, 0x707f0005, 0x707f0004,
+	0x707f0004, 0x707f0004, 0x707f0003, 0x707f0003,
+	0x707f0003, 0x707f0003, 0x707f0003, 0x707f0003,
+	0x707f0003, 0x707f0003, 0x707f0003, 0x707f0003,
+	0x707f0002, 0x707f0002, 0x707f0002, 0x707f0002,
+	0x707f0002, 0x707f0002, 0x707f0002, 0x707f0002,
+	0x707f0002, 0x707f0001, 0x707f0001, 0x707f0001,
+	0x707f0001, 0x707f0001, 0x707f0001, 0x707f0001,
 };
 
 const s8 b43_ntab_papd_pga_gain_delta_ipa_2g[] = {
@@ -3031,6 +3300,91 @@ void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 		b43_ntab_write_bulk(dev, offset, ARRAY_SIZE(data), data); \
 	} while (0)
 
+static void b43_nphy_tables_init_shared_lut(struct b43_wldev *dev)
+{
+	ntab_upload(dev, B43_NTAB_C0_ESTPLT_R3, b43_ntab_estimatepowerlt0_r3);
+	ntab_upload(dev, B43_NTAB_C1_ESTPLT_R3, b43_ntab_estimatepowerlt1_r3);
+	ntab_upload(dev, B43_NTAB_C0_ADJPLT_R3, b43_ntab_adjustpower0_r3);
+	ntab_upload(dev, B43_NTAB_C1_ADJPLT_R3, b43_ntab_adjustpower1_r3);
+	ntab_upload(dev, B43_NTAB_C0_GAINCTL_R3, b43_ntab_gainctl0_r3);
+	ntab_upload(dev, B43_NTAB_C1_GAINCTL_R3, b43_ntab_gainctl1_r3);
+	ntab_upload(dev, B43_NTAB_C0_IQLT_R3, b43_ntab_iqlt0_r3);
+	ntab_upload(dev, B43_NTAB_C1_IQLT_R3, b43_ntab_iqlt1_r3);
+	ntab_upload(dev, B43_NTAB_C0_LOFEEDTH_R3, b43_ntab_loftlt0_r3);
+	ntab_upload(dev, B43_NTAB_C1_LOFEEDTH_R3, b43_ntab_loftlt1_r3);
+}
+
+static void b43_nphy_tables_init_rev7_volatile(struct b43_wldev *dev)
+{
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
+	u8 antswlut;
+	int core, offset, i;
+
+	const int antswlut0_offsets[] = { 0, 4, 8, }; /* Offsets for values */
+	const u8 antswlut0_values[][3] = {
+		{ 0x2, 0x12, 0x8 }, /* Core 0 */
+		{ 0x2, 0x18, 0x2 }, /* Core 1 */
+	};
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
+		antswlut = sprom->fem.ghz5.antswlut;
+	else
+		antswlut = sprom->fem.ghz2.antswlut;
+
+	switch (antswlut) {
+	case 0:
+		for (core = 0; core < 2; core++) {
+			for (i = 0; i < ARRAY_SIZE(antswlut0_values[0]); i++) {
+				offset = core ? 0x20 : 0x00;
+				offset += antswlut0_offsets[i];
+				b43_ntab_write(dev, B43_NTAB8(9, offset),
+					       antswlut0_values[core][i]);
+			}
+		}
+		break;
+	default:
+		b43err(dev->wl, "Unsupported antswlut: %d\n", antswlut);
+		break;
+	}
+}
+
+static void b43_nphy_tables_init_rev16(struct b43_wldev *dev)
+{
+	/* Static tables */
+	if (dev->phy.do_full_init) {
+		ntab_upload(dev, B43_NTAB_NOISEVAR_R7, b43_ntab_noisevar_r7);
+		b43_nphy_tables_init_shared_lut(dev);
+	}
+
+	/* Volatile tables */
+	b43_nphy_tables_init_rev7_volatile(dev);
+}
+
+static void b43_nphy_tables_init_rev7(struct b43_wldev *dev)
+{
+	/* Static tables */
+	if (dev->phy.do_full_init) {
+		ntab_upload(dev, B43_NTAB_FRAMESTRUCT_R3, b43_ntab_framestruct_r3);
+		ntab_upload(dev, B43_NTAB_PILOT_R3, b43_ntab_pilot_r3);
+		ntab_upload(dev, B43_NTAB_TMAP_R7, b43_ntab_tmap_r7);
+		ntab_upload(dev, B43_NTAB_INTLEVEL_R3, b43_ntab_intlevel_r3);
+		ntab_upload(dev, B43_NTAB_TDTRN_R3, b43_ntab_tdtrn_r3);
+		ntab_upload(dev, B43_NTAB_NOISEVAR_R7, b43_ntab_noisevar_r7);
+		ntab_upload(dev, B43_NTAB_MCS_R3, b43_ntab_mcs_r3);
+		ntab_upload(dev, B43_NTAB_TDI20A0_R3, b43_ntab_tdi20a0_r3);
+		ntab_upload(dev, B43_NTAB_TDI20A1_R3, b43_ntab_tdi20a1_r3);
+		ntab_upload(dev, B43_NTAB_TDI40A0_R3, b43_ntab_tdi40a0_r3);
+		ntab_upload(dev, B43_NTAB_TDI40A1_R3, b43_ntab_tdi40a1_r3);
+		ntab_upload(dev, B43_NTAB_PILOTLT_R3, b43_ntab_pilotlt_r3);
+		ntab_upload(dev, B43_NTAB_CHANEST_R3, b43_ntab_channelest_r3);
+		ntab_upload(dev, B43_NTAB_FRAMELT_R3, b43_ntab_framelookup_r3);
+		b43_nphy_tables_init_shared_lut(dev);
+	}
+
+	/* Volatile tables */
+	b43_nphy_tables_init_rev7_volatile(dev);
+}
+
 static void b43_nphy_tables_init_rev3(struct b43_wldev *dev)
 {
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
@@ -3057,16 +3411,7 @@ static void b43_nphy_tables_init_rev3(struct b43_wldev *dev)
 		ntab_upload(dev, B43_NTAB_PILOTLT_R3, b43_ntab_pilotlt_r3);
 		ntab_upload(dev, B43_NTAB_CHANEST_R3, b43_ntab_channelest_r3);
 		ntab_upload(dev, B43_NTAB_FRAMELT_R3, b43_ntab_framelookup_r3);
-		ntab_upload(dev, B43_NTAB_C0_ESTPLT_R3, b43_ntab_estimatepowerlt0_r3);
-		ntab_upload(dev, B43_NTAB_C1_ESTPLT_R3, b43_ntab_estimatepowerlt1_r3);
-		ntab_upload(dev, B43_NTAB_C0_ADJPLT_R3, b43_ntab_adjustpower0_r3);
-		ntab_upload(dev, B43_NTAB_C1_ADJPLT_R3, b43_ntab_adjustpower1_r3);
-		ntab_upload(dev, B43_NTAB_C0_GAINCTL_R3, b43_ntab_gainctl0_r3);
-		ntab_upload(dev, B43_NTAB_C1_GAINCTL_R3, b43_ntab_gainctl1_r3);
-		ntab_upload(dev, B43_NTAB_C0_IQLT_R3, b43_ntab_iqlt0_r3);
-		ntab_upload(dev, B43_NTAB_C1_IQLT_R3, b43_ntab_iqlt1_r3);
-		ntab_upload(dev, B43_NTAB_C0_LOFEEDTH_R3, b43_ntab_loftlt0_r3);
-		ntab_upload(dev, B43_NTAB_C1_LOFEEDTH_R3, b43_ntab_loftlt1_r3);
+		b43_nphy_tables_init_shared_lut(dev);
 	}
 
 	/* Volatile tables */
@@ -3115,7 +3460,11 @@ static void b43_nphy_tables_init_rev0(struct b43_wldev *dev)
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/InitTables */
 void b43_nphy_tables_init(struct b43_wldev *dev)
 {
-	if (dev->phy.rev >= 3)
+	if (dev->phy.rev >= 16)
+		b43_nphy_tables_init_rev16(dev);
+	else if (dev->phy.rev >= 7)
+		b43_nphy_tables_init_rev7(dev);
+	else if (dev->phy.rev >= 3)
 		b43_nphy_tables_init_rev3(dev);
 	else
 		b43_nphy_tables_init_rev0(dev);
@@ -3124,23 +3473,45 @@ void b43_nphy_tables_init(struct b43_wldev *dev)
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GetIpaGainTbl */
 static const u32 *b43_nphy_get_ipa_gain_table(struct b43_wldev *dev)
 {
+	struct b43_phy *phy = &dev->phy;
+
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
-		if (dev->phy.rev >= 6) {
-			if (dev->dev->chip_id == 47162)
-				return txpwrctrl_tx_gain_ipa_rev5;
-			return txpwrctrl_tx_gain_ipa_rev6;
-		} else if (dev->phy.rev >= 5) {
-			return txpwrctrl_tx_gain_ipa_rev5;
-		} else {
-			return txpwrctrl_tx_gain_ipa;
+		switch (phy->rev) {
+		case 16:
+			if (phy->radio_rev == 9)
+				return b43_ntab_tx_gain_ipa_2057_rev9_2g;
+		case 6:
+			if (dev->dev->chip_id == BCMA_CHIP_ID_BCM47162)
+				return b43_ntab_tx_gain_ipa_rev5_2g;
+			return b43_ntab_tx_gain_ipa_rev6_2g;
+		case 5:
+			return b43_ntab_tx_gain_ipa_rev5_2g;
+		case 4:
+		case 3:
+			return b43_ntab_tx_gain_ipa_rev3_2g;
+		default:
+			b43err(dev->wl,
+			       "No 2GHz IPA gain table available for this device\n");
+			return NULL;
 		}
 	} else {
-		return txpwrctrl_tx_gain_ipa_5g;
+		switch (phy->rev) {
+		case 16:
+			if (phy->radio_rev == 9)
+				return b43_ntab_tx_gain_ipa_2057_rev9_5g;
+		case 3 ... 6:
+			return b43_ntab_tx_gain_ipa_rev3_5g;
+		default:
+			b43err(dev->wl,
+			       "No 5GHz IPA gain table available for this device\n");
+			return NULL;
+		}
 	}
 }
 
 const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev)
 {
+	struct b43_phy *phy = &dev->phy;
 	enum ieee80211_band band = b43_current_band(dev->wl);
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
@@ -3152,19 +3523,36 @@ const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev)
 	    (dev->phy.n->ipa5g_on && band == IEEE80211_BAND_5GHZ)) {
 		return b43_nphy_get_ipa_gain_table(dev);
 	} else if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) {
-		if (dev->phy.rev == 3)
-			return b43_ntab_tx_gain_rev3_5ghz;
-		if (dev->phy.rev == 4)
+		switch (phy->rev) {
+		case 6:
+		case 5:
+			return b43_ntab_tx_gain_epa_rev5_5g;
+		case 4:
 			return sprom->fem.ghz5.extpa_gain == 3 ?
-				b43_ntab_tx_gain_rev4_5ghz :
-				b43_ntab_tx_gain_rev4_5ghz; /* FIXME */
-		else
-			return b43_ntab_tx_gain_rev5plus_5ghz;
+				b43_ntab_tx_gain_epa_rev4_5g :
+				b43_ntab_tx_gain_epa_rev4_5g; /* FIXME */
+		case 3:
+			return b43_ntab_tx_gain_epa_rev3_5g;
+		default:
+			b43err(dev->wl,
+			       "No 5GHz EPA gain table available for this device\n");
+			return NULL;
+		}
 	} else {
-		if (dev->phy.rev >= 5 && sprom->fem.ghz5.extpa_gain == 3)
-			return b43_ntab_tx_gain_rev3plus_2ghz; /* FIXME */
-		else
-			return b43_ntab_tx_gain_rev3plus_2ghz;
+		switch (phy->rev) {
+		case 6:
+		case 5:
+			if (sprom->fem.ghz5.extpa_gain == 3)
+				return b43_ntab_tx_gain_epa_rev3_2g; /* FIXME */
+			/* fall through */
+		case 4:
+		case 3:
+			return b43_ntab_tx_gain_epa_rev3_2g;
+		default:
+			b43err(dev->wl,
+			       "No 2GHz EPA gain table available for this device\n");
+			return NULL;
+		}
 	}
 }
 

@@ -480,25 +480,18 @@ static const struct of_device_id ebi_match[] = {
 static void __init ap_init_of(void)
 {
 	unsigned long sc_dec;
-	struct device_node *root;
 	struct device_node *syscon;
 	struct device_node *ebi;
 	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
 	u32 ap_sc_id;
-	int err;
 	int i;
 
-	/* Here we create an SoC device for the root node */
-	root = of_find_node_by_path("/");
-	if (!root)
-		return;
-
-	syscon = of_find_matching_node(root, ap_syscon_match);
+	syscon = of_find_matching_node(NULL, ap_syscon_match);
 	if (!syscon)
 		return;
-	ebi = of_find_matching_node(root, ebi_match);
+	ebi = of_find_matching_node(NULL, ebi_match);
 	if (!ebi)
 		return;
 
@@ -509,19 +502,17 @@ static void __init ap_init_of(void)
 	if (!ebi_base)
 		return;
 
+	of_platform_populate(NULL, of_default_bus_match_table,
+			ap_auxdata_lookup, NULL);
+
 	ap_sc_id = readl(ap_syscon_base);
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
 		return;
 
-	err = of_property_read_string(root, "compatible",
-				      &soc_dev_attr->soc_id);
-	if (err)
-		return;
-	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
-	if (err)
-		return;
+	soc_dev_attr->soc_id = "XVC";
+	soc_dev_attr->machine = "Integrator/AP";
 	soc_dev_attr->family = "Integrator";
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
 					   'A' + (ap_sc_id & 0x0f));
@@ -535,9 +526,6 @@ static void __init ap_init_of(void)
 
 	parent = soc_device_to_device(soc_dev);
 	integrator_init_sysfs(parent, ap_sc_id);
-
-	of_platform_populate(root, of_default_bus_match_table,
-			ap_auxdata_lookup, parent);
 
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {

@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: commands and events
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -273,6 +273,7 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 				(struct mwifiex_opt_sleep_confirm *)
 						adapter->sleep_cfm->data;
 	struct sk_buff *sleep_cfm_tmp;
+	struct timeval ts;
 	__le32 tmp;
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
@@ -282,6 +283,14 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 		cpu_to_le16((HostCmd_SET_SEQ_NO_BSS_INFO
 					(adapter->seq_num, priv->bss_num,
 					 priv->bss_type)));
+
+	do_gettimeofday(&ts);
+	dev_dbg(adapter->dev,
+		"cmd: DNLD_CMD: (%lu.%lu): %#x, act %#x, len %d, seqno %#x\n",
+		ts.tv_sec, ts.tv_usec, le16_to_cpu(sleep_cfm_buf->command),
+		le16_to_cpu(sleep_cfm_buf->action),
+		le16_to_cpu(sleep_cfm_buf->size),
+		le16_to_cpu(sleep_cfm_buf->seq_num));
 
 	if (adapter->iface_type == MWIFIEX_USB) {
 		sleep_cfm_tmp =
@@ -453,15 +462,15 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 
 	if (skb) {
 		rx_info = MWIFIEX_SKB_RXCB(skb);
+		memset(rx_info, 0, sizeof(*rx_info));
 		rx_info->bss_num = priv->bss_num;
 		rx_info->bss_type = priv->bss_type;
 	}
 
-	if (eventcause != EVENT_PS_SLEEP && eventcause != EVENT_PS_AWAKE) {
-		do_gettimeofday(&tstamp);
-		dev_dbg(adapter->dev, "event: %lu.%lu: cause: %#x\n",
-			tstamp.tv_sec, tstamp.tv_usec, eventcause);
-	} else {
+	do_gettimeofday(&tstamp);
+	dev_dbg(adapter->dev, "EVENT: %lu.%lu: cause: %#x\n",
+		tstamp.tv_sec, tstamp.tv_usec, eventcause);
+	if (eventcause == EVENT_PS_SLEEP || eventcause == EVENT_PS_AWAKE) {
 		/* Handle PS_SLEEP/AWAKE events on STA */
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
 		if (!priv)
@@ -960,6 +969,9 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
 		mwifiex_init_fw_complete(adapter);
 
+	if (adapter->if_ops.fw_dump)
+		adapter->if_ops.fw_dump(adapter);
+
 	if (adapter->if_ops.card_reset)
 		adapter->if_ops.card_reset(adapter);
 }
@@ -1225,11 +1237,18 @@ mwifiex_process_sleep_confirm_resp(struct mwifiex_adapter *adapter,
 	uint16_t result = le16_to_cpu(cmd->result);
 	uint16_t command = le16_to_cpu(cmd->command);
 	uint16_t seq_num = le16_to_cpu(cmd->seq_num);
+	struct timeval ts;
 
 	if (!upld_len) {
 		dev_err(adapter->dev, "%s: cmd size is 0\n", __func__);
 		return;
 	}
+
+	do_gettimeofday(&ts);
+	dev_dbg(adapter->dev,
+		"cmd: CMD_RESP: (%lu.%lu): 0x%x, result %d, len %d, seqno 0x%x\n",
+		ts.tv_sec, ts.tv_usec, command, result, le16_to_cpu(cmd->size),
+		seq_num);
 
 	/* Get BSS number and corresponding priv */
 	priv = mwifiex_get_priv_by_id(adapter, HostCmd_GET_BSS_NO(seq_num),

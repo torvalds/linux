@@ -1229,7 +1229,9 @@ static void msm_otg_sm_work(struct work_struct *w)
 			motg->chg_state = USB_CHG_STATE_UNDEFINED;
 			motg->chg_type = USB_INVALID_CHARGER;
 		}
-		pm_runtime_put_sync(otg->phy->dev);
+
+		if (otg->phy->state == OTG_STATE_B_IDLE)
+			pm_runtime_put_sync(otg->phy->dev);
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		dev_dbg(otg->phy->dev, "OTG_STATE_B_PERIPHERAL state\n");

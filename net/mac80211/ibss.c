@@ -143,7 +143,7 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 		*pos++ = csa_settings->block_tx ? 1 : 0;
 		*pos++ = ieee80211_frequency_to_channel(
 				csa_settings->chandef.chan->center_freq);
-		sdata->csa_counter_offset_beacon[0] = (pos - presp->head);
+		presp->csa_counter_offsets[0] = (pos - presp->head);
 		*pos++ = csa_settings->count;
 	}
 

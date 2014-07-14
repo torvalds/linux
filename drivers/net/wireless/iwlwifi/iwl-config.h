@@ -337,7 +337,7 @@ extern const struct iwl_cfg iwl7265_2ac_cfg;
 extern const struct iwl_cfg iwl7265_2n_cfg;
 extern const struct iwl_cfg iwl7265_n_cfg;
 extern const struct iwl_cfg iwl8260_2ac_cfg;
-extern const struct iwl_cfg iwl8260_n_cfg;
+extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

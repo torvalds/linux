@@ -312,7 +312,6 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 	int msdu_len, msdu_chaining = 0;
 	struct sk_buff *msdu;
 	struct htt_rx_desc *rx_desc;
-	bool corrupted = false;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
@@ -439,9 +438,6 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		last_msdu = __le32_to_cpu(rx_desc->msdu_end.info0) &
 				RX_MSDU_END_INFO0_LAST_MSDU;
 
-		if (msdu_chaining && !last_msdu)
-			corrupted = true;
-
 		if (last_msdu) {
 			msdu->next = NULL;
 			break;
@@ -455,20 +451,6 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 
 	if (*head_msdu == NULL)
 		msdu_chaining = -1;
-
-	/*
-	 * Apparently FW sometimes reports weird chained MSDU sequences with
-	 * more than one rx descriptor. This seems like a bug but needs more
-	 * analyzing. For the time being fix it by dropping such sequences to
-	 * avoid blowing up the host system.
-	 */
-	if (corrupted) {
-		ath10k_warn("failed to pop chained msdus, dropping\n");
-		ath10k_htt_rx_free_msdu_chain(*head_msdu);
-		*head_msdu = NULL;
-		*tail_msdu = NULL;
-		msdu_chaining = -EINVAL;
-	}
 
 	/*
 	 * Don't refill the ring yet.

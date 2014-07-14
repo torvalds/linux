@@ -301,7 +301,7 @@ static int cps_cpu_disable(void)
 
 	core_cfg = &mips_cps_core_bootcfg[current_cpu_data.core];
 	atomic_sub(1 << cpu_vpe_id(&current_cpu_data), &core_cfg->vpe_mask);
-	smp_mb__after_atomic_dec();
+	smp_mb__after_atomic();
 	set_cpu_online(cpu, false);
 	cpu_clear(cpu, cpu_callin_map);
 

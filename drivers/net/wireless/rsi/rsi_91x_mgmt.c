@@ -1055,7 +1055,8 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 		rate_table_offset = 4;
 	}
 
-	for (ii = 0, jj = 0; ii < ARRAY_SIZE(rsi_rates); ii++) {
+	for (ii = 0, jj = 0;
+	     ii < (ARRAY_SIZE(rsi_rates) - rate_table_offset); ii++) {
 		if (rate_bitmap & BIT(ii)) {
 			selected_rates[jj++] =
 			(rsi_rates[ii + rate_table_offset].bitrate / 5);
@@ -1103,7 +1104,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	}
 
 	for (; ii < RSI_TBL_SZ; ii++)
-		auto_rate->supported_rates[ii] = min_rate;
+		auto_rate->supported_rates[ii] = cpu_to_le16(min_rate);
 
 	auto_rate->num_supported_rates = cpu_to_le16(num_supported_rates * 2);
 	auto_rate->moderate_rate_inx = cpu_to_le16(num_supported_rates / 2);

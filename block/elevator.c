@@ -825,7 +825,7 @@ void elv_unregister_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(elv_unregister_queue);
 
-int __init elv_register(struct elevator_type *e)
+int elv_register(struct elevator_type *e)
 {
 	char *def = "";
 

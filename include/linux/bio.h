@@ -186,6 +186,15 @@ static inline void *bio_data(struct bio *bio)
 #define BIOVEC_SEG_BOUNDARY(q, b1, b2) \
 	__BIO_SEG_BOUNDARY(bvec_to_phys((b1)), bvec_to_phys((b2)) + (b2)->bv_len, queue_segment_boundary((q)))
 
+/*
+ * Check if adding a bio_vec after bprv with offset would create a gap in
+ * the SG list. Most drivers don't care about this, but some do.
+ */
+static inline bool bvec_gap_to_prev(struct bio_vec *bprv, unsigned int offset)
+{
+	return offset || ((bprv->bv_offset + bprv->bv_len) & (PAGE_SIZE - 1));
+}
+
 #define bio_io_error(bio) bio_endio((bio), -EIO)
 
 /*
@@ -643,10 +652,6 @@ struct biovec_slab {
 #define BIO_SPLIT_ENTRIES 2
 
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
-
-
-
-#define bip_vec_idx(bip, idx)	(&(bip->bip_vec[(idx)]))
 
 #define bip_for_each_vec(bvl, bip, iter)				\
 	for_each_bvec(bvl, (bip)->bip_vec, iter, (bip)->bip_iter)

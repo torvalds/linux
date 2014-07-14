@@ -1787,7 +1787,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) ||
-	    (changed & BSS_CHANGED_BEACON_INT)) {
+	    (changed & BSS_CHANGED_BEACON_INT) ||
+	    (changed & BSS_CHANGED_BEACON_INFO)) {
 		if (changed & BSS_CHANGED_BEACON_ENABLED)
 			ath9k_calculate_summary_state(sc, avp->chanctx);
 		ath9k_beacon_config(sc, vif, changed);
@@ -2409,8 +2410,9 @@ void ath_offchannel_timer(unsigned long data)
 }
 
 static int ath9k_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			 struct cfg80211_scan_request *req)
+			 struct ieee80211_scan_request *hw_req)
 {
+	struct cfg80211_scan_request *req = &hw_req->req;
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int ret = 0;

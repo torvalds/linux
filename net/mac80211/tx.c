@@ -250,7 +250,8 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 		ieee80211_stop_queues_by_reason(&local->hw,
 						IEEE80211_MAX_QUEUE_MAP,
-						IEEE80211_QUEUE_STOP_REASON_PS);
+						IEEE80211_QUEUE_STOP_REASON_PS,
+						false);
 		ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
 		ieee80211_queue_work(&local->hw,
 				     &local->dynamic_ps_disable_work);
@@ -469,7 +470,8 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		return TX_CONTINUE;
 
 	if (unlikely((test_sta_flag(sta, WLAN_STA_PS_STA) ||
-		      test_sta_flag(sta, WLAN_STA_PS_DRIVER)) &&
+		      test_sta_flag(sta, WLAN_STA_PS_DRIVER) ||
+		      test_sta_flag(sta, WLAN_STA_PS_DELIVER)) &&
 		     !(info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER))) {
 		int ac = skb_get_queue_mapping(tx->skb);
 
@@ -486,7 +488,8 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		 * ahead and Tx the packet.
 		 */
 		if (!test_sta_flag(sta, WLAN_STA_PS_STA) &&
-		    !test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
+		    !test_sta_flag(sta, WLAN_STA_PS_DRIVER) &&
+		    !test_sta_flag(sta, WLAN_STA_PS_DELIVER)) {
 			spin_unlock(&sta->ps_lock);
 			return TX_CONTINUE;
 		}
@@ -1618,12 +1621,12 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_channel *chan;
 	struct ieee80211_radiotap_header *prthdr =
 		(struct ieee80211_radiotap_header *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_sub_if_data *tmp_sdata, *sdata;
+	struct cfg80211_chan_def *chandef;
 	u16 len_rthdr;
 	int hdrlen;
 
@@ -1721,9 +1724,9 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	}
 
 	if (chanctx_conf)
-		chan = chanctx_conf->def.chan;
+		chandef = &chanctx_conf->def;
 	else if (!local->use_chanctx)
-		chan = local->_oper_chandef.chan;
+		chandef = &local->_oper_chandef;
 	else
 		goto fail_rcu;
 
@@ -1743,10 +1746,11 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	 * radar detection by itself. We can do that later by adding a
 	 * monitor flag interfaces used for AP support.
 	 */
-	if ((chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR)))
+	if (!cfg80211_reg_can_beacon(local->hw.wiphy, chandef,
+				     sdata->vif.type))
 		goto fail_rcu;
 
-	ieee80211_xmit(sdata, skb, chan->band);
+	ieee80211_xmit(sdata, skb, chandef->chan->band);
 	rcu_read_unlock();
 
 	return NETDEV_TX_OK;
@@ -1767,15 +1771,12 @@ fail:
 static void ieee80211_tx_latency_start_msrmnt(struct ieee80211_local *local,
 					      struct sk_buff *skb)
 {
-	struct timespec skb_arv;
 	struct ieee80211_tx_latency_bin_ranges *tx_latency;
 
 	tx_latency = rcu_dereference(local->tx_latency);
 	if (!tx_latency)
 		return;
-
-	ktime_get_ts(&skb_arv);
-	skb->tstamp = ktime_set(skb_arv.tv_sec, skb_arv.tv_nsec);
+	skb->tstamp = ktime_get();
 }
 
 /**
@@ -1810,7 +1811,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	int nh_pos, h_pos;
 	struct sta_info *sta = NULL;
 	bool wme_sta = false, authorized = false, tdls_auth = false;
-	bool tdls_direct = false;
+	bool tdls_peer = false, tdls_setup_frame = false;
 	bool multicast;
 	u32 info_flags = 0;
 	u16 info_id = 0;
@@ -1952,34 +1953,35 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 #endif
 	case NL80211_IFTYPE_STATION:
 		if (sdata->wdev.wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) {
-			bool tdls_peer = false;
-
 			sta = sta_info_get(sdata, skb->data);
 			if (sta) {
 				authorized = test_sta_flag(sta,
 							WLAN_STA_AUTHORIZED);
 				wme_sta = test_sta_flag(sta, WLAN_STA_WME);
 				tdls_peer = test_sta_flag(sta,
-							 WLAN_STA_TDLS_PEER);
+							  WLAN_STA_TDLS_PEER);
 				tdls_auth = test_sta_flag(sta,
 						WLAN_STA_TDLS_PEER_AUTH);
 			}
 
-			/*
-			 * If the TDLS link is enabled, send everything
-			 * directly. Otherwise, allow TDLS setup frames
-			 * to be transmitted indirectly.
-			 */
-			tdls_direct = tdls_peer && (tdls_auth ||
-				 !(ethertype == ETH_P_TDLS && skb->len > 14 &&
-				   skb->data[14] == WLAN_TDLS_SNAP_RFTYPE));
+			if (tdls_peer)
+				tdls_setup_frame =
+					ethertype == ETH_P_TDLS &&
+					skb->len > 14 &&
+					skb->data[14] == WLAN_TDLS_SNAP_RFTYPE;
 		}
 
-		if (tdls_direct) {
-			/* link during setup - throw out frames to peer */
-			if (!tdls_auth)
-				goto fail_rcu;
+		/*
+		 * TDLS link during setup - throw out frames to peer. We allow
+		 * TDLS-setup frames to unauthorized peers for the special case
+		 * of a link teardown after a TDLS sta is removed due to being
+		 * unreachable.
+		 */
+		if (tdls_peer && !tdls_auth && !tdls_setup_frame)
+			goto fail_rcu;
 
+		/* send direct packets to authorized TDLS peers */
+		if (tdls_peer && tdls_auth) {
 			/* DA SA BSSID */
 			memcpy(hdr.addr1, skb->data, ETH_ALEN);
 			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
@@ -2423,7 +2425,7 @@ static void ieee80211_set_csa(struct ieee80211_sub_if_data *sdata,
 	u8 *beacon_data;
 	size_t beacon_data_len;
 	int i;
-	u8 count = sdata->csa_current_counter;
+	u8 count = beacon->csa_current_counter;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
@@ -2442,46 +2444,53 @@ static void ieee80211_set_csa(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
+	rcu_read_lock();
 	for (i = 0; i < IEEE80211_MAX_CSA_COUNTERS_NUM; ++i) {
-		u16 counter_offset_beacon =
-			sdata->csa_counter_offset_beacon[i];
-		u16 counter_offset_presp = sdata->csa_counter_offset_presp[i];
+		resp = rcu_dereference(sdata->u.ap.probe_resp);
 
-		if (counter_offset_beacon) {
-			if (WARN_ON(counter_offset_beacon >= beacon_data_len))
-				return;
-
-			beacon_data[counter_offset_beacon] = count;
-		}
-
-		if (sdata->vif.type == NL80211_IFTYPE_AP &&
-		    counter_offset_presp) {
-			rcu_read_lock();
-			resp = rcu_dereference(sdata->u.ap.probe_resp);
-
-			/* If nl80211 accepted the offset, this should
-			 * not happen.
-			 */
-			if (WARN_ON(!resp)) {
+		if (beacon->csa_counter_offsets[i]) {
+			if (WARN_ON_ONCE(beacon->csa_counter_offsets[i] >=
+					 beacon_data_len)) {
 				rcu_read_unlock();
 				return;
 			}
-			resp->data[counter_offset_presp] = count;
-			rcu_read_unlock();
+
+			beacon_data[beacon->csa_counter_offsets[i]] = count;
 		}
+
+		if (sdata->vif.type == NL80211_IFTYPE_AP && resp)
+			resp->data[resp->csa_counter_offsets[i]] = count;
 	}
+	rcu_read_unlock();
 }
 
 u8 ieee80211_csa_update_counter(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct beacon_data *beacon = NULL;
+	u8 count = 0;
 
-	sdata->csa_current_counter--;
+	rcu_read_lock();
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		beacon = rcu_dereference(sdata->u.ap.beacon);
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		beacon = rcu_dereference(sdata->u.ibss.presp);
+	else if (ieee80211_vif_is_mesh(&sdata->vif))
+		beacon = rcu_dereference(sdata->u.mesh.beacon);
+
+	if (!beacon)
+		goto unlock;
+
+	beacon->csa_current_counter--;
 
 	/* the counter should never reach 0 */
-	WARN_ON(!sdata->csa_current_counter);
+	WARN_ON_ONCE(!beacon->csa_current_counter);
+	count = beacon->csa_current_counter;
 
-	return sdata->csa_current_counter;
+unlock:
+	rcu_read_unlock();
+	return count;
 }
 EXPORT_SYMBOL(ieee80211_csa_update_counter);
 
@@ -2491,7 +2500,6 @@ bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 	struct beacon_data *beacon = NULL;
 	u8 *beacon_data;
 	size_t beacon_data_len;
-	int counter_beacon = sdata->csa_counter_offset_beacon[0];
 	int ret = false;
 
 	if (!ieee80211_sdata_running(sdata))
@@ -2529,10 +2537,13 @@ bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 		goto out;
 	}
 
-	if (WARN_ON(counter_beacon > beacon_data_len))
+	if (!beacon->csa_counter_offsets[0])
 		goto out;
 
-	if (beacon_data[counter_beacon] == 1)
+	if (WARN_ON_ONCE(beacon->csa_counter_offsets[0] > beacon_data_len))
+		goto out;
+
+	if (beacon_data[beacon->csa_counter_offsets[0]] == 1)
 		ret = true;
  out:
 	rcu_read_unlock();
@@ -2548,6 +2559,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		       bool is_template)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	struct beacon_data *beacon = NULL;
 	struct sk_buff *skb = NULL;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sub_if_data *sdata = NULL;
@@ -2569,10 +2581,10 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		struct ieee80211_if_ap *ap = &sdata->u.ap;
-		struct beacon_data *beacon = rcu_dereference(ap->beacon);
 
+		beacon = rcu_dereference(ap->beacon);
 		if (beacon) {
-			if (sdata->vif.csa_active) {
+			if (beacon->csa_counter_offsets[0]) {
 				if (!is_template)
 					ieee80211_csa_update_counter(vif);
 
@@ -2613,37 +2625,37 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 		struct ieee80211_hdr *hdr;
-		struct beacon_data *presp = rcu_dereference(ifibss->presp);
 
-		if (!presp)
+		beacon = rcu_dereference(ifibss->presp);
+		if (!beacon)
 			goto out;
 
-		if (sdata->vif.csa_active) {
+		if (beacon->csa_counter_offsets[0]) {
 			if (!is_template)
 				ieee80211_csa_update_counter(vif);
 
-			ieee80211_set_csa(sdata, presp);
+			ieee80211_set_csa(sdata, beacon);
 		}
 
-		skb = dev_alloc_skb(local->tx_headroom + presp->head_len +
+		skb = dev_alloc_skb(local->tx_headroom + beacon->head_len +
 				    local->hw.extra_beacon_tailroom);
 		if (!skb)
 			goto out;
 		skb_reserve(skb, local->tx_headroom);
-		memcpy(skb_put(skb, presp->head_len), presp->head,
-		       presp->head_len);
+		memcpy(skb_put(skb, beacon->head_len), beacon->head,
+		       beacon->head_len);
 
 		hdr = (struct ieee80211_hdr *) skb->data;
 		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						 IEEE80211_STYPE_BEACON);
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-		struct beacon_data *bcn = rcu_dereference(ifmsh->beacon);
 
-		if (!bcn)
+		beacon = rcu_dereference(ifmsh->beacon);
+		if (!beacon)
 			goto out;
 
-		if (sdata->vif.csa_active) {
+		if (beacon->csa_counter_offsets[0]) {
 			if (!is_template)
 				/* TODO: For mesh csa_counter is in TU, so
 				 * decrementing it by one isn't correct, but
@@ -2652,40 +2664,42 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 				 */
 				ieee80211_csa_update_counter(vif);
 
-			ieee80211_set_csa(sdata, bcn);
+			ieee80211_set_csa(sdata, beacon);
 		}
 
 		if (ifmsh->sync_ops)
-			ifmsh->sync_ops->adjust_tbtt(sdata, bcn);
+			ifmsh->sync_ops->adjust_tbtt(sdata, beacon);
 
 		skb = dev_alloc_skb(local->tx_headroom +
-				    bcn->head_len +
+				    beacon->head_len +
 				    256 + /* TIM IE */
-				    bcn->tail_len +
+				    beacon->tail_len +
 				    local->hw.extra_beacon_tailroom);
 		if (!skb)
 			goto out;
 		skb_reserve(skb, local->tx_headroom);
-		memcpy(skb_put(skb, bcn->head_len), bcn->head, bcn->head_len);
+		memcpy(skb_put(skb, beacon->head_len), beacon->head,
+		       beacon->head_len);
 		ieee80211_beacon_add_tim(sdata, &ifmsh->ps, skb, is_template);
 
 		if (offs) {
-			offs->tim_offset = bcn->head_len;
-			offs->tim_length = skb->len - bcn->head_len;
+			offs->tim_offset = beacon->head_len;
+			offs->tim_length = skb->len - beacon->head_len;
 		}
 
-		memcpy(skb_put(skb, bcn->tail_len), bcn->tail, bcn->tail_len);
+		memcpy(skb_put(skb, beacon->tail_len), beacon->tail,
+		       beacon->tail_len);
 	} else {
 		WARN_ON(1);
 		goto out;
 	}
 
 	/* CSA offsets */
-	if (offs) {
+	if (offs && beacon) {
 		int i;
 
 		for (i = 0; i < IEEE80211_MAX_CSA_COUNTERS_NUM; i++) {
-			u16 csa_off = sdata->csa_counter_offset_beacon[i];
+			u16 csa_off = beacon->csa_counter_offsets[i];
 
 			if (!csa_off)
 				continue;

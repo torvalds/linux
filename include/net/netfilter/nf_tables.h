@@ -503,9 +503,9 @@ enum nft_chain_flags {
  *	@net: net namespace that this chain belongs to
  *	@table: table that this chain belongs to
  *	@handle: chain handle
- *	@flags: bitmask of enum nft_chain_flags
  *	@use: number of jump references to this chain
  *	@level: length of longest path to this chain
+ *	@flags: bitmask of enum nft_chain_flags
  *	@name: name of the chain
  */
 struct nft_chain {
@@ -514,9 +514,9 @@ struct nft_chain {
 	struct net			*net;
 	struct nft_table		*table;
 	u64				handle;
-	u8				flags;
-	u16				use;
+	u32				use;
 	u16				level;
+	u8				flags;
 	char				name[NFT_CHAIN_MAXNAMELEN];
 };
 

@@ -16,6 +16,7 @@
  *
  * based also on:
  *  - portions of rtl8187se Linux staging driver, Copyright Realtek corp.
+ *    (available in drivers/staging/rtl8187se directory of Linux 3.14)
  *  - other GPL, unpublished (until now), Linux driver code,
  *    Copyright Larry Finger <Larry.Finger@lwfinger.net>
  *
@@ -347,7 +348,6 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 			info->flags |= IEEE80211_TX_STAT_ACK;
 
 		info->status.rates[0].count = (flags & 0xFF) + 1;
-		info->status.rates[1].idx = -1;
 
 		ieee80211_tx_status_irqsafe(dev, skb);
 		if (ring->entries - skb_queue_len(&ring->queue) == 2)
@@ -539,9 +539,7 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 	entry->plcp_len = cpu_to_le16(plcp_len);
 	entry->tx_buf = cpu_to_le32(mapping);
 
-	entry->flags2 = info->control.rates[1].idx >= 0 ?
-		ieee80211_get_alt_retry_rate(dev, info, 0)->bitrate << 4 : 0;
-	entry->retry_limit = info->control.rates[0].count;
+	entry->retry_limit = info->control.rates[0].count - 1;
 
 	/* We must be sure that tx_flags is written last because the HW
 	 * looks at it to check if the rest of data is valid or not
@@ -863,7 +861,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 
 	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
 		rtl818x_iowrite8(priv, &priv->map->WPA_CONF, 0);
-		rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0x81);
+		rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0);
 	} else {
 		rtl818x_iowrite8(priv, &priv->map->SECURITY, 0);
 
@@ -879,6 +877,16 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 		rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg | (1 << 2));
 		rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+		/* fix eccessive IFS after CTS-to-self */
+		if (priv->map_pio) {
+			u8 reg;
+
+			reg = rtl818x_ioread8(priv, &priv->map->PGSELECT);
+			rtl818x_iowrite8(priv, &priv->map->PGSELECT, reg | 1);
+			rtl818x_iowrite8(priv, REG_ADDR1(0xff), 0x35);
+			rtl818x_iowrite8(priv, &priv->map->PGSELECT, reg);
+		} else
+			rtl818x_iowrite8(priv, REG_ADDR1(0x1ff), 0x35);
 	}
 
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
@@ -1461,9 +1469,10 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	vif_priv = (struct rtl8180_vif *)&vif->drv_priv;
 
 	if (changed & BSS_CHANGED_BSSID) {
-		for (i = 0; i < ETH_ALEN; i++)
-			rtl818x_iowrite8(priv, &priv->map->BSSID[i],
-					 info->bssid[i]);
+		rtl818x_iowrite16(priv, (__le16 __iomem *)&priv->map->BSSID[0],
+				  le16_to_cpu(*(__le16 *)info->bssid));
+		rtl818x_iowrite32(priv, (__le32 __iomem *)&priv->map->BSSID[2],
+				  le32_to_cpu(*(__le32 *)(info->bssid + 2)));
 
 		if (is_valid_ether_addr(info->bssid)) {
 			if (vif->type == NL80211_IFTYPE_ADHOC)
@@ -1734,17 +1743,20 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	priv = dev->priv;
 	priv->pdev = pdev;
 
-	dev->max_rates = 2;
+	dev->max_rates = 1;
 	SET_IEEE80211_DEV(dev, &pdev->dev);
 	pci_set_drvdata(pdev, dev);
 
+	priv->map_pio = false;
 	priv->map = pci_iomap(pdev, 1, mem_len);
-	if (!priv->map)
+	if (!priv->map) {
 		priv->map = pci_iomap(pdev, 0, io_len);
+		priv->map_pio = true;
+	}
 
 	if (!priv->map) {
-		printk(KERN_ERR "%s (rtl8180): Cannot map device memory\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "Cannot map device memory/PIO\n");
+		err = -ENOMEM;
 		goto err_free_dev;
 	}
 
@@ -1793,12 +1805,19 @@ static int rtl8180_probe(struct pci_dev *pdev,
 
 	case RTL818X_TX_CONF_RTL8187SE:
 		chip_name = "RTL8187SE";
+		if (priv->map_pio) {
+			dev_err(&pdev->dev,
+				"MMIO failed. PIO not supported on RTL8187SE\n");
+			err = -ENOMEM;
+			goto err_iounmap;
+		}
 		priv->chip_family = RTL818X_CHIP_FAMILY_RTL8187SE;
 		break;
 
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown chip! (0x%x)\n",
 		       pci_name(pdev), reg >> 25);
+		err = -ENODEV;
 		goto err_iounmap;
 	}
 
@@ -1849,12 +1868,14 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown RF! (0x%x)\n",
 		       pci_name(pdev), priv->rf_type);
+		err = -ENODEV;
 		goto err_iounmap;
 	}
 
 	if (!priv->rf) {
 		printk(KERN_ERR "%s (rtl8180): %s RF frontend not supported!\n",
 		       pci_name(pdev), rf_name);
+		err = -ENODEV;
 		goto err_iounmap;
 	}
 

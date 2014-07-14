@@ -163,6 +163,18 @@ static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 }
 
 static const struct of_device_id ntc_match[] = {
+	{ .compatible = "murata,ncp15wb473",
+		.data = &ntc_thermistor_id[0] },
+	{ .compatible = "murata,ncp18wb473",
+		.data = &ntc_thermistor_id[1] },
+	{ .compatible = "murata,ncp21wb473",
+		.data = &ntc_thermistor_id[2] },
+	{ .compatible = "murata,ncp03wb473",
+		.data = &ntc_thermistor_id[3] },
+	{ .compatible = "murata,ncp15wl333",
+		.data = &ntc_thermistor_id[4] },
+
+	/* Usage of vendor name "ntc" is deprecated */
 	{ .compatible = "ntc,ncp15wb473",
 		.data = &ntc_thermistor_id[0] },
 	{ .compatible = "ntc,ncp18wb473",
@@ -534,7 +546,7 @@ static struct platform_driver ntc_thermistor_driver = {
 
 module_platform_driver(ntc_thermistor_driver);
 
-MODULE_DESCRIPTION("NTC Thermistor Driver");
+MODULE_DESCRIPTION("NTC Thermistor Driver from Murata");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:ntc-thermistor");

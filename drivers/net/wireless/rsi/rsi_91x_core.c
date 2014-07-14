@@ -92,6 +92,7 @@ static u32 rsi_get_num_pkts_dequeue(struct rsi_common *common, u8 q_num)
 	struct sk_buff *skb;
 	u32 pkt_cnt = 0;
 	s16 txop = common->tx_qinfo[q_num].txop * 32;
+	__le16 r_txop;
 	struct ieee80211_rate rate;
 
 	rate.bitrate = RSI_RATE_MCS0 * 5 * 10; /* Convert to Kbps */
@@ -104,10 +105,11 @@ static u32 rsi_get_num_pkts_dequeue(struct rsi_common *common, u8 q_num)
 		return 0;
 
 	do {
-		txop -= ieee80211_generic_frame_duration(adapter->hw,
-							 adapter->vifs[0],
-							 common->band,
-							 skb->len, &rate);
+		r_txop = ieee80211_generic_frame_duration(adapter->hw,
+							  adapter->vifs[0],
+							  common->band,
+							  skb->len, &rate);
+		txop -= le16_to_cpu(r_txop);
 		pkt_cnt += 1;
 		/*checking if pkts are still there*/
 		if (skb_queue_len(&common->tx_queue[q_num]) - pkt_cnt)
@@ -191,7 +193,7 @@ get_queue_num:
 	if (q_num == VO_Q || q_num == VI_Q) {
 		common->pkt_cnt = rsi_get_num_pkts_dequeue(common, q_num);
 		common->pkt_cnt -= 1;
-	};
+	}
 
 	return q_num;
 }

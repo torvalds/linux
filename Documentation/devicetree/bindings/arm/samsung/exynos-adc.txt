@@ -48,7 +48,7 @@ adc@12D10000 {
 
 	/* NTC thermistor is a hwmon device */
 	ncp15wb473@0 {
-		compatible = "ntc,ncp15wb473";
+		compatible = "murata,ncp15wb473";
 		pullup-uv = <1800000>;
 		pullup-ohm = <47000>;
 		pulldown-ohm = <0>;

@@ -208,8 +208,6 @@ struct sync_struct {
 	struct mcpm_sync_struct clusters[MAX_NR_CLUSTERS];
 };
 
-extern unsigned long sync_phys;	/* physical address of *mcpm_sync */
-
 void __mcpm_cpu_going_down(unsigned int cpu, unsigned int cluster);
 void __mcpm_cpu_down(unsigned int cpu, unsigned int cluster);
 void __mcpm_outbound_leave_critical(unsigned int cluster, int state);

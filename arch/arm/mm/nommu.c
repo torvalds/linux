@@ -300,6 +300,7 @@ void __init sanity_check_meminfo(void)
 	sanity_check_meminfo_mpu();
 	end = memblock_end_of_DRAM();
 	high_memory = __va(end - 1) + 1;
+	memblock_set_current_limit(end);
 }
 
 /*
