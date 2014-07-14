@@ -1486,6 +1486,9 @@ static int msi3101_probe(struct usb_interface *intf,
 	}
 	dev_info(&s->udev->dev, "Registered as %s\n",
 			video_device_node_name(&s->vdev));
+	dev_notice(&s->udev->dev,
+			"%s: SDR API is still slightly experimental and functionality changes may follow\n",
+			KBUILD_MODNAME);
 
 	return 0;
 
