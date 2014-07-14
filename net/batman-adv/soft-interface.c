@@ -895,7 +895,7 @@ struct net_device *batadv_softif_create(const char *name)
 	int ret;
 
 	soft_iface = alloc_netdev(sizeof(struct batadv_priv), name,
-				  batadv_softif_init_early);
+				  NET_NAME_UNKNOWN, batadv_softif_init_early);
 	if (!soft_iface)
 		return NULL;
 

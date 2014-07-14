@@ -1828,8 +1828,8 @@ struct net_device *rtnl_create_link(struct net *net,
 		num_rx_queues = ops->get_num_rx_queues();
 
 	err = -ENOMEM;
-	dev = alloc_netdev_mqs(ops->priv_size, ifname, ops->setup,
-			       num_tx_queues, num_rx_queues);
+	dev = alloc_netdev_mqs(ops->priv_size, ifname, NET_NAME_UNKNOWN,
+			       ops->setup, num_tx_queues, num_rx_queues);
 	if (!dev)
 		goto err;
 

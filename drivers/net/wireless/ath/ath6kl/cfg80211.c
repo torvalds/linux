@@ -3636,7 +3636,7 @@ struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 	struct net_device *ndev;
 	struct ath6kl_vif *vif;
 
-	ndev = alloc_netdev(sizeof(*vif), name, ether_setup);
+	ndev = alloc_netdev(sizeof(*vif), name, NET_NAME_UNKNOWN, ether_setup);
 	if (!ndev)
 		return NULL;
 

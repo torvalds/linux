@@ -301,7 +301,7 @@ static struct net_device *__ip_tunnel_create(struct net *net,
 	}
 
 	ASSERT_RTNL();
-	dev = alloc_netdev(ops->priv_size, name, ops->setup);
+	dev = alloc_netdev(ops->priv_size, name, NET_NAME_UNKNOWN, ops->setup);
 	if (!dev) {
 		err = -ENOMEM;
 		goto failed;

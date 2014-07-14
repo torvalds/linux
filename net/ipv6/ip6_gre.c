@@ -322,7 +322,8 @@ static struct ip6_tnl *ip6gre_tunnel_locate(struct net *net,
 	else
 		strcpy(name, "ip6gre%d");
 
-	dev = alloc_netdev(sizeof(*t), name, ip6gre_tunnel_setup);
+	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
+			   ip6gre_tunnel_setup);
 	if (!dev)
 		return NULL;
 
@@ -1326,7 +1327,8 @@ static int __net_init ip6gre_init_net(struct net *net)
 	int err;
 
 	ign->fb_tunnel_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6gre0",
-					   ip6gre_tunnel_setup);
+					  NET_NAME_UNKNOWN,
+					  ip6gre_tunnel_setup);
 	if (!ign->fb_tunnel_dev) {
 		err = -ENOMEM;
 		goto err_alloc_dev;

@@ -89,7 +89,8 @@ static int wpa_init_wpadev(PSDevice pDevice)
 	struct net_device *dev = pDevice->dev;
 	int ret = 0;
 
-	pDevice->wpadev = alloc_netdev(sizeof(PSDevice), "vntwpa", wpadev_setup);
+	pDevice->wpadev = alloc_netdev(sizeof(PSDevice), "vntwpa",
+				       NET_NAME_UNKNOWN, wpadev_setup);
 	if (pDevice->wpadev == NULL)
 		return -ENOMEM;
 

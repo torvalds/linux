@@ -917,7 +917,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 	struct net_device *ndev;
 	ci_t       *ci;
 
-	ndev = alloc_netdev(sizeof(ci_t), SBE_IFACETMPL, c4_setup);
+	ndev = alloc_netdev(sizeof(ci_t), SBE_IFACETMPL, NET_NAME_UNKNOWN,
+			    c4_setup);
 	if (!ndev) {
 		pr_warning("%s: no memory for struct net_device !\n",
 			   hi->devname);

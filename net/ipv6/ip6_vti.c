@@ -204,7 +204,7 @@ static struct ip6_tnl *vti6_tnl_create(struct net *net, struct __ip6_tnl_parm *p
 	else
 		sprintf(name, "ip6_vti%%d");
 
-	dev = alloc_netdev(sizeof(*t), name, vti6_dev_setup);
+	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN, vti6_dev_setup);
 	if (dev == NULL)
 		goto failed;
 
@@ -1020,7 +1020,7 @@ static int __net_init vti6_init_net(struct net *net)
 
 	err = -ENOMEM;
 	ip6n->fb_tnl_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6_vti0",
-					vti6_dev_setup);
+					NET_NAME_UNKNOWN, vti6_dev_setup);
 
 	if (!ip6n->fb_tnl_dev)
 		goto err_alloc_dev;

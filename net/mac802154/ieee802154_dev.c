@@ -167,11 +167,13 @@ mac802154_add_iface(struct wpan_phy *phy, const char *name, int type)
 	switch (type) {
 	case IEEE802154_DEV_MONITOR:
 		dev = alloc_netdev(sizeof(struct mac802154_sub_if_data),
-				   name, mac802154_monitor_setup);
+				   name, NET_NAME_UNKNOWN,
+				   mac802154_monitor_setup);
 		break;
 	case IEEE802154_DEV_WPAN:
 		dev = alloc_netdev(sizeof(struct mac802154_sub_if_data),
-				   name, mac802154_wpan_setup);
+				   name, NET_NAME_UNKNOWN,
+				   mac802154_wpan_setup);
 		break;
 	default:
 		dev = NULL;

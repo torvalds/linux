@@ -721,7 +721,8 @@ struct net_device *gphonet_setup_default(void)
 	struct phonet_port *port;
 
 	/* Create net device */
-	dev = alloc_netdev(sizeof(*port), "upnlink%d", pn_net_setup);
+	dev = alloc_netdev(sizeof(*port), "upnlink%d", NET_NAME_UNKNOWN,
+			   pn_net_setup);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

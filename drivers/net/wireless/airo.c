@@ -2685,7 +2685,8 @@ static struct net_device *init_wifidev(struct airo_info *ai,
 					struct net_device *ethdev)
 {
 	int err;
-	struct net_device *dev = alloc_netdev(0, "wifi%d", wifi_setup);
+	struct net_device *dev = alloc_netdev(0, "wifi%d", NET_NAME_UNKNOWN,
+					      wifi_setup);
 	if (!dev)
 		return NULL;
 	dev->ml_priv = ethdev->ml_priv;
@@ -2785,7 +2786,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	CapabilityRid cap_rid;
 
 	/* Create the network device object. */
-	dev = alloc_netdev(sizeof(*ai), "", ether_setup);
+	dev = alloc_netdev(sizeof(*ai), "", NET_NAME_UNKNOWN, ether_setup);
 	if (!dev) {
 		airo_print_err("", "Couldn't alloc_etherdev");
 		return NULL;

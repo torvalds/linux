@@ -1631,7 +1631,8 @@ static int __init init_sdla(void)
 
 	printk("%s.\n", version);
 
-	sdla = alloc_netdev(sizeof(struct frad_local), "sdla0", setup_sdla);
+	sdla = alloc_netdev(sizeof(struct frad_local), "sdla0",
+			    NET_NAME_UNKNOWN, setup_sdla);
 	if (!sdla) 
 		return -ENOMEM;
 

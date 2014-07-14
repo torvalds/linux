@@ -349,7 +349,8 @@ static int ldisc_open(struct tty_struct *tty)
 	result = snprintf(name, sizeof(name), "cf%s", tty->name);
 	if (result >= IFNAMSIZ)
 		return -EINVAL;
-	dev = alloc_netdev(sizeof(*ser), name, caifdev_setup);
+	dev = alloc_netdev(sizeof(*ser), name, NET_NAME_UNKNOWN,
+			   caifdev_setup);
 	if (!dev)
 		return -ENOMEM;
 

@@ -2789,9 +2789,8 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 	netname = "gsm%d";
 	if (nc->if_name[0] != '\0')
 		netname = nc->if_name;
-	net = alloc_netdev(sizeof(struct gsm_mux_net),
-			netname,
-			gsm_mux_net_init);
+	net = alloc_netdev(sizeof(struct gsm_mux_net), netname,
+			   NET_NAME_UNKNOWN, gsm_mux_net_init);
 	if (!net) {
 		pr_err("alloc_netdev failed");
 		return -ENOMEM;

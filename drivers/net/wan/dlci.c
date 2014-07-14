@@ -327,8 +327,8 @@ static int dlci_add(struct dlci_add *dlci)
 		goto err1;
 
 	/* create device name */
-	master = alloc_netdev( sizeof(struct dlci_local), "dlci%d",
-			      dlci_setup);
+	master = alloc_netdev(sizeof(struct dlci_local), "dlci%d",
+			      NET_NAME_UNKNOWN, dlci_setup);
 	if (!master) {
 		err = -ENOMEM;
 		goto err1;

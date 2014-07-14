@@ -1115,7 +1115,7 @@ static int ssi_protocol_probe(struct device *dev)
 		goto out;
 	}
 
-	ssi->netdev = alloc_netdev(0, ifname, ssip_pn_setup);
+	ssi->netdev = alloc_netdev(0, ifname, NET_NAME_UNKNOWN, ssip_pn_setup);
 	if (!ssi->netdev) {
 		dev_err(dev, "No memory for netdev\n");
 		err = -ENOMEM;

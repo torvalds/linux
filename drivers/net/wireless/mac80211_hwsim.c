@@ -2676,7 +2676,8 @@ static int __init init_mac80211_hwsim(void)
 			goto out_free_radios;
 	}
 
-	hwsim_mon = alloc_netdev(0, "hwsim%d", hwsim_mon_setup);
+	hwsim_mon = alloc_netdev(0, "hwsim%d", NET_NAME_UNKNOWN,
+				 hwsim_mon_setup);
 	if (hwsim_mon == NULL) {
 		err = -ENOMEM;
 		goto out_free_radios;

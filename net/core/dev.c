@@ -6441,17 +6441,19 @@ void netdev_freemem(struct net_device *dev)
 
 /**
  *	alloc_netdev_mqs - allocate network device
- *	@sizeof_priv:	size of private data to allocate space for
- *	@name:		device name format string
- *	@setup:		callback to initialize device
- *	@txqs:		the number of TX subqueues to allocate
- *	@rxqs:		the number of RX subqueues to allocate
+ *	@sizeof_priv:		size of private data to allocate space for
+ *	@name:			device name format string
+ *	@name_assign_type: 	origin of device name
+ *	@setup:			callback to initialize device
+ *	@txqs:			the number of TX subqueues to allocate
+ *	@rxqs:			the number of RX subqueues to allocate
  *
  *	Allocates a struct net_device with private data area for driver use
  *	and performs basic initialization.  Also allocates subqueue structs
  *	for each queue on the device.
  */
 struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
+		unsigned char name_assign_type,
 		void (*setup)(struct net_device *),
 		unsigned int txqs, unsigned int rxqs)
 {
@@ -6530,6 +6532,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 #endif
 
 	strcpy(dev->name, name);
+	dev->name_assign_type = name_assign_type;
 	dev->group = INIT_NETDEV_GROUP;
 	if (!dev->ethtool_ops)
 		dev->ethtool_ops = &default_ethtool_ops;

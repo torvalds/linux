@@ -418,8 +418,8 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	 * When the guest selects the desired number, it will be updated
 	 * via netif_set_real_num_*_queues().
 	 */
-	dev = alloc_netdev_mq(sizeof(struct xenvif), name, ether_setup,
-			      xenvif_max_queues);
+	dev = alloc_netdev_mq(sizeof(struct xenvif), name, NET_NAME_UNKNOWN,
+			      ether_setup, xenvif_max_queues);
 	if (dev == NULL) {
 		pr_warn("Could not allocate netdev for %s\n", name);
 		return ERR_PTR(-ENOMEM);

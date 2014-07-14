@@ -2588,7 +2588,8 @@ isdn_net_new(char *name, struct net_device *master)
 		printk(KERN_WARNING "isdn_net: Could not allocate net-device\n");
 		return NULL;
 	}
-	netdev->dev = alloc_netdev(sizeof(isdn_net_local), name, _isdn_setup);
+	netdev->dev = alloc_netdev(sizeof(isdn_net_local), name,
+				   NET_NAME_UNKNOWN, _isdn_setup);
 	if (!netdev->dev) {
 		printk(KERN_WARNING "isdn_net: Could not allocate network device\n");
 		kfree(netdev);
