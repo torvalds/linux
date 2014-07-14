@@ -994,7 +994,6 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 	}
 }
 
-#define ao_win_out(data, addr) ni_ao_win_outw(dev, data, addr)
 static inline void ni_ao_win_outw(struct comedi_device *dev, uint16_t data,
 				  int addr)
 {
@@ -3108,7 +3107,7 @@ static int ni_ao_insn_write_671x(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
 
-	ao_win_out(1 << chan, AO_Immediate_671x);
+	ni_ao_win_outw(dev, 1 << chan, AO_Immediate_671x);
 
 	ni_ao_config_chanlist(dev, s, &insn->chanspec, 1, 0);
 
@@ -3123,7 +3122,7 @@ static int ni_ao_insn_write_671x(struct comedi_device *dev,
 		 */
 		val = comedi_offset_munge(s, val);
 
-		ao_win_out(val, DACx_Direct_Data_671x(chan));
+		ni_ao_win_outw(dev, val, DACx_Direct_Data_671x(chan));
 	}
 
 	return insn->n;
@@ -3253,7 +3252,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, AO_Disarm, AO_Command_1_Register);
 
 	if (board->reg_type & ni_reg_6xxx_mask) {
-		ao_win_out(CLEAR_WG, AO_Misc_611x);
+		ni_ao_win_outw(dev, CLEAR_WG, AO_Misc_611x);
 
 		bits = 0;
 		for (i = 0; i < cmd->chanlist_len; i++) {
@@ -3261,9 +3260,9 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 			chan = CR_CHAN(cmd->chanlist[i]);
 			bits |= 1 << chan;
-			ao_win_out(chan, AO_Waveform_Generation_611x);
+			ni_ao_win_outw(dev, chan, AO_Waveform_Generation_611x);
 		}
-		ao_win_out(bits, AO_Timed_611x);
+		ni_ao_win_outw(dev, bits, AO_Timed_611x);
 	}
 
 	ni_ao_config_chanlist(dev, s, cmd->chanlist, cmd->chanlist_len, 1);
@@ -3557,8 +3556,8 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 		unsigned i;
 		for (i = 0; i < s->n_chan; ++i)
 			immediate_bits |= 1 << i;
-		ao_win_out(immediate_bits, AO_Immediate_671x);
-		ao_win_out(CLEAR_WG, AO_Misc_611x);
+		ni_ao_win_outw(dev, immediate_bits, AO_Immediate_671x);
+		ni_ao_win_outw(dev, CLEAR_WG, AO_Misc_611x);
 	}
 	ni_stc_writew(dev, AO_Configuration_End, Joint_Reset_Register);
 
@@ -4051,7 +4050,7 @@ static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_ao_win_outw(dev, AO_Channel(i) | 0x0,
 			       AO_Configuration_2_67xx);
 	}
-	ao_win_out(0x0, AO_Later_Single_Point_Updates);
+	ni_ao_win_outw(dev, 0x0, AO_Later_Single_Point_Updates);
 }
 
 static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
