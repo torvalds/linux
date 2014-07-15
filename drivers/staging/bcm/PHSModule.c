@@ -519,19 +519,19 @@ ULONG PhsDeletePHSRule(IN void *pvContext,
 		if (pstClassifierRulesTable) {
 			for (nClsidIndex = 0; nClsidIndex < MAX_PHSRULE_PER_SF; nClsidIndex++) {
 				curr_entry = &pstClassifierRulesTable->stActivePhsRulesList[nClsidIndex];
-				if (curr_entry->bUsed && curr_entry->pstPhsRule) {
-					if (curr_entry->pstPhsRule->u8PHSI == u8PHSI) {
+				if (curr_entry->bUsed &&
+				    curr_entry->pstPhsRule &&
+				    (curr_entry->pstPhsRule->u8PHSI == u8PHSI)) {
 
-						if (curr_entry->pstPhsRule->u8RefCnt)
-							curr_entry->pstPhsRule->u8RefCnt--;
+					if (curr_entry->pstPhsRule->u8RefCnt)
+						curr_entry->pstPhsRule->u8RefCnt--;
 
-						if (0 == curr_entry->pstPhsRule->u8RefCnt)
-							kfree(curr_entry->pstPhsRule);
+					if (0 == curr_entry->pstPhsRule->u8RefCnt)
+						kfree(curr_entry->pstPhsRule);
 
-						memset(curr_entry,
-						       0,
-						       sizeof(struct bcm_phs_classifier_entry));
-					}
+					memset(curr_entry,
+					       0,
+					       sizeof(struct bcm_phs_classifier_entry));
 				}
 			}
 		}
