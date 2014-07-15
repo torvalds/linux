@@ -156,11 +156,7 @@ static bool cgrp_dfl_root_visible;
 static bool cgroup_legacy_files_on_dfl;
 
 /* some controllers are not supported in the default hierarchy */
-static const unsigned int cgrp_dfl_root_inhibit_ss_mask = 0
-#ifdef CONFIG_CGROUP_DEBUG
-	| (1 << debug_cgrp_id)
-#endif
-	;
+static unsigned int cgrp_dfl_root_inhibit_ss_mask;
 
 /* The list of hierarchy roots */
 
@@ -4938,6 +4934,9 @@ int __init cgroup_init(void)
 
 		if (cgroup_legacy_files_on_dfl && !ss->dfl_cftypes)
 			ss->dfl_cftypes = ss->legacy_cftypes;
+
+		if (!ss->dfl_cftypes)
+			cgrp_dfl_root_inhibit_ss_mask |= 1 << ss->id;
 
 		if (ss->dfl_cftypes == ss->legacy_cftypes) {
 			WARN_ON(cgroup_add_cftypes(ss, ss->dfl_cftypes));
