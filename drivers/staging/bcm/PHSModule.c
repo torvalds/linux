@@ -744,7 +744,7 @@ static ULONG PhsCompress(IN void *pvContext,
 
 	/* Retrieve the SFID Entry Index for requested Service Flow */
 	nSFIndex = GetServiceFlowEntry(pDeviceExtension->pstServiceFlowPhsRulesTable,
-				uiVcid, &pstServiceFlowEntry);
+				       uiVcid, &pstServiceFlowEntry);
 	if (nSFIndex == PHS_INVALID_TABLE_INDEX) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,
 				"SFID Match Failed\n");
@@ -773,8 +773,11 @@ static ULONG PhsCompress(IN void *pvContext,
 	}
 
 	/* Compress Packet */
-	lStatus = phs_compress(pstPhsRule, (PUCHAR)pvInputBuffer,
-			(PUCHAR)pvOutputBuffer, pOldHeaderSize, pNewHeaderSize);
+	lStatus = phs_compress(pstPhsRule,
+			       (PUCHAR)pvInputBuffer,
+			       (PUCHAR)pvOutputBuffer,
+			       pOldHeaderSize,
+			       pNewHeaderSize);
 
 	if (lStatus == STATUS_PHS_COMPRESSED) {
 		pstPhsRule->PHSModifiedBytes +=
