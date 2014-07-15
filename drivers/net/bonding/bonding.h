@@ -514,7 +514,6 @@ unsigned int bond_get_num_tx_queues(void);
 int bond_netlink_init(void);
 void bond_netlink_fini(void);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
-struct net_device *bond_option_active_slave_get(struct bonding *bond);
 const char *bond_slave_link_status(s8 link);
 bool bond_verify_device_path(struct net_device *start_dev,
 			     struct net_device *end_dev,
