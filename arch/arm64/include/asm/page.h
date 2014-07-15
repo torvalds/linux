@@ -47,13 +47,7 @@
 
 #ifndef __ASSEMBLY__
 
-#if CONFIG_ARM64_PGTABLE_LEVELS == 2
-#include <asm/pgtable-2level-types.h>
-#elif CONFIG_ARM64_PGTABLE_LEVELS == 3
-#include <asm/pgtable-3level-types.h>
-#else
-#include <asm/pgtable-4level-types.h>
-#endif
+#include <asm/pgtable-types.h>
 
 extern void __cpu_clear_user_page(void *p, unsigned long user);
 extern void __cpu_copy_user_page(void *to, const void *from,
