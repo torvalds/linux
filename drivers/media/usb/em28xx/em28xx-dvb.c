@@ -1545,6 +1545,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			dvb->i2c_client_demod = client;
 
 			/* attach tuner */
+			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = dvb->fe[0];
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
