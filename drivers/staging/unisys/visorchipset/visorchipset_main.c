@@ -125,42 +125,7 @@ InitPartitionProperties(void)
 	p[PARTPROP_last] = NULL;
 }
 
-typedef enum {
-	CTLVMPROP_invalid,
-	CTLVMPROP_physAddr,
-	CTLVMPROP_controlChannelAddr,
-	CTLVMPROP_controlChannelBytes,
-	CTLVMPROP_sparBootPart,
-	CTLVMPROP_sparStoragePart,
-	CTLVMPROP_livedumpLength,
-	CTLVMPROP_livedumpCrc32,
-	/* add new properties above, but don't forget to change
-	 * InitControlVmProperties() show_controlvm_property() also...
-	 */
-	CTLVMPROP_last
-} CONTROLVM_property;
-
-static const char *ControlVmTypeNames[] = { "controlvm", NULL };
-
-static char *ControlVmPropertyNames[CTLVMPROP_last + 1];
-static void
-InitControlVmProperties(void)
-{
-	char **p = ControlVmPropertyNames;
-	p[CTLVMPROP_invalid] = "";
-	p[CTLVMPROP_physAddr] = "physAddr";
-	p[CTLVMPROP_controlChannelAddr] = "controlChannelAddr";
-	p[CTLVMPROP_controlChannelBytes] = "controlChannelBytes";
-	p[CTLVMPROP_sparBootPart] = "spar_boot_part";
-	p[CTLVMPROP_sparStoragePart] = "spar_storage_part";
-	p[CTLVMPROP_livedumpLength] = "livedumpLength";
-	p[CTLVMPROP_livedumpCrc32] = "livedumpCrc32";
-	p[CTLVMPROP_last] = NULL;
-}
-
-static MYPROCOBJECT *ControlVmObject;
 static MYPROCTYPE *PartitionType;
-static MYPROCTYPE *ControlVmType;
 
 #define VISORCHIPSET_DIAG_PROC_ENTRY_FN "diagdump"
 static struct proc_dir_entry *diag_proc_dir;
@@ -389,63 +354,6 @@ show_partition_property(struct seq_file *f, void *ctx, int property)
 		break;
 	case PARTPROP_busNumber:
 		seq_printf(f, "%d\n", info->busNo);
-		break;
-	default:
-		seq_printf(f, "(%d??)\n", property);
-		break;
-	}
-}
-
-static void
-show_controlvm_property(struct seq_file *f, void *ctx, int property)
-{
-	/* Note: ctx is not needed since we only have 1 controlvm channel */
-	switch (property) {
-	case CTLVMPROP_physAddr:
-		if (ControlVm_channel == NULL)
-			seq_puts(f, "0x0\n");
-		else
-			seq_printf(f, "0x%-16.16Lx\n",
-				   visorchannel_get_physaddr
-				   (ControlVm_channel));
-		break;
-	case CTLVMPROP_controlChannelAddr:
-		if (ControlVm_channel == NULL)
-			seq_puts(f, "0x0\n");
-		else {
-			GUEST_PHYSICAL_ADDRESS addr = 0;
-			visorchannel_read(ControlVm_channel,
-					  offsetof
-					  (ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-					   gpControlChannel), &addr,
-					  sizeof(addr));
-			seq_printf(f, "0x%-16.16Lx\n", (u64) (addr));
-		}
-		break;
-	case CTLVMPROP_controlChannelBytes:
-		if (ControlVm_channel == NULL)
-			seq_puts(f, "0x0\n");
-		else {
-			U32 bytes = 0;
-			visorchannel_read(ControlVm_channel,
-					  offsetof
-					  (ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-					   ControlChannelBytes), &bytes,
-					  sizeof(bytes));
-			seq_printf(f, "%lu\n", (ulong) (bytes));
-		}
-		break;
-	case CTLVMPROP_sparBootPart:
-		seq_puts(f, "0:0:0:0/1\n");
-		break;
-	case CTLVMPROP_sparStoragePart:
-		seq_puts(f, "0:0:0:0/2\n");
-		break;
-	case CTLVMPROP_livedumpLength:
-		seq_printf(f, "%lu\n", LiveDump_info.length);
-		break;
-	case CTLVMPROP_livedumpCrc32:
-		seq_printf(f, "%lu\n", (ulong) LiveDump_info.crc32);
 		break;
 	default:
 		seq_printf(f, "(%d??)\n", property);
@@ -2736,20 +2644,12 @@ visorchipset_init(void)
 
 	proc_Init();
 	memset(PartitionPropertyNames, 0, sizeof(PartitionPropertyNames));
-	memset(ControlVmPropertyNames, 0, sizeof(ControlVmPropertyNames));
 	InitPartitionProperties();
-	InitControlVmProperties();
 
 	PartitionType = visor_proc_CreateType(ProcDir, PartitionTypeNames,
 					      (const char **)
 					      PartitionPropertyNames,
 					      &show_partition_property);
-	ControlVmType =
-	    visor_proc_CreateType(ProcDir, ControlVmTypeNames,
-				  (const char **) ControlVmPropertyNames,
-				  &show_controlvm_property);
-
-	ControlVmObject = visor_proc_CreateObject(ControlVmType, NULL, NULL);
 
 	/* Setup Installation fields */
 	installer_file = proc_create("installer", 0644, ProcDir,
@@ -2855,16 +2755,9 @@ visorchipset_exit(void)
 		kmem_cache_destroy(Putfile_buffer_list_pool);
 		Putfile_buffer_list_pool = NULL;
 	}
-	if (ControlVmObject) {
-		visor_proc_DestroyObject(ControlVmObject);
-		ControlVmObject = NULL;
-	}
+
 	cleanup_controlvm_structures();
 
-	if (ControlVmType) {
-		visor_proc_DestroyType(ControlVmType);
-		ControlVmType = NULL;
-	}
 	if (PartitionType) {
 		visor_proc_DestroyType(PartitionType);
 		PartitionType = NULL;
