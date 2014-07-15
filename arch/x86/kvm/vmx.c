@@ -4892,7 +4892,7 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 		if (!(vcpu->guest_debug &
 		      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))) {
 			vcpu->arch.dr6 &= ~15;
-			vcpu->arch.dr6 |= dr6;
+			vcpu->arch.dr6 |= dr6 | DR6_RTM;
 			if (!(dr6 & ~DR6_RESERVED)) /* icebp */
 				skip_emulated_instruction(vcpu);
 
@@ -5151,7 +5151,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 			return 0;
 		} else {
 			vcpu->arch.dr7 &= ~DR7_GD;
-			vcpu->arch.dr6 |= DR6_BD;
+			vcpu->arch.dr6 |= DR6_BD | DR6_RTM;
 			vmcs_writel(GUEST_DR7, vcpu->arch.dr7);
 			kvm_queue_exception(vcpu, DB_VECTOR);
 			return 1;
