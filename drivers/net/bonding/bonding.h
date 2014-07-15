@@ -194,7 +194,7 @@ struct slave {
  */
 struct bonding {
 	struct   net_device *dev; /* first - useful for panic debug */
-	struct   slave *curr_active_slave;
+	struct   slave __rcu *curr_active_slave;
 	struct   slave *current_arp_slave;
 	struct   slave *primary_slave;
 	bool     force_primary;
@@ -231,6 +231,10 @@ struct bonding {
 
 #define bond_slave_get_rtnl(dev) \
 	((struct slave *) rtnl_dereference(dev->rx_handler_data))
+
+#define bond_deref_active_protected(bond)				   \
+	rcu_dereference_protected(bond->curr_active_slave,		   \
+				  lockdep_is_held(&bond->curr_slave_lock))
 
 struct bond_vlan_tag {
 	__be16		vlan_proto;
