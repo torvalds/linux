@@ -20,7 +20,6 @@ generic-y += exec.h
 generic-y += fb.h
 generic-y += fcntl.h
 generic-y += ftrace.h
-generic-y += futex.h
 generic-y += hardirq.h
 generic-y += hw_irq.h
 generic-y += ioctl.h
