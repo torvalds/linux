@@ -791,53 +791,33 @@ void eeh_pe_restore_bars(struct eeh_pe *pe)
  */
 const char *eeh_pe_loc_get(struct eeh_pe *pe)
 {
-	struct pci_controller *hose;
 	struct pci_bus *bus = eeh_pe_bus_get(pe);
-	struct pci_dev *pdev;
-	struct device_node *dn;
-	const char *loc;
+	struct device_node *dn = pci_bus_to_OF_node(bus);
+	const char *loc = NULL;
 
-	if (!bus)
-		return "N/A";
+	if (!dn)
+		goto out;
 
 	/* PHB PE or root PE ? */
 	if (pci_is_root_bus(bus)) {
-		hose = pci_bus_to_host(bus);
-		loc = of_get_property(hose->dn,
-				"ibm,loc-code", NULL);
+		loc = of_get_property(dn, "ibm,loc-code", NULL);
+		if (!loc)
+			loc = of_get_property(dn, "ibm,io-base-loc-code", NULL);
 		if (loc)
-			return loc;
-		loc = of_get_property(hose->dn,
-				"ibm,io-base-loc-code", NULL);
-		if (loc)
-			return loc;
+			goto out;
 
-		pdev = pci_get_slot(bus, 0x0);
-	} else {
-		pdev = bus->self;
-	}
-
-	if (!pdev) {
-		loc = "N/A";
-		goto out;
-	}
-
-	dn = pci_device_to_OF_node(pdev);
-	if (!dn) {
-		loc = "N/A";
-		goto out;
+		/* Check the root port */
+		dn = dn->child;
+		if (!dn)
+			goto out;
 	}
 
 	loc = of_get_property(dn, "ibm,loc-code", NULL);
 	if (!loc)
 		loc = of_get_property(dn, "ibm,slot-location-code", NULL);
-	if (!loc)
-		loc = "N/A";
 
 out:
-	if (pci_is_root_bus(bus) && pdev)
-		pci_dev_put(pdev);
-	return loc;
+	return loc ? loc : "N/A";
 }
 
 /**
