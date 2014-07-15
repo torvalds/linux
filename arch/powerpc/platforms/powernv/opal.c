@@ -22,6 +22,8 @@
 #include <linux/kobject.h>
 #include <linux/delay.h>
 #include <linux/memblock.h>
+
+#include <asm/machdep.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 #include <asm/mce.h>
@@ -200,8 +202,7 @@ static int __init opal_register_exception_handlers(void)
 
 	return 0;
 }
-
-early_initcall(opal_register_exception_handlers);
+machine_early_initcall(powernv, opal_register_exception_handlers);
 
 int opal_notifier_register(struct notifier_block *nb)
 {
@@ -368,7 +369,7 @@ static int __init opal_message_init(void)
 	}
 	return 0;
 }
-early_initcall(opal_message_init);
+machine_early_initcall(powernv, opal_message_init);
 
 int opal_get_chars(uint32_t vtermno, char *buf, int count)
 {
@@ -630,7 +631,7 @@ static int __init opal_init(void)
 
 	return 0;
 }
-subsys_initcall(opal_init);
+machine_subsys_initcall(powernv, opal_init);
 
 void opal_shutdown(void)
 {

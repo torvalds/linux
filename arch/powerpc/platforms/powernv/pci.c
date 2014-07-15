@@ -843,5 +843,4 @@ static int __init tce_iommu_bus_notifier_init(void)
 	bus_register_notifier(&pci_bus_type, &tce_iommu_bus_nb);
 	return 0;
 }
-
-subsys_initcall_sync(tce_iommu_bus_notifier_init);
+machine_subsys_initcall_sync(powernv, tce_iommu_bus_notifier_init);
