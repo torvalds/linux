@@ -77,18 +77,18 @@ static const u8 fallback_rate1[5][5] = {
  *  if we've gotten no data
  *
 -*/
-void INTvWorkItem(struct vnt_private *pDevice)
+void INTvWorkItem(struct vnt_private *priv)
 {
 	unsigned long flags;
-	int ntStatus;
+	int status;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
 
-	spin_lock_irqsave(&pDevice->lock, flags);
+	spin_lock_irqsave(&priv->lock, flags);
 
-	ntStatus = PIPEnsInterruptRead(pDevice);
+	status = PIPEnsInterruptRead(priv);
 
-	spin_unlock_irqrestore(&pDevice->lock, flags);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
