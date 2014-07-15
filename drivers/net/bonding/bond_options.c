@@ -9,8 +9,6 @@
  * (at your option) any later version.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/errno.h>
 #include <linux/if.h>
 #include <linux/netdevice.h>
