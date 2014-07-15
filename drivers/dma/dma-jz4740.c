@@ -614,4 +614,4 @@ module_platform_driver(jz4740_dma_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("JZ4740 DMA driver");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
