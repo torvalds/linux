@@ -949,7 +949,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 				chan_tlv->chan_scan_param[0].radio_type |=
 					(IEEE80211_HT_PARAM_CHA_SEC_ABOVE << 4);
 			else if (adapter->sec_chan_offset ==
-					    IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
+					    IEEE80211_HT_PARAM_CHA_SEC_BELOW)
 				chan_tlv->chan_scan_param[0].radio_type |=
 					(IEEE80211_HT_PARAM_CHA_SEC_BELOW << 4);
 		}

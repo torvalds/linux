@@ -857,6 +857,15 @@
 #define B43_NPHY_REV3_C2_CLIP2_GAIN_A		B43_PHY_N(0x2AF)
 #define B43_NPHY_REV3_C2_CLIP2_GAIN_B		B43_PHY_N(0x2B0)
 
+#define B43_NPHY_REV7_RF_CTL_MISC_REG3		B43_PHY_N(0x340)
+#define B43_NPHY_REV7_RF_CTL_MISC_REG4		B43_PHY_N(0x341)
+#define B43_NPHY_REV7_RF_CTL_OVER3		B43_PHY_N(0x342)
+#define B43_NPHY_REV7_RF_CTL_OVER4		B43_PHY_N(0x343)
+#define B43_NPHY_REV7_RF_CTL_MISC_REG5		B43_PHY_N(0x344)
+#define B43_NPHY_REV7_RF_CTL_MISC_REG6		B43_PHY_N(0x345)
+#define B43_NPHY_REV7_RF_CTL_OVER5		B43_PHY_N(0x346)
+#define B43_NPHY_REV7_RF_CTL_OVER6		B43_PHY_N(0x347)
+
 #define B43_PHY_B_BBCFG				B43_PHY_N_BMODE(0x001) /* BB config */
 #define B43_PHY_B_TEST				B43_PHY_N_BMODE(0x00A)
 
@@ -935,6 +944,8 @@ struct b43_phy_n {
 	bool gain_boost;
 	bool elna_gain_config;
 	bool band5g_pwrgain;
+	bool use_int_tx_iq_lo_cal;
+	bool lpf_bw_overrode_for_sample_play;
 
 	u8 mphase_cal_phase_id;
 	u16 mphase_txcal_cmdidx;

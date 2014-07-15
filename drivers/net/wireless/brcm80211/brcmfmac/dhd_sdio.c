@@ -391,6 +391,40 @@ struct brcmf_sdio_hdrinfo {
 	u16 tail_pad;
 };
 
+/*
+ * hold counter variables
+ */
+struct brcmf_sdio_count {
+	uint intrcount;		/* Count of device interrupt callbacks */
+	uint lastintrs;		/* Count as of last watchdog timer */
+	uint pollcnt;		/* Count of active polls */
+	uint regfails;		/* Count of R_REG failures */
+	uint tx_sderrs;		/* Count of tx attempts with sd errors */
+	uint fcqueued;		/* Tx packets that got queued */
+	uint rxrtx;		/* Count of rtx requests (NAK to dongle) */
+	uint rx_toolong;	/* Receive frames too long to receive */
+	uint rxc_errors;	/* SDIO errors when reading control frames */
+	uint rx_hdrfail;	/* SDIO errors on header reads */
+	uint rx_badhdr;		/* Bad received headers (roosync?) */
+	uint rx_badseq;		/* Mismatched rx sequence number */
+	uint fc_rcvd;		/* Number of flow-control events received */
+	uint fc_xoff;		/* Number which turned on flow-control */
+	uint fc_xon;		/* Number which turned off flow-control */
+	uint rxglomfail;	/* Failed deglom attempts */
+	uint rxglomframes;	/* Number of glom frames (superframes) */
+	uint rxglompkts;	/* Number of packets from glom frames */
+	uint f2rxhdrs;		/* Number of header reads */
+	uint f2rxdata;		/* Number of frame data reads */
+	uint f2txdata;		/* Number of f2 frame writes */
+	uint f1regdata;		/* Number of f1 register accesses */
+	uint tickcnt;		/* Number of watchdog been schedule */
+	ulong tx_ctlerrs;	/* Err of sending ctrl frames */
+	ulong tx_ctlpkts;	/* Ctrl frames sent to dongle */
+	ulong rx_ctlerrs;	/* Err of processing rx ctrl frames */
+	ulong rx_ctlpkts;	/* Ctrl frames processed from dongle */
+	ulong rx_readahead_cnt;	/* packets where header read-ahead was used */
+};
+
 /* misc chip info needed by some of the routines */
 /* Private data for SDIO bus interaction */
 struct brcmf_sdio {
@@ -620,40 +654,46 @@ enum brcmf_firmware_type {
 	name ## _FIRMWARE_NAME, name ## _NVRAM_NAME
 
 static const struct brcmf_firmware_names brcmf_fwname_data[] = {
-	{ BCM43143_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43143) },
-	{ BCM43241_CHIP_ID, 0x0000001F, BRCMF_FIRMWARE_NVRAM(BCM43241B0) },
-	{ BCM43241_CHIP_ID, 0xFFFFFFE0, BRCMF_FIRMWARE_NVRAM(BCM43241B4) },
-	{ BCM4329_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4329) },
-	{ BCM4330_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4330) },
-	{ BCM4334_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4334) },
-	{ BCM4335_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4335) },
-	{ BCM43362_CHIP_ID, 0xFFFFFFFE, BRCMF_FIRMWARE_NVRAM(BCM43362) },
-	{ BCM4339_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4339) },
-	{ BCM4354_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4354) }
+	{ BRCM_CC_43143_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43143) },
+	{ BRCM_CC_43241_CHIP_ID, 0x0000001F, BRCMF_FIRMWARE_NVRAM(BCM43241B0) },
+	{ BRCM_CC_43241_CHIP_ID, 0xFFFFFFE0, BRCMF_FIRMWARE_NVRAM(BCM43241B4) },
+	{ BRCM_CC_4329_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4329) },
+	{ BRCM_CC_4330_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4330) },
+	{ BRCM_CC_4334_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4334) },
+	{ BRCM_CC_4335_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4335) },
+	{ BRCM_CC_43362_CHIP_ID, 0xFFFFFFFE, BRCMF_FIRMWARE_NVRAM(BCM43362) },
+	{ BRCM_CC_4339_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4339) },
+	{ BRCM_CC_4354_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4354) }
 };
 
-static const char *brcmf_sdio_get_fwname(struct brcmf_chip *ci,
-					 enum brcmf_firmware_type type)
+static int brcmf_sdio_get_fwnames(struct brcmf_chip *ci,
+				  struct brcmf_sdio_dev *sdiodev)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(brcmf_fwname_data); i++) {
 		if (brcmf_fwname_data[i].chipid == ci->chip &&
-		    brcmf_fwname_data[i].revmsk & BIT(ci->chiprev)) {
-			switch (type) {
-			case BRCMF_FIRMWARE_BIN:
-				return brcmf_fwname_data[i].bin;
-			case BRCMF_FIRMWARE_NVRAM:
-				return brcmf_fwname_data[i].nv;
-			default:
-				brcmf_err("invalid firmware type (%d)\n", type);
-				return NULL;
-			}
-		}
+		    brcmf_fwname_data[i].revmsk & BIT(ci->chiprev))
+			break;
 	}
-	brcmf_err("Unknown chipid %d [%d]\n",
-		  ci->chip, ci->chiprev);
-	return NULL;
+
+	if (i == ARRAY_SIZE(brcmf_fwname_data)) {
+		brcmf_err("Unknown chipid %d [%d]\n", ci->chip, ci->chiprev);
+		return -ENODEV;
+	}
+
+	/* check if firmware path is provided by module parameter */
+	if (brcmf_firmware_path[0] != '\0') {
+		if (brcmf_firmware_path[strlen(brcmf_firmware_path) - 1] != '/')
+			strcat(brcmf_firmware_path, "/");
+
+		strcpy(sdiodev->fw_name, brcmf_firmware_path);
+		strcpy(sdiodev->nvram_name, brcmf_firmware_path);
+	}
+	strcat(sdiodev->fw_name, brcmf_fwname_data[i].bin);
+	strcat(sdiodev->nvram_name, brcmf_fwname_data[i].nv);
+
+	return 0;
 }
 
 static void pkt_align(struct sk_buff *p, int len, int align)
@@ -2898,16 +2938,13 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 }
 
 #ifdef DEBUG
-static int brcmf_sdio_dump_console(struct brcmf_sdio *bus,
-				   struct sdpcm_shared *sh, char __user *data,
-				   size_t count)
+static int brcmf_sdio_dump_console(struct seq_file *seq, struct brcmf_sdio *bus,
+				   struct sdpcm_shared *sh)
 {
 	u32 addr, console_ptr, console_size, console_index;
 	char *conbuf = NULL;
 	__le32 sh_val;
 	int rv;
-	loff_t pos = 0;
-	int nbytes = 0;
 
 	/* obtain console information from device memory */
 	addr = sh->console_addr + offsetof(struct rte_console, log_le);
@@ -2945,33 +2982,24 @@ static int brcmf_sdio_dump_console(struct brcmf_sdio *bus,
 	if (rv < 0)
 		goto done;
 
-	rv = simple_read_from_buffer(data, count, &pos,
-				     conbuf + console_index,
-				     console_size - console_index);
+	rv = seq_write(seq, conbuf + console_index,
+		       console_size - console_index);
 	if (rv < 0)
 		goto done;
 
-	nbytes = rv;
-	if (console_index > 0) {
-		pos = 0;
-		rv = simple_read_from_buffer(data+nbytes, count, &pos,
-					     conbuf, console_index - 1);
-		if (rv < 0)
-			goto done;
-		rv += nbytes;
-	}
+	if (console_index > 0)
+		rv = seq_write(seq, conbuf, console_index - 1);
+
 done:
 	vfree(conbuf);
 	return rv;
 }
 
-static int brcmf_sdio_trap_info(struct brcmf_sdio *bus, struct sdpcm_shared *sh,
-				char __user *data, size_t count)
+static int brcmf_sdio_trap_info(struct seq_file *seq, struct brcmf_sdio *bus,
+				struct sdpcm_shared *sh)
 {
-	int error, res;
-	char buf[350];
+	int error;
 	struct brcmf_trap_info tr;
-	loff_t pos = 0;
 
 	if ((sh->flags & SDPCM_SHARED_TRAP) == 0) {
 		brcmf_dbg(INFO, "no trap in firmware\n");
@@ -2983,34 +3011,30 @@ static int brcmf_sdio_trap_info(struct brcmf_sdio *bus, struct sdpcm_shared *sh,
 	if (error < 0)
 		return error;
 
-	res = scnprintf(buf, sizeof(buf),
-			"dongle trap info: type 0x%x @ epc 0x%08x\n"
-			"  cpsr 0x%08x spsr 0x%08x sp 0x%08x\n"
-			"  lr   0x%08x pc   0x%08x offset 0x%x\n"
-			"  r0   0x%08x r1   0x%08x r2 0x%08x r3 0x%08x\n"
-			"  r4   0x%08x r5   0x%08x r6 0x%08x r7 0x%08x\n",
-			le32_to_cpu(tr.type), le32_to_cpu(tr.epc),
-			le32_to_cpu(tr.cpsr), le32_to_cpu(tr.spsr),
-			le32_to_cpu(tr.r13), le32_to_cpu(tr.r14),
-			le32_to_cpu(tr.pc), sh->trap_addr,
-			le32_to_cpu(tr.r0), le32_to_cpu(tr.r1),
-			le32_to_cpu(tr.r2), le32_to_cpu(tr.r3),
-			le32_to_cpu(tr.r4), le32_to_cpu(tr.r5),
-			le32_to_cpu(tr.r6), le32_to_cpu(tr.r7));
+	seq_printf(seq,
+		   "dongle trap info: type 0x%x @ epc 0x%08x\n"
+		   "  cpsr 0x%08x spsr 0x%08x sp 0x%08x\n"
+		   "  lr   0x%08x pc   0x%08x offset 0x%x\n"
+		   "  r0   0x%08x r1   0x%08x r2 0x%08x r3 0x%08x\n"
+		   "  r4   0x%08x r5   0x%08x r6 0x%08x r7 0x%08x\n",
+		   le32_to_cpu(tr.type), le32_to_cpu(tr.epc),
+		   le32_to_cpu(tr.cpsr), le32_to_cpu(tr.spsr),
+		   le32_to_cpu(tr.r13), le32_to_cpu(tr.r14),
+		   le32_to_cpu(tr.pc), sh->trap_addr,
+		   le32_to_cpu(tr.r0), le32_to_cpu(tr.r1),
+		   le32_to_cpu(tr.r2), le32_to_cpu(tr.r3),
+		   le32_to_cpu(tr.r4), le32_to_cpu(tr.r5),
+		   le32_to_cpu(tr.r6), le32_to_cpu(tr.r7));
 
-	return simple_read_from_buffer(data, count, &pos, buf, res);
+	return 0;
 }
 
-static int brcmf_sdio_assert_info(struct brcmf_sdio *bus,
-				  struct sdpcm_shared *sh, char __user *data,
-				  size_t count)
+static int brcmf_sdio_assert_info(struct seq_file *seq, struct brcmf_sdio *bus,
+				  struct sdpcm_shared *sh)
 {
 	int error = 0;
-	char buf[200];
 	char file[80] = "?";
 	char expr[80] = "<???>";
-	int res;
-	loff_t pos = 0;
 
 	if ((sh->flags & SDPCM_SHARED_ASSERT_BUILT) == 0) {
 		brcmf_dbg(INFO, "firmware not built with -assert\n");
@@ -3035,10 +3059,9 @@ static int brcmf_sdio_assert_info(struct brcmf_sdio *bus,
 	}
 	sdio_release_host(bus->sdiodev->func[1]);
 
-	res = scnprintf(buf, sizeof(buf),
-			"dongle assert: %s:%d: assert(%s)\n",
-			file, sh->assert_line, expr);
-	return simple_read_from_buffer(data, count, &pos, buf, res);
+	seq_printf(seq, "dongle assert: %s:%d: assert(%s)\n",
+		   file, sh->assert_line, expr);
+	return 0;
 }
 
 static int brcmf_sdio_checkdied(struct brcmf_sdio *bus)
@@ -3062,59 +3085,75 @@ static int brcmf_sdio_checkdied(struct brcmf_sdio *bus)
 	return 0;
 }
 
-static int brcmf_sdio_died_dump(struct brcmf_sdio *bus, char __user *data,
-				size_t count, loff_t *ppos)
+static int brcmf_sdio_died_dump(struct seq_file *seq, struct brcmf_sdio *bus)
 {
 	int error = 0;
 	struct sdpcm_shared sh;
-	int nbytes = 0;
-	loff_t pos = *ppos;
-
-	if (pos != 0)
-		return 0;
 
 	error = brcmf_sdio_readshared(bus, &sh);
 	if (error < 0)
 		goto done;
 
-	error = brcmf_sdio_assert_info(bus, &sh, data, count);
+	error = brcmf_sdio_assert_info(seq, bus, &sh);
 	if (error < 0)
 		goto done;
-	nbytes = error;
 
-	error = brcmf_sdio_trap_info(bus, &sh, data+nbytes, count);
+	error = brcmf_sdio_trap_info(seq, bus, &sh);
 	if (error < 0)
 		goto done;
-	nbytes += error;
 
-	error = brcmf_sdio_dump_console(bus, &sh, data+nbytes, count);
-	if (error < 0)
-		goto done;
-	nbytes += error;
+	error = brcmf_sdio_dump_console(seq, bus, &sh);
 
-	error = nbytes;
-	*ppos += nbytes;
 done:
 	return error;
 }
 
-static ssize_t brcmf_sdio_forensic_read(struct file *f, char __user *data,
-					size_t count, loff_t *ppos)
+static int brcmf_sdio_forensic_read(struct seq_file *seq, void *data)
 {
-	struct brcmf_sdio *bus = f->private_data;
-	int res;
+	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
+	struct brcmf_sdio *bus = bus_if->bus_priv.sdio->bus;
 
-	res = brcmf_sdio_died_dump(bus, data, count, ppos);
-	if (res > 0)
-		*ppos += res;
-	return (ssize_t)res;
+	return brcmf_sdio_died_dump(seq, bus);
 }
 
-static const struct file_operations brcmf_sdio_forensic_ops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = brcmf_sdio_forensic_read
-};
+static int brcmf_debugfs_sdio_count_read(struct seq_file *seq, void *data)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	struct brcmf_sdio_count *sdcnt = &sdiodev->bus->sdcnt;
+
+	seq_printf(seq,
+		   "intrcount:    %u\nlastintrs:    %u\n"
+		   "pollcnt:      %u\nregfails:     %u\n"
+		   "tx_sderrs:    %u\nfcqueued:     %u\n"
+		   "rxrtx:        %u\nrx_toolong:   %u\n"
+		   "rxc_errors:   %u\nrx_hdrfail:   %u\n"
+		   "rx_badhdr:    %u\nrx_badseq:    %u\n"
+		   "fc_rcvd:      %u\nfc_xoff:      %u\n"
+		   "fc_xon:       %u\nrxglomfail:   %u\n"
+		   "rxglomframes: %u\nrxglompkts:   %u\n"
+		   "f2rxhdrs:     %u\nf2rxdata:     %u\n"
+		   "f2txdata:     %u\nf1regdata:    %u\n"
+		   "tickcnt:      %u\ntx_ctlerrs:   %lu\n"
+		   "tx_ctlpkts:   %lu\nrx_ctlerrs:   %lu\n"
+		   "rx_ctlpkts:   %lu\nrx_readahead: %lu\n",
+		   sdcnt->intrcount, sdcnt->lastintrs,
+		   sdcnt->pollcnt, sdcnt->regfails,
+		   sdcnt->tx_sderrs, sdcnt->fcqueued,
+		   sdcnt->rxrtx, sdcnt->rx_toolong,
+		   sdcnt->rxc_errors, sdcnt->rx_hdrfail,
+		   sdcnt->rx_badhdr, sdcnt->rx_badseq,
+		   sdcnt->fc_rcvd, sdcnt->fc_xoff,
+		   sdcnt->fc_xon, sdcnt->rxglomfail,
+		   sdcnt->rxglomframes, sdcnt->rxglompkts,
+		   sdcnt->f2rxhdrs, sdcnt->f2rxdata,
+		   sdcnt->f2txdata, sdcnt->f1regdata,
+		   sdcnt->tickcnt, sdcnt->tx_ctlerrs,
+		   sdcnt->tx_ctlpkts, sdcnt->rx_ctlerrs,
+		   sdcnt->rx_ctlpkts, sdcnt->rx_readahead_cnt);
+
+	return 0;
+}
 
 static void brcmf_sdio_debugfs_create(struct brcmf_sdio *bus)
 {
@@ -3124,9 +3163,9 @@ static void brcmf_sdio_debugfs_create(struct brcmf_sdio *bus)
 	if (IS_ERR_OR_NULL(dentry))
 		return;
 
-	debugfs_create_file("forensics", S_IRUGO, dentry, bus,
-			    &brcmf_sdio_forensic_ops);
-	brcmf_debugfs_create_sdio_count(drvr, &bus->sdcnt);
+	brcmf_debugfs_add_entry(drvr, "forensics", brcmf_sdio_forensic_read);
+	brcmf_debugfs_add_entry(drvr, "counters",
+				brcmf_debugfs_sdio_count_read);
 	debugfs_create_u32("console_interval", 0644, dentry,
 			   &bus->console_interval);
 }
@@ -3598,17 +3637,17 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 		return;
 
 	switch (SDIOD_DRVSTR_KEY(ci->chip, ci->pmurev)) {
-	case SDIOD_DRVSTR_KEY(BCM4330_CHIP_ID, 12):
+	case SDIOD_DRVSTR_KEY(BRCM_CC_4330_CHIP_ID, 12):
 		str_tab = sdiod_drvstr_tab1_1v8;
 		str_mask = 0x00003800;
 		str_shift = 11;
 		break;
-	case SDIOD_DRVSTR_KEY(BCM4334_CHIP_ID, 17):
+	case SDIOD_DRVSTR_KEY(BRCM_CC_4334_CHIP_ID, 17):
 		str_tab = sdiod_drvstr_tab6_1v8;
 		str_mask = 0x00001800;
 		str_shift = 11;
 		break;
-	case SDIOD_DRVSTR_KEY(BCM43143_CHIP_ID, 17):
+	case SDIOD_DRVSTR_KEY(BRCM_CC_43143_CHIP_ID, 17):
 		/* note: 43143 does not support tristate */
 		i = ARRAY_SIZE(sdiod_drvstr_tab2_3v3) - 1;
 		if (drivestrength >= sdiod_drvstr_tab2_3v3[i].strength) {
@@ -3619,7 +3658,7 @@ brcmf_sdio_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 			brcmf_err("Invalid SDIO Drive strength for chip %s, strength=%d\n",
 				  ci->name, drivestrength);
 		break;
-	case SDIOD_DRVSTR_KEY(BCM43362_CHIP_ID, 13):
+	case SDIOD_DRVSTR_KEY(BRCM_CC_43362_CHIP_ID, 13):
 		str_tab = sdiod_drive_strength_tab5_1v8;
 		str_mask = 0x00003800;
 		str_shift = 11;
@@ -3720,12 +3759,12 @@ static u32 brcmf_sdio_buscore_read32(void *ctx, u32 addr)
 	u32 val, rev;
 
 	val = brcmf_sdiod_regrl(sdiodev, addr, NULL);
-	if (sdiodev->func[0]->device == SDIO_DEVICE_ID_BROADCOM_4335_4339 &&
+	if (sdiodev->func[0]->device == BRCM_SDIO_4335_4339_DEVICE_ID &&
 	    addr == CORE_CC_REG(SI_ENUM_BASE, chipid)) {
 		rev = (val & CID_REV_MASK) >> CID_REV_SHIFT;
 		if (rev >= 2) {
 			val &= ~CID_ID_MASK;
-			val |= BCM4339_CHIP_ID;
+			val |= BRCM_CC_4339_CHIP_ID;
 		}
 	}
 	return val;
@@ -4127,11 +4166,12 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	brcmf_sdio_debugfs_create(bus);
 	brcmf_dbg(INFO, "completed!!\n");
 
+	ret = brcmf_sdio_get_fwnames(bus->ci, sdiodev);
+	if (ret)
+		goto fail;
+
 	ret = brcmf_fw_get_firmwares(sdiodev->dev, BRCMF_FW_REQUEST_NVRAM,
-				     brcmf_sdio_get_fwname(bus->ci,
-							   BRCMF_FIRMWARE_BIN),
-				     brcmf_sdio_get_fwname(bus->ci,
-							   BRCMF_FIRMWARE_NVRAM),
+				     sdiodev->fw_name, sdiodev->nvram_name,
 				     brcmf_sdio_firmware_callback);
 	if (ret != 0) {
 		brcmf_err("async firmware request failed: %d\n", ret);

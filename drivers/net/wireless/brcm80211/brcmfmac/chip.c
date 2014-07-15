@@ -482,30 +482,30 @@ static inline int brcmf_chip_cores_check(struct brcmf_chip_priv *ci)
 static void brcmf_chip_get_raminfo(struct brcmf_chip_priv *ci)
 {
 	switch (ci->pub.chip) {
-	case BCM4329_CHIP_ID:
+	case BRCM_CC_4329_CHIP_ID:
 		ci->pub.ramsize = BCM4329_RAMSIZE;
 		break;
-	case BCM43143_CHIP_ID:
+	case BRCM_CC_43143_CHIP_ID:
 		ci->pub.ramsize = BCM43143_RAMSIZE;
 		break;
-	case BCM43241_CHIP_ID:
+	case BRCM_CC_43241_CHIP_ID:
 		ci->pub.ramsize = 0x90000;
 		break;
-	case BCM4330_CHIP_ID:
+	case BRCM_CC_4330_CHIP_ID:
 		ci->pub.ramsize = 0x48000;
 		break;
-	case BCM4334_CHIP_ID:
+	case BRCM_CC_4334_CHIP_ID:
 		ci->pub.ramsize = 0x80000;
 		break;
-	case BCM4335_CHIP_ID:
+	case BRCM_CC_4335_CHIP_ID:
 		ci->pub.ramsize = 0xc0000;
 		ci->pub.rambase = 0x180000;
 		break;
-	case BCM43362_CHIP_ID:
+	case BRCM_CC_43362_CHIP_ID:
 		ci->pub.ramsize = 0x3c000;
 		break;
-	case BCM4339_CHIP_ID:
-	case BCM4354_CHIP_ID:
+	case BRCM_CC_4339_CHIP_ID:
+	case BRCM_CC_4354_CHIP_ID:
 		ci->pub.ramsize = 0xc0000;
 		ci->pub.rambase = 0x180000;
 		break;
@@ -682,7 +682,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 		  ci->pub.chiprev);
 
 	if (socitype == SOCI_SB) {
-		if (ci->pub.chip != BCM4329_CHIP_ID) {
+		if (ci->pub.chip != BRCM_CC_4329_CHIP_ID) {
 			brcmf_err("SB chip is not supported\n");
 			return -ENODEV;
 		}
@@ -1008,13 +1008,13 @@ bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
 	chip = container_of(pub, struct brcmf_chip_priv, pub);
 
 	switch (pub->chip) {
-	case BCM4354_CHIP_ID:
+	case BRCM_CC_4354_CHIP_ID:
 		/* explicitly check SR engine enable bit */
 		pmu_cc3_mask = BIT(2);
 		/* fall-through */
-	case BCM43241_CHIP_ID:
-	case BCM4335_CHIP_ID:
-	case BCM4339_CHIP_ID:
+	case BRCM_CC_43241_CHIP_ID:
+	case BRCM_CC_4335_CHIP_ID:
+	case BRCM_CC_4339_CHIP_ID:
 		/* read PMU chipcontrol register 3 */
 		addr = CORE_CC_REG(base, chipcontrol_addr);
 		chip->ops->write32(chip->ctx, addr, 3);
