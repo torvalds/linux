@@ -783,8 +783,9 @@ static ULONG PhsCompress(IN void *pvContext,
 		pstPhsRule->PHSModifiedBytes +=
 			*pOldHeaderSize - *pNewHeaderSize - 1;
 		pstPhsRule->PHSModifiedNumPackets++;
-	} else
+	} else {
 		pstPhsRule->PHSErrorNumPackets++;
+	}
 
 	return lStatus;
 }
