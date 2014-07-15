@@ -74,8 +74,6 @@ source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"
 
-source "drivers/staging/tidspbridge/Kconfig"
-
 source "drivers/staging/quickstart/Kconfig"
 
 source "drivers/staging/emxx_udc/Kconfig"

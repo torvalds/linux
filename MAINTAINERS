@@ -8624,11 +8624,6 @@ W:	http://www.linux-speakup.org/
 S:	Odd Fixes
 F:	drivers/staging/speakup/
 
-STAGING - TI DSP BRIDGE DRIVERS
-M:	Omar Ramirez Luna <omar.ramirez@copitl.com>
-S:	Odd Fixes
-F:	drivers/staging/tidspbridge/
-
 STAGING - USB ENE SM/MS CARD READER DRIVER
 M:	Al Cho <acho@novell.com>
 S:	Odd Fixes
