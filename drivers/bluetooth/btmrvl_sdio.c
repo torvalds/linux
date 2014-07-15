@@ -1169,6 +1169,10 @@ static int btmrvl_sdio_suspend(struct device *dev)
 	}
 
 	priv = card->priv;
+	hcidev = priv->btmrvl_dev.hcidev;
+	BT_DBG("%s: SDIO suspend", hcidev->name);
+	hci_suspend_dev(hcidev);
+	skb_queue_purge(&priv->adapter->tx_queue);
 
 	if (priv->adapter->hs_state != HS_ACTIVATED) {
 		if (btmrvl_enable_hs(priv)) {
@@ -1176,10 +1180,6 @@ static int btmrvl_sdio_suspend(struct device *dev)
 			return -EBUSY;
 		}
 	}
-	hcidev = priv->btmrvl_dev.hcidev;
-	BT_DBG("%s: SDIO suspend", hcidev->name);
-	hci_suspend_dev(hcidev);
-	skb_queue_purge(&priv->adapter->tx_queue);
 
 	priv->adapter->is_suspended = true;
 
@@ -1221,13 +1221,13 @@ static int btmrvl_sdio_resume(struct device *dev)
 		return 0;
 	}
 
-	priv->adapter->is_suspended = false;
-	hcidev = priv->btmrvl_dev.hcidev;
-	BT_DBG("%s: SDIO resume", hcidev->name);
-	hci_resume_dev(hcidev);
 	priv->hw_wakeup_firmware(priv);
 	priv->adapter->hs_state = HS_DEACTIVATED;
+	hcidev = priv->btmrvl_dev.hcidev;
 	BT_DBG("%s: HS DEACTIVATED in resume!", hcidev->name);
+	priv->adapter->is_suspended = false;
+	BT_DBG("%s: SDIO resume", hcidev->name);
+	hci_resume_dev(hcidev);
 
 	return 0;
 }
