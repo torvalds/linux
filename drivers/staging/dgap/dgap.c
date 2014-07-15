@@ -2181,10 +2181,7 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 
 	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
-	if (retval)
-		return retval;
-
-	return 0;
+	return retval;
 }
 
 /*
