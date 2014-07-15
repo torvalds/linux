@@ -78,8 +78,14 @@ enum arizona_type {
 #define ARIZONA_IRQ_FLL1_CLOCK_OK         49
 #define ARIZONA_IRQ_MICD_CLAMP_RISE	  50
 #define ARIZONA_IRQ_MICD_CLAMP_FALL	  51
+#define ARIZONA_IRQ_HP3R_DONE             52
+#define ARIZONA_IRQ_HP3L_DONE             53
+#define ARIZONA_IRQ_HP2R_DONE             54
+#define ARIZONA_IRQ_HP2L_DONE             55
+#define ARIZONA_IRQ_HP1R_DONE             56
+#define ARIZONA_IRQ_HP1L_DONE             57
 
-#define ARIZONA_NUM_IRQ                   52
+#define ARIZONA_NUM_IRQ                   58
 
 struct snd_soc_dapm_context;
 

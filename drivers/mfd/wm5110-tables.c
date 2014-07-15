@@ -416,6 +416,24 @@ static const struct regmap_irq wm5110_irqs[ARIZONA_NUM_IRQ] = {
 	[ARIZONA_IRQ_ISRC2_CFG_ERR] = {
 		.reg_offset = 3, .mask = ARIZONA_ISRC2_CFG_ERR_EINT1
 	},
+	[ARIZONA_IRQ_HP3R_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP3R_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP3L_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP3L_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP2R_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP2R_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP2L_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP2L_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP1R_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP1R_DONE_EINT1
+	},
+	[ARIZONA_IRQ_HP1L_DONE] = {
+		.reg_offset = 3, .mask = ARIZONA_HP1L_DONE_EINT1
+	},
 
 	[ARIZONA_IRQ_BOOT_DONE] = {
 		.reg_offset = 4, .mask = ARIZONA_BOOT_DONE_EINT1
