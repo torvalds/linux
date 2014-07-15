@@ -203,7 +203,8 @@ nve4_graph_init(struct nouveau_object *object)
 	int gpc, tpc, rop;
 	int ret, i;
 
-	ppwr->pgob(ppwr, false);
+	if (ppwr)
+		ppwr->pgob(ppwr, false);
 
 	ret = nouveau_graph_init(&priv->base);
 	if (ret)
