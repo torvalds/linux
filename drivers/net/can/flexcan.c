@@ -378,8 +378,9 @@ static int flexcan_chip_softreset(struct flexcan_priv *priv)
 	return 0;
 }
 
-static int flexcan_get_berr_counter(const struct net_device *dev,
-				    struct can_berr_counter *bec)
+
+static int __flexcan_get_berr_counter(const struct net_device *dev,
+				      struct can_berr_counter *bec)
 {
 	const struct flexcan_priv *priv = netdev_priv(dev);
 	struct flexcan_regs __iomem *regs = priv->base;
@@ -389,6 +390,29 @@ static int flexcan_get_berr_counter(const struct net_device *dev,
 	bec->rxerr = (reg >> 8) & 0xff;
 
 	return 0;
+}
+
+static int flexcan_get_berr_counter(const struct net_device *dev,
+				    struct can_berr_counter *bec)
+{
+	const struct flexcan_priv *priv = netdev_priv(dev);
+	int err;
+
+	err = clk_prepare_enable(priv->clk_ipg);
+	if (err)
+		return err;
+
+	err = clk_prepare_enable(priv->clk_per);
+	if (err)
+		goto out_disable_ipg;
+
+	err = __flexcan_get_berr_counter(dev, bec);
+
+	clk_disable_unprepare(priv->clk_per);
+ out_disable_ipg:
+	clk_disable_unprepare(priv->clk_ipg);
+
+	return err;
 }
 
 static int flexcan_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -503,7 +527,7 @@ static void do_state(struct net_device *dev,
 	struct flexcan_priv *priv = netdev_priv(dev);
 	struct can_berr_counter bec;
 
-	flexcan_get_berr_counter(dev, &bec);
+	__flexcan_get_berr_counter(dev, &bec);
 
 	switch (priv->can.state) {
 	case CAN_STATE_ERROR_ACTIVE:
