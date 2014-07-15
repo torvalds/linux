@@ -651,7 +651,7 @@ static struct batadv_tvlv_handler
 /**
  * batadv_tvlv_container_free_ref - decrement the tvlv container refcounter and
  *  possibly free it
- * @tvlv_handler: the tvlv container to free
+ * @tvlv: the tvlv container to free
  */
 static void batadv_tvlv_container_free_ref(struct batadv_tvlv_container *tvlv)
 {
@@ -800,7 +800,7 @@ void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
  *  requested packet size
  * @packet_buff: packet buffer
  * @packet_buff_len: packet buffer size
- * @packet_min_len: requested packet minimum size
+ * @min_packet_len: requested packet minimum size
  * @additional_packet_len: requested additional packet size on top of minimum
  *  size
  *
