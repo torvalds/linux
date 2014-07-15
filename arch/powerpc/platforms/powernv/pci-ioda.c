@@ -495,14 +495,22 @@ static int pnv_pci_ioda_dma_set_mask(struct pnv_phb *phb,
 	return 0;
 }
 
-static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bus *bus)
+static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
+				   struct pci_bus *bus,
+				   bool add_to_iommu_group)
 {
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		set_iommu_table_base_and_group(&dev->dev, &pe->tce32_table);
+		if (add_to_iommu_group)
+			set_iommu_table_base_and_group(&dev->dev,
+						       &pe->tce32_table);
+		else
+			set_iommu_table_base(&dev->dev, &pe->tce32_table);
+
 		if (dev->subordinate)
-			pnv_ioda_setup_bus_dma(pe, dev->subordinate);
+			pnv_ioda_setup_bus_dma(pe, dev->subordinate,
+					       add_to_iommu_group);
 	}
 }
 
@@ -680,7 +688,7 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 	if (pe->pdev)
 		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
 	else
-		pnv_ioda_setup_bus_dma(pe, pe->pbus);
+		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
 
 	return;
  fail:
@@ -716,11 +724,15 @@ static void pnv_pci_ioda2_set_bypass(struct iommu_table *tbl, bool enable)
 						     0);
 
 		/*
-		 * We might want to reset the DMA ops of all devices on
-		 * this PE. However in theory, that shouldn't be necessary
-		 * as this is used for VFIO/KVM pass-through and the device
-		 * hasn't yet been returned to its kernel driver
+		 * EEH needs the mapping between IOMMU table and group
+		 * of those VFIO/KVM pass-through devices. We can postpone
+		 * resetting DMA ops until the DMA mask is configured in
+		 * host side.
 		 */
+		if (pe->pdev)
+			set_iommu_table_base(&pe->pdev->dev, tbl);
+		else
+			pnv_ioda_setup_bus_dma(pe, pe->pbus, false);
 	}
 	if (rc)
 		pe_err(pe, "OPAL error %lld configuring bypass window\n", rc);
@@ -809,7 +821,7 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	if (pe->pdev)
 		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
 	else
-		pnv_ioda_setup_bus_dma(pe, pe->pbus);
+		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
 
 	/* Also create a bypass window */
 	pnv_pci_ioda2_setup_bypass_pe(phb, pe);
