@@ -58,7 +58,7 @@
 #endif
 
 static void vnt_start_interrupt_urb_complete(struct urb *urb);
-static void s_nsBulkInUsbIoCompleteRead(struct urb *urb);
+static void vnt_submit_rx_urb_complete(struct urb *urb);
 static void vnt_tx_context_complete(struct urb *urb);
 
 int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
@@ -241,7 +241,7 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 		usb_rcvbulkpipe(priv->usb, 2),
 		skb_put(rcb->skb, skb_tailroom(rcb->skb)),
 		MAX_TOTAL_SIZE_WITH_ALL_HEADERS,
-		s_nsBulkInUsbIoCompleteRead,
+		vnt_submit_rx_urb_complete,
 		rcb);
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -271,7 +271,7 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
  *
  */
 
-static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
+static void vnt_submit_rx_urb_complete(struct urb *urb)
 {
 	struct vnt_rcb *rcb = urb->context;
 	struct vnt_private *priv = rcb->pDevice;
