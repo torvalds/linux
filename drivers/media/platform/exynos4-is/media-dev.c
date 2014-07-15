@@ -437,15 +437,15 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 
 	/* Attach sensors listed in the parallel-ports node */
 	ports = of_get_child_by_name(parent, "parallel-ports");
-	if (!ports)
-		goto rpm_put;
-
-	for_each_child_of_node(ports, node) {
-		ret = fimc_md_parse_port_node(fmd, node, index);
-		if (ret < 0)
-			break;
-		index++;
+	if (ports) {
+		for_each_child_of_node(ports, node) {
+			ret = fimc_md_parse_port_node(fmd, node, index);
+			if (ret < 0)
+				break;
+			index++;
+		}
 	}
+
 rpm_put:
 	pm_runtime_put(fmd->pmf);
 	return ret;
