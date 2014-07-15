@@ -34,4 +34,5 @@
 #define BLIST_SKIP_VPD_PAGES	0x4000000 /* Ignore SBC-3 VPD pages */
 #define BLIST_SCSI3LUN		0x8000000 /* Scan more than 256 LUNs
 					     for sequential scan */
+#define BLIST_TRY_VPD_PAGES	0x10000000 /* Attempt to read VPD pages */
 #endif
