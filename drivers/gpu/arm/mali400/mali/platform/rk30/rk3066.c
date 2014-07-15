@@ -73,10 +73,8 @@ static struct mali_gpu_device_data mali_gpu_data =
 };
 static void mali_platform_device_add_config(struct platform_device *pdev)
 {
-#if 0
 	if (cpu_is_rk3036())
 		mali_gpu_device_device_type.pm = NULL;
-#endif
 	pdev->dev.id = 0;
 	pdev->dev.release = mali_platform_device_release;
 	pdev->dev.type = &mali_gpu_device_device_type;
