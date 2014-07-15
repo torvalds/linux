@@ -418,10 +418,13 @@ sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
 	cfg.slave_id = slave_id;
 	cfg.direction = direction;
 
-	if (direction == DMA_DEV_TO_MEM)
+	if (direction == DMA_DEV_TO_MEM) {
 		cfg.src_addr = res->start + MMCIF_CE_DATA;
-	else
+		cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	} else {
 		cfg.dst_addr = res->start + MMCIF_CE_DATA;
+		cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	}
 
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret < 0) {
