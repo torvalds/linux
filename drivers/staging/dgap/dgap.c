@@ -7105,7 +7105,7 @@ static int dgap_gettok(char **in, struct cnode *p)
 	char *w;
 	struct toklist *t;
 
-	if (strstr(dgap_cword, "boar")) {
+	if (strstr(dgap_cword, "board")) {
 		w = dgap_getword(in);
 		snprintf(dgap_cword, MAXCWORD, "%s", w);
 		for (t = dgap_tlist; t->token != 0; t++) {
