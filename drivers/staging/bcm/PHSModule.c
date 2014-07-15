@@ -564,44 +564,47 @@ ULONG PhsDeleteClassifierRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT1
 	struct bcm_phs_extension *pDeviceExtension =
 		(struct bcm_phs_extension *)pvContext;
 
-	if (pDeviceExtension) {
-		/* Retrieve the SFID Entry Index for requested Service Flow */
-		nSFIndex = GetServiceFlowEntry(pDeviceExtension->pstServiceFlowPhsRulesTable,
-					       uiVcid, &pstServiceFlowEntry);
-		if (nSFIndex == PHS_INVALID_TABLE_INDEX) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH,
-					DBG_LVL_ALL, "SFID Match Failed\n");
-			return ERR_SF_MATCH_FAIL;
-		}
+	if (!pDeviceExtension)
+		goto out;
 
-		nClsidIndex = GetClassifierEntry(pstServiceFlowEntry->pstClassifierTable,
-						 uiClsId,
-						 eActiveClassifierRuleContext,
-						 &pstClassifierEntry);
-
-		if ((nClsidIndex != PHS_INVALID_TABLE_INDEX) && (!pstClassifierEntry->bUnclassifiedPHSRule)) {
-			if (pstClassifierEntry->pstPhsRule) {
-				if (pstClassifierEntry->pstPhsRule->u8RefCnt)
-					pstClassifierEntry->pstPhsRule->u8RefCnt--;
-
-				if (0 == pstClassifierEntry->pstPhsRule->u8RefCnt)
-					kfree(pstClassifierEntry->pstPhsRule);
-			}
-			memset(pstClassifierEntry, 0,
-			       sizeof(struct bcm_phs_classifier_entry));
-		}
-
-		nClsidIndex = GetClassifierEntry(pstServiceFlowEntry->pstClassifierTable,
-						 uiClsId,
-						 eOldClassifierRuleContext,
-						 &pstClassifierEntry);
-
-		if ((nClsidIndex != PHS_INVALID_TABLE_INDEX) && (!pstClassifierEntry->bUnclassifiedPHSRule)) {
-			kfree(pstClassifierEntry->pstPhsRule);
-			memset(pstClassifierEntry, 0,
-			       sizeof(struct bcm_phs_classifier_entry));
-		}
+	/* Retrieve the SFID Entry Index for requested Service Flow */
+	nSFIndex = GetServiceFlowEntry(pDeviceExtension->pstServiceFlowPhsRulesTable,
+				       uiVcid, &pstServiceFlowEntry);
+	if (nSFIndex == PHS_INVALID_TABLE_INDEX) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH,
+				DBG_LVL_ALL, "SFID Match Failed\n");
+		return ERR_SF_MATCH_FAIL;
 	}
+
+	nClsidIndex = GetClassifierEntry(pstServiceFlowEntry->pstClassifierTable,
+					 uiClsId,
+					 eActiveClassifierRuleContext,
+					 &pstClassifierEntry);
+
+	if ((nClsidIndex != PHS_INVALID_TABLE_INDEX) && (!pstClassifierEntry->bUnclassifiedPHSRule)) {
+		if (pstClassifierEntry->pstPhsRule) {
+			if (pstClassifierEntry->pstPhsRule->u8RefCnt)
+				pstClassifierEntry->pstPhsRule->u8RefCnt--;
+
+			if (0 == pstClassifierEntry->pstPhsRule->u8RefCnt)
+				kfree(pstClassifierEntry->pstPhsRule);
+		}
+		memset(pstClassifierEntry, 0,
+		       sizeof(struct bcm_phs_classifier_entry));
+	}
+
+	nClsidIndex = GetClassifierEntry(pstServiceFlowEntry->pstClassifierTable,
+					 uiClsId,
+					 eOldClassifierRuleContext,
+					 &pstClassifierEntry);
+
+	if ((nClsidIndex != PHS_INVALID_TABLE_INDEX) && (!pstClassifierEntry->bUnclassifiedPHSRule)) {
+		kfree(pstClassifierEntry->pstPhsRule);
+		memset(pstClassifierEntry, 0,
+		       sizeof(struct bcm_phs_classifier_entry));
+	}
+
+out:
 	return 0;
 }
 
