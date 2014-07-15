@@ -267,6 +267,8 @@
 				<&clk_gates1 13>,
 				<&clk_gates8 2>,/*pclk_uart2*/
 
+				<&clk_gpu_pre>,
+
 				/*jtag*/
 				<&clk_gates1 3>;/*clk_jtag*/
 	};
