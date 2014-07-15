@@ -1038,10 +1038,12 @@ static UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid,
 	UINT uiStatus = 0;
 	int iSfIndex;
 	bool bFreeEntryFound = false;
+	struct bcm_phs_entry *curr_list;
 
 	/* Check for a free entry in SFID table */
 	for (iSfIndex = 0; iSfIndex < MAX_SERVICEFLOWS; iSfIndex++) {
-		if (!psServiceFlowTable->stSFList[iSfIndex].bUsed) {
+		curr_list = &psServiceFlowTable->stSFList[iSfIndex];
+		if (!curr_list->bUsed) {
 			bFreeEntryFound = TRUE;
 			break;
 		}
@@ -1050,15 +1052,16 @@ static UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid,
 	if (!bFreeEntryFound)
 		return ERR_SFTABLE_FULL;
 
-	psaClassifiertable =
-		psServiceFlowTable->stSFList[iSfIndex].pstClassifierTable;
-	uiStatus =
-		CreateClassifierPHSRule(uiClsId, psaClassifiertable, psPhsRule,
-					eActiveClassifierRuleContext, u8AssociatedPHSI);
+	psaClassifiertable = curr_list->pstClassifierTable;
+	uiStatus = CreateClassifierPHSRule(uiClsId,
+					   psaClassifiertable,
+					   psPhsRule,
+					   eActiveClassifierRuleContext,
+					   u8AssociatedPHSI);
 	if (uiStatus == PHS_SUCCESS) {
 		/* Add entry at free index to the SF */
-		psServiceFlowTable->stSFList[iSfIndex].bUsed = TRUE;
-		psServiceFlowTable->stSFList[iSfIndex].uiVcid = uiVcid;
+		curr_list->bUsed = TRUE;
+		curr_list->uiVcid = uiVcid;
 	}
 
 	return uiStatus;
