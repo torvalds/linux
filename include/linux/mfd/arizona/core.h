@@ -132,6 +132,8 @@ struct arizona {
 	struct mutex clk_lock;
 	int clk32k_ref;
 
+	bool ctrlif_error;
+
 	struct snd_soc_dapm_context *dapm;
 };
 
