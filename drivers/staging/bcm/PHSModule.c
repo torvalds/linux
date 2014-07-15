@@ -959,12 +959,13 @@ UINT GetServiceFlowEntry(IN struct bcm_phs_table *psServiceFlowTable,
 			 struct bcm_phs_entry **ppstServiceFlowEntry)
 {
 	int i;
+	struct bcm_phs_entry *curr_sf_list;
 
 	for (i = 0; i < MAX_SERVICEFLOWS; i++) {
-		if (psServiceFlowTable->stSFList[i].bUsed) {
-			if (psServiceFlowTable->stSFList[i].uiVcid == uiVcid) {
-				*ppstServiceFlowEntry =
-					&psServiceFlowTable->stSFList[i];
+		curr_sf_list = &psServiceFlowTable->stSFList[i];
+		if (curr_sf_list->bUsed) {
+			if (curr_sf_list->uiVcid == uiVcid) {
+				*ppstServiceFlowEntry = curr_sf_list;
 				return i;
 			}
 		}
