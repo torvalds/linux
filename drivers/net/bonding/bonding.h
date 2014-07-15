@@ -195,7 +195,7 @@ struct slave {
 struct bonding {
 	struct   net_device *dev; /* first - useful for panic debug */
 	struct   slave __rcu *curr_active_slave;
-	struct   slave *current_arp_slave;
+	struct   slave __rcu *current_arp_slave;
 	struct   slave *primary_slave;
 	bool     force_primary;
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */

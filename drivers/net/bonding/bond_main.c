@@ -1711,7 +1711,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 
 	oldcurrent = rcu_access_pointer(bond->curr_active_slave);
 
-	bond->current_arp_slave = NULL;
+	RCU_INIT_POINTER(bond->current_arp_slave, NULL);
 
 	if (!all && (!bond->params.fail_over_mac ||
 		     BOND_MODE(bond) != BOND_MODE_ACTIVEBACKUP)) {
@@ -2569,7 +2569,7 @@ static int bond_ab_arp_inspect(struct bonding *bond)
 		 * before being taken out
 		 */
 		if (!bond_is_active_slave(slave) &&
-		    !bond->current_arp_slave &&
+		    !rcu_access_pointer(bond->current_arp_slave) &&
 		    !bond_time_in_interval(bond, last_rx, 3)) {
 			slave->new_link = BOND_LINK_DOWN;
 			commit++;
@@ -2615,12 +2615,15 @@ static void bond_ab_arp_commit(struct bonding *bond)
 			if (rtnl_dereference(bond->curr_active_slave) != slave ||
 			    (!rtnl_dereference(bond->curr_active_slave) &&
 			     bond_time_in_interval(bond, trans_start, 1))) {
+				struct slave *current_arp_slave;
+
+				current_arp_slave = rtnl_dereference(bond->current_arp_slave);
 				slave->link = BOND_LINK_UP;
-				if (bond->current_arp_slave) {
+				if (current_arp_slave) {
 					bond_set_slave_inactive_flags(
-						bond->current_arp_slave,
+						current_arp_slave,
 						BOND_SLAVE_NOTIFY_NOW);
-					bond->current_arp_slave = NULL;
+					RCU_INIT_POINTER(bond->current_arp_slave, NULL);
 				}
 
 				pr_info("%s: link status definitely up for interface %s\n",
@@ -2646,7 +2649,7 @@ static void bond_ab_arp_commit(struct bonding *bond)
 				bond->dev->name, slave->dev->name);
 
 			if (slave == rtnl_dereference(bond->curr_active_slave)) {
-				bond->current_arp_slave = NULL;
+				RCU_INIT_POINTER(bond->current_arp_slave, NULL);
 				goto do_failover;
 			}
 
