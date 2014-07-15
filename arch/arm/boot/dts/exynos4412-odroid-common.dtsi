@@ -91,6 +91,8 @@
 		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
 		pinctrl-names = "default";
 		vmmc-supply = <&ldo4_reg &ldo21_reg>;
+		cd-gpios = <&gpk2 2 0>;
+		cd-inverted;
 		status = "okay";
 	};
 
