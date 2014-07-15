@@ -22,6 +22,11 @@
 		reg = <0x40000000 0x40000000>;
 	};
 
+	firmware@0204F000 {
+		compatible = "samsung,secure-firmware";
+		reg = <0x0204F000 0x1000>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		led1 {
@@ -68,8 +73,38 @@
 		regulator-boot-on;
 	};
 
+	watchdog@10060000 {
+		status = "okay";
+	};
+
 	rtc@10070000 {
 		status = "okay";
+	};
+
+	g2d@10800000 {
+		status = "okay";
+	};
+
+	camera {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <>;
+
+		fimc_0: fimc@11800000 {
+			status = "okay";
+		};
+
+		fimc_1: fimc@11810000 {
+			status = "okay";
+		};
+
+		fimc_2: fimc@11820000 {
+			status = "okay";
+		};
+
+		fimc_3: fimc@11830000 {
+			status = "okay";
+		};
 	};
 
 	sdhci@12530000 {
