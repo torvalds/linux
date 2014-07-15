@@ -57,7 +57,7 @@
 #define URB_ASYNC_UNLINK    0
 #endif
 
-static void s_nsInterruptUsbIoCompleteRead(struct urb *urb);
+static void vnt_start_interrupt_urb_complete(struct urb *urb);
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkOutIoCompleteWrite(struct urb *urb);
 
@@ -145,7 +145,7 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
 		usb_rcvintpipe(priv->usb, 1),
 		priv->int_buf.data_buf,
 		MAX_INTERRUPT_SIZE,
-		s_nsInterruptUsbIoCompleteRead,
+		vnt_start_interrupt_urb_complete,
 		priv,
 		priv->int_interval);
 
@@ -173,7 +173,7 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
  *
  */
 
-static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
+static void vnt_start_interrupt_urb_complete(struct urb *urb)
 {
 	struct vnt_private *priv = urb->context;
 	int status;
