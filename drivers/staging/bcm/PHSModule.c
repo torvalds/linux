@@ -1017,11 +1017,10 @@ static UINT GetPhsRuleEntry(IN struct bcm_phs_classifier_table *pstClassifierTab
 			pstClassifierRule =
 				&pstClassifierTable->stOldPhsRulesList[i];
 
-		if (pstClassifierRule->bUsed) {
-			if (pstClassifierRule->u8PHSI == uiPHSI) {
-				*ppstPhsRule = pstClassifierRule->pstPhsRule;
-				return i;
-			}
+		if (pstClassifierRule->bUsed &&
+		   (pstClassifierRule->u8PHSI == uiPHSI)) {
+			*ppstPhsRule = pstClassifierRule->pstPhsRule;
+			return i;
 		}
 	}
 
