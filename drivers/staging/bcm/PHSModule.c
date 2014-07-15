@@ -990,11 +990,10 @@ static UINT GetClassifierEntry(IN struct bcm_phs_classifier_table *pstClassifier
 			psClassifierRules =
 				&pstClassifierTable->stOldPhsRulesList[i];
 
-		if (psClassifierRules->bUsed) {
-			if (psClassifierRules->uiClassifierRuleId == uiClsid) {
-				*ppstClassifierEntry = psClassifierRules;
-				return i;
-			}
+		if (psClassifierRules->bUsed &&
+		   (psClassifierRules->uiClassifierRuleId == uiClsid)) {
+			*ppstClassifierEntry = psClassifierRules;
+			return i;
 		}
 	}
 
