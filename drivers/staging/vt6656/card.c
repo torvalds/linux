@@ -58,8 +58,9 @@
 /* const u16 cwRXBCNTSFOff[MAX_RATE] =
    {17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3}; */
 
-static const u16 cwRXBCNTSFOff[MAX_RATE] =
-{192, 96, 34, 17, 34, 23, 17, 11, 8, 5, 4, 3};
+static const u16 cwRXBCNTSFOff[MAX_RATE] = {
+	192, 96, 34, 17, 34, 23, 17, 11, 8, 5, 4, 3
+};
 
 /*
  * Description: Set NIC media channel
@@ -477,7 +478,7 @@ void vnt_update_top_rates(struct vnt_private *priv)
 	}
 
 	priv->byTopCCKBasicRate = top_cck;
- }
+}
 
 int vnt_ofdm_min_rate(struct vnt_private *priv)
 {
@@ -710,7 +711,7 @@ void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
 	data[7] = (u8)(tsf >> 56);
 
 	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
-		MESSAGE_REQUEST_TBTT, 0, 8, data);
+			MESSAGE_REQUEST_TBTT, 0, 8, data);
 
 	dev_dbg(&priv->usb->dev, "%s TBTT: %8llx\n", __func__, tsf);
 
