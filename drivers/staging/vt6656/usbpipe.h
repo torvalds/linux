@@ -39,7 +39,7 @@ void vnt_control_out_u8(struct vnt_private *, u8, u8, u8);
 void vnt_control_in_u8(struct vnt_private *, u8, u8, u8 *);
 
 int vnt_start_interrupt_urb(struct vnt_private *);
-int PIPEnsBulkInUsbRead(struct vnt_private *, struct vnt_rcb *pRCB);
+int vnt_submit_rx_urb(struct vnt_private *, struct vnt_rcb *);
 int vnt_tx_context(struct vnt_private *, struct vnt_usb_send_context *);
 
 #endif /* __USBPIPE_H__ */

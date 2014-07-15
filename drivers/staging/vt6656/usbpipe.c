@@ -225,7 +225,7 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
  *
  */
 
-int PIPEnsBulkInUsbRead(struct vnt_private *priv, struct vnt_rcb *rcb)
+int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 {
 	int status = 0;
 	struct urb *urb;

@@ -603,7 +603,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 		rcb->bBoolInUse = false;
 
 		/* submit rx urb */
-		if (PIPEnsBulkInUsbRead(priv, rcb))
+		if (vnt_submit_rx_urb(priv, rcb))
 			goto free_rx_tx;
 	}
 
