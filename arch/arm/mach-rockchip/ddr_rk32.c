@@ -1611,7 +1611,7 @@ static void __sramfunc idle_port(void)
         pCRU_Reg->CRU_CLKGATE_CON[i]=  (clk_gate[i] | 0xffff0000);
 }
 
-static void __sramfunc deidle_port(void)
+static void inline deidle_port(void)
 {
     register int i,j;
     uint32 clk_gate[19];
