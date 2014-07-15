@@ -480,8 +480,10 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 	skb = netdev_alloc_skb(efx->net_dev,
 			       efx->rx_ip_align + efx->rx_prefix_size +
 			       hdr_len);
-	if (unlikely(skb == NULL))
+	if (unlikely(skb == NULL)) {
+		atomic_inc(&efx->n_rx_noskb_drops);
 		return NULL;
+	}
 
 	EFX_BUG_ON_PARANOID(rx_buf->len < hdr_len);
 

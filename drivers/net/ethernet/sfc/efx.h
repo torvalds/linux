@@ -199,6 +199,9 @@ void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 int efx_port_dummy_op_int(struct efx_nic *efx);
 void efx_port_dummy_op_void(struct efx_nic *efx);
 
+/* Update the generic software stats in the passed stats array */
+void efx_update_sw_stats(struct efx_nic *efx, u64 *stats);
+
 /* MTD */
 #ifdef CONFIG_SFC_MTD
 int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
