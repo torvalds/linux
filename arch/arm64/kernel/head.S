@@ -484,7 +484,7 @@ ENDPROC(__calc_phys_offset)
  * Returns:	pud
  */
 	.macro	create_pud_entry, pgd, tbl, virt, pud, tmp1, tmp2
-#ifdef CONFIG_ARM64_4_LEVELS
+#if CONFIG_ARM64_PGTABLE_LEVELS == 4
 	add	\tbl, \tbl, #PAGE_SIZE		// bump tbl 1 page up.
 						// to make room for pud
 	add	\pud, \pgd, #PAGE_SIZE		// pgd points to pud which

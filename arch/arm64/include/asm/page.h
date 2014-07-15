@@ -37,7 +37,7 @@
  * map the kernel. The swapper also maps the FDT (see __create_page_tables for
  * more information).
  */
-#ifdef CONFIG_ARM64_4_LEVELS
+#if CONFIG_ARM64_PGTABLE_LEVELS == 4
 #define SWAPPER_DIR_SIZE	(3 * PAGE_SIZE)
 #define IDMAP_DIR_SIZE		(3 * PAGE_SIZE)
 #else
@@ -47,9 +47,9 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_ARM64_2_LEVELS
+#if CONFIG_ARM64_PGTABLE_LEVELS == 2
 #include <asm/pgtable-2level-types.h>
-#elif defined(CONFIG_ARM64_3_LEVELS)
+#elif CONFIG_ARM64_PGTABLE_LEVELS == 3
 #include <asm/pgtable-3level-types.h>
 #else
 #include <asm/pgtable-4level-types.h>

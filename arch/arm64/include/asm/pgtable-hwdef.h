@@ -16,9 +16,9 @@
 #ifndef __ASM_PGTABLE_HWDEF_H
 #define __ASM_PGTABLE_HWDEF_H
 
-#ifdef CONFIG_ARM64_2_LEVELS
+#if CONFIG_ARM64_PGTABLE_LEVELS == 2
 #include <asm/pgtable-2level-hwdef.h>
-#elif defined(CONFIG_ARM64_3_LEVELS)
+#elif CONFIG_ARM64_PGTABLE_LEVELS == 3
 #include <asm/pgtable-3level-hwdef.h>
 #else
 #include <asm/pgtable-4level-hwdef.h>
