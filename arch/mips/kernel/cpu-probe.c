@@ -438,6 +438,15 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 	mips_probe_watch_registers(c);
 
+	if (cpu_has_rixi) {
+		/* Enable the RIXI exceptions */
+		write_c0_pagegrain(read_c0_pagegrain() | PG_IEC);
+		back_to_back_c0_hazard();
+		/* Verify the IEC bit is set */
+		if (read_c0_pagegrain() & PG_IEC)
+			c->options |= MIPS_CPU_RIXIEX;
+	}
+
 #ifndef CONFIG_MIPS_CPS
 	if (cpu_has_mips_r2) {
 		c->core = get_ebase_cpunum();
