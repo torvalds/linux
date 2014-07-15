@@ -84,8 +84,25 @@ enum arizona_type {
 #define ARIZONA_IRQ_HP2L_DONE             55
 #define ARIZONA_IRQ_HP1R_DONE             56
 #define ARIZONA_IRQ_HP1L_DONE             57
+#define ARIZONA_IRQ_ISRC3_CFG_ERR         58
+#define ARIZONA_IRQ_DSP_SHARED_WR_COLL    59
+#define ARIZONA_IRQ_SPK_SHUTDOWN          60
+#define ARIZONA_IRQ_SPK1R_SHORT           61
+#define ARIZONA_IRQ_SPK1L_SHORT           62
+#define ARIZONA_IRQ_HP3R_SC_NEG           63
+#define ARIZONA_IRQ_HP3R_SC_POS           64
+#define ARIZONA_IRQ_HP3L_SC_NEG           65
+#define ARIZONA_IRQ_HP3L_SC_POS           66
+#define ARIZONA_IRQ_HP2R_SC_NEG           67
+#define ARIZONA_IRQ_HP2R_SC_POS           68
+#define ARIZONA_IRQ_HP2L_SC_NEG           69
+#define ARIZONA_IRQ_HP2L_SC_POS           70
+#define ARIZONA_IRQ_HP1R_SC_NEG           71
+#define ARIZONA_IRQ_HP1R_SC_POS           72
+#define ARIZONA_IRQ_HP1L_SC_NEG           73
+#define ARIZONA_IRQ_HP1L_SC_POS           74
 
-#define ARIZONA_NUM_IRQ                   58
+#define ARIZONA_NUM_IRQ                   75
 
 struct snd_soc_dapm_context;
 

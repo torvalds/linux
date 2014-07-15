@@ -36,6 +36,7 @@ extern const struct regmap_irq_chip wm5102_irq;
 
 extern const struct regmap_irq_chip wm5110_aod;
 extern const struct regmap_irq_chip wm5110_irq;
+extern const struct regmap_irq_chip wm5110_revd_irq;
 
 extern const struct regmap_irq_chip wm8997_aod;
 extern const struct regmap_irq_chip wm8997_irq;
