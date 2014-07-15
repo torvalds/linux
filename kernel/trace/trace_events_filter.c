@@ -1546,7 +1546,6 @@ static int fold_pred_tree(struct event_filter *filter,
 static int replace_preds(struct ftrace_event_call *call,
 			 struct event_filter *filter,
 			 struct filter_parse_state *ps,
-			 char *filter_string,
 			 bool dry_run)
 {
 	char *operand1 = NULL, *operand2 = NULL;
@@ -1739,8 +1738,7 @@ static int replace_system_preds(struct ftrace_subsystem_dir *dir,
 		 * Try to see if the filter can be applied
 		 *  (filter arg is ignored on dry_run)
 		 */
-		err = replace_preds(file->event_call, NULL, ps,
-					filter_string, true);
+		err = replace_preds(file->event_call, NULL, ps, true);
 		if (err)
 			event_set_no_set_filter_flag(file);
 		else
@@ -1772,8 +1770,7 @@ static int replace_system_preds(struct ftrace_subsystem_dir *dir,
 		if (err)
 			goto fail_mem;
 
-		err = replace_preds(file->event_call, filter, ps,
-					filter_string, false);
+		err = replace_preds(file->event_call, filter, ps, false);
 		if (err) {
 			filter_disable(file);
 			parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
@@ -1895,7 +1892,7 @@ static int create_filter(struct ftrace_event_call *call,
 
 	err = create_filter_start(filter_str, set_str, &ps, &filter);
 	if (!err) {
-		err = replace_preds(call, filter, ps, filter_str, false);
+		err = replace_preds(call, filter, ps, false);
 		if (err && set_str)
 			append_filter_err(ps, filter);
 	}
