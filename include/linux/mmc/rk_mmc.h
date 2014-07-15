@@ -151,13 +151,10 @@ struct dw_mci {
 	const struct dw_mci_dma_ops	*dma_ops;
 #ifdef CONFIG_MMC_DW_IDMAC
 	unsigned int		ring_size;
-#else
-	struct dw_mci_dma_data	*dma_data;
-#endif
-
-#ifdef CONFIG_MMC_DW_EDMAC
         struct dw_mci_dma_slave *dms;
 	void                    *phy_regs;
+#else
+	struct dw_mci_dma_data	*dma_data;
 #endif
 	u32			cmd_status;
 	u32			data_status;

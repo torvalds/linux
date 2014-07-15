@@ -104,7 +104,7 @@
         	keep-power-in-suspend;
 	
         	//vmmc-supply = <&rk808_ldo5_reg>;
-		status = "disabled";
+		status = "okay";
 };
 		
 &sdio {
@@ -115,7 +115,7 @@
 		ignore-pm-notify;
 		keep-power-in-suspend;
 		//cap-sdio-irq;
-		status = "disabled";
+		status = "okay";
 };
 
 

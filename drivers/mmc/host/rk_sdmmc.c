@@ -563,9 +563,8 @@ static const struct dw_mci_dma_ops dw_mci_idmac_ops = {
 	.complete = dw_mci_idmac_complete_dma,
 	.cleanup = dw_mci_dma_cleanup,
 };
-#endif /* CONFIG_MMC_DW_IDMAC */
 
-#ifdef CONFIG_MMC_DW_EDMAC
+
 static void dw_mci_edma_cleanup(struct dw_mci *host)
 {
 	struct mmc_data *data = host->data;
@@ -672,9 +671,6 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 
 static int dw_mci_edmac_init(struct dw_mci *host)
 {
-        MMC_DBG_BOOT_FUNC(host->mmc,"dw_mci_edmac_init: Soc is 0x%x [%s]\n",
-                                (unsigned int)(rockchip_soc_id & ROCKCHIP_CPU_MASK), mmc_hostname(host->mmc));
-
         /* 1) request external dma channel, SHOULD decide chn in dts */
         host->dms = (struct dw_mci_dma_slave *)kmalloc(sizeof(struct dw_mci_dma_slave),GFP_KERNEL);
         host->dms->ch = dma_request_slave_channel(host->dev, "dw_mci");
@@ -706,7 +702,8 @@ static const struct dw_mci_dma_ops dw_mci_edmac_ops = {
         .complete = dw_mci_edmac_complete_dma,
         .cleanup = dw_mci_edma_cleanup,
 };
-#endif
+#endif /* CONFIG_MMC_DW_IDMAC */
+
 static int dw_mci_pre_dma_transfer(struct dw_mci *host,
 				   struct mmc_data *data,
 				   bool next)
@@ -785,7 +782,7 @@ static void dw_mci_post_req(struct mmc_host *mmc,
 
 static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
 {
-#if defined(CONFIG_MMC_DW_IDMAC) || defined(CONFIG_MMC_DW_EDMAC)
+#ifdef CONFIG_MMC_DW_IDMAC
 	unsigned int blksz = data->blksz;
 	const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
 	u32 fifo_width = 1 << host->data_shift;
@@ -2850,13 +2847,16 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 	}
 
 #ifdef CONFIG_MMC_DW_IDMAC
-	/* Handle DMA interrupts */
-	pending = mci_readl(host, IDSTS);
-	if (pending & (SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI)) {
-		mci_writel(host, IDSTS, SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI);
-		mci_writel(host, IDSTS, SDMMC_IDMAC_INT_NI);
-		host->dma_ops->complete((void *)host);
-	}
+        /* External DMA Soc platform NOT need to ack interrupt IDSTS */
+        if(!cpu_is_rk3036()){
+                /* Handle DMA interrupts */
+                pending = mci_readl(host, IDSTS);
+                if (pending & (SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI)) {
+                        mci_writel(host, IDSTS, SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI);
+                        mci_writel(host, IDSTS, SDMMC_IDMAC_INT_NI);
+                        host->dma_ops->complete((void *)host);
+                }
+        }
 #endif
 
 	return IRQ_HANDLED;
@@ -2941,7 +2941,8 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 				/* Clear down the FIFO */
 				dw_mci_fifo_reset(host);
 #ifdef CONFIG_MMC_DW_IDMAC
-				dw_mci_idmac_reset(host);
+                                if(!cpu_is_rk3036())
+				        dw_mci_idmac_reset(host);
 #endif
 
 			}
@@ -3246,6 +3247,14 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->max_blk_count = host->ring_size;
 		mmc->max_seg_size = 0x1000;
 		mmc->max_req_size = mmc->max_seg_size * mmc->max_blk_count;
+		if(cpu_is_rk3036()){
+                        /* fixup for external dmac setting */
+                        mmc->max_segs = 64;
+		        mmc->max_blk_size = 65536; /* BLKSIZ is 16 bits */
+		        mmc->max_blk_count = 512;
+		        mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+		        mmc->max_seg_size = mmc->max_req_size; 
+                }
 #else
 		mmc->max_segs = 64;
 		mmc->max_blk_size = 65536; /* BLKSIZ is 16 bits */
@@ -3253,6 +3262,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 		mmc->max_seg_size = mmc->max_req_size;
 #endif /* CONFIG_MMC_DW_IDMAC */
+                
 	}
         /* pwr_en */   
         slot->pwr_en_gpio = dw_mci_of_get_pwr_en_gpio(host->dev, slot->id);
@@ -3361,11 +3371,13 @@ static void dw_mci_init_dma(struct dw_mci *host)
 
 	/* Determine which DMA interface to use */
 #if defined(CONFIG_MMC_DW_IDMAC)
-	host->dma_ops = &dw_mci_idmac_ops;
-	dev_info(host->dev, "Using internal DMA controller.\n");
-#elif defined(CONFIG_MMC_DW_EDMAC)
-        host->dma_ops = &dw_mci_edmac_ops;
-        dev_info(host->dev, "Using external DMA controller.\n");
+        if(cpu_is_rk3036()){
+                host->dma_ops = &dw_mci_edmac_ops;
+                dev_info(host->dev, "Using external DMA controller.\n");
+        }else{
+                host->dma_ops = &dw_mci_idmac_ops;
+                dev_info(host->dev, "Using internal DMA controller.\n");
+        }
 #endif
 
 	if (!host->dma_ops)
@@ -3552,8 +3564,9 @@ static void dw_mci_dealwith_timeout(struct dw_mci *host)
 
                         /* NO requirement to reclaim slave chn using external dmac */
                         #ifdef CONFIG_MMC_DW_IDMAC
-                        if (host->use_dma && host->dma_ops->init)
-	                        host->dma_ops->init(host);
+                        if(!cpu_is_rk3036())
+                                if (host->use_dma && host->dma_ops->init)
+	                                host->dma_ops->init(host);
                         #endif
 
                         /*
