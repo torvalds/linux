@@ -75,7 +75,7 @@ static const u8 fallback_rate1[5][5] = {
  *  if we've gotten no data
  *
 -*/
-void INTvWorkItem(struct vnt_private *priv)
+void vnt_int_start_interrupt(struct vnt_private *priv)
 {
 	unsigned long flags;
 	int status;

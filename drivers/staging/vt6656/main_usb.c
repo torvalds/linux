@@ -667,7 +667,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 	priv->int_interval = 1;  /* bInterval is set to 1 */
 
-	INTvWorkItem(priv);
+	vnt_int_start_interrupt(priv);
 
 	priv->flags |= DEVICE_FLAGS_OPENED;
 
