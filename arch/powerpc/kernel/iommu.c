@@ -1037,7 +1037,7 @@ int iommu_tce_build(struct iommu_table *tbl, unsigned long entry,
 
 	/* if (unlikely(ret))
 		pr_err("iommu_tce: %s failed on hwaddr=%lx ioba=%lx kva=%lx ret=%d\n",
-			__func__, hwaddr, entry << IOMMU_PAGE_SHIFT(tbl),
+			__func__, hwaddr, entry << tbl->it_page_shift,
 				hwaddr, ret); */
 
 	return ret;
@@ -1056,7 +1056,7 @@ int iommu_put_tce_user_mode(struct iommu_table *tbl, unsigned long entry,
 			direction != DMA_TO_DEVICE, &page);
 	if (unlikely(ret != 1)) {
 		/* pr_err("iommu_tce: get_user_pages_fast failed tce=%lx ioba=%lx ret=%d\n",
-				tce, entry << IOMMU_PAGE_SHIFT(tbl), ret); */
+				tce, entry << tbl->it_page_shift, ret); */
 		return -EFAULT;
 	}
 	hwaddr = (unsigned long) page_address(page) + offset;
