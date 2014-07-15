@@ -24,7 +24,7 @@ static UINT UpdateClassifierPHSRule(B_UINT16 uiClsId,
 				    struct bcm_phs_rule *psPhsRule,
 				    B_UINT8 u8AssociatedPHSI);
 
-static bool ValidatePHSRuleComplete(struct bcm_phs_rule *psPhsRule);
+static bool ValidatePHSRuleComplete(const struct bcm_phs_rule *psPhsRule);
 
 static bool DerefPhsRule(B_UINT16 uiClsId,
 			 struct bcm_phs_classifier_table *psaClassifiertable,
@@ -946,7 +946,7 @@ out:
 	psServiceFlowRulesTable = NULL;
 }
 
-static bool ValidatePHSRuleComplete(IN struct bcm_phs_rule *psPhsRule)
+static bool ValidatePHSRuleComplete(IN const struct bcm_phs_rule *psPhsRule)
 {
 	return (psPhsRule &&
 		psPhsRule->u8PHSI &&
