@@ -23,6 +23,7 @@
 		serial3 = &uart3;
 		serial4 = &uart4;
 		serial5 = &uart5;
+		ethernet0 = &gmac;
 	};
 
 
