@@ -1116,6 +1116,9 @@ static void arm_smmu_master_free_smrs(struct arm_smmu_device *smmu,
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 	struct arm_smmu_smr *smrs = cfg->smrs;
 
+	if (!smrs)
+		return;
+
 	/* Invalidate the SMRs before freeing back to the allocator */
 	for (i = 0; i < cfg->num_streamids; ++i) {
 		u8 idx = smrs[i].idx;
@@ -1126,20 +1129,6 @@ static void arm_smmu_master_free_smrs(struct arm_smmu_device *smmu,
 
 	cfg->smrs = NULL;
 	kfree(smrs);
-}
-
-static void arm_smmu_bypass_stream_mapping(struct arm_smmu_device *smmu,
-					   struct arm_smmu_master_cfg *cfg)
-{
-	int i;
-	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
-
-	for (i = 0; i < cfg->num_streamids; ++i) {
-		u16 sid = cfg->streamids[i];
-
-		writel_relaxed(S2CR_TYPE_BYPASS,
-			       gr0_base + ARM_SMMU_GR0_S2CR(sid));
-	}
 }
 
 static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
@@ -1168,13 +1157,21 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 static void arm_smmu_domain_remove_master(struct arm_smmu_domain *smmu_domain,
 					  struct arm_smmu_master_cfg *cfg)
 {
+	int i;
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 
 	/*
 	 * We *must* clear the S2CR first, because freeing the SMR means
 	 * that it can be re-allocated immediately.
 	 */
-	arm_smmu_bypass_stream_mapping(smmu, cfg);
+	for (i = 0; i < cfg->num_streamids; ++i) {
+		u32 idx = cfg->smrs ? cfg->smrs[i].idx : cfg->streamids[i];
+
+		writel_relaxed(S2CR_TYPE_BYPASS,
+			       gr0_base + ARM_SMMU_GR0_S2CR(idx));
+	}
+
 	arm_smmu_master_free_smrs(smmu, cfg);
 }
 
