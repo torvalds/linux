@@ -895,49 +895,52 @@ static void free_phs_serviceflow_rules(struct bcm_phs_table *psServiceFlowRulesT
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL,
 			"=======>\n");
 
-	if (psServiceFlowRulesTable) {
-		for (i = 0; i < MAX_SERVICEFLOWS; i++) {
-			struct bcm_phs_entry stServiceFlowEntry =
-				psServiceFlowRulesTable->stSFList[i];
-			struct bcm_phs_classifier_table *pstClassifierRulesTable =
-				stServiceFlowEntry.pstClassifierTable;
+	if (!psServiceFlowRulesTable)
+		goto out;
 
-			if (pstClassifierRulesTable) {
-				for (j = 0; j < MAX_PHSRULE_PER_SF; j++) {
-					curr_act_rules_list =
-						&pstClassifierRulesTable->stActivePhsRulesList[j];
+	for (i = 0; i < MAX_SERVICEFLOWS; i++) {
+		struct bcm_phs_entry stServiceFlowEntry =
+			psServiceFlowRulesTable->stSFList[i];
+		struct bcm_phs_classifier_table *pstClassifierRulesTable =
+			stServiceFlowEntry.pstClassifierTable;
 
-					curr_old_rules_list =
-						&pstClassifierRulesTable->stOldPhsRulesList[j];
+		if (pstClassifierRulesTable) {
+			for (j = 0; j < MAX_PHSRULE_PER_SF; j++) {
+				curr_act_rules_list =
+					&pstClassifierRulesTable->stActivePhsRulesList[j];
 
-					if (curr_act_rules_list->pstPhsRule) {
+				curr_old_rules_list =
+					&pstClassifierRulesTable->stOldPhsRulesList[j];
 
-						if (curr_act_rules_list->pstPhsRule->u8RefCnt)
-							curr_act_rules_list->pstPhsRule->u8RefCnt--;
+				if (curr_act_rules_list->pstPhsRule) {
 
-						if (0 == curr_act_rules_list->pstPhsRule->u8RefCnt)
-							kfree(curr_act_rules_list->pstPhsRule);
+					if (curr_act_rules_list->pstPhsRule->u8RefCnt)
+						curr_act_rules_list->pstPhsRule->u8RefCnt--;
 
-						curr_act_rules_list->pstPhsRule = NULL;
-					}
+					if (0 == curr_act_rules_list->pstPhsRule->u8RefCnt)
+						kfree(curr_act_rules_list->pstPhsRule);
 
-					if (curr_old_rules_list->pstPhsRule) {
-
-						if (curr_old_rules_list->pstPhsRule->u8RefCnt)
-							curr_old_rules_list->pstPhsRule->u8RefCnt--;
-
-						if (0 == curr_old_rules_list->pstPhsRule->u8RefCnt)
-							kfree(curr_old_rules_list->pstPhsRule);
-
-						curr_old_rules_list->pstPhsRule = NULL;
-					}
+					curr_act_rules_list->pstPhsRule = NULL;
 				}
-				kfree(pstClassifierRulesTable);
-				stServiceFlowEntry.pstClassifierTable =
-					pstClassifierRulesTable = NULL;
+
+				if (curr_old_rules_list->pstPhsRule) {
+
+					if (curr_old_rules_list->pstPhsRule->u8RefCnt)
+						curr_old_rules_list->pstPhsRule->u8RefCnt--;
+
+					if (0 == curr_old_rules_list->pstPhsRule->u8RefCnt)
+						kfree(curr_old_rules_list->pstPhsRule);
+
+					curr_old_rules_list->pstPhsRule = NULL;
+				}
 			}
+			kfree(pstClassifierRulesTable);
+			stServiceFlowEntry.pstClassifierTable =
+				pstClassifierRulesTable = NULL;
 		}
 	}
+
+out:
 
 	kfree(psServiceFlowRulesTable);
 	psServiceFlowRulesTable = NULL;
