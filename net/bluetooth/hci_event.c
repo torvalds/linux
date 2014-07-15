@@ -4314,14 +4314,11 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 * device found events.
 	 */
 	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
-		struct hci_conn_params *param;
-
 		if (type == LE_ADV_DIRECT_IND)
 			return;
 
-		param = hci_pend_le_action_lookup(&hdev->pend_le_reports,
-						  bdaddr, bdaddr_type);
-		if (!param)
+		if (!hci_pend_le_action_lookup(&hdev->pend_le_reports,
+					       bdaddr, bdaddr_type))
 			return;
 
 		if (type == LE_ADV_NONCONN_IND || type == LE_ADV_SCAN_IND)
