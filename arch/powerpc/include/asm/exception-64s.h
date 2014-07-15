@@ -532,6 +532,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
 	.globl label##_common;					\
 label##_common:							\
 	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);		\
+	/* Volatile regs are potentially clobbered here */	\
 	additions;						\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
 	bl	hdlr;						\
