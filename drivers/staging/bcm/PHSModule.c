@@ -889,6 +889,8 @@ static void free_phs_serviceflow_rules(struct bcm_phs_table *psServiceFlowRulesT
 {
 	int i, j;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_phs_classifier_entry *curr_act_rules_list;
+	struct bcm_phs_classifier_entry *curr_old_rules_list;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL,
 			"=======>\n");
@@ -902,26 +904,32 @@ static void free_phs_serviceflow_rules(struct bcm_phs_table *psServiceFlowRulesT
 
 			if (pstClassifierRulesTable) {
 				for (j = 0; j < MAX_PHSRULE_PER_SF; j++) {
-					if (pstClassifierRulesTable->stActivePhsRulesList[j].pstPhsRule) {
+					curr_act_rules_list =
+						&pstClassifierRulesTable->stActivePhsRulesList[j];
 
-						if (pstClassifierRulesTable->stActivePhsRulesList[j].pstPhsRule->u8RefCnt)
-							pstClassifierRulesTable->stActivePhsRulesList[j].pstPhsRule->u8RefCnt--;
+					curr_old_rules_list =
+						&pstClassifierRulesTable->stOldPhsRulesList[j];
 
-						if (0 == pstClassifierRulesTable->stActivePhsRulesList[j].pstPhsRule->u8RefCnt)
-							kfree(pstClassifierRulesTable->stActivePhsRulesList[j].pstPhsRule);
+					if (curr_act_rules_list->pstPhsRule) {
 
-						pstClassifierRulesTable->stActivePhsRulesList[j].pstPhsRule = NULL;
+						if (curr_act_rules_list->pstPhsRule->u8RefCnt)
+							curr_act_rules_list->pstPhsRule->u8RefCnt--;
+
+						if (0 == curr_act_rules_list->pstPhsRule->u8RefCnt)
+							kfree(curr_act_rules_list->pstPhsRule);
+
+						curr_act_rules_list->pstPhsRule = NULL;
 					}
 
-					if (pstClassifierRulesTable->stOldPhsRulesList[j].pstPhsRule) {
+					if (curr_old_rules_list->pstPhsRule) {
 
-						if (pstClassifierRulesTable->stOldPhsRulesList[j].pstPhsRule->u8RefCnt)
-							pstClassifierRulesTable->stOldPhsRulesList[j].pstPhsRule->u8RefCnt--;
+						if (curr_old_rules_list->pstPhsRule->u8RefCnt)
+							curr_old_rules_list->pstPhsRule->u8RefCnt--;
 
-						if (0 == pstClassifierRulesTable->stOldPhsRulesList[j].pstPhsRule->u8RefCnt)
-							kfree(pstClassifierRulesTable->stOldPhsRulesList[j].pstPhsRule);
+						if (0 == curr_old_rules_list->pstPhsRule->u8RefCnt)
+							kfree(curr_old_rules_list->pstPhsRule);
 
-						pstClassifierRulesTable->stOldPhsRulesList[j].pstPhsRule = NULL;
+						curr_old_rules_list->pstPhsRule = NULL;
 					}
 				}
 				kfree(pstClassifierRulesTable);
