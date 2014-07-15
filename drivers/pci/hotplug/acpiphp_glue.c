@@ -80,8 +80,9 @@ static struct acpiphp_context *acpiphp_init_context(struct acpi_device *adev)
 		return NULL;
 
 	context->refcount = 1;
-	acpi_set_hp_context(adev, &context->hp, acpiphp_hotplug_notify, NULL,
-			    acpiphp_post_dock_fixup);
+	context->hp.notify = acpiphp_hotplug_notify;
+	context->hp.fixup = acpiphp_post_dock_fixup;
+	acpi_set_hp_context(adev, &context->hp);
 	return context;
 }
 
@@ -876,7 +877,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 			goto err;
 
 		root_context->root_bridge = bridge;
-		acpi_set_hp_context(adev, &root_context->hp, NULL, NULL, NULL);
+		acpi_set_hp_context(adev, &root_context->hp);
 	} else {
 		struct acpiphp_context *context;
 
