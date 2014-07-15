@@ -603,16 +603,19 @@ static int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 		if (ret)
 			return ret;
 
-		src_ring->hw_index =
-			ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
-		src_ring->hw_index &= nentries_mask;
+		read_index = ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
+		if (read_index == 0xffffffff)
+			return -ENODEV;
+
+		read_index &= nentries_mask;
+		src_ring->hw_index = read_index;
 
 		ath10k_pci_sleep(ar);
 	}
 
 	read_index = src_ring->hw_index;
 
-	if ((read_index == sw_index) || (read_index == 0xffffffff))
+	if (read_index == sw_index)
 		return -EIO;
 
 	sbase = src_ring->shadow_base;
