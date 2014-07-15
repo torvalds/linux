@@ -1343,15 +1343,7 @@ static bool DerefPhsRule(IN B_UINT16  uiClsId,
 	if (pstPhsRule->u8RefCnt)
 		pstPhsRule->u8RefCnt--;
 
-	if (0 == pstPhsRule->u8RefCnt) {
-		/*
-		 * if(pstPhsRule->u8PHSI)
-		 * Store the currently active rule into the old rules list
-		 * CreateClassifierPHSRule(uiClsId,psaClassifiertable,pstPhsRule,eOldClassifierRuleContext,pstPhsRule->u8PHSI);
-		 */
-		return TRUE;
-	} else
-		return false;
+	return (0 == pstPhsRule->u8RefCnt);
 }
 
 static void dbg_print_st_cls_entry(struct bcm_mini_adapter *ad,
