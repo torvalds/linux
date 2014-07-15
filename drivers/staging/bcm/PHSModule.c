@@ -948,24 +948,10 @@ out:
 
 static bool ValidatePHSRuleComplete(IN struct bcm_phs_rule *psPhsRule)
 {
-	if (psPhsRule) {
-		if (!psPhsRule->u8PHSI) {
-			/* PHSI is not valid */
-			return false;
-		}
-
-		if (!psPhsRule->u8PHSS) {
-			/* PHSS Is Undefined */
-			return false;
-		}
-
-		/* Check if PHSF is defines for the PHS Rule */
-		if (!psPhsRule->u8PHSFLength) /* If any part of PHSF is valid then Rule contains valid PHSF */
-			return false;
-
-		return TRUE;
-	} else
-		return false;
+	return (psPhsRule &&
+		psPhsRule->u8PHSI &&
+		psPhsRule->u8PHSS &&
+		psPhsRule->u8PHSFLength);
 }
 
 UINT GetServiceFlowEntry(IN struct bcm_phs_table *psServiceFlowTable,
