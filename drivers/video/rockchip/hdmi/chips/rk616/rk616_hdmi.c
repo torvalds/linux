@@ -388,6 +388,8 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 			ret);
 		goto err2;
 	}
+	if (rk616_hdmi_drv_init(hdmi_drv))
+		goto err0;
 
 	/* get the IRQ */
 	hdmi_drv->irq = platform_get_irq(pdev, 0);
@@ -426,6 +428,8 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 			ret = -ENXIO;
 			goto err1;
 		}
+		if (rk616_hdmi_drv_init(hdmi_drv))
+			goto err0;
 
 		/* request the IRQ */
 		ret = devm_request_irq(hdmi_drv->dev, hdmi_drv->irq,
@@ -443,8 +447,6 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
 	}
 
 #endif
-	if (rk616_hdmi_drv_init(hdmi_drv))
-		goto err0;
 
 	//rk616_hdmi_work(hdmi_drv);
 
