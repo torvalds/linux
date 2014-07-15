@@ -804,12 +804,6 @@ void free_event_filter(struct event_filter *filter)
 	__free_filter(filter);
 }
 
-void destroy_call_preds(struct ftrace_event_call *call)
-{
-	__free_filter(call->filter);
-	call->filter = NULL;
-}
-
 static struct event_filter *__alloc_filter(void)
 {
 	struct event_filter *filter;

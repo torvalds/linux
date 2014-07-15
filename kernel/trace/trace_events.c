@@ -1748,7 +1748,8 @@ static void __trace_remove_event_call(struct ftrace_event_call *call)
 {
 	event_remove(call);
 	trace_destroy_fields(call);
-	destroy_call_preds(call);
+	free_event_filter(call->filter);
+	call->filter = NULL;
 }
 
 static int probe_remove_event_call(struct ftrace_event_call *call)
