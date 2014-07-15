@@ -281,6 +281,34 @@
 					     "usb_ohci0", "usb_ohci1",
 					     "usb_ohci2";
 		};
+
+		/*
+		 * The following two are dummy clocks, placeholders used in the gmac_tx
+		 * clock. The gmac driver will choose one parent depending on the PHY
+		 * interface mode, using clk_set_rate auto-reparenting.
+		 * The actual TX clock rate is not controlled by the gmac_tx clock.
+		 */
+		mii_phy_tx_clk: clk@1 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <25000000>;
+			clock-output-names = "mii_phy_tx";
+		};
+
+		gmac_int_tx_clk: clk@2 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <125000000>;
+			clock-output-names = "gmac_int_tx";
+		};
+
+		gmac_tx_clk: clk@01c200d0 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun7i-a20-gmac-clk";
+			reg = <0x01c200d0 0x4>;
+			clocks = <&mii_phy_tx_clk>, <&gmac_int_tx_clk>;
+			clock-output-names = "gmac_tx";
+		};
 	};
 
 	soc@01c00000 {
