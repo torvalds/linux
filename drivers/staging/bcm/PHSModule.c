@@ -1334,9 +1334,61 @@ static bool DerefPhsRule(IN B_UINT16  uiClsId,
 		return false;
 }
 
+static void phsrules_per_sf_dbg_print(struct bcm_mini_adapter *ad,
+				      struct bcm_phs_entry *st_serv_flow_entry)
+{
+	int j, l;
+	struct bcm_phs_classifier_entry st_cls_entry;
+
+	for (j = 0; j < MAX_PHSRULE_PER_SF; j++) {
+
+		for (l = 0; l < 2; l++) {
+
+			if (l == 0) {
+				st_cls_entry = st_serv_flow_entry->pstClassifierTable->stActivePhsRulesList[j];
+				if (st_cls_entry.bUsed)
+					BCM_DEBUG_PRINT(ad,
+							DBG_TYPE_OTHERS,
+							DUMP_INFO,
+							(DBG_LVL_ALL | DBG_NO_FUNC_PRINT),
+							"\n Active PHS Rule :\n");
+			} else {
+				st_cls_entry = st_serv_flow_entry->pstClassifierTable->stOldPhsRulesList[j];
+				if (st_cls_entry.bUsed)
+					BCM_DEBUG_PRINT(ad,
+							DBG_TYPE_OTHERS,
+							DUMP_INFO,
+							(DBG_LVL_ALL | DBG_NO_FUNC_PRINT),
+							"\n Old PHS Rule :\n");
+			}
+
+			if (st_cls_entry.bUsed) {
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n VCID  : %#X", st_serv_flow_entry->uiVcid);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n ClassifierID  : %#X", st_cls_entry.uiClassifierRuleId);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSRuleID  : %#X", st_cls_entry.u8PHSI);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n****************PHS Rule********************\n");
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSI  : %#X", st_cls_entry.pstPhsRule->u8PHSI);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSFLength : %#X ", st_cls_entry.pstPhsRule->u8PHSFLength);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSF : ");
+
+				for (k = 0 ; k < st_cls_entry.pstPhsRule->u8PHSFLength; k++)
+					BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "%#X  ", st_cls_entry.pstPhsRule->u8PHSF[k]);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSMLength  : %#X", st_cls_entry.pstPhsRule->u8PHSMLength);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSM :");
+
+				for (k = 0; k < st_cls_entry.pstPhsRule->u8PHSMLength; k++)
+					BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "%#X  ", st_cls_entry.pstPhsRule->u8PHSM[k]);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSS : %#X ", st_cls_entry.pstPhsRule->u8PHSS);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSV  : %#X", st_cls_entry.pstPhsRule->u8PHSV);
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n********************************************\n");
+			}
+		}
+	}
+}
+
 void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension)
 {
-	int i, j, k, l;
+	int i;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL,
@@ -1346,46 +1398,11 @@ void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension)
 
 		struct bcm_phs_entry stServFlowEntry =
 			pDeviceExtension->pstServiceFlowPhsRulesTable->stSFList[i];
-		if (stServFlowEntry.bUsed) {
 
-			for (j = 0; j < MAX_PHSRULE_PER_SF; j++) {
+		if (!stServFlowEntry.bUsed)
+			continue;
 
-				for (l = 0; l < 2; l++) {
-					struct bcm_phs_classifier_entry stClsEntry;
-
-					if (l == 0) {
-						stClsEntry = stServFlowEntry.pstClassifierTable->stActivePhsRulesList[j];
-						if (stClsEntry.bUsed)
-							BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n Active PHS Rule :\n");
-					} else {
-						stClsEntry = stServFlowEntry.pstClassifierTable->stOldPhsRulesList[j];
-						if (stClsEntry.bUsed)
-							BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n Old PHS Rule :\n");
-					}
-
-					if (stClsEntry.bUsed) {
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n VCID  : %#X", stServFlowEntry.uiVcid);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n ClassifierID  : %#X", stClsEntry.uiClassifierRuleId);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSRuleID  : %#X", stClsEntry.u8PHSI);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n****************PHS Rule********************\n");
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSI  : %#X", stClsEntry.pstPhsRule->u8PHSI);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSFLength : %#X ", stClsEntry.pstPhsRule->u8PHSFLength);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSF : ");
-
-						for (k = 0 ; k < stClsEntry.pstPhsRule->u8PHSFLength; k++)
-							BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "%#X  ", stClsEntry.pstPhsRule->u8PHSF[k]);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSMLength  : %#X", stClsEntry.pstPhsRule->u8PHSMLength);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSM :");
-
-						for (k = 0; k < stClsEntry.pstPhsRule->u8PHSMLength; k++)
-							BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "%#X  ", stClsEntry.pstPhsRule->u8PHSM[k]);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSS : %#X ", stClsEntry.pstPhsRule->u8PHSS);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSV  : %#X", stClsEntry.pstPhsRule->u8PHSV);
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n********************************************\n");
-					}
-				}
-			}
-		}
+		phsrules_per_sf_dbg_print(Adapter, &stServFlowEntry);
 	}
 }
 
