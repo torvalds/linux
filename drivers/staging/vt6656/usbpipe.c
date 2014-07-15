@@ -59,7 +59,7 @@
 
 static void vnt_start_interrupt_urb_complete(struct urb *urb);
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb);
-static void s_nsBulkOutIoCompleteWrite(struct urb *urb);
+static void vnt_tx_context_complete(struct urb *urb);
 
 int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
 		u16 index, u16 length, u8 *buffer)
@@ -355,7 +355,7 @@ int vnt_tx_context(struct vnt_private *priv,
 			usb_sndbulkpipe(priv->usb, 3),
 			context->data,
 			context->buf_len,
-			s_nsBulkOutIoCompleteWrite,
+			vnt_tx_context_complete,
 			context);
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -370,7 +370,7 @@ int vnt_tx_context(struct vnt_private *priv,
 }
 
 /*
- * Description: s_nsBulkOutIoCompleteWrite
+ * Description: vnt_tx_context_complete
  *     1a) Indicate to the protocol the status of the write.
  *     1b) Return ownership of the packet to the protocol.
  *
@@ -397,7 +397,7 @@ int vnt_tx_context(struct vnt_private *priv,
  *
  */
 
-static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
+static void vnt_tx_context_complete(struct urb *urb)
 {
 	struct vnt_usb_send_context *context = urb->context;
 	struct vnt_private *priv = context->priv;
