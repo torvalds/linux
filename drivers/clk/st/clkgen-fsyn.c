@@ -70,12 +70,14 @@ struct clkgen_quadfs_data {
 	bool powerup_polarity;
 	bool standby_polarity;
 	bool nsdiv_present;
+	bool nrst_present;
 	struct clkgen_field ndiv;
 	struct clkgen_field ref_bw;
 	struct clkgen_field nreset;
 	struct clkgen_field npda;
 	struct clkgen_field lock_status;
 
+	struct clkgen_field nrst[QUADFS_MAX_CHAN];
 	struct clkgen_field nsb[QUADFS_MAX_CHAN];
 	struct clkgen_field en[QUADFS_MAX_CHAN];
 	struct clkgen_field mdiv[QUADFS_MAX_CHAN];
@@ -614,6 +616,9 @@ static int quadfs_fsynth_enable(struct clk_hw *hw)
 		spin_lock_irqsave(fs->lock, flags);
 
 	CLKGEN_WRITE(fs, nsb[fs->chan], !fs->data->standby_polarity);
+
+	if (fs->data->nrst_present)
+		CLKGEN_WRITE(fs, nrst[fs->chan], 0);
 
 	if (fs->lock)
 		spin_unlock_irqrestore(fs->lock, flags);
