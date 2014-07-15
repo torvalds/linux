@@ -1,0 +1,23 @@
+/*
+ * Hardkernel's Exynos4412 based ODROID-X2 board device tree source
+ *
+ * Copyright (c) 2012 Dongjin Kim <tobetter@gmail.com>
+ *
+ * Device tree source file for Hardkernel's ODROID-X2 board which is based
+ * on Samsung's Exynos4412 SoC.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+#include "exynos4412-odroidx.dts"
+
+/ {
+	model = "Hardkernel ODROID-X2 board based on Exynos4412";
+	compatible = "hardkernel,odroid-x2", "samsung,exynos4412", "samsung,exynos4";
+
+	memory {
+		reg = <0x40000000 0x7FF00000>;
+	};
+};
