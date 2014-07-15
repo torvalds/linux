@@ -467,6 +467,7 @@
 		ti,bit-shift = <0x1e>;
 		reg = <0x0d00>;
 		ti,set-bit-to-disable;
+		ti,set-rate-parent;
 	};
 
 	dpll4_m6_ck: dpll4_m6_ck {
