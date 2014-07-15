@@ -206,8 +206,8 @@ struct comedi_device *comedi_dev_get_from_minor(unsigned minor)
 {
 	if (minor < COMEDI_NUM_BOARD_MINORS)
 		return comedi_dev_get_from_board_minor(minor);
-	else
-		return comedi_dev_get_from_subdevice_minor(minor);
+
+	return comedi_dev_get_from_subdevice_minor(minor);
 }
 EXPORT_SYMBOL_GPL(comedi_dev_get_from_minor);
 
@@ -2625,10 +2625,9 @@ static int __init comedi_init(void)
 			unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 						 COMEDI_NUM_MINORS);
 			return PTR_ERR(dev);
-		} else {
-			/* comedi_alloc_board_minor() locked the mutex */
-			mutex_unlock(&dev->mutex);
 		}
+		/* comedi_alloc_board_minor() locked the mutex */
+		mutex_unlock(&dev->mutex);
 	}
 
 	return 0;

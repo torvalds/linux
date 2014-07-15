@@ -388,8 +388,8 @@ static inline unsigned int bytes_per_sample(const struct comedi_subdevice *subd)
 {
 	if (subd->subdev_flags & SDF_LSAMPL)
 		return sizeof(unsigned int);
-	else
-		return sizeof(short);
+
+	return sizeof(short);
 }
 
 /*

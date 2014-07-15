@@ -555,16 +555,16 @@ static inline unsigned NI_USUAL_PFI_SELECT(unsigned pfi_channel)
 {
 	if (pfi_channel < 10)
 		return 0x1 + pfi_channel;
-	else
-		return 0xb + pfi_channel;
+
+	return 0xb + pfi_channel;
 }
 
 static inline unsigned NI_USUAL_RTSI_SELECT(unsigned rtsi_channel)
 {
 	if (rtsi_channel < 7)
 		return 0xb + rtsi_channel;
-	else
-		return 0x1b;
+
+	return 0x1b;
 }
 
 /* mode bits for NI general-purpose counters, set with
