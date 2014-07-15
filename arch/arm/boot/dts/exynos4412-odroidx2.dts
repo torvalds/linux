@@ -21,3 +21,12 @@
 		reg = <0x40000000 0x7FF00000>;
 	};
 };
+
+&sound {
+	samsung,model = "Odroid-X2";
+	samsung,audio-routing =
+		"Headphone Jack", "HPL",
+		"Headphone Jack", "HPR",
+		"IN1", "Mic Jack",
+		"Mic Jack", "MICBIAS";
+};
