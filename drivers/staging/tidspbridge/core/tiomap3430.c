@@ -536,7 +536,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		if ((unsigned int *)ul_dsp_clk_addr != NULL) {
 			/* Get the clock rate */
 			ul_dsp_clk_rate = dsp_clk_get_iva2_rate();
-			dev_dbg(bridge, "%s: DSP clock rate (KHZ): 0x%x \n",
+			dev_dbg(bridge, "%s: DSP clock rate (KHZ): 0x%x\n",
 				__func__, ul_dsp_clk_rate);
 			(void)bridge_brd_write(dev_context,
 					       (u8 *) &ul_dsp_clk_rate,
