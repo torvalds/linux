@@ -279,6 +279,12 @@ err:
 	return ret;
 }
 
+static int si2157_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	*frequency = 5000000; /* default value of property 0x0706 */
+	return 0;
+}
+
 static const struct dvb_tuner_ops si2157_ops = {
 	.info = {
 		.name           = "Silicon Labs Si2157/Si2158",
@@ -289,6 +295,7 @@ static const struct dvb_tuner_ops si2157_ops = {
 	.init = si2157_init,
 	.sleep = si2157_sleep,
 	.set_params = si2157_set_params,
+	.get_if_frequency = si2157_get_if_frequency,
 };
 
 static int si2157_probe(struct i2c_client *client,
