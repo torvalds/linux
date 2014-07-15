@@ -672,7 +672,7 @@ struct cgroup_subsys {
 	struct list_head cfts;
 
 	/* base cftypes, automatically registered with subsys itself */
-	struct cftype *base_cftypes;
+	struct cftype *legacy_cftypes;	/* used on the legacy hierarchies */
 
 	/*
 	 * A subsystem may depend on other subsystems.  When such subsystem

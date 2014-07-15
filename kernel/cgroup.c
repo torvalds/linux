@@ -4890,7 +4890,7 @@ int __init cgroup_init(void)
 		 */
 		if (!ss->disabled) {
 			cgrp_dfl_root.subsys_mask |= 1 << ss->id;
-			WARN_ON(cgroup_add_cftypes(ss, ss->base_cftypes));
+			WARN_ON(cgroup_add_cftypes(ss, ss->legacy_cftypes));
 		}
 	}
 
@@ -5480,6 +5480,6 @@ static struct cftype debug_files[] =  {
 struct cgroup_subsys debug_cgrp_subsys = {
 	.css_alloc = debug_css_alloc,
 	.css_free = debug_css_free,
-	.base_cftypes = debug_files,
+	.legacy_cftypes = debug_files,
 };
 #endif /* CONFIG_CGROUP_DEBUG */

@@ -7048,7 +7048,7 @@ struct cgroup_subsys memory_cgrp_subsys = {
 	.cancel_attach = mem_cgroup_cancel_attach,
 	.attach = mem_cgroup_move_task,
 	.bind = mem_cgroup_bind,
-	.base_cftypes = mem_cgroup_files,
+	.legacy_cftypes = mem_cgroup_files,
 	.early_init = 0,
 };
 
