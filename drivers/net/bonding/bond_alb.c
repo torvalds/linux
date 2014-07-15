@@ -369,7 +369,7 @@ static int rlb_arp_recv(const struct sk_buff *skb, struct bonding *bond,
 	if (arp->op_code == htons(ARPOP_REPLY)) {
 		/* update rx hash table for this ARP */
 		rlb_update_entry_from_arp(bond, arp);
-		pr_debug("Server received an ARP Reply from client\n");
+		netdev_dbg(bond->dev, "Server received an ARP Reply from client\n");
 	}
 out:
 	return RX_HANDLER_ANOTHER;
@@ -535,8 +535,8 @@ static void rlb_update_client(struct rlb_client_info *client_info)
 				 client_info->slave->dev->dev_addr,
 				 client_info->mac_dst);
 		if (!skb) {
-			pr_err("%s: Error: failed to create an ARP packet\n",
-			       client_info->slave->bond->dev->name);
+			netdev_err(client_info->slave->bond->dev,
+				   "failed to create an ARP packet\n");
 			continue;
 		}
 
@@ -545,8 +545,8 @@ static void rlb_update_client(struct rlb_client_info *client_info)
 		if (client_info->vlan_id) {
 			skb = vlan_put_tag(skb, htons(ETH_P_8021Q), client_info->vlan_id);
 			if (!skb) {
-				pr_err("%s: Error: failed to insert VLAN tag\n",
-				       client_info->slave->bond->dev->name);
+				netdev_err(client_info->slave->bond->dev,
+					   "failed to insert VLAN tag\n");
 				continue;
 			}
 		}
@@ -630,8 +630,7 @@ static void rlb_req_update_subnet_clients(struct bonding *bond, __be32 src_ip)
 		client_info = &(bond_info->rx_hashtbl[hash_index]);
 
 		if (!client_info->slave) {
-			pr_err("%s: Error: found a client with no channel in the client's hash table\n",
-			       bond->dev->name);
+			netdev_err(bond->dev, "found a client with no channel in the client's hash table\n");
 			continue;
 		}
 		/*update all clients using this src_ip, that are not assigned
@@ -767,7 +766,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 		tx_slave = rlb_choose_channel(skb, bond);
 		if (tx_slave)
 			ether_addr_copy(arp->mac_src, tx_slave->dev->dev_addr);
-		pr_debug("Server sent ARP Reply packet\n");
+		netdev_dbg(bond->dev, "Server sent ARP Reply packet\n");
 	} else if (arp->op_code == htons(ARPOP_REQUEST)) {
 		/* Create an entry in the rx_hashtbl for this client as a
 		 * place holder.
@@ -787,7 +786,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 		 * updated with their assigned mac.
 		 */
 		rlb_req_update_subnet_clients(bond, arp->ip_src);
-		pr_debug("Server sent ARP Request packet\n");
+		netdev_dbg(bond->dev, "Server sent ARP Request packet\n");
 	}
 
 	return tx_slave;
@@ -1026,8 +1025,7 @@ static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
 	if (vid) {
 		skb = vlan_put_tag(skb, vlan_proto, vid);
 		if (!skb) {
-			pr_err("%s: Error: failed to insert VLAN tag\n",
-			       slave->bond->dev->name);
+			netdev_err(slave->bond->dev, "failed to insert VLAN tag\n");
 			return;
 		}
 	}
@@ -1093,9 +1091,8 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[])
 	memcpy(s_addr.sa_data, addr, dev->addr_len);
 	s_addr.sa_family = dev->type;
 	if (dev_set_mac_address(dev, &s_addr)) {
-		pr_err("%s: Error: dev_set_mac_address of dev %s failed!\n"
-		       "ALB mode requires that the base driver support setting the hw address also when the network device's interface is open\n",
-		       slave->bond->dev->name, dev->name);
+		netdev_err(slave->bond->dev, "dev_set_mac_address of dev %s failed! ALB mode requires that the base driver support setting the hw address also when the network device's interface is open\n",
+			   dev->name);
 		return -EOPNOTSUPP;
 	}
 	return 0;
@@ -1269,13 +1266,12 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 	if (free_mac_slave) {
 		alb_set_slave_mac_addr(slave, free_mac_slave->perm_hwaddr);
 
-		pr_warn("%s: Warning: the hw address of slave %s is in use by the bond; giving it the hw address of %s\n",
-			bond->dev->name, slave->dev->name,
-			free_mac_slave->dev->name);
+		netdev_warn(bond->dev, "the hw address of slave %s is in use by the bond; giving it the hw address of %s\n",
+			    slave->dev->name, free_mac_slave->dev->name);
 
 	} else if (has_bond_addr) {
-		pr_err("%s: Error: the hw address of slave %s is in use by the bond; couldn't find a slave with a free hw address to give it (this should not have happened)\n",
-		       bond->dev->name, slave->dev->name);
+		netdev_err(bond->dev, "the hw address of slave %s is in use by the bond; couldn't find a slave with a free hw address to give it (this should not have happened)\n",
+			   slave->dev->name);
 		return -EFAULT;
 	}
 
