@@ -386,7 +386,7 @@ sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
 			 struct sh_mmcif_plat_data *pdata,
 			 enum dma_transfer_direction direction)
 {
-	struct dma_slave_config cfg;
+	struct dma_slave_config cfg = { 0, };
 	struct dma_chan *chan;
 	unsigned int slave_id;
 	struct resource *res;
@@ -417,8 +417,12 @@ sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
 	/* In the OF case the driver will get the slave ID from the DT */
 	cfg.slave_id = slave_id;
 	cfg.direction = direction;
-	cfg.dst_addr = res->start + MMCIF_CE_DATA;
-	cfg.src_addr = 0;
+
+	if (direction == DMA_DEV_TO_MEM)
+		cfg.src_addr = res->start + MMCIF_CE_DATA;
+	else
+		cfg.dst_addr = res->start + MMCIF_CE_DATA;
+
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret < 0) {
 		dma_release_channel(chan);
