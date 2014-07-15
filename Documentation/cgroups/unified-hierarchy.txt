@@ -94,12 +94,18 @@ change soon.
 
  mount -t cgroup -o __DEVEL__sane_behavior cgroup $MOUNT_POINT
 
-All controllers which are not bound to other hierarchies are
-automatically bound to unified hierarchy and show up at the root of
-it.  Controllers which are enabled only in the root of unified
-hierarchy can be bound to other hierarchies.  This allows mixing
-unified hierarchy with the traditional multiple hierarchies in a fully
-backward compatible way.
+All controllers which support the unified hierarchy and are not bound
+to other hierarchies are automatically bound to unified hierarchy and
+show up at the root of it.  Controllers which are enabled only in the
+root of unified hierarchy can be bound to other hierarchies.  This
+allows mixing unified hierarchy with the traditional multiple
+hierarchies in a fully backward compatible way.
+
+For development purposes, the following boot parameter makes all
+controllers to appear on the unified hierarchy whether supported or
+not.
+
+ cgroup__DEVEL__legacy_files_on_dfl
 
 A controller can be moved across hierarchies only after the controller
 is no longer referenced in its current hierarchy.  Because per-cgroup
