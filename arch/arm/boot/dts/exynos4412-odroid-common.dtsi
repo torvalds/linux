@@ -7,12 +7,29 @@
  * published by the Free Software Foundation.
 */
 
+#include <dt-bindings/input/input.h>
 #include "exynos4412.dtsi"
 
 / {
 	firmware@0204F000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0204F000 0x1000>;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_power_key>;
+
+		power_key {
+			interrupt-parent = <&gpx1>;
+			interrupts = <3 0>;
+			gpios = <&gpx1 3 1>;
+			linux,code = <KEY_POWER>;
+			label = "power key";
+			debounce-interval = <10>;
+			gpio-key,wakeup;
+		};
 	};
 
 	mmc@12550000 {
@@ -314,5 +331,12 @@
 
 	ehci: ehci@12580000 {
 		status = "okay";
+	};
+};
+
+&pinctrl_1 {
+	gpio_power_key: power_key {
+		samsung,pins = "gpx1-3";
+		samsung,pin-pud = <0>;
 	};
 };

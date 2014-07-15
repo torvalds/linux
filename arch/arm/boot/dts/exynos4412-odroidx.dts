@@ -46,6 +46,20 @@
 		status = "okay";
 	};
 
+	gpio_keys {
+		pinctrl-0 = <&gpio_power_key &gpio_home_key>;
+
+		home_key {
+			interrupt-parent = <&gpx2>;
+			interrupts = <2 0>;
+			gpios = <&gpx2 2 0>;
+			linux,code = <KEY_HOME>;
+			label = "home key";
+			debounce-interval = <10>;
+			gpio-key,wakeup;
+		};
+	};
+
 	regulator_p3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "p3v3_en";
@@ -60,5 +74,12 @@
 &ehci {
 	port@1 {
 		status = "okay";
+	};
+};
+
+&pinctrl_1 {
+	gpio_home_key: home_key {
+		samsung,pins = "gpx2-2";
+		samsung,pin-pud = <0>;
 	};
 };
