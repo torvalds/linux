@@ -917,19 +917,19 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 static struct of_device_id quadfs_of_match[] = {
 	{
 		.compatible = "st,stih416-quadfs216",
-		.data = (void *)&st_fs216c65_416
+		.data = &st_fs216c65_416
 	},
 	{
 		.compatible = "st,stih416-quadfs432",
-		.data = (void *)&st_fs432c65_416
+		.data = &st_fs432c65_416
 	},
 	{
 		.compatible = "st,stih416-quadfs660-E",
-		.data = (void *)&st_fs660c32_E_416
+		.data = &st_fs660c32_E_416
 	},
 	{
 		.compatible = "st,stih416-quadfs660-F",
-		.data = (void *)&st_fs660c32_F_416
+		.data = &st_fs660c32_F_416
 	},
 	{}
 };
