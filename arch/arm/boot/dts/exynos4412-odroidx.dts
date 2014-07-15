@@ -19,7 +19,7 @@
 	compatible = "hardkernel,odroid-x", "samsung,exynos4412", "samsung,exynos4";
 
 	memory {
-		reg = <0x40000000 0x40000000>;
+		reg = <0x40000000 0x3FF00000>;
 	};
 
 	firmware@0204F000 {
