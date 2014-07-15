@@ -1162,7 +1162,6 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 
 		return 0;
-		break;
 	}
 
 	case IPV6_TRANSPARENT:

@@ -2028,7 +2028,6 @@ int tipc_ioctl(struct socket *sk, unsigned int cmd, unsigned long arg)
 			return 0;
 		}
 		return -EADDRNOTAVAIL;
-		break;
 	default:
 		return -ENOIOCTLCMD;
 	}
