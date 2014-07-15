@@ -774,17 +774,12 @@ static void __free_preds(struct event_filter *filter)
 	filter->n_preds = 0;
 }
 
-static void call_filter_disable(struct ftrace_event_call *call)
-{
-	call->flags &= ~TRACE_EVENT_FL_FILTERED;
-}
-
 static void filter_disable(struct ftrace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
 	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		call_filter_disable(call);
+		call->flags &= ~TRACE_EVENT_FL_FILTERED;
 	else
 		file->flags &= ~FTRACE_EVENT_FL_FILTERED;
 }
