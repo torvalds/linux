@@ -937,7 +937,7 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 }
 #endif
 
-bool __init early_init_dt_scan(void *params)
+bool __init early_init_dt_verify(void *params)
 {
 	if (!params)
 		return false;
@@ -951,6 +951,12 @@ bool __init early_init_dt_scan(void *params)
 		return false;
 	}
 
+	return true;
+}
+
+
+void __init early_init_dt_scan_nodes(void)
+{
 	/* Retrieve various information from the /chosen node */
 	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
 
@@ -959,7 +965,17 @@ bool __init early_init_dt_scan(void *params)
 
 	/* Setup memory, calling early_init_dt_add_memory_arch */
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+}
 
+bool __init early_init_dt_scan(void *params)
+{
+	bool status;
+
+	status = early_init_dt_verify(params);
+	if (!status)
+		return false;
+
+	early_init_dt_scan_nodes();
 	return true;
 }
 
