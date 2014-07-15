@@ -272,7 +272,6 @@ struct ftrace_event_call {
 	struct trace_event	event;
 	const char		*print_fmt;
 	struct event_filter	*filter;
-	struct list_head	*files;
 	void			*mod;
 	void			*data;
 	/*
