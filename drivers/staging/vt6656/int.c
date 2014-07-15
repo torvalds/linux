@@ -37,8 +37,6 @@
 #include "power.h"
 #include "usbpipe.h"
 
-static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
-
 static const u8 fallback_rate0[5][5] = {
 	{RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
 	{RATE_24M, RATE_24M, RATE_18M, RATE_12M, RATE_12M},
@@ -82,7 +80,7 @@ void INTvWorkItem(struct vnt_private *priv)
 	unsigned long flags;
 	int status;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
+	dev_dbg(&priv->usb->dev, "---->Interrupt Polling Thread\n");
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -152,7 +150,7 @@ void INTnsProcessData(struct vnt_private *priv)
 	struct vnt_interrupt_data *int_data;
 	struct ieee80211_low_level_stats *low_stats = &priv->low_stats;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
+	dev_dbg(&priv->usb->dev, "---->s_nsInterruptProcessData\n");
 
 	int_data = (struct vnt_interrupt_data *)priv->int_buf.data_buf;
 
