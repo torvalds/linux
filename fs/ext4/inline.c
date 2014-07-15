@@ -120,12 +120,6 @@ int ext4_get_max_inline_size(struct inode *inode)
 	return max_inline_size + EXT4_MIN_INLINE_DATA_SIZE;
 }
 
-int ext4_has_inline_data(struct inode *inode)
-{
-	return ext4_test_inode_flag(inode, EXT4_INODE_INLINE_DATA) &&
-	       EXT4_I(inode)->i_inline_off;
-}
-
 /*
  * this function does not take xattr_sem, which is OK because it is
  * currently only used in a code path coming form ext4_iget, before
