@@ -337,7 +337,7 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
  *
  */
 
-int PIPEnsSendBulkOut(struct vnt_private *priv,
+int vnt_tx_context(struct vnt_private *priv,
 				struct vnt_usb_send_context *context)
 {
 	int status;

@@ -928,7 +928,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (PIPEnsSendBulkOut(priv, tx_context) != STATUS_PENDING) {
+	if (vnt_tx_context(priv, tx_context) != STATUS_PENDING) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return -EIO;
 	}
@@ -1022,7 +1022,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (PIPEnsSendBulkOut(priv, context) != STATUS_PENDING)
+	if (vnt_tx_context(priv, context) != STATUS_PENDING)
 		ieee80211_free_txskb(priv->hw, context->skb);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
