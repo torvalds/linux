@@ -117,20 +117,6 @@ void vnt_control_in_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 *data)
 			reg_off, reg, sizeof(u8), data);
 }
 
-/*
- * Description:
- *      Allocates an usb interrupt in irp and calls USBD.
- *
- * Parameters:
- *  In:
- *      pDevice     - Pointer to the adapter
- *  Out:
- *      none
- *
- * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
- *
- */
-
 int vnt_start_interrupt_urb(struct vnt_private *priv)
 {
 	int status = STATUS_FAILURE;
@@ -157,21 +143,6 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
 
 	return status;
 }
-
-/*
- * Description:
- *      Complete function of usb interrupt in irp.
- *
- * Parameters:
- *  In:
- *      pDevice     - Pointer to the adapter
- *
- *  Out:
- *      none
- *
- * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
- *
- */
 
 static void vnt_start_interrupt_urb_complete(struct urb *urb)
 {
@@ -211,20 +182,6 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 	return;
 }
 
-/*
- * Description:
- *      Allocates an usb BulkIn  irp and calls USBD.
- *
- * Parameters:
- *  In:
- *      pDevice     - Pointer to the adapter
- *  Out:
- *      none
- *
- * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
- *
- */
-
 int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 {
 	int status = 0;
@@ -255,21 +212,6 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 
 	return status;
 }
-
-/*
- * Description:
- *      Complete function of usb BulkIn irp.
- *
- * Parameters:
- *  In:
- *      pDevice     - Pointer to the adapter
- *
- *  Out:
- *      none
- *
- * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
- *
- */
 
 static void vnt_submit_rx_urb_complete(struct urb *urb)
 {
@@ -323,20 +265,6 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 	return;
 }
 
-/*
- * Description:
- *      Allocates an usb BulkOut  irp and calls USBD.
- *
- * Parameters:
- *  In:
- *      pDevice     - Pointer to the adapter
- *  Out:
- *      none
- *
- * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
- *
- */
-
 int vnt_tx_context(struct vnt_private *priv,
 				struct vnt_usb_send_context *context)
 {
@@ -368,34 +296,6 @@ int vnt_tx_context(struct vnt_private *priv,
 
 	return STATUS_PENDING;
 }
-
-/*
- * Description: vnt_tx_context_complete
- *     1a) Indicate to the protocol the status of the write.
- *     1b) Return ownership of the packet to the protocol.
- *
- *     2)  If any more packets are queue for sending, send another packet
- *         to USBD.
- *         If the attempt to send the packet to the driver fails,
- *         return ownership of the packet to the protocol and
- *         try another packet (until one succeeds).
- *
- * Parameters:
- *  In:
- *      pdoUsbDevObj  - pointer to the USB device object which
- *                      completed the irp
- *      pIrp          - the irp which was completed by the
- *                      device object
- *      pContext      - the context given to IoSetCompletionRoutine
- *                      before calling IoCallDriver on the irp
- *                      The pContext is a pointer to the USB device object.
- *  Out:
- *      none
- *
- * Return Value: STATUS_MORE_PROCESSING_REQUIRED - allows the completion routine
- *               (IofCompleteRequest) to stop working on the irp.
- *
- */
 
 static void vnt_tx_context_complete(struct urb *urb)
 {
