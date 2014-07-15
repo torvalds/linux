@@ -1859,11 +1859,6 @@ static struct clk exynos5_init_clocks_off[] = {
 		.enable         = exynos5_clk_ip_fsys_ctrl,
 		.ctrlbit        = ((1 << 26) | (1 << 25) | (1 << 16) | (1 << 15) | (1 << 5) | (1 << 4)),
 	}, {
-		.name		= "tmu_apbif",
-		.parent		= &exynos5_clk_aclk_66.clk,
-		.enable		= exynos5_clk_ip_peris_ctrl,
-		.ctrlbit	= (1 << 21),
-	}, {
 		.name		= "dwmci",
 		.devname	= "dw_mmc.0",
 		.parent		= &exynos5_clk_aclk_200.clk,
