@@ -423,6 +423,7 @@ struct intel_crtc {
 
 struct intel_plane_wm_parameters {
 	uint32_t horiz_pixels;
+	uint32_t vert_pixels;
 	uint8_t bytes_per_pixel;
 	bool enabled;
 	bool scaled;
@@ -979,7 +980,9 @@ int ilk_wm_max_level(const struct drm_device *dev);
 void intel_update_watermarks(struct drm_crtc *crtc);
 void intel_update_sprite_watermarks(struct drm_plane *plane,
 				    struct drm_crtc *crtc,
-				    uint32_t sprite_width, int pixel_size,
+				    uint32_t sprite_width,
+				    uint32_t sprite_height,
+				    int pixel_size,
 				    bool enabled, bool scaled);
 void intel_init_pm(struct drm_device *dev);
 void intel_pm_setup(struct drm_device *dev);

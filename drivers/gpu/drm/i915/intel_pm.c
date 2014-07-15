@@ -2743,10 +2743,11 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 	ilk_write_wm_values(dev_priv, &results);
 }
 
-static void ilk_update_sprite_wm(struct drm_plane *plane,
-				     struct drm_crtc *crtc,
-				     uint32_t sprite_width, int pixel_size,
-				     bool enabled, bool scaled)
+static void
+ilk_update_sprite_wm(struct drm_plane *plane,
+		     struct drm_crtc *crtc,
+		     uint32_t sprite_width, uint32_t sprite_height,
+		     int pixel_size, bool enabled, bool scaled)
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
@@ -2754,6 +2755,7 @@ static void ilk_update_sprite_wm(struct drm_plane *plane,
 	intel_plane->wm.enabled = enabled;
 	intel_plane->wm.scaled = scaled;
 	intel_plane->wm.horiz_pixels = sprite_width;
+	intel_plane->wm.vert_pixels = sprite_width;
 	intel_plane->wm.bytes_per_pixel = pixel_size;
 
 	/*
@@ -2888,13 +2890,16 @@ void intel_update_watermarks(struct drm_crtc *crtc)
 
 void intel_update_sprite_watermarks(struct drm_plane *plane,
 				    struct drm_crtc *crtc,
-				    uint32_t sprite_width, int pixel_size,
+				    uint32_t sprite_width,
+				    uint32_t sprite_height,
+				    int pixel_size,
 				    bool enabled, bool scaled)
 {
 	struct drm_i915_private *dev_priv = plane->dev->dev_private;
 
 	if (dev_priv->display.update_sprite_wm)
-		dev_priv->display.update_sprite_wm(plane, crtc, sprite_width,
+		dev_priv->display.update_sprite_wm(plane, crtc,
+						   sprite_width, sprite_height,
 						   pixel_size, enabled, scaled);
 }
 
