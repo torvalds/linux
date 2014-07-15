@@ -56,6 +56,6 @@ struct vnt_interrupt_data {
 } __packed;
 
 void INTvWorkItem(struct vnt_private *);
-void INTnsProcessData(struct vnt_private *);
+void vnt_int_process_data(struct vnt_private *);
 
 #endif /* __INT_H__ */

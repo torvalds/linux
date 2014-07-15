@@ -145,7 +145,7 @@ static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 	return 0;
 }
 
-void INTnsProcessData(struct vnt_private *priv)
+void vnt_int_process_data(struct vnt_private *priv)
 {
 	struct vnt_interrupt_data *int_data;
 	struct ieee80211_low_level_stats *low_stats = &priv->low_stats;

@@ -198,7 +198,7 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 
 		dev_dbg(&priv->usb->dev, "%s status = %d\n", __func__, status);
 	} else {
-		INTnsProcessData(priv);
+		vnt_int_process_data(priv);
 	}
 
 	status = usb_submit_urb(priv->pInterruptURB, GFP_ATOMIC);
