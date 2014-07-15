@@ -691,6 +691,23 @@
 			status = "disabled";
 		};
 
+		gmac: ethernet@01c30000 {
+			compatible = "allwinner,sun7i-a20-gmac";
+			reg = <0x01c30000 0x1054>;
+			interrupts = <0 82 4>;
+			interrupt-names = "macirq";
+			clocks = <&ahb1_gates 17>, <&gmac_tx_clk>;
+			clock-names = "stmmaceth", "allwinner_gmac_tx";
+			resets = <&ahb1_rst 17>;
+			reset-names = "stmmaceth";
+			snps,pbl = <2>;
+			snps,fixed-burst;
+			snps,force_sf_dma_mode;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		timer@01c60000 {
 			compatible = "allwinner,sun6i-a31-hstimer", "allwinner,sun7i-a20-hstimer";
 			reg = <0x01c60000 0x1000>;
