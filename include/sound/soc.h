@@ -270,7 +270,14 @@
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long)&(struct soc_bytes_ext) \
 		{.max = xcount} }
-
+#define SND_SOC_BYTES_TLV(xname, xcount, xhandler_get, xhandler_put) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE | \
+		  SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK, \
+	.tlv.c = (snd_soc_bytes_tlv_callback), \
+	.info = snd_soc_info_bytes_ext, \
+	.private_value = (unsigned long)&(struct soc_bytes_ext) \
+		{.max = xcount, .get = xhandler_get, .put = xhandler_put, } }
 #define SOC_SINGLE_XR_SX(xname, xregbase, xregcount, xnbits, \
 		xmin, xmax, xinvert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
@@ -552,6 +559,8 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol);
 int snd_soc_bytes_info_ext(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *ucontrol);
+int snd_soc_bytes_tlv_callback(struct snd_kcontrol *kcontrol, int op_flag,
+	unsigned int size, unsigned int __user *tlv);
 int snd_soc_info_xr_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
 int snd_soc_get_xr_sx(struct snd_kcontrol *kcontrol,
@@ -1119,6 +1128,9 @@ struct soc_bytes {
 
 struct soc_bytes_ext {
 	int max;
+	/* used for TLV byte control */
+	int (*get)(unsigned int __user *bytes, unsigned int size);
+	int (*put)(const unsigned int __user *bytes, unsigned int size);
 };
 
 /* multi register control */
