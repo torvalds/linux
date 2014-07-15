@@ -513,8 +513,11 @@ label##_relon_hv:							\
  * runlatch, etc...
  */
 
-/* Exception addition: Hard disable interrupts */
-#define DISABLE_INTS	RECONCILE_IRQ_STATE(r10,r11)
+/*
+ * This addition reconciles our actual IRQ state with the various software
+ * flags that track it. This may call C code.
+ */
+#define ADD_RECONCILE	RECONCILE_IRQ_STATE(r10,r11)
 
 #define ADD_NVGPRS				\
 	bl	save_nvgprs
@@ -540,7 +543,7 @@ label##_common:							\
 
 #define STD_EXCEPTION_COMMON(trap, label, hdlr)			\
 	EXCEPTION_COMMON(trap, label, hdlr, ret_from_except,	\
-			 ADD_NVGPRS;DISABLE_INTS)
+			 ADD_NVGPRS;ADD_RECONCILE)
 
 /*
  * Like STD_EXCEPTION_COMMON, but for exceptions that can occur
@@ -549,7 +552,7 @@ label##_common:							\
  */
 #define STD_EXCEPTION_COMMON_ASYNC(trap, label, hdlr)		  \
 	EXCEPTION_COMMON(trap, label, hdlr, ret_from_except_lite, \
-			 FINISH_NAP;DISABLE_INTS;RUNLATCH_ON)
+			 FINISH_NAP;ADD_RECONCILE;RUNLATCH_ON)
 
 /*
  * When the idle code in power4_idle puts the CPU into NAP mode,

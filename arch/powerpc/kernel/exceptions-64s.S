@@ -965,7 +965,7 @@ data_access_common:
 	mfspr	r10,SPRN_DSISR
 	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x300, PACA_EXGEN)
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
 	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
@@ -981,7 +981,7 @@ h_data_storage_common:
 	stw     r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0xe00, PACA_EXGEN)
 	bl      save_nvgprs
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	addi    r3,r1,STACK_FRAME_OVERHEAD
 	bl      unknown_exception
 	b       ret_from_except
@@ -990,7 +990,7 @@ h_data_storage_common:
 	.globl instruction_access_common
 instruction_access_common:
 	EXCEPTION_PROLOG_COMMON(0x400, PACA_EXGEN)
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
 	ld	r3,_NIP(r1)
 	andis.	r4,r12,0x5820
@@ -1054,7 +1054,7 @@ slb_miss_fault:
 
 unrecov_user_slb:
 	EXCEPTION_PROLOG_COMMON(0x4200, PACA_EXGEN)
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	bl	save_nvgprs
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unrecoverable_exception
@@ -1077,7 +1077,7 @@ machine_check_common:
 	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x200, PACA_EXMC)
 	FINISH_NAP
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
 	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
 	std	r3,_DAR(r1)
@@ -1100,7 +1100,7 @@ alignment_common:
 	std	r3,_DAR(r1)
 	std	r4,_DSISR(r1)
 	bl	save_nvgprs
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	alignment_exception
 	b	ret_from_except
@@ -1110,7 +1110,7 @@ alignment_common:
 program_check_common:
 	EXCEPTION_PROLOG_COMMON(0x700, PACA_EXGEN)
 	bl	save_nvgprs
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	program_check_exception
 	b	ret_from_except
@@ -1121,7 +1121,7 @@ fp_unavailable_common:
 	EXCEPTION_PROLOG_COMMON(0x800, PACA_EXGEN)
 	bne	1f			/* if from user, just load it up */
 	bl	save_nvgprs
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	kernel_fp_unavailable_exception
 	BUG_OPCODE
@@ -1140,7 +1140,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 2:	/* User process was in a transaction */
 	bl	save_nvgprs
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	fp_unavailable_tm
 	b	ret_from_except
@@ -1166,7 +1166,7 @@ BEGIN_FTR_SECTION
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 2:	/* User process was in a transaction */
 	bl	save_nvgprs
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	altivec_unavailable_tm
 	b	ret_from_except
@@ -1175,7 +1175,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 	bl	save_nvgprs
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	altivec_unavailable_exception
 	b	ret_from_except
@@ -1200,7 +1200,7 @@ BEGIN_FTR_SECTION
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 2:	/* User process was in a transaction */
 	bl	save_nvgprs
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	vsx_unavailable_tm
 	b	ret_from_except
@@ -1209,7 +1209,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
 	bl	save_nvgprs
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	vsx_unavailable_exception
 	b	ret_from_except
@@ -1468,7 +1468,7 @@ slb_miss_realmode:
 
 unrecov_slb:
 	EXCEPTION_PROLOG_COMMON(0x4100, PACA_EXSLB)
-	DISABLE_INTS
+	RECONCILE_IRQ_STATE(r10, r11)
 	bl	save_nvgprs
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unrecoverable_exception
