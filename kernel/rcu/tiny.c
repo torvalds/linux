@@ -51,7 +51,7 @@ static long long rcu_dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
 
 #include "tiny_plugin.h"
 
-/* Common code for rcu_idle_enter() and rcu_irq_exit(), see kernel/rcutree.c. */
+/* Common code for rcu_idle_enter() and rcu_irq_exit(), see kernel/rcu/tree.c. */
 static void rcu_idle_enter_common(long long newval)
 {
 	if (newval) {
@@ -114,7 +114,7 @@ void rcu_irq_exit(void)
 }
 EXPORT_SYMBOL_GPL(rcu_irq_exit);
 
-/* Common code for rcu_idle_exit() and rcu_irq_enter(), see kernel/rcutree.c. */
+/* Common code for rcu_idle_exit() and rcu_irq_enter(), see kernel/rcu/tree.c. */
 static void rcu_idle_exit_common(long long oldval)
 {
 	if (oldval) {
