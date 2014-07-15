@@ -332,7 +332,6 @@ config ARCH_REALVIEW
 	select ICST
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
-	select PLAT_VERSATILE_CLCD
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -347,7 +346,6 @@ config ARCH_VERSATILE
 	select HAVE_MACH_CLKDEV
 	select ICST
 	select PLAT_VERSATILE
-	select PLAT_VERSATILE_CLCD
 	select PLAT_VERSATILE_CLOCK
 	select VERSATILE_FPGA_IRQ
 	help

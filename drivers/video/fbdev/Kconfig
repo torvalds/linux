@@ -292,10 +292,8 @@ config FB_ARMCLCD
 
 # Helper logic selected only by the ARM Versatile platform family.
 config PLAT_VERSATILE_CLCD
-	depends on FB_ARMCLCD
-	depends on (PLAT_VERSATILE || ARCH_INTEGRATOR)
-	default y
-	bool
+	def_bool ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS
+	depends on FB_ARMCLCD && FB=y
 
 config FB_ACORN
 	bool "Acorn VIDC support"
