@@ -6357,10 +6357,6 @@ static int dgap_parsefile(char **in)
 		}
 
 		switch (rc) {
-		case 0:
-			dgap_err("unexpected end of file");
-			return -1;
-
 		case BEGIN:	/* should only be 1 begin */
 			dgap_err("unexpected config_begin\n");
 			return -1;
