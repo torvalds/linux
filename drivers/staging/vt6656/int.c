@@ -53,28 +53,6 @@ static const u8 fallback_rate1[5][5] = {
 	{RATE_54M, RATE_54M, RATE_36M, RATE_18M, RATE_18M}
 };
 
-/*+
- *
- *  Function:   InterruptPollingThread
- *
- *  Synopsis:   Thread running at IRQL PASSIVE_LEVEL.
- *
- *  Arguments: Device Extension
- *
- *  Returns:
- *
- *  Algorithm:  Call USBD for input data;
- *
- *  History:    dd-mm-yyyy   Author    Comment
- *
- *
- *  Notes:
- *
- *  USB reads are by nature 'Blocking', and when in a read, the device looks
- *  like it's in a 'stall' condition, so we deliberately time out every second
- *  if we've gotten no data
- *
--*/
 void vnt_int_start_interrupt(struct vnt_private *priv)
 {
 	unsigned long flags;
