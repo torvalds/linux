@@ -148,6 +148,16 @@
 		pinctrl-names = "default";
 		status = "okay";
 
+		usb3503@08 {
+			compatible = "smsc,usb3503";
+			reg = <0x08>;
+
+			intn-gpios = <&gpx3 0 0>;
+			connect-gpios = <&gpx3 4 0>;
+			reset-gpios = <&gpx3 5 0>;
+			initial-mode = <1>;
+		};
+
 		max77686: pmic@09 {
 			compatible = "maxim,max77686";
 			reg = <0x09>;
@@ -336,6 +346,23 @@
 					regulator-always-on;
 				};
 			};
+		};
+	};
+
+	exynos-usbphy@125B0000 {
+		status = "okay";
+	};
+
+	hsotg@12480000 {
+		status = "okay";
+		vusb_d-supply = <&ldo15_reg>;
+		vusb_a-supply = <&ldo12_reg>;
+	};
+
+	ehci@12580000 {
+		status = "okay";
+		port@1 {
+			status = "okay";
 		};
 	};
 };
