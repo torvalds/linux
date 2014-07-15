@@ -1139,6 +1139,9 @@
 #define			SH_MEM_ALIGNMENT_MODE_UNALIGNED			3
 #define		DEFAULT_MTYPE(x)				((x) << 4)
 #define		APE1_MTYPE(x)					((x) << 7)
+/* valid for both DEFAULT_MTYPE and APE1_MTYPE */
+#define	MTYPE_CACHED					0
+#define	MTYPE_NONCACHED					3
 
 #define	SX_DEBUG_1					0x9060
 
@@ -1449,6 +1452,16 @@
 #define CP_HQD_ACTIVE                                     0xC91C
 #define CP_HQD_VMID                                       0xC920
 
+#define CP_HQD_PERSISTENT_STATE				0xC924u
+#define	DEFAULT_CP_HQD_PERSISTENT_STATE			(0x33U << 8)
+
+#define CP_HQD_PIPE_PRIORITY				0xC928u
+#define CP_HQD_QUEUE_PRIORITY				0xC92Cu
+#define CP_HQD_QUANTUM					0xC930u
+#define	QUANTUM_EN					1U
+#define	QUANTUM_SCALE_1MS				(1U << 4)
+#define	QUANTUM_DURATION(x)				((x) << 8)
+
 #define CP_HQD_PQ_BASE                                    0xC934
 #define CP_HQD_PQ_BASE_HI                                 0xC938
 #define CP_HQD_PQ_RPTR                                    0xC93C
@@ -1476,11 +1489,31 @@
 #define		PRIV_STATE      			(1 << 30)
 #define		KMD_QUEUE      				(1 << 31)
 
-#define CP_HQD_DEQUEUE_REQUEST                          0xC974
+#define CP_HQD_IB_BASE_ADDR				0xC95Cu
+#define CP_HQD_IB_BASE_ADDR_HI			0xC960u
+#define CP_HQD_IB_RPTR					0xC964u
+#define CP_HQD_IB_CONTROL				0xC968u
+#define	IB_ATC_EN					(1U << 23)
+#define	DEFAULT_MIN_IB_AVAIL_SIZE			(3U << 20)
+
+#define CP_HQD_DEQUEUE_REQUEST			0xC974
+#define	DEQUEUE_REQUEST_DRAIN				1
+#define DEQUEUE_REQUEST_RESET				2
 
 #define CP_MQD_CONTROL                                  0xC99C
 #define		MQD_VMID(x)				((x) << 0)
 #define		MQD_VMID_MASK      			(0xf << 0)
+
+#define CP_HQD_SEMA_CMD					0xC97Cu
+#define CP_HQD_MSG_TYPE					0xC980u
+#define CP_HQD_ATOMIC0_PREOP_LO			0xC984u
+#define CP_HQD_ATOMIC0_PREOP_HI			0xC988u
+#define CP_HQD_ATOMIC1_PREOP_LO			0xC98Cu
+#define CP_HQD_ATOMIC1_PREOP_HI			0xC990u
+#define CP_HQD_HQ_SCHEDULER0			0xC994u
+#define CP_HQD_HQ_SCHEDULER1			0xC998u
+
+#define SH_STATIC_MEM_CONFIG			0x9604u
 
 #define DB_RENDER_CONTROL                               0x28000
 
@@ -2070,5 +2103,21 @@
 #define VCE_CMD_TRAP		0x00000004
 #define VCE_CMD_IB_AUTO		0x00000005
 #define VCE_CMD_SEMAPHORE	0x00000006
+
+#define ATC_VMID0_PASID_MAPPING					0x339Cu
+#define	ATC_VMID_PASID_MAPPING_UPDATE_STATUS	0x3398u
+#define	ATC_VMID_PASID_MAPPING_VALID				(1U << 31)
+
+#define ATC_VM_APERTURE0_CNTL					0x3310u
+#define	ATS_ACCESS_MODE_NEVER						0
+#define	ATS_ACCESS_MODE_ALWAYS						1
+
+#define ATC_VM_APERTURE0_CNTL2					0x3318u
+#define ATC_VM_APERTURE0_HIGH_ADDR				0x3308u
+#define ATC_VM_APERTURE0_LOW_ADDR				0x3300u
+#define ATC_VM_APERTURE1_CNTL					0x3314u
+#define ATC_VM_APERTURE1_CNTL2					0x331Cu
+#define ATC_VM_APERTURE1_HIGH_ADDR				0x330Cu
+#define ATC_VM_APERTURE1_LOW_ADDR				0x3304u
 
 #endif
