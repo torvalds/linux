@@ -420,12 +420,6 @@ static const struct regmap_irq wm5110_irqs[ARIZONA_NUM_IRQ] = {
 	[ARIZONA_IRQ_BOOT_DONE] = {
 		.reg_offset = 4, .mask = ARIZONA_BOOT_DONE_EINT1
 	},
-	[ARIZONA_IRQ_DCS_DAC_DONE] = {
-		.reg_offset = 4, .mask = ARIZONA_DCS_DAC_DONE_EINT1
-	},
-	[ARIZONA_IRQ_DCS_HP_DONE] = {
-		.reg_offset = 4, .mask = ARIZONA_DCS_HP_DONE_EINT1
-	},
 	[ARIZONA_IRQ_FLL2_CLOCK_OK] = {
 		.reg_offset = 4, .mask = ARIZONA_FLL2_CLOCK_OK_EINT1
 	},
