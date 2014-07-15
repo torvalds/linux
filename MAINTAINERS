@@ -1969,6 +1969,14 @@ F:	arch/arm/mach-bcm/bcm_5301x.c
 F:	arch/arm/boot/dts/bcm5301x.dtsi
 F:	arch/arm/boot/dts/bcm470*
 
+BROADCOM BCM7XXX ARM ARCHITECTURE
+M:	Marc Carino <marc.ceeeee@gmail.com>
+M:	Brian Norris <computersforpeace@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-bcm/*brcmstb*
+F:	arch/arm/boot/dts/bcm7*.dts*
+
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
 M:	Nithin Nayak Sujir <nsujir@broadcom.com>
 M:	Michael Chan <mchan@broadcom.com>
