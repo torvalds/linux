@@ -376,7 +376,7 @@ void dload_headers(struct dload_state *dlthis)
 		return;
 	}
 	/* Check for valid file format */
-	if ((dlthis->dfile_hdr.df_doff_version != DOFF0)) {
+	if (dlthis->dfile_hdr.df_doff_version != DOFF0) {
 		dload_error(dlthis, "Bad DOFF version 0x%x",
 			    dlthis->dfile_hdr.df_doff_version);
 		return;
