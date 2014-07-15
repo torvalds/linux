@@ -1334,6 +1334,32 @@ static bool DerefPhsRule(IN B_UINT16  uiClsId,
 		return false;
 }
 
+static void dbg_print_st_cls_entry(struct bcm_mini_adapter *ad,
+				   struct bcm_phs_entry *st_serv_flow_entry,
+				   struct bcm_phs_classifier_entry *st_cls_entry)
+{
+	int k;
+
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n VCID  : %#X", st_serv_flow_entry->uiVcid);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n ClassifierID  : %#X", st_cls_entry->uiClassifierRuleId);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSRuleID  : %#X", st_cls_entry->u8PHSI);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n****************PHS Rule********************\n");
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSI  : %#X", st_cls_entry->pstPhsRule->u8PHSI);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSFLength : %#X ", st_cls_entry->pstPhsRule->u8PHSFLength);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSF : ");
+
+	for (k = 0 ; k < st_cls_entry->pstPhsRule->u8PHSFLength; k++)
+		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "%#X  ", st_cls_entry->pstPhsRule->u8PHSF[k]);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSMLength  : %#X", st_cls_entry->pstPhsRule->u8PHSMLength);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSM :");
+
+	for (k = 0; k < st_cls_entry->pstPhsRule->u8PHSMLength; k++)
+		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "%#X  ", st_cls_entry->pstPhsRule->u8PHSM[k]);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSS : %#X ", st_cls_entry->pstPhsRule->u8PHSS);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSV  : %#X", st_cls_entry->pstPhsRule->u8PHSV);
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n********************************************\n");
+}
+
 static void phsrules_per_sf_dbg_print(struct bcm_mini_adapter *ad,
 				      struct bcm_phs_entry *st_serv_flow_entry)
 {
@@ -1363,24 +1389,9 @@ static void phsrules_per_sf_dbg_print(struct bcm_mini_adapter *ad,
 			}
 
 			if (st_cls_entry.bUsed) {
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n VCID  : %#X", st_serv_flow_entry->uiVcid);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n ClassifierID  : %#X", st_cls_entry.uiClassifierRuleId);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSRuleID  : %#X", st_cls_entry.u8PHSI);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n****************PHS Rule********************\n");
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSI  : %#X", st_cls_entry.pstPhsRule->u8PHSI);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSFLength : %#X ", st_cls_entry.pstPhsRule->u8PHSFLength);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSF : ");
-
-				for (k = 0 ; k < st_cls_entry.pstPhsRule->u8PHSFLength; k++)
-					BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "%#X  ", st_cls_entry.pstPhsRule->u8PHSF[k]);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSMLength  : %#X", st_cls_entry.pstPhsRule->u8PHSMLength);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSM :");
-
-				for (k = 0; k < st_cls_entry.pstPhsRule->u8PHSMLength; k++)
-					BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "%#X  ", st_cls_entry.pstPhsRule->u8PHSM[k]);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSS : %#X ", st_cls_entry.pstPhsRule->u8PHSS);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, (DBG_LVL_ALL|DBG_NO_FUNC_PRINT), "\n PHSV  : %#X", st_cls_entry.pstPhsRule->u8PHSV);
-				BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n********************************************\n");
+				dbg_print_st_cls_entry(ad,
+						       st_serv_flow_entry,
+						       &st_cls_entry);
 			}
 		}
 	}
