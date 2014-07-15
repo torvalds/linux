@@ -262,11 +262,6 @@
 		reg = <0x10044060 0x20>;
 	};
 
-	disp_pd: power-domain@100440C0 {
-		compatible = "samsung,exynos4210-pd";
-		reg = <0x100440C0 0x20>;
-	};
-
 	msc_pd: power-domain@10044120 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044120 0x20>;
@@ -518,7 +513,6 @@
 	};
 
 	fimd: fimd@14400000 {
-		samsung,power-domain = <&disp_pd>;
 		clocks = <&clock CLK_SCLK_FIMD1>, <&clock CLK_FIMD1>;
 		clock-names = "sclk_fimd", "fimd";
 	};
