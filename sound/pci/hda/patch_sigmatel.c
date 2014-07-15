@@ -103,6 +103,7 @@ enum {
 	STAC_92HD83XXX_HP,
 	STAC_HP_ENVY_BASS,
 	STAC_HP_BNB13_EQ,
+	STAC_HP_ENVY_TS_BASS,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -2668,6 +2669,13 @@ static const struct hda_fixup stac92hd83xxx_fixups[] = {
 		.chained = true,
 		.chain_id = STAC_92HD83XXX_HP_MIC_LED,
 	},
+	[STAC_HP_ENVY_TS_BASS] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x10, 0x92170111 },
+			{}
+		},
+	},
 };
 
 static const struct hda_model_fixup stac92hd83xxx_models[] = {
@@ -2684,6 +2692,7 @@ static const struct hda_model_fixup stac92hd83xxx_models[] = {
 	{ .id = STAC_92HD83XXX_HEADSET_JACK, .name = "headset-jack" },
 	{ .id = STAC_HP_ENVY_BASS, .name = "hp-envy-bass" },
 	{ .id = STAC_HP_BNB13_EQ, .name = "hp-bnb13-eq" },
+	{ .id = STAC_HP_ENVY_TS_BASS, .name = "hp-envy-ts-bass" },
 	{}
 };
 
@@ -2739,6 +2748,8 @@ static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
 			  "HP bNB13", STAC_HP_BNB13_EQ),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x190A,
 			  "HP bNB13", STAC_HP_BNB13_EQ),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x190e,
+			  "HP ENVY TS", STAC_HP_ENVY_TS_BASS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1940,
 			  "HP bNB13", STAC_HP_BNB13_EQ),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1941,
