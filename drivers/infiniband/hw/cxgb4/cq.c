@@ -633,11 +633,15 @@ proc_cqe:
 		wq->sq.cidx = (uint16_t)idx;
 		PDBG("%s completing sq idx %u\n", __func__, wq->sq.cidx);
 		*cookie = wq->sq.sw_sq[wq->sq.cidx].wr_id;
+		if (c4iw_wr_log)
+			c4iw_log_wr_stats(wq, hw_cqe);
 		t4_sq_consume(wq);
 	} else {
 		PDBG("%s completing rq idx %u\n", __func__, wq->rq.cidx);
 		*cookie = wq->rq.sw_rq[wq->rq.cidx].wr_id;
 		BUG_ON(t4_rq_empty(wq));
+		if (c4iw_wr_log)
+			c4iw_log_wr_stats(wq, hw_cqe);
 		t4_rq_consume(wq);
 		goto skip_cqe;
 	}
@@ -895,7 +899,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	/*
 	 * Make actual HW queue 2x to avoid cdix_inc overflows.
 	 */
-	hwentries = min(entries * 2, T4_MAX_IQ_SIZE);
+	hwentries = min(entries * 2, rhp->rdev.hw_queue.t4_max_iq_size);
 
 	/*
 	 * Make HW queue at least 64 entries so GTS updates aren't too
@@ -912,7 +916,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	if (ucontext) {
 		memsize = roundup(memsize, PAGE_SIZE);
 		hwentries = memsize / sizeof *chp->cq.queue;
-		while (hwentries > T4_MAX_IQ_SIZE) {
+		while (hwentries > rhp->rdev.hw_queue.t4_max_iq_size) {
 			memsize -= PAGE_SIZE;
 			hwentries = memsize / sizeof *chp->cq.queue;
 		}

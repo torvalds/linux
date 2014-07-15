@@ -3832,6 +3832,85 @@ void cxgb4_enable_db_coalescing(struct net_device *dev)
 }
 EXPORT_SYMBOL(cxgb4_enable_db_coalescing);
 
+int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
+{
+	struct adapter *adap;
+	u32 offset, memtype, memaddr;
+	u32 edc0_size, edc1_size, mc0_size, mc1_size;
+	u32 edc0_end, edc1_end, mc0_end, mc1_end;
+	int ret;
+
+	adap = netdev2adap(dev);
+
+	offset = ((stag >> 8) * 32) + adap->vres.stag.start;
+
+	/* Figure out where the offset lands in the Memory Type/Address scheme.
+	 * This code assumes that the memory is laid out starting at offset 0
+	 * with no breaks as: EDC0, EDC1, MC0, MC1. All cards have both EDC0
+	 * and EDC1.  Some cards will have neither MC0 nor MC1, most cards have
+	 * MC0, and some have both MC0 and MC1.
+	 */
+	edc0_size = EDRAM_SIZE_GET(t4_read_reg(adap, MA_EDRAM0_BAR)) << 20;
+	edc1_size = EDRAM_SIZE_GET(t4_read_reg(adap, MA_EDRAM1_BAR)) << 20;
+	mc0_size = EXT_MEM_SIZE_GET(t4_read_reg(adap, MA_EXT_MEMORY_BAR)) << 20;
+
+	edc0_end = edc0_size;
+	edc1_end = edc0_end + edc1_size;
+	mc0_end = edc1_end + mc0_size;
+
+	if (offset < edc0_end) {
+		memtype = MEM_EDC0;
+		memaddr = offset;
+	} else if (offset < edc1_end) {
+		memtype = MEM_EDC1;
+		memaddr = offset - edc0_end;
+	} else {
+		if (offset < mc0_end) {
+			memtype = MEM_MC0;
+			memaddr = offset - edc1_end;
+		} else if (is_t4(adap->params.chip)) {
+			/* T4 only has a single memory channel */
+			goto err;
+		} else {
+			mc1_size = EXT_MEM_SIZE_GET(
+					t4_read_reg(adap,
+						    MA_EXT_MEMORY1_BAR)) << 20;
+			mc1_end = mc0_end + mc1_size;
+			if (offset < mc1_end) {
+				memtype = MEM_MC1;
+				memaddr = offset - mc0_end;
+			} else {
+				/* offset beyond the end of any memory */
+				goto err;
+			}
+		}
+	}
+
+	spin_lock(&adap->win0_lock);
+	ret = t4_memory_rw(adap, 0, memtype, memaddr, 32, tpte, T4_MEMORY_READ);
+	spin_unlock(&adap->win0_lock);
+	return ret;
+
+err:
+	dev_err(adap->pdev_dev, "stag %#x, offset %#x out of range\n",
+		stag, offset);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(cxgb4_read_tpte);
+
+u64 cxgb4_read_sge_timestamp(struct net_device *dev)
+{
+	u32 hi, lo;
+	struct adapter *adap;
+
+	adap = netdev2adap(dev);
+	lo = t4_read_reg(adap, SGE_TIMESTAMP_LO);
+	hi = GET_TSVAL(t4_read_reg(adap, SGE_TIMESTAMP_HI));
+
+	return ((u64)hi << 32) | (u64)lo;
+}
+EXPORT_SYMBOL(cxgb4_read_sge_timestamp);
+
 static struct pci_driver cxgb4_driver;
 
 static void check_neigh_update(struct neighbour *neigh)
@@ -4095,6 +4174,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.wr_cred = adap->params.ofldq_wr_cred;
 	lli.adapter_type = adap->params.chip;
 	lli.iscsi_iolen = MAXRXDATA_GET(t4_read_reg(adap, TP_PARA_REG2));
+	lli.cclk_ps = 1000000000 / adap->params.vpd.cclk;
 	lli.udb_density = 1 << QUEUESPERPAGEPF0_GET(
 			t4_read_reg(adap, SGE_EGRESS_QUEUES_PER_PAGE_PF) >>
 			(adap->fn * 4));
@@ -4109,8 +4189,12 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.db_reg = adap->regs + MYPF_REG(SGE_PF_KDOORBELL);
 	lli.fw_vers = adap->params.fw_vers;
 	lli.dbfifo_int_thresh = dbfifo_int_thresh;
+	lli.sge_ingpadboundary = adap->sge.fl_align;
+	lli.sge_egrstatuspagesize = adap->sge.stat_len;
 	lli.sge_pktshift = adap->sge.pktshift;
 	lli.enable_fw_ofld_conn = adap->flags & FW_OFLD_CONN;
+	lli.max_ordird_qp = adap->params.max_ordird_qp;
+	lli.max_ird_adapter = adap->params.max_ird_adapter;
 	lli.ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;
 
 	handle = ulds[uld].add(&lli);
@@ -5875,6 +5959,22 @@ static int adap_init0(struct adapter *adap)
 		adap->vres.cq.size = val[3] - val[2] + 1;
 		adap->vres.ocq.start = val[4];
 		adap->vres.ocq.size = val[5] - val[4] + 1;
+
+		params[0] = FW_PARAM_DEV(MAXORDIRD_QP);
+		params[1] = FW_PARAM_DEV(MAXIRD_ADAPTER);
+		ret = t4_query_params(adap, 0, 0, 0, 2, params, val);
+		if (ret < 0) {
+			adap->params.max_ordird_qp = 8;
+			adap->params.max_ird_adapter = 32 * adap->tids.ntids;
+			ret = 0;
+		} else {
+			adap->params.max_ordird_qp = val[0];
+			adap->params.max_ird_adapter = val[1];
+		}
+		dev_info(adap->pdev_dev,
+			 "max_ordird_qp %d max_ird_adapter %d\n",
+			 adap->params.max_ordird_qp,
+			 adap->params.max_ird_adapter);
 	}
 	if (caps_cmd.iscsicaps) {
 		params[0] = FW_PARAM_PFVF(ISCSI_START);

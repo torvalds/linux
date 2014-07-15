@@ -310,6 +310,9 @@ struct adapter_params {
 
 	unsigned int ofldq_wr_cred;
 	bool ulptx_memwrite_dsgl;          /* use of T5 DSGL allowed */
+
+	unsigned int max_ordird_qp;       /* Max read depth per RDMA QP */
+	unsigned int max_ird_adapter;     /* Max read depth per adapter */
 };
 
 #include "t4fw_api.h"

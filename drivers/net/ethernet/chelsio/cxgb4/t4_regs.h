@@ -251,6 +251,12 @@
 #define V_NOCOALESCE(x) ((x) << S_NOCOALESCE)
 #define F_NOCOALESCE    V_NOCOALESCE(1U)
 
+#define SGE_TIMESTAMP_LO 0x1098
+#define SGE_TIMESTAMP_HI 0x109c
+#define S_TSVAL    0
+#define M_TSVAL    0xfffffffU
+#define GET_TSVAL(x) (((x) >> S_TSVAL) & M_TSVAL)
+
 #define SGE_TIMER_VALUE_0_AND_1 0x10b8
 #define  TIMERVALUE0_MASK   0xffff0000U
 #define  TIMERVALUE0_SHIFT  16
