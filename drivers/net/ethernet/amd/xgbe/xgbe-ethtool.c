@@ -331,16 +331,6 @@ static int xgbe_set_settings(struct net_device *netdev,
 	     (cmd->duplex != DUPLEX_FULL)))
 		goto unlock;
 
-	if (cmd->autoneg == AUTONEG_ENABLE) {
-		/* Clear settings needed to force speeds */
-		phydev->supported &= ~SUPPORTED_1000baseT_Full;
-		phydev->supported &= ~SUPPORTED_10000baseT_Full;
-	} else {
-		/* Add settings needed to force speed */
-		phydev->supported |= SUPPORTED_1000baseT_Full;
-		phydev->supported |= SUPPORTED_10000baseT_Full;
-	}
-
 	cmd->advertising &= phydev->supported;
 	if ((cmd->autoneg == AUTONEG_ENABLE) && !cmd->advertising)
 		goto unlock;
