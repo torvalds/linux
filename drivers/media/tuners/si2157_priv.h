@@ -26,6 +26,7 @@ struct si2157 {
 	struct i2c_client *client;
 	struct dvb_frontend *fe;
 	bool active;
+	bool inversion;
 };
 
 /* firmare command struct */

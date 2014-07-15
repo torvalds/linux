@@ -29,6 +29,11 @@ struct si2157_config {
 	 * frontend
 	 */
 	struct dvb_frontend *fe;
+
+	/*
+	 * Spectral Inversion
+	 */
+	bool inversion;
 };
 
 #endif

@@ -253,6 +253,8 @@ static int si2157_set_params(struct dvb_frontend *fe)
 
 	memcpy(cmd.args, "\x14\x00\x03\x07\x00\x00", 6);
 	cmd.args[4] = delivery_system | bandwidth;
+	if (s->inversion)
+		cmd.args[5] = 0x01;
 	cmd.wlen = 6;
 	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
@@ -307,6 +309,7 @@ static int si2157_probe(struct i2c_client *client,
 
 	s->client = client;
 	s->fe = cfg->fe;
+	s->inversion = cfg->inversion;
 	mutex_init(&s->i2c_mutex);
 
 	/* check if the tuner is there */
