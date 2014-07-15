@@ -963,11 +963,9 @@ UINT GetServiceFlowEntry(IN struct bcm_phs_table *psServiceFlowTable,
 
 	for (i = 0; i < MAX_SERVICEFLOWS; i++) {
 		curr_sf_list = &psServiceFlowTable->stSFList[i];
-		if (curr_sf_list->bUsed) {
-			if (curr_sf_list->uiVcid == uiVcid) {
-				*ppstServiceFlowEntry = curr_sf_list;
-				return i;
-			}
+		if (curr_sf_list->bUsed && (curr_sf_list->uiVcid == uiVcid)) {
+			*ppstServiceFlowEntry = curr_sf_list;
+			return i;
 		}
 	}
 
