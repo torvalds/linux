@@ -150,7 +150,7 @@ static void dgap_firmware_reset_port(struct channel_t *ch);
 /*
  * Function prototypes from dgap_parse.c.
  */
-static int dgap_gettok(char **in, struct cnode *p);
+static int dgap_gettok(char **in);
 static char *dgap_getword(char **in);
 static struct cnode *dgap_newnode(int t);
 static int dgap_checknode(struct cnode *p);
@@ -6342,7 +6342,7 @@ static int dgap_parsefile(char **in)
 		p = p->next;
 
 	/* file must start with a BEGIN */
-	while ((rc = dgap_gettok(in, p)) != BEGIN) {
+	while ((rc = dgap_gettok(in)) != BEGIN) {
 		if (rc == 0) {
 			dgap_err("unexpected EOF");
 			return -1;
@@ -6350,7 +6350,7 @@ static int dgap_parsefile(char **in)
 	}
 
 	for (; ;) {
-		rc = dgap_gettok(in, p);
+		rc = dgap_gettok(in);
 		if (rc == 0) {
 			dgap_err("unexpected EOF");
 			return -1;
@@ -7100,7 +7100,7 @@ static char *dgap_sindex(char *string, char *group)
 /*
  * Get a token from the input file; return 0 if end of file is reached
  */
-static int dgap_gettok(char **in, struct cnode *p)
+static int dgap_gettok(char **in)
 {
 	char *w;
 	struct toklist *t;
