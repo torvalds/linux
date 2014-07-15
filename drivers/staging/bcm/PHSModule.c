@@ -635,6 +635,8 @@ ULONG PhsDeleteSFRules(IN void *pvContext, IN B_UINT16 uiVcid)
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	struct bcm_phs_extension *pDeviceExtension =
 		(struct bcm_phs_extension *)pvContext;
+	struct bcm_phs_classifier_entry *curr_clsf_entry;
+	struct bcm_phs_classifier_entry *curr_rules_list;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL,
 			"====>\n");
@@ -654,30 +656,36 @@ ULONG PhsDeleteSFRules(IN void *pvContext, IN B_UINT16 uiVcid)
 	pstClassifierRulesTable = pstServiceFlowEntry->pstClassifierTable;
 	if (pstClassifierRulesTable) {
 		for (nClsidIndex = 0; nClsidIndex < MAX_PHSRULE_PER_SF; nClsidIndex++) {
-			if (pstClassifierRulesTable->stActivePhsRulesList[nClsidIndex].pstPhsRule) {
+			curr_clsf_entry =
+				&pstClassifierRulesTable->stActivePhsRulesList[nClsidIndex];
 
-				if (pstClassifierRulesTable->stActivePhsRulesList[nClsidIndex].pstPhsRule->u8RefCnt)
-					pstClassifierRulesTable->stActivePhsRulesList[nClsidIndex].pstPhsRule->u8RefCnt--;
+			curr_rules_list =
+				&pstClassifierRulesTable->stOldPhsRulesList[nClsidIndex];
 
-				if (0 == pstClassifierRulesTable->stActivePhsRulesList[nClsidIndex].pstPhsRule->u8RefCnt)
-					kfree(pstClassifierRulesTable->stActivePhsRulesList[nClsidIndex].pstPhsRule);
+			if (curr_clsf_entry->pstPhsRule) {
 
-				pstClassifierRulesTable->stActivePhsRulesList[nClsidIndex].pstPhsRule = NULL;
+				if (curr_clsf_entry->pstPhsRule->u8RefCnt)
+					curr_clsf_entry->pstPhsRule->u8RefCnt--;
+
+				if (0 == curr_clsf_entry->pstPhsRule->u8RefCnt)
+					kfree(curr_clsf_entry->pstPhsRule);
+
+				curr_clsf_entry->pstPhsRule = NULL;
 			}
-			memset(&pstClassifierRulesTable->stActivePhsRulesList[nClsidIndex],
-			       0, sizeof(struct bcm_phs_classifier_entry));
-			if (pstClassifierRulesTable->stOldPhsRulesList[nClsidIndex].pstPhsRule) {
+			memset(curr_clsf_entry, 0,
+			       sizeof(struct bcm_phs_classifier_entry));
+			if (curr_rules_list->pstPhsRule) {
 
-				if (pstClassifierRulesTable->stOldPhsRulesList[nClsidIndex].pstPhsRule->u8RefCnt)
-					pstClassifierRulesTable->stOldPhsRulesList[nClsidIndex].pstPhsRule->u8RefCnt--;
+				if (curr_rules_list->pstPhsRule->u8RefCnt)
+					curr_rules_list->pstPhsRule->u8RefCnt--;
 
-				if (0 == pstClassifierRulesTable->stOldPhsRulesList[nClsidIndex].pstPhsRule->u8RefCnt)
-					kfree(pstClassifierRulesTable->stOldPhsRulesList[nClsidIndex].pstPhsRule);
+				if (0 == curr_rules_list->pstPhsRule->u8RefCnt)
+					kfree(curr_rules_list->pstPhsRule);
 
-				pstClassifierRulesTable->stOldPhsRulesList[nClsidIndex].pstPhsRule = NULL;
+				curr_rules_list->pstPhsRule = NULL;
 			}
-			memset(&pstClassifierRulesTable->stOldPhsRulesList[nClsidIndex],
-			       0, sizeof(struct bcm_phs_classifier_entry));
+			memset(curr_rules_list, 0,
+			       sizeof(struct bcm_phs_classifier_entry));
 		}
 	}
 	pstServiceFlowEntry->bUsed = false;
