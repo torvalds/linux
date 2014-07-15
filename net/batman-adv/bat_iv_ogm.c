@@ -28,7 +28,7 @@
 
 
 /**
- * batadv_dup_status - duplicate status
+ * enum batadv_dup_status - duplicate status
  * @BATADV_NO_DUP: the packet is a duplicate
  * @BATADV_ORIG_DUP: OGM is a duplicate in the originator (but not for the
  *  neighbor)
@@ -517,7 +517,7 @@ out:
  * @bat_priv: the bat priv with all the soft interface information
  * @packet_len: (total) length of the OGM
  * @send_time: timestamp (jiffies) when the packet is to be sent
- * @direktlink: true if this is a direct link packet
+ * @directlink: true if this is a direct link packet
  * @if_incoming: interface where the packet was received
  * @if_outgoing: interface for which the retransmission should be considered
  * @forw_packet: the forwarded packet which should be checked
@@ -1366,6 +1366,7 @@ out:
 /**
  * batadv_iv_ogm_process_per_outif - process a batman iv OGM for an outgoing if
  * @skb: the skb containing the OGM
+ * @ogm_offset: offset from skb->data to start of ogm header
  * @orig_node: the (cached) orig node for the originator of this OGM
  * @if_incoming: the interface where this packet was received
  * @if_outgoing: the interface for which the packet should be considered
@@ -1902,10 +1903,10 @@ out:
  * batadv_iv_ogm_neigh_is_eob - check if neigh1 is equally good or better than
  *  neigh2 from the metric prospective
  * @neigh1: the first neighbor object of the comparison
- * @if_outgoing: outgoing interface for the first neighbor
+ * @if_outgoing1: outgoing interface for the first neighbor
  * @neigh2: the second neighbor object of the comparison
  * @if_outgoing2: outgoing interface for the second neighbor
-
+ *
  * Returns true if the metric via neigh1 is equally good or better than
  * the metric via neigh2, false otherwise.
  */
