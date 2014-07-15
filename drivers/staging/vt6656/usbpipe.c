@@ -131,7 +131,7 @@ void vnt_control_in_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 *data)
  *
  */
 
-int PIPEnsInterruptRead(struct vnt_private *priv)
+int vnt_start_interrupt_urb(struct vnt_private *priv)
 {
 	int status = STATUS_FAILURE;
 

@@ -62,7 +62,7 @@ void vnt_int_start_interrupt(struct vnt_private *priv)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	status = PIPEnsInterruptRead(priv);
+	status = vnt_start_interrupt_urb(priv);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
