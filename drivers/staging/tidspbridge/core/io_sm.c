@@ -1910,10 +1910,11 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 	u32 offset_output;
 	u32 total_size;
 	u32 poll_cnt;
-	const char *dsp_regs[] = {"EFR", "IERR", "ITSR", "NTSR",
+	static const char * const dsp_regs[] = {"EFR", "IERR", "ITSR", "NTSR",
 				"IRP", "NRP", "AMR", "SSR",
 				"ILC", "RILC", "IER", "CSR"};
-	const char *exec_ctxt[] = {"Task", "SWI", "HWI", "Unknown"};
+	static const char * const exec_ctxt[] = {"Task", "SWI", "HWI",
+						"Unknown"};
 	struct bridge_drv_interface *intf_fxns;
 	struct dev_object *dev_object = bridge_context->dev_obj;
 
