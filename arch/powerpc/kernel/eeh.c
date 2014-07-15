@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <linux/iommu.h>
 #include <linux/proc_fs.h>
 #include <linux/rbtree.h>
 #include <linux/reboot.h>
@@ -1178,6 +1179,24 @@ out:
 }
 EXPORT_SYMBOL(eeh_dev_release);
 
+static int dev_has_iommu_table(struct device *dev, void *data)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_dev **ppdev = data;
+	struct iommu_table *tbl;
+
+	if (!dev)
+		return 0;
+
+	tbl = get_iommu_table_base(dev);
+	if (tbl && tbl->it_group) {
+		*ppdev = pdev;
+		return 1;
+	}
+
+	return 0;
+}
+
 /**
  * eeh_iommu_group_to_pe - Convert IOMMU group to EEH PE
  * @group: IOMMU group
@@ -1186,24 +1205,16 @@ EXPORT_SYMBOL(eeh_dev_release);
  */
 struct eeh_pe *eeh_iommu_group_to_pe(struct iommu_group *group)
 {
-	struct iommu_table *tbl;
 	struct pci_dev *pdev = NULL;
 	struct eeh_dev *edev;
-	bool found = false;
+	int ret;
 
 	/* No IOMMU group ? */
 	if (!group)
 		return NULL;
 
-	/* No PCI device ? */
-	for_each_pci_dev(pdev) {
-		tbl = get_iommu_table_base(&pdev->dev);
-		if (tbl && tbl->it_group == group) {
-			found = true;
-			break;
-		}
-	}
-	if (!found)
+	ret = iommu_group_for_each_dev(group, &pdev, dev_has_iommu_table);
+	if (!ret || !pdev)
 		return NULL;
 
 	/* No EEH device or PE ? */
