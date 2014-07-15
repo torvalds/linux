@@ -386,38 +386,40 @@ static int device_init_registers(struct vnt_private *pDevice)
 	/* load vt3266 calibration parameters in EEPROM */
 	if (pDevice->byRFType == RF_VT3226D0) {
 		if ((pDevice->abyEEPROM[EEP_OFS_MAJOR_VER] == 0x1) &&
-			(pDevice->abyEEPROM[EEP_OFS_MINOR_VER] >= 0x4)) {
+		    (pDevice->abyEEPROM[EEP_OFS_MINOR_VER] >= 0x4)) {
 
 			byCalibTXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_IQ];
 			byCalibTXDC = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_DC];
 			byCalibRXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_RX_IQ];
 			if (byCalibTXIQ || byCalibTXDC || byCalibRXIQ) {
-			/* CR255, enable TX/RX IQ and DC compensation mode */
+				/* CR255, enable TX/RX IQ and
+				   DC compensation mode */
 				vnt_control_out_u8(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xff,
-					0x03);
-			/* CR251, TX I/Q Imbalance Calibration */
+						   MESSAGE_REQUEST_BBREG,
+						   0xff,
+						   0x03);
+				/* CR251, TX I/Q Imbalance Calibration */
 				vnt_control_out_u8(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xfb,
-					byCalibTXIQ);
-			/* CR252, TX DC-Offset Calibration */
+						   MESSAGE_REQUEST_BBREG,
+						   0xfb,
+						   byCalibTXIQ);
+				/* CR252, TX DC-Offset Calibration */
 				vnt_control_out_u8(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xfC,
-					byCalibTXDC);
-			/* CR253, RX I/Q Imbalance Calibration */
+						   MESSAGE_REQUEST_BBREG,
+						   0xfC,
+						   byCalibTXDC);
+				/* CR253, RX I/Q Imbalance Calibration */
 				vnt_control_out_u8(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xfd,
-					byCalibRXIQ);
+						   MESSAGE_REQUEST_BBREG,
+						   0xfd,
+						   byCalibRXIQ);
 			} else {
-			/* CR255, turn off BB Calibration compensation */
+				/* CR255, turn off
+				   BB Calibration compensation */
 				vnt_control_out_u8(pDevice,
-					MESSAGE_REQUEST_BBREG,
-					0xff,
-					0x0);
+						   MESSAGE_REQUEST_BBREG,
+						   0xff,
+						   0x0);
 			}
 		}
 	}
