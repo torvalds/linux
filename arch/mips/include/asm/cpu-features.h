@@ -32,6 +32,9 @@
 #ifndef cpu_has_htw
 #define cpu_has_htw		(cpu_data[0].options & MIPS_CPU_HTW)
 #endif
+#ifndef cpu_has_rixiex
+#define cpu_has_rixiex		(cpu_data[0].options & MIPS_CPU_RIXIEX)
+#endif
 
 /*
  * For the moment we don't consider R6000 and R8000 so we can assume that
