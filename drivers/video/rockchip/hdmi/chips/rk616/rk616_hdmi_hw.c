@@ -181,9 +181,9 @@ static void rk616_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 		hdmi_writel(hdmi_dev, PHY_PRE_EMPHASIS, 0x00);
 		hdmi_writel(hdmi_dev, PHY_CHG_PWR, 0x00);
 #ifdef SOC_CONFIG_RK3036
-		//hdmi_writel(hdmi_dev, PHY_SYS_CTL,0x17);
+		hdmi_writel(hdmi_dev, PHY_SYS_CTL,0x17);
 #else
-		//hdmi_writel(hdmi_dev, PHY_SYS_CTL,0x2f);
+		hdmi_writel(hdmi_dev, PHY_SYS_CTL,0x2f);
 #endif
 		break;
 	default:
@@ -211,6 +211,12 @@ int rk616_hdmi_detect_hotplug(struct hdmi *hdmi_drv)
 	else
 		return HDMI_HPD_REMOVED;
 }
+int rk616_hdmi_insert(struct hdmi *hdmi_drv)
+{
+	rk616_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
+	return 0;
+}
+
 
 int rk616_hdmi_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 {
@@ -225,7 +231,6 @@ int rk616_hdmi_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
 						       struct rk_hdmi_device,
 						       driver);
-
 	if (block % 2)
 		offset = HDMI_EDID_BLOCK_SIZE;
 
@@ -659,7 +664,7 @@ static void rk616_hdmi_reset(struct hdmi *hdmi_drv)
 #ifdef SOC_CONFIG_RK3036
 	hdmi_readl(hdmi_dev, HDMI_STATUS,&val);//enable hpg
 	val |= m_MASK_INT_HOTPLUG;
-	//hdmi_writel(hdmi_dev, HDMI_STATUS,val);
+	//hdmi_writel(hdmi_dev, HDMI_STATUS,val);//do this will lead to clear hpd irq
 #else
 	hdmi_writel(hdmi_dev, INTERRUPT_MASK1, m_INT_HOTPLUG);	
 #endif
@@ -684,6 +689,7 @@ int rk616_hdmi_initial(struct hdmi *hdmi_drv)
 	hdmi_drv->config_audio = rk616_hdmi_config_audio;
 	hdmi_drv->detect_hotplug = rk616_hdmi_detect_hotplug;
 	hdmi_drv->read_edid = rk616_hdmi_read_edid;
+	hdmi_drv->insert    = rk616_hdmi_insert;
 
 #if defined(CONFIG_ARCH_RK3026)
 	rk3028_hdmi_reset_pclk();
