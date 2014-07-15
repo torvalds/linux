@@ -576,12 +576,14 @@ ULONG PhsDeleteClassifierRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT1
 		return ERR_SF_MATCH_FAIL;
 	}
 
-	nClsidIndex = GetClassifierEntry(pstServiceFlowEntry->pstClassifierTable,
-					 uiClsId,
-					 eActiveClassifierRuleContext,
-					 &pstClassifierEntry);
+	nClsidIndex =
+		GetClassifierEntry(pstServiceFlowEntry->pstClassifierTable,
+				   uiClsId,
+				   eActiveClassifierRuleContext,
+				   &pstClassifierEntry);
 
-	if ((nClsidIndex != PHS_INVALID_TABLE_INDEX) && (!pstClassifierEntry->bUnclassifiedPHSRule)) {
+	if ((nClsidIndex != PHS_INVALID_TABLE_INDEX) &&
+			(!pstClassifierEntry->bUnclassifiedPHSRule)) {
 		if (pstClassifierEntry->pstPhsRule) {
 			if (pstClassifierEntry->pstPhsRule->u8RefCnt)
 				pstClassifierEntry->pstPhsRule->u8RefCnt--;
@@ -593,12 +595,14 @@ ULONG PhsDeleteClassifierRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT1
 		       sizeof(struct bcm_phs_classifier_entry));
 	}
 
-	nClsidIndex = GetClassifierEntry(pstServiceFlowEntry->pstClassifierTable,
-					 uiClsId,
-					 eOldClassifierRuleContext,
-					 &pstClassifierEntry);
+	nClsidIndex =
+		GetClassifierEntry(pstServiceFlowEntry->pstClassifierTable,
+				   uiClsId,
+				   eOldClassifierRuleContext,
+				   &pstClassifierEntry);
 
-	if ((nClsidIndex != PHS_INVALID_TABLE_INDEX) && (!pstClassifierEntry->bUnclassifiedPHSRule)) {
+	if ((nClsidIndex != PHS_INVALID_TABLE_INDEX) &&
+			(!pstClassifierEntry->bUnclassifiedPHSRule)) {
 		kfree(pstClassifierEntry->pstPhsRule);
 		memset(pstClassifierEntry, 0,
 		       sizeof(struct bcm_phs_classifier_entry));
