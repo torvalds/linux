@@ -1519,6 +1519,9 @@ struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
 
 	dev_info(&s->i2c->dev, "%s: Realtek RTL2832 SDR attached\n",
 			KBUILD_MODNAME);
+	dev_notice(&s->udev->dev,
+			"%s: SDR API is still slightly experimental and functionality changes may follow\n",
+			KBUILD_MODNAME);
 	return fe;
 
 err_unregister_v4l2_dev:
