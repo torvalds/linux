@@ -161,10 +161,23 @@ struct kfd_dev {
 	unsigned int gtt_sa_chunk_size;
 	unsigned int gtt_sa_num_of_chunks;
 
+	/* Interrupts */
+	void *interrupt_ring;
+	size_t interrupt_ring_size;
+	atomic_t interrupt_ring_rptr;
+	atomic_t interrupt_ring_wptr;
+	struct work_struct interrupt_work;
+	spinlock_t interrupt_lock;
+
 	/* QCM Device instance */
 	struct device_queue_manager *dqm;
 
 	bool init_complete;
+	/*
+	 * Interrupts of interest to KFD are copied
+	 * from the HW ring into a SW ring.
+	 */
+	bool interrupts_active;
 };
 
 /* KGD2KFD callbacks */
@@ -555,7 +568,11 @@ struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev);
 struct kfd_dev *kfd_topology_enum_kfd_devices(uint8_t idx);
 
 /* Interrupts */
+int kfd_interrupt_init(struct kfd_dev *dev);
+void kfd_interrupt_exit(struct kfd_dev *dev);
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
+bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry);
+bool interrupt_is_wanted(struct kfd_dev *dev, const uint32_t *ih_ring_entry);
 
 /* Power Management */
 void kgd2kfd_suspend(struct kfd_dev *kfd);
