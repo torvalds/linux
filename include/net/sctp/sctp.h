@@ -109,6 +109,7 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 		    struct sctp_association *asoc);
 extern struct percpu_counter sctp_sockets_allocated;
 int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
+struct sk_buff *sctp_skb_recv_datagram(struct sock *, int, int, int *);
 
 /*
  * sctp/primitive.c

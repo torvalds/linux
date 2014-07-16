@@ -207,7 +207,9 @@ struct sctp_sock {
 	struct sctp_paddrparams paddrparam;
 	struct sctp_event_subscribe subscribe;
 	struct sctp_assocparams assocparams;
+
 	int user_frag;
+
 	__u32 autoclose;
 	__u8 nodelay;
 	__u8 disable_fragments;
@@ -215,6 +217,8 @@ struct sctp_sock {
 	__u8 frag_interleave;
 	__u32 adaptation_ind;
 	__u32 pd_point;
+	__u8 recvrcvinfo;
+	__u8 recvnxtinfo;
 
 	atomic_t pd_mode;
 	/* Receive to here while partial delivery is in effect. */
@@ -1919,7 +1923,8 @@ struct sctp_chunk *sctp_get_ecne_prepend(struct sctp_association *asoc);
 /* A convenience structure to parse out SCTP specific CMSGs. */
 typedef struct sctp_cmsgs {
 	struct sctp_initmsg *init;
-	struct sctp_sndrcvinfo *info;
+	struct sctp_sndrcvinfo *srinfo;
+	struct sctp_sndinfo *sinfo;
 } sctp_cmsgs_t;
 
 /* Structure for tracking memory objects */
