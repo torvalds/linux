@@ -526,7 +526,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
  * Return Value: none
  *
  */
-void BBvSetShortSlotTime(struct vnt_private *priv)
+void vnt_set_short_slot_time(struct vnt_private *priv)
 {
 	u8 bb_vga = 0;
 

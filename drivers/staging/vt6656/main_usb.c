@@ -441,7 +441,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 	else
 		pDevice->bShortSlotTime = false;
 
-	BBvSetShortSlotTime(pDevice);
+	vnt_set_short_slot_time(pDevice);
 
 	pDevice->byRadioCtl = pDevice->abyEEPROM[EEP_OFS_RADIOCTL];
 	pDevice->bHWRadioOff = false;
@@ -880,7 +880,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			priv->bShortSlotTime = false;
 
-		BBvSetShortSlotTime(priv);
+		vnt_set_short_slot_time(priv);
 		BBvSetVGAGainOffset(priv, priv->abyBBVGA[0]);
 		BBvUpdatePreEDThreshold(priv, false);
 	}
