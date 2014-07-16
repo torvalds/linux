@@ -165,20 +165,16 @@ static const unsigned ni_m_series_max_pfi_channel = 15;
 static inline unsigned NI_M_Series_PFI_Clock(unsigned n)
 {
 	BUG_ON(n > ni_m_series_max_pfi_channel);
-	if (n < 10)
-		return 1 + n;
-	else
-		return 0xb + n;
+
+	return (n < 10) ? (1 + n) : (0xb + n);
 }
 
 static const unsigned ni_m_series_max_rtsi_channel = 7;
 static inline unsigned NI_M_Series_RTSI_Clock(unsigned n)
 {
 	BUG_ON(n > ni_m_series_max_rtsi_channel);
-	if (n == 7)
-		return 0x1b;
-	else
-		return 0xb + n;
+
+	return (n == 7) ? 0x1b : (0xb + n);
 }
 
 enum ni_660x_gate_select {
@@ -1408,12 +1404,12 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		    Gi_Gating_Disabled_Bits) {
 			*gate_source = NI_GPCT_DISABLED_GATE_SELECT;
 			return 0;
-		} else {
-			gate_select_bits =
-			    (ni_tio_get_soft_copy(counter,
-						  NITIO_INPUT_SEL_REG(cidx)) &
-			     Gi_Gate_Select_Mask) >> Gi_Gate_Select_Shift;
 		}
+
+		gate_select_bits =
+		    (ni_tio_get_soft_copy(counter, NITIO_INPUT_SEL_REG(cidx)) &
+			Gi_Gate_Select_Mask) >> Gi_Gate_Select_Shift;
+
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
@@ -1442,12 +1438,11 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		    == 0) {
 			*gate_source = NI_GPCT_DISABLED_GATE_SELECT;
 			return 0;
-		} else {
-			gate_select_bits =
-			    (counter_dev->regs[second_gate_reg] &
-			     Gi_Second_Gate_Select_Mask) >>
-			    Gi_Second_Gate_Select_Shift;
 		}
+
+		gate_select_bits = (counter_dev->regs[second_gate_reg] &
+				Gi_Second_Gate_Select_Mask) >>
+				Gi_Second_Gate_Select_Shift;
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
@@ -1570,10 +1565,9 @@ static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 	const unsigned bits =
 		read_register(counter, NITIO_SHARED_STATUS_REG(cidx));
 
-	if (bits & Gi_Next_Load_Source_Bit(cidx))
-		return NITIO_LOADB_REG(cidx);
-	else
-		return NITIO_LOADA_REG(cidx);
+	return (bits & Gi_Next_Load_Source_Bit(cidx))
+			? NITIO_LOADB_REG(cidx)
+			: NITIO_LOADA_REG(cidx);
 }
 
 int ni_tio_insn_write(struct comedi_device *dev,
