@@ -562,12 +562,12 @@ static void _nbu2ss_dma_unmap_single(
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 OUT Transfer (PIO) */
-static int EP0_out_PIO(struct nbu2ss_udc *udc, u8* pBuf, u32 length)
+static int EP0_out_PIO(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 {
 	u32		i;
 	int		nret   = 0;
 	u32		iWordLength = 0;
-	USB_REG_ACCESS* pBuf32 = (USB_REG_ACCESS *)pBuf;
+	USB_REG_ACCESS *pBuf32 = (USB_REG_ACCESS *)pBuf;
 
 	/*------------------------------------------------------------*/
 	/* Read Length */
@@ -588,12 +588,12 @@ static int EP0_out_PIO(struct nbu2ss_udc *udc, u8* pBuf, u32 length)
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 OUT Transfer (PIO, OverBytes) */
-static int EP0_out_OverBytes(struct nbu2ss_udc *udc, u8* pBuf, u32 length)
+static int EP0_out_OverBytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 {
 	u32		i;
 	u32		iReadSize = 0;
 	USB_REG_ACCESS  Temp32;
-	USB_REG_ACCESS* pBuf32 = (USB_REG_ACCESS *)pBuf;
+	USB_REG_ACCESS *pBuf32 = (USB_REG_ACCESS *)pBuf;
 
 	if ((0 < length) && (length < sizeof(u32))) {
 		Temp32.dw = _nbu2ss_readl(&udc->p_regs->EP0_READ);
@@ -613,7 +613,7 @@ static int EP0_in_PIO(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 	u32		iMaxLength   = EP0_PACKETSIZE;
 	u32		iWordLength  = 0;
 	u32		iWriteLength = 0;
-	USB_REG_ACCESS*	pBuf32 = (USB_REG_ACCESS *)pBuf;
+	USB_REG_ACCESS *pBuf32 = (USB_REG_ACCESS *)pBuf;
 
 	/*------------------------------------------------------------*/
 	/* Transfer Length */
@@ -639,7 +639,7 @@ static int EP0_in_OverBytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 iRemainSize)
 {
 	u32		i;
 	USB_REG_ACCESS Temp32;
-	USB_REG_ACCESS* pBuf32 = (USB_REG_ACCESS *)pBuf;
+	USB_REG_ACCESS *pBuf32 = (USB_REG_ACCESS *)pBuf;
 
 	if ((0 < iRemainSize) && (iRemainSize < sizeof(u32))) {
 		for (i = 0 ; i < iRemainSize ; i++)
@@ -3339,7 +3339,7 @@ static int __init nbu2ss_drv_contest_init(
 	udc->gadget.ep0 = &udc->ep[0].ep;
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 	udc->gadget.name = driver_name;
-	//udc->gadget.is_dualspeed = 1;
+	/* udc->gadget.is_dualspeed = 1; */
 
 	device_initialize(&udc->gadget.dev);
 
