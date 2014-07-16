@@ -183,8 +183,9 @@ gss_cred_get_ctx(struct rpc_cred *cred)
 	struct gss_cl_ctx *ctx = NULL;
 
 	rcu_read_lock();
-	if (gss_cred->gc_ctx)
-		ctx = gss_get_ctx(gss_cred->gc_ctx);
+	ctx = rcu_dereference(gss_cred->gc_ctx);
+	if (ctx)
+		gss_get_ctx(ctx);
 	rcu_read_unlock();
 	return ctx;
 }
@@ -1207,13 +1208,13 @@ gss_destroying_context(struct rpc_cred *cred)
 {
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
 	struct gss_auth *gss_auth = container_of(cred->cr_auth, struct gss_auth, rpc_auth);
+	struct gss_cl_ctx *ctx = rcu_dereference_protected(gss_cred->gc_ctx, 1);
 	struct rpc_task *task;
 
-	if (gss_cred->gc_ctx == NULL ||
-	    test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0)
+	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0)
 		return 0;
 
-	gss_cred->gc_ctx->gc_proc = RPC_GSS_PROC_DESTROY;
+	ctx->gc_proc = RPC_GSS_PROC_DESTROY;
 	cred->cr_ops = &gss_nullops;
 
 	/* Take a reference to ensure the cred will be destroyed either
@@ -1274,7 +1275,7 @@ gss_destroy_nullcred(struct rpc_cred *cred)
 {
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
 	struct gss_auth *gss_auth = container_of(cred->cr_auth, struct gss_auth, rpc_auth);
-	struct gss_cl_ctx *ctx = gss_cred->gc_ctx;
+	struct gss_cl_ctx *ctx = rcu_dereference_protected(gss_cred->gc_ctx, 1);
 
 	RCU_INIT_POINTER(gss_cred->gc_ctx, NULL);
 	call_rcu(&cred->cr_rcu, gss_free_cred_callback);
@@ -1349,20 +1350,30 @@ gss_cred_init(struct rpc_auth *auth, struct rpc_cred *cred)
 static char *
 gss_stringify_acceptor(struct rpc_cred *cred)
 {
-	char *string;
+	char *string = NULL;
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
-	struct xdr_netobj *acceptor = &gss_cred->gc_ctx->gc_acceptor;
+	struct gss_cl_ctx *ctx;
+	struct xdr_netobj *acceptor;
+
+	rcu_read_lock();
+	ctx = rcu_dereference(gss_cred->gc_ctx);
+	if (!ctx)
+		goto out;
+
+	acceptor = &ctx->gc_acceptor;
 
 	/* no point if there's no string */
 	if (!acceptor->len)
-		return NULL;
+		goto out;
 
 	string = kmalloc(acceptor->len + 1, GFP_KERNEL);
 	if (!string)
-		return string;
+		goto out;
 
 	memcpy(string, acceptor->data, acceptor->len);
 	string[acceptor->len] = '\0';
+out:
+	rcu_read_unlock();
 	return string;
 }
 
@@ -1374,15 +1385,16 @@ static int
 gss_key_timeout(struct rpc_cred *rc)
 {
 	struct gss_cred *gss_cred = container_of(rc, struct gss_cred, gc_base);
+	struct gss_cl_ctx *ctx;
 	unsigned long now = jiffies;
 	unsigned long expire;
 
-	if (gss_cred->gc_ctx == NULL)
-		return -EACCES;
-
-	expire = gss_cred->gc_ctx->gc_expiry - (gss_key_expire_timeo * HZ);
-
-	if (time_after(now, expire))
+	rcu_read_lock();
+	ctx = rcu_dereference(gss_cred->gc_ctx);
+	if (ctx)
+		expire = ctx->gc_expiry - (gss_key_expire_timeo * HZ);
+	rcu_read_unlock();
+	if (!ctx || time_after(now, expire))
 		return -EACCES;
 	return 0;
 }
@@ -1391,13 +1403,19 @@ static int
 gss_match(struct auth_cred *acred, struct rpc_cred *rc, int flags)
 {
 	struct gss_cred *gss_cred = container_of(rc, struct gss_cred, gc_base);
+	struct gss_cl_ctx *ctx;
 	int ret;
 
 	if (test_bit(RPCAUTH_CRED_NEW, &rc->cr_flags))
 		goto out;
 	/* Don't match with creds that have expired. */
-	if (time_after(jiffies, gss_cred->gc_ctx->gc_expiry))
+	rcu_read_lock();
+	ctx = rcu_dereference(gss_cred->gc_ctx);
+	if (!ctx || time_after(jiffies, ctx->gc_expiry)) {
+		rcu_read_unlock();
 		return 0;
+	}
+	rcu_read_unlock();
 	if (!test_bit(RPCAUTH_CRED_UPTODATE, &rc->cr_flags))
 		return 0;
 out:
