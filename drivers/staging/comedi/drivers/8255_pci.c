@@ -201,9 +201,8 @@ static int pci_8255_mmio(int dir, int port, int data, unsigned long iobase)
 	if (dir) {
 		writeb(data, mmio_base + port);
 		return 0;
-	} else {
-		return readb(mmio_base  + port);
 	}
+	return readb(mmio_base  + port);
 }
 
 static int pci_8255_auto_attach(struct comedi_device *dev,
