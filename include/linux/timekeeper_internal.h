@@ -71,16 +71,6 @@ struct timekeeper {
 
 };
 
-static inline struct timespec64 tk_xtime(struct timekeeper *tk)
-{
-	struct timespec64 ts;
-
-	ts.tv_sec = tk->xtime_sec;
-	ts.tv_nsec = (long)(tk->xtime_nsec >> tk->shift);
-	return ts;
-}
-
-
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL
 
 extern void update_vsyscall(struct timekeeper *tk);
@@ -91,14 +81,6 @@ extern void update_vsyscall_tz(void);
 extern void update_vsyscall_old(struct timespec *ts, struct timespec *wtm,
 				struct clocksource *c, u32 mult);
 extern void update_vsyscall_tz(void);
-
-static inline void update_vsyscall(struct timekeeper *tk)
-{
-	struct timespec xt;
-
-	xt = tk_xtime(tk);
-	update_vsyscall_old(&xt, &tk->wall_to_monotonic, tk->clock, tk->mult);
-}
 
 #else
 
