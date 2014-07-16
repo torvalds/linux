@@ -45,6 +45,11 @@ static const struct kgd2kfd_calls kgd2kfd = {
 	.resume		= kgd2kfd_resume,
 };
 
+int sched_policy = KFD_SCHED_POLICY_HWS;
+module_param(sched_policy, int, 0444);
+MODULE_PARM_DESC(sched_policy,
+	"Kernel cmdline parameter that defines the amdkfd scheduling policy");
+
 int max_num_of_processes = KFD_MAX_NUM_OF_PROCESSES_DEFAULT;
 module_param(max_num_of_processes, int, 0444);
 MODULE_PARM_DESC(max_num_of_processes,
@@ -86,6 +91,13 @@ static int __init kfd_module_init(void)
 	int err;
 
 	kfd2kgd = NULL;
+
+	/* Verify module parameters */
+	if ((sched_policy < KFD_SCHED_POLICY_HWS) ||
+		(sched_policy > KFD_SCHED_POLICY_NO_HWS)) {
+		pr_err("kfd: sched_policy has invalid value\n");
+		return -1;
+	}
 
 	/* Verify module parameters */
 	if ((max_num_of_processes < 0) ||

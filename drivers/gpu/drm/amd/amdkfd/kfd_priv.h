@@ -69,6 +69,36 @@ extern int max_num_of_queues_per_process;
 
 #define KFD_KERNEL_QUEUE_SIZE 2048
 
+/* Kernel module parameter to specify the scheduling policy */
+extern int sched_policy;
+
+/**
+ * enum kfd_sched_policy
+ *
+ * @KFD_SCHED_POLICY_HWS: H/W scheduling policy known as command processor (cp)
+ * scheduling. In this scheduling mode we're using the firmware code to
+ * schedule the user mode queues and kernel queues such as HIQ and DIQ.
+ * the HIQ queue is used as a special queue that dispatches the configuration
+ * to the cp and the user mode queues list that are currently running.
+ * the DIQ queue is a debugging queue that dispatches debugging commands to the
+ * firmware.
+ * in this scheduling mode user mode queues over subscription feature is
+ * enabled.
+ *
+ * @KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION: The same as above but the over
+ * subscription feature disabled.
+ *
+ * @KFD_SCHED_POLICY_NO_HWS: no H/W scheduling policy is a mode which directly
+ * set the command processor registers and sets the queues "manually". This
+ * mode is used *ONLY* for debugging proposes.
+ *
+ */
+enum kfd_sched_policy {
+	KFD_SCHED_POLICY_HWS = 0,
+	KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION,
+	KFD_SCHED_POLICY_NO_HWS
+};
+
 enum cache_policy {
 	cache_policy_coherent,
 	cache_policy_noncoherent
