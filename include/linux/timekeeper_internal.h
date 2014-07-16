@@ -20,8 +20,8 @@
  * the tv_nsec part positive so we can use the usual normalization.
  *
  * wall_to_monotonic is moved after resume from suspend for the
- * monotonic time not to jump. We need to add total_sleep_time to
- * wall_to_monotonic to get the real boot based time offset.
+ * monotonic time not to jump. To calculate the real boot time offset
+ * we need to do offs_real - offs_boot.
  *
  * - wall_to_monotonic is no longer the boot time, getboottime must be
  * used instead.
@@ -51,8 +51,6 @@ struct timekeeper {
 	/* Offset clock monotonic -> clock tai */
 	ktime_t			offs_tai;
 
-	/* time spent in suspend */
-	struct timespec64	total_sleep_time;
 	/* The current UTC to TAI offset in seconds */
 	s32			tai_offset;
 

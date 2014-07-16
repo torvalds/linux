@@ -97,13 +97,9 @@ static void tk_set_wall_to_mono(struct timekeeper *tk, struct timespec64 wtm)
 	tk->offs_tai = ktime_add(tk->offs_real, ktime_set(tk->tai_offset, 0));
 }
 
-static void tk_set_sleep_time(struct timekeeper *tk, struct timespec64 t)
+static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
 {
-	/* Verify consistency before modifying */
-	WARN_ON_ONCE(tk->offs_boot.tv64 != timespec64_to_ktime(tk->total_sleep_time).tv64);
-
-	tk->total_sleep_time	= t;
-	tk->offs_boot		= timespec64_to_ktime(t);
+	tk->offs_boot = ktime_add(tk->offs_boot, delta);
 }
 
 /**
@@ -919,10 +915,6 @@ void __init timekeeping_init(void)
 	set_normalized_timespec64(&tmp, -boot.tv_sec, -boot.tv_nsec);
 	tk_set_wall_to_mono(tk, tmp);
 
-	tmp.tv_sec = 0;
-	tmp.tv_nsec = 0;
-	tk_set_sleep_time(tk, tmp);
-
 	timekeeping_update(tk, TK_MIRROR);
 
 	write_seqcount_end(&tk_core.seq);
@@ -950,7 +942,7 @@ static void __timekeeping_inject_sleeptime(struct timekeeper *tk,
 	}
 	tk_xtime_add(tk, delta);
 	tk_set_wall_to_mono(tk, timespec64_sub(tk->wall_to_monotonic, *delta));
-	tk_set_sleep_time(tk, timespec64_add(tk->total_sleep_time, *delta));
+	tk_update_sleep_time(tk, timespec64_to_ktime(*delta));
 	tk_debug_account_sleep_time(delta);
 }
 
