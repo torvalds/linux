@@ -2129,18 +2129,17 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 	}
 
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags)) {
-		if (hci_bdaddr_list_lookup(&hdev->blacklist, &ev->bdaddr,
-					   BDADDR_BREDR)) {
-			hci_reject_conn(hdev, &ev->bdaddr);
-			return;
-		}
-	} else {
-		if (!hci_bdaddr_list_lookup(&hdev->whitelist, &ev->bdaddr,
-					    BDADDR_BREDR)) {
-			hci_reject_conn(hdev, &ev->bdaddr);
-			return;
-		}
+	if (hci_bdaddr_list_lookup(&hdev->blacklist, &ev->bdaddr,
+				   BDADDR_BREDR)) {
+		hci_reject_conn(hdev, &ev->bdaddr);
+		return;
+	}
+
+	if (!test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
+	    !hci_bdaddr_list_lookup(&hdev->whitelist, &ev->bdaddr,
+				    BDADDR_BREDR)) {
+		    hci_reject_conn(hdev, &ev->bdaddr);
+		    return;
 	}
 
 	/* Connection accepted */
