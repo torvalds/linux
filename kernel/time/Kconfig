@@ -20,10 +20,6 @@ config GENERIC_TIME_VSYSCALL
 config GENERIC_TIME_VSYSCALL_OLD
 	bool
 
-# ktime_t scalar 64bit nsec representation
-config KTIME_SCALAR
-	bool
-
 # Old style timekeeping
 config ARCH_USES_GETTIMEOFFSET
 	bool

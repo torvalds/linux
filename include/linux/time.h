@@ -19,6 +19,10 @@ extern struct timezone sys_tz;
 
 #define TIME_T_MAX	(time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
 
+/* Located here for timespec_valid_strict */
+#define KTIME_MAX			((s64)~((u64)1 << 63))
+#define KTIME_SEC_MAX			(KTIME_MAX / NSEC_PER_SEC)
+
 static inline int timespec_equal(const struct timespec *a,
                                  const struct timespec *b)
 {
@@ -83,13 +87,6 @@ static inline struct timespec timespec_sub(struct timespec lhs,
 				lhs.tv_nsec - rhs.tv_nsec);
 	return ts_delta;
 }
-
-#define KTIME_MAX			((s64)~((u64)1 << 63))
-#if (BITS_PER_LONG == 64)
-# define KTIME_SEC_MAX			(KTIME_MAX / NSEC_PER_SEC)
-#else
-# define KTIME_SEC_MAX			LONG_MAX
-#endif
 
 /*
  * Returns true if the timespec is norm, false if denorm:

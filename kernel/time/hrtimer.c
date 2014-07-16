@@ -261,60 +261,6 @@ lock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
  * too large for inlining:
  */
 #if BITS_PER_LONG < 64
-# ifndef CONFIG_KTIME_SCALAR
-/**
- * ktime_add_ns - Add a scalar nanoseconds value to a ktime_t variable
- * @kt:		addend
- * @nsec:	the scalar nsec value to add
- *
- * Returns the sum of kt and nsec in ktime_t format
- */
-ktime_t ktime_add_ns(const ktime_t kt, u64 nsec)
-{
-	ktime_t tmp;
-
-	if (likely(nsec < NSEC_PER_SEC)) {
-		tmp.tv64 = nsec;
-	} else {
-		unsigned long rem = do_div(nsec, NSEC_PER_SEC);
-
-		/* Make sure nsec fits into long */
-		if (unlikely(nsec > KTIME_SEC_MAX))
-			return (ktime_t){ .tv64 = KTIME_MAX };
-
-		tmp = ktime_set((long)nsec, rem);
-	}
-
-	return ktime_add(kt, tmp);
-}
-
-EXPORT_SYMBOL_GPL(ktime_add_ns);
-
-/**
- * ktime_sub_ns - Subtract a scalar nanoseconds value from a ktime_t variable
- * @kt:		minuend
- * @nsec:	the scalar nsec value to subtract
- *
- * Returns the subtraction of @nsec from @kt in ktime_t format
- */
-ktime_t ktime_sub_ns(const ktime_t kt, u64 nsec)
-{
-	ktime_t tmp;
-
-	if (likely(nsec < NSEC_PER_SEC)) {
-		tmp.tv64 = nsec;
-	} else {
-		unsigned long rem = do_div(nsec, NSEC_PER_SEC);
-
-		tmp = ktime_set((long)nsec, rem);
-	}
-
-	return ktime_sub(kt, tmp);
-}
-
-EXPORT_SYMBOL_GPL(ktime_sub_ns);
-# endif /* !CONFIG_KTIME_SCALAR */
-
 /*
  * Divide a ktime value by a nanosecond value
  */
