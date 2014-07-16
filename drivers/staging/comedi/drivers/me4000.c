@@ -170,7 +170,6 @@ broken.
 
 #define ME4000_AI_MIN_TICKS			66
 #define ME4000_AI_MIN_SAMPLE_TIME		2000
-#define ME4000_AI_BASE_FREQUENCY		(unsigned int) 33E6
 
 #define ME4000_AI_CHANNEL_LIST_COUNT		1024
 
