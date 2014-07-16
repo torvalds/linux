@@ -347,15 +347,6 @@ static int synaptics_resolution(struct psmouse *psmouse)
 	unsigned char resp[3];
 	int i;
 
-	for (i = 0; min_max_pnpid_table[i].pnp_ids; i++)
-		if (matches_pnp_id(psmouse, min_max_pnpid_table[i].pnp_ids)) {
-			priv->x_min = min_max_pnpid_table[i].x_min;
-			priv->x_max = min_max_pnpid_table[i].x_max;
-			priv->y_min = min_max_pnpid_table[i].y_min;
-			priv->y_max = min_max_pnpid_table[i].y_max;
-			return 0;
-		}
-
 	if (SYN_ID_MAJOR(priv->identity) < 4)
 		return 0;
 
@@ -363,6 +354,16 @@ static int synaptics_resolution(struct psmouse *psmouse)
 		if (resp[0] != 0 && (resp[1] & 0x80) && resp[2] != 0) {
 			priv->x_res = resp[0]; /* x resolution in units/mm */
 			priv->y_res = resp[2]; /* y resolution in units/mm */
+		}
+	}
+
+	for (i = 0; min_max_pnpid_table[i].pnp_ids; i++) {
+		if (matches_pnp_id(psmouse, min_max_pnpid_table[i].pnp_ids)) {
+			priv->x_min = min_max_pnpid_table[i].x_min;
+			priv->x_max = min_max_pnpid_table[i].x_max;
+			priv->y_min = min_max_pnpid_table[i].y_min;
+			priv->y_max = min_max_pnpid_table[i].y_max;
+			return 0;
 		}
 	}
 

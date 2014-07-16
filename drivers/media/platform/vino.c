@@ -2586,7 +2586,7 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 			}
 			if (data_norm == 3)
 				data_norm = VINO_DATA_NORM_PAL;
-			ret = decoder_call(core, s_std, norm);
+			ret = decoder_call(video, s_std, norm);
 		}
 
 		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
@@ -2675,7 +2675,7 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 				}
 				if (data_norm == 3)
 					data_norm = VINO_DATA_NORM_PAL;
-				ret = decoder_call(core, s_std, norm);
+				ret = decoder_call(video, s_std, norm);
 			}
 
 			spin_lock_irqsave(&vino_drvdata->input_lock, flags);
@@ -2809,7 +2809,7 @@ static int vino_set_data_norm(struct vino_channel_settings *vcs,
 		 * as it may take a while... */
 
 		norm = vino_data_norms[data_norm].std;
-		err = decoder_call(core, s_std, norm);
+		err = decoder_call(video, s_std, norm);
 
 		spin_lock_irqsave(&vino_drvdata->input_lock, *flags);
 

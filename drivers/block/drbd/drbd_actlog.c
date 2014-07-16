@@ -29,7 +29,6 @@
 #include <linux/drbd_limits.h>
 #include <linux/dynamic_debug.h>
 #include "drbd_int.h"
-#include "drbd_wrappers.h"
 
 
 enum al_transaction_types {
@@ -204,7 +203,7 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
 
 	BUG_ON(!bdev->md_bdev);
 
-	drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
+	dynamic_drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
 	     current->comm, current->pid, __func__,
 	     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ",
 	     (void*)_RET_IP_ );
@@ -276,7 +275,6 @@ bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval 
 	return _al_get(device, first, true);
 }
 
-static
 bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i)
 {
 	/* for bios crossing activity log extent boundaries,
@@ -846,7 +844,7 @@ void __drbd_set_in_sync(struct drbd_device *device, sector_t sector, int size,
 	int wake_up = 0;
 	unsigned long flags;
 
-	if (size <= 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_BIO_SIZE) {
+	if (size <= 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_DISCARD_SIZE) {
 		drbd_err(device, "drbd_set_in_sync: sector=%llus size=%d nonsense!\n",
 				(unsigned long long)sector, size);
 		return;
@@ -920,7 +918,7 @@ int __drbd_set_out_of_sync(struct drbd_device *device, sector_t sector, int size
 	if (size == 0)
 		return 0;
 
-	if (size < 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_BIO_SIZE) {
+	if (size < 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_DISCARD_SIZE) {
 		drbd_err(device, "sector: %llus, size: %d\n",
 			(unsigned long long)sector, size);
 		return 0;
@@ -1023,8 +1021,7 @@ int drbd_rs_begin_io(struct drbd_device *device, sector_t sector)
 	unsigned int enr = BM_SECT_TO_EXT(sector);
 	struct bm_extent *bm_ext;
 	int i, sig;
-	int sa = 200; /* Step aside 200 times, then grab the extent and let app-IO wait.
-			 200 times -> 20 seconds. */
+	bool sa;
 
 retry:
 	sig = wait_event_interruptible(device->al_wait,
@@ -1035,12 +1032,15 @@ retry:
 	if (test_bit(BME_LOCKED, &bm_ext->flags))
 		return 0;
 
+	/* step aside only while we are above c-min-rate; unless disabled. */
+	sa = drbd_rs_c_min_rate_throttle(device);
+
 	for (i = 0; i < AL_EXT_PER_BM_SECT; i++) {
 		sig = wait_event_interruptible(device->al_wait,
 					       !_is_in_al(device, enr * AL_EXT_PER_BM_SECT + i) ||
-					       test_bit(BME_PRIORITY, &bm_ext->flags));
+					       (sa && test_bit(BME_PRIORITY, &bm_ext->flags)));
 
-		if (sig || (test_bit(BME_PRIORITY, &bm_ext->flags) && sa)) {
+		if (sig || (sa && test_bit(BME_PRIORITY, &bm_ext->flags))) {
 			spin_lock_irq(&device->al_lock);
 			if (lc_put(device->resync, &bm_ext->lce) == 0) {
 				bm_ext->flags = 0; /* clears BME_NO_WRITES and eventually BME_PRIORITY */
@@ -1052,9 +1052,6 @@ retry:
 				return -EINTR;
 			if (schedule_timeout_interruptible(HZ/10))
 				return -EINTR;
-			if (sa && --sa == 0)
-				drbd_warn(device, "drbd_rs_begin_io() stepped aside for 20sec."
-					 "Resync stalled?\n");
 			goto retry;
 		}
 	}
@@ -1288,7 +1285,7 @@ void drbd_rs_failed_io(struct drbd_device *device, sector_t sector, int size)
 	sector_t esector, nr_sectors;
 	int wake_up = 0;
 
-	if (size <= 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_BIO_SIZE) {
+	if (size <= 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_DISCARD_SIZE) {
 		drbd_err(device, "drbd_rs_failed_io: sector=%llus size=%d nonsense!\n",
 				(unsigned long long)sector, size);
 		return;

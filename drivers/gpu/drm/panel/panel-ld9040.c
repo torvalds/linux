@@ -27,6 +27,7 @@
 #define MCS_ELVSS_ON		0xb1
 #define MCS_USER_SETTING	0xf0
 #define MCS_DISPCTL		0xf2
+#define MCS_POWER_CTRL		0xf4
 #define MCS_GTCON		0xf7
 #define MCS_PANEL_CONDITION	0xf8
 #define MCS_GAMMA_SET1		0xf9
@@ -182,6 +183,8 @@ static void ld9040_init(struct ld9040 *ctx)
 	ld9040_dcs_write_seq_static(ctx, MCS_DISPCTL,
 		0x02, 0x08, 0x08, 0x10, 0x10);
 	ld9040_dcs_write_seq_static(ctx, MCS_MANPWR, 0x04);
+	ld9040_dcs_write_seq_static(ctx, MCS_POWER_CTRL,
+		0x0a, 0x87, 0x25, 0x6a, 0x44, 0x02, 0x88);
 	ld9040_dcs_write_seq_static(ctx, MCS_ELVSS_ON, 0x0d, 0x00, 0x16);
 	ld9040_dcs_write_seq_static(ctx, MCS_GTCON, 0x09, 0x00, 0x00);
 	ld9040_brightness_set(ctx);

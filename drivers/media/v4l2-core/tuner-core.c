@@ -1301,7 +1301,6 @@ static int tuner_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 static const struct v4l2_subdev_core_ops tuner_core_ops = {
 	.log_status = tuner_log_status,
-	.s_std = tuner_s_std,
 	.s_power = tuner_s_power,
 };
 
@@ -1315,9 +1314,14 @@ static const struct v4l2_subdev_tuner_ops tuner_tuner_ops = {
 	.s_config = tuner_s_config,
 };
 
+static const struct v4l2_subdev_video_ops tuner_video_ops = {
+	.s_std = tuner_s_std,
+};
+
 static const struct v4l2_subdev_ops tuner_ops = {
 	.core = &tuner_core_ops,
 	.tuner = &tuner_tuner_ops,
+	.video = &tuner_video_ops,
 };
 
 /*

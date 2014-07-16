@@ -134,7 +134,7 @@ static void eadm_subchannel_irq(struct subchannel *sch)
 {
 	struct eadm_private *private = get_eadm_private(sch);
 	struct eadm_scsw *scsw = &sch->schib.scsw.eadm;
-	struct irb *irb = (struct irb *)&S390_lowcore.irb;
+	struct irb *irb = &__get_cpu_var(cio_irb);
 	int error = 0;
 
 	EADM_LOG(6, "irq");

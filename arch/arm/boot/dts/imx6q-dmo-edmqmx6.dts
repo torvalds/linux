@@ -18,6 +18,10 @@
 	model = "Data Modul eDM-QMX6 Board";
 	compatible = "dmo,imx6q-edmqmx6", "fsl,imx6q";
 
+	chosen {
+		stdout-path = &uart2;
+	};
+
 	aliases {
 		gpio7 = &stmpe_gpio1;
 		gpio8 = &stmpe_gpio2;
@@ -91,6 +95,20 @@
 	};
 };
 
+&ecspi5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi5>;
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio1 12 0>;
+	status = "okay";
+
+	flash: m25p80@0 {
+		compatible = "m25p80";
+		spi-max-frequency = <40000000>;
+		reg = <0>;
+	};
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
@@ -105,7 +123,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2
 		     &pinctrl_stmpe1
-		     &pinctrl_stmpe2>;
+		     &pinctrl_stmpe2
+		     &pinctrl_pfuze>;
 	status = "okay";
 
 	pmic: pfuze100@08 {
@@ -216,6 +235,8 @@
 		reg = <0x40>;
 		interrupts = <30 0>;
 		interrupt-parent = <&gpio3>;
+		vcc-supply = <&sw2_reg>;
+		vio-supply = <&sw2_reg>;
 
 		stmpe_gpio1: stmpe_gpio {
 			#gpio-cells = <2>;
@@ -228,6 +249,8 @@
 		reg = <0x44>;
 		interrupts = <2 0>;
 		interrupt-parent = <&gpio5>;
+		vcc-supply = <&sw2_reg>;
+		vio-supply = <&sw2_reg>;
 
 		stmpe_gpio2: stmpe_gpio {
 			#gpio-cells = <2>;
@@ -263,6 +286,15 @@
 			>;
 		};
 
+		pinctrl_ecspi5: ecspi5rp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_DAT0__ECSPI5_MISO	0x80000000
+				MX6QDL_PAD_SD1_CMD__ECSPI5_MOSI		0x80000000
+				MX6QDL_PAD_SD1_CLK__ECSPI5_SCLK		0x80000000
+				MX6QDL_PAD_SD2_DAT3__GPIO1_IO12		0x80000000
+			>;
+		};
+
 		pinctrl_enet: enetgrp {
 			fsl,pins = <
 				MX6QDL_PAD_RGMII_RXC__RGMII_RXC		0x1b0b0
@@ -288,6 +320,12 @@
 			fsl,pins = <
 				MX6QDL_PAD_EIM_EB2__I2C2_SCL		0x4001b8b1
 				MX6QDL_PAD_KEY_ROW3__I2C2_SDA		0x4001b8b1
+			>;
+		};
+
+		pinctrl_pfuze: pfuze100grp1 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D20__GPIO3_IO20		0x80000000
 			>;
 		};
 

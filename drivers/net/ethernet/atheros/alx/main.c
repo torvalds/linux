@@ -1302,7 +1302,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	netdev->netdev_ops = &alx_netdev_ops;
-	SET_ETHTOOL_OPS(netdev, &alx_ethtool_ops);
+	netdev->ethtool_ops = &alx_ethtool_ops;
 	netdev->irq = pdev->irq;
 	netdev->watchdog_timeo = ALX_WATCHDOG_TIME;
 

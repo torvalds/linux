@@ -728,7 +728,7 @@ static int sahara_aes_cbc_decrypt(struct ablkcipher_request *req)
 
 static int sahara_aes_cra_init(struct crypto_tfm *tfm)
 {
-	const char *name = tfm->__crt_alg->cra_name;
+	const char *name = crypto_tfm_alg_name(tfm);
 	struct sahara_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	ctx->fallback = crypto_alloc_ablkcipher(name, 0,

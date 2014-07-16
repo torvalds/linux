@@ -95,12 +95,26 @@
 	};
 };
 
+&mac {
+	status = "okay";
+};
+
+&davinci_mdio {
+	status = "okay";
+};
+
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <0>;
+	phy-mode = "rmii";
 };
 
 &cpsw_emac1 {
 	phy_id = <&davinci_mdio>, <1>;
+	phy-mode = "rmii";
+};
+
+&phy_sel {
+	rmii-clock-ext;
 };
 
 &elm {
@@ -200,31 +214,31 @@
 
 &usb {
 	status = "okay";
+};
 
-	control@44e10620 {
-		status = "okay";
-	};
+&usb_ctrl_mod {
+	status = "okay";
+};
 
-	usb-phy@47401300 {
-		status = "okay";
-	};
+&usb0_phy {
+	status = "okay";
+};
 
-	usb-phy@47401b00 {
-		status = "okay";
-	};
+&usb1_phy {
+	status = "okay";
+};
 
-	usb@47401000 {
-		status = "okay";
-	};
+&usb0 {
+	status = "okay";
+};
 
-	usb@47401800 {
-		status = "okay";
-		dr_mode = "host";
-	};
+&usb1 {
+	status = "okay";
+	dr_mode = "host";
+};
 
-	dma-controller@47402000  {
-		status = "okay";
-	};
+&cppi41dma  {
+	status = "okay";
 };
 
 #include "tps65910.dtsi"

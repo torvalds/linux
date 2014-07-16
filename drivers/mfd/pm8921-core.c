@@ -26,7 +26,6 @@
 #include <linux/regmap.h>
 #include <linux/of_platform.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/pm8xxx/core.h>
 
 #define	SSBI_REG_ADDR_IRQ_BASE		0x1BB
 
@@ -57,7 +56,6 @@
 #define PM8921_NR_IRQS		256
 
 struct pm_irq_chip {
-	struct device		*dev;
 	struct regmap		*regmap;
 	spinlock_t		pm_irq_lock;
 	struct irq_domain	*irqdomain;
@@ -65,11 +63,6 @@ struct pm_irq_chip {
 	unsigned int		num_blocks;
 	unsigned int		num_masters;
 	u8			config[0];
-};
-
-struct pm8921 {
-	struct device			*dev;
-	struct pm_irq_chip		*irq_chip;
 };
 
 static int pm8xxx_read_block_irq(struct pm_irq_chip *chip, unsigned int bp,
@@ -255,55 +248,6 @@ static struct irq_chip pm8xxx_irq_chip = {
 	.flags		= IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE,
 };
 
-/**
- * pm8xxx_get_irq_stat - get the status of the irq line
- * @chip: pointer to identify a pmic irq controller
- * @irq: the irq number
- *
- * The pm8xxx gpio and mpp rely on the interrupt block to read
- * the values on their pins. This function is to facilitate reading
- * the status of a gpio or an mpp line. The caller has to convert the
- * gpio number to irq number.
- *
- * RETURNS:
- * an int indicating the value read on that line
- */
-static int pm8xxx_get_irq_stat(struct pm_irq_chip *chip, int irq)
-{
-	int pmirq, rc;
-	unsigned int  block, bits, bit;
-	unsigned long flags;
-	struct irq_data *irq_data = irq_get_irq_data(irq);
-
-	pmirq = irq_data->hwirq;
-
-	block = pmirq / 8;
-	bit = pmirq % 8;
-
-	spin_lock_irqsave(&chip->pm_irq_lock, flags);
-
-	rc = regmap_write(chip->regmap, SSBI_REG_ADDR_IRQ_BLK_SEL, block);
-	if (rc) {
-		pr_err("Failed Selecting block irq=%d pmirq=%d blk=%d rc=%d\n",
-			irq, pmirq, block, rc);
-		goto bail_out;
-	}
-
-	rc = regmap_read(chip->regmap, SSBI_REG_ADDR_IRQ_RT_STATUS, &bits);
-	if (rc) {
-		pr_err("Failed Configuring irq=%d pmirq=%d blk=%d rc=%d\n",
-			irq, pmirq, block, rc);
-		goto bail_out;
-	}
-
-	rc = (bits & (1 << bit)) ? 1 : 0;
-
-bail_out:
-	spin_unlock_irqrestore(&chip->pm_irq_lock, flags);
-
-	return rc;
-}
-
 static int pm8xxx_irq_domain_map(struct irq_domain *d, unsigned int irq,
 				   irq_hw_number_t hwirq)
 {
@@ -324,56 +268,6 @@ static const struct irq_domain_ops pm8xxx_irq_domain_ops = {
 	.map = pm8xxx_irq_domain_map,
 };
 
-static int pm8921_readb(const struct device *dev, u16 addr, u8 *val)
-{
-	const struct pm8xxx_drvdata *pm8921_drvdata = dev_get_drvdata(dev);
-	const struct pm8921 *pmic = pm8921_drvdata->pm_chip_data;
-
-	return ssbi_read(pmic->dev->parent, addr, val, 1);
-}
-
-static int pm8921_writeb(const struct device *dev, u16 addr, u8 val)
-{
-	const struct pm8xxx_drvdata *pm8921_drvdata = dev_get_drvdata(dev);
-	const struct pm8921 *pmic = pm8921_drvdata->pm_chip_data;
-
-	return ssbi_write(pmic->dev->parent, addr, &val, 1);
-}
-
-static int pm8921_read_buf(const struct device *dev, u16 addr, u8 *buf,
-									int cnt)
-{
-	const struct pm8xxx_drvdata *pm8921_drvdata = dev_get_drvdata(dev);
-	const struct pm8921 *pmic = pm8921_drvdata->pm_chip_data;
-
-	return ssbi_read(pmic->dev->parent, addr, buf, cnt);
-}
-
-static int pm8921_write_buf(const struct device *dev, u16 addr, u8 *buf,
-									int cnt)
-{
-	const struct pm8xxx_drvdata *pm8921_drvdata = dev_get_drvdata(dev);
-	const struct pm8921 *pmic = pm8921_drvdata->pm_chip_data;
-
-	return ssbi_write(pmic->dev->parent, addr, buf, cnt);
-}
-
-static int pm8921_read_irq_stat(const struct device *dev, int irq)
-{
-	const struct pm8xxx_drvdata *pm8921_drvdata = dev_get_drvdata(dev);
-	const struct pm8921 *pmic = pm8921_drvdata->pm_chip_data;
-
-	return pm8xxx_get_irq_stat(pmic->irq_chip, irq);
-}
-
-static struct pm8xxx_drvdata pm8921_drvdata = {
-	.pmic_readb		= pm8921_readb,
-	.pmic_writeb		= pm8921_writeb,
-	.pmic_read_buf		= pm8921_read_buf,
-	.pmic_write_buf		= pm8921_write_buf,
-	.pmic_read_irq_stat	= pm8921_read_irq_stat,
-};
-
 static const struct regmap_config ssbi_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 8,
@@ -392,7 +286,6 @@ MODULE_DEVICE_TABLE(of, pm8921_id_table);
 
 static int pm8921_probe(struct platform_device *pdev)
 {
-	struct pm8921 *pmic;
 	struct regmap *regmap;
 	int irq, rc;
 	unsigned int val;
@@ -403,12 +296,6 @@ static int pm8921_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
-
-	pmic = devm_kzalloc(&pdev->dev, sizeof(struct pm8921), GFP_KERNEL);
-	if (!pmic) {
-		pr_err("Cannot alloc pm8921 struct\n");
-		return -ENOMEM;
-	}
 
 	regmap = devm_regmap_init(&pdev->dev, NULL, pdev->dev.parent,
 				  &ssbi_regmap_config);
@@ -434,18 +321,13 @@ static int pm8921_probe(struct platform_device *pdev)
 	pr_info("PMIC revision 2: %02X\n", val);
 	rev |= val << BITS_PER_BYTE;
 
-	pmic->dev = &pdev->dev;
-	pm8921_drvdata.pm_chip_data = pmic;
-	platform_set_drvdata(pdev, &pm8921_drvdata);
-
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip) +
 					sizeof(chip->config[0]) * nirqs,
 					GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
-	pmic->irq_chip = chip;
-	chip->dev = &pdev->dev;
+	platform_set_drvdata(pdev, chip);
 	chip->regmap = regmap;
 	chip->num_irqs = nirqs;
 	chip->num_blocks = DIV_ROUND_UP(chip->num_irqs, 8);
@@ -481,8 +363,7 @@ static int pm8921_remove_child(struct device *dev, void *unused)
 static int pm8921_remove(struct platform_device *pdev)
 {
 	int irq = platform_get_irq(pdev, 0);
-	struct pm8921 *pmic = pm8921_drvdata.pm_chip_data;
-	struct pm_irq_chip *chip = pmic->irq_chip;
+	struct pm_irq_chip *chip = platform_get_drvdata(pdev);
 
 	device_for_each_child(&pdev->dev, NULL, pm8921_remove_child);
 	irq_set_chained_handler(irq, NULL);

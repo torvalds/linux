@@ -113,7 +113,7 @@ arch_initcall(proc_tile_init);
  * Support /proc/sys/tile directory
  */
 
-static ctl_table unaligned_subtable[] = {
+static struct ctl_table unaligned_subtable[] = {
 	{
 		.procname	= "enabled",
 		.data		= &unaligned_fixup,
@@ -138,7 +138,7 @@ static ctl_table unaligned_subtable[] = {
 	{}
 };
 
-static ctl_table unaligned_table[] = {
+static struct ctl_table unaligned_table[] = {
 	{
 		.procname	= "unaligned_fixup",
 		.mode		= 0555,

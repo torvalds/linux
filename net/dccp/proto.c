@@ -1084,14 +1084,15 @@ EXPORT_SYMBOL_GPL(dccp_shutdown);
 
 static inline int dccp_mib_init(void)
 {
-	return snmp_mib_init((void __percpu **)dccp_statistics,
-			     sizeof(struct dccp_mib),
-			     __alignof__(struct dccp_mib));
+	dccp_statistics = alloc_percpu(struct dccp_mib);
+	if (!dccp_statistics)
+		return -ENOMEM;
+	return 0;
 }
 
 static inline void dccp_mib_exit(void)
 {
-	snmp_mib_free((void __percpu **)dccp_statistics);
+	free_percpu(dccp_statistics);
 }
 
 static int thash_entries;

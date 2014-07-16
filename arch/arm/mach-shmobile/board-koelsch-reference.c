@@ -19,12 +19,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/platform_data/rcar-du.h>
+#include <mach/clock.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/rcar-gen2.h>
@@ -82,49 +81,35 @@ static void __init koelsch_add_du_device(void)
 	platform_device_register_full(&info);
 }
 
+/*
+ * This is a really crude hack to provide clkdev support to platform
+ * devices until they get moved to DT.
+ */
+static const struct clk_name clk_names[] __initconst = {
+	{ "cmt0", "fck", "sh-cmt-48-gen2.0" },
+	{ "du0", "du.0", "rcar-du-r8a7791" },
+	{ "du1", "du.1", "rcar-du-r8a7791" },
+	{ "lvds0", "lvds.0", "rcar-du-r8a7791" },
+};
+
+/*
+ * This is a really crude hack to work around core platform clock issues
+ */
+static const struct clk_name clk_enables[] __initconst = {
+	{ "ether", NULL, "ee700000.ethernet" },
+	{ "i2c2", NULL, "e6530000.i2c" },
+	{ "msiof0", NULL, "e6e20000.spi" },
+	{ "qspi_mod", NULL, "e6b10000.spi" },
+	{ "sdhi0", NULL, "ee100000.sd" },
+	{ "sdhi1", NULL, "ee140000.sd" },
+	{ "sdhi2", NULL, "ee160000.sd" },
+	{ "thermal", NULL, "e61f0000.thermal" },
+};
+
 static void __init koelsch_add_standard_devices(void)
 {
-	/*
-	 * This is a really crude hack to provide clkdev support to the CMT and
-	 * DU devices until they get moved to DT.
-	 */
-	static const struct clk_name {
-		const char *clk;
-		const char *con_id;
-		const char *dev_id;
-	} clk_names[] = {
-		{ "cmt0", NULL, "sh_cmt.0" },
-		{ "scifa0", NULL, "sh-sci.0" },
-		{ "scifa1", NULL, "sh-sci.1" },
-		{ "scifb0", NULL, "sh-sci.2" },
-		{ "scifb1", NULL, "sh-sci.3" },
-		{ "scifb2", NULL, "sh-sci.4" },
-		{ "scifa2", NULL, "sh-sci.5" },
-		{ "scif0", NULL, "sh-sci.6" },
-		{ "scif1", NULL, "sh-sci.7" },
-		{ "scif2", NULL, "sh-sci.8" },
-		{ "scif3", NULL, "sh-sci.9" },
-		{ "scif4", NULL, "sh-sci.10" },
-		{ "scif5", NULL, "sh-sci.11" },
-		{ "scifa3", NULL, "sh-sci.12" },
-		{ "scifa4", NULL, "sh-sci.13" },
-		{ "scifa5", NULL, "sh-sci.14" },
-		{ "du0", "du.0", "rcar-du-r8a7791" },
-		{ "du1", "du.1", "rcar-du-r8a7791" },
-		{ "lvds0", "lvds.0", "rcar-du-r8a7791" },
-	};
-	struct clk *clk;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(clk_names); ++i) {
-		clk = clk_get(NULL, clk_names[i].clk);
-		if (!IS_ERR(clk)) {
-			clk_register_clkdev(clk, clk_names[i].con_id,
-					    clk_names[i].dev_id);
-			clk_put(clk);
-		}
-	}
-
+	shmobile_clk_workaround(clk_names, ARRAY_SIZE(clk_names), false);
+	shmobile_clk_workaround(clk_enables, ARRAY_SIZE(clk_enables), true);
 	r8a7791_add_dt_devices();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
@@ -139,7 +124,7 @@ static const char * const koelsch_boards_compat_dt[] __initconst = {
 
 DT_MACHINE_START(KOELSCH_DT, "koelsch")
 	.smp		= smp_ops(r8a7791_smp_ops),
-	.init_early	= r8a7791_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_time	= rcar_gen2_timer_init,
 	.init_machine	= koelsch_add_standard_devices,
 	.init_late	= shmobile_init_late,

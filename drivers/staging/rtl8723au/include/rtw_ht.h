@@ -33,9 +33,9 @@ struct ht_priv
 	u8	sgi;/* short GI */
 
 	/* for processing Tx A-MPDU */
-	u8	agg_enable_bitmap;
+	u16	agg_enable_bitmap;
 	/* u8	ADDBA_retry_count; */
-	u8	candidate_tid_bitmap;
+	u16	candidate_tid_bitmap;
 
 	struct ieee80211_ht_cap ht_cap;
 };

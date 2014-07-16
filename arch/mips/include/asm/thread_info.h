@@ -159,11 +159,7 @@ static inline struct thread_info *current_thread_info(void)
  * We stash processor id into a COP0 register to retrieve it fast
  * at kernel exception entry.
  */
-#if defined(CONFIG_MIPS_MT_SMTC)
-#define SMP_CPUID_REG		2, 2	/* TCBIND */
-#define ASM_SMP_CPUID_REG	$2, 2
-#define SMP_CPUID_PTRSHIFT	19
-#elif defined(CONFIG_MIPS_PGD_C0_CONTEXT)
+#if   defined(CONFIG_MIPS_PGD_C0_CONTEXT)
 #define SMP_CPUID_REG		20, 0	/* XCONTEXT */
 #define ASM_SMP_CPUID_REG	$20
 #define SMP_CPUID_PTRSHIFT	48
@@ -179,13 +175,8 @@ static inline struct thread_info *current_thread_info(void)
 #define SMP_CPUID_REGSHIFT	(SMP_CPUID_PTRSHIFT + 2)
 #endif
 
-#ifdef CONFIG_MIPS_MT_SMTC
-#define ASM_CPUID_MFC0		mfc0
-#define UASM_i_CPUID_MFC0	uasm_i_mfc0
-#else
 #define ASM_CPUID_MFC0		MFC0
 #define UASM_i_CPUID_MFC0	UASM_i_MFC0
-#endif
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_THREAD_INFO_H */

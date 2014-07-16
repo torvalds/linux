@@ -11,6 +11,13 @@
 #ifndef __ASM_S390_PROCESSOR_H
 #define __ASM_S390_PROCESSOR_H
 
+#define CIF_MCCK_PENDING	0	/* machine check handling is pending */
+#define CIF_ASCE		1	/* user asce needs fixup / uaccess */
+
+#define _CIF_MCCK_PENDING	(1<<CIF_MCCK_PENDING)
+#define _CIF_ASCE		(1<<CIF_ASCE)
+
+
 #ifndef __ASSEMBLY__
 
 #include <linux/linkage.h>
@@ -20,6 +27,21 @@
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 #include <asm/runtime_instr.h>
+
+static inline void set_cpu_flag(int flag)
+{
+	S390_lowcore.cpu_flags |= (1U << flag);
+}
+
+static inline void clear_cpu_flag(int flag)
+{
+	S390_lowcore.cpu_flags &= ~(1U << flag);
+}
+
+static inline int test_cpu_flag(int flag)
+{
+	return !!(S390_lowcore.cpu_flags & (1U << flag));
+}
 
 /*
  * Default implementation of macro that returns current

@@ -93,7 +93,7 @@ static const DECLARE_TLV_DB_SCALE(out_sidetone_tlv, -3600, 0, 0);
 static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
         struct snd_ctl_elem_value *ucontrol)
 {
-        struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int reg = mc->reg;
@@ -1318,8 +1318,6 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 	priv->wm8400 = wm8400;
 	priv->codec = codec;
 
-	snd_soc_codec_set_cache_io(codec, wm8400->regmap);
-
 	ret = devm_regulator_bulk_get(wm8400->dev,
 				 ARRAY_SIZE(power), &power[0]);
 	if (ret != 0) {
@@ -1361,11 +1359,19 @@ static int  wm8400_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static struct regmap *wm8400_get_regmap(struct device *dev)
+{
+	struct wm8400 *wm8400 = dev_get_platdata(dev);
+
+	return wm8400->regmap;
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_wm8400 = {
 	.probe =	wm8400_codec_probe,
 	.remove =	wm8400_codec_remove,
 	.suspend =	wm8400_suspend,
 	.resume =	wm8400_resume,
+	.get_regmap =	wm8400_get_regmap,
 	.set_bias_level = wm8400_set_bias_level,
 
 	.controls = wm8400_snd_controls,

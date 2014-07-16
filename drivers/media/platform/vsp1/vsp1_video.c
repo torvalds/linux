@@ -28,6 +28,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "vsp1.h"
+#include "vsp1_bru.h"
 #include "vsp1_entity.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_video.h"
@@ -280,6 +281,9 @@ static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
 	struct media_pad *pad;
 	bool uds_found = false;
 
+	input->location.left = 0;
+	input->location.top = 0;
+
 	pad = media_entity_remote_pad(&input->entity.pads[RWPF_PAD_SOURCE]);
 
 	while (1) {
@@ -291,6 +295,17 @@ static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
 			return -EPIPE;
 
 		entity = to_vsp1_entity(media_entity_to_v4l2_subdev(pad->entity));
+
+		/* A BRU is present in the pipeline, store the compose rectangle
+		 * location in the input RPF for use when configuring the RPF.
+		 */
+		if (entity->type == VSP1_ENTITY_BRU) {
+			struct vsp1_bru *bru = to_bru(&entity->subdev);
+			struct v4l2_rect *rect = &bru->compose[pad->index];
+
+			input->location.left = rect->left;
+			input->location.top = rect->top;
+		}
 
 		/* We've reached the WPF, we're done. */
 		if (entity->type == VSP1_ENTITY_WPF)
@@ -363,6 +378,8 @@ static int vsp1_pipeline_validate(struct vsp1_pipeline *pipe,
 			rwpf->video.pipe_index = 0;
 		} else if (e->type == VSP1_ENTITY_LIF) {
 			pipe->lif = e;
+		} else if (e->type == VSP1_ENTITY_BRU) {
+			pipe->bru = e;
 		}
 	}
 
@@ -392,6 +409,7 @@ error:
 	pipe->num_video = 0;
 	pipe->num_inputs = 0;
 	pipe->output = NULL;
+	pipe->bru = NULL;
 	pipe->lif = NULL;
 	return ret;
 }
@@ -430,6 +448,7 @@ static void vsp1_pipeline_cleanup(struct vsp1_pipeline *pipe)
 		pipe->num_video = 0;
 		pipe->num_inputs = 0;
 		pipe->output = NULL;
+		pipe->bru = NULL;
 		pipe->lif = NULL;
 	}
 
@@ -461,7 +480,7 @@ static int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		if (entity->route)
-			vsp1_write(entity->vsp1, entity->route,
+			vsp1_write(entity->vsp1, entity->route->reg,
 				   VI6_DPR_NODE_UNUSED);
 
 		v4l2_subdev_call(&entity->subdev, video, s_stream, 0);
@@ -680,11 +699,12 @@ static void vsp1_entity_route_setup(struct vsp1_entity *source)
 {
 	struct vsp1_entity *sink;
 
-	if (source->route == 0)
+	if (source->route->reg == 0)
 		return;
 
 	sink = container_of(source->sink, struct vsp1_entity, subdev.entity);
-	vsp1_write(source->vsp1, source->route, sink->id);
+	vsp1_write(source->vsp1, source->route->reg,
+		   sink->route->inputs[source->sink_pad]);
 }
 
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -720,7 +740,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 }
 
-static int vsp1_video_stop_streaming(struct vb2_queue *vq)
+static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
@@ -743,8 +763,6 @@ static int vsp1_video_stop_streaming(struct vb2_queue *vq)
 	spin_lock_irqsave(&video->irqlock, flags);
 	INIT_LIST_HEAD(&video->irqqueue);
 	spin_unlock_irqrestore(&video->irqlock, flags);
-
-	return 0;
 }
 
 static struct vb2_ops vsp1_video_queue_qops = {

@@ -22,7 +22,25 @@ enum dcb_connector_type {
 	DCB_CONNECTOR_NONE = 0xff
 };
 
-u16 dcb_conntab(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
-u16 dcb_conn(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len);
+struct nvbios_connT {
+};
+
+u32 nvbios_connTe(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
+u32 nvbios_connTp(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+		  struct nvbios_connT *info);
+
+struct nvbios_connE {
+	u8 type;
+	u8 location;
+	u8 hpd;
+	u8 dp;
+	u8 di;
+	u8 sr;
+	u8 lcdid;
+};
+
+u32 nvbios_connEe(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *hdr);
+u32 nvbios_connEp(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *hdr,
+		  struct nvbios_connE *info);
 
 #endif

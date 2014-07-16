@@ -68,7 +68,6 @@ xfs_attr3_rmt_blocks(
  */
 static bool
 xfs_attr3_rmt_hdr_ok(
-	struct xfs_mount	*mp,
 	void			*ptr,
 	xfs_ino_t		ino,
 	uint32_t		offset,
@@ -126,6 +125,7 @@ xfs_attr3_rmt_read_verify(
 	char		*ptr;
 	int		len;
 	xfs_daddr_t	bno;
+	int		blksize = mp->m_attr_geo->blksize;
 
 	/* no verification of non-crc buffers */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
@@ -134,21 +134,20 @@ xfs_attr3_rmt_read_verify(
 	ptr = bp->b_addr;
 	bno = bp->b_bn;
 	len = BBTOB(bp->b_length);
-	ASSERT(len >= XFS_LBSIZE(mp));
+	ASSERT(len >= blksize);
 
 	while (len > 0) {
-		if (!xfs_verify_cksum(ptr, XFS_LBSIZE(mp),
-				      XFS_ATTR3_RMT_CRC_OFF)) {
+		if (!xfs_verify_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF)) {
 			xfs_buf_ioerror(bp, EFSBADCRC);
 			break;
 		}
-		if (!xfs_attr3_rmt_verify(mp, ptr, XFS_LBSIZE(mp), bno)) {
+		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
 			xfs_buf_ioerror(bp, EFSCORRUPTED);
 			break;
 		}
-		len -= XFS_LBSIZE(mp);
-		ptr += XFS_LBSIZE(mp);
-		bno += mp->m_bsize;
+		len -= blksize;
+		ptr += blksize;
+		bno += BTOBB(blksize);
 	}
 
 	if (bp->b_error)
@@ -166,6 +165,7 @@ xfs_attr3_rmt_write_verify(
 	char		*ptr;
 	int		len;
 	xfs_daddr_t	bno;
+	int		blksize = mp->m_attr_geo->blksize;
 
 	/* no verification of non-crc buffers */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
@@ -174,10 +174,10 @@ xfs_attr3_rmt_write_verify(
 	ptr = bp->b_addr;
 	bno = bp->b_bn;
 	len = BBTOB(bp->b_length);
-	ASSERT(len >= XFS_LBSIZE(mp));
+	ASSERT(len >= blksize);
 
 	while (len > 0) {
-		if (!xfs_attr3_rmt_verify(mp, ptr, XFS_LBSIZE(mp), bno)) {
+		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
 			xfs_buf_ioerror(bp, EFSCORRUPTED);
 			xfs_verifier_error(bp);
 			return;
@@ -188,11 +188,11 @@ xfs_attr3_rmt_write_verify(
 			rmt = (struct xfs_attr3_rmt_hdr *)ptr;
 			rmt->rm_lsn = cpu_to_be64(bip->bli_item.li_lsn);
 		}
-		xfs_update_cksum(ptr, XFS_LBSIZE(mp), XFS_ATTR3_RMT_CRC_OFF);
+		xfs_update_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF);
 
-		len -= XFS_LBSIZE(mp);
-		ptr += XFS_LBSIZE(mp);
-		bno += mp->m_bsize;
+		len -= blksize;
+		ptr += blksize;
+		bno += BTOBB(blksize);
 	}
 	ASSERT(len == 0);
 }
@@ -241,17 +241,18 @@ xfs_attr_rmtval_copyout(
 	char		*src = bp->b_addr;
 	xfs_daddr_t	bno = bp->b_bn;
 	int		len = BBTOB(bp->b_length);
+	int		blksize = mp->m_attr_geo->blksize;
 
-	ASSERT(len >= XFS_LBSIZE(mp));
+	ASSERT(len >= blksize);
 
 	while (len > 0 && *valuelen > 0) {
 		int hdr_size = 0;
-		int byte_cnt = XFS_ATTR3_RMT_BUF_SPACE(mp, XFS_LBSIZE(mp));
+		int byte_cnt = XFS_ATTR3_RMT_BUF_SPACE(mp, blksize);
 
 		byte_cnt = min(*valuelen, byte_cnt);
 
 		if (xfs_sb_version_hascrc(&mp->m_sb)) {
-			if (!xfs_attr3_rmt_hdr_ok(mp, src, ino, *offset,
+			if (!xfs_attr3_rmt_hdr_ok(src, ino, *offset,
 						  byte_cnt, bno)) {
 				xfs_alert(mp,
 "remote attribute header mismatch bno/off/len/owner (0x%llx/0x%x/Ox%x/0x%llx)",
@@ -264,9 +265,9 @@ xfs_attr_rmtval_copyout(
 		memcpy(*dst, src + hdr_size, byte_cnt);
 
 		/* roll buffer forwards */
-		len -= XFS_LBSIZE(mp);
-		src += XFS_LBSIZE(mp);
-		bno += mp->m_bsize;
+		len -= blksize;
+		src += blksize;
+		bno += BTOBB(blksize);
 
 		/* roll attribute data forwards */
 		*valuelen -= byte_cnt;
@@ -288,12 +289,13 @@ xfs_attr_rmtval_copyin(
 	char		*dst = bp->b_addr;
 	xfs_daddr_t	bno = bp->b_bn;
 	int		len = BBTOB(bp->b_length);
+	int		blksize = mp->m_attr_geo->blksize;
 
-	ASSERT(len >= XFS_LBSIZE(mp));
+	ASSERT(len >= blksize);
 
 	while (len > 0 && *valuelen > 0) {
 		int hdr_size;
-		int byte_cnt = XFS_ATTR3_RMT_BUF_SPACE(mp, XFS_LBSIZE(mp));
+		int byte_cnt = XFS_ATTR3_RMT_BUF_SPACE(mp, blksize);
 
 		byte_cnt = min(*valuelen, byte_cnt);
 		hdr_size = xfs_attr3_rmt_hdr_set(mp, dst, ino, *offset,
@@ -305,17 +307,17 @@ xfs_attr_rmtval_copyin(
 		 * If this is the last block, zero the remainder of it.
 		 * Check that we are actually the last block, too.
 		 */
-		if (byte_cnt + hdr_size < XFS_LBSIZE(mp)) {
+		if (byte_cnt + hdr_size < blksize) {
 			ASSERT(*valuelen - byte_cnt == 0);
-			ASSERT(len == XFS_LBSIZE(mp));
+			ASSERT(len == blksize);
 			memset(dst + hdr_size + byte_cnt, 0,
-					XFS_LBSIZE(mp) - hdr_size - byte_cnt);
+					blksize - hdr_size - byte_cnt);
 		}
 
 		/* roll buffer forwards */
-		len -= XFS_LBSIZE(mp);
-		dst += XFS_LBSIZE(mp);
-		bno += mp->m_bsize;
+		len -= blksize;
+		dst += blksize;
+		bno += BTOBB(blksize);
 
 		/* roll attribute data forwards */
 		*valuelen -= byte_cnt;

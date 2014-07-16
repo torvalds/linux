@@ -37,6 +37,7 @@
  * eDP: Embedded DisplayPort version 1
  * DPI: DisplayPort Interoperability Guideline v1.1a
  * 1.2: DisplayPort 1.2
+ * MST: Multistream Transport - part of DP 1.2a
  *
  * 1.2 formally includes both eDP and DPI definitions.
  */
@@ -103,8 +104,13 @@
 #define DP_TRAINING_AUX_RD_INTERVAL         0x00e   /* XXX 1.2? */
 
 /* Multiple stream transport */
+#define DP_FAUX_CAP			    0x020   /* 1.2 */
+# define DP_FAUX_CAP_1			    (1 << 0)
+
 #define DP_MSTM_CAP			    0x021   /* 1.2 */
 # define DP_MST_CAP			    (1 << 0)
+
+#define DP_GUID				    0x030   /* 1.2 */
 
 #define DP_PSR_SUPPORT                      0x070   /* XXX 1.2? */
 # define DP_PSR_IS_SUPPORTED                1
@@ -221,6 +227,16 @@
 # define DP_PSR_CRC_VERIFICATION	    (1 << 2)
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
 
+#define DP_ADAPTER_CTRL			    0x1a0
+# define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)
+
+#define DP_BRANCH_DEVICE_CTRL		    0x1a1
+# define DP_BRANCH_DEVICE_IRQ_HPD	    (1 << 0)
+
+#define DP_PAYLOAD_ALLOCATE_SET		    0x1c0
+#define DP_PAYLOAD_ALLOCATE_START_TIME_SLOT 0x1c1
+#define DP_PAYLOAD_ALLOCATE_TIME_SLOT_COUNT 0x1c2
+
 #define DP_SINK_COUNT			    0x200
 /* prior to 1.2 bit 7 was reserved mbz */
 # define DP_GET_SINK_COUNT(x)		    ((((x) & 0x80) >> 1) | ((x) & 0x3f))
@@ -230,6 +246,9 @@
 # define DP_REMOTE_CONTROL_COMMAND_PENDING  (1 << 0)
 # define DP_AUTOMATED_TEST_REQUEST	    (1 << 1)
 # define DP_CP_IRQ			    (1 << 2)
+# define DP_MCCS_IRQ			    (1 << 3)
+# define DP_DOWN_REP_MSG_RDY		    (1 << 4) /* 1.2 MST */
+# define DP_UP_REQ_MSG_RDY		    (1 << 5) /* 1.2 MST */
 # define DP_SINK_SPECIFIC_IRQ		    (1 << 6)
 
 #define DP_LANE0_1_STATUS		    0x202
@@ -291,8 +310,17 @@
 # define DP_TEST_NAK			    (1 << 1)
 # define DP_TEST_EDID_CHECKSUM_WRITE	    (1 << 2)
 
+#define DP_TEST_EDID_CHECKSUM		    0x261
+
 #define DP_TEST_SINK			    0x270
 #define DP_TEST_SINK_START	    (1 << 0)
+
+#define DP_PAYLOAD_TABLE_UPDATE_STATUS      0x2c0   /* 1.2 MST */
+# define DP_PAYLOAD_TABLE_UPDATED           (1 << 0)
+# define DP_PAYLOAD_ACT_HANDLED             (1 << 1)
+
+#define DP_VC_PAYLOAD_ID_SLOT_1             0x2c1   /* 1.2 MST */
+/* up to ID_SLOT_63 at 0x2ff */
 
 #define DP_SOURCE_OUI			    0x300
 #define DP_SINK_OUI			    0x400
@@ -302,6 +330,21 @@
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
 # define DP_SET_POWER_MASK                  0x3
+
+#define DP_SIDEBAND_MSG_DOWN_REQ_BASE	    0x1000   /* 1.2 MST */
+#define DP_SIDEBAND_MSG_UP_REP_BASE	    0x1200   /* 1.2 MST */
+#define DP_SIDEBAND_MSG_DOWN_REP_BASE	    0x1400   /* 1.2 MST */
+#define DP_SIDEBAND_MSG_UP_REQ_BASE	    0x1600   /* 1.2 MST */
+
+#define DP_SINK_COUNT_ESI		    0x2002   /* 1.2 */
+/* 0-5 sink count */
+# define DP_SINK_COUNT_CP_READY             (1 << 6)
+
+#define DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0   0x2003   /* 1.2 */
+
+#define DP_DEVICE_SERVICE_IRQ_VECTOR_ESI1   0x2004   /* 1.2 */
+
+#define DP_LINK_SERVICE_IRQ_VECTOR_ESI0     0x2005   /* 1.2 */
 
 #define DP_PSR_ERROR_STATUS                 0x2006  /* XXX 1.2? */
 # define DP_PSR_LINK_CRC_ERROR              (1 << 0)
@@ -318,6 +361,43 @@
 # define DP_PSR_SINK_ACTIVE_RESYNC          4
 # define DP_PSR_SINK_INTERNAL_ERROR         7
 # define DP_PSR_SINK_STATE_MASK             0x07
+
+/* DP 1.2 Sideband message defines */
+/* peer device type - DP 1.2a Table 2-92 */
+#define DP_PEER_DEVICE_NONE		0x0
+#define DP_PEER_DEVICE_SOURCE_OR_SST	0x1
+#define DP_PEER_DEVICE_MST_BRANCHING	0x2
+#define DP_PEER_DEVICE_SST_SINK		0x3
+#define DP_PEER_DEVICE_DP_LEGACY_CONV	0x4
+
+/* DP 1.2 MST sideband request names DP 1.2a Table 2-80 */
+#define DP_LINK_ADDRESS			0x01
+#define DP_CONNECTION_STATUS_NOTIFY	0x02
+#define DP_ENUM_PATH_RESOURCES		0x10
+#define DP_ALLOCATE_PAYLOAD		0x11
+#define DP_QUERY_PAYLOAD		0x12
+#define DP_RESOURCE_STATUS_NOTIFY	0x13
+#define DP_CLEAR_PAYLOAD_ID_TABLE	0x14
+#define DP_REMOTE_DPCD_READ		0x20
+#define DP_REMOTE_DPCD_WRITE		0x21
+#define DP_REMOTE_I2C_READ		0x22
+#define DP_REMOTE_I2C_WRITE		0x23
+#define DP_POWER_UP_PHY			0x24
+#define DP_POWER_DOWN_PHY		0x25
+#define DP_SINK_EVENT_NOTIFY		0x30
+#define DP_QUERY_STREAM_ENC_STATUS	0x38
+
+/* DP 1.2 MST sideband nak reasons - table 2.84 */
+#define DP_NAK_WRITE_FAILURE		0x01
+#define DP_NAK_INVALID_READ		0x02
+#define DP_NAK_CRC_FAILURE		0x03
+#define DP_NAK_BAD_PARAM		0x04
+#define DP_NAK_DEFER			0x05
+#define DP_NAK_LINK_FAILURE		0x06
+#define DP_NAK_NO_RESOURCES		0x07
+#define DP_NAK_DPCD_FAIL		0x08
+#define DP_NAK_I2C_NAK			0x09
+#define DP_NAK_ALLOCATE_FAIL		0x0a
 
 #define MODE_I2C_START	1
 #define MODE_I2C_WRITE	2
@@ -431,8 +511,10 @@ struct drm_dp_aux_msg {
 
 /**
  * struct drm_dp_aux - DisplayPort AUX channel
+ * @name: user-visible name of this AUX channel and the I2C-over-AUX adapter
  * @ddc: I2C adapter that can be used for I2C-over-AUX communication
  * @dev: pointer to struct device that is the parent for this AUX channel
+ * @hw_mutex: internal mutex used for locking transfers
  * @transfer: transfers a message representing a single AUX transaction
  *
  * The .dev field should be set to a pointer to the device that implements
@@ -465,7 +547,7 @@ struct drm_dp_aux {
 	const char *name;
 	struct i2c_adapter ddc;
 	struct device *dev;
-
+	struct mutex hw_mutex;
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
 			    struct drm_dp_aux_msg *msg);
 };
@@ -524,7 +606,7 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link);
 
-int drm_dp_aux_register_i2c_bus(struct drm_dp_aux *aux);
-void drm_dp_aux_unregister_i2c_bus(struct drm_dp_aux *aux);
+int drm_dp_aux_register(struct drm_dp_aux *aux);
+void drm_dp_aux_unregister(struct drm_dp_aux *aux);
 
 #endif /* _DRM_DP_HELPER_H_ */

@@ -62,6 +62,15 @@ config PWM_ATMEL_TCB
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-atmel-tcb.
 
+config PWM_BCM_KONA
+	tristate "Kona PWM support"
+	depends on ARCH_BCM_MOBILE
+	help
+	  Generic PWM framework driver for Broadcom Kona PWM block.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-bcm-kona.
+
 config PWM_BFIN
 	tristate "Blackfin PWM support"
 	depends on BFIN_GPTIMERS

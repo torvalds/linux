@@ -32,7 +32,7 @@
 #include "rtl_btc.h"
 #include "halbt_precomp.h"
 
-struct rtl_btc_ops rtl_btc_operation ={
+static struct rtl_btc_ops rtl_btc_operation = {
 	.btc_init_variables = rtl_btc_init_variables,
 	.btc_init_hal_vars = rtl_btc_init_hal_vars,
 	.btc_init_hw_config = rtl_btc_init_hw_config,

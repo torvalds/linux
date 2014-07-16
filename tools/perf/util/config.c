@@ -11,6 +11,7 @@
 #include "util.h"
 #include "cache.h"
 #include "exec_cmd.h"
+#include "util/hist.h"  /* perf_hist_config */
 
 #define MAXNAME (256)
 
@@ -354,6 +355,9 @@ int perf_default_config(const char *var, const char *value,
 {
 	if (!prefixcmp(var, "core."))
 		return perf_default_core_config(var, value);
+
+	if (!prefixcmp(var, "hist."))
+		return perf_hist_config(var, value);
 
 	/* Add other config variables here. */
 	return 0;

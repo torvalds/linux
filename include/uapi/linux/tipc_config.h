@@ -39,6 +39,7 @@
 
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/tipc.h>
 #include <asm/byteorder.h>
 
 #ifndef __KERNEL__
@@ -153,15 +154,6 @@
 #define TIPC_TLV_LINK_CONFIG	24	/* struct tipc_link_config */
 #define TIPC_TLV_NAME_TBL_QUERY	25	/* struct tipc_name_table_query */
 #define TIPC_TLV_PORT_REF	26	/* 32-bit port reference */
-
-/*
- * Maximum sizes of TIPC bearer-related names (including terminating NUL)
- */
-
-#define TIPC_MAX_MEDIA_NAME	16	/* format = media */
-#define TIPC_MAX_IF_NAME	16	/* format = interface */
-#define TIPC_MAX_BEARER_NAME	32	/* format = media:interface */
-#define TIPC_MAX_LINK_NAME	60	/* format = Z.C.N:interface-Z.C.N:interface */
 
 /*
  * Link priority limits (min, default, max, media default)

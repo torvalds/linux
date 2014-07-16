@@ -20,7 +20,8 @@
 	compatible = "samsung,trats2", "samsung,exynos4412", "samsung,exynos4";
 
 	aliases {
-		i2c8 = &i2c_ak8975;
+		i2c9 = &i2c_ak8975;
+		i2c10 = &i2c_cm36651;
 	};
 
 	memory {
@@ -80,37 +81,65 @@
 			enable-active-high;
 		};
 
-		/* More to come */
+		cam_af_reg: voltage-regulator-3 {
+			compatible = "regulator-fixed";
+			regulator-name = "CAM_AF";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			gpio = <&gpm0 4 0>;
+			enable-active-high;
+		};
+
+		cam_isp_core_reg: voltage-regulator-4 {
+			compatible = "regulator-fixed";
+			regulator-name = "CAM_ISP_CORE_1.2V_EN";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			gpio = <&gpm0 3 0>;
+			enable-active-high;
+			regulator-always-on;
+		};
+
+		ps_als_reg: voltage-regulator-5 {
+			compatible = "regulator-fixed";
+			regulator-name = "LED_A_3.0V";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			gpio = <&gpj0 5 0>;
+			enable-active-high;
+		};
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
 
 		key-down {
-			interrupt-parent = <&gpj1>;
-			interrupts = <2 0>;
-			gpios = <&gpj1 2 1>;
+			gpios = <&gpx3 3 1>;
 			linux,code = <114>;
 			label = "volume down";
 			debounce-interval = <10>;
 		};
 
 		key-up {
-			interrupt-parent = <&gpj1>;
-			interrupts = <1 0>;
-			gpios = <&gpj1 1 1>;
+			gpios = <&gpx2 2 1>;
 			linux,code = <115>;
 			label = "volume up";
 			debounce-interval = <10>;
 		};
 
 		key-power {
-			interrupt-parent = <&gpx2>;
-			interrupts = <7 0>;
 			gpios = <&gpx2 7 1>;
 			linux,code = <116>;
 			label = "power";
 			debounce-interval = <10>;
+			gpio-key,wakeup;
+		};
+
+		key-ok {
+			gpios = <&gpx0 1 1>;
+			linux,code = <139>;
+			label = "ok";
+			debounce-inteval = <10>;
 			gpio-key,wakeup;
 		};
 	};
@@ -137,6 +166,38 @@
 			y-size = <1280>;
 			avdd-supply = <&ldo23_reg>;
 			vdd-supply = <&ldo24_reg>;
+		};
+	};
+
+	i2c_0: i2c@13860000 {
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-slave-addr = <0x10>;
+		samsung,i2c-max-bus-freq = <400000>;
+		pinctrl-0 = <&i2c0_bus>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		s5c73m3@3c {
+			compatible = "samsung,s5c73m3";
+			reg = <0x3c>;
+			standby-gpios = <&gpm0 1 1>;   /* ISP_STANDBY */
+			xshutdown-gpios = <&gpf1 3 1>; /* ISP_RESET */
+			vdd-int-supply = <&buck9_reg>;
+			vddio-cis-supply = <&ldo9_reg>;
+			vdda-supply = <&ldo17_reg>;
+			vddio-host-supply = <&ldo18_reg>;
+			vdd-af-supply = <&cam_af_reg>;
+			vdd-reg-supply = <&cam_io_reg>;
+			clock-frequency = <24000000>;
+			/* CAM_A_CLKOUT */
+			clocks = <&camera 0>;
+			clock-names = "cis_extclk";
+			port {
+				s5c73m3_ep: endpoint {
+					remote-endpoint = <&csis0_ep>;
+					data-lanes = <1 2 3 4>;
+				};
+			};
 		};
 	};
 
@@ -509,6 +570,22 @@
 		};
 	};
 
+	i2c_cm36651: i2c-gpio-2 {
+		compatible = "i2c-gpio";
+		gpios = <&gpf0 0 1>, <&gpf0 1 1>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cm36651@18 {
+			compatible = "capella,cm36651";
+			reg = <0x18>;
+			interrupt-parent = <&gpx0>;
+			interrupts = <2 2>;
+			vled-supply = <&ps_als_reg>;
+		};
+	};
+
 	spi_1: spi@13930000 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi1_bus>;
@@ -586,8 +663,8 @@
 		status = "okay";
 	};
 
-	camera {
-		pinctrl-0 = <&cam_port_b_clk_active>;
+	camera: camera {
+		pinctrl-0 = <&cam_port_a_clk_active &cam_port_b_clk_active>;
 		pinctrl-names = "default";
 		status = "okay";
 
@@ -605,6 +682,23 @@
 
 		fimc_3: fimc@11830000 {
 			status = "okay";
+		};
+
+		csis_0: csis@11880000 {
+			status = "okay";
+			vddcore-supply = <&ldo8_reg>;
+			vddio-supply = <&ldo10_reg>;
+			clock-frequency = <176000000>;
+
+			/* Camera C (3) MIPI CSI-2 (CSIS0) */
+			port@3 {
+				reg = <3>;
+				csis0_ep: endpoint {
+					remote-endpoint = <&s5c73m3_ep>;
+					data-lanes = <1 2 3 4>;
+					samsung,csis-hs-settle = <12>;
+				};
+			};
 		};
 
 		csis_1: csis@11890000 {
@@ -647,10 +741,11 @@
 					reg = <0x10>;
 					svdda-supply = <&cam_io_reg>;
 					svddio-supply = <&ldo19_reg>;
+					afvdd-supply = <&ldo19_reg>;
 					clock-frequency = <24000000>;
 					/* CAM_B_CLKOUT */
-					clocks = <&clock_cam 1>;
-					clock-names = "mclk";
+					clocks = <&camera 1>;
+					clock-names = "extclk";
 					samsung,camclk-out = <1>;
 					gpios = <&gpm1 6 0>;
 
@@ -663,6 +758,16 @@
 				};
 			};
 		};
+	};
+
+	exynos-usbphy@125B0000 {
+		status = "okay";
+	};
+
+	hsotg@12480000 {
+		vusb_d-supply = <&ldo15_reg>;
+		vusb_a-supply = <&ldo12_reg>;
+		status = "okay";
 	};
 
 	thermistor-ap@0 {

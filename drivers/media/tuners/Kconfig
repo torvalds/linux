@@ -230,6 +230,13 @@ config MEDIA_TUNER_TUA9001
 	help
 	  Infineon TUA 9001 silicon tuner driver.
 
+config MEDIA_TUNER_SI2157
+	tristate "Silicon Labs Si2157 silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Silicon Labs Si2157 silicon tuner driver.
+
 config MEDIA_TUNER_IT913X
 	tristate "ITE Tech IT913x silicon tuner"
 	depends on MEDIA_SUPPORT && I2C

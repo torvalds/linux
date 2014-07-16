@@ -21,13 +21,13 @@ extern void device_tree_init(void);
 
 struct boot_param_header;
 
-extern void __dt_setup_arch(struct boot_param_header *bph);
+extern void __dt_setup_arch(void *bph);
 
 #define dt_setup_arch(sym)						\
 ({									\
-	extern struct boot_param_header __dtb_##sym##_begin;		\
+	extern char __dtb_##sym##_begin[];				\
 									\
-	__dt_setup_arch(&__dtb_##sym##_begin);				\
+	__dt_setup_arch(__dtb_##sym##_begin);				\
 })
 
 #else /* CONFIG_OF */

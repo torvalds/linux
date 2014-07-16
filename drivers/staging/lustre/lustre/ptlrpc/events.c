@@ -307,7 +307,7 @@ void request_in_callback(lnet_event_t *ev)
 			/* We moaned above already... */
 			return;
 		}
-		OBD_ALLOC_GFP(req, sizeof(*req), ALLOC_ATOMIC_TRY);
+		req = ptlrpc_request_cache_alloc(ALLOC_ATOMIC_TRY);
 		if (req == NULL) {
 			CERROR("Can't allocate incoming request descriptor: "
 			       "Dropping %s RPC from %s\n",

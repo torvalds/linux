@@ -139,8 +139,8 @@ void suspend_nvs_free(void)
 					iounmap(entry->kaddr);
 					entry->unmap = false;
 				} else {
-					acpi_os_unmap_memory(entry->kaddr,
-							     entry->size);
+					acpi_os_unmap_iomem(entry->kaddr,
+							    entry->size);
 				}
 				entry->kaddr = NULL;
 			}

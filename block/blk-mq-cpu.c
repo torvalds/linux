@@ -1,3 +1,8 @@
+/*
+ * CPU notifier helper code for blk-mq
+ *
+ * Copyright (C) 2013-2014 Jens Axboe
+ */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -18,14 +23,18 @@ static int blk_mq_main_cpu_notify(struct notifier_block *self,
 {
 	unsigned int cpu = (unsigned long) hcpu;
 	struct blk_mq_cpu_notifier *notify;
+	int ret = NOTIFY_OK;
 
 	raw_spin_lock(&blk_mq_cpu_notify_lock);
 
-	list_for_each_entry(notify, &blk_mq_cpu_notify_list, list)
-		notify->notify(notify->data, action, cpu);
+	list_for_each_entry(notify, &blk_mq_cpu_notify_list, list) {
+		ret = notify->notify(notify->data, action, cpu);
+		if (ret != NOTIFY_OK)
+			break;
+	}
 
 	raw_spin_unlock(&blk_mq_cpu_notify_lock);
-	return NOTIFY_OK;
+	return ret;
 }
 
 void blk_mq_register_cpu_notifier(struct blk_mq_cpu_notifier *notifier)
@@ -45,7 +54,7 @@ void blk_mq_unregister_cpu_notifier(struct blk_mq_cpu_notifier *notifier)
 }
 
 void blk_mq_init_cpu_notifier(struct blk_mq_cpu_notifier *notifier,
-			      void (*fn)(void *, unsigned long, unsigned int),
+			      int (*fn)(void *, unsigned long, unsigned int),
 			      void *data)
 {
 	notifier->notify = fn;

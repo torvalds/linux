@@ -300,7 +300,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id of_anatop_regulator_match_tbl[] = {
+static const struct of_device_id of_anatop_regulator_match_tbl[] = {
 	{ .compatible = "fsl,anatop-regulator", },
 	{ /* end */ }
 };

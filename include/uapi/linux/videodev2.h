@@ -649,7 +649,6 @@ struct v4l2_plane {
  * @length:	size in bytes of the buffer (NOT its payload) for single-plane
  *		buffers (when type != *_MPLANE); number of elements in the
  *		planes array for multi-plane buffers
- * @input:	input number from which the video data has has been captured
  *
  * Contains data exchanged by application and driver using one of the Streaming
  * I/O methods.
@@ -1107,12 +1106,15 @@ struct v4l2_dv_timings {
 
 /** struct v4l2_enum_dv_timings - DV timings enumeration
  * @index:	enumeration index
+ * @pad:	the pad number for which to enumerate timings (used with
+ *		v4l-subdev nodes only)
  * @reserved:	must be zeroed
  * @timings:	the timings for the given index
  */
 struct v4l2_enum_dv_timings {
 	__u32 index;
-	__u32 reserved[3];
+	__u32 pad;
+	__u32 reserved[2];
 	struct v4l2_dv_timings timings;
 };
 
@@ -1150,11 +1152,14 @@ struct v4l2_bt_timings_cap {
 
 /** struct v4l2_dv_timings_cap - DV timings capabilities
  * @type:	the type of the timings (same as in struct v4l2_dv_timings)
+ * @pad:	the pad number for which to query capabilities (used with
+ *		v4l-subdev nodes only)
  * @bt:		the BT656/1120 timings capabilities
  */
 struct v4l2_dv_timings_cap {
 	__u32 type;
-	__u32 reserved[3];
+	__u32 pad;
+	__u32 reserved[2];
 	union {
 		struct v4l2_bt_timings_cap bt;
 		__u32 raw_data[32];
@@ -1765,6 +1770,7 @@ struct v4l2_streamparm {
 #define V4L2_EVENT_EOS				2
 #define V4L2_EVENT_CTRL				3
 #define V4L2_EVENT_FRAME_SYNC			4
+#define V4L2_EVENT_SOURCE_CHANGE		5
 #define V4L2_EVENT_PRIVATE_START		0x08000000
 
 /* Payload for V4L2_EVENT_VSYNC */
@@ -1796,12 +1802,19 @@ struct v4l2_event_frame_sync {
 	__u32 frame_sequence;
 };
 
+#define V4L2_EVENT_SRC_CH_RESOLUTION		(1 << 0)
+
+struct v4l2_event_src_change {
+	__u32 changes;
+};
+
 struct v4l2_event {
 	__u32				type;
 	union {
 		struct v4l2_event_vsync		vsync;
 		struct v4l2_event_ctrl		ctrl;
 		struct v4l2_event_frame_sync	frame_sync;
+		struct v4l2_event_src_change	src_change;
 		__u8				data[64];
 	} u;
 	__u32				pending;

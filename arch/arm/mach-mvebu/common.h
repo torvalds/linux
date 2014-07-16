@@ -18,6 +18,9 @@
 #include <linux/reboot.h>
 
 void mvebu_restart(enum reboot_mode mode, const char *cmd);
+int mvebu_cpu_reset_deassert(int cpu);
+void mvebu_pmsu_set_cpu_boot_addr(int hw_cpu, void *boot_addr);
+void mvebu_system_controller_set_cpu_boot_addr(void *boot_addr);
 
 void armada_xp_cpu_die(unsigned int cpu);
 

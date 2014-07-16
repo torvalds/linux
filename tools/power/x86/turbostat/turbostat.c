@@ -1971,13 +1971,13 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 	if (get_msr(0, MSR_IA32_TEMPERATURE_TARGET, &msr))
 		goto guess;
 
-	target_c_local = (msr >> 16) & 0x7F;
+	target_c_local = (msr >> 16) & 0xFF;
 
 	if (verbose)
 		fprintf(stderr, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C)\n",
 			cpu, msr, target_c_local);
 
-	if (target_c_local < 85 || target_c_local > 127)
+	if (!target_c_local)
 		goto guess;
 
 	tcc_activation_temp = target_c_local;

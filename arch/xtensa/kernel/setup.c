@@ -74,7 +74,6 @@ extern int initrd_below_start_ok;
 #endif
 
 #ifdef CONFIG_OF
-extern u32 __dtb_start[];
 void *dtb_start = __dtb_start;
 #endif
 
@@ -199,7 +198,7 @@ static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
 		int depth, void *data)
 {
 	const __be32 *ranges;
-	unsigned long len;
+	int len;
 
 	if (depth > 1)
 		return 0;

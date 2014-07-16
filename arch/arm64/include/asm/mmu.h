@@ -31,5 +31,7 @@ extern void paging_init(void);
 extern void setup_mm_for_reboot(void);
 extern void __iomem *early_io_map(phys_addr_t phys, unsigned long virt);
 extern void init_mem_pgprot(void);
+/* create an identity mapping for memory (or io if map_io is true) */
+extern void create_id_mapping(phys_addr_t addr, phys_addr_t size, int map_io);
 
 #endif

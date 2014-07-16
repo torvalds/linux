@@ -24,13 +24,14 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 
 #include "musb_core.h"
 
 struct tusb6010_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	struct platform_device	*phy;
 };
 
 static void tusb_musb_set_vbus(struct musb *musb, int is_on);
@@ -42,7 +43,7 @@ static void tusb_musb_set_vbus(struct musb *musb, int is_on);
  * Checks the revision. We need to use the DMA register as 3.0 does not
  * have correct versions for TUSB_PRCM_REV or TUSB_INT_CTRL_REV.
  */
-u8 tusb_get_revision(struct musb *musb)
+static u8 tusb_get_revision(struct musb *musb)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	u32		die_id;
@@ -58,14 +59,13 @@ u8 tusb_get_revision(struct musb *musb)
 
 	return rev;
 }
-EXPORT_SYMBOL_GPL(tusb_get_revision);
 
-static int tusb_print_revision(struct musb *musb)
+static void tusb_print_revision(struct musb *musb)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	u8		rev;
 
-	rev = tusb_get_revision(musb);
+	rev = musb->tusb_revision;
 
 	pr_info("tusb: %s%i.%i %s%i.%i %s%i.%i %s%i.%i %s%i %s%i.%i\n",
 		"prcm",
@@ -84,8 +84,6 @@ static int tusb_print_revision(struct musb *musb)
 		TUSB_DIDR1_HI_CHIP_REV(musb_readl(tbase, TUSB_DIDR1_HI)),
 		"rev",
 		TUSB_REV_MAJOR(rev), TUSB_REV_MINOR(rev));
-
-	return tusb_get_revision(musb);
 }
 
 #define WBUS_QUIRK_MASK	(TUSB_PHY_OTG_CTRL_TESTM2 | TUSB_PHY_OTG_CTRL_TESTM1 \
@@ -349,7 +347,7 @@ static void tusb_allow_idle(struct musb *musb, u32 wakeup_enables)
 	u32		reg;
 
 	if ((wakeup_enables & TUSB_PRCM_WBUS)
-			&& (tusb_get_revision(musb) == TUSB_REV_30))
+			&& (musb->tusb_revision == TUSB_REV_30))
 		tusb_wbus_quirk(musb, 1);
 
 	tusb_set_clock_source(musb, 0);
@@ -797,7 +795,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 		u32	reg;
 		u32	i;
 
-		if (tusb_get_revision(musb) == TUSB_REV_30)
+		if (musb->tusb_revision == TUSB_REV_30)
 			tusb_wbus_quirk(musb, 0);
 
 		/* there are issues re-locking the PLL on wakeup ... */
@@ -1011,10 +1009,11 @@ static int tusb_musb_start(struct musb *musb)
 		goto err;
 	}
 
-	ret = tusb_print_revision(musb);
-	if (ret < 2) {
+	musb->tusb_revision = tusb_get_revision(musb);
+	tusb_print_revision(musb);
+	if (musb->tusb_revision < 2) {
 		printk(KERN_ERR "tusb: Unsupported TUSB6010 revision %i\n",
-				ret);
+				musb->tusb_revision);
 		goto err;
 	}
 
@@ -1065,7 +1064,6 @@ static int tusb_musb_init(struct musb *musb)
 	void __iomem		*sync = NULL;
 	int			ret;
 
-	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv))
 		return -EPROBE_DEFER;
@@ -1117,7 +1115,6 @@ done:
 			iounmap(sync);
 
 		usb_put_phy(musb->xceiv);
-		usb_nop_xceiv_unregister();
 	}
 	return ret;
 }
@@ -1133,7 +1130,6 @@ static int tusb_musb_exit(struct musb *musb)
 	iounmap(musb->sync_va);
 
 	usb_put_phy(musb->xceiv);
-	usb_nop_xceiv_unregister();
 	return 0;
 }
 
@@ -1176,6 +1172,7 @@ static int tusb_probe(struct platform_device *pdev)
 
 	pdata->platform_ops		= &tusb_ops;
 
+	usb_phy_generic_register();
 	platform_set_drvdata(pdev, glue);
 
 	memset(musb_resources, 0x00, sizeof(*musb_resources) *
@@ -1224,6 +1221,7 @@ static int tusb_remove(struct platform_device *pdev)
 	struct tusb6010_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
+	usb_phy_generic_unregister(glue->phy);
 	kfree(glue);
 
 	return 0;

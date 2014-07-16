@@ -78,7 +78,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
 
-	if (!skb->local_df && skb->len > mtu) {
+	if (!skb->ignore_df && skb->len > mtu) {
 		skb->dev = dst->dev;
 
 		if (xfrm6_local_dontfrag(skb))
@@ -114,7 +114,7 @@ int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (err)
 		return err;
 
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	return x->outer_mode->output2(x, skb);
 }
@@ -153,7 +153,7 @@ static int __xfrm6_output(struct sk_buff *skb)
 	if (skb->len > mtu && xfrm6_local_dontfrag(skb)) {
 		xfrm6_local_rxpmtu(skb, mtu);
 		return -EMSGSIZE;
-	} else if (!skb->local_df && skb->len > mtu && skb->sk) {
+	} else if (!skb->ignore_df && skb->len > mtu && skb->sk) {
 		xfrm_local_error(skb, mtu);
 		return -EMSGSIZE;
 	}

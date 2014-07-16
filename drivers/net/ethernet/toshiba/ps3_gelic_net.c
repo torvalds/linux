@@ -1561,7 +1561,7 @@ static struct gelic_card *gelic_alloc_card_net(struct net_device **netdev)
 	 * alloc netdev
 	 */
 	*netdev = alloc_etherdev(sizeof(struct gelic_port));
-	if (!netdev) {
+	if (!*netdev) {
 		kfree(card->unalign);
 		return NULL;
 	}

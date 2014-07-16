@@ -10,6 +10,9 @@ Optional properties:
 - fsl,mc13xxx-uses-touch : Indicate the touchscreen controller is being used
 
 Sub-nodes:
+- codec: Contain the Audio Codec node.
+  - adc-port: Contain PMIC SSI port number used for ADC.
+  - dac-port: Contain PMIC SSI port number used for DAC.
 - leds : Contain the led nodes and initial register values in property
   "led-control". Number of register depends of used IC, for MC13783 is 6,
   for MC13892 is 4, for MC34708 is 1. See datasheet for bits definitions of

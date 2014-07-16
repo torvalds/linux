@@ -235,7 +235,8 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 static unsigned long acpi_rsdp;
 static int __init setup_acpi_rsdp(char *arg)
 {
-	acpi_rsdp = simple_strtoul(arg, NULL, 16);
+	if (kstrtoul(arg, 16, &acpi_rsdp))
+		return -EINVAL;
 	return 0;
 }
 early_param("acpi_rsdp", setup_acpi_rsdp);
@@ -355,7 +356,7 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
 }
 
 void __iomem *__init_refok
-acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
+acpi_os_map_iomem(acpi_physical_address phys, acpi_size size)
 {
 	struct acpi_ioremap *map;
 	void __iomem *virt;
@@ -401,9 +402,16 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 
 	list_add_tail_rcu(&map->list, &acpi_ioremaps);
 
- out:
+out:
 	mutex_unlock(&acpi_ioremap_lock);
 	return map->virt + (phys - map->phys);
+}
+EXPORT_SYMBOL_GPL(acpi_os_map_iomem);
+
+void *__init_refok
+acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
+{
+	return (void *)acpi_os_map_iomem(phys, size);
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
@@ -422,7 +430,7 @@ static void acpi_os_map_cleanup(struct acpi_ioremap *map)
 	}
 }
 
-void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
+void __ref acpi_os_unmap_iomem(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
 
@@ -442,6 +450,12 @@ void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 	mutex_unlock(&acpi_ioremap_lock);
 
 	acpi_os_map_cleanup(map);
+}
+EXPORT_SYMBOL_GPL(acpi_os_unmap_iomem);
+
+void __ref acpi_os_unmap_memory(void *virt, acpi_size size)
+{
+	return acpi_os_unmap_iomem((void __iomem *)virt, size);
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 
@@ -464,7 +478,7 @@ int acpi_os_map_generic_address(struct acpi_generic_address *gas)
 	if (!addr || !gas->bit_width)
 		return -EINVAL;
 
-	virt = acpi_os_map_memory(addr, gas->bit_width / 8);
+	virt = acpi_os_map_iomem(addr, gas->bit_width / 8);
 	if (!virt)
 		return -EIO;
 
@@ -1770,16 +1784,15 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 }
 #endif
 
-static int __init acpi_no_auto_ssdt_setup(char *s)
+static int __init acpi_no_static_ssdt_setup(char *s)
 {
-        printk(KERN_NOTICE PREFIX "SSDT auto-load disabled\n");
+	acpi_gbl_disable_ssdt_table_install = TRUE;
+	pr_info("ACPI: static SSDT installation disabled\n");
 
-        acpi_gbl_disable_ssdt_table_load = TRUE;
-
-        return 1;
+	return 0;
 }
 
-__setup("acpi_no_auto_ssdt", acpi_no_auto_ssdt_setup);
+early_param("acpi_no_static_ssdt", acpi_no_static_ssdt_setup);
 
 static int __init acpi_disable_return_repair(char *s)
 {
@@ -1798,6 +1811,16 @@ acpi_status __init acpi_os_initialize(void)
 	acpi_os_map_generic_address(&acpi_gbl_FADT.xpm1b_event_block);
 	acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe0_block);
 	acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe1_block);
+	if (acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER) {
+		/*
+		 * Use acpi_os_map_generic_address to pre-map the reset
+		 * register if it's in system memory.
+		 */
+		int rv;
+
+		rv = acpi_os_map_generic_address(&acpi_gbl_FADT.reset_register);
+		pr_debug(PREFIX "%s: map reset_reg status %d\n", __func__, rv);
+	}
 
 	return AE_OK;
 }
@@ -1826,6 +1849,8 @@ acpi_status acpi_os_terminate(void)
 	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xgpe0_block);
 	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xpm1b_event_block);
 	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xpm1a_event_block);
+	if (acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER)
+		acpi_os_unmap_generic_address(&acpi_gbl_FADT.reset_register);
 
 	destroy_workqueue(kacpid_wq);
 	destroy_workqueue(kacpi_notify_wq);

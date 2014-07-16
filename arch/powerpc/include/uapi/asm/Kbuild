@@ -15,7 +15,6 @@ header-y += ioctls.h
 header-y += ipcbuf.h
 header-y += kvm.h
 header-y += kvm_para.h
-header-y += linkage.h
 header-y += mman.h
 header-y += msgbuf.h
 header-y += nvram.h

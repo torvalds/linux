@@ -337,7 +337,7 @@ static void backref_tree_panic(struct rb_node *rb_node, int errno, u64 bytenr)
 	if (bnode->root)
 		fs_info = bnode->root->fs_info;
 	btrfs_panic(fs_info, errno, "Inconsistency in backref cache "
-		    "found at offset %llu\n", bytenr);
+		    "found at offset %llu", bytenr);
 }
 
 /*
@@ -528,7 +528,7 @@ static int should_ignore_root(struct btrfs_root *root)
 {
 	struct btrfs_root *reloc_root;
 
-	if (!root->ref_cows)
+	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 		return 0;
 
 	reloc_root = root->reloc_root;
@@ -610,7 +610,7 @@ struct btrfs_root *find_tree_root(struct reloc_control *rc,
 	root = read_fs_root(rc->extent_root->fs_info, root_objectid);
 	BUG_ON(IS_ERR(root));
 
-	if (root->ref_cows &&
+	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
 	    generation != btrfs_root_generation(&root->root_item))
 		return NULL;
 
@@ -887,7 +887,7 @@ again:
 			goto out;
 		}
 
-		if (!root->ref_cows)
+		if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 			cur->cowonly = 1;
 
 		if (btrfs_root_level(&root->root_item) == cur->level) {
@@ -954,7 +954,8 @@ again:
 				upper->bytenr = eb->start;
 				upper->owner = btrfs_header_owner(eb);
 				upper->level = lower->level + 1;
-				if (!root->ref_cows)
+				if (!test_bit(BTRFS_ROOT_REF_COWS,
+					      &root->state))
 					upper->cowonly = 1;
 
 				/*
@@ -1258,7 +1259,7 @@ static int __must_check __add_reloc_root(struct btrfs_root *root)
 	if (rb_node) {
 		btrfs_panic(root->fs_info, -EEXIST, "Duplicate root found "
 			    "for start=%llu while inserting into relocation "
-			    "tree\n", node->bytenr);
+			    "tree", node->bytenr);
 		kfree(node);
 		return -EEXIST;
 	}
@@ -2441,7 +2442,7 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 		next = walk_up_backref(next, edges, &index);
 		root = next->root;
 		BUG_ON(!root);
-		BUG_ON(!root->ref_cows);
+		BUG_ON(!test_bit(BTRFS_ROOT_REF_COWS, &root->state));
 
 		if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) {
 			record_reloc_root_in_trans(trans, root);
@@ -2506,7 +2507,7 @@ struct btrfs_root *select_one_root(struct btrfs_trans_handle *trans,
 		BUG_ON(!root);
 
 		/* no other choice for non-references counted tree */
-		if (!root->ref_cows)
+		if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 			return root;
 
 		if (root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID)
@@ -2893,14 +2894,14 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (!root || root->ref_cows) {
+	if (!root || test_bit(BTRFS_ROOT_REF_COWS, &root->state)) {
 		ret = reserve_metadata_space(trans, rc, node);
 		if (ret)
 			goto out;
 	}
 
 	if (root) {
-		if (root->ref_cows) {
+		if (test_bit(BTRFS_ROOT_REF_COWS, &root->state)) {
 			BUG_ON(node->new_bytenr);
 			BUG_ON(!list_empty(&node->list));
 			btrfs_record_root_in_trans(trans, root);

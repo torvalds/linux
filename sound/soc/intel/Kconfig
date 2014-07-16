@@ -49,3 +49,12 @@ config SND_SOC_INTEL_BYT_RT5640_MACH
 	help
 	  This adds audio driver for Intel Baytrail platform based boards
 	  with the RT5640 audio codec.
+
+config SND_SOC_INTEL_BYT_MAX98090_MACH
+	tristate "ASoC Audio driver for Intel Baytrail with MAX98090 codec"
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C
+	select SND_SOC_INTEL_BAYTRAIL
+	select SND_SOC_MAX98090
+	help
+	  This adds audio driver for Intel Baytrail platform based boards
+	  with the MAX98090 audio codec.

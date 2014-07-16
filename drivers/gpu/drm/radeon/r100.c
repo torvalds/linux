@@ -142,36 +142,6 @@ void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
 }
 
 /**
- * r100_pre_page_flip - pre-pageflip callback.
- *
- * @rdev: radeon_device pointer
- * @crtc: crtc to prepare for pageflip on
- *
- * Pre-pageflip callback (r1xx-r4xx).
- * Enables the pageflip irq (vblank irq).
- */
-void r100_pre_page_flip(struct radeon_device *rdev, int crtc)
-{
-	/* enable the pflip int */
-	radeon_irq_kms_pflip_irq_get(rdev, crtc);
-}
-
-/**
- * r100_post_page_flip - pos-pageflip callback.
- *
- * @rdev: radeon_device pointer
- * @crtc: crtc to cleanup pageflip on
- *
- * Post-pageflip callback (r1xx-r4xx).
- * Disables the pageflip irq (vblank irq).
- */
-void r100_post_page_flip(struct radeon_device *rdev, int crtc)
-{
-	/* disable the pflip int */
-	radeon_irq_kms_pflip_irq_put(rdev, crtc);
-}
-
-/**
  * r100_page_flip - pageflip callback.
  *
  * @rdev: radeon_device pointer
@@ -182,9 +152,8 @@ void r100_post_page_flip(struct radeon_device *rdev, int crtc)
  * During vblank we take the crtc lock and wait for the update_pending
  * bit to go high, when it does, we release the lock, and allow the
  * double buffered update to take place.
- * Returns the current update pending status.
  */
-u32 r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
+void r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 	u32 tmp = ((u32)crtc_base) | RADEON_CRTC_OFFSET__OFFSET_LOCK;
@@ -206,8 +175,24 @@ u32 r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 	tmp &= ~RADEON_CRTC_OFFSET__OFFSET_LOCK;
 	WREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset, tmp);
 
+}
+
+/**
+ * r100_page_flip_pending - check if page flip is still pending
+ *
+ * @rdev: radeon_device pointer
+ * @crtc_id: crtc to check
+ *
+ * Check if the last pagefilp is still pending (r1xx-r4xx).
+ * Returns the current update pending status.
+ */
+bool r100_page_flip_pending(struct radeon_device *rdev, int crtc_id)
+{
+	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
+
 	/* Return current update_pending status: */
-	return RREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset) & RADEON_CRTC_OFFSET__GUI_TRIG_OFFSET;
+	return !!(RREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset) &
+		RADEON_CRTC_OFFSET__GUI_TRIG_OFFSET);
 }
 
 /**
@@ -697,15 +682,11 @@ void r100_pci_gart_disable(struct radeon_device *rdev)
 	WREG32(RADEON_AIC_HI_ADDR, 0);
 }
 
-int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
+void r100_pci_gart_set_page(struct radeon_device *rdev, unsigned i,
+			    uint64_t addr)
 {
 	u32 *gtt = rdev->gart.ptr;
-
-	if (i < 0 || i > rdev->gart.num_gpu_pages) {
-		return -EINVAL;
-	}
 	gtt[i] = cpu_to_le32(lower_32_bits(addr));
-	return 0;
 }
 
 void r100_pci_gart_fini(struct radeon_device *rdev)
@@ -794,7 +775,7 @@ int r100_irq_process(struct radeon_device *rdev)
 				wake_up(&rdev->irq.vblank_queue);
 			}
 			if (atomic_read(&rdev->irq.pflip[0]))
-				radeon_crtc_handle_flip(rdev, 0);
+				radeon_crtc_handle_vblank(rdev, 0);
 		}
 		if (status & RADEON_CRTC2_VBLANK_STAT) {
 			if (rdev->irq.crtc_vblank_int[1]) {
@@ -803,7 +784,7 @@ int r100_irq_process(struct radeon_device *rdev)
 				wake_up(&rdev->irq.vblank_queue);
 			}
 			if (atomic_read(&rdev->irq.pflip[1]))
-				radeon_crtc_handle_flip(rdev, 1);
+				radeon_crtc_handle_vblank(rdev, 1);
 		}
 		if (status & RADEON_FP_DETECT_STAT) {
 			queue_hotplug = true;

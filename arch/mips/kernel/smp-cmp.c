@@ -49,13 +49,10 @@ static void cmp_init_secondary(void)
 
 	/* Enable per-cpu interrupts: platform specific */
 
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
+#ifdef CONFIG_MIPS_MT_SMP
 	if (cpu_has_mipsmt)
 		c->vpe_id = (read_c0_tcbind() >> TCBIND_CURVPE_SHIFT) &
 			TCBIND_CURVPE;
-#endif
-#ifdef CONFIG_MIPS_MT_SMTC
-	c->tc_id  = (read_c0_tcbind() & TCBIND_CURTC) >> TCBIND_CURTC_SHIFT;
 #endif
 }
 
@@ -73,11 +70,6 @@ static void cmp_smp_finish(void)
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
 	local_irq_enable();
-}
-
-static void cmp_cpus_done(void)
-{
-	pr_debug("SMPCMP: CPU%d: %s\n", smp_processor_id(), __func__);
 }
 
 /*
@@ -135,10 +127,6 @@ void __init cmp_smp_setup(void)
 		unsigned int mvpconf0 = read_c0_mvpconf0();
 
 		nvpe = ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
-#elif defined(CONFIG_MIPS_MT_SMTC)
-		unsigned int mvpconf0 = read_c0_mvpconf0();
-
-		nvpe = ((mvpconf0 & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1;
 #endif
 		smp_num_siblings = nvpe;
 	}
@@ -165,7 +153,6 @@ struct plat_smp_ops cmp_smp_ops = {
 	.send_ipi_mask		= gic_send_ipi_mask,
 	.init_secondary		= cmp_init_secondary,
 	.smp_finish		= cmp_smp_finish,
-	.cpus_done		= cmp_cpus_done,
 	.boot_secondary		= cmp_boot_secondary,
 	.smp_setup		= cmp_smp_setup,
 	.prepare_cpus		= cmp_prepare_cpus,

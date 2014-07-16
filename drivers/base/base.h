@@ -63,8 +63,6 @@ struct driver_private {
  *	binding of drivers which were unable to get all the resources needed by
  *	the device; typically because it depends on another driver getting
  *	probed first.
- * @driver_data - private pointer for driver specific info.  Will turn into a
- * list soon.
  * @device - pointer back to the struct class that this structure is
  * associated with.
  *
@@ -76,7 +74,6 @@ struct device_private {
 	struct klist_node knode_driver;
 	struct klist_node knode_bus;
 	struct list_head deferred_probe;
-	void *driver_data;
 	struct device *device;
 };
 #define to_device_private_parent(obj)	\

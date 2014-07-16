@@ -172,7 +172,7 @@ static int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 
 static int wil_cfg80211_get_station(struct wiphy *wiphy,
 				    struct net_device *ndev,
-				    u8 *mac, struct station_info *sinfo)
+				    const u8 *mac, struct station_info *sinfo)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int rc;
@@ -288,6 +288,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	}
 
 	wil->scan_request = request;
+	mod_timer(&wil->scan_timer, jiffies + WIL6210_SCAN_TO);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd.num_channels = 0;
@@ -671,7 +672,7 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 }
 
 static int wil_cfg80211_del_station(struct wiphy *wiphy,
-				    struct net_device *dev, u8 *mac)
+				    struct net_device *dev, const u8 *mac)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 

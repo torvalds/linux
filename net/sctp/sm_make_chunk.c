@@ -1782,7 +1782,7 @@ no_hmac:
 	else
 		kt = ktime_get();
 
-	if (!asoc && ktime_compare(bear_cookie->expiration, kt) < 0) {
+	if (!asoc && ktime_before(bear_cookie->expiration, kt)) {
 		/*
 		 * Section 3.3.10.3 Stale Cookie Error (3)
 		 *

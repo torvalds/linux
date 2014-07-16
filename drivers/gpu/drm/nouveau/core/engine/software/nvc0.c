@@ -104,7 +104,7 @@ nvc0_software_sclass[] = {
  ******************************************************************************/
 
 static int
-nvc0_software_vblsem_release(void *data, int head)
+nvc0_software_vblsem_release(void *data, u32 type, int head)
 {
 	struct nv50_software_chan *chan = data;
 	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;

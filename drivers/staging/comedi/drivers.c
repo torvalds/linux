@@ -258,6 +258,7 @@ static int insn_rw_emulate_bits(struct comedi_device *dev,
 	const unsigned base_bitfield_channel =
 	    (chan < channels_per_bitfield) ? 0 : chan;
 	unsigned int new_data[2];
+
 	memset(new_data, 0, sizeof(new_data));
 	memset(&new_insn, 0, sizeof(new_insn));
 	new_insn.insn = INSN_BITS;
@@ -306,7 +307,6 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 		return -ENOMEM;
 
 	init_waitqueue_head(&async->wait_head);
-	async->subdevice = s;
 	s->async = async;
 
 	async->max_bufsize = comedi_default_buf_maxsize_kb * 1024;

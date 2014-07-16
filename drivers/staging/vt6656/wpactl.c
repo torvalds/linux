@@ -38,8 +38,7 @@
 #include "wmgr.h"
 #include "iocmd.h"
 #include "iowpa.h"
-#include "control.h"
-#include "rndis.h"
+#include "usbpipe.h"
 #include "rf.h"
 
 static int msglevel = MSG_LEVEL_INFO;
@@ -67,7 +66,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 	u64 KeyRSC;
 	u8 byKeyDecMode = KEY_CTL_WEP;
 	int ret = 0;
-	int uu;
+	u8 uu;
 	int ii;
 
 	if (param->u.wpa_key.alg_name > WPA_ALG_CCMP)

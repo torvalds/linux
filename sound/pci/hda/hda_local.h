@@ -407,6 +407,37 @@ struct hda_fixup {
 	} v;
 };
 
+struct snd_hda_pin_quirk {
+	unsigned int codec;             /* Codec vendor/device ID */
+	unsigned short subvendor;	/* PCI subvendor ID */
+	const struct hda_pintbl *pins;  /* list of matching pins */
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+	const char *name;
+#endif
+	int value;			/* quirk value */
+};
+
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+
+#define SND_HDA_PIN_QUIRK(_codec, _subvendor, _name, _value, _pins...) \
+	{ .codec = _codec,\
+	  .subvendor = _subvendor,\
+	  .name = _name,\
+	  .value = _value,\
+	  .pins = (const struct hda_pintbl[]) { _pins } \
+	}
+#else
+
+#define SND_HDA_PIN_QUIRK(_codec, _subvendor, _name, _value, _pins...) \
+	{ .codec = _codec,\
+	  .subvendor = _subvendor,\
+	  .value = _value,\
+	  .pins = (const struct hda_pintbl[]) { _pins } \
+	}
+
+#endif
+
+
 /* fixup types */
 enum {
 	HDA_FIXUP_INVALID,
@@ -434,6 +465,10 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_model_fixup *models,
 			const struct snd_pci_quirk *quirk,
 			const struct hda_fixup *fixlist);
+void snd_hda_pick_pin_fixup(struct hda_codec *codec,
+			    const struct snd_hda_pin_quirk *pin_quirk,
+			    const struct hda_fixup *fixlist);
+
 
 /*
  * unsolicited event handler

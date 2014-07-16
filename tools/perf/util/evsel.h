@@ -5,12 +5,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <linux/perf_event.h>
-#include "types.h"
+#include <linux/types.h>
 #include "xyarray.h"
 #include "cgroup.h"
 #include "hist.h"
 #include "symbol.h"
- 
+
 struct perf_counts_values {
 	union {
 		struct {
@@ -89,6 +89,11 @@ struct perf_evsel {
 	int			sample_read;
 	struct perf_evsel	*leader;
 	char			*group_name;
+};
+
+union u64_swap {
+	u64 val64;
+	u32 val32[2];
 };
 
 #define hists_to_evsel(h) container_of(h, struct perf_evsel, hists)

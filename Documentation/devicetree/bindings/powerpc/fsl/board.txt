@@ -67,3 +67,20 @@ Example:
 			gpio-controller;
 		};
 	};
+
+* Freescale on-board FPGA connected on I2C bus
+
+Some Freescale boards like BSC9132QDS have on board FPGA connected on
+the i2c bus.
+
+Required properties:
+- compatible: Should be a board-specific string followed by a string
+  indicating the type of FPGA.  Example:
+	"fsl,<board>-fpga", "fsl,fpga-qixis-i2c"
+- reg: Should contain the address of the FPGA
+
+Example:
+	fpga: fpga@66 {
+		compatible = "fsl,bsc9132qds-fpga", "fsl,fpga-qixis-i2c";
+		reg = <0x66>;
+	};

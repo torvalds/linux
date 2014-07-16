@@ -345,21 +345,6 @@ enum iwl_wowlan_wakeup_reason {
 	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_WAKEUP_PACKET		= BIT(12),
 }; /* WOWLAN_WAKE_UP_REASON_API_E_VER_2 */
 
-struct iwl_wowlan_status_v4 {
-	__le64 replay_ctr;
-	__le16 pattern_number;
-	__le16 non_qos_seq_ctr;
-	__le16 qos_seq_ctr[8];
-	__le32 wakeup_reasons;
-	__le32 rekey_status;
-	__le32 num_of_gtk_rekeys;
-	__le32 transmitted_ndps;
-	__le32 received_beacons;
-	__le32 wake_packet_length;
-	__le32 wake_packet_bufsize;
-	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
-} __packed; /* WOWLAN_STATUSES_API_S_VER_4 */
-
 struct iwl_wowlan_gtk_status {
 	u8 key_index;
 	u8 reserved[3];
@@ -368,7 +353,7 @@ struct iwl_wowlan_gtk_status {
 	struct iwl_wowlan_rsc_tsc_params_cmd rsc;
 } __packed;
 
-struct iwl_wowlan_status_v6 {
+struct iwl_wowlan_status {
 	struct iwl_wowlan_gtk_status gtk;
 	__le64 replay_ctr;
 	__le16 pattern_number;

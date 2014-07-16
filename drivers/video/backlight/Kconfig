@@ -29,7 +29,7 @@ if LCD_CLASS_DEVICE
 
 config LCD_CORGI
 	tristate "LCD Panel support for SHARP corgi/spitz model"
-	depends on SPI_MASTER && PXA_SHARPSL
+	depends on SPI_MASTER && PXA_SHARPSL && BACKLIGHT_CLASS_DEVICE
 	help
 	  Say y here to support the LCD panels usually found on SHARP
 	  corgi (C7x0) and spitz (Cxx00) models.
@@ -370,7 +370,7 @@ config BACKLIGHT_AAT2870
 
 config BACKLIGHT_LM3630A
 	tristate "Backlight Driver for LM3630A"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
 	select REGMAP_I2C
 	help
 	  This supports TI LM3630A Backlight Driver
@@ -386,14 +386,14 @@ config BACKLIGHT_LM3639
 
 config BACKLIGHT_LP855X
 	tristate "Backlight driver for TI LP855X"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
 	help
 	  This supports TI LP8550, LP8551, LP8552, LP8553, LP8555, LP8556 and
 	  LP8557 backlight driver.
 
 config BACKLIGHT_LP8788
 	tristate "Backlight driver for TI LP8788 MFD"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_LP8788
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_LP8788 && PWM
 	help
 	  This supports TI LP8788 backlight driver.
 

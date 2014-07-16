@@ -39,7 +39,7 @@ static int iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 	lockdep_assert_held(&priv->sta_lock);
 
 	if (sta_id >= IWLAGN_STATION_COUNT) {
-		IWL_ERR(priv, "invalid sta_id %u", sta_id);
+		IWL_ERR(priv, "invalid sta_id %u\n", sta_id);
 		return -EINVAL;
 	}
 	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE))
@@ -165,7 +165,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	iwl_free_resp(&cmd);
 
 	if (cmd.handler_status)
-		IWL_ERR(priv, "%s - error in the CMD response %d", __func__,
+		IWL_ERR(priv, "%s - error in the CMD response %d\n", __func__,
 			cmd.handler_status);
 
 	return cmd.handler_status;
@@ -261,7 +261,7 @@ int iwl_sta_update_ht(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	cmd.station_flags = flags;
 	cmd.sta.sta_id = sta_id;
 
-	return iwl_send_add_sta(priv, &cmd, CMD_SYNC);
+	return iwl_send_add_sta(priv, &cmd, 0);
 }
 
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
@@ -413,7 +413,7 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	spin_unlock_bh(&priv->sta_lock);
 
 	/* Add station to device's station table */
-	ret = iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	ret = iwl_send_add_sta(priv, &sta_cmd, 0);
 	if (ret) {
 		spin_lock_bh(&priv->sta_lock);
 		IWL_ERR(priv, "Adding station %pM failed.\n",
@@ -456,7 +456,6 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_REMOVE_STA,
 		.len = { sizeof(struct iwl_rem_sta_cmd), },
-		.flags = CMD_SYNC,
 		.data = { &rm_sta_cmd, },
 	};
 
@@ -740,7 +739,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 					send_lq = true;
 			}
 			spin_unlock_bh(&priv->sta_lock);
-			ret = iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+			ret = iwl_send_add_sta(priv, &sta_cmd, 0);
 			if (ret) {
 				spin_lock_bh(&priv->sta_lock);
 				IWL_ERR(priv, "Adding station %pM failed.\n",
@@ -756,8 +755,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			 * current LQ command
 			 */
 			if (send_lq)
-				iwl_send_lq_cmd(priv, ctx, &lq,
-						CMD_SYNC, true);
+				iwl_send_lq_cmd(priv, ctx, &lq, 0, true);
 			spin_lock_bh(&priv->sta_lock);
 			priv->stations[i].used &= ~IWL_STA_UCODE_INPROGRESS;
 		}
@@ -968,7 +966,7 @@ int iwlagn_add_bssid_station(struct iwl_priv *priv,
 		return -ENOMEM;
 	}
 
-	ret = iwl_send_lq_cmd(priv, ctx, link_cmd, CMD_SYNC, true);
+	ret = iwl_send_lq_cmd(priv, ctx, link_cmd, 0, true);
 	if (ret)
 		IWL_ERR(priv, "Link quality command failed (%d)\n", ret);
 
@@ -999,7 +997,6 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 	struct iwl_host_cmd cmd = {
 		.id = ctx->wep_key_cmd,
 		.data = { wep_cmd, },
-		.flags = CMD_SYNC,
 	};
 
 	might_sleep();
@@ -1248,7 +1245,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	sta_cmd.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	sta_cmd.mode = STA_CONTROL_MODIFY_MSK;
 
-	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return iwl_send_add_sta(priv, &sta_cmd, 0);
 }
 
 int iwl_set_dynamic_key(struct iwl_priv *priv,
@@ -1284,13 +1281,13 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);
 		ret = iwlagn_send_sta_key(priv, keyconf, sta_id,
-					  seq.tkip.iv32, p1k, CMD_SYNC);
+					  seq.tkip.iv32, p1k, 0);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 		ret = iwlagn_send_sta_key(priv, keyconf, sta_id,
-					  0, NULL, CMD_SYNC);
+					  0, NULL, 0);
 		break;
 	default:
 		IWL_ERR(priv, "Unknown cipher %x\n", keyconf->cipher);
@@ -1409,7 +1406,7 @@ int iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid)
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
 	spin_unlock_bh(&priv->sta_lock);
 
-	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return iwl_send_add_sta(priv, &sta_cmd, 0);
 }
 
 int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
@@ -1433,7 +1430,7 @@ int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
 	spin_unlock_bh(&priv->sta_lock);
 
-	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return iwl_send_add_sta(priv, &sta_cmd, 0);
 }
 
 int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
@@ -1458,7 +1455,7 @@ int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
 	spin_unlock_bh(&priv->sta_lock);
 
-	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return iwl_send_add_sta(priv, &sta_cmd, 0);
 }
 
 

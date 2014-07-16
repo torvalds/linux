@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -15,7 +15,7 @@
  * |                              |                    | 0x0144,0x0146	|
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e-0x0170	|
- * | Mailbox commands             |       0x1187       | 0x1018-0x1019	|
+ * | Mailbox commands             |       0x118d       | 0x1018-0x1019	|
  * |                              |                    | 0x10ca         |
  * |                              |                    | 0x1115-0x1116  |
  * |                              |                    | 0x111a-0x111b	|
@@ -45,12 +45,16 @@
  * |                              |                    | 0x70ad-0x70ae  |
  * |                              |                    | 0x70d7-0x70db  |
  * |                              |                    | 0x70de-0x70df  |
- * | Task Management              |       0x803d       | 0x8025-0x8026  |
- * |                              |                    | 0x800b,0x8039  |
+ * | Task Management              |       0x803d       | 0x8000,0x800b  |
+ * |                              |                    | 0x8019         |
+ * |                              |                    | 0x8025,0x8026  |
+ * |                              |                    | 0x8031,0x8032  |
+ * |                              |                    | 0x8039,0x803c  |
  * | AER/EEH                      |       0x9011       |		|
  * | Virtual Port                 |       0xa007       |		|
- * | ISP82XX Specific             |       0xb14c       | 0xb002,0xb024  |
+ * | ISP82XX Specific             |       0xb157       | 0xb002,0xb024  |
  * |                              |                    | 0xb09e,0xb0ae  |
+ * |				  |		       | 0xb0c3,0xb0c6  |
  * |                              |                    | 0xb0e0-0xb0ef  |
  * |                              |                    | 0xb085,0xb0dc  |
  * |                              |                    | 0xb107,0xb108  |
@@ -60,12 +64,12 @@
  * |                              |                    | 0xb13c-0xb140  |
  * |                              |                    | 0xb149		|
  * | MultiQ                       |       0xc00c       |		|
- * | Misc                         |       0xd2ff       | 0xd017-0xd019	|
+ * | Misc                         |       0xd212       | 0xd017-0xd019	|
  * |                              |                    | 0xd020		|
- * |                              |                    | 0xd02e-0xd0ff	|
+ * |                              |                    | 0xd030-0xd0ff	|
  * |                              |                    | 0xd101-0xd1fe	|
- * |                              |                    | 0xd212-0xd2fe	|
- * | Target Mode		  |	  0xe070       | 0xe021		|
+ * |                              |                    | 0xd213-0xd2fe	|
+ * | Target Mode		  |	  0xe078       |		|
  * | Target Mode Management	  |	  0xf072       | 0xf002-0xf003	|
  * |                              |                    | 0xf046-0xf049  |
  * | Target Mode Task Management  |	  0x1000b      |		|
@@ -277,9 +281,15 @@ qla24xx_dump_memory(struct qla_hw_data *ha, uint32_t *code_ram,
 	if (rval != QLA_SUCCESS)
 		return rval;
 
+	set_bit(RISC_SRAM_DUMP_CMPL, &ha->fw_dump_cap_flags);
+
 	/* External Memory. */
-	return qla24xx_dump_ram(ha, 0x100000, *nxt,
+	rval = qla24xx_dump_ram(ha, 0x100000, *nxt,
 	    ha->fw_memory_size - 0x100000 + 1, nxt);
+	if (rval == QLA_SUCCESS)
+		set_bit(RISC_EXT_MEM_DUMP_CMPL, &ha->fw_dump_cap_flags);
+
+	return rval;
 }
 
 static uint32_t *
@@ -296,23 +306,15 @@ qla24xx_read_window(struct device_reg_24xx __iomem *reg, uint32_t iobase,
 	return buf;
 }
 
-int
-qla24xx_pause_risc(struct device_reg_24xx __iomem *reg)
+void
+qla24xx_pause_risc(struct device_reg_24xx __iomem *reg, struct qla_hw_data *ha)
 {
-	int rval = QLA_SUCCESS;
-	uint32_t cnt;
-
 	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_PAUSE);
-	for (cnt = 30000;
-	    ((RD_REG_DWORD(&reg->host_status) & HSRX_RISC_PAUSED) == 0) &&
-	    rval == QLA_SUCCESS; cnt--) {
-		if (cnt)
-			udelay(100);
-		else
-			rval = QLA_FUNCTION_TIMEOUT;
-	}
 
-	return rval;
+	/* 100 usec delay is sufficient enough for hardware to pause RISC */
+	udelay(100);
+	if (RD_REG_DWORD(&reg->host_status) & HSRX_RISC_PAUSED)
+		set_bit(RISC_PAUSE_CMPL, &ha->fw_dump_cap_flags);
 }
 
 int
@@ -320,10 +322,14 @@ qla24xx_soft_reset(struct qla_hw_data *ha)
 {
 	int rval = QLA_SUCCESS;
 	uint32_t cnt;
-	uint16_t mb0, wd;
+	uint16_t wd;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
-	/* Reset RISC. */
+	/*
+	 * Reset RISC. The delay is dependent on system architecture.
+	 * Driver can proceed with the reset sequence after waiting
+	 * for a timeout period.
+	 */
 	WRT_REG_DWORD(&reg->ctrl_status, CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
 	for (cnt = 0; cnt < 30000; cnt++) {
 		if ((RD_REG_DWORD(&reg->ctrl_status) & CSRX_DMA_ACTIVE) == 0)
@@ -331,19 +337,14 @@ qla24xx_soft_reset(struct qla_hw_data *ha)
 
 		udelay(10);
 	}
+	if (!(RD_REG_DWORD(&reg->ctrl_status) & CSRX_DMA_ACTIVE))
+		set_bit(DMA_SHUTDOWN_CMPL, &ha->fw_dump_cap_flags);
 
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    CSRX_ISP_SOFT_RESET|CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &wd);
 
 	udelay(100);
-	/* Wait for firmware to complete NVRAM accesses. */
-	mb0 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
-	for (cnt = 10000 ; cnt && mb0; cnt--) {
-		udelay(5);
-		mb0 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
-		barrier();
-	}
 
 	/* Wait for soft-reset to complete. */
 	for (cnt = 0; cnt < 30000; cnt++) {
@@ -353,16 +354,21 @@ qla24xx_soft_reset(struct qla_hw_data *ha)
 
 		udelay(10);
 	}
+	if (!(RD_REG_DWORD(&reg->ctrl_status) & CSRX_ISP_SOFT_RESET))
+		set_bit(ISP_RESET_CMPL, &ha->fw_dump_cap_flags);
+
 	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_RESET);
 	RD_REG_DWORD(&reg->hccr);             /* PCI Posting. */
 
-	for (cnt = 30000; RD_REG_WORD(&reg->mailbox0) != 0 &&
+	for (cnt = 10000; RD_REG_WORD(&reg->mailbox0) != 0 &&
 	    rval == QLA_SUCCESS; cnt--) {
 		if (cnt)
-			udelay(100);
+			udelay(10);
 		else
 			rval = QLA_FUNCTION_TIMEOUT;
 	}
+	if (rval == QLA_SUCCESS)
+		set_bit(RISC_RDY_AFT_RESET, &ha->fw_dump_cap_flags);
 
 	return rval;
 }
@@ -659,12 +665,13 @@ qla2xxx_dump_post_process(scsi_qla_host_t *vha, int rval)
 
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0xd000,
-		    "Failed to dump firmware (%x).\n", rval);
+		    "Failed to dump firmware (%x), dump status flags (0x%lx).\n",
+		    rval, ha->fw_dump_cap_flags);
 		ha->fw_dumped = 0;
 	} else {
 		ql_log(ql_log_info, vha, 0xd001,
-		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    vha->host_no, ha->fw_dump);
+		    "Firmware dump saved to temp buffer (%ld/%p), dump status flags (0x%lx).\n",
+		    vha->host_no, ha->fw_dump, ha->fw_dump_cap_flags);
 		ha->fw_dumped = 1;
 		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 	}
@@ -1053,6 +1060,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
+	ha->fw_dump_cap_flags = 0;
 
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1075,10 +1083,11 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	fw->host_status = htonl(RD_REG_DWORD(&reg->host_status));
 
-	/* Pause RISC. */
-	rval = qla24xx_pause_risc(reg);
-	if (rval != QLA_SUCCESS)
-		goto qla24xx_fw_dump_failed_0;
+	/*
+	 * Pause RISC. No need to track timeout, as resetting the chip
+	 * is the right approach incase of pause timeout
+	 */
+	qla24xx_pause_risc(reg, ha);
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
@@ -1302,6 +1311,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
+	ha->fw_dump_cap_flags = 0;
 
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1325,10 +1335,11 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	fw->host_status = htonl(RD_REG_DWORD(&reg->host_status));
 
-	/* Pause RISC. */
-	rval = qla24xx_pause_risc(reg);
-	if (rval != QLA_SUCCESS)
-		goto qla25xx_fw_dump_failed_0;
+	/*
+	 * Pause RISC. No need to track timeout, as resetting the chip
+	 * is the right approach incase of pause timeout
+	 */
+	qla24xx_pause_risc(reg, ha);
 
 	/* Host/Risc registers. */
 	iter_reg = fw->host_risc_reg;
@@ -1619,6 +1630,7 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
+	ha->fw_dump_cap_flags = 0;
 
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1641,10 +1653,11 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	fw->host_status = htonl(RD_REG_DWORD(&reg->host_status));
 
-	/* Pause RISC. */
-	rval = qla24xx_pause_risc(reg);
-	if (rval != QLA_SUCCESS)
-		goto qla81xx_fw_dump_failed_0;
+	/*
+	 * Pause RISC. No need to track timeout, as resetting the chip
+	 * is the right approach incase of pause timeout
+	 */
+	qla24xx_pause_risc(reg, ha);
 
 	/* Host/Risc registers. */
 	iter_reg = fw->host_risc_reg;
@@ -1938,6 +1951,7 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
+	ha->fw_dump_cap_flags = 0;
 
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1959,10 +1973,11 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	fw->host_status = htonl(RD_REG_DWORD(&reg->host_status));
 
-	/* Pause RISC. */
-	rval = qla24xx_pause_risc(reg);
-	if (rval != QLA_SUCCESS)
-		goto qla83xx_fw_dump_failed_0;
+	/*
+	 * Pause RISC. No need to track timeout, as resetting the chip
+	 * is the right approach incase of pause timeout
+	 */
+	qla24xx_pause_risc(reg, ha);
 
 	WRT_REG_DWORD(&reg->iobase_addr, 0x6000);
 	dmp_reg = &reg->iobase_window;
@@ -2385,9 +2400,11 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 			nxt += sizeof(fw->code_ram);
 			nxt += (ha->fw_memory_size - 0x100000 + 1);
 			goto copy_queue;
-		} else
+		} else {
+			set_bit(RISC_RDY_AFT_RESET, &ha->fw_dump_cap_flags);
 			ql_log(ql_log_warn, vha, 0xd010,
 			    "bigger hammer success?\n");
+		}
 	}
 
 	rval = qla24xx_dump_memory(ha, fw->code_ram, sizeof(fw->code_ram),

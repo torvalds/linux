@@ -3,63 +3,51 @@
 
 #include <asm/page_types.h>
 #include <linux/linkage.h>
+#include <linux/init.h>
 
-#ifdef __ASSEMBLER__
+#ifndef __ASSEMBLER__
 
-#define DEFINE_VDSO_IMAGE(symname, filename)				\
-__PAGE_ALIGNED_DATA ;							\
-	.globl symname##_start, symname##_end ;				\
-	.align PAGE_SIZE ;						\
-	symname##_start: ;						\
-	.incbin filename ;						\
-	symname##_end: ;						\
-	.align PAGE_SIZE /* extra data here leaks to userspace. */ ;	\
-									\
-.previous ;								\
-									\
-	.globl symname##_pages ;					\
-	.bss ;								\
-	.align 8 ;							\
-	.type symname##_pages, @object ;				\
-	symname##_pages: ;						\
-	.zero (symname##_end - symname##_start + PAGE_SIZE - 1) / PAGE_SIZE * (BITS_PER_LONG / 8) ; \
-	.size symname##_pages, .-symname##_pages
+#include <linux/mm_types.h>
 
-#else
+struct vdso_image {
+	void *data;
+	unsigned long size;   /* Always a multiple of PAGE_SIZE */
 
-#define DECLARE_VDSO_IMAGE(symname)				\
-	extern char symname##_start[], symname##_end[];		\
-	extern struct page *symname##_pages[]
+	/* text_mapping.pages is big enough for data/size page pointers */
+	struct vm_special_mapping text_mapping;
+
+	unsigned long alt, alt_len;
+
+	unsigned long sym_end_mapping;  /* Total size of the mapping */
+
+	unsigned long sym_vvar_page;
+	unsigned long sym_hpet_page;
+	unsigned long sym_VDSO32_NOTE_MASK;
+	unsigned long sym___kernel_sigreturn;
+	unsigned long sym___kernel_rt_sigreturn;
+	unsigned long sym___kernel_vsyscall;
+	unsigned long sym_VDSO32_SYSENTER_RETURN;
+};
+
+#ifdef CONFIG_X86_64
+extern const struct vdso_image vdso_image_64;
+#endif
+
+#ifdef CONFIG_X86_X32
+extern const struct vdso_image vdso_image_x32;
+#endif
 
 #if defined CONFIG_X86_32 || defined CONFIG_COMPAT
-
-#include <asm/vdso32.h>
-
-DECLARE_VDSO_IMAGE(vdso32_int80);
+extern const struct vdso_image vdso_image_32_int80;
 #ifdef CONFIG_COMPAT
-DECLARE_VDSO_IMAGE(vdso32_syscall);
+extern const struct vdso_image vdso_image_32_syscall;
 #endif
-DECLARE_VDSO_IMAGE(vdso32_sysenter);
+extern const struct vdso_image vdso_image_32_sysenter;
 
-/*
- * Given a pointer to the vDSO image, find the pointer to VDSO32_name
- * as that symbol is defined in the vDSO sources or linker script.
- */
-#define VDSO32_SYMBOL(base, name)					\
-({									\
-	extern const char VDSO32_##name[];				\
-	(void __user *)(VDSO32_##name + (unsigned long)(base));		\
-})
+extern const struct vdso_image *selected_vdso32;
 #endif
 
-/*
- * These symbols are defined with the addresses in the vsyscall page.
- * See vsyscall-sigreturn.S.
- */
-extern void __user __kernel_sigreturn;
-extern void __user __kernel_rt_sigreturn;
-
-void __init patch_vdso32(void *vdso, size_t len);
+extern void __init init_vdso_image(const struct vdso_image *image);
 
 #endif /* __ASSEMBLER__ */
 

@@ -16,8 +16,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/asm-offsets.h>
-#include <asm/hardware/cache-l2x0.h>
 
 #define CPU_MASK	0xff0ffff0
 #define CPU_CORTEX_A9	0x410fc090
@@ -53,33 +51,7 @@ ENTRY(exynos_cpu_resume)
 	and	r0, r0, r1
 	ldr	r1, =CPU_CORTEX_A9
 	cmp	r0, r1
-	bne	skip_l2_resume
-	adr	r0, l2x0_regs_phys
-	ldr	r0, [r0]
-	cmp	r0, #0
-	beq	skip_l2_resume
-	ldr	r1, [r0, #L2X0_R_PHY_BASE]
-	ldr	r2, [r1, #L2X0_CTRL]
-	tst	r2, #0x1
-	bne	skip_l2_resume
-	ldr	r2, [r0, #L2X0_R_AUX_CTRL]
-	str	r2, [r1, #L2X0_AUX_CTRL]
-	ldr	r2, [r0, #L2X0_R_TAG_LATENCY]
-	str	r2, [r1, #L2X0_TAG_LATENCY_CTRL]
-	ldr	r2, [r0, #L2X0_R_DATA_LATENCY]
-	str	r2, [r1, #L2X0_DATA_LATENCY_CTRL]
-	ldr	r2, [r0, #L2X0_R_PREFETCH_CTRL]
-	str	r2, [r1, #L2X0_PREFETCH_CTRL]
-	ldr	r2, [r0, #L2X0_R_PWR_CTRL]
-	str	r2, [r1, #L2X0_POWER_CTRL]
-	mov	r2, #1
-	str	r2, [r1, #L2X0_CTRL]
-skip_l2_resume:
+	bleq	l2c310_early_resume
 #endif
 	b	cpu_resume
 ENDPROC(exynos_cpu_resume)
-#ifdef CONFIG_CACHE_L2X0
-	.globl l2x0_regs_phys
-l2x0_regs_phys:
-	.long	0
-#endif

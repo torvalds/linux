@@ -183,9 +183,4 @@ static inline int atomic_sub_if_positive(int i, atomic_t *v)
 
 #define atomic_dec_if_positive(v) atomic_sub_if_positive(1, v)
 
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
-
 #endif /*  __ASM_AVR32_ATOMIC_H */

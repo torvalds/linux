@@ -1,9 +1,7 @@
 #ifndef _PERF_UI_BROWSER_H_
 #define _PERF_UI_BROWSER_H_ 1
 
-#include <stdbool.h>
-#include <sys/types.h>
-#include "../types.h"
+#include <linux/types.h>
 
 #define HE_COLORSET_TOP		50
 #define HE_COLORSET_MEDIUM	51

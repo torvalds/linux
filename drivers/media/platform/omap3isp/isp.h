@@ -45,8 +45,6 @@
 #include "ispcsi2.h"
 #include "ispccp2.h"
 
-#define IOMMU_FLAG (IOVMF_ENDIAN_LITTLE | IOVMF_ELSZ_8)
-
 #define ISP_TOK_TERM		0xFFFFFFFF	/*
 						 * terminating token for ISP
 						 * modules reg list
@@ -152,6 +150,7 @@ struct isp_xclk {
  *             regions.
  * @mmio_base_phys: Array with physical L4 bus addresses for ISP register
  *                  regions.
+ * @mapping: IOMMU mapping
  * @stat_lock: Spinlock for handling statistics
  * @isp_mutex: Mutex for serializing requests to ISP.
  * @stop_failure: Indicates that an entity failed to stop.
@@ -171,7 +170,6 @@ struct isp_xclk {
  * @isp_res: Pointer to current settings for ISP Resizer.
  * @isp_prev: Pointer to current settings for ISP Preview.
  * @isp_ccdc: Pointer to current settings for ISP CCDC.
- * @iommu: Pointer to requested IOMMU instance for ISP.
  * @platform_cb: ISP driver callback function pointers for platform code
  *
  * This structure is used to store the OMAP ISP Information.
@@ -188,6 +186,8 @@ struct isp_device {
 
 	void __iomem *mmio_base[OMAP3_ISP_IOMEM_LAST];
 	unsigned long mmio_base_phys[OMAP3_ISP_IOMEM_LAST];
+
+	struct dma_iommu_mapping *mapping;
 
 	/* ISP Obj */
 	spinlock_t stat_lock;	/* common lock for statistic drivers */
@@ -219,8 +219,6 @@ struct isp_device {
 
 	unsigned int sbl_resources;
 	unsigned int subclk_resources;
-
-	struct iommu_domain *domain;
 };
 
 #define v4l2_dev_to_isp_device(dev) \

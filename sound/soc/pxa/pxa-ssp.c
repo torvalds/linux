@@ -34,8 +34,6 @@
 #include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <mach/hardware.h>
-
 #include "../../arm/pxa2xx-pcm.h"
 #include "pxa-ssp.h"
 
@@ -810,6 +808,7 @@ static const struct snd_soc_component_driver pxa_ssp_component = {
 #ifdef CONFIG_OF
 static const struct of_device_id pxa_ssp_of_ids[] = {
 	{ .compatible = "mrvl,pxa-ssp-dai" },
+	{}
 };
 #endif
 

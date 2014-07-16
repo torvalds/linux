@@ -43,19 +43,14 @@ static void __init bcm5301x_init_early(void)
 			"imprecise external abort");
 }
 
-static void __init bcm5301x_dt_init(void)
-{
-	l2x0_of_init(0, ~0UL);
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
-
 static const char __initconst *bcm5301x_dt_compat[] = {
 	"brcm,bcm4708",
 	NULL,
 };
 
 DT_MACHINE_START(BCM5301X, "BCM5301X")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.init_early	= bcm5301x_init_early,
-	.init_machine	= bcm5301x_dt_init,
 	.dt_compat	= bcm5301x_dt_compat,
 MACHINE_END

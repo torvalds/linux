@@ -47,6 +47,7 @@
 #define SOR_HEAD_STATE_4(x) (0x0d + (x))
 #define SOR_HEAD_STATE_5(x) (0x0f + (x))
 #define SOR_CRC_CNTRL 0x11
+#define  SOR_CRC_CNTRL_ENABLE			(1 << 0)
 #define SOR_DP_DEBUG_MVID 0x12
 
 #define SOR_CLK_CNTRL 0x13
@@ -69,6 +70,7 @@
 #define  SOR_PWR_NORMAL_STATE_PU		(1 << 0)
 
 #define SOR_TEST 0x16
+#define  SOR_TEST_CRC_POST_SERIALIZE		(1 << 23)
 #define  SOR_TEST_ATTACHED			(1 << 10)
 #define  SOR_TEST_HEAD_MODE_MASK		(3 << 8)
 #define  SOR_TEST_HEAD_MODE_AWAKE		(2 << 8)
@@ -115,6 +117,8 @@
 
 #define SOR_LVDS 0x1c
 #define SOR_CRC_A 0x1d
+#define  SOR_CRC_A_VALID			(1 << 0)
+#define  SOR_CRC_A_RESET			(1 << 0)
 #define SOR_CRC_B 0x1e
 #define SOR_BLANK 0x1f
 #define SOR_SEQ_CTL 0x20

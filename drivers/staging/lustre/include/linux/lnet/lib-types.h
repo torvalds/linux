@@ -204,7 +204,7 @@ typedef struct lnet_msg {
 	unsigned int	  msg_receiving:1;    /* being received */
 	unsigned int	  msg_txcredit:1;     /* taken an NI send credit */
 	unsigned int	  msg_peertxcredit:1; /* taken a peer send credit */
-	unsigned int	  msg_rtrcredit:1;    /* taken a globel router credit */
+	unsigned int	  msg_rtrcredit:1;    /* taken a global router credit */
 	unsigned int	  msg_peerrtrcredit:1; /* taken a peer router credit */
 	unsigned int	  msg_onactivelist:1; /* on the activelist */
 
@@ -342,7 +342,7 @@ typedef struct lnet_lnd {
 
 	/* Start receiving 'mlen' bytes of payload data, skipping the following
 	 * 'rlen' - 'mlen' bytes. 'private' is the 'private' passed to
-	 * lnet_parse().  Return non-zero for immedaite failure, otherwise
+	 * lnet_parse().  Return non-zero for immediate failure, otherwise
 	 * complete later with lnet_finalize().  This also gives back a receive
 	 * credit if the LND does flow control. */
 	int (*lnd_recv)(struct lnet_ni *ni, void *private, lnet_msg_t *msg,
@@ -594,7 +594,7 @@ struct lnet_match_table {
 	unsigned int		mt_cpt;
 	unsigned int		mt_portal;      /* portal index */
 	/* match table is set as "enabled" if there's non-exhausted MD
-	 * attached on mt_mhash, it's only valide for wildcard portal */
+	 * attached on mt_mhash, it's only valid for wildcard portal */
 	unsigned int		mt_enabled;
 	/* bitmap to flag whether MEs on mt_hash are exhausted or not */
 	__u64			mt_exhausted[LNET_MT_EXHAUSTED_BMAP];

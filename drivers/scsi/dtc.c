@@ -3,8 +3,6 @@
 #define PSEUDO_DMA
 #define DONT_USE_INTR
 #define UNSAFE			/* Leave interrupts enabled during pseudo-dma I/O */
-#define xNDEBUG (NDEBUG_INTR+NDEBUG_RESELECTION+\
-		 NDEBUG_SELECTION+NDEBUG_ARBITRATION)
 #define DMA_WORKS_RIGHT
 
 

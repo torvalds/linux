@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 #include <linux/elf.h>
+#include <linux/memblock.h>
 #include <asm/os_info.h>
 #include <asm/elf.h>
 #include <asm/ipl.h>
@@ -21,6 +22,24 @@
 #define PTR_ADD(x, y) (((char *) (x)) + ((unsigned long) (y)))
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))
 #define PTR_DIFF(x, y) ((unsigned long)(((char *) (x)) - ((unsigned long) (y))))
+
+static struct memblock_region oldmem_region;
+
+static struct memblock_type oldmem_type = {
+	.cnt = 1,
+	.max = 1,
+	.total_size = 0,
+	.regions = &oldmem_region,
+};
+
+#define for_each_dump_mem_range(i, nid, p_start, p_end, p_nid)		\
+	for (i = 0, __next_mem_range(&i, nid, &memblock.physmem,	\
+				     &oldmem_type, p_start,		\
+				     p_end, p_nid);			\
+	     i != (u64)ULLONG_MAX;					\
+	     __next_mem_range(&i, nid, &memblock.physmem,		\
+			      &oldmem_type,				\
+			      p_start, p_end, p_nid))
 
 struct dump_save_areas dump_save_areas;
 
@@ -264,19 +283,6 @@ static void *kzalloc_panic(int len)
 }
 
 /*
- * Get memory layout and create hole for oldmem
- */
-static struct mem_chunk *get_memory_layout(void)
-{
-	struct mem_chunk *chunk_array;
-
-	chunk_array = kzalloc_panic(MEMORY_CHUNKS * sizeof(struct mem_chunk));
-	detect_memory_layout(chunk_array, 0);
-	create_mem_hole(chunk_array, OLDMEM_BASE, OLDMEM_SIZE);
-	return chunk_array;
-}
-
-/*
  * Initialize ELF note
  */
 static void *nt_init(void *buf, Elf64_Word type, void *desc, int d_len,
@@ -490,52 +496,33 @@ static int get_cpu_cnt(void)
  */
 static int get_mem_chunk_cnt(void)
 {
-	struct mem_chunk *chunk_array, *mem_chunk;
-	int i, cnt = 0;
+	int cnt = 0;
+	u64 idx;
 
-	chunk_array = get_memory_layout();
-	for (i = 0; i < MEMORY_CHUNKS; i++) {
-		mem_chunk = &chunk_array[i];
-		if (chunk_array[i].type != CHUNK_READ_WRITE &&
-		    chunk_array[i].type != CHUNK_READ_ONLY)
-			continue;
-		if (mem_chunk->size == 0)
-			continue;
+	for_each_dump_mem_range(idx, NUMA_NO_NODE, NULL, NULL, NULL)
 		cnt++;
-	}
-	kfree(chunk_array);
 	return cnt;
 }
 
 /*
  * Initialize ELF loads (new kernel)
  */
-static int loads_init(Elf64_Phdr *phdr, u64 loads_offset)
+static void loads_init(Elf64_Phdr *phdr, u64 loads_offset)
 {
-	struct mem_chunk *chunk_array, *mem_chunk;
-	int i;
+	phys_addr_t start, end;
+	u64 idx;
 
-	chunk_array = get_memory_layout();
-	for (i = 0; i < MEMORY_CHUNKS; i++) {
-		mem_chunk = &chunk_array[i];
-		if (mem_chunk->size == 0)
-			continue;
-		if (chunk_array[i].type != CHUNK_READ_WRITE &&
-		    chunk_array[i].type != CHUNK_READ_ONLY)
-			continue;
-		else
-			phdr->p_filesz = mem_chunk->size;
+	for_each_dump_mem_range(idx, NUMA_NO_NODE, &start, &end, NULL) {
+		phdr->p_filesz = end - start;
 		phdr->p_type = PT_LOAD;
-		phdr->p_offset = mem_chunk->addr;
-		phdr->p_vaddr = mem_chunk->addr;
-		phdr->p_paddr = mem_chunk->addr;
-		phdr->p_memsz = mem_chunk->size;
+		phdr->p_offset = start;
+		phdr->p_vaddr = start;
+		phdr->p_paddr = start;
+		phdr->p_memsz = end - start;
 		phdr->p_flags = PF_R | PF_W | PF_X;
 		phdr->p_align = PAGE_SIZE;
 		phdr++;
 	}
-	kfree(chunk_array);
-	return i;
 }
 
 /*
@@ -584,6 +571,14 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	/* If we cannot get HSA size for zfcpdump return error */
 	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !sclp_get_hsa_size())
 		return -ENODEV;
+
+	/* For kdump, exclude previous crashkernel memory */
+	if (OLDMEM_BASE) {
+		oldmem_region.base = OLDMEM_BASE;
+		oldmem_region.size = OLDMEM_SIZE;
+		oldmem_type.total_size = OLDMEM_SIZE;
+	}
+
 	mem_chunk_cnt = get_mem_chunk_cnt();
 
 	alloc_size = 0x1000 + get_cpu_cnt() * 0x300 +

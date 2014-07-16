@@ -119,32 +119,6 @@ typedef struct tagSAssocInfo {
 } SAssocInfo, *PSAssocInfo;
 //---
 
-/*
-  typedef enum tagWMAC_AUTHENTICATION_MODE {
-  WMAC_AUTH_OPEN,
-  WMAC_AUTH_SHAREKEY,
-  WMAC_AUTH_AUTO,
-  WMAC_AUTH_WPA,
-  WMAC_AUTH_WPAPSK,
-  WMAC_AUTH_WPANONE,
-  WMAC_AUTH_WPA2,
-  WMAC_AUTH_WPA2PSK,
-  WMAC_AUTH_MAX       // Not a real mode, defined as upper bound
-
-  } WMAC_AUTHENTICATION_MODE, *PWMAC_AUTHENTICATION_MODE;
-*/
-
-// Pre-configured Mode (from XP)
-/*
-  typedef enum tagWMAC_CONFIG_MODE {
-  WMAC_CONFIG_ESS_STA,
-  WMAC_CONFIG_IBSS_STA,
-  WMAC_CONFIG_AUTO,
-  WMAC_CONFIG_AP
-
-  } WMAC_CONFIG_MODE, *PWMAC_CONFIG_MODE;
-*/
-
 typedef enum tagWMAC_SCAN_TYPE {
 	WMAC_SCAN_ACTIVE,
 	WMAC_SCAN_PASSIVE,
@@ -232,9 +206,6 @@ typedef struct tagSMgmtObject
 	unsigned char byCSSGK;
 	unsigned char byCSSPK;
 
-//    unsigned char abyNewSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
-//    unsigned char abyNewExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
-
 	// Current state vars
 	unsigned int	uCurrChannel;
 	unsigned char abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
@@ -256,7 +227,6 @@ typedef struct tagSMgmtObject
 	unsigned char abyDesireBSSID[WLAN_BSSID_LEN];
 
 	// Adhoc or AP configuration vars
-	//unsigned char abyAdHocSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
 	unsigned short wIBSSBeaconPeriod;
 	unsigned short wIBSSATIMWindow;
 	unsigned int	uIBSSChannel;

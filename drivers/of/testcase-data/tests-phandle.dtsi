@@ -1,6 +1,10 @@
 
 / {
-	testcase-data {
+	aliases {
+		testcase-alias = &testcase;
+	};
+
+	testcase: testcase-data {
 		security-password = "password";
 		duplicate-name = "duplicate";
 		duplicate-name { };

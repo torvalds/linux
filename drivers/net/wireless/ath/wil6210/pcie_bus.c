@@ -74,8 +74,6 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	if (rc)
 		goto release_irq;
 
-	wil_info(wil, "HW version: 0x%08x\n", wil->hw_version);
-
 	return 0;
 
  release_irq:
@@ -140,7 +138,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_release_reg;
 	}
 	/* rollback to err_iounmap */
-	dev_info(&pdev->dev, "CSR at %pR -> %p\n", &pdev->resource[0], csr);
+	dev_info(&pdev->dev, "CSR at %pR -> 0x%p\n", &pdev->resource[0], csr);
 
 	wil = wil_if_alloc(dev, csr);
 	if (IS_ERR(wil)) {

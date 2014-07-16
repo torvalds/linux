@@ -203,7 +203,6 @@ enum w1_master_flags {
  * @search_id:		allows continuing a search
  * @refcnt:		reference count
  * @priv:		private data storage
- * @priv_size:		size allocated
  * @enable_pullup:	allows a strong pullup
  * @pullup_duration:	time for the next strong pullup
  * @flags:		one of w1_master_flags
@@ -214,7 +213,6 @@ enum w1_master_flags {
  * @dev:		sysfs device
  * @bus_master:		io operations available
  * @seq:		sequence number used for netlink broadcasts
- * @portid:		destination for the current netlink command
  */
 struct w1_master
 {
@@ -241,7 +239,6 @@ struct w1_master
 	atomic_t		refcnt;
 
 	void			*priv;
-	int			priv_size;
 
 	/** 5V strong pullup enabled flag, 1 enabled, zero disabled. */
 	int			enable_pullup;
@@ -260,11 +257,6 @@ struct w1_master
 	struct w1_bus_master	*bus_master;
 
 	u32			seq;
-	/* port id to send netlink responses to.  The value is temporarily
-	 * stored here while processing a message, set after locking the
-	 * mutex, zero before unlocking the mutex.
-	 */
-	u32			portid;
 };
 
 /**

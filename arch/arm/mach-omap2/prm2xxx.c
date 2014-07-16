@@ -18,9 +18,6 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
-#include "soc.h"
-#include "common.h"
-#include "vp.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include "prm2xxx.h"
@@ -201,19 +198,11 @@ static struct prm_ll_data omap2xxx_prm_ll_data = {
 
 int __init omap2xxx_prm_init(void)
 {
-	if (!cpu_is_omap24xx())
-		return 0;
-
 	return prm_register(&omap2xxx_prm_ll_data);
 }
 
 static void __exit omap2xxx_prm_exit(void)
 {
-	if (!cpu_is_omap24xx())
-		return;
-
-	/* Should never happen */
-	WARN(prm_unregister(&omap2xxx_prm_ll_data),
-	     "%s: prm_ll_data function pointer mismatch\n", __func__);
+	prm_unregister(&omap2xxx_prm_ll_data);
 }
 __exitcall(omap2xxx_prm_exit);

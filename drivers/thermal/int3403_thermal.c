@@ -62,7 +62,13 @@ static int sys_get_trip_hyst(struct thermal_zone_device *tzone,
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
-	*temp = DECI_KELVIN_TO_MILLI_CELSIUS(hyst, KELVIN_OFFSET);
+	/*
+	 * Thermal hysteresis represents a temperature difference.
+	 * Kelvin and Celsius have same degree size. So the
+	 * conversion here between tenths of degree Kelvin unit
+	 * and Milli-Celsius unit is just to multiply 100.
+	 */
+	*temp = hyst * 100;
 
 	return 0;
 }

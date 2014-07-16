@@ -33,6 +33,7 @@ static void qlcnic_83xx_get_beacon_state(struct qlcnic_adapter *);
 #define RSS_HASHTYPE_IP_TCP		0x3
 #define QLC_83XX_FW_MBX_CMD		0
 #define QLC_SKIP_INACTIVE_PCI_REGS	7
+#define QLC_MAX_LEGACY_FUNC_SUPP	8
 
 static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_CONFIGURE_IP_ADDR, 6, 1},
@@ -357,8 +358,15 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 	if (!ahw->intr_tbl)
 		return -ENOMEM;
 
-	if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
+		if (adapter->ahw->pci_func >= QLC_MAX_LEGACY_FUNC_SUPP) {
+			dev_err(&adapter->pdev->dev, "PCI function number 8 and higher are not supported with legacy interrupt, func 0x%x\n",
+				ahw->pci_func);
+			return -EOPNOTSUPP;
+		}
+
 		qlcnic_83xx_enable_legacy(adapter);
+	}
 
 	for (i = 0; i < num_msix; i++) {
 		if (adapter->flags & QLCNIC_MSIX_ENABLED)
@@ -879,6 +887,9 @@ int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
 			return 0;
 		}
 	}
+
+	dev_err(&adapter->pdev->dev, "%s: Invalid mailbox command opcode 0x%x\n",
+		__func__, type);
 	return -EINVAL;
 }
 
@@ -3026,19 +3037,18 @@ void qlcnic_83xx_unlock_driver(struct qlcnic_adapter *adapter)
 	QLCRDX(adapter->ahw, QLC_83XX_DRV_UNLOCK);
 }
 
-int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
+int qlcnic_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
 				u32 *data, u32 count)
 {
 	int i, j, ret = 0;
 	u32 temp;
-	int err = 0;
 
 	/* Check alignment */
 	if (addr & 0xF)
 		return -EIO;
 
 	mutex_lock(&adapter->ahw->mem_lock);
-	qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_ADDR_HI, 0);
+	qlcnic_ind_wr(adapter, QLCNIC_MS_ADDR_HI, 0);
 
 	for (i = 0; i < count; i++, addr += 16) {
 		if (!((ADDR_IN_RANGE(addr, QLCNIC_ADDR_QDR_NET,
@@ -3049,26 +3059,16 @@ int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
 			return -EIO;
 		}
 
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_ADDR_LO, addr);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_LO,
-					     *data++);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_HI,
-					     *data++);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_ULO,
-					     *data++);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_UHI,
-					     *data++);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_CTRL,
-					     QLCNIC_TA_WRITE_ENABLE);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_CTRL,
-					     QLCNIC_TA_WRITE_START);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_ADDR_LO, addr);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_WRTDATA_LO, *data++);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_WRTDATA_HI, *data++);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_WRTDATA_ULO, *data++);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_WRTDATA_UHI, *data++);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_CTRL, QLCNIC_TA_WRITE_ENABLE);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_CTRL, QLCNIC_TA_WRITE_START);
 
 		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = QLCRD32(adapter, QLCNIC_MS_CTRL, &err);
-			if (err == -EIO) {
-				mutex_unlock(&adapter->ahw->mem_lock);
-				return err;
-			}
+			temp = qlcnic_ind_rd(adapter, QLCNIC_MS_CTRL);
 
 			if ((temp & TA_CTL_BUSY) == 0)
 				break;

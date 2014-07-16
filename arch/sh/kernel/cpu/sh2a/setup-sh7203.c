@@ -265,118 +265,37 @@ static struct platform_device scif3_device = {
 	},
 };
 
-static struct sh_timer_config cmt0_platform_data = {
-	.channel_offset = 0x02,
-	.timer_bit = 0,
-	.clockevent_rating = 125,
-	.clocksource_rating = 0, /* disabled due to code generation issues */
+static struct sh_timer_config cmt_platform_data = {
+	.channels_mask = 3,
 };
 
-static struct resource cmt0_resources[] = {
-	[0] = {
-		.start	= 0xfffec002,
-		.end	= 0xfffec007,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 142,
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource cmt_resources[] = {
+	DEFINE_RES_MEM(0xfffec000, 0x10),
+	DEFINE_RES_IRQ(142),
+	DEFINE_RES_IRQ(143),
 };
 
-static struct platform_device cmt0_device = {
-	.name		= "sh_cmt",
+static struct platform_device cmt_device = {
+	.name		= "sh-cmt-16",
 	.id		= 0,
 	.dev = {
-		.platform_data	= &cmt0_platform_data,
+		.platform_data	= &cmt_platform_data,
 	},
-	.resource	= cmt0_resources,
-	.num_resources	= ARRAY_SIZE(cmt0_resources),
+	.resource	= cmt_resources,
+	.num_resources	= ARRAY_SIZE(cmt_resources),
 };
 
-static struct sh_timer_config cmt1_platform_data = {
-	.channel_offset = 0x08,
-	.timer_bit = 1,
-	.clockevent_rating = 125,
-	.clocksource_rating = 0, /* disabled due to code generation issues */
+static struct resource mtu2_resources[] = {
+	DEFINE_RES_MEM(0xfffe4000, 0x400),
+	DEFINE_RES_IRQ_NAMED(146, "tgi0a"),
+	DEFINE_RES_IRQ_NAMED(153, "tgi1a"),
 };
 
-static struct resource cmt1_resources[] = {
-	[0] = {
-		.start	= 0xfffec008,
-		.end	= 0xfffec00d,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 143,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device cmt1_device = {
-	.name		= "sh_cmt",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &cmt1_platform_data,
-	},
-	.resource	= cmt1_resources,
-	.num_resources	= ARRAY_SIZE(cmt1_resources),
-};
-
-static struct sh_timer_config mtu2_0_platform_data = {
-	.channel_offset = -0x80,
-	.timer_bit = 0,
-	.clockevent_rating = 200,
-};
-
-static struct resource mtu2_0_resources[] = {
-	[0] = {
-		.start	= 0xfffe4300,
-		.end	= 0xfffe4326,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 146,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mtu2_0_device = {
-	.name		= "sh_mtu2",
-	.id		= 0,
-	.dev = {
-		.platform_data	= &mtu2_0_platform_data,
-	},
-	.resource	= mtu2_0_resources,
-	.num_resources	= ARRAY_SIZE(mtu2_0_resources),
-};
-
-static struct sh_timer_config mtu2_1_platform_data = {
-	.channel_offset = -0x100,
-	.timer_bit = 1,
-	.clockevent_rating = 200,
-};
-
-static struct resource mtu2_1_resources[] = {
-	[0] = {
-		.start	= 0xfffe4380,
-		.end	= 0xfffe4390,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 153,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mtu2_1_device = {
-	.name		= "sh_mtu2",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &mtu2_1_platform_data,
-	},
-	.resource	= mtu2_1_resources,
-	.num_resources	= ARRAY_SIZE(mtu2_1_resources),
+static struct platform_device mtu2_device = {
+	.name		= "sh-mtu2",
+	.id		= -1,
+	.resource	= mtu2_resources,
+	.num_resources	= ARRAY_SIZE(mtu2_resources),
 };
 
 static struct resource rtc_resources[] = {
@@ -404,10 +323,8 @@ static struct platform_device *sh7203_devices[] __initdata = {
 	&scif1_device,
 	&scif2_device,
 	&scif3_device,
-	&cmt0_device,
-	&cmt1_device,
-	&mtu2_0_device,
-	&mtu2_1_device,
+	&cmt_device,
+	&mtu2_device,
 	&rtc_device,
 };
 
@@ -428,10 +345,8 @@ static struct platform_device *sh7203_early_devices[] __initdata = {
 	&scif1_device,
 	&scif2_device,
 	&scif3_device,
-	&cmt0_device,
-	&cmt1_device,
-	&mtu2_0_device,
-	&mtu2_1_device,
+	&cmt_device,
+	&mtu2_device,
 };
 
 #define STBCR3 0xfffe0408

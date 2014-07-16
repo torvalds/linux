@@ -52,6 +52,7 @@ enum qlcnic_bc_commands {
 	QLCNIC_BC_CMD_CFG_GUEST_VLAN = 0x3,
 };
 
+#define QLCNIC_83XX_SRIOV_VF_MAX_MAC 2
 #define QLC_BC_CMD 1
 
 struct qlcnic_trans_list {
@@ -151,13 +152,14 @@ struct qlcnic_vf_info {
 	struct qlcnic_trans_list	rcv_pend;
 	struct qlcnic_adapter		*adapter;
 	struct qlcnic_vport		*vp;
-	struct mutex			vlan_list_lock;	/* Lock for VLAN list */
+	spinlock_t			vlan_list_lock;	/* Lock for VLAN list */
 };
 
 struct qlcnic_async_work_list {
 	struct list_head	list;
 	struct work_struct	work;
 	void			*ptr;
+	struct qlcnic_cmd_args	*cmd;
 };
 
 struct qlcnic_back_channel {
@@ -231,7 +233,7 @@ bool qlcnic_sriov_soft_flr_check(struct qlcnic_adapter *,
 void qlcnic_sriov_pf_reset(struct qlcnic_adapter *);
 int qlcnic_sriov_pf_reinit(struct qlcnic_adapter *);
 int qlcnic_sriov_set_vf_mac(struct net_device *, int, u8 *);
-int qlcnic_sriov_set_vf_tx_rate(struct net_device *, int, int);
+int qlcnic_sriov_set_vf_tx_rate(struct net_device *, int, int, int);
 int qlcnic_sriov_get_vf_config(struct net_device *, int ,
 			       struct ifla_vf_info *);
 int qlcnic_sriov_set_vf_vlan(struct net_device *, int, u16, u8);

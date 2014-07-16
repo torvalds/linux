@@ -528,7 +528,7 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 {
 	struct nand_chip *this = mtd->priv;
 	int i, chips;
-	int bits, startblock, block, dir;
+	int startblock, block, dir;
 	int scanlen = mtd->writesize + mtd->oobsize;
 	int bbtblocks;
 	int blocktopage = this->bbt_erase_shift - this->page_shift;
@@ -551,9 +551,6 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 		chips = 1;
 		bbtblocks = mtd->size >> this->bbt_erase_shift;
 	}
-
-	/* Number of bits for each erase block in the bbt */
-	bits = td->options & NAND_BBT_NRBITS_MSK;
 
 	for (i = 0; i < chips; i++) {
 		/* Reset version information */
@@ -1285,6 +1282,7 @@ static int nand_create_badblock_pattern(struct nand_chip *this)
 int nand_default_bbt(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
+	int ret;
 
 	/* Is a flash based bad block table requested? */
 	if (this->bbt_options & NAND_BBT_USE_FLASH) {
@@ -1303,8 +1301,11 @@ int nand_default_bbt(struct mtd_info *mtd)
 		this->bbt_md = NULL;
 	}
 
-	if (!this->badblock_pattern)
-		nand_create_badblock_pattern(this);
+	if (!this->badblock_pattern) {
+		ret = nand_create_badblock_pattern(this);
+		if (ret)
+			return ret;
+	}
 
 	return nand_scan_bbt(mtd, this->badblock_pattern);
 }

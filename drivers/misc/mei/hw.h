@@ -31,13 +31,20 @@
 #define MEI_IAMTHIF_STALL_TIMER    12  /* HPS */
 #define MEI_IAMTHIF_READ_TIMER     10  /* HPS */
 
+#define MEI_PGI_TIMEOUT            1  /* PG Isolation time response 1 sec */
 #define MEI_HBM_TIMEOUT            1   /* 1 second */
 
 /*
  * MEI Version
  */
-#define HBM_MINOR_VERSION                   0
+#define HBM_MINOR_VERSION                   1
 #define HBM_MAJOR_VERSION                   1
+
+/*
+ * MEI version with PGI support
+ */
+#define HBM_MINOR_VERSION_PGI               1
+#define HBM_MAJOR_VERSION_PGI               1
 
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
@@ -68,6 +75,11 @@
 #define CLIENT_DISCONNECT_RES_CMD           0x87
 
 #define MEI_FLOW_CONTROL_CMD                0x08
+
+#define MEI_PG_ISOLATION_ENTRY_REQ_CMD      0x0a
+#define MEI_PG_ISOLATION_ENTRY_RES_CMD      0x8a
+#define MEI_PG_ISOLATION_EXIT_REQ_CMD       0x0b
+#define MEI_PG_ISOLATION_EXIT_RES_CMD       0x8b
 
 /*
  * MEI Stop Reason
@@ -205,6 +217,17 @@ struct hbm_props_response {
 	u8 status;
 	u8 reserved[1];
 	struct mei_client_properties client_properties;
+} __packed;
+
+/**
+ * struct hbm_power_gate - power gate request/response
+ *
+ * @hbm_cmd - bus message command header
+ * @reserved[3]
+ */
+struct hbm_power_gate {
+	u8 hbm_cmd;
+	u8 reserved[3];
 } __packed;
 
 /**

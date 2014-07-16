@@ -691,13 +691,6 @@ struct xfrm_spi_skb_cb {
 
 #define XFRM_SPI_SKB_CB(__skb) ((struct xfrm_spi_skb_cb *)&((__skb)->cb[0]))
 
-/* Audit Information */
-struct xfrm_audit {
-	u32	secid;
-	kuid_t	loginuid;
-	unsigned int sessionid;
-};
-
 #ifdef CONFIG_AUDITSYSCALL
 static inline struct audit_buffer *xfrm_audit_start(const char *op)
 {
@@ -713,30 +706,24 @@ static inline struct audit_buffer *xfrm_audit_start(const char *op)
 	return audit_buf;
 }
 
-static inline void xfrm_audit_helper_usrinfo(kuid_t auid, unsigned int ses, u32 secid,
+static inline void xfrm_audit_helper_usrinfo(bool task_valid,
 					     struct audit_buffer *audit_buf)
 {
-	char *secctx;
-	u32 secctx_len;
+	const unsigned int auid = from_kuid(&init_user_ns, task_valid ?
+					    audit_get_loginuid(current) :
+					    INVALID_UID);
+	const unsigned int ses = task_valid ? audit_get_sessionid(current) :
+		(unsigned int) -1;
 
-	audit_log_format(audit_buf, " auid=%u ses=%u",
-			 from_kuid(&init_user_ns, auid), ses);
-	if (secid != 0 &&
-	    security_secid_to_secctx(secid, &secctx, &secctx_len) == 0) {
-		audit_log_format(audit_buf, " subj=%s", secctx);
-		security_release_secctx(secctx, secctx_len);
-	} else
-		audit_log_task_context(audit_buf);
+	audit_log_format(audit_buf, " auid=%u ses=%u", auid, ses);
+	audit_log_task_context(audit_buf);
 }
 
-void xfrm_audit_policy_add(struct xfrm_policy *xp, int result, kuid_t auid,
-			   unsigned int ses, u32 secid);
-void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result, kuid_t auid,
-			      unsigned int ses, u32 secid);
-void xfrm_audit_state_add(struct xfrm_state *x, int result, kuid_t auid,
-			  unsigned int ses, u32 secid);
-void xfrm_audit_state_delete(struct xfrm_state *x, int result, kuid_t auid,
-			     unsigned int ses, u32 secid);
+void xfrm_audit_policy_add(struct xfrm_policy *xp, int result, bool task_valid);
+void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
+			      bool task_valid);
+void xfrm_audit_state_add(struct xfrm_state *x, int result, bool task_valid);
+void xfrm_audit_state_delete(struct xfrm_state *x, int result, bool task_valid);
 void xfrm_audit_state_replay_overflow(struct xfrm_state *x,
 				      struct sk_buff *skb);
 void xfrm_audit_state_replay(struct xfrm_state *x, struct sk_buff *skb,
@@ -749,22 +736,22 @@ void xfrm_audit_state_icvfail(struct xfrm_state *x, struct sk_buff *skb,
 #else
 
 static inline void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
-				  kuid_t auid, unsigned int ses, u32 secid)
+					 bool task_valid)
 {
 }
 
 static inline void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
-				  kuid_t auid, unsigned int ses, u32 secid)
+					    bool task_valid)
 {
 }
 
 static inline void xfrm_audit_state_add(struct xfrm_state *x, int result,
-				 kuid_t auid, unsigned int ses, u32 secid)
+					bool task_valid)
 {
 }
 
 static inline void xfrm_audit_state_delete(struct xfrm_state *x, int result,
-				    kuid_t auid, unsigned int ses, u32 secid)
+					   bool task_valid)
 {
 }
 
@@ -1508,7 +1495,7 @@ struct xfrmk_spdinfo {
 
 struct xfrm_state *xfrm_find_acq_byseq(struct net *net, u32 mark, u32 seq);
 int xfrm_state_delete(struct xfrm_state *x);
-int xfrm_state_flush(struct net *net, u8 proto, struct xfrm_audit *audit_info);
+int xfrm_state_flush(struct net *net, u8 proto, bool task_valid);
 void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si);
 void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si);
 u32 xfrm_replay_seqhi(struct xfrm_state *x, __be32 net_seq);
@@ -1603,7 +1590,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u32 mark,
 					  int *err);
 struct xfrm_policy *xfrm_policy_byid(struct net *net, u32 mark, u8, int dir,
 				     u32 id, int delete, int *err);
-int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info);
+int xfrm_policy_flush(struct net *net, u8 type, bool task_valid);
 u32 xfrm_get_acqseq(void);
 int verify_spi_info(u8 proto, u32 min, u32 max);
 int xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);

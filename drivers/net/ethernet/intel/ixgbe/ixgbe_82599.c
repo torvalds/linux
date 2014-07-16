@@ -48,17 +48,17 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 						 ixgbe_link_speed speed,
 						 bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
-                                           ixgbe_link_speed speed,
-                                           bool autoneg_wait_to_complete);
+					   ixgbe_link_speed speed,
+					   bool autoneg_wait_to_complete);
 static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw);
 static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 				      bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
-                               ixgbe_link_speed speed,
-                               bool autoneg_wait_to_complete);
+			       ixgbe_link_speed speed,
+			       bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
-                                         ixgbe_link_speed speed,
-                                         bool autoneg_wait_to_complete);
+					 ixgbe_link_speed speed,
+					 bool autoneg_wait_to_complete);
 static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw);
 static s32 ixgbe_read_i2c_byte_82599(struct ixgbe_hw *hw, u8 byte_offset,
 				     u8 dev_addr, u8 *data);
@@ -96,9 +96,9 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 	if ((mac->ops.get_media_type(hw) == ixgbe_media_type_fiber) &&
 	    !ixgbe_mng_enabled(hw)) {
 		mac->ops.disable_tx_laser =
-		                       &ixgbe_disable_tx_laser_multispeed_fiber;
+				       &ixgbe_disable_tx_laser_multispeed_fiber;
 		mac->ops.enable_tx_laser =
-		                        &ixgbe_enable_tx_laser_multispeed_fiber;
+					&ixgbe_enable_tx_laser_multispeed_fiber;
 		mac->ops.flap_tx_laser = &ixgbe_flap_tx_laser_multispeed_fiber;
 	} else {
 		mac->ops.disable_tx_laser = NULL;
@@ -132,13 +132,13 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 		hw->phy.ops.reset = NULL;
 
 		ret_val = ixgbe_get_sfp_init_sequence_offsets(hw, &list_offset,
-		                                              &data_offset);
+							      &data_offset);
 		if (ret_val != 0)
 			goto setup_sfp_out;
 
 		/* PHY config will finish before releasing the semaphore */
 		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
-		                                        IXGBE_GSSR_MAC_CSR_SM);
+							IXGBE_GSSR_MAC_CSR_SM);
 		if (ret_val != 0) {
 			ret_val = IXGBE_ERR_SWFW_SYNC;
 			goto setup_sfp_out;
@@ -334,7 +334,7 @@ static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
 		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
 		phy->ops.setup_link = &ixgbe_setup_phy_link_tnx;
 		phy->ops.get_firmware_version =
-		             &ixgbe_get_phy_firmware_version_tnx;
+			     &ixgbe_get_phy_firmware_version_tnx;
 		break;
 	default:
 		break;
@@ -352,7 +352,7 @@ static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
  *  Determines the link capabilities by reading the AUTOC register.
  **/
 static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
-                                             ixgbe_link_speed *speed,
+					     ixgbe_link_speed *speed,
 					     bool *autoneg)
 {
 	s32 status = 0;
@@ -543,7 +543,7 @@ static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
  *  Restarts the link.  Performs autonegotiation if needed.
  **/
 static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
-                               bool autoneg_wait_to_complete)
+			       bool autoneg_wait_to_complete)
 {
 	u32 autoc_reg;
 	u32 links_reg;
@@ -672,8 +672,8 @@ static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
  *  Set the link speed in the AUTOC register and restarts link.
  **/
 static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
-                                          ixgbe_link_speed speed,
-                                          bool autoneg_wait_to_complete)
+					  ixgbe_link_speed speed,
+					  bool autoneg_wait_to_complete)
 {
 	s32 status = 0;
 	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_UNKNOWN;
@@ -820,8 +820,8 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 	 */
 	if (speedcnt > 1)
 		status = ixgbe_setup_mac_link_multispeed_fiber(hw,
-		                                               highest_link_speed,
-		                                               autoneg_wait_to_complete);
+							       highest_link_speed,
+							       autoneg_wait_to_complete);
 
 out:
 	/* Set autoneg_advertised value based on input link speed */
@@ -1009,8 +1009,8 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 		if (speed & IXGBE_LINK_SPEED_1GB_FULL)
 			autoc |= IXGBE_AUTOC_KX_SUPP;
 	} else if ((pma_pmd_1g == IXGBE_AUTOC_1G_SFI) &&
-	           (link_mode == IXGBE_AUTOC_LMS_1G_LINK_NO_AN ||
-	            link_mode == IXGBE_AUTOC_LMS_1G_AN)) {
+		   (link_mode == IXGBE_AUTOC_LMS_1G_LINK_NO_AN ||
+		    link_mode == IXGBE_AUTOC_LMS_1G_AN)) {
 		/* Switch from 1G SFI to 10G SFI if requested */
 		if ((speed == IXGBE_LINK_SPEED_10GB_FULL) &&
 		    (pma_pmd_10g_serial == IXGBE_AUTOC2_10G_SFI)) {
@@ -1018,7 +1018,7 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 			autoc |= IXGBE_AUTOC_LMS_10G_SERIAL;
 		}
 	} else if ((pma_pmd_10g_serial == IXGBE_AUTOC2_10G_SFI) &&
-	           (link_mode == IXGBE_AUTOC_LMS_10G_SERIAL)) {
+		   (link_mode == IXGBE_AUTOC_LMS_10G_SERIAL)) {
 		/* Switch from 10G SFI to 1G SFI if requested */
 		if ((speed == IXGBE_LINK_SPEED_1GB_FULL) &&
 		    (pma_pmd_1g == IXGBE_AUTOC_1G_SFI)) {
@@ -1051,7 +1051,7 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 				}
 				if (!(links_reg & IXGBE_LINKS_KX_AN_COMP)) {
 					status =
-					        IXGBE_ERR_AUTONEG_NOT_COMPLETE;
+						IXGBE_ERR_AUTONEG_NOT_COMPLETE;
 					hw_dbg(hw, "Autoneg did not complete.\n");
 				}
 			}
@@ -1074,14 +1074,14 @@ out:
  *  Restarts link on PHY and MAC based on settings passed in.
  **/
 static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
-                                         ixgbe_link_speed speed,
-                                         bool autoneg_wait_to_complete)
+					 ixgbe_link_speed speed,
+					 bool autoneg_wait_to_complete)
 {
 	s32 status;
 
 	/* Setup the PHY according to input speed */
 	status = hw->phy.ops.setup_link_speed(hw, speed,
-	                                      autoneg_wait_to_complete);
+					      autoneg_wait_to_complete);
 	/* Set up MAC */
 	ixgbe_start_mac_link_82599(hw, autoneg_wait_to_complete);
 
@@ -1224,7 +1224,7 @@ mac_reset_top:
 		    (hw->mac.orig_autoc2 & IXGBE_AUTOC2_UPPER_MASK)) {
 			autoc2 &= ~IXGBE_AUTOC2_UPPER_MASK;
 			autoc2 |= (hw->mac.orig_autoc2 &
-			           IXGBE_AUTOC2_UPPER_MASK);
+				   IXGBE_AUTOC2_UPPER_MASK);
 			IXGBE_WRITE_REG(hw, IXGBE_AUTOC2, autoc2);
 		}
 	}
@@ -1246,7 +1246,7 @@ mac_reset_top:
 	/* Add the SAN MAC address to the RAR only if it's a valid address */
 	if (is_valid_ether_addr(hw->mac.san_addr)) {
 		hw->mac.ops.set_rar(hw, hw->mac.num_rar_entries - 1,
-		                    hw->mac.san_addr, 0, IXGBE_RAH_AV);
+				    hw->mac.san_addr, 0, IXGBE_RAH_AV);
 
 		/* Save the SAN MAC RAR index */
 		hw->mac.san_mac_rar_index = hw->mac.num_rar_entries - 1;
@@ -1257,7 +1257,7 @@ mac_reset_top:
 
 	/* Store the alternative WWNN/WWPN prefix */
 	hw->mac.ops.get_wwn_prefix(hw, &hw->mac.wwnn_prefix,
-	                               &hw->mac.wwpn_prefix);
+				       &hw->mac.wwpn_prefix);
 
 reset_hw_out:
 	return status;
@@ -1271,6 +1271,7 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 {
 	int i;
 	u32 fdirctrl = IXGBE_READ_REG(hw, IXGBE_FDIRCTRL);
+
 	fdirctrl &= ~IXGBE_FDIRCTRL_INIT_DONE;
 
 	/*
@@ -1284,8 +1285,7 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 		udelay(10);
 	}
 	if (i >= IXGBE_FDIRCMD_CMD_POLL) {
-		hw_dbg(hw, "Flow Director previous command isn't complete, "
-		       "aborting table re-initialization.\n");
+		hw_dbg(hw, "Flow Director previous command isn't complete, aborting table re-initialization.\n");
 		return IXGBE_ERR_FDIR_REINIT_FAILED;
 	}
 
@@ -1299,12 +1299,12 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 	 * - write 0 to bit 8 of FDIRCMD register
 	 */
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRCMD,
-	                (IXGBE_READ_REG(hw, IXGBE_FDIRCMD) |
-	                 IXGBE_FDIRCMD_CLEARHT));
+			(IXGBE_READ_REG(hw, IXGBE_FDIRCMD) |
+			 IXGBE_FDIRCMD_CLEARHT));
 	IXGBE_WRITE_FLUSH(hw);
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRCMD,
-	                (IXGBE_READ_REG(hw, IXGBE_FDIRCMD) &
-	                 ~IXGBE_FDIRCMD_CLEARHT));
+			(IXGBE_READ_REG(hw, IXGBE_FDIRCMD) &
+			 ~IXGBE_FDIRCMD_CLEARHT));
 	IXGBE_WRITE_FLUSH(hw);
 	/*
 	 * Clear FDIR Hash register to clear any leftover hashes
@@ -1319,7 +1319,7 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 	/* Poll init-done after we write FDIRCTRL register */
 	for (i = 0; i < IXGBE_FDIR_INIT_DONE_POLL; i++) {
 		if (IXGBE_READ_REG(hw, IXGBE_FDIRCTRL) &
-		                   IXGBE_FDIRCTRL_INIT_DONE)
+				   IXGBE_FDIRCTRL_INIT_DONE)
 			break;
 		usleep_range(1000, 2000);
 	}
@@ -1368,7 +1368,7 @@ static void ixgbe_fdir_enable_82599(struct ixgbe_hw *hw, u32 fdirctrl)
 	IXGBE_WRITE_FLUSH(hw);
 	for (i = 0; i < IXGBE_FDIR_INIT_DONE_POLL; i++) {
 		if (IXGBE_READ_REG(hw, IXGBE_FDIRCTRL) &
-		                   IXGBE_FDIRCTRL_INIT_DONE)
+				   IXGBE_FDIRCTRL_INIT_DONE)
 			break;
 		usleep_range(1000, 2000);
 	}
@@ -1453,7 +1453,7 @@ do { \
 		bucket_hash ^= hi_hash_dword >> n; \
 	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & (0x01 << (n + 16))) \
 		sig_hash ^= hi_hash_dword << (16 - n); \
-} while (0);
+} while (0)
 
 /**
  *  ixgbe_atr_compute_sig_hash_82599 - Compute the signature hash
@@ -1529,9 +1529,9 @@ static u32 ixgbe_atr_compute_sig_hash_82599(union ixgbe_atr_hash_dword input,
  *  @queue: queue index to direct traffic to
  **/
 s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
-                                          union ixgbe_atr_hash_dword input,
-                                          union ixgbe_atr_hash_dword common,
-                                          u8 queue)
+					  union ixgbe_atr_hash_dword input,
+					  union ixgbe_atr_hash_dword common,
+					  u8 queue)
 {
 	u64  fdirhashcmd;
 	u32  fdircmd;
@@ -1555,7 +1555,7 @@ s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
 
 	/* configure FDIRCMD register */
 	fdircmd = IXGBE_FDIRCMD_CMD_ADD_FLOW | IXGBE_FDIRCMD_FILTER_UPDATE |
-	          IXGBE_FDIRCMD_LAST | IXGBE_FDIRCMD_QUEUE_EN;
+		  IXGBE_FDIRCMD_LAST | IXGBE_FDIRCMD_QUEUE_EN;
 	fdircmd |= input.formatted.flow_type << IXGBE_FDIRCMD_FLOW_TYPE_SHIFT;
 	fdircmd |= (u32)queue << IXGBE_FDIRCMD_RX_QUEUE_SHIFT;
 
@@ -1579,7 +1579,7 @@ do { \
 		bucket_hash ^= lo_hash_dword >> n; \
 	if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << (n + 16))) \
 		bucket_hash ^= hi_hash_dword >> n; \
-} while (0);
+} while (0)
 
 /**
  *  ixgbe_atr_compute_perfect_hash_82599 - Compute the perfect filter hash
@@ -1651,6 +1651,7 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 static u32 ixgbe_get_fdirtcpm_82599(union ixgbe_atr_input *input_mask)
 {
 	u32 mask = ntohs(input_mask->formatted.dst_port);
+
 	mask <<= IXGBE_FDIRTCPM_DPORTM_SHIFT;
 	mask |= ntohs(input_mask->formatted.src_port);
 	mask = ((mask & 0x55555555) << 1) | ((mask & 0xAAAAAAAA) >> 1);
@@ -1885,7 +1886,7 @@ static s32 ixgbe_read_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 *val)
 	u32  core_ctl;
 
 	IXGBE_WRITE_REG(hw, IXGBE_CORECTL, IXGBE_CORECTL_WRITE_CMD |
-	                (reg << 8));
+			(reg << 8));
 	IXGBE_WRITE_FLUSH(hw);
 	udelay(10);
 	core_ctl = IXGBE_READ_REG(hw, IXGBE_CORECTL);

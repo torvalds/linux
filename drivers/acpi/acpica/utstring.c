@@ -353,7 +353,7 @@ void acpi_ut_print_string(char *string, u16 max_length)
 	}
 
 	acpi_os_printf("\"");
-	for (i = 0; string[i] && (i < max_length); i++) {
+	for (i = 0; (i < max_length) && string[i]; i++) {
 
 		/* Escape sequences */
 

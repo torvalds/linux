@@ -346,6 +346,7 @@ void omap_framebuffer_flush(struct drm_framebuffer *fb,
 
 	VERB("flush: %d,%d %dx%d, fb=%p", x, y, w, h, fb);
 
+	/* FIXME: This is racy - no protection against modeset config changes. */
 	while ((connector = omap_framebuffer_get_next_connector(fb, connector))) {
 		/* only consider connectors that are part of a chain */
 		if (connector->encoder && connector->encoder->crtc) {

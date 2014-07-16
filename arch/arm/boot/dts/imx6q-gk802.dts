@@ -14,7 +14,7 @@
 	compatible = "zealz,imx6q-gk802", "fsl,imx6q";
 
 	chosen {
-		linux,stdout-path = &uart4;
+		stdout-path = &uart4;
 	};
 
 	memory {
@@ -46,6 +46,11 @@
 			gpio-key,wakeup;
 		};
 	};
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c3>;
+	status = "okay";
 };
 
 /* Internal I2C */

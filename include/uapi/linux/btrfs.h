@@ -38,6 +38,7 @@ struct btrfs_ioctl_vol_args {
 #define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
 #define BTRFS_FSID_SIZE 16
 #define BTRFS_UUID_SIZE 16
+#define BTRFS_UUID_UNPARSED_SIZE	37
 
 #define BTRFS_QGROUP_INHERIT_SET_LIMITS	(1ULL << 0)
 
@@ -181,7 +182,11 @@ struct btrfs_ioctl_fs_info_args {
 	__u64 max_id;				/* out */
 	__u64 num_devices;			/* out */
 	__u8 fsid[BTRFS_FSID_SIZE];		/* out */
-	__u64 reserved[124];			/* pad to 1k */
+	__u32 nodesize;				/* out */
+	__u32 sectorsize;			/* out */
+	__u32 clone_alignment;			/* out */
+	__u32 reserved32;
+	__u64 reserved[122];			/* pad to 1k */
 };
 
 struct btrfs_ioctl_feature_flags {
@@ -211,7 +216,8 @@ struct btrfs_balance_args {
 
 	__u64 flags;
 
-	__u64 unused[8];
+	__u64 limit;		/* limit number of processed chunks */
+	__u64 unused[7];
 } __attribute__ ((__packed__));
 
 /* report balance progress to userspace */
@@ -299,6 +305,14 @@ struct btrfs_ioctl_search_header {
 struct btrfs_ioctl_search_args {
 	struct btrfs_ioctl_search_key key;
 	char buf[BTRFS_SEARCH_ARGS_BUFSIZE];
+};
+
+struct btrfs_ioctl_search_args_v2 {
+	struct btrfs_ioctl_search_key key; /* in/out - search parameters */
+	__u64 buf_size;		   /* in - size of buffer
+					    * out - on EOVERFLOW: needed size
+					    *       to store item */
+	__u64 buf[0];                       /* out - found items */
 };
 
 struct btrfs_ioctl_clone_range_args {
@@ -553,6 +567,8 @@ static inline char *btrfs_err_str(enum btrfs_err_code err_code)
 				struct btrfs_ioctl_defrag_range_args)
 #define BTRFS_IOC_TREE_SEARCH _IOWR(BTRFS_IOCTL_MAGIC, 17, \
 				   struct btrfs_ioctl_search_args)
+#define BTRFS_IOC_TREE_SEARCH_V2 _IOWR(BTRFS_IOCTL_MAGIC, 17, \
+					   struct btrfs_ioctl_search_args_v2)
 #define BTRFS_IOC_INO_LOOKUP _IOWR(BTRFS_IOCTL_MAGIC, 18, \
 				   struct btrfs_ioctl_ino_lookup_args)
 #define BTRFS_IOC_DEFAULT_SUBVOL _IOW(BTRFS_IOCTL_MAGIC, 19, __u64)

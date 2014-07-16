@@ -195,7 +195,6 @@ Detach the imported device:
     - Shutdown firewall.
 	- usbip now uses TCP port 3240.
     - Disable SELinux.
-    - If possible, compile your kernel with CONFIG_USB_DEBUG flag and try again.
     - Check the kernel and daemon messages.
 
 

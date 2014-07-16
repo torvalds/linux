@@ -34,23 +34,6 @@ enum {
 	SIGMA_ACTION_END,
 };
 
-struct sigma_action {
-	u8 instr;
-	u8 len_hi;
-	__le16 len;
-	__be16 addr;
-	unsigned char payload[];
-} __packed;
-
-struct sigma_firmware {
-	const struct firmware *fw;
-	size_t pos;
-
-	void *control_data;
-	int (*write)(void *control_data, const struct sigma_action *sa,
-			size_t len);
-};
-
 static inline u32 sigma_action_len(struct sigma_action *sa)
 {
 	return (sa->len_hi << 16) | le16_to_cpu(sa->len);
@@ -138,7 +121,7 @@ process_sigma_actions(struct sigma_firmware *ssfw)
 	return 0;
 }
 
-static int _process_sigma_firmware(struct device *dev,
+int _process_sigma_firmware(struct device *dev,
 	struct sigma_firmware *ssfw, const char *name)
 {
 	int ret;
@@ -197,50 +180,6 @@ static int _process_sigma_firmware(struct device *dev,
 
 	return ret;
 }
-
-#if IS_ENABLED(CONFIG_I2C)
-
-static int sigma_action_write_i2c(void *control_data,
-	const struct sigma_action *sa, size_t len)
-{
-	return i2c_master_send(control_data, (const unsigned char *)&sa->addr,
-		len);
-}
-
-int process_sigma_firmware(struct i2c_client *client, const char *name)
-{
-	struct sigma_firmware ssfw;
-
-	ssfw.control_data = client;
-	ssfw.write = sigma_action_write_i2c;
-
-	return _process_sigma_firmware(&client->dev, &ssfw, name);
-}
-EXPORT_SYMBOL(process_sigma_firmware);
-
-#endif
-
-#if IS_ENABLED(CONFIG_REGMAP)
-
-static int sigma_action_write_regmap(void *control_data,
-	const struct sigma_action *sa, size_t len)
-{
-	return regmap_raw_write(control_data, be16_to_cpu(sa->addr),
-		sa->payload, len - 2);
-}
-
-int process_sigma_firmware_regmap(struct device *dev, struct regmap *regmap,
-	const char *name)
-{
-	struct sigma_firmware ssfw;
-
-	ssfw.control_data = regmap;
-	ssfw.write = sigma_action_write_regmap;
-
-	return _process_sigma_firmware(dev, &ssfw, name);
-}
-EXPORT_SYMBOL(process_sigma_firmware_regmap);
-
-#endif
+EXPORT_SYMBOL_GPL(_process_sigma_firmware);
 
 MODULE_LICENSE("GPL");

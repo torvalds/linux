@@ -932,7 +932,7 @@ static inline void snd_pcm_gettime(struct snd_pcm_runtime *runtime,
 				   struct timespec *tv)
 {
 	if (runtime->tstamp_type == SNDRV_PCM_TSTAMP_TYPE_MONOTONIC)
-		do_posix_clock_monotonic_gettime(tv);
+		ktime_get_ts(tv);
 	else
 		getnstimeofday(tv);
 }

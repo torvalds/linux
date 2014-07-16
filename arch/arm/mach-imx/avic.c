@@ -135,7 +135,7 @@ static __init void avic_init_gc(int idx, unsigned int irq_start)
 	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, IRQ_NOREQUEST, 0);
 }
 
-asmlinkage void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
 {
 	u32 nivector;
 
@@ -189,6 +189,8 @@ void __init mxc_init_irq(void __iomem *irqbase)
 	/* Set default priority value (0) for all IRQ's */
 	for (i = 0; i < 8; i++)
 		__raw_writel(0, avic_base + AVIC_NIPRIORITY(i));
+
+	set_handle_irq(avic_handle_irq);
 
 #ifdef CONFIG_FIQ
 	/* Initialize FIQ */

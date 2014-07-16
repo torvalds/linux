@@ -1524,6 +1524,7 @@ struct max98090_priv {
 	struct snd_soc_codec *codec;
 	enum max98090_type devtype;
 	struct max98090_pdata *pdata;
+	struct clk *mclk;
 	unsigned int sysclk;
 	unsigned int bclk;
 	unsigned int lrclk;
@@ -1540,6 +1541,7 @@ struct max98090_priv {
 	unsigned int pa2en;
 	unsigned int extmic_mux;
 	unsigned int sidetone;
+	bool master;
 };
 
 int max98090_mic_detect(struct snd_soc_codec *codec,

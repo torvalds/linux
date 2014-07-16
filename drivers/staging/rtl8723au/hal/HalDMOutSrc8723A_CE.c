@@ -18,6 +18,7 @@
 /*  include files */
 
 #include "odm_precomp.h"
+#include <usb_ops_linux.h>
 
 #define		DPK_DELTA_MAPPING_NUM	13
 #define		index_mapping_HP_NUM	15
@@ -252,35 +253,41 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 				PHY_SetBBReg(Adapter, rOFDM0_XCTxAFE, bMaskH4Bits, value32);
 
 				value32 = ((X * ele_D)>>7)&0x01;
-				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT31, value32);
+				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold,
+					     BIT(31), value32);
 
 				value32 = ((Y * ele_D)>>7)&0x01;
-				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT29, value32);
+				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold,
+					     BIT(29), value32);
 			} else {
-				PHY_SetBBReg(Adapter, rOFDM0_XATxIQImbalance, bMaskDWord, OFDMSwingTable23A[OFDM_index[0]]);
-				PHY_SetBBReg(Adapter, rOFDM0_XCTxAFE, bMaskH4Bits, 0x00);
-				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT31|BIT29, 0x00);
+				PHY_SetBBReg(Adapter, rOFDM0_XATxIQImbalance,
+					     bMaskDWord,
+					     OFDMSwingTable23A[OFDM_index[0]]);
+				PHY_SetBBReg(Adapter, rOFDM0_XCTxAFE,
+					     bMaskH4Bits, 0x00);
+				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold,
+					     BIT(31) | BIT(29), 0x00);
 			}
 
 			/* Adjust CCK according to IQK result */
 			if (!pdmpriv->bCCKinCH14) {
-				rtw_write8(Adapter, 0xa22, CCKSwingTable_Ch1_Ch1323A[CCK_index][0]);
-				rtw_write8(Adapter, 0xa23, CCKSwingTable_Ch1_Ch1323A[CCK_index][1]);
-				rtw_write8(Adapter, 0xa24, CCKSwingTable_Ch1_Ch1323A[CCK_index][2]);
-				rtw_write8(Adapter, 0xa25, CCKSwingTable_Ch1_Ch1323A[CCK_index][3]);
-				rtw_write8(Adapter, 0xa26, CCKSwingTable_Ch1_Ch1323A[CCK_index][4]);
-				rtw_write8(Adapter, 0xa27, CCKSwingTable_Ch1_Ch1323A[CCK_index][5]);
-				rtw_write8(Adapter, 0xa28, CCKSwingTable_Ch1_Ch1323A[CCK_index][6]);
-				rtw_write8(Adapter, 0xa29, CCKSwingTable_Ch1_Ch1323A[CCK_index][7]);
+				rtl8723au_write8(Adapter, 0xa22, CCKSwingTable_Ch1_Ch1323A[CCK_index][0]);
+				rtl8723au_write8(Adapter, 0xa23, CCKSwingTable_Ch1_Ch1323A[CCK_index][1]);
+				rtl8723au_write8(Adapter, 0xa24, CCKSwingTable_Ch1_Ch1323A[CCK_index][2]);
+				rtl8723au_write8(Adapter, 0xa25, CCKSwingTable_Ch1_Ch1323A[CCK_index][3]);
+				rtl8723au_write8(Adapter, 0xa26, CCKSwingTable_Ch1_Ch1323A[CCK_index][4]);
+				rtl8723au_write8(Adapter, 0xa27, CCKSwingTable_Ch1_Ch1323A[CCK_index][5]);
+				rtl8723au_write8(Adapter, 0xa28, CCKSwingTable_Ch1_Ch1323A[CCK_index][6]);
+				rtl8723au_write8(Adapter, 0xa29, CCKSwingTable_Ch1_Ch1323A[CCK_index][7]);
 			} else {
-				rtw_write8(Adapter, 0xa22, CCKSwingTable_Ch1423A[CCK_index][0]);
-				rtw_write8(Adapter, 0xa23, CCKSwingTable_Ch1423A[CCK_index][1]);
-				rtw_write8(Adapter, 0xa24, CCKSwingTable_Ch1423A[CCK_index][2]);
-				rtw_write8(Adapter, 0xa25, CCKSwingTable_Ch1423A[CCK_index][3]);
-				rtw_write8(Adapter, 0xa26, CCKSwingTable_Ch1423A[CCK_index][4]);
-				rtw_write8(Adapter, 0xa27, CCKSwingTable_Ch1423A[CCK_index][5]);
-				rtw_write8(Adapter, 0xa28, CCKSwingTable_Ch1423A[CCK_index][6]);
-				rtw_write8(Adapter, 0xa29, CCKSwingTable_Ch1423A[CCK_index][7]);
+				rtl8723au_write8(Adapter, 0xa22, CCKSwingTable_Ch1423A[CCK_index][0]);
+				rtl8723au_write8(Adapter, 0xa23, CCKSwingTable_Ch1423A[CCK_index][1]);
+				rtl8723au_write8(Adapter, 0xa24, CCKSwingTable_Ch1423A[CCK_index][2]);
+				rtl8723au_write8(Adapter, 0xa25, CCKSwingTable_Ch1423A[CCK_index][3]);
+				rtl8723au_write8(Adapter, 0xa26, CCKSwingTable_Ch1423A[CCK_index][4]);
+				rtl8723au_write8(Adapter, 0xa27, CCKSwingTable_Ch1423A[CCK_index][5]);
+				rtl8723au_write8(Adapter, 0xa28, CCKSwingTable_Ch1423A[CCK_index][6]);
+				rtl8723au_write8(Adapter, 0xa29, CCKSwingTable_Ch1423A[CCK_index][7]);
 			}
 
 			if (is2T) {
@@ -308,14 +315,25 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 					PHY_SetBBReg(Adapter, rOFDM0_XDTxAFE, bMaskH4Bits, value32);
 
 					value32 = ((X * ele_D)>>7)&0x01;
-					PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT27, value32);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_ECCAThreshold,
+						     BIT(27), value32);
 
 					value32 = ((Y * ele_D)>>7)&0x01;
-					PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT25, value32);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_ECCAThreshold,
+						     BIT(25), value32);
 				} else {
-					PHY_SetBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord, OFDMSwingTable23A[OFDM_index[1]]);
-					PHY_SetBBReg(Adapter, rOFDM0_XDTxAFE, bMaskH4Bits, 0x00);
-					PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT27|BIT25, 0x00);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_XBTxIQImbalance,
+						     bMaskDWord,
+						     OFDMSwingTable23A[OFDM_index[1]]);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_XDTxAFE,
+						     bMaskH4Bits, 0x00);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_ECCAThreshold,
+						     BIT(27) | BIT(25), 0x00);
 				}
 			}
 
@@ -410,14 +428,14 @@ static u8 _PHY_PathA_IQK(struct rtw_adapter *pAdapter, bool configPathB)
 	regE9C = PHY_QueryBBReg(pAdapter, rTx_Power_After_IQK_A, bMaskDWord);
 	regEA4 = PHY_QueryBBReg(pAdapter, rRx_Power_Before_IQK_A_2, bMaskDWord);
 
-	if (!(regEAC & BIT28) &&
+	if (!(regEAC & BIT(28)) &&
 	    (((regE94 & 0x03FF0000)>>16) != 0x142) &&
 	    (((regE9C & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
 	else			/* if Tx not OK, ignore Rx */
 		return result;
 
-	if (!(regEAC & BIT27) &&		/* if Tx is OK, check whether Rx is OK */
+	if (!(regEAC & BIT(27)) &&		/* if Tx is OK, check whether Rx is OK */
 	    (((regEA4 & 0x03FF0000)>>16) != 0x132) &&
 	    (((regEAC & 0x03FF0000)>>16) != 0x36))
 		result |= 0x02;
@@ -445,14 +463,14 @@ static u8 _PHY_PathB_IQK(struct rtw_adapter *pAdapter)
 	regEC4 = PHY_QueryBBReg(pAdapter, rRx_Power_Before_IQK_B_2, bMaskDWord);
 	regECC = PHY_QueryBBReg(pAdapter, rRx_Power_After_IQK_B_2, bMaskDWord);
 
-	if (!(regEAC & BIT31) &&
+	if (!(regEAC & BIT(31)) &&
 	    (((regEB4 & 0x03FF0000)>>16) != 0x142) &&
 	    (((regEBC & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
 	else
 		return result;
 
-	if (!(regEAC & BIT30) &&
+	if (!(regEAC & BIT(30)) &&
 	    (((regEC4 & 0x03FF0000)>>16) != 0x132) &&
 	    (((regECC & 0x03FF0000)>>16) != 0x36))
 		result |= 0x02;
@@ -564,9 +582,9 @@ static void _PHY_SaveMACRegisters(struct rtw_adapter *pAdapter, u32 *MACReg, u32
 	u32 i;
 
 	for (i = 0 ; i < (IQK_MAC_REG_NUM - 1); i++) {
-		MACBackup[i] = rtw_read8(pAdapter, MACReg[i]);
+		MACBackup[i] = rtl8723au_read8(pAdapter, MACReg[i]);
 	}
-	MACBackup[i] = rtw_read32(pAdapter, MACReg[i]);
+	MACBackup[i] = rtl8723au_read32(pAdapter, MACReg[i]);
 }
 
 static void _PHY_ReloadADDARegisters(struct rtw_adapter *pAdapter, u32 *ADDAReg, u32 *ADDABackup, u32 RegiesterNum)
@@ -582,10 +600,10 @@ static void _PHY_ReloadMACRegisters(struct rtw_adapter *pAdapter, u32 *MACReg, u
 {
 	u32 i;
 
-	for (i = 0 ; i < (IQK_MAC_REG_NUM - 1); i++) {
-		rtw_write8(pAdapter, MACReg[i], (u8)MACBackup[i]);
-	}
-	rtw_write32(pAdapter, MACReg[i], MACBackup[i]);
+	for (i = 0 ; i < (IQK_MAC_REG_NUM - 1); i++)
+		rtl8723au_write8(pAdapter, MACReg[i], (u8)MACBackup[i]);
+
+	rtl8723au_write32(pAdapter, MACReg[i], MACBackup[i]);
 }
 
 static void _PHY_PathADDAOn(struct rtw_adapter *pAdapter, u32 *ADDAReg, bool isPathAOn, bool is2T)
@@ -609,12 +627,13 @@ static void _PHY_MACSettingCalibration(struct rtw_adapter *pAdapter, u32 *MACReg
 {
 	u32 i = 0;
 
-	rtw_write8(pAdapter, MACReg[i], 0x3F);
+	rtl8723au_write8(pAdapter, MACReg[i], 0x3F);
 
 	for (i = 1 ; i < (IQK_MAC_REG_NUM - 1); i++) {
-		rtw_write8(pAdapter, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
+		rtl8723au_write8(pAdapter, MACReg[i],
+				 (u8)(MACBackup[i] & ~BIT(3)));
 	}
-	rtw_write8(pAdapter, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
+	rtl8723au_write8(pAdapter, MACReg[i], (u8)(MACBackup[i] & ~BIT(5)));
 }
 
 static void _PHY_PathAStandBy(struct rtw_adapter *pAdapter)
@@ -737,21 +756,23 @@ static void _PHY_IQCalibrate(struct rtw_adapter *pAdapter, int result[][8], u8 t
 	_PHY_PathADDAOn(pAdapter, ADDA_REG, true, is2T);
 
 	if (t == 0)
-		pdmpriv->bRfPiEnable = (u8)PHY_QueryBBReg(pAdapter, rFPGA0_XA_HSSIParameter1, BIT(8));
+		pdmpriv->bRfPiEnable = (u8)
+			PHY_QueryBBReg(pAdapter, rFPGA0_XA_HSSIParameter1,
+				       BIT(8));
 
 	if (!pdmpriv->bRfPiEnable) {
 		/*  Switch BB to PI mode to do IQ Calibration. */
 		_PHY_PIModeSwitch(pAdapter, true);
 	}
 
-	PHY_SetBBReg(pAdapter, rFPGA0_RFMOD, BIT24, 0x00);
+	PHY_SetBBReg(pAdapter, rFPGA0_RFMOD, BIT(24), 0x00);
 	PHY_SetBBReg(pAdapter, rOFDM0_TRxPathEnable, bMaskDWord, 0x03a05600);
 	PHY_SetBBReg(pAdapter, rOFDM0_TRMuxPar, bMaskDWord, 0x000800e4);
 	PHY_SetBBReg(pAdapter, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22204000);
-	PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT10, 0x01);
-	PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT26, 0x01);
-	PHY_SetBBReg(pAdapter, rFPGA0_XA_RFInterfaceOE, BIT10, 0x00);
-	PHY_SetBBReg(pAdapter, rFPGA0_XB_RFInterfaceOE, BIT10, 0x00);
+	PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(10), 0x01);
+	PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(26), 0x01);
+	PHY_SetBBReg(pAdapter, rFPGA0_XA_RFInterfaceOE, BIT(10), 0x00);
+	PHY_SetBBReg(pAdapter, rFPGA0_XB_RFInterfaceOE, BIT(10), 0x00);
 
 	if (is2T) {
 		PHY_SetBBReg(pAdapter, rFPGA0_XA_LSSIParameter, bMaskDWord, 0x00010000);
@@ -859,12 +880,17 @@ static void _PHY_LCCalibrate(struct rtw_adapter *pAdapter, bool is2T)
 	u32 RF_Amode = 0, RF_Bmode = 0, LC_Cal;
 
 	/* Check continuous TX and Packet TX */
-	tmpReg = rtw_read8(pAdapter, 0xd03);
+	tmpReg = rtl8723au_read8(pAdapter, 0xd03);
 
-	if ((tmpReg&0x70) != 0)			/* Deal with contisuous TX case */
-		rtw_write8(pAdapter, 0xd03, tmpReg&0x8F);	/* disable all continuous TX */
-	else							/*  Deal with Packet TX case */
-		rtw_write8(pAdapter, REG_TXPAUSE, 0xFF);			/*  block all queues */
+	if ((tmpReg&0x70) != 0) {
+		/* Deal with contisuous TX case */
+		/* disable all continuous TX */
+		rtl8723au_write8(pAdapter, 0xd03, tmpReg&0x8F);
+	} else {
+		/*  Deal with Packet TX case */
+		/*  block all queues */
+		rtl8723au_write8(pAdapter, REG_TXPAUSE, 0xFF);
+	}
 
 	if ((tmpReg&0x70) != 0) {
 		/* 1. Read original RF mode */
@@ -895,15 +921,14 @@ static void _PHY_LCCalibrate(struct rtw_adapter *pAdapter, bool is2T)
 	/* Restore original situation */
 	if ((tmpReg&0x70) != 0) {	/* Deal with contuous TX case  */
 		/* Path-A */
-		rtw_write8(pAdapter, 0xd03, tmpReg);
+		rtl8723au_write8(pAdapter, 0xd03, tmpReg);
 		PHY_SetRFReg(pAdapter, RF_PATH_A, RF_AC, bMask12Bits, RF_Amode);
 
 		/* Path-B */
 		if (is2T)
 			PHY_SetRFReg(pAdapter, RF_PATH_B, RF_AC, bMask12Bits, RF_Bmode);
-	} else { /*  Deal with Packet TX case */
-		rtw_write8(pAdapter, REG_TXPAUSE, 0x00);
-	}
+	} else /*  Deal with Packet TX case */
+		rtl8723au_write8(pAdapter, REG_TXPAUSE, 0x00);
 }
 
 /* Analog Pre-distortion calibration */

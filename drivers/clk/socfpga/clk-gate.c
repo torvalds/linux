@@ -32,7 +32,6 @@
 #define SOCFPGA_MMC_CLK			"sdmmc_clk"
 #define SOCFPGA_GPIO_DB_CLK_OFFSET	0xA8
 
-#define div_mask(width)	((1 << (width)) - 1)
 #define streq(a, b) (strcmp((a), (b)) == 0)
 
 #define to_socfpga_gate_clk(p) container_of(p, struct socfpga_gate_clk, hw.hw)

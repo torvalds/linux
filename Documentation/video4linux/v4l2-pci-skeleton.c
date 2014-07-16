@@ -77,7 +77,8 @@ struct skeleton {
 
 	spinlock_t qlock;
 	struct list_head buf_list;
-	unsigned int sequence;
+	unsigned field;
+	unsigned sequence;
 };
 
 struct skel_buffer {
@@ -124,7 +125,7 @@ static const struct v4l2_dv_timings_cap skel_timings_cap = {
  * Interrupt handler: typically interrupts happen after a new frame has been
  * captured. It is the job of the handler to remove the new frame from the
  * internal list and give it back to the vb2 framework, updating the sequence
- * counter and timestamp at the same time.
+ * counter, field and timestamp at the same time.
  */
 static irqreturn_t skeleton_irq(int irq, void *dev_id)
 {
@@ -139,8 +140,15 @@ static irqreturn_t skeleton_irq(int irq, void *dev_id)
 		spin_lock(&skel->qlock);
 		list_del(&new_buf->list);
 		spin_unlock(&skel->qlock);
-		new_buf->vb.v4l2_buf.sequence = skel->sequence++;
 		v4l2_get_timestamp(&new_buf->vb.v4l2_buf.timestamp);
+		new_buf->vb.v4l2_buf.sequence = skel->sequence++;
+		new_buf->vb.v4l2_buf.field = skel->field;
+		if (skel->format.field == V4L2_FIELD_ALTERNATE) {
+			if (skel->field == V4L2_FIELD_BOTTOM)
+				skel->field = V4L2_FIELD_TOP;
+			else if (skel->field == V4L2_FIELD_TOP)
+				skel->field = V4L2_FIELD_BOTTOM;
+		}
 		vb2_buffer_done(&new_buf->vb, VB2_BUF_STATE_DONE);
 	}
 #endif
@@ -160,6 +168,17 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 {
 	struct skeleton *skel = vb2_get_drv_priv(vq);
 
+	skel->field = skel->format.field;
+	if (skel->field == V4L2_FIELD_ALTERNATE) {
+		/*
+		 * You cannot use read() with FIELD_ALTERNATE since the field
+		 * information (TOP/BOTTOM) cannot be passed back to the user.
+		 */
+		if (vb2_fileio_is_active(vq))
+			return -EINVAL;
+		skel->field = V4L2_FIELD_TOP;
+	}
+
 	if (vq->num_buffers + *nbuffers < 3)
 		*nbuffers = 3 - vq->num_buffers;
 
@@ -173,10 +192,7 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 /*
  * Prepare the buffer for queueing to the DMA engine: check and set the
- * payload size and fill in the field. Note: if the format's field is
- * V4L2_FIELD_ALTERNATE, then vb->v4l2_buf.field should be set in the
- * interrupt handler since that's usually where you know if the TOP or
- * BOTTOM field has been captured.
+ * payload size.
  */
 static int buffer_prepare(struct vb2_buffer *vb)
 {
@@ -190,7 +206,6 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	}
 
 	vb2_set_plane_payload(vb, 0, size);
-	vb->v4l2_buf.field = skel->format.field;
 	return 0;
 }
 
@@ -254,7 +269,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
  * Stop the DMA engine. Any remaining buffers in the DMA queue are dequeued
  * and passed on to the vb2 framework marked as STATE_ERROR.
  */
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct skeleton *skel = vb2_get_drv_priv(vq);
 
@@ -262,7 +277,6 @@ static int stop_streaming(struct vb2_queue *vq)
 
 	/* Release all active buffers */
 	return_all_buffers(skel, VB2_BUF_STATE_ERROR);
-	return 0;
 }
 
 /*
@@ -319,10 +333,12 @@ static void skeleton_fill_pix_format(struct skeleton *skel,
 		/* HDMI input */
 		pix->width = skel->timings.bt.width;
 		pix->height = skel->timings.bt.height;
-		if (skel->timings.bt.interlaced)
-			pix->field = V4L2_FIELD_INTERLACED;
-		else
+		if (skel->timings.bt.interlaced) {
+			pix->field = V4L2_FIELD_ALTERNATE;
+			pix->height /= 2;
+		} else {
 			pix->field = V4L2_FIELD_NONE;
+		}
 		pix->colorspace = V4L2_COLORSPACE_REC709;
 	}
 

@@ -76,15 +76,39 @@ configfrag_hotplug_cpu () {
 	grep -q '^CONFIG_HOTPLUG_CPU=y$' "$1"
 }
 
+# identify_boot_image qemu-cmd
+#
+# Returns the relative path to the kernel build image.  This will be
+# arch/<arch>/boot/bzImage unless overridden with the TORTURE_BOOT_IMAGE
+# environment variable.
+identify_boot_image () {
+	if test -n "$TORTURE_BOOT_IMAGE"
+	then
+		echo $TORTURE_BOOT_IMAGE
+	else
+		case "$1" in
+		qemu-system-x86_64|qemu-system-i386)
+			echo arch/x86/boot/bzImage
+			;;
+		qemu-system-ppc64)
+			echo arch/powerpc/boot/bzImage
+			;;
+		*)
+			echo ""
+			;;
+		esac
+	fi
+}
+
 # identify_qemu builddir
 #
 # Returns our best guess as to which qemu command is appropriate for
-# the kernel at hand.  Override with the RCU_QEMU_CMD environment variable.
+# the kernel at hand.  Override with the TORTURE_QEMU_CMD environment variable.
 identify_qemu () {
 	local u="`file "$1"`"
-	if test -n "$RCU_QEMU_CMD"
+	if test -n "$TORTURE_QEMU_CMD"
 	then
-		echo $RCU_QEMU_CMD
+		echo $TORTURE_QEMU_CMD
 	elif echo $u | grep -q x86-64
 	then
 		echo qemu-system-x86_64
@@ -98,7 +122,7 @@ identify_qemu () {
 		echo Cannot figure out what qemu command to use! 1>&2
 		echo file $1 output: $u
 		# Usually this will be one of /usr/bin/qemu-system-*
-		# Use RCU_QEMU_CMD environment variable or appropriate
+		# Use TORTURE_QEMU_CMD environment variable or appropriate
 		# argument to top-level script.
 		exit 1
 	fi
@@ -107,14 +131,14 @@ identify_qemu () {
 # identify_qemu_append qemu-cmd
 #
 # Output arguments for the qemu "-append" string based on CPU type
-# and the RCU_QEMU_INTERACTIVE environment variable.
+# and the TORTURE_QEMU_INTERACTIVE environment variable.
 identify_qemu_append () {
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
 		echo noapic selinux=0 initcall_debug debug
 		;;
 	esac
-	if test -n "$RCU_QEMU_INTERACTIVE"
+	if test -n "$TORTURE_QEMU_INTERACTIVE"
 	then
 		echo root=/dev/sda
 	else
@@ -124,8 +148,8 @@ identify_qemu_append () {
 
 # identify_qemu_args qemu-cmd serial-file
 #
-# Output arguments for qemu arguments based on the RCU_QEMU_MAC
-# and RCU_QEMU_INTERACTIVE environment variables.
+# Output arguments for qemu arguments based on the TORTURE_QEMU_MAC
+# and TORTURE_QEMU_INTERACTIVE environment variables.
 identify_qemu_args () {
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
@@ -133,17 +157,17 @@ identify_qemu_args () {
 	qemu-system-ppc64)
 		echo -enable-kvm -M pseries -cpu POWER7 -nodefaults
 		echo -device spapr-vscsi
-		if test -n "$RCU_QEMU_INTERACTIVE" -a -n "$RCU_QEMU_MAC"
+		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$TORTURE_QEMU_MAC"
 		then
-			echo -device spapr-vlan,netdev=net0,mac=$RCU_QEMU_MAC
+			echo -device spapr-vlan,netdev=net0,mac=$TORTURE_QEMU_MAC
 			echo -netdev bridge,br=br0,id=net0
-		elif test -n "$RCU_QEMU_INTERACTIVE"
+		elif test -n "$TORTURE_QEMU_INTERACTIVE"
 		then
 			echo -net nic -net user
 		fi
 		;;
 	esac
-	if test -n "$RCU_QEMU_INTERACTIVE"
+	if test -n "$TORTURE_QEMU_INTERACTIVE"
 	then
 		echo -monitor stdio -serial pty -S
 	else

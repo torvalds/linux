@@ -37,13 +37,13 @@ const char *reserved_field_names[] = {
 
 /* Printing  in basic type function template */
 #define DEFINE_BASIC_PRINT_TYPE_FUNC(type, fmt)				\
-__kprobes int PRINT_TYPE_FUNC_NAME(type)(struct trace_seq *s,	\
-						const char *name,	\
-						void *data, void *ent)	\
+int PRINT_TYPE_FUNC_NAME(type)(struct trace_seq *s, const char *name,	\
+				void *data, void *ent)			\
 {									\
 	return trace_seq_printf(s, " %s=" fmt, name, *(type *)data);	\
 }									\
-const char PRINT_TYPE_FMT_NAME(type)[] = fmt;
+const char PRINT_TYPE_FMT_NAME(type)[] = fmt;				\
+NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(type));
 
 DEFINE_BASIC_PRINT_TYPE_FUNC(u8 , "0x%x")
 DEFINE_BASIC_PRINT_TYPE_FUNC(u16, "0x%x")
@@ -55,9 +55,8 @@ DEFINE_BASIC_PRINT_TYPE_FUNC(s32, "%d")
 DEFINE_BASIC_PRINT_TYPE_FUNC(s64, "%Ld")
 
 /* Print type function for string type */
-__kprobes int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s,
-						  const char *name,
-						  void *data, void *ent)
+int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, const char *name,
+				 void *data, void *ent)
 {
 	int len = *(u32 *)data >> 16;
 
@@ -67,6 +66,7 @@ __kprobes int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s,
 		return trace_seq_printf(s, " %s=\"%s\"", name,
 					(const char *)get_loc_data(data, ent));
 }
+NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(string));
 
 const char PRINT_TYPE_FMT_NAME(string)[] = "\\\"%s\\\"";
 
@@ -81,23 +81,24 @@ const char PRINT_TYPE_FMT_NAME(string)[] = "\\\"%s\\\"";
 
 /* Data fetch function templates */
 #define DEFINE_FETCH_reg(type)						\
-__kprobes void FETCH_FUNC_NAME(reg, type)(struct pt_regs *regs,		\
-					void *offset, void *dest)	\
+void FETCH_FUNC_NAME(reg, type)(struct pt_regs *regs, void *offset, void *dest)	\
 {									\
 	*(type *)dest = (type)regs_get_register(regs,			\
 				(unsigned int)((unsigned long)offset));	\
-}
+}									\
+NOKPROBE_SYMBOL(FETCH_FUNC_NAME(reg, type));
 DEFINE_BASIC_FETCH_FUNCS(reg)
 /* No string on the register */
 #define fetch_reg_string	NULL
 #define fetch_reg_string_size	NULL
 
 #define DEFINE_FETCH_retval(type)					\
-__kprobes void FETCH_FUNC_NAME(retval, type)(struct pt_regs *regs,	\
-					  void *dummy, void *dest)	\
+void FETCH_FUNC_NAME(retval, type)(struct pt_regs *regs,		\
+				   void *dummy, void *dest)		\
 {									\
 	*(type *)dest = (type)regs_return_value(regs);			\
-}
+}									\
+NOKPROBE_SYMBOL(FETCH_FUNC_NAME(retval, type));
 DEFINE_BASIC_FETCH_FUNCS(retval)
 /* No string on the retval */
 #define fetch_retval_string		NULL
@@ -112,8 +113,8 @@ struct deref_fetch_param {
 };
 
 #define DEFINE_FETCH_deref(type)					\
-__kprobes void FETCH_FUNC_NAME(deref, type)(struct pt_regs *regs,	\
-					    void *data, void *dest)	\
+void FETCH_FUNC_NAME(deref, type)(struct pt_regs *regs,			\
+				  void *data, void *dest)		\
 {									\
 	struct deref_fetch_param *dprm = data;				\
 	unsigned long addr;						\
@@ -123,12 +124,13 @@ __kprobes void FETCH_FUNC_NAME(deref, type)(struct pt_regs *regs,	\
 		dprm->fetch(regs, (void *)addr, dest);			\
 	} else								\
 		*(type *)dest = 0;					\
-}
+}									\
+NOKPROBE_SYMBOL(FETCH_FUNC_NAME(deref, type));
 DEFINE_BASIC_FETCH_FUNCS(deref)
 DEFINE_FETCH_deref(string)
 
-__kprobes void FETCH_FUNC_NAME(deref, string_size)(struct pt_regs *regs,
-						   void *data, void *dest)
+void FETCH_FUNC_NAME(deref, string_size)(struct pt_regs *regs,
+					 void *data, void *dest)
 {
 	struct deref_fetch_param *dprm = data;
 	unsigned long addr;
@@ -140,16 +142,18 @@ __kprobes void FETCH_FUNC_NAME(deref, string_size)(struct pt_regs *regs,
 	} else
 		*(string_size *)dest = 0;
 }
+NOKPROBE_SYMBOL(FETCH_FUNC_NAME(deref, string_size));
 
-static __kprobes void update_deref_fetch_param(struct deref_fetch_param *data)
+static void update_deref_fetch_param(struct deref_fetch_param *data)
 {
 	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
 		update_deref_fetch_param(data->orig.data);
 	else if (CHECK_FETCH_FUNCS(symbol, data->orig.fn))
 		update_symbol_cache(data->orig.data);
 }
+NOKPROBE_SYMBOL(update_deref_fetch_param);
 
-static __kprobes void free_deref_fetch_param(struct deref_fetch_param *data)
+static void free_deref_fetch_param(struct deref_fetch_param *data)
 {
 	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
 		free_deref_fetch_param(data->orig.data);
@@ -157,6 +161,7 @@ static __kprobes void free_deref_fetch_param(struct deref_fetch_param *data)
 		free_symbol_cache(data->orig.data);
 	kfree(data);
 }
+NOKPROBE_SYMBOL(free_deref_fetch_param);
 
 /* Bitfield fetch function */
 struct bitfield_fetch_param {
@@ -166,8 +171,8 @@ struct bitfield_fetch_param {
 };
 
 #define DEFINE_FETCH_bitfield(type)					\
-__kprobes void FETCH_FUNC_NAME(bitfield, type)(struct pt_regs *regs,	\
-					    void *data, void *dest)	\
+void FETCH_FUNC_NAME(bitfield, type)(struct pt_regs *regs,		\
+				     void *data, void *dest)		\
 {									\
 	struct bitfield_fetch_param *bprm = data;			\
 	type buf = 0;							\
@@ -177,13 +182,13 @@ __kprobes void FETCH_FUNC_NAME(bitfield, type)(struct pt_regs *regs,	\
 		buf >>= bprm->low_shift;				\
 	}								\
 	*(type *)dest = buf;						\
-}
-
+}									\
+NOKPROBE_SYMBOL(FETCH_FUNC_NAME(bitfield, type));
 DEFINE_BASIC_FETCH_FUNCS(bitfield)
 #define fetch_bitfield_string		NULL
 #define fetch_bitfield_string_size	NULL
 
-static __kprobes void
+static void
 update_bitfield_fetch_param(struct bitfield_fetch_param *data)
 {
 	/*
@@ -196,7 +201,7 @@ update_bitfield_fetch_param(struct bitfield_fetch_param *data)
 		update_symbol_cache(data->orig.data);
 }
 
-static __kprobes void
+static void
 free_bitfield_fetch_param(struct bitfield_fetch_param *data)
 {
 	/*
@@ -255,17 +260,17 @@ fail:
 }
 
 /* Special function : only accept unsigned long */
-static __kprobes void fetch_kernel_stack_address(struct pt_regs *regs,
-						 void *dummy, void *dest)
+static void fetch_kernel_stack_address(struct pt_regs *regs, void *dummy, void *dest)
 {
 	*(unsigned long *)dest = kernel_stack_pointer(regs);
 }
+NOKPROBE_SYMBOL(fetch_kernel_stack_address);
 
-static __kprobes void fetch_user_stack_address(struct pt_regs *regs,
-					       void *dummy, void *dest)
+static void fetch_user_stack_address(struct pt_regs *regs, void *dummy, void *dest)
 {
 	*(unsigned long *)dest = user_stack_pointer(regs);
 }
+NOKPROBE_SYMBOL(fetch_user_stack_address);
 
 static fetch_func_t get_fetch_size_function(const struct fetch_type *type,
 					    fetch_func_t orig_fn,

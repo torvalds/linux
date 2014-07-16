@@ -41,7 +41,7 @@ static void ixgbe_release_eeprom_semaphore(struct ixgbe_hw *hw);
 static s32 ixgbe_ready_eeprom(struct ixgbe_hw *hw);
 static void ixgbe_standby_eeprom(struct ixgbe_hw *hw);
 static void ixgbe_shift_out_eeprom_bits(struct ixgbe_hw *hw, u16 data,
-                                        u16 count);
+					u16 count);
 static u16 ixgbe_shift_in_eeprom_bits(struct ixgbe_hw *hw, u16 count);
 static void ixgbe_raise_eeprom_clk(struct ixgbe_hw *hw, u32 *eec);
 static void ixgbe_lower_eeprom_clk(struct ixgbe_hw *hw, u32 *eec);
@@ -271,6 +271,7 @@ out:
  **/
 s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 {
+	s32 ret_val;
 	u32 ctrl_ext;
 
 	/* Set the media type */
@@ -292,12 +293,15 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	IXGBE_WRITE_FLUSH(hw);
 
 	/* Setup flow control */
-	ixgbe_setup_fc(hw);
+	ret_val = ixgbe_setup_fc(hw);
+	if (!ret_val)
+		goto out;
 
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = false;
 
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
@@ -481,7 +485,7 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw)
  *  Reads the part number string from the EEPROM.
  **/
 s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
-                                  u32 pba_num_size)
+				  u32 pba_num_size)
 {
 	s32 ret_val;
 	u16 data;
@@ -814,9 +818,8 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 			eeprom->address_bits = 16;
 		else
 			eeprom->address_bits = 8;
-		hw_dbg(hw, "Eeprom params: type = %d, size = %d, address bits: "
-			  "%d\n", eeprom->type, eeprom->word_size,
-			  eeprom->address_bits);
+		hw_dbg(hw, "Eeprom params: type = %d, size = %d, address bits: %d\n",
+		       eeprom->type, eeprom->word_size, eeprom->address_bits);
 	}
 
 	return 0;
@@ -1388,8 +1391,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 	}
 
 	if (i == timeout) {
-		hw_dbg(hw, "Driver can't access the Eeprom - SMBI Semaphore "
-		       "not granted.\n");
+		hw_dbg(hw, "Driver can't access the Eeprom - SMBI Semaphore not granted.\n");
 		/*
 		 * this release is particularly important because our attempts
 		 * above to get the semaphore may have succeeded, and if there
@@ -1434,14 +1436,12 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 		 * was not granted because we don't have access to the EEPROM
 		 */
 		if (i >= timeout) {
-			hw_dbg(hw, "SWESMBI Software EEPROM semaphore "
-			       "not granted.\n");
+			hw_dbg(hw, "SWESMBI Software EEPROM semaphore not granted.\n");
 			ixgbe_release_eeprom_semaphore(hw);
 			status = IXGBE_ERR_EEPROM;
 		}
 	} else {
-		hw_dbg(hw, "Software semaphore SMBI between device drivers "
-		       "not granted.\n");
+		hw_dbg(hw, "Software semaphore SMBI between device drivers not granted.\n");
 	}
 
 	return status;
@@ -1483,7 +1483,7 @@ static s32 ixgbe_ready_eeprom(struct ixgbe_hw *hw)
 	 */
 	for (i = 0; i < IXGBE_EEPROM_MAX_RETRY_SPI; i += 5) {
 		ixgbe_shift_out_eeprom_bits(hw, IXGBE_EEPROM_RDSR_OPCODE_SPI,
-		                            IXGBE_EEPROM_OPCODE_BITS);
+					    IXGBE_EEPROM_OPCODE_BITS);
 		spi_stat_reg = (u8)ixgbe_shift_in_eeprom_bits(hw, 8);
 		if (!(spi_stat_reg & IXGBE_EEPROM_STATUS_RDY_SPI))
 			break;
@@ -1532,7 +1532,7 @@ static void ixgbe_standby_eeprom(struct ixgbe_hw *hw)
  *  @count: number of bits to shift out
  **/
 static void ixgbe_shift_out_eeprom_bits(struct ixgbe_hw *hw, u16 data,
-                                        u16 count)
+					u16 count)
 {
 	u32 eec;
 	u32 mask;
@@ -1736,7 +1736,7 @@ u16 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
  *  caller does not need checksum_val, the value can be NULL.
  **/
 s32 ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
-                                           u16 *checksum_val)
+					   u16 *checksum_val)
 {
 	s32 status;
 	u16 checksum;
@@ -1809,7 +1809,7 @@ s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw)
  *  Puts an ethernet address into a receive address register.
  **/
 s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
-                          u32 enable_addr)
+			  u32 enable_addr)
 {
 	u32 rar_low, rar_high;
 	u32 rar_entries = hw->mac.num_rar_entries;
@@ -2053,7 +2053,7 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw,
 
 	if (hw->addr_ctrl.mta_in_use > 0)
 		IXGBE_WRITE_REG(hw, IXGBE_MCSTCTRL,
-		                IXGBE_MCSTCTRL_MFE | hw->mac.mc_filter_type);
+				IXGBE_MCSTCTRL_MFE | hw->mac.mc_filter_type);
 
 	hw_dbg(hw, "ixgbe_update_mc_addr_list_generic Complete\n");
 	return 0;
@@ -2071,7 +2071,7 @@ s32 ixgbe_enable_mc_generic(struct ixgbe_hw *hw)
 
 	if (a->mta_in_use > 0)
 		IXGBE_WRITE_REG(hw, IXGBE_MCSTCTRL, IXGBE_MCSTCTRL_MFE |
-		                hw->mac.mc_filter_type);
+				hw->mac.mc_filter_type);
 
 	return 0;
 }
@@ -2106,17 +2106,23 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
 	u32 fcrtl, fcrth;
 	int i;
 
-	/*
-	 * Validate the water mark configuration for packet buffer 0.  Zero
-	 * water marks indicate that the packet buffer was not configured
-	 * and the watermarks for packet buffer 0 should always be configured.
-	 */
-	if (!hw->fc.low_water ||
-	    !hw->fc.high_water[0] ||
-	    !hw->fc.pause_time) {
-		hw_dbg(hw, "Invalid water mark configuration\n");
+	/* Validate the water mark configuration. */
+	if (!hw->fc.pause_time) {
 		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
 		goto out;
+	}
+
+	/* Low water mark of zero causes XOFF floods */
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
+		    hw->fc.high_water[i]) {
+			if (!hw->fc.low_water[i] ||
+			    hw->fc.low_water[i] >= hw->fc.high_water[i]) {
+				hw_dbg(hw, "Invalid water mark configuration\n");
+				ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+				goto out;
+			}
+		}
 	}
 
 	/* Negotiate the fc mode to use */
@@ -2181,12 +2187,11 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
 
-	fcrtl = (hw->fc.low_water << 10) | IXGBE_FCRTL_XONE;
-
 	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
 		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
 		    hw->fc.high_water[i]) {
+			fcrtl = (hw->fc.low_water[i] << 10) | IXGBE_FCRTL_XONE;
 			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), fcrtl);
 			fcrth = (hw->fc.high_water[i] << 10) | IXGBE_FCRTH_FCEN;
 		} else {
@@ -2654,8 +2659,7 @@ s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw)
 
 	/* For informational purposes only */
 	if (i >= IXGBE_MAX_SECRX_POLL)
-		hw_dbg(hw, "Rx unit being enabled before security "
-		       "path fully disabled.  Continuing with init.\n");
+		hw_dbg(hw, "Rx unit being enabled before security path fully disabled. Continuing with init.\n");
 
 	return 0;
 
@@ -2782,7 +2786,7 @@ out:
  *  get and set mac_addr routines.
  **/
 static s32 ixgbe_get_san_mac_addr_offset(struct ixgbe_hw *hw,
-                                        u16 *san_mac_offset)
+					u16 *san_mac_offset)
 {
 	s32 ret_val;
 
@@ -2828,7 +2832,7 @@ s32 ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr)
 	hw->mac.ops.set_lan_id(hw);
 	/* apply the port offset to the address offset */
 	(hw->bus.func) ? (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT1_OFFSET) :
-	                 (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT0_OFFSET);
+			 (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT0_OFFSET);
 	for (i = 0; i < 3; i++) {
 		ret_val = hw->eeprom.ops.read(hw, san_mac_offset,
 					      &san_mac_data);
@@ -3068,7 +3072,7 @@ static s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan)
  *  Turn on/off specified VLAN in the VLAN filter table.
  **/
 s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
-                           bool vlan_on)
+			   bool vlan_on)
 {
 	s32 regindex;
 	u32 bitindex;
@@ -3190,9 +3194,9 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 				 * Ignore it. */
 				vfta_changed = false;
 			}
-		}
-		else
+		} else {
 			IXGBE_WRITE_REG(hw, IXGBE_VLVF(vlvf_index), 0);
+		}
 	}
 
 	if (vfta_changed)
@@ -3292,7 +3296,7 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
  *  block to check the support for the alternative WWNN/WWPN prefix support.
  **/
 s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
-                                        u16 *wwpn_prefix)
+					u16 *wwpn_prefix)
 {
 	u16 offset, caps;
 	u16 alt_san_mac_blk_offset;

@@ -260,10 +260,10 @@ void __init opal_sys_param_init(void)
 			attr[i].kobj_attr.attr.mode = S_IRUGO;
 			break;
 		case OPAL_SYSPARAM_WRITE:
-			attr[i].kobj_attr.attr.mode = S_IWUGO;
+			attr[i].kobj_attr.attr.mode = S_IWUSR;
 			break;
 		case OPAL_SYSPARAM_RW:
-			attr[i].kobj_attr.attr.mode = S_IRUGO | S_IWUGO;
+			attr[i].kobj_attr.attr.mode = S_IRUGO | S_IWUSR;
 			break;
 		default:
 			break;

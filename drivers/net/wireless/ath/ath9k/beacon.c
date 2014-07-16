@@ -537,8 +537,6 @@ static void ath9k_cache_beacon_config(struct ath_softc *sc,
 	cur_conf->dtim_period = bss_conf->dtim_period;
 	cur_conf->dtim_count = 1;
 	cur_conf->ibss_creator = bss_conf->ibss_creator;
-	cur_conf->bmiss_timeout =
-		ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
 
 	/*
 	 * It looks like mac80211 may end up using beacon interval of zero in
@@ -548,6 +546,9 @@ static void ath9k_cache_beacon_config(struct ath_softc *sc,
 	 */
 	if (cur_conf->beacon_interval == 0)
 		cur_conf->beacon_interval = 100;
+
+	cur_conf->bmiss_timeout =
+		ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
 
 	/*
 	 * We don't parse dtim period from mac80211 during the driver

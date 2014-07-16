@@ -201,8 +201,9 @@ static struct platform_device v2m_cf_device = {
 
 static struct mmci_platform_data v2m_mmci_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_wp	= VEXPRESS_GPIO_MMC_WPROT,
-	.gpio_cd	= VEXPRESS_GPIO_MMC_CARDIN,
+	.status		= vexpress_get_mci_cardin,
+	.gpio_cd	= -1,
+	.gpio_wp	= -1,
 };
 
 static struct resource v2m_sysreg_resources[] = {
@@ -340,11 +341,6 @@ static void __init v2m_init(void)
 	regulator_register_fixed(0, v2m_eth_supplies,
 			ARRAY_SIZE(v2m_eth_supplies));
 
-	platform_device_register(&v2m_muxfpga_device);
-	platform_device_register(&v2m_shutdown_device);
-	platform_device_register(&v2m_reboot_device);
-	platform_device_register(&v2m_dvimode_device);
-
 	platform_device_register(&v2m_sysreg_device);
 	platform_device_register(&v2m_pcie_i2c_device);
 	platform_device_register(&v2m_ddc_i2c_device);
@@ -355,6 +351,11 @@ static void __init v2m_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(v2m_amba_devs); i++)
 		amba_device_register(v2m_amba_devs[i], &iomem_resource);
+
+	vexpress_syscfg_device_register(&v2m_muxfpga_device);
+	vexpress_syscfg_device_register(&v2m_shutdown_device);
+	vexpress_syscfg_device_register(&v2m_reboot_device);
+	vexpress_syscfg_device_register(&v2m_dvimode_device);
 
 	ct_desc->init_tile();
 }
@@ -369,71 +370,9 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.init_machine	= v2m_init,
 MACHINE_END
 
-static struct map_desc v2m_rs1_io_desc __initdata = {
-	.virtual	= V2M_PERIPH,
-	.pfn		= __phys_to_pfn(0x1c000000),
-	.length		= SZ_2M,
-	.type		= MT_DEVICE,
-};
-
-static int __init v2m_dt_scan_memory_map(unsigned long node, const char *uname,
-		int depth, void *data)
-{
-	const char **map = data;
-
-	if (strcmp(uname, "motherboard") != 0)
-		return 0;
-
-	*map = of_get_flat_dt_prop(node, "arm,v2m-memory-map", NULL);
-
-	return 1;
-}
-
-void __init v2m_dt_map_io(void)
-{
-	const char *map = NULL;
-
-	of_scan_flat_dt(v2m_dt_scan_memory_map, &map);
-
-	if (map && strcmp(map, "rs1") == 0)
-		iotable_init(&v2m_rs1_io_desc, 1);
-	else
-		iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
-
-#if defined(CONFIG_SMP)
-	vexpress_dt_smp_map_io();
-#endif
-}
-
-void __init v2m_dt_init_early(void)
-{
-	u32 dt_hbi;
-
-	vexpress_sysreg_of_early_init();
-
-	/* Confirm board type against DT property, if available */
-	if (of_property_read_u32(of_allnodes, "arm,hbi", &dt_hbi) == 0) {
-		u32 hbi = vexpress_get_hbi(VEXPRESS_SITE_MASTER);
-
-		if (WARN_ON(dt_hbi != hbi))
-			pr_warning("vexpress: DT HBI (%x) is not matching "
-					"hardware (%x)!\n", dt_hbi, hbi);
-	}
-
-	versatile_sched_clock_init(vexpress_get_24mhz_clock_base(), 24000000);
-}
-
-static const struct of_device_id v2m_dt_bus_match[] __initconst = {
-	{ .compatible = "simple-bus", },
-	{ .compatible = "arm,amba-bus", },
-	{ .compatible = "arm,vexpress,config-bus", },
-	{}
-};
-
 static void __init v2m_dt_init(void)
 {
-	l2x0_of_init(0x00400000, 0xfe0fffff);
-	of_platform_populate(NULL, v2m_dt_bus_match, NULL, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char * const v2m_dt_match[] __initconst = {
@@ -443,9 +382,9 @@ static const char * const v2m_dt_match[] __initconst = {
 
 DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.dt_compat	= v2m_dt_match,
-	.smp		= smp_ops(vexpress_smp_ops),
+	.l2c_aux_val	= 0x00400000,
+	.l2c_aux_mask	= 0xfe0fffff,
+	.smp		= smp_ops(vexpress_smp_dt_ops),
 	.smp_init	= smp_init_ops(vexpress_smp_init_ops),
-	.map_io		= v2m_dt_map_io,
-	.init_early	= v2m_dt_init_early,
 	.init_machine	= v2m_dt_init,
 MACHINE_END

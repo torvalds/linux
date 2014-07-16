@@ -34,23 +34,6 @@
 #define	IEEE802_1QVLANID		0x10
 
 struct gdm_wimax_csr_s {
-	/*	union{
-		U16 all;
-		struct _CS_CLASSIFIER_RULE_ENABLE{
-			IPTypeOfService:1,
-			Protocol:1,
-			IPMaskedSrcAddress:1,
-			IPMaskedDstAddress:1,
-			ProtocolSrcPortRange:1,
-			ProtocolDstPortRange:1,
-			DstMacAddr:1,
-			SrcMacAddr:1,
-			Ethertype:1,
-			IEEE802_1DUserPriority:1,
-			IEEE802_1QVLANID:1,
-			Reserved:5;
-		} fields;
-	} */
 	BOOLEAN		enabled;
 	u32		SFID;
 	u8		qos_buf_count;

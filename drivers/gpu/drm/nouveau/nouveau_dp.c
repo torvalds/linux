@@ -55,11 +55,10 @@ nouveau_dp_probe_oui(struct drm_device *dev, struct nouveau_i2c_port *auxch,
 
 }
 
-bool
-nouveau_dp_detect(struct drm_encoder *encoder)
+int
+nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = nv_encoder->base.base.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_i2c_port *auxch;
 	u8 *dpcd = nv_encoder->dp.dpcd;
@@ -67,11 +66,11 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 
 	auxch = nv_encoder->i2c;
 	if (!auxch)
-		return false;
+		return -ENODEV;
 
 	ret = nv_rdaux(auxch, DP_DPCD_REV, dpcd, 8);
 	if (ret)
-		return false;
+		return ret;
 
 	nv_encoder->dp.link_bw = 27000 * dpcd[1];
 	nv_encoder->dp.link_nr = dpcd[2] & DP_MAX_LANE_COUNT_MASK;
@@ -91,6 +90,5 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
 
 	nouveau_dp_probe_oui(dev, auxch, dpcd);
-
-	return true;
+	return 0;
 }

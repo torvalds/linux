@@ -71,6 +71,7 @@ MODULE_FIRMWARE("radeon/HAINAN_mc2.bin");
 MODULE_FIRMWARE("radeon/HAINAN_rlc.bin");
 MODULE_FIRMWARE("radeon/HAINAN_smc.bin");
 
+static u32 si_get_cu_active_bitmap(struct radeon_device *rdev, u32 se, u32 sh);
 static void si_pcie_gen3_enable(struct radeon_device *rdev);
 static void si_program_aspm(struct radeon_device *rdev);
 extern void sumo_rlc_fini(struct radeon_device *rdev);
@@ -2900,7 +2901,7 @@ static void si_gpu_init(struct radeon_device *rdev)
 	u32 sx_debug_1;
 	u32 hdp_host_path_cntl;
 	u32 tmp;
-	int i, j;
+	int i, j, k;
 
 	switch (rdev->family) {
 	case CHIP_TAHITI:
@@ -3098,6 +3099,14 @@ static void si_gpu_init(struct radeon_device *rdev)
 		     rdev->config.si.max_sh_per_se,
 		     rdev->config.si.max_cu_per_sh);
 
+	for (i = 0; i < rdev->config.si.max_shader_engines; i++) {
+		for (j = 0; j < rdev->config.si.max_sh_per_se; j++) {
+			for (k = 0; k < rdev->config.si.max_cu_per_sh; k++) {
+				rdev->config.si.active_cus +=
+					hweight32(si_get_cu_active_bitmap(rdev, i, j));
+			}
+		}
+	}
 
 	/* set HW defaults for 3D engine */
 	WREG32(CP_QUEUE_THRESHOLDS, (ROQ_IB1_START(0x16) |
@@ -3186,7 +3195,7 @@ void si_fence_ring_emit(struct radeon_device *rdev,
 	/* EVENT_WRITE_EOP - flush caches, send int */
 	radeon_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
 	radeon_ring_write(ring, EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) | EVENT_INDEX(5));
-	radeon_ring_write(ring, addr & 0xffffffff);
+	radeon_ring_write(ring, lower_32_bits(addr));
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | DATA_SEL(1) | INT_SEL(2));
 	radeon_ring_write(ring, fence->seq);
 	radeon_ring_write(ring, 0);
@@ -3219,7 +3228,7 @@ void si_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 			radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 			radeon_ring_write(ring, (1 << 8));
 			radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
-			radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xffffffff);
+			radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr));
 			radeon_ring_write(ring, next_rptr);
 		}
 
@@ -4044,18 +4053,21 @@ static int si_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(MC_VM_MX_L1_TLB_CNTL,
 	       (0xA << 7) |
 	       ENABLE_L1_TLB |
+	       ENABLE_L1_FRAGMENT_PROCESSING |
 	       SYSTEM_ACCESS_MODE_NOT_IN_SYS |
 	       ENABLE_ADVANCED_DRIVER_MODEL |
 	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE |
+	       ENABLE_L2_FRAGMENT_PROCESSING |
 	       ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
 	       ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE |
 	       EFFECTIVE_L2_QUEUE_SIZE(7) |
 	       CONTEXT1_IDENTITY_ACCESS_MODE(1));
 	WREG32(VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS | INVALIDATE_L2_CACHE);
 	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
-	       L2_CACHE_BIGK_FRAGMENT_SIZE(0));
+	       BANK_SELECT(4) |
+	       L2_CACHE_BIGK_FRAGMENT_SIZE(4));
 	/* setup context0 */
 	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, rdev->mc.gtt_end >> 12);
@@ -4092,6 +4104,7 @@ static int si_pcie_gart_enable(struct radeon_device *rdev)
 	       (u32)(rdev->dummy_page.addr >> 12));
 	WREG32(VM_CONTEXT1_CNTL2, 4);
 	WREG32(VM_CONTEXT1_CNTL, ENABLE_CONTEXT | PAGE_TABLE_DEPTH(1) |
+				PAGE_TABLE_BLOCK_SIZE(radeon_vm_block_size - 9) |
 				RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT |
 				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT |
 				DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT |
@@ -6151,7 +6164,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[0]))
-						radeon_crtc_handle_flip(rdev, 0);
+						radeon_crtc_handle_vblank(rdev, 0);
 					rdev->irq.stat_regs.evergreen.disp_int &= ~LB_D1_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D1 vblank\n");
 				}
@@ -6177,7 +6190,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[1]))
-						radeon_crtc_handle_flip(rdev, 1);
+						radeon_crtc_handle_vblank(rdev, 1);
 					rdev->irq.stat_regs.evergreen.disp_int_cont &= ~LB_D2_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D2 vblank\n");
 				}
@@ -6203,7 +6216,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[2]))
-						radeon_crtc_handle_flip(rdev, 2);
+						radeon_crtc_handle_vblank(rdev, 2);
 					rdev->irq.stat_regs.evergreen.disp_int_cont2 &= ~LB_D3_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D3 vblank\n");
 				}
@@ -6229,7 +6242,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[3]))
-						radeon_crtc_handle_flip(rdev, 3);
+						radeon_crtc_handle_vblank(rdev, 3);
 					rdev->irq.stat_regs.evergreen.disp_int_cont3 &= ~LB_D4_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D4 vblank\n");
 				}
@@ -6255,7 +6268,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[4]))
-						radeon_crtc_handle_flip(rdev, 4);
+						radeon_crtc_handle_vblank(rdev, 4);
 					rdev->irq.stat_regs.evergreen.disp_int_cont4 &= ~LB_D5_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D5 vblank\n");
 				}
@@ -6281,7 +6294,7 @@ restart_ih:
 						wake_up(&rdev->irq.vblank_queue);
 					}
 					if (atomic_read(&rdev->irq.pflip[5]))
-						radeon_crtc_handle_flip(rdev, 5);
+						radeon_crtc_handle_vblank(rdev, 5);
 					rdev->irq.stat_regs.evergreen.disp_int_cont5 &= ~LB_D6_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D6 vblank\n");
 				}
@@ -6363,14 +6376,16 @@ restart_ih:
 		case 147:
 			addr = RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR);
 			status = RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS);
+			/* reset addr and status */
+			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
+			if (addr == 0x0 && status == 0x0)
+				break;
 			dev_err(rdev->dev, "GPU fault detected: %d 0x%08x\n", src_id, src_data);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
 				addr);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 				status);
 			si_vm_decode_fault(rdev, status, addr);
-			/* reset addr and status */
-			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
 			break;
 		case 176: /* RINGID0 CP_INT */
 			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);

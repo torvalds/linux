@@ -190,6 +190,11 @@
 
 #define HDMI_NV_PDISP_SOR_CSTM					0x5a
 #define SOR_CSTM_ROTCLK(x) (((x) & 0xf) << 24)
+#define SOR_CSTM_PLLDIV (1 << 21)
+#define SOR_CSTM_LVDS_ENABLE (1 << 16)
+#define SOR_CSTM_MODE_LVDS (0 << 12)
+#define SOR_CSTM_MODE_TMDS (1 << 12)
+#define SOR_CSTM_MODE_MASK (3 << 12)
 
 #define HDMI_NV_PDISP_SOR_LVDS					0x5b
 #define HDMI_NV_PDISP_SOR_CRCA					0x5c

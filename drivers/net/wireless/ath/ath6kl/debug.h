@@ -97,8 +97,8 @@ static inline void ath6kl_dump_registers(struct ath6kl_device *dev,
 		struct ath6kl_irq_proc_registers *irq_proc_reg,
 		struct ath6kl_irq_enable_reg *irq_en_reg)
 {
-
 }
+
 static inline void dump_cred_dist_stats(struct htc_target *target)
 {
 }

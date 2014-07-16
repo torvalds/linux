@@ -16,6 +16,10 @@
 	model = "Udoo i.MX6 Quad Board";
 	compatible = "udoo,imx6q-udoo", "fsl,imx6q";
 
+	chosen {
+		stdout-path = &uart2;
+	};
+
 	memory {
 		reg = <0x10000000 0x40000000>;
 	};
@@ -25,6 +29,18 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii";
+	status = "okay";
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c2>;
+	status = "okay";
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 };
 
@@ -48,6 +64,13 @@
 				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0
 				MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
 				MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0a8
+			>;
+		};
+
+		pinctrl_i2c2: i2c2grp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL3__I2C2_SCL		0x4001b8b1
+				MX6QDL_PAD_KEY_ROW3__I2C2_SDA		0x4001b8b1
 			>;
 		};
 

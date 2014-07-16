@@ -378,8 +378,8 @@ static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		ethtool_cmd_speed_set(cmd, priv->port_state.link_speed);
 		cmd->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(cmd, -1);
-		cmd->duplex = -1;
+		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->duplex = DUPLEX_UNKNOWN;
 	}
 
 	if (trans_type > 0 && trans_type <= 0xC) {
@@ -564,7 +564,7 @@ static u32 mlx4_en_get_rxfh_indir_size(struct net_device *dev)
 	return priv->rx_ring_num;
 }
 
-static int mlx4_en_get_rxfh_indir(struct net_device *dev, u32 *ring_index)
+static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
@@ -582,8 +582,8 @@ static int mlx4_en_get_rxfh_indir(struct net_device *dev, u32 *ring_index)
 	return err;
 }
 
-static int mlx4_en_set_rxfh_indir(struct net_device *dev,
-		const u32 *ring_index)
+static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
+			    const u8 *key)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -925,13 +925,13 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 		qpn = cmd->fs.ring_cookie & (EN_ETHTOOL_QP_ATTACH - 1);
 	} else {
 		if (cmd->fs.ring_cookie >= priv->rx_ring_num) {
-			en_warn(priv, "rxnfc: RX ring (%llu) doesn't exist.\n",
+			en_warn(priv, "rxnfc: RX ring (%llu) doesn't exist\n",
 				cmd->fs.ring_cookie);
 			return -EINVAL;
 		}
 		qpn = priv->rss_map.qps[cmd->fs.ring_cookie].qpn;
 		if (!qpn) {
-			en_warn(priv, "rxnfc: RX ring (%llu) is inactive.\n",
+			en_warn(priv, "rxnfc: RX ring (%llu) is inactive\n",
 				cmd->fs.ring_cookie);
 			return -EINVAL;
 		}
@@ -956,7 +956,7 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 	}
 	err = mlx4_flow_attach(priv->mdev->dev, &rule, &reg_id);
 	if (err) {
-		en_err(priv, "Fail to attach network rule at location %d.\n",
+		en_err(priv, "Fail to attach network rule at location %d\n",
 		       cmd->fs.location);
 		goto out_free_list;
 	}
@@ -1121,7 +1121,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	int port_up;
+	int port_up = 0;
 	int err = 0;
 
 	if (channel->other_count || channel->combined_count ||
@@ -1151,7 +1151,8 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
-	mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
+	if (dev->num_tc)
+		mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
 
 	en_warn(priv, "Using %d TX rings\n", priv->tx_ring_num);
 	en_warn(priv, "Using %d RX rings\n", priv->rx_ring_num);
@@ -1223,8 +1224,8 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_rxnfc = mlx4_en_get_rxnfc,
 	.set_rxnfc = mlx4_en_set_rxnfc,
 	.get_rxfh_indir_size = mlx4_en_get_rxfh_indir_size,
-	.get_rxfh_indir = mlx4_en_get_rxfh_indir,
-	.set_rxfh_indir = mlx4_en_set_rxfh_indir,
+	.get_rxfh = mlx4_en_get_rxfh,
+	.set_rxfh = mlx4_en_set_rxfh,
 	.get_channels = mlx4_en_get_channels,
 	.set_channels = mlx4_en_set_channels,
 	.get_ts_info = mlx4_en_get_ts_info,

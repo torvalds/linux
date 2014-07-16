@@ -737,4 +737,4 @@ const struct drm_ioctl_desc via_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VIA_BLIT_SYNC, via_dma_blit_sync, DRM_AUTH)
 };
 
-int via_max_ioctl = DRM_ARRAY_SIZE(via_ioctls);
+int via_max_ioctl = ARRAY_SIZE(via_ioctls);

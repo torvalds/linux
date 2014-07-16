@@ -23,10 +23,10 @@
 static void vexpress_reset_do(struct device *dev, const char *what)
 {
 	int err = -ENOENT;
-	struct vexpress_config_func *func = dev_get_drvdata(dev);
+	struct regmap *reg = dev_get_drvdata(dev);
 
-	if (func) {
-		err = vexpress_config_write(func, 0, 0);
+	if (reg) {
+		err = regmap_write(reg, 0, 0);
 		if (!err)
 			mdelay(1000);
 	}
@@ -91,17 +91,17 @@ static int vexpress_reset_probe(struct platform_device *pdev)
 	enum vexpress_reset_func func;
 	const struct of_device_id *match =
 			of_match_device(vexpress_reset_of_match, &pdev->dev);
-	struct vexpress_config_func *config_func;
+	struct regmap *regmap;
 
 	if (match)
 		func = (enum vexpress_reset_func)match->data;
 	else
 		func = pdev->id_entry->driver_data;
 
-	config_func = vexpress_config_func_get_by_dev(&pdev->dev);
-	if (!config_func)
-		return -EINVAL;
-	dev_set_drvdata(&pdev->dev, config_func);
+	regmap = devm_regmap_init_vexpress_config(&pdev->dev);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+	dev_set_drvdata(&pdev->dev, regmap);
 
 	switch (func) {
 	case FUNC_SHUTDOWN:

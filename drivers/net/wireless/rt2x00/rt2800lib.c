@@ -1005,10 +1005,9 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 				   entry->skb->len + padding_len);
 
 	/*
-	 * Enable beaconing again.
+	 * Restore beaconing state.
 	 */
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, orig_reg);
 
 	/*
 	 * Clean up beacon skb.
@@ -1039,13 +1038,14 @@ static inline void rt2800_clear_beacon_register(struct rt2x00_dev *rt2x00dev,
 void rt2800_clear_beacon(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	u32 reg;
+	u32 orig_reg, reg;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
 	 * otherwise we might be sending out invalid data.
 	 */
-	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &orig_reg);
+	reg = orig_reg;
 	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
@@ -1055,10 +1055,9 @@ void rt2800_clear_beacon(struct queue_entry *entry)
 	rt2800_clear_beacon_register(rt2x00dev, entry->entry_idx);
 
 	/*
-	 * Enabled beaconing again.
+	 * Restore beaconing state.
 	 */
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, orig_reg);
 }
 EXPORT_SYMBOL_GPL(rt2800_clear_beacon);
 

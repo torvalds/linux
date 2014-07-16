@@ -1,4 +1,4 @@
-config ARCH_SIRF
+menuconfig ARCH_SIRF
 	bool "CSR SiRF" if ARCH_MULTI_V7
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_REQUIRE_GPIOLIB
@@ -11,7 +11,7 @@ config ARCH_SIRF
 
 if ARCH_SIRF
 
-menu "CSR SiRF atlas6/primaII/Marco/Polo Specific Features"
+comment "CSR SiRF atlas6/primaII/Marco/Polo Specific Features"
 
 config ARCH_ATLAS6
 	bool "CSR SiRFSoC ATLAS6 ARM Cortex A9 Platform"
@@ -36,8 +36,6 @@ config ARCH_MARCO
 	select SMP_ON_UP if SMP
 	help
           Support for CSR SiRFSoC ARM Cortex A9 Platform
-
-endmenu
 
 config SIRF_IRQ
 	bool

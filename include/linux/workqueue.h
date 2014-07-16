@@ -56,9 +56,8 @@ enum {
 	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS) - 1,
 	WORK_NO_COLOR		= WORK_NR_COLORS,
 
-	/* special cpu IDs */
+	/* not bound to any CPU, prefer the local CPU */
 	WORK_CPU_UNBOUND	= NR_CPUS,
-	WORK_CPU_END		= NR_CPUS + 1,
 
 	/*
 	 * Reserve 7 bits off of pwq pointer w/ debugobjects turned off.
@@ -274,13 +273,6 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 #define delayed_work_pending(w) \
 	work_pending(&(w)->work)
 
-/**
- * work_clear_pending - for internal use only, mark a work item as not pending
- * @work: The work item in question
- */
-#define work_clear_pending(work) \
-	clear_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))
-
 /*
  * Workqueue flags and constants.  For details, please refer to
  * Documentation/workqueue.txt.
@@ -340,6 +332,9 @@ enum {
  * short queue flush time.  Don't queue works which can run for too
  * long.
  *
+ * system_highpri_wq is similar to system_wq but for work items which
+ * require WQ_HIGHPRI.
+ *
  * system_long_wq is similar to system_wq but may host long running
  * works.  Queue flushing might take relatively long.
  *
@@ -358,25 +353,12 @@ enum {
  * 'wq_power_efficient' is disabled.  See WQ_POWER_EFFICIENT for more info.
  */
 extern struct workqueue_struct *system_wq;
+extern struct workqueue_struct *system_highpri_wq;
 extern struct workqueue_struct *system_long_wq;
 extern struct workqueue_struct *system_unbound_wq;
 extern struct workqueue_struct *system_freezable_wq;
 extern struct workqueue_struct *system_power_efficient_wq;
 extern struct workqueue_struct *system_freezable_power_efficient_wq;
-
-static inline struct workqueue_struct * __deprecated __system_nrt_wq(void)
-{
-	return system_wq;
-}
-
-static inline struct workqueue_struct * __deprecated __system_nrt_freezable_wq(void)
-{
-	return system_freezable_wq;
-}
-
-/* equivlalent to system_wq and system_freezable_wq, deprecated */
-#define system_nrt_wq			__system_nrt_wq()
-#define system_nrt_freezable_wq		__system_nrt_freezable_wq()
 
 extern struct workqueue_struct *
 __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
@@ -585,18 +567,6 @@ static inline bool schedule_delayed_work(struct delayed_work *dwork,
 static inline bool keventd_up(void)
 {
 	return system_wq != NULL;
-}
-
-/* used to be different but now identical to flush_work(), deprecated */
-static inline bool __deprecated flush_work_sync(struct work_struct *work)
-{
-	return flush_work(work);
-}
-
-/* used to be different but now identical to flush_delayed_work(), deprecated */
-static inline bool __deprecated flush_delayed_work_sync(struct delayed_work *dwork)
-{
-	return flush_delayed_work(dwork);
 }
 
 #ifndef CONFIG_SMP

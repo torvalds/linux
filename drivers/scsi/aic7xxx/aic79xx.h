@@ -911,7 +911,7 @@ struct vpd_config {
 	uint8_t  length;
 	uint8_t  revision;
 	uint8_t  device_flags;
-	uint8_t  termnation_menus[2];
+	uint8_t  termination_menus[2];
 	uint8_t  fifo_threshold;
 	uint8_t  end_tag;
 	uint8_t  vpd_checksum;

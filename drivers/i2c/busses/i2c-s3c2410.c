@@ -1114,16 +1114,12 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	}
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct s3c24xx_i2c), GFP_KERNEL);
-	if (!i2c) {
-		dev_err(&pdev->dev, "no memory for state\n");
+	if (!i2c)
 		return -ENOMEM;
-	}
 
 	i2c->pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!i2c->pdata) {
-		dev_err(&pdev->dev, "no memory for platform data\n");
+	if (!i2c->pdata)
 		return -ENOMEM;
-	}
 
 	i2c->quirks = s3c24xx_get_device_quirks(pdev);
 	if (pdata)

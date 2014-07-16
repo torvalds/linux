@@ -43,7 +43,7 @@ int ibnl_remove_client(int index);
  * Returns the allocated buffer on success and NULL on failure.
  */
 void *ibnl_put_msg(struct sk_buff *skb, struct nlmsghdr **nlh, int seq,
-		   int len, int client, int op);
+		   int len, int client, int op, int flags);
 /**
  * Put a new attribute in a supplied skb.
  * @skb: The netlink skb.
@@ -55,5 +55,26 @@ void *ibnl_put_msg(struct sk_buff *skb, struct nlmsghdr **nlh, int seq,
  */
 int ibnl_put_attr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		  int len, void *data, int type);
+
+/**
+ * Send the supplied skb to a specific userspace PID.
+ * @skb: The netlink skb
+ * @nlh: Header of the netlink message to send
+ * @pid: Userspace netlink process ID
+ * Returns 0 on success or a negative error code.
+ */
+int ibnl_unicast(struct sk_buff *skb, struct nlmsghdr *nlh,
+			__u32 pid);
+
+/**
+ * Send the supplied skb to a netlink group.
+ * @skb: The netlink skb
+ * @nlh: Header of the netlink message to send
+ * @group: Netlink group ID
+ * @flags: allocation flags
+ * Returns 0 on success or a negative error code.
+ */
+int ibnl_multicast(struct sk_buff *skb, struct nlmsghdr *nlh,
+			unsigned int group, gfp_t flags);
 
 #endif /* _RDMA_NETLINK_H */

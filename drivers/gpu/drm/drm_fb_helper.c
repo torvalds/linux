@@ -45,13 +45,13 @@ static LIST_HEAD(kernel_fb_helper_list);
  * DOC: fbdev helpers
  *
  * The fb helper functions are useful to provide an fbdev on top of a drm kernel
- * mode setting driver. They can be used mostly independantely from the crtc
+ * mode setting driver. They can be used mostly independently from the crtc
  * helper functions used by many drivers to implement the kernel mode setting
  * interfaces.
  *
  * Initialization is done as a three-step process with drm_fb_helper_init(),
  * drm_fb_helper_single_add_all_connectors() and drm_fb_helper_initial_config().
- * Drivers with fancier requirements than the default beheviour can override the
+ * Drivers with fancier requirements than the default behaviour can override the
  * second step with their own code.  Teardown is done with drm_fb_helper_fini().
  *
  * At runtime drivers should restore the fbdev console by calling
@@ -59,7 +59,7 @@ static LIST_HEAD(kernel_fb_helper_list);
  * should also notify the fb helper code from updates to the output
  * configuration by calling drm_fb_helper_hotplug_event(). For easier
  * integration with the output polling code in drm_crtc_helper.c the modeset
- * code proves a ->output_poll_changed callback.
+ * code provides a ->output_poll_changed callback.
  *
  * All other functions exported by the fb helper library can be used to
  * implement the fbdev driver interface by the driver.
@@ -120,7 +120,7 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 		mode = &fb_helper_conn->cmdline_mode;
 
 		/* do something on return - turn off connector maybe */
-		if (fb_get_options(drm_get_connector_name(connector), &option))
+		if (fb_get_options(connector->name, &option))
 			continue;
 
 		if (drm_mode_parse_command_line_for_connector(option,
@@ -142,12 +142,12 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 				}
 
 				DRM_INFO("forcing %s connector %s\n",
-					 drm_get_connector_name(connector), s);
+					 connector->name, s);
 				connector->force = mode->force;
 			}
 
 			DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
-				      drm_get_connector_name(connector),
+				      connector->name,
 				      mode->xres, mode->yres,
 				      mode->refresh_specified ? mode->refresh : 60,
 				      mode->rb ? " reduced blanking" : "",
@@ -273,15 +273,7 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
-/**
- * drm_fb_helper_restore_fbdev_mode - restore fbdev configuration
- * @fb_helper: fbcon to restore
- *
- * This should be called from driver's drm ->lastclose callback
- * when implementing an fbcon on top of kms using this helper. This ensures that
- * the user isn't greeted with a black screen when e.g. X dies.
- */
-bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+static bool restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_plane *plane;
@@ -311,7 +303,40 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	}
 	return error;
 }
-EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode);
+/**
+ * drm_fb_helper_restore_fbdev_mode - restore fbdev configuration
+ * @fb_helper: fbcon to restore
+ *
+ * This should be called from driver's drm ->lastclose callback
+ * when implementing an fbcon on top of kms using this helper. This ensures that
+ * the user isn't greeted with a black screen when e.g. X dies.
+ *
+ * Use this variant if you need to bypass locking (panic), or already
+ * hold all modeset locks.  Otherwise use drm_fb_helper_restore_fbdev_mode_unlocked()
+ */
+static bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+{
+	return restore_fbdev_mode(fb_helper);
+}
+
+/**
+ * drm_fb_helper_restore_fbdev_mode_unlocked - restore fbdev configuration
+ * @fb_helper: fbcon to restore
+ *
+ * This should be called from driver's drm ->lastclose callback
+ * when implementing an fbcon on top of kms using this helper. This ensures that
+ * the user isn't greeted with a black screen when e.g. X dies.
+ */
+bool drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
+{
+	struct drm_device *dev = fb_helper->dev;
+	bool ret;
+	drm_modeset_lock_all(dev);
+	ret = restore_fbdev_mode(fb_helper);
+	drm_modeset_unlock_all(dev);
+	return ret;
+}
+EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode_unlocked);
 
 /*
  * restore fbcon display for all kms driver's using this helper, used for sysrq
@@ -326,12 +351,25 @@ static bool drm_fb_helper_force_kernel_mode(void)
 		return false;
 
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
-		if (helper->dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		struct drm_device *dev = helper->dev;
+
+		if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 			continue;
+
+		/* NOTE: we use lockless flag below to avoid grabbing other
+		 * modeset locks.  So just trylock the underlying mutex
+		 * directly:
+		 */
+		if (!mutex_trylock(&dev->mode_config.mutex)) {
+			error = true;
+			continue;
+		}
 
 		ret = drm_fb_helper_restore_fbdev_mode(helper);
 		if (ret)
 			error = true;
+
+		mutex_unlock(&dev->mode_config.mutex);
 	}
 	return error;
 }
@@ -811,7 +849,6 @@ EXPORT_SYMBOL(drm_fb_helper_check_var);
 int drm_fb_helper_set_par(struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
 	struct fb_var_screeninfo *var = &info->var;
 
 	if (var->pixclock != 0) {
@@ -819,9 +856,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	drm_modeset_lock_all(dev);
-	drm_fb_helper_restore_fbdev_mode(fb_helper);
-	drm_modeset_unlock_all(dev);
+	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
 
 	if (fb_helper->delayed_hotplug) {
 		fb_helper->delayed_hotplug = false;

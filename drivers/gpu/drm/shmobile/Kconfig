@@ -1,6 +1,7 @@
 config DRM_SHMOBILE
 	tristate "DRM Support for SH Mobile"
-	depends on DRM && (ARM || SUPERH)
+	depends on DRM && ARM
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select BACKLIGHT_CLASS_DEVICE
 	select DRM_KMS_HELPER
 	select DRM_KMS_FB_HELPER

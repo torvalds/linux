@@ -5,8 +5,8 @@ Required properties:
   representing partitions.
 - compatible : Should be the manufacturer and the name of the chip. Bear in mind
                the DT binding is not Linux-only, but in case of Linux, see the
-               "m25p_ids" table in drivers/mtd/devices/m25p80.c for the list of
-               supported chips.
+               "spi_nor_ids" table in drivers/mtd/spi-nor/spi-nor.c for the list
+               of supported chips.
 - reg : Chip-Select number
 - spi-max-frequency : Maximum frequency of the SPI bus the chip can operate at
 

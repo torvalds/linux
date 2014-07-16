@@ -5,9 +5,12 @@ Supported chips:
   * Analog Devices ADT7408
     Datasheets:
 	http://www.analog.com/static/imported-files/data_sheets/ADT7408.pdf
-  * Atmel AT30TS00
+  * Atmel AT30TS00, AT30TS002A/B, AT30TSE004A
     Datasheets:
 	http://www.atmel.com/Images/doc8585.pdf
+	http://www.atmel.com/Images/doc8711.pdf
+	http://www.atmel.com/Images/Atmel-8852-SEEPROM-AT30TSE002A-Datasheet.pdf
+	http://www.atmel.com/Images/Atmel-8868-DTS-AT30TSE004A-Datasheet.pdf
   * IDT TSE2002B3, TSE2002GB2, TS3000B3, TS3000GB2
     Datasheets:
 	http://www.idt.com/sites/default/files/documents/IDT_TSE2002B3C_DST_20100512_120303152056.pdf
@@ -34,12 +37,13 @@ Supported chips:
     Datasheet:
 	http://www.onsemi.com/pub_link/Collateral/CAT34TS02-D.PDF
 	http://www.onsemi.com/pub/Collateral/CAT6095-D.PDF
-  * ST Microelectronics STTS424, STTS424E02, STTS2002, STTS3000
+  * ST Microelectronics STTS424, STTS424E02, STTS2002, STTS2004, STTS3000
     Datasheets:
-	http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/DATASHEET/CD00157556.pdf
-	http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/DATASHEET/CD00157558.pdf
-	http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/DATASHEET/CD00225278.pdf
-	http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/DATA_BRIEF/CD00270920.pdf
+	http://www.st.com/web/en/resource/technical/document/datasheet/CD00157556.pdf
+	http://www.st.com/web/en/resource/technical/document/datasheet/CD00157558.pdf
+	http://www.st.com/web/en/resource/technical/document/datasheet/CD00266638.pdf
+	http://www.st.com/web/en/resource/technical/document/datasheet/CD00225278.pdf
+	http://www.st.com/web/en/resource/technical/document/datasheet/DM00076709.pdf
   * JEDEC JC 42.4 compliant temperature sensor chips
     Datasheet:
 	http://www.jedec.org/sites/default/files/docs/4_01_04R19.pdf

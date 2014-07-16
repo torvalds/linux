@@ -57,7 +57,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 
 		/*
 		 * In OMAP4 the efuse registers are 24 bit aligned.
-		 * A __raw_readl will fail for non-32 bit aligned address
+		 * A readl_relaxed will fail for non-32 bit aligned address
 		 * and hence the 8-bit read and shift.
 		 */
 		if (cpu_is_omap44xx()) {

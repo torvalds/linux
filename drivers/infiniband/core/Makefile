@@ -18,7 +18,7 @@ ib_sa-y :=			sa_query.o multicast.o
 
 ib_cm-y :=			cm.o
 
-iw_cm-y :=			iwcm.o
+iw_cm-y :=			iwcm.o iwpm_util.o iwpm_msg.o
 
 rdma_cm-y :=			cma.o
 

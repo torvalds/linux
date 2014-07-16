@@ -6,6 +6,7 @@
 #include <linux/dmi.h>
 #include <linux/pci.h>
 #include <linux/vgaarb.h>
+#include <asm/hpet.h>
 #include <asm/pci_x86.h>
 
 static void pci_fixup_i450nx(struct pci_dev *d)
@@ -337,9 +338,7 @@ static void pci_fixup_video(struct pci_dev *pdev)
 		 * type BRIDGE, or CARDBUS. Host to PCI controllers use
 		 * PCI header type NORMAL.
 		 */
-		if (bridge
-		    && ((bridge->hdr_type == PCI_HEADER_TYPE_BRIDGE)
-		       || (bridge->hdr_type == PCI_HEADER_TYPE_CARDBUS))) {
+		if (bridge && (pci_is_bridge(bridge))) {
 			pci_read_config_word(bridge, PCI_BRIDGE_CONTROL,
 						&config);
 			if (!(config & PCI_BRIDGE_CTL_VGA))
@@ -525,6 +524,19 @@ static void sb600_disable_hpet_bar(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_ATI, 0x4385, sb600_disable_hpet_bar);
+
+#ifdef CONFIG_HPET_TIMER
+static void sb600_hpet_quirk(struct pci_dev *dev)
+{
+	struct resource *r = &dev->resource[1];
+
+	if (r->flags & IORESOURCE_MEM && r->start == hpet_address) {
+		r->flags |= IORESOURCE_PCI_FIXED;
+		dev_info(&dev->dev, "reg 0x14 contains HPET; making it immovable\n");
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, 0x4385, sb600_hpet_quirk);
+#endif
 
 /*
  * Twinhead H12Y needs us to block out a region otherwise we map devices

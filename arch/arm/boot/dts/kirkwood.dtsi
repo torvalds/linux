@@ -40,7 +40,7 @@
 		pcie-mem-aperture = <0xe0000000 0x10000000>; /* 256 MiB memory space */
 		pcie-io-aperture  = <0xf2000000 0x100000>;   /*   1 MiB    I/O space */
 
-		crypto@0301 {
+		cesa: crypto@0301 {
 			compatible = "marvell,orion-crypto";
 			reg = <MBUS_ID(0xf0, 0x01) 0x30000 0x10000>,
 			      <MBUS_ID(0x03, 0x01) 0 0x800>;
@@ -61,6 +61,8 @@
 			chip-delay = <25>;
 			/* set partition map and/or chip-delay in board dts */
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 	};
@@ -71,13 +73,59 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		pinctrl: pin-controller@10000 {
+			/* set compatible property in SoC file */
+			reg = <0x10000 0x20>;
+
+			pmx_ge1: pmx-ge1 {
+				marvell,pins = "mpp20", "mpp21", "mpp22", "mpp23",
+					       "mpp24", "mpp25", "mpp26", "mpp27",
+					       "mpp30", "mpp31", "mpp32", "mpp33";
+				marvell,function = "ge1";
+			};
+
+			pmx_nand: pmx-nand {
+				marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3",
+					       "mpp4", "mpp5", "mpp18", "mpp19";
+				marvell,function = "nand";
+			};
+
+			/*
+			 * Default SPI0 pinctrl setting with CSn on mpp0,
+			 * overwrite marvell,pins on board level if required.
+			 */
+			pmx_spi: pmx-spi {
+				marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3";
+				marvell,function = "spi";
+			};
+
+			pmx_twsi0: pmx-twsi0 {
+				marvell,pins = "mpp8", "mpp9";
+				marvell,function = "twsi0";
+			};
+
+			/*
+			 * Default UART pinctrl setting without RTS/CTS,
+			 * overwrite marvell,pins on board level if required.
+			 */
+			pmx_uart0: pmx-uart0 {
+				marvell,pins = "mpp10", "mpp11";
+				marvell,function = "uart0";
+			};
+
+			pmx_uart1: pmx-uart1 {
+				marvell,pins = "mpp13", "mpp14";
+				marvell,function = "uart1";
+			};
+		};
+
 		core_clk: core-clocks@10030 {
 			compatible = "marvell,kirkwood-core-clock";
 			reg = <0x10030 0x4>;
 			#clock-cells = <1>;
 		};
 
-		spi@10600 {
+		spi0: spi@10600 {
 			compatible = "marvell,orion-spi";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -85,6 +133,8 @@
 			interrupts = <23>;
 			reg = <0x10600 0x28>;
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_spi>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 
@@ -120,24 +170,30 @@
 			interrupts = <29>;
 			clock-frequency = <100000>;
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_twsi0>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 
-		serial@12000 {
+		uart0: serial@12000 {
 			compatible = "ns16550a";
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <33>;
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 
-		serial@12100 {
+		uart1: serial@12100 {
 			compatible = "ns16550a";
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <34>;
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_uart1>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 
@@ -146,7 +202,7 @@
 			reg = <0x20000 0x80>, <0x1500 0x20>;
 		};
 
-		system-controller@20000 {
+		sysc: system-controller@20000 {
 			compatible = "marvell,orion-system-controller";
 			reg = <0x20000 0x120>;
 		};
@@ -196,7 +252,7 @@
 			status = "okay";
 		};
 
-		ehci@50000 {
+		usb0: ehci@50000 {
 			compatible = "marvell,orion-ehci";
 			reg = <0x50000 0x1000>;
 			interrupts = <19>;
@@ -204,7 +260,7 @@
 			status = "okay";
 		};
 
-		xor@60800 {
+		dma0: xor@60800 {
 			compatible = "marvell,orion-xor";
 			reg = <0x60800 0x100
 			       0x60A00 0x100>;
@@ -224,7 +280,7 @@
 			};
 		};
 
-		xor@60900 {
+		dma1: xor@60900 {
 			compatible = "marvell,orion-xor";
 			reg = <0x60900 0x100
 			       0x60B00 0x100>;
@@ -282,6 +338,8 @@
 			reg = <0x76000 0x4000>;
 			clocks = <&gate_clk 19>;
 			marvell,tx-checksum-limit = <1600>;
+			pinctrl-0 = <&pmx_ge1>;
+			pinctrl-names = "default";
 			status = "disabled";
 
 			ethernet1-port@0 {
@@ -314,6 +372,7 @@
 
 		audio0: audio-controller@a0000 {
 			compatible = "marvell,kirkwood-audio";
+			#sound-dai-cells = <0>;
 			reg = <0xa0000 0x2210>;
 			interrupts = <24>;
 			clocks = <&gate_clk 9>;

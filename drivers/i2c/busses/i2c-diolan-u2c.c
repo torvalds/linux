@@ -455,7 +455,6 @@ static int diolan_u2c_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		dev_err(&interface->dev, "no memory for device state\n");
 		ret = -ENOMEM;
 		goto error;
 	}

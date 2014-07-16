@@ -225,12 +225,6 @@ out:
 	return num_modes;
 }
 
-static int ptn3460_mode_valid(struct drm_connector *connector,
-		struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 struct drm_encoder *ptn3460_best_encoder(struct drm_connector *connector)
 {
 	struct ptn3460_bridge *ptn_bridge;
@@ -242,7 +236,6 @@ struct drm_encoder *ptn3460_best_encoder(struct drm_connector *connector)
 
 struct drm_connector_helper_funcs ptn3460_connector_helper_funcs = {
 	.get_modes = ptn3460_get_modes,
-	.mode_valid = ptn3460_mode_valid,
 	.best_encoder = ptn3460_best_encoder,
 };
 

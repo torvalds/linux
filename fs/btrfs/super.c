@@ -511,7 +511,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			} else if (compress) {
 				if (!btrfs_test_opt(root, COMPRESS))
 					btrfs_info(root->fs_info,
-						   "btrfs: use %s compression\n",
+						   "btrfs: use %s compression",
 						   compress_type);
 			}
 			break;
@@ -522,9 +522,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_ssd_spread:
 			btrfs_set_and_info(root, SSD_SPREAD,
 					   "use spread ssd allocation scheme");
+			btrfs_set_opt(info->mount_opt, SSD);
 			break;
 		case Opt_nossd:
-			btrfs_clear_and_info(root, NOSSD,
+			btrfs_set_and_info(root, NOSSD,
 					     "not using ssd allocation scheme");
 			btrfs_clear_opt(info->mount_opt, SSD);
 			break;
@@ -580,8 +581,15 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			}
 			break;
 		case Opt_acl:
+#ifdef CONFIG_BTRFS_FS_POSIX_ACL
 			root->fs_info->sb->s_flags |= MS_POSIXACL;
 			break;
+#else
+			btrfs_err(root->fs_info,
+				"support for ACL not compiled in!");
+			ret = -EINVAL;
+			goto out;
+#endif
 		case Opt_noacl:
 			root->fs_info->sb->s_flags &= ~MS_POSIXACL;
 			break;
@@ -1413,6 +1421,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		 * this also happens on 'umount -rf' or on shutdown, when
 		 * the filesystem is busy.
 		 */
+		cancel_work_sync(&fs_info->async_reclaim_work);
 
 		/* wait for the uuid_scan task to finish */
 		down(&fs_info->uuid_tree_rescan_sem);
@@ -1459,7 +1468,9 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 			goto restore;
 
 		/* recover relocation */
+		mutex_lock(&fs_info->cleaner_mutex);
 		ret = btrfs_recover_relocation(root);
+		mutex_unlock(&fs_info->cleaner_mutex);
 		if (ret)
 			goto restore;
 
@@ -1800,6 +1811,8 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 		list_for_each_entry(dev, head, dev_list) {
 			if (dev->missing)
 				continue;
+			if (!dev->name)
+				continue;
 			if (!first_dev || dev->devid < first_dev->devid)
 				first_dev = dev;
 		}
@@ -1894,6 +1907,9 @@ static int btrfs_run_sanity_tests(void)
 	if (ret)
 		goto out;
 	ret = btrfs_test_inodes();
+	if (ret)
+		goto out;
+	ret = btrfs_test_qgroups();
 out:
 	btrfs_destroy_test_fs();
 	return ret;

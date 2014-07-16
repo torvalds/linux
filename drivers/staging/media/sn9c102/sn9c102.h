@@ -53,7 +53,7 @@ enum sn9c102_frame_state {
 };
 
 struct sn9c102_frame_t {
-	void* bufmem;
+	void *bufmem;
 	struct v4l2_buffer buf;
 	enum sn9c102_frame_state state;
 	struct list_head frame;
@@ -99,17 +99,17 @@ static DEFINE_MUTEX(sn9c102_sysfs_lock);
 static DECLARE_RWSEM(sn9c102_dev_lock);
 
 struct sn9c102_device {
-	struct video_device* v4ldev;
+	struct video_device *v4ldev;
 
 	struct v4l2_device v4l2_dev;
 
 	enum sn9c102_bridge bridge;
 	struct sn9c102_sensor sensor;
 
-	struct usb_device* usbdev;
-	struct urb* urb[SN9C102_URBS];
-	void* transfer_buffer[SN9C102_URBS];
-	u8* control_buffer;
+	struct usb_device *usbdev;
+	struct urb *urb[SN9C102_URBS];
+	void *transfer_buffer[SN9C102_URBS];
+	u8 *control_buffer;
 
 	struct sn9c102_frame_t *frame_current, frame[SN9C102_MAX_FRAMES];
 	struct list_head inqueue, outqueue;
@@ -139,28 +139,28 @@ struct sn9c102_device {
 /*****************************************************************************/
 
 struct sn9c102_device*
-sn9c102_match_id(struct sn9c102_device* cam, const struct usb_device_id *id)
+sn9c102_match_id(struct sn9c102_device *cam, const struct usb_device_id *id)
 {
 	return usb_match_id(usb_ifnum_to_if(cam->usbdev, 0), id) ? cam : NULL;
 }
 
 
 void
-sn9c102_attach_sensor(struct sn9c102_device* cam,
-		      const struct sn9c102_sensor* sensor)
+sn9c102_attach_sensor(struct sn9c102_device *cam,
+		      const struct sn9c102_sensor *sensor)
 {
 	memcpy(&cam->sensor, sensor, sizeof(struct sn9c102_sensor));
 }
 
 
 enum sn9c102_bridge
-sn9c102_get_bridge(struct sn9c102_device* cam)
+sn9c102_get_bridge(struct sn9c102_device *cam)
 {
 	return cam->bridge;
 }
 
 
-struct sn9c102_sensor* sn9c102_get_sensor(struct sn9c102_device* cam)
+struct sn9c102_sensor *sn9c102_get_sensor(struct sn9c102_device *cam)
 {
 	return &cam->sensor;
 }
@@ -198,9 +198,9 @@ do {                                                                          \
 	}                                                                     \
 } while (0)
 #else
-#	define DBG(level, fmt, args...) do {;} while(0)
-#	define V4LDBG(level, name, cmd) do {;} while(0)
-#	define KDBG(level, fmt, args...) do {;} while(0)
+#	define DBG(level, fmt, args...) do { ; } while (0)
+#	define V4LDBG(level, name, cmd) do { ; } while (0)
+#	define KDBG(level, fmt, args...) do { ; } while (0)
 #endif
 
 #undef PDBG
@@ -209,6 +209,6 @@ dev_info(&cam->usbdev->dev, "[%s:%s:%d] " fmt "\n", __FILE__, __func__,   \
 	 __LINE__ , ## args)
 
 #undef PDBGG
-#define PDBGG(fmt, args...) do {;} while(0) /* placeholder */
+#define PDBGG(fmt, args...) do { ; } while (0) /* placeholder */
 
 #endif /* _SN9C102_H_ */

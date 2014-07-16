@@ -89,6 +89,7 @@ HYPERCALL2(memory_op);
 HYPERCALL2(physdev_op);
 HYPERCALL3(vcpu_op);
 HYPERCALL1(tmem_op);
+HYPERCALL2(multicall);
 
 ENTRY(privcmd_call)
 	stmdb sp!, {r4}

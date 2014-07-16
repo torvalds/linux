@@ -509,7 +509,7 @@ out:
  * On success return a newly allocated copy of the channel-path description
  * data associated with the given channel-path ID. Return %NULL on error.
  */
-void *chp_get_chp_desc(struct chp_id chpid)
+struct channel_path_desc *chp_get_chp_desc(struct chp_id chpid)
 {
 	struct channel_path *chp;
 	struct channel_path_desc *desc;

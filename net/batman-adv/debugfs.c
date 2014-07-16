@@ -245,6 +245,7 @@ static int batadv_algorithms_open(struct inode *inode, struct file *file)
 static int batadv_originators_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
 	return single_open(file, batadv_orig_seq_print_text, net_dev);
 }
 
@@ -258,18 +259,21 @@ static int batadv_originators_hardif_open(struct inode *inode,
 					  struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
 	return single_open(file, batadv_orig_hardif_seq_print_text, net_dev);
 }
 
 static int batadv_gateways_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
 	return single_open(file, batadv_gw_client_seq_print_text, net_dev);
 }
 
 static int batadv_transtable_global_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
 	return single_open(file, batadv_tt_global_seq_print_text, net_dev);
 }
 
@@ -277,6 +281,7 @@ static int batadv_transtable_global_open(struct inode *inode, struct file *file)
 static int batadv_bla_claim_table_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
 	return single_open(file, batadv_bla_claim_table_seq_print_text,
 			   net_dev);
 }
@@ -285,6 +290,7 @@ static int batadv_bla_backbone_table_open(struct inode *inode,
 					  struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
 	return single_open(file, batadv_bla_backbone_table_seq_print_text,
 			   net_dev);
 }
@@ -300,6 +306,7 @@ static int batadv_bla_backbone_table_open(struct inode *inode,
 static int batadv_dat_cache_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
 	return single_open(file, batadv_dat_cache_seq_print_text, net_dev);
 }
 #endif
@@ -307,6 +314,7 @@ static int batadv_dat_cache_open(struct inode *inode, struct file *file)
 static int batadv_transtable_local_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
 	return single_open(file, batadv_tt_local_seq_print_text, net_dev);
 }
 
@@ -319,6 +327,7 @@ struct batadv_debuginfo {
 static int batadv_nc_nodes_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
 	return single_open(file, batadv_nc_nodes_seq_print_text, net_dev);
 }
 #endif
@@ -333,7 +342,7 @@ struct batadv_debuginfo batadv_debuginfo_##_name = {	\
 		  .llseek = seq_lseek,			\
 		  .release = single_release,		\
 		}					\
-};
+}
 
 /* the following attributes are general and therefore they will be directly
  * placed in the BATADV_DEBUGFS_SUBDIR subdirectory of debugfs
@@ -395,7 +404,7 @@ struct batadv_debuginfo batadv_hardif_debuginfo_##_name = {	\
 		.llseek = seq_lseek,				\
 		.release = single_release,			\
 	},							\
-};
+}
 static BATADV_HARDIF_DEBUGINFO(originators, S_IRUGO,
 			       batadv_originators_hardif_open);
 

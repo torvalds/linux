@@ -249,10 +249,10 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP1007] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR10, 7, MSTPSR10, 0), /* SSI8 */
 	[MSTP1006] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR10, 6, MSTPSR10, 0), /* SSI9 */
 	[MSTP1005] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR10, 5, MSTPSR10, 0), /* SSI ALL */
-	[MSTP931] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR9, 31, MSTPSR9, 0), /* I2C0 */
-	[MSTP930] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR9, 30, MSTPSR9, 0), /* I2C1 */
-	[MSTP929] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR9, 29, MSTPSR9, 0), /* I2C2 */
-	[MSTP928] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR9, 28, MSTPSR9, 0), /* I2C3 */
+	[MSTP931] = SH_CLK_MSTP32_STS(&hp_clk, SMSTPCR9, 31, MSTPSR9, 0), /* I2C0 */
+	[MSTP930] = SH_CLK_MSTP32_STS(&hp_clk, SMSTPCR9, 30, MSTPSR9, 0), /* I2C1 */
+	[MSTP929] = SH_CLK_MSTP32_STS(&hp_clk, SMSTPCR9, 29, MSTPSR9, 0), /* I2C2 */
+	[MSTP928] = SH_CLK_MSTP32_STS(&hp_clk, SMSTPCR9, 28, MSTPSR9, 0), /* I2C3 */
 	[MSTP917] = SH_CLK_MSTP32_STS(&qspi_clk, SMSTPCR9, 17, MSTPSR9, 0), /* QSPI */
 	[MSTP815] = SH_CLK_MSTP32_STS(&zs_clk, SMSTPCR8, 15, MSTPSR8, 0), /* SATA0 */
 	[MSTP814] = SH_CLK_MSTP32_STS(&zs_clk, SMSTPCR8, 14, MSTPSR8, 0), /* SATA1 */
@@ -294,10 +294,6 @@ static struct clk mstp_clks[MSTP_NR] = {
 static struct clk_lookup lookups[] = {
 
 	/* main clocks */
-	CLKDEV_CON_ID("audio_clk_a",	&audio_clk_a),
-	CLKDEV_CON_ID("audio_clk_b",	&audio_clk_b),
-	CLKDEV_CON_ID("audio_clk_c",	&audio_clk_c),
-	CLKDEV_CON_ID("audio_clk_internal",	&m2_clk),
 	CLKDEV_CON_ID("extal",		&extal_clk),
 	CLKDEV_CON_ID("extal_div2",	&extal_div2_clk),
 	CLKDEV_CON_ID("main",		&main_clk),
@@ -361,7 +357,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_mobile_sdhi.2", &mstp_clks[MSTP312]),
 	CLKDEV_DEV_ID("sh_mobile_sdhi.3", &mstp_clks[MSTP311]),
 	CLKDEV_DEV_ID("sh_mmcif.1", &mstp_clks[MSTP305]),
-	CLKDEV_DEV_ID("sh_cmt.0", &mstp_clks[MSTP124]),
 	CLKDEV_DEV_ID("qspi.0", &mstp_clks[MSTP917]),
 	CLKDEV_DEV_ID("renesas_usbhs", &mstp_clks[MSTP704]),
 	CLKDEV_DEV_ID("pci-rcar-gen2.0", &mstp_clks[MSTP703]),
@@ -371,6 +366,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sata-r8a7790.1", &mstp_clks[MSTP814]),
 
 	/* ICK */
+	CLKDEV_ICK_ID("fck", "sh-cmt-48-gen2.0", &mstp_clks[MSTP124]),
 	CLKDEV_ICK_ID("usbhs", "usb_phy_rcar_gen2", &mstp_clks[MSTP704]),
 	CLKDEV_ICK_ID("lvds.0", "rcar-du-r8a7790", &mstp_clks[MSTP726]),
 	CLKDEV_ICK_ID("lvds.1", "rcar-du-r8a7790", &mstp_clks[MSTP725]),
@@ -381,16 +377,16 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("clk_b", "rcar_sound", &audio_clk_b),
 	CLKDEV_ICK_ID("clk_c", "rcar_sound", &audio_clk_c),
 	CLKDEV_ICK_ID("clk_i", "rcar_sound", &m2_clk),
-	CLKDEV_ICK_ID("scu.0", "rcar_sound", &mstp_clks[MSTP1031]),
-	CLKDEV_ICK_ID("scu.1", "rcar_sound", &mstp_clks[MSTP1030]),
-	CLKDEV_ICK_ID("scu.2", "rcar_sound", &mstp_clks[MSTP1029]),
-	CLKDEV_ICK_ID("scu.3", "rcar_sound", &mstp_clks[MSTP1028]),
-	CLKDEV_ICK_ID("scu.4", "rcar_sound", &mstp_clks[MSTP1027]),
-	CLKDEV_ICK_ID("scu.5", "rcar_sound", &mstp_clks[MSTP1026]),
-	CLKDEV_ICK_ID("scu.6", "rcar_sound", &mstp_clks[MSTP1025]),
-	CLKDEV_ICK_ID("scu.7", "rcar_sound", &mstp_clks[MSTP1024]),
-	CLKDEV_ICK_ID("scu.8", "rcar_sound", &mstp_clks[MSTP1023]),
-	CLKDEV_ICK_ID("scu.9", "rcar_sound", &mstp_clks[MSTP1022]),
+	CLKDEV_ICK_ID("src.0", "rcar_sound", &mstp_clks[MSTP1031]),
+	CLKDEV_ICK_ID("src.1", "rcar_sound", &mstp_clks[MSTP1030]),
+	CLKDEV_ICK_ID("src.2", "rcar_sound", &mstp_clks[MSTP1029]),
+	CLKDEV_ICK_ID("src.3", "rcar_sound", &mstp_clks[MSTP1028]),
+	CLKDEV_ICK_ID("src.4", "rcar_sound", &mstp_clks[MSTP1027]),
+	CLKDEV_ICK_ID("src.5", "rcar_sound", &mstp_clks[MSTP1026]),
+	CLKDEV_ICK_ID("src.6", "rcar_sound", &mstp_clks[MSTP1025]),
+	CLKDEV_ICK_ID("src.7", "rcar_sound", &mstp_clks[MSTP1024]),
+	CLKDEV_ICK_ID("src.8", "rcar_sound", &mstp_clks[MSTP1023]),
+	CLKDEV_ICK_ID("src.9", "rcar_sound", &mstp_clks[MSTP1022]),
 	CLKDEV_ICK_ID("ssi.0", "rcar_sound", &mstp_clks[MSTP1015]),
 	CLKDEV_ICK_ID("ssi.1", "rcar_sound", &mstp_clks[MSTP1014]),
 	CLKDEV_ICK_ID("ssi.2", "rcar_sound", &mstp_clks[MSTP1013]),

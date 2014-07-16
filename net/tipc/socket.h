@@ -44,12 +44,14 @@
  * @port: port - interacts with 'sk' and with the rest of the TIPC stack
  * @peer_name: the peer of the connection, if any
  * @conn_timeout: the time we can wait for an unresponded setup request
+ * @dupl_rcvcnt: number of bytes counted twice, in both backlog and rcv queue
  */
 
 struct tipc_sock {
 	struct sock sk;
 	struct tipc_port port;
 	unsigned int conn_timeout;
+	atomic_t dupl_rcvcnt;
 };
 
 static inline struct tipc_sock *tipc_sk(const struct sock *sk)
@@ -67,6 +69,6 @@ static inline void tipc_sock_wakeup(struct tipc_sock *tsk)
 	tsk->sk.sk_write_space(&tsk->sk);
 }
 
-u32 tipc_sk_rcv(struct sock *sk, struct sk_buff *buf);
+int tipc_sk_rcv(struct sk_buff *buf);
 
 #endif

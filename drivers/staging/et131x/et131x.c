@@ -762,6 +762,7 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 	 */
 	if (eestatus & 0x4C) {
 		int write_failed = 0;
+
 		if (pdev->revision == 0x01) {
 			int	i;
 			static const u8 eedata[4] = { 0xFE, 0x13, 0x10, 0xFF };
@@ -2091,6 +2092,7 @@ static void et1310_disable_phy_coma(struct et131x_adapter *adapter)
 static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
 {
 	u32 tmp_free_buff_ring = *free_buff_ring;
+
 	tmp_free_buff_ring++;
 	/* This works for all cases where limit < 1024. The 1023 case
 	 * works because 1023++ is 1024 which means the if condition is not
@@ -4237,7 +4239,6 @@ static int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf,
 static int et131x_set_packet_filter(struct et131x_adapter *adapter)
 {
 	int filter = adapter->packet_filter;
-	int status = 0;
 	u32 ctrl;
 	u32 pf_ctrl;
 
@@ -4288,7 +4289,7 @@ static int et131x_set_packet_filter(struct et131x_adapter *adapter)
 		writel(pf_ctrl, &adapter->regs->rxmac.pf_ctrl);
 		writel(ctrl, &adapter->regs->rxmac.ctrl);
 	}
-	return status;
+	return 0;
 }
 
 /* et131x_multicast - The handler to configure multicasting on the interface */
@@ -4604,7 +4605,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	netdev->netdev_ops     = &et131x_netdev_ops;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	SET_ETHTOOL_OPS(netdev, &et131x_ethtool_ops);
+	netdev->ethtool_ops = &et131x_ethtool_ops;
 
 	adapter = et131x_adapter_init(netdev, pdev);
 

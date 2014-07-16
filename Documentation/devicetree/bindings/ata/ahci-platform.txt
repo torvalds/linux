@@ -4,10 +4,16 @@ SATA nodes are defined to describe on-chip Serial ATA controllers.
 Each SATA controller should have its own node.
 
 Required properties:
-- compatible        : compatible list, one of "snps,spear-ahci",
-                      "snps,exynos5440-ahci", "ibm,476gtr-ahci",
-                      "allwinner,sun4i-a10-ahci", "fsl,imx53-ahci"
-                      "fsl,imx6q-ahci" or "snps,dwc-ahci"
+- compatible        : compatible string, one of:
+  - "allwinner,sun4i-a10-ahci"
+  - "fsl,imx53-ahci"
+  - "fsl,imx6q-ahci"
+  - "hisilicon,hisi-ahci"
+  - "ibm,476gtr-ahci"
+  - "marvell,armada-380-ahci"
+  - "snps,dwc-ahci"
+  - "snps,exynos5440-ahci"
+  - "snps,spear-ahci"
 - interrupts        : <interrupt mapping for SATA IRQ>
 - reg               : <registers mapping>
 

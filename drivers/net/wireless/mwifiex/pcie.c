@@ -50,7 +50,7 @@ mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		return -1;
 	}
 	mapping.len = size;
-	memcpy(skb->cb, &mapping, sizeof(mapping));
+	mwifiex_store_mapping(skb, &mapping);
 	return 0;
 }
 
@@ -60,7 +60,7 @@ static void mwifiex_unmap_pci_memory(struct mwifiex_adapter *adapter,
 	struct pcie_service_card *card = adapter->card;
 	struct mwifiex_dma_mapping mapping;
 
-	MWIFIEX_SKB_PACB(skb, &mapping);
+	mwifiex_get_mapping(skb, &mapping);
 	pci_unmap_single(card->dev, mapping.addr, mapping.len, flags);
 }
 
@@ -220,9 +220,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	adapter = card->adapter;
 	if (!adapter || !adapter->priv_num)
 		return;
-
-	/* In case driver is removed when asynchronous FW load is in progress */
-	wait_for_completion(&adapter->fw_load);
 
 	if (user_rmmod) {
 #ifdef CONFIG_PM_SLEEP
@@ -1074,6 +1071,7 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
  * is mapped to PCI device memory. Tx ring pointers are advanced accordingly.
  * Download ready interrupt to FW is deffered if Tx ring is not full and
  * additional payload can be accomodated.
+ * Caller must ensure tx_param parameter to this function is not NULL.
  */
 static int
 mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,

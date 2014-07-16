@@ -27,7 +27,7 @@
 
 /*
  * OMAP2-specific global PRM registers
- * Use __raw_{read,write}l() with these registers.
+ * Use {read,write}l_relaxed() with these registers.
  *
  * With a few exceptions, these are the register names beginning with
  * PRCM_* on 24xx.  (The exceptions are the IRQSTATUS and IRQENABLE

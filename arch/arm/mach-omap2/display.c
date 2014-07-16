@@ -279,6 +279,8 @@ static enum omapdss_version __init omap_display_get_version(void)
 		return OMAPDSS_VER_OMAP4;
 	else if (soc_is_omap54xx())
 		return OMAPDSS_VER_OMAP5;
+	else if (soc_is_am43xx())
+		return OMAPDSS_VER_AM43xx;
 	else
 		return OMAPDSS_VER_UNKNOWN;
 }
@@ -555,65 +557,9 @@ int omap_dss_reset(struct omap_hwmod *oh)
 	return r;
 }
 
-/* list of 'compatible' nodes to convert to omapdss specific */
-static const char * const dss_compat_conv_list[] __initconst = {
-	"composite-connector",
-	"dvi-connector",
-	"hdmi-connector",
-	"panel-dpi",
-	"panel-dsi-cm",
-	"sony,acx565akm",
-	"svideo-connector",
-	"ti,tfp410",
-	"ti,tpd12s015",
-};
-
-/* prepend compatible string with "omapdss," */
-static __init void omapdss_omapify_node(struct device_node *node,
-	const char *compat)
-{
-	char *new_compat;
-	struct property *prop;
-
-	new_compat = kasprintf(GFP_KERNEL, "omapdss,%s", compat);
-
-	prop = kzalloc(sizeof(*prop), GFP_KERNEL);
-
-	if (!prop) {
-		pr_err("omapdss_omapify_node: kzalloc failed\n");
-		return;
-	}
-
-	prop->name = "compatible";
-	prop->value = new_compat;
-	prop->length = strlen(new_compat) + 1;
-
-	of_update_property(node, prop);
-}
-
-/*
- * As omapdss panel drivers are omapdss specific, but we want to define the
- * DT-data in generic manner, we convert the compatible strings of the panel
- * nodes from "panel-foo" to "omapdss,panel-foo". This way we can have both
- * correct DT data and omapdss specific drivers.
- *
- * When we get generic panel drivers to the kernel, this will be removed.
- */
 void __init omapdss_early_init_of(void)
 {
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dss_compat_conv_list); ++i) {
-		const char *compat = dss_compat_conv_list[i];
-		struct device_node *node = NULL;
-
-		while ((node = of_find_compatible_node(node, NULL, compat))) {
-			if (!of_device_is_available(node))
-				continue;
-
-			omapdss_omapify_node(node, compat);
-		}
-	}
 }
 
 struct device_node * __init omapdss_find_dss_of_node(void)
@@ -629,6 +575,10 @@ struct device_node * __init omapdss_find_dss_of_node(void)
 		return node;
 
 	node = of_find_compatible_node(NULL, NULL, "ti,omap4-dss");
+	if (node)
+		return node;
+
+	node = of_find_compatible_node(NULL, NULL, "ti,omap5-dss");
 	if (node)
 		return node;
 

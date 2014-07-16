@@ -24,6 +24,12 @@ config AMD_PHY
 	---help---
 	  Currently supports the am79c874
 
+config AMD_XGBE_PHY
+	tristate "Driver for the AMD 10GbE (amd-xgbe) PHYs"
+	depends on OF
+	---help---
+	  Currently supports the AMD 10GbE PHY
+
 config MARVELL_PHY
 	tristate "Drivers for Marvell PHYs"
 	---help---

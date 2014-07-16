@@ -36,7 +36,7 @@
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #define KVM_HAVE_ONE_REG
 
-#define KVM_VCPU_MAX_FEATURES 1
+#define KVM_VCPU_MAX_FEATURES 2
 
 #include <kvm/arm_vgic.h>
 

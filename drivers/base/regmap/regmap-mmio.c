@@ -61,9 +61,28 @@ static int regmap_mmio_regbits_check(size_t reg_bits)
 	}
 }
 
-static inline void regmap_mmio_count_check(size_t count)
+static inline void regmap_mmio_count_check(size_t count, u32 offset)
 {
-	BUG_ON(count % 2 != 0);
+	BUG_ON(count <= offset);
+}
+
+static inline unsigned int
+regmap_mmio_get_offset(const void *reg, size_t reg_size)
+{
+	switch (reg_size) {
+	case 1:
+		return *(u8 *)reg;
+	case 2:
+		return *(u16 *)reg;
+	case 4:
+		return *(u32 *)reg;
+#ifdef CONFIG_64BIT
+	case 8:
+		return *(u64 *)reg;
+#endif
+	default:
+		BUG();
+	}
 }
 
 static int regmap_mmio_gather_write(void *context,
@@ -71,7 +90,7 @@ static int regmap_mmio_gather_write(void *context,
 				    const void *val, size_t val_size)
 {
 	struct regmap_mmio_context *ctx = context;
-	u32 offset;
+	unsigned int offset;
 	int ret;
 
 	regmap_mmio_regsize_check(reg_size);
@@ -82,7 +101,7 @@ static int regmap_mmio_gather_write(void *context,
 			return ret;
 	}
 
-	offset = *(u32 *)reg;
+	offset = regmap_mmio_get_offset(reg, reg_size);
 
 	while (val_size) {
 		switch (ctx->val_bytes) {
@@ -118,9 +137,9 @@ static int regmap_mmio_gather_write(void *context,
 static int regmap_mmio_write(void *context, const void *data, size_t count)
 {
 	struct regmap_mmio_context *ctx = context;
-	u32 offset = ctx->reg_bytes + ctx->pad_bytes;
+	unsigned int offset = ctx->reg_bytes + ctx->pad_bytes;
 
-	regmap_mmio_count_check(count);
+	regmap_mmio_count_check(count, offset);
 
 	return regmap_mmio_gather_write(context, data, ctx->reg_bytes,
 					data + offset, count - offset);
@@ -131,7 +150,7 @@ static int regmap_mmio_read(void *context,
 			    void *val, size_t val_size)
 {
 	struct regmap_mmio_context *ctx = context;
-	u32 offset;
+	unsigned int offset;
 	int ret;
 
 	regmap_mmio_regsize_check(reg_size);
@@ -142,7 +161,7 @@ static int regmap_mmio_read(void *context,
 			return ret;
 	}
 
-	offset = *(u32 *)reg;
+	offset = regmap_mmio_get_offset(reg, reg_size);
 
 	while (val_size) {
 		switch (ctx->val_bytes) {

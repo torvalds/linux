@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -2009,11 +2009,13 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		ql_dbg(ql_dbg_io, vha, 0x3017,
 		    "Invalid status handle (0x%x).\n", sts->handle);
 
-		if (IS_P3P_TYPE(ha))
-			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
-		else
-			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-		qla2xxx_wake_dpc(vha);
+		if (!test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags)) {
+			if (IS_P3P_TYPE(ha))
+				set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+			else
+				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
+		}
 		return;
 	}
 
@@ -2472,12 +2474,14 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 		if (pkt->entry_status != 0) {
 			qla2x00_error_entry(vha, rsp, (sts_entry_t *) pkt);
 
-			(void)qlt_24xx_process_response_error(vha, pkt);
+			if (qlt_24xx_process_response_error(vha, pkt))
+				goto process_err;
 
 			((response_t *)pkt)->signature = RESPONSE_PROCESSED;
 			wmb();
 			continue;
 		}
+process_err:
 
 		switch (pkt->entry_type) {
 		case STATUS_TYPE:
@@ -2494,10 +2498,10 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 			qla24xx_logio_entry(vha, rsp->req,
 			    (struct logio_entry_24xx *)pkt);
 			break;
-                case CT_IOCB_TYPE:
+		case CT_IOCB_TYPE:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, CT_IOCB_TYPE);
 			break;
-                case ELS_IOCB_TYPE:
+		case ELS_IOCB_TYPE:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, ELS_IOCB_TYPE);
 			break;
 		case ABTS_RECV_24XX:
@@ -2506,6 +2510,7 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 		case ABTS_RESP_24XX:
 		case CTIO_TYPE7:
 		case NOTIFY_ACK_TYPE:
+		case CTIO_CRC2:
 			qlt_response_pkt_all_vps(vha, (response_t *)pkt);
 			break;
 		case MARKER_TYPE:

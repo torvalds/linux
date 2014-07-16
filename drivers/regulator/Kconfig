@@ -139,6 +139,13 @@ config REGULATOR_AS3722
 	  AS3722 PMIC. This will enable support for all the software
 	  controllable DCDC/LDO regulators.
 
+config REGULATOR_AXP20X
+	tristate "X-POWERS AXP20X PMIC Regulators"
+	depends on MFD_AXP20X
+	help
+	  This driver provides support for the voltage regulators on the
+	  AXP20X PMIC.
+
 config REGULATOR_BCM590XX
 	tristate "Broadcom BCM590xx PMU Regulators"
 	depends on MFD_BCM590XX
@@ -265,12 +272,21 @@ config REGULATOR_LP8788
 	help
 	  This driver supports LP8788 voltage regulator chip.
 
+config REGULATOR_LTC3589
+	tristate "LTC3589 8-output voltage regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This enables support for the LTC3589, LTC3589-1, and LTC3589-2
+	  8-output regulators controlled via I2C.
+
 config REGULATOR_MAX14577
-	tristate "Maxim 14577 regulator"
+	tristate "Maxim 14577/77836 regulator"
 	depends on MFD_MAX14577
 	help
-	  This driver controls a Maxim 14577 regulator via I2C bus.
-	  The regulators include safeout LDO and current regulator 'CHARGER'.
+	  This driver controls a Maxim MAX14577/77836 regulator via I2C bus.
+	  The MAX14577 regulators include safeout LDO and charger current
+	  regulator. The MAX77836 has two additional LDOs.
 
 config REGULATOR_MAX1586
 	tristate "Maxim 1586/1587 voltage regulator"

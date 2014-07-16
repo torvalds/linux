@@ -959,6 +959,14 @@ static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
 		 * domain. Set him in the map and clean up our
 		 * leftover join state. */
 		BUG_ON(dlm->joining_node != assert->node_idx);
+
+		if (dlm->reco.state & DLM_RECO_STATE_ACTIVE) {
+			mlog(0, "dlm recovery is ongoing, disallow join\n");
+			spin_unlock(&dlm->spinlock);
+			spin_unlock(&dlm_domain_lock);
+			return -EAGAIN;
+		}
+
 		set_bit(assert->node_idx, dlm->domain_map);
 		clear_bit(assert->node_idx, dlm->exit_domain_map);
 		__dlm_set_joining_node(dlm, DLM_LOCK_RES_OWNER_UNKNOWN);
@@ -1517,6 +1525,7 @@ static int dlm_send_one_join_assert(struct dlm_ctxt *dlm,
 				    unsigned int node)
 {
 	int status;
+	int ret;
 	struct dlm_assert_joined assert_msg;
 
 	mlog(0, "Sending join assert to node %u\n", node);
@@ -1528,11 +1537,13 @@ static int dlm_send_one_join_assert(struct dlm_ctxt *dlm,
 
 	status = o2net_send_message(DLM_ASSERT_JOINED_MSG, DLM_MOD_KEY,
 				    &assert_msg, sizeof(assert_msg), node,
-				    NULL);
+				    &ret);
 	if (status < 0)
 		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
 		     "node %u\n", status, DLM_ASSERT_JOINED_MSG, DLM_MOD_KEY,
 		     node);
+	else
+		status = ret;
 
 	return status;
 }
@@ -2023,7 +2034,6 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	INIT_LIST_HEAD(&dlm->list);
 	INIT_LIST_HEAD(&dlm->dirty_list);
 	INIT_LIST_HEAD(&dlm->reco.resources);
-	INIT_LIST_HEAD(&dlm->reco.received);
 	INIT_LIST_HEAD(&dlm->reco.node_data);
 	INIT_LIST_HEAD(&dlm->purge_list);
 	INIT_LIST_HEAD(&dlm->dlm_domain_handlers);

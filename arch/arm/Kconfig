@@ -165,25 +165,15 @@ config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default y
 
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
-
 config RWSEM_XCHGADD_ALGORITHM
 	bool
+	default y
 
 config ARCH_HAS_ILOG2_U32
 	bool
 
 config ARCH_HAS_ILOG2_U64
 	bool
-
-config ARCH_HAS_CPUFREQ
-	bool
-	help
-	  Internal node to signify that the ARCH has CPUFREQ support
-	  and that the relevant menu configurations are displayed for
-	  it.
 
 config ARCH_HAS_BANDGAP
 	bool
@@ -314,13 +304,13 @@ config ARCH_MULTIPLATFORM
 	select CLKSRC_OF
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
+	select MIGHT_HAVE_PCI
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	select USE_OF
 
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
-	select ARCH_HAS_CPUFREQ
 	select ARM_AMBA
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR
@@ -376,7 +366,6 @@ config ARCH_AT91
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select IRQ_DOMAIN
-	select NEED_MACH_GPIO_H
 	select NEED_MACH_IO_H if PCCARD
 	select PINCTRL
 	select PINCTRL_AT91 if USE_OF
@@ -480,6 +469,7 @@ config ARCH_IOP13XX
 	select PCI
 	select PLAT_IOP
 	select VMSPLIT_1G
+	select SPARSE_IRQ
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -540,7 +530,6 @@ config ARCH_DOVE
 
 config ARCH_KIRKWOOD
 	bool "Marvell Kirkwood"
-	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
@@ -639,7 +628,6 @@ config ARCH_LPC32XX
 config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
 	depends on MMU
-	select ARCH_HAS_CPUFREQ
 	select ARCH_MTD_XIP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_CPU_SUSPEND if PM
@@ -709,7 +697,6 @@ config ARCH_RPC
 
 config ARCH_SA1100
 	bool "SA1100-based"
-	select ARCH_HAS_CPUFREQ
 	select ARCH_MTD_XIP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_SPARSEMEM_ENABLE
@@ -727,7 +714,6 @@ config ARCH_SA1100
 
 config ARCH_S3C24XX
 	bool "Samsung S3C24XX SoCs"
-	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select ATAGS
 	select CLKDEV_LOOKUP
@@ -748,14 +734,13 @@ config ARCH_S3C24XX
 
 config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
-	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_VIC
 	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
-	select COMMON_CLK
+	select COMMON_CLK_SAMSUNG
 	select CPU_V6K
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
@@ -811,7 +796,6 @@ config ARCH_S5PC100
 
 config ARCH_S5PV210
 	bool "Samsung S5PV210/S5PC110"
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_SPARSEMEM_ENABLE
 	select ATAGS
@@ -828,25 +812,6 @@ config ARCH_S5PV210
 	select SAMSUNG_ATAGS
 	help
 	  Samsung S5PV210/S5PC110 series based systems
-
-config ARCH_EXYNOS
-	bool "Samsung EXYNOS"
-	select ARCH_HAS_CPUFREQ
-	select ARCH_HAS_HOLES_MEMORYMODEL
-	select ARCH_REQUIRE_GPIOLIB
-	select ARCH_SPARSEMEM_ENABLE
-	select ARM_GIC
-	select COMMON_CLK
-	select CPU_V7
-	select GENERIC_CLOCKEVENTS
-	select HAVE_S3C2410_I2C if I2C
-	select HAVE_S3C2410_WATCHDOG if WATCHDOG
-	select HAVE_S3C_RTC if RTC_CLASS
-	select NEED_MACH_MEMORY_H
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  Support for SAMSUNG's EXYNOS SoCs (EXYNOS4/5)
 
 config ARCH_DAVINCI
 	bool "TI DaVinci"
@@ -866,7 +831,6 @@ config ARCH_DAVINCI
 config ARCH_OMAP1
 	bool "TI OMAP1"
 	depends on MMU
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_OMAP
 	select ARCH_REQUIRE_GPIOLIB
@@ -951,6 +915,8 @@ source "arch/arm/mach-mvebu/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
 
+source "arch/arm/mach-axxia/Kconfig"
+
 source "arch/arm/mach-bcm/Kconfig"
 
 source "arch/arm/mach-berlin/Kconfig"
@@ -1028,8 +994,6 @@ source "arch/arm/mach-rockchip/Kconfig"
 
 source "arch/arm/mach-sa1100/Kconfig"
 
-source "arch/arm/plat-samsung/Kconfig"
-
 source "arch/arm/mach-socfpga/Kconfig"
 
 source "arch/arm/mach-spear/Kconfig"
@@ -1047,6 +1011,7 @@ source "arch/arm/mach-s5pc100/Kconfig"
 source "arch/arm/mach-s5pv210/Kconfig"
 
 source "arch/arm/mach-exynos/Kconfig"
+source "arch/arm/plat-samsung/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
@@ -1104,11 +1069,6 @@ config ARM_TIMER_SP804
 source "arch/arm/firmware/Kconfig"
 
 source arch/arm/mm/Kconfig
-
-config ARM_NR_BANKS
-	int
-	default 16 if ARCH_EP93XX
-	default 8
 
 config IWMMXT
 	bool "Enable iWMMXt support"
@@ -1230,19 +1190,6 @@ config ARM_ERRATA_742231
 	  register of the Cortex-A9 which reduces the linefill issuing
 	  capabilities of the processor.
 
-config PL310_ERRATA_588369
-	bool "PL310 errata: Clean & Invalidate maintenance operations do not invalidate clean lines"
-	depends on CACHE_L2X0
-	help
-	   The PL310 L2 cache controller implements three types of Clean &
-	   Invalidate maintenance operations: by Physical Address
-	   (offset 0x7F0), by Index/Way (0x7F8) and by Way (0x7FC).
-	   They are architecturally defined to behave as the execution of a
-	   clean operation followed immediately by an invalidate operation,
-	   both performing to the same memory location. This functionality
-	   is not correctly implemented in PL310 as clean lines are not
-	   invalidated as a result of these operations.
-
 config ARM_ERRATA_643719
 	bool "ARM errata: LoUIS bit field in CLIDR register is incorrect"
 	depends on CPU_V7 && SMP
@@ -1264,17 +1211,6 @@ config ARM_ERRATA_720789
 	  invalidated are not, resulting in an incoherency in the system page
 	  tables. The workaround changes the TLB flushing routines to invalidate
 	  entries regardless of the ASID.
-
-config PL310_ERRATA_727915
-	bool "PL310 errata: Background Clean & Invalidate by Way operation can cause data corruption"
-	depends on CACHE_L2X0
-	help
-	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
-	  operation (offset 0x7FC). This operation runs in background so that
-	  PL310 can handle normal accesses while it is in progress. Under very
-	  rare circumstances, due to this erratum, write data can be lost when
-	  PL310 treats a cacheable write transaction during a Clean &
-	  Invalidate by Way operation.
 
 config ARM_ERRATA_743622
 	bool "ARM errata: Faulty hazard checking in the Store Buffer may lead to data corruption"
@@ -1300,21 +1236,6 @@ config ARM_ERRATA_751472
 	  completion of a following broadcasted operation if the second
 	  operation is received by a CPU before the ICIALLUIS has completed,
 	  potentially leading to corrupted entries in the cache or TLB.
-
-config PL310_ERRATA_753970
-	bool "PL310 errata: cache sync operation may be faulty"
-	depends on CACHE_PL310
-	help
-	  This option enables the workaround for the 753970 PL310 (r3p0) erratum.
-
-	  Under some condition the effect of cache sync operation on
-	  the store buffer still remains when the operation completes.
-	  This means that the store buffer is always asked to drain and
-	  this prevents it from merging any further writes. The workaround
-	  is to replace the normal offset of cache sync operation (0x730)
-	  by another offset targeting an unmapped PL310 register 0x740.
-	  This has the same effect as the cache sync operation: store buffer
-	  drain and waiting for all buffers empty.
 
 config ARM_ERRATA_754322
 	bool "ARM errata: possible faulty MMU translations following an ASID switch"
@@ -1363,18 +1284,6 @@ config ARM_ERRATA_764369
 	  system. This workaround adds a DSB instruction before the
 	  relevant cache maintenance functions and sets a specific bit
 	  in the diagnostic control register of the SCU.
-
-config PL310_ERRATA_769419
-	bool "PL310 errata: no automatic Store Buffer drain"
-	depends on CACHE_L2X0
-	help
-	  On revisions of the PL310 prior to r3p2, the Store Buffer does
-	  not automatically drain. This can cause normal, non-cacheable
-	  writes to be retained when the memory system is idle, leading
-	  to suboptimal I/O performance for drivers using coherent DMA.
-	  This option adds a write barrier to the cpu_idle loop so that,
-	  on systems with an outer cache, the store buffer is drained
-	  explicitly.
 
 config ARM_ERRATA_775420
        bool "ARM errata: A data cache maintenance operation which aborts, might lead to deadlock"
@@ -1646,9 +1555,9 @@ config ARCH_NR_GPIO
 	int
 	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA
 	default 512 if ARCH_EXYNOS || ARCH_KEYSTONE || SOC_OMAP5 || SOC_DRA7XX || ARCH_S3C24XX || ARCH_S3C64XX
+	default 416 if ARCH_SUNXI
 	default 392 if ARCH_U8500
 	default 352 if ARCH_VT8500
-	default 288 if ARCH_SUNXI
 	default 264 if MACH_H4700
 	default 0
 	help
@@ -2184,9 +2093,7 @@ endmenu
 
 menu "CPU Power Management"
 
-if ARCH_HAS_CPUFREQ
 source "drivers/cpufreq/Kconfig"
-endif
 
 source "drivers/cpuidle/Kconfig"
 
@@ -2294,6 +2201,11 @@ config ARCH_SUSPEND_POSSIBLE
 
 config ARM_CPU_SUSPEND
 	def_bool PM_SLEEP
+
+config ARCH_HIBERNATION_POSSIBLE
+	bool
+	depends on MMU
+	default y if ARCH_SUSPEND_POSSIBLE
 
 endmenu
 

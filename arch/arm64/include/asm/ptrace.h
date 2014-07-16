@@ -21,6 +21,10 @@
 
 #include <uapi/asm/ptrace.h>
 
+/* Current Exception Level values, as contained in CurrentEL */
+#define CurrentEL_EL1		(1 << 2)
+#define CurrentEL_EL2		(2 << 2)
+
 /* AArch32-specific ptrace requests */
 #define COMPAT_PTRACE_GETREGS		12
 #define COMPAT_PTRACE_SETREGS		13
@@ -134,6 +138,11 @@ struct pt_regs {
 
 #define user_stack_pointer(regs) \
 	(!compat_user_mode(regs)) ? ((regs)->sp) : ((regs)->compat_sp)
+
+static inline unsigned long regs_return_value(struct pt_regs *regs)
+{
+	return regs->regs[0];
+}
 
 /*
  * Are the current registers suitable for user mode? (used to maintain

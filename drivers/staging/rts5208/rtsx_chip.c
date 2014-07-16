@@ -104,7 +104,7 @@ void rtsx_enable_bus_int(struct rtsx_chip *chip)
 	if (chip->ic_version >= IC_VER_C)
 		reg |= DELINK_INT_EN;
 #ifdef SUPPORT_OCP
-		reg |= OC_INT_EN;
+	reg |= OC_INT_EN;
 #endif
 	if (!chip->adma_mode)
 		reg |= DATA_DONE_INT_EN;

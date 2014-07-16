@@ -233,11 +233,6 @@ struct hid_item {
 #define HID_DG_BARRELSWITCH	0x000d0044
 #define HID_DG_ERASER		0x000d0045
 #define HID_DG_TABLETPICK	0x000d0046
-/*
- * as of May 20, 2009 the usages below are not yet in the official USB spec
- * but are being pushed by Microsft as described in their paper "Digitizer
- * Drivers for Windows Touch and Pen-Based Computers"
- */
 #define HID_DG_CONFIDENCE	0x000d0047
 #define HID_DG_WIDTH		0x000d0048
 #define HID_DG_HEIGHT		0x000d0049
@@ -246,6 +241,8 @@ struct hid_item {
 #define HID_DG_DEVICEINDEX	0x000d0053
 #define HID_DG_CONTACTCOUNT	0x000d0054
 #define HID_DG_CONTACTMAX	0x000d0055
+#define HID_DG_BARRELSWITCH2	0x000d005a
+#define HID_DG_TOOLSERIALNUMBER	0x000d005b
 
 /*
  * HID report types --- Ouch! HID spec says 1 2 3!
@@ -299,11 +296,19 @@ struct hid_item {
 
 /*
  * HID device groups
+ *
+ * Note: HID_GROUP_ANY is declared in linux/mod_devicetable.h
+ * and has a value of 0x0000
  */
 #define HID_GROUP_GENERIC			0x0001
 #define HID_GROUP_MULTITOUCH			0x0002
 #define HID_GROUP_SENSOR_HUB			0x0003
 #define HID_GROUP_MULTITOUCH_WIN_8		0x0004
+
+/*
+ * Vendor specific HID device groups
+ */
+#define HID_GROUP_RMI				0x0100
 
 /*
  * This is the global environment of the parser. This information is
@@ -570,6 +575,8 @@ struct hid_descriptor {
 	.bus = BUS_USB, .vendor = (ven), .product = (prod)
 #define HID_BLUETOOTH_DEVICE(ven, prod)					\
 	.bus = BUS_BLUETOOTH, .vendor = (ven), .product = (prod)
+#define HID_I2C_DEVICE(ven, prod)				\
+	.bus = BUS_I2C, .vendor = (ven), .product = (prod)
 
 #define HID_REPORT_ID(rep) \
 	.report_type = (rep)

@@ -43,11 +43,10 @@
 	: "i" (op), "R" (*(unsigned char *)(addr)))
 
 #ifdef CONFIG_MIPS_MT
-/*
- * Temporary hacks for SMTC debug. Optionally force single-threaded
- * execution during I-cache flushes.
- */
 
+/*
+ * Optionally force single-threaded execution during I-cache flushes.
+ */
 #define PROTECT_CACHE_FLUSHES 1
 
 #ifdef PROTECT_CACHE_FLUSHES
@@ -524,6 +523,8 @@ __BUILD_BLAST_CACHE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 32,
 __BUILD_BLAST_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D, 64, )
 __BUILD_BLAST_CACHE(i, icache, Index_Invalidate_I, Hit_Invalidate_I, 64, )
 __BUILD_BLAST_CACHE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 64, )
+__BUILD_BLAST_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D, 128, )
+__BUILD_BLAST_CACHE(i, icache, Index_Invalidate_I, Hit_Invalidate_I, 128, )
 __BUILD_BLAST_CACHE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 128, )
 
 __BUILD_BLAST_CACHE(inv_d, dcache, Index_Writeback_Inv_D, Hit_Invalidate_D, 16, )

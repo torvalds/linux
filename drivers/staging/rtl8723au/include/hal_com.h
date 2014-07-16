@@ -165,8 +165,6 @@ void HalSetBrateCfg23a(struct rtw_adapter *padapter, u8 *mBratesOS);
 bool
 Hal_MappingOutPipe23a(struct rtw_adapter *pAdapter, u8 NumOutPipe);
 
-void hal_init_macaddr23a(struct rtw_adapter *adapter);
-
 void c2h_evt_clear23a(struct rtw_adapter *adapter);
 s32 c2h_evt_read23a(struct rtw_adapter *adapter, u8 *buf);
 
@@ -185,11 +183,12 @@ void rtl8723a_ack_preamble(struct rtw_adapter *padapter, u8 bShortPreamble);
 void rtl8723a_set_sec_cfg(struct rtw_adapter *padapter, u8 sec);
 void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex);
 void rtl8723a_cam_invalid_all(struct rtw_adapter *padapter);
-void rtl8723a_cam_write(struct rtw_adapter *padapter, u32 val1, u32 val2);
+void rtl8723a_cam_write(struct rtw_adapter *padapter,
+			u8 entry, u16 ctrl, const u8 *mac, const u8 *key);
 void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter);
 void rtl8723a_set_apfm_on_mac(struct rtw_adapter *padapter, u8 val);
 void rtl8723a_bcn_valid(struct rtw_adapter *padapter);
-void rtl8723a_set_tx_pause(struct rtw_adapter *padapter, u8 pause);
+bool rtl8723a_get_bcn_valid(struct rtw_adapter *padapter);
 void rtl8723a_set_beacon_interval(struct rtw_adapter *padapter, u16 interval);
 void rtl8723a_set_resp_sifs(struct rtw_adapter *padapter,
 			    u8 r2t1, u8 r2t2, u8 t2t1, u8 t2t2);
@@ -202,10 +201,14 @@ void rtl8723a_set_nav_upper(struct rtw_adapter *padapter, u32 usNavUpper);
 void rtl8723a_set_initial_gain(struct rtw_adapter *padapter, u32 rx_gain);
 
 void rtl8723a_odm_support_ability_write(struct rtw_adapter *padapter, u32 val);
-void rtl8723a_odm_support_ability_backup(struct rtw_adapter *padapter, u8 val);
+void rtl8723a_odm_support_ability_backup(struct rtw_adapter *padapter);
+void rtl8723a_odm_support_ability_restore(struct rtw_adapter *padapter);
 void rtl8723a_odm_support_ability_set(struct rtw_adapter *padapter, u32 val);
 void rtl8723a_odm_support_ability_clr(struct rtw_adapter *padapter, u32 val);
 
 void rtl8723a_set_rpwm(struct rtw_adapter *padapter, u8 val);
+u8 rtl8723a_get_rf_type(struct rtw_adapter *padapter);
+bool rtl8723a_get_fwlps_rf_on(struct rtw_adapter *padapter);
+bool rtl8723a_chk_hi_queue_empty(struct rtw_adapter *padapter);
 
 #endif /* __HAL_COMMON_H__ */

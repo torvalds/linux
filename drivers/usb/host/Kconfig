@@ -29,6 +29,14 @@ if USB_XHCI_HCD
 config USB_XHCI_PLATFORM
 	tristate
 
+config USB_XHCI_MVEBU
+	tristate "xHCI support for Marvell Armada 375/38x"
+	select USB_XHCI_PLATFORM
+	depends on ARCH_MVEBU || COMPILE_TEST
+	---help---
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in Marvell Armada 375/38x ARM SOCs.
+
 endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
@@ -168,9 +176,8 @@ config USB_EHCI_HCD_AT91
 
 config USB_EHCI_MSM
 	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
-	depends on ARCH_MSM
+	depends on ARCH_MSM || ARCH_QCOM
 	select USB_EHCI_ROOT_HUB_TT
-	select USB_MSM_OTG
 	---help---
 	  Enables support for the USB Host controller present on the
 	  Qualcomm chipsets. Root Hub has inbuilt TT.
@@ -343,10 +350,19 @@ config USB_FOTG210_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called fotg210-hcd.
 
+config USB_MAX3421_HCD
+	tristate "MAX3421 HCD (USB-over-SPI) support"
+	depends on USB && SPI
+	---help---
+	  The Maxim MAX3421E chip supports standard USB 2.0-compliant
+	  full-speed devices either in host or peripheral mode.  This
+	  driver supports the host-mode of the MAX3421E only.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called max3421-hcd.
+
 config USB_OHCI_HCD
 	tristate "OHCI HCD (USB 1.1) support"
-	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
-	depends on USB_ISP1301 || !ARCH_LPC32XX
 	---help---
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
@@ -365,6 +381,7 @@ if USB_OHCI_HCD
 config USB_OHCI_HCD_OMAP1
 	tristate "OHCI support for OMAP1/2 chips"
 	depends on ARCH_OMAP1
+	depends on ISP1301_OMAP || !(MACH_OMAP_H2 || MACH_OMAP_H3)
 	default y
 	---help---
 	  Enables support for the OHCI controller on OMAP1/2 chips.
@@ -388,6 +405,7 @@ config USB_OHCI_HCD_S3C2410
 config USB_OHCI_HCD_LPC32XX
 	tristate "Support for LPC on-chip OHCI USB controller"
 	depends on USB_OHCI_HCD && ARCH_LPC32XX
+	depends on USB_ISP1301
 	default y
 	---help---
           Enables support for the on-chip OHCI controller on
@@ -416,6 +434,16 @@ config USB_OHCI_HCD_OMAP3
 	---help---
 	  Enables support for the on-chip OHCI controller on
 	  OMAP3 and later chips.
+
+config USB_OHCI_HCD_DAVINCI
+	bool "OHCI support for TI DaVinci DA8xx"
+	depends on ARCH_DAVINCI_DA8XX
+	depends on USB_OHCI_HCD=y
+	default y
+	help
+	  Enables support for the DaVinci DA8xx integrated OHCI
+	  controller. This driver cannot currently be a loadable
+	  module because it lacks a proper PHY abstraction.
 
 config USB_OHCI_ATH79
 	bool "USB OHCI support for the Atheros AR71XX/AR7240 SoCs (DEPRECATED)"

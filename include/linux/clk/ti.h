@@ -41,6 +41,8 @@
  * @idlest_reg: register containing the DPLL idle status bitfield
  * @autoidle_mask: mask of the DPLL autoidle mode bitfield in @autoidle_reg
  * @freqsel_mask: mask of the DPLL jitter correction bitfield in @control_reg
+ * @dcc_mask: mask of the DPLL DCC correction bitfield @mult_div1_reg
+ * @dcc_rate: rate atleast which DCC @dcc_mask must be set
  * @idlest_mask: mask of the DPLL idle status bitfield in @idlest_reg
  * @lpmode_mask: mask of the DPLL low-power mode bitfield in @control_reg
  * @m4xen_mask: mask of the DPLL M4X multiplier bitfield in @control_reg
@@ -86,6 +88,8 @@ struct dpll_data {
 	u32			idlest_mask;
 	u32			dco_mask;
 	u32			sddiv_mask;
+	u32			dcc_mask;
+	unsigned long		dcc_rate;
 	u32			lpmode_mask;
 	u32			m4xen_mask;
 	u8			auto_recal_bit;
@@ -94,7 +98,26 @@ struct dpll_data {
 	u8			flags;
 };
 
-struct clk_hw_omap_ops;
+struct clk_hw_omap;
+
+/**
+ * struct clk_hw_omap_ops - OMAP clk ops
+ * @find_idlest: find idlest register information for a clock
+ * @find_companion: find companion clock register information for a clock,
+ *		    basically converts CM_ICLKEN* <-> CM_FCLKEN*
+ * @allow_idle: enables autoidle hardware functionality for a clock
+ * @deny_idle: prevent autoidle hardware functionality for a clock
+ */
+struct clk_hw_omap_ops {
+	void	(*find_idlest)(struct clk_hw_omap *oclk,
+			       void __iomem **idlest_reg,
+			       u8 *idlest_bit, u8 *idlest_val);
+	void	(*find_companion)(struct clk_hw_omap *oclk,
+				  void __iomem **other_reg,
+				  u8 *other_bit);
+	void	(*allow_idle)(struct clk_hw_omap *oclk);
+	void	(*deny_idle)(struct clk_hw_omap *oclk);
+};
 
 /**
  * struct clk_hw_omap - OMAP struct clk
@@ -259,6 +282,12 @@ int omap2_dflt_clk_enable(struct clk_hw *hw);
 void omap2_dflt_clk_disable(struct clk_hw *hw);
 int omap2_dflt_clk_is_enabled(struct clk_hw *hw);
 void omap3_clk_lock_dpll5(void);
+unsigned long omap2_dpllcore_recalc(struct clk_hw *hw,
+				    unsigned long parent_rate);
+int omap2_reprogram_dpllcore(struct clk_hw *clk, unsigned long rate,
+			     unsigned long parent_rate);
+void omap2xxx_clkt_dpllcore_init(struct clk_hw *hw);
+void omap2xxx_clkt_vps_init(void);
 
 void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index);
 void ti_dt_clocks_register(struct ti_dt_clk *oclks);
@@ -278,6 +307,8 @@ int omap5xxx_dt_clk_init(void);
 int dra7xx_dt_clk_init(void);
 int am33xx_dt_clk_init(void);
 int am43xx_dt_clk_init(void);
+int omap2420_dt_clk_init(void);
+int omap2430_dt_clk_init(void);
 
 #ifdef CONFIG_OF
 void of_ti_clk_allow_autoidle_all(void);
@@ -287,6 +318,8 @@ static inline void of_ti_clk_allow_autoidle_all(void) { }
 static inline void of_ti_clk_deny_autoidle_all(void) { }
 #endif
 
+extern const struct clk_hw_omap_ops clkhwops_omap2xxx_dpll;
+extern const struct clk_hw_omap_ops clkhwops_omap2430_i2chs_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3_dpll;
 extern const struct clk_hw_omap_ops clkhwops_omap4_dpllmx;
 extern const struct clk_hw_omap_ops clkhwops_wait;

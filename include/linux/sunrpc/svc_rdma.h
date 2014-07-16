@@ -115,14 +115,13 @@ struct svc_rdma_fastreg_mr {
 	struct list_head frmr_list;
 };
 struct svc_rdma_req_map {
-	struct svc_rdma_fastreg_mr *frmr;
 	unsigned long count;
 	union {
 		struct kvec sge[RPCSVC_MAXPAGES];
 		struct svc_rdma_chunk_sge ch[RPCSVC_MAXPAGES];
+		unsigned long lkey[RPCSVC_MAXPAGES];
 	};
 };
-#define RDMACTXT_F_FAST_UNREG	1
 #define RDMACTXT_F_LAST_CTXT	2
 
 #define	SVCRDMA_DEVCAP_FAST_REG		1	/* fast mr registration */

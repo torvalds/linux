@@ -634,7 +634,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_IPPP_FILTER
 	case PPPIOCSPASS:
 	{
-		struct sock_fprog fprog;
+		struct sock_fprog_kern fprog;
 		struct sock_filter *code;
 		int err, len = get_filter(argp, &code);
 
@@ -653,7 +653,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case PPPIOCSACTIVE:
 	{
-		struct sock_fprog fprog;
+		struct sock_fprog_kern fprog;
 		struct sock_filter *code;
 		int err, len = get_filter(argp, &code);
 

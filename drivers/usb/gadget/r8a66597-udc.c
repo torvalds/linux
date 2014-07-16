@@ -1904,7 +1904,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597 = kzalloc(sizeof(struct r8a66597), GFP_KERNEL);
 	if (r8a66597 == NULL) {
 		ret = -ENOMEM;
-		dev_err(&pdev->dev, "kzalloc error\n");
 		goto clean_up;
 	}
 

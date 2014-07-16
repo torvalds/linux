@@ -4,8 +4,11 @@
 
 ** Timer node required properties:
 
-- compatible : Should be "arm,cortex-a9-global-timer"
-		Driver supports versions r2p0 and above.
+- compatible : should contain
+	     * "arm,cortex-a5-global-timer" for Cortex-A5 global timers.
+	     * "arm,cortex-a9-global-timer" for Cortex-A9 global
+	         timers or any compatible implementation. Note: driver
+	         supports versions r2p0 and above.
 
 - interrupts : One interrupt to each core
 

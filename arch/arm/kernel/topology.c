@@ -26,30 +26,30 @@
 #include <asm/topology.h>
 
 /*
- * cpu power scale management
+ * cpu capacity scale management
  */
 
 /*
- * cpu power table
+ * cpu capacity table
  * This per cpu data structure describes the relative capacity of each core.
  * On a heteregenous system, cores don't have the same computation capacity
- * and we reflect that difference in the cpu_power field so the scheduler can
- * take this difference into account during load balance. A per cpu structure
- * is preferred because each CPU updates its own cpu_power field during the
- * load balance except for idle cores. One idle core is selected to run the
- * rebalance_domains for all idle cores and the cpu_power can be updated
- * during this sequence.
+ * and we reflect that difference in the cpu_capacity field so the scheduler
+ * can take this difference into account during load balance. A per cpu
+ * structure is preferred because each CPU updates its own cpu_capacity field
+ * during the load balance except for idle cores. One idle core is selected
+ * to run the rebalance_domains for all idle cores and the cpu_capacity can be
+ * updated during this sequence.
  */
 static DEFINE_PER_CPU(unsigned long, cpu_scale);
 
-unsigned long arch_scale_freq_power(struct sched_domain *sd, int cpu)
+unsigned long arch_scale_freq_capacity(struct sched_domain *sd, int cpu)
 {
 	return per_cpu(cpu_scale, cpu);
 }
 
-static void set_power_scale(unsigned int cpu, unsigned long power)
+static void set_capacity_scale(unsigned int cpu, unsigned long capacity)
 {
-	per_cpu(cpu_scale, cpu) = power;
+	per_cpu(cpu_scale, cpu) = capacity;
 }
 
 #ifdef CONFIG_OF
@@ -62,11 +62,11 @@ struct cpu_efficiency {
  * Table of relative efficiency of each processors
  * The efficiency value must fit in 20bit and the final
  * cpu_scale value must be in the range
- *   0 < cpu_scale < 3*SCHED_POWER_SCALE/2
+ *   0 < cpu_scale < 3*SCHED_CAPACITY_SCALE/2
  * in order to return at most 1 when DIV_ROUND_CLOSEST
  * is used to compute the capacity of a CPU.
  * Processors that are not defined in the table,
- * use the default SCHED_POWER_SCALE value for cpu_scale.
+ * use the default SCHED_CAPACITY_SCALE value for cpu_scale.
  */
 static const struct cpu_efficiency table_efficiency[] = {
 	{"arm,cortex-a15", 3891},
@@ -83,21 +83,21 @@ static unsigned long middle_capacity = 1;
  * Iterate all CPUs' descriptor in DT and compute the efficiency
  * (as per table_efficiency). Also calculate a middle efficiency
  * as close as possible to  (max{eff_i} - min{eff_i}) / 2
- * This is later used to scale the cpu_power field such that an
- * 'average' CPU is of middle power. Also see the comments near
- * table_efficiency[] and update_cpu_power().
+ * This is later used to scale the cpu_capacity field such that an
+ * 'average' CPU is of middle capacity. Also see the comments near
+ * table_efficiency[] and update_cpu_capacity().
  */
 static void __init parse_dt_topology(void)
 {
 	const struct cpu_efficiency *cpu_eff;
 	struct device_node *cn = NULL;
-	unsigned long min_capacity = (unsigned long)(-1);
+	unsigned long min_capacity = ULONG_MAX;
 	unsigned long max_capacity = 0;
 	unsigned long capacity = 0;
-	int alloc_size, cpu = 0;
+	int cpu = 0;
 
-	alloc_size = nr_cpu_ids * sizeof(*__cpu_capacity);
-	__cpu_capacity = kzalloc(alloc_size, GFP_NOWAIT);
+	__cpu_capacity = kcalloc(nr_cpu_ids, sizeof(*__cpu_capacity),
+				 GFP_NOWAIT);
 
 	for_each_possible_cpu(cpu) {
 		const u32 *rate;
@@ -141,15 +141,15 @@ static void __init parse_dt_topology(void)
 	 * cpu_scale because all CPUs have the same capacity. Otherwise, we
 	 * compute a middle_capacity factor that will ensure that the capacity
 	 * of an 'average' CPU of the system will be as close as possible to
-	 * SCHED_POWER_SCALE, which is the default value, but with the
+	 * SCHED_CAPACITY_SCALE, which is the default value, but with the
 	 * constraint explained near table_efficiency[].
 	 */
 	if (4*max_capacity < (3*(max_capacity + min_capacity)))
 		middle_capacity = (min_capacity + max_capacity)
-				>> (SCHED_POWER_SHIFT+1);
+				>> (SCHED_CAPACITY_SHIFT+1);
 	else
 		middle_capacity = ((max_capacity / 3)
-				>> (SCHED_POWER_SHIFT-1)) + 1;
+				>> (SCHED_CAPACITY_SHIFT-1)) + 1;
 
 }
 
@@ -158,20 +158,20 @@ static void __init parse_dt_topology(void)
  * boot. The update of all CPUs is in O(n^2) for heteregeneous system but the
  * function returns directly for SMP system.
  */
-static void update_cpu_power(unsigned int cpu)
+static void update_cpu_capacity(unsigned int cpu)
 {
 	if (!cpu_capacity(cpu))
 		return;
 
-	set_power_scale(cpu, cpu_capacity(cpu) / middle_capacity);
+	set_capacity_scale(cpu, cpu_capacity(cpu) / middle_capacity);
 
-	printk(KERN_INFO "CPU%u: update cpu_power %lu\n",
-		cpu, arch_scale_freq_power(NULL, cpu));
+	printk(KERN_INFO "CPU%u: update cpu_capacity %lu\n",
+		cpu, arch_scale_freq_capacity(NULL, cpu));
 }
 
 #else
 static inline void parse_dt_topology(void) {}
-static inline void update_cpu_power(unsigned int cpuid) {}
+static inline void update_cpu_capacity(unsigned int cpuid) {}
 #endif
 
  /*
@@ -183,6 +183,15 @@ EXPORT_SYMBOL_GPL(cpu_topology);
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	return &cpu_topology[cpu].core_sibling;
+}
+
+/*
+ * The current assumption is that we can power gate each core independently.
+ * This will be superseded by DT binding once available.
+ */
+const struct cpumask *cpu_corepower_mask(int cpu)
+{
+	return &cpu_topology[cpu].thread_sibling;
 }
 
 static void update_siblings_masks(unsigned int cpuid)
@@ -258,13 +267,27 @@ void store_cpu_topology(unsigned int cpuid)
 
 	update_siblings_masks(cpuid);
 
-	update_cpu_power(cpuid);
+	update_cpu_capacity(cpuid);
 
 	printk(KERN_INFO "CPU%u: thread %d, cpu %d, socket %d, mpidr %x\n",
 		cpuid, cpu_topology[cpuid].thread_id,
 		cpu_topology[cpuid].core_id,
 		cpu_topology[cpuid].socket_id, mpidr);
 }
+
+static inline const int cpu_corepower_flags(void)
+{
+	return SD_SHARE_PKG_RESOURCES  | SD_SHARE_POWERDOMAIN;
+}
+
+static struct sched_domain_topology_level arm_topology[] = {
+#ifdef CONFIG_SCHED_MC
+	{ cpu_corepower_mask, cpu_corepower_flags, SD_INIT_NAME(GMC) },
+	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
+#endif
+	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
+	{ NULL, },
+};
 
 /*
  * init_cpu_topology is called at boot when only one cpu is running
@@ -274,7 +297,7 @@ void __init init_cpu_topology(void)
 {
 	unsigned int cpu;
 
-	/* init core mask and power*/
+	/* init core mask and capacity */
 	for_each_possible_cpu(cpu) {
 		struct cputopo_arm *cpu_topo = &(cpu_topology[cpu]);
 
@@ -284,9 +307,12 @@ void __init init_cpu_topology(void)
 		cpumask_clear(&cpu_topo->core_sibling);
 		cpumask_clear(&cpu_topo->thread_sibling);
 
-		set_power_scale(cpu, SCHED_POWER_SCALE);
+		set_capacity_scale(cpu, SCHED_CAPACITY_SCALE);
 	}
 	smp_wmb();
 
 	parse_dt_topology();
+
+	/* Set scheduler topology descriptor */
+	set_sched_topology(arm_topology);
 }

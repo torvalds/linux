@@ -679,9 +679,6 @@ static int bf5xx_nand_remove(struct platform_device *pdev)
 	peripheral_free_list(bfin_nfc_pin_req);
 	bf5xx_nand_dma_remove(info);
 
-	/* free the common resources */
-	kfree(info);
-
 	return 0;
 }
 
@@ -742,10 +739,10 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 		return -EFAULT;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
 		err = -ENOMEM;
-		goto out_err_kzalloc;
+		goto out_err;
 	}
 
 	platform_set_drvdata(pdev, info);
@@ -790,7 +787,7 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 	/* initialise the hardware */
 	err = bf5xx_nand_hw_init(info);
 	if (err)
-		goto out_err_hw_init;
+		goto out_err;
 
 	/* setup hardware ECC data struct */
 	if (hardware_ecc) {
@@ -827,9 +824,7 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 
 out_err_nand_scan:
 	bf5xx_nand_dma_remove(info);
-out_err_hw_init:
-	kfree(info);
-out_err_kzalloc:
+out_err:
 	peripheral_free_list(bfin_nfc_pin_req);
 
 	return err;

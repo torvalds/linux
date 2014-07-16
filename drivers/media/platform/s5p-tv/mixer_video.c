@@ -509,9 +509,11 @@ static int mxr_enum_dv_timings(struct file *file, void *fh,
 	struct mxr_device *mdev = layer->mdev;
 	int ret;
 
+	timings->pad = 0;
+
 	/* lock protects from changing sd_out */
 	mutex_lock(&mdev->mutex);
-	ret = v4l2_subdev_call(to_outsd(mdev), video, enum_dv_timings, timings);
+	ret = v4l2_subdev_call(to_outsd(mdev), pad, enum_dv_timings, timings);
 	mutex_unlock(&mdev->mutex);
 
 	return ret ? -EINVAL : 0;
@@ -567,9 +569,11 @@ static int mxr_dv_timings_cap(struct file *file, void *fh,
 	struct mxr_device *mdev = layer->mdev;
 	int ret;
 
+	cap->pad = 0;
+
 	/* lock protects from changing sd_out */
 	mutex_lock(&mdev->mutex);
-	ret = v4l2_subdev_call(to_outsd(mdev), video, dv_timings_cap, cap);
+	ret = v4l2_subdev_call(to_outsd(mdev), pad, dv_timings_cap, cap);
 	mutex_unlock(&mdev->mutex);
 
 	return ret ? -EINVAL : 0;
@@ -985,7 +989,7 @@ static void mxr_watchdog(unsigned long arg)
 	spin_unlock_irqrestore(&layer->enq_slock, flags);
 }
 
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct mxr_layer *layer = vb2_get_drv_priv(vq);
 	struct mxr_device *mdev = layer->mdev;
@@ -1031,7 +1035,6 @@ static int stop_streaming(struct vb2_queue *vq)
 	mxr_streamer_put(mdev);
 	/* allow changes in output configuration */
 	mxr_output_put(mdev);
-	return 0;
 }
 
 static struct vb2_ops mxr_video_qops = {

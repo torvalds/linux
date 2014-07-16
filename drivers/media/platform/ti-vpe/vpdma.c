@@ -614,8 +614,17 @@ static void dump_dtd(struct vpdma_dtd *dtd)
 /*
  * append an outbound data transfer descriptor to the given descriptor list,
  * this sets up a 'client to memory' VPDMA transfer for the given VPDMA channel
+ *
+ * @list: vpdma desc list to which we add this decriptor
+ * @width: width of the image in pixels in memory
+ * @c_rect: compose params of output image
+ * @fmt: vpdma data format of the buffer
+ * dma_addr: dma address as seen by VPDMA
+ * chan: VPDMA channel
+ * flags: VPDMA flags to configure some descriptor fileds
  */
-void vpdma_add_out_dtd(struct vpdma_desc_list *list, struct v4l2_rect *c_rect,
+void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
+		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
 		enum vpdma_channel chan, u32 flags)
 {
@@ -623,6 +632,7 @@ void vpdma_add_out_dtd(struct vpdma_desc_list *list, struct v4l2_rect *c_rect,
 	int field = 0;
 	int notify = 1;
 	int channel, next_chan;
+	struct v4l2_rect rect = *c_rect;
 	int depth = fmt->depth;
 	int stride;
 	struct vpdma_dtd *dtd;
@@ -630,11 +640,15 @@ void vpdma_add_out_dtd(struct vpdma_desc_list *list, struct v4l2_rect *c_rect,
 	channel = next_chan = chan_info[chan].num;
 
 	if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV &&
-			fmt->data_type == DATA_TYPE_C420)
+			fmt->data_type == DATA_TYPE_C420) {
+		rect.height >>= 1;
+		rect.top >>= 1;
 		depth = 8;
+	}
 
-	stride = ALIGN((depth * c_rect->width) >> 3, VPDMA_STRIDE_ALIGN);
-	dma_addr += (c_rect->left * depth) >> 3;
+	stride = ALIGN((depth * width) >> 3, VPDMA_STRIDE_ALIGN);
+
+	dma_addr += rect.top * stride + (rect.left * depth >> 3);
 
 	dtd = list->next;
 	WARN_ON((void *)(dtd + 1) > (list->buf.addr + list->buf.size));
@@ -664,31 +678,48 @@ void vpdma_add_out_dtd(struct vpdma_desc_list *list, struct v4l2_rect *c_rect,
 /*
  * append an inbound data transfer descriptor to the given descriptor list,
  * this sets up a 'memory to client' VPDMA transfer for the given VPDMA channel
+ *
+ * @list: vpdma desc list to which we add this decriptor
+ * @width: width of the image in pixels in memory(not the cropped width)
+ * @c_rect: crop params of input image
+ * @fmt: vpdma data format of the buffer
+ * dma_addr: dma address as seen by VPDMA
+ * chan: VPDMA channel
+ * field: top or bottom field info of the input image
+ * flags: VPDMA flags to configure some descriptor fileds
+ * frame_width/height: the complete width/height of the image presented to the
+ *			client (this makes sense when multiple channels are
+ *			connected to the same client, forming a larger frame)
+ * start_h, start_v: position where the given channel starts providing pixel
+ *			data to the client (makes sense when multiple channels
+ *			contribute to the client)
  */
-void vpdma_add_in_dtd(struct vpdma_desc_list *list, int frame_width,
-		int frame_height, struct v4l2_rect *c_rect,
+void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
+		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
-		enum vpdma_channel chan, int field, u32 flags)
+		enum vpdma_channel chan, int field, u32 flags, int frame_width,
+		int frame_height, int start_h, int start_v)
 {
 	int priority = 0;
 	int notify = 1;
 	int depth = fmt->depth;
 	int channel, next_chan;
+	struct v4l2_rect rect = *c_rect;
 	int stride;
-	int height = c_rect->height;
 	struct vpdma_dtd *dtd;
 
 	channel = next_chan = chan_info[chan].num;
 
 	if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV &&
 			fmt->data_type == DATA_TYPE_C420) {
-		height >>= 1;
-		frame_height >>= 1;
+		rect.height >>= 1;
+		rect.top >>= 1;
 		depth = 8;
 	}
 
-	stride = ALIGN((depth * c_rect->width) >> 3, VPDMA_STRIDE_ALIGN);
-	dma_addr += (c_rect->left * depth) >> 3;
+	stride = ALIGN((depth * width) >> 3, VPDMA_STRIDE_ALIGN);
+
+	dma_addr += rect.top * stride + (rect.left * depth >> 3);
 
 	dtd = list->next;
 	WARN_ON((void *)(dtd + 1) > (list->buf.addr + list->buf.size));
@@ -701,13 +732,14 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int frame_width,
 					!!(flags & VPDMA_DATA_ODD_LINE_SKIP),
 					stride);
 
-	dtd->xfer_length_height = dtd_xfer_length_height(c_rect->width, height);
+	dtd->xfer_length_height = dtd_xfer_length_height(rect.width,
+					rect.height);
 	dtd->start_addr = (u32) dma_addr;
 	dtd->pkt_ctl = dtd_pkt_ctl(!!(flags & VPDMA_DATA_MODE_TILED),
 				DTD_DIR_IN, channel, priority, next_chan);
 	dtd->frame_width_height = dtd_frame_width_height(frame_width,
 					frame_height);
-	dtd->start_h_v = dtd_start_h_v(c_rect->left, c_rect->top);
+	dtd->start_h_v = dtd_start_h_v(start_h, start_v);
 	dtd->client_attr0 = 0;
 	dtd->client_attr1 = 0;
 
@@ -781,7 +813,7 @@ static void vpdma_firmware_cb(const struct firmware *f, void *context)
 	/* already initialized */
 	if (read_field_reg(vpdma, VPDMA_LIST_ATTR, VPDMA_LIST_RDY_MASK,
 			VPDMA_LIST_RDY_SHFT)) {
-		vpdma->ready = true;
+		vpdma->cb(vpdma->pdev);
 		return;
 	}
 
@@ -811,7 +843,7 @@ static void vpdma_firmware_cb(const struct firmware *f, void *context)
 		goto free_buf;
 	}
 
-	vpdma->ready = true;
+	vpdma->cb(vpdma->pdev);
 
 free_buf:
 	vpdma_unmap_desc_buf(vpdma, &fw_dma_buf);
@@ -839,7 +871,8 @@ static int vpdma_load_firmware(struct vpdma_data *vpdma)
 	return 0;
 }
 
-struct vpdma_data *vpdma_create(struct platform_device *pdev)
+struct vpdma_data *vpdma_create(struct platform_device *pdev,
+		void (*cb)(struct platform_device *pdev))
 {
 	struct resource *res;
 	struct vpdma_data *vpdma;
@@ -854,6 +887,7 @@ struct vpdma_data *vpdma_create(struct platform_device *pdev)
 	}
 
 	vpdma->pdev = pdev;
+	vpdma->cb = cb;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vpdma");
 	if (res == NULL) {

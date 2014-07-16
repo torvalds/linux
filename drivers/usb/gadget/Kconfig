@@ -157,7 +157,7 @@ config USB_AT91
 
 config USB_LPC32XX
 	tristate "LPC32XX USB Peripheral Controller"
-	depends on ARCH_LPC32XX
+	depends on ARCH_LPC32XX && I2C
 	select USB_ISP1301
 	help
 	   This option selects the USB device controller in the LPC32xx SoC.
@@ -226,7 +226,7 @@ config USB_GR_UDC
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
-	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
+	depends on ISP1301_OMAP || !(MACH_OMAP_H2 || MACH_OMAP_H3)
 	help
 	   Many Texas Instruments OMAP processors have flexible full
 	   speed USB device controllers, with support for up to 30
@@ -299,12 +299,6 @@ config USB_PXA27X
 	   Say "y" to link the driver statically, or "m" to build a
 	   dynamically linked module called "pxa27x_udc" and force all
 	   gadget drivers to also be dynamically linked.
-
-config USB_S3C_HSOTG
-	tristate "Designware/S3C HS/OtG USB Device controller"
-	help
-	  The Designware USB2.0 high-speed gadget controller
-	  integrated into many SoCs.
 
 config USB_S3C2410
 	tristate "S3C2410 USB Device Controller"

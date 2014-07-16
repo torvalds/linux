@@ -25,10 +25,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -111,45 +107,12 @@ static const u8 LM83_REG_W_HIGH[] = {
 };
 
 /*
- * Functions declaration
- */
-
-static int lm83_detect(struct i2c_client *new_client,
-		       struct i2c_board_info *info);
-static int lm83_probe(struct i2c_client *client,
-		      const struct i2c_device_id *id);
-static int lm83_remove(struct i2c_client *client);
-static struct lm83_data *lm83_update_device(struct device *dev);
-
-/*
- * Driver data (common to all clients)
- */
-
-static const struct i2c_device_id lm83_id[] = {
-	{ "lm83", lm83 },
-	{ "lm82", lm82 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, lm83_id);
-
-static struct i2c_driver lm83_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "lm83",
-	},
-	.probe		= lm83_probe,
-	.remove		= lm83_remove,
-	.id_table	= lm83_id,
-	.detect		= lm83_detect,
-	.address_list	= normal_i2c,
-};
-
-/*
  * Client data (each client gets its own)
  */
 
 struct lm83_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
+	const struct attribute_group *groups[3];
 	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
@@ -160,6 +123,36 @@ struct lm83_data {
 			   8   : critical limit */
 	u16 alarms; /* bitvector, combined */
 };
+
+static struct lm83_data *lm83_update_device(struct device *dev)
+{
+	struct lm83_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	mutex_lock(&data->update_lock);
+
+	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
+		int nr;
+
+		dev_dbg(&client->dev, "Updating lm83 data.\n");
+		for (nr = 0; nr < 9; nr++) {
+			data->temp[nr] =
+			    i2c_smbus_read_byte_data(client,
+			    LM83_REG_R_TEMP[nr]);
+		}
+		data->alarms =
+		    i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS1)
+		    + (i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS2)
+		    << 8);
+
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
 
 /*
  * Sysfs stuff
@@ -177,8 +170,8 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 			const char *buf, size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm83_data *data = i2c_get_clientdata(client);
+	struct lm83_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	long val;
 	int nr = attr->index;
 	int err;
@@ -340,15 +333,15 @@ static int lm83_detect(struct i2c_client *new_client,
 static int lm83_probe(struct i2c_client *new_client,
 		      const struct i2c_device_id *id)
 {
+	struct device *hwmon_dev;
 	struct lm83_data *data;
-	int err;
 
 	data = devm_kzalloc(&new_client->dev, sizeof(struct lm83_data),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	i2c_set_clientdata(new_client, data);
+	data->client = new_client;
 	mutex_init(&data->update_lock);
 
 	/*
@@ -357,72 +350,37 @@ static int lm83_probe(struct i2c_client *new_client,
 	 * at the same register as the LM83 temp3 entry - so we
 	 * declare 1 and 3 common, and then 2 and 4 only for the LM83.
 	 */
+	data->groups[0] = &lm83_group;
+	if (id->driver_data == lm83)
+		data->groups[1] = &lm83_group_opt;
 
-	err = sysfs_create_group(&new_client->dev.kobj, &lm83_group);
-	if (err)
-		return err;
-
-	if (id->driver_data == lm83) {
-		err = sysfs_create_group(&new_client->dev.kobj,
-					 &lm83_group_opt);
-		if (err)
-			goto exit_remove_files;
-	}
-
-	data->hwmon_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove_files;
-	}
-
-	return 0;
-
-exit_remove_files:
-	sysfs_remove_group(&new_client->dev.kobj, &lm83_group);
-	sysfs_remove_group(&new_client->dev.kobj, &lm83_group_opt);
-	return err;
+	hwmon_dev = devm_hwmon_device_register_with_groups(&new_client->dev,
+							   new_client->name,
+							   data, data->groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static int lm83_remove(struct i2c_client *client)
-{
-	struct lm83_data *data = i2c_get_clientdata(client);
+/*
+ * Driver data (common to all clients)
+ */
 
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &lm83_group);
-	sysfs_remove_group(&client->dev.kobj, &lm83_group_opt);
+static const struct i2c_device_id lm83_id[] = {
+	{ "lm83", lm83 },
+	{ "lm82", lm82 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, lm83_id);
 
-	return 0;
-}
-
-static struct lm83_data *lm83_update_device(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm83_data *data = i2c_get_clientdata(client);
-
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
-		int nr;
-
-		dev_dbg(&client->dev, "Updating lm83 data.\n");
-		for (nr = 0; nr < 9; nr++) {
-			data->temp[nr] =
-			    i2c_smbus_read_byte_data(client,
-			    LM83_REG_R_TEMP[nr]);
-		}
-		data->alarms =
-		    i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS1)
-		    + (i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS2)
-		    << 8);
-
-		data->last_updated = jiffies;
-		data->valid = 1;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
+static struct i2c_driver lm83_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "lm83",
+	},
+	.probe		= lm83_probe,
+	.id_table	= lm83_id,
+	.detect		= lm83_detect,
+	.address_list	= normal_i2c,
+};
 
 module_i2c_driver(lm83_driver);
 

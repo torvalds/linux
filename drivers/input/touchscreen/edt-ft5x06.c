@@ -271,7 +271,7 @@ static int edt_ft5x06_register_write(struct edt_ft5x06_ts_data *tsdata,
 		wrbuf[0] = addr;
 		wrbuf[1] = value;
 
-		return edt_ft5x06_ts_readwrite(tsdata->client, 3,
+		return edt_ft5x06_ts_readwrite(tsdata->client, 2,
 					wrbuf, 0, NULL);
 
 	default:

@@ -2003,6 +2003,32 @@ want, depending on your needs.
   360.774530 |   1)   0.594 us    |                                          __phys_addr();
 
 
+The function name is always displayed after the closing bracket
+for a function if the start of that function is not in the
+trace buffer.
+
+Display of the function name after the closing bracket may be
+enabled for functions whose start is in the trace buffer,
+allowing easier searching with grep for function durations.
+It is default disabled.
+
+	hide: echo nofuncgraph-tail > trace_options
+	show: echo funcgraph-tail > trace_options
+
+  Example with nofuncgraph-tail (default):
+  0)               |      putname() {
+  0)               |        kmem_cache_free() {
+  0)   0.518 us    |          __phys_addr();
+  0)   1.757 us    |        }
+  0)   2.861 us    |      }
+
+  Example with funcgraph-tail:
+  0)               |      putname() {
+  0)               |        kmem_cache_free() {
+  0)   0.518 us    |          __phys_addr();
+  0)   1.757 us    |        } /* kmem_cache_free() */
+  0)   2.861 us    |      } /* putname() */
+
 You can put some comments on specific functions by using
 trace_printk() For example, if you want to put a comment inside
 the __might_sleep() function, you just have to include

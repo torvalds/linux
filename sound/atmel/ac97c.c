@@ -1198,6 +1198,7 @@ static int atmel_ac97c_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver atmel_ac97c_driver = {
+	.probe		= atmel_ac97c_probe,
 	.remove		= atmel_ac97c_remove,
 	.driver		= {
 		.name	= "atmel_ac97c",
@@ -1205,19 +1206,7 @@ static struct platform_driver atmel_ac97c_driver = {
 		.pm	= ATMEL_AC97C_PM_OPS,
 	},
 };
-
-static int __init atmel_ac97c_init(void)
-{
-	return platform_driver_probe(&atmel_ac97c_driver,
-			atmel_ac97c_probe);
-}
-module_init(atmel_ac97c_init);
-
-static void __exit atmel_ac97c_exit(void)
-{
-	platform_driver_unregister(&atmel_ac97c_driver);
-}
-module_exit(atmel_ac97c_exit);
+module_platform_driver(atmel_ac97c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Atmel AC97 controller");

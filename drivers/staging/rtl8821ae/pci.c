@@ -33,9 +33,7 @@
 #include "base.h"
 #include "ps.h"
 #include "efuse.h"
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 #include <linux/export.h>
-#endif
 
 static const u16 pcibridge_vendors[PCI_BRIDGE_VENDOR_MAX] = {
 	INTEL_VENDOR_ID,
@@ -364,47 +362,6 @@ static bool rtl_pci_get_amd_l1_patch(struct ieee80211_hw *hw)
 	return status;
 }
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35))
-static u8 _rtl_pci_get_pciehdr_offset(struct ieee80211_hw *hw)
-{
-	u8 capability_offset;
-	u8 num4bytes = 0x34/4;
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
-	u32 pcicfg_addr_port = (pcipriv->ndis_adapter.pcibridge_busnum << 16)|
-			       (pcipriv->ndis_adapter.pcibridge_devnum << 11)|
-			       (pcipriv->ndis_adapter.pcibridge_funcnum << 8)|
-			       (1 << 31);
-
-	rtl_pci_raw_write_port_ulong(PCI_CONF_ADDRESS , pcicfg_addr_port
-							+ (num4bytes << 2));
-	rtl_pci_raw_read_port_uchar(PCI_CONF_DATA, &capability_offset);
-	while (capability_offset != 0) {
-		struct rtl_pci_capabilities_header capability_hdr;
-
-		num4bytes = capability_offset / 4;
-		/* Read the header of the capability at  this offset.
-		 * If the retrieved capability is not the power management
-		 * capability that we are looking for, follow the link to
-		 * the next capability and continue looping.
-		 */
-		rtl_pci_raw_write_port_ulong(PCI_CONF_ADDRESS ,
-					     pcicfg_addr_port +
-					     (num4bytes << 2));
-		rtl_pci_raw_read_port_ushort(PCI_CONF_DATA,
-					     (u16*)&capability_hdr);
-		/* Found the PCI express capability. */
-		if (capability_hdr.capability_id ==
-		    PCI_CAPABILITY_ID_PCI_EXPRESS)
-			break;
-		else
-        		capability_offset = capability_hdr.next;
-	}
-	return capability_offset;
-}
-#endif
-/*<delete in kernel end>*/
-
 bool rtl_pci_check_buddy_priv(struct ieee80211_hw *hw,
         		      struct rtl_priv **buddy_priv)
 {
@@ -610,14 +567,7 @@ static void _rtl_pci_tx_chk_waitq(struct ieee80211_hw *hw)
 				_rtl_pci_update_earlymode_info(hw, skb,
 							       &tcb_desc, tid);
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-			rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
-#else
-/*<delete in kernel end>*/
 			rtlpriv->intf_ops->adapter_tx(hw, NULL, skb, &tcb_desc);
-#endif
-/*<delete in kernel end>*/
 		}
 	}
 }
@@ -1201,19 +1151,9 @@ static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 	if (rtlpriv->use_new_trx_flow)
 		pbuffer_desc = &ring->buffer_desc[0];
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *) pdesc,
-				        (u8 *)pbuffer_desc, info, pskb,
-				        BEACON_QUEUE, &tcb_desc);
-#else
-/*<delete in kernel end>*/
 	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *) pdesc,
 					(u8 *)pbuffer_desc, info, NULL, pskb,
 					BEACON_QUEUE, &tcb_desc);
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 
 	__skb_queue_tail(&ring->queue, pskb);
 
@@ -1616,26 +1556,11 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 	return 0;
 }
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-static bool rtl_pci_tx_chk_waitq_insert(struct ieee80211_hw *hw,
-					struct sk_buff *skb)
-#else
-/*<delete in kernel end>*/
 static bool rtl_pci_tx_chk_waitq_insert(struct ieee80211_hw *hw,
 					struct ieee80211_sta *sta,
 					struct sk_buff *skb)
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_sta *sta = info->control.sta;
-#endif
-/*<delete in kernel end>*/
 	struct rtl_sta_info *sta_entry = NULL;
 	u8 tid = rtl_get_tid(skb);
 	u16 fc = rtl_get_fc(skb);
@@ -1671,28 +1596,14 @@ static bool rtl_pci_tx_chk_waitq_insert(struct ieee80211_hw *hw,
 	return true;
 }
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-int rtl_pci_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
-	       struct rtl_tcb_desc *ptcb_desc)
-#else
-/*<delete in kernel end>*/
 static int rtl_pci_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_sta *sta,
 		      struct sk_buff *skb,
 		      struct rtl_tcb_desc *ptcb_desc)
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_sta_info *sta_entry = NULL;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-	struct ieee80211_sta *sta = info->control.sta;
-#endif
-/*<delete in kernel end>*/
 	struct rtl8192_tx_ring *ring;
 	struct rtl_tx_desc *pdesc;
 	struct rtl_tx_buffer_desc *ptx_bd_desc = NULL;
@@ -1777,19 +1688,9 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 	if (ieee80211_is_data(fc))
 		rtlpriv->cfg->ops->led_control(hw, LED_CTL_TX);
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *) pdesc,
-					(u8 *)ptx_bd_desc, info, skb,
-					hw_queue, ptcb_desc);
-#else
-/*<delete in kernel end>*/
 	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *) pdesc,
 					(u8 *)ptx_bd_desc, info, sta, skb,
 					hw_queue, ptcb_desc);
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 
 	__skb_queue_tail(&ring->queue, skb);
 	if (rtlpriv->use_new_trx_flow) {
@@ -1819,11 +1720,7 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 
 	return 0;
 }
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 static void rtl_pci_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
-#else
-static void rtl_pci_flush(struct ieee80211_hw *hw, bool drop)
-#endif
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
@@ -1838,12 +1735,10 @@ static void rtl_pci_flush(struct ieee80211_hw *hw, bool drop)
 
 	for (queue_id = RTL_PCI_MAX_TX_QUEUE_COUNT - 1; queue_id >= 0;) {
 		u32 queue_len;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 		if (((queues >> queue_id) & 0x1) == 0) {
 			queue_id--;
 			continue;
 		}
-#endif
 		ring = &pcipriv->dev.tx_ring[queue_id];
 		queue_len = skb_queue_len(&ring->queue);
 		if (queue_len == 0 || queue_id == BEACON_QUEUE ||
@@ -2122,17 +2017,8 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 		    (pcipriv->ndis_adapter.pcibridge_busnum << 16) |
 		    (pcipriv->ndis_adapter.pcibridge_devnum << 11) |
 		    (pcipriv->ndis_adapter.pcibridge_funcnum << 8) | (1 << 31);
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35))
-/*<delete in kernel end>*/
 		pcipriv->ndis_adapter.pcibridge_pciehdr_offset =
 		    pci_pcie_cap(bridge_pdev);
-/*<delete in kernel start>*/
-#else
-		pcipriv->ndis_adapter.pcibridge_pciehdr_offset =
-			_rtl_pci_get_pciehdr_offset(hw);
-#endif
-/*<delete in kernel end>*/
 		pcipriv->ndis_adapter.num4bytes =
 		    (pcipriv->ndis_adapter.pcibridge_pciehdr_offset + 0x10) / 4;
 
@@ -2230,14 +2116,8 @@ static int rtl_pci_intr_mode_decide(struct ieee80211_hw *hw)
  * hw pointer in rtl_pci_get_hw_pointer */
 struct ieee80211_hw *hw_export = NULL;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
 int rtl_pci_probe(struct pci_dev *pdev,
                   const struct pci_device_id *id)
-
-#else
-int __devinit rtl_pci_probe(struct pci_dev *pdev,
-			    const struct pci_device_id *id)
-#endif
 {
 	struct ieee80211_hw *hw = NULL;
 
@@ -2313,16 +2193,16 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 
 	/*shared mem start */
 	rtlpriv->io.pci_mem_start =
-			(unsigned long)pci_iomap(pdev,
+			pci_iomap(pdev,
 			rtlpriv->cfg->bar_id, pmem_len);
-	if (rtlpriv->io.pci_mem_start == 0) {
+	if (rtlpriv->io.pci_mem_start == NULL) {
 		RT_ASSERT(false, ("Can't map PCI mem\n"));
 		goto fail2;
 	}
 
 	RT_TRACE(COMP_INIT, DBG_DMESG,
 		 ("mem mapped space: start: 0x%08lx len:%08lx "
-		  "flags:%08lx, after map:0x%08lx\n",
+		  "flags:%08lx, after map:0x%p\n",
 		  pmem_start, pmem_len, pmem_flags,
 		  rtlpriv->io.pci_mem_start));
 
@@ -2415,8 +2295,8 @@ fail3:
 	rtl_deinit_core(hw);
 	ieee80211_free_hw(hw);
 
-	if (rtlpriv->io.pci_mem_start != 0)
-		pci_iounmap(pdev, (void *)rtlpriv->io.pci_mem_start);
+	if (rtlpriv->io.pci_mem_start != NULL)
+		pci_iounmap(pdev, rtlpriv->io.pci_mem_start);
 
 fail2:
 	pci_release_regions(pdev);
@@ -2478,8 +2358,8 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 		pci_disable_msi(rtlpci->pdev);
 
 	list_del(&rtlpriv->list);
-	if (rtlpriv->io.pci_mem_start != 0) {
-		pci_iounmap(pdev, (void *)rtlpriv->io.pci_mem_start);
+	if (rtlpriv->io.pci_mem_start != NULL) {
+		pci_iounmap(pdev, rtlpriv->io.pci_mem_start);
 		pci_release_regions(pdev);
 	}
 

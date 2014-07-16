@@ -428,6 +428,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	list_for_each_entry(udc, &udc_list, list)
 		if (udc->driver == driver) {
 			usb_gadget_remove_driver(udc);
+			usb_gadget_set_state(udc->gadget,
+					USB_STATE_NOTATTACHED);
 			ret = 0;
 			break;
 		}

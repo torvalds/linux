@@ -120,7 +120,7 @@ static int ll_xattr_cache_add(struct list_head *cache,
 		return -EPROTO;
 	}
 
-	OBD_SLAB_ALLOC_PTR_GFP(xattr, xattr_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(xattr, xattr_kmem, GFP_NOFS);
 	if (xattr == NULL) {
 		CDEBUG(D_CACHE, "failed to allocate xattr\n");
 		return -ENOMEM;
@@ -232,7 +232,7 @@ static int ll_xattr_cache_list(struct list_head *cache,
  * \retval 0 @cache is not initialized
  * \retval 1 @cache is initialized
  */
-int ll_xattr_cache_valid(struct ll_inode_info *lli)
+static int ll_xattr_cache_valid(struct ll_inode_info *lli)
 {
 	return !!(lli->lli_flags & LLIF_XATTR_CACHE);
 }

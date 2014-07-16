@@ -46,9 +46,6 @@ static const char hcd_name[] = "ohci-atmel";
 
 static struct hc_driver __read_mostly ohci_at91_hc_driver;
 static int clocked;
-static int (*orig_ohci_hub_control)(struct usb_hcd  *hcd, u16 typeReq,
-			u16 wValue, u16 wIndex, char *buf, u16 wLength);
-static int (*orig_ohci_hub_status_data)(struct usb_hcd *hcd, char *buf);
 
 extern int usb_disabled(void);
 
@@ -262,7 +259,7 @@ static int ohci_at91_usb_get_power(struct at91_usbh_data *pdata, int port)
 static int ohci_at91_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct at91_usbh_data *pdata = hcd->self.controller->platform_data;
-	int length = orig_ohci_hub_status_data(hcd, buf);
+	int length = ohci_hub_status_data(hcd, buf);
 	int port;
 
 	at91_for_each_port(port) {
@@ -340,8 +337,7 @@ static int ohci_at91_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		break;
 	}
 
-	ret = orig_ohci_hub_control(hcd, typeReq, wValue, wIndex + 1,
-				buf, wLength);
+	ret = ohci_hub_control(hcd, typeReq, wValue, wIndex + 1, buf, wLength);
 	if (ret)
 		goto out;
 
@@ -689,9 +685,6 @@ static int __init ohci_at91_init(void)
 	 * want to encourage others to override these functions by making it
 	 * too easy.
 	 */
-
-	orig_ohci_hub_control = ohci_at91_hc_driver.hub_control;
-	orig_ohci_hub_status_data = ohci_at91_hc_driver.hub_status_data;
 
 	ohci_at91_hc_driver.hub_status_data	= ohci_at91_hub_status_data;
 	ohci_at91_hc_driver.hub_control		= ohci_at91_hub_control;

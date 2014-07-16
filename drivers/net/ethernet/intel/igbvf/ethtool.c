@@ -101,8 +101,8 @@ static int igbvf_get_settings(struct net_device *netdev,
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ethtool_cmd_speed_set(ecmd, -1);
-		ecmd->duplex = -1;
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+		ecmd->duplex = DUPLEX_UNKNOWN;
 	}
 
 	ecmd->autoneg = AUTONEG_DISABLE;
@@ -119,7 +119,6 @@ static int igbvf_set_settings(struct net_device *netdev,
 static void igbvf_get_pauseparam(struct net_device *netdev,
                                  struct ethtool_pauseparam *pause)
 {
-	return;
 }
 
 static int igbvf_set_pauseparam(struct net_device *netdev,
@@ -476,5 +475,5 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 
 void igbvf_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &igbvf_ethtool_ops);
+	netdev->ethtool_ops = &igbvf_ethtool_ops;
 }

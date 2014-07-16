@@ -2413,7 +2413,7 @@ static void bdx_set_ethtool_ops(struct net_device *netdev)
 		.get_ethtool_stats = bdx_get_ethtool_stats,
 	};
 
-	SET_ETHTOOL_OPS(netdev, &bdx_ethtool_ops);
+	netdev->ethtool_ops = &bdx_ethtool_ops;
 }
 
 /**

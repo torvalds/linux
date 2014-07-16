@@ -185,7 +185,20 @@ struct extcon_specific_cable_nb {
  */
 extern int extcon_dev_register(struct extcon_dev *edev);
 extern void extcon_dev_unregister(struct extcon_dev *edev);
+extern int devm_extcon_dev_register(struct device *dev,
+				    struct extcon_dev *edev);
+extern void devm_extcon_dev_unregister(struct device *dev,
+				       struct extcon_dev *edev);
 extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
+
+/*
+ * Following APIs control the memory of extcon device.
+ */
+extern struct extcon_dev *extcon_dev_allocate(const char **cables);
+extern void extcon_dev_free(struct extcon_dev *edev);
+extern struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
+						   const char **cables);
+extern void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev);
 
 /*
  * get/set/update_state access the 32b encoded state value, which represents
@@ -253,6 +266,30 @@ static inline int extcon_dev_register(struct extcon_dev *edev)
 }
 
 static inline void extcon_dev_unregister(struct extcon_dev *edev) { }
+
+static inline int devm_extcon_dev_register(struct device *dev,
+					   struct extcon_dev *edev)
+{
+	return -EINVAL;
+}
+
+static inline void devm_extcon_dev_unregister(struct device *dev,
+					      struct extcon_dev *edev) { }
+
+static inline struct extcon_dev *extcon_dev_allocate(const char **cables)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline void extcon_dev_free(struct extcon_dev *edev) { }
+
+static inline struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
+							  const char **cables)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline void devm_extcon_dev_free(struct extcon_dev *edev) { }
 
 static inline u32 extcon_get_state(struct extcon_dev *edev)
 {

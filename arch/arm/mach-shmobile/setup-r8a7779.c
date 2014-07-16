@@ -219,64 +219,25 @@ R8A7779_SCIF(4, 0xffe44000, gic_iid(0x7c));
 R8A7779_SCIF(5, 0xffe45000, gic_iid(0x7d));
 
 /* TMU */
-static struct sh_timer_config tmu00_platform_data = {
-	.name = "TMU00",
-	.channel_offset = 0x4,
-	.timer_bit = 0,
-	.clockevent_rating = 200,
+static struct sh_timer_config tmu0_platform_data = {
+	.channels_mask = 7,
 };
 
-static struct resource tmu00_resources[] = {
-	[0] = {
-		.name	= "TMU00",
-		.start	= 0xffd80008,
-		.end	= 0xffd80013,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_iid(0x40),
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource tmu0_resources[] = {
+	DEFINE_RES_MEM(0xffd80000, 0x30),
+	DEFINE_RES_IRQ(gic_iid(0x40)),
+	DEFINE_RES_IRQ(gic_iid(0x41)),
+	DEFINE_RES_IRQ(gic_iid(0x42)),
 };
 
-static struct platform_device tmu00_device = {
-	.name		= "sh_tmu",
+static struct platform_device tmu0_device = {
+	.name		= "sh-tmu",
 	.id		= 0,
 	.dev = {
-		.platform_data	= &tmu00_platform_data,
+		.platform_data	= &tmu0_platform_data,
 	},
-	.resource	= tmu00_resources,
-	.num_resources	= ARRAY_SIZE(tmu00_resources),
-};
-
-static struct sh_timer_config tmu01_platform_data = {
-	.name = "TMU01",
-	.channel_offset = 0x10,
-	.timer_bit = 1,
-	.clocksource_rating = 200,
-};
-
-static struct resource tmu01_resources[] = {
-	[0] = {
-		.name	= "TMU01",
-		.start	= 0xffd80014,
-		.end	= 0xffd8001f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_iid(0x41),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu01_device = {
-	.name		= "sh_tmu",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &tmu01_platform_data,
-	},
-	.resource	= tmu01_resources,
-	.num_resources	= ARRAY_SIZE(tmu01_resources),
+	.resource	= tmu0_resources,
+	.num_resources	= ARRAY_SIZE(tmu0_resources),
 };
 
 /* I2C */
@@ -685,8 +646,7 @@ static struct platform_device *r8a7779_devices_dt[] __initdata = {
 	&scif3_device,
 	&scif4_device,
 	&scif5_device,
-	&tmu00_device,
-	&tmu01_device,
+	&tmu0_device,
 };
 
 static struct platform_device *r8a7779_standard_devices[] __initdata = {
@@ -700,8 +660,8 @@ static struct platform_device *r8a7779_standard_devices[] __initdata = {
 void __init r8a7779_add_standard_devices(void)
 {
 #ifdef CONFIG_CACHE_L2X0
-	/* Early BRESP enable, Shared attribute override enable, 64K*16way */
-	l2x0_init(IOMEM(0xf0100000), 0x40470000, 0x82000fff);
+	/* Shared attribute override enable, 64K*16way */
+	l2x0_init(IOMEM(0xf0100000), 0x00400000, 0xc20f0fff);
 #endif
 	r8a7779_pm_init();
 

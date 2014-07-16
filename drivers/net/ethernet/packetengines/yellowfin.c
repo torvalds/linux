@@ -472,7 +472,7 @@ static int yellowfin_init_one(struct pci_dev *pdev,
 
 	/* The Yellowfin-specific entries in the device structure. */
 	dev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	if (mtu)

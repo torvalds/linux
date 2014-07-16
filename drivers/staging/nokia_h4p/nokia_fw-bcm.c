@@ -73,7 +73,8 @@ void hci_h4p_bcm_parse_fw_event(struct hci_h4p_info *info, struct sk_buff *skb)
 		return;
 	}
 
-	if (fw_skb->data[1] == 0x01 && fw_skb->data[2] == 0xfc && fw_skb->len >= 10) {
+	if (fw_skb->data[1] == 0x01 && fw_skb->data[2] == 0xfc &&
+			fw_skb->len >= 10) {
 		BT_DBG("Setting bluetooth address");
 		err = hci_h4p_bcm_set_bdaddr(info, fw_skb);
 		if (err < 0) {

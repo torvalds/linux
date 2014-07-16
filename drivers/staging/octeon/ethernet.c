@@ -469,7 +469,7 @@ int cvm_oct_common_init(struct net_device *dev)
 
 	/* We do our own locking, Linux doesn't need to */
 	dev->features |= NETIF_F_LLTX;
-	SET_ETHTOOL_OPS(dev, &cvm_oct_ethtool_ops);
+	dev->ethtool_ops = &cvm_oct_ethtool_ops;
 
 	cvm_oct_phy_setup_device(dev);
 	cvm_oct_set_mac_filter(dev);

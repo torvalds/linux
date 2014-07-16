@@ -211,7 +211,7 @@ nv50_ram_prog(struct nouveau_fb *pfb)
 	struct nv50_ram *ram = (void *)pfb->ram;
 	struct nv50_ramseq *hwsq = &ram->hwsq;
 
-	ram_exec(hwsq, nouveau_boolopt(device->cfgopt, "NvMemExec", false));
+	ram_exec(hwsq, nouveau_boolopt(device->cfgopt, "NvMemExec", true));
 	return 0;
 }
 

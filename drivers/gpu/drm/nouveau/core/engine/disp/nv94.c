@@ -77,6 +77,7 @@ nv94_disp_base_omthds[] = {
 	{ SOR_MTHD(NV50_DISP_SOR_PWR)         , nv50_sor_mthd },
 	{ SOR_MTHD(NV84_DISP_SOR_HDMI_PWR)    , nv50_sor_mthd },
 	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
+	{ SOR_MTHD(NV94_DISP_SOR_DP_PWR)      , nv50_sor_mthd },
 	{ DAC_MTHD(NV50_DISP_DAC_PWR)         , nv50_dac_mthd },
 	{ DAC_MTHD(NV50_DISP_DAC_LOAD)        , nv50_dac_mthd },
 	{ PIOR_MTHD(NV50_DISP_PIOR_PWR)       , nv50_pior_mthd },
@@ -122,11 +123,16 @@ nv94_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hdmi = nv84_hdmi_ctrl;
-	priv->sor.dp = &nv94_sor_dp_func;
 	priv->pior.power = nv50_pior_power;
-	priv->pior.dp = &nv50_pior_dp_func;
 	return 0;
 }
+
+struct nouveau_oclass *
+nv94_disp_outp_sclass[] = {
+	&nv50_pior_dp_impl.base.base,
+	&nv94_sor_dp_impl.base.base,
+	NULL
+};
 
 struct nouveau_oclass *
 nv94_disp_oclass = &(struct nv50_disp_impl) {
@@ -137,6 +143,7 @@ nv94_disp_oclass = &(struct nv50_disp_impl) {
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
+	.base.outp =  nv94_disp_outp_sclass,
 	.mthd.core = &nv94_disp_mast_mthd_chan,
 	.mthd.base = &nv84_disp_sync_mthd_chan,
 	.mthd.ovly = &nv84_disp_ovly_mthd_chan,

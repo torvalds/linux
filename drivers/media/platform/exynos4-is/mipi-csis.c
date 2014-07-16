@@ -22,14 +22,13 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/phy/phy.h>
-#include <linux/platform_data/mipi-csis.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 #include <media/v4l2-of.h>
 #include <media/v4l2-subdev.h>
 
@@ -730,26 +729,6 @@ static irqreturn_t s5pcsis_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int s5pcsis_get_platform_data(struct platform_device *pdev,
-				     struct csis_state *state)
-{
-	struct s5p_platform_mipi_csis *pdata = pdev->dev.platform_data;
-
-	if (pdata == NULL) {
-		dev_err(&pdev->dev, "Platform data not specified\n");
-		return -EINVAL;
-	}
-
-	state->clk_frequency = pdata->clk_rate;
-	state->num_lanes = pdata->lanes;
-	state->hs_settle = pdata->hs_settle;
-	state->index = max(0, pdev->id);
-	state->max_num_lanes = state->index ? CSIS1_MAX_LANES :
-					      CSIS0_MAX_LANES;
-	return 0;
-}
-
-#ifdef CONFIG_OF
 static int s5pcsis_parse_dt(struct platform_device *pdev,
 			    struct csis_state *state)
 {
@@ -787,9 +766,6 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 
 	return 0;
 }
-#else
-#define s5pcsis_parse_dt(pdev, state) (-ENOSYS)
-#endif
 
 static int s5pcsis_pm_resume(struct device *dev, bool runtime);
 static const struct of_device_id s5pcsis_of_match[];
@@ -812,19 +788,14 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	spin_lock_init(&state->slock);
 	state->pdev = pdev;
 
-	if (dev->of_node) {
-		of_id = of_match_node(s5pcsis_of_match, dev->of_node);
-		if (WARN_ON(of_id == NULL))
-			return -EINVAL;
+	of_id = of_match_node(s5pcsis_of_match, dev->of_node);
+	if (WARN_ON(of_id == NULL))
+		return -EINVAL;
 
-		drv_data = of_id->data;
-		state->interrupt_mask = drv_data->interrupt_mask;
+	drv_data = of_id->data;
+	state->interrupt_mask = drv_data->interrupt_mask;
 
-		ret = s5pcsis_parse_dt(pdev, state);
-	} else {
-		ret = s5pcsis_get_platform_data(pdev, state);
-	}
-
+	ret = s5pcsis_parse_dt(pdev, state);
 	if (ret < 0)
 		return ret;
 

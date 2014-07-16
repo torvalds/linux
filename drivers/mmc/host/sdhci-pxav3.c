@@ -112,10 +112,12 @@ static int mv_conf_mbus_windows(struct platform_device *pdev,
 	return 0;
 }
 
-static void pxav3_set_private_registers(struct sdhci_host *host, u8 mask)
+static void pxav3_reset(struct sdhci_host *host, u8 mask)
 {
 	struct platform_device *pdev = to_platform_device(mmc_dev(host->mmc));
 	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
+
+	sdhci_reset(host, mask);
 
 	if (mask == SDHCI_RESET_ALL) {
 		/*
@@ -184,7 +186,7 @@ static void pxav3_gen_init_74_clocks(struct sdhci_host *host, u8 power_mode)
 	pxa->power_mode = power_mode;
 }
 
-static int pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
+static void pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 {
 	u16 ctrl_2;
 
@@ -218,15 +220,16 @@ static int pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 	dev_dbg(mmc_dev(host->mmc),
 		"%s uhs = %d, ctrl_2 = %04X\n",
 		__func__, uhs, ctrl_2);
-
-	return 0;
 }
 
 static const struct sdhci_ops pxav3_sdhci_ops = {
-	.platform_reset_exit = pxav3_set_private_registers,
+	.set_clock = sdhci_set_clock,
 	.set_uhs_signaling = pxav3_set_uhs_signaling,
 	.platform_send_init_74_clocks = pxav3_gen_init_74_clocks,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.set_bus_width = sdhci_set_bus_width,
+	.reset = pxav3_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 static struct sdhci_pltfm_data sdhci_pxav3_pdata = {

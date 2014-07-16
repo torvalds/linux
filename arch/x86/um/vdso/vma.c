@@ -12,7 +12,7 @@
 #include <asm/page.h>
 #include <linux/init.h>
 
-unsigned int __read_mostly vdso_enabled = 1;
+static unsigned int __read_mostly vdso_enabled = 1;
 unsigned long um_vdso_addr;
 
 extern unsigned long task_size;

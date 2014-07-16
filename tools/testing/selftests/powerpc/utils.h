@@ -31,6 +31,18 @@ do {								\
 	}							\
 } while (0)
 
+/* The test harness uses this, yes it's gross */
+#define MAGIC_SKIP_RETURN_VALUE	99
+
+#define SKIP_IF(x)						\
+do {								\
+	if ((x)) {						\
+		fprintf(stderr,					\
+		"[SKIP] Test skipped on line %d\n", __LINE__);	\
+		return MAGIC_SKIP_RETURN_VALUE;			\
+	}							\
+} while (0)
+
 #define _str(s) #s
 #define str(s) _str(s)
 

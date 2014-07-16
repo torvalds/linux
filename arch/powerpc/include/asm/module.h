@@ -35,6 +35,7 @@ struct mod_arch_specific {
 #ifdef __powerpc64__
 	unsigned int stubs_section;	/* Index of stubs section in module */
 	unsigned int toc_section;	/* What section is the TOC? */
+	bool toc_fixed;			/* Have we fixed up .TOC.? */
 #ifdef CONFIG_DYNAMIC_FTRACE
 	unsigned long toc;
 	unsigned long tramp;
@@ -77,6 +78,9 @@ struct mod_arch_specific {
 #    endif	/* MODULE */
 #endif
 
+bool is_module_trampoline(u32 *insns);
+int module_trampoline_target(struct module *mod, u32 *trampoline,
+			     unsigned long *target);
 
 struct exception_table_entry;
 void sort_ex_table(struct exception_table_entry *start,

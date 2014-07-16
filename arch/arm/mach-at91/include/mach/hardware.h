@@ -104,5 +104,20 @@
 /* Clocks */
 #define AT91_SLOW_CLOCK		32768		/* slow clock */
 
+/*
+ * FIXME: this is needed to communicate between the pinctrl driver and
+ * the PM implementation in the machine. Possibly part of the PM
+ * implementation should be moved down into the pinctrl driver and get
+ * called as part of the generic suspend/resume path.
+ */
+#ifndef __ASSEMBLY__
+#ifdef CONFIG_PINCTRL_AT91
+extern void at91_pinctrl_gpio_suspend(void);
+extern void at91_pinctrl_gpio_resume(void);
+#else
+static inline void at91_pinctrl_gpio_suspend(void) {}
+static inline void at91_pinctrl_gpio_resume(void) {}
+#endif
+#endif
 
 #endif

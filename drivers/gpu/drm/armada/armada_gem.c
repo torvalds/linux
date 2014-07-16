@@ -433,7 +433,6 @@ armada_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 
 	if (dobj->obj.filp) {
 		struct address_space *mapping;
-		gfp_t gfp;
 		int count;
 
 		count = dobj->obj.size / PAGE_SIZE;
@@ -441,12 +440,11 @@ armada_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 			goto free_sgt;
 
 		mapping = file_inode(dobj->obj.filp)->i_mapping;
-		gfp = mapping_gfp_mask(mapping);
 
 		for_each_sg(sgt->sgl, sg, count, i) {
 			struct page *page;
 
-			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
+			page = shmem_read_mapping_page(mapping, i);
 			if (IS_ERR(page)) {
 				num = i;
 				goto release;

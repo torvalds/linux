@@ -1009,7 +1009,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	dev->width = 720;
 	dev->height = (dev->norm & V4L2_STD_625_50) ? 576 : 480;
 
-	call_all(dev, core, s_std, dev->norm);
+	call_all(dev, video, s_std, dev->norm);
 
 	/* We need to reset basic properties in the decoder related to
 	   resolution (since a standard change effects things like the number
@@ -1108,7 +1108,7 @@ int cx231xx_s_input(struct file *file, void *priv, unsigned int i)
 		/* There's a tuner, so reset the standard and put it on the
 		   last known frequency (since it was probably powered down
 		   until now */
-		call_all(dev, core, s_std, dev->norm);
+		call_all(dev, video, s_std, dev->norm);
 	}
 
 	return 0;
@@ -2099,7 +2099,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	/* Set the initial input */
 	video_mux(dev, dev->video_input);
 
-	call_all(dev, core, s_std, dev->norm);
+	call_all(dev, video, s_std, dev->norm);
 
 	v4l2_ctrl_handler_init(&dev->ctrl_handler, 10);
 	v4l2_ctrl_handler_init(&dev->radio_ctrl_handler, 5);

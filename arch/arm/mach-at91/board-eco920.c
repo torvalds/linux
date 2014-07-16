@@ -31,6 +31,8 @@
 #include "at91_aic.h"
 #include "board.h"
 #include "generic.h"
+#include "gpio.h"
+
 
 static void __init eco920_init_early(void)
 {

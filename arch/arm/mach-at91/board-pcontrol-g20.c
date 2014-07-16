@@ -37,6 +37,7 @@
 #include "sam9_smc.h"
 #include "generic.h"
 #include "stamp9g20.h"
+#include "gpio.h"
 
 
 static void __init pcontrol_g20_init_early(void)

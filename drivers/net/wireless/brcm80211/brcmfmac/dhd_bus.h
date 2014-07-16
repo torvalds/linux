@@ -63,7 +63,6 @@ struct brcmf_bus_dcmd {
  */
 struct brcmf_bus_ops {
 	int (*preinit)(struct device *dev);
-	int (*init)(struct device *dev);
 	void (*stop)(struct device *dev);
 	int (*txdata)(struct device *dev, struct sk_buff *skb);
 	int (*txctl)(struct device *dev, unsigned char *msg, uint len);
@@ -99,6 +98,7 @@ struct brcmf_bus {
 	unsigned long tx_realloc;
 	u32 chip;
 	u32 chiprev;
+	bool always_use_fws_queue;
 
 	struct brcmf_bus_ops *ops;
 };
@@ -111,11 +111,6 @@ static inline int brcmf_bus_preinit(struct brcmf_bus *bus)
 	if (!bus->ops->preinit)
 		return 0;
 	return bus->ops->preinit(bus->dev);
-}
-
-static inline int brcmf_bus_init(struct brcmf_bus *bus)
-{
-	return bus->ops->init(bus->dev);
 }
 
 static inline void brcmf_bus_stop(struct brcmf_bus *bus)

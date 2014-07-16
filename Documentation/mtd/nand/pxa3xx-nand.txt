@@ -48,7 +48,7 @@ configurable between two modes: 1) Hamming, 2) BCH.
 Note that the actual BCH mode: BCH-4 or BCH-8 will depend on the way
 the controller is configured to transfer the data.
 
-In the BCH mode the ECC code will be calculated for each transfered chunk
+In the BCH mode the ECC code will be calculated for each transferred chunk
 and expected to be located (when reading/programming) right after the spare
 bytes as the figure above shows.
 

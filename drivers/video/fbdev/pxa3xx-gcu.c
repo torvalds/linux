@@ -612,11 +612,9 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 
 	/* handle IO resources */
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->mmio_base = devm_request_and_ioremap(dev, r);
-	if (IS_ERR(priv->mmio_base)) {
-		dev_err(dev, "failed to map I/O memory\n");
+	priv->mmio_base = devm_ioremap_resource(dev, r);
+	if (IS_ERR(priv->mmio_base))
 		return PTR_ERR(priv->mmio_base);
-	}
 
 	/* enable the clock */
 	priv->clk = devm_clk_get(dev, NULL);

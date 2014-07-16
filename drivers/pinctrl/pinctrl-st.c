@@ -13,10 +13,6 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/irq.h>
-#include <linux/irqdesc.h>
-#include <linux/irqdomain.h>
-#include <linux/irqchip/chained_irq.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
@@ -242,13 +238,13 @@ struct st_pio_control {
 };
 
 struct st_pctl_data {
-	enum st_retime_style rt_style;
-	unsigned int	*input_delays;
-	int		ninput_delays;
-	unsigned int	*output_delays;
-	int		noutput_delays;
+	const enum st_retime_style	rt_style;
+	const unsigned int		*input_delays;
+	const int			ninput_delays;
+	const unsigned int		*output_delays;
+	const int			noutput_delays;
 	/* register offset information */
-	int alt, oe, pu, od, rt;
+	const int alt, oe, pu, od, rt;
 };
 
 struct st_pinconf {
@@ -321,7 +317,6 @@ struct st_gpio_bank {
 	struct pinctrl_gpio_range	range;
 	void __iomem			*base;
 	struct st_pio_control		pc;
-	struct	irq_domain		*domain;
 	unsigned long			irq_edge_conf;
 	spinlock_t                      lock;
 };
@@ -342,15 +337,15 @@ struct st_pinctrl {
 
 /* SOC specific data */
 /* STiH415 data */
-static unsigned int stih415_input_delays[] = {0, 500, 1000, 1500};
-static unsigned int stih415_output_delays[] = {0, 1000, 2000, 3000};
+static const unsigned int stih415_input_delays[] = {0, 500, 1000, 1500};
+static const unsigned int stih415_output_delays[] = {0, 1000, 2000, 3000};
 
 #define STIH415_PCTRL_COMMON_DATA				\
 	.rt_style	= st_retime_style_packed,		\
 	.input_delays	= stih415_input_delays,			\
-	.ninput_delays	= 4,					\
+	.ninput_delays	= ARRAY_SIZE(stih415_input_delays),	\
 	.output_delays = stih415_output_delays,			\
-	.noutput_delays = 4
+	.noutput_delays = ARRAY_SIZE(stih415_output_delays)
 
 static const struct st_pctl_data  stih415_sbc_data = {
 	STIH415_PCTRL_COMMON_DATA,
@@ -378,8 +373,8 @@ static const struct st_pctl_data  stih415_right_data = {
 };
 
 /* STiH416 data */
-static unsigned int stih416_delays[] = {0, 300, 500, 750, 1000, 1250, 1500,
-			1750, 2000, 2250, 2500, 2750, 3000, 3250 };
+static const unsigned int stih416_delays[] = {0, 300, 500, 750, 1000, 1250,
+			1500, 1750, 2000, 2250, 2500, 2750, 3000, 3250 };
 
 static const struct st_pctl_data  stih416_data = {
 	.rt_style	= st_retime_style_dedicated,
@@ -468,7 +463,7 @@ static void st_pctl_set_function(struct st_pio_control *pc,
 static unsigned long st_pinconf_delay_to_bit(unsigned int delay,
 	const struct st_pctl_data *data, unsigned long config)
 {
-	unsigned int *delay_times;
+	const unsigned int *delay_times;
 	int num_delay_times, i, closest_index = -1;
 	unsigned int closest_divergence = UINT_MAX;
 
@@ -501,7 +496,7 @@ static unsigned long st_pinconf_delay_to_bit(unsigned int delay,
 static unsigned long st_pinconf_bit_to_delay(unsigned int index,
 	const struct st_pctl_data *data, unsigned long output)
 {
-	unsigned int *delay_times;
+	const unsigned int *delay_times;
 	int num_delay_times;
 
 	if (output) {
@@ -1285,58 +1280,26 @@ static int st_pctl_parse_functions(struct device_node *np,
 	return 0;
 }
 
-static int st_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct st_gpio_bank *bank = gpio_chip_to_bank(chip);
-	int irq = -ENXIO;
-
-	if (offset < chip->ngpio)
-		irq = irq_find_mapping(bank->domain, offset);
-
-	dev_info(chip->dev, "%s: request IRQ for GPIO %d, return %d\n",
-				chip->label, offset + chip->base, irq);
-	return irq;
-}
-
 static void st_gpio_irq_mask(struct irq_data *d)
 {
-	struct st_gpio_bank *bank = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct st_gpio_bank *bank = gpio_chip_to_bank(gc);
 
 	writel(BIT(d->hwirq), bank->base + REG_PIO_CLR_PMASK);
 }
 
 static void st_gpio_irq_unmask(struct irq_data *d)
 {
-	struct st_gpio_bank *bank = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct st_gpio_bank *bank = gpio_chip_to_bank(gc);
 
 	writel(BIT(d->hwirq), bank->base + REG_PIO_SET_PMASK);
 }
 
-static unsigned int st_gpio_irq_startup(struct irq_data *d)
-{
-	struct st_gpio_bank *bank = irq_data_get_irq_chip_data(d);
-
-	if (gpio_lock_as_irq(&bank->gpio_chip, d->hwirq))
-		dev_err(bank->gpio_chip.dev,
-			"unable to lock HW IRQ %lu for IRQ\n",
-			d->hwirq);
-
-	st_gpio_irq_unmask(d);
-
-	return 0;
-}
-
-static void st_gpio_irq_shutdown(struct irq_data *d)
-{
-	struct st_gpio_bank *bank = irq_data_get_irq_chip_data(d);
-
-	st_gpio_irq_mask(d);
-	gpio_unlock_as_irq(&bank->gpio_chip, d->hwirq);
-}
-
 static int st_gpio_irq_set_type(struct irq_data *d, unsigned type)
 {
-	struct st_gpio_bank *bank = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct st_gpio_bank *bank = gpio_chip_to_bank(gc);
 	unsigned long flags;
 	int comp, pin = d->hwirq;
 	u32 val;
@@ -1440,7 +1403,7 @@ static void __gpio_irq_handler(struct st_gpio_bank *bank)
 					continue;
 			}
 
-			generic_handle_irq(irq_find_mapping(bank->domain, n));
+			generic_handle_irq(irq_find_mapping(bank->gpio_chip.irqdomain, n));
 		}
 	}
 }
@@ -1449,7 +1412,8 @@ static void st_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
 	/* interrupt dedicated per bank */
 	struct irq_chip *chip = irq_get_chip(irq);
-	struct st_gpio_bank *bank = irq_get_handler_data(irq);
+	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
+	struct st_gpio_bank *bank = gpio_chip_to_bank(gc);
 
 	chained_irq_enter(chip, desc);
 	__gpio_irq_handler(bank);
@@ -1483,7 +1447,6 @@ static struct gpio_chip st_gpio_template = {
 	.ngpio			= ST_GPIO_PINS_PER_BANK,
 	.of_gpio_n_cells	= 1,
 	.of_xlate		= st_gpio_xlate,
-	.to_irq			= st_gpio_to_irq,
 };
 
 static struct irq_chip st_gpio_irqchip = {
@@ -1491,26 +1454,6 @@ static struct irq_chip st_gpio_irqchip = {
 	.irq_mask	= st_gpio_irq_mask,
 	.irq_unmask	= st_gpio_irq_unmask,
 	.irq_set_type	= st_gpio_irq_set_type,
-	.irq_startup	= st_gpio_irq_startup,
-	.irq_shutdown	= st_gpio_irq_shutdown,
-};
-
-static int st_gpio_irq_domain_map(struct irq_domain *h,
-			unsigned int virq, irq_hw_number_t hw)
-{
-	struct st_gpio_bank *bank = h->host_data;
-
-	irq_set_chip(virq, &st_gpio_irqchip);
-	irq_set_handler(virq, handle_simple_irq);
-	set_irq_flags(virq, IRQF_VALID);
-	irq_set_chip_data(virq, bank);
-
-	return 0;
-}
-
-static struct irq_domain_ops st_gpio_irq_ops = {
-	.map	= st_gpio_irq_domain_map,
-	.xlate	= irq_domain_xlate_twocell,
 };
 
 static int st_gpiolib_register_bank(struct st_pinctrl *info,
@@ -1521,7 +1464,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	struct device *dev = info->dev;
 	int bank_num = of_alias_get_id(np, "gpio");
 	struct resource res, irq_res;
-	int gpio_irq = 0, err, i;
+	int gpio_irq = 0, err;
 
 	if (of_address_to_resource(np, 0, &res))
 		return -ENODEV;
@@ -1534,6 +1477,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	bank->gpio_chip.base = bank_num * ST_GPIO_PINS_PER_BANK;
 	bank->gpio_chip.ngpio = ST_GPIO_PINS_PER_BANK;
 	bank->gpio_chip.of_node = np;
+	bank->gpio_chip.dev = dev;
 	spin_lock_init(&bank->lock);
 
 	of_property_read_string(np, "st,bank-name", &range->name);
@@ -1571,26 +1515,18 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 
 	if (of_irq_to_resource(np, 0, &irq_res)) {
 		gpio_irq = irq_res.start;
-		irq_set_chained_handler(gpio_irq, st_gpio_irq_handler);
-		irq_set_handler_data(gpio_irq, bank);
+		gpiochip_set_chained_irqchip(&bank->gpio_chip, &st_gpio_irqchip,
+					     gpio_irq, st_gpio_irq_handler);
 	}
 
 	if (info->irqmux_base > 0 || gpio_irq > 0) {
-		/* Setup IRQ domain */
-		bank->domain  = irq_domain_add_linear(np,
-						ST_GPIO_PINS_PER_BANK,
-						&st_gpio_irq_ops, bank);
-		if (!bank->domain) {
-			dev_err(dev, "Failed to add irq domain for %s\n",
-				np->full_name);
-		} else  {
-			for (i = 0; i < ST_GPIO_PINS_PER_BANK; i++) {
-				if (irq_create_mapping(bank->domain, i) < 0)
-					dev_err(dev,
-						"Failed to map IRQ %i\n", i);
-			}
+		err = gpiochip_irqchip_add(&bank->gpio_chip, &st_gpio_irqchip,
+					   0, handle_simple_irq,
+					   IRQ_TYPE_LEVEL_LOW);
+		if (err) {
+			dev_info(dev, "could not add irqchip\n");
+			return err;
 		}
-
 	} else {
 		dev_info(dev, "No IRQ support for %s bank\n", np->full_name);
 	}

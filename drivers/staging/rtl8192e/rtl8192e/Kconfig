@@ -5,4 +5,5 @@ config RTL8192E
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select CRYPTO
+	select FW_LOADER
 	---help---

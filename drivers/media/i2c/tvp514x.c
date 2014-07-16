@@ -1010,10 +1010,10 @@ static const struct v4l2_subdev_core_ops tvp514x_core_ops = {
 	.s_ctrl = v4l2_subdev_s_ctrl,
 	.queryctrl = v4l2_subdev_queryctrl,
 	.querymenu = v4l2_subdev_querymenu,
-	.s_std = tvp514x_s_std,
 };
 
 static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
+	.s_std = tvp514x_s_std,
 	.s_routing = tvp514x_s_routing,
 	.querystd = tvp514x_querystd,
 	.enum_mbus_fmt = tvp514x_enum_mbus_fmt,

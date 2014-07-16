@@ -901,7 +901,7 @@ nv50_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		nv_engine(priv)->sclass = nvaf_graph_sclass;
 		break;
 
-	};
+	}
 
 	/* unfortunate hw bug workaround... */
 	if (nv_device(priv)->chipset != 0x50 &&
@@ -976,7 +976,6 @@ nv50_graph_init(struct nouveau_object *object)
 		break;
 	case 0xa0:
 	default:
-		nv_wr32(priv, 0x402cc0, 0x00000000);
 		if (nv_device(priv)->chipset == 0xa0 ||
 		    nv_device(priv)->chipset == 0xaa ||
 		    nv_device(priv)->chipset == 0xac) {
@@ -991,10 +990,10 @@ nv50_graph_init(struct nouveau_object *object)
 
 	/* zero out zcull regions */
 	for (i = 0; i < 8; i++) {
-		nv_wr32(priv, 0x402c20 + (i * 8), 0x00000000);
-		nv_wr32(priv, 0x402c24 + (i * 8), 0x00000000);
-		nv_wr32(priv, 0x402c28 + (i * 8), 0x00000000);
-		nv_wr32(priv, 0x402c2c + (i * 8), 0x00000000);
+		nv_wr32(priv, 0x402c20 + (i * 0x10), 0x00000000);
+		nv_wr32(priv, 0x402c24 + (i * 0x10), 0x00000000);
+		nv_wr32(priv, 0x402c28 + (i * 0x10), 0x00000000);
+		nv_wr32(priv, 0x402c2c + (i * 0x10), 0x00000000);
 	}
 	return 0;
 }

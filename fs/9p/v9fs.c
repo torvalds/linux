@@ -537,7 +537,7 @@ static struct attribute_group v9fs_attr_group = {
  *
  */
 
-static int v9fs_sysfs_init(void)
+static int __init v9fs_sysfs_init(void)
 {
 	v9fs_kobj = kobject_create_and_add("9p", fs_kobj);
 	if (!v9fs_kobj)

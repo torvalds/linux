@@ -597,34 +597,6 @@ static int adv7511_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	return 0;
 }
 
-static int adv7511_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
-{
-	struct adv7511_state *state = get_adv7511_state(sd);
-
-	if (edid->pad != 0)
-		return -EINVAL;
-	if ((edid->blocks == 0) || (edid->blocks > 256))
-		return -EINVAL;
-	if (!edid->edid)
-		return -EINVAL;
-	if (!state->edid.segments) {
-		v4l2_dbg(1, debug, sd, "EDID segment 0 not found\n");
-		return -ENODATA;
-	}
-	if (edid->start_block >= state->edid.segments * 2)
-		return -E2BIG;
-	if ((edid->blocks + edid->start_block) >= state->edid.segments * 2)
-		edid->blocks = state->edid.segments * 2 - edid->start_block;
-
-	memcpy(edid->edid, &state->edid.data[edid->start_block * 128],
-			128 * edid->blocks);
-	return 0;
-}
-
-static const struct v4l2_subdev_pad_ops adv7511_pad_ops = {
-	.get_edid = adv7511_get_edid,
-};
-
 static const struct v4l2_subdev_core_ops adv7511_core_ops = {
 	.log_status = adv7511_log_status,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -700,12 +672,18 @@ static int adv7511_g_dv_timings(struct v4l2_subdev *sd,
 static int adv7511_enum_dv_timings(struct v4l2_subdev *sd,
 				   struct v4l2_enum_dv_timings *timings)
 {
+	if (timings->pad != 0)
+		return -EINVAL;
+
 	return v4l2_enum_dv_timings_cap(timings, &adv7511_timings_cap, NULL, NULL);
 }
 
 static int adv7511_dv_timings_cap(struct v4l2_subdev *sd,
 				  struct v4l2_dv_timings_cap *cap)
 {
+	if (cap->pad != 0)
+		return -EINVAL;
+
 	*cap = adv7511_timings_cap;
 	return 0;
 }
@@ -714,8 +692,6 @@ static const struct v4l2_subdev_video_ops adv7511_video_ops = {
 	.s_stream = adv7511_s_stream,
 	.s_dv_timings = adv7511_s_dv_timings,
 	.g_dv_timings = adv7511_g_dv_timings,
-	.enum_dv_timings = adv7511_enum_dv_timings,
-	.dv_timings_cap = adv7511_dv_timings_cap,
 };
 
 /* ------------------------------ AUDIO OPS ------------------------------ */
@@ -795,6 +771,36 @@ static const struct v4l2_subdev_audio_ops adv7511_audio_ops = {
 	.s_clock_freq = adv7511_s_clock_freq,
 	.s_i2s_clock_freq = adv7511_s_i2s_clock_freq,
 	.s_routing = adv7511_s_routing,
+};
+
+/* ---------------------------- PAD OPS ------------------------------------- */
+
+static int adv7511_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
+{
+	struct adv7511_state *state = get_adv7511_state(sd);
+
+	if (edid->pad != 0)
+		return -EINVAL;
+	if ((edid->blocks == 0) || (edid->blocks > 256))
+		return -EINVAL;
+	if (!state->edid.segments) {
+		v4l2_dbg(1, debug, sd, "EDID segment 0 not found\n");
+		return -ENODATA;
+	}
+	if (edid->start_block >= state->edid.segments * 2)
+		return -E2BIG;
+	if ((edid->blocks + edid->start_block) >= state->edid.segments * 2)
+		edid->blocks = state->edid.segments * 2 - edid->start_block;
+
+	memcpy(edid->edid, &state->edid.data[edid->start_block * 128],
+			128 * edid->blocks);
+	return 0;
+}
+
+static const struct v4l2_subdev_pad_ops adv7511_pad_ops = {
+	.get_edid = adv7511_get_edid,
+	.enum_dv_timings = adv7511_enum_dv_timings,
+	.dv_timings_cap = adv7511_dv_timings_cap,
 };
 
 /* --------------------- SUBDEV OPS --------------------------------------- */

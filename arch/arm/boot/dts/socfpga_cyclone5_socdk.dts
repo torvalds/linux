@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/include/ "socfpga_cyclone5.dtsi"
+#include "socfpga_cyclone5.dtsi"
 
 / {
 	model = "Altera SOCFPGA Cyclone V SoC Development Kit";
@@ -51,4 +51,23 @@
 	txc-skew-ps = <2600>;
 	rxdv-skew-ps = <0>;
 	rxc-skew-ps = <2000>;
+};
+
+&i2c0 {
+	status = "okay";
+
+	eeprom@51 {
+		compatible = "atmel,24c32";
+		reg = <0x51>;
+		pagesize = <32>;
+	};
+
+	rtc@68 {
+		compatible = "dallas,ds1339";
+		reg = <0x68>;
+	};
+};
+
+&usb1 {
+	status = "okay";
 };

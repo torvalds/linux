@@ -1,20 +1,21 @@
 Power Management Service Unit(PMSU)
 -----------------------------------
-Available on Marvell SOCs: Armada 370 and Armada XP
+Available on Marvell SOCs: Armada 370, Armada 38x and Armada XP
 
 Required properties:
 
-- compatible: "marvell,armada-370-xp-pmsu"
+- compatible: should be one of:
+  - "marvell,armada-370-pmsu" for Armada 370 or Armada XP
+  - "marvell,armada-380-pmsu" for Armada 38x
+  - "marvell,armada-370-xp-pmsu" was used for Armada 370/XP but is now
+    deprecated and will be removed
 
-- reg: Should contain PMSU registers location and length. First pair
-  for the per-CPU SW Reset Control registers, second pair for the
-  Power Management Service Unit.
+- reg: Should contain PMSU registers location and length.
 
 Example:
 
-armada-370-xp-pmsu@d0022000 {
-	compatible = "marvell,armada-370-xp-pmsu";
-	reg = <0xd0022100 0x430>,
-	      <0xd0020800 0x20>;
+armada-370-xp-pmsu@22000 {
+	compatible = "marvell,armada-370-pmsu";
+	reg = <0x22000 0x1000>;
 };
 

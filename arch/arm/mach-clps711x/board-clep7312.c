@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/memblock.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -26,11 +27,9 @@
 #include "common.h"
 
 static void __init
-fixup_clep7312(struct tag *tags, char **cmdline, struct meminfo *mi)
+fixup_clep7312(struct tag *tags, char **cmdline)
 {
-	mi->nr_banks=1;
-	mi->bank[0].start = 0xc0000000;
-	mi->bank[0].size = 0x01000000;
+	memblock_add(0xc0000000, 0x01000000);
 }
 
 MACHINE_START(CLEP7212, "Cirrus Logic 7212/7312")

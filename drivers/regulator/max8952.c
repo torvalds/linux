@@ -129,7 +129,7 @@ static const struct regulator_desc regulator = {
 };
 
 #ifdef CONFIG_OF
-static struct of_device_id max8952_dt_match[] = {
+static const struct of_device_id max8952_dt_match[] = {
 	{ .compatible = "maxim,max8952" },
 	{},
 };

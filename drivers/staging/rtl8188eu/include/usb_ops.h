@@ -63,7 +63,6 @@ enum{
 #include <usb_ops_linux.h>
 
 void rtl8188eu_set_hw_type(struct adapter *padapter);
-#define hal_set_hw_type rtl8188eu_set_hw_type
 void rtl8188eu_set_intf_ops(struct _io_ops *pops);
 #define usb_set_intf_ops rtl8188eu_set_intf_ops
 

@@ -62,6 +62,14 @@
 #define set_mb(var, value)  do { (var) = (value); mb(); } while (0)
 #endif
 
+#ifndef smp_mb__before_atomic
+#define smp_mb__before_atomic()	smp_mb()
+#endif
+
+#ifndef smp_mb__after_atomic
+#define smp_mb__after_atomic()	smp_mb()
+#endif
+
 #define smp_store_release(p, v)						\
 do {									\
 	compiletime_assert_atomic_type(*p);				\

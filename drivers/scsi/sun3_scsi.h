@@ -29,12 +29,8 @@
  * 1+ (800) 334-5454
  */
 
-/*
- * $Log: cumana_NCR5380.h,v $
- */
-
-#ifndef SUN3_NCR5380_H
-#define SUN3_NCR5380_H
+#ifndef SUN3_SCSI_H
+#define SUN3_SCSI_H
 
 #define SUN3SCSI_PUBLIC_RELEASE 1
 
@@ -82,8 +78,6 @@ static int sun3scsi_release (struct Scsi_Host *);
 #define SUN3_SCSI_NAME "Sun3 NCR5380 SCSI"
 #endif
 
-#ifndef HOSTS_C
-
 #define NCR5380_implementation_fields \
     int port, ctrl
 
@@ -107,9 +101,6 @@ static int sun3scsi_release (struct Scsi_Host *);
 #define NCR5380_dma_write_setup(instance, data, count) sun3scsi_dma_setup(data, count, 1)
 #define NCR5380_dma_read_setup(instance, data, count) sun3scsi_dma_setup(data, count, 0)
 #define NCR5380_dma_residual sun3scsi_dma_residual
-
-#define BOARD_NORMAL	0
-#define BOARD_NCR53C400	1
 
 /* additional registers - mainly DMA control regs */
 /* these start at regbase + 8 -- directly after the NCR regs */
@@ -191,189 +182,5 @@ struct sun3_udc_regs {
 
 #define VME_DATA24 0x3d00
 
-// debugging printk's, taken from atari_scsi.h 
-/* Debugging printk definitions:
- *
- *  ARB  -> arbitration
- *  ASEN -> auto-sense
- *  DMA  -> DMA
- *  HSH  -> PIO handshake
- *  INF  -> information transfer
- *  INI  -> initialization
- *  INT  -> interrupt
- *  LNK  -> linked commands
- *  MAIN -> NCR5380_main() control flow
- *  NDAT -> no data-out phase
- *  NWR  -> no write commands
- *  PIO  -> PIO transfers
- *  PDMA -> pseudo DMA (unused on Atari)
- *  QU   -> queues
- *  RSL  -> reselections
- *  SEL  -> selections
- *  USL  -> usleep cpde (unused on Atari)
- *  LBS  -> last byte sent (unused on Atari)
- *  RSS  -> restarting of selections
- *  EXT  -> extended messages
- *  ABRT -> aborting and resetting
- *  TAG  -> queue tag handling
- *  MER  -> merging of consec. buffers
- *
- */
-
-#include "NCR5380.h"
-
-#if NDEBUG & NDEBUG_ARBITRATION
-#define ARB_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define ARB_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_AUTOSENSE
-#define ASEN_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define ASEN_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_DMA
-#define DMA_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define DMA_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_HANDSHAKE
-#define HSH_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define HSH_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_INFORMATION
-#define INF_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define INF_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_INIT
-#define INI_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define INI_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_INTR
-#define INT_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define INT_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_LINKED
-#define LNK_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define LNK_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_MAIN
-#define MAIN_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define MAIN_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_NO_DATAOUT
-#define NDAT_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define NDAT_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_NO_WRITE
-#define NWR_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define NWR_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_PIO
-#define PIO_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define PIO_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_PSEUDO_DMA
-#define PDMA_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define PDMA_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_QUEUES
-#define QU_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define QU_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_RESELECTION
-#define RSL_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define RSL_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_SELECTION
-#define SEL_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define SEL_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_USLEEP
-#define USL_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define USL_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_LAST_BYTE_SENT
-#define LBS_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define LBS_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_RESTART_SELECT
-#define RSS_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define RSS_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_EXTENDED
-#define EXT_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define EXT_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_ABORT
-#define ABRT_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define ABRT_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_TAGS
-#define TAG_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define TAG_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_MERGING
-#define MER_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define MER_PRINTK(format, args...)
-#endif
-
-/* conditional macros for NCR5380_print_{,phase,status} */
-
-#define NCR_PRINT(mask)	\
-	((NDEBUG & (mask)) ? NCR5380_print(instance) : (void)0)
-
-#define NCR_PRINT_PHASE(mask) \
-	((NDEBUG & (mask)) ? NCR5380_print_phase(instance) : (void)0)
-
-#define NCR_PRINT_STATUS(mask) \
-	((NDEBUG & (mask)) ? NCR5380_print_status(instance) : (void)0)
-
-
-
-#endif /* ndef HOSTS_C */
-#endif /* SUN3_NCR5380_H */
+#endif /* SUN3_SCSI_H */
 

@@ -52,6 +52,22 @@ struct gpio_desc *__must_check devm_gpiod_get(struct device *dev,
 EXPORT_SYMBOL(devm_gpiod_get);
 
 /**
+ * devm_gpiod_get_optional - Resource-managed gpiod_get_optional()
+ * @dev: GPIO consumer
+ * @con_id: function within the GPIO consumer
+ *
+ * Managed gpiod_get_optional(). GPIO descriptors returned from this function
+ * are automatically disposed on driver detach. See gpiod_get_optional() for
+ * detailed information about behavior and return values.
+ */
+struct gpio_desc *__must_check devm_gpiod_get_optional(struct device *dev,
+						       const char *con_id)
+{
+	return devm_gpiod_get_index_optional(dev, con_id, 0);
+}
+EXPORT_SYMBOL(devm_gpiod_get_optional);
+
+/**
  * devm_gpiod_get_index - Resource-managed gpiod_get_index()
  * @dev:	GPIO consumer
  * @con_id:	function within the GPIO consumer
@@ -85,6 +101,33 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 	return desc;
 }
 EXPORT_SYMBOL(devm_gpiod_get_index);
+
+/**
+ * devm_gpiod_get_index_optional - Resource-managed gpiod_get_index_optional()
+ * @dev: GPIO consumer
+ * @con_id: function within the GPIO consumer
+ * @index: index of the GPIO to obtain in the consumer
+ *
+ * Managed gpiod_get_index_optional(). GPIO descriptors returned from this
+ * function are automatically disposed on driver detach. See
+ * gpiod_get_index_optional() for detailed information about behavior and
+ * return values.
+ */
+struct gpio_desc *__must_check devm_gpiod_get_index_optional(struct device *dev,
+							     const char *con_id,
+							     unsigned int index)
+{
+	struct gpio_desc *desc;
+
+	desc = devm_gpiod_get_index(dev, con_id, index);
+	if (IS_ERR(desc)) {
+		if (PTR_ERR(desc) == -ENOENT)
+			return NULL;
+	}
+
+	return desc;
+}
+EXPORT_SYMBOL(devm_gpiod_get_index_optional);
 
 /**
  * devm_gpiod_put - Resource-managed gpiod_put()

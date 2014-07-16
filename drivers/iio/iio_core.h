@@ -35,7 +35,7 @@ int __iio_add_chan_devattr(const char *postfix,
 			   struct list_head *attr_list);
 void iio_free_chan_devattr_list(struct list_head *attr_list);
 
-ssize_t iio_format_value(char *buf, unsigned int type, int val, int val2);
+ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals);
 
 /* Event interface flags */
 #define IIO_BUSY_BIT_POS 1

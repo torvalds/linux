@@ -187,14 +187,8 @@ extern void put_page_bootmem(struct page *page);
 extern void get_page_bootmem(unsigned long ingo, struct page *page,
 			     unsigned long type);
 
-/*
- * Lock for memory hotplug guarantees 1) all callbacks for memory hotplug
- * notifier will be called under this. 2) offline/online/add/remove memory
- * will not run simultaneously.
- */
-
-void lock_memory_hotplug(void);
-void unlock_memory_hotplug(void);
+void get_online_mems(void);
+void put_online_mems(void);
 
 #else /* ! CONFIG_MEMORY_HOTPLUG */
 /*
@@ -232,8 +226,8 @@ static inline int try_online_node(int nid)
 	return 0;
 }
 
-static inline void lock_memory_hotplug(void) {}
-static inline void unlock_memory_hotplug(void) {}
+static inline void get_online_mems(void) {}
+static inline void put_online_mems(void) {}
 
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
 

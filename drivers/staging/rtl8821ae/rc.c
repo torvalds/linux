@@ -210,16 +210,8 @@ static void rtl_tx_status(void *ppriv,
 						       tid)) {
 					sta_entry->tids[tid].agg.agg_state =
 						RTL_AGG_PROGRESS;
-					/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
-					/*<delete in kernel end>*/
 					ieee80211_start_tx_ba_session(sta, tid,
 								      5000);
-					/*<delete in kernel start>*/
-#else
-					ieee80211_start_tx_ba_session(sta, tid);
-#endif
-					/*<delete in kernel end>*/
 				}
 			}
 		}
@@ -232,15 +224,6 @@ static void rtl_rate_init(void *ppriv,
 			  struct ieee80211_sta *sta, void *priv_sta)
 {
 }
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0))
-static void rtl_rate_update(void *ppriv,
-			    struct ieee80211_supported_band *sband,
-			    struct ieee80211_sta *sta, void *priv_sta,
-			    u32 changed,
-			    enum nl80211_channel_type oper_chan_type)
-{
-}
-#else
 static void rtl_rate_update(void *ppriv,
 			    struct ieee80211_supported_band *sband,
 			    struct cfg80211_chan_def *chandef,
@@ -248,7 +231,6 @@ static void rtl_rate_update(void *ppriv,
 			    u32 changed)
 {
 }
-#endif
 static void *rtl_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -286,7 +268,7 @@ static void rtl_rate_free_sta(void *rtlpriv,
 }
 
 static struct rate_control_ops rtl_rate_ops = {
-	.name = "rtl_rc",
+	.name = "rtl_rc_21ae",
 	.alloc = rtl_rate_alloc,
 	.free = rtl_rate_free,
 	.alloc_sta = rtl_rate_alloc_sta,

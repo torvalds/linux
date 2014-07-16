@@ -62,6 +62,7 @@ enum {
 	BOND_OPT_RESEND_IGMP,
 	BOND_OPT_LP_INTERVAL,
 	BOND_OPT_SLAVES,
+	BOND_OPT_TLB_DYNAMIC_LB,
 	BOND_OPT_LAST
 };
 
@@ -104,6 +105,7 @@ int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf);
 const struct bond_opt_value *bond_opt_parse(const struct bond_option *opt,
 					    struct bond_opt_value *val);
 const struct bond_option *bond_opt_get(unsigned int option);
+const struct bond_option *bond_opt_get_by_name(const char *name);
 const struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val);
 
 /* This helper is used to initialize a bond_opt_value structure for parameter

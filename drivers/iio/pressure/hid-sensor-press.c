@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -36,6 +37,10 @@ struct press_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info press_attr;
 	u32 press_data;
+	int scale_pre_decml;
+	int scale_post_decml;
+	int scale_precision;
+	int value_offset;
 };
 
 /* Channel definitions */
@@ -73,8 +78,8 @@ static int press_read_raw(struct iio_dev *indio_dev,
 	struct press_state *press_state = iio_priv(indio_dev);
 	int report_id = -1;
 	u32 address;
-	int ret;
 	int ret_type;
+	s32 poll_value;
 
 	*val = 0;
 	*val2 = 0;
@@ -90,35 +95,44 @@ static int press_read_raw(struct iio_dev *indio_dev,
 			report_id = -1;
 			break;
 		}
-		if (report_id >= 0)
+		if (report_id >= 0) {
+			poll_value = hid_sensor_read_poll_value(
+					&press_state->common_attributes);
+			if (poll_value < 0)
+				return -EINVAL;
+			hid_sensor_power_state(&press_state->common_attributes,
+						true);
+
+			msleep_interruptible(poll_value * 2);
+
 			*val = sensor_hub_input_attr_get_raw_value(
 				press_state->common_attributes.hsdev,
 				HID_USAGE_SENSOR_PRESSURE, address,
 				report_id);
-		else {
+			hid_sensor_power_state(&press_state->common_attributes,
+						false);
+		} else {
 			*val = 0;
 			return -EINVAL;
 		}
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = press_state->press_attr.units;
-		ret_type = IIO_VAL_INT;
+		*val = press_state->scale_pre_decml;
+		*val2 = press_state->scale_post_decml;
+		ret_type = press_state->scale_precision;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = hid_sensor_convert_exponent(
-				press_state->press_attr.unit_expo);
+		*val = press_state->value_offset;
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		ret = hid_sensor_read_samp_freq_value(
+		ret_type = hid_sensor_read_samp_freq_value(
 				&press_state->common_attributes, val, val2);
-		ret_type = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	case IIO_CHAN_INFO_HYSTERESIS:
-		ret = hid_sensor_read_raw_hyst_value(
+		ret_type = hid_sensor_read_raw_hyst_value(
 				&press_state->common_attributes, val, val2);
-		ret_type = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	default:
 		ret_type = -EINVAL;
@@ -176,9 +190,8 @@ static int press_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct press_state *press_state = iio_priv(indio_dev);
 
-	dev_dbg(&indio_dev->dev, "press_proc_event [%d]\n",
-				press_state->common_attributes.data_ready);
-	if (press_state->common_attributes.data_ready)
+	dev_dbg(&indio_dev->dev, "press_proc_event\n");
+	if (atomic_read(&press_state->common_attributes.data_ready))
 		hid_sensor_push_data(indio_dev,
 				&press_state->press_data,
 				sizeof(press_state->press_data));
@@ -228,6 +241,11 @@ static int press_parse_report(struct platform_device *pdev,
 
 	dev_dbg(&pdev->dev, "press %x:%x\n", st->press_attr.index,
 			st->press_attr.report_id);
+
+	st->scale_precision = hid_sensor_format_scale(
+				HID_USAGE_SENSOR_PRESSURE,
+				&st->press_attr,
+				&st->scale_pre_decml, &st->scale_post_decml);
 
 	/* Set Sensitivity field ids, when there is no individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
@@ -298,7 +316,7 @@ static int hid_press_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to initialize trigger buffer\n");
 		goto error_free_dev_mem;
 	}
-	press_state->common_attributes.data_ready = false;
+	atomic_set(&press_state->common_attributes.data_ready, 0);
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 				&press_state->common_attributes);
 	if (ret) {

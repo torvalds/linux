@@ -212,7 +212,7 @@ extern void copy_to_user_page(struct vm_area_struct *, struct page *,
 static inline void __flush_icache_all(void)
 {
 	__flush_icache_preferred();
-	dsb();
+	dsb(ishst);
 }
 
 /*
@@ -487,4 +487,6 @@ int set_memory_rw(unsigned long addr, int numpages);
 int set_memory_x(unsigned long addr, int numpages);
 int set_memory_nx(unsigned long addr, int numpages);
 
+void flush_uprobe_xol_access(struct page *page, unsigned long uaddr,
+			     void *kaddr, unsigned long len);
 #endif

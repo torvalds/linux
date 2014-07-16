@@ -28,7 +28,8 @@
 			   NFC_PROTO_MIFARE_MASK   | \
 			   NFC_PROTO_FELICA_MASK   | \
 			   NFC_PROTO_NFC_DEP_MASK  | \
-			   NFC_PROTO_ISO14443_MASK)
+			   NFC_PROTO_ISO14443_MASK | \
+			   NFC_PROTO_ISO14443_B_MASK)
 
 #define PORT100_CAPABILITIES (NFC_DIGITAL_DRV_CAPS_IN_CRC | \
 			      NFC_DIGITAL_DRV_CAPS_TG_CRC)
@@ -120,6 +121,7 @@ struct port100_in_rf_setting {
 #define PORT100_COMM_TYPE_IN_212F 0x01
 #define PORT100_COMM_TYPE_IN_424F 0x02
 #define PORT100_COMM_TYPE_IN_106A 0x03
+#define PORT100_COMM_TYPE_IN_106B 0x07
 
 static const struct port100_in_rf_setting in_rf_settings[] = {
 	[NFC_DIGITAL_RF_TECH_212F] = {
@@ -139,6 +141,12 @@ static const struct port100_in_rf_setting in_rf_settings[] = {
 		.in_send_comm_type  = PORT100_COMM_TYPE_IN_106A,
 		.in_recv_set_number = 15,
 		.in_recv_comm_type  = PORT100_COMM_TYPE_IN_106A,
+	},
+	[NFC_DIGITAL_RF_TECH_106B] = {
+		.in_send_set_number = 3,
+		.in_send_comm_type  = PORT100_COMM_TYPE_IN_106B,
+		.in_recv_set_number = 15,
+		.in_recv_comm_type  = PORT100_COMM_TYPE_IN_106B,
 	},
 	/* Ensures the array has NFC_DIGITAL_RF_TECH_LAST elements */
 	[NFC_DIGITAL_RF_TECH_LAST] = { 0 },
@@ -339,6 +347,32 @@ in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 	},
 	[NFC_DIGITAL_FRAMING_NFC_DEP_ACTIVATED] = {
 		{ PORT100_IN_PROT_END, 0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCB] = {
+		{ PORT100_IN_PROT_INITIAL_GUARD_TIME,     20 },
+		{ PORT100_IN_PROT_ADD_CRC,                 1 },
+		{ PORT100_IN_PROT_CHECK_CRC,               1 },
+		{ PORT100_IN_PROT_MULTI_CARD,              0 },
+		{ PORT100_IN_PROT_ADD_PARITY,              0 },
+		{ PORT100_IN_PROT_CHECK_PARITY,            0 },
+		{ PORT100_IN_PROT_BITWISE_AC_RECV_MODE,    0 },
+		{ PORT100_IN_PROT_VALID_BIT_NUMBER,        8 },
+		{ PORT100_IN_PROT_CRYPTO1,                 0 },
+		{ PORT100_IN_PROT_ADD_SOF,                 1 },
+		{ PORT100_IN_PROT_CHECK_SOF,               1 },
+		{ PORT100_IN_PROT_ADD_EOF,                 1 },
+		{ PORT100_IN_PROT_CHECK_EOF,               1 },
+		{ PORT100_IN_PROT_DEAF_TIME,               4 },
+		{ PORT100_IN_PROT_CRM,                     0 },
+		{ PORT100_IN_PROT_CRM_MIN_LEN,             0 },
+		{ PORT100_IN_PROT_T1_TAG_FRAME,            0 },
+		{ PORT100_IN_PROT_RFCA,                    0 },
+		{ PORT100_IN_PROT_GUARD_TIME_AT_INITIATOR, 6 },
+		{ PORT100_IN_PROT_END,                     0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCB_T4T] = {
+		/* nfc_digital_framing_nfcb */
+		{ PORT100_IN_PROT_END,                     0 },
 	},
 	/* Ensures the array has NFC_DIGITAL_FRAMING_LAST elements */
 	[NFC_DIGITAL_FRAMING_LAST] = {

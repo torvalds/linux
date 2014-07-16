@@ -167,7 +167,7 @@ do {						\
  * Global list of active external journals
  */
 static LIST_HEAD(jfs_external_logs);
-static struct jfs_log *dummy_log = NULL;
+static struct jfs_log *dummy_log;
 static DEFINE_MUTEX(jfs_log_mutex);
 
 /*
