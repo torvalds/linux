@@ -42,8 +42,6 @@
 #include "card.h"
 #include "usbpipe.h"
 
-static int msglevel = MSG_LEVEL_INFO;
-
 /*
  *
  * Routine Description:
@@ -93,7 +91,7 @@ void vnt_enable_power_saving(struct vnt_private *priv, u16 listen_interval)
 		vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_ALBCN);
 	}
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable...\n");
+	dev_dbg(&priv->usb->dev,  "PS:Power Saving Mode Enable...\n");
 }
 
 /*
