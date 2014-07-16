@@ -512,21 +512,6 @@ void timekeeping_clocktai(struct timespec *ts)
 }
 EXPORT_SYMBOL(timekeeping_clocktai);
 
-
-/**
- * ktime_get_clocktai - Returns the TAI time of day in a ktime
- *
- * Returns the time of day in a ktime.
- */
-ktime_t ktime_get_clocktai(void)
-{
-	struct timespec ts;
-
-	timekeeping_clocktai(&ts);
-	return timespec_to_ktime(ts);
-}
-EXPORT_SYMBOL(ktime_get_clocktai);
-
 #ifdef CONFIG_NTP_PPS
 
 /**
