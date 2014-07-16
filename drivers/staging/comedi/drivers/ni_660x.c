@@ -1122,9 +1122,8 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		s = &dev->subdevices[NI_660X_GPCT_SUBDEV(i)];
 		if (i < ni_660x_num_counters(dev)) {
 			s->type = COMEDI_SUBD_COUNTER;
-			s->subdev_flags =
-			    SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL |
-			    SDF_CMD_READ /* | SDF_CMD_WRITE */ ;
+			s->subdev_flags = SDF_READABLE | SDF_WRITABLE |
+					  SDF_LSAMPL | SDF_CMD_READ;
 			s->n_chan = 3;
 			s->maxdata = 0xffffffff;
 			s->insn_read = ni_tio_insn_read;
