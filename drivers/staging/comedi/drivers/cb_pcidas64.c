@@ -1180,7 +1180,7 @@ static unsigned int hw_revision(const struct comedi_device *dev,
 }
 
 static void set_dac_range_bits(struct comedi_device *dev,
-			       volatile uint16_t *bits, unsigned int channel,
+			       uint16_t *bits, unsigned int channel,
 			       unsigned int range)
 {
 	const struct pcidas64_board *thisboard = comedi_board(dev);
