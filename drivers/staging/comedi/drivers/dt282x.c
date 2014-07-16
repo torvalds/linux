@@ -1079,11 +1079,11 @@ static const struct comedi_lrange *opt_ai_range_lkup(int ispgl, int x)
 		if (x < 0 || x >= 2)
 			x = 0;
 		return ai_range_pgl_table[x];
-	} else {
-		if (x < 0 || x >= 4)
-			x = 0;
-		return ai_range_table[x];
 	}
+
+	if (x < 0 || x >= 4)
+		x = 0;
+	return ai_range_table[x];
 }
 
 static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
