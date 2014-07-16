@@ -538,7 +538,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		r = -EBUSY;
-		goto pflip_cleanup;
+		goto vblank_cleanup;
 	}
 	radeon_crtc->flip_status = RADEON_FLIP_PENDING;
 	radeon_crtc->flip_work = work;
@@ -550,6 +550,9 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 
 	queue_work(radeon_crtc->flip_queue, &work->flip_work);
 	return 0;
+
+vblank_cleanup:
+	drm_vblank_put(crtc->dev, radeon_crtc->crtc_id);
 
 pflip_cleanup:
 	if (unlikely(radeon_bo_reserve(new_rbo, false) != 0)) {
