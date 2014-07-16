@@ -82,51 +82,9 @@ static int vnt_tx_buffers = TX_DESC_DEF0;
 module_param_named(tx_buffers, vnt_rx_buffers, int, 0644);
 MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
 
-
-#define CHANNEL_DEF 6
-
-/* PreambleType[] is the preamble length used for transmit.
-   0: indicate allows long preamble type
-   1: indicate allows short preamble type
-*/
-
-#define PREAMBLE_TYPE_DEF     1
 #define RTS_THRESH_DEF     2347
 #define FRAG_THRESH_DEF     2346
-#define DATA_RATE_DEF     13
-/* datarate[] index
-   0: indicate 1 Mbps   0x02
-   1: indicate 2 Mbps   0x04
-   2: indicate 5.5 Mbps 0x0B
-   3: indicate 11 Mbps  0x16
-   4: indicate 6 Mbps   0x0c
-   5: indicate 9 Mbps   0x12
-   6: indicate 12 Mbps  0x18
-   7: indicate 18 Mbps  0x24
-   8: indicate 24 Mbps  0x30
-   9: indicate 36 Mbps  0x48
-  10: indicate 48 Mbps  0x60
-  11: indicate 54 Mbps  0x6c
-  12: indicate 72 Mbps  0x90
-  13: indicate auto rate
-*/
-#define OP_MODE_DEF     0
-
-/* OpMode[] is used for transmit.
-   0: indicate infrastruct mode used
-   1: indicate adhoc mode used
-   2: indicate AP mode used
-*/
-
-/* PSMode[]
-   0: indicate disable power saving mode
-   1: indicate enable power saving mode
-*/
-
-#define PS_MODE_DEF     0
-
 #define SHORT_RETRY_DEF     8
-
 #define LONG_RETRY_DEF     4
 
 /* BasebandType[] baseband type selected
@@ -136,13 +94,6 @@ MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
 */
 
 #define BBP_TYPE_DEF     2
-
-/* 80211hEnable[]
-   0: indicate disable 802.11h
-   1: indicate enable 802.11h
-*/
-
-#define X80211h_MODE_DEF     0
 
 /*
  * Static vars definitions
