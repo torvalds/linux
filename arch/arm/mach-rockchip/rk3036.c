@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/wakeup_reason.h>
 #include <linux/rockchip/common.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
@@ -173,8 +174,89 @@ static void __init rk3036_dt_init_timer(void)
 	clocksource_of_init();
 }
 
+#ifdef CONFIG_PM
+static inline void rk3036_uart_printch(char byte)
+{
+write_uart:
+	writel_relaxed(byte, RK_DEBUG_UART_VIRT);
+	dsb();
+
+	/* loop check LSR[6], Transmitter Empty bit */
+	while (!(readl_relaxed(RK_DEBUG_UART_VIRT + 0x14) & 0x40))
+		barrier();
+
+	if (byte == '\n') {
+		byte = '\r';
+		goto write_uart;
+	}
+}
+
+static void rk3036_ddr_printch(char byte)
+{
+	rk3036_uart_printch(byte);
+
+	rk_last_log_text(&byte, 1);
+
+	if (byte == '\n') {
+		byte = '\r';
+		rk_last_log_text(&byte, 1);
+	}
+}
+
+#define GPIO_INTEN		0x30
+#define GPIO_INT_STATUS		0x40
+#define GIC_DIST_PENDING_SET	0x200
+static void rk3036_pm_dump_irq(void)
+{
+	u32 irq_gpio =
+	    (readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 8) >> 4) & 7;
+	u32 irq[4];
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(irq); i++) {
+		irq[i] = readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET +
+				       (1 + i) * 4);
+		if (irq[i])
+			log_wakeup_reason(32 * (i + 1) + fls(irq[i]) - 1);
+	}
+	pr_info("wakeup irq: %08x %08x %08x %08x\n",
+		irq[0], irq[1], irq[2], irq[3]);
+	for (i = 0; i <= 2; i++) {
+		if (irq_gpio & (1 << i))
+			pr_info("wakeup gpio%d: %08x\n", i,
+				readl_relaxed(RK_GPIO_VIRT(i) +
+					      GPIO_INT_STATUS));
+	}
+}
+
+#define DUMP_GPIO_INTEN(ID) \
+	do { \
+		u32 en = readl_relaxed(RK_GPIO_VIRT(ID) + GPIO_INTEN); \
+		if (en) { \
+			pr_info("GPIO%d_INTEN: %08x\n", ID, en); \
+		} \
+	} while (0)
+
+static void rk3036_pm_dump_inten(void)
+{
+	DUMP_GPIO_INTEN(0);
+	DUMP_GPIO_INTEN(1);
+	DUMP_GPIO_INTEN(2);
+}
+
+static void __init rk3036_suspend_init(void)
+{
+	rkpm_set_ops_prepare_finish(rk3036_pm_dump_inten, rk3036_pm_dump_irq);
+	rkpm_set_ops_printch(rk3036_ddr_printch);
+	rockchip_suspend_init();
+}
+#endif
+
 static void __init rk3036_init_late(void)
 {
+#ifdef CONFIG_PM
+	rk3036_suspend_init();
+#endif
 }
 
 static void __init rk3036_reserve(void)
