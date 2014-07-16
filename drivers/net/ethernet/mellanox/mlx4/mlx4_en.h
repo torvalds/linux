@@ -126,6 +126,8 @@ enum {
 #define MAX_TX_RINGS			(MLX4_EN_MAX_TX_RING_P_UP * \
 					 MLX4_EN_NUM_UP)
 
+#define MLX4_EN_DEFAULT_TX_WORK		256
+
 /* Target number of packets to coalesce with interrupt moderation */
 #define MLX4_EN_RX_COAL_TARGET	44
 #define MLX4_EN_RX_COAL_TIME	0x10
@@ -341,6 +343,7 @@ struct mlx4_en_cq {
 #define CQ_USER_PEND (MLX4_EN_CQ_STATE_POLL | MLX4_EN_CQ_STATE_POLL_YIELD)
 	spinlock_t poll_lock; /* protects from LLS/napi conflicts */
 #endif  /* CONFIG_NET_RX_BUSY_POLL */
+	struct irq_desc *irq_desc;
 };
 
 struct mlx4_en_port_profile {
@@ -540,6 +543,7 @@ struct mlx4_en_priv {
 	__be32 ctrl_flags;
 	u32 flags;
 	u8 num_tx_rings_p_up;
+	u32 tx_work_limit;
 	u32 tx_ring_num;
 	u32 rx_ring_num;
 	u32 rx_skb_size;

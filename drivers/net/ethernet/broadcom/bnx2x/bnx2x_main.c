@@ -12946,7 +12946,7 @@ static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev, int cnic_cnt)
 	 * without the default SB.
 	 * For VFs there is no default SB, then we return (index+1).
 	 */
-	pci_read_config_word(pdev, pdev->msix_cap + PCI_MSI_FLAGS, &control);
+	pci_read_config_word(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, &control);
 
 	index = control & PCI_MSIX_FLAGS_QSIZE;
 

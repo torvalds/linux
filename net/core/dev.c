@@ -148,6 +148,9 @@ struct list_head ptype_all __read_mostly;	/* Taps */
 static struct list_head offload_base __read_mostly;
 
 static int netif_rx_internal(struct sk_buff *skb);
+static int call_netdevice_notifiers_info(unsigned long val,
+					 struct net_device *dev,
+					 struct netdev_notifier_info *info);
 
 /*
  * The @dev_base_head list is protected by @dev_base_lock and the rtnl
@@ -1214,7 +1217,11 @@ EXPORT_SYMBOL(netdev_features_change);
 void netdev_state_change(struct net_device *dev)
 {
 	if (dev->flags & IFF_UP) {
-		call_netdevice_notifiers(NETDEV_CHANGE, dev);
+		struct netdev_notifier_change_info change_info;
+
+		change_info.flags_changed = 0;
+		call_netdevice_notifiers_info(NETDEV_CHANGE, dev,
+					      &change_info.info);
 		rtmsg_ifinfo(RTM_NEWLINK, dev, 0, GFP_KERNEL);
 	}
 }
@@ -4234,9 +4241,8 @@ static int process_backlog(struct napi_struct *napi, int quota)
 #endif
 	napi->weight = weight_p;
 	local_irq_disable();
-	while (work < quota) {
+	while (1) {
 		struct sk_buff *skb;
-		unsigned int qlen;
 
 		while ((skb = __skb_dequeue(&sd->process_queue))) {
 			local_irq_enable();
@@ -4250,24 +4256,24 @@ static int process_backlog(struct napi_struct *napi, int quota)
 		}
 
 		rps_lock(sd);
-		qlen = skb_queue_len(&sd->input_pkt_queue);
-		if (qlen)
-			skb_queue_splice_tail_init(&sd->input_pkt_queue,
-						   &sd->process_queue);
-
-		if (qlen < quota - work) {
+		if (skb_queue_empty(&sd->input_pkt_queue)) {
 			/*
 			 * Inline a custom version of __napi_complete().
 			 * only current cpu owns and manipulates this napi,
-			 * and NAPI_STATE_SCHED is the only possible flag set on backlog.
-			 * we can use a plain write instead of clear_bit(),
+			 * and NAPI_STATE_SCHED is the only possible flag set
+			 * on backlog.
+			 * We can use a plain write instead of clear_bit(),
 			 * and we dont need an smp_mb() memory barrier.
 			 */
 			list_del(&napi->poll_list);
 			napi->state = 0;
+			rps_unlock(sd);
 
-			quota = work + qlen;
+			break;
 		}
+
+		skb_queue_splice_tail_init(&sd->input_pkt_queue,
+					   &sd->process_queue);
 		rps_unlock(sd);
 	}
 	local_irq_enable();

@@ -1516,11 +1516,11 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 		}
 
 		switch ((ctrl & 0x000f0000) >> 16) {
-		case 6: datarate = pclk * 30 / 8; break;
-		case 5: datarate = pclk * 24 / 8; break;
+		case 6: datarate = pclk * 30; break;
+		case 5: datarate = pclk * 24; break;
 		case 2:
 		default:
-			datarate = pclk * 18 / 8;
+			datarate = pclk * 18;
 			break;
 		}
 

@@ -273,6 +273,7 @@ enum mm_32a_minor_op {
 	mm_and_op = 0x250,
 	mm_or32_op = 0x290,
 	mm_xor32_op = 0x310,
+	mm_slt_op = 0x350,
 	mm_sltu_op = 0x390,
 };
 

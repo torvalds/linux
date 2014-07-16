@@ -236,6 +236,7 @@ disable_hda:
 	return rc;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static void hda_tegra_disable_clocks(struct hda_tegra *data)
 {
 	clk_disable_unprepare(data->hda2hdmi_clk);
@@ -243,7 +244,6 @@ static void hda_tegra_disable_clocks(struct hda_tegra *data)
 	clk_disable_unprepare(data->hda_clk);
 }
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */

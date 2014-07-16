@@ -4037,7 +4037,7 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (ad_select) {
-		bond_opt_initstr(&newval, lacp_rate);
+		bond_opt_initstr(&newval, ad_select);
 		valptr = bond_opt_parse(bond_opt_get(BOND_OPT_AD_SELECT),
 					&newval);
 		if (!valptr) {

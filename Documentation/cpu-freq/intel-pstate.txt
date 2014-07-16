@@ -15,10 +15,13 @@ New sysfs files for controlling P state selection have been added to
 /sys/devices/system/cpu/intel_pstate/
 
       max_perf_pct: limits the maximum P state that will be requested by
-      the driver stated as a percentage of the available performance.
+      the driver stated as a percentage of the available performance. The
+      available (P states) performance may be reduced by the no_turbo
+      setting described below.
 
       min_perf_pct: limits the minimum P state that will be  requested by
-      the driver stated as a percentage of the available performance.
+      the driver stated as a percentage of the max (non-turbo)
+      performance level.
 
       no_turbo: limits the driver to selecting P states below the turbo
       frequency range.

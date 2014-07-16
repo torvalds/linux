@@ -96,9 +96,11 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 }
 
 /* tipc_buf_append(): Append a buffer to the fragment list of another buffer
- * Let first buffer become head buffer
- * Returns 1 and sets *buf to headbuf if chain is complete, otherwise 0
- * Leaves headbuf pointer at NULL if failure
+ * @*headbuf: in:  NULL for first frag, otherwise value returned from prev call
+ *            out: set when successful non-complete reassembly, otherwise NULL
+ * @*buf:     in:  the buffer to append. Always defined
+ *            out: head buf after sucessful complete reassembly, otherwise NULL
+ * Returns 1 when reassembly complete, otherwise 0
  */
 int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 {
@@ -117,6 +119,7 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 			goto out_free;
 		head = *headbuf = frag;
 		skb_frag_list_init(head);
+		*buf = NULL;
 		return 0;
 	}
 	if (!head)
@@ -145,6 +148,8 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 out_free:
 	pr_warn_ratelimited("Unable to build fragment list\n");
 	kfree_skb(*buf);
+	kfree_skb(*headbuf);
+	*buf = *headbuf = NULL;
 	return 0;
 }
 
