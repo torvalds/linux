@@ -335,7 +335,7 @@
 
 	dpll_mpu_ck: dpll_mpu_ck {
 		#clock-cells = <0>;
-		compatible = "ti,omap4-dpll-clock";
+		compatible = "ti,omap5-mpu-dpll-clock";
 		clocks = <&sys_clkin>, <&mpu_dpll_hs_clk_div>;
 		reg = <0x0160>, <0x0164>, <0x016c>, <0x0168>;
 	};

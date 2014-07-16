@@ -2191,8 +2191,6 @@ static void tile_net_setup(struct net_device *dev)
 static void tile_net_dev_init(const char *name, const uint8_t *mac)
 {
 	int ret;
-	int i;
-	int nz_addr = 0;
 	struct net_device *dev;
 	struct tile_net_priv *priv;
 
@@ -2212,7 +2210,6 @@ static void tile_net_dev_init(const char *name, const uint8_t *mac)
 
 	/* Initialize "priv". */
 	priv = netdev_priv(dev);
-	memset(priv, 0, sizeof(*priv));
 	priv->dev = dev;
 	priv->channel = -1;
 	priv->loopify_channel = -1;
@@ -2223,15 +2220,10 @@ static void tile_net_dev_init(const char *name, const uint8_t *mac)
 	 * be done before the device is opened.  If the MAC is all zeroes,
 	 * we use a random address, since we're probably on the simulator.
 	 */
-	for (i = 0; i < 6; i++)
-		nz_addr |= mac[i];
-
-	if (nz_addr) {
-		memcpy(dev->dev_addr, mac, ETH_ALEN);
-		dev->addr_len = 6;
-	} else {
+	if (!is_zero_ether_addr(mac))
+		ether_addr_copy(dev->dev_addr, mac);
+	else
 		eth_hw_addr_random(dev);
-	}
 
 	/* Register the network device. */
 	ret = register_netdev(dev);

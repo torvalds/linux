@@ -545,12 +545,11 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 	return 0;
 }
 
-static int mlx4_SET_PORT(struct mlx4_ib_dev *dev, u8 port, int reset_qkey_viols,
-			 u32 cap_mask)
+static int mlx4_ib_SET_PORT(struct mlx4_ib_dev *dev, u8 port, int reset_qkey_viols,
+			    u32 cap_mask)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	int err;
-	u8 is_eth = dev->dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev->dev);
 	if (IS_ERR(mailbox))
@@ -564,8 +563,8 @@ static int mlx4_SET_PORT(struct mlx4_ib_dev *dev, u8 port, int reset_qkey_viols,
 		((__be32 *) mailbox->buf)[1] = cpu_to_be32(cap_mask);
 	}
 
-	err = mlx4_cmd(dev->dev, mailbox->dma, port, is_eth, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+	err = mlx4_cmd(dev->dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev->dev, mailbox);
 	return err;
@@ -574,11 +573,20 @@ static int mlx4_SET_PORT(struct mlx4_ib_dev *dev, u8 port, int reset_qkey_viols,
 static int mlx4_ib_modify_port(struct ib_device *ibdev, u8 port, int mask,
 			       struct ib_port_modify *props)
 {
+	struct mlx4_ib_dev *mdev = to_mdev(ibdev);
+	u8 is_eth = mdev->dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH;
 	struct ib_port_attr attr;
 	u32 cap_mask;
 	int err;
 
-	mutex_lock(&to_mdev(ibdev)->cap_mask_mutex);
+	/* return OK if this is RoCE. CM calls ib_modify_port() regardless
+	 * of whether port link layer is ETH or IB. For ETH ports, qkey
+	 * violations and port capabilities are not meaningful.
+	 */
+	if (is_eth)
+		return 0;
+
+	mutex_lock(&mdev->cap_mask_mutex);
 
 	err = mlx4_ib_query_port(ibdev, port, &attr);
 	if (err)
@@ -587,9 +595,9 @@ static int mlx4_ib_modify_port(struct ib_device *ibdev, u8 port, int mask,
 	cap_mask = (attr.port_cap_flags | props->set_port_cap_mask) &
 		~props->clr_port_cap_mask;
 
-	err = mlx4_SET_PORT(to_mdev(ibdev), port,
-			    !!(mask & IB_PORT_RESET_QKEY_CNTR),
-			    cap_mask);
+	err = mlx4_ib_SET_PORT(mdev, port,
+			       !!(mask & IB_PORT_RESET_QKEY_CNTR),
+			       cap_mask);
 
 out:
 	mutex_unlock(&to_mdev(ibdev)->cap_mask_mutex);

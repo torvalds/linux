@@ -126,8 +126,8 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 	if (irqs < 1) {
-		pr_err("no irqs for PMUs defined\n");
-		return -ENODEV;
+		printk_once("perf/ARM: No irqs for PMU defined, sampling events not supported\n");
+		return 0;
 	}
 
 	irq = platform_get_irq(pmu_device, 0);
@@ -191,6 +191,10 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	/* Ensure the PMU has sane values out of reset. */
 	if (cpu_pmu->reset)
 		on_each_cpu(cpu_pmu->reset, cpu_pmu, 1);
+
+	/* If no interrupts available, set the corresponding capability flag */
+	if (!platform_get_irq(cpu_pmu->plat_device, 0))
+		cpu_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 }
 
 /*

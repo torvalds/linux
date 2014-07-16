@@ -556,7 +556,6 @@ struct d40_gen_dmac {
  * later
  * @reg_val_backup_chan: Backup data for standard channel parameter registers.
  * @gcc_pwr_off_mask: Mask to maintain the channels that can be turned off.
- * @initialized: true if the dma has been initialized
  * @gen_dmac: the struct for generic registers values to represent u8500/8540
  * DMA controller
  */
@@ -594,7 +593,6 @@ struct d40_base {
 	u32				  reg_val_backup_v4[BACKUP_REGS_SZ_MAX];
 	u32				 *reg_val_backup_chan;
 	u16				  gcc_pwr_off_mask;
-	bool				  initialized;
 	struct d40_gen_dmac		  gen_dmac;
 };
 
@@ -1056,62 +1054,6 @@ static int d40_sg_2_dmalen(struct scatterlist *sgl, int sg_len,
 	return len;
 }
 
-
-#ifdef CONFIG_PM
-static void dma40_backup(void __iomem *baseaddr, u32 *backup,
-			 u32 *regaddr, int num, bool save)
-{
-	int i;
-
-	for (i = 0; i < num; i++) {
-		void __iomem *addr = baseaddr + regaddr[i];
-
-		if (save)
-			backup[i] = readl_relaxed(addr);
-		else
-			writel_relaxed(backup[i], addr);
-	}
-}
-
-static void d40_save_restore_registers(struct d40_base *base, bool save)
-{
-	int i;
-
-	/* Save/Restore channel specific registers */
-	for (i = 0; i < base->num_phy_chans; i++) {
-		void __iomem *addr;
-		int idx;
-
-		if (base->phy_res[i].reserved)
-			continue;
-
-		addr = base->virtbase + D40_DREG_PCBASE + i * D40_DREG_PCDELTA;
-		idx = i * ARRAY_SIZE(d40_backup_regs_chan);
-
-		dma40_backup(addr, &base->reg_val_backup_chan[idx],
-			     d40_backup_regs_chan,
-			     ARRAY_SIZE(d40_backup_regs_chan),
-			     save);
-	}
-
-	/* Save/Restore global registers */
-	dma40_backup(base->virtbase, base->reg_val_backup,
-		     d40_backup_regs, ARRAY_SIZE(d40_backup_regs),
-		     save);
-
-	/* Save/Restore registers only existing on dma40 v3 and later */
-	if (base->gen_dmac.backup)
-		dma40_backup(base->virtbase, base->reg_val_backup_v4,
-			     base->gen_dmac.backup,
-			base->gen_dmac.backup_size,
-			save);
-}
-#else
-static void d40_save_restore_registers(struct d40_base *base, bool save)
-{
-}
-#endif
-
 static int __d40_execute_command_phy(struct d40_chan *d40c,
 				     enum d40_command command)
 {
@@ -1495,8 +1437,8 @@ static int d40_pause(struct d40_chan *d40c)
 	if (!d40c->busy)
 		return 0;
 
-	pm_runtime_get_sync(d40c->base->dev);
 	spin_lock_irqsave(&d40c->lock, flags);
+	pm_runtime_get_sync(d40c->base->dev);
 
 	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
 
@@ -2998,16 +2940,86 @@ failure1:
 }
 
 /* Suspend resume functionality */
-#ifdef CONFIG_PM
-static int dma40_pm_suspend(struct device *dev)
+#ifdef CONFIG_PM_SLEEP
+static int dma40_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct d40_base *base = platform_get_drvdata(pdev);
+	int ret;
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret)
+		return ret;
+
+	if (base->lcpa_regulator)
+		ret = regulator_disable(base->lcpa_regulator);
+	return ret;
+}
+
+static int dma40_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct d40_base *base = platform_get_drvdata(pdev);
 	int ret = 0;
 
-	if (base->lcpa_regulator)
-		ret = regulator_disable(base->lcpa_regulator);
-	return ret;
+	if (base->lcpa_regulator) {
+		ret = regulator_enable(base->lcpa_regulator);
+		if (ret)
+			return ret;
+	}
+
+	return pm_runtime_force_resume(dev);
+}
+#endif
+
+#ifdef CONFIG_PM
+static void dma40_backup(void __iomem *baseaddr, u32 *backup,
+			 u32 *regaddr, int num, bool save)
+{
+	int i;
+
+	for (i = 0; i < num; i++) {
+		void __iomem *addr = baseaddr + regaddr[i];
+
+		if (save)
+			backup[i] = readl_relaxed(addr);
+		else
+			writel_relaxed(backup[i], addr);
+	}
+}
+
+static void d40_save_restore_registers(struct d40_base *base, bool save)
+{
+	int i;
+
+	/* Save/Restore channel specific registers */
+	for (i = 0; i < base->num_phy_chans; i++) {
+		void __iomem *addr;
+		int idx;
+
+		if (base->phy_res[i].reserved)
+			continue;
+
+		addr = base->virtbase + D40_DREG_PCBASE + i * D40_DREG_PCDELTA;
+		idx = i * ARRAY_SIZE(d40_backup_regs_chan);
+
+		dma40_backup(addr, &base->reg_val_backup_chan[idx],
+			     d40_backup_regs_chan,
+			     ARRAY_SIZE(d40_backup_regs_chan),
+			     save);
+	}
+
+	/* Save/Restore global registers */
+	dma40_backup(base->virtbase, base->reg_val_backup,
+		     d40_backup_regs, ARRAY_SIZE(d40_backup_regs),
+		     save);
+
+	/* Save/Restore registers only existing on dma40 v3 and later */
+	if (base->gen_dmac.backup)
+		dma40_backup(base->virtbase, base->reg_val_backup_v4,
+			     base->gen_dmac.backup,
+			base->gen_dmac.backup_size,
+			save);
 }
 
 static int dma40_runtime_suspend(struct device *dev)
@@ -3030,36 +3042,20 @@ static int dma40_runtime_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct d40_base *base = platform_get_drvdata(pdev);
 
-	if (base->initialized)
-		d40_save_restore_registers(base, false);
+	d40_save_restore_registers(base, false);
 
 	writel_relaxed(D40_DREG_GCC_ENABLE_ALL,
 		       base->virtbase + D40_DREG_GCC);
 	return 0;
 }
-
-static int dma40_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct d40_base *base = platform_get_drvdata(pdev);
-	int ret = 0;
-
-	if (base->lcpa_regulator)
-		ret = regulator_enable(base->lcpa_regulator);
-
-	return ret;
-}
+#endif
 
 static const struct dev_pm_ops dma40_pm_ops = {
-	.suspend		= dma40_pm_suspend,
-	.runtime_suspend	= dma40_runtime_suspend,
-	.runtime_resume		= dma40_runtime_resume,
-	.resume			= dma40_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(dma40_suspend, dma40_resume)
+	SET_PM_RUNTIME_PM_OPS(dma40_runtime_suspend,
+				dma40_runtime_resume,
+				NULL)
 };
-#define DMA40_PM_OPS	(&dma40_pm_ops)
-#else
-#define DMA40_PM_OPS	NULL
-#endif
 
 /* Initialization functions. */
 
@@ -3645,12 +3641,6 @@ static int __init d40_probe(struct platform_device *pdev)
 		goto failure;
 	}
 
-	pm_runtime_irq_safe(base->dev);
-	pm_runtime_set_autosuspend_delay(base->dev, DMA40_AUTOSUSPEND_DELAY);
-	pm_runtime_use_autosuspend(base->dev);
-	pm_runtime_enable(base->dev);
-	pm_runtime_resume(base->dev);
-
 	if (base->plat_data->use_esram_lcla) {
 
 		base->lcpa_regulator = regulator_get(base->dev, "lcla_esram");
@@ -3671,7 +3661,15 @@ static int __init d40_probe(struct platform_device *pdev)
 		}
 	}
 
-	base->initialized = true;
+	writel_relaxed(D40_DREG_GCC_ENABLE_ALL, base->virtbase + D40_DREG_GCC);
+
+	pm_runtime_irq_safe(base->dev);
+	pm_runtime_set_autosuspend_delay(base->dev, DMA40_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(base->dev);
+	pm_runtime_mark_last_busy(base->dev);
+	pm_runtime_set_active(base->dev);
+	pm_runtime_enable(base->dev);
+
 	ret = d40_dmaengine_init(base, num_reserved_chans);
 	if (ret)
 		goto failure;
@@ -3754,7 +3752,7 @@ static struct platform_driver d40_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name  = D40_NAME,
-		.pm = DMA40_PM_OPS,
+		.pm = &dma40_pm_ops,
 		.of_match_table = d40_match,
 	},
 };

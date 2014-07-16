@@ -151,8 +151,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 		result = cl_io_rw_init(env, io, CIT_WRITE, pos, PAGE_CACHE_SIZE);
 		if (result == 0) {
 			cio->cui_fd = LUSTRE_FPRIVATE(file);
-			cio->cui_iov = NULL;
-			cio->cui_nrsegs = 0;
+			cio->cui_iter = NULL;
 			result = cl_io_iter_init(env, io);
 			if (result == 0) {
 				result = cl_io_lock(env, io);

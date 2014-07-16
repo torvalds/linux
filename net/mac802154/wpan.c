@@ -35,6 +35,28 @@
 
 #include "mac802154.h"
 
+static int mac802154_wpan_update_llsec(struct net_device *dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
+	int rc = 0;
+
+	if (ops->llsec) {
+		struct ieee802154_llsec_params params;
+		int changed = 0;
+
+		params.pan_id = priv->pan_id;
+		changed |= IEEE802154_LLSEC_PARAM_PAN_ID;
+
+		params.hwaddr = priv->extended_addr;
+		changed |= IEEE802154_LLSEC_PARAM_HWADDR;
+
+		rc = ops->llsec->set_params(dev, &params, changed);
+	}
+
+	return rc;
+}
+
 static int
 mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -81,7 +103,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		priv->pan_id = cpu_to_le16(sa->addr.pan_id);
 		priv->short_addr = cpu_to_le16(sa->addr.short_addr);
 
-		err = 0;
+		err = mac802154_wpan_update_llsec(dev);
 		break;
 	}
 
@@ -99,7 +121,7 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	/* FIXME: validate addr */
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	mac802154_dev_set_ieee_addr(dev);
-	return 0;
+	return mac802154_wpan_update_llsec(dev);
 }
 
 int mac802154_set_mac_params(struct net_device *dev,
@@ -124,7 +146,7 @@ void mac802154_get_mac_params(struct net_device *dev,
 	mutex_unlock(&priv->hw->slaves_mtx);
 }
 
-int mac802154_wpan_open(struct net_device *dev)
+static int mac802154_wpan_open(struct net_device *dev)
 {
 	int rc;
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
@@ -183,6 +205,38 @@ out:
 	return rc;
 }
 
+static int mac802154_set_header_security(struct mac802154_sub_if_data *priv,
+					 struct ieee802154_hdr *hdr,
+					 const struct ieee802154_mac_cb *cb)
+{
+	struct ieee802154_llsec_params params;
+	u8 level;
+
+	mac802154_llsec_get_params(&priv->sec, &params);
+
+	if (!params.enabled && cb->secen_override && cb->secen)
+		return -EINVAL;
+	if (!params.enabled ||
+	    (cb->secen_override && !cb->secen) ||
+	    !params.out_level)
+		return 0;
+	if (cb->seclevel_override && !cb->seclevel)
+		return -EINVAL;
+
+	level = cb->seclevel_override ? cb->seclevel : params.out_level;
+
+	hdr->fc.security_enabled = 1;
+	hdr->sec.level = level;
+	hdr->sec.key_id_mode = params.out_key.mode;
+	if (params.out_key.mode == IEEE802154_SCF_KEY_SHORT_INDEX)
+		hdr->sec.short_src = params.out_key.short_source;
+	else if (params.out_key.mode == IEEE802154_SCF_KEY_HW_INDEX)
+		hdr->sec.extended_src = params.out_key.extended_source;
+	hdr->sec.key_id = params.out_key.id;
+
+	return 0;
+}
+
 static int mac802154_header_create(struct sk_buff *skb,
 				   struct net_device *dev,
 				   unsigned short type,
@@ -192,15 +246,20 @@ static int mac802154_header_create(struct sk_buff *skb,
 {
 	struct ieee802154_hdr hdr;
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct ieee802154_mac_cb *cb = mac_cb(skb);
 	int hlen;
 
 	if (!daddr)
 		return -EINVAL;
 
 	memset(&hdr.fc, 0, sizeof(hdr.fc));
-	hdr.fc.type = mac_cb_type(skb);
-	hdr.fc.security_enabled = mac_cb_is_secen(skb);
-	hdr.fc.ack_request = mac_cb_is_ackreq(skb);
+	hdr.fc.type = cb->type;
+	hdr.fc.security_enabled = cb->secen;
+	hdr.fc.ack_request = cb->ackreq;
+	hdr.seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
+
+	if (mac802154_set_header_security(priv, &hdr, cb) < 0)
+		return -EINVAL;
 
 	if (!saddr) {
 		spin_lock_bh(&priv->mib_lock);
@@ -231,7 +290,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 	skb_reset_mac_header(skb);
 	skb->mac_len = hlen;
 
-	if (hlen + len + 2 > dev->mtu)
+	if (len > ieee802154_max_payload(&hdr))
 		return -EMSGSIZE;
 
 	return hlen;
@@ -257,6 +316,7 @@ mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv;
 	u8 chan, page;
+	int rc;
 
 	priv = netdev_priv(dev);
 
@@ -268,6 +328,13 @@ mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (chan == MAC802154_CHAN_NONE ||
 	    page >= WPAN_NUM_PAGES ||
 	    chan >= WPAN_NUM_CHANNELS) {
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	rc = mac802154_llsec_encrypt(&priv->sec, skb);
+	if (rc) {
+		pr_warn("encryption failed: %i\n", rc);
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -292,6 +359,15 @@ static const struct net_device_ops mac802154_wpan_ops = {
 	.ndo_set_mac_address	= mac802154_wpan_mac_addr,
 };
 
+static void mac802154_wpan_free(struct net_device *dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	mac802154_llsec_destroy(&priv->sec);
+
+	free_netdev(dev);
+}
+
 void mac802154_wpan_setup(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv;
@@ -301,14 +377,14 @@ void mac802154_wpan_setup(struct net_device *dev)
 
 	dev->hard_header_len	= MAC802154_FRAME_HARD_HEADER_LEN;
 	dev->header_ops		= &mac802154_header_ops;
-	dev->needed_tailroom	= 2; /* FCS */
+	dev->needed_tailroom	= 2 + 16; /* FCS + MIC */
 	dev->mtu		= IEEE802154_MTU;
 	dev->tx_queue_len	= 300;
 	dev->type		= ARPHRD_IEEE802154;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
 	dev->watchdog_timeo	= 0;
 
-	dev->destructor		= free_netdev;
+	dev->destructor		= mac802154_wpan_free;
 	dev->netdev_ops		= &mac802154_wpan_ops;
 	dev->ml_priv		= &mac802154_mlme_wpan;
 
@@ -319,6 +395,7 @@ void mac802154_wpan_setup(struct net_device *dev)
 	priv->page = 0;
 
 	spin_lock_init(&priv->mib_lock);
+	mutex_init(&priv->sec_mtx);
 
 	get_random_bytes(&priv->bsn, 1);
 	get_random_bytes(&priv->dsn, 1);
@@ -331,6 +408,8 @@ void mac802154_wpan_setup(struct net_device *dev)
 
 	priv->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	priv->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
+
+	mac802154_llsec_init(&priv->sec);
 }
 
 static int mac802154_process_data(struct net_device *dev, struct sk_buff *skb)
@@ -339,9 +418,11 @@ static int mac802154_process_data(struct net_device *dev, struct sk_buff *skb)
 }
 
 static int
-mac802154_subif_frame(struct mac802154_sub_if_data *sdata, struct sk_buff *skb)
+mac802154_subif_frame(struct mac802154_sub_if_data *sdata, struct sk_buff *skb,
+		      const struct ieee802154_hdr *hdr)
 {
 	__le16 span, sshort;
+	int rc;
 
 	pr_debug("getting packet via slave interface %s\n", sdata->dev->name);
 
@@ -388,15 +469,22 @@ mac802154_subif_frame(struct mac802154_sub_if_data *sdata, struct sk_buff *skb)
 
 	skb->dev = sdata->dev;
 
+	rc = mac802154_llsec_decrypt(&sdata->sec, skb);
+	if (rc) {
+		pr_debug("decryption failed: %i\n", rc);
+		kfree_skb(skb);
+		return NET_RX_DROP;
+	}
+
 	sdata->dev->stats.rx_packets++;
 	sdata->dev->stats.rx_bytes += skb->len;
 
-	switch (mac_cb_type(skb)) {
+	switch (mac_cb(skb)->type) {
 	case IEEE802154_FC_TYPE_DATA:
 		return mac802154_process_data(sdata->dev, skb);
 	default:
 		pr_warn("ieee802154: bad frame received (type = %d)\n",
-			mac_cb_type(skb));
+			mac_cb(skb)->type);
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
@@ -419,62 +507,58 @@ static void mac802154_print_addr(const char *name,
 	}
 }
 
-static int mac802154_parse_frame_start(struct sk_buff *skb)
+static int mac802154_parse_frame_start(struct sk_buff *skb,
+				       struct ieee802154_hdr *hdr)
 {
 	int hlen;
-	struct ieee802154_hdr hdr;
+	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
 
-	hlen = ieee802154_hdr_pull(skb, &hdr);
+	hlen = ieee802154_hdr_pull(skb, hdr);
 	if (hlen < 0)
 		return -EINVAL;
 
 	skb->mac_len = hlen;
 
-	pr_debug("fc: %04x dsn: %02x\n", le16_to_cpup((__le16 *)&hdr.fc),
-		 hdr.seq);
+	pr_debug("fc: %04x dsn: %02x\n", le16_to_cpup((__le16 *)&hdr->fc),
+		 hdr->seq);
 
-	mac_cb(skb)->flags = hdr.fc.type;
+	cb->type = hdr->fc.type;
+	cb->ackreq = hdr->fc.ack_request;
+	cb->secen = hdr->fc.security_enabled;
 
-	if (hdr.fc.ack_request)
-		mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;
-	if (hdr.fc.security_enabled)
-		mac_cb(skb)->flags |= MAC_CB_FLAG_SECEN;
+	mac802154_print_addr("destination", &hdr->dest);
+	mac802154_print_addr("source", &hdr->source);
 
-	mac802154_print_addr("destination", &hdr.dest);
-	mac802154_print_addr("source", &hdr.source);
+	cb->source = hdr->source;
+	cb->dest = hdr->dest;
 
-	mac_cb(skb)->source = hdr.source;
-	mac_cb(skb)->dest = hdr.dest;
-
-	if (hdr.fc.security_enabled) {
+	if (hdr->fc.security_enabled) {
 		u64 key;
 
-		pr_debug("seclevel %i\n", hdr.sec.level);
+		pr_debug("seclevel %i\n", hdr->sec.level);
 
-		switch (hdr.sec.key_id_mode) {
+		switch (hdr->sec.key_id_mode) {
 		case IEEE802154_SCF_KEY_IMPLICIT:
 			pr_debug("implicit key\n");
 			break;
 
 		case IEEE802154_SCF_KEY_INDEX:
-			pr_debug("key %02x\n", hdr.sec.key_id);
+			pr_debug("key %02x\n", hdr->sec.key_id);
 			break;
 
 		case IEEE802154_SCF_KEY_SHORT_INDEX:
 			pr_debug("key %04x:%04x %02x\n",
-				 le32_to_cpu(hdr.sec.short_src) >> 16,
-				 le32_to_cpu(hdr.sec.short_src) & 0xffff,
-				 hdr.sec.key_id);
+				 le32_to_cpu(hdr->sec.short_src) >> 16,
+				 le32_to_cpu(hdr->sec.short_src) & 0xffff,
+				 hdr->sec.key_id);
 			break;
 
 		case IEEE802154_SCF_KEY_HW_INDEX:
-			key = swab64((__force u64) hdr.sec.extended_src);
+			key = swab64((__force u64) hdr->sec.extended_src);
 			pr_debug("key source %8phC %02x\n", &key,
-				 hdr.sec.key_id);
+				 hdr->sec.key_id);
 			break;
 		}
-
-		return -EINVAL;
 	}
 
 	return 0;
@@ -483,10 +567,10 @@ static int mac802154_parse_frame_start(struct sk_buff *skb)
 void mac802154_wpans_rx(struct mac802154_priv *priv, struct sk_buff *skb)
 {
 	int ret;
-	struct sk_buff *sskb;
 	struct mac802154_sub_if_data *sdata;
+	struct ieee802154_hdr hdr;
 
-	ret = mac802154_parse_frame_start(skb);
+	ret = mac802154_parse_frame_start(skb, &hdr);
 	if (ret) {
 		pr_debug("got invalid frame\n");
 		return;
@@ -494,12 +578,16 @@ void mac802154_wpans_rx(struct mac802154_priv *priv, struct sk_buff *skb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &priv->slaves, list) {
-		if (sdata->type != IEEE802154_DEV_WPAN)
+		if (sdata->type != IEEE802154_DEV_WPAN ||
+		    !netif_running(sdata->dev))
 			continue;
 
-		sskb = skb_clone(skb, GFP_ATOMIC);
-		if (sskb)
-			mac802154_subif_frame(sdata, sskb);
+		mac802154_subif_frame(sdata, skb, &hdr);
+		skb = NULL;
+		break;
 	}
 	rcu_read_unlock();
+
+	if (skb)
+		kfree_skb(skb);
 }

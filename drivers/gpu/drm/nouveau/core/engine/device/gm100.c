@@ -60,8 +60,8 @@ gm100_identify(struct nouveau_device *device)
 	case 0x117:
 		device->cname = "GM107";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nve0_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nvd0_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nve0_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] =  nvd0_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nve0_clock_oclass;
 #if 0
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nvd0_therm_oclass;

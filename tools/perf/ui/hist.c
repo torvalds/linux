@@ -104,6 +104,18 @@ int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	return ret;
 }
 
+int __hpp__fmt_acc(struct perf_hpp *hpp, struct hist_entry *he,
+		   hpp_field_fn get_field, const char *fmt,
+		   hpp_snprint_fn print_fn, bool fmt_percent)
+{
+	if (!symbol_conf.cumulate_callchain) {
+		return snprintf(hpp->buf, hpp->size, "%*s",
+				fmt_percent ? 8 : 12, "N/A");
+	}
+
+	return __hpp__fmt(hpp, he, get_field, fmt, print_fn, fmt_percent);
+}
+
 static int field_cmp(u64 field_a, u64 field_b)
 {
 	if (field_a > field_b)
@@ -157,6 +169,24 @@ out:
 	free(fields_a);
 	free(fields_b);
 
+	return ret;
+}
+
+static int __hpp__sort_acc(struct hist_entry *a, struct hist_entry *b,
+			   hpp_field_fn get_field)
+{
+	s64 ret = 0;
+
+	if (symbol_conf.cumulate_callchain) {
+		/*
+		 * Put caller above callee when they have equal period.
+		 */
+		ret = field_cmp(get_field(a), get_field(b));
+		if (ret)
+			return ret;
+
+		ret = b->callchain->max_depth - a->callchain->max_depth;
+	}
 	return ret;
 }
 
@@ -242,6 +272,34 @@ static int64_t hpp__sort_##_type(struct hist_entry *a, struct hist_entry *b)	\
 	return __hpp__sort(a, b, he_get_##_field);				\
 }
 
+#define __HPP_COLOR_ACC_PERCENT_FN(_type, _field)				\
+static u64 he_get_acc_##_field(struct hist_entry *he)				\
+{										\
+	return he->stat_acc->_field;						\
+}										\
+										\
+static int hpp__color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,		\
+			      struct perf_hpp *hpp, struct hist_entry *he) 	\
+{										\
+	return __hpp__fmt_acc(hpp, he, he_get_acc_##_field, " %6.2f%%",		\
+			      hpp_color_scnprintf, true);			\
+}
+
+#define __HPP_ENTRY_ACC_PERCENT_FN(_type, _field)				\
+static int hpp__entry_##_type(struct perf_hpp_fmt *_fmt __maybe_unused,		\
+			      struct perf_hpp *hpp, struct hist_entry *he) 	\
+{										\
+	const char *fmt = symbol_conf.field_sep ? " %.2f" : " %6.2f%%";		\
+	return __hpp__fmt_acc(hpp, he, he_get_acc_##_field, fmt,		\
+			      hpp_entry_scnprintf, true);			\
+}
+
+#define __HPP_SORT_ACC_FN(_type, _field)					\
+static int64_t hpp__sort_##_type(struct hist_entry *a, struct hist_entry *b)	\
+{										\
+	return __hpp__sort_acc(a, b, he_get_acc_##_field);			\
+}
+
 #define __HPP_ENTRY_RAW_FN(_type, _field)					\
 static u64 he_get_raw_##_field(struct hist_entry *he)				\
 {										\
@@ -270,18 +328,27 @@ __HPP_COLOR_PERCENT_FN(_type, _field)					\
 __HPP_ENTRY_PERCENT_FN(_type, _field)					\
 __HPP_SORT_FN(_type, _field)
 
+#define HPP_PERCENT_ACC_FNS(_type, _str, _field, _min_width, _unit_width)\
+__HPP_HEADER_FN(_type, _str, _min_width, _unit_width)			\
+__HPP_WIDTH_FN(_type, _min_width, _unit_width)				\
+__HPP_COLOR_ACC_PERCENT_FN(_type, _field)				\
+__HPP_ENTRY_ACC_PERCENT_FN(_type, _field)				\
+__HPP_SORT_ACC_FN(_type, _field)
+
 #define HPP_RAW_FNS(_type, _str, _field, _min_width, _unit_width)	\
 __HPP_HEADER_FN(_type, _str, _min_width, _unit_width)			\
 __HPP_WIDTH_FN(_type, _min_width, _unit_width)				\
 __HPP_ENTRY_RAW_FN(_type, _field)					\
 __HPP_SORT_RAW_FN(_type, _field)
 
+__HPP_HEADER_FN(overhead_self, "Self", 8, 8)
 
 HPP_PERCENT_FNS(overhead, "Overhead", period, 8, 8)
 HPP_PERCENT_FNS(overhead_sys, "sys", period_sys, 8, 8)
 HPP_PERCENT_FNS(overhead_us, "usr", period_us, 8, 8)
 HPP_PERCENT_FNS(overhead_guest_sys, "guest sys", period_guest_sys, 9, 8)
 HPP_PERCENT_FNS(overhead_guest_us, "guest usr", period_guest_us, 9, 8)
+HPP_PERCENT_ACC_FNS(overhead_acc, "Children", period, 8, 8)
 
 HPP_RAW_FNS(samples, "Samples", nr_events, 12, 12)
 HPP_RAW_FNS(period, "Period", period, 12, 12)
@@ -293,6 +360,17 @@ static int64_t hpp__nop_cmp(struct hist_entry *a __maybe_unused,
 }
 
 #define HPP__COLOR_PRINT_FNS(_name)			\
+	{						\
+		.header	= hpp__header_ ## _name,	\
+		.width	= hpp__width_ ## _name,		\
+		.color	= hpp__color_ ## _name,		\
+		.entry	= hpp__entry_ ## _name,		\
+		.cmp	= hpp__nop_cmp,			\
+		.collapse = hpp__nop_cmp,		\
+		.sort	= hpp__sort_ ## _name,		\
+	}
+
+#define HPP__COLOR_ACC_PRINT_FNS(_name)			\
 	{						\
 		.header	= hpp__header_ ## _name,	\
 		.width	= hpp__width_ ## _name,		\
@@ -319,6 +397,7 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 	HPP__COLOR_PRINT_FNS(overhead_us),
 	HPP__COLOR_PRINT_FNS(overhead_guest_sys),
 	HPP__COLOR_PRINT_FNS(overhead_guest_us),
+	HPP__COLOR_ACC_PRINT_FNS(overhead_acc),
 	HPP__PRINT_FNS(samples),
 	HPP__PRINT_FNS(period)
 };
@@ -328,16 +407,23 @@ LIST_HEAD(perf_hpp__sort_list);
 
 
 #undef HPP__COLOR_PRINT_FNS
+#undef HPP__COLOR_ACC_PRINT_FNS
 #undef HPP__PRINT_FNS
 
 #undef HPP_PERCENT_FNS
+#undef HPP_PERCENT_ACC_FNS
 #undef HPP_RAW_FNS
 
 #undef __HPP_HEADER_FN
 #undef __HPP_WIDTH_FN
 #undef __HPP_COLOR_PERCENT_FN
 #undef __HPP_ENTRY_PERCENT_FN
+#undef __HPP_COLOR_ACC_PERCENT_FN
+#undef __HPP_ENTRY_ACC_PERCENT_FN
 #undef __HPP_ENTRY_RAW_FN
+#undef __HPP_SORT_FN
+#undef __HPP_SORT_ACC_FN
+#undef __HPP_SORT_RAW_FN
 
 
 void perf_hpp__init(void)
@@ -361,6 +447,13 @@ void perf_hpp__init(void)
 	if (field_order)
 		return;
 
+	if (symbol_conf.cumulate_callchain) {
+		perf_hpp__column_enable(PERF_HPP__OVERHEAD_ACC);
+
+		perf_hpp__format[PERF_HPP__OVERHEAD].header =
+						hpp__header_overhead_self;
+	}
+
 	perf_hpp__column_enable(PERF_HPP__OVERHEAD);
 
 	if (symbol_conf.show_cpu_utilization) {
@@ -383,11 +476,22 @@ void perf_hpp__init(void)
 	list = &perf_hpp__format[PERF_HPP__OVERHEAD].sort_list;
 	if (list_empty(list))
 		list_add(list, &perf_hpp__sort_list);
+
+	if (symbol_conf.cumulate_callchain) {
+		list = &perf_hpp__format[PERF_HPP__OVERHEAD_ACC].sort_list;
+		if (list_empty(list))
+			list_add(list, &perf_hpp__sort_list);
+	}
 }
 
 void perf_hpp__column_register(struct perf_hpp_fmt *format)
 {
 	list_add_tail(&format->list, &perf_hpp__list);
+}
+
+void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
+{
+	list_del(&format->list);
 }
 
 void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
@@ -399,6 +503,21 @@ void perf_hpp__column_enable(unsigned col)
 {
 	BUG_ON(col >= PERF_HPP__MAX_INDEX);
 	perf_hpp__column_register(&perf_hpp__format[col]);
+}
+
+void perf_hpp__column_disable(unsigned col)
+{
+	BUG_ON(col >= PERF_HPP__MAX_INDEX);
+	perf_hpp__column_unregister(&perf_hpp__format[col]);
+}
+
+void perf_hpp__cancel_cumulate(void)
+{
+	if (field_order)
+		return;
+
+	perf_hpp__column_disable(PERF_HPP__OVERHEAD_ACC);
+	perf_hpp__format[PERF_HPP__OVERHEAD].header = hpp__header_overhead;
 }
 
 void perf_hpp__setup_output_field(void)

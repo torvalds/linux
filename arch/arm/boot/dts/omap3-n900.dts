@@ -351,6 +351,11 @@
 		compatible = "ti,twl4030-audio";
 		ti,enable-vibra = <1>;
 	};
+
+	twl_power: power {
+		compatible = "ti,twl4030-power-n900", "ti,twl4030-power-idle-osc-off";
+		ti,use_poweroff;
+	};
 };
 
 &twl_keypad {
@@ -651,9 +656,24 @@
 	 * Also... order in the device tree actually matters here.
 	 */
 	tsc2005@0 {
-		compatible = "tsc2005";
+		compatible = "ti,tsc2005";
 		spi-max-frequency = <6000000>;
 		reg = <0>;
+
+		vio-supply = <&vio>;
+
+		reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>; /* 104 */
+		interrupts-extended = <&gpio4 4 IRQ_TYPE_EDGE_RISING>; /* 100 */
+
+		touchscreen-fuzz-x = <4>;
+		touchscreen-fuzz-y = <7>;
+		touchscreen-fuzz-pressure = <2>;
+		touchscreen-max-x = <4096>;
+		touchscreen-max-y = <4096>;
+		touchscreen-max-pressure = <2048>;
+
+		ti,x-plate-ohms = <280>;
+		ti,esd-recovery-timeout-ms = <8000>;
 	};
 
 	acx565akm@2 {

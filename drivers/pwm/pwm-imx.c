@@ -241,10 +241,8 @@ static int imx_pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	imx = devm_kzalloc(&pdev->dev, sizeof(*imx), GFP_KERNEL);
-	if (imx == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (imx == NULL)
 		return -ENOMEM;
-	}
 
 	imx->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(imx->clk_per)) {

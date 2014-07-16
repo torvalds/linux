@@ -120,10 +120,9 @@ static void msp_cic_irq_ack(struct irq_data *d)
 	* hurt for the others
 	*/
 	*CIC_STS_REG = (1 << (d->irq - MSP_CIC_INTBASE));
-	smtc_im_ack_irq(d->irq);
 }
 
-/*Note: Limiting to VSMP . Not tested in SMTC */
+/* Note: Limiting to VSMP.  */
 
 #ifdef CONFIG_MIPS_MT_SMP
 static int msp_cic_irq_set_affinity(struct irq_data *d,
@@ -183,10 +182,6 @@ void __init msp_cic_irq_init(void)
 	for (i = MSP_CIC_INTBASE ; i < MSP_CIC_INTBASE + 32 ; i++) {
 		irq_set_chip_and_handler(i, &msp_cic_irq_controller,
 					 handle_level_irq);
-#ifdef CONFIG_MIPS_MT_SMTC
-		/* Mask of CIC interrupt */
-		irq_hwmask[i] = C_IRQ4;
-#endif
 	}
 
 	/* Initialize the PER interrupt sub-system */

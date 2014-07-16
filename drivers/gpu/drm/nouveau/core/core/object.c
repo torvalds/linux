@@ -156,7 +156,7 @@ nouveau_object_ctor(struct nouveau_object *parent,
 	}
 
 	if (ret == 0) {
-		nv_debug(object, "created\n");
+		nv_trace(object, "created\n");
 		atomic_set(&object->refcount, 1);
 	}
 
@@ -166,7 +166,7 @@ nouveau_object_ctor(struct nouveau_object *parent,
 static void
 nouveau_object_dtor(struct nouveau_object *object)
 {
-	nv_debug(object, "destroying\n");
+	nv_trace(object, "destroying\n");
 	nv_ofuncs(object)->dtor(object);
 }
 
@@ -337,7 +337,7 @@ nouveau_object_inc(struct nouveau_object *object)
 		goto fail_self;
 	}
 
-	nv_debug(object, "initialised\n");
+	nv_trace(object, "initialised\n");
 	return 0;
 
 fail_self:
@@ -375,7 +375,7 @@ nouveau_object_decf(struct nouveau_object *object)
 	if (object->parent)
 		nouveau_object_dec(object->parent, false);
 
-	nv_debug(object, "stopped\n");
+	nv_trace(object, "stopped\n");
 	return 0;
 }
 
@@ -411,7 +411,7 @@ nouveau_object_decs(struct nouveau_object *object)
 		}
 	}
 
-	nv_debug(object, "suspended\n");
+	nv_trace(object, "suspended\n");
 	return 0;
 
 fail_parent:

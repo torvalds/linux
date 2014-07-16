@@ -54,7 +54,7 @@ mmio_list_base:
 #ifdef INCLUDE_CODE
 // reports an exception to the host
 //
-// In: $r15 error code (see nvc0.fuc)
+// In: $r15 error code (see os.h)
 //
 error:
 	push $r14

@@ -360,8 +360,8 @@ static int igb_ptp_settime_i210(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-static int igb_ptp_enable(struct ptp_clock_info *ptp,
-			  struct ptp_clock_request *rq, int on)
+static int igb_ptp_feature_enable(struct ptp_clock_info *ptp,
+				  struct ptp_clock_request *rq, int on)
 {
 	return -EOPNOTSUPP;
 }
@@ -559,10 +559,11 @@ int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
 	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
 		-EFAULT : 0;
 }
+
 /**
- * igb_ptp_set_ts_config - control hardware time stamping
- * @netdev:
- * @ifreq:
+ * igb_ptp_set_timestamp_mode - setup hardware for timestamping
+ * @adapter: networking device structure
+ * @config: hwtstamp configuration
  *
  * Outgoing time stamping can be enabled and disabled. Play nice and
  * disable it when requested, although it shouldn't case any overhead
@@ -575,21 +576,17 @@ int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
  * type has to be specified. Matching the kind of event packet is
  * not supported, with the exception of "all V2 events regardless of
  * level 2 or 4".
- **/
-int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
+ */
+static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
+				      struct hwtstamp_config *config)
 {
-	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct hwtstamp_config *config = &adapter->tstamp_config;
 	u32 tsync_tx_ctl = E1000_TSYNCTXCTL_ENABLED;
 	u32 tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
 	u32 tsync_rx_cfg = 0;
 	bool is_l4 = false;
 	bool is_l2 = false;
 	u32 regval;
-
-	if (copy_from_user(config, ifr->ifr_data, sizeof(*config)))
-		return -EFAULT;
 
 	/* reserved for future extensions */
 	if (config->flags)
@@ -725,7 +722,33 @@ int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
 	regval = rd32(E1000_RXSTMPL);
 	regval = rd32(E1000_RXSTMPH);
 
-	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
+	return 0;
+}
+
+/**
+ * igb_ptp_set_ts_config - set hardware time stamping config
+ * @netdev:
+ * @ifreq:
+ *
+ **/
+int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct hwtstamp_config config;
+	int err;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	err = igb_ptp_set_timestamp_mode(adapter, &config);
+	if (err)
+		return err;
+
+	/* save these settings for future reference */
+	memcpy(&adapter->tstamp_config, &config,
+	       sizeof(adapter->tstamp_config));
+
+	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 		-EFAULT : 0;
 }
 
@@ -745,7 +768,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
 		adapter->ptp_caps.gettime = igb_ptp_gettime_82576;
 		adapter->ptp_caps.settime = igb_ptp_settime_82576;
-		adapter->ptp_caps.enable = igb_ptp_enable;
+		adapter->ptp_caps.enable = igb_ptp_feature_enable;
 		adapter->cc.read = igb_ptp_read_82576;
 		adapter->cc.mask = CLOCKSOURCE_MASK(64);
 		adapter->cc.mult = 1;
@@ -765,7 +788,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
 		adapter->ptp_caps.gettime = igb_ptp_gettime_82576;
 		adapter->ptp_caps.settime = igb_ptp_settime_82576;
-		adapter->ptp_caps.enable = igb_ptp_enable;
+		adapter->ptp_caps.enable = igb_ptp_feature_enable;
 		adapter->cc.read = igb_ptp_read_82580;
 		adapter->cc.mask = CLOCKSOURCE_MASK(IGB_NBITS_82580);
 		adapter->cc.mult = 1;
@@ -784,7 +807,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_i210;
 		adapter->ptp_caps.gettime = igb_ptp_gettime_i210;
 		adapter->ptp_caps.settime = igb_ptp_settime_i210;
-		adapter->ptp_caps.enable = igb_ptp_enable;
+		adapter->ptp_caps.enable = igb_ptp_feature_enable;
 		/* Enable the timer functions by clearing bit 31. */
 		wr32(E1000_TSAUXC, 0x0);
 		break;
@@ -819,6 +842,9 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		wr32(E1000_TSIM, TSYNC_INTERRUPTS);
 		wr32(E1000_IMS, E1000_IMS_TS);
 	}
+
+	adapter->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+	adapter->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
 
 	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps,
 						&adapter->pdev->dev);
@@ -884,7 +910,7 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 		return;
 
 	/* reset the tstamp_config */
-	memset(&adapter->tstamp_config, 0, sizeof(adapter->tstamp_config));
+	igb_ptp_set_timestamp_mode(adapter, &adapter->tstamp_config);
 
 	switch (adapter->hw.mac.type) {
 	case e1000_82576:

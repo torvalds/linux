@@ -12,10 +12,42 @@
  *      to skip certain things during boot on simulator
  */
 
+#include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/entry.h>
-#include <linux/linkage.h>
 #include <asm/arcregs.h>
+#include <asm/cache.h>
+
+.macro CPU_EARLY_SETUP
+
+	; Setting up Vectror Table (in case exception happens in early boot
+	sr	@_int_vec_base_lds, [AUX_INTR_VEC_BASE]
+
+	; Disable I-cache/D-cache if kernel so configured
+	lr	r5, [ARC_REG_IC_BCR]
+	breq    r5, 0, 1f		; I$ doesn't exist
+	lr	r5, [ARC_REG_IC_CTRL]
+#ifdef CONFIG_ARC_HAS_ICACHE
+	bclr	r5, r5, 0		; 0 - Enable, 1 is Disable
+#else
+	bset	r5, r5, 0		; I$ exists, but is not used
+#endif
+	sr	r5, [ARC_REG_IC_CTRL]
+
+1:
+	lr	r5, [ARC_REG_DC_BCR]
+	breq    r5, 0, 1f		; D$ doesn't exist
+	lr	r5, [ARC_REG_DC_CTRL]
+	bclr	r5, r5, 6		; Invalidate (discard w/o wback)
+#ifdef CONFIG_ARC_HAS_DCACHE
+	bclr	r5, r5, 0		; Enable (+Inv)
+#else
+	bset	r5, r5, 0		; Disable (+Inv)
+#endif
+	sr	r5, [ARC_REG_DC_CTRL]
+
+1:
+.endm
 
 	.cpu A7
 
@@ -27,7 +59,7 @@ stext:
 	; Don't clobber r0-r2 yet. It might have bootloader provided info
 	;-------------------------------------------------------------------
 
-	sr	@_int_vec_base_lds, [AUX_INTR_VEC_BASE]
+	CPU_EARLY_SETUP
 
 #ifdef CONFIG_SMP
 	; Ensure Boot (Master) proceeds. Others wait in platform dependent way
@@ -45,10 +77,11 @@ stext:
 	; Clear BSS before updating any globals
 	; XXX: use ZOL here
 	mov	r5, __bss_start
-	mov	r6, __bss_stop
+	sub	r6, __bss_stop, r5
+	lsr.f	lp_count, r6, 2
+	lpnz	1f
+	st.ab   0, [r5, 4]
 1:
-	st.ab   0, [r5,4]
-	brlt    r5, r6, 1b
 
 	; Uboot - kernel ABI
 	;    r0 = [0] No uboot interaction, [1] cmdline in r2, [2] DTB in r2
@@ -90,7 +123,7 @@ stext:
 
 first_lines_of_secondary:
 
-	sr	@_int_vec_base_lds, [AUX_INTR_VEC_BASE]
+	CPU_EARLY_SETUP
 
 	; setup per-cpu idle task as "current" on this CPU
 	ld	r0, [@secondary_idle_tsk]

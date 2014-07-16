@@ -656,6 +656,7 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		common->vif_info[ii].seq_start = seq_no;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		status = 0;
 		break;
 
 	case IEEE80211_AMPDU_TX_STOP_CONT:

@@ -199,6 +199,34 @@ config CURRITUCK
 	help
 	  This option enables support for the IBM Currituck (476fpe) evaluation board
 
+config AKEBONO
+	bool "IBM Akebono (476gtr) Support"
+	depends on PPC_47x
+	default n
+	select SWIOTLB
+	select 476FPE
+	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PPC4xx_HSTA_MSI
+	select I2C
+	select I2C_IBM_IIC
+	select NETDEVICES
+	select ETHERNET
+	select NET_VENDOR_IBM
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII_WOL
+	select USB
+	select USB_OHCI_HCD_PLATFORM
+	select USB_EHCI_HCD_PLATFORM
+	select MMC_SDHCI
+	select MMC_SDHCI_PLTFM
+	select MMC_SDHCI_OF_476GTR
+	select ATA
+	select SATA_AHCI_PLATFORM
+	help
+	  This option enables support for the IBM Akebono (476gtr) evaluation board
+
+
 config ICON
 	bool "Icon"
 	depends on 44x
@@ -322,6 +350,20 @@ config APM821xx
 	select PPC_FPU
 	select IBM_EMAC_EMAC4
 	select IBM_EMAC_TAH
+
+config 476FPE_ERR46
+	depends on 476FPE
+	bool "Enable linker work around for PPC476FPE errata #46"
+	help
+	  This option enables a work around for an icache bug on 476
+	  that can cause execution of stale instructions when falling
+	  through pages (IBM errata #46). It requires a recent version
+	  of binutils which supports the --ppc476-workaround option.
+
+	  The work around enables the appropriate linker options and
+	  ensures that all module output sections are aligned to 4K
+	  page boundaries. The work around is only required when
+	  building modules.
 
 # 44x errata/workaround config symbols, selected by the CPU models above
 config IBM440EP_ERR42

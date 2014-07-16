@@ -68,16 +68,6 @@ err_free:
 	return ret;
 }
 
-static int drm_platform_get_irq(struct drm_device *dev)
-{
-	return platform_get_irq(dev->platformdev, 0);
-}
-
-static const char *drm_platform_get_name(struct drm_device *dev)
-{
-	return dev->platformdev->name;
-}
-
 static int drm_platform_set_busid(struct drm_device *dev, struct drm_master *master)
 {
 	int len, ret, id;
@@ -106,46 +96,30 @@ static int drm_platform_set_busid(struct drm_device *dev, struct drm_master *mas
 		goto err;
 	}
 
-	dev->devname =
-		kmalloc(strlen(dev->platformdev->name) +
-			master->unique_len + 2, GFP_KERNEL);
-
-	if (dev->devname == NULL) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	sprintf(dev->devname, "%s@%s", dev->platformdev->name,
-		master->unique);
 	return 0;
 err:
 	return ret;
 }
 
 static struct drm_bus drm_platform_bus = {
-	.bus_type = DRIVER_BUS_PLATFORM,
-	.get_irq = drm_platform_get_irq,
-	.get_name = drm_platform_get_name,
 	.set_busid = drm_platform_set_busid,
 };
 
 /**
- * Platform device initialization. Called direct from modules.
+ * drm_platform_init - Register a platform device with the DRM subsystem
+ * @driver: DRM device driver
+ * @platform_device: platform device to register
  *
- * \return zero on success or a negative number on failure.
+ * Registers the specified DRM device driver and platform device with the DRM
+ * subsystem, initializing a drm_device structure and calling the driver's
+ * .load() function.
  *
- * Initializes a drm_device structures,registering the
- * stubs
- *
- * Expands the \c DRIVER_PREINIT and \c DRIVER_POST_INIT macros before and
- * after the initialization for driver customization.
+ * Return: 0 on success or a negative error code on failure.
  */
-
 int drm_platform_init(struct drm_driver *driver, struct platform_device *platform_device)
 {
 	DRM_DEBUG("\n");
 
-	driver->kdriver.platform_device = platform_device;
 	driver->bus = &drm_platform_bus;
 	return drm_get_platform_dev(platform_device, driver);
 }

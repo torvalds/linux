@@ -1948,6 +1948,10 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 			si_pi->cac_weights = cac_weights_cape_verde_pro;
 			si_pi->dte_data = dte_data_cape_verde;
 			break;
+		case 0x682C:
+			si_pi->cac_weights = cac_weights_cape_verde_pro;
+			si_pi->dte_data = dte_data_sun_xt;
+			break;
 		case 0x6825:
 		case 0x6827:
 			si_pi->cac_weights = cac_weights_heathrow;
@@ -1971,10 +1975,9 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 			si_pi->dte_data = dte_data_venus_xt;
 			break;
 		case 0x6823:
-			si_pi->cac_weights = cac_weights_chelsea_pro;
-			si_pi->dte_data = dte_data_venus_pro;
-			break;
 		case 0x682B:
+		case 0x6822:
+		case 0x682A:
 			si_pi->cac_weights = cac_weights_chelsea_pro;
 			si_pi->dte_data = dte_data_venus_pro;
 			break;
@@ -1988,6 +1991,7 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 		case 0x6601:
 		case 0x6621:
 		case 0x6603:
+		case 0x6605:
 			si_pi->cac_weights = cac_weights_mars_pro;
 			si_pi->lcac_config = lcac_mars_pro;
 			si_pi->cac_override = cac_override_oland;
@@ -1998,6 +2002,7 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 		case 0x6600:
 		case 0x6606:
 		case 0x6620:
+		case 0x6604:
 			si_pi->cac_weights = cac_weights_mars_xt;
 			si_pi->lcac_config = lcac_mars_pro;
 			si_pi->cac_override = cac_override_oland;
@@ -2006,6 +2011,8 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 			update_dte_from_pl2 = true;
 			break;
 		case 0x6611:
+		case 0x6613:
+		case 0x6608:
 			si_pi->cac_weights = cac_weights_oland_pro;
 			si_pi->lcac_config = lcac_mars_pro;
 			si_pi->cac_override = cac_override_oland;

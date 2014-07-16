@@ -284,6 +284,8 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			rx_status.band = dev->conf.chandef.chan->band;
 			rx_status.mactime = tsft;
 			rx_status.flag |= RX_FLAG_MACTIME_START;
+			if (flags & RTL818X_RX_DESC_FLAG_SPLCP)
+				rx_status.flag |= RX_FLAG_SHORTPRE;
 			if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 				rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 
@@ -461,17 +463,22 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 			    RTL818X_TX_DESC_FLAG_NO_ENC;
 
 	rc_flags = info->control.rates[0].flags;
+
+	/* HW will perform RTS-CTS when only RTS flags is set.
+	 * HW will perform CTS-to-self when both RTS and CTS flags are set.
+	 * RTS rate and RTS duration will be used also for CTS-to-self.
+	 */
 	if (rc_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		tx_flags |= RTL818X_TX_DESC_FLAG_RTS;
 		tx_flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
+		rts_duration = ieee80211_rts_duration(dev, priv->vif,
+						skb->len, info);
 	} else if (rc_flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
-		tx_flags |= RTL818X_TX_DESC_FLAG_CTS;
+		tx_flags |= RTL818X_TX_DESC_FLAG_RTS | RTL818X_TX_DESC_FLAG_CTS;
 		tx_flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
+		rts_duration = ieee80211_ctstoself_duration(dev, priv->vif,
+						skb->len, info);
 	}
-
-	if (rc_flags & IEEE80211_TX_RC_USE_RTS_CTS)
-		rts_duration = ieee80211_rts_duration(dev, priv->vif, skb->len,
-						      info);
 
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180) {
 		unsigned int remainder;
@@ -683,9 +690,8 @@ static void rtl8180_int_enable(struct ieee80211_hw *dev)
 	struct rtl8180_priv *priv = dev->priv;
 
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
-		rtl818x_iowrite32(priv, &priv->map->IMR, IMR_TMGDOK |
-			  IMR_TBDER | IMR_THPDER |
-			  IMR_THPDER | IMR_THPDOK |
+		rtl818x_iowrite32(priv, &priv->map->IMR,
+			  IMR_TBDER | IMR_TBDOK |
 			  IMR_TVODER | IMR_TVODOK |
 			  IMR_TVIDER | IMR_TVIDOK |
 			  IMR_TBEDER | IMR_TBEDOK |
@@ -911,7 +917,10 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		reg32 &= 0x00ffff00;
 		reg32 |= 0xb8000054;
 		rtl818x_iowrite32(priv, &priv->map->RF_PARA, reg32);
-	}
+	} else
+		/* stop unused queus (no dma alloc) */
+		rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING,
+			    (1<<1) | (1<<2));
 
 	priv->rf->init(dev);
 

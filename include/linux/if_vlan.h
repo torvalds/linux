@@ -106,7 +106,7 @@ struct vlan_pcpu_stats {
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 
-extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
+extern struct net_device *__vlan_find_dev_deep_rcu(struct net_device *real_dev,
 					       __be16 vlan_proto, u16 vlan_id);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
@@ -206,7 +206,7 @@ static inline int vlan_get_encap_level(struct net_device *dev)
 }
 #else
 static inline struct net_device *
-__vlan_find_dev_deep(struct net_device *real_dev,
+__vlan_find_dev_deep_rcu(struct net_device *real_dev,
 		     __be16 vlan_proto, u16 vlan_id)
 {
 	return NULL;

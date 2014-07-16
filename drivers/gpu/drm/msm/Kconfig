@@ -3,7 +3,7 @@ config DRM_MSM
 	tristate "MSM DRM"
 	depends on DRM
 	depends on MSM_IOMMU
-	depends on ARCH_MSM8960 || (ARM && COMPILE_TEST)
+	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
 	select DRM_KMS_HELPER
 	select SHMEM
 	select TMPFS

@@ -58,6 +58,7 @@ int bt_to_errno(__u16 code)
 		return EIO;
 
 	case 0x04:
+	case 0x3c:
 		return EHOSTDOWN;
 
 	case 0x05:

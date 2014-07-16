@@ -1251,7 +1251,7 @@ const struct drm_ioctl_desc i810_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I810_FLIP, i810_flip_bufs, DRM_AUTH|DRM_UNLOCKED),
 };
 
-int i810_max_ioctl = DRM_ARRAY_SIZE(i810_ioctls);
+int i810_max_ioctl = ARRAY_SIZE(i810_ioctls);
 
 /**
  * Determine if the device really is AGP or not.

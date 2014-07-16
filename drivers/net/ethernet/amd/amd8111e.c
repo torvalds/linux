@@ -1900,7 +1900,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	/* Initialize driver entry points */
 	dev->netdev_ops = &amd8111e_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 	dev->irq =pdev->irq;
 	dev->watchdog_timeo = AMD8111E_TX_TIMEOUT;
 	netif_napi_add(dev, &lp->napi, amd8111e_rx_poll, 32);

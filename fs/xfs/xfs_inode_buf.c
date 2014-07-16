@@ -437,17 +437,16 @@ xfs_iread(
 	}
 
 	/*
-	 * The inode format changed when we moved the link count and
-	 * made it 32 bits long.  If this is an old format inode,
-	 * convert it in memory to look like a new one.  If it gets
-	 * flushed to disk we will convert back before flushing or
-	 * logging it.  We zero out the new projid field and the old link
-	 * count field.  We'll handle clearing the pad field (the remains
-	 * of the old uuid field) when we actually convert the inode to
-	 * the new format. We don't change the version number so that we
-	 * can distinguish this from a real new format inode.
+	 * Automatically convert version 1 inode formats in memory to version 2
+	 * inode format. If the inode is modified, it will get logged and
+	 * rewritten as a version 2 inode. We can do this because we set the
+	 * superblock feature bit for v2 inodes unconditionally during mount
+	 * and it means the reast of the code can assume the inode version is 2
+	 * or higher.
 	 */
 	if (ip->i_d.di_version == 1) {
+		ip->i_d.di_version = 2;
+		memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 		ip->i_d.di_nlink = ip->i_d.di_onlink;
 		ip->i_d.di_onlink = 0;
 		xfs_set_projid(ip, 0);

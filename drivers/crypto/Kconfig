@@ -313,7 +313,7 @@ config CRYPTO_DEV_S5P
 
 config CRYPTO_DEV_NX
 	bool "Support for IBM Power7+ in-Nest cryptographic acceleration"
-	depends on PPC64 && IBMVIO
+	depends on PPC64 && IBMVIO && !CPU_LITTLE_ENDIAN
 	default n
 	help
 	  Support for Power7+ in-Nest cryptographic acceleration.

@@ -1229,7 +1229,7 @@ static int au1000_probe(struct platform_device *pdev)
 	dev->base_addr = base->start;
 	dev->irq = irq;
 	dev->netdev_ops = &au1000_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &au1000_ethtool_ops);
+	dev->ethtool_ops = &au1000_ethtool_ops;
 	dev->watchdog_timeo = ETH_TX_TIMEOUT;
 
 	/*

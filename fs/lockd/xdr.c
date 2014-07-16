@@ -16,6 +16,8 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/lockd/lockd.h>
 
+#include <uapi/linux/nfs2.h>
+
 #define NLMDBG_FACILITY		NLMDBG_XDR
 
 

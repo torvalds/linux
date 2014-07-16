@@ -1708,7 +1708,7 @@ struct security_operations {
 	void (*key_free) (struct key *key);
 	int (*key_permission) (key_ref_t key_ref,
 			       const struct cred *cred,
-			       key_perm_t perm);
+			       unsigned perm);
 	int (*key_getsecurity)(struct key *key, char **_buffer);
 #endif	/* CONFIG_KEYS */
 
@@ -3034,7 +3034,7 @@ static inline int security_path_chroot(struct path *path)
 int security_key_alloc(struct key *key, const struct cred *cred, unsigned long flags);
 void security_key_free(struct key *key);
 int security_key_permission(key_ref_t key_ref,
-			    const struct cred *cred, key_perm_t perm);
+			    const struct cred *cred, unsigned perm);
 int security_key_getsecurity(struct key *key, char **_buffer);
 
 #else
@@ -3052,7 +3052,7 @@ static inline void security_key_free(struct key *key)
 
 static inline int security_key_permission(key_ref_t key_ref,
 					  const struct cred *cred,
-					  key_perm_t perm)
+					  unsigned perm)
 {
 	return 0;
 }

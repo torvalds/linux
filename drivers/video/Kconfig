@@ -20,6 +20,7 @@ source "drivers/char/agp/Kconfig"
 source "drivers/gpu/vga/Kconfig"
 
 source "drivers/gpu/host1x/Kconfig"
+source "drivers/gpu/ipu-v3/Kconfig"
 
 menu "Direct Rendering Manager"
 source "drivers/gpu/drm/Kconfig"

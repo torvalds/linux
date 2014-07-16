@@ -674,12 +674,6 @@ static int shmob_drm_connector_get_modes(struct drm_connector *connector)
 	return 1;
 }
 
-static int shmob_drm_connector_mode_valid(struct drm_connector *connector,
-					  struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static struct drm_encoder *
 shmob_drm_connector_best_encoder(struct drm_connector *connector)
 {
@@ -690,7 +684,6 @@ shmob_drm_connector_best_encoder(struct drm_connector *connector)
 
 static const struct drm_connector_helper_funcs connector_helper_funcs = {
 	.get_modes = shmob_drm_connector_get_modes,
-	.mode_valid = shmob_drm_connector_mode_valid,
 	.best_encoder = shmob_drm_connector_best_encoder,
 };
 

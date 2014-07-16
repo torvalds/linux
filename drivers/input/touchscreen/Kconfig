@@ -11,6 +11,10 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config OF_TOUCHSCREEN
+	def_tristate INPUT
+	depends on INPUT && OF
+
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X
@@ -89,6 +93,7 @@ config TOUCHSCREEN_AD7879_SPI
 config TOUCHSCREEN_ATMEL_MXT
 	tristate "Atmel mXT I2C Touchscreen"
 	depends on I2C
+	select FW_LOADER
 	help
 	  Say Y here if you have Atmel mXT series I2C touchscreen,
 	  such as AT42QT602240/ATMXT224, connected to your system.
@@ -846,7 +851,7 @@ config TOUCHSCREEN_TSC2007
 
 config TOUCHSCREEN_W90X900
 	tristate "W90P910 touchscreen driver"
-	depends on HAVE_CLK
+	depends on ARCH_W90X900
 	help
 	  Say Y here if you have a W90P910 based touchscreen.
 
@@ -884,6 +889,17 @@ config TOUCHSCREEN_STMPE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmpe-ts.
+
+config TOUCHSCREEN_SUN4I
+	tristate "Allwinner sun4i resistive touchscreen controller support"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on HWMON
+	help
+	  This selects support for the resistive touchscreen controller
+	  found on Allwinner sunxi SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sun4i-ts.
 
 config TOUCHSCREEN_SUR40
 	tristate "Samsung SUR40 (Surface 2.0/PixelSense) touchscreen"

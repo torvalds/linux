@@ -1,27 +1,37 @@
                           Kernel Parameters
                           ~~~~~~~~~~~~~~~~~
 
-The following is a consolidated list of the kernel parameters as implemented
-(mostly) by the __setup() macro and sorted into English Dictionary order
-(defined as ignoring all punctuation and sorting digits before letters in a
-case insensitive manner), and with descriptions where known.
+The following is a consolidated list of the kernel parameters as
+implemented by the __setup(), core_param() and module_param() macros
+and sorted into English Dictionary order (defined as ignoring all
+punctuation and sorting digits before letters in a case insensitive
+manner), and with descriptions where known.
 
-Module parameters for loadable modules are specified only as the
-parameter name with optional '=' and value as appropriate, such as:
+The kernel parses parameters from the kernel command line up to "--";
+if it doesn't recognize a parameter and it doesn't contain a '.', the
+parameter gets passed to init: parameters with '=' go into init's
+environment, others are passed as command line arguments to init.
+Everything after "--" is passed as an argument to init.
 
-	modprobe usbcore blinkenlights=1
+Module parameters can be specified in two ways: via the kernel command
+line with a module name prefix, or via modprobe, e.g.:
 
-Module parameters for modules that are built into the kernel image
-are specified on the kernel command line with the module name plus
-'.' plus parameter name, with '=' and value if appropriate, such as:
+	(kernel command line) usbcore.blinkenlights=1
+	(modprobe command line) modprobe usbcore blinkenlights=1
 
-	usbcore.blinkenlights=1
+Parameters for modules which are built into the kernel need to be
+specified on the kernel command line.  modprobe looks through the
+kernel command line (/proc/cmdline) and collects module parameters
+when it loads a module, so the kernel command line can be used for
+loadable modules too.
 
 Hyphens (dashes) and underscores are equivalent in parameter names, so
 	log_buf_len=1M print-fatal-signals=1
 can also be entered as
 	log-buf-len=1M print_fatal_signals=1
 
+Double-quotes can be used to protect spaces in values, e.g.:
+	param="spaces in here"
 
 This document may not be entirely up to date and comprehensive. The command
 "modinfo -p ${modulename}" shows a current list of all parameters of a loadable
@@ -1464,6 +1474,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	js=		[HW,JOY] Analog joystick
 			See Documentation/input/joystick.txt.
 
+	kaslr/nokaslr	[X86]
+			Enable/disable kernel and module base offset ASLR
+			(Address Space Layout Randomization) if built into
+			the kernel. When CONFIG_HIBERNATION is selected,
+			kASLR is disabled by default. When kASLR is enabled,
+			hibernation will be disabled.
+
 	keepinitrd	[HW,ARM]
 
 	kernelcore=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
@@ -2100,10 +2117,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	noapic		[SMP,APIC] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
 
-	nokaslr		[X86]
-			Disable kernel and module base offset ASLR (Address
-			Space Layout Randomization) if built into the kernel.
-
 	noautogroup	Disable scheduler automatic task group creation.
 
 	nobats		[PPC] Do not use BATs for mapping kernel lowmem
@@ -2173,6 +2186,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			interrupt wake-up latency, which may improve performance
 			in certain environments such as networked servers or
 			real-time systems.
+
+	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
 	nohz=		[KNL] Boottime enable/disable dynamic ticks
 			Valid arguments: on, off
@@ -2970,6 +2985,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		noresume	Don't check if there's a hibernation image
 				present during boot.
 		nocompress	Don't compress/decompress hibernation images.
+		no		Disable hibernation and resume.
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 
@@ -3112,6 +3128,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	softlockup_panic=
 			[KNL] Should the soft-lockup detector generate panics.
+			Format: <integer>
+
+	softlockup_all_cpu_backtrace=
+			[KNL] Should the soft-lockup detector generate
+			backtraces on all cpus.
 			Format: <integer>
 
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver

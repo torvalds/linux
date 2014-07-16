@@ -57,6 +57,9 @@ struct macvlan_dev {
 	netdev_features_t	tap_features;
 	int			minor;
 	int			nest_level;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct netpoll		*netpoll;
+#endif
 };
 
 static inline void macvlan_count_rx(const struct macvlan_dev *vlan,

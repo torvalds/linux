@@ -196,7 +196,7 @@ static int __init hvc_tile_init(void)
 #ifndef __tilegx__
 	struct hvc_struct *hp;
 	hp = hvc_alloc(0, 0, &hvc_tile_get_put_ops, 128);
-	return IS_ERR(hp) ? PTR_ERR(hp) : 0;
+	return PTR_ERR_OR_ZERO(hp);
 #else
 	platform_device_register(&hvc_tile_pdev);
 	return platform_driver_register(&hvc_tile_driver);

@@ -173,7 +173,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_kms;
 
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
 	if (ret)
 		goto err_kms;
 
@@ -402,7 +402,7 @@ static struct platform_driver armada_drm_platform_driver = {
 
 static int __init armada_drm_init(void)
 {
-	armada_drm_driver.num_ioctls = DRM_ARRAY_SIZE(armada_ioctls);
+	armada_drm_driver.num_ioctls = ARRAY_SIZE(armada_ioctls);
 	return platform_driver_register(&armada_drm_platform_driver);
 }
 module_init(armada_drm_init);

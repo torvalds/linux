@@ -46,6 +46,9 @@ extern int __cpu_logical_map[NR_CPUS];
 
 extern volatile cpumask_t cpu_callin_map;
 
+/* Mask of CPUs which are currently definitely operating coherently */
+extern cpumask_t cpu_coherent_mask;
+
 extern void asmlinkage smp_bootstrap(void);
 
 /*

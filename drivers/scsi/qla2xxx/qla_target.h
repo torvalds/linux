@@ -293,6 +293,7 @@ struct ctio_to_2xxx {
 #define CTIO_ABORTED			0x02
 #define CTIO_INVALID_RX_ID		0x08
 #define CTIO_TIMEOUT			0x0B
+#define CTIO_DIF_ERROR			0x0C     /* DIF error detected  */
 #define CTIO_LIP_RESET			0x0E
 #define CTIO_TARGET_RESET		0x17
 #define CTIO_PORT_UNAVAILABLE		0x28
@@ -315,7 +316,7 @@ struct fcp_hdr {
 	uint8_t  seq_id;
 	uint8_t  df_ctl;
 	uint16_t seq_cnt;
-	uint16_t ox_id;
+	__be16   ox_id;
 	uint16_t rx_id;
 	uint32_t parameter;
 } __packed;
@@ -440,9 +441,9 @@ struct ctio7_to_24xx {
 	union {
 		struct {
 			uint16_t reserved1;
-			uint16_t flags;
+			__le16 flags;
 			uint32_t residual;
-			uint16_t ox_id;
+			__le16 ox_id;
 			uint16_t scsi_status;
 			uint32_t relative_offset;
 			uint32_t reserved2;
@@ -457,7 +458,7 @@ struct ctio7_to_24xx {
 			uint16_t sense_length;
 			uint16_t flags;
 			uint32_t residual;
-			uint16_t ox_id;
+			__le16 ox_id;
 			uint16_t scsi_status;
 			uint16_t response_len;
 			uint16_t reserved;
@@ -498,11 +499,12 @@ struct ctio7_from_24xx {
 #define CTIO7_FLAGS_DONT_RET_CTIO	BIT_8
 #define CTIO7_FLAGS_STATUS_MODE_0	0
 #define CTIO7_FLAGS_STATUS_MODE_1	BIT_6
+#define CTIO7_FLAGS_STATUS_MODE_2	BIT_7
 #define CTIO7_FLAGS_EXPLICIT_CONFORM	BIT_5
 #define CTIO7_FLAGS_CONFIRM_SATISF	BIT_4
 #define CTIO7_FLAGS_DSD_PTR		BIT_2
-#define CTIO7_FLAGS_DATA_IN		BIT_1
-#define CTIO7_FLAGS_DATA_OUT		BIT_0
+#define CTIO7_FLAGS_DATA_IN		BIT_1 /* data to initiator */
+#define CTIO7_FLAGS_DATA_OUT		BIT_0 /* data from initiator */
 
 #define ELS_PLOGI			0x3
 #define ELS_FLOGI			0x4
@@ -512,6 +514,68 @@ struct ctio7_from_24xx {
 #define ELS_TPRLO			0x24
 #define ELS_PDISC			0x50
 #define ELS_ADISC			0x52
+
+/*
+ *CTIO Type CRC_2 IOCB
+ */
+struct ctio_crc2_to_fw {
+	uint8_t entry_type;		/* Entry type. */
+#define CTIO_CRC2 0x7A
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System defined. */
+	uint8_t entry_status;		/* Entry Status. */
+
+	uint32_t handle;		/* System handle. */
+	uint16_t nport_handle;		/* N_PORT handle. */
+	__le16 timeout;		/* Command timeout. */
+
+	uint16_t dseg_count;		/* Data segment count. */
+	uint8_t  vp_index;
+	uint8_t  add_flags;		/* additional flags */
+#define CTIO_CRC2_AF_DIF_DSD_ENA BIT_3
+
+	uint8_t  initiator_id[3];	/* initiator ID */
+	uint8_t  reserved1;
+	uint32_t exchange_addr;		/* rcv exchange address */
+	uint16_t reserved2;
+	__le16 flags;			/* refer to CTIO7 flags values */
+	uint32_t residual;
+	__le16 ox_id;
+	uint16_t scsi_status;
+	__le32 relative_offset;
+	uint32_t reserved5;
+	__le32 transfer_length;		/* total fc transfer length */
+	uint32_t reserved6;
+	__le32 crc_context_address[2];/* Data segment address. */
+	uint16_t crc_context_len;	/* Data segment length. */
+	uint16_t reserved_1;		/* MUST be set to 0. */
+} __packed;
+
+/* CTIO Type CRC_x Status IOCB */
+struct ctio_crc_from_fw {
+	uint8_t entry_type;		/* Entry type. */
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System defined. */
+	uint8_t entry_status;		/* Entry Status. */
+
+	uint32_t handle;		/* System handle. */
+	uint16_t status;
+	uint16_t timeout;		/* Command timeout. */
+	uint16_t dseg_count;		/* Data segment count. */
+	uint32_t reserved1;
+	uint16_t state_flags;
+#define CTIO_CRC_SF_DIF_CHOPPED BIT_4
+
+	uint32_t exchange_address;	/* rcv exchange address */
+	uint16_t reserved2;
+	uint16_t flags;
+	uint32_t resid_xfer_length;
+	uint16_t ox_id;
+	uint8_t  reserved3[12];
+	uint16_t runt_guard;		/* reported runt blk guard */
+	uint8_t  actual_dif[8];
+	uint8_t  expected_dif[8];
+} __packed;
 
 /*
  * ISP queue - ABTS received/response entries structure definition for 24xx.
@@ -641,6 +705,7 @@ struct qla_tgt_func_tmpl {
 	int (*handle_cmd)(struct scsi_qla_host *, struct qla_tgt_cmd *,
 			unsigned char *, uint32_t, int, int, int);
 	void (*handle_data)(struct qla_tgt_cmd *);
+	void (*handle_dif_err)(struct qla_tgt_cmd *);
 	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, uint32_t, uint8_t,
 			uint32_t);
 	void (*free_cmd)(struct qla_tgt_cmd *);
@@ -805,6 +870,12 @@ struct qla_tgt {
 	struct list_head tgt_list_entry;
 };
 
+struct qla_tgt_sess_op {
+	struct scsi_qla_host *vha;
+	struct atio_from_isp atio;
+	struct work_struct work;
+};
+
 /*
  * Equivilant to IT Nexus (Initiator-Target)
  */
@@ -829,9 +900,9 @@ struct qla_tgt_sess {
 };
 
 struct qla_tgt_cmd {
+	struct se_cmd se_cmd;
 	struct qla_tgt_sess *sess;
 	int state;
-	struct se_cmd se_cmd;
 	struct work_struct free_work;
 	struct work_struct work;
 	/* Sense buffer that will be mapped into outgoing status */
@@ -843,6 +914,7 @@ struct qla_tgt_cmd {
 	unsigned int free_sg:1;
 	unsigned int aborted:1; /* Needed in case of SRR */
 	unsigned int write_data_transferred:1;
+	unsigned int ctx_dsd_alloced:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
@@ -857,6 +929,12 @@ struct qla_tgt_cmd {
 	struct scsi_qla_host *vha;
 
 	struct atio_from_isp atio;
+	/* t10dif */
+	struct scatterlist *prot_sg;
+	uint32_t prot_sg_cnt;
+	uint32_t blk_sz;
+	struct crc_context *ctx;
+
 };
 
 struct qla_tgt_sess_work_param {
@@ -901,6 +979,10 @@ struct qla_tgt_prm {
 	int sense_buffer_len;
 	int residual;
 	int add_status_pkt;
+	/* dif */
+	struct scatterlist *prot_sg;
+	uint16_t prot_seg_cnt;
+	uint16_t tot_dsds;
 };
 
 struct qla_tgt_srr_imm {
@@ -976,6 +1058,8 @@ extern void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *,
 extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, response_t *);
 extern int qlt_rdy_to_xfer(struct qla_tgt_cmd *);
 extern int qlt_xmit_response(struct qla_tgt_cmd *, int, uint8_t);
+extern int qlt_rdy_to_xfer_dif(struct qla_tgt_cmd *);
+extern int qlt_xmit_response_dif(struct qla_tgt_cmd *, int, uint8_t);
 extern void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_cmd(struct qla_tgt_cmd *cmd);

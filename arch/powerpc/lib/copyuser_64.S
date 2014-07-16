@@ -18,7 +18,7 @@
 #endif
 
 	.align	7
-_GLOBAL(__copy_tofrom_user)
+_GLOBAL_TOC(__copy_tofrom_user)
 BEGIN_FTR_SECTION
 	nop
 FTR_SECTION_ELSE

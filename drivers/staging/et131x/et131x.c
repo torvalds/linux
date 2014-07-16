@@ -4605,7 +4605,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	netdev->netdev_ops     = &et131x_netdev_ops;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	SET_ETHTOOL_OPS(netdev, &et131x_ethtool_ops);
+	netdev->ethtool_ops = &et131x_ethtool_ops;
 
 	adapter = et131x_adapter_init(netdev, pdev);
 

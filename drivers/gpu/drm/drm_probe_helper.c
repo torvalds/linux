@@ -82,26 +82,8 @@ static void drm_mode_validate_flag(struct drm_connector *connector,
 	return;
 }
 
-/**
- * drm_helper_probe_single_connector_modes - get complete set of display modes
- * @connector: connector to probe
- * @maxX: max width for modes
- * @maxY: max height for modes
- *
- * Based on the helper callbacks implemented by @connector try to detect all
- * valid modes.  Modes will first be added to the connector's probed_modes list,
- * then culled (based on validity and the @maxX, @maxY parameters) and put into
- * the normal modes list.
- *
- * Intended to be use as a generic implementation of the ->fill_modes()
- * @connector vfunc for drivers that use the crtc helpers for output mode
- * filtering and detection.
- *
- * Returns:
- * The number of modes found on @connector.
- */
-int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
-					    uint32_t maxX, uint32_t maxY)
+static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connector *connector,
+							      uint32_t maxX, uint32_t maxY, bool merge_type_bits)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
@@ -114,7 +96,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
-			drm_get_connector_name(connector));
+			connector->name);
 	/* set all modes to the unverified state */
 	list_for_each_entry(mode, &connector->modes, head)
 		mode->status = MODE_UNVERIFIED;
@@ -138,7 +120,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
-			connector->base.id, drm_get_connector_name(connector));
+			connector->base.id, connector->name);
 		drm_mode_connector_update_edid_property(connector, NULL);
 		verbose_prune = false;
 		goto prune;
@@ -155,7 +137,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	if (count == 0)
 		goto prune;
 
-	drm_mode_connector_list_update(connector);
+	drm_mode_connector_list_update(connector, merge_type_bits);
 
 	if (maxX && maxY)
 		drm_mode_validate_size(dev, &connector->modes, maxX, maxY);
@@ -169,7 +151,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	drm_mode_validate_flag(connector, mode_flags);
 
 	list_for_each_entry(mode, &connector->modes, head) {
-		if (mode->status == MODE_OK)
+		if (mode->status == MODE_OK && connector_funcs->mode_valid)
 			mode->status = connector_funcs->mode_valid(connector,
 								   mode);
 	}
@@ -186,7 +168,7 @@ prune:
 	drm_mode_sort(&connector->modes);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
-			drm_get_connector_name(connector));
+			connector->name);
 	list_for_each_entry(mode, &connector->modes, head) {
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 		drm_mode_debug_printmodeline(mode);
@@ -194,7 +176,47 @@ prune:
 
 	return count;
 }
+
+/**
+ * drm_helper_probe_single_connector_modes - get complete set of display modes
+ * @connector: connector to probe
+ * @maxX: max width for modes
+ * @maxY: max height for modes
+ *
+ * Based on the helper callbacks implemented by @connector try to detect all
+ * valid modes.  Modes will first be added to the connector's probed_modes list,
+ * then culled (based on validity and the @maxX, @maxY parameters) and put into
+ * the normal modes list.
+ *
+ * Intended to be use as a generic implementation of the ->fill_modes()
+ * @connector vfunc for drivers that use the crtc helpers for output mode
+ * filtering and detection.
+ *
+ * Returns:
+ * The number of modes found on @connector.
+ */
+int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
+					    uint32_t maxX, uint32_t maxY)
+{
+	return drm_helper_probe_single_connector_modes_merge_bits(connector, maxX, maxY, true);
+}
 EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
+
+/**
+ * drm_helper_probe_single_connector_modes_nomerge - get complete set of display modes
+ * @connector: connector to probe
+ * @maxX: max width for modes
+ * @maxY: max height for modes
+ *
+ * This operates like drm_hehlper_probe_single_connector_modes except it
+ * replaces the mode bits instead of merging them for preferred modes.
+ */
+int drm_helper_probe_single_connector_modes_nomerge(struct drm_connector *connector,
+					    uint32_t maxX, uint32_t maxY)
+{
+	return drm_helper_probe_single_connector_modes_merge_bits(connector, maxX, maxY, false);
+}
+EXPORT_SYMBOL(drm_helper_probe_single_connector_modes_nomerge);
 
 /**
  * drm_kms_helper_hotplug_event - fire off KMS hotplug events
@@ -264,7 +286,7 @@ static void output_poll_execute(struct work_struct *work)
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] "
 				      "status updated from %s to %s\n",
 				      connector->base.id,
-				      drm_get_connector_name(connector),
+				      connector->name,
 				      old, new);
 
 			changed = true;
@@ -409,7 +431,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 		connector->status = connector->funcs->detect(connector, false);
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 			      connector->base.id,
-			      drm_get_connector_name(connector),
+			      connector->name,
 			      drm_get_connector_status_name(old_status),
 			      drm_get_connector_status_name(connector->status));
 		if (old_status != connector->status)

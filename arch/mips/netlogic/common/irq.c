@@ -203,6 +203,8 @@ void nlm_set_pic_extra_ack(int node, int irq, void (*xack)(struct irq_data *))
 
 	xirq = nlm_irq_to_xirq(node, irq);
 	pic_data = irq_get_handler_data(xirq);
+	if (WARN_ON(!pic_data))
+		return;
 	pic_data->extra_ack = xack;
 }
 

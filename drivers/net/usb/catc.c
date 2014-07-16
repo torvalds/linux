@@ -793,7 +793,7 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	netdev->netdev_ops = &catc_netdev_ops;
 	netdev->watchdog_timeo = TX_TIMEOUT;
-	SET_ETHTOOL_OPS(netdev, &ops);
+	netdev->ethtool_ops = &ops;
 
 	catc->usbdev = usbdev;
 	catc->netdev = netdev;

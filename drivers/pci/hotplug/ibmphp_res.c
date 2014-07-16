@@ -46,9 +46,9 @@ static struct bus_node *find_bus_wprev (u8, struct bus_node **, u8);
 
 static LIST_HEAD(gbuses);
 
-static struct bus_node * __init alloc_error_bus (struct ebda_pci_rsrc * curr, u8 busno, int flag)
+static struct bus_node * __init alloc_error_bus (struct ebda_pci_rsrc *curr, u8 busno, int flag)
 {
-	struct bus_node * newbus;
+	struct bus_node *newbus;
 
 	if (!(curr) && !(flag)) {
 		err ("NULL pointer passed\n");
@@ -69,7 +69,7 @@ static struct bus_node * __init alloc_error_bus (struct ebda_pci_rsrc * curr, u8
 	return newbus;
 }
 
-static struct resource_node * __init alloc_resources (struct ebda_pci_rsrc * curr)
+static struct resource_node * __init alloc_resources (struct ebda_pci_rsrc *curr)
 {
 	struct resource_node *rs;
 
@@ -93,7 +93,7 @@ static struct resource_node * __init alloc_resources (struct ebda_pci_rsrc * cur
 
 static int __init alloc_bus_range (struct bus_node **new_bus, struct range_node **new_range, struct ebda_pci_rsrc *curr, int flag, u8 first_bus)
 {
-	struct bus_node * newbus;
+	struct bus_node *newbus;
 	struct range_node *newrange;
 	u8 num_ranges = 0;
 
@@ -789,8 +789,7 @@ int ibmphp_remove_resource (struct resource_node *res)
 	bus_cur = find_bus_wprev (res->busno, NULL, 0);
 
 	if (!bus_cur) {
-		err ("cannot find corresponding bus of the io resource to remove  "
-			"bailing out...\n");
+		err ("cannot find corresponding bus of the io resource to remove  bailing out...\n");
 		return -ENODEV;
 	}
 
@@ -934,9 +933,9 @@ int ibmphp_remove_resource (struct resource_node *res)
 	return 0;
 }
 
-static struct range_node * find_range (struct bus_node *bus_cur, struct resource_node * res)
+static struct range_node *find_range (struct bus_node *bus_cur, struct resource_node *res)
 {
-	struct range_node * range = NULL;
+	struct range_node *range = NULL;
 
 	switch (res->type) {
 		case IO:

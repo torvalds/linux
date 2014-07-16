@@ -253,6 +253,27 @@ static int __init repair_env_string(char *param, char *val, const char *unused)
 	return 0;
 }
 
+/* Anything after -- gets handed straight to init. */
+static int __init set_init_arg(char *param, char *val, const char *unused)
+{
+	unsigned int i;
+
+	if (panic_later)
+		return 0;
+
+	repair_env_string(param, val, unused);
+
+	for (i = 0; argv_init[i]; i++) {
+		if (i == MAX_INIT_ARGS) {
+			panic_later = "init";
+			panic_param = param;
+			return 0;
+		}
+	}
+	argv_init[i] = param;
+	return 0;
+}
+
 /*
  * Unknown boot options get handed to init, unless they look like
  * unused parameters (modprobe will find them in /proc/cmdline).
@@ -479,7 +500,7 @@ static void __init mm_init(void)
 
 asmlinkage __visible void __init start_kernel(void)
 {
-	char * command_line;
+	char * command_line, *after_dashes;
 	extern const struct kernel_param __start___param[], __stop___param[];
 
 	/*
@@ -519,9 +540,13 @@ asmlinkage __visible void __init start_kernel(void)
 
 	pr_notice("Kernel command line: %s\n", boot_command_line);
 	parse_early_param();
-	parse_args("Booting kernel", static_command_line, __start___param,
-		   __stop___param - __start___param,
-		   -1, -1, &unknown_bootoption);
+	after_dashes = parse_args("Booting kernel",
+				  static_command_line, __start___param,
+				  __stop___param - __start___param,
+				  -1, -1, &unknown_bootoption);
+	if (after_dashes)
+		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
+			   set_init_arg);
 
 	jump_label_init();
 

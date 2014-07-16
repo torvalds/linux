@@ -83,6 +83,7 @@
 			reg = <0>;
 			clocks = <&mux0>;
 			next-level-cache = <&L2_0>;
+			fsl,portid-mapping = <0x80000000>;
 			L2_0: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -92,6 +93,7 @@
 			reg = <1>;
 			clocks = <&mux1>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x40000000>;
 			L2_1: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -101,6 +103,7 @@
 			reg = <2>;
 			clocks = <&mux2>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x20000000>;
 			L2_2: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -110,6 +113,7 @@
 			reg = <3>;
 			clocks = <&mux3>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x10000000>;
 			L2_3: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -119,6 +123,7 @@
 			reg = <4>;
 			clocks = <&mux4>;
 			next-level-cache = <&L2_4>;
+			fsl,portid-mapping = <0x08000000>;
 			L2_4: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -128,6 +133,7 @@
 			reg = <5>;
 			clocks = <&mux5>;
 			next-level-cache = <&L2_5>;
+			fsl,portid-mapping = <0x04000000>;
 			L2_5: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -137,6 +143,7 @@
 			reg = <6>;
 			clocks = <&mux6>;
 			next-level-cache = <&L2_6>;
+			fsl,portid-mapping = <0x02000000>;
 			L2_6: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -146,6 +153,7 @@
 			reg = <7>;
 			clocks = <&mux7>;
 			next-level-cache = <&L2_7>;
+			fsl,portid-mapping = <0x01000000>;
 			L2_7: l2-cache {
 				next-level-cache = <&cpc>;
 			};

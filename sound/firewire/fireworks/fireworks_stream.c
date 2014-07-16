@@ -284,8 +284,6 @@ void snd_efw_stream_stop_duplex(struct snd_efw *efw)
 	struct amdtp_stream *master, *slave;
 	atomic_t *master_substreams, *slave_substreams;
 
-	mutex_lock(&efw->mutex);
-
 	if (efw->master == &efw->rx_stream) {
 		slave  = &efw->tx_stream;
 		master = &efw->rx_stream;
@@ -297,6 +295,8 @@ void snd_efw_stream_stop_duplex(struct snd_efw *efw)
 		slave_substreams  = &efw->playback_substreams;
 		master_substreams = &efw->capture_substreams;
 	}
+
+	mutex_lock(&efw->mutex);
 
 	if (atomic_read(slave_substreams) == 0) {
 		stop_stream(efw, slave);

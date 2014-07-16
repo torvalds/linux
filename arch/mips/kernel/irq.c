@@ -73,7 +73,6 @@ void free_irqno(unsigned int irq)
  */
 void ack_bad_irq(unsigned int irq)
 {
-	smtc_im_ack_irq(irq);
 	printk("unexpected IRQ # %d\n", irq);
 }
 
@@ -142,23 +141,7 @@ void __irq_entry do_IRQ(unsigned int irq)
 {
 	irq_enter();
 	check_stack_overflow();
-	if (!smtc_handle_on_other_cpu(irq))
-		generic_handle_irq(irq);
-	irq_exit();
-}
-
-#ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
-/*
- * To avoid inefficient and in some cases pathological re-checking of
- * IRQ affinity, we have this variant that skips the affinity check.
- */
-
-void __irq_entry do_IRQ_no_affinity(unsigned int irq)
-{
-	irq_enter();
-	smtc_im_backstop(irq);
 	generic_handle_irq(irq);
 	irq_exit();
 }
 
-#endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */

@@ -322,7 +322,7 @@ static void _rtl_add_wowlan_patterns(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = &(rtlpriv->mac80211);
 	struct cfg80211_pkt_pattern *patterns = wow->patterns;
 	struct rtl_wow_pattern rtl_pattern;
-	u8 *pattern_os, *mask_os;
+	const u8 *pattern_os, *mask_os;
 	u8 mask[MAX_WOL_BIT_MASK_SIZE] = {0};
 	u8 content[MAX_WOL_PATTERN_SIZE] = {0};
 	u8 broadcast_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -1561,7 +1561,7 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
  * before switch channle or power save, or tx buffer packet
  * maybe send after offchannel or rf sleep, this may cause
  * dis-association by AP */
-static void rtl_op_flush(struct ieee80211_hw *hw,
+static void rtl_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 u32 queues, bool drop)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);

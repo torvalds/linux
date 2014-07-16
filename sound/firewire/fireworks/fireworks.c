@@ -346,7 +346,6 @@ static void __exit snd_efw_exit(void)
 {
 	snd_efw_transaction_unregister();
 	driver_unregister(&efw_driver.driver);
-	mutex_destroy(&devices_mutex);
 }
 
 module_init(snd_efw_init);

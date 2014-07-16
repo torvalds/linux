@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
  * UDP CSUM errata workaround by Arik Gendelman
@@ -10053,6 +10053,24 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 #define BCM_5710_UNDI_FW_MF_VERS	(0x05)
 #define BNX2X_PREV_UNDI_MF_PORT(p) (BAR_TSTRORM_INTMEM + 0x150c + ((p) << 4))
 #define BNX2X_PREV_UNDI_MF_FUNC(f) (BAR_TSTRORM_INTMEM + 0x184c + ((f) << 4))
+
+static bool bnx2x_prev_is_after_undi(struct bnx2x *bp)
+{
+	/* UNDI marks its presence in DORQ -
+	 * it initializes CID offset for normal bell to 0x7
+	 */
+	if (!(REG_RD(bp, MISC_REG_RESET_REG_1) &
+	    MISC_REGISTERS_RESET_REG_1_RST_DORQ))
+		return false;
+
+	if (REG_RD(bp, DORQ_REG_NORM_CID_OFST) == 0x7) {
+		BNX2X_DEV_INFO("UNDI previously loaded\n");
+		return true;
+	}
+
+	return false;
+}
+
 static bool bnx2x_prev_unload_undi_fw_supports_mf(struct bnx2x *bp)
 {
 	u8 major, minor, version;
@@ -10302,6 +10320,10 @@ static int bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 
 	BNX2X_DEV_INFO("Path is unmarked\n");
 
+	/* Cannot proceed with FLR if UNDI is loaded, since FW does not match */
+	if (bnx2x_prev_is_after_undi(bp))
+		goto out;
+
 	/* If function has FLR capabilities, and existing FW version matches
 	 * the one required, then FLR will be sufficient to clean any residue
 	 * left by previous driver
@@ -10322,6 +10344,7 @@ static int bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 
 	BNX2X_DEV_INFO("Could not FLR\n");
 
+out:
 	/* Close the MCP request, return failure*/
 	rc = bnx2x_prev_mcp_done(bp);
 	if (!rc)
@@ -10360,19 +10383,13 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 		/* close LLH filters towards the BRB */
 		bnx2x_set_rx_filter(&bp->link_params, 0);
 
-		/* Check if the UNDI driver was previously loaded
-		 * UNDI driver initializes CID offset for normal bell to 0x7
-		 */
-		if (reset_reg & MISC_REGISTERS_RESET_REG_1_RST_DORQ) {
-			tmp_reg = REG_RD(bp, DORQ_REG_NORM_CID_OFST);
-			if (tmp_reg == 0x7) {
-				BNX2X_DEV_INFO("UNDI previously loaded\n");
-				prev_undi = true;
-				/* clear the UNDI indication */
-				REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
-				/* clear possible idle check errors */
-				REG_RD(bp, NIG_REG_NIG_INT_STS_CLR_0);
-			}
+		/* Check if the UNDI driver was previously loaded */
+		if (bnx2x_prev_is_after_undi(bp)) {
+			prev_undi = true;
+			/* clear the UNDI indication */
+			REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
+			/* clear possible idle check errors */
+			REG_RD(bp, NIG_REG_NIG_INT_STS_CLR_0);
 		}
 		if (!CHIP_IS_E1x(bp))
 			/* block FW from writing to host */
@@ -13283,8 +13300,8 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	netdev_reset_tc(bp->dev);
 
 	del_timer_sync(&bp->timer);
-	cancel_delayed_work(&bp->sp_task);
-	cancel_delayed_work(&bp->period_task);
+	cancel_delayed_work_sync(&bp->sp_task);
+	cancel_delayed_work_sync(&bp->period_task);
 
 	spin_lock_bh(&bp->stats_lock);
 	bp->stats_state = STATS_STATE_DISABLED;

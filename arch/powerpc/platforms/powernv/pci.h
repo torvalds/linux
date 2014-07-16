@@ -81,11 +81,9 @@ struct pnv_eeh_ops {
 	int (*configure_bridge)(struct eeh_pe *pe);
 	int (*next_error)(struct eeh_pe **pe);
 };
-
-#define PNV_EEH_STATE_ENABLED	(1 << 0)	/* EEH enabled	*/
-#define PNV_EEH_STATE_REMOVED	(1 << 1)	/* PHB removed	*/
-
 #endif /* CONFIG_EEH */
+
+#define PNV_PHB_FLAG_EEH	(1 << 0)
 
 struct pnv_phb {
 	struct pci_controller	*hose;
@@ -93,16 +91,17 @@ struct pnv_phb {
 	enum pnv_phb_model	model;
 	u64			hub_id;
 	u64			opal_id;
+	int			flags;
 	void __iomem		*regs;
 	int			initialized;
 	spinlock_t		lock;
 
 #ifdef CONFIG_EEH
 	struct pnv_eeh_ops	*eeh_ops;
-	int			eeh_state;
 #endif
 
 #ifdef CONFIG_DEBUG_FS
+	int			has_dbgfs;
 	struct dentry		*dbgfs;
 #endif
 
@@ -205,5 +204,7 @@ extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
 extern void pnv_pci_ioda_tce_invalidate(struct iommu_table *tbl,
 					__be64 *startp, __be64 *endp, bool rm);
+extern void pnv_pci_reset_secondary_bus(struct pci_dev *dev);
+extern int ioda_eeh_phb_reset(struct pci_controller *hose, int option);
 
 #endif /* __POWERNV_PCI_H */

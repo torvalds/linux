@@ -243,39 +243,14 @@ static const struct file_operations fops_xmit = {
 };
 
 void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
-			   struct ath_htc_rx_status *rxs)
+			     struct ath_rx_status *rs)
 {
-#define RX_PHY_ERR_INC(c) priv->debug.rx_stats.err_phy_stats[c]++
-
-	if (rxs->rs_status & ATH9K_RXERR_CRC)
-		priv->debug.rx_stats.err_crc++;
-	if (rxs->rs_status & ATH9K_RXERR_DECRYPT)
-		priv->debug.rx_stats.err_decrypt_crc++;
-	if (rxs->rs_status & ATH9K_RXERR_MIC)
-		priv->debug.rx_stats.err_mic++;
-	if (rxs->rs_status & ATH9K_RX_DELIM_CRC_PRE)
-		priv->debug.rx_stats.err_pre_delim++;
-	if (rxs->rs_status & ATH9K_RX_DELIM_CRC_POST)
-		priv->debug.rx_stats.err_post_delim++;
-	if (rxs->rs_status & ATH9K_RX_DECRYPT_BUSY)
-		priv->debug.rx_stats.err_decrypt_busy++;
-
-	if (rxs->rs_status & ATH9K_RXERR_PHY) {
-		priv->debug.rx_stats.err_phy++;
-		if (rxs->rs_phyerr < ATH9K_PHYERR_MAX)
-			RX_PHY_ERR_INC(rxs->rs_phyerr);
-	}
-
-#undef RX_PHY_ERR_INC
+	ath9k_cmn_debug_stat_rx(&priv->debug.rx_stats, rs);
 }
 
-static ssize_t read_file_recv(struct file *file, char __user *user_buf,
+static ssize_t read_file_skb_rx(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
-#define PHY_ERR(s, p)							\
-	len += scnprintf(buf + len, size - len, "%20s : %10u\n", s,	\
-			 priv->debug.rx_stats.err_phy_stats[p]);
-
 	struct ath9k_htc_priv *priv = file->private_data;
 	char *buf;
 	unsigned int len = 0, size = 1500;
@@ -287,63 +262,13 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs allocated",
-			 priv->debug.rx_stats.skb_allocated);
+			 priv->debug.skbrx_stats.skb_allocated);
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs completed",
-			 priv->debug.rx_stats.skb_completed);
+			 priv->debug.skbrx_stats.skb_completed);
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs Dropped",
-			 priv->debug.rx_stats.skb_dropped);
-
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "CRC ERR",
-			 priv->debug.rx_stats.err_crc);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "DECRYPT CRC ERR",
-			 priv->debug.rx_stats.err_decrypt_crc);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "MIC ERR",
-			 priv->debug.rx_stats.err_mic);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "PRE-DELIM CRC ERR",
-			 priv->debug.rx_stats.err_pre_delim);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "POST-DELIM CRC ERR",
-			 priv->debug.rx_stats.err_post_delim);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "DECRYPT BUSY ERR",
-			 priv->debug.rx_stats.err_decrypt_busy);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "TOTAL PHY ERR",
-			 priv->debug.rx_stats.err_phy);
-
-
-	PHY_ERR("UNDERRUN", ATH9K_PHYERR_UNDERRUN);
-	PHY_ERR("TIMING", ATH9K_PHYERR_TIMING);
-	PHY_ERR("PARITY", ATH9K_PHYERR_PARITY);
-	PHY_ERR("RATE", ATH9K_PHYERR_RATE);
-	PHY_ERR("LENGTH", ATH9K_PHYERR_LENGTH);
-	PHY_ERR("RADAR", ATH9K_PHYERR_RADAR);
-	PHY_ERR("SERVICE", ATH9K_PHYERR_SERVICE);
-	PHY_ERR("TOR", ATH9K_PHYERR_TOR);
-	PHY_ERR("OFDM-TIMING", ATH9K_PHYERR_OFDM_TIMING);
-	PHY_ERR("OFDM-SIGNAL-PARITY", ATH9K_PHYERR_OFDM_SIGNAL_PARITY);
-	PHY_ERR("OFDM-RATE", ATH9K_PHYERR_OFDM_RATE_ILLEGAL);
-	PHY_ERR("OFDM-LENGTH", ATH9K_PHYERR_OFDM_LENGTH_ILLEGAL);
-	PHY_ERR("OFDM-POWER-DROP", ATH9K_PHYERR_OFDM_POWER_DROP);
-	PHY_ERR("OFDM-SERVICE", ATH9K_PHYERR_OFDM_SERVICE);
-	PHY_ERR("OFDM-RESTART", ATH9K_PHYERR_OFDM_RESTART);
-	PHY_ERR("FALSE-RADAR-EXT", ATH9K_PHYERR_FALSE_RADAR_EXT);
-	PHY_ERR("CCK-TIMING", ATH9K_PHYERR_CCK_TIMING);
-	PHY_ERR("CCK-HEADER-CRC", ATH9K_PHYERR_CCK_HEADER_CRC);
-	PHY_ERR("CCK-RATE", ATH9K_PHYERR_CCK_RATE_ILLEGAL);
-	PHY_ERR("CCK-SERVICE", ATH9K_PHYERR_CCK_SERVICE);
-	PHY_ERR("CCK-RESTART", ATH9K_PHYERR_CCK_RESTART);
-	PHY_ERR("CCK-LENGTH", ATH9K_PHYERR_CCK_LENGTH_ILLEGAL);
-	PHY_ERR("CCK-POWER-DROP", ATH9K_PHYERR_CCK_POWER_DROP);
-	PHY_ERR("HT-CRC", ATH9K_PHYERR_HT_CRC_ERROR);
-	PHY_ERR("HT-LENGTH", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
-	PHY_ERR("HT-RATE", ATH9K_PHYERR_HT_RATE_ILLEGAL);
+			 priv->debug.skbrx_stats.skb_dropped);
 
 	if (len > size)
 		len = size;
@@ -352,12 +277,10 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	kfree(buf);
 
 	return retval;
-
-#undef PHY_ERR
 }
 
-static const struct file_operations fops_recv = {
-	.read = read_file_recv,
+static const struct file_operations fops_skb_rx = {
+	.read = read_file_skb_rx,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -486,423 +409,6 @@ static const struct file_operations fops_debug = {
 	.llseek = default_llseek,
 };
 
-static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct ath9k_htc_priv *priv = file->private_data;
-	struct ath_common *common = ath9k_hw_common(priv->ah);
-	struct base_eep_header *pBase = NULL;
-	unsigned int len = 0, size = 1500;
-	ssize_t retval = 0;
-	char *buf;
-
-	pBase = ath9k_htc_get_eeprom_base(priv);
-
-	if (pBase == NULL) {
-		ath_err(common, "Unknown EEPROM type\n");
-		return 0;
-	}
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n", "Major Version",
-			 pBase->version >> 12);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n", "Minor Version",
-			 pBase->version & 0xFFF);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n", "Checksum",
-			 pBase->checksum);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n", "Length",
-			 pBase->length);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n", "RegDomain1",
-			 pBase->regDmn[0]);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n", "RegDomain2",
-			 pBase->regDmn[1]);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "TX Mask", pBase->txMask);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "RX Mask", pBase->rxMask);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Allow 5GHz",
-			 !!(pBase->opCapFlags & AR5416_OPFLAGS_11A));
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Allow 2GHz",
-			 !!(pBase->opCapFlags & AR5416_OPFLAGS_11G));
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Disable 2GHz HT20",
-			 !!(pBase->opCapFlags & AR5416_OPFLAGS_N_2G_HT20));
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Disable 2GHz HT40",
-			 !!(pBase->opCapFlags & AR5416_OPFLAGS_N_2G_HT40));
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Disable 5Ghz HT20",
-			 !!(pBase->opCapFlags & AR5416_OPFLAGS_N_5G_HT20));
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Disable 5Ghz HT40",
-			 !!(pBase->opCapFlags & AR5416_OPFLAGS_N_5G_HT40));
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Big Endian",
-			 !!(pBase->eepMisc & 0x01));
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Cal Bin Major Ver",
-			 (pBase->binBuildNumber >> 24) & 0xFF);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Cal Bin Minor Ver",
-			 (pBase->binBuildNumber >> 16) & 0xFF);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10d\n",
-			 "Cal Bin Build",
-			 (pBase->binBuildNumber >> 8) & 0xFF);
-
-	/*
-	 * UB91 specific data.
-	 */
-	if (AR_SREV_9271(priv->ah)) {
-		struct base_eep_header_4k *pBase4k =
-			&priv->ah->eeprom.map4k.baseEepHeader;
-
-		len += scnprintf(buf + len, size - len,
-				 "%20s : %10d\n",
-				 "TX Gain type",
-				 pBase4k->txGainType);
-	}
-
-	/*
-	 * UB95 specific data.
-	 */
-	if (priv->ah->hw_version.usbdev == AR9287_USB) {
-		struct base_eep_ar9287_header *pBase9287 =
-			&priv->ah->eeprom.map9287.baseEepHeader;
-
-		len += scnprintf(buf + len, size - len,
-				 "%20s : %10ddB\n",
-				 "Power Table Offset",
-				 pBase9287->pwrTableOffset);
-
-		len += scnprintf(buf + len, size - len,
-				 "%20s : %10d\n",
-				 "OpenLoop Power Ctrl",
-				 pBase9287->openLoopPwrCntl);
-	}
-
-	len += scnprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
-			 pBase->macAddr);
-	if (len > size)
-		len = size;
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-
-	return retval;
-}
-
-static const struct file_operations fops_base_eeprom = {
-	.read = read_file_base_eeprom,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-static ssize_t read_4k_modal_eeprom(struct file *file,
-				    char __user *user_buf,
-				    size_t count, loff_t *ppos)
-{
-#define PR_EEP(_s, _val)						\
-	do {								\
-		len += scnprintf(buf + len, size - len, "%20s : %10d\n",\
-				 _s, (_val));				\
-	} while (0)
-
-	struct ath9k_htc_priv *priv = file->private_data;
-	struct modal_eep_4k_header *pModal = &priv->ah->eeprom.map4k.modalHeader;
-	unsigned int len = 0, size = 2048;
-	ssize_t retval = 0;
-	char *buf;
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	PR_EEP("Chain0 Ant. Control", pModal->antCtrlChain[0]);
-	PR_EEP("Ant. Common Control", pModal->antCtrlCommon);
-	PR_EEP("Chain0 Ant. Gain", pModal->antennaGainCh[0]);
-	PR_EEP("Switch Settle", pModal->switchSettling);
-	PR_EEP("Chain0 TxRxAtten", pModal->txRxAttenCh[0]);
-	PR_EEP("Chain0 RxTxMargin", pModal->rxTxMarginCh[0]);
-	PR_EEP("ADC Desired size", pModal->adcDesiredSize);
-	PR_EEP("PGA Desired size", pModal->pgaDesiredSize);
-	PR_EEP("Chain0 xlna Gain", pModal->xlnaGainCh[0]);
-	PR_EEP("txEndToXpaOff", pModal->txEndToXpaOff);
-	PR_EEP("txEndToRxOn", pModal->txEndToRxOn);
-	PR_EEP("txFrameToXpaOn", pModal->txFrameToXpaOn);
-	PR_EEP("CCA Threshold)", pModal->thresh62);
-	PR_EEP("Chain0 NF Threshold", pModal->noiseFloorThreshCh[0]);
-	PR_EEP("xpdGain", pModal->xpdGain);
-	PR_EEP("External PD", pModal->xpd);
-	PR_EEP("Chain0 I Coefficient", pModal->iqCalICh[0]);
-	PR_EEP("Chain0 Q Coefficient", pModal->iqCalQCh[0]);
-	PR_EEP("pdGainOverlap", pModal->pdGainOverlap);
-	PR_EEP("O/D Bias Version", pModal->version);
-	PR_EEP("CCK OutputBias", pModal->ob_0);
-	PR_EEP("BPSK OutputBias", pModal->ob_1);
-	PR_EEP("QPSK OutputBias", pModal->ob_2);
-	PR_EEP("16QAM OutputBias", pModal->ob_3);
-	PR_EEP("64QAM OutputBias", pModal->ob_4);
-	PR_EEP("CCK Driver1_Bias", pModal->db1_0);
-	PR_EEP("BPSK Driver1_Bias", pModal->db1_1);
-	PR_EEP("QPSK Driver1_Bias", pModal->db1_2);
-	PR_EEP("16QAM Driver1_Bias", pModal->db1_3);
-	PR_EEP("64QAM Driver1_Bias", pModal->db1_4);
-	PR_EEP("CCK Driver2_Bias", pModal->db2_0);
-	PR_EEP("BPSK Driver2_Bias", pModal->db2_1);
-	PR_EEP("QPSK Driver2_Bias", pModal->db2_2);
-	PR_EEP("16QAM Driver2_Bias", pModal->db2_3);
-	PR_EEP("64QAM Driver2_Bias", pModal->db2_4);
-	PR_EEP("xPA Bias Level", pModal->xpaBiasLvl);
-	PR_EEP("txFrameToDataStart", pModal->txFrameToDataStart);
-	PR_EEP("txFrameToPaOn", pModal->txFrameToPaOn);
-	PR_EEP("HT40 Power Inc.", pModal->ht40PowerIncForPdadc);
-	PR_EEP("Chain0 bswAtten", pModal->bswAtten[0]);
-	PR_EEP("Chain0 bswMargin", pModal->bswMargin[0]);
-	PR_EEP("HT40 Switch Settle", pModal->swSettleHt40);
-	PR_EEP("Chain0 xatten2Db", pModal->xatten2Db[0]);
-	PR_EEP("Chain0 xatten2Margin", pModal->xatten2Margin[0]);
-	PR_EEP("Ant. Diversity ctl1", pModal->antdiv_ctl1);
-	PR_EEP("Ant. Diversity ctl2", pModal->antdiv_ctl2);
-	PR_EEP("TX Diversity", pModal->tx_diversity);
-
-	if (len > size)
-		len = size;
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-
-	return retval;
-
-#undef PR_EEP
-}
-
-static ssize_t read_def_modal_eeprom(struct file *file,
-				     char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-#define PR_EEP(_s, _val)						\
-	do {								\
-		if (pBase->opCapFlags & AR5416_OPFLAGS_11G) {		\
-			pModal = &priv->ah->eeprom.def.modalHeader[1];	\
-			len += scnprintf(buf + len, size - len, "%20s : %8d%7s", \
-					 _s, (_val), "|");		\
-		}							\
-		if (pBase->opCapFlags & AR5416_OPFLAGS_11A) {		\
-			pModal = &priv->ah->eeprom.def.modalHeader[0];	\
-			len += scnprintf(buf + len, size - len, "%9d\n",\
-					(_val));			\
-		}							\
-	} while (0)
-
-	struct ath9k_htc_priv *priv = file->private_data;
-	struct base_eep_header *pBase = &priv->ah->eeprom.def.baseEepHeader;
-	struct modal_eep_header *pModal = NULL;
-	unsigned int len = 0, size = 3500;
-	ssize_t retval = 0;
-	char *buf;
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	len += scnprintf(buf + len, size - len,
-			 "%31s %15s\n", "2G", "5G");
-	len += scnprintf(buf + len, size - len,
-			 "%32s %16s\n", "====", "====\n");
-
-	PR_EEP("Chain0 Ant. Control", pModal->antCtrlChain[0]);
-	PR_EEP("Chain1 Ant. Control", pModal->antCtrlChain[1]);
-	PR_EEP("Chain2 Ant. Control", pModal->antCtrlChain[2]);
-	PR_EEP("Ant. Common Control", pModal->antCtrlCommon);
-	PR_EEP("Chain0 Ant. Gain", pModal->antennaGainCh[0]);
-	PR_EEP("Chain1 Ant. Gain", pModal->antennaGainCh[1]);
-	PR_EEP("Chain2 Ant. Gain", pModal->antennaGainCh[2]);
-	PR_EEP("Switch Settle", pModal->switchSettling);
-	PR_EEP("Chain0 TxRxAtten", pModal->txRxAttenCh[0]);
-	PR_EEP("Chain1 TxRxAtten", pModal->txRxAttenCh[1]);
-	PR_EEP("Chain2 TxRxAtten", pModal->txRxAttenCh[2]);
-	PR_EEP("Chain0 RxTxMargin", pModal->rxTxMarginCh[0]);
-	PR_EEP("Chain1 RxTxMargin", pModal->rxTxMarginCh[1]);
-	PR_EEP("Chain2 RxTxMargin", pModal->rxTxMarginCh[2]);
-	PR_EEP("ADC Desired size", pModal->adcDesiredSize);
-	PR_EEP("PGA Desired size", pModal->pgaDesiredSize);
-	PR_EEP("Chain0 xlna Gain", pModal->xlnaGainCh[0]);
-	PR_EEP("Chain1 xlna Gain", pModal->xlnaGainCh[1]);
-	PR_EEP("Chain2 xlna Gain", pModal->xlnaGainCh[2]);
-	PR_EEP("txEndToXpaOff", pModal->txEndToXpaOff);
-	PR_EEP("txEndToRxOn", pModal->txEndToRxOn);
-	PR_EEP("txFrameToXpaOn", pModal->txFrameToXpaOn);
-	PR_EEP("CCA Threshold)", pModal->thresh62);
-	PR_EEP("Chain0 NF Threshold", pModal->noiseFloorThreshCh[0]);
-	PR_EEP("Chain1 NF Threshold", pModal->noiseFloorThreshCh[1]);
-	PR_EEP("Chain2 NF Threshold", pModal->noiseFloorThreshCh[2]);
-	PR_EEP("xpdGain", pModal->xpdGain);
-	PR_EEP("External PD", pModal->xpd);
-	PR_EEP("Chain0 I Coefficient", pModal->iqCalICh[0]);
-	PR_EEP("Chain1 I Coefficient", pModal->iqCalICh[1]);
-	PR_EEP("Chain2 I Coefficient", pModal->iqCalICh[2]);
-	PR_EEP("Chain0 Q Coefficient", pModal->iqCalQCh[0]);
-	PR_EEP("Chain1 Q Coefficient", pModal->iqCalQCh[1]);
-	PR_EEP("Chain2 Q Coefficient", pModal->iqCalQCh[2]);
-	PR_EEP("pdGainOverlap", pModal->pdGainOverlap);
-	PR_EEP("Chain0 OutputBias", pModal->ob);
-	PR_EEP("Chain0 DriverBias", pModal->db);
-	PR_EEP("xPA Bias Level", pModal->xpaBiasLvl);
-	PR_EEP("2chain pwr decrease", pModal->pwrDecreaseFor2Chain);
-	PR_EEP("3chain pwr decrease", pModal->pwrDecreaseFor3Chain);
-	PR_EEP("txFrameToDataStart", pModal->txFrameToDataStart);
-	PR_EEP("txFrameToPaOn", pModal->txFrameToPaOn);
-	PR_EEP("HT40 Power Inc.", pModal->ht40PowerIncForPdadc);
-	PR_EEP("Chain0 bswAtten", pModal->bswAtten[0]);
-	PR_EEP("Chain1 bswAtten", pModal->bswAtten[1]);
-	PR_EEP("Chain2 bswAtten", pModal->bswAtten[2]);
-	PR_EEP("Chain0 bswMargin", pModal->bswMargin[0]);
-	PR_EEP("Chain1 bswMargin", pModal->bswMargin[1]);
-	PR_EEP("Chain2 bswMargin", pModal->bswMargin[2]);
-	PR_EEP("HT40 Switch Settle", pModal->swSettleHt40);
-	PR_EEP("Chain0 xatten2Db", pModal->xatten2Db[0]);
-	PR_EEP("Chain1 xatten2Db", pModal->xatten2Db[1]);
-	PR_EEP("Chain2 xatten2Db", pModal->xatten2Db[2]);
-	PR_EEP("Chain0 xatten2Margin", pModal->xatten2Margin[0]);
-	PR_EEP("Chain1 xatten2Margin", pModal->xatten2Margin[1]);
-	PR_EEP("Chain2 xatten2Margin", pModal->xatten2Margin[2]);
-	PR_EEP("Chain1 OutputBias", pModal->ob_ch1);
-	PR_EEP("Chain1 DriverBias", pModal->db_ch1);
-	PR_EEP("LNA Control", pModal->lna_ctl);
-	PR_EEP("XPA Bias Freq0", pModal->xpaBiasLvlFreq[0]);
-	PR_EEP("XPA Bias Freq1", pModal->xpaBiasLvlFreq[1]);
-	PR_EEP("XPA Bias Freq2", pModal->xpaBiasLvlFreq[2]);
-
-	if (len > size)
-		len = size;
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-
-	return retval;
-
-#undef PR_EEP
-}
-
-static ssize_t read_9287_modal_eeprom(struct file *file,
-				      char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-#define PR_EEP(_s, _val)						\
-	do {								\
-		len += scnprintf(buf + len, size - len, "%20s : %10d\n",\
-				 _s, (_val));				\
-	} while (0)
-
-	struct ath9k_htc_priv *priv = file->private_data;
-	struct modal_eep_ar9287_header *pModal = &priv->ah->eeprom.map9287.modalHeader;
-	unsigned int len = 0, size = 3000;
-	ssize_t retval = 0;
-	char *buf;
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	PR_EEP("Chain0 Ant. Control", pModal->antCtrlChain[0]);
-	PR_EEP("Chain1 Ant. Control", pModal->antCtrlChain[1]);
-	PR_EEP("Ant. Common Control", pModal->antCtrlCommon);
-	PR_EEP("Chain0 Ant. Gain", pModal->antennaGainCh[0]);
-	PR_EEP("Chain1 Ant. Gain", pModal->antennaGainCh[1]);
-	PR_EEP("Switch Settle", pModal->switchSettling);
-	PR_EEP("Chain0 TxRxAtten", pModal->txRxAttenCh[0]);
-	PR_EEP("Chain1 TxRxAtten", pModal->txRxAttenCh[1]);
-	PR_EEP("Chain0 RxTxMargin", pModal->rxTxMarginCh[0]);
-	PR_EEP("Chain1 RxTxMargin", pModal->rxTxMarginCh[1]);
-	PR_EEP("ADC Desired size", pModal->adcDesiredSize);
-	PR_EEP("txEndToXpaOff", pModal->txEndToXpaOff);
-	PR_EEP("txEndToRxOn", pModal->txEndToRxOn);
-	PR_EEP("txFrameToXpaOn", pModal->txFrameToXpaOn);
-	PR_EEP("CCA Threshold)", pModal->thresh62);
-	PR_EEP("Chain0 NF Threshold", pModal->noiseFloorThreshCh[0]);
-	PR_EEP("Chain1 NF Threshold", pModal->noiseFloorThreshCh[1]);
-	PR_EEP("xpdGain", pModal->xpdGain);
-	PR_EEP("External PD", pModal->xpd);
-	PR_EEP("Chain0 I Coefficient", pModal->iqCalICh[0]);
-	PR_EEP("Chain1 I Coefficient", pModal->iqCalICh[1]);
-	PR_EEP("Chain0 Q Coefficient", pModal->iqCalQCh[0]);
-	PR_EEP("Chain1 Q Coefficient", pModal->iqCalQCh[1]);
-	PR_EEP("pdGainOverlap", pModal->pdGainOverlap);
-	PR_EEP("xPA Bias Level", pModal->xpaBiasLvl);
-	PR_EEP("txFrameToDataStart", pModal->txFrameToDataStart);
-	PR_EEP("txFrameToPaOn", pModal->txFrameToPaOn);
-	PR_EEP("HT40 Power Inc.", pModal->ht40PowerIncForPdadc);
-	PR_EEP("Chain0 bswAtten", pModal->bswAtten[0]);
-	PR_EEP("Chain1 bswAtten", pModal->bswAtten[1]);
-	PR_EEP("Chain0 bswMargin", pModal->bswMargin[0]);
-	PR_EEP("Chain1 bswMargin", pModal->bswMargin[1]);
-	PR_EEP("HT40 Switch Settle", pModal->swSettleHt40);
-	PR_EEP("AR92x7 Version", pModal->version);
-	PR_EEP("DriverBias1", pModal->db1);
-	PR_EEP("DriverBias2", pModal->db1);
-	PR_EEP("CCK OutputBias", pModal->ob_cck);
-	PR_EEP("PSK OutputBias", pModal->ob_psk);
-	PR_EEP("QAM OutputBias", pModal->ob_qam);
-	PR_EEP("PAL_OFF OutputBias", pModal->ob_pal_off);
-
-	if (len > size)
-		len = size;
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-
-	return retval;
-
-#undef PR_EEP
-}
-
-static ssize_t read_file_modal_eeprom(struct file *file, char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct ath9k_htc_priv *priv = file->private_data;
-
-	if (AR_SREV_9271(priv->ah))
-		return read_4k_modal_eeprom(file, user_buf, count, ppos);
-	else if (priv->ah->hw_version.usbdev == AR9280_USB)
-		return read_def_modal_eeprom(file, user_buf, count, ppos);
-	else if (priv->ah->hw_version.usbdev == AR9287_USB)
-		return read_9287_modal_eeprom(file, user_buf, count, ppos);
-
-	return 0;
-}
-
-static const struct file_operations fops_modal_eeprom = {
-	.read = read_file_modal_eeprom,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-
 /* Ethtool support for get-stats */
 #define AMKSTR(nm) #nm "_BE", #nm "_BK", #nm "_VI", #nm "_VO"
 static const char ath9k_htc_gstrings_stats[][ETH_GSTRING_LEN] = {
@@ -947,6 +453,8 @@ int ath9k_htc_get_et_sset_count(struct ieee80211_hw *hw,
 
 #define STXBASE priv->debug.tx_stats
 #define SRXBASE priv->debug.rx_stats
+#define SKBTXBASE priv->debug.tx_stats
+#define SKBRXBASE priv->debug.skbrx_stats
 #define ASTXQ(a)					\
 	data[i++] = STXBASE.a[IEEE80211_AC_BE];		\
 	data[i++] = STXBASE.a[IEEE80211_AC_BK];		\
@@ -960,24 +468,24 @@ void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
 	struct ath9k_htc_priv *priv = hw->priv;
 	int i = 0;
 
-	data[i++] = STXBASE.skb_success;
-	data[i++] = STXBASE.skb_success_bytes;
-	data[i++] = SRXBASE.skb_completed;
-	data[i++] = SRXBASE.skb_completed_bytes;
+	data[i++] = SKBTXBASE.skb_success;
+	data[i++] = SKBTXBASE.skb_success_bytes;
+	data[i++] = SKBRXBASE.skb_completed;
+	data[i++] = SKBRXBASE.skb_completed_bytes;
 
 	ASTXQ(queue_stats);
 
-	data[i++] = SRXBASE.err_crc;
-	data[i++] = SRXBASE.err_decrypt_crc;
-	data[i++] = SRXBASE.err_phy;
-	data[i++] = SRXBASE.err_mic;
-	data[i++] = SRXBASE.err_pre_delim;
-	data[i++] = SRXBASE.err_post_delim;
-	data[i++] = SRXBASE.err_decrypt_busy;
+	data[i++] = SRXBASE.crc_err;
+	data[i++] = SRXBASE.decrypt_crc_err;
+	data[i++] = SRXBASE.phy_err;
+	data[i++] = SRXBASE.mic_err;
+	data[i++] = SRXBASE.pre_delim_crc_err;
+	data[i++] = SRXBASE.post_delim_crc_err;
+	data[i++] = SRXBASE.decrypt_busy_err;
 
-	data[i++] = SRXBASE.err_phy_stats[ATH9K_PHYERR_RADAR];
-	data[i++] = SRXBASE.err_phy_stats[ATH9K_PHYERR_OFDM_TIMING];
-	data[i++] = SRXBASE.err_phy_stats[ATH9K_PHYERR_CCK_TIMING];
+	data[i++] = SRXBASE.phy_err_stats[ATH9K_PHYERR_RADAR];
+	data[i++] = SRXBASE.phy_err_stats[ATH9K_PHYERR_OFDM_TIMING];
+	data[i++] = SRXBASE.phy_err_stats[ATH9K_PHYERR_CCK_TIMING];
 
 	WARN_ON(i != ATH9K_HTC_SSTATS_LEN);
 }
@@ -1001,18 +509,21 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 			    priv, &fops_tgt_rx_stats);
 	debugfs_create_file("xmit", S_IRUSR, priv->debug.debugfs_phy,
 			    priv, &fops_xmit);
-	debugfs_create_file("recv", S_IRUSR, priv->debug.debugfs_phy,
-			    priv, &fops_recv);
+	debugfs_create_file("skb_rx", S_IRUSR, priv->debug.debugfs_phy,
+			    priv, &fops_skb_rx);
+
+	ath9k_cmn_debug_recv(priv->debug.debugfs_phy, &priv->debug.rx_stats);
+	ath9k_cmn_debug_phy_err(priv->debug.debugfs_phy, &priv->debug.rx_stats);
+
 	debugfs_create_file("slot", S_IRUSR, priv->debug.debugfs_phy,
 			    priv, &fops_slot);
 	debugfs_create_file("queue", S_IRUSR, priv->debug.debugfs_phy,
 			    priv, &fops_queue);
 	debugfs_create_file("debug", S_IRUSR | S_IWUSR, priv->debug.debugfs_phy,
 			    priv, &fops_debug);
-	debugfs_create_file("base_eeprom", S_IRUSR, priv->debug.debugfs_phy,
-			    priv, &fops_base_eeprom);
-	debugfs_create_file("modal_eeprom", S_IRUSR, priv->debug.debugfs_phy,
-			    priv, &fops_modal_eeprom);
+
+	ath9k_cmn_debug_base_eeprom(priv->debug.debugfs_phy, priv->ah);
+	ath9k_cmn_debug_modal_eeprom(priv->debug.debugfs_phy, priv->ah);
 
 	return 0;
 }

@@ -109,13 +109,11 @@ static const struct vm_operations_struct *ttm_vm_ops;
 static int qxl_ttm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo;
-	struct qxl_device *qdev;
 	int r;
 
 	bo = (struct ttm_buffer_object *)vma->vm_private_data;
 	if (bo == NULL)
 		return VM_FAULT_NOPAGE;
-	qdev = qxl_get_qdev(bo->bdev);
 	r = ttm_vm_ops->fault(vma, vmf);
 	return r;
 }
@@ -162,10 +160,6 @@ static int qxl_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
 static int qxl_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			     struct ttm_mem_type_manager *man)
 {
-	struct qxl_device *qdev;
-
-	qdev = qxl_get_qdev(bdev);
-
 	switch (type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */

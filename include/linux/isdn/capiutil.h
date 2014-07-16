@@ -164,11 +164,6 @@ unsigned capi_cmsg_header(_cmsg * cmsg, __u16 _ApplId,
 			  __u8 _Command, __u8 _Subcommand,
 			  __u16 _Messagenumber, __u32 _Controller);
 
-/*
- * capi_info2str generated a readable string for Capi2.0 reasons.
- */
-char *capi_info2str(__u16 reason);
-
 /*-----------------------------------------------------------------------*/
 
 /*

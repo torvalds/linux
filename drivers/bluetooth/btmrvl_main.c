@@ -24,6 +24,7 @@
 #include <net/bluetooth/hci_core.h>
 
 #include "btmrvl_drv.h"
+#include "btmrvl_sdio.h"
 
 #define VERSION "1.0"
 
@@ -201,7 +202,7 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 	return 0;
 }
 
-int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
+int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, u8 subcmd)
 {
 	int ret;
 
@@ -337,9 +338,24 @@ static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 
 static void btmrvl_init_adapter(struct btmrvl_private *priv)
 {
+	int buf_size;
+
 	skb_queue_head_init(&priv->adapter->tx_queue);
 
 	priv->adapter->ps_state = PS_AWAKE;
+
+	buf_size = ALIGN_SZ(SDIO_BLOCK_SIZE, BTSDIO_DMA_ALIGN);
+	priv->adapter->hw_regs_buf = kzalloc(buf_size, GFP_KERNEL);
+	if (!priv->adapter->hw_regs_buf) {
+		priv->adapter->hw_regs = NULL;
+		BT_ERR("Unable to allocate buffer for hw_regs.");
+	} else {
+		priv->adapter->hw_regs =
+			(u8 *)ALIGN_ADDR(priv->adapter->hw_regs_buf,
+					 BTSDIO_DMA_ALIGN);
+		BT_DBG("hw_regs_buf=%p hw_regs=%p",
+		       priv->adapter->hw_regs_buf, priv->adapter->hw_regs);
+	}
 
 	init_waitqueue_head(&priv->adapter->cmd_wait_q);
 }
@@ -348,6 +364,7 @@ static void btmrvl_free_adapter(struct btmrvl_private *priv)
 {
 	skb_queue_purge(&priv->adapter->tx_queue);
 
+	kfree(priv->adapter->hw_regs_buf);
 	kfree(priv->adapter);
 
 	priv->adapter = NULL;

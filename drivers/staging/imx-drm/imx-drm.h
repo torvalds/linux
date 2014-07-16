@@ -50,8 +50,6 @@ int imx_drm_encoder_get_mux_id(struct device_node *node,
 int imx_drm_encoder_parse_of(struct drm_device *drm,
 	struct drm_encoder *encoder, struct device_node *np);
 
-int imx_drm_connector_mode_valid(struct drm_connector *connector,
-	struct drm_display_mode *mode);
 void imx_drm_connector_destroy(struct drm_connector *connector);
 void imx_drm_encoder_destroy(struct drm_encoder *encoder);
 

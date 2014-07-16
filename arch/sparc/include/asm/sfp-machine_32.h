@@ -79,9 +79,9 @@
   __asm__ ("addcc %r7,%8,%2\n\t"					\
 	   "addxcc %r5,%6,%1\n\t"					\
 	   "addx %r3,%4,%0\n"						\
-	   : "=r" ((USItype)(r2)),					\
-	     "=&r" ((USItype)(r1)),					\
-	     "=&r" ((USItype)(r0))					\
+	   : "=r" (r2),							\
+	     "=&r" (r1),						\
+	     "=&r" (r0)							\
 	   : "%rJ" ((USItype)(x2)),					\
 	     "rI" ((USItype)(y2)),					\
 	     "%rJ" ((USItype)(x1)),					\
@@ -94,9 +94,9 @@
   __asm__ ("subcc %r7,%8,%2\n\t"					\
 	    "subxcc %r5,%6,%1\n\t"					\
 	    "subx %r3,%4,%0\n"						\
-	   : "=r" ((USItype)(r2)),					\
-	     "=&r" ((USItype)(r1)),					\
-	     "=&r" ((USItype)(r0))					\
+	   : "=r" (r2),							\
+	     "=&r" (r1),						\
+	     "=&r" (r0)							\
 	   : "%rJ" ((USItype)(x2)),					\
 	     "rI" ((USItype)(y2)),					\
 	     "%rJ" ((USItype)(x1)),					\
@@ -115,8 +115,8 @@
 	    "addxcc %r6,%7,%0\n\t"					\
 	    "addxcc %r4,%5,%%g2\n\t"					\
 	    "addx %r2,%3,%%g1\n\t"					\
-	   : "=&r" ((USItype)(r1)),					\
-	     "=&r" ((USItype)(r0))					\
+	   : "=&r" (r1),						\
+	     "=&r" (r0)							\
 	   : "%rJ" ((USItype)(x3)),					\
 	     "rI" ((USItype)(y3)),					\
 	     "%rJ" ((USItype)(x2)),					\
@@ -140,8 +140,8 @@
 	    "subxcc %r6,%7,%0\n\t"					\
 	    "subxcc %r4,%5,%%g2\n\t"					\
 	    "subx %r2,%3,%%g1\n\t"					\
-	   : "=&r" ((USItype)(r1)),					\
-	     "=&r" ((USItype)(r0))					\
+	   : "=&r" (r1),						\
+	     "=&r" (r0)							\
 	   : "%rJ" ((USItype)(x3)),					\
 	     "rI" ((USItype)(y3)),					\
 	     "%rJ" ((USItype)(x2)),					\
@@ -164,10 +164,10 @@
 	   "addxcc %2,%%g0,%2\n\t"					\
 	   "addxcc %1,%%g0,%1\n\t"					\
 	   "addx %0,%%g0,%0\n\t"					\
-	   : "=&r" ((USItype)(x3)),					\
-	     "=&r" ((USItype)(x2)),					\
-	     "=&r" ((USItype)(x1)),					\
-	     "=&r" ((USItype)(x0))					\
+	   : "=&r" (x3),						\
+	     "=&r" (x2),						\
+	     "=&r" (x1),						\
+	     "=&r" (x0)							\
 	   : "rI" ((USItype)(i)),					\
 	     "0" ((USItype)(x3)),					\
 	     "1" ((USItype)(x2)),					\

@@ -69,6 +69,7 @@ struct btrfs_transaction {
 #define __TRANS_ATTACH		(1U << 10)
 #define __TRANS_JOIN		(1U << 11)
 #define __TRANS_JOIN_NOLOCK	(1U << 12)
+#define __TRANS_DUMMY		(1U << 13)
 
 #define TRANS_USERSPACE		(__TRANS_USERSPACE | __TRANS_FREEZABLE)
 #define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)

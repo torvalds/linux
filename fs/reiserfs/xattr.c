@@ -56,9 +56,11 @@
 #define XAROOT_NAME   "xattrs"
 
 
-/* Helpers for inode ops. We do this so that we don't have all the VFS
+/*
+ * Helpers for inode ops. We do this so that we don't have all the VFS
  * overhead and also for proper i_mutex annotation.
- * dir->i_mutex must be held for all of them. */
+ * dir->i_mutex must be held for all of them.
+ */
 #ifdef CONFIG_REISERFS_FS_XATTR
 static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 {
@@ -73,10 +75,12 @@ static int xattr_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return dir->i_op->mkdir(dir, dentry, mode);
 }
 
-/* We use I_MUTEX_CHILD here to silence lockdep. It's safe because xattr
+/*
+ * We use I_MUTEX_CHILD here to silence lockdep. It's safe because xattr
  * mutation ops aren't called during rename or splace, which are the
  * only other users of I_MUTEX_CHILD. It violates the ordering, but that's
- * better than allocating another subclass just for this code. */
+ * better than allocating another subclass just for this code.
+ */
 static int xattr_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int error;
@@ -166,9 +170,11 @@ static struct dentry *open_xa_dir(const struct inode *inode, int flags)
 	return xadir;
 }
 
-/* The following are side effects of other operations that aren't explicitly
+/*
+ * The following are side effects of other operations that aren't explicitly
  * modifying extended attributes. This includes operations such as permissions
- * or ownership changes, object deletions, etc. */
+ * or ownership changes, object deletions, etc.
+ */
 struct reiserfs_dentry_buf {
 	struct dir_context ctx;
 	struct dentry *xadir;
@@ -267,11 +273,13 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 	cleanup_dentry_buf(&buf);
 
 	if (!err) {
-		/* We start a transaction here to avoid a ABBA situation
+		/*
+		 * We start a transaction here to avoid a ABBA situation
 		 * between the xattr root's i_mutex and the journal lock.
 		 * This doesn't incur much additional overhead since the
 		 * new transaction will just nest inside the
-		 * outer transaction. */
+		 * outer transaction.
+		 */
 		int blocks = JOURNAL_PER_BALANCE_CNT * 2 + 2 +
 			     4 * REISERFS_QUOTA_TRANS_BLOCKS(inode->i_sb);
 		struct reiserfs_transaction_handle th;
@@ -284,7 +292,7 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 					  I_MUTEX_XATTR);
 			err = action(dir, data);
 			reiserfs_write_lock(inode->i_sb);
-			jerror = journal_end(&th, inode->i_sb, blocks);
+			jerror = journal_end(&th);
 			reiserfs_write_unlock(inode->i_sb);
 			mutex_unlock(&dir->d_parent->d_inode->i_mutex);
 			err = jerror ?: err;
@@ -349,9 +357,11 @@ int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs)
 }
 
 #ifdef CONFIG_REISERFS_FS_XATTR
-/* Returns a dentry corresponding to a specific extended attribute file
+/*
+ * Returns a dentry corresponding to a specific extended attribute file
  * for the inode. If flags allow, the file is created. Otherwise, a
- * valid or negative dentry, or an error is returned. */
+ * valid or negative dentry, or an error is returned.
+ */
 static struct dentry *xattr_lookup(struct inode *inode, const char *name,
 				    int flags)
 {
@@ -400,8 +410,10 @@ static struct page *reiserfs_get_page(struct inode *dir, size_t n)
 {
 	struct address_space *mapping = dir->i_mapping;
 	struct page *page;
-	/* We can deadlock if we try to free dentries,
-	   and an unlink/rmdir has just occurred - GFP_NOFS avoids this */
+	/*
+	 * We can deadlock if we try to free dentries,
+	 * and an unlink/rmdir has just occurred - GFP_NOFS avoids this
+	 */
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	page = read_mapping_page(mapping, n >> PAGE_CACHE_SHIFT, NULL);
 	if (!IS_ERR(page)) {
@@ -411,7 +423,7 @@ static struct page *reiserfs_get_page(struct inode *dir, size_t n)
 	}
 	return page;
 
-      fail:
+fail:
 	reiserfs_put_page(page);
 	return ERR_PTR(-EIO);
 }
@@ -589,7 +601,7 @@ int reiserfs_xattr_set(struct inode *inode, const char *name,
 					  buffer, buffer_size, flags);
 
 	reiserfs_write_lock(inode->i_sb);
-	error2 = journal_end(&th, inode->i_sb, jbegin_count);
+	error2 = journal_end(&th);
 	reiserfs_write_unlock(inode->i_sb);
 	if (error == 0)
 		error = error2;
@@ -615,8 +627,10 @@ reiserfs_xattr_get(struct inode *inode, const char *name, void *buffer,
 	if (name == NULL)
 		return -EINVAL;
 
-	/* We can't have xattrs attached to v1 items since they don't have
-	 * generation numbers */
+	/*
+	 * We can't have xattrs attached to v1 items since they don't have
+	 * generation numbers
+	 */
 	if (get_inode_sd_version(inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
@@ -913,12 +927,16 @@ static const struct xattr_handler *reiserfs_xattr_handlers[] = {
 
 static int xattr_mount_check(struct super_block *s)
 {
-	/* We need generation numbers to ensure that the oid mapping is correct
-	 * v3.5 filesystems don't have them. */
+	/*
+	 * We need generation numbers to ensure that the oid mapping is correct
+	 * v3.5 filesystems don't have them.
+	 */
 	if (old_format_only(s)) {
 		if (reiserfs_xattrs_optional(s)) {
-			/* Old format filesystem, but optional xattrs have
-			 * been enabled. Error out. */
+			/*
+			 * Old format filesystem, but optional xattrs have
+			 * been enabled. Error out.
+			 */
 			reiserfs_warning(s, "jdm-2005",
 					 "xattrs/ACLs not supported "
 					 "on pre-v3.6 format filesystems. "
@@ -972,9 +990,11 @@ int reiserfs_lookup_privroot(struct super_block *s)
 	return err;
 }
 
-/* We need to take a copy of the mount flags since things like
+/*
+ * We need to take a copy of the mount flags since things like
  * MS_RDONLY don't get set until *after* we're called.
- * mount_flags != mount_options */
+ * mount_flags != mount_options
+ */
 int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 {
 	int err = 0;
@@ -1007,8 +1027,8 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 
 error:
 	if (err) {
-		clear_bit(REISERFS_XATTRS_USER, &(REISERFS_SB(s)->s_mount_opt));
-		clear_bit(REISERFS_POSIXACL, &(REISERFS_SB(s)->s_mount_opt));
+		clear_bit(REISERFS_XATTRS_USER, &REISERFS_SB(s)->s_mount_opt);
+		clear_bit(REISERFS_POSIXACL, &REISERFS_SB(s)->s_mount_opt);
 	}
 
 	/* The super_block MS_POSIXACL must mirror the (no)acl mount option. */

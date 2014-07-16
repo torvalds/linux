@@ -108,7 +108,7 @@ static long key_get_persistent(struct user_namespace *ns, kuid_t uid,
 	return PTR_ERR(persistent_ref);
 
 found:
-	ret = key_task_permission(persistent_ref, current_cred(), KEY_LINK);
+	ret = key_task_permission(persistent_ref, current_cred(), KEY_NEED_LINK);
 	if (ret == 0) {
 		persistent = key_ref_to_ptr(persistent_ref);
 		ret = key_link(key_ref_to_ptr(dest_ref), persistent);
@@ -151,7 +151,7 @@ long keyctl_get_persistent(uid_t _uid, key_serial_t destid)
 	}
 
 	/* There must be a destination keyring */
-	dest_ref = lookup_user_key(destid, KEY_LOOKUP_CREATE, KEY_WRITE);
+	dest_ref = lookup_user_key(destid, KEY_LOOKUP_CREATE, KEY_NEED_WRITE);
 	if (IS_ERR(dest_ref))
 		return PTR_ERR(dest_ref);
 	if (key_ref_to_ptr(dest_ref)->type != &key_type_keyring) {

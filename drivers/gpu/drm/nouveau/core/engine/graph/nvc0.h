@@ -38,6 +38,8 @@
 #include <engine/fifo.h>
 #include <engine/graph.h>
 
+#include "fuc/os.h"
+
 #define GPC_MAX 32
 #define TPC_MAX (GPC_MAX * 8)
 
@@ -116,6 +118,7 @@ int  nvc0_graph_ctor(struct nouveau_object *, struct nouveau_object *,
 		     struct nouveau_object **);
 void nvc0_graph_dtor(struct nouveau_object *);
 int  nvc0_graph_init(struct nouveau_object *);
+int  nve4_graph_fini(struct nouveau_object *, bool);
 int  nve4_graph_init(struct nouveau_object *);
 
 extern struct nouveau_oclass nvc0_graph_sclass[];
@@ -217,6 +220,7 @@ extern const struct nvc0_graph_init nve4_graph_init_main_0[];
 extern const struct nvc0_graph_init nve4_graph_init_tpccs_0[];
 extern const struct nvc0_graph_init nve4_graph_init_pe_0[];
 extern const struct nvc0_graph_init nve4_graph_init_be_0[];
+extern const struct nvc0_graph_pack nve4_graph_pack_mmio[];
 
 extern const struct nvc0_graph_init nvf0_graph_init_fe_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_sked_0[];

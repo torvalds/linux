@@ -74,26 +74,22 @@ static void ext4_unwritten_wait(struct inode *inode)
  * or one thread will zero the other's data, causing corruption.
  */
 static int
-ext4_unaligned_aio(struct inode *inode, const struct iovec *iov,
-		   unsigned long nr_segs, loff_t pos)
+ext4_unaligned_aio(struct inode *inode, struct iov_iter *from, loff_t pos)
 {
 	struct super_block *sb = inode->i_sb;
 	int blockmask = sb->s_blocksize - 1;
-	size_t count = iov_length(iov, nr_segs);
-	loff_t final_size = pos + count;
 
 	if (pos >= i_size_read(inode))
 		return 0;
 
-	if ((pos & blockmask) || (final_size & blockmask))
+	if ((pos | iov_iter_alignment(from)) & blockmask)
 		return 1;
 
 	return 0;
 }
 
 static ssize_t
-ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long nr_segs, loff_t pos)
+ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(iocb->ki_filp);
@@ -101,10 +97,9 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 	struct blk_plug plug;
 	int o_direct = file->f_flags & O_DIRECT;
 	int overwrite = 0;
-	size_t length = iov_length(iov, nr_segs);
+	size_t length = iov_iter_count(from);
 	ssize_t ret;
-
-	BUG_ON(iocb->ki_pos != pos);
+	loff_t pos = iocb->ki_pos;
 
 	/*
 	 * Unaligned direct AIO must be serialized; see comment above
@@ -114,7 +109,7 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 	    ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
 	    !is_sync_kiocb(iocb) &&
 	    (file->f_flags & O_APPEND ||
-	     ext4_unaligned_aio(inode, iov, nr_segs, pos))) {
+	     ext4_unaligned_aio(inode, from, pos))) {
 		aio_mutex = ext4_aio_mutex(inode);
 		mutex_lock(aio_mutex);
 		ext4_unwritten_wait(inode);
@@ -138,10 +133,8 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 			goto errout;
 		}
 
-		if (pos + length > sbi->s_bitmap_maxbytes) {
-			nr_segs = iov_shorten((struct iovec *)iov, nr_segs,
-					      sbi->s_bitmap_maxbytes - pos);
-		}
+		if (pos + length > sbi->s_bitmap_maxbytes)
+			iov_iter_truncate(from, sbi->s_bitmap_maxbytes - pos);
 	}
 
 	if (o_direct) {
@@ -179,7 +172,7 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 		}
 	}
 
-	ret = __generic_file_aio_write(iocb, iov, nr_segs);
+	ret = __generic_file_write_iter(iocb, from);
 	mutex_unlock(&inode->i_mutex);
 
 	if (ret > 0) {
@@ -594,10 +587,10 @@ loff_t ext4_llseek(struct file *file, loff_t offset, int whence)
 
 const struct file_operations ext4_file_operations = {
 	.llseek		= ext4_llseek,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read	= generic_file_aio_read,
-	.aio_write	= ext4_file_write,
+	.read		= new_sync_read,
+	.write		= new_sync_write,
+	.read_iter	= generic_file_read_iter,
+	.write_iter	= ext4_file_write_iter,
 	.unlocked_ioctl = ext4_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ext4_compat_ioctl,
@@ -607,7 +600,7 @@ const struct file_operations ext4_file_operations = {
 	.release	= ext4_release_file,
 	.fsync		= ext4_sync_file,
 	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 	.fallocate	= ext4_fallocate,
 };
 

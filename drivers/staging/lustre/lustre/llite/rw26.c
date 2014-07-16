@@ -218,14 +218,11 @@ static void ll_free_user_pages(struct page **pages, int npages, int do_dirty)
 	int i;
 
 	for (i = 0; i < npages; i++) {
-		if (pages[i] == NULL)
-			break;
 		if (do_dirty)
 			set_page_dirty_lock(pages[i]);
 		page_cache_release(pages[i]);
 	}
-
-	OBD_FREE_LARGE(pages, npages * sizeof(*pages));
+	kvfree(pages);
 }
 
 ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
@@ -363,18 +360,16 @@ static ssize_t ll_direct_IO_26_seg(const struct lu_env *env, struct cl_io *io,
 #define MAX_DIO_SIZE ((MAX_MALLOC / sizeof(struct brw_page) * PAGE_CACHE_SIZE) & \
 		      ~(DT_MAX_BRW_SIZE - 1))
 static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
-			       const struct iovec *iov, loff_t file_offset,
-			       unsigned long nr_segs)
+			       struct iov_iter *iter, loff_t file_offset)
 {
 	struct lu_env *env;
 	struct cl_io *io;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct ccc_object *obj = cl_inode2ccc(inode);
-	long count = iov_length(iov, nr_segs);
-	long tot_bytes = 0, result = 0;
+	ssize_t count = iov_iter_count(iter);
+	ssize_t tot_bytes = 0, result = 0;
 	struct ll_inode_info *lli = ll_i2info(inode);
-	unsigned long seg = 0;
 	long size = MAX_DIO_SIZE;
 	int refcheck;
 
@@ -392,11 +387,8 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	       MAX_DIO_SIZE >> PAGE_CACHE_SHIFT);
 
 	/* Check that all user buffers are aligned as well */
-	for (seg = 0; seg < nr_segs; seg++) {
-		if (((unsigned long)iov[seg].iov_base & ~CFS_PAGE_MASK) ||
-		    (iov[seg].iov_len & ~CFS_PAGE_MASK))
-			return -EINVAL;
-	}
+	if (iov_iter_alignment(iter) & ~CFS_PAGE_MASK)
+		return -EINVAL;
 
 	env = cl_env_get(&refcheck);
 	LASSERT(!IS_ERR(env));
@@ -411,63 +403,49 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 		mutex_lock(&inode->i_mutex);
 
 	LASSERT(obj->cob_transient_pages == 0);
-	for (seg = 0; seg < nr_segs; seg++) {
-		long iov_left = iov[seg].iov_len;
-		unsigned long user_addr = (unsigned long)iov[seg].iov_base;
+	while (iov_iter_count(iter)) {
+		struct page **pages;
+		size_t offs;
 
+		count = min_t(size_t, iov_iter_count(iter), size);
 		if (rw == READ) {
 			if (file_offset >= i_size_read(inode))
 				break;
-			if (file_offset + iov_left > i_size_read(inode))
-				iov_left = i_size_read(inode) - file_offset;
+			if (file_offset + count > i_size_read(inode))
+				count = i_size_read(inode) - file_offset;
 		}
 
-		while (iov_left > 0) {
-			struct page **pages;
-			int page_count, max_pages = 0;
-			long bytes;
-
-			bytes = min(size, iov_left);
-			page_count = ll_get_user_pages(rw, user_addr, bytes,
-						       &pages, &max_pages);
-			if (likely(page_count > 0)) {
-				if (unlikely(page_count <  max_pages))
-					bytes = page_count << PAGE_CACHE_SHIFT;
-				result = ll_direct_IO_26_seg(env, io, rw, inode,
-							     file->f_mapping,
-							     bytes, file_offset,
-							     pages, page_count);
-				ll_free_user_pages(pages, max_pages, rw==READ);
-			} else if (page_count == 0) {
-				GOTO(out, result = -EFAULT);
-			} else {
-				result = page_count;
-			}
-			if (unlikely(result <= 0)) {
-				/* If we can't allocate a large enough buffer
-				 * for the request, shrink it to a smaller
-				 * PAGE_SIZE multiple and try again.
-				 * We should always be able to kmalloc for a
-				 * page worth of page pointers = 4MB on i386. */
-				if (result == -ENOMEM &&
-				    size > (PAGE_CACHE_SIZE / sizeof(*pages)) *
-					   PAGE_CACHE_SIZE) {
-					size = ((((size / 2) - 1) |
-						 ~CFS_PAGE_MASK) + 1) &
-						CFS_PAGE_MASK;
-					CDEBUG(D_VFSTRACE,"DIO size now %lu\n",
-					       size);
-					continue;
-				}
-
-				GOTO(out, result);
-			}
-
-			tot_bytes += result;
-			file_offset += result;
-			iov_left -= result;
-			user_addr += result;
+		result = iov_iter_get_pages_alloc(iter, &pages, count, &offs);
+		if (likely(result > 0)) {
+			int n = (result + offs + PAGE_SIZE - 1) / PAGE_SIZE;
+			result = ll_direct_IO_26_seg(env, io, rw, inode,
+						     file->f_mapping,
+						     result, file_offset,
+						     pages, n);
+			ll_free_user_pages(pages, n, rw==READ);
 		}
+		if (unlikely(result <= 0)) {
+			/* If we can't allocate a large enough buffer
+			 * for the request, shrink it to a smaller
+			 * PAGE_SIZE multiple and try again.
+			 * We should always be able to kmalloc for a
+			 * page worth of page pointers = 4MB on i386. */
+			if (result == -ENOMEM &&
+			    size > (PAGE_CACHE_SIZE / sizeof(*pages)) *
+				   PAGE_CACHE_SIZE) {
+				size = ((((size / 2) - 1) |
+					 ~CFS_PAGE_MASK) + 1) &
+					CFS_PAGE_MASK;
+				CDEBUG(D_VFSTRACE,"DIO size now %lu\n",
+				       size);
+				continue;
+			}
+
+			GOTO(out, result);
+		}
+		iov_iter_advance(iter, result);
+		tot_bytes += result;
+		file_offset += result;
 	}
 out:
 	LASSERT(obj->cob_transient_pages == 0);

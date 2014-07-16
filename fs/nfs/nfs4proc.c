@@ -2027,7 +2027,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 			return status;
 	}
 	if (!(o_res->f_attr->valid & NFS_ATTR_FATTR))
-		_nfs4_proc_getattr(server, &o_res->fh, o_res->f_attr, o_res->f_label);
+		nfs4_proc_getattr(server, &o_res->fh, o_res->f_attr, o_res->f_label);
 	return 0;
 }
 
@@ -2750,7 +2750,7 @@ static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 
 #define FATTR4_WORD1_NFS40_MASK (2*FATTR4_WORD1_MOUNTED_ON_FILEID - 1UL)
 #define FATTR4_WORD2_NFS41_MASK (2*FATTR4_WORD2_SUPPATTR_EXCLCREAT - 1UL)
-#define FATTR4_WORD2_NFS42_MASK (2*FATTR4_WORD2_CHANGE_SECURITY_LABEL - 1UL)
+#define FATTR4_WORD2_NFS42_MASK (2*FATTR4_WORD2_SECURITY_LABEL - 1UL)
 
 static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
@@ -3247,7 +3247,7 @@ static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct inode *dir,
 			err = -EPERM;
 			if (client != *clnt)
 				goto out;
-			client = nfs4_create_sec_client(client, dir, name);
+			client = nfs4_negotiate_security(client, dir, name);
 			if (IS_ERR(client))
 				return PTR_ERR(client);
 
@@ -4033,12 +4033,12 @@ static bool nfs4_error_stateid_expired(int err)
 	return false;
 }
 
-void __nfs4_read_done_cb(struct nfs_read_data *data)
+void __nfs4_read_done_cb(struct nfs_pgio_data *data)
 {
 	nfs_invalidate_atime(data->header->inode);
 }
 
-static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	struct nfs_server *server = NFS_SERVER(data->header->inode);
 
@@ -4055,7 +4055,7 @@ static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_read_data *data)
 }
 
 static bool nfs4_read_stateid_changed(struct rpc_task *task,
-		struct nfs_readargs *args)
+		struct nfs_pgio_args *args)
 {
 
 	if (!nfs4_error_stateid_expired(task->tk_status) ||
@@ -4068,7 +4068,7 @@ static bool nfs4_read_stateid_changed(struct rpc_task *task,
 	return true;
 }
 
-static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs4_read_done(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 
 	dprintk("--> %s\n", __func__);
@@ -4077,19 +4077,19 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
 		return -EAGAIN;
 	if (nfs4_read_stateid_changed(task, &data->args))
 		return -EAGAIN;
-	return data->read_done_cb ? data->read_done_cb(task, data) :
+	return data->pgio_done_cb ? data->pgio_done_cb(task, data) :
 				    nfs4_read_done_cb(task, data);
 }
 
-static void nfs4_proc_read_setup(struct nfs_read_data *data, struct rpc_message *msg)
+static void nfs4_proc_read_setup(struct nfs_pgio_data *data, struct rpc_message *msg)
 {
 	data->timestamp   = jiffies;
-	data->read_done_cb = nfs4_read_done_cb;
+	data->pgio_done_cb = nfs4_read_done_cb;
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0);
 }
 
-static int nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs4_proc_pgio_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
 			&data->args.seq_args,
@@ -4097,14 +4097,14 @@ static int nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_dat
 			task))
 		return 0;
 	if (nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
-				data->args.lock_context, FMODE_READ) == -EIO)
+				data->args.lock_context, data->header->rw_ops->rw_mode) == -EIO)
 		return -EIO;
 	if (unlikely(test_bit(NFS_CONTEXT_BAD, &data->args.context->flags)))
 		return -EIO;
 	return 0;
 }
 
-static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	struct inode *inode = data->header->inode;
 	
@@ -4121,7 +4121,7 @@ static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_write_data *data
 }
 
 static bool nfs4_write_stateid_changed(struct rpc_task *task,
-		struct nfs_writeargs *args)
+		struct nfs_pgio_args *args)
 {
 
 	if (!nfs4_error_stateid_expired(task->tk_status) ||
@@ -4134,18 +4134,18 @@ static bool nfs4_write_stateid_changed(struct rpc_task *task,
 	return true;
 }
 
-static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs4_write_done(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return -EAGAIN;
 	if (nfs4_write_stateid_changed(task, &data->args))
 		return -EAGAIN;
-	return data->write_done_cb ? data->write_done_cb(task, data) :
+	return data->pgio_done_cb ? data->pgio_done_cb(task, data) :
 		nfs4_write_done_cb(task, data);
 }
 
 static
-bool nfs4_write_need_cache_consistency_data(const struct nfs_write_data *data)
+bool nfs4_write_need_cache_consistency_data(const struct nfs_pgio_data *data)
 {
 	const struct nfs_pgio_header *hdr = data->header;
 
@@ -4158,7 +4158,7 @@ bool nfs4_write_need_cache_consistency_data(const struct nfs_write_data *data)
 	return nfs4_have_delegation(hdr->inode, FMODE_READ) == 0;
 }
 
-static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_message *msg)
+static void nfs4_proc_write_setup(struct nfs_pgio_data *data, struct rpc_message *msg)
 {
 	struct nfs_server *server = NFS_SERVER(data->header->inode);
 
@@ -4168,28 +4168,13 @@ static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_messag
 	} else
 		data->args.bitmask = server->cache_consistency_bitmask;
 
-	if (!data->write_done_cb)
-		data->write_done_cb = nfs4_write_done_cb;
+	if (!data->pgio_done_cb)
+		data->pgio_done_cb = nfs4_write_done_cb;
 	data->res.server = server;
 	data->timestamp   = jiffies;
 
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_WRITE];
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 1);
-}
-
-static int nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
-{
-	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
-			&data->args.seq_args,
-			&data->res.seq_res,
-			task))
-		return 0;
-	if (nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
-				data->args.lock_context, FMODE_WRITE) == -EIO)
-		return -EIO;
-	if (unlikely(test_bit(NFS_CONTEXT_BAD, &data->args.context->flags)))
-		return -EIO;
-	return 0;
 }
 
 static void nfs4_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
@@ -8432,13 +8417,10 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.pathconf	= nfs4_proc_pathconf,
 	.set_capabilities = nfs4_server_capabilities,
 	.decode_dirent	= nfs4_decode_dirent,
+	.pgio_rpc_prepare = nfs4_proc_pgio_rpc_prepare,
 	.read_setup	= nfs4_proc_read_setup,
-	.read_pageio_init = pnfs_pageio_init_read,
-	.read_rpc_prepare = nfs4_proc_read_rpc_prepare,
 	.read_done	= nfs4_read_done,
 	.write_setup	= nfs4_proc_write_setup,
-	.write_pageio_init = pnfs_pageio_init_write,
-	.write_rpc_prepare = nfs4_proc_write_rpc_prepare,
 	.write_done	= nfs4_write_done,
 	.commit_setup	= nfs4_proc_commit_setup,
 	.commit_rpc_prepare = nfs4_proc_commit_rpc_prepare,

@@ -225,7 +225,7 @@ int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 			goto exit;
 		}
 
-		targets->sens_res = be16_to_cpu(*(u16 *)atqa_skb->data);
+		targets->sens_res = be16_to_cpu(*(__be16 *)atqa_skb->data);
 		targets->sel_res = sak_skb->data[0];
 
 		r = nfc_hci_get_param(hdev, NFC_HCI_RF_READER_A_GATE,
@@ -380,34 +380,31 @@ static int hci_dev_session_init(struct nfc_hci_dev *hdev)
 	if (r < 0)
 		goto disconnect_all;
 
-	if (skb->len && skb->len == strlen(hdev->init_data.session_id))
-		if (memcmp(hdev->init_data.session_id, skb->data,
-			   skb->len) == 0) {
-			/* TODO ELa: restore gate<->pipe table from
-			 * some TBD location.
-			 * note: it doesn't seem possible to get the chip
-			 * currently open gate/pipe table.
-			 * It is only possible to obtain the supported
-			 * gate list.
-			 */
+	if (skb->len && skb->len == strlen(hdev->init_data.session_id) &&
+		(memcmp(hdev->init_data.session_id, skb->data,
+			   skb->len) == 0) && hdev->ops->load_session) {
+		/* Restore gate<->pipe table from some proprietary location. */
 
-			/* goto exit
-			 * For now, always do a full initialization */
-		}
+		r = hdev->ops->load_session(hdev);
 
-	r = nfc_hci_disconnect_all_gates(hdev);
-	if (r < 0)
-		goto exit;
+		if (r < 0)
+			goto disconnect_all;
+	} else {
 
-	r = hci_dev_connect_gates(hdev, hdev->init_data.gate_count,
-				  hdev->init_data.gates);
-	if (r < 0)
-		goto disconnect_all;
+		r = nfc_hci_disconnect_all_gates(hdev);
+		if (r < 0)
+			goto exit;
 
-	r = nfc_hci_set_param(hdev, NFC_HCI_ADMIN_GATE,
-			      NFC_HCI_ADMIN_SESSION_IDENTITY,
-			      hdev->init_data.session_id,
-			      strlen(hdev->init_data.session_id));
+		r = hci_dev_connect_gates(hdev, hdev->init_data.gate_count,
+					  hdev->init_data.gates);
+		if (r < 0)
+			goto disconnect_all;
+
+		r = nfc_hci_set_param(hdev, NFC_HCI_ADMIN_GATE,
+				NFC_HCI_ADMIN_SESSION_IDENTITY,
+				hdev->init_data.session_id,
+				strlen(hdev->init_data.session_id));
+	}
 	if (r == 0)
 		goto exit;
 

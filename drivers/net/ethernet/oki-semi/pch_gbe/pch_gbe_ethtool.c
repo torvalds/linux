@@ -91,7 +91,7 @@ static int pch_gbe_get_settings(struct net_device *netdev,
 	ecmd->advertising &= ~(ADVERTISED_TP | ADVERTISED_1000baseT_Half);
 
 	if (!netif_carrier_ok(adapter->netdev))
-		ethtool_cmd_speed_set(ecmd, -1);
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
 	return ret;
 }
 
@@ -508,5 +508,5 @@ static const struct ethtool_ops pch_gbe_ethtool_ops = {
 
 void pch_gbe_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &pch_gbe_ethtool_ops);
+	netdev->ethtool_ops = &pch_gbe_ethtool_ops;
 }

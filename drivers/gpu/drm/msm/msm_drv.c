@@ -159,7 +159,7 @@ static int msm_unload(struct drm_device *dev)
 static int get_mdp_ver(struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
-	const static struct of_device_id match_types[] = { {
+	static const struct of_device_id match_types[] = { {
 		.compatible = "qcom,mdss_mdp",
 		.data	= (void	*)5,
 	}, {
@@ -220,7 +220,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		 * is bogus, but non-null if allocation succeeded:
 		 */
 		p = dma_alloc_attrs(dev->dev, size,
-				&priv->vram.paddr, 0, &attrs);
+				&priv->vram.paddr, GFP_KERNEL, &attrs);
 		if (!p) {
 			dev_err(dev->dev, "failed to allocate VRAM\n");
 			priv->vram.paddr = 0;
@@ -288,7 +288,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	pm_runtime_get_sync(dev->dev);
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
 	pm_runtime_put_sync(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to install IRQ handler\n");
@@ -298,6 +298,10 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 #ifdef CONFIG_DRM_MSM_FBDEV
 	priv->fbdev = msm_fbdev_init(dev);
 #endif
+
+	ret = msm_debugfs_late_init(dev);
+	if (ret)
+		goto fail;
 
 	drm_kms_helper_poll_init(dev);
 
@@ -382,11 +386,8 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 static void msm_lastclose(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	if (priv->fbdev) {
-		drm_modeset_lock_all(dev);
-		drm_fb_helper_restore_fbdev_mode(priv->fbdev);
-		drm_modeset_unlock_all(dev);
-	}
+	if (priv->fbdev)
+		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
 }
 
 static irqreturn_t msm_irq(int irq, void *arg)
@@ -531,6 +532,41 @@ static struct drm_info_list msm_debugfs_list[] = {
 		{ "fb", show_locked, 0, msm_fb_show },
 };
 
+static int late_init_minor(struct drm_minor *minor)
+{
+	int ret;
+
+	if (!minor)
+		return 0;
+
+	ret = msm_rd_debugfs_init(minor);
+	if (ret) {
+		dev_err(minor->dev->dev, "could not install rd debugfs\n");
+		return ret;
+	}
+
+	ret = msm_perf_debugfs_init(minor);
+	if (ret) {
+		dev_err(minor->dev->dev, "could not install perf debugfs\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+int msm_debugfs_late_init(struct drm_device *dev)
+{
+	int ret;
+	ret = late_init_minor(dev->primary);
+	if (ret)
+		return ret;
+	ret = late_init_minor(dev->render);
+	if (ret)
+		return ret;
+	ret = late_init_minor(dev->control);
+	return ret;
+}
+
 static int msm_debugfs_init(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
@@ -545,13 +581,17 @@ static int msm_debugfs_init(struct drm_minor *minor)
 		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static void msm_debugfs_cleanup(struct drm_minor *minor)
 {
 	drm_debugfs_remove_files(msm_debugfs_list,
 			ARRAY_SIZE(msm_debugfs_list), minor);
+	if (!minor->dev->dev_private)
+		return;
+	msm_rd_debugfs_cleanup(minor);
+	msm_perf_debugfs_cleanup(minor);
 }
 #endif
 

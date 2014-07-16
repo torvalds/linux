@@ -11,10 +11,11 @@ if ARCH_S5PV210
 
 config CPU_S5PV210
 	bool
+	select ARM_AMBA
+	select PL330_DMA if DMADEVICES
 	select S5P_EXT_INT
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
-	select SAMSUNG_DMADEV
 	help
 	  Enable S5PV210 CPU support
 

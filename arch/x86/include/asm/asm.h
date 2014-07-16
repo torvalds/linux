@@ -57,6 +57,12 @@
 	.long (from) - . ;					\
 	.long (to) - . + 0x7ffffff0 ;				\
 	.popsection
+
+# define _ASM_NOKPROBE(entry)					\
+	.pushsection "_kprobe_blacklist","aw" ;			\
+	_ASM_ALIGN ;						\
+	_ASM_PTR (entry);					\
+	.popsection
 #else
 # define _ASM_EXTABLE(from,to)					\
 	" .pushsection \"__ex_table\",\"a\"\n"			\
@@ -71,6 +77,7 @@
 	" .long (" #from ") - .\n"				\
 	" .long (" #to ") - . + 0x7ffffff0\n"			\
 	" .popsection\n"
+/* For C file, we already have NOKPROBE_SYMBOL macro */
 #endif
 
 #endif /* _ASM_X86_ASM_H */

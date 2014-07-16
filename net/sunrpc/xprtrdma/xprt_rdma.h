@@ -43,6 +43,7 @@
 #include <linux/wait.h> 		/* wait_queue_head_t, etc */
 #include <linux/spinlock.h> 		/* spinlock_t, etc */
 #include <linux/atomic.h>			/* atomic_t, etc */
+#include <linux/workqueue.h>		/* struct work_struct */
 
 #include <rdma/rdma_cm.h>		/* RDMA connection api */
 #include <rdma/ib_verbs.h>		/* RDMA verbs api */
@@ -66,18 +67,21 @@ struct rpcrdma_ia {
 	struct completion	ri_done;
 	int			ri_async_rc;
 	enum rpcrdma_memreg	ri_memreg_strategy;
+	unsigned int		ri_max_frmr_depth;
 };
 
 /*
  * RDMA Endpoint -- one per transport instance
  */
 
+#define RPCRDMA_WC_BUDGET	(128)
+#define RPCRDMA_POLLSIZE	(16)
+
 struct rpcrdma_ep {
 	atomic_t		rep_cqcount;
 	int			rep_cqinit;
 	int			rep_connected;
 	struct rpcrdma_ia	*rep_ia;
-	struct ib_cq		*rep_cq;
 	struct ib_qp_init_attr	rep_attr;
 	wait_queue_head_t 	rep_connect_wait;
 	struct ib_sge		rep_pad;	/* holds zeroed pad */
@@ -86,6 +90,9 @@ struct rpcrdma_ep {
 	struct rpc_xprt		*rep_xprt;	/* for rep_func */
 	struct rdma_conn_param	rep_remote_cma;
 	struct sockaddr_storage	rep_remote_addr;
+	struct delayed_work	rep_connect_worker;
+	struct ib_wc		rep_send_wcs[RPCRDMA_POLLSIZE];
+	struct ib_wc		rep_recv_wcs[RPCRDMA_POLLSIZE];
 };
 
 #define INIT_CQCOUNT(ep) atomic_set(&(ep)->rep_cqcount, (ep)->rep_cqinit)
@@ -124,7 +131,6 @@ struct rpcrdma_rep {
 	struct rpc_xprt	*rr_xprt;	/* needed for request/reply matching */
 	void (*rr_func)(struct rpcrdma_rep *);/* called by tasklet in softint */
 	struct list_head rr_list;	/* tasklet list */
-	wait_queue_head_t rr_unbind;	/* optional unbind wait */
 	struct ib_sge	rr_iov;		/* for posting */
 	struct ib_mr	*rr_handle;	/* handle for mem in rr_iov */
 	char	rr_base[MAX_RPCRDMAHDR]; /* minimal inline receive buffer */
@@ -159,7 +165,6 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 		struct ib_mr	*rl_mr;		/* if registered directly */
 		struct rpcrdma_mw {		/* if registered from region */
 			union {
-				struct ib_mw	*mw;
 				struct ib_fmr	*fmr;
 				struct {
 					struct ib_fast_reg_page_list *fr_pgl;
@@ -207,7 +212,6 @@ struct rpcrdma_req {
 struct rpcrdma_buffer {
 	spinlock_t	rb_lock;	/* protects indexes */
 	atomic_t	rb_credits;	/* most recent server credits */
-	unsigned long	rb_cwndscale;	/* cached framework rpc_cwndscale */
 	int		rb_max_requests;/* client max requests */
 	struct list_head rb_mws;	/* optional memory windows/fmrs/frmrs */
 	int		rb_send_index;
@@ -300,7 +304,7 @@ void rpcrdma_ia_close(struct rpcrdma_ia *);
  */
 int rpcrdma_ep_create(struct rpcrdma_ep *, struct rpcrdma_ia *,
 				struct rpcrdma_create_data_internal *);
-int rpcrdma_ep_destroy(struct rpcrdma_ep *, struct rpcrdma_ia *);
+void rpcrdma_ep_destroy(struct rpcrdma_ep *, struct rpcrdma_ia *);
 int rpcrdma_ep_connect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 int rpcrdma_ep_disconnect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 
@@ -330,11 +334,12 @@ int rpcrdma_deregister_internal(struct rpcrdma_ia *,
 int rpcrdma_register_external(struct rpcrdma_mr_seg *,
 				int, int, struct rpcrdma_xprt *);
 int rpcrdma_deregister_external(struct rpcrdma_mr_seg *,
-				struct rpcrdma_xprt *, void *);
+				struct rpcrdma_xprt *);
 
 /*
  * RPC/RDMA connection management calls - xprtrdma/rpc_rdma.c
  */
+void rpcrdma_connect_worker(struct work_struct *);
 void rpcrdma_conn_func(struct rpcrdma_ep *);
 void rpcrdma_reply_handler(struct rpcrdma_rep *);
 

@@ -103,6 +103,7 @@ extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm, u
 extern bool __weak is_swbp_insn(uprobe_opcode_t *insn);
 extern bool __weak is_trap_insn(uprobe_opcode_t *insn);
 extern unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs);
+extern unsigned long uprobe_get_trap_addr(struct pt_regs *regs);
 extern int uprobe_write_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_t);
 extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
 extern int uprobe_apply(struct inode *inode, loff_t offset, struct uprobe_consumer *uc, bool);
@@ -133,6 +134,9 @@ extern void __weak arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 #else /* !CONFIG_UPROBES */
 struct uprobes_state {
 };
+
+#define uprobe_get_trap_addr(regs)	instruction_pointer(regs)
+
 static inline int
 uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
 {

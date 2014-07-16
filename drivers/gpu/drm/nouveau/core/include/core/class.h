@@ -295,6 +295,10 @@ struct nv04_display_scanoutpos {
 #define NV84_DISP_SOR_HDMI_PWR_REKEY                                 0x0000007f
 #define NV50_DISP_SOR_LVDS_SCRIPT                                    0x00013000
 #define NV50_DISP_SOR_LVDS_SCRIPT_ID                                 0x0000ffff
+#define NV94_DISP_SOR_DP_PWR                                         0x00016000
+#define NV94_DISP_SOR_DP_PWR_STATE                                   0x00000001
+#define NV94_DISP_SOR_DP_PWR_STATE_OFF                               0x00000000
+#define NV94_DISP_SOR_DP_PWR_STATE_ON                                0x00000001
 
 #define NV50_DISP_DAC_MTHD                                           0x00020000
 #define NV50_DISP_DAC_MTHD_TYPE                                      0x0000f000

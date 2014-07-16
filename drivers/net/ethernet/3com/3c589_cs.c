@@ -218,7 +218,7 @@ static int tc589_probe(struct pcmcia_device *link)
 	dev->netdev_ops = &el3_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+	dev->ethtool_ops = &netdev_ethtool_ops;
 
 	return tc589_config(link);
 }

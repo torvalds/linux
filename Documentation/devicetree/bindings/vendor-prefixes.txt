@@ -83,6 +83,7 @@ mosaixtech	Mosaix Technologies, Inc.
 moxa	Moxa
 mpl	MPL AG
 mundoreader	Mundo Reader S.L.
+murata	Murata Manufacturing Co., Ltd.
 mxicy	Macronix International Co., Ltd.
 national	National Semiconductor
 neonode		Neonode Inc.
@@ -142,3 +143,4 @@ wm	Wondermedia Technologies, Inc.
 xes	Extreme Engineering Solutions (X-ES)
 xlnx	Xilinx
 zyxel	ZyXEL Communications Corp.
+zarlink	Zarlink Semiconductor

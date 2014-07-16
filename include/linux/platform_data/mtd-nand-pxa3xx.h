@@ -58,6 +58,9 @@ struct pxa3xx_nand_platform_data {
 	/* use an flash-based bad block table */
 	bool	flash_bbt;
 
+	/* requested ECC strength and ECC step size */
+	int ecc_strength, ecc_step_size;
+
 	const struct mtd_partition		*parts[NUM_CHIP_SELECT];
 	unsigned int				nr_parts[NUM_CHIP_SELECT];
 

@@ -861,6 +861,10 @@ static int nci_send_frame(struct nci_dev *ndev, struct sk_buff *skb)
 	/* Get rid of skb owner, prior to sending to the driver. */
 	skb_orphan(skb);
 
+	/* Send copy to sniffer */
+	nfc_send_to_raw_sock(ndev->nfc_dev, skb,
+			     RAW_PAYLOAD_NCI, NFC_DIRECTION_TX);
+
 	return ndev->ops->send(ndev, skb);
 }
 
@@ -935,6 +939,11 @@ static void nci_rx_work(struct work_struct *work)
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&ndev->rx_q))) {
+
+		/* Send copy to sniffer */
+		nfc_send_to_raw_sock(ndev->nfc_dev, skb,
+				     RAW_PAYLOAD_NCI, NFC_DIRECTION_RX);
+
 		/* Process frame */
 		switch (nci_mt(skb->data)) {
 		case NCI_MT_RSP_PKT:

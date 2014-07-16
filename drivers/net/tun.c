@@ -498,12 +498,12 @@ static void tun_detach_all(struct net_device *dev)
 	for (i = 0; i < n; i++) {
 		tfile = rtnl_dereference(tun->tfiles[i]);
 		BUG_ON(!tfile);
-		wake_up_all(&tfile->wq.wait);
+		tfile->socket.sk->sk_data_ready(tfile->socket.sk);
 		RCU_INIT_POINTER(tfile->tun, NULL);
 		--tun->numqueues;
 	}
 	list_for_each_entry(tfile, &tun->disabled, next) {
-		wake_up_all(&tfile->wq.wait);
+		tfile->socket.sk->sk_data_ready(tfile->socket.sk);
 		RCU_INIT_POINTER(tfile->tun, NULL);
 	}
 	BUG_ON(tun->numqueues != 0);
@@ -807,8 +807,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Notify and wake up reader process */
 	if (tfile->flags & TUN_FASYNC)
 		kill_fasync(&tfile->fasync, SIGIO, POLL_IN);
-	wake_up_interruptible_poll(&tfile->wq.wait, POLLIN |
-				   POLLRDNORM | POLLRDBAND);
+	tfile->socket.sk->sk_data_ready(tfile->socket.sk);
 
 	rcu_read_unlock();
 	return NETDEV_TX_OK;
@@ -965,7 +964,7 @@ static unsigned int tun_chr_poll(struct file *file, poll_table *wait)
 
 	tun_debug(KERN_INFO, tun, "tun_chr_poll\n");
 
-	poll_wait(file, &tfile->wq.wait, wait);
+	poll_wait(file, sk_sleep(sk), wait);
 
 	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
@@ -1330,47 +1329,26 @@ done:
 static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 			   const struct iovec *iv, ssize_t len, int noblock)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct sk_buff *skb;
 	ssize_t ret = 0;
+	int peeked, err, off = 0;
 
 	tun_debug(KERN_INFO, tun, "tun_do_read\n");
 
-	if (unlikely(!noblock))
-		add_wait_queue(&tfile->wq.wait, &wait);
-	while (len) {
-		if (unlikely(!noblock))
-			current->state = TASK_INTERRUPTIBLE;
+	if (!len)
+		return ret;
 
-		/* Read frames from the queue */
-		if (!(skb = skb_dequeue(&tfile->socket.sk->sk_receive_queue))) {
-			if (noblock) {
-				ret = -EAGAIN;
-				break;
-			}
-			if (signal_pending(current)) {
-				ret = -ERESTARTSYS;
-				break;
-			}
-			if (tun->dev->reg_state != NETREG_REGISTERED) {
-				ret = -EIO;
-				break;
-			}
+	if (tun->dev->reg_state != NETREG_REGISTERED)
+		return -EIO;
 
-			/* Nothing to read, let's sleep */
-			schedule();
-			continue;
-		}
-
+	/* Read frames from queue */
+	skb = __skb_recv_datagram(tfile->socket.sk, noblock ? MSG_DONTWAIT : 0,
+				  &peeked, &off, &err);
+	if (skb) {
 		ret = tun_put_user(tun, tfile, skb, iv, len);
 		kfree_skb(skb);
-		break;
-	}
-
-	if (unlikely(!noblock)) {
-		current->state = TASK_RUNNING;
-		remove_wait_queue(&tfile->wq.wait, &wait);
-	}
+	} else
+		ret = err;
 
 	return ret;
 }
@@ -2199,8 +2177,8 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	tfile->flags = 0;
 	tfile->ifindex = 0;
 
-	rcu_assign_pointer(tfile->socket.wq, &tfile->wq);
 	init_waitqueue_head(&tfile->wq.wait);
+	RCU_INIT_POINTER(tfile->socket.wq, &tfile->wq);
 
 	tfile->socket.file = file;
 	tfile->socket.ops = &tun_socket_ops;

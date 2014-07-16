@@ -210,7 +210,7 @@ static void bl_end_io_read(struct bio *bio, int err)
 			SetPageUptodate(bvec->bv_page);
 
 	if (err) {
-		struct nfs_read_data *rdata = par->data;
+		struct nfs_pgio_data *rdata = par->data;
 		struct nfs_pgio_header *header = rdata->header;
 
 		if (!header->pnfs_error)
@@ -224,17 +224,17 @@ static void bl_end_io_read(struct bio *bio, int err)
 static void bl_read_cleanup(struct work_struct *work)
 {
 	struct rpc_task *task;
-	struct nfs_read_data *rdata;
+	struct nfs_pgio_data *rdata;
 	dprintk("%s enter\n", __func__);
 	task = container_of(work, struct rpc_task, u.tk_work);
-	rdata = container_of(task, struct nfs_read_data, task);
+	rdata = container_of(task, struct nfs_pgio_data, task);
 	pnfs_ld_read_done(rdata);
 }
 
 static void
 bl_end_par_io_read(void *data, int unused)
 {
-	struct nfs_read_data *rdata = data;
+	struct nfs_pgio_data *rdata = data;
 
 	rdata->task.tk_status = rdata->header->pnfs_error;
 	INIT_WORK(&rdata->task.u.tk_work, bl_read_cleanup);
@@ -242,7 +242,7 @@ bl_end_par_io_read(void *data, int unused)
 }
 
 static enum pnfs_try_status
-bl_read_pagelist(struct nfs_read_data *rdata)
+bl_read_pagelist(struct nfs_pgio_data *rdata)
 {
 	struct nfs_pgio_header *header = rdata->header;
 	int i, hole;
@@ -390,7 +390,7 @@ static void bl_end_io_write_zero(struct bio *bio, int err)
 	}
 
 	if (unlikely(err)) {
-		struct nfs_write_data *data = par->data;
+		struct nfs_pgio_data *data = par->data;
 		struct nfs_pgio_header *header = data->header;
 
 		if (!header->pnfs_error)
@@ -405,7 +405,7 @@ static void bl_end_io_write(struct bio *bio, int err)
 {
 	struct parallel_io *par = bio->bi_private;
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct nfs_write_data *data = par->data;
+	struct nfs_pgio_data *data = par->data;
 	struct nfs_pgio_header *header = data->header;
 
 	if (!uptodate) {
@@ -423,10 +423,10 @@ static void bl_end_io_write(struct bio *bio, int err)
 static void bl_write_cleanup(struct work_struct *work)
 {
 	struct rpc_task *task;
-	struct nfs_write_data *wdata;
+	struct nfs_pgio_data *wdata;
 	dprintk("%s enter\n", __func__);
 	task = container_of(work, struct rpc_task, u.tk_work);
-	wdata = container_of(task, struct nfs_write_data, task);
+	wdata = container_of(task, struct nfs_pgio_data, task);
 	if (likely(!wdata->header->pnfs_error)) {
 		/* Marks for LAYOUTCOMMIT */
 		mark_extents_written(BLK_LSEG2EXT(wdata->header->lseg),
@@ -438,7 +438,7 @@ static void bl_write_cleanup(struct work_struct *work)
 /* Called when last of bios associated with a bl_write_pagelist call finishes */
 static void bl_end_par_io_write(void *data, int num_se)
 {
-	struct nfs_write_data *wdata = data;
+	struct nfs_pgio_data *wdata = data;
 
 	if (unlikely(wdata->header->pnfs_error)) {
 		bl_free_short_extents(&BLK_LSEG2EXT(wdata->header->lseg)->bl_inval,
@@ -673,7 +673,7 @@ check_page:
 }
 
 static enum pnfs_try_status
-bl_write_pagelist(struct nfs_write_data *wdata, int sync)
+bl_write_pagelist(struct nfs_pgio_data *wdata, int sync)
 {
 	struct nfs_pgio_header *header = wdata->header;
 	int i, ret, npg_zero, pg_index, last = 0;
@@ -1189,13 +1189,17 @@ bl_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 		pnfs_generic_pg_init_read(pgio, req);
 }
 
-static bool
+/*
+ * Return 0 if @req cannot be coalesced into @pgio, otherwise return the number
+ * of bytes (maximum @req->wb_bytes) that can be coalesced.
+ */
+static size_t
 bl_pg_test_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		struct nfs_page *req)
 {
 	if (pgio->pg_dreq != NULL &&
 	    !is_aligned_req(req, SECTOR_SIZE))
-		return false;
+		return 0;
 
 	return pnfs_generic_pg_test(pgio, prev, req);
 }
@@ -1241,13 +1245,17 @@ bl_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 	}
 }
 
-static bool
+/*
+ * Return 0 if @req cannot be coalesced into @pgio, otherwise return the number
+ * of bytes (maximum @req->wb_bytes) that can be coalesced.
+ */
+static size_t
 bl_pg_test_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		 struct nfs_page *req)
 {
 	if (pgio->pg_dreq != NULL &&
 	    !is_aligned_req(req, PAGE_CACHE_SIZE))
-		return false;
+		return 0;
 
 	return pnfs_generic_pg_test(pgio, prev, req);
 }

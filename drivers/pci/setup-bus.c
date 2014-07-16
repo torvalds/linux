@@ -68,7 +68,7 @@ static int add_to_list(struct list_head *head,
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp) {
-		pr_warning("add_to_list: kmalloc() failed!\n");
+		pr_warn("add_to_list: kmalloc() failed!\n");
 		return -ENOMEM;
 	}
 
@@ -148,8 +148,7 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 
 		tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 		if (!tmp)
-			panic("pdev_sort_resources(): "
-			      "kmalloc() failed!\n");
+			panic("pdev_sort_resources(): kmalloc() failed!\n");
 		tmp->res = r;
 		tmp->dev = dev;
 
@@ -736,7 +735,7 @@ static resource_size_t calculate_iosize(resource_size_t size,
 {
 	if (size < min_size)
 		size = min_size;
-	if (old_size == 1 )
+	if (old_size == 1)
 		old_size = 0;
 	/* To be fixed in 2.5: we should have sort of HAVE_ISA
 	   flag in the struct pci_bus. */
@@ -757,7 +756,7 @@ static resource_size_t calculate_memsize(resource_size_t size,
 {
 	if (size < min_size)
 		size = min_size;
-	if (old_size == 1 )
+	if (old_size == 1)
 		old_size = 0;
 	if (size < old_size)
 		size = old_size;
@@ -859,9 +858,8 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 			resource_size(b_res), min_align);
 	if (!size0 && !size1) {
 		if (b_res->start || b_res->end)
-			dev_info(&bus->self->dev, "disabling bridge window "
-				 "%pR to %pR (unused)\n", b_res,
-				 &bus->busn_res);
+			dev_info(&bus->self->dev, "disabling bridge window %pR to %pR (unused)\n",
+				 b_res, &bus->busn_res);
 		b_res->flags = 0;
 		return;
 	}
@@ -872,10 +870,9 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	if (size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0,
 			    min_align);
-		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
-				 "%pR to %pR add_size %llx\n", b_res,
-				 &bus->busn_res,
-				 (unsigned long long)size1-size0);
+		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window %pR to %pR add_size %llx\n",
+			   b_res, &bus->busn_res,
+			   (unsigned long long)size1-size0);
 	}
 }
 
@@ -974,9 +971,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			if (order < 0)
 				order = 0;
 			if (order >= ARRAY_SIZE(aligns)) {
-				dev_warn(&dev->dev, "disabling BAR %d: %pR "
-					 "(bad alignment %#llx)\n", i, r,
-					 (unsigned long long) align);
+				dev_warn(&dev->dev, "disabling BAR %d: %pR (bad alignment %#llx)\n",
+					 i, r, (unsigned long long) align);
 				r->flags = 0;
 				continue;
 			}
@@ -1003,9 +999,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 				resource_size(b_res), min_align);
 	if (!size0 && !size1) {
 		if (b_res->start || b_res->end)
-			dev_info(&bus->self->dev, "disabling bridge window "
-				 "%pR to %pR (unused)\n", b_res,
-				 &bus->busn_res);
+			dev_info(&bus->self->dev, "disabling bridge window %pR to %pR (unused)\n",
+				 b_res, &bus->busn_res);
 		b_res->flags = 0;
 		return 0;
 	}
@@ -1014,9 +1009,9 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	b_res->flags |= IORESOURCE_STARTALIGN;
 	if (size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0, min_align);
-		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
-				 "%pR to %pR add_size %llx\n", b_res,
-				 &bus->busn_res, (unsigned long long)size1-size0);
+		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window %pR to %pR add_size %llx\n",
+			   b_res, &bus->busn_res,
+			   (unsigned long long)size1-size0);
 	}
 	return 0;
 }
@@ -1274,8 +1269,8 @@ void __pci_bus_assign_resources(const struct pci_bus *bus,
 			break;
 
 		default:
-			dev_info(&dev->dev, "not setting up bridge for bus "
-				 "%04x:%02x\n", pci_domain_nr(b), b->number);
+			dev_info(&dev->dev, "not setting up bridge for bus %04x:%02x\n",
+				 pci_domain_nr(b), b->number);
 			break;
 		}
 	}
@@ -1312,8 +1307,8 @@ static void __pci_bridge_assign_resources(const struct pci_dev *bridge,
 		break;
 
 	default:
-		dev_info(&bridge->dev, "not setting up bridge for bus "
-			 "%04x:%02x\n", pci_domain_nr(b), b->number);
+		dev_info(&bridge->dev, "not setting up bridge for bus %04x:%02x\n",
+			 pci_domain_nr(b), b->number);
 		break;
 	}
 }
@@ -1430,10 +1425,10 @@ static void pci_bus_dump_res(struct pci_bus *bus)
 
 	pci_bus_for_each_resource(bus, res, i) {
 		if (!res || !res->end || !res->flags)
-                        continue;
+			continue;
 
 		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %pR\n", i, res);
-        }
+	}
 }
 
 static void pci_bus_dump_resources(struct pci_bus *bus)
@@ -1458,7 +1453,7 @@ static int pci_bus_get_depth(struct pci_bus *bus)
 	int depth = 0;
 	struct pci_bus *child_bus;
 
-	list_for_each_entry(child_bus, &bus->children, node){
+	list_for_each_entry(child_bus, &bus->children, node) {
 		int ret;
 
 		ret = pci_bus_get_depth(child_bus);

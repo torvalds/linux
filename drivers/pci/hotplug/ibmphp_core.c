@@ -74,7 +74,7 @@ static inline int get_max_adapter_speed (struct hotplug_slot *hs, u8 *value)
 static inline int get_cur_bus_info(struct slot **sl)
 {
 	int rc = 1;
-	struct slot * slot_cur = *sl;
+	struct slot *slot_cur = *sl;
 
 	debug("options = %x\n", slot_cur->ctrl->options);
 	debug("revision = %x\n", slot_cur->ctrl->revision);
@@ -114,8 +114,8 @@ static inline int slot_update(struct slot **sl)
 
 static int __init get_max_slots (void)
 {
-	struct slot * slot_cur;
-	struct list_head * tmp;
+	struct slot *slot_cur;
+	struct list_head *tmp;
 	u8 slot_count = 0;
 
 	list_for_each(tmp, &ibmphp_slot_head) {
@@ -280,7 +280,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 	return rc;
 }
 
-static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int rc = -ENODEV;
 	struct slot *pslot;
@@ -311,7 +311,7 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 * value)
 	return rc;
 }
 
-static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int rc = -ENODEV;
 	struct slot *pslot;
@@ -338,7 +338,7 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 * value)
 }
 
 
-static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int rc = -ENODEV;
 	struct slot *pslot;
@@ -364,7 +364,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
 	return rc;
 }
 
-static int get_adapter_present(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_adapter_present(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int rc = -ENODEV;
 	struct slot *pslot;
@@ -433,7 +433,7 @@ static int get_max_bus_speed(struct slot *slot)
 }
 
 /*
-static int get_max_adapter_speed_1(struct hotplug_slot *hotplug_slot, u8 * value, u8 flag)
+static int get_max_adapter_speed_1(struct hotplug_slot *hotplug_slot, u8 *value, u8 flag)
 {
 	int rc = -ENODEV;
 	struct slot *pslot;
@@ -471,7 +471,7 @@ static int get_max_adapter_speed_1(struct hotplug_slot *hotplug_slot, u8 * value
 	return rc;
 }
 
-static int get_bus_name(struct hotplug_slot *hotplug_slot, char * value)
+static int get_bus_name(struct hotplug_slot *hotplug_slot, char *value)
 {
 	int rc = -ENODEV;
 	struct slot *pslot = NULL;
@@ -671,7 +671,7 @@ static struct pci_func *ibm_slot_find(u8 busno, u8 device, u8 function)
 {
 	struct pci_func *func_cur;
 	struct slot *slot_cur;
-	struct list_head * tmp;
+	struct list_head *tmp;
 	list_for_each(tmp, &ibmphp_slot_head) {
 		slot_cur = list_entry(tmp, struct slot, ibm_slot_list);
 		if (slot_cur->func) {
@@ -696,8 +696,8 @@ static struct pci_func *ibm_slot_find(u8 busno, u8 device, u8 function)
 static void free_slots(void)
 {
 	struct slot *slot_cur;
-	struct list_head * tmp;
-	struct list_head * next;
+	struct list_head *tmp;
+	struct list_head *next;
 
 	debug("%s -- enter\n", __func__);
 
@@ -825,10 +825,10 @@ static int ibm_configure_device(struct pci_func *func)
 /*******************************************************
  * Returns whether the bus is empty or not
  *******************************************************/
-static int is_bus_empty(struct slot * slot_cur)
+static int is_bus_empty(struct slot *slot_cur)
 {
 	int rc;
-	struct slot * tmp_slot;
+	struct slot *tmp_slot;
 	u8 i = slot_cur->bus_on->slot_min;
 
 	while (i <= slot_cur->bus_on->slot_max) {
@@ -856,7 +856,7 @@ static int is_bus_empty(struct slot * slot_cur)
  * Parameters: slot
  * Returns: bus is set (0) or error code
  ***********************************************************/
-static int set_bus(struct slot * slot_cur)
+static int set_bus(struct slot *slot_cur)
 {
 	int rc;
 	u8 speed;
@@ -956,7 +956,7 @@ static int set_bus(struct slot * slot_cur)
 static int check_limitations(struct slot *slot_cur)
 {
 	u8 i;
-	struct slot * tmp_slot;
+	struct slot *tmp_slot;
 	u8 count = 0;
 	u8 limitation = 0;
 
@@ -1045,8 +1045,7 @@ static int enable_slot(struct hotplug_slot *hs)
 	rc = check_limitations(slot_cur);
 	if (rc) {
 		err("Adding this card exceeds the limitations of this bus.\n");
-		err("(i.e., >1 133MHz cards running on same bus, or "
-		     ">2 66 PCI cards running on same bus.\n");
+		err("(i.e., >1 133MHz cards running on same bus, or >2 66 PCI cards running on same bus.\n");
 		err("Try hot-adding into another bus\n");
 		rc = -EINVAL;
 		goto error_nopower;
@@ -1070,12 +1069,10 @@ static int enable_slot(struct hotplug_slot *hs)
 					!(SLOT_PWRGD(slot_cur->status)))
 			err("power fault occurred trying to power up\n");
 		else if (SLOT_BUS_SPEED(slot_cur->status)) {
-			err("bus speed mismatch occurred.  please check "
-				"current bus speed and card capability\n");
+			err("bus speed mismatch occurred.  please check current bus speed and card capability\n");
 			print_card_capability(slot_cur);
 		} else if (SLOT_BUS_MODE(slot_cur->ext_status)) {
-			err("bus mode mismatch occurred.  please check "
-				"current bus mode and card capability\n");
+			err("bus mode mismatch occurred.  please check current bus mode and card capability\n");
 			print_card_capability(slot_cur);
 		}
 		ibmphp_update_slot_info(slot_cur);
@@ -1098,8 +1095,7 @@ static int enable_slot(struct hotplug_slot *hs)
 		goto error_power;
 	}
 	if (SLOT_POWER(slot_cur->status) && (SLOT_BUS_SPEED(slot_cur->status))) {
-		err("bus speed mismatch occurred.  please check current bus "
-					"speed and card capability\n");
+		err("bus speed mismatch occurred.  please check current bus speed and card capability\n");
 		print_card_capability(slot_cur);
 		goto error_power;
 	}

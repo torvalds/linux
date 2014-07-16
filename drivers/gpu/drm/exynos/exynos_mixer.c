@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
+#include <linux/component.h>
 
 #include <drm/exynos_drm.h>
 
@@ -376,6 +377,20 @@ static void mixer_run(struct mixer_context *ctx)
 	mixer_regs_dump(ctx);
 }
 
+static void mixer_stop(struct mixer_context *ctx)
+{
+	struct mixer_resources *res = &ctx->mixer_res;
+	int timeout = 20;
+
+	mixer_reg_writemask(res, MXR_STATUS, 0, MXR_STATUS_REG_RUN);
+
+	while (!(mixer_reg_read(res, MXR_STATUS) & MXR_STATUS_REG_IDLE) &&
+			--timeout)
+		usleep_range(10000, 12000);
+
+	mixer_regs_dump(ctx);
+}
+
 static void vp_video_buffer(struct mixer_context *ctx, int win)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
@@ -496,13 +511,8 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 static void mixer_layer_update(struct mixer_context *ctx)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
-	u32 val;
 
-	val = mixer_reg_read(res, MXR_CFG);
-
-	/* allow one update per vsync only */
-	if (!(val & MXR_CFG_LAYER_UPDATE_COUNT_MASK))
-		mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
+	mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
 }
 
 static void mixer_graph_buffer(struct mixer_context *ctx, int win)
@@ -830,13 +840,15 @@ static int vp_resources_init(struct mixer_context *mixer_ctx)
 }
 
 static int mixer_initialize(struct exynos_drm_manager *mgr,
-			struct drm_device *drm_dev, int pipe)
+			struct drm_device *drm_dev)
 {
 	int ret;
 	struct mixer_context *mixer_ctx = mgr->ctx;
+	struct exynos_drm_private *priv;
+	priv = drm_dev->dev_private;
 
-	mixer_ctx->drm_dev = drm_dev;
-	mixer_ctx->pipe = pipe;
+	mgr->drm_dev = mixer_ctx->drm_dev = drm_dev;
+	mgr->pipe = mixer_ctx->pipe = priv->pipe++;
 
 	/* acquire resources: regs, irqs, clocks */
 	ret = mixer_resources_init(mixer_ctx);
@@ -1007,6 +1019,8 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 	}
 	mutex_unlock(&mixer_ctx->mixer_mutex);
 
+	drm_vblank_get(mgr->crtc->dev, mixer_ctx->pipe);
+
 	atomic_set(&mixer_ctx->wait_vsync_event, 1);
 
 	/*
@@ -1017,6 +1031,8 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 				!atomic_read(&mixer_ctx->wait_vsync_event),
 				HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
+
+	drm_vblank_put(mgr->crtc->dev, mixer_ctx->pipe);
 }
 
 static void mixer_window_suspend(struct exynos_drm_manager *mgr)
@@ -1058,7 +1074,7 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 		mutex_unlock(&ctx->mixer_mutex);
 		return;
 	}
-	ctx->powered = true;
+
 	mutex_unlock(&ctx->mixer_mutex);
 
 	pm_runtime_get_sync(ctx->dev);
@@ -1068,6 +1084,12 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 		clk_prepare_enable(res->vp);
 		clk_prepare_enable(res->sclk_mixer);
 	}
+
+	mutex_lock(&ctx->mixer_mutex);
+	ctx->powered = true;
+	mutex_unlock(&ctx->mixer_mutex);
+
+	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
 
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
 	mixer_win_reset(ctx);
@@ -1081,13 +1103,20 @@ static void mixer_poweroff(struct exynos_drm_manager *mgr)
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mutex_lock(&ctx->mixer_mutex);
-	if (!ctx->powered)
-		goto out;
+	if (!ctx->powered) {
+		mutex_unlock(&ctx->mixer_mutex);
+		return;
+	}
 	mutex_unlock(&ctx->mixer_mutex);
 
+	mixer_stop(ctx);
 	mixer_window_suspend(mgr);
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
+
+	mutex_lock(&ctx->mixer_mutex);
+	ctx->powered = false;
+	mutex_unlock(&ctx->mixer_mutex);
 
 	clk_disable_unprepare(res->mixer);
 	if (ctx->vp_enabled) {
@@ -1096,12 +1125,6 @@ static void mixer_poweroff(struct exynos_drm_manager *mgr)
 	}
 
 	pm_runtime_put_sync(ctx->dev);
-
-	mutex_lock(&ctx->mixer_mutex);
-	ctx->powered = false;
-
-out:
-	mutex_unlock(&ctx->mixer_mutex);
 }
 
 static void mixer_dpms(struct exynos_drm_manager *mgr, int mode)
@@ -1142,8 +1165,6 @@ int mixer_check_mode(struct drm_display_mode *mode)
 }
 
 static struct exynos_drm_manager_ops mixer_manager_ops = {
-	.initialize		= mixer_initialize,
-	.remove			= mixer_mgr_remove,
 	.dpms			= mixer_dpms,
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,
@@ -1200,11 +1221,13 @@ static struct of_device_id mixer_match_types[] = {
 	}
 };
 
-static int mixer_probe(struct platform_device *pdev)
+static int mixer_bind(struct device *dev, struct device *manager, void *data)
 {
-	struct device *dev = &pdev->dev;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *drm_dev = data;
 	struct mixer_context *ctx;
 	struct mixer_drv_data *drv;
+	int ret;
 
 	dev_info(dev, "probe start\n");
 
@@ -1233,19 +1256,61 @@ static int mixer_probe(struct platform_device *pdev)
 	atomic_set(&ctx->wait_vsync_event, 0);
 
 	mixer_manager.ctx = ctx;
+	ret = mixer_initialize(&mixer_manager, drm_dev);
+	if (ret)
+		return ret;
+
 	platform_set_drvdata(pdev, &mixer_manager);
-	exynos_drm_manager_register(&mixer_manager);
+	ret = exynos_drm_crtc_create(&mixer_manager);
+	if (ret) {
+		mixer_mgr_remove(&mixer_manager);
+		return ret;
+	}
 
 	pm_runtime_enable(dev);
 
 	return 0;
 }
 
+static void mixer_unbind(struct device *dev, struct device *master, void *data)
+{
+	struct exynos_drm_manager *mgr = dev_get_drvdata(dev);
+	struct drm_crtc *crtc = mgr->crtc;
+
+	dev_info(dev, "remove successful\n");
+
+	mixer_mgr_remove(mgr);
+
+	pm_runtime_disable(dev);
+
+	crtc->funcs->destroy(crtc);
+}
+
+static const struct component_ops mixer_component_ops = {
+	.bind	= mixer_bind,
+	.unbind	= mixer_unbind,
+};
+
+static int mixer_probe(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
+					mixer_manager.type);
+	if (ret)
+		return ret;
+
+	ret = component_add(&pdev->dev, &mixer_component_ops);
+	if (ret)
+		exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
+
+	return ret;
+}
+
 static int mixer_remove(struct platform_device *pdev)
 {
-	dev_info(&pdev->dev, "remove successful\n");
-
-	pm_runtime_disable(&pdev->dev);
+	component_del(&pdev->dev, &mixer_component_ops);
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
 
 	return 0;
 }

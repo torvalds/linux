@@ -318,7 +318,7 @@ static void cppi41_dma_callback(void *private_data)
 		}
 		list_add_tail(&cppi41_channel->tx_check,
 				&controller->early_tx_list);
-		if (!hrtimer_active(&controller->early_tx)) {
+		if (!hrtimer_is_queued(&controller->early_tx)) {
 			hrtimer_start_range_ns(&controller->early_tx,
 				ktime_set(0, 140 * NSEC_PER_USEC),
 				40 * NSEC_PER_USEC,

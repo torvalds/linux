@@ -124,7 +124,7 @@ nv50_software_sclass[] = {
  ******************************************************************************/
 
 static int
-nv50_software_vblsem_release(void *data, int head)
+nv50_software_vblsem_release(void *data, u32 type, int head)
 {
 	struct nv50_software_chan *chan = data;
 	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
@@ -183,7 +183,7 @@ nv50_software_context_ctor(struct nouveau_object *parent,
 		return -ENOMEM;
 
 	for (i = 0; i < chan->vblank.nr_event; i++) {
-		ret = nouveau_event_new(pdisp->vblank, i, pclass->vblank,
+		ret = nouveau_event_new(pdisp->vblank, 1, i, pclass->vblank,
 					chan, &chan->vblank.event[i]);
 		if (ret)
 			return ret;

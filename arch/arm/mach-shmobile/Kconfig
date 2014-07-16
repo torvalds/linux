@@ -1,7 +1,7 @@
 config ARCH_SHMOBILE
 	bool
 
-config ARCH_SHMOBILE_MULTI
+menuconfig ARCH_SHMOBILE_MULTI
 	bool "Renesas ARM SoCs" if ARCH_MULTI_V7
 	depends on MMU
 	select ARCH_SHMOBILE
@@ -15,7 +15,7 @@ config ARCH_SHMOBILE_MULTI
 
 if ARCH_SHMOBILE_MULTI
 
-comment "Renesas ARM SoCs System Type"
+#comment "Renesas ARM SoCs System Type"
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
@@ -85,7 +85,6 @@ config ARCH_R8A73A4
 	select CPU_V7
 	select SH_CLK_CPG
 	select RENESAS_IRQC
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select SYS_SUPPORTS_SH_CMT
 	select SYS_SUPPORTS_SH_TMU
@@ -264,7 +263,6 @@ config MACH_KOELSCH
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
 	depends on ARCH_SH73A0
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR

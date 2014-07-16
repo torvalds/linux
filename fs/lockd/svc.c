@@ -622,8 +622,8 @@ static int __init init_nlm(void)
 err_pernet:
 #ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(nlm_sysctl_table);
-#endif
 err_sysctl:
+#endif
 	return err;
 }
 

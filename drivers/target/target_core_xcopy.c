@@ -70,7 +70,7 @@ static int target_xcopy_locate_se_dev_e4(struct se_cmd *se_cmd, struct xcopy_op 
 	unsigned char tmp_dev_wwn[XCOPY_NAA_IEEE_REGEX_LEN], *dev_wwn;
 	int rc;
 
-	if (src == true)
+	if (src)
 		dev_wwn = &xop->dst_tid_wwn[0];
 	else
 		dev_wwn = &xop->src_tid_wwn[0];
@@ -88,7 +88,7 @@ static int target_xcopy_locate_se_dev_e4(struct se_cmd *se_cmd, struct xcopy_op 
 		if (rc != 0)
 			continue;
 
-		if (src == true) {
+		if (src) {
 			xop->dst_dev = se_dev;
 			pr_debug("XCOPY 0xe4: Setting xop->dst_dev: %p from located"
 				" se_dev\n", xop->dst_dev);
@@ -166,7 +166,7 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 		return -EINVAL;
 	}
 
-	if (src == true) {
+	if (src) {
 		memcpy(&xop->src_tid_wwn[0], &desc[8], XCOPY_NAA_IEEE_REGEX_LEN);
 		/*
 		 * Determine if the source designator matches the local device
@@ -236,7 +236,7 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 			/*
 			 * Assume target descriptors are in source -> destination order..
 			 */
-			if (src == true)
+			if (src)
 				src = false;
 			else
 				src = true;
@@ -560,7 +560,7 @@ static int target_xcopy_init_pt_lun(
 	 * reservations.  The pt_cmd->se_lun pointer will be setup from within
 	 * target_xcopy_setup_pt_port()
 	 */
-	if (remote_port == false) {
+	if (!remote_port) {
 		pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD | SCF_CMD_XCOPY_PASSTHROUGH;
 		return 0;
 	}

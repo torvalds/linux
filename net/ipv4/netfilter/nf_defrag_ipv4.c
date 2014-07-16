@@ -34,7 +34,7 @@ static int nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 
 	if (!err) {
 		ip_send_check(ip_hdr(skb));
-		skb->local_df = 1;
+		skb->ignore_df = 1;
 	}
 
 	return err;

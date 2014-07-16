@@ -842,7 +842,7 @@ nvf0_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 		u16 magic3 = 0x0648;
 		magic[gpc][0]  = 0x10000000 | (magic0 << 16) | offset;
 		magic[gpc][1]  = 0x00000000 | (magic1 << 16);
-		offset += 0x0324 * (priv->tpc_nr[gpc] - 1);;
+		offset += 0x0324 * (priv->tpc_nr[gpc] - 1);
 		magic[gpc][2]  = 0x10000000 | (magic2 << 16) | offset;
 		magic[gpc][3]  = 0x00000000 | (magic3 << 16);
 		offset += 0x0324;

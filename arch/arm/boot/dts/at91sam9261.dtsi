@@ -568,24 +568,17 @@
 				#size-cells = <0>;
 				#interrupt-cells = <1>;
 
-				slow_rc_osc: slow_rc_osc {
-					compatible = "fixed-clock";
+				main_osc: main_osc {
+					compatible = "atmel,at91rm9200-clk-main-osc";
 					#clock-cells = <0>;
-					clock-frequency = <32768>;
-					clock-accuracy = <50000000>;
-				};
-
-				clk32k: slck {
-					compatible = "atmel,at91sam9260-clk-slow";
-					#clock-cells = <0>;
-					clocks = <&slow_rc_osc &slow_xtal>;
+					interrupts-extended = <&pmc AT91_PMC_MOSCS>;
+					clocks = <&main_xtal>;
 				};
 
 				main: mainck {
 					compatible = "atmel,at91rm9200-clk-main";
 					#clock-cells = <0>;
-					interrupts-extended = <&pmc AT91_PMC_MOSCS>;
-					clocks = <&main_xtal>;
+					clocks = <&main_osc>;
 				};
 
 				plla: pllack {
@@ -615,7 +608,7 @@
 					compatible = "atmel,at91rm9200-clk-master";
 					#clock-cells = <0>;
 					interrupts-extended = <&pmc AT91_PMC_MCKRDY>;
-					clocks = <&clk32k>, <&main>, <&plla>, <&pllb>;
+					clocks = <&slow_xtal>, <&main>, <&plla>, <&pllb>;
 					atmel,clk-output-range = <0 94000000>;
 					atmel,clk-divisors = <1 2 4 0>;
 				};
@@ -632,7 +625,7 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					interrupt-parent = <&pmc>;
-					clocks = <&clk32k>, <&main>, <&plla>, <&pllb>;
+					clocks = <&slow_xtal>, <&main>, <&plla>, <&pllb>;
 
 					prog0: prog0 {
 						#clock-cells = <0>;

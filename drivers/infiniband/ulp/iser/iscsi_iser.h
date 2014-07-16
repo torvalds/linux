@@ -69,7 +69,7 @@
 
 #define DRV_NAME	"iser"
 #define PFX		DRV_NAME ": "
-#define DRV_VER		"1.3"
+#define DRV_VER		"1.4"
 
 #define iser_dbg(fmt, arg...)				\
 	do {						\
@@ -333,6 +333,8 @@ struct iser_conn {
 	int                          post_recv_buf_count; /* posted rx count  */
 	atomic_t                     post_send_buf_count; /* posted tx count   */
 	char 			     name[ISER_OBJECT_NAME_SIZE];
+	struct work_struct	     release_work;
+	struct completion	     stop_completion;
 	struct list_head	     conn_list;       /* entry in ig conn list */
 
 	char  			     *login_buf;
@@ -417,11 +419,11 @@ void iscsi_iser_recv(struct iscsi_conn *conn,
 
 void iser_conn_init(struct iser_conn *ib_conn);
 
-void iser_conn_get(struct iser_conn *ib_conn);
-
-int iser_conn_put(struct iser_conn *ib_conn, int destroy_cma_id_allowed);
+void iser_conn_release(struct iser_conn *ib_conn);
 
 void iser_conn_terminate(struct iser_conn *ib_conn);
+
+void iser_release_work(struct work_struct *work);
 
 void iser_rcv_completion(struct iser_rx_desc *desc,
 			 unsigned long    dto_xfer_len,

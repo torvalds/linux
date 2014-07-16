@@ -1669,7 +1669,7 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 		goto out;
 	}
 
-	if (sk->sk_no_check == 1)
+	if (sk->sk_no_check_tx)
 		ddp->deh_sum = 0;
 	else
 		ddp->deh_sum = atalk_checksum(skb, len + sizeof(*ddp));

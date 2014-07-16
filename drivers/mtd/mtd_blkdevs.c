@@ -87,6 +87,9 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	if (req->cmd_type != REQ_TYPE_FS)
 		return -EIO;
 
+	if (req->cmd_flags & REQ_FLUSH)
+		return tr->flush(dev);
+
 	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
 	    get_capacity(req->rq_disk))
 		return -EIO;
@@ -406,6 +409,9 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	if (!new->rq)
 		goto error3;
+
+	if (tr->flush)
+		blk_queue_flush(new->rq, REQ_FLUSH);
 
 	new->rq->queuedata = new;
 	blk_queue_logical_block_size(new->rq, tr->blksize);

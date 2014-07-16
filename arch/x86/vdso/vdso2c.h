@@ -4,21 +4,139 @@
  * are built for 32-bit userspace.
  */
 
-static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
+/*
+ * We're writing a section table for a few reasons:
+ *
+ * The Go runtime had a couple of bugs: it would read the section
+ * table to try to figure out how many dynamic symbols there were (it
+ * shouldn't have looked at the section table at all) and, if there
+ * were no SHT_SYNDYM section table entry, it would use an
+ * uninitialized value for the number of symbols.  An empty DYNSYM
+ * table would work, but I see no reason not to write a valid one (and
+ * keep full performance for old Go programs).  This hack is only
+ * needed on x86_64.
+ *
+ * The bug was introduced on 2012-08-31 by:
+ * https://code.google.com/p/go/source/detail?r=56ea40aac72b
+ * and was fixed on 2014-06-13 by:
+ * https://code.google.com/p/go/source/detail?r=fc1cd5e12595
+ *
+ * Binutils has issues debugging the vDSO: it reads the section table to
+ * find SHT_NOTE; it won't look at PT_NOTE for the in-memory vDSO, which
+ * would break build-id if we removed the section table.  Binutils
+ * also requires that shstrndx != 0.  See:
+ * https://sourceware.org/bugzilla/show_bug.cgi?id=17064
+ *
+ * elfutils might not look for PT_NOTE if there is a section table at
+ * all.  I don't know whether this matters for any practical purpose.
+ *
+ * For simplicity, rather than hacking up a partial section table, we
+ * just write a mostly complete one.  We omit non-dynamic symbols,
+ * though, since they're rather large.
+ *
+ * Once binutils gets fixed, we might be able to drop this for all but
+ * the 64-bit vdso, since build-id only works in kernel RPMs, and
+ * systems that update to new enough kernel RPMs will likely update
+ * binutils in sync.  build-id has never worked for home-built kernel
+ * RPMs without manual symlinking, and I suspect that no one ever does
+ * that.
+ */
+struct BITSFUNC(fake_sections)
+{
+	ELF(Shdr) *table;
+	unsigned long table_offset;
+	int count, max_count;
+
+	int in_shstrndx;
+	unsigned long shstr_offset;
+	const char *shstrtab;
+	size_t shstrtab_len;
+
+	int out_shstrndx;
+};
+
+static unsigned int BITSFUNC(find_shname)(struct BITSFUNC(fake_sections) *out,
+					  const char *name)
+{
+	const char *outname = out->shstrtab;
+	while (outname - out->shstrtab < out->shstrtab_len) {
+		if (!strcmp(name, outname))
+			return (outname - out->shstrtab) + out->shstr_offset;
+		outname += strlen(outname) + 1;
+	}
+
+	if (*name)
+		printf("Warning: could not find output name \"%s\"\n", name);
+	return out->shstr_offset + out->shstrtab_len - 1;  /* Use a null. */
+}
+
+static void BITSFUNC(init_sections)(struct BITSFUNC(fake_sections) *out)
+{
+	if (!out->in_shstrndx)
+		fail("didn't find the fake shstrndx\n");
+
+	memset(out->table, 0, out->max_count * sizeof(ELF(Shdr)));
+
+	if (out->max_count < 1)
+		fail("we need at least two fake output sections\n");
+
+	PUT_LE(&out->table[0].sh_type, SHT_NULL);
+	PUT_LE(&out->table[0].sh_name, BITSFUNC(find_shname)(out, ""));
+
+	out->count = 1;
+}
+
+static void BITSFUNC(copy_section)(struct BITSFUNC(fake_sections) *out,
+				   int in_idx, const ELF(Shdr) *in,
+				   const char *name)
+{
+	uint64_t flags = GET_LE(&in->sh_flags);
+
+	bool copy = flags & SHF_ALLOC &&
+		(GET_LE(&in->sh_size) ||
+		 (GET_LE(&in->sh_type) != SHT_RELA &&
+		  GET_LE(&in->sh_type) != SHT_REL)) &&
+		strcmp(name, ".altinstructions") &&
+		strcmp(name, ".altinstr_replacement");
+
+	if (!copy)
+		return;
+
+	if (out->count >= out->max_count)
+		fail("too many copied sections (max = %d)\n", out->max_count);
+
+	if (in_idx == out->in_shstrndx)
+		out->out_shstrndx = out->count;
+
+	out->table[out->count] = *in;
+	PUT_LE(&out->table[out->count].sh_name,
+	       BITSFUNC(find_shname)(out, name));
+
+	/* elfutils requires that a strtab have the correct type. */
+	if (!strcmp(name, ".fake_shstrtab"))
+		PUT_LE(&out->table[out->count].sh_type, SHT_STRTAB);
+
+	out->count++;
+}
+
+static void BITSFUNC(go)(void *addr, size_t len,
+			 FILE *outfile, const char *name)
 {
 	int found_load = 0;
 	unsigned long load_size = -1;  /* Work around bogus warning */
 	unsigned long data_size;
-	Elf_Ehdr *hdr = (Elf_Ehdr *)addr;
+	ELF(Ehdr) *hdr = (ELF(Ehdr) *)addr;
 	int i;
 	unsigned long j;
-	Elf_Shdr *symtab_hdr = NULL, *strtab_hdr, *secstrings_hdr,
+	ELF(Shdr) *symtab_hdr = NULL, *strtab_hdr, *secstrings_hdr,
 		*alt_sec = NULL;
-	Elf_Dyn *dyn = 0, *dyn_end = 0;
+	ELF(Dyn) *dyn = 0, *dyn_end = 0;
 	const char *secstrings;
 	uint64_t syms[NSYMS] = {};
 
-	Elf_Phdr *pt = (Elf_Phdr *)(addr + GET_LE(&hdr->e_phoff));
+	struct BITSFUNC(fake_sections) fake_sections = {};
+
+	ELF(Phdr) *pt = (ELF(Phdr) *)(addr + GET_LE(&hdr->e_phoff));
 
 	/* Walk the segment table. */
 	for (i = 0; i < GET_LE(&hdr->e_phnum); i++) {
@@ -49,7 +167,7 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	for (i = 0; dyn + i < dyn_end &&
 		     GET_LE(&dyn[i].d_tag) != DT_NULL; i++) {
 		typeof(dyn[i].d_tag) tag = GET_LE(&dyn[i].d_tag);
-		if (tag == DT_REL || tag == DT_RELSZ ||
+		if (tag == DT_REL || tag == DT_RELSZ || tag == DT_RELA ||
 		    tag == DT_RELENT || tag == DT_TEXTREL)
 			fail("vdso image contains dynamic relocations\n");
 	}
@@ -59,7 +177,7 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 		GET_LE(&hdr->e_shentsize)*GET_LE(&hdr->e_shstrndx);
 	secstrings = addr + GET_LE(&secstrings_hdr->sh_offset);
 	for (i = 0; i < GET_LE(&hdr->e_shnum); i++) {
-		Elf_Shdr *sh = addr + GET_LE(&hdr->e_shoff) +
+		ELF(Shdr) *sh = addr + GET_LE(&hdr->e_shoff) +
 			GET_LE(&hdr->e_shentsize) * i;
 		if (GET_LE(&sh->sh_type) == SHT_SYMTAB)
 			symtab_hdr = sh;
@@ -80,20 +198,62 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	     i < GET_LE(&symtab_hdr->sh_size) / GET_LE(&symtab_hdr->sh_entsize);
 	     i++) {
 		int k;
-		Elf_Sym *sym = addr + GET_LE(&symtab_hdr->sh_offset) +
+		ELF(Sym) *sym = addr + GET_LE(&symtab_hdr->sh_offset) +
 			GET_LE(&symtab_hdr->sh_entsize) * i;
 		const char *name = addr + GET_LE(&strtab_hdr->sh_offset) +
 			GET_LE(&sym->st_name);
+
 		for (k = 0; k < NSYMS; k++) {
-			if (!strcmp(name, required_syms[k])) {
+			if (!strcmp(name, required_syms[k].name)) {
 				if (syms[k]) {
 					fail("duplicate symbol %s\n",
-					     required_syms[k]);
+					     required_syms[k].name);
 				}
 				syms[k] = GET_LE(&sym->st_value);
 			}
 		}
+
+		if (!strcmp(name, "fake_shstrtab")) {
+			ELF(Shdr) *sh;
+
+			fake_sections.in_shstrndx = GET_LE(&sym->st_shndx);
+			fake_sections.shstrtab = addr + GET_LE(&sym->st_value);
+			fake_sections.shstrtab_len = GET_LE(&sym->st_size);
+			sh = addr + GET_LE(&hdr->e_shoff) +
+				GET_LE(&hdr->e_shentsize) *
+				fake_sections.in_shstrndx;
+			fake_sections.shstr_offset = GET_LE(&sym->st_value) -
+				GET_LE(&sh->sh_addr);
+		}
 	}
+
+	/* Build the output section table. */
+	if (!syms[sym_VDSO_FAKE_SECTION_TABLE_START] ||
+	    !syms[sym_VDSO_FAKE_SECTION_TABLE_END])
+		fail("couldn't find fake section table\n");
+	if ((syms[sym_VDSO_FAKE_SECTION_TABLE_END] -
+	     syms[sym_VDSO_FAKE_SECTION_TABLE_START]) % sizeof(ELF(Shdr)))
+		fail("fake section table size isn't a multiple of sizeof(Shdr)\n");
+	fake_sections.table = addr + syms[sym_VDSO_FAKE_SECTION_TABLE_START];
+	fake_sections.table_offset = syms[sym_VDSO_FAKE_SECTION_TABLE_START];
+	fake_sections.max_count = (syms[sym_VDSO_FAKE_SECTION_TABLE_END] -
+				   syms[sym_VDSO_FAKE_SECTION_TABLE_START]) /
+		sizeof(ELF(Shdr));
+
+	BITSFUNC(init_sections)(&fake_sections);
+	for (i = 0; i < GET_LE(&hdr->e_shnum); i++) {
+		ELF(Shdr) *sh = addr + GET_LE(&hdr->e_shoff) +
+			GET_LE(&hdr->e_shentsize) * i;
+		BITSFUNC(copy_section)(&fake_sections, i, sh,
+				       secstrings + GET_LE(&sh->sh_name));
+	}
+	if (!fake_sections.out_shstrndx)
+		fail("didn't generate shstrndx?!?\n");
+
+	PUT_LE(&hdr->e_shoff, fake_sections.table_offset);
+	PUT_LE(&hdr->e_shentsize, sizeof(ELF(Shdr)));
+	PUT_LE(&hdr->e_shnum, fake_sections.count);
+	PUT_LE(&hdr->e_shstrndx, fake_sections.out_shstrndx);
 
 	/* Validate mapping addresses. */
 	for (i = 0; i < sizeof(special_pages) / sizeof(special_pages[0]); i++) {
@@ -102,21 +262,16 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 
 		if (syms[i] % 4096)
 			fail("%s must be a multiple of 4096\n",
-			     required_syms[i]);
+			     required_syms[i].name);
 		if (syms[i] < data_size)
 			fail("%s must be after the text mapping\n",
-			     required_syms[i]);
+			     required_syms[i].name);
 		if (syms[sym_end_mapping] < syms[i] + 4096)
-			fail("%s overruns end_mapping\n", required_syms[i]);
+			fail("%s overruns end_mapping\n",
+			     required_syms[i].name);
 	}
 	if (syms[sym_end_mapping] % 4096)
 		fail("end_mapping must be a multiple of 4096\n");
-
-	/* Remove sections. */
-	hdr->e_shoff = 0;
-	hdr->e_shentsize = 0;
-	hdr->e_shnum = 0;
-	hdr->e_shstrndx = htole16(SHN_UNDEF);
 
 	if (!name) {
 		fwrite(addr, load_size, 1, outfile);
@@ -155,9 +310,9 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 			(unsigned long)GET_LE(&alt_sec->sh_size));
 	}
 	for (i = 0; i < NSYMS; i++) {
-		if (syms[i])
+		if (required_syms[i].export && syms[i])
 			fprintf(outfile, "\t.sym_%s = 0x%" PRIx64 ",\n",
-				required_syms[i], syms[i]);
+				required_syms[i].name, syms[i]);
 	}
 	fprintf(outfile, "};\n");
 }

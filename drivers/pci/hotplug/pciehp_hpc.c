@@ -174,12 +174,10 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 			 * event even though it supports none of power
 			 * controller, attention led, power led and EMI.
 			 */
-			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Need to "
-				 "wait for command completed event.\n");
+			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Need to wait for command completed event\n");
 			ctrl->no_cmd_complete = 0;
 		} else {
-			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Maybe "
-				 "the controller is broken.\n");
+			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Maybe the controller is broken\n");
 		}
 	}
 
@@ -203,7 +201,7 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 		if (!(slot_ctrl & PCI_EXP_SLTCTL_HPIE) ||
 		    !(slot_ctrl & PCI_EXP_SLTCTL_CCIE))
 			poll = 1;
-                pcie_wait_cmd(ctrl, poll);
+		pcie_wait_cmd(ctrl, poll);
 	}
 	mutex_unlock(&ctrl->ctrl_lock);
 }
@@ -276,15 +274,15 @@ int pciehp_check_link_status(struct controller *ctrl)
 	bool found;
 	u16 lnk_status;
 
-        /*
-         * Data Link Layer Link Active Reporting must be capable for
-         * hot-plug capable downstream port. But old controller might
-         * not implement it. In this case, we wait for 1000 ms.
-         */
-        if (ctrl->link_active_reporting)
-                pcie_wait_link_active(ctrl);
-        else
-                msleep(1000);
+	/*
+	 * Data Link Layer Link Active Reporting must be capable for
+	 * hot-plug capable downstream port. But old controller might
+	 * not implement it. In this case, we wait for 1000 ms.
+	*/
+	if (ctrl->link_active_reporting)
+		pcie_wait_link_active(ctrl);
+	else
+		msleep(1000);
 
 	/* wait 100ms before read pci conf, and try in 1s */
 	msleep(100);
@@ -295,7 +293,7 @@ int pciehp_check_link_status(struct controller *ctrl)
 	ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
 	if ((lnk_status & PCI_EXP_LNKSTA_LT) ||
 	    !(lnk_status & PCI_EXP_LNKSTA_NLW)) {
-		ctrl_err(ctrl, "Link Training Error occurs \n");
+		ctrl_err(ctrl, "Link Training Error occurs\n");
 		return -1;
 	}
 
@@ -414,7 +412,7 @@ void pciehp_set_attention_status(struct slot *slot, u8 value)
 		return;
 
 	switch (value) {
-	case 0 :	/* turn off */
+	case 0:		/* turn off */
 		slot_cmd = PCI_EXP_SLTCTL_ATTN_IND_OFF;
 		break;
 	case 1:		/* turn on */
@@ -470,7 +468,7 @@ void pciehp_green_led_blink(struct slot *slot)
 		 PCI_EXP_SLTCTL_PWR_IND_BLINK);
 }
 
-int pciehp_power_on_slot(struct slot * slot)
+int pciehp_power_on_slot(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
@@ -496,7 +494,7 @@ int pciehp_power_on_slot(struct slot * slot)
 	return retval;
 }
 
-void pciehp_power_off_slot(struct slot * slot)
+void pciehp_power_off_slot(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 
@@ -756,7 +754,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	ctrl_info(ctrl, "Slot Control           : 0x%04x\n", reg16);
 }
 
-#define FLAG(x,y)	(((x) & (y)) ? '+' : '-')
+#define FLAG(x, y)	(((x) & (y)) ? '+' : '-')
 
 struct controller *pcie_init(struct pcie_device *dev)
 {
@@ -783,14 +781,14 @@ struct controller *pcie_init(struct pcie_device *dev)
 	 */
 	if (NO_CMD_CMPL(ctrl) ||
 	    !(POWER_CTRL(ctrl) | ATTN_LED(ctrl) | PWR_LED(ctrl) | EMI(ctrl)))
-	    ctrl->no_cmd_complete = 1;
+		ctrl->no_cmd_complete = 1;
 
-        /* Check if Data Link Layer Link Active Reporting is implemented */
-        pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &link_cap);
-        if (link_cap & PCI_EXP_LNKCAP_DLLLARC) {
-                ctrl_dbg(ctrl, "Link Active Reporting supported\n");
-                ctrl->link_active_reporting = 1;
-        }
+	/* Check if Data Link Layer Link Active Reporting is implemented */
+	pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &link_cap);
+	if (link_cap & PCI_EXP_LNKCAP_DLLLARC) {
+		ctrl_dbg(ctrl, "Link Active Reporting supported\n");
+		ctrl->link_active_reporting = 1;
+	}
 
 	/* Clear all remaining event bits in Slot Status register */
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,

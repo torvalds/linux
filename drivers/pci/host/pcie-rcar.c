@@ -277,9 +277,8 @@ static int rcar_pcie_read_conf(struct pci_bus *bus, unsigned int devfn,
 	else if (size == 2)
 		*val = (*val >> (8 * (where & 2))) & 0xffff;
 
-	dev_dbg(&bus->dev, "pcie-config-read: bus=%3d devfn=0x%04x "
-		"where=0x%04x size=%d val=0x%08lx\n", bus->number,
-		devfn, where, size, (unsigned long)*val);
+	dev_dbg(&bus->dev, "pcie-config-read: bus=%3d devfn=0x%04x where=0x%04x size=%d val=0x%08lx\n",
+		bus->number, devfn, where, size, (unsigned long)*val);
 
 	return ret;
 }
@@ -302,9 +301,8 @@ static int rcar_pcie_write_conf(struct pci_bus *bus, unsigned int devfn,
 	if (ret != PCIBIOS_SUCCESSFUL)
 		return ret;
 
-	dev_dbg(&bus->dev, "pcie-config-write: bus=%3d devfn=0x%04x "
-		"where=0x%04x size=%d val=0x%08lx\n", bus->number,
-		devfn, where, size, (unsigned long)val);
+	dev_dbg(&bus->dev, "pcie-config-write: bus=%3d devfn=0x%04x where=0x%04x size=%d val=0x%08lx\n",
+		bus->number, devfn, where, size, (unsigned long)val);
 
 	if (size == 1) {
 		shift = 8 * (where & 3);
