@@ -558,7 +558,7 @@ void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
 }
 
 /*
- * Description: BBvSetDeepSleep
+ * Description: vnt_set_deep_sleep
  *
  * Parameters:
  *  In:
@@ -569,7 +569,7 @@ void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
  * Return Value: none
  *
  */
-void BBvSetDeepSleep(struct vnt_private *priv)
+void vnt_set_deep_sleep(struct vnt_private *priv)
 {
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0c, 0x17);/* CR12 */
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0d, 0xB9);/* CR13 */

@@ -750,7 +750,7 @@ int vnt_radio_power_off(struct vnt_private *priv)
 
 	vnt_mac_reg_bits_off(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
 
-	BBvSetDeepSleep(priv);
+	vnt_set_deep_sleep(priv);
 
 	return ret;
 }

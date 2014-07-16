@@ -97,7 +97,7 @@ void vnt_set_short_slot_time(struct vnt_private *);
 void vnt_set_vga_gain_offset(struct vnt_private *, u8);
 void vnt_set_antenna_mode(struct vnt_private *, u8);
 int vnt_vt3184_init(struct vnt_private *);
-void BBvSetDeepSleep(struct vnt_private *);
+void vnt_set_deep_sleep(struct vnt_private *);
 void BBvExitDeepSleep(struct vnt_private *);
 void BBvUpdatePreEDThreshold(struct vnt_private *, int scanning);
 
