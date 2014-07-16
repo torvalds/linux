@@ -431,6 +431,10 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 	if (method == JUST_CFM && test_bit(SMP_FLAG_INITIATOR, &smp->flags))
 		method = JUST_WORKS;
 
+	/* Don't bother user space with no IO capabilities */
+	if (method == JUST_CFM && hcon->io_capability == HCI_IO_NO_INPUT_OUTPUT)
+		method = JUST_WORKS;
+
 	/* If Just Works, Continue with Zero TK */
 	if (method == JUST_WORKS) {
 		set_bit(SMP_FLAG_TK_VALID, &smp->flags);
