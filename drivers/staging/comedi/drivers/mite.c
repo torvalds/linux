@@ -90,6 +90,7 @@ static unsigned mite_fifo_size(struct mite_struct *mite, unsigned channel)
 	unsigned fcr_bits = readl(mite->mite_io_addr + MITE_FCR(channel));
 	unsigned empty_count = (fcr_bits >> 16) & 0xff;
 	unsigned full_count = fcr_bits & 0xff;
+
 	return empty_count + full_count;
 }
 
@@ -444,12 +445,14 @@ EXPORT_SYMBOL_GPL(mite_prep_dma);
 static u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
+
 	return readl(mite->mite_io_addr + MITE_DAR(mite_chan->channel));
 }
 
 u32 mite_bytes_in_transit(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
+
 	return readl(mite->mite_io_addr +
 		     MITE_FCR(mite_chan->channel)) & 0x000000FF;
 }
