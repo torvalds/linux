@@ -743,10 +743,7 @@ static struct eeh_ops pseries_eeh_ops = {
  */
 static int __init eeh_pseries_init(void)
 {
-	int ret = -EINVAL;
-
-	if (!machine_is(pseries))
-		return ret;
+	int ret;
 
 	ret = eeh_ops_register(&pseries_eeh_ops);
 	if (!ret)
@@ -757,5 +754,4 @@ static int __init eeh_pseries_init(void)
 
 	return ret;
 }
-
-early_initcall(eeh_pseries_init);
+machine_early_initcall(pseries, eeh_pseries_init);

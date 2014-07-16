@@ -351,7 +351,7 @@ static int alloc_dispatch_log_kmem_cache(void)
 
 	return alloc_dispatch_logs();
 }
-early_initcall(alloc_dispatch_log_kmem_cache);
+machine_early_initcall(pseries, alloc_dispatch_log_kmem_cache);
 
 static void pseries_lpar_idle(void)
 {
