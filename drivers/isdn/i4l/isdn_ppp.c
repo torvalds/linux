@@ -638,9 +638,15 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 		fprog.len = len;
 		fprog.filter = code;
 
-		if (is->pass_filter)
+		if (is->pass_filter) {
 			sk_unattached_filter_destroy(is->pass_filter);
-		err = sk_unattached_filter_create(&is->pass_filter, &fprog);
+			is->pass_filter = NULL;
+		}
+		if (fprog.filter != NULL)
+			err = sk_unattached_filter_create(&is->pass_filter,
+							  &fprog);
+		else
+			err = 0;
 		kfree(code);
 
 		return err;
@@ -657,9 +663,15 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 		fprog.len = len;
 		fprog.filter = code;
 
-		if (is->active_filter)
+		if (is->active_filter) {
 			sk_unattached_filter_destroy(is->active_filter);
-		err = sk_unattached_filter_create(&is->active_filter, &fprog);
+			is->active_filter = NULL;
+		}
+		if (fprog.filter != NULL)
+			err = sk_unattached_filter_create(&is->active_filter,
+							  &fprog);
+		else
+			err = 0;
 		kfree(code);
 
 		return err;
