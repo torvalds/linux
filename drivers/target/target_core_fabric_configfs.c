@@ -917,8 +917,7 @@ static struct config_group *target_fabric_make_lun(
 
 	return &lun->lun_group;
 out:
-	if (lun_cg)
-		kfree(lun_cg->default_groups);
+	kfree(lun_cg->default_groups);
 	return ERR_PTR(errno);
 }
 
