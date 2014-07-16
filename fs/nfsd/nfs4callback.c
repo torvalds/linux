@@ -1011,7 +1011,8 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 		run_nfsd4_cb(cb);
 }
 
-static void nfsd4_do_callback_rpc(struct work_struct *w)
+void
+nfsd4_do_callback_rpc(struct work_struct *w)
 {
 	struct nfsd4_callback *cb = container_of(w, struct nfsd4_callback, cb_work);
 	struct nfs4_client *clp = cb->cb_clp;
@@ -1029,11 +1030,6 @@ static void nfsd4_do_callback_rpc(struct work_struct *w)
 	cb->cb_msg.rpc_cred = clp->cl_cb_cred;
 	rpc_call_async(clnt, &cb->cb_msg, RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
 			cb->cb_ops, cb);
-}
-
-void nfsd4_init_callback(struct nfsd4_callback *cb)
-{
-	INIT_WORK(&cb->cb_work, nfsd4_do_callback_rpc);
 }
 
 void nfsd4_cb_recall(struct nfs4_delegation *dp)
