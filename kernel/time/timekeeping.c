@@ -305,6 +305,9 @@ static inline void tk_update_ktime_data(struct timekeeper *tk)
 	nsec *= NSEC_PER_SEC;
 	nsec += tk->wall_to_monotonic.tv_nsec;
 	tk->base_mono = ns_to_ktime(nsec);
+
+	/* Update the monotonic raw base */
+	tk->base_raw = timespec64_to_ktime(tk->raw_time);
 }
 
 /* must hold timekeeper_lock */
@@ -465,6 +468,27 @@ ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs)
 	return tconv;
 }
 EXPORT_SYMBOL_GPL(ktime_mono_to_any);
+
+/**
+ * ktime_get_raw - Returns the raw monotonic time in ktime_t format
+ */
+ktime_t ktime_get_raw(void)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+	unsigned int seq;
+	ktime_t base;
+	s64 nsecs;
+
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+		base = tk->base_raw;
+		nsecs = timekeeping_get_ns_raw(tk);
+
+	} while (read_seqcount_retry(&tk_core.seq, seq));
+
+	return ktime_add_ns(base, nsecs);
+}
+EXPORT_SYMBOL_GPL(ktime_get_raw);
 
 /**
  * ktime_get_ts64 - get the monotonic clock in timespec64 format
@@ -878,6 +902,7 @@ void __init timekeeping_init(void)
 	tk_set_xtime(tk, &now);
 	tk->raw_time.tv_sec = 0;
 	tk->raw_time.tv_nsec = 0;
+	tk->base_raw.tv64 = 0;
 	if (boot.tv_sec == 0 && boot.tv_nsec == 0)
 		boot = tk_xtime(tk);
 
