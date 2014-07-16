@@ -64,6 +64,10 @@
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 	};
+
+	key {
+		compatible = "rockchip,key";
+	};
 };
 
 &nandc {
