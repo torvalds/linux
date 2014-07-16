@@ -151,15 +151,15 @@ void vnt_run_command(struct work_struct *work)
 		if (priv->dwRxAntennaSel == 0) {
 			priv->dwRxAntennaSel = 1;
 			if (priv->bTxRxAntInv == true)
-				BBvSetAntennaMode(priv, ANT_RXA);
+				vnt_set_antenna_mode(priv, ANT_RXA);
 			else
-				BBvSetAntennaMode(priv, ANT_RXB);
+				vnt_set_antenna_mode(priv, ANT_RXB);
 		} else {
 			priv->dwRxAntennaSel = 0;
 			if (priv->bTxRxAntInv == true)
-				BBvSetAntennaMode(priv, ANT_RXB);
+				vnt_set_antenna_mode(priv, ANT_RXB);
 			else
-				BBvSetAntennaMode(priv, ANT_RXA);
+				vnt_set_antenna_mode(priv, ANT_RXA);
 		}
 		break;
 

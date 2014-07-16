@@ -345,7 +345,7 @@ void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
  * Return Value: none
  *
  */
-void BBvSetAntennaMode(struct vnt_private *priv, u8 antenna_mode)
+void vnt_set_antenna_mode(struct vnt_private *priv, u8 antenna_mode)
 {
 	switch (antenna_mode) {
 	case ANT_TXA:
