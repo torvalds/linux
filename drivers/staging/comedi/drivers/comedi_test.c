@@ -146,10 +146,8 @@ static unsigned short fake_waveform(struct comedi_device *dev,
 	switch (channel) {
 	case SAWTOOTH_CHAN:
 		return fake_sawtooth(dev, range, current_time);
-		break;
 	case SQUARE_CHAN:
 		return fake_squarewave(dev, range, current_time);
-		break;
 	default:
 		break;
 	}
