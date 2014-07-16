@@ -232,30 +232,6 @@ struct adt7462_data {
 	u8			alarms[ADT7462_ALARM_REG_COUNT];
 };
 
-static int adt7462_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id);
-static int adt7462_detect(struct i2c_client *client,
-			  struct i2c_board_info *info);
-static int adt7462_remove(struct i2c_client *client);
-
-static const struct i2c_device_id adt7462_id[] = {
-	{ "adt7462", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, adt7462_id);
-
-static struct i2c_driver adt7462_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "adt7462",
-	},
-	.probe		= adt7462_probe,
-	.remove		= adt7462_remove,
-	.id_table	= adt7462_id,
-	.detect		= adt7462_detect,
-	.address_list	= normal_i2c,
-};
-
 /*
  * 16-bit registers on the ADT7462 are low-byte first.  The data sheet says
  * that the low byte must be read before the high byte.
@@ -1966,6 +1942,24 @@ static int adt7462_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &data->attrs);
 	return 0;
 }
+
+static const struct i2c_device_id adt7462_id[] = {
+	{ "adt7462", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, adt7462_id);
+
+static struct i2c_driver adt7462_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "adt7462",
+	},
+	.probe		= adt7462_probe,
+	.remove		= adt7462_remove,
+	.id_table	= adt7462_id,
+	.detect		= adt7462_detect,
+	.address_list	= normal_i2c,
+};
 
 module_i2c_driver(adt7462_driver);
 
