@@ -361,7 +361,8 @@ static int serial2002_setup_subdevice(struct comedi_subdevice *s,
 	s->n_chan = chan;
 	s->maxdata = 0;
 	kfree(s->maxdata_list);
-	maxdata_list = kmalloc(sizeof(unsigned int) * s->n_chan, GFP_KERNEL);
+	maxdata_list = kmalloc_array(s->n_chan, sizeof(unsigned int),
+				     GFP_KERNEL);
 	if (!maxdata_list)
 		return -ENOMEM;
 	s->maxdata_list = maxdata_list;
@@ -371,9 +372,8 @@ static int serial2002_setup_subdevice(struct comedi_subdevice *s,
 	if (kind == 1 || kind == 2) {
 		s->range_table = &range_digital;
 	} else if (range) {
-		range_table_list =
-			kmalloc(sizeof(struct serial2002_range_table_t) *
-				s->n_chan, GFP_KERNEL);
+		range_table_list = kmalloc_array(s->n_chan, sizeof(*range),
+						 GFP_KERNEL);
 		if (!range_table_list)
 			return -ENOMEM;
 		s->range_table_list = range_table_list;
