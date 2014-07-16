@@ -36,6 +36,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/if_ether.h>
 #include <linux/version.h>
+#include <linux/debugfs.h>
 #include "version.h"
 #include "guestlinuxdebug.h"
 #include "timskmodutils.h"
@@ -57,6 +58,11 @@ struct driver_private {
 #endif
 
 #define BUS_ID(x) dev_name(x)
+
+/* MAX_BUF = 4 busses x ( 32 devices/bus + 1 busline) x 80 characters
+ *         = 10,560 bytes ~ 2^14 = 16,384 bytes
+ */
+#define MAX_BUF 16384
 
 #include "virtpci.h"
 
@@ -100,6 +106,12 @@ static int virtpci_device_resume(struct device *dev);
 static int virtpci_device_probe(struct device *dev);
 static int virtpci_device_remove(struct device *dev);
 
+static ssize_t info_debugfs_read(struct file *file, char __user *buf,
+			      size_t len, loff_t *offset);
+
+static const struct file_operations debugfs_info_fops = {
+	.read = info_debugfs_read,
+};
 
 /*****************************************************/
 /* Globals                                           */
@@ -140,6 +152,13 @@ static DEFINE_RWLOCK(VpcidevListLock);
 /* filled in with info about this driver, wrt it servicing client busses */
 static ULTRA_VBUS_DEVICEINFO Bus_DriverInfo;
 
+/*****************************************************/
+/* debugfs entries                                   */
+/*****************************************************/
+/* dentry is used to create the debugfs entry directory
+ * for virtpci
+ */
+static struct dentry *virtpci_debugfs_dir;
 
 struct virtpci_busdev {
 	struct device virtpci_bus_device;
@@ -1377,6 +1396,90 @@ void virtpci_unregister_driver(struct virtpci_driver *drv)
 EXPORT_SYMBOL_GPL(virtpci_unregister_driver);
 
 /*****************************************************/
+/* debugfs filesystem functions                      */
+/*****************************************************/
+struct print_vbus_info {
+	int *str_pos;
+	char *buf;
+	size_t *len;
+};
+
+static int print_vbus(struct device *vbus, void *data)
+{
+	struct print_vbus_info *p = (struct print_vbus_info *)data;
+
+	*p->str_pos += scnprintf(p->buf + *p->str_pos, *p->len - *p->str_pos,
+				"bus_id:%s\n", dev_name(vbus));
+	return 0;
+}
+
+static ssize_t info_debugfs_read(struct file *file, char __user *buf,
+			      size_t len, loff_t *offset)
+{
+	ssize_t bytes_read = 0;
+	int str_pos = 0;
+	struct virtpci_dev *tmpvpcidev;
+	unsigned long flags;
+	struct print_vbus_info printparam;
+	char *vbuf;
+
+	if (len > MAX_BUF)
+		len = MAX_BUF;
+	vbuf = kzalloc(len, GFP_KERNEL);
+	if (!vbuf)
+		return -ENOMEM;
+
+	str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+			" Virtual PCI Bus devices\n");
+	printparam.str_pos = &str_pos;
+	printparam.buf = vbuf;
+	printparam.len = &len;
+	if (bus_for_each_dev(&virtpci_bus_type, NULL,
+			     (void *) &printparam, print_vbus))
+		LOGERR("Failed to find bus\n");
+
+	str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+			"\n Virtual PCI devices\n");
+	read_lock_irqsave(&VpcidevListLock, flags);
+	tmpvpcidev = VpcidevListHead;
+	while (tmpvpcidev) {
+		if (tmpvpcidev->devtype == VIRTHBA_TYPE) {
+			str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+					"[%d:%d] VHba:%08x:%08x max-config:%d-%d-%d-%d",
+					tmpvpcidev->busNo, tmpvpcidev->deviceNo,
+					tmpvpcidev->scsi.wwnn.wwnn1,
+					tmpvpcidev->scsi.wwnn.wwnn2,
+					tmpvpcidev->scsi.max.max_channel,
+					tmpvpcidev->scsi.max.max_id,
+					tmpvpcidev->scsi.max.max_lun,
+					tmpvpcidev->scsi.max.cmd_per_lun);
+		} else {
+			str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+					"[%d:%d] VNic:%02x:%02x:%02x:%02x:%02x:%02x num_rcv_bufs:%d mtu:%d",
+					tmpvpcidev->busNo, tmpvpcidev->deviceNo,
+					tmpvpcidev->net.mac_addr[0],
+					tmpvpcidev->net.mac_addr[1],
+					tmpvpcidev->net.mac_addr[2],
+					tmpvpcidev->net.mac_addr[3],
+					tmpvpcidev->net.mac_addr[4],
+					tmpvpcidev->net.mac_addr[5],
+					tmpvpcidev->net.num_rcv_bufs,
+					tmpvpcidev->net.mtu);
+		}
+		str_pos += scnprintf(vbuf + str_pos,
+				len - str_pos, " chanptr:%p\n",
+				tmpvpcidev->queueinfo.chan);
+				tmpvpcidev = tmpvpcidev->next;
+	}
+	read_unlock_irqrestore(&VpcidevListLock, flags);
+
+	str_pos += scnprintf(vbuf + str_pos, len - str_pos, "\n");
+	bytes_read = simple_read_from_buffer(buf, len, offset, vbuf, str_pos);
+	kfree(vbuf);
+	return bytes_read;
+}
+
+/*****************************************************/
 /* Module Init & Exit functions                      */
 /*****************************************************/
 
@@ -1426,7 +1529,10 @@ static int __init virtpci_mod_init(void)
 
 	LOGINF("successfully registered virtpci_ctrlchan_func (0x%p) as callback.\n",
 	     (void *) &virtpci_ctrlchan_func);
-
+	/* create debugfs directory and info file inside. */
+	virtpci_debugfs_dir = debugfs_create_dir("virtpci", NULL);
+	debugfs_create_file("info", S_IRUSR, virtpci_debugfs_dir,
+			NULL, &debugfs_info_fops);
 	LOGINF("Leaving\n");
 	POSTCODE_LINUX_2(VPCI_CREATE_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	return 0;
@@ -1442,7 +1548,7 @@ static void __exit virtpci_mod_exit(void)
 
 	device_unregister(&virtpci_rootbus_device);
 	bus_unregister(&virtpci_bus_type);
-
+	debugfs_remove_recursive(virtpci_debugfs_dir);
 	LOGINF("Leaving\n");
 
 }
