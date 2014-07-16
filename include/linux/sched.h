@@ -1368,7 +1368,7 @@ struct task_struct {
 #endif
 	unsigned long nvcsw, nivcsw; /* context switch counts */
 	struct timespec start_time; 		/* monotonic time */
-	struct timespec real_start_time;	/* boot based time */
+	u64 real_start_time;	/* boot based time in nsec */
 /* mm fault and swap info: this can arguably be seen as either mm-specific or thread-specific */
 	unsigned long min_flt, maj_flt;
 
