@@ -310,10 +310,7 @@ enum clock_config_register_bits {
 /* ioconfigreg */
 static inline unsigned ioconfig_bitshift(unsigned pfi_channel)
 {
-	if (pfi_channel % 2)
-		return 0;
-	else
-		return 8;
+	return (pfi_channel % 2) ? 0 : 8;
 }
 
 static inline unsigned pfi_output_select_mask(unsigned pfi_channel)
