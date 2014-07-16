@@ -3,6 +3,7 @@
 /*
  * timekeeping debug functions
  */
+#include <linux/clocksource.h>
 #include <linux/time.h>
 
 #ifdef CONFIG_DEBUG_FS
@@ -10,5 +11,10 @@ extern void tk_debug_account_sleep_time(struct timespec64 *t);
 #else
 #define tk_debug_account_sleep_time(x)
 #endif
+
+static inline cycle_t clocksource_delta(cycle_t now, cycle_t last, cycle_t mask)
+{
+	return (now - last) & mask;
+}
 
 #endif /* _TIMEKEEPING_INTERNAL_H */

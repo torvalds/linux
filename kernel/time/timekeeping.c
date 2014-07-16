@@ -173,7 +173,7 @@ static inline u32 arch_gettimeoffset(void) { return 0; }
 
 static inline s64 timekeeping_get_ns(struct timekeeper *tk)
 {
-	cycle_t cycle_now, cycle_delta;
+	cycle_t cycle_now, delta;
 	struct clocksource *clock;
 	s64 nsec;
 
@@ -182,9 +182,9 @@ static inline s64 timekeeping_get_ns(struct timekeeper *tk)
 	cycle_now = clock->read(clock);
 
 	/* calculate the delta since the last update_wall_time: */
-	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+	delta = clocksource_delta(cycle_now, clock->cycle_last, clock->mask);
 
-	nsec = cycle_delta * tk->mult + tk->xtime_nsec;
+	nsec = delta * tk->mult + tk->xtime_nsec;
 	nsec >>= tk->shift;
 
 	/* If arch requires, add in get_arch_timeoffset() */
@@ -193,7 +193,7 @@ static inline s64 timekeeping_get_ns(struct timekeeper *tk)
 
 static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
 {
-	cycle_t cycle_now, cycle_delta;
+	cycle_t cycle_now, delta;
 	struct clocksource *clock;
 	s64 nsec;
 
@@ -202,10 +202,10 @@ static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
 	cycle_now = clock->read(clock);
 
 	/* calculate the delta since the last update_wall_time: */
-	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+	delta = clocksource_delta(cycle_now, clock->cycle_last, clock->mask);
 
 	/* convert delta to nanoseconds. */
-	nsec = clocksource_cyc2ns(cycle_delta, clock->mult, clock->shift);
+	nsec = clocksource_cyc2ns(delta, clock->mult, clock->shift);
 
 	/* If arch requires, add in get_arch_timeoffset() */
 	return nsec + arch_gettimeoffset();
@@ -336,23 +336,23 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
  */
 static void timekeeping_forward_now(struct timekeeper *tk)
 {
-	cycle_t cycle_now, cycle_delta;
+	cycle_t cycle_now, delta;
 	struct clocksource *clock;
 	s64 nsec;
 
 	clock = tk->clock;
 	cycle_now = clock->read(clock);
-	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+	delta = clocksource_delta(cycle_now, clock->cycle_last, clock->mask);
 	tk->cycle_last = clock->cycle_last = cycle_now;
 
-	tk->xtime_nsec += cycle_delta * tk->mult;
+	tk->xtime_nsec += delta * tk->mult;
 
 	/* If arch requires, add in get_arch_timeoffset() */
 	tk->xtime_nsec += (u64)arch_gettimeoffset() << tk->shift;
 
 	tk_normalize_xtime(tk);
 
-	nsec = clocksource_cyc2ns(cycle_delta, clock->mult, clock->shift);
+	nsec = clocksource_cyc2ns(delta, clock->mult, clock->shift);
 	timespec64_add_ns(&tk->raw_time, nsec);
 }
 
@@ -1026,7 +1026,8 @@ static void timekeeping_resume(void)
 		u32 shift = clock->shift;
 		s64 nsec = 0;
 
-		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+		cycle_delta = clocksource_delta(cycle_now, clock->cycle_last,
+						clock->mask);
 
 		/*
 		 * "cycle_delta * mutl" may cause 64 bits overflow, if the
@@ -1432,7 +1433,8 @@ void update_wall_time(void)
 #ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
 	offset = real_tk->cycle_interval;
 #else
-	offset = (clock->read(clock) - clock->cycle_last) & clock->mask;
+	offset = clocksource_delta(clock->read(clock), clock->cycle_last,
+				   clock->mask);
 #endif
 
 	/* Check if there's really nothing to do */
