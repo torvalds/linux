@@ -29,7 +29,7 @@
  *	vnt_get_frame_time	- Calculate data frame transmitting time
  *	vnt_get_phy_field	- Calculate PhyLength, PhyService and Phy
  *				  Signal parameter for baseband Tx
- *	BBbVT3184Init		- VIA VT3184 baseband chip init code
+ *	vnt_vt3184_init		- VIA VT3184 baseband chip init code
  *
  * Revision History:
  *
@@ -378,7 +378,7 @@ void vnt_set_antenna_mode(struct vnt_private *priv, u8 antenna_mode)
  *
  */
 
-int BBbVT3184Init(struct vnt_private *priv)
+int vnt_vt3184_init(struct vnt_private *priv)
 {
 	int status;
 	u16 length;

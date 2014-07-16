@@ -96,7 +96,7 @@ void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
 void BBvSetShortSlotTime(struct vnt_private *);
 void BBvSetVGAGainOffset(struct vnt_private *, u8 byData);
 void vnt_set_antenna_mode(struct vnt_private *, u8);
-int BBbVT3184Init(struct vnt_private *);
+int vnt_vt3184_init(struct vnt_private *);
 void BBvSetDeepSleep(struct vnt_private *);
 void BBvExitDeepSleep(struct vnt_private *);
 void BBvUpdatePreEDThreshold(struct vnt_private *, int scanning);

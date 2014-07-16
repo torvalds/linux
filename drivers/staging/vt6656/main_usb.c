@@ -247,8 +247,8 @@ static int device_init_registers(struct vnt_private *pDevice)
 		}
 	}
 
-	if (!BBbVT3184Init(pDevice)) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" BBbVT3184Init fail\n");
+	if (!vnt_vt3184_init(pDevice)) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" vnt_vt3184_init fail\n");
 		return false;
 	}
 
