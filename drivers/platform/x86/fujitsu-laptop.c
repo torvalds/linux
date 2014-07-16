@@ -563,7 +563,7 @@ static struct platform_driver fujitsupf_driver = {
 		   }
 };
 
-static void dmi_check_cb_common(const struct dmi_system_id *id)
+static void __init dmi_check_cb_common(const struct dmi_system_id *id)
 {
 	pr_info("Identified laptop model '%s'\n", id->ident);
 	if (use_alt_lcd_levels == -1) {
@@ -577,7 +577,7 @@ static void dmi_check_cb_common(const struct dmi_system_id *id)
 	}
 }
 
-static int dmi_check_cb_s6410(const struct dmi_system_id *id)
+static int __init dmi_check_cb_s6410(const struct dmi_system_id *id)
 {
 	dmi_check_cb_common(id);
 	fujitsu->keycode1 = KEY_SCREENLOCK;	/* "Lock" */
@@ -585,7 +585,7 @@ static int dmi_check_cb_s6410(const struct dmi_system_id *id)
 	return 1;
 }
 
-static int dmi_check_cb_s6420(const struct dmi_system_id *id)
+static int __init dmi_check_cb_s6420(const struct dmi_system_id *id)
 {
 	dmi_check_cb_common(id);
 	fujitsu->keycode1 = KEY_SCREENLOCK;	/* "Lock" */
@@ -593,7 +593,7 @@ static int dmi_check_cb_s6420(const struct dmi_system_id *id)
 	return 1;
 }
 
-static int dmi_check_cb_p8010(const struct dmi_system_id *id)
+static int __init dmi_check_cb_p8010(const struct dmi_system_id *id)
 {
 	dmi_check_cb_common(id);
 	fujitsu->keycode1 = KEY_HELP;	/* "Support" */
@@ -602,7 +602,7 @@ static int dmi_check_cb_p8010(const struct dmi_system_id *id)
 	return 1;
 }
 
-static struct dmi_system_id fujitsu_dmi_table[] = {
+static const struct dmi_system_id fujitsu_dmi_table[] __initconst = {
 	{
 	 .ident = "Fujitsu Siemens S6410",
 	 .matches = {
