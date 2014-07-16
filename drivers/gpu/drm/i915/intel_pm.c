@@ -1310,24 +1310,17 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
  * latency value.
  */
 
-static void vlv_update_drain_latency(struct drm_device *dev)
+static void vlv_update_drain_latency(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe pipe;
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	int plane_prec, plane_dl;
+	int cursor_prec, cursor_dl;
+	int plane_prec_mult, cursor_prec_mult;
 
-	for_each_pipe(pipe) {
-		int plane_prec, plane_dl;
-		int cursor_prec, cursor_dl;
-		int plane_prec_mult, cursor_prec_mult;
-
-		if (!vlv_compute_drain_latency(dev, pipe, &plane_prec_mult, &plane_dl,
-					       &cursor_prec_mult, &cursor_dl))
-			continue;
-
-		/*
-		 * FIXME CHV spec still lists 16 and 32 as the precision
-		 * values. Need to figure out if spec is outdated or what.
-		 */
+	if (vlv_compute_drain_latency(dev, pipe, &plane_prec_mult, &plane_dl,
+				      &cursor_prec_mult, &cursor_dl)) {
 		cursor_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_64) ?
 			DDL_CURSOR_PRECISION_64 : DDL_CURSOR_PRECISION_32;
 		plane_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_64) ?
@@ -1352,7 +1345,7 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 	unsigned int enabled = 0;
 	bool cxsr_enabled;
 
-	vlv_update_drain_latency(dev);
+	vlv_update_drain_latency(crtc);
 
 	if (g4x_compute_wm0(dev, PIPE_A,
 			    &valleyview_wm_info, latency_ns,
