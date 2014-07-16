@@ -1570,21 +1570,6 @@ void get_monotonic_boottime(struct timespec *ts)
 }
 EXPORT_SYMBOL_GPL(get_monotonic_boottime);
 
-/**
- * monotonic_to_bootbased - Convert the monotonic time to boot based.
- * @ts:		pointer to the timespec to be converted
- */
-void monotonic_to_bootbased(struct timespec *ts)
-{
-	struct timekeeper *tk = &tk_core.timekeeper;
-	struct timespec64 ts64;
-
-	ts64 = timespec_to_timespec64(*ts);
-	ts64 = timespec64_add(ts64, tk->total_sleep_time);
-	*ts = timespec64_to_timespec(ts64);
-}
-EXPORT_SYMBOL_GPL(monotonic_to_bootbased);
-
 unsigned long get_seconds(void)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
