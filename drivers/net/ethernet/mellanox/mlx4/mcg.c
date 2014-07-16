@@ -433,42 +433,57 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 	}
 	mgm = mailbox->buf;
 
-	/* the promisc qp needs to be added for each one of the steering
-	 * entries, if it already exists, needs to be added as a duplicate
-	 * for this entry */
-	list_for_each_entry(entry, &s_steer->steer_entries[steer], list) {
-		err = mlx4_READ_ENTRY(dev, entry->index, mailbox);
-		if (err)
-			goto out_mailbox;
+	if (!(mlx4_is_mfunc(dev) && steer == MLX4_UC_STEER)) {
+		/* The promisc QP needs to be added for each one of the steering
+		 * entries. If it already exists, needs to be added as
+		 * a duplicate for this entry.
+		 */
+		list_for_each_entry(entry,
+				    &s_steer->steer_entries[steer],
+				    list) {
+			err = mlx4_READ_ENTRY(dev, entry->index, mailbox);
+			if (err)
+				goto out_mailbox;
 
-		members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
-		prot = be32_to_cpu(mgm->members_count) >> 30;
-		found = false;
-		for (i = 0; i < members_count; i++) {
-			if ((be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK) == qpn) {
-				/* Entry already exists, add to duplicates */
-				dqp = kmalloc(sizeof *dqp, GFP_KERNEL);
-				if (!dqp) {
+			members_count = be32_to_cpu(mgm->members_count) &
+					0xffffff;
+			prot = be32_to_cpu(mgm->members_count) >> 30;
+			found = false;
+			for (i = 0; i < members_count; i++) {
+				if ((be32_to_cpu(mgm->qp[i]) &
+				     MGM_QPN_MASK) == qpn) {
+					/* Entry already exists.
+					 * Add to duplicates.
+					 */
+					dqp = kmalloc(sizeof(*dqp), GFP_KERNEL);
+					if (!dqp) {
+						err = -ENOMEM;
+						goto out_mailbox;
+					}
+					dqp->qpn = qpn;
+					list_add_tail(&dqp->list,
+						      &entry->duplicates);
+					found = true;
+				}
+			}
+			if (!found) {
+				/* Need to add the qpn to mgm */
+				if (members_count ==
+				    dev->caps.num_qp_per_mgm) {
+					/* entry is full */
 					err = -ENOMEM;
 					goto out_mailbox;
 				}
-				dqp->qpn = qpn;
-				list_add_tail(&dqp->list, &entry->duplicates);
-				found = true;
+				mgm->qp[members_count++] =
+					cpu_to_be32(qpn & MGM_QPN_MASK);
+				mgm->members_count =
+					cpu_to_be32(members_count |
+						    (prot << 30));
+				err = mlx4_WRITE_ENTRY(dev, entry->index,
+						       mailbox);
+				if (err)
+					goto out_mailbox;
 			}
-		}
-		if (!found) {
-			/* Need to add the qpn to mgm */
-			if (members_count == dev->caps.num_qp_per_mgm) {
-				/* entry is full */
-				err = -ENOMEM;
-				goto out_mailbox;
-			}
-			mgm->qp[members_count++] = cpu_to_be32(qpn & MGM_QPN_MASK);
-			mgm->members_count = cpu_to_be32(members_count | (prot << 30));
-			err = mlx4_WRITE_ENTRY(dev, entry->index, mailbox);
-			if (err)
-				goto out_mailbox;
 		}
 	}
 
@@ -556,51 +571,65 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 	if (err)
 		goto out_mailbox;
 
-	/* remove the qp from all the steering entries*/
-	list_for_each_entry(entry, &s_steer->steer_entries[steer], list) {
-		found = false;
-		list_for_each_entry(dqp, &entry->duplicates, list) {
-			if (dqp->qpn == qpn) {
-				found = true;
-				break;
-			}
-		}
-		if (found) {
-			/* a duplicate, no need to change the mgm,
-			 * only update the duplicates list */
-			list_del(&dqp->list);
-			kfree(dqp);
-		} else {
-			int loc = -1;
-			err = mlx4_READ_ENTRY(dev, entry->index, mailbox);
-				if (err)
-					goto out_mailbox;
-			members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
-			for (i = 0; i < members_count; ++i)
-				if ((be32_to_cpu(mgm->qp[i]) &
-				     MGM_QPN_MASK) == qpn) {
-					loc = i;
+	if (!(mlx4_is_mfunc(dev) && steer == MLX4_UC_STEER)) {
+		/* remove the qp from all the steering entries*/
+		list_for_each_entry(entry,
+				    &s_steer->steer_entries[steer],
+				    list) {
+			found = false;
+			list_for_each_entry(dqp, &entry->duplicates, list) {
+				if (dqp->qpn == qpn) {
+					found = true;
 					break;
 				}
-
-			if (loc < 0) {
-				mlx4_err(dev, "QP %06x wasn't found in entry %d\n",
-					 qpn, entry->index);
-				err = -EINVAL;
-				goto out_mailbox;
 			}
+			if (found) {
+				/* A duplicate, no need to change the MGM,
+				 * only update the duplicates list
+				 */
+				list_del(&dqp->list);
+				kfree(dqp);
+			} else {
+				int loc = -1;
 
-			/* copy the last QP in this MGM over removed QP */
-			mgm->qp[loc] = mgm->qp[members_count - 1];
-			mgm->qp[members_count - 1] = 0;
-			mgm->members_count = cpu_to_be32(--members_count |
-							 (MLX4_PROT_ETH << 30));
+				err = mlx4_READ_ENTRY(dev,
+						      entry->index,
+						      mailbox);
+					if (err)
+						goto out_mailbox;
+				members_count =
+					be32_to_cpu(mgm->members_count) &
+					0xffffff;
+				for (i = 0; i < members_count; ++i)
+					if ((be32_to_cpu(mgm->qp[i]) &
+					     MGM_QPN_MASK) == qpn) {
+						loc = i;
+						break;
+					}
 
-			err = mlx4_WRITE_ENTRY(dev, entry->index, mailbox);
-				if (err)
+				if (loc < 0) {
+					mlx4_err(dev, "QP %06x wasn't found in entry %d\n",
+						 qpn, entry->index);
+					err = -EINVAL;
 					goto out_mailbox;
-		}
+				}
 
+				/* copy the last QP in this MGM
+				 * over removed QP
+				 */
+				mgm->qp[loc] = mgm->qp[members_count - 1];
+				mgm->qp[members_count - 1] = 0;
+				mgm->members_count =
+					cpu_to_be32(--members_count |
+						    (MLX4_PROT_ETH << 30));
+
+				err = mlx4_WRITE_ENTRY(dev,
+						       entry->index,
+						       mailbox);
+					if (err)
+						goto out_mailbox;
+			}
+		}
 	}
 
 out_mailbox:
