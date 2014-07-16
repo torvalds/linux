@@ -1115,6 +1115,7 @@ static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 {
 	static const int timeout = 10000;
 	int i;
+
 	for (i = 0; i < timeout; i++) {
 		unsigned short b_status;
 
@@ -1810,6 +1811,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 			      AI_Output_Control_Register);
 	} else {
 		unsigned ai_output_control_bits;
+
 		ni_stc_writew(dev,
 			      AI_SHIFTIN_Pulse_Width |
 			      AI_SOC_Polarity |
@@ -1904,6 +1906,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 
 	if ((list[0] & CR_ALT_SOURCE)) {
 		unsigned bypass_bits;
+
 		chan = CR_CHAN(list[0]);
 		range = CR_RANGE(list[0]);
 		range_code = ni_gainlkup[board->gainlkup][range];
@@ -1927,6 +1930,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 	}
 	for (i = 0; i < n_chan; i++) {
 		unsigned config_bits = 0;
+
 		chan = CR_CHAN(list[i]);
 		aref = CR_AREF(list[i]);
 		range = CR_RANGE(list[i]);
@@ -2703,6 +2707,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 #ifdef PCIDMA
 	{
 		int retval = ni_ai_setup_MITE_dma(dev);
+
 		if (retval)
 			return retval;
 	}
@@ -2825,6 +2830,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 	}
 	for (i = 0; i < n_chans; i++) {
 		const struct comedi_krange *krange;
+
 		chan = CR_CHAN(chanspec[i]);
 		range = CR_RANGE(chanspec[i]);
 		krange = s->range_table->range + range;
@@ -3249,6 +3255,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			      AO_Output_Control_Register);
 	} else {
 		unsigned bits;
+
 		devpriv->ao_mode1 &= ~AO_Multiple_Channels;
 		bits = AO_UPDATE_Output_Select(AO_Update_Output_High_Z);
 		if (devpriv->is_m_series || devpriv->is_6xxx) {
@@ -3426,6 +3433,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->is_6xxx) {
 		unsigned immediate_bits = 0;
 		unsigned i;
+
 		for (i = 0; i < s->n_chan; ++i)
 			immediate_bits |= 1 << i;
 		ni_ao_win_outw(dev, immediate_bits, AO_Immediate_671x);
@@ -3928,6 +3936,7 @@ static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
 static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 {
 	unsigned stc_register;
+
 	switch (reg) {
 	case NITIO_G0_AUTO_INC:
 		stc_register = G_Autoincrement_Register(0);
@@ -4882,6 +4891,7 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 	static const unsigned target_picosec = 12500;
 	static const unsigned fudge_factor_80_to_20Mhz = 4;
 	int best_period_picosec = 0;
+
 	for (div = 1; div <= max_div; ++div) {
 		for (mult = 1; mult <= max_mult; ++mult) {
 			unsigned new_period_ps =
@@ -4961,6 +4971,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 		{
 			unsigned rtsi_channel;
 			static const unsigned max_rtsi_channel = 7;
+
 			for (rtsi_channel = 0; rtsi_channel <= max_rtsi_channel;
 			     ++rtsi_channel) {
 				if (source ==
@@ -5758,6 +5769,7 @@ static int ni_E_init(struct comedi_device *dev,
 		ni_writeb(dev, 0, Magic_611x);
 	} else if (devpriv->is_m_series) {
 		int channel;
+
 		for (channel = 0; channel < board->n_aochan; ++channel) {
 			ni_writeb(dev, 0xf,
 				  M_Offset_AO_Waveform_Order(channel));
