@@ -145,6 +145,21 @@ static inline ktime_t ktime_mono_to_real(ktime_t mono)
 	return ktime_mono_to_any(mono, TK_OFFS_REAL);
 }
 
+static inline u64 ktime_get_ns(void)
+{
+	return ktime_to_ns(ktime_get());
+}
+
+static inline u64 ktime_get_real_ns(void)
+{
+	return ktime_to_ns(ktime_get_real());
+}
+
+static inline u64 ktime_get_boot_ns(void)
+{
+	return ktime_to_ns(ktime_get_boottime());
+}
+
 /*
  * RTC specific
  */
