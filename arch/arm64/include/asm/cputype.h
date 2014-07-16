@@ -38,15 +38,34 @@
 	__val;								\
 })
 
+#define MIDR_REVISION_MASK	0xf
+#define MIDR_REVISION(midr)	((midr) & MIDR_REVISION_MASK)
+#define MIDR_PARTNUM_SHIFT	4
+#define MIDR_PARTNUM_MASK	(0xfff << MIDR_PARTNUM_SHIFT)
+#define MIDR_PARTNUM(midr)	\
+	(((midr) & MIDR_PARTNUM_MASK) >> MIDR_PARTNUM_SHIFT)
+#define MIDR_ARCHITECTURE_SHIFT	16
+#define MIDR_ARCHITECTURE_MASK	(0xf << MIDR_ARCHITECTURE_SHIFT)
+#define MIDR_ARCHITECTURE(midr)	\
+	(((midr) & MIDR_ARCHITECTURE_MASK) >> MIDR_ARCHITECTURE_SHIFT)
+#define MIDR_VARIANT_SHIFT	20
+#define MIDR_VARIANT_MASK	(0xf << MIDR_VARIANT_SHIFT)
+#define MIDR_VARIANT(midr)	\
+	(((midr) & MIDR_VARIANT_MASK) >> MIDR_VARIANT_SHIFT)
+#define MIDR_IMPLEMENTOR_SHIFT	24
+#define MIDR_IMPLEMENTOR_MASK	(0xff << MIDR_IMPLEMENTOR_SHIFT)
+#define MIDR_IMPLEMENTOR(midr)	\
+	(((midr) & MIDR_IMPLEMENTOR_MASK) >> MIDR_IMPLEMENTOR_SHIFT)
+
 #define ARM_CPU_IMP_ARM		0x41
 #define ARM_CPU_IMP_APM		0x50
 
-#define ARM_CPU_PART_AEM_V8	0xD0F0
-#define ARM_CPU_PART_FOUNDATION	0xD000
-#define ARM_CPU_PART_CORTEX_A53	0xD030
-#define ARM_CPU_PART_CORTEX_A57	0xD070
+#define ARM_CPU_PART_AEM_V8	0xD0F
+#define ARM_CPU_PART_FOUNDATION	0xD00
+#define ARM_CPU_PART_CORTEX_A57	0xD07
+#define ARM_CPU_PART_CORTEX_A53	0xD03
 
-#define APM_CPU_PART_POTENZA	0x0000
+#define APM_CPU_PART_POTENZA	0x000
 
 #ifndef __ASSEMBLY__
 
@@ -67,12 +86,12 @@ static inline u64 __attribute_const__ read_cpuid_mpidr(void)
 
 static inline unsigned int __attribute_const__ read_cpuid_implementor(void)
 {
-	return (read_cpuid_id() & 0xFF000000) >> 24;
+	return MIDR_IMPLEMENTOR(read_cpuid_id());
 }
 
 static inline unsigned int __attribute_const__ read_cpuid_part_number(void)
 {
-	return (read_cpuid_id() & 0xFFF0);
+	return MIDR_PARTNUM(read_cpuid_id());
 }
 
 static inline u32 __attribute_const__ read_cpuid_cachetype(void)
