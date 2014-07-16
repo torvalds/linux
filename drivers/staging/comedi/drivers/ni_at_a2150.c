@@ -690,6 +690,7 @@ static int a2150_set_chanlist(struct comedi_device *dev,
 static int a2150_probe(struct comedi_device *dev)
 {
 	int status = inw(dev->iobase + STATUS_REG);
+
 	return ID_BITS(status);
 }
 
