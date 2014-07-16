@@ -180,7 +180,7 @@ static void __init rk3036_init_late(void)
 static void __init rk3036_reserve(void)
 {
 	/* reserve memory for ION */
-	//rockchip_ion_reserve();
+	rockchip_ion_reserve();
 }
 
 static void rk3036_restart(char mode, const char *cmd)
