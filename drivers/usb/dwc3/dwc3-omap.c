@@ -378,6 +378,27 @@ static int dwc3_omap_vbus_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static void dwc3_omap_map_offset(struct dwc3_omap *omap)
+{
+	struct device_node	*node = omap->dev->of_node;
+
+	/*
+	 * Differentiate between OMAP5 and AM437x.
+	 *
+	 * For OMAP5(ES2.0) and AM437x wrapper revision is same, even
+	 * though there are changes in wrapper register offsets.
+	 *
+	 * Using dt compatible to differentiate AM437x.
+	 */
+	if (of_device_is_compatible(node, "ti,am437x-dwc3")) {
+		omap->irq_eoi_offset = USBOTGSS_EOI_OFFSET;
+		omap->irq0_offset = USBOTGSS_IRQ0_OFFSET;
+		omap->irqmisc_offset = USBOTGSS_IRQMISC_OFFSET;
+		omap->utmi_otg_offset = USBOTGSS_UTMI_OTG_OFFSET;
+		omap->debug_offset = USBOTGSS_DEBUG_OFFSET;
+	}
+}
+
 static int dwc3_omap_probe(struct platform_device *pdev)
 {
 	struct device_node	*node = pdev->dev.of_node;
@@ -442,22 +463,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	/*
-	 * Differentiate between OMAP5 and AM437x.
-	 *
-	 * For OMAP5(ES2.0) and AM437x wrapper revision is same, even
-	 * though there are changes in wrapper register offsets.
-	 *
-	 * Using dt compatible to differentiate AM437x.
-	 */
-
-	if (of_device_is_compatible(node, "ti,am437x-dwc3")) {
-		omap->irq_eoi_offset = USBOTGSS_EOI_OFFSET;
-		omap->irq0_offset = USBOTGSS_IRQ0_OFFSET;
-		omap->irqmisc_offset = USBOTGSS_IRQMISC_OFFSET;
-		omap->utmi_otg_offset = USBOTGSS_UTMI_OTG_OFFSET;
-		omap->debug_offset = USBOTGSS_DEBUG_OFFSET;
-	}
+	dwc3_omap_map_offset(omap);
 
 	reg = dwc3_omap_read_utmi_status(omap);
 
