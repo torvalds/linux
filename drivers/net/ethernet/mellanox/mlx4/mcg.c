@@ -363,8 +363,20 @@ static bool can_remove_steering_entry(struct mlx4_dev *dev, u8 port,
 	ret = true;
 	list_for_each_entry_safe(entry, tmp_entry, &s_steer->steer_entries[steer], list) {
 		if (entry->index == index) {
-			if (list_empty(&entry->duplicates)) {
+			if (list_empty(&entry->duplicates) ||
+			    members_count == 1) {
+				struct mlx4_promisc_qp *pqp, *tmp_pqp;
+				/* If there is only 1 entry in duplicates then
+				 * this is the QP we want to delete, going over
+				 * the list and deleting the entry.
+				 */
 				list_del(&entry->list);
+				list_for_each_entry_safe(pqp, tmp_pqp,
+							 &entry->duplicates,
+							 list) {
+					list_del(&pqp->list);
+					kfree(pqp);
+				}
 				kfree(entry);
 			} else {
 				/* This entry contains duplicates so it shouldn't be removed */
