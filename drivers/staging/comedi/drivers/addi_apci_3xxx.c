@@ -389,9 +389,8 @@ static int apci3xxx_ai_started(struct comedi_device *dev)
 
 	if ((readl(devpriv->mmio + 8) & 0x80000) == 0x80000)
 		return 1;
-	else
-		return 0;
 
+	return 0;
 }
 
 static int apci3xxx_ai_setup(struct comedi_device *dev, unsigned int chanspec)
@@ -696,10 +695,9 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 		/* ignore all other instructions for ports 0 and 1 */
 		if (chan < 16)
 			return -EINVAL;
-		else
-			/* changing any channel in port 2 */
-			/* changes the entire port        */
-			mask = 0xff0000;
+
+		/* changing any channel in port 2 changes the entire port */
+		mask = 0xff0000;
 	}
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
