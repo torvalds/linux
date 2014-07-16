@@ -1128,6 +1128,17 @@ config SENSORS_PCF8591
 
 source drivers/hwmon/pmbus/Kconfig
 
+config SENSORS_PWM_FAN
+	tristate "PWM fan"
+	depends on PWM
+	help
+	  If you say yes here you get support for fans connected to PWM lines.
+	  The driver uses the generic PWM interface, thus it will work on a
+	  variety of SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called pwm-fan.
+
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."
 	depends on GPIOLIB
