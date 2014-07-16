@@ -1004,7 +1004,7 @@ gen5_ring_get_irq(struct intel_engine_cs *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0)
-		ilk_enable_gt_irq(dev_priv, ring->irq_enable_mask);
+		gen5_enable_gt_irq(dev_priv, ring->irq_enable_mask);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	return true;
@@ -1019,7 +1019,7 @@ gen5_ring_put_irq(struct intel_engine_cs *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0)
-		ilk_disable_gt_irq(dev_priv, ring->irq_enable_mask);
+		gen5_disable_gt_irq(dev_priv, ring->irq_enable_mask);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }
 
@@ -1212,7 +1212,7 @@ gen6_ring_get_irq(struct intel_engine_cs *ring)
 					 GT_PARITY_ERROR(dev)));
 		else
 			I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
-		ilk_enable_gt_irq(dev_priv, ring->irq_enable_mask);
+		gen5_enable_gt_irq(dev_priv, ring->irq_enable_mask);
 	}
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
@@ -1232,7 +1232,7 @@ gen6_ring_put_irq(struct intel_engine_cs *ring)
 			I915_WRITE_IMR(ring, ~GT_PARITY_ERROR(dev));
 		else
 			I915_WRITE_IMR(ring, ~0);
-		ilk_disable_gt_irq(dev_priv, ring->irq_enable_mask);
+		gen5_disable_gt_irq(dev_priv, ring->irq_enable_mask);
 	}
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }
@@ -1250,7 +1250,7 @@ hsw_vebox_get_irq(struct intel_engine_cs *ring)
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
 		I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
-		snb_enable_pm_irq(dev_priv, ring->irq_enable_mask);
+		gen6_enable_pm_irq(dev_priv, ring->irq_enable_mask);
 	}
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
@@ -1270,7 +1270,7 @@ hsw_vebox_put_irq(struct intel_engine_cs *ring)
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0) {
 		I915_WRITE_IMR(ring, ~0);
-		snb_disable_pm_irq(dev_priv, ring->irq_enable_mask);
+		gen6_disable_pm_irq(dev_priv, ring->irq_enable_mask);
 	}
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }

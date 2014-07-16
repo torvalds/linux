@@ -182,12 +182,12 @@ static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
 	POSTING_READ(GTIMR);
 }
 
-void ilk_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
 	ilk_update_gt_irq(dev_priv, mask, mask);
 }
 
-void ilk_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
 	ilk_update_gt_irq(dev_priv, mask, 0);
 }
@@ -220,12 +220,12 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 	}
 }
 
-void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
 	snb_update_pm_irq(dev_priv, mask, mask);
 }
 
-void snb_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
 	snb_update_pm_irq(dev_priv, mask, 0);
 }
@@ -278,12 +278,12 @@ static void bdw_update_pm_irq(struct drm_i915_private *dev_priv,
 	}
 }
 
-void bdw_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen8_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
 	bdw_update_pm_irq(dev_priv, mask, mask);
 }
 
-void bdw_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen8_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
 	bdw_update_pm_irq(dev_priv, mask, 0);
 }
@@ -1408,10 +1408,10 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
 	if (INTEL_INFO(dev_priv->dev)->gen >= 8)
-		bdw_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+		gen8_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	else {
 		/* Make sure not to corrupt PMIMR state used by ringbuffer */
-		snb_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+		gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	}
 	spin_unlock_irq(&dev_priv->irq_lock);
 
@@ -1553,7 +1553,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 out:
 	WARN_ON(dev_priv->l3_parity.which_slice);
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	ilk_enable_gt_irq(dev_priv, GT_PARITY_ERROR(dev_priv->dev));
+	gen5_enable_gt_irq(dev_priv, GT_PARITY_ERROR(dev_priv->dev));
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
@@ -1567,7 +1567,7 @@ static void ivybridge_parity_error_irq_handler(struct drm_device *dev, u32 iir)
 		return;
 
 	spin_lock(&dev_priv->irq_lock);
-	ilk_disable_gt_irq(dev_priv, GT_PARITY_ERROR(dev));
+	gen5_disable_gt_irq(dev_priv, GT_PARITY_ERROR(dev));
 	spin_unlock(&dev_priv->irq_lock);
 
 	iir &= GT_PARITY_ERROR(dev);
@@ -1622,7 +1622,7 @@ static void gen8_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 
 	spin_lock(&dev_priv->irq_lock);
 	dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
-	bdw_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
+	gen8_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
 	spin_unlock(&dev_priv->irq_lock);
 
 	queue_work(dev_priv->wq, &dev_priv->rps.work);
@@ -1969,7 +1969,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 	if (pm_iir & dev_priv->pm_rps_events) {
 		spin_lock(&dev_priv->irq_lock);
 		dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
-		snb_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
+		gen6_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
 		spin_unlock(&dev_priv->irq_lock);
 
 		queue_work(dev_priv->wq, &dev_priv->rps.work);

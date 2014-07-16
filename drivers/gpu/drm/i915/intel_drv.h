@@ -683,12 +683,12 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 					   enum transcoder pch_transcoder,
 					   bool enable);
-void ilk_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void ilk_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void snb_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void bdw_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void bdw_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen8_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen8_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
 void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
 int intel_get_crtc_scanline(struct intel_crtc *crtc);

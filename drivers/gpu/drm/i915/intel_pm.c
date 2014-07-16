@@ -3474,7 +3474,7 @@ static void gen8_enable_rps_interrupts(struct drm_device *dev)
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir);
-	bdw_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	gen8_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	I915_WRITE(GEN8_GT_IIR(2), dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
@@ -3485,7 +3485,7 @@ static void gen6_enable_rps_interrupts(struct drm_device *dev)
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir);
-	snb_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	I915_WRITE(GEN6_PMIIR, dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
