@@ -452,7 +452,6 @@ static int das08_counter_config(struct comedi_device *dev,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 	return 2;
 }
