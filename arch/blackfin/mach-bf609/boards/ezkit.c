@@ -698,8 +698,6 @@ int bf609_nor_flash_init(struct platform_device *pdev)
 {
 #define CONFIG_SMC_GCTL_VAL     0x00000010
 
-	if (!devm_pinctrl_get_select_default(&pdev->dev))
-		return -EBUSY;
 	bfin_write32(SMC_GCTL, CONFIG_SMC_GCTL_VAL);
 	bfin_write32(SMC_B0CTL, 0x01002011);
 	bfin_write32(SMC_B0TIM, 0x08170977);
@@ -709,7 +707,6 @@ int bf609_nor_flash_init(struct platform_device *pdev)
 
 void bf609_nor_flash_exit(struct platform_device *pdev)
 {
-	devm_pinctrl_put(pdev->dev.pins->p);
 	bfin_write32(SMC_GCTL, 0);
 }
 
