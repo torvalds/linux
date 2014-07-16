@@ -334,11 +334,9 @@ static inline int ni_tio_counting_mode_registers_present(const struct
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_e_series:
 		return 0;
-		break;
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
 		return 1;
-		break;
 	default:
 		BUG();
 		break;
