@@ -35,6 +35,16 @@
 
 #define KFD_SYSFS_FILE_MODE 0444
 
+/*
+ * When working with cp scheduler we should assign the HIQ manually or via
+ * the radeon driver to a fixed hqd slot, here are the fixed HIQ hqd slot
+ * definitions for Kaveri. In Kaveri only the first ME queues participates
+ * in the cp scheduling taking that in mind we set the HIQ slot in the
+ * second ME.
+ */
+#define KFD_CIK_HIQ_PIPE 4
+#define KFD_CIK_HIQ_QUEUE 0
+
 /* GPU ID hash width in bits */
 #define KFD_GPU_ID_HASH_WIDTH 16
 
@@ -56,6 +66,13 @@ extern int max_num_of_queues_per_process;
 
 #define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS_DEFAULT 128
 #define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
+
+#define KFD_KERNEL_QUEUE_SIZE 2048
+
+enum cache_policy {
+	cache_policy_coherent,
+	cache_policy_noncoherent
+};
 
 struct kfd_device_info {
 	unsigned int max_pasid_bits;
@@ -88,8 +105,10 @@ struct kfd_dev {
 
 	struct kgd2kfd_shared_resources shared_resources;
 
-	bool init_complete;
+	/* QCM Device instance */
+	struct device_queue_manager *dqm;
 
+	bool init_complete;
 };
 
 /* KGD2KFD callbacks */
@@ -383,6 +402,21 @@ int kgd2kfd_resume(struct kfd_dev *dev);
 
 /* amdkfd Apertures */
 int kfd_init_apertures(struct kfd_process *process);
+
+/* Queue Context Management */
+int init_queue(struct queue **q, struct queue_properties properties);
+void uninit_queue(struct queue *q);
+void print_queue(struct queue *q);
+
+/* Packet Manager */
+
+struct packet_manager {
+	struct device_queue_manager *dqm;
+	struct kernel_queue *priv_queue;
+	struct mutex lock;
+	bool allocated;
+	struct kfd_mem_obj *ib_buffer_obj;
+};
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
