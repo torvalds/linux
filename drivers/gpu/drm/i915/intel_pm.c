@@ -2993,7 +2993,7 @@ static void ironlake_enable_drps(struct drm_device *dev)
 		I915_READ(0x112e0);
 	dev_priv->ips.last_time1 = jiffies_to_msecs(jiffies);
 	dev_priv->ips.last_count2 = I915_READ(0x112f4);
-	getrawmonotonic(&dev_priv->ips.last_time2);
+	dev_priv->ips.last_time2 = ktime_get_raw_ns();
 
 	spin_unlock_irq(&mchdev_lock);
 }
@@ -4314,18 +4314,16 @@ static u16 pvid_to_extvid(struct drm_i915_private *dev_priv, u8 pxvid)
 
 static void __i915_update_gfx_val(struct drm_i915_private *dev_priv)
 {
-	struct timespec now, diff1;
-	u64 diff;
-	unsigned long diffms;
+	u64 now, diff, diffms;
 	u32 count;
 
 	assert_spin_locked(&mchdev_lock);
 
-	getrawmonotonic(&now);
-	diff1 = timespec_sub(now, dev_priv->ips.last_time2);
+	now = ktime_get_raw_ns();
+	diffms = now - dev_priv->ips.last_time2;
+	do_div(diffms, NSEC_PER_MSEC);
 
 	/* Don't divide by 0 */
-	diffms = diff1.tv_sec * 1000 + diff1.tv_nsec / 1000000;
 	if (!diffms)
 		return;
 

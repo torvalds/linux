@@ -931,7 +931,7 @@ struct intel_ilk_power_mgmt {
 	unsigned long last_time1;
 	unsigned long chipset_power;
 	u64 last_count2;
-	struct timespec last_time2;
+	u64 last_time2;
 	unsigned long gfx_power;
 	u8 corr;
 
