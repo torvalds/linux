@@ -1069,7 +1069,7 @@ struct pcidas64_private {
 	uint32_t local0_iobase;
 	uint32_t local1_iobase;
 	/*  number of analog input samples remaining */
-	volatile unsigned int ai_count;
+	unsigned int ai_count;
 	/*  dma buffers for analog input */
 	uint16_t *ai_buffer[MAX_AI_DMA_RING_COUNT];
 	/*  physical addresses of ai dma buffers */
@@ -1081,7 +1081,7 @@ struct pcidas64_private {
 	dma_addr_t ai_dma_desc_bus_addr;
 	/*  index of the ai dma descriptor/buffer
 	 *  that is currently being used */
-	volatile unsigned int ai_dma_index;
+	unsigned int ai_dma_index;
 	/*  dma buffers for analog output */
 	uint16_t *ao_buffer[AO_DMA_RING_COUNT];
 	/*  physical addresses of ao dma buffers */
@@ -1089,35 +1089,35 @@ struct pcidas64_private {
 	struct plx_dma_desc *ao_dma_desc;
 	dma_addr_t ao_dma_desc_bus_addr;
 	/*  keeps track of buffer where the next ao sample should go */
-	volatile unsigned int ao_dma_index;
+	unsigned int ao_dma_index;
 	/*  number of analog output samples remaining */
-	volatile unsigned long ao_count;
+	unsigned long ao_count;
 	/*  remember what the analog outputs are set to, to allow readback */
-	volatile unsigned int ao_value[2];
+	unsigned int ao_value[2];
 	unsigned int hw_revision;	/*  stc chip hardware revision number */
 	/*  last bits sent to INTR_ENABLE_REG register */
-	volatile unsigned int intr_enable_bits;
+	unsigned int intr_enable_bits;
 	/*  last bits sent to ADC_CONTROL1_REG register */
-	volatile uint16_t adc_control1_bits;
+	uint16_t adc_control1_bits;
 	/*  last bits sent to FIFO_SIZE_REG register */
-	volatile uint16_t fifo_size_bits;
+	uint16_t fifo_size_bits;
 	/*  last bits sent to HW_CONFIG_REG register */
-	volatile uint16_t hw_config_bits;
-	volatile uint16_t dac_control1_bits;
+	uint16_t hw_config_bits;
+	uint16_t dac_control1_bits;
 	/*  last bits written to plx9080 control register */
-	volatile uint32_t plx_control_bits;
+	uint32_t plx_control_bits;
 	/*  last bits written to plx interrupt control and status register */
-	volatile uint32_t plx_intcsr_bits;
+	uint32_t plx_intcsr_bits;
 	/*  index of calibration source readable through ai ch0 */
-	volatile int calibration_source;
+	int calibration_source;
 	/*  bits written to i2c calibration/range register */
-	volatile uint8_t i2c_cal_range_bits;
+	uint8_t i2c_cal_range_bits;
 	/*  configure digital triggers to trigger on falling edge */
-	volatile unsigned int ext_trig_falling;
+	unsigned int ext_trig_falling;
 	/*  states of various devices stored to enable read-back */
 	unsigned int ad8402_state[2];
 	unsigned int caldac_state[8];
-	volatile short ai_cmd_running;
+	short ai_cmd_running;
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
 	unsigned short ao_bounce_buffer[DAC_FIFO_SIZE];
