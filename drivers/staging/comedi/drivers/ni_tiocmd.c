@@ -342,7 +342,6 @@ static int should_ack_gate(struct ni_gpct *counter)
 	    in register-level manual) */
 	case ni_gpct_variant_660x:
 		return 1;
-		break;
 	case ni_gpct_variant_e_series:
 		spin_lock_irqsave(&counter->lock, flags);
 		{
