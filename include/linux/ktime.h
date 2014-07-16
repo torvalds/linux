@@ -250,12 +250,6 @@ static inline __must_check bool ktime_to_timespec64_cond(const ktime_t kt,
 #define LOW_RES_NSEC		TICK_NSEC
 #define KTIME_LOW_RES		(ktime_t){ .tv64 = LOW_RES_NSEC }
 
-/* Get the monotonic time in timespec format: */
-extern void ktime_get_ts(struct timespec *ts);
-
-/* Get the real (wall-) time in timespec format: */
-#define ktime_get_real_ts(ts)	getnstimeofday(ts)
-
 static inline ktime_t ns_to_ktime(u64 ns)
 {
 	static const ktime_t ktime_zero = { .tv64 = 0 };
@@ -269,5 +263,7 @@ static inline ktime_t ms_to_ktime(u64 ms)
 
 	return ktime_add_ms(ktime_zero, ms);
 }
+
+# include <linux/timekeeping.h>
 
 #endif
