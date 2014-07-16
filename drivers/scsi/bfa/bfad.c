@@ -1219,7 +1219,7 @@ bfad_install_msix_handler(struct bfad_s *bfad)
 int
 bfad_setup_intr(struct bfad_s *bfad)
 {
-	int error = 0;
+	int error;
 	u32 mask = 0, i, num_bit = 0, max_bit = 0;
 	struct msix_entry msix_entries[MAX_MSIX_ENTRY];
 	struct pci_dev *pdev = bfad->pcidev;
@@ -1279,20 +1279,18 @@ bfad_setup_intr(struct bfad_s *bfad)
 
 		bfad->bfad_flags |= BFAD_MSIX_ON;
 
-		return error;
+		return 0;
 	}
 
 line_based:
-	error = 0;
-	if (request_irq
-	    (bfad->pcidev->irq, (irq_handler_t) bfad_intx, BFAD_IRQ_FLAGS,
-	     BFAD_DRIVER_NAME, bfad) != 0) {
-		/* Enable interrupt handler failed */
-		return 1;
-	}
+	error = request_irq(bfad->pcidev->irq, (irq_handler_t)bfad_intx,
+			    BFAD_IRQ_FLAGS, BFAD_DRIVER_NAME, bfad);
+	if (error)
+		return error;
+
 	bfad->bfad_flags |= BFAD_INTX_ON;
 
-	return error;
+	return 0;
 }
 
 void
