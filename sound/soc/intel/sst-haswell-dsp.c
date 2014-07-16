@@ -28,9 +28,6 @@
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
 
-#include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-
 #include "sst-dsp.h"
 #include "sst-dsp-priv.h"
 #include "sst-haswell-ipc.h"
