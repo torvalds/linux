@@ -1636,22 +1636,22 @@ ktime_t ktime_get_update_offsets_tick(ktime_t *offs_real, ktime_t *offs_boot,
 							ktime_t *offs_tai)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
-	struct timespec64 ts;
-	ktime_t now;
 	unsigned int seq;
+	ktime_t base;
+	u64 nsecs;
 
 	do {
 		seq = read_seqcount_begin(&tk_core.seq);
 
-		ts = tk_xtime(tk);
+		base = tk->base_mono;
+		nsecs = tk->xtime_nsec >> tk->shift;
+
 		*offs_real = tk->offs_real;
 		*offs_boot = tk->offs_boot;
 		*offs_tai = tk->offs_tai;
 	} while (read_seqcount_retry(&tk_core.seq, seq));
 
-	now = ktime_set(ts.tv_sec, ts.tv_nsec);
-	now = ktime_sub(now, *offs_real);
-	return now;
+	return ktime_add_ns(base, nsecs);
 }
 
 #ifdef CONFIG_HIGH_RES_TIMERS
