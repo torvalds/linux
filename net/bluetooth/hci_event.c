@@ -1414,11 +1414,9 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 		}
 	} else {
 		if (!conn) {
-			conn = hci_conn_add(hdev, ACL_LINK, &cp->bdaddr);
-			if (conn) {
-				conn->out  = true;
-				conn->role = HCI_ROLE_MASTER;
-			} else
+			conn = hci_conn_add(hdev, ACL_LINK, &cp->bdaddr,
+					    HCI_ROLE_MASTER);
+			if (!conn)
 				BT_ERR("No memory for new connection");
 		}
 	}
@@ -2156,7 +2154,8 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	conn = hci_conn_hash_lookup_ba(hdev, ev->link_type,
 			&ev->bdaddr);
 	if (!conn) {
-		conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr);
+		conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr,
+				    HCI_ROLE_SLAVE);
 		if (!conn) {
 			BT_ERR("No memory for new connection");
 			hci_dev_unlock(hdev);
@@ -4100,17 +4099,13 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
 	if (!conn) {
-		conn = hci_conn_add(hdev, LE_LINK, &ev->bdaddr);
+		conn = hci_conn_add(hdev, LE_LINK, &ev->bdaddr, ev->role);
 		if (!conn) {
 			BT_ERR("No memory for new connection");
 			goto unlock;
 		}
 
 		conn->dst_type = ev->bdaddr_type;
-
-		conn->role = ev->role;
-		if (conn->role == HCI_ROLE_MASTER)
-			conn->out = true;
 
 		/* If we didn't have a hci_conn object previously
 		 * but we're in master role this must be something
