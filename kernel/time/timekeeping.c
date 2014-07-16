@@ -451,6 +451,26 @@ ktime_t ktime_get_with_offset(enum tk_offsets offs)
 EXPORT_SYMBOL_GPL(ktime_get_with_offset);
 
 /**
+ * ktime_mono_to_any() - convert mononotic time to any other time
+ * @tmono:	time to convert.
+ * @offs:	which offset to use
+ */
+ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs)
+{
+	ktime_t *offset = offsets[offs];
+	unsigned long seq;
+	ktime_t tconv;
+
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+		tconv = ktime_add(tmono, *offset);
+	} while (read_seqcount_retry(&tk_core.seq, seq));
+
+	return tconv;
+}
+EXPORT_SYMBOL_GPL(ktime_mono_to_any);
+
+/**
  * ktime_get_ts64 - get the monotonic clock in timespec64 format
  * @ts:		pointer to timespec variable
  *

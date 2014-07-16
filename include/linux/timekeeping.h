@@ -109,6 +109,7 @@ enum tk_offsets {
 extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_with_offset(enum tk_offsets offs);
 extern ktime_t ktime_get_monotonic_offset(void);
+extern ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs);
 
 /**
  * ktime_get_real - get the real (wall-) time in ktime_t format
@@ -135,6 +136,14 @@ static inline ktime_t ktime_get_boottime(void)
 static inline ktime_t ktime_get_clocktai(void)
 {
 	return ktime_get_with_offset(TK_OFFS_TAI);
+}
+
+/**
+ * ktime_mono_to_real - Convert monotonic time to clock realtime
+ */
+static inline ktime_t ktime_mono_to_real(ktime_t mono)
+{
+	return ktime_mono_to_any(mono, TK_OFFS_REAL);
 }
 
 /*
