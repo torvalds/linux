@@ -297,6 +297,7 @@ static inline int ubifs_next_log_lnum(const struct ubifs_info *c, int lnum)
 	if (lnum > c->log_last)
 		lnum = UBIFS_LOG_LNUM;
 
+	ubifs_assert(lnum != c->ltail_lnum);
 	return lnum;
 }
 
