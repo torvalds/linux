@@ -697,7 +697,7 @@ static void hci_req_directed_advertising(struct hci_request *req,
 
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, u8 sec_level, u16 conn_timeout,
-				bool master)
+				u8 role)
 {
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
@@ -769,8 +769,10 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 			    &enable);
 	}
 
+	conn->role = role;
+
 	/* If requested to connect as slave use directed advertising */
-	if (!master) {
+	if (conn->role == HCI_ROLE_SLAVE) {
 		/* If we're active scanning most controllers are unable
 		 * to initiate advertising. Simply reject the attempt.
 		 */
@@ -786,7 +788,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	}
 
 	conn->out  = true;
-	conn->role = HCI_ROLE_MASTER;
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
 	if (params) {

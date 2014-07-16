@@ -849,7 +849,7 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 	struct hci_conn *hcon = conn->hcon;
 
 	key = hci_find_ltk_by_addr(hcon->hdev, &hcon->dst, hcon->dst_type,
-				   hcon->out);
+				   hcon->role);
 	if (!key)
 		return false;
 
@@ -881,7 +881,7 @@ bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
 	 */
 	if (test_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags) &&
 	    hci_find_ltk_by_addr(hcon->hdev, &hcon->dst, hcon->dst_type,
-				 hcon->out))
+				 hcon->role))
 		return false;
 
 	if (hcon->sec_level >= sec_level)

@@ -4263,9 +4263,8 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		return;
 
 connect:
-	/* Request connection in master = true role */
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
-			      HCI_LE_AUTOCONN_TIMEOUT, true);
+			      HCI_LE_AUTOCONN_TIMEOUT, HCI_ROLE_MASTER);
 	if (!IS_ERR(conn))
 		return;
 
@@ -4443,7 +4442,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn == NULL)
 		goto not_found;
 
-	ltk = hci_find_ltk(hdev, ev->ediv, ev->rand, conn->out);
+	ltk = hci_find_ltk(hdev, ev->ediv, ev->rand, conn->role);
 	if (ltk == NULL)
 		goto not_found;
 
