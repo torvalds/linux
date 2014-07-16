@@ -448,11 +448,13 @@ static struct slave *__rlb_next_rx_slave(struct bonding *bond)
  */
 static void rlb_teach_disabled_mac_on_primary(struct bonding *bond, u8 addr[])
 {
-	if (!bond->curr_active_slave)
+	struct slave *curr_active = bond_deref_active_protected(bond);
+
+	if (!curr_active)
 		return;
 
 	if (!bond->alb_info.primary_is_promisc) {
-		if (!dev_set_promiscuity(bond->curr_active_slave->dev, 1))
+		if (!dev_set_promiscuity(curr_active->dev, 1))
 			bond->alb_info.primary_is_promisc = 1;
 		else
 			bond->alb_info.primary_is_promisc = 0;
@@ -460,7 +462,7 @@ static void rlb_teach_disabled_mac_on_primary(struct bonding *bond, u8 addr[])
 
 	bond->alb_info.rlb_promisc_timeout_counter = 0;
 
-	alb_send_learning_packets(bond->curr_active_slave, addr, true);
+	alb_send_learning_packets(curr_active, addr, true);
 }
 
 /* slave being removed should not be active at this point
@@ -509,7 +511,7 @@ static void rlb_clear_slave(struct bonding *bond, struct slave *slave)
 
 	write_lock_bh(&bond->curr_slave_lock);
 
-	if (slave != bond->curr_active_slave)
+	if (slave != bond_deref_active_protected(bond))
 		rlb_teach_disabled_mac_on_primary(bond, slave->dev->dev_addr);
 
 	write_unlock_bh(&bond->curr_slave_lock);
@@ -684,7 +686,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 			 * move the old client to primary (curr_active_slave) so
 			 * that the new client can be assigned to this entry.
 			 */
-			if (bond->curr_active_slave &&
+			if (curr_active_slave &&
 			    client_info->slave != curr_active_slave) {
 				client_info->slave = curr_active_slave;
 				rlb_update_client(client_info);
@@ -1221,7 +1223,7 @@ static void alb_change_hw_addr_on_detach(struct bonding *bond, struct slave *sla
  */
 static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slave *slave)
 {
-	struct slave *has_bond_addr = bond->curr_active_slave;
+	struct slave *has_bond_addr = rcu_access_pointer(bond->curr_active_slave);
 	struct slave *tmp_slave1, *free_mac_slave = NULL;
 	struct list_head *iter;
 
@@ -1575,7 +1577,7 @@ void bond_alb_monitor(struct work_struct *work)
 			 * use mac of the slave device.
 			 * In RLB mode, we always use strict matches.
 			 */
-			strict_match = (slave != bond->curr_active_slave ||
+			strict_match = (slave != rcu_access_pointer(bond->curr_active_slave) ||
 					bond_info->rlb_enabled);
 			alb_send_learning_packets(slave, slave->dev->dev_addr,
 						  strict_match);
@@ -1593,7 +1595,7 @@ void bond_alb_monitor(struct work_struct *work)
 
 		bond_for_each_slave_rcu(bond, slave, iter) {
 			tlb_clear_slave(bond, slave, 1);
-			if (slave == bond->curr_active_slave) {
+			if (slave == rcu_access_pointer(bond->curr_active_slave)) {
 				SLAVE_TLB_INFO(slave).load =
 					bond_info->unbalanced_load /
 						BOND_TLB_REBALANCE_INTERVAL;
@@ -1625,7 +1627,8 @@ void bond_alb_monitor(struct work_struct *work)
 			 * because a slave was disabled then
 			 * it can now leave promiscuous mode.
 			 */
-			dev_set_promiscuity(bond->curr_active_slave->dev, -1);
+			dev_set_promiscuity(rtnl_dereference(bond->curr_active_slave)->dev,
+					    -1);
 			bond_info->primary_is_promisc = 0;
 
 			rtnl_unlock();
@@ -1742,17 +1745,21 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	__acquires(&bond->curr_slave_lock)
 {
 	struct slave *swap_slave;
+	struct slave *curr_active;
 
-	if (bond->curr_active_slave == new_slave)
+	curr_active = rcu_dereference_protected(bond->curr_active_slave,
+						!new_slave ||
+						lockdep_is_held(&bond->curr_slave_lock));
+	if (curr_active == new_slave)
 		return;
 
-	if (bond->curr_active_slave && bond->alb_info.primary_is_promisc) {
-		dev_set_promiscuity(bond->curr_active_slave->dev, -1);
+	if (curr_active && bond->alb_info.primary_is_promisc) {
+		dev_set_promiscuity(curr_active->dev, -1);
 		bond->alb_info.primary_is_promisc = 0;
 		bond->alb_info.rlb_promisc_timeout_counter = 0;
 	}
 
-	swap_slave = bond->curr_active_slave;
+	swap_slave = curr_active;
 	rcu_assign_pointer(bond->curr_active_slave, new_slave);
 
 	if (!new_slave || !bond_has_slaves(bond))
@@ -1818,6 +1825,7 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct sockaddr *sa = addr;
+	struct slave *curr_active;
 	struct slave *swap_slave;
 	int res;
 
@@ -1834,23 +1842,24 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 	 * Otherwise we'll need to pass the new address to it and handle
 	 * duplications.
 	 */
-	if (!bond->curr_active_slave)
+	curr_active = rtnl_dereference(bond->curr_active_slave);
+	if (!curr_active)
 		return 0;
 
 	swap_slave = bond_slave_has_mac(bond, bond_dev->dev_addr);
 
 	if (swap_slave) {
-		alb_swap_mac_addr(swap_slave, bond->curr_active_slave);
-		alb_fasten_mac_swap(bond, swap_slave, bond->curr_active_slave);
+		alb_swap_mac_addr(swap_slave, curr_active);
+		alb_fasten_mac_swap(bond, swap_slave, curr_active);
 	} else {
-		alb_set_slave_mac_addr(bond->curr_active_slave, bond_dev->dev_addr);
+		alb_set_slave_mac_addr(curr_active, bond_dev->dev_addr);
 
 		read_lock(&bond->lock);
-		alb_send_learning_packets(bond->curr_active_slave,
+		alb_send_learning_packets(curr_active,
 					  bond_dev->dev_addr, false);
 		if (bond->alb_info.rlb_enabled) {
 			/* inform clients mac address has changed */
-			rlb_req_update_slave_clients(bond, bond->curr_active_slave);
+			rlb_req_update_slave_clients(bond, curr_active);
 		}
 		read_unlock(&bond->lock);
 	}

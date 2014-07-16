@@ -704,11 +704,6 @@ struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond)
 	return __bond_option_active_slave_get(bond, slave);
 }
 
-struct net_device *bond_option_active_slave_get(struct bonding *bond)
-{
-	return __bond_option_active_slave_get(bond, bond->curr_active_slave);
-}
-
 static int bond_option_active_slave_set(struct bonding *bond,
 					const struct bond_opt_value *newval)
 {
@@ -748,7 +743,7 @@ static int bond_option_active_slave_set(struct bonding *bond,
 		RCU_INIT_POINTER(bond->curr_active_slave, NULL);
 		bond_select_active_slave(bond);
 	} else {
-		struct slave *old_active = bond->curr_active_slave;
+		struct slave *old_active = bond_deref_active_protected(bond);
 		struct slave *new_active = bond_slave_get_rtnl(slave_dev);
 
 		BUG_ON(!new_active);

@@ -398,20 +398,31 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		0;
 }
 
+static int bond_option_active_slave_get_ifindex(struct bonding *bond)
+{
+	const struct net_device *slave;
+	int ifindex;
+
+	rcu_read_lock();
+	slave = bond_option_active_slave_get_rcu(bond);
+	ifindex = slave ? slave->ifindex : 0;
+	rcu_read_unlock();
+	return ifindex;
+}
+
 static int bond_fill_info(struct sk_buff *skb,
 			  const struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct net_device *slave_dev = bond_option_active_slave_get(bond);
-	struct nlattr *targets;
 	unsigned int packets_per_slave;
-	int i, targets_added;
+	int ifindex, i, targets_added;
+	struct nlattr *targets;
 
 	if (nla_put_u8(skb, IFLA_BOND_MODE, BOND_MODE(bond)))
 		goto nla_put_failure;
 
-	if (slave_dev &&
-	    nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, slave_dev->ifindex))
+	ifindex = bond_option_active_slave_get_ifindex(bond);
+	if (ifindex && nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, ifindex))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_MIIMON, bond->params.miimon))
