@@ -65,7 +65,7 @@ static int open_file_read(struct perf_data_file *file)
 		goto out_close;
 
 	if (!file->force && st.st_uid && (st.st_uid != geteuid())) {
-		pr_err("file %s not owned by current user or root\n",
+		pr_err("File %s not owned by current user or root (use -f to override)\n",
 		       file->path);
 		goto out_close;
 	}
