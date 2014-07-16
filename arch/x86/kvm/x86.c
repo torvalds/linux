@@ -984,9 +984,8 @@ struct pvclock_gtod_data {
 		u32	shift;
 	} clock;
 
-	/* open coded 'struct timespec' */
-	u64		monotonic_time_snsec;
-	time_t		monotonic_time_sec;
+	u64		boot_ns;
+	u64		nsec_base;
 };
 
 static struct pvclock_gtod_data pvclock_gtod_data;
@@ -994,6 +993,9 @@ static struct pvclock_gtod_data pvclock_gtod_data;
 static void update_pvclock_gtod(struct timekeeper *tk)
 {
 	struct pvclock_gtod_data *vdata = &pvclock_gtod_data;
+	u64 boot_ns;
+
+	boot_ns = ktime_to_ns(ktime_add(tk->base_mono, tk->offs_boot));
 
 	write_seqcount_begin(&vdata->seq);
 
@@ -1004,17 +1006,8 @@ static void update_pvclock_gtod(struct timekeeper *tk)
 	vdata->clock.mult		= tk->mult;
 	vdata->clock.shift		= tk->shift;
 
-	vdata->monotonic_time_sec	= tk->xtime_sec
-					+ tk->wall_to_monotonic.tv_sec;
-	vdata->monotonic_time_snsec	= tk->xtime_nsec
-					+ (tk->wall_to_monotonic.tv_nsec
-						<< tk->shift);
-	while (vdata->monotonic_time_snsec >=
-					(((u64)NSEC_PER_SEC) << tk->shift)) {
-		vdata->monotonic_time_snsec -=
-					((u64)NSEC_PER_SEC) << tk->shift;
-		vdata->monotonic_time_sec++;
-	}
+	vdata->boot_ns			= boot_ns;
+	vdata->nsec_base		= tk->xtime_nsec;
 
 	write_seqcount_end(&vdata->seq);
 }
@@ -1371,23 +1364,22 @@ static inline u64 vgettsc(cycle_t *cycle_now)
 	return v * gtod->clock.mult;
 }
 
-static int do_monotonic(struct timespec *ts, cycle_t *cycle_now)
+static int do_monotonic_boot(s64 *t, cycle_t *cycle_now)
 {
-	unsigned long seq;
-	u64 ns;
-	int mode;
 	struct pvclock_gtod_data *gtod = &pvclock_gtod_data;
+	unsigned long seq;
+	int mode;
+	u64 ns;
 
-	ts->tv_nsec = 0;
 	do {
 		seq = read_seqcount_begin(&gtod->seq);
 		mode = gtod->clock.vclock_mode;
-		ts->tv_sec = gtod->monotonic_time_sec;
-		ns = gtod->monotonic_time_snsec;
+		ns = gtod->nsec_base;
 		ns += vgettsc(cycle_now);
 		ns >>= gtod->clock.shift;
+		ns += gtod->boot_ns;
 	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
-	timespec_add_ns(ts, ns);
+	*t = ns;
 
 	return mode;
 }
@@ -1395,19 +1387,11 @@ static int do_monotonic(struct timespec *ts, cycle_t *cycle_now)
 /* returns true if host is using tsc clocksource */
 static bool kvm_get_time_and_clockread(s64 *kernel_ns, cycle_t *cycle_now)
 {
-	struct timespec ts;
-
 	/* checked again under seqlock below */
 	if (pvclock_gtod_data.clock.vclock_mode != VCLOCK_TSC)
 		return false;
 
-	if (do_monotonic(&ts, cycle_now) != VCLOCK_TSC)
-		return false;
-
-	monotonic_to_bootbased(&ts);
-	*kernel_ns = timespec_to_ns(&ts);
-
-	return true;
+	return do_monotonic_boot(kernel_ns, cycle_now) == VCLOCK_TSC;
 }
 #endif
 
