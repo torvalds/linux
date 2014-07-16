@@ -175,30 +175,6 @@ struct adt7470_data {
 	unsigned int		auto_update_interval;
 };
 
-static int adt7470_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id);
-static int adt7470_detect(struct i2c_client *client,
-			  struct i2c_board_info *info);
-static int adt7470_remove(struct i2c_client *client);
-
-static const struct i2c_device_id adt7470_id[] = {
-	{ "adt7470", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, adt7470_id);
-
-static struct i2c_driver adt7470_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "adt7470",
-	},
-	.probe		= adt7470_probe,
-	.remove		= adt7470_remove,
-	.id_table	= adt7470_id,
-	.detect		= adt7470_detect,
-	.address_list	= normal_i2c,
-};
-
 /*
  * 16-bit registers on the ADT7470 are low-byte first.  The data sheet says
  * that the low byte must be read before the high byte.
@@ -216,18 +192,6 @@ static inline int adt7470_write_word_data(struct i2c_client *client, u8 reg,
 {
 	return i2c_smbus_write_byte_data(client, reg, value & 0xFF)
 	       || i2c_smbus_write_byte_data(client, reg + 1, value >> 8);
-}
-
-static void adt7470_init_client(struct i2c_client *client)
-{
-	int reg = i2c_smbus_read_byte_data(client, ADT7470_REG_CFG);
-
-	if (reg < 0) {
-		dev_err(&client->dev, "cannot read configuration register\n");
-	} else {
-		/* start monitoring (and do a self-test) */
-		i2c_smbus_write_byte_data(client, ADT7470_REG_CFG, reg | 3);
-	}
 }
 
 /* Probe for temperature sensors.  Assumes lock is held */
@@ -1250,6 +1214,18 @@ static int adt7470_detect(struct i2c_client *client,
 	return 0;
 }
 
+static void adt7470_init_client(struct i2c_client *client)
+{
+	int reg = i2c_smbus_read_byte_data(client, ADT7470_REG_CFG);
+
+	if (reg < 0) {
+		dev_err(&client->dev, "cannot read configuration register\n");
+	} else {
+		/* start monitoring (and do a self-test) */
+		i2c_smbus_write_byte_data(client, ADT7470_REG_CFG, reg | 3);
+	}
+}
+
 static int adt7470_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1311,6 +1287,24 @@ static int adt7470_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &data->attrs);
 	return 0;
 }
+
+static const struct i2c_device_id adt7470_id[] = {
+	{ "adt7470", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, adt7470_id);
+
+static struct i2c_driver adt7470_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "adt7470",
+	},
+	.probe		= adt7470_probe,
+	.remove		= adt7470_remove,
+	.id_table	= adt7470_id,
+	.detect		= adt7470_detect,
+	.address_list	= normal_i2c,
+};
 
 module_i2c_driver(adt7470_driver);
 
