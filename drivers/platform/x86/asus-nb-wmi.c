@@ -84,7 +84,7 @@ static int dmi_matched(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct dmi_system_id asus_quirks[] = {
+static const struct dmi_system_id asus_quirks[] = {
 	{
 		.callback = dmi_matched,
 		.ident = "ASUSTeK COMPUTER INC. X401U",
