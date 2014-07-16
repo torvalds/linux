@@ -83,6 +83,12 @@ static inline ktime_t timespec_to_ktime(struct timespec ts)
 	return ktime_set(ts.tv_sec, ts.tv_nsec);
 }
 
+/* convert a timespec64 to ktime_t format: */
+static inline ktime_t timespec64_to_ktime(struct timespec64 ts)
+{
+	return ktime_set(ts.tv_sec, ts.tv_nsec);
+}
+
 /* convert a timeval to ktime_t format: */
 static inline ktime_t timeval_to_ktime(struct timeval tv)
 {
@@ -91,6 +97,9 @@ static inline ktime_t timeval_to_ktime(struct timeval tv)
 
 /* Map the ktime_t to timespec conversion to ns_to_timespec function */
 #define ktime_to_timespec(kt)		ns_to_timespec((kt).tv64)
+
+/* Map the ktime_t to timespec conversion to ns_to_timespec function */
+#define ktime_to_timespec64(kt)		ns_to_timespec64((kt).tv64)
 
 /* Map the ktime_t to timeval conversion to ns_to_timeval function */
 #define ktime_to_timeval(kt)		ns_to_timeval((kt).tv64)
@@ -207,6 +216,25 @@ static inline __must_check bool ktime_to_timespec_cond(const ktime_t kt,
 {
 	if (kt.tv64) {
 		*ts = ktime_to_timespec(kt);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+/**
+ * ktime_to_timespec64_cond - convert a ktime_t variable to timespec64
+ *			    format only if the variable contains data
+ * @kt:		the ktime_t variable to convert
+ * @ts:		the timespec variable to store the result in
+ *
+ * Return: %true if there was a successful conversion, %false if kt was 0.
+ */
+static inline __must_check bool ktime_to_timespec64_cond(const ktime_t kt,
+						       struct timespec64 *ts)
+{
+	if (kt.tv64) {
+		*ts = ktime_to_timespec64(kt);
 		return true;
 	} else {
 		return false;
