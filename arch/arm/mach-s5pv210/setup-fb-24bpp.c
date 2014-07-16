@@ -13,12 +13,12 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/fb.h>
-#include <linux/gpio.h>
 
 #include <mach/map.h>
 #include <plat/fb.h>
 #include <mach/regs-clock.h>
 #include <plat/gpio-cfg.h>
+#include <mach/gpio-samsung.h>
 
 static void s5pv210_fb_cfg_gpios(unsigned int base, unsigned int nr)
 {

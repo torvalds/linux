@@ -14,7 +14,6 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
 #include <linux/irqchip/arm-vic.h>
 #include <linux/of.h>
 
@@ -26,6 +25,7 @@
 
 #include <plat/gpio-cfg.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 static inline void s5p_irq_eint_mask(struct irq_data *data)
 {

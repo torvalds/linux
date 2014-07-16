@@ -8,9 +8,10 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/gpio.h>
+#include <linux/kernel.h>
 #include <plat/gpio-cfg.h>
 #include <plat/camport.h>
+#include <mach/gpio-samsung.h>
 
 int s5pv210_fimc_setup_gpio(enum s5p_camport_id id)
 {

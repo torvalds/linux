@@ -10,7 +10,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/gpio.h>
 
 #include <plat/gpio-cfg.h>
 #include <linux/platform_data/asoc-s3c.h>
@@ -18,6 +17,7 @@
 #include <mach/map.h>
 #include <mach/dma.h>
 #include <mach/irqs.h>
+#include <mach/gpio-samsung.h>
 
 #define S5PV210_AUDSS_INT_MEM	(0xC0000000)
 

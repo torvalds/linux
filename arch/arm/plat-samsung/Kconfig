@@ -107,22 +107,6 @@ config S5P_GPIO_DRVSTR
 	  Internal configuration to get and set correct GPIO driver strength
 	  helper
 
-config SAMSUNG_GPIO_EXTRA
-	int "Number of additional GPIO pins"
-	default 128 if SAMSUNG_GPIO_EXTRA128
-	default 64 if SAMSUNG_GPIO_EXTRA64
-	default 0
-	help
-	  Use additional GPIO space in addition to the GPIO's the SOC
-	  provides. This allows expanding the GPIO space for use with
-	  GPIO expanders.
-
-config SAMSUNG_GPIO_EXTRA64
-	bool
-
-config SAMSUNG_GPIO_EXTRA128
-	bool
-
 config S3C_GPIO_SPACE
 	int "Space between gpio banks"
 	default 0
