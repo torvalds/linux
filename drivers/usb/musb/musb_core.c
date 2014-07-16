@@ -1753,9 +1753,11 @@ static void musb_irq_work(struct work_struct *data)
 static void musb_recover_work(struct work_struct *data)
 {
 	struct musb *musb = container_of(data, struct musb, recover_work.work);
-	int status;
+	int status, ret;
 
-	musb_platform_reset(musb);
+	ret  = musb_platform_reset(musb);
+	if (ret)
+		return;
 
 	usb_phy_vbus_off(musb->xceiv);
 	usleep_range(100, 200);
@@ -1764,8 +1766,8 @@ static void musb_recover_work(struct work_struct *data)
 	usleep_range(100, 200);
 
 	/*
-	 * When a babble condition occurs, the musb controller removes the
-	 * session bit and the endpoint config is lost.
+	 * When a babble condition occurs, the musb controller
+	 * removes the session bit and the endpoint config is lost.
 	 */
 	if (musb->dyn_fifo)
 		status = ep_config_from_table(musb);
