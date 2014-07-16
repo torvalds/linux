@@ -75,8 +75,8 @@ static void rk3036_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 			 "%s change pwr_mode NORMAL pwr_mode = %d, mode = %d\n",
 			 __func__, hdmi_drv->pwr_mode, mode);
 		rk3036_hdmi_sys_power(hdmi_drv, false);
-		hdmi_writel(hdmi_dev, PHY_DRIVER, 0x99);
-		hdmi_writel(hdmi_dev, PHY_PRE_EMPHASIS, 0x0f);
+		hdmi_writel(hdmi_dev, PHY_DRIVER, 0xaa);
+		hdmi_writel(hdmi_dev, PHY_PRE_EMPHASIS, 0x5f);
 		hdmi_writel(hdmi_dev, PHY_SYS_CTL, 0x15);
 		hdmi_writel(hdmi_dev, PHY_SYS_CTL, 0x14);
 		hdmi_writel(hdmi_dev, PHY_SYS_CTL, 0x10);
