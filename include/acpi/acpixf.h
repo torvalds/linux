@@ -53,8 +53,6 @@
 #include <acpi/actbl.h>
 #include <acpi/acbuffer.h>
 
-extern u8 acpi_gbl_permanent_mmap;
-
 /*****************************************************************************
  *
  * Macros used for ACPICA globals and configuration
@@ -865,17 +863,25 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
 /*
  * Divergences
  */
-acpi_status acpi_get_id(acpi_handle object, acpi_owner_id * out_type);
+ACPI_GLOBAL(u8, acpi_gbl_permanent_mmap);
 
-acpi_status acpi_unload_table_id(acpi_owner_id id);
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status
+			    acpi_get_id(acpi_handle object,
+					acpi_owner_id * out_type))
 
-acpi_status
-acpi_get_table_with_size(acpi_string signature,
-	       u32 instance, struct acpi_table_header **out_table,
-	       acpi_size *tbl_size);
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status acpi_unload_table_id(acpi_owner_id id))
 
-acpi_status
-acpi_get_data_full(acpi_handle object, acpi_object_handler handler, void **data,
-		   void (*callback)(void *));
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status
+			    acpi_get_table_with_size(acpi_string signature,
+						     u32 instance,
+						     struct acpi_table_header
+						     **out_table,
+						     acpi_size *tbl_size))
+
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status
+			    acpi_get_data_full(acpi_handle object,
+					       acpi_object_handler handler,
+					       void **data,
+					       void (*callback)(void *)))
 
 #endif				/* __ACXFACE_H__ */
