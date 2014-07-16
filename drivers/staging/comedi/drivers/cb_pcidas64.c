@@ -1769,6 +1769,7 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		 *  as it is very slow */
 		if (old_cal_range_bits != devpriv->i2c_cal_range_bits) {
 			uint8_t i2c_data = devpriv->i2c_cal_range_bits;
+
 			i2c_write(dev, RANGE_CAL_I2C_ADDR, &i2c_data,
 				  sizeof(i2c_data));
 		}
@@ -2446,6 +2447,7 @@ static int setup_channel_queue(struct comedi_device *dev,
 		 *  as it is very slow */
 		if (old_cal_range_bits != devpriv->i2c_cal_range_bits) {
 			uint8_t i2c_data = devpriv->i2c_cal_range_bits;
+
 			i2c_write(dev, RANGE_CAL_I2C_ADDR, &i2c_data,
 				  sizeof(i2c_data));
 		}
@@ -3373,6 +3375,7 @@ static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static int dio_callback(int dir, int port, int data, unsigned long arg)
 {
 	void __iomem *iobase = (void __iomem *)arg;
+
 	if (dir) {
 		writeb(data, iobase + port);
 		return 0;
@@ -3383,6 +3386,7 @@ static int dio_callback(int dir, int port, int data, unsigned long arg)
 static int dio_callback_4020(int dir, int port, int data, unsigned long arg)
 {
 	void __iomem *iobase = (void __iomem *)arg;
+
 	if (dir) {
 		writew(data, iobase + 2 * port);
 		return 0;
