@@ -678,18 +678,11 @@ static const struct attribute_group *ccwdev_attr_groups[] = {
 	NULL,
 };
 
-/* this is a simple abstraction for device_register that sets the
- * correct bus type and adds the bus specific files */
-static int ccw_device_register(struct ccw_device *cdev)
+static int ccw_device_add(struct ccw_device *cdev)
 {
 	struct device *dev = &cdev->dev;
-	int ret;
 
 	dev->bus = &ccw_bus_type;
-	ret = dev_set_name(&cdev->dev, "0.%x.%04x", cdev->private->dev_id.ssid,
-			   cdev->private->dev_id.devno);
-	if (ret)
-		return ret;
 	return device_add(dev);
 }
 
@@ -764,22 +757,46 @@ static void ccw_device_todo(struct work_struct *work);
 static int io_subchannel_initialize_dev(struct subchannel *sch,
 					struct ccw_device *cdev)
 {
-	cdev->private->cdev = cdev;
-	cdev->private->int_class = IRQIO_CIO;
-	atomic_set(&cdev->private->onoff, 0);
+	struct ccw_device_private *priv = cdev->private;
+	int ret;
+
+	priv->cdev = cdev;
+	priv->int_class = IRQIO_CIO;
+	priv->state = DEV_STATE_NOT_OPER;
+	priv->dev_id.devno = sch->schib.pmcw.dev;
+	priv->dev_id.ssid = sch->schid.ssid;
+	priv->schid = sch->schid;
+
+	INIT_WORK(&priv->todo_work, ccw_device_todo);
+	INIT_LIST_HEAD(&priv->cmb_list);
+	init_waitqueue_head(&priv->wait_q);
+	init_timer(&priv->timer);
+
+	atomic_set(&priv->onoff, 0);
+	cdev->ccwlock = sch->lock;
 	cdev->dev.parent = &sch->dev;
 	cdev->dev.release = ccw_device_release;
-	INIT_WORK(&cdev->private->todo_work, ccw_device_todo);
 	cdev->dev.groups = ccwdev_attr_groups;
 	/* Do first half of device_register. */
 	device_initialize(&cdev->dev);
+	ret = dev_set_name(&cdev->dev, "0.%x.%04x", cdev->private->dev_id.ssid,
+			   cdev->private->dev_id.devno);
+	if (ret)
+		goto out_put;
 	if (!get_device(&sch->dev)) {
-		/* Release reference from device_initialize(). */
-		put_device(&cdev->dev);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out_put;
 	}
-	cdev->private->flags.initialized = 1;
+	priv->flags.initialized = 1;
+	spin_lock_irq(sch->lock);
+	sch_set_cdev(sch, cdev);
+	spin_unlock_irq(sch->lock);
 	return 0;
+
+out_put:
+	/* Release reference from device_initialize(). */
+	put_device(&cdev->dev);
+	return ret;
 }
 
 static struct ccw_device * io_subchannel_create_ccwdev(struct subchannel *sch)
@@ -858,7 +875,7 @@ static void io_subchannel_register(struct ccw_device *cdev)
 	dev_set_uevent_suppress(&sch->dev, 0);
 	kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 	/* make it known to the system */
-	ret = ccw_device_register(cdev);
+	ret = ccw_device_add(cdev);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Could not register ccw dev 0.%x.%04x: %d\n",
 			      cdev->private->dev_id.ssid,
@@ -923,26 +940,11 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 
 static void io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 {
-	struct ccw_device_private *priv;
-
-	cdev->ccwlock = sch->lock;
-
-	/* Init private data. */
-	priv = cdev->private;
-	priv->dev_id.devno = sch->schib.pmcw.dev;
-	priv->dev_id.ssid = sch->schid.ssid;
-	priv->schid = sch->schid;
-	priv->state = DEV_STATE_NOT_OPER;
-	INIT_LIST_HEAD(&priv->cmb_list);
-	init_waitqueue_head(&priv->wait_q);
-	init_timer(&priv->timer);
-
 	/* Increase counter of devices currently in recognition. */
 	atomic_inc(&ccw_device_init_count);
 
 	/* Start async. device sensing. */
 	spin_lock_irq(sch->lock);
-	sch_set_cdev(sch, cdev);
 	ccw_device_recognition(cdev);
 	spin_unlock_irq(sch->lock);
 }
@@ -1083,7 +1085,7 @@ static int io_subchannel_probe(struct subchannel *sch)
 		dev_set_uevent_suppress(&sch->dev, 0);
 		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 		cdev = sch_get_cdev(sch);
-		rc = ccw_device_register(cdev);
+		rc = ccw_device_add(cdev);
 		if (rc) {
 			/* Release online reference. */
 			put_device(&cdev->dev);
@@ -1597,7 +1599,6 @@ int __init ccw_device_enable_console(struct ccw_device *cdev)
 	if (rc)
 		return rc;
 	sch->driver = &io_subchannel_driver;
-	sch_set_cdev(sch, cdev);
 	io_subchannel_recog(cdev, sch);
 	/* Now wait for the async. recognition to come to an end. */
 	spin_lock_irq(cdev->ccwlock);
@@ -1639,6 +1640,7 @@ struct ccw_device * __init ccw_device_create_console(struct ccw_driver *drv)
 		put_device(&sch->dev);
 		return ERR_PTR(-ENOMEM);
 	}
+	set_io_private(sch, io_priv);
 	cdev = io_subchannel_create_ccwdev(sch);
 	if (IS_ERR(cdev)) {
 		put_device(&sch->dev);
@@ -1646,7 +1648,6 @@ struct ccw_device * __init ccw_device_create_console(struct ccw_driver *drv)
 		return cdev;
 	}
 	cdev->drv = drv;
-	set_io_private(sch, io_priv);
 	ccw_device_set_int_class(cdev);
 	return cdev;
 }

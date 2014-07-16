@@ -602,6 +602,7 @@ void __init init_cio_interrupts(void)
 
 #ifdef CONFIG_CCW_CONSOLE
 static struct subchannel *console_sch;
+static struct lock_class_key console_sch_key;
 
 /*
  * Use cio_tsch to update the subchannel status and call the interrupt handler
@@ -686,6 +687,7 @@ struct subchannel *cio_probe_console(void)
 	if (IS_ERR(sch))
 		return sch;
 
+	lockdep_set_class(sch->lock, &console_sch_key);
 	isc_register(CONSOLE_ISC);
 	sch->config.isc = CONSOLE_ISC;
 	sch->config.intparm = (u32)(addr_t)sch;

@@ -286,6 +286,11 @@ STAC92HD83*
   hp-inv-led	HP with broken BIOS for inverted mute LED
   auto		BIOS setup (default)
 
+STAC92HD95
+==========
+  hp-led	LED support for HP laptops
+  hp-bass	Bass HPF setup for HP Spectre 13
+
 STAC9872
 ========
   vaio		VAIO laptop without SPDIF

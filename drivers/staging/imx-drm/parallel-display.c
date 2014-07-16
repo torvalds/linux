@@ -173,6 +173,13 @@ static int imx_pd_register(struct drm_device *drm,
 	if (ret)
 		return ret;
 
+	/* set the connector's dpms to OFF so that
+	 * drm_helper_connector_dpms() won't return
+	 * immediately since the current state is ON
+	 * at this point.
+	 */
+	imxpd->connector.dpms = DRM_MODE_DPMS_OFF;
+
 	drm_encoder_helper_add(&imxpd->encoder, &imx_pd_encoder_helper_funcs);
 	drm_encoder_init(drm, &imxpd->encoder, &imx_pd_encoder_funcs,
 			 DRM_MODE_ENCODER_NONE);

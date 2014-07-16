@@ -209,15 +209,12 @@ If memory device is found, memory hotplug code will be called.
 
 4.2 Notify memory hot-add event by hand
 ------------
-On powerpc, the firmware does not notify a memory hotplug event to the kernel.
-Therefore, "probe" interface is supported to notify the event to the kernel.
-This interface depends on CONFIG_ARCH_MEMORY_PROBE.
-
-CONFIG_ARCH_MEMORY_PROBE is supported on powerpc only. On x86, this config
-option is disabled by default since ACPI notifies a memory hotplug event to
-the kernel, which performs its hotplug operation as the result. Please
-enable this option if you need the "probe" interface for testing purposes
-on x86.
+On some architectures, the firmware may not notify the kernel of a memory
+hotplug event.  Therefore, the memory "probe" interface is supported to
+explicitly notify the kernel.  This interface depends on
+CONFIG_ARCH_MEMORY_PROBE and can be configured on powerpc, sh, and x86
+if hotplug is supported, although for x86 this should be handled by ACPI
+notification.
 
 Probe interface is located at
 /sys/devices/system/memory/probe

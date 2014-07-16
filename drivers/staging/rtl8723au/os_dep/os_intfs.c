@@ -29,7 +29,9 @@ MODULE_AUTHOR("Realtek Semiconductor Corp.");
 MODULE_AUTHOR("Larry Finger <Larry.Finger@lwfinger.net>");
 MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@redhat.com>");
 MODULE_VERSION(DRIVERVERSION);
-MODULE_FIRMWARE("rtlwifi/rtl8821aefw.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8723aufw_A.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8723aufw_B.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8723aufw_B_NoBT.bin");
 
 /* module param defaults */
 static int rtw_chip_version = 0x00;

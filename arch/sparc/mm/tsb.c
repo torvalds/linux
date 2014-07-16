@@ -9,6 +9,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
+#include <asm/setup.h>
 #include <asm/tsb.h>
 #include <asm/tlb.h>
 #include <asm/oplib.h>

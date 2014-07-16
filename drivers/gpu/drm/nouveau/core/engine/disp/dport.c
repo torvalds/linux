@@ -241,7 +241,9 @@ dp_link_train_eq(struct dp_state *dp)
 		dp_set_training_pattern(dp, 2);
 
 	do {
-		if (dp_link_train_update(dp, dp->pc2, 400))
+		if ((tries &&
+		    dp_link_train_commit(dp, dp->pc2)) ||
+		    dp_link_train_update(dp, dp->pc2, 400))
 			break;
 
 		eq_done = !!(dp->stat[2] & DPCD_LS04_INTERLANE_ALIGN_DONE);
@@ -253,9 +255,6 @@ dp_link_train_eq(struct dp_state *dp)
 			    !(lane & DPCD_LS02_LANE0_SYMBOL_LOCKED))
 				eq_done = false;
 		}
-
-		if (dp_link_train_commit(dp, dp->pc2))
-			break;
 	} while (!eq_done && cr_done && ++tries <= 5);
 
 	return eq_done ? 0 : -1;

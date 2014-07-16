@@ -191,7 +191,9 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 				     DLM_UNLOCK_CLEAR_CONVERT_TYPE);
 		} else if (status == DLM_RECOVERING ||
 			   status == DLM_MIGRATING ||
-			   status == DLM_FORWARD) {
+			   status == DLM_FORWARD ||
+			   status == DLM_NOLOCKMGR
+			   ) {
 			/* must clear the actions because this unlock
 			 * is about to be retried.  cannot free or do
 			 * any list manipulation. */
@@ -200,7 +202,8 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 			     res->lockname.name,
 			     status==DLM_RECOVERING?"recovering":
 			     (status==DLM_MIGRATING?"migrating":
-			      "forward"));
+				(status == DLM_FORWARD ? "forward" :
+						"nolockmanager")));
 			actions = 0;
 		}
 		if (flags & LKM_CANCEL)
@@ -364,7 +367,10 @@ static enum dlm_status dlm_send_remote_unlock_request(struct dlm_ctxt *dlm,
 			 * updated state to the recovery master.  this thread
 			 * just needs to finish out the operation and call
 			 * the unlockast. */
-			ret = DLM_NORMAL;
+			if (dlm_is_node_dead(dlm, owner))
+				ret = DLM_NORMAL;
+			else
+				ret = DLM_NOLOCKMGR;
 		} else {
 			/* something bad.  this will BUG in ocfs2 */
 			ret = dlm_err_to_dlm_status(tmpret);
@@ -638,7 +644,9 @@ retry:
 
 	if (status == DLM_RECOVERING ||
 	    status == DLM_MIGRATING ||
-	    status == DLM_FORWARD) {
+	    status == DLM_FORWARD ||
+	    status == DLM_NOLOCKMGR) {
+
 		/* We want to go away for a tiny bit to allow recovery
 		 * / migration to complete on this resource. I don't
 		 * know of any wait queue we could sleep on as this
@@ -650,7 +658,7 @@ retry:
 		msleep(50);
 
 		mlog(0, "retrying unlock due to pending recovery/"
-		     "migration/in-progress\n");
+		     "migration/in-progress/reconnect\n");
 		goto retry;
 	}
 
