@@ -266,8 +266,8 @@ EXPORT_SYMBOL(of_find_all_nodes);
  * Find a property with a given name for a given node
  * and return the value.
  */
-static const void *__of_get_property(const struct device_node *np,
-				     const char *name, int *lenp)
+const void *__of_get_property(const struct device_node *np,
+			      const char *name, int *lenp)
 {
 	struct property *pp = __of_find_property(np, name, lenp);
 

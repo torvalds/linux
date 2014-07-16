@@ -63,6 +63,8 @@ static inline int of_property_notify(int action, struct device_node *np,
 struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags);
 struct device_node *__of_node_alloc(const char *full_name, gfp_t allocflags);
 
+extern const void *__of_get_property(const struct device_node *np,
+				     const char *name, int *lenp);
 extern int __of_add_property(struct device_node *np, struct property *prop);
 extern int __of_add_property_sysfs(struct device_node *np,
 		struct property *prop);
