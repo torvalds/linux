@@ -380,11 +380,11 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_of_parse:
-err_cd_req:
 err_add_host:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+err_of_parse:
+err_cd_req:
 	clk_disable_unprepare(clk);
 err_clk_get:
 err_mbus_win:
