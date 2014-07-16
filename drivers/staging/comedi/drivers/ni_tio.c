@@ -463,6 +463,7 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 
 	if (ni_tio_counting_mode_registers_present(counter_dev)) {
 		unsigned counting_mode_bits = 0;
+
 		counting_mode_bits |=
 		    (mode >> NI_GPCT_COUNTING_MODE_SHIFT) &
 		    Gi_Counting_Mode_Mask;
