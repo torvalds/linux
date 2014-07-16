@@ -310,7 +310,7 @@ static int pcl730_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl730_di_insn_bits;
-		s->private	= board->is_ir104 ? (void*)4 :
+		s->private	= board->is_ir104 ? (void *)4 :
 				  board->is_acl7225b ? (void *)2 :
 				  board->is_pcl725 ? (void *)1 : (void *)0;
 	}
