@@ -1874,7 +1874,6 @@ static int ai_config_master_clock_4020(struct comedi_device *dev,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	data[4] = divisor;
@@ -1890,10 +1889,8 @@ static int ai_config_master_clock(struct comedi_device *dev, unsigned int *data)
 	switch (thisboard->layout) {
 	case LAYOUT_4020:
 		return ai_config_master_clock_4020(dev, data);
-		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return -EINVAL;
@@ -1907,16 +1904,12 @@ static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	switch (id) {
 	case INSN_CONFIG_ALT_SOURCE:
 		return ai_config_calibration_source(dev, data);
-		break;
 	case INSN_CONFIG_BLOCK_SIZE:
 		return ai_config_block_size(dev, data);
-		break;
 	case INSN_CONFIG_TIMER_1:
 		return ai_config_master_clock(dev, data);
-		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 	return -EINVAL;
 }
@@ -2224,7 +2217,6 @@ static uint32_t ai_scan_counter_6xxx(struct comedi_device *dev,
 		break;
 	default:
 		return 0;
-		break;
 	}
 	return count - 3;
 }
@@ -3568,7 +3560,6 @@ static int caldac_i2c_write(struct comedi_device *dev,
 	default:
 		comedi_error(dev, "invalid caldac channel\n");
 		return -1;
-		break;
 	}
 	serial_bytes[1] = NOT_CLEAR_REGISTERS | ((value >> 8) & 0xf);
 	serial_bytes[2] = value & 0xff;
