@@ -2043,6 +2043,7 @@ static int acer_platform_remove(struct platform_device *device)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int acer_suspend(struct device *dev)
 {
 	u32 value;
@@ -2083,6 +2084,10 @@ static int acer_resume(struct device *dev)
 
 	return 0;
 }
+#else
+#define acer_suspend	NULL
+#define acer_resume	NULL
+#endif
 
 static SIMPLE_DEV_PM_OPS(acer_pm, acer_suspend, acer_resume);
 
