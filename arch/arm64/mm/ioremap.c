@@ -103,19 +103,25 @@ void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size)
 }
 EXPORT_SYMBOL(ioremap_cache);
 
-#ifndef CONFIG_ARM64_64K_PAGES
 static pte_t bm_pte[PTRS_PER_PTE] __page_aligned_bss;
+#ifndef CONFIG_ARM64_64K_PAGES
+static pte_t bm_pmd[PTRS_PER_PMD] __page_aligned_bss;
 #endif
 
-static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
+static inline pud_t * __init early_ioremap_pud(unsigned long addr)
 {
 	pgd_t *pgd;
-	pud_t *pud;
 
 	pgd = pgd_offset_k(addr);
 	BUG_ON(pgd_none(*pgd) || pgd_bad(*pgd));
 
-	pud = pud_offset(pgd, addr);
+	return pud_offset(pgd, addr);
+}
+
+static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
+{
+	pud_t *pud = early_ioremap_pud(addr);
+
 	BUG_ON(pud_none(*pud) || pud_bad(*pud));
 
 	return pmd_offset(pud, addr);
@@ -132,13 +138,17 @@ static inline pte_t * __init early_ioremap_pte(unsigned long addr)
 
 void __init early_ioremap_init(void)
 {
+	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
+	unsigned long addr = fix_to_virt(FIX_BTMAP_BEGIN);
 
-	pmd = early_ioremap_pmd(fix_to_virt(FIX_BTMAP_BEGIN));
-#ifndef CONFIG_ARM64_64K_PAGES
-	/* need to populate pmd for 4k pagesize only */
+	pgd = pgd_offset_k(addr);
+	pud = pud_offset(pgd, addr);
+	pud_populate(&init_mm, pud, bm_pmd);
+	pmd = pmd_offset(pud, addr);
 	pmd_populate_kernel(&init_mm, pmd, bm_pte);
-#endif
+
 	/*
 	 * The boot-ioremap range spans multiple pmds, for which
 	 * we are not prepared:
