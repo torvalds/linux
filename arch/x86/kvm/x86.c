@@ -1109,11 +1109,7 @@ static void kvm_get_time_scale(uint32_t scaled_khz, uint32_t base_khz,
 
 static inline u64 get_kernel_ns(void)
 {
-	struct timespec ts;
-
-	ktime_get_ts(&ts);
-	monotonic_to_bootbased(&ts);
-	return timespec_to_ns(&ts);
+	return ktime_get_boot_ns();
 }
 
 #ifdef CONFIG_X86_64
