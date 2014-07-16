@@ -776,7 +776,7 @@ int vnt_radio_power_on(struct vnt_private *priv)
 
 	priv->bRadioOff = false;
 
-	BBvExitDeepSleep(priv);
+	vnt_exit_deep_sleep(priv);
 
 	vnt_mac_reg_bits_on(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
 

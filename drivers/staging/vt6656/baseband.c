@@ -575,7 +575,7 @@ void vnt_set_deep_sleep(struct vnt_private *priv)
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0d, 0xB9);/* CR13 */
 }
 
-void BBvExitDeepSleep(struct vnt_private *priv)
+void vnt_exit_deep_sleep(struct vnt_private *priv)
 {
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0c, 0x00);/* CR12 */
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0d, 0x01);/* CR13 */
