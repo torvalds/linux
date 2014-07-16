@@ -619,10 +619,8 @@ static inline unsigned ni_660x_read_register(struct comedi_device *dev,
 	switch (registerData[reg].size) {
 	case DATA_2B:
 		return readw(read_address);
-		break;
 	case DATA_4B:
 		return readl(read_address);
-		break;
 	default:
 		BUG();
 		break;
