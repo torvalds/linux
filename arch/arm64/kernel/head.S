@@ -476,43 +476,38 @@ ENDPROC(__calc_phys_offset)
 	.quad	PAGE_OFFSET
 
 /*
- * Macro to populate the PUD for the corresponding block entry in the next
- * level (tbl) for the given virtual address in case of 4 levels.
+ * Macro to create a table entry to the next page.
  *
- * Preserves:	pgd, virt
- * Corrupts:	tbl, tmp1, tmp2
- * Returns:	pud
+ *	tbl:	page table address
+ *	virt:	virtual address
+ *	shift:	#imm page table shift
+ *	ptrs:	#imm pointers per table page
+ *
+ * Preserves:	virt
+ * Corrupts:	tmp1, tmp2
+ * Returns:	tbl -> next level table page address
  */
-	.macro	create_pud_entry, pgd, tbl, virt, pud, tmp1, tmp2
-#if CONFIG_ARM64_PGTABLE_LEVELS == 4
-	add	\tbl, \tbl, #PAGE_SIZE		// bump tbl 1 page up.
-						// to make room for pud
-	add	\pud, \pgd, #PAGE_SIZE		// pgd points to pud which
-						// follows pgd
-	lsr	\tmp1, \virt, #PUD_SHIFT
-	and	\tmp1, \tmp1, #PTRS_PER_PUD - 1	// PUD index
-	orr	\tmp2, \tbl, #3			// PUD entry table type
-	str	\tmp2, [\pud, \tmp1, lsl #3]
-#else
-	mov	\pud, \tbl
-#endif
+	.macro	create_table_entry, tbl, virt, shift, ptrs, tmp1, tmp2
+	lsr	\tmp1, \virt, #\shift
+	and	\tmp1, \tmp1, #\ptrs - 1	// table index
+	add	\tmp2, \tbl, #PAGE_SIZE
+	orr	\tmp2, \tmp2, #PMD_TYPE_TABLE	// address of next table and entry type
+	str	\tmp2, [\tbl, \tmp1, lsl #3]
+	add	\tbl, \tbl, #PAGE_SIZE		// next level table page
 	.endm
 
 /*
  * Macro to populate the PGD (and possibily PUD) for the corresponding
  * block entry in the next level (tbl) for the given virtual address.
  *
- * Preserves:	pgd, virt
- * Corrupts:	tmp1, tmp2, tmp3
- * Returns:	tbl -> page where block mappings can be placed
- *	(changed to make room for pud with 4 levels, preserved otherwise)
+ * Preserves:	tbl, next, virt
+ * Corrupts:	tmp1, tmp2
  */
-	.macro	create_pgd_entry, pgd, tbl, virt, tmp1, tmp2, tmp3
-	create_pud_entry \pgd, \tbl, \virt, \tmp3, \tmp1, \tmp2
-	lsr	\tmp1, \virt, #PGDIR_SHIFT
-	and	\tmp1, \tmp1, #PTRS_PER_PGD - 1	// PGD index
-	orr	\tmp2, \tmp3, #3		// PGD entry table type
-	str	\tmp2, [\pgd, \tmp1, lsl #3]
+	.macro	create_pgd_entry, tbl, virt, tmp1, tmp2
+	create_table_entry \tbl, \virt, PGDIR_SHIFT, PTRS_PER_PGD, \tmp1, \tmp2
+#if CONFIG_ARM64_PGTABLE_LEVELS == 4
+	create_table_entry \tbl, \virt, PUD_SHIFT, PTRS_PER_PUD, \tmp1, \tmp2
+#endif
 	.endm
 
 /*
@@ -573,10 +568,10 @@ __create_page_tables:
 	/*
 	 * Create the identity mapping.
 	 */
-	add	x0, x25, #PAGE_SIZE		// section table address
+	mov	x0, x25				// idmap_pg_dir
 	ldr	x3, =KERNEL_START
 	add	x3, x3, x28			// __pa(KERNEL_START)
-	create_pgd_entry x25, x0, x3, x1, x5, x6
+	create_pgd_entry x0, x3, x5, x6
 	ldr	x6, =KERNEL_END
 	mov	x5, x3				// __pa(KERNEL_START)
 	add	x6, x6, x28			// __pa(KERNEL_END)
@@ -585,9 +580,9 @@ __create_page_tables:
 	/*
 	 * Map the kernel image (starting with PHYS_OFFSET).
 	 */
-	add	x0, x26, #PAGE_SIZE		// section table address
+	mov	x0, x26				// swapper_pg_dir
 	mov	x5, #PAGE_OFFSET
-	create_pgd_entry x26, x0, x5, x1, x3, x6
+	create_pgd_entry x0, x5, x3, x6
 	ldr	x6, =KERNEL_END
 	mov	x3, x24				// phys offset
 	create_block_map x0, x7, x3, x5, x6
