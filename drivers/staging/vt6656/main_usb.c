@@ -203,18 +203,18 @@ static bool device_alloc_bufs(struct vnt_private *pDevice);
 
 static void usb_device_reset(struct vnt_private *pDevice);
 
-static void device_set_options(struct vnt_private *pDevice)
+static void device_set_options(struct vnt_private *priv)
 {
-	pDevice->cbTD = TX_DESC_DEF0;
-	pDevice->cbRD = RX_DESC_DEF0;
-	pDevice->byShortRetryLimit = SHORT_RETRY_DEF;
-	pDevice->byLongRetryLimit = LONG_RETRY_DEF;
-	pDevice->op_mode = NL80211_IFTYPE_UNSPECIFIED;
-	pDevice->byBBType = BBP_TYPE_DEF;
-	pDevice->byPacketType = pDevice->byBBType;
-	pDevice->byAutoFBCtrl = AUTO_FB_0;
-	pDevice->byPreambleType = 0;
-	pDevice->bExistSWNetAddr = false;
+	priv->cbTD = TX_DESC_DEF0;
+	priv->cbRD = RX_DESC_DEF0;
+	priv->byShortRetryLimit = SHORT_RETRY_DEF;
+	priv->byLongRetryLimit = LONG_RETRY_DEF;
+	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
+	priv->byBBType = BBP_TYPE_DEF;
+	priv->byPacketType = priv->byBBType;
+	priv->byAutoFBCtrl = AUTO_FB_0;
+	priv->byPreambleType = 0;
+	priv->bExistSWNetAddr = false;
 }
 
 /*
