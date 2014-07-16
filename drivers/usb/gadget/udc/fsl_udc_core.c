@@ -59,9 +59,9 @@
 static const char driver_name[] = "fsl-usb2-udc";
 static const char driver_desc[] = DRIVER_DESC;
 
-static struct usb_dr_device *dr_regs;
+static struct usb_dr_device __iomem *dr_regs;
 
-static struct usb_sys_interface *usb_sys_regs;
+static struct usb_sys_interface __iomem *usb_sys_regs;
 
 /* it is initialized in probe()  */
 static struct fsl_udc *udc_controller = NULL;
@@ -159,6 +159,8 @@ static inline void fsl_set_accessors(struct fsl_usb2_platform_data *pdata) {}
  *	request is still in progress.
  *--------------------------------------------------------------*/
 static void done(struct fsl_ep *ep, struct fsl_req *req, int status)
+__releases(ep->udc->lock)
+__acquires(ep->udc->lock)
 {
 	struct fsl_udc *udc = NULL;
 	unsigned char stopped = ep->stopped;
@@ -1392,6 +1394,8 @@ stall:
 
 static void setup_received_irq(struct fsl_udc *udc,
 		struct usb_ctrlrequest *setup)
+__releases(udc->lock)
+__acquires(udc->lock)
 {
 	u16 wValue = le16_to_cpu(setup->wValue);
 	u16 wIndex = le16_to_cpu(setup->wIndex);
@@ -1957,7 +1961,7 @@ static int fsl_udc_start(struct usb_gadget *g,
 						    &udc_controller->gadget);
 			if (retval < 0) {
 				ERR("can't bind to transceiver\n");
-				udc_controller->driver = 0;
+				udc_controller->driver = NULL;
 				return retval;
 			}
 		}
@@ -2379,7 +2383,7 @@ static int fsl_udc_probe(struct platform_device *pdev)
 		goto err_release_mem_region;
 	}
 
-	pdata->regs = (void *)dr_regs;
+	pdata->regs = (void __iomem *)dr_regs;
 
 	/*
 	 * do platform specific init: check the clock, grab/config pins, etc.
