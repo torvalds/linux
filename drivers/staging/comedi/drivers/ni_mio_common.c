@@ -250,8 +250,8 @@ static void ni_writel(struct comedi_device *dev, uint32_t data, int reg)
 
 	if (devpriv->mite)
 		writel(data, devpriv->mite->daq_io_addr + reg);
-	else
-		outl(data, dev->iobase + reg);
+
+	outl(data, dev->iobase + reg);
 }
 
 static void ni_writew(struct comedi_device *dev, uint16_t data, int reg)
@@ -260,8 +260,8 @@ static void ni_writew(struct comedi_device *dev, uint16_t data, int reg)
 
 	if (devpriv->mite)
 		writew(data, devpriv->mite->daq_io_addr + reg);
-	else
-		outw(data, dev->iobase + reg);
+
+	outw(data, dev->iobase + reg);
 }
 
 static void ni_writeb(struct comedi_device *dev, uint8_t data, int reg)
@@ -270,8 +270,8 @@ static void ni_writeb(struct comedi_device *dev, uint8_t data, int reg)
 
 	if (devpriv->mite)
 		writeb(data, devpriv->mite->daq_io_addr + reg);
-	else
-		outb(data, dev->iobase + reg);
+
+	outb(data, dev->iobase + reg);
 }
 
 static uint32_t ni_readl(struct comedi_device *dev, int reg)
@@ -280,8 +280,8 @@ static uint32_t ni_readl(struct comedi_device *dev, int reg)
 
 	if (devpriv->mite)
 		return readl(devpriv->mite->daq_io_addr + reg);
-	else
-		return inl(dev->iobase + reg);
+
+	return inl(dev->iobase + reg);
 }
 
 static uint16_t ni_readw(struct comedi_device *dev, int reg)
@@ -290,8 +290,8 @@ static uint16_t ni_readw(struct comedi_device *dev, int reg)
 
 	if (devpriv->mite)
 		return readw(devpriv->mite->daq_io_addr + reg);
-	else
-		return inw(dev->iobase + reg);
+
+	return inw(dev->iobase + reg);
 }
 
 static uint8_t ni_readb(struct comedi_device *dev, int reg)
@@ -300,8 +300,8 @@ static uint8_t ni_readb(struct comedi_device *dev, int reg)
 
 	if (devpriv->mite)
 		return readb(devpriv->mite->daq_io_addr + reg);
-	else
-		return inb(dev->iobase + reg);
+
+	return inb(dev->iobase + reg);
 }
 
 /*
@@ -4195,9 +4195,9 @@ static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
 	if (dir) {
 		ni_writeb(dev, data, Port_A + 2 * port);
 		return 0;
-	} else {
-		return ni_readb(dev, Port_A + 2 * port);
 	}
+
+	return ni_readb(dev, Port_A + 2 * port);
 }
 
 static int ni_get_pwm_config(struct comedi_device *dev, unsigned int *data)
@@ -4635,10 +4635,9 @@ static unsigned ni_get_pfi_routing(struct comedi_device *dev, unsigned chan)
 {
 	struct ni_private *devpriv = dev->private;
 
-	if (devpriv->is_m_series)
-		return ni_m_series_get_pfi_routing(dev, chan);
-	else
-		return ni_old_get_pfi_routing(dev, chan);
+	return (devpriv->is_m_series)
+			? ni_m_series_get_pfi_routing(dev, chan)
+			: ni_old_get_pfi_routing(dev, chan);
 }
 
 static int ni_set_pfi_routing(struct comedi_device *dev, unsigned chan,
@@ -4646,10 +4645,9 @@ static int ni_set_pfi_routing(struct comedi_device *dev, unsigned chan,
 {
 	struct ni_private *devpriv = dev->private;
 
-	if (devpriv->is_m_series)
-		return ni_m_series_set_pfi_routing(dev, chan, source);
-	else
-		return ni_old_set_pfi_routing(dev, chan, source);
+	return (devpriv->is_m_series)
+			? ni_m_series_set_pfi_routing(dev, chan, source)
+			: ni_old_set_pfi_routing(dev, chan, source);
 }
 
 static int ni_config_filter(struct comedi_device *dev,
@@ -5045,9 +5043,8 @@ static int ni_set_master_clock(struct comedi_device *dev,
 					    ("%s: we don't handle an unspecified clock period correctly yet, returning error.\n",
 					     __func__);
 					return -EINVAL;
-				} else {
-					devpriv->clock_ns = period_ns;
 				}
+				devpriv->clock_ns = period_ns;
 				devpriv->clock_source = source;
 			} else
 				return -EINVAL;
@@ -5060,10 +5057,7 @@ static unsigned num_configurable_rtsi_channels(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
 
-	if (devpriv->is_m_series)
-		return 8;
-	else
-		return 7;
+	return (devpriv->is_m_series) ? 8 : 7;
 }
 
 static int ni_valid_rtsi_output_source(struct comedi_device *dev,
@@ -5075,12 +5069,10 @@ static int ni_valid_rtsi_output_source(struct comedi_device *dev,
 		if (chan == old_RTSI_clock_channel) {
 			if (source == NI_RTSI_OUTPUT_RTSI_OSC)
 				return 1;
-			else {
-				printk
-				    ("%s: invalid source for channel=%i, channel %i is always the RTSI clock for pre-m-series boards.\n",
-				     __func__, chan, old_RTSI_clock_channel);
-				return 0;
-			}
+
+			printk("%s: invalid source for channel=%i, channel %i is always the RTSI clock for pre-m-series boards.\n",
+			       __func__, chan, old_RTSI_clock_channel);
+			return 0;
 		}
 		return 0;
 	}
