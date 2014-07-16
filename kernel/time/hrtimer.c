@@ -114,21 +114,18 @@ static inline int hrtimer_clockid_to_base(clockid_t clock_id)
  */
 static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 {
-	ktime_t xtim, mono, boot;
-	struct timespec xts, tom, slp;
-	s32 tai_offset;
+	ktime_t xtim, mono, boot, tai;
+	ktime_t off_real, off_boot, off_tai;
 
-	get_xtime_and_monotonic_and_sleep_offset(&xts, &tom, &slp);
-	tai_offset = timekeeping_get_tai_offset();
+	mono = ktime_get_update_offsets_tick(&off_real, &off_boot, &off_tai);
+	boot = ktime_add(mono, off_boot);
+	xtim = ktime_add(mono, off_real);
+	tai = ktime_add(xtim, off_tai);
 
-	xtim = timespec_to_ktime(xts);
-	mono = ktime_add(xtim, timespec_to_ktime(tom));
-	boot = ktime_add(mono, timespec_to_ktime(slp));
 	base->clock_base[HRTIMER_BASE_REALTIME].softirq_time = xtim;
 	base->clock_base[HRTIMER_BASE_MONOTONIC].softirq_time = mono;
 	base->clock_base[HRTIMER_BASE_BOOTTIME].softirq_time = boot;
-	base->clock_base[HRTIMER_BASE_TAI].softirq_time =
-				ktime_add(xtim,	ktime_set(tai_offset, 0));
+	base->clock_base[HRTIMER_BASE_TAI].softirq_time = tai;
 }
 
 /*
@@ -673,7 +670,7 @@ static inline ktime_t hrtimer_update_base(struct hrtimer_cpu_base *base)
 	ktime_t *offs_boot = &base->clock_base[HRTIMER_BASE_BOOTTIME].offset;
 	ktime_t *offs_tai = &base->clock_base[HRTIMER_BASE_TAI].offset;
 
-	return ktime_get_update_offsets(offs_real, offs_boot, offs_tai);
+	return ktime_get_update_offsets_now(offs_real, offs_boot, offs_tai);
 }
 
 /*

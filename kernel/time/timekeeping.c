@@ -1581,29 +1581,39 @@ void do_timer(unsigned long ticks)
 }
 
 /**
- * get_xtime_and_monotonic_and_sleep_offset() - get xtime, wall_to_monotonic,
- *    and sleep offsets.
- * @xtim:	pointer to timespec to be set with xtime
- * @wtom:	pointer to timespec to be set with wall_to_monotonic
- * @sleep:	pointer to timespec to be set with time in suspend
+ * ktime_get_update_offsets_tick - hrtimer helper
+ * @offs_real:	pointer to storage for monotonic -> realtime offset
+ * @offs_boot:	pointer to storage for monotonic -> boottime offset
+ * @offs_tai:	pointer to storage for monotonic -> clock tai offset
+ *
+ * Returns monotonic time at last tick and various offsets
  */
-void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
-				struct timespec *wtom, struct timespec *sleep)
+ktime_t ktime_get_update_offsets_tick(ktime_t *offs_real, ktime_t *offs_boot,
+							ktime_t *offs_tai)
 {
 	struct timekeeper *tk = &timekeeper;
-	unsigned long seq;
+	struct timespec ts;
+	ktime_t now;
+	unsigned int seq;
 
 	do {
 		seq = read_seqcount_begin(&timekeeper_seq);
-		*xtim = tk_xtime(tk);
-		*wtom = tk->wall_to_monotonic;
-		*sleep = tk->total_sleep_time;
+
+		ts = tk_xtime(tk);
+
+		*offs_real = tk->offs_real;
+		*offs_boot = tk->offs_boot;
+		*offs_tai = tk->offs_tai;
 	} while (read_seqcount_retry(&timekeeper_seq, seq));
+
+	now = ktime_set(ts.tv_sec, ts.tv_nsec);
+	now = ktime_sub(now, *offs_real);
+	return now;
 }
 
 #ifdef CONFIG_HIGH_RES_TIMERS
 /**
- * ktime_get_update_offsets - hrtimer helper
+ * ktime_get_update_offsets_now - hrtimer helper
  * @offs_real:	pointer to storage for monotonic -> realtime offset
  * @offs_boot:	pointer to storage for monotonic -> boottime offset
  * @offs_tai:	pointer to storage for monotonic -> clock tai offset
@@ -1611,7 +1621,7 @@ void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
  * Returns current monotonic time and updates the offsets
  * Called from hrtimer_interrupt() or retrigger_next_event()
  */
-ktime_t ktime_get_update_offsets(ktime_t *offs_real, ktime_t *offs_boot,
+ktime_t ktime_get_update_offsets_now(ktime_t *offs_real, ktime_t *offs_boot,
 							ktime_t *offs_tai)
 {
 	struct timekeeper *tk = &timekeeper;

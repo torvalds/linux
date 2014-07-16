@@ -331,9 +331,12 @@ extern ktime_t ktime_get_real(void);
 extern ktime_t ktime_get_boottime(void);
 extern ktime_t ktime_get_monotonic_offset(void);
 extern ktime_t ktime_get_clocktai(void);
-extern ktime_t ktime_get_update_offsets(ktime_t *offs_real, ktime_t *offs_boot,
-					 ktime_t *offs_tai);
-
+extern ktime_t ktime_get_update_offsets_tick(ktime_t *offs_real,
+						ktime_t *offs_boot,
+						ktime_t *offs_tai);
+extern ktime_t ktime_get_update_offsets_now(ktime_t *offs_real,
+						ktime_t *offs_boot,
+						ktime_t *offs_tai);
 DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
 
 
