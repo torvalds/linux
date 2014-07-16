@@ -421,7 +421,7 @@ static const struct das1800_board das1800_boards[] = {
 };
 
 struct das1800_private {
-	volatile unsigned int count;	/* number of data points left to be taken */
+	unsigned int count;	/* number of data points left to be taken */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
 	int irq_dma_bits;	/* bits for control register b */
@@ -430,7 +430,7 @@ struct das1800_private {
 	int dma_bits;
 	unsigned int dma0;	/* dma channels used */
 	unsigned int dma1;
-	volatile unsigned int dma_current;	/* dma channel currently in use */
+	unsigned int dma_current;	/* dma channel currently in use */
 	uint16_t *ai_buf0;	/* pointers to dma buffers */
 	uint16_t *ai_buf1;
 	uint16_t *dma_current_buf;	/* pointer to dma buffer currently being used */
