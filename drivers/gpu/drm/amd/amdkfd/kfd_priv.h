@@ -32,6 +32,15 @@
 #include <linux/spinlock.h>
 #include <kgd_kfd_interface.h>
 
+#define KFD_SYSFS_FILE_MODE 0444
+
+/* GPU ID hash width in bits */
+#define KFD_GPU_ID_HASH_WIDTH 16
+
+/* Macro for allocating structures */
+#define kfd_alloc_struct(ptr_to_struct)	\
+	((typeof(ptr_to_struct)) kzalloc(sizeof(*ptr_to_struct), GFP_KERNEL))
+
 struct kfd_device_info {
 	unsigned int max_pasid_bits;
 	size_t ih_ring_entry_size;
@@ -70,6 +79,15 @@ struct kfd_process {
 };
 
 extern struct device *kfd_device;
+
+/* Topology */
+int kfd_topology_init(void);
+void kfd_topology_shutdown(void);
+int kfd_topology_add_device(struct kfd_dev *gpu);
+int kfd_topology_remove_device(struct kfd_dev *gpu);
+struct kfd_dev *kfd_device_by_id(uint32_t gpu_id);
+struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev);
+struct kfd_dev *kfd_topology_enum_kfd_devices(uint8_t idx);
 
 /* Interrupts */
 void kgd2kfd_interrupt(struct kfd_dev *dev, const void *ih_ring_entry);

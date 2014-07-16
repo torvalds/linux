@@ -101,6 +101,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 {
 	kfd->shared_resources = *gpu_resources;
 
+	if (kfd_topology_add_device(kfd) != 0)
+		return false;
+
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device (%x:%x)\n", kfd->pdev->vendor,
 		 kfd->pdev->device);
@@ -110,6 +113,10 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 void kgd2kfd_device_exit(struct kfd_dev *kfd)
 {
+	int err = kfd_topology_remove_device(kfd);
+
+	BUG_ON(err != 0);
+
 	kfree(kfd);
 }
 

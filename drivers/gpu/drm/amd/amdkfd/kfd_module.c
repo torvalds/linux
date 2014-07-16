@@ -76,16 +76,23 @@ static int __init kfd_module_init(void)
 	if (err < 0)
 		goto err_ioctl;
 
+	err = kfd_topology_init();
+	if (err < 0)
+		goto err_topology;
+
 	dev_info(kfd_device, "Initialized module\n");
 
 	return 0;
 
+err_topology:
+	kfd_chardev_exit();
 err_ioctl:
 	return err;
 }
 
 static void __exit kfd_module_exit(void)
 {
+	kfd_topology_shutdown();
 	kfd_chardev_exit();
 	dev_info(kfd_device, "Removed module\n");
 }
