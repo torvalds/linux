@@ -345,7 +345,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return insn->n;
