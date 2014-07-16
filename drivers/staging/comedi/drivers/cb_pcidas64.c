@@ -636,8 +636,8 @@ static inline unsigned int ai_dma_ring_count(const struct pcidas64_board *board)
 {
 	if (board->layout == LAYOUT_4020)
 		return MAX_AI_DMA_RING_COUNT;
-	else
-		return MIN_AI_DMA_RING_COUNT;
+
+	return MIN_AI_DMA_RING_COUNT;
 }
 
 static const int bytes_in_sample = 2;
@@ -1045,9 +1045,9 @@ static inline unsigned short se_diff_bit_6xxx(struct comedi_device *dev,
 	if ((thisboard->layout == LAYOUT_64XX && !use_differential) ||
 	    (thisboard->layout == LAYOUT_60XX && use_differential))
 		return ADC_SE_DIFF_BIT;
-	else
-		return 0;
-};
+
+	return 0;
+}
 
 struct ext_clock_info {
 	/*  master clock divisor to use for scans with external master clock */
@@ -2162,8 +2162,8 @@ static int use_hw_sample_counter(struct comedi_cmd *cmd)
 
 	if (cmd->stop_src == TRIG_COUNT && cmd->stop_arg <= max_counter_value)
 		return 1;
-	else
-		return 0;
+
+	return 0;
 }
 
 static void setup_sample_counters(struct comedi_device *dev,
@@ -3384,9 +3384,8 @@ static int dio_callback(int dir, int port, int data, unsigned long arg)
 	if (dir) {
 		writeb(data, iobase + port);
 		return 0;
-	} else {
-		return readb(iobase + port);
 	}
+	return readb(iobase + port);
 }
 
 static int dio_callback_4020(int dir, int port, int data, unsigned long arg)
@@ -3395,9 +3394,8 @@ static int dio_callback_4020(int dir, int port, int data, unsigned long arg)
 	if (dir) {
 		writew(data, iobase + 2 * port);
 		return 0;
-	} else {
-		return readw(iobase + 2 * port);
 	}
+	return readw(iobase + 2 * port);
 }
 
 static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
