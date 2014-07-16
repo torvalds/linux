@@ -371,6 +371,7 @@ struct hci_conn {
 	__u16		state;
 	__u8		mode;
 	__u8		type;
+	__u8		role;
 	bool		out;
 	__u8		attempt;
 	__u8		dev_class[3];
@@ -540,7 +541,6 @@ enum {
 	HCI_CONN_POWER_SAVE,
 	HCI_CONN_REMOTE_OOB,
 	HCI_CONN_FLUSH_KEY,
-	HCI_CONN_MASTER,
 	HCI_CONN_ENCRYPT,
 	HCI_CONN_AUTH,
 	HCI_CONN_SECURE,

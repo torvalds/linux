@@ -101,12 +101,8 @@ static void hci_cc_role_discovery(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
-	if (conn) {
-		if (rp->role)
-			clear_bit(HCI_CONN_MASTER, &conn->flags);
-		else
-			set_bit(HCI_CONN_MASTER, &conn->flags);
-	}
+	if (conn)
+		conn->role = rp->role;
 
 	hci_dev_unlock(hdev);
 }
@@ -1420,8 +1416,8 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 		if (!conn) {
 			conn = hci_conn_add(hdev, ACL_LINK, &cp->bdaddr);
 			if (conn) {
-				conn->out = true;
-				set_bit(HCI_CONN_MASTER, &conn->flags);
+				conn->out  = true;
+				conn->role = HCI_ROLE_MASTER;
 			} else
 				BT_ERR("No memory for new connection");
 		}
@@ -2924,12 +2920,8 @@ static void hci_role_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn) {
-		if (!ev->status) {
-			if (ev->role)
-				clear_bit(HCI_CONN_MASTER, &conn->flags);
-			else
-				set_bit(HCI_CONN_MASTER, &conn->flags);
-		}
+		if (!ev->status)
+			conn->role = ev->role;
 
 		clear_bit(HCI_CONN_RSWITCH_PEND, &conn->flags);
 
@@ -4116,10 +4108,9 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		conn->dst_type = ev->bdaddr_type;
 
-		if (ev->role == HCI_ROLE_MASTER) {
+		conn->role = ev->role;
+		if (conn->role == HCI_ROLE_MASTER)
 			conn->out = true;
-			set_bit(HCI_CONN_MASTER, &conn->flags);
-		}
 
 		/* If we didn't have a hci_conn object previously
 		 * but we're in master role this must be something
@@ -4527,7 +4518,7 @@ static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
 		return send_conn_param_neg_reply(hdev, handle,
 						 HCI_ERROR_INVALID_LL_PARAMS);
 
-	if (test_bit(HCI_CONN_MASTER, &hcon->flags)) {
+	if (hcon->role == HCI_ROLE_MASTER) {
 		struct hci_conn_params *params;
 		u8 store_hint;
 

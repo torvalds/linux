@@ -66,8 +66,7 @@ static void hci_acl_create_connection(struct hci_conn *conn)
 
 	conn->state = BT_CONNECT;
 	conn->out = true;
-
-	set_bit(HCI_CONN_MASTER, &conn->flags);
+	conn->role = HCI_ROLE_MASTER;
 
 	conn->attempt++;
 
@@ -335,7 +334,7 @@ static void hci_conn_timeout(struct work_struct *work)
 			 * event handling and hci_clock_offset_evt function.
 			 */
 			if (conn->type == ACL_LINK &&
-			    test_bit(HCI_CONN_MASTER, &conn->flags)) {
+			    conn->role == HCI_ROLE_MASTER) {
 				struct hci_dev *hdev = conn->hdev;
 				struct hci_cp_read_clock_offset cp;
 
@@ -786,8 +785,8 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		goto create_conn;
 	}
 
-	conn->out = true;
-	set_bit(HCI_CONN_MASTER, &conn->flags);
+	conn->out  = true;
+	conn->role = HCI_ROLE_MASTER;
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
 	if (params) {
@@ -1076,7 +1075,7 @@ int hci_conn_switch_role(struct hci_conn *conn, __u8 role)
 {
 	BT_DBG("hcon %p", conn);
 
-	if (!role && test_bit(HCI_CONN_MASTER, &conn->flags))
+	if (role == conn->role)
 		return 1;
 
 	if (!test_and_set_bit(HCI_CONN_RSWITCH_PEND, &conn->flags)) {
@@ -1151,7 +1150,7 @@ static u32 get_link_mode(struct hci_conn *conn)
 {
 	u32 link_mode = 0;
 
-	if (test_bit(HCI_CONN_MASTER, &conn->flags))
+	if (conn->role == HCI_ROLE_MASTER)
 		link_mode |= HCI_LM_MASTER;
 
 	if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
