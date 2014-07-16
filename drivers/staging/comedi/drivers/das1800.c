@@ -492,7 +492,6 @@ static void das1800_handle_fifo_half_full(struct comedi_device *dev,
 				  numPoints * sizeof(devpriv->ai_buf0[0]));
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= numPoints;
-	return;
 }
 
 static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
@@ -517,8 +516,6 @@ static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
 		if (cmd->stop_src == TRIG_COUNT)
 			devpriv->count--;
 	}
-
-	return;
 }
 
 /* Utility function used by das1800_flush_dma() and das1800_handle_dma().
@@ -549,8 +546,6 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 	cfc_write_array_to_buffer(s, buffer, num_bytes);
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= num_samples;
-
-	return;
 }
 
 /* flushes remaining data from board when external trigger has stopped acquisition
@@ -583,8 +578,6 @@ static void das1800_flush_dma(struct comedi_device *dev,
 
 	/*  get any remaining samples in fifo */
 	das1800_handle_fifo_not_empty(dev, s);
-
-	return;
 }
 
 static void das1800_handle_dma(struct comedi_device *dev,
@@ -619,8 +612,6 @@ static void das1800_handle_dma(struct comedi_device *dev,
 			}
 		}
 	}
-
-	return;
 }
 
 static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -1060,8 +1051,6 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 		enable_dma(devpriv->dma1);
 	}
 	release_dma_lock(lock_flags);
-
-	return;
 }
 
 /* programs channel/gain list into card */
@@ -1088,8 +1077,6 @@ static void program_chanlist(struct comedi_device *dev,
 	}
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*finish write to QRAM */
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-
-	return;
 }
 
 /* analog input do_cmd */
