@@ -41,7 +41,7 @@
 #define  AMCC_OP_REG_MCSR_NVCMD  (AMCC_OP_REG_MCSR + 3)	/* Command in byte 3 */
 
 #define AMCC_FIFO_DEPTH_DWORD	8
-#define AMCC_FIFO_DEPTH_BYTES	(8 * sizeof (u32))
+#define AMCC_FIFO_DEPTH_BYTES	(8 * sizeof(u32))
 
 /****************************************************************************/
 /* AMCC - PCI Interrupt Control/Status Register                            */
