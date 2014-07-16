@@ -32,13 +32,6 @@
 
 /* init card type */
 
-typedef enum _CARD_PHY_TYPE {
-    PHY_TYPE_AUTO = 0,
-    PHY_TYPE_11B,
-    PHY_TYPE_11G,
-    PHY_TYPE_11A
-} CARD_PHY_TYPE, *PCARD_PHY_TYPE;
-
 #define CB_MAX_CHANNEL_24G	14
 #define CB_MAX_CHANNEL_5G	42 /* add channel9(5045MHz), 41==>42 */
 #define CB_MAX_CHANNEL		(CB_MAX_CHANNEL_24G + CB_MAX_CHANNEL_5G)

@@ -187,13 +187,13 @@
 
 #define DBG_PRT(l, p, args...) { if (l <= msglevel) printk(p, ##args); }
 
-typedef enum __device_msg_level {
+enum {
 	MSG_LEVEL_ERR = 0,            /* Errors causing abnormal operation */
 	MSG_LEVEL_NOTICE = 1,         /* Errors needing user notification */
 	MSG_LEVEL_INFO = 2,           /* Normal message. */
 	MSG_LEVEL_VERBOSE = 3,        /* Will report all trival errors. */
 	MSG_LEVEL_DEBUG = 4           /* Only for debug purpose. */
-} DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
+};
 
 #define DEVICE_INIT_COLD	0x0 /* cold init */
 #define DEVICE_INIT_RESET	0x1 /* reset init or Dx to D0 power remain */
@@ -268,13 +268,12 @@ struct vnt_interrupt_buffer {
 
 /*++ NDIS related */
 
-typedef enum __DEVICE_NDIS_STATUS {
-    STATUS_SUCCESS = 0,
-    STATUS_FAILURE,
-    STATUS_RESOURCES,
-    STATUS_PENDING,
-} DEVICE_NDIS_STATUS, *PDEVICE_NDIS_STATUS;
-
+enum {
+	STATUS_SUCCESS = 0,
+	STATUS_FAILURE,
+	STATUS_RESOURCES,
+	STATUS_PENDING,
+};
 
 /* flags for options */
 #define     DEVICE_FLAGS_UNPLUG          0x00000001UL
