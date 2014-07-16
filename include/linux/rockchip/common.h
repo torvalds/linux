@@ -64,4 +64,10 @@ extern int rockchip_tsadc_get_temp(int chn);
 static inline int rockchip_tsadc_get_temp(int chn) { return 0; }
 #endif
 
+#ifdef CONFIG_RK_LAST_LOG
+extern void rk_last_log_text(char *text, size_t size);
+#else
+static inline void rk_last_log_text(char *text, size_t size) {}
+#endif
+
 #endif
