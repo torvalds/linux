@@ -757,6 +757,7 @@ unsigned long nsecs_to_jiffies(u64 n)
 {
 	return (unsigned long)nsecs_to_jiffies64(n);
 }
+EXPORT_SYMBOL_GPL(nsecs_to_jiffies);
 
 /*
  * Add two timespec values and do a safety check for overflow.
