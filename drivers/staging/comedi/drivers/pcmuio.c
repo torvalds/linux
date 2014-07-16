@@ -333,6 +333,7 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
 		if (triggered & (1 << chan))
 			val |= (1 << i);
 	}
