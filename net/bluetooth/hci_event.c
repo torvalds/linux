@@ -4246,6 +4246,12 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	if (hci_bdaddr_list_lookup(&hdev->blacklist, addr, addr_type))
 		return;
 
+	/* Most controller will fail if we try to create new connections
+	 * while we have an existing one in slave role.
+	 */
+	if (hdev->conn_hash.le_num_slave > 0)
+		return;
+
 	/* If we're connectable, always connect any ADV_DIRECT_IND event */
 	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
 	    adv_type == LE_ADV_DIRECT_IND)
