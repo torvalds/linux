@@ -454,6 +454,8 @@ void kfd_process_destroy_wq(void);
 struct kfd_process *kfd_create_process(const struct task_struct *);
 struct kfd_process *kfd_get_process(const struct task_struct *);
 
+struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
+							struct kfd_process *p);
 void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid);
 struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p,
@@ -509,6 +511,10 @@ void uninit_queue(struct queue *q);
 void print_queue_properties(struct queue_properties *q);
 void print_queue(struct queue *q);
 
+struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
+					struct kfd_dev *dev);
+struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev);
+void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 					enum kfd_queue_type type);
 void kernel_queue_uninit(struct kernel_queue *kq);
@@ -537,6 +543,8 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 
 #define KFD_HIQ_TIMEOUT (500)
 
+#define KFD_FENCE_COMPLETED (100)
+#define KFD_FENCE_INIT   (10)
 #define KFD_UNMAP_LATENCY (150)
 
 struct packet_manager {
@@ -546,6 +554,19 @@ struct packet_manager {
 	bool allocated;
 	struct kfd_mem_obj *ib_buffer_obj;
 };
+
+int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm);
+void pm_uninit(struct packet_manager *pm);
+int pm_send_set_resources(struct packet_manager *pm,
+				struct scheduling_resources *res);
+int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues);
+int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
+				uint32_t fence_value);
+
+int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
+			enum kfd_preempt_type_filter mode,
+			uint32_t filter_param, bool reset,
+			unsigned int sdma_engine);
 
 void pm_release_ib(struct packet_manager *pm);
 

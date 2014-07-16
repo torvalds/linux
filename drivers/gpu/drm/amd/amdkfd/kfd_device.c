@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include "kfd_priv.h"
+#include "kfd_device_queue_manager.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -199,12 +200,34 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
 						iommu_pasid_shutdown_callback);
 
+	kfd->dqm = device_queue_manager_init(kfd);
+	if (!kfd->dqm) {
+		dev_err(kfd_device,
+			"Error initializing queue manager for device (%x:%x)\n",
+			kfd->pdev->vendor, kfd->pdev->device);
+		goto device_queue_manager_error;
+	}
+
+	if (kfd->dqm->start(kfd->dqm) != 0) {
+		dev_err(kfd_device,
+			"Error starting queuen manager for device (%x:%x)\n",
+			kfd->pdev->vendor, kfd->pdev->device);
+		goto dqm_start_error;
+	}
+
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device (%x:%x)\n", kfd->pdev->vendor,
 		 kfd->pdev->device);
 
+	pr_debug("kfd: Starting kfd with the following scheduling policy %d\n",
+		sched_policy);
+
 	goto out;
 
+dqm_start_error:
+	device_queue_manager_uninit(kfd->dqm);
+device_queue_manager_error:
+	amd_iommu_free_device(kfd->pdev);
 device_iommu_pasid_error:
 	kfd_topology_remove_device(kfd);
 kfd_topology_add_device_error:
@@ -219,6 +242,7 @@ out:
 void kgd2kfd_device_exit(struct kfd_dev *kfd)
 {
 	if (kfd->init_complete) {
+		device_queue_manager_uninit(kfd->dqm);
 		amd_iommu_free_device(kfd->pdev);
 		kfd_topology_remove_device(kfd);
 	}
@@ -230,8 +254,10 @@ void kgd2kfd_suspend(struct kfd_dev *kfd)
 {
 	BUG_ON(kfd == NULL);
 
-	if (kfd->init_complete)
+	if (kfd->init_complete) {
+		kfd->dqm->stop(kfd->dqm);
 		amd_iommu_free_device(kfd->pdev);
+	}
 }
 
 int kgd2kfd_resume(struct kfd_dev *kfd)
@@ -249,6 +275,7 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 			return -ENXIO;
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
 						iommu_pasid_shutdown_callback);
+		kfd->dqm->start(kfd->dqm);
 	}
 
 	return 0;
