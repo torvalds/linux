@@ -94,7 +94,7 @@ void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
 	u16 tx_rate, u8 pkt_type, struct vnt_phy_field *);
 
 void vnt_set_short_slot_time(struct vnt_private *);
-void BBvSetVGAGainOffset(struct vnt_private *, u8 byData);
+void vnt_set_vga_gain_offset(struct vnt_private *, u8);
 void vnt_set_antenna_mode(struct vnt_private *, u8);
 int vnt_vt3184_init(struct vnt_private *);
 void BBvSetDeepSleep(struct vnt_private *);

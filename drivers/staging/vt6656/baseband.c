@@ -543,7 +543,7 @@ void vnt_set_short_slot_time(struct vnt_private *priv)
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->byBBRxConf);
 }
 
-void BBvSetVGAGainOffset(struct vnt_private *priv, u8 data)
+void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
 {
 
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xE7, data);

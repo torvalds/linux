@@ -881,7 +881,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 			priv->bShortSlotTime = false;
 
 		vnt_set_short_slot_time(priv);
-		BBvSetVGAGainOffset(priv, priv->abyBBVGA[0]);
+		vnt_set_vga_gain_offset(priv, priv->abyBBVGA[0]);
 		BBvUpdatePreEDThreshold(priv, false);
 	}
 
