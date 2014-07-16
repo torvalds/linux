@@ -441,7 +441,7 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 	return supported ? attr->mode : 0;
 }
 
-static struct attribute_group ideapad_attribute_group = {
+static const struct attribute_group ideapad_attribute_group = {
 	.is_visible = ideapad_is_visible,
 	.attrs = ideapad_attributes
 };
@@ -456,7 +456,7 @@ struct ideapad_rfk_data {
 	int type;
 };
 
-const struct ideapad_rfk_data ideapad_rfk_data[] = {
+const const struct ideapad_rfk_data ideapad_rfk_data[] = {
 	{ "ideapad_wlan",    CFG_WIFI_BIT, VPCCMD_W_WIFI, RFKILL_TYPE_WLAN },
 	{ "ideapad_bluetooth", CFG_BT_BIT, VPCCMD_W_BT, RFKILL_TYPE_BLUETOOTH },
 	{ "ideapad_3g",        CFG_3G_BIT, VPCCMD_W_3G, RFKILL_TYPE_WWAN },
