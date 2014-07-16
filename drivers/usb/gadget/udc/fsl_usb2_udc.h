@@ -12,6 +12,9 @@
 #ifndef __FSL_USB2_UDC_H
 #define __FSL_USB2_UDC_H
 
+#include <linux/usb/ch9.h>
+#include <linux/usb/gadget.h>
+
 /* ### define USB registers here
  */
 #define USB_MAX_CTRL_PAYLOAD		64
