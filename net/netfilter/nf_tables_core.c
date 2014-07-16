@@ -109,7 +109,7 @@ nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 	struct nft_data data[NFT_REG_MAX + 1];
 	unsigned int stackptr = 0;
 	struct nft_jumpstack jumpstack[NFT_JUMP_STACK_SIZE];
-	struct nft_stats __percpu *stats;
+	struct nft_stats *stats;
 	int rulenum;
 	/*
 	 * Cache cursor to avoid problems in case that the cursor is updated
@@ -205,9 +205,11 @@ next_rule:
 		nft_trace_packet(pkt, basechain, -1, NFT_TRACE_POLICY);
 
 	rcu_read_lock_bh();
-	stats = rcu_dereference(nft_base_chain(basechain)->stats);
-	__this_cpu_inc(stats->pkts);
-	__this_cpu_add(stats->bytes, pkt->skb->len);
+	stats = this_cpu_ptr(rcu_dereference(nft_base_chain(basechain)->stats));
+	u64_stats_update_begin(&stats->syncp);
+	stats->pkts++;
+	stats->bytes += pkt->skb->len;
+	u64_stats_update_end(&stats->syncp);
 	rcu_read_unlock_bh();
 
 	return nft_base_chain(basechain)->policy;
