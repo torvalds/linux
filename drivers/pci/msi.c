@@ -235,7 +235,7 @@ static void msi_set_mask_bit(struct irq_data *data, u32 flag)
 		msix_mask_irq(desc, flag);
 		readl(desc->mask_base);		/* Flush write to device */
 	} else {
-		unsigned offset = data->irq - desc->dev->irq;
+		unsigned offset = data->irq - desc->irq;
 		msi_mask_irq(desc, 1 << offset, flag << offset);
 	}
 }
@@ -463,7 +463,6 @@ static void __pci_restore_msix_state(struct pci_dev *dev)
 	if (!dev->msix_enabled)
 		return;
 	BUG_ON(list_empty(&dev->msi_list));
-	entry = list_first_entry(&dev->msi_list, struct msi_desc, list);
 
 	/* route the table */
 	pci_intx_for_msi(dev, 0);
@@ -488,7 +487,6 @@ EXPORT_SYMBOL_GPL(pci_restore_msi_state);
 static ssize_t msi_mode_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
 	struct msi_desc *entry;
 	unsigned long irq;
 	int retval;
@@ -497,12 +495,11 @@ static ssize_t msi_mode_show(struct device *dev, struct device_attribute *attr,
 	if (retval)
 		return retval;
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
-		if (entry->irq == irq) {
-			return sprintf(buf, "%s\n",
-				       entry->msi_attrib.is_msix ? "msix" : "msi");
-		}
-	}
+	entry = irq_get_msi_desc(irq);
+	if (entry)
+		return sprintf(buf, "%s\n",
+				entry->msi_attrib.is_msix ? "msix" : "msi");
+
 	return -ENODEV;
 }
 
@@ -581,6 +578,38 @@ error_attrs:
 	return ret;
 }
 
+static struct msi_desc *msi_setup_entry(struct pci_dev *dev)
+{
+	u16 control;
+	struct msi_desc *entry;
+
+	/* MSI Entry Initialization */
+	entry = alloc_msi_entry(dev);
+	if (!entry)
+		return NULL;
+
+	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
+
+	entry->msi_attrib.is_msix	= 0;
+	entry->msi_attrib.is_64		= !!(control & PCI_MSI_FLAGS_64BIT);
+	entry->msi_attrib.entry_nr	= 0;
+	entry->msi_attrib.maskbit	= !!(control & PCI_MSI_FLAGS_MASKBIT);
+	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
+	entry->msi_attrib.pos		= dev->msi_cap;
+	entry->msi_attrib.multi_cap	= (control & PCI_MSI_FLAGS_QMASK) >> 1;
+
+	if (control & PCI_MSI_FLAGS_64BIT)
+		entry->mask_pos = dev->msi_cap + PCI_MSI_MASK_64;
+	else
+		entry->mask_pos = dev->msi_cap + PCI_MSI_MASK_32;
+
+	/* Save the initial mask status */
+	if (entry->msi_attrib.maskbit)
+		pci_read_config_dword(dev, entry->mask_pos, &entry->masked);
+
+	return entry;
+}
+
 /**
  * msi_capability_init - configure device's MSI capability structure
  * @dev: pointer to the pci_dev data structure of MSI device function
@@ -596,32 +625,15 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 {
 	struct msi_desc *entry;
 	int ret;
-	u16 control;
 	unsigned mask;
 
 	msi_set_enable(dev, 0);	/* Disable MSI during set up */
 
-	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
-	/* MSI Entry Initialization */
-	entry = alloc_msi_entry(dev);
+	entry = msi_setup_entry(dev);
 	if (!entry)
 		return -ENOMEM;
 
-	entry->msi_attrib.is_msix	= 0;
-	entry->msi_attrib.is_64		= !!(control & PCI_MSI_FLAGS_64BIT);
-	entry->msi_attrib.entry_nr	= 0;
-	entry->msi_attrib.maskbit	= !!(control & PCI_MSI_FLAGS_MASKBIT);
-	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
-	entry->msi_attrib.pos		= dev->msi_cap;
-	entry->msi_attrib.multi_cap	= (control & PCI_MSI_FLAGS_QMASK) >> 1;
-
-	if (control & PCI_MSI_FLAGS_64BIT)
-		entry->mask_pos = dev->msi_cap + PCI_MSI_MASK_64;
-	else
-		entry->mask_pos = dev->msi_cap + PCI_MSI_MASK_32;
 	/* All MSIs are unmasked by default, Mask them all */
-	if (entry->msi_attrib.maskbit)
-		pci_read_config_dword(dev, entry->mask_pos, &entry->masked);
 	mask = msi_mask(entry->msi_attrib.multi_cap);
 	msi_mask_irq(entry, mask, mask);
 
@@ -998,24 +1010,6 @@ void pci_disable_msix(struct pci_dev *dev)
 	free_msi_irqs(dev);
 }
 EXPORT_SYMBOL(pci_disable_msix);
-
-/**
- * msi_remove_pci_irq_vectors - reclaim MSI(X) irqs to unused state
- * @dev: pointer to the pci_dev data structure of MSI(X) device function
- *
- * Being called during hotplug remove, from which the device function
- * is hot-removed. All previous assigned MSI/MSI-X irqs, if
- * allocated for this device function, are reclaimed to unused state,
- * which may be used later on.
- **/
-void msi_remove_pci_irq_vectors(struct pci_dev *dev)
-{
-	if (!pci_msi_enable || !dev)
-		return;
-
-	if (dev->msi_enabled || dev->msix_enabled)
-		free_msi_irqs(dev);
-}
 
 void pci_no_msi(void)
 {
