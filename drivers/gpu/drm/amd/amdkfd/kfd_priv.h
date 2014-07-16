@@ -57,7 +57,6 @@ extern int max_num_of_queues_per_process;
 #define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS_DEFAULT 128
 #define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
 
-
 struct kfd_device_info {
 	unsigned int max_pasid_bits;
 	size_t ih_ring_entry_size;
@@ -119,6 +118,129 @@ int kfd_chardev_init(void);
 void kfd_chardev_exit(void);
 struct device *kfd_chardev(void);
 
+
+/**
+ * enum kfd_queue_type
+ *
+ * @KFD_QUEUE_TYPE_COMPUTE: Regular user mode queue type.
+ *
+ * @KFD_QUEUE_TYPE_SDMA: Sdma user mode queue type.
+ *
+ * @KFD_QUEUE_TYPE_HIQ: HIQ queue type.
+ *
+ * @KFD_QUEUE_TYPE_DIQ: DIQ queue type.
+ */
+enum kfd_queue_type  {
+	KFD_QUEUE_TYPE_COMPUTE,
+	KFD_QUEUE_TYPE_SDMA,
+	KFD_QUEUE_TYPE_HIQ,
+	KFD_QUEUE_TYPE_DIQ
+};
+
+/**
+ * struct queue_properties
+ *
+ * @type: The queue type.
+ *
+ * @queue_id: Queue identifier.
+ *
+ * @queue_address: Queue ring buffer address.
+ *
+ * @queue_size: Queue ring buffer size.
+ *
+ * @priority: Defines the queue priority relative to other queues in the
+ * process.
+ * This is just an indication and HW scheduling may override the priority as
+ * necessary while keeping the relative prioritization.
+ * the priority granularity is from 0 to f which f is the highest priority.
+ * currently all queues are initialized with the highest priority.
+ *
+ * @queue_percent: This field is partially implemented and currently a zero in
+ * this field defines that the queue is non active.
+ *
+ * @read_ptr: User space address which points to the number of dwords the
+ * cp read from the ring buffer. This field updates automatically by the H/W.
+ *
+ * @write_ptr: Defines the number of dwords written to the ring buffer.
+ *
+ * @doorbell_ptr: This field aim is to notify the H/W of new packet written to
+ * the queue ring buffer. This field should be similar to write_ptr and the user
+ * should update this field after he updated the write_ptr.
+ *
+ * @doorbell_off: The doorbell offset in the doorbell pci-bar.
+ *
+ * @is_interop: Defines if this is a interop queue. Interop queue means that the
+ * queue can access both graphics and compute resources.
+ *
+ * @is_active: Defines if the queue is active or not.
+ *
+ * @vmid: If the scheduling mode is no cp scheduling the field defines the vmid
+ * of the queue.
+ *
+ * This structure represents the queue properties for each queue no matter if
+ * it's user mode or kernel mode queue.
+ *
+ */
+struct queue_properties {
+	enum kfd_queue_type type;
+	unsigned int queue_id;
+	uint64_t queue_address;
+	uint64_t  queue_size;
+	uint32_t priority;
+	uint32_t queue_percent;
+	uint32_t *read_ptr;
+	uint32_t *write_ptr;
+	uint32_t *doorbell_ptr;
+	uint32_t doorbell_off;
+	bool is_interop;
+	bool is_active;
+	/* Not relevant for user mode queues in cp scheduling */
+	unsigned int vmid;
+};
+
+/**
+ * struct queue
+ *
+ * @list: Queue linked list.
+ *
+ * @mqd: The queue MQD.
+ *
+ * @mqd_mem_obj: The MQD local gpu memory object.
+ *
+ * @gart_mqd_addr: The MQD gart mc address.
+ *
+ * @properties: The queue properties.
+ *
+ * @mec: Used only in no cp scheduling mode and identifies to micro engine id
+ * that the queue should be execute on.
+ *
+ * @pipe: Used only in no cp scheduling mode and identifies the queue's pipe id.
+ *
+ * @queue: Used only in no cp scheduliong mode and identifies the queue's slot.
+ *
+ * @process: The kfd process that created this queue.
+ *
+ * @device: The kfd device that created this queue.
+ *
+ * This structure represents user mode compute queues.
+ * It contains all the necessary data to handle such queues.
+ *
+ */
+
+struct queue {
+	struct list_head list;
+	void *mqd;
+	struct kfd_mem_obj *mqd_mem_obj;
+	uint64_t gart_mqd_addr;
+	struct queue_properties properties;
+
+	uint32_t mec;
+	uint32_t pipe;
+	uint32_t queue;
+
+	struct kfd_process	*process;
+	struct kfd_dev		*device;
+};
 
 /* Data that is per-process-per device. */
 struct kfd_process_device {
