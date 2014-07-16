@@ -1525,14 +1525,9 @@ out:
 void getboottime(struct timespec *ts)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
-	struct timespec boottime = {
-		.tv_sec = tk->wall_to_monotonic.tv_sec +
-				tk->total_sleep_time.tv_sec,
-		.tv_nsec = tk->wall_to_monotonic.tv_nsec +
-				tk->total_sleep_time.tv_nsec
-	};
+	ktime_t t = ktime_sub(tk->offs_real, tk->offs_boot);
 
-	set_normalized_timespec(ts, -boottime.tv_sec, -boottime.tv_nsec);
+	*ts = ktime_to_timespec(t);
 }
 EXPORT_SYMBOL_GPL(getboottime);
 
