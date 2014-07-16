@@ -77,10 +77,6 @@
 #define USBOTGSS_DEV_EBC_EN			0x0110
 #define USBOTGSS_DEBUG_OFFSET			0x0600
 
-/* REVISION REGISTER */
-#define USBOTGSS_REVISION_XMAJOR(reg)		((reg >> 8) & 0x7)
-#define USBOTGSS_REVISION_XMAJOR1		1
-#define USBOTGSS_REVISION_XMAJOR2		2
 /* SYSCONFIG REGISTER */
 #define USBOTGSS_SYSCONFIG_DMADISABLE		(1 << 16)
 
@@ -129,7 +125,6 @@ struct dwc3_omap {
 	u32			irq_eoi_offset;
 	u32			debug_offset;
 	u32			irq0_offset;
-	u32			revision;
 
 	u32			dma_status:1;
 
@@ -397,7 +392,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	int			irq;
 
 	int			utmi_mode = 0;
-	int			x_major;
 
 	u32			reg;
 
@@ -448,32 +442,13 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	reg = dwc3_omap_readl(omap->base, USBOTGSS_REVISION);
-	omap->revision = reg;
-	x_major = USBOTGSS_REVISION_XMAJOR(reg);
-
-	/* Differentiate between OMAP5 and AM437x */
-	switch (x_major) {
-	case USBOTGSS_REVISION_XMAJOR1:
-	case USBOTGSS_REVISION_XMAJOR2:
-		omap->irq_eoi_offset = 0;
-		omap->irq0_offset = 0;
-		omap->irqmisc_offset = 0;
-		omap->utmi_otg_offset = 0;
-		omap->debug_offset = 0;
-		break;
-	default:
-		/* Default to the latest revision */
-		omap->irq_eoi_offset = USBOTGSS_EOI_OFFSET;
-		omap->irq0_offset = USBOTGSS_IRQ0_OFFSET;
-		omap->irqmisc_offset = USBOTGSS_IRQMISC_OFFSET;
-		omap->utmi_otg_offset = USBOTGSS_UTMI_OTG_OFFSET;
-		omap->debug_offset = USBOTGSS_DEBUG_OFFSET;
-		break;
-	}
-
-	/* For OMAP5(ES2.0) and AM437x x_major is 2 even though there are
-	 * changes in wrapper registers, Using dt compatible for aegis
+	/*
+	 * Differentiate between OMAP5 and AM437x.
+	 *
+	 * For OMAP5(ES2.0) and AM437x wrapper revision is same, even
+	 * though there are changes in wrapper register offsets.
+	 *
+	 * Using dt compatible to differentiate AM437x.
 	 */
 
 	if (of_device_is_compatible(node, "ti,am437x-dwc3")) {
