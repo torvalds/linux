@@ -497,37 +497,6 @@ void ktime_get_ts64(struct timespec64 *ts)
 }
 EXPORT_SYMBOL_GPL(ktime_get_ts64);
 
-
-/**
- * timekeeping_clocktai - Returns the TAI time of day in a timespec
- * @ts:		pointer to the timespec to be set
- *
- * Returns the time of day in a timespec.
- */
-void timekeeping_clocktai(struct timespec *ts)
-{
-	struct timekeeper *tk = &tk_core.timekeeper;
-	struct timespec64 ts64;
-	unsigned long seq;
-	u64 nsecs;
-
-	WARN_ON(timekeeping_suspended);
-
-	do {
-		seq = read_seqcount_begin(&tk_core.seq);
-
-		ts64.tv_sec = tk->xtime_sec + tk->tai_offset;
-		nsecs = timekeeping_get_ns(tk);
-
-	} while (read_seqcount_retry(&tk_core.seq, seq));
-
-	ts64.tv_nsec = 0;
-	timespec64_add_ns(&ts64, nsecs);
-	*ts = timespec64_to_timespec(ts64);
-
-}
-EXPORT_SYMBOL(timekeeping_clocktai);
-
 #ifdef CONFIG_NTP_PPS
 
 /**

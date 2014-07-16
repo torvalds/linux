@@ -166,6 +166,11 @@ static inline void get_monotonic_boottime(struct timespec *ts)
 	*ts = ktime_to_timespec(ktime_get_boottime());
 }
 
+static inline void timekeeping_clocktai(struct timespec *ts)
+{
+	*ts = ktime_to_timespec(ktime_get_clocktai());
+}
+
 /*
  * RTC specific
  */
