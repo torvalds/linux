@@ -167,6 +167,23 @@ int kfd_chardev_init(void);
 void kfd_chardev_exit(void);
 struct device *kfd_chardev(void);
 
+/**
+ * enum kfd_preempt_type_filter
+ *
+ * @KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE: Preempts single queue.
+ *
+ * @KFD_PRERMPT_TYPE_FILTER_ALL_QUEUES: Preempts all queues in the
+ *						running queues list.
+ *
+ * @KFD_PRERMPT_TYPE_FILTER_BY_PASID: Preempts queues that belongs to
+ *						specific process.
+ *
+ */
+enum kfd_preempt_type_filter {
+	KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE,
+	KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES,
+	KFD_PREEMPT_TYPE_FILTER_BY_PASID
+};
 
 enum kfd_preempt_type {
 	KFD_PREEMPT_TYPE_WAVEFRONT,
@@ -313,6 +330,51 @@ enum KFD_MQD_TYPE {
 	KFD_MQD_TYPE_MAX
 };
 
+struct scheduling_resources {
+	unsigned int vmid_mask;
+	enum kfd_queue_type type;
+	uint64_t queue_mask;
+	uint64_t gws_mask;
+	uint32_t oac_mask;
+	uint32_t gds_heap_base;
+	uint32_t gds_heap_size;
+};
+
+struct process_queue_manager {
+	/* data */
+	struct kfd_process	*process;
+	unsigned int		num_concurrent_processes;
+	struct list_head	queues;
+	unsigned long		*queue_slot_bitmap;
+};
+
+struct qcm_process_device {
+	/* The Device Queue Manager that owns this data */
+	struct device_queue_manager *dqm;
+	struct process_queue_manager *pqm;
+	/* Device Queue Manager lock */
+	struct mutex *lock;
+	/* Queues list */
+	struct list_head queues_list;
+	struct list_head priv_queue_list;
+
+	unsigned int queue_count;
+	unsigned int vmid;
+	bool is_debug;
+	/*
+	 * All the memory management data should be here too
+	 */
+	uint64_t gds_context_area;
+	uint32_t sh_mem_config;
+	uint32_t sh_mem_bases;
+	uint32_t sh_mem_ape1_base;
+	uint32_t sh_mem_ape1_limit;
+	uint32_t page_table_base;
+	uint32_t gds_size;
+	uint32_t num_gws;
+	uint32_t num_oac;
+};
+
 /* Data that is per-process-per device. */
 struct kfd_process_device {
 	/*
@@ -434,11 +496,22 @@ int kgd2kfd_resume(struct kfd_dev *dev);
 int kfd_init_apertures(struct kfd_process *process);
 
 /* Queue Context Management */
+inline uint32_t lower_32(uint64_t x);
+inline uint32_t upper_32(uint64_t x);
+
 int init_queue(struct queue **q, struct queue_properties properties);
 void uninit_queue(struct queue *q);
 void print_queue(struct queue *q);
 
+struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
+					enum kfd_queue_type type);
+void kernel_queue_uninit(struct kernel_queue *kq);
+
 /* Packet Manager */
+
+#define KFD_HIQ_TIMEOUT (500)
+
+#define KFD_UNMAP_LATENCY (150)
 
 struct packet_manager {
 	struct device_queue_manager *dqm;
@@ -447,6 +520,8 @@ struct packet_manager {
 	bool allocated;
 	struct kfd_mem_obj *ib_buffer_obj;
 };
+
+void pm_release_ib(struct packet_manager *pm);
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
