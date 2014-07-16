@@ -677,11 +677,15 @@ struct snd_soc_component_driver {
 	int (*of_xlate_dai_name)(struct snd_soc_component *component,
 				 struct of_phandle_args *args,
 				 const char **dai_name);
+	void (*seq_notifier)(struct snd_soc_component *, enum snd_soc_dapm_type,
+		int subseq);
+	int (*stream_event)(struct snd_soc_component *, int event);
 };
 
 struct snd_soc_component {
 	const char *name;
 	int id;
+	const char *name_prefix;
 	struct device *dev;
 
 	unsigned int active;
@@ -705,13 +709,14 @@ struct snd_soc_component {
 	int val_bytes;
 
 	struct mutex io_mutex;
+
+	/* Don't use these, use snd_soc_component_get_dapm() */
+	struct snd_soc_dapm_context dapm;
+	struct snd_soc_dapm_context *dapm_ptr;
 };
 
 /* SoC Audio Codec device */
 struct snd_soc_codec {
-	const char *name;
-	const char *name_prefix;
-	int id;
 	struct device *dev;
 	const struct snd_soc_codec_driver *driver;
 
@@ -790,9 +795,6 @@ struct snd_soc_codec_driver {
 	void (*seq_notifier)(struct snd_soc_dapm_context *,
 			     enum snd_soc_dapm_type, int);
 
-	/* codec stream completion event */
-	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
-
 	bool ignore_pmdown_time;  /* Doesn't benefit from pmdown delay */
 
 	/* probe ordering - for components with runtime dependencies */
@@ -834,9 +836,6 @@ struct snd_soc_platform_driver {
 	/* platform stream compress ops */
 	const struct snd_compr_ops *compr_ops;
 
-	/* platform stream completion event */
-	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
-
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;
 	int remove_order;
@@ -848,8 +847,6 @@ struct snd_soc_platform_driver {
 };
 
 struct snd_soc_platform {
-	const char *name;
-	int id;
 	struct device *dev;
 	const struct snd_soc_platform_driver *driver;
 
@@ -861,8 +858,6 @@ struct snd_soc_platform {
 	struct list_head card_list;
 
 	struct snd_soc_component component;
-
-	struct snd_soc_dapm_context dapm;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_platform_root;
@@ -1165,6 +1160,21 @@ static inline struct snd_soc_platform *snd_soc_component_to_platform(
 }
 
 /**
+ * snd_soc_dapm_to_component() - Casts a DAPM context to the component it is
+ *  embedded in
+ * @dapm: The DAPM context to cast to the component
+ *
+ * This function must only be used on DAPM contexts that are known to be part of
+ * a component (e.g. in a component driver). Otherwise the behavior is
+ * undefined.
+ */
+static inline struct snd_soc_component *snd_soc_dapm_to_component(
+	struct snd_soc_dapm_context *dapm)
+{
+	return container_of(dapm, struct snd_soc_component, dapm);
+}
+
+/**
  * snd_soc_dapm_to_codec() - Casts a DAPM context to the CODEC it is embedded in
  * @dapm: The DAPM context to cast to the CODEC
  *
@@ -1188,7 +1198,18 @@ static inline struct snd_soc_codec *snd_soc_dapm_to_codec(
 static inline struct snd_soc_platform *snd_soc_dapm_to_platform(
 	struct snd_soc_dapm_context *dapm)
 {
-	return container_of(dapm, struct snd_soc_platform, dapm);
+	return snd_soc_component_to_platform(snd_soc_dapm_to_component(dapm));
+}
+
+/**
+ * snd_soc_component_get_dapm() - Returns the DAPM context associated with a
+ *  component
+ * @component: The component for which to get the DAPM context
+ */
+static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
+	struct snd_soc_component *component)
+{
+	return component->dapm_ptr;
 }
 
 /* codec IO */
