@@ -774,21 +774,6 @@ int timekeeping_notify(struct clocksource *clock)
 }
 
 /**
- * ktime_get_real - get the real (wall-) time in ktime_t format
- *
- * returns the time in ktime_t format
- */
-ktime_t ktime_get_real(void)
-{
-	struct timespec64 now;
-
-	getnstimeofday64(&now);
-
-	return timespec64_to_ktime(now);
-}
-EXPORT_SYMBOL_GPL(ktime_get_real);
-
-/**
  * getrawmonotonic - Returns the raw monotonic time in a timespec
  * @ts:		pointer to the timespec to be set
  *
