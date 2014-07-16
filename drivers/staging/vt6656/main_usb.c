@@ -230,25 +230,24 @@ static int device_init_registers(struct vnt_private *priv)
 	u8 tmp;
 	u8 calib_tx_iq = 0, calib_tx_dc = 0, calib_rx_iq = 0;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n",
+	dev_dbg(&priv->usb->dev, "---->INIbInitAdapter. [%d][%d]\n",
 				DEVICE_INIT_COLD, priv->byPacketType);
 
 	if (!vnt_check_firmware_version(priv)) {
 		if (vnt_download_firmware(priv) == true) {
 			if (vnt_firmware_branch_to_sram(priv) == false) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				dev_dbg(&priv->usb->dev,
 					" vnt_firmware_branch_to_sram fail\n");
 				return false;
 			}
 		} else {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				" FIRMWAREbDownload fail\n");
+			dev_dbg(&priv->usb->dev, "FIRMWAREbDownload fail\n");
 			return false;
 		}
 	}
 
 	if (!vnt_vt3184_init(priv)) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" vnt_vt3184_init fail\n");
+		dev_dbg(&priv->usb->dev, "vnt_vt3184_init fail\n");
 		return false;
 	}
 
@@ -264,14 +263,14 @@ static int device_init_registers(struct vnt_private *priv)
 		MESSAGE_TYPE_CARDINIT, 0, 0,
 		sizeof(struct vnt_cmd_card_init), (u8 *)init_cmd);
 	if (status != STATUS_SUCCESS) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Issue Card init fail\n");
+		dev_dbg(&priv->usb->dev, "Issue Card init fail\n");
 		return false;
 	}
 
 	status = vnt_control_in(priv, MESSAGE_TYPE_INIT_RSP, 0, 0,
 		sizeof(struct vnt_rsp_card_init), (u8 *)init_rsp);
 	if (status != STATUS_SUCCESS) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+		dev_dbg(&priv->usb->dev,
 			"Cardinit request in status fail!\n");
 		return false;
 	}
@@ -429,7 +428,7 @@ static int device_init_registers(struct vnt_private *priv)
 				priv->abyPermanentNetAddr, ETH_ALEN);
 
 	/* if exist SW network address, use it */
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Network address = %pM\n",
+	dev_dbg(&priv->usb->dev, "Network address = %pM\n",
 		priv->abyCurrentNetAddr);
 
 	/*
@@ -478,7 +477,7 @@ static int device_init_registers(struct vnt_private *priv)
 		vnt_radio_power_on(priv);
 	}
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----INIbInitAdapter Exit\n");
+	dev_dbg(&priv->usb->dev, "<----INIbInitAdapter Exit\n");
 
 	return true;
 }
