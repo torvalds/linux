@@ -1072,8 +1072,12 @@ static int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
-	/* Also enable probe requests to pass */
-	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
+	/*
+	 * pass probe requests and beacons from other APs (needed
+	 * for ht protection)
+	 */
+	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST |
+					MAC_FILTER_IN_BEACON);
 
 	/* Fill the data specific for ap mode */
 	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.ap,
@@ -1093,6 +1097,13 @@ static int iwl_mvm_mac_ctxt_cmd_go(struct iwl_mvm *mvm,
 
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
+
+	/*
+	 * pass probe requests and beacons from other APs (needed
+	 * for ht protection)
+	 */
+	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST |
+					MAC_FILTER_IN_BEACON);
 
 	/* Fill the data specific for GO mode */
 	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.go.ap,
