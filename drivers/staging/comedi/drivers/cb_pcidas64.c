@@ -1985,8 +1985,6 @@ static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 			scan_divisor = min_scan_divisor;
 		cmd->scan_begin_arg = scan_divisor * TIMER_BASE;
 	}
-
-	return;
 }
 
 static int cb_pcidas64_ai_check_chanlist(struct comedi_device *dev,
