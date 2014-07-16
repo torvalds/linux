@@ -35,15 +35,31 @@ struct cpuinfo cpuinfo;
 static inline u32 fcpu(struct device_node *cpu, const char *n)
 {
 	u32 val = 0;
+	int ret;
+	char buf[strlen(n) + 1];
 
-	of_property_read_u32(cpu, n, &val);
+	ret = of_property_read_u32(cpu, n, &val);
+	if (ret && !strncmp(n, "altr,", 5)) {
+		strcpy(buf, n);
+		strncpy(buf, "ALTR,", 5);
+		of_property_read_u32(cpu, buf, &val);
+	}
 
 	return val;
 }
 
 static inline u32 fcpu_has(struct device_node *cpu, const char *n)
 {
-	return of_get_property(cpu, n, NULL) ? 1 : 0;
+	const void *ret;
+	char buf[strlen(n) + 1];
+
+	ret = of_get_property(cpu, n, NULL);
+	if (!ret && !strncmp(n, "altr,", 5)) {
+		strcpy(buf, n);
+		strncpy(buf, "ALTR,", 5);
+		ret = of_get_property(cpu, buf, NULL);
+	}
+	return ret ? 1 : 0;
 }
 
 void __init setup_cpuinfo(void)
@@ -56,22 +72,22 @@ void __init setup_cpuinfo(void)
 	if (!cpu)
 		panic("%s: No CPU found in devicetree!\n", __func__);
 
-	if (!fcpu_has(cpu, "ALTR,has-initda"))
+	if (!fcpu_has(cpu, "altr,has-initda"))
 		panic("initda instruction is unimplemented. Please update your "
 			"hardware system to have more than 4-byte line data "
 			"cache\n");
 
 	cpuinfo.cpu_clock_freq = fcpu(cpu, "clock-frequency");
 
-	str = of_get_property(cpu, "ALTR,implementation", &len);
+	str = of_get_property(cpu, "altr,implementation", &len);
 	if (str)
 		strlcpy(cpuinfo.cpu_impl, str, sizeof(cpuinfo.cpu_impl));
 	else
 		strcpy(cpuinfo.cpu_impl, "<unknown>");
 
-	cpuinfo.has_div = fcpu_has(cpu, "ALTR,has-div");
-	cpuinfo.has_mul = fcpu_has(cpu, "ALTR,has-mul");
-	cpuinfo.has_mulx = fcpu_has(cpu, "ALTR,has-mulx");
+	cpuinfo.has_div = fcpu_has(cpu, "altr,has-div");
+	cpuinfo.has_mul = fcpu_has(cpu, "altr,has-mul");
+	cpuinfo.has_mulx = fcpu_has(cpu, "altr,has-mulx");
 
 #ifdef CONFIG_NIOS2_HW_DIV_SUPPORT
 	if (!cpuinfo.has_div)
@@ -86,9 +102,9 @@ void __init setup_cpuinfo(void)
 		err_cpu("MULX");
 #endif
 
-	cpuinfo.tlb_num_ways = fcpu(cpu, "ALTR,tlb-num-ways");
+	cpuinfo.tlb_num_ways = fcpu(cpu, "altr,tlb-num-ways");
 	if (!cpuinfo.tlb_num_ways)
-		panic("ALTR,tlb-num-ways can't be 0. Please check your hardware "
+		panic("altr,tlb-num-ways can't be 0. Please check your hardware "
 			"system\n");
 	cpuinfo.icache_line_size = fcpu(cpu, "icache-line-size");
 	cpuinfo.icache_size = fcpu(cpu, "icache-size");
@@ -112,15 +128,15 @@ void __init setup_cpuinfo(void)
 			"device tree dcache-size\n",
 			CONFIG_NIOS2_DCACHE_SIZE, cpuinfo.dcache_size);
 
-	cpuinfo.tlb_pid_num_bits = fcpu(cpu, "ALTR,pid-num-bits");
+	cpuinfo.tlb_pid_num_bits = fcpu(cpu, "altr,pid-num-bits");
 	cpuinfo.tlb_num_ways_log2 = ilog2(cpuinfo.tlb_num_ways);
-	cpuinfo.tlb_num_entries = fcpu(cpu, "ALTR,tlb-num-entries");
+	cpuinfo.tlb_num_entries = fcpu(cpu, "altr,tlb-num-entries");
 	cpuinfo.tlb_num_lines = cpuinfo.tlb_num_entries / cpuinfo.tlb_num_ways;
-	cpuinfo.tlb_ptr_sz = fcpu(cpu, "ALTR,tlb-ptr-sz");
+	cpuinfo.tlb_ptr_sz = fcpu(cpu, "altr,tlb-ptr-sz");
 
-	cpuinfo.reset_addr = fcpu(cpu, "ALTR,reset-addr");
-	cpuinfo.exception_addr = fcpu(cpu, "ALTR,exception-addr");
-	cpuinfo.fast_tlb_miss_exc_addr = fcpu(cpu, "ALTR,fast-tlb-miss-addr");
+	cpuinfo.reset_addr = fcpu(cpu, "altr,reset-addr");
+	cpuinfo.exception_addr = fcpu(cpu, "altr,exception-addr");
+	cpuinfo.fast_tlb_miss_exc_addr = fcpu(cpu, "altr,fast-tlb-miss-addr");
 }
 
 #ifdef CONFIG_PROC_FS

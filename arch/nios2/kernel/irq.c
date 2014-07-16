@@ -80,6 +80,9 @@ void __init init_IRQ(void)
 	struct device_node *node;
 
 	node = of_find_compatible_node(NULL, NULL, "ALTR,nios2-1.0");
+	if (!node)
+		node = of_find_compatible_node(NULL, NULL, "altr,nios2-1.1");
+
 	BUG_ON(!node);
 
 	domain = irq_domain_add_linear(node, NIOS2_CPU_NR_IRQS, &irq_ops, NULL);
