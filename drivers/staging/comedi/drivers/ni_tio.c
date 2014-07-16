@@ -1271,17 +1271,15 @@ static unsigned ni_660x_first_gate_to_generic_gate_source(unsigned
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 	default:
 		for (i = 0; i <= ni_660x_max_rtsi_channel; ++i) {
-			if (ni_660x_gate_select == NI_660x_RTSI_Gate_Select(i)) {
+			if (ni_660x_gate_select == NI_660x_RTSI_Gate_Select(i))
 				return NI_GPCT_RTSI_GATE_SELECT(i);
-			}
 		}
 		if (i <= ni_660x_max_rtsi_channel)
 			break;
 		for (i = 0; i <= ni_660x_max_gate_pin; ++i) {
 			if (ni_660x_gate_select ==
-			    NI_660x_Gate_Pin_Gate_Select(i)) {
+			    NI_660x_Gate_Pin_Gate_Select(i))
 				return NI_GPCT_GATE_PIN_GATE_SELECT(i);
-			}
 		}
 		if (i <= ni_660x_max_gate_pin)
 			break;
