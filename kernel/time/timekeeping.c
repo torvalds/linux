@@ -1708,24 +1708,6 @@ ktime_t ktime_get_update_offsets_now(ktime_t *offs_real, ktime_t *offs_boot,
 #endif
 
 /**
- * ktime_get_monotonic_offset() - get wall_to_monotonic in ktime_t format
- */
-ktime_t ktime_get_monotonic_offset(void)
-{
-	struct timekeeper *tk = &tk_core.timekeeper;
-	unsigned long seq;
-	struct timespec64 wtom;
-
-	do {
-		seq = read_seqcount_begin(&tk_core.seq);
-		wtom = tk->wall_to_monotonic;
-	} while (read_seqcount_retry(&tk_core.seq, seq));
-
-	return timespec64_to_ktime(wtom);
-}
-EXPORT_SYMBOL_GPL(ktime_get_monotonic_offset);
-
-/**
  * do_adjtimex() - Accessor function to NTP __do_adjtimex function
  */
 int do_adjtimex(struct timex *txc)

@@ -108,7 +108,6 @@ enum tk_offsets {
 
 extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_with_offset(enum tk_offsets offs);
-extern ktime_t ktime_get_monotonic_offset(void);
 extern ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs);
 
 /**
