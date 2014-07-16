@@ -534,7 +534,8 @@ static void usb_device_reset(struct vnt_private *pDevice)
 
 	status = usb_reset_device(pDevice->usb);
 	if (status)
-            printk("usb_device_reset fail status=%d\n",status);
+		dev_warn(&pDevice->usb->dev,
+			 "usb_device_reset fail status=%d\n", status);
 	return ;
 }
 
