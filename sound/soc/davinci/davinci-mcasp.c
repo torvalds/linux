@@ -37,6 +37,7 @@
 #include <sound/omap-pcm.h>
 
 #include "davinci-pcm.h"
+#include "edma-pcm.h"
 #include "davinci-mcasp.h"
 
 #define MCASP_MAX_AFIFO_DEPTH	64
@@ -831,7 +832,7 @@ static int davinci_mcasp_dai_probe(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 
-	if (mcasp->version == MCASP_VERSION_4) {
+	if (mcasp->version >= MCASP_VERSION_3) {
 		/* Using dmaengine PCM */
 		dai->playback_dma_data =
 				&mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
@@ -1281,8 +1282,14 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	 IS_MODULE(CONFIG_SND_DAVINCI_SOC))
 	case MCASP_VERSION_1:
 	case MCASP_VERSION_2:
-	case MCASP_VERSION_3:
 		ret = davinci_soc_platform_register(&pdev->dev);
+		break;
+#endif
+#if IS_BUILTIN(CONFIG_SND_EDMA_SOC) || \
+	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
+	 IS_MODULE(CONFIG_SND_EDMA_SOC))
+	case MCASP_VERSION_3:
+		ret = edma_pcm_platform_register(&pdev->dev);
 		break;
 #endif
 #if IS_BUILTIN(CONFIG_SND_OMAP_SOC) || \
