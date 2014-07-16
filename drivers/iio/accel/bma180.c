@@ -376,6 +376,8 @@ static int bma180_write_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&data->mutex);
 		return ret;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		if (val2)
+			return -EINVAL;
 		mutex_lock(&data->mutex);
 		ret = bma180_set_bw(data, val);
 		mutex_unlock(&data->mutex);
