@@ -558,7 +558,7 @@ int rk3288_hdmi_video_sampler(struct hdmi *hdmi_drv,
 }
 
 #ifdef HDMI_DEBUG
-static int rk3288_hdmi_read_phy(struct rk3288_hdmi_device *hdmi_dev,
+static int __maybe_unused rk3288_hdmi_read_phy(struct rk3288_hdmi_device *hdmi_dev,
 				int reg_addr)
 {
 	int trytime = 2, i = 0, op_status = 0;
