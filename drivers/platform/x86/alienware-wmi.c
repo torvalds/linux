@@ -71,13 +71,13 @@ static struct quirk_entry quirk_x51_family = {
 	.num_zones = 3,
 };
 
-static int dmi_matched(const struct dmi_system_id *dmi)
+static int __init dmi_matched(const struct dmi_system_id *dmi)
 {
 	quirks = dmi->driver_data;
 	return 1;
 }
 
-static struct dmi_system_id alienware_quirks[] = {
+static const struct dmi_system_id alienware_quirks[] __initconst = {
 	{
 	 .callback = dmi_matched,
 	 .ident = "Alienware X51 R1",
