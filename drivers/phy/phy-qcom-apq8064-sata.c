@@ -91,7 +91,7 @@ static int read_poll_timeout(void __iomem *addr, u32 mask)
 		 usleep_range(DELAY_INTERVAL_US, DELAY_INTERVAL_US + 50);
 	} while (!time_after(jiffies, timeout));
 
-	return -ETIMEDOUT;
+	return (readl_relaxed(addr) & mask) ? 0 : -ETIMEDOUT;
 }
 
 static int qcom_apq8064_sata_phy_init(struct phy *generic_phy)
