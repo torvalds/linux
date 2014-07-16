@@ -285,13 +285,13 @@ static void timekeeping_forward_now(struct timekeeper *tk)
 }
 
 /**
- * __getnstimeofday - Returns the time of day in a timespec.
+ * __getnstimeofday64 - Returns the time of day in a timespec64.
  * @ts:		pointer to the timespec to be set
  *
  * Updates the time of day in the timespec.
  * Returns 0 on success, or -ve when suspended (timespec will be undefined).
  */
-int __getnstimeofday(struct timespec *ts)
+int __getnstimeofday64(struct timespec64 *ts)
 {
 	struct timekeeper *tk = &timekeeper;
 	unsigned long seq;
@@ -306,7 +306,7 @@ int __getnstimeofday(struct timespec *ts)
 	} while (read_seqcount_retry(&timekeeper_seq, seq));
 
 	ts->tv_nsec = 0;
-	timespec_add_ns(ts, nsecs);
+	timespec64_add_ns(ts, nsecs);
 
 	/*
 	 * Do not bail out early, in case there were callers still using
@@ -316,19 +316,19 @@ int __getnstimeofday(struct timespec *ts)
 		return -EAGAIN;
 	return 0;
 }
-EXPORT_SYMBOL(__getnstimeofday);
+EXPORT_SYMBOL(__getnstimeofday64);
 
 /**
- * getnstimeofday - Returns the time of day in a timespec.
+ * getnstimeofday64 - Returns the time of day in a timespec64.
  * @ts:		pointer to the timespec to be set
  *
  * Returns the time of day in a timespec (WARN if suspended).
  */
-void getnstimeofday(struct timespec *ts)
+void getnstimeofday64(struct timespec64 *ts)
 {
-	WARN_ON(__getnstimeofday(ts));
+	WARN_ON(__getnstimeofday64(ts));
 }
-EXPORT_SYMBOL(getnstimeofday);
+EXPORT_SYMBOL(getnstimeofday64);
 
 ktime_t ktime_get(void)
 {
@@ -350,17 +350,17 @@ ktime_t ktime_get(void)
 EXPORT_SYMBOL_GPL(ktime_get);
 
 /**
- * ktime_get_ts - get the monotonic clock in timespec format
+ * ktime_get_ts64 - get the monotonic clock in timespec64 format
  * @ts:		pointer to timespec variable
  *
  * The function calculates the monotonic clock from the realtime
  * clock and the wall_to_monotonic offset and stores the result
  * in normalized timespec format in the variable pointed to by @ts.
  */
-void ktime_get_ts(struct timespec *ts)
+void ktime_get_ts64(struct timespec64 *ts)
 {
 	struct timekeeper *tk = &timekeeper;
-	struct timespec64 ts64, tomono;
+	struct timespec64 tomono;
 	s64 nsec;
 	unsigned int seq;
 
@@ -368,18 +368,17 @@ void ktime_get_ts(struct timespec *ts)
 
 	do {
 		seq = read_seqcount_begin(&timekeeper_seq);
-		ts64.tv_sec = tk->xtime_sec;
+		ts->tv_sec = tk->xtime_sec;
 		nsec = timekeeping_get_ns(tk);
 		tomono = tk->wall_to_monotonic;
 
 	} while (read_seqcount_retry(&timekeeper_seq, seq));
 
-	ts64.tv_sec += tomono.tv_sec;
-	ts64.tv_nsec = 0;
-	timespec64_add_ns(&ts64, nsec + tomono.tv_nsec);
-	*ts = timespec64_to_timespec(ts64);
+	ts->tv_sec += tomono.tv_sec;
+	ts->tv_nsec = 0;
+	timespec64_add_ns(ts, nsec + tomono.tv_nsec);
 }
-EXPORT_SYMBOL_GPL(ktime_get_ts);
+EXPORT_SYMBOL_GPL(ktime_get_ts64);
 
 
 /**
@@ -473,9 +472,9 @@ EXPORT_SYMBOL(getnstime_raw_and_real);
  */
 void do_gettimeofday(struct timeval *tv)
 {
-	struct timespec now;
+	struct timespec64 now;
 
-	getnstimeofday(&now);
+	getnstimeofday64(&now);
 	tv->tv_sec = now.tv_sec;
 	tv->tv_usec = now.tv_nsec/1000;
 }
@@ -680,11 +679,11 @@ int timekeeping_notify(struct clocksource *clock)
  */
 ktime_t ktime_get_real(void)
 {
-	struct timespec now;
+	struct timespec64 now;
 
-	getnstimeofday(&now);
+	getnstimeofday64(&now);
 
-	return timespec_to_ktime(now);
+	return timespec64_to_ktime(now);
 }
 EXPORT_SYMBOL_GPL(ktime_get_real);
 
@@ -1689,7 +1688,6 @@ int do_adjtimex(struct timex *txc)
 	struct timekeeper *tk = &timekeeper;
 	unsigned long flags;
 	struct timespec64 ts;
-	struct timespec tmp;
 	s32 orig_tai, tai;
 	int ret;
 
@@ -1709,8 +1707,7 @@ int do_adjtimex(struct timex *txc)
 			return ret;
 	}
 
-	getnstimeofday(&tmp);
-	ts = timespec_to_timespec64(tmp);
+	getnstimeofday64(&ts);
 
 	raw_spin_lock_irqsave(&timekeeper_lock, flags);
 	write_seqcount_begin(&timekeeper_seq);
