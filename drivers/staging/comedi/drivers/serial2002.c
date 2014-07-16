@@ -422,67 +422,65 @@ static int serial2002_setup_subdevs(struct comedi_device *dev)
 	serial2002_tty_setspeed(devpriv->tty, devpriv->speed);
 	serial2002_poll_channel(devpriv->tty, 31);
 	while (1) {
-		struct serial_data data;
+		struct serial_data data = serial2002_read(devpriv->tty, 1000);
+		int kind = S2002_CFG_KIND(data.value);
+		int channel = S2002_CFG_CHAN(data.value);
+		int range = S2002_CFG_BASE(data.value);
+		int cmd = S2002_CFG_CMD(data.value);
 
-		data = serial2002_read(devpriv->tty, 1000);
 		if (data.kind != is_channel || data.index != 31 ||
-		    S2002_CFG_KIND(data.value) == S2002_CFG_KIND_INVALID) {
+		    kind == S2002_CFG_KIND_INVALID)
 			break;
-		} else {
-			int channel = S2002_CFG_CHAN(data.value);
-			int range = S2002_CFG_BASE(data.value);
 
-			switch (S2002_CFG_KIND(data.value)) {
-			case S2002_CFG_KIND_DIGITAL_IN:
-				cfg = di_cfg;
+		switch (kind) {
+		case S2002_CFG_KIND_DIGITAL_IN:
+			cfg = di_cfg;
+			break;
+		case S2002_CFG_KIND_DIGITAL_OUT:
+			cfg = do_cfg;
+			break;
+		case S2002_CFG_KIND_ANALOG_IN:
+			cfg = ai_cfg;
+			break;
+		case S2002_CFG_KIND_ANALOG_OUT:
+			cfg = ao_cfg;
+			break;
+		case S2002_CFG_KIND_ENCODER_IN:
+			cfg = ai_cfg;
+			break;
+		default:
+			cfg = NULL;
+			break;
+		}
+		if (!cfg)
+			continue;	/* unknown kind, skip it */
+
+		cfg[channel].kind = kind;
+
+		switch (cmd) {
+		case S2002_CFG_CMD_BITS:
+			cfg[channel].bits = S2002_CFG_BITS(data.value);
+			break;
+		case S2002_CFG_CMD_MIN:
+		case S2002_CFG_CMD_MAX:
+			switch (S2002_CFG_UNITS(data.value)) {
+			case 0:
+				range *= 1000000;
 				break;
-			case S2002_CFG_KIND_DIGITAL_OUT:
-				cfg = do_cfg;
+			case 1:
+				range *= 1000;
 				break;
-			case S2002_CFG_KIND_ANALOG_IN:
-				cfg = ai_cfg;
-				break;
-			case S2002_CFG_KIND_ANALOG_OUT:
-				cfg = ao_cfg;
-				break;
-			case S2002_CFG_KIND_ENCODER_IN:
-				cfg = ai_cfg;
-				break;
-			default:
-				cfg = NULL;
+			case 2:
+				range *= 1;
 				break;
 			}
-			if (!cfg)
-				continue;	/* unknown kind, skip it */
-
-			cfg[channel].kind = S2002_CFG_KIND(data.value);
-
-			switch (S2002_CFG_CMD(data.value)) {
-			case S2002_CFG_CMD_BITS:
-				cfg[channel].bits = S2002_CFG_BITS(data.value);
-				break;
-			case S2002_CFG_CMD_MIN:
-			case S2002_CFG_CMD_MAX:
-				switch (S2002_CFG_UNITS(data.value)) {
-				case 0:
-					range *= 1000000;
-					break;
-				case 1:
-					range *= 1000;
-					break;
-				case 2:
-					range *= 1;
-					break;
-				}
-				if (S2002_CFG_SIGN(data.value))
-					range = -range;
-				if (S2002_CFG_CMD(data.value) ==
-				    S2002_CFG_CMD_MIN)
-					cfg[channel].min = range;
-				else
-					cfg[channel].max = range;
-				break;
-			}
+			if (S2002_CFG_SIGN(data.value))
+				range = -range;
+			if (cmd == S2002_CFG_CMD_MIN)
+				cfg[channel].min = range;
+			else
+				cfg[channel].max = range;
+			break;
 		}
 	}
 
