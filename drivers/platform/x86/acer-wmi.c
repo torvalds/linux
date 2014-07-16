@@ -96,7 +96,7 @@ enum acer_wmi_event_ids {
 	WMID_ACCEL_EVENT = 0x5,
 };
 
-static const struct key_entry acer_wmi_keymap[] = {
+static const struct key_entry acer_wmi_keymap[] __initconst = {
 	{KE_KEY, 0x01, {KEY_WLAN} },     /* WiFi */
 	{KE_KEY, 0x03, {KEY_WLAN} },     /* WiFi */
 	{KE_KEY, 0x04, {KEY_WLAN} },     /* WiFi */
