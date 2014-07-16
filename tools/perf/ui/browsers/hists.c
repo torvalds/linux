@@ -17,6 +17,7 @@
 #include "../util.h"
 #include "../ui.h"
 #include "map.h"
+#include "annotate.h"
 
 struct hist_browser {
 	struct ui_browser   b;
@@ -1593,13 +1594,18 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					 bi->to.sym->name) > 0)
 				annotate_t = nr_options++;
 		} else {
-
 			if (browser->selection != NULL &&
 			    browser->selection->sym != NULL &&
-			    !browser->selection->map->dso->annotate_warned &&
-				asprintf(&options[nr_options], "Annotate %s",
-					 browser->selection->sym->name) > 0)
-				annotate = nr_options++;
+			    !browser->selection->map->dso->annotate_warned) {
+				struct annotation *notes;
+
+				notes = symbol__annotation(browser->selection->sym);
+
+				if (notes->src &&
+				    asprintf(&options[nr_options], "Annotate %s",
+						 browser->selection->sym->name) > 0)
+					annotate = nr_options++;
+			}
 		}
 
 		if (thread != NULL &&
@@ -1656,6 +1662,7 @@ retry_popup_menu:
 
 		if (choice == annotate || choice == annotate_t || choice == annotate_f) {
 			struct hist_entry *he;
+			struct annotation *notes;
 			int err;
 do_annotate:
 			if (!objdump_path && perf_session_env__lookup_objdump(env))
@@ -1678,6 +1685,10 @@ do_annotate:
 				he->ms.sym = he->branch_info->to.sym;
 				he->ms.map = he->branch_info->to.map;
 			}
+
+			notes = symbol__annotation(he->ms.sym);
+			if (!notes->src)
+				continue;
 
 			/*
 			 * Don't let this be freed, say, by hists__decay_entry.
