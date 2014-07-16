@@ -681,7 +681,6 @@ static int a2150_set_chanlist(struct comedi_device *dev,
 		break;
 	default:
 		return -1;
-		break;
 	}
 
 	return 0;
