@@ -36,6 +36,9 @@ struct timekeeper {
 	/* Clock shifted nano seconds */
 	u64			xtime_nsec;
 
+	/* Monotonic base time */
+	ktime_t			base_mono;
+
 	/* Current CLOCK_REALTIME time in seconds */
 	u64			xtime_sec;
 	/* CLOCK_REALTIME to CLOCK_MONOTONIC offset */
