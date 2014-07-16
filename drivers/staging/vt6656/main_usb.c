@@ -78,7 +78,9 @@ MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
 	MODULE_PARM_DESC(N, D)
 
 #define RX_DESC_DEF0 64
-DEVICE_PARAM(RxDescriptors0, "Number of receive usb desc buffer");
+static int vnt_rx_buffers = RX_DESC_DEF0;
+module_param_named(rx_buffers, vnt_rx_buffers, int, 0644);
+MODULE_PARM_DESC(rx_buffers, "Number of receive usb rx buffers");
 
 #define TX_DESC_DEF0 64
 DEVICE_PARAM(TxDescriptors0, "Number of transmit usb desc buffer");
@@ -203,7 +205,13 @@ static void usb_device_reset(struct vnt_private *pDevice);
 static void device_set_options(struct vnt_private *priv)
 {
 	priv->cbTD = TX_DESC_DEF0;
-	priv->cbRD = RX_DESC_DEF0;
+
+	/* Set number of RX buffers */
+	if (vnt_rx_buffers < CB_MIN_RX_DESC || vnt_rx_buffers > CB_MAX_RX_DESC)
+		priv->cbRD = RX_DESC_DEF0;
+	else
+		priv->cbRD = vnt_rx_buffers;
+
 	priv->byShortRetryLimit = SHORT_RETRY_DEF;
 	priv->byLongRetryLimit = LONG_RETRY_DEF;
 	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
