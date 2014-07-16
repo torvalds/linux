@@ -19,7 +19,9 @@
 #include <asm/cpu.h>
 #include <asm/cputype.h>
 
+#include <linux/bitops.h>
 #include <linux/init.h>
+#include <linux/printk.h>
 #include <linux/smp.h>
 
 /*
@@ -29,6 +31,28 @@
  */
 DEFINE_PER_CPU(struct cpuinfo_arm64, cpu_data);
 static struct cpuinfo_arm64 boot_cpu_data;
+
+static char *icache_policy_str[] = {
+	[ICACHE_POLICY_RESERVED] = "RESERVED/UNKNOWN",
+	[ICACHE_POLICY_AIVIVT] = "AIVIVT",
+	[ICACHE_POLICY_VIPT] = "VIPT",
+	[ICACHE_POLICY_PIPT] = "PIPT",
+};
+
+unsigned long __icache_flags;
+
+static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
+{
+	unsigned int cpu = smp_processor_id();
+	u32 l1ip = CTR_L1IP(info->reg_ctr);
+
+	if (l1ip != ICACHE_POLICY_PIPT)
+		set_bit(ICACHEF_ALIASING, &__icache_flags);
+	if (l1ip == ICACHE_POLICY_AIVIVT);
+		set_bit(ICACHEF_AIVIVT, &__icache_flags);
+
+	pr_info("Detected %s I-cache on CPU%d", icache_policy_str[l1ip], cpu);
+}
 
 static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 {
@@ -56,6 +80,8 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_mmfr3 = read_cpuid(ID_MMFR3_EL1);
 	info->reg_id_pfr0 = read_cpuid(ID_PFR0_EL1);
 	info->reg_id_pfr1 = read_cpuid(ID_PFR1_EL1);
+
+	cpuinfo_detect_icache_policy(info);
 }
 
 void cpuinfo_store_cpu(void)
