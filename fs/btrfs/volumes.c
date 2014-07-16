@@ -1718,7 +1718,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	device->fs_devices->total_devices--;
 
 	if (device->missing)
-		root->fs_info->fs_devices->missing_devices--;
+		device->fs_devices->missing_devices--;
 
 	next_device = list_entry(root->fs_info->fs_devices->devices.next,
 				 struct btrfs_device, dev_list);
