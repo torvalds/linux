@@ -836,10 +836,8 @@ static uint16_t s626_get_mode_b(struct comedi_device *dev,
 static uint16_t s626_get_mode(struct comedi_device *dev,
 			      unsigned int chan)
 {
-	if (chan < 3)
-		return s626_get_mode_a(dev, chan);
-	else
-		return s626_get_mode_b(dev, chan);
+	return (chan < 3) ? s626_get_mode_a(dev, chan)
+			  : s626_get_mode_b(dev, chan);
 }
 #endif
 
@@ -1047,10 +1045,8 @@ static uint16_t s626_get_enable(struct comedi_device *dev,
 {
 	uint16_t crb = s626_debi_read(dev, S626_LP_CRB(chan));
 
-	if (chan < 3)
-		return S626_GET_CRB_CLKENAB_A(crb);
-	else
-		return S626_GET_CRB_CLKENAB_B(crb);
+	return (chan < 3) ? S626_GET_CRB_CLKENAB_A(crb)
+			  : S626_GET_CRB_CLKENAB_B(crb);
 }
 #endif
 
