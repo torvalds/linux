@@ -758,7 +758,6 @@ static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round)
 
 	clk_src = pci230_choose_clk_count(*ns, &count, round);
 	*ns = count * pci230_timebase[clk_src];
-	return;
 }
 
 static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
