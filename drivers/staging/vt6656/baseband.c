@@ -123,7 +123,7 @@ static u8 vnt_vt3184_vt3226d0[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  /* 0xff */
 };
 
-static const u16 awcFrameTime[MAX_RATE] = {
+static const u16 vnt_frame_time[MAX_RATE] = {
 	10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216
 };
 
@@ -152,7 +152,7 @@ unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
 	if (tx_rate > RATE_54M)
 		return 0;
 
-	rate = (unsigned int)awcFrameTime[tx_rate];
+	rate = (unsigned int)vnt_frame_time[tx_rate];
 
 	if (tx_rate <= 3) {
 		if (preamble_type == 1)
