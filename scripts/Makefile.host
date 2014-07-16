@@ -43,12 +43,9 @@ host-cxxmulti	:= $(foreach m,$(__hostprogs),$(if $($(m)-cxxobjs),$(m)))
 host-cxxobjs	:= $(sort $(foreach m,$(host-cxxmulti),$($(m)-cxxobjs)))
 
 # output directory for programs/.o files
-# hostprogs-y := tools/build may have been specified. Retrieve directory
-host-objdirs := $(dir $(__hostprogs))
-# directory of .o files from prog-objs notation
-host-objdirs += $(dir $(foreach f,$(host-cmulti), $($(f)-objs)))
-# directory of .o files from prog-cxxobjs notation
-host-objdirs += $(dir $(foreach f,$(host-cxxmulti), $($(f)-cxxobjs)))
+# hostprogs-y := tools/build may have been specified.
+# Retrieve also directory of .o files from prog-objs or prog-cxxobjs notation
+host-objdirs := $(dir $(__hostprogs) $(host-cobjs) $(host-cxxobjs))
 
 host-objdirs := $(strip $(sort $(filter-out ./,$(host-objdirs))))
 
