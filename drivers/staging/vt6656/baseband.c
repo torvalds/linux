@@ -581,7 +581,7 @@ void vnt_exit_deep_sleep(struct vnt_private *priv)
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x0d, 0x01);/* CR13 */
 }
 
-void BBvUpdatePreEDThreshold(struct vnt_private *priv, int scanning)
+void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 {
 	u8 cr_201 = 0x0, cr_206 = 0x0;
 	u8 ed_inx = priv->byBBPreEDIndex;

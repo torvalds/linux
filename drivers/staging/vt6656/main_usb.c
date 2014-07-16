@@ -882,7 +882,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 		vnt_set_short_slot_time(priv);
 		vnt_set_vga_gain_offset(priv, priv->abyBBVGA[0]);
-		BBvUpdatePreEDThreshold(priv, false);
+		vnt_update_pre_ed_threshold(priv, false);
 	}
 
 	if (changed & BSS_CHANGED_TXPOWER)
@@ -1003,7 +1003,7 @@ static void vnt_sw_scan_start(struct ieee80211_hw *hw)
 
 	vnt_set_bss_mode(priv);
 	/* Set max sensitivity*/
-	BBvUpdatePreEDThreshold(priv, true);
+	vnt_update_pre_ed_threshold(priv, true);
 }
 
 static void vnt_sw_scan_complete(struct ieee80211_hw *hw)
@@ -1011,7 +1011,7 @@ static void vnt_sw_scan_complete(struct ieee80211_hw *hw)
 	struct vnt_private *priv = hw->priv;
 
 	/* Return sensitivity to channel level*/
-	BBvUpdatePreEDThreshold(priv, false);
+	vnt_update_pre_ed_threshold(priv, false);
 }
 
 static int vnt_get_stats(struct ieee80211_hw *hw,
