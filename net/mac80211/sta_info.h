@@ -155,7 +155,8 @@ struct tid_ampdu_tx {
 /**
  * struct tid_ampdu_rx - TID aggregation information (Rx).
  *
- * @reorder_buf: buffer to reorder incoming aggregated MPDUs
+ * @reorder_buf: buffer to reorder incoming aggregated MPDUs. An MPDU may be an
+ *	A-MSDU with individually reported subframes.
  * @reorder_time: jiffies when skb was added
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
  * @reorder_timer: releases expired frames from the reorder buffer.
@@ -180,7 +181,7 @@ struct tid_ampdu_tx {
 struct tid_ampdu_rx {
 	struct rcu_head rcu_head;
 	spinlock_t reorder_lock;
-	struct sk_buff **reorder_buf;
+	struct sk_buff_head *reorder_buf;
 	unsigned long *reorder_time;
 	struct timer_list session_timer;
 	struct timer_list reorder_timer;

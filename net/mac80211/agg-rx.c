@@ -52,7 +52,7 @@ static void ieee80211_free_tid_rx(struct rcu_head *h)
 	del_timer_sync(&tid_rx->reorder_timer);
 
 	for (i = 0; i < tid_rx->buf_size; i++)
-		dev_kfree_skb(tid_rx->reorder_buf[i]);
+		__skb_queue_purge(&tid_rx->reorder_buf[i]);
 	kfree(tid_rx->reorder_buf);
 	kfree(tid_rx->reorder_time);
 	kfree(tid_rx);
@@ -232,7 +232,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	struct tid_ampdu_rx *tid_agg_rx;
 	u16 capab, tid, timeout, ba_policy, buf_size, start_seq_num, status;
 	u8 dialog_token;
-	int ret = -EOPNOTSUPP;
+	int i, ret = -EOPNOTSUPP;
 
 	/* extract session parameters from addba request frame */
 	dialog_token = mgmt->u.action.u.addba_req.dialog_token;
@@ -308,7 +308,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
-		kcalloc(buf_size, sizeof(struct sk_buff *), GFP_KERNEL);
+		kcalloc(buf_size, sizeof(struct sk_buff_head), GFP_KERNEL);
 	tid_agg_rx->reorder_time =
 		kcalloc(buf_size, sizeof(unsigned long), GFP_KERNEL);
 	if (!tid_agg_rx->reorder_buf || !tid_agg_rx->reorder_time) {
@@ -317,6 +317,9 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 		kfree(tid_agg_rx);
 		goto end;
 	}
+
+	for (i = 0; i < buf_size; i++)
+		__skb_queue_head_init(&tid_agg_rx->reorder_buf[i]);
 
 	ret = drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_START,
 			       &sta->sta, tid, &start_seq_num, 0);
