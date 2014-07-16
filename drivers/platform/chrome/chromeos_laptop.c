@@ -419,6 +419,8 @@ static struct chromeos_laptop acer_ac700 = {
 
 static struct chromeos_laptop acer_c720 = {
 	.i2c_peripherals = {
+		/* Touchscreen. */
+		{ .add = setup_atmel_1664s_ts, I2C_ADAPTER_DESIGNWARE_1 },
 		/* Touchpad. */
 		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
 		/* Light Sensor. */
