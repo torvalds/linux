@@ -118,7 +118,6 @@ static inline void i8253_cascade_ns_to_timer(int i8253_osc_base,
 	/*  masking is done since counter maps zero to 0x10000 */
 	*d1 = div1 & 0xffff;
 	*d2 = div2 & 0xffff;
-	return;
 }
 
 #ifndef CMDTEST
