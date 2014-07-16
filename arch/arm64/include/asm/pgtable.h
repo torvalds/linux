@@ -33,13 +33,16 @@
 
 /*
  * VMALLOC and SPARSEMEM_VMEMMAP ranges.
+ *
+ * VMEMAP_SIZE: allows the whole VA space to be covered by a struct page array
+ *	(rounded up to PUD_SIZE).
+ * VMALLOC_START: beginning of the kernel VA space
+ * VMALLOC_END: extends to the available space below vmmemmap, PCI I/O space,
+ *	fixed mappings and modules
  */
+#define VMEMMAP_SIZE		ALIGN((1UL << (VA_BITS - PAGE_SHIFT)) * sizeof(struct page), PUD_SIZE)
 #define VMALLOC_START		(UL(0xffffffffffffffff) << VA_BITS)
-#if CONFIG_ARM64_PGTABLE_LEVELS != 4
-#define VMALLOC_END		(PAGE_OFFSET - UL(0x400000000) - SZ_64K)
-#else
-#define VMALLOC_END		(PAGE_OFFSET - UL(0x40000000000) - SZ_64K)
-#endif
+#define VMALLOC_END		(PAGE_OFFSET - PUD_SIZE - VMEMMAP_SIZE - SZ_64K)
 
 #define vmemmap			((struct page *)(VMALLOC_END + SZ_64K))
 
