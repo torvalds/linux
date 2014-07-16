@@ -496,9 +496,8 @@ static int bond_set_promiscuity(struct bonding *bond, int inc)
 	int err = 0;
 
 	if (bond_uses_primary(bond)) {
-		struct slave *curr_active = bond_deref_active_protected(bond);
+		struct slave *curr_active = rtnl_dereference(bond->curr_active_slave);
 
-		/* write lock already acquired */
 		if (curr_active)
 			err = dev_set_promiscuity(curr_active->dev, inc);
 	} else {
@@ -522,9 +521,8 @@ static int bond_set_allmulti(struct bonding *bond, int inc)
 	int err = 0;
 
 	if (bond_uses_primary(bond)) {
-		struct slave *curr_active = bond_deref_active_protected(bond);
+		struct slave *curr_active = rtnl_dereference(bond->curr_active_slave);
 
-		/* write lock already acquired */
 		if (curr_active)
 			err = dev_set_allmulti(curr_active->dev, inc);
 	} else {
