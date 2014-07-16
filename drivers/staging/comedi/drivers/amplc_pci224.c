@@ -1255,9 +1255,8 @@ static int pci224_attach_common(struct comedi_device *dev,
 			dev_err(dev->class_dev,
 				"error! unable to allocate irq %u\n", irq);
 			return ret;
-		} else {
-			dev->irq = irq;
 		}
+		dev->irq = irq;
 	}
 
 	return 0;
