@@ -195,6 +195,7 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		status = inb(dev->iobase + DT2815_STATUS);
 		if (status == 4) {
 			unsigned int program;
+
 			program = (it->options[4] & 0x3) << 3 | 0x7;
 			outb(program, dev->iobase + DT2815_DATA);
 			dev_dbg(dev->class_dev, "program: 0x%x (@t=%d)\n",
