@@ -115,24 +115,6 @@ static const long frequency_list[] = {
 };
 */
 
-static int vt6656_probe(struct usb_interface *intf,
-			const struct usb_device_id *id);
-static void vt6656_disconnect(struct usb_interface *intf);
-
-#ifdef CONFIG_PM	/* Minimal support for suspend and resume */
-static int vt6656_suspend(struct usb_interface *intf, pm_message_t message);
-static int vt6656_resume(struct usb_interface *intf);
-#endif /* CONFIG_PM */
-
-static int device_init_registers(struct vnt_private *pDevice);
-
-static void device_free_tx_bufs(struct vnt_private *pDevice);
-static void device_free_rx_bufs(struct vnt_private *pDevice);
-static void device_free_int_bufs(struct vnt_private *pDevice);
-static bool device_alloc_bufs(struct vnt_private *pDevice);
-
-static void usb_device_reset(struct vnt_private *pDevice);
-
 static void device_set_options(struct vnt_private *priv)
 {
 	/* Set number of TX buffers */
