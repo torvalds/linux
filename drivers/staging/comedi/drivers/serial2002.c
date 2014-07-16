@@ -174,6 +174,7 @@ static int serial2002_tty_read(struct file *f, int timeout)
 		} else {
 			/* Device does not support poll, busy wait */
 			int retries = 0;
+
 			while (1) {
 				retries++;
 				if (retries >= timeout)
@@ -311,6 +312,7 @@ static void serial2002_write(struct file *f, struct serial_data data)
 	} else {
 		unsigned char ch[6];
 		int i = 0;
+
 		if (data.value >= (1L << 30)) {
 			ch[i] = 0x80 | ((data.value >> 30) & 0x03);
 			i++;
