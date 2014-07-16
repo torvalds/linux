@@ -26,8 +26,11 @@
 #include <linux/slab.h>
 #include "kfd_priv.h"
 
+#define MQD_SIZE_ALIGNED 768
+
 static const struct kfd_device_info kaveri_device_info = {
 	.max_pasid_bits = 16,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED
 };
 
 struct kfd_deviceid {
@@ -92,6 +95,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev)
 	kfd->kgd = kgd;
 	kfd->device_info = device_info;
 	kfd->pdev = pdev;
+	kfd->init_complete = false;
 
 	return kfd;
 }
@@ -99,23 +103,53 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev)
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
+	unsigned int size;
+
 	kfd->shared_resources = *gpu_resources;
 
-	if (kfd_topology_add_device(kfd) != 0)
-		return false;
+	/* calculate max size of mqds needed for queues */
+	size = max_num_of_processes *
+		max_num_of_queues_per_process *
+		kfd->device_info->mqd_size_aligned;
+
+	/* add another 512KB for all other allocations on gart */
+	size += 512 * 1024;
+
+	if (kfd2kgd->init_sa_manager(kfd->kgd, size)) {
+		dev_err(kfd_device,
+			"Error initializing sa manager for device (%x:%x)\n",
+			kfd->pdev->vendor, kfd->pdev->device);
+		goto out;
+	}
+
+	kfd_doorbell_init(kfd);
+
+	if (kfd_topology_add_device(kfd) != 0) {
+		dev_err(kfd_device,
+			"Error adding device (%x:%x) to topology\n",
+			kfd->pdev->vendor, kfd->pdev->device);
+		goto kfd_topology_add_device_error;
+	}
+
 
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device (%x:%x)\n", kfd->pdev->vendor,
 		 kfd->pdev->device);
 
-	return true;
+	goto out;
+
+kfd_topology_add_device_error:
+	kfd2kgd->fini_sa_manager(kfd->kgd);
+	dev_err(kfd_device,
+		"device (%x:%x) NOT added due to errors\n",
+		kfd->pdev->vendor, kfd->pdev->device);
+out:
+	return kfd->init_complete;
 }
 
 void kgd2kfd_device_exit(struct kfd_dev *kfd)
 {
-	int err = kfd_topology_remove_device(kfd);
-
-	BUG_ON(err != 0);
+	kfd_topology_remove_device(kfd);
 
 	kfree(kfd);
 }

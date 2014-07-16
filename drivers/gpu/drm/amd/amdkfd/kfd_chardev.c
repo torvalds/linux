@@ -38,6 +38,7 @@
 
 static long kfd_ioctl(struct file *, unsigned int, unsigned long);
 static int kfd_open(struct inode *, struct file *);
+static int kfd_mmap(struct file *, struct vm_area_struct *);
 
 static const char kfd_dev_name[] = "kfd";
 
@@ -46,6 +47,7 @@ static const struct file_operations kfd_fops = {
 	.unlocked_ioctl = kfd_ioctl,
 	.compat_ioctl = kfd_ioctl,
 	.open = kfd_open,
+	.mmap = kfd_mmap,
 };
 
 static int kfd_char_dev_major = -1;
@@ -98,8 +100,21 @@ struct device *kfd_chardev(void)
 
 static int kfd_open(struct inode *inode, struct file *filep)
 {
+	struct kfd_process *process;
+
 	if (iminor(inode) != 0)
 		return -ENODEV;
+
+	process = kfd_create_process(current);
+	if (IS_ERR(process))
+		return PTR_ERR(process);
+
+	process->is_32bit_user_mode = is_compat_task();
+
+	dev_dbg(kfd_device, "process %d opened, compat mode (32 bit) - %d\n",
+		process->pasid, process->is_32bit_user_mode);
+
+	kfd_init_apertures(process);
 
 	return 0;
 }
@@ -156,8 +171,9 @@ static long kfd_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		"ioctl cmd 0x%x (#%d), arg 0x%lx\n",
 		cmd, _IOC_NR(cmd), arg);
 
-	/* TODO: add function that retrieves process */
-	process = NULL;
+	process = kfd_get_process(current);
+	if (IS_ERR(process))
+		return PTR_ERR(process);
 
 	switch (cmd) {
 	case KFD_IOC_GET_VERSION:
@@ -207,4 +223,15 @@ static long kfd_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 			err, cmd, _IOC_NR(cmd));
 
 	return err;
+}
+
+static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct kfd_process *process;
+
+	process = kfd_get_process(current);
+	if (IS_ERR(process))
+		return PTR_ERR(process);
+
+	return kfd_doorbell_mmap(process, vma);
 }
