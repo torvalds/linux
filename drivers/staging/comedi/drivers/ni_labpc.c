@@ -1051,9 +1051,9 @@ static int labpc_8255_mmio(int dir, int port, int data, unsigned long iobase)
 	if (dir) {
 		writeb(data, (void __iomem *)(iobase + port));
 		return 0;
-	} else {
-		return readb((void __iomem *)(iobase + port));
 	}
+
+	return readb((void __iomem *)(iobase + port));
 }
 
 /* lowlevel write to eeprom/dac */
