@@ -225,7 +225,6 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 	u8 *ptr;
 	int sum;
 	int ret = 0, final_ret;
-	struct timespec ts;
 
 	/*
 	 * We have the shared ec_dev buffer plus we do lots of separate spi_sync
@@ -239,11 +238,9 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 
 	/* If it's too soon to do another transaction, wait */
 	if (ec_spi->last_transfer_ns) {
-		struct timespec ts;
 		unsigned long delay;	/* The delay completed so far */
 
-		ktime_get_ts(&ts);
-		delay = timespec_to_ns(&ts) - ec_spi->last_transfer_ns;
+		delay = ktime_get_ns() - ec_spi->last_transfer_ns;
 		if (delay < EC_SPI_RECOVERY_TIME_NS)
 			ndelay(EC_SPI_RECOVERY_TIME_NS - delay);
 	}
@@ -280,8 +277,7 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 	}
 
 	final_ret = spi_sync(ec_spi->spi, &msg);
-	ktime_get_ts(&ts);
-	ec_spi->last_transfer_ns = timespec_to_ns(&ts);
+	ec_spi->last_transfer_ns = ktime_get_ns();
 	if (!ret)
 		ret = final_ret;
 	if (ret < 0) {
