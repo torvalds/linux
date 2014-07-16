@@ -72,11 +72,6 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
 
-#define DEVICE_PARAM(N, D)				\
-	static int N[MAX_UINTS] = OPTION_DEFAULT;	\
-	module_param_array(N, int, NULL, 0);		\
-	MODULE_PARM_DESC(N, D)
-
 #define RX_DESC_DEF0 64
 static int vnt_rx_buffers = RX_DESC_DEF0;
 module_param_named(rx_buffers, vnt_rx_buffers, int, 0644);
@@ -89,7 +84,6 @@ MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
 
 
 #define CHANNEL_DEF 6
-DEVICE_PARAM(Channel, "Channel number");
 
 /* PreambleType[] is the preamble length used for transmit.
    0: indicate allows long preamble type
@@ -97,15 +91,8 @@ DEVICE_PARAM(Channel, "Channel number");
 */
 
 #define PREAMBLE_TYPE_DEF     1
-
-DEVICE_PARAM(PreambleType, "Preamble Type");
-
 #define RTS_THRESH_DEF     2347
-DEVICE_PARAM(RTSThreshold, "RTS threshold");
-
 #define FRAG_THRESH_DEF     2346
-DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
-
 #define DATA_RATE_DEF     13
 /* datarate[] index
    0: indicate 1 Mbps   0x02
@@ -123,11 +110,7 @@ DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
   12: indicate 72 Mbps  0x90
   13: indicate auto rate
 */
-
-DEVICE_PARAM(ConnectionRate, "Connection data rate");
-
 #define OP_MODE_DEF     0
-DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
 
 /* OpMode[] is used for transmit.
    0: indicate infrastruct mode used
@@ -141,13 +124,10 @@ DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
 */
 
 #define PS_MODE_DEF     0
-DEVICE_PARAM(PSMode, "Power saving mode");
 
 #define SHORT_RETRY_DEF     8
-DEVICE_PARAM(ShortRetryLimit, "Short frame retry limits");
 
 #define LONG_RETRY_DEF     4
-DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 
 /* BasebandType[] baseband type selected
    0: indicate 802.11a type
@@ -156,7 +136,6 @@ DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 */
 
 #define BBP_TYPE_DEF     2
-DEVICE_PARAM(BasebandType, "baseband type");
 
 /* 80211hEnable[]
    0: indicate disable 802.11h
@@ -164,8 +143,6 @@ DEVICE_PARAM(BasebandType, "baseband type");
 */
 
 #define X80211h_MODE_DEF     0
-
-DEVICE_PARAM(b80211hEnable, "802.11h mode");
 
 /*
  * Static vars definitions
