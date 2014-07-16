@@ -185,16 +185,6 @@
 /* USB registers */
 #define USB_REG4			0x604
 
-#define DBG_PRT(l, p, args...) { if (l <= msglevel) printk(p, ##args); }
-
-enum {
-	MSG_LEVEL_ERR = 0,            /* Errors causing abnormal operation */
-	MSG_LEVEL_NOTICE = 1,         /* Errors needing user notification */
-	MSG_LEVEL_INFO = 2,           /* Normal message. */
-	MSG_LEVEL_VERBOSE = 3,        /* Will report all trival errors. */
-	MSG_LEVEL_DEBUG = 4           /* Only for debug purpose. */
-};
-
 #define DEVICE_INIT_COLD	0x0 /* cold init */
 #define DEVICE_INIT_RESET	0x1 /* reset init or Dx to D0 power remain */
 #define DEVICE_INIT_DXPL	0x2 /* Dx to D0 power lost init */
