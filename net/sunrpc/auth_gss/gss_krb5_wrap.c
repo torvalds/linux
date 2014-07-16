@@ -483,7 +483,7 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 	*be64ptr = cpu_to_be64(kctx->seq_send64++);
 	spin_unlock(&krb5_seq_lock);
 
-	err = (*kctx->gk5e->encrypt_v2)(kctx, offset, buf, 0, pages);
+	err = (*kctx->gk5e->encrypt_v2)(kctx, offset, buf, pages);
 	if (err)
 		return err;
 
