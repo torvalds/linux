@@ -1301,7 +1301,6 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			dev_err(dev->class_dev,
 				"dma 5,6 / 6,7 / or 7,5\n");
 			return -EINVAL;
-			break;
 		}
 		if (request_dma(dma0, dev->driver->driver_name)) {
 			dev_err(dev->class_dev,
@@ -1360,7 +1359,6 @@ static int das1800_probe(struct comedi_device *dev)
 		printk
 		    (" Board model (probed, not recommended): das-1800st-da series\n");
 		return das1801st;
-		break;
 	case 0x4:
 		if (board == das1802hr_da || board == das1702hr_da) {
 			dev_dbg(dev->class_dev, "Board model: %s\n",
@@ -1370,7 +1368,6 @@ static int das1800_probe(struct comedi_device *dev)
 		printk
 		    (" Board model (probed, not recommended): das-1802hr-da\n");
 		return das1802hr;
-		break;
 	case 0x5:
 		if (board == das1801ao || board == das1802ao ||
 		    board == das1701ao || board == das1702ao) {
@@ -1381,7 +1378,6 @@ static int das1800_probe(struct comedi_device *dev)
 		printk
 		    (" Board model (probed, not recommended): das-1800ao series\n");
 		return das1801ao;
-		break;
 	case 0x6:
 		if (board == das1802hr || board == das1702hr) {
 			dev_dbg(dev->class_dev, "Board model: %s\n",
@@ -1391,7 +1387,6 @@ static int das1800_probe(struct comedi_device *dev)
 		printk
 		    (" Board model (probed, not recommended): das-1802hr\n");
 		return das1802hr;
-		break;
 	case 0x7:
 		if (board == das1801st || board == das1802st ||
 		    board == das1701st || board == das1702st) {
@@ -1402,7 +1397,6 @@ static int das1800_probe(struct comedi_device *dev)
 		printk
 		    (" Board model (probed, not recommended): das-1800st series\n");
 		return das1801st;
-		break;
 	case 0x8:
 		if (board == das1801hc || board == das1802hc) {
 			dev_dbg(dev->class_dev, "Board model: %s\n",
@@ -1412,13 +1406,11 @@ static int das1800_probe(struct comedi_device *dev)
 		printk
 		    (" Board model (probed, not recommended): das-1800hc series\n");
 		return das1801hc;
-		break;
 	default:
 		printk
 		    (" Board model: probe returned 0x%x (unknown, please report)\n",
 		     id);
 		return board;
-		break;
 	}
 	return -1;
 }
