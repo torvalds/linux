@@ -203,8 +203,8 @@ static bool device_alloc_bufs(struct vnt_private *pDevice);
 
 static void usb_device_reset(struct vnt_private *pDevice);
 
-static void
-device_set_options(struct vnt_private *pDevice) {
+static void device_set_options(struct vnt_private *pDevice)
+{
 	pDevice->cbTD = TX_DESC_DEF0;
 	pDevice->cbRD = RX_DESC_DEF0;
 	pDevice->byShortRetryLimit = SHORT_RETRY_DEF;
