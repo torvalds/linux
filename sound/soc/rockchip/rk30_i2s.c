@@ -494,14 +494,14 @@ static int rockchip_i2s_suspend_noirq(struct device *dev)
 {
 	I2S_DBG("Enter %s, %d\n", __func__, __LINE__);
 
-	return pinctrl_select_state(dev->pins->p, dev->pins->sleep_state);
+	return pinctrl_pm_select_sleep_state(dev);
 }
 
 static int rockchip_i2s_resume_noirq(struct device *dev)
 {
 	I2S_DBG("Enter %s, %d\n", __func__, __LINE__);
 
-	return pinctrl_select_state(dev->pins->p, dev->pins->default_state);
+	return pinctrl_pm_select_default_state(dev);
 }
 #else
 #define rockchip_i2s_suspend_noirq NULL
