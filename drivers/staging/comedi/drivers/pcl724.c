@@ -88,14 +88,12 @@ static int pcl724_8255mapped_io(int dir, int port, int data,
 
 	iobase &= 0x0fff;
 
+	outb(port + movport, iobase);
 	if (dir) {
-		outb(port + movport, iobase);
 		outb(data, iobase + 1);
 		return 0;
-	} else {
-		outb(port + movport, iobase);
-		return inb(iobase + 1);
 	}
+	return inb(iobase + 1);
 }
 
 static int pcl724_attach(struct comedi_device *dev,
