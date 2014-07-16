@@ -970,9 +970,8 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 				break;
 			udelay(1);
 		}
-		if (i == timeout) {
+		if (i == timeout)
 			comedi_error(dev, "FIFO flush timeout.");
-		}
 	} else {
 		ni_stc_writew(dev, 1, ADC_FIFO_Clear);
 		if (devpriv->is_625x) {
@@ -2054,11 +2053,10 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 	}
 
 	for (i = 0; i < n_chan; i++) {
-		if (!devpriv->is_6143 && (list[i] & CR_ALT_SOURCE)) {
+		if (!devpriv->is_6143 && (list[i] & CR_ALT_SOURCE))
 			chan = devpriv->ai_calib_source;
-		} else {
+		else
 			chan = CR_CHAN(list[i]);
-		}
 		aref = CR_AREF(list[i]);
 		range = CR_RANGE(list[i]);
 		dither = ((list[i] & CR_ALT_FILTER) != 0);
