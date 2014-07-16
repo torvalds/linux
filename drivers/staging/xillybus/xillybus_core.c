@@ -138,7 +138,6 @@ irqreturn_t xillybus_isr(int irq, void *data)
 	 * guaranteed no interrupt will occur, but in theory, the cache
 	 * lines may not be updated. So a memory barrier is issued.
 	 */
-
 	smp_rmb();
 
 	buf = ep->msgbuf_addr;
@@ -546,8 +545,7 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 			channel->rd_buffers = buffers;
 			rc = xilly_get_dma_buffers(ep, &rd_alloc, buffers,
 						   bufnum, bytebufsize);
-		}
-		else if (channelnum > 0) {
+		} else if (channelnum > 0) {
 			channel->num_wr_buffers = bufnum;
 
 			channel->seekable = seekable;
@@ -610,8 +608,8 @@ static void xilly_scan_idt(struct xilly_endpoint *endpoint,
 			"IDT device name list overflow. Aborting.\n");
 		idt_handle->chandesc = NULL;
 		return;
-	} else
-		idt_handle->chandesc = scan;
+	}
+	idt_handle->chandesc = scan;
 
 	len = endpoint->idtlen - (3 + ((int) (scan - idt)));
 
@@ -722,6 +720,7 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 
 	while (1) { /* Note that we may drop mutex within this loop */
 		int bytes_to_do = count - bytes_done;
+
 		spin_lock_irqsave(&channel->wr_spinlock, flags);
 
 		empty = channel->wr_empty;
@@ -1963,10 +1962,8 @@ struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
 	struct xilly_endpoint *endpoint;
 
 	endpoint = devm_kzalloc(dev, sizeof(*endpoint), GFP_KERNEL);
-	if (!endpoint) {
-		dev_err(dev, "Failed to allocate memory. Aborting.\n");
+	if (!endpoint)
 		return NULL;
-	}
 
 	endpoint->pdev = pdev;
 	endpoint->dev = dev;
