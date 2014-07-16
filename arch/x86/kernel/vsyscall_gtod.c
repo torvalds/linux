@@ -32,7 +32,7 @@ void update_vsyscall(struct timekeeper *tk)
 
 	/* copy vsyscall data */
 	vdata->vclock_mode	= tk->clock->archdata.vclock_mode;
-	vdata->cycle_last	= tk->clock->cycle_last;
+	vdata->cycle_last	= tk->cycle_last;
 	vdata->mask		= tk->clock->mask;
 	vdata->mult		= tk->mult;
 	vdata->shift		= tk->shift;

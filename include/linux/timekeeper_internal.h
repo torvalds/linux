@@ -29,6 +29,8 @@
 struct timekeeper {
 	/* Current clocksource used for timekeeping. */
 	struct clocksource	*clock;
+	/* Last cycle value */
+	cycle_t			cycle_last;
 	/* NTP adjusted clock multiplier */
 	u32			mult;
 	/* The shift value of the current clocksource. */
@@ -62,8 +64,6 @@ struct timekeeper {
 
 	/* Number of clock cycles in one NTP interval. */
 	cycle_t			cycle_interval;
-	/* Last cycle value (also stored in clock->cycle_last) */
-	cycle_t			cycle_last;
 	/* Number of clock shifted nano seconds in one NTP interval. */
 	u64			xtime_interval;
 	/* shifted nano seconds left over when rounding cycle_interval */
@@ -91,7 +91,8 @@ extern void update_vsyscall_tz(void);
 #elif defined(CONFIG_GENERIC_TIME_VSYSCALL_OLD)
 
 extern void update_vsyscall_old(struct timespec *ts, struct timespec *wtm,
-				struct clocksource *c, u32 mult);
+				struct clocksource *c, u32 mult,
+				cycles_t cycle_last);
 extern void update_vsyscall_tz(void);
 
 #else

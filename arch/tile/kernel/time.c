@@ -269,7 +269,7 @@ void update_vsyscall(struct timekeeper *tk)
 	/* Userspace gettimeofday will spin while this value is odd. */
 	++vdso_data->tb_update_count;
 	smp_wmb();
-	vdso_data->xtime_tod_stamp = clock->cycle_last;
+	vdso_data->xtime_tod_stamp = tk->cycle_last;
 	vdso_data->xtime_clock_sec = tk->xtime_sec;
 	vdso_data->xtime_clock_nsec = tk->xtime_nsec;
 	vdso_data->wtom_clock_sec = wtm->tv_sec;
