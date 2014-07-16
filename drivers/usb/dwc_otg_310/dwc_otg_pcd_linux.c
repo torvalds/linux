@@ -363,14 +363,21 @@ static int ep_queue(struct usb_ep *usb_ep, struct usb_request *usb_req,
 #else
 	if (GET_CORE_IF(pcd)->dma_enable) {
 		/* if (usb_req->length != 0) {*/
+		/* In device DMA mode when gadget perform ep_queue request
+		 * with buffer length 0, Kernel stack dump occurred. For 0
+		 * length buffers perform dma_map_single() with length 4.*/
 		if (usb_req->dma == DWC_DMA_ADDR_INVALID) {
 			dma_addr =
 			    dma_map_single(gadget_wrapper->gadget.dev.parent,
-					   usb_req->buf, usb_req->length,
+					   usb_req->buf,
+					   usb_req->length !=
+					   0 ? usb_req->length : 4,
 					   ep->dwc_ep.
 					   is_in ? DMA_TO_DEVICE :
 					   DMA_FROM_DEVICE);
 			usb_req->dma = dma_addr;
+		} else {
+			dma_addr = usb_req->dma;
 		}
 
 	}
@@ -920,10 +927,22 @@ static int _complete(dwc_otg_pcd_t *pcd, void *ep_handle,
 		     void *req_handle, int32_t status, uint32_t actual)
 {
 	struct usb_request *req = (struct usb_request *)req_handle;
-	struct device *dev = NULL;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 27)
 	struct dwc_otg_pcd_ep *ep = NULL;
-#endif
+
+	ep = ep_from_handle(pcd, ep_handle);
+
+	if (GET_CORE_IF(pcd)->dma_enable) {
+		/* if (req->length != 0) */
+		if (req->dma != DWC_DMA_ADDR_INVALID) {
+			dma_unmap_single(gadget_wrapper->gadget.dev.parent,
+					 req->dma,
+					 req->length !=
+					 0 ? req->length : 4,
+					 ep->dwc_ep.is_in
+					 ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			req->dma = DWC_DMA_ADDR_INVALID;
+		}
+	}
 
 	if (req && req->complete) {
 		switch (status) {
@@ -950,19 +969,7 @@ static int _complete(dwc_otg_pcd_t *pcd, void *ep_handle,
 		DWC_SPINLOCK(pcd->lock);
 	}
 
-	dev = &gadget_wrapper->pcd->otg_dev->os_dep.pdev->dev;
-	ep = ep_from_handle(pcd, ep_handle);
 
-	if (GET_CORE_IF(pcd)->dma_enable) {
-		/* if (req->length != 0) */
-		if (req->dma != DWC_DMA_ADDR_INVALID) {
-			dma_unmap_single(gadget_wrapper->gadget.dev.parent,
-					 req->dma, req->length,
-					 ep->dwc_ep.is_in
-					 ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-			req->dma = DWC_DMA_ADDR_INVALID;
-		}
-	}
 	return 0;
 }
 
