@@ -21,6 +21,7 @@
 
 #include <linux/bitops.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/printk.h>
 #include <linux/smp.h>
 
@@ -52,6 +53,97 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 		set_bit(ICACHEF_AIVIVT, &__icache_flags);
 
 	pr_info("Detected %s I-cache on CPU%d", icache_policy_str[l1ip], cpu);
+}
+
+static int check_reg_mask(char *name, u64 mask, u64 boot, u64 cur, int cpu)
+{
+	if ((boot & mask) == (cur & mask))
+		return 0;
+
+	pr_warn("SANITY CHECK: Unexpected variation in %s. Boot CPU: %#016lx, CPU%d: %#016lx\n",
+		name, (unsigned long)boot, cpu, (unsigned long)cur);
+
+	return 1;
+}
+
+#define CHECK_MASK(field, mask, boot, cur, cpu) \
+	check_reg_mask(#field, mask, (boot)->reg_ ## field, (cur)->reg_ ## field, cpu)
+
+#define CHECK(field, boot, cur, cpu) \
+	CHECK_MASK(field, ~0ULL, boot, cur, cpu)
+
+/*
+ * Verify that CPUs don't have unexpected differences that will cause problems.
+ */
+static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
+{
+	unsigned int cpu = smp_processor_id();
+	struct cpuinfo_arm64 *boot = &boot_cpu_data;
+	unsigned int diff = 0;
+
+	/*
+	 * The kernel can handle differing I-cache policies, but otherwise
+	 * caches should look identical. Userspace JITs will make use of
+	 * *minLine.
+	 */
+	diff |= CHECK_MASK(ctr, 0xffff3fff, boot, cur, cpu);
+
+	/*
+	 * Userspace may perform DC ZVA instructions. Mismatched block sizes
+	 * could result in too much or too little memory being zeroed if a
+	 * process is preempted and migrated between CPUs.
+	 */
+	diff |= CHECK(dczid, boot, cur, cpu);
+
+	/* If different, timekeeping will be broken (especially with KVM) */
+	diff |= CHECK(cntfrq, boot, cur, cpu);
+
+	/*
+	 * Even in big.LITTLE, processors should be identical instruction-set
+	 * wise.
+	 */
+	diff |= CHECK(id_aa64isar0, boot, cur, cpu);
+	diff |= CHECK(id_aa64isar1, boot, cur, cpu);
+
+	/*
+	 * Differing PARange support is fine as long as all peripherals and
+	 * memory are mapped within the minimum PARange of all CPUs.
+	 * Linux should not care about secure memory.
+	 * ID_AA64MMFR1 is currently RES0.
+	 */
+	diff |= CHECK_MASK(id_aa64mmfr0, 0xffffffffffff0ff0, boot, cur, cpu);
+	diff |= CHECK(id_aa64mmfr1, boot, cur, cpu);
+
+	/*
+	 * EL3 is not our concern.
+	 * ID_AA64PFR1 is currently RES0.
+	 */
+	diff |= CHECK_MASK(id_aa64pfr0, 0xffffffffffff0fff, boot, cur, cpu);
+	diff |= CHECK(id_aa64pfr1, boot, cur, cpu);
+
+	/*
+	 * If we have AArch32, we care about 32-bit features for compat. These
+	 * registers should be RES0 otherwise.
+	 */
+	diff |= CHECK(id_isar0, boot, cur, cpu);
+	diff |= CHECK(id_isar1, boot, cur, cpu);
+	diff |= CHECK(id_isar2, boot, cur, cpu);
+	diff |= CHECK(id_isar3, boot, cur, cpu);
+	diff |= CHECK(id_isar4, boot, cur, cpu);
+	diff |= CHECK(id_isar5, boot, cur, cpu);
+	diff |= CHECK(id_mmfr0, boot, cur, cpu);
+	diff |= CHECK(id_mmfr1, boot, cur, cpu);
+	diff |= CHECK(id_mmfr2, boot, cur, cpu);
+	diff |= CHECK(id_mmfr3, boot, cur, cpu);
+	diff |= CHECK(id_pfr0, boot, cur, cpu);
+	diff |= CHECK(id_pfr1, boot, cur, cpu);
+
+	/*
+	 * Mismatched CPU features are a recipe for disaster. Don't even
+	 * pretend to support them.
+	 */
+	WARN_TAINT_ONCE(diff, TAINT_CPU_OUT_OF_SPEC,
+			"Unsupported CPU feature variation.");
 }
 
 static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
@@ -88,6 +180,7 @@ void cpuinfo_store_cpu(void)
 {
 	struct cpuinfo_arm64 *info = this_cpu_ptr(&cpu_data);
 	__cpuinfo_store_cpu(info);
+	cpuinfo_sanity_check(info);
 }
 
 void __init cpuinfo_store_boot_cpu(void)
