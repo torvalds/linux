@@ -223,10 +223,8 @@ static inline unsigned NI_GPCT_SUBDEV(unsigned counter_index)
 	switch (counter_index) {
 	case 0:
 		return NI_GPCT0_SUBDEV;
-		break;
 	case 1:
 		return NI_GPCT1_SUBDEV;
-		break;
 	default:
 		break;
 	}
@@ -3026,7 +3024,6 @@ static int ni_ao_insn_config(struct comedi_device *dev,
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 		return 0;
 	default:
@@ -4015,7 +4012,6 @@ static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 		       __func__, reg);
 		BUG();
 		return 0;
-		break;
 	}
 	return stc_register;
 }
@@ -4113,7 +4109,6 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 	default:
 		stc_register = ni_gpct_to_stc_register(reg);
 		return ni_stc_readw(dev, stc_register);
-		break;
 	}
 	return 0;
 }
@@ -4240,7 +4235,6 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 		switch (data[3]) {
 		case TRIG_ROUND_NEAREST:
@@ -4258,7 +4252,6 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 		if (up_count * devpriv->clock_ns != data[2] ||
 		    down_count * devpriv->clock_ns != data[4]) {
@@ -4272,13 +4265,10 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 		devpriv->pwm_up_count = up_count;
 		devpriv->pwm_down_count = down_count;
 		return 5;
-		break;
 	case INSN_CONFIG_GET_PWM_OUTPUT:
 		return ni_get_pwm_config(dev, data);
-		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 	return 0;
 }
@@ -4309,7 +4299,6 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 		switch (data[3]) {
 		case TRIG_ROUND_NEAREST:
@@ -4327,7 +4316,6 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 		if (up_count * devpriv->clock_ns != data[2] ||
 		    down_count * devpriv->clock_ns != data[4]) {
@@ -4340,12 +4328,10 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 		ni_writel(dev, down_count, Calibration_LowTime_6143);
 		devpriv->pwm_down_count = down_count;
 		return 5;
-		break;
 	case INSN_CONFIG_GET_PWM_OUTPUT:
 		return ni_get_pwm_config(dev, data);
 	default:
 		return -EINVAL;
-		break;
 	}
 	return 0;
 }
@@ -4581,34 +4567,24 @@ static unsigned ni_old_get_pfi_routing(struct comedi_device *dev,
 	switch (chan) {
 	case 0:
 		return NI_PFI_OUTPUT_AI_START1;
-		break;
 	case 1:
 		return NI_PFI_OUTPUT_AI_START2;
-		break;
 	case 2:
 		return NI_PFI_OUTPUT_AI_CONVERT;
-		break;
 	case 3:
 		return NI_PFI_OUTPUT_G_SRC1;
-		break;
 	case 4:
 		return NI_PFI_OUTPUT_G_GATE1;
-		break;
 	case 5:
 		return NI_PFI_OUTPUT_AO_UPDATE_N;
-		break;
 	case 6:
 		return NI_PFI_OUTPUT_AO_START1;
-		break;
 	case 7:
 		return NI_PFI_OUTPUT_AI_START_PULSE;
-		break;
 	case 8:
 		return NI_PFI_OUTPUT_G_SRC0;
-		break;
 	case 9:
 		return NI_PFI_OUTPUT_G_GATE0;
-		break;
 	default:
 		printk("%s: bug, unhandled case in switch.\n", __func__);
 		break;
@@ -4718,16 +4694,13 @@ static int ni_pfi_insn_config(struct comedi_device *dev,
 		    (devpriv->io_bidirection_pin_reg & (1 << chan)) ?
 		    COMEDI_OUTPUT : COMEDI_INPUT;
 		return 0;
-		break;
 	case INSN_CONFIG_SET_ROUTING:
 		return ni_set_pfi_routing(dev, chan, data[1]);
-		break;
 	case INSN_CONFIG_GET_ROUTING:
 		data[1] = ni_get_pfi_routing(dev, chan);
 		break;
 	case INSN_CONFIG_FILTER:
 		return ni_config_filter(dev, chan, data[1]);
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -5122,16 +5095,10 @@ static int ni_valid_rtsi_output_source(struct comedi_device *dev,
 	case NI_RTSI_OUTPUT_RGOUT0:
 	case NI_RTSI_OUTPUT_RTSI_BRD_0:
 		return 1;
-		break;
 	case NI_RTSI_OUTPUT_RTSI_OSC:
-		if (devpriv->is_m_series)
-			return 1;
-		else
-			return 0;
-		break;
+		return (devpriv->is_m_series) ? 1 : 0;
 	default:
 		return 0;
-		break;
 	}
 }
 
@@ -5221,25 +5188,19 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 			    ? INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
 		}
 		return 2;
-		break;
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		return ni_set_master_clock(dev, data[1], data[2]);
-		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
 		data[1] = devpriv->clock_source;
 		data[2] = devpriv->clock_ns;
 		return 3;
-		break;
 	case INSN_CONFIG_SET_ROUTING:
 		return ni_set_rtsi_routing(dev, chan, data[1]);
-		break;
 	case INSN_CONFIG_GET_ROUTING:
 		data[1] = ni_get_rtsi_routing(dev, chan);
 		return 2;
-		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 	return 1;
 }
