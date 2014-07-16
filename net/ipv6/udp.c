@@ -745,6 +745,7 @@ static void flush_stack(struct sock **stack, unsigned int count,
 
 		if (skb1 && udpv6_queue_rcv_skb(sk, skb1) <= 0)
 			skb1 = NULL;
+		sock_put(sk);
 	}
 	if (unlikely(skb1))
 		kfree_skb(skb1);
@@ -774,10 +775,20 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 	unsigned short hnum = ntohs(uh->dest);
 	struct udp_hslot *hslot = udp_hashslot(udptable, net, hnum);
 	int dif = inet6_iif(skb);
-	unsigned int i, count = 0;
+	unsigned int count = 0, offset = offsetof(typeof(*sk), sk_nulls_node);
+	unsigned int hash2 = 0, hash2_any = 0, use_hash2 = (hslot->count > 10);
+
+	if (use_hash2) {
+		hash2_any = udp6_portaddr_hash(net, &in6addr_any, hnum) &
+			    udp_table.mask;
+		hash2 = udp6_portaddr_hash(net, daddr, hnum) & udp_table.mask;
+start_lookup:
+		hslot = &udp_table.hash2[hash2];
+		offset = offsetof(typeof(*sk), __sk_common.skc_portaddr_node);
+	}
 
 	spin_lock(&hslot->lock);
-	sk_nulls_for_each(sk, node, &hslot->head) {
+	sk_nulls_for_each_entry_offset(sk, node, &hslot->head, offset) {
 		if (__udp_v6_is_mcast_sock(net, sk,
 					   uh->dest, daddr,
 					   uh->source, saddr,
@@ -791,21 +802,20 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 				count = 0;
 			}
 			stack[count++] = sk;
+			sock_hold(sk);
 		}
 	}
-	/*
-	 * before releasing the lock, we must take reference on sockets
-	 */
-	for (i = 0; i < count; i++)
-		sock_hold(stack[i]);
 
 	spin_unlock(&hslot->lock);
 
+	/* Also lookup *:port if we are using hash2 and haven't done so yet. */
+	if (use_hash2 && hash2 != hash2_any) {
+		hash2 = hash2_any;
+		goto start_lookup;
+	}
+
 	if (count) {
 		flush_stack(stack, count, skb, count - 1);
-
-		for (i = 0; i < count; i++)
-			sock_put(stack[i]);
 	} else {
 		kfree_skb(skb);
 	}

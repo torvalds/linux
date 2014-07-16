@@ -660,6 +660,20 @@ static inline void sk_add_bind_node(struct sock *sk,
 #define sk_for_each_bound(__sk, list) \
 	hlist_for_each_entry(__sk, list, sk_bind_node)
 
+/**
+ * sk_nulls_for_each_entry_offset - iterate over a list at a given struct offset
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
+ * @head:	the head for your list.
+ * @offset:	offset of hlist_node within the struct.
+ *
+ */
+#define sk_nulls_for_each_entry_offset(tpos, pos, head, offset)		       \
+	for (pos = (head)->first;					       \
+	     (!is_a_nulls(pos)) &&					       \
+		({ tpos = (typeof(*tpos) *)((void *)pos - offset); 1;});       \
+	     pos = pos->next)
+
 static inline struct user_namespace *sk_user_ns(struct sock *sk)
 {
 	/* Careful only use this in a context where these parameters
