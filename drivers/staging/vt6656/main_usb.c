@@ -61,9 +61,6 @@
 #include "channel.h"
 #include "int.h"
 
-/* static int msglevel = MSG_LEVEL_DEBUG; */
-static int msglevel = MSG_LEVEL_INFO;
-
 /*
  * define module options
  */
@@ -567,8 +564,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 		/* allocate URBs */
 		tx_context->urb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!tx_context->urb) {
-			DBG_PRT(MSG_LEVEL_ERR,
-				KERN_ERR "alloc tx urb failed\n");
+			dev_err(&priv->usb->dev, "alloc tx urb failed\n");
 			goto free_tx;
 		}
 
@@ -590,15 +586,13 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 		/* allocate URBs */
 		rcb->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (rcb->pUrb == NULL) {
-			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
-				" Failed to alloc rx urb\n");
+			dev_err(&priv->usb->dev, "Failed to alloc rx urb\n");
 			goto free_rx_tx;
 		}
 
 		rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
 		if (rcb->skb == NULL) {
-			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
-						" Failed to alloc rx skb\n");
+			dev_err(&priv->usb->dev, "Failed to alloc rx skb\n");
 			goto free_rx_tx;
 		}
 
@@ -611,13 +605,13 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 
 	priv->pInterruptURB = usb_alloc_urb(0, GFP_ATOMIC);
 	if (priv->pInterruptURB == NULL) {
-		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR"Failed to alloc int urb\n");
+		dev_err(&priv->usb->dev, "Failed to alloc int urb\n");
 		goto free_rx_tx;
 	}
 
 	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
 	if (priv->int_buf.data_buf == NULL) {
-		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR"Failed to alloc int buf\n");
+		dev_err(&priv->usb->dev, "Failed to alloc int buf\n");
 		usb_free_urb(priv->pInterruptURB);
 		goto free_rx_tx;
 	}
