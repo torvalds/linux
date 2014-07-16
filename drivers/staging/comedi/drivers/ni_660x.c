@@ -161,6 +161,7 @@ enum ni_660x_register {
 static inline unsigned IOConfigReg(unsigned pfi_channel)
 {
 	unsigned reg = NI660X_IO_CFG_0_1 + pfi_channel / 2;
+
 	BUG_ON(reg > NI660X_IO_CFG_38_39);
 	return reg;
 }
