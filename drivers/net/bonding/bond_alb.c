@@ -200,6 +200,7 @@ static int tlb_initialize(struct bonding *bond)
 static void tlb_deinitialize(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
+	struct tlb_up_slave *arr;
 
 	_lock_tx_hashtbl_bh(bond);
 
@@ -207,6 +208,10 @@ static void tlb_deinitialize(struct bonding *bond)
 	bond_info->tx_hashtbl = NULL;
 
 	_unlock_tx_hashtbl_bh(bond);
+
+	arr = rtnl_dereference(bond_info->slave_arr);
+	if (arr)
+		kfree_rcu(arr, rcu);
 }
 
 static long long compute_gap(struct slave *slave)
@@ -1402,9 +1407,39 @@ out:
 	return NETDEV_TX_OK;
 }
 
+static int bond_tlb_update_slave_arr(struct bonding *bond,
+				     struct slave *skipslave)
+{
+	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
+	struct slave *tx_slave;
+	struct list_head *iter;
+	struct tlb_up_slave *new_arr, *old_arr;
+
+	new_arr = kzalloc(offsetof(struct tlb_up_slave, arr[bond->slave_cnt]),
+			  GFP_ATOMIC);
+	if (!new_arr)
+		return -ENOMEM;
+
+	bond_for_each_slave(bond, tx_slave, iter) {
+		if (!bond_slave_can_tx(tx_slave))
+			continue;
+		if (skipslave == tx_slave)
+			continue;
+		new_arr->arr[new_arr->count++] = tx_slave;
+	}
+
+	old_arr = rtnl_dereference(bond_info->slave_arr);
+	rcu_assign_pointer(bond_info->slave_arr, new_arr);
+	if (old_arr)
+		kfree_rcu(old_arr, rcu);
+
+	return 0;
+}
+
 int bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	struct ethhdr *eth_data;
 	struct slave *tx_slave = NULL;
 	u32 hash_index;
@@ -1425,12 +1460,12 @@ int bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 							      hash_index & 0xFF,
 							      skb->len);
 			} else {
-				struct list_head *iter;
-				int idx = hash_index % bond->slave_cnt;
+				struct tlb_up_slave *slaves;
 
-				bond_for_each_slave_rcu(bond, tx_slave, iter)
-					if (--idx < 0)
-						break;
+				slaves = rcu_dereference(bond_info->slave_arr);
+				if (slaves && slaves->count)
+					tx_slave = slaves->arr[hash_index %
+							       slaves->count];
 			}
 			break;
 		}
@@ -1695,6 +1730,11 @@ void bond_alb_deinit_slave(struct bonding *bond, struct slave *slave)
 		bond->alb_info.rx_slave = NULL;
 		rlb_clear_slave(bond, slave);
 	}
+
+	if (bond_is_nondyn_tlb(bond))
+		if (bond_tlb_update_slave_arr(bond, slave))
+			pr_err("Failed to build slave-array for TLB mode.\n");
+
 }
 
 /* Caller must hold bond lock for read */
@@ -1717,6 +1757,11 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
 			 * not be forwarded to the clients..
 			 */
 		}
+	}
+
+	if (bond_is_nondyn_tlb(bond)) {
+		if (bond_tlb_update_slave_arr(bond, NULL))
+			pr_err("Failed to build slave-array for TLB mode.\n");
 	}
 }
 

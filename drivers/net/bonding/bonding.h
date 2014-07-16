@@ -269,6 +269,12 @@ static inline bool bond_is_lb(const struct bonding *bond)
 	       BOND_MODE(bond) == BOND_MODE_ALB;
 }
 
+static inline bool bond_is_nondyn_tlb(const struct bonding *bond)
+{
+	return (BOND_MODE(bond) == BOND_MODE_TLB)  &&
+	       (bond->params.tlb_dynamic_lb == 0);
+}
+
 static inline bool bond_mode_uses_arp(int mode)
 {
 	return mode != BOND_MODE_8023AD && mode != BOND_MODE_TLB &&
