@@ -58,8 +58,8 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 	/* maximun bo size is the minimun btw visible vram and gtt size */
 	max_size = min(rdev->mc.visible_vram_size, rdev->mc.gtt_size);
 	if (size > max_size) {
-		printk(KERN_WARNING "%s:%d alloc size %dMb bigger than %ldMb limit\n",
-		       __func__, __LINE__, size >> 20, max_size >> 20);
+		DRM_DEBUG("Allocation size %dMb bigger than %ldMb limit\n",
+			  size >> 20, max_size >> 20);
 		return -ENOMEM;
 	}
 
