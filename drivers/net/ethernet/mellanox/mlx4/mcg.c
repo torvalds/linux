@@ -477,8 +477,14 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 	/* now need to add all the promisc qps to default entry */
 	memset(mgm, 0, sizeof *mgm);
 	members_count = 0;
-	list_for_each_entry(dqp, &s_steer->promisc_qps[steer], list)
+	list_for_each_entry(dqp, &s_steer->promisc_qps[steer], list) {
+		if (members_count == dev->caps.num_qp_per_mgm) {
+			/* entry is full */
+			err = -ENOMEM;
+			goto out_list;
+		}
 		mgm->qp[members_count++] = cpu_to_be32(dqp->qpn & MGM_QPN_MASK);
+	}
 	mgm->members_count = cpu_to_be32(members_count | MLX4_PROT_ETH << 30);
 
 	err = mlx4_WRITE_PROMISC(dev, port, steer, mailbox);
