@@ -184,11 +184,9 @@ static inline int mite_csigr_dmac(u32 csigr_bits)
 static inline int mite_csigr_wpdep(u32 csigr_bits)
 {				/*  write post fifo depth */
 	unsigned int wpdep_bits = (csigr_bits >> 20) & 0x7;
-	if (wpdep_bits == 0)
-		return 0;
-	else
-		return 1 << (wpdep_bits - 1);
-};
+
+	return (wpdep_bits) ? (1 << (wpdep_bits - 1)) : 0;
+}
 
 static inline int mite_csigr_wins(u32 csigr_bits)
 {
