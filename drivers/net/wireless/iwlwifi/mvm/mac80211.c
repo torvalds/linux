@@ -2310,6 +2310,119 @@ static void iwl_mvm_mac_update_tkip_key(struct ieee80211_hw *hw,
 }
 
 
+static bool iwl_mvm_rx_aux_roc(struct iwl_notif_wait_data *notif_wait,
+			       struct iwl_rx_packet *pkt, void *data)
+{
+	struct iwl_mvm *mvm =
+		container_of(notif_wait, struct iwl_mvm, notif_wait);
+	struct iwl_hs20_roc_res *resp;
+	int resp_len = iwl_rx_packet_payload_len(pkt);
+	struct iwl_mvm_time_event_data *te_data = data;
+
+	if (WARN_ON(pkt->hdr.cmd != HOT_SPOT_CMD))
+		return true;
+
+	if (WARN_ON_ONCE(resp_len != sizeof(*resp))) {
+		IWL_ERR(mvm, "Invalid HOT_SPOT_CMD response\n");
+		return true;
+	}
+
+	resp = (void *)pkt->data;
+
+	IWL_DEBUG_TE(mvm,
+		     "Aux ROC: Recieved response from ucode: status=%d uid=%d\n",
+		     resp->status, resp->event_unique_id);
+
+	te_data->uid = le32_to_cpu(resp->event_unique_id);
+	IWL_DEBUG_TE(mvm, "TIME_EVENT_CMD response - UID = 0x%x\n",
+		     te_data->uid);
+
+	spin_lock_bh(&mvm->time_event_lock);
+	list_add_tail(&te_data->list, &mvm->aux_roc_te_list);
+	spin_unlock_bh(&mvm->time_event_lock);
+
+	return true;
+}
+
+#define AUX_ROC_MAX_DELAY_ON_CHANNEL 5000
+static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
+				    struct ieee80211_channel *channel,
+				    struct ieee80211_vif *vif,
+				    int duration)
+{
+	int res, time_reg = DEVICE_SYSTEM_TIME_REG;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_time_event_data *te_data = &mvmvif->hs_time_event_data;
+	static const u8 time_event_response[] = { HOT_SPOT_CMD };
+	struct iwl_notification_wait wait_time_event;
+	struct iwl_hs20_roc_req aux_roc_req = {
+		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
+		.id_and_color =
+			cpu_to_le32(FW_CMD_ID_AND_COLOR(MAC_INDEX_AUX, 0)),
+		.sta_id_and_color = cpu_to_le32(mvm->aux_sta.sta_id),
+		/* Set the channel info data */
+		.channel_info.band = (channel->band == IEEE80211_BAND_2GHZ) ?
+			PHY_BAND_24 : PHY_BAND_5,
+		.channel_info.channel = channel->hw_value,
+		.channel_info.width = PHY_VHT_CHANNEL_MODE20,
+		/* Set the time and duration */
+		.apply_time = cpu_to_le32(iwl_read_prph(mvm->trans, time_reg)),
+		.apply_time_max_delay =
+			cpu_to_le32(MSEC_TO_TU(AUX_ROC_MAX_DELAY_ON_CHANNEL)),
+		.duration = cpu_to_le32(MSEC_TO_TU(duration)),
+	 };
+
+	/* Set the node address */
+	memcpy(aux_roc_req.node_addr, vif->addr, ETH_ALEN);
+
+	te_data->vif = vif;
+	te_data->duration = duration;
+	te_data->id = HOT_SPOT_CMD;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	spin_lock_bh(&mvm->time_event_lock);
+	list_add_tail(&te_data->list, &mvm->time_event_list);
+	spin_unlock_bh(&mvm->time_event_lock);
+
+	/*
+	 * Use a notification wait, which really just processes the
+	 * command response and doesn't wait for anything, in order
+	 * to be able to process the response and get the UID inside
+	 * the RX path. Using CMD_WANT_SKB doesn't work because it
+	 * stores the buffer and then wakes up this thread, by which
+	 * time another notification (that the time event started)
+	 * might already be processed unsuccessfully.
+	 */
+	iwl_init_notification_wait(&mvm->notif_wait, &wait_time_event,
+				   time_event_response,
+				   ARRAY_SIZE(time_event_response),
+				   iwl_mvm_rx_aux_roc, te_data);
+
+	res = iwl_mvm_send_cmd_pdu(mvm, HOT_SPOT_CMD, 0, sizeof(aux_roc_req),
+				   &aux_roc_req);
+
+	if (res) {
+		IWL_ERR(mvm, "Couldn't send HOT_SPOT_CMD: %d\n", res);
+		iwl_remove_notification(&mvm->notif_wait, &wait_time_event);
+		goto out_clear_te;
+	}
+
+	/* No need to wait for anything, so just pass 1 (0 isn't valid) */
+	res = iwl_wait_notification(&mvm->notif_wait, &wait_time_event, 1);
+	/* should never fail */
+	WARN_ON_ONCE(res);
+
+	if (res) {
+ out_clear_te:
+		spin_lock_bh(&mvm->time_event_lock);
+		iwl_mvm_te_clear_data(mvm, te_data);
+		spin_unlock_bh(&mvm->time_event_lock);
+	}
+
+	return res;
+}
+
 static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_channel *channel,
@@ -2325,8 +2438,17 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
 			   duration, type);
 
-	if (vif->type != NL80211_IFTYPE_P2P_DEVICE) {
-		IWL_ERR(mvm, "vif isn't a P2P_DEVICE: %d\n", vif->type);
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		/* Use aux roc framework (HS20) */
+		ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
+					       vif, duration);
+		return ret;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		/* handle below */
+		break;
+	default:
+		IWL_ERR(mvm, "vif isn't P2P_DEVICE: %d\n", vif->type);
 		return -EINVAL;
 	}
 

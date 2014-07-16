@@ -82,6 +82,8 @@
 /* RSSI offset for WkP */
 #define IWL_RSSI_OFFSET 50
 #define IWL_MVM_MISSED_BEACONS_THRESHOLD 8
+/* A TimeUnit is 1024 microsecond */
+#define MSEC_TO_TU(_msec)	(_msec*1000/1024)
 
 /*
  * The CSA NoA is scheduled IWL_MVM_CHANNEL_SWITCH_TIME TUs before "beacon 0"
@@ -336,6 +338,7 @@ struct iwl_mvm_vif {
 	 */
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 	struct iwl_mvm_time_event_data time_event_data;
+	struct iwl_mvm_time_event_data hs_time_event_data;
 
 	struct iwl_mvm_int_sta bcast_sta;
 
@@ -669,6 +672,9 @@ struct iwl_mvm {
 	u8 bt_tx_prio;
 	enum iwl_bt_force_ant_mode bt_force_ant_mode;
 
+	/* Aux ROC */
+	struct list_head aux_roc_te_list;
+
 	/* Thermal Throttling and CTkill */
 	struct iwl_mvm_tt_mgmt thermal_throttle;
 	s32 temperature;	/* Celsius */
@@ -707,6 +713,7 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_ROC_RUNNING,
 	IWL_MVM_STATUS_IN_HW_RESTART,
 	IWL_MVM_STATUS_IN_D0I3,
+	IWL_MVM_STATUS_ROC_AUX_RUNNING,
 };
 
 static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
