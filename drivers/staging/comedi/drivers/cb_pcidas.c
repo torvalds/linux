@@ -461,7 +461,6 @@ static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 	return insn->n;
 }
@@ -776,7 +775,6 @@ static int cb_pcidas_trimpot_write(struct comedi_device *dev,
 	default:
 		comedi_error(dev, "driver bug?");
 		return -1;
-		break;
 	}
 
 	return 1;
@@ -1253,7 +1251,6 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 		comedi_error(dev, "error setting dac pacer source");
 		return -1;
-		break;
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
