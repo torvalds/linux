@@ -673,9 +673,8 @@ static int daqboard2000_8255_cb(int dir, int port, int data,
 	if (dir) {
 		writew(data, mmio_base + port * 2);
 		return 0;
-	} else {
-		return readw(mmio_base + port * 2);
 	}
+	return readw(mmio_base + port * 2);
 }
 
 static const void *daqboard2000_find_boardinfo(struct comedi_device *dev,
