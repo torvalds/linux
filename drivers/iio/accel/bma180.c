@@ -68,13 +68,13 @@
 /* Defaults values */
 #define BMA180_DEF_PMODE	0
 #define BMA180_DEF_BW		20
-#define BMA180_DEF_SCALE	250
+#define BMA180_DEF_SCALE	2452
 
 /* Available values for sysfs */
 #define BMA180_FLP_FREQ_AVAILABLE \
 	"10 20 40 75 150 300"
 #define BMA180_SCALE_AVAILABLE \
-	"0.000130 0.000190 0.000250 0.000380 0.000500 0.000990 0.001980"
+	"0.001275 0.001863 0.002452 0.003727 0.004903 0.009709 0.019417"
 
 struct bma180_data {
 	struct i2c_client *client;
@@ -94,7 +94,7 @@ enum bma180_axis {
 };
 
 static int bw_table[] = { 10, 20, 40, 75, 150, 300 }; /* Hz */
-static int scale_table[] = { 130, 190, 250, 380, 500, 990, 1980 };
+static int scale_table[] = { 1275, 1863, 2452, 3727, 4903, 9709, 19417 };
 
 static int bma180_get_acc_reg(struct bma180_data *data, enum bma180_axis axis)
 {
