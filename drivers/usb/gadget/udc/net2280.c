@@ -2159,7 +2159,7 @@ static void usb_reinit_338x(struct net2280 *dev)
 		if (dev->enhanced_mode) {
 			ep->cfg = &dev->epregs[ne[i]];
 			ep->regs = (struct net2280_ep_regs __iomem *)
-				(((void *)&dev->epregs[ne[i]]) +
+				(((void __iomem *)&dev->epregs[ne[i]]) +
 				ep_reg_addr[i]);
 			ep->fiforegs = &dev->fiforegs[i];
 		} else {
