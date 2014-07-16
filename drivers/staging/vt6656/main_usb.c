@@ -83,7 +83,10 @@ module_param_named(rx_buffers, vnt_rx_buffers, int, 0644);
 MODULE_PARM_DESC(rx_buffers, "Number of receive usb rx buffers");
 
 #define TX_DESC_DEF0 64
-DEVICE_PARAM(TxDescriptors0, "Number of transmit usb desc buffer");
+static int vnt_tx_buffers = TX_DESC_DEF0;
+module_param_named(tx_buffers, vnt_rx_buffers, int, 0644);
+MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
+
 
 #define CHANNEL_DEF 6
 DEVICE_PARAM(Channel, "Channel number");
@@ -204,7 +207,11 @@ static void usb_device_reset(struct vnt_private *pDevice);
 
 static void device_set_options(struct vnt_private *priv)
 {
-	priv->cbTD = TX_DESC_DEF0;
+	/* Set number of TX buffers */
+	if (vnt_tx_buffers < CB_MIN_TX_DESC || vnt_tx_buffers > CB_MAX_TX_DESC)
+		priv->cbTD = TX_DESC_DEF0;
+	else
+		priv->cbTD = vnt_tx_buffers;
 
 	/* Set number of RX buffers */
 	if (vnt_rx_buffers < CB_MIN_RX_DESC || vnt_rx_buffers > CB_MAX_RX_DESC)
