@@ -763,9 +763,10 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 			pm8001_ha->irq_vector[i].irq_id = i;
 			pm8001_ha->irq_vector[i].drv_inst = pm8001_ha;
 
-			if (request_irq(pm8001_ha->msix_entries[i].vector,
+			rc = request_irq(pm8001_ha->msix_entries[i].vector,
 				pm8001_interrupt_handler_msix, flag,
-				intr_drvname[i], &(pm8001_ha->irq_vector[i]))) {
+				intr_drvname[i], &(pm8001_ha->irq_vector[i]));
+			if (rc) {
 				for (j = 0; j < i; j++)
 					free_irq(
 					pm8001_ha->msix_entries[j].vector,
