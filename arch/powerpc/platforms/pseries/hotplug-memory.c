@@ -194,7 +194,7 @@ static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
 	if (!memblock_size)
 		return -EINVAL;
 
-	p = (u32 *)of_get_property(pr->dn, "ibm,dynamic-memory", NULL);
+	p = (u32 *) pr->old_prop->value;
 	if (!p)
 		return -EINVAL;
 

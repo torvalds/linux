@@ -83,7 +83,7 @@ int of_reconfig_notify(unsigned long action, void *p)
 }
 
 int of_property_notify(int action, struct device_node *np,
-		       struct property *prop)
+		       struct property *prop, struct property *oldprop)
 {
 	struct of_prop_reconfig pr;
 
@@ -93,6 +93,7 @@ int of_property_notify(int action, struct device_node *np,
 
 	pr.dn = np;
 	pr.prop = prop;
+	pr.old_prop = oldprop;
 	return of_reconfig_notify(action, &pr);
 }
 
@@ -125,11 +126,6 @@ void __of_attach_node(struct device_node *np)
 int of_attach_node(struct device_node *np)
 {
 	unsigned long flags;
-	int rc;
-
-	rc = of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, np);
-	if (rc)
-		return rc;
 
 	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
@@ -138,6 +134,9 @@ int of_attach_node(struct device_node *np)
 
 	__of_attach_node_sysfs(np);
 	mutex_unlock(&of_mutex);
+
+	of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, np);
+
 	return 0;
 }
 
@@ -188,10 +187,6 @@ int of_detach_node(struct device_node *np)
 	unsigned long flags;
 	int rc = 0;
 
-	rc = of_reconfig_notify(OF_RECONFIG_DETACH_NODE, np);
-	if (rc)
-		return rc;
-
 	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	__of_detach_node(np);
@@ -199,6 +194,9 @@ int of_detach_node(struct device_node *np)
 
 	__of_detach_node_sysfs(np);
 	mutex_unlock(&of_mutex);
+
+	of_reconfig_notify(OF_RECONFIG_DETACH_NODE, np);
+
 	return rc;
 }
 
