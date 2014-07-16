@@ -387,6 +387,9 @@ struct kfd_process_device {
 	struct kfd_dev *dev;
 
 
+	/* per-process-per device QCM data structure */
+	struct qcm_process_device qpd;
+
 	/*Apertures*/
 	uint64_t lds_base;
 	uint64_t lds_limit;
@@ -431,6 +434,8 @@ struct kfd_process {
 	 * one for each device the process is using.
 	 */
 	struct list_head per_device_data;
+
+	struct process_queue_manager pqm;
 
 	/* The process's queues. */
 	size_t queue_array_size;
@@ -501,11 +506,32 @@ inline uint32_t upper_32(uint64_t x);
 
 int init_queue(struct queue **q, struct queue_properties properties);
 void uninit_queue(struct queue *q);
+void print_queue_properties(struct queue_properties *q);
 void print_queue(struct queue *q);
 
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 					enum kfd_queue_type type);
 void kernel_queue_uninit(struct kernel_queue *kq);
+
+/* Process Queue Manager */
+struct process_queue_node {
+	struct queue *q;
+	struct kernel_queue *kq;
+	struct list_head process_queue_list;
+};
+
+int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p);
+void pqm_uninit(struct process_queue_manager *pqm);
+int pqm_create_queue(struct process_queue_manager *pqm,
+			    struct kfd_dev *dev,
+			    struct file *f,
+			    struct queue_properties *properties,
+			    unsigned int flags,
+			    enum kfd_queue_type type,
+			    unsigned int *qid);
+int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
+int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
+			struct queue_properties *p);
 
 /* Packet Manager */
 
