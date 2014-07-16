@@ -98,6 +98,7 @@ int of_property_notify(int action, struct device_node *np,
 
 void __of_attach_node(struct device_node *np)
 {
+	np->child = NULL;
 	np->sibling = np->parent->child;
 	np->allnext = np->parent->allnext;
 	np->parent->allnext = np;
