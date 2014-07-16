@@ -351,6 +351,7 @@ s_vSetRSPINF(PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, v
 bool CARDbIsShortPreamble(void *pDeviceHandler)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
+
 	if (pDevice->byPreambleType == 0)
 		return false;
 
@@ -372,6 +373,7 @@ bool CARDbIsShortPreamble(void *pDeviceHandler)
 bool CARDbIsShorSlotTime(void *pDeviceHandler)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
+
 	return pDevice->bShortSlotTime;
 }
 
@@ -929,6 +931,7 @@ bool CARDbRadioPowerOn(void *pDeviceHandler)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
 	bool bResult = true;
+
 	printk("chester power on\n");
 	if (pDevice->bRadioControlOff == true) {
 		if (pDevice->bHWRadioOff == true) printk("chester bHWRadioOff\n");
