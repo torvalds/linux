@@ -515,6 +515,7 @@ static void pc236_detach(struct comedi_device *dev)
 		comedi_legacy_detach(dev);
 	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		comedi_pci_disable(dev);
