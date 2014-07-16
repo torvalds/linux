@@ -197,7 +197,6 @@ struct s3c64xx_spi_driver_data {
 	struct s3c64xx_spi_dma_data	tx_dma;
 	struct s3c64xx_spi_port_config	*port_conf;
 	unsigned int			port_id;
-	bool				cs_gpio;
 };
 
 static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
@@ -754,10 +753,8 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_slave_ctrldata(
 {
 	struct s3c64xx_spi_csinfo *cs;
 	struct device_node *slave_np, *data_np = NULL;
-	struct s3c64xx_spi_driver_data *sdd;
 	u32 fb_delay = 0;
 
-	sdd = spi_master_get_devdata(spi->master);
 	slave_np = spi->dev.of_node;
 	if (!slave_np) {
 		dev_err(&spi->dev, "device node not found\n");
@@ -776,10 +773,7 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_slave_ctrldata(
 		return ERR_PTR(-ENOMEM);
 	}
 
-	/* The CS line is asserted/deasserted by the gpio pin */
-	if (sdd->cs_gpio)
-		cs->line = of_get_named_gpio(data_np, "cs-gpio", 0);
-
+	cs->line = of_get_named_gpio(data_np, "cs-gpio", 0);
 	if (!gpio_is_valid(cs->line)) {
 		dev_err(&spi->dev, "chip select gpio is not specified or invalid\n");
 		kfree(cs);
@@ -818,19 +812,16 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	}
 
 	if (!spi_get_ctldata(spi)) {
-		/* Request gpio only if cs line is asserted by gpio pins */
-		if (sdd->cs_gpio) {
-			err = gpio_request_one(cs->line, GPIOF_OUT_INIT_HIGH,
-					dev_name(&spi->dev));
-			if (err) {
-				dev_err(&spi->dev,
-					"Failed to get /CS gpio [%d]: %d\n",
-					cs->line, err);
-				goto err_gpio_req;
-			}
-
-			spi->cs_gpio = cs->line;
+		err = gpio_request_one(cs->line, GPIOF_OUT_INIT_HIGH,
+				       dev_name(&spi->dev));
+		if (err) {
+			dev_err(&spi->dev,
+				"Failed to get /CS gpio [%d]: %d\n",
+				cs->line, err);
+			goto err_gpio_req;
 		}
+
+		spi->cs_gpio = cs->line;
 
 		spi_set_ctldata(spi, cs);
 	}
@@ -897,10 +888,8 @@ err_gpio_req:
 static void s3c64xx_spi_cleanup(struct spi_device *spi)
 {
 	struct s3c64xx_spi_csinfo *cs = spi_get_ctldata(spi);
-	struct s3c64xx_spi_driver_data *sdd;
 
-	sdd = spi_master_get_devdata(spi->master);
-	if (spi->cs_gpio) {
+	if (cs) {
 		gpio_free(spi->cs_gpio);
 		if (spi->dev.of_node)
 			kfree(cs);
@@ -1075,11 +1064,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	sdd->cntrlr_info = sci;
 	sdd->pdev = pdev;
 	sdd->sfr_start = mem_res->start;
-	sdd->cs_gpio = true;
 	if (pdev->dev.of_node) {
-		if (!of_find_property(pdev->dev.of_node, "cs-gpio", NULL))
-			sdd->cs_gpio = false;
-
 		ret = of_alias_get_id(pdev->dev.of_node, "spi");
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get alias id, errno %d\n",
