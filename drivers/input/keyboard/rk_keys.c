@@ -247,7 +247,7 @@ static int rk_keys_parse_dt(struct rk_keys_drvdata *pdata,
 	
 	chan = iio_channel_get(&pdev->dev, NULL);
 	if (IS_ERR(chan)) {
-		dev_info(&pdev->dev, "Missing io-channels\n");
+		dev_info(&pdev->dev, "no io-channels defined\n");
 		chan = NULL;
 	}
     pdata->chan = chan;
@@ -312,10 +312,8 @@ static int  keys_probe(struct platform_device *pdev)
 	int wakeup, key_num = 0;
 
 	key_num = of_get_child_count(np);
-	if (key_num == 0) {
-		error = -ENODEV;
-		return error;
-	}
+	if (key_num == 0)
+		dev_info(&pdev->dev, "no key defined\n");
 
     ddata = devm_kzalloc(dev, sizeof(struct rk_keys_drvdata) +
 	    key_num * sizeof(struct rk_keys_button),
