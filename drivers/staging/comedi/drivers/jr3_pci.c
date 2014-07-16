@@ -196,6 +196,7 @@ static struct six_axis_t get_min_full_scales(struct jr3_channel __iomem
 					     *channel)
 {
 	struct six_axis_t result;
+
 	result.fx = get_s16(&channel->min_full_scale.fx);
 	result.fy = get_s16(&channel->min_full_scale.fy);
 	result.fz = get_s16(&channel->min_full_scale.fz);
@@ -209,6 +210,7 @@ static struct six_axis_t get_max_full_scales(struct jr3_channel __iomem
 					     *channel)
 {
 	struct six_axis_t result;
+
 	result.fx = get_s16(&channel->max_full_scale.fx);
 	result.fy = get_s16(&channel->max_full_scale.fy);
 	result.fz = get_s16(&channel->max_full_scale.fz);
@@ -319,6 +321,8 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 			 unsigned int *val)
 {
 	int result = 0;
+	int value;
+
 	if (pos && val) {
 		/*  Skip over non hex */
 		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++)
@@ -326,7 +330,6 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 		/*  Collect value */
 		*val = 0;
 		for (; *pos < size; (*pos)++) {
-			int value;
 			value = hex_to_bin(data[*pos]);
 			if (value >= 0) {
 				result = 1;
