@@ -2353,6 +2353,10 @@ struct radeon_device {
 
 	struct dev_pm_domain vga_pm_domain;
 	bool have_disp_power_ref;
+
+	/* tracking pinned memory */
+	u64 vram_pin_size;
+	u64 gart_pin_size;
 };
 
 bool radeon_is_px(struct drm_device *dev);

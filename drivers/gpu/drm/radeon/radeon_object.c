@@ -306,9 +306,13 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 		bo->pin_count = 1;
 		if (gpu_addr != NULL)
 			*gpu_addr = radeon_bo_gpu_offset(bo);
-	}
-	if (unlikely(r != 0))
+		if (domain == RADEON_GEM_DOMAIN_VRAM)
+			bo->rdev->vram_pin_size += radeon_bo_size(bo);
+		else
+			bo->rdev->gart_pin_size += radeon_bo_size(bo);
+	} else {
 		dev_err(bo->rdev->dev, "%p pin failed\n", bo);
+	}
 	return r;
 }
 
@@ -331,8 +335,14 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
-	if (unlikely(r != 0))
+	if (likely(r == 0)) {
+		if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
+			bo->rdev->vram_pin_size -= radeon_bo_size(bo);
+		else
+			bo->rdev->gart_pin_size -= radeon_bo_size(bo);
+	} else {
 		dev_err(bo->rdev->dev, "%p validate failed for unpin\n", bo);
+	}
 	return r;
 }
 
