@@ -291,7 +291,7 @@ static void odm_Process_RSSIForDM(struct dm_odm_t *pDM_Odm,
 		return;
 
 	pEntry = pDM_Odm->pODM_StaInfo[pPktinfo->StationID];
-	if (!IS_STA_VALID(pEntry))
+	if (!pEntry)
 		return;
 	if ((!pPktinfo->bPacketMatchBSSID))
 		return;
