@@ -491,7 +491,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 	int i;
 
 	if (!dev->attached) {
-		comedi_error(dev, "spurious interrupt");
+		dev_err(dev->class_dev, "spurious interrupt\n");
 		return IRQ_HANDLED;
 	}
 
