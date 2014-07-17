@@ -3399,10 +3399,7 @@ static void dapm_connect_dai_link_widgets(struct snd_soc_card *card,
 {
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dapm_widget *sink, *source;
-	struct snd_soc_dapm_route r;
 	int i;
-
-	memset(&r, 0, sizeof(r));
 
 	for (i = 0; i < rtd->num_codecs; i++) {
 		struct snd_soc_dai *codec_dai = rtd->codec_dais[i];
