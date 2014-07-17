@@ -606,7 +606,6 @@ int rk_fb_set_prmry_screen_status(int status)
 	return 0;
 }
 
-#if 0
 static struct rk_lcdc_driver *rk_get_extend_lcdc_drv(void)
 {
 	struct rk_fb *inf = NULL;
@@ -627,7 +626,6 @@ static struct rk_lcdc_driver *rk_get_extend_lcdc_drv(void)
 
 	return dev_drv;
 }
-#endif
 
 u32 rk_fb_get_prmry_screen_pixclock(void)
 {
@@ -943,7 +941,6 @@ static void rga_win_check(struct rk_lcdc_win *dst_win,
 static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 			    struct rk_lcdc_win *src_win, u16 orientation)
 {
-	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
 	struct rga_req Rga_Request;
 	long ret = 0;
 	/* int fd = 0; */
@@ -976,7 +973,7 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 		Rga_Request.cosa = 0;
 		Rga_Request.dst.act_w = dst_win->area[0].yact;
 		Rga_Request.dst.act_h = dst_win->area[0].xact;
-		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
+		Rga_Request.dst.x_offset = 0;
 		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
 		break;
 	default:
@@ -994,8 +991,6 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 	Rga_Request.src.uv_addr = 0;
 	Rga_Request.src.v_addr = 0;
 
-	dst_win->area[0].smem_start =
-	    rk_fb->fb[rk_fb->num_fb >> 1]->fix.smem_start;
 	Rga_Request.dst.yrgb_addr =
 	    dst_win->area[0].smem_start + dst_win->area[0].y_offset;
 	Rga_Request.dst.uv_addr = 0;
@@ -1012,8 +1007,6 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 	    src_win->area[0].smem_start + src_win->area[0].y_offset;
 	Rga_Request.src.v_addr = 0;
 
-	dst_win->area[0].smem_start =
-	    rk_fb->fb[rk_fb->num_fb >> 1]->fix.smem_start;
 	Rga_Request.dst.yrgb_addr = 0;
 	Rga_Request.dst.uv_addr =
 	    dst_win->area[0].smem_start + dst_win->area[0].y_offset;
@@ -1384,10 +1377,7 @@ static void rk_fb_update_driver(struct rk_lcdc_win *win,
 				struct rk_fb_reg_win_data *reg_win_data)
 {
 	int i = 0;
-/*
-	struct rk_lcdc_win *win;
-	win = dev_drv->win[reg_win_data->win_id];
-*/
+
 	win->area_num = reg_win_data->area_num;
 	win->format = reg_win_data->data_format;
 	win->id = reg_win_data->win_id;
@@ -1401,22 +1391,16 @@ static void rk_fb_update_driver(struct rk_lcdc_win *win,
 		win->z_order = reg_win_data->z_order;
 		win->area[0].uv_vir_stride =
 		    reg_win_data->reg_area_data[0].uv_vir_stride;
-
-#if !defined(RK_FB_ROTATE) && defined(CONFIG_THREE_FB_BUFFER)
-		/* TODO Mofidy if HDMI info is change to hwc */
 		win->area[0].cbr_start =
 		    reg_win_data->reg_area_data[0].cbr_start;
-#endif
 		win->area[0].c_offset = reg_win_data->reg_area_data[0].c_offset;
 		win->alpha_en = reg_win_data->alpha_en;
 		win->alpha_mode = reg_win_data->alpha_mode;
 		win->g_alpha_val = reg_win_data->g_alpha_val;
 		for (i = 0; i < RK_WIN_MAX_AREA; i++) {
 			if (reg_win_data->reg_area_data[i].smem_start > 0) {
-#if !defined(RK_FB_ROTATE) && defined(CONFIG_THREE_FB_BUFFER)
 				win->area[i].smem_start =
 				    reg_win_data->reg_area_data[i].smem_start;
-#endif
 				win->area[i].xpos =
 				    reg_win_data->reg_area_data[i].xpos;
 				win->area[i].ypos =
@@ -1449,6 +1433,189 @@ static void rk_fb_update_driver(struct rk_lcdc_win *win,
 	*/
 	}
 
+}
+
+static int rk_fb_update_hdmi_win(struct rk_lcdc_win *ext_win,
+                                 struct rk_lcdc_win *win)
+{
+        struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
+        struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
+        struct rk_lcdc_driver *ext_dev_drv = rk_get_extend_lcdc_drv();
+        struct rk_screen *screen;
+        struct rk_screen *ext_screen;
+        int hdmi_xsize;
+        int hdmi_ysize;
+        int pixel_width, vir_width_bit, y_stride;
+        struct rk_lcdc_win *last_win;
+        bool is_yuv = false;
+        static u8 fb_index = 0;
+
+        if ((rk_fb->disp_mode != DUAL) ||
+                (hdmi_get_hotplug() != HDMI_HPD_ACTIVED) ||
+                (!hdmi_switch_complete)) {
+                printk(KERN_INFO "%s: hdmi is disconnect!\n", __func__);
+                return -1;
+        }
+
+        if (unlikely(!dev_drv) || unlikely(!ext_dev_drv))
+                return -1;
+
+        screen = dev_drv->cur_screen;
+        ext_screen = ext_dev_drv->cur_screen;
+        hdmi_xsize = ext_screen->xsize;
+        hdmi_ysize = ext_screen->ysize;
+
+        ext_win->state = win->state;
+        ext_win->id = win->id;
+        if (win->area[0].smem_start == 0)
+                ext_win->state = 0;
+        if (ext_win->state == 0)
+                return 0;
+
+	ext_win->area_num = win->area_num;
+	ext_win->format = win->format;
+	ext_win->z_order = win->z_order;
+        ext_win->alpha_en = win->alpha_en;
+        ext_win->alpha_mode = win->alpha_mode;
+	ext_win->g_alpha_val = win->g_alpha_val;
+
+        /* win0 and win1 have only one area and support scale
+         * but win2 and win3 don't support scale
+         * so hdmi only use win0 or win1
+         */
+        ext_win->area[0].state = win->area[0].state;
+
+        switch (ext_win->format) {
+        case YUV422:
+        case YUV420:
+        case YUV444:
+        case YUV422_A:
+        case YUV420_A:
+        case YUV444_A:
+                is_yuv = true;
+                break;
+        default:
+                is_yuv = false;
+                break;
+        }
+
+        if (ext_dev_drv->rotate_mode == ROTATE_90 ||
+                        ext_dev_drv->rotate_mode == ROTATE_270) {
+                if (ext_win->id == 0) {
+                        ext_win->area[0].smem_start =
+	                        rk_fb->fb[rk_fb->num_fb >> 1]->fix.smem_start;
+                        ext_win->area[0].y_offset = (get_fb_size() >> 1) * fb_index;
+                        if ((++fb_index) > 1)
+                                fb_index = 0;
+                } else {
+                        ext_win->area[0].y_offset = 0;
+                        last_win = ext_dev_drv->win[ext_win->id - 1];
+                        if (last_win->area[0].cbr_start)
+                                ext_win->area[0].smem_start =
+                                        last_win->area[0].cbr_start +
+                                        last_win->area[0].c_offset +
+                                        last_win->area[0].xvir * last_win->area[0].yvir;
+                        else
+                                ext_win->area[0].smem_start =
+                                        last_win->area[0].smem_start +
+                                        last_win->area[0].y_offset +
+                                        last_win->area[0].xvir * last_win->area[0].yvir;
+                }
+
+                ext_win->area[0].xact = win->area[0].yact;
+                ext_win->area[0].yact = win->area[0].xact;
+                ext_win->area[0].xvir = win->area[0].yact;
+                ext_win->area[0].yvir = win->area[0].xact;
+                pixel_width = rk_fb_pixel_width(ext_win->format);
+                vir_width_bit = pixel_width * ext_win->area[0].xvir;
+                y_stride = ALIGN_N_TIMES(vir_width_bit, 32) / 8;
+                ext_win->area[0].y_vir_stride = y_stride >> 2;
+	} else {
+	        ext_win->area[0].smem_start = win->area[0].smem_start;
+                ext_win->area[0].y_offset = win->area[0].y_offset;
+                ext_win->area[0].xact = win->area[0].xact;
+                ext_win->area[0].yact = win->area[0].yact;
+                ext_win->area[0].xvir = win->area[0].xvir;
+                ext_win->area[0].yvir = win->area[0].yvir;
+                ext_win->area[0].y_vir_stride = win->area[0].y_vir_stride;
+        }
+
+        if (win->area[0].xpos != 0 || win->area[0].ypos != 0) {
+                if (ext_dev_drv->rotate_mode == ROTATE_270) {
+                        int xbom_pos = 0, ybom_pos = 0;
+                        int xtop_pos = 0, ytop_pos = 0;
+
+                        ext_win->area[0].xsize = hdmi_xsize *
+                                                win->area[0].ysize /
+                                                screen->mode.yres;
+                        ext_win->area[0].ysize = hdmi_ysize *
+                                                win->area[0].xsize /
+                                                screen->mode.xres;
+                        xbom_pos = hdmi_xsize * win->area[0].ypos / screen->mode.yres;
+                        ybom_pos = hdmi_ysize * win->area[0].xpos / screen->mode.xres;
+                        xtop_pos = hdmi_xsize - ext_win->area[0].xsize - xbom_pos;
+                        ytop_pos = hdmi_ysize - ext_win->area[0].ysize - ybom_pos;
+                        ext_win->area[0].xpos =
+                                ((ext_screen->mode.xres - hdmi_xsize) >> 1) + xtop_pos;
+                        ext_win->area[0].ypos =
+                                ((ext_screen->mode.yres - hdmi_ysize) >> 1) + ytop_pos;
+                } else if (ext_dev_drv->rotate_mode == ROTATE_90) {
+                        ext_win->area[0].xsize = hdmi_xsize *
+                                                win->area[0].ysize /
+                                                screen->mode.yres;
+                        ext_win->area[0].ysize = hdmi_ysize *
+                                                win->area[0].xsize /
+                                                screen->mode.xres;
+                        ext_win->area[0].xpos =
+                                ((ext_screen->mode.xres - hdmi_xsize) >> 1) +
+                                hdmi_xsize * win->area[0].ypos / screen->mode.yres;
+                        ext_win->area[0].ypos =
+                                ((ext_screen->mode.yres - hdmi_ysize) >> 1) +
+                                hdmi_ysize * win->area[0].xpos / screen->mode.xres;
+                } else {
+                        ext_win->area[0].xsize = hdmi_xsize *
+                                                win->area[0].xsize /
+                                                screen->mode.xres;
+                        ext_win->area[0].ysize = hdmi_ysize *
+                                                win->area[0].ysize /
+                                                screen->mode.yres;
+                        ext_win->area[0].xpos =
+                                ((ext_screen->mode.xres - hdmi_xsize) >> 1) +
+                                hdmi_xsize * win->area[0].xpos / screen->mode.xres;
+                        ext_win->area[0].ypos =
+                                ((ext_screen->mode.yres - hdmi_ysize) >> 1) +
+                                hdmi_ysize * win->area[0].ypos / screen->mode.yres;
+                }
+        } else {
+                ext_win->area[0].xsize = hdmi_xsize;
+                ext_win->area[0].ysize = hdmi_ysize;
+                ext_win->area[0].xpos =
+                                (ext_screen->mode.xres - hdmi_xsize) >> 1;
+                ext_win->area[0].ypos =
+                                (ext_screen->mode.yres - hdmi_ysize) >> 1;
+        }
+
+        if (!is_yuv) {
+                ext_win->area[0].uv_vir_stride = 0;
+	        ext_win->area[0].cbr_start = 0;
+	        ext_win->area[0].c_offset = 0;
+                return 0;
+        }
+
+        if (ext_dev_drv->rotate_mode == ROTATE_90 ||
+                ext_dev_drv->rotate_mode == ROTATE_270) {
+                ext_win->area[0].uv_vir_stride = ext_win->area[0].y_vir_stride;
+                ext_win->area[0].cbr_start = ext_win->area[0].smem_start +
+                                ext_win->area[0].y_offset +
+                                ext_win->area[0].xvir * ext_win->area[0].yvir;
+	        ext_win->area[0].c_offset = win->area[0].c_offset;
+        } else {
+	        ext_win->area[0].uv_vir_stride = win->area[0].uv_vir_stride;
+	        ext_win->area[0].cbr_start = win->area[0].cbr_start;
+	        ext_win->area[0].c_offset = win->area[0].c_offset;
+        }
+
+        return 0;
 }
 
 static struct rk_fb_reg_win_data *rk_fb_get_win_data(struct rk_fb_reg_data
@@ -1516,70 +1683,33 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	if ((rk_fb->disp_mode == DUAL)
 	    && (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 	    && hdmi_switch_complete) {
-		for (i = 0; i < rk_fb->num_lcdc; i++) {
-			if (rk_fb->lcdc_dev_drv[i]->prop == EXTEND) {
-				ext_dev_drv = rk_fb->lcdc_dev_drv[i];
-				break;
-			}
-		}
-		if (i == rk_fb->num_lcdc) {
-			printk(KERN_ERR "hdmi lcdc driver not found!\n");
-			goto ext_win_exit;
-		}
-		/* hdmi just need set win0 only(win0 have only one area)
-		 * other win is disable
-		 */
-		win = dev_drv->win[0];
-		ext_win = ext_dev_drv->win[0];
-		for (j = 0; j < regs->win_num; j++) {
-			if (0 == regs->reg_win_data[j].win_id)
-				break;
-		}
-		if (j < regs->win_num) {
-			rk_fb_update_driver(ext_win, &regs->reg_win_data[j]);
-			if (win->area[0].xpos != 0 || win->area[0].ypos != 0) {
-				ext_win->area[0].xsize =
-				    (ext_dev_drv->cur_screen->xsize * win->area[0].xsize) /
-				    dev_drv->cur_screen->mode.xres;
-				ext_win->area[0].ysize =
-				    (ext_dev_drv->cur_screen->ysize * win->area[0].ysize) /
-				    dev_drv->cur_screen->mode.yres;
-				ext_win->area[0].xpos =
-				    ((ext_dev_drv->cur_screen->mode.xres - ext_dev_drv->cur_screen->xsize) >> 1) +
-				    ext_dev_drv->cur_screen->xsize * win->area[0].xpos / dev_drv->cur_screen->mode.xres;
-				ext_win->area[0].ypos =
-				    ((ext_dev_drv->cur_screen->mode.yres - ext_dev_drv->cur_screen->ysize) >> 1) +
-				    ext_dev_drv->cur_screen->ysize * win->area[0].ypos / dev_drv->cur_screen->mode.yres;
-			} else {
-				ext_win->area[0].xpos =
-				    (ext_dev_drv->cur_screen->mode.xres - ext_dev_drv->cur_screen->xsize) >> 1;
-				ext_win->area[0].ypos =
-				    (ext_dev_drv->cur_screen->mode.yres - ext_dev_drv->cur_screen->ysize) >> 1;
-				ext_win->area[0].xsize = ext_dev_drv->cur_screen->xsize;
-				ext_win->area[0].ysize = ext_dev_drv->cur_screen->ysize;
-			}
-			/* hdmi only one win so disable alpha */
-			ext_win->alpha_en = 0;
-			ext_win->state = 1;
-		} else {
-			ext_win->state = 0;
-		}
+                ext_dev_drv = rk_get_extend_lcdc_drv();
+                if (!ext_dev_drv) {
+                        printk(KERN_ERR "hdmi lcdc driver not found!\n");
+                        goto ext_win_exit;
+                }
 
-		if (win->area[0].xact < win->area[0].yact) {
-			int pixel_width, vir_width_bit, stride;
-			ext_win->area[0].xact = win->area[0].yact;
-			ext_win->area[0].yact = win->area[0].xact;
-			ext_win->area[0].xvir = win->area[0].yact;
-			pixel_width = rk_fb_pixel_width(ext_win->format);
-			vir_width_bit = pixel_width * ext_win->area[0].xvir;
-			stride = ALIGN_N_TIMES(vir_width_bit, 32) / 8;
-			ext_win->area[0].y_vir_stride = stride >> 2;
-		}
-		if (ext_dev_drv->rotate_mode > X_Y_MIRROR)
-			rk_fb_win_rotate(ext_win, win, ext_dev_drv->rotate_mode);
+                /* win0 and win1 have only one area and support scale
+                 * but win2 and win3 don't support scale
+                 * so hdmi only use win0 or win1
+                 */
+		for (i = 0; i < 2; i++) {
+		        win = dev_drv->win[i];
+		        ext_win = ext_dev_drv->win[i];
+                        ext_win->state = win->state;
+                        if (!ext_win->state)
+                                continue;
 
-		ext_dev_drv->ops->set_par(ext_dev_drv, 0);
-		ext_dev_drv->ops->pan_display(ext_dev_drv, 0);
+                        rk_fb_update_hdmi_win(ext_win, win);
+
+                        if (ext_dev_drv->rotate_mode > X_Y_MIRROR)
+			        rk_fb_win_rotate(ext_win, win,
+			                         ext_dev_drv->rotate_mode);
+
+                        ext_dev_drv->ops->set_par(ext_dev_drv, i);
+		        ext_dev_drv->ops->pan_display(ext_dev_drv, i);
+                }
+
 		ext_dev_drv->ops->cfg_done(ext_dev_drv);
 	}
 ext_win_exit:
