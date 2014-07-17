@@ -445,11 +445,6 @@ unsigned int decide_wait_for_beacon_timeout23a(unsigned int bcn_interval)
 		return bcn_interval << 2;
 }
 
-void invalidate_cam_all23a(struct rtw_adapter *padapter)
-{
-	rtl8723a_cam_invalid_all(padapter);
-}
-
 void clear_cam_entry23a(struct rtw_adapter *padapter, u8 entry)
 {
 	unsigned char null_sta[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -483,7 +478,7 @@ void flush_all_cam_entry23a(struct rtw_adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	rtl8723a_cam_invalid_all(padapter);
+	rtl8723a_cam_invalidate_all(padapter);
 
 	memset(pmlmeinfo->FW_sta_info, 0, sizeof(pmlmeinfo->FW_sta_info));
 }

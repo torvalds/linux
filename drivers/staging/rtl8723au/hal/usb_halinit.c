@@ -702,7 +702,7 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	_BBTurnOnBlock(Adapter);
 	/* NicIFSetMacAddress(padapter, padapter->PermanentAddress); */
 
-	invalidate_cam_all23a(Adapter);
+	rtl8723a_cam_invalidate_all(Adapter);
 
 	/*  2010/12/17 MH We need to set TX power according to EFUSE content at first. */
 	PHY_SetTxPowerLevel8723A(Adapter, pHalData->CurrentChannel);
