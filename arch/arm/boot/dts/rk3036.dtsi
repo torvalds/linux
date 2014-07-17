@@ -204,7 +204,7 @@
 			<&hclk_peri_pre 75000000>, <&pclk_peri_pre 75000000>,
 			<&clk_gpu_pre 300000000>,	 <&aclk_vio_pre 300000000>,
 			<&hclk_vio_pre 150000000>, <&aclk_vcodec_pre 300000000>,
-			<&clk_hevc_core 300000000>, <&clk_mac_ref_div 50000000>;
+			<&clk_hevc_core 200000000>, <&clk_mac_ref_div 50000000>;
 	/*	rockchip,clocks-uboot-has-init =
 			<&aclk_vio1>;*/
 	};
