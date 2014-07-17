@@ -649,6 +649,18 @@ void __init dra7xxx_check_revision(void)
 		}
 		break;
 
+	case 0xb9bc:
+		switch (rev) {
+		case 0:
+			omap_revision = DRA722_REV_ES1_0;
+			break;
+		default:
+			/* If we have no new revisions */
+			omap_revision = DRA722_REV_ES1_0;
+			break;
+		}
+		break;
+
 	default:
 		/* Unknown default to latest silicon rev as default*/
 		pr_warn("%s: unknown idcode=0x%08x (hawkeye=0x%08x,rev=0x%d)\n",

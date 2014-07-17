@@ -1259,10 +1259,18 @@ struct btrfs_block_group_cache {
 	spinlock_t lock;
 	u64 pinned;
 	u64 reserved;
+	u64 delalloc_bytes;
 	u64 bytes_super;
 	u64 flags;
 	u64 sectorsize;
 	u64 cache_generation;
+
+	/*
+	 * It is just used for the delayed data space allocation because
+	 * only the data space allocation and the relative metadata update
+	 * can be done cross the transaction.
+	 */
+	struct rw_semaphore data_rwsem;
 
 	/* for raid56, this is a full stripe, without parity */
 	unsigned long full_stripe_len;
@@ -3316,7 +3324,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 				   struct btrfs_key *ins);
 int btrfs_reserve_extent(struct btrfs_root *root, u64 num_bytes,
 			 u64 min_alloc_size, u64 empty_size, u64 hint_byte,
-			 struct btrfs_key *ins, int is_data);
+			 struct btrfs_key *ins, int is_data, int delalloc);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct extent_buffer *buf, int full_backref, int no_quota);
 int btrfs_dec_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -3330,7 +3338,8 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans,
 		      u64 bytenr, u64 num_bytes, u64 parent, u64 root_objectid,
 		      u64 owner, u64 offset, int no_quota);
 
-int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len);
+int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len,
+			       int delalloc);
 int btrfs_free_and_pin_reserved_extent(struct btrfs_root *root,
 				       u64 start, u64 len);
 void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,

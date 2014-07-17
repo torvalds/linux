@@ -279,7 +279,6 @@ el1_sp_pc:
 	 */
 	mrs	x0, far_el1
 	enable_dbg
-	mov	x1, x25
 	mov	x2, sp
 	b	do_sp_pc_abort
 el1_undef:

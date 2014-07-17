@@ -1,10 +1,9 @@
-config ARCH_BCM
+menuconfig ARCH_BCM
 	bool "Broadcom SoC Support" if ARCH_MULTI_V6_V7
 	help
 	  This enables support for Broadcom ARM based SoC chips
 
-menu "Broadcom SoC Selection"
-	depends on ARCH_BCM
+if ARCH_BCM
 
 config ARCH_BCM_MOBILE
 	bool "Broadcom Mobile SoC Support" if ARCH_MULTI_V7
@@ -88,4 +87,4 @@ config ARCH_BCM_5301X
 	  different SoC or with the older BCM47XX and BCM53XX based
 	  network SoC using a MIPS CPU, they are supported by arch/mips/bcm47xx
 
-endmenu
+endif

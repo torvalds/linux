@@ -88,4 +88,15 @@ static inline unsigned long ppc_function_entry(void *func)
 #endif
 }
 
+static inline unsigned long ppc_global_function_entry(void *func)
+{
+#if defined(CONFIG_PPC64) && defined(_CALL_ELF) && _CALL_ELF == 2
+	/* PPC64 ABIv2 the global entry point is at the address */
+	return (unsigned long)func;
+#else
+	/* All other cases there is no change vs ppc_function_entry() */
+	return ppc_function_entry(func);
+#endif
+}
+
 #endif /* _ASM_POWERPC_CODE_PATCHING_H */

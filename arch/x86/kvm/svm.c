@@ -1462,6 +1462,7 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 		 */
 		if (var->unusable)
 			var->db = 0;
+		var->dpl = to_svm(vcpu)->vmcb->save.cpl;
 		break;
 	}
 }

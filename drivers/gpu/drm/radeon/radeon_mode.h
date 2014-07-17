@@ -46,6 +46,10 @@ struct radeon_device;
 #define to_radeon_encoder(x) container_of(x, struct radeon_encoder, base)
 #define to_radeon_framebuffer(x) container_of(x, struct radeon_framebuffer, base)
 
+#define RADEON_MAX_HPD_PINS 7
+#define RADEON_MAX_CRTCS 6
+#define RADEON_MAX_AFMT_BLOCKS 7
+
 enum radeon_rmx_type {
 	RMX_OFF,
 	RMX_FULL,
@@ -233,8 +237,8 @@ struct radeon_mode_info {
 	struct card_info *atom_card_info;
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
-	struct radeon_crtc *crtcs[6];
-	struct radeon_afmt *afmt[7];
+	struct radeon_crtc *crtcs[RADEON_MAX_CRTCS];
+	struct radeon_afmt *afmt[RADEON_MAX_AFMT_BLOCKS];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */
@@ -302,6 +306,12 @@ struct radeon_atom_ss {
 	uint16_t amount;
 };
 
+enum radeon_flip_status {
+	RADEON_FLIP_NONE,
+	RADEON_FLIP_PENDING,
+	RADEON_FLIP_SUBMITTED
+};
+
 struct radeon_crtc {
 	struct drm_crtc base;
 	int crtc_id;
@@ -327,6 +337,7 @@ struct radeon_crtc {
 	/* page flipping */
 	struct workqueue_struct *flip_queue;
 	struct radeon_flip_work *flip_work;
+	enum radeon_flip_status flip_status;
 	/* pll sharing */
 	struct radeon_atom_ss ss;
 	bool ss_enabled;

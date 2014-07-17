@@ -547,7 +547,7 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 	ascport->port.read_status_mask = ASC_RXBUF_DUMMY_OE;
 	if (termios->c_iflag & INPCK)
 		ascport->port.read_status_mask |= ASC_RXBUF_FE | ASC_RXBUF_PE;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		ascport->port.read_status_mask |= ASC_RXBUF_DUMMY_BE;
 
 	/*

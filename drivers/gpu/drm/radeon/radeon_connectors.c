@@ -199,6 +199,9 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 		}
 	}
 
+	if ((radeon_deep_color == 0) && (bpc > 8))
+		bpc = 8;
+
 	DRM_DEBUG("%s: Display bpc=%d, returned bpc=%d\n",
 			  connector->name, connector->display_info.bpc, bpc);
 
@@ -1288,17 +1291,15 @@ static int radeon_dvi_mode_valid(struct drm_connector *connector,
 		    (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D) ||
 		    (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_HDMI_TYPE_B))
 			return MODE_OK;
-		else if (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_HDMI_TYPE_A) {
-			if (ASIC_IS_DCE6(rdev)) {
-				/* HDMI 1.3+ supports max clock of 340 Mhz */
-				if (mode->clock > 340000)
-					return MODE_CLOCK_HIGH;
-				else
-					return MODE_OK;
-			} else
+		else if (ASIC_IS_DCE6(rdev) && drm_detect_hdmi_monitor(radeon_connector->edid)) {
+			/* HDMI 1.3+ supports max clock of 340 Mhz */
+			if (mode->clock > 340000)
 				return MODE_CLOCK_HIGH;
-		} else
+			else
+				return MODE_OK;
+		} else {
 			return MODE_CLOCK_HIGH;
+		}
 	}
 
 	/* check against the max pixel clock */
@@ -1549,6 +1550,8 @@ out:
 static int radeon_dp_mode_valid(struct drm_connector *connector,
 				  struct drm_display_mode *mode)
 {
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
 
@@ -1579,14 +1582,23 @@ static int radeon_dp_mode_valid(struct drm_connector *connector,
 					return MODE_PANEL;
 			}
 		}
-		return MODE_OK;
 	} else {
 		if ((radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
-		    (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
+		    (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP)) {
 			return radeon_dp_mode_valid_helper(connector, mode);
-		else
-			return MODE_OK;
+		} else {
+			if (ASIC_IS_DCE6(rdev) && drm_detect_hdmi_monitor(radeon_connector->edid)) {
+				/* HDMI 1.3+ supports max clock of 340 Mhz */
+				if (mode->clock > 340000)
+					return MODE_CLOCK_HIGH;
+			} else {
+				if (mode->clock > 165000)
+					return MODE_CLOCK_HIGH;
+			}
+		}
 	}
+
+	return MODE_OK;
 }
 
 static const struct drm_connector_helper_funcs radeon_dp_connector_helper_funcs = {
