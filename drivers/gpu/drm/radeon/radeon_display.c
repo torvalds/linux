@@ -407,14 +407,14 @@ static void radeon_flip_work_func(struct work_struct *__work)
 		radeon_fence_unref(&work->fence);
 	}
 
-	/* do the flip (mmio) */
-	radeon_page_flip(rdev, radeon_crtc->crtc_id, work->base);
-
 	/* We borrow the event spin lock for protecting flip_status */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
 	/* set the proper interrupt */
 	radeon_irq_kms_pflip_irq_get(rdev, radeon_crtc->crtc_id);
+
+	/* do the flip (mmio) */
+	radeon_page_flip(rdev, radeon_crtc->crtc_id, work->base);
 
 	radeon_crtc->flip_status = RADEON_FLIP_SUBMITTED;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
