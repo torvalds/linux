@@ -58,6 +58,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_machine_name[] __initconst = 
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_hardware_version[] __initconst = {
 	{{BCM47XX_BOARD_ASUS_RTN10U, "Asus RT-N10U"}, "RTN10U"},
+	{{BCM47XX_BOARD_ASUS_RTN10D, "Asus RT-N10D"}, "RTN10D"},
 	{{BCM47XX_BOARD_ASUS_RTN12, "Asus RT-N12"}, "RT-N12"},
 	{{BCM47XX_BOARD_ASUS_RTN12B1, "Asus RT-N12B1"}, "RTN12B1"},
 	{{BCM47XX_BOARD_ASUS_RTN12C1, "Asus RT-N12C1"}, "RTN12C1"},
@@ -106,7 +107,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_productid[] __initconst = {
 /* ModelId */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_ModelId[] __initconst = {
-	{{BCM47XX_BOARD_DELL_TM2300, "Dell WX-5565"}, "WX-5565"},
+	{{BCM47XX_BOARD_DELL_TM2300, "Dell TrueMobile 2300"}, "WX-5565"},
 	{{BCM47XX_BOARD_MOTOROLA_WE800G, "Motorola WE800G"}, "WE800G"},
 	{{BCM47XX_BOARD_MOTOROLA_WR850GP, "Motorola WR850GP"}, "WR850GP"},
 	{{BCM47XX_BOARD_MOTOROLA_WR850GV2V3, "Motorola WR850G"}, "WR850G"},
