@@ -125,11 +125,11 @@
 		pinctrl-0 = <&spi0_txd &spi0_rxd &spi0_clk &spi0_cs0 &spi0_cs1>;
 		rockchip,spi-src-clk = <0>;
 		num-cs = <2>;
-		clocks =<&clk_spi0>, <&clk_gates7 12>;
+		clocks =<&clk_spi0>, <&clk_gates2 9>;
 		clock-names = "spi","pclk_spi0";
-		//dmas = <&pdma 8>, <&pdma 9>;
-		//#dma-cells = <2>;
-		//dma-names = "tx", "rx";
+		dmas = <&pdma 8>, <&pdma 9>;
+		#dma-cells = <2>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
