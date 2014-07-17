@@ -452,6 +452,8 @@ finish_packet:
 	/* Pass off to hardware */
 	efx_nic_push_buffers(tx_queue);
 
+	tx_queue->tx_packets++;
+
 	efx_tx_maybe_stop_queue(tx_queue);
 
 	return NETDEV_TX_OK;
@@ -1244,6 +1246,8 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 	++st->ipv4_id;
 
 	++tx_queue->tso_packets;
+
+	++tx_queue->tx_packets;
 
 	return 0;
 }
