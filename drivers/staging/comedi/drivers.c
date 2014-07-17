@@ -591,8 +591,6 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		ret = -ENOSYS;
 		goto out;
 	}
-	/* initialize dev->driver here so
-	 * comedi_error() can be called from attach */
 	dev->driver = driv;
 	dev->board_name = dev->board_ptr ? *(const char **)dev->board_ptr
 					 : dev->driver->driver_name;

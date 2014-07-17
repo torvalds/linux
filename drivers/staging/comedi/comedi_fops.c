@@ -2401,12 +2401,6 @@ static const struct file_operations comedi_fops = {
 	.llseek = noop_llseek,
 };
 
-void comedi_error(const struct comedi_device *dev, const char *s)
-{
-	dev_err(dev->class_dev, "%s: %s\n", dev->driver->driver_name, s);
-}
-EXPORT_SYMBOL_GPL(comedi_error);
-
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;

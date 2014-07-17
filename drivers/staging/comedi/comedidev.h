@@ -280,7 +280,6 @@ static inline const void *comedi_board(const struct comedi_device *dev)
  */
 
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s);
-void comedi_error(const struct comedi_device *dev, const char *s);
 
 /* we can expand the number of bits used to encode devices/subdevices into
  the minor number soon, after more distros support > 8 bit minor numbers
