@@ -771,8 +771,8 @@ static int ni_request_ai_mite_channel(struct comedi_device *dev)
 	    mite_request_channel(devpriv->mite, devpriv->ai_mite_ring);
 	if (devpriv->ai_mite_chan == NULL) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-		comedi_error(dev,
-			     "failed to reserve mite dma channel for analog input.");
+		dev_err(dev->class_dev,
+			"failed to reserve mite dma channel for analog input\n");
 		return -EBUSY;
 	}
 	devpriv->ai_mite_chan->dir = COMEDI_INPUT;
@@ -792,8 +792,8 @@ static int ni_request_ao_mite_channel(struct comedi_device *dev)
 	    mite_request_channel(devpriv->mite, devpriv->ao_mite_ring);
 	if (devpriv->ao_mite_chan == NULL) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-		comedi_error(dev,
-			     "failed to reserve mite dma channel for analog outut.");
+		dev_err(dev->class_dev,
+			"failed to reserve mite dma channel for analog outut\n");
 		return -EBUSY;
 	}
 	devpriv->ao_mite_chan->dir = COMEDI_OUTPUT;
@@ -818,8 +818,8 @@ static int ni_request_gpct_mite_channel(struct comedi_device *dev,
 				 devpriv->gpct_mite_ring[gpct_index]);
 	if (mite_chan == NULL) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-		comedi_error(dev,
-			     "failed to reserve mite dma channel for counter.");
+		dev_err(dev->class_dev,
+			"failed to reserve mite dma channel for counter\n");
 		return -EBUSY;
 	}
 	mite_chan->dir = direction;
@@ -844,8 +844,8 @@ static int ni_request_cdo_mite_channel(struct comedi_device *dev)
 	    mite_request_channel(devpriv->mite, devpriv->cdo_mite_ring);
 	if (devpriv->cdo_mite_chan == NULL) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-		comedi_error(dev,
-			     "failed to reserve mite dma channel for correlated digital outut.");
+		dev_err(dev->class_dev,
+			"failed to reserve mite dma channel for correlated digital output\n");
 		return -EBUSY;
 	}
 	devpriv->cdo_mite_chan->dir = COMEDI_OUTPUT;
@@ -971,7 +971,7 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 			udelay(1);
 		}
 		if (i == timeout)
-			comedi_error(dev, "FIFO flush timeout.");
+			dev_err(dev->class_dev, "FIFO flush timeout\n");
 	} else {
 		ni_stc_writew(dev, 1, ADC_FIFO_Clear);
 		if (devpriv->is_625x) {
@@ -1126,7 +1126,7 @@ static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 		udelay(10);
 	}
 	if (i == timeout) {
-		comedi_error(dev, "timed out waiting for dma load");
+		dev_err(dev->class_dev, "timed out waiting for dma load\n");
 		return -EPIPE;
 	}
 	return 0;
@@ -1291,7 +1291,8 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 	} else {
 		if (n > sizeof(devpriv->ai_fifo_buffer) /
 		    sizeof(devpriv->ai_fifo_buffer[0])) {
-			comedi_error(dev, "bug! ai_fifo_buffer too small");
+			dev_err(dev->class_dev,
+				"bug! ai_fifo_buffer too small\n");
 			async->events |= COMEDI_CB_ERROR;
 			return;
 		}
@@ -2438,7 +2439,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int interrupt_a_enable = 0;
 
 	if (dev->irq == 0) {
-		comedi_error(dev, "cannot run command without an irq");
+		dev_err(dev->class_dev, "cannot run command without an irq\n");
 		return -EIO;
 	}
 	ni_clear_ai_fifo(dev);
@@ -3088,8 +3089,8 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 			break;
 	}
 	if (i == timeout) {
-		comedi_error(dev,
-			     "timed out waiting for AO_TMRDACWRs_In_Progress_St to clear");
+		dev_err(dev->class_dev,
+			"timed out waiting for AO_TMRDACWRs_In_Progress_St to clear\n");
 		return -EIO;
 	}
 	/*
@@ -3121,7 +3122,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned trigvar;
 
 	if (dev->irq == 0) {
-		comedi_error(dev, "cannot run command without an irq");
+		dev_err(dev->class_dev, "cannot run command without an irq\n");
 		return -EIO;
 	}
 
@@ -3611,7 +3612,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 		mite_prep_dma(devpriv->cdo_mite_chan, 32, 32);
 		mite_dma_arm(devpriv->cdo_mite_chan);
 	} else {
-		comedi_error(dev, "BUG: no cdo mite channel?");
+		dev_err(dev->class_dev, "BUG: no cdo mite channel?\n");
 		retval = -EIO;
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -3629,7 +3630,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 		udelay(10);
 	}
 	if (i == timeout) {
-		comedi_error(dev, "dma failed to fill cdo fifo!");
+		dev_err(dev->class_dev, "dma failed to fill cdo fifo!\n");
 		s->cancel(dev, s);
 		return -EIO;
 	}
@@ -3664,8 +3665,8 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_writel(dev, CDO_SW_Update_Bit, M_Offset_CDIO_Command);
 		ni_writel(dev, s->io_bits, M_Offset_CDO_Mask_Enable);
 	} else {
-		comedi_error(dev,
-			     "attempted to run digital output command with no lines configured as outputs");
+		dev_err(dev->class_dev,
+			"attempted to run digital output command with no lines configured as outputs\n");
 		return -EIO;
 	}
 	retval = ni_request_cdo_mite_channel(dev);
@@ -4769,7 +4770,8 @@ static void cs5529_command(struct comedi_device *dev, unsigned short value)
 	}
 /* printk("looped %i times writing command to cs5529\n", i); */
 	if (i == timeout)
-		comedi_error(dev, "possible problem - never saw adc go busy?");
+		dev_err(dev->class_dev,
+			"possible problem - never saw adc go busy?\n");
 }
 
 static int cs5529_do_conversion(struct comedi_device *dev,
@@ -4781,8 +4783,8 @@ static int cs5529_do_conversion(struct comedi_device *dev,
 	cs5529_command(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION);
 	retval = cs5529_wait_for_idle(dev);
 	if (retval) {
-		comedi_error(dev,
-			     "timeout or signal in cs5529_do_conversion()");
+		dev_err(dev->class_dev,
+			"timeout or signal in cs5529_do_conversion()\n");
 		return -ETIME;
 	}
 	status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
@@ -4841,7 +4843,8 @@ static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
 	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
 	cs5529_command(dev, CSCMD_COMMAND | reg_select_bits);
 	if (cs5529_wait_for_idle(dev))
-		comedi_error(dev, "time or signal in cs5529_config_write()");
+		dev_err(dev->class_dev,
+			"timeout or signal in %s\n", __func__);
 }
 
 static int init_cs5529(struct comedi_device *dev)
@@ -4861,7 +4864,8 @@ static int init_cs5529(struct comedi_device *dev)
 	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET,
 			    CSCMD_CONFIG_REGISTER);
 	if (cs5529_wait_for_idle(dev))
-		comedi_error(dev, "timeout or signal in init_cs5529()\n");
+		dev_err(dev->class_dev,
+			"timeout or signal in %s\n", __func__);
 #endif
 	return 0;
 }
@@ -5264,8 +5268,8 @@ static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	retval = ni_request_gpct_mite_channel(dev, counter->counter_index,
 					      COMEDI_INPUT);
 	if (retval) {
-		comedi_error(dev,
-			     "no dma channel available for use by counter");
+		dev_err(dev->class_dev,
+			"no dma channel available for use by counter\n");
 		return retval;
 	}
 	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
