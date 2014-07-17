@@ -209,18 +209,15 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_info *args = data;
 	struct ttm_mem_type_manager *man;
-	unsigned i;
 
 	man = &rdev->mman.bdev.man[TTM_PL_VRAM];
 
 	args->vram_size = rdev->mc.real_vram_size;
 	args->vram_visible = (u64)man->size << PAGE_SHIFT;
-	if (rdev->stollen_vga_memory)
-		args->vram_visible -= radeon_bo_size(rdev->stollen_vga_memory);
-	args->vram_visible -= radeon_fbdev_total_size(rdev);
-	args->gart_size = rdev->mc.gtt_size - 4096 - RADEON_IB_POOL_SIZE*64*1024;
-	for(i = 0; i < RADEON_NUM_RINGS; ++i)
-		args->gart_size -= rdev->ring[i].ring_size;
+	args->vram_visible -= rdev->vram_pin_size;
+	args->gart_size = rdev->mc.gtt_size;
+	args->gart_size -= rdev->gart_pin_size;
+
 	return 0;
 }
 
