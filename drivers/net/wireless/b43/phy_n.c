@@ -765,7 +765,12 @@ static void b43_radio_2057_setup(struct b43_wldev *dev,
 			}
 		}
 		break;
-	/* TODO */
+	case 14: /* 2 GHz only */
+		b43_radio_write(dev, R2057_RFPLL_LOOPFILTER_R1, 0x1b);
+		b43_radio_write(dev, R2057_CP_KPD_IDAC, 0x3f);
+		b43_radio_write(dev, R2057_RFPLL_LOOPFILTER_C1, 0x1f);
+		b43_radio_write(dev, R2057_RFPLL_LOOPFILTER_C2, 0x1f);
+		break;
 	}
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
@@ -778,8 +783,11 @@ static void b43_radio_2057_setup(struct b43_wldev *dev,
 				txmix2g_tune_boost_pu = 0x0041;
 				/* TODO */
 				break;
+			case 14:
+				txmix2g_tune_boost_pu = 0x21;
+				pad2g_tune_pus = 0x23;
+				break;
 			}
-			/* TODO */
 		}
 
 		if (txmix2g_tune_boost_pu)
