@@ -69,17 +69,23 @@ void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	mb();
 }
 
+#define R300_PTE_UNSNOOPED (1 << 0)
 #define R300_PTE_WRITEABLE (1 << 2)
 #define R300_PTE_READABLE  (1 << 3)
 
 void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
-			      uint64_t addr)
+			      uint64_t addr, uint32_t flags)
 {
 	void __iomem *ptr = rdev->gart.ptr;
 
 	addr = (lower_32_bits(addr) >> 8) |
-	       ((upper_32_bits(addr) & 0xff) << 24) |
-	       R300_PTE_WRITEABLE | R300_PTE_READABLE;
+		((upper_32_bits(addr) & 0xff) << 24);
+	if (flags & RADEON_GART_PAGE_READ)
+		addr |= R300_PTE_READABLE;
+	if (flags & RADEON_GART_PAGE_WRITE)
+		addr |= R300_PTE_WRITEABLE;
+	if (!(flags & RADEON_GART_PAGE_SNOOP))
+		addr |= R300_PTE_UNSNOOPED;
 	/* on x86 we want this to be CPU endian, on powerpc
 	 * on powerpc without HW swappers, it'll get swapped on way
 	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */

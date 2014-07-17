@@ -68,7 +68,7 @@ int r100_asic_reset(struct radeon_device *rdev);
 u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc);
 void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
 void r100_pci_gart_set_page(struct radeon_device *rdev, unsigned i,
-			    uint64_t addr);
+			    uint64_t addr, uint32_t flags);
 void r100_ring_start(struct radeon_device *rdev, struct radeon_ring *ring);
 int r100_irq_set(struct radeon_device *rdev);
 int r100_irq_process(struct radeon_device *rdev);
@@ -173,7 +173,7 @@ extern void r300_fence_ring_emit(struct radeon_device *rdev,
 extern int r300_cs_parse(struct radeon_cs_parser *p);
 extern void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev);
 extern void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
-				     uint64_t addr);
+				     uint64_t addr, uint32_t flags);
 extern void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes);
 extern int rv370_get_pcie_lanes(struct radeon_device *rdev);
 extern void r300_set_reg_safe(struct radeon_device *rdev);
@@ -209,7 +209,7 @@ extern int rs400_suspend(struct radeon_device *rdev);
 extern int rs400_resume(struct radeon_device *rdev);
 void rs400_gart_tlb_flush(struct radeon_device *rdev);
 void rs400_gart_set_page(struct radeon_device *rdev, unsigned i,
-			 uint64_t addr);
+			 uint64_t addr, uint32_t flags);
 uint32_t rs400_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 int rs400_gart_init(struct radeon_device *rdev);
@@ -233,7 +233,7 @@ void rs600_irq_disable(struct radeon_device *rdev);
 u32 rs600_get_vblank_counter(struct radeon_device *rdev, int crtc);
 void rs600_gart_tlb_flush(struct radeon_device *rdev);
 void rs600_gart_set_page(struct radeon_device *rdev, unsigned i,
-			 uint64_t addr);
+			 uint64_t addr, uint32_t flags);
 uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs600_bandwidth_update(struct radeon_device *rdev);

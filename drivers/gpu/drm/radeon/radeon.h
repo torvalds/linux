@@ -593,6 +593,12 @@ struct radeon_mc;
 #define RADEON_GPU_PAGE_SHIFT 12
 #define RADEON_GPU_PAGE_ALIGN(a) (((a) + RADEON_GPU_PAGE_MASK) & ~RADEON_GPU_PAGE_MASK)
 
+#define RADEON_GART_PAGE_DUMMY  0
+#define RADEON_GART_PAGE_VALID	(1 << 0)
+#define RADEON_GART_PAGE_READ	(1 << 1)
+#define RADEON_GART_PAGE_WRITE	(1 << 2)
+#define RADEON_GART_PAGE_SNOOP	(1 << 3)
+
 struct radeon_gart {
 	dma_addr_t			table_addr;
 	struct radeon_bo		*robj;
@@ -617,7 +623,7 @@ void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 			int pages);
 int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 		     int pages, struct page **pagelist,
-		     dma_addr_t *dma_addr);
+		     dma_addr_t *dma_addr, uint32_t flags);
 
 
 /*
@@ -1784,7 +1790,7 @@ struct radeon_asic {
 	struct {
 		void (*tlb_flush)(struct radeon_device *rdev);
 		void (*set_page)(struct radeon_device *rdev, unsigned i,
-				 uint64_t addr);
+				 uint64_t addr, uint32_t flags);
 	} gart;
 	struct {
 		int (*init)(struct radeon_device *rdev);
@@ -2745,7 +2751,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_vga_set_state(rdev, state) (rdev)->asic->vga_set_state((rdev), (state))
 #define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev))
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart.tlb_flush((rdev))
-#define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart.set_page((rdev), (i), (p))
+#define radeon_gart_set_page(rdev, i, p, f) (rdev)->asic->gart.set_page((rdev), (i), (p), (f))
 #define radeon_asic_vm_init(rdev) (rdev)->asic->vm.init((rdev))
 #define radeon_asic_vm_fini(rdev) (rdev)->asic->vm.fini((rdev))
 #define radeon_asic_vm_set_page(rdev, ib, pe, addr, count, incr, flags) ((rdev)->asic->vm.set_page((rdev), (ib), (pe), (addr), (count), (incr), (flags)))

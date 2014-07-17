@@ -682,7 +682,7 @@ void r100_pci_gart_disable(struct radeon_device *rdev)
 }
 
 void r100_pci_gart_set_page(struct radeon_device *rdev, unsigned i,
-			    uint64_t addr)
+			    uint64_t addr, uint32_t flags)
 {
 	u32 *gtt = rdev->gart.ptr;
 	gtt[i] = cpu_to_le32(lower_32_bits(addr));

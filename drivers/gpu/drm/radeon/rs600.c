@@ -625,15 +625,21 @@ static void rs600_gart_fini(struct radeon_device *rdev)
 	radeon_gart_table_vram_free(rdev);
 }
 
-void rs600_gart_set_page(struct radeon_device *rdev, unsigned i, uint64_t addr)
+void rs600_gart_set_page(struct radeon_device *rdev, unsigned i,
+			 uint64_t addr, uint32_t flags)
 {
 	void __iomem *ptr = (void *)rdev->gart.ptr;
 
 	addr = addr & 0xFFFFFFFFFFFFF000ULL;
-	if (addr == rdev->dummy_page.addr)
-		addr |= R600_PTE_SYSTEM | R600_PTE_SNOOPED;
-	else
-		addr |= R600_PTE_GART;
+	addr |= R600_PTE_SYSTEM;
+	if (flags & RADEON_GART_PAGE_VALID)
+		addr |= R600_PTE_VALID;
+	if (flags & RADEON_GART_PAGE_READ)
+		addr |= R600_PTE_READABLE;
+	if (flags & RADEON_GART_PAGE_WRITE)
+		addr |= R600_PTE_WRITEABLE;
+	if (flags & RADEON_GART_PAGE_SNOOP)
+		addr |= R600_PTE_SNOOPED;
 	writeq(addr, ptr + (i * 8));
 }
 
