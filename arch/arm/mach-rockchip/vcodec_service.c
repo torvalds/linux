@@ -2064,7 +2064,6 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 
 static irqreturn_t vepu_irq(int irq, void *dev_id)
 {
-	struct vpu_device *dev = (struct vpu_device *) dev_id;
 	struct vpu_service_info *pservice = (struct vpu_service_info*)dev_id;
 	vpu_device *dev = &pservice->enc_dev;
 	u32 irq_status;
