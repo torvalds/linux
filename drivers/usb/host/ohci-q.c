@@ -311,8 +311,7 @@ static void periodic_unlink (struct ohci_hcd *ohci, struct ed *ed)
  *  - ED_OPER: when there's any request queued, the ED gets rescheduled
  *    immediately.  HC should be working on them.
  *
- *  - ED_IDLE:  when there's no TD queue. there's no reason for the HC
- *    to care about this ED; safe to disable the endpoint.
+ *  - ED_IDLE: when there's no TD queue or the HC isn't running.
  *
  * When finish_unlinks() runs later, after SOF interrupt, it will often
  * complete one or more URB unlinks before making that state change.
@@ -954,6 +953,10 @@ rescan_all:
 		int			completed, modified;
 		__hc32			*prev;
 
+		/* Is this ED already invisible to the hardware? */
+		if (ed->state == ED_IDLE)
+			goto ed_idle;
+
 		/* only take off EDs that the HC isn't using, accounting for
 		 * frame counter wraps and EDs with partially retired TDs
 		 */
@@ -983,12 +986,20 @@ skip_ed:
 			}
 		}
 
+		/* ED's now officially unlinked, hc doesn't see */
+		ed->state = ED_IDLE;
+		if (quirk_zfmicro(ohci) && ed->type == PIPE_INTERRUPT)
+			ohci->eds_scheduled--;
+		ed->hwHeadP &= ~cpu_to_hc32(ohci, ED_H);
+		ed->hwNextED = 0;
+		wmb();
+		ed->hwINFO &= ~cpu_to_hc32(ohci, ED_SKIP | ED_DEQUEUE);
+ed_idle:
+
 		/* reentrancy:  if we drop the schedule lock, someone might
 		 * have modified this list.  normally it's just prepending
 		 * entries (which we'd ignore), but paranoia won't hurt.
 		 */
-		*last = ed->ed_next;
-		ed->ed_next = NULL;
 		modified = 0;
 
 		/* unlink urbs as requested, but rescan the list after
@@ -1046,19 +1057,20 @@ rescan_this:
 		if (completed && !list_empty (&ed->td_list))
 			goto rescan_this;
 
-		/* ED's now officially unlinked, hc doesn't see */
-		ed->state = ED_IDLE;
-		if (quirk_zfmicro(ohci) && ed->type == PIPE_INTERRUPT)
-			ohci->eds_scheduled--;
-		ed->hwHeadP &= ~cpu_to_hc32(ohci, ED_H);
-		ed->hwNextED = 0;
-		wmb ();
-		ed->hwINFO &= ~cpu_to_hc32 (ohci, ED_SKIP | ED_DEQUEUE);
-
-		/* but if there's work queued, reschedule */
-		if (!list_empty (&ed->td_list)) {
-			if (ohci->rh_state == OHCI_RH_RUNNING)
-				ed_schedule (ohci, ed);
+		/*
+		 * If no TDs are queued, take ED off the ed_rm_list.
+		 * Otherwise, if the HC is running, reschedule.
+		 * If not, leave it on the list for further dequeues.
+		 */
+		if (list_empty(&ed->td_list)) {
+			*last = ed->ed_next;
+			ed->ed_next = NULL;
+		} else if (ohci->rh_state == OHCI_RH_RUNNING) {
+			*last = ed->ed_next;
+			ed->ed_next = NULL;
+			ed_schedule(ohci, ed);
+		} else {
+			last = &ed->ed_next;
 		}
 
 		if (modified)
