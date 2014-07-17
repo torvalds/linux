@@ -1750,34 +1750,34 @@ static int apci3200_ai_config(struct comedi_device *dev,
 	/* END JK 06.07.04: Management of sevrals boards */
 
 	if (data[5] == 0) {
-		if (ui_ChannelNo < 0 || ui_ChannelNo > 15) {
+		if (ui_ChannelNo > 15) {
 			printk("\nThe Selection of the channel is in error\n");
 			i_err++;
-		}		/*  if(ui_ChannelNo<0 || ui_ChannelNo>15) */
+		}		/*  if(ui_ChannelNo>15) */
 	}			/* if(data[5]==0) */
 	else {
 		if (data[14] == 2) {
-			if (ui_ChannelNo < 0 || ui_ChannelNo > 3) {
+			if (ui_ChannelNo > 3) {
 				printk("\nThe Selection of the channel is in error\n");
 				i_err++;
-			}	/*  if(ui_ChannelNo<0 || ui_ChannelNo>3) */
+			}	/*  if(ui_ChannelNo>3) */
 		}		/* if(data[14]==2) */
 		else {
-			if (ui_ChannelNo < 0 || ui_ChannelNo > 7) {
+			if (ui_ChannelNo > 7) {
 				printk("\nThe Selection of the channel is in error\n");
 				i_err++;
-			}	/*  if(ui_ChannelNo<0 || ui_ChannelNo>7) */
+			}	/*  if(ui_ChannelNo>7) */
 		}		/* elseif(data[14]==2) */
 	}			/* elseif(data[5]==0) */
 	if (data[12] == 0 || data[12] == 1) {
 		switch (data[5]) {
 		case 0:
-			if (ui_ChannelNo >= 0 && ui_ChannelNo <= 3) {
+			if (ui_ChannelNo <= 3) {
 				/* BEGIN JK 06.07.04: Management of sevrals boards */
 				/* i_Offset=0; */
 				s_BoardInfos[dev->minor].i_Offset = 0;
 				/* END JK 06.07.04: Management of sevrals boards */
-			}	/* if(ui_ChannelNo >=0 && ui_ChannelNo <=3) */
+			}	/* if(ui_ChannelNo <=3) */
 			if (ui_ChannelNo >= 4 && ui_ChannelNo <= 7) {
 				/* BEGIN JK 06.07.04: Management of sevrals boards */
 				/* i_Offset=64; */
@@ -1831,12 +1831,12 @@ static int apci3200_ai_config(struct comedi_device *dev,
 				ui_ChannelNo = 0;
 				break;
 			}	/* if(data[14]==2) */
-			if (ui_ChannelNo >= 0 && ui_ChannelNo <= 1) {
+			if (ui_ChannelNo <= 1) {
 				/* BEGIN JK 06.07.04: Management of sevrals boards */
 				/* i_Offset=0; */
 				s_BoardInfos[dev->minor].i_Offset = 0;
 				/* END JK 06.07.04: Management of sevrals boards */
-			}	/* if(ui_ChannelNo >=0 && ui_ChannelNo <=1) */
+			}	/* if(ui_ChannelNo <=1) */
 			if (ui_ChannelNo >= 2 && ui_ChannelNo <= 3) {
 				/* BEGIN JK 06.07.04: Management of sevrals boards */
 				/* i_ChannelNo=i_ChannelNo-2; */
