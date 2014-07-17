@@ -1227,14 +1227,14 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->srr0 = kvmppc_get_srr0(vcpu);
 	regs->srr1 = kvmppc_get_srr1(vcpu);
 	regs->pid = vcpu->arch.pid;
-	regs->sprg0 = vcpu->arch.shared->sprg0;
-	regs->sprg1 = vcpu->arch.shared->sprg1;
-	regs->sprg2 = vcpu->arch.shared->sprg2;
-	regs->sprg3 = vcpu->arch.shared->sprg3;
-	regs->sprg4 = vcpu->arch.shared->sprg4;
-	regs->sprg5 = vcpu->arch.shared->sprg5;
-	regs->sprg6 = vcpu->arch.shared->sprg6;
-	regs->sprg7 = vcpu->arch.shared->sprg7;
+	regs->sprg0 = kvmppc_get_sprg0(vcpu);
+	regs->sprg1 = kvmppc_get_sprg1(vcpu);
+	regs->sprg2 = kvmppc_get_sprg2(vcpu);
+	regs->sprg3 = kvmppc_get_sprg3(vcpu);
+	regs->sprg4 = kvmppc_get_sprg4(vcpu);
+	regs->sprg5 = kvmppc_get_sprg5(vcpu);
+	regs->sprg6 = kvmppc_get_sprg6(vcpu);
+	regs->sprg7 = kvmppc_get_sprg7(vcpu);
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
@@ -1255,14 +1255,14 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	kvmppc_set_srr0(vcpu, regs->srr0);
 	kvmppc_set_srr1(vcpu, regs->srr1);
 	kvmppc_set_pid(vcpu, regs->pid);
-	vcpu->arch.shared->sprg0 = regs->sprg0;
-	vcpu->arch.shared->sprg1 = regs->sprg1;
-	vcpu->arch.shared->sprg2 = regs->sprg2;
-	vcpu->arch.shared->sprg3 = regs->sprg3;
-	vcpu->arch.shared->sprg4 = regs->sprg4;
-	vcpu->arch.shared->sprg5 = regs->sprg5;
-	vcpu->arch.shared->sprg6 = regs->sprg6;
-	vcpu->arch.shared->sprg7 = regs->sprg7;
+	kvmppc_set_sprg0(vcpu, regs->sprg0);
+	kvmppc_set_sprg1(vcpu, regs->sprg1);
+	kvmppc_set_sprg2(vcpu, regs->sprg2);
+	kvmppc_set_sprg3(vcpu, regs->sprg3);
+	kvmppc_set_sprg4(vcpu, regs->sprg4);
+	kvmppc_set_sprg5(vcpu, regs->sprg5);
+	kvmppc_set_sprg6(vcpu, regs->sprg6);
+	kvmppc_set_sprg7(vcpu, regs->sprg7);
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
