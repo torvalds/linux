@@ -63,7 +63,6 @@
 #define CLK_SCLK_MPHY_IXTAL24	161
 
 /* gate clocks */
-#define CLK_ACLK66_PERIC	256
 #define CLK_UART0		257
 #define CLK_UART1		258
 #define CLK_UART2		259
@@ -203,6 +202,8 @@
 #define CLK_MOUT_G3D		641
 #define CLK_MOUT_VPLL		642
 #define CLK_MOUT_MAUDIO0	643
+#define CLK_MOUT_USER_ACLK333	644
+#define CLK_MOUT_SW_ACLK333	645
 
 /* divider clocks */
 #define CLK_DOUT_PIXEL		768

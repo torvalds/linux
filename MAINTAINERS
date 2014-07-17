@@ -1314,6 +1314,20 @@ W:	http://oss.renesas.com
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas.git next
 S:	Supported
+F:	arch/arm/boot/dts/emev2*
+F:	arch/arm/boot/dts/r7s*
+F:	arch/arm/boot/dts/r8a*
+F:	arch/arm/boot/dts/sh*
+F:	arch/arm/configs/ape6evm_defconfig
+F:	arch/arm/configs/armadillo800eva_defconfig
+F:	arch/arm/configs/bockw_defconfig
+F:	arch/arm/configs/genmai_defconfig
+F:	arch/arm/configs/koelsch_defconfig
+F:	arch/arm/configs/kzm9g_defconfig
+F:	arch/arm/configs/lager_defconfig
+F:	arch/arm/configs/mackerel_defconfig
+F:	arch/arm/configs/marzen_defconfig
+F:	arch/arm/configs/shmobile_defconfig
 F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
 
@@ -6787,7 +6801,7 @@ F:	arch/x86/kernel/quirks.c
 
 PCI DRIVER FOR IMX6
 M:	Richard Zhu <r65037@freescale.com>
-M:	Shawn Guo <shawn.guo@linaro.org>
+M:	Shawn Guo <shawn.guo@freescale.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -8984,7 +8998,7 @@ F:	drivers/media/radio/radio-raremono.c
 
 THERMAL
 M:	Zhang Rui <rui.zhang@intel.com>
-M:	Eduardo Valentin <eduardo.valentin@ti.com>
+M:	Eduardo Valentin <edubezval@gmail.com>
 L:	linux-pm@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rzhang/linux.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/evalenti/linux-soc-thermal.git
@@ -9011,7 +9025,7 @@ S:	Maintained
 F:	drivers/platform/x86/thinkpad_acpi.c
 
 TI BANDGAP AND THERMAL DRIVER
-M:	Eduardo Valentin <eduardo.valentin@ti.com>
+M:	Eduardo Valentin <edubezval@gmail.com>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/thermal/ti-soc-thermal/

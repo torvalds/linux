@@ -74,8 +74,6 @@ void kprobe_arm_test_cases(void)
 	TEST_RRR( op "lt" s "	r11, r",11,VAL1,", r",14,N(val),", asr r",7, 6,"")\
 	TEST_RR(  op "gt" s "	r12, r13"       ", r",14,val, ", ror r",14,7,"")\
 	TEST_RR(  op "le" s "	r14, r",0, val, ", r13"       ", lsl r",14,8,"")\
-	TEST_RR(  op s "	r12, pc"        ", r",14,val, ", ror r",14,7,"")\
-	TEST_RR(  op s "	r14, r",0, val, ", pc"        ", lsl r",14,8,"")\
 	TEST_R(   op "eq" s "	r0,  r",11,VAL1,", #0xf5")			\
 	TEST_R(   op "ne" s "	r11, r",0, VAL1,", #0xf5000000")		\
 	TEST_R(   op s "	r7,  r",8, VAL2,", #0x000af000")		\
@@ -103,8 +101,6 @@ void kprobe_arm_test_cases(void)
 	TEST_RRR( op "ge	r",11,VAL1,", r",14,N(val),", asr r",7, 6,"")	\
 	TEST_RR(  op "le	r13"       ", r",14,val, ", ror r",14,7,"")	\
 	TEST_RR(  op "gt	r",0, val, ", r13"       ", lsl r",14,8,"")	\
-	TEST_RR(  op "	pc"        ", r",14,val, ", ror r",14,7,"")		\
-	TEST_RR(  op "	r",0, val, ", pc"        ", lsl r",14,8,"")		\
 	TEST_R(   op "eq	r",11,VAL1,", #0xf5")				\
 	TEST_R(   op "ne	r",0, VAL1,", #0xf5000000")			\
 	TEST_R(   op "	r",8, VAL2,", #0x000af000")
@@ -125,7 +121,6 @@ void kprobe_arm_test_cases(void)
 	TEST_RR(  op "ge" s "	r11, r",11,N(val),", asr r",7, 6,"")	\
 	TEST_RR(  op "lt" s "	r12, r",11,val, ", ror r",14,7,"")	\
 	TEST_R(   op "gt" s "	r14, r13"       ", lsl r",14,8,"")	\
-	TEST_R(   op "le" s "	r14, pc"        ", lsl r",14,8,"")	\
 	TEST(     op "eq" s "	r0,  #0xf5")				\
 	TEST(     op "ne" s "	r11, #0xf5000000")			\
 	TEST(     op s "	r7,  #0x000af000")			\
@@ -159,12 +154,19 @@ void kprobe_arm_test_cases(void)
 	TEST_SUPPORTED("cmp	pc, #0x1000");
 	TEST_SUPPORTED("cmp	sp, #0x1000");
 
-	/* Data-processing with PC as shift*/
+	/* Data-processing with PC and a shift count in a register */
 	TEST_UNSUPPORTED(__inst_arm(0xe15c0f1e) "	@ cmp	r12, r14, asl pc")
 	TEST_UNSUPPORTED(__inst_arm(0xe1a0cf1e) "	@ mov	r12, r14, asl pc")
 	TEST_UNSUPPORTED(__inst_arm(0xe08caf1e) "	@ add	r10, r12, r14, asl pc")
+	TEST_UNSUPPORTED(__inst_arm(0xe151021f) "	@ cmp	r1, pc, lsl r2")
+	TEST_UNSUPPORTED(__inst_arm(0xe17f0211) "	@ cmn	pc, r1, lsl r2")
+	TEST_UNSUPPORTED(__inst_arm(0xe1a0121f) "	@ mov	r1, pc, lsl r2")
+	TEST_UNSUPPORTED(__inst_arm(0xe1a0f211) "	@ mov	pc, r1, lsl r2")
+	TEST_UNSUPPORTED(__inst_arm(0xe042131f) "	@ sub	r1, r2, pc, lsl r3")
+	TEST_UNSUPPORTED(__inst_arm(0xe1cf1312) "	@ bic	r1, pc, r2, lsl r3")
+	TEST_UNSUPPORTED(__inst_arm(0xe081f312) "	@ add	pc, r1, r2, lsl r3")
 
-	/* Data-processing with PC as shift*/
+	/* Data-processing with PC as a target and status registers updated */
 	TEST_UNSUPPORTED("movs	pc, r1")
 	TEST_UNSUPPORTED("movs	pc, r1, lsl r2")
 	TEST_UNSUPPORTED("movs	pc, #0x10000")
@@ -187,14 +189,14 @@ void kprobe_arm_test_cases(void)
 	TEST_BF_R ("add	pc, pc, r",14,2f-1f-8,"")
 	TEST_BF_R ("add	pc, r",14,2f-1f-8,", pc")
 	TEST_BF_R ("mov	pc, r",0,2f,"")
-	TEST_BF_RR("mov	pc, r",0,2f,", asl r",1,0,"")
+	TEST_BF_R ("add	pc, pc, r",14,(2f-1f-8)*2,", asr #1")
 	TEST_BB(   "sub	pc, pc, #1b-2b+8")
 #if __LINUX_ARM_ARCH__ == 6 && !defined(CONFIG_CPU_V7)
 	TEST_BB(   "sub	pc, pc, #1b-2b+8-2") /* UNPREDICTABLE before and after ARMv6 */
 #endif
 	TEST_BB_R( "sub	pc, pc, r",14, 1f-2f+8,"")
 	TEST_BB_R( "rsb	pc, r",14,1f-2f+8,", pc")
-	TEST_RR(   "add	pc, pc, r",10,-2,", asl r",11,1,"")
+	TEST_R(    "add	pc, pc, r",10,-2,", asl #1")
 #ifdef CONFIG_THUMB2_KERNEL
 	TEST_ARM_TO_THUMB_INTERWORK_R("add	pc, pc, r",0,3f-1f-8+1,"")
 	TEST_ARM_TO_THUMB_INTERWORK_R("sub	pc, r",0,3f+8+1,", #8")
@@ -216,6 +218,7 @@ void kprobe_arm_test_cases(void)
 	TEST_BB_R("bx	r",7,2f,"")
 	TEST_BF_R("bxeq	r",14,2f,"")
 
+#if __LINUX_ARM_ARCH__ >= 5
 	TEST_R("clz	r0, r",0, 0x0,"")
 	TEST_R("clzeq	r7, r",14,0x1,"")
 	TEST_R("clz	lr, r",7, 0xffffffff,"")
@@ -337,6 +340,7 @@ void kprobe_arm_test_cases(void)
 	TEST_UNSUPPORTED(__inst_arm(0xe16f02e1) " @ smultt pc, r1, r2")
 	TEST_UNSUPPORTED(__inst_arm(0xe16002ef) " @ smultt r0, pc, r2")
 	TEST_UNSUPPORTED(__inst_arm(0xe1600fe1) " @ smultt r0, r1, pc")
+#endif
 
 	TEST_GROUP("Multiply and multiply-accumulate")
 
@@ -559,6 +563,7 @@ void kprobe_arm_test_cases(void)
 	TEST_UNSUPPORTED("ldrsht	r1, [r2], #48")
 #endif
 
+#if __LINUX_ARM_ARCH__ >= 5
 	TEST_RPR(  "strd	r",0, VAL1,", [r",1, 48,", -r",2,24,"]")
 	TEST_RPR(  "strccd	r",8, VAL2,", [r",13,0, ", r",12,48,"]")
 	TEST_RPR(  "strd	r",4, VAL1,", [r",2, 24,", r",3, 48,"]!")
@@ -595,6 +600,7 @@ void kprobe_arm_test_cases(void)
 	TEST_UNSUPPORTED(__inst_arm(0xe1efc3d0) "	@ ldrd r12, [pc, #48]!")
 	TEST_UNSUPPORTED(__inst_arm(0xe0c9f3d0) "	@ ldrd pc, [r9], #48")
 	TEST_UNSUPPORTED(__inst_arm(0xe0c9e3d0) "	@ ldrd lr, [r9], #48")
+#endif
 
 	TEST_GROUP("Miscellaneous")
 
@@ -1227,7 +1233,9 @@ void kprobe_arm_test_cases(void)
 	TEST_COPROCESSOR( "mrc"two"	0, 0, r0, cr0, cr0, 0")
 
 	COPROCESSOR_INSTRUCTIONS_ST_LD("",e)
+#if __LINUX_ARM_ARCH__ >= 5
 	COPROCESSOR_INSTRUCTIONS_MC_MR("",e)
+#endif
 	TEST_UNSUPPORTED("svc	0")
 	TEST_UNSUPPORTED("svc	0xffffff")
 
@@ -1287,7 +1295,9 @@ void kprobe_arm_test_cases(void)
 	TEST(	"blx	__dummy_thumb_subroutine_odd")
 #endif /* __LINUX_ARM_ARCH__ >= 6 */
 
+#if __LINUX_ARM_ARCH__ >= 5
 	COPROCESSOR_INSTRUCTIONS_ST_LD("2",f)
+#endif
 #if __LINUX_ARM_ARCH__ >= 6
 	COPROCESSOR_INSTRUCTIONS_MC_MR("2",f)
 #endif

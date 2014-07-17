@@ -68,7 +68,7 @@ MODULE_AUTHOR("Bruno Ducrot");
 MODULE_DESCRIPTION("ACPI Video Driver");
 MODULE_LICENSE("GPL");
 
-static bool brightness_switch_enabled;
+static bool brightness_switch_enabled = 1;
 module_param(brightness_switch_enabled, bool, 0644);
 
 /*
@@ -241,13 +241,14 @@ static bool acpi_video_use_native_backlight(void)
 		return use_native_backlight_dmi;
 }
 
-static bool acpi_video_verify_backlight_support(void)
+bool acpi_video_verify_backlight_support(void)
 {
 	if (acpi_osi_is_win8() && acpi_video_use_native_backlight() &&
 	    backlight_device_registered(BACKLIGHT_RAW))
 		return false;
 	return acpi_video_backlight_support();
 }
+EXPORT_SYMBOL_GPL(acpi_video_verify_backlight_support);
 
 /* backlight device sysfs support */
 static int acpi_video_get_brightness(struct backlight_device *bd)
@@ -563,11 +564,27 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 		},
 	},
 	{
+	 .callback = video_set_use_native_backlight,
+	 .ident = "Acer TravelMate B113",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate B113"),
+		},
+	},
+	{
 	.callback = video_set_use_native_backlight,
 	.ident = "HP ProBook 4340s",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 		DMI_MATCH(DMI_PRODUCT_VERSION, "HP ProBook 4340s"),
+		},
+	},
+	{
+	.callback = video_set_use_native_backlight,
+	.ident = "HP ProBook 4540s",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "HP ProBook 4540s"),
 		},
 	},
 	{
