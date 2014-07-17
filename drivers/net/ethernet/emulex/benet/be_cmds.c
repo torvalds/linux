@@ -1749,8 +1749,7 @@ err:
 }
 
 /* Uses synchronous mcc */
-int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver,
-		      char *fw_on_flash)
+int be_cmd_get_fw_ver(struct be_adapter *adapter)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_fw_version *req;
@@ -1772,9 +1771,8 @@ int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver,
 	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_get_fw_version *resp = embedded_payload(wrb);
-		strcpy(fw_ver, resp->firmware_version_string);
-		if (fw_on_flash)
-			strcpy(fw_on_flash, resp->fw_on_flash_version_string);
+		strcpy(adapter->fw_ver, resp->firmware_version_string);
+		strcpy(adapter->fw_on_flash, resp->fw_on_flash_version_string);
 	}
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
@@ -1997,8 +1995,7 @@ err:
 }
 
 /* Uses mbox */
-int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
-			u32 *mode, u32 *caps, u16 *asic_rev)
+int be_cmd_query_fw_cfg(struct be_adapter *adapter)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_query_fw_cfg *req;
@@ -2017,10 +2014,10 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
 	status = be_mbox_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_query_fw_cfg *resp = embedded_payload(wrb);
-		*port_num = le32_to_cpu(resp->phys_port);
-		*mode = le32_to_cpu(resp->function_mode);
-		*caps = le32_to_cpu(resp->function_caps);
-		*asic_rev = le32_to_cpu(resp->asic_revision) & 0xFF;
+		adapter->port_num = le32_to_cpu(resp->phys_port);
+		adapter->function_mode = le32_to_cpu(resp->function_mode);
+		adapter->function_caps = le32_to_cpu(resp->function_caps);
+		adapter->asic_rev = le32_to_cpu(resp->asic_revision) & 0xFF;
 	}
 
 	mutex_unlock(&adapter->mbox_lock);
