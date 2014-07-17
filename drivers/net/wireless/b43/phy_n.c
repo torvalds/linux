@@ -6113,12 +6113,7 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 
 		b43_nphy_pmu_spur_avoid(dev, avoid);
 
-		if (dev->dev->chip_id == 43222 || dev->dev->chip_id == 43224 ||
-		    dev->dev->chip_id == 43225) {
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW,
-				    avoid ? 0x5341 : 0x8889);
-			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
-		}
+		b43_mac_switch_freq(dev, avoid);
 
 		if (dev->phy.rev == 3 || dev->phy.rev == 4)
 			; /* TODO: reset PLL */
