@@ -179,7 +179,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
 
 	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
+		dev_err(dev->class_dev, "premature interrupt\n");
 		return IRQ_HANDLED;
 	}
 	/*  initialize async here to make sure s is not NULL */
@@ -189,18 +189,19 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	status = inw(dev->iobase + STATUS_REG);
 
 	if ((status & INTR_BIT) == 0) {
-		comedi_error(dev, "spurious interrupt");
+		dev_err(dev->class_dev, "spurious interrupt\n");
 		return IRQ_NONE;
 	}
 
 	if (status & OVFL_BIT) {
-		comedi_error(dev, "fifo overflow");
+		dev_err(dev->class_dev, "fifo overflow\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 	}
 
 	if ((status & DMA_TC_BIT) == 0) {
-		comedi_error(dev, "caught non-dma interrupt?  Aborting.");
+		dev_err(dev->class_dev,
+			"caught non-dma interrupt?  Aborting.\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 		return IRQ_HANDLED;
@@ -408,8 +409,8 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int trigger_bits;
 
 	if (cmd->flags & TRIG_RT) {
-		comedi_error(dev,
-			     " dma incompatible with hard real-time interrupt (TRIG_RT), aborting");
+		dev_err(dev->class_dev,
+			"dma incompatible with hard real-time interrupt (TRIG_RT), aborting\n");
 		return -1;
 	}
 	/*  clear fifo and reset triggering circuitry */
@@ -490,7 +491,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		trigger_bits |= HW_TRIG_EN;
 	} else if (cmd->start_src == TRIG_OTHER) {
 		/*  XXX add support for level/slope start trigger using TRIG_OTHER */
-		comedi_error(dev, "you shouldn't see this?");
+		dev_err(dev->class_dev, "you shouldn't see this?\n");
 	}
 	/*  send trigger config bits */
 	outw(trigger_bits, dev->iobase + TRIGGER_REG);
