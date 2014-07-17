@@ -1288,8 +1288,6 @@ done:
 int mwifiex_associate(struct mwifiex_private *priv,
 		      struct mwifiex_bssdescriptor *bss_desc)
 {
-	u8 current_bssid[ETH_ALEN];
-
 	/* Return error if the adapter is not STA role or table entry
 	 * is not marked as infra.
 	 */
@@ -1303,10 +1301,6 @@ int mwifiex_associate(struct mwifiex_private *priv,
 		mwifiex_set_11ac_ba_params(priv);
 	else
 		mwifiex_set_ba_params(priv);
-
-	memcpy(&current_bssid,
-	       &priv->curr_bss_params.bss_descriptor.mac_address,
-	       sizeof(current_bssid));
 
 	/* Clear any past association response stored for application
 	   retrieval */
