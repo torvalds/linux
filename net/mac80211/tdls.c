@@ -63,26 +63,36 @@ static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata)
 	return capab;
 }
 
-static void ieee80211_tdls_add_link_ie(struct sk_buff *skb, const u8 *src_addr,
-				       const u8 *peer, const u8 *bssid)
+static void ieee80211_tdls_add_link_ie(struct ieee80211_sub_if_data *sdata,
+				       struct sk_buff *skb, const u8 *peer,
+				       bool initiator)
 {
 	struct ieee80211_tdls_lnkie *lnkid;
+	const u8 *init_addr, *rsp_addr;
+
+	if (initiator) {
+		init_addr = sdata->vif.addr;
+		rsp_addr = peer;
+	} else {
+		init_addr = peer;
+		rsp_addr = sdata->vif.addr;
+	}
 
 	lnkid = (void *)skb_put(skb, sizeof(struct ieee80211_tdls_lnkie));
 
 	lnkid->ie_type = WLAN_EID_LINK_ID;
 	lnkid->ie_len = sizeof(struct ieee80211_tdls_lnkie) - 2;
 
-	memcpy(lnkid->bssid, bssid, ETH_ALEN);
-	memcpy(lnkid->init_sta, src_addr, ETH_ALEN);
-	memcpy(lnkid->resp_sta, peer, ETH_ALEN);
+	memcpy(lnkid->bssid, sdata->u.mgd.bssid, ETH_ALEN);
+	memcpy(lnkid->init_sta, init_addr, ETH_ALEN);
+	memcpy(lnkid->resp_sta, rsp_addr, ETH_ALEN);
 }
 
 static void
 ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb, const u8 *peer,
-				   u8 action_code, const u8 *extra_ies,
-				   size_t extra_ies_len)
+				   u8 action_code, bool initiator,
+				   const u8 *extra_ies, size_t extra_ies_len)
 {
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	size_t offset = 0, noffset;
@@ -140,22 +150,26 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		pos = skb_put(skb, noffset - offset);
 		memcpy(pos, extra_ies + offset, noffset - offset);
 	}
+
+	ieee80211_tdls_add_link_ie(sdata, skb, peer, initiator);
 }
 
 static void ieee80211_tdls_add_ies(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb, const u8 *peer,
-				   u8 action_code, bool initiator,
-				   const u8 *extra_ies, size_t extra_ies_len)
+				   u8 action_code, u16 status_code,
+				   bool initiator, const u8 *extra_ies,
+				   size_t extra_ies_len)
 {
-	const u8 *init_addr, *rsp_addr;
-
 	switch (action_code) {
 	case WLAN_TDLS_SETUP_REQUEST:
 	case WLAN_TDLS_SETUP_RESPONSE:
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
-		ieee80211_tdls_add_setup_start_ies(sdata, skb, peer,
-						   action_code, extra_ies,
-						   extra_ies_len);
+		if (status_code == 0)
+			ieee80211_tdls_add_setup_start_ies(sdata, skb, peer,
+							   action_code,
+							   initiator,
+							   extra_ies,
+							   extra_ies_len);
 		break;
 	case WLAN_TDLS_SETUP_CONFIRM:
 	case WLAN_TDLS_TEARDOWN:
@@ -163,19 +177,11 @@ static void ieee80211_tdls_add_ies(struct ieee80211_sub_if_data *sdata,
 		if (extra_ies_len)
 			memcpy(skb_put(skb, extra_ies_len), extra_ies,
 			       extra_ies_len);
+		if (status_code == 0 || action_code == WLAN_TDLS_TEARDOWN)
+			ieee80211_tdls_add_link_ie(sdata, skb, peer, initiator);
 		break;
 	}
 
-	if (initiator) {
-		init_addr = sdata->vif.addr;
-		rsp_addr = peer;
-	} else {
-		init_addr = peer;
-		rsp_addr = sdata->vif.addr;
-	}
-
-	ieee80211_tdls_add_link_ie(skb, init_addr, rsp_addr,
-				   sdata->u.mgd.bssid);
 }
 
 static int
@@ -368,8 +374,8 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 	if (ret < 0)
 		goto fail;
 
-	ieee80211_tdls_add_ies(sdata, skb, peer, action_code, initiator,
-			       extra_ies, extra_ies_len);
+	ieee80211_tdls_add_ies(sdata, skb, peer, action_code, status_code,
+			       initiator, extra_ies, extra_ies_len);
 	if (send_direct) {
 		ieee80211_tx_skb(sdata, skb);
 		return 0;
