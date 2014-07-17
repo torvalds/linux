@@ -3383,8 +3383,8 @@ extern struct pernet_operations __net_initdata loopback_net_ops;
 
 static inline const char *netdev_name(const struct net_device *dev)
 {
-	if (dev->reg_state != NETREG_REGISTERED)
-		return "(unregistered net_device)";
+	if (!dev->name[0] || strchr(dev->name, '%'))
+		return "(unnamed net_device)";
 	return dev->name;
 }
 
