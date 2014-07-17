@@ -157,12 +157,13 @@ __setup("eeh=", eeh_setup);
  * This routine captures assorted PCI configuration space data,
  * and puts them into a buffer for RTAS error logging.
  */
-static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
+static size_t eeh_gather_pci_data(struct eeh_dev *edev, char *buf, size_t len)
 {
 	struct device_node *dn = eeh_dev_to_of_node(edev);
 	u32 cfg;
 	int cap, i;
-	int n = 0;
+	int n = 0, l = 0;
+	char buffer[128];
 
 	n += scnprintf(buf+n, len-n, "%s\n", dn->full_name);
 	pr_warn("EEH: of node=%s\n", dn->full_name);
@@ -207,8 +208,22 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 		for (i=0; i<=8; i++) {
 			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
-			pr_warn("EEH: PCI-E %02x: %08x\n", i, cfg);
+
+			if ((i % 4) == 0) {
+				if (i != 0)
+					pr_warn("%s\n", buffer);
+
+				l = scnprintf(buffer, sizeof(buffer),
+					      "EEH: PCI-E %02x: %08x ",
+					      4*i, cfg);
+			} else {
+				l += scnprintf(buffer+l, sizeof(buffer)-l,
+					       "%08x ", cfg);
+			}
+
 		}
+
+		pr_warn("%s\n", buffer);
 	}
 
 	/* If AER capable, dump it */
@@ -217,11 +232,24 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 		n += scnprintf(buf+n, len-n, "pci-e AER:\n");
 		pr_warn("EEH: PCI-E AER capability register set follows:\n");
 
-		for (i=0; i<14; i++) {
+		for (i=0; i<=13; i++) {
 			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
-			pr_warn("EEH: PCI-E AER %02x: %08x\n", i, cfg);
+
+			if ((i % 4) == 0) {
+				if (i != 0)
+					pr_warn("%s\n", buffer);
+
+				l = scnprintf(buffer, sizeof(buffer),
+					      "EEH: PCI-E AER %02x: %08x ",
+					      4*i, cfg);
+			} else {
+				l += scnprintf(buffer+l, sizeof(buffer)-l,
+					       "%08x ", cfg);
+			}
 		}
+
+		pr_warn("%s\n", buffer);
 	}
 
 	return n;
