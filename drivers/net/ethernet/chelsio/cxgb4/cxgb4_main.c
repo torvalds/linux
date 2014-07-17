@@ -3445,8 +3445,8 @@ static int tid_init(struct tid_info *t)
 	return 0;
 }
 
-static int cxgb4_clip_get(const struct net_device *dev,
-			  const struct in6_addr *lip)
+int cxgb4_clip_get(const struct net_device *dev,
+		   const struct in6_addr *lip)
 {
 	struct adapter *adap;
 	struct fw_clip_cmd c;
@@ -3460,9 +3460,10 @@ static int cxgb4_clip_get(const struct net_device *dev,
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
 }
+EXPORT_SYMBOL(cxgb4_clip_get);
 
-static int cxgb4_clip_release(const struct net_device *dev,
-			      const struct in6_addr *lip)
+int cxgb4_clip_release(const struct net_device *dev,
+		       const struct in6_addr *lip)
 {
 	struct adapter *adap;
 	struct fw_clip_cmd c;
@@ -3476,6 +3477,7 @@ static int cxgb4_clip_release(const struct net_device *dev,
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
 }
+EXPORT_SYMBOL(cxgb4_clip_release);
 
 /**
  *	cxgb4_create_server - create an IP server

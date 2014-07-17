@@ -172,6 +172,10 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			       unsigned char port, unsigned char mask);
 int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 			       unsigned int queue, bool ipv6);
+int cxgb4_clip_get(const struct net_device *dev, const struct in6_addr *lip);
+int cxgb4_clip_release(const struct net_device *dev,
+		       const struct in6_addr *lip);
+
 static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 {
 	skb_set_queue_mapping(skb, (queue << 1) | prio);
