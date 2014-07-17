@@ -552,7 +552,7 @@ check_channel_list(struct comedi_device *dev,
 
 	/*  correct channel and range number check itself comedi/range.c */
 	if (chanlen < 1) {
-		comedi_error(dev, "range/channel list is empty!");
+		dev_err(dev->class_dev, "range/channel list is empty!\n");
 		return 0;
 	}
 
