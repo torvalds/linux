@@ -520,9 +520,6 @@ static void InitUsbAggregationSetting(struct rtw_adapter *Adapter)
 
 	/*  Rx aggregation setting */
 	usb_AggSettingRxUpdate(Adapter);
-
-	/*  201/12/10 MH Add for USB agg mode dynamic switch. */
-	pHalData->UsbRxHighSpeedMode = false;
 }
 
 static void _InitOperationMode(struct rtw_adapter *Adapter)

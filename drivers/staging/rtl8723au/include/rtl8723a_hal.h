@@ -384,9 +384,6 @@ struct hal_data_8723a {
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
 
-	/*  2010/12/10 MH Add for USB aggreation mode dynamic shceme. */
-	bool		UsbRxHighSpeedMode;
-
 	/*  2010/11/22 MH Add for slim combo debug mode selective. */
 	/*  This is used for fix the drawback of CU TSMC-A/UMC-A cut. HW auto suspend ability. Close BT clock. */
 	bool		SlimComboDbg;
