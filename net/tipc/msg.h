@@ -732,9 +732,6 @@ int tipc_msg_eval(struct sk_buff *buf, u32 *dnode);
 void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 		   u32 destnode);
 
-int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
-		   unsigned int len, int max_size, struct sk_buff **buf);
-
 int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
 
 bool tipc_msg_bundle(struct sk_buff *bbuf, struct sk_buff *buf, u32 mtu);

@@ -389,32 +389,6 @@ static void bclink_peek_nack(struct tipc_msg *msg)
 	tipc_node_unlock(n_ptr);
 }
 
-/*
- * tipc_bclink_xmit - broadcast a packet to all nodes in cluster
- */
-int tipc_bclink_xmit(struct sk_buff *buf)
-{
-	int res;
-
-	tipc_bclink_lock();
-
-	if (!bclink->bcast_nodes.count) {
-		res = msg_data_sz(buf_msg(buf));
-		kfree_skb(buf);
-		goto exit;
-	}
-
-	res = __tipc_link_xmit(bcl, buf);
-	if (likely(res >= 0)) {
-		bclink_set_last_sent();
-		bcl->stats.queue_sz_counts++;
-		bcl->stats.accu_queue_sz += bcl->out_queue_size;
-	}
-exit:
-	tipc_bclink_unlock();
-	return res;
-}
-
 /* tipc_bclink_xmit2 - broadcast buffer chain to all nodes in cluster
  *                     and to identified node local sockets
  * @buf: chain of buffers containing message

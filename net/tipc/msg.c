@@ -60,41 +60,6 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 	msg_set_destnode(m, destnode);
 }
 
-/**
- * tipc_msg_build - create message using specified header and data
- *
- * Note: Caller must not hold any locks in case copy_from_user() is interrupted!
- *
- * Returns message data size or errno
- */
-int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
-		   unsigned int len, int max_size, struct sk_buff **buf)
-{
-	int dsz, sz, hsz;
-	unsigned char *to;
-
-	dsz = len;
-	hsz = msg_hdr_sz(hdr);
-	sz = hsz + dsz;
-	msg_set_size(hdr, sz);
-	if (unlikely(sz > max_size)) {
-		*buf = NULL;
-		return dsz;
-	}
-
-	*buf = tipc_buf_acquire(sz);
-	if (!(*buf))
-		return -ENOMEM;
-	skb_copy_to_linear_data(*buf, hdr, hsz);
-	to = (*buf)->data + hsz;
-	if (len && memcpy_fromiovecend(to, msg_sect, 0, dsz)) {
-		kfree_skb(*buf);
-		*buf = NULL;
-		return -EFAULT;
-	}
-	return dsz;
-}
-
 /* tipc_buf_append(): Append a buffer to the fragment list of another buffer
  * @*headbuf: in:  NULL for first frag, otherwise value returned from prev call
  *            out: set when successful non-complete reassembly, otherwise NULL
