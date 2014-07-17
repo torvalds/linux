@@ -1335,6 +1335,8 @@ int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
 	INIT_LIST_HEAD(&oper->elem.list);
 	oper->elem.seq = 0;
 
+	trace_btrfs_qgroup_record_ref(oper);
+
 	if (type == BTRFS_QGROUP_OPER_SUB_SUBTREE) {
 		/*
 		 * If any operation for this bytenr/ref_root combo
@@ -2076,6 +2078,8 @@ static int btrfs_qgroup_account(struct btrfs_trans_handle *trans,
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
 
 	ASSERT(is_fstree(oper->ref_root));
+
+	trace_btrfs_qgroup_account(oper);
 
 	switch (oper->type) {
 	case BTRFS_QGROUP_OPER_ADD_EXCL:
