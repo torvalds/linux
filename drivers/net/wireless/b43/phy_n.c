@@ -820,13 +820,62 @@ static void b43_radio_2057_setup(struct b43_wldev *dev,
 static u8 b43_radio_2057_rcal(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
+	u16 saved_regs_phy[12];
+	u16 saved_regs_phy_rf[6];
+	u16 saved_regs_radio[2] = { };
+	static const u16 phy_to_store[] = {
+		B43_NPHY_RFCTL_RSSIO1, B43_NPHY_RFCTL_RSSIO2,
+		B43_NPHY_RFCTL_LUT_TRSW_LO1, B43_NPHY_RFCTL_LUT_TRSW_LO2,
+		B43_NPHY_RFCTL_RXG1, B43_NPHY_RFCTL_RXG2,
+		B43_NPHY_RFCTL_TXG1, B43_NPHY_RFCTL_TXG2,
+		B43_NPHY_REV7_RF_CTL_MISC_REG3, B43_NPHY_REV7_RF_CTL_MISC_REG4,
+		B43_NPHY_REV7_RF_CTL_MISC_REG5, B43_NPHY_REV7_RF_CTL_MISC_REG6,
+	};
+	static const u16 phy_to_store_rf[] = {
+		B43_NPHY_REV3_RFCTL_OVER0, B43_NPHY_REV3_RFCTL_OVER1,
+		B43_NPHY_REV7_RF_CTL_OVER3, B43_NPHY_REV7_RF_CTL_OVER4,
+		B43_NPHY_REV7_RF_CTL_OVER5, B43_NPHY_REV7_RF_CTL_OVER6,
+	};
 	u16 tmp;
+	int i;
 
-	if (phy->radio_rev == 5) {
-		b43_phy_mask(dev, 0x342, ~0x2);
+	/* Save */
+	for (i = 0; i < ARRAY_SIZE(phy_to_store); i++)
+		saved_regs_phy[i] = b43_phy_read(dev, phy_to_store[i]);
+	for (i = 0; i < ARRAY_SIZE(phy_to_store_rf); i++)
+		saved_regs_phy_rf[i] = b43_phy_read(dev, phy_to_store_rf[i]);
+
+	/* Set */
+	for (i = 0; i < ARRAY_SIZE(phy_to_store); i++)
+		b43_phy_write(dev, phy_to_store[i], 0);
+	b43_phy_write(dev, B43_NPHY_REV3_RFCTL_OVER0, 0x07ff);
+	b43_phy_write(dev, B43_NPHY_REV3_RFCTL_OVER1, 0x07ff);
+	b43_phy_write(dev, B43_NPHY_REV7_RF_CTL_OVER3, 0x07ff);
+	b43_phy_write(dev, B43_NPHY_REV7_RF_CTL_OVER4, 0x07ff);
+	b43_phy_write(dev, B43_NPHY_REV7_RF_CTL_OVER5, 0x007f);
+	b43_phy_write(dev, B43_NPHY_REV7_RF_CTL_OVER6, 0x007f);
+
+	switch (phy->radio_rev) {
+	case 5:
+		b43_phy_mask(dev, B43_NPHY_REV7_RF_CTL_OVER3, ~0x2);
 		udelay(10);
 		b43_radio_set(dev, R2057_IQTEST_SEL_PU, 0x1);
-		b43_radio_maskset(dev, 0x1ca, ~0x2, 0x1);
+		b43_radio_maskset(dev, R2057v7_IQTEST_SEL_PU2, ~0x2, 0x1);
+		break;
+	case 9:
+		b43_phy_set(dev, B43_NPHY_REV7_RF_CTL_OVER3, 0x2);
+		b43_phy_set(dev, B43_NPHY_REV7_RF_CTL_MISC_REG3, 0x2);
+		saved_regs_radio[0] = b43_radio_read(dev, R2057_IQTEST_SEL_PU);
+		b43_radio_write(dev, R2057_IQTEST_SEL_PU, 0x11);
+		break;
+	case 14:
+		saved_regs_radio[0] = b43_radio_read(dev, R2057_IQTEST_SEL_PU);
+		saved_regs_radio[1] = b43_radio_read(dev, R2057v7_IQTEST_SEL_PU2);
+		b43_phy_set(dev, B43_NPHY_REV7_RF_CTL_MISC_REG3, 0x2);
+		b43_phy_set(dev, B43_NPHY_REV7_RF_CTL_OVER3, 0x2);
+		b43_radio_write(dev, R2057v7_IQTEST_SEL_PU2, 0x2);
+		b43_radio_write(dev, R2057_IQTEST_SEL_PU, 0x1);
+		break;
 	}
 
 	/* Enable */
@@ -850,14 +899,30 @@ static u8 b43_radio_2057_rcal(struct b43_wldev *dev)
 	/* Disable */
 	b43_radio_mask(dev, R2057_RCAL_CONFIG, ~0x1);
 
-	if (phy->radio_rev == 5) {
-		b43_radio_mask(dev, R2057_IPA2G_CASCONV_CORE0, ~0x1);
-		b43_radio_mask(dev, 0x1ca, ~0x2);
-	}
-	if (phy->radio_rev <= 4 || phy->radio_rev == 6) {
+	/* Restore */
+	for (i = 0; i < ARRAY_SIZE(phy_to_store_rf); i++)
+		b43_phy_write(dev, phy_to_store_rf[i], saved_regs_phy_rf[i]);
+	for (i = 0; i < ARRAY_SIZE(phy_to_store); i++)
+		b43_phy_write(dev, phy_to_store[i], saved_regs_phy[i]);
+
+	switch (phy->radio_rev) {
+	case 0 ... 4:
+	case 6:
 		b43_radio_maskset(dev, R2057_TEMPSENSE_CONFIG, ~0x3C, tmp);
 		b43_radio_maskset(dev, R2057_BANDGAP_RCAL_TRIM, ~0xF0,
 				  tmp << 2);
+		break;
+	case 5:
+		b43_radio_mask(dev, R2057_IPA2G_CASCONV_CORE0, ~0x1);
+		b43_radio_mask(dev, R2057v7_IQTEST_SEL_PU2, ~0x2);
+		break;
+	case 9:
+		b43_radio_write(dev, R2057_IQTEST_SEL_PU, saved_regs_radio[0]);
+		break;
+	case 14:
+		b43_radio_write(dev, R2057_IQTEST_SEL_PU, saved_regs_radio[0]);
+		b43_radio_write(dev, R2057v7_IQTEST_SEL_PU2, saved_regs_radio[1]);
+		break;
 	}
 
 	return tmp & 0x3e;
@@ -879,7 +944,7 @@ static u16 b43_radio_2057_rccal(struct b43_wldev *dev)
 		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xC0);
 	} else {
 		b43_radio_write(dev, R2057v7_RCCAL_MASTER, 0x61);
-		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xE1);
+		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xE9);
 	}
 	b43_radio_write(dev, R2057_RCCAL_X1, 0x6E);
 
@@ -958,6 +1023,9 @@ static void b43_radio_2057_init_pre(struct b43_wldev *dev)
 static void b43_radio_2057_init_post(struct b43_wldev *dev)
 {
 	b43_radio_set(dev, R2057_XTALPUOVR_PINCTRL, 0x1);
+
+	if (0) /* FIXME: Is this BCM43217 specific? */
+		b43_radio_set(dev, R2057_XTALPUOVR_PINCTRL, 0x2);
 
 	b43_radio_set(dev, R2057_RFPLL_MISC_CAL_RESETN, 0x78);
 	b43_radio_set(dev, R2057_XTAL_CONFIG2, 0x80);
