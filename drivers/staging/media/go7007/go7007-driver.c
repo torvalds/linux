@@ -9,10 +9,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -225,7 +221,7 @@ static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *con
 		return 0;
 	}
 
-	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", i2c->type);
+	pr_info("go7007: probing for module i2c:%s failed\n", i2c->type);
 	return -EINVAL;
 }
 

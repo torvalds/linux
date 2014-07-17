@@ -9,10 +9,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -167,7 +163,7 @@ static int saa7134_go7007_interface_reset(struct go7007 *go)
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 
 	status = saa_readb(SAA7134_GPIO_GPSTATUS2);
-	/*printk(KERN_DEBUG "status is %s\n", status & 0x40 ? "OK" : "not OK"); */
+	/*pr_debug("status is %s\n", status & 0x40 ? "OK" : "not OK"); */
 
 	/* enter command mode...(?) */
 	saa_writeb(SAA7134_GPIO_GPSTATUS2, GPIO_COMMAND_REQ1);
@@ -177,14 +173,13 @@ static int saa7134_go7007_interface_reset(struct go7007 *go)
 		saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 		saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 		status = saa_readb(SAA7134_GPIO_GPSTATUS2);
-		/*printk(KERN_INFO "gpio is %08x\n", saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2)); */
+		/*pr_info("gpio is %08x\n", saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2)); */
 	} while (--count > 0);
 
 	/* Wait for an interrupt to indicate successful hardware reset */
 	if (go7007_read_interrupt(go, &intr_val, &intr_data) < 0 ||
 			(intr_val & ~0x1) != 0x55aa) {
-		printk(KERN_ERR
-			"saa7134-go7007: unable to reset the GO7007\n");
+		pr_err("saa7134-go7007: unable to reset the GO7007\n");
 		return -1;
 	}
 	return 0;
@@ -198,8 +193,7 @@ static int saa7134_go7007_write_interrupt(struct go7007 *go, int addr, int data)
 	u16 status_reg;
 
 #ifdef GO7007_HPI_DEBUG
-	printk(KERN_DEBUG
-		"saa7134-go7007: WriteInterrupt: %04x %04x\n", addr, data);
+	pr_debug("saa7134-go7007: WriteInterrupt: %04x %04x\n", addr, data);
 #endif
 
 	for (i = 0; i < 100; ++i) {
@@ -209,8 +203,7 @@ static int saa7134_go7007_write_interrupt(struct go7007 *go, int addr, int data)
 		msleep(10);
 	}
 	if (i == 100) {
-		printk(KERN_ERR
-			"saa7134-go7007: device is hung, status reg = 0x%04x\n",
+		pr_err("saa7134-go7007: device is hung, status reg = 0x%04x\n",
 			status_reg);
 		return -1;
 	}
@@ -230,7 +223,7 @@ static int saa7134_go7007_read_interrupt(struct go7007 *go)
 	gpio_read(dev, HPI_ADDR_INTR_RET_VALUE, &go->interrupt_value);
 	gpio_read(dev, HPI_ADDR_INTR_RET_DATA, &go->interrupt_data);
 #ifdef GO7007_HPI_DEBUG
-	printk(KERN_DEBUG "saa7134-go7007: ReadInterrupt: %04x %04x\n",
+	pr_debug("saa7134-go7007: ReadInterrupt: %04x %04x\n",
 			go->interrupt_value, go->interrupt_data);
 #endif
 	return 0;
@@ -245,7 +238,7 @@ static void saa7134_go7007_irq_ts_done(struct saa7134_dev *dev,
 	if (!vb2_is_streaming(&go->vidq))
 		return;
 	if (0 != (status & 0x000f0000))
-		printk(KERN_DEBUG "saa7134-go7007: irq: lost %ld\n",
+		pr_debug("saa7134-go7007: irq: lost %ld\n",
 				(status >> 16) & 0x0f);
 	if (status & 0x100000) {
 		dma_sync_single_for_cpu(&dev->pci->dev,
@@ -355,8 +348,7 @@ static int saa7134_go7007_send_firmware(struct go7007 *go, u8 *data, int len)
 	int i;
 
 #ifdef GO7007_HPI_DEBUG
-	printk(KERN_DEBUG "saa7134-go7007: DownloadBuffer "
-			"sending %d bytes\n", len);
+	pr_debug("saa7134-go7007: DownloadBuffer sending %d bytes\n", len);
 #endif
 
 	while (len > 0) {
@@ -378,8 +370,8 @@ static int saa7134_go7007_send_firmware(struct go7007 *go, u8 *data, int len)
 				break;
 		}
 		if (i == 100) {
-			printk(KERN_ERR "saa7134-go7007: device is hung, "
-					"status reg = 0x%04x\n", status_reg);
+			pr_err("saa7134-go7007: device is hung, status reg = 0x%04x\n",
+					status_reg);
 			return -1;
 		}
 	}
@@ -416,6 +408,7 @@ static int saa7134_go7007_s_ctrl(struct v4l2_subdev *sd,
 {
 	struct saa7134_go7007 *saa = to_state(sd);
 	struct saa7134_dev *dev = saa->dev;
+
 	return saa7134_s_ctrl_internal(dev, NULL, ctrl);
 }
 
@@ -424,6 +417,7 @@ static int saa7134_go7007_g_ctrl(struct v4l2_subdev *sd,
 {
 	struct saa7134_go7007 *saa = to_state(sd);
 	struct saa7134_dev *dev = saa->dev;
+
 	return saa7134_g_ctrl_internal(dev, NULL, ctrl);
 }
 
@@ -455,7 +449,7 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 	struct saa7134_go7007 *saa;
 	struct v4l2_subdev *sd;
 
-	printk(KERN_DEBUG "saa7134-go7007: probing new SAA713X board\n");
+	pr_debug("saa7134-go7007: probing new SAA713X board\n");
 
 	go = go7007_alloc(&board_voyager, &dev->pci->dev);
 	if (go == NULL)
@@ -500,7 +494,7 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 
 	/* Register the subdevice interface with the go7007 device */
 	if (v4l2_device_register_subdev(&go->v4l2_dev, sd) < 0)
-		printk(KERN_INFO "saa7134-go7007: register subdev failed\n");
+		pr_info("saa7134-go7007: register subdev failed\n");
 
 	dev->empress_dev = &go->vdev;
 

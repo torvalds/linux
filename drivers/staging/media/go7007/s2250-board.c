@@ -9,10 +9,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -573,11 +569,12 @@ static int s2250_probe(struct i2c_client *client,
 	if (mutex_lock_interruptible(&usb->i2c_lock) == 0) {
 		data = kzalloc(16, GFP_KERNEL);
 		if (data != NULL) {
-			int rc;
-			rc = go7007_usb_vendor_request(go, 0x41, 0, 0,
+			int rc = go7007_usb_vendor_request(go, 0x41, 0, 0,
 						       data, 16, 1);
+
 			if (rc > 0) {
 				u8 mask;
+
 				data[0] = 0;
 				mask = 1<<5;
 				data[0] &= ~mask;
