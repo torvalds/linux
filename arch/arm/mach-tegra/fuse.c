@@ -23,7 +23,8 @@
 #include <linux/export.h>
 #include <linux/random.h>
 #include <linux/clk.h>
-#include <linux/tegra-soc.h>
+
+#include <soc/tegra/fuse.h>
 
 #include "fuse.h"
 #include "iomap.h"

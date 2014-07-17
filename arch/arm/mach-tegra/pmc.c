@@ -20,7 +20,8 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/tegra-powergate.h>
+
+#include <soc/tegra/powergate.h>
 
 #include "flowctrl.h"
 #include "fuse.h"
