@@ -102,8 +102,7 @@ static int apci1564_do_config(struct comedi_device *dev,
 	unsigned int ul_Command = 0;
 
 	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Not a valid Data !!! ,Data should be 1 or 0\n");
+		dev_err(dev->class_dev, "Data should be 1 or 0\n");
 		return -EINVAL;
 	}
 
