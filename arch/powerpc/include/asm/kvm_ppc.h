@@ -392,6 +392,17 @@ static inline int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
 	{ return 0; }
 #endif
 
+static inline unsigned long kvmppc_get_epr(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_KVM_BOOKE_HV
+	return mfspr(SPRN_GEPR);
+#elif defined(CONFIG_BOOKE)
+	return vcpu->arch.epr;
+#else
+	return 0;
+#endif
+}
+
 static inline void kvmppc_set_epr(struct kvm_vcpu *vcpu, u32 epr)
 {
 #ifdef CONFIG_KVM_BOOKE_HV

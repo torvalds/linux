@@ -292,15 +292,6 @@ static void set_guest_mcsrr(struct kvm_vcpu *vcpu, unsigned long srr0, u32 srr1)
 	vcpu->arch.mcsrr1 = srr1;
 }
 
-static unsigned long get_guest_epr(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_KVM_BOOKE_HV
-	return mfspr(SPRN_GEPR);
-#else
-	return vcpu->arch.epr;
-#endif
-}
-
 /* Deliver the interrupt of the corresponding priority, if possible. */
 static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
                                         unsigned int priority)
@@ -1452,7 +1443,7 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.dac2);
 		break;
 	case KVM_REG_PPC_EPR: {
-		u32 epr = get_guest_epr(vcpu);
+		u32 epr = kvmppc_get_epr(vcpu);
 		val = get_reg_val(reg->id, epr);
 		break;
 	}
