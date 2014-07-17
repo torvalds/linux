@@ -132,61 +132,78 @@ static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
 
 	data = (struct OpalIoP7IOCPhbErrorData *)common;
 	pr_info("P7IOC PHB#%d Diag-data (Version: %d)\n",
-		hose->global_number, common->version);
+		hose->global_number, be32_to_cpu(common->version));
 
 	if (data->brdgCtl)
 		pr_info("brdgCtl:     %08x\n",
-			data->brdgCtl);
+			be32_to_cpu(data->brdgCtl));
 	if (data->portStatusReg || data->rootCmplxStatus ||
 	    data->busAgentStatus)
 		pr_info("UtlSts:      %08x %08x %08x\n",
-			data->portStatusReg, data->rootCmplxStatus,
-			data->busAgentStatus);
+			be32_to_cpu(data->portStatusReg),
+			be32_to_cpu(data->rootCmplxStatus),
+			be32_to_cpu(data->busAgentStatus));
 	if (data->deviceStatus || data->slotStatus   ||
 	    data->linkStatus   || data->devCmdStatus ||
 	    data->devSecStatus)
 		pr_info("RootSts:     %08x %08x %08x %08x %08x\n",
-			data->deviceStatus, data->slotStatus,
-			data->linkStatus, data->devCmdStatus,
-			data->devSecStatus);
+			be32_to_cpu(data->deviceStatus),
+			be32_to_cpu(data->slotStatus),
+			be32_to_cpu(data->linkStatus),
+			be32_to_cpu(data->devCmdStatus),
+			be32_to_cpu(data->devSecStatus));
 	if (data->rootErrorStatus   || data->uncorrErrorStatus ||
 	    data->corrErrorStatus)
 		pr_info("RootErrSts:  %08x %08x %08x\n",
-			data->rootErrorStatus, data->uncorrErrorStatus,
-			data->corrErrorStatus);
+			be32_to_cpu(data->rootErrorStatus),
+			be32_to_cpu(data->uncorrErrorStatus),
+			be32_to_cpu(data->corrErrorStatus));
 	if (data->tlpHdr1 || data->tlpHdr2 ||
 	    data->tlpHdr3 || data->tlpHdr4)
 		pr_info("RootErrLog:  %08x %08x %08x %08x\n",
-			data->tlpHdr1, data->tlpHdr2,
-			data->tlpHdr3, data->tlpHdr4);
+			be32_to_cpu(data->tlpHdr1),
+			be32_to_cpu(data->tlpHdr2),
+			be32_to_cpu(data->tlpHdr3),
+			be32_to_cpu(data->tlpHdr4));
 	if (data->sourceId || data->errorClass ||
 	    data->correlator)
 		pr_info("RootErrLog1: %08x %016llx %016llx\n",
-			data->sourceId, data->errorClass,
-			data->correlator);
+			be32_to_cpu(data->sourceId),
+			be64_to_cpu(data->errorClass),
+			be64_to_cpu(data->correlator));
 	if (data->p7iocPlssr || data->p7iocCsr)
 		pr_info("PhbSts:      %016llx %016llx\n",
-			data->p7iocPlssr, data->p7iocCsr);
+			be64_to_cpu(data->p7iocPlssr),
+			be64_to_cpu(data->p7iocCsr));
 	if (data->lemFir)
 		pr_info("Lem:         %016llx %016llx %016llx\n",
-			data->lemFir, data->lemErrorMask,
-			data->lemWOF);
+			be64_to_cpu(data->lemFir),
+			be64_to_cpu(data->lemErrorMask),
+			be64_to_cpu(data->lemWOF));
 	if (data->phbErrorStatus)
 		pr_info("PhbErr:      %016llx %016llx %016llx %016llx\n",
-			data->phbErrorStatus, data->phbFirstErrorStatus,
-			data->phbErrorLog0, data->phbErrorLog1);
+			be64_to_cpu(data->phbErrorStatus),
+			be64_to_cpu(data->phbFirstErrorStatus),
+			be64_to_cpu(data->phbErrorLog0),
+			be64_to_cpu(data->phbErrorLog1));
 	if (data->mmioErrorStatus)
 		pr_info("OutErr:      %016llx %016llx %016llx %016llx\n",
-			data->mmioErrorStatus, data->mmioFirstErrorStatus,
-			data->mmioErrorLog0, data->mmioErrorLog1);
+			be64_to_cpu(data->mmioErrorStatus),
+			be64_to_cpu(data->mmioFirstErrorStatus),
+			be64_to_cpu(data->mmioErrorLog0),
+			be64_to_cpu(data->mmioErrorLog1));
 	if (data->dma0ErrorStatus)
 		pr_info("InAErr:      %016llx %016llx %016llx %016llx\n",
-			data->dma0ErrorStatus, data->dma0FirstErrorStatus,
-			data->dma0ErrorLog0, data->dma0ErrorLog1);
+			be64_to_cpu(data->dma0ErrorStatus),
+			be64_to_cpu(data->dma0FirstErrorStatus),
+			be64_to_cpu(data->dma0ErrorLog0),
+			be64_to_cpu(data->dma0ErrorLog1));
 	if (data->dma1ErrorStatus)
 		pr_info("InBErr:      %016llx %016llx %016llx %016llx\n",
-			data->dma1ErrorStatus, data->dma1FirstErrorStatus,
-			data->dma1ErrorLog0, data->dma1ErrorLog1);
+			be64_to_cpu(data->dma1ErrorStatus),
+			be64_to_cpu(data->dma1FirstErrorStatus),
+			be64_to_cpu(data->dma1ErrorLog0),
+			be64_to_cpu(data->dma1ErrorLog1));
 
 	for (i = 0; i < OPAL_P7IOC_NUM_PEST_REGS; i++) {
 		if ((data->pestA[i] >> 63) == 0 &&
@@ -194,7 +211,8 @@ static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
 			continue;
 
 		pr_info("PE[%3d] A/B: %016llx %016llx\n",
-			i, data->pestA[i], data->pestB[i]);
+			i, be64_to_cpu(data->pestA[i]),
+			be64_to_cpu(data->pestB[i]));
 	}
 }
 

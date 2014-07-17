@@ -605,18 +605,24 @@ static int ioda_eeh_configure_bridge(struct eeh_pe *pe)
 static void ioda_eeh_hub_diag_common(struct OpalIoP7IOCErrorData *data)
 {
 	/* GEM */
-	pr_info("  GEM XFIR:        %016llx\n", data->gemXfir);
-	pr_info("  GEM RFIR:        %016llx\n", data->gemRfir);
-	pr_info("  GEM RIRQFIR:     %016llx\n", data->gemRirqfir);
-	pr_info("  GEM Mask:        %016llx\n", data->gemMask);
-	pr_info("  GEM RWOF:        %016llx\n", data->gemRwof);
+	if (data->gemXfir || data->gemRfir ||
+	    data->gemRirqfir || data->gemMask || data->gemRwof)
+		pr_info("  GEM: %016llx %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->gemXfir),
+			be64_to_cpu(data->gemRfir),
+			be64_to_cpu(data->gemRirqfir),
+			be64_to_cpu(data->gemMask),
+			be64_to_cpu(data->gemRwof));
 
 	/* LEM */
-	pr_info("  LEM FIR:         %016llx\n", data->lemFir);
-	pr_info("  LEM Error Mask:  %016llx\n", data->lemErrMask);
-	pr_info("  LEM Action 0:    %016llx\n", data->lemAction0);
-	pr_info("  LEM Action 1:    %016llx\n", data->lemAction1);
-	pr_info("  LEM WOF:         %016llx\n", data->lemWof);
+	if (data->lemFir || data->lemErrMask ||
+	    data->lemAction0 || data->lemAction1 || data->lemWof)
+		pr_info("  LEM: %016llx %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->lemFir),
+			be64_to_cpu(data->lemErrMask),
+			be64_to_cpu(data->lemAction0),
+			be64_to_cpu(data->lemAction1),
+			be64_to_cpu(data->lemWof));
 }
 
 static void ioda_eeh_hub_diag(struct pci_controller *hose)
@@ -636,24 +642,31 @@ static void ioda_eeh_hub_diag(struct pci_controller *hose)
 	case OPAL_P7IOC_DIAG_TYPE_RGC:
 		pr_info("P7IOC diag-data for RGC\n\n");
 		ioda_eeh_hub_diag_common(data);
-		pr_info("  RGC Status:      %016llx\n", data->rgc.rgcStatus);
-		pr_info("  RGC LDCP:        %016llx\n", data->rgc.rgcLdcp);
+		if (data->rgc.rgcStatus || data->rgc.rgcLdcp)
+			pr_info("  RGC: %016llx %016llx\n",
+				be64_to_cpu(data->rgc.rgcStatus),
+				be64_to_cpu(data->rgc.rgcLdcp));
 		break;
 	case OPAL_P7IOC_DIAG_TYPE_BI:
 		pr_info("P7IOC diag-data for BI %s\n\n",
 			data->bi.biDownbound ? "Downbound" : "Upbound");
 		ioda_eeh_hub_diag_common(data);
-		pr_info("  BI LDCP 0:       %016llx\n", data->bi.biLdcp0);
-		pr_info("  BI LDCP 1:       %016llx\n", data->bi.biLdcp1);
-		pr_info("  BI LDCP 2:       %016llx\n", data->bi.biLdcp2);
-		pr_info("  BI Fence Status: %016llx\n", data->bi.biFenceStatus);
+		if (data->bi.biLdcp0 || data->bi.biLdcp1 ||
+		    data->bi.biLdcp2 || data->bi.biFenceStatus)
+			pr_info("  BI:  %016llx %016llx %016llx %016llx\n",
+				be64_to_cpu(data->bi.biLdcp0),
+				be64_to_cpu(data->bi.biLdcp1),
+				be64_to_cpu(data->bi.biLdcp2),
+				be64_to_cpu(data->bi.biFenceStatus));
 		break;
 	case OPAL_P7IOC_DIAG_TYPE_CI:
-		pr_info("P7IOC diag-data for CI Port %d\\nn",
+		pr_info("P7IOC diag-data for CI Port %d\n\n",
 			data->ci.ciPort);
 		ioda_eeh_hub_diag_common(data);
-		pr_info("  CI Port Status:  %016llx\n", data->ci.ciPortStatus);
-		pr_info("  CI Port LDCP:    %016llx\n", data->ci.ciPortLdcp);
+		if (data->ci.ciPortStatus || data->ci.ciPortLdcp)
+			pr_info("  CI:  %016llx %016llx\n",
+				be64_to_cpu(data->ci.ciPortStatus),
+				be64_to_cpu(data->ci.ciPortLdcp));
 		break;
 	case OPAL_P7IOC_DIAG_TYPE_MISC:
 		pr_info("P7IOC diag-data for MISC\n\n");
