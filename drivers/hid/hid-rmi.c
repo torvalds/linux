@@ -848,6 +848,8 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct rmi_data *data = NULL;
 	int ret;
 	size_t alloc_size;
+	struct hid_report *input_report;
+	struct hid_report *output_report;
 
 	data = devm_kzalloc(&hdev->dev, sizeof(struct rmi_data), GFP_KERNEL);
 	if (!data)
@@ -866,12 +868,26 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
-	data->input_report_size = (hdev->report_enum[HID_INPUT_REPORT]
-		.report_id_hash[RMI_ATTN_REPORT_ID]->size >> 3)
-		+ 1 /* report id */;
-	data->output_report_size = (hdev->report_enum[HID_OUTPUT_REPORT]
-		.report_id_hash[RMI_WRITE_REPORT_ID]->size >> 3)
-		+ 1 /* report id */;
+	input_report = hdev->report_enum[HID_INPUT_REPORT]
+			.report_id_hash[RMI_ATTN_REPORT_ID];
+	if (!input_report) {
+		hid_err(hdev, "device does not have expected input report\n");
+		ret = -ENODEV;
+		return ret;
+	}
+
+	data->input_report_size = (input_report->size >> 3) + 1 /* report id */;
+
+	output_report = hdev->report_enum[HID_OUTPUT_REPORT]
+			.report_id_hash[RMI_WRITE_REPORT_ID];
+	if (!output_report) {
+		hid_err(hdev, "device does not have expected output report\n");
+		ret = -ENODEV;
+		return ret;
+	}
+
+	data->output_report_size = (output_report->size >> 3)
+					+ 1 /* report id */;
 
 	alloc_size = data->output_report_size + data->input_report_size;
 
