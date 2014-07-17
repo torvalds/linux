@@ -52,108 +52,6 @@ static struct {
 
 static u8 gdm_wimax_macaddr[6] = {0x00, 0x0a, 0x3b, 0xf0, 0x01, 0x30};
 
-static const char *get_protocol_name(u16 protocol)
-{
-	static char buf[32];
-	const char *name = "-";
-
-	switch (protocol) {
-	case ETH_P_ARP:
-		name = "ARP";
-		break;
-	case ETH_P_IP:
-		name = "IP";
-		break;
-	case ETH_P_IPV6:
-		name = "IPv6";
-		break;
-	}
-
-	sprintf(buf, "0x%04x(%s)", protocol, name);
-	return buf;
-}
-
-static const char *get_ip_protocol_name(u8 ip_protocol)
-{
-	static char buf[32];
-	const char *name = "-";
-
-	switch (ip_protocol) {
-	case IPPROTO_TCP:
-		name = "TCP";
-		break;
-	case IPPROTO_UDP:
-		name = "UDP";
-		break;
-	case IPPROTO_ICMP:
-		name = "ICMP";
-		break;
-	}
-
-	sprintf(buf, "%u(%s)", ip_protocol, name);
-	return buf;
-}
-
-static const char *get_port_name(u16 port)
-{
-	static char buf[32];
-	const char *name = "-";
-
-	switch (port) {
-	case 67:
-		name = "DHCP-Server";
-		break;
-	case 68:
-		name = "DHCP-Client";
-		break;
-	case 69:
-		name = "TFTP";
-		break;
-	}
-
-	sprintf(buf, "%u(%s)", port, name);
-	return buf;
-}
-
-static void dump_eth_packet(struct net_device *dev, const char *title,
-			    u8 *data, int len)
-{
-	struct iphdr *ih = NULL;
-	struct udphdr *uh = NULL;
-	u16 protocol = 0;
-	u8 ip_protocol = 0;
-	u16 port = 0;
-
-	protocol = (data[12]<<8) | data[13];
-	ih = (struct iphdr *)(data+ETH_HLEN);
-
-	if (protocol == ETH_P_IP) {
-		uh = (struct udphdr *)((char *)ih + sizeof(struct iphdr));
-		ip_protocol = ih->protocol;
-		port = ntohs(uh->dest);
-	} else if (protocol == ETH_P_IPV6) {
-		struct ipv6hdr *i6h = (struct ipv6hdr *)data;
-
-		uh = (struct udphdr *)((char *)i6h + sizeof(struct ipv6hdr));
-		ip_protocol = i6h->nexthdr;
-		port = ntohs(uh->dest);
-	}
-
-	netdev_dbg(dev, "[%s] len=%d, %s, %s, %s\n", title, len,
-		   get_protocol_name(protocol),
-		   get_ip_protocol_name(ip_protocol),
-		   get_port_name(port));
-
-	if (!(data[0] == 0xff && data[1] == 0xff)) {
-		if (protocol == ETH_P_IP)
-			netdev_dbg(dev, "     src=%pI4\n", &ih->saddr);
-		else if (protocol == ETH_P_IPV6)
-			netdev_dbg(dev, "     src=%pI6\n", &ih->saddr);
-	}
-
-	print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1, data, len, false);
-}
-
 static inline int gdm_wimax_header(struct sk_buff **pskb)
 {
 	u16 buf[HCI_HEADER_SIZE / sizeof(u16)];
@@ -360,8 +258,6 @@ int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev)
 static int gdm_wimax_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	int ret = 0;
-
-	dump_eth_packet(dev, "TX", skb->data, skb->len);
 
 	ret = gdm_wimax_header(&skb);
 	if (ret < 0) {
@@ -707,8 +603,6 @@ static void gdm_wimax_netif_rx(struct net_device *dev, char *buf, int len)
 {
 	struct sk_buff *skb;
 	int ret;
-
-	dump_eth_packet(dev, "RX", buf, len);
 
 	skb = dev_alloc_skb(len + 2);
 	if (!skb) {
