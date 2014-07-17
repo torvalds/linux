@@ -1323,14 +1323,6 @@ Current IOREG MAP
 #define ENSWBCN				BIT(8)
 #define ENSEC				BIT(9)
 
-/*  Network type */
-#define _NETTYPE(x)			(((x) & 0x3) << 16)
-#define MASK_NETTYPE			0x30000
-#define NT_NO_LINK			0x0
-#define NT_LINK_AD_HOC			0x1
-#define NT_LINK_AP			0x2
-#define NT_AS_AP			0x3
-
 #define _LBMODE(x)			(((x) & 0xF) << 24)
 #define MASK_LBMODE			0xF000000
 #define LOOPBACK_NORMAL			0x0

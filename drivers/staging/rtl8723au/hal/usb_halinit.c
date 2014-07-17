@@ -338,17 +338,6 @@ static void _InitQueuePriority(struct rtw_adapter *Adapter)
 	_InitNormalChipQueuePriority(Adapter);
 }
 
-static void _InitNetworkType(struct rtw_adapter *Adapter)
-{
-	u32 value32;
-
-	value32 = rtl8723au_read32(Adapter, REG_CR);
-
-	/*  TODO: use the other function to set network type */
-	value32 = (value32 & ~MASK_NETTYPE) | _NETTYPE(NT_LINK_AP);
-	rtl8723au_write32(Adapter, REG_CR, value32);
-}
-
 static void _InitTransferPageSize(struct rtw_adapter *Adapter)
 {
 	/*  Tx page size is always 128. */
@@ -756,7 +745,7 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	_InitInterrupt(Adapter);
 	hw_var_set_macaddr(Adapter, Adapter->eeprompriv.mac_addr);
-	_InitNetworkType(Adapter);/* set msr */
+	rtl8723a_set_media_status(Adapter, MSR_INFRA);
 	_InitWMACSetting(Adapter);
 	_InitAdaptiveCtrl(Adapter);
 	_InitEDCA(Adapter);
