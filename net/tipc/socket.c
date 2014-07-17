@@ -53,6 +53,7 @@ static void tipc_data_ready(struct sock *sk);
 static void tipc_write_space(struct sock *sk);
 static int tipc_release(struct socket *sock);
 static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags);
+static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p);
 
 static const struct proto_ops packet_ops;
 static const struct proto_ops stream_ops;
@@ -130,7 +131,7 @@ static void reject_rx_queue(struct sock *sk)
 
 	while ((buf = __skb_dequeue(&sk->sk_receive_queue))) {
 		if (tipc_msg_reverse(buf, &dnode, TIPC_ERR_NO_PORT))
-			tipc_link_xmit2(buf, dnode, 0);
+			tipc_link_xmit(buf, dnode, 0);
 	}
 }
 
@@ -340,7 +341,7 @@ static int tipc_release(struct socket *sock)
 				tipc_port_disconnect(port->ref);
 			}
 			if (tipc_msg_reverse(buf, &dnode, TIPC_ERR_NO_PORT))
-				tipc_link_xmit2(buf, dnode, 0);
+				tipc_link_xmit(buf, dnode, 0);
 		}
 	}
 
@@ -535,6 +536,98 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 }
 
 /**
+ * tipc_sendmcast - send multicast message
+ * @sock: socket structure
+ * @seq: destination address
+ * @iov: message data to send
+ * @dsz: total length of message data
+ * @timeo: timeout to wait for wakeup
+ *
+ * Called from function tipc_sendmsg(), which has done all sanity checks
+ * Returns the number of bytes sent on success, or errno
+ */
+static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
+			  struct iovec *iov, size_t dsz, long timeo)
+{
+	struct sock *sk = sock->sk;
+	struct tipc_msg *mhdr = &tipc_sk(sk)->port.phdr;
+	struct sk_buff *buf;
+	uint mtu;
+	int rc;
+
+	msg_set_type(mhdr, TIPC_MCAST_MSG);
+	msg_set_lookup_scope(mhdr, TIPC_CLUSTER_SCOPE);
+	msg_set_destport(mhdr, 0);
+	msg_set_destnode(mhdr, 0);
+	msg_set_nametype(mhdr, seq->type);
+	msg_set_namelower(mhdr, seq->lower);
+	msg_set_nameupper(mhdr, seq->upper);
+	msg_set_hdr_sz(mhdr, MCAST_H_SIZE);
+
+new_mtu:
+	mtu = tipc_bclink_get_mtu();
+	rc = tipc_msg_build(mhdr, iov, 0, dsz, mtu, &buf);
+	if (unlikely(rc < 0))
+		return rc;
+
+	do {
+		rc = tipc_bclink_xmit(buf);
+		if (likely(rc >= 0)) {
+			rc = dsz;
+			break;
+		}
+		if (rc == -EMSGSIZE)
+			goto new_mtu;
+		if (rc != -ELINKCONG)
+			break;
+		rc = tipc_wait_for_sndmsg(sock, &timeo);
+		if (rc)
+			kfree_skb_list(buf);
+	} while (!rc);
+	return rc;
+}
+
+/* tipc_sk_mcast_rcv - Deliver multicast message to all destination sockets
+ */
+void tipc_sk_mcast_rcv(struct sk_buff *buf)
+{
+	struct tipc_msg *msg = buf_msg(buf);
+	struct tipc_port_list dports = {0, NULL, };
+	struct tipc_port_list *item;
+	struct sk_buff *b;
+	uint i, last, dst = 0;
+	u32 scope = TIPC_CLUSTER_SCOPE;
+
+	if (in_own_node(msg_orignode(msg)))
+		scope = TIPC_NODE_SCOPE;
+
+	/* Create destination port list: */
+	tipc_nametbl_mc_translate(msg_nametype(msg),
+				  msg_namelower(msg),
+				  msg_nameupper(msg),
+				  scope,
+				  &dports);
+	last = dports.count;
+	if (!last) {
+		kfree_skb(buf);
+		return;
+	}
+
+	for (item = &dports; item; item = item->next) {
+		for (i = 0; i < PLSIZE && ++dst <= last; i++) {
+			b = (dst != last) ? skb_clone(buf, GFP_ATOMIC) : buf;
+			if (!b) {
+				pr_warn("Failed do clone mcast rcv buffer\n");
+				continue;
+			}
+			msg_set_destport(msg, item->ports[i]);
+			tipc_sk_rcv(b);
+		}
+	}
+	tipc_port_list_free(&dports);
+}
+
+/**
  * tipc_sk_proto_rcv - receive a connection mng protocol message
  * @tsk: receiving socket
  * @dnode: node to send response message to, if any
@@ -627,43 +720,6 @@ static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p)
 		finish_wait(sk_sleep(sk), &wait);
 	} while (!done);
 	return 0;
-}
-
-/**
- * tipc_sendmcast - send multicast message
- * @sock: socket structure
- * @seq: destination address
- * @iov: message data to send
- * @dsz: total length of message data
- * @timeo: timeout to wait for wakeup
- *
- * Called from function tipc_sendmsg(), which has done all sanity checks
- * Returns the number of bytes sent on success, or errno
- */
-static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
-			  struct iovec *iov, size_t dsz, long timeo)
-{
-	struct sock *sk = sock->sk;
-	struct tipc_sock *tsk = tipc_sk(sk);
-	int rc;
-
-	do {
-		if (sock->state != SS_READY) {
-			rc = -EOPNOTSUPP;
-			break;
-		}
-		rc = tipc_port_mcast_xmit(&tsk->port, seq, iov, dsz);
-		if (likely(rc >= 0)) {
-			if (sock->state != SS_READY)
-				sock->state = SS_CONNECTING;
-			break;
-		}
-		if (rc != -ELINKCONG)
-			break;
-		rc = tipc_wait_for_sndmsg(sock, &timeo);
-	} while (!rc);
-
-	return rc;
 }
 
 /**
@@ -765,12 +821,12 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 new_mtu:
 	mtu = tipc_node_get_mtu(dnode, tsk->port.ref);
-	rc = tipc_msg_build2(mhdr, iov, 0, dsz, mtu, &buf);
+	rc = tipc_msg_build(mhdr, iov, 0, dsz, mtu, &buf);
 	if (rc < 0)
 		goto exit;
 
 	do {
-		rc = tipc_link_xmit2(buf, dnode, tsk->port.ref);
+		rc = tipc_link_xmit(buf, dnode, tsk->port.ref);
 		if (likely(rc >= 0)) {
 			if (sock->state != SS_READY)
 				sock->state = SS_CONNECTING;
@@ -878,12 +934,12 @@ static int tipc_send_stream(struct kiocb *iocb, struct socket *sock,
 next:
 	mtu = port->max_pkt;
 	send = min_t(uint, dsz - sent, TIPC_MAX_USER_MSG_SIZE);
-	rc = tipc_msg_build2(mhdr, m->msg_iov, sent, send, mtu, &buf);
+	rc = tipc_msg_build(mhdr, m->msg_iov, sent, send, mtu, &buf);
 	if (unlikely(rc < 0))
 		goto exit;
 	do {
 		if (likely(!tipc_sk_conn_cong(tsk))) {
-			rc = tipc_link_xmit2(buf, dnode, ref);
+			rc = tipc_link_xmit(buf, dnode, ref);
 			if (likely(!rc)) {
 				tsk->sent_unacked++;
 				sent += send;
@@ -1515,7 +1571,7 @@ static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *buf)
 	if ((rc < 0) && !tipc_msg_reverse(buf, &onode, -rc))
 		return 0;
 
-	tipc_link_xmit2(buf, onode, 0);
+	tipc_link_xmit(buf, onode, 0);
 
 	return 0;
 }
@@ -1567,7 +1623,7 @@ exit:
 	if ((rc < 0) && !tipc_msg_reverse(buf, &dnode, -rc))
 		return -EHOSTUNREACH;
 
-	tipc_link_xmit2(buf, dnode, 0);
+	tipc_link_xmit(buf, dnode, 0);
 	return (rc < 0) ? -EHOSTUNREACH : 0;
 }
 
@@ -1854,7 +1910,7 @@ restart:
 			}
 			tipc_port_disconnect(port->ref);
 			if (tipc_msg_reverse(buf, &peer, TIPC_CONN_SHUTDOWN))
-				tipc_link_xmit2(buf, peer, 0);
+				tipc_link_xmit(buf, peer, 0);
 		} else {
 			tipc_port_shutdown(port->ref);
 		}

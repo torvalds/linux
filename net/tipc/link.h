@@ -227,15 +227,8 @@ void tipc_link_reset_all(struct tipc_node *node);
 void tipc_link_reset(struct tipc_link *l_ptr);
 void tipc_link_reset_list(unsigned int bearer_id);
 int tipc_link_xmit(struct sk_buff *buf, u32 dest, u32 selector);
-int tipc_link_xmit2(struct sk_buff *buf, u32 dest, u32 selector);
-void tipc_link_names_xmit(struct list_head *message_list, u32 dest);
-int __tipc_link_xmit(struct tipc_link *l_ptr, struct sk_buff *buf);
-int __tipc_link_xmit2(struct tipc_link *link, struct sk_buff *buf);
-int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf);
+int __tipc_link_xmit(struct tipc_link *link, struct sk_buff *buf);
 u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
-int tipc_link_iovec_xmit_fast(struct tipc_port *sender,
-			      struct iovec const *msg_sect,
-			      unsigned int len, u32 destnode);
 void tipc_link_bundle_rcv(struct sk_buff *buf);
 void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int prob,
 			  u32 gap, u32 tolerance, u32 priority, u32 acked_mtu);

@@ -60,41 +60,6 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 	msg_set_destnode(m, destnode);
 }
 
-/**
- * tipc_msg_build - create message using specified header and data
- *
- * Note: Caller must not hold any locks in case copy_from_user() is interrupted!
- *
- * Returns message data size or errno
- */
-int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
-		   unsigned int len, int max_size, struct sk_buff **buf)
-{
-	int dsz, sz, hsz;
-	unsigned char *to;
-
-	dsz = len;
-	hsz = msg_hdr_sz(hdr);
-	sz = hsz + dsz;
-	msg_set_size(hdr, sz);
-	if (unlikely(sz > max_size)) {
-		*buf = NULL;
-		return dsz;
-	}
-
-	*buf = tipc_buf_acquire(sz);
-	if (!(*buf))
-		return -ENOMEM;
-	skb_copy_to_linear_data(*buf, hdr, hsz);
-	to = (*buf)->data + hsz;
-	if (len && memcpy_fromiovecend(to, msg_sect, 0, dsz)) {
-		kfree_skb(*buf);
-		*buf = NULL;
-		return -EFAULT;
-	}
-	return dsz;
-}
-
 /* tipc_buf_append(): Append a buffer to the fragment list of another buffer
  * @*headbuf: in:  NULL for first frag, otherwise value returned from prev call
  *            out: set when successful non-complete reassembly, otherwise NULL
@@ -155,7 +120,7 @@ out_free:
 
 
 /**
- * tipc_msg_build2 - create buffer chain containing specified header and data
+ * tipc_msg_build - create buffer chain containing specified header and data
  * @mhdr: Message header, to be prepended to data
  * @iov: User data
  * @offset: Posision in iov to start copying from
@@ -164,8 +129,8 @@ out_free:
  * @chain: Buffer or chain of buffers to be returned to caller
  * Returns message data size or errno: -ENOMEM, -EFAULT
  */
-int tipc_msg_build2(struct tipc_msg *mhdr, struct iovec const *iov,
-		    int offset, int dsz, int pktmax , struct sk_buff **chain)
+int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
+		   int offset, int dsz, int pktmax , struct sk_buff **chain)
 {
 	int mhsz = msg_hdr_sz(mhdr);
 	int msz = mhsz + dsz;
@@ -416,4 +381,39 @@ int tipc_msg_eval(struct sk_buff *buf, u32 *dnode)
 	msg_set_destnode(msg, *dnode);
 	msg_set_destport(msg, dport);
 	return TIPC_OK;
+}
+
+/* tipc_msg_reassemble() - clone a buffer chain of fragments and
+ *                         reassemble the clones into one message
+ */
+struct sk_buff *tipc_msg_reassemble(struct sk_buff *chain)
+{
+	struct sk_buff *buf = chain;
+	struct sk_buff *frag = buf;
+	struct sk_buff *head = NULL;
+	int hdr_sz;
+
+	/* Copy header if single buffer */
+	if (!buf->next) {
+		hdr_sz = skb_headroom(buf) + msg_hdr_sz(buf_msg(buf));
+		return __pskb_copy(buf, hdr_sz, GFP_ATOMIC);
+	}
+
+	/* Clone all fragments and reassemble */
+	while (buf) {
+		frag = skb_clone(buf, GFP_ATOMIC);
+		if (!frag)
+			goto error;
+		frag->next = NULL;
+		if (tipc_buf_append(&head, &frag))
+			break;
+		if (!head)
+			goto error;
+		buf = buf->next;
+	}
+	return frag;
+error:
+	pr_warn("Failed do clone local mcast rcv buffer\n");
+	kfree_skb(head);
+	return NULL;
 }

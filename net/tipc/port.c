@@ -74,118 +74,6 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg)
 		(!peernode && (orignode == tipc_own_addr));
 }
 
-/**
- * tipc_port_mcast_xmit - send a multicast message to local and remote
- * destinations
- */
-int tipc_port_mcast_xmit(struct tipc_port *oport,
-			 struct tipc_name_seq const *seq,
-			 struct iovec const *msg_sect,
-			 unsigned int len)
-{
-	struct tipc_msg *hdr;
-	struct sk_buff *buf;
-	struct sk_buff *ibuf = NULL;
-	struct tipc_port_list dports = {0, NULL, };
-	int ext_targets;
-	int res;
-
-	/* Create multicast message */
-	hdr = &oport->phdr;
-	msg_set_type(hdr, TIPC_MCAST_MSG);
-	msg_set_lookup_scope(hdr, TIPC_CLUSTER_SCOPE);
-	msg_set_destport(hdr, 0);
-	msg_set_destnode(hdr, 0);
-	msg_set_nametype(hdr, seq->type);
-	msg_set_namelower(hdr, seq->lower);
-	msg_set_nameupper(hdr, seq->upper);
-	msg_set_hdr_sz(hdr, MCAST_H_SIZE);
-	res = tipc_msg_build(hdr, msg_sect, len, MAX_MSG_SIZE, &buf);
-	if (unlikely(!buf))
-		return res;
-
-	/* Figure out where to send multicast message */
-	ext_targets = tipc_nametbl_mc_translate(seq->type, seq->lower, seq->upper,
-						TIPC_NODE_SCOPE, &dports);
-
-	/* Send message to destinations (duplicate it only if necessary) */
-	if (ext_targets) {
-		if (dports.count != 0) {
-			ibuf = skb_copy(buf, GFP_ATOMIC);
-			if (ibuf == NULL) {
-				tipc_port_list_free(&dports);
-				kfree_skb(buf);
-				return -ENOMEM;
-			}
-		}
-		res = tipc_bclink_xmit(buf);
-		if ((res < 0) && (dports.count != 0))
-			kfree_skb(ibuf);
-	} else {
-		ibuf = buf;
-	}
-
-	if (res >= 0) {
-		if (ibuf)
-			tipc_port_mcast_rcv(ibuf, &dports);
-	} else {
-		tipc_port_list_free(&dports);
-	}
-	return res;
-}
-
-/**
- * tipc_port_mcast_rcv - deliver multicast message to all destination ports
- *
- * If there is no port list, perform a lookup to create one
- */
-void tipc_port_mcast_rcv(struct sk_buff *buf, struct tipc_port_list *dp)
-{
-	struct tipc_msg *msg;
-	struct tipc_port_list dports = {0, NULL, };
-	struct tipc_port_list *item = dp;
-	int cnt = 0;
-
-	msg = buf_msg(buf);
-
-	/* Create destination port list, if one wasn't supplied */
-	if (dp == NULL) {
-		tipc_nametbl_mc_translate(msg_nametype(msg),
-				     msg_namelower(msg),
-				     msg_nameupper(msg),
-				     TIPC_CLUSTER_SCOPE,
-				     &dports);
-		item = dp = &dports;
-	}
-
-	/* Deliver a copy of message to each destination port */
-	if (dp->count != 0) {
-		msg_set_destnode(msg, tipc_own_addr);
-		if (dp->count == 1) {
-			msg_set_destport(msg, dp->ports[0]);
-			tipc_sk_rcv(buf);
-			tipc_port_list_free(dp);
-			return;
-		}
-		for (; cnt < dp->count; cnt++) {
-			int index = cnt % PLSIZE;
-			struct sk_buff *b = skb_clone(buf, GFP_ATOMIC);
-
-			if (b == NULL) {
-				pr_warn("Unable to deliver multicast message(s)\n");
-				goto exit;
-			}
-			if ((index == 0) && (cnt != 0))
-				item = item->next;
-			msg_set_destport(buf_msg(b), item->ports[index]);
-			tipc_sk_rcv(b);
-		}
-	}
-exit:
-	kfree_skb(buf);
-	tipc_port_list_free(dp);
-}
-
 /* tipc_port_init - intiate TIPC port and lock it
  *
  * Returns obtained reference if initialization is successful, zero otherwise
@@ -242,7 +130,7 @@ void tipc_port_destroy(struct tipc_port *p_ptr)
 		tipc_nodesub_unsubscribe(&p_ptr->subscription);
 		msg = buf_msg(buf);
 		peer = msg_destnode(msg);
-		tipc_link_xmit2(buf, peer, msg_link_selector(msg));
+		tipc_link_xmit(buf, peer, msg_link_selector(msg));
 	}
 	spin_lock_bh(&tipc_port_list_lock);
 	list_del(&p_ptr->port_list);
@@ -299,7 +187,7 @@ static void port_timeout(unsigned long ref)
 	}
 	tipc_port_unlock(p_ptr);
 	msg = buf_msg(buf);
-	tipc_link_xmit2(buf, msg_destnode(msg),	msg_link_selector(msg));
+	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 }
 
 
@@ -314,7 +202,7 @@ static void port_handle_node_down(unsigned long ref)
 	buf = port_build_self_abort_msg(p_ptr, TIPC_ERR_NO_NODE);
 	tipc_port_unlock(p_ptr);
 	msg = buf_msg(buf);
-	tipc_link_xmit2(buf, msg_destnode(msg),	msg_link_selector(msg));
+	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 }
 
 
@@ -459,7 +347,7 @@ void tipc_acknowledge(u32 ref, u32 ack)
 	if (!buf)
 		return;
 	msg = buf_msg(buf);
-	tipc_link_xmit2(buf, msg_destnode(msg),	msg_link_selector(msg));
+	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 }
 
 int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
@@ -621,6 +509,6 @@ int tipc_port_shutdown(u32 ref)
 	buf = port_build_peer_abort_msg(p_ptr, TIPC_CONN_SHUTDOWN);
 	tipc_port_unlock(p_ptr);
 	msg = buf_msg(buf);
-	tipc_link_xmit2(buf, msg_destnode(msg),	msg_link_selector(msg));
+	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 	return tipc_port_disconnect(ref);
 }

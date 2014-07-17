@@ -120,17 +120,7 @@ int __tipc_port_connect(u32 ref, struct tipc_port *p_ptr,
 		   struct tipc_portid const *peer);
 int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 
-/*
- * TIPC messaging routines
- */
-
-int tipc_port_mcast_xmit(struct tipc_port *port,
-			 struct tipc_name_seq const *seq,
-			 struct iovec const *msg,
-			 unsigned int len);
-
 struct sk_buff *tipc_port_get_ports(void);
-void tipc_port_mcast_rcv(struct sk_buff *buf, struct tipc_port_list *dp);
 void tipc_port_reinit(void);
 
 /**
