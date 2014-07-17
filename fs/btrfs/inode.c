@@ -1488,7 +1488,6 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 			      unsigned long *nr_written)
 {
 	int ret;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int force_cow = need_force_cow(inode, start, end);
 
 	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW && !force_cow) {
@@ -1497,9 +1496,7 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 	} else if (BTRFS_I(inode)->flags & BTRFS_INODE_PREALLOC && !force_cow) {
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, 0, nr_written);
-	} else if (!btrfs_test_opt(root, COMPRESS) &&
-		   !(BTRFS_I(inode)->force_compress) &&
-		   !(BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS)) {
+	} else if (!inode_need_compress(inode)) {
 		ret = cow_file_range(inode, locked_page, start, end,
 				      page_started, nr_written, 1);
 	} else {
