@@ -134,9 +134,11 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 
 	vport->dp = parms->dp;
 	vport->port_no = parms->port_no;
-	vport->upcall_portid = parms->upcall_portid;
 	vport->ops = ops;
 	INIT_HLIST_NODE(&vport->dp_hash_node);
+
+	if (ovs_vport_set_upcall_portids(vport, parms->upcall_portids))
+		return ERR_PTR(-EINVAL);
 
 	vport->percpu_stats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!vport->percpu_stats) {
@@ -161,6 +163,10 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
  */
 void ovs_vport_free(struct vport *vport)
 {
+	/* vport is freed from RCU callback or error path, Therefore
+	 * it is safe to use raw dereference.
+	 */
+	kfree(rcu_dereference_raw(vport->upcall_portids));
 	free_percpu(vport->percpu_stats);
 	kfree(vport);
 }
@@ -324,6 +330,99 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
 
 	nla_nest_end(skb, nla);
 	return 0;
+}
+
+/**
+ *	ovs_vport_set_upcall_portids - set upcall portids of @vport.
+ *
+ * @vport: vport to modify.
+ * @ids: new configuration, an array of port ids.
+ *
+ * Sets the vport's upcall_portids to @ids.
+ *
+ * Returns 0 if successful, -EINVAL if @ids is zero length or cannot be parsed
+ * as an array of U32.
+ *
+ * Must be called with ovs_mutex.
+ */
+int ovs_vport_set_upcall_portids(struct vport *vport,  struct nlattr *ids)
+{
+	struct vport_portids *old, *vport_portids;
+
+	if (!nla_len(ids) || nla_len(ids) % sizeof(u32))
+		return -EINVAL;
+
+	old = ovsl_dereference(vport->upcall_portids);
+
+	vport_portids = kmalloc(sizeof(*vport_portids) + nla_len(ids),
+				GFP_KERNEL);
+	if (!vport_portids)
+		return -ENOMEM;
+
+	vport_portids->n_ids = nla_len(ids) / sizeof(u32);
+	vport_portids->rn_ids = reciprocal_value(vport_portids->n_ids);
+	nla_memcpy(vport_portids->ids, ids, nla_len(ids));
+
+	rcu_assign_pointer(vport->upcall_portids, vport_portids);
+
+	if (old)
+		kfree_rcu(old, rcu);
+	return 0;
+}
+
+/**
+ *	ovs_vport_get_upcall_portids - get the upcall_portids of @vport.
+ *
+ * @vport: vport from which to retrieve the portids.
+ * @skb: sk_buff where portids should be appended.
+ *
+ * Retrieves the configuration of the given vport, appending the
+ * %OVS_VPORT_ATTR_UPCALL_PID attribute which is the array of upcall
+ * portids to @skb.
+ *
+ * Returns 0 if successful, -EMSGSIZE if @skb has insufficient room.
+ * If an error occurs, @skb is left unmodified.  Must be called with
+ * ovs_mutex or rcu_read_lock.
+ */
+int ovs_vport_get_upcall_portids(const struct vport *vport,
+				 struct sk_buff *skb)
+{
+	struct vport_portids *ids;
+
+	ids = rcu_dereference_ovsl(vport->upcall_portids);
+
+	if (vport->dp->user_features & OVS_DP_F_VPORT_PIDS)
+		return nla_put(skb, OVS_VPORT_ATTR_UPCALL_PID,
+			       ids->n_ids * sizeof(u32), (void *)ids->ids);
+	else
+		return nla_put_u32(skb, OVS_VPORT_ATTR_UPCALL_PID, ids->ids[0]);
+}
+
+/**
+ *	ovs_vport_find_upcall_portid - find the upcall portid to send upcall.
+ *
+ * @vport: vport from which the missed packet is received.
+ * @skb: skb that the missed packet was received.
+ *
+ * Uses the skb_get_hash() to select the upcall portid to send the
+ * upcall.
+ *
+ * Returns the portid of the target socket.  Must be called with rcu_read_lock.
+ */
+u32 ovs_vport_find_upcall_portid(const struct vport *p, struct sk_buff *skb)
+{
+	struct vport_portids *ids;
+	u32 ids_index;
+	u32 hash;
+
+	ids = rcu_dereference(p->upcall_portids);
+
+	if (ids->n_ids == 1 && ids->ids[0] == 0)
+		return 0;
+
+	hash = skb_get_hash(skb);
+	ids_index = hash - ids->n_ids * reciprocal_divide(hash, ids->rn_ids);
+	return ids->ids[ids_index];
 }
 
 /**
