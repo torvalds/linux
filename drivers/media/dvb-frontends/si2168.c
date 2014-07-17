@@ -616,7 +616,6 @@ static int si2168_probe(struct i2c_client *client,
 	struct si2168_config *config = client->dev.platform_data;
 	struct si2168 *s;
 	int ret;
-	struct si2168_cmd cmd;
 
 	dev_dbg(&client->dev, "%s:\n", __func__);
 
@@ -629,13 +628,6 @@ static int si2168_probe(struct i2c_client *client,
 
 	s->client = client;
 	mutex_init(&s->i2c_mutex);
-
-	/* check if the demod is there */
-	cmd.wlen = 0;
-	cmd.rlen = 1;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
 
 	/* create mux i2c adapter for tuner */
 	s->adapter = i2c_add_mux_adapter(client->adapter, &client->dev, s,
