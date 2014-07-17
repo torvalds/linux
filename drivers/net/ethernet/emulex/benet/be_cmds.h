@@ -1081,11 +1081,6 @@ struct be_cmd_req_modify_eq_delay {
 	struct be_set_eqd set_eqd[MAX_EVT_QS];
 } __packed;
 
-struct be_cmd_resp_modify_eq_delay {
-	struct be_cmd_resp_hdr hdr;
-	u32 rsvd0;
-} __packed;
-
 /******************** Get FW Config *******************/
 /* The HW can come up in either of the following multi-channel modes
  * based on the skew/IPL.
@@ -1154,11 +1149,6 @@ struct be_cmd_req_enable_disable_beacon {
 	u8  beacon_state;
 	u8  beacon_duration;
 	u8  status_duration;
-} __packed;
-
-struct be_cmd_resp_enable_disable_beacon {
-	struct be_cmd_resp_hdr resp_hdr;
-	u32 rsvd0;
 } __packed;
 
 struct be_cmd_req_get_beacon_state {
@@ -1326,11 +1316,6 @@ struct be_cmd_req_set_lmode {
 	u8 loopback_state;
 };
 
-struct be_cmd_resp_set_lmode {
-	struct be_cmd_resp_hdr resp_hdr;
-	u8 rsvd0[4];
-};
-
 /********************** DDR DMA test *********************/
 struct be_cmd_req_ddrdma_test {
 	struct be_cmd_req_hdr hdr;
@@ -1432,11 +1417,6 @@ struct be_cmd_req_set_qos {
 	u32 valid_bits;
 	u32 max_bps_nic;
 	u32 rsvd[7];
-};
-
-struct be_cmd_resp_set_qos {
-	struct be_cmd_resp_hdr hdr;
-	u32 rsvd;
 };
 
 /*********************** Controller Attributes ***********************/
@@ -1571,11 +1551,6 @@ struct be_cmd_req_set_hsw_config {
 	struct be_cmd_req_hdr hdr;
 	u8 context[sizeof(struct amap_set_hsw_context) / 8];
 } __packed;
-
-struct be_cmd_resp_set_hsw_config {
-	struct be_cmd_resp_hdr hdr;
-	u32 rsvd;
-};
 
 struct amap_get_hsw_req_context {
 	u8 interface_id[16];
@@ -1965,10 +1940,6 @@ struct be_cmd_req_set_profile_config {
 	u32 desc_count;
 	u8 desc[2 * RESOURCE_DESC_SIZE_V1];
 } __packed;
-
-struct be_cmd_resp_set_profile_config {
-	struct be_cmd_resp_hdr hdr;
-};
 
 struct be_cmd_req_get_active_profile {
 	struct be_cmd_req_hdr hdr;
