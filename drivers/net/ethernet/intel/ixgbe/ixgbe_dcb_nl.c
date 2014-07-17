@@ -495,10 +495,10 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
  * @id: id is either ether type or TCP/UDP port number
  *
  * Returns : on success, returns a non-zero 802.1p user priority bitmap
- * otherwise returns 0 as the invalid user priority bitmap to indicate an
+ * otherwise returns -EINVAL as the invalid user priority bitmap to indicate an
  * error.
  */
-static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
+static int ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct dcb_app app = {
@@ -507,7 +507,7 @@ static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 			     };
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return 0;
+		return -EINVAL;
 
 	return dcb_getapp(netdev, &app);
 }

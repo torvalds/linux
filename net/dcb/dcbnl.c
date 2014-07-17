@@ -471,7 +471,11 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlmsghdr *nlh,
 	id = nla_get_u16(app_tb[DCB_APP_ATTR_ID]);
 
 	if (netdev->dcbnl_ops->getapp) {
-		up = netdev->dcbnl_ops->getapp(netdev, idtype, id);
+		ret = netdev->dcbnl_ops->getapp(netdev, idtype, id);
+		if (ret < 0)
+			return ret;
+		else
+			up = ret;
 	} else {
 		struct dcb_app app = {
 					.selector = idtype,
@@ -538,6 +542,8 @@ static int dcbnl_setapp(struct net_device *netdev, struct nlmsghdr *nlh,
 
 	if (netdev->dcbnl_ops->setapp) {
 		ret = netdev->dcbnl_ops->setapp(netdev, idtype, id, up);
+		if (ret < 0)
+			return ret;
 	} else {
 		struct dcb_app app;
 		app.selector = idtype;
