@@ -372,6 +372,7 @@ enum vf_state {
 };
 
 #define BE_FLAGS_LINK_STATUS_INIT		1
+#define BE_FLAGS_SRIOV_ENABLED			(1 << 2)
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_FLAGS_VLAN_PROMISC			(1 << 4)
 #define BE_FLAGS_MCAST_PROMISC			(1 << 5)
@@ -525,7 +526,8 @@ struct be_adapter {
 
 #define be_physfn(adapter)		(!adapter->virtfn)
 #define be_virtfn(adapter)		(adapter->virtfn)
-#define sriov_enabled(adapter)		(adapter->num_vfs > 0)
+#define sriov_enabled(adapter)		(adapter->flags &	\
+					 BE_FLAGS_SRIOV_ENABLED)
 
 #define for_all_vfs(adapter, vf_cfg, i)					\
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
