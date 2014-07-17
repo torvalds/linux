@@ -470,6 +470,7 @@ static void remove_event_file_dir(struct ftrace_event_file *file)
 
 	list_del(&file->list);
 	remove_subsystem(file->system);
+	free_event_filter(file->filter);
 	kmem_cache_free(file_cachep, file);
 }
 
