@@ -979,9 +979,7 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 			else
 				length = ch->scan_type.storagebits / 8;
 			/* Make sure we are aligned */
-			in_loc += length;
-			if (in_loc % length)
-				in_loc += length - in_loc % length;
+			in_loc = roundup(in_loc, length) + length;
 		}
 		p = kmalloc(sizeof(*p), GFP_KERNEL);
 		if (p == NULL) {
@@ -994,10 +992,8 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 				ch->scan_type.repeat;
 		else
 			length = ch->scan_type.storagebits / 8;
-		if (out_loc % length)
-			out_loc += length - out_loc % length;
-		if (in_loc % length)
-			in_loc += length - in_loc % length;
+		out_loc = roundup(out_loc, length);
+		in_loc = roundup(in_loc, length);
 		p->from = in_loc;
 		p->to = out_loc;
 		p->length = length;
@@ -1019,10 +1015,8 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 				ch->scan_type.repeat;
 		else
 			length = ch->scan_type.storagebits / 8;
-		if (out_loc % length)
-			out_loc += length - out_loc % length;
-		if (in_loc % length)
-			in_loc += length - in_loc % length;
+		out_loc = roundup(out_loc, length);
+		in_loc = roundup(in_loc, length);
 		p->from = in_loc;
 		p->to = out_loc;
 		p->length = length;
