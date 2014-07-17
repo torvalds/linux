@@ -226,8 +226,8 @@ struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area,
 void tipc_link_reset_all(struct tipc_node *node);
 void tipc_link_reset(struct tipc_link *l_ptr);
 void tipc_link_reset_list(unsigned int bearer_id);
-int tipc_link_xmit2(struct sk_buff *buf, u32 dest, u32 selector);
-int __tipc_link_xmit2(struct tipc_link *link, struct sk_buff *buf);
+int tipc_link_xmit(struct sk_buff *buf, u32 dest, u32 selector);
+int __tipc_link_xmit(struct tipc_link *link, struct sk_buff *buf);
 u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
 void tipc_link_bundle_rcv(struct sk_buff *buf);
 void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int prob,

@@ -116,7 +116,7 @@ void named_cluster_distribute(struct sk_buff *buf)
 		if (!obuf)
 			break;
 		msg_set_destnode(buf_msg(obuf), dnode);
-		tipc_link_xmit2(obuf, dnode, dnode);
+		tipc_link_xmit(obuf, dnode, dnode);
 	}
 	rcu_read_unlock();
 
@@ -232,7 +232,7 @@ void tipc_named_node_up(u32 dnode)
 	/* Convert circular list to linear list and send: */
 	buf_chain = (struct sk_buff *)msg_list.next;
 	((struct sk_buff *)msg_list.prev)->next = NULL;
-	tipc_link_xmit2(buf_chain, dnode, dnode);
+	tipc_link_xmit(buf_chain, dnode, dnode);
 }
 
 /**

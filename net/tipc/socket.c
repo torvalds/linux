@@ -131,7 +131,7 @@ static void reject_rx_queue(struct sock *sk)
 
 	while ((buf = __skb_dequeue(&sk->sk_receive_queue))) {
 		if (tipc_msg_reverse(buf, &dnode, TIPC_ERR_NO_PORT))
-			tipc_link_xmit2(buf, dnode, 0);
+			tipc_link_xmit(buf, dnode, 0);
 	}
 }
 
@@ -341,7 +341,7 @@ static int tipc_release(struct socket *sock)
 				tipc_port_disconnect(port->ref);
 			}
 			if (tipc_msg_reverse(buf, &dnode, TIPC_ERR_NO_PORT))
-				tipc_link_xmit2(buf, dnode, 0);
+				tipc_link_xmit(buf, dnode, 0);
 		}
 	}
 
@@ -566,7 +566,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 
 new_mtu:
 	mtu = tipc_bclink_get_mtu();
-	rc = tipc_msg_build2(mhdr, iov, 0, dsz, mtu, &buf);
+	rc = tipc_msg_build(mhdr, iov, 0, dsz, mtu, &buf);
 	if (unlikely(rc < 0))
 		return rc;
 
@@ -821,12 +821,12 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 new_mtu:
 	mtu = tipc_node_get_mtu(dnode, tsk->port.ref);
-	rc = tipc_msg_build2(mhdr, iov, 0, dsz, mtu, &buf);
+	rc = tipc_msg_build(mhdr, iov, 0, dsz, mtu, &buf);
 	if (rc < 0)
 		goto exit;
 
 	do {
-		rc = tipc_link_xmit2(buf, dnode, tsk->port.ref);
+		rc = tipc_link_xmit(buf, dnode, tsk->port.ref);
 		if (likely(rc >= 0)) {
 			if (sock->state != SS_READY)
 				sock->state = SS_CONNECTING;
@@ -934,12 +934,12 @@ static int tipc_send_stream(struct kiocb *iocb, struct socket *sock,
 next:
 	mtu = port->max_pkt;
 	send = min_t(uint, dsz - sent, TIPC_MAX_USER_MSG_SIZE);
-	rc = tipc_msg_build2(mhdr, m->msg_iov, sent, send, mtu, &buf);
+	rc = tipc_msg_build(mhdr, m->msg_iov, sent, send, mtu, &buf);
 	if (unlikely(rc < 0))
 		goto exit;
 	do {
 		if (likely(!tipc_sk_conn_cong(tsk))) {
-			rc = tipc_link_xmit2(buf, dnode, ref);
+			rc = tipc_link_xmit(buf, dnode, ref);
 			if (likely(!rc)) {
 				tsk->sent_unacked++;
 				sent += send;
@@ -1571,7 +1571,7 @@ static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *buf)
 	if ((rc < 0) && !tipc_msg_reverse(buf, &onode, -rc))
 		return 0;
 
-	tipc_link_xmit2(buf, onode, 0);
+	tipc_link_xmit(buf, onode, 0);
 
 	return 0;
 }
@@ -1623,7 +1623,7 @@ exit:
 	if ((rc < 0) && !tipc_msg_reverse(buf, &dnode, -rc))
 		return -EHOSTUNREACH;
 
-	tipc_link_xmit2(buf, dnode, 0);
+	tipc_link_xmit(buf, dnode, 0);
 	return (rc < 0) ? -EHOSTUNREACH : 0;
 }
 
@@ -1910,7 +1910,7 @@ restart:
 			}
 			tipc_port_disconnect(port->ref);
 			if (tipc_msg_reverse(buf, &peer, TIPC_CONN_SHUTDOWN))
-				tipc_link_xmit2(buf, peer, 0);
+				tipc_link_xmit(buf, peer, 0);
 		} else {
 			tipc_port_shutdown(port->ref);
 		}

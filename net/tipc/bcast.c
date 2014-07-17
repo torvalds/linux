@@ -389,13 +389,13 @@ static void bclink_peek_nack(struct tipc_msg *msg)
 	tipc_node_unlock(n_ptr);
 }
 
-/* tipc_bclink_xmit2 - broadcast buffer chain to all nodes in cluster
- *                     and to identified node local sockets
+/* tipc_bclink_xmit - broadcast buffer chain to all nodes in cluster
+ *                    and to identified node local sockets
  * @buf: chain of buffers containing message
  * Consumes the buffer chain, except when returning -ELINKCONG
  * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
  */
-int tipc_bclink_xmit2(struct sk_buff *buf)
+int tipc_bclink_xmit(struct sk_buff *buf)
 {
 	int rc = 0;
 	int bc = 0;

@@ -120,7 +120,7 @@ out_free:
 
 
 /**
- * tipc_msg_build2 - create buffer chain containing specified header and data
+ * tipc_msg_build - create buffer chain containing specified header and data
  * @mhdr: Message header, to be prepended to data
  * @iov: User data
  * @offset: Posision in iov to start copying from
@@ -129,8 +129,8 @@ out_free:
  * @chain: Buffer or chain of buffers to be returned to caller
  * Returns message data size or errno: -ENOMEM, -EFAULT
  */
-int tipc_msg_build2(struct tipc_msg *mhdr, struct iovec const *iov,
-		    int offset, int dsz, int pktmax , struct sk_buff **chain)
+int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
+		   int offset, int dsz, int pktmax , struct sk_buff **chain)
 {
 	int mhsz = msg_hdr_sz(mhdr);
 	int msz = mhsz + dsz;

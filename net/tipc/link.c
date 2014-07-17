@@ -706,7 +706,7 @@ static int tipc_link_cong(struct tipc_link *link, struct sk_buff *buf)
 }
 
 /**
- * __tipc_link_xmit2(): same as tipc_link_xmit2, but destlink is known & locked
+ * __tipc_link_xmit(): same as tipc_link_xmit, but destlink is known & locked
  * @link: link to use
  * @buf: chain of buffers containing message
  * Consumes the buffer chain, except when returning -ELINKCONG
@@ -715,7 +715,7 @@ static int tipc_link_cong(struct tipc_link *link, struct sk_buff *buf)
  * Only the socket functions tipc_send_stream() and tipc_send_packet() need
  * to act on the return value, since they may need to do more send attempts.
  */
-int __tipc_link_xmit2(struct tipc_link *link, struct sk_buff *buf)
+int __tipc_link_xmit(struct tipc_link *link, struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
 	uint psz = msg_size(msg);
@@ -783,7 +783,7 @@ int __tipc_link_xmit2(struct tipc_link *link, struct sk_buff *buf)
 }
 
 /**
- * tipc_link_xmit2() is the general link level function for message sending
+ * tipc_link_xmit() is the general link level function for message sending
  * @buf: chain of buffers containing message
  * @dsz: amount of user data to be sent
  * @dnode: address of destination node
@@ -791,7 +791,7 @@ int __tipc_link_xmit2(struct tipc_link *link, struct sk_buff *buf)
  * Consumes the buffer chain, except when returning -ELINKCONG
  * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
  */
-int tipc_link_xmit2(struct sk_buff *buf, u32 dnode, u32 selector)
+int tipc_link_xmit(struct sk_buff *buf, u32 dnode, u32 selector)
 {
 	struct tipc_link *link = NULL;
 	struct tipc_node *node;
@@ -802,7 +802,7 @@ int tipc_link_xmit2(struct sk_buff *buf, u32 dnode, u32 selector)
 		tipc_node_lock(node);
 		link = node->active_links[selector & 1];
 		if (link)
-			rc = __tipc_link_xmit2(link, buf);
+			rc = __tipc_link_xmit(link, buf);
 		tipc_node_unlock(node);
 	}
 
@@ -836,7 +836,7 @@ static void tipc_link_sync_xmit(struct tipc_link *link)
 	msg = buf_msg(buf);
 	tipc_msg_init(msg, BCAST_PROTOCOL, STATE_MSG, INT_H_SIZE, link->addr);
 	msg_set_last_bcast(msg, link->owner->bclink.acked);
-	__tipc_link_xmit2(link, buf);
+	__tipc_link_xmit(link, buf);
 }
 
 /*
@@ -1683,7 +1683,7 @@ static void tipc_link_tunnel_xmit(struct tipc_link *l_ptr,
 	}
 	skb_copy_to_linear_data(buf, tunnel_hdr, INT_H_SIZE);
 	skb_copy_to_linear_data_offset(buf, INT_H_SIZE, msg, length);
-	__tipc_link_xmit2(tunnel, buf);
+	__tipc_link_xmit(tunnel, buf);
 }
 
 
@@ -1716,7 +1716,7 @@ void tipc_link_failover_send_queue(struct tipc_link *l_ptr)
 		if (buf) {
 			skb_copy_to_linear_data(buf, &tunnel_hdr, INT_H_SIZE);
 			msg_set_size(&tunnel_hdr, INT_H_SIZE);
-			__tipc_link_xmit2(tunnel, buf);
+			__tipc_link_xmit(tunnel, buf);
 		} else {
 			pr_warn("%sunable to send changeover msg\n",
 				link_co_err);
@@ -1789,7 +1789,7 @@ void tipc_link_dup_queue_xmit(struct tipc_link *l_ptr,
 		skb_copy_to_linear_data(outbuf, &tunnel_hdr, INT_H_SIZE);
 		skb_copy_to_linear_data_offset(outbuf, INT_H_SIZE, iter->data,
 					       length);
-		__tipc_link_xmit2(tunnel, outbuf);
+		__tipc_link_xmit(tunnel, outbuf);
 		if (!tipc_link_is_up(l_ptr))
 			return;
 		iter = iter->next;

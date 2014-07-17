@@ -130,7 +130,7 @@ void tipc_port_destroy(struct tipc_port *p_ptr)
 		tipc_nodesub_unsubscribe(&p_ptr->subscription);
 		msg = buf_msg(buf);
 		peer = msg_destnode(msg);
-		tipc_link_xmit2(buf, peer, msg_link_selector(msg));
+		tipc_link_xmit(buf, peer, msg_link_selector(msg));
 	}
 	spin_lock_bh(&tipc_port_list_lock);
 	list_del(&p_ptr->port_list);
@@ -187,7 +187,7 @@ static void port_timeout(unsigned long ref)
 	}
 	tipc_port_unlock(p_ptr);
 	msg = buf_msg(buf);
-	tipc_link_xmit2(buf, msg_destnode(msg),	msg_link_selector(msg));
+	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 }
 
 
@@ -202,7 +202,7 @@ static void port_handle_node_down(unsigned long ref)
 	buf = port_build_self_abort_msg(p_ptr, TIPC_ERR_NO_NODE);
 	tipc_port_unlock(p_ptr);
 	msg = buf_msg(buf);
-	tipc_link_xmit2(buf, msg_destnode(msg),	msg_link_selector(msg));
+	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 }
 
 
@@ -347,7 +347,7 @@ void tipc_acknowledge(u32 ref, u32 ack)
 	if (!buf)
 		return;
 	msg = buf_msg(buf);
-	tipc_link_xmit2(buf, msg_destnode(msg),	msg_link_selector(msg));
+	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 }
 
 int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
@@ -509,6 +509,6 @@ int tipc_port_shutdown(u32 ref)
 	buf = port_build_peer_abort_msg(p_ptr, TIPC_CONN_SHUTDOWN);
 	tipc_port_unlock(p_ptr);
 	msg = buf_msg(buf);
-	tipc_link_xmit2(buf, msg_destnode(msg),	msg_link_selector(msg));
+	tipc_link_xmit(buf, msg_destnode(msg),	msg_link_selector(msg));
 	return tipc_port_disconnect(ref);
 }
