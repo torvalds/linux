@@ -266,13 +266,8 @@ static void kvmppc_core_dequeue_watchdog(struct kvm_vcpu *vcpu)
 
 static void set_guest_srr(struct kvm_vcpu *vcpu, unsigned long srr0, u32 srr1)
 {
-#ifdef CONFIG_KVM_BOOKE_HV
-	mtspr(SPRN_GSRR0, srr0);
-	mtspr(SPRN_GSRR1, srr1);
-#else
-	vcpu->arch.shared->srr0 = srr0;
-	vcpu->arch.shared->srr1 = srr1;
-#endif
+	kvmppc_set_srr0(vcpu, srr0);
+	kvmppc_set_srr1(vcpu, srr1);
 }
 
 static void set_guest_csrr(struct kvm_vcpu *vcpu, unsigned long srr0, u32 srr1)
@@ -1265,8 +1260,8 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->lr = vcpu->arch.lr;
 	regs->xer = kvmppc_get_xer(vcpu);
 	regs->msr = vcpu->arch.shared->msr;
-	regs->srr0 = vcpu->arch.shared->srr0;
-	regs->srr1 = vcpu->arch.shared->srr1;
+	regs->srr0 = kvmppc_get_srr0(vcpu);
+	regs->srr1 = kvmppc_get_srr1(vcpu);
 	regs->pid = vcpu->arch.pid;
 	regs->sprg0 = vcpu->arch.shared->sprg0;
 	regs->sprg1 = vcpu->arch.shared->sprg1;
@@ -1293,8 +1288,8 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.lr = regs->lr;
 	kvmppc_set_xer(vcpu, regs->xer);
 	kvmppc_set_msr(vcpu, regs->msr);
-	vcpu->arch.shared->srr0 = regs->srr0;
-	vcpu->arch.shared->srr1 = regs->srr1;
+	kvmppc_set_srr0(vcpu, regs->srr0);
+	kvmppc_set_srr1(vcpu, regs->srr1);
 	kvmppc_set_pid(vcpu, regs->pid);
 	vcpu->arch.shared->sprg0 = regs->sprg0;
 	vcpu->arch.shared->sprg1 = regs->sprg1;
