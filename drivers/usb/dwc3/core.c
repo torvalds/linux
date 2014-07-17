@@ -186,10 +186,8 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 
 	dwc->ev_buffs = devm_kzalloc(dwc->dev, sizeof(*dwc->ev_buffs) * num,
 			GFP_KERNEL);
-	if (!dwc->ev_buffs) {
-		dev_err(dwc->dev, "can't allocate event buffers array\n");
+	if (!dwc->ev_buffs)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < num; i++) {
 		struct dwc3_event_buffer	*evt;
@@ -639,10 +637,9 @@ static int dwc3_probe(struct platform_device *pdev)
 	void			*mem;
 
 	mem = devm_kzalloc(dev, sizeof(*dwc) + DWC3_ALIGN_MASK, GFP_KERNEL);
-	if (!mem) {
-		dev_err(dev, "not enough memory\n");
+	if (!mem)
 		return -ENOMEM;
-	}
+
 	dwc = PTR_ALIGN(mem, DWC3_ALIGN_MASK + 1);
 	dwc->mem = mem;
 	dwc->dev = dev;
