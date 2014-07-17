@@ -547,6 +547,7 @@ enum {
 	HCI_CONN_SECURE,
 	HCI_CONN_FIPS,
 	HCI_CONN_STK_ENCRYPT,
+	HCI_CONN_AUTH_INITIATOR,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)

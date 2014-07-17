@@ -1645,6 +1645,8 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->flags)) {
 		struct hci_cp_auth_requested auth_cp;
 
+		set_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags);
+
 		auth_cp.handle = __cpu_to_le16(conn->handle);
 		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
 			     sizeof(auth_cp), &auth_cp);
@@ -2387,6 +2389,9 @@ check_auth:
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->flags)) {
 		struct hci_cp_auth_requested cp;
+
+		set_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags);
+
 		cp.handle = __cpu_to_le16(conn->handle);
 		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
 	}

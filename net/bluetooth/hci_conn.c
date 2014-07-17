@@ -1027,6 +1027,9 @@ auth:
 	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
 		return 0;
 
+	if (initiator)
+		set_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags);
+
 	if (!hci_conn_auth(conn, sec_level, auth_type))
 		return 0;
 
