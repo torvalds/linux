@@ -531,24 +531,26 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 
 static enum scan_mode labpc_ai_scan_mode(const struct comedi_cmd *cmd)
 {
+	unsigned int chan0;
+	unsigned int chan1;
+
 	if (cmd->chanlist_len == 1)
 		return MODE_SINGLE_CHAN;
 
-	/* chanlist may be NULL during cmdtest. */
+	/* chanlist may be NULL during cmdtest */
 	if (cmd->chanlist == NULL)
 		return MODE_MULT_CHAN_UP;
 
-	if (CR_CHAN(cmd->chanlist[0]) == CR_CHAN(cmd->chanlist[1]))
-		return MODE_SINGLE_CHAN_INTERVAL;
+	chan0 = CR_CHAN(cmd->chanlist[0]);
+	chan1 = CR_CHAN(cmd->chanlist[1]);
 
-	if (CR_CHAN(cmd->chanlist[0]) < CR_CHAN(cmd->chanlist[1]))
+	if (chan0 < chan1)
 		return MODE_MULT_CHAN_UP;
 
-	if (CR_CHAN(cmd->chanlist[0]) > CR_CHAN(cmd->chanlist[1]))
+	if (chan0 > chan1)
 		return MODE_MULT_CHAN_DOWN;
 
-	pr_err("ni_labpc: bug! cannot determine AI scan mode\n");
-	return 0;
+	return MODE_SINGLE_CHAN_INTERVAL;
 }
 
 static int labpc_ai_check_chanlist(struct comedi_device *dev,
