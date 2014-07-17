@@ -893,8 +893,6 @@ void SetBcnCtrlReg23a(struct rtw_adapter *padapter, u8 SetBits, u8 ClearBits)
 
 void rtl8723a_InitBeaconParameters(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-
 	rtl8723au_write16(padapter, REG_BCN_CTRL, 0x1010);
 
 	/*  TODO: Remove these magic number */
