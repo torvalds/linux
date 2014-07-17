@@ -252,7 +252,7 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 	 * 0xFF's is always returned from PCI config space.
 	 */
 	if (!(pe->type & EEH_PE_PHB)) {
-		if (eeh_has_flag(EEH_PROBE_MODE_DEVTREE))
+		if (eeh_has_flag(EEH_ENABLE_IO_FOR_LOG))
 			eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
 		eeh_ops->configure_bridge(pe);
 		eeh_pe_restore_bars(pe);

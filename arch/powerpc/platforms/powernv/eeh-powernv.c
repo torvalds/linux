@@ -45,6 +45,9 @@
  */
 static int powernv_eeh_init(void)
 {
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+
 	/* We require OPALv3 */
 	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
 		pr_warning("%s: OPALv3 is required !\n", __func__);
@@ -53,6 +56,19 @@ static int powernv_eeh_init(void)
 
 	/* Set probe mode */
 	eeh_add_flag(EEH_PROBE_MODE_DEV);
+
+	/*
+	 * P7IOC blocks PCI config access to frozen PE, but PHB3
+	 * doesn't do that. So we have to selectively enable I/O
+	 * prior to collecting error log.
+	 */
+	list_for_each_entry(hose, &hose_list, list_node) {
+		phb = hose->private_data;
+
+		if (phb->model == PNV_PHB_MODEL_P7IOC)
+			eeh_add_flag(EEH_ENABLE_IO_FOR_LOG);
+		break;
+	}
 
 	return 0;
 }

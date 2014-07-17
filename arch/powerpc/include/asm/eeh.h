@@ -34,10 +34,11 @@ struct device_node;
 #ifdef CONFIG_EEH
 
 /* EEH subsystem flags */
-#define EEH_ENABLED		0x1	/* EEH enabled		*/
-#define EEH_FORCE_DISABLED	0x2	/* EEH disabled		*/
-#define EEH_PROBE_MODE_DEV	0x4	/* From PCI device	*/
-#define EEH_PROBE_MODE_DEVTREE	0x8	/* From device tree	*/
+#define EEH_ENABLED		0x01	/* EEH enabled		*/
+#define EEH_FORCE_DISABLED	0x02	/* EEH disabled		*/
+#define EEH_PROBE_MODE_DEV	0x04	/* From PCI device	*/
+#define EEH_PROBE_MODE_DEVTREE	0x08	/* From device tree	*/
+#define EEH_ENABLE_IO_FOR_LOG	0x10	/* Enable IO for log	*/
 
 /*
  * Delay for PE reset, all in ms

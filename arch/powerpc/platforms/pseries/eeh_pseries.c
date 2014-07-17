@@ -128,7 +128,7 @@ static int pseries_eeh_init(void)
 	}
 
 	/* Set EEH probe mode */
-	eeh_add_flag(EEH_PROBE_MODE_DEVTREE);
+	eeh_add_flag(EEH_PROBE_MODE_DEVTREE | EEH_ENABLE_IO_FOR_LOG);
 
 	return 0;
 }
