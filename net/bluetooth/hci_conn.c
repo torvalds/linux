@@ -973,7 +973,8 @@ static void hci_conn_encrypt(struct hci_conn *conn)
 }
 
 /* Enable security */
-int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
+int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type,
+		      bool initiator)
 {
 	BT_DBG("hcon %p", conn);
 

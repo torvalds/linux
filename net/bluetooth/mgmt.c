@@ -3202,7 +3202,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	cmd->user_data = conn;
 
 	if (conn->state == BT_CONNECTED &&
-	    hci_conn_security(conn, sec_level, auth_type))
+	    hci_conn_security(conn, sec_level, auth_type, true))
 		pairing_complete(cmd, 0);
 
 	err = 0;
