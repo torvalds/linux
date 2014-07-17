@@ -6,6 +6,7 @@ config SND_DAVINCI_SOC_I2S
 	tristate
 
 config SND_DAVINCI_SOC_MCASP
+	depends on SND_DAVINCI_SOC || SND_OMAP_SOC
 	tristate
 
 config SND_DAVINCI_SOC_VCIF
