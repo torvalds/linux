@@ -420,7 +420,7 @@ static int check_channel_list(struct comedi_device *dev,
 
 	/*  Check that we at least have one channel to check */
 	if (n_chan < 1) {
-		comedi_error(dev, "range/channel list is empty!");
+		dev_err(dev->class_dev, "range/channel list is empty!\n");
 		return 0;
 	}
 	/*  Check all channels */
@@ -428,14 +428,14 @@ static int check_channel_list(struct comedi_device *dev,
 		/*  Check that channel number is < maximum */
 		if (CR_AREF(chanlist[i]) == AREF_DIFF) {
 			if (CR_CHAN(chanlist[i]) > (s->nchan / 2)) {
-				comedi_error(dev,
-					     "Incorrect differential ai ch-nr");
+				dev_err(dev->class_dev,
+					"Incorrect differential ai ch-nr\n");
 				return 0;
 			}
 		} else {
 			if (CR_CHAN(chanlist[i]) > s->n_chan) {
-				comedi_error(dev,
-					     "Incorrect ai channel number");
+				dev_err(dev->class_dev,
+					"Incorrect ai channel number\n");
 				return 0;
 			}
 		}
