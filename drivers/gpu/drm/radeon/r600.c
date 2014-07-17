@@ -1338,7 +1338,7 @@ int r600_vram_scratch_init(struct radeon_device *rdev)
 	if (rdev->vram_scratch.robj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE,
 				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				     NULL, &rdev->vram_scratch.robj);
+				     0, NULL, &rdev->vram_scratch.robj);
 		if (r) {
 			return r;
 		}
@@ -3226,7 +3226,7 @@ int r600_ih_ring_alloc(struct radeon_device *rdev)
 	if (rdev->ih.ring_obj == NULL) {
 		r = radeon_bo_create(rdev, rdev->ih.ring_size,
 				     PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_GTT,
+				     RADEON_GEM_DOMAIN_GTT, 0,
 				     NULL, &rdev->ih.ring_obj);
 		if (r) {
 			DRM_ERROR("radeon: failed to create ih ring buffer (%d).\n", r);

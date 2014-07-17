@@ -204,7 +204,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	r = radeon_sa_bo_manager_init(rdev, &rdev->ring_tmp_bo,
 				      RADEON_IB_POOL_SIZE*64*1024,
 				      RADEON_GPU_PAGE_SIZE,
-				      RADEON_GEM_DOMAIN_GTT);
+				      RADEON_GEM_DOMAIN_GTT, 0);
 	if (r) {
 		return r;
 	}
@@ -640,7 +640,7 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = radeon_bo_create(rdev, ring->ring_size, PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_GTT,
+				     RADEON_GEM_DOMAIN_GTT, 0,
 				     NULL, &ring->ring_obj);
 		if (r) {
 			dev_err(rdev->dev, "(%d) ring create failed\n", r);

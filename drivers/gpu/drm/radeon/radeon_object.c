@@ -114,15 +114,23 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 		rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 					TTM_PL_FLAG_VRAM;
 	if (domain & RADEON_GEM_DOMAIN_GTT) {
-		if (rbo->rdev->flags & RADEON_IS_AGP) {
-			rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT;
+		if (rbo->flags & RADEON_GEM_GTT_UC) {
+			rbo->placements[c++] = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_TT;
+		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
+			   (rbo->rdev->flags & RADEON_IS_AGP)) {
+			rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
+				TTM_PL_FLAG_TT;
 		} else {
 			rbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_TT;
 		}
 	}
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
-		if (rbo->rdev->flags & RADEON_IS_AGP) {
-			rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_SYSTEM;
+		if (rbo->flags & RADEON_GEM_GTT_UC) {
+			rbo->placements[c++] = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_SYSTEM;
+		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
+		    rbo->rdev->flags & RADEON_IS_AGP) {
+			rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
+				TTM_PL_FLAG_SYSTEM;
 		} else {
 			rbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM;
 		}
@@ -146,7 +154,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 
 int radeon_bo_create(struct radeon_device *rdev,
 		     unsigned long size, int byte_align, bool kernel, u32 domain,
-		     struct sg_table *sg, struct radeon_bo **bo_ptr)
+		     u32 flags, struct sg_table *sg, struct radeon_bo **bo_ptr)
 {
 	struct radeon_bo *bo;
 	enum ttm_bo_type type;
@@ -183,6 +191,12 @@ int radeon_bo_create(struct radeon_device *rdev,
 	bo->initial_domain = domain & (RADEON_GEM_DOMAIN_VRAM |
 	                               RADEON_GEM_DOMAIN_GTT |
 	                               RADEON_GEM_DOMAIN_CPU);
+
+	bo->flags = flags;
+	/* PCI GART is always snooped */
+	if (!(rdev->flags & RADEON_IS_PCIE))
+		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
+
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
 	down_read(&rdev->pm.mclk_lock);
