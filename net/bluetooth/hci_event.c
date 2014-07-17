@@ -3118,10 +3118,11 @@ static void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_conn_drop(conn);
 	}
 
-	if (!test_bit(HCI_PAIRABLE, &hdev->dev_flags))
+	if (!test_bit(HCI_PAIRABLE, &hdev->dev_flags) &&
+	    !test_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags)) {
 		hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 			     sizeof(ev->bdaddr), &ev->bdaddr);
-	else if (test_bit(HCI_MGMT, &hdev->dev_flags)) {
+	} else if (test_bit(HCI_MGMT, &hdev->dev_flags)) {
 		u8 secure;
 
 		if (conn->pending_sec_level == BT_SECURITY_HIGH)
@@ -3647,7 +3648,11 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto unlock;
 
+	/* Allow pairing if we're pairable, the initiators of the
+	 * pairing or if the remote is not requesting bonding.
+	 */
 	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags) ||
+	    test_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags) ||
 	    (conn->remote_auth & ~0x01) == HCI_AT_NO_BONDING) {
 		struct hci_cp_io_capability_reply cp;
 
