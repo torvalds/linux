@@ -2,7 +2,7 @@
 #include "rk312x.dtsi"
 
 / {
-	compatible = "rockchip,rk312x";
+	compatible = "rockchip,rk3126";
 
 	memory {
 		device_type = "memory";

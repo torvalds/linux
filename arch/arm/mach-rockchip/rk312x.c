@@ -48,8 +48,13 @@
 		.type		= MT_DEVICE, \
 	}
 
-static const char * const rk312x_dt_compat[] __initconst = {
-	"rockchip,rk312x",
+static const char * const rk3126_dt_compat[] __initconst = {
+	"rockchip,rk3126",
+	NULL,
+};
+
+static const char * const rk3128_dt_compat[] __initconst = {
+	"rockchip,rk3128",
 	NULL,
 };
 
@@ -77,6 +82,20 @@ static void __init rk312x_dt_map_io(void)
 	dsb();
 }
 
+static void __init rk3126_dt_map_io(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RK3126;
+
+	rk312x_dt_map_io();
+}
+
+static void __init rk3128_dt_map_io(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RK3128;
+
+	rk312x_dt_map_io();
+}
+
 static void __init rk312x_dt_init_timer(void)
 {
 	clocksource_of_init();
@@ -94,13 +113,22 @@ static void rk312x_restart(char mode, const char *cmd)
 {
 }
 
-DT_MACHINE_START(RK312X_DT, "Rockchip RK312X")
+DT_MACHINE_START(RK3126_DT, "Rockchip RK3126")
 	.smp		= smp_ops(rockchip_smp_ops),
-	.map_io		= rk312x_dt_map_io,
+	.map_io		= rk3126_dt_map_io,
 	.init_time	= rk312x_dt_init_timer,
-	.dt_compat	= rk312x_dt_compat,
+	.dt_compat	= rk3126_dt_compat,
 	.init_late	= rk312x_init_late,
 	.reserve	= rk312x_reserve,
 	.restart	= rk312x_restart,
 MACHINE_END
 
+DT_MACHINE_START(RK3128_DT, "Rockchip RK3128")
+	.smp		= smp_ops(rockchip_smp_ops),
+	.map_io		= rk3128_dt_map_io,
+	.init_time	= rk312x_dt_init_timer,
+	.dt_compat	= rk3128_dt_compat,
+	.init_late	= rk312x_init_late,
+	.reserve	= rk312x_reserve,
+	.restart	= rk312x_restart,
+MACHINE_END
