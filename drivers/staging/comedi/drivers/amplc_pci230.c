@@ -1167,7 +1167,7 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 		if (ret == 0) {
 			s->async->events |= COMEDI_CB_OVERFLOW;
 			pci230_ao_stop(dev, s);
-			comedi_error(dev, "AO buffer underrun");
+			dev_err(dev->class_dev, "AO buffer underrun\n");
 			return;
 		}
 		/* Write value to DAC. */
@@ -1215,7 +1215,7 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 	if (events == 0) {
 		/* Check for FIFO underrun. */
 		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
-			comedi_error(dev, "AO FIFO underrun");
+			dev_err(dev->class_dev, "AO FIFO underrun\n");
 			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 		}
 		/* Check for buffer underrun if FIFO less than half full
@@ -1223,7 +1223,7 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 		 * interrupts). */
 		if ((num_scans == 0)
 		    && ((dacstat & PCI230P2_DAC_FIFO_HALF) == 0)) {
-			comedi_error(dev, "AO buffer underrun");
+			dev_err(dev->class_dev, "AO buffer underrun\n");
 			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 		}
 	}
@@ -1270,7 +1270,7 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 		/* Check if FIFO underrun occurred while writing to FIFO. */
 		dacstat = inw(dev->iobase + PCI230_DACCON);
 		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
-			comedi_error(dev, "AO FIFO underrun");
+			dev_err(dev->class_dev, "AO FIFO underrun\n");
 			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 		}
 	}
@@ -2181,7 +2181,7 @@ static void pci230_handle_ai(struct comedi_device *dev,
 			if ((status_fifo & PCI230_ADC_FIFO_FULL_LATCHED) != 0) {
 				/* Report error otherwise FIFO overruns will go
 				 * unnoticed by the caller. */
-				comedi_error(dev, "AI FIFO overrun");
+				dev_err(dev->class_dev, "AI FIFO overrun\n");
 				events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 				break;
 			} else if ((status_fifo & PCI230_ADC_FIFO_EMPTY) != 0) {
@@ -2208,7 +2208,7 @@ static void pci230_handle_ai(struct comedi_device *dev,
 		/* Read sample and store in Comedi's circular buffer. */
 		if (comedi_buf_put(s, pci230_ai_read(dev)) == 0) {
 			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-			comedi_error(dev, "AI buffer overflow");
+			dev_err(dev->class_dev, "AI buffer overflow\n");
 			break;
 		}
 		fifoamount--;
