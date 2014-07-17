@@ -111,12 +111,22 @@ struct kvm_guest_debug_arch {
 #define KVM_SYNC_GPRS   (1UL << 1)
 #define KVM_SYNC_ACRS   (1UL << 2)
 #define KVM_SYNC_CRS    (1UL << 3)
+#define KVM_SYNC_ARCH0  (1UL << 4)
+#define KVM_SYNC_PFAULT (1UL << 5)
 /* definition of registers in kvm_run */
 struct kvm_sync_regs {
 	__u64 prefix;	/* prefix register */
 	__u64 gprs[16];	/* general purpose registers */
 	__u32 acrs[16];	/* access registers */
 	__u64 crs[16];	/* control registers */
+	__u64 todpr;	/* tod programmable register [ARCH0] */
+	__u64 cputm;	/* cpu timer [ARCH0] */
+	__u64 ckc;	/* clock comparator [ARCH0] */
+	__u64 pp;	/* program parameter [ARCH0] */
+	__u64 gbea;	/* guest breaking-event address [ARCH0] */
+	__u64 pft;	/* pfault token [PFAULT] */
+	__u64 pfs;	/* pfault select [PFAULT] */
+	__u64 pfc;	/* pfault compare [PFAULT] */
 };
 
 #define KVM_REG_S390_TODPR	(KVM_REG_S390 | KVM_REG_SIZE_U32 | 0x1)
