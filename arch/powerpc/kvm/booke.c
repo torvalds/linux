@@ -292,24 +292,6 @@ static void set_guest_mcsrr(struct kvm_vcpu *vcpu, unsigned long srr0, u32 srr1)
 	vcpu->arch.mcsrr1 = srr1;
 }
 
-static unsigned long get_guest_esr(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_KVM_BOOKE_HV
-	return mfspr(SPRN_GESR);
-#else
-	return vcpu->arch.shared->esr;
-#endif
-}
-
-static void set_guest_esr(struct kvm_vcpu *vcpu, u32 esr)
-{
-#ifdef CONFIG_KVM_BOOKE_HV
-	mtspr(SPRN_GESR, esr);
-#else
-	vcpu->arch.shared->esr = esr;
-#endif
-}
-
 static unsigned long get_guest_epr(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_KVM_BOOKE_HV
@@ -427,7 +409,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 
 		vcpu->arch.pc = vcpu->arch.ivpr | vcpu->arch.ivor[priority];
 		if (update_esr == true)
-			set_guest_esr(vcpu, vcpu->arch.queued_esr);
+			kvmppc_set_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
 			kvmppc_set_dar(vcpu, vcpu->arch.queued_dear);
 		if (update_epr == true) {
@@ -1298,7 +1280,7 @@ static void get_sregs_base(struct kvm_vcpu *vcpu,
 	sregs->u.e.csrr0 = vcpu->arch.csrr0;
 	sregs->u.e.csrr1 = vcpu->arch.csrr1;
 	sregs->u.e.mcsr = vcpu->arch.mcsr;
-	sregs->u.e.esr = get_guest_esr(vcpu);
+	sregs->u.e.esr = kvmppc_get_esr(vcpu);
 	sregs->u.e.dear = kvmppc_get_dar(vcpu);
 	sregs->u.e.tsr = vcpu->arch.tsr;
 	sregs->u.e.tcr = vcpu->arch.tcr;
@@ -1316,7 +1298,7 @@ static int set_sregs_base(struct kvm_vcpu *vcpu,
 	vcpu->arch.csrr0 = sregs->u.e.csrr0;
 	vcpu->arch.csrr1 = sregs->u.e.csrr1;
 	vcpu->arch.mcsr = sregs->u.e.mcsr;
-	set_guest_esr(vcpu, sregs->u.e.esr);
+	kvmppc_set_esr(vcpu, sregs->u.e.esr);
 	kvmppc_set_dar(vcpu, sregs->u.e.dear);
 	vcpu->arch.vrsave = sregs->u.e.vrsave;
 	kvmppc_set_tcr(vcpu, sregs->u.e.tcr);
