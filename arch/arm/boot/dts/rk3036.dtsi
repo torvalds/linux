@@ -568,23 +568,23 @@
         vpu: vpu_service@10108000 {
 		compatible = "vpu_service";
 		reg = <0x10108000 0x800>;
-		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "irq_enc", "irq_dec";
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
 		clocks = <&aclk_vcodec_pre>, <&clk_gates3 12>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		name = "vpu_service";
-		status = "disabled";
+		status = "okay";
 	};
 
 	hevc: hevc_service@1010c000 {
 		compatible = "rockchip,hevc_service";
-		reg = <0x1010c000 0x800>;
+		reg = <0x1010c000 0x400>;
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
 		clocks = <&aclk_vcodec_pre>, <&clk_gates3 12>, <&clk_hevc_core>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
 		name = "hevc_service";
-		status = "disabled";
+		status = "okay";
         };
 	
 	vop_mmu {
