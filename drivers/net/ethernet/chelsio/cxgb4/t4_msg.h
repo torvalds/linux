@@ -276,6 +276,7 @@ struct cpl_pass_accept_rpl {
 #define WND_SCALE_EN(x)      ((x) << 28)
 #define TSTAMPS_EN(x)        ((x) << 29)
 #define SACK_EN(x)           ((x) << 30)
+#define T5_OPT_2_VALID	     ((1U) << 31)
 	__be64 opt0;
 };
 
