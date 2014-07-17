@@ -353,12 +353,12 @@ static int __init ssi_add_controller(struct hsi_controller *ssi,
 	err = ssi_get_iomem(pd, "gdd", &omap_ssi->gdd, NULL);
 	if (err < 0)
 		goto out_err;
-	omap_ssi->gdd_irq = platform_get_irq_byname(pd, "gdd_mpu");
-	if (omap_ssi->gdd_irq < 0) {
+	err = platform_get_irq_byname(pd, "gdd_mpu");
+	if (err < 0) {
 		dev_err(&pd->dev, "GDD IRQ resource missing\n");
-		err = omap_ssi->gdd_irq;
 		goto out_err;
 	}
+	omap_ssi->gdd_irq = err;
 	tasklet_init(&omap_ssi->gdd_tasklet, ssi_gdd_tasklet,
 							(unsigned long)ssi);
 	err = devm_request_irq(&ssi->device, omap_ssi->gdd_irq, ssi_gdd_isr,

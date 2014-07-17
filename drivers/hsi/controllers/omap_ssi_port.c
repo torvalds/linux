@@ -1013,11 +1013,12 @@ static int __init ssi_port_irq(struct hsi_port *port,
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
 	int err;
 
-	omap_port->irq = platform_get_irq(pd, 0);
-	if (omap_port->irq < 0) {
+	err = platform_get_irq(pd, 0);
+	if (err < 0) {
 		dev_err(&port->device, "Port IRQ resource missing\n");
-		return omap_port->irq;
+		return err;
 	}
+	omap_port->irq = err;
 	tasklet_init(&omap_port->pio_tasklet, ssi_pio_tasklet,
 							(unsigned long)port);
 	err = devm_request_irq(&port->device, omap_port->irq, ssi_pio_isr,
