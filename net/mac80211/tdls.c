@@ -836,6 +836,17 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		ret = 0;
 		break;
 	case NL80211_TDLS_DISABLE_LINK:
+		/*
+		 * The teardown message in ieee80211_tdls_mgmt_teardown() was
+		 * created while the queues were stopped, so it might still be
+		 * pending. Before flushing the queues we need to be sure the
+		 * message is handled by the tasklet handling pending messages,
+		 * otherwise we might start destroying the station before
+		 * sending the teardown packet.
+		 * Note that this only forces the tasklet to flush pendings -
+		 * not to stop the tasklet from rescheduling itself.
+		 */
+		tasklet_kill(&local->tx_pending_tasklet);
 		/* flush a potentially queued teardown packet */
 		ieee80211_flush_queues(local, sdata);
 
