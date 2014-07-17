@@ -1213,6 +1213,11 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -ENXIO;
 	}
 
+	if (dev->archdata.iommu) {
+		dev_err(dev, "already attached to IOMMU domain\n");
+		return -EEXIST;
+	}
+
 	/*
 	 * Sanity check the domain. We don't support domains across
 	 * different SMMUs.
@@ -1239,7 +1244,10 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	if (!cfg)
 		return -ENODEV;
 
-	return arm_smmu_domain_add_master(smmu_domain, cfg);
+	ret = arm_smmu_domain_add_master(smmu_domain, cfg);
+	if (!ret)
+		dev->archdata.iommu = domain;
+	return ret;
 }
 
 static void arm_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
@@ -1248,8 +1256,11 @@ static void arm_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
 	struct arm_smmu_master_cfg *cfg;
 
 	cfg = find_smmu_master_cfg(dev);
-	if (cfg)
-		arm_smmu_domain_remove_master(smmu_domain, cfg);
+	if (!cfg)
+		return;
+
+	dev->archdata.iommu = NULL;
+	arm_smmu_domain_remove_master(smmu_domain, cfg);
 }
 
 static bool arm_smmu_pte_is_contiguous_range(unsigned long addr,
