@@ -473,55 +473,6 @@ static void _InitRetryFunction(struct rtw_adapter *Adapter)
 	rtl8723au_write8(Adapter, REG_ACKTO, 0x40);
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	usb_AggSettingTxUpdate()
- *
- * Overview:	Seperate TX/RX parameters update independent for TP
- *		detection and dynamic TX/RX aggreagtion parameters update.
- *
- * Input:			struct rtw_adapter *
- *
- * Output/Return:	NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	12/10/2010	MHC		Seperate to smaller function.
- *
- *---------------------------------------------------------------------------*/
-static void usb_AggSettingTxUpdate(struct rtw_adapter *Adapter)
-{
-}	/*  usb_AggSettingTxUpdate */
-
-/*-----------------------------------------------------------------------------
- * Function:	usb_AggSettingRxUpdate()
- *
- * Overview:	Seperate TX/RX parameters update independent for TP
- *		detection and dynamic TX/RX aggreagtion parameters update.
- *
- * Input:			struct rtw_adapter *
- *
- * Output/Return:	NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	12/10/2010	MHC		Seperate to smaller function.
- *
- *---------------------------------------------------------------------------*/
-static void usb_AggSettingRxUpdate(struct rtw_adapter *Adapter)
-{
-}	/*  usb_AggSettingRxUpdate */
-
-static void InitUsbAggregationSetting(struct rtw_adapter *Adapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-
-	/*  Tx aggregation setting */
-	usb_AggSettingTxUpdate(Adapter);
-
-	/*  Rx aggregation setting */
-	usb_AggSettingRxUpdate(Adapter);
-}
-
 static void _InitOperationMode(struct rtw_adapter *Adapter)
 {
 }
@@ -748,7 +699,6 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	_InitEDCA(Adapter);
 	_InitRateFallback(Adapter);
 	_InitRetryFunction(Adapter);
-	InitUsbAggregationSetting(Adapter);
 	_InitOperationMode(Adapter);/* todo */
 	rtl8723a_InitBeaconParameters(Adapter);
 
