@@ -3434,7 +3434,9 @@ static int be_get_config(struct be_adapter *adapter)
 		if (!status)
 			dev_info(&adapter->pdev->dev,
 				 "Using profile 0x%x\n", profile_id);
+	}
 
+	if (!BE2_chip(adapter) && be_physfn(adapter)) {
 		status = be_get_sriov_config(adapter);
 		if (status)
 			return status;
