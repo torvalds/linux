@@ -895,7 +895,7 @@ static int labpc_drain_fifo(struct comedi_device *dev)
 		devpriv->stat1 = devpriv->read_byte(dev->iobase + STAT1_REG);
 	}
 	if (i == timeout) {
-		comedi_error(dev, "ai timeout, fifo never empties");
+		dev_err(dev->class_dev, "ai timeout, fifo never empties\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		return -1;
 	}
@@ -926,7 +926,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 	struct comedi_cmd *cmd;
 
 	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
+		dev_err(dev->class_dev, "premature interrupt\n");
 		return IRQ_HANDLED;
 	}
 
@@ -950,7 +950,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		devpriv->write_byte(0x1, dev->iobase + ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
-		comedi_error(dev, "overrun");
+		dev_err(dev->class_dev, "overrun\n");
 		return IRQ_HANDLED;
 	}
 
@@ -960,7 +960,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		labpc_drain_fifo(dev);
 
 	if (devpriv->stat1 & STAT1_CNTINT) {
-		comedi_error(dev, "handled timer interrupt?");
+		dev_err(dev->class_dev, "handled timer interrupt?\n");
 		/*  clear it */
 		devpriv->write_byte(0x1, dev->iobase + TIMER_CLEAR_REG);
 	}
@@ -970,7 +970,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		devpriv->write_byte(0x1, dev->iobase + ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
-		comedi_error(dev, "overflow");
+		dev_err(dev->class_dev, "overflow\n");
 		return IRQ_HANDLED;
 	}
 	/*  handle external stop trigger */
@@ -1186,7 +1186,7 @@ static int labpc_eeprom_write(struct comedi_device *dev,
 			break;
 	}
 	if (i == timeout) {
-		comedi_error(dev, "eeprom write timed out");
+		dev_err(dev->class_dev, "eeprom write timed out\n");
 		return -ETIME;
 	}
 	/*  update software copy of eeprom */
