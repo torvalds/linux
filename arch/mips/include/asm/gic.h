@@ -317,8 +317,7 @@ struct gic_intr_map {
 	unsigned int polarity;	/* Polarity : +/-	*/
 	unsigned int trigtype;	/* Trigger  : Edge/Levl */
 	unsigned int flags;	/* Misc flags	*/
-#define GIC_FLAG_IPI	       0x01
-#define GIC_FLAG_TRANSPARENT   0x02
+#define GIC_FLAG_TRANSPARENT   0x01
 };
 
 /*

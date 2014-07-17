@@ -311,9 +311,10 @@ static void __init gic_setup_intr(unsigned int intr, unsigned int cpu,
 
 	/* Init Intr Masks */
 	GIC_CLR_INTR_MASK(intr);
+
 	/* Initialise per-cpu Interrupt software masks */
-	if (flags & GIC_FLAG_IPI)
-		set_bit(intr, pcpu_masks[cpu].pcpu_mask);
+	set_bit(intr, pcpu_masks[cpu].pcpu_mask);
+
 	if ((flags & GIC_FLAG_TRANSPARENT) && (cpu_has_veic == 0))
 		GIC_SET_INTR_MASK(intr);
 	if (trigtype == GIC_TRIG_EDGE)
@@ -351,8 +352,6 @@ static void __init gic_basic_init(int numintrs, int numvpes,
 	for (i = 0; i < mapsize; i++) {
 		cpu = intrmap[i].cpunum;
 		if (cpu == GIC_UNUSED)
-			continue;
-		if (cpu == 0 && i != 0 && intrmap[i].flags == 0)
 			continue;
 		gic_setup_intr(i,
 			intrmap[i].cpunum,
