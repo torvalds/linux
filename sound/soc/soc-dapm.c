@@ -2090,7 +2090,7 @@ static ssize_t dapm_widget_show_codec(struct snd_soc_codec *codec, char *buf)
 	int count = 0;
 	char *state = "not set";
 
-	list_for_each_entry(w, &codec->card->widgets, list) {
+	list_for_each_entry(w, &codec->component.card->widgets, list) {
 		if (w->dapm != &codec->dapm)
 			continue;
 

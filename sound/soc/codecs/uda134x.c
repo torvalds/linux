@@ -479,7 +479,7 @@ static struct snd_soc_dai_driver uda134x_dai = {
 static int uda134x_soc_probe(struct snd_soc_codec *codec)
 {
 	struct uda134x_priv *uda134x;
-	struct uda134x_platform_data *pd = codec->card->dev->platform_data;
+	struct uda134x_platform_data *pd = codec->component.card->dev->platform_data;
 	const struct snd_soc_dapm_widget *widgets;
 	unsigned num_widgets;
 

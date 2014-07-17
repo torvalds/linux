@@ -292,7 +292,7 @@ static struct dentry *soc_debugfs_create_dir(struct dentry *parent,
 
 static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 {
-	struct dentry *debugfs_card_root = codec->card->debugfs_card_root;
+	struct dentry *debugfs_card_root = codec->component.card->debugfs_card_root;
 
 	codec->debugfs_codec_root = soc_debugfs_create_dir(debugfs_card_root,
 						"codec:%s",
@@ -325,7 +325,7 @@ static void soc_cleanup_codec_debugfs(struct snd_soc_codec *codec)
 
 static void soc_init_platform_debugfs(struct snd_soc_platform *platform)
 {
-	struct dentry *debugfs_card_root = platform->card->debugfs_card_root;
+	struct dentry *debugfs_card_root = platform->component.card->debugfs_card_root;
 
 	platform->debugfs_platform_root = soc_debugfs_create_dir(debugfs_card_root,
 						"platform:%s",
@@ -546,11 +546,12 @@ static int soc_ac97_dev_register(struct snd_soc_codec *codec)
 	int err;
 
 	codec->ac97->dev.bus = &ac97_bus_type;
-	codec->ac97->dev.parent = codec->card->dev;
+	codec->ac97->dev.parent = codec->component.card->dev;
 	codec->ac97->dev.release = soc_ac97_device_release;
 
 	dev_set_name(&codec->ac97->dev, "%d-%d:%s",
-		     codec->card->snd_card->number, 0, codec->component.name);
+		     codec->component.card->snd_card->number, 0,
+		     codec->component.name);
 	err = device_register(&codec->ac97->dev);
 	if (err < 0) {
 		dev_err(codec->dev, "ASoC: Can't register ac97 bus\n");
@@ -1179,7 +1180,7 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	const struct snd_soc_codec_driver *driver = codec->driver;
 	struct snd_soc_dai *dai;
 
-	codec->card = card;
+	codec->component.card = card;
 	codec->dapm.card = card;
 	soc_set_name_prefix(card, &codec->component);
 
@@ -1255,7 +1256,7 @@ static int soc_probe_platform(struct snd_soc_card *card,
 	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
 
-	platform->card = card;
+	platform->component.card = card;
 	platform->component.dapm.card = card;
 
 	if (!try_module_get(platform->dev->driver->owner))
@@ -2406,7 +2407,7 @@ EXPORT_SYMBOL_GPL(snd_soc_card_get_kcontrol);
 int snd_soc_add_codec_controls(struct snd_soc_codec *codec,
 	const struct snd_kcontrol_new *controls, int num_controls)
 {
-	struct snd_card *card = codec->card->snd_card;
+	struct snd_card *card = codec->component.card->snd_card;
 
 	return snd_soc_add_controls(card, codec->dev, controls, num_controls,
 			codec->component.name_prefix, &codec->component);
@@ -2426,7 +2427,7 @@ EXPORT_SYMBOL_GPL(snd_soc_add_codec_controls);
 int snd_soc_add_platform_controls(struct snd_soc_platform *platform,
 	const struct snd_kcontrol_new *controls, int num_controls)
 {
-	struct snd_card *card = platform->card->snd_card;
+	struct snd_card *card = platform->component.card->snd_card;
 
 	return snd_soc_add_controls(card, platform->dev, controls, num_controls,
 			NULL, &platform->component);
@@ -3101,7 +3102,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_range);
 int snd_soc_limit_volume(struct snd_soc_codec *codec,
 	const char *name, int max)
 {
-	struct snd_card *card = codec->card->snd_card;
+	struct snd_card *card = codec->component.card->snd_card;
 	struct snd_kcontrol *kctl;
 	struct soc_mixer_control *mc;
 	int found = 0;
