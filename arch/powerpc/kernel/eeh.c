@@ -142,7 +142,7 @@ static struct eeh_stats eeh_stats;
 static int __init eeh_setup(char *str)
 {
 	if (!strcmp(str, "off"))
-		eeh_subsystem_flags |= EEH_FORCE_DISABLED;
+		eeh_add_flag(EEH_FORCE_DISABLED);
 
 	return 1;
 }
@@ -252,7 +252,7 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 	 * 0xFF's is always returned from PCI config space.
 	 */
 	if (!(pe->type & EEH_PE_PHB)) {
-		if (eeh_probe_mode_devtree())
+		if (eeh_has_flag(EEH_PROBE_MODE_DEVTREE))
 			eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
 		eeh_ops->configure_bridge(pe);
 		eeh_pe_restore_bars(pe);
@@ -303,7 +303,7 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	unsigned long flags;
 	int ret;
 
-	if (!eeh_probe_mode_dev())
+	if (!eeh_has_flag(EEH_PROBE_MODE_DEV))
 		return -EPERM;
 
 	/* Find the PHB PE */
@@ -801,7 +801,7 @@ int __exit eeh_ops_unregister(const char *name)
 static int eeh_reboot_notifier(struct notifier_block *nb,
 			       unsigned long action, void *unused)
 {
-	eeh_set_enable(false);
+	eeh_clear_flag(EEH_ENABLED);
 	return NOTIFY_DONE;
 }
 
@@ -865,13 +865,13 @@ int eeh_init(void)
 		return ret;
 
 	/* Enable EEH for all adapters */
-	if (eeh_probe_mode_devtree()) {
+	if (eeh_has_flag(EEH_PROBE_MODE_DEVTREE)) {
 		list_for_each_entry_safe(hose, tmp,
 			&hose_list, list_node) {
 			phb = hose->dn;
 			traverse_pci_devices(phb, eeh_ops->of_probe, NULL);
 		}
-	} else if (eeh_probe_mode_dev()) {
+	} else if (eeh_has_flag(EEH_PROBE_MODE_DEV)) {
 		list_for_each_entry_safe(hose, tmp,
 			&hose_list, list_node)
 			pci_walk_bus(hose->bus, eeh_ops->dev_probe, NULL);
@@ -923,7 +923,7 @@ void eeh_add_device_early(struct device_node *dn)
 	 * would delay the probe until late stage because
 	 * the PCI device isn't available this moment.
 	 */
-	if (!eeh_probe_mode_devtree())
+	if (!eeh_has_flag(EEH_PROBE_MODE_DEVTREE))
 		return;
 
 	if (!of_node_to_eeh_dev(dn))
@@ -1009,7 +1009,7 @@ void eeh_add_device_late(struct pci_dev *dev)
 	 * We have to do the EEH probe here because the PCI device
 	 * hasn't been created yet in the early stage.
 	 */
-	if (eeh_probe_mode_dev())
+	if (eeh_has_flag(EEH_PROBE_MODE_DEV))
 		eeh_ops->dev_probe(dev, NULL);
 
 	eeh_addr_cache_insert_dev(dev);
@@ -1430,9 +1430,9 @@ static const struct file_operations proc_eeh_operations = {
 static int eeh_enable_dbgfs_set(void *data, u64 val)
 {
 	if (val)
-		eeh_subsystem_flags &= ~EEH_FORCE_DISABLED;
+		eeh_clear_flag(EEH_FORCE_DISABLED);
 	else
-		eeh_subsystem_flags |= EEH_FORCE_DISABLED;
+		eeh_add_flag(EEH_FORCE_DISABLED);
 
 	/* Notify the backend */
 	if (eeh_ops->post_init)

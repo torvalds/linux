@@ -206,36 +206,28 @@ extern int eeh_subsystem_flags;
 extern struct eeh_ops *eeh_ops;
 extern raw_spinlock_t confirm_error_lock;
 
-static inline bool eeh_enabled(void)
-{
-	if ((eeh_subsystem_flags & EEH_FORCE_DISABLED) ||
-	    !(eeh_subsystem_flags & EEH_ENABLED))
-		return false;
-
-	return true;
-}
-
-static inline void eeh_set_enable(bool mode)
-{
-	if (mode)
-		eeh_subsystem_flags |= EEH_ENABLED;
-	else
-		eeh_subsystem_flags &= ~EEH_ENABLED;
-}
-
-static inline void eeh_probe_mode_set(int flag)
+static inline void eeh_add_flag(int flag)
 {
 	eeh_subsystem_flags |= flag;
 }
 
-static inline int eeh_probe_mode_devtree(void)
+static inline void eeh_clear_flag(int flag)
 {
-	return (eeh_subsystem_flags & EEH_PROBE_MODE_DEVTREE);
+	eeh_subsystem_flags &= ~flag;
 }
 
-static inline int eeh_probe_mode_dev(void)
+static inline bool eeh_has_flag(int flag)
 {
-	return (eeh_subsystem_flags & EEH_PROBE_MODE_DEV);
+        return !!(eeh_subsystem_flags & flag);
+}
+
+static inline bool eeh_enabled(void)
+{
+	if (eeh_has_flag(EEH_FORCE_DISABLED) ||
+	    !eeh_has_flag(EEH_ENABLED))
+		return false;
+
+	return true;
 }
 
 static inline void eeh_serialize_lock(unsigned long *flags)
@@ -313,8 +305,6 @@ static inline bool eeh_enabled(void)
 {
         return false;
 }
-
-static inline void eeh_set_enable(bool mode) { }
 
 static inline int eeh_init(void)
 {

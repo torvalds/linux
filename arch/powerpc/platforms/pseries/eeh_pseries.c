@@ -128,7 +128,7 @@ static int pseries_eeh_init(void)
 	}
 
 	/* Set EEH probe mode */
-	eeh_probe_mode_set(EEH_PROBE_MODE_DEVTREE);
+	eeh_add_flag(EEH_PROBE_MODE_DEVTREE);
 
 	return 0;
 }
@@ -297,7 +297,7 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 			enable = 1;
 
 		if (enable) {
-			eeh_set_enable(true);
+			eeh_add_flag(EEH_ENABLED);
 			eeh_add_to_parent_pe(edev);
 
 			pr_debug("%s: EEH enabled on %s PHB#%d-PE#%x, config addr#%x\n",

@@ -51,8 +51,8 @@ static int powernv_eeh_init(void)
 		return -EINVAL;
 	}
 
-	/* Set EEH probe mode */
-	eeh_probe_mode_set(EEH_PROBE_MODE_DEV);
+	/* Set probe mode */
+	eeh_add_flag(EEH_PROBE_MODE_DEV);
 
 	return 0;
 }
@@ -164,7 +164,7 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	 * Enable EEH explicitly so that we will do EEH check
 	 * while accessing I/O stuff
 	 */
-	eeh_set_enable(true);
+	eeh_add_flag(EEH_ENABLED);
 
 	/* Save memory bars */
 	eeh_save_bars(edev);
