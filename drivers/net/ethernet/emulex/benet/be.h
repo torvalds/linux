@@ -672,6 +672,8 @@ static inline void swap_dws(void *wrb, int len)
 #endif				/* __BIG_ENDIAN */
 }
 
+#define be_cmd_status(status)		(status > 0 ? -EIO : status)
+
 static inline u8 is_tcp_pkt(struct sk_buff *skb)
 {
 	u8 val = 0;
