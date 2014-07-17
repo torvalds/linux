@@ -6058,23 +6058,23 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = dev->phy.n;
 	int ch = new_channel->hw_value;
-
-	u16 old_band_5ghz;
 	u16 tmp16;
 
-	old_band_5ghz =
-		b43_phy_read(dev, B43_NPHY_BANDCTL) & B43_NPHY_BANDCTL_5GHZ;
-	if (new_channel->band == IEEE80211_BAND_5GHZ && !old_band_5ghz) {
+	if (new_channel->band == IEEE80211_BAND_5GHZ) {
 		tmp16 = b43_read16(dev, B43_MMIO_PSM_PHY_HDR);
 		b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp16 | 4);
-		b43_phy_set(dev, B43_PHY_B_BBCFG, 0xC000);
+		/* Put BPHY in the reset */
+		b43_phy_set(dev, B43_PHY_B_BBCFG,
+			    B43_PHY_B_BBCFG_RSTCCA | B43_PHY_B_BBCFG_RSTRX);
 		b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp16);
 		b43_phy_set(dev, B43_NPHY_BANDCTL, B43_NPHY_BANDCTL_5GHZ);
-	} else if (new_channel->band == IEEE80211_BAND_2GHZ && old_band_5ghz) {
+	} else if (new_channel->band == IEEE80211_BAND_2GHZ) {
 		b43_phy_mask(dev, B43_NPHY_BANDCTL, ~B43_NPHY_BANDCTL_5GHZ);
 		tmp16 = b43_read16(dev, B43_MMIO_PSM_PHY_HDR);
 		b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp16 | 4);
-		b43_phy_mask(dev, B43_PHY_B_BBCFG, 0x3FFF);
+		/* Take BPHY out of the reset */
+		b43_phy_mask(dev, B43_PHY_B_BBCFG,
+			     (u16)~(B43_PHY_B_BBCFG_RSTCCA | B43_PHY_B_BBCFG_RSTRX));
 		b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp16);
 	}
 

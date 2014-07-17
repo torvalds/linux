@@ -869,6 +869,8 @@
 #define B43_NPHY_REV7_RF_CTL_OVER6		B43_PHY_N(0x347)
 
 #define B43_PHY_B_BBCFG				B43_PHY_N_BMODE(0x001) /* BB config */
+#define  B43_PHY_B_BBCFG_RSTCCA			0x4000 /* Reset CCA */
+#define  B43_PHY_B_BBCFG_RSTRX			0x8000 /* Reset RX */
 #define B43_PHY_B_TEST				B43_PHY_N_BMODE(0x00A)
 
 struct b43_wldev;
