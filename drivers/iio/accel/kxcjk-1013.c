@@ -644,6 +644,7 @@ static int kxcjk1013_probe(struct i2c_client *client,
 		iio_trigger_set_drvdata(trig, indio_dev);
 		data->trig = trig;
 		indio_dev->trig = trig;
+		iio_trigger_get(indio_dev->trig);
 
 		ret = iio_trigger_register(trig);
 		if (ret)
