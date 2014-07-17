@@ -3658,7 +3658,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			 * except for the no-bonding case.
 			 */
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
-			    cp.authentication != HCI_AT_NO_BONDING)
+			    conn->auth_type != HCI_AT_NO_BONDING)
 				conn->auth_type |= 0x01;
 
 			cp.authentication = conn->auth_type;
