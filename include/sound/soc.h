@@ -507,10 +507,12 @@ struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 				  const char *prefix);
 struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,
 					       const char *name);
+int snd_soc_add_component_controls(struct snd_soc_component *component,
+	const struct snd_kcontrol_new *controls, unsigned int num_controls);
 int snd_soc_add_codec_controls(struct snd_soc_codec *codec,
-	const struct snd_kcontrol_new *controls, int num_controls);
+	const struct snd_kcontrol_new *controls, unsigned int num_controls);
 int snd_soc_add_platform_controls(struct snd_soc_platform *platform,
-	const struct snd_kcontrol_new *controls, int num_controls);
+	const struct snd_kcontrol_new *controls, unsigned int num_controls);
 int snd_soc_add_card_controls(struct snd_soc_card *soc_card,
 	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_add_dai_controls(struct snd_soc_dai *dai,

@@ -2394,6 +2394,25 @@ struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,
 EXPORT_SYMBOL_GPL(snd_soc_card_get_kcontrol);
 
 /**
+ * snd_soc_add_component_controls - Add an array of controls to a component.
+ *
+ * @component: Component to add controls to
+ * @controls: Array of controls to add
+ * @num_controls: Number of elements in the array
+ *
+ * Return: 0 for success, else error.
+ */
+int snd_soc_add_component_controls(struct snd_soc_component *component,
+	const struct snd_kcontrol_new *controls, unsigned int num_controls)
+{
+	struct snd_card *card = component->card->snd_card;
+
+	return snd_soc_add_controls(card, component->dev, controls,
+			num_controls, component->name_prefix, component);
+}
+EXPORT_SYMBOL_GPL(snd_soc_add_component_controls);
+
+/**
  * snd_soc_add_codec_controls - add an array of controls to a codec.
  * Convenience function to add a list of controls. Many codecs were
  * duplicating this code.
@@ -2405,12 +2424,10 @@ EXPORT_SYMBOL_GPL(snd_soc_card_get_kcontrol);
  * Return 0 for success, else error.
  */
 int snd_soc_add_codec_controls(struct snd_soc_codec *codec,
-	const struct snd_kcontrol_new *controls, int num_controls)
+	const struct snd_kcontrol_new *controls, unsigned int num_controls)
 {
-	struct snd_card *card = codec->component.card->snd_card;
-
-	return snd_soc_add_controls(card, codec->dev, controls, num_controls,
-			codec->component.name_prefix, &codec->component);
+	return snd_soc_add_component_controls(&codec->component, controls,
+		num_controls);
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_codec_controls);
 
@@ -2425,12 +2442,10 @@ EXPORT_SYMBOL_GPL(snd_soc_add_codec_controls);
  * Return 0 for success, else error.
  */
 int snd_soc_add_platform_controls(struct snd_soc_platform *platform,
-	const struct snd_kcontrol_new *controls, int num_controls)
+	const struct snd_kcontrol_new *controls, unsigned int num_controls)
 {
-	struct snd_card *card = platform->component.card->snd_card;
-
-	return snd_soc_add_controls(card, platform->dev, controls, num_controls,
-			NULL, &platform->component);
+	return snd_soc_add_component_controls(&platform->component, controls,
+		num_controls);
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_platform_controls);
 
