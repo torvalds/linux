@@ -547,7 +547,7 @@ struct radeon_gem {
 
 int radeon_gem_init(struct radeon_device *rdev);
 void radeon_gem_fini(struct radeon_device *rdev);
-int radeon_gem_object_create(struct radeon_device *rdev, int size,
+int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,
 				int alignment, int initial_domain,
 				u32 flags, bool discardable, bool kernel,
 				struct drm_gem_object **obj);

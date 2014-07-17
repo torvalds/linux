@@ -40,7 +40,7 @@ void radeon_gem_object_free(struct drm_gem_object *gobj)
 	}
 }
 
-int radeon_gem_object_create(struct radeon_device *rdev, int size,
+int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,
 				int alignment, int initial_domain,
 				u32 flags, bool discardable, bool kernel,
 				struct drm_gem_object **obj)
@@ -55,10 +55,12 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 		alignment = PAGE_SIZE;
 	}
 
-	/* maximun bo size is the minimun btw visible vram and gtt size */
-	max_size = min(rdev->mc.visible_vram_size, rdev->mc.gtt_size);
+	/* Maximum bo size is the unpinned gtt size since we use the gtt to
+	 * handle vram to system pool migrations.
+	 */
+	max_size = rdev->mc.gtt_size - rdev->gart_pin_size;
 	if (size > max_size) {
-		DRM_DEBUG("Allocation size %dMb bigger than %ldMb limit\n",
+		DRM_DEBUG("Allocation size %ldMb bigger than %ldMb limit\n",
 			  size >> 20, max_size >> 20);
 		return -ENOMEM;
 	}
@@ -72,7 +74,7 @@ retry:
 				initial_domain |= RADEON_GEM_DOMAIN_GTT;
 				goto retry;
 			}
-			DRM_ERROR("Failed to allocate GEM object (%d, %d, %u, %d)\n",
+			DRM_ERROR("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
 				  size, initial_domain, alignment, r);
 		}
 		return r;
