@@ -306,18 +306,6 @@
 	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe)), \
 		 GIC_SH_MAP_TO_VPE_REG_BIT(vpe))
 
-struct gic_pcpu_mask {
-	DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
-};
-
-struct gic_pending_regs {
-	DECLARE_BITMAP(pending, GIC_NUM_INTRS);
-};
-
-struct gic_intrmask_regs {
-	DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
-};
-
 /*
  * Interrupt Meta-data specification. The ipiflag helps
  * in building ipi_map.

@@ -28,6 +28,18 @@ unsigned int gic_irq_flags[GIC_NUM_INTRS];
 /* The index into this array is the vector # of the interrupt. */
 struct gic_shared_intr_map gic_shared_intr_map[GIC_NUM_INTRS];
 
+struct gic_pcpu_mask {
+	DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
+};
+
+struct gic_pending_regs {
+	DECLARE_BITMAP(pending, GIC_NUM_INTRS);
+};
+
+struct gic_intrmask_regs {
+	DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
+};
+
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static struct gic_pending_regs pending_regs[NR_CPUS];
 static struct gic_intrmask_regs intrmask_regs[NR_CPUS];
