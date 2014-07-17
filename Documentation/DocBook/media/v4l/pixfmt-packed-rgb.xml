@@ -15,9 +15,6 @@ typical PC graphics frame buffers. They occupy 8, 16, 24 or 32 bits
 per pixel. These are all packed-pixel formats, meaning all the data
 for a pixel lie next to each other in memory.</para>
 
-    <para>When one of these formats is used, drivers shall report the
-colorspace <constant>V4L2_COLORSPACE_SRGB</constant>.</para>
-
     <table pgwide="1" frame="none" id="rgb-formats">
       <title>Packed RGB Image Formats</title>
       <tgroup cols="37" align="center">
