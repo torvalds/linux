@@ -6099,26 +6099,45 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 
 	if (dev->phy.rev >= 3 &&
 	    dev->phy.n->spur_avoid != B43_SPUR_AVOID_DISABLE) {
-		bool avoid = false;
+		u8 spuravoid = 0;
+
 		if (dev->phy.n->spur_avoid == B43_SPUR_AVOID_FORCE) {
-			avoid = true;
-		} else if (!b43_is_40mhz(dev)) {
-			if ((ch >= 5 && ch <= 8) || ch == 13 || ch == 14)
-				avoid = true;
-		} else { /* 40MHz */
-			if (nphy->aband_spurwar_en &&
-			    (ch == 38 || ch == 102 || ch == 118))
-				avoid = dev->dev->chip_id == 0x4716;
+			spuravoid = 1;
+		} else if (phy->rev >= 19) {
+			/* TODO */
+		} else if (phy->rev >= 18) {
+			/* TODO */
+		} else if (phy->rev >= 17) {
+			/* TODO: Off for channels 1-11, but check 12-14! */
+		} else if (phy->rev >= 16) {
+			/* TODO: Off for 2 GHz, but check 5 GHz! */
+		} else if (phy->rev >= 7) {
+			if (!b43_is_40mhz(dev)) { /* 20MHz */
+				if (ch == 13 || ch == 14 || ch == 153)
+					spuravoid = 1;
+			} else { /* 40 MHz */
+				if (ch == 54)
+					spuravoid = 1;
+			}
+		} else {
+			if (!b43_is_40mhz(dev)) { /* 20MHz */
+				if ((ch >= 5 && ch <= 8) || ch == 13 || ch == 14)
+					spuravoid = 1;
+			} else { /* 40MHz */
+				if (nphy->aband_spurwar_en &&
+				    (ch == 38 || ch == 102 || ch == 118))
+					spuravoid = dev->dev->chip_id == 0x4716;
+			}
 		}
 
-		b43_nphy_pmu_spur_avoid(dev, avoid);
+		b43_nphy_pmu_spur_avoid(dev, spuravoid);
 
-		b43_mac_switch_freq(dev, avoid);
+		b43_mac_switch_freq(dev, spuravoid);
 
 		if (dev->phy.rev == 3 || dev->phy.rev == 4)
 			; /* TODO: reset PLL */
 
-		if (avoid)
+		if (spuravoid)
 			b43_phy_set(dev, B43_NPHY_BBCFG, B43_NPHY_BBCFG_RSTRX);
 		else
 			b43_phy_mask(dev, B43_NPHY_BBCFG,
