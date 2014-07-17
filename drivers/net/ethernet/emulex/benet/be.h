@@ -34,7 +34,7 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"10.2u"
+#define DRV_VER			"10.4u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -372,6 +372,7 @@ enum vf_state {
 };
 
 #define BE_FLAGS_LINK_STATUS_INIT		1
+#define BE_FLAGS_SRIOV_ENABLED			(1 << 2)
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_FLAGS_VLAN_PROMISC			(1 << 4)
 #define BE_FLAGS_MCAST_PROMISC			(1 << 5)
@@ -525,7 +526,8 @@ struct be_adapter {
 
 #define be_physfn(adapter)		(!adapter->virtfn)
 #define be_virtfn(adapter)		(adapter->virtfn)
-#define sriov_enabled(adapter)		(adapter->num_vfs > 0)
+#define sriov_enabled(adapter)		(adapter->flags &	\
+					 BE_FLAGS_SRIOV_ENABLED)
 
 #define for_all_vfs(adapter, vf_cfg, i)					\
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
@@ -671,6 +673,8 @@ static inline void swap_dws(void *wrb, int len)
 	} while (len);
 #endif				/* __BIG_ENDIAN */
 }
+
+#define be_cmd_status(status)		(status > 0 ? -EIO : status)
 
 static inline u8 is_tcp_pkt(struct sk_buff *skb)
 {

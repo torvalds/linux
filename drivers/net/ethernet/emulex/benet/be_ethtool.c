@@ -643,7 +643,7 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	if (status)
 		dev_warn(&adapter->pdev->dev, "Pause param set failed.\n");
 
-	return status;
+	return be_cmd_status(status);
 }
 
 static int be_set_phys_id(struct net_device *netdev,
@@ -762,7 +762,7 @@ static int be_test_ddr_dma(struct be_adapter *adapter)
 err:
 	dma_free_coherent(&adapter->pdev->dev, ddrdma_cmd.size, ddrdma_cmd.va,
 			  ddrdma_cmd.dma);
-	return ret;
+	return be_cmd_status(ret);
 }
 
 static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
@@ -885,7 +885,7 @@ static int be_read_eeprom(struct net_device *netdev,
 	dma_free_coherent(&adapter->pdev->dev, eeprom_cmd.size, eeprom_cmd.va,
 			  eeprom_cmd.dma);
 
-	return status;
+	return be_cmd_status(status);
 }
 
 static u32 be_get_msg_level(struct net_device *netdev)
@@ -1042,7 +1042,7 @@ static int be_set_rss_hash_opts(struct be_adapter *adapter,
 	if (!status)
 		adapter->rss_info.rss_flags = rss_flags;
 
-	return status;
+	return be_cmd_status(status);
 }
 
 static int be_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
@@ -1080,6 +1080,7 @@ static int be_set_channels(struct net_device  *netdev,
 			   struct ethtool_channels *ch)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
 
 	if (ch->rx_count || ch->tx_count || ch->other_count ||
 	    !ch->combined_count || ch->combined_count > be_max_qs(adapter))
@@ -1087,7 +1088,8 @@ static int be_set_channels(struct net_device  *netdev,
 
 	adapter->cfg_num_qs = ch->combined_count;
 
-	return be_update_queues(adapter);
+	status = be_update_queues(adapter);
+	return be_cmd_status(status);
 }
 
 static u32 be_get_rxfh_indir_size(struct net_device *netdev)
