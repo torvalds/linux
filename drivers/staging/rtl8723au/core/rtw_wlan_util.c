@@ -293,11 +293,6 @@ void Update23aTblForSoftAP(u8 *bssrateset, u32 bssratelen)
 	}
 }
 
-void Set_MSR23a(struct rtw_adapter *padapter, u8 type)
-{
-	rtl8723a_set_media_status(padapter, type);
-}
-
 inline u8 rtw_get_oper_ch23a(struct rtw_adapter *adapter)
 {
 	return adapter_to_dvobj(adapter)->oper_channel;

@@ -471,8 +471,6 @@ void get_rate_set23a(struct rtw_adapter *padapter, unsigned char *pbssrate,
 void UpdateBrateTbl23a(struct rtw_adapter *padapter,u8 *mBratesOS);
 void Update23aTblForSoftAP(u8 *bssrateset, u32 bssratelen);
 
-void Set_MSR23a(struct rtw_adapter *padapter, u8 type);
-
 u8 rtw_get_oper_ch23a(struct rtw_adapter *adapter);
 void rtw_set_oper_ch23a(struct rtw_adapter *adapter, u8 ch);
 u8 rtw_get_oper_bw23a(struct rtw_adapter *adapter);

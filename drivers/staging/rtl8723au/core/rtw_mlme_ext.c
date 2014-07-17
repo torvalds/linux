@@ -4102,7 +4102,7 @@ static void rtw_site_survey(struct rtw_adapter *padapter)
 		/* val8 = 0; */
 
 		/* config MSR */
-		Set_MSR23a(padapter, (pmlmeinfo->state & 0x3));
+		rtl8723a_set_media_status(padapter, pmlmeinfo->state & 0x3);
 
 		/* restore RX GAIN */
 		rtl8723a_set_initial_gain(padapter, 0xff);
@@ -4339,7 +4339,7 @@ static void start_create_ibss(struct rtw_adapter* padapter)
 
 		/* set msr to WIFI_FW_ADHOC_STATE */
 		pmlmeinfo->state = WIFI_FW_ADHOC_STATE;
-		Set_MSR23a(padapter, (pmlmeinfo->state & 0x3));
+		rtl8723a_set_media_status(padapter, pmlmeinfo->state & 0x3);
 
 		/* issue beacon */
 		if (send_beacon23a(padapter) == _FAIL)
@@ -4387,7 +4387,7 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 		/* switch channel */
 		set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
-		Set_MSR23a(padapter, WIFI_FW_STATION_STATE);
+		rtl8723a_set_media_status(padapter, WIFI_FW_STATION_STATE);
 
 		val8 = (pmlmeinfo->auth_algo == dot11AuthAlgrthm_8021X) ?
 			0xcc: 0xcf;
@@ -4405,7 +4405,7 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 			  msecs_to_jiffies((REAUTH_TO * REAUTH_LIMIT) + (REASSOC_TO*REASSOC_LIMIT) + beacon_timeout));
 		pmlmeinfo->state = WIFI_FW_AUTH_NULL | WIFI_FW_STATION_STATE;
 	} else if (caps & WLAN_CAPABILITY_IBSS) {	/* adhoc client */
-		Set_MSR23a(padapter, WIFI_FW_ADHOC_STATE);
+		rtl8723a_set_media_status(padapter, WIFI_FW_ADHOC_STATE);
 
 		rtl8723a_set_sec_cfg(padapter, 0xcf);
 
@@ -5185,7 +5185,7 @@ void mlmeext_sta_del_event_callback23a(struct rtw_adapter *padapter)
 		pmlmeinfo->state = WIFI_FW_NULL_STATE;
 
 		/* set MSR to no link state -> infra. mode */
-		Set_MSR23a(padapter, _HW_STATE_STATION_);
+		rtl8723a_set_media_status(padapter, _HW_STATE_STATION_);
 
 		del_timer_sync(&pmlmeext->link_timer);
 	}
@@ -5584,8 +5584,8 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		del_timer_sync(&pmlmeext->link_timer);
 
 		/* set MSR to nolink -> infra. mode */
-		/* Set_MSR23a(padapter, _HW_STATE_NOLINK_); */
-		Set_MSR23a(padapter, _HW_STATE_STATION_);
+		/* rtl8723a_set_media_status(padapter, _HW_STATE_NOLINK_); */
+		rtl8723a_set_media_status(padapter, _HW_STATE_STATION_);
 
 		hw_var_set_mlme_disconnect(padapter);
 	}
@@ -5704,7 +5704,7 @@ int disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		rtl8723a_set_bcn_func(padapter, 0);	/* Stop BCN */
 
 	/* set MSR to no link state -> infra. mode */
-	Set_MSR23a(padapter, _HW_STATE_STATION_);
+	rtl8723a_set_media_status(padapter, _HW_STATE_STATION_);
 
 	pmlmeinfo->state = WIFI_FW_NULL_STATE;
 
@@ -5865,7 +5865,7 @@ int sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		rtl8723a_set_initial_gain(padapter, initialgain);
 
 		/* set MSR to no link state */
-		Set_MSR23a(padapter, _HW_STATE_NOLINK_);
+		rtl8723a_set_media_status(padapter, _HW_STATE_NOLINK_);
 
 		rtl8723a_mlme_sitesurvey(padapter, 1);
 

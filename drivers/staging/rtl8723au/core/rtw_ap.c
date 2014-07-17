@@ -688,7 +688,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	}
 
 	/* set MSR to AP_Mode */
-	Set_MSR23a(padapter, _HW_STATE_AP_);
+	rtl8723a_set_media_status(padapter, _HW_STATE_AP_);
 
 	/* Set BSSID REG */
 	hw_var_set_bssid(padapter, pnetwork->MacAddress);

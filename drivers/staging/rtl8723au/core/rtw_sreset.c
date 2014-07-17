@@ -103,7 +103,7 @@ static void sreset_restore_network_station(struct rtw_adapter *padapter)
 	hw_var_set_bssid(padapter, pmlmeinfo->network.MacAddress);
 	hw_var_set_mlme_join(padapter, 0);
 
-	Set_MSR23a(padapter, (pmlmeinfo->state & 0x3));
+	rtl8723a_set_media_status(padapter, pmlmeinfo->state & 0x3);
 
 	mlmeext_joinbss_event_callback23a(padapter, 1);
 	/* restore Sequence No. */
