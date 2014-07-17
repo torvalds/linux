@@ -150,13 +150,12 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * If user has specified capability over-rides, take care
-	 * of that if the station we're setting up is the AP that
+	 * of that if the station we're setting up is the AP or TDLS peer that
 	 * we advertised a restricted capability set to. Override
 	 * our own capabilities and then use those below.
 	 */
-	if ((sdata->vif.type == NL80211_IFTYPE_STATION ||
-	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&
-	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
+	    sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		ieee80211_apply_htcap_overrides(sdata, &own_cap);
 
 	/*
