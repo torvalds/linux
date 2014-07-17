@@ -1027,7 +1027,6 @@ static int soc_remove_platform(struct snd_soc_platform *platform)
 
 	soc_cleanup_platform_debugfs(platform);
 	platform->probed = 0;
-	list_del(&platform->card_list);
 	module_put(platform->dev->driver->owner);
 
 	return 0;
@@ -1297,7 +1296,6 @@ static int soc_probe_platform(struct snd_soc_card *card,
 
 	/* mark platform as probed and add to card platform list */
 	platform->probed = 1;
-	list_add(&platform->card_list, &card->platform_dev_list);
 	list_add(&platform->component.dapm.list, &card->dapm_list);
 
 	return 0;
