@@ -80,8 +80,6 @@ TODO:
 	make ao fifo size adjustable like ai fifo
 */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
