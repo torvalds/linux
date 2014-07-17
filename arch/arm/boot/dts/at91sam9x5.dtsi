@@ -1122,6 +1122,7 @@
 				compatible = "atmel,at91sam9rl-pwm";
 				reg = <0xf8034000 0x300>;
 				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 4>;
+				clocks = <&pwm_clk>;
 				#pwm-cells = <3>;
 				status = "disabled";
 			};
