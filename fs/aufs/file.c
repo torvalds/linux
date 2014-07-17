@@ -112,6 +112,7 @@ out:
 static int au_cmoo(struct dentry *dentry)
 {
 	int err, cmoo;
+	unsigned int udba;
 	struct path h_path;
 	struct au_pin pin;
 	struct au_cp_generic cpg = {
@@ -165,27 +166,36 @@ static int au_cmoo(struct dentry *dentry)
 		goto out_dgrade;
 
 	di_downgrade_lock(parent, AuLock_IR);
-	err = au_pin(&pin, dentry, cpg.bdst, au_opt_udba(sb),
+	udba = au_opt_udba(sb);
+	err = au_pin(&pin, dentry, cpg.bdst, udba,
 		     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
-	if (!err) {
-		err = au_sio_cpup_simple(&cpg);
-		au_unpin(&pin);
+	if (unlikely(err))
+		goto out_parent;
+
+	err = au_sio_cpup_simple(&cpg);
+	au_unpin(&pin);
+	if (unlikely(err))
+		goto out_parent;
+	if (!(cmoo & AuBrWAttr_MOO))
+		goto out_parent; /* success */
+
+	err = au_pin(&pin, dentry, cpg.bsrc, udba,
+		     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
+	if (unlikely(err))
+		goto out_parent;
+
+	h_path.mnt = au_br_mnt(br);
+	h_path.dentry = au_h_dptr(dentry, cpg.bsrc);
+	hdir = au_hi(parent->d_inode, cpg.bsrc);
+	err = vfsub_unlink(hdir->hi_inode, &h_path, /*force*/1);
+	au_unpin(&pin);
+	/* todo: keep h_dentry or not? */
+	if (unlikely(err)) {
+		pr_err("unlink %.*s after coo failed (%d), ignored\n",
+		       AuDLNPair(dentry), err);
+		err = 0;
 	}
-	if (!err && (cmoo & AuBrWAttr_MOO)) {
-		/* todo: keep h_dentry? */
-		h_path.mnt = au_br_mnt(br);
-		h_path.dentry = au_h_dptr(dentry, cpg.bsrc);
-		hdir = au_hi(parent->d_inode, cpg.bsrc);
-		au_hn_imtx_lock_nested(hdir, AuLsc_I_PARENT2);
-		err = vfsub_unlink(hdir->hi_inode, &h_path, /*force*/1);
-		au_hn_imtx_unlock(hdir);
-		if (unlikely(err)) {
-			pr_err("unlink %.*s after coo failed (%d), ignored\n",
-			       AuDLNPair(dentry), err);
-			err = 0;
-		}
-	}
-	goto out_parent;
+	goto out_parent; /* success */
 
 out_dgrade:
 	di_downgrade_lock(parent, AuLock_IR);
