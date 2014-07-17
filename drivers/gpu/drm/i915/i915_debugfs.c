@@ -1116,13 +1116,13 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
 
 		seq_printf(m, "max GPU freq: %d MHz\n",
-			   dev_priv->rps.max_freq);
+			   vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq));
 
 		seq_printf(m, "min GPU freq: %d MHz\n",
-			   dev_priv->rps.min_freq);
+			   vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq));
 
 		seq_printf(m, "efficient (RPe) frequency: %d MHz\n",
-			   dev_priv->rps.efficient_freq);
+			   vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
 
 		seq_printf(m, "current GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
