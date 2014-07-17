@@ -341,8 +341,8 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 	usb_fill_bulk_urb(t->urb, usbdev, usb_sndbulkpipe(usbdev, 1), t->buf,
 			  len + padding, gdm_usb_send_complete, t);
 
-	print_hex_dump_debug("usb_send: ", DUMP_PREFIX_NONE, 16, 1, t->buf,
-			     len + padding, false);
+	dev_dbg(&usbdev->dev, "usb_send: %*ph\n", len + padding, t->buf);
+
 #ifdef CONFIG_WIMAX_GDM72XX_USB_PM
 	if (usbdev->state & USB_STATE_SUSPENDED) {
 		list_add_tail(&t->p_list, &tx->pending_list);
@@ -420,8 +420,10 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 
 	if (!urb->status) {
 		cmd_evt = (r->buf[0] << 8) | (r->buf[1]);
-		print_hex_dump_debug("usb_receive: ", DUMP_PREFIX_NONE, 16, 1,
-				     r->buf, urb->actual_length, false);
+
+		dev_dbg(&dev->dev, "usb_receive: %*ph\n", urb->actual_length,
+			r->buf);
+
 		if (cmd_evt == WIMAX_SDU_TX_FLOW) {
 			if (r->buf[4] == 0) {
 				dev_dbg(&dev->dev, "WIMAX ==> STOP SDU TX\n");

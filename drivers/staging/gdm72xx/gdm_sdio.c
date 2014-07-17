@@ -278,9 +278,8 @@ static void send_sdu(struct sdio_func *func, struct tx_cxt *tx)
 
 	spin_unlock_irqrestore(&tx->lock, flags);
 
-	print_hex_dump_debug("sdio_send: ", DUMP_PREFIX_NONE, 16, 1,
-			     tx->sdu_buf + TYPE_A_HEADER_SIZE,
-			     aggr_len - TYPE_A_HEADER_SIZE, false);
+	dev_dbg(func->dev, "sdio_send: %*ph\n", aggr_len - TYPE_A_HEADER_SIZE,
+		tx->sdu_buf + TYPE_A_HEADER_SIZE);
 
 	for (pos = TYPE_A_HEADER_SIZE; pos < aggr_len; pos += TX_CHUNK_SIZE) {
 		len = aggr_len - pos;
@@ -315,9 +314,9 @@ static void send_hci(struct sdio_func *func, struct tx_cxt *tx,
 {
 	unsigned long flags;
 
-	print_hex_dump_debug("sdio_send: ", DUMP_PREFIX_NONE, 16, 1,
-			     t->buf + TYPE_A_HEADER_SIZE,
-			     t->len - TYPE_A_HEADER_SIZE, false);
+	dev_dbg(func->dev, "sdio_send: %*ph\n", t->len - TYPE_A_HEADER_SIZE,
+		t->buf + TYPE_A_HEADER_SIZE);
+
 	send_sdio_pkt(func, t->buf, t->len);
 
 	spin_lock_irqsave(&tx->lock, flags);
@@ -549,8 +548,8 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	}
 
 end_io:
-	print_hex_dump_debug("sdio_receive: ", DUMP_PREFIX_NONE, 16, 1,
-			     rx->rx_buf, len, false);
+	dev_dbg(func->dev, "sdio_receive: %*ph\n", len, rx->rx_buf);
+
 	len = control_sdu_tx_flow(sdev, rx->rx_buf, len);
 
 	spin_lock_irqsave(&rx->lock, flags);
