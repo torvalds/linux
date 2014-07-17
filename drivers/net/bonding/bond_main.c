@@ -4448,7 +4448,6 @@ static void __net_exit bond_net_exit(struct net *net)
 	LIST_HEAD(list);
 
 	bond_destroy_sysfs(bn);
-	bond_destroy_proc_dir(bn);
 
 	/* Kill off any bonds created after unregistering bond rtnl ops */
 	rtnl_lock();
@@ -4456,6 +4455,8 @@ static void __net_exit bond_net_exit(struct net *net)
 		unregister_netdevice_queue(bond->dev, &list);
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
+
+	bond_destroy_proc_dir(bn);
 }
 
 static struct pernet_operations bond_net_ops = {
