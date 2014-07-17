@@ -18,6 +18,7 @@
 #include <drv_types.h>
 #include <linux/ieee80211.h>
 #include <wifi.h>
+#include <rtl8723a_spec.h>
 
 static unsigned char ARTHEROS_OUI1[] = {0x00, 0x03, 0x7f};
 static unsigned char ARTHEROS_OUI2[] = {0x00, 0x13, 0x74};
@@ -402,7 +403,7 @@ bool is_client_associated_to_ap23a(struct rtw_adapter *padapter)
 	pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS &&
-	    (pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE)
+	    (pmlmeinfo->state & 0x03) == MSR_INFRA)
 		return true;
 	else
 		return false;
@@ -414,7 +415,7 @@ bool is_client_associated_to_ibss23a(struct rtw_adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS &&
-	    (pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE)
+	    (pmlmeinfo->state & 0x03) == MSR_ADHOC)
 		return true;
 	else
 		return false;

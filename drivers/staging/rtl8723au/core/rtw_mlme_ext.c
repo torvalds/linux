@@ -393,7 +393,7 @@ static void init_mlme_ext_priv23a_value(struct rtw_adapter* padapter)
 	pmlmeext->sitesurvey_res.bss_cnt = 0;
 	pmlmeext->scan_abort = false;
 
-	pmlmeinfo->state = WIFI_FW_NULL_STATE;
+	pmlmeinfo->state = MSR_NOLINK;
 	pmlmeinfo->reauth_count = 0;
 	pmlmeinfo->reassoc_count = 0;
 	pmlmeinfo->link_count = 0;
@@ -849,7 +849,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		return _SUCCESS;
 	}
 
-	if (((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE) &&
+	if (((pmlmeinfo->state & 0x03) == MSR_AP) &&
 	    (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
 		psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
 		if (psta) {
@@ -869,7 +869,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 						      pkt_len, psta);
 			}
 		}
-	} else if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) {
+	} else if ((pmlmeinfo->state&0x03) == MSR_ADHOC) {
 		psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
 		if (psta) {
 			/* update WMM, ERP in the beacon */
@@ -925,7 +925,7 @@ OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	u16 auth_mode, seq, algorithm;
 	int status, len = skb->len;
 
-	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state & 0x03) != MSR_AP)
 		return _FAIL;
 
 	DBG_8723A("+OnAuth23a\n");
@@ -1344,7 +1344,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	uint pkt_len = skb->len;
 	int r;
 
-	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state & 0x03) != MSR_AP)
 		return _FAIL;
 
 	left = pkt_len - sizeof(struct ieee80211_hdr_3addr);
@@ -1801,7 +1801,7 @@ OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	status = le16_to_cpu(pmgmt->u.assoc_resp.status_code);
 	if (status > 0)	{
 		DBG_8723A("assoc reject, status code: %d\n", status);
-		pmlmeinfo->state = WIFI_FW_NULL_STATE;
+		pmlmeinfo->state = MSR_NOLINK;
 		res = -4;
 		goto report_assoc_result;
 	}
@@ -2033,7 +2033,7 @@ static int OnAction23a_back23a(struct rtw_adapter *padapter,
 
 	DBG_8723A("%s\n", __func__);
 
-	if ((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state&0x03) != MSR_AP)
 		if (!(pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS))
 			return _SUCCESS;
 
@@ -2416,7 +2416,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	pframe = mgmt->u.beacon.variable;
 	pattrib->pktlen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 
-	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
+	if ((pmlmeinfo->state & 0x03) == MSR_AP) {
 		u8 *iebuf;
 		int buflen;
 		/* DBG_8723A("ie len =%d\n", cur_network->IELength); */
@@ -2461,7 +2461,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	pframe = rtw_set_ie23a(pframe, WLAN_EID_DS_PARAMS, 1, (unsigned char *)
 			       &cur_network->DSConfig, &pattrib->pktlen);
 
-	/* if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) */
+	/* if ((pmlmeinfo->state&0x03) == MSR_ADHOC) */
 	{
 		u8 erpinfo = 0;
 		u32 ATIMWindow;
@@ -2578,7 +2578,7 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 	/* below for ad-hoc mode */
 
 #ifdef CONFIG_8723AU_AP_MODE
-	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
+	if ((pmlmeinfo->state & 0x03) == MSR_AP) {
 		pwps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 						  WLAN_OUI_TYPE_MICROSOFT_WPS,
 						  cur_network->IEs,
@@ -2639,7 +2639,7 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 				       (unsigned char *)&cur_network->DSConfig,
 				       &pattrib->pktlen);
 
-		if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
+		if ((pmlmeinfo->state & 0x03) == MSR_ADHOC) {
 			u8 erpinfo = 0;
 			u32 ATIMWindow;
 			/*  IBSS Parameter Set... */
@@ -3391,9 +3391,9 @@ static int _issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					      IEEE80211_STYPE_NULLFUNC);
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state&0x03) == MSR_AP)
 		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
-	else if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
+	else if ((pmlmeinfo->state&0x03) == MSR_INFRA)
 		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_TODS);
 
 	if (power_mode)
@@ -3513,9 +3513,9 @@ static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					      IEEE80211_STYPE_QOS_NULLFUNC);
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state&0x03) == MSR_AP)
 		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
-	else if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
+	else if ((pmlmeinfo->state&0x03) == MSR_INFRA)
 		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_TODS);
 
 	if (pattrib->mdata)
@@ -3950,7 +3950,7 @@ int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u16 tid;
 
-	if ((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state&0x03) != MSR_AP)
 		if (!(pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS))
 			return _SUCCESS;
 
@@ -4337,20 +4337,17 @@ static void start_create_ibss(struct rtw_adapter* padapter)
 
 		rtl8723a_SetBeaconRelatedRegisters(padapter);
 
-		/* set msr to WIFI_FW_ADHOC_STATE */
-		pmlmeinfo->state = WIFI_FW_ADHOC_STATE;
+		/* set msr to MSR_ADHOC */
+		pmlmeinfo->state = MSR_ADHOC;
 		rtl8723a_set_media_status(padapter, pmlmeinfo->state & 0x3);
 
 		/* issue beacon */
-		if (send_beacon23a(padapter) == _FAIL)
-		{
+		if (send_beacon23a(padapter) == _FAIL) {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("issuing beacon frame fail....\n"));
 
 			report_join_res23a(padapter, -1);
-			pmlmeinfo->state = WIFI_FW_NULL_STATE;
-		}
-		else
-		{
+			pmlmeinfo->state = MSR_NOLINK;
+		} else {
 			hw_var_set_bssid(padapter, padapter->registrypriv.dev_network.MacAddress);
 			hw_var_set_mlme_join(padapter, 0);
 
@@ -4387,7 +4384,7 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 		/* switch channel */
 		set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
-		rtl8723a_set_media_status(padapter, WIFI_FW_STATION_STATE);
+		rtl8723a_set_media_status(padapter, MSR_INFRA);
 
 		val8 = (pmlmeinfo->auth_algo == dot11AuthAlgrthm_8021X) ?
 			0xcc: 0xcf;
@@ -4403,9 +4400,9 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 		set_link_timer(pmlmeext, beacon_timeout);
 		mod_timer(&padapter->mlmepriv.assoc_timer, jiffies +
 			  msecs_to_jiffies((REAUTH_TO * REAUTH_LIMIT) + (REASSOC_TO*REASSOC_LIMIT) + beacon_timeout));
-		pmlmeinfo->state = WIFI_FW_AUTH_NULL | WIFI_FW_STATION_STATE;
+		pmlmeinfo->state = WIFI_FW_AUTH_NULL | MSR_INFRA;
 	} else if (caps & WLAN_CAPABILITY_IBSS) {	/* adhoc client */
-		rtl8723a_set_media_status(padapter, WIFI_FW_ADHOC_STATE);
+		rtl8723a_set_media_status(padapter, MSR_ADHOC);
 
 		rtl8723a_set_sec_cfg(padapter, 0xcf);
 
@@ -4414,7 +4411,7 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 
 		rtl8723a_SetBeaconRelatedRegisters(padapter);
 
-		pmlmeinfo->state = WIFI_FW_ADHOC_STATE;
+		pmlmeinfo->state = MSR_ADHOC;
 
 		report_join_res23a(padapter, 1);
 	}
@@ -4483,17 +4480,17 @@ int receive_disconnect23a(struct rtw_adapter *padapter,
 
 	DBG_8723A("%s\n", __func__);
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
+	if ((pmlmeinfo->state&0x03) == MSR_INFRA)
 	{
 		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
 		{
-			pmlmeinfo->state = WIFI_FW_NULL_STATE;
+			pmlmeinfo->state = MSR_NOLINK;
 			report_del_sta_event23a(padapter, MacAddr, reason);
 
 		}
 		else if (pmlmeinfo->state & WIFI_FW_LINKING_STATE)
 		{
-			pmlmeinfo->state = WIFI_FW_NULL_STATE;
+			pmlmeinfo->state = MSR_NOLINK;
 			report_join_res23a(padapter, -2);
 		}
 	}
@@ -5053,7 +5050,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
 		goto exit_mlmeext_joinbss_event_callback23a;
 	}
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE)
+	if ((pmlmeinfo->state&0x03) == MSR_ADHOC)
 	{
 		/* for bc/mc */
 		psta_bmc = rtw_get_bcmc_stainfo23a(padapter);
@@ -5103,7 +5100,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
 
 	hw_var_set_mlme_join(padapter, 2);
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE) {
+	if ((pmlmeinfo->state&0x03) == MSR_INFRA) {
 		/*  correcting TSF */
 		rtw_correct_TSF(padapter);
 
@@ -5124,7 +5121,7 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter,
 
 	DBG_8723A("%s\n", __func__);
 
-	if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
+	if ((pmlmeinfo->state & 0x03) == MSR_ADHOC) {
 	/* adhoc master or sta_count>1 */
 		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
 		{
@@ -5137,7 +5134,7 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter,
 			if (send_beacon23a(padapter) != _SUCCESS) {
 				pmlmeinfo->FW_sta_info[psta->mac_id].status = 0;
 
-				pmlmeinfo->state ^= WIFI_FW_ADHOC_STATE;
+				pmlmeinfo->state ^= MSR_ADHOC;
 
 				return;
 			}
@@ -5182,10 +5179,10 @@ void mlmeext_sta_del_event_callback23a(struct rtw_adapter *padapter)
 
 		flush_all_cam_entry23a(padapter);
 
-		pmlmeinfo->state = WIFI_FW_NULL_STATE;
+		pmlmeinfo->state = MSR_NOLINK;
 
 		/* set MSR to no link state -> infra. mode */
-		rtl8723a_set_media_status(padapter, _HW_STATE_STATION_);
+		rtl8723a_set_media_status(padapter, MSR_INFRA);
 
 		del_timer_sync(&pmlmeext->link_timer);
 	}
@@ -5393,7 +5390,7 @@ static void link_timer_hdl(unsigned long data)
 
 	if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
 		DBG_8723A("link_timer_hdl:no beacon while connecting\n");
-		pmlmeinfo->state = WIFI_FW_NULL_STATE;
+		pmlmeinfo->state = MSR_NOLINK;
 		report_join_res23a(padapter, -3);
 	} else if (pmlmeinfo->state & WIFI_FW_AUTH_STATE) {
 		/* re-auth timer */
@@ -5418,7 +5415,7 @@ static void link_timer_hdl(unsigned long data)
 	} else if (pmlmeinfo->state & WIFI_FW_ASSOC_STATE) {
 		/* re-assoc timer */
 		if (++pmlmeinfo->reassoc_count > REASSOC_LIMIT) {
-			pmlmeinfo->state = WIFI_FW_NULL_STATE;
+			pmlmeinfo->state = MSR_NOLINK;
 			report_join_res23a(padapter, -2);
 			return;
 		}
@@ -5479,22 +5476,22 @@ int setopmode_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	switch (psetop->mode) {
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_AP:
-		pmlmeinfo->state = WIFI_FW_AP_STATE;
-		type = _HW_STATE_AP_;
+		pmlmeinfo->state = MSR_AP;
+		type = MSR_AP;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
 		/*  clear state */
 		pmlmeinfo->state &= ~(BIT(0)|BIT(1));
 		/* set to STATION_STATE */
-		pmlmeinfo->state |= WIFI_FW_STATION_STATE;
-		type = _HW_STATE_STATION_;
+		pmlmeinfo->state |= MSR_INFRA;
+		type = MSR_INFRA;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		type = _HW_STATE_ADHOC_;
+		type = MSR_ADHOC;
 		break;
 	default:
-		type = _HW_STATE_NOLINK_;
+		type = MSR_NOLINK;
 		break;
 	}
 
@@ -5515,7 +5512,7 @@ int createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	if (pparm->ifmode == NL80211_IFTYPE_AP ||
 	    pparm->ifmode == NL80211_IFTYPE_P2P_GO) {
 #ifdef CONFIG_8723AU_AP_MODE
-		if (pmlmeinfo->state == WIFI_FW_AP_STATE) {
+		if (pmlmeinfo->state == MSR_AP) {
 			/* todo: */
 			return H2C_SUCCESS;
 		}
@@ -5572,11 +5569,11 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	/* check already connecting to AP or not */
 	if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {
-		if (pmlmeinfo->state & WIFI_FW_STATION_STATE)
+		if (pmlmeinfo->state & MSR_INFRA)
 			issue_deauth_ex(padapter, pnetwork->MacAddress,
 					WLAN_REASON_DEAUTH_LEAVING, 5, 100);
 
-		pmlmeinfo->state = WIFI_FW_NULL_STATE;
+		pmlmeinfo->state = MSR_NOLINK;
 
 		/* clear CAM */
 		flush_all_cam_entry23a(padapter);
@@ -5584,8 +5581,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		del_timer_sync(&pmlmeext->link_timer);
 
 		/* set MSR to nolink -> infra. mode */
-		/* rtl8723a_set_media_status(padapter, _HW_STATE_NOLINK_); */
-		rtl8723a_set_media_status(padapter, _HW_STATE_STATION_);
+		rtl8723a_set_media_status(padapter, MSR_INFRA);
 
 		hw_var_set_mlme_disconnect(padapter);
 	}
@@ -5691,7 +5687,7 @@ int disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	/* set_opmode_cmd(padapter, infra_client_with_mlme); */
 
-	/* pmlmeinfo->state = WIFI_FW_NULL_STATE; */
+	/* pmlmeinfo->state = MSR_NOLINK; */
 
 	hw_var_set_mlme_disconnect(padapter);
 	hw_var_set_bssid(padapter, null_addr);
@@ -5699,14 +5695,14 @@ int disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	/* restore to initial setting. */
 	update_tx_basic_rate23a(padapter, padapter->registrypriv.wireless_mode);
 
-	if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE ||
-	    (pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state & 0x03) == MSR_ADHOC ||
+	    (pmlmeinfo->state & 0x03) == MSR_AP)
 		rtl8723a_set_bcn_func(padapter, 0);	/* Stop BCN */
 
 	/* set MSR to no link state -> infra. mode */
-	rtl8723a_set_media_status(padapter, _HW_STATE_STATION_);
+	rtl8723a_set_media_status(padapter, MSR_INFRA);
 
-	pmlmeinfo->state = WIFI_FW_NULL_STATE;
+	pmlmeinfo->state = MSR_NOLINK;
 
 	/* switch to the 20M Hz mode after disconnect */
 	pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_20;
@@ -5865,7 +5861,7 @@ int sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		rtl8723a_set_initial_gain(padapter, initialgain);
 
 		/* set MSR to no link state */
-		rtl8723a_set_media_status(padapter, _HW_STATE_NOLINK_);
+		rtl8723a_set_media_status(padapter, MSR_NOLINK);
 
 		rtl8723a_mlme_sitesurvey(padapter, 1);
 
@@ -5941,7 +5937,7 @@ int set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	DBG_8723A_LEVEL(_drv_always_, "set pairwise key to hw: alg:%d(WEP40-1 "
 			"WEP104-5 TKIP-2 AES-4) camid:%d\n",
 			pparm->algorithm, cam_id);
-	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
+	if ((pmlmeinfo->state & 0x03) == MSR_AP) {
 		struct sta_info *psta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
@@ -6015,7 +6011,7 @@ int add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	if (((pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) &&
 	     pmlmeinfo->HT_enable) ||
-	    (pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
+	    (pmlmeinfo->state & 0x03) == MSR_AP) {
 		issue_action_BA23a(padapter, pparm->addr,
 				   WLAN_ACTION_ADDBA_REQ, (u16)pparm->tid);
 		mod_timer(&psta->addba_retry_timer,

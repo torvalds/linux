@@ -2300,18 +2300,18 @@ void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode)
 {
 	u8 val8;
 
-	if ((mode == _HW_STATE_STATION_) || (mode == _HW_STATE_NOLINK_)) {
+	if (mode == MSR_INFRA || mode == MSR_NOLINK) {
 		StopTxBeacon(padapter);
 
 		/*  disable atim wnd */
 		val8 = DIS_TSF_UDT | EN_BCN_FUNCTION | DIS_ATIM;
 		SetBcnCtrlReg23a(padapter, val8, ~val8);
-	} else if ((mode == _HW_STATE_ADHOC_) /*|| (mode == _HW_STATE_AP_) */) {
+	} else if (mode == MSR_ADHOC) {
 		ResumeTxBeacon(padapter);
 
 		val8 = DIS_TSF_UDT | EN_BCN_FUNCTION | DIS_BCNQ_SUB;
 		SetBcnCtrlReg23a(padapter, val8, ~val8);
-	} else if (mode == _HW_STATE_AP_) {
+	} else if (mode == MSR_AP) {
 		/*  add NULL Data and BT NULL Data Packets to FW RSVD Page */
 		rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(padapter);
 
@@ -2393,8 +2393,8 @@ void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
 		do_div(pmlmeext->TSFValue,
 		       (pmlmeinfo->bcn_interval * 1024)) - 1024;	/* us */
 
-	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
-	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)) {
+	if (((pmlmeinfo->state & 0x03) == MSR_ADHOC) ||
+	    ((pmlmeinfo->state & 0x03) == MSR_AP)) {
 		/* pHalData->RegTxPause |= STOP_BCNQ;BIT(6) */
 		/* rtl8723au_write8(padapter, REG_TXPAUSE,
 		   (rtl8723au_read8(Adapter, REG_TXPAUSE)|BIT(6))); */
@@ -2412,8 +2412,8 @@ void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
 	/* enable related TSF function */
 	SetBcnCtrlReg23a(padapter, EN_BCN_FUNCTION, 0);
 
-	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
-	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE))
+	if (((pmlmeinfo->state & 0x03) == MSR_ADHOC) ||
+	    ((pmlmeinfo->state & 0x03) == MSR_AP))
 		ResumeTxBeacon(padapter);
 }
 

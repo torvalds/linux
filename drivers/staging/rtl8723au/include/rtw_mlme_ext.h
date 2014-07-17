@@ -282,16 +282,6 @@ struct	ss_res
 	struct rtw_ieee80211_channel ch[RTW_CHANNEL_SCAN_AMOUNT];
 };
 
-/* define AP_MODE				0x0C */
-/* define STATION_MODE	0x08 */
-/* define AD_HOC_MODE		0x04 */
-/* define NO_LINK_MODE	0x00 */
-
-#define		WIFI_FW_NULL_STATE			_HW_STATE_NOLINK_
-#define	WIFI_FW_STATION_STATE		_HW_STATE_STATION_
-#define	WIFI_FW_AP_STATE				_HW_STATE_AP_
-#define	WIFI_FW_ADHOC_STATE			_HW_STATE_ADHOC_
-
 #define	WIFI_FW_AUTH_NULL			0x00000100
 #define	WIFI_FW_AUTH_STATE			0x00000200
 #define	WIFI_FW_AUTH_SUCCESS			0x00000400

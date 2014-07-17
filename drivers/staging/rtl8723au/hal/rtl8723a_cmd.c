@@ -235,7 +235,7 @@ ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLength)
 	pframe = mgmt->u.beacon.variable;
 	pktlen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
+	if ((pmlmeinfo->state&0x03) == MSR_AP) {
 		/* DBG_8723A("ie len =%d\n", cur_network->IELength); */
 		pktlen += cur_network->IELength;
 		memcpy(pframe, cur_network->IEs, pktlen);
@@ -259,7 +259,7 @@ ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLength)
 	pframe = rtw_set_ie23a(pframe, WLAN_EID_DS_PARAMS, 1, (unsigned char *)
 			       &cur_network->DSConfig, &pktlen);
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) {
+	if ((pmlmeinfo->state&0x03) == MSR_ADHOC) {
 		u32 ATIMWindow;
 		/*  IBSS Parameter Set... */
 		/* ATIMWindow = cur->ATIMWindow; */

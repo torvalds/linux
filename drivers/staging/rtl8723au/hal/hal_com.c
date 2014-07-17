@@ -567,8 +567,8 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 		pmlmeinfo = &pmlmeext->mlmext_info;
 
 		if ((is_client_associated_to_ap23a(padapter) == true) ||
-		    ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
-		    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)) {
+		    ((pmlmeinfo->state & 0x03) == MSR_ADHOC) ||
+		    ((pmlmeinfo->state & 0x03) == MSR_AP)) {
 			/*  enable to rx data frame */
 			rtl8723au_write16(padapter, REG_RXFLTMAP2, 0xFFFF);
 

@@ -52,7 +52,7 @@ void free_mlme_ap_info23a(struct rtw_adapter *padapter)
 
 	rtw_sta_flush23a(padapter);
 
-	pmlmeinfo->state = _HW_STATE_NOLINK_;
+	pmlmeinfo->state = MSR_NOLINK;
 
 	/* free_assoc_sta_resources */
 	rtw_free_all_stainfo23a(padapter);
@@ -688,7 +688,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	}
 
 	/* set MSR to AP_Mode */
-	rtl8723a_set_media_status(padapter, _HW_STATE_AP_);
+	rtl8723a_set_media_status(padapter, MSR_AP);
 
 	/* Set BSSID REG */
 	hw_var_set_bssid(padapter, pnetwork->MacAddress);
@@ -1703,7 +1703,7 @@ int rtw_ap_inform_ch_switch23a (struct rtw_adapter *padapter, u8 new_ch, u8 ch_o
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	if ((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state&0x03) != MSR_AP)
 		return ret;
 
 	DBG_8723A("%s(%s): with ch:%u, offset:%u\n", __func__,
@@ -1740,7 +1740,7 @@ int rtw_sta_flush23a(struct rtw_adapter *padapter)
 
 	DBG_8723A("%s(%s)\n", __func__, padapter->pnetdev->name);
 
-	if ((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state&0x03) != MSR_AP)
 		return ret;
 
 	spin_lock_bh(&pstapriv->asoc_list_lock);
