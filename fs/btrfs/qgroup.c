@@ -1959,6 +1959,7 @@ static int qgroup_subtree_accounting(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup_list *glist;
 	struct ulist *parents;
 	int ret = 0;
+	int err;
 	struct btrfs_qgroup *qg;
 	u64 root_obj = 0;
 	struct seq_list elem = {};
@@ -2013,10 +2014,12 @@ static int qgroup_subtree_accounting(struct btrfs_trans_handle *trans,
 	 * while adding parents of the parents to our ulist.
 	 */
 	list_for_each_entry(glist, &qg->groups, next_group) {
-		ret = ulist_add(parents, glist->group->qgroupid,
+		err = ulist_add(parents, glist->group->qgroupid,
 				ptr_to_u64(glist->group), GFP_ATOMIC);
-		if (ret < 0)
+		if (err < 0) {
+			ret = err;
 			goto out_unlock;
+		}
 	}
 
 	ULIST_ITER_INIT(&uiter);
@@ -2028,10 +2031,12 @@ static int qgroup_subtree_accounting(struct btrfs_trans_handle *trans,
 
 		/* Add any parents of the parents */
 		list_for_each_entry(glist, &qg->groups, next_group) {
-			ret = ulist_add(parents, glist->group->qgroupid,
+			err = ulist_add(parents, glist->group->qgroupid,
 					ptr_to_u64(glist->group), GFP_ATOMIC);
-			if (ret < 0)
+			if (err < 0) {
+				ret = err;
 				goto out_unlock;
+			}
 		}
 	}
 
