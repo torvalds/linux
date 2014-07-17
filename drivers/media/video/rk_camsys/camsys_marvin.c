@@ -245,7 +245,6 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
     
     return 0;
 }
-
 static int camsys_mrv_clkout_cb(void *ptr, unsigned int on,unsigned int inclk)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
@@ -283,14 +282,28 @@ static irqreturn_t camsys_mrv_irq(int irq, void *data)
     camsys_irqstas_t *irqsta;
     camsys_irqpool_t *irqpool;
     unsigned int isp_mis,mipi_mis,mi_mis,*mis;
+	
+	unsigned int mi_ris,mi_imis;
 
     isp_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_ISP_MIS));
     mipi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MIPI_MIS));
-    mi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_MIS));    
+
+	mi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_MIS));
+#if 1	
+	mi_ris =  __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_RIS));
+	mi_imis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_IMIS));
+	while((mi_ris & mi_imis) != mi_mis){
+		camsys_trace(2,"mi_mis status erro,mi_mis 0x%x,mi_ris 0x%x,imis 0x%x\n",mi_mis,mi_ris,mi_imis);
+		mi_mis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_MIS));
+		mi_ris =  __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_RIS));
+    	mi_imis = __raw_readl((void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_IMIS));
+	}
+
+#endif
 
     __raw_writel(isp_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_ISP_ICR)); 
     __raw_writel(mipi_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MIPI_ICR)); 
-    __raw_writel(mi_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_ICR)); 
+	__raw_writel(mi_mis, (void volatile *)(camsys_dev->devmems.registermem->vir_base + MRV_MI_ICR)); 
 
     spin_lock(&camsys_dev->irq.lock);
     if (!list_empty(&camsys_dev->irq.irq_pool)) {
