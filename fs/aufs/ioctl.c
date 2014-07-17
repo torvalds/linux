@@ -123,6 +123,10 @@ long aufs_ioctl_dir(struct file *file, unsigned int cmd, unsigned long arg)
 		err = au_ibusy_ioctl(file, arg);
 		break;
 
+	case AUFS_CTL_BRINFO:
+		err = au_brinfo_ioctl(file, arg);
+		break;
+
 	default:
 		/* do not call the lower */
 		AuDbg("0x%x\n", cmd);
@@ -170,6 +174,10 @@ long aufs_compat_ioctl_dir(struct file *file, unsigned int cmd,
 
 	case AUFS_CTL_IBUSY:
 		err = au_ibusy_compat_ioctl(file, arg);
+		break;
+
+	case AUFS_CTL_BRINFO:
+		err = au_brinfo_compat_ioctl(file, arg);
 		break;
 
 	default:

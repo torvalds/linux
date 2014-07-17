@@ -110,6 +110,57 @@ typedef int16_t aufs_bindex_t;
 #define AUFS_BRWATTR_NLWH	"nolwh"
 #define AUFS_BRWATTR_MOO	"moo"
 
+#define AuBrPerm_RW		1		/* writable, hardlinkable wh */
+#define AuBrPerm_RO		(1 << 1)	/* readonly */
+#define AuBrPerm_RR		(1 << 2)	/* natively readonly */
+#define AuBrPerm_Mask		(AuBrPerm_RW | AuBrPerm_RO | AuBrPerm_RR)
+
+#define AuBrAttr_COO_REG	(1 << 3)	/* copy-up on open */
+#define AuBrAttr_COO_ALL	(1 << 4)
+#define AuBrAttr_COO_Mask	(AuBrAttr_COO_REG | AuBrAttr_COO_ALL)
+
+#define AuBrAttr_UNPIN		(1 << 5)	/* rename-able top dir of
+						   branch */
+
+#define AuBrRAttr_WH		(1 << 6)	/* whiteout-able */
+#define AuBrRAttr_Mask		AuBrRAttr_WH
+
+#define AuBrWAttr_NoLinkWH	(1 << 7)	/* un-hardlinkable whiteouts */
+#define AuBrWAttr_MOO		(1 << 8)	/* move-up on open */
+#define AuBrWAttr_Mask		(AuBrWAttr_NoLinkWH | AuBrWAttr_MOO)
+
+#define AuBrAttr_CMOO_Mask	(AuBrAttr_COO_Mask | AuBrWAttr_MOO)
+
+/* the longest combination */
+#define AuBrPermStrSz	sizeof(AUFS_BRPERM_RW		\
+			       "+" AUFS_BRATTR_COO_REG	\
+			       "+" AUFS_BRATTR_UNPIN	\
+			       "+" AUFS_BRWATTR_NLWH)
+
+typedef struct {
+	char a[AuBrPermStrSz];
+} au_br_perm_str_t;
+
+static inline int au_br_writable(int brperm)
+{
+	return brperm & AuBrPerm_RW;
+}
+
+static inline int au_br_whable(int brperm)
+{
+	return brperm & (AuBrPerm_RW | AuBrRAttr_WH);
+}
+
+static inline int au_br_wh_linkable(int brperm)
+{
+	return !(brperm & AuBrWAttr_NoLinkWH);
+}
+
+static inline int au_br_cmoo(int brperm)
+{
+	return brperm & AuBrAttr_CMOO_Mask;
+}
+
 /* ---------------------------------------------------------------------- */
 
 /* ioctl */
@@ -118,14 +169,10 @@ enum {
 	AuCtl_RDU,
 	AuCtl_RDU_INO,
 
-	/* pathconf wrapper */
-	AuCtl_WBR_FD,
-
-	/* busy inode */
-	AuCtl_IBUSY,
-
-	/* move-down */
-	AuCtl_MVDOWN
+	AuCtl_WBR_FD,	/* pathconf wrapper */
+	AuCtl_IBUSY,	/* busy inode */
+	AuCtl_MVDOWN,	/* move-down */
+	AuCtl_BR	/* info about branches */
 };
 
 /* borrowed from linux/include/linux/kernel.h */
@@ -276,6 +323,18 @@ struct aufs_mvdown {
 
 /* ---------------------------------------------------------------------- */
 
+union aufs_brinfo {
+	/* PATH_MAX may differ between kernel-space and user-space */
+	char	_spacer[4096];
+	struct {
+		int16_t	id;
+		int	perm;
+		char	path[0];
+	};
+} __aligned(8);
+
+/* ---------------------------------------------------------------------- */
+
 #define AuCtlType		'A'
 #define AUFS_CTL_RDU		_IOWR(AuCtlType, AuCtl_RDU, struct aufs_rdu)
 #define AUFS_CTL_RDU_INO	_IOWR(AuCtlType, AuCtl_RDU_INO, struct aufs_rdu)
@@ -284,5 +343,6 @@ struct aufs_mvdown {
 #define AUFS_CTL_IBUSY		_IOWR(AuCtlType, AuCtl_IBUSY, struct aufs_ibusy)
 #define AUFS_CTL_MVDOWN		_IOWR(AuCtlType, AuCtl_MVDOWN, \
 				      struct aufs_mvdown)
+#define AUFS_CTL_BRINFO		_IOW(AuCtlType, AuCtl_BR, union aufs_brinfo)
 
 #endif /* __AUFS_TYPE_H__ */
