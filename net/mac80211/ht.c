@@ -227,6 +227,9 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	if (own_cap.mcs.rx_mask[32/8] & ht_cap_ie->mcs.rx_mask[32/8] & 1)
 		ht_cap.mcs.rx_mask[32/8] |= 1;
 
+	/* set Rx highest rate */
+	ht_cap.mcs.rx_highest = ht_cap_ie->mcs.rx_highest;
+
  apply:
 	changed = memcmp(&sta->sta.ht_cap, &ht_cap, sizeof(ht_cap));
 
