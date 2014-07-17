@@ -576,6 +576,7 @@ static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer
 static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 {
 	unsigned int length;
+	unsigned int bytesused;
 	unsigned int plane;
 
 	if (!V4L2_TYPE_IS_OUTPUT(b->type))
@@ -583,21 +584,24 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
 		for (plane = 0; plane < vb->num_planes; ++plane) {
-			length = (b->memory == V4L2_MEMORY_USERPTR)
+			length = (b->memory == V4L2_MEMORY_USERPTR ||
+				  b->memory == V4L2_MEMORY_DMABUF)
 			       ? b->m.planes[plane].length
 			       : vb->v4l2_planes[plane].length;
+			bytesused = b->m.planes[plane].bytesused
+				  ? b->m.planes[plane].bytesused : length;
 
 			if (b->m.planes[plane].bytesused > length)
 				return -EINVAL;
 
 			if (b->m.planes[plane].data_offset > 0 &&
-			    b->m.planes[plane].data_offset >=
-			    b->m.planes[plane].bytesused)
+			    b->m.planes[plane].data_offset >= bytesused)
 				return -EINVAL;
 		}
 	} else {
 		length = (b->memory == V4L2_MEMORY_USERPTR)
 		       ? b->length : vb->v4l2_planes[0].length;
+		bytesused = b->bytesused ? b->bytesused : length;
 
 		if (b->bytesused > length)
 			return -EINVAL;
@@ -1234,35 +1238,6 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 	unsigned int plane;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
-		/* Fill in driver-provided information for OUTPUT types */
-		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
-			bool bytesused_is_used;
-
-			/* Check if bytesused == 0 for all planes */
-			for (plane = 0; plane < vb->num_planes; ++plane)
-				if (b->m.planes[plane].bytesused)
-					break;
-			bytesused_is_used = plane < vb->num_planes;
-
-			/*
-			 * Will have to go up to b->length when API starts
-			 * accepting variable number of planes.
-			 *
-			 * If bytesused_is_used is false, then fall back to the
-			 * full buffer size. In that case userspace clearly
-			 * never bothered to set it and it's a safe assumption
-			 * that they really meant to use the full plane sizes.
-			 */
-			for (plane = 0; plane < vb->num_planes; ++plane) {
-				struct v4l2_plane *pdst = &v4l2_planes[plane];
-				struct v4l2_plane *psrc = &b->m.planes[plane];
-
-				pdst->bytesused = bytesused_is_used ?
-					psrc->bytesused : psrc->length;
-				pdst->data_offset = psrc->data_offset;
-			}
-		}
-
 		if (b->memory == V4L2_MEMORY_USERPTR) {
 			for (plane = 0; plane < vb->num_planes; ++plane) {
 				v4l2_planes[plane].m.userptr =
@@ -1279,6 +1254,28 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 					b->m.planes[plane].length;
 			}
 		}
+
+		/* Fill in driver-provided information for OUTPUT types */
+		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
+			/*
+			 * Will have to go up to b->length when API starts
+			 * accepting variable number of planes.
+			 *
+			 * If bytesused == 0 for the output buffer, then fall
+			 * back to the full buffer size. In that case
+			 * userspace clearly never bothered to set it and
+			 * it's a safe assumption that they really meant to
+			 * use the full plane sizes.
+			 */
+			for (plane = 0; plane < vb->num_planes; ++plane) {
+				struct v4l2_plane *pdst = &v4l2_planes[plane];
+				struct v4l2_plane *psrc = &b->m.planes[plane];
+
+				pdst->bytesused = psrc->bytesused ?
+					psrc->bytesused : pdst->length;
+				pdst->data_offset = psrc->data_offset;
+			}
+		}
 	} else {
 		/*
 		 * Single-planar buffers do not use planes array,
@@ -1286,15 +1283,9 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 		 * In videobuf we use our internal V4l2_planes struct for
 		 * single-planar buffers as well, for simplicity.
 		 *
-		 * If bytesused == 0, then fall back to the full buffer size
-		 * as that's a sensible default.
+		 * If bytesused == 0 for the output buffer, then fall back
+		 * to the full buffer size as that's a sensible default.
 		 */
-		if (V4L2_TYPE_IS_OUTPUT(b->type))
-			v4l2_planes[0].bytesused =
-				b->bytesused ? b->bytesused : b->length;
-		else
-			v4l2_planes[0].bytesused = 0;
-
 		if (b->memory == V4L2_MEMORY_USERPTR) {
 			v4l2_planes[0].m.userptr = b->m.userptr;
 			v4l2_planes[0].length = b->length;
@@ -1304,6 +1295,13 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 			v4l2_planes[0].m.fd = b->m.fd;
 			v4l2_planes[0].length = b->length;
 		}
+
+		if (V4L2_TYPE_IS_OUTPUT(b->type))
+			v4l2_planes[0].bytesused = b->bytesused ?
+				b->bytesused : v4l2_planes[0].length;
+		else
+			v4l2_planes[0].bytesused = 0;
+
 	}
 
 	/* Zero flags that the vb2 core handles */
