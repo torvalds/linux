@@ -1001,6 +1001,26 @@ struct ieee80211_vendor_ie {
 	u8 oui_type;
 } __packed;
 
+struct ieee80211_wmm_ac_param {
+	u8 aci_aifsn; /* AIFSN, ACM, ACI */
+	u8 cw; /* ECWmin, ECWmax (CW = 2^ECW - 1) */
+	__le16 txop_limit;
+} __packed;
+
+struct ieee80211_wmm_param_ie {
+	u8 element_id; /* Element ID: 221 (0xdd); */
+	u8 len; /* Length: 24 */
+	/* required fields for WMM version 1 */
+	u8 oui[3]; /* 00:50:f2 */
+	u8 oui_type; /* 2 */
+	u8 oui_subtype; /* 1 */
+	u8 version; /* 1 for WMM version 1.0 */
+	u8 qos_info; /* AP/STA specific QoS info */
+	u8 reserved; /* 0 */
+	/* AC_BE, AC_BK, AC_VI, AC_VO */
+	struct ieee80211_wmm_ac_param ac[4];
+} __packed;
+
 /* Control frames */
 struct ieee80211_rts {
 	__le16 frame_control;
