@@ -110,8 +110,8 @@ struct nfs_subversion *get_nfs_version(unsigned int version)
 		mutex_unlock(&nfs_version_mutex);
 	}
 
-	if (!IS_ERR(nfs))
-		try_module_get(nfs->owner);
+	if (!IS_ERR(nfs) && !try_module_get(nfs->owner))
+		return ERR_PTR(-EAGAIN);
 	return nfs;
 }
 
@@ -158,7 +158,8 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 		goto error_0;
 
 	clp->cl_nfs_mod = cl_init->nfs_mod;
-	try_module_get(clp->cl_nfs_mod->owner);
+	if (!try_module_get(clp->cl_nfs_mod->owner))
+		goto error_dealloc;
 
 	clp->rpc_ops = clp->cl_nfs_mod->rpc_ops;
 
@@ -190,6 +191,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 
 error_cleanup:
 	put_nfs_version(clp->cl_nfs_mod);
+error_dealloc:
 	kfree(clp);
 error_0:
 	return ERR_PTR(err);
