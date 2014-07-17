@@ -8619,7 +8619,7 @@ M:	William Hubbs <w.d.hubbs@gmail.com>
 M:	Chris Brannon <chris@the-brannons.com>
 M:	Kirk Reiser <kirk@reisers.ca>
 M:	Samuel Thibault <samuel.thibault@ens-lyon.org>
-L:	speakup@braille.uwo.ca
+L:	speakup@linux-speakup.org
 W:	http://www.linux-speakup.org/
 S:	Odd Fixes
 F:	drivers/staging/speakup/
