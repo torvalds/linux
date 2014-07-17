@@ -35,6 +35,7 @@
 
 static int nocompress;
 static int noresume;
+static int nohibernate;
 static int resume_wait;
 static unsigned int resume_delay;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
@@ -61,6 +62,11 @@ static int hibernation_mode = HIBERNATION_SHUTDOWN;
 bool freezer_test_done;
 
 static const struct platform_hibernation_ops *hibernation_ops;
+
+bool hibernation_available(void)
+{
+	return (nohibernate == 0);
+}
 
 /**
  * hibernation_set_ops - Set the global hibernate operations.
@@ -642,6 +648,11 @@ int hibernate(void)
 {
 	int error;
 
+	if (!hibernation_available()) {
+		pr_debug("PM: Hibernation not available.\n");
+		return -EPERM;
+	}
+
 	lock_system_sleep();
 	/* The snapshot device should not be opened while we're running */
 	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
@@ -734,7 +745,7 @@ static int software_resume(void)
 	/*
 	 * If the user said "noresume".. bail out early.
 	 */
-	if (noresume)
+	if (noresume || !hibernation_available())
 		return 0;
 
 	/*
@@ -900,6 +911,9 @@ static ssize_t disk_show(struct kobject *kobj, struct kobj_attribute *attr,
 	int i;
 	char *start = buf;
 
+	if (!hibernation_available())
+		return sprintf(buf, "[disabled]\n");
+
 	for (i = HIBERNATION_FIRST; i <= HIBERNATION_MAX; i++) {
 		if (!hibernation_modes[i])
 			continue;
@@ -933,6 +947,9 @@ static ssize_t disk_store(struct kobject *kobj, struct kobj_attribute *attr,
 	int len;
 	char *p;
 	int mode = HIBERNATION_INVALID;
+
+	if (!hibernation_available())
+		return -EPERM;
 
 	p = memchr(buf, '\n', n);
 	len = p ? p - buf : n;
@@ -1101,6 +1118,10 @@ static int __init hibernate_setup(char *str)
 		noresume = 1;
 	else if (!strncmp(str, "nocompress", 10))
 		nocompress = 1;
+	else if (!strncmp(str, "no", 2)) {
+		noresume = 1;
+		nohibernate = 1;
+	}
 	return 1;
 }
 
@@ -1125,9 +1146,23 @@ static int __init resumedelay_setup(char *str)
 	return 1;
 }
 
+static int __init nohibernate_setup(char *str)
+{
+	noresume = 1;
+	nohibernate = 1;
+	return 1;
+}
+
+static int __init kaslr_nohibernate_setup(char *str)
+{
+	return nohibernate_setup(str);
+}
+
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
 __setup("hibernate=", hibernate_setup);
 __setup("resumewait", resumewait_setup);
 __setup("resumedelay=", resumedelay_setup);
+__setup("nohibernate", nohibernate_setup);
+__setup("kaslr", kaslr_nohibernate_setup);

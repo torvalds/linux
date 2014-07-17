@@ -15,7 +15,6 @@
 
 /* BIO layer definitions. */
 extern unsigned long kern_base, kern_size;
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 static inline u8 _inb(unsigned long addr)
 {
@@ -91,12 +90,12 @@ static inline void _outl(u32 l, unsigned long addr)
 #define inl_p(__addr)		inl(__addr)
 #define outl_p(__l, __addr)	outl(__l, __addr)
 
-extern void outsb(unsigned long, const void *, unsigned long);
-extern void outsw(unsigned long, const void *, unsigned long);
-extern void outsl(unsigned long, const void *, unsigned long);
-extern void insb(unsigned long, void *, unsigned long);
-extern void insw(unsigned long, void *, unsigned long);
-extern void insl(unsigned long, void *, unsigned long);
+void outsb(unsigned long, const void *, unsigned long);
+void outsw(unsigned long, const void *, unsigned long);
+void outsl(unsigned long, const void *, unsigned long);
+void insb(unsigned long, void *, unsigned long);
+void insw(unsigned long, void *, unsigned long);
+void insl(unsigned long, void *, unsigned long);
 
 static inline void ioread8_rep(void __iomem *port, void *buf, unsigned long count)
 {
@@ -509,12 +508,12 @@ static inline void iounmap(volatile void __iomem *addr)
 #define iowrite32be(val,X)		__raw_writel(val,X)
 
 /* Create a virtual mapping cookie for an IO port range */
-extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
-extern void ioport_unmap(void __iomem *);
+void __iomem *ioport_map(unsigned long port, unsigned int nr);
+void ioport_unmap(void __iomem *);
 
 /* Create a virtual mapping cookie for a PCI BAR (memory or IO) */
 struct pci_dev;
-extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
+void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
 static inline int sbus_can_dma_64bit(void)
 {
@@ -525,7 +524,7 @@ static inline int sbus_can_burst64(void)
 	return 1;
 }
 struct device;
-extern void sbus_set_sbus64(struct device *, int);
+void sbus_set_sbus64(struct device *, int);
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem

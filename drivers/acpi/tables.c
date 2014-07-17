@@ -360,7 +360,8 @@ static int __init acpi_parse_apic_instance(char *str)
 	if (!str)
 		return -EINVAL;
 
-	acpi_apic_instance = simple_strtoul(str, NULL, 0);
+	if (kstrtoint(str, 0, &acpi_apic_instance))
+		return -EINVAL;
 
 	pr_notice("Shall use APIC/MADT table %d\n", acpi_apic_instance);
 

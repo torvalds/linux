@@ -125,7 +125,7 @@ static ssize_t show_throttle(struct cbe_pmd_regs __iomem *pmd_regs, char *buf, i
 static ssize_t store_throttle(struct cbe_pmd_regs __iomem *pmd_regs, const char *buf, size_t size, int pos)
 {
 	u64 reg_value;
-	int temp;
+	unsigned int temp;
 	u64 new_value;
 	int ret;
 

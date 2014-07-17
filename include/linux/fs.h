@@ -1921,6 +1921,12 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
 
 static inline int break_deleg(struct inode *inode, unsigned int mode)
 {
+	/*
+	 * Since this check is lockless, we must ensure that any refcounts
+	 * taken are done before checking inode->i_flock. Otherwise, we could
+	 * end up racing with tasks trying to set a new lease on this file.
+	 */
+	smp_mb();
 	if (inode->i_flock)
 		return __break_lease(inode, mode, FL_DELEG);
 	return 0;

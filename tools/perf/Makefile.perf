@@ -819,15 +819,15 @@ TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol
 TAG_FILES= ../../include/uapi/linux/perf_event.h
 
 TAGS:
-	$(RM) TAGS
+	$(QUIET_GEN)$(RM) TAGS; \
 	$(FIND) $(TAG_FOLDERS) -name '*.[hcS]' -print | xargs etags -a $(TAG_FILES)
 
 tags:
-	$(RM) tags
+	$(QUIET_GEN)$(RM) tags; \
 	$(FIND) $(TAG_FOLDERS) -name '*.[hcS]' -print | xargs ctags -a $(TAG_FILES)
 
 cscope:
-	$(RM) cscope*
+	$(QUIET_GEN)$(RM) cscope*; \
 	$(FIND) $(TAG_FOLDERS) -name '*.[hcS]' -print | xargs cscope -b $(TAG_FILES)
 
 ### Detect prefix changes
