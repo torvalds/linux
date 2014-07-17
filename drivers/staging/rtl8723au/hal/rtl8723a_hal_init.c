@@ -882,20 +882,13 @@ void rtl8723a_read_chip_version(struct rtw_adapter *padapter)
 /*  */
 void SetBcnCtrlReg23a(struct rtw_adapter *padapter, u8 SetBits, u8 ClearBits)
 {
-	struct hal_data_8723a *pHalData;
-	u32 addr;
-	u8 *pRegBcnCtrlVal;
+	u8 val8;
 
-	pHalData = GET_HAL_DATA(padapter);
-	pRegBcnCtrlVal = (u8 *)&pHalData->RegBcnCtrlVal;
+	val8 = rtl8723au_read8(padapter, REG_BCN_CTRL);
+	val8 |= SetBits;
+	val8 &= ~ClearBits;
 
-	addr = REG_BCN_CTRL;
-
-	*pRegBcnCtrlVal = rtl8723au_read8(padapter, addr);
-	*pRegBcnCtrlVal |= SetBits;
-	*pRegBcnCtrlVal &= ~ClearBits;
-
-	rtl8723au_write8(padapter, addr, *pRegBcnCtrlVal);
+	rtl8723au_write8(padapter, REG_BCN_CTRL, val8);
 }
 
 void rtl8723a_InitBeaconParameters(struct rtw_adapter *padapter)
@@ -903,7 +896,6 @@ void rtl8723a_InitBeaconParameters(struct rtw_adapter *padapter)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	rtl8723au_write16(padapter, REG_BCN_CTRL, 0x1010);
-	pHalData->RegBcnCtrlVal = 0x1010;
 
 	/*  TODO: Remove these magic number */
 	rtl8723au_write16(padapter, REG_TBTT_PROHIBIT, 0x6404);	/*  ms */
