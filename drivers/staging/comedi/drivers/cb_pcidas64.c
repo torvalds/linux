@@ -1160,7 +1160,7 @@ static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
 		bits = 0x700;
 		break;
 	default:
-		comedi_error(dev, "bug! in ai_range_bits_6xxx");
+		dev_err(dev->class_dev, "bug! in %s\n", __func__);
 		break;
 	}
 	if (range->min == 0)
@@ -1187,9 +1187,9 @@ static void set_dac_range_bits(struct comedi_device *dev,
 	unsigned int code = thisboard->ao_range_code[range];
 
 	if (channel > 1)
-		comedi_error(dev, "bug! bad channel?");
+		dev_err(dev->class_dev, "bug! bad channel?\n");
 	if (code & ~0x3)
-		comedi_error(dev, "bug! bad range code?");
+		dev_err(dev->class_dev, "bug! bad range code?\n");
 
 	*bits &= ~(0x3 << (2 * channel));
 	*bits |= code << (2 * channel);
@@ -1531,10 +1531,10 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 
 static inline void warn_external_queue(struct comedi_device *dev)
 {
-	comedi_error(dev,
-		     "AO command and AI external channel queue cannot be used simultaneously.");
-	comedi_error(dev,
-		     "Use internal AI channel queue (channels must be consecutive and use same range/aref)");
+	dev_err(dev->class_dev,
+		"AO command and AI external channel queue cannot be used simultaneously\n");
+	dev_err(dev->class_dev,
+		"Use internal AI channel queue (channels must be consecutive and use same range/aref)\n");
 }
 
 /* Their i2c requires a huge delay on setting clock or data high for some reason */
@@ -1648,7 +1648,8 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 
 	/*  get acknowledge */
 	if (i2c_read_ack(dev) != 0) {
-		comedi_error(dev, "i2c write failed: no acknowledge");
+		dev_err(dev->class_dev, "%s failed: no acknowledge\n",
+			__func__);
 		i2c_stop(dev);
 		return;
 	}
@@ -1656,7 +1657,8 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	for (i = 0; i < length; i++) {
 		i2c_write_byte(dev, data[i]);
 		if (i2c_read_ack(dev) != 0) {
-			comedi_error(dev, "i2c write failed: no acknowledge");
+			dev_err(dev->class_dev, "%s failed: no acknowledge\n",
+				__func__);
 			i2c_stop(dev);
 			return;
 		}
@@ -2234,7 +2236,7 @@ static uint32_t ai_convert_counter_4020(struct comedi_device *dev,
 		divisor = devpriv->ext_clock.divisor;
 		break;
 	default:		/*  should never happen */
-		comedi_error(dev, "bug! failed to set ai pacing!");
+		dev_err(dev->class_dev, "bug! failed to set ai pacing!\n");
 		divisor = 1000;
 		break;
 	}
@@ -2767,7 +2769,7 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 
 	/*  check for fifo overrun */
 	if (status & ADC_OVERRUN_BIT) {
-		comedi_error(dev, "fifo overrun");
+		dev_err(dev->class_dev, "fifo overrun\n");
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 	/*  spin lock makes sure no one else changes plx dma control reg */
@@ -3130,7 +3132,8 @@ static void set_dac_select_reg(struct comedi_device *dev,
 	first_channel = CR_CHAN(cmd->chanlist[0]);
 	last_channel = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
 	if (last_channel < first_channel)
-		comedi_error(dev, "bug! last ao channel < first ao channel");
+		dev_err(dev->class_dev,
+			"bug! last ao channel < first ao channel\n");
 
 	bits = (first_channel & 0x7) | (last_channel & 0x7) << 3;
 
@@ -3153,7 +3156,7 @@ static void set_dac_interval_regs(struct comedi_device *dev,
 
 	divisor = get_ao_divisor(cmd->scan_begin_arg, cmd->flags);
 	if (divisor > max_counter_value) {
-		comedi_error(dev, "bug! ao divisor too big");
+		dev_err(dev->class_dev, "bug! ao divisor too big\n");
 		divisor = max_counter_value;
 	}
 	writew(divisor & 0xffff,
@@ -3488,7 +3491,7 @@ static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 	static const int caldac_8800_udelay = 1;
 
 	if (address >= num_caldac_channels) {
-		comedi_error(dev, "illegal caldac channel");
+		dev_err(dev->class_dev, "illegal caldac channel\n");
 		return -1;
 	}
 	for (bit = 1 << (bitstream_length - 1); bit; bit >>= 1) {
@@ -3560,7 +3563,7 @@ static int caldac_i2c_write(struct comedi_device *dev,
 		serial_bytes[0] = GAIN_1_3;
 		break;
 	default:
-		comedi_error(dev, "invalid caldac channel\n");
+		dev_err(dev->class_dev, "invalid caldac channel\n");
 		return -1;
 	}
 	serial_bytes[1] = NOT_CLEAR_REGISTERS | ((value >> 8) & 0xf);
