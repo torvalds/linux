@@ -218,6 +218,9 @@ void __init plat_mem_setup(void)
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
 		bcm47xx_register_bcma();
 		bcm47xx_set_system_type(bcm47xx_bus.bcma.bus.chipinfo.id);
+#ifdef CONFIG_HIGHMEM
+		bcm47xx_prom_highmem_init();
+#endif
 #endif
 	} else {
 		printk(KERN_INFO "bcm47xx: using ssb bus\n");

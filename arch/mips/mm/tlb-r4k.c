@@ -397,7 +397,7 @@ int __init has_transparent_hugepage(void)
  * lifetime of the system
  */
 
-static int temp_tlb_entry __cpuinitdata;
+int temp_tlb_entry __cpuinitdata;
 
 __init int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 			       unsigned long entryhi, unsigned long pagemask)
