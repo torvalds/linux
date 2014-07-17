@@ -33,6 +33,7 @@
 #include <linux/moduleparam.h>
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
+#include <linux/math64.h>
 
 #include <rdma/ib_verbs.h>
 
@@ -150,7 +151,7 @@ static int wr_log_show(struct seq_file *seq, void *v)
 	int prev_ts_set = 0;
 	int idx, end;
 
-#define ts2ns(ts) ((ts) * dev->rdev.lldi.cclk_ps / 1000)
+#define ts2ns(ts) div64_ul((ts) * dev->rdev.lldi.cclk_ps, 1000)
 
 	idx = atomic_read(&dev->rdev.wr_log_idx) &
 		(dev->rdev.wr_log_size - 1);
