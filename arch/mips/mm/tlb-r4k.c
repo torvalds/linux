@@ -391,6 +391,51 @@ int __init has_transparent_hugepage(void)
 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE  */
 
+/*
+ * Used for loading TLB entries before trap_init() has started, when we
+ * don't actually want to add a wired entry which remains throughout the
+ * lifetime of the system
+ */
+
+static int temp_tlb_entry __cpuinitdata;
+
+__init int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
+			       unsigned long entryhi, unsigned long pagemask)
+{
+	int ret = 0;
+	unsigned long flags;
+	unsigned long wired;
+	unsigned long old_pagemask;
+	unsigned long old_ctx;
+
+	local_irq_save(flags);
+	/* Save old context and create impossible VPN2 value */
+	old_ctx = read_c0_entryhi();
+	old_pagemask = read_c0_pagemask();
+	wired = read_c0_wired();
+	if (--temp_tlb_entry < wired) {
+		printk(KERN_WARNING
+		       "No TLB space left for add_temporary_entry\n");
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	write_c0_index(temp_tlb_entry);
+	write_c0_pagemask(pagemask);
+	write_c0_entryhi(entryhi);
+	write_c0_entrylo0(entrylo0);
+	write_c0_entrylo1(entrylo1);
+	mtc0_tlbw_hazard();
+	tlb_write_indexed();
+	tlbw_use_hazard();
+
+	write_c0_entryhi(old_ctx);
+	write_c0_pagemask(old_pagemask);
+out:
+	local_irq_restore(flags);
+	return ret;
+}
+
 static int ntlb;
 static int __init set_ntlb(char *str)
 {
@@ -430,6 +475,8 @@ static void r4k_tlb_configure(void)
 #endif
 		write_c0_pagegrain(pg);
 	}
+
+	temp_tlb_entry = current_cpu_data.tlbsize - 1;
 
 	/* From this point on the ARC firmware is dead.	 */
 	local_flush_tlb_all();
