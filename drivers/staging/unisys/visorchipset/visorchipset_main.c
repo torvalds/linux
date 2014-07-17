@@ -576,8 +576,6 @@ static void
 controlvm_respond(CONTROLVM_MESSAGE_HEADER *msgHdr, int response)
 {
 	CONTROLVM_MESSAGE outmsg;
-	if (!ControlVm_channel)
-		return;
 	controlvm_init_response(&outmsg, msgHdr, response);
 	/* For DiagPool channel DEVICE_CHANGESTATE, we need to send
 	* back the deviceChangeState structure in the packet. */
@@ -604,8 +602,6 @@ controlvm_respond_chipset_init(CONTROLVM_MESSAGE_HEADER *msgHdr, int response,
 			       ULTRA_CHIPSET_FEATURE features)
 {
 	CONTROLVM_MESSAGE outmsg;
-	if (!ControlVm_channel)
-		return;
 	controlvm_init_response(&outmsg, msgHdr, response);
 	outmsg.cmd.initChipset.features = features;
 	if (!visorchannel_signalinsert(ControlVm_channel,
@@ -620,8 +616,6 @@ controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *msgHdr,
 				      int response, ULTRA_SEGMENT_STATE state)
 {
 	CONTROLVM_MESSAGE outmsg;
-	if (!ControlVm_channel)
-		return;
 	controlvm_init_response(&outmsg, msgHdr, response);
 	outmsg.cmd.deviceChangeState.state = state;
 	outmsg.cmd.deviceChangeState.flags.physicalDevice = 1;
@@ -738,9 +732,6 @@ device_changestate_responder(CONTROLVM_ID cmdId,
 {
 	VISORCHIPSET_DEVICE_INFO *p = NULL;
 	CONTROLVM_MESSAGE outmsg;
-
-	if (!ControlVm_channel)
-		return;
 
 	p = finddevice(&DevInfoList, busNo, devNo);
 	if (!p) {
@@ -1855,7 +1846,6 @@ controlvm_periodic_work(struct work_struct *work)
 {
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
 	CONTROLVM_MESSAGE inmsg;
-	char s[99];
 	BOOL gotACommand = FALSE;
 	BOOL handle_command_failed = FALSE;
 	static U64 Poll_Count;
@@ -1870,32 +1860,9 @@ controlvm_periodic_work(struct work_struct *work)
 		goto Away;
 
 	memset(&chanInfo, 0, sizeof(VISORCHIPSET_CHANNEL_INFO));
-	if (!ControlVm_channel) {
-		HOSTADDRESS addr = controlvm_get_channel_address();
-		if (addr != 0) {
-			ControlVm_channel =
-			    visorchannel_create_with_lock
-			    (addr,
-			     sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL),
-			     UltraControlvmChannelProtocolGuid);
-			if (ControlVm_channel == NULL)
-				LOGERR("failed to create controlvm channel");
-			else if (ULTRA_CONTROLVM_CHANNEL_OK_CLIENT
-				 (visorchannel_get_header(ControlVm_channel),
-				  NULL)) {
-				LOGINF("Channel %s (ControlVm) discovered",
-				       visorchannel_id(ControlVm_channel, s));
-				initialize_controlvm_payload();
-			} else {
-				LOGERR("controlvm channel is invalid");
-				visorchannel_destroy(ControlVm_channel);
-				ControlVm_channel = NULL;
-			}
-		}
-	}
 
 	Poll_Count++;
-	if ((ControlVm_channel != NULL) || (Poll_Count >= 250))
+	if (Poll_Count >= 250)
 		;	/* keep going */
 	else
 		goto Away;
@@ -1914,54 +1881,46 @@ controlvm_periodic_work(struct work_struct *work)
 		}
 	}
 
-	if (ControlVm_channel) {
-		while (visorchannel_signalremove(ControlVm_channel,
-						 CONTROLVM_QUEUE_RESPONSE,
-						 &inmsg)) {
-			if (inmsg.hdr.PayloadMaxBytes != 0) {
-				LOGERR("Payload of size %lu returned @%lu with unexpected message id %d.",
-				     (ulong) inmsg.hdr.PayloadMaxBytes,
-				     (ulong) inmsg.hdr.PayloadVmOffset,
-				     inmsg.hdr.Id);
-			}
+	while (visorchannel_signalremove(ControlVm_channel,
+					 CONTROLVM_QUEUE_RESPONSE,
+					 &inmsg)) {
+		if (inmsg.hdr.PayloadMaxBytes != 0) {
+			LOGERR("Payload of size %lu returned @%lu with unexpected message id %d.",
+			     (ulong) inmsg.hdr.PayloadMaxBytes,
+			     (ulong) inmsg.hdr.PayloadVmOffset,
+			     inmsg.hdr.Id);
 		}
-		if (!gotACommand) {
-			if (ControlVm_Pending_Msg_Valid) {
-				/* we throttled processing of a prior
-				* msg, so try to process it again
-				* rather than reading a new one
-				*/
-				inmsg = ControlVm_Pending_Msg;
-				ControlVm_Pending_Msg_Valid = FALSE;
-				gotACommand = TRUE;
-			} else
-				gotACommand = read_controlvm_event(&inmsg);
-		}
+	}
+	if (!gotACommand) {
+		if (ControlVm_Pending_Msg_Valid) {
+			/* we throttled processing of a prior
+			* msg, so try to process it again
+			* rather than reading a new one
+			*/
+			inmsg = ControlVm_Pending_Msg;
+			ControlVm_Pending_Msg_Valid = FALSE;
+			gotACommand = TRUE;
+		} else
+			gotACommand = read_controlvm_event(&inmsg);
 	}
 
 	handle_command_failed = FALSE;
 	while (gotACommand && (!handle_command_failed)) {
 		Most_recent_message_jiffies = jiffies;
-		if (ControlVm_channel) {
-			if (handle_command(inmsg,
-					   visorchannel_get_physaddr
-					   (ControlVm_channel)))
-				gotACommand = read_controlvm_event(&inmsg);
-			else {
-				/* this is a scenario where throttling
-				* is required, but probably NOT an
-				* error...; we stash the current
-				* controlvm msg so we will attempt to
-				* reprocess it on our next loop
-				*/
-				handle_command_failed = TRUE;
-				ControlVm_Pending_Msg = inmsg;
-				ControlVm_Pending_Msg_Valid = TRUE;
-			}
-
-		} else {
-			handle_command(inmsg, 0);
-			gotACommand = FALSE;
+		if (handle_command(inmsg,
+				   visorchannel_get_physaddr
+				   (ControlVm_channel)))
+			gotACommand = read_controlvm_event(&inmsg);
+		else {
+			/* this is a scenario where throttling
+			* is required, but probably NOT an
+			* error...; we stash the current
+			* controlvm msg so we will attempt to
+			* reprocess it on our next loop
+			*/
+			handle_command_failed = TRUE;
+			ControlVm_Pending_Msg = inmsg;
+			ControlVm_Pending_Msg_Valid = TRUE;
 		}
 	}
 
@@ -1998,7 +1957,6 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	CONTROLVM_MESSAGE localCrashCreateBusMsg;
 	CONTROLVM_MESSAGE localCrashCreateDevMsg;
 	CONTROLVM_MESSAGE msg;
-	HOSTADDRESS host_addr;
 	U32 localSavedCrashMsgOffset;
 	U16 localSavedCrashMsgCount;
 
@@ -2020,26 +1978,6 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	msg.cmd.initChipset.switchCount = 0;
 
 	chipset_init(&msg);
-
-	host_addr = controlvm_get_channel_address();
-	if (!host_addr) {
-		LOGERR("Huh?  Host address is NULL");
-		POSTCODE_LINUX_2(CRASH_DEV_HADDR_NULL, POSTCODE_SEVERITY_ERR);
-		return;
-	}
-
-	ControlVm_channel =
-	    visorchannel_create_with_lock
-	    (host_addr,
-	     sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL),
-	     UltraControlvmChannelProtocolGuid);
-
-	if (ControlVm_channel == NULL) {
-		LOGERR("failed to create controlvm channel");
-		POSTCODE_LINUX_2(CRASH_DEV_CONTROLVM_NULL,
-				 POSTCODE_SEVERITY_ERR);
-		return;
-	}
 
 	/* get saved message count */
 	if (visorchannel_read(ControlVm_channel,
@@ -2331,9 +2269,6 @@ proc_read_installer(struct file *file, char __user *buf,
 	char *vbuf;
 	loff_t pos = *offset;
 
-	if (!ControlVm_channel)
-		return -ENODEV;
-
 	if (pos < 0)
 		return -EINVAL;
 
@@ -2382,9 +2317,6 @@ proc_write_installer(struct file *file,
 	char buf[32];
 	U16 remainingSteps;
 	U32 error, textId;
-
-	if (!ControlVm_channel)
-		return -ENODEV;
 
 	/* Check to make sure there is no buffer overflow */
 	if (count > (sizeof(buf) - 1))
@@ -2447,9 +2379,6 @@ proc_read_toolaction(struct file *file, char __user *buf,
 	char *vbuf;
 	loff_t pos = *offset;
 
-	if (!ControlVm_channel)
-		return -ENODEV;
-
 	if (pos < 0)
 		return -EINVAL;
 
@@ -2487,9 +2416,6 @@ proc_write_toolaction(struct file *file,
 {
 	char buf[3];
 	U8 toolAction;
-
-	if (!ControlVm_channel)
-		return -ENODEV;
 
 	/* Check to make sure there is no buffer overflow */
 	if (count > (sizeof(buf) - 1))
@@ -2530,9 +2456,6 @@ proc_read_bootToTool(struct file *file, char __user *buf,
 	char *vbuf;
 	loff_t pos = *offset;
 
-	if (!ControlVm_channel)
-		return -ENODEV;
-
 	if (pos < 0)
 		return -EINVAL;
 
@@ -2570,9 +2493,6 @@ proc_write_bootToTool(struct file *file,
 	char buf[3];
 	int inputVal;
 	ULTRA_EFI_SPAR_INDICATION efiSparIndication;
-
-	if (!ControlVm_channel)
-		return -ENODEV;
 
 	/* Check to make sure there is no buffer overflow */
 	if (count > (sizeof(buf) - 1))
@@ -2612,9 +2532,11 @@ static int __init
 visorchipset_init(void)
 {
 	int rc = 0, x = 0;
+	char s[64];
 	struct proc_dir_entry *installer_file;
 	struct proc_dir_entry *toolaction_file;
 	struct proc_dir_entry *bootToTool_file;
+	HOSTADDRESS addr;
 
 	if (!unisys_spar_platform)
 		return -ENODEV;
@@ -2644,6 +2566,30 @@ visorchipset_init(void)
 		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, x, DIAG_SEVERITY_ERR);
 		rc = x;
 		goto Away;
+	}
+
+	addr = controlvm_get_channel_address();
+	if (addr != 0) {
+		ControlVm_channel =
+		    visorchannel_create_with_lock
+		    (addr,
+		     sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL),
+		     UltraControlvmChannelProtocolGuid);
+		if (ULTRA_CONTROLVM_CHANNEL_OK_CLIENT
+			 (visorchannel_get_header(ControlVm_channel),
+			  NULL)) {
+			LOGINF("Channel %s (ControlVm) discovered",
+			       visorchannel_id(ControlVm_channel, s));
+			initialize_controlvm_payload();
+		} else {
+			LOGERR("controlvm channel is invalid");
+			visorchannel_destroy(ControlVm_channel);
+			ControlVm_channel = NULL;
+			return -ENODEV;
+		}
+	} else {
+		LOGERR("no controlvm channel discovered");
+		return -ENODEV;
 	}
 
 	MajorDev = MKDEV(visorchipset_major, 0);
@@ -2795,12 +2741,10 @@ visorchipset_exit(void)
 	memset(&g_DelDumpMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
 	proc_DeInit();
-	if (ControlVm_channel != NULL) {
-		LOGINF("Channel %s (ControlVm) disconnected",
-		       visorchannel_id(ControlVm_channel, s));
-		visorchannel_destroy(ControlVm_channel);
-		ControlVm_channel = NULL;
-	}
+	LOGINF("Channel %s (ControlVm) disconnected",
+	       visorchannel_id(ControlVm_channel, s));
+	visorchannel_destroy(ControlVm_channel);
+
 	visorchipset_file_cleanup();
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	LOGINF("chipset driver unloaded");
