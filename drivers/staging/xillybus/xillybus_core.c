@@ -158,10 +158,10 @@ irqreturn_t xillybus_isr(int irq, void *data)
 				ep->msg_counter,
 				i/2);
 
-			if (++ep->failed_messages > 10)
+			if (++ep->failed_messages > 10) {
 				dev_err(ep->dev,
 					"Lost sync with interrupt messages. Stopping.\n");
-			else {
+			} else {
 				ep->ephw->hw_sync_sgl_for_device(
 					ep,
 					ep->msgbuf_dma_addr,
@@ -532,8 +532,9 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 
 			if (!buffers)
 				goto memfail;
-		} else
+		} else {
 			bytebufsize = bufsize << 2;
+		}
 
 		if (!is_writebuf) {
 			channel->num_rd_buffers = bufnum;
