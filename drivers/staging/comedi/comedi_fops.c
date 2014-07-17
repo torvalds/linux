@@ -16,6 +16,8 @@
     GNU General Public License for more details.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "comedi_compat32.h"
 
 #include <linux/module.h>
@@ -1073,11 +1075,10 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		/* by default we allow the insn since we don't have checks for
 		 * all possible cases yet */
 	default:
-		pr_warn("comedi: No check for data length of config insn id %i is implemented.\n",
+		pr_warn("No check for data length of config insn id %i is implemented\n",
 			data[0]);
-		pr_warn("comedi: Add a check to %s in %s.\n",
-			__func__, __FILE__);
-		pr_warn("comedi: Assuming n=%i is correct.\n", insn->n);
+		pr_warn("Add a check to %s in %s\n", __func__, __FILE__);
+		pr_warn("Assuming n=%i is correct\n", insn->n);
 		return 0;
 	}
 	return -EINVAL;
@@ -2463,7 +2464,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 		mutex_unlock(&dev->mutex);
 		comedi_device_cleanup(dev);
 		comedi_dev_put(dev);
-		pr_err("comedi: error: ran out of minor numbers for board device files.\n");
+		pr_err("ran out of minor numbers for board device files\n");
 		return ERR_PTR(-EBUSY);
 	}
 	dev->minor = i;
@@ -2516,7 +2517,7 @@ int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 	}
 	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	if (i == COMEDI_NUM_SUBDEVICE_MINORS) {
-		pr_err("comedi: error: ran out of minor numbers for subdevice files.\n");
+		pr_err("ran out of minor numbers for subdevice files\n");
 		return -EBUSY;
 	}
 	i += COMEDI_NUM_BOARD_MINORS;
@@ -2566,11 +2567,11 @@ static int __init comedi_init(void)
 	int i;
 	int retval;
 
-	pr_info("comedi: version " COMEDI_RELEASE " - http://www.comedi.org\n");
+	pr_info("version " COMEDI_RELEASE " - http://www.comedi.org\n");
 
 	if (comedi_num_legacy_minors < 0 ||
 	    comedi_num_legacy_minors > COMEDI_NUM_BOARD_MINORS) {
-		pr_err("comedi: error: invalid value for module parameter \"comedi_num_legacy_minors\".  Valid values are 0 through %i.\n",
+		pr_err("invalid value for module parameter \"comedi_num_legacy_minors\".  Valid values are 0 through %i.\n",
 		       COMEDI_NUM_BOARD_MINORS);
 		return -EINVAL;
 	}
@@ -2596,7 +2597,7 @@ static int __init comedi_init(void)
 	}
 	comedi_class = class_create(THIS_MODULE, "comedi");
 	if (IS_ERR(comedi_class)) {
-		pr_err("comedi: failed to create class\n");
+		pr_err("failed to create class\n");
 		cdev_del(&comedi_cdev);
 		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 					 COMEDI_NUM_MINORS);
