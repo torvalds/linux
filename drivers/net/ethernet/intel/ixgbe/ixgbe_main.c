@@ -7741,39 +7741,13 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			     const unsigned char *addr,
 			     u16 flags)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	int err;
-
-	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
-		return ndo_dflt_fdb_add(ndm, tb, dev, addr, flags);
-
-	/* Hardware does not support aging addresses so if a
-	 * ndm_state is given only allow permanent addresses
-	 */
-	if (ndm->ndm_state && !(ndm->ndm_state & NUD_PERMANENT)) {
-		pr_info("%s: FDB only supports static addresses\n",
-			ixgbe_driver_name);
-		return -EINVAL;
-	}
-
+	/* guarantee we can provide a unique filter for the unicast address */
 	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr)) {
-		u32 rar_uc_entries = IXGBE_MAX_PF_MACVLANS;
-
-		if (netdev_uc_count(dev) < rar_uc_entries)
-			err = dev_uc_add_excl(dev, addr);
-		else
-			err = -ENOMEM;
-	} else if (is_multicast_ether_addr(addr)) {
-		err = dev_mc_add_excl(dev, addr);
-	} else {
-		err = -EINVAL;
+		if (IXGBE_MAX_PF_MACVLANS <= netdev_uc_count(dev))
+			return -ENOMEM;
 	}
 
-	/* Only return duplicate errors if NLM_F_EXCL is set */
-	if (err == -EEXIST && !(flags & NLM_F_EXCL))
-		err = 0;
-
-	return err;
+	return ndo_dflt_fdb_add(ndm, tb, dev, addr, flags);
 }
 
 static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
