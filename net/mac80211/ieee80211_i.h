@@ -503,6 +503,9 @@ struct ieee80211_if_managed {
 	struct ieee80211_ht_cap ht_capa_mask; /* Valid parts of ht_capa */
 	struct ieee80211_vht_cap vht_capa; /* configured VHT overrides */
 	struct ieee80211_vht_cap vht_capa_mask; /* Valid parts of vht_capa */
+
+	u8 tdls_peer[ETH_ALEN] __aligned(2);
+	struct delayed_work tdls_peer_del_work;
 };
 
 struct ieee80211_if_ibss {
@@ -814,9 +817,6 @@ struct ieee80211_sub_if_data {
 
 	bool radar_required;
 	struct delayed_work dfs_cac_timer_work;
-
-	u8 tdls_peer[ETH_ALEN] __aligned(2);
-	struct delayed_work tdls_peer_del_work;
 
 	/*
 	 * AP this belongs to: self in AP mode and

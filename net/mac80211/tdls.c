@@ -22,14 +22,14 @@ void ieee80211_tdls_peer_del_work(struct work_struct *wk)
 	struct ieee80211_local *local;
 
 	sdata = container_of(wk, struct ieee80211_sub_if_data,
-			     tdls_peer_del_work.work);
+			     u.mgd.tdls_peer_del_work.work);
 	local = sdata->local;
 
 	mutex_lock(&local->mtx);
-	if (!is_zero_ether_addr(sdata->tdls_peer)) {
-		tdls_dbg(sdata, "TDLS del peer %pM\n", sdata->tdls_peer);
-		sta_info_destroy_addr(sdata, sdata->tdls_peer);
-		eth_zero_addr(sdata->tdls_peer);
+	if (!is_zero_ether_addr(sdata->u.mgd.tdls_peer)) {
+		tdls_dbg(sdata, "TDLS del peer %pM\n", sdata->u.mgd.tdls_peer);
+		sta_info_destroy_addr(sdata, sdata->u.mgd.tdls_peer);
+		eth_zero_addr(sdata->u.mgd.tdls_peer);
 	}
 	mutex_unlock(&local->mtx);
 }
@@ -561,8 +561,8 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 	mutex_lock(&local->mtx);
 
 	/* we don't support concurrent TDLS peer setups */
-	if (!is_zero_ether_addr(sdata->tdls_peer) &&
-	    !ether_addr_equal(sdata->tdls_peer, peer)) {
+	if (!is_zero_ether_addr(sdata->u.mgd.tdls_peer) &&
+	    !ether_addr_equal(sdata->u.mgd.tdls_peer, peer)) {
 		ret = -EBUSY;
 		goto exit;
 	}
@@ -593,9 +593,9 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 	if (ret < 0)
 		goto exit;
 
-	memcpy(sdata->tdls_peer, peer, ETH_ALEN);
+	memcpy(sdata->u.mgd.tdls_peer, peer, ETH_ALEN);
 	ieee80211_queue_delayed_work(&sdata->local->hw,
-				     &sdata->tdls_peer_del_work,
+				     &sdata->u.mgd.tdls_peer_del_work,
 				     TDLS_PEER_SETUP_TIMEOUT);
 
 exit:
@@ -751,8 +751,8 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		set_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
 		rcu_read_unlock();
 
-		WARN_ON_ONCE(is_zero_ether_addr(sdata->tdls_peer) ||
-			     !ether_addr_equal(sdata->tdls_peer, peer));
+		WARN_ON_ONCE(is_zero_ether_addr(sdata->u.mgd.tdls_peer) ||
+			     !ether_addr_equal(sdata->u.mgd.tdls_peer, peer));
 		ret = 0;
 		break;
 	case NL80211_TDLS_DISABLE_LINK:
@@ -766,9 +766,9 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		break;
 	}
 
-	if (ret == 0 && ether_addr_equal(sdata->tdls_peer, peer)) {
-		cancel_delayed_work(&sdata->tdls_peer_del_work);
-		eth_zero_addr(sdata->tdls_peer);
+	if (ret == 0 && ether_addr_equal(sdata->u.mgd.tdls_peer, peer)) {
+		cancel_delayed_work(&sdata->u.mgd.tdls_peer_del_work);
+		eth_zero_addr(sdata->u.mgd.tdls_peer);
 	}
 
 	mutex_unlock(&local->mtx);
