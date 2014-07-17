@@ -3956,7 +3956,7 @@ static int be_flash_skyhawk(struct be_adapter *adapter,
 	fsec = get_fsec_info(adapter, filehdr_size + img_hdrs_size, fw);
 	if (!fsec) {
 		dev_err(dev, "Invalid Cookie. FW image may be corrupted\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	for (i = 0; i < le32_to_cpu(fsec->fsec_hdr.num_images); i++) {
@@ -4187,7 +4187,7 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 							      &flash_cmd,
 							      num_imgs);
 				else {
-					status = -1;
+					status = -EINVAL;
 					dev_err(&adapter->pdev->dev,
 						"Can't load BE3 UFI on BE3R\n");
 				}
@@ -4198,7 +4198,7 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 	if (ufi_type == UFI_TYPE2)
 		status = be_flash_BEx(adapter, fw, &flash_cmd, 0);
 	else if (ufi_type == -1)
-		status = -1;
+		status = -EINVAL;
 
 	dma_free_coherent(&adapter->pdev->dev, flash_cmd.size, flash_cmd.va,
 			  flash_cmd.dma);
