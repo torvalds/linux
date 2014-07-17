@@ -201,7 +201,11 @@ static void cpu_ready_for_interrupts(void)
 	/* Set IR and DR in PACA MSR */
 	get_paca()->kernel_msr = MSR_KERNEL;
 
-	/* Enable AIL if supported */
+	/*
+	 * Enable AIL if supported, and we are in hypervisor mode. If we are
+	 * not in hypervisor mode, we enable relocation-on interrupts later
+	 * in pSeries_setup_arch() using the H_SET_MODE hcall.
+	 */
 	if (cpu_has_feature(CPU_FTR_HVMODE) &&
 	    cpu_has_feature(CPU_FTR_ARCH_207S)) {
 		unsigned long lpcr = mfspr(SPRN_LPCR);
