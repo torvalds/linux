@@ -554,7 +554,6 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 		break;
 	default:
 		return I40E_ERR_DEVICE_NOT_SUPPORTED;
-		break;
 	}
 
 	hw->phy.get_link_info = true;
@@ -650,6 +649,31 @@ i40e_status i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 
 	if (flags & I40E_AQC_LAN_ADDR_VALID)
 		memcpy(mac_addr, &addrs.pf_lan_mac, sizeof(addrs.pf_lan_mac));
+
+	return status;
+}
+
+/**
+ * i40e_get_port_mac_addr - get Port MAC address
+ * @hw: pointer to the HW structure
+ * @mac_addr: pointer to Port MAC address
+ *
+ * Reads the adapter's Port MAC address
+ **/
+i40e_status i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
+{
+	struct i40e_aqc_mac_address_read_data addrs;
+	i40e_status status;
+	u16 flags = 0;
+
+	status = i40e_aq_mac_address_read(hw, &flags, &addrs, NULL);
+	if (status)
+		return status;
+
+	if (flags & I40E_AQC_PORT_ADDR_VALID)
+		memcpy(mac_addr, &addrs.port_mac, sizeof(addrs.port_mac));
+	else
+		status = I40E_ERR_INVALID_MAC_ADDR;
 
 	return status;
 }

@@ -314,6 +314,7 @@ void i40e_ptp_tx_hwtstamp(struct i40e_pf *pf)
 	skb_tstamp_tx(pf->ptp_tx_skb, &shhwtstamps);
 	dev_kfree_skb_any(pf->ptp_tx_skb);
 	pf->ptp_tx_skb = NULL;
+	clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, &pf->state);
 }
 
 /**
@@ -446,8 +447,12 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	/* Confirm that 1588 is supported on this PF. */
 	pf_id = (rd32(hw, I40E_PRTTSYN_CTL0) & I40E_PRTTSYN_CTL0_PF_ID_MASK) >>
 		I40E_PRTTSYN_CTL0_PF_ID_SHIFT;
-	if (hw->pf_id != pf_id)
-		return -EINVAL;
+	if (hw->pf_id != pf_id) {
+		dev_err(&pf->pdev->dev,
+			"PF %d attempted to control timestamp mode on port %d, which is owned by PF %d\n",
+			hw->pf_id, hw->port, pf_id);
+		return -EPERM;
+	}
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -677,6 +682,7 @@ void i40e_ptp_stop(struct i40e_pf *pf)
 	if (pf->ptp_tx_skb) {
 		dev_kfree_skb_any(pf->ptp_tx_skb);
 		pf->ptp_tx_skb = NULL;
+		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, &pf->state);
 	}
 
 	if (pf->ptp_clock) {
