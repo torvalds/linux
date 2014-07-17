@@ -327,7 +327,7 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 		/* Error!  Stop acquisition.  */
 		dio200_stop_intr(dev, s);
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-		comedi_error(dev, "buffer overflow");
+		dev_err(dev->class_dev, "buffer overflow\n");
 	}
 
 	/* Check for end of acquisition. */
