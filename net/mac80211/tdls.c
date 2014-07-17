@@ -46,10 +46,15 @@ static void ieee80211_tdls_add_ext_capab(struct sk_buff *skb)
 	*pos++ = WLAN_EXT_CAPA5_TDLS_ENABLED;
 }
 
-static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata)
+static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata,
+					u16 status_code)
 {
 	struct ieee80211_local *local = sdata->local;
 	u16 capab;
+
+	/* The capability will be 0 when sending a failure code */
+	if (status_code != 0)
+		return 0;
 
 	capab = 0;
 	if (ieee80211_get_sdata_band(sdata) != IEEE80211_BAND_2GHZ)
@@ -207,7 +212,8 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		skb_put(skb, sizeof(tf->u.setup_req));
 		tf->u.setup_req.dialog_token = dialog_token;
 		tf->u.setup_req.capability =
-			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
+			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata,
+								 status_code));
 		break;
 	case WLAN_TDLS_SETUP_RESPONSE:
 		tf->category = WLAN_CATEGORY_TDLS;
@@ -217,7 +223,8 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_resp.status_code = cpu_to_le16(status_code);
 		tf->u.setup_resp.dialog_token = dialog_token;
 		tf->u.setup_resp.capability =
-			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
+			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata,
+								 status_code));
 		break;
 	case WLAN_TDLS_SETUP_CONFIRM:
 		tf->category = WLAN_CATEGORY_TDLS;
@@ -274,7 +281,8 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 		mgmt->u.action.u.tdls_discover_resp.dialog_token =
 			dialog_token;
 		mgmt->u.action.u.tdls_discover_resp.capability =
-			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
+			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata,
+								 status_code));
 		break;
 	default:
 		return -EINVAL;
