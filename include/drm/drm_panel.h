@@ -30,8 +30,42 @@ struct drm_connector;
 struct drm_device;
 struct drm_panel;
 
+/**
+ * struct drm_panel_funcs - perform operations on a given panel
+ * @disable: disable panel (turn off back light, etc.)
+ * @unprepare: turn off panel
+ * @prepare: turn on panel and perform set up
+ * @enable: enable panel (turn on back light, etc.)
+ * @get_modes: add modes to the connector that the panel is attached to and
+ * return the number of modes added
+ *
+ * The .prepare() function is typically called before the display controller
+ * starts to transmit video data. Panel drivers can use this to turn the panel
+ * on and wait for it to become ready. If additional configuration is required
+ * (via a control bus such as I2C, SPI or DSI for example) this is a good time
+ * to do that.
+ *
+ * After the display controller has started transmitting video data, it's safe
+ * to call the .enable() function. This will typically enable the backlight to
+ * make the image on screen visible. Some panels require a certain amount of
+ * time or frames before the image is displayed. This function is responsible
+ * for taking this into account before enabling the backlight to avoid visual
+ * glitches.
+ *
+ * Before stopping video transmission from the display controller it can be
+ * necessary to turn off the panel to avoid visual glitches. This is done in
+ * the .disable() function. Analogously to .enable() this typically involves
+ * turning off the backlight and waiting for some time to make sure no image
+ * is visible on the panel. It is then safe for the display controller to
+ * cease transmission of video data.
+ *
+ * To save power when no video data is transmitted, a driver can power down
+ * the panel. This is the job of the .unprepare() function.
+ */
 struct drm_panel_funcs {
 	int (*disable)(struct drm_panel *panel);
+	int (*unprepare)(struct drm_panel *panel);
+	int (*prepare)(struct drm_panel *panel);
 	int (*enable)(struct drm_panel *panel);
 	int (*get_modes)(struct drm_panel *panel);
 };
@@ -46,10 +80,26 @@ struct drm_panel {
 	struct list_head list;
 };
 
+static inline int drm_panel_unprepare(struct drm_panel *panel)
+{
+	if (panel && panel->funcs && panel->funcs->unprepare)
+		return panel->funcs->unprepare(panel);
+
+	return panel ? -ENOSYS : -EINVAL;
+}
+
 static inline int drm_panel_disable(struct drm_panel *panel)
 {
 	if (panel && panel->funcs && panel->funcs->disable)
 		return panel->funcs->disable(panel);
+
+	return panel ? -ENOSYS : -EINVAL;
+}
+
+static inline int drm_panel_prepare(struct drm_panel *panel)
+{
+	if (panel && panel->funcs && panel->funcs->prepare)
+		return panel->funcs->prepare(panel);
 
 	return panel ? -ENOSYS : -EINVAL;
 }
