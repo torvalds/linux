@@ -143,7 +143,7 @@ eeh_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 		} else {
 			if (dev != piar->pcidev ||
 			    alo != piar->addr_lo || ahi != piar->addr_hi) {
-				pr_warning("PIAR: overlapping address range\n");
+				pr_warn("PIAR: overlapping address range\n");
 			}
 			return piar;
 		}
@@ -177,13 +177,14 @@ static void __eeh_addr_cache_insert_dev(struct pci_dev *dev)
 
 	dn = pci_device_to_OF_node(dev);
 	if (!dn) {
-		pr_warning("PCI: no pci dn found for dev=%s\n", pci_name(dev));
+		pr_warn("PCI: no pci dn found for dev=%s\n",
+			pci_name(dev));
 		return;
 	}
 
 	edev = of_node_to_eeh_dev(dn);
 	if (!edev) {
-		pr_warning("PCI: no EEH dev found for dn=%s\n",
+		pr_warn("PCI: no EEH dev found for dn=%s\n",
 			dn->full_name);
 		return;
 	}

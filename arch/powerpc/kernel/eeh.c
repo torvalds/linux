@@ -337,8 +337,8 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	/* Find the PHB PE */
 	phb_pe = eeh_phb_pe_get(pe->phb);
 	if (!phb_pe) {
-		pr_warning("%s Can't find PE for PHB#%d\n",
-			   __func__, pe->phb->global_number);
+		pr_warn("%s Can't find PE for PHB#%d\n",
+			__func__, pe->phb->global_number);
 		return -EEXIST;
 	}
 
@@ -787,13 +787,13 @@ void eeh_save_bars(struct eeh_dev *edev)
 int __init eeh_ops_register(struct eeh_ops *ops)
 {
 	if (!ops->name) {
-		pr_warning("%s: Invalid EEH ops name for %p\n",
+		pr_warn("%s: Invalid EEH ops name for %p\n",
 			__func__, ops);
 		return -EINVAL;
 	}
 
 	if (eeh_ops && eeh_ops != ops) {
-		pr_warning("%s: EEH ops of platform %s already existing (%s)\n",
+		pr_warn("%s: EEH ops of platform %s already existing (%s)\n",
 			__func__, eeh_ops->name, ops->name);
 		return -EEXIST;
 	}
@@ -813,7 +813,7 @@ int __init eeh_ops_register(struct eeh_ops *ops)
 int __exit eeh_ops_unregister(const char *name)
 {
 	if (!name || !strlen(name)) {
-		pr_warning("%s: Invalid EEH ops name\n",
+		pr_warn("%s: Invalid EEH ops name\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -878,11 +878,11 @@ int eeh_init(void)
 
 	/* call platform initialization function */
 	if (!eeh_ops) {
-		pr_warning("%s: Platform EEH operation not found\n",
+		pr_warn("%s: Platform EEH operation not found\n",
 			__func__);
 		return -EEXIST;
 	} else if ((ret = eeh_ops->init())) {
-		pr_warning("%s: Failed to call platform init function (%d)\n",
+		pr_warn("%s: Failed to call platform init function (%d)\n",
 			__func__, ret);
 		return ret;
 	}
@@ -923,7 +923,7 @@ int eeh_init(void)
 	if (eeh_enabled())
 		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
 	else
-		pr_warning("EEH: No capable adapters found\n");
+		pr_warn("EEH: No capable adapters found\n");
 
 	return ret;
 }

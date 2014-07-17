@@ -57,7 +57,8 @@ void *eeh_dev_init(struct device_node *dn, void *data)
 	/* Allocate EEH device */
 	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
 	if (!edev) {
-		pr_warning("%s: out of memory\n", __func__);
+		pr_warn("%s: out of memory\n",
+			__func__);
 		return NULL;
 	}
 

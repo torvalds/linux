@@ -50,7 +50,8 @@ static int powernv_eeh_init(void)
 
 	/* We require OPALv3 */
 	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
-		pr_warning("%s: OPALv3 is required !\n", __func__);
+		pr_warn("%s: OPALv3 is required !\n",
+			__func__);
 		return -EINVAL;
 	}
 
@@ -304,8 +305,8 @@ static int powernv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
 
 		max_wait -= mwait;
 		if (max_wait <= 0) {
-			pr_warning("%s: Timeout getting PE#%x's state (%d)\n",
-				   __func__, pe->addr, max_wait);
+			pr_warn("%s: Timeout getting PE#%x's state (%d)\n",
+				__func__, pe->addr, max_wait);
 			return EEH_STATE_NOT_SUPPORT;
 		}
 

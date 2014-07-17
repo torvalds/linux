@@ -179,7 +179,8 @@ void *eeh_pe_dev_traverse(struct eeh_pe *root,
 	void *ret;
 
 	if (!root) {
-		pr_warning("%s: Invalid PE %p\n", __func__, root);
+		pr_warn("%s: Invalid PE %p\n",
+			__func__, root);
 		return NULL;
 	}
 
