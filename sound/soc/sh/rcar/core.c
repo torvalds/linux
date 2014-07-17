@@ -338,6 +338,8 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
 	cfg.src_addr	= rsnd_gen_dma_addr(priv, mod_from, is_play, 1);
 	cfg.dst_addr	= rsnd_gen_dma_addr(priv, mod_to,   is_play, 0);
+	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
 	dev_dbg(dev, "dma : %s %pad -> %pad\n",
 		dma_name, &cfg.src_addr, &cfg.dst_addr);
