@@ -533,13 +533,12 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
 		saa7146_vbi_uops.init(dev,vv);
 
-	fmt = &vv->ov_fb.fmt;
-	fmt->width = vv->standard->h_max_out;
-	fmt->height = vv->standard->v_max_out;
-	fmt->pixelformat = V4L2_PIX_FMT_RGB565;
-	fmt->bytesperline = 2 * fmt->width;
-	fmt->sizeimage = fmt->bytesperline * fmt->height;
-	fmt->colorspace = V4L2_COLORSPACE_SRGB;
+	vv->ov_fb.fmt.width = vv->standard->h_max_out;
+	vv->ov_fb.fmt.height = vv->standard->v_max_out;
+	vv->ov_fb.fmt.pixelformat = V4L2_PIX_FMT_RGB565;
+	vv->ov_fb.fmt.bytesperline = 2 * vv->ov_fb.fmt.width;
+	vv->ov_fb.fmt.sizeimage = vv->ov_fb.fmt.bytesperline * vv->ov_fb.fmt.height;
+	vv->ov_fb.fmt.colorspace = V4L2_COLORSPACE_SRGB;
 
 	fmt = &vv->video_fmt;
 	fmt->width = 384;
