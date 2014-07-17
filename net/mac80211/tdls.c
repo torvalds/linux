@@ -78,25 +78,91 @@ static void ieee80211_tdls_add_link_ie(struct sk_buff *skb, const u8 *src_addr,
 	memcpy(lnkid->resp_sta, peer, ETH_ALEN);
 }
 
+static void
+ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
+				   struct sk_buff *skb, const u8 *peer,
+				   u8 action_code, const u8 *extra_ies,
+				   size_t extra_ies_len)
+{
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	size_t offset = 0, noffset;
+	u8 *pos;
+
+	ieee80211_add_srates_ie(sdata, skb, false, band);
+	ieee80211_add_ext_srates_ie(sdata, skb, false, band);
+
+	/* add any custom IEs that go before Extended Capabilities */
+	if (extra_ies_len) {
+		static const u8 before_ext_cap[] = {
+			WLAN_EID_SUPP_RATES,
+			WLAN_EID_COUNTRY,
+			WLAN_EID_EXT_SUPP_RATES,
+			WLAN_EID_SUPPORTED_CHANNELS,
+			WLAN_EID_RSN,
+		};
+		noffset = ieee80211_ie_split(extra_ies, extra_ies_len,
+					     before_ext_cap,
+					     ARRAY_SIZE(before_ext_cap),
+					     offset);
+		pos = skb_put(skb, noffset - offset);
+		memcpy(pos, extra_ies + offset, noffset - offset);
+		offset = noffset;
+	}
+
+	ieee80211_tdls_add_ext_capab(skb);
+
+	/* add any custom IEs that go before HT capabilities */
+	if (extra_ies_len) {
+		static const u8 before_ht_cap[] = {
+			WLAN_EID_SUPP_RATES,
+			WLAN_EID_COUNTRY,
+			WLAN_EID_EXT_SUPP_RATES,
+			WLAN_EID_SUPPORTED_CHANNELS,
+			WLAN_EID_RSN,
+			WLAN_EID_EXT_CAPABILITY,
+			WLAN_EID_QOS_CAPA,
+			WLAN_EID_FAST_BSS_TRANSITION,
+			WLAN_EID_TIMEOUT_INTERVAL,
+			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
+		};
+		noffset = ieee80211_ie_split(extra_ies, extra_ies_len,
+					     before_ht_cap,
+					     ARRAY_SIZE(before_ht_cap),
+					     offset);
+		pos = skb_put(skb, noffset - offset);
+		memcpy(pos, extra_ies + offset, noffset - offset);
+		offset = noffset;
+	}
+
+	/* add any remaining IEs */
+	if (extra_ies_len) {
+		noffset = extra_ies_len;
+		pos = skb_put(skb, noffset - offset);
+		memcpy(pos, extra_ies + offset, noffset - offset);
+	}
+}
+
 static void ieee80211_tdls_add_ies(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb, const u8 *peer,
 				   u8 action_code, bool initiator,
 				   const u8 *extra_ies, size_t extra_ies_len)
 {
 	const u8 *init_addr, *rsp_addr;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 
 	switch (action_code) {
 	case WLAN_TDLS_SETUP_REQUEST:
 	case WLAN_TDLS_SETUP_RESPONSE:
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
-		ieee80211_add_srates_ie(sdata, skb, false, band);
-		ieee80211_add_ext_srates_ie(sdata, skb, false, band);
-		ieee80211_tdls_add_ext_capab(skb);
+		ieee80211_tdls_add_setup_start_ies(sdata, skb, peer,
+						   action_code, extra_ies,
+						   extra_ies_len);
 		break;
 	case WLAN_TDLS_SETUP_CONFIRM:
 	case WLAN_TDLS_TEARDOWN:
 	case WLAN_TDLS_DISCOVERY_REQUEST:
+		if (extra_ies_len)
+			memcpy(skb_put(skb, extra_ies_len), extra_ies,
+			       extra_ies_len);
 		break;
 	}
 
@@ -107,9 +173,6 @@ static void ieee80211_tdls_add_ies(struct ieee80211_sub_if_data *sdata,
 		init_addr = peer;
 		rsp_addr = sdata->vif.addr;
 	}
-
-	if (extra_ies_len)
-		memcpy(skb_put(skb, extra_ies_len), extra_ies, extra_ies_len);
 
 	ieee80211_tdls_add_link_ie(skb, init_addr, rsp_addr,
 				   sdata->u.mgd.bssid);
