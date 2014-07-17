@@ -3312,7 +3312,7 @@ static void BEx_get_resources(struct be_adapter *adapter,
 	res->max_rx_qs = res->max_rss_qs + 1;
 
 	if (be_physfn(adapter))
-		res->max_evt_qs = (res->max_vfs > 0) ?
+		res->max_evt_qs = (be_max_vfs(adapter) > 0) ?
 					BE3_SRIOV_MAX_EVT_QS : BE3_MAX_EVT_QS;
 	else
 		res->max_evt_qs = 1;
