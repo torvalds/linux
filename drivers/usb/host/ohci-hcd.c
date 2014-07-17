@@ -109,6 +109,33 @@ MODULE_PARM_DESC (no_handshake, "true (not default) disables BIOS handshake");
 
 /*-------------------------------------------------------------------------*/
 
+static int number_of_tds(struct urb *urb)
+{
+	int			len, i, num, this_sg_len;
+	struct scatterlist	*sg;
+
+	len = urb->transfer_buffer_length;
+	i = urb->num_mapped_sgs;
+
+	if (len > 0 && i > 0) {		/* Scatter-gather transfer */
+		num = 0;
+		sg = urb->sg;
+		for (;;) {
+			this_sg_len = min_t(int, sg_dma_len(sg), len);
+			num += DIV_ROUND_UP(this_sg_len, 4096);
+			len -= this_sg_len;
+			if (--i <= 0 || len <= 0)
+				break;
+			sg = sg_next(sg);
+		}
+
+	} else {			/* Non-SG transfer */
+		/* one TD for every 4096 Bytes (could be up to 8K) */
+		num = DIV_ROUND_UP(len, 4096);
+	}
+	return num;
+}
+
 /*
  * queue up an urb for anything except the root hub
  */
@@ -142,12 +169,8 @@ static int ohci_urb_enqueue (
 		// case PIPE_INTERRUPT:
 		// case PIPE_BULK:
 		default:
-			/* one TD for every 4096 Bytes (can be up to 8K) */
-			size += urb->transfer_buffer_length / 4096;
-			/* ... and for any remaining bytes ... */
-			if ((urb->transfer_buffer_length % 4096) != 0)
-				size++;
-			/* ... and maybe a zero length packet to wrap it up */
+			size += number_of_tds(urb);
+			/* maybe a zero-length packet to wrap it up */
 			if (size == 0)
 				size++;
 			else if ((urb->transfer_flags & URB_ZERO_PACKET) != 0
@@ -505,6 +528,9 @@ static int ohci_init (struct ohci_hcd *ohci)
 {
 	int ret;
 	struct usb_hcd *hcd = ohci_to_hcd(ohci);
+
+	/* Accept arbitrarily long scatter-gather lists */
+	hcd->self.sg_tablesize = ~0;
 
 	if (distrust_firmware)
 		ohci->flags |= OHCI_QUIRK_HUB_POWER;
