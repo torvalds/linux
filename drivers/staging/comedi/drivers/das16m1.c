@@ -460,7 +460,7 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	 * overrun interrupts, but we might as well try */
 	if (status & OVRUN) {
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_error(dev, "fifo overflow");
+		dev_err(dev->class_dev, "fifo overflow\n");
 	}
 
 	cfc_handle_events(dev, s);
@@ -486,7 +486,7 @@ static irqreturn_t das16m1_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 
 	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
+		dev_err(dev->class_dev, "premature interrupt\n");
 		return IRQ_HANDLED;
 	}
 	/*  prevent race with comedi_poll() */
@@ -495,7 +495,7 @@ static irqreturn_t das16m1_interrupt(int irq, void *d)
 	status = inb(dev->iobase + DAS16M1_CS);
 
 	if ((status & (IRQDATA | OVRUN)) == 0) {
-		comedi_error(dev, "spurious interrupt");
+		dev_err(dev->class_dev, "spurious interrupt\n");
 		spin_unlock(&dev->spinlock);
 		return IRQ_NONE;
 	}
