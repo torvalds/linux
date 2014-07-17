@@ -50,6 +50,51 @@
 			     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	cpu_axi_bus: cpu_axi_bus {
+		compatible = "rockchip,cpu_axi_bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		qos {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			core {
+				reg = <0x1012a000 0x20>;
+				rockchip,priority = <3 2>;
+			};
+			peri {
+				reg = <0x1012c000 0x20>;
+			};
+			gpu {
+				reg = <0x1012d000 0x20>;
+			};
+			vpu {
+				reg = <0x1012e000 0x20>;
+			};
+			hevc {
+				reg = <0x1012e080 0x20>;
+			};
+			vio {
+				reg = <0x1012f000 0x20>;
+				rockchip,priority = <3 3>;
+			};
+		};
+
+		msch {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			msch@10128000 {
+				reg = <0x10128000 0x40>;
+				rockchip,read-latency = <0x80>;
+			};
+		};
+	};
+
 	sram: sram@10080000 {
 		compatible = "mmio-sram";
 		reg = <0x10080000 0x2000>;
