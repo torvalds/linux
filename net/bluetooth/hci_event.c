@@ -3870,6 +3870,9 @@ static void hci_simple_pair_complete_evt(struct hci_dev *hdev,
 	if (!conn)
 		goto unlock;
 
+	/* Reset the authentication requirement to unknown */
+	conn->remote_auth = 0xff;
+
 	/* To avoid duplicate auth_failed events to user space we check
 	 * the HCI_CONN_AUTH_PEND flag which will be set if we
 	 * initiated the authentication. A traditional auth_complete
