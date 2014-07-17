@@ -28,6 +28,8 @@ struct device_node;
  *		enable-method property.
  * @cpu_init:	Reads any data necessary for a specific enable-method from the
  *		devicetree, for a given cpu node and proposed logical id.
+ * @cpu_init_idle: Reads any data necessary to initialize CPU idle states from
+ *		devicetree, for a given cpu node and proposed logical id.
  * @cpu_prepare: Early one-time preparation step for a cpu. If there is a
  *		mechanism for doing so, tests whether it is possible to boot
  *		the given CPU.
@@ -47,6 +49,7 @@ struct device_node;
 struct cpu_operations {
 	const char	*name;
 	int		(*cpu_init)(struct device_node *, unsigned int);
+	int		(*cpu_init_idle)(struct device_node *, unsigned int);
 	int		(*cpu_prepare)(unsigned int);
 	int		(*cpu_boot)(unsigned int);
 	void		(*cpu_postboot)(void);
