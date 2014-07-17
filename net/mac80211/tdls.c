@@ -203,6 +203,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 	struct sk_buff *skb = NULL;
 	bool send_direct;
 	const u8 *init_addr, *rsp_addr;
+	struct sta_info *sta;
 	int ret;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
@@ -245,38 +246,50 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 	if (extra_ies_len)
 		memcpy(skb_put(skb, extra_ies_len), extra_ies, extra_ies_len);
 
-	/* sanity check for initiator */
+	rcu_read_lock();
+	sta = sta_info_get(sdata, peer);
+
+	/* infer the initiator if we can, to support old userspace */
 	switch (action_code) {
 	case WLAN_TDLS_SETUP_REQUEST:
+		if (sta)
+			set_sta_flag(sta, WLAN_STA_TDLS_INITIATOR);
+		/* fall-through */
 	case WLAN_TDLS_SETUP_CONFIRM:
 	case WLAN_TDLS_DISCOVERY_REQUEST:
-		if (!initiator) {
-			ret = -EINVAL;
-			goto fail;
-		}
+		initiator = true;
 		break;
 	case WLAN_TDLS_SETUP_RESPONSE:
+		/*
+		 * In some testing scenarios, we send a request and response.
+		 * Make the last packet sent take effect for the initiator
+		 * value.
+		 */
+		if (sta)
+			clear_sta_flag(sta, WLAN_STA_TDLS_INITIATOR);
+		/* fall-through */
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
-		if (initiator) {
-			ret = -EINVAL;
-			goto fail;
-		}
+		initiator = false;
 		break;
 	case WLAN_TDLS_TEARDOWN:
 		/* any value is ok */
 		break;
 	default:
 		ret = -ENOTSUPP;
-		goto fail;
+		break;
 	}
 
-	if (initiator) {
+	if (initiator || (sta && test_sta_flag(sta, WLAN_STA_TDLS_INITIATOR))) {
 		init_addr = sdata->vif.addr;
 		rsp_addr = peer;
 	} else {
 		init_addr = peer;
 		rsp_addr = sdata->vif.addr;
 	}
+
+	rcu_read_unlock();
+	if (ret < 0)
+		goto fail;
 
 	ieee80211_tdls_add_link_ie(skb, init_addr, rsp_addr,
 				   sdata->u.mgd.bssid);
