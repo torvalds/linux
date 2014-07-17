@@ -518,8 +518,8 @@ Older drivers which do not support this feature return an
 	    <entry>any</entry>
 	    <entry>An unsigned 8-bit valued control ranging from minimum to
 maximum inclusive. The step value indicates the increment between
-values which are actually different on the hardware. This type is only used
-in array controls.</entry>
+values which are actually different on the hardware.
+</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CTRL_TYPE_U16</constant></entry>
@@ -528,8 +528,8 @@ in array controls.</entry>
 	    <entry>any</entry>
 	    <entry>An unsigned 16-bit valued control ranging from minimum to
 maximum inclusive. The step value indicates the increment between
-values which are actually different on the hardware. This type is only used
-in array controls.</entry>
+values which are actually different on the hardware.
+</entry>
 	  </row>
 	</tbody>
       </tgroup>
