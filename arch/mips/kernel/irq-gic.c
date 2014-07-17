@@ -189,7 +189,7 @@ unsigned int gic_compare_int(void)
 		return 0;
 }
 
-unsigned int gic_get_int(void)
+void gic_get_int_mask(unsigned long *dst, const unsigned long *src)
 {
 	unsigned int i;
 	unsigned long *pending, *intrmask, *pcpu_mask;
@@ -214,8 +214,17 @@ unsigned int gic_get_int(void)
 
 	bitmap_and(pending, pending, intrmask, GIC_NUM_INTRS);
 	bitmap_and(pending, pending, pcpu_mask, GIC_NUM_INTRS);
+	bitmap_and(dst, src, pending, GIC_NUM_INTRS);
+}
 
-	return find_first_bit(pending, GIC_NUM_INTRS);
+unsigned int gic_get_int(void)
+{
+	DECLARE_BITMAP(interrupts, GIC_NUM_INTRS);
+
+	bitmap_fill(interrupts, GIC_NUM_INTRS);
+	gic_get_int_mask(interrupts, interrupts);
+
+	return find_first_bit(interrupts, GIC_NUM_INTRS);
 }
 
 static void gic_mask_irq(struct irq_data *d)
