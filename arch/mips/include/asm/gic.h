@@ -14,6 +14,8 @@
 #include <linux/bitmap.h>
 #include <linux/threads.h>
 
+#include <irq.h>
+
 #undef	GICISBYTELITTLEENDIAN
 
 /* Constants */
@@ -21,8 +23,6 @@
 #define GIC_POL_NEG			0
 #define GIC_TRIG_EDGE			1
 #define GIC_TRIG_LEVEL			0
-
-#define GIC_NUM_INTRS			(24 + NR_CPUS * 2)
 
 #define MSK(n) ((1 << (n)) - 1)
 #define REG32(addr)		(*(volatile unsigned int *) (addr))
