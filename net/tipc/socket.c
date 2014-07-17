@@ -534,6 +534,46 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 	return mask;
 }
 
+/* tipc_sk_mcast_rcv - Deliver multicast message to all destination sockets
+ */
+void tipc_sk_mcast_rcv(struct sk_buff *buf)
+{
+	struct tipc_msg *msg = buf_msg(buf);
+	struct tipc_port_list dports = {0, NULL, };
+	struct tipc_port_list *item;
+	struct sk_buff *b;
+	uint i, last, dst = 0;
+	u32 scope = TIPC_CLUSTER_SCOPE;
+
+	if (in_own_node(msg_orignode(msg)))
+		scope = TIPC_NODE_SCOPE;
+
+	/* Create destination port list: */
+	tipc_nametbl_mc_translate(msg_nametype(msg),
+				  msg_namelower(msg),
+				  msg_nameupper(msg),
+				  scope,
+				  &dports);
+	last = dports.count;
+	if (!last) {
+		kfree_skb(buf);
+		return;
+	}
+
+	for (item = &dports; item; item = item->next) {
+		for (i = 0; i < PLSIZE && ++dst <= last; i++) {
+			b = (dst != last) ? skb_clone(buf, GFP_ATOMIC) : buf;
+			if (!b) {
+				pr_warn("Failed do clone mcast rcv buffer\n");
+				continue;
+			}
+			msg_set_destport(msg, item->ports[i]);
+			tipc_sk_rcv(b);
+		}
+	}
+	tipc_port_list_free(&dports);
+}
+
 /**
  * tipc_sk_proto_rcv - receive a connection mng protocol message
  * @tsk: receiving socket

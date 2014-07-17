@@ -1,7 +1,7 @@
 /*
  * net/tipc/bcast.c: TIPC broadcast code
  *
- * Copyright (c) 2004-2006, Ericsson AB
+ * Copyright (c) 2004-2006, 2014, Ericsson AB
  * Copyright (c) 2004, Intel Corporation.
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
@@ -38,6 +38,8 @@
 #include "core.h"
 #include "link.h"
 #include "port.h"
+#include "socket.h"
+#include "msg.h"
 #include "bcast.h"
 #include "name_distr.h"
 
@@ -136,6 +138,11 @@ static void tipc_bclink_unlock(void)
 
 	if (node)
 		tipc_link_reset_all(node);
+}
+
+uint  tipc_bclink_get_mtu(void)
+{
+	return MAX_PKT_DEFAULT_MCAST;
 }
 
 void tipc_bclink_set_flags(unsigned int flags)
@@ -406,6 +413,52 @@ int tipc_bclink_xmit(struct sk_buff *buf)
 exit:
 	tipc_bclink_unlock();
 	return res;
+}
+
+/* tipc_bclink_xmit2 - broadcast buffer chain to all nodes in cluster
+ *                     and to identified node local sockets
+ * @buf: chain of buffers containing message
+ * Consumes the buffer chain, except when returning -ELINKCONG
+ * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
+ */
+int tipc_bclink_xmit2(struct sk_buff *buf)
+{
+	int rc = 0;
+	int bc = 0;
+	struct sk_buff *clbuf;
+
+	/* Prepare clone of message for local node */
+	clbuf = tipc_msg_reassemble(buf);
+	if (unlikely(!clbuf)) {
+		kfree_skb_list(buf);
+		return -EHOSTUNREACH;
+	}
+
+	/* Broadcast to all other nodes */
+	if (likely(bclink)) {
+		tipc_bclink_lock();
+		if (likely(bclink->bcast_nodes.count)) {
+			rc = __tipc_link_xmit(bcl, buf);
+			if (likely(!rc)) {
+				bclink_set_last_sent();
+				bcl->stats.queue_sz_counts++;
+				bcl->stats.accu_queue_sz += bcl->out_queue_size;
+			}
+			bc = 1;
+		}
+		tipc_bclink_unlock();
+	}
+
+	if (unlikely(!bc))
+		kfree_skb_list(buf);
+
+	/* Deliver message clone */
+	if (likely(!rc))
+		tipc_sk_mcast_rcv(clbuf);
+	else
+		kfree_skb(clbuf);
+
+	return rc;
 }
 
 /**

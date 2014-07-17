@@ -417,3 +417,38 @@ int tipc_msg_eval(struct sk_buff *buf, u32 *dnode)
 	msg_set_destport(msg, dport);
 	return TIPC_OK;
 }
+
+/* tipc_msg_reassemble() - clone a buffer chain of fragments and
+ *                         reassemble the clones into one message
+ */
+struct sk_buff *tipc_msg_reassemble(struct sk_buff *chain)
+{
+	struct sk_buff *buf = chain;
+	struct sk_buff *frag = buf;
+	struct sk_buff *head = NULL;
+	int hdr_sz;
+
+	/* Copy header if single buffer */
+	if (!buf->next) {
+		hdr_sz = skb_headroom(buf) + msg_hdr_sz(buf_msg(buf));
+		return __pskb_copy(buf, hdr_sz, GFP_ATOMIC);
+	}
+
+	/* Clone all fragments and reassemble */
+	while (buf) {
+		frag = skb_clone(buf, GFP_ATOMIC);
+		if (!frag)
+			goto error;
+		frag->next = NULL;
+		if (tipc_buf_append(&head, &frag))
+			break;
+		if (!head)
+			goto error;
+		buf = buf->next;
+	}
+	return frag;
+error:
+	pr_warn("Failed do clone local mcast rcv buffer\n");
+	kfree_skb(head);
+	return NULL;
+}

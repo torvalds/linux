@@ -85,4 +85,6 @@ static inline int tipc_sk_conn_cong(struct tipc_sock *tsk)
 
 int tipc_sk_rcv(struct sk_buff *buf);
 
+void tipc_sk_mcast_rcv(struct sk_buff *buf);
+
 #endif
