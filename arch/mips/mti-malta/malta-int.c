@@ -42,6 +42,10 @@ static unsigned int ipi_map[NR_CPUS];
 
 static DEFINE_RAW_SPINLOCK(mips_irq_lock);
 
+#ifdef CONFIG_MIPS_GIC_IPI
+DECLARE_BITMAP(ipi_ints, GIC_NUM_INTRS);
+#endif
+
 static inline int mips_pcibios_iack(void)
 {
 	int irq;
@@ -125,16 +129,22 @@ static void malta_hw0_irqdispatch(void)
 
 static void malta_ipi_irqdispatch(void)
 {
-	int irq;
+#ifdef CONFIG_MIPS_GIC_IPI
+	unsigned long irq;
+	DECLARE_BITMAP(pending, GIC_NUM_INTRS);
 
+	gic_get_int_mask(pending, ipi_ints);
+
+	irq = find_first_bit(pending, GIC_NUM_INTRS);
+
+	while (irq < GIC_NUM_INTRS) {
+		do_IRQ(MIPS_GIC_IRQ_BASE + irq);
+
+		irq = find_next_bit(pending, GIC_NUM_INTRS, irq + 1);
+	}
+#endif
 	if (gic_compare_int())
 		do_IRQ(MIPS_GIC_IRQ_BASE);
-
-	irq = gic_get_int();
-	if (irq < 0)
-		return;	 /* interrupt has already been cleared */
-
-	do_IRQ(MIPS_GIC_IRQ_BASE + irq);
 }
 
 static void corehi_irqdispatch(void)
@@ -429,6 +439,7 @@ static void __init fill_ipi_map1(int baseintr, int cpu, int cpupin)
 	gic_intr_map[intr].trigtype = GIC_TRIG_EDGE;
 	gic_intr_map[intr].flags = 0;
 	ipi_map[cpu] |= (1 << (cpupin + 2));
+	bitmap_set(ipi_ints, intr, 1);
 }
 
 static void __init fill_ipi_map(void)
