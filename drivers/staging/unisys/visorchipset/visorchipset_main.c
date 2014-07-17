@@ -16,7 +16,6 @@
  */
 
 #include "globals.h"
-#include "controlvm.h"
 #include "visorchipset.h"
 #include "procobjecttree.h"
 #include "visorchannel.h"
@@ -1837,6 +1836,20 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 	return TRUE;
 }
 
+HOSTADDRESS controlvm_get_channel_address(void)
+{
+	U64 addr = 0;
+	U32 size = 0;
+
+	if (!VMCALL_SUCCESSFUL(Issue_VMCALL_IO_CONTROLVM_ADDR(&addr, &size))) {
+		ERRDRV("%s - vmcall to determine controlvm channel addr failed",
+		       __func__);
+		return 0;
+	}
+	INFODRV("controlvm addr=%Lx", addr);
+	return addr;
+}
+
 static void
 controlvm_periodic_work(struct work_struct *work)
 {
@@ -2633,7 +2646,6 @@ visorchipset_init(void)
 		goto Away;
 	}
 
-	controlvm_init();
 	MajorDev = MKDEV(visorchipset_major, 0);
 	rc = visorchipset_file_init(MajorDev, &ControlVm_channel);
 	if (rc < 0) {
@@ -2789,7 +2801,6 @@ visorchipset_exit(void)
 		visorchannel_destroy(ControlVm_channel);
 		ControlVm_channel = NULL;
 	}
-	controlvm_deinit();
 	visorchipset_file_cleanup();
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	LOGINF("chipset driver unloaded");
